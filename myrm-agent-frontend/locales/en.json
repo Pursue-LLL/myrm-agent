@@ -5338,7 +5338,13 @@
         "optRemote": "Remote server",
         "optCloud": "Cloud hosting",
         "gateFailed": "Unreachable server — not switched. Click again to force.",
-        "restoredLastGood": "Switched back to the last working connection."
+        "restoredLastGood": "Switched back to the last working connection.",
+        "activeSessionsDialog": {
+          "title": "Active sessions detected",
+          "description": "{count} sessions are still generating locally. Switching waits for them to finish and disconnects the local stream; session history is preserved.",
+          "confirm": "Switch anyway",
+          "cancel": "Cancel"
+        }
       },
       "webuiAccess": {
         "title": "WebUI access password",

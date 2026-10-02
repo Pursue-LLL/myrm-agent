@@ -109,12 +109,15 @@ function backupLocalAuthToken(): void {
     return;
   }
   const current = window.localStorage.getItem('auth_token');
-  if (current && current !== 'local_user_token') {
+  if (!current) {
     return;
   }
-  if (current) {
-    window.localStorage.setItem(LOCAL_TOKEN_BACKUP_KEY, current);
+  // 防覆盖：首次进入 remote 前的本地 token 保持原样（含 WebUI 密码 token），
+  // 远程间切换（remote A → remote B）不污染本地备份。
+  if (window.localStorage.getItem(LOCAL_TOKEN_BACKUP_KEY)) {
+    return;
   }
+  window.localStorage.setItem(LOCAL_TOKEN_BACKUP_KEY, current);
 }
 
 function restoreLocalAuthToken(): void {

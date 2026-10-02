@@ -12381,7 +12381,14 @@
     "submit": "Aufgabe starten",
     "submitting": "Starting…",
     "spawnFailed": "Aufgabe konnte nicht erstellt werden.",
-    "loadOptionsFailed": "Optionen konnten nicht geladen werden."
+    "loadOptionsFailed": "Optionen konnten nicht geladen werden.",
+    "sectionActive": "Laufend",
+    "activeEmpty": "Zurzeit laufen keine Aufgaben.",
+    "sectionRecent": "Kürzlich abgeschlossen",
+    "recentEmpty": "Abgeschlossene Aufgaben erscheinen hier.",
+    "agentFallback": "KI-Agent",
+    "slotsBadge": "{used}/{max} belegt",
+    "slotsFull": "Alle parallelen Slots sind belegt. Beenden oder stoppen Sie zuerst eine laufende Aufgabe."
   },
   "whatsNew": {
     "title": "Neuigkeiten in v{version}",
@@ -15858,6 +15865,18 @@
         "debates": "Kernkontroversen",
         "actionItems": "Aufgabenpunkte",
         "risks": "Risiken"
+      },
+      "dailyReview": {
+        "title": "Tagesrückblick verwerten",
+        "description": "Speichert das heutige Rückblicksprotokoll unverändert als Beweis; es wird zu Entwürfen für Projekte / Wissen / Methoden / Vergleiche destilliert, die auf menschliche Prüfung warten",
+        "placeholder": "Fortschritt: was geliefert wurde, aktueller Stand\nEntscheidungen: Auswahl und Begründung\nLehren: wiederverwendbare Praktiken, Stolperfallen\nAbwägungen: heutige Vergleiche",
+        "titleLabel": "Titel (optional)",
+        "submitButton": "Speichern & Verdichten",
+        "submitting": "Wird gesendet…",
+        "staged": "Rückblick als Beweis gespeichert und eingereiht; Vier-Dimensionen-Entwürfe warten auf menschliche Prüfung",
+        "skipped": "Ein Rückblick mit demselben Titel wurde heute bereits gespeichert; Duplikat übersprungen",
+        "empty": "Bitte zuerst Ihren Rückblick eingeben",
+        "error": "Übermittlung fehlgeschlagen; bitte später erneut versuchen"
       }
     },
     "skills": {
@@ -18049,7 +18068,13 @@
         "optRemote": "Remote-Server",
         "optCloud": "Cloud",
         "gateFailed": "Server nicht erreichbar — nicht gewechselt. Erneut klicken zum Erzwingen.",
-        "restoredLastGood": "Zur letzten funktionierenden Verbindung zurückgekehrt."
+        "restoredLastGood": "Zur letzten funktionierenden Verbindung zurückgekehrt.",
+        "activeSessionsDialog": {
+          "title": "Aktive Sitzungen erkannt",
+          "description": "{count} Sitzungen werden lokal noch generiert. Beim Wechsel wird auf deren Abschluss gewartet und der lokale Stream getrennt; der Sitzungsverlauf bleibt erhalten.",
+          "confirm": "Trotzdem wechseln",
+          "cancel": "Abbrechen"
+        }
       },
       "push": {
         "deniedHint": "Benachrichtigungen sind blockiert. Aktivieren Sie sie in den Browsereinstellungen.",

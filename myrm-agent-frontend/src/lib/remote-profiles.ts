@@ -156,6 +156,14 @@ export interface AddRemoteProfileOptions {
   cpBaseUrl?: string;
 }
 
+/** Profile id 生成：crypto.randomUUID（防同毫秒碰撞）；旧 WebView 无实现时降级组合式。 */
+function generateProfileId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `remote-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+}
+
 export function addRemoteProfile(
   name: string,
   url: string,
@@ -179,7 +187,7 @@ export function addRemoteProfile(
     return null;
   }
   const profile: RemoteConnectionProfile = {
-    id: `remote-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    id: generateProfileId(),
     name: cleanName,
     url: cleanUrl,
     kind,

@@ -117,12 +117,22 @@ describe('ServerConnectionCard switch guard', () => {
     let resolveProbe: (value: Response) => void = () => {};
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(
-        () =>
-          new Promise<Response>((resolve) => {
-            resolveProbe = resolve;
-          }),
-      ),
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        // 活跃会话 guard 查询即时返回空列表；仅远程健康探测保持挂起
+        if (String(input).includes('active-sessions')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                data: { activeSessions: [], recentSessions: [], maxConcurrent: 0, availableSlots: 0 },
+              }),
+              { status: 200 },
+            ),
+          );
+        }
+        return new Promise<Response>((resolve) => {
+          resolveProbe = resolve;
+        });
+      }),
     );
     localStorage.clear();
     localStorage.setItem('myrm-remote-first-run-seen', '1');

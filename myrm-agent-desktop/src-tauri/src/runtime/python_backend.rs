@@ -52,8 +52,14 @@ pub async fn start_backend(
     let config_manager = ConfigManager::new(&app)?;
     let system_config = config_manager.load();
     let backend_config = BackendConfig::from_system_config(&system_config);
+    let port = backend_config.port;
 
-    start_backend_with_config(app, backend, backend_config).await
+    let result = start_backend_with_config(app.clone(), backend, backend_config).await?;
+    // Command-layer starts own their monitors: retry paths (recovery guide)
+    // reach the backend only through this command, so without this spawn
+    // the backend would run unwatched until the next app restart.
+    crate::runtime::spawn_backend_monitors(&app, port);
+    Ok(result)
 }
 
 /// 启动 Python 后端 Sidecar（使用指定配置）
@@ -329,22 +335,103 @@ async fn check_health_with_port(port: u16) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub fn stop_backend(
+pub async fn stop_backend(
     app: AppHandle,
     backend: State<'_, PythonBackend>,
 ) -> Result<String, String> {
-    println!("Stopping Python backend...");
+    graceful_stop_backend(&app, &backend).await
+}
 
-    if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
-        let reg = registry.inner().clone();
-        tauri::async_runtime::spawn(async move {
-            reg.mark_stopped("sidecar:backend", Some(0)).await;
-        });
+/// Request the backend to drain and exit by itself via the server's
+/// graceful shutdown endpoint (drains active turns, flushes WAL, closes
+/// resources, then SIGTERMs itself).
+async fn request_graceful_shutdown(port: u16) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let url = format!("http://127.0.0.1:{}/api/v1/system/shutdown", port);
+    match client.post(&url).send().await {
+        Ok(response) if response.status().is_success() => Ok(()),
+        Ok(response) => Err(format!(
+            "Shutdown signal failed with status: {}",
+            response.status()
+        )),
+        Err(e) => Err(format!("Shutdown request failed: {}", e)),
+    }
+}
+
+/// Wait for the backend to exit by itself, reaping the child so the state
+/// reflects reality. Returns true when the process exited within the budget.
+async fn wait_for_graceful_exit(
+    backend: &State<'_, PythonBackend>,
+    budget: Duration,
+) -> bool {
+    let deadline = tokio::time::Instant::now() + budget;
+    while tokio::time::Instant::now() < deadline {
+        let exited = {
+            let mut process_guard = backend.process.lock().unwrap();
+            match process_guard.as_mut() {
+                None => true,
+                Some(child) => matches!(child.try_wait(), Ok(Some(_))),
+            }
+        };
+        if exited {
+            let mut process_guard = backend.process.lock().unwrap();
+            *process_guard = None;
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    false
+}
+
+/// Graceful backend stop sequence shared by every stop path (connection
+/// switch, config migration, app exit): stop monitors → request server-side
+/// drain (drain turns, WAL checkpoint, close resources) → wait for
+/// self-exit → force-kill the process tree as last resort.
+///
+/// Stopping the monitors first is what keeps the watchdog from resurrecting
+/// a backend that was stopped intentionally.
+pub async fn graceful_stop_backend(
+    app: &AppHandle,
+    backend: &State<'_, PythonBackend>,
+) -> Result<String, String> {
+    println!("Stopping Python backend (graceful)...");
+
+    crate::runtime::stop_backend_monitors(app);
+
+    // Best-effort drain request: the server may already be down or the
+    // config state unavailable; the force path below still guarantees the
+    // process tree is gone.
+    if let Some(config_manager) = app.try_state::<ConfigManager>() {
+        let port = config_manager.load().api_port;
+        if port > 0 {
+            let _ = request_graceful_shutdown(port).await;
+            if wait_for_graceful_exit(backend, Duration::from_secs(5)).await {
+                println!("Backend exited gracefully after shutdown signal");
+                if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
+                    let reg = registry.inner().clone();
+                    tauri::async_runtime::spawn(async move {
+                        reg.mark_stopped("sidecar:backend", Some(0)).await;
+                    });
+                }
+                return Ok("Backend stopped gracefully".to_string());
+            }
+            println!("Backend did not self-exit in time, forcing kill...");
+        }
     }
 
     let mut process_guard = backend.process.lock().unwrap();
 
     if let Some(mut child) = process_guard.take() {
+        if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
+            let reg = registry.inner().clone();
+            tauri::async_runtime::spawn(async move {
+                reg.mark_stopped("sidecar:backend", Some(0)).await;
+            });
+        }
         let pid = child.id();
         // 已自行退出的进程直接视为停止成功，避免误报阻断调用方
         if let Ok(Some(status)) = child.try_wait() {

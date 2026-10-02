@@ -76,6 +76,7 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "update_global_shortcut"
             | "start_backend"
             | "stop_backend"
+            | "switch_remote_follow"
             | "stop_frontend"
             | "force_appshot_capture"
             | "migrate_data_dir"
@@ -106,7 +107,6 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "close_session_window"
             | "set_tray_status"
             | "update_tray_info"
-            | "set_remote_follow"
     );
 
     if !(read_only || critical || stateful) {
@@ -130,6 +130,7 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "update_global_shortcut"
             | "start_backend"
             | "stop_backend"
+            | "switch_remote_follow"
             | "stop_frontend"
             | "open_session_window"
             | "close_session_window"

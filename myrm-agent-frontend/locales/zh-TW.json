@@ -12381,7 +12381,14 @@
     "submit": "開始任務",
     "submitting": "正在創建…",
     "spawnFailed": "創建任務失敗。",
-    "loadOptionsFailed": "加載選項失敗。"
+    "loadOptionsFailed": "加載選項失敗。",
+    "sectionActive": "進行中",
+    "activeEmpty": "目前沒有進行中的任務。",
+    "sectionRecent": "最近完成",
+    "recentEmpty": "完成的任務會顯示在這裡。",
+    "agentFallback": "智能體",
+    "slotsBadge": "已佔用 {used}/{max}",
+    "slotsFull": "並行額度已滿，請先結束或等待一個進行中的任務。"
   },
   "whatsNew": {
     "title": "v{version} 新功能",
@@ -15858,6 +15865,18 @@
         "debates": "關鍵爭論點",
         "actionItems": "待辦事項",
         "risks": "風險"
+      },
+      "dailyReview": {
+        "title": "每日復盤一鍵知識化",
+        "description": "把今天的復盤原樣存為證據，自動萃取分流到項目/知識/方法/對比四維知識體系，草稿經人工審核後發布",
+        "placeholder": "今日進展：交付了什麼、推進到哪裡\n關鍵決策：決策與依據\n教訓與方法：可復用的做法、踩過的坑\n對比與權衡：今天做過什麼選型對比",
+        "titleLabel": "標題（可選）",
+        "submitButton": "存證並編譯",
+        "submitting": "提交中…",
+        "staged": "復盤已存證並進入編譯佇列，四維知識草稿將在生成後等待人工審核",
+        "skipped": "今天已提交過同名復盤，未重複入庫",
+        "empty": "請輸入復盤內容",
+        "error": "提交失敗，請稍後重試"
       }
     },
     "skills": {
@@ -18049,7 +18068,13 @@
         "optRemote": "遠端伺服器",
         "optCloud": "雲託管",
         "gateFailed": "伺服器不可達——未切換，再點一次強制切換。",
-        "restoredLastGood": "已恢復到上次可用連接。"
+        "restoredLastGood": "已恢復到上次可用連接。",
+        "activeSessionsDialog": {
+          "title": "存在活躍會話",
+          "description": "本地有 {count} 個會話正在生成。切換後將等待其完成並斷開本地串流，會話記錄仍會保留。",
+          "confirm": "仍然切換",
+          "cancel": "取消"
+        }
       },
       "push": {
         "deniedHint": "通知已被封鎖。請在瀏覽器設定中啟用。",

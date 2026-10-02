@@ -1,7 +1,8 @@
 /**
  * [INPUT]
  * - `@/lib/backend-health` (`checkBackendReadyOnce`)
- * - `@/lib/deploy-mode` (`isLocalMode`, `isRemoteGatewayActive`, `setRemoteGatewayConfig`, `getRemoteGatewayConfig`)
+ * - `@/lib/deploy-mode` (`isLocalMode`, `isRemoteGatewayActive`, `setRemoteGatewayConfig`, `getRemoteGatewayConfig`, `isTauriRuntime`)
+ * - `@/lib/remote-follow-switch` (`switchRemoteFollow`, 切回本地显式重启后端)
  * - `next-intl` (`common.configLoadError`, `common.close`, `common.remoteGateway`)
  *
  * [OUTPUT]
@@ -19,7 +20,8 @@ import { useTranslations } from 'next-intl';
 import { AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { checkBackendReadyOnce } from '@/lib/backend-health';
 import { waitForChromeE2eBackendBinding, isChromeE2eTab } from '@/lib/local-backend-e2e-probe';
-import { isLocalMode, isRemoteGatewayActive, setRemoteGatewayConfig, getRemoteGatewayConfig } from '@/lib/deploy-mode';
+import { isLocalMode, isRemoteGatewayActive, setRemoteGatewayConfig, getRemoteGatewayConfig, isTauriRuntime } from '@/lib/deploy-mode';
+import { switchRemoteFollow } from '@/lib/remote-follow-switch';
 import { resolveLocalBackendSetupHint } from '@/lib/local-backend-dev';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -60,7 +62,13 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
 
   const handleSwitchToLocal = useCallback(() => {
     setRemoteGatewayConfig(null);
-    window.location.reload();
+    // 切回本地：显式重启本地后端（remote_follow flag 复位）；
+    // 非 Tauri 或老构建时回退手动 reload（switchRemoteFollow 内部处理）。
+    if (isTauriRuntime()) {
+      void switchRemoteFollow(false);
+    } else {
+      window.location.reload();
+    }
   }, []);
 
   useEffect(() => {

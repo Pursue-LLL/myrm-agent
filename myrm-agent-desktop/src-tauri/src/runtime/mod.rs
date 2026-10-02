@@ -38,11 +38,45 @@ pub use inline_input::{handle_inline_input_shortcut, paste_back, INLINE_INPUT_SH
 #[allow(unused_imports)]
 pub use theme_package_open::{emit_theme_package_open, handle_open_urls, handle_startup_args};
 pub use nextjs_frontend::{start_frontend, stop_frontend, NextJSFrontend};
-pub use python_backend::{start_backend_with_config, stop_backend, PythonBackend};
+pub use python_backend::{graceful_stop_backend, start_backend_with_config, stop_backend, PythonBackend};
 pub use remote_follow::is_remote_follow_deferred;
 pub use setup_token::SetupTokenState;
 #[allow(unused_imports)]
 pub use sidecar_version_manager::{SidecarVersionManager, SidecarVersionManifest};
+
+use tauri::{AppHandle, Manager};
+
+/// Spawn backend health monitors (watchdog + wake detector) and manage their handles.
+///
+/// Idempotent: replaces any previously managed monitors first, so the wake
+/// detector always references the live watchdog's notify channel.
+pub fn spawn_backend_monitors(app: &AppHandle, backend_port: u16) {
+    stop_backend_monitors(app);
+    let watchdog_handle = watchdog::spawn_watchdog(app, backend_port);
+    let wake_handle = wake::spawn_wake_detector(
+        app.clone(),
+        watchdog_handle.wake_notify(),
+        backend_port,
+    );
+    app.manage(watchdog_handle);
+    app.manage(wake_handle);
+}
+
+/// Cancel and replace backend health monitors (watchdog + wake detector).
+///
+/// Safe when monitors were never spawned or already stopped. Prevents the
+/// watchdog from resurrecting a backend that was stopped intentionally.
+/// Cancelled handles stay managed until the next spawn overwrites them:
+/// `unmanage` is deprecated (dangling `State` risk) and dropping a cancelled
+/// handle is harmless (its task already observed the cancel).
+pub fn stop_backend_monitors(app: &AppHandle) {
+    if let Some(handle) = app.try_state::<watchdog::WatchdogHandle>() {
+        handle.cancel();
+    }
+    if let Some(handle) = app.try_state::<wake::WakeDetectorHandle>() {
+        handle.cancel();
+    }
+}
 
 /// Host environment variables that must be stripped before spawning child processes.
 ///

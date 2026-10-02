@@ -206,7 +206,7 @@ pub async fn migrate_data_dir(
     println!("📦 Migrating data: {:?} → {:?}", old_path, new_path);
 
     // 4. 优雅停止后端服务（stop_backend 内部确认进程真正退出后才返回）
-    crate::runtime::stop_backend(app.clone(), backend.clone())?;
+    crate::runtime::stop_backend(app.clone(), backend.clone()).await?;
 
     // 5. 动态条目全量迁移（异常时自动清理半成品并重启恢复旧后端）
     // 复用预检已算出的源体积作进度分母，避免对大目录做第二次全树遍历
@@ -228,9 +228,24 @@ pub async fn migrate_data_dir(
             );
         },
     );
+    // 回滚重启后同样挂回健康监控，避免迁移路径留下的后端处于无人看护状态
     let restart_old_backend = |app: &tauri::AppHandle, config: &crate::config::SystemConfig| {
         let old_backend_config = crate::config::BackendConfig::from_system_config(config);
-        crate::runtime::start_backend_with_config(app.clone(), backend.clone(), old_backend_config)
+        let port = old_backend_config.port;
+        let app_handle = app.clone();
+        let backend_state = backend.clone();
+        async move {
+            let result = crate::runtime::start_backend_with_config(
+                app_handle.clone(),
+                backend_state,
+                old_backend_config,
+            )
+            .await;
+            if result.is_ok() {
+                crate::runtime::spawn_backend_monitors(&app_handle, port);
+            }
+            result
+        }
     };
     let copied_entries = match migration_res {
         Ok(list) => list,
@@ -274,8 +289,12 @@ pub async fn migrate_data_dir(
     println!("✅ Migration complete. Restarting backend with new data root...");
 
     let backend_config = crate::config::BackendConfig::from_system_config(&new_config);
+    let backend_port = backend_config.port;
     match crate::runtime::start_backend_with_config(app.clone(), backend.clone(), backend_config).await {
-        Ok(msg) => Ok(format!("Migration complete, backend restarted: {}", msg)),
+        Ok(msg) => {
+            crate::runtime::spawn_backend_monitors(&app, backend_port);
+            Ok(format!("Migration complete, backend restarted: {}", msg))
+        }
         Err(e) => {
             // 新后端健康门禁未过：配置自动指回旧目录并重启旧后端，避免断服悬空
             println!("⚠️ New backend failed health check: {}. Reverting...", e);
@@ -284,12 +303,16 @@ pub async fn migrate_data_dir(
             let _ = config_manager.save(&rollback_config);
             let old_backend_config =
                 crate::config::BackendConfig::from_system_config(&rollback_config);
+            let revert_port = old_backend_config.port;
             let revert_res = crate::runtime::start_backend_with_config(
                 app.clone(),
                 backend,
                 old_backend_config,
             )
             .await;
+            if revert_res.is_ok() {
+                crate::runtime::spawn_backend_monitors(&app, revert_port);
+            }
             let revert_msg = match revert_res {
                 Ok(_) => "Reverted to original data directory and backend restored.".to_string(),
                 Err(re) => format!("CRITICAL: revert also failed: {}. Original data untouched at {:?}; restart the app after fixing the cause.", re, old_path),

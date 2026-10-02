@@ -13,6 +13,7 @@ import { useTrayStatus } from '@/hooks/tauri/useTrayStatus';
 import { useTabBadge } from '@/hooks/shell/useTabBadge';
 import { usePowerLock } from '@/hooks/tauri/usePowerLock';
 import { useDesktopWakeRecovery } from '@/hooks/tauri/useDesktopWakeRecovery';
+import { useConnectionsChangedReload } from '@/hooks/tauri/useConnectionsChangedReload';
 import { useGlobalShortcuts } from '@/hooks/shell/useGlobalShortcuts';
 import { useVisibilityThrottling } from '@/hooks/ui/useVisibilityThrottling';
 import { useTrafficLightInsets } from '@/hooks/ui/useTrafficLightInsets';
@@ -83,6 +84,7 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
   useTabBadge();
   usePowerLock();
   useDesktopWakeRecovery();
+  useConnectionsChangedReload();
   useVisibilityThrottling();
   useTrayEvents();
   useGlobalShortcuts();

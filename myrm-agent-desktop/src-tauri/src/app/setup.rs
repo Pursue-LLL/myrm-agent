@@ -128,21 +128,13 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 
         if runtime::is_remote_follow_deferred(&app_handle) {
             println!("🌐 Remote follow active, local backend stays deferred");
-            let _ = app_handle.emit("backend-deferred-remote", ());
         } else {
             let backend_state = app_handle.state::<PythonBackend>();
             let backend_port = BackendConfig::from_system_config(&system_config_clone).port;
             match start_backend_with_config(app_handle.clone(), backend_state, backend_config).await {
                 Ok(msg) => {
                     println!("✅ {}", msg);
-                    let handle = runtime::watchdog::spawn_watchdog(&app_handle, backend_port);
-                    let wake_handle = runtime::wake::spawn_wake_detector(
-                        app_handle.clone(),
-                        handle.wake_notify(),
-                        backend_port,
-                    );
-                    app_handle.manage(handle);
-                    app_handle.manage(wake_handle);
+                    runtime::spawn_backend_monitors(&app_handle, backend_port);
                 }
                 Err(e) => {
                     eprintln!("❌ Failed to auto-start backend: {}", e);

@@ -17,7 +17,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
-use tokio::sync::Notify;
+use tokio::sync::{watch, Notify};
 
 const DRIFT_CHECK_INTERVAL: Duration = Duration::from_millis(1000);
 const DRIFT_THRESHOLD: Duration = Duration::from_millis(3000);
@@ -34,13 +34,16 @@ pub struct WakeEventPayload {
 
 #[allow(dead_code)]
 pub struct WakeDetectorHandle {
-    cancel_notify: Arc<Notify>,
+    cancel_tx: watch::Sender<bool>,
 }
 
 impl WakeDetectorHandle {
     #[allow(dead_code)]
     pub fn cancel(&self) {
-        self.cancel_notify.notify_waiters();
+        // watch channel (not Notify): a stored `true` is observed whenever the
+        // loop polls `changed()`, so cancellation cannot be lost while the
+        // task sits in the sleep branch of the select.
+        let _ = self.cancel_tx.send(true);
     }
 }
 
@@ -50,21 +53,20 @@ pub fn spawn_wake_detector(
     wake_notify: Arc<Notify>,
     backend_port: u16,
 ) -> WakeDetectorHandle {
-    let cancel_notify = Arc::new(Notify::new());
-    let cancel_rx = cancel_notify.clone();
+    let (cancel_tx, cancel_rx) = watch::channel(false);
 
     tauri::async_runtime::spawn(async move {
         run_wake_detector(app, wake_notify, backend_port, cancel_rx).await;
     });
 
-    WakeDetectorHandle { cancel_notify }
+    WakeDetectorHandle { cancel_tx }
 }
 
 async fn run_wake_detector(
     app: AppHandle,
     wake_notify: Arc<Notify>,
     backend_port: u16,
-    cancel_notify: Arc<Notify>,
+    mut cancel_rx: watch::Receiver<bool>,
 ) {
     let last_wake_ts = Arc::new(AtomicU64::new(0));
     let is_recovering = Arc::new(AtomicBool::new(false));
@@ -74,10 +76,19 @@ async fn run_wake_detector(
 
         tokio::select! {
             _ = tokio::time::sleep(DRIFT_CHECK_INTERVAL) => {}
-            _ = cancel_notify.notified() => {
-                println!("[wake_detector] Cancelled by application lifecycle");
-                return;
+            changed = cancel_rx.changed() => {
+                // Err means the sender dropped without a stored cancel; that
+                // is still terminal (monitor replaced) — exit either way
+                // instead of busy-looping on a closed channel.
+                if changed.is_err() || *cancel_rx.borrow_and_update() {
+                    println!("[wake_detector] Cancelled by backend lifecycle");
+                    return;
+                }
             }
+        }
+
+        if *cancel_rx.borrow() {
+            return;
         }
 
         let elapsed = tick_start.elapsed();

@@ -92,8 +92,11 @@ async fn run_watchdog(
             _ = wake_notify.notified() => {
                 println!("[watchdog] Wake notification received, running 0-delay health check");
             }
-            _ = cancel_rx.changed() => {
-                if *cancel_rx.borrow() {
+            changed = cancel_rx.changed() => {
+                // Err means the sender dropped without a stored cancel; that
+                // is still terminal (monitor replaced) — exit either way
+                // instead of busy-looping on a closed channel.
+                if changed.is_err() || *cancel_rx.borrow_and_update() {
                     println!("[watchdog] Cancelled by graceful shutdown");
                     return;
                 }

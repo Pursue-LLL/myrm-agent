@@ -4,6 +4,9 @@ import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconPlug, IconCheck, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
 import { isTauriRuntime, getRemoteGatewayConfig, setRemoteGatewayConfig } from '@/lib/deploy-mode';
+import { switchRemoteFollow } from '@/lib/remote-follow-switch';
+import { getActiveSessions } from '@/services/agent';
+import ActiveSessionsSwitchConfirmDialog from './ActiveSessionsSwitchConfirmDialog';
 import {
   addRemoteProfile,
   getActiveRemoteProfileId,
@@ -50,19 +53,6 @@ function isValidServerUrl(raw: string): boolean {
   }
 }
 
-async function notifyRemoteFollow(deferred: boolean): Promise<void> {
-  if (!isTauriRuntime()) {
-    return;
-  }
-  try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('set_remote_follow', { deferred });
-    await invoke(deferred ? 'stop_backend' : 'start_backend');
-  } catch {
-    // Best effort: old builds lack the command, routing still works.
-  }
-}
-
 const ServerConnectionCard = memo(() => {
   const t = useTranslations('settings.system.serverConnection');
 
@@ -75,6 +65,7 @@ const ServerConnectionCard = memo(() => {
   const [testState, setTestState] = useState<ConnectionTestState>('idle');
   const [testingId, setTestingId] = useState<string | null>(null);
   const [switchingKey, setSwitchingKey] = useState<string | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{ count: number; proceed: () => void } | null>(null);
   const [showFirstRun, setShowFirstRun] = useState(
     () => typeof window !== 'undefined' && !window.localStorage.getItem(FIRST_RUN_SEEN_KEY),
   );
@@ -94,6 +85,38 @@ const ServerConnectionCard = memo(() => {
   }, []);
 
   const failedUrlRef = useRef<string | null>(null);
+
+  // 切断当前活跃连接前确认：后端有生成中会话时弹窗告知（切换等待其完成
+  // 并断开本地流）。查询失败（后端已停/不可达）时放行，避免锁死切换路径。
+  const guardActiveSessions = useCallback(async (proceed: () => void): Promise<void> => {
+    try {
+      const { activeSessions } = await getActiveSessions();
+      if (activeSessions.length > 0) {
+        setPendingConfirm({ count: activeSessions.length, proceed });
+        return;
+      }
+    } catch {
+      // 放行：本地后端不可达本身就是切换动机之一
+    }
+    proceed();
+  }, []);
+
+  const resolvePendingConfirm = useCallback(
+    (confirmed: boolean) => {
+      // 先取值再 setState：updater 必须保持纯函数（StrictMode 双调不重复执行 proceed）
+      const pending = pendingConfirm;
+      setPendingConfirm(null);
+      if (!pending) {
+        return;
+      }
+      if (confirmed) {
+        pending.proceed();
+      } else {
+        setSwitchingKey(null);
+      }
+    },
+    [pendingConfirm],
+  );
 
   // Post-reload verification: a pending switch that lands on an unreachable
   // target rolls back to last-known-good instead of stranding the user.
@@ -132,15 +155,24 @@ const ServerConnectionCard = memo(() => {
       const byId = lastGood?.activeId ? profiles.find((p) => p.id === lastGood.activeId) : undefined;
       const byUrl = lastGood?.url ? profiles.find((p) => p.url === lastGood.url) : undefined;
       const restoreId = byId?.id ?? byUrl?.id ?? null;
+      let rolledBackToLocal = false;
       if (restoreId === null) {
         setRemoteGatewayConfig(null);
+        rolledBackToLocal = true;
+        // 回滚到本地：显式重启本地后端（remote_follow flag 复位），
+        // 不再依赖已被修复禁止的 watchdog 复活救场。
+        await switchRemoteFollow(false);
       } else {
         setActiveRemoteProfileId(restoreId);
       }
       clearPendingSwitch();
       refresh();
       toast.error(t('restoredLastGood'));
-      window.location.reload();
+      if (!rolledBackToLocal) {
+        // 仅 remote→remote 回滚需手动刷新；本地回滚由 switch 的
+        // `app:connections-changed` 事件统一驱动（含 session windows）。
+        window.location.reload();
+      }
     })();
     return () => {
       cancelled = true;
@@ -197,24 +229,28 @@ const ServerConnectionCard = memo(() => {
       toast.error(t('invalidUrl'));
       return;
     }
-    const created = addRemoteProfile(name, trimmed);
-    if (!created) {
-      toast.error(t('duplicateProfile'));
-      return;
-    }
     setSwitchingKey('add');
-    void commitSwitch(created.url, () => {
-      setRemoteGatewayConfig({ enabled: true, url: created.url });
-      setNameInput('');
-      refresh();
-      toast.success(t('connected'));
-      void notifyRemoteFollow(true).then(() => window.location.reload());
-    }).then((applied) => {
-      if (!applied) {
+    // profile 创建放在确认之后：取消时 roster 不留未连接档案
+    void guardActiveSessions(() => {
+      const created = addRemoteProfile(name, trimmed);
+      if (!created) {
+        toast.error(t('duplicateProfile'));
         setSwitchingKey(null);
+        return;
       }
+      void commitSwitch(created.url, () => {
+        setRemoteGatewayConfig({ enabled: true, url: created.url });
+        setNameInput('');
+        refresh();
+        toast.success(t('connected'));
+        void switchRemoteFollow(true);
+      }).then((applied) => {
+        if (!applied) {
+          setSwitchingKey(null);
+        }
+      });
     });
-  }, [nameInput, urlInput, t, refresh, commitSwitch]);
+  }, [nameInput, urlInput, t, refresh, commitSwitch, guardActiveSessions]);
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -225,25 +261,27 @@ const ServerConnectionCard = memo(() => {
       // Cloud profiles carry OAuth/discovery verification, so they skip the
       // unauthenticated health probe (same exemption as the test button).
       setSwitchingKey(id);
-      void commitSwitch(
-        profile.url,
-        () => {
-          if (!setActiveRemoteProfileId(id)) {
+      void guardActiveSessions(() => {
+        void commitSwitch(
+          profile.url,
+          () => {
+            if (!setActiveRemoteProfileId(id)) {
+              setSwitchingKey(null);
+              return;
+            }
+            refresh();
+            toast.success(t('connected'));
+            void switchRemoteFollow(true);
+          },
+          profile.kind === 'cloud',
+        ).then((applied) => {
+          if (!applied) {
             setSwitchingKey(null);
-            return;
           }
-          refresh();
-          toast.success(t('connected'));
-          void notifyRemoteFollow(true).then(() => window.location.reload());
-        },
-        profile.kind === 'cloud',
-      ).then((applied) => {
-        if (!applied) {
-          setSwitchingKey(null);
-        }
+        });
       });
     },
-    [t, refresh, commitSwitch],
+    [t, refresh, commitSwitch, guardActiveSessions],
   );
 
   const handleRemove = useCallback(
@@ -262,14 +300,14 @@ const ServerConnectionCard = memo(() => {
       setTestState('idle');
       refresh();
       toast.success(t('disconnected'));
-      void notifyRemoteFollow(false).then(() => window.location.reload());
+      void switchRemoteFollow(false);
     });
   }, [t, refresh, commitSwitch]);
 
   const handleCloudConnected = useCallback(() => {
     refresh();
     toast.success(t('connected'));
-    void notifyRemoteFollow(true).then(() => window.location.reload());
+    void switchRemoteFollow(true);
   }, [t, refresh]);
 
   if (!isTauriRuntime()) {
@@ -448,6 +486,13 @@ const ServerConnectionCard = memo(() => {
           </>
         )}
       </div>
+
+      <ActiveSessionsSwitchConfirmDialog
+        open={pendingConfirm !== null}
+        count={pendingConfirm?.count ?? 0}
+        onConfirm={() => resolvePendingConfirm(true)}
+        onCancel={() => resolvePendingConfirm(false)}
+      />
     </section>
   );
 });
