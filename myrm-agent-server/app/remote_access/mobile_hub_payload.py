@@ -3,6 +3,10 @@
 Keeps the hub response self-sufficient: active cards carry agent display
 names, and finished chats are listed alongside so the phone keeps an entry
 point to task results after a session completes.
+
+[POS]
+Mobile Hub payload assembly layer. Composes agent display names, active
+session cards, and finished chat listings into the hub response.
 """
 
 from __future__ import annotations
