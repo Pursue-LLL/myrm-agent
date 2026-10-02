@@ -220,3 +220,75 @@ class TestSteerEndpoint:
         assert resp.json()["success"] is True
         msgs = token.activate()
         assert msgs == ["[In reply to: Keep legacy endpoints?] Adopt option 1"]
+
+    def test_steer_call_id_dedup_prevents_duplicate_tokens(self, client: TestClient) -> None:
+        """Verify rapid repeated steer requests with the same call_id are deduped."""
+        token = SteeringToken()
+        SteeringRegistry.register("chat-dedup", token)
+        call_id = "async_call_dedup_999"
+
+        # First request: successfully steered
+        resp1 = client.post(
+            "/api/v1/agents/chats/chat-dedup/steer",
+            json={
+                "message": "Option A",
+                "inReplyToCallId": call_id,
+            },
+        )
+        assert resp1.json()["success"] is True
+        assert resp1.json()["data"]["steered"] is True
+        assert "deduped" not in resp1.json()["data"]
+
+        # Duplicate request with same call_id: returns deduped=True without adding token
+        resp2 = client.post(
+            "/api/v1/agents/chats/chat-dedup/steer",
+            json={
+                "message": "Option A retry",
+                "inReplyToCallId": call_id,
+            },
+        )
+        assert resp2.json()["success"] is True
+        assert resp2.json()["data"]["steered"] is True
+        assert resp2.json()["data"]["deduped"] is True
+
+        # Exactly 1 message reached the token
+        msgs = token.activate()
+        assert len(msgs) == 1
+        assert msgs == ["Option A"]
+
+    def test_steer_resolves_active_stream_collector_message(self, client: TestClient) -> None:
+        """Verify steering updates the in-flight StreamContentCollector async user message."""
+        from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS, StreamContentCollector
+
+        token = SteeringToken()
+        chat_id = "chat-collector-resolve"
+        SteeringRegistry.register(chat_id, token)
+
+        collector = StreamContentCollector(chat_id=chat_id)
+        collector.feed_event(
+            {
+                "type": "async_user_message",
+                "data": {
+                    "call_id": "call_in_flight_1",
+                    "message": "Need clarification on API version",
+                    "category": "question",
+                    "recommendation": "Use v2",
+                },
+            }
+        )
+        assert len(collector._async_user_messages) == 1
+        assert collector._async_user_messages[0].get("status") == "pending"
+
+        resp = client.post(
+            f"/api/v1/agents/chats/{chat_id}/steer",
+            json={
+                "message": "Confirm v2",
+                "inReplyToCallId": "call_in_flight_1",
+            },
+        )
+        assert resp.json()["success"] is True
+        assert collector._async_user_messages[0]["status"] == "resolved"
+        assert collector._async_user_messages[0]["resolvedText"] == "Confirm v2"
+
+        # Cleanup
+        ACTIVE_COLLECTORS.pop(chat_id, None)

@@ -808,24 +808,25 @@ const MessageBox = ({
                         });
                         if (success) {
                           store.resolveAsyncUserMessage(effectiveMessageId, callId, reply);
+                          return;
                         }
-                      } else {
-                        // 降级回填：若生成流已结束，已有输入草稿则换行追加，否则直接填充输入框
-                        const existing = store.inputMessage?.trim();
-                        const nextMessage = existing ? `${store.inputMessage.trimEnd()}\n\n${reply}` : reply;
-                        store.setInputMessage(nextMessage);
-                        store.resolveAsyncUserMessage(effectiveMessageId, callId, reply);
-
-                        // 视觉与交互引导：自动转移焦点至输入框并弹出引导 Toast
-                        requestAnimationFrame(() => {
-                          const textarea = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input]');
-                          if (textarea) {
-                            textarea.focus();
-                            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-                          }
-                        });
-                        toast.info(t('asyncMessage.fallbackPrefilled'));
                       }
+
+                      // 自动故障转移与降级回填：若非当前活跃流或在线 steer 注入失败，无缝转入输入框暂存
+                      const existing = store.inputMessage?.trim();
+                      const nextMessage = existing ? `${store.inputMessage.trimEnd()}\n\n${reply}` : reply;
+                      store.setInputMessage(nextMessage);
+                      store.resolveAsyncUserMessage(effectiveMessageId, callId, reply);
+
+                      // 视觉与交互引导：自动转移焦点至输入框并弹出引导 Toast
+                      requestAnimationFrame(() => {
+                        const textarea = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input]');
+                        if (textarea) {
+                          textarea.focus();
+                          textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                        }
+                      });
+                      toast.info(t('asyncMessage.fallbackPrefilled'));
                     }}
                   />
                 ))}

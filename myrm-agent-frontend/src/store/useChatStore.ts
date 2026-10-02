@@ -643,7 +643,7 @@ const useChatStore = create<ChatState>()(
           return;
         }
 
-        const paneId = useWorkspaceStore.getState().panes.find((p: { id?: string; chatId?: string }) => p.chatId === chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p) => p.chatId === chatId)?.id;
 
         if (paneId) {
           const abortController = useWorkspaceStore.getState().getPaneAbortController(paneId);
@@ -789,7 +789,7 @@ const useChatStore = create<ChatState>()(
       // 当前会话messageId管理
       getCurrentSessionMessageId: () => {
         const state = get();
-        const paneId = useWorkspaceStore.getState().panes.find((p: { id?: string; chatId?: string }) => p.chatId === state.chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p) => p.chatId === state.chatId)?.id;
 
         let currentId = paneId
           ? useWorkspaceStore.getState().getPaneCurrentSessionMessageId(paneId)
@@ -806,7 +806,7 @@ const useChatStore = create<ChatState>()(
       },
       allocateNewSessionMessageId: () => {
         const state = get();
-        const paneId = useWorkspaceStore.getState().panes.find((p: { id?: string; chatId?: string }) => p.chatId === state.chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p) => p.chatId === state.chatId)?.id;
         const newMessageId = generateStreamRequestMessageId();
         if (paneId) {
           useWorkspaceStore.getState().setPaneCurrentSessionMessageId(paneId, newMessageId);
@@ -816,7 +816,7 @@ const useChatStore = create<ChatState>()(
       },
       clearCurrentSessionMessageId: () => {
         const state = get();
-        const paneId = useWorkspaceStore.getState().panes.find((p: { id?: string; chatId?: string }) => p.chatId === state.chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p) => p.chatId === state.chatId)?.id;
         if (paneId) {
           useWorkspaceStore.getState().setPaneCurrentSessionMessageId(paneId, null);
         }

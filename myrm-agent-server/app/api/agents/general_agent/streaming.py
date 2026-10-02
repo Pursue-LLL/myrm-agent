@@ -1,6 +1,8 @@
 """General Agent API — HTTP/SSE transport for streaming agent execution."""
 
+import collections
 import logging
+import threading
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -17,6 +19,22 @@ from app.services.agent.stream_session import run_agent_stream
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+_MAX_DEDUP_CALL_IDS = 512
+_PROCESSED_STEER_CALL_IDS: collections.OrderedDict[str, float] = collections.OrderedDict()
+_STEER_DEDUP_LOCK = threading.Lock()
+
+
+def _is_call_id_deduped(call_id: str) -> bool:
+    with _STEER_DEDUP_LOCK:
+        return call_id in _PROCESSED_STEER_CALL_IDS
+
+
+def _record_dedup_call_id(call_id: str) -> None:
+    with _STEER_DEDUP_LOCK:
+        _PROCESSED_STEER_CALL_IDS[call_id] = 1.0
+        while len(_PROCESSED_STEER_CALL_IDS) > _MAX_DEDUP_CALL_IDS:
+            _PROCESSED_STEER_CALL_IDS.popitem(last=False)
 
 
 @router.post("/agent-stream", response_model=None)
@@ -91,6 +109,16 @@ async def steer_agent(
     if not body.message.strip():
         return error_response(message="Steering message cannot be empty", code=400)
 
+    if body.in_reply_to_call_id and _is_call_id_deduped(body.in_reply_to_call_id):
+        logger.info(
+            "Steering request for chat_id=%s call_id=%s deduped",
+            chat_id,
+            body.in_reply_to_call_id,
+        )
+        return success_response(
+            data={"steered": True, "chat_id": chat_id, "deduped": True}
+        )
+
     steer_payload = body.message.strip()
     if body.question_context and body.question_context.strip():
         steer_payload = f"[In reply to: {body.question_context.strip()}] {steer_payload}"
@@ -106,6 +134,8 @@ async def steer_agent(
                 message="Steering message too large; reference artifacts instead",
                 code=400,
             )
+        if body.in_reply_to_call_id:
+            _record_dedup_call_id(body.in_reply_to_call_id)
         logger.info(
             "User policy-steered agent: chat_id=%s status=%s",
             chat_id,
@@ -125,6 +155,7 @@ async def steer_agent(
 
     if success:
         if body.in_reply_to_call_id:
+            _record_dedup_call_id(body.in_reply_to_call_id)
             from app.services.memory.consolidation_service import ConsolidationService
 
             ConsolidationService.record_steering_decision(
@@ -133,6 +164,15 @@ async def steer_agent(
                 question_context=body.question_context,
                 call_id=body.in_reply_to_call_id,
             )
+            from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
+
+            collector = ACTIVE_COLLECTORS.get(chat_id)
+            if collector is not None:
+                collector.resolve_async_user_message(
+                    body.in_reply_to_call_id,
+                    body.message.strip(),
+                )
+
         logger.info("User steered agent: chat_id=%s", chat_id)
         return success_response(data={"steered": True, "chat_id": chat_id})
 

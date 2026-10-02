@@ -206,4 +206,28 @@ describe('MessageBox AsyncAgentMessageCard integration', () => {
       questionContext: 'Choose cache backend',
     });
   });
+
+  it('automatically falls back to setInputMessage when steerMessage fails (e.g. stream closed / 404 race condition)', async () => {
+    mockSteerMessage.mockResolvedValueOnce(false);
+
+    render(
+      <MessageBox message={baseAssistantMessage} messageIndex={1} isLast={true} loading={true} />,
+    );
+
+    const adoptBtn = screen.getByRole('button', { name: /采纳/i });
+    await act(async () => {
+      fireEvent.click(adoptBtn);
+    });
+
+    expect(mockSteerMessage).toHaveBeenCalledWith('Proceed with Non-GAAP standard metrics', {
+      inReplyToCallId: 'call_clarify_gaap_1',
+      questionContext: 'Ambiguity found between GAAP and Non-GAAP metrics.',
+    });
+    expect(mockSetInputMessage).toHaveBeenCalledWith('Proceed with Non-GAAP standard metrics');
+    expect(mockResolveAsyncUserMessage).toHaveBeenCalledWith(
+      'msg-assistant-async-1',
+      'call_clarify_gaap_1',
+      'Proceed with Non-GAAP standard metrics',
+    );
+  });
 });

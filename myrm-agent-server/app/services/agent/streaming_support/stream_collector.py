@@ -493,6 +493,18 @@ class StreamContentCollector:
             "async_user_messages": list(self._async_user_messages),
         }
 
+    def resolve_async_user_message(self, call_id: str, resolved_text: str) -> bool:
+        """Mark an in-flight async user message as resolved with its confirmed reply."""
+        matched = False
+        target_cid = str(call_id).strip()
+        for msg in self._async_user_messages:
+            cid = str(msg.get("call_id") or msg.get("callId") or "").strip()
+            if cid == target_cid:
+                msg["status"] = "resolved"
+                msg["resolvedText"] = resolved_text
+                matched = True
+        return matched
+
     def subscribe(self) -> tuple[dict[str, object], asyncio.Queue[dict[str, object]]]:
         """Atomically get current snapshot and subscribe to future events."""
         q: asyncio.Queue[dict[str, object]] = asyncio.Queue()
@@ -810,9 +822,24 @@ class StreamContentCollector:
                 msg_data = {
                     k: v
                     for k, v in event.items()
-                    if k in {"call_id", "message", "category", "recommendation"}
+                    if k in {
+                        "call_id",
+                        "callId",
+                        "message",
+                        "category",
+                        "recommendation",
+                        "suggested_replies",
+                        "suggestedReplies",
+                        "status",
+                        "resolvedText",
+                    }
                 }
             if msg_data and msg_data.get("message"):
+                raw_cid = msg_data.get("call_id") or msg_data.get("callId")
+                if raw_cid:
+                    msg_data["call_id"] = str(raw_cid)
+                    msg_data["callId"] = str(raw_cid)
+                msg_data.setdefault("status", "pending")
                 self._async_user_messages.append(msg_data)
 
     @property
