@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import json
 from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -166,3 +167,63 @@ class TestXLiveSearchSandboxScript:
         # Reserved x.com path prefixes carry no handle; fall back to the URL.
         assert x_search_script._source_label("3", "https://x.com/i/lists/1") == "https://x.com/i/lists/1"
         assert x_search_script._source_label("5", "https://x.com/search?q=ai") == "https://x.com/search?q=ai"
+
+    @staticmethod
+    def _fake_urlopen_response(payload: dict[str, object]) -> MagicMock:
+        fake = MagicMock()
+        fake.__enter__.return_value = fake
+        fake.__exit__.return_value = False
+        fake.read.return_value = json.dumps(payload).encode("utf-8")
+        return fake
+
+    def test_execute_search_merges_citations_with_readable_labels(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setenv("XAI_API_KEY", "test-key")
+        # Both inline annotations and top-level citations, with numeric titles.
+        payload = {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "AI news summary",
+                            "annotations": [{"type": "url_citation", "url": "https://x.com/elonmusk/status/1", "title": "1"}],
+                        }
+                    ],
+                }
+            ],
+            "citations": [{"url": "https://x.com/karpathy/status/2", "title": "2"}],
+        }
+        with patch("urllib.request.urlopen", return_value=self._fake_urlopen_response(payload)):
+            ret = x_search_script.execute_search("AI news")
+        captured = capsys.readouterr()
+        assert ret == 0
+        assert "AI news summary" in captured.out
+        assert "- [@elonmusk post](https://x.com/elonmusk/status/1)" in captured.out
+        assert "- [@karpathy post](https://x.com/karpathy/status/2)" in captured.out
+        # No honest note when citations exist.
+        assert "Note:" not in captured.out
+
+    def test_execute_search_no_citations_without_filters_warns_honestly(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setenv("XAI_API_KEY", "test-key")
+        payload = {"output": [{"type": "message", "content": [{"type": "output_text", "text": "Generic answer."}]}]}
+        with patch("urllib.request.urlopen", return_value=self._fake_urlopen_response(payload)):
+            ret = x_search_script.execute_search("AI news")
+        captured = capsys.readouterr()
+        assert ret == 0
+        assert "No X post citations were returned by this search" in captured.out
+
+    def test_execute_search_no_citations_with_filters_warns_honestly(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setenv("XAI_API_KEY", "test-key")
+        payload = {"output": [{"type": "message", "content": [{"type": "output_text", "text": "Generic answer."}]}]}
+        with patch("urllib.request.urlopen", return_value=self._fake_urlopen_response(payload)):
+            ret = x_search_script.execute_search("AI news", allowed_handles=["elonmusk"])
+        captured = capsys.readouterr()
+        assert ret == 0
+        assert "No matching posts found for the specified filters" in captured.out
