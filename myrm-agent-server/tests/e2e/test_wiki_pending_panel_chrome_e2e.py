@@ -63,6 +63,7 @@ _PANEL_STATE_JS = """(() => {{
     badgeNum,
     marker104: text.includes({marker_tail_104!r}),
     marker005: text.includes({marker_tail_005!r}),
+    errors: (window.__e2eErrors || []).slice(-6),
     href: location.href,
   }};
 }})()"""
@@ -75,6 +76,22 @@ _DISMISS_MIGRATION_JS = """(() => {
     return { ok: false, err: String(err) };
   }
   return { ok: true };
+})()"""
+
+_INSTALL_ERROR_HOOKS_JS = """(() => {
+  window.__e2eErrors = [];
+  window.onerror = (msg, src, line, col, errObj) => {
+    window.__e2eErrors.push(
+      `error: ${msg} @ ${src}:${line}`
+      + (errObj && errObj.stack ? ` | ${errObj.stack.split('\\n').slice(0, 3).join(' <- ')}` : ''),
+    );
+    return false;
+  };
+  window.addEventListener('unhandledrejection', (e) => {
+    const r = (e && e.reason) || {};
+    window.__e2eErrors.push(`rejection: ${r.stack || String(r)}`);
+  });
+  return true;
 })()"""
 
 _LOAD_MORE_CLICK_JS = """(() => {
@@ -193,6 +210,7 @@ def _run_panel_flow(api_url: str, ui_url: str) -> None:
             timeout_ms=120_000,
             request_timeout_sec=180.0,
         ) as (client, page):
+            client.evaluate(page, _INSTALL_ERROR_HOOKS_JS, timeout_sec=15.0)
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
             dismiss_blocking_modals(client, page, recover_url=panel_url)
 
