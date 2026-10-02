@@ -238,10 +238,10 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
                             if (isCurrentlyAll) {
                               return;
                             }
-                            const next = Array.from(new Set([...service.selected_endpoints!, ep.operation_id]));
+                            const next = Array.from(new Set([...service.selected_endpoints ?? [], ep.operation_id]));
                             updateField('selected_endpoints', next.length === allIds.length ? undefined : next);
                           } else {
-                            const currentList = isCurrentlyAll ? allIds : service.selected_endpoints!;
+                            const currentList = isCurrentlyAll ? allIds : service.selected_endpoints ?? [];
                             const next = currentList.filter((id) => id !== ep.operation_id);
                             if (next.length === 0) {
                               toast({ title: 'Error', description: t('atLeastOneEndpoint'), variant: 'destructive' });
@@ -337,7 +337,7 @@ function AuthEditor({
           <Input
             placeholder={t('apiKeyHeader')}
             value={auth?.api_key_header || ''}
-            onChange={(e) => onChange({ ...auth!, api_key_header: e.target.value })}
+            onChange={(e) => onChange({ type: currentType, ...auth, api_key_header: e.target.value })}
             disabled={readonly}
             className="text-xs h-8"
           />
@@ -345,7 +345,7 @@ function AuthEditor({
             type="password"
             placeholder={t('apiKeyValue')}
             value={auth?.api_key || ''}
-            onChange={(e) => onChange({ ...auth!, api_key: e.target.value })}
+            onChange={(e) => onChange({ type: currentType, ...auth, api_key: e.target.value })}
             disabled={readonly}
             className="text-xs h-8"
           />
@@ -357,7 +357,7 @@ function AuthEditor({
           type="password"
           placeholder={t('bearerToken')}
           value={auth?.bearer_token || ''}
-          onChange={(e) => onChange({ ...auth!, bearer_token: e.target.value })}
+          onChange={(e) => onChange({ type: currentType, ...auth, bearer_token: e.target.value })}
           disabled={readonly}
           className="text-xs h-8"
         />
@@ -368,7 +368,7 @@ function AuthEditor({
           <Input
             placeholder={t('username')}
             value={auth?.username || ''}
-            onChange={(e) => onChange({ ...auth!, username: e.target.value })}
+            onChange={(e) => onChange({ type: currentType, ...auth, username: e.target.value })}
             disabled={readonly}
             className="text-xs h-8"
           />
@@ -376,7 +376,7 @@ function AuthEditor({
             type="password"
             placeholder={t('password')}
             value={auth?.password || ''}
-            onChange={(e) => onChange({ ...auth!, password: e.target.value })}
+            onChange={(e) => onChange({ type: currentType, ...auth, password: e.target.value })}
             disabled={readonly}
             className="text-xs h-8"
           />
@@ -388,7 +388,7 @@ function AuthEditor({
           <Input
             placeholder={t('tokenUrl')}
             value={auth?.token_url || ''}
-            onChange={(e) => onChange({ ...auth!, token_url: e.target.value })}
+            onChange={(e) => onChange({ type: currentType, ...auth, token_url: e.target.value })}
             disabled={readonly}
             className="text-xs h-8"
           />
@@ -396,7 +396,7 @@ function AuthEditor({
             <Input
               placeholder={t('clientId')}
               value={auth?.client_id || ''}
-              onChange={(e) => onChange({ ...auth!, client_id: e.target.value })}
+              onChange={(e) => onChange({ type: currentType, ...auth, client_id: e.target.value })}
               disabled={readonly}
               className="text-xs h-8"
             />
@@ -404,7 +404,7 @@ function AuthEditor({
               type="password"
               placeholder={t('clientSecret')}
               value={auth?.client_secret || ''}
-              onChange={(e) => onChange({ ...auth!, client_secret: e.target.value })}
+              onChange={(e) => onChange({ type: currentType, ...auth, client_secret: e.target.value })}
               disabled={readonly}
               className="text-xs h-8"
             />
@@ -414,7 +414,8 @@ function AuthEditor({
             value={(auth?.scopes || []).join(', ')}
             onChange={(e) =>
               onChange({
-                ...auth!,
+                type: currentType,
+                ...auth,
                 scopes: e.target.value
                   .split(',')
                   .map((s) => s.trim())

@@ -207,12 +207,13 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
           return;
         }
         if (data.publications) {
+          const publications = data.publications;
           setPublications((prev) => {
-            if (!publicationsChanged(prev, data.publications!)) {
+            if (!publicationsChanged(prev, publications)) {
               return prev;
             }
-            patchArtifactPublicationsInChat(artifact.id, data.publications!);
-            return data.publications!;
+            patchArtifactPublicationsInChat(artifact.id, publications);
+            return publications;
           });
         }
         if (data.latest_version_id) {
@@ -874,27 +875,31 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
           <div className="mx-3 mb-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
             {publications
               .filter((pub) => pub.publication_status === 'READY' && pub.publication_url)
-              .map((pub) => (
+              .map((pub) => {
+                const url = pub.publication_url;
+                if (!url) return null;
+                return (
                 <button
                   key={pub.id}
                   type="button"
                   className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs text-green-800 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-950/50"
                   onClick={(e) => {
                     e.stopPropagation();
-                    window.open(pub.publication_url!, '_blank');
+                    window.open(url, '_blank');
                   }}
                   title={t('publish.openLiveWithTarget', {
                     target: pub.hosting_target_name ?? pub.hosting_target_id,
-                    hostname: deploymentHostname(pub.publication_url!),
+                    hostname: deploymentHostname(url),
                   })}
                 >
                   <ExternalLink className="h-3 w-3" />
                   <span className="truncate max-w-[12rem]">
                     {pub.hosting_target_name ? `${pub.hosting_target_name} · ` : ''}
-                    {deploymentHostname(pub.publication_url!)}
+                    {deploymentHostname(url)}
                   </span>
                 </button>
-              ))}
+                );
+              })}
           </div>
         )}
 

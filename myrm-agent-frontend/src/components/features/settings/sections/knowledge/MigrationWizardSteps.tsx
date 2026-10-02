@@ -626,10 +626,10 @@ export function PreviewStep({
       {(dryRun.cron_skipped?.length ?? 0) > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-left text-xs space-y-2">
           <p className="font-medium text-amber-800 dark:text-amber-300">
-            {t('preview.cronSkippedTitle', { count: dryRun.cron_skipped!.length })}
+            {t('preview.cronSkippedTitle', { count: dryRun.cron_skipped?.length ?? 0 })}
           </p>
           <ul className="space-y-1 text-muted-foreground">
-            {dryRun.cron_skipped!.map((item) => (
+            {(dryRun.cron_skipped ?? []).map((item) => (
               <li key={`${item.name}-${item.reason}`}>
                 <span className="font-medium text-foreground">{item.name}</span>
                 {' — '}
@@ -743,11 +743,11 @@ export function PreviewStep({
       {(dryRun.mcp_servers_preview?.length ?? 0) > 0 && (
         <div className="space-y-2 rounded-xl border border-border/50 bg-secondary/20 p-4">
           <h3 className="text-sm font-medium">
-            {t('preview.mcpServersTitle')} ({dryRun.mcp_servers_preview!.length})
+            {t('preview.mcpServersTitle')} ({dryRun.mcp_servers_preview?.length ?? 0})
           </h3>
           <p className="text-xs text-muted-foreground">{t('preview.mcpServersHint')}</p>
           <div className="grid gap-2 sm:grid-cols-2">
-            {dryRun.mcp_servers_preview!.map((srv) => (
+            {(dryRun.mcp_servers_preview ?? []).map((srv) => (
               <div
                 key={srv.name}
                 className="rounded-lg border border-border/40 bg-background/60 px-3 py-2 text-xs space-y-0.5"
@@ -766,7 +766,7 @@ export function PreviewStep({
                 </div>
                 {(srv.envKeyCount ?? 0) > 0 && (
                   <div className="text-amber-600 dark:text-amber-400">
-                    {t('preview.mcpEnvKeysRequired', { count: srv.envKeyCount! })}
+                    {t('preview.mcpEnvKeysRequired', { count: srv.envKeyCount ?? 0 })}
                   </div>
                 )}
                 {srv.type !== 'stdio' && typeof srv.keepaliveInterval === 'number' && srv.keepaliveInterval > 0 && (
@@ -950,7 +950,7 @@ export function ResultStep({
       queueMigrationReadinessAnchor({
         importBatchId: batchId,
         readinessStatus: status,
-        targetAgentId: result.target_agent_id!,
+        targetAgentId: result.target_agent_id ?? '',
       });
     };
 
