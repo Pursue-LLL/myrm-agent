@@ -37,7 +37,7 @@ vi.mock('@/hooks/settings/useMcpSecurityGate', () => ({
   gateMcpEnable: (...args: unknown[]) => mockGateMcpEnable(...args),
 }));
 
-vi.mock('@/lib/utils/mcpScanFindingText', () => ({
+vi.mock('@/lib/utils/mcp-config', () => ({
   formatMcpGateBlockedMessage: () => 'blocked',
 }));
 

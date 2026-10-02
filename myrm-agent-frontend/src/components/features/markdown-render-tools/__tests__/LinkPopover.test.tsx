@@ -2,7 +2,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-vi.mock('@/lib/utils/deviceUtils', () => ({
+vi.mock('@/lib/utils/device', () => ({
   isTouchDevice: () => false,
 }));
 

@@ -21,7 +21,7 @@ export function formatTokens(tokens: number | undefined): string {
  * @returns 格式化后的价格字符串，显示为 "/M" 表示每百万 token；无数据返回 '-'
  */
 export function formatPrice(pricePerMillion: number | undefined): string {
-  if (pricePerMillion == null) {
+  if (pricePerMillion === null || pricePerMillion === undefined) {
     return '-';
   }
   if (pricePerMillion === 0) {

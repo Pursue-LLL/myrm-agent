@@ -6,7 +6,7 @@ import {
   normalizeMCPKeepaliveInterval,
   normalizeMCPServiceConfig,
   normalizeMCPServiceConfigs,
-} from '@/lib/utils/mcpConfigNormalizer';
+} from '@/lib/utils/mcp-config';
 
 describe('mcpConfigNormalizer', () => {
   it('canonicalizeMCPTransport 应该归一化 transport 别名', () => {

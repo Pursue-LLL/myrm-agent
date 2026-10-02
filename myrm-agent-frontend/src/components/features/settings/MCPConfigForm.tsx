@@ -8,9 +8,9 @@ import { MCPConfigEditor } from './mcp/MCPConfigEditor';
 import { MCPJsonImporter } from './mcp/MCPJsonImporter';
 import { DeleteConfirmDialog } from './mcp/DeleteConfirmDialog';
 import { useToast } from '@/hooks/shared/useToast';
-import { parseMCPConfigsFromJSON } from '@/lib/utils/mcpConfigParser';
+import { parseMCPConfigsFromJSON } from '@/lib/utils/mcp-config';
 import { buildLastScanSummary, gateMcpConfigBatch } from '@/hooks/settings/useMcpSecurityGate';
-import { getMcpFindingDescription } from '@/lib/utils/mcpScanFindingText';
+import { getMcpFindingDescription } from '@/lib/utils/mcp-config';
 import { MCPScanAckDialog } from './mcp/MCPScanAckDialog';
 import { MCPReloadConfirmDialog } from './mcp/MCPReloadConfirmDialog';
 

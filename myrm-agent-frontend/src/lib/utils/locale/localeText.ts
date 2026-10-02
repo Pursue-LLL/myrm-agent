@@ -76,7 +76,7 @@ function localizeChildren(children: ReactNode, locale: string): ReactNode {
  * the active locale on screen.
  */
 export function localizeReactNode(node: ReactNode, locale: string): ReactNode {
-  if (node == null || typeof node === 'boolean' || typeof node === 'number') {
+  if (node === null || node === undefined || typeof node === 'boolean' || typeof node === 'number') {
     return node;
   }
 

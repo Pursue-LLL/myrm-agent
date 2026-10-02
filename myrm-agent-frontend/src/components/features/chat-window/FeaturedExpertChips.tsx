@@ -26,7 +26,7 @@ import { resolveLucideIcon } from '@/components/agent/agent-icons';
 import { resolveTemplateKind } from '@/services/templateDiscovery';
 import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
 import { recordExpertSummonSurfaceViewed } from '@/services/expertSummonMetrics';
-import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
+import { buildAgentConfig } from '@/lib/utils/agent-config';
 import useChatStore from '@/store/useChatStore';
 
 interface FeaturedExpertChipsProps {

@@ -8,7 +8,7 @@ import { splitTextWithAtLinks } from '@/lib/utils/urlUtils';
 import { File as FileType } from '@/store/chat/types';
 import { isImageFile, getDisplayUrl } from '@/lib/utils/fileUtils';
 import { useLocale, useTranslations } from 'next-intl';
-import { localizeReactNode } from '@/lib/utils/localeText';
+import { localizeReactNode } from '@/lib/utils/locale';
 import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { formatMessageTimestamp } from '@/lib/utils/timeUtils';

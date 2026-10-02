@@ -31,7 +31,7 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
-import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
+import { buildAgentConfig } from '@/lib/utils/agent-config';
 import type { AgentConfig } from '@/store/chat/types';
 import { getTemplates, type TemplateListItem } from '@/services/agent';
 import {

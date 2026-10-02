@@ -3,7 +3,7 @@ import useConfigStore, { MCPServiceConfig } from '@/store/useConfigStore';
 import { getMCPOptions, MCPOptionsResponse, scanMCPConfig } from '@/services/llm-config';
 import type { MCPScanFinding, MCPScanResult } from '@/store/config/types';
 import { buildLastScanSummary, gateMcpEnable, mcpConfigHasSecretRefs } from '@/hooks/settings/useMcpSecurityGate';
-import { formatMcpGateBlockedMessage } from '@/lib/utils/mcpScanFindingText';
+import { formatMcpGateBlockedMessage } from '@/lib/utils/mcp-config';
 import { useToast } from '@/hooks/shared/useToast';
 import { useTranslations } from 'next-intl';
 

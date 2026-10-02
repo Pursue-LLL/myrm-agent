@@ -115,26 +115,23 @@ export function deriveStageTaskCounts(nodes: Record<string, SubagentNode> | Suba
   for (const node of visibleNodes) {
     const { category, name } = classifyNodeStage(node);
     const key = `${category}:${name}`;
-    if (!stageBuckets.has(key)) {
-      stageBuckets.set(key, { category, name, nodes: [] });
+    let bucket = stageBuckets.get(key);
+    if (!bucket) {
+      bucket = { category, name, nodes: [] };
+      stageBuckets.set(key, bucket);
     }
-    stageBuckets.get(key)!.nodes.push(node);
+    bucket.nodes.push(node);
   }
 
   // Sort stages by canonical stage order
-  const sortedKeys = Array.from(stageBuckets.keys()).sort((a, b) => {
-    const catA = stageBuckets.get(a)!.category;
-    const catB = stageBuckets.get(b)!.category;
-    const orderA = STAGE_ORDER.indexOf(catA);
-    const orderB = STAGE_ORDER.indexOf(catB);
-    return orderA - orderB;
-  });
+  const sortedBuckets = Array.from(stageBuckets.entries()).sort(
+    (a, b) => STAGE_ORDER.indexOf(a[1].category) - STAGE_ORDER.indexOf(b[1].category)
+  );
 
   const stages: StageProgressItem[] = [];
   let previousStageIncomplete: string | undefined = undefined;
 
-  for (const key of sortedKeys) {
-    const bucket = stageBuckets.get(key)!;
+  for (const [key, bucket] of sortedBuckets) {
     const total = bucket.nodes.length;
     const completed = bucket.nodes.filter((n) => n.status === 'completed').length;
     const failed = bucket.nodes.filter((n) => n.status === 'failed' || n.status === 'timed_out').length;

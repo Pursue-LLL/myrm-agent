@@ -15,7 +15,7 @@ import { Label } from '@/components/primitives/label';
 import { Button } from '@/components/primitives/button';
 import OptionSelect from '../OptionSelect';
 import { ProviderConfig, toLiteLLMFormat } from '@/lib/search/retrievalProviders';
-import { localizeReactNode } from '@/lib/utils/localeText';
+import { localizeReactNode } from '@/lib/utils/locale';
 
 export interface ProviderModelConfig {
   provider: string;

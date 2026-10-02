@@ -17,7 +17,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, useCallback, useEffect } from 'react';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/primitives/hover-card';
-import { isTouchDevice as checkTouchDevice } from '@/lib/utils/deviceUtils';
+import { isTouchDevice as checkTouchDevice } from '@/lib/utils/device';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';

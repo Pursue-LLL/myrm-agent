@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - lib/utils/localeUtils.ts (POS: Locale 工具集。供 middleware 自动检测、营销接力、客户端读取和后端格式归一化)
+ * - lib/utils/locale/ (POS: Locale 工具集。供 middleware 自动检测、营销接力、客户端读取和后端格式归一化)
  * - lib/auth-cookie.ts (POS: SaaS sandbox 会话 cookie)
  * - lib/marketing-paths.ts (POS: SaaS 公开路径白名单)
  *
@@ -19,7 +19,7 @@ import {
   negotiateLocale,
   parseLocaleQueryParam,
   urlWithoutLocaleParam,
-} from '@/lib/utils/localeUtils';
+} from '@/lib/utils/locale';
 
 const LOCALE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 

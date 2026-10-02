@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { setGlobalTranslator } from '@/services/i18nToastService';
 import * as api from '@/lib/api';
 import { createAISearchStream } from '@/services/chat';
-import { normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
+import { normalizeLocaleForBackend } from '@/lib/utils/locale';
 import type { AgentConfig } from '@/store/chat/types';
 import type { MentionReference } from '@/store/chat/types';
 import {

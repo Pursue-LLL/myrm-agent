@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
 import { cn } from '@/lib/utils/classnameUtils';
-import { getMcpFindingDescription, getMcpFindingRecommendation } from '@/lib/utils/mcpScanFindingText';
+import { getMcpFindingDescription, getMcpFindingRecommendation } from '@/lib/utils/mcp-config';
 import type { MCPScanFinding } from '@/store/config/types';
 import { useTranslations } from 'next-intl';
 

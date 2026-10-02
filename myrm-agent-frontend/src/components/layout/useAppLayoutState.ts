@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { checkIsMobile } from '@/lib/utils/deviceDetection';
+import { checkIsMobile } from '@/lib/utils/device';
 import { requestManager } from '@/lib/utils/requestManager';
 import { consumeMigrationChatAgent } from '@/lib/migrationChatHandoff';
 import { useResizableSidebar } from '@/hooks/ui/useResizableSidebar';

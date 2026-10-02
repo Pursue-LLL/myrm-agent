@@ -14,7 +14,7 @@ import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/primitives/table';
 import { cn } from '@/lib/utils/classnameUtils';
-import { localizeReactNode, selectLocalizedText } from '@/lib/utils/localeText';
+import { localizeReactNode, selectLocalizedText } from '@/lib/utils/locale';
 import {
   getSkillGrowthAuditStats,
   listSkillGrowthAudit,

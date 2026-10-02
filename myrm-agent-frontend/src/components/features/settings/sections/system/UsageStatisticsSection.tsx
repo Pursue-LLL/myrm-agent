@@ -24,7 +24,7 @@ import RuntimeCostMeterCard from './RuntimeCostMeterCard';
 import AgentUsageCard from './AgentUsageCard';
 import RoutingAnalyticsPanel, { formatTokenCount, formatCost } from './RoutingAnalyticsPanel';
 import SessionAnalyticsDialog from './SessionAnalyticsDialog';
-import { localizeReactNode } from '@/lib/utils/localeText';
+import { localizeReactNode } from '@/lib/utils/locale';
 import {
   getDailyUsage,
   getSessionUsage,

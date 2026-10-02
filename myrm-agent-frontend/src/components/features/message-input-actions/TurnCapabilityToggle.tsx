@@ -20,7 +20,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { cn } from '@/lib/utils/classnameUtils';
-import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
+import { normalizeMCPServiceConfigs } from '@/lib/utils/mcp-config';
 import {
   normalizeTurnCapabilitySelection,
   resolveEffectiveTurnSelection,

@@ -5,7 +5,7 @@ import {
   formatMcpGateBlockedMessage,
   getMcpFindingDescription,
   parseMcpFindingsFromApiErrorDetails,
-} from '@/lib/utils/mcpScanFindingText';
+} from '@/lib/utils/mcp-config';
 
 describe('mcpScanFindingText', () => {
   const t = vi.fn((key: string) => {

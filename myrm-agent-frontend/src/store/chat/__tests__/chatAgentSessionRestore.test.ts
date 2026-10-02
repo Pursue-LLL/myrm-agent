@@ -42,7 +42,7 @@ vi.mock('@/store/skill', () => ({
   },
 }));
 
-vi.mock('@/lib/utils/agentConfigMapper', () => ({
+vi.mock('@/lib/utils/agent-config', () => ({
   buildAgentConfig: (agent: { id: string; defaultSecurityPreset?: string }) => ({
     agentId: agent.id,
     defaultSecurityPreset: agent.defaultSecurityPreset,

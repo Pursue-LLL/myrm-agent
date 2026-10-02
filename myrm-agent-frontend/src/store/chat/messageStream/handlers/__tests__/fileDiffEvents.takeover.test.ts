@@ -21,7 +21,7 @@ vi.mock('@/lib/utils/toast', () => ({
   },
 }));
 
-vi.mock('@/lib/utils/localeUtils', () => ({
+vi.mock('@/lib/utils/locale', () => ({
   getClientLocale: () => 'en',
 }));
 

@@ -15,7 +15,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { getAgent } from '@/services/agent';
 import { AgentConfig } from '@/store/chat/types';
 import { useSkillStore } from '@/store/skill';
-import { validateAgentDependencies, buildMissingDependenciesParts } from '@/lib/utils/agentConfigValidator';
+import { validateAgentDependencies, buildMissingDependenciesParts } from '@/lib/utils/agent-config';
 import { toast } from '@/hooks/shared/useToast';
 import { useTranslations } from 'next-intl';
 import ToolApprovalDialog from './ToolApprovalDialog';

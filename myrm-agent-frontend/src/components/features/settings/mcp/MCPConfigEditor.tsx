@@ -16,7 +16,7 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import { getMcpFindingDescription, getMcpFindingRecommendation } from '@/lib/utils/mcpScanFindingText';
+import { getMcpFindingDescription, getMcpFindingRecommendation } from '@/lib/utils/mcp-config';
 import { Switch } from '@/components/primitives/switch';
 import { InputField } from '../FormFields';
 import { MCPServiceConfig, MCPOAuthSettings } from '@/store/useConfigStore';

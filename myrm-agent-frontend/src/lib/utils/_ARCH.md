@@ -2,14 +2,12 @@
 
 通用纯函数工具集（认证头、导出、剪贴板、Agent 映射等）。**无** React 组件。
 
-按域单文件组织；新工具优先就近放 feature/lib 子目录，仅跨 3+ feature 复用才放此处。
+按域组织（平铺单文件或域子包）；新工具优先就近放 feature/lib 子目录，仅跨 3+ feature 复用才放此处；同域多文件必须收敛为域子包（barrel 门面 + `_ARCH.md`）。
 
 子目录 `__tests__/` 覆盖高价值纯函数。
 
-- `localeUtils.ts`：Locale 工具集 — cookie 常量、客户端读取、后端格式映射、营销参数解析、RFC 7231 Accept-Language 协商。
 - `relativeTime.ts`：Locale 感知相对时间格式化 — `formatRelativeTime` 基于 `Intl.RelativeTimeFormat`（auto 措辞，六语言原生支持），秒/分/时/日/月/年自适应档位与 NaN 容错空串降级；模块级 formatter 缓存（locale → `Intl.RelativeTimeFormat`），高频轮询场景免重复构造。
 - `responseLocalePolicy.ts`：Agent `engine_params.response_locale_policy` 读写（正式韩语 Switch ↔ harness suffix SSOT）。
-- `mcpConfigNormalizer.ts`：MCP transport/keepalive 语义归一化（`http` → `streamable_http`；`stdio` keepalive 清空）。
 - `subagentTree.ts`：Subagent 树数据工具 — 构建树、子树聚合（成本/tokens/后代）、全局统计、排序（spawn/busiest/slowest/status）、过滤（all/running/failed/leaf）、展平、格式化（fmtCost/fmtTokens/fmtBudgetCost）、预算/用量提取（extractCostUsd/extractTotalTokens/extractBudgetTokens/extractMaxCostUsd，成本经 `token_usage.total_cost_usd`，上限经 `budget.max_cost_usd`/`budget.budget_tokens`）。
 - `taskTopologyModel.ts`：任务拓扑数据模型 — 纯函数把 subagent 树 / fission 拓扑转为 ReactFlow 可渲染图模型（buildTopologyModel / buildFissionTopologyModel / buildMergedTopologyModel：节点/边/墓碑/焦点/进度/元数据、悬空边过滤、label 截断、状态 tone 映射；**验证失败节点 tone 降级为 danger 并透传 verification 字段**；fission 命名空间按 fission_id 隔离）。
 - `fileUtils.ts`：通用文件工具 — 扩展名分类（image/video/audio/pdf/document/text）、MIME 推断（getMimeType）、扩展名提取（getFileExtension）、文件名非法字符清理（sanitizeFilename）、Web/Tauri 展示 URL（getDisplayUrl）、base64 转换（fetchFileAsBase64DataURL）、SHA-256 哈希（computeFileHash）、「路径→内容」DEFLATE zip 打包（buildZipFromFiles）、文件下载（triggerDownload：Web a[download] / Tauri 系统保存对话框 + fs 写入）。
@@ -24,4 +22,9 @@
 - `urlUtils.ts`：URL 协议安全性与外部跳转校验工具 — 提供 `isValidExternalUrl` 严格协议白名单校验（仅放行 `http:` 与 `https:`），阻断 `javascript:`、`data:` 与桌面本地伪协议，防御工件与应用外链 XSS 及客户端沙箱逃逸。
 - `imageAdmission.ts`：端侧图片准入与轻量速压防线 — `admitAndCompressImageFile` 与 `admitAndCompressFiles` 纯函数，入队/上传前执行尺寸（<=2048px）与体积（<=4MB）预检，基于 `OffscreenCanvas` / `createImageBitmap` 异步等比缩放与无损感知 WebP 压缩，杜绝超大原图（30MB+）阻塞网络带宽与网关 413 崩溃，保全动图（GIF）与矢量图（SVG）。
 - `chat-export/`：会话导出域子包 — `index.ts` 显式清单门面（对外唯一入口 `@/lib/utils/chat-export`，公开面受控）；`chatExport.ts` 多格式导出排版与文件构建纯函数（Markdown / JSON 结构化格式化、敏感凭据脱敏过滤、单条消息 CWE-312 保护、客户端自适应下载）；`batchExport.ts` 批量导出编排器（3 并发 + 重试、日期归档、DEFLATE zip、进度/取消回调）；`chatExportHtml.ts` 离线独立 HTML 渲染构建器（Rehype AST 安全 HTML、代码高亮、iframe 挂件、零原生 Emoji 自包含渲染，惰性动态加载）；`chatExportHtmlTemplates.ts` 深浅双主题样式模板库（主题 CSS 变量、Highlight.js 语法主题、打印态隔离、复制交互脚本、多语言统计标签，包内私有）。详见 [chat-export/_ARCH.md](chat-export/_ARCH.md)。
+- `mcp-config/`：MCP 配置域子包 — transport/keepalive 语义归一化（Normalizer）、JSON 配置解析（Parser）与扫描 finding 文案（ScanFindingText），barrel 门面 `@/lib/utils/mcp-config`。详见 [mcp-config/_ARCH.md](mcp-config/_ARCH.md)。
+- `agent-config/`：Agent 配置域子包 — Agent → AgentConfig 映射构建（Mapper）与依赖缺失校验（Validator），barrel 门面 `@/lib/utils/agent-config`。详见 [agent-config/_ARCH.md](agent-config/_ARCH.md)。
+- `device/`：设备检测域子包 — 环境侧移动端判定（deviceDetection）与特征查询级设备判定（deviceUtils），零外部依赖，barrel 门面 `@/lib/utils/device`。详见 [device/_ARCH.md](device/_ARCH.md)。
+- `media/`：媒体凭据域子包 — 图片/TTS/视频三通道凭据就绪判定与警告收集（CredentialReadiness）、provider 状态映射与后端状态拉取（ProviderStatus），barrel 门面 `@/lib/utils/media`。详见 [media/_ARCH.md](media/_ARCH.md)。
+- `locale/`：Locale 域子包 — cookie 常量、客户端读取、后端格式映射、营销参数解析、RFC 7231 Accept-Language 协商（localeUtils）与多语言文本选择（localeText），barrel 门面 `@/lib/utils/locale`。详见 [locale/_ARCH.md](locale/_ARCH.md)。
 - `clientRedact.ts`：客户端轻量敏感凭据脱敏清洗工具 — 提供 `redactSensitiveClientText` 与 `containsSensitiveData` 纯函数，覆盖 OpenAI/Anthropic 风格 API Keys、GitHub Tokens、AWS 密钥、PEM 私钥、JWT 签名凭据与键值对密码，防御单条消息与前端导出 CWE-312 敏感信息明文泄露。

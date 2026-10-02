@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, Activity, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
 import { Progress } from '@/components/primitives/progress';
-import { localizeReactNode } from '@/lib/utils/localeText';
+import { localizeReactNode } from '@/lib/utils/locale';
 
 interface BashExecutionStats {
   total_commands: number;

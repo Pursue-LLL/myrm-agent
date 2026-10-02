@@ -2,7 +2,7 @@
  * [INPUT]
  * @/services/chat::getChatDetail (POS: Chat API client)
  * @/store/useWorkspaceStore::useWorkspaceStore (POS: Workspace state manager)
- * @/lib/utils/agentConfigMapper::buildAgentConfig (POS: Agent→AgentConfig 标准映射)
+ * @/lib/utils/agent-config::buildAgentConfig (POS: Agent→AgentConfig 标准映射)
  *
  * [OUTPUT]
  * initializeChat: Initialize or switch chat sessions with instant snapshot rendering.

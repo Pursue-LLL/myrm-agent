@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { cn } from '@/lib/utils/classnameUtils';
-import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
+import { buildAgentConfig } from '@/lib/utils/agent-config';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import {

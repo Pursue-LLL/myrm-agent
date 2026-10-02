@@ -16,7 +16,7 @@ import * as H from './handlerDeps';
 import { takeoverVncOpenFailedMessage } from './takeoverVncMessages';
 
 async function notifyTakeoverVncOpenFailed(): Promise<void> {
-  const { getClientLocale } = await import('@/lib/utils/localeUtils');
+  const { getClientLocale } = await import('@/lib/utils/locale');
   const { toast } = await import('@/lib/utils/toast');
   toast.error(takeoverVncOpenFailedMessage(getClientLocale()), { duration: 8000 });
 }

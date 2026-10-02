@@ -41,7 +41,7 @@ import AgentEditPanel from './AgentEditPanel';
 import { isLocalMode } from '@/lib/deploy-mode';
 import useSkillStore from '@/store/skill/useSkillStore';
 import useConfigStore from '@/store/useConfigStore';
-import { validateAgentDependencies } from '@/lib/utils/agentConfigValidator';
+import { validateAgentDependencies } from '@/lib/utils/agent-config';
 import CloneAgentDialog from './CloneAgentDialog';
 
 // 预设头像颜色方案

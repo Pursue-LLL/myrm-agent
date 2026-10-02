@@ -17,7 +17,7 @@ import {
   resolveImageProviderId,
   VIDEO_PROVIDER_CONFIG_IDS,
   type MediaProviderStatus,
-} from '@/lib/utils/mediaProviderStatus';
+} from './mediaProviderStatus';
 
 function normalizeProviderSlug(providerId: string): string {
   return providerId.replace(/-/g, '_').toLowerCase();

@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - lib/utils/localeUtils.ts (POS: App locale 解析与营销接力工具)
+ * - lib/utils/locale/ (POS: App locale 解析与营销接力工具)
  * - store/useConfigStore.ts (POS: 用户个人设置与云同步)
  *
  * [OUTPUT]
@@ -11,7 +11,7 @@
  * 对齐 messageRequest 的 personalSettings.locale 优先级，避免营销漏斗 UI 语言与 Agent 回复语言分裂。
  */
 import useConfigStore from '@/store/useConfigStore';
-import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
+import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
 
 export async function persistLocaleToPersonalSettings(frontendLocale: string | null): Promise<void> {
   const backendLocale = normalizeLocaleForBackend(frontendLocale);

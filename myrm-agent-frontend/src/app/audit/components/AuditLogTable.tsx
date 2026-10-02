@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { Loader2, Download, Search, RefreshCw } from 'lucide-react';
-import { localizeReactNode } from '@/lib/utils/localeText';
+import { localizeReactNode } from '@/lib/utils/locale';
 
 interface BashAuditLog {
   sequence: number;

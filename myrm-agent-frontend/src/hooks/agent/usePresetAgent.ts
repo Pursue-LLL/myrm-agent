@@ -5,7 +5,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { PresetAgent } from '@/types/presetAgent';
 import { AgentConfig } from '@/store/chat/types';
 import { toast } from '@/hooks/shared/useToast';
-import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
+import { buildAgentConfig } from '@/lib/utils/agent-config';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import type { OriginalAgentSnapshot } from './config-panel/configChanges';

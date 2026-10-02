@@ -1,5 +1,5 @@
 import { ApiError, apiRequest } from '@/lib/api';
-import { parseMcpFindingsFromApiErrorDetails } from '@/lib/utils/mcpScanFindingText';
+import { parseMcpFindingsFromApiErrorDetails } from '@/lib/utils/mcp-config';
 import type {
   MCPScanBatchResult,
   MCPScanResult,

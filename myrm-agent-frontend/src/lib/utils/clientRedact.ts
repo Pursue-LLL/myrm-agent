@@ -12,7 +12,7 @@ const REDACTION_PATTERNS: Array<{ regex: RegExp; replace: (substring: string, ..
   },
   // 2. OpenAI / Anthropic 风格 API Keys (sk-...)
   {
-    regex: /\bsk-[A-Za-z0-9_\-]{20,}\b/g,
+    regex: /\bsk-[A-Za-z0-9_-]{20,}\b/g,
     replace: () => '[REDACTED_API_KEY]',
   },
   // 3. GitHub Tokens (ghp_, gho_, ghu_, ghs_, ghr_, github_pat_)
@@ -27,7 +27,7 @@ const REDACTION_PATTERNS: Array<{ regex: RegExp; replace: (substring: string, ..
   },
   // 5. Authorization: Bearer <token>
   {
-    regex: /(authorization:\s*bearer\s+)[A-Za-z0-9_\-\.]{16,}/gi,
+    regex: /(authorization:\s*bearer\s+)[A-Za-z0-9_.-]{16,}/gi,
     replace: (_match, prefix: string) => `${prefix}[REDACTED_TOKEN]`,
   },
   // 6. JWT Tokens

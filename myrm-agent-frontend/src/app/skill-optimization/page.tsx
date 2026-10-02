@@ -18,7 +18,7 @@ import {
   XAxis,
   YAxis,
 } from '@/components/features/app-shell/lazy-recharts';
-import { localizeReactNode } from '@/lib/utils/localeText';
+import { localizeReactNode } from '@/lib/utils/locale';
 
 interface ComparisonData {
   skill_id: string;

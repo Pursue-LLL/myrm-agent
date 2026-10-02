@@ -23,7 +23,7 @@ import {
   fetchMediaProviderStatus,
   VIDEO_PROVIDER_CONFIG_IDS,
   type MediaProviderStatus,
-} from '@/lib/utils/mediaProviderStatus';
+} from '@/lib/utils/media';
 import OptionSelect from '../../OptionSelect';
 import SettingsSection from '../SettingsSection';
 

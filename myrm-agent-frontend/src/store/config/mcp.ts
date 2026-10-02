@@ -1,5 +1,5 @@
 import { MCPServiceConfig } from './types';
-import { normalizeMCPServiceConfig, normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
+import { normalizeMCPServiceConfig, normalizeMCPServiceConfigs } from '@/lib/utils/mcp-config';
 
 /**
  * MCP 配置管理模块

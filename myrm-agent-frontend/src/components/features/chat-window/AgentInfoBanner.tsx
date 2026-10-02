@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives
 import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/agent/builtin-agent-i18n';
 import { getAgent, type Agent } from '@/services/agent';
-import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
+import { buildAgentConfig } from '@/lib/utils/agent-config';
 import useAgentStore from '@/store/useAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';

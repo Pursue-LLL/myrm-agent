@@ -18,7 +18,7 @@ import { toast } from '@/hooks/shared/useToast';
 import useConfigStore from '@/store/useConfigStore';
 import { apiRequest, BACKEND_BASE_URL } from '@/lib/api';
 import { buildLastScanSummary, gateMcpEnable } from '@/hooks/settings/useMcpSecurityGate';
-import { formatMcpGateBlockedMessage } from '@/lib/utils/mcpScanFindingText';
+import { formatMcpGateBlockedMessage } from '@/lib/utils/mcp-config';
 import { MCPScanAckDialog } from '@/components/features/settings/mcp/MCPScanAckDialog';
 import type { MCPScanResult, MCPServiceConfig } from '@/store/config/types';
 import { getDocsUrl, isSandbox } from '@/lib/deploy-mode';

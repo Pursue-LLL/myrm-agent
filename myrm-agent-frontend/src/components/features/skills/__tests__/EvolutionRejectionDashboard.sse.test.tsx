@@ -24,7 +24,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }));
 
-vi.mock('@/lib/utils/localeText', () => ({
+vi.mock('@/lib/utils/locale', () => ({
   localizeReactNode: (node: React.ReactNode) => node,
   selectLocalizedText: (value: string) => value,
 }));

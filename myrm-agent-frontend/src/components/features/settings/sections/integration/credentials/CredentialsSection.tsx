@@ -14,7 +14,7 @@
 import { memo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import SettingsSection from '../../SettingsSection';
-import { localizeReactNode } from '@/lib/utils/localeText';
+import { localizeReactNode } from '@/lib/utils/locale';
 import { CredentialsDialogs } from './CredentialsDialogs';
 import { CredentialsFilePanel } from './CredentialsFilePanel';
 import { CredentialsOAuthPanel } from './CredentialsOAuthPanel';

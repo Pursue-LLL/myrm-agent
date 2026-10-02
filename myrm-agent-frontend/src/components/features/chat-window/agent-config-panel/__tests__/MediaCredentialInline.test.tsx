@@ -16,8 +16,8 @@ vi.mock('@/store/useProviderStore', () => ({
   default: (selector: (s: object) => unknown) => selector(mockProviders),
 }));
 
-vi.mock('@/lib/utils/mediaProviderStatus', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/utils/mediaProviderStatus')>();
+vi.mock('@/lib/utils/media', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/utils/media')>();
   return {
     ...actual,
     fetchMediaProviderStatus: vi.fn(async () => ({})),
@@ -28,7 +28,7 @@ vi.mock('@/lib/api', () => ({
   apiRequest: vi.fn(async () => null),
 }));
 
-import { fetchMediaProviderStatus } from '@/lib/utils/mediaProviderStatus';
+import { fetchMediaProviderStatus } from '@/lib/utils/media';
 import { MediaCredentialInline } from '../MediaCredentialInline';
 
 describe('MediaCredentialInline', () => {

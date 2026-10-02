@@ -56,7 +56,7 @@ import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } f
 import { createAISearchStream } from '@/services/chat';
 import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
-import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
+import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
 import { isTauriRuntime, resolveE2eApiBase } from '@/lib/deploy-mode';
 import {
@@ -69,7 +69,7 @@ import { fetchWithTimeout } from '@/lib/api';
 import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { hasUsableProviderAuth, normalizeApiUrl } from '@/store/config/providerTypes';
-import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
+import { normalizeMCPServiceConfigs } from '@/lib/utils/mcp-config';
 import { consumeMigrationReadinessAnchorForAgent, peekMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';

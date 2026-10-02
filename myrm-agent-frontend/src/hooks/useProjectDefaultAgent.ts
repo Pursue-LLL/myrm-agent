@@ -9,7 +9,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import useAgentStore from '@/store/useAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { useSkillStore } from '@/store/skill';
-import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
+import { buildAgentConfig } from '@/lib/utils/agent-config';
 
 export function useProjectDefaultAgent(): void {
   const activeFilter = useProjectStore((s) => s.activeFilter);

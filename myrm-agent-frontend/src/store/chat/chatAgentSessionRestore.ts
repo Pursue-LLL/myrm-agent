@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * @/services/chat::getChatDetail (POS: Chat API client)
- * @/lib/utils/agentConfigMapper::buildAgentConfig (POS: Agent→AgentConfig 标准映射)
+ * @/lib/utils/agent-config::buildAgentConfig (POS: Agent→AgentConfig 标准映射)
  * @/store/useAgentStore::useAgentStore (POS: Agent catalog fetch)
  * @/store/useChatStore::useChatStore (POS: Active chat session store)
  *
@@ -16,7 +16,7 @@
  */
 
 import { getChatDetail } from '@/services/chat';
-import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
+import { buildAgentConfig } from '@/lib/utils/agent-config';
 import useAgentStore from '@/store/useAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { useSkillStore } from '@/store/skill';

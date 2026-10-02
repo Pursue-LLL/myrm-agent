@@ -5,7 +5,7 @@ import { useLocale } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import AuditLogTable from './components/AuditLogTable';
 import StatsDashboard from './components/StatsDashboard';
-import { localizeReactNode } from '@/lib/utils/localeText';
+import { localizeReactNode } from '@/lib/utils/locale';
 
 type AuditTab = 'logs' | 'stats';
 

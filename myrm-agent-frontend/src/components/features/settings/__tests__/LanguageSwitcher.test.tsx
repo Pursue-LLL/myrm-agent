@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
+import { normalizeLocaleForBackend } from '@/lib/utils/locale';
 
 /**
  * Test LanguageSwitcher personalSettings update logic

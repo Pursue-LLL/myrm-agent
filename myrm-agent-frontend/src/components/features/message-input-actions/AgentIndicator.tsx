@@ -5,7 +5,7 @@
  * @/store/useChatStore::useChatStore (POS: 聊天状态总线)
  * @/store/useAgentStore::useAgentStore (POS: 智能体数据中心)
  * @/hooks/agent/useAgentGallery::useAgentGallery (POS: 智能体画廊与环境可用性逻辑)
- * @/lib/utils/agentConfigMapper::buildAgentConfig (POS: 智能体配置映射)
+ * @/lib/utils/agent-config::buildAgentConfig (POS: 智能体配置映射)
  *
  * [OUTPUT]
  * AgentIndicator: 输入框工具栏智能体指示器与内联快切下拉组件。
@@ -40,7 +40,7 @@ import {
 } from '@/components/primitives/dropdown-menu';
 import * as LucideIcons from 'lucide-react';
 import { useAgentGallery } from '@/hooks/agent/useAgentGallery';
-import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
+import { buildAgentConfig } from '@/lib/utils/agent-config';
 import type { PresetAgent } from '@/types/presetAgent';
 import type { AgentListItem } from '@/services/agent';
 import type { AgentConfig } from '@/store/chat/types/sessionConfig';

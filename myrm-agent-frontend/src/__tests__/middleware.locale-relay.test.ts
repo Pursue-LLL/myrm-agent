@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { NextRequest } from 'next/server';
 import { middleware } from '@/middleware';
-import { NEXT_LOCALE_COOKIE_NAME } from '@/lib/utils/localeUtils';
+import { NEXT_LOCALE_COOKIE_NAME } from '@/lib/utils/locale';
 
 describe('middleware marketing locale relay', () => {
   it('sets NEXT_LOCALE cookie and redirects without locale param', () => {

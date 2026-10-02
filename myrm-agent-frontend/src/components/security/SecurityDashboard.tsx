@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Shield, AlertTriangle, Activity, FileText, Download } from 'lucide-react';
-import { localizeReactNode } from '@/lib/utils/localeText';
+import { localizeReactNode } from '@/lib/utils/locale';
 import { AuditLogsTab } from './AuditLogsTab';
 import { AuditStatsTab } from './AuditStatsTab';
 import { DependenciesTab } from './DependenciesTab';

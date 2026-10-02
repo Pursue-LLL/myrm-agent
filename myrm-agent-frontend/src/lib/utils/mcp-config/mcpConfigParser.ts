@@ -1,5 +1,5 @@
 import type { MCPServiceConfig } from '@/store/config/types';
-import { canonicalizeMCPTransport, normalizeMCPKeepaliveInterval } from '@/lib/utils/mcpConfigNormalizer';
+import { canonicalizeMCPTransport, normalizeMCPKeepaliveInterval } from './mcpConfigNormalizer';
 
 /**
  * 解析单个MCP服务器配置对象

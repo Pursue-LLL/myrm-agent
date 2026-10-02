@@ -25,7 +25,7 @@ import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
 import { toast } from '@/lib/utils/toast';
 import { redactErrorMessage } from '@/lib/utils/errorRedactor';
-import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
+import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
 import useConfigStore from '@/store/useConfigStore';
 
 const AUTH_LOGIN_PATH = buildAuthLoginPath();

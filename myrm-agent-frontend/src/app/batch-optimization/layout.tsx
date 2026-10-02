@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { getLocale } from '@/i18n';
-import { selectLocalizedText } from '@/lib/utils/localeText';
+import { selectLocalizedText } from '@/lib/utils/locale';
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();

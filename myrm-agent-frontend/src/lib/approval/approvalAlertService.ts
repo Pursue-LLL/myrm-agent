@@ -3,7 +3,7 @@
  * - useConfigStore::enableIdleApprovalNotification, approvalNotificationSound
  * - useToolApprovalStore::queue (ToolApprovalRequest)
  * - isTauriEnvironment (lib/tauri)
- * - getClientLocale (lib/utils/localeUtils) (POS: Locale 工具集)
+ * - getClientLocale (lib/utils/locale) (POS: Locale 工具集)
  * - Locale (i18n/config) (POS: 支持 locale 列表)
  *
  * [OUTPUT]
@@ -19,7 +19,7 @@
 
 import type { Locale } from '@/i18n/config';
 import { isTauriEnvironment } from '@/lib/tauri';
-import { getClientLocale } from '@/lib/utils/localeUtils';
+import { getClientLocale } from '@/lib/utils/locale';
 import { getConfigSyncManager } from '@/services/config';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
