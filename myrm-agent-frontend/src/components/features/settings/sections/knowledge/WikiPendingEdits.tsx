@@ -230,7 +230,7 @@ export function WikiPendingEdits({
             <div>{t('pendingEdits.noFiltered')}</div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4" data-testid="pending-edits-list">
             {filteredEdits.map((edit) => {
               const sourceChatId =
                 edit.provenance === 'chat-compound' ? extractSourceChatIdFromFrontmatter(edit.proposed_content) : null;

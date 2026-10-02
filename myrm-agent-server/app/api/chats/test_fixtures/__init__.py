@@ -49,6 +49,7 @@ from .tool_history_recovery import (
 )
 from .wechat_draft import router as wechat_draft_fixture_router
 from .wiki_dedup import router as wiki_dedup_fixture_router
+from .wiki_pending_drift import router as wiki_pending_drift_fixture_router
 from .wiki_provenance import router as wiki_provenance_fixture_router
 from .workspace_merge import router as workspace_merge_fixture_router
 
@@ -77,3 +78,4 @@ router.include_router(security_preset_fixture_router)
 router.include_router(memory_lifecycle_fixture_router)
 router.include_router(prior_chat_fixture_router)
 router.include_router(wechat_draft_fixture_router)
+router.include_router(wiki_pending_drift_fixture_router)
