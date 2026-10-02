@@ -9968,7 +9968,7 @@
     "btnFix": "一鍵授權修復"
   },
   "messageFilter": {
-  "settings": {
+    "settings": {
       "title": "訊息過濾",
       "description": "配置訊息過濾規則和 PII 檢測設定。",
       "enabled": "啟用過濾",
@@ -14152,7 +14152,13 @@
       "apiKeyHint": "請配置該服務商的 API Key。此金鑰將全域性共享，影響所有使用該服務商的功能。",
       "save": "儲存",
       "apiKeySaved": "API Key 已成功儲存",
-      "apiKeySaveFailed": "儲存 API Key 失敗"
+      "apiKeySaveFailed": "儲存 API Key 失敗",
+      "ttsTitle": "語音合成",
+      "ttsDescription": "配置 tts_generate 智能體工具：服務商、模型、音色與憑據",
+      "ttsProvider": "服務商",
+      "ttsModel": "模型",
+      "ttsVoice": "音色",
+      "ttsDoubaoKeyHint": "Doubao-TTS 使用複合格式憑據 \"appid:access_token\"（火山引擎控制台：語音技術 → 應用詳情）。"
     },
     "acp": {
       "title": "ACP 程式設計助手",
@@ -19950,5 +19956,9 @@
       "approve": "允許出網",
       "reject": "阻斷攔截"
     }
+  },
+  "ttsAudio": {
+    "generatedSpeech": "已生成語音",
+    "playbackFailed": "音訊播放失敗——檔案可能已過期。"
   }
 }

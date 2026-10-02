@@ -37,6 +37,15 @@ class TTSInput(BaseModel):
         ...,
         description="The plain text content to synthesize into spoken audio. For optimal latency and natural prosody, keep text concise (under 1500 characters).",
     )
+    style: str | None = Field(
+        default=None,
+        description=(
+            "Optional speaking style directive for expressive narration, e.g. "
+            "'cheerful and energetic' or 'calm and soothing'. Write it as a short natural-language "
+            "phrase. Applied only when the Volcengine Seed-Audio voice is configured; other providers "
+            "ignore it and use their default tone."
+        ),
+    )
 
 
 class TTSTool(BaseTool):
@@ -76,12 +85,16 @@ class TTSTool(BaseTool):
     async def _arun(
         self,
         text: str,
+        style: str | None = None,
         run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
         """Asynchronously generate speech."""
         cleaned_text = text.strip()
         if not cleaned_text:
-            return json.dumps({"status": "error", "error": "Text content cannot be empty."}, ensure_ascii=False)
+            return json.dumps(
+                {"status": "error", "error": "Text content cannot be empty."},
+                ensure_ascii=False,
+            )
 
         if len(cleaned_text) > MAX_TTS_TEXT_LENGTH:
             return json.dumps(
@@ -96,7 +109,9 @@ class TTSTool(BaseTool):
             )
 
         try:
-            result = await self._engine.generate(cleaned_text)
+            # Clamp style directives: Seed-Audio wraps them into a bounded text prompt.
+            effective_style = (style or "").strip()[:200] or None
+            result = await self._engine.generate(cleaned_text, style=effective_style)
 
             out: dict[str, object] = {
                 "status": "success",
@@ -104,17 +119,26 @@ class TTSTool(BaseTool):
                 "model": result.model,
                 "latency_ms": round(result.latency_ms),
             }
+            if result.duration_seconds is not None:
+                out["duration_seconds"] = round(result.duration_seconds, 1)
             if result.persisted_url:
                 out["audio_url"] = result.persisted_url
-                out["message"] = f"Successfully generated audio. URL: {result.persisted_url}"
+                out["message"] = (
+                    f"Successfully generated audio. URL: {result.persisted_url}"
+                )
                 self._push_artifact(result)
             else:
-                out["message"] = "Successfully generated audio, but failed to persist to URL."
+                out["message"] = (
+                    "Successfully generated audio, but failed to persist to URL."
+                )
 
             return json.dumps(out, ensure_ascii=False)
         except Exception as e:
             logger.error("TTS generation failed: %s", e)
-            return json.dumps({"status": "error", "error": f"TTS generation failed: {e}"}, ensure_ascii=False)
+            return json.dumps(
+                {"status": "error", "error": f"TTS generation failed: {e}"},
+                ensure_ascii=False,
+            )
 
     def _push_artifact(self, result: Any) -> None:
         """Notify caller about the generated artifact via callback."""

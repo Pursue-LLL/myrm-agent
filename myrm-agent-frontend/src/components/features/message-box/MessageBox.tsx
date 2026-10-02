@@ -54,6 +54,7 @@ import { HumanGateCard } from './HumanGateCard';
 import WorkflowSuggestionCard from './WorkflowSuggestionCard';
 import MessageActionBar from './MessageActionBar';
 import { ImageTaskCard, VideoTaskCard } from '@/components/features/task-card';
+import TtsAudioCard from './TtsAudioCard';
 import { recordQualityOutcomeNegative } from '@/services/wiki/evidenceMetrics';
 import { CronJobSystemCard } from './CronJobSystemCard';
 import { KanbanTaskCreatedCard, type KanbanTaskCreatedResult } from './KanbanTaskCreatedCard';
@@ -386,6 +387,19 @@ const MessageBox = ({
     return null;
   }, [message.content]);
 
+  // 检测是否为 tts_generate 同步成功响应（就地播放而非裸 JSON 渲染）
+  const ttsAudioResponse = useMemo(() => {
+    try {
+      const parsed = JSON.parse(message.content);
+      if (parsed && typeof parsed === 'object' && parsed.status === 'success' && typeof parsed.audio_url === 'string') {
+        return parsed as { audio_url: string; model?: string; duration_seconds?: number };
+      }
+    } catch {
+      // 不是有效 JSON，继续正常渲染
+    }
+    return null;
+  }, [message.content]);
+
   // 累积当前会话中所有消息的 sources（从开始到当前消息）
   // 这样可以正确渲染引用了之前消息中 sources 的 【数字】 标记
   const accumulatedSources = useMemo(() => {
@@ -636,6 +650,15 @@ const MessageBox = ({
             <ImageTaskCard task_id={taskResponse.task_id} />
           ))}
 
+        {/* TTS 语音合成结果：就地播放卡片 */}
+        {ttsAudioResponse && (
+          <TtsAudioCard
+            url={ttsAudioResponse.audio_url}
+            model={ttsAudioResponse.model}
+            durationSeconds={ttsAudioResponse.duration_seconds}
+          />
+        )}
+
         {/* 定时任务创建/更新卡片 */}
         {cronJobResult ? <CronJobSystemCard result={cronJobResult} /> : null}
 
@@ -645,7 +668,7 @@ const MessageBox = ({
           : null}
 
         {/* 回复 */}
-        {!taskResponse && (
+        {!taskResponse && !ttsAudioResponse && (
           <div className="flex flex-col space-y-2">
             <div className="flex flex-row items-center justify-between">
               <div className="flex flex-row items-center space-x-2">

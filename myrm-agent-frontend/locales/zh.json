@@ -1514,7 +1514,13 @@
       "apiKeyHint": "请配置该服务商的 API Key。此密钥将全局共享，影响所有使用该服务商的功能。",
       "save": "保存",
       "apiKeySaved": "API Key 已成功保存",
-      "apiKeySaveFailed": "保存 API Key 失败"
+      "apiKeySaveFailed": "保存 API Key 失败",
+      "ttsTitle": "语音合成",
+      "ttsDescription": "配置 tts_generate 智能体工具：服务商、模型、音色与凭据",
+      "ttsProvider": "服务商",
+      "ttsModel": "模型",
+      "ttsVoice": "音色",
+      "ttsDoubaoKeyHint": "Doubao-TTS 使用复合格式凭据 \"appid:access_token\"（火山引擎控制台：语音技术 → 应用详情）。"
     },
     "acp": {
       "title": "ACP 编程助手",
@@ -19950,5 +19956,9 @@
       "approve": "允许出网",
       "reject": "阻断拦截"
     }
+  },
+  "ttsAudio": {
+    "generatedSpeech": "已生成语音",
+    "playbackFailed": "音频播放失败——文件可能已过期。"
   }
 }

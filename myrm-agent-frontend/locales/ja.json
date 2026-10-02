@@ -9968,7 +9968,7 @@
     "btnFix": "認可して修正"
   },
   "messageFilter": {
-  "settings": {
+    "settings": {
       "title": "メッセージフィルター",
       "description": "メッセージフィルタリングルールと PII 検出設定を構成します。",
       "enabled": "フィルターを有効化",
@@ -14152,7 +14152,13 @@
       "apiKeyHint": "このプロバイダーの API キーを設定してください。このキーはこのプロバイダーを使用するすべての機能で共有されます。",
       "save": "保存",
       "apiKeySaved": "API キーの保存に成功しました",
-      "apiKeySaveFailed": "API Key の保存に失敗しました"
+      "apiKeySaveFailed": "API Key の保存に失敗しました",
+      "ttsTitle": "音声合成",
+      "ttsDescription": "tts_generate エージェントツールの設定：プロバイダー、モデル、ボイス、認証情報",
+      "ttsProvider": "プロバイダー",
+      "ttsModel": "モデル",
+      "ttsVoice": "ボイス",
+      "ttsDoubaoKeyHint": "Doubao-TTS は複合資格情報 \"appid:access_token\" を使用します（Volcengine コンソール：音声技術 → アプリ詳細）。"
     },
     "acp": {
       "title": "ACP エージェント",
@@ -19950,5 +19956,9 @@
       "approve": "送信を許可",
       "reject": "ブロックして拒否"
     }
+  },
+  "ttsAudio": {
+    "generatedSpeech": "生成された音声",
+    "playbackFailed": "音声再生に失敗しました——ファイルの期限が切れた可能性があります。"
   }
 }

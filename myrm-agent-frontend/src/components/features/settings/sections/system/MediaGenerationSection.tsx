@@ -26,6 +26,7 @@ import {
 } from '@/lib/utils/media';
 import OptionSelect from '../../OptionSelect';
 import SettingsSection from '../SettingsSection';
+import TtsGenerationSection from './TtsGenerationSection';
 
 const IMAGE_MODEL_OPTIONS = [
   { value: 'dall-e-3', label: 'DALL·E 3', description: 'OpenAI' },
@@ -50,6 +51,7 @@ const FALLBACK_VIDEO_PROVIDERS: {
   { value: 'minimax', label: 'MiniMax Hailuo', description: 'MiniMax-Hailuo-2.3' },
   { value: 'xai', label: 'xAI Grok', description: 'grok-imagine-video' },
   { value: 'fal', label: 'FAL.ai', description: 'fal-ai/flux-3-video & Kling' },
+  { value: 'volcengine', label: 'Volcengine Seedance', description: 'seedance-2-0' },
 ];
 
 const PROVIDER_CONFIG_IDS = VIDEO_PROVIDER_CONFIG_IDS;
@@ -471,6 +473,8 @@ const MediaGenerationSection = memo(() => {
           {videoTestStatus === 'error' && testMessage && <p className="text-xs text-red-500">{testMessage}</p>}
         </div>
       </SettingsSection>
+
+      <TtsGenerationSection />
     </div>
   );
 });

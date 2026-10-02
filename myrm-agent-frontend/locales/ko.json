@@ -9968,7 +9968,7 @@
     "btnFix": "인증 및 수정"
   },
   "messageFilter": {
-  "settings": {
+    "settings": {
       "title": "메시지 필터링",
       "description": "메시지 필터링 규칙과 PII 감지 설정을 구성합니다.",
       "enabled": "필터링 활성화",
@@ -14152,7 +14152,13 @@
       "apiKeyHint": "이 제공자의 API 키를 구성하세요. 키는 이 제공자를 사용하는 모든 기능에서 전역으로 공유됩니다.",
       "save": "저장",
       "apiKeySaved": "API 키가 성공적으로 저장되었습니다",
-      "apiKeySaveFailed": "API 키 저장 실패"
+      "apiKeySaveFailed": "API 키 저장 실패",
+      "ttsTitle": "음성 합성",
+      "ttsDescription": "tts_generate 에이전트 도구 구성: 제공자, 모델, 음성, 자격 증명",
+      "ttsProvider": "제공자",
+      "ttsModel": "모델",
+      "ttsVoice": "음성",
+      "ttsDoubaoKeyHint": "Doubao-TTS는 복합 자격 증명 \"appid:access_token\"을 사용합니다 (Volcengine 콘솔: Speech Technology → 앱 세부정보)."
     },
     "acp": {
       "title": "ACP 에이전트",
@@ -19950,5 +19956,9 @@
       "approve": "전송 허용",
       "reject": "차단 및 거부"
     }
+  },
+  "ttsAudio": {
+    "generatedSpeech": "생성된 음성",
+    "playbackFailed": "오디오 재생 실패——파일이 만료되었을 수 있습니다."
   }
 }

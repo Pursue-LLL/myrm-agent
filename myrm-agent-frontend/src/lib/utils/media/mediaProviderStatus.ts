@@ -26,6 +26,7 @@ export const VIDEO_PROVIDER_CONFIG_IDS: Record<VideoGenerationProvider, string> 
   minimax: 'minimax',
   xai: 'xai',
   fal: 'fal',
+  volcengine: 'volcengine',
 };
 
 export async function fetchMediaProviderStatus(): Promise<Record<string, MediaProviderStatus>> {

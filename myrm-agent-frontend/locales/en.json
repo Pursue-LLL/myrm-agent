@@ -1514,7 +1514,13 @@
       "apiKeyHint": "Please configure the API Key for this provider. The key will be shared globally across all features using this provider.",
       "save": "Save",
       "apiKeySaved": "API Key saved successfully",
-      "apiKeySaveFailed": "Failed to save API Key"
+      "apiKeySaveFailed": "Failed to save API Key",
+      "ttsTitle": "Text-to-Speech",
+      "ttsDescription": "Configure the tts_generate agent tool: provider, model, voice, and credentials",
+      "ttsProvider": "Provider",
+      "ttsModel": "Model",
+      "ttsVoice": "Voice",
+      "ttsDoubaoKeyHint": "Doubao-TTS uses the composite credential \"appid:access_token\" (Volcengine console: Speech Technology → App Details)."
     },
     "acp": {
       "title": "ACP Agents",
@@ -19950,5 +19956,9 @@
       "approve": "Allow Outbound",
       "reject": "Block & Deny"
     }
+  },
+  "ttsAudio": {
+    "generatedSpeech": "Generated speech",
+    "playbackFailed": "Audio playback failed — the file may have expired."
   }
 }

@@ -9968,7 +9968,7 @@
     "btnFix": "Autorisieren und reparieren"
   },
   "messageFilter": {
-  "settings": {
+    "settings": {
       "title": "Nachrichtenfilterung",
       "description": "Konfigurieren Sie Nachrichtenfilterregeln und PII-Erkennungseinstellungen.",
       "enabled": "Filterung aktivieren",
@@ -14152,7 +14152,13 @@
       "apiKeyHint": "Bitte konfigurieren Sie den API-Schlüssel für diesen Anbieter. Der Schlüssel wird global über alle Funktionen geteilt, die diesen Anbieter verwenden.",
       "save": "Speichern",
       "apiKeySaved": "API-Schlüssel erfolgreich gespeichert",
-      "apiKeySaveFailed": "Speichern des API-Schlüssels fehlgeschlagen"
+      "apiKeySaveFailed": "Speichern des API-Schlüssels fehlgeschlagen",
+      "ttsTitle": "Sprachsynthese",
+      "ttsDescription": "tts_generate Agent-Tool konfigurieren: Anbieter, Modell, Stimme und Zugangsdaten",
+      "ttsProvider": "Anbieter",
+      "ttsModel": "Modell",
+      "ttsVoice": "Stimme",
+      "ttsDoubaoKeyHint": "Doubao-TTS verwendet den zusammengesetzten Schlüssel \"appid:access_token\" (Volcengine-Konsole: Speech Technology → App-Details)."
     },
     "acp": {
       "title": "ACP-Agenten",
@@ -19950,5 +19956,9 @@
       "approve": "Verbindung erlauben",
       "reject": "Blockieren & Verweigern"
     }
+  },
+  "ttsAudio": {
+    "generatedSpeech": "Generierte Sprache",
+    "playbackFailed": "Audio-Wiedergabe fehlgeschlagen — die Datei ist möglicherweise abgelaufen."
   }
 }

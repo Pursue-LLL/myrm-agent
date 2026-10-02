@@ -58,11 +58,12 @@ async def test_tts_tool_arun_success_with_artifact(mock_config, mock_engine_gene
     mock_result.latency_ms = 150.5
     mock_result.persisted_url = "s3://bucket/audio.mp3"
     mock_result.mime_type = "audio/mpeg"
+    mock_result.duration_seconds = None
     mock_engine_generate.return_value = mock_result
 
     result_str = await tool._arun(text="hello world")
 
-    mock_engine_generate.assert_called_once_with("hello world")
+    mock_engine_generate.assert_called_once_with("hello world", style=None)
 
     mock_callback.assert_called_once()
     args = mock_callback.call_args[0]
@@ -87,6 +88,7 @@ async def test_tts_tool_arun_success_no_url(mock_config, mock_engine_generate):
     mock_result.model = "tts-1"
     mock_result.latency_ms = 150.5
     mock_result.persisted_url = None
+    mock_result.duration_seconds = None
     mock_engine_generate.return_value = mock_result
 
     result_str = await tool._arun(text="hello world")
@@ -123,6 +125,7 @@ async def test_tts_tool_push_artifact_skipped_without_callback(mock_config, mock
     mock_result.latency_ms = 10.0
     mock_result.persisted_url = "https://cdn.example/a.mp3"
     mock_result.mime_type = "audio/mpeg"
+    mock_result.duration_seconds = None
     mock_engine_generate.return_value = mock_result
 
     result_str = await tool._arun(text="hello")
@@ -177,9 +180,35 @@ async def test_tts_tool_push_artifact_callback_failure(mock_config, mock_engine_
     mock_result.latency_ms = 10.0
     mock_result.persisted_url = "https://cdn.example/a.mp3"
     mock_result.mime_type = "audio/mpeg"
+    mock_result.duration_seconds = None
     mock_engine_generate.return_value = mock_result
 
     result_str = await tool._arun(text="hello")
     result_dict = json.loads(result_str)
     assert result_dict["status"] == "success"
     mock_callback.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_tts_tool_arun_style_passthrough_and_duration(mock_config, mock_engine_generate):
+    """Style directive is clamped and forwarded; duration_seconds is surfaced in output."""
+    tool = TTSTool(config=mock_config)
+
+    mock_result = MagicMock()
+    mock_result.provider = "volcengine"
+    mock_result.model = "seed-audio-1.0"
+    mock_result.latency_ms = 900.0
+    mock_result.persisted_url = "https://media.example/voice.mp3"
+    mock_result.mime_type = "audio/mpeg"
+    mock_result.duration_seconds = 3.7
+    mock_engine_generate.return_value = mock_result
+
+    long_style = "x" * 300
+    result_str = await tool._arun(text="read this", style=long_style)
+
+    # Style is clamped to 200 chars before forwarding to the engine.
+    mock_engine_generate.assert_called_once_with("read this", style="x" * 200)
+
+    result_dict = json.loads(result_str)
+    assert result_dict["status"] == "success"
+    assert result_dict["duration_seconds"] == 3.7
