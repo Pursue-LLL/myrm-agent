@@ -5,7 +5,7 @@ myrm_agent_harness.toolkits.file_parsers (POS: Office 文档解析器)
 myrm_agent_harness.toolkits.web_fetch.engine::FetchEngine (POS: 分层爬虫引擎)
 
 [OUTPUT]
-_build_mention_reference_context: 读取结构化 @ 引用并构建注入上下文
+_build_mention_reference_context: 读取结构化 @ 引用并构建注入上下文（含 artifact_range 选区直传注入）
 _inject_mentioned_files_into_query: 将上下文追加到用户查询
 _prior_chat_part: 解析 prior_chat mention 并注入摘要片段
 _build_codebase_overview: 轻量扫描工作区文件统计（@codebase）
@@ -426,6 +426,26 @@ async def _build_mention_reference_context(
             part, consumed_bytes = await _prior_chat_part(chat_id, display, total_bytes)
             parts.append(part)
             total_bytes += consumed_bytes
+            continue
+
+        if ref.type == "artifact_range":
+            base_display = ref.label or "artifact"
+            display = f"{base_display} ({ref.range})" if ref.range else base_display
+            if not ref.content:
+                parts.append(_xml_error(display, "empty selection"))
+                continue
+            selection_bytes = len(ref.content.encode("utf-8"))
+            if _can_inline(selection_bytes, total_bytes):
+                parts.append(_xml_part(display, "artifact-range", ref.content))
+                total_bytes += selection_bytes
+            else:
+                parts.append(
+                    _xml_metadata(
+                        display,
+                        "artifact-range",
+                        f"Selection too large ({_format_size(selection_bytes)})",
+                    )
+                )
             continue
 
         parts.append(_xml_error(ref.label or ref.type, "unsupported reference"))

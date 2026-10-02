@@ -175,3 +175,66 @@ async def test_mixed_references_with_codebase() -> None:
     assert "@notes.txt" in context
     assert "@codebase" in context
     assert warnings == []
+
+
+@pytest.mark.asyncio
+async def test_artifact_range_reference_inlines_selection() -> None:
+    """artifact_range mention inlines the selection content with range tag."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [
+            MentionReferenceRequest(
+                type="artifact_range",
+                label="sales.xlsx",
+                range="Sheet1!B2:F10",
+                content="Region: North, Q1: 1200, Q2: 1350",
+            )
+        ],
+        str(Path(tempfile.mkdtemp())),
+    )
+
+    assert "<mentioned_files>" in context
+    assert 'type="artifact-range"' in context
+    assert "sales.xlsx (Sheet1!B2:F10)" in context
+    assert "Region: North" in context
+    assert warnings == []
+    assert tokens > 0
+
+
+@pytest.mark.asyncio
+async def test_artifact_range_reference_without_content() -> None:
+    """artifact_range mention without content returns empty-selection error."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="artifact_range", label="report.docx", range="所选段落")],
+        str(Path(tempfile.mkdtemp())),
+    )
+
+    assert 'error="empty selection"' in context
+    assert warnings == []
+    assert tokens > 0
+
+
+@pytest.mark.asyncio
+async def test_artifact_range_reference_too_large() -> None:
+    """artifact_range mention larger than the inline budget is metadata-only."""
+    from app.services.agent.params.mention import _MENTION_MAX_INLINE_BYTES, _build_mention_reference_context
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [
+            MentionReferenceRequest(
+                type="artifact_range",
+                label="huge.xlsx",
+                range="Sheet1!A1:Z9999",
+                content="y" * (_MENTION_MAX_INLINE_BYTES + 1),
+            )
+        ],
+        str(Path(tempfile.mkdtemp())),
+    )
+
+    assert 'type="artifact-range"' in context
+    assert "Selection too large" in context
+    assert "y" * 1024 not in context
+    assert warnings == []

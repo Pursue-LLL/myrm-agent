@@ -1219,6 +1219,42 @@ describe('messageRequest - mention reference lifetime contract', () => {
     });
   });
 
+  it('forwards artifact_range selection content and range tag to the protocol payload', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const state = {
+      ...baseState,
+      mentionReferences: [
+        {
+          type: 'artifact_range',
+          label: 'sales.xlsx',
+          artifactId: 'art-001',
+          sheetName: 'Sheet1',
+          range: 'Sheet1!B2:F10',
+          source: 'generated',
+          size: 42,
+          content: 'Region: North, Q1: 1200, Q2: 1350',
+        } satisfies MentionReference,
+      ],
+    };
+    await createMessageRequest('把这个区域做成图表', 'msg-artifact-range', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({
+      mention_references: [
+        {
+          type: 'artifact_range',
+          label: 'sales.xlsx',
+          range: 'Sheet1!B2:F10',
+          content: 'Region: North, Q1: 1200, Q2: 1350',
+        },
+      ],
+    });
+    expect(requestBody.mention_references?.[0]).not.toHaveProperty('artifact_id');
+  });
+
   it('attaches auto_moa_reasoning and auto_moa_preset_id when agentConfig auto_on_reasoning is enabled', async () => {
     const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
     createAISearchStreamMock.mockClear();

@@ -310,6 +310,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({
           range: '所选段落',
           source: 'generated',
           size: selectedText.length,
+          content: selectedText,
         });
 
         hideToolbar();

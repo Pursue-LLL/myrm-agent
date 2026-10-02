@@ -181,6 +181,7 @@ const DataGrid: React.FC<DataGridProps> = memo(
         range: computedScopeLabel,
         source: 'generated',
         size: rowSnippet.length,
+        content: rowSnippet,
       });
 
       const chatInput = document.querySelector('[data-chat-input]') as HTMLElement | null;

@@ -320,6 +320,7 @@ export interface MentionReference {
   artifactId?: string;
   sheetName?: string;
   range?: string;
+  content?: string;
   url?: string;
   source: 'workspace' | 'uploaded' | 'generated' | 'special' | 'wiki';
   size: number | null;

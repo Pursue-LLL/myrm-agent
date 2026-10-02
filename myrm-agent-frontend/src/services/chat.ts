@@ -612,6 +612,8 @@ export interface MentionReferencePayload {
   start_line?: number;
   end_line?: number;
   concept_name?: string;
+  range?: string;
+  content?: string;
 }
 
 export const suggestReferences = async (

@@ -122,6 +122,7 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
       range: rangeTag,
       source: 'generated',
       size: selectedSnippet.length,
+      content: selectedSnippet.replace(/\\t/g, '\t'),
     });
 
     onClose();

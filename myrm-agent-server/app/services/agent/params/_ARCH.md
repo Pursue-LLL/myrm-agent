@@ -47,7 +47,8 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 ## artifact_range Mention
 
-- 前端表格/文档选区经 `MentionReferenceRequest(type="artifact_range")` 协议接受；消费路径为 `mention.py` 循环尾部的 unsupported 降级标注（XML error 标签），选区上下文注入属功能待补全项。
+- 前端表格/文档选区经 `MentionReferenceRequest(type="artifact_range")` 协议接受，`range`（范围标签）与 `content`（选区文本，字段级 500KB 上限）由前端产点直传。
+- `mention.py` 消费分支：content 存在且满足 inline 预算（100KB 单条 + 500KB 总量）时以 `type="artifact-range"` XML 注入选区内容；content 缺失降级 `empty selection` error 标签；超预算输出 too-large 元数据标注。
 
 ## Typed Archive Restore
 

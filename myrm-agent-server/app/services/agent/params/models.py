@@ -165,6 +165,8 @@ class MentionReferenceRequest(BaseModel):
     start_line: int | None = Field(None, ge=1)
     end_line: int | None = Field(None, ge=1)
     concept_name: str | None = Field(None, max_length=512)
+    range: str | None = Field(None, max_length=256)
+    content: str | None = Field(None, max_length=500_000)
 
     class Config:
         alias_generator = to_camel
