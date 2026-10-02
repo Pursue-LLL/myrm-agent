@@ -299,6 +299,7 @@ export function WikiPendingEdits({
                             size="sm"
                             variant="outline"
                             className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            data-testid="pending-reject-button"
                             onClick={() => handleReject(edit.id)}
                           >
                             <IconX className="w-4 h-4 mr-1.5" />
