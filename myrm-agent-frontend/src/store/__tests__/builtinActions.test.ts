@@ -19,55 +19,38 @@ describe('buildBuiltinActions', () => {
   });
 
   it('actions that support arguments have argsHint', () => {
-    const compact = actions.find((a) => a.name === 'compact')!;
-    expect(compact.argsHint).toBe('[topic]');
-
-    const yolo = actions.find((a) => a.name === 'yolo')!;
-    expect(yolo.argsHint).toBe('[on|off|<seconds>]');
-
-    const freeze = actions.find((a) => a.name === 'freeze')!;
-    expect(freeze.argsHint).toBe('[off|resume]');
+    expect(actions.find((a) => a.name === 'compact')?.argsHint).toBe('[topic]');
+    expect(actions.find((a) => a.name === 'yolo')?.argsHint).toBe('[on|off|<seconds>]');
+    expect(actions.find((a) => a.name === 'freeze')?.argsHint).toBe('[off|resume]');
   });
 
   it('actions with aliases have correct aliases', () => {
-    const compact = actions.find((a) => a.name === 'compact')!;
-    expect(compact.aliases).toEqual(['compress']);
+    expect(actions.find((a) => a.name === 'compact')?.aliases).toEqual(['compress']);
+    expect(actions.find((a) => a.name === 'freeze')?.aliases).toEqual(['estop']);
+    expect(actions.find((a) => a.name === 'new')?.aliases).toEqual(['reset']);
+    expect(actions.find((a) => a.name === 'stop')?.aliases).toEqual(['cancel', 'abort']);
+    expect(actions.find((a) => a.name === 'model')?.aliases).toEqual(['switch-model']);
+    expect(actions.find((a) => a.name === 'fork')?.aliases).toEqual(['branch']);
 
-    const freeze = actions.find((a) => a.name === 'freeze')!;
-    expect(freeze.aliases).toEqual(['estop']);
+    const loop = actions.find((a) => a.name === 'loop');
+    expect(loop?.argsHint).toBe('[--interval <time>] [--times <N>] [--until <cond>] <prompt> | status | stop');
+    expect(loop?.aliases).toEqual(['repeat']);
 
-    const newCmd = actions.find((a) => a.name === 'new')!;
-    expect(newCmd.aliases).toEqual(['reset']);
+    const pet = actions.find((a) => a.name === 'pet');
+    expect(pet?.argsHint).toBe('[toggle | list | <slug>]');
+    expect(pet?.aliases).toEqual(['pets']);
 
-    const stop = actions.find((a) => a.name === 'stop')!;
-    expect(stop.aliases).toEqual(['cancel', 'abort']);
+    const memo = actions.find((a) => a.name === 'memo');
+    expect(memo?.argsHint).toBe('[transcript | topic]');
+    expect(memo?.aliases).toEqual(['meeting', 'minutes']);
 
-    const model = actions.find((a) => a.name === 'model')!;
-    expect(model.aliases).toEqual(['switch-model']);
-
-    const fork = actions.find((a) => a.name === 'fork')!;
-    expect(fork.aliases).toEqual(['branch']);
-
-    const loop = actions.find((a) => a.name === 'loop')!;
-    expect(loop.argsHint).toBe('[--interval <time>] [--times <N>] [--until <cond>] <prompt> | status | stop');
-    expect(loop.aliases).toEqual(['repeat']);
-
-    const pet = actions.find((a) => a.name === 'pet')!;
-    expect(pet.argsHint).toBe('[toggle | list | <slug>]');
-    expect(pet.aliases).toEqual(['pets']);
-
-    const memo = actions.find((a) => a.name === 'memo')!;
-    expect(memo.argsHint).toBe('[transcript | topic]');
-    expect(memo.aliases).toEqual(['meeting', 'minutes']);
-
-    const reviewWeek = actions.find((a) => a.name === 'review-week')!;
-    expect(reviewWeek.argsHint).toBe('[timeframe | focus-area]');
-    expect(reviewWeek.aliases).toEqual(['week-review', 'weekly-digest', 'extract-blockers']);
+    const reviewWeek = actions.find((a) => a.name === 'review-week');
+    expect(reviewWeek?.argsHint).toBe('[timeframe | focus-area]');
+    expect(reviewWeek?.aliases).toEqual(['week-review', 'weekly-digest', 'extract-blockers']);
   });
 
   it('focus action has no argsHint (no arguments)', () => {
-    const focus = actions.find((a) => a.name === 'focus')!;
-    expect(focus.argsHint).toBeUndefined();
+    expect(actions.find((a) => a.name === 'focus')?.argsHint).toBeUndefined();
   });
 
   it('all action ids are unique', () => {
