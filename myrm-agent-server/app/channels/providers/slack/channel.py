@@ -640,6 +640,10 @@ class SlackChannel(BaseChannel):
         if user_id == self._bot_user_id or not user_id:
             return None
 
+        # Slack sets bot_id on bot-authored events; used to keep thread auto-reply
+        # implicit mentions human-only (bot-to-bot loop prevention).
+        sender_is_bot = bool(event.get("bot_id"))
+
         text = str(event.get("text", ""))
         channel_id = str(event.get("channel", ""))
         channel_type = str(event.get("channel_type", ""))
@@ -666,8 +670,8 @@ class SlackChannel(BaseChannel):
 
         reply_to = None
         if thread_ts:
-            # Auto-reply if bot has participated in this thread
-            if not self._require_thread_mention and self._thread_tracker.contains(str(thread_ts)):
+            # Auto-reply if bot has participated in this thread (human senders only)
+            if not sender_is_bot and not self._require_thread_mention and self._thread_tracker.contains(str(thread_ts)):
                 mentioned = True
 
             # Check cache first
@@ -691,8 +695,9 @@ class SlackChannel(BaseChannel):
                     reply_to.content and f"<@{self._bot_user_id}>" in reply_to.content if reply_to.content else False
                 )
 
-                # Auto-reply if bot-initiated or parent has @mention
-                if reply_to.sender_id == self._bot_user_id or parent_has_mention:
+                # Auto-reply if bot-initiated or parent has @mention (human senders only:
+                # a bot posting in our thread must not wake the agent)
+                if not sender_is_bot and (reply_to.sender_id == self._bot_user_id or parent_has_mention):
                     mentioned = True
 
         sent_at = __import__("time").time()
@@ -714,6 +719,7 @@ class SlackChannel(BaseChannel):
             sent_timezone="UTC",
             chat_id=channel_id,
             is_group=is_group,
+            is_bot=sender_is_bot,
             mentioned=mentioned,
             media=tuple(media_list),
             reply_to_id=str(thread_ts) if thread_ts else None,

@@ -34,6 +34,7 @@ from app.channels.protocols.pairing import (
     PairingStatus,
     PairingStore,
 )
+from app.channels.routing.bot_loop_guard import BotLoopGuard
 from app.channels.routing.context_buffer import GroupContextBuffer
 from app.channels.routing.message_effects import MessageEffects
 from app.channels.routing.policy_resolver_support import (
@@ -84,6 +85,8 @@ class PolicyResolver:
         self._cooldown = BoundedCooldownMap()
         # Thread-Aware active multiround follower-up tracker
         self._tracker = GroupFollowUpTracker(ttl_seconds=600.0, max_size=1000)
+        # Bot-authored trigger loop protection (per-conversation sliding window)
+        self._bot_loop_guard = BotLoopGuard()
 
     @property
     def pairing(self) -> PairingStore:
@@ -121,21 +124,40 @@ class PolicyResolver:
         chat_id = msg.chat_id or msg.sender_id
 
         should_respond, cleaned = await self._should_respond_in_group(msg)
+
+        # BotLoopGuard: bot-authored triggers that passed the sender gate are
+        # capped per chat; two automation agents must not run unbounded turns.
+        # Dropped messages fall through to the non-trigger path below.
+        if should_respond and msg.is_bot:
+            allowed, state = self._bot_loop_guard.admit(f"{msg.channel}:{chat_id}")
+            if not allowed:
+                logger.warning(
+                    "PolicyResolver: BotLoopGuard %s, dropping bot trigger in %s:%s",
+                    state,
+                    msg.channel,
+                    chat_id,
+                )
+                should_respond = False
+
         from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
         if not should_respond:
             asyncio.create_task(
                 ChannelDataPlaneService.record_inbound(msg, is_trigger=False)
             )
-            self._context_buffer.append(
-                chat_id,
-                ContextEntry(
-                    sender_id=msg.sender_id,
-                    content=msg.content,
-                    timestamp=time.monotonic(),
-                    sender_name=msg.sender_name,
-                ),
-            )
+            # Buffer human chatter only: bot/alert noise crowds out human
+            # context and can seed bot-to-bot loops. Persistence above stays
+            # unconditional for DWD completeness.
+            if not msg.is_bot:
+                self._context_buffer.append(
+                    chat_id,
+                    ContextEntry(
+                        sender_id=msg.sender_id,
+                        content=msg.content,
+                        timestamp=time.monotonic(),
+                        sender_name=msg.sender_name,
+                    ),
+                )
             return None
 
         asyncio.create_task(
@@ -179,6 +201,21 @@ class PolicyResolver:
         """Resolve the sender's system user_id via DM policy + PairingStore."""
         if msg.user_id:
             return msg.user_id
+
+        # BotLoopGuard applies to DMs too: an automation bot relaying into DM
+        # must not run unbounded agent turns. Human DMs are never counted.
+        if msg.is_bot:
+            allowed, state = self._bot_loop_guard.admit(
+                f"{msg.channel}:{msg.chat_id or msg.sender_id}"
+            )
+            if not allowed:
+                logger.warning(
+                    "PolicyResolver: BotLoopGuard %s, dropping bot DM in %s:%s",
+                    state,
+                    msg.channel,
+                    msg.sender_id,
+                )
+                return None
 
         policy = await self._get_dm_policy(msg.channel)
 

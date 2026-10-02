@@ -56,6 +56,7 @@ def _make_message_with_ref(
     *,
     guild: MagicMock | None = MagicMock(),
     mentions: list | None = None,
+    author_is_bot: bool = False,
 ) -> MagicMock:
     ref = MagicMock(spec=discord.MessageReference)
     ref.message_id = ref_message_id
@@ -66,6 +67,10 @@ def _make_message_with_ref(
     msg.reference = ref
     msg.guild = guild
     msg.mentions = mentions or []
+    # Realistic author: spec mocks auto-generate a truthy `.bot`, which the
+    # reply-to-bot human-only guard reads as a bot sender.
+    msg.author = MagicMock(spec=discord.Member)
+    msg.author.bot = author_is_bot
     return msg
 
 
@@ -195,6 +200,13 @@ class TestResolveMentioned:
         resolved = _make_resolved_message(author_id=bot_user.id)
         msg = _make_message_with_ref(100, resolved, mentions=[])
         assert channel._resolve_mentioned(msg, is_group=True, reply_to_id="100") == (True, False)
+
+    def test_group_reply_to_bot_from_bot_author_no_mention(self, channel: DiscordChannel) -> None:
+        """R1b: another bot replying to our message must not wake the agent."""
+        bot_user = channel._client.user
+        resolved = _make_resolved_message(author_id=bot_user.id)
+        msg = _make_message_with_ref(100, resolved, mentions=[], author_is_bot=True)
+        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id="100") == (False, False)
 
     def test_group_reply_to_other_user_no_mention(self, channel: DiscordChannel) -> None:
         resolved = _make_resolved_message(author_id=9999)

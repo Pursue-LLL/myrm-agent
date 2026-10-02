@@ -606,15 +606,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
             msg = await self._enrich_message_locale(msg)
 
-            # Record all sanitized inbound messages to the Channel Data Plane DWD ledger
-            from app.channels.routing.channel_data_plane import ChannelDataPlaneService
-
-            asyncio.create_task(
-                ChannelDataPlaneService.record_inbound(
-                    msg,
-                    is_trigger=True,
-                )
-            )
+            # NOTE: inbound ledger persistence is single-sourced in PolicyResolver
+            # (group non-trigger / group trigger / DM trigger) with the resolved
+            # is_trigger semantics. A second unconditional write here would race
+            # those records and permanently mislabel observed messages as triggers.
 
             if (
                 msg.metadata.get("callback_prefix") == "act"

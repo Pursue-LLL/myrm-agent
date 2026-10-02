@@ -169,3 +169,90 @@ class TestSlackThreadTrackerMetrics:
 
         assert metrics.hit_count == 1
         assert metrics.current_size == 1
+
+
+class TestBotSenderThreadGate:
+    """R1b/R1e: bot-authored thread posts get no implicit mention; is_bot is collected."""
+
+    @staticmethod
+    def _channel_with_thread() -> SlackChannel:
+        channel = SlackChannel("xoxb-test", require_thread_mention=False)
+        channel._bot_user_id = "BOT123"
+        channel._api = MagicMock()
+        channel._api.post_message = AsyncMock(return_value="1234.5678")
+        return channel
+
+    @pytest.mark.asyncio
+    async def test_bot_thread_reply_gets_no_implicit_mention(self) -> None:
+        """A bot posting in a thread our bot participated in must not wake the agent."""
+        channel = self._channel_with_thread()
+        await channel.send(
+            OutboundMessage(
+                channel="slack",
+                user_id="U_USER",
+                recipient_id="C123",
+                content="Hello thread!",
+                metadata={"thread_ts": "1234.0000"},
+            )
+        )
+
+        event = {
+            "user": "U999",
+            "bot_id": "BOTHER",
+            "text": "automated status",
+            "channel": "C123",
+            "channel_type": "channel",
+            "ts": "1234.9999",
+            "thread_ts": "1234.0000",
+        }
+        inbound = await channel._parse_message_event(event)
+
+        assert inbound is not None
+        assert inbound.is_bot is True
+        assert inbound.mentioned is False
+
+    @pytest.mark.asyncio
+    async def test_bot_explicit_mention_still_marks(self) -> None:
+        """Explicit @mention is text-based: bot senders keep it (bot-to-bot automation)."""
+        channel = self._channel_with_thread()
+        event = {
+            "user": "U999",
+            "bot_id": "BOTHER",
+            "text": "<@BOT123> run the report",
+            "channel": "C123",
+            "channel_type": "channel",
+            "ts": "1234.9999",
+        }
+        inbound = await channel._parse_message_event(event)
+
+        assert inbound is not None
+        assert inbound.is_bot is True
+        assert inbound.mentioned is True
+
+    @pytest.mark.asyncio
+    async def test_human_thread_reply_still_auto_mentions(self) -> None:
+        """Regression: human senders keep the thread auto-reply implicit mention."""
+        channel = self._channel_with_thread()
+        await channel.send(
+            OutboundMessage(
+                channel="slack",
+                user_id="U_USER",
+                recipient_id="C123",
+                content="Hello thread!",
+                metadata={"thread_ts": "1234.0000"},
+            )
+        )
+
+        event = {
+            "user": "U123",
+            "text": "Follow-up question",
+            "channel": "C123",
+            "channel_type": "channel",
+            "ts": "1234.9999",
+            "thread_ts": "1234.0000",
+        }
+        inbound = await channel._parse_message_event(event)
+
+        assert inbound is not None
+        assert inbound.is_bot is False
+        assert inbound.mentioned is True

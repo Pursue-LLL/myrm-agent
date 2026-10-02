@@ -462,15 +462,17 @@ class TestChannelDataPlaneService:
         await async_db.commit()
 
         # 5. Full Chronological sequence assertion
+        # R4: agent self rows stay in the DWD ledger but are excluded from
+        # context retrieval — the session transcript already carries them.
         full_flow = await ChannelMessageRepository.get_recent_context(
             async_db, channel="feishu", chat_id="chat_project_launch", limit=10
         )
-        assert len(full_flow) == 2
+        assert len(full_flow) == 1
         assert full_flow[0].is_self is False
-        assert full_flow[1].is_self is True
-        assert "32" in full_flow[1].content
+        assert full_flow[0].id == "e2e_msg_inbound_001"
 
         # 6. Channel Data Plane aggregated stats
+        # Outbound row is still persisted for DWD completeness
         stats = await ChannelMessageRepository.get_channel_stats(async_db, channel="feishu")
         assert stats["total_messages"] == 2
         assert stats["trigger_messages"] == 1
@@ -627,3 +629,90 @@ class TestToDistillationCandidate:
             DistillationRejectionCode.REJECT_BOT_OR_ALERT,
             DistillationRejectionCode.REJECT_IDENTITY_OTHER,
         )
+
+
+class TestObservedContextHygiene:
+    """R4: context reconstruction must exclude agent self rows and bot/alert chatter."""
+
+    @pytest.mark.asyncio
+    async def test_get_recent_context_excludes_agent_self_rows(self, async_db: AsyncSession) -> None:
+        now = datetime.now(timezone.utc)
+        human = ChannelMessageModel(
+            id="ctx_human",
+            channel="feishu",
+            chat_id="chat_ctx",
+            sender_id="user_1",
+            sender_name="Alice",
+            content="human question",
+            is_trigger=True,
+            is_self=False,
+            created_at=now - timedelta(minutes=1),
+        )
+        agent = ChannelMessageModel(
+            id="ctx_agent",
+            channel="feishu",
+            chat_id="chat_ctx",
+            sender_id="agent",
+            sender_name="Assistant",
+            content="agent answer",
+            is_trigger=False,
+            is_self=True,
+            learning_eligible=False,
+            created_at=now,
+        )
+        async_db.add_all([human, agent])
+        await async_db.commit()
+
+        msgs = await ChannelMessageRepository.get_recent_context(
+            async_db, channel="feishu", chat_id="chat_ctx"
+        )
+        assert [m.id for m in msgs] == ["ctx_human"]
+
+    @pytest.mark.asyncio
+    async def test_get_recent_context_entries_excludes_bot_named_senders(
+        self, async_db: AsyncSession
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        rows = [
+            ChannelMessageModel(
+                id="ctx_m1",
+                channel="slack",
+                chat_id="c1",
+                sender_id="u1",
+                sender_name="Alice",
+                content="human line",
+                is_trigger=False,
+                is_self=False,
+                created_at=now - timedelta(minutes=2),
+            ),
+            ChannelMessageModel(
+                id="ctx_m2",
+                channel="slack",
+                chat_id="c1",
+                sender_id="bot1",
+                sender_name="Sentry",
+                content="alert noise",
+                is_trigger=False,
+                is_self=False,
+                created_at=now - timedelta(minutes=1),
+            ),
+            ChannelMessageModel(
+                id="ctx_m3",
+                channel="slack",
+                chat_id="c1",
+                sender_id="u2",
+                sender_name="Bob",
+                content="human line 2",
+                is_trigger=False,
+                is_self=False,
+                created_at=now,
+            ),
+        ]
+        async_db.add_all(rows)
+        await async_db.commit()
+
+        with patch("app.channels.routing.channel_data_plane.get_session") as mock_get_session:
+            mock_get_session.return_value.__aenter__.return_value = async_db
+            entries = await ChannelDataPlaneService.get_recent_context_entries("slack", "c1")
+
+        assert [e.sender_name for e in entries] == ["Alice", "Bob"]

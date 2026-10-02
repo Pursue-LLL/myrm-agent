@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.channels.providers.telegram import TelegramChannel
-from app.channels.providers.telegram.models import TgEntity, TgMessage, TgUser
+from app.channels.providers.telegram.models import TgChat, TgEntity, TgMessage, TgUser
 from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN
 
 
@@ -86,3 +86,43 @@ class TestStripBotMentionText:
     def test_preserves_text_when_strip_would_empty(self) -> None:
         ch = _channel()
         assert ch._strip_bot_mention_text("@testbot") == "@testbot"
+
+
+class TestReplyToBotImplicitMention:
+    """R1b: reply-to-bot counts as implicit mention only for human senders.
+
+    Another bot replying to our message must not wake the agent; bots can
+    still trigger via explicit @mention (covered by TestMessageMentionsBot).
+    """
+
+    @staticmethod
+    def _reply_msg(sender_is_bot: bool) -> TgMessage:
+        chat = TgChat(id=-100, type="supergroup", title="G")
+        # TgMessage.from_user has alias "from" and the model is not
+        # populate-by-name, so the field must be set through the alias.
+        return TgMessage(
+            message_id=10,
+            text="ping",
+            chat=chat,
+            **{"from": TgUser(id=222, is_bot=sender_is_bot)},
+            reply_to_message=TgMessage(
+                message_id=9,
+                text="agent reply",
+                chat=chat,
+                **{"from": TgUser(id=123456789)},  # our bot
+            ),
+        )
+
+    def test_human_reply_to_bot_gets_implicit_mention(self) -> None:
+        ch = _channel()
+        inbound = ch._parse_message_model(self._reply_msg(sender_is_bot=False), is_edit=False)
+        assert inbound is not None
+        assert inbound.mentioned is True
+        assert inbound.is_bot is False
+
+    def test_bot_reply_to_bot_gets_no_implicit_mention(self) -> None:
+        ch = _channel()
+        inbound = ch._parse_message_model(self._reply_msg(sender_is_bot=True), is_edit=False)
+        assert inbound is not None
+        assert inbound.mentioned is False
+        assert inbound.is_bot is True

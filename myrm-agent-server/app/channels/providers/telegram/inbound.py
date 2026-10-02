@@ -351,13 +351,18 @@ class TelegramInboundMixin:
         explicit_mention = self._message_mentions_bot(msg) if is_group else False
         mentioned = explicit_mention
 
+        sender_is_bot = bool(getattr(from_user, "is_bot", False))
+
         reply_to: ReplyContext | None = None
         reply_to_id: str | None = None
         if msg.reply_to_message:
             reply_to_id = str(msg.reply_to_message.message_id)
             reply_to = self._parse_reply_to_message(msg.reply_to_message)
             if is_group and not mentioned and msg.reply_to_message.from_user:
-                if msg.reply_to_message.from_user.id == self._tg_bot_id:
+                # Reply-to-bot counts as implicit mention only for human senders:
+                # another bot replying to our message must not wake the agent
+                # (bot-to-bot loop); bots can still trigger via explicit @mention.
+                if msg.reply_to_message.from_user.id == self._tg_bot_id and not sender_is_bot:
                     mentioned = True
 
         if explicit_mention:
@@ -389,7 +394,7 @@ class TelegramInboundMixin:
             chat_id=chat_id,
             sender_name=tg_display_name or None,
             is_group=is_group,
-            is_bot=bool(getattr(from_user, "is_bot", False)),
+            is_bot=sender_is_bot,
             mentioned=mentioned,
             media=tuple(media_list),
             reply_to_id=reply_to_id,

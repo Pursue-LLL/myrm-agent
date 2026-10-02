@@ -295,6 +295,15 @@ async def should_respond_in_group_support(
     msg: InboundMessage,
 ) -> tuple[bool, str]:
     """Determine whether the bot should respond in group based on trigger config."""
+    # 0. Bot-sender gate: a bot-authored message never triggers a turn unless it
+    #    explicitly addresses this bot. Co-resident bots (alert feeds, sign-in
+    #    bots, other AI agents) must not burn LLM turns in free-response groups,
+    #    and two bots replying to each other must not loop forever. A bot that
+    #    explicitly @mentions us still gets a reply, so bot-to-bot automation
+    #    stays possible; runaway explicit-mention loops are capped by BotLoopGuard.
+    if msg.is_bot and not msg.mentioned:
+        return False, msg.content
+
     # 1. Group Whitelist Check (freeResponseChats)
     if policy and hasattr(policy, "get_free_response_chats"):
         whitelist = await policy.get_free_response_chats(msg.channel)

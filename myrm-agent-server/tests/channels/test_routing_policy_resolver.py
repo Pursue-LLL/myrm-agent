@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -12,6 +13,7 @@ from app.channels.protocols.pairing import (
     GroupTriggerMode,
     PairingStatus,
 )
+from app.channels.routing.bot_loop_guard import BotLoopGuard
 from app.channels.routing.context_buffer import GroupContextBuffer
 from app.channels.routing.message_effects import MessageEffects
 from app.channels.routing.policy_resolver import PolicyResolver
@@ -29,6 +31,7 @@ def _msg(
     user_id: str = "",
     metadata: dict[str, object] | None = None,
     thread_id: str = "",
+    is_bot: bool = False,
 ) -> InboundMessage:
     return InboundMessage(
         channel=channel,
@@ -40,6 +43,7 @@ def _msg(
         user_id=user_id,
         metadata=metadata or {},
         thread_id=thread_id,
+        is_bot=is_bot,
     )
 
 
@@ -567,3 +571,112 @@ class TestGroupFollowUpExemption:
         res = await r.resolve_group_user(msg)
         assert res is not None
         assert res[0] == "user1"
+
+
+class TestBotSenderGate:
+    """R1: bot-authored messages only trigger via explicit mention; BotLoopGuard caps loops.
+
+    Co-resident bots (alert feeds, other AI agents) must not burn LLM turns in
+    free-response groups, and two bots replying to each other must not loop.
+    """
+
+    @staticmethod
+    def _group_policy(*, free_response: set[str] | None = None) -> MagicMock:
+        policy = MagicMock()
+        policy.get_group_policy = AsyncMock(return_value=GroupPolicy.OPEN)
+        policy.get_enabled_groups = AsyncMock(return_value={"grp-1"})
+        policy.get_free_response_chats = AsyncMock(return_value=free_response or {"grp-1"})
+        policy.get_group_trigger = AsyncMock(return_value=(GroupTriggerMode.MENTION_ONLY, []))
+        policy.get_default_user_id = AsyncMock(return_value="default-uid")
+        return policy
+
+    @pytest.mark.asyncio
+    async def test_bot_chatter_ignored_even_in_free_response_group(self) -> None:
+        r = _make_resolver(policy=self._group_policy())
+        result = await r.resolve_group_user(
+            _msg(is_group=True, chat_id="grp-1", mentioned=False, is_bot=True)
+        )
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_bot_explicit_mention_triggers(self) -> None:
+        r = _make_resolver(policy=self._group_policy())
+        result = await r.resolve_group_user(
+            _msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=True)
+        )
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_bot_mention_blocked_after_guard_trips(self) -> None:
+        r = _make_resolver(policy=self._group_policy())
+        r._bot_loop_guard = BotLoopGuard(max_events=1, window_seconds=300.0, cooldown_seconds=600.0)
+        first = await r.resolve_group_user(
+            _msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=True)
+        )
+        assert first is not None
+        second = await r.resolve_group_user(
+            _msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=True)
+        )
+        assert second is None
+
+    @pytest.mark.asyncio
+    async def test_human_mention_unaffected_by_guard(self) -> None:
+        r = _make_resolver(policy=self._group_policy())
+        r._bot_loop_guard = BotLoopGuard(max_events=1, window_seconds=300.0, cooldown_seconds=600.0)
+        first = await r.resolve_group_user(
+            _msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=False)
+        )
+        second = await r.resolve_group_user(
+            _msg(is_group=True, chat_id="grp-1", mentioned=True, is_bot=False)
+        )
+        assert first is not None
+        assert second is not None
+
+    @pytest.mark.asyncio
+    async def test_bot_dm_dropped_after_guard_trips(self) -> None:
+        pairing = MagicMock()
+        pairing.resolve = AsyncMock(return_value="uid-1")
+        policy = MagicMock()
+        policy.get_dm_policy = AsyncMock(return_value=DmPolicy.OPEN)
+        r = _make_resolver(pairing=pairing, policy=policy)
+        r._bot_loop_guard = BotLoopGuard(max_events=1, window_seconds=300.0, cooldown_seconds=600.0)
+        first = await r.resolve_dm_user(_msg(is_bot=True, chat_id="dm-1"))
+        assert first == "uid-1"
+        second = await r.resolve_dm_user(_msg(is_bot=True, chat_id="dm-1"))
+        assert second is None
+
+    @pytest.mark.asyncio
+    async def test_bot_chatter_not_buffered_for_context(self) -> None:
+        r = _make_resolver(policy=self._group_policy(free_response=set()))
+        await r.resolve_group_user(
+            _msg(content="beep boop", is_group=True, chat_id="grp-1", mentioned=False, is_bot=True)
+        )
+        assert r._context_buffer.drain("grp-1") == ()
+        await r.resolve_group_user(
+            _msg(content="hello team", is_group=True, chat_id="grp-1", mentioned=False)
+        )
+        buffered = r._context_buffer.drain("grp-1")
+        assert len(buffered) == 1
+        assert buffered[0].content == "hello team"
+
+    @pytest.mark.asyncio
+    async def test_trigger_attribution_single_write(self) -> None:
+        """R3 regression: trigger attribution recorded exactly once, at the resolver."""
+        r = _make_resolver(policy=self._group_policy(free_response=set()))
+        with patch(
+            "app.channels.routing.channel_data_plane.ChannelDataPlaneService.record_inbound",
+            new=AsyncMock(),
+        ) as mock_record:
+            await r.resolve_group_user(
+                _msg(is_group=True, chat_id="grp-1", mentioned=False)
+            )
+            await asyncio.sleep(0)
+            mock_record.assert_called_once()
+            assert mock_record.call_args.kwargs["is_trigger"] is False
+
+            await r.resolve_group_user(
+                _msg(is_group=True, chat_id="grp-1", mentioned=True)
+            )
+            await asyncio.sleep(0)
+            assert mock_record.call_count == 2
+            assert mock_record.call_args.kwargs["is_trigger"] is True

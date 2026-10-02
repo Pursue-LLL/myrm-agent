@@ -56,6 +56,9 @@ class ChannelMessageRepository:
             .where(
                 ChannelMessageModel.channel == channel,
                 ChannelMessageModel.chat_id == chat_id,
+                # Agent's own replies already live in the session transcript;
+                # re-injecting them here would duplicate turns in the prompt.
+                ChannelMessageModel.is_self.is_not(True),
             )
             .order_by(ChannelMessageModel.created_at.desc())
             .limit(limit)

@@ -182,7 +182,14 @@ class ChannelDataPlaneService:
                 )
 
             entries: list[ContextEntry] = []
+            from myrm_agent_harness.api import is_alert_or_bot_sender
+
             for row in rows:
+                # Observed-context hygiene: bot/alert chatter (monitor feeds,
+                # other agents) crowds out human context and can seed bot-to-bot
+                # loops. Same predicate as the distillation layer.
+                if row.sender_name and is_alert_or_bot_sender(row.sender_name):
+                    continue
                 entries.append(
                     ContextEntry(
                         sender_id=row.sender_id,

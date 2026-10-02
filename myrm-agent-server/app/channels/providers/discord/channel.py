@@ -585,7 +585,9 @@ class DiscordChannel(BaseChannel):
 
         Returns (mentioned, explicit_mention).
         In group chats, also treats replying to the bot's own message as
-        an implicit mention — same pattern as Telegram [inbound.py:356-358].
+        an implicit mention — same pattern as Telegram [inbound.py:356-358],
+        human senders only: another bot replying to our message must not
+        wake the agent (bot-to-bot loop; see routing/_ARCH.md).
         """
         if not is_group:
             return False, False
@@ -593,7 +595,7 @@ class DiscordChannel(BaseChannel):
         explicit = bool(bot_user and bot_user in getattr(message, "mentions", []))
         if explicit:
             return True, True
-        if reply_to_id:
+        if reply_to_id and not getattr(message.author, "bot", False):
             ref = getattr(message, "reference", None)
             resolved = getattr(ref, "resolved", None) if ref else None
             if isinstance(resolved, discord.Message):

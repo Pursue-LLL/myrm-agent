@@ -222,7 +222,7 @@ def _parse_reply_context(self, message: discord.Message) -> tuple[ReplyContext |
 - Embed content included in text (Discord-specific rich formatting)
 - Reuses `_extract_media()` for consistent attachment parsing
 - Returns `reply_to_id` alongside context for outbound reply reference
-- `_resolve_mentioned()` treats reply-to-bot as implicit mention (Telegram parity)
+- `_resolve_mentioned()` treats reply-to-bot as implicit mention (Telegram parity, human senders only — bots must use explicit @mention, see routing/_ARCH.md "Bot-Authored Ingress Guard")
 - Outbound: `fail_if_not_exists=False` for resilient reply chains
 
 ---

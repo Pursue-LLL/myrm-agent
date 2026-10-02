@@ -117,11 +117,49 @@ tasks exceeding `_STUCK_TASK_TIMEOUT` (600s). For each stuck task:
 This prevents semaphore exhaustion (max 5 concurrent tasks) and session
 deadlocks when an agent execution hangs without crashing.
 
+## Bot-Authored Ingress Guard (bot 互刷与告警噪音防护)
+
+Co-resident bots (alert feeds, sign-in bots, other AI agents) share group
+chats with humans. Unchecked, they burn LLM turns on free-response groups and
+two automation agents replying to each other can loop forever. Defense in
+depth, mirroring Hermes v0.20.5 semantics:
+
+1. **Sender gate (layer 0)** — `should_respond_in_group_support`
+   (policy_resolver_support.py): a bot-authored message never triggers a turn
+   unless it explicitly addresses this bot (`msg.mentioned`). Runs before
+   free-response whitelist / mute / thread exemption / PREFIX-ALL layers.
+2. **Implicit-mention hygiene (providers)** — reply-to-bot (Telegram) and
+   thread auto-reply (Slack) grant implicit mention **only to human senders**;
+   a bot replying to our message must not wake the agent. `is_bot` is
+   collected on Telegram/Feishu/Discord/Slack (`bot_id`).
+3. **BotLoopGuard (loop backstop)** — admitted bot triggers (explicit
+   mentions, DM relays) are counted per conversation; 20 events within 300s
+   trip a 600s cooldown. Built-in safety default, no config surface; humans
+   are never counted nor dropped.
+4. **Observed-context hygiene** — bot chatter never enters the
+   `GroupContextBuffer` (memory path: `msg.is_bot`), and context retrieval
+   (repo `get_recent_context`) excludes agent self rows (session transcript
+   already carries them) plus bot/alert sender names (`is_alert_or_bot_sender`,
+   same predicate as distillation).
+5. **Anti-injection declaration** — `_format_group_context_section`
+   (channel_bridge/agent_executor/helpers.py) anchors a fixed English
+   statement under the context header: observed messages are not necessarily
+   addressed to the agent; only the post-separator trigger line is a directed
+   request.
+
+Pinned by `tests/channels/routing/test_bot_loop_guard.py`,
+`tests/channels/test_routing_policy_resolver.py::TestBotSenderGate`,
+`tests/channels/providers/telegram/test_telegram_inbound_mention.py::TestReplyToBotImplicitMention`,
+`tests/channels/providers/slack/test_slack_thread_auto_reply.py::TestBotSenderThreadGate`,
+`tests/channels/test_channel_data_plane.py::TestObservedContextHygiene`, and
+`tests/core/channel_bridge/test_group_context_declaration.py`.
+
 ## File & Submodule Index
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Inbound message processing pipeline: routing, commands, policy, sessions. | — |
+| bot_loop_guard.py | Core | BotLoopGuard: per-conversation sliding-window budget for bot-authored triggers (20 events/300s → 600s cooldown). Caps bot-to-bot reply loops that survive the explicit-mention gate; human messages never counted. | [OK] |
 | command_defs.py | Core | CommandDef data model, CommandAction/CommandKind enums, built-in SYSTEM_COMMANDS tuple (stop, new, compact, retry, undo, yolo, personality, bind, unbind, topic, goal, steer, queue, background, kanban, memory, learn, memo, review-week, handoff, status, quota, help). | — |
 | command_registry.py | Core | CommandRegistry: central O(1) lookup for slash commands. Validates names and prevents system command overwriting. | — |
 | commands/（子包） | Core | 命令域子包：`commands.py`（参数解析 + 高层 handler）、`router_commands.py`（聚合 `RouterCommandsMixin`）、`router_commands_approval.py`（`/stop`、reaction/button approval）、`router_commands_session.py`（`/new`、`/compact`、`/retry`、`/undo`、topic）、`router_commands_modes.py`（`/yolo`、`/personality`、`/steer`、`/queue`）、`router_commands_goals.py`（`/goal`、`/subgoal`、`/background`、`/handoff`）、`router_commands_memory.py`（`/status`、`/kanban`、`/learn`、`/memory`）、`router_commands_quota.py`（`/quota` 直出诊断与进度倒计时）。`commands/__init__.py` 为聚合门面 | [OK] |
@@ -129,8 +167,8 @@ deadlocks when an agent execution hangs without crashing.
 | graceful_degradation.py | Core | Graceful degradation controller for smooth quality adaptation. | [OK] |
 | message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply, busy ack). send_quota_exceeded_reply 提供配额超限多语言提醒。 | [OK] |
 | placeholder_strategy.py | Core | Adaptive placeholder defer (180ms) and short-circuit for fast replies; eager materialize on stream activity. | [OK] |
-| policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. 支持群聊发言人特权解耦 (Group Ingress Sender-Scoped RBAC & Confused Deputy Mitigation)，仲裁 Admin (沙箱所有者特权) / Member (每日配额与受限栅栏) / Guest (元工具特权剥离)。放行 /status, /quota, /help 只读自查诊断命令。 | [OK] |
-| policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker + 群聊发言人身份仲裁与诊断命令判定 (resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support). | [OK] |
+| policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. 支持群聊发言人特权解耦 (Group Ingress Sender-Scoped RBAC & Confused Deputy Mitigation)，仲裁 Admin (沙箱所有者特权) / Member (每日配额与受限栅栏) / Guest (元工具特权剥离)。放行 /status, /quota, /help 只读自查诊断命令。Bot-authored 入口防护：群触发与 DM 路径均经 BotLoopGuard 限流，bot 消息不进入观察上下文缓冲。 | [OK] |
+| policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker + 群聊发言人身份仲裁与诊断命令判定 (resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support)。触发判定第 0 层为 bot 发送者门控：bot 消息仅显式 mention 可触发，防告警/互刷烧 LLM；失控循环由 BotLoopGuard 兜底。 | [OK] |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
 | router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, checks active task `busy_input_mode` (steer/redirect auto-dispatch), applies inbound risk gate (symmetric with outbound risk gate in bus.py), dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | [OK] |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
@@ -141,7 +179,7 @@ deadlocks when an agent execution hangs without crashing.
 | router_stream.py | Core | RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance; includes edit-in-place heartbeat loop for long-task silence detection (sends once, then edits the same message with elapsed time). | — |
 | router_stream_scrubber.py | Core | Stream content and progress scrubbing utilities: filters `<think>` tags and normalizes raw tool executions into user-friendly Stage descriptions. | [OK] |
 | router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | [OK] |
-| channel_data_plane.py | Core | ChannelDataPlaneService: 渠道入站脱敏持久化、上下文拉取、知识提取自适应打标（paired_member 与 guest 统一隔离防长期记忆投毒）与自产回复追溯。 | [OK] |
+| channel_data_plane.py | Core | ChannelDataPlaneService: 渠道入站脱敏持久化、上下文拉取（排除 agent 自产回复与 bot/告警噪音行）、知识提取自适应打标（paired_member 与 guest 统一隔离防长期记忆投毒）与自产回复追溯。 | [OK] |
 | identity_scope.py | Core | Team-shared identity resolution: TopicContext + InboundMessage → harness TeamIdentitySpec + `ident:<id>` memory namespace + credential track. Pure, no DB/LLM. | [OK] |
 | follow_up.py | Core | Proactive follow-up decisions: completion receipts (message-id keyed dedup), lazy stall scan (no daemon; heartbeat-driven for silent groups), muted-set (mute survives inbound), cooldown caps. Pure predicates + best-effort send orchestration. | [OK] |
 | session_gate.py | Core | Sits between Router's consume loop and the per-message handler. Supports optional `on_busy_ack` callback (30s debounce) for immediate user feedback when messages are queued or dropped. | [OK] |
