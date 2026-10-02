@@ -29,13 +29,13 @@ class DailyReviewIngestResult:
 
 @dataclass(frozen=True, slots=True)
 class WikiDailyReviewCompoundResult:
-    """Summary of the daily-review compounding cron run."""
+    """Summary of the daily-review compounding cron run (24h window semantics)."""
 
     summary_text: str
-    today_review_files: int = 0
+    recent_review_files: int = 0
     pending_compiles: int = 0
     processing_compiles: int = 0
-    today_pending_drafts: int = 0
+    window_drafts: int = 0
     dimension_counts: dict[str, int] = field(default_factory=dict)
     total_pending_drafts: int = 0
     compiles_forced: bool = False

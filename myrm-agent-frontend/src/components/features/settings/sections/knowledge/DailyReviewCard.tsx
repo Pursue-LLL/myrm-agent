@@ -14,6 +14,7 @@
  * Knowledge / Methods / Comparisons) that await human review before publish.
  */
 
+import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { NotebookPen, Loader2 } from 'lucide-react';
@@ -77,16 +78,14 @@ export default function DailyReviewCard() {
         <CardDescription>{t('dailyReview.description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t('dailyReview.titleLabel')}
-            maxLength={120}
-            className="sm:max-w-[240px]"
-            data-testid="daily-review-title-input"
-          />
-        </div>
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={t('dailyReview.titleLabel')}
+          maxLength={120}
+          className="sm:max-w-[240px]"
+          data-testid="daily-review-title-input"
+        />
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -121,6 +120,15 @@ export default function DailyReviewCard() {
             data-testid="daily-review-result"
           >
             {result.skipped ? t('dailyReview.skipped') : t('dailyReview.staged')}
+            {!result.skipped && (
+              <Link
+                href="/settings/knowledge?wikiTab=pendingEdits"
+                className="ml-2 font-medium text-primary underline-offset-4 hover:underline"
+                data-testid="daily-review-goto-pending"
+              >
+                {t('dailyReview.reviewCta')}
+              </Link>
+            )}
             <p className="mt-1 text-xs text-muted-foreground">{result.raw_path}</p>
           </div>
         )}

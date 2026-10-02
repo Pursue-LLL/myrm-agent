@@ -15874,6 +15874,7 @@
         "submitButton": "Speichern & Verdichten",
         "submitting": "Wird gesendet…",
         "staged": "Rückblick als Beweis gespeichert und eingereiht; Vier-Dimensionen-Entwürfe warten auf menschliche Prüfung",
+        "reviewCta": "Zur Prüfliste gehen",
         "skipped": "Ein Rückblick mit demselben Titel wurde heute bereits gespeichert; Duplikat übersprungen",
         "empty": "Bitte zuerst Ihren Rückblick eingeben",
         "error": "Übermittlung fehlgeschlagen; bitte später erneut versuchen"

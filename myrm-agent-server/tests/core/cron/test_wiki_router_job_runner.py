@@ -134,9 +134,9 @@ async def test_run_dedup_command_silent() -> None:
 async def test_run_daily_review_compound_command() -> None:
     runner = WikiRouterJobRunner()
     compound_result = WikiDailyReviewCompoundResult(
-        summary_text="今日复盘 2 条已入库并编译：新增 3 篇四维草稿待审",
-        today_review_files=2,
-        today_pending_drafts=3,
+        summary_text="Daily review compounding: 2 journal(s) ingested; 3 draft(s) produced",
+        recent_review_files=2,
+        window_drafts=3,
         total_pending_drafts=3,
     )
     with patch(
@@ -151,7 +151,7 @@ async def test_run_daily_review_compound_command() -> None:
     run_mock.assert_awaited_once()
     assert run_mock.await_args.kwargs["agent_id"] == "agent-1"
     assert result.success is True
-    assert "四维草稿" in result.output
+    assert "3 draft(s) produced" in result.output
     assert result.exit_code == 1
 
 

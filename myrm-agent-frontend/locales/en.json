@@ -3243,6 +3243,7 @@
         "submitButton": "Store & Compile",
         "submitting": "Submitting…",
         "staged": "Review stored as evidence and enqueued; four-dimension drafts will await human review",
+        "reviewCta": "Go to pending review",
         "skipped": "A review with the same title was already stored today; duplicate skipped",
         "empty": "Please enter your review first",
         "error": "Submission failed; please retry later"

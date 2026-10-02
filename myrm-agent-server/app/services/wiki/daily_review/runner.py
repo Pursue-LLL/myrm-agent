@@ -6,18 +6,21 @@
 - myrm_agent_harness.toolkits.wiki::WikiStructure (POS: vault filesystem abstraction)
 
 [OUTPUT]
-- run_wiki_daily_review_compound_job(): today's review digest + stuck-queue rescue compile + HITL summary
-
+- run_wiki_daily_review_compound_job(): 24h-window review digest + stuck-queue rescue compile + HITL summary
+    10|
 [POS]
-Router-mode cron entry for __wiki_daily_review_compound__. Reports today's daily-review
-journals, rescues a stalled compile queue (compile_all when idle), and summarizes the
-four-dimension drafts awaiting human review. Reply [SILENT] when no review was ingested.
+Router-mode cron entry for __wiki_daily_review_compound__. Reports review journals ingested
+within the last 24h (a calendar-day gate would permanently skip evening and overnight
+writers), rescues a stalled compile queue (compile_all when idle), and summarizes the
+drafts the window produced regardless of review status (approved/rejected drafts keep
+counting so numbers reflect real output, not just what is still queued). Reply [SILENT]
+when no review was ingested within the window.
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.wiki import WikiStructure
@@ -29,38 +32,57 @@ logger = logging.getLogger(__name__)
 
 _DIMENSIONS = ("Projects", "Knowledge", "Methods", "Comparisons")
 _SILENT = "[SILENT]"
+# One daily cron cycle: anything ingested since the previous run is reported by the
+# next run exactly once, independent of calendar-day or timezone boundaries.
+_REPORT_WINDOW = timedelta(hours=24)
 
 
-def _today_prefix() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%d")
+def _window_cutoffs() -> tuple[float, str]:
+    """(epoch cutoff for file mtime, SQLite UTC timestamp cutoff for created_at)."""
+    now = datetime.now(UTC)
+    return (
+        now.timestamp() - _REPORT_WINDOW.total_seconds(),
+        (now - _REPORT_WINDOW).strftime("%Y-%m-%d %H:%M:%S"),
+    )
 
 
-def _list_today_review_files(structure: WikiStructure) -> list[str]:
+def _list_window_review_files(structure: WikiStructure, epoch_cutoff: float) -> list[str]:
+    """Review files ingested within the window (mtime), from any calendar day."""
     review_dir = structure.raw_dir / DAILY_REVIEW_RAW_DIR
     if not review_dir.is_dir():
         return []
-    prefix = _today_prefix()
-    return sorted(path.name for path in review_dir.glob("*.md") if path.name.startswith(prefix))
+    return sorted(
+        path.name
+        for path in review_dir.glob("*.md")
+        if path.stat().st_mtime >= epoch_cutoff
+    )
 
 
-def _dimension_counts(archiver: object) -> tuple[dict[str, int], int, int]:
-    """Count today's pending drafts per first-path dimension plus totals."""
+def _window_draft_stats(archiver: object, iso_cutoff: str) -> tuple[dict[str, int], int, int]:
+    """Count window-produced drafts per dimension plus out-of-dimension and box totals.
+
+    Status-agnostic (approved/rejected drafts keep counting) and deduped per concept:
+    add_pending_edit replaces same-concept drafts, so a recompiled concept must not be
+    counted twice within one window.
+    """
     pending_mgr = getattr(archiver, "_pending_mgr", None)
     if pending_mgr is None:
         return {}, 0, 0
-    today_prefix = _today_prefix()
+    # Rows arrive newest-first; keep the newest draft per concept name.
+    latest_per_concept: dict[str, dict[str, object]] = {}
+    for edit in pending_mgr.get_edits_created_since(iso_cutoff):
+        latest_per_concept.setdefault(str(edit.get("concept_name", "")), edit)
     counts = {dimension: 0 for dimension in _DIMENSIONS}
-    today_drafts = 0
-    total_drafts = 0
-    for edit in pending_mgr.get_pending_edits():
-        total_drafts += 1
-        if not str(edit.get("created_at", "")).startswith(today_prefix):
-            continue
-        today_drafts += 1
+    other_drafts = 0
+    for edit in latest_per_concept.values():
         first_segment = str(edit.get("concept_name", "")).split("/", 1)[0]
         if first_segment in counts:
             counts[first_segment] += 1
-    return counts, today_drafts, total_drafts
+        else:
+            other_drafts += 1
+    # Exact box size: get_pending_edits caps at 50 rows, get_stats does not.
+    total_drafts = int(pending_mgr.get_stats().get("pending", 0))
+    return counts, other_drafts, total_drafts
 
 
 async def run_wiki_daily_review_compound_job(
@@ -68,7 +90,7 @@ async def run_wiki_daily_review_compound_job(
     llm: BaseChatModel | None,
     agent_id: str | None = None,
 ) -> WikiDailyReviewCompoundResult:
-    """Summarize today's daily-review compounding; rescue a stalled compile queue."""
+    """Summarize the window's daily-review compounding; rescue a stalled compile queue."""
     from app.services.wiki.vault import get_wiki_archiver
 
     archiver = None
@@ -80,8 +102,9 @@ async def run_wiki_daily_review_compound_job(
 
         structure = WikiStructure(resolve_wiki_vault_path(agent_id))
 
-    today_files = _list_today_review_files(structure)
-    if not today_files:
+    epoch_cutoff, iso_cutoff = _window_cutoffs()
+    window_files = _list_window_review_files(structure, epoch_cutoff)
+    if not window_files:
         return WikiDailyReviewCompoundResult(summary_text=_SILENT)
 
     queue_stats = archiver._queue.get_stats() if archiver is not None else {}
@@ -103,34 +126,37 @@ async def run_wiki_daily_review_compound_job(
         pending_compiles = int(queue_stats.get("pending", 0))
         processing_compiles = int(queue_stats.get("processing", 0))
 
-    dimension_counts, today_drafts, total_drafts = (
-        _dimension_counts(archiver) if archiver is not None else ({}, 0, 0)
+    dimension_counts, other_drafts, total_drafts = (
+        _window_draft_stats(archiver, iso_cutoff) if archiver is not None else ({}, 0, 0)
     )
+    window_drafts = sum(dimension_counts.values()) + other_drafts
 
     dimension_parts = [f"{name} {count}" for name, count in dimension_counts.items() if count > 0]
-    dimensions_text = " · ".join(dimension_parts) if dimension_parts else "no new drafts yet"
+    if other_drafts > 0:
+        dimension_parts.append(f"other {other_drafts}")
+    dimensions_text = ", ".join(dimension_parts) if dimension_parts else "none"
 
     if llm is None:
         summary_text = (
-            f"今日复盘 {len(today_files)} 条已存为证据（未配置 LLM，编译暂缓，"
-            "将在配置模型后自动编译）"
+            f"Daily review compounding: {len(window_files)} journal(s) stored as evidence in the "
+            "last 24h (no LLM configured; compilation deferred until a model is available)"
         )
     else:
         summary_text = (
-            f"今日复盘 {len(today_files)} 条已入库并编译："
-            f"新增 {today_drafts} 篇四维草稿待审（{dimensions_text}），"
-            f"待审箱共 {total_drafts} 篇。"
+            f"Daily review compounding: {len(window_files)} journal(s) ingested in the last 24h; "
+            f"{window_drafts} draft(s) produced ({dimensions_text}); "
+            f"{total_drafts} draft(s) currently awaiting review."
         )
         if pending_compiles > 0 or processing_compiles > 0:
-            summary_text += f" 队列尚有 {pending_compiles + processing_compiles} 项编译中。"
-        summary_text += " [在知识库治理面板中审核](/settings/knowledge)"
+            summary_text += f" {pending_compiles + processing_compiles} compile(s) still queued."
+        summary_text += " [Review drafts in the knowledge governance panel](/settings/knowledge?wikiTab=pendingEdits)"
 
     return WikiDailyReviewCompoundResult(
         summary_text=summary_text,
-        today_review_files=len(today_files),
+        recent_review_files=len(window_files),
         pending_compiles=pending_compiles,
         processing_compiles=processing_compiles,
-        today_pending_drafts=today_drafts,
+        window_drafts=window_drafts,
         dimension_counts=dimension_counts,
         total_pending_drafts=total_drafts,
         compiles_forced=compiles_forced,
