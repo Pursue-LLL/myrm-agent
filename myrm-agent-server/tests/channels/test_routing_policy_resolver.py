@@ -582,10 +582,13 @@ class TestBotSenderGate:
 
     @staticmethod
     def _group_policy(*, free_response: set[str] | None = None) -> MagicMock:
+        # None → default whitelist; an explicitly passed set() must stay empty.
+        # (set() is falsy, so `or` cannot distinguish it — hence the is-not-None check.)
+        chats = free_response if free_response is not None else {"grp-1"}
         policy = MagicMock()
         policy.get_group_policy = AsyncMock(return_value=GroupPolicy.OPEN)
         policy.get_enabled_groups = AsyncMock(return_value={"grp-1"})
-        policy.get_free_response_chats = AsyncMock(return_value=free_response or {"grp-1"})
+        policy.get_free_response_chats = AsyncMock(return_value=chats)
         policy.get_group_trigger = AsyncMock(return_value=(GroupTriggerMode.MENTION_ONLY, []))
         policy.get_default_user_id = AsyncMock(return_value="default-uid")
         return policy
