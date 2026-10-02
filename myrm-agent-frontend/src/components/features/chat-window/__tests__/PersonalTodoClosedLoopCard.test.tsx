@@ -1,5 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { render, screen, fireEvent } from '@testing-library/react';
 import PersonalTodoClosedLoopCard from '../PersonalTodoClosedLoopCard';
 import useChatStore from '@/store/useChatStore';
@@ -48,11 +49,13 @@ describe('PersonalTodoClosedLoopCard', () => {
     const step1Btn = screen.getByText('待办拆解').closest('button');
     expect(step1Btn).toBeDefined();
 
-    fireEvent.click(step1Btn!);
+    expectNonNull(step1Btn, 'step1Btn');
+    fireEvent.click(step1Btn);
     expect(useChatStore.getState().inputMessage).toBe('帮我梳理并拆解当前的核心工作待办事项。');
 
     const step3Btn = screen.getByText('智能周报').closest('button');
-    fireEvent.click(step3Btn!);
+    expectNonNull(step3Btn, 'step3Btn');
+    fireEvent.click(step3Btn);
     expect(useChatStore.getState().inputMessage).toBe('帮我调取本周完成的待办事项与每日日志生成周报。');
   });
 });

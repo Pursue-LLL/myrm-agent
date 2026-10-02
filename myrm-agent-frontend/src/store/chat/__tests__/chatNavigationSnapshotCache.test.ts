@@ -11,6 +11,7 @@
  * - Snapshot clearing and test resets
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import {
   saveChatNavigationSnapshot,
   getChatNavigationSnapshot,
@@ -155,7 +156,8 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
 
     const raw = window.sessionStorage.getItem('myrm_nav_snap_chat-large');
     expect(raw).not.toBeNull();
-    const parsed = JSON.parse(raw!);
+    expectNonNull(raw, 'raw');
+    const parsed = JSON.parse(raw);
     // loading 必须被安全重置为 false
     expect(parsed.loading).toBe(false);
     // 超大 base64 必须被安全裁剪

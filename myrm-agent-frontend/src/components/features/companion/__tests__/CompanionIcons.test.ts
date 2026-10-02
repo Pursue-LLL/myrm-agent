@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { render } from '@testing-library/react';
 import { createElement } from 'react';
 
@@ -93,8 +94,10 @@ describe('CompanionIcons', () => {
         const { container } = render(createElement(Icon, { size: 32 }));
         const svg = container.querySelector('svg');
         expect(svg).not.toBeNull();
-        expect(svg!.getAttribute('width')).toBe('32');
-        expect(svg!.getAttribute('height')).toBe('32');
+        expectNonNull(svg, 'svg');
+        expect(svg.getAttribute('width')).toBe('32');
+        expectNonNull(svg, 'svg');
+        expect(svg.getAttribute('height')).toBe('32');
       },
     );
   });

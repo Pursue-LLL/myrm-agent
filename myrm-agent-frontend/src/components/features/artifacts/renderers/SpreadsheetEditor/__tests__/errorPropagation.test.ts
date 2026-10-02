@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 
 /**
  * handleEditSave (ArtifactPortal) must let errors propagate to SpreadsheetEditor's catch block.
@@ -23,7 +24,8 @@ describe('SpreadsheetEditor save error propagation contract', () => {
     }
 
     expect(caughtError).not.toBeNull();
-    expect(caughtError!.message).toBe('Upload failed');
+    expectNonNull(caughtError, 'caughtError');
+    expect(caughtError.message).toBe('Upload failed');
   });
 
   it('resolving onSave should not trigger the catch block', async () => {

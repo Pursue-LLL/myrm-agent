@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -41,10 +42,14 @@ describe('MemoryAbHistoryTable', () => {
     // off arm 50% with 0 memory calls, on arm 80% with 3 calls
     const firstRow = screen.getByText('code').closest('tr');
     expect(firstRow).not.toBeNull();
-    expect(firstRow!.textContent).toContain('50%');
-    expect(firstRow!.textContent).toContain('(0)');
-    expect(firstRow!.textContent).toContain('80%');
-    expect(firstRow!.textContent).toContain('(3)');
+    expectNonNull(firstRow, 'firstRow');
+    expect(firstRow.textContent).toContain('50%');
+    expectNonNull(firstRow, 'firstRow');
+    expect(firstRow.textContent).toContain('(0)');
+    expectNonNull(firstRow, 'firstRow');
+    expect(firstRow.textContent).toContain('80%');
+    expectNonNull(firstRow, 'firstRow');
+    expect(firstRow.textContent).toContain('(3)');
   });
 
   it('falls back to dash for arms without per-profile data', () => {
@@ -52,9 +57,12 @@ describe('MemoryAbHistoryTable', () => {
 
     const secondRow = screen.getByText('research').closest('tr');
     expect(secondRow).not.toBeNull();
-    expect(secondRow!.textContent).toContain('60%');
-    expect(secondRow!.textContent).toContain('90%');
-    expect(secondRow!.textContent).not.toContain('(0)');
+    expectNonNull(secondRow, 'secondRow');
+    expect(secondRow.textContent).toContain('60%');
+    expectNonNull(secondRow, 'secondRow');
+    expect(secondRow.textContent).toContain('90%');
+    expectNonNull(secondRow, 'secondRow');
+    expect(secondRow.textContent).not.toContain('(0)');
   });
 
   it('marks the selected run as current and calls onSelect for others', async () => {
@@ -62,7 +70,8 @@ describe('MemoryAbHistoryTable', () => {
     render(<MemoryAbHistoryTable items={items()} selectedTimestamp={2000} onSelect={onSelect} />);
 
     const selectedRow = screen.getByText('code').closest('tr');
-    expect(selectedRow!.textContent).toContain('historyCurrent');
+    expectNonNull(selectedRow, 'selectedRow');
+    expect(selectedRow.textContent).toContain('historyCurrent');
 
     await userEvent.click(screen.getByText('historyView'));
     expect(onSelect).toHaveBeenCalledWith(1000);
@@ -94,12 +103,14 @@ describe('MemoryAbHistoryTable', () => {
 
     const agentRow = screen.getByText('browsecomp').closest('tr');
     expect(agentRow).not.toBeNull();
-    expect(agentRow!.textContent).toContain('deepseek/deepseek-chat');
+    expectNonNull(agentRow, 'agentRow');
+    expect(agentRow.textContent).toContain('deepseek/deepseek-chat');
 
     // Unresolvable agent models stay hidden in the table.
     const unknownRow = screen.getByText('office').closest('tr');
     expect(unknownRow).not.toBeNull();
-    expect(unknownRow!.textContent).not.toContain('deepseek/deepseek-chat');
+    expectNonNull(unknownRow, 'unknownRow');
+    expect(unknownRow.textContent).not.toContain('deepseek/deepseek-chat');
   });
 
   it('discloses the judge model when the run was LLM-graded', () => {
@@ -127,12 +138,14 @@ describe('MemoryAbHistoryTable', () => {
 
     const judgeRow = screen.getByText('browsecomp').closest('tr');
     expect(judgeRow).not.toBeNull();
-    expect(judgeRow!.textContent).toContain('deepseek/deepseek-chat');
+    expectNonNull(judgeRow, 'judgeRow');
+    expect(judgeRow.textContent).toContain('deepseek/deepseek-chat');
 
     // Native-scored runs stay hidden (no LLM judge was invoked).
     const nativeRow = screen.getByText('office').closest('tr');
     expect(nativeRow).not.toBeNull();
-    expect(nativeRow!.textContent).not.toContain('deepseek/deepseek-chat');
+    expectNonNull(nativeRow, 'nativeRow');
+    expect(nativeRow.textContent).not.toContain('deepseek/deepseek-chat');
   });
 
   it('discloses the sample size badge when the run was sampled', () => {
@@ -150,8 +163,10 @@ describe('MemoryAbHistoryTable', () => {
     render(<MemoryAbHistoryTable items={sampledItems} onSelect={vi.fn()} />);
 
     const row = screen.getByText('browsecomp').closest('tr');
-    expect(row!.textContent).toContain('sampled');
-    expect(row!.textContent).toContain('20');
+    expectNonNull(row, 'row');
+    expect(row.textContent).toContain('sampled');
+    expectNonNull(row, 'row');
+    expect(row.textContent).toContain('20');
   });
 
   it('marks aborted runs so they are not mistaken for complete', () => {
@@ -169,7 +184,8 @@ describe('MemoryAbHistoryTable', () => {
     render(<MemoryAbHistoryTable items={abortedItems} onSelect={vi.fn()} />);
 
     const row = screen.getByText('browsecomp').closest('tr');
-    expect(row!.textContent).toContain('aborted');
+    expectNonNull(row, 'row');
+    expect(row.textContent).toContain('aborted');
   });
 
   it('omits the aborted badge for complete runs', () => {
@@ -186,6 +202,7 @@ describe('MemoryAbHistoryTable', () => {
     render(<MemoryAbHistoryTable items={items} onSelect={vi.fn()} />);
 
     const row = screen.getByText('browsecomp').closest('tr');
-    expect(row!.textContent).not.toContain('aborted');
+    expectNonNull(row, 'row');
+    expect(row.textContent).not.toContain('aborted');
   });
 });

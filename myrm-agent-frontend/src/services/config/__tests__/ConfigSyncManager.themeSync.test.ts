@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { ConfigSyncManager, resetConfigSyncManager } from '@/services/config/ConfigSyncManager';
 import { DEFAULT_PERSONAL_SETTINGS, type PersonalSettingsConfigValue } from '@/services/config/types';
 
@@ -124,7 +125,8 @@ describe('ConfigSyncManager theme fast-path sync', () => {
 
     const stored = localStorageMock.getItem(OFFLINE_QUEUE_KEY);
     expect(stored).toBeTruthy();
-    const parsed = JSON.parse(stored!) as Array<{ key: string; value: PersonalSettingsConfigValue }>;
+    expectNonNull(stored, 'stored');
+    const parsed = JSON.parse(stored) as Array<{ key: string; value: PersonalSettingsConfigValue }>;
     expect(parsed[0]?.key).toBe('personalSettings');
     expect(parsed[0]?.value.activeThemeProfileId).toBe('forest-green');
 

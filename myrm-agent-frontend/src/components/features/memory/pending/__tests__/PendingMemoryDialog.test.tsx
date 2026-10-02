@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { TooltipProvider } from '@/components/primitives/tooltip';
 import PendingMemoryDialog from '../PendingMemoryDialog';
 import type { PendingMemory } from '@/services/memory/core';
@@ -104,8 +105,9 @@ describe('PendingMemoryDialog', () => {
   });
 
   it('renders permanent validity fallback when expected_valid_days is missing', () => {
+    expectNonNull(mockState.currentPendingMemory, 'mockState.currentPendingMemory');
     mockState.currentPendingMemory = {
-      ...mockState.currentPendingMemory!,
+      ...mockState.currentPendingMemory,
       expected_valid_days: undefined,
       confidence: 0.72,
     };

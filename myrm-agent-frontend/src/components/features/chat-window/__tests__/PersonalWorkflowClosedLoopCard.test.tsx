@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { PersonalWorkflowClosedLoopCard } from '../PersonalWorkflowClosedLoopCard';
@@ -48,7 +49,8 @@ describe('PersonalWorkflowClosedLoopCard', () => {
     const step3Button = screen.getByText('智能周报').closest('button');
     expect(step3Button).not.toBeNull();
 
-    fireEvent.click(step3Button!);
+    expectNonNull(step3Button, 'step3Button');
+    fireEvent.click(step3Button);
 
     expect(useChatStore.getState().inputMessage).toBe('帮我聚合生成一份标准本周工作总结报告。');
   });

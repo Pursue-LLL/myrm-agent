@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 
 const mockGetTemplates = vi.fn();
 const mockInstantiateTemplateWithMetrics = vi.fn();
@@ -93,7 +94,8 @@ describe('FeaturedExpertChips & ExpertSummonPopover', () => {
     expect(squadBtn).not.toBeNull();
 
     await act(async () => {
-      fireEvent.click(squadBtn!);
+      expectNonNull(squadBtn, 'squadBtn');
+      fireEvent.click(squadBtn);
     });
 
     expect(mockInstantiateTemplateWithMetrics).toHaveBeenCalledWith(

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 
 const ROUTE_STORAGE_KEY = 'myrm_last_tab_routes';
 
@@ -58,21 +59,24 @@ describe('Route Persistence', () => {
       persistRoute('chat', '/c-xyz');
       const raw = localStorage.getItem(ROUTE_STORAGE_KEY);
       expect(raw).not.toBeNull();
-      expect(JSON.parse(raw!)).toEqual({ chat: '/c-xyz' });
+      expectNonNull(raw, 'raw');
+      expect(JSON.parse(raw)).toEqual({ chat: '/c-xyz' });
     });
 
     it('preserves existing routes when adding new', () => {
       persistRoute('chat', '/c-abc');
       persistRoute('work', '/work/task-2');
       const raw = localStorage.getItem(ROUTE_STORAGE_KEY);
-      expect(JSON.parse(raw!)).toEqual({ chat: '/c-abc', work: '/work/task-2' });
+      expectNonNull(raw, 'raw');
+      expect(JSON.parse(raw)).toEqual({ chat: '/c-abc', work: '/work/task-2' });
     });
 
     it('overwrites existing route for same tab', () => {
       persistRoute('chat', '/c-old');
       persistRoute('chat', '/c-new');
       const raw = localStorage.getItem(ROUTE_STORAGE_KEY);
-      expect(JSON.parse(raw!)).toEqual({ chat: '/c-new' });
+      expectNonNull(raw, 'raw');
+      expect(JSON.parse(raw)).toEqual({ chat: '/c-new' });
     });
 
     it('handles all three tabs', () => {
@@ -80,7 +84,8 @@ describe('Route Persistence', () => {
       persistRoute('work', '/agents');
       persistRoute('projects', '/artifacts');
       const raw = localStorage.getItem(ROUTE_STORAGE_KEY);
-      expect(JSON.parse(raw!)).toEqual({
+      expectNonNull(raw, 'raw');
+      expect(JSON.parse(raw)).toEqual({
         chat: '/',
         work: '/agents',
         projects: '/artifacts',

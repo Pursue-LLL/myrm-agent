@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const mockListChannelStatuses = vi.fn();
@@ -136,7 +137,8 @@ describe('AgentNotifyTargets', () => {
       container.querySelector('button.text-destructive, button .text-destructive')?.closest('button') ??
       container.querySelector('button[class*="destructive"]');
     expect(trashButton).toBeTruthy();
-    fireEvent.click(trashButton!);
+    expectNonNull(trashButton, 'trashButton');
+    fireEvent.click(trashButton);
 
     expect(onChange).toHaveBeenCalledWith([]);
   });

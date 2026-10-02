@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { render, screen } from '@testing-library/react';
 
 import MatrixResultView, { type MatrixReportData } from '../components/MatrixResultView';
@@ -50,10 +51,12 @@ describe('MatrixResultView memory engagement column', () => {
     expect(screen.getByText('evalLab.matrix.memoryCalls')).toBeInTheDocument();
     const memoryOnRow = screen.getAllByText('With Memory')[0].closest('tr');
     expect(memoryOnRow).not.toBeNull();
-    expect(memoryOnRow!.textContent).toContain('3');
+    expectNonNull(memoryOnRow, 'memoryOnRow');
+    expect(memoryOnRow.textContent).toContain('3');
     const memoryOffRow = screen.getAllByText('No Memory')[0].closest('tr');
     expect(memoryOffRow).not.toBeNull();
-    expect(memoryOffRow!.textContent).toContain('0');
+    expectNonNull(memoryOffRow, 'memoryOffRow');
+    expect(memoryOffRow.textContent).toContain('0');
   });
 
   it('hides the column for plain matrix reports without the field', () => {
@@ -93,8 +96,10 @@ describe('MatrixResultView trajectory disclosure columns', () => {
     expect(screen.getByText('evalLab.matrix.limitHits')).toBeInTheDocument();
     const memoryOnRow = screen.getAllByText('With Memory')[0].closest('tr');
     expect(memoryOnRow).not.toBeNull();
-    expect(memoryOnRow!.textContent).toContain('8');
-    expect(memoryOnRow!.textContent).toContain('2');
+    expectNonNull(memoryOnRow, 'memoryOnRow');
+    expect(memoryOnRow.textContent).toContain('8');
+    expectNonNull(memoryOnRow, 'memoryOnRow');
+    expect(memoryOnRow.textContent).toContain('2');
   });
 
   it('shows blocked badge in the matrix grid when a cell reports blocks', () => {

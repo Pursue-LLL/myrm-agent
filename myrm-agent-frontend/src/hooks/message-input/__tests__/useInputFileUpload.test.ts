@@ -297,10 +297,11 @@ describe('useInputFileUpload', () => {
         });
       }
       if (opts.imageFile) {
+        const imageFile = opts.imageFile;
         items.push({
           kind: 'file' as const,
-          type: opts.imageFile.type,
-          getAsFile: () => opts.imageFile!,
+          type: imageFile.type,
+          getAsFile: () => imageFile,
           getAsString: vi.fn(),
           webkitGetAsEntry: vi.fn(),
         });

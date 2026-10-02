@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { useUpgradeNudgeStore } from '@/store/useUpgradeNudgeStore';
 
 vi.mock('@/store/useBudgetExceededStore', () => ({
@@ -67,7 +68,8 @@ describe('useUpgradeNudgeStore', () => {
       expect(state.blockedFeature).toBeNull();
       const ts = localStorage.getItem(STORAGE_KEY);
       expect(ts).not.toBeNull();
-      expect(Date.now() - parseInt(ts!, 10)).toBeLessThan(1000);
+      expectNonNull(ts, 'ts');
+      expect(Date.now() - parseInt(ts, 10)).toBeLessThan(1000);
     });
   });
 

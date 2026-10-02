@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { CustomMessageCard } from '../CustomMessageCard';
@@ -56,7 +57,8 @@ describe('CustomMessageCard', () => {
     expect(detailsBtn?.getAttribute('aria-expanded')).toBe('false');
     expect(detailsBtn?.getAttribute('aria-controls')).toBe('custom-message-details');
 
-    fireEvent.click(detailsBtn!);
+    expectNonNull(detailsBtn, 'detailsBtn');
+    fireEvent.click(detailsBtn);
 
     expect(detailsBtn?.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText(/abc123/)).toBeDefined();

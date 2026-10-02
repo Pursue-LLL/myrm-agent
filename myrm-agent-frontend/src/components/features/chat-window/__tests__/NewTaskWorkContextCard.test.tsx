@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import NewTaskWorkContextCard from '../NewTaskWorkContextCard';
 
@@ -92,7 +93,8 @@ describe('NewTaskWorkContextCard', () => {
 
     const cloudBtn = screen.getByText('Cloud Sandbox').closest('button');
     expect(cloudBtn).toBeDefined();
-    fireEvent.click(cloudBtn!);
+    expectNonNull(cloudBtn, 'cloudBtn');
+    fireEvent.click(cloudBtn);
 
     expect(mockState.setSandboxMode).toHaveBeenCalledWith(true);
     expect(mockState.setActionMode).toHaveBeenCalledWith('agent');
@@ -101,7 +103,8 @@ describe('NewTaskWorkContextCard', () => {
   it('switches to quick chat mode', () => {
     render(<NewTaskWorkContextCard />);
     const chatBtn = screen.getByText('Quick Chat').closest('button');
-    fireEvent.click(chatBtn!);
+    expectNonNull(chatBtn, 'chatBtn');
+    fireEvent.click(chatBtn);
 
     expect(mockState.setSandboxMode).toHaveBeenCalledWith(false);
     expect(mockState.setActionMode).toHaveBeenCalledWith('fast');
@@ -115,7 +118,8 @@ describe('NewTaskWorkContextCard', () => {
     const scaffoldBtn = screen.getByText('Initialize Office Scaffold').closest('button');
     expect(scaffoldBtn).toBeDefined();
 
-    fireEvent.click(scaffoldBtn!);
+    expectNonNull(scaffoldBtn, 'scaffoldBtn');
+    fireEvent.click(scaffoldBtn);
 
     await waitFor(() => {
       expect(mkdirInWorkspace).toHaveBeenCalledTimes(4);
@@ -145,7 +149,8 @@ describe('NewTaskWorkContextCard', () => {
     render(<NewTaskWorkContextCard />);
     const bindBtn = screen.getByText('No workspace selected (click to bind)').closest('button');
     expect(bindBtn).toBeDefined();
-    fireEvent.click(bindBtn!);
+    expectNonNull(bindBtn, 'bindBtn');
+    fireEvent.click(bindBtn);
 
     await waitFor(() => {
       expect(browseDirectories).toHaveBeenCalled();
@@ -173,7 +178,8 @@ describe('NewTaskWorkContextCard', () => {
     render(<NewTaskWorkContextCard />);
 
     const scaffoldBtn = screen.getByText('Initialize Office Scaffold').closest('button');
-    fireEvent.click(scaffoldBtn!);
+    expectNonNull(scaffoldBtn, 'scaffoldBtn');
+    fireEvent.click(scaffoldBtn);
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith({
