@@ -543,7 +543,7 @@ const DefaultModelSection = memo(() => {
     );
   }
 
-  // 模型槽局部引用：JSX 条件守卫下闭包窄化稳定，替代各处非空断言
+  // 模型槽局部引用：JSX 条件守卫对 const 别名的闭包窄化稳定生效
   const basePrimary = defaultModelConfig.baseModel.primary;
   const baseFallback = defaultModelConfig.baseModel.fallback;
   const visionPrimary = defaultModelConfig.visionFallbackModel?.primary;
