@@ -149,6 +149,7 @@ class MentionReferenceRequest(BaseModel):
         "workspace_folder",
         "uploaded_file",
         "generated_file",
+        "artifact_range",
         "git_diff",
         "git_staged",
         "url",

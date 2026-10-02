@@ -1,6 +1,6 @@
 import { API_BASE_URL, apiRequest, fetchWithTimeout } from '@/lib/api';
 import type { ExportData } from '@/lib/utils/chat-export';
-import { Message, type ActionMode, type ModelSelection } from '@/store/chat/types';
+import { Message, type ActionMode, type MentionReferenceType, type ModelSelection } from '@/store/chat/types';
 import { requestManager } from '@/lib/utils/requestManager';
 
 export interface TurnOutlineItem {
@@ -604,7 +604,7 @@ export interface ReferenceSuggestResponse {
 }
 
 export interface MentionReferencePayload {
-  type: ReferenceSuggestionType | 'wiki_concept' | 'wiki_raw_file' | 'prior_chat';
+  type: Exclude<MentionReferenceType, 'agent'>;
   path?: string;
   file_id?: string;
   url?: string;
@@ -724,6 +724,7 @@ export interface StreamRequestBody {
     protected_paths?: string[];
   };
   mention_references?: MentionReferencePayload[];
+  mentioned_agent_ids?: string[];
   quote?: {
     source_message_id: string;
     quoted_text: string;

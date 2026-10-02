@@ -27,6 +27,7 @@ import {
   type BuiltinToolId,
   type ArchiveRestoreAction,
   type MentionReference,
+  type MentionReferenceType,
   type TurnCapabilityTerminalTelemetry,
   type ChatState,
 } from '@/store/chat/types';
@@ -53,7 +54,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { isRetryableHttpStatus } from '@/lib/utils/networkResilience';
 import { buildMultimodalQuery } from './multimodalBuilder';
 import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } from '@/lib/kanban/kanbanChatBoard';
-import { createAISearchStream } from '@/services/chat';
+import { createAISearchStream, type StreamRequestBody } from '@/services/chat';
 import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
@@ -907,10 +908,13 @@ export const createMessageRequest = async (
         return {};
       }
 
-      const fileReferences = references.filter((r) => r.type !== 'agent');
+      const fileReferences = references.filter(
+        (r): r is Omit<MentionReference, 'type'> & { type: Exclude<MentionReferenceType, 'agent'> } =>
+          r.type !== 'agent',
+      );
       const agentReferences = references.filter((r) => r.type === 'agent');
 
-      const payload: Record<string, unknown> = {};
+      const payload: Pick<StreamRequestBody, 'mention_references' | 'mentioned_agent_ids'> = {};
       if (fileReferences.length > 0) {
         payload.mention_references = fileReferences.map((reference) => ({
           type: reference.type,
