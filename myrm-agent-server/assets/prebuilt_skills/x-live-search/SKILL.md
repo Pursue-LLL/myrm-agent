@@ -77,6 +77,11 @@ Date range filtering (`YYYY-MM-DD`):
 python3 .claude/skills/x-live-search/scripts/search.py --query "LLM reasoning" --from-date 2026-08-01 --to-date 2026-08-31
 ```
 
+Image and video understanding (let Grok analyze media in matching posts):
+```bash
+python3 .claude/skills/x-live-search/scripts/search.py --query "UI redesign reactions" --image-understanding --video-understanding
+```
+
 ## Notes
 
 - Do not use `--handles` and `--exclude-handles` in the same command.

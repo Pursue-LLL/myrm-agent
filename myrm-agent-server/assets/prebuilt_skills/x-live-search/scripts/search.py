@@ -122,6 +122,24 @@ def _extract_inline_citations(payload: dict[str, object]) -> list[dict[str, obje
     return citations
 
 
+def _source_label(title: str, url: str) -> str:
+    """Build a readable source label.
+
+    xAI's `url_citation` `title` is the inline citation number (e.g. "1"), not a page title,
+    so numeric titles are replaced with a handle extracted from the x.com URL path.
+    """
+    if title and not title.isdigit():
+        return title
+    parsed = urllib.parse.urlsplit(url)
+    segments = [s for s in (parsed.path or "").split("/") if s]
+    host = (parsed.hostname or "").removeprefix("www.")
+    if host.endswith("x.com") and segments and segments[0] not in ("i", "search", "home"):
+        if len(segments) >= 2 and segments[1] == "status":
+            return f"@{segments[0]} post"
+        return f"@{segments[0]}"
+    return url
+
+
 def execute_search(
     query: str,
     *,
@@ -217,7 +235,7 @@ def execute_search(
                     t = str(item.get("title") or "")
                     if u and u not in seen_urls:
                         seen_urls.add(u)
-                        merged_sources.append((t or u, u))
+                        merged_sources.append((_source_label(t, u), u))
 
                 if isinstance(top_citations, list):
                     for tc in top_citations:
@@ -225,7 +243,7 @@ def execute_search(
                         t = tc.get("title", "") if isinstance(tc, dict) else ""
                         if u and u not in seen_urls:
                             seen_urls.add(u)
-                            merged_sources.append((t or u, u))
+                            merged_sources.append((_source_label(t, u), u))
 
                 has_filters = bool(allowed or excluded or from_date.strip() or to_date.strip())
                 if not merged_sources:
