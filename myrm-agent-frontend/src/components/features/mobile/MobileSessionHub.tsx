@@ -262,7 +262,6 @@ export default function MobileSessionHub() {
                             type="button"
                             onClick={() => void stopSession(session.chatId)}
                             disabled={stoppingChatId === session.chatId}
-                            aria-label={t('stop')}
                             className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
                           >
                             <IconX className="h-3 w-3" />

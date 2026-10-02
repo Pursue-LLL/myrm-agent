@@ -37,5 +37,13 @@ export function formatRelativeTime(isoTimestamp: string, locale: string): string
   if (absSeconds < 86400) {
     return formatter.format(Math.round(diffSeconds / 3600), 'hour');
   }
-  return formatter.format(Math.round(diffSeconds / 86400), 'day');
+  // Beyond ~30 days a raw day count ("170 days ago") forces mental math;
+  // month/year buckets keep long-lived histories scannable.
+  if (absSeconds < 2592000) {
+    return formatter.format(Math.round(diffSeconds / 86400), 'day');
+  }
+  if (absSeconds < 31536000) {
+    return formatter.format(Math.round(diffSeconds / 2592000), 'month');
+  }
+  return formatter.format(Math.round(diffSeconds / 31536000), 'year');
 }

@@ -20,4 +20,12 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime(new Date(now - 2 * 3600_000).toISOString(), 'en')).toMatch(/hour/i);
     expect(formatRelativeTime(new Date(now - 2 * 86400_000).toISOString(), 'en')).toMatch(/day/i);
   });
+
+  it('buckets long-lived diffs into month/year phrasing', () => {
+    const now = Date.now();
+    expect(formatRelativeTime(new Date(now - 45 * 86400_000).toISOString(), 'en')).toMatch(/month/i);
+    expect(formatRelativeTime(new Date(now - 400 * 86400_000).toISOString(), 'en')).toMatch(/year/i);
+    expect(formatRelativeTime(new Date(now - 45 * 86400_000).toISOString(), 'zh')).toMatch(/月/);
+    expect(formatRelativeTime(new Date(now - 400 * 86400_000).toISOString(), 'zh')).toMatch(/年/);
+  });
 });
