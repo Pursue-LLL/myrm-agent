@@ -2,6 +2,9 @@
  * [POS]
  * Locale-aware relative time formatting via Intl.RelativeTimeFormat
  * (auto "just now"/"x minutes ago" phrasing; all six app locales supported natively).
+ *
+ * [OUTPUT]
+ * - formatRelativeTime
  */
 
 const rtfCache = new Map<string, Intl.RelativeTimeFormat>();
