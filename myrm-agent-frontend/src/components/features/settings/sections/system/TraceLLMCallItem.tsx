@@ -28,10 +28,10 @@ const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }
   let tps = 0;
 
   if (hasLatencyData) {
-    const validTtft = Math.min(ttft_ms!, duration_ms!);
-    const genMs = Math.max(0, duration_ms! - validTtft);
-    ttftRatio = (validTtft / duration_ms!) * 100;
-    genRatio = (genMs / duration_ms!) * 100;
+    const validTtft = Math.min(ttft_ms, duration_ms);
+    const genMs = Math.max(0, duration_ms - validTtft);
+    ttftRatio = (validTtft / duration_ms) * 100;
+    genRatio = (genMs / duration_ms) * 100;
     if (genMs > 0 && completion_tokens > 0) {
       tps = completion_tokens / (genMs / 1000);
     }
@@ -77,23 +77,23 @@ const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }
             <div
               className="h-full bg-amber-400 dark:bg-amber-500/80 transition-all"
               style={{ width: `${ttftRatio}%` }}
-              title={`Network Wait (TTFT): ${Math.round(ttft_ms!)}ms`}
+              title={`Network Wait (TTFT): ${Math.round(ttft_ms)}ms`}
             />
             <div
               className="h-full bg-emerald-400 dark:bg-emerald-500/80 transition-all"
               style={{ width: `${genRatio}%` }}
-              title={`Token Generation: ${Math.round(duration_ms! - ttft_ms!)}ms`}
+              title={`Token Generation: ${Math.round(duration_ms - ttft_ms)}ms`}
             />
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground px-0.5">
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500/80" />
-              TTFT: {Math.round(ttft_ms!)}ms
+              TTFT: {Math.round(ttft_ms)}ms
             </span>
             <span className="flex items-center gap-3">
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dark:bg-emerald-500/80" />
-                Gen: {Math.round(duration_ms! - ttft_ms!)}ms
+                Gen: {Math.round(duration_ms - ttft_ms)}ms
               </span>
               {tps > 0 && (
                 <span className="font-mono text-emerald-600 dark:text-emerald-400">{tps.toFixed(1)} tps</span>

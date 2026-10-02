@@ -262,7 +262,7 @@ const SkillCard = memo(
                         )}
                       >
                         {(() => {
-                          const { icon: SecurityIcon, label } = getSecurityBadgeProps(skill.security!);
+                          const { icon: SecurityIcon, label } = getSecurityBadgeProps(skill.security);
                           return (
                             <>
                               <SecurityIcon size={14} />

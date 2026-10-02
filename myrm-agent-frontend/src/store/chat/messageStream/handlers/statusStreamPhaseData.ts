@@ -27,7 +27,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
     actions.setMessages((state) => {
       const idx = H.findAssistantMessageIndex(state.messages, messageId);
       if (idx !== -1 && state.messages[idx].clarification) {
-        state.messages[idx].clarification!.answered = true;
+        state.messages[idx].clarification.answered = true;
       }
     });
   }
@@ -77,7 +77,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
         };
       } else if (sd.status === 'resolved') {
         if (state.messages[idx].planConfirmation) {
-          state.messages[idx].planConfirmation!.status = sd.modified ? 'edited' : 'confirmed';
+          state.messages[idx].planConfirmation.status = sd.modified ? 'edited' : 'confirmed';
         }
       }
     });
@@ -108,9 +108,9 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
         };
       } else if (sd.status === 'resolved') {
         if (state.messages[idx].humanGate) {
-          state.messages[idx].humanGate!.status = 'resolved';
-          state.messages[idx].humanGate!.answer = typeof sd.answer === 'string' ? (sd.answer as string) : '';
-          state.messages[idx].humanGate!.timedOut = Boolean(sd.timed_out);
+          state.messages[idx].humanGate.status = 'resolved';
+          state.messages[idx].humanGate.answer = typeof sd.answer === 'string' ? (sd.answer as string) : '';
+          state.messages[idx].humanGate.timedOut = Boolean(sd.timed_out);
         }
       }
     });
@@ -174,7 +174,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
               lastStep.items = [];
             }
             const items = lastStep.items as { text: string }[];
-            items.push({ text: detailText! });
+            items.push({ text: detailText });
             if (items.length > MAX_DETAIL_ITEMS) {
               items.splice(0, items.length - MAX_DETAIL_ITEMS);
             }

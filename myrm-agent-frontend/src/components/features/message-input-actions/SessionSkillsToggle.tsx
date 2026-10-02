@@ -50,7 +50,7 @@ export default function SessionSkillsToggle() {
       if (!hasOverride) {
         return true;
       }
-      return sessionSkillOverrides!.includes(skillName);
+      return sessionSkillOverrides.includes(skillName);
     },
     [hasOverride, sessionSkillOverrides],
   );
@@ -76,7 +76,7 @@ export default function SessionSkillsToggle() {
 
   const toggleSkill = useCallback(
     (skillName: string) => {
-      const currentActive = hasOverride ? sessionSkillOverrides! : enabledSkills.map((s) => s.name);
+      const currentActive = hasOverride ? sessionSkillOverrides : enabledSkills.map((s) => s.name);
 
       const isActive = currentActive.includes(skillName);
       const next = isActive ? currentActive.filter((n) => n !== skillName) : [...currentActive, skillName];

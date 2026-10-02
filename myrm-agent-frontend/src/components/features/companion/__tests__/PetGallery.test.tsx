@@ -177,7 +177,7 @@ describe('PetGallery local-first', () => {
     });
 
     const confirmButtons = screen.getAllByRole('button', { name: 'Remove' });
-    await user.click(confirmButtons[confirmButtons.length - 1]!);
+    await user.click(confirmButtons[confirmButtons.length - 1]);
 
     await waitFor(() => {
       expect(uninstallCompanionPetMock).toHaveBeenCalledWith('nous-girl');
@@ -205,7 +205,7 @@ describe('PetGallery local-first', () => {
     await user.click(screen.getByTestId('installed-pet-uninstall-nous-girl'));
 
     const confirmButtons = screen.getAllByRole('button', { name: 'Remove' });
-    await user.click(confirmButtons[confirmButtons.length - 1]!);
+    await user.click(confirmButtons[confirmButtons.length - 1]);
 
     await waitFor(() => {
       expect(screen.getByTestId('pet-gallery-uninstall-error')).toHaveTextContent('Pet not installed');

@@ -83,7 +83,7 @@ describe('statusStreamEvents workflow_stage', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     expect(step.step_key).toBe('workflow_stage:analysis');
     expect(step.notify_message).toBe('Halfway done');
     expect(step.progress_percent).toBe(50);
@@ -103,8 +103,8 @@ describe('statusStreamEvents workflow_stage', () => {
     }
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
-    expect(state.messages[0].progressSteps![0].step_key).toBe('workflow_stage:subagent');
-    expect(state.messages[0].progressSteps![0].notify_message).toBe('Sub-agent `t1` completed.');
+    expect(state.messages[0].progressSteps[0].step_key).toBe('workflow_stage:subagent');
+    expect(state.messages[0].progressSteps[0].notify_message).toBe('Sub-agent `t1` completed.');
   });
 
   it('keeps distinct categories as separate progress items', async () => {
@@ -120,7 +120,7 @@ describe('statusStreamEvents workflow_stage', () => {
     }
 
     expect(state.messages[0].progressSteps).toHaveLength(2);
-    expect(state.messages[0].progressSteps!.map((s) => s.step_key).sort()).toEqual([
+    expect(state.messages[0].progressSteps.map((s) => s.step_key).sort()).toEqual([
       'workflow_stage:analysis',
       'workflow_stage:summary',
     ]);

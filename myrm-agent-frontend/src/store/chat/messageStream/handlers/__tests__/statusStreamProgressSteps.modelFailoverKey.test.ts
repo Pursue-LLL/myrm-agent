@@ -114,7 +114,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await applyStatusProgressStep(ctx, 'model_failover');
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     expect(step.step_key).toBe('model_failover_response_format_error');
   });
 
@@ -128,7 +128,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await applyStatusProgressStep(ctx, 'model_failover');
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     expect(step.step_key).toBe('model_failover_model_not_found');
   });
 
@@ -142,7 +142,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await applyStatusProgressStep(ctx, 'model_failover');
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     expect(step.step_key).toBe('model_failover');
   });
 
@@ -210,7 +210,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
 
   it('dedupes STATUS safety_fallback_active when SSE already created the step', async () => {
     const state = makeMessagesState();
-    state.messages[0].progressSteps!.push({
+    state.messages[0].progressSteps.push({
       step_key: 'safety_fallback_active',
       items: [{ text: 'agnes → safety-mini' }],
       status: 'success',
@@ -226,12 +226,12 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     await applyStatusProgressStep(ctx, 'safety_fallback_active');
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
-    expect(state.messages[0].progressSteps![0].step_key).toBe('safety_fallback_active');
+    expect(state.messages[0].progressSteps[0].step_key).toBe('safety_fallback_active');
   });
 
   it('keeps from → to label when STATUS arrives after the SSE failover step', async () => {
     const state = makeMessagesState();
-    state.messages[0].progressSteps!.push({
+    state.messages[0].progressSteps.push({
       step_key: 'model_failover_overloaded',
       items: [{ text: 'agnes → minimax/MiniMax-M3' }],
       status: 'success',
@@ -245,7 +245,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     await applyStatusProgressStep(ctx, 'model_failover');
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
-    expect(state.messages[0].progressSteps![0].items?.[0]).toMatchObject({
+    expect(state.messages[0].progressSteps[0].items?.[0]).toMatchObject({
       text: 'agnes → minimax/MiniMax-M3',
     });
   });
@@ -344,7 +344,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     await applyStatusProgressStep(ctx, 'model_failover');
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
-    expect(state.messages[0].progressSteps![0].step_key).toBe('model_failover_model_not_found');
+    expect(state.messages[0].progressSteps[0].step_key).toBe('model_failover_model_not_found');
   });
 
   it('drops partial text streamed before the failure on the STATUS channel', async () => {
@@ -362,7 +362,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     expect(ctx.recievedMessage).toBe('');
     expect(state.messages[0].content).toBe('');
     expect(state.messages[0].reasoning).toBe('');
-    expect(state.messages[0].progressSteps![0].step_key).toBe('model_failover_overloaded');
+    expect(state.messages[0].progressSteps[0].step_key).toBe('model_failover_overloaded');
     expect(schedulerCancelOf(ctx)).toHaveBeenCalledTimes(1);
   });
 
@@ -423,7 +423,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
       expect(msg.reasoning).toBe('');
       expect(msg.reasoningStartedAt).toBeUndefined();
       expect(msg.reasoningDurationMs).toBeUndefined();
-      expect(state.messages[0].progressSteps![0].step_key).toBe('transient_retry');
+      expect(state.messages[0].progressSteps[0].step_key).toBe('transient_retry');
       expect(schedulerCancelOf(ctx)).toHaveBeenCalledTimes(1);
     });
 
@@ -484,7 +484,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
         expect(msg.reasoning).toBe('');
         expect(msg.reasoningStartedAt).toBeUndefined();
         expect(msg.reasoningDurationMs).toBeUndefined();
-        expect(state.messages[0].progressSteps![0].step_key).toBe(stepKey);
+        expect(state.messages[0].progressSteps[0].step_key).toBe(stepKey);
         expect(schedulerCancelOf(ctx)).toHaveBeenCalledTimes(1);
       },
     );
@@ -518,7 +518,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
       expect(state.messages).toHaveLength(2);
       expect(state.messages[1].role).toBe('assistant');
       expect(state.messages[1].messageId).toBe('msg-new');
-      expect(state.messages[1].progressSteps![0].step_key).toBe('empty_response_recovery');
+      expect(state.messages[1].progressSteps[0].step_key).toBe('empty_response_recovery');
       expect(ctx.added).toBe(true);
     });
 
@@ -553,7 +553,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
         expect(state.messages).toHaveLength(2);
         expect(state.messages[1].role).toBe('assistant');
         expect(state.messages[1].messageId).toBe('msg-new');
-        expect(state.messages[1].progressSteps![0].step_key).toBe(stepKey);
+        expect(state.messages[1].progressSteps[0].step_key).toBe(stepKey);
         expect(ctx.added).toBe(true);
       },
     );
@@ -587,7 +587,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
       expect(state.messages).toHaveLength(2);
       expect(state.messages[1].role).toBe('assistant');
       expect(state.messages[1].messageId).toBe('msg-new');
-      expect(state.messages[1].progressSteps![0].step_key).toBe('thinking_signature_recovery');
+      expect(state.messages[1].progressSteps[0].step_key).toBe('thinking_signature_recovery');
       expect(ctx.added).toBe(true);
     });
 
@@ -603,7 +603,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
       await applyStatusProgressStep(ctx, 'empty_response_recovery');
 
       expect(state.messages[0].progressSteps).toHaveLength(1);
-      expect(state.messages[0].progressSteps![0].step_key).toBe('empty_response_recovery');
+      expect(state.messages[0].progressSteps[0].step_key).toBe('empty_response_recovery');
     });
 
     it('deduplicates repeated context_truncation STATUS into a single step', async () => {
@@ -618,7 +618,7 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
       await applyStatusProgressStep(ctx, 'context_truncation');
 
       expect(state.messages[0].progressSteps).toHaveLength(1);
-      expect(state.messages[0].progressSteps![0].step_key).toBe('context_truncation');
+      expect(state.messages[0].progressSteps[0].step_key).toBe('context_truncation');
     });
   });
 });

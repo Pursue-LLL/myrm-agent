@@ -205,7 +205,7 @@ const DataGrid: React.FC<DataGridProps> = memo(
           <span className="text-[11px] text-muted-foreground whitespace-nowrap">
             {showFiltered && `${sortedRows.length} / `}
             {rows.length}
-            {showTruncated && ` ${t('of')} ${totalRows!.toLocaleString()}`} {t('rows')}
+            {showTruncated && ` ${t('of')} ${totalRows.toLocaleString()}`} {t('rows')}
           </span>
           <button
             onClick={handleCopy}

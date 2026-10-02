@@ -78,7 +78,7 @@ describe('statusStreamEvents DR cost transparency', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     expect(step.items).toEqual([{ text: 'Cycle 2/5 — $0.32' }]);
     expect(step.progress_percent).toBe(40);
   });
@@ -99,7 +99,7 @@ describe('statusStreamEvents DR cost transparency', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     expect(step.items).toEqual([{ text: 'Cycle 1/3' }]);
   });
 
@@ -117,7 +117,7 @@ describe('statusStreamEvents DR cost transparency', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     expect(step.items).toEqual([{ text: 'Cycle 3 — $1.50' }]);
   });
 
@@ -137,7 +137,7 @@ describe('statusStreamEvents DR cost transparency', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     const items = step.items as { text: string }[];
     expect(items).toContainEqual({ text: 'Budget 80% used ($1.60/$2.00)' });
     expect(step.status).toBeUndefined();
@@ -159,7 +159,7 @@ describe('statusStreamEvents DR cost transparency', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     const items = step.items as { text: string }[];
     expect(items).toContainEqual({ text: 'Budget exceeded ($2.30/$2.00)' });
     expect(step.status).toBe('warning');

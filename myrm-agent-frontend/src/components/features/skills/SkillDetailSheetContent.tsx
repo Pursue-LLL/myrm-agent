@@ -306,7 +306,7 @@ export function SkillDetailSheetContent({
               size="icon"
               className="h-7 w-7"
               onClick={() => {
-                navigator.clipboard.writeText(skill.storage_path!);
+                navigator.clipboard.writeText(skill.storage_path);
                 toast({ title: t('detail.pathCopied') });
               }}
               title={t('detail.copyPath')}

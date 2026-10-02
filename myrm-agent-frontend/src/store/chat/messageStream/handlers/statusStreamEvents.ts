@@ -53,7 +53,7 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
         actions.setMessages((state) => {
           const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
           if (messageIndex !== -1 && state.messages[messageIndex].progressSteps) {
-            state.messages[messageIndex].progressSteps = state.messages[messageIndex].progressSteps!.filter(
+            state.messages[messageIndex].progressSteps = state.messages[messageIndex].progressSteps.filter(
               (step) => step.step_key !== analysisStepKey,
             );
             state.messages[messageIndex].mediaAnalysisStatus = null;
@@ -67,7 +67,7 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
       actions.setMessages((state) => {
         const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
         if (messageIndex !== -1 && state.messages[messageIndex].progressSteps) {
-          state.messages[messageIndex].progressSteps = state.messages[messageIndex].progressSteps!.filter(
+          state.messages[messageIndex].progressSteps = state.messages[messageIndex].progressSteps.filter(
             (step) => step.step_key !== 'waiting_for_turn',
           );
         }

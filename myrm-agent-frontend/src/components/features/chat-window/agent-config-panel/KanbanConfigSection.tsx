@@ -86,7 +86,7 @@ export function KanbanConfigSection({ tPanel }: KanbanConfigSectionProps) {
   const showPicker = shouldShowKanbanBoardPicker(boards, activeProjectId);
   const activeBoard =
     boards.find((b) => b.board_id === (selectedBoardId ?? resolveKanbanChatBoardId(boards, activeProjectId))) ??
-    boards[0]!;
+    boards[0];
 
   return (
     <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border/50">

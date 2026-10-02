@@ -409,7 +409,7 @@ describe('FlowPadModal', () => {
     });
 
     await act(async () => {
-      resolveFirst!();
+      resolveFirst();
     });
 
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -499,7 +499,7 @@ describe('FlowPadModal', () => {
       });
 
       await act(async () => {
-        resolveFirst!();
+        resolveFirst();
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);

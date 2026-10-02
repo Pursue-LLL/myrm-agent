@@ -60,7 +60,7 @@ export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
       // 添加 artifacts
       if (Array.isArray(data.data)) {
-        state.messages[messageIndex].artifacts!.push(...data.data);
+        state.messages[messageIndex].artifacts.push(...data.data);
 
         // 如果 Portal 正在显示 artifact，更新其信息（包括 preview_url）
         const portalStore = H.useArtifactPortalStore.getState();

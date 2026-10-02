@@ -19,7 +19,7 @@ mocks.router = {
 };
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => mocks.router!,
+  useRouter: () => mocks.router,
 }));
 
 vi.mock('@/store/useFlowPadStore', () => ({

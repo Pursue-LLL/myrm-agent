@@ -69,7 +69,7 @@ function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesD
   const caps = Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : [];
 
   const pp = raw.pathPolicy as Record<string, unknown> | undefined;
-  const roots = Array.isArray(pp?.allowedRoots) ? (pp!.allowedRoots as string[]) : [];
+  const roots = Array.isArray(pp?.allowedRoots) ? (pp.allowedRoots as string[]) : [];
 
   const timeout = typeof raw.approvalTimeoutSeconds === 'number' ? raw.approvalTimeoutSeconds : null;
 

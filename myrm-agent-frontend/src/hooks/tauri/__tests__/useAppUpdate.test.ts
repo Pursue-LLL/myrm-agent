@@ -295,7 +295,7 @@ describe('useAppUpdate (Tauri mock)', () => {
     expect(mockCheck).not.toHaveBeenCalled();
 
     await act(async () => {
-      downloadResolve!();
+      downloadResolve();
     });
   });
 

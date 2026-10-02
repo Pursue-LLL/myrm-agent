@@ -279,7 +279,7 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
           return;
         }
         feeding = true;
-        const chunk = queue.shift()!;
+        const chunk = queue.shift();
         try {
           sourceBuffer.appendBuffer(chunk as unknown as BufferSource);
         } catch {

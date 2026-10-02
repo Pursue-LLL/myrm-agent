@@ -125,7 +125,7 @@ describe('preflight gate progress steps', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await applyStatusProgressStep(ctx, 'context_preflight_compact');
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     expect(step.step_key).toBe('context_preflight_compact');
     expect(step.items).toEqual([{ text: '(freed 1200 tokens)' }]);
   });
@@ -139,7 +139,7 @@ describe('preflight gate progress steps', () => {
     ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await applyStatusProgressStep(ctx, 'context_preflight_exhausted');
 
-    const step = state.messages[0].progressSteps![0];
+    const step = state.messages[0].progressSteps[0];
     expect(step.status).toBe('warning');
     expect(step.items).toEqual([{ text: '(95000 tokens)' }]);
   });

@@ -76,7 +76,7 @@ export default function KanbanSection() {
 
     if (sourceChatParam) {
       if (boards.length === 1) {
-        selectBoard(boards[0]!);
+        selectBoard(boards[0]);
         return;
       }
       const scopedLastId = readKanbanLastBoardId(activeProjectId);

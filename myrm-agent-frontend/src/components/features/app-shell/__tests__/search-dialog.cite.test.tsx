@@ -97,7 +97,7 @@ describe('SearchDialog cite to composer', () => {
     });
 
     const citeButtons = screen.getAllByRole('button', { name: 'search.citeToComposer' });
-    fireEvent.click(citeButtons[0]!);
+    fireEvent.click(citeButtons[0]);
 
     expect(mockToastInfo).toHaveBeenCalledWith('search.citeSameChat');
     expect(mockAddMentionReference).not.toHaveBeenCalled();
@@ -121,7 +121,7 @@ describe('SearchDialog cite to composer', () => {
     });
 
     const citeButtons = screen.getAllByRole('button', { name: 'search.citeToComposer' });
-    fireEvent.click(citeButtons[0]!);
+    fireEvent.click(citeButtons[0]);
 
     expect(mockToastInfo).not.toHaveBeenCalled();
     expect(mockAddMentionReference).toHaveBeenCalledWith({

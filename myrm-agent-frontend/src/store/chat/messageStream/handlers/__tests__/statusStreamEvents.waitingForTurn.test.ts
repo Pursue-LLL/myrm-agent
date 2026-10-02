@@ -138,8 +138,8 @@ describe('statusStreamEvents waiting_for_turn', () => {
     await statusStreamEvents(ctx);
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
-    expect(state.messages[0].progressSteps![0].step_key).toBe('waiting_for_turn');
-    expect(state.messages[0].progressSteps![0].status).toBeUndefined();
+    expect(state.messages[0].progressSteps[0].step_key).toBe('waiting_for_turn');
+    expect(state.messages[0].progressSteps[0].status).toBeUndefined();
   });
 
   it('creates an assistant placeholder when waiting_for_turn arrives before MESSAGE', async () => {
@@ -195,7 +195,7 @@ describe('statusStreamEvents waiting_for_turn', () => {
 
   it('removes the waiting_for_turn step when waiting_for_turn_clear arrives', async () => {
     const state = makeMessagesState();
-    state.messages[0].progressSteps!.push({
+    state.messages[0].progressSteps.push({
       step_key: 'waiting_for_turn',
       items: [],
     });
@@ -212,11 +212,11 @@ describe('statusStreamEvents waiting_for_turn', () => {
 
   it('keeps other progress steps when clearing only the waiting step', async () => {
     const state = makeMessagesState();
-    state.messages[0].progressSteps!.push({
+    state.messages[0].progressSteps.push({
       step_key: 'waiting_for_turn',
       items: [],
     });
-    state.messages[0].progressSteps!.push({
+    state.messages[0].progressSteps.push({
       step_key: 'workflow_execution',
       items: [],
     });
@@ -229,6 +229,6 @@ describe('statusStreamEvents waiting_for_turn', () => {
     await statusStreamEvents(ctx);
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
-    expect(state.messages[0].progressSteps![0].step_key).toBe('workflow_execution');
+    expect(state.messages[0].progressSteps[0].step_key).toBe('workflow_execution');
   });
 });

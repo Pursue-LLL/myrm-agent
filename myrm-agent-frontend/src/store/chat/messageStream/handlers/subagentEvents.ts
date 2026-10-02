@@ -33,7 +33,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
         if (!state.messages[messageIndex].progressSteps) {
           state.messages[messageIndex].progressSteps = [];
         }
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: 'subagent_running',
           tool_name: data.data.agent_type,
           items: [{ text: data.data.description || '' }],
@@ -105,7 +105,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
           progressText += ' (估算)';
         }
 
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: 'subagent_progress',
           tool_name: progressData.current_step,
           items: [{ text: progressText }],
@@ -150,7 +150,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
         const logData = data.data;
         const msg = logData.message || '';
 
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: msg,
           agent_instance: logData.agent_instance,
           tool_name: logData.tool_name || logData.level || 'INFO',
@@ -168,7 +168,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
         if (!state.messages[messageIndex].progressSteps) {
           state.messages[messageIndex].progressSteps = [];
         }
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: 'subagent_notification',
           items: [{ text: data.data || '' }],
         });
@@ -199,7 +199,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
           state.messages[messageIndex].progressSteps = [];
         }
         const durationMin = Math.round((data.data?.stale_duration_seconds ?? 0) / 60);
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: 'subagent_stale',
           tool_name: data.data?.agent_type,
           items: [{ text: `Subagent stalled (no progress for ${durationMin}min)` }],
@@ -278,7 +278,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
           items.push({ text: `[${f.severity}] ${f.description}` });
         }
 
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: 'verification_verdict',
           tool_name: vd.worker_type,
           items,
@@ -317,7 +317,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
           items.push({ text: cp.detail });
         }
 
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: 'council_phase',
           tool_name: 'council',
           items,

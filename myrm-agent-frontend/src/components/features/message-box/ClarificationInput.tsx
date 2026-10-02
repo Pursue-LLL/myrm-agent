@@ -270,7 +270,7 @@ const ClarificationInput = ({
     useChatStore.setState((state) => {
       const idx = state.messages.findIndex((m) => m.messageId === messageId && m.role === 'assistant');
       if (idx !== -1 && state.messages[idx].clarification) {
-        state.messages[idx].clarification!.answered = true;
+        state.messages[idx].clarification.answered = true;
       }
     });
   };

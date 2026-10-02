@@ -54,8 +54,8 @@ describe('xlsxToUniverData', () => {
     };
     const cell = result.sheets['Sheet1']?.cellData[0]?.[0];
     expect(cell).toBeDefined();
-    expect(cell!.v).toBe('hello');
-    expect(cell!.t).toBe(1);
+    expect(cell.v).toBe('hello');
+    expect(cell.t).toBe(1);
   });
 
   it('maps number cells to type 2', async () => {
@@ -65,8 +65,8 @@ describe('xlsxToUniverData', () => {
     };
     const cell = result.sheets['Sheet1']?.cellData[0]?.[0];
     expect(cell).toBeDefined();
-    expect(cell!.v).toBe(42);
-    expect(cell!.t).toBe(2);
+    expect(cell.v).toBe(42);
+    expect(cell.t).toBe(2);
   });
 
   it('maps boolean cells to type 3', async () => {
@@ -76,8 +76,8 @@ describe('xlsxToUniverData', () => {
     };
     const cell = result.sheets['Sheet1']?.cellData[0]?.[0];
     expect(cell).toBeDefined();
-    expect(cell!.v).toBe(true);
-    expect(cell!.t).toBe(3);
+    expect(cell.v).toBe(true);
+    expect(cell.t).toBe(3);
   });
 
   it('skips empty/null/undefined cells', async () => {
@@ -116,7 +116,7 @@ describe('xlsxToUniverData', () => {
     const result = (await xlsxToUniverData(buf)) as {
       sheets: Record<string, { rowCount: number; columnCount: number }>;
     };
-    const sheet = result.sheets['Sheet1']!;
+    const sheet = result.sheets['Sheet1'];
     expect(sheet.rowCount).toBeGreaterThanOrEqual(100);
     expect(sheet.columnCount).toBeGreaterThanOrEqual(26);
   });
@@ -134,7 +134,7 @@ describe('xlsxToUniverData', () => {
     const result = (await xlsxToUniverData(buf)) as {
       sheets: Record<string, { rowCount: number; columnCount: number }>;
     };
-    const sheet = result.sheets['Sheet1']!;
+    const sheet = result.sheets['Sheet1'];
     expect(sheet.rowCount).toBe(150);
     expect(sheet.columnCount).toBe(30);
   });
@@ -217,7 +217,7 @@ describe('univerDataToXlsx', () => {
     const rt = (await xlsxToUniverData(await blob.arrayBuffer())) as {
       sheets: Record<string, { cellData: Record<number, Record<number, { v: unknown }>> }>;
     };
-    const sheet = rt.sheets['Sparse']!;
+    const sheet = rt.sheets['Sparse'];
     expect(sheet.cellData[0]?.[0]?.v).toBe('A1');
     expect(sheet.cellData[0]?.[5]?.v).toBe('F1');
     expect(sheet.cellData[10]?.[3]?.v).toBe('D11');

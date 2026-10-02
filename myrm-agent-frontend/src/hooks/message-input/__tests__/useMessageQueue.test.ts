@@ -37,14 +37,14 @@ describe('useMessageQueue', () => {
     });
 
     expect(result.current.queue).toHaveLength(2);
-    const targetId = result.current.queue[0]!.id;
+    const targetId = result.current.queue[0].id;
 
     act(() => {
       result.current.editMessage(targetId, 'updated text');
     });
 
-    expect(result.current.queue[0]!.text).toBe('updated text');
-    expect(result.current.queue[1]!.text).toBe('second message');
+    expect(result.current.queue[0].text).toBe('updated text');
+    expect(result.current.queue[1].text).toBe('second message');
   });
 
   it('editMessage is a no-op for non-existent id', () => {
@@ -59,7 +59,7 @@ describe('useMessageQueue', () => {
     });
 
     expect(result.current.queue).toHaveLength(1);
-    expect(result.current.queue[0]!.text).toBe('hello');
+    expect(result.current.queue[0].text).toBe('hello');
   });
 
   it('requeue inserts message at head preserving original id', () => {
@@ -71,23 +71,23 @@ describe('useMessageQueue', () => {
     });
 
     expect(result.current.queue).toHaveLength(2);
-    const firstMsg = result.current.queue[0]!;
+    const firstMsg = result.current.queue[0];
 
     act(() => {
       result.current.dequeue();
     });
 
     expect(result.current.queue).toHaveLength(1);
-    expect(result.current.queue[0]!.text).toBe('second');
+    expect(result.current.queue[0].text).toBe('second');
 
     act(() => {
       result.current.requeue(firstMsg);
     });
 
     expect(result.current.queue).toHaveLength(2);
-    expect(result.current.queue[0]!.id).toBe(firstMsg.id);
-    expect(result.current.queue[0]!.text).toBe('first');
-    expect(result.current.queue[1]!.text).toBe('second');
+    expect(result.current.queue[0].id).toBe(firstMsg.id);
+    expect(result.current.queue[0].text).toBe('first');
+    expect(result.current.queue[1].text).toBe('second');
   });
 
   it('requeue deduplicates if message already in queue', () => {
@@ -97,14 +97,14 @@ describe('useMessageQueue', () => {
       result.current.enqueue('msg', []);
     });
 
-    const msg = result.current.queue[0]!;
+    const msg = result.current.queue[0];
 
     act(() => {
       result.current.requeue(msg);
     });
 
     expect(result.current.queue).toHaveLength(1);
-    expect(result.current.queue[0]!.id).toBe(msg.id);
+    expect(result.current.queue[0].id).toBe(msg.id);
   });
 
   it('dequeue returns null on empty queue', () => {

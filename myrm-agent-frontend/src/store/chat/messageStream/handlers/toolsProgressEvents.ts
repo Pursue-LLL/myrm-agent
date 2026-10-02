@@ -54,7 +54,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       actions.setMessages((state) => {
         const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
         if (messageIndex !== -1 && state.messages[messageIndex].progressSteps) {
-          const steps = state.messages[messageIndex].progressSteps!;
+          const steps = state.messages[messageIndex].progressSteps;
           // Find the step that matches this tool_call_id
           const stepIndex = steps.findIndex((step) => step.tool_call_id === data.tool_call_id);
           if (stepIndex !== -1) {
@@ -243,7 +243,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         if (!state.messages[messageIndex].progressSteps) {
           state.messages[messageIndex].progressSteps = [];
         }
-        state.messages[messageIndex].progressSteps!.push(cancelStep);
+        state.messages[messageIndex].progressSteps.push(cancelStep);
       }
     });
     actions.setLoading(false);

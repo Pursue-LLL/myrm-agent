@@ -100,15 +100,15 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     await toolsProgressEvents(runningCtx);
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
-    expect(state.messages[0].progressSteps![0].step_key).toBe('checklist_1');
-    expect(state.messages[0].progressSteps![0].status).toBeUndefined();
+    expect(state.messages[0].progressSteps[0].step_key).toBe('checklist_1');
+    expect(state.messages[0].progressSteps[0].status).toBeUndefined();
 
     const successCtx = makeTasksStepsCtx('success', 'checklist_1');
     successCtx.actions.setMessages = setMessages;
     await toolsProgressEvents(successCtx);
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
-    expect(state.messages[0].progressSteps![0].status).toBe('success');
+    expect(state.messages[0].progressSteps[0].status).toBe('success');
   });
 
   it('merges checklist_root summary updates', async () => {
@@ -128,8 +128,8 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     }
 
     expect(state.messages[0].progressSteps).toHaveLength(1);
-    expect(state.messages[0].progressSteps![0].step_key).toBe('checklist_root');
-    expect(state.messages[0].progressSteps![0].status).toBe('success');
+    expect(state.messages[0].progressSteps[0].step_key).toBe('checklist_root');
+    expect(state.messages[0].progressSteps[0].status).toBe('success');
   });
 
   it('maps skipped harness status to cancelled on merge', async () => {
@@ -142,7 +142,7 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     ctx.actions.setMessages = setMessages;
     await toolsProgressEvents(ctx);
 
-    expect(state.messages[0].progressSteps![0].status).toBe('cancelled');
+    expect(state.messages[0].progressSteps[0].status).toBe('cancelled');
   });
 
   it('maps blocked harness status to blocked on merge', async () => {
@@ -155,7 +155,7 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     ctx.actions.setMessages = setMessages;
     await toolsProgressEvents(ctx);
 
-    expect(state.messages[0].progressSteps![0].status).toBe('blocked');
+    expect(state.messages[0].progressSteps[0].status).toBe('blocked');
   });
 
   it('merges is_plan todo tree by step_key (progress_root + todo_step_*)', async () => {
@@ -184,8 +184,8 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     await toolsProgressEvents(childCtx);
 
     expect(state.messages[0].progressSteps).toHaveLength(2);
-    const root = state.messages[0].progressSteps!.find((s) => s.step_key === 'progress_root');
-    const child = state.messages[0].progressSteps!.find((s) => s.step_key === 'todo_step_a');
+    const root = state.messages[0].progressSteps.find((s) => s.step_key === 'progress_root');
+    const child = state.messages[0].progressSteps.find((s) => s.step_key === 'todo_step_a');
     expect(root?.is_plan).toBe(true);
     expect(child?.parent_step_key).toBe('progress_root');
   });
@@ -203,6 +203,6 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     }
 
     expect(state.messages[0].progressSteps).toHaveLength(2);
-    expect(state.messages[0].progressSteps!.map((s) => s.step_key).sort()).toEqual(['checklist_1', 'checklist_2']);
+    expect(state.messages[0].progressSteps.map((s) => s.step_key).sort()).toEqual(['checklist_1', 'checklist_2']);
   });
 });

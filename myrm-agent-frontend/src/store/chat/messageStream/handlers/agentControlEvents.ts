@@ -44,7 +44,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         if (!state.messages[messageIndex].progressSteps) {
           state.messages[messageIndex].progressSteps = [];
         }
-        state.messages[messageIndex].progressSteps!.push(errorStep);
+        state.messages[messageIndex].progressSteps.push(errorStep);
       } else {
         state.messages.push({
           content: '',
@@ -97,7 +97,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         if (!state.messages[messageIndex].progressSteps) {
           state.messages[messageIndex].progressSteps = [];
         }
-        state.messages[messageIndex].progressSteps!.push(cancelStep);
+        state.messages[messageIndex].progressSteps.push(cancelStep);
       }
     });
     actions.setLoading(false);
@@ -124,7 +124,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         if (!state.messages[messageIndex].progressSteps) {
           state.messages[messageIndex].progressSteps = [];
         }
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: 'steering_applied',
           items: [{ text: steerText }],
           status: 'success' as const,
@@ -180,7 +180,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         if (!state.messages[messageIndex].progressSteps) {
           state.messages[messageIndex].progressSteps = [];
         }
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: 'redirected',
           items: [{ text: 'Redirected by user correction' }],
           status: 'success' as const,
@@ -201,7 +201,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         if (!state.messages[messageIndex].progressSteps) {
           state.messages[messageIndex].progressSteps = [];
         }
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: 'iteration_limit_reached',
           items: [{ text: `${limit} iterations / ${nodes} nodes` }],
           status: 'warning' as const,
@@ -228,7 +228,7 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
         if (!state.messages[messageIndex].progressSteps) {
           state.messages[messageIndex].progressSteps = [];
         }
-        state.messages[messageIndex].progressSteps!.push({
+        state.messages[messageIndex].progressSteps.push({
           step_key: 'safety_fallback_active',
           status: 'warning',
           items: [{ text: data.message }],
