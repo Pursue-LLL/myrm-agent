@@ -21,6 +21,7 @@ UI-only diff.
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from collections.abc import Callable
@@ -51,7 +52,7 @@ _PANEL_STATE_JS = """(() => {{
   const items = list ? list.children.length : 0;
   const loadMore = !!document.querySelector('[data-testid="pending-load-more"]');
   const badge = [...document.querySelectorAll('span')]
-    .find((s) => String(s.className).includes('bg-amber-500/10'));
+    .find((s) => String(s.className).includes('bg-amber'));
   const badgeNum = badge ? ((badge.textContent.match(/\\d+/) || [''])[0]) : '';
   const text = list ? list.textContent : '';
   return {{
@@ -106,6 +107,19 @@ def _panel_state_js(concept_prefix: str) -> str:
         marker_tail_104=f"{concept_prefix}-104",
         marker_tail_005=f"{concept_prefix}-005",
     )
+
+
+def _shared_api_url() -> str:
+    """The API origin the shared UI actually talks to (Next.js rewrite).
+
+    The epoch pin may point ``E2E_API_BASE`` at an isolated verify candidate
+    (e.g. :18080) whose database the shared UI never reads; the wiki panel
+    fetches through the dev rewrite, so fixture seed/cleanup/stats/reject
+    must hit the same shared origin or the panel and the API readings split
+    across two databases.
+    """
+    port_raw = os.getenv("MYRM_BACKEND_PORT", "8080").strip()
+    return f"http://127.0.0.1:{port_raw if port_raw.isdigit() else '8080'}"
 
 
 def _api_pending_stats(api_url: str) -> dict[str, int]:
@@ -240,7 +254,7 @@ def _run_with_transport_retry(runner: Callable[[str, str], None], api_url: str, 
     last_error: BaseException | None = None
     for _attempt in range(1, _MAX_ATTEMPTS + 1):
         try:
-            runner(get_e2e_api_url(), ui_url)
+            runner(_shared_api_url(), ui_url)
             return
         except Exception as exc:
             last_error = exc
