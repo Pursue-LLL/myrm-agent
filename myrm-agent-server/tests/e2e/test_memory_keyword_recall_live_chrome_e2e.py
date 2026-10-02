@@ -188,6 +188,9 @@ def _wait_assistant_reply(
         if isinstance(assistant, dict):
             content = assistant.get("content") or assistant.get("message") or ""
             if isinstance(content, str) and content.strip():
+                # Surface the real model reply in the run log: evidence for
+                # "what did the model actually return" without re-querying.
+                print(f"E2E_ASSISTANT_REPLY[{chat_id}]: {content[:600]}", flush=True)
                 return assistant
         last = assistant or {}
         time.sleep(2.0)
