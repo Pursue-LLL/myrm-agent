@@ -80,7 +80,7 @@ def _window_draft_stats(
     latest_per_concept: dict[str, PendingWikiEdit] = {}
     page_offset = 0
     while True:
-        page = pending_mgr.get_edits_created_since(iso_cutoff, offset=page_offset)
+        page = pending_mgr.get_edits_created_since(iso_cutoff, limit=_STATS_PAGE_SIZE, offset=page_offset)
         for edit in page:
             latest_per_concept.setdefault(edit["concept_name"], edit)
         if len(page) < _STATS_PAGE_SIZE:

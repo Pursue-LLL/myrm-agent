@@ -56,7 +56,14 @@ export function WikiPendingEdits({
           offset > 0
             ? await wikiService.getPendingEdits(agentScopeId, PENDING_PAGE_SIZE, offset)
             : await wikiService.getPendingEdits(agentScopeId);
-        setEdits((prev) => (offset > 0 ? [...prev, ...res.pending_edits] : res.pending_edits));
+        setEdits((prev) => {
+          if (offset === 0) {
+            return res.pending_edits;
+          }
+          // Concurrent staging shifts page boundaries; id-dedup keeps each draft listed once.
+          const seen = new Set(prev.map((edit) => edit.id));
+          return [...prev, ...res.pending_edits.filter((edit) => !seen.has(edit.id))];
+        });
         setStats(res.stats);
       } catch (error) {
         console.error('Failed to load pending edits:', error);
