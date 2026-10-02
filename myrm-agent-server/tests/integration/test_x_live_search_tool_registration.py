@@ -83,7 +83,11 @@ class TestXLiveSearchSandboxScript:
         assert "must be on or before" in (x_search_script._validate_date_range("2026-08-31", "2026-08-01") or "")
         assert "is in the future" in (x_search_script._validate_date_range("2099-01-01", "2099-01-02") or "")
 
-    def test_missing_credentials_fails_cleanly(self) -> None:
+    def test_missing_credentials_fails_cleanly(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Guard against a dev/CI machine exporting XAI_API_KEY, which would
+        # silently bypass the missing-credentials branch.
+        monkeypatch.delenv("XAI_API_KEY", raising=False)
+        monkeypatch.delenv("XAI_BASE_URL", raising=False)
         buf = io.StringIO()
         with redirect_stderr(buf):
             ret = x_search_script.execute_search("test query", api_key="")
