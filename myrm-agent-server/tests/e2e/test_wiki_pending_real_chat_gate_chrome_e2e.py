@@ -86,6 +86,7 @@ _ATTACH_CHAT_PROBE = """(() => {{
 
 _INSTALL_ERROR_HOOKS_JS = """(() => {
   window.__e2eErrors = [];
+  window.__e2eFetchLog = [];
   window.onerror = (msg, src, line, col, errObj) => {
     window.__e2eErrors.push(
       `error: ${msg} @ ${src}:${line}`
@@ -97,6 +98,17 @@ _INSTALL_ERROR_HOOKS_JS = """(() => {
     const r = (e && e.reason) || {};
     window.__e2eErrors.push(`rejection: ${r.stack || String(r)}`);
   });
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const url = String(args[0]);
+    const res = await nativeFetch(...args);
+    if (url.includes('/wiki/pending')) {
+      let bodyHead = '';
+      try { bodyHead = (await res.clone().text()).slice(0, 260); } catch (err) { bodyHead = String(err); }
+      window.__e2eFetchLog.push(`${res.status} ${url} :: ${bodyHead}`);
+    }
+    return res;
+  };
   return true;
 })()"""
 
@@ -122,6 +134,7 @@ _PANEL_CONCEPT_PROBE = """(() => {{
     badgeNum,
     hasReject: !!rejectBtn,
     errors: (window.__e2eErrors || []).slice(-6),
+    fetchLog: (window.__e2eFetchLog || []).slice(-4),
     href: location.href,
   }};
 }})()"""
@@ -131,11 +144,15 @@ _PANEL_REJECTED_PROBE = """(() => {{
   const text = list ? list.textContent : '';
   const badge = document.querySelector('[data-testid="pending-stats-badge"]');
   const badgeNum = badge ? ((badge.textContent.match(/\\d+/) || [''])[0]) : '';
+  // The pending badge only renders while stats.pending > 0, so an empty queue
+  // (badge_json === '0') must accept a missing badge element.
+  const badgeOk = badgeNum === {badge_json} || ({badge_json} === '0' && !badge);
   return {{
-    ready: !!list && !text.includes({concept_json}) && badgeNum === {badge_json},
+    ready: !text.includes({concept_json}) && badgeOk,
     conceptVisible: text.includes({concept_json}),
     items: list ? list.children.length : 0,
     badgeNum,
+    badgeOk,
     errors: (window.__e2eErrors || []).slice(-6),
     href: location.href,
   }};
@@ -341,7 +358,27 @@ def _run_real_chat_gate_flow(api_url: str, ui_url: str) -> None:
         assert shell.get("ready") is True, json.dumps(shell, indent=2, ensure_ascii=False)
 
         staged_probe = _panel_concept_probe(concept, str(base_pending + 1))
-        staged_state = wait_for_state(client, page, staged_probe, timeout_sec=_PANEL_WAIT_SEC)
+        try:
+            staged_state = wait_for_state(client, page, staged_probe, timeout_sec=_PANEL_WAIT_SEC)
+        except AssertionError:
+            # One-shot diagnostic bundle: window fetch log, e2e binding, and the
+            # rendered panel DOM — decisive evidence for the empty panel case.
+            diag = client.evaluate(
+                page,
+                """(() => ({
+                  fetchLog: (window.__e2eFetchLog || []).slice(-6),
+                  errors: (window.__e2eErrors || []).slice(-6),
+                  apiBase: window.__E2E_API_BASE__ || window.__MYRM_E2E_API_BASE__ || null,
+                  bindingKeys: Object.keys(window).filter((k) => k.toLowerCase().includes('e2e')).slice(0, 12),
+                  wikiTabPendingText: (document.querySelector('[data-testid="pending-edits-list"]')?.textContent || '').slice(0, 200),
+                  panelTextHead: (document.querySelector('main')?.textContent || '').slice(0, 300),
+                  href: location.href,
+                }))()""",
+                timeout_sec=15.0,
+            )
+            raise AssertionError(
+                f"staged probe never became ready; diagnostics={json.dumps(diag, ensure_ascii=False)}"
+            ) from None
         assert staged_state.get("conceptVisible") is True, (
             f"gate-staged draft must surface in the panel: {json.dumps(staged_state, ensure_ascii=False)}"
         )
@@ -366,7 +403,10 @@ def _run_real_chat_gate_flow(api_url: str, ui_url: str) -> None:
         assert rejected_state.get("conceptVisible") is False, (
             f"rejected draft must leave the panel: {json.dumps(rejected_state, ensure_ascii=False)}"
         )
-        assert rejected_state.get("badgeNum") == str(base_pending), rejected_state
+        # An empty queue (base 0) has no badge element at all — probe badgeOk
+        # already encodes the badge-visible-or-emptied contract.
+        assert rejected_state.get("badgeOk") is True, rejected_state
+        assert rejected_state.get("badgeNum") in ("", str(base_pending)), rejected_state
         assert rejected_state.get("errors") == [], rejected_state
 
     # Authoritative REST check after the UI action (model reply kept for the report).
