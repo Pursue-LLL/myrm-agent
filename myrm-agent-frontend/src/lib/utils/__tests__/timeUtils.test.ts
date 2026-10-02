@@ -127,6 +127,14 @@ describe('timeUtils', () => {
       expect(result.title.length).toBeGreaterThan(10);
     });
 
+    it('should render full-precision hover titles per native locale hour cycle', () => {
+      const date = new Date(2023, 11, 25, 18, 30, 45);
+      expect(formatMessageTimestamp(date, 'en', 'Yesterday').title).toBe(
+        'Monday, December 25, 2023 at 06:30:45 PM',
+      );
+      expect(formatMessageTimestamp(date, 'zh', '昨天').title).toBe('2023年12月25日星期一 18:30:45');
+    });
+
     it('should work with ja locale for same year', () => {
       const currentYear = new Date().getFullYear();
       const date = new Date(currentYear, 0, 5, 9, 0);

@@ -3,7 +3,7 @@
  * Wall-clock time helpers: compact run durations (mirroring the backend
  * `_format_duration`), IANA timezone, unix seconds, and locale-aware
  * message timestamp labels via Intl.DateTimeFormat (all six app locales
- * natively; hourCycle h23 keeps the 24-hour clock).
+ * natively; hourCycle h23 for the 24-hour clock).
  *
  * [OUTPUT]
  * - formatDuration
@@ -12,23 +12,34 @@
  * - formatMessageTimestamp
  */
 
-type TimestampVariant = 'time' | 'monthday' | 'fulldate';
+type TimestampVariant = 'time' | 'monthday' | 'fulldate' | 'title';
 
 // Message lists render a label per message; reuse immutable formatters
 // instead of reallocating per row (same pattern as relativeTime.ts).
+// Row labels keep the 24-hour clock; the hover title follows each locale's
+// native hour convention (en 12h / zh 24h), matching full-precision wording.
+const VARIANT_OPTIONS: Record<TimestampVariant, Intl.DateTimeFormatOptions> = {
+  time: { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+  monthday: { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+  fulldate: { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+  title: {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  },
+};
+
 const tsFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
 function getTsFormatter(variant: TimestampVariant, locale: string): Intl.DateTimeFormat {
   const key = `${variant}|${locale}`;
   let formatter = tsFormatterCache.get(key);
   if (formatter === undefined) {
-    formatter = new Intl.DateTimeFormat(locale, {
-      ...(variant === 'time' ? {} : { month: 'short', day: 'numeric' }),
-      ...(variant === 'fulldate' ? { year: 'numeric' } : {}),
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    });
+    formatter = new Intl.DateTimeFormat(locale, VARIANT_OPTIONS[variant]);
     tsFormatterCache.set(key, formatter);
   }
   return formatter;
@@ -120,15 +131,7 @@ export const formatMessageTimestamp = (
     label = getTsFormatter('fulldate', locale).format(d);
   }
 
-  const title = d.toLocaleString(locale === 'zh' ? 'zh-CN' : locale, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+  const title = getTsFormatter('title', locale).format(d);
 
   return { label, title };
 };
