@@ -1,8 +1,8 @@
 ---
 name: x-live-search
 description: >-
-  Search X (Twitter) posts, profiles, and threads via xAI Live Search API.
-  Returns tweet content with inline citations. Requires an xAI provider in Settings.
+  Search X (Twitter) posts, profiles, and threads via xAI's x_search tool
+  on the Responses API. Returns tweet content with inline citations. Requires an xAI provider in Settings.
 version: 1.0.0
 category: research
 oauth_issuer: xai
@@ -39,11 +39,11 @@ contract:
 
 ## Bash execution contract
 
-When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs), **`command`**, and **`timeout=300`** — the search runs server-side and can take up to 180s; the default 120s cuts it off. Put `reason` first.
 
 ## Overview
 
-Dedicated X/Twitter search via xAI's Live Search API. Use for current discussions, reactions, and trending topics on X — not for general web pages (use `web_search_tool` instead).
+Dedicated X/Twitter search via xAI's `x_search` tool on the Responses API. Use for current discussions, reactions, and trending topics on X — not for general web pages (use `web_search_tool` instead).
 
 Credentials are automatically injected into the sandbox environment (`XAI_API_KEY`) at runtime — **never** ask the user to paste keys into chat.
 
@@ -62,12 +62,12 @@ python3 .claude/skills/x-live-search/scripts/search.py --query "DeepSeek release
 
 ### Advanced Filtering
 
-Filter by specific X handles (max 10):
+Filter by specific X handles (max 20):
 ```bash
 python3 .claude/skills/x-live-search/scripts/search.py --query "AI announcements" --handles elonmusk sama
 ```
 
-Exclude specific handles (max 10):
+Exclude specific handles (max 20):
 ```bash
 python3 .claude/skills/x-live-search/scripts/search.py --query "CUDA" --exclude-handles spammer1
 ```

@@ -27,8 +27,8 @@ import urllib.request
 from datetime import date, datetime, timezone
 
 _DEFAULT_XAI_BASE_URL = "https://api.x.ai/v1"
-_DEFAULT_MODEL = "grok-3"
-_MAX_HANDLES = 10
+_DEFAULT_MODEL = "grok-4.6"
+_MAX_HANDLES = 20
 _MAX_RETRIES = 2
 _ALLOWED_HOSTS = frozenset({"api.x.ai"})
 
@@ -203,7 +203,7 @@ def execute_search(
     last_error: str | None = None
     for attempt in range(_MAX_RETRIES + 1):
         try:
-            with urllib.request.urlopen(req, timeout=60) as response:  # noqa: S310 - validated request URL
+            with urllib.request.urlopen(req, timeout=180) as response:  # noqa: S310 - validated request URL
                 body = response.read().decode("utf-8")
                 res_data = json.loads(body)
                 answer = _extract_response_text(res_data)
@@ -228,11 +228,17 @@ def execute_search(
                             merged_sources.append((t or u, u))
 
                 has_filters = bool(allowed or excluded or from_date.strip() or to_date.strip())
-                if has_filters and not merged_sources:
-                    answer += (
-                        "\n\nNote: No matching posts found for the specified filters. "
-                        "This answer may be based on general knowledge rather than actual X posts."
-                    )
+                if not merged_sources:
+                    if has_filters:
+                        answer += (
+                            "\n\nNote: No matching posts found for the specified filters. "
+                            "This answer may be based on general knowledge rather than actual X posts."
+                        )
+                    else:
+                        answer += (
+                            "\n\nNote: No X post citations were returned by this search. "
+                            "This answer may be based on general knowledge rather than actual X posts."
+                        )
 
                 print(answer)
                 if merged_sources:
@@ -260,10 +266,10 @@ def execute_search(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Search X (Twitter) via xAI Live Search API.")
+    parser = argparse.ArgumentParser(description="Search X (Twitter) via xAI's x_search tool on the Responses API.")
     parser.add_argument("--query", "-q", required=True, help="Search query")
-    parser.add_argument("--handles", nargs="*", default=None, help="Include only these handles (max 10)")
-    parser.add_argument("--exclude-handles", nargs="*", default=None, help="Exclude these handles (max 10)")
+    parser.add_argument("--handles", nargs="*", default=None, help="Include only these handles (max 20)")
+    parser.add_argument("--exclude-handles", nargs="*", default=None, help="Exclude these handles (max 20)")
     parser.add_argument("--from-date", default="", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--to-date", default="", help="End date (YYYY-MM-DD)")
     parser.add_argument("--image-understanding", action="store_true", help="Enable image analysis")
