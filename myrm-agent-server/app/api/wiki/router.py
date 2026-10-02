@@ -166,6 +166,7 @@ class WikiQueryResponse(BaseModel):
     related_articles: list[str] = Field(default_factory=list)
     source_snippets: list[WikiSourceSnippet] = Field(default_factory=list)
     confidence_score: float = 0.0
+    refused: bool = False
     retrieval_trace: WikiRetrievalTraceResponse | None = None
 
 
@@ -682,6 +683,7 @@ async def query_wiki(
             related_articles=query_result.related_articles,
             source_snippets=source_snippets,
             confidence_score=query_result.confidence_score,
+            refused=query_result.refused,
             retrieval_trace=_retrieval_trace_to_response(
                 query_result.retrieval_result.retrieval_trace,
             ),

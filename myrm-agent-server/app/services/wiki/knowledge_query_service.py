@@ -28,6 +28,12 @@ WikiQueryMode = Literal["auto", "raw_claim"]
 
 _EMPTY_ANSWER_FALLBACK = "No relevant wiki content found."
 
+_REFUSAL_ANSWER = (
+    "The wiki knowledge base has no verified basis for this question "
+    "(evidence below confidence floor). No reliable answer exists in the "
+    "knowledge base; ingest relevant source documents to answer it."
+)
+
 
 @dataclass(frozen=True, slots=True)
 class WikiKnowledgeQueryResult:
@@ -35,6 +41,7 @@ class WikiKnowledgeQueryResult:
     sources: list[dict[str, object]]
     related_articles: list[str]
     confidence_score: float
+    refused: bool
     retrieval_result: QueryResult
 
 
@@ -100,12 +107,21 @@ async def execute_wiki_knowledge_query(
         )
 
     result = await active_archiver.query_wiki(trimmed, query_mode=query_mode)
-    sources = build_wiki_query_sources(result, structure=active_archiver._structure)
-    answer = (result.answer or "").strip() or _EMPTY_ANSWER_FALLBACK
+
+    # Refusal gate mirrors the engine verdict; threshold validity itself is
+    # enforced engine-side (invalid threshold fails closed to refused there).
+    if result.refused:
+        answer = _REFUSAL_ANSWER
+        sources: list[dict[str, object]] = []
+    else:
+        sources = build_wiki_query_sources(result, structure=active_archiver._structure)
+        answer = (result.answer or "").strip() or _EMPTY_ANSWER_FALLBACK
+
     return WikiKnowledgeQueryResult(
         answer=answer,
         sources=sources,
         related_articles=list(result.related_articles),
         confidence_score=float(result.confidence_score or 0.0),
+        refused=result.refused,
         retrieval_result=result,
     )
