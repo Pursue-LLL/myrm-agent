@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/primitives/card';
 import { Badge } from '@/components/primitives/badge';
-import { fmtCost, fmtTokens, extractCostUsd, extractTotalTokens } from '@/lib/utils/subagentTree';
+import { fmtCost, fmtTokens, extractCostUsd, extractTotalTokens } from '@/lib/utils/subagent/subagentTree';
 import type { SubagentNode } from '@/store/chat/useSubagentStore';
 
 interface SubagentInsightsViewProps {

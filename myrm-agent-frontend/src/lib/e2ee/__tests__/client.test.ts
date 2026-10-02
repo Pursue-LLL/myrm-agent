@@ -123,10 +123,12 @@ describe('loadStoredE2EESession / storeE2EESession', () => {
     storeE2EESession(session);
     const loaded = loadStoredE2EESession();
 
-    expect(loaded).not.toBeNull();
-    expect(loaded!.sessionId).toBe('test-session-123');
-    expect(loaded!.clientSecretKey).toEqual(keyPair.secretKey);
-    expect(loaded!.serverPublicKey).toEqual(keyPair.publicKey);
+    if (!loaded) {
+      throw new Error('expected stored E2EE session to load');
+    }
+    expect(loaded.sessionId).toBe('test-session-123');
+    expect(loaded.clientSecretKey).toEqual(keyPair.secretKey);
+    expect(loaded.serverPublicKey).toEqual(keyPair.publicKey);
   });
 
   it('returns null for corrupted JSON', () => {
@@ -225,8 +227,10 @@ describe('encryptPairToken / decryptJsonPayload roundtrip', () => {
     const nonce = bundle.slice(0, nacl.box.nonceLength);
     const cipher = bundle.slice(nacl.box.nonceLength);
     const plain = nacl.box.open(cipher, nonce, server.serverPublicKey, server.clientSecretKey);
-    expect(plain).not.toBeNull();
-    expect(new TextDecoder().decode(plain!)).toBe(token);
+    if (!plain) {
+      throw new Error('expected box.open to decrypt');
+    }
+    expect(new TextDecoder().decode(plain)).toBe(token);
   });
 });
 

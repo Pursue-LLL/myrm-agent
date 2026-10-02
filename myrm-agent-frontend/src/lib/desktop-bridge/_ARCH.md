@@ -9,7 +9,8 @@ Desktop Bridge 标准化原生桥接契约层：定义 `IDesktopBridge` 单一�
 | 文件                               | 职责                                                                                                                       |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `types.ts`                         | `IDesktopBridge`、`DesktopPlatform`、`DesktopBridgeCapabilities`、`DesktopWindowControlsState`、子桥接接口核心定义（SSOT） |
-| `bridge.ts`                        | 运行时环境探测（`detectDesktopPlatform`、`getDesktopWindowControlsState`）与单例工厂（`createDesktopBridge`）              |
+| `platform-detection.ts`            | 纯运行时平台探测叶子（`detectDesktopPlatform`、`getDesktopWindowControlsState`），供工厂与 Tauri 实现共同引用保持域内单向无环 |
+| `bridge.ts`                        | 单例工厂（`createDesktopBridge`）与桥接实例出口                                                                             |
 | `tauri-bridge.ts`                  | `TauriDesktopBridge` 原生实现（打通 Tauri Rust IPC：窗口控制、系统托盘、文件定位、原生通知、电源休眠锁）                   |
 | `web-fallback-bridge.ts`           | `WebFallbackDesktopBridge` 安全降级实现（纯 Web / Cloud 托管沙箱零异常 No-Op 与 Web 标准 API 接入）                        |
 | `context.tsx`                      | `DesktopBridgeProvider` 与 `useDesktopBridge` React 上下文与 Hook                                                          |

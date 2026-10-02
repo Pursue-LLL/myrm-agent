@@ -56,7 +56,7 @@ vi.mock('../subagent/SubagentStream', () => ({
 }));
 
 import { SubagentTreeNode } from '../subagent/SubagentTree';
-import type { TreeNode } from '@/lib/utils/subagentTree';
+import type { TreeNode } from '@/lib/utils/subagent/subagentTree';
 
 function nodeWithVerification(overrides: Partial<TreeNode> = {}): TreeNode {
   return {

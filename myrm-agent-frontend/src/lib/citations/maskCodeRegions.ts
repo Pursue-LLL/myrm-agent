@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-control-regex -- \x00C{n}\x00 为代码槽占位符契约（本模块生成并回填，非任意控制字符匹配）
 const CODE_SLOT_RE = /\x00C(\d+)\x00/g;
 
 /** Extract fenced and inline code so citation parsing skips literal `[N]` inside code. */

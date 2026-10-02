@@ -8,8 +8,6 @@
 
 - `relativeTime.ts`：Locale 感知相对时间格式化 — `formatRelativeTime` 基于 `Intl.RelativeTimeFormat`（auto 措辞，六语言原生支持），秒/分/时/日/月/年自适应档位与 NaN 容错空串降级；模块级 formatter 缓存（locale → `Intl.RelativeTimeFormat`），高频轮询场景免重复构造。
 - `responseLocalePolicy.ts`：Agent `engine_params.response_locale_policy` 读写（正式韩语 Switch ↔ harness suffix SSOT）。
-- `subagentTree.ts`：Subagent 树数据工具 — 构建树、子树聚合（成本/tokens/后代）、全局统计、排序（spawn/busiest/slowest/status）、过滤（all/running/failed/leaf）、展平、格式化（fmtCost/fmtTokens/fmtBudgetCost）、预算/用量提取（extractCostUsd/extractTotalTokens/extractBudgetTokens/extractMaxCostUsd，成本经 `token_usage.total_cost_usd`，上限经 `budget.max_cost_usd`/`budget.budget_tokens`）。
-- `taskTopologyModel.ts`：任务拓扑数据模型 — 纯函数把 subagent 树 / fission 拓扑转为 ReactFlow 可渲染图模型（buildTopologyModel / buildFissionTopologyModel / buildMergedTopologyModel：节点/边/墓碑/焦点/进度/元数据、悬空边过滤、label 截断、状态 tone 映射；**验证失败节点 tone 降级为 danger 并透传 verification 字段**；fission 命名空间按 fission_id 隔离）。
 - `fileUtils.ts`：通用文件工具 — 扩展名分类（image/video/audio/pdf/document/text）、MIME 推断（getMimeType）、扩展名提取（getFileExtension）、文件名非法字符清理（sanitizeFilename）、Web/Tauri 展示 URL（getDisplayUrl）、base64 转换（fetchFileAsBase64DataURL）、SHA-256 哈希（computeFileHash）、「路径→内容」DEFLATE zip 打包（buildZipFromFiles）、文件下载（triggerDownload：Web a[download] / Tauri 系统保存对话框 + fs 写入）。
 - `imeUtils.ts`：输入法组合输入守卫 — `isImeComposing` 统一判断 `nativeEvent.isComposing`、`event.isComposing`、`key === 'Process'` 与 `keyCode === 229`；另用 document 级 `compositionend` 观察器维护 `IME_CONFIRM_ENTER_WINDOW_MS`（100ms）时间窗，补偿 Safari / WebKit（含 Tauri macOS WebView）「先派发 compositionend、再派发确认 keydown 且 isComposing 已为 false、keyCode 已为 13」的顺序倒置，保障 Windows/macOS/iOS/Android 输入法候选词确认不误触发消息提交。
 - `titleUtils.ts`：会话标题消歧与序号自增 — `parseTitleIndex` 与 `disambiguateChatTitle` 纯函数，确保自动生成和重命名标题时保持全局列表唯一可辨（如自动追加 `(2)`、`(3)`）。
@@ -27,6 +25,7 @@
 - `device/`：设备检测域子包 — 环境侧移动端判定（deviceDetection）与特征查询级设备判定（deviceUtils），零外部依赖，barrel 门面 `@/lib/utils/device`。详见 [device/_ARCH.md](device/_ARCH.md)。
 - `media/`：媒体凭据域子包 — 图片/TTS/视频三通道凭据就绪判定与警告收集（CredentialReadiness）、provider 状态映射与后端状态拉取（ProviderStatus），barrel 门面 `@/lib/utils/media`。详见 [media/_ARCH.md](media/_ARCH.md)。
 - `locale/`：Locale 域子包 — cookie 常量、客户端读取、后端格式映射、营销参数解析、RFC 7231 Accept-Language 协商（localeUtils）与多语言文本选择（localeText），barrel 门面 `@/lib/utils/locale`。详见 [locale/_ARCH.md](locale/_ARCH.md)。
+- `subagent/`：Subagent 数据域子包 — subagent 树数据工具（subagentTree）、任务拓扑图模型（taskTopologyModel）与阶段任务计数推导（stageTaskCount），barrel 门面 `@/lib/utils/subagent`。详见 [subagent/_ARCH.md](subagent/_ARCH.md)。
 - `apiConfig.ts`：后端服务基础 URL 访问 — `getBackendUrl` 统一后端基础地址出口（不含 API 路径前缀）。
 - `backend-url.ts`：后端服务基础地址层 — `BACKEND_BASE_URL` 动态解析常量与 `createDynamicUrl` 动态 URL 构建器（懒解析 toString/valueOf 伪装 string），独立于 API 请求层供 URL 类工具与 API 层共同消费。
 - `authHeaders.ts`：认证请求头构建 — 认证 token 读取（localStorage `auth_token`）与 `getAuthHeaders` 请求头组装，SSR 安全（window 未定义返回空）。
@@ -45,7 +44,6 @@
 - `reactCodeProcessor.ts`：React 代码检测 — `isValidReactCode` 有效性判定（React import/JSX/export 三要素）与工件预览依赖处理。
 - `reactUtils.ts`：React children 工具 — `getChildrenAsText` children prop 纯文本转换。
 - `requestManager.ts`：全局请求管理 — 流式 AI 搜索请求注册、跟踪与取消（AbortController 集合管理）。
-- `stageTaskCount.ts`：阶段任务计数推导 — subagent 树节点推导 Scope/Fan-out/Verify/Synthesize 细粒度阶段进度（done/total 比率）与上游阻塞指示。
 - `teammateMessage.ts`：teammate 消息归一 — `normalizeTeammateEntry` 消息行（message_id/from/to/body/created_at）到 `TeammateMessageEntry` 归一。
 - `toast.ts`：Toast 统一包装 — 兼容 shadcn/ui 与 Sonner 双 API 形态，错误信息经 `errorRedactor` 脱敏后展示。
 - `urlLinkify.ts`：URL 链接化 — 纯文本 URL 转可点击 `<a>` 标签（noopener noreferrer 安全属性）。

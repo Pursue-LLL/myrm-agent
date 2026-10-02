@@ -22,8 +22,8 @@ import {
   type TopologyModel,
   type TopologyNodeData,
   type TopologyTone,
-} from '@/lib/utils/taskTopologyModel';
-import { fmtCost, fmtTokens } from '@/lib/utils/subagentTree';
+} from '@/lib/utils/subagent/taskTopologyModel';
+import { fmtCost, fmtTokens } from '@/lib/utils/subagent/subagentTree';
 import { useTranslations } from 'next-intl';
 import { Bot, CheckCircle2, CircleDashed, Loader2, XCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';

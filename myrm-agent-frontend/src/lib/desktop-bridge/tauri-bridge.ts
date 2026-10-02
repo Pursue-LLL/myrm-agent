@@ -2,6 +2,7 @@
  * [INPUT]
  * - types.ts: IDesktopBridge and sub-bridge interfaces
  * - @/lib/tauri: invokeTauriCommand, isTauriEnvironment
+ * - ./platform-detection: detectDesktopPlatform, getDesktopWindowControlsState
  *
  * [OUTPUT]
  * - TauriDesktopBridge: Native IPC bridge implementation for Tauri desktop application
@@ -11,7 +12,7 @@
  */
 
 import { invokeTauriCommand, isTauriEnvironment } from '@/lib/tauri';
-import { detectDesktopPlatform, getDesktopWindowControlsState } from './bridge';
+import { detectDesktopPlatform, getDesktopWindowControlsState } from './platform-detection';
 import type {
   DesktopBridgeCapabilities,
   DesktopPlatform,

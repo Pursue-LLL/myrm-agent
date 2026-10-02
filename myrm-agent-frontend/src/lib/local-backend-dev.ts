@@ -44,7 +44,7 @@ export function formatLocalBackendSetupHint(
   t: LocalBackendSetupHintTranslator,
   health: BackendHealthPayload | null,
 ): string {
-  if (health?.status === 'healthy' && health.listen_port != null) {
+  if (health?.status === 'healthy' && health.listen_port !== null && health.listen_port !== undefined) {
     const host = health.listen_host ?? '127.0.0.1';
     const apiPort = health.backend_port ?? health.listen_port;
     if (health.dev_mode === 'standalone_webui') {

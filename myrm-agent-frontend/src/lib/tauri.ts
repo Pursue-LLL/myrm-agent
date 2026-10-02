@@ -68,15 +68,23 @@ export function isTauriEnvironment(): boolean {
 }
 
 /**
+ * Tauri API 守卫收口：环境不符即抛错，返回非空桥接对象（类型谓词替代三处非空断言）
+ */
+function requireTauriApi(): NonNullable<TauriWindow['__TAURI__']> {
+  if (typeof window === 'undefined' || !window.__TAURI__) {
+    throw new Error('Not running in Tauri environment');
+  }
+  return window.__TAURI__;
+}
+
+/**
  * 调用 Tauri 命令
  */
 export async function invokeTauriCommand<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-  if (!isTauriEnvironment()) {
-    throw new Error('Not running in Tauri environment');
-  }
-
+  // 环境守卫置于 try 外：与守卫错误直抛语义保持一致，不进入 catch 日志分支
+  const tauri = requireTauriApi();
   try {
-    return await window.__TAURI__!.invoke<T>(command, args);
+    return await tauri.invoke<T>(command, args);
   } catch (error) {
     console.error(`Failed to invoke Tauri command: ${command}`, error);
     throw error;
@@ -113,11 +121,7 @@ export const tauriBackend = {
  * 监听 Tauri 事件
  */
 export async function listenTauriEvent(event: string, handler: (payload: unknown) => void): Promise<() => void> {
-  if (!isTauriEnvironment()) {
-    throw new Error('Not running in Tauri environment');
-  }
-
-  return await window.__TAURI__!.event.listen(event, (e) => {
+  return await requireTauriApi().event.listen(event, (e) => {
     handler(e);
   });
 }
@@ -126,11 +130,7 @@ export async function listenTauriEvent(event: string, handler: (payload: unknown
  * 发送 Tauri 事件
  */
 export async function emitTauriEvent(event: string, payload?: unknown): Promise<void> {
-  if (!isTauriEnvironment()) {
-    throw new Error('Not running in Tauri environment');
-  }
-
-  await window.__TAURI__!.event.emit(event, payload);
+  await requireTauriApi().event.emit(event, payload);
 }
 
 /**

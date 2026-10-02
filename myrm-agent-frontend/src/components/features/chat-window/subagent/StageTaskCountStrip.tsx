@@ -3,7 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { CheckCircle2, CircleDashed, Clock, Loader2, XCircle } from 'lucide-react';
-import { type StageProgressItem, type StageTaskCountSummary } from '@/lib/utils/stageTaskCount';
+import { type StageProgressItem, type StageTaskCountSummary } from '@/lib/utils/subagent/stageTaskCount';
 
 interface StageTaskCountStripProps {
   summary: StageTaskCountSummary;

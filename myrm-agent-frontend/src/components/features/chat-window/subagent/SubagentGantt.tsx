@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { BarChart3, ChevronDown, ChevronRight } from 'lucide-react';
-import type { TreeNode } from '@/lib/utils/subagentTree';
+import type { TreeNode } from '@/lib/utils/subagent/subagentTree';
 
 const STATUS_BAR_COLOR: Record<string, string> = {
   running: 'bg-blue-500',

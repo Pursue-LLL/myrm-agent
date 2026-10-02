@@ -65,7 +65,7 @@ export function resolveKanbanChatBoardId(boards: KanbanBoard[], projectId?: stri
     return null;
   }
   if (boards.length === 1) {
-    return boards[0]!.board_id;
+    return boards[0]?.board_id ?? null;
   }
 
   const saved = readKanbanLastBoardId(projectId);

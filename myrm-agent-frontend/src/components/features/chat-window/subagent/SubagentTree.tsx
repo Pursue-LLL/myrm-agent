@@ -30,7 +30,7 @@ import {
   fmtCost,
   fmtTokens,
   type TreeNode,
-} from '@/lib/utils/subagentTree';
+} from '@/lib/utils/subagent/subagentTree';
 import {
   isNodeOvertime,
   useSubagentStore,

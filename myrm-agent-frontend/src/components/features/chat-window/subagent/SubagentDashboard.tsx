@@ -52,8 +52,8 @@ import {
   type FilterMode,
   type SortMode,
   type TreeNode,
-} from '@/lib/utils/subagentTree';
-import { deriveStageTaskCounts } from '@/lib/utils/stageTaskCount';
+} from '@/lib/utils/subagent/subagentTree';
+import { deriveStageTaskCounts } from '@/lib/utils/subagent/stageTaskCount';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import useChatStore from '@/store/useChatStore';
 import { AgentToolDiagnostics } from '../AgentToolDiagnostics';

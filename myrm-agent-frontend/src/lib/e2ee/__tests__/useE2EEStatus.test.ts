@@ -83,8 +83,11 @@ describe('useE2EEStatus', () => {
       expect(result.current.established).toBe(true);
     });
 
-    expect(typeof result.current.fingerprint).toBe('string');
-    expect(result.current.fingerprint!).toMatch(/^[0-9a-f]{4}( [0-9a-f]{4}){3}$/);
+    const fingerprint = result.current.fingerprint;
+    if (typeof fingerprint !== 'string') {
+      throw new Error('expected fingerprint to be a string');
+    }
+    expect(fingerprint).toMatch(/^[0-9a-f]{4}( [0-9a-f]{4}){3}$/);
     expect(result.current.sessionIdPrefix).toBe('test-ses');
   });
 
@@ -121,11 +124,12 @@ describe('useE2EEStatus', () => {
   });
 
   it('does not update state after unmount (cancelled flag)', async () => {
-    let resolveHandshake: (v: E2EEClientSession | null) => void;
+    // deferred 对象承载闭包内赋值：属性读取不受函数体流分析窄化影响
+    const deferred: { resolve: ((v: E2EEClientSession | null) => void) | null } = { resolve: null };
     mockLoadStoredE2EESession.mockReturnValue(null);
     mockEnsureMobileE2EE.mockReturnValue(
       new Promise((resolve) => {
-        resolveHandshake = resolve;
+        deferred.resolve = resolve;
       }),
     );
 
@@ -135,7 +139,11 @@ describe('useE2EEStatus', () => {
     expect(result.current.established).toBe(false);
 
     unmount();
-    resolveHandshake!(makeSession());
+    const resolveHandshake = deferred.resolve;
+    if (!resolveHandshake) {
+      throw new Error('expected handshake deferred to be captured');
+    }
+    resolveHandshake(makeSession());
 
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));

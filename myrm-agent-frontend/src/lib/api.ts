@@ -27,7 +27,6 @@ import { withMobilePairHeaders } from '@/lib/mobileRemote';
 import { toast } from '@/lib/utils/toast';
 import { redactErrorMessage } from '@/lib/utils/error-handling';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
-import useConfigStore from '@/store/useConfigStore';
 
 const AUTH_LOGIN_PATH = buildAuthLoginPath();
 
@@ -407,7 +406,9 @@ const getAuthToken = (): string | null => {
   return localStorage.getItem('auth_token');
 };
 
-function resolveAcceptLanguageHeader(): string | undefined {
+// 动态 import 断静态环：api 被 store→llm-config 链反向依赖，静态 import useConfigStore 会成环
+async function resolveAcceptLanguageHeader(): Promise<string | undefined> {
+  const { default: useConfigStore } = await import('@/store/useConfigStore');
   const savedLocale = useConfigStore.getState().personalSettings?.locale;
   const cookieLocale = getClientLocale();
   return normalizeLocaleForBackend(savedLocale || cookieLocale);
@@ -444,7 +445,7 @@ export const apiRequest = async <T = unknown>(
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const acceptLanguage = resolveAcceptLanguageHeader();
+    const acceptLanguage = await resolveAcceptLanguageHeader();
     if (acceptLanguage && !headers['Accept-Language']) {
       headers['Accept-Language'] = acceptLanguage;
     }
