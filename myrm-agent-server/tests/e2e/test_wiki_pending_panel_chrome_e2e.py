@@ -46,7 +46,9 @@ _SHELL_WAIT_SEC = 45.0
 _PANEL_PATH = "/settings/wiki?wikiTab=pendingEdits"
 
 # Reads the pending list size, the stats badge number, and the load-more
-# control state. `ready` only flips once the list container has mounted.
+# control state. `ready` flips only when the list has settled on the expected
+# item count and badge number, so an in-flight page fetch (items still at the
+# previous value) never satisfies the wait early.
 _PANEL_STATE_JS = """(() => {{
   const list = document.querySelector('[data-testid="pending-edits-list"]');
   const items = list ? list.children.length : 0;
@@ -55,7 +57,7 @@ _PANEL_STATE_JS = """(() => {{
   const badgeNum = badge ? ((badge.textContent.match(/\\d+/) || [''])[0]) : '';
   const text = list ? list.textContent : '';
   return {{
-    ready: !!list,
+    ready: !!list && items === {expected_items} && badgeNum === {expected_badge!r},
     items,
     loadMore,
     badgeNum,
@@ -100,9 +102,11 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
 )
 
 
-def _panel_state_js(concept_prefix: str) -> str:
-    """Bind the marker tails (newest seed draft + page-2 draft) to the probe."""
+def _panel_state_js(concept_prefix: str, *, expected_items: int, expected_badge: str) -> str:
+    """Bind the marker tails and the settled-state expectations to the probe."""
     return _PANEL_STATE_JS.format(
+        expected_items=expected_items,
+        expected_badge=expected_badge,
         marker_tail_104=f"{concept_prefix}-104",
         marker_tail_005=f"{concept_prefix}-005",
     )
@@ -173,7 +177,11 @@ def _run_panel_flow(api_url: str, ui_url: str) -> None:
     concept_prefix = str(seeded["concept_prefix"])
     edit_ids = list(seeded["edit_ids"])
     assert len(edit_ids) == 105, seeded
-    probe = _panel_state_js(concept_prefix)
+    first_badge = str(base_pending + 105)
+    healed_badge = str(base_pending + 104)
+    probe_first = _panel_state_js(concept_prefix, expected_items=50, expected_badge=first_badge)
+    probe_second = _panel_state_js(concept_prefix, expected_items=100, expected_badge=first_badge)
+    probe_healed = _panel_state_js(concept_prefix, expected_items=50, expected_badge=healed_badge)
 
     try:
         with open_wiki_settings_mcp_page(
@@ -193,7 +201,7 @@ def _run_panel_flow(api_url: str, ui_url: str) -> None:
             assert wiki_shell.get("ready") is True, json.dumps(wiki_shell, indent=2, ensure_ascii=False)
 
             # First batch: 50 items, badge at base+105, load-more mounted.
-            first = wait_for_state(client, page, probe, timeout_sec=_PANEL_WAIT_SEC)
+            first = wait_for_state(client, page, probe_first, timeout_sec=_PANEL_WAIT_SEC)
             assert first.get("items") == 50, json.dumps(first, indent=2, ensure_ascii=False)
             assert first.get("badgeNum") == str(base_pending + 105), (
                 f"stats badge must show base+105: base={base_pending} state={first}"
@@ -203,7 +211,7 @@ def _run_panel_flow(api_url: str, ui_url: str) -> None:
             # Load-more: 100 items, control stays mounted (100 < base+105).
             clicked = client.evaluate(page, _LOAD_MORE_CLICK_JS, timeout_sec=5.0)
             assert clicked is True, "load-more button not found before second batch"
-            second = wait_for_state(client, page, probe, timeout_sec=_PANEL_WAIT_SEC)
+            second = wait_for_state(client, page, probe_second, timeout_sec=_PANEL_WAIT_SEC)
             assert second.get("items") == 100, json.dumps(second, indent=2, ensure_ascii=False)
             assert second.get("loadMore") is True, second
             assert second.get("marker104"), f"newest seed draft must stay visible: {second}"
@@ -224,7 +232,7 @@ def _run_panel_flow(api_url: str, ui_url: str) -> None:
             # page-2 draft disappears from view, page-1 head stays visible.
             healed_click = client.evaluate(page, _LOAD_MORE_CLICK_JS, timeout_sec=5.0)
             assert healed_click is True, "load-more button not found before drift re-sync"
-            healed = wait_for_state(client, page, probe, timeout_sec=_PANEL_WAIT_SEC)
+            healed = wait_for_state(client, page, probe_healed, timeout_sec=_PANEL_WAIT_SEC)
             assert healed.get("items") == 50, (
                 f"drift must restart the list from page 1 (50 items, not append): {healed}"
             )
