@@ -45,6 +45,10 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 - `converter.py` 在 workspace 尚未就绪时仍注入 `prior_chat`；file/workspace 引用跳过并写入 warning。prior_chat 路径不使用 workspace 内容，fallback 见 `mention.py::_MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE`。
 - 注入 append 到 user query 的 `<mentioned_files>`，不修改 system prompt / tool schema（prompt cache 安全）。
 
+## artifact_range Mention
+
+- 前端表格/文档选区经 `MentionReferenceRequest(type="artifact_range")` 协议接受；消费路径为 `mention.py` 循环尾部的 unsupported 降级标注（XML error 标签），选区上下文注入属功能待补全项。
+
 ## Typed Archive Restore
 
 - `AgentRequest.archive_restore_actions` 接收前端结构化恢复动作，作为归档范围恢复的控制协议。
