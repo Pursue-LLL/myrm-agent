@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import urllib.error
 from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -227,3 +228,88 @@ class TestXLiveSearchSandboxScript:
         captured = capsys.readouterr()
         assert ret == 0
         assert "No matching posts found for the specified filters" in captured.out
+
+    def test_execute_search_builds_full_x_search_tool_payload(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Lock the wire-level contract: tool filters, model, store, and timeout."""
+        monkeypatch.setenv("XAI_API_KEY", "test-key")
+        captured: dict[str, object] = {}
+
+        def _capture_urlopen(req: object, timeout: int | None = None) -> MagicMock:
+            captured["body"] = json.loads(req.data.decode("utf-8"))  # type: ignore[attr-defined]
+            captured["timeout"] = timeout
+            return self._fake_urlopen_response({"output_text": "ok"})
+
+        with patch("urllib.request.urlopen", side_effect=_capture_urlopen):
+            ret = x_search_script.execute_search(
+                "AI news",
+                allowed_handles=["@elonmusk"],
+                from_date="2026-08-01",
+                to_date="2026-08-31",
+                enable_image_understanding=True,
+                enable_video_understanding=True,
+            )
+
+        assert ret == 0
+        body = captured["body"]
+        assert body["model"] == "grok-4.6"
+        assert body["store"] is False
+        tool = body["tools"][0]
+        assert tool["type"] == "x_search"
+        assert tool["allowed_x_handles"] == ["elonmusk"]  # '@' stripped by _normalize_handles
+        assert tool["from_date"] == "2026-08-01"
+        assert tool["to_date"] == "2026-08-31"
+        assert tool["enable_image_understanding"] is True
+        assert tool["enable_video_understanding"] is True
+        assert captured["timeout"] == 180
+
+    def test_execute_search_retries_on_5xx_then_succeeds(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setenv("XAI_API_KEY", "test-key")
+        calls = {"count": 0}
+
+        def _flaky_urlopen(req: object, timeout: int | None = None) -> MagicMock:
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise urllib.error.HTTPError(
+                    req.full_url,
+                    500,
+                    "Server Error",
+                    None,
+                    io.BytesIO(b"temporary"),  # type: ignore[attr-defined]
+                )
+            return self._fake_urlopen_response({"output_text": "recovered"})
+
+        with patch("urllib.request.urlopen", side_effect=_flaky_urlopen), patch("time.sleep"):
+            ret = x_search_script.execute_search("AI news")
+
+        assert ret == 0
+        assert calls["count"] == 2
+        assert "recovered" in capsys.readouterr().out
+
+    def test_execute_search_fails_fast_on_4xx_without_retry(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setenv("XAI_API_KEY", "test-key")
+        calls = {"count": 0}
+
+        def _unauthorized(req: object, timeout: int | None = None) -> MagicMock:
+            calls["count"] += 1
+            raise urllib.error.HTTPError(
+                req.full_url,
+                401,
+                "Unauthorized",
+                None,
+                io.BytesIO(b'{"error":"bad key"}'),  # type: ignore[attr-defined]
+            )
+
+        with patch("urllib.request.urlopen", side_effect=_unauthorized), patch("time.sleep") as mock_sleep:
+            buf = io.StringIO()
+            with redirect_stderr(buf):
+                ret = x_search_script.execute_search("AI news")
+
+        assert ret == 1
+        assert calls["count"] == 1
+        mock_sleep.assert_not_called()
+        assert "HTTP 401" in buf.getvalue()
+        capsys.readouterr()
