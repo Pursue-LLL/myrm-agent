@@ -1697,7 +1697,8 @@
     "enabled": "有効",
     "remoteGateway": {
       "unreachable": "リモートサーバー {host} に到達できません。サーバーアドレスを確認するか、ローカルモードに戻してください。",
-      "switchToLocal": "ローカルモードに切り替え"
+      "switchToLocal": "ローカルモードに切り替え",
+      "switchFailed": "切り替えが完了しませんでした。しばらくしてからもう一度お試しください。"
     },
     "configLoadError": {
       "title": "設定の読み込みに失敗しました",
@@ -12388,7 +12389,9 @@
     "recentEmpty": "完了したタスクはここに表示されます。",
     "agentFallback": "エージェント",
     "slotsBadge": "{used}/{max} 使用中",
-    "slotsFull": "並行スロットがすべて使用中です。実行中のタスクを終了または停止してから再試行してください。"
+    "slotsFull": "並行スロットがすべて使用中です。実行中のタスクを終了または停止してから再試行してください。",
+    "stop": "停止",
+    "stopping": "停止中…"
   },
   "whatsNew": {
     "title": "v{version} の新機能",
@@ -18069,7 +18072,9 @@
         "optRemote": "リモートサーバー",
         "optCloud": "クラウド",
         "gateFailed": "サーバーに到達不可——切替中止。もう一度押すと強制切替。",
+        "switchFailed": "切り替えが完了しませんでした。しばらくしてからもう一度お試しください。",
         "restoredLastGood": "最後に動作した接続に戻しました。",
+        "rollbackFailed": "最後に動作した接続への復元が完了しませんでした。しばらくしてからもう一度お試しください。",
         "activeSessionsDialog": {
           "title": "アクティブなセッションがあります",
           "description": "ローカルで {count} 件のセッションが生成中です。切り替えは完了を待ってからページを更新します。セッション履歴は保持されます。",

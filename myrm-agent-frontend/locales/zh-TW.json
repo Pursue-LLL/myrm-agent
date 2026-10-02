@@ -1697,7 +1697,8 @@
     "enabled": "已開啟",
     "remoteGateway": {
       "unreachable": "遠程伺服器 {host} 無法訪問，請檢查伺服器地址或切回本地模式。",
-      "switchToLocal": "切換為本地模式"
+      "switchToLocal": "切換為本地模式",
+      "switchFailed": "切換未完成，請稍後重試。"
     },
     "configLoadError": {
       "title": "配置載入失敗",
@@ -12388,7 +12389,9 @@
     "recentEmpty": "完成的任務會顯示在這裡。",
     "agentFallback": "智能體",
     "slotsBadge": "已佔用 {used}/{max}",
-    "slotsFull": "並行額度已滿，請先結束或等待一個進行中的任務。"
+    "slotsFull": "並行額度已滿，請先結束或等待一個進行中的任務。",
+    "stop": "停止",
+    "stopping": "正在停止…"
   },
   "whatsNew": {
     "title": "v{version} 新功能",
@@ -18069,7 +18072,9 @@
         "optRemote": "遠端伺服器",
         "optCloud": "雲託管",
         "gateFailed": "伺服器不可達——未切換，再點一次強制切換。",
+        "switchFailed": "切換未完成，請稍後重試。",
         "restoredLastGood": "已恢復到上次可用連接。",
+        "rollbackFailed": "恢復上次可用連接未完成，請稍後重試。",
         "activeSessionsDialog": {
           "title": "存在活躍會話",
           "description": "本地有 {count} 個會話正在生成。切換會等待其完成並重新整理頁面；會話記錄仍會保留。",

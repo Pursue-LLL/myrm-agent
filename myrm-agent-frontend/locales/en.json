@@ -5339,7 +5339,9 @@
         "optRemote": "Remote server",
         "optCloud": "Cloud hosting",
         "gateFailed": "Unreachable server — not switched. Click again to force.",
+        "switchFailed": "Switch didn't finish. Please try again shortly.",
         "restoredLastGood": "Switched back to the last working connection.",
+        "rollbackFailed": "Couldn't restore the last working connection. Please try again shortly.",
         "activeSessionsDialog": {
           "title": "Active sessions detected",
           "description": "{count} sessions are still generating locally. The switch waits for them to finish, then refreshes the page; session history is preserved.",
@@ -8786,7 +8788,8 @@
     "enabled": "Enabled",
     "remoteGateway": {
       "unreachable": "Remote server {host} is unreachable. Check the server address or switch back to local mode.",
-      "switchToLocal": "Switch to Local Mode"
+      "switchToLocal": "Switch to Local Mode",
+      "switchFailed": "Switch didn't finish. Please try again shortly."
     },
     "configLoadError": {
       "title": "Failed to load configuration",
@@ -19477,7 +19480,9 @@
     "recentEmpty": "Finished tasks will show up here.",
     "agentFallback": "Agent",
     "slotsBadge": "{used}/{max} in use",
-    "slotsFull": "All parallel slots are busy. Finish or stop a running task first."
+    "slotsFull": "All parallel slots are busy. Finish or stop a running task first.",
+    "stop": "Stop",
+    "stopping": "Stopping…"
   },
   "whatsNew": {
     "title": "What's New in v{version}",

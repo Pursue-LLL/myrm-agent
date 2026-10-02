@@ -5339,7 +5339,9 @@
         "optRemote": "远端服务器",
         "optCloud": "云托管",
         "gateFailed": "服务器不可达——未切换，再点一次强制切换。",
+        "switchFailed": "切换未完成，请稍后重试。",
         "restoredLastGood": "已恢复到上次可用连接。",
+        "rollbackFailed": "恢复上次可用连接未完成，请稍后重试。",
         "activeSessionsDialog": {
           "title": "存在活跃会话",
           "description": "本地有 {count} 个会话正在生成。切换会等待其完成并刷新页面；会话记录仍会保留。",
@@ -8786,7 +8788,8 @@
     "enabled": "已开启",
     "remoteGateway": {
       "unreachable": "远程服务器 {host} 无法访问，请检查服务器地址或切回本地模式。",
-      "switchToLocal": "切换为本地模式"
+      "switchToLocal": "切换为本地模式",
+      "switchFailed": "切换未完成，请稍后重试。"
     },
     "configLoadError": {
       "title": "配置加载失败",
@@ -19477,7 +19480,9 @@
     "recentEmpty": "完成的任务会出现在这里。",
     "agentFallback": "智能体",
     "slotsBadge": "已占用 {used}/{max}",
-    "slotsFull": "并行额度已满，请先结束或等待一个进行中的任务。"
+    "slotsFull": "并行额度已满，请先结束或等待一个进行中的任务。",
+    "stop": "停止",
+    "stopping": "正在停止…"
   },
   "whatsNew": {
     "title": "v{version} 新功能",

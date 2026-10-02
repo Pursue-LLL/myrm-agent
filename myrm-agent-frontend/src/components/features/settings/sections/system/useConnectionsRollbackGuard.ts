@@ -100,7 +100,12 @@ export function useConnectionsRollbackGuard({ onRestored }: ConnectionsRollbackG
         setRemoteGatewayConfig(null);
         rolledBackToLocal = true;
         // 回滚到本地：显式重启本地后端（remote_follow flag 复位）。
-        await switchRemoteFollow(false);
+        // 启动失败仍继续清理 pending：避免复验死循环，由 banner 兜底提示。
+        try {
+          await switchRemoteFollow(false);
+        } catch {
+          toast.error(t('rollbackFailed'));
+        }
       } else {
         setActiveRemoteProfileId(restoreId);
       }

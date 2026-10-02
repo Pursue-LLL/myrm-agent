@@ -27,7 +27,7 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js 进程生�
 | `nextjs_frontend.rs` | 核心 | Next.js Standalone 进程（Tauri 启动时始终自启） | — |
 | `watchdog.rs` | 核心 | 后端崩溃监控与指数退避重启（stop_backend_monitors 停挂，支持 wake_notify 快速快检） | ✅ |
 | `wake.rs` | 核心 | 系统休眠唤醒侦测器（单调时钟时间跃迁 + 原生通知）与两阶段自愈协调器（cancel 走 watch channel，停挂不丢消息） | ✅ |
-| `remote_follow.rs` | 核心 | Remote 跟随标记文件（`remote_follow.json` 布尔意图）；`get/switch_remote_follow` IPC（切换唯一入口：切 remote 优雅停本地后端、切回本地重启并重挂监控，完成后广播 `app:connections-changed`）；setup 期 defer 判定 | ✅ |
+| `remote_follow.rs` | 核心 | Remote 跟随标记文件（`remote_follow.json` 布尔意图）；`get/switch_remote_follow` IPC（切换唯一入口：切 remote 优雅停本地后端、切回本地重启并重挂监控；编排成功才落 flag——失败零 flag 副作用，flag 与真实进程态永不不一致；完成后广播 `app:connections-changed`）；setup 期 defer 判定 | ✅ |
 | `update_safety.rs` | 核心 | Updater 签名安全态只读查询（`get_updater_safety` IPC，四态稳定字符串；校验逻辑零触碰） | ✅ |
 | `setup_token.rs` | 核心 | WebUI Remote Setup Token IPC | — |
 | `port.rs` | 工具 | 端口占用检测 | — |

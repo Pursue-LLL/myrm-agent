@@ -20,6 +20,11 @@ vi.mock('@/lib/utils/toast', () => ({
   },
 }));
 
+// Rust 侧编排在 jsdom 中不可达：统一 mock 成功，失败路径由专项用例覆盖。
+vi.mock('@/lib/remote-follow-switch', () => ({
+  switchRemoteFollow: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe('ServerConnectionCard switch guard', () => {
   it('blocks switching to a dead server and forces on repeat', async () => {
     const testing = await import('@testing-library/react');
@@ -207,6 +212,97 @@ describe('ServerConnectionCard switch guard', () => {
     // Restored to the cloud profile, and no duplicate was written.
     expect(roster.activeId).toBe('c1');
     expect(roster.profiles).toHaveLength(2);
+    expect(localStorage.getItem('myrm-connection-pending-switch')).toBeNull();
+    unmount();
+    vi.doUnmock('@/lib/deploy-mode');
+    vi.unstubAllGlobals();
+  });
+  it('keeps UI state untouched when the Rust-side orchestration fails', async () => {
+    const testing = await import('@testing-library/react');
+    const { toast } = await import('@/lib/utils/toast');
+    const { switchRemoteFollow } = await import('@/lib/remote-follow-switch');
+    vi.clearAllMocks();
+    vi.mocked(switchRemoteFollow).mockRejectedValueOnce(new Error('stop failed'));
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
+    localStorage.clear();
+    localStorage.setItem('myrm-remote-first-run-seen', '1');
+    localStorage.setItem(
+      'myrm-remote-gateway-roster',
+      JSON.stringify({
+        profiles: [{ id: 'p1', name: 'Pi', url: 'http://127.0.0.1:9', kind: 'server' }],
+        activeId: null,
+      }),
+    );
+
+    vi.resetModules();
+    vi.doMock('@/lib/deploy-mode', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+      return { ...actual, isTauriRuntime: () => true };
+    });
+    const { default: TauriCard } = await import('../ServerConnectionCard');
+    const { unmount } = testing.render(<TauriCard />);
+
+    // 第一次点击触发健康 gate 拦截；第二次强制切换时编排失败。
+    testing.fireEvent.click(testing.screen.getByLabelText('modeLocal'));
+    testing.fireEvent.click((await testing.screen.findAllByText('save'))[0]);
+    await testing.waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith('gateFailed');
+    });
+    testing.fireEvent.click(testing.screen.getAllByText('save')[0]);
+    await testing.waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith('switchFailed');
+    });
+    // 编排失败零 UI 副作用：未连接、未记 pending、未刷新 last-good。
+    expect(vi.mocked(toast.success)).not.toHaveBeenCalledWith('connected');
+    expect(localStorage.getItem('myrm-connection-pending-switch')).toBeNull();
+    expect(localStorage.getItem('myrm-connection-last-good')).toBeNull();
+    const roster = JSON.parse(localStorage.getItem('myrm-remote-gateway-roster') ?? '{}');
+    expect(roster.activeId).toBeNull();
+    unmount();
+    vi.doUnmock('@/lib/deploy-mode');
+    vi.unstubAllGlobals();
+  });
+
+  it('rolls a dead switch back to local mode when no last-good profile matches', async () => {
+    const testing = await import('@testing-library/react');
+    const { toast } = await import('@/lib/utils/toast');
+    const { switchRemoteFollow } = await import('@/lib/remote-follow-switch');
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
+    localStorage.clear();
+    localStorage.setItem('myrm-remote-first-run-seen', '1');
+    localStorage.setItem(
+      'myrm-remote-gateway-roster',
+      JSON.stringify({
+        profiles: [{ id: 'p1', name: 'Pi', url: 'http://127.0.0.1:9', kind: 'server' }],
+        activeId: 'p1',
+      }),
+    );
+    localStorage.setItem(
+      'myrm-connection-pending-switch',
+      JSON.stringify({ url: 'http://127.0.0.1:9', at: Date.now() }),
+    );
+    // last-good 指向已不存在的档案：回滚目标只能是本地。
+    localStorage.setItem(
+      'myrm-connection-last-good',
+      JSON.stringify({ activeId: 'gone', url: 'https://elsewhere.example' }),
+    );
+
+    vi.resetModules();
+    vi.doMock('@/lib/deploy-mode', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+      return { ...actual, isTauriRuntime: () => true };
+    });
+    const { default: TauriCard } = await import('../ServerConnectionCard');
+    const { unmount } = testing.render(<TauriCard />);
+
+    await testing.waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith('restoredLastGood');
+    });
+    // 本地回滚：显式重启本地后端，roster 归零，pending 清理。
+    expect(vi.mocked(switchRemoteFollow)).toHaveBeenCalledWith(false);
+    const roster = JSON.parse(localStorage.getItem('myrm-remote-gateway-roster') ?? '{}');
+    expect(roster.activeId).toBeNull();
     expect(localStorage.getItem('myrm-connection-pending-switch')).toBeNull();
     unmount();
     vi.doUnmock('@/lib/deploy-mode');

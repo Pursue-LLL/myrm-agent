@@ -13,7 +13,8 @@
 //! 连接态持久化（localStorage roster 在前端，defer 标记在 Rust 侧文件）。
 //! 仅存布尔意图，不存 URL/token，避免密钥落盘。
 //! switch_remote_follow 是切换唯一入口：切 remote 优雅停本地后端（含 watchdog/wake 停止），
-//! 切回本地重启后端并重新挂载健康监控，随后广播 `app:connections-changed` 驱动全窗口 reload。
+//! 切回本地重启后端并重挂健康监控；编排成功才落 flag（失败零 flag 副作用，flag 与
+//! 真实进程态永不不一致），随后广播 `app:connections-changed` 驱动全窗口 reload。
 
 use std::fs;
 use std::path::PathBuf;
@@ -77,31 +78,30 @@ pub fn get_remote_follow(app: AppHandle) -> Result<bool, String> {
 /// deferred=true（切向 remote）：优雅停本地后端（先停 watchdog/wake，再请求
 /// 服务端 drain 后自退，兜底强杀），确保 remote_follow 省内存设计不被复活破坏。
 /// deferred=false（切回本地）：按当前系统配置重启后端并重挂健康监控。
-/// 两条路径均广播 `app:connections-changed`，由前端全局监听统一 reload。
+/// 生命周期编排成功后才落 flag（失败路径零 flag 副作用，flag 文件与真实
+/// 进程态永不不一致），随后广播 `app:connections-changed` 驱动全窗口 reload。
 #[tauri::command]
 pub async fn switch_remote_follow(
     app: AppHandle,
     backend: State<'_, PythonBackend>,
     deferred: bool,
 ) -> Result<(), String> {
-    write_follow_deferred(&app, deferred)?;
-
     if deferred {
-        match graceful_stop_backend(&app, &backend).await {
-            Ok(message) => println!("Remote follow engaged: {}", message),
-            Err(e) => return Err(format!("Failed to stop local backend for remote follow: {e}")),
-        }
+        graceful_stop_backend(&app, &backend)
+            .await
+            .map_err(|e| format!("Failed to stop local backend for remote follow: {e}"))?;
+        write_follow_deferred(&app, true)?;
     } else {
         let config_manager = app.state::<ConfigManager>();
         let system_config = config_manager.load();
         let backend_config = BackendConfig::from_system_config(&system_config);
         let port = backend_config.port;
 
-        match start_backend_with_config(app.clone(), backend, backend_config).await {
-            Ok(message) => println!("Remote follow released: {}", message),
-            Err(e) => return Err(format!("Failed to restart local backend: {e}")),
-        }
+        start_backend_with_config(app.clone(), backend, backend_config)
+            .await
+            .map_err(|e| format!("Failed to restart local backend: {e}"))?;
         spawn_backend_monitors(&app, port);
+        write_follow_deferred(&app, false)?;
     }
 
     let _ = app.emit(

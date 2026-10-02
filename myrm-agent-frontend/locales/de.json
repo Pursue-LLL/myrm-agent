@@ -1696,7 +1696,8 @@
     "enabled": "Ermöglicht",
     "remoteGateway": {
       "unreachable": "Der Remote-Server {host} ist nicht erreichbar. Überprüfen Sie die Serveradresse oder wechseln Sie zurück in den lokalen Modus.",
-      "switchToLocal": "Wechseln Sie in den lokalen Modus"
+      "switchToLocal": "Wechseln Sie in den lokalen Modus",
+      "switchFailed": "Wechsel nicht abgeschlossen. Bitte versuchen Sie es gleich erneut."
     },
     "configLoadError": {
       "title": "Konfiguration konnte nicht geladen werden",
@@ -12388,7 +12389,9 @@
     "recentEmpty": "Abgeschlossene Aufgaben erscheinen hier.",
     "agentFallback": "KI-Agent",
     "slotsBadge": "{used}/{max} belegt",
-    "slotsFull": "Alle parallelen Slots sind belegt. Beenden oder stoppen Sie zuerst eine laufende Aufgabe."
+    "slotsFull": "Alle parallelen Slots sind belegt. Beenden oder stoppen Sie zuerst eine laufende Aufgabe.",
+    "stop": "Stopp",
+    "stopping": "Wird gestoppt…"
   },
   "whatsNew": {
     "title": "Neuigkeiten in v{version}",
@@ -18069,7 +18072,9 @@
         "optRemote": "Remote-Server",
         "optCloud": "Cloud",
         "gateFailed": "Server nicht erreichbar — nicht gewechselt. Erneut klicken zum Erzwingen.",
+        "switchFailed": "Wechsel nicht abgeschlossen. Bitte versuchen Sie es gleich erneut.",
         "restoredLastGood": "Zur letzten funktionierenden Verbindung zurückgekehrt.",
+        "rollbackFailed": "Wiederherstellung der letzten funktionierenden Verbindung nicht abgeschlossen. Bitte versuchen Sie es gleich erneut.",
         "activeSessionsDialog": {
           "title": "Aktive Sitzungen erkannt",
           "description": "{count} Sitzungen werden lokal noch generiert. Der Wechsel wartet auf deren Abschluss und lädt die Seite dann neu; der Sitzungsverlauf bleibt erhalten.",

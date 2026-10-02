@@ -23,6 +23,7 @@ import { waitForChromeE2eBackendBinding, isChromeE2eTab } from '@/lib/local-back
 import { isLocalMode, isRemoteGatewayActive, setRemoteGatewayConfig, getRemoteGatewayConfig, isTauriRuntime } from '@/lib/deploy-mode';
 import { switchRemoteFollow } from '@/lib/remote-follow-switch';
 import { resolveLocalBackendSetupHint } from '@/lib/local-backend-dev';
+import { toast } from '@/lib/utils/toast';
 import { cn } from '@/lib/utils/classnameUtils';
 
 const DISMISS_STORAGE_KEY = 'myrm_local_backend_banner_dismissed';
@@ -60,16 +61,23 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
   const [hint, setHint] = useState<string | null>(null);
   const [isRemote, setIsRemote] = useState(false);
 
-  const handleSwitchToLocal = useCallback(() => {
-    setRemoteGatewayConfig(null);
-    // 切回本地：显式重启本地后端（remote_follow flag 复位）；
-    // 非 Tauri 或老构建时回退手动 reload（switchRemoteFollow 内部处理）。
+  const handleSwitchToLocal = useCallback(async () => {
+    // 编排成功才提交连接态：失败保持远程态并提示（可重试），
+    // 避免 config 与后端进程态不一致。
     if (isTauriRuntime()) {
-      void switchRemoteFollow(false);
+      try {
+        await switchRemoteFollow(false);
+      } catch {
+        toast.error(tRemote('switchFailed'));
+        return;
+      }
+      setRemoteGatewayConfig(null);
+      // 成功后由 `app:connections-changed` 事件统一驱动 reload。
     } else {
+      setRemoteGatewayConfig(null);
       window.location.reload();
     }
-  }, []);
+  }, [tRemote]);
 
   useEffect(() => {
     const remoteActive = isRemoteGatewayActive();

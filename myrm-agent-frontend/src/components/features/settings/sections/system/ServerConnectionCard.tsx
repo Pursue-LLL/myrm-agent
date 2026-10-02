@@ -72,7 +72,7 @@ const ServerConnectionCard = memo(() => {
   useConnectionsRollbackGuard({ onRestored: refresh });
 
   // 切断当前活跃连接前确认：后端有生成中会话时弹窗告知（切换等待其完成
-  // 并断开本地流）。查询失败（后端已停/不可达）时放行，避免锁死切换路径。
+  // 并刷新页面）。查询失败（后端已停/不可达）时放行，避免锁死切换路径。
   const guardActiveSessions = useCallback(async (proceed: () => void): Promise<void> => {
     try {
       const { activeSessions } = await getActiveSessions();
@@ -107,6 +107,8 @@ const ServerConnectionCard = memo(() => {
   // explicitly forces by repeating the same action (manual override).
   // Trusted switches (cloud profiles verified by OAuth/discovery) skip both
   // the probe and the pending record, but still refresh last-good.
+  // The Rust-side lifecycle orchestration runs BEFORE apply: on failure the
+  // UI state (config/roster) stays untouched and the switch can be retried.
   // Returns true when the switch was applied.
   const commitSwitch = useCallback(
     async (nextUrl: string | null, apply: () => void, trusted = false): Promise<boolean> => {
@@ -123,6 +125,12 @@ const ServerConnectionCard = memo(() => {
         }
       }
       failedUrlRef.current = null;
+      try {
+        await switchRemoteFollow(nextUrl !== null);
+      } catch {
+        toast.error(t('switchFailed'));
+        return false;
+      }
       const current = getRemoteGatewayConfig();
       setLastGood({ activeId: getActiveRemoteProfileId(), url: current?.url ?? null });
       if (!trusted) {
@@ -167,7 +175,6 @@ const ServerConnectionCard = memo(() => {
         setNameInput('');
         refresh();
         toast.success(t('connected'));
-        void switchRemoteFollow(true);
       }).then((applied) => {
         if (!applied) {
           setSwitchingKey(null);
@@ -195,7 +202,6 @@ const ServerConnectionCard = memo(() => {
             }
             refresh();
             toast.success(t('connected'));
-            void switchRemoteFollow(true);
           },
           profile.kind === 'cloud',
         ).then((applied) => {
@@ -224,14 +230,17 @@ const ServerConnectionCard = memo(() => {
       setTestState('idle');
       refresh();
       toast.success(t('disconnected'));
-      void switchRemoteFollow(false);
     });
   }, [t, refresh, commitSwitch]);
 
-  const handleCloudConnected = useCallback(() => {
+  const handleCloudConnected = useCallback(async () => {
     refresh();
     toast.success(t('connected'));
-    void switchRemoteFollow(true);
+    try {
+      await switchRemoteFollow(true);
+    } catch {
+      toast.error(t('switchFailed'));
+    }
   }, [t, refresh]);
 
   if (!isTauriRuntime()) {

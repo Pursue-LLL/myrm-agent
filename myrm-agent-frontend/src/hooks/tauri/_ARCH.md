@@ -15,7 +15,7 @@ Tauri 桌面端集成：runtime invoke、tray、全局快捷键桥接、应用�
 | `useUpdateHandoff.ts`       | 跨重启更新交接事务感知与原子判定（成功升级/未生效降级识别与防抖）                                                   |
 | `usePowerLock.ts`           | Agent 忙碌时阻止系统休眠                                                                                            |
 | `useDesktopWakeRecovery.ts` | 桌面端系统休眠/唤醒自动重连自愈 Hook（挂载于 AppLayout 根生命周期，开盖后毫秒级恢复会话状态与重连）                 |
-| `useConnectionsChangedReload.ts` | 连接态变更全局 reload Hook（监听 Rust 端 `app:connections-changed`，连接档案切换完成后统一驱动当前窗口 reload；session windows 同源挂载实现全窗口一致） |
+| `useConnectionsChangedReload.ts` | 连接态变更全局 reload Hook（监听 Rust 端 `app:connections-changed`，连接档案切换完成后统一驱动当前窗口 reload；session windows 同源挂载实现全窗口一致；事件回调延迟一拍——事件先于发起方 invoke resolve 入队，让发起方先完成 apply 再统一刷新） |
 
 ## 依赖
 
