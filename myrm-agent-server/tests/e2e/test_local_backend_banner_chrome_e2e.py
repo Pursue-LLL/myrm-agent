@@ -6,8 +6,10 @@
   （含 switchRemoteFollow / toast）在真实浏览器真实加载，模块级错误会导致
   页面白屏、React bridge 失败。
 - 后端 ready 时 banner 不显示（正常路径零回归）。
-- /settings 页正常渲染：ServerConnectionCard 模块（SystemSection）在非
-  Tauri 环境 return null 不崩溃。
+- /settings/system tab 正常渲染：ServerConnectionCard 模块链
+  （SystemCenterSection → SystemSection → ServerConnectionCard）在非
+  Tauri 环境 return null 不崩溃（/settings 默认 redirect 到 account
+  tab，不会加载该模块链）。
 
 Tauri 专属链路（switch_remote_follow Rust 编排、ServerConnectionCard 的
 Tauri UI、banner 的 Tauri 分支）在纯 Chrome 结构性不可达：
@@ -36,8 +38,18 @@ _BANNER_ABSENT_JS = """(async () => {
 })()"""
 
 _SETTINGS_RENDERED_JS = """(async () => {
-  const text = document.body.innerText || '';
-  return { rendered: text.trim().length > 100, length: text.trim().length };
+  // SystemSection 渲染 3 个 <section>（访问地址等）+ 子卡片；SettingsLayout
+  // 布局层零 section，阈值 3 即 SystemSection 主体渲染的硬证据（模块链
+  // SystemCenterSection → SystemSection → ServerConnectionCard 任一断裂则崩）。
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const count = document.querySelectorAll('section').length;
+    if (count >= 3) {
+      return { rendered: true, sections: count };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return { rendered: false, sections: document.querySelectorAll('section').length };
 })()"""
 
 
@@ -69,16 +81,19 @@ def test_local_backend_banner_regression_chrome_e2e() -> None:
         banner_absent = client.evaluate(page, _BANNER_ABSENT_JS)
         assert banner_absent is True, "banner must stay hidden while backend is ready"
 
-    warm_ui_route("/settings")
-    with open_mcp_page(f"{ui_url}/settings", timeout_ms=90_000) as (client, page):
+    # ServerConnectionCard 挂载链在 system tab（SettingsLayout: system →
+    # SystemCenterSection → SystemSection:693），/settings 默认 redirect 到
+    # account tab 不会加载该模块链。
+    warm_ui_route("/settings/system")
+    with open_mcp_page(f"{ui_url}/settings/system", timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
         wait_for_react_e2e_bridge(
             client,
             page,
             timeout_sec=_warm_ui_parallel_wait_sec(180.0),
-            page_url=f"{ui_url}/settings",
+            page_url=f"{ui_url}/settings/system",
         )
         settings_state = client.evaluate(page, _SETTINGS_RENDERED_JS)
         assert settings_state.get("rendered") is True, (
-            f"settings page must render with ServerConnectionCard module loaded: {settings_state}"
+            f"/settings/system must render SystemSection body (ServerConnectionCard module chain loaded): {settings_state}"
         )
