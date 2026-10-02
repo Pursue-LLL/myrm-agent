@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { redactErrorMessage, redactErrorPayload, redactErrorObject } from '../errorRedactor';
-import { toast } from '../toast';
+import { toast } from '@/lib/utils/toast';
 
 describe('errorRedactor', () => {
   it('redacts sk- tokens while preserving head and tail', () => {

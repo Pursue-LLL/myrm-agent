@@ -7,7 +7,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { User } from 'lucide-react';
 import { AgentIcon, LucideAgentIcon } from '@/components/agent/agent-icons';
-import { parseAvatarUrl } from '@/lib/utils/avatar-utils';
+import { parseAvatarUrl } from '@/lib/utils/avatarUtils';
 import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/agent/builtin-agent-i18n';
 import type { AgentListItem } from '@/services/agent';
 import { customAgentGradients } from './constants';

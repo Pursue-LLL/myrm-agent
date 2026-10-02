@@ -25,7 +25,7 @@
 - `features/cron/` — 定时任务智能体展示
 - `app/agents/page.tsx` — 智能体管理页
 - `layout/AgentSidebarContent.tsx` — 侧栏智能体列表
-- `lib/utils/avatar-utils.ts` — 头像 URL 解析（引用 `AGENT_ICON_REGISTRY`）
+- `lib/utils/avatarUtils.ts` — 头像 URL 解析（引用 `AGENT_ICON_REGISTRY`）
 
 ## 依赖
 

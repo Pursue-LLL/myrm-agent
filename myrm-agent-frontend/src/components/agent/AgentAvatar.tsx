@@ -2,7 +2,7 @@
  * [INPUT]
  * ./agent-icons::AgentIcon (POS: 内置智能体视觉标识系统)
  * ./agent-icons::LucideAgentIcon (POS: Lucide 图标渲染组件)
- * @/lib/utils/avatar-utils::parseAvatarUrl (POS: 智能体头像解析工具层)
+ * @/lib/utils/avatarUtils::parseAvatarUrl (POS: 智能体头像解析工具层)
  * @/lib/utils::cn (POS: Tailwind class 合并工具)
  *
  * [OUTPUT]
@@ -15,7 +15,7 @@
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { AgentIcon, LucideAgentIcon } from './agent-icons';
-import { parseAvatarUrl } from '@/lib/utils/avatar-utils';
+import { parseAvatarUrl } from '@/lib/utils/avatarUtils';
 
 interface AgentAvatarProps {
   url?: string | null;

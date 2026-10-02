@@ -21,6 +21,7 @@
 - `urlUtils.ts`：URL 协议安全性与外部跳转校验工具 — 提供 `isValidExternalUrl` 严格协议白名单校验（仅放行 `http:` 与 `https:`），阻断 `javascript:`、`data:` 与桌面本地伪协议，防御工件与应用外链 XSS 及客户端沙箱逃逸。
 - `imageAdmission.ts`：端侧图片准入与轻量速压防线 — `admitAndCompressImageFile` 与 `admitAndCompressFiles` 纯函数，入队/上传前执行尺寸（<=2048px）与体积（<=4MB）预检，基于 `OffscreenCanvas` / `createImageBitmap` 异步等比缩放与无损感知 WebP 压缩，杜绝超大原图（30MB+）阻塞网络带宽与网关 413 崩溃，保全动图（GIF）与矢量图（SVG）。
 - `chat-export/`：会话导出域子包 — `index.ts` 显式清单门面（对外唯一入口 `@/lib/utils/chat-export`，公开面受控）；`chatExport.ts` 多格式导出排版与文件构建纯函数（Markdown / JSON 结构化格式化、敏感凭据脱敏过滤、单条消息 CWE-312 保护、客户端自适应下载）；`batchExport.ts` 批量导出编排器（3 并发 + 重试、日期归档、DEFLATE zip、进度/取消回调）；`chatExportHtml.ts` 离线独立 HTML 渲染构建器（Rehype AST 安全 HTML、代码高亮、iframe 挂件、零原生 Emoji 自包含渲染，惰性动态加载）；`chatExportHtmlTemplates.ts` 深浅双主题样式模板库（主题 CSS 变量、Highlight.js 语法主题、打印态隔离、复制交互脚本、多语言统计标签，包内私有）。详见 [chat-export/_ARCH.md](chat-export/_ARCH.md)。
+- `error-handling/`：错误处理域子包 — 展示脱敏引擎（errorRedactor：API Key/Bearer/JWT/URI 密码/主目录/内网 IP 全覆盖）、客户端轻量脱敏清洗（clientRedact：CWE-312 防护）、技能错误映射（skillErrorMapper：技术错误→翻译键）与错误去重管理器（errorManager：30 秒窗口），barrel 门面 `@/lib/utils/error-handling`。详见 [error-handling/_ARCH.md](error-handling/_ARCH.md)。
 - `mcp-config/`：MCP 配置域子包 — transport/keepalive 语义归一化（Normalizer）、JSON 配置解析（Parser）与扫描 finding 文案（ScanFindingText），barrel 门面 `@/lib/utils/mcp-config`。详见 [mcp-config/_ARCH.md](mcp-config/_ARCH.md)。
 - `agent-config/`：Agent 配置域子包 — Agent → AgentConfig 映射构建（Mapper）与依赖缺失校验（Validator），barrel 门面 `@/lib/utils/agent-config`。详见 [agent-config/_ARCH.md](agent-config/_ARCH.md)。
 - `device/`：设备检测域子包 — 环境侧移动端判定（deviceDetection）与特征查询级设备判定（deviceUtils），零外部依赖，barrel 门面 `@/lib/utils/device`。详见 [device/_ARCH.md](device/_ARCH.md)。
@@ -29,7 +30,7 @@
 - `apiConfig.ts`：后端服务基础 URL 访问 — `getBackendUrl` 统一后端基础地址出口（不含 API 路径前缀）。
 - `backend-url.ts`：后端服务基础地址层 — `BACKEND_BASE_URL` 动态解析常量与 `createDynamicUrl` 动态 URL 构建器（懒解析 toString/valueOf 伪装 string），独立于 API 请求层供 URL 类工具与 API 层共同消费。
 - `authHeaders.ts`：认证请求头构建 — 认证 token 读取（localStorage `auth_token`）与 `getAuthHeaders` 请求头组装，SSR 安全（window 未定义返回空）。
-- `avatar-utils.ts`：智能体头像解析工具层 — `parseAvatarUrl` 统一解析 avatar URL（icon:/lucide:/emoji:/home:///http(s):///gradient: 六格式）与 `isIconAvatar` 快捷判断、`ParsedAvatar` 结果类型。
+- `avatarUtils.ts`：智能体头像解析工具层 — `parseAvatarUrl` 统一解析 avatar URL（icon:/lucide:/emoji:/home:///http(s):///gradient: 六格式）与 `isIconAvatar` 快捷判断、`ParsedAvatar` 结果类型。
 - `classnameUtils.ts`：类名合并 — `cn` 组合 clsx 条件拼接与 tailwind-merge 冲突消解。
 - `clipboardUtils.ts`：Tauri/Web 双环境剪贴板封装 — `isTauri` 运行环境检测与 `writeToClipboard` 双路径写入（Tauri 插件 / Web API）。
 - `completionSound.ts`：完成提示音 — Web Audio API 双音符柔和提示（G4→C5 纯四度），零外部音频文件依赖，仅在用户非注视页面时播放。
@@ -37,7 +38,6 @@
 - `cronEstimate.ts`：定时表达式估算 — cron/interval/once 三类调度月执行次数估算。
 - `diagnostic-export.ts`：诊断导出 — `formatDoctorReportAsMarkdown` GitHub Issue 友好格式化、`buildDiagnosticBundle` 诊断 JSON 组装（含客户端上下文）、复制与下载触发。
 - `domUtils.ts`：DOM 滚动检测 — `isNearBottom` 滚动接近底部判定（阈值可调）。
-- `errorManager.ts`：错误去重管理器 — 30 秒窗口内相同错误去重展示（errorCache Map 时间戳记录）。
 - `hardwareSimulator.ts`：硬件阶梯估算 — HardwareRungInfo 阶梯信息与 64k 上下文 KV Cache 内存估算。
 - `messageUtils.ts`：消息处理工具 — 时间戳标签剥离、ui_action JSON 块剥离、用户消息展示清理、explicit skill wire（`[use s1,s2]`）解析与构建、skill chip 展示名、markdown 纯化、浏览器时区获取。
 - `modelFormatUtils.ts`：数值紧凑格式化 — token 数量 K/M 紧凑展示。
@@ -45,7 +45,6 @@
 - `reactCodeProcessor.ts`：React 代码检测 — `isValidReactCode` 有效性判定（React import/JSX/export 三要素）与工件预览依赖处理。
 - `reactUtils.ts`：React children 工具 — `getChildrenAsText` children prop 纯文本转换。
 - `requestManager.ts`：全局请求管理 — 流式 AI 搜索请求注册、跟踪与取消（AbortController 集合管理）。
-- `skillErrorMapper.ts`：技能错误映射 — 后端技术性错误关键词到用户友好翻译键的正则映射。
 - `stageTaskCount.ts`：阶段任务计数推导 — subagent 树节点推导 Scope/Fan-out/Verify/Synthesize 细粒度阶段进度（done/total 比率）与上游阻塞指示。
 - `teammateMessage.ts`：teammate 消息归一 — `normalizeTeammateEntry` 消息行（message_id/from/to/body/created_at）到 `TeammateMessageEntry` 归一。
 - `toast.ts`：Toast 统一包装 — 兼容 shadcn/ui 与 Sonner 双 API 形态，错误信息经 `errorRedactor` 脱敏后展示。

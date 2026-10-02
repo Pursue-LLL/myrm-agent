@@ -24,7 +24,7 @@ import { useCallback, useState } from 'react';
 import { AiNetworkIcon, ArrowDown01Icon, BotIcon } from 'hugeicons-react';
 import { Check, SlidersHorizontal, Settings } from 'lucide-react';
 import { AgentIcon } from '@/components/agent/agent-icons';
-import { parseAvatarUrl } from '@/lib/utils/avatar-utils';
+import { parseAvatarUrl } from '@/lib/utils/avatarUtils';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';

@@ -7,9 +7,9 @@ vi.mock('@/components/agent/agent-icons', () => ({
   },
 }));
 
-import { parseAvatarUrl, isIconAvatar } from '../avatar-utils';
+import { parseAvatarUrl, isIconAvatar } from '../avatarUtils';
 
-describe('avatar-utils', () => {
+describe('avatarUtils', () => {
   describe('parseAvatarUrl', () => {
     it('returns null for null/undefined/empty input', () => {
       expect(parseAvatarUrl(null)).toBeNull();
