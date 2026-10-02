@@ -2,8 +2,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { toastErrorSpy } = vi.hoisted(() => ({ toastErrorSpy: vi.fn() }));
 const getPendingEditsMock = vi.fn();
 const approveEditMock = vi.fn();
+const rejectEditMock = vi.fn();
 
 const stableT = (key: string, values?: Record<string, string>) => (values?.scope ? `${key}:${values.scope}` : key);
 
@@ -14,7 +16,7 @@ vi.mock('next-intl', () => ({
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
-    error: vi.fn(),
+    error: toastErrorSpy,
     warning: vi.fn(),
     info: vi.fn(),
     promise: vi.fn(),
@@ -44,16 +46,18 @@ vi.mock('@/services/wikiService', () => ({
   wikiService: {
     getPendingEdits: (...args: unknown[]) => getPendingEditsMock(...args),
     approveEdit: (...args: unknown[]) => approveEditMock(...args),
-    rejectEdit: vi.fn(),
+    rejectEdit: (...args: unknown[]) => rejectEditMock(...args),
   },
 }));
 
 import { WikiPendingEdits } from '../WikiPendingEdits';
+import { ApiError } from '@/lib/api';
 
 describe('WikiPendingEdits agent scope reload', () => {
   beforeEach(() => {
     getPendingEditsMock.mockReset();
     approveEditMock.mockReset();
+    rejectEditMock.mockReset();
     getPendingEditsMock.mockResolvedValue({
       stats: { pending: 1 },
       pending_edits: [
@@ -246,5 +250,113 @@ describe('WikiPendingEdits agent scope reload', () => {
     });
     expect(getPendingEditsMock).toHaveBeenNthCalledWith(3, 'agent-a');
     expect(screen.queryByText('Shifted-Page Draft')).toBeNull();
+  });
+
+  it('replaces the first page in place when stats change at offset 0', async () => {
+    let calls = 0;
+    const draft = (id: number, conceptName: string) => ({
+      id,
+      concept_name: conceptName,
+      proposed_content: 'draft',
+      status: 'pending',
+      created_at: '2026-07-29T00:00:00.000Z',
+      updated_at: '2026-07-29T00:00:00.000Z',
+    });
+    getPendingEditsMock.mockImplementation(() => {
+      calls += 1;
+      if (calls === 1) {
+        return Promise.resolve({ stats: { pending: 2, approved: 0 }, pending_edits: [draft(1, 'Pre-Approval Draft')] });
+      }
+      return Promise.resolve({
+        stats: { pending: 1, approved: 1, synthesis_pending: 2 },
+        pending_edits: [draft(2, 'Post-Approval Draft')],
+      });
+    });
+
+    render(<WikiPendingEdits agentScopeId="agent-a" scopeLabel="Agent A" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Pre-Approval Draft')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText('pendingEdits.approve'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Post-Approval Draft')).toBeTruthy();
+    });
+    expect(screen.queryByText('Pre-Approval Draft')).toBeNull();
+    // Synthesis queue growth surfaces on its own badge next to the pending badge.
+    expect(screen.getByText('2 pendingEdits.status.synthesisPending')).toBeTruthy();
+    // offset-0 refresh never detours through the restart-from-page-1 branch.
+    expect(calls).toBe(2);
+  });
+
+  it('refreshes the first page after a UI reject action', async () => {
+    const calls: number[] = [];
+    const draft = (id: number, conceptName: string) => ({
+      id,
+      concept_name: conceptName,
+      proposed_content: 'draft',
+      status: 'pending',
+      created_at: '2026-07-29T00:00:00.000Z',
+      updated_at: '2026-07-29T00:00:00.000Z',
+    });
+    getPendingEditsMock.mockImplementation(() => {
+      calls.push(1);
+      if (calls.length === 1) {
+        return Promise.resolve({ stats: { pending: 1 }, pending_edits: [draft(1, 'Pre-Reject Draft')] });
+      }
+      return Promise.resolve({ stats: { pending: 0 }, pending_edits: [] });
+    });
+    rejectEditMock.mockResolvedValue({ success: true, message: 'ok' });
+
+    render(<WikiPendingEdits agentScopeId="agent-a" scopeLabel="Agent A" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Pre-Reject Draft')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText('pendingEdits.reject'));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Pre-Reject Draft')).toBeNull();
+    });
+    expect(rejectEditMock).toHaveBeenCalledWith(1, 'agent-a');
+    expect(calls.length).toBe(2);
+  });
+
+  it('shows a stale toast and skips refresh when approve hits stale_pending', async () => {
+    getPendingEditsMock.mockImplementation(() =>
+      Promise.resolve({
+        stats: { pending: 1 },
+        pending_edits: [
+          {
+            id: 1,
+            concept_name: 'Stale Target Draft',
+            proposed_content: 'draft',
+            status: 'pending',
+            created_at: '2026-07-29T00:00:00.000Z',
+            updated_at: '2026-07-29T00:00:00.000Z',
+          },
+        ],
+      })
+    );
+    const staleError = new ApiError();
+    (staleError as { businessCode?: string }).businessCode = 'stale_pending';
+    approveEditMock.mockRejectedValue(staleError);
+
+    render(<WikiPendingEdits agentScopeId="agent-a" scopeLabel="Agent A" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Stale Target Draft')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText('pendingEdits.approve'));
+
+    await waitFor(() => {
+      expect(toastErrorSpy).toHaveBeenCalledWith('errors.approveStaleSources');
+    });
+    // Stale approval must not trigger an offset-0 refresh.
+    expect(getPendingEditsMock).toHaveBeenCalledTimes(1);
   });
 });

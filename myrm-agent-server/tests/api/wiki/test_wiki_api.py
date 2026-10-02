@@ -384,6 +384,15 @@ async def test_wiki_pending_pagination_reaches_every_draft(client: TestClient) -
 
             rejected = client.get("/api/v1/wiki/pending?limit=201")
             assert rejected.status_code == 422, "limit must stay bounded"
+            zero_limit = client.get("/api/v1/wiki/pending?limit=0")
+            assert zero_limit.status_code == 422, "limit must be at least 1"
+            negative_offset = client.get("/api/v1/wiki/pending?limit=50&offset=-1")
+            assert negative_offset.status_code == 422, "offset must be non-negative"
+            # Beyond-total offsets stay a valid 200 contract: empty page, exact stats.
+            over_offset = client.get("/api/v1/wiki/pending?limit=50&offset=10000")
+            assert over_offset.status_code == 200
+            assert over_offset.json()["pending_edits"] == []
+            assert over_offset.json()["stats"]["pending"] == 54
     finally:
         reset_wiki_archiver_cache_for_tests()
 
