@@ -15,38 +15,48 @@ describe('SpeechVisualSession', () => {
   it('returns a valid window after begin + end', () => {
     session.beginSpeech(5000);
     const window = session.endSpeech(8000);
-
-    expect(window).not.toBeNull();
-    expect(window!.speechStartAt).toBe(5000);
-    expect(window!.speechEndAt).toBe(8000);
-    expect(window!.frameWindowStartAt).toBeLessThan(window!.speechStartAt);
-    expect(window!.frameWindowEndAt).toBeGreaterThan(window!.speechEndAt);
+    if (window === null) {
+      throw new Error('endSpeech should return a window');
+    }
+    expect(window.speechStartAt).toBe(5000);
+    expect(window.speechEndAt).toBe(8000);
+    expect(window.frameWindowStartAt).toBeLessThan(window.speechStartAt);
+    expect(window.frameWindowEndAt).toBeGreaterThan(window.speechEndAt);
   });
 
   it('uses preRoll and postRoll correctly', () => {
     session.beginSpeech(10000);
     const window = session.endSpeech(15000, 1000, 500);
+    if (window === null) {
+      throw new Error('endSpeech should return a window');
+    }
 
-    expect(window!.frameWindowStartAt).toBe(10000 - 1000);
-    expect(window!.frameWindowEndAt).toBe(15000 + 500);
-    expect(window!.preRollMs).toBe(1000);
-    expect(window!.postRollMs).toBe(500);
+    expect(window.frameWindowStartAt).toBe(10000 - 1000);
+    expect(window.frameWindowEndAt).toBe(15000 + 500);
+    expect(window.preRollMs).toBe(1000);
+    expect(window.postRollMs).toBe(500);
   });
 
   it('uses default preRoll/postRoll (500/300)', () => {
     session.beginSpeech(10000);
     const window = session.endSpeech(15000);
+    if (window === null) {
+      throw new Error('endSpeech should return a window');
+    }
 
-    expect(window!.frameWindowStartAt).toBe(10000 - 500);
-    expect(window!.frameWindowEndAt).toBe(15000 + 300);
+    expect(window.frameWindowStartAt).toBe(10000 - 500);
+    expect(window.frameWindowEndAt).toBe(15000 + 300);
   });
 
   it('does not update startAt on repeated beginSpeech calls', () => {
     session.beginSpeech(5000);
     session.beginSpeech(6000);
     const window = session.endSpeech(8000);
+    if (window === null) {
+      throw new Error('endSpeech should return a window');
+    }
 
-    expect(window!.speechStartAt).toBe(5000);
+    expect(window.speechStartAt).toBe(5000);
   });
 
   it('reset clears state so endSpeech returns null', () => {
@@ -60,18 +70,27 @@ describe('SpeechVisualSession', () => {
     session.reset();
     session.beginSpeech(5000);
     const window = session.endSpeech(7000);
+    if (window === null) {
+      throw new Error('endSpeech should return a window');
+    }
 
-    expect(window!.speechStartAt).toBe(5000);
-    expect(window!.speechEndAt).toBe(7000);
+    expect(window.speechStartAt).toBe(5000);
+    expect(window.speechEndAt).toBe(7000);
   });
 
   it('allows multiple endSpeech calls after one beginSpeech', () => {
     session.beginSpeech(1000);
     const w1 = session.endSpeech(2000);
+    if (w1 === null) {
+      throw new Error('endSpeech should return a window');
+    }
     const w2 = session.endSpeech(3000);
-    expect(w1!.speechEndAt).toBe(2000);
-    expect(w2!.speechEndAt).toBe(3000);
-    expect(w2!.speechStartAt).toBe(1000);
+    if (w2 === null) {
+      throw new Error('endSpeech should return a window');
+    }
+    expect(w1.speechEndAt).toBe(2000);
+    expect(w2.speechEndAt).toBe(3000);
+    expect(w2.speechStartAt).toBe(1000);
   });
 
   it('uses Date.now() as default for beginSpeech', () => {
@@ -79,7 +98,10 @@ describe('SpeechVisualSession', () => {
     session.beginSpeech();
     const after = Date.now();
     const window = session.endSpeech(after + 1000);
-    expect(window!.speechStartAt).toBeGreaterThanOrEqual(before);
-    expect(window!.speechStartAt).toBeLessThanOrEqual(after);
+    if (window === null) {
+      throw new Error('endSpeech should return a window');
+    }
+    expect(window.speechStartAt).toBeGreaterThanOrEqual(before);
+    expect(window.speechStartAt).toBeLessThanOrEqual(after);
   });
 });

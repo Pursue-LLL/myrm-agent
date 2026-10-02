@@ -432,7 +432,7 @@ const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
     }
     for (const model of provider.enabledModels || []) {
       const info = customModelInfo[`${provider.id}/${model}`];
-      if (info?.input_cost_per_million != null) {
+      if (info?.input_cost_per_million !== null && info?.input_cost_per_million !== undefined) {
         candidates.push({ providerId: provider.id, model, cost: info.input_cost_per_million });
       }
     }
@@ -645,6 +645,9 @@ export const createMessageRequest = async (
 ): Promise<Response> => {
   const { fetchRawWebpage, mcpConfigs, systemInstructions, enableMemory } = useConfigStore.getState();
   const { chatId, abortController, actionMode, searchDepth, agentConfig, currentBuiltinTools } = state;
+  if (!chatId) {
+    throw new Error('chatId is required to create a message request');
+  }
 
   const isAgentMode = actionMode === 'agent';
   const isStreamingMode = actionMode === 'agent' || actionMode === 'fast';
@@ -726,7 +729,7 @@ export const createMessageRequest = async (
   const requestBody = {
     query,
     message_id: messageId,
-    chat_id: chatId!,
+    chat_id: chatId,
     action_mode: actionMode,
     multiplexed: shouldUseMultiplexedAgentStream(),
     client_surface: isTauriRuntime() ? 'tauri' : 'web',
@@ -876,11 +879,11 @@ export const createMessageRequest = async (
     ...(state.regenerateInstruction ? { regenerate_instruction: state.regenerateInstruction } : {}),
     ...(state.isGoalMode && {
       goal: {
-        ...(state.goalBudgetTokens != null && { max_tokens: state.goalBudgetTokens }),
-        ...(state.goalBudgetUsd != null && { max_usd: state.goalBudgetUsd }),
-        ...(state.goalMaxTimeSeconds != null && { max_time_seconds: state.goalMaxTimeSeconds }),
-        ...(state.goalMaxTurns != null && { max_turns: state.goalMaxTurns }),
-        ...(state.goalConvergenceWindow != null && { convergence_window: state.goalConvergenceWindow }),
+        ...(state.goalBudgetTokens !== null && { max_tokens: state.goalBudgetTokens }),
+        ...(state.goalBudgetUsd !== null && { max_usd: state.goalBudgetUsd }),
+        ...(state.goalMaxTimeSeconds !== null && { max_time_seconds: state.goalMaxTimeSeconds }),
+        ...(state.goalMaxTurns !== null && { max_turns: state.goalMaxTurns }),
+        ...(state.goalConvergenceWindow !== null && { convergence_window: state.goalConvergenceWindow }),
         ...(state.goalLoopOnPause && { loop_on_pause: true }),
         ...(state.goalCheckpointMode && { checkpoint_mode: 'per_todo' }),
         ...(state.goalAcceptanceCriteria &&
@@ -907,7 +910,7 @@ export const createMessageRequest = async (
       const fileReferences = references.filter((r) => r.type !== 'agent');
       const agentReferences = references.filter((r) => r.type === 'agent');
 
-      const payload: Record<string, any> = {};
+      const payload: Record<string, unknown> = {};
       if (fileReferences.length > 0) {
         payload.mention_references = fileReferences.map((reference) => ({
           type: reference.type,
@@ -921,7 +924,9 @@ export const createMessageRequest = async (
         }));
       }
       if (agentReferences.length > 0) {
-        payload.mentioned_agent_ids = agentReferences.map((r) => r.fileId).filter(Boolean);
+        payload.mentioned_agent_ids = agentReferences
+          .map((r) => r.fileId)
+          .filter((id): id is string => id !== undefined);
       }
       return payload;
     })(),
@@ -969,7 +974,7 @@ export const createMessageRequest = async (
  */
 
 import { produce } from 'immer';
-import useWorkspaceStore from '../useWorkspaceStore';
+import useWorkspaceStore, { type PaneConfig } from '../useWorkspaceStore';
 import { resolvePaneSnapshotBase } from '@/store/chat/chatNavigationSnapshotCache';
 
 export const createSmartUpdater = (
@@ -988,18 +993,18 @@ export const createSmartUpdater = (
       return;
     }
 
-    const activePane = workspaceState.panes.find((p: any) => p.id === workspaceState.activePaneId);
+    const activePane = workspaceState.panes.find((p: PaneConfig) => p.id === workspaceState.activePaneId);
 
     if (activePane && activePane.chatId === chatId) {
       originalSetMessages(updater);
       return;
     }
 
-    const pane = workspaceState.panes.find((p: any) => p.chatId === chatId);
+    const pane = workspaceState.panes.find((p: PaneConfig) => p.chatId === chatId);
     if (pane) {
       const currentSnapshot = resolvePaneSnapshotBase(chatId, pane.snapshot ?? null);
-      const nextSnapshot = produce(currentSnapshot, (draft: any) => {
-        updater(draft as ChatState);
+      const nextSnapshot = produce(currentSnapshot, (draft: ChatState) => {
+        updater(draft);
       });
       useWorkspaceStore.getState().savePaneSnapshot(pane.id, nextSnapshot);
       return;
@@ -1107,7 +1112,7 @@ export const sendMessage = async (
 
     // Save the abort controller to the workspace store for the current pane
     if (state.chatId) {
-      const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+      const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
       if (paneId) {
         useWorkspaceStore.getState().setPaneAbortController(paneId, abortController);
       }
@@ -1131,10 +1136,13 @@ export const sendMessage = async (
 
     if (!isRegenerate && !resumeValue) {
       smartActions.setMessages((innerState) => {
+        if (!innerState.chatId) {
+          return;
+        }
         innerState.messages.push({
           content: input,
           messageId: requestMessageId,
-          chatId: innerState.chatId!,
+          chatId: innerState.chatId,
           role: 'user',
           createdAt: new Date(),
           files: persistFiles,
@@ -1219,7 +1227,7 @@ export const sendMessage = async (
     });
 
     if (state.chatId) {
-      const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+      const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
       if (paneId) {
         useWorkspaceStore.getState().setPaneAbortController(paneId, null);
       }
@@ -1448,7 +1456,7 @@ export const attachToChat = async (
 
   const abortController = new AbortController();
 
-  const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
+  const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === chatId)?.id;
   if (paneId) {
     useWorkspaceStore.getState().setPaneAbortController(paneId, abortController);
   }

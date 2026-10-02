@@ -121,7 +121,10 @@ describe('builtin action execute functions', () => {
 
   describe('/new', () => {
     it('calls addPane and returns success', async () => {
-      const newAction = actions.find((a) => a.name === 'new')!;
+      const newAction = actions.find((a) => a.name === 'new');
+      if (newAction === undefined) {
+        throw new Error(`Action 'new' not found`);
+      }
       const result = await newAction.execute('');
       expect(addPaneMock).toHaveBeenCalledOnce();
       expect(result).toEqual({ success: true, newInputValue: '' });
@@ -130,7 +133,10 @@ describe('builtin action execute functions', () => {
 
   describe('/stop', () => {
     it('calls stopMessage and shows toast', async () => {
-      const stopAction = actions.find((a) => a.name === 'stop')!;
+      const stopAction = actions.find((a) => a.name === 'stop');
+      if (stopAction === undefined) {
+        throw new Error(`Action 'stop' not found`);
+      }
       const result = await stopAction.execute('');
       expect(stopMessageMock).toHaveBeenCalledOnce();
       expect(showI18nToastMock).toHaveBeenCalledWith('commands.builtin.stopped', undefined, { type: 'info' });
@@ -147,7 +153,10 @@ describe('builtin action execute functions', () => {
         stopMessage: stopMessageMock,
       }));
 
-      const stopAction = actions.find((a) => a.name === 'stop')!;
+      const stopAction = actions.find((a) => a.name === 'stop');
+      if (stopAction === undefined) {
+        throw new Error(`Action 'stop' not found`);
+      }
       const result = await stopAction.execute('');
       expect(result).toEqual({ success: false, error: 'No active chat' });
       expect(stopMessageMock).not.toHaveBeenCalled();
@@ -158,7 +167,10 @@ describe('builtin action execute functions', () => {
 
   describe('/model', () => {
     it('shows toast hint and returns success', async () => {
-      const modelAction = actions.find((a) => a.name === 'model')!;
+      const modelAction = actions.find((a) => a.name === 'model');
+      if (modelAction === undefined) {
+        throw new Error(`Action 'model' not found`);
+      }
       const result = await modelAction.execute('');
       expect(showI18nToastMock).toHaveBeenCalledWith('commands.builtin.modelHint', undefined, {
         type: 'info',
@@ -179,7 +191,10 @@ describe('builtin action execute functions', () => {
         sendMessage: sendMessageMock,
       }));
 
-      const learnAction = actions.find((a) => a.name === 'learn')!;
+      const learnAction = actions.find((a) => a.name === 'learn');
+      if (learnAction === undefined) {
+        throw new Error(`Action 'learn' not found`);
+      }
       const result = await learnAction.execute('/learn https://docs.example.com/api');
 
       expect(sendMessageMock).toHaveBeenCalledWith('/learn https://docs.example.com/api');
@@ -211,7 +226,10 @@ describe('builtin action execute functions', () => {
         }));
       });
 
-      const learnAction = actions.find((a) => a.name === 'learn')!;
+      const learnAction = actions.find((a) => a.name === 'learn');
+      if (learnAction === undefined) {
+        throw new Error(`Action 'learn' not found`);
+      }
       const result = await learnAction.execute('/learn foo');
 
       expect(initializeChatMock).toHaveBeenCalledWith(undefined);
@@ -227,44 +245,65 @@ describe('builtin action execute functions', () => {
 
   describe('/yolo', () => {
     it('toggles yolo mode with no args', async () => {
-      const yoloAction = actions.find((a) => a.name === 'yolo')!;
+      const yoloAction = actions.find((a) => a.name === 'yolo');
+      if (yoloAction === undefined) {
+        throw new Error(`Action 'yolo' not found`);
+      }
       const result = await yoloAction.execute('/yolo');
       expect(result.success).toBe(true);
       expect(showI18nToastMock).toHaveBeenCalled();
     });
 
     it('enables yolo with explicit on', async () => {
-      const yoloAction = actions.find((a) => a.name === 'yolo')!;
+      const yoloAction = actions.find((a) => a.name === 'yolo');
+      if (yoloAction === undefined) {
+        throw new Error(`Action 'yolo' not found`);
+      }
       const result = await yoloAction.execute('/yolo on');
       expect(result.success).toBe(true);
     });
 
     it('disables yolo with explicit off', async () => {
-      const yoloAction = actions.find((a) => a.name === 'yolo')!;
+      const yoloAction = actions.find((a) => a.name === 'yolo');
+      if (yoloAction === undefined) {
+        throw new Error(`Action 'yolo' not found`);
+      }
       const result = await yoloAction.execute('/yolo off');
       expect(result.success).toBe(true);
     });
 
     it('parses timeout in seconds', async () => {
-      const yoloAction = actions.find((a) => a.name === 'yolo')!;
+      const yoloAction = actions.find((a) => a.name === 'yolo');
+      if (yoloAction === undefined) {
+        throw new Error(`Action 'yolo' not found`);
+      }
       const result = await yoloAction.execute('/yolo 30');
       expect(result.success).toBe(true);
     });
 
     it('parses timeout in minutes', async () => {
-      const yoloAction = actions.find((a) => a.name === 'yolo')!;
+      const yoloAction = actions.find((a) => a.name === 'yolo');
+      if (yoloAction === undefined) {
+        throw new Error(`Action 'yolo' not found`);
+      }
       const result = await yoloAction.execute('/yolo 5m');
       expect(result.success).toBe(true);
     });
 
     it('parses timeout in hours', async () => {
-      const yoloAction = actions.find((a) => a.name === 'yolo')!;
+      const yoloAction = actions.find((a) => a.name === 'yolo');
+      if (yoloAction === undefined) {
+        throw new Error(`Action 'yolo' not found`);
+      }
       const result = await yoloAction.execute('/yolo 1h');
       expect(result.success).toBe(true);
     });
 
     it('falls back to toggle for invalid args', async () => {
-      const yoloAction = actions.find((a) => a.name === 'yolo')!;
+      const yoloAction = actions.find((a) => a.name === 'yolo');
+      if (yoloAction === undefined) {
+        throw new Error(`Action 'yolo' not found`);
+      }
       const result = await yoloAction.execute('/yolo invalidarg');
       expect(result.success).toBe(true);
     });
@@ -280,7 +319,10 @@ describe('builtin action execute functions', () => {
         stopMessage: stopMessageMock,
       }));
 
-      const compactAction = actions.find((a) => a.name === 'compact')!;
+      const compactAction = actions.find((a) => a.name === 'compact');
+      if (compactAction === undefined) {
+        throw new Error(`Action 'compact' not found`);
+      }
       const result = await compactAction.execute('/compact');
       expect(result).toEqual({ success: false, error: 'No active chat' });
 
@@ -290,21 +332,30 @@ describe('builtin action execute functions', () => {
 
   describe('/pet', () => {
     it('opens pet palette for bare /pet', async () => {
-      const petAction = actions.find((a) => a.name === 'pet')!;
+      const petAction = actions.find((a) => a.name === 'pet');
+      if (petAction === undefined) {
+        throw new Error(`Action 'pet' not found`);
+      }
       const result = await petAction.execute('/pet');
       expect(setPetPaletteOpenMock).toHaveBeenCalledWith(true);
       expect(result).toEqual({ success: true, newInputValue: '' });
     });
 
     it('opens pet palette for /pet list', async () => {
-      const petAction = actions.find((a) => a.name === 'pet')!;
+      const petAction = actions.find((a) => a.name === 'pet');
+      if (petAction === undefined) {
+        throw new Error(`Action 'pet' not found`);
+      }
       const result = await petAction.execute('/pet list');
       expect(setPetPaletteOpenMock).toHaveBeenCalledWith(true);
       expect(result).toEqual({ success: true, newInputValue: '' });
     });
 
     it('toggles sprite overlay', async () => {
-      const petAction = actions.find((a) => a.name === 'pet')!;
+      const petAction = actions.find((a) => a.name === 'pet');
+      if (petAction === undefined) {
+        throw new Error(`Action 'pet' not found`);
+      }
       const result = await petAction.execute('/pet toggle');
       expect(setSpriteEnabledMock).toHaveBeenCalledWith(true);
       expect(saveConfigToServerMock).toHaveBeenCalled();
@@ -319,7 +370,10 @@ describe('builtin action execute functions', () => {
         content_sha256: 'abc123',
       });
 
-      const petAction = actions.find((a) => a.name === 'pet')!;
+      const petAction = actions.find((a) => a.name === 'pet');
+      if (petAction === undefined) {
+        throw new Error(`Action 'pet' not found`);
+      }
       const result = await petAction.execute('/pet nous-girl');
       expect(installCompanionPet).toHaveBeenCalledWith('nous-girl');
       expect(setSpriteConfigMock).toHaveBeenCalledWith({
@@ -343,7 +397,10 @@ describe('builtin action execute functions', () => {
         stopMessage: stopMessageMock,
       }));
 
-      const focusAction = actions.find((a) => a.name === 'focus')!;
+      const focusAction = actions.find((a) => a.name === 'focus');
+      if (focusAction === undefined) {
+        throw new Error(`Action 'focus' not found`);
+      }
       const result = await focusAction.execute('');
       expect(result).toEqual({ success: false, error: 'No active chat' });
 
@@ -353,7 +410,10 @@ describe('builtin action execute functions', () => {
 
   describe('/loop', () => {
     it('delegates to executeLoopSlashCommand', async () => {
-      const loopAction = actions.find((a) => a.name === 'loop')!;
+      const loopAction = actions.find((a) => a.name === 'loop');
+      if (loopAction === undefined) {
+        throw new Error(`Action 'loop' not found`);
+      }
       const result = await loopAction.execute('/loop');
       expect(result).toHaveProperty('success');
     });
@@ -361,14 +421,20 @@ describe('builtin action execute functions', () => {
 
   describe('/memo', () => {
     it('sets formatted memo directive in chat store', async () => {
-      const memoAction = actions.find((a) => a.name === 'memo')!;
+      const memoAction = actions.find((a) => a.name === 'memo');
+      if (memoAction === undefined) {
+        throw new Error(`Action 'memo' not found`);
+      }
       const result = await memoAction.execute('/memo 讨论认证重构');
       expect(result).toEqual({ success: true, newInputValue: '/memo 讨论认证重构' });
       expect(setInputMessageMock).toHaveBeenCalledWith('/memo 讨论认证重构');
     });
 
     it('sets default memo directive when no args passed', async () => {
-      const memoAction = actions.find((a) => a.name === 'memo')!;
+      const memoAction = actions.find((a) => a.name === 'memo');
+      if (memoAction === undefined) {
+        throw new Error(`Action 'memo' not found`);
+      }
       const result = await memoAction.execute('/memo');
       expect(result.success).toBe(true);
       expect(setInputMessageMock).toHaveBeenCalledWith(
@@ -379,14 +445,20 @@ describe('builtin action execute functions', () => {
 
   describe('/review-week', () => {
     it('sets formatted review-week directive in chat store', async () => {
-      const reviewAction = actions.find((a) => a.name === 'review-week')!;
+      const reviewAction = actions.find((a) => a.name === 'review-week');
+      if (reviewAction === undefined) {
+        throw new Error(`Action 'review-week' not found`);
+      }
       const result = await reviewAction.execute('/review-week 7d backend');
       expect(result).toEqual({ success: true, newInputValue: '/review-week 7d backend' });
       expect(setInputMessageMock).toHaveBeenCalledWith('/review-week 7d backend');
     });
 
     it('sets default review-week directive when no args passed', async () => {
-      const reviewAction = actions.find((a) => a.name === 'review-week')!;
+      const reviewAction = actions.find((a) => a.name === 'review-week');
+      if (reviewAction === undefined) {
+        throw new Error(`Action 'review-week' not found`);
+      }
       const result = await reviewAction.execute('/review-week');
       expect(result.success).toBe(true);
       expect(setInputMessageMock).toHaveBeenCalledWith(

@@ -124,19 +124,22 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     autoReviewModel,
   };
 
+  // mount-only 载入缓存安全配置；setter 均为 useState 稳定引用，deps 恒不变保持一次性执行语义
+  const { setRules, setCapabilityMatrix } = capabilityRules;
+  const { setNetworkAllowlist, setNetworkBlocklist, setCommandDenylist, setDomainHitlEnabled } = networkCommand;
   useEffect(() => {
     const cached = syncManager.get('securityConfig') as SecurityConfigValue | null;
     if (cached) {
       const flattened = flattenPermissions(cached.permissions ?? DEFAULT_CONFIG.permissions);
-      capabilityRules.setRules(flattened);
-      capabilityRules.setCapabilityMatrix(deriveCapabilityMatrix(cached.capabilityMatrix, flattened));
+      setRules(flattened);
+      setCapabilityMatrix(deriveCapabilityMatrix(cached.capabilityMatrix, flattened));
       setTimeout(cached.approvalTimeoutSeconds);
       setTimeoutBehavior(cached.approvalTimeoutBehavior ?? 'deny');
       setAllowedRoots(cached.pathPolicy?.allowedRoots ?? []);
-      networkCommand.setNetworkAllowlist(cached.networkAllowlist ?? []);
-      networkCommand.setNetworkBlocklist(cached.networkBlocklist ?? []);
-      networkCommand.setCommandDenylist(cached.commandDenylist ?? []);
-      networkCommand.setDomainHitlEnabled(cached.domainHitlEnabled ?? false);
+      setNetworkAllowlist(cached.networkAllowlist ?? []);
+      setNetworkBlocklist(cached.networkBlocklist ?? []);
+      setCommandDenylist(cached.commandDenylist ?? []);
+      setDomainHitlEnabled(cached.domainHitlEnabled ?? false);
       setInjectionPolicy(cached.injectionPolicy ?? 'log_only');
       setPlanConfirmEnabled(cached.planConfirmEnabled ?? false);
       setYoloModeEnabled(cached.yoloModeEnabled ?? false);
@@ -146,7 +149,8 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         if (parts.length === 2) {
           setAutoReviewModel({ providerId: parts[0], model: parts[1] });
         } else {
-          const found = enabledModels.find((m) => m.model === cached.autoReviewModel);
+          const mountModels = useProviderStore.getState().getEnabledModels();
+          const found = mountModels.find((m) => m.model === cached.autoReviewModel);
           if (found) {
             setAutoReviewModel({ providerId: found.providerId, model: found.model });
           }
@@ -154,11 +158,12 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       }
     } else {
       const defaultRules = flattenPermissions(DEFAULT_CONFIG.permissions);
-      capabilityRules.setRules(defaultRules);
-      capabilityRules.setCapabilityMatrix(deriveCapabilityMatrix(undefined, defaultRules));
+      setRules(defaultRules);
+      setCapabilityMatrix(deriveCapabilityMatrix(undefined, defaultRules));
     }
     setLoaded(true);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only 快照载入，模型表取 mount 时刻值而非响应式订阅
+  }, [setRules, setCapabilityMatrix, setNetworkAllowlist, setNetworkBlocklist, setCommandDenylist, setDomainHitlEnabled]);
 
   useEffect(() => {
     const syncYoloFromConfig = () => {
@@ -288,16 +293,16 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         capabilityRules.setCapabilityMatrix(parsed.derivedMatrix);
       }
       setAllowedRoots(parsed.roots);
-      if (parsed.timeout !== undefined) setTimeout(parsed.timeout);
-      if (parsed.behavior) setTimeoutBehavior(parsed.behavior);
-      if (parsed.domains) networkCommand.setNetworkAllowlist(parsed.domains);
-      if (parsed.blockedDomains) networkCommand.setNetworkBlocklist(parsed.blockedDomains);
-      if (parsed.cmdDenylist) networkCommand.setCommandDenylist(parsed.cmdDenylist);
-      if (parsed.hitl !== undefined) networkCommand.setDomainHitlEnabled(parsed.hitl);
-      if (parsed.injection !== undefined) setInjectionPolicy(parsed.injection);
-      if (parsed.planConfirm !== undefined) setPlanConfirmEnabled(parsed.planConfirm);
-      if (parsed.yoloMode !== undefined) setYoloModeEnabled(parsed.yoloMode);
-      if (parsed.autoReview !== undefined) setAutoReviewEnabled(parsed.autoReview);
+      if (parsed.timeout !== undefined) {setTimeout(parsed.timeout);}
+      if (parsed.behavior) {setTimeoutBehavior(parsed.behavior);}
+      if (parsed.domains) {networkCommand.setNetworkAllowlist(parsed.domains);}
+      if (parsed.blockedDomains) {networkCommand.setNetworkBlocklist(parsed.blockedDomains);}
+      if (parsed.cmdDenylist) {networkCommand.setCommandDenylist(parsed.cmdDenylist);}
+      if (parsed.hitl !== undefined) {networkCommand.setDomainHitlEnabled(parsed.hitl);}
+      if (parsed.injection !== undefined) {setInjectionPolicy(parsed.injection);}
+      if (parsed.planConfirm !== undefined) {setPlanConfirmEnabled(parsed.planConfirm);}
+      if (parsed.yoloMode !== undefined) {setYoloModeEnabled(parsed.yoloMode);}
+      if (parsed.autoReview !== undefined) {setAutoReviewEnabled(parsed.autoReview);}
 
       save({
         rules: parsed.rules,
@@ -324,13 +329,13 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     (generated: Record<string, unknown>) => {
       const parsed = parseNLGeneratedConfig(generated);
 
-      if (parsed.rules) capabilityRules.setRules(parsed.rules);
-      if (parsed.roots) setAllowedRoots(parsed.roots);
-      if (parsed.domains) networkCommand.setNetworkAllowlist(parsed.domains);
-      if (parsed.blockedDomains) networkCommand.setNetworkBlocklist(parsed.blockedDomains);
-      if (parsed.cmdDenylist) networkCommand.setCommandDenylist(parsed.cmdDenylist);
-      if (parsed.hitl !== undefined) networkCommand.setDomainHitlEnabled(parsed.hitl);
-      if (parsed.planConfirm !== undefined) setPlanConfirmEnabled(parsed.planConfirm);
+      if (parsed.rules) {capabilityRules.setRules(parsed.rules);}
+      if (parsed.roots) {setAllowedRoots(parsed.roots);}
+      if (parsed.domains) {networkCommand.setNetworkAllowlist(parsed.domains);}
+      if (parsed.blockedDomains) {networkCommand.setNetworkBlocklist(parsed.blockedDomains);}
+      if (parsed.cmdDenylist) {networkCommand.setCommandDenylist(parsed.cmdDenylist);}
+      if (parsed.hitl !== undefined) {networkCommand.setDomainHitlEnabled(parsed.hitl);}
+      if (parsed.planConfirm !== undefined) {setPlanConfirmEnabled(parsed.planConfirm);}
 
       save({
         rules: parsed.rules,

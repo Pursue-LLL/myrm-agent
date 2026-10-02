@@ -543,6 +543,22 @@ const DefaultModelSection = memo(() => {
     );
   }
 
+  // 模型槽局部引用：JSX 条件守卫下闭包窄化稳定，替代各处非空断言
+  const basePrimary = defaultModelConfig.baseModel.primary;
+  const baseFallback = defaultModelConfig.baseModel.fallback;
+  const visionPrimary = defaultModelConfig.visionFallbackModel?.primary;
+  const visionFallback = defaultModelConfig.visionFallbackModel?.fallback;
+  const videoPrimary = defaultModelConfig.videoFallbackModel?.primary;
+  const videoFallback = defaultModelConfig.videoFallbackModel?.fallback;
+  const litePrimary = defaultModelConfig.liteModel.primary;
+  const liteFallback = defaultModelConfig.liteModel.fallback;
+  const routeLightPrimary = defaultModelConfig.routingConfig?.lightModel?.primary;
+  const routeReasoningPrimary = defaultModelConfig.routingConfig?.reasoningModel?.primary;
+  const codePrimary = defaultModelConfig.codeModel?.primary;
+  const longDocPrimary = defaultModelConfig.longDocModel?.primary;
+  const backgroundPrimary = defaultModelConfig.backgroundEvolutionModel?.primary;
+  const backgroundFallback = defaultModelConfig.backgroundEvolutionModel?.fallback;
+
   return (
     <div className="space-y-8">
       {/* 主模型配置 */}
@@ -562,20 +578,20 @@ const DefaultModelSection = memo(() => {
             <div className="flex-1">
               <EnabledModelSelect
                 label={t('selectModel')}
-                value={defaultModelConfig.baseModel.primary}
+                value={basePrimary}
                 onChange={handleBaseModelChange}
                 enabledModels={enabledModels}
                 providers={providers}
                 isModelRestricted={isModelRestricted}
               />
             </div>
-            {defaultModelConfig.baseModel.primary && (
+            {basePrimary && (
               <button
                 type="button"
                 onClick={() =>
                   openModelConfig(
-                    defaultModelConfig.baseModel.primary!.providerId,
-                    defaultModelConfig.baseModel.primary!.model,
+                    basePrimary.providerId,
+                    basePrimary.model,
                   )
                 }
                 className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -587,15 +603,15 @@ const DefaultModelSection = memo(() => {
           </div>
 
           {/* Local Model Warning */}
-          {defaultModelConfig.baseModel.primary &&
-            getProviderCategory(defaultModelConfig.baseModel.primary.providerId) === 'local' && (
+          {basePrimary &&
+            getProviderCategory(basePrimary.providerId) === 'local' && (
               <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-500">
                 <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <div className="text-xs font-medium leading-relaxed">{t('localModelWarning')}</div>
               </div>
             )}
 
-          {defaultModelConfig.baseModel.primary && !defaultModelConfig.baseModel.fallback && (
+          {basePrimary && !baseFallback && (
             <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500">
               <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
               <div className="text-xs font-medium leading-relaxed">{t('noFallbackWarning')}</div>
@@ -613,19 +629,19 @@ const DefaultModelSection = memo(() => {
               <div className="flex-1">
                 <EnabledModelSelect
                   label={t('selectFallbackModel')}
-                  value={defaultModelConfig.baseModel.fallback}
+                  value={baseFallback}
                   onChange={handleBaseModelFallbackChange}
                   enabledModels={enabledModels}
                   providers={providers}
                   isModelRestricted={isModelRestricted}
                 />
               </div>
-              {defaultModelConfig.baseModel.fallback && (
+              {baseFallback && (
                 <button
                   onClick={() =>
                     openModelConfig(
-                      defaultModelConfig.baseModel.fallback!.providerId,
-                      defaultModelConfig.baseModel.fallback!.model,
+                      baseFallback.providerId,
+                      baseFallback.model,
                     )
                   }
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -717,19 +733,19 @@ const DefaultModelSection = memo(() => {
               <div className="flex-1">
                 <EnabledModelSelect
                   label={t('selectModel')}
-                  value={defaultModelConfig.visionFallbackModel?.primary ?? null}
+                  value={visionPrimary ?? null}
                   onChange={handleVisionFallbackModelChange}
                   enabledModels={enabledModels}
                   providers={providers}
                   isModelRestricted={isModelRestricted}
                 />
               </div>
-              {defaultModelConfig.visionFallbackModel?.primary && (
+              {visionPrimary && (
                 <button
                   onClick={() =>
                     openModelConfig(
-                      defaultModelConfig.visionFallbackModel!.primary!.providerId,
-                      defaultModelConfig.visionFallbackModel!.primary!.model,
+                      visionPrimary.providerId,
+                      visionPrimary.model,
                     )
                   }
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -744,19 +760,19 @@ const DefaultModelSection = memo(() => {
               <div className="flex-1">
                 <EnabledModelSelect
                   label={t('selectVisionFallbackModel')}
-                  value={defaultModelConfig.visionFallbackModel?.fallback ?? null}
+                  value={visionFallback ?? null}
                   onChange={handleVisionFallbackModelFallbackChange}
                   enabledModels={enabledModels}
                   providers={providers}
                   isModelRestricted={isModelRestricted}
                 />
               </div>
-              {defaultModelConfig.visionFallbackModel?.fallback && (
+              {visionFallback && (
                 <button
                   onClick={() =>
                     openModelConfig(
-                      defaultModelConfig.visionFallbackModel!.fallback!.providerId,
-                      defaultModelConfig.visionFallbackModel!.fallback!.model,
+                      visionFallback.providerId,
+                      visionFallback.model,
                     )
                   }
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -830,20 +846,20 @@ const DefaultModelSection = memo(() => {
               <div className="flex-1">
                 <EnabledModelSelect
                   label={t('selectModel')}
-                  value={defaultModelConfig.videoFallbackModel?.primary ?? null}
+                  value={videoPrimary ?? null}
                   onChange={handleVideoFallbackModelChange}
                   enabledModels={enabledModels}
                   providers={providers}
                   isModelRestricted={isModelRestricted}
                 />
               </div>
-              {defaultModelConfig.videoFallbackModel?.primary && (
+              {videoPrimary && (
                 <button
                   type="button"
                   onClick={() =>
                     openModelConfig(
-                      defaultModelConfig.videoFallbackModel!.primary!.providerId,
-                      defaultModelConfig.videoFallbackModel!.primary!.model,
+                      videoPrimary.providerId,
+                      videoPrimary.model,
                     )
                   }
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -858,20 +874,20 @@ const DefaultModelSection = memo(() => {
               <div className="flex-1">
                 <EnabledModelSelect
                   label={t('selectVideoFallbackModel')}
-                  value={defaultModelConfig.videoFallbackModel?.fallback ?? null}
+                  value={videoFallback ?? null}
                   onChange={handleVideoFallbackModelFallbackChange}
                   enabledModels={enabledModels}
                   providers={providers}
                   isModelRestricted={isModelRestricted}
                 />
               </div>
-              {defaultModelConfig.videoFallbackModel?.fallback && (
+              {videoFallback && (
                 <button
                   type="button"
                   onClick={() =>
                     openModelConfig(
-                      defaultModelConfig.videoFallbackModel!.fallback!.providerId,
-                      defaultModelConfig.videoFallbackModel!.fallback!.model,
+                      videoFallback.providerId,
+                      videoFallback.model,
                     )
                   }
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -902,20 +918,20 @@ const DefaultModelSection = memo(() => {
             <div className="flex-1">
               <EnabledModelSelect
                 label={t('selectModel')}
-                value={defaultModelConfig.liteModel.primary}
+                value={litePrimary}
                 onChange={handleLiteModelChange}
                 enabledModels={enabledModels}
                 providers={providers}
                 isModelRestricted={isModelRestricted}
               />
             </div>
-            {defaultModelConfig.liteModel.primary && (
+            {litePrimary && (
               <button
                 type="button"
                 onClick={() =>
                   openModelConfig(
-                    defaultModelConfig.liteModel.primary!.providerId,
-                    defaultModelConfig.liteModel.primary!.model,
+                    litePrimary.providerId,
+                    litePrimary.model,
                   )
                 }
                 className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -928,8 +944,6 @@ const DefaultModelSection = memo(() => {
 
           {/* Context Window Mismatch Warning */}
           {(() => {
-            const basePrimary = defaultModelConfig.baseModel.primary;
-            const litePrimary = defaultModelConfig.liteModel.primary;
             if (!basePrimary || !litePrimary) {
               return null;
             }
@@ -946,7 +960,7 @@ const DefaultModelSection = memo(() => {
             );
           })()}
 
-          {defaultModelConfig.liteModel.primary && !defaultModelConfig.liteModel.fallback && (
+          {litePrimary && !liteFallback && (
             <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500">
               <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
               <div className="text-xs font-medium leading-relaxed">{t('liteNoFallbackWarning')}</div>
@@ -964,19 +978,19 @@ const DefaultModelSection = memo(() => {
               <div className="flex-1">
                 <EnabledModelSelect
                   label={t('selectFallbackModel')}
-                  value={defaultModelConfig.liteModel.fallback}
+                  value={liteFallback}
                   onChange={handleLiteModelFallbackChange}
                   enabledModels={enabledModels}
                   providers={providers}
                   isModelRestricted={isModelRestricted}
                 />
               </div>
-              {defaultModelConfig.liteModel.fallback && (
+              {liteFallback && (
                 <button
                   onClick={() =>
                     openModelConfig(
-                      defaultModelConfig.liteModel.fallback!.providerId,
-                      defaultModelConfig.liteModel.fallback!.model,
+                      liteFallback.providerId,
+                      liteFallback.model,
                     )
                   }
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -1014,13 +1028,13 @@ const DefaultModelSection = memo(() => {
                 isModelRestricted={isModelRestricted}
               />
             </div>
-            {defaultModelConfig.backgroundEvolutionModel?.primary && (
+            {backgroundPrimary && (
               <button
                 type="button"
                 onClick={() =>
                   openModelConfig(
-                    defaultModelConfig.backgroundEvolutionModel!.primary!.providerId,
-                    defaultModelConfig.backgroundEvolutionModel!.primary!.model,
+                    backgroundPrimary.providerId,
+                    backgroundPrimary.model,
                   )
                 }
                 className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -1053,13 +1067,13 @@ const DefaultModelSection = memo(() => {
                   isModelRestricted={isModelRestricted}
                 />
               </div>
-              {defaultModelConfig.backgroundEvolutionModel?.fallback && (
+              {backgroundFallback && (
                 <button
                   type="button"
                   onClick={() =>
                     openModelConfig(
-                      defaultModelConfig.backgroundEvolutionModel!.fallback!.providerId,
-                      defaultModelConfig.backgroundEvolutionModel!.fallback!.model,
+                      backgroundFallback.providerId,
+                      backgroundFallback.model,
                     )
                   }
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -1091,6 +1105,7 @@ const DefaultModelSection = memo(() => {
             <button
               type="button"
               role="switch"
+              aria-label={t('smartRouting.enable')}
               aria-checked={isRoutingEnabled}
               onClick={handleRoutingToggle}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -1120,19 +1135,19 @@ const DefaultModelSection = memo(() => {
                     <div className="flex-1">
                       <EnabledModelSelect
                         label={t('smartRouting.selectLightModel')}
-                        value={defaultModelConfig.routingConfig?.lightModel?.primary ?? null}
+                        value={routeLightPrimary ?? null}
                         onChange={handleRoutingLightModelChange}
                         enabledModels={enabledModels}
                         providers={providers}
                         isModelRestricted={isModelRestricted}
                       />
                     </div>
-                    {defaultModelConfig.routingConfig?.lightModel?.primary && (
+                    {routeLightPrimary && (
                       <button
                         onClick={() =>
                           openModelConfig(
-                            defaultModelConfig.routingConfig!.lightModel.primary!.providerId,
-                            defaultModelConfig.routingConfig!.lightModel.primary!.model,
+                            routeLightPrimary.providerId,
+                            routeLightPrimary.model,
                           )
                         }
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -1180,19 +1195,19 @@ const DefaultModelSection = memo(() => {
                     <div className="flex-1">
                       <EnabledModelSelect
                         label={t('smartRouting.selectReasoningModel')}
-                        value={defaultModelConfig.routingConfig?.reasoningModel?.primary ?? null}
+                        value={routeReasoningPrimary ?? null}
                         onChange={handleRoutingReasoningModelChange}
                         enabledModels={enabledModels}
                         providers={providers}
                         isModelRestricted={isModelRestricted}
                       />
                     </div>
-                    {defaultModelConfig.routingConfig?.reasoningModel?.primary && (
+                    {routeReasoningPrimary && (
                       <button
                         onClick={() =>
                           openModelConfig(
-                            defaultModelConfig.routingConfig!.reasoningModel.primary!.providerId,
-                            defaultModelConfig.routingConfig!.reasoningModel.primary!.model,
+                            routeReasoningPrimary.providerId,
+                            routeReasoningPrimary.model,
                           )
                         }
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -1231,6 +1246,7 @@ const DefaultModelSection = memo(() => {
                       <button
                         type="button"
                         role="switch"
+                        aria-label={t('smartRouting.autoMoaReasoning')}
                         aria-checked={Boolean(defaultModelConfig.routingConfig?.autoMoaReasoning)}
                         onClick={() => setAutoMoaReasoning(!defaultModelConfig.routingConfig?.autoMoaReasoning)}
                         className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
@@ -1262,19 +1278,19 @@ const DefaultModelSection = memo(() => {
                     <div className="flex-1">
                       <EnabledModelSelect
                         label={t('smartRouting.selectCodeModel')}
-                        value={defaultModelConfig.codeModel?.primary ?? null}
+                        value={codePrimary ?? null}
                         onChange={handleCodeModelChange}
                         enabledModels={enabledModels}
                         providers={providers}
                         isModelRestricted={isModelRestricted}
                       />
                     </div>
-                    {defaultModelConfig.codeModel?.primary && (
+                    {codePrimary && (
                       <button
                         onClick={() =>
                           openModelConfig(
-                            defaultModelConfig.codeModel!.primary!.providerId,
-                            defaultModelConfig.codeModel!.primary!.model,
+                            codePrimary.providerId,
+                            codePrimary.model,
                           )
                         }
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
@@ -1313,19 +1329,19 @@ const DefaultModelSection = memo(() => {
                     <div className="flex-1">
                       <EnabledModelSelect
                         label={t('smartRouting.selectLongDocModel')}
-                        value={defaultModelConfig.longDocModel?.primary ?? null}
+                        value={longDocPrimary ?? null}
                         onChange={handleLongDocModelChange}
                         enabledModels={enabledModels}
                         providers={providers}
                         isModelRestricted={isModelRestricted}
                       />
                     </div>
-                    {defaultModelConfig.longDocModel?.primary && (
+                    {longDocPrimary && (
                       <button
                         onClick={() =>
                           openModelConfig(
-                            defaultModelConfig.longDocModel!.primary!.providerId,
-                            defaultModelConfig.longDocModel!.primary!.model,
+                            longDocPrimary.providerId,
+                            longDocPrimary.model,
                           )
                         }
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
