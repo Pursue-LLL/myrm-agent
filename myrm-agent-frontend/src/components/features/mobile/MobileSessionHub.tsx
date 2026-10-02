@@ -216,7 +216,7 @@ export default function MobileSessionHub() {
                         type="button"
                         onClick={() => void openSession(session.chatId)}
                         disabled={openingChatId === session.chatId}
-                        aria-label={agentDisplayName(session.agentId, session.agentName, session.agentType)}
+                        aria-label={agentDisplayName(session.agentId, session.agentName, session.agentType, locale)}
                         className="group block w-full rounded-2xl border border-border/70 bg-card/80 p-4 text-left shadow-sm backdrop-blur transition-all hover:border-primary/40 hover:bg-accent/30 disabled:cursor-wait disabled:opacity-70"
                       >
                         <div className="flex items-center justify-between gap-3">
