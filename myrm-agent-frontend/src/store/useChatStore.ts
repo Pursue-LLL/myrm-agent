@@ -643,7 +643,7 @@ const useChatStore = create<ChatState>()(
           return;
         }
 
-        const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p: { id?: string; chatId?: string }) => p.chatId === chatId)?.id;
 
         if (paneId) {
           const abortController = useWorkspaceStore.getState().getPaneAbortController(paneId);
@@ -789,7 +789,7 @@ const useChatStore = create<ChatState>()(
       // 当前会话messageId管理
       getCurrentSessionMessageId: () => {
         const state = get();
-        const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p: { id?: string; chatId?: string }) => p.chatId === state.chatId)?.id;
 
         let currentId = paneId
           ? useWorkspaceStore.getState().getPaneCurrentSessionMessageId(paneId)
@@ -806,7 +806,7 @@ const useChatStore = create<ChatState>()(
       },
       allocateNewSessionMessageId: () => {
         const state = get();
-        const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p: { id?: string; chatId?: string }) => p.chatId === state.chatId)?.id;
         const newMessageId = generateStreamRequestMessageId();
         if (paneId) {
           useWorkspaceStore.getState().setPaneCurrentSessionMessageId(paneId, newMessageId);
@@ -816,7 +816,7 @@ const useChatStore = create<ChatState>()(
       },
       clearCurrentSessionMessageId: () => {
         const state = get();
-        const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p: { id?: string; chatId?: string }) => p.chatId === state.chatId)?.id;
         if (paneId) {
           useWorkspaceStore.getState().setPaneCurrentSessionMessageId(paneId, null);
         }
@@ -935,8 +935,9 @@ const useChatStore = create<ChatState>()(
 
           // 只要有chatId和消息就保存，不检查loading状态
           // 因为loading状态可能由于连续对话而一直为true
-          if (latestState.chatId && latestState.messages.length > 0) {
-            autoSaveChat(latestState.chatId!, latestState.messages, latestState.actionMode, latestState.incognitoMode)
+          const targetChatId = latestState.chatId;
+          if (targetChatId && latestState.messages.length > 0) {
+            autoSaveChat(targetChatId, latestState.messages, latestState.actionMode, latestState.incognitoMode)
               .catch((error) => {
                 console.error('autoSaveChat 执行失败:', error);
               })
