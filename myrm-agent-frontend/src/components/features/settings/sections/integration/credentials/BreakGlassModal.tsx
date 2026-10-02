@@ -89,7 +89,7 @@ export function BreakGlassModal({ isOpen, onClose, hostAlias }: BreakGlassModalP
   };
 
   const handleCopyToken = async () => {
-    if (!issuedResult?.token) return;
+    if (!issuedResult?.token) {return;}
     try {
       await navigator.clipboard.writeText(issuedResult.token);
       setCopied(true);

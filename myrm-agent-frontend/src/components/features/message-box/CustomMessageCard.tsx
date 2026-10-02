@@ -14,10 +14,10 @@ export interface CustomMessageCardProps {
 }
 
 const formatTimestamp = (raw?: string | number | Date): string | null => {
-  if (!raw) return null;
+  if (!raw) {return null;}
   try {
     const date = raw instanceof Date ? raw : new Date(raw);
-    if (Number.isNaN(date.getTime())) return null;
+    if (Number.isNaN(date.getTime())) {return null;}
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   } catch {
     return null;

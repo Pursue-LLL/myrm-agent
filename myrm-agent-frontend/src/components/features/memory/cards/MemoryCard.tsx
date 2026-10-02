@@ -118,7 +118,7 @@ const MemoryCard = memo<MemoryCardProps>(
           className,
         )}
         onClick={(e) => {
-          if (!onClick) return;
+          if (!onClick) {return;}
           const target = e.target as HTMLElement;
           if (target.closest('button, [role="button"], input, a, [data-prevent-card-click]')) {
             return;

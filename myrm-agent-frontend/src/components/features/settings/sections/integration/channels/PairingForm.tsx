@@ -38,7 +38,7 @@ export function PairingForm({
   const effectiveChannel = fixedChannel ?? channel;
 
   const handleSubmit = async () => {
-    if (!effectiveChannel || !senderId.trim()) return;
+    if (!effectiveChannel || !senderId.trim()) {return;}
     setSubmitting(true);
     try {
       const quotaNum = dailyQuota.trim() ? Math.max(1, parseInt(dailyQuota.trim(), 10)) : null;

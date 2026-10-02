@@ -127,6 +127,7 @@ describe('SpreadsheetSelectionToolbar', () => {
       range: 'Q3汇总!B2:D10',
       source: 'generated',
       size: sampleSnippet.length,
+      content: sampleSnippet,
     });
 
     expect(handleClose).toHaveBeenCalled();

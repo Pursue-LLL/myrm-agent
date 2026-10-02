@@ -197,7 +197,7 @@ function formatRoutingReason(reason: string, t: (key: string) => string): string
   }
   return reason
     .replace(/^(rule:|judge:)/, '')
-    .replace(/[_(\)]/g, ' ')
+    .replace(/[_()]/g, ' ')
     .trim();
 }
 

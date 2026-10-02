@@ -616,7 +616,7 @@ const Chat = ({
             <RewindDialog
               open={true}
               onOpenChange={(open) => {
-                if (!open) closeRewind();
+                if (!open) {closeRewind();}
               }}
               chatId={rewindTarget.chatId}
               messageId={rewindTarget.messageId}
@@ -681,7 +681,7 @@ const Chat = ({
           <RewindDialog
             open={true}
             onOpenChange={(open) => {
-              if (!open) closeRewind();
+              if (!open) {closeRewind();}
             }}
             chatId={rewindTarget.chatId}
             messageId={rewindTarget.messageId}

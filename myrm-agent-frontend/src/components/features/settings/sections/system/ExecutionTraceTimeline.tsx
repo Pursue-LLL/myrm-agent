@@ -88,7 +88,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
   const [isExportingPack, setIsExportingPack] = useState(false);
 
   const handleExportPack = useCallback(async () => {
-    if (!sessionId || isExportingPack) return;
+    if (!sessionId || isExportingPack) {return;}
     try {
       setIsExportingPack(true);
       await exportSessionZipPack(sessionId);

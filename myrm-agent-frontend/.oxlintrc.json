@@ -58,7 +58,7 @@
     "no-debugger": "warn",
     "no-unused-vars": "off",
     "no-undef": "error",
-    "eqeqeq": ["warn", "always"],
+    "eqeqeq": ["warn", "smart"],
     "curly": ["warn", "all"],
     "prefer-const": "warn",
     "no-var": "error"

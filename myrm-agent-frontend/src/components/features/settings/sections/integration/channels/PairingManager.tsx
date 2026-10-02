@@ -58,11 +58,11 @@ function channelLabel(name: string, t: (key: string) => string): string {
 }
 
 function channelSpecificText(prefix: string, channel: string, t: (key: string) => string): string {
-  if (!channel) return t(prefix);
+  if (!channel) {return t(prefix);}
   if (HINT_CHANNELS.includes(channel)) {
     const key = `${prefix}${channel.charAt(0).toUpperCase()}${channel.slice(1)}`;
     const translated = t(key);
-    if (translated !== key) return translated;
+    if (translated !== key) {return translated;}
   }
   return t(prefix);
 }
@@ -115,7 +115,7 @@ export function PairingManager({
   };
 
   const handleRoleChange = async (id: string, role: 'admin' | 'member') => {
-    if (!onUpdateRole) return;
+    if (!onUpdateRole) {return;}
     setUpdatingId(id);
     try {
       await onUpdateRole(id, role);
@@ -125,7 +125,7 @@ export function PairingManager({
   };
 
   const handleQuotaChange = async (id: string, quota: number | null) => {
-    if (!onUpdateDailyQuota) return;
+    if (!onUpdateDailyQuota) {return;}
     setUpdatingId(id);
     try {
       await onUpdateDailyQuota(id, quota);

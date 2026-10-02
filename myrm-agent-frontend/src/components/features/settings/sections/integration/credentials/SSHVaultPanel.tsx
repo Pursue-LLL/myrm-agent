@@ -92,7 +92,7 @@ export function SSHVaultPanel() {
     try {
       await updateHostPolicy(host.host_alias, { is_read_only: newReadOnly });
       setSummary((prev) => {
-        if (!prev) return prev;
+        if (!prev) {return prev;}
         return {
           ...prev,
           hosts: prev.hosts.map((h) => (h.host_alias === host.host_alias ? { ...h, is_read_only: newReadOnly } : h)),

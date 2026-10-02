@@ -40,7 +40,7 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onEx
   const canExtend = activeEnvelope.canExtend !== false && maxActions < (activeEnvelope.hardLimit ?? 100);
 
   const handleExtend = (steps = 10) => {
-    if (!canExtend || isExtending) return;
+    if (!canExtend || isExtending) {return;}
     setIsExtending(true);
     extendEnvelopeLease(steps);
     onExtend?.(steps);
@@ -48,7 +48,7 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onEx
   };
 
   const handlePause = async () => {
-    if (isPausing) return;
+    if (isPausing) {return;}
     setIsPausing(true);
     try {
       await apiRequest('/webui/desktop/envelope/pause', {
