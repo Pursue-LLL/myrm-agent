@@ -3,7 +3,7 @@ name: x-live-search
 description: >-
   Search X (Twitter) posts, profiles, and threads via xAI's x_search tool
   on the Responses API. Returns tweet content with inline citations. Requires an xAI provider in Settings.
-version: 1.0.0
+version: 1.1.0
 category: research
 oauth_issuer: xai
 tags:
