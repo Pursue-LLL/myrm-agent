@@ -341,7 +341,7 @@ describe('WikiPendingEdits agent scope reload', () => {
         ],
       })
     );
-    const staleError = new ApiError();
+    const staleError = new ApiError('stale pending edit');
     (staleError as { businessCode?: string }).businessCode = 'stale_pending';
     approveEditMock.mockRejectedValue(staleError);
 

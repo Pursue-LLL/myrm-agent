@@ -10267,7 +10267,11 @@
       "customReply": "Custom reply",
       "collapseCustom": "Collapse custom",
       "inputPlaceholder": "Enter instructions or notes...",
-      "send": "Send"
+      "send": "Send",
+      "fallbackPrefilled": "Prefilled into input box, please send",
+      "fallbackPrefilledBadge": "Prefilled",
+      "questionClarification": "Clarification",
+      "directReplyPlaceholder": "Enter answer or clarification..."
     }
   },
   "mode": {

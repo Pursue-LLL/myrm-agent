@@ -20,6 +20,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { AlertTriangle, Ban, Disc3, FileCode2, ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { toast } from '@/lib/utils/toast';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import useChatStore, { Message } from '@/store/useChatStore';
@@ -795,18 +796,35 @@ const MessageBox = ({
                     category={asyncMsg.category}
                     recommendation={asyncMsg.recommendation}
                     suggested_replies={asyncMsg.suggested_replies}
+                    status={asyncMsg.status}
+                    resolvedText={asyncMsg.resolvedText}
                     onSteerReply={async (reply, callId, questionContext) => {
                       const store = useChatStore.getState();
+                      const effectiveMessageId = (message as { id?: string }).id || message.messageId;
                       if (isLast && loading) {
-                        await store.steerMessage(reply, {
+                        const success = await store.steerMessage(reply, {
                           inReplyToCallId: callId,
                           questionContext,
                         });
+                        if (success) {
+                          store.resolveAsyncUserMessage(effectiveMessageId, callId, reply);
+                        }
                       } else {
-                        // 降级回填（Hermes #64578 机制）：流已结束，若已有草稿则换行追加防冲，否则直接回填
+                        // 降级回填：若生成流已结束，已有输入草稿则换行追加，否则直接填充输入框
                         const existing = store.inputMessage?.trim();
                         const nextMessage = existing ? `${store.inputMessage.trimEnd()}\n\n${reply}` : reply;
                         store.setInputMessage(nextMessage);
+                        store.resolveAsyncUserMessage(effectiveMessageId, callId, reply);
+
+                        // 视觉与交互引导：自动转移焦点至输入框并弹出引导 Toast
+                        requestAnimationFrame(() => {
+                          const textarea = document.querySelector<HTMLTextAreaElement>('textarea[data-chat-input]');
+                          if (textarea) {
+                            textarea.focus();
+                            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                          }
+                        });
+                        toast.info(t('asyncMessage.fallbackPrefilled'));
                       }
                     }}
                   />

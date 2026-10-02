@@ -36,6 +36,8 @@ export interface AsyncAgentMessageCardProps {
   recommendation?: string | null;
   suggestedReplies?: string[];
   suggested_replies?: string[];
+  status?: 'pending' | 'resolved';
+  resolvedText?: string | null;
   onSteerReply?: (reply: string, callId: string, questionContext?: string) => Promise<void> | void;
   className?: string;
 }
@@ -47,43 +49,54 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
   recommendation,
   suggestedReplies,
   suggested_replies,
+  status = 'pending',
+  resolvedText: propsResolvedText,
   onSteerReply,
   className,
 }) => {
   const t = useTranslations('chat.asyncMessage');
-  const [resolved, setResolved] = useState(false);
-  const [resolvedText, setResolvedText] = useState<string | null>(null);
+  const [internalResolved, setInternalResolved] = useState(false);
+  const [internalResolvedText, setInternalResolvedText] = useState<string | null>(null);
   const [customReply, setCustomReply] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showCustomInput, setShowCustomInput] = useState(false);
+  // 开放式澄清提问（无 recommendation）默认常驻展开输入框，消除死胡同
+  const isQuestionWithoutRecommendation = category === 'question' && !recommendation;
+  const [showCustomInput, setShowCustomInput] = useState(isQuestionWithoutRecommendation);
 
   const effectiveReplies = (suggestedReplies ?? suggested_replies)?.filter(
     (item): item is string => typeof item === 'string' && item.trim().length > 0,
   );
 
+  const isResolved = status === 'resolved' || internalResolved;
+  const currentResolvedText = propsResolvedText ?? internalResolvedText;
+
   const handleSelectSuggestedReply = async (reply: string) => {
-    if (!reply || isSubmitting) return;
+    if (!reply || isSubmitting) {
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (onSteerReply) {
         await onSteerReply(reply, callId, message);
       }
-      setResolved(true);
-      setResolvedText(reply);
+      setInternalResolved(true);
+      setInternalResolvedText(reply);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleAdoptRecommendation = async () => {
-    if (!recommendation || isSubmitting) return;
+    if (!recommendation || isSubmitting) {
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (onSteerReply) {
         await onSteerReply(recommendation, callId, message);
       }
-      setResolved(true);
-      setResolvedText(recommendation);
+      setInternalResolved(true);
+      setInternalResolvedText(recommendation);
     } finally {
       setIsSubmitting(false);
     }
@@ -92,37 +105,73 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
   const handleCustomSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = customReply.trim();
-    if (!text || isSubmitting) return;
+    if (!text || isSubmitting) {
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (onSteerReply) {
         await onSteerReply(text, callId, message);
       }
-      setResolved(true);
-      setResolvedText(text);
+      setInternalResolved(true);
+      setInternalResolvedText(text);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (resolved) {
+  const renderCustomReplySection = (withBorderTop = false) => (
+    <>
+      <div className={cn('flex items-center justify-between text-[11px]', withBorderTop && 'mt-2 pt-2 border-t border-border/40')}>
+        <button
+          type="button"
+          onClick={() => setShowCustomInput((prev) => !prev)}
+          className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        >
+          <span>{showCustomInput ? t('collapseCustom') : t('customReply')}</span>
+          {showCustomInput ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+      </div>
+
+      {showCustomInput && (
+        <form onSubmit={handleCustomSubmit} className="mt-2 flex gap-2">
+          <input
+            type="text"
+            value={customReply}
+            onChange={(e) => setCustomReply(e.target.value)}
+            placeholder={t('inputPlaceholder')}
+            className="flex-1 rounded-md border border-input bg-background px-2.5 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring"
+          />
+          <button
+            type="submit"
+            disabled={isSubmitting || !customReply.trim()}
+            className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            <CornerDownLeft className="h-3 w-3" />
+            <span>{t('send')}</span>
+          </button>
+        </form>
+      )}
+    </>
+  );
+
+  if (isResolved) {
     return (
-      <div
-        role="status"
+      <output
         aria-live="polite"
         data-call-id={callId}
         className={cn(
-          'my-2 flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs transition-all duration-200 dark:border-emerald-500/20 dark:bg-emerald-500/10',
+          'my-2 flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs transition-all duration-200 dark:border-emerald-500/20 dark:bg-emerald-500/10 block w-full',
           className,
         )}
       >
-        <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          <span className="font-medium">{t('confirmedDecision')}</span>
-          <span className="line-clamp-1 opacity-90">{resolvedText}</span>
+        <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 min-w-0">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          <span className="font-medium shrink-0">{t('confirmedDecision')}</span>
+          <span className="line-clamp-1 opacity-90 truncate">{currentResolvedText}</span>
         </div>
-        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('resolvedBadge')}</span>
-      </div>
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider shrink-0 ml-2">{t('resolvedBadge')}</span>
+      </output>
     );
   }
 
@@ -130,8 +179,7 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
   const isMilestone = category === 'milestone';
 
   return (
-    <div
-      role="region"
+    <section
       aria-label={`Agent ${category} update`}
       data-call-id={callId}
       className={cn(
@@ -194,36 +242,7 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
             </button>
           </div>
 
-          <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between text-[11px]">
-            <button
-              type="button"
-              onClick={() => setShowCustomInput((prev) => !prev)}
-              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              <span>{showCustomInput ? t('collapseCustom') : t('customReply')}</span>
-              {showCustomInput ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </button>
-          </div>
-
-          {showCustomInput && (
-            <form onSubmit={handleCustomSubmit} className="mt-2 flex gap-2">
-              <input
-                type="text"
-                value={customReply}
-                onChange={(e) => setCustomReply(e.target.value)}
-                placeholder={t('inputPlaceholder')}
-                className="flex-1 rounded-md border border-input bg-background px-2.5 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring"
-              />
-              <button
-                type="submit"
-                disabled={isSubmitting || !customReply.trim()}
-                className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 transition-colors cursor-pointer"
-              >
-                <CornerDownLeft className="h-3 w-3" />
-                <span>{t('send')}</span>
-              </button>
-            </form>
-          )}
+          {renderCustomReplySection(true)}
         </div>
       )}
 
@@ -245,38 +264,9 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
 
       {isQuestion && !recommendation && (
         <div className="mt-2.5 ml-7">
-          <div className="flex items-center justify-between text-[11px]">
-            <button
-              type="button"
-              onClick={() => setShowCustomInput((prev) => !prev)}
-              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              <span>{showCustomInput ? t('collapseCustom') : t('customReply')}</span>
-              {showCustomInput ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </button>
-          </div>
-
-          {showCustomInput && (
-            <form onSubmit={handleCustomSubmit} className="mt-2 flex gap-2">
-              <input
-                type="text"
-                value={customReply}
-                onChange={(e) => setCustomReply(e.target.value)}
-                placeholder={t('inputPlaceholder')}
-                className="flex-1 rounded-md border border-input bg-background px-2.5 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring"
-              />
-              <button
-                type="submit"
-                disabled={isSubmitting || !customReply.trim()}
-                className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 transition-colors cursor-pointer"
-              >
-                <CornerDownLeft className="h-3 w-3" />
-                <span>{t('send')}</span>
-              </button>
-            </form>
-          )}
+          {renderCustomReplySection(false)}
         </div>
       )}
-    </div>
+    </section>
   );
 };

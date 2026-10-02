@@ -769,6 +769,22 @@ const useChatStore = create<ChatState>()(
           return false;
         }
       },
+      resolveAsyncUserMessage: (messageId: string, callId: string, resolvedText: string) => {
+        set((state) => {
+          let target = state.messages.find((m) => m.messageId === messageId);
+          if (!target?.asyncUserMessages?.some((item) => item.callId === callId)) {
+            target = state.messages.find((m) => m.asyncUserMessages?.some((item) => item.callId === callId));
+          }
+          if (!target || !target.asyncUserMessages) {
+            return;
+          }
+          const entry = target.asyncUserMessages.find((item) => item.callId === callId);
+          if (entry) {
+            entry.status = 'resolved';
+            entry.resolvedText = resolvedText;
+          }
+        });
+      },
 
       // 当前会话messageId管理
       getCurrentSessionMessageId: () => {

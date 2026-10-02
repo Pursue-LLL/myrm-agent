@@ -103,7 +103,7 @@ describe('AsyncAgentMessageCard', () => {
     });
   });
 
-  it('handles custom reply on question without recommendation', async () => {
+  it('renders custom reply input expanded by default on question without recommendation and handles submission', async () => {
     const handleSteer = vi.fn().mockResolvedValue(undefined);
     render(
       <AsyncAgentMessageCard
@@ -114,8 +114,8 @@ describe('AsyncAgentMessageCard', () => {
       />,
     );
 
-    const toggleBtn = screen.getByText('自定义回复');
-    fireEvent.click(toggleBtn);
+    // 默认已常驻展开，展示收起按钮与输入框
+    expect(screen.getByText('收起自定义')).toBeDefined();
 
     const input = screen.getByPlaceholderText('输入指导或补充说明...');
     fireEvent.change(input, { target: { value: 'Deploy to staging first' } });
@@ -133,5 +133,21 @@ describe('AsyncAgentMessageCard', () => {
       expect(screen.getByText('已确认决策：')).toBeDefined();
       expect(screen.getByText('Deploy to staging first')).toBeDefined();
     });
+  });
+
+  it('renders resolved status immediately when status="resolved" and resolvedText are provided', () => {
+    render(
+      <AsyncAgentMessageCard
+        callId="async_msg_resolved_prop"
+        message="Should we enable canary mode?"
+        category="question"
+        status="resolved"
+        resolvedText="Canary mode confirmed"
+      />,
+    );
+
+    expect(screen.getByText('已确认决策：')).toBeDefined();
+    expect(screen.getByText('Canary mode confirmed')).toBeDefined();
+    expect(screen.getByText('已解决')).toBeDefined();
   });
 });

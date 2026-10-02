@@ -10267,7 +10267,11 @@
       "customReply": "自定义回复",
       "collapseCustom": "收起自定义",
       "inputPlaceholder": "输入指导或补充说明...",
-      "send": "发送"
+      "send": "发送",
+      "fallbackPrefilled": "已填入输入框，请发送",
+      "fallbackPrefilledBadge": "已填入输入框",
+      "questionClarification": "问题澄清",
+      "directReplyPlaceholder": "输入回答或澄清说明..."
     }
   },
   "mode": {

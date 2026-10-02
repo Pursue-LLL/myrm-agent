@@ -51,27 +51,23 @@ class ConsolidationService:
         if not session_id or not clean_reply:
             return
 
+        summary_val = (
+            f"{question_context.strip()[:30]} -> {clean_reply[:40]}"
+            if question_context and question_context.strip()
+            else clean_reply[:60]
+        )
+
         session_state = cls._active_sessions_state.setdefault(session_id, {})
         scratchpad = session_state.setdefault("scratchpad", {})
         if isinstance(scratchpad, dict):
             key = f"decision_{call_id[-6:]}" if call_id else f"decision_{int(time.time())}"
-            val = (
-                f"{question_context.strip()[:30]} -> {clean_reply[:40]}"
-                if question_context and question_context.strip()
-                else clean_reply[:60]
-            )
-            scratchpad[key] = val
+            scratchpad[key] = summary_val
 
         try:
             from myrm_agent_harness.api import LocalWorkingMemoryBlock
 
             memo_key = f"steer_{call_id[-6:]}" if call_id else "steer_decision"
-            memo_val = (
-                f"{question_context.strip()[:30]} -> {clean_reply[:40]}"
-                if question_context and question_context.strip()
-                else clean_reply[:60]
-            )
-            LocalWorkingMemoryBlock.set_scratchpad(memo_key, memo_val)
+            LocalWorkingMemoryBlock.set_scratchpad(memo_key, summary_val)
         except Exception:
             pass
 

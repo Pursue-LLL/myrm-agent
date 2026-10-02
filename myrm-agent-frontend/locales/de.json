@@ -3175,7 +3175,11 @@
       "customReply": "Benutzerdefinierte Antwort",
       "collapseCustom": "Eingabe einklappen",
       "inputPlaceholder": "Anweisungen oder Hinweise eingeben...",
-      "send": "Senden"
+      "send": "Senden",
+      "fallbackPrefilled": "In Eingabefeld eingefügt, bitte senden",
+      "fallbackPrefilledBadge": "Eingefügt",
+      "questionClarification": "Klarstellung",
+      "directReplyPlaceholder": "Antwort oder Klarstellung eingeben..."
     }
   },
   "mode": {

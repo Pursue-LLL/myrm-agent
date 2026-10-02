@@ -3175,7 +3175,11 @@
       "customReply": "自訂回覆",
       "collapseCustom": "收起自訂",
       "inputPlaceholder": "輸入指導或補充說明...",
-      "send": "發送"
+      "send": "發送",
+      "fallbackPrefilled": "已填入輸入框，請發送",
+      "fallbackPrefilledBadge": "已填入輸入框",
+      "questionClarification": "問題澄清",
+      "directReplyPlaceholder": "輸入回答或澄清說明..."
     }
   },
   "mode": {

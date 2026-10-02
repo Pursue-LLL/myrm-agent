@@ -3175,7 +3175,11 @@
       "customReply": "사용자 지정 답장",
       "collapseCustom": "사용자 지정 접기",
       "inputPlaceholder": "지침 또는 메모 입력...",
-      "send": "전송"
+      "send": "전송",
+      "fallbackPrefilled": "입력창에 채워졌습니다. 전송해 주세요",
+      "fallbackPrefilledBadge": "입력됨",
+      "questionClarification": "질문 명확화",
+      "directReplyPlaceholder": "답변 또는 설명 입력..."
     }
   },
   "mode": {

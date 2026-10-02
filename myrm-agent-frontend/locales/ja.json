@@ -3175,7 +3175,11 @@
       "customReply": "カスタム返信",
       "collapseCustom": "カスタム入力を閉じる",
       "inputPlaceholder": "指示や補足を入力...",
-      "send": "送信"
+      "send": "送信",
+      "fallbackPrefilled": "入力欄に入力されました。送信してください",
+      "fallbackPrefilledBadge": "入力済み",
+      "questionClarification": "明確化の質問",
+      "directReplyPlaceholder": "回答または補足を記入..."
     }
   },
   "mode": {

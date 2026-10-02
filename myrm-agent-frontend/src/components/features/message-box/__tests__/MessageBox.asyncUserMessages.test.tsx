@@ -8,6 +8,7 @@ import type { Message } from '@/store/chat/types';
 
 const mockSteerMessage = vi.fn().mockResolvedValue(true);
 const mockSetInputMessage = vi.fn();
+const mockResolveAsyncUserMessage = vi.fn();
 let mockCurrentInputMessage = '';
 
 const mockDict: Record<string, string> = {
@@ -31,6 +32,15 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'zh-CN',
 }));
 
+vi.mock('@/lib/utils/toast', () => ({
+  toast: {
+    info: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
 vi.mock('@/store/useChatStore', () => ({
   default: Object.assign(
     (selector: (state: Record<string, unknown>) => unknown) =>
@@ -52,6 +62,7 @@ vi.mock('@/store/useChatStore', () => ({
         inputMessage: mockCurrentInputMessage,
         sendMessage: vi.fn(),
         steerMessage: mockSteerMessage,
+        resolveAsyncUserMessage: mockResolveAsyncUserMessage,
         setInputMessage: (val: string) => {
           mockCurrentInputMessage = val;
           mockSetInputMessage(val);
