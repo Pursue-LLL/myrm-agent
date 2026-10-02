@@ -4,8 +4,9 @@ The pending-review panel fetches 50 drafts per page. Beyond page 1 it compares
 the response stats against a closure-stable mirror of the previously seen
 stats; any counter movement (a concurrent approve/reject/stage) restarts the
 list from page 1 so shifted offsets can never skip or duplicate drafts. This
-drives that flow with marker-tagged fixture drafts (real writer path) plus a
-real REST approval action — no mock on the critical path:
+drives that flow against the shared stack with marker-tagged fixture drafts
+(real writer path) plus a real REST approval action — no mock on the critical
+path:
 
   seed 105 drafts -> panel first batch (50) -> load-more to 100 ->
   external REST reject of the oldest seed draft (page-3, not rendered) ->
@@ -19,21 +20,28 @@ UI-only diff.
 
 from __future__ import annotations
 
+import json
+import re
 import time
+from collections.abc import Callable
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import (
+from tests.support.chrome_mcp_e2e import (  # noqa: E402
+    dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
-    navigate_mcp_page,
-    open_mcp_page,
-    reload_mcp_page,
+    open_wiki_settings_mcp_page,
+    prepare_e2e_ui_session,
     wait_for_state,
+    wait_for_wiki_settings_shell,
     warm_ui_route,
 )
 
+_MAX_ATTEMPTS = 2
+_PANEL_WAIT_SEC = 90.0
+_SHELL_WAIT_SEC = 45.0
 _PANEL_PATH = "/settings/wiki?wikiTab=pendingEdits"
 
 # Reads the pending list size, the stats badge number, and the load-more
@@ -57,6 +65,40 @@ _PANEL_STATE_JS = """(() => {{
   }};
 }})()"""
 
+_DISMISS_MIGRATION_JS = """(() => {
+  try {
+    sessionStorage.setItem('migration_discovery_dismissed', 'true');
+    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+  return { ok: true };
+})()"""
+
+_LOAD_MORE_CLICK_JS = """(() => {
+  const btn = document.querySelector('[data-testid="pending-load-more"]');
+  if (!btn) return false;
+  btn.click();
+  return true;
+})()"""
+
+_TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
+    "MUX",
+    "CDP",
+    "Runtime.evaluate",
+    "Page.navigate",
+    "connection reset",
+    "Page shell did not hydrate",
+    "transport dead",
+    "transport unavailable",
+    "recover_mux",
+    "chrome-error",
+    "lease not found",
+    "wave is not open",
+    "No target with given id",
+    "Session with given id not found",
+)
+
 
 def _panel_state_js(concept_prefix: str) -> str:
     """Bind the marker tails (newest seed draft + page-2 draft) to the probe."""
@@ -68,7 +110,10 @@ def _panel_state_js(concept_prefix: str) -> str:
 
 def _api_pending_stats(api_url: str) -> dict[str, int]:
     body = http_json("GET", f"{api_url}/api/v1/wiki/pending?limit=1")
-    return body["stats"]
+    assert isinstance(body, dict)
+    stats = body["stats"]
+    assert isinstance(stats, dict)
+    return stats
 
 
 def _wait_stats(api_url: str, expected_pending: int, *, timeout_sec: float = 15.0) -> dict[str, int]:
@@ -82,60 +127,73 @@ def _wait_stats(api_url: str, expected_pending: int, *, timeout_sec: float = 15.
     return last
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
-    workload="STANDARD",
-    private_reason="exclusive_backend",
-)
-@pytest.mark.integration
-def test_pending_panel_pagination_load_more_and_drift_self_heal() -> None:
-    api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
-    panel_url = f"{ui_url}{_PANEL_PATH}"
+def _is_transport_retryable(exc: BaseException) -> bool:
+    return any(marker in str(exc) for marker in _TRANSPORT_RETRY_MARKERS)
 
-    warm_ui_route("/settings/wiki")
 
+def _parse_probe_from_error(err: str) -> dict[str, object]:
+    match = re.search(r"\{.*\}", err, flags=re.DOTALL)
+    if not match:
+        return {}
+    try:
+        parsed = json.loads(match.group(0).replace("'", '"'))
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _force_mux_heal_before_retry() -> None:
+    from tests.support.chrome_mcp_e2e import _require_e2e_cdp_ready
+
+    _require_e2e_cdp_ready(budget_sec=20.0)
+
+
+def _run_panel_flow(api_url: str, ui_url: str) -> None:
     base_stats = _api_pending_stats(api_url)
     base_pending = int(base_stats["pending"])
     base_rejected = int(base_stats["rejected"])
+    panel_url = f"{ui_url.rstrip('/')}{_PANEL_PATH}"
 
-    seeded: dict[str, object] = {}
+    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-pending-drift-fixture")
+    assert isinstance(seeded, dict)
+    assert seeded["count"] == 105, seeded
+    concept_prefix = str(seeded["concept_prefix"])
+    edit_ids = list(seeded["edit_ids"])
+    assert len(edit_ids) == 105, seeded
+    probe = _panel_state_js(concept_prefix)
+
     try:
-        with open_mcp_page(panel_url) as (client, page):
-            navigate_mcp_page(client, page, panel_url, timeout_ms=90_000)
+        with open_wiki_settings_mcp_page(
+            panel_url,
+            timeout_ms=120_000,
+            request_timeout_sec=180.0,
+        ) as (client, page):
+            client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+            dismiss_blocking_modals(client, page, recover_url=panel_url)
 
-            seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-pending-drift-fixture")
-            assert seeded["count"] == 105
-            concept_prefix = str(seeded["concept_prefix"])
-            edit_ids = list(seeded["edit_ids"])
-            assert len(edit_ids) == 105
-            probe = _panel_state_js(concept_prefix)
+            wiki_shell = wait_for_wiki_settings_shell(
+                client,
+                page,
+                page_url=panel_url,
+                timeout_sec=_SHELL_WAIT_SEC,
+            )
+            assert wiki_shell.get("ready") is True, json.dumps(wiki_shell, indent=2, ensure_ascii=False)
 
             # First batch: 50 items, badge at base+105, load-more mounted.
-            reload_mcp_page(client, page, target_url=panel_url, timeout_ms=90_000, ignore_cache=True)
-            first = wait_for_state(client, page, probe, timeout_sec=90.0, page_url=_PANEL_PATH)
-            assert first["items"] == 50, f"first batch must be 50 items: {first}"
-            assert first["badgeNum"] == str(base_pending + 105), (
+            first = wait_for_state(client, page, probe, timeout_sec=_PANEL_WAIT_SEC)
+            assert first.get("items") == 50, json.dumps(first, indent=2, ensure_ascii=False)
+            assert first.get("badgeNum") == str(base_pending + 105), (
                 f"stats badge must show base+105: base={base_pending} state={first}"
             )
-            assert first["loadMore"] is True, first
+            assert first.get("loadMore") is True, first
 
             # Load-more: 100 items, control stays mounted (100 < base+105).
-            client.evaluate(
-                page,
-                """(() => {
-                  const btn = document.querySelector('[data-testid="pending-load-more"]');
-                  if (!btn) return false;
-                  btn.click();
-                  return true;
-                })()""",
-                timeout_sec=5.0,
-            )
-            second = wait_for_state(client, page, probe, timeout_sec=90.0, page_url=_PANEL_PATH)
-            assert second["items"] == 100, f"load-more must reach 100 items: {second}"
-            assert second["loadMore"] is True, second
-            assert second["marker104"], f"newest seed draft must stay visible: {second}"
+            clicked = client.evaluate(page, _LOAD_MORE_CLICK_JS, timeout_sec=5.0)
+            assert clicked is True, "load-more button not found before second batch"
+            second = wait_for_state(client, page, probe, timeout_sec=_PANEL_WAIT_SEC)
+            assert second.get("items") == 100, json.dumps(second, indent=2, ensure_ascii=False)
+            assert second.get("loadMore") is True, second
+            assert second.get("marker104"), f"newest seed draft must stay visible: {second}"
 
             # External approval action on a real REST endpoint: reject the
             # oldest seed draft (page-3 tail, not rendered) so the stats drift
@@ -143,7 +201,7 @@ def test_pending_panel_pagination_load_more_and_drift_self_heal() -> None:
             rejected = http_json(
                 "POST", f"{api_url}/api/v1/wiki/pending/{edit_ids[0]}/reject"
             )
-            assert rejected.get("success") is True, rejected
+            assert isinstance(rejected, dict) and rejected.get("success") is True, rejected
             drifted_stats = _wait_stats(api_url, base_pending + 104)
             assert drifted_stats["pending"] == base_pending + 104, drifted_stats
             assert drifted_stats["rejected"] == base_rejected + 1, drifted_stats
@@ -151,29 +209,22 @@ def test_pending_panel_pagination_load_more_and_drift_self_heal() -> None:
             # Load-more again (offset=100): drift must restart from page 1 —
             # 100 items collapse back to 50, badge syncs to base+104, the
             # page-2 draft disappears from view, page-1 head stays visible.
-            client.evaluate(
-                page,
-                """(() => {
-                  const btn = document.querySelector('[data-testid="pending-load-more"]');
-                  if (!btn) return false;
-                  btn.click();
-                  return true;
-                })()""",
-                timeout_sec=5.0,
-            )
-            healed = wait_for_state(client, page, probe, timeout_sec=90.0, page_url=_PANEL_PATH)
-            assert healed["items"] == 50, (
+            healed_click = client.evaluate(page, _LOAD_MORE_CLICK_JS, timeout_sec=5.0)
+            assert healed_click is True, "load-more button not found before drift re-sync"
+            healed = wait_for_state(client, page, probe, timeout_sec=_PANEL_WAIT_SEC)
+            assert healed.get("items") == 50, (
                 f"drift must restart the list from page 1 (50 items, not append): {healed}"
             )
-            assert healed["badgeNum"] == str(base_pending + 104), (
+            assert healed.get("badgeNum") == str(base_pending + 104), (
                 f"badge must sync to base+104 after drift re-sync: {healed}"
             )
-            assert healed["marker104"], f"page-1 head draft must remain visible: {healed}"
-            assert not healed["marker005"], (
+            assert healed.get("marker104"), f"page-1 head draft must remain visible: {healed}"
+            assert not healed.get("marker005"), (
                 f"page-2 draft must be gone after the page-1 restart: {healed}"
             )
     finally:
         cleaned = http_json("POST", f"{api_url}/api/v1/chats/test/cleanup-pending-drift-fixture")
+        assert isinstance(cleaned, dict)
         assert cleaned["deleted"] == 105, cleaned
 
     restored = _wait_stats(api_url, base_pending)
@@ -183,3 +234,31 @@ def test_pending_panel_pagination_load_more_and_drift_self_heal() -> None:
     assert restored["rejected"] == base_rejected, (
         f"cleanup must restore pre-seed rejected count: base={base_rejected} actual={restored}"
     )
+
+
+def _run_with_transport_retry(runner: Callable[[str, str], None], api_url: str, ui_url: str) -> None:
+    last_error: BaseException | None = None
+    for _attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            runner(get_e2e_api_url(), ui_url)
+            return
+        except Exception as exc:
+            last_error = exc
+            if _attempt >= _MAX_ATTEMPTS or not _is_transport_retryable(exc):
+                raise
+            _force_mux_heal_before_retry()
+    if last_error is not None:
+        raise last_error
+
+
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_pending_panel_pagination_load_more_and_drift_self_heal() -> None:
+    """Drive the pending panel page flow with fixture drafts and a real reject."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    prepare_e2e_ui_session(api_url)
+    warm_ui_route("/settings")
+    warm_ui_route("/settings/wiki")
+    _run_with_transport_retry(_run_panel_flow, api_url, ui_url)
