@@ -56,6 +56,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 | `__tests__/MemoryGuardianCard.test.tsx`                     | 记忆 Guardian 卡片状态展示                                                                 |
 | `__tests__/SecondBrainPitfallGuardrails.test.tsx`           | Second Brain 陷阱护栏文案/条件渲染                                                         |
 | `__tests__/WikiPendingEdits.scope.test.tsx`                 | 待审编辑作用域（含来源对话跳转、分页漂移自愈）                                              |
+| `myrm-agent-server/tests/e2e/test_wiki_pending_panel_chrome_e2e.py` | 真浏览器 E2E：待审面板分页 50/100、加载更多、真实 REST reject 漂移自愈回页 1 + stats badge 同步、fixture seed/cleanup 复原 |
 | `__tests__/WikiSection.wikiEvidence.test.tsx`               | Wiki 证据展示                                                                              |
 | `__tests__/wikiDedupPoll.test.ts`                           | dedup 轮询 hook                                                                            |
 | `__tests__/wikiQueuePoll.test.ts`                           | 队列轮询 hook                                                                              |
