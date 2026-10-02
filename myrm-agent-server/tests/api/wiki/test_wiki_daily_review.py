@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,8 +20,6 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture(autouse=True)
 def _bypass_auth() -> None:
-    from unittest.mock import patch
-
     with patch(
         "app.middleware.auth.resolve_identity",
         return_value=_FakeIdentity(),
@@ -100,14 +100,14 @@ async def test_standard_templates_seed_is_idempotent_and_force_reseeds(client: T
 async def test_daily_review_compound_job_silent_without_today_review(client: TestClient) -> None:
     from app.services.wiki.daily_review import run_wiki_daily_review_compound_job
 
-    # Ensure today has no review file: use a fresh isolated structure by checking the real vault.
-    result = await run_wiki_daily_review_compound_job(llm=None)
-    if result.today_review_files == 0:
-        assert result.summary_text == "[SILENT]"
-    else:
-        # Today already has review files (shared dev vault); summary must be non-silent.
-        assert result.summary_text != "[SILENT]"
-        assert result.today_review_files > 0
+    # Isolate an empty vault so the [SILENT] path is deterministic.
+    with patch(
+        "app.services.wiki.vault.resolve_wiki_vault_path",
+        return_value=Path(tempfile.mkdtemp(prefix="daily_review_silent_")) / "wiki",
+    ):
+        result = await run_wiki_daily_review_compound_job(llm=None)
+    assert result.today_review_files == 0
+    assert result.summary_text == "[SILENT]"
 
 
 async def test_daily_review_compound_job_summarizes_today_ingest(client: TestClient) -> None:

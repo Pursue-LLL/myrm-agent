@@ -88,10 +88,10 @@ class MemoryToWikiArchiver:
             public_dir_labels: Optional mapping of public dir path or name to display label
         """
         self._llm = llm
-        from app.config.deploy_mode import is_local_mode
-
-        from app.services.wiki.daily_review.prompts import FOUR_DIMENSION_EXTRACT_PROMPT
         from myrm_agent_harness.toolkits.wiki.core.config import WikiCompileConfig
+
+        from app.config.deploy_mode import is_local_mode
+        from app.services.wiki.daily_review.prompts import FOUR_DIMENSION_EXTRACT_PROMPT
 
         resolved_config = config or WikiConfig()
         if is_local_mode() and not resolved_config.enable_version_control:
