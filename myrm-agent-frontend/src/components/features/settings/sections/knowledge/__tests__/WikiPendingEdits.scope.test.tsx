@@ -209,4 +209,42 @@ describe('WikiPendingEdits agent scope reload', () => {
     });
     expect(getPendingEditsMock).toHaveBeenCalledWith('agent-a', 50, 1);
   });
+
+  it('restarts from page 1 when the queue drifts between pages', async () => {
+    let calls = 0;
+    const draft = (id: number, conceptName: string) => ({
+      id,
+      concept_name: conceptName,
+      proposed_content: 'draft',
+      status: 'pending',
+      created_at: '2026-07-29T00:00:00.000Z',
+      updated_at: '2026-07-29T00:00:00.000Z',
+    });
+    getPendingEditsMock.mockImplementation((...args: unknown[]) => {
+      calls += 1;
+      if (calls === 1) {
+        return Promise.resolve({ stats: { pending: 51, approved: 0 }, pending_edits: [draft(1, 'First-Page Draft')] });
+      }
+      if (calls === 2) {
+        // Mixed same-pending mutation: another device approved one draft while
+        // cron staged a fresh one — pending stays 51, approved still moves.
+        return Promise.resolve({ stats: { pending: 51, approved: 1 }, pending_edits: [draft(2, 'Shifted-Page Draft')] });
+      }
+      return Promise.resolve({ stats: { pending: 51, approved: 1 }, pending_edits: [draft(3, 'Fresh-Page Draft')] });
+    });
+
+    render(<WikiPendingEdits agentScopeId="agent-a" scopeLabel="Agent A" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('First-Page Draft')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText('pendingEdits.loadMore'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Fresh-Page Draft')).toBeTruthy();
+    });
+    expect(getPendingEditsMock).toHaveBeenNthCalledWith(3, 'agent-a');
+    expect(screen.queryByText('Shifted-Page Draft')).toBeNull();
+  });
 });

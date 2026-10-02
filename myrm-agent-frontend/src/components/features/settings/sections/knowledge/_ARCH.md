@@ -30,7 +30,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 | `WikiIgnorePanel.tsx`               | 组件   | `.wikiignore` 编辑（Settings → Wiki · agent scope）                                                    | ✅    |
 | `WikiDuplicateReviewPanel.tsx`      | 组件   | Raw corpus dedup 审核面板                                                                              | ✅    |
 | `WikiQueuePanel.tsx`                | 组件   | Wiki 入库队列                                                                                          | ✅    |
-| `WikiPendingEdits.tsx`              | 组件   | Wiki 待审编辑（分页「加载更多」直达全部草稿，审批动作后回首页刷新）                                      | ✅    |
+| `WikiPendingEdits.tsx`              | 组件   | Wiki 待审编辑（分页「加载更多」直达全部草稿，stats 漂移或审批动作后回首页重同步）                      | ✅    |
 | `WikiConceptsList.tsx`              | 组件   | Wiki 概念列表                                                                                          | ✅    |
 | `WikiScopeChip.tsx`                 | 组件   | Wiki 作用域标记 chip                                                                                   | ✅    |
 | `WikiAgentScopeContext.tsx`         | 组件   | Wiki agent scope 上下文                                                                                | ✅    |
@@ -55,7 +55,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 | `__tests__/CodexWikiCompletionLane.test.tsx`                | Codex Wiki 补全泳道渲染                                                                    |
 | `__tests__/MemoryGuardianCard.test.tsx`                     | 记忆 Guardian 卡片状态展示                                                                 |
 | `__tests__/SecondBrainPitfallGuardrails.test.tsx`           | Second Brain 陷阱护栏文案/条件渲染                                                         |
-| `__tests__/WikiPendingEdits.scope.test.tsx`                 | 待审编辑作用域（含来源对话跳转）                                                           |
+| `__tests__/WikiPendingEdits.scope.test.tsx`                 | 待审编辑作用域（含来源对话跳转、分页漂移自愈）                                              |
 | `__tests__/WikiSection.wikiEvidence.test.tsx`               | Wiki 证据展示                                                                              |
 | `__tests__/wikiDedupPoll.test.ts`                           | dedup 轮询 hook                                                                            |
 | `__tests__/wikiQueuePoll.test.ts`                           | 队列轮询 hook                                                                              |

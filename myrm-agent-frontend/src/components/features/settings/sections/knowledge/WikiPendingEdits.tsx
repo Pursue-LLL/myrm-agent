@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
@@ -30,6 +30,19 @@ type PendingEditFilter = 'all' | 'concepts' | 'synthesis';
 // Mirrors the server-side default page size of GET /wiki/pending.
 const PENDING_PAGE_SIZE = 50;
 
+// Every queue mutation (cron staging, another device's approve) moves at least
+// one stats counter, so any divergent counter between two loads means the
+// already-loaded pages were built against shifted offsets.
+function hasStatsDrifted(known: Record<string, number>, authoritative: Record<string, number>): boolean {
+  const keys = new Set([...Object.keys(known), ...Object.keys(authoritative)]);
+  for (const key of keys) {
+    if (known[key] !== authoritative[key]) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isSynthesisEdit(edit: PendingEdit): boolean {
   return edit.concept_name.startsWith('Comparisons/');
 }
@@ -47,6 +60,9 @@ export function WikiPendingEdits({
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState<string>('');
+  // Closure-stable mirror of stats: loadPending must not re-create when stats
+  // change, otherwise the reload effect below would fire on every counter move.
+  const statsRef = useRef<Record<string, number>>({});
 
   const loadPending = useCallback(
     async (offset = 0) => {
@@ -56,6 +72,15 @@ export function WikiPendingEdits({
           offset > 0
             ? await wikiService.getPendingEdits(agentScopeId, PENDING_PAGE_SIZE, offset)
             : await wikiService.getPendingEdits(agentScopeId);
+        if (offset > 0 && hasStatsDrifted(statsRef.current, res.stats)) {
+          // The queue changed under the loaded pages; appending rows from a
+          // shifted offset would skip or duplicate drafts — restart from page 1.
+          const fresh = await wikiService.getPendingEdits(agentScopeId);
+          setEdits(fresh.pending_edits);
+          setStats(fresh.stats);
+          statsRef.current = fresh.stats;
+          return;
+        }
         setEdits((prev) => {
           if (offset === 0) {
             return res.pending_edits;
@@ -65,6 +90,7 @@ export function WikiPendingEdits({
           return [...prev, ...res.pending_edits.filter((edit) => !seen.has(edit.id))];
         });
         setStats(res.stats);
+        statsRef.current = res.stats;
       } catch (error) {
         console.error('Failed to load pending edits:', error);
         toast.error(t('errors.loadPendingFailed'));
@@ -82,6 +108,7 @@ export function WikiPendingEdits({
   useEffect(() => {
     setEdits([]);
     setStats({});
+    statsRef.current = {};
     setEditingId(null);
     setEditContent('');
     void loadPending();
