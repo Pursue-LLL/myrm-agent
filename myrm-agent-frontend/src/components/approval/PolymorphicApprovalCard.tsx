@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   MousePointerClick,
   Globe,
+  Monitor,
   ChevronDown,
   ChevronUp,
   DollarSign,
@@ -53,6 +54,7 @@ import {
 import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
 import { humanizeApprovalTitle, classifyApprovalSurface, resolveScopeNote } from '@/lib/humanize';
 import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
+import HighRiskEvidenceScreenshot from '@/components/approval/HighRiskEvidenceScreenshot';
 import CompactFileWriteApprovalRow from '@/components/approval/CompactFileWriteApprovalRow';
 import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
 import { isSaveSkillApproval } from '@/lib/approval/saveSkillApproval';
@@ -920,6 +922,12 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         const element = approval.payload?.element as
           { role?: string; name?: string; ref?: string; key?: string } | undefined;
         const pageUrl = (approval.payload?.page_url as string) || '';
+        const surface = (approval.payload?.surface as string) || '';
+        const desktopApp = (approval.payload?.app_name as string) || '';
+        const desktopWindow = (approval.payload?.window_title as string) || '';
+        const screenshotBase64 = (approval.payload?.screenshot_base64 as string) || '';
+        const screenshotSize = approval.payload?.screenshot_size as [number, number] | undefined;
+        const highlightCoordinate = approval.payload?.highlight_coordinate as [number, number] | undefined;
         const toolInput = approval.payload?.tool_input as
           | {
               action?: string;
@@ -966,6 +974,25 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                     )}
                   </div>
                 </div>
+              )}
+
+              {(desktopApp || desktopWindow) && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1 min-w-0">
+                  <Monitor className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate" title={desktopWindow ? `${desktopApp} — ${desktopWindow}` : desktopApp}>
+                    {[desktopApp, desktopWindow].filter(Boolean).join(' — ')}
+                  </span>
+                </div>
+              )}
+
+              {screenshotBase64 && screenshotSize && (
+                <HighRiskEvidenceScreenshot
+                  screenshotBase64={screenshotBase64}
+                  screenshotWidth={screenshotSize[0]}
+                  screenshotHeight={screenshotSize[1]}
+                  highlightX={highlightCoordinate?.[0]}
+                  highlightY={highlightCoordinate?.[1]}
+                />
               )}
 
               {toolInput?.expression ? (

@@ -267,6 +267,58 @@ describe('PolymorphicApprovalCard', () => {
     expect(screen.getByText('https://example.com/account')).toBeInTheDocument();
   });
 
+  it('renders desktop app/window header and circled evidence screenshot for desktop surface', () => {
+    renderCard({
+      approval_id: 'approval-desktop-click',
+      user_id: 'user-1',
+      action_type: 'high_risk_dom_action',
+      status: 'PENDING',
+      severity: 'critical',
+      payload: {
+        surface: 'desktop',
+        tool_name: 'desktop_interact_tool',
+        tool_input: { action: 'click', ref: 'ax-btn-1', text: '' },
+        element: { role: 'button', name: 'Terminate Cluster', ref: 'ax-btn-1' },
+        app_name: 'Terminal',
+        window_title: 'prod — zsh',
+        screenshot_base64: 'aGVsbG8=',
+        screenshot_size: [640, 400],
+        highlight_coordinate: [100, 60],
+      },
+    });
+
+    expect(screen.getByText('Terminal — prod — zsh')).toBeInTheDocument();
+    expect(screen.getByText('toolApproval.evidenceScreenshot')).toBeInTheDocument();
+    const evidenceImage = screen.getByAltText('toolApproval.evidenceScreenshot');
+    expect(evidenceImage).toBeInTheDocument();
+    expect(evidenceImage.getAttribute('src')).toBe('data:image/jpeg;base64,aGVsbG8=');
+    // Red ring anchored to the highlighted target (aria-hidden decorative overlay).
+    const ring = evidenceImage.parentElement?.querySelector('div[aria-hidden="true"]');
+    expect(ring).not.toBeNull();
+    expect(ring?.className).toContain('border-destructive');
+  });
+
+  it('degrades gracefully when desktop evidence screenshot fields are absent', () => {
+    renderCard({
+      approval_id: 'approval-desktop-no-shot',
+      user_id: 'user-1',
+      action_type: 'high_risk_dom_action',
+      status: 'PENDING',
+      severity: 'critical',
+      payload: {
+        surface: 'desktop',
+        tool_input: { action: 'click', ref: 'ax-btn-2', text: '' },
+        element: { role: 'button', name: 'Force Push Branch', ref: 'ax-btn-2' },
+        app_name: 'Xcode',
+        window_title: 'MyApp — main',
+      },
+    });
+
+    expect(screen.getByText('Xcode — MyApp — main')).toBeInTheDocument();
+    expect(screen.getByText(/Force Push Branch/)).toBeInTheDocument();
+    expect(screen.queryByAltText('toolApproval.evidenceScreenshot')).not.toBeInTheDocument();
+  });
+
   it('renders knowledge patch approval card with target type, content and rationale', () => {
     renderCard({
       approval_id: 'approval-knowledge-patch-1',

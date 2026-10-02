@@ -29,6 +29,16 @@ export interface ApprovalPayloadData {
   page_url?: string;
   url?: string;
   screenshot_base64?: string;
+  /** High-risk UI action payload: origin surface, e.g. "browser" or "desktop". */
+  surface?: string;
+  /** High-risk desktop action payload: foreground app name at interception time. */
+  app_name?: string;
+  /** High-risk desktop action payload: foreground window title at interception time. */
+  window_title?: string;
+  /** High-risk desktop action payload: [width, height] of the evidence screenshot. */
+  screenshot_size?: [number, number];
+  /** High-risk desktop action payload: [x, y] target point in image space, circled in red. */
+  highlight_coordinate?: [number, number];
   live_assist_url?: string;
   is_managed?: boolean;
   reason?: string;
@@ -185,6 +195,18 @@ function asString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+/** Parses a strict [number, number] tuple (screenshot size / highlight point); invalid shapes yield undefined. */
+function parseSizeTuple(value: unknown): [number, number] | undefined {
+  if (!Array.isArray(value) || value.length !== 2) {
+    return undefined;
+  }
+  const [x, y] = value;
+  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
+    return undefined;
+  }
+  return [x, y];
+}
+
 function normalizeToolCalls(value: unknown): ApprovalToolCall[] {
   if (!Array.isArray(value)) {
     return [];
@@ -208,6 +230,11 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
   const payloadToolName = asString(raw.tool_name ?? nestedPayload.tool_name);
   const payloadReason = asString(raw.reason ?? nestedPayload.reason);
   const screenshotBase64 = asString(nestedPayload.screenshot_base64) || undefined;
+  const surface = asString(nestedPayload.surface) || undefined;
+  const desktopApp = asString(nestedPayload.app_name) || undefined;
+  const desktopWindow = asString(nestedPayload.window_title) || undefined;
+  const screenshotSize = parseSizeTuple(nestedPayload.screenshot_size);
+  const highlightCoordinate = parseSizeTuple(nestedPayload.highlight_coordinate);
   const liveAssistUrl = asString(nestedPayload.live_assist_url) || undefined;
   const isManaged = nestedPayload.is_managed === true;
   const payloadMessageId = asString(nestedPayload.messageId) || undefined;
@@ -243,6 +270,11 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
       page_url: pageUrl || undefined,
       url: payloadUrl || undefined,
       screenshot_base64: screenshotBase64,
+      surface: surface,
+      app_name: desktopApp,
+      window_title: desktopWindow,
+      screenshot_size: screenshotSize,
+      highlight_coordinate: highlightCoordinate,
       live_assist_url: liveAssistUrl,
       is_managed: isManaged,
       reason: payloadReason || undefined,

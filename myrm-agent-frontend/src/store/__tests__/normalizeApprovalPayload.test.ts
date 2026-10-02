@@ -102,4 +102,58 @@ describe('normalizeApprovalPayload', () => {
     expect(normalized.payload?.messageId).toBe('msg-stream-42');
     expect(normalized.payload?.is_managed).toBe(false);
   });
+
+  it('preserves desktop semantic gate evidence fields for the red-circle card', () => {
+    const normalized = normalizeApprovalPayload({
+      approval_id: 'appr-desktop-1',
+      user_id: 'user-1',
+      action_type: 'high_risk_dom_action',
+      status: 'PENDING',
+      severity: 'critical',
+      chat_id: 'chat-1',
+      payload: {
+        surface: 'desktop',
+        tool_name: 'desktop_interact_tool',
+        tool_input: { action: 'click', ref: 'ax-btn-1' },
+        element: { role: 'button', name: 'Terminate Cluster', ref: 'ax-btn-1' },
+        app_name: 'Terminal',
+        window_title: 'prod — zsh',
+        screenshot_base64: 'aGVsbG8=',
+        screenshot_size: [640, 400],
+        highlight_coordinate: [100, 60],
+        reason: 'Destructive button click on desktop surface',
+      },
+    });
+
+    expect(normalized.payload?.surface).toBe('desktop');
+    expect(normalized.payload?.app_name).toBe('Terminal');
+    expect(normalized.payload?.window_title).toBe('prod — zsh');
+    expect(normalized.payload?.screenshot_base64).toBe('aGVsbG8=');
+    expect(normalized.payload?.screenshot_size).toEqual([640, 400]);
+    expect(normalized.payload?.highlight_coordinate).toEqual([100, 60]);
+    expect(normalized.payload?.element).toEqual({
+      role: 'button',
+      name: 'Terminate Cluster',
+      ref: 'ax-btn-1',
+    });
+  });
+
+  it('drops malformed screenshot_size / highlight_coordinate tuples instead of rendering them', () => {
+    const normalized = normalizeApprovalPayload({
+      approval_id: 'appr-desktop-2',
+      action_type: 'high_risk_dom_action',
+      status: 'PENDING',
+      severity: 'critical',
+      payload: {
+        surface: 'desktop',
+        screenshot_base64: 'aGVsbG8=',
+        screenshot_size: ['640', 400],
+        highlight_coordinate: [100],
+      },
+    });
+
+    expect(normalized.payload?.screenshot_base64).toBe('aGVsbG8=');
+    expect(normalized.payload?.screenshot_size).toBeUndefined();
+    expect(normalized.payload?.highlight_coordinate).toBeUndefined();
+  });
 });
