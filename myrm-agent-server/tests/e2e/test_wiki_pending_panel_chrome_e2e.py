@@ -99,6 +99,10 @@ _TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
     "wave is not open",
     "No target with given id",
     "Session with given id not found",
+    # Transient empty-panel mount (observed once on a settled stack); a full
+    # runner retry re-seeds under a fresh prefix after the finally-cleanup.
+    "did not become ready",
+    "E2E_ROUTE_HYDRATION_TIMEOUT",
 )
 
 
