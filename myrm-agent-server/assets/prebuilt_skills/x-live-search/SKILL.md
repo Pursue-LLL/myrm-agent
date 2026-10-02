@@ -32,7 +32,7 @@ contract:
       validation_method: "Running search script returns results without credential error"
       is_required: true
   success_criteria: "Relevant X posts retrieved with citation-backed summary"
-  estimated_duration_seconds: 120
+  estimated_duration_seconds: 300
 ---
 
 # X Live Search
