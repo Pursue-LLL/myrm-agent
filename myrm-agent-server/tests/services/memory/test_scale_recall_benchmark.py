@@ -7,9 +7,10 @@ count. Ingestion and retrieval both run on the real product path —
 relational backend and the vector/graph/embedding channels disabled (the
 exact channel combination a no-Qdrant local deployment runs).
 
-Deterministic corpus: fixed seed, anchored key rules carrying unique tokens
-plus same-prefix noise rules, so expected memory ids are known upfront and
-the benchmark is fully reproducible without any LLM call.
+Deterministic corpus: anchored key rules carrying unique tokens plus
+same-prefix noise rules (no random source — the corpus is identical on
+every run), so expected memory ids are known upfront and the benchmark is
+fully reproducible without any LLM call.
 """
 
 from __future__ import annotations
