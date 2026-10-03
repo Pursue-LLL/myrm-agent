@@ -4604,6 +4604,7 @@
       "benchmarkDistinctSources": "Quellendiversität",
       "benchmarkLatencyP50": "Latenz P50",
       "benchmarkLatencyP95": "Latenz P95",
+      "benchmarkLatencyP99": "Latenz P99",
       "benchmarkCategories": "Aufschlüsselung nach Kategorien",
       "doctorRunSummary": "Zusammenfassung",
       "doctorAuditStatus": "Audit-Status",

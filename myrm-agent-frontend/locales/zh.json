@@ -11490,6 +11490,7 @@
       "benchmarkDistinctSources": "来源多样性",
       "benchmarkLatencyP50": "延迟 P50",
       "benchmarkLatencyP95": "延迟 P95",
+      "benchmarkLatencyP99": "延迟 P99",
       "benchmarkCategories": "分类明细",
       "doctorRunSummary": "摘要",
       "doctorAuditStatus": "审计状态",

@@ -4560,6 +4560,7 @@
       "benchmarkDistinctSources": "소스 다양성",
       "benchmarkLatencyP50": "지연 P50",
       "benchmarkLatencyP95": "지연 P95",
+      "benchmarkLatencyP99": "레이턴시 P99",
       "benchmarkCategories": "카테고리 분석",
       "doctorRunSummary": "요약",
       "doctorAuditStatus": "감사 상태",

@@ -340,6 +340,7 @@ class MemoryCommandBenchmarkSummary(BaseModel):
     distinct_source_ratio: float = 1.0
     latency_p50_ms: float = 0.0
     latency_p95_ms: float = 0.0
+    latency_p99_ms: float = 0.0
     top_k: int = 5
     categories: dict[str, str] = Field(default_factory=dict)
 

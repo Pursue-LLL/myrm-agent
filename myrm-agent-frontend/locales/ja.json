@@ -4332,6 +4332,7 @@
       "benchmarkDistinctSources": "ソースの多様性",
       "benchmarkLatencyP50": "レイテンシ P50",
       "benchmarkLatencyP95": "レイテンシ P95",
+      "benchmarkLatencyP99": "レイテンシ P99",
       "benchmarkCategories": "カテゴリ詳細",
       "doctorRunSummary": "要約",
       "doctorAuditStatus": "監査ステータス",

@@ -143,6 +143,7 @@ const TREND_METRICS = [
   { key: 'mrr_score', kind: 'percent' },
   { key: 'latency_p50_ms', kind: 'ms' },
   { key: 'latency_p95_ms', kind: 'ms' },
+  { key: 'latency_p99_ms', kind: 'ms' },
 ] as const;
 
 type TrendMetricKind = (typeof TREND_METRICS)[number]['kind'];
@@ -275,7 +276,9 @@ const TrendMetric = ({
           ? t('commandCenter.benchmarkMrr')
           : metric === 'latency_p50_ms'
             ? t('commandCenter.benchmarkLatencyP50')
-            : t('commandCenter.benchmarkLatencyP95');
+            : metric === 'latency_p95_ms'
+              ? t('commandCenter.benchmarkLatencyP95')
+              : t('commandCenter.benchmarkLatencyP99');
 
   const isMs = kind === 'ms';
   const improved = isMs ? delta <= 0 : delta >= 0;
@@ -517,6 +520,7 @@ const BenchmarkMetrics = ({ summary, t }: { summary: MemoryCommandBenchmarkSumma
         )}
         <MetricCard label={t('commandCenter.benchmarkLatencyP50')} value={`${Math.round(summary.latency_p50_ms)}ms`} />
         <MetricCard label={t('commandCenter.benchmarkLatencyP95')} value={`${Math.round(summary.latency_p95_ms)}ms`} />
+        <MetricCard label={t('commandCenter.benchmarkLatencyP99')} value={`${Math.round(summary.latency_p99_ms)}ms`} />
       </div>
       <CategoryBreakdown categories={summary.categories} t={t} bordered={false} />
     </div>

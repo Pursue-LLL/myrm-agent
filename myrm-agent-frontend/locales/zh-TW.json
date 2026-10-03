@@ -4376,6 +4376,7 @@
       "benchmarkDistinctSources": "來源多樣性",
       "benchmarkLatencyP50": "延遲 P50",
       "benchmarkLatencyP95": "延遲 P95",
+      "benchmarkLatencyP99": "延遲 P99",
       "benchmarkCategories": "分類明細",
       "doctorRunSummary": "摘要",
       "doctorAuditStatus": "審計狀態",

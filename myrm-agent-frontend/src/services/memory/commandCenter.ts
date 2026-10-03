@@ -273,6 +273,7 @@ export interface MemoryCommandBenchmarkSummary {
   distinct_source_ratio?: number;
   latency_p50_ms: number;
   latency_p95_ms: number;
+  latency_p99_ms: number;
   top_k: number;
   categories: Record<string, string>;
 }

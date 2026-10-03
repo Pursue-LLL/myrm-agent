@@ -290,7 +290,7 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
                 f"recall@5={summary.recall_at_k:.2f}, ndcg@5={summary.ndcg_at_k:.2f}, "
                 f"mrr={summary.mrr_score:.2f}, precision@5={summary.precision_at_k:.2f}, "
                 f"dup={summary.duplicate_rate:.2f}, distinct={summary.distinct_source_ratio:.2f}, "
-                f"p50={summary.latency_p50_ms:.0f}ms, p95={summary.latency_p95_ms:.0f}ms. "
+                f"p50={summary.latency_p50_ms:.0f}ms, p95={summary.latency_p95_ms:.0f}ms, p99={summary.latency_p99_ms:.0f}ms. "
                 f"Categories: {categories_hit}."
             )
             probe = MemoryCommandDiagnosticProbeResult(
@@ -314,6 +314,7 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
                     distinct_source_ratio=summary.distinct_source_ratio,
                     latency_p50_ms=summary.latency_p50_ms,
                     latency_p95_ms=summary.latency_p95_ms,
+                    latency_p99_ms=summary.latency_p99_ms,
                     top_k=5,
                     categories=categories_dict,
                 ),
