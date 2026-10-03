@@ -154,12 +154,58 @@ Memory is an aid, not ground truth. If a stored fact conflicts with what the use
 """
 
 
+_SKILL_MARKDOWN_WIKI_SECTION = """
+## Search the compiled knowledge base first
+
+When the user asks about project concepts, domain knowledge, or accumulated research, call `wiki_query` before answering. If the tool refuses, the knowledge base has no verified basis for the question — say so honestly and suggest ingesting source documents; never guess an answer.
+
+```json
+{"name": "wiki_query", "arguments": {"question": "What is our deployment rollback procedure?"}}
+```
+
+## Ingest documents for the knowledge base
+
+Call `wiki_ingest` when the user wants a document or web page added to their knowledge base. Pass a public URL or the document's text content — local file paths are not accepted on this surface. Use `folder_path` to categorize (e.g. `Research/AI`).
+
+```json
+{"name": "wiki_ingest", "arguments": {"source": "https://example.com/handbook", "folder_path": "Handbook"}}
+```
+
+## Edit knowledge pages through review
+
+Call `wiki_apply` for narrow, structured edits to a concept page (`create_note`, `patch_compiled_truth`, `append_timeline`, `update_metadata`). Edits are staged as pending drafts for human review in the Myrm WebUI — report the change as awaiting review, not published.
+"""
+
+
+def _render_skill_markdown(enable_wiki: bool) -> str:
+    """Render SKILL.md; the wiki section appears only when the agent enables wiki.
+
+    The MCP surface exposes wiki tools per request based on the same agent
+    flag, so the rendered contract never describes tools the endpoint would
+    hide (zero drift between SKILL.md and the real tool list).
+    """
+    markdown = _SKILL_MARKDOWN
+    if enable_wiki:
+        tool_line = (
+            "The server exposes four tools — `memory_recall`, `memory_store`, "
+            "`memory_list`, `memory_manage` — plus wiki knowledge base tools "
+            "— `wiki_query`, `wiki_ingest`, `wiki_apply`."
+        )
+        markdown = markdown.replace(
+            "The server exposes four tools — `memory_recall`, `memory_store`, `memory_list`, `memory_manage`.",
+            tool_line,
+        )
+        markdown = markdown.rstrip() + "\n" + _SKILL_MARKDOWN_WIKI_SECTION
+    return markdown
+
+
 def build_agent_plugin_bundle(
     mcp_url: str,
     token: str,
     *,
     agent_id: str,
     embed_token: bool = False,
+    enable_wiki: bool = False,
 ) -> AgentPluginBundle:
     """Render the full Agent Plugins 1.0.0 bundle for a Myrm memory endpoint.
 
@@ -172,7 +218,7 @@ def build_agent_plugin_bundle(
     files = {
         "plugin.json": _build_plugin_json(),
         "mcp.json": _build_mcp_json(mcp_url, token, embed_token),
-        "skills/myrm-memory/SKILL.md": _SKILL_MARKDOWN,
+        "skills/myrm-memory/SKILL.md": _render_skill_markdown(enable_wiki),
     }
     if embed_token:
         instructions = (

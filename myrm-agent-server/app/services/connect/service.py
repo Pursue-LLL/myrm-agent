@@ -240,6 +240,10 @@ class ConnectService:
     async def generate_agent_plugin_bundle(self, *, agent_id: str = "default", embed_token: bool = False) -> "AgentPluginBundle":
         """Generate a portable Agent Plugins 1.0.0 bundle exposing Myrm memory."""
         from app.core.infra.ingress import get_public_ingress_base_url
+        from app.services.agent.profile.profile_resolver import (
+            get_agent_profile_resolver,
+            resolve_builtin_tool_flags,
+        )
         from app.services.connect.agent_plugin import (
             AGENT_PLUGIN_PROFILE,
             build_agent_plugin_bundle,
@@ -247,6 +251,13 @@ class ConnectService:
 
         token = self._generate_token()
         normalized = self._normalize_agent_id(agent_id)
+        enable_wiki = False
+        try:
+            resolved_profile = await get_agent_profile_resolver().resolve(normalized)
+            if resolved_profile is not None:
+                enable_wiki = bool(resolve_builtin_tool_flags(resolved_profile.enabled_builtin_tools)["enable_wiki"])
+        except Exception as exc:
+            logger.warning("enable_wiki flag unavailable for agent=%s: %s", normalized, exc)
         base_url = await get_public_ingress_base_url()
         if not base_url:
             base_url = f"http://127.0.0.1:{settings.port}"
@@ -257,7 +268,13 @@ class ConnectService:
             agent_id=normalized,
         )
         self._save_state()
-        return build_agent_plugin_bundle(f"{base_url}/mcp", token, agent_id=normalized, embed_token=embed_token)
+        return build_agent_plugin_bundle(
+            f"{base_url}/mcp",
+            token,
+            agent_id=normalized,
+            embed_token=embed_token,
+            enable_wiki=enable_wiki,
+        )
 
     async def doctor(self, profile_id: str) -> DoctorResult:
         """Run a health check on a connector.

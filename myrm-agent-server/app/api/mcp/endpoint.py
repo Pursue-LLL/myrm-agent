@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.memory.agent_surface.mcp_server::MemoryMCPServer (POS: MCP server adapter that lets external AI agents access the memory system via standard MCP protocol)
+- myrm_agent_harness.toolkits.wiki.mcp_server::register_wiki_mcp_tools (POS: MCP adapter exposing wiki knowledge base tools to external agents)
 - app.services.connect::get_connect_service (POS: Token verification)
 - app.core.memory.adapters.setup::create_memory_manager, resolve_context_binding (POS: MemoryManager factory)
 
@@ -10,11 +11,14 @@
 - shutdown_mcp_endpoint: cancel session manager task group
 
 [POS]
-Exposes the memory system as a stateless Streamable HTTP MCP endpoint that
-external agents (Claude Code, Cursor, etc.) can connect to. Each Bearer
-token carries an agent_id; middleware dynamically binds the MemoryManager to
-the target Agent Profile + SharedContext via ContextVar, and sets wiki boundary
-rejection for memory_store when the agent profile enables wiki. Mounted at /mcp on the FastAPI application during startup.
+Exposes the memory system and wiki knowledge base as a stateless Streamable HTTP
+MCP endpoint that external agents (Claude Code, Cursor, etc.) can connect to.
+Each Bearer token carries an agent_id; middleware dynamically binds the
+MemoryManager and the wiki tool bundle to the target Agent Profile + SharedContext
+via ContextVar, and sets wiki boundary rejection for memory_store when the agent
+profile enables wiki. Wiki tools are visible only when the profile enables wiki;
+wiki_ingest on this surface accepts URLs and raw text only (local file paths are
+refused). Mounted at /mcp on the FastAPI application during startup.
 
 Stateless mode (no Mcp-Session-Id tracking) is used because all four memory
 tools are inherently per-request — auth and agent scoping are handled
@@ -181,6 +185,62 @@ async def _memory_manager_for_agent(agent_id: str) -> MemoryManager:
     )
 
 
+async def _wiki_tools_for_agent(agent_id: str) -> dict[str, object] | None:
+    """Build the wiki tool bundle for an agent (None when wiki is not enabled).
+
+    Uses the same vault resolution functions and engine factories as the
+    in-process agent path (factory.py wiki_base_dir wiring) so scope isolation
+    is identical for external MCP callers. Construction failures degrade to
+    None (tools hidden for that request) instead of failing the request.
+    """
+    if not await _wiki_boundary_enabled_for_agent(agent_id):
+        return None
+    try:
+        from myrm_agent_harness.toolkits.wiki import (
+            WikiCompiler,
+            WikiConfig,
+            WikiQueryEngine,
+            WikiStructure,
+            create_wiki_agent_tools,
+        )
+
+        from app.services.agent.platform_config import load_platform_llm
+        from app.services.memory.shared_context.shared_context import (
+            resolve_shared_context_ids,
+        )
+        from app.services.wiki.vault import (
+            resolve_agent_wiki_vault_path,
+            resolve_shared_wiki_vault_labels,
+            resolve_shared_wiki_vault_paths,
+        )
+
+        shared_context_ids = await resolve_shared_context_ids(agent_id=agent_id)
+        structure = WikiStructure(
+            resolve_agent_wiki_vault_path(agent_id),
+            public_dirs=[str(p) for p in resolve_shared_wiki_vault_paths(shared_context_ids)],
+            public_dir_labels=resolve_shared_wiki_vault_labels(shared_context_ids),
+        )
+        structure.ensure_structure()
+        config = WikiConfig()
+        llm = await load_platform_llm()
+        compiler = WikiCompiler(llm, structure, config)
+        query_engine = WikiQueryEngine(llm, structure, config)
+        tools = create_wiki_agent_tools(
+            compiler,
+            query_engine,
+            structure,
+            wiki_scope_id=agent_id,
+        )
+        return {t.name: t for t in tools}
+    except Exception as exc:
+        logger.warning(
+            "Wiki tools unavailable for MCP agent=%s: %s",
+            agent_id,
+            exc,
+        )
+        return None
+
+
 class _MCPTokenAuthMiddleware:
     """ASGI middleware validating Bearer tokens for MCP requests."""
 
@@ -222,6 +282,10 @@ class _MCPTokenAuthMiddleware:
             set_request_memory_manager,
             set_request_wiki_boundary_enabled,
         )
+        from myrm_agent_harness.toolkits.wiki.mcp_server import (
+            reset_request_wiki_tools,
+            set_request_wiki_tools,
+        )
 
         scope["state"] = scope.get("state", {})
         scope["state"]["mcp_profile_id"] = resolved.profile_id
@@ -229,12 +293,14 @@ class _MCPTokenAuthMiddleware:
 
         ctx_token = None
         wiki_token = None
+        wiki_tools_token = None
         desktop_token = None
         desktop_enabled_token = None
         try:
             manager = await _memory_manager_for_agent(resolved.agent_id)
             ctx_token = set_request_memory_manager(manager)
             wiki_token = set_request_wiki_boundary_enabled(await _wiki_boundary_enabled_for_agent(resolved.agent_id))
+            wiki_tools_token = set_request_wiki_tools(await _wiki_tools_for_agent(resolved.agent_id))
 
             from myrm_agent_harness.toolkits.computer_use.mcp_server import (
                 reset_request_desktop_session,
@@ -266,6 +332,8 @@ class _MCPTokenAuthMiddleware:
                 reset_request_desktop_session(desktop_token)
             if desktop_enabled_token is not None:
                 reset_request_desktop_enabled(desktop_enabled_token)
+            if wiki_tools_token is not None:
+                reset_request_wiki_tools(wiki_tools_token)
             if wiki_token is not None:
                 reset_request_wiki_boundary_enabled(wiki_token)
             if ctx_token is not None:
@@ -312,12 +380,21 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
 
         register_desktop_mcp_tools(mcp_server.mcp, get_request_desktop_session)
 
+        from myrm_agent_harness.toolkits.wiki.mcp_server import (
+            get_request_wiki_tools,
+            register_wiki_mcp_tools,
+        )
+
+        register_wiki_mcp_tools(mcp_server.mcp, get_request_wiki_tools)
+
         orig_list_tools = mcp_server.mcp.list_tools
 
         async def _filtered_list_tools() -> list[object]:
             tools = await orig_list_tools()
             if not get_request_desktop_enabled():
-                return [t for t in tools if not getattr(t, "name", "").startswith("desktop_")]
+                tools = [t for t in tools if not getattr(t, "name", "").startswith("desktop_")]
+            if get_request_wiki_tools() is None:
+                tools = [t for t in tools if not getattr(t, "name", "").startswith("wiki_")]
             return tools
 
         from mcp.server.transport_security import TransportSecuritySettings
