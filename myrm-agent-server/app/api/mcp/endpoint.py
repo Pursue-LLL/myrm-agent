@@ -208,6 +208,7 @@ async def _wiki_tools_for_agent(agent_id: str, *, wiki_enabled: bool) -> dict[st
             WikiStructure,
             create_wiki_agent_tools,
         )
+        from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
 
         from app.services.agent.platform_config import load_platform_llm
         from app.services.memory.shared_context.shared_context import (
@@ -228,8 +229,30 @@ async def _wiki_tools_for_agent(agent_id: str, *, wiki_enabled: bool) -> dict[st
         structure.ensure_structure()
         config = WikiConfig()
         llm = await load_platform_llm()
-        compiler = WikiCompiler(llm, structure, config)
-        query_engine = WikiQueryEngine(llm, structure, config)
+        # Same vault, same naming system: route MCP-ingested concepts through
+        # the same four-dimension extract prompt the in-process memory→wiki
+        # archive path uses, so concepts ingested from either surface converge
+        # on identical names (cross-document mention aggregation depends on
+        # it) instead of forking the vault taxonomy per surface.
+        from myrm_agent_harness.toolkits.wiki.core.config import WikiCompileConfig
+
+        from app.services.wiki.daily_review.prompts import FOUR_DIMENSION_EXTRACT_PROMPT
+
+        # Shared indexer so compilation writes the same FTS5 index the query
+        # engine reads — mirrors the in-process agent path (memory_to_wiki
+        # indexer wiring). Without it, MCP ingest compiles concepts but never
+        # indexes them, so queries keep refusing with "no verified basis".
+        indexer = WikiIndexer(structure, config)
+        compiler = WikiCompiler(
+            llm,
+            structure,
+            config,
+            compile_config=WikiCompileConfig(
+                extract_concepts_prompt_template=FOUR_DIMENSION_EXTRACT_PROMPT,
+            ),
+            indexer=indexer,
+        )
+        query_engine = WikiQueryEngine(llm, structure, config, indexer=indexer)
         tools = create_wiki_agent_tools(
             compiler,
             query_engine,

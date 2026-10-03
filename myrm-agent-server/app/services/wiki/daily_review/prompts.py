@@ -21,6 +21,7 @@ FOUR_DIMENSION_EXTRACT_PROMPT = (
     '- "name": concept name with logical folder path (e.g., "Knowledge/Rust/Ownership")\n'
     '- "definition": brief definition of the concept\n'
     '- "related_concepts": array of related concept names from the same document\n'
+    '- "mentions": integer count of how many times the concept is actually mentioned in the document\n'
     "CRITICAL ROUTING RULES:\n"
     "The first path segment of every concept name MUST be one of these four dimensions:\n"
     '- "Projects/...": engineering progress, milestones, delivery decisions, and work items.\n'

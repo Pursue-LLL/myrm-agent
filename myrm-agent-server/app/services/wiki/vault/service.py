@@ -43,12 +43,13 @@ async def init_wiki_vault_at_startup() -> None:
     """Migrate legacy wiki directories and ensure Karpathy layout exists."""
     result = migrate_legacy_wiki_vaults()
     vault_path = resolve_agent_wiki_vault_path("default")
-    WikiStructure(vault_path).ensure_structure()
+    structure = WikiStructure(vault_path)
+    structure.ensure_structure()
     # Seed the four standard templates once (marker-guarded; never resurrects
     # templates the user deliberately deleted).
     from app.services.wiki.daily_review.templates import seed_standard_templates
 
-    seed_standard_templates(WikiStructure(vault_path))
+    seed_standard_templates(structure)
     if result.skipped:
         logger.debug("Wiki vault ready at %s (migration already applied)", vault_path)
     else:
