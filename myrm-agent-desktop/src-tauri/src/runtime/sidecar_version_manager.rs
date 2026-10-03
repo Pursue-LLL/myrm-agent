@@ -13,10 +13,10 @@
 //! 启动失败时自动回滚至 last_known_good 并将故障版本追加至 broken_versions，
 //! 双重故障自动降级至 Factory Bundled Binary。
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
 
 const VERSIONS_JSON_FILE: &str = "versions.json";
 const VERSIONS_DIR_NAME: &str = "versions";
@@ -168,7 +168,10 @@ impl SidecarVersionManager {
 
     /// 标记指定版本启动失败并触发自动回滚自愈
     /// 返回回滚后应启动的下一个版本路径
-    pub fn mark_version_broken_and_rollback(&self, failed_version: Option<&str>) -> (PathBuf, Option<String>) {
+    pub fn mark_version_broken_and_rollback(
+        &self,
+        failed_version: Option<&str>,
+    ) -> (PathBuf, Option<String>) {
         if let Some(failed) = failed_version {
             let mut manifest = self.load_manifest();
             manifest.broken_versions.insert(failed.to_string());
@@ -195,7 +198,8 @@ mod tests {
         let temp_dir = tempfile::tempdir().expect("create temp dir");
         let factory_binary = temp_dir.path().join("factory_backend");
         let mut file = File::create(&factory_binary).expect("create factory binary");
-        file.write_all(b"factory-binary-content").expect("write factory binary");
+        file.write_all(b"factory-binary-content")
+            .expect("write factory binary");
         (temp_dir, factory_binary)
     }
 
@@ -270,7 +274,8 @@ mod tests {
         manager.save_manifest(&manifest).expect("save manifest");
 
         // 模拟 v1.1.0 启动探测失败，触发回滚
-        let (fallback_path, fallback_ver) = manager.mark_version_broken_and_rollback(Some("v1.1.0"));
+        let (fallback_path, fallback_ver) =
+            manager.mark_version_broken_and_rollback(Some("v1.1.0"));
         assert_eq!(fallback_path, v1_binary);
         assert_eq!(fallback_ver.as_deref(), Some("v1.0.0"));
 

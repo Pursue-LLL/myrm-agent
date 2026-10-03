@@ -28,7 +28,9 @@ pub fn show_pet_surface(app: AppHandle, payload: PetSurfaceBoundsPayload) -> Res
             .set_size(Size::Logical(LogicalSize::new(width, height)))
             .map_err(|error| error.to_string())?;
         window
-            .set_position(Position::Logical(LogicalPosition::new(payload.x, payload.y)))
+            .set_position(Position::Logical(LogicalPosition::new(
+                payload.x, payload.y,
+            )))
             .map_err(|error| error.to_string())?;
         window.show().map_err(|error| error.to_string())?;
         return Ok(());

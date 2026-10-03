@@ -356,11 +356,39 @@ mod tests {
 
     #[test]
     fn test_should_migrate_entry() {
-        for valid in &["data.db", "data.db-wal", "data.db-shm", "checkpoints.db", "tasks.db", "config_version", "skills", "blobs", "memory", "qdrant"] {
-            assert!(should_migrate_entry(valid), "Expected {} to be migrated", valid);
+        for valid in &[
+            "data.db",
+            "data.db-wal",
+            "data.db-shm",
+            "checkpoints.db",
+            "tasks.db",
+            "config_version",
+            "skills",
+            "blobs",
+            "memory",
+            "qdrant",
+        ] {
+            assert!(
+                should_migrate_entry(valid),
+                "Expected {} to be migrated",
+                valid
+            );
         }
-        for invalid in &[".myrm_write_test", ".DS_Store", "Thumbs.db", "backend.pid", "desktop.lock", "server.sock", "session.lock", ".tmp_file"] {
-            assert!(!should_migrate_entry(invalid), "Expected {} to be ignored", invalid);
+        for invalid in &[
+            ".myrm_write_test",
+            ".DS_Store",
+            "Thumbs.db",
+            "backend.pid",
+            "desktop.lock",
+            "server.sock",
+            "session.lock",
+            ".tmp_file",
+        ] {
+            assert!(
+                !should_migrate_entry(invalid),
+                "Expected {} to be ignored",
+                invalid
+            );
         }
     }
 
@@ -387,7 +415,9 @@ mod tests {
 
         let res = validate_target_directory(&old_dir, &new_dir);
         assert!(res.is_err());
-        assert!(res.unwrap_err().contains("already contains existing data file"));
+        assert!(res
+            .unwrap_err()
+            .contains("already contains existing data file"));
     }
 
     #[test]

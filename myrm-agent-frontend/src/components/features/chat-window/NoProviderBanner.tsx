@@ -149,6 +149,7 @@ const NoProviderBanner = memo(() => {
         } else {
           const res = await startProviderOAuth(providerType);
           if (res.user_code && res.verification_uri) {
+            const userCode = res.user_code;
             const flow: DeviceCodeState = {
               providerId: providerType,
               providerName: providerType === 'copilot' ? 'GitHub Copilot' : 'ChatGPT Plus / Pro',
@@ -162,7 +163,7 @@ const NoProviderBanner = memo(() => {
             pollTimerRef.current = setInterval(
               async () => {
                 try {
-                  const pollRes = await pollProviderOAuth(providerType, res.user_code!);
+                  const pollRes = await pollProviderOAuth(providerType, userCode);
                   if (pollRes.status === 'success') {
                     onAuthSuccess(providerType);
                   } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {

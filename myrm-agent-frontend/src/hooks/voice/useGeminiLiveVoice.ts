@@ -118,7 +118,10 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
 
   const processAudioQueue = useCallback(() => {
     while (audioQueueRef.current.length > 0) {
-      const chunk = audioQueueRef.current.shift()!;
+      const chunk = audioQueueRef.current.shift();
+      if (!chunk) {
+        break;
+      }
       scheduleAudioChunk(chunk);
     }
   }, [scheduleAudioChunk]);

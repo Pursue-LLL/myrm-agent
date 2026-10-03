@@ -14154,7 +14154,7 @@
       "apiKeySaved": "API-Schlüssel erfolgreich gespeichert",
       "apiKeySaveFailed": "Speichern des API-Schlüssels fehlgeschlagen",
       "ttsTitle": "Sprachsynthese",
-      "ttsDescription": "tts_generate Agent-Tool konfigurieren: Anbieter, Modell, Stimme und Zugangsdaten",
+      "ttsDescription": "Sprachsynthese konfigurieren: Anbieter, Modell, Stimme und Zugangsdaten",
       "ttsProvider": "Anbieter",
       "ttsModel": "Modell",
       "ttsVoice": "Stimme",

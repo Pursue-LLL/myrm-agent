@@ -511,6 +511,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     handleDropConfirm,
     dismissDropConfirm,
   } = useKanbanDnD({ tasks, selectedTaskIds, onMoveTask: handleMoveTask, onBulkMove: handleBulkMove });
+  const draggedTask = draggedTaskId ? tasks.find((tk) => tk.task_id === draggedTaskId) : undefined;
 
   return (
     <div className="space-y-4" data-testid="kanban-board-view">
@@ -836,7 +837,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                 ))}
               </div>
               <DragOverlay dropAnimation={null}>
-                {draggedTaskId ? (
+                {draggedTask ? (
                   <div className="rounded-md shadow-lg scale-105 rotate-1 opacity-90 pointer-events-none max-w-[280px]">
                     {isBulkDrag && (
                       <div className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow">
@@ -844,7 +845,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                       </div>
                     )}
                     <KanbanTaskCard
-                      task={tasks.find((tk) => tk.task_id === draggedTaskId)!}
+                      task={draggedTask}
                       allTasks={tasks}
                       onMove={handleMoveTask}
                       onDelete={handleDeleteTask}

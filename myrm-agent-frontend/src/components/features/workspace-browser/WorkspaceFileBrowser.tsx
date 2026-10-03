@@ -102,8 +102,9 @@ const TreeItem: React.FC<TreeItemProps> = memo(
     onRenameCancel,
   }) => {
     const isDir = node.type === 'directory';
+    const children = isDir ? node.children : undefined;
     const isExpanded = expandedPaths.has(node.path);
-    const hasChildren = isDir && node.children && node.children.length > 0;
+    const hasChildren = children != null && children.length > 0;
     const isRenaming = renamingPath === node.path;
 
     const handleClick = useCallback(() => {
@@ -189,7 +190,7 @@ const TreeItem: React.FC<TreeItemProps> = memo(
                 className="absolute left-0 top-0 bottom-0 border-l border-border/40"
                 style={{ marginLeft: `${depth * 16 + 16}px` }}
               />
-              {node.children!.map((child) => (
+              {children?.map((child) => (
                 <TreeItem
                   key={child.path}
                   node={child}
@@ -235,6 +236,7 @@ export const WorkspaceFileBrowser: React.FC<WorkspaceFileBrowserProps> = memo(
     const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
 
     const ops = useWorkspaceFileOps(workspacePath, onRefresh ?? (() => {}));
+    const deletingNode = ops.deletingNode;
 
     const handleToggle = useCallback((path: string) => {
       setExpandedPaths((prev) => {
@@ -385,10 +387,10 @@ export const WorkspaceFileBrowser: React.FC<WorkspaceFileBrowserProps> = memo(
         </AnimatePresence>
 
         <AnimatePresence>
-          {ops.deletingNode && (
+          {deletingNode && (
             <DeleteConfirmDialog
-              node={ops.deletingNode}
-              onConfirm={() => ops.handleDelete(ops.deletingNode!)}
+              node={deletingNode}
+              onConfirm={() => ops.handleDelete(deletingNode)}
               onCancel={() => ops.setDeletingNode(null)}
             />
           )}

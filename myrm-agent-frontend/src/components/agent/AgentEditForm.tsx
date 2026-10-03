@@ -70,9 +70,12 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
   const [ownerLabel, setOwnerLabel] = useState<string>('');
   const [acceptanceCriteriaText, setAcceptanceCriteriaText] = useState<string>('');
 
-  const { data: agent, isLoading } = useSWR<Agent>(open && agentId ? `getAgent-${agentId}` : null, () =>
-    getAgent(agentId!, true),
-  );
+  const { data: agent, isLoading } = useSWR<Agent>(open && agentId ? `getAgent-${agentId}` : null, () => {
+    if (!agentId) {
+      throw new Error('Agent id missing for agent fetch');
+    }
+    return getAgent(agentId, true);
+  });
 
   const {
     register,

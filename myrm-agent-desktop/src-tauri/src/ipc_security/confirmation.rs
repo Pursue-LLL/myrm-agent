@@ -1,9 +1,9 @@
-use std::time::Duration;
+use super::ticket_store::SensitiveAction;
 use serde::Serialize;
+use std::time::Duration;
 use tauri::{Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tokio::sync::oneshot;
-use super::ticket_store::SensitiveAction;
 
 const IPC_SENSITIVE_CONFIRMATION_AUDIT_EVENT: &str = "ipc-sensitive-confirmation";
 const MAIN_WEBVIEW_LABEL: &str = "main";

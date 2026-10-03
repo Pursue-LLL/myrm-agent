@@ -414,9 +414,9 @@ export const CompactedSummaryView = () => {
           </div>
         )}
 
-        {(lastCompactionMeta?.tokensSaved ?? 0) > 0 && (
+        {lastCompactionMeta && (lastCompactionMeta.tokensSaved ?? 0) > 0 && (
           <div className="mt-3 pt-3 border-t border-border/50 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-            <span>{t('tokensSaved', { tokens: formatTokens(lastCompactionMeta!.tokensSaved) })}</span>
+            <span>{t('tokensSaved', { tokens: formatTokens(lastCompactionMeta.tokensSaved ?? 0) })}</span>
             {lastCompactionMeta?.snapshotPath && (
               <button
                 type="button"

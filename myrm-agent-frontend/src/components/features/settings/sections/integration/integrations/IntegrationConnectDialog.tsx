@@ -128,11 +128,12 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
   ({ entry, locale, onClose, onConnected }) => {
     const t = useTranslations('settings.integrationCatalog.connectDialog');
     const tSettings = useTranslations('settings');
-    const hasMultiFields = entry.credentialFields && entry.credentialFields.length > 0;
+    const credentialFields = entry.credentialFields ?? [];
+    const hasMultiFields = credentialFields.length > 0;
 
     const [credential, setCredential] = useState('');
     const [fieldValues, setFieldValues] = useState<Record<string, string>>(() =>
-      hasMultiFields ? Object.fromEntries(entry.credentialFields!.map((f) => [f.key, ''])) : {},
+      Object.fromEntries(credentialFields.map((f) => [f.key, ''])),
     );
     const [connecting, setConnecting] = useState(false);
     const [oauthPolling, setOauthPolling] = useState(false);
@@ -389,7 +390,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
 
         if (entry.authType !== 'none') {
           if (hasMultiFields) {
-            const empty = entry.credentialFields!.find((f) => !fieldValues[f.key]?.trim());
+            const empty = credentialFields.find((f) => !fieldValues[f.key]?.trim());
             if (empty) {
               const label = locale === 'zh' && empty.labelZh ? empty.labelZh : empty.label;
               toast({ title: `${label} ${t('credentialRequired')}`, variant: 'destructive' });
@@ -432,7 +433,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             const headerMap: Record<string, string> = { ...mcpCfg.headers };
 
             if (hasMultiFields) {
-              for (const field of entry.credentialFields!) {
+              for (const field of credentialFields) {
                 const val = fieldValues[field.key]?.trim() || '';
                 if (field.inject === 'arg_placeholder') {
                   finalArgs = finalArgs.map((a) => (a === field.key ? val : a));
@@ -590,7 +591,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
                   <>
                     {hasMultiFields ? (
                       <div className="space-y-3">
-                        {entry.credentialFields!.map((field) => (
+                        {credentialFields.map((field) => (
                           <div key={field.key} className="space-y-1.5">
                             <Label className="text-sm">
                               {locale === 'zh' && field.labelZh ? field.labelZh : field.label}

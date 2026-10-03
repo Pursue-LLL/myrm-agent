@@ -64,6 +64,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
         const previewUrl = isMedia ? URL.createObjectURL(f) : undefined;
         return {
           file: f,
+          tempId,
           tempItem: {
             id: tempId,
             tempId,
@@ -85,8 +86,9 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
       try {
         const existingHashes = new Set(files.map((f) => f.contentHash).filter(Boolean));
         const hashResults = await Promise.all(
-          pendingItems.map(async ({ file, tempItem }) => ({
+          pendingItems.map(async ({ file, tempId, tempItem }) => ({
             file,
+            tempId,
             tempItem,
             hash: await computeFileHash(file),
           })),
@@ -100,14 +102,14 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
             dedupedItems.push(item);
             existingHashes.add(item.hash);
           } else {
-            duplicateTempIds.add(item.tempItem.tempId!);
+            duplicateTempIds.add(item.tempId);
           }
         }
 
         if (duplicateTempIds.size > 0) {
           // 移除重复项并释放对应 Object URL
           for (const item of hashResults) {
-            if (duplicateTempIds.has(item.tempItem.tempId!) && item.tempItem.previewUrl) {
+            if (duplicateTempIds.has(item.tempId) && item.tempItem.previewUrl) {
               URL.revokeObjectURL(item.tempItem.previewUrl);
             }
           }
@@ -127,7 +129,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
           (progress) => {
             updateFilesHelper((prev) =>
               prev.map((f) => {
-                if (dedupedItems.some((d) => d.tempItem.tempId === f.tempId)) {
+                if (dedupedItems.some((d) => d.tempId === f.tempId)) {
                   return { ...f, uploadPercent: progress.percent };
                 }
                 return f;
@@ -146,7 +148,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
         for (let i = 0; i < dedupedItems.length; i++) {
           const rawFile = uploadResults.files[i];
           if (rawFile) {
-            uploadedMap.set(dedupedItems[i].tempItem.tempId!, {
+            uploadedMap.set(dedupedItems[i].tempId, {
               fileId: rawFile.fileId,
               fileUrl: rawFile.fileUrl,
               hash: dedupedItems[i].hash,
@@ -156,8 +158,8 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
 
         updateFilesHelper((prev) =>
           prev.map((f) => {
-            if (f.tempId && uploadedMap.has(f.tempId)) {
-              const res = uploadedMap.get(f.tempId)!;
+            const res = f.tempId ? uploadedMap.get(f.tempId) : undefined;
+            if (res) {
               if (f.previewUrl) {
                 URL.revokeObjectURL(f.previewUrl);
               }
@@ -196,7 +198,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
         // 标记为 error 状态
         updateFilesHelper((prev) =>
           prev.map((f) => {
-            if (pendingItems.some((p) => p.tempItem.tempId === f.tempId)) {
+            if (pendingItems.some((p) => p.tempId === f.tempId)) {
               return { ...f, status: 'error' as const };
             }
             return f;

@@ -211,6 +211,7 @@ export default function SkillGrowthCaseCard({
   }, [onRevise, editedContent]);
 
   const showContentPanel = !isSimple || contentExpanded;
+  const cronScheduleHint = item.formMetadata?.scheduleHint;
 
   return (
     <div className="rounded-2xl border bg-background p-4">
@@ -402,11 +403,11 @@ export default function SkillGrowthCaseCard({
                 {t('actions.approveShadow')}
               </Button>
             )}
-            {item.growthType === 'cron_suggestion' && onCreateCron && item.formMetadata?.scheduleHint ? (
+            {item.growthType === 'cron_suggestion' && onCreateCron && cronScheduleHint ? (
               <Button
                 size="sm"
                 className="bg-violet-600 hover:bg-violet-700 text-white"
-                onClick={() => onCreateCron(item.formMetadata!.scheduleHint!)}
+                onClick={() => onCreateCron(cronScheduleHint)}
                 disabled={isProcessing}
               >
                 <CalendarClock className="mr-2 h-4 w-4" />

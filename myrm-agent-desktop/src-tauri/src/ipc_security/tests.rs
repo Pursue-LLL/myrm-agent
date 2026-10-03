@@ -84,18 +84,14 @@ async fn confirmation_request_accepts_and_tracks_parent_binding() {
         true,
     );
 
-    let result = execute_confirmation_request(
-        request,
-        Duration::from_millis(50),
-        locale,
-        |request, tx| {
+    let result =
+        execute_confirmation_request(request, Duration::from_millis(50), locale, |request, tx| {
             assert!(request.parent_bound);
             assert_eq!(request.title, "Sensitive Action Confirmation");
             assert_eq!(request.continue_label, "Continue");
             let _ = tx.send(true);
-        },
-    )
-    .await;
+        })
+        .await;
 
     assert!(result.is_ok());
 }
@@ -110,17 +106,13 @@ async fn confirmation_request_returns_localized_cancel_error() {
         false,
     );
 
-    let result = execute_confirmation_request(
-        request,
-        Duration::from_millis(50),
-        locale,
-        |request, tx| {
+    let result =
+        execute_confirmation_request(request, Duration::from_millis(50), locale, |request, tx| {
             assert!(!request.parent_bound);
             assert_eq!(request.cancel_label, "取消");
             let _ = tx.send(false);
-        },
-    )
-    .await;
+        })
+        .await;
 
     assert_eq!(
         result.expect_err("cancel should fail"),
@@ -138,13 +130,14 @@ async fn confirmation_request_times_out_when_dialog_does_not_respond() {
         true,
     );
 
-    let result = execute_confirmation_request(request, Duration::from_millis(1), locale, |_, tx| {
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(20)).await;
-            drop(tx);
-        });
-    })
-    .await;
+    let result =
+        execute_confirmation_request(request, Duration::from_millis(1), locale, |_, tx| {
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                drop(tx);
+            });
+        })
+        .await;
 
     assert_eq!(
         result.expect_err("timeout should fail"),
@@ -155,12 +148,12 @@ async fn confirmation_request_times_out_when_dialog_does_not_respond() {
 #[tokio::test]
 async fn confirmation_request_returns_receive_error_when_channel_closes() {
     let locale = ConfirmationLocale::En;
-    let request = build_confirmation_request(SensitiveAction::ExportLocalSqlite, None, locale, false);
+    let request =
+        build_confirmation_request(SensitiveAction::ExportLocalSqlite, None, locale, false);
 
-    let result = execute_confirmation_request(request, Duration::from_millis(50), locale, |_, tx| {
-        drop(tx)
-    })
-    .await;
+    let result =
+        execute_confirmation_request(request, Duration::from_millis(50), locale, |_, tx| drop(tx))
+            .await;
 
     assert_eq!(
         result.expect_err("closed channel should fail"),

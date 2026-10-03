@@ -300,10 +300,12 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
     const groups = new Map<SettingsGroup, FilteredMenuItem[]>();
     filteredItems.forEach((fItem) => {
       const group = fItem.item.group;
-      if (!groups.has(group)) {
-        groups.set(group, []);
+      let groupItems = groups.get(group);
+      if (!groupItems) {
+        groupItems = [];
+        groups.set(group, groupItems);
       }
-      groups.get(group)!.push(fItem);
+      groupItems.push(fItem);
     });
     return Array.from(groups.entries())
       .filter(([, items]) => items.length > 0)

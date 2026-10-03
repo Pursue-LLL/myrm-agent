@@ -42,7 +42,7 @@ export function shouldShowClaimStatusBadge(status?: string): status is 'conteste
 }
 
 /** Show compile confidence when explicitly set (not unknown fallback 0.5). */
-export function shouldShowClaimConfidence(confidence?: number): boolean {
+export function shouldShowClaimConfidence(confidence?: number): confidence is number {
   if (confidence === undefined || confidence === null) {
     return false;
   }

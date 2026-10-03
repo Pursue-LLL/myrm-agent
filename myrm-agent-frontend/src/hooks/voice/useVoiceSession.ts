@@ -393,8 +393,10 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
       return;
     }
 
-    const segment = pendingTTSRef.current.shift()!;
-    tts.speak(segment);
+    const segment = pendingTTSRef.current.shift();
+    if (segment) {
+      tts.speak(segment);
+    }
   }, [tts, speech, fullDuplex]);
 
   const speakResponse = useCallback(

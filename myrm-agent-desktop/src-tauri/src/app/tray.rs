@@ -17,7 +17,8 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
 
-static ENGINE_VER_ITEM: std::sync::Mutex<Option<MenuItem<tauri::Wry>>> = std::sync::Mutex::new(None);
+static ENGINE_VER_ITEM: std::sync::Mutex<Option<MenuItem<tauri::Wry>>> =
+    std::sync::Mutex::new(None);
 
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
@@ -74,7 +75,8 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let engine_ver_text = "Engine Sidecar: v0.1.0".to_string();
 
     let shell_ver_i = MenuItem::with_id(app, "version_shell", shell_ver_text, false, None::<&str>)?;
-    let engine_ver_i = MenuItem::with_id(app, "version_engine", engine_ver_text, false, None::<&str>)?;
+    let engine_ver_i =
+        MenuItem::with_id(app, "version_engine", engine_ver_text, false, None::<&str>)?;
     if let Ok(mut guard) = ENGINE_VER_ITEM.lock() {
         *guard = Some(engine_ver_i.clone());
     }
@@ -85,7 +87,13 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let sep1 = PredefinedMenuItem::separator(app)?;
     let settings_i = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let workspace_i = MenuItem::with_id(app, "workspace", "Workspace", true, None::<&str>)?;
-    let curtain_i = MenuItem::with_id(app, "privacy_curtain", "Privacy Curtain", true, None::<&str>)?;
+    let curtain_i = MenuItem::with_id(
+        app,
+        "privacy_curtain",
+        "Privacy Curtain",
+        true,
+        None::<&str>,
+    )?;
     let sep2 = PredefinedMenuItem::separator(app)?;
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 

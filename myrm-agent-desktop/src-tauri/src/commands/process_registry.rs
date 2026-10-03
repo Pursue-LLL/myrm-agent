@@ -29,7 +29,10 @@ pub async fn kill_desktop_process(
     process_id: String,
     registry: State<'_, ProcessRegistry>,
 ) -> Result<String, String> {
-    println!("🛑 Received request to kill managed process: {}", process_id);
+    println!(
+        "🛑 Received request to kill managed process: {}",
+        process_id
+    );
 
     registry.kill_managed_process(&process_id).await?;
 
@@ -37,5 +40,8 @@ pub async fn kill_desktop_process(
     use tauri::Emitter;
     let _ = app.emit("desktop:process-killed", &process_id);
 
-    Ok(format!("Managed process '{}' killed successfully", process_id))
+    Ok(format!(
+        "Managed process '{}' killed successfully",
+        process_id
+    ))
 }

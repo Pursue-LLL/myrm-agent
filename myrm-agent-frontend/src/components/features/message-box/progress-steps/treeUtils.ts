@@ -34,8 +34,8 @@ export function buildTree(steps: ProgressItem[]): TreeNode[] {
       return;
     }
 
-    if (step.parent_step_key && nodeMap.has(step.parent_step_key)) {
-      const parent = nodeMap.get(step.parent_step_key)!;
+    const parent = step.parent_step_key ? nodeMap.get(step.parent_step_key) : undefined;
+    if (parent) {
       parent.children.push(node);
     } else {
       roots.push(node);

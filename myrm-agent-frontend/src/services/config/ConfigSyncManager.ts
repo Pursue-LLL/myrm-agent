@@ -400,10 +400,12 @@ class ConfigSyncManager {
    * 订阅配置变更
    */
   subscribe<K extends ConfigKey>(key: K, listener: ConfigChangeListener<K>): () => void {
-    if (!this.listeners.has(key)) {
-      this.listeners.set(key, new Set());
+    let keyListeners = this.listeners.get(key);
+    if (!keyListeners) {
+      keyListeners = new Set();
+      this.listeners.set(key, keyListeners);
     }
-    this.listeners.get(key)!.add(listener as ConfigChangeListener);
+    keyListeners.add(listener as ConfigChangeListener);
 
     // 返回取消订阅函数
     return () => {

@@ -58,7 +58,10 @@ export function groupChatsByDate(chats: ChatItem[]): DateGroup[] {
     }
   }
 
-  return GROUP_ORDER.filter((key) => buckets.has(key)).map((key) => ({ key, items: buckets.get(key)! }));
+  return GROUP_ORDER.flatMap((key) => {
+    const items = buckets.get(key);
+    return items ? [{ key, items }] : [];
+  });
 }
 
 function readCollapsedState(): Record<string, boolean> {

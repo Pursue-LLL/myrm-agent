@@ -6,6 +6,7 @@ import logging
 import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.infra.tls_compat import create_httpx_client
 from pydantic import BaseModel, SecretStr
 from pydantic.alias_generators import to_camel
 
@@ -65,9 +66,13 @@ def _auth_header(template: str, api_key: str) -> dict[str, str]:
 async def _probe_endpoint(
     url: str, headers: dict[str, str], timeout: float
 ) -> tuple[bool, str]:
-    """Lightweight credential probe: any 2xx means the key is live."""
+    """Lightweight credential probe: any 2xx means the key is live.
+
+    Uses the TLS-compat client factory so the probe exercises the same HTTP
+    stack as real generation (custom CA bundles would otherwise diverge).
+    """
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with create_httpx_client(timeout=timeout) as client:
             resp = await client.get(url, headers=headers)
         if resp.status_code < 400:
             return True, "API key is valid"

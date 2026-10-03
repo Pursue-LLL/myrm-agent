@@ -80,10 +80,16 @@ pub async fn start_backend_with_config(
     }
 
     if is_port_in_use(&config.host, config.port) {
-        println!("⚠️  Port {}:{} in use, diagnosing potential survivor processes...", config.host, config.port);
+        println!(
+            "⚠️  Port {}:{} in use, diagnosing potential survivor processes...",
+            config.host, config.port
+        );
         match diagnose_and_reclaim_port(&config.host, config.port).await {
             SurvivorDiagResult::SelfSurvivorReclaimed { pid, process_name } => {
-                println!("✅ Self survivor {} (PID: {}) reclaimed, proceeding with startup", process_name, pid);
+                println!(
+                    "✅ Self survivor {} (PID: {}) reclaimed, proceeding with startup",
+                    process_name, pid
+                );
             }
             SurvivorDiagResult::ForeignConflict { pid, process_name } => {
                 return Err(format!(
@@ -167,7 +173,10 @@ pub async fn start_backend_with_config(
         let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
         let (launch_binary, active_version) = version_manager.resolve_launch_binary();
 
-        println!("📦 Resolved launch Sidecar binary: {:?} (Version: {:?})", launch_binary, active_version);
+        println!(
+            "📦 Resolved launch Sidecar binary: {:?} (Version: {:?})",
+            launch_binary, active_version
+        );
 
         let sidecar_len = std::fs::metadata(&launch_binary)
             .map(|meta| meta.len())
@@ -201,7 +210,10 @@ pub async fn start_backend_with_config(
 
     // Locked Use 能力开关传递（server 侧代解锁授权判定，与帷幕开关注册同源）。
     if let Some(manager) = app.try_state::<ConfigManager>() {
-        cmd.env("MYRM_LOCKED_USE_ENABLED", manager.load().locked_use_enabled.to_string());
+        cmd.env(
+            "MYRM_LOCKED_USE_ENABLED",
+            manager.load().locked_use_enabled.to_string(),
+        );
     }
 
     if let Some(ref data_dir) = config.custom_data_dir {
@@ -278,7 +290,8 @@ pub async fn start_backend_with_config(
                         .path()
                         .resolve(binary_name, tauri::path::BaseDirectory::Resource)
                         .unwrap_or_default();
-                    let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
+                    let version_manager =
+                        SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
                     let _ = version_manager.mark_version_healthy(target_version.as_deref());
                 }
 
@@ -313,7 +326,8 @@ pub async fn start_backend_with_config(
             .resolve(binary_name, tauri::path::BaseDirectory::Resource)
             .unwrap_or_default();
         let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
-        let (fallback_path, fallback_ver) = version_manager.mark_version_broken_and_rollback(target_version.as_deref());
+        let (fallback_path, fallback_ver) =
+            version_manager.mark_version_broken_and_rollback(target_version.as_deref());
         println!(
             "⚠️ Sidecar launch probe failed for version {:?}. Auto-rolled back to: {:?} (Target: {:?})",
             target_version, fallback_ver, fallback_path

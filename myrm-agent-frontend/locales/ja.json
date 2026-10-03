@@ -14154,7 +14154,7 @@
       "apiKeySaved": "API キーの保存に成功しました",
       "apiKeySaveFailed": "API Key の保存に失敗しました",
       "ttsTitle": "音声合成",
-      "ttsDescription": "tts_generate エージェントツールの設定：プロバイダー、モデル、ボイス、認証情報",
+      "ttsDescription": "音声合成を設定：プロバイダー、モデル、ボイス、認証情報",
       "ttsProvider": "プロバイダー",
       "ttsModel": "モデル",
       "ttsVoice": "ボイス",

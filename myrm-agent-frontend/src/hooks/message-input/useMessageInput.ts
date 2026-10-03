@@ -764,7 +764,7 @@ export const useMessageInput = () => {
       const httpMatch = newValue.match(/(^|[^@])(https?:\/\/[^\s]+)/);
 
       if (httpMatch && !dontRemindAgain) {
-        const matchIndex = httpMatch.index! + (httpMatch[1] ? httpMatch[1].length : 0);
+        const matchIndex = (httpMatch.index ?? 0) + (httpMatch[1] ? httpMatch[1].length : 0);
         setDetectedLink({
           text: httpMatch[2],
           position: matchIndex,

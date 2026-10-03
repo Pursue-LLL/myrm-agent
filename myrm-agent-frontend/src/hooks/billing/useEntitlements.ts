@@ -11,7 +11,12 @@ export function useEntitlements() {
 
   const { data, error, isLoading, mutate } = useSWR<EntitlementSnapshot>(
     isAuthenticated && !local && token ? ['cp-entitlements', token] : null,
-    () => fetchEntitlements(token!),
+    () => {
+      if (!token) {
+        throw new Error('Auth token missing for entitlements fetch');
+      }
+      return fetchEntitlements(token);
+    },
     {
       revalidateOnFocus: true,
       dedupingInterval: 30000,

@@ -12,9 +12,9 @@
 //! 解决 Windows 桌面端启动与热重启时，因历史孤儿进程死锁端口导致的闪退问题。
 //! 具备严格的三道防误杀防线，确保绝不误杀用户无关业务进程。
 
-use std::time::Duration;
 use crate::runtime::port::is_port_in_use;
 use crate::utils::process_tree::kill_process_tree;
+use std::time::Duration;
 
 /// 幸存者诊断与自愈结果
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -112,7 +112,10 @@ fn find_process_occupying_port(port: u16) -> Option<(u32, String, String)> {
     ps_cmd.args([
         "-NoProfile",
         "-Command",
-        &format!("(Get-CimInstance Win32_Process -Filter 'ProcessId = {}').CommandLine", pid),
+        &format!(
+            "(Get-CimInstance Win32_Process -Filter 'ProcessId = {}').CommandLine",
+            pid
+        ),
     ]);
     crate::runtime::suppress_console_window(&mut ps_cmd);
     let cmd_line = ps_cmd
@@ -207,13 +210,34 @@ mod tests {
     fn test_is_self_process_detection() {
         assert!(is_self_process("myrmagent-backend.exe", ""));
         assert!(is_self_process("myrm-agent.exe", ""));
-        assert!(is_self_process("python.exe", "C:\\Program Files\\MyrmAgent\\resources\\run.py"));
-        assert!(is_self_process("node.exe", "node.exe C:\\Users\\app\\myrm\\standalone\\server.js"));
-        assert!(is_self_process("node", "/usr/local/bin/node /repo/myrm-agent-frontend/.next/standalone/server.js"));
-        assert!(is_self_process("python3", "python3 /Users/test/myrm-agent-server/run.py"));
+        assert!(is_self_process(
+            "python.exe",
+            "C:\\Program Files\\MyrmAgent\\resources\\run.py"
+        ));
+        assert!(is_self_process(
+            "node.exe",
+            "node.exe C:\\Users\\app\\myrm\\standalone\\server.js"
+        ));
+        assert!(is_self_process(
+            "node",
+            "/usr/local/bin/node /repo/myrm-agent-frontend/.next/standalone/server.js"
+        ));
+        assert!(is_self_process(
+            "python3",
+            "python3 /Users/test/myrm-agent-server/run.py"
+        ));
         assert!(!is_self_process("nginx.exe", "C:\\nginx\\nginx.exe"));
-        assert!(!is_self_process("java.exe", "C:\\Java\\bin\\java.exe -jar other.jar"));
-        assert!(!is_self_process("node", "node /projects/unrelated-react-app/index.js"));
-        assert!(!is_self_process("python", "python /var/www/other_service.py"));
+        assert!(!is_self_process(
+            "java.exe",
+            "C:\\Java\\bin\\java.exe -jar other.jar"
+        ));
+        assert!(!is_self_process(
+            "node",
+            "node /projects/unrelated-react-app/index.js"
+        ));
+        assert!(!is_self_process(
+            "python",
+            "python /var/www/other_service.py"
+        ));
     }
 }

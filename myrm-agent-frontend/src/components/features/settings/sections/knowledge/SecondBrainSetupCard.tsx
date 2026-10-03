@@ -168,6 +168,7 @@ export default function SecondBrainSetupCard({
   const providerReady = status?.checklist.find((item) => item.id === 'provider_ready')?.ready ?? false;
   const agentToolsReady = status?.checklist.find((item) => item.id === 'agent_tools')?.ready ?? false;
   const cronReady = status?.checklist.find((item) => item.id === 'cron_job')?.ready ?? false;
+  const appliedAgentId = status?.applied && status.agent_id ? status.agent_id : null;
 
   const handleUseAgent = () => {
     if (status?.agent_id) {
@@ -204,8 +205,8 @@ export default function SecondBrainSetupCard({
               <Button onClick={handleApply} disabled={applying}>
                 {applying ? t('applying') : status?.applied ? t('reapply') : t('apply')}
               </Button>
-              {status?.applied && status.agent_id ? (
-                <Button variant="outline" onClick={() => void selectSecondBrainAgent(status.agent_id!)}>
+              {appliedAgentId ? (
+                <Button variant="outline" onClick={() => void selectSecondBrainAgent(appliedAgentId)}>
                   {t('useAgent')}
                 </Button>
               ) : null}

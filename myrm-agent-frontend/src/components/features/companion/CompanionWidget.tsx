@@ -497,7 +497,7 @@ export default function CompanionWidget() {
           </div>
         </HoverCardTrigger>
         <HoverCardContent side="top" className="w-56">
-          <InfoCard bones={bones} userId={user!.id} t={t} />
+          {user ? <InfoCard bones={bones} userId={user.id} t={t} /> : null}
         </HoverCardContent>
       </HoverCard>
 

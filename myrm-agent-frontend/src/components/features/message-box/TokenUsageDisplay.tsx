@@ -371,9 +371,12 @@ export default function TokenUsageDisplay({
     return null;
   }
 
-  const hasCachedTokens = usage.cached_tokens !== undefined && usage.cached_tokens > 0;
-  const hasReasoningTokens = usage.reasoning_tokens !== undefined && usage.reasoning_tokens > 0;
-  const hasCitationTokens = usage.citation_tokens !== undefined && usage.citation_tokens > 0;
+  const cachedTokens = usage.cached_tokens ?? 0;
+  const reasoningTokens = usage.reasoning_tokens ?? 0;
+  const citationTokens = usage.citation_tokens ?? 0;
+  const hasCachedTokens = cachedTokens > 0;
+  const hasReasoningTokens = reasoningTokens > 0;
+  const hasCitationTokens = citationTokens > 0;
   const cacheSavings = calculateCacheSavings(usage);
   const budgetColors = contextBudget ? BUDGET_COLORS[contextBudget.health_status] : null;
 
@@ -491,7 +494,7 @@ export default function TokenUsageDisplay({
                     <span className="text-xs text-muted-foreground">{t('reasoningTokens')}</span>
                   </div>
                   <span className="text-xs font-mono font-medium tabular-nums text-amber-600 dark:text-amber-400">
-                    {usage.reasoning_tokens!.toLocaleString()}
+                    {reasoningTokens.toLocaleString()}
                   </span>
                 </div>
               )}
@@ -507,7 +510,7 @@ export default function TokenUsageDisplay({
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-mono font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
-                      {usage.cached_tokens!.toLocaleString()}
+                      {cachedTokens.toLocaleString()}
                     </span>
                     <span className="text-[10px] px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 font-medium">
                       -{cacheSavings}%
@@ -563,7 +566,7 @@ export default function TokenUsageDisplay({
                     <span className="text-xs text-muted-foreground">{t('citationTokens')}</span>
                   </div>
                   <span className="text-xs font-mono font-medium tabular-nums text-sky-600 dark:text-sky-400">
-                    {usage.citation_tokens!.toLocaleString()}
+                    {citationTokens.toLocaleString()}
                   </span>
                 </div>
               )}

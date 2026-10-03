@@ -96,11 +96,12 @@ async function countPendingProposalsForBindings(
     ),
   );
 
-  if (proposalLists.some((response) => response === null)) {
+  const availableLists = proposalLists.flatMap((response) => (response === null ? [] : [response]));
+  if (availableLists.length !== proposalLists.length) {
     return { count: 0, status: 'unavailable' };
   }
 
-  const count = proposalLists.reduce((sum, response) => sum + (response!.total ?? response!.items.length), 0);
+  const count = availableLists.reduce((sum, response) => sum + (response.total ?? response.items.length), 0);
   return { count, status: 'ok' };
 }
 

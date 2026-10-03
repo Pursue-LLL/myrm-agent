@@ -172,7 +172,7 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
                     {shouldShowClaimConfidence(claimConfidence) && (
                       <span className="shrink-0 text-[10px] leading-4 px-1.5 py-0.5 rounded-full border bg-sky-500/10 text-sky-800 dark:text-sky-200 border-sky-500/20">
                         {tWiki('evidenceClaimConfidence', {
-                          value: formatClaimConfidence(claimConfidence!, locale),
+                          value: formatClaimConfidence(claimConfidence, locale),
                         })}
                       </span>
                     )}

@@ -124,7 +124,10 @@ async fn handle_wake_transition(
 
     let prev_ts = last_wake_ts.load(Ordering::Relaxed);
     if now_ms.saturating_sub(prev_ts) < DEBOUNCE_WINDOW_MS {
-        println!("[wake_detector] Wake event debounced within {}ms", DEBOUNCE_WINDOW_MS);
+        println!(
+            "[wake_detector] Wake event debounced within {}ms",
+            DEBOUNCE_WINDOW_MS
+        );
         return;
     }
     last_wake_ts.store(now_ms, Ordering::Relaxed);
@@ -147,7 +150,10 @@ async fn handle_wake_transition(
             reason,
         };
         let _ = app_handle.emit("app:system-wake", &phase1_payload);
-        println!("[wake_detector] Phase 1 emitted: waking (reason: {})", reason);
+        println!(
+            "[wake_detector] Phase 1 emitted: waking (reason: {})",
+            reason
+        );
 
         // 触发 Watchdog 即刻打断 30s 沉睡，发起快速健康探针
         wake_notify_clone.notify_one();
@@ -166,7 +172,10 @@ async fn handle_wake_transition(
             reason,
         };
         let _ = app_handle.emit("app:system-wake", &phase2_payload);
-        println!("[wake_detector] Phase 2 emitted: ready (sidecar_alive: {})", alive);
+        println!(
+            "[wake_detector] Phase 2 emitted: ready (sidecar_alive: {})",
+            alive
+        );
 
         recovering_flag.store(false, Ordering::SeqCst);
     });
@@ -256,4 +265,3 @@ mod tests {
         assert!(received);
     }
 }
-

@@ -45,16 +45,22 @@ export function ModelBindingSection({ editor, t }: SectionProps) {
             ? { providerId: editor.modelSelection.fallbackProviderId, model: editor.modelSelection.fallbackModel }
             : null
         }
-        onSelectFallback={(providerId, model) =>
-          editor.setModelSelection({ ...editor.modelSelection!, fallbackProviderId: providerId, fallbackModel: model })
-        }
-        onClearFallback={() =>
+        onSelectFallback={(providerId, model) => {
+          if (!editor.modelSelection) {
+            return;
+          }
+          editor.setModelSelection({ ...editor.modelSelection, fallbackProviderId: providerId, fallbackModel: model });
+        }}
+        onClearFallback={() => {
+          if (!editor.modelSelection) {
+            return;
+          }
           editor.setModelSelection({
-            ...editor.modelSelection!,
+            ...editor.modelSelection,
             fallbackProviderId: undefined,
             fallbackModel: undefined,
-          })
-        }
+          });
+        }}
         trigger={
           <button
             type="button"
@@ -108,7 +114,10 @@ export function ModelBindingSection({ editor, t }: SectionProps) {
 }
 
 export function ModelParamsSection({ editor, t }: SectionProps) {
-  const ms = editor.modelSelection!;
+  const ms = editor.modelSelection;
+  if (!ms) {
+    return null;
+  }
   const kwargs = ms.modelKwargs ?? {};
   const setKwarg = (key: string, val: unknown) => {
     editor.setModelSelection({ ...ms, modelKwargs: { ...kwargs, [key]: val } });

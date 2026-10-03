@@ -60,7 +60,12 @@ impl ProcessRegistry {
     }
 
     /// 标记子进程异常崩溃
-    pub async fn mark_crashed(&self, id: &str, exit_code: Option<i32>, error_message: Option<String>) {
+    pub async fn mark_crashed(
+        &self,
+        id: &str,
+        exit_code: Option<i32>,
+        error_message: Option<String>,
+    ) {
         let mut map = self.entries.write().await;
         if let Some(entry) = map.get_mut(id) {
             let now = std::time::SystemTime::now()
@@ -111,7 +116,10 @@ impl ProcessRegistry {
             self.mark_stopped(id, Some(-1)).await;
             Ok(())
         } else {
-            Err(format!("Process '{}' has no active PID or is not registered", id))
+            Err(format!(
+                "Process '{}' has no active PID or is not registered",
+                id
+            ))
         }
     }
 
@@ -119,7 +127,14 @@ impl ProcessRegistry {
     fn prune_history(&self, map: &mut HashMap<String, ManagedProcessEntry>) {
         let stopped_keys: Vec<String> = map
             .iter()
-            .filter(|(_, entry)| matches!(entry.status, ProcessStatus::Stopped | ProcessStatus::Crashed { .. } | ProcessStatus::OrphanReclaimed))
+            .filter(|(_, entry)| {
+                matches!(
+                    entry.status,
+                    ProcessStatus::Stopped
+                        | ProcessStatus::Crashed { .. }
+                        | ProcessStatus::OrphanReclaimed
+                )
+            })
             .map(|(k, _)| k.clone())
             .collect();
 
@@ -147,8 +162,13 @@ mod tests {
         let registry = ProcessRegistry::new();
 
         // 1. 注册 Spawn
-        registry.register_spawn("sidecar:test", ProcessRole::Backend, Some(12345)).await;
-        let entry = registry.get_entry("sidecar:test").await.expect("entry should exist");
+        registry
+            .register_spawn("sidecar:test", ProcessRole::Backend, Some(12345))
+            .await;
+        let entry = registry
+            .get_entry("sidecar:test")
+            .await
+            .expect("entry should exist");
         assert_eq!(entry.pid, Some(12345));
         assert_eq!(entry.status, ProcessStatus::Running);
         assert_eq!(entry.restart_count, 0);
@@ -163,12 +183,20 @@ mod tests {
             .mark_crashed("sidecar:test", Some(139), Some("SIGSEGV".to_string()))
             .await;
         let entry = registry.get_entry("sidecar:test").await.unwrap();
-        assert!(matches!(entry.status, ProcessStatus::Crashed { exit_code: Some(139), .. }));
+        assert!(matches!(
+            entry.status,
+            ProcessStatus::Crashed {
+                exit_code: Some(139),
+                ..
+            }
+        ));
         assert_eq!(entry.exit_code, Some(139));
         assert_eq!(entry.error_message.as_deref(), Some("SIGSEGV"));
 
         // 4. 再次 Spawn 保持 restart_count
-        registry.register_spawn("sidecar:test", ProcessRole::Backend, Some(12346)).await;
+        registry
+            .register_spawn("sidecar:test", ProcessRole::Backend, Some(12346))
+            .await;
         let entry = registry.get_entry("sidecar:test").await.unwrap();
         assert_eq!(entry.pid, Some(12346));
         assert_eq!(entry.restart_count, 1);

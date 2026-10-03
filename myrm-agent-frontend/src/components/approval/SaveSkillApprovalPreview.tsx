@@ -82,7 +82,8 @@ export default function SaveSkillApprovalPreview({
   footerText,
 }: SaveSkillApprovalPreviewProps) {
   const preview = useMemo(() => normalizeSaveSkillPreviewArgs(toolInput), [toolInput]);
-  const hasFiles = Boolean(preview.files && preview.files.length > 0);
+  const files = preview.files ?? [];
+  const hasFiles = files.length > 0;
 
   return (
     <div className="space-y-2.5" data-testid="save-skill-approval-preview">
@@ -99,7 +100,7 @@ export default function SaveSkillApprovalPreview({
 
       {hasFiles ? (
         <div className="flex flex-wrap gap-1.5" data-testid="skill-bundle-files">
-          {preview.files!.map((filePath, index) => (
+          {files.map((filePath, index) => (
             <span
               key={`${filePath}-${index}`}
               className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground"

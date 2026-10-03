@@ -167,7 +167,6 @@ async def test_tts_tool_arun_oversize_text_error(mock_config):
     assert "exceeds the safe single-turn limit" in result_dict["error"]
 
 
-
 @pytest.mark.asyncio
 async def test_tts_tool_push_artifact_callback_failure(mock_config, mock_engine_generate):
     """Artifact callback exceptions are swallowed."""

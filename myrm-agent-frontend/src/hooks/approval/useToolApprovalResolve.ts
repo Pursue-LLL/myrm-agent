@@ -66,7 +66,10 @@ export function useToolApprovalResolve() {
           const sortedRequests = batchRequests.sort((a, b) => (a.batchIndex ?? 0) - (b.batchIndex ?? 0));
           resumeValue = {
             decisions: sortedRequests.map((r) => {
-              const dec = nextDecisions.get(r.requestId)!;
+              const dec = nextDecisions.get(r.requestId);
+              if (!dec) {
+                throw new Error(`Approval decision missing for request ${r.requestId}`);
+              }
               return buildApprovalDecision(dec.type, dec.extra);
             }),
           };

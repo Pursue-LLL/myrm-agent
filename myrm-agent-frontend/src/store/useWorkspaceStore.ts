@@ -82,9 +82,10 @@ const useWorkspaceStore = create<WorkspaceState>()(
         if (pane.abortController) {
           pane.abortController.abort();
         }
-        if (pane.currentSessionMessageId) {
+        const sessionMessageId = pane.currentSessionMessageId;
+        if (sessionMessageId) {
           import('@/services/chat').then(({ cancelAgentRequest }) => {
-            cancelAgentRequest(pane.currentSessionMessageId!).catch(() => {});
+            cancelAgentRequest(sessionMessageId).catch(() => {});
           });
         }
       }

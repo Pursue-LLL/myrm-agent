@@ -238,8 +238,11 @@ export async function fetchModelsDevData(forceRefresh = false): Promise<ModelsDe
 
   cachedData = await response.json();
   cacheTimestamp = now;
+  if (!cachedData) {
+    throw new Error('models.dev returned empty payload');
+  }
 
-  return cachedData!;
+  return cachedData;
 }
 
 /** 模型列表来源 */

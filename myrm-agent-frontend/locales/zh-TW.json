@@ -14154,7 +14154,7 @@
       "apiKeySaved": "API Key 已成功儲存",
       "apiKeySaveFailed": "儲存 API Key 失敗",
       "ttsTitle": "語音合成",
-      "ttsDescription": "配置 tts_generate 智能體工具：服務商、模型、音色與憑據",
+      "ttsDescription": "配置語音合成：服務商、模型、音色與憑據",
       "ttsProvider": "服務商",
       "ttsModel": "模型",
       "ttsVoice": "音色",

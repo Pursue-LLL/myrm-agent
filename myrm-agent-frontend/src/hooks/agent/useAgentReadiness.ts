@@ -28,7 +28,12 @@ export function useAgentReadiness() {
 
   const { data, error, isLoading } = useSWR<AgentReadinessReport>(
     agentId ? `${READINESS_SWR_KEY_PREFIX}${agentId}` : null,
-    () => getAgentReadiness(agentId!),
+    () => {
+      if (!agentId) {
+        throw new Error('Agent id missing for readiness fetch');
+      }
+      return getAgentReadiness(agentId);
+    },
     {
       suspense: false,
       revalidateOnFocus: false,

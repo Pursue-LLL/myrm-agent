@@ -127,10 +127,12 @@ export function MCPConfigList({
         if (pollTimerRef.current) {
           clearInterval(pollTimerRef.current);
         }
-        pollTimerRef.current = setInterval(async () => {
+        const pollTimer = setInterval(async () => {
           if (Date.now() - startTime > POLL_TIMEOUT_MS) {
-            clearInterval(pollTimerRef.current!);
-            pollTimerRef.current = null;
+            clearInterval(pollTimer);
+            if (pollTimerRef.current === pollTimer) {
+              pollTimerRef.current = null;
+            }
             setOauthLoading(null);
             toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
             return;
@@ -138,8 +140,10 @@ export function MCPConfigList({
           try {
             const statusRes = await checkMCPOAuthStateStatus(resp.state);
             if (statusRes.status === 'success') {
-              clearInterval(pollTimerRef.current!);
-              pollTimerRef.current = null;
+              clearInterval(pollTimer);
+              if (pollTimerRef.current === pollTimer) {
+                pollTimerRef.current = null;
+              }
               setOauthStatus((prev) => ({
                 ...prev,
                 [config.name]: { connected: true, expired: false, scope: config.oauth?.scope || null },
@@ -147,8 +151,10 @@ export function MCPConfigList({
               setOauthLoading(null);
               toast({ title: t('mcpOAuthSuccess') || 'OAuth Connected' });
             } else if (statusRes.status === 'expired_or_invalid') {
-              clearInterval(pollTimerRef.current!);
-              pollTimerRef.current = null;
+              clearInterval(pollTimer);
+              if (pollTimerRef.current === pollTimer) {
+                pollTimerRef.current = null;
+              }
               setOauthLoading(null);
               toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
             }
@@ -156,6 +162,7 @@ export function MCPConfigList({
             // transient polling errors, continue
           }
         }, POLL_INTERVAL_MS);
+        pollTimerRef.current = pollTimer;
       } catch {
         toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
         setOauthLoading(null);

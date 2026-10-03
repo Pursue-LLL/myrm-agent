@@ -15,36 +15,36 @@
 
 mod appshot;
 mod inline_input;
-mod theme_package_open;
 pub mod nextjs_frontend;
 pub mod port;
+pub mod process_registry;
 pub mod python_backend;
 pub mod python_backend_stop;
 pub mod remote_follow;
-pub mod update_safety;
-pub mod process_registry;
 pub mod setup_token;
 pub mod sidecar_version_manager;
 pub mod survivor_diag;
-pub mod watchdog;
+mod theme_package_open;
+pub mod update_safety;
 pub mod wake;
+pub mod watchdog;
 
-#[allow(unused_imports)]
-pub use process_registry::{ManagedProcessEntry, ProcessRegistry, ProcessRole, ProcessStatus};
 pub use appshot::{
     force_capture, handle_appshot_shortcut, handle_toggle_window, handle_voice_ptt_start,
     handle_voice_ptt_stop, APPSHOT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
 };
 pub use inline_input::{handle_inline_input_shortcut, paste_back, INLINE_INPUT_SHORTCUT_STR};
-#[allow(unused_imports)]
-pub use theme_package_open::{emit_theme_package_open, handle_open_urls, handle_startup_args};
 pub use nextjs_frontend::{start_frontend, stop_frontend, NextJSFrontend};
+#[allow(unused_imports)]
+pub use process_registry::{ManagedProcessEntry, ProcessRegistry, ProcessRole, ProcessStatus};
 pub use python_backend::{start_backend_with_config, stop_backend, PythonBackend};
 pub use python_backend_stop::graceful_stop_backend;
 pub use remote_follow::is_remote_follow_deferred;
 pub use setup_token::SetupTokenState;
 #[allow(unused_imports)]
 pub use sidecar_version_manager::{SidecarVersionManager, SidecarVersionManifest};
+#[allow(unused_imports)]
+pub use theme_package_open::{emit_theme_package_open, handle_open_urls, handle_startup_args};
 
 use tauri::{AppHandle, Manager};
 
@@ -55,11 +55,8 @@ use tauri::{AppHandle, Manager};
 pub fn spawn_backend_monitors(app: &AppHandle, backend_port: u16) {
     stop_backend_monitors(app);
     let watchdog_handle = watchdog::spawn_watchdog(app, backend_port);
-    let wake_handle = wake::spawn_wake_detector(
-        app.clone(),
-        watchdog_handle.wake_notify(),
-        backend_port,
-    );
+    let wake_handle =
+        wake::spawn_wake_detector(app.clone(), watchdog_handle.wake_notify(), backend_port);
     app.manage(watchdog_handle);
     app.manage(wake_handle);
 }

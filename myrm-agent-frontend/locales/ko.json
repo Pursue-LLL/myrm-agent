@@ -14154,7 +14154,7 @@
       "apiKeySaved": "API 키가 성공적으로 저장되었습니다",
       "apiKeySaveFailed": "API 키 저장 실패",
       "ttsTitle": "음성 합성",
-      "ttsDescription": "tts_generate 에이전트 도구 구성: 제공자, 모델, 음성, 자격 증명",
+      "ttsDescription": "음성 합성 구성: 제공자, 모델, 음성, 자격 증명",
       "ttsProvider": "제공자",
       "ttsModel": "모델",
       "ttsVoice": "음성",

@@ -172,8 +172,9 @@ export function useScrollPositionRestore({
     if (!id) {
       return null;
     }
-    if (inMemoryMirrorMap.has(id)) {
-      return inMemoryMirrorMap.get(id)!;
+    const cached = inMemoryMirrorMap.get(id);
+    if (cached) {
+      return cached;
     }
     try {
       const raw = sessionStorage.getItem(`${SCROLL_POSITION_KEY_PREFIX}${id}`);

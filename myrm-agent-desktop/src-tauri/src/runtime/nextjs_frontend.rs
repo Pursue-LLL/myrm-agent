@@ -49,10 +49,16 @@ pub async fn start_frontend(
     }
 
     if is_port_in_use(&config.host, config.port) {
-        println!("⚠️  Port {}:{} in use, diagnosing potential survivor processes...", config.host, config.port);
+        println!(
+            "⚠️  Port {}:{} in use, diagnosing potential survivor processes...",
+            config.host, config.port
+        );
         match diagnose_and_reclaim_port(&config.host, config.port).await {
             SurvivorDiagResult::SelfSurvivorReclaimed { pid, process_name } => {
-                println!("✅ Self survivor {} (PID: {}) reclaimed, proceeding with frontend startup", process_name, pid);
+                println!(
+                    "✅ Self survivor {} (PID: {}) reclaimed, proceeding with frontend startup",
+                    process_name, pid
+                );
             }
             SurvivorDiagResult::ForeignConflict { pid, process_name } => {
                 return Err(format!(

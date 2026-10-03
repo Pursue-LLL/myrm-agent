@@ -268,9 +268,7 @@ pub async fn migrate_data_dir(
 
     // 5b. 拷贝后体积对账：拦截静默损坏，不一致则清理并回滚旧后端
     // 仅清理本次复制的条目，绝不动目标盘原有文件
-    if let Err(verify_err) =
-        super::data_migration::verify_migrated_size(old_path, new_path)
-    {
+    if let Err(verify_err) = super::data_migration::verify_migrated_size(old_path, new_path) {
         println!("⚠️ {}", verify_err);
         super::data_migration::cleanup_migrated_entries(new_path, &copied_entries);
         let restart_res = restart_old_backend(&app, &config).await;
@@ -278,7 +276,10 @@ pub async fn migrate_data_dir(
             Ok(_) => "Original backend successfully restored.".to_string(),
             Err(e) => format!("Failed to restore original backend: {}", e),
         };
-        return Err(format!("{}. Rollback performed: {}", verify_err, restart_msg));
+        return Err(format!(
+            "{}. Rollback performed: {}",
+            verify_err, restart_msg
+        ));
     }
 
     // 6. 持久化新路径配置并拉起新后端服务
@@ -290,7 +291,9 @@ pub async fn migrate_data_dir(
 
     let backend_config = crate::config::BackendConfig::from_system_config(&new_config);
     let backend_port = backend_config.port;
-    match crate::runtime::start_backend_with_config(app.clone(), backend.clone(), backend_config).await {
+    match crate::runtime::start_backend_with_config(app.clone(), backend.clone(), backend_config)
+        .await
+    {
         Ok(msg) => {
             crate::runtime::spawn_backend_monitors(&app, backend_port);
             Ok(format!("Migration complete, backend restarted: {}", msg))
@@ -304,12 +307,9 @@ pub async fn migrate_data_dir(
             let old_backend_config =
                 crate::config::BackendConfig::from_system_config(&rollback_config);
             let revert_port = old_backend_config.port;
-            let revert_res = crate::runtime::start_backend_with_config(
-                app.clone(),
-                backend,
-                old_backend_config,
-            )
-            .await;
+            let revert_res =
+                crate::runtime::start_backend_with_config(app.clone(), backend, old_backend_config)
+                    .await;
             if revert_res.is_ok() {
                 crate::runtime::spawn_backend_monitors(&app, revert_port);
             }

@@ -53,9 +53,10 @@ const FilePathRenderer: React.FC<FilePathRendererProps> = ({ items, messageId, s
   return (
     <div className="space-y-1.5">
       {items.map((item, index) => {
-        const hasDiff = Boolean(item.diff);
+        const diff = item.diff;
+        const hasDiff = Boolean(diff);
         const isExpanded = expandedSet.has(index);
-        const stats = hasDiff ? countDiffStats(item.diff!) : null;
+        const stats = diff ? countDiffStats(diff) : null;
 
         return (
           <div key={`${messageId}-step-${stepIndex}-file-${index}`}>
@@ -92,9 +93,9 @@ const FilePathRenderer: React.FC<FilePathRendererProps> = ({ items, messageId, s
               )}
             </div>
 
-            {hasDiff && isExpanded && (
+            {diff && isExpanded && (
               <div className="mt-1 ml-1 max-w-full overflow-hidden">
-                <DiffViewer diff={item.diff!} filePath={item.file_path} className="text-[11px]" />
+                <DiffViewer diff={diff} filePath={item.file_path} className="text-[11px]" />
               </div>
             )}
           </div>

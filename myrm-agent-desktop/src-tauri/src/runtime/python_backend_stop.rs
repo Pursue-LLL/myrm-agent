@@ -45,10 +45,7 @@ async fn request_graceful_shutdown(port: u16) -> Result<(), String> {
 
 /// Wait for the backend to exit by itself, reaping the child so the state
 /// reflects reality. Returns true when the process exited within the budget.
-async fn wait_for_graceful_exit(
-    backend: &State<'_, PythonBackend>,
-    budget: Duration,
-) -> bool {
+async fn wait_for_graceful_exit(backend: &State<'_, PythonBackend>, budget: Duration) -> bool {
     let deadline = tokio::time::Instant::now() + budget;
     while tokio::time::Instant::now() < deadline {
         let exited = {

@@ -56,8 +56,8 @@ fn write_follow_deferred(app: &AppHandle, deferred: bool) -> Result<(), String> 
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create app data dir: {e}"))?;
     }
     let payload = serde_json::json!({ "deferred": deferred });
-    let content =
-        serde_json::to_string_pretty(&payload).map_err(|e| format!("Failed to serialize flag: {e}"))?;
+    let content = serde_json::to_string_pretty(&payload)
+        .map_err(|e| format!("Failed to serialize flag: {e}"))?;
     fs::write(&path, content).map_err(|e| format!("Failed to write remote follow flag: {e}"))?;
     Ok(())
 }

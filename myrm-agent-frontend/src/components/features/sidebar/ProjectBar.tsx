@@ -42,6 +42,7 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [contextMenu, setContextMenu] = useState<{ projectId: string; x: number; y: number } | null>(null);
+  const contextMenuProject = contextMenu ? projects.find((p) => p.id === contextMenu.projectId) : undefined;
   const [workspaceMountProject, setWorkspaceMountProject] = useState<Project | null>(null);
   const [defaultAgentProject, setDefaultAgentProject] = useState<Project | null>(null);
   const [adoptDialogOpen, setAdoptDialogOpen] = useState(false);
@@ -250,10 +251,10 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
       </div>
 
       {/* Context menu */}
-      {contextMenu && (
+      {contextMenu && contextMenuProject && (
         <ContextMenu
           ref={menuRef}
-          project={projects.find((p) => p.id === contextMenu.projectId)!}
+          project={contextMenuProject}
           x={contextMenu.x}
           y={contextMenu.y}
           onEdit={(p) => {

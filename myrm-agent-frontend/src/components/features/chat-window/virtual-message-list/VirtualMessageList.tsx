@@ -131,8 +131,9 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
       getScrollElement: () => parentRef.current,
       estimateSize: (index) => {
         const messageId = messages[index]?.messageId;
-        if (messageId && heightCache.has(messageId)) {
-          return heightCache.get(messageId)!;
+        const cachedHeight = messageId ? heightCache.get(messageId) : undefined;
+        if (cachedHeight !== undefined) {
+          return cachedHeight;
         }
         // 根据角色估算高度
         const role = messages[index]?.role;

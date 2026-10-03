@@ -34,9 +34,7 @@ pub fn kill_process_tree(pid: u32) {
     #[cfg(not(target_os = "windows"))]
     {
         // POSIX 平台：优先尝试发送信号
-        let _ = Command::new("kill")
-            .args(["-9", &pid.to_string()])
-            .output();
+        let _ = Command::new("kill").args(["-9", &pid.to_string()]).output();
     }
 }
 
@@ -53,7 +51,7 @@ impl WindowsJobObjectGuard {
         use std::mem::size_of;
         use std::ptr::null;
         use windows_sys::Win32::System::JobObjects::{
-            CreateJobObjectW, SetInformationJobObject, JobObjectExtendedLimitInformation,
+            CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject,
             JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
         };
 

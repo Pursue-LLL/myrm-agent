@@ -1516,7 +1516,7 @@
       "apiKeySaved": "API Key 已成功保存",
       "apiKeySaveFailed": "保存 API Key 失败",
       "ttsTitle": "语音合成",
-      "ttsDescription": "配置 tts_generate 智能体工具：服务商、模型、音色与凭据",
+      "ttsDescription": "配置语音合成：服务商、模型、音色与凭据",
       "ttsProvider": "服务商",
       "ttsModel": "模型",
       "ttsVoice": "音色",

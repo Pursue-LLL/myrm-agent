@@ -466,7 +466,10 @@ export async function consumeStream(
   recievedMessage: string,
   options?: ConsumeStreamOptions,
 ): Promise<ConsumeStreamResult> {
-  const reader = res.body!.getReader();
+  if (!res.body) {
+    throw new Error('Streaming response body missing');
+  }
+  const reader = res.body.getReader();
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
   const dataPrefix = 'data: ';

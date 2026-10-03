@@ -150,6 +150,7 @@ export function TelegramConfigCard() {
         <p className="text-xs text-muted-foreground">{t('telegramCommandsHint')}</p>
         {commands.map((cmd, i) => {
           const err = commandErrors[i];
+          const errKey = err?.command || err?.description;
           return (
             <div key={i} className="space-y-1">
               <div className="flex items-center gap-2">
@@ -174,8 +175,8 @@ export function TelegramConfigCard() {
                   <IconTrash className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              {(err?.command || err?.description) && (
-                <p className="text-xs text-destructive pl-1">{err.command ? t(err.command) : t(err.description!)}</p>
+              {errKey && (
+                <p className="text-xs text-destructive pl-1">{t(errKey)}</p>
               )}
             </div>
           );

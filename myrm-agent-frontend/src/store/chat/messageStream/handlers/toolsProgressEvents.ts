@@ -399,7 +399,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         reviewConfig,
         requestId,
         messageId: data.messageId,
-        chatId: currentChatId!,
+        chatId: currentChatId ?? '',
         actionMode: currentActionMode,
         extensions: normalizedExtensions,
         batchId: batchId || undefined,

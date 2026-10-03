@@ -1516,7 +1516,7 @@
       "apiKeySaved": "API Key saved successfully",
       "apiKeySaveFailed": "Failed to save API Key",
       "ttsTitle": "Text-to-Speech",
-      "ttsDescription": "Configure the tts_generate agent tool: provider, model, voice, and credentials",
+      "ttsDescription": "Configure speech synthesis: provider, model, voice, and credentials",
       "ttsProvider": "Provider",
       "ttsModel": "Model",
       "ttsVoice": "Voice",

@@ -50,7 +50,7 @@ const EXT_ICON_MAP: Record<string, React.ElementType> = {
 };
 
 function getFileIcon(name: string): React.ElementType {
-  const ext = name.includes('.') ? '.' + name.split('.').pop()!.toLowerCase() : '';
+  const ext = name.includes('.') ? '.' + (name.split('.').pop() ?? '').toLowerCase() : '';
   return EXT_ICON_MAP[ext] ?? FileText;
 }
 

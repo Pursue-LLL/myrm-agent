@@ -25,6 +25,8 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
   const [selectedSpan, setSelectedSpan] = useState<GanttSpan | null>(null);
 
   const spans = performance?.gantt_spans || [];
+  const selectedAttempt =
+    selectedSpan?.attempt || (selectedSpan?.retry_count ? selectedSpan.retry_count + 1 : 0);
 
   const { minStart, timeRange } = useMemo(() => {
     if (spans.length === 0) {
@@ -146,6 +148,7 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
 
             const isLLM = span.type === 'llm';
             const isError = span.status === 'error';
+            const retryBadge = span.attempt || (span.retry_count ? span.retry_count + 1 : 0);
 
             return (
               <div
@@ -180,7 +183,7 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
                   </span>
                   {isLLM && ((span.attempt && span.attempt > 1) || (span.retry_count && span.retry_count > 0)) && (
                     <span className="px-1 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                      Retry x{span.attempt || span.retry_count! + 1}
+                      Retry x{retryBadge}
                     </span>
                   )}
                 </div>
@@ -217,7 +220,7 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
           {((selectedSpan.attempt && selectedSpan.attempt > 1) ||
             (selectedSpan.retry_count && selectedSpan.retry_count > 0)) && (
             <div className="text-amber-600 dark:text-amber-400 font-medium text-[11px]">
-              Attempt: {selectedSpan.attempt || selectedSpan.retry_count! + 1} (Provider backoff / retried)
+              Attempt: {selectedAttempt} (Provider backoff / retried)
             </div>
           )}
           {selectedSpan.error && <div className="text-rose-500 text-[11px] break-words">{selectedSpan.error}</div>}

@@ -53,6 +53,7 @@ export default function UpgradeNudgeDialog() {
   const currentPlan = subscription.plan_type as BillingPlanKey | 'team';
   const nextPlanKey = getNextPlan(currentPlan);
   const nextPlanCatalog = nextPlanKey ? findPlanCatalog(catalog?.plans, nextPlanKey) : undefined;
+  const nextPlanLabel = nextPlanKey ? nextPlanKey.charAt(0).toUpperCase() + nextPlanKey.slice(1) : '';
 
   const balanceWu = entitlements?.balance_wu ?? 0;
   const monthlyWu = entitlements?.monthly_allowance_wu ?? 1;
@@ -76,7 +77,7 @@ export default function UpgradeNudgeDialog() {
         {nextPlanCatalog && (
           <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3 space-y-2">
             <p className="text-sm font-semibold text-foreground">
-              {t('recommendPlan', { plan: nextPlanKey!.charAt(0).toUpperCase() + nextPlanKey!.slice(1) })}
+              {t('recommendPlan', { plan: nextPlanLabel })}
             </p>
             <p className="text-xs text-muted-foreground">
               {t('planWu', { wu: nextPlanCatalog.monthly_wu.toLocaleString() })}
