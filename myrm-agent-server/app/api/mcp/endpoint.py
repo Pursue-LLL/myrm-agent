@@ -185,7 +185,7 @@ async def _memory_manager_for_agent(agent_id: str) -> MemoryManager:
     )
 
 
-async def _wiki_tools_for_agent(agent_id: str) -> dict[str, object] | None:
+async def _wiki_tools_for_agent(agent_id: str, *, wiki_enabled: bool) -> dict[str, object] | None:
     """Build the wiki tool bundle for an agent (None when wiki is not enabled).
 
     Uses the same vault resolution functions and engine factories as the
@@ -193,7 +193,7 @@ async def _wiki_tools_for_agent(agent_id: str) -> dict[str, object] | None:
     is identical for external MCP callers. Construction failures degrade to
     None (tools hidden for that request) instead of failing the request.
     """
-    if not await _wiki_boundary_enabled_for_agent(agent_id):
+    if not wiki_enabled:
         return None
     try:
         from myrm_agent_harness.toolkits.wiki import (
@@ -299,8 +299,9 @@ class _MCPTokenAuthMiddleware:
         try:
             manager = await _memory_manager_for_agent(resolved.agent_id)
             ctx_token = set_request_memory_manager(manager)
-            wiki_token = set_request_wiki_boundary_enabled(await _wiki_boundary_enabled_for_agent(resolved.agent_id))
-            wiki_tools_token = set_request_wiki_tools(await _wiki_tools_for_agent(resolved.agent_id))
+            wiki_enabled = await _wiki_boundary_enabled_for_agent(resolved.agent_id)
+            wiki_token = set_request_wiki_boundary_enabled(wiki_enabled)
+            wiki_tools_token = set_request_wiki_tools(await _wiki_tools_for_agent(resolved.agent_id, wiki_enabled=wiki_enabled))
 
             from myrm_agent_harness.toolkits.computer_use.mcp_server import (
                 reset_request_desktop_session,

@@ -106,6 +106,13 @@ _FILE_STRUCTURE_HINT = (
     "Keep the bundle structure: plugin.json and mcp.json in the plugin root, SKILL.md under skills/myrm-memory/."
 )
 
+#: Default tool-list line of SKILL.md. Referenced by both the template and the
+#: conditional wiki renderer; the rendering test asserts the line is present
+#: in the template so the conditional replace can never silently miss.
+_SKILL_TOOLS_LINE = (
+    "The server exposes four tools — `memory_recall`, `memory_store`, `memory_list`, `memory_manage`."
+)
+
 #: SKILL.md handed to the consuming agent. Written for best-model comprehension
 #: with low-token redundancy; every capability mentioned matches the real MCP
 #: tool signatures (see memory/agent_surface/mcp_server.py).
@@ -191,10 +198,7 @@ def _render_skill_markdown(enable_wiki: bool) -> str:
             "`memory_list`, `memory_manage` — plus wiki knowledge base tools "
             "— `wiki_query`, `wiki_ingest`, `wiki_apply`."
         )
-        markdown = markdown.replace(
-            "The server exposes four tools — `memory_recall`, `memory_store`, `memory_list`, `memory_manage`.",
-            tool_line,
-        )
+        markdown = markdown.replace(_SKILL_TOOLS_LINE, tool_line)
         markdown = markdown.rstrip() + "\n" + _SKILL_MARKDOWN_WIKI_SECTION
     return markdown
 

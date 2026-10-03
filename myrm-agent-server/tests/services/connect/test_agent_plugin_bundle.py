@@ -98,6 +98,25 @@ class TestBuildBundle:
         skill = bundle.files["skills/myrm-memory/SKILL.md"]
         assert "Never store passwords, API keys, or other secrets" in skill
 
+    def test_skill_markdown_wiki_section_conditional_render(self) -> None:
+        """The wiki section appears only when the agent enables wiki (zero drift
+        with the per-request tool visibility on the /mcp endpoint)."""
+        with_wiki = build_agent_plugin_bundle("http://x/mcp", "tok", agent_id="default", enable_wiki=True)
+        skill = with_wiki.files["skills/myrm-memory/SKILL.md"]
+        for tool in ("wiki_query", "wiki_ingest", "wiki_apply"):
+            assert tool in skill
+        assert "local file paths are not accepted" in skill
+
+        without_wiki = build_agent_plugin_bundle("http://x/mcp", "tok", agent_id="default")
+        skill_default = without_wiki.files["skills/myrm-memory/SKILL.md"]
+        assert "wiki" not in skill_default.lower()
+
+    def test_skill_markdown_tools_line_present_in_template(self) -> None:
+        """The conditional replace target must exist in the template verbatim."""
+        from app.services.connect.agent_plugin import _SKILL_MARKDOWN, _SKILL_TOOLS_LINE
+
+        assert _SKILL_TOOLS_LINE in _SKILL_MARKDOWN
+
     def test_env_mode_instructions_mention_var(self) -> None:
         bundle = build_agent_plugin_bundle("http://x/mcp", "tok", agent_id="default", embed_token=False)
         assert TOKEN_ENV_VAR in bundle.instructions
