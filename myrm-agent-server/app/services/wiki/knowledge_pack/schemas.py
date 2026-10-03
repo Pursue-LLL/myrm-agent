@@ -54,7 +54,6 @@ class KnowledgePackConfig:
     pack_id: str
     name: str
     shared_context_ids: list[str] = field(default_factory=list)
-    procedural_rules: list[str] = field(default_factory=list)
     max_snippets: int = 3
     max_chars_per_snippet: int = 200
     max_total_chars: int = 600
