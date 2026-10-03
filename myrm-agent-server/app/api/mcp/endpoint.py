@@ -35,7 +35,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextvars import ContextVar, Token
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -43,6 +43,8 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
+    from langchain_core.tools import BaseTool
+    from mcp.types import Tool
     from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -86,7 +88,10 @@ async def _require_embedding_config() -> EmbeddingConfig:
     if _embedding_cfg is None:
         from app.services.agent.platform_config import require_platform_embedding_config
 
-        _embedding_cfg = await require_platform_embedding_config()
+        # Upstream annotates the WebUI retrieval payload as object; the
+        # embedding slot is always an EmbeddingConfig when present (it raises
+        # otherwise), so narrow it at this single boundary.
+        _embedding_cfg = cast(EmbeddingConfig, await require_platform_embedding_config())
     return _embedding_cfg
 
 
@@ -185,7 +190,7 @@ async def _memory_manager_for_agent(agent_id: str) -> MemoryManager:
     )
 
 
-async def _wiki_tools_for_agent(agent_id: str, *, wiki_enabled: bool) -> dict[str, object] | None:
+async def _wiki_tools_for_agent(agent_id: str, *, wiki_enabled: bool) -> dict[str, BaseTool] | None:
     """Build the wiki tool bundle for an agent (None when wiki is not enabled).
 
     Uses the same vault resolution functions and engine factories as the
@@ -390,7 +395,7 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
 
         orig_list_tools = mcp_server.mcp.list_tools
 
-        async def _filtered_list_tools() -> list[object]:
+        async def _filtered_list_tools() -> list[Tool]:
             tools = await orig_list_tools()
             if not get_request_desktop_enabled():
                 tools = [t for t in tools if not getattr(t, "name", "").startswith("desktop_")]
@@ -444,7 +449,7 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
 
 async def shutdown_mcp_endpoint() -> None:
     """Cancel the MCP session manager background task on shutdown."""
-    global _session_manager_task
+    global _session_manager_task, _session_manager_ready
     clear_mcp_desktop_sessions()
     if _session_manager_task is not None:
         _session_manager_task.cancel()
@@ -453,4 +458,11 @@ async def shutdown_mcp_endpoint() -> None:
         except asyncio.CancelledError:
             pass
         _session_manager_task = None
+        # Rebuild the ready event instead of reusing it: an asyncio.Event used
+        # once stays bound to that event loop (raising "bound to a different
+        # event loop" under the next setup), and a stale set flag would let
+        # the next setup proceed before its fresh session manager enters
+        # run(), surfacing as "Task group is not initialized" on the first
+        # MCP request.
+        _session_manager_ready = asyncio.Event()
         logger.info("MCP session manager stopped")
