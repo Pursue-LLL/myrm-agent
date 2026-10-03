@@ -159,6 +159,10 @@ class AgentRepository:
         stmt = select(Agent)
         if exclude_ids:
             stmt = stmt.where(Agent.id.notin_(exclude_ids))
+        # Deterministic newest-first order: single-page consumers (listAgents(1, N))
+        # must always see freshly created agents, and DB-default ordering is
+        # undefined, which silently drops new agents once rows exceed one page.
+        stmt = stmt.order_by(Agent.created_at.desc(), Agent.id)
         stmt = stmt.offset(offset)
         if limit is not None:
             stmt = stmt.limit(limit)
