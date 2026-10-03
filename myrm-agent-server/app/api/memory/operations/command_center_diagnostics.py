@@ -82,6 +82,7 @@ def _diagnostic_history_item(
             precision_at_k=float(metadata.get("benchmark_precision_at_k") or 0.0),
             latency_p50_ms=float(metadata.get("benchmark_latency_p50_ms") or 0.0),
             latency_p95_ms=float(metadata.get("benchmark_latency_p95_ms") or 0.0),
+            latency_p99_ms=float(metadata.get("benchmark_latency_p99_ms") or 0.0),
             top_k=int(metadata.get("benchmark_top_k") or 5),
             categories=({str(k): str(v) for k, v in categories_raw.items()} if isinstance(categories_raw, dict) else {}),
         )

@@ -512,6 +512,7 @@ class MemoryDiagnosticsService:
             "benchmark_precision_at_k": summary.precision_at_k,
             "benchmark_latency_p50_ms": summary.latency_p50_ms,
             "benchmark_latency_p95_ms": summary.latency_p95_ms,
+            "benchmark_latency_p99_ms": summary.latency_p99_ms,
             "benchmark_top_k": summary.top_k,
         }
         if summary.categories:

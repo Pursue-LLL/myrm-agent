@@ -82,12 +82,14 @@ _TREND_SECTION_READY_JS = """(() => {
   const hasTrend = /Benchmark trend|基准趋势/.test(text);
   const hasP50 = /Latency P50|延迟 P50/.test(text);
   const hasP95 = /Latency P95|延迟 P95/.test(text);
+  const hasP99 = /Latency P99|延迟 P99/.test(text);
   const hasMs = /\\d+ms/.test(text);
   return {
-    ready: hasTrend && hasP50 && hasP95 && hasMs,
+    ready: hasTrend && hasP50 && hasP95 && hasP99 && hasMs,
     hasTrend,
     hasP50,
     hasP95,
+    hasP99,
     hasMs,
     text: text.slice(0, 1400),
   };
@@ -103,6 +105,7 @@ def _memory_doctor_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
         "POST",
         f"{api_url}/api/v1/memory/command-center/diagnostics/actions",
         body={"action": "run_diagnostics"},
+        timeout_sec=300.0,
     )
     assert isinstance(seeded, dict), seeded
     assert seeded.get("run", {}).get("probes"), seeded

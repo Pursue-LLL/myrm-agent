@@ -39,6 +39,7 @@ def _make_diagnostic_run(*, benchmark: bool) -> MemoryCommandDiagnosticRun:
                     precision_at_k=0.12,
                     latency_p50_ms=10.5,
                     latency_p95_ms=24.0,
+                    latency_p99_ms=41.0,
                     top_k=5,
                     categories={"arch": "2/2"},
                 ),
@@ -70,6 +71,7 @@ class TestFlattenBenchmarkMetrics:
         assert metrics["benchmark_precision_at_k"] == 0.12
         assert metrics["benchmark_latency_p50_ms"] == 10.5
         assert metrics["benchmark_latency_p95_ms"] == 24.0
+        assert metrics["benchmark_latency_p99_ms"] == 41.0
         assert metrics["benchmark_top_k"] == 5
         # per-category detail must persist for trend-localized regression analysis
         assert metrics["benchmark_categories"] == {"arch": "2/2"}
@@ -186,6 +188,7 @@ class TestDiagnosticHistoryItemProjection:
                 "benchmark_precision_at_k": 0.12,
                 "benchmark_latency_p50_ms": 10.5,
                 "benchmark_latency_p95_ms": 24.0,
+                "benchmark_latency_p99_ms": 41.0,
                 "benchmark_top_k": 5,
                 "benchmark_categories": {"arch": "2/2", "workflow": "1/2"},
                 "benchmark_embedding_model": "text-embedding-3-small",
@@ -202,6 +205,7 @@ class TestDiagnosticHistoryItemProjection:
         assert item.benchmark.mrr_score == 0.91
         assert item.benchmark.case_count == 16
         assert item.benchmark.top_k == 5
+        assert item.benchmark.latency_p99_ms == 41.0
         # per-category detail is restored from ledger metadata for trend regression analysis
         assert item.benchmark.categories == {"arch": "2/2", "workflow": "1/2"}
         assert item.embedding_model == "text-embedding-3-small"
