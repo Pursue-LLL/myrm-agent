@@ -224,7 +224,7 @@ class MemoryToWikiArchiver:
 
             content = self._format_memory_as_document(notes)
 
-            if len(content) < 500:
+            if len(content) < 300:
                 logger.debug("Skipping archive: content too short")
                 return False
 
