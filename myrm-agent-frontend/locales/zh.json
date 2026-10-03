@@ -1520,7 +1520,8 @@
       "ttsProvider": "服务商",
       "ttsModel": "模型",
       "ttsVoice": "音色",
-      "ttsDoubaoKeyHint": "Doubao-TTS 使用复合格式凭据 \"appid:access_token\"（火山引擎控制台：语音技术 → 应用详情）。"
+      "ttsDoubaoKeyHint": "Doubao-TTS 使用复合格式凭据 \"appid:access_token\"（火山引擎控制台：语音技术 → 应用详情）。",
+      "ttsProbeSlowHint": "Seed-Audio 为生成式模型，测试会合成一段短音频，约需 1-2 分钟。"
     },
     "acp": {
       "title": "ACP 编程助手",

@@ -1520,7 +1520,8 @@
       "ttsProvider": "Provider",
       "ttsModel": "Model",
       "ttsVoice": "Voice",
-      "ttsDoubaoKeyHint": "Doubao-TTS uses the composite credential \"appid:access_token\" (Volcengine console: Speech Technology → App Details)."
+      "ttsDoubaoKeyHint": "Doubao-TTS uses the composite credential \"appid:access_token\" (Volcengine console: Speech Technology → App Details).",
+      "ttsProbeSlowHint": "Seed-Audio is a generative model — the test synthesizes a short audio clip and may take 1–2 minutes."
     },
     "acp": {
       "title": "ACP Agents",

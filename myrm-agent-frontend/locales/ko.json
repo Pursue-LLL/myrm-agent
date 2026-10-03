@@ -14158,7 +14158,8 @@
       "ttsProvider": "제공자",
       "ttsModel": "모델",
       "ttsVoice": "음성",
-      "ttsDoubaoKeyHint": "Doubao-TTS는 복합 자격 증명 \"appid:access_token\"을 사용합니다 (Volcengine 콘솔: Speech Technology → 앱 세부정보)."
+      "ttsDoubaoKeyHint": "Doubao-TTS는 복합 자격 증명 \"appid:access_token\"을 사용합니다 (Volcengine 콘솔: Speech Technology → 앱 세부정보).",
+      "ttsProbeSlowHint": "Seed-Audio는 생성형 모델입니다. 테스트는 짧은 오디오를 합성하며 1~2분 정도 걸릴 수 있습니다."
     },
     "acp": {
       "title": "ACP 에이전트",

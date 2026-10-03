@@ -14158,7 +14158,8 @@
       "ttsProvider": "Anbieter",
       "ttsModel": "Modell",
       "ttsVoice": "Stimme",
-      "ttsDoubaoKeyHint": "Doubao-TTS verwendet den zusammengesetzten Schlüssel \"appid:access_token\" (Volcengine-Konsole: Speech Technology → App-Details)."
+      "ttsDoubaoKeyHint": "Doubao-TTS verwendet den zusammengesetzten Schlüssel \"appid:access_token\" (Volcengine-Konsole: Speech Technology → App-Details).",
+      "ttsProbeSlowHint": "Seed-Audio ist ein generatives Modell – der Test erzeugt einen kurzen Audioclip und kann 1–2 Minuten dauern."
     },
     "acp": {
       "title": "ACP-Agenten",

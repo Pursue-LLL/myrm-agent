@@ -256,6 +256,7 @@ const TtsGenerationSection = memo(() => {
   }, [ttsProvider, ttsModel]);
 
   const isDoubao = ttsProvider === 'volcengine' && ttsModel === 'doubao-tts';
+  const isSeedAudio = ttsProvider === 'volcengine' && ttsModel === 'seed-audio-1.0';
   const keyPlaceholder = isDoubao ? 'appid:access_token' : t('enterApiKey') || 'Enter API Key';
 
   return (
@@ -346,6 +347,9 @@ const TtsGenerationSection = memo(() => {
           </div>
         )}
 
+        {isSeedAudio && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">{t('ttsProbeSlowHint')}</p>
+        )}
         <button
           type="button"
           onClick={handleTest}
