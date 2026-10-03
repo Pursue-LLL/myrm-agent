@@ -344,7 +344,7 @@ class MemoryToWikiArchiver:
 
     @staticmethod
     def estimate_turn_count_from_notes(session_notes_json: str) -> int:
-        """Estimate conversation turns from harness SessionNotes metadata."""
+        """Use last_updated_message_idx from SessionNotes metadata as a turn proxy (a full turn spans user + agent messages, so this counts messages, roughly half of true turns)."""
         import json
 
         try:
