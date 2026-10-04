@@ -28,6 +28,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
     open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_react_e2e_bridge,
     warm_ui_route,
@@ -85,7 +86,7 @@ def test_local_backend_banner_regression_chrome_e2e() -> None:
     # SystemCenterSection → SystemSection:693），/settings 默认 redirect 到
     # account tab 不会加载该模块链。
     warm_ui_route("/settings/system")
-    with open_mcp_page(f"{ui_url}/settings/system", timeout_ms=90_000) as (client, page):
+    with open_settings_subroute("/settings/system", timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
         wait_for_react_e2e_bridge(
             client,
