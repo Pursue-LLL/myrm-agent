@@ -23,5 +23,5 @@ WebUI 设置域的类型、LiteLLM 路由生成产物、provider 持久化 ident
 
 ## 依赖
 
-- `@shared/config/provider_legacy_remap.json` — storage id remap SSOT（见 [shared/config/_ARCH.md](../../../shared/config/_ARCH.md)）
+- `@shared/config/provider_legacy_remap.json` — storage id remap SSOT（见 [shared/config/_ARCH.md](../../../../shared/config/_ARCH.md)）
 - `@/services/config/*` — ConfigSyncManager 持久化

@@ -17,7 +17,7 @@ Cron 相关纯函数：Hermes 六字段审计快照、Settings 创建 pause/conf
 
 - `@/services/cron` — pause/resume/get
 - `@/services/cron.types` — CronJob
-- 消费方：[`components/features/cron/`](../components/features/cron/_ARCH.md)
+- 消费方：[`components/features/cron/`](../../components/features/cron/_ARCH.md)
 
 ## 约束
 

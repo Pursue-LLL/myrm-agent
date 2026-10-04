@@ -419,8 +419,8 @@ When adding reply/quote support to a new channel:
 
 ## Related Documentation
 
-- [WeCom Quote Parsing](../providers/wecom/QUOTE_PARSING.md)
-- [Telegram Reply Parsing](../providers/telegram/REPLY_PARSING.md) (planned)
-- [Feishu Reply Fetch](../providers/feishu/REPLY_FETCH.md) (planned)
-- [Discord Reference Parsing](../providers/discord/REFERENCE_PARSING.md) (planned)
-- [Slack Thread Fetch](../providers/slack/THREAD_FETCH.md) (planned)
+- WeCom Quote Parsing — 解析实现见 [wecom/_ARCH.md](../providers/wecom/_ARCH.md) 与 `wecom/channel.py`
+- Telegram Reply Parsing (planned)
+- Feishu Reply Fetch (planned) — 解析实现见 [feishu/parser.py](../providers/feishu/parser.py)
+- Discord Reference Parsing (planned)
+- Slack Thread Fetch (planned) — 线程追踪见 [slack/thread_tracker.py](../providers/slack/thread_tracker.py)

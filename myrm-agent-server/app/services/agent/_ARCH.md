@@ -9,7 +9,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 
 本层同时承担 Saved Agent 运行时契约的单一事实源职责。前端设置页、聊天配置面板、Web/Channel/Cron 入口和 DB 自定义子 Agent 都通过这里持久化和读取同一份配置，避免字段在不同入口之间漂移。
 
-Harness 工具层级 SSOT：`myrm-agent-harness/.../tool_management/tool_layers.py` 与 [tool_management/_ARCH.md](../../../myrm-agent-harness/src/myrm_agent_harness/agent/tool_management/_ARCH.md)。
+Harness 工具层级 SSOT：`myrm-agent-harness/.../tool_management/tool_layers.py` 与 [tool_management/_ARCH.md](myrm-agent-harness/src/myrm_agent_harness/agent/tool_management/_ARCH.md)。
 
 ## Tool loading dual-track
 

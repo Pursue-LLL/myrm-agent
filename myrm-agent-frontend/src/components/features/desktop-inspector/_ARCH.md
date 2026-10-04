@@ -41,8 +41,8 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 | -------------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | `__tests__/DesktopControlApprovalBanner.test.tsx`                                            | deny / allow-once POST + pending hidden            |
 | `__tests__/DesktopLiveView.permissionBanner.test.tsx`                                        | API fail amber banner / missing-permission details |
-| `../../store/__tests__/selectScopedDesktopViewData.test.ts`                                  | chat-scoped desktop viewData selector              |
-| `../../store/chat/messageStream/handlers/__tests__/fileDiffEvents.desktopViewUpdate.test.ts` | DESKTOP_VIEW_UPDATE sourceChatId write             |
+| `../../../store/__tests__/selectScopedDesktopViewData.test.ts`                               | chat-scoped desktop viewData selector              |
+| `../../../store/chat/messageStream/handlers/__tests__/fileDiffEvents.desktopViewUpdate.test.ts` | DESKTOP_VIEW_UPDATE sourceChatId write          |
 
 ## Permission Guidance
 

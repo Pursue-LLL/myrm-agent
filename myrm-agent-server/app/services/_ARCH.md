@@ -98,4 +98,4 @@
 
 ### 与 `api/` 的目录对应
 
-`services/` 子目录名常与 `api/` 不同（如 `agent/` ↔ `agents/`）。完整对照表见根目录 [CONTRIBUTING.md § API ↔ Services domain vocabulary](../../../CONTRIBUTING.md#api--services-domain-vocabulary)；CI 锁见 [tests/architecture/test_api_services_vocabulary.py](../../../tests/architecture/test_api_services_vocabulary.py)。
+`services/` 子目录名常与 `api/` 不同（如 `agent/` ↔ `agents/`）。完整对照表见根目录 [CONTRIBUTING.md § API ↔ Services domain vocabulary](../../../CONTRIBUTING.md#api--services-domain-vocabulary)；CI 锁见 [tests/architecture/test_api_services_vocabulary.py](../../tests/architecture/test_api_services_vocabulary.py)。

@@ -154,7 +154,7 @@
 | `ToolApprovalDialog.tsx`                     | UI   | modal 非 visual 审批                                            | ✅    |
 | `MobileStatusBoard.tsx`                      | UI   | 移动端审批面板                                                  | ✅    |
 
-逻辑层见 [`lib/approval/_ARCH.md`](../../lib/approval/_ARCH.md)。
+逻辑层见 [`lib/approval/_ARCH.md`](../../../lib/approval/_ARCH.md)。
 
 ## 依赖
 

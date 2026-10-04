@@ -175,5 +175,5 @@
 
 ## 引用规范
 
-- 域内跨子目录引用一律用相对路径（如 `../cards/MemoryTypeIcon`），禁止经目录级 `index.ts` 桶文件聚合，避免循环依赖与 tree-shaking 损伤。
+- 域内跨子目录引用一律用相对路径（如 `../cards/...`），禁止经目录级 `index.ts` 桶文件聚合，避免循环依赖与 tree-shaking 损伤。
 - 外部模块消费 memory 组件一律直连子目录路径（如 `@/components/features/memory/cards/MemoryCard`）；禁止在子目录中新增 `index.ts` 桶文件。

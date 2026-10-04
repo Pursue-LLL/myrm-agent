@@ -21,7 +21,7 @@
 - `@/components/primitives/*` — Card / Input / Textarea / Label / Button
 - `@/components/features/app-shell/confirm-dialog` — `ConfirmDialog`（清空表单前二次确认）
 - `@/components/features/icons/PremiumIcons` — 图标
-- 父模块 [`settings/sections/knowledge/_ARCH.md`](../../settings/sections/knowledge/_ARCH.md)
+- 父模块 [`settings/sections/knowledge/_ARCH.md`](../settings/sections/knowledge/_ARCH.md)
 
 ## 说明
 
