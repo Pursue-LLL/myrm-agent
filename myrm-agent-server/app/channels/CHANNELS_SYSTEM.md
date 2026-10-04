@@ -1124,6 +1124,6 @@ logger.info("Thread tracker: %s", metrics.to_dict())
 
 ## 13. 参考资料
 
-- 竞品渠道能力全景分析：[COMPETITIVE_CHANNEL_CAPABILITIES.md](COMPETITIVE_CHANNEL_CAPABILITIES.md)
-- Rich Message使用指南：[RICH_MESSAGE_USAGE.md](RICH_MESSAGE_USAGE.md)
-- 业务层架构：`myrm-agent-server/app/core/channel_bridge/`
+- 竞品渠道能力全景分析：[§ 10.8 竞品对比](#108-竞品对比)
+- Rich Message 自动降级机制：[§ 3.3 MessageBus](#33-messagebus)
+- 业务层架构：[channel_bridge](core/channel_bridge/_ARCH.md)
