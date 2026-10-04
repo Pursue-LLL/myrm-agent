@@ -818,7 +818,8 @@ const MessageBox = ({
                     message={asyncMsg.message}
                     category={asyncMsg.category}
                     recommendation={asyncMsg.recommendation}
-                    suggested_replies={asyncMsg.suggested_replies}
+                    suggestedReplies={asyncMsg.suggestedReplies ?? asyncMsg.suggested_replies}
+                    suggested_replies={asyncMsg.suggested_replies ?? asyncMsg.suggestedReplies}
                     status={asyncMsg.status}
                     resolvedText={asyncMsg.resolvedText}
                     onSteerReply={async (reply, callId, questionContext) => {

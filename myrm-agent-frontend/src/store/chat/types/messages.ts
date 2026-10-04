@@ -244,9 +244,11 @@ export interface AsyncUserMessageEntry {
   category?: 'progress' | 'milestone' | 'question';
   recommendation?: string | null;
   suggested_replies?: string[];
+  suggestedReplies?: string[];
   status?: 'pending' | 'resolved';
   resolvedText?: string | null;
 }
+
 
 export interface File {
   id?: string; // 文件 ID（StorageProvider 分配）

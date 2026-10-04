@@ -152,12 +152,15 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
       const suggested_replies = Array.isArray(rawReplies)
         ? rawReplies.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
         : undefined;
-      const newEntry = {
+      const newEntry: H.AsyncUserMessageEntry = {
         callId,
         message: rawData.message,
         category: rawData.category ?? 'progress',
         recommendation: rawData.recommendation ?? null,
         suggested_replies,
+        suggestedReplies: suggested_replies,
+        status: 'pending',
+        resolvedText: null,
       };
       actions.setMessages((state) => {
         const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);

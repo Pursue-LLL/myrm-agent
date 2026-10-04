@@ -496,14 +496,22 @@ function parseMessages(raw: Message[]): Message[] {
 
     const rawAsyncUserMessages = metadata.asyncUserMessages ?? metadata.async_user_messages;
     if (Array.isArray(rawAsyncUserMessages) && !parsed.asyncUserMessages) {
-      parsed.asyncUserMessages = rawAsyncUserMessages.map((item: Record<string, unknown>) => ({
-        callId: (item.callId ?? item.call_id ?? '') as string,
-        message: (item.message ?? '') as string,
-        category: (item.category ?? 'progress') as 'progress' | 'milestone' | 'question',
-        recommendation: (item.recommendation ?? null) as string | null,
-        status: (item.status === 'resolved' ? 'resolved' : 'pending') as 'pending' | 'resolved',
-        resolvedText: (item.resolvedText ?? item.resolved_text ?? null) as string | null,
-      }));
+      parsed.asyncUserMessages = rawAsyncUserMessages.map((item: Record<string, unknown>) => {
+        const rawReplies = item.suggestedReplies ?? item.suggested_replies;
+        const normalizedReplies = Array.isArray(rawReplies)
+          ? rawReplies.filter((r): r is string => typeof r === 'string' && r.trim().length > 0)
+          : undefined;
+        return {
+          callId: (item.callId ?? item.call_id ?? '') as string,
+          message: (item.message ?? '') as string,
+          category: (item.category ?? 'progress') as 'progress' | 'milestone' | 'question',
+          recommendation: (item.recommendation ?? null) as string | null,
+          suggested_replies: normalizedReplies,
+          suggestedReplies: normalizedReplies,
+          status: (item.status === 'resolved' ? 'resolved' : 'pending') as 'pending' | 'resolved',
+          resolvedText: (item.resolvedText ?? item.resolved_text ?? null) as string | null,
+        };
+      });
     }
 
     return parsed;
