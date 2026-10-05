@@ -1,3 +1,15 @@
+"""Universal memory migration models and contracts.
+
+[INPUT]
+External memory schemas and target memory bucket definitions.
+
+[OUTPUT]
+Strongly-typed CanonicalMigratedItem and MigrationParityReport contracts.
+
+[POS]
+Universal memory migration domain models ensuring zero-loss schema normalization.
+"""
+
 from __future__ import annotations
 
 from enum import StrEnum

@@ -1,3 +1,15 @@
+"""Universal memory migration bridge and parity verifier.
+
+[INPUT]
+Raw vendor memory payloads from diverse competitor frameworks.
+
+[OUTPUT]
+Normalized CanonicalMigratedItem instances and SHA-256 MigrationParityReport audit certificates.
+
+[POS]
+Core migration parity bridge orchestrating heuristic sniffing, dry-run parsing, and zero-loss parity auditing.
+"""
+
 from __future__ import annotations
 
 import hashlib

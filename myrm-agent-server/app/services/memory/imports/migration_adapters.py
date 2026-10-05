@@ -1,3 +1,15 @@
+"""Multi-source universal memory migration adapters.
+
+[INPUT]
+External vendor payloads from Mem0, Letta (MemGPT), LangChain, OpenClaw, and Zep.
+
+[OUTPUT]
+List of normalized CanonicalMigratedItem instances mapped to target memory buckets.
+
+[POS]
+Universal migration adapters preserving verbatim transcripts and structured semantic facts.
+"""
+
 from __future__ import annotations
 
 import uuid
