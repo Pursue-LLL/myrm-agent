@@ -140,6 +140,8 @@ class MemoryCommandCenterInsights:
             res = await self._db.execute(stmt)
             for conflict in res.scalars().all():
                 metadata = conflict.metadata_json or {}
+                existing_content = conflict.conflict_old_content or ""
+                candidate_content = conflict.content or ""
                 items.append(
                     MemoryCommandConflictItem(
                         id=f"conflict:{conflict.id}",
@@ -147,10 +149,10 @@ class MemoryCommandCenterInsights:
                         status="pending",
                         memory_id=conflict.conflict_old_memory_id,
                         related_memory_id="",
-                        title=f"偏好冲突: {metadata.get('facet') or '通用事实'}",
-                        description=(
-                            f"当前认知：{conflict.conflict_old_content or ''} ⟷ 最新陈述：{conflict.content or ''}"
-                        ),
+                        title=str(metadata.get("facet") or "general_fact"),
+                        description=f"{existing_content} ⟷ {candidate_content}",
+                        existing_content=existing_content,
+                        candidate_content=candidate_content,
                         created_at=conflict.created_at,
                     )
                 )

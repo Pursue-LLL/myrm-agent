@@ -204,6 +204,46 @@ class TestResolveConflict:
         override_memory_manager.update_memory.assert_called_once_with("old-mem-1", importance=0.01)
         override_memory_manager.add_knowledge.assert_called_once_with("Rust is better")
 
+    def test_coexist_resolution_persists_candidate(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        override_memory_manager: AsyncMock,
+    ) -> None:
+        conflict = _make_conflict_record()
+        _, mock_session_ctx = self._setup_resolve_mocks(conflict)
+
+        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+            resp = client.post(
+                "/api/v1/memory/conflicts/conflict-1/resolve",
+                headers=auth_headers,
+                json={"resolution": "coexist"},
+            )
+
+        assert resp.status_code == 200
+        override_memory_manager.update_memory.assert_called_once_with("old-mem-1", confidence=0.85)
+        override_memory_manager.add_knowledge.assert_called_once_with("Rust is better")
+
+    def test_keep_new_without_old_memory_only_persists_candidate(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        override_memory_manager: AsyncMock,
+    ) -> None:
+        conflict = _make_conflict_record(old_memory_id="")
+        _, mock_session_ctx = self._setup_resolve_mocks(conflict)
+
+        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+            resp = client.post(
+                "/api/v1/memory/conflicts/conflict-1/resolve",
+                headers=auth_headers,
+                json={"resolution": "keep_new"},
+            )
+
+        assert resp.status_code == 200
+        override_memory_manager.update_memory.assert_not_called()
+        override_memory_manager.add_knowledge.assert_called_once_with("Rust is better")
+
     def test_merge_resolution(
         self,
         client: TestClient,

@@ -187,6 +187,8 @@ class MemoryCommandConflictItem(BaseModel):
     related_memory_id: str | None = None
     title: str
     description: str
+    existing_content: str | None = None
+    candidate_content: str | None = None
     created_at: datetime | None = None
 
 

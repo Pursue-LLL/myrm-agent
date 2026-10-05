@@ -11438,6 +11438,14 @@
         "CONSTRAINED_BY": "Constrained"
       },
       "graphLoading": "Loading graph data...",
+      "conflictCardTitle": "Preference change",
+      "conflictCardPending": "Pending",
+      "conflictCardExisting": "Current record",
+      "conflictCardCandidate": "Newest statement",
+      "conflictCardNoCandidate": "No competing candidate",
+      "conflictCardKeepOld": "Keep current",
+      "conflictCardCoexist": "Conditional coexist",
+      "conflictCardKeepNew": "Adopt newest",
       "conflictKind": {
         "claim": "Claim",
         "correction": "Correction",

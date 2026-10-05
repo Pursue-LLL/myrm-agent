@@ -4508,6 +4508,14 @@
         "CONSTRAINED_BY": "제한"
       },
       "graphLoading": "그래프 데이터 로드 중...",
+      "conflictCardTitle": "선호 변경",
+      "conflictCardPending": "확인 대기",
+      "conflictCardExisting": "현재 기록",
+      "conflictCardCandidate": "최신 진술",
+      "conflictCardNoCandidate": "경합 후보 없음",
+      "conflictCardKeepOld": "기존 기록 유지",
+      "conflictCardCoexist": "조건부 공존",
+      "conflictCardKeepNew": "최신 채택",
       "conflictKind": {
         "claim": "주장",
         "correction": "수정",

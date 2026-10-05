@@ -153,6 +153,8 @@ export interface MemoryCommandConflictItem {
   related_memory_id?: string | null;
   title: string;
   description: string;
+  existing_content?: string | null;
+  candidate_content?: string | null;
   created_at?: string | null;
 }
 

@@ -11439,6 +11439,14 @@
         "CONSTRAINED_BY": "约束"
       },
       "graphLoading": "正在加载图谱数据...",
+      "conflictCardTitle": "偏好变动确认",
+      "conflictCardPending": "待确认",
+      "conflictCardExisting": "当前已有记录",
+      "conflictCardCandidate": "最新提及内容",
+      "conflictCardNoCandidate": "无并列候选陈述",
+      "conflictCardKeepOld": "保留原记录",
+      "conflictCardCoexist": "条件共存",
+      "conflictCardKeepNew": "采纳最新事实",
       "conflictKind": {
         "claim": "声明",
         "correction": "纠正",

@@ -405,7 +405,12 @@ async def _route_proposals_to_personal_memory(
 
 
 def _resolve_target_memory_id(proposal: object, recalled: dict[str, str]) -> str | None:
-    """Resolve the memory a correction targets, using the planner id or recalled content."""
+    """Resolve the memory a correction targets, using the planner id or recalled content.
+
+    Falls back to content matching only when the match is unambiguous: picking
+    among several candidates would demote the wrong memory, so an ambiguous
+    ``old_content`` yields ``None`` (the proposal is skipped) rather than a guess.
+    """
     explicit = getattr(proposal, "target_memory_id", None)
     if explicit:
         return str(explicit)
@@ -415,10 +420,15 @@ def _resolve_target_memory_id(proposal: object, recalled: dict[str, str]) -> str
         return None
 
     normalized = old_content.strip().lower()
+    if not normalized:
+        return None
+
     for memory_id, content in recalled.items():
-        if normalized and normalized in content.lower():
+        if content.strip().lower() == normalized:
             return memory_id
-    return None
+
+    matches = [memory_id for memory_id, content in recalled.items() if normalized in content.lower()]
+    return matches[0] if len(matches) == 1 else None
 
 
 async def _route_proposals_to_shared_contexts(

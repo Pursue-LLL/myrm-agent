@@ -4,6 +4,7 @@
  * [INPUT]
  * @/services/memory/commandCenter::MemoryCommandConflictItem (POS: 冲突数据契约)
  * lucide-react (POS: 矢量图标库，替代原生 emoji)
+ * next-intl::useTranslations (POS: 双语 i18n 取词)
  *
  * [OUTPUT]
  * ConflictResolutionCard: 响应式双主题流光偏好仲裁卡片
@@ -13,6 +14,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Sparkles, GitCompare, CheckCircle2, ShieldCheck, Split, Clock, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { MemoryCommandConflictItem } from '@/services/memory/commandCenter';
@@ -24,21 +26,13 @@ export interface ConflictResolutionCardProps {
 }
 
 export const ConflictResolutionCard = ({ item, onResolve, resolving = false }: ConflictResolutionCardProps) => {
+  const t = useTranslations('memory');
   const [currentAction, setCurrentAction] = useState<string | null>(null);
 
   const isPending = item.status === 'pending' || item.status === 'active' || item.status === 'needs_review';
 
-  // Parse existing vs candidate from description if structured as "当前认知：... ⟷ 最新陈述：..."
-  const separator = ' ⟷ 最新陈述：';
-  const hasStructuredParts = item.description.includes(separator);
-  let existingText = item.description;
-  let candidateText = '';
-
-  if (hasStructuredParts) {
-    const parts = item.description.split(separator);
-    existingText = parts[0].replace('当前认知：', '').trim();
-    candidateText = (parts[1] || '').trim();
-  }
+  const existingText = item.existing_content || (item.kind === 'pending_conflict' ? '' : item.description);
+  const candidateText = item.candidate_content || '';
 
   const handleAction = async (action: 'keep_new' | 'keep_old' | 'coexist') => {
     if (!onResolve || resolving) {
@@ -67,10 +61,12 @@ export const ConflictResolutionCard = ({ item, onResolve, resolving = false }: C
           <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
             <GitCompare className="h-3.5 w-3.5" />
           </div>
-          <span className="text-xs font-semibold tracking-wide text-foreground">{item.title || '偏好变动确认'}</span>
+          <span className="text-xs font-semibold tracking-wide text-foreground">
+            {item.title || t('commandCenter.conflictCardTitle')}
+          </span>
           {isPending && (
             <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-              待确认
+              {t('commandCenter.conflictCardPending')}
             </span>
           )}
         </div>
@@ -90,7 +86,7 @@ export const ConflictResolutionCard = ({ item, onResolve, resolving = false }: C
           <div>
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-blue-500" />
-              <span>当前已有记录</span>
+              <span>{t('commandCenter.conflictCardExisting')}</span>
             </div>
             <p className="mt-1.5 text-xs leading-relaxed text-foreground/90">{existingText}</p>
           </div>
@@ -102,14 +98,14 @@ export const ConflictResolutionCard = ({ item, onResolve, resolving = false }: C
             <div>
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
                 <Sparkles className="h-3.5 w-3.5" />
-                <span>最新提及内容</span>
+                <span>{t('commandCenter.conflictCardCandidate')}</span>
               </div>
               <p className="mt-1.5 text-xs leading-relaxed text-foreground/90">{candidateText}</p>
             </div>
           </div>
         ) : (
           <div className="flex items-center justify-center rounded-lg border border-dashed border-border/60 p-3 text-xs text-muted-foreground">
-            <span>无并列候选陈述</span>
+            <span>{t('commandCenter.conflictCardNoCandidate')}</span>
           </div>
         )}
       </div>
@@ -128,7 +124,7 @@ export const ConflictResolutionCard = ({ item, onResolve, resolving = false }: C
             )}
           >
             <ShieldCheck className="h-3.5 w-3.5" />
-            <span>保留原记录</span>
+            <span>{t('commandCenter.conflictCardKeepOld')}</span>
           </button>
 
           <button
@@ -142,7 +138,7 @@ export const ConflictResolutionCard = ({ item, onResolve, resolving = false }: C
             )}
           >
             <Split className="h-3.5 w-3.5" />
-            <span>条件共存</span>
+            <span>{t('commandCenter.conflictCardCoexist')}</span>
           </button>
 
           <button
@@ -156,7 +152,7 @@ export const ConflictResolutionCard = ({ item, onResolve, resolving = false }: C
             )}
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
-            <span>采纳最新事实</span>
+            <span>{t('commandCenter.conflictCardKeepNew')}</span>
             <ArrowRight className="h-3 w-3" />
           </button>
         </div>

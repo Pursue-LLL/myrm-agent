@@ -4552,6 +4552,14 @@
         "CONSTRAINED_BY": "Eingeschränkt"
       },
       "graphLoading": "Grafikdaten werden geladen...",
+      "conflictCardTitle": "Präferenzänderung",
+      "conflictCardPending": "Ausstehend",
+      "conflictCardExisting": "Aktueller Eintrag",
+      "conflictCardCandidate": "Neueste Aussage",
+      "conflictCardNoCandidate": "Kein konkurrierender Kandidat",
+      "conflictCardKeepOld": "Aktuellen behalten",
+      "conflictCardCoexist": "Bedingt koexistieren",
+      "conflictCardKeepNew": "Neueste übernehmen",
       "conflictKind": {
         "claim": "Beanspruchen",
         "correction": "Korrektur",

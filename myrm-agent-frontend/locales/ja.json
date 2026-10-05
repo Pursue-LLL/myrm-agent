@@ -4280,6 +4280,14 @@
         "CONSTRAINED_BY": "制約"
       },
       "graphLoading": "グラフデータを読み込み中...",
+      "conflictCardTitle": "選好の変更",
+      "conflictCardPending": "確認待ち",
+      "conflictCardExisting": "現在の記録",
+      "conflictCardCandidate": "最新の言説",
+      "conflictCardNoCandidate": "対立する候補なし",
+      "conflictCardKeepOld": "現在の記録を保持",
+      "conflictCardCoexist": "条件付き共存",
+      "conflictCardKeepNew": "最新を採用",
       "conflictKind": {
         "claim": "主張",
         "correction": "修正",

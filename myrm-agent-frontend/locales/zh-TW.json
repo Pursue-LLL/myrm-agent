@@ -4324,6 +4324,14 @@
         "CONSTRAINED_BY": "約束"
       },
       "graphLoading": "正在載入圖譜資料...",
+      "conflictCardTitle": "偏好變動確認",
+      "conflictCardPending": "待確認",
+      "conflictCardExisting": "目前已有記錄",
+      "conflictCardCandidate": "最新提及內容",
+      "conflictCardNoCandidate": "無並列候選陳述",
+      "conflictCardKeepOld": "保留原記錄",
+      "conflictCardCoexist": "條件共存",
+      "conflictCardKeepNew": "採納最新事實",
       "conflictKind": {
         "claim": "宣告",
         "correction": "糾正",
