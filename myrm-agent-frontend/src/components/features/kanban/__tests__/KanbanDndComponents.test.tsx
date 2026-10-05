@@ -122,7 +122,7 @@ describe('KanbanDropColumn', () => {
   it('双击卡片触发 onOpenTaskDrawer', () => {
     const onOpenTaskDrawer = vi.fn();
     render(<KanbanDropColumn {...defaultProps} onOpenTaskDrawer={onOpenTaskDrawer} />);
-    const card = screen.getByTestId('task-card-task-1').parentElement!;
+    const card = screen.getByTestId('task-card-task-1').parentElement;
     expectNonNull(card, 'card');
     fireEvent.doubleClick(card);
     expect(onOpenTaskDrawer).toHaveBeenCalledWith('task-1');
@@ -131,7 +131,7 @@ describe('KanbanDropColumn', () => {
   it('Ctrl+click 触发多选', () => {
     const onTaskSelect = vi.fn();
     render(<KanbanDropColumn {...defaultProps} onTaskSelect={onTaskSelect} />);
-    const card = screen.getByTestId('task-card-task-1').parentElement!;
+    const card = screen.getByTestId('task-card-task-1').parentElement;
     expectNonNull(card, 'card');
     fireEvent.click(card, { ctrlKey: true });
     expect(onTaskSelect).toHaveBeenCalledWith('task-1', expect.any(Object));
@@ -140,7 +140,7 @@ describe('KanbanDropColumn', () => {
   it('普通 click 不触发多选', () => {
     const onTaskSelect = vi.fn();
     render(<KanbanDropColumn {...defaultProps} onTaskSelect={onTaskSelect} />);
-    const card = screen.getByTestId('task-card-task-1').parentElement!;
+    const card = screen.getByTestId('task-card-task-1').parentElement;
     expectNonNull(card, 'card');
     fireEvent.click(card);
     expect(onTaskSelect).not.toHaveBeenCalled();
@@ -149,7 +149,7 @@ describe('KanbanDropColumn', () => {
   it('Meta+click 触发多选 (Mac)', () => {
     const onTaskSelect = vi.fn();
     render(<KanbanDropColumn {...defaultProps} onTaskSelect={onTaskSelect} />);
-    const card = screen.getByTestId('task-card-task-1').parentElement!;
+    const card = screen.getByTestId('task-card-task-1').parentElement;
     expectNonNull(card, 'card');
     fireEvent.click(card, { metaKey: true });
     expect(onTaskSelect).toHaveBeenCalledWith('task-1', expect.any(Object));
@@ -158,7 +158,7 @@ describe('KanbanDropColumn', () => {
   it('Shift+click 触发多选', () => {
     const onTaskSelect = vi.fn();
     render(<KanbanDropColumn {...defaultProps} onTaskSelect={onTaskSelect} />);
-    const card = screen.getByTestId('task-card-task-1').parentElement!;
+    const card = screen.getByTestId('task-card-task-1').parentElement;
     expectNonNull(card, 'card');
     fireEvent.click(card, { shiftKey: true });
     expect(onTaskSelect).toHaveBeenCalledWith('task-1', expect.any(Object));
@@ -179,7 +179,7 @@ describe('KanbanDropColumn', () => {
       rect: { current: null } as never,
     } as never);
     render(<KanbanDropColumn {...defaultProps} />);
-    const card = screen.getByTestId('task-card-task-1').parentElement!;
+    const card = screen.getByTestId('task-card-task-1').parentElement;
     expectNonNull(card, 'card');
     expect(card.className).toContain('opacity-40');
     expect(card.className).toContain('scale-95');

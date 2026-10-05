@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { KanbanTask, TaskStatus, AttachmentInfo } from '@/services/kanban';
 import KanbanTaskDrawer from '../KanbanTaskDrawer';
@@ -246,7 +247,8 @@ describe('KanbanTaskDrawer Attachments', () => {
       expect(screen.getByText('noAttachments')).toBeTruthy();
     });
 
-    const section = screen.getByText('noAttachments').closest('section')!;
+    const section = screen.getByText('noAttachments').closest('section');
+    expectNonNull(section, 'attachments section');
     fireEvent.dragOver(section, { preventDefault: () => {} });
 
     await waitFor(() => {
@@ -268,7 +270,8 @@ describe('KanbanTaskDrawer Attachments', () => {
       expect(screen.getByText('noAttachments')).toBeTruthy();
     });
 
-    const section = screen.getByText('noAttachments').closest('section')!;
+    const section = screen.getByText('noAttachments').closest('section');
+    expectNonNull(section, 'attachments section');
     const file = new File(['data'], 'dropped.png', { type: 'image/png' });
 
     fireEvent.drop(section, {

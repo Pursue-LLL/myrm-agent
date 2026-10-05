@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { expectDefined } from '@/test-utils/expectDefined';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -112,7 +113,7 @@ describe('ExtractToSkillButton', () => {
   });
 
   it('prevents double-click sending', async () => {
-    let resolve: () => void;
+    let resolve: (() => void) | undefined;
     mockSendMessage.mockImplementation(
       () =>
         new Promise<void>((r) => {
@@ -125,7 +126,8 @@ describe('ExtractToSkillButton', () => {
     await user.click(screen.getByRole('button'));
     await user.click(screen.getByRole('button'));
 
-    resolve!();
+    expectDefined(resolve, 'resolve');
+    resolve();
     await waitFor(() => {
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
     });
@@ -174,7 +176,7 @@ describe('ExtractToSkillButton', () => {
   });
 
   it('shows loading spinner during sending state', async () => {
-    let resolve: () => void;
+    let resolve: (() => void) | undefined;
     mockSendMessage.mockImplementation(
       () =>
         new Promise<void>((r) => {
@@ -188,7 +190,8 @@ describe('ExtractToSkillButton', () => {
     const spinner = container.querySelector('.animate-spin');
     expect(spinner).toBeInTheDocument();
 
-    resolve!();
+    expectDefined(resolve, 'resolve');
+    resolve();
     await waitFor(() => {
       expect(mockToast.info).toHaveBeenCalledWith('extractToSkill.started');
     });

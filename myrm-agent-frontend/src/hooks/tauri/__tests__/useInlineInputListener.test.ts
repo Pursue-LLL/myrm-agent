@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { expectDefined } from '@/test-utils/expectDefined';
 import { renderHook, act } from '@testing-library/react';
 
 let mockIsTauriRuntime = false;
@@ -89,7 +90,9 @@ describe('useInlineInputListener', () => {
     };
 
     act(() => {
-      mockListeners.get('inline-input-activated')!({ payload });
+      const activatedHandler = mockListeners.get('inline-input-activated');
+      expectDefined(activatedHandler, 'inline-input-activated handler');
+      activatedHandler({ payload });
     });
 
     expect(mockOpenInline).toHaveBeenCalledWith(
@@ -113,7 +116,9 @@ describe('useInlineInputListener', () => {
     });
 
     act(() => {
-      mockListeners.get('inline-input-activated')!({
+      const activatedHandler = mockListeners.get('inline-input-activated');
+      expectDefined(activatedHandler, 'inline-input-activated handler');
+      activatedHandler({
         payload: {
           screenshot: 'base64data',
           windowTitle: 'Terminal',

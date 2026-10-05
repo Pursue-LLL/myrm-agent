@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { expectDefined } from '@/test-utils/expectDefined';
 import { renderHook, act } from '@testing-library/react';
 
 let mockIsTauriRuntime = false;
@@ -89,7 +90,8 @@ describe('useAppshotListener', () => {
       expect(handler).toBeDefined();
 
       act(() => {
-        handler!({
+        expectDefined(handler, 'appshot handler');
+        handler({
           payload: {
             screenshot: 'base64data',
             windowTitle: 'Test Window',
@@ -118,7 +120,8 @@ describe('useAppshotListener', () => {
       expect(handler).toBeDefined();
 
       act(() => {
-        handler!({
+        expectDefined(handler, 'appshot handler');
+        handler({
           payload: {
             screenshot: 'base64data',
             windowTitle: 'Test Window',
@@ -146,7 +149,8 @@ describe('useAppshotListener', () => {
 
       const handler = mockListeners.get('appshot-captured');
       act(() => {
-        handler!({
+        expectDefined(handler, 'appshot handler');
+        handler({
           payload: {
             screenshot: '',
             windowTitle: '',
@@ -168,7 +172,8 @@ describe('useAppshotListener', () => {
 
       const handler = mockListeners.get('appshot-captured');
       act(() => {
-        handler!({
+        expectDefined(handler, 'appshot handler');
+        handler({
           payload: {
             screenshot: 'data',
             windowTitle: 'App',
@@ -199,7 +204,8 @@ describe('useAppshotListener', () => {
       expect(handler).toBeDefined();
 
       act(() => {
-        handler!({
+        expectDefined(handler, 'appshot handler');
+        handler({
           payload: {
             blockedApp: '1Password',
             timestamp: 1700000000000,
@@ -227,7 +233,8 @@ describe('useAppshotListener', () => {
 
       const handler = mockListeners.get('appshot-blocked');
       act(() => {
-        handler!({
+        expectDefined(handler, 'appshot handler');
+        handler({
           payload: { blockedApp: 'WeChat', timestamp: 1700000000000 },
         });
       });

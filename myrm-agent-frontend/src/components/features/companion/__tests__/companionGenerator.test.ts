@@ -261,7 +261,8 @@ describe('companionGenerator', () => {
     });
 
     it('Common can evolve when requirements met', () => {
-      const req = EVOLUTION_REQUIREMENTS['Common']!;
+      const req = EVOLUTION_REQUIREMENTS['Common'];
+      expectNonNull(req, 'Common requirements');
       const hatchedAt = Date.now() - (req.daysActive + 1) * 86400000;
       const result = checkEvolution('Common', req.petCount, hatchedAt, req.conversationCount);
       expect(result.canEvolve).toBe(true);

@@ -2,6 +2,7 @@
  * Preflight pressure-gate STATUS steps — allowlist, item text, warning status.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expectDefined } from '@/test-utils/expectDefined';
 
 vi.mock('../handlerDeps', () => {
   return {
@@ -168,7 +169,9 @@ describe('preflight gate progress steps', () => {
     await applyStatusProgressStep(ctx, 'context_presumed_overflow');
 
     const placeholder = state.messages.find((m) => m.messageId === 'msg-1' && m.role === 'assistant');
-    expect(placeholder).toBeDefined();
-    expect(placeholder!.progressSteps!.length).toBe(1);
+    expectDefined(placeholder, 'assistant placeholder');
+    const steps = placeholder.progressSteps;
+    expectDefined(steps, 'progressSteps');
+    expect(steps.length).toBe(1);
   });
 });

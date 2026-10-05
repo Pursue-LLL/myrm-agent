@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { expectDefined } from '@/test-utils/expectDefined';
 import { renderHook } from '@testing-library/react';
 
 let mockIsTauriRuntime = false;
@@ -56,7 +57,9 @@ describe('useVoicePttListener', () => {
 
     await vi.waitFor(() => expect(mockListeners.has('voice-ptt-start')).toBe(true));
 
-    mockListeners.get('voice-ptt-start')!({ payload: undefined });
+    const startHandler = mockListeners.get('voice-ptt-start');
+    expectDefined(startHandler, 'voice-ptt-start handler');
+    startHandler({ payload: undefined });
 
     expect(dispatchSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -74,7 +77,9 @@ describe('useVoicePttListener', () => {
 
     await vi.waitFor(() => expect(mockListeners.has('voice-ptt-stop')).toBe(true));
 
-    mockListeners.get('voice-ptt-stop')!({ payload: undefined });
+    const stopHandler = mockListeners.get('voice-ptt-stop');
+    expectDefined(stopHandler, 'voice-ptt-stop handler');
+    stopHandler({ payload: undefined });
 
     expect(dispatchSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -99,13 +104,15 @@ describe('useVoicePttListener', () => {
       selectedText: 'const x = 1;',
       timestamp: Date.now(),
     };
-    mockListeners.get('voice-ptt-context')!({ payload });
+    const contextHandler = mockListeners.get('voice-ptt-context');
+    expectDefined(contextHandler, 'voice-ptt-context handler');
+    contextHandler({ payload });
 
     const dispatched = dispatchSpy.mock.calls.find((call) => (call[0] as CustomEvent).type === 'voice-ptt-context');
-    expect(dispatched).toBeDefined();
-    expect((dispatched![0] as CustomEvent).detail).toEqual(payload);
-    expect((dispatched![0] as CustomEvent).detail.selectedText).toBe('const x = 1;');
-    expect((dispatched![0] as CustomEvent).cancelable).toBe(true);
+    expectDefined(dispatched, 'dispatched event');
+    expect((dispatched[0] as CustomEvent).detail).toEqual(payload);
+    expect((dispatched[0] as CustomEvent).detail.selectedText).toBe('const x = 1;');
+    expect((dispatched[0] as CustomEvent).cancelable).toBe(true);
 
     dispatchSpy.mockRestore();
   });
@@ -123,11 +130,13 @@ describe('useVoicePttListener', () => {
       extractedText: '',
       timestamp: 1000,
     };
-    mockListeners.get('voice-ptt-context')!({ payload });
+    const contextHandler = mockListeners.get('voice-ptt-context');
+    expectDefined(contextHandler, 'voice-ptt-context handler');
+    contextHandler({ payload });
 
     const dispatched = dispatchSpy.mock.calls.find((call) => (call[0] as CustomEvent).type === 'voice-ptt-context');
-    expect(dispatched).toBeDefined();
-    expect((dispatched![0] as CustomEvent).detail).toEqual(payload);
+    expectDefined(dispatched, 'dispatched event');
+    expect((dispatched[0] as CustomEvent).detail).toEqual(payload);
 
     dispatchSpy.mockRestore();
   });
@@ -140,7 +149,9 @@ describe('useVoicePttListener', () => {
     await vi.waitFor(() => expect(mockListeners.has('voice-ptt-context')).toBe(true));
 
     for (let i = 0; i < 5; i++) {
-      mockListeners.get('voice-ptt-context')!({
+      const contextHandler = mockListeners.get('voice-ptt-context');
+      expectDefined(contextHandler, 'voice-ptt-context handler');
+      contextHandler({
         payload: { screenshot: `img${i}`, windowTitle: `Win${i}`, extractedText: '', timestamp: i },
       });
     }

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { expectDefined } from '@/test-utils/expectDefined';
 import { usePlanStore } from '../usePlanStore';
 
 vi.mock('@/lib/api', () => ({
@@ -94,7 +95,7 @@ describe('usePlanStore', () => {
       const stalePlan = makePlan(['pending']);
       const freshPlan = makePlan(['in_progress']);
 
-      let resolveStale: (v: unknown) => void;
+      let resolveStale: ((v: unknown) => void) | undefined;
       const stalePromise = new Promise((r) => {
         resolveStale = r;
       });
@@ -109,14 +110,15 @@ describe('usePlanStore', () => {
       await freshCall;
       expect(usePlanStore.getState().plan).toEqual(freshPlan);
 
-      resolveStale!({ ok: true, json: async () => ({ plan: stalePlan }) });
+      expectDefined(resolveStale, 'resolveStale');
+      resolveStale({ ok: true, json: async () => ({ plan: stalePlan }) });
       await staleCall;
 
       expect(usePlanStore.getState().plan).toEqual(freshPlan);
     });
 
     it('does not update isLoading from stale call', async () => {
-      let resolveStale: (v: unknown) => void;
+      let resolveStale: ((v: unknown) => void) | undefined;
       const stalePromise = new Promise((r) => {
         resolveStale = r;
       });
@@ -130,7 +132,8 @@ describe('usePlanStore', () => {
 
       expect(usePlanStore.getState().isLoading).toBe(false);
 
-      resolveStale!({ ok: true, json: async () => ({ plan: makePlan() }) });
+      expectDefined(resolveStale, 'resolveStale');
+      resolveStale({ ok: true, json: async () => ({ plan: makePlan() }) });
       await staleCall;
 
       expect(usePlanStore.getState().isLoading).toBe(false);

@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { act, renderHook } from '@testing-library/react';
+import { expectDefined } from '@/test-utils/expectDefined';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useMemoryAbEval } from '../hooks/useMemoryAbEval';
@@ -71,8 +72,8 @@ describe('useMemoryAbEval', () => {
     });
 
     const runCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
-    expect(runCall).toBeDefined();
-    const body = JSON.parse(String((runCall![1] as RequestInit).body));
+    expectDefined(runCall, 'run call');
+    const body = JSON.parse(String((runCall[1] as RequestInit).body));
     expect(body).toEqual({
       benchmark_id: 'wb-bench-office',
       profile_id: 'agent-1',

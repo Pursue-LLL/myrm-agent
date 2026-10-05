@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { CompanionBones } from '../companionGenerator';
@@ -87,7 +88,8 @@ describe('CompanionSprite', () => {
 
   it('applies animation class based on animState', () => {
     const { container } = render(<CompanionSprite bones={makeBones()} animState="bounce" />);
-    const btn = container.querySelector('button')!;
+    const btn = container.querySelector('button');
+    expectNonNull(btn, 'companion button');
     expect(btn.className).toContain('animate-companion-bounce');
   });
 
@@ -99,7 +101,8 @@ describe('CompanionSprite', () => {
   it('applies rarity ring shadow for Epic via inline style', () => {
     document.documentElement.style.setProperty('--accent-warm', '#e07830');
     const { container } = render(<CompanionSprite bones={makeBones({ rarity: 'Epic' })} animState="idle" />);
-    const btn = container.querySelector('button')!;
+    const btn = container.querySelector('button');
+    expectNonNull(btn, 'companion button');
     expect(btn.style.boxShadow).toContain('1px');
   });
 
@@ -161,7 +164,8 @@ describe('CompanionSprite', () => {
 
   it('applies working animation class', () => {
     const { container } = render(<CompanionSprite bones={makeBones()} animState="working" />);
-    const btn = container.querySelector('button')!;
+    const btn = container.querySelector('button');
+    expectNonNull(btn, 'companion button');
     expect(btn.className).toContain('animate-companion-working');
   });
 
@@ -174,7 +178,8 @@ describe('CompanionSprite', () => {
     mockStoreValues.mood = 'happy';
     mockStoreValues.mascotStatus = 'idle';
     const { container } = render(<CompanionSprite bones={makeBones()} animState="idle" />);
-    const btn = container.querySelector('button')!;
+    const btn = container.querySelector('button');
+    expectNonNull(btn, 'companion button');
     expect(btn.className).toContain('animate-companion-sway');
   });
 
@@ -182,7 +187,8 @@ describe('CompanionSprite', () => {
     mockStoreValues.mood = 'curious';
     mockStoreValues.mascotStatus = 'idle';
     const { container } = render(<CompanionSprite bones={makeBones()} animState="idle" />);
-    const btn = container.querySelector('button')!;
+    const btn = container.querySelector('button');
+    expectNonNull(btn, 'companion button');
     expect(btn.className).toContain('animate-companion-tilt');
   });
 
@@ -190,7 +196,8 @@ describe('CompanionSprite', () => {
     mockStoreValues.mood = 'happy';
     mockStoreValues.mascotStatus = 'thinking';
     const { container } = render(<CompanionSprite bones={makeBones()} animState="working" />);
-    const btn = container.querySelector('button')!;
+    const btn = container.querySelector('button');
+    expectNonNull(btn, 'companion button');
     expect(btn.className).not.toContain('animate-companion-sway');
   });
 
@@ -198,7 +205,8 @@ describe('CompanionSprite', () => {
     mockStoreValues.mood = 'sleepy';
     mockStoreValues.mascotStatus = 'sleeping';
     const { container } = render(<CompanionSprite bones={makeBones()} animState="idle" />);
-    const btn = container.querySelector('button')!;
+    const btn = container.querySelector('button');
+    expectNonNull(btn, 'companion button');
     expect(btn.className).toContain('animate-companion-idle');
   });
 });

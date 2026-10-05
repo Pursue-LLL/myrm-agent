@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { expectDefined, expectNonNull } from '@/test-utils/expectDefined';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import React from 'react';
 
@@ -229,7 +230,9 @@ describe('VersionHistory', () => {
         onRollback={onRollback}
       />,
     );
-    fireEvent.click(screen.getByText('Current Version').closest('[data-testid="menu-item"]')!);
+    const currentItem = screen.getByText('Current Version').closest('[data-testid="menu-item"]');
+    expectNonNull(currentItem, 'current version menu item');
+    fireEvent.click(currentItem);
     expect(onSwitchVersion).toHaveBeenCalledWith(-1);
   });
 
@@ -245,8 +248,8 @@ describe('VersionHistory', () => {
     );
     const items = screen.getAllByTestId('menu-item');
     const v1Item = items.find((el) => el.textContent?.includes('v1'));
-    expect(v1Item).toBeDefined();
-    fireEvent.click(v1Item!);
+    expectDefined(v1Item, 'v1 menu item');
+    fireEvent.click(v1Item);
     expect(onSwitchVersion).toHaveBeenCalledWith(0);
   });
 

@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { expectDefined } from '@/test-utils/expectDefined';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -121,7 +122,7 @@ describe('BatchOperationBar', () => {
   });
 
   it('disables project buttons during move operation', async () => {
-    let resolveMove: () => void;
+    let resolveMove: (() => void) | undefined;
     batchMoveChats.mockReturnValueOnce(
       new Promise<void>((resolve) => {
         resolveMove = resolve;
@@ -139,7 +140,8 @@ describe('BatchOperationBar', () => {
       expect(projectButtons.length).toBeGreaterThan(0);
     });
 
-    resolveMove!();
+    expectDefined(resolveMove, 'resolveMove');
+    resolveMove();
 
     await waitFor(() => {
       expect(batchMoveChats).toHaveBeenCalledTimes(1);
@@ -147,7 +149,7 @@ describe('BatchOperationBar', () => {
   });
 
   it('prevents duplicate move calls while moving', async () => {
-    let resolveMove: () => void;
+    let resolveMove: (() => void) | undefined;
     batchMoveChats.mockReturnValueOnce(
       new Promise<void>((resolve) => {
         resolveMove = resolve;
@@ -167,7 +169,8 @@ describe('BatchOperationBar', () => {
 
     expect(batchMoveChats).toHaveBeenCalledTimes(1);
 
-    resolveMove!();
+    expectDefined(resolveMove, 'resolveMove');
+    resolveMove();
 
     await waitFor(() => {
       expect(batchMoveChats).toHaveBeenCalledTimes(1);

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { expectDefined } from '@/test-utils/expectDefined';
 import { AdaptiveScheduler } from '../adaptiveScheduler';
 import { handleMessageStream, type StreamHandlerActions, type StreamHandlerState } from '../messageStreamHandler';
 import { AgentEventType, type Message } from '../types';
@@ -70,7 +71,8 @@ describe('messageStreamHandler reasoning duration tracking', () => {
 
   function flushTimeouts() {
     while (pendingTimeouts.length > 0) {
-      const fn = pendingTimeouts.shift()!;
+      const fn = pendingTimeouts.shift();
+      expectDefined(fn, 'pending timeout');
       fn();
     }
   }

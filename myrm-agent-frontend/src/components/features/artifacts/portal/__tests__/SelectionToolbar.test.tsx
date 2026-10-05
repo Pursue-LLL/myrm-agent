@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 
@@ -245,7 +246,9 @@ describe('SelectionToolbar', () => {
     triggerSelection(editorMock);
     vi.useRealTimers();
 
-    fireEvent.click(screen.getByText('explain').closest('button')!);
+    const explainBtn = screen.getByText('explain').closest('button');
+    expectNonNull(explainBtn, 'explain button');
+    fireEvent.click(explainBtn);
 
     await waitFor(() => {
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -282,7 +285,9 @@ describe('SelectionToolbar', () => {
     triggerSelection(editorMock);
     vi.useRealTimers();
 
-    fireEvent.click(screen.getByText('optimize').closest('button')!);
+    const optimizeBtn = screen.getByText('optimize').closest('button');
+    expectNonNull(optimizeBtn, 'optimize button');
+    fireEvent.click(optimizeBtn);
 
     await waitFor(() => {
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -306,7 +311,9 @@ describe('SelectionToolbar', () => {
     triggerSelection(editorMock);
     vi.useRealTimers();
 
-    fireEvent.click(screen.getByText('explain').closest('button')!);
+    const explainBtn = screen.getByText('explain').closest('button');
+    expectNonNull(explainBtn, 'explain button');
+    fireEvent.click(explainBtn);
 
     await waitFor(() => {
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -333,7 +340,9 @@ describe('SelectionToolbar', () => {
     triggerSelection(editorMock);
     vi.useRealTimers();
 
-    fireEvent.click(screen.getByText('explain').closest('button')!);
+    const explainBtn = screen.getByText('explain').closest('button');
+    expectNonNull(explainBtn, 'explain button');
+    fireEvent.click(explainBtn);
 
     await waitFor(() => {
       expect(mockEnqueue).toHaveBeenCalledTimes(1);
@@ -360,7 +369,9 @@ describe('SelectionToolbar', () => {
     triggerSelection(editorMock);
     vi.useRealTimers();
 
-    fireEvent.click(screen.getByText('explain').closest('button')!);
+    const explainBtn = screen.getByText('explain').closest('button');
+    expectNonNull(explainBtn, 'explain button');
+    fireEvent.click(explainBtn);
 
     await waitFor(() => {
       expect(mockEnqueue).toHaveBeenCalledTimes(1);
@@ -381,7 +392,9 @@ describe('SelectionToolbar', () => {
     triggerSelection(editorMock);
     vi.useRealTimers();
 
-    fireEvent.click(screen.getByText('modify').closest('button')!);
+    const modifyBtn = screen.getByText('modify').closest('button');
+    expectNonNull(modifyBtn, 'modify button');
+    fireEvent.click(modifyBtn);
 
     const input = screen.getByPlaceholderText('modifyPlaceholder');
     expect(input).toBeDefined();
@@ -409,7 +422,9 @@ describe('SelectionToolbar', () => {
     triggerSelection(editorMock);
     vi.useRealTimers();
 
-    fireEvent.click(screen.getByText('copy').closest('button')!);
+    const copyBtn = screen.getByText('copy').closest('button');
+    expectNonNull(copyBtn, 'copy button');
+    fireEvent.click(copyBtn);
 
     await waitFor(() => {
       expect(mockWriteToClipboard).toHaveBeenCalledWith('copied text');
@@ -428,7 +443,9 @@ describe('SelectionToolbar', () => {
     triggerSelection(editorMock);
     vi.useRealTimers();
 
-    fireEvent.click(screen.getByText('modify').closest('button')!);
+    const modifyBtn = screen.getByText('modify').closest('button');
+    expectNonNull(modifyBtn, 'modify button');
+    fireEvent.click(modifyBtn);
 
     const input = screen.getByPlaceholderText('modifyPlaceholder');
     await user.type(input, 'some text');
@@ -444,9 +461,12 @@ describe('SelectionToolbar', () => {
 
     triggerSelection(editorMock);
 
-    fireEvent.click(screen.getByText('modify').closest('button')!);
+    const modifyBtn = screen.getByText('modify').closest('button');
+    expectNonNull(modifyBtn, 'modify button');
+    fireEvent.click(modifyBtn);
 
-    const submitBtn = screen.getByTestId('arrow-icon').closest('button')!;
+    const submitBtn = screen.getByTestId('arrow-icon').closest('button');
+    expectNonNull(submitBtn, 'submit button');
     expect(submitBtn).toHaveAttribute('disabled');
 
     fireEvent.click(submitBtn);

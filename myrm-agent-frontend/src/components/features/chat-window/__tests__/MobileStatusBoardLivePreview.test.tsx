@@ -1,6 +1,7 @@
 'use client';
 
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('next/navigation', () => ({
@@ -230,7 +231,8 @@ describe('MobileStatusBoard Live Preview', () => {
     render(<MobileStatusBoard chatId="test" />);
     const imgs = screen.getAllByAltText('livePreview');
     const thumbImg = imgs[0];
-    const thumbButton = thumbImg.closest('button')!;
+    const thumbButton = thumbImg.closest('button');
+    expectNonNull(thumbButton, 'thumbnail button');
     fireEvent.click(thumbButton);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(document.body.style.overflow).toBe('hidden');
@@ -245,7 +247,8 @@ describe('MobileStatusBoard Live Preview', () => {
       updatedAt: Date.now(),
     };
     render(<MobileStatusBoard chatId="test" />);
-    const thumbButton = screen.getAllByAltText('livePreview')[0].closest('button')!;
+    const thumbButton = screen.getAllByAltText('livePreview')[0].closest('button');
+    expectNonNull(thumbButton, 'thumbnail button');
     fireEvent.click(thumbButton);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
 
@@ -265,11 +268,13 @@ describe('MobileStatusBoard Live Preview', () => {
       updatedAt: Date.now(),
     };
     render(<MobileStatusBoard chatId="test" />);
-    const thumbButton = screen.getAllByAltText('livePreview')[0].closest('button')!;
+    const thumbButton = screen.getAllByAltText('livePreview')[0].closest('button');
+    expectNonNull(thumbButton, 'thumbnail button');
     fireEvent.click(thumbButton);
 
     const dialog = screen.getByRole('dialog');
-    const lightboxImg = dialog.querySelector('img')!;
+    const lightboxImg = dialog.querySelector('img');
+    expectNonNull(lightboxImg, 'lightbox image');
     fireEvent.click(lightboxImg);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
@@ -283,7 +288,8 @@ describe('MobileStatusBoard Live Preview', () => {
       updatedAt: Date.now(),
     };
     render(<MobileStatusBoard chatId="test" />);
-    const thumbButton = screen.getAllByAltText('livePreview')[0].closest('button')!;
+    const thumbButton = screen.getAllByAltText('livePreview')[0].closest('button');
+    expectNonNull(thumbButton, 'thumbnail button');
     fireEvent.click(thumbButton);
 
     const dialog = screen.getByRole('dialog');

@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { expectDefined } from '@/test-utils/expectDefined';
 
 import { useMessageQueue } from '../useMessageQueue';
 
@@ -110,12 +111,13 @@ describe('useMessageQueue', () => {
   it('dequeue returns null on empty queue', () => {
     const { result } = renderHook(() => useMessageQueue('chat-empty'));
 
-    let dequeued: ReturnType<typeof result.current.dequeue>;
+    let dequeued: ReturnType<typeof result.current.dequeue> | undefined;
     act(() => {
       dequeued = result.current.dequeue();
     });
 
-    expect(dequeued!).toBeNull();
+    expectDefined(dequeued, 'dequeued item');
+    expect(dequeued).toBeNull();
     expect(result.current.queue).toHaveLength(0);
   });
 

@@ -115,20 +115,23 @@ describe('CompanionIcons', () => {
   describe('custom size prop', () => {
     it('passes custom size to species icon', () => {
       const { container } = render(createElement(IconCat, { size: 64 }));
-      const svg = container.querySelector('svg')!;
+      const svg = container.querySelector('svg');
+      expectNonNull(svg, 'svg');
       expect(svg.getAttribute('width')).toBe('64');
       expect(svg.getAttribute('height')).toBe('64');
     });
 
     it('uses default size 24 for species icons', () => {
       const { container } = render(createElement(IconCat));
-      const svg = container.querySelector('svg')!;
+      const svg = container.querySelector('svg');
+      expectNonNull(svg, 'svg');
       expect(svg.getAttribute('width')).toBe('24');
     });
 
     it('uses default size 12 for hat icons', () => {
       const { container } = render(createElement(HatCrown));
-      const svg = container.querySelector('svg')!;
+      const svg = container.querySelector('svg');
+      expectNonNull(svg, 'svg');
       expect(svg.getAttribute('width')).toBe('12');
     });
   });

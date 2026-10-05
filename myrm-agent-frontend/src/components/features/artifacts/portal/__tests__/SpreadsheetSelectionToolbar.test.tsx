@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 
@@ -109,7 +110,9 @@ describe('SpreadsheetSelectionToolbar', () => {
     );
 
     const quoteBtn = screen.getByText('引用到输入框');
-    fireEvent.click(quoteBtn.closest('button')!);
+    const quoteButton = quoteBtn.closest('button');
+    expectNonNull(quoteButton, 'quote button');
+    fireEvent.click(quoteButton);
 
     expect(mockSetTarget).toHaveBeenCalledWith({
       artifactId: 'art-sheet-1',

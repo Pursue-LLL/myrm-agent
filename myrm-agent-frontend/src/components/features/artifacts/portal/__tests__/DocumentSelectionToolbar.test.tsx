@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 
 const mockSendMessage = vi.fn();
@@ -260,7 +261,9 @@ describe('DocumentSelectionToolbar - useSelectionAction integration', () => {
 
     const explainBtn = screen.queryByText('explain');
     if (explainBtn) {
-      fireEvent.click(explainBtn.closest('button')!);
+      const explainButton = explainBtn.closest('button');
+    expectNonNull(explainButton, 'explain button');
+    fireEvent.click(explainButton);
 
       await waitFor(() => {
         expect(mockSendMessage).toHaveBeenCalledTimes(1);

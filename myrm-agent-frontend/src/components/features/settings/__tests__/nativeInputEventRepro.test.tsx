@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { expectDefined } from '@/test-utils/expectDefined';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 
@@ -32,8 +33,8 @@ describe('controlled input native setter + input event (React 19)', () => {
 
     // Simulate exactly what _fill_input_by_label_js does:
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-    expect(setter).toBeTruthy();
-    setter!.call(el, 'hello');
+    expectDefined(setter, 'native value setter');
+    setter.call(el, 'hello');
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
 

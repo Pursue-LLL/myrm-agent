@@ -41,10 +41,12 @@ const groupConfig: Record<SettingsGroup, { order: number }> = {
 function groupItems(items: MenuItem[]): Map<SettingsGroup, MenuItem[]> {
   const groups = new Map<SettingsGroup, MenuItem[]>();
   items.forEach((item) => {
-    if (!groups.has(item.group)) {
-      groups.set(item.group, []);
+    let groupItems = groups.get(item.group);
+    if (!groupItems) {
+      groupItems = [];
+      groups.set(item.group, groupItems);
     }
-    groups.get(item.group)!.push(item);
+    groupItems.push(item);
   });
   return new Map(
     Array.from(groups.entries())
