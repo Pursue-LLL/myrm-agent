@@ -7,9 +7,7 @@ import PendingMemoryDialog from '../PendingMemoryDialog';
 import type { PendingMemory } from '@/services/memory/core';
 
 const { mockApproveMemory, mockRejectMemory, mockCloseConfirmDialog, mockState, toastMock } = vi.hoisted(() => {
-  const toastFn = vi.fn();
-  (toastFn as any).success = vi.fn();
-  (toastFn as any).error = vi.fn();
+  const toastFn = Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() });
   return {
     mockApproveMemory: vi.fn().mockResolvedValue(undefined),
     mockRejectMemory: vi.fn().mockResolvedValue(undefined),

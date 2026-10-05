@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 /**
  * Unit tests for useChatActions artifact reveal action.
  */
@@ -36,7 +37,7 @@ const mockT = ((key: string) => {
     'chat.revealArtifacts.error': 'Failed to open folder',
   };
   return dict[key] || key;
-}) as any;
+}) as unknown as ReturnType<typeof useTranslations>;
 
 describe('useChatActions handleRevealArtifacts', () => {
   beforeEach(() => {

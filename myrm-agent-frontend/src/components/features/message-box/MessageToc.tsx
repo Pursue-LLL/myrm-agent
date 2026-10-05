@@ -52,11 +52,11 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isSt
         const newToc: TocItem[] = [];
         let index = 0;
 
-        visit(hast, 'element', (node: any) => {
+        visit(hast, 'element', (node) => {
           if (/^h[1-6]$/.test(node.tagName)) {
             let text = '';
             // 提取 hast 节点中的纯文本
-            visit(node, 'text', (textNode: any) => {
+            visit(node, 'text', (textNode) => {
               text += textNode.value;
             });
 

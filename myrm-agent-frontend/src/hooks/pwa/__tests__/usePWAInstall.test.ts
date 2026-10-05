@@ -1,6 +1,11 @@
 import { renderHook, act } from '@testing-library/react';
 import { usePWAInstall } from '../usePWAInstall';
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+};
+
 describe('usePWAInstall', () => {
   let originalWindow: Window & typeof globalThis;
 
@@ -37,7 +42,7 @@ describe('usePWAInstall', () => {
     const { result } = renderHook(() => usePWAInstall());
 
     act(() => {
-      const event = new Event('beforeinstallprompt') as any;
+      const event = new Event('beforeinstallprompt') as unknown as BeforeInstallPromptEvent;
       event.preventDefault = vi.fn();
       window.dispatchEvent(event);
     });
@@ -59,12 +64,12 @@ describe('usePWAInstall', () => {
 
   it('should not be installable in Tauri mode', () => {
     // Mock Tauri environment
-    (window as any).__TAURI_INTERNALS__ = {};
+    (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
 
     const { result } = renderHook(() => usePWAInstall());
 
     act(() => {
-      const event = new Event('beforeinstallprompt') as any;
+      const event = new Event('beforeinstallprompt') as unknown as BeforeInstallPromptEvent;
       event.preventDefault = vi.fn();
       window.dispatchEvent(event);
     });
@@ -73,6 +78,6 @@ describe('usePWAInstall', () => {
     expect(result.current.isInstallable).toBe(false);
 
     // Cleanup
-    delete (window as any).__TAURI_INTERNALS__;
+    delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   });
 });

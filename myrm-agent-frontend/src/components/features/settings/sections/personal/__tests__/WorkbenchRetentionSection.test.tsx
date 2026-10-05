@@ -88,12 +88,15 @@ describe('useWorkbenchRetentionSummary & WorkbenchRetentionSection', () => {
       weekly_summary: {
         cron_executions: 38,
       },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof getGrowthDashboard>>);
 
     vi.mocked(listCronJobs).mockResolvedValue({
-      items: [{ id: 'job-1', name: 'daily-backup' } as any, { id: 'job-2', name: 'hourly-sync' } as any],
+      items: [{ id: 'job-1', name: 'daily-backup' } as unknown as Awaited<ReturnType<typeof listCronJobs>>['items'][number], { id: 'job-2', name: 'hourly-sync' } as unknown as Awaited<ReturnType<typeof listCronJobs>>['items'][number]],
       total: 2,
-    } as any);
+      offset: 0,
+      limit: 20,
+      has_more: false,
+    } as unknown as Awaited<ReturnType<typeof listCronJobs>>);
 
     const { result } = renderHook(() => useWorkbenchRetentionSummary());
 
@@ -133,7 +136,7 @@ describe('useWorkbenchRetentionSummary & WorkbenchRetentionSection', () => {
     });
 
     vi.mocked(getGrowthDashboard).mockRejectedValue(new Error('Growth DB down'));
-    vi.mocked(listCronJobs).mockResolvedValue({ items: [], total: 0 } as any);
+    vi.mocked(listCronJobs).mockResolvedValue({ items: [], total: 0, offset: 0, limit: 20, has_more: false });
 
     const { result } = renderHook(() => useWorkbenchRetentionSummary());
 
@@ -174,9 +177,15 @@ describe('useWorkbenchRetentionSummary & WorkbenchRetentionSection', () => {
     vi.mocked(getGrowthDashboard).mockResolvedValue({
       snapshot: { total_memories: 50, total_skills: 8, total_evolutions: 2, memory_health_score: 90 },
       weekly_summary: { cron_executions: 12 },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof getGrowthDashboard>>);
 
-    vi.mocked(listCronJobs).mockResolvedValue({ items: [{ id: '1' }], total: 1 } as any);
+    vi.mocked(listCronJobs).mockResolvedValue({
+      items: [{ id: '1' }] as unknown as Awaited<ReturnType<typeof listCronJobs>>['items'],
+      total: 1,
+      offset: 0,
+      limit: 20,
+      has_more: false,
+    });
 
     render(<WorkbenchRetentionSection />);
 
@@ -195,8 +204,8 @@ describe('useWorkbenchRetentionSummary & WorkbenchRetentionSection', () => {
     vi.mocked(getGrowthDashboard).mockResolvedValue({
       snapshot: { total_memories: 0, total_skills: 0, total_evolutions: 0, memory_health_score: 100 },
       weekly_summary: { cron_executions: 0 },
-    } as any);
-    vi.mocked(listCronJobs).mockResolvedValue({ items: [], total: 0 } as any);
+    } as unknown as Awaited<ReturnType<typeof getGrowthDashboard>>);
+    vi.mocked(listCronJobs).mockResolvedValue({ items: [], total: 0, offset: 0, limit: 20, has_more: false });
 
     const tauriSpy = vi.spyOn(deployModeModule, 'isTauriRuntime').mockReturnValue(true);
     const sandboxSpy = vi.spyOn(deployModeModule, 'isSandbox').mockReturnValue(false);

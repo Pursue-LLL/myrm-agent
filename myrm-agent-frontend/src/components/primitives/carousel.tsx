@@ -18,7 +18,6 @@ type CarouselProps = {
     loop?: boolean;
   };
   setApi?: (api: CarouselApi) => void;
-  plugins?: any[];
   className?: string;
   children: React.ReactNode;
 };

@@ -88,7 +88,9 @@ describe('loadOlderMessages deduplication', () => {
       next_cursor: null,
     });
 
-    await loadOlderMessages({ setMessages } as any);
+    await loadOlderMessages({
+      setMessages: setMessages as unknown as Parameters<typeof loadOlderMessages>[0]['setMessages'],
+    } as unknown as Parameters<typeof loadOlderMessages>[0]);
 
     expect(state.loadingOlder).toBe(false);
     expect(state.hasMoreMessages).toBe(false);

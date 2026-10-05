@@ -16,26 +16,21 @@ describe('Platform Detection', () => {
 
   describe('isTauriRuntime', () => {
     it('应该在 Tauri 环境中返回 true', () => {
-      global.window = {
-        ...originalWindow,
-        __TAURI__: {},
-      } as any;
+      global.window = Object.assign({}, originalWindow, { __TAURI__: {} });
 
       expect(isTauriRuntime()).toBe(true);
     });
 
     it('应该在非 Tauri 环境中返回 false', () => {
-      global.window = {
-        ...originalWindow,
-      } as any;
+      global.window = Object.assign({}, originalWindow);
 
-      delete (global.window as any).__TAURI__;
+      delete (global.window as Window & { __TAURI__?: unknown }).__TAURI__;
 
       expect(isTauriRuntime()).toBe(false);
     });
 
     it('应该在 window 未定义时返回 false', () => {
-      (global as any).window = undefined;
+      (global as { window?: unknown }).window = undefined;
 
       expect(isTauriRuntime()).toBe(false);
 

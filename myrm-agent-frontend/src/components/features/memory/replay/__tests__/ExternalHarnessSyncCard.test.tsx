@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const mockToast = vi.fn();
 vi.mock('@/hooks/shared/useToast', () => ({
-  toast: (...args: any[]) => mockToast(...args),
+  toast: (...args: Parameters<typeof mockToast>) => mockToast(...args),
 }));
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
@@ -36,9 +36,10 @@ const mockSync = vi.fn();
 
 vi.mock('@/services/memory/externalTranscripts', () => ({
   getExternalTranscriptStatus: () => mockGetStatus(),
-  syncExternalTranscripts: (req: any) => mockSync(req),
+  syncExternalTranscripts: (req: ExternalTranscriptSyncRequest) => mockSync(req),
 }));
 
+import type { ExternalTranscriptSyncRequest } from '@/services/memory/externalTranscripts';
 import ExternalHarnessSyncCard from '../ExternalHarnessSyncCard';
 
 describe('ExternalHarnessSyncCard', () => {

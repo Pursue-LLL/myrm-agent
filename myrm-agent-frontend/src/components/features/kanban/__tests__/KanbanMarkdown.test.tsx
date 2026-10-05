@@ -17,7 +17,7 @@ vi.mock('@/components/features/markdown-render-tools/CodeBlock', () => ({
 }));
 
 vi.mock('@/lib/utils/reactUtils', () => ({
-  getChildrenAsText: (children: any) => {
+  getChildrenAsText: (children: React.ReactNode) => {
     if (typeof children === 'string') {
       return children;
     }

@@ -26,7 +26,7 @@ describe('ImagePreview', () => {
   describe('本地文件预览 (local_path)', () => {
     it('应该成功显示本地图片', async () => {
       const mockDataUrl = 'data:image/png;base64,iVBORw0KGgo=';
-      (readFileAsDataURL as any).mockResolvedValue(mockDataUrl);
+      vi.mocked(readFileAsDataURL).mockResolvedValue(mockDataUrl);
 
       const file: File = {
         fileName: 'test.png',
@@ -47,7 +47,7 @@ describe('ImagePreview', () => {
     });
 
     it('应该在加载失败时显示错误提示', async () => {
-      (readFileAsDataURL as any).mockRejectedValue(new Error('File not found'));
+      vi.mocked(readFileAsDataURL).mockRejectedValue(new Error('File not found'));
 
       const file: File = {
         fileName: 'missing.png',
@@ -105,7 +105,7 @@ describe('ImagePreview', () => {
 
       for (const ext of formats) {
         const mockDataUrl = `data:image/${ext};base64,abc`;
-        (readFileAsDataURL as any).mockResolvedValue(mockDataUrl);
+        vi.mocked(readFileAsDataURL).mockResolvedValue(mockDataUrl);
 
         const file: File = {
           fileName: `test.${ext}`,
@@ -127,7 +127,7 @@ describe('ImagePreview', () => {
 
   describe('加载状态', () => {
     it('应该在加载时显示加载动画', async () => {
-      (readFileAsDataURL as any).mockImplementation(
+      vi.mocked(readFileAsDataURL).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve('data:image/png;base64,abc'), 100)),
       );
 
@@ -154,7 +154,7 @@ describe('ImagePreview', () => {
   describe('自定义样式', () => {
     it('应该应用自定义 className', async () => {
       const mockDataUrl = 'data:image/png;base64,abc';
-      (readFileAsDataURL as any).mockResolvedValue(mockDataUrl);
+      vi.mocked(readFileAsDataURL).mockResolvedValue(mockDataUrl);
 
       const file: File = {
         fileName: 'styled.png',
@@ -177,7 +177,7 @@ describe('ImagePreview', () => {
   describe('懒加载', () => {
     it('应该设置 loading="lazy" 属性', async () => {
       const mockDataUrl = 'data:image/png;base64,abc';
-      (readFileAsDataURL as any).mockResolvedValue(mockDataUrl);
+      vi.mocked(readFileAsDataURL).mockResolvedValue(mockDataUrl);
 
       const file: File = {
         fileName: 'lazy.png',

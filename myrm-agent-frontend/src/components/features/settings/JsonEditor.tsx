@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils/classnameUtils';
 import Tooltip from './Tooltip';
 
 interface JsonEditorProps {
-  value: Record<string, any>;
-  onChange: (value: Record<string, any>) => void;
+  value: Record<string, unknown>;
+  onChange: (value: Record<string, unknown>) => void;
   onBlur?: () => void;
   onError?: (hasError: boolean) => void;
   label?: string;

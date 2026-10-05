@@ -1,3 +1,5 @@
+import type { Skill } from '@/store/skill/types';
+import type { MCPServiceConfig } from '@/store/config/types';
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -58,8 +60,8 @@ describe('ModelSwapContinuityCard', () => {
     setTrustedDesktopApps: vi.fn(),
     busyInputMode: 'steer',
     setBusyInputMode: vi.fn(),
-    selectedSkillDetails: [{ id: 'skill-1', name: 'GitOps Skill' }] as any,
-    selectedMcpDetails: [{ id: 'mcp-1', name: 'Postgres MCP' }] as any,
+    selectedSkillDetails: [{ id: 'skill-1', name: 'GitOps Skill' }] as unknown as Skill[],
+    selectedMcpDetails: [{ id: 'mcp-1', name: 'Postgres MCP' }] as unknown as MCPServiceConfig[],
     systemPrompt: 'test prompt',
     useGlobalInstruction: true,
     enabledBuiltinTools: ['web_search', 'memory'],

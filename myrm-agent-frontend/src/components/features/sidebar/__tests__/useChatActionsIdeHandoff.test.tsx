@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 /**
  * Unit tests for useChatActions external IDE handoff action.
  */
@@ -49,7 +50,7 @@ const mockT = ((key: string) => {
     'chat.ideHandoff.failed': 'Failed to prepare IDE handoff',
   };
   return dict[key] || key;
-}) as any;
+}) as unknown as ReturnType<typeof useTranslations>;
 
 const nonEmptyExport = { messages: [{ id: 'm1' }], redacted: true };
 
@@ -59,7 +60,7 @@ describe('useChatActions handleOpenInIDE', () => {
   });
 
   it('copies the bundle, launches the IDE and toasts readiness', async () => {
-    vi.mocked(exportChat).mockResolvedValue(nonEmptyExport as any);
+    vi.mocked(exportChat).mockResolvedValue(nonEmptyExport as unknown as Awaited<ReturnType<typeof exportChat>>);
     const { result } = renderHook(() => useChatActions([], mockT));
 
     await act(async () => {
@@ -77,7 +78,10 @@ describe('useChatActions handleOpenInIDE', () => {
   });
 
   it('warns on empty chats without launching', async () => {
-    vi.mocked(exportChat).mockResolvedValue({ messages: [], redacted: false } as any);
+    vi.mocked(exportChat).mockResolvedValue({
+      messages: [],
+      redacted: false,
+    } as unknown as Awaited<ReturnType<typeof exportChat>>);
     const { result } = renderHook(() => useChatActions([], mockT));
 
     await act(async () => {

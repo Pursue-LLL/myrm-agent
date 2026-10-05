@@ -55,7 +55,7 @@ describe('A2APeerRegistrySection - Full Flow', () => {
   });
 
   it('renders empty state when no peers exist', async () => {
-    (a2aService.listA2APeers as any).mockResolvedValueOnce([]);
+    vi.mocked(a2aService.listA2APeers).mockResolvedValueOnce([]);
     render(<A2APeerRegistrySection />);
 
     expect(await screen.findByText('noPeers')).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe('A2APeerRegistrySection - Full Flow', () => {
   });
 
   it('renders populated peer card with status and masked credential', async () => {
-    (a2aService.listA2APeers as any).mockResolvedValueOnce(mockPeers);
+    vi.mocked(a2aService.listA2APeers).mockResolvedValueOnce(mockPeers);
     render(<A2APeerRegistrySection />);
 
     expect(await screen.findByText('Hermes Research Agent')).toBeInTheDocument();
@@ -73,8 +73,8 @@ describe('A2APeerRegistrySection - Full Flow', () => {
   });
 
   it('probes a saved peer and updates feedback banner', async () => {
-    (a2aService.listA2APeers as any).mockResolvedValue(mockPeers);
-    (a2aService.probeA2APeer as any).mockResolvedValueOnce({
+    vi.mocked(a2aService.listA2APeers).mockResolvedValue(mockPeers);
+    vi.mocked(a2aService.probeA2APeer).mockResolvedValueOnce({
       success: true,
       status: 'ok',
       latency_ms: 45.2,
@@ -95,8 +95,8 @@ describe('A2APeerRegistrySection - Full Flow', () => {
   });
 
   it('opens create modal and registers new peer', async () => {
-    (a2aService.listA2APeers as any).mockResolvedValueOnce([]);
-    (a2aService.createA2APeer as any).mockResolvedValueOnce({
+    vi.mocked(a2aService.listA2APeers).mockResolvedValueOnce([]);
+    vi.mocked(a2aService.createA2APeer).mockResolvedValueOnce({
       id: 'peer-new',
       name: 'OpenClaw Reviewer',
       base_url: 'https://claw.example.com',
@@ -135,8 +135,8 @@ describe('A2APeerRegistrySection - Full Flow', () => {
   });
 
   it('deletes a peer when confirmed', async () => {
-    (a2aService.listA2APeers as any).mockResolvedValueOnce(mockPeers);
-    (a2aService.deleteA2APeer as any).mockResolvedValueOnce({ success: true });
+    vi.mocked(a2aService.listA2APeers).mockResolvedValueOnce(mockPeers);
+    vi.mocked(a2aService.deleteA2APeer).mockResolvedValueOnce({ success: true });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(<A2APeerRegistrySection />);
@@ -152,8 +152,8 @@ describe('A2APeerRegistrySection - Full Flow', () => {
   });
 
   it('renders pending inbound task and handles approve action', async () => {
-    (a2aService.listA2APeers as any).mockResolvedValueOnce([]);
-    (a2aService.listPendingA2ATasks as any).mockResolvedValueOnce([
+    vi.mocked(a2aService.listA2APeers).mockResolvedValueOnce([]);
+    vi.mocked(a2aService.listPendingA2ATasks).mockResolvedValueOnce([
       {
         taskId: 'a2a-task-approval-999',
         status: 'pending_approval',
@@ -179,8 +179,8 @@ describe('A2APeerRegistrySection - Full Flow', () => {
   });
 
   it('handles reject action on pending inbound task', async () => {
-    (a2aService.listA2APeers as any).mockResolvedValueOnce([]);
-    (a2aService.listPendingA2ATasks as any).mockResolvedValueOnce([
+    vi.mocked(a2aService.listA2APeers).mockResolvedValueOnce([]);
+    vi.mocked(a2aService.listPendingA2ATasks).mockResolvedValueOnce([
       {
         taskId: 'a2a-task-reject-111',
         status: 'pending_approval',

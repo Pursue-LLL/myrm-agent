@@ -34,10 +34,9 @@ describe('uploadFilesWithProgress signal handling', () => {
   beforeEach(() => {
     mockXHR = createMockXHR();
     originalXHR = globalThis.XMLHttpRequest;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     globalThis.XMLHttpRequest = function () {
       return mockXHR;
-    } as any;
+    } as unknown as typeof XMLHttpRequest;
   });
 
   afterEach(() => {

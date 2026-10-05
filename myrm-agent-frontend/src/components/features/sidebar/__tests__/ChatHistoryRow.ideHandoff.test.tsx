@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 /**
  * Unit tests for ChatHistoryRow external IDE handoff submenu.
  */
@@ -8,7 +9,7 @@ import React from 'react';
 import type { ChatItem } from '@/services/chat';
 
 vi.mock('next/link', () => ({
-  default: ({ children, href, className, onClick }: any) => (
+  default: ({ children, href, className, onClick }: React.ComponentProps<'a'>) => (
     <a href={href} className={className} onClick={onClick}>
       {children}
     </a>
@@ -57,7 +58,7 @@ const mockT = ((key: string) => {
     'common.export': 'Export',
   };
   return dict[key] || key;
-}) as any;
+}) as unknown as ReturnType<typeof useTranslations>;
 
 describe('ChatHistoryRow IDE handoff', () => {
   const dummyChat = {

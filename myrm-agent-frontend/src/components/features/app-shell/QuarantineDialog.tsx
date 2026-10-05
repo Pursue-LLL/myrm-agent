@@ -36,9 +36,9 @@ export function QuarantineDialog() {
       } else {
         setErrorMsg(t('fixFailed'));
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to fix quarantine:', err);
-      setErrorMsg(err.toString() || t('fixFailedAuth'));
+      setErrorMsg(String(err) || t('fixFailedAuth'));
     } finally {
       setIsFixing(false);
     }

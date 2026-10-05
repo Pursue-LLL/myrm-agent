@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -47,8 +48,8 @@ const ALLOWED_ELEMENTS = [
   'input',
 ];
 
-const components = {
-  code: ({ node: _node, className: codeClassName, children, ...props }: any) => {
+const components: Components = {
+  code: ({ node: _node, className: codeClassName, children, ...props }) => {
     const match = /language-(\w+)/.exec(codeClassName || '');
     const language = match?.[1] ?? '';
     const value = getChildrenAsText(children);

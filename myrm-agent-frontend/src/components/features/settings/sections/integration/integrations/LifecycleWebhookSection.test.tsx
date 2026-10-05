@@ -46,7 +46,7 @@ describe('LifecycleWebhookSection - Full Flow', () => {
   });
 
   it('renders empty state when no webhooks exist', async () => {
-    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce([]);
+    vi.mocked(webhookService.listLifecycleWebhooks).mockResolvedValueOnce([]);
     render(<LifecycleWebhookSection />);
 
     expect(await screen.findByText('noEndpoints')).toBeInTheDocument();
@@ -54,7 +54,7 @@ describe('LifecycleWebhookSection - Full Flow', () => {
   });
 
   it('renders populated webhooks list with status badges', async () => {
-    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce(mockWebhooks);
+    vi.mocked(webhookService.listLifecycleWebhooks).mockResolvedValueOnce(mockWebhooks);
     render(<LifecycleWebhookSection />);
 
     expect(await screen.findByText('CI Webhook')).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe('LifecycleWebhookSection - Full Flow', () => {
   });
 
   it('opens creation form and creates a new webhook with random secret and custom events', async () => {
-    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce(mockWebhooks).mockResolvedValueOnce([
+    vi.mocked(webhookService.listLifecycleWebhooks).mockResolvedValueOnce(mockWebhooks).mockResolvedValueOnce([
       ...mockWebhooks,
       {
         id: 'wh-2',
@@ -82,7 +82,7 @@ describe('LifecycleWebhookSection - Full Flow', () => {
         updated_at: '2026-08-22T00:00:00Z',
       },
     ]);
-    (webhookService.createLifecycleWebhook as any).mockResolvedValueOnce({
+    vi.mocked(webhookService.createLifecycleWebhook).mockResolvedValueOnce({
       id: 'wh-2',
       name: 'Alert Bot',
       url: 'https://feishu.example.com/hook',
@@ -134,7 +134,7 @@ describe('LifecycleWebhookSection - Full Flow', () => {
   });
 
   it('disables save when all events are deselected', async () => {
-    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce([]);
+    vi.mocked(webhookService.listLifecycleWebhooks).mockResolvedValueOnce([]);
     render(<LifecycleWebhookSection />);
     expect(await screen.findByText('noEndpoints')).toBeInTheDocument();
 
@@ -149,8 +149,8 @@ describe('LifecycleWebhookSection - Full Flow', () => {
   });
 
   it('deletes an existing webhook', async () => {
-    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce(mockWebhooks);
-    (webhookService.deleteLifecycleWebhook as any).mockResolvedValueOnce(undefined);
+    vi.mocked(webhookService.listLifecycleWebhooks).mockResolvedValueOnce(mockWebhooks);
+    vi.mocked(webhookService.deleteLifecycleWebhook).mockResolvedValueOnce(undefined);
 
     render(<LifecycleWebhookSection />);
     expect(await screen.findByText('CI Webhook')).toBeInTheDocument();
@@ -165,8 +165,8 @@ describe('LifecycleWebhookSection - Full Flow', () => {
   });
 
   it('handles ping failure gracefully', async () => {
-    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce(mockWebhooks);
-    (webhookService.pingSavedLifecycleWebhook as any).mockResolvedValueOnce({
+    vi.mocked(webhookService.listLifecycleWebhooks).mockResolvedValueOnce(mockWebhooks);
+    vi.mocked(webhookService.pingSavedLifecycleWebhook).mockResolvedValueOnce({
       success: false,
       status_code: 500,
       latency_ms: 120.5,
@@ -190,12 +190,12 @@ describe('LifecycleWebhookSection - Full Flow', () => {
       events: ['session_completed'],
     };
 
-    (webhookService.listLifecycleWebhooks as any)
+    vi.mocked(webhookService.listLifecycleWebhooks)
       .mockResolvedValueOnce([scopedWebhook])
       .mockResolvedValueOnce([
         { ...scopedWebhook, name: 'CI Webhook Updated', events: ['session_completed', 'goal_terminal'] },
       ]);
-    (webhookService.updateLifecycleWebhook as any).mockResolvedValueOnce({
+    vi.mocked(webhookService.updateLifecycleWebhook).mockResolvedValueOnce({
       ...scopedWebhook,
       name: 'CI Webhook Updated',
       events: ['session_completed', 'goal_terminal'],
@@ -229,7 +229,7 @@ describe('LifecycleWebhookSection - Full Flow', () => {
       );
     });
 
-    const updatePayload = (webhookService.updateLifecycleWebhook as any).mock.calls[0][1];
+    const updatePayload = vi.mocked(webhookService.updateLifecycleWebhook).mock.calls[0][1];
     expect(updatePayload.secret).toBeUndefined();
     expect(updatePayload.clear_agent_scope).toBeUndefined();
   });
@@ -240,10 +240,10 @@ describe('LifecycleWebhookSection - Full Flow', () => {
       agent_id: 'agent-1',
     };
 
-    (webhookService.listLifecycleWebhooks as any)
+    vi.mocked(webhookService.listLifecycleWebhooks)
       .mockResolvedValueOnce([scopedWebhook])
       .mockResolvedValueOnce([{ ...scopedWebhook, agent_id: null }]);
-    (webhookService.updateLifecycleWebhook as any).mockResolvedValueOnce({
+    vi.mocked(webhookService.updateLifecycleWebhook).mockResolvedValueOnce({
       ...scopedWebhook,
       agent_id: null,
     });

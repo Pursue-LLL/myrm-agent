@@ -143,7 +143,7 @@ const PresetAgentCard = ({
                   )}
                 >
                   {agent.nameKey?.startsWith('presetAgent.')
-                    ? t(agent.nameKey.replace('presetAgent.', '') as any)
+                    ? t(agent.nameKey.replace('presetAgent.', '') as Parameters<typeof t>[0])
                     : agent.name}
                 </h4>
                 {/* 仅不可用时显示状态 */}
@@ -156,7 +156,7 @@ const PresetAgentCard = ({
               </div>
               <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
                 {agent.descriptionKey?.startsWith('presetAgent.')
-                  ? t(agent.descriptionKey.replace('presetAgent.', '') as any)
+                  ? t(agent.descriptionKey.replace('presetAgent.', '') as Parameters<typeof t>[0])
                   : agent.description}
               </p>
               {agent.tools && agent.tools.length > 0 && (
@@ -203,7 +203,7 @@ const PresetAgentCard = ({
                     >
                       <TaskIcon size={10} className={colors.text} />
                       {task.nameKey?.startsWith('presetAgent.')
-                        ? t(task.nameKey.replace('presetAgent.', '') as any)
+                        ? t(task.nameKey.replace('presetAgent.', '') as Parameters<typeof t>[0])
                         : task.name}
                     </span>
                   );

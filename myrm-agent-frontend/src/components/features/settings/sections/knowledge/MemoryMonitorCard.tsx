@@ -58,9 +58,10 @@ export const MemoryMonitorCard = memo(() => {
 
   useEffect(() => {
     fetchHistory();
-    const handleSseEvent = (e: any) => {
-      if (e.detail?.history) {
-        setHistory(e.detail.history);
+    const handleSseEvent = (e: Event) => {
+      const detail = (e as CustomEvent<{ history?: MemoryMetric[] }>).detail;
+      if (detail?.history) {
+        setHistory(detail.history);
       }
     };
     window.addEventListener('memory_history_updated', handleSseEvent);

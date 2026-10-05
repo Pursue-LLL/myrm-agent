@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
+import type { PanInfo } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { File as FileType } from '@/store/useChatStore';
 import { getDisplayUrl } from '@/lib/utils/fileUtils';
@@ -155,7 +156,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialInd
   };
 
   // Swipe down to dismiss
-  const handleDragEnd = (e: any, info: any) => {
+  const handleDragEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (scale.get() <= 1 && info.offset.y > 100 && info.velocity.y > 200) {
       onClose();
     }

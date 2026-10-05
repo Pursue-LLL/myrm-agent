@@ -268,7 +268,7 @@ if (typeof window !== 'undefined') {
     }
   });
 
-  (window as any).__myrmWorkspaceStore = useWorkspaceStore;
+  (window as Window & { __myrmWorkspaceStore?: typeof useWorkspaceStore }).__myrmWorkspaceStore = useWorkspaceStore;
 }
 
 export default useWorkspaceStore;

@@ -56,9 +56,9 @@ export default function VaultArtifactCard({ id }: { id: string }) {
         if (mounted) {
           setMeta(data);
         }
-      } catch (err: any) {
+      } catch (err) {
         if (mounted) {
-          setError(err.message || '加载 Artifact 失败');
+          setError(err instanceof Error ? err.message : '加载 Artifact 失败');
         }
       } finally {
         if (mounted) {

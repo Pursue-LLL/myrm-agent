@@ -107,8 +107,9 @@ describe('buildMultimodalQuery - image URL referencing (Sandbox mode)', () => {
       fileName: 'photo.jpg',
       fileExtension: 'jpg',
       fileUrl: '/api/media/files/img1/content',
+      fileType: 'uploaded' as const,
     };
-    const result = await buildMultimodalQuery('describe this', [imageFile] as any);
+    const result = await buildMultimodalQuery('describe this', [imageFile]);
 
     expect(typeof result).not.toBe('string');
     const parts = result as VisionContentPart[];
@@ -121,8 +122,14 @@ describe('buildMultimodalQuery - image URL referencing (Sandbox mode)', () => {
   });
 
   it('skips images with no fileUrl', async () => {
-    const imageFile = { id: 'img2', fileName: 'broken.png', fileExtension: 'png', fileUrl: '' };
-    const result = await buildMultimodalQuery('test', [imageFile] as any);
+    const imageFile = {
+      id: 'img2',
+      fileName: 'broken.png',
+      fileExtension: 'png',
+      fileUrl: '',
+      fileType: 'uploaded' as const,
+    };
+    const result = await buildMultimodalQuery('test', [imageFile]);
     expect(result).toBe('test');
   });
 });
@@ -137,8 +144,9 @@ describe('buildMultimodalQuery - Tauri mode uses file:// path', () => {
       fileName: 'local-photo.jpg',
       fileExtension: 'jpg',
       localPath: '/Users/test/Pictures/local-photo.jpg',
+      fileType: 'local_path' as const,
     };
-    const result = await buildMultimodalQuery('describe this', [imageFile] as any);
+    const result = await buildMultimodalQuery('describe this', [imageFile]);
 
     expect(typeof result).not.toBe('string');
     const parts = result as VisionContentPart[];
@@ -156,8 +164,13 @@ describe('buildMultimodalQuery - Tauri mode uses file:// path', () => {
     const { isTauriRuntime } = await import('@/lib/deploy-mode');
     vi.mocked(isTauriRuntime).mockReturnValue(true);
 
-    const imageFile = { id: 'img-no-path', fileName: 'broken.png', fileExtension: 'png' };
-    const result = await buildMultimodalQuery('test', [imageFile] as any);
+    const imageFile = {
+      id: 'img-no-path',
+      fileName: 'broken.png',
+      fileExtension: 'png',
+      fileType: 'uploaded' as const,
+    };
+    const result = await buildMultimodalQuery('test', [imageFile]);
     expect(result).toBe('test');
 
     vi.mocked(isTauriRuntime).mockReturnValue(false);
@@ -178,8 +191,14 @@ describe('buildMultimodalQuery - PDF images always included', () => {
       imageTrace: { totalProcessed: 3, keptCount: 1, droppedCount: 2, dropReasons: {} },
     });
 
-    const pdfFile = { id: 'f1', fileName: 'report.pdf', fileExtension: 'pdf', fileUrl: '/files/f1' };
-    const result = await buildMultimodalQuery('analyze this', [pdfFile] as any);
+    const pdfFile = {
+      id: 'f1',
+      fileName: 'report.pdf',
+      fileExtension: 'pdf',
+      fileUrl: '/files/f1',
+      fileType: 'uploaded' as const,
+    };
+    const result = await buildMultimodalQuery('analyze this', [pdfFile]);
 
     const parts = result as VisionContentPart[];
     const imageParts = parts.filter((p) => p.type === 'image_url');
@@ -203,8 +222,14 @@ describe('buildMultimodalQuery - PDF images always included', () => {
       imageTrace: { totalProcessed: 1, keptCount: 1, droppedCount: 0, dropReasons: {} },
     });
 
-    const pdfFile = { id: 'f2', fileName: 'charts.pdf', fileExtension: 'pdf', fileUrl: '/files/f2' };
-    const result = await buildMultimodalQuery('analyze', [pdfFile] as any);
+    const pdfFile = {
+      id: 'f2',
+      fileName: 'charts.pdf',
+      fileExtension: 'pdf',
+      fileUrl: '/files/f2',
+      fileType: 'uploaded' as const,
+    };
+    const result = await buildMultimodalQuery('analyze', [pdfFile]);
 
     const parts = result as VisionContentPart[];
     const imageParts = parts.filter((p) => p.type === 'image_url');

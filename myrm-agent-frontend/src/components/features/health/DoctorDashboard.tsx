@@ -175,7 +175,7 @@ export function DoctorDashboard() {
                   <h4 className="font-medium text-sm">{report.component_name}</h4>
                   <p className="text-xs text-zinc-400">
                     {report.code
-                      ? t(`errors.${report.code}.message`, report.meta_data as any) || report.message
+                      ? t(`errors.${report.code}.message`, report.meta_data as Parameters<typeof t>[1]) || report.message
                       : report.message}
                   </p>
                   {report.detail && <p className="text-xs text-zinc-500 mt-0.5 font-mono">{report.detail}</p>}

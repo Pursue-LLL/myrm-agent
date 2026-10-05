@@ -30,9 +30,9 @@ describe('MermaidRenderQueue', () => {
       }),
     };
 
-    const task1 = globalMermaidRenderQueue.render(mockMermaidLib as any, 'chart-1', 'graph TD; A-->B;');
-    const task2 = globalMermaidRenderQueue.render(mockMermaidLib as any, 'chart-2', 'graph TD; C-->D;');
-    const task3 = globalMermaidRenderQueue.render(mockMermaidLib as any, 'chart-3', 'graph TD; E-->F;');
+    const task1 = globalMermaidRenderQueue.render(mockMermaidLib as unknown as Parameters<typeof globalMermaidRenderQueue.render>[0], 'chart-1', 'graph TD; A-->B;');
+    const task2 = globalMermaidRenderQueue.render(mockMermaidLib as unknown as Parameters<typeof globalMermaidRenderQueue.render>[0], 'chart-2', 'graph TD; C-->D;');
+    const task3 = globalMermaidRenderQueue.render(mockMermaidLib as unknown as Parameters<typeof globalMermaidRenderQueue.render>[0], 'chart-3', 'graph TD; E-->F;');
 
     const results = await Promise.all([task1, task2, task3]);
 
@@ -69,7 +69,7 @@ describe('MermaidRenderQueue', () => {
 
     // Use a short 50ms watchdog timeout for the test
     const renderPromise = globalMermaidRenderQueue.render(
-      mockMermaidLib as any,
+      mockMermaidLib as unknown as Parameters<typeof globalMermaidRenderQueue.render>[0],
       'hung-chart',
       'graph TD; Hang-->Forever;',
       50,
@@ -93,7 +93,7 @@ describe('MermaidRenderQueue', () => {
     };
 
     const result = await globalMermaidRenderQueue.render(
-      mockMermaidLib as any,
+      mockMermaidLib as unknown as Parameters<typeof globalMermaidRenderQueue.render>[0],
       'retry-chart',
       'graph TD; Retry-->Pass;',
       500,

@@ -182,12 +182,8 @@ describe('useInputFileUpload', () => {
         files: [{ fileId: 'fid-abc', fileName: 'photo.jpg', fileUrl: '/f/photo.jpg' }],
       });
       let currentFiles: ChatFile[] = [];
-      const setFiles = vi.fn((updater: any) => {
-        if (typeof updater === 'function') {
-          currentFiles = updater(currentFiles);
-        } else {
-          currentFiles = updater;
-        }
+      const setFiles = vi.fn((next: React.SetStateAction<ChatFile[]>) => {
+        currentFiles = typeof next === 'function' ? next(currentFiles) : next;
       });
       const { result } = renderHook(() => useInputFileUpload({ ...defaultParams, setFiles }));
       const img = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });

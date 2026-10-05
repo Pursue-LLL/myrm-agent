@@ -116,7 +116,7 @@ export function useAgentGallery({
           nameKey: bp.id.replace('builtin-', ''), // Map ID to translation key
           description: getBuiltinAgentDescription(bp.id, bp.description || '', locale),
           descriptionKey: bp.id.replace('builtin-', ''),
-          category: category as any,
+          category,
           icon: bp.avatar_url?.replace('icon:', '') || 'MessageCircle',
           systemPrompt: '', // Only fetched when activated
           skillIds: [],

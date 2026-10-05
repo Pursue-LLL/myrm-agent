@@ -17,7 +17,7 @@ class MockIntersectionObserver {
   unobserve() {}
   disconnect() {}
 }
-window.IntersectionObserver = MockIntersectionObserver as any;
+window.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
 describe('MessageToc', () => {
   const mockContainerRef = {
