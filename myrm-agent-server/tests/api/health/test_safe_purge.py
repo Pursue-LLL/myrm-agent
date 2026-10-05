@@ -72,7 +72,6 @@ async def test_safe_vault_purge_service_execution(tmp_path: Path):
         await conn.execute(text("CREATE TABLE IF NOT EXISTS widget_kv_entries (id VARCHAR(255) PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE IF NOT EXISTS pending_memories (id VARCHAR(255) PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE IF NOT EXISTS memory_extract_retries (id VARCHAR(255) PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE IF NOT EXISTS memory_conflicts (id VARCHAR(255) PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE IF NOT EXISTS memory_operation_events (id VARCHAR(255) PRIMARY KEY)"))
 
         # Seed whitelist items

@@ -71,7 +71,6 @@ async def test_purge_vault_orchestration_success() -> None:
         ("widget_kv_entries",),
         ("pending_memories",),
         ("memory_extract_retries",),
-        ("memory_conflicts",),
         ("memory_operation_events",),
         ("sqlite_sequence",),
     ]

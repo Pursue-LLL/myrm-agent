@@ -1109,6 +1109,7 @@ def _build_session_cleanup_callback(
         make_correction_propagation_callback(
             agent_id=agent_id,
             llm_func=llm_func,
+            memory_manager=memory_manager,
         ),
         make_frustration_skill_routing_callback(
             agent_id=agent_id,

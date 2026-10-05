@@ -178,7 +178,11 @@ class TestResolveConflict:
         data = resp.json()["data"]
         assert data["status"] == "resolved"
         assert data["resolution"] == "keep_old"
-        override_memory_manager.update_memory.assert_not_called()
+        override_memory_manager.update_memory.assert_called_once_with(
+            "old-mem-1",
+            confidence=0.95,
+            is_user_locked=True,
+        )
 
     def test_keep_new_resolution(
         self,
@@ -197,10 +201,8 @@ class TestResolveConflict:
             )
 
         assert resp.status_code == 200
-        override_memory_manager.update_memory.assert_called_once_with(
-            "old-mem-1",
-            content="Rust is better",
-        )
+        override_memory_manager.update_memory.assert_called_once_with("old-mem-1", importance=0.01)
+        override_memory_manager.add_knowledge.assert_called_once_with("Rust is better")
 
     def test_merge_resolution(
         self,

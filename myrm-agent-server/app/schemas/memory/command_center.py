@@ -178,11 +178,11 @@ class MemoryCommandEconomicsDashboard(BaseModel):
 
 
 class MemoryCommandConflictItem(BaseModel):
-    """Claim, correction, and supersession visibility item."""
+    """Claim, correction, supersession, and pending-conflict visibility item."""
 
     id: str
-    kind: Literal["claim", "correction", "supersession"]
-    status: Literal["active", "needs_review", "resolved"]
+    kind: Literal["claim", "correction", "supersession", "pending_conflict"]
+    status: Literal["pending", "active", "needs_review", "resolved"]
     memory_id: str | None = None
     related_memory_id: str | None = None
     title: str

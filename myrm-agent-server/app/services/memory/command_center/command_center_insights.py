@@ -125,30 +125,33 @@ class MemoryCommandCenterInsights:
     async def build_conflicts(self) -> list[MemoryCommandConflictItem]:
         items: list[MemoryCommandConflictItem] = []
 
-        # 1. Active pending conflicts from memory_conflicts table
+        # 1. Active pending conflicts from pending_memories (is_conflict=True)
         try:
             from sqlalchemy import select
 
-            from app.database.models.memory import MemoryConflictModel
+            from app.database.models.memory import PendingMemory
 
             stmt = (
-                select(MemoryConflictModel)
-                .where(MemoryConflictModel.status == "pending")
-                .order_by(MemoryConflictModel.detected_at.desc())
+                select(PendingMemory)
+                .where(PendingMemory.is_conflict.is_(True), PendingMemory.status == "pending")
+                .order_by(PendingMemory.created_at.desc())
                 .limit(8)
             )
             res = await self._db.execute(stmt)
             for conflict in res.scalars().all():
+                metadata = conflict.metadata_json or {}
                 items.append(
                     MemoryCommandConflictItem(
                         id=f"conflict:{conflict.id}",
                         kind="pending_conflict",
                         status="pending",
-                        memory_id=conflict.existing_memory_id,
-                        related_memory_id=conflict.candidate_memory_id or "",
-                        title=f"偏好冲突: {conflict.facet or '通用事实'}",
-                        description=f"当前认知：{conflict.existing_content} ⟷ 最新陈述：{conflict.candidate_content}",
-                        created_at=conflict.detected_at,
+                        memory_id=conflict.conflict_old_memory_id,
+                        related_memory_id="",
+                        title=f"偏好冲突: {metadata.get('facet') or '通用事实'}",
+                        description=(
+                            f"当前认知：{conflict.conflict_old_content or ''} ⟷ 最新陈述：{conflict.content or ''}"
+                        ),
+                        created_at=conflict.created_at,
                     )
                 )
         except Exception as exc:

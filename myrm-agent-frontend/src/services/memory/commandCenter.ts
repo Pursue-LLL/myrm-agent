@@ -147,8 +147,8 @@ export interface MemoryCommandEconomicsDashboard {
 
 export interface MemoryCommandConflictItem {
   id: string;
-  kind: 'claim' | 'correction' | 'supersession';
-  status: 'active' | 'needs_review' | 'resolved';
+  kind: 'claim' | 'correction' | 'supersession' | 'pending_conflict';
+  status: 'pending' | 'active' | 'needs_review' | 'resolved';
   memory_id?: string | null;
   related_memory_id?: string | null;
   title: string;

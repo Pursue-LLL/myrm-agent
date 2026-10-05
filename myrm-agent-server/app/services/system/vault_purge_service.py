@@ -176,7 +176,6 @@ class SafeVaultPurgeService:
                     if purge_memories:
                         await _safe_delete("pending_memories")
                         await _safe_delete("memory_extract_retries")
-                        await _safe_delete("memory_conflicts")
                         await _safe_delete("memory_operation_events")
                         result.purged_memory_events = 1
 

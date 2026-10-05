@@ -11,9 +11,12 @@ Contains persistence and notification callbacks separated from the main agent lo
 import hashlib
 import logging
 from collections.abc import Awaitable, Callable, Sequence
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from langchain_core.language_models import BaseChatModel
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.memory import MemoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -201,19 +204,28 @@ def make_commitment_extraction_callback(
 def make_correction_propagation_callback(
     agent_id: str,
     llm_func: Callable[[str, str], Awaitable[str]],
+    *,
+    memory_manager: "MemoryManager | None" = None,
 ) -> Callable[[Sequence[dict[str, str]], str | None], Awaitable[None]]:
     """Create a session cleanup callback that detects implicit corrections and propagates them.
 
     Uses the two-stage implicit feedback pipeline (regex fast-path + LLM deep scan)
     to detect both explicit and implicit user corrections. Produces structured correction
     proposals routed to:
-    1. Agent personal memory — via PendingMemory Governance queue (HITL approval)
+    1. Agent personal memory — submitted to the harness approval queue (HITL), so the
+       user approves them through the same Governance surface as every other memory.
     2. SharedContexts — via SharedContext write proposals (policy-based auto-approve)
     """
 
     async def _propagate(messages: Sequence[dict[str, str]], chat_id: str | None) -> None:
         try:
-            await _run_correction_propagation(list(messages), agent_id=agent_id, llm_func=llm_func, chat_id=chat_id)
+            await _run_correction_propagation(
+                list(messages),
+                agent_id=agent_id,
+                llm_func=llm_func,
+                chat_id=chat_id,
+                memory_manager=memory_manager,
+            )
         except Exception:
             logger.error("Correction propagation failed", exc_info=True)
 
@@ -226,6 +238,7 @@ async def _run_correction_propagation(
     agent_id: str,
     llm_func: Callable[[str, str], Awaitable[str]],
     chat_id: str | None,
+    memory_manager: "MemoryManager | None" = None,
 ) -> None:
     """Core logic: implicit feedback detection → structured planning → dual-target proposals."""
     from myrm_agent_harness.toolkits.memory.strategies.extractor import FeedbackSignal
@@ -236,7 +249,12 @@ async def _run_correction_propagation(
     if len(messages) < 2:
         return
 
-    result = await detect_implicit_feedback(messages, llm_func)
+    recalled = await _recall_candidate_memories(messages, memory_manager)
+    result = await detect_implicit_feedback(
+        messages,
+        llm_func,
+        existing_memories=[f"[id: {memory_id}] {content}" for memory_id, content in recalled.items()] or None,
+    )
 
     if result.signal != FeedbackSignal.NEGATIVE:
         return
@@ -256,9 +274,51 @@ async def _run_correction_propagation(
         len(result.proposals),
     )
 
-    await _route_proposals_to_personal_memory(result.proposals, agent_id=agent_id, chat_id=chat_id)
+    await _route_proposals_to_personal_memory(
+        result.proposals,
+        agent_id=agent_id,
+        chat_id=chat_id,
+        memory_manager=memory_manager,
+        recalled=recalled,
+    )
 
     await _route_proposals_to_shared_contexts(result.proposals, agent_id=agent_id, chat_id=chat_id)
+
+
+async def _recall_candidate_memories(
+    messages: list[dict[str, str]],
+    memory_manager: "MemoryManager | None",
+    *,
+    limit: int = 8,
+) -> dict[str, str]:
+    """Recall memories related to the latest user turns, keyed by id → content.
+
+    Gives the correction planner concrete targets (with stable ids) so UPDATE and
+    DELETE proposals can name the memory they supersede. Best-effort: a recall
+    failure never blocks correction propagation.
+    """
+    if memory_manager is None:
+        return {}
+
+    recent_user_text = " ".join(
+        m.get("content", "")[:300] for m in messages[-4:] if m.get("role") == "user" and m.get("content")
+    ).strip()
+    if not recent_user_text:
+        return {}
+
+    recalled: dict[str, str] = {}
+    try:
+        results = await memory_manager.search(recent_user_text, limit=limit, track_access=False)
+    except Exception:
+        logger.warning("Memory recall for correction planner failed", exc_info=True)
+        return {}
+
+    for item in results:
+        memory = item.memory
+        if not getattr(memory, "content", None):
+            continue
+        recalled[memory.id] = memory.content
+    return recalled
 
 
 async def _route_proposals_to_personal_memory(
@@ -266,65 +326,99 @@ async def _route_proposals_to_personal_memory(
     *,
     agent_id: str,
     chat_id: str | None,
+    memory_manager: "MemoryManager | None" = None,
+    recalled: dict[str, str] | None = None,
 ) -> None:
-    """Route correction proposals to the Agent's personal memory Governance queue."""
-    from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import CorrectionAction
+    """Submit correction proposals to the harness approval queue (HITL single source of truth).
 
-    from app.database.connection import get_session
-    from app.database.models.memory import PendingMemory
+    Each proposal is materialised as a SemanticMemory and routed through
+    ``MemoryManager.submit_pending`` so it lands in the same ``pending_records``
+    store the WebUI approval surface reads. UPDATE proposals become linked
+    corrections of their recalled target; DELETE proposals record a removal.
+    """
+    from myrm_agent_harness.toolkits.memory.strategies.extractor import detect_language
+    from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import CorrectionAction
+    from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction, SemanticMemory
+
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
-    async with get_session() as session:
-        created_count = 0
-        for proposal in proposals:
-            if proposal.action == CorrectionAction.DELETE:
-                continue
+    if memory_manager is None:
+        logger.info(
+            "Implicit feedback proposals detected for agent %s but no memory manager is bound; skipping personal queue",
+            agent_id,
+        )
+        return
 
-            proposal_id = build_correction_proposal_source_id(chat_id, proposal.content)
-
-            existing = await session.get(PendingMemory, proposal_id)
-            if existing is not None:
-                continue
-
-            pending = PendingMemory(
-                id=proposal_id,
-                agent_id=agent_id,
-                memory_type=proposal.memory_type,
-                content=proposal.content,
-                metadata_json={
-                    "source": "implicit_feedback",
-                    "source_chat_id": chat_id or "",
-                    "action": proposal.action.value,
-                    "reasoning": proposal.reasoning,
-                    "confidence": proposal.confidence,
-                    "old_content": proposal.old_content,
-                },
-                confidence=proposal.confidence,
-                status="pending",
-                is_conflict=proposal.action == CorrectionAction.UPDATE,
-                conflict_old_content=proposal.old_content,
+    recalled = recalled or {}
+    created_count = 0
+    for proposal in proposals:
+        target_memory_id = _resolve_target_memory_id(proposal, recalled)
+        if proposal.action in (CorrectionAction.UPDATE, CorrectionAction.DELETE) and target_memory_id is None:
+            # A correction/removal without a concrete target is not actionable.
+            logger.info(
+                "Skipping %s correction proposal without a resolvable target: %s",
+                proposal.action.value,
+                proposal.content[:80],
             )
-            session.add(pending)
+            continue
+
+        action = {
+            CorrectionAction.ADD: PendingResolutionAction.STORE,
+            CorrectionAction.UPDATE: PendingResolutionAction.CORRECT,
+            CorrectionAction.DELETE: PendingResolutionAction.DELETE,
+        }[proposal.action]
+
+        memory = SemanticMemory(
+            id=build_correction_proposal_source_id(chat_id, proposal.content),
+            content=proposal.content,
+            confidence=proposal.confidence,
+            importance=min(proposal.confidence, 1.0),
+            source_chat_id=chat_id,
+            tags=["implicit_feedback"],
+            language=detect_language(proposal.content),
+        )
+        pending_id = await memory_manager.submit_pending(
+            memory,
+            resolution_action=action,
+            target_memory_id=target_memory_id,
+        )
+        if pending_id:
             created_count += 1
 
-        if created_count > 0:
-            await session.commit()
-            logger.info(
-                "Created %d pending memory proposals from implicit feedback: agent=%s",
-                created_count,
-                agent_id,
+    if created_count > 0:
+        logger.info(
+            "Queued %d pending memory proposals from implicit feedback: agent=%s",
+            created_count,
+            agent_id,
+        )
+        get_event_bus().publish(
+            AppEvent(
+                event_type=AppEventType.MEMORY_OPERATION,
+                data={
+                    "operation": "implicit_feedback_personal",
+                    "agent_id": agent_id,
+                    "proposal_count": created_count,
+                    "source_chat_id": chat_id or "",
+                },
             )
-            get_event_bus().publish(
-                AppEvent(
-                    event_type=AppEventType.MEMORY_OPERATION,
-                    data={
-                        "operation": "implicit_feedback_personal",
-                        "agent_id": agent_id,
-                        "proposal_count": created_count,
-                        "source_chat_id": chat_id or "",
-                    },
-                )
-            )
+        )
+
+
+def _resolve_target_memory_id(proposal: object, recalled: dict[str, str]) -> str | None:
+    """Resolve the memory a correction targets, using the planner id or recalled content."""
+    explicit = getattr(proposal, "target_memory_id", None)
+    if explicit:
+        return str(explicit)
+
+    old_content = getattr(proposal, "old_content", None)
+    if not old_content:
+        return None
+
+    normalized = old_content.strip().lower()
+    for memory_id, content in recalled.items():
+        if normalized and normalized in content.lower():
+            return memory_id
+    return None
 
 
 async def _route_proposals_to_shared_contexts(

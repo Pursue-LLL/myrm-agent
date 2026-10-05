@@ -42,7 +42,6 @@ async def purge_test_engine() -> AsyncEngine:
         # Episodic memory tables
         await conn.execute(text("CREATE TABLE pending_memories (id TEXT PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE memory_extract_retries (id TEXT PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE memory_conflicts (id TEXT PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE memory_operation_events (id TEXT PRIMARY KEY)"))
 
         # Seed whitelisted data
