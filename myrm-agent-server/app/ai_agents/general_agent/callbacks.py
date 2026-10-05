@@ -383,7 +383,6 @@ async def _route_proposals_to_personal_memory(
             confidence=proposal.confidence,
             importance=min(proposal.confidence, 1.0),
             source_chat_id=chat_id,
-            tags=["implicit_feedback"],
             language=detect_language(proposal.content),
         )
         try:
