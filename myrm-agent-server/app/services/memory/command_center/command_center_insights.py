@@ -149,7 +149,7 @@ class MemoryCommandCenterInsights:
                         status="pending",
                         memory_id=conflict.conflict_old_memory_id,
                         related_memory_id="",
-                        title=str(metadata.get("facet") or "general_fact"),
+                        title=str(metadata.get("facet") or ""),
                         description=f"{existing_content} ⟷ {candidate_content}",
                         existing_content=existing_content,
                         candidate_content=candidate_content,

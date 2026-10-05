@@ -386,11 +386,20 @@ async def _route_proposals_to_personal_memory(
             tags=["implicit_feedback"],
             language=detect_language(proposal.content),
         )
-        pending_id = await memory_manager.submit_pending(
-            memory,
-            resolution_action=action,
-            target_memory_id=target_memory_id,
-        )
+        try:
+            pending_id = await memory_manager.submit_pending(
+                memory,
+                resolution_action=action,
+                target_memory_id=target_memory_id,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to queue correction proposal (action=%s, content=%s)",
+                proposal.action.value,
+                proposal.content[:80],
+                exc_info=True,
+            )
+            continue
         if pending_id:
             created_count += 1
 

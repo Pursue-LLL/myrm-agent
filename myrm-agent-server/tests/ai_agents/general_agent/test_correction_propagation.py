@@ -429,6 +429,114 @@ class TestPersonalMemoryRouting:
         assert kwargs["target_memory_id"] == "mem-berlin"
 
     @pytest.mark.asyncio
+    async def test_update_with_ambiguous_old_content_is_skipped(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+
+        from app.ai_agents.general_agent.callbacks import _route_proposals_to_personal_memory
+
+        manager = _RecordingMemoryManager()
+        proposal = CorrectionProposal(
+            action=CorrectionAction.UPDATE,
+            memory_type="semantic",
+            content="User works at Google",
+            confidence=0.9,
+            reasoning="User moved",
+            old_content="User",
+        )
+
+        await _route_proposals_to_personal_memory(
+            [proposal],
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+            recalled={"mem-a": "User works at ByteDance", "mem-b": "User lives in Berlin"},
+        )
+
+        assert manager.submitted == []
+
+    @pytest.mark.asyncio
+    async def test_update_exact_old_content_match_wins(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+        from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction
+
+        from app.ai_agents.general_agent.callbacks import _route_proposals_to_personal_memory
+
+        manager = _RecordingMemoryManager()
+        proposal = CorrectionProposal(
+            action=CorrectionAction.UPDATE,
+            memory_type="semantic",
+            content="User works at Google",
+            confidence=0.9,
+            reasoning="User moved",
+            old_content="User works at ByteDance",
+        )
+
+        await _route_proposals_to_personal_memory(
+            [proposal],
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+            recalled={"mem-a": "User works at ByteDance", "mem-b": "User works at ByteDance as an engineer"},
+        )
+
+        assert len(manager.submitted) == 1
+        _, kwargs = manager.submitted[0]
+        assert kwargs["resolution_action"] == PendingResolutionAction.CORRECT
+        assert kwargs["target_memory_id"] == "mem-a"
+
+    @pytest.mark.asyncio
+    async def test_failed_submission_does_not_abort_remaining_proposals(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+
+        from app.ai_agents.general_agent.callbacks import _route_proposals_to_personal_memory
+
+        class _FlakyManager:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            async def submit_pending(self, memory: object, **kwargs: object) -> str:
+                self.calls += 1
+                if self.calls == 1:
+                    raise RuntimeError("queue unavailable")
+                return "pending-2"
+
+        manager = _FlakyManager()
+        proposals = [
+            CorrectionProposal(
+                action=CorrectionAction.ADD,
+                memory_type="semantic",
+                content="first",
+                confidence=0.9,
+                reasoning="r",
+            ),
+            CorrectionProposal(
+                action=CorrectionAction.ADD,
+                memory_type="semantic",
+                content="second",
+                confidence=0.9,
+                reasoning="r",
+            ),
+        ]
+
+        await _route_proposals_to_personal_memory(
+            proposals,
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+        )
+
+        assert manager.calls == 2
+
+    @pytest.mark.asyncio
     async def test_recall_candidate_memories_gives_planner_targets(self) -> None:
         from myrm_agent_harness.toolkits.memory.types import MemorySearchResult, MemoryType, SemanticMemory
 
