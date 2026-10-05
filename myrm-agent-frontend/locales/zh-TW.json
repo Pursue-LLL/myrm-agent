@@ -4327,7 +4327,8 @@
       "conflictKind": {
         "claim": "宣告",
         "correction": "糾正",
-        "supersession": "替代"
+        "supersession": "替代",
+        "pending_conflict": "待裁決衝突"
       },
       "runtimeTitle": "執行狀態",
       "deployMode": "部署模式",
@@ -15173,6 +15174,7 @@
         "placeholder": "問一個關於你的知識的問題...",
         "answer": "答案：",
         "confidenceScore": "匹配置信度：{value}",
+        "refusedLabel": "知識庫中無可靠依據",
         "retrievalTraceTitle": "檢索路徑",
         "retrievalTraceIndex": "索引目錄",
         "retrievalTraceSidecar": "目錄範圍",

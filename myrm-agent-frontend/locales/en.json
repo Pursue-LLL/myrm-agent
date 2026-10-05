@@ -2748,6 +2748,7 @@
         "placeholder": "Ask a question about your knowledge...",
         "answer": "Answer:",
         "confidenceScore": "Match confidence: {value}",
+        "refusedLabel": "No verified basis in the knowledge base",
         "retrievalTraceTitle": "Retrieval path",
         "retrievalTraceIndex": "Index catalog",
         "retrievalTraceSidecar": "Directory scope",
@@ -11440,7 +11441,8 @@
       "conflictKind": {
         "claim": "Claim",
         "correction": "Correction",
-        "supersession": "Supersession"
+        "supersession": "Supersession",
+        "pending_conflict": "Conflict"
       },
       "runtimeTitle": "Runtime",
       "deployMode": "Deploy mode",

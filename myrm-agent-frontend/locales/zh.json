@@ -2748,6 +2748,7 @@
         "placeholder": "问一个关于你的知识的问题...",
         "answer": "答案：",
         "confidenceScore": "匹配置信度：{value}",
+        "refusedLabel": "知识库中无可靠依据",
         "retrievalTraceTitle": "检索路径",
         "retrievalTraceIndex": "索引目录",
         "retrievalTraceSidecar": "目录范围",
@@ -11441,7 +11442,8 @@
       "conflictKind": {
         "claim": "声明",
         "correction": "纠正",
-        "supersession": "替代"
+        "supersession": "替代",
+        "pending_conflict": "待裁决冲突"
       },
       "runtimeTitle": "运行状态",
       "deployMode": "部署模式",

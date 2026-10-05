@@ -219,6 +219,7 @@ export interface WikiQueryResponse {
   related_articles: string[];
   source_snippets: WikiSourceSnippet[];
   confidence_score?: number;
+  refused?: boolean;
   retrieval_trace?: WikiRetrievalTrace | null;
 }
 

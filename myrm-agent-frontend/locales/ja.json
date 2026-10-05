@@ -4283,7 +4283,8 @@
       "conflictKind": {
         "claim": "主張",
         "correction": "修正",
-        "supersession": "置き換え"
+        "supersession": "置き換え",
+        "pending_conflict": "未解決の競合"
       },
       "runtimeTitle": "実行ステータス",
       "deployMode": "デプロイモード",
@@ -15173,6 +15174,7 @@
         "placeholder": "あなたの知識について質問してください...",
         "answer": "回答：",
         "confidenceScore": "一致信頼度：{value}",
+        "refusedLabel": "ナレッジベースに確証となる根拠がありません",
         "retrievalTraceTitle": "検索パス",
         "retrievalTraceIndex": "インデックス",
         "retrievalTraceSidecar": "ディレクトリ範囲",

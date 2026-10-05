@@ -4511,7 +4511,8 @@
       "conflictKind": {
         "claim": "주장",
         "correction": "수정",
-        "supersession": "대체"
+        "supersession": "대체",
+        "pending_conflict": "미해결 충돌"
       },
       "runtimeTitle": "런타임",
       "deployMode": "배포 모드",
@@ -15168,6 +15169,7 @@
         "placeholder": "지식에 대해 질문하세요...",
         "answer": "답변:",
         "confidenceScore": "일치 신뢰도: {value}",
+        "refusedLabel": "지식 베이스에 검증된 근거가 없습니다",
         "retrievalTraceTitle": "검색 경로",
         "retrievalTraceIndex": "인덱스 카탈로그",
         "retrievalTraceSidecar": "디렉토리 범위",

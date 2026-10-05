@@ -189,6 +189,7 @@ export function WikiSection() {
   const [relatedArticles, setRelatedArticles] = useState<string[]>([]);
   const [sourceSnippets, setSourceSnippets] = useState<WikiSourceSnippet[]>([]);
   const [queryConfidence, setQueryConfidence] = useState<number | null>(null);
+  const [queryRefused, setQueryRefused] = useState<boolean>(false);
   const [retrievalTrace, setRetrievalTrace] = useState<WikiRetrievalTrace | null>(null);
   const [snippetDrawerState, setSnippetDrawerState] = useState<{
     open: boolean;
@@ -911,6 +912,7 @@ export function WikiSection() {
     setRelatedArticles([]);
     setSourceSnippets([]);
     setQueryConfidence(null);
+    setQueryRefused(false);
     setRetrievalTrace(null);
 
     try {
@@ -920,6 +922,7 @@ export function WikiSection() {
       setRelatedArticles(data.related_articles || []);
       setSourceSnippets(data.source_snippets || []);
       setQueryConfidence(typeof data.confidence_score === 'number' ? data.confidence_score : null);
+      setQueryRefused(Boolean(data.refused));
       setRetrievalTrace(data.retrieval_trace ?? null);
       recordWikiQuerySubmitted('settings', evidenceContextKey);
       recordEvidenceSurface('settings', data.source_snippets?.length ?? 0, evidenceContextKey);
@@ -1498,15 +1501,27 @@ export function WikiSection() {
 
                 {answer && (
                   <div className="space-y-2">
-                    {queryConfidence !== null && (
-                      <div className="text-xs text-muted-foreground">
-                        {t('query.confidenceScore', {
-                          value: formatClaimConfidence(queryConfidence, locale),
-                        })}
-                      </div>
+                    {queryRefused ? (
+                      <div className="text-xs font-medium text-destructive">{t('query.refusedLabel')}</div>
+                    ) : (
+                      queryConfidence !== null && (
+                        <div className="text-xs text-muted-foreground">
+                          {t('query.confidenceScore', {
+                            value: formatClaimConfidence(queryConfidence, locale),
+                          })}
+                        </div>
+                      )
                     )}
                     <div className="text-sm font-medium">{t('query.answer')}</div>
-                    <div className="p-4 bg-muted rounded-lg whitespace-pre-wrap">{answer}</div>
+                    <div
+                      className={
+                        queryRefused
+                          ? 'p-4 rounded-lg whitespace-pre-wrap border border-destructive/40 bg-destructive/5'
+                          : 'p-4 bg-muted rounded-lg whitespace-pre-wrap'
+                      }
+                    >
+                      {answer}
+                    </div>
 
                     {retrievalTrace &&
                       (retrievalTrace.index_hits.length > 0 ||

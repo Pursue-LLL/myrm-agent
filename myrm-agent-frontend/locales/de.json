@@ -4555,7 +4555,8 @@
       "conflictKind": {
         "claim": "Beanspruchen",
         "correction": "Korrektur",
-        "supersession": "Ersetzung"
+        "supersession": "Ersetzung",
+        "pending_conflict": "Ungeklärter Konflikt"
       },
       "runtimeTitle": "Laufzeit",
       "deployMode": "Bereitstellungsmodus",
@@ -15168,6 +15169,7 @@
         "placeholder": "Stellen Sie eine Frage zu Ihrem Wissen ...",
         "answer": "Antwort:",
         "confidenceScore": "Übereinstimmungskonfidenz: {value}",
+        "refusedLabel": "Keine verifizierte Grundlage in der Wissensdatenbank",
         "retrievalTraceTitle": "Abrufpfad",
         "retrievalTraceIndex": "Indexkatalog",
         "retrievalTraceSidecar": "Verzeichnisbereich",
