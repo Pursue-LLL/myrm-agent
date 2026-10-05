@@ -22,6 +22,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 from app.services.locked_use.curtain_bridge import (
     EXCLUDED_CAPTURE_TITLES,
     mark_pending_auto_unlock,
@@ -77,18 +79,16 @@ def test_curtain_state_fields_contract_aligned() -> None:
 
     # serde(rename_all = "camelCase") 映射：snake_case → lowerCamelCase。
     expected_keys = {
-        "".join(part.capitalize() if index else part for index, part in enumerate(field.split("_")))
-        for field in rust_fields
+        "".join(part.capitalize() if index else part for index, part in enumerate(field.split("_"))) for field in rust_fields
     }
     # server 侧解析键集合（read_curtain_state 的映射目标）。
     server_keys = {"active", "autoEngaged", "lastPhysicalInputMs", "pendingAutoUnlock"}
     assert expected_keys == server_keys, (
-        f"curtain_state.json serde contract drifted: rust={sorted(expected_keys)} "
-        f"server={sorted(server_keys)}"
+        f"curtain_state.json serde contract drifted: rust={sorted(expected_keys)} server={sorted(server_keys)}"
     )
 
 
-def test_curtain_state_roundtrip(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+def test_curtain_state_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """状态桥协议：Rust 写的 camelCase JSON 可被 server 完整解析；server 的
     pending 写入只碰自己拥有的键位，绝不覆写 Tauri 字段。"""
     state_file = tmp_path / "curtain_state.json"
@@ -121,7 +121,7 @@ def test_curtain_state_roundtrip(tmp_path: Path, monkeypatch) -> None:  # noqa: 
     assert data["lastPhysicalInputMs"] == 42
 
 
-def test_curtain_state_missing_file_is_none(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+def test_curtain_state_missing_file_is_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """非桌面端部署（无状态桥文件）静默降级：read → None、mark → False。"""
     monkeypatch.setenv("MYRM_CURTAIN_STATE_FILE", str(tmp_path / "absent.json"))
     assert read_curtain_state() is None

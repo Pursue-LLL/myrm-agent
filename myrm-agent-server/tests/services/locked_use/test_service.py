@@ -1,5 +1,6 @@
 """Tests for LockedUseService."""
 
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -8,7 +9,7 @@ from app.services.locked_use.service import LockedUseConfig, MacScreenUnlocker, 
 
 
 @pytest.fixture
-def mock_sleep_inhibitor():
+def mock_sleep_inhibitor() -> Iterator[MagicMock]:
     with patch("app.services.infra.sleep_inhibitor.SleepInhibitor.hold") as mock_hold:
         mock_hold.return_value.__aenter__ = AsyncMock()
         mock_hold.return_value.__aexit__ = AsyncMock()
@@ -17,27 +18,27 @@ def mock_sleep_inhibitor():
 
 class TestMacScreenUnlocker:
     @patch("subprocess.run")
-    def test_is_locked_true(self, mock_run):
+    def test_is_locked_true(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout="locked\n", returncode=0)
         assert MacScreenUnlocker.is_locked() is True
 
     @patch("subprocess.run")
-    def test_is_locked_false(self, mock_run):
+    def test_is_locked_false(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout="unlocked\n", returncode=0)
         assert MacScreenUnlocker.is_locked() is False
 
     @patch("subprocess.run")
-    def test_is_locked_error(self, mock_run):
+    def test_is_locked_error(self, mock_run: MagicMock) -> None:
         mock_run.side_effect = Exception("error")
         assert MacScreenUnlocker.is_locked() is False
 
     @patch("subprocess.run")
-    def test_get_password_success(self, mock_run):
+    def test_get_password_success(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout="my_password\n", returncode=0)
         assert MacScreenUnlocker.get_password() == "my_password"
 
     @patch("subprocess.run")
-    def test_get_password_error(self, mock_run):
+    def test_get_password_error(self, mock_run: MagicMock) -> None:
         mock_run.side_effect = Exception("error")
         assert MacScreenUnlocker.get_password() is None
 
@@ -46,14 +47,16 @@ class TestMacScreenUnlocker:
     @patch.object(MacScreenUnlocker, "is_locked", return_value=False)  # Unlocked after attempt
     @patch("subprocess.Popen")
     @patch("subprocess.run")
-    async def test_unlock_success(self, mock_run, mock_popen, mock_is_locked, mock_get_password):
+    async def test_unlock_success(
+        self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock
+    ) -> None:
         assert await MacScreenUnlocker.unlock() is True
         assert mock_popen.called
         assert mock_run.called
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value=None)
-    async def test_unlock_no_password(self, mock_get_password):
+    async def test_unlock_no_password(self, mock_get_password: MagicMock) -> None:
         assert await MacScreenUnlocker.unlock() is False
 
     @pytest.mark.asyncio
@@ -61,7 +64,9 @@ class TestMacScreenUnlocker:
     @patch.object(MacScreenUnlocker, "is_locked", return_value=True)  # Still locked after attempt
     @patch("subprocess.Popen")
     @patch("subprocess.run")
-    async def test_unlock_failure(self, mock_run, mock_popen, mock_is_locked, mock_get_password):
+    async def test_unlock_failure(
+        self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock
+    ) -> None:
         assert await MacScreenUnlocker.unlock() is False
 
     @pytest.mark.asyncio
@@ -69,12 +74,14 @@ class TestMacScreenUnlocker:
     @patch.object(MacScreenUnlocker, "is_locked", return_value=False)  # Unlocked after attempt
     @patch("subprocess.Popen")
     @patch("subprocess.run")
-    async def test_unlock_exception(self, mock_run, mock_popen, mock_is_locked, mock_get_password):
+    async def test_unlock_exception(
+        self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock
+    ) -> None:
         mock_run.side_effect = Exception("error")
         assert await MacScreenUnlocker.unlock() is False
 
     @patch("subprocess.run")
-    def test_relock(self, mock_run):
+    def test_relock(self, mock_run: MagicMock) -> None:
         MacScreenUnlocker.relock()
         assert mock_run.called
 
@@ -85,7 +92,14 @@ class TestLockedUseSession:
     @patch.object(MacScreenUnlocker, "is_locked", return_value=True)
     @patch.object(MacScreenUnlocker, "unlock", new_callable=AsyncMock, return_value=True)
     @patch.object(MacScreenUnlocker, "relock")
-    async def test_mac_locked_enabled(self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor):
+    async def test_mac_locked_enabled(
+        self,
+        mock_relock: MagicMock,
+        mock_unlock: MagicMock,
+        mock_is_locked: MagicMock,
+        mock_system: MagicMock,
+        mock_sleep_inhibitor: MagicMock,
+    ) -> None:
         config = LockedUseConfig(enabled=True)
         async with locked_use_session(config):
             pass
@@ -100,7 +114,14 @@ class TestLockedUseSession:
     @patch.object(MacScreenUnlocker, "is_locked", return_value=False)
     @patch.object(MacScreenUnlocker, "unlock", new_callable=AsyncMock)
     @patch.object(MacScreenUnlocker, "relock")
-    async def test_mac_unlocked_enabled(self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor):
+    async def test_mac_unlocked_enabled(
+        self,
+        mock_relock: MagicMock,
+        mock_unlock: MagicMock,
+        mock_is_locked: MagicMock,
+        mock_system: MagicMock,
+        mock_sleep_inhibitor: MagicMock,
+    ) -> None:
         config = LockedUseConfig(enabled=True)
         async with locked_use_session(config):
             pass
@@ -115,7 +136,14 @@ class TestLockedUseSession:
     @patch.object(MacScreenUnlocker, "is_locked")
     @patch.object(MacScreenUnlocker, "unlock", new_callable=AsyncMock)
     @patch.object(MacScreenUnlocker, "relock")
-    async def test_mac_disabled(self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor):
+    async def test_mac_disabled(
+        self,
+        mock_relock: MagicMock,
+        mock_unlock: MagicMock,
+        mock_is_locked: MagicMock,
+        mock_system: MagicMock,
+        mock_sleep_inhibitor: MagicMock,
+    ) -> None:
         config = LockedUseConfig(enabled=False)
         async with locked_use_session(config):
             pass
@@ -130,7 +158,14 @@ class TestLockedUseSession:
     @patch.object(MacScreenUnlocker, "is_locked")
     @patch.object(MacScreenUnlocker, "unlock", new_callable=AsyncMock)
     @patch.object(MacScreenUnlocker, "relock")
-    async def test_non_mac_enabled(self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor):
+    async def test_non_mac_enabled(
+        self,
+        mock_relock: MagicMock,
+        mock_unlock: MagicMock,
+        mock_is_locked: MagicMock,
+        mock_system: MagicMock,
+        mock_sleep_inhibitor: MagicMock,
+    ) -> None:
         config = LockedUseConfig(enabled=True)
         async with locked_use_session(config):
             pass
@@ -146,8 +181,13 @@ class TestLockedUseSession:
     @patch.object(MacScreenUnlocker, "unlock", new_callable=AsyncMock, return_value=False)
     @patch.object(MacScreenUnlocker, "relock")
     async def test_mac_locked_enabled_unlock_fails(
-        self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor
-    ):
+        self,
+        mock_relock: MagicMock,
+        mock_unlock: MagicMock,
+        mock_is_locked: MagicMock,
+        mock_system: MagicMock,
+        mock_sleep_inhibitor: MagicMock,
+    ) -> None:
         config = LockedUseConfig(enabled=True)
         async with locked_use_session(config):
             pass
