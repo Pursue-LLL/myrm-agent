@@ -23,8 +23,10 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (cmd: string, args?: Record<string, unknown>) => invokeMock(cmd, args),
 }));
 
+const stableT = (key: string) => `text:${key}`;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => `text:${key}`,
+  useTranslations: () => stableT,
 }));
 
 describe('useCurtainTexts', () => {
