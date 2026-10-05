@@ -266,6 +266,27 @@ class TestResolveConflict:
             content="Both Python and Rust have merits",
         )
 
+    def test_resolve_tolerates_forgotten_old_memory(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        override_memory_manager: AsyncMock,
+    ) -> None:
+        """A stale counterpart already forgotten must not turn the resolution into a 500."""
+        conflict = _make_conflict_record()
+        _, mock_session_ctx = self._setup_resolve_mocks(conflict)
+        override_memory_manager.update_memory.side_effect = RuntimeError("Memory not found")
+
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
+            resp = client.post(
+                "/api/v1/memory/conflicts/conflict-1/resolve",
+                headers=auth_headers,
+                json={"resolution": "keep_new"},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json()["data"]["resolution"] == "keep_new"
+
     def test_merge_without_content_returns_400(
         self,
         client: TestClient,

@@ -131,26 +131,21 @@ async def resolve_conflict(
     candidate_content = conflict.content or ""
 
     if resolution == "keep_new":
-        if old_memory_id:
-            await manager.update_memory(old_memory_id, importance=0.01)
+        await _update_old_memory(manager, old_memory_id, resolution, importance=0.01)
         if candidate_content.strip():
             await manager.add_knowledge(candidate_content)
     elif resolution == "keep_old":
-        if old_memory_id:
-            await manager.update_memory(old_memory_id, confidence=0.95, is_user_locked=True)
+        await _update_old_memory(manager, old_memory_id, resolution, confidence=0.95, is_user_locked=True)
     elif resolution == "coexist":
-        if old_memory_id:
-            await manager.update_memory(old_memory_id, confidence=0.85)
+        await _update_old_memory(manager, old_memory_id, resolution, confidence=0.85)
         if candidate_content.strip():
             await manager.add_knowledge(candidate_content)
     elif resolution == "merge":
         if not request.merged_content:
             raise HTTPException(status_code=400, detail="merged_content required for merge resolution")
-        if old_memory_id:
-            await manager.update_memory(old_memory_id, content=request.merged_content)
+        await _update_old_memory(manager, old_memory_id, resolution, content=request.merged_content)
     elif resolution == "discard_both":
-        if old_memory_id:
-            await manager.update_memory(old_memory_id, importance=0.01)
+        await _update_old_memory(manager, old_memory_id, resolution, importance=0.01)
     else:
         raise HTTPException(status_code=400, detail=f"Invalid resolution: {resolution}")
 
@@ -163,6 +158,30 @@ async def resolve_conflict(
         summary=f"Conflict resolved: {resolution}",
     )
     return create_success_response(data={"status": "resolved", "resolution": resolution, "conflict_id": conflict_id})
+
+
+async def _update_old_memory(
+    manager: MemoryManager,
+    old_memory_id: str | None,
+    resolution: str,
+    **fields: object,
+) -> None:
+    """Apply the stale-counterpart mutation, tolerating an already-forgotten memory.
+
+    The stale fact may have been forgotten or purged while the conflict sat in the
+    queue; that must not turn a user resolution into a 500 error.
+    """
+    if not old_memory_id:
+        return
+    try:
+        await manager.update_memory(old_memory_id, **fields)
+    except Exception:
+        logger.warning(
+            "Conflict resolution %s could not update old memory %s (already gone?)",
+            resolution,
+            old_memory_id,
+            exc_info=True,
+        )
 
 
 async def _mark_conflict_resolved(conflict_id: str, resolution: str) -> None:
