@@ -33,6 +33,9 @@ _SUPPORTED_SOURCES: tuple[str, ...] = (
     "windsurf",
     "trae",
     "mem0",
+    "letta",
+    "langchain",
+    "zep",
     "chatgpt",
     "plur",
 )
@@ -50,6 +53,9 @@ _ADAPTER_STATUS: dict[str, MemoryImportAdapterStatus] = {
     "windsurf": "ready",
     "trae": "ready",
     "mem0": "ready",
+    "letta": "ready",
+    "langchain": "ready",
+    "zep": "ready",
     "chatgpt": "ready",
     "plur": "ready",
 }
