@@ -91,7 +91,10 @@ describe('useWorkbenchRetentionSummary & WorkbenchRetentionSection', () => {
     } as unknown as Awaited<ReturnType<typeof getGrowthDashboard>>);
 
     vi.mocked(listCronJobs).mockResolvedValue({
-      items: [{ id: 'job-1', name: 'daily-backup' } as unknown as Awaited<ReturnType<typeof listCronJobs>>['items'][number], { id: 'job-2', name: 'hourly-sync' } as unknown as Awaited<ReturnType<typeof listCronJobs>>['items'][number]],
+      items: [
+        { id: 'job-1', name: 'daily-backup' } as unknown as Awaited<ReturnType<typeof listCronJobs>>['items'][number],
+        { id: 'job-2', name: 'hourly-sync' } as unknown as Awaited<ReturnType<typeof listCronJobs>>['items'][number],
+      ],
       total: 2,
       offset: 0,
       limit: 20,
