@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Final
 
-from app.services.memory.migration.models import (
+from app.services.memory.imports.migration_models import (
     CanonicalMigratedItem,
     MemoryTargetBucket,
     MigrationFidelityLevel,

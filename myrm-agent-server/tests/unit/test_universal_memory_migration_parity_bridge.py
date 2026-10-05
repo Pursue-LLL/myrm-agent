@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-from app.services.memory.migration.adapters import (
+from app.services.memory.imports.migration_adapters import (
     LangChainMemoryAdapter,
     LettaMemGPTMigrationAdapter,
     Mem0MigrationAdapter,
     OpenClawMigrationAdapter,
     ZepMigrationAdapter,
 )
-from app.services.memory.migration.bridge import UniversalMemoryMigrationBridge
-from app.services.memory.migration.models import (
+from app.services.memory.imports.migration_models import (
     MemoryTargetBucket,
     MigrationFidelityLevel,
     MigrationSourceType,
+)
+from app.services.memory.imports.universal_memory_migration_bridge import (
+    UniversalMemoryMigrationBridge,
 )
 
 

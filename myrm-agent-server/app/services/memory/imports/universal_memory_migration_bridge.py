@@ -3,14 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 
-from app.services.memory.migration.adapters import (
+from app.services.memory.imports.migration_adapters import (
     LangChainMemoryAdapter,
     LettaMemGPTMigrationAdapter,
     Mem0MigrationAdapter,
     OpenClawMigrationAdapter,
     ZepMigrationAdapter,
 )
-from app.services.memory.migration.models import (
+from app.services.memory.imports.migration_models import (
     CanonicalMigratedItem,
     MemoryTargetBucket,
     MigrationParityReport,

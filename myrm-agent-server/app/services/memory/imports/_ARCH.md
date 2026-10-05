@@ -36,3 +36,6 @@
 | `integration_memory.py` | 核心 | Integration Memory 业务服务。封装框架层 IntegrationFetcher/TreeManager/Summariser，提供 sync/browse/status/remove facade 和类型安全 DTO（IntegrationStatusSnapshot/IntegrationTreeNodeDTO）供 API 层消费 | ✅ |
 | `integration_sync_daemon.py` | 核心 | Integration Sync Daemon — 基于 APScheduler 的后台定时同步守护进程。每次触发时动态加载用户 MCP 配置（含 Control Plane 推送的 org MCP，经 `merge_org_mcp_configs` 合并），将符合条件的 MCP Server 注册为 MCPBridgeProvider，然后调用 IntegrationMemoryService.sync_all() 保持知识源新鲜 | ✅ |
 | `mcp_bridge_provider.py` | 核心 | MCPBridgeProvider — 将任意 MCP Server 桥接为 IntegrationProvider。通过 DI 注入 MCPConnection，自动探测 fetch 工具并将结果转换为 IntegrationLeaf | ✅ |
+| `migration_models.py` | 核心 | 多源通用记忆迁移协议与数据模型。定义 MigrationSourceType、MemoryTargetBucket、CanonicalMigratedItem 和 MigrationParityReport 强类型契约 | ✅ |
+| `migration_adapters.py` | 核心 | 多源通用记忆迁移解析适配器。提供 Mem0、Letta (MemGPT) 双轨 Core/Archival/Recall、LangChain Chat/Entity、OpenClaw 与 Zep 专用解析器 | ✅ |
+| `universal_memory_migration_bridge.py` | 核心 | 通用记忆迁移与保真度校验桥。提供 Schema 自动特征嗅探、免落盘 dry-run 演练、双轨映射分发与 SHA-256 审计体检报告生成 | ✅ |
