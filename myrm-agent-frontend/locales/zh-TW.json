@@ -4189,6 +4189,10 @@
       "topTags": "熱門標籤"
     },
     "commandCenter": {
+      "resolutionCorrect": "更正",
+      "resolutionDelete": "刪除",
+      "willReplace": "將取代：",
+      "willRemove": "將刪除：",
       "title": "個人大腦指揮中心",
       "description": "集中檢視 Agent 記住了什麼、哪些記憶空間正在生效、哪些內容仍需確認，以及本地記憶執行時是否健康。觀察區的 Live 面板透過 SSE 實時推送記憶操作。",
       "refresh": "重新整理",
@@ -12412,7 +12416,8 @@
     "slotsBadge": "已佔用 {used}/{max}",
     "slotsFull": "並行額度已滿，請先結束或等待一個進行中的任務。",
     "stop": "停止",
-    "stopping": "正在停止…"
+    "stopping": "正在停止…",
+    "curtainActive": "工位螢幕已防窺保護"
   },
   "whatsNew": {
     "title": "v{version} 新功能",

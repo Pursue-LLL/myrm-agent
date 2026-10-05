@@ -710,11 +710,21 @@ export interface RecentSession {
   updatedAt: string;
 }
 
+/** 工位帷幕状态（仅 Tauri 桌面端上报；非桌面端 available=false）。 */
+export interface CurtainStatus {
+  available: boolean;
+  active: boolean;
+  autoEngaged?: boolean;
+  pendingAutoUnlock?: boolean;
+}
+
 export interface ActiveSessionsResponse {
   activeSessions: ActiveSession[];
   recentSessions: RecentSession[];
   maxConcurrent: number;
   availableSlots: number;
+  /** 移动端 hub 附带：本机工位帷幕状态（无人值守时手机可见「屏幕已保护」）。 */
+  curtain?: CurtainStatus;
 }
 
 export async function getFleetOverview(): Promise<FleetOverviewResponse> {

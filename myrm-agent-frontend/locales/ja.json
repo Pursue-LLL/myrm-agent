@@ -4145,6 +4145,10 @@
       "topTags": "人気タグ"
     },
     "commandCenter": {
+      "resolutionCorrect": "修正",
+      "resolutionDelete": "削除",
+      "willReplace": "置き換え：",
+      "willRemove": "削除：",
       "title": "パーソナルブレインコマンドセンター",
       "description": "エージェントが何を記憶しているか、どのメモリ空間が有効か、何が承認待ちか、ローカルメモリランタイムが正常かを一元的に確認できます。Observe タブは SSE 経由でメモリ操作をリアルタイムにストリーミングします。",
       "refresh": "更新",
@@ -12412,7 +12416,8 @@
     "slotsBadge": "{used}/{max} 使用中",
     "slotsFull": "並行スロットがすべて使用中です。実行中のタスクを終了または停止してから再試行してください。",
     "stop": "停止",
-    "stopping": "停止中…"
+    "stopping": "停止中…",
+    "curtainActive": "ワークステーション画面を保護中"
   },
   "whatsNew": {
     "title": "v{version} の新機能",

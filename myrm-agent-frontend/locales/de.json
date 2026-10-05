@@ -4415,6 +4415,10 @@
     "preCompactEnabledDesc": "Rufen Sie vor der Kontextkomprimierung automatisch relevante, dauerhafte Erinnerungen in das aktive Gespräch ein.",
     "preCompactBudget": "Token-Budget abrufen",
     "commandCenter": {
+      "resolutionCorrect": "Korrektur",
+      "resolutionDelete": "Entfernung",
+      "willReplace": "Ersetzt:",
+      "willRemove": "Entfernt:",
       "title": "Persönliches Gehirn-Kommandozentrum",
       "description": "Überprüfen Sie, was sich der Agent merkt, welche Speicherbereiche aktiv sind, was noch einer Genehmigung bedarf und ob die lokale Speicherlaufzeit fehlerfrei ist. Die Registerkarte „Beobachten“ streamt Speichervorgänge in Echtzeit über SSE.",
       "refresh": "Aktualisieren",
@@ -12412,7 +12416,8 @@
     "slotsBadge": "{used}/{max} belegt",
     "slotsFull": "Alle parallelen Slots sind belegt. Beenden oder stoppen Sie zuerst eine laufende Aufgabe.",
     "stop": "Stopp",
-    "stopping": "Wird gestoppt…"
+    "stopping": "Wird gestoppt…",
+    "curtainActive": "Arbeitsplatz-Bildschirm geschützt"
   },
   "whatsNew": {
     "title": "Neuigkeiten in v{version}",

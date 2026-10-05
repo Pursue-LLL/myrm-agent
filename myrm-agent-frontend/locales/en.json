@@ -11301,6 +11301,10 @@
       "topTags": "Top tags"
     },
     "commandCenter": {
+      "resolutionCorrect": "Correction",
+      "resolutionDelete": "Removal",
+      "willReplace": "Replaces:",
+      "willRemove": "Removes:",
       "title": "Personal Brain Command Center",
       "description": "Review what the agent remembers, which memory spaces are active, what still needs approval, and whether the local memory runtime is healthy. The Observe tab streams memory operations in real time via SSE.",
       "refresh": "Refresh",
@@ -19525,7 +19529,8 @@
     "slotsBadge": "{used}/{max} in use",
     "slotsFull": "All parallel slots are busy. Finish or stop a running task first.",
     "stop": "Stop",
-    "stopping": "Stopping…"
+    "stopping": "Stopping…",
+    "curtainActive": "Workstation screen protected"
   },
   "whatsNew": {
     "title": "What's New in v{version}",

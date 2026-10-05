@@ -32,6 +32,7 @@ vi.mock('@/components/features/icons/PremiumIcons', () => ({
   IconPlus: () => null,
   IconUsers: () => null,
   IconX: () => null,
+  IconShieldCheck: () => null,
 }));
 
 vi.mock('@/lib/mobileRemote', () => ({
@@ -97,6 +98,50 @@ describe('MobileSessionHub task composition', () => {
       defaultAgentId: 'agent-a',
     });
     mockRemoteAccess.spawnMobileSession.mockResolvedValue({ token: 'tok', mobilePath: '/mobile/status/new' });
+  });
+
+  it('shows the curtain shield when the workstation curtain is active', async () => {
+    mockRemoteAccess.getMobileSessions.mockResolvedValue({
+      activeSessions: [],
+      recentSessions: [],
+      maxConcurrent: 3,
+      availableSlots: 3,
+      curtain: { available: true, active: true, autoEngaged: true },
+    });
+
+    render(<MobileSessionHub />);
+
+    expect(await screen.findByText('curtainActive')).toBeInTheDocument();
+  });
+
+  it('hides the curtain shield when the curtain is inactive or unavailable', async () => {
+    mockRemoteAccess.getMobileSessions.mockResolvedValue({
+      activeSessions: [],
+      recentSessions: [],
+      maxConcurrent: 3,
+      availableSlots: 3,
+      curtain: { available: true, active: false },
+    });
+
+    render(<MobileSessionHub />);
+
+    await screen.findByText('badge');
+    expect(screen.queryByText('curtainActive')).not.toBeInTheDocument();
+  });
+
+  it('hides the curtain shield on non-desktop deployments', async () => {
+    mockRemoteAccess.getMobileSessions.mockResolvedValue({
+      activeSessions: [],
+      recentSessions: [],
+      maxConcurrent: 3,
+      availableSlots: 3,
+      curtain: { available: false, active: false },
+    });
+
+    render(<MobileSessionHub />);
+
+    await screen.findByText('badge');
+    expect(screen.queryByText('curtainActive')).not.toBeInTheDocument();
   });
 
   it('creates a remote session on a plain Enter submit', async () => {

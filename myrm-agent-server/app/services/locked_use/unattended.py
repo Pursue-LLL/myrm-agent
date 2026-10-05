@@ -14,6 +14,8 @@
 解锁后模型经排除截图通道继续作业，物理路过者只见黑幕。密码错误达上限
 即暂停编排（现有 Guardian 锁屏拒答行为兜底）；用户亲自解锁（在场证明）
 自然重置计数。非桌面端部署（无状态桥文件）watcher 静默空转零成本。
+移动端看板经 `GET /remote-access/mobile/sessions` 轮询载体回执帷幕状态
+（移动端无 SSE 通道，见 curtain_bridge.curtain_status_payload）。
 """
 
 from __future__ import annotations
@@ -23,7 +25,6 @@ import logging
 
 from app.services.locked_use.curtain_bridge import (
     MAX_UNLOCK_ATTEMPTS,
-    CurtainBridgeState,
     mark_pending_auto_unlock,
     read_curtain_state,
 )
@@ -35,27 +36,6 @@ WATCH_INTERVAL_SECONDS = 5.0
 
 _watcher_task: asyncio.Task[None] | None = None
 _unlock_failures: int = 0
-_last_published_active: bool | None = None
-
-
-def _publish_state_change(state: CurtainBridgeState) -> None:
-    """帷幕状态边沿广播（通知 SSE 流含移动端订阅者，天然回执）。"""
-    from app.services.event.app_event_bus import (
-        AppEvent,
-        AppEventType,
-        get_event_bus,
-    )
-
-    get_event_bus().publish(
-        AppEvent(
-            event_type=AppEventType.PRIVACY_CURTAIN_UPDATED,
-            data={
-                "active": state.active,
-                "autoEngaged": state.auto_engaged,
-                "pendingAutoUnlock": state.pending_auto_unlock,
-            },
-        )
-    )
 
 
 def start_unattended_curtain_watcher() -> None:
@@ -68,18 +48,13 @@ def start_unattended_curtain_watcher() -> None:
 
 
 async def _watch_loop() -> None:
-    global _unlock_failures, _last_published_active
+    global _unlock_failures
     while True:
         await asyncio.sleep(WATCH_INTERVAL_SECONDS)
         try:
             state = read_curtain_state()
             if state is None:
                 continue
-
-            # 状态边沿：活跃切换（含拉起/收起）时广播一次（移动端回执）。
-            if state.active != _last_published_active:
-                _last_published_active = state.active
-                _publish_state_change(state)
 
             if not state.active:
                 continue
@@ -103,10 +78,7 @@ async def _watch_loop() -> None:
                 continue
             if await MacScreenUnlocker.unlock():
                 _unlock_failures = 0
-                logger.info(
-                    "[Audit] curtain: unattended unlock granted "
-                    "(cu session active, quiet period elapsed)"
-                )
+                logger.info("[Audit] curtain: unattended unlock granted (cu session active, quiet period elapsed)")
             else:
                 _unlock_failures += 1
                 logger.error(

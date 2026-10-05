@@ -292,6 +292,7 @@ async def mobile_sessions(
         build_recent_sessions,
         resolve_agent_display_names,
     )
+    from app.services.locked_use.curtain_bridge import curtain_status_payload
 
     gateway = get_agent_gateway()
     agent_names = await resolve_agent_display_names()
@@ -304,6 +305,7 @@ async def mobile_sessions(
             "recentSessions": recent_sessions,
             "maxConcurrent": gateway.config.max_per_user,
             "availableSlots": gateway.get_available_slots(),
+            "curtain": curtain_status_payload(),
         },
     )
 

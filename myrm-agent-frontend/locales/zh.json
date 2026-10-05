@@ -11302,6 +11302,10 @@
       "topTags": "热门标签"
     },
     "commandCenter": {
+      "resolutionCorrect": "更正",
+      "resolutionDelete": "删除",
+      "willReplace": "将替换：",
+      "willRemove": "将删除：",
       "title": "个人大脑指挥中心",
       "description": "集中查看 Agent 记住了什么、哪些记忆空间正在生效、哪些内容仍需确认，以及本地记忆运行时是否健康。观察区的 Live 面板通过 SSE 实时推送记忆操作。",
       "refresh": "刷新",
@@ -19525,7 +19529,8 @@
     "slotsBadge": "已占用 {used}/{max}",
     "slotsFull": "并行额度已满，请先结束或等待一个进行中的任务。",
     "stop": "停止",
-    "stopping": "正在停止…"
+    "stopping": "正在停止…",
+    "curtainActive": "工位屏幕已防窥保护"
   },
   "whatsNew": {
     "title": "v{version} 新功能",

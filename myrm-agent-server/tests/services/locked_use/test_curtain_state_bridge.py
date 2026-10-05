@@ -2,12 +2,11 @@
 
 [INPUT]
 - app.services.locked_use.curtain_bridge（POS: 状态桥读写+排除注入）
-- app.services.locked_use.unattended._publish_state_change / _cu_session_active
-  （POS: watcher 的事件广播与 CU 会话判定）
+- app.services.locked_use.unattended._cu_session_active（POS: CU 会话活跃判定）
 
 [OUTPUT]
 - 环境开关解析、状态读取降级、pending 写入边界、排除 title 穿透 CuaDriver
-  `_fallback` 链注入、事件负载字段、CU 会话活跃判定
+  `_fallback` 链注入、状态载荷映射、CU 会话活跃判定
 
 [POS]
 与 test_keychain_and_curtain_contract.py（跨语言契约钉死）互补：本文件覆盖
@@ -26,6 +25,7 @@ from app.services.locked_use import unattended
 from app.services.locked_use.curtain_bridge import (
     EXCLUDED_CAPTURE_TITLES,
     apply_excluded_capture_titles,
+    curtain_status_payload,
     locked_use_enabled_from_env,
     mark_pending_auto_unlock,
     read_curtain_state,
@@ -152,29 +152,33 @@ def test_apply_titles_without_backend_returns_false() -> None:
     assert apply_excluded_capture_titles(_session(None)) is False
 
 
-def test_publish_state_change_emits_curtain_event(monkeypatch: pytest.MonkeyPatch) -> None:
-    """活跃边沿广播：负载含 active/autoEngaged/pendingAutoUnlock 三字段。"""
-    bus = MagicMock()
-    monkeypatch.setattr("app.services.event.app_event_bus.get_event_bus", lambda: bus)
-    from app.services.locked_use.curtain_bridge import CurtainBridgeState
+def test_curtain_status_payload_unavailable_without_bridge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """非桌面端部署（无状态桥）：载荷 available=False，消费方据此隐藏 UI。"""
+    monkeypatch.delenv("MYRM_CURTAIN_STATE_FILE", raising=False)
+    assert curtain_status_payload() == {"available": False, "active": False}
 
-    unattended._publish_state_change(
-        CurtainBridgeState(
-            active=True,
-            auto_engaged=True,
-            last_physical_input_ms=7,
-            pending_auto_unlock=False,
-        )
+
+def test_curtain_status_payload_maps_active_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """桌面端部署：载荷透出 active/autoEngaged/pendingAutoUnlock 三字段。"""
+    state_file = _write_state(
+        tmp_path,
+        monkeypatch,
+        json.dumps({**_VALID_STATE, "autoEngaged": True, "pendingAutoUnlock": True}),
     )
-
-    bus.publish.assert_called_once()
-    event = bus.publish.call_args[0][0]
-    assert event.event_type.name == "PRIVACY_CURTAIN_UPDATED"
-    assert event.data == {
+    assert state_file.is_file()
+    assert curtain_status_payload() == {
+        "available": True,
         "active": True,
         "autoEngaged": True,
-        "pendingAutoUnlock": False,
+        "pendingAutoUnlock": True,
     }
+
+
+def test_publish_state_change_removed() -> None:
+    """SSE 广播路径已移除：移动端经 hub 轮询回执（无 SSE 通道）。"""
+    assert not hasattr(unattended, "_publish_state_change")
 
 
 def test_cu_session_active_reads_gateway(monkeypatch: pytest.MonkeyPatch) -> None:

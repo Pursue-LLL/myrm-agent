@@ -4373,6 +4373,10 @@
     "preCompactEnabledDesc": "컨텍스트 압축 전에 관련된 지속 메모리를 활성 대화에 자동으로 검색합니다.",
     "preCompactBudget": "검색 토큰 예산",
     "commandCenter": {
+      "resolutionCorrect": "수정",
+      "resolutionDelete": "삭제",
+      "willReplace": "대체:",
+      "willRemove": "삭제:",
       "title": "개인 브레인 커맨드 센터",
       "description": "에이전트가 기억하는 내용, 활성 메모리 공간, 승인 대기 항목, 로컬 메모리 런타임의 상태를 검토하세요. 관찰 탭은 SSE를 통해 메모리 작업을 실시간으로 스트리밍합니다.",
       "refresh": "새로고침",
@@ -12412,7 +12416,8 @@
     "slotsBadge": "{used}/{max} 사용 중",
     "slotsFull": "병렬 슬롯이 모두 사용 중입니다. 실행 중인 작업을 종료하거나 중지한 후 다시 시도하세요.",
     "stop": "중지",
-    "stopping": "중지 중…"
+    "stopping": "중지 중…",
+    "curtainActive": "워크스테이션 화면 보호 중"
   },
   "whatsNew": {
     "title": "v{version} 새로운 기능",

@@ -12,6 +12,7 @@ import {
   IconPlus,
   IconUsers,
   IconX,
+  IconShieldCheck,
 } from '@/components/features/icons/PremiumIcons';
 import { scheduleMobilePairRefresh, storeMobilePairToken } from '@/lib/mobileRemote';
 import { useE2EEStatus } from '@/lib/e2ee/useE2EEStatus';
@@ -20,7 +21,7 @@ import { isImeComposing } from '@/lib/utils/imeUtils';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { cancelActiveChatAgent } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
-import type { ActiveSession, RecentSession } from '@/services/agent';
+import type { ActiveSession, RecentSession, CurtainStatus } from '@/services/agent';
 import { remoteAccessService } from '@/services/remoteAccess';
 import type { SpawnOptionAgent, SpawnOptionProject } from '@/services/remoteAccess';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
@@ -40,6 +41,7 @@ export default function MobileSessionHub() {
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
   const [slots, setSlots] = useState<{ max: number; available: number } | null>(null);
+  const [curtain, setCurtain] = useState<CurtainStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openingChatId, setOpeningChatId] = useState<string | null>(null);
@@ -66,11 +68,13 @@ export default function MobileSessionHub() {
       setSessions(data.activeSessions ?? []);
       setRecentSessions(data.recentSessions ?? []);
       setSlots({ max: data.maxConcurrent ?? 0, available: data.availableSlots ?? 0 });
+      setCurtain(data.curtain ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('loadFailed'));
       setSessions([]);
       setRecentSessions([]);
       setSlots(null);
+      setCurtain(null);
     } finally {
       setLoading(false);
     }
@@ -183,6 +187,15 @@ export default function MobileSessionHub() {
           </div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">{t('subtitle')}</p>
+          {curtain?.available && curtain.active ? (
+            <output
+              className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+              aria-live="polite"
+            >
+              <IconShieldCheck className="h-3.5 w-3.5" />
+              {t('curtainActive')}
+            </output>
+          ) : null}
           <E2EESecurityPanel {...e2ee} />
         </header>
 

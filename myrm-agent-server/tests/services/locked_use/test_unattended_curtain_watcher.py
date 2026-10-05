@@ -43,7 +43,6 @@ class _StopLoop(BaseException):
 def _reset_watcher_state(monkeypatch: pytest.MonkeyPatch) -> None:
     """每个用例重置模块级计数器与广播边沿，避免用例间串扰。"""
     monkeypatch.setattr(unattended, "_unlock_failures", 0)
-    monkeypatch.setattr(unattended, "_last_published_active", None)
 
 
 def _state(
@@ -101,39 +100,10 @@ def test_state_file_absent_skips_tick(monkeypatch: pytest.MonkeyPatch) -> None:
     unlock.assert_not_awaited()
 
 
-def test_first_active_tick_publishes_edge(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """活跃态边沿：首次观测 active=True 时广播一次（移动端看板回执）。"""
-    published: list[CurtainBridgeState] = []
-    unique = _state(active=True, auto_engaged=True)
-    monkeypatch.setattr(unattended, "read_curtain_state", lambda: unique)
-    monkeypatch.setattr(unattended, "_publish_state_change", published.append)
-    monkeypatch.setattr(unattended, "_cu_session_active", _no_session)
-
-    _drive(monkeypatch)
-
-    assert published == [unique]
-    assert published[0].active is True
-    assert published[0].auto_engaged is True
-
-
-def test_steady_active_state_is_not_rebroadcast(monkeypatch: pytest.MonkeyPatch) -> None:
-    """活跃态未变时不重复广播（避免 SSE 流噪音）。"""
-    published: list[CurtainBridgeState] = []
-    monkeypatch.setattr(unattended, "_last_published_active", True)
-    monkeypatch.setattr(unattended, "read_curtain_state", lambda: _state(active=True))
-    monkeypatch.setattr(unattended, "_publish_state_change", published.append)
-    monkeypatch.setattr(unattended, "_cu_session_active", _no_session)
-
-    _drive(monkeypatch, ticks=2)
-
-    assert published == []
-
-
 def test_inactive_curtain_skips_orchestration(monkeypatch: pytest.MonkeyPatch) -> None:
     """帷幕未拉起：不进入代解锁分支（解锁只为在跑的帷幕任务服务）。"""
     unlock = AsyncMock()
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: _state(active=False))
-    monkeypatch.setattr(unattended, "_publish_state_change", MagicMock())
     monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
 
     _drive(monkeypatch)
@@ -145,7 +115,6 @@ def test_user_unlock_resets_failure_count(monkeypatch: pytest.MonkeyPatch) -> No
     """屏幕已解锁 = 用户在场证明：重置连续失败计数，恢复编排能力。"""
     monkeypatch.setattr(unattended, "_unlock_failures", MAX_UNLOCK_ATTEMPTS)
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: _state())
-    monkeypatch.setattr(unattended, "_publish_state_change", MagicMock())
     _locked(monkeypatch, False)
 
     _drive(monkeypatch)
@@ -159,7 +128,6 @@ def test_failure_limit_pauses_orchestration(monkeypatch: pytest.MonkeyPatch) -> 
     unlock = AsyncMock()
     monkeypatch.setattr(unattended, "_unlock_failures", MAX_UNLOCK_ATTEMPTS)
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: _state())
-    monkeypatch.setattr(unattended, "_publish_state_change", MagicMock())
     _locked(monkeypatch, True)
     monkeypatch.setattr(unattended, "mark_pending_auto_unlock", mark)
     monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
@@ -175,7 +143,6 @@ def test_quiet_period_not_elapsed_skips_unlock(monkeypatch: pytest.MonkeyPatch) 
     mark = MagicMock()
     unlock = AsyncMock()
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: _state(quiet_elapsed=False))
-    monkeypatch.setattr(unattended, "_publish_state_change", MagicMock())
     _locked(monkeypatch, True)
     monkeypatch.setattr(unattended, "mark_pending_auto_unlock", mark)
     monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
@@ -189,7 +156,6 @@ def test_no_active_cu_session_skips_unlock(monkeypatch: pytest.MonkeyPatch) -> N
     """无活跃 CU 会话：解锁只为在跑的任务服务，无任务不解锁。"""
     unlock = AsyncMock()
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: _state())
-    monkeypatch.setattr(unattended, "_publish_state_change", MagicMock())
     _locked(monkeypatch, True)
     monkeypatch.setattr(unattended, "_cu_session_active", _no_session)
     monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
@@ -203,7 +169,6 @@ def test_pending_write_failure_aborts_unlock(monkeypatch: pytest.MonkeyPatch) ->
     """pending 落盘失败：必须放弃解锁（否则 Tauri 按用户解锁收起帷幕裸奔）。"""
     unlock = AsyncMock()
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: _state())
-    monkeypatch.setattr(unattended, "_publish_state_change", MagicMock())
     _locked(monkeypatch, True)
     monkeypatch.setattr(unattended, "_cu_session_active", _has_session)
     monkeypatch.setattr(unattended, "mark_pending_auto_unlock", lambda: False)
@@ -223,7 +188,6 @@ def test_successful_unlock_resets_count_and_audits(monkeypatch: pytest.MonkeyPat
         return True
 
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: _state())
-    monkeypatch.setattr(unattended, "_publish_state_change", MagicMock())
     _locked(monkeypatch, True)
     monkeypatch.setattr(unattended, "_cu_session_active", _has_session)
 
@@ -246,7 +210,6 @@ def test_successful_unlock_resets_count_and_audits(monkeypatch: pytest.MonkeyPat
 def test_failed_unlock_increments_count(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """解锁失败：计数 +1 并记录错误（供上限门控暂停编排）。"""
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: _state())
-    monkeypatch.setattr(unattended, "_publish_state_change", MagicMock())
     _locked(monkeypatch, True)
     monkeypatch.setattr(unattended, "_cu_session_active", _has_session)
     monkeypatch.setattr(unattended, "mark_pending_auto_unlock", lambda: True)

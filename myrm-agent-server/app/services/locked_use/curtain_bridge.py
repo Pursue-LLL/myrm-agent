@@ -123,3 +123,19 @@ def apply_excluded_capture_titles(session: object) -> bool:
             return True
         backend = getattr(backend, "_fallback", None)
     return False
+
+
+def curtain_status_payload() -> dict[str, object]:
+    """帷幕状态的对外载荷（HTTP 响应与移动端 hub 共用的单一映射）。
+
+    非桌面端部署（无状态桥文件）返回 ``available=False``，消费方据此隐藏帷幕 UI。
+    """
+    state = read_curtain_state()
+    if state is None:
+        return {"available": False, "active": False}
+    return {
+        "available": True,
+        "active": state.active,
+        "autoEngaged": state.auto_engaged,
+        "pendingAutoUnlock": state.pending_auto_unlock,
+    }
