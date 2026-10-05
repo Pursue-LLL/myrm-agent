@@ -17,10 +17,10 @@ import { renderHook } from '@testing-library/react';
 import { useCurtainTexts } from '../useCurtainTexts';
 import * as deployMode from '@/lib/deploy-mode';
 
-const invokeMock = vi.fn(() => Promise.resolve());
+const invokeMock = vi.fn((..._args: unknown[]) => Promise.resolve());
 
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => invokeMock(...args),
+  invoke: (cmd: string, args?: Record<string, unknown>) => invokeMock(cmd, args),
 }));
 
 vi.mock('next-intl', () => ({
