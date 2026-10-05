@@ -120,10 +120,20 @@ _TRUST_BADGE_JS = """(() => {
 })()"""
 
 
+_PROGRESS_DOM_READY_JS = """(() => {
+  window.scrollTo(0, document.body.scrollHeight);
+  const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
+  const panel = document.querySelector('[data-testid="progress-steps-panel"]');
+  return { ready: !!(toggle || panel), hasToggle: !!toggle, hasPanel: !!panel };
+})()"""
+
 _EXPAND_PROGRESS_JS = """(() => {
+  window.scrollTo(0, document.body.scrollHeight);
   const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
   if (!toggle) return { ok: false, err: 'no-toggle' };
-  toggle.click();
+  if (toggle.getAttribute('data-expanded') !== 'true') {
+    toggle.click();
+  }
   return { ok: true };
 })()"""
 
@@ -205,6 +215,14 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
             timeout_sec=30.0,
         )
         assert trust_state.get("ready") is True, json.dumps(trust_state, ensure_ascii=False)
+
+        dom_ready = wait_for_state(
+            client,
+            page,
+            _PROGRESS_DOM_READY_JS,
+            timeout_sec=30.0,
+        )
+        assert dom_ready.get("ready") is True, json.dumps(dom_ready, ensure_ascii=False)
 
         expanded = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=15.0)
         assert isinstance(expanded, dict) and expanded.get("ok") is True, expanded

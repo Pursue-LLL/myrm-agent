@@ -18,6 +18,7 @@ if str(_LIB) not in sys.path:
 from dev_gate.contract import MAX_PAGE_TIMEOUT_MS  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
+    _ensure_e2e_private_api_live,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -96,6 +97,35 @@ def _hydrate_subagent_tree(
     return raw if isinstance(raw, dict) else {"value": raw}
 
 
+def _read_state_with_hydrate(
+    client,
+    page,
+    chat_id: str,
+    expr: str,
+    *,
+    fallback_rows: list[dict[str, object]],
+    timeout_sec: float = 60.0,
+    poll_sec: float = 1.0,
+) -> dict[str, object]:
+    """Poll ``expr`` while re-applying fixture rows before each read.
+
+    A live ``subagent_start``/``SUBAGENT_PROGRESS`` event re-hydrates the running
+    node from the real backend, clobbering the deterministic row the test seeded
+    (``token_usage``/``budget``/``effective_model``). Re-hydrating immediately
+    before every read keeps the asserted values stable while the panel renders.
+    """
+    deadline = time.monotonic() + timeout_sec
+    state: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        _hydrate_subagent_tree(client, page, chat_id, fallback_rows=fallback_rows)
+        raw = client.evaluate(page, expr, timeout_sec=10.0)
+        state = raw if isinstance(raw, dict) else {"value": raw}
+        if state.get("ready") is True:
+            break
+        time.sleep(poll_sec)
+    return state
+
+
 def _read_prepare_result(process: subprocess.Popen[str], timeout_sec: float) -> dict[str, object]:
     if process.stdout is None:
         raise RuntimeError("Subagent prepare stdout is unavailable")
@@ -158,33 +188,11 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
             """(() => ({ ready: !!window.__MYRM_E2E_SUBAGENT__?.hydrate && !!window.__MYRM_E2E_CHAT__?.attachToChat }))()""",
             timeout_sec=30.0,
         )
-        attach_result = wait_for_state(
-            client,
-            page,
-            f"""(async () => {{
-              try {{
-                await window.__MYRM_E2E_CHAT__?.attachToChat?.({json.dumps(chat_id)});
-                return {{ ready: true }};
-              }} catch (error) {{
-                return {{ ready: false, err: String(error) }};
-              }}
-            }})()""",
-            timeout_sec=90.0,
-        )
-        assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
-        shell = wait_for_state(
-            client,
-            page,
-            """(() => {
-              const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
-              return {
-                ready: state.isMessagesLoaded === true && state.notFound !== true && state.loadError !== true,
-                state,
-              };
-            })()""",
-            timeout_sec=60.0,
-        )
-        assert shell.get("ready") is True, f"Chat shell not ready: {shell}"
+        # Shared-UI page reuse can race the SHPOIB private-API binding: the UI
+        # then resolves getApiBaseUrl() to the shared :8080 origin and 404s the
+        # private chat. _attach_chat_with_private_api re-asserts the binding and
+        # retries until every request targets the fixture's private backend.
+        _attach_chat_with_private_api(client, page, chat_id)
         trigger_expr = """(() => {
               const button = document.querySelector('[data-testid="subagent-dashboard-trigger"]');
               if (button) return { ready: true };
@@ -236,10 +244,7 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
             }))()""",
             timeout_sec=30.0,
         )
-        row = wait_for_state(
-            client,
-            page,
-            f"""(() => {{
+        row_expr = f"""(() => {{
               const cancel = document.querySelector('[data-testid="subagent-cancel-btn"][data-task-id="{task_id}"]')
                 || document.querySelector('[data-testid="subagent-cancel-btn"]');
               const panelText = document.querySelector('[data-testid="subagent-dashboard-panel"]')?.textContent || '';
@@ -248,9 +253,19 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
                 hasCancel: !!cancel,
                 hasSleepTask: /sleep\\s+300/i.test(panelText),
               }};
-            }})()""",
-            timeout_sec=90.0,
-        )
+            }})()"""
+        row: dict[str, object] = {}
+        deadline = time.monotonic() + 90.0
+        while time.monotonic() < deadline:
+            # A live subagent event can re-hydrate the node from the backend and
+            # briefly drop the running row; re-assert the fixture before reading
+            # so the cancel affordance is evaluated against the seeded task.
+            _hydrate_subagent_tree(client, page, chat_id, fallback_rows=fallback_rows)
+            raw = client.evaluate(page, row_expr, timeout_sec=10.0)
+            row = raw if isinstance(raw, dict) else {"value": raw}
+            if row.get("ready") is True:
+                break
+            time.sleep(1.0)
         assert row.get("hasCancel") is True, f"Cancel button missing: {row}"
         cancelled = client.evaluate(
             page,
@@ -278,6 +293,67 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
         assert verified.get("status") == 404
 
 
+def _attach_chat_with_private_api(
+    client,
+    page,
+    chat_id: str,
+    *,
+    total_budget_sec: float = 200.0,
+) -> None:
+    """Attach the shared UI to a private chat, healing the SHPOIB binding.
+
+    Shared-UI page reuse can race the SHPOIB private-API binding: the UI then
+    resolves ``getApiBaseUrl()`` to the shared :8080 origin and 404s the
+    private chat (``getChatShellState`` -> ``notFound``). A shared-UI reload
+    during attach can also clear the binding mid-flight. Re-assert the binding
+    and retry the whole attach+shell cycle until the chat loads against the
+    fixture's private backend.
+
+    Every wait shares one wall deadline so a stuck shared UI fails fast inside
+    the test's ``pytest.mark.timeout`` instead of accumulating per-call budgets.
+    """
+    attach_expr = f"""(async () => {{
+          try {{
+            await window.__MYRM_E2E_CHAT__?.attachToChat?.({json.dumps(chat_id)});
+            return {{ ready: true }};
+          }} catch (error) {{
+            return {{ ready: false, err: String(error) }};
+          }}
+        }})()"""
+    shell_expr = """(() => {
+          const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
+          return {
+            ready: state.isMessagesLoaded === true && state.notFound !== true && state.loadError !== true,
+            state,
+          };
+        })()"""
+    bridge_expr = """(() => ({ ready: !!window.__MYRM_E2E_CHAT__?.attachToChat }))()"""
+    deadline = time.monotonic() + total_budget_sec
+
+    def _remaining(cap: float) -> float:
+        return min(cap, max(1.0, deadline - time.monotonic()))
+
+    shell: dict[str, object] = {}
+    last_error: AssertionError | None = None
+    for _ in range(3):
+        if time.monotonic() >= deadline:
+            break
+        # A shared-UI reload can clear the binding AND the React bridge, so
+        # re-assert the private API and re-wait for the bridge on every attempt.
+        _ensure_e2e_private_api_live(client, page, timeout_sec=_remaining(45.0))
+        try:
+            wait_for_state(client, page, bridge_expr, timeout_sec=_remaining(30.0))
+            attach_result = wait_for_state(client, page, attach_expr, timeout_sec=_remaining(70.0))
+            assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
+            shell = wait_for_state(client, page, shell_expr, timeout_sec=_remaining(45.0))
+        except AssertionError as error:
+            # Binding/bridge was cleared by a mid-flight reload — re-ensure and retry.
+            last_error = error
+            continue
+        break
+    assert shell.get("ready") is True, f"Chat shell not ready: {shell} ({last_error})"
+
+
 def _open_subagent_dashboard(
     client,
     page,
@@ -291,33 +367,7 @@ def _open_subagent_dashboard(
         """(() => ({ ready: !!window.__MYRM_E2E_SUBAGENT__?.hydrate && !!window.__MYRM_E2E_CHAT__?.attachToChat }))()""",
         timeout_sec=30.0,
     )
-    attach_result = wait_for_state(
-        client,
-        page,
-        f"""(async () => {{
-          try {{
-            await window.__MYRM_E2E_CHAT__?.attachToChat?.({json.dumps(chat_id)});
-            return {{ ready: true }};
-          }} catch (error) {{
-            return {{ ready: false, err: String(error) }};
-          }}
-        }})()""",
-        timeout_sec=90.0,
-    )
-    assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
-    shell = wait_for_state(
-        client,
-        page,
-        """(() => {
-          const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
-          return {
-            ready: state.isMessagesLoaded === true && state.notFound !== true && state.loadError !== true,
-            state,
-          };
-        })()""",
-        timeout_sec=60.0,
-    )
-    assert shell.get("ready") is True, f"Chat shell not ready: {shell}"
+    _attach_chat_with_private_api(client, page, chat_id)
     trigger_expr = """(() => {
           const button = document.querySelector('[data-testid="subagent-dashboard-trigger"]');
           if (button) return { ready: true };
@@ -401,22 +451,31 @@ def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
               const chatId = {json.dumps(chat_id)};
               const apiBase = window.__MYRM_E2E_API_BASE__ || '';
               const statusUrl = `${{apiBase}}/api/v1/chats/${{chatId}}/subagents/delegation/status`;
+              const readPaused = async () => {{
+                const body = await fetch(statusUrl, {{ credentials: 'include' }}).then((r) => r.json());
+                return body?.data?.paused === true;
+              }};
               const toggle = document.querySelector('[data-testid="delegation-pause-toggle"]');
               if (!toggle) return {{ ready: false, reason: 'toggle missing' }};
-              const before = await fetch(statusUrl, {{ credentials: 'include' }}).then((r) => r.json());
+              const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+              // Normalize: a prior run/test may have left delegation paused;
+              // the roundtrip below requires a known un-paused starting point.
+              if (await readPaused()) {{
+                toggle.click();
+                await sleep(1200);
+              }}
+              const before = await readPaused();
               toggle.click();
-              await new Promise((resolve) => setTimeout(resolve, 1200));
-              const paused = await fetch(statusUrl, {{ credentials: 'include' }}).then((r) => r.json());
+              await sleep(1200);
+              const paused = await readPaused();
               toggle.click();
-              await new Promise((resolve) => setTimeout(resolve, 1200));
-              const resumed = await fetch(statusUrl, {{ credentials: 'include' }}).then((r) => r.json());
+              await sleep(1200);
+              const resumed = await readPaused();
               return {{
-                ready: before?.data?.paused === false
-                  && paused?.data?.paused === true
-                  && resumed?.data?.paused === false,
-                before: before?.data?.paused,
-                paused: paused?.data?.paused,
-                resumed: resumed?.data?.paused,
+                ready: before === false && paused === true && resumed === false,
+                before,
+                paused,
+                resumed,
               }};
             }})()""",
             timeout_sec=60.0,
@@ -463,9 +522,10 @@ def test_subagent_dashboard_shows_running_token_and_model(
             chat_id,
             fallback_rows=[enriched_row],
         )
-        display = wait_for_state(
+        display = _read_state_with_hydrate(
             client,
             page,
+            chat_id,
             """(() => {
               const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
               const text = panel?.textContent || '';
@@ -474,7 +534,8 @@ def test_subagent_dashboard_shows_running_token_and_model(
                 text: text.slice(0, 500),
               };
             })()""",
-            timeout_sec=30.0,
+            fallback_rows=[enriched_row],
+            timeout_sec=60.0,
         )
         assert display.get("ready") is True, f"Token/model not rendered: {display}"
 
@@ -520,10 +581,7 @@ def test_subagent_dashboard_shows_token_and_cost_budget_used_limit(
             chat_id,
             fallback_rows=[budget_row],
         )
-        display = wait_for_state(
-            client,
-            page,
-            """(() => {
+        display_expr = """(() => {
               const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
               const text = panel?.textContent || '';
               const tokenTitle = panel?.querySelector('[title*="100,000"]')?.getAttribute('title') || '';
@@ -535,8 +593,14 @@ def test_subagent_dashboard_shows_token_and_cost_budget_used_limit(
                 tokenTitle,
                 costTitle,
               };
-            })()""",
-            timeout_sec=30.0,
+            })()"""
+        display = _read_state_with_hydrate(
+            client,
+            page,
+            chat_id,
+            display_expr,
+            fallback_rows=[budget_row],
+            timeout_sec=60.0,
         )
         assert display.get("ready") is True, f"Budget used/limit not rendered: {display}"
         token_title = str(display.get("tokenTitle") or "")
@@ -557,6 +621,7 @@ def test_subagent_dashboard_shows_token_and_cost_budget_used_limit(
 @pytest.mark.timeout(300)
 def test_subagent_dashboard_canvas_topology_renders_and_locates(
     running_subagent: dict[str, object],
+    e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     """Canvas topology view renders the live subagent graph and click-to-locate works."""
     chat_id = str(running_subagent.get("chatId") or "")
@@ -565,6 +630,11 @@ def test_subagent_dashboard_canvas_topology_renders_and_locates(
     tree_row = running_subagent.get("treeRow")
     fallback_rows: list[dict[str, object]] = [row for row in [tree_row] if isinstance(row, dict)]
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+    _wait_running_subagent_on_api(
+        chat_id,
+        task_id,
+        e2e_resource_ledger=e2e_resource_ledger,
+    )
 
     with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
         _open_subagent_dashboard(
