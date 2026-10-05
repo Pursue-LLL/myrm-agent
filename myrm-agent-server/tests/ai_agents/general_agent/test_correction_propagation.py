@@ -227,7 +227,7 @@ class TestCallbackFactory:
     """Test make_correction_propagation_callback factory."""
 
     def test_returns_callable(self) -> None:
-        from app.ai_agents.general_agent.callbacks import make_correction_propagation_callback
+        from app.ai_agents.general_agent.correction_propagation import make_correction_propagation_callback
 
         async def dummy_llm(system: str, prompt: str) -> str:
             return '{"has_contradiction": false, "signals": []}'
@@ -238,7 +238,7 @@ class TestCallbackFactory:
     @pytest.mark.asyncio
     async def test_callback_handles_no_correction_gracefully(self) -> None:
         """When no correction is detected, callback should return without error."""
-        from app.ai_agents.general_agent.callbacks import make_correction_propagation_callback
+        from app.ai_agents.general_agent.correction_propagation import make_correction_propagation_callback
 
         async def dummy_llm(system: str, prompt: str) -> str:
             return '{"has_contradiction": false, "signals": []}'
@@ -253,7 +253,7 @@ class TestCallbackFactory:
     @pytest.mark.asyncio
     async def test_callback_handles_exception_gracefully(self) -> None:
         """Callback should catch exceptions and not propagate them."""
-        from app.ai_agents.general_agent.callbacks import make_correction_propagation_callback
+        from app.ai_agents.general_agent.correction_propagation import make_correction_propagation_callback
 
         async def failing_llm(system: str, prompt: str) -> str:
             raise RuntimeError("LLM failure")
@@ -273,7 +273,7 @@ class TestRunCorrectionPropagation:
 
     @pytest.mark.asyncio
     async def test_short_messages_returns_early(self) -> None:
-        from app.ai_agents.general_agent.callbacks import _run_correction_propagation
+        from app.ai_agents.general_agent.correction_propagation import _run_correction_propagation
 
         async def dummy_llm(system: str, prompt: str) -> str:
             raise AssertionError("LLM should not be called for short messages")
@@ -287,7 +287,7 @@ class TestRunCorrectionPropagation:
 
     @pytest.mark.asyncio
     async def test_no_negative_feedback_returns_early(self, no_correction_messages: list[dict[str, str]]) -> None:
-        from app.ai_agents.general_agent.callbacks import _run_correction_propagation
+        from app.ai_agents.general_agent.correction_propagation import _run_correction_propagation
 
         async def dummy_llm(system: str, prompt: str) -> str:
             return '{"has_contradiction": false, "signals": []}'
@@ -311,7 +311,7 @@ class TestPersonalMemoryRouting:
         )
         from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction
 
-        from app.ai_agents.general_agent.callbacks import _route_proposals_to_personal_memory
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
 
         manager = _RecordingMemoryManager()
         proposal = CorrectionProposal(
@@ -342,7 +342,7 @@ class TestPersonalMemoryRouting:
         )
         from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction
 
-        from app.ai_agents.general_agent.callbacks import _route_proposals_to_personal_memory
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
 
         manager = _RecordingMemoryManager()
         proposal = CorrectionProposal(
@@ -374,7 +374,7 @@ class TestPersonalMemoryRouting:
             CorrectionProposal,
         )
 
-        from app.ai_agents.general_agent.callbacks import _route_proposals_to_personal_memory
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
 
         manager = _RecordingMemoryManager()
         proposal = CorrectionProposal(
@@ -404,7 +404,7 @@ class TestPersonalMemoryRouting:
         )
         from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction
 
-        from app.ai_agents.general_agent.callbacks import _route_proposals_to_personal_memory
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
 
         manager = _RecordingMemoryManager()
         proposal = CorrectionProposal(
@@ -435,7 +435,7 @@ class TestPersonalMemoryRouting:
             CorrectionProposal,
         )
 
-        from app.ai_agents.general_agent.callbacks import _route_proposals_to_personal_memory
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
 
         manager = _RecordingMemoryManager()
         proposal = CorrectionProposal(
@@ -465,7 +465,7 @@ class TestPersonalMemoryRouting:
         )
         from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction
 
-        from app.ai_agents.general_agent.callbacks import _route_proposals_to_personal_memory
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
 
         manager = _RecordingMemoryManager()
         proposal = CorrectionProposal(
@@ -497,7 +497,7 @@ class TestPersonalMemoryRouting:
             CorrectionProposal,
         )
 
-        from app.ai_agents.general_agent.callbacks import _route_proposals_to_personal_memory
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
 
         class _FlakyManager:
             def __init__(self) -> None:
@@ -540,7 +540,7 @@ class TestPersonalMemoryRouting:
     async def test_recall_candidate_memories_gives_planner_targets(self) -> None:
         from myrm_agent_harness.toolkits.memory.types import MemorySearchResult, MemoryType, SemanticMemory
 
-        from app.ai_agents.general_agent.callbacks import _recall_candidate_memories
+        from app.ai_agents.general_agent.correction_propagation import _recall_candidate_memories
 
         memory = SemanticMemory(id="mem-1", content="User works at ByteDance")
 
@@ -558,7 +558,7 @@ class TestPersonalMemoryRouting:
 
     @pytest.mark.asyncio
     async def test_recall_returns_empty_without_manager(self) -> None:
-        from app.ai_agents.general_agent.callbacks import _recall_candidate_memories
+        from app.ai_agents.general_agent.correction_propagation import _recall_candidate_memories
 
         recalled = await _recall_candidate_memories(
             [{"role": "user", "content": "hello"}],
@@ -591,7 +591,7 @@ class TestDefaultPolicy:
 
 class TestCorrectionSourceId:
     def test_build_correction_proposal_source_id_is_stable(self) -> None:
-        from app.ai_agents.general_agent.callbacks import build_correction_proposal_source_id
+        from app.ai_agents.general_agent.correction_propagation import build_correction_proposal_source_id
 
         first = build_correction_proposal_source_id("chat-1", "API version is v3")
         second = build_correction_proposal_source_id("chat-1", "API version is v3")
@@ -599,7 +599,7 @@ class TestCorrectionSourceId:
         assert first.startswith("chat-1:")
 
     def test_build_correction_proposal_source_id_varies_by_summary(self) -> None:
-        from app.ai_agents.general_agent.callbacks import build_correction_proposal_source_id
+        from app.ai_agents.general_agent.correction_propagation import build_correction_proposal_source_id
 
         first = build_correction_proposal_source_id("chat-1", "Use gRPC")
         second = build_correction_proposal_source_id("chat-1", "Use REST")

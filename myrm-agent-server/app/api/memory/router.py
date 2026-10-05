@@ -18,6 +18,7 @@ from app.api.memory.operations import (
     command_center,
     command_center_consolidation,
     command_center_diagnostics,
+    conflicts,
     crud,
     domain_mesh,
     external_transcripts,
@@ -45,6 +46,7 @@ router.include_router(command_center.router, tags=["memory-command-center"])
 router.include_router(command_center_consolidation.router, tags=["memory-command-center"])
 router.include_router(command_center_diagnostics.router, tags=["memory-command-center"])
 router.include_router(pending.router, tags=["memory-pending"])
+router.include_router(conflicts.router, tags=["memory-conflicts"])
 router.include_router(shared_context_health.router, tags=["memory-shared-contexts"])
 router.include_router(shared_contexts.router, tags=["memory-shared-contexts"])
 router.include_router(shared_context_history.router, tags=["memory-shared-contexts"])

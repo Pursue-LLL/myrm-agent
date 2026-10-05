@@ -101,7 +101,7 @@ class TestGetConflicts:
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.get("/api/v1/memory/conflicts", headers=auth_headers)
 
         assert resp.status_code == 200
@@ -130,7 +130,7 @@ class TestGetConflicts:
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.get("/api/v1/memory/conflicts", headers=auth_headers)
 
         assert resp.status_code == 200
@@ -167,7 +167,7 @@ class TestResolveConflict:
         conflict = _make_conflict_record()
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -193,7 +193,7 @@ class TestResolveConflict:
         conflict = _make_conflict_record()
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -213,7 +213,7 @@ class TestResolveConflict:
         conflict = _make_conflict_record()
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -233,7 +233,7 @@ class TestResolveConflict:
         conflict = _make_conflict_record(old_memory_id="")
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -253,7 +253,7 @@ class TestResolveConflict:
         conflict = _make_conflict_record()
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -274,7 +274,7 @@ class TestResolveConflict:
         conflict = _make_conflict_record()
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -292,7 +292,7 @@ class TestResolveConflict:
         conflict = _make_conflict_record()
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -313,7 +313,7 @@ class TestResolveConflict:
         conflict = _make_conflict_record()
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -337,7 +337,7 @@ class TestResolveConflict:
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/nonexistent/resolve",
                 headers=auth_headers,
@@ -354,7 +354,7 @@ class TestResolveConflict:
         conflict = _make_conflict_record(status="resolved")
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -374,7 +374,7 @@ class TestResolveConflict:
         conflict.conflict_old_memory_id = None
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -395,7 +395,7 @@ class TestResolveConflict:
         conflict.conflict_old_memory_id = None
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -414,7 +414,7 @@ class TestResolveConflict:
         conflict = _make_conflict_record()
         _, mock_session_ctx = self._setup_resolve_mocks(conflict)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.post(
                 "/api/v1/memory/conflicts/conflict-1/resolve",
                 headers=auth_headers,
@@ -446,7 +446,7 @@ class TestResolveConflict:
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.get("/api/v1/memory/conflicts", headers=auth_headers)
 
         assert resp.status_code == 200
@@ -481,7 +481,7 @@ class TestResolveConflict:
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.get("/api/v1/memory/conflicts", headers=auth_headers)
 
         assert resp.status_code == 200
@@ -516,7 +516,7 @@ class TestResolveConflict:
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+        with patch("app.api.memory.operations.conflicts.get_session", return_value=mock_session_ctx):
             resp = client.get("/api/v1/memory/conflicts", headers=auth_headers)
 
         assert resp.status_code == 200

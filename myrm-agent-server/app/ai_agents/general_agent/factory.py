@@ -1089,10 +1089,8 @@ def _build_session_cleanup_callback(
         run_session_post_process,
     )
 
-    from .callbacks import (
-        make_commitment_extraction_callback,
-        make_correction_propagation_callback,
-    )
+    from .callbacks import make_commitment_extraction_callback
+    from .correction_propagation import make_correction_propagation_callback
     from .frustration_routing import make_frustration_skill_routing_callback
 
     llm_func = create_extraction_llm_func(lite_llm)

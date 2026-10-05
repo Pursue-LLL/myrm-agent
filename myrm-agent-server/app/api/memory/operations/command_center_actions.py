@@ -92,7 +92,7 @@ async def run_conflict_action(body: MemoryCommandActionRequest, db: AsyncSession
     Delegates to the same resolver the REST endpoint uses so the command center
     and the conflict API can never drift apart.
     """
-    from app.api.memory.operations.pending import resolve_conflict
+    from app.api.memory.operations.conflicts import resolve_conflict
     from app.schemas.memory.crud import ResolveConflictRequest
 
     conflict_id = body.target_id.replace("conflict:", "")

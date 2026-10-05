@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | Memory operations submodule。聚合门面 re-export 全部 9 个顶层模块（archive_restore/backup/backup_remote/command_center/crud/guardian/pending/reindex/working_state）+ 4 个 `shared_context_*` 子模块，供 memory router 单一入口导入 | ✅ |
+| `__init__.py` | 入口 | Memory operations submodule。聚合门面 re-export 全部顶层模块（archive_restore/backup/backup_remote/command_center/conflicts/crud/guardian/pending/reindex/working_state）+ 4 个 `shared_context_*` 子模块，供 memory router 单一入口导入 | ✅ |
 | `archive_restore.py` | 模块 | 记忆归档恢复 API 操作层。只编排请求/响应和错误映射，恢复语义由服务层负责。 | ✅ |
 | `backup.py` | 模块 | Memory backup and restore endpoints. | ✅ |
 | `backup_remote.py` | 模块 | Remote backup API endpoints. | ✅ |
@@ -19,7 +19,8 @@
 | `crud.py` | 模块 | Memory CRUD HTTP routes — thin transport layer. | ✅ |
 | `external_transcripts.py` | 模块 | 外部 Agent 转录记忆召回 API。支持本地目录扫描增量建索与云端批量文件增量同步 | ✅ |
 | `guardian.py` | 模块 | 记忆守护者 API。暴露健康分与调度状态；手动维护触发支持 `safe/force` 契约；提供守护策略（频率档位 + quiet window）读写与晨间摘要查询（按最新完成维护窗口聚合）；健康/摘要读路径支持首访浏览器时区初始化，并在缺少客户端时区头时使用服务端本地时区兜底初始化（后续客户端头可自动纠偏）；`/health` 返回守卫不可用告警聚合；`/overview` 返回 health/policy/alerts + digest 单契约；告警聚合采用按 frequency tier 自适应的最小事件阈值与 escalation 阈值策略（reason count + ratio）。 | ✅ |
-| `pending.py` | 模块 | 待处理记忆与冲突 API 操作层。提供待处理记忆的审批流管理、结构化元数据（置信度/类别/有效期/依据）投影与冲突裁决。 | ✅ |
+| `pending.py` | 模块 | 待处理记忆 API 操作层。提供待处理记忆的审批流管理（列表/审批/拒绝/批量）与结构化元数据（置信度/类别/有效期/依据）投影。 | ✅ |
+| `conflicts.py` | 模块 | 待裁决记忆冲突 API 操作层。列出并裁决 `pending_memories.is_conflict` 记录，复用 Harness 记忆变更（`update_memory` / `add_knowledge`）保持新旧事实生命周期一致。 | ✅ |
 | `shared_context/`（子包） | 模块 | 共享上下文 API 子域：CRUD、健康检查、历史证据、遗留迁移 + 序列化辅助。5 个 `shared_context_*` 模块聚合于此，`shared_context/__init__.py` 为聚合门面统一 re-export | ✅ |
 | `reindex.py` | 模块 | Memory reindex API — orphan detection, estimation, and execution for embedding model migration. | ✅ |
 | `radar.py` | 模块 | 动态偏好雷达 API。暴露当前会话雷达状态、手动微调与隐式反馈记录 HTTP 接口。 | ✅ |
