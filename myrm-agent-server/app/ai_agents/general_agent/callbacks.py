@@ -294,9 +294,13 @@ async def _recall_candidate_memories(
     """Recall memories related to the latest user turns, keyed by id → content.
 
     Gives the correction planner concrete targets (with stable ids) so UPDATE and
-    DELETE proposals can name the memory they supersede. Best-effort: a recall
-    failure never blocks correction propagation.
+    DELETE proposals can name the memory they supersede. Restricted to semantic
+    memories because correction/removal only apply to factual knowledge — a
+    planner should never be handed an id it cannot safely correct. Best-effort:
+    a recall failure never blocks correction propagation.
     """
+    from myrm_agent_harness.toolkits.memory import MemoryType
+
     if memory_manager is None:
         return {}
 
@@ -308,7 +312,12 @@ async def _recall_candidate_memories(
 
     recalled: dict[str, str] = {}
     try:
-        results = await memory_manager.search(recent_user_text, limit=limit, track_access=False)
+        results = await memory_manager.search(
+            recent_user_text,
+            memory_types=[MemoryType.SEMANTIC],
+            limit=limit,
+            track_access=False,
+        )
     except Exception:
         logger.warning("Memory recall for correction planner failed", exc_info=True)
         return {}
