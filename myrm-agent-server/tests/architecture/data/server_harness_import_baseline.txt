@@ -247,6 +247,7 @@ myrm_agent_harness.core.security.action_grants
 myrm_agent_harness.core.security.admin_auth_surface
 myrm_agent_harness.core.security.agent_lifecycle_certificate
 myrm_agent_harness.core.security.air_gapped
+myrm_agent_harness.core.security.air_gapped_sovereignty
 myrm_agent_harness.core.security.approval_metrics
 myrm_agent_harness.core.security.asr_privacy_tradeoff
 myrm_agent_harness.core.security.audit_coverage
@@ -292,6 +293,7 @@ myrm_agent_harness.core.security.dual_track_sandbox_guard.policy_compiler
 myrm_agent_harness.core.security.dual_track_sandbox_guard.types
 myrm_agent_harness.core.security.dual_use_containment
 myrm_agent_harness.core.security.egress_dlp
+myrm_agent_harness.core.security.event_capability_attenuation
 myrm_agent_harness.core.security.executable_probe
 myrm_agent_harness.core.security.externally_visible_action
 myrm_agent_harness.core.security.financial_boundary
@@ -558,6 +560,7 @@ myrm_agent_harness.toolkits.mcp.lifecycle
 myrm_agent_harness.toolkits.mcp.oauth
 myrm_agent_harness.toolkits.mcp.security
 myrm_agent_harness.toolkits.memory
+myrm_agent_harness.toolkits.memory.agent_surface.mcp
 myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
 myrm_agent_harness.toolkits.memory.auto_recall
 myrm_agent_harness.toolkits.memory.backup

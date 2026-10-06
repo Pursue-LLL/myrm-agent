@@ -29,6 +29,9 @@ from app.api.memory.graph_rrf_router import router as graph_rrf_router
 from app.api.memory.hindsight_reflection_router import (
     router as hindsight_reflection_router,
 )
+from app.api.memory.mcp_router import (
+    router as memory_mcp_router,
+)
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
@@ -105,6 +108,7 @@ router.include_router(auto_recall_router, tags=["memory-auto-recall"])
 router.include_router(wiki_memory_router, tags=["memory-wiki"])
 router.include_router(zero_llm_memory_router, tags=["memory-zero-llm"])
 router.include_router(memory_privacy_router, tags=["memory-privacy"])
+router.include_router(memory_mcp_router, tags=["memory-mcp-interop"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
