@@ -603,6 +603,7 @@ myrm_agent_harness.toolkits.memory.memory_search_policy
 myrm_agent_harness.toolkits.memory.metrics
 myrm_agent_harness.toolkits.memory.openclaw_adapter
 myrm_agent_harness.toolkits.memory.override_stack
+myrm_agent_harness.toolkits.memory.persona_router
 myrm_agent_harness.toolkits.memory.privacy_gate
 myrm_agent_harness.toolkits.memory.proactive
 myrm_agent_harness.toolkits.memory.proactive.types

@@ -84,6 +84,9 @@ from app.api.memory.operations.shared_context import (
 from app.api.memory.override_stack_router import (
     router as memory_override_stack_router,
 )
+from app.api.memory.persona_router import (
+    router as memory_persona_router,
+)
 from app.api.memory.privacy_router import (
     router as memory_privacy_router,
 )
@@ -149,6 +152,7 @@ router.include_router(memory_self_verification_router, tags=["memory-self-verifi
 router.include_router(memory_crystallization_router, tags=["memory-crystallization"])
 router.include_router(memory_intent_reflection_router, tags=["memory-intent-reflection"])
 router.include_router(memory_override_stack_router, tags=["memory-override-stack"])
+router.include_router(memory_persona_router, tags=["memory-persona-router"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
