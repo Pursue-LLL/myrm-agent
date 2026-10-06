@@ -15,6 +15,9 @@ from app.api.memory.codegraph_router import router as codegraph_router
 from app.api.memory.decay_lifecycle_router import (
     router as decay_lifecycle_router,
 )
+from app.api.memory.experience_gene_router import (
+    router as experience_gene_router,
+)
 from app.api.memory.follow_ups import router as follow_ups_router
 from app.api.memory.four_layer_promotion_router import (
     router as four_layer_promotion_router,
@@ -85,6 +88,7 @@ router.include_router(decay_lifecycle_router, tags=["memory-decay-lifecycle"])
 router.include_router(graph_rrf_router, tags=["memory-graph-rrf"])
 router.include_router(hindsight_reflection_router, tags=["memory-hindsight-reflection"])
 router.include_router(code_memory_compaction_router, tags=["memory-code-compaction"])
+router.include_router(experience_gene_router, tags=["memory-experience-genes"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])

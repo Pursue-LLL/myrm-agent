@@ -294,6 +294,7 @@ myrm_agent_harness.core.security.gate_guard_sanitizer
 myrm_agent_harness.core.security.git_leak_shield
 myrm_agent_harness.core.security.governance_assembly
 myrm_agent_harness.core.security.guards.ssrf
+myrm_agent_harness.core.security.headless_interactive_approval
 myrm_agent_harness.core.security.hitl_denial
 myrm_agent_harness.core.security.hitl_denial_events
 myrm_agent_harness.core.security.hitl_fail_closed.pipeline
@@ -552,6 +553,7 @@ myrm_agent_harness.toolkits.memory.compaction
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conversation_search.types
 myrm_agent_harness.toolkits.memory.decay
+myrm_agent_harness.toolkits.memory.evolution
 myrm_agent_harness.toolkits.memory.graph
 myrm_agent_harness.toolkits.memory.graph.age_store
 myrm_agent_harness.toolkits.memory.graph.base
