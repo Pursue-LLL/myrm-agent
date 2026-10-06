@@ -250,6 +250,8 @@ myrm_agent_harness.core.security.causal_deception
 myrm_agent_harness.core.security.change_guard
 myrm_agent_harness.core.security.commerce_dispute_escrow
 myrm_agent_harness.core.security.companion_relationship_guard
+myrm_agent_harness.core.security.compound_shell_risk
+myrm_agent_harness.core.security.connector_guard
 myrm_agent_harness.core.security.credential_shield
 myrm_agent_harness.core.security.credential_vault
 myrm_agent_harness.core.security.data_plane_defense
@@ -320,6 +322,7 @@ myrm_agent_harness.core.security.webhook_guard
 myrm_agent_harness.core.security.workspace_boundary
 myrm_agent_harness.core.security.workspace_path_rbac
 myrm_agent_harness.core.security.workspace_scoper
+myrm_agent_harness.core.security.zero_credential_proxy
 myrm_agent_harness.core.security.zero_egress_provenance
 myrm_agent_harness.eval
 myrm_agent_harness.eval.builder
