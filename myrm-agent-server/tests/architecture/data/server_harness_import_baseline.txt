@@ -356,6 +356,7 @@ myrm_agent_harness.core.security.streaming_gate
 myrm_agent_harness.core.security.structured_scan_errors.emitter
 myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.core.security.tool_registry.registry
+myrm_agent_harness.core.security.tool_result_seam_screening
 myrm_agent_harness.core.security.tracing_redaction
 myrm_agent_harness.core.security.tri_flow_isolation
 myrm_agent_harness.core.security.tripartite_ledger
@@ -548,6 +549,7 @@ myrm_agent_harness.toolkits.mcp.oauth
 myrm_agent_harness.toolkits.mcp.security
 myrm_agent_harness.toolkits.memory
 myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
+myrm_agent_harness.toolkits.memory.auto_recall
 myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.codegraph
 myrm_agent_harness.toolkits.memory.compaction

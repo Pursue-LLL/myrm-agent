@@ -8,6 +8,9 @@ import logging
 from fastapi import APIRouter
 
 from app.api.memory import dream_diary
+from app.api.memory.auto_recall_router import (
+    router as auto_recall_router,
+)
 from app.api.memory.code_memory_compaction_router import (
     router as code_memory_compaction_router,
 )
@@ -89,6 +92,7 @@ router.include_router(graph_rrf_router, tags=["memory-graph-rrf"])
 router.include_router(hindsight_reflection_router, tags=["memory-hindsight-reflection"])
 router.include_router(code_memory_compaction_router, tags=["memory-code-compaction"])
 router.include_router(experience_gene_router, tags=["memory-experience-genes"])
+router.include_router(auto_recall_router, tags=["memory-auto-recall"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
