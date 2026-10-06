@@ -7,7 +7,7 @@
 [OUTPUT]
 - 环境开关解析、状态读取降级、pending 写入边界与原子替换、排除 title 穿透 CuaDriver
   `_fallback` 链注入、状态载荷映射、CU 会话活跃判定
-- 壳存活判定（缺失/非法 PID fail-closed、僵尸/退出/无权限按失联）与其折入有效帷幕态
+- 壳存活判定（缺失/非法 PID fail-closed、僵尸/退出/无权限/PID 被晚于本进程的进程复用按失联）与其折入有效帷幕态
   （壳失联时 active=False 而租约位原样保留，载荷如实）
 
 [POS]
@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -255,10 +257,39 @@ def test_shell_alive_treats_a_zombie_as_dead(monkeypatch: pytest.MonkeyPatch) ->
     assert shell_alive() is False
 
 
+def test_shell_alive_false_when_the_pid_was_reused_by_a_newer_process(monkeypatch: pytest.MonkeyPatch) -> None:
+    """壳的 PID 被无关进程复用：它必晚于本进程创建，不能冒充壳而让已消失的帷幕继续授权代解锁。"""
+    reuser = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        monkeypatch.setenv(SHELL_PID_ENV, str(reuser.pid))
+        assert shell_alive() is False
+    finally:
+        reuser.kill()
+        reuser.wait()
+
+
+@pytest.mark.parametrize(
+    ("shell_created_at", "expected"),
+    [(100.0, True), (200.0, True), (200.001, False)],
+    ids=["shell-started-first", "same-clock-tick", "started-after-the-server"],
+)
+def test_shell_alive_orders_the_shell_before_the_server(
+    monkeypatch: pytest.MonkeyPatch, shell_created_at: float, expected: bool
+) -> None:
+    """真壳不晚于它拉起的 server；同一时钟粒度内的同刻进程仍按真壳处理（不误判存活的壳为失联）。"""
+    shell = MagicMock()
+    shell.status.return_value = psutil.STATUS_SLEEPING
+    shell.create_time.return_value = shell_created_at
+    server = MagicMock()
+    server.create_time.return_value = 200.0
+    monkeypatch.setattr(psutil, "Process", lambda pid=None: server if pid is None else shell)
+
+    assert shell_alive() is expected
+
+
 @pytest.mark.parametrize("error", [psutil.NoSuchProcess(1), psutil.AccessDenied(1)])
 def test_shell_alive_false_when_the_process_cannot_be_inspected(monkeypatch: pytest.MonkeyPatch, error: psutil.Error) -> None:
     """检查途中进程消失或无权限读取：按失联处理，绝不抛出打断 watcher。"""
-    monkeypatch.setattr(psutil, "pid_exists", lambda _pid: True)
     monkeypatch.setattr(psutil, "Process", MagicMock(side_effect=error))
     assert shell_alive() is False
 

@@ -11,7 +11,7 @@ Computer Use 会话的屏幕解锁编排：在 macOS 上用 harness 原生探针
 | `__init__.py` | 入口 | 包导出 | — |
 | `service.py` | 核心 | `MacScreenUnlocker`（`is_locked` 原生探针 / `user_present` 在场探针：硬件输入空闲不足 `PRESENCE_IDLE_THRESHOLD_SECONDS`（15 s）或探测未知即视为人在机前 / `get_password` 经 `security -g` 带标记输出逐字节还原密码 / `unlock` 持锁串行且持锁后复探锁态与在场 / `relock_verified` 回锁校验 / `ensure_locked`）、`release_unlock_lease`（确认已锁才清租约位）与 `locked_use_session`：display keep-awake + 租约式临时解锁与交还（人在机前时不取租约、不解锁） | ✅ |
 | `unattended.py` | 核心 | 无人值守 watcher（5s tick）：六条件齐备时获取代解锁租约并保持（机前有人则整 tick 跳过——不置租约位、不计失败、不键入）；CU 会话结束时校验回锁后交还（失败按 60s 冷却重试）；帷幕被撤或屏幕被外部锁定即作废租约；启动时接管上一进程遗留的租约位（含壳已失联的遗留）；壳失联时持租约不等会话结束立即校验回锁（失败同样冷却重试）、未持租约不再代解锁；`stop_unattended_curtain_watcher` 供 lifespan 关闭期最先停 watcher 并回锁交还 | ✅ |
-| `curtain_bridge.py` | 核心 | 帷幕状态桥：`curtain_state.json` 读写（server 只写租约位，电平语义，整文件原子替换）、`curtain_status_payload` 对外载荷、截图排除 titles 穿透 CuaDriver fallback 链注入；`shell_alive`（`MYRM_SHELL_PID` 存在且非僵尸，缺失/非法 fail-closed）折入有效帷幕态 `active`（文件 active ∧ 壳存活），代解锁授权 / 目标评估截图授权 / 手机端「屏幕已保护」徽标三个消费方读到的都是真实遮蔽状态 | ✅ |
+| `curtain_bridge.py` | 核心 | 帷幕状态桥：`curtain_state.json` 读写（server 只写租约位，电平语义，整文件原子替换）、`curtain_status_payload` 对外载荷、截图排除 titles 穿透 CuaDriver fallback 链注入；`shell_alive`（`MYRM_SHELL_PID` 指向的进程存在、非僵尸且不晚于本进程创建——PID 被无关新进程复用即判失联；缺失/非法 fail-closed）折入有效帷幕态 `active`（文件 active ∧ 壳存活），代解锁授权 / 目标评估截图授权 / 手机端「屏幕已保护」徽标三个消费方读到的都是真实遮蔽状态 | ✅ |
 
 ## 依赖
 

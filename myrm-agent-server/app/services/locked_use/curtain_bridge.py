@@ -89,19 +89,26 @@ def curtain_state_path() -> Path | None:
 
 
 def shell_alive() -> bool:
-    """桌面壳进程是否仍存活（存在且非僵尸）。
+    """桌面壳进程是否仍存活（存在、非僵尸、且仍是拉起本 server 的那个壳）。
 
     壳消失后状态文件里的 active 只是它的遗言。PID 未注入或非法一律按失联处理
     （fail-closed）：状态桥存在而壳身份不明时，宁可不代解锁。
+
+    壳先于它拉起的 server 启动，所以壳的 PID 一旦被无关进程复用，复用者必晚于本进程
+    创建——以创建时间先后识别复用，无需记录基线；只在同一时钟粒度内才会把同刻进程当作壳。
     """
     raw = os.environ.get(SHELL_PID_ENV, "").strip()
     if not raw.isdecimal() or int(raw) <= 0:
         return False
-    pid = int(raw)
     try:
-        return bool(psutil.pid_exists(pid) and psutil.Process(pid).status() != psutil.STATUS_ZOMBIE)
+        shell = psutil.Process(int(raw))
+        if shell.status() == psutil.STATUS_ZOMBIE:
+            return False
+        shell_created_at: float = shell.create_time()
+        server_created_at: float = psutil.Process().create_time()
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         return False
+    return shell_created_at <= server_created_at
 
 
 def read_curtain_state() -> CurtainBridgeState | None:
