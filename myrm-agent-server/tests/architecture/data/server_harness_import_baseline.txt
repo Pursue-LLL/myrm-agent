@@ -296,10 +296,12 @@ myrm_agent_harness.core.security.on_demand_masking
 myrm_agent_harness.core.security.path
 myrm_agent_harness.core.security.pii_vault
 myrm_agent_harness.core.security.policy_snapshot
+myrm_agent_harness.core.security.pre_flight_budget
 myrm_agent_harness.core.security.pre_tool_use_interceptor
 myrm_agent_harness.core.security.provenance_gate
 myrm_agent_harness.core.security.risk_evaluator
 myrm_agent_harness.core.security.saga_dual_engine
+myrm_agent_harness.core.security.sandbox_hardening
 myrm_agent_harness.core.security.sandbox_log_continuation
 myrm_agent_harness.core.security.secops_audit
 myrm_agent_harness.core.security.secret_broker

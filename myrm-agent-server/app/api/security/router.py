@@ -13,6 +13,162 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 
+from app.api.security.admin_auth_surface_router import (
+    router as admin_auth_surface_router,
+)
+from app.api.security.air_gapped_router import router as air_gapped_router
+from app.api.security.approval_metrics_router import (
+    router as approval_metrics_router,
+)
+from app.api.security.asr_privacy_tradeoff_router import (
+    router as asr_privacy_tradeoff_router,
+)
+from app.api.security.attestation_router import router as attestation_router
+from app.api.security.audit_coverage_router import (
+    router as audit_coverage_router,
+)
+from app.api.security.causal_deception_router import (
+    router as causal_deception_router,
+)
+from app.api.security.change_guard_router import (
+    router as change_guard_router,
+)
+from app.api.security.client_secret_router import router as client_secret_router
+from app.api.security.commerce_dispute_escrow_router import (
+    router as commerce_dispute_escrow_router,
+)
+from app.api.security.companion_relationship_guard_router import (
+    router as companion_relationship_guard_router,
+)
+from app.api.security.credential_shield_router import (
+    router as credential_shield_router,
+)
+from app.api.security.data_plane_defense_router import (
+    router as data_plane_defense_router,
+)
+from app.api.security.desktop_enclave_router import router as desktop_enclave_router
+from app.api.security.desktop_micro_isolation_router import (
+    router as desktop_micro_isolation_router,
+)
+from app.api.security.desktop_oauth_device_router import (
+    router as desktop_oauth_device_router,
+)
+from app.api.security.dir_trust_gate_router import (
+    router as dir_trust_gate_router,
+)
+from app.api.security.directory_trust_gate_router import (
+    router as directory_trust_gate_router,
+)
+from app.api.security.directory_trust_remote_memory_router import (
+    router as directory_trust_remote_memory_router,
+)
+from app.api.security.docker_sandbox_hardening_router import (
+    router as docker_sandbox_hardening_router,
+)
+from app.api.security.dual_tier_isolation_router import (
+    router as dual_tier_isolation_router,
+)
+from app.api.security.dual_track_sandbox_guard_router import (
+    router as dual_track_sandbox_guard_router,
+)
+from app.api.security.egress_dlp_router import router as egress_dlp_router
+from app.api.security.executable_probe_router import (
+    router as executable_probe_router,
+)
+from app.api.security.financial_boundary_router import (
+    router as financial_boundary_router,
+)
+from app.api.security.gate_guard_sanitizer_router import (
+    router as gate_guard_sanitizer_router,
+)
+from app.api.security.git_leak_shield_router import router as git_leak_shield_router
+from app.api.security.governance_assembly_router import (
+    router as governance_assembly_router,
+)
+from app.api.security.hitl_denial_events_router import (
+    router as hitl_denial_events_router,
+)
+from app.api.security.hitl_denial_router import (
+    router as hitl_denial_router,
+)
+from app.api.security.hitl_fail_closed_router import (
+    router as hitl_fail_closed_router,
+)
+from app.api.security.inbound_quarantine_router import (
+    router as inbound_quarantine_router,
+)
+from app.api.security.inherited_identity_guard_router import (
+    router as inherited_identity_guard_router,
+)
+from app.api.security.integration_trust_router import (
+    router as integration_trust_router,
+)
+from app.api.security.ipc_router import router as ipc_router
+from app.api.security.license_compliance_router import (
+    router as license_compliance_router,
+)
+from app.api.security.llm_egress_guard_router import (
+    router as llm_egress_guard_router,
+)
+from app.api.security.marketplace_contract_router import (
+    router as marketplace_contract_router,
+)
+from app.api.security.native_credential_approval_router import (
+    router as native_credential_approval_router,
+)
+from app.api.security.on_demand_masking_router import (
+    router as on_demand_masking_router,
+)
+from app.api.security.pii_vault_router import router as pii_vault_router
+from app.api.security.policy_snapshot_router import router as policy_snapshot_router
+from app.api.security.pre_flight_budget_router import (
+    router as pre_flight_budget_router,
+)
+from app.api.security.pre_tool_use_interceptor_router import (
+    router as pre_tool_use_interceptor_router,
+)
+from app.api.security.provenance_staging_router import (
+    router as provenance_staging_router,
+)
+from app.api.security.risk_evaluator_router import router as risk_evaluator_router
+from app.api.security.saga_dual_engine_router import router as saga_dual_engine_router
+from app.api.security.sandbox_log_continuation_router import (
+    router as sandbox_log_continuation_router,
+)
+from app.api.security.secops_audit_router import router as secops_audit_router
+from app.api.security.secret_broker_router import router as secret_broker_router
+from app.api.security.semantic_rbac_router import router as semantic_rbac_router
+from app.api.security.skill_governance_router import router as skill_governance_router
+from app.api.security.slack_rotating_token_router import (
+    router as slack_rotating_token_router,
+)
+from app.api.security.sso_redirect_idempotent_router import (
+    router as sso_redirect_idempotent_router,
+)
+from app.api.security.sso_redirect_router import (
+    router as sso_redirect_router,
+)
+from app.api.security.streaming_gate_router import (
+    router as streaming_gate_router,
+)
+from app.api.security.structured_scan_errors_router import (
+    router as structured_scan_errors_router,
+)
+from app.api.security.tracing_redaction_router import (
+    router as tracing_redaction_router,
+)
+from app.api.security.tripartite_ledger_router import router as tripartite_ledger_router
+from app.api.security.webhook_guard_router import router as webhook_guard_router
+from app.api.security.workspace_boundary_router import (
+    router as workspace_boundary_router,
+)
+from app.api.security.workspace_path_rbac_router import (
+    router as workspace_path_rbac_router,
+)
+from app.api.security.workspace_scoper_router import router as workspace_scoper_router
+from app.api.security.zero_egress_provenance_router import (
+    router as zero_egress_provenance_router,
+)
 from app.config.settings import settings as _settings
 from app.schemas.security.dashboard import (
     DependabotPR,
@@ -33,7 +189,10 @@ from app.services.security.dual_track_audit import (
     fetch_dual_track_audit_stats,
 )
 from app.services.security.github_supplement import fetch_dependabot_prs_for_repo
-from app.services.security.merged_dashboard import build_security_dashboard, build_setup_hints
+from app.services.security.merged_dashboard import (
+    build_security_dashboard,
+    build_setup_hints,
+)
 from app.services.security.platform_audit import (
     export_platform_audit_logs,
     fetch_platform_audit_logs,
@@ -46,6 +205,71 @@ GITHUB_TOKEN = _settings.services.github_token.get_secret_value()
 DEFAULT_REPO = "Pursue-LLL/myrm-agent"
 
 router = APIRouter(prefix="/security", tags=["security"])
+
+router.include_router(attestation_router)
+router.include_router(client_secret_router)
+router.include_router(ipc_router)
+router.include_router(git_leak_shield_router)
+router.include_router(desktop_enclave_router)
+router.include_router(risk_evaluator_router)
+router.include_router(provenance_staging_router)
+router.include_router(data_plane_defense_router)
+router.include_router(pii_vault_router)
+router.include_router(air_gapped_router)
+router.include_router(secret_broker_router)
+router.include_router(secops_audit_router)
+router.include_router(workspace_scoper_router)
+router.include_router(webhook_guard_router)
+router.include_router(financial_boundary_router)
+router.include_router(skill_governance_router)
+router.include_router(tripartite_ledger_router)
+router.include_router(governance_assembly_router)
+router.include_router(policy_snapshot_router)
+router.include_router(semantic_rbac_router)
+router.include_router(saga_dual_engine_router)
+router.include_router(desktop_micro_isolation_router)
+router.include_router(causal_deception_router)
+router.include_router(audit_coverage_router)
+router.include_router(streaming_gate_router)
+router.include_router(marketplace_contract_router)
+router.include_router(integration_trust_router)
+router.include_router(license_compliance_router)
+router.include_router(workspace_boundary_router)
+router.include_router(egress_dlp_router)
+router.include_router(zero_egress_provenance_router)
+router.include_router(credential_shield_router)
+router.include_router(hitl_fail_closed_router)
+router.include_router(hitl_denial_events_router)
+router.include_router(desktop_oauth_device_router)
+router.include_router(dual_tier_isolation_router)
+router.include_router(dual_track_sandbox_guard_router)
+router.include_router(structured_scan_errors_router)
+router.include_router(llm_egress_guard_router)
+router.include_router(sandbox_log_continuation_router)
+router.include_router(directory_trust_remote_memory_router)
+router.include_router(directory_trust_gate_router)
+router.include_router(approval_metrics_router)
+router.include_router(companion_relationship_guard_router)
+router.include_router(gate_guard_sanitizer_router)
+router.include_router(change_guard_router)
+router.include_router(native_credential_approval_router)
+router.include_router(inherited_identity_guard_router)
+router.include_router(slack_rotating_token_router)
+router.include_router(sso_redirect_router)
+router.include_router(hitl_denial_router)
+router.include_router(sso_redirect_idempotent_router)
+router.include_router(tracing_redaction_router)
+router.include_router(executable_probe_router)
+router.include_router(dir_trust_gate_router)
+router.include_router(admin_auth_surface_router)
+router.include_router(on_demand_masking_router)
+router.include_router(asr_privacy_tradeoff_router)
+router.include_router(commerce_dispute_escrow_router)
+router.include_router(inbound_quarantine_router)
+router.include_router(workspace_path_rbac_router)
+router.include_router(pre_tool_use_interceptor_router)
+router.include_router(pre_flight_budget_router)
+router.include_router(docker_sandbox_hardening_router)
 
 
 @router.get("/dashboard", response_model=SecurityDashboard)
@@ -152,10 +376,16 @@ async def get_dependabot_prs() -> list[DependabotPR]:
         repo = monitored[0] if monitored else DEFAULT_REPO
         return await fetch_dependabot_prs_for_repo(repo, token)
     except httpx.HTTPStatusError as exc:
-        logger.warning("GitHub API error (status %s): %s", exc.response.status_code, exc.response.text)
+        logger.warning(
+            "GitHub API error (status %s): %s",
+            exc.response.status_code,
+            exc.response.text,
+        )
         raise HTTPException(
             status_code=exc.response.status_code,
             detail="GitHub API error",
         ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail="Failed to fetch Dependabot PRs") from exc
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch Dependabot PRs"
+        ) from exc
