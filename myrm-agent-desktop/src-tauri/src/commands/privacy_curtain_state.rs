@@ -4,11 +4,12 @@
 //! - tauri AppHandle (POS: app data 目录 / `curtain:state-changed` 事件)
 //!
 //! [OUTPUT]
-//! - `CurtainState` / `read_state` / `mutate_state`（帷幕窗口层与 watcher 共用）
-//! - `CURTAIN_STATE_FILE`（经 MYRM_CURTAIN_STATE_FILE 交给 server 定位）
+//! - CurtainState: 文件桥状态结构（帷幕拉起 / 自动拉起 / 最近物理输入 / 代解锁租约电平）
+//! - read_state / mutate_state: 状态读取与读-改-写（active 变化时广播 `curtain:state-changed`）
+//! - CURTAIN_STATE_FILE: 状态文件名（经 MYRM_CURTAIN_STATE_FILE 交给 server 定位）
 //!
 //! [POS]
-//! 跨进程文件桥的 Tauri 侧唯一读写入口。整文件原子替换，另一进程的读者永远读到完整
+//! 帷幕状态桥，`curtain_state.json` 的 Tauri 侧唯一读写入口。整文件原子替换，另一进程的读者永远读到完整
 //! 文档；读-改-写之间无文件锁，并发写入以后写者为准：被覆盖的租约清除只让帷幕多保持
 //! （安全方向），被覆盖的租约置位会让帷幕提前放行，窗口仅限两侧同一毫秒写盘。
 

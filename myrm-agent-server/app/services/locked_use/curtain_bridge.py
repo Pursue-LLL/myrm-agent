@@ -2,7 +2,7 @@
 
 [INPUT]
 - MYRM_CURTAIN_STATE_FILE 环境变量（Tauri python_backend 注入；POS: 桌面端文件桥路径）
-- Tauri commands::privacy_curtain_state（POS: 帷幕状态机文件桥的 Tauri 侧读写入口）
+- Tauri commands::privacy_curtain_state（POS: 帷幕状态桥，curtain_state.json 的 Tauri 侧唯一读写入口）
 
 [OUTPUT]
 - read_curtain_state / mark_pending_auto_unlock / clear_pending_auto_unlock

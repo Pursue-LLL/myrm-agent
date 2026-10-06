@@ -7,11 +7,12 @@
 //! curtain input guard.
 //!
 //! [INPUT]
-//! - macOS CoreGraphics session dictionary / Win32 input desktop / loginctl
+//! - macOS CoreGraphics session dictionary / Win32 input desktop / loginctl (POS: OS-native lock-state sources)
 //!
 //! [OUTPUT]
-//! - ScreenLockError
-//! - is_screen_locked / lock_screen / lock_screen_confirmed
+//! - ScreenLockError: failure type of the lock request
+//! - is_screen_locked: in-process lock probe (macOS: FFI, no subprocess)
+//! - lock_screen / lock_screen_confirmed: lock request; the confirmed variant returns Ok only once the probe reports locked
 //!
 //! [POS]
 //! Platform primitives behind `commands::privacy_curtain*` (probe + lock request).

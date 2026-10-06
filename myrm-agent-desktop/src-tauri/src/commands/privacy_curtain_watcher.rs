@@ -8,7 +8,7 @@
 //!
 //! [INPUT]
 //! - tauri AppHandle (POS: 窗口/事件/app data 目录)
-//! - commands::privacy_curtain_state (POS: curtain_state.json 状态读写)
+//! - commands::privacy_curtain_state (POS: 帷幕状态桥，curtain_state.json 的 Tauri 侧唯一读写入口)
 //! - commands::privacy_curtain 窗口 API (POS: 帷幕窗口重建/销毁)
 //! - utils::screen_lock (POS: 锁屏检测)
 //! - config::ConfigManager (POS: privacy_curtain_enabled 开关)

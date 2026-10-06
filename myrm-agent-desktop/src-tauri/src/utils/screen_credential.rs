@@ -7,11 +7,11 @@
 //! through `ps`.
 //!
 //! [INPUT]
-//! - macOS `security` CLI (interactive mode)
+//! - macOS `security` CLI (POS: system keychain command line; `-i` reads its commands from stdin)
 //!
 //! [OUTPUT]
-//! - store_password / has_stored_password / delete_password
-//! - CredentialError
+//! - store_password / has_stored_password / delete_password: login-password keychain access
+//! - CredentialError: failure type of those operations
 //!
 //! [POS]
 //! Credential primitives behind `commands::screen_lock`. The keychain service and

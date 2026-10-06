@@ -5,6 +5,16 @@
 //! platform capability. Lock detection and unlocking never cross this IPC
 //! surface: the watcher probes the lock state in-process and the server types
 //! the credential itself.
+//!
+//! [INPUT]
+//! - utils::screen_credential (POS: login-password keychain access)
+//!
+//! [OUTPUT]
+//! - screen_lock_store_password / screen_lock_has_password / screen_lock_delete_password: credential IPC
+//! - screen_lock_platform_support: platform capability query for the settings page
+//!
+//! [POS]
+//! Settings-page IPC surface of Locked Use; owns no lock logic of its own.
 
 use crate::utils::screen_credential;
 
