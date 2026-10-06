@@ -275,6 +275,7 @@ myrm_agent_harness.core.security.data_erasure_portability.shredder
 myrm_agent_harness.core.security.data_erasure_portability.types
 myrm_agent_harness.core.security.data_isolation_probes
 myrm_agent_harness.core.security.data_plane_defense
+myrm_agent_harness.core.security.data_sovereignty_watchdog
 myrm_agent_harness.core.security.decoupled_watchdog
 myrm_agent_harness.core.security.desktop_enclave
 myrm_agent_harness.core.security.desktop_micro_isolation
@@ -593,6 +594,7 @@ myrm_agent_harness.toolkits.memory.integration.types
 myrm_agent_harness.toolkits.memory.manager
 myrm_agent_harness.toolkits.memory.memory_search_policy
 myrm_agent_harness.toolkits.memory.metrics
+myrm_agent_harness.toolkits.memory.openclaw_adapter
 myrm_agent_harness.toolkits.memory.privacy_gate
 myrm_agent_harness.toolkits.memory.proactive
 myrm_agent_harness.toolkits.memory.proactive.types

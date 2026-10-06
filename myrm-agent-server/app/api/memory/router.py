@@ -44,6 +44,9 @@ from app.api.memory.migration_readiness_seed import (
 from app.api.memory.migration_router import (
     router as memory_migration_router,
 )
+from app.api.memory.openclaw_router import (
+    router as memory_openclaw_router,
+)
 from app.api.memory.operations import (
     archive_restore,
     backup,
@@ -125,6 +128,7 @@ router.include_router(memory_drift_router, tags=["memory-drift-defense"])
 router.include_router(memory_unload_router, tags=["memory-unload-guard"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
 router.include_router(memory_conflict_router, tags=["memory-conflict-arbitration"])
+router.include_router(memory_openclaw_router, tags=["memory-openclaw-adapter"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])

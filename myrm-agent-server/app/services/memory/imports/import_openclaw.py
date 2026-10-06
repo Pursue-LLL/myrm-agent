@@ -76,6 +76,40 @@ def dry_run_openclaw(payload: dict[str, object]) -> MemoryImportDryRunResult:
             )
         )
 
+    v2_sessions = payload.get("openclaw_v2_sessions")
+    if isinstance(v2_sessions, list) and v2_sessions:
+        episodic_v2 = _parse_v2_sessions(v2_sessions)
+        if episodic_v2:
+            normalized.setdefault("episodic", []).extend(episodic_v2)
+            mapped_items += len(episodic_v2)
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="openclaw_v2_sessions",
+                target_bucket="episodic",
+                status="mapped" if episodic_v2 else "unsupported",
+                item_count=len(v2_sessions),
+                imported_count=len(episodic_v2),
+                reason="" if episodic_v2 else "No valid v2 Swarm sessions found.",
+            )
+        )
+
+    v2_memories = payload.get("openclaw_v2_memories")
+    if isinstance(v2_memories, list) and v2_memories:
+        semantic_v2 = _parse_v2_memories(v2_memories)
+        if semantic_v2:
+            normalized.setdefault("semantic", []).extend(semantic_v2)
+            mapped_items += len(semantic_v2)
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="openclaw_v2_memories",
+                target_bucket="semantic",
+                status="mapped" if semantic_v2 else "unsupported",
+                item_count=len(v2_memories),
+                imported_count=len(semantic_v2),
+                reason="" if semantic_v2 else "No valid v2 memory entries found.",
+            )
+        )
+
     skills = payload.get("openclaw_skills")
     if isinstance(skills, list) and skills:
         unmapped_items += len(skills)
@@ -90,9 +124,10 @@ def dry_run_openclaw(payload: dict[str, object]) -> MemoryImportDryRunResult:
         )
         warnings.append("openclaw_skills_detected")
 
+    is_v2 = bool(v2_sessions or v2_memories)
     return build_result(
         source="openclaw",
-        version="1",
+        version="2" if is_v2 else "1",
         normalized=normalized,
         mappings=mappings,
         mapped_items=mapped_items,
@@ -157,6 +192,82 @@ def _parse_memory_entries(entries: list[object]) -> list[dict[str, object]]:
                 "tags": ["openclaw_memory"],
                 "created_at": iso_or_now(entry.get("created_at") or entry.get("createdAt")),
                 "metadata": build_metadata("openclaw", entry, ("id", "type", "category")),
+            }
+        )
+    return items
+
+
+def _parse_v2_sessions(sessions: list[object]) -> list[dict[str, object]]:
+    """Convert OpenClaw 2.0 Swarm and multi-user sessions into episodic memory items."""
+
+    items: list[dict[str, object]] = []
+    for raw_session in sessions:
+        if not isinstance(raw_session, dict):
+            continue
+        session = object_dict(raw_session)
+        title = text(session.get("title")) or text(session.get("name")) or "OpenClaw 2.0 session"
+        messages = session.get("messages")
+        summary = text(session.get("summary"))
+
+        content_parts = [title]
+        if summary:
+            content_parts.append(summary)
+        elif isinstance(messages, list):
+            msg_texts = []
+            for msg in messages[:5]:
+                if isinstance(msg, dict):
+                    msg_text = text(object_dict(msg).get("content"))
+                    if msg_text:
+                        msg_texts.append(msg_text[:200])
+            if msg_texts:
+                content_parts.append(" | ".join(msg_texts))
+
+        meta = build_metadata(
+            "openclaw_v2",
+            session,
+            ("id", "session_id", "parent_session_id", "swarm_agent_id", "owner_id", "creator_id"),
+        )
+        items.append(
+            {
+                "content": "\n".join(content_parts),
+                "event_type": "openclaw_v2_swarm_session",
+                "timestamp": iso_or_now(session.get("created_at") or session.get("createdAt")),
+                "importance": 0.7,
+                "metadata": meta,
+            }
+        )
+    return items
+
+
+def _parse_v2_memories(entries: list[object]) -> list[dict[str, object]]:
+    """Convert OpenClaw 2.0 structured memories into semantic memory items with scope alignment."""
+
+    items: list[dict[str, object]] = []
+    for raw_entry in entries:
+        if not isinstance(raw_entry, dict):
+            continue
+        entry = object_dict(raw_entry)
+        content = text(entry.get("content")) or text(entry.get("fact")) or text(entry.get("value"))
+        if not content:
+            continue
+
+        raw_scope = text(entry.get("scope")).lower()
+        scope = "private" if raw_scope == "private" else "shared"
+        target_agent = text(entry.get("target_agent_id"))
+
+        meta = build_metadata("openclaw_v2", entry, ("id", "entry_id", "category", "scope", "target_agent_id"))
+        meta["scope"] = scope
+        if target_agent:
+            meta["target_agent_id"] = target_agent
+
+        items.append(
+            {
+                "content": content,
+                "importance": float(entry.get("importance", 0.75) or 0.75),
+                "confidence": 0.85,
+                "tags": ["openclaw_v2_memory", f"scope:{scope}"],
+                "created_at": iso_or_now(entry.get("created_at") or entry.get("createdAt")),
+                "metadata": meta,
             }
         )
     return items
