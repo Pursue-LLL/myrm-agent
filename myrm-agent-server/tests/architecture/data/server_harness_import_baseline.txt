@@ -255,6 +255,9 @@ myrm_agent_harness.core.security.commerce_dispute_escrow
 myrm_agent_harness.core.security.companion_relationship_guard
 myrm_agent_harness.core.security.compound_shell_risk
 myrm_agent_harness.core.security.connector_guard
+myrm_agent_harness.core.security.cos_otp_isolation_jit.jit_gate
+myrm_agent_harness.core.security.cos_otp_isolation_jit.otp_redactor
+myrm_agent_harness.core.security.cos_otp_isolation_jit.quota_rails
 myrm_agent_harness.core.security.credential_shield
 myrm_agent_harness.core.security.credential_vault
 myrm_agent_harness.core.security.data_erasure_portability.crypto_erasure
@@ -296,6 +299,8 @@ myrm_agent_harness.core.security.hitl_fail_closed.pipeline
 myrm_agent_harness.core.security.hitl_fail_closed.secondary_guard
 myrm_agent_harness.core.security.hitl_fail_closed.types
 myrm_agent_harness.core.security.http.secure_fetch
+myrm_agent_harness.core.security.immutable_sandbox_rollback.immutable_policy
+myrm_agent_harness.core.security.immutable_sandbox_rollback.rollback_manager
 myrm_agent_harness.core.security.inbound_quarantine
 myrm_agent_harness.core.security.inherited_identity_guard
 myrm_agent_harness.core.security.integration_trust
@@ -326,6 +331,10 @@ myrm_agent_harness.core.security.saga_dual_engine
 myrm_agent_harness.core.security.sandbox_hardening
 myrm_agent_harness.core.security.sandbox_log_continuation
 myrm_agent_harness.core.security.sandbox_trust_audit
+myrm_agent_harness.core.security.sandbox_zero_leakage_pii.attestation
+myrm_agent_harness.core.security.sandbox_zero_leakage_pii.pii_firewall
+myrm_agent_harness.core.security.sandbox_zero_leakage_pii.transparency_audit
+myrm_agent_harness.core.security.sandbox_zero_leakage_pii.types
 myrm_agent_harness.core.security.scoped_css_sentinel
 myrm_agent_harness.core.security.secops_audit
 myrm_agent_harness.core.security.secret_broker
@@ -568,6 +577,7 @@ myrm_agent_harness.toolkits.memory.strategies.consolidation_rollback
 myrm_agent_harness.toolkits.memory.strategies.extraction_domain
 myrm_agent_harness.toolkits.memory.strategies.extractor
 myrm_agent_harness.toolkits.memory.strategies.four_layer_promotion
+myrm_agent_harness.toolkits.memory.strategies.hindsight
 myrm_agent_harness.toolkits.memory.strategies.implicit_feedback
 myrm_agent_harness.toolkits.memory.strategies.pattern_discovery
 myrm_agent_harness.toolkits.memory.strategies.preference_stability
