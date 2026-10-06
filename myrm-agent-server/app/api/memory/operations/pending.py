@@ -14,7 +14,12 @@ router: 待处理记忆列表、批准、拒绝、批量操作端点
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryOperationStatus
+from myrm_agent_harness.toolkits.memory import (
+    MemoryManager,
+    MemoryNotFoundError,
+    MemoryOperationKind,
+    MemoryOperationStatus,
+)
 from myrm_agent_harness.toolkits.memory.types import PendingRecord
 
 from app.api.memory.utils import get_memory_manager
@@ -44,6 +49,18 @@ router = APIRouter()
 async def _load_pending_memory(memory_id: str) -> PendingMemory | None:
     async with get_session() as db:
         return await db.get(PendingMemory, memory_id)
+
+
+def _raise_approval_http_error(exc: Exception) -> None:
+    """Map a harness approval failure to the right HTTP status.
+
+    A missing record is a 404; any other failure (wrong memory type, storage
+    error) is a server-side 500 — never a misleading 404.
+    """
+    if isinstance(exc, MemoryNotFoundError):
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    logger.error("Memory approval failed", exc_info=True)
+    raise HTTPException(status_code=500, detail="Memory approval failed") from exc
 
 
 async def _record_pending_event(
@@ -85,6 +102,9 @@ def _record_to_item(r: PendingRecord) -> PendingMemoryItem:
         conflict_accuracy_score=r.conflict_accuracy_score,
         conflict_importance=r.conflict_importance,
         conflict_auto_resolve_at=r.conflict_auto_resolve_at,
+        resolution_action=r.resolution_action.value if r.resolution_action is not None else None,
+        target_memory_id=r.target_memory_id,
+        target_content=r.target_content,
         confidence=r.confidence,
         importance=r.importance,
         kind=r.kind,
@@ -106,77 +126,9 @@ async def get_pending_memories(
     return PendingMemoriesResponse(items=[_record_to_item(r) for r in records], total=total)
 
 
-@router.post("/pending/{memory_id}/approve")
-async def approve_pending_memory(
-    memory_id: str,
-    request: ApproveMemoryRequest,
-    manager: MemoryManager = Depends(get_memory_manager),
-) -> StandardSuccessResponse:
-    """Approve a pending memory and persist to permanent storage."""
-    if not manager.approval_required:
-        raise HTTPException(status_code=400, detail="Approval is not enabled")
-    pending = await _load_pending_memory(memory_id)
-    try:
-        await manager.approve(memory_id)
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    if pending is not None:
-        await record_experience_event(
-            ExperienceLedgerWrite(
-                event_type=ExperienceEventType.REVIEW_APPROVED,
-                entity_type=ExperienceEntityType.REVIEW,
-                entity_id=memory_id,
-                lineage_id=f"memory:{memory_id}",
-                outcome="approved",
-                summary=f"Review approved for memory:{memory_id}",
-                artifact_refs={"review_type": "memory", "memory_type": pending.memory_type},
-                detail={"review_type": "memory", "review_id": memory_id},
-            )
-        )
-        await _record_pending_event(
-            kind=MemoryOperationKind.APPROVE,
-            memory_id=memory_id,
-            memory_type=pending.memory_type,
-            summary="Pending memory approved.",
-        )
-    return create_success_response(data={"status": "approved", "memory_id": memory_id})
-
-
-@router.post("/pending/{memory_id}/reject")
-async def reject_pending_memory(
-    memory_id: str,
-    manager: MemoryManager = Depends(get_memory_manager),
-) -> StandardSuccessResponse:
-    """Reject a pending memory (will not be stored)."""
-    if not manager.approval_required:
-        raise HTTPException(status_code=400, detail="Approval is not enabled")
-    pending = await _load_pending_memory(memory_id)
-    try:
-        await manager.reject(memory_id)
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    if pending is not None:
-        await record_experience_event(
-            ExperienceLedgerWrite(
-                event_type=ExperienceEventType.REVIEW_REJECTED,
-                entity_type=ExperienceEntityType.REVIEW,
-                entity_id=memory_id,
-                lineage_id=f"memory:{memory_id}",
-                outcome="rejected",
-                summary=f"Review rejected for memory:{memory_id}",
-                artifact_refs={"review_type": "memory", "memory_type": pending.memory_type},
-                detail={"review_type": "memory", "review_id": memory_id},
-            )
-        )
-        await _record_pending_event(
-            kind=MemoryOperationKind.REJECT,
-            memory_id=memory_id,
-            memory_type=pending.memory_type,
-            summary="Pending memory rejected.",
-        )
-    return create_success_response(data={"status": "rejected", "memory_id": memory_id})
-
-
+# Batch routes MUST be declared before the ``/pending/{memory_id}/...`` routes:
+# Starlette matches in registration order, so a parameterized route declared
+# first would capture "batch" as a memory_id and shadow these handlers.
 @router.post("/pending/batch/approve", response_model=BatchMemoryResponse)
 async def batch_approve_memories(
     request: BatchMemoryRequest,
@@ -260,3 +212,74 @@ async def batch_reject_memories(
         failed_count=len(request.memory_ids) - count,
         failed_ids=[],
     )
+
+
+@router.post("/pending/{memory_id}/approve")
+async def approve_pending_memory(
+    memory_id: str,
+    request: ApproveMemoryRequest,
+    manager: MemoryManager = Depends(get_memory_manager),
+) -> StandardSuccessResponse:
+    """Approve a pending memory and persist to permanent storage."""
+    if not manager.approval_required:
+        raise HTTPException(status_code=400, detail="Approval is not enabled")
+    pending = await _load_pending_memory(memory_id)
+    try:
+        await manager.approve(memory_id)
+    except Exception as e:
+        _raise_approval_http_error(e)
+    if pending is not None:
+        await record_experience_event(
+            ExperienceLedgerWrite(
+                event_type=ExperienceEventType.REVIEW_APPROVED,
+                entity_type=ExperienceEntityType.REVIEW,
+                entity_id=memory_id,
+                lineage_id=f"memory:{memory_id}",
+                outcome="approved",
+                summary=f"Review approved for memory:{memory_id}",
+                artifact_refs={"review_type": "memory", "memory_type": pending.memory_type},
+                detail={"review_type": "memory", "review_id": memory_id},
+            )
+        )
+        await _record_pending_event(
+            kind=MemoryOperationKind.APPROVE,
+            memory_id=memory_id,
+            memory_type=pending.memory_type,
+            summary="Pending memory approved.",
+        )
+    return create_success_response(data={"status": "approved", "memory_id": memory_id})
+
+
+@router.post("/pending/{memory_id}/reject")
+async def reject_pending_memory(
+    memory_id: str,
+    manager: MemoryManager = Depends(get_memory_manager),
+) -> StandardSuccessResponse:
+    """Reject a pending memory (will not be stored)."""
+    if not manager.approval_required:
+        raise HTTPException(status_code=400, detail="Approval is not enabled")
+    pending = await _load_pending_memory(memory_id)
+    try:
+        await manager.reject(memory_id)
+    except Exception as e:
+        _raise_approval_http_error(e)
+    if pending is not None:
+        await record_experience_event(
+            ExperienceLedgerWrite(
+                event_type=ExperienceEventType.REVIEW_REJECTED,
+                entity_type=ExperienceEntityType.REVIEW,
+                entity_id=memory_id,
+                lineage_id=f"memory:{memory_id}",
+                outcome="rejected",
+                summary=f"Review rejected for memory:{memory_id}",
+                artifact_refs={"review_type": "memory", "memory_type": pending.memory_type},
+                detail={"review_type": "memory", "review_id": memory_id},
+            )
+        )
+        await _record_pending_event(
+            kind=MemoryOperationKind.REJECT,
+            memory_id=memory_id,
+            memory_type=pending.memory_type,
+            summary="Pending memory rejected.",
+        )
+    return create_success_response(data={"status": "rejected", "memory_id": memory_id})

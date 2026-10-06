@@ -19,6 +19,9 @@ from app.api.security.approval_metrics_router import router as approval_metrics_
 from app.api.security.asr_privacy_tradeoff_router import router as asr_privacy_tradeoff_router
 from app.api.security.attestation_router import router as attestation_router
 from app.api.security.audit_coverage_router import router as audit_coverage_router
+from app.api.security.blast_radius_inspector_router import (
+    router as blast_radius_inspector_router,
+)
 from app.api.security.bot_budget_guardrail_router import router as bot_budget_guardrail_router
 from app.api.security.causal_deception_router import router as causal_deception_router
 from app.api.security.change_guard_router import router as change_guard_router
@@ -32,12 +35,18 @@ from app.api.security.companion_relationship_guard_router import (
 from app.api.security.compound_shell_risk_router import router as compound_shell_risk_router
 from app.api.security.connector_guard_router import router as connector_guard_router
 from app.api.security.connector_trust_router import router as connector_trust_router
+from app.api.security.cos_otp_isolation_jit_router import (
+    router as cos_otp_isolation_jit_router,
+)
 from app.api.security.credential_shield_router import router as credential_shield_router
 from app.api.security.data_erasure_portability_router import (
     router as data_erasure_portability_router,
 )
 from app.api.security.data_isolation_probe_router import router as data_isolation_probe_router
 from app.api.security.data_plane_defense_router import router as data_plane_defense_router
+from app.api.security.decoupled_watchdog_router import (
+    router as decoupled_watchdog_router,
+)
 from app.api.security.desktop_enclave_router import router as desktop_enclave_router
 from app.api.security.desktop_micro_isolation_router import (
     router as desktop_micro_isolation_router,
@@ -56,6 +65,9 @@ from app.api.security.dual_tier_isolation_router import router as dual_tier_isol
 from app.api.security.dual_track_sandbox_guard_router import (
     router as dual_track_sandbox_guard_router,
 )
+from app.api.security.dual_use_containment_router import (
+    router as dual_use_containment_router,
+)
 from app.api.security.egress_dlp_router import router as egress_dlp_router
 from app.api.security.executable_probe_router import router as executable_probe_router
 from app.api.security.externally_visible_action_router import (
@@ -68,9 +80,15 @@ from app.api.security.financial_safety_guard_router import (
 from app.api.security.gate_guard_sanitizer_router import router as gate_guard_sanitizer_router
 from app.api.security.git_leak_shield_router import router as git_leak_shield_router
 from app.api.security.governance_assembly_router import router as governance_assembly_router
+from app.api.security.headless_interactive_approval_router import (
+    router as headless_interactive_approval_router,
+)
 from app.api.security.hitl_denial_events_router import router as hitl_denial_events_router
 from app.api.security.hitl_denial_router import router as hitl_denial_router
 from app.api.security.hitl_fail_closed_router import router as hitl_fail_closed_router
+from app.api.security.immutable_sandbox_rollback_router import (
+    router as immutable_sandbox_rollback_router,
+)
 from app.api.security.inbound_quarantine_router import router as inbound_quarantine_router
 from app.api.security.inherited_identity_guard_router import (
     router as inherited_identity_guard_router,
@@ -80,13 +98,22 @@ from app.api.security.ipc_router import router as ipc_router
 from app.api.security.irreversible_write_guard_router import (
     router as irreversible_write_guard_router,
 )
+from app.api.security.legal_audit_attestation_router import (
+    router as legal_audit_attestation_router,
+)
 from app.api.security.license_compliance_router import router as license_compliance_router
 from app.api.security.llm_egress_guard_router import router as llm_egress_guard_router
 from app.api.security.local_first_vault_router import router as local_first_vault_router
 from app.api.security.localhost_anti_hijack_router import router as localhost_anti_hijack_router
+from app.api.security.managed_permission_rollback_router import (
+    router as managed_permission_rollback_router,
+)
 from app.api.security.marketplace_contract_router import router as marketplace_contract_router
 from app.api.security.memory_defense_firewall_router import (
     router as memory_defense_firewall_router,
+)
+from app.api.security.memory_post_fetch_screening_router import (
+    router as memory_post_fetch_screening_router,
 )
 from app.api.security.muse_sentinel_isolation_router import (
     router as muse_sentinel_isolation_router,
@@ -115,7 +142,13 @@ from app.api.security.sandbox_log_continuation_router import (
     router as sandbox_log_continuation_router,
 )
 from app.api.security.sandbox_trust_audit_router import router as sandbox_trust_audit_router
+from app.api.security.sandbox_zero_leakage_pii_router import (
+    router as sandbox_zero_leakage_pii_router,
+)
 from app.api.security.scoped_css_sentinel_router import router as scoped_css_sentinel_router
+from app.api.security.scoped_folder_sandbox_mount_router import (
+    router as scoped_folder_sandbox_mount_router,
+)
 from app.api.security.secops_audit_router import router as secops_audit_router
 from app.api.security.secret_broker_router import router as secret_broker_router
 from app.api.security.secretless_egress_proxy_router import (
@@ -140,6 +173,9 @@ from app.api.security.stacked_policy_governance_router import (
 from app.api.security.streaming_gate_router import router as streaming_gate_router
 from app.api.security.structured_scan_errors_router import (
     router as structured_scan_errors_router,
+)
+from app.api.security.tool_result_seam_screening_router import (
+    router as tool_result_seam_screening_router,
 )
 from app.api.security.tracing_redaction_router import router as tracing_redaction_router
 from app.api.security.tri_flow_safety_router import router as tri_flow_safety_router
@@ -254,6 +290,18 @@ _SECURITY_SUBROUTERS: tuple[APIRouter, ...] = (
     prompt_anti_extraction_router,
     plugin_trust_attestation_router,
     data_erasure_portability_router,
+    immutable_sandbox_rollback_router,
+    sandbox_zero_leakage_pii_router,
+    cos_otp_isolation_jit_router,
+    blast_radius_inspector_router,
+    managed_permission_rollback_router,
+    headless_interactive_approval_router,
+    scoped_folder_sandbox_mount_router,
+    tool_result_seam_screening_router,
+    memory_post_fetch_screening_router,
+    decoupled_watchdog_router,
+    dual_use_containment_router,
+    legal_audit_attestation_router,
 )
 
 

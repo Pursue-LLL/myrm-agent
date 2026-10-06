@@ -267,6 +267,7 @@ myrm_agent_harness.core.security.data_erasure_portability.shredder
 myrm_agent_harness.core.security.data_erasure_portability.types
 myrm_agent_harness.core.security.data_isolation_probes
 myrm_agent_harness.core.security.data_plane_defense
+myrm_agent_harness.core.security.decoupled_watchdog
 myrm_agent_harness.core.security.desktop_enclave
 myrm_agent_harness.core.security.desktop_micro_isolation
 myrm_agent_harness.core.security.desktop_oauth_device.device_code_engine
@@ -284,6 +285,7 @@ myrm_agent_harness.core.security.dual_tier_isolation.types
 myrm_agent_harness.core.security.dual_track_sandbox_guard.guard_interceptor
 myrm_agent_harness.core.security.dual_track_sandbox_guard.policy_compiler
 myrm_agent_harness.core.security.dual_track_sandbox_guard.types
+myrm_agent_harness.core.security.dual_use_containment
 myrm_agent_harness.core.security.egress_dlp
 myrm_agent_harness.core.security.executable_probe
 myrm_agent_harness.core.security.externally_visible_action
@@ -308,6 +310,7 @@ myrm_agent_harness.core.security.inherited_identity_guard
 myrm_agent_harness.core.security.integration_trust
 myrm_agent_harness.core.security.ipc
 myrm_agent_harness.core.security.irreversible_write_guard
+myrm_agent_harness.core.security.legal_audit_attestation
 myrm_agent_harness.core.security.license_compliance
 myrm_agent_harness.core.security.llm_egress_guard.guard
 myrm_agent_harness.core.security.llm_egress_guard.types
@@ -592,6 +595,7 @@ myrm_agent_harness.toolkits.memory.strategies.pattern_discovery
 myrm_agent_harness.toolkits.memory.strategies.preference_stability
 myrm_agent_harness.toolkits.memory.strategies.subsumption
 myrm_agent_harness.toolkits.memory.types
+myrm_agent_harness.toolkits.memory.wiki_memory
 myrm_agent_harness.toolkits.mobile_adb
 myrm_agent_harness.toolkits.mobile_adb.session
 myrm_agent_harness.toolkits.openapi_bridge

@@ -19,6 +19,7 @@ from app.api.agents.general_agent.streaming import router as agents_streaming_ro
 from app.api.remote_access.router import router as remote_access_router
 from app.config.deploy_mode import get_deploy_mode
 from app.config.settings import settings
+from app.database.dto import ChatCreate
 from app.middleware.auth import AuthMiddleware
 from app.remote_access.pairing import (
     MOBILE_HUB_CONTROL_PURPOSE,
@@ -28,6 +29,7 @@ from app.remote_access.pairing import (
 )
 from app.services.agent.gateway import get_agent_gateway
 from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS, StreamContentCollector
+from app.services.chat.chat_service import ChatService
 
 _REMOTE_HEADERS = {"Host": "abc.trycloudflare.com"}
 
@@ -45,6 +47,7 @@ def _local_remote_webui(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     _reset_capabilities_cache_for_testing()
 
     from app.database.models import Base
+    from app.database.migrations import ensure_raw_sql_schema
     from app.platform_utils import get_database_engine, reset_database_engine
 
     async def _init_isolated_db() -> None:
@@ -52,6 +55,10 @@ def _local_remote_webui(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
         engine = get_database_engine()
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        # Raw-SQL schemas (conversation recall FTS index, etc.) live outside
+        # Base.metadata; without this the chat upsert path hits
+        # "no such table: conversation_recall_documents".
+        await ensure_raw_sql_schema(engine)
 
     asyncio.run(_init_isolated_db())
 
@@ -87,6 +94,11 @@ async def active_chat_with_collector() -> AsyncIterator[str]:
     ACTIVE_COLLECTORS.clear()
     chat_id = "integration-hub-chat"
     gateway = get_agent_gateway()
+
+    # Hub session cards must exist as real chats: the pairing-token upgrade
+    # enforces chat existence (router.issue_pairing_token -> get_chat_metadata).
+    # Gateway-only registration would 404 the upgrade leg of the chain.
+    await ChatService.create_or_update_chat(ChatCreate(chat_id=chat_id, last_message="hello"))
 
     async def long_stream() -> AsyncIterator[dict[str, object]]:
         for _ in range(2400):
@@ -130,8 +142,19 @@ class TestMobileHubIntegration:
             headers=_REMOTE_HEADERS,
         )
         assert sessions_response.status_code == 200
-        active_sessions = sessions_response.json()["data"]["activeSessions"]
+        payload = sessions_response.json()["data"]
+        active_sessions = payload["activeSessions"]
         assert any(str(item.get("chatId")) == chat_id for item in active_sessions)
+
+        # 帷幕状态契约：hub 载荷必须携带 curtain（非桌面端 available=False），
+        # 移动端看板据此渲染「屏幕已保护」胶囊，取代已移除的无消费者 SSE 路径。
+        curtain = payload.get("curtain")
+        assert isinstance(curtain, dict), f"mobile hub must expose curtain status: {payload.keys()}"
+        assert isinstance(curtain.get("available"), bool), curtain
+        assert isinstance(curtain.get("active"), bool), curtain
+        if curtain["available"]:
+            assert isinstance(curtain.get("autoEngaged"), bool), curtain
+            assert isinstance(curtain.get("pendingAutoUnlock"), bool), curtain
 
         upgrade_response = integration_client.post(
             "/api/v1/remote-access/pairing-token",
