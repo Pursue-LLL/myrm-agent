@@ -47,6 +47,7 @@ class CommandAction(Enum):
     LEARN = "learn"
     STATUS = "status"
     QUOTA = "quota"
+    BTW = "btw"
     HELP = "help"
 
 
@@ -200,10 +201,18 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         name="background",
         description="Run a task in a separate background session without blocking the current conversation",
         action=CommandAction.BACKGROUND,
-        aliases=("bg", "btw"),
+        aliases=("bg",),
         category="Execution",
         parse_args=True,
         args_pattern="<task>|list|cancel <id>|steer <id> <instruction>",
+    ),
+    CommandDef(
+        name="btw",
+        description="Ask an ephemeral side-channel question without polluting conversation context",
+        action=CommandAction.BTW,
+        category="Session",
+        parse_args=True,
+        args_pattern="<question>",
     ),
     CommandDef(
         name="handoff",
