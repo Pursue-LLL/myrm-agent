@@ -80,6 +80,9 @@ from app.api.memory.privacy_router import (
 )
 from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.test_seed import router as memory_test_seed_router
+from app.api.memory.universal_mcp_router import (
+    router as memory_universal_mcp_router,
+)
 from app.api.memory.unload_router import (
     router as memory_unload_router,
 )
@@ -133,6 +136,7 @@ router.include_router(memory_migration_router, tags=["memory-sovereign-migration
 router.include_router(memory_conflict_router, tags=["memory-conflict-arbitration"])
 router.include_router(memory_openclaw_router, tags=["memory-openclaw-adapter"])
 router.include_router(memory_dual_track_router, tags=["memory-dual-track"])
+router.include_router(memory_universal_mcp_router, tags=["memory-universal-mcp"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
