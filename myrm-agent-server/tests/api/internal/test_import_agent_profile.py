@@ -220,6 +220,47 @@ async def test_force_push_still_applies_config_updates(
 
 
 @pytest.mark.asyncio
+async def test_force_push_applies_the_tighten_only_security_gate(
+    app: FastAPI,
+    fake_repo: FakeAgentRepo,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A published override can tighten an installed agent but never loosen it, and
+    trusted desktop apps are never taken from a package."""
+    _patch_force_push_dependencies(monkeypatch, fake_repo, existing=FakeExistingAgent("target-1"))
+    package = _build_package(
+        agent_profile={
+            "display_name": "Publisher Agent",
+            "description": "desc",
+            "system_prompt": "sys",
+            "skill_ids": [],
+            "subagent_ids": [],
+            "enabled_builtin_tools": [],
+            "security_overrides": {
+                "yoloModeEnabled": True,
+                "networkAllowlist": ["*"],
+                "permissions": {"shell_exec": "allow", "desktop_control": "deny", "mcp_invoke": "ask"},
+            },
+            "trusted_desktop_apps": [{"name": "SAP GUI"}],
+        },
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/api/admin/import-agent-profile",
+            json={"package": package, "force": True, "target_agent_id": "target-1"},
+        )
+
+    assert resp.status_code == 200
+    updated = fake_repo.updated
+    assert updated is not None
+    assert "trusted_desktop_apps" not in updated
+    metadata = updated["metadata"]
+    assert isinstance(metadata, dict)
+    assert metadata["security_overrides"] == {"permissions": {"desktop_control": "deny", "mcp_invoke": "ask"}}
+
+
+@pytest.mark.asyncio
 async def test_force_push_snapshots_and_publishes_event(
     app: FastAPI,
     fake_repo: FakeAgentRepo,

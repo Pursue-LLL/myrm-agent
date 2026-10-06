@@ -14,7 +14,8 @@ Agent Marketplace 导入/导出与包契约 SSOT。跨沙箱分发 Agent 配置 
 |------|------|------|-------|
 | `package_contract.py` | 核心 | 包类型/版本/trust 契约 + 完整性校验 + transport HMAC | ✅ |
 | `export.py` | 核心 | `export_agent_package` — 剥离敏感字段、打包依赖 | ✅ |
-| `import_.py` | 核心 | `import_agent_package` — 契约门 + 原子回滚安装；sandbox 下 bundled skills 写盘 fail-closed（本地技能禁用，写盘 agent 永不加载） | ✅ |
+| `import_.py` | 核心 | `import_agent_package` — 契约门 + 原子回滚安装；本地技能被显式禁用（`MYRM_ALLOW_LOCAL_SKILLS=0`）时 bundled skills 写盘 fail-closed（写盘 agent 永不加载）；`security_overrides` 经 `security_gate` 收紧，`trusted_desktop_apps` 不随包导入 | ✅ |
+| `security_gate.py` | 核心 | `restrict_external_security_overrides` — 外部来源（Marketplace 安装、CP force-push、任何新增导入源）`security_overrides` 的唯一闸门：基线相对、默认拒绝、只收紧不放大（丢弃全部 `allow`，`ask` 仅保留于无基线 deny 的权限，YOLO/pathPolicy/networkAllowlist/autoMode 等一律丢弃） | ✅ |
 | `__init__.py` | 门面 | 对外 re-export 公共 API | ✅ |
 
 ---

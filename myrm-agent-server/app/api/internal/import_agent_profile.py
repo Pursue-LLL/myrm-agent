@@ -2,6 +2,7 @@
 
 [INPUT]
 - services.agent.marketplace.import_::import_agent_package (POS: Server-side marketplace import)
+- services.agent.marketplace.security_gate::restrict_external_security_overrides (POS: tighten-only gate)
 - services.agent.profile.profile_snapshot_service::ProfileSnapshotService (POS: 快照服务)
 - database.repositories.uow::UnitOfWork (POS: Unit of Work 事务层)
 
@@ -17,7 +18,9 @@ When `force=True`, snapshots the existing Agent before overwriting so the user c
 Force-push is a config update path: skill/subagent bindings are established by the
 initial import (which remaps IDs to the local store) and are never overwritten by
 publisher-side IDs. Package fields serialized as None are skipped during force-push
-so NOT NULL columns are never written None values.
+so NOT NULL columns are never written None values. Publisher-supplied
+``security_overrides`` pass the same tighten-only gate as a first install, and
+``trusted_desktop_apps`` are never taken from a package.
 """
 
 from __future__ import annotations
@@ -35,6 +38,7 @@ from app.services.agent.marketplace import (
     import_agent_package,
     validate_marketplace_package,
 )
+from app.services.agent.marketplace.security_gate import restrict_external_security_overrides
 
 logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(verify_control_plane_token)])
@@ -126,13 +130,6 @@ async def import_agent_profile_endpoint(
     except Exception as exc:
         logger.exception("Failed to import agent profile from marketplace")
         raise HTTPException(status_code=500, detail="Import failed") from exc
-
-
-def _marketplace_signature_policy() -> tuple[bool, str | None]:
-    secret = os.environ.get(_MARKETPLACE_SIGN_SECRET_ENV)
-    require_env = os.environ.get(_MARKETPLACE_REQUIRE_SIGNATURE_ENV, "").strip().lower()
-    require = require_env in {"1", "true", "yes", "on"} or bool(secret)
-    return require, secret
 
 
 def _normalize_marketplace_entry_id(entry_id: str | None) -> str | None:
@@ -250,8 +247,6 @@ async def _force_update_agent(
         updates["workspace_policy"] = profile_data["workspace_policy"]
     if "cron_post_run_verify" in profile_data and profile_data["cron_post_run_verify"] is not None:
         updates["cron_post_run_verify"] = bool(profile_data["cron_post_run_verify"])
-    if "trusted_desktop_apps" in profile_data and profile_data["trusted_desktop_apps"] is not None:
-        updates["trusted_desktop_apps"] = list(profile_data["trusted_desktop_apps"])
     if "enabled_builtin_tools" in profile_data and profile_data["enabled_builtin_tools"] is not None:
         from app.services.agent.builtin_specs.builtin_tool_ids import (
             normalize_enabled_builtin_tools,
@@ -281,6 +276,10 @@ async def _force_update_agent(
     for mk in metadata_keys:
         if mk in profile_data and profile_data[mk] is not None:
             meta_update[mk] = profile_data[mk]
+    if "security_overrides" in meta_update:
+        restricted_overrides = restrict_external_security_overrides(meta_update.pop("security_overrides"))
+        if restricted_overrides is not None:
+            meta_update["security_overrides"] = restricted_overrides
     if marketplace_entry_id is not None:
         meta_update["engine_params"] = _with_marketplace_entry_binding(
             meta_update.get("engine_params"),

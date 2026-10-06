@@ -345,21 +345,27 @@ def _set_deploy_mode(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_rejects_bundled_skills_in_sandbox(mock_skill_svc: AsyncMock, monkeypatch: pytest.MonkeyPatch):
-    """Sandbox disables local skills — a package with bundled skills must fail closed.
+async def test_rejects_bundled_skills_when_local_skills_are_disabled(
+    mock_skill_svc: AsyncMock, monkeypatch: pytest.MonkeyPatch
+):
+    """With local skill writes disabled a package with bundled skills must fail closed.
 
     Writing skills to a store the agent can never load is a silent failure, so
-    sandbox deployment must reject the import before any skill write happens.
+    the import is rejected before any skill write happens.
     """
+    from app.platform_utils.deployment_capabilities import _reset_capabilities_cache_for_testing
     from app.services.agent.marketplace.import_ import import_agent_package
 
     _set_deploy_mode(monkeypatch, "sandbox")
+    monkeypatch.setenv("MYRM_ALLOW_LOCAL_SKILLS", "0")
+    _reset_capabilities_cache_for_testing()
     try:
         package = _make_package(bundled_subagents=[])
-        with pytest.raises(ValueError, match="bundled skills are not supported in sandbox"):
+        with pytest.raises(ValueError, match="bundled skills require local skill writes"):
             await import_agent_package(mock_skill_svc, package)
         mock_skill_svc.save_skill.assert_not_called()
     finally:
+        monkeypatch.delenv("MYRM_ALLOW_LOCAL_SKILLS")
         _set_deploy_mode(monkeypatch, "local")
 
 
@@ -630,7 +636,7 @@ async def test_profile_fidelity_fields_mapped(mock_skill_svc: AsyncMock):
                     "instruction": "run",
                 }
             ],
-            "security_overrides": {"allow_bash": False},
+            "security_overrides": {"permissions": {"shell_exec": "deny"}, "allow_bash": False},
             "prompt_mode": "lean",
             "notify_targets": [{"channel": "slack", "recipient_id": "U123"}],
             "browser_source": "auto",
@@ -660,7 +666,8 @@ async def test_profile_fidelity_fields_mapped(mock_skill_svc: AsyncMock):
     assert created.openapi_services == [{"name": "weather", "schema": {"openapi": "3.0.0"}}]
     assert created.command_bindings is not None
     assert created.command_bindings[0].command_name == "daily-report"
-    assert created.security_overrides == {"allow_bash": False}
+    # Unknown keys are dropped by the tighten-only gate; the deny survives.
+    assert created.security_overrides == {"permissions": {"shell_exec": "deny"}}
     assert created.prompt_mode == "lean"
     assert created.notify_targets == [{"channel": "slack", "recipient_id": "U123"}]
     assert created.browser_source == "auto"
@@ -743,7 +750,7 @@ async def test_remap_ids_preserves_unmapped():
 
 @pytest.mark.asyncio
 async def test_import_agent_sanitizes_security_overrides(mock_skill_svc: AsyncMock):
-    """Import must sanitize YOLO mode and wildcard/dangerous allow overrides."""
+    """Import must keep only overrides that tighten the baseline (no YOLO, no allow)."""
     from app.services.agent.agent_service import AgentService
     from app.services.agent.marketplace.import_ import import_agent_package
 
@@ -753,8 +760,9 @@ async def test_import_agent_sanitizes_security_overrides(mock_skill_svc: AsyncMo
         "permissions": {
             "*": "allow",
             "mcp_invoke": "allow",
-            "shell_exec": "allow",
+            "shell_exec": "ask",
             "file_read": "allow",
+            "desktop_control": "deny",
         },
     }
     package = _make_package(
@@ -789,8 +797,5 @@ async def test_import_agent_sanitizes_security_overrides(mock_skill_svc: AsyncMo
     assert sec is not None
     assert "yoloModeEnabled" not in sec
     assert "yolo_mode_enabled" not in sec
-    perms = sec.get("permissions", {})
-    assert perms.get("*") == "ask"
-    assert perms.get("mcp_invoke") == "ask"
-    assert perms.get("shell_exec") == "ask"
-    assert perms.get("file_read") == "allow"  # safe read remains
+    # Every allow is dropped (including the harmless-looking file_read); ask/deny survive.
+    assert sec == {"permissions": {"shell_exec": "ask", "desktop_control": "deny"}}
