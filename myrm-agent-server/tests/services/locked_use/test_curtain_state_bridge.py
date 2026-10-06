@@ -221,8 +221,8 @@ def test_curtain_status_payload_maps_active_state(tmp_path: Path, monkeypatch: p
     }
 
 
-def test_publish_state_change_removed() -> None:
-    """SSE 广播路径已移除：移动端经 hub 轮询回执（无 SSE 通道）。"""
+def test_unattended_has_no_sse_broadcast_entry() -> None:
+    """移动端无 SSE 通道：帷幕状态只经 hub 轮询载体回执，编排模块不持有广播入口。"""
     assert not hasattr(unattended, "_publish_state_change")
 
 
