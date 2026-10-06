@@ -242,6 +242,7 @@ myrm_agent_harness.core.events
 myrm_agent_harness.core.events.types
 myrm_agent_harness.core.features
 myrm_agent_harness.core.features.types
+myrm_agent_harness.core.security.action_grants
 myrm_agent_harness.core.security.admin_auth_surface
 myrm_agent_harness.core.security.air_gapped
 myrm_agent_harness.core.security.approval_metrics
@@ -295,6 +296,8 @@ myrm_agent_harness.core.security.irreversible_write_guard
 myrm_agent_harness.core.security.license_compliance
 myrm_agent_harness.core.security.llm_egress_guard.guard
 myrm_agent_harness.core.security.llm_egress_guard.types
+myrm_agent_harness.core.security.local_first_vault
+myrm_agent_harness.core.security.localhost_anti_hijack
 myrm_agent_harness.core.security.marketplace_contract
 myrm_agent_harness.core.security.muse_sentinel_isolation
 myrm_agent_harness.core.security.native_credential_approval
@@ -309,6 +312,8 @@ myrm_agent_harness.core.security.risk_evaluator
 myrm_agent_harness.core.security.saga_dual_engine
 myrm_agent_harness.core.security.sandbox_hardening
 myrm_agent_harness.core.security.sandbox_log_continuation
+myrm_agent_harness.core.security.sandbox_trust_audit
+myrm_agent_harness.core.security.scoped_css_sentinel
 myrm_agent_harness.core.security.secops_audit
 myrm_agent_harness.core.security.secret_broker
 myrm_agent_harness.core.security.semantic_rbac
