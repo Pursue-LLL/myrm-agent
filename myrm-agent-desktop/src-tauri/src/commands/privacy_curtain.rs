@@ -9,6 +9,8 @@
 //! - tauri AppHandle (POS: 窗口/事件/app data 目录)
 //! - utils::screen_lock (POS: 锁屏检测/回锁)
 //! - commands::privacy_curtain_state (POS: 帷幕状态桥，curtain_state.json 的 Tauri 侧唯一读写入口)
+//! - commands::privacy_curtain_page (POS: 看板页面内容与承载它的自定义协议 URL)
+//! - commands::privacy_curtain_presentation (POS: 跨 Space / 菜单栏覆盖的平台呈现层)
 //! - config::{SystemConfig, ConfigManager} (POS: privacy_curtain_enabled 开关)
 //!
 //! [OUTPUT]
@@ -22,45 +24,22 @@
 //! 输入感知=点击可靠（未聚焦窗口收不到键盘，锁屏态键盘落在登录窗无害），
 //! 如实以看板文案告知"交互即锁定"。Linux 不支持帷幕（fail-fast），
 //! Windows <2004 WDA 失败时降级为不拉帷幕（由 Lock-Screen Guardian 兜底）。
+//! 帷幕窗口的生命周期同时托管应用的激活策略（见 privacy_curtain_presentation.rs）：
+//! 创建前进入覆盖模式、全部销毁后恢复，二者只在本文件的 deploy/close 两处发生。
 
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindowBuilder};
 
+use crate::commands::privacy_curtain_page::{self as page, CurtainTexts};
+use crate::commands::privacy_curtain_presentation as presentation;
 use crate::commands::privacy_curtain_state::{mutate_state, read_state};
 use crate::utils::screen_lock;
 
 const CURTAIN_LABEL_PREFIX: &str = "privacy-curtain-";
 /// 输入守卫等待系统确认锁定的上限；超时视为锁屏请求未生效。
 const LOCK_CONFIRM_TIMEOUT: Duration = Duration::from_secs(2);
-
-/// 看板三段文案（由前端按当前 locale 注入缓存，Rust 侧仅存默认英文兜底）。
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CurtainTexts {
-    pub primary: String,
-    pub sub: String,
-    pub hint: String,
-}
-
-fn default_texts() -> CurtainTexts {
-    CurtainTexts {
-        primary: "AI is working — screen protected".to_string(),
-        sub: "This workstation is running an automated session. Content stays hidden until the owner returns.".to_string(),
-        hint: "Any interaction locks this screen instantly".to_string(),
-    }
-}
-
-static CACHED_TEXTS: Mutex<Option<CurtainTexts>> = Mutex::new(None);
-
-fn current_texts() -> CurtainTexts {
-    CACHED_TEXTS
-        .lock()
-        .ok()
-        .and_then(|guard| guard.clone())
-        .unwrap_or_else(default_texts)
-}
 
 pub(crate) fn now_ms() -> u64 {
     SystemTime::now()
@@ -79,71 +58,6 @@ pub(crate) fn log_audit(action: &str, success: bool, reason: &str) {
     );
 }
 
-// ── 看板 HTML ──────────────────────────────────────────────────────
-
-fn html_escape(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
-}
-
-fn curtain_html(texts: &CurtainTexts) -> String {
-    format!(
-        r#"<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <style>
-    html, body {{ margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }}
-    .wrap {{
-      position: fixed; inset: 0; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 18px;
-      font-family: -apple-system, "SF Pro Display", system-ui, sans-serif;
-      color: #e5e7eb; user-select: none; cursor: default;
-    }}
-    .brand {{ font-size: 15px; letter-spacing: 0.35em; color: #6b7280; text-transform: uppercase; }}
-    .dot {{ width: 10px; height: 10px; border-radius: 50%; background: #10b981;
-           animation: pulse 2.4s ease-in-out infinite; }}
-    .primary {{ font-size: 28px; font-weight: 600; color: #f9fafb; text-align: center; padding: 0 24px; }}
-    .sub {{ font-size: 15px; color: #9ca3af; max-width: 560px; text-align: center;
-           line-height: 1.6; padding: 0 24px; }}
-    .hint {{ margin-top: 26px; font-size: 12px; color: #4b5563; border: 1px solid #1f2937;
-            border-radius: 999px; padding: 8px 18px; letter-spacing: 0.02em; }}
-    @keyframes pulse {{ 0%, 100% {{ opacity: 0.35; }} 50% {{ opacity: 1; }} }}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="brand">Myrm</div>
-    <div class="dot"></div>
-    <div class="primary">{}</div>
-    <div class="sub">{}</div>
-    <div class="hint">{}</div>
-  </div>
-  <script>
-    var throttled = 0;
-    function report(source) {{
-      try {{ window.__TAURI_INTERNALS__.invoke('curtain_report_physical_input', {{ source: source }}); }} catch (e) {{}}
-    }}
-    ['pointerdown', 'keydown', 'wheel'].forEach(function (ev) {{
-      addEventListener(ev, function () {{ report(ev); }}, true);
-    }});
-    addEventListener('pointermove', function () {{
-      var now = Date.now();
-      if (now - throttled > 500) {{ throttled = now; report('pointermove'); }}
-    }}, true);
-  </script>
-</body>
-</html>"#,
-        html_escape(&texts.primary),
-        html_escape(&texts.sub),
-        html_escape(&texts.hint),
-    )
-}
-
 // ── 帷幕窗口管理 ──────────────────────────────────────────────────
 
 pub(crate) fn curtain_windows(app: &AppHandle) -> Vec<tauri::WebviewWindow> {
@@ -154,10 +68,16 @@ pub(crate) fn curtain_windows(app: &AppHandle) -> Vec<tauri::WebviewWindow> {
         .collect()
 }
 
-pub(crate) fn close_curtain_windows(app: &AppHandle) {
+fn destroy_curtain_windows(app: &AppHandle) {
     for window in curtain_windows(app) {
         let _ = window.destroy();
     }
+}
+
+/// 收起全部帷幕窗并恢复应用的常规呈现（Dock 图标 / 菜单栏）。
+pub(crate) fn close_curtain_windows(app: &AppHandle) {
+    destroy_curtain_windows(app);
+    presentation::leave_overlay_mode(app);
 }
 
 /// Windows：将帷幕窗从系统截图/投屏通道排除（WDA_EXCLUDEFROMCAPTURE）。
@@ -181,26 +101,29 @@ fn apply_capture_exclusion(_window: &tauri::WebviewWindow) -> Result<(), String>
     Ok(())
 }
 
+/// 建一扇覆盖单个显示器的帷幕窗。label 带代号：新旧两代窗口在重建期间并存，
+/// 同名会在旧窗销毁完成前冲突。
 fn build_curtain_window(
     app: &AppHandle,
+    generation: u64,
     index: usize,
     monitor: &tauri::Monitor,
-    html: &str,
+    page_url: &tauri::Url,
 ) -> Result<tauri::WebviewWindow, String> {
-    use base64::{engine::general_purpose::STANDARD, Engine as _};
-    use tauri::{Url, WebviewUrl};
-
-    let data_url = format!("data:text/html;base64,{}", STANDARD.encode(html.as_bytes()));
-    let url = Url::parse(&data_url).map_err(|e| e.to_string())?;
+    use tauri::{window::Color, WebviewUrl};
 
     let scale = monitor.scale_factor();
     let size = monitor.size();
     let position = monitor.position();
-    let label = format!("{CURTAIN_LABEL_PREFIX}{index}");
+    let label = format!("{CURTAIN_LABEL_PREFIX}{generation}-{index}");
 
-    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::CustomProtocol(url))
+    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::CustomProtocol(page_url.clone()))
         .title("Privacy Curtain")
         .always_on_top(true)
+        // 用户离机前可能停在他应用的全屏 Space，帷幕必须跟到每个 Space（仅 macOS 有此概念）。
+        .visible_on_all_workspaces(cfg!(target_os = "macos"))
+        // 页面首帧绘制前窗口底色就是黑的：持租约期间重建时屏幕前有人，不能闪白。
+        .background_color(Color(0, 0, 0, 255))
         .decorations(false)
         .skip_taskbar(true)
         .focused(false)
@@ -214,32 +137,59 @@ fn build_curtain_window(
         .build()
         .map_err(|e| e.to_string())?;
 
+    // 抬升失败只会让菜单栏露在帷幕之外，窗口本身仍在遮蔽：记审计而不回滚整次拉起。
+    if let Err(reason) = presentation::raise_above_menu_bar(&window) {
+        log_audit("raise_level", false, &reason);
+    }
     // 帷幕必须接收交互（点击→上报→回锁），不能穿透：穿透会让路过者操作底层真实窗口。
-    apply_capture_exclusion(&window)?;
+    if let Err(reason) = apply_capture_exclusion(&window) {
+        // 排除不了截图通道的窗口不能留下：它会把"受保护"的假象带到屏幕上。
+        let _ = window.destroy();
+        return Err(reason);
+    }
     Ok(window)
 }
 
-/// 幂等重建全部帷幕窗（每显示器一窗；先清孤儿窗再按当前显示器布局重建）。
+/// 按当前显示器布局重建全部帷幕窗（每显示器一窗）。先建后拆（make-before-break）：
+/// 新一代全部建成才销毁旧一代，任一环节失败则撤销新窗、旧窗原样保留——
+/// 持租约期间屏幕已解锁，重建的任何空窗期都会让桌面裸露。
 pub(crate) fn deploy_curtain_windows(app: &AppHandle) -> Result<(), String> {
+    static GENERATION: AtomicU64 = AtomicU64::new(0);
+
     if cfg!(target_os = "linux") {
         return Err("Privacy curtain is not supported on Linux".to_string());
     }
 
-    close_curtain_windows(app);
-
-    let monitors = app
-        .available_monitors()
-        .map_err(|e| e.to_string())?
-        .into_iter()
-        .collect::<Vec<_>>();
+    let monitors = app.available_monitors().map_err(|e| e.to_string())?;
     if monitors.is_empty() {
         return Err("No monitors available".to_string());
     }
 
-    let html = curtain_html(&current_texts());
+    // 入口 URL 先于任何副作用求值：失败时不碰激活策略与现有窗口。
+    let page_url = page::url()?;
+    let previous = curtain_windows(app);
+    let generation = GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
+    // 覆盖模式必须先于建窗生效；重建不经 close_curtain_windows，策略不会来回闪动。
+    presentation::enter_overlay_mode(app);
+
+    let mut built = Vec::with_capacity(monitors.len());
     for (index, monitor) in monitors.iter().enumerate() {
-        // 逐窗构建并校验（任一显示器失败即整体回滚孤儿窗由调用方清理重试）。
-        build_curtain_window(app, index, monitor, &html)?;
+        match build_curtain_window(app, generation, index, monitor, &page_url) {
+            Ok(window) => built.push(window),
+            Err(reason) => {
+                for window in built {
+                    let _ = window.destroy();
+                }
+                if previous.is_empty() {
+                    // 没有旧窗也没有新窗，就不会有人来 close：不能让应用停在覆盖模式。
+                    presentation::leave_overlay_mode(app);
+                }
+                return Err(reason);
+            }
+        }
+    }
+    for window in previous {
+        let _ = window.destroy();
     }
     Ok(())
 }
@@ -250,9 +200,7 @@ pub(crate) fn deploy_curtain_windows(app: &AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn show_privacy_curtain(app: AppHandle, texts: Option<CurtainTexts>) -> Result<(), String> {
     if let Some(texts) = texts {
-        if let Ok(mut guard) = CACHED_TEXTS.lock() {
-            *guard = Some(texts);
-        }
+        page::set_texts(texts);
     }
     deploy_curtain_windows(&app)?;
     mutate_state(&app, |state| {
@@ -285,9 +233,7 @@ pub fn privacy_curtain_active(app: AppHandle) -> Result<bool, String> {
 /// 前端按当前 locale 注入看板文案缓存（watcher 自动拉起时无前端调用方在场）。
 #[tauri::command]
 pub fn curtain_set_texts(texts: CurtainTexts) -> Result<(), String> {
-    if let Ok(mut guard) = CACHED_TEXTS.lock() {
-        *guard = Some(texts);
-    }
+    page::set_texts(texts);
     Ok(())
 }
 
@@ -320,30 +266,4 @@ pub async fn curtain_report_physical_input(app: AppHandle, source: String) -> Re
         });
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{curtain_html, default_texts, CurtainTexts};
-
-    #[test]
-    fn html_escapes_untrusted_texts() {
-        let texts = CurtainTexts {
-            primary: "<script>alert(1)</script>".to_string(),
-            sub: "a & b".to_string(),
-            hint: "\"quoted\"".to_string(),
-        };
-        let html = curtain_html(&texts);
-        assert!(html.contains("&lt;script&gt;"));
-        assert!(html.contains("a &amp; b"));
-        assert!(!html.contains("\"quoted\""));
-    }
-
-    #[test]
-    fn default_texts_are_non_empty() {
-        let texts = default_texts();
-        assert!(!texts.primary.is_empty());
-        assert!(!texts.sub.is_empty());
-        assert!(!texts.hint.is_empty());
-    }
 }

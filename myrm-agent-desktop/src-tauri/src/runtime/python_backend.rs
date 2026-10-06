@@ -12,6 +12,8 @@
 //! [POS]
 //! Desktop 模式 Python 后端生命周期。dev 走 venv `run.py`；release 走 bundled sidecar 二进制，
 //! 启动后最多 30s 轮询 `/health`；超时则终止子进程并返回 `Err`。
+//! 向 sidecar 注入帷幕状态桥路径 `MYRM_CURTAIN_STATE_FILE` 与壳进程身份 `MYRM_SHELL_PID`
+//! （server 凭后者判定帷幕是否仍有主，契约名由 server 侧 `curtain_bridge` 测试钉死）。
 
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
@@ -207,6 +209,10 @@ pub async fn start_backend_with_config(
             data_dir.join(crate::commands::privacy_curtain_state::CURTAIN_STATE_FILE),
         );
     }
+
+    // 壳进程身份：server 凭此判定帷幕是否仍有主。release 的 sidecar 是 PyInstaller
+    // --onefile，getppid 指向其引导进程而非壳；壳崩溃后状态文件的 active 不会再被更新。
+    cmd.env("MYRM_SHELL_PID", std::process::id().to_string());
 
     // Locked Use 能力开关传递（server 侧代解锁授权判定，与帷幕开关注册同源）。
     if let Some(manager) = app.try_state::<ConfigManager>() {

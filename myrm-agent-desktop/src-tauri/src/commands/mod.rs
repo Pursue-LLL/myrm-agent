@@ -14,6 +14,8 @@ pub mod data_migration;
 pub mod pet_surface;
 pub mod power;
 pub mod privacy_curtain;
+pub mod privacy_curtain_page;
+pub mod privacy_curtain_presentation;
 pub mod privacy_curtain_state;
 pub mod privacy_curtain_watcher;
 pub mod process_registry;

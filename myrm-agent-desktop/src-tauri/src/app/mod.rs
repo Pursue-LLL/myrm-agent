@@ -5,7 +5,7 @@
 //! - tauri::Builder 插件链 (shell, updater, global-shortcut, window-state 等)
 //!
 //! [OUTPUT]
-//! - run(): 桌面应用主循环、统一 IPC sender gate、generate_handler IPC 注册表
+//! - run(): 桌面应用主循环、统一 IPC sender gate、generate_handler IPC 注册表、帷幕看板自定义协议注册
 //!
 //! [POS]
 //! Tauri Builder 组装层唯一入口；main.rs 仅委托本模块。
@@ -21,6 +21,7 @@ include!("../../command_registry_macro.in");
 
 pub(crate) use tray::update_native_tray_status;
 
+use crate::commands::privacy_curtain_page as curtain_page;
 use crate::runtime;
 
 macro_rules! command_handler_list {
@@ -81,6 +82,10 @@ pub fn run() {
                 })
                 .build(),
         )
+        // 帷幕看板页经自定义协议提供：data: URL 在本应用被 tauri 拒绝，且页内 IPC 属 Remote 来源。
+        .register_uri_scheme_protocol(curtain_page::SCHEME, |_ctx, _request| {
+            curtain_page::response()
+        })
         .setup(setup::on_setup)
         .on_window_event(setup::on_window_event)
         .invoke_handler(move |invoke: tauri::ipc::Invoke| {

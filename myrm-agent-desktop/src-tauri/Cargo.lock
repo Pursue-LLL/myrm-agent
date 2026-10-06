@@ -2678,6 +2678,7 @@ dependencies = [
  "image",
  "libc",
  "local-ip-address",
+ "objc2 0.6.4",
  "regex",
  "reqwest 0.11.27",
  "serde",
