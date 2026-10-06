@@ -152,9 +152,6 @@ class TestMobileHubIntegration:
         assert isinstance(curtain, dict), f"mobile hub must expose curtain status: {payload.keys()}"
         assert isinstance(curtain.get("available"), bool), curtain
         assert isinstance(curtain.get("active"), bool), curtain
-        if curtain["available"]:
-            assert isinstance(curtain.get("autoEngaged"), bool), curtain
-            assert isinstance(curtain.get("pendingAutoUnlock"), bool), curtain
 
         upgrade_response = integration_client.post(
             "/api/v1/remote-access/pairing-token",

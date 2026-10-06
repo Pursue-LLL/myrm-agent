@@ -714,8 +714,6 @@ export interface RecentSession {
 export interface CurtainStatus {
   available: boolean;
   active: boolean;
-  autoEngaged?: boolean;
-  pendingAutoUnlock?: boolean;
 }
 
 export interface ActiveSessionsResponse {

@@ -194,12 +194,7 @@ async def test_mobile_sessions_reports_live_curtain_state(tmp_path: Path, monkey
     result = await mobile_sessions(_mock_request(trust_zone=TrustZone.LOCAL_TRUSTED.value), pair=None)
     curtain = _response_body(result)["data"]["curtain"]
 
-    assert curtain == {
-        "available": True,
-        "active": True,
-        "autoEngaged": True,
-        "pendingAutoUnlock": False,
-    }
+    assert curtain == {"available": True, "active": True}
 
 
 @pytest.mark.asyncio

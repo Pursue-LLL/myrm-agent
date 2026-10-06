@@ -213,19 +213,14 @@ def test_curtain_status_payload_unavailable_without_bridge(
 
 
 def test_curtain_status_payload_maps_active_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """桌面端部署：载荷透出 active/autoEngaged/pendingAutoUnlock 三字段。"""
+    """桌面端部署：载荷只透出消费方需要的 available/active，状态机内部位不外泄。"""
     state_file = _write_state(
         tmp_path,
         monkeypatch,
         json.dumps({**_VALID_STATE, "autoEngaged": True, "pendingAutoUnlock": True}),
     )
     assert state_file.is_file()
-    assert curtain_status_payload() == {
-        "available": True,
-        "active": True,
-        "autoEngaged": True,
-        "pendingAutoUnlock": True,
-    }
+    assert curtain_status_payload() == {"available": True, "active": True}
 
 
 def test_shell_alive_true_for_a_running_process() -> None:
@@ -318,12 +313,7 @@ def test_curtain_status_payload_reports_inactive_when_the_shell_is_gone(
     _write_state(tmp_path, monkeypatch, json.dumps(_VALID_STATE))
     monkeypatch.setenv(SHELL_PID_ENV, str(dead_shell_pid))
 
-    assert curtain_status_payload() == {
-        "available": True,
-        "active": False,
-        "autoEngaged": False,
-        "pendingAutoUnlock": False,
-    }
+    assert curtain_status_payload() == {"available": True, "active": False}
 
 
 def test_unattended_has_no_sse_broadcast_entry() -> None:

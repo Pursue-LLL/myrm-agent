@@ -201,9 +201,4 @@ def curtain_status_payload() -> dict[str, object]:
     state = read_curtain_state()
     if state is None:
         return {"available": False, "active": False}
-    return {
-        "available": True,
-        "active": state.active,
-        "autoEngaged": state.auto_engaged,
-        "pendingAutoUnlock": state.pending_auto_unlock,
-    }
+    return {"available": True, "active": state.active}

@@ -106,7 +106,7 @@ describe('MobileSessionHub task composition', () => {
       recentSessions: [],
       maxConcurrent: 3,
       availableSlots: 3,
-      curtain: { available: true, active: true, autoEngaged: true },
+      curtain: { available: true, active: true },
     });
 
     render(<MobileSessionHub />);
