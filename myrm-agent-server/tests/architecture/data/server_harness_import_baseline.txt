@@ -230,6 +230,7 @@ myrm_agent_harness.backends.skills.types
 myrm_agent_harness.backends.skills.usage_recorder
 myrm_agent_harness.backends.skills.versioning
 myrm_agent_harness.backends.skills.watcher
+myrm_agent_harness.config.project_isolation
 myrm_agent_harness.core.artifacts.constants
 myrm_agent_harness.core.artifacts.manifest
 myrm_agent_harness.core.artifacts.paths
@@ -262,6 +263,7 @@ myrm_agent_harness.core.security.desktop_oauth_device.pkce
 myrm_agent_harness.core.security.desktop_oauth_device.token_rotator
 myrm_agent_harness.core.security.desktop_oauth_device.types
 myrm_agent_harness.core.security.detection.leak_detector
+myrm_agent_harness.core.security.dev_sandbox_fence
 myrm_agent_harness.core.security.dir_trust_gate
 myrm_agent_harness.core.security.directory_trust_gate
 myrm_agent_harness.core.security.directory_trust_remote_memory
@@ -289,10 +291,12 @@ myrm_agent_harness.core.security.inbound_quarantine
 myrm_agent_harness.core.security.inherited_identity_guard
 myrm_agent_harness.core.security.integration_trust
 myrm_agent_harness.core.security.ipc
+myrm_agent_harness.core.security.irreversible_write_guard
 myrm_agent_harness.core.security.license_compliance
 myrm_agent_harness.core.security.llm_egress_guard.guard
 myrm_agent_harness.core.security.llm_egress_guard.types
 myrm_agent_harness.core.security.marketplace_contract
+myrm_agent_harness.core.security.muse_sentinel_isolation
 myrm_agent_harness.core.security.native_credential_approval
 myrm_agent_harness.core.security.on_demand_masking
 myrm_agent_harness.core.security.path
@@ -308,6 +312,7 @@ myrm_agent_harness.core.security.sandbox_log_continuation
 myrm_agent_harness.core.security.secops_audit
 myrm_agent_harness.core.security.secret_broker
 myrm_agent_harness.core.security.semantic_rbac
+myrm_agent_harness.core.security.sensitive_file_guard
 myrm_agent_harness.core.security.side_effect_gate
 myrm_agent_harness.core.security.skill_governance
 myrm_agent_harness.core.security.slack_rotating_token
