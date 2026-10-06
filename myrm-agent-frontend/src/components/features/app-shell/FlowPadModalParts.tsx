@@ -112,6 +112,7 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
     <div
       className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={onClose}
+      role="presentation"
     >
       <button type="button" className="absolute top-4 right-4 text-white/80 hover:text-white" onClick={onClose}>
         <X className="w-6 h-6" />

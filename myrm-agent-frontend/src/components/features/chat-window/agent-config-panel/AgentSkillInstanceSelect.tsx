@@ -71,6 +71,7 @@ export const AgentSkillInstanceSelect = memo<AgentSkillInstanceSelectProps>(
         <div
           className="flex flex-col gap-1.5 px-2 py-1.5 bg-amber-500/10 rounded-lg border border-amber-500/30 no-card-click min-w-[140px] max-w-[220px]"
           onClick={(e) => e.stopPropagation()}
+          role="presentation"
         >
           <p className="text-[10px] leading-snug text-amber-700 dark:text-amber-400">
             {t('staleWarning', { name: boundName })}
@@ -99,6 +100,7 @@ export const AgentSkillInstanceSelect = memo<AgentSkillInstanceSelectProps>(
       <div
         className="flex items-center gap-2 px-2 py-1 bg-background/50 rounded-lg border border-border/50 no-card-click min-w-[140px]"
         onClick={(e) => e.stopPropagation()}
+        role="presentation"
       >
         <span className="text-[10px] font-medium text-muted-foreground shrink-0">{t('label')}</span>
         <Select

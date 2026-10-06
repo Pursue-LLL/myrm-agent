@@ -229,7 +229,7 @@ export function MCPConfigList({
                 className="flex items-center justify-between p-3 bg-secondary rounded-lg border border-border cursor-pointer hover:bg-muted/50 transition-colors group"
               >
                 <div className="flex items-center space-x-3">
-                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()} role="presentation">
                     <Switch
                       checked={config.enabled}
                       disabled={isToggling}
@@ -288,7 +288,7 @@ export function MCPConfigList({
                 </div>
                 <div className="flex items-center space-x-2">
                   {hasOAuthConfig && (
-                    <div onClick={(e) => e.stopPropagation()}>
+                    <div onClick={(e) => e.stopPropagation()} role="presentation">
                       {oauth?.connected && !oauth.expired ? (
                         <button
                           onClick={() => handleOAuthDisconnect(config.name)}

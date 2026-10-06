@@ -288,7 +288,11 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
   const showStorageTruncated = storageTruncatedProp === true || storageTruncatedFromApi;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+      role="presentation"
+    >
       <div
         data-testid="evicted-output-drawer"
         className={cn(
@@ -296,6 +300,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
           'bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden',
         )}
         onClick={(e) => e.stopPropagation()}
+        role="presentation"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/60">

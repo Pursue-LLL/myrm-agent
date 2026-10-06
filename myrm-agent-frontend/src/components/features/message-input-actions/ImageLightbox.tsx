@@ -214,6 +214,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialInd
               onClose();
             }
           }}
+          role="presentation"
         >
           <motion.img
             ref={imgRef}

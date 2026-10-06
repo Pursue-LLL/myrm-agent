@@ -181,7 +181,11 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
           aria-label="Screenshot preview"
         >
           {/* Top toolbar */}
-          <div className="absolute top-4 right-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="absolute top-4 right-4 flex items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
+            role="presentation"
+          >
             <button
               type="button"
               onClick={handleEdit}
@@ -239,7 +243,11 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
 
           {/* Counter */}
           {images.length > 1 && (
-            <div className="absolute bottom-4 text-sm text-white/70 select-none" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="absolute bottom-4 text-sm text-white/70 select-none"
+              onClick={(e) => e.stopPropagation()}
+              role="presentation"
+            >
               {lightboxIndex + 1} / {images.length}
             </div>
           )}

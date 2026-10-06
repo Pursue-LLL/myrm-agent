@@ -323,7 +323,11 @@ const SkillCard = memo(
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="flex items-center gap-2 flex-shrink-0"
+            onClick={(e) => e.stopPropagation()}
+            role="presentation"
+          >
             {!skill.available && isEnabled ? (
               <Tooltip>
                 <TooltipTrigger asChild>

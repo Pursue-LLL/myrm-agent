@@ -249,7 +249,7 @@ const CLIWorkingDirectory = memo<CLIWorkingDirectoryProps>(({ workingDirectory, 
   }, [inputValue, workingDirectory, onWorkingDirectoryChange, saveToRecentProjects]);
 
   return (
-    <div className="space-y-1 pt-2 border-t border-border/30" onClick={handleInputClick}>
+    <div className="space-y-1 pt-2 border-t border-border/30" onClick={handleInputClick} role="presentation">
       {isEditing ? (
         /* 编辑模式 */
         <div className="space-y-2">

@@ -122,6 +122,7 @@ export const ArchiveRestoreStepAction = ({ actions, block }: ArchiveRestoreStepA
         'border-primary/25 bg-primary/10 text-foreground',
       )}
       onClick={(event) => event.stopPropagation()}
+      role="presentation"
     >
       <p className="leading-relaxed text-foreground/85">
         {t('archiveRestoreCardDescription', { count: actions.length })}

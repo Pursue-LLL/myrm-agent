@@ -71,6 +71,7 @@ export function CronWorkflowTemplateBadge({ job }: { job: CronWorkflowTemplateJo
           <span
             className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400"
             onClick={(event) => event.stopPropagation()}
+            role="presentation"
           >
             <Route className="h-3 w-3 shrink-0" />
             <span className="truncate max-w-[120px]">{templateId}</span>

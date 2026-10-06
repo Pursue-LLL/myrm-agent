@@ -218,6 +218,7 @@ export function SearchDialog({ open, onOpenChange, className, children }: Search
       <div
         className="fixed inset-0 bg-black/30 flex items-start justify-center pt-[10vh] sm:pt-[15vh] z-[9999] px-4 pb-4"
         onClick={handleBackdropClick}
+        role="presentation"
       >
         <div
           className={cn(

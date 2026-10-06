@@ -872,7 +872,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         </div>
 
         {publications.some((pub) => pub.publication_status === 'READY' && pub.publication_url) && (
-          <div className="mx-3 mb-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="mx-3 mb-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()} role="presentation">
             {publications
               .filter((pub) => pub.publication_status === 'READY' && pub.publication_url)
               .map((pub) => {
@@ -908,6 +908,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
             key={pub.id}
             className="mx-3 mb-2 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100"
             onClick={(e) => e.stopPropagation()}
+            role="presentation"
           >
             <span className="min-w-0">
               {t('deploy.redeployBannerForTarget', {
@@ -989,6 +990,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
           <div
             className="mx-3 mb-3 rounded-lg border border-border/60 bg-muted/20 p-3"
             onClick={(e) => e.stopPropagation()}
+            role="presentation"
           >
             {organizePlanLoading && !organizePlanContent ? (
               <div className="flex items-center justify-center py-6">

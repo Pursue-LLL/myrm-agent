@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface OpenArtifactTab {
   artifact: Artifact;
@@ -64,6 +65,7 @@ const PortalTabs: React.FC<PortalTabsProps> = ({
                   : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
               )}
               onClick={() => onSwitchTab(index)}
+              onKeyDown={activateOnKey}
               role="tab"
               aria-selected={isActive}
               tabIndex={isActive ? 0 : -1}

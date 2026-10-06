@@ -171,6 +171,7 @@ export function WeChatDraftPanel({
     <div
       className="mx-3 mb-3 rounded-lg border border-border/60 bg-muted/20 p-3 space-y-3"
       onClick={(e) => e.stopPropagation()}
+      role="presentation"
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">

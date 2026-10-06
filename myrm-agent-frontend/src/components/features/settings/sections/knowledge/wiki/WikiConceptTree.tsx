@@ -126,6 +126,7 @@ export function WikiConceptTree({
                 e.preventDefault();
                 e.stopPropagation();
               }}
+              role="presentation"
             >
               <button
                 type="button"

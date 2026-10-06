@@ -273,7 +273,7 @@ function ObjectiveEditor({
   t: ReturnType<typeof useTranslations>;
 }) {
   return (
-    <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+    <div className="space-y-2" onClick={(e) => e.stopPropagation()} role="presentation">
       <textarea
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
         rows={3}

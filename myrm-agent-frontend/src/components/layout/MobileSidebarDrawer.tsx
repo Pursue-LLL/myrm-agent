@@ -35,7 +35,9 @@ export function MobileSidebarDrawer({
 }: MobileSidebarDrawerProps) {
   return (
     <>
-      {isOpen && <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />}
+      {isOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} role="presentation" />
+      )}
       <div
         className={cn(
           'fixed top-0 left-0 bottom-0 z-50 flex w-full max-w-[420px] overflow-hidden myrm-safe-top myrm-safe-bottom',
