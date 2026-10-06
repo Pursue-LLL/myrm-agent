@@ -24,6 +24,9 @@ from app.api.memory.decay_lifecycle_router import (
 from app.api.memory.drift_router import (
     router as memory_drift_router,
 )
+from app.api.memory.dual_track_router import (
+    router as memory_dual_track_router,
+)
 from app.api.memory.experience_gene_router import (
     router as experience_gene_router,
 )
@@ -129,6 +132,7 @@ router.include_router(memory_unload_router, tags=["memory-unload-guard"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
 router.include_router(memory_conflict_router, tags=["memory-conflict-arbitration"])
 router.include_router(memory_openclaw_router, tags=["memory-openclaw-adapter"])
+router.include_router(memory_dual_track_router, tags=["memory-dual-track"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])

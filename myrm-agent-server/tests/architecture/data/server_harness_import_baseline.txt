@@ -255,6 +255,7 @@ myrm_agent_harness.core.security.audit_coverage
 myrm_agent_harness.core.security.auto_review_resolution
 myrm_agent_harness.core.security.blast_radius_inspector
 myrm_agent_harness.core.security.bot_budget_guardrail
+myrm_agent_harness.core.security.browser_human_handoff
 myrm_agent_harness.core.security.case_variant_scrubber
 myrm_agent_harness.core.security.causal_deception
 myrm_agent_harness.core.security.change_guard
@@ -580,6 +581,7 @@ myrm_agent_harness.toolkits.memory.conflict_arbitration
 myrm_agent_harness.toolkits.memory.conversation_search.types
 myrm_agent_harness.toolkits.memory.decay
 myrm_agent_harness.toolkits.memory.drift_defense
+myrm_agent_harness.toolkits.memory.dual_track_extraction
 myrm_agent_harness.toolkits.memory.evolution
 myrm_agent_harness.toolkits.memory.graph
 myrm_agent_harness.toolkits.memory.graph.age_store
