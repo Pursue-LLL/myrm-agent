@@ -81,9 +81,9 @@ async def test_plugin_mcp_enabled_chain_runs_through_real_config() -> None:
     plugin = installed[0]
     assert plugin["name"] == "demo-plugin"
     assert plugin["servers"] == ["db-server", "pdf-server"]
-    assert plugin["server_meta"] == [
-        {"name": "db-server", "enabled": True},
-        {"name": "pdf-server", "enabled": False},
+    assert [(m["name"], m["enabled"]) for m in plugin["server_meta"]] == [
+        ("db-server", True),
+        ("pdf-server", False),
     ]
 
     # 3) The runtime filter keeps only the enabled server.

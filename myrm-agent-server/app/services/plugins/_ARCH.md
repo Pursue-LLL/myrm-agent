@@ -2,20 +2,27 @@
 
 ## 架构概述
 
-Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm_agent_harness.agent.plugins`，将技能与 MCP 配置持久化到业务存储并绑定 Agent。上级文档：[../_ARCH.md](../_ARCH.md)。
+Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm_agent_harness.agent.plugins`，将技能（走标准隔离安装管线）、MCP 配置与专家（Agent profile）持久化到业务存储并绑定 Agent。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 包入口 | 统一导出插件服务模块公开 API | ✅ |
-| `import_service.py` | 门面 | 插件导入编排门面：ZIP 解析包装（archive security → 结构化错误）、预览构建（含同名冲突标记）、confirm 落盘编排（同名技能原位升级 + MCP 落盘 + bundled 文件持久化）、`list_installed_plugins`（按 plugin_name 溯源分组列出已导入插件，含每个 server 的 `enabled` 状态 `server_meta`，供插件管理 UI 展示启用状态）、`uninstall_plugin`（卸载：删 MCP 条目 + 解绑 Agent + 删文件）、`_load_existing_skill_ids` 冲突 SSOT，并 re-export 会话/模型/持久化符号 | ✅ |
-| `_models.py` | 模型 | `PluginImportSession` / `PluginConfirmItem` 业务层 DTO | ✅ |
-| `_preview.py` | 预览 | 插件导入预览构建与离线安全校验：`build_preview_result`、`compute_capability_diff`（升级权限扩张分析）、`scan_skill_security`、`skill_content_too_large`、模板物料容量扫描与 diagnostics 诊断透传 | ✅ |
+| `import_service.py` | 门面 | 导入编排门面：ZIP 解析包装（archive security → 结构化错误）、`confirm_plugin_import`（技能安装 → bundled 文件 → MCP 落盘 → 专家持久化 → 可选绑定既有专家；返回计数、逐专家结果 `agents` 与逐组件 `failures`）、`list_installed_plugins` / `uninstall_plugin`，并 re-export 会话/模型/预览/上下文符号 | ✅ |
+| `_models.py` | 模型 | `PluginImportSession` / `PluginConfirmItem` / `ComponentFailure` 业务层 DTO | ✅ |
+| `_preview.py` | 预览 | `build_preview_result`（技能/连接器/专家的冲突、阻断、未解析引用、tighten-only 生效值，`deployment` 部署开关）、`compute_capability_diff`（升级权限扩张分析）、模板物料容量诊断 | ✅ |
+| `_preview_context.py` | 上下文 | `PreviewContext` / `load_preview_context`：预览与 confirm 共用的安装状态事实（已装技能、已配置连接器、同名专家、部署限制）；失败降级为空事实并记录 WARNING | ✅ |
+| `_gates.py` | 门禁 | 预览与 confirm 共用的安装前判定：`scan_skill_security`（fail-closed）、`skill_block_reason` / `server_block_reason`（部署限制、超长内容）与 `BLOCK_*` 码 | ✅ |
+| `_skill_persist.py` | 持久化 | `install_plugin_skills`：技能经 `market_service.install_files`（生命周期脚本门禁 → 全文件安全评分 → 版本降级保护 → 原子提升）安装并挂载到技能目录，返回规范 skill id；逐技能失败隔离；清理旧版导入遗留的无文件记录 | ✅ |
+| `agent_surface.py` | 专家面 | 专家面 SSOT：`AgentBase` 47 个字段的处置表（CARRY/REFERENCE/DISPLAY/DERIVE/DROP，默认拒绝）、`import_agent_fields`（tighten-only：工具限于默认授权、循环预算只降不升、安全字段一律丢弃）、`profile_to_plugin_agent`（导出方向投影） | ✅ |
+| `_agent_plan.py` | 规划 | 专家绑定计划（纯函数）：逐专家显式绑定 + 入口专家隐式兜底、隐式团队、子专家先于主专家的创建顺序、环边剔除、未解析引用清单 | ✅ |
+| `_agent_persist.py` | 持久化 | `persist_imported_agents`：按计划写入专家；同名策略（`install` 建副本 "X (imported[ n])"、`replace` 原位更新用户自有专家并自动快照、内置专家永不替换）；失败回滚本次新建的专家；逐专家结果与 `ComponentFailure` | ✅ |
+| `template_workspace.py` | 物料 | 模板物料存储格式 SSOT：`encode_template_files`（容量护栏，跳过而非截断）、`decode_template_files`、`materialize_template_workspace_files`（新会话 JIT 释放，防路径穿越、不覆盖已有文件） | ✅ |
 | `_staging.py` | 存储 | `PluginStaging` 导入会话持久化（pickle + 24h TTL 清理） | ✅ |
-| `_agent_persist.py` | 持久化 | Agent 团队与物料持久化：`persist_imported_agents`（两阶段创建子智能体与入口智能体、自动绑定 subagent_ids 与 workspace 模板物料）、`sanitize_imported_security_overrides`（fail-closed 安全越权清洗）、模板物料容量安全护栏（`MAX_TEMPLATE_FILE_BYTES = 1MB`、`MAX_TOTAL_TEMPLATE_BYTES = 5MB`） | ✅ |
-| `_mcp_persist.py` | 持久化 | MCP 落盘合并（`{"mcpConfigs": [...]}` + name 去重 + disabled 默认）、`invalidate_user_configs_cache` 失效、Agent 绑定 skill_ids+mcp_ids、secret 引用解析与 `required_secret_keys` 收集；`_server_to_config_dict` 将 `plugin_name`/`plugin_root`/`data_root` 嵌入 `extra_params`；卸载相关 `_remove_plugin_mcp_servers`（按 plugin_name 移除 MCP 条目）与 `_unbind_plugin_from_agents`（从 Agent `mcp_ids` 解绑） | ✅ |
-| `_plugin_files.py` | 存储 | bundled 插件文件持久化：`server_needs_bundled_files`（server 是否需要随插件发布文件）、`persist_plugin_files`（写入 `{data_dir}/plugins/{name}/` 与 `{name}_data/`）、`remove_plugin_files`（删除两目录）、`plugin_dir_exists`/`is_safe_plugin_name`（列表/卸载时校验与探测） | ✅ |
+| `_mcp_persist.py` | 持久化 | MCP 落盘合并（`{"mcpConfigs": [...]}` + name 去重 + disabled 默认）、`invalidate_user_configs_cache` 失效、`_collect_server_configs`（部署与缺失产物阻断，作为 `ComponentFailure` 报告）、Agent 绑定 skill_ids+mcp_ids、secret 引用解析与 `required_secret_keys` 收集；`_server_to_config_dict` 将 `plugin_name`/`plugin_root`/`data_root` 嵌入 `extra_params`；卸载相关 `_remove_plugin_mcp_servers` 与 `_unbind_plugin_from_agents` | ✅ |
+| `_plugin_files.py` | 存储 | bundled 插件文件持久化：`server_needs_bundled_files`、`persist_plugin_files`（写入 `{data_dir}/plugins/{name}/` 与 `{name}_data/`）、`remove_plugin_files`、`plugin_dir_exists`/`is_safe_plugin_name` | ✅ |
+| `_uninstall.py` | 生命周期 | `list_installed_plugins`（按 `extra_params.plugin_name` 溯源分组，含 `server_meta` 启用状态与能力）与 `uninstall_plugin`（四维清退） | ✅ |
 
 ## 设计原则
 
@@ -27,13 +34,13 @@ Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm
 - **Bundled 文件持久化**：接受含 bundled stdio server（`./` 命令或 `${PLUGIN_ROOT}`/`${PLUGIN_DATA}` 占位符）的插件时，将插件文件树（`plugin.json`/`mcp.json`/`bin/*` 等非 skill 文件，来自框架层 `PluginParseResult.files`）持久化到 `{data_dir}/plugins/{plugin_name}/` 与 `{name}_data/` 两目录，并把绝对路径写入各 MCP 条目 `extra_params.plugin_root` / `data_root`（运行时由 harness `placeholders.resolve_stdio_launch` 展开）。目录名经过 `is_safe_plugin_name` 校验，杜绝路径穿越。
 - **Provenance 溯源**：每个插件导入的 MCP 条目在 `extra_params.plugin_name` 记录来源插件名，作为卸载定位与「已安装插件」列表分组的 SSOT；用户手动配置的 server 无该标记，永不混入插件管理视图。
 - **卸载生命周期（四维彻底清退）**：`uninstall_plugin` 按 `plugin_name` 移除全部插件 MCP 条目（保留用户自建 server）、从所有 Agent 的 `mcp_ids` 解绑对应 server 名（`UnitOfWork` 原子更新）、执行 Tool Registry 内存即时注销（`evict_skill_safety_metadata`）、级联下线/暂停关联的后台 Cron 定时任务、安全删除插件文件与数据目录；全维度清退由统一流水线编排，各环节异常安全隔离并记录日志，保证插件完全彻底离场、无任何暗线与孤儿残留。**导入的技能保留在技能库**，由技能管理页独立管理（卸载仅清理 MCP 配置/Agent 绑定/文件，避免误删用户已定制技能）。
-- **技能安全扫描**：预览阶段对每个 skill 内容运行 `SkillSecurityValidator`，`security_issues` 随预览返回；confirm 阶段重新扫描，未通过的 skill 即使标记 install 也会被跳过（预览状态不可信，防御纵深）。扫描器自身异常按 **fail-closed** 处理（视为不安全并跳过），避免崩溃或静默放行。
-- **超长技能隔离**：skill 内容超过 `SkillStore.MAX_SKILL_CONTENT_CHARS`（64 KB）时，预览携带 `oversized_content` 标记，confirm 阶段直接跳过（不入库、不向量化）。与框架层 `save_skills_batch` 的硬校验对齐，避免超大 skill 因向量化静默失败而"已入库但检索不到"。
-- **同名技能升级（冲突处理）**：`_load_existing_skill_ids` 在预览与 confirm 时各查询一次 active 技能名映射（`name → skill_id`）。预览对已存在同名技能标记 `conflict`，UI 提供"覆盖/跳过"决策；confirm 时以**服务端重新查询**的映射为权威（不信任前端回传），同名技能一律原位升级——复用原 `skill_id` + `EvolutionType.DERIVED` lineage，确保技能库永不出现同名重复记录。与批量导入 `batch_import` 的 conflict+replace 模式对齐，但仅保留 replace/skip 两种决策（插件的技能路径含插件名，rename 会破坏路径一致性，故不引入 rename_cow）。
-- **Agent 绑定**：绑定 Agent 时通过单次 `AgentUpdate` 原子追加 skill_ids 与 mcp_ids（去重），缺失 agent 与重复 id 静默容忍。
+- **技能与市场同管线**：插件技能与市场技能走同一条隔离安装管线（`market_service.install_files`）：生命周期脚本门禁 → 安全评分（扫描**全部**文本文件，含 `scripts/`）→ 版本降级保护 → 原子提升并写 `origin.json`/`receipt.json`。安装结果是真实文件（`scripts/`、`references/` 完整可读、可装配），挂载到技能目录并取规范 id（`local::<hash>`），专家按该 id 绑定；被拒绝的技能不留任何残留。预览阶段的内容扫描与 confirm 重新判定共用 `_gates`（预览状态不可信，防御纵深），扫描器自身异常按 fail-closed 处理。
+- **部署感知**：`deployment_capabilities.allows_local_skills` 为 false 的部署不安装技能，`settings.mcp.allow_stdio` 为 false 的部署（云沙箱）不导入 stdio 连接器；预览通过 `blocked_reason` 与 `deployment` 提前呈现，confirm 以服务端重新读取的事实为准并把被拒组件作为 `failures` 报告（而不是静默跳过或整体 500）。超长 SKILL.md（`SkillStore.MAX_SKILL_CONTENT_CHARS`）同样以 `oversized_content` 阻断。
+- **同名处理**：技能——预览按名称对已装技能标记 `conflict`；`install` 在版本不低于已装版本时原位升级，降级被版本保护以 `DOWNGRADE_BLOCKED` 拒绝，`replace` 显式允许降级。专家——同名时 `install` 创建 "X (imported[ n])" 副本、从不触碰用户已有专家；`replace` 原位更新用户自有专家（保持身份与历史，并自动保存上一版快照，内置专家永不替换）。未给出决策的专家不会被导入。
+- **专家导入（tighten-only）**：专家字段按处置表默认拒绝；导入只会收紧——内置工具限于默认授权（`web_search`/`memory`/`structured_clarify`，其余作为 `withheld_tools` 报告）、`max_iterations` 只降不升（5–50）、`security_overrides` / `default_security_preset` / `trusted_desktop_apps` / `prompt_mode` 等安全与机器本地字段一律丢弃。绑定逐专家显式（入口专家未声明技能/连接器时兜底获得本包安装的全部），入口专家未声明 `subagents` 时隐式带领其余专家，存在子专家的主专家 `agent_type="team"`。创建顺序子专家优先，环边剔除；任一写入失败回滚本次新建的专家。
 - **MCP 去重**：confirm 落盘前与现有 `mcpServers` 按 name 去重，重名 server 被跳过且不计入 `imported_servers`、不绑定 Agent（计数/绑定仅反映实际落盘项）。合并基于已持久化的配置（`{"mcpConfigs": [...]}`，兼容 legacy 裸 list），保证导入仅追加、永不丢弃用户已有服务器。
 - **会话清理**：`PluginStaging` 通过 `cleanup_expired_sessions`（线程内执行同步清理）在后台删除超过 24h 的无主会话，防止磁盘堆积。
 - **沙箱能力模型与升级权限扩张防护**：
   导入阶段解析插件声明与静态推导的 `PluginCapabilityTier`（read_only、fs_read、fs_write、network、shell_exec、destructive）。
   针对覆盖更新安装场景，通过 `compute_capability_diff` 比对已安装版本与新包能力，检测是否包含新增高危提权行为（如增加 shell_exec、destructive 或未授权 network 访问），在 UI 显式呈递权限徽章与高危警告，阻断恶意插件的“先以安全版本入库、后以静默升级提权越权”攻击链。
-- **模板物料容量护栏与沙箱隔离下发**：插件 `workspace/` 与 `template_files/` 资产作为开箱即用物料注入 Agent 的 `engine_params.template_workspace_files`。单文件上限 `MAX_TEMPLATE_FILE_BYTES`（1MB）、累计总容量上限 `MAX_TOTAL_TEMPLATE_BYTES`（5MB），超限文件安全截断并在预览时透传为 Warning 诊断，根除 SQLite 单行膨胀与反序列化 OOM。新会话启动时由 `workspace_resolve.py` 在当前会话专属沙箱安全 JIT 释放，并通过 `Path.is_relative_to` 绝对防御路径穿越。
+- **模板物料容量护栏与沙箱隔离下发**：插件 `ai.myrm/workspace/` 资产作为开箱即用物料注入**入口专家**的 `engine_params.template_workspace_files`（文本或 `base64:` 二进制）。单文件上限 `MAX_TEMPLATE_FILE_BYTES`（1MB）、累计上限 `MAX_TOTAL_TEMPLATE_BYTES`（5MB），超限文件被跳过（不截断，后续更小的文件仍可入选），预览以 Warning 诊断透传且与落盘判定一致（同一 `encode_template_files`）。新会话启动时由 `workspace_resolve.py` 在会话专属工作区 JIT 释放，`Path.is_relative_to` 防路径穿越且从不覆盖已有文件。

@@ -1,91 +1,71 @@
 """Agent Plugins 1.0.0 import orchestration (business layer).
 
 Consumes the framework-level parser (`myrm_agent_harness.agent.plugins`) and
-persists components:
-  - skills → SkillStore (INSTALLED trust layer, blue-green atomic write)
+persists the selected components:
+  - skills → installed like any external skill (quarantine pipeline, lifecycle +
+    security gates over every file, atomic promote) and enabled in the catalog
   - MCP servers → global ``mcpServers`` UserConfig (disabled by default)
-  - Agent binding → `mcp_ids` + `skill_ids` on the target Agent profile
+  - experts → ``AgentService`` (per-expert bindings, tighten-only fields, same-name
+    policies, rollback on failure)
+  - optional binding of the imported skills/servers to an existing expert
 
 The import is fully offline (no LLM calls) and applies per-component failure
-isolation so a single invalid skill or MCP server never aborts the whole import.
-Skills whose name already exists in the store are upgraded in place (reusing the
-existing ``skill_id`` with DERIVED lineage) instead of creating a duplicate, so
-the skill library never accumulates same-name records.
+isolation: a rejected skill, a blocked connector or an invalid expert is reported
+in ``failures`` and never aborts the rest, and nothing half-written is left behind.
 
 [INPUT]
 - myrm_agent_harness.agent.plugins.parser::AgentPluginParser (POS: framework
   plugin archive parser.)
-- myrm_agent_harness.agent.skills.evolution.core.types (POS: skill lineage types.)
-- myrm_agent_harness.agent.skills.evolution.db.store::SkillStore (POS: SQLite
-  skill persistence; MAX_SKILL_CONTENT_CHARS is the oversized-content SSOT.)
+- ._skill_persist::install_plugin_skills (POS: skill installation + catalog enable.)
+- ._agent_persist::persist_imported_agents (POS: expert persistence.)
+- ._preview_context::load_preview_context (POS: installation state at confirm time.)
+- ._mcp_persist (POS: MCP/agent persistence for plugin imports.)
 - ._models::PluginImportSession, PluginConfirmItem (POS: business-layer DTOs.)
 - ._staging::PluginStaging (POS: import session staging persistence.)
-- ._mcp_persist (POS: MCP/agent persistence for plugin imports.)
 
 [OUTPUT]
-- build_preview_result: component preview payload with name-conflict flags.
-- confirm_plugin_import: Persist skills, MCP servers, and agent bindings from a
-  parsed plugin archive (offline, per-component failure isolation); returns
-  imported/skipped counts plus ``required_secret_keys`` for the UI to guide
-  secret configuration. Bundled plugin files are persisted via
-  ``._plugin_files.persist_plugin_files`` and their roots embedded into
-  ``extra_params`` (plugin_root / data_root).
+- build_preview_result: component preview payload with conflict / block / unresolved flags.
+- load_preview_context: installation state a package is previewed and confirmed against.
+- confirm_plugin_import: persist skills, MCP servers and experts from a parsed plugin
+  archive; returns imported/skipped counts, per-component ``failures``, per-expert
+  results and ``required_secret_keys`` for the UI to guide secret configuration.
+  Bundled plugin files are persisted via ``._plugin_files.persist_plugin_files`` and
+  their roots embedded into ``extra_params`` (plugin_root / data_root).
 - list_installed_plugins: provenance-grouped listing of imported plugins
   (extra_params.plugin_name → server names + has_bundled_files).
 - uninstall_plugin: full plugin teardown — remove its MCP entries, unbind
   agent mcp_ids, and delete bundled/data directories; unsafe names are refused.
-- _load_existing_skill_ids: active skill name → skill_id map (conflict SSOT).
 - Re-exports PluginImportSession / PluginConfirmItem / PluginStaging /
   PluginArchiveSecurityError for the API layer and callers.
 
 [POS]
 Business-layer import orchestration for the open-source product: maps framework
-parsing results into product persistence (SkillStore, global mcpServers,
-Agent profile binding) with blue-green writes and disabled-by-default MCP.
+parsing results into product persistence (installed skills, global mcpServers,
+expert profiles) with disabled-by-default MCP.
 """
 
 from __future__ import annotations
 
 import logging
-import uuid
 import zipfile
+from dataclasses import asdict
 
-from myrm_agent_harness.agent.plugins.models import (
-    PluginParseResult,
-)
+from myrm_agent_harness.agent.plugins.models import PluginParseResult
 from myrm_agent_harness.agent.plugins.parser import AgentPluginParser
-from myrm_agent_harness.agent.skills.evolution.core.types import (
-    EvolutionType,
-    SkillLineage,
-    SkillRecord,
-)
-from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 
-from ._agent_persist import persist_imported_agents
+from ._agent_persist import AgentImportEntry, persist_imported_agents
 from ._mcp_persist import (
     _bind_agent,
     _collect_required_secret_keys,
     _collect_server_configs,
     _write_mcp_servers,
 )
-from ._models import PluginConfirmItem, PluginImportSession
-from ._preview import (
-    build_preview_result,
-    load_existing_skill_ids,
-    scan_skill_security,
-    skill_content_too_large,
-)
+from ._models import ComponentFailure, PluginConfirmItem, PluginImportSession
+from ._preview import build_preview_result
+from ._preview_context import load_preview_context
+from ._skill_persist import install_plugin_skills
 from ._staging import PluginStaging
-from ._uninstall import _plugin_dir_exists, list_installed_plugins, uninstall_plugin
-
-MAX_SKILL_CONTENT_CHARS = SkillStore.MAX_SKILL_CONTENT_CHARS
-
-# Internal aliases preserved for unit tests that patch import_service attributes directly
-_load_existing_skill_ids = load_existing_skill_ids
-_scan_skill_security = scan_skill_security
-_skill_content_too_large = skill_content_too_large
-_persist_agents = persist_imported_agents
-_plugin_dir_exists = _plugin_dir_exists
+from ._uninstall import list_installed_plugins, uninstall_plugin
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +77,7 @@ __all__ = [
     "build_preview_result",
     "confirm_plugin_import",
     "list_installed_plugins",
+    "load_preview_context",
     "parse_plugin_zip",
     "uninstall_plugin",
 ]
@@ -179,20 +160,27 @@ async def confirm_plugin_import(
     agent_decisions: list[PluginConfirmItem] | None = None,
     bind_agent_id: str | None = None,
 ) -> dict[str, object]:
-    """Persist selected skills, MCP servers, agents, and template workspace files."""
-    skill_records, skill_ids, skipped_skills = _collect_skill_records(session, skill_decisions, _load_existing_skill_ids())
+    """Persist the selected skills, MCP servers and experts of a previewed package."""
     plugin_name = _plugin_name_of(session)
+    # Facts are re-read here: preview flags are UI hints only, never trusted.
+    context = await load_preview_context([agent.name for agent in session.agents_by_key.values()])
+
+    skills = await install_plugin_skills(
+        session,
+        skill_decisions,
+        plugin_name=plugin_name or "plugin",
+        allows_local_skills=context.allows_local_skills,
+    )
+
     plugin_root, data_root = _persist_plugin_files_if_needed(session, server_decisions, plugin_name)
-    server_configs, skipped_servers = _collect_server_configs(
+    server_configs, skipped_servers, server_failures = _collect_server_configs(
         session,
         server_decisions,
+        allow_stdio=context.allow_stdio,
         plugin_name=plugin_name,
         plugin_root=plugin_root,
         data_root=data_root,
     )
-
-    if skill_records:
-        await _write_skills(skill_records)
     imported_server_names: list[str] = []
     required_secret_keys: list[str] = []
     if server_configs:
@@ -202,102 +190,45 @@ async def confirm_plugin_import(
             [cfg for cfg in server_configs if str(cfg.get("name", "")) in persisted_names]
         )
 
-    # Persist imported Agents if provided in session/decisions
-    imported_agent_ids, skipped_agents = await _persist_agents(
+    agents = await persist_imported_agents(
         session,
         agent_decisions or [],
-        skill_ids=skill_ids,
-        mcp_names=imported_server_names,
+        context=context,
+        imported_skill_ids=skills.installed_ids,
+        imported_servers=imported_server_names,
     )
 
-    if bind_agent_id and (skill_ids or imported_server_names):
+    if bind_agent_id and (skills.installed_ids or imported_server_names):
         await _bind_agent(
-            skill_ids=skill_ids,
+            bind_agent_id,
+            skill_ids=list(skills.installed_ids.values()),
             server_names=imported_server_names,
-            agent_id=bind_agent_id,
         )
 
+    failures: list[ComponentFailure] = [*skills.failures, *server_failures, *agents.failures]
     return {
-        "imported_skills": len(skill_records),
-        "skipped_skills": skipped_skills,
+        "imported_skills": len(skills.installed_ids),
+        "skipped_skills": skills.skipped,
         "imported_servers": len(imported_server_names),
         "skipped_servers": skipped_servers,
-        "imported_agents": len(imported_agent_ids),
-        "skipped_agents": skipped_agents,
+        "imported_agents": len(agents.entries),
+        "skipped_agents": agents.skipped,
         "required_secret_keys": required_secret_keys,
-        "created_agent_ids": imported_agent_ids,
+        "created_agent_ids": agents.agent_ids,
+        "agents": [_agent_result(entry) for entry in agents.entries],
+        "failures": [asdict(failure) for failure in failures],
     }
 
 
-def _collect_skill_records(
-    session: PluginImportSession,
-    decisions: list[PluginConfirmItem],
-    existing_ids: dict[str, str],
-) -> tuple[list[SkillRecord], list[str], int]:
-    plugin_name = session.plugin_result.meta.name if session.plugin_result.meta else "plugin"
-    records: list[SkillRecord] = []
-    skill_ids: list[str] = []
-    skipped = 0
-    for decision in decisions:
-        if decision.resolution == "skip":
-            skipped += 1
-            continue
-        skill = session.skills_by_key.get(decision.virtual_id)
-        if skill is None:
-            skipped += 1
-            continue
-        if _skill_content_too_large(skill):
-            logger.warning(
-                "Skipping oversized skill '%s' (%d chars, max %d)",
-                skill.name,
-                len(skill.content),
-                MAX_SKILL_CONTENT_CHARS,
-            )
-            skipped += 1
-            continue
-        if _scan_skill_security(skill):
-            skipped += 1
-            continue
-
-        existing_id = existing_ids.get(skill.name)
-        if existing_id:
-            # Same-name skill already installed: upgrade it in place so the
-            # library never accumulates duplicate names. The authoritative map
-            # is queried at confirm time (not the frontend's decision payload),
-            # so any install/replace decision on a conflict resolves to overwrite.
-            skill_id = existing_id
-            lineage = SkillLineage(
-                evolution_type=EvolutionType.DERIVED,
-                version=1,
-                parent_id=existing_id,
-                change_summary=f"Upgraded via Agent Plugin '{plugin_name}'",
-                created_by="plugin_import",
-            )
-        else:
-            skill_id = str(uuid.uuid4())
-            lineage = SkillLineage(
-                evolution_type=EvolutionType.FIX,
-                version=1,
-                parent_id=None,
-                change_summary=f"Imported via Agent Plugin '{plugin_name}'",
-                created_by="plugin_import",
-            )
-        records.append(
-            SkillRecord(
-                skill_id=skill_id,
-                name=skill.name,
-                description=skill.description,
-                content=skill.content,
-                path=f"plugins/{plugin_name}/{skill.name}/SKILL.md",
-                lineage=lineage,
-            )
-        )
-        skill_ids.append(skill_id)
-    return records, skill_ids, skipped
-
-
-async def _write_skills(records: list[SkillRecord]) -> None:
-    from app.core.skills.store.evolution_store import get_evolution_skill_store
-
-    store = get_evolution_skill_store()
-    await store.save_skills_batch(records)
+def _agent_result(entry: AgentImportEntry) -> dict[str, object]:
+    return {
+        "agent_id": entry.agent_id,
+        "package_name": entry.package_name,
+        "stored_name": entry.stored_name,
+        "action": entry.action,
+        "previous_version_saved": entry.previous_version_saved,
+        "withheld_tools": list(entry.withheld_tools),
+        "unresolved_skills": list(entry.unresolved_skills),
+        "unresolved_connectors": list(entry.unresolved_connectors),
+        "unresolved_subagents": list(entry.unresolved_subagents),
+    }

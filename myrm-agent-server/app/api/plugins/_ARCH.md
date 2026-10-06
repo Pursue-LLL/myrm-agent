@@ -2,14 +2,14 @@
 
 ## 架构概述
 
-Agent Plugins 1.0.0 导入 HTTP 层：`preview`（解析 ZIP + 组件级预览）与 `confirm`（落盘技能/MCP + 绑定 Agent）。上级文档：[../_ARCH.md](../_ARCH.md)。
+Agent Plugins 1.0.0 导入 HTTP 层：`preview`（解析 ZIP + 组件级预览，含冲突、阻断原因、部署开关、专家生效值与未解析引用）与 `confirm`（技能走隔离安装管线 + MCP + 专家落盘，响应带逐专家结果 `agents` 与逐组件 `failures`）。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Plugin import API module | ✅ |
-| `import_.py` | 模块 | `POST /plugins/import/preview` + `POST /plugins/import/confirm`；multipart 上传 → 持久化会话 → 批量落盘（技能、MCP、Agent 团队与模板物料）；归档安全错误输出结构化 `detail={message,error_code}` 供前端 i18n；`GET /plugins/import/installed`（已导入插件列表，含 `server_meta` 每 server `{name, enabled}` 状态）+ `DELETE /plugins/import/{plugin_name}`（插件卸载） | ✅ |
+| `import_.py` | 模块 | `POST /plugins/import/preview` + `POST /plugins/import/confirm`；multipart 上传 → 持久化会话 → 批量落盘（技能、MCP、专家团队与模板物料）；响应模型经 `model_validate` 与服务层字典对齐（`blocked_reason` / `deployment` / `failures` 等字段不会在序列化中丢失）；归档安全错误输出结构化 `detail={message,error_code}` 供前端 i18n；`GET /plugins/import/installed`（已导入插件列表，含 `server_meta` 每 server `{name, enabled}` 状态）+ `DELETE /plugins/import/{plugin_name}`（插件卸载） | ✅ |
 
 ## 设计原则
 

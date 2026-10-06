@@ -8,7 +8,7 @@ Per-agent configuration readiness resolver — proactive dry-run before Agent ex
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | `__init__.py` | Package | Re-exports ReadinessLevel, AgentReadinessItem, AgentReadinessReport, resolve_agent_readiness, get_readiness_resolver | — |
-| `resolver.py` | Core | 6-dimension readiness checker (model/mcp/skills/tools/search/deployment) + MCP scoped-secret preflight; static config checks; TTL-cached singleton | ✅ |
+| `resolver.py` | Core | 6-dimension readiness checker (model/mcp/skills/tools/search/deployment) + MCP scoped-secret preflight; separates "installed but not enabled" from "not found" connectors; skills are looked up in the installed catalog and evolution records; static config checks; TTL-cached singleton | ✅ |
 
 ## Architecture
 

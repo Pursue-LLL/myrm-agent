@@ -10,8 +10,8 @@ Wraps the framework-layer BaseSkillMarketService to add:
 - app.config.settings (GitHub token), app.core.skills.store.service (installed store)
 
 [OUTPUT]
-- Enriched search / install / install_from_url / analyze_url / uninstall consumed
-  by the skills API market endpoints.
+- Enriched search / install / install_from_url / install_files / analyze_url / uninstall
+  consumed by the skills API market endpoints and the Agent Plugin import.
 - uninstall 成功后清理技能授权/审计数据与权限缓存（委托 permission_service.purge_skill_permissions）。
 
 Post-install catalog enable is handled by discovery_mount (discovery API / autoupdate).
@@ -19,7 +19,6 @@ Post-install catalog enable is handled by discovery_mount (discovery API / autou
 
 import importlib
 import logging
-from typing import cast
 
 from myrm_agent_harness.agent.skills.market.service import (
     BaseSkillMarketService,
@@ -46,6 +45,7 @@ class _AppSkillStore:
     async def list_installed(
         self,
         *,
+        user_id: str | None = None,
         skill_type: str | None = None,
     ) -> list[InstalledSkillInfo]:
         from myrm_agent_harness.toolkits.storage.types import SkillType
@@ -144,7 +144,7 @@ class SkillMarketService:
     @property
     def _sources(self) -> list[SkillSource]:
         """Framework discovery sources (for auto-update and tooling)."""
-        return cast(list[SkillSource], self._base._sources)
+        return self._base._sources
 
     async def search(
         self,
@@ -152,10 +152,7 @@ class SkillMarketService:
         limit: int = 30,
     ) -> list[EnrichedSearchResult]:
         installed_versions = await self._get_installed_versions()
-        return cast(
-            list[EnrichedSearchResult],
-            await self._base.search(query, limit=limit, installed_versions_map=installed_versions),
-        )
+        return await self._base.search(query, limit=limit, installed_versions_map=installed_versions)
 
     async def install(
         self,
@@ -173,6 +170,18 @@ class SkillMarketService:
         allow_downgrade: bool = False,
     ) -> SkillInstallResult:
         return await self._base.install_from_url(url, allow_downgrade=allow_downgrade)
+
+    async def install_files(
+        self,
+        skill_id: str,
+        name: str,
+        files: dict[str, bytes],
+        *,
+        source: str,
+        allow_downgrade: bool = False,
+    ) -> SkillInstallResult:
+        """Install an in-memory skill file tree (e.g. an Agent Plugin skill) through the quarantine pipeline."""
+        return await self._base.install_files(skill_id, name, files, source=source, allow_downgrade=allow_downgrade)
 
     async def analyze_url(self, url: str) -> list[dict[str, object]]:
         """Analyze a GitHub URL and return a list of specific subdirectories that contain skills."""

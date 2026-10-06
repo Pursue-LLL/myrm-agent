@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.plugins.models import PluginParseResult
 
 from app.api.plugins import import_ as import_module
+from app.services.plugins._preview_context import ExistingExpert, PreviewContext
 from app.services.plugins.import_service import PluginImportSession
 
 PLUGIN_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
@@ -33,6 +34,15 @@ def client() -> TestClient:
     # Map uncaught exceptions to 500 responses so tests assert HTTP behavior
     # rather than exception propagation through the test client.
     return TestClient(test_app, raise_server_exceptions=False)
+
+
+@pytest.fixture(autouse=True)
+def preview_context(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    """Installation state that preview and confirm read; tests set ``return_value`` per scenario."""
+    loader = AsyncMock(return_value=PreviewContext())
+    monkeypatch.setattr("app.services.plugins.import_service.load_preview_context", loader)
+    monkeypatch.setattr("app.services.plugins.import_service.list_installed_plugins", AsyncMock(return_value=[]))
+    return loader
 
 
 def _plugin_zip_bytes() -> bytes:
@@ -71,15 +81,11 @@ def _plugin_zip_bytes() -> bytes:
 def test_preview_returns_component_preview(client: TestClient, tmp_path: Path) -> None:
     with (
         patch(
-            "app.services.plugins.import_service._load_existing_skill_ids",
-            return_value={},
-        ),
-        patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
             return_value=tmp_path / "skills.db",
         ),
         patch(
-            "app.services.plugins.import_service._scan_skill_security",
+            "app.services.plugins._gates.scan_skill_security",
             return_value=[],
         ),
     ):
@@ -98,6 +104,25 @@ def test_preview_returns_component_preview(client: TestClient, tmp_path: Path) -
     assert body["skills"][0]["security_issues"] == []
     assert len(body["servers"]) == 1
     assert body["servers"][0]["name"] == "pdf-server"
+    assert body["skills"][0]["blocked_reason"] is None
+    assert body["servers"][0]["blocked_reason"] is None
+    assert body["deployment"] == {"allows_local_skills": True, "allow_stdio": True}
+
+
+def test_preview_surfaces_deployment_blocks(client: TestClient, tmp_path: Path, preview_context: AsyncMock) -> None:
+    """What the deployment cannot install is flagged before the user confirms."""
+    preview_context.return_value = PreviewContext(allows_local_skills=False, allow_stdio=False)
+    with patch("app.api.plugins.import_.get_evolution_skill_store_db_path", return_value=tmp_path / "skills.db"):
+        response = client.post(
+            "/api/v1/plugins/import/preview",
+            files={"file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["deployment"] == {"allows_local_skills": False, "allow_stdio": False}
+    assert body["skills"][0]["blocked_reason"] == "skills_not_supported"
+    assert body["servers"][0]["blocked_reason"] == "stdio_not_allowed"
 
 
 def test_preview_rejects_non_zip(client: TestClient) -> None:
@@ -168,7 +193,7 @@ def test_preview_returns_500_when_session_persist_fails(client: TestClient, tmp_
             return_value=tmp_path / "skills.db",
         ),
         patch(
-            "app.services.plugins.import_service._scan_skill_security",
+            "app.services.plugins._gates.scan_skill_security",
             return_value=[],
         ),
         patch(
@@ -204,15 +229,11 @@ def test_preview_flags_dangerous_skill(client: TestClient, tmp_path: Path) -> No
         )
     with (
         patch(
-            "app.services.plugins.import_service._load_existing_skill_ids",
-            return_value={},
-        ),
-        patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
             return_value=tmp_path / "skills.db",
         ),
         patch(
-            "app.services.plugins.import_service._scan_skill_security",
+            "app.services.plugins._gates.scan_skill_security",
             return_value=["Dangerous pattern detected"],
         ),
     ):
@@ -253,15 +274,11 @@ def test_preview_surfaces_oversized_skill_flag(client: TestClient, tmp_path: Pat
         )
     with (
         patch(
-            "app.services.plugins.import_service._load_existing_skill_ids",
-            return_value={},
-        ),
-        patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
             return_value=tmp_path / "skills.db",
         ),
         patch(
-            "app.services.plugins.import_service._scan_skill_security",
+            "app.services.plugins._gates.scan_skill_security",
             return_value=[],
         ),
     ):
@@ -275,19 +292,16 @@ def test_preview_surfaces_oversized_skill_flag(client: TestClient, tmp_path: Pat
     assert body["skills"][0]["oversized_content"] is True
 
 
-def test_preview_surfaces_name_conflict_flag(client: TestClient, tmp_path: Path) -> None:
+def test_preview_surfaces_name_conflict_flag(client: TestClient, tmp_path: Path, preview_context: AsyncMock) -> None:
     """conflict must reach the HTTP contract, not vanish in the response model."""
+    preview_context.return_value = PreviewContext(local_skill_names=frozenset({"summarize"}))
     with (
-        patch(
-            "app.services.plugins.import_service._load_existing_skill_ids",
-            return_value={"summarize": "existing-skill-id"},
-        ),
         patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
             return_value=tmp_path / "skills.db",
         ),
         patch(
-            "app.services.plugins.import_service._scan_skill_security",
+            "app.services.plugins._gates.scan_skill_security",
             return_value=[],
         ),
     ):
@@ -304,23 +318,13 @@ def test_preview_surfaces_name_conflict_flag(client: TestClient, tmp_path: Path)
 def test_confirm_persists_components(client: TestClient, tmp_path: Path) -> None:
     session_id = "sess-api-1"
 
-    fake_store = AsyncMock()
-    fake_store.get_active_skills = lambda: []
     config_service = AsyncMock()
     agent_service = AsyncMock()
 
     with (
         patch(
-            "app.services.plugins.import_service._load_existing_skill_ids",
-            return_value={},
-        ),
-        patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
             return_value=tmp_path / "skills.db",
-        ),
-        patch(
-            "app.core.skills.store.evolution_store.get_evolution_skill_store",
-            return_value=fake_store,
         ),
         patch(
             "app.services.config.service.config_service",
@@ -423,15 +427,8 @@ def test_preview_confirm_roundtrip(client: TestClient, tmp_path: Path) -> None:
             return_value=tmp_path / "skills.db",
         ),
         patch(
-            "app.services.plugins.import_service._scan_skill_security",
+            "app.services.plugins._gates.scan_skill_security",
             return_value=[],
-        ),
-        patch(
-            "app.core.skills.store.evolution_store.get_evolution_skill_store",
-            return_value=SimpleNamespace(
-                save_skills_batch=AsyncMock(),
-                get_active_skills=lambda: [],
-            ),
         ),
         patch(
             "app.services.config.service.config_service",
@@ -546,8 +543,8 @@ def test_uninstall_plugin(client: TestClient) -> None:
     }
 
 
-def test_preview_and_confirm_with_agents_and_workspace(client: TestClient, tmp_path: Path) -> None:
-    """Verifies preview and confirm endpoint support for agents and workspace files."""
+def test_preview_and_confirm_with_agents_and_workspace(client: TestClient, tmp_path: Path, preview_context: AsyncMock) -> None:
+    """Experts and workspace files travel through preview and confirm with their safety facts."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(
@@ -563,7 +560,7 @@ def test_preview_and_confirm_with_agents_and_workspace(client: TestClient, tmp_p
         )
         zf.writestr(
             "team-plugin/agents/coordinator.md",
-            "---\nname: Coordinator\ndescription: Team leader\nmax_iterations: 12\nsubagents:\n  - Worker\n---\nPrompt coordinator.",
+            "---\nname: Coordinator\ndescription: Team leader\nmax_iterations: 500\nsubagents:\n  - Worker\n---\nPrompt coordinator.",
         )
         zf.writestr(
             "team-plugin/agents/worker.md",
@@ -575,10 +572,17 @@ def test_preview_and_confirm_with_agents_and_workspace(client: TestClient, tmp_p
         )
 
     zip_data = buf.getvalue()
+    preview_context.return_value = PreviewContext(experts_by_name={"worker": ExistingExpert("old-worker", is_built_in=False)})
+    created: list[str] = []
+
+    async def create_agent(data: object) -> SimpleNamespace:
+        created.append(str(getattr(data, "name", "")))
+        return SimpleNamespace(id=f"new-{len(created)}")
 
     with (
         patch("app.api.plugins.import_.get_evolution_skill_store_db_path", return_value=tmp_path / "skills.db"),
-        patch("app.services.plugins.import_service._load_existing_skill_ids", return_value={}),
+        patch("app.services.agent.agent_service.AgentService.get_agents_by_name", AsyncMock(return_value=[])),
+        patch("app.services.agent.agent_service.AgentService.create_agent", side_effect=create_agent),
     ):
         preview_res = client.post(
             "/api/v1/plugins/import/preview",
@@ -590,28 +594,39 @@ def test_preview_and_confirm_with_agents_and_workspace(client: TestClient, tmp_p
         assert preview_body["workspace_file_count"] == 1
         session_id = preview_body["session_id"]
 
-        agent_keys = [a["virtual_id"] for a in preview_body["agents"]]
+        by_name = {a["name"]: a for a in preview_body["agents"]}
+        coordinator, worker = by_name["Coordinator"], by_name["Worker"]
+        # An imported expert never runs a longer loop than the product default allows.
+        assert coordinator["effective_max_iterations"] == 50
+        assert coordinator["conflict"] is False and coordinator["existing_agent_id"] is None
+        assert worker["conflict"] is True
+        assert worker["existing_agent_id"] == "old-worker" and worker["existing_is_built_in"] is False
 
-        mock_created = [
-            SimpleNamespace(id="agent-worker-id", name="Worker"),
-            SimpleNamespace(id="agent-coord-id", name="Coordinator"),
-        ]
+        confirm_res = client.post(
+            "/api/v1/plugins/import/confirm",
+            json={
+                "session_id": session_id,
+                "skills": [],
+                "servers": [],
+                "agents": [
+                    {
+                        "component": "agent",
+                        "virtual_id": coordinator["virtual_id"],
+                        "resolution": "install",
+                        "name": "Coordinator",
+                    },
+                    {"component": "agent", "virtual_id": worker["virtual_id"], "resolution": "install", "name": "Worker"},
+                ],
+            },
+        )
 
-        with patch("app.services.agent.agent_service.AgentService.create_agent", side_effect=mock_created):
-            confirm_res = client.post(
-                "/api/v1/plugins/import/confirm",
-                json={
-                    "session_id": session_id,
-                    "skills": [],
-                    "servers": [],
-                    "agents": [
-                        {"component": "agent", "virtual_id": agent_keys[0], "resolution": "install", "name": "Coordinator"},
-                        {"component": "agent", "virtual_id": agent_keys[1], "resolution": "install", "name": "Worker"},
-                    ],
-                },
-            )
-
-        assert confirm_res.status_code == 200
-        confirm_body = confirm_res.json()
-        assert confirm_body["imported_agents"] == 2
-        assert confirm_body["created_agent_ids"] == ["agent-worker-id", "agent-coord-id"]
+    assert confirm_res.status_code == 200
+    confirm_body = confirm_res.json()
+    assert confirm_body["imported_agents"] == 2
+    assert confirm_body["failures"] == []
+    # Sub-experts are created before the expert that leads them; a same-name expert is never overwritten on "install".
+    assert created == ["Worker (imported)", "Coordinator"]
+    assert confirm_body["created_agent_ids"] == ["new-1", "new-2"]
+    stored = {entry["package_name"]: entry for entry in confirm_body["agents"]}
+    assert stored["Worker"]["stored_name"] == "Worker (imported)"
+    assert stored["Worker"]["action"] == "created"

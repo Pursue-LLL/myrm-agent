@@ -40,12 +40,15 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.plugins.models import PluginMcpServer
 
-from ._models import PluginConfirmItem, PluginImportSession
+from ._gates import server_block_reason
+from ._models import ComponentFailure, PluginConfirmItem, PluginImportSession
 
 if TYPE_CHECKING:
     from app.services.config.service import ConfigService
 
 logger = logging.getLogger(__name__)
+
+BLOCK_MISSING_ARTIFACT = "missing_artifact"
 
 _SECRET_REF_PATTERN = re.compile(r"\{\{secret:([^}]+)\}\}")
 
@@ -54,27 +57,28 @@ def _collect_server_configs(
     session: PluginImportSession,
     decisions: list[PluginConfirmItem],
     *,
+    allow_stdio: bool,
     plugin_name: str | None = None,
     plugin_root: str | None = None,
     data_root: str | None = None,
-) -> tuple[list[dict[str, object]], int]:
+) -> tuple[list[dict[str, object]], int, list[ComponentFailure]]:
+    """Filter accepted servers; returns ``(configs, skipped count, failures)``."""
     configs: list[dict[str, object]] = []
+    failures: list[ComponentFailure] = []
     skipped = 0
     for decision in decisions:
-        if decision.resolution == "skip":
-            skipped += 1
-            continue
         server = session.servers_by_key.get(decision.virtual_id)
-        if server is None:
+        if decision.resolution == "skip" or server is None:
             skipped += 1
             continue
-        if getattr(server, "missing_artifact", None) or not getattr(server, "is_runnable", True):
-            logger.warning(
-                "Skipping MCP server '%s' due to missing build artifact: %s",
-                server.name,
-                getattr(server, "missing_artifact", None) or "missing entrypoint",
+        blocked = server_block_reason(server, allow_stdio=allow_stdio)
+        if blocked is None and (server.missing_artifact or not server.is_runnable):
+            blocked = BLOCK_MISSING_ARTIFACT
+        if blocked is not None:
+            logger.warning("Skipping MCP server '%s' (%s)", server.name, blocked)
+            failures.append(
+                ComponentFailure("mcp", server.name, blocked, f"Connector '{server.name}' was not imported ({blocked})")
             )
-            skipped += 1
             continue
         configs.append(
             _server_to_config_dict(
@@ -84,7 +88,7 @@ def _collect_server_configs(
                 data_root=data_root,
             )
         )
-    return configs, skipped
+    return configs, skipped, failures
 
 
 def _server_to_config_dict(
@@ -244,23 +248,18 @@ async def _bind_agent(
     profile = await AgentService.get_agent_by_id(agent_id)
     if profile is None:
         return
-    metadata = profile.metadata or {}
     update_fields: dict[str, list[str]] = {}
     if skill_ids:
-        existing_skills = metadata.get("skill_ids", [])
-        update_fields["skill_ids"] = list(dict.fromkeys([*(str(s) for s in existing_skills if isinstance(s, str)), *skill_ids]))
+        update_fields["skill_ids"] = list(dict.fromkeys([*(profile.skills or []), *skill_ids]))
     if server_names:
-        existing_servers = metadata.get("mcp_ids", [])
-        update_fields["mcp_ids"] = list(
-            dict.fromkeys(
-                [
-                    *(str(s) for s in existing_servers if isinstance(s, str)),
-                    *server_names,
-                ]
-            )
-        )
+        existing_servers = _string_list((profile.metadata or {}).get("mcp_ids"))
+        update_fields["mcp_ids"] = list(dict.fromkeys([*existing_servers, *server_names]))
     if update_fields:
-        await AgentService.update_agent(agent_id, AgentUpdate(**update_fields))
+        await AgentService.update_agent(agent_id, AgentUpdate.model_validate(update_fields))
+
+
+def _string_list(value: object) -> list[str]:
+    return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
 
 
 def _plugin_name_of_cfg(cfg: dict[str, object]) -> str | None:
@@ -312,8 +311,8 @@ async def _unbind_plugin_from_agents(server_names: list[str]) -> int:
         profiles = await uow.agent_repo.list_profiles(limit=1000)
         for profile in profiles:
             metadata = profile.metadata or {}
-            existing_servers = metadata.get("mcp_ids", [])
-            kept = [str(s) for s in existing_servers if isinstance(s, str) and s not in targets]
+            existing_servers = _string_list(metadata.get("mcp_ids"))
+            kept = [s for s in existing_servers if s not in targets]
             if len(kept) != len(existing_servers):
                 await uow.agent_repo.update_profile(profile.id, {"metadata": {**metadata, "mcp_ids": kept}})
                 updated += 1

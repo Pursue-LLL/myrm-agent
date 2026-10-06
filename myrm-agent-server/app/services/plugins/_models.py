@@ -10,10 +10,11 @@ Session and decision DTOs shared by the import pipeline modules
 [OUTPUT]
 - PluginImportSession: persisted preview session consumed by /confirm.
 - PluginConfirmItem: a single confirm decision for a plugin component.
+- ComponentFailure: a component that could not be imported, with a machine code.
 
 [POS]
 Business-layer DTOs for plugin import orchestration (parse-only session +
-per-component confirm decisions).
+per-component confirm decisions + per-component failure reports).
 """
 
 from __future__ import annotations
@@ -46,3 +47,13 @@ class PluginConfirmItem:
     virtual_id: str  # stage key: skill:<idx> | mcp:<idx> | agent:<idx>
     resolution: str  # "install" | "replace" | "skip"
     name: str
+
+
+@dataclass(frozen=True)
+class ComponentFailure:
+    """A component that was selected but could not be imported (nothing half-written)."""
+
+    component: str  # "skill" | "mcp" | "agent"
+    name: str
+    code: str  # machine-readable, localized by the frontend
+    message: str  # English diagnostic for logs and support

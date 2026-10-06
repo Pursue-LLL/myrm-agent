@@ -63,7 +63,7 @@ async def _materialize_agent_template_files(chat_id: str, workspace_dir: str) ->
     """Materialize agent's bundled template_workspace_files safely into the session workspace."""
     from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
     from app.services.chat.chat_service import ChatService
-    from app.services.plugins._agent_persist import materialize_template_workspace_files
+    from app.services.plugins.template_workspace import TEMPLATE_FILES_KEY, materialize_template_workspace_files
 
     try:
         chat = await ChatService.get_chat_metadata(chat_id)
@@ -85,7 +85,7 @@ async def _materialize_agent_template_files(chat_id: str, workspace_dir: str) ->
         if not engine_params:
             return
 
-        template_files = engine_params.get("template_workspace_files")
+        template_files = engine_params.get(TEMPLATE_FILES_KEY)
         if isinstance(template_files, dict):
             materialize_template_workspace_files(template_files, workspace_dir)
     except Exception as exc:

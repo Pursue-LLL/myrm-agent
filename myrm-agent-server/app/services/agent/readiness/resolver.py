@@ -152,6 +152,14 @@ def _collect_bound_secret_keys(servers: Sequence["MCPServerConfig"]) -> list[str
     return list(dict.fromkeys(key.strip() for key in keys if key.strip()))
 
 
+def _disabled_server_names(mcp_dict: dict[str, object] | None) -> set[str]:
+    """Names of user-configured servers that exist but are switched off (e.g. just imported)."""
+    raw = (mcp_dict or {}).get("mcpConfigs")
+    if not isinstance(raw, list):
+        return set()
+    return {str(cfg["name"]) for cfg in raw if isinstance(cfg, dict) and cfg.get("name") and not cfg.get("enabled")}
+
+
 async def _check_mcp(
     profile: ResolvedAgentProfile,
     mcp_dict: dict[str, object] | None,
@@ -181,7 +189,20 @@ async def _check_mcp(
     }
 
     items: list[AgentReadinessItem] = []
-    missing = [mid for mid in profile.mcp_ids if mid not in configured]
+    disabled = _disabled_server_names(mcp_dict)
+    unconfigured = [mid for mid in profile.mcp_ids if mid not in configured]
+    not_enabled = [mid for mid in unconfigured if mid in disabled]
+    missing = [mid for mid in unconfigured if mid not in disabled]
+    if not_enabled:
+        items.append(
+            AgentReadinessItem(
+                dimension="mcp",
+                level=ReadinessLevel.WARNING,
+                reason=f"{len(not_enabled)} MCP server(s) installed but not enabled",
+                next_action=f"Enable in MCP settings: {', '.join(not_enabled[:3])}",
+                settings_path="/settings/mcp",
+            )
+        )
     if missing:
         items.append(
             AgentReadinessItem(
@@ -216,17 +237,19 @@ async def _check_mcp(
     return items
 
 
-def _check_skills(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]:
-    """Check if bound skills exist in the skill store."""
+async def _check_skills(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]:
+    """Check bound skills exist: installed (local/preset) or evolution-managed records."""
     if not profile.skill_ids:
         return []
 
     items: list[AgentReadinessItem] = []
     try:
+        from app.core.skills.store.service import skills_service
         from app.services.skills.evolution_review.disk import get_skill_store
 
+        installed = {skill.id for skill in await skills_service.list_skills()}
         store = get_skill_store()
-        missing = [sid for sid in profile.skill_ids if store.get_skill(sid) is None]
+        missing = [sid for sid in profile.skill_ids if sid not in installed and store.get_skill(sid) is None]
         if missing:
             items.append(
                 AgentReadinessItem(
@@ -352,7 +375,7 @@ async def resolve_agent_readiness(agent_id: str) -> AgentReadinessReport:
 
     items.extend(await _check_mcp(profile, mcp_dict, org_mcp_dict))
 
-    items.extend(_check_skills(profile))
+    items.extend(await _check_skills(profile))
     items.extend(_check_tools(profile))
 
     search_item = _check_search(search_configured)

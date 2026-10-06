@@ -1,87 +1,43 @@
-"""Preview serialization and security checks for Agent Plugins 1.0.0 (business layer).
+"""Preview serialization for Agent Plugins 1.0.0 (business layer).
 
-Builds preview payloads for uploaded plugin packages and performs fast offline
-pre-validation (content size limits, schema structure, skill AST/regex security).
+Builds the preview payload of an uploaded plugin package: component cards with the
+same conflict / block / unresolved-reference facts that confirm acts on, risk level
+and capability diff, and package diagnostics.
 
 [INPUT]
-- myrm_agent_harness.agent.plugins.models::PluginParseResult, PluginSkill, PluginMcpServer (POS: parsed plugin models.)
-- myrm_agent_harness.agent.skills.evolution.db.store::SkillStore (POS: storage size limits.)
-- app.core.skills.store.evolution_store::get_evolution_skill_store (POS: active skill name lookup.)
+- myrm_agent_harness.agent.plugins.models::PluginParseResult, PluginSkill, PluginMcpServer, PluginAgent
+  (POS: parsed plugin models.)
+- ._gates (POS: shared pre-install gates: content scan, size, deployment blocks.)
+- ._preview_context::PreviewContext (POS: installed skills, connectors, experts and deployment limits.)
+- .agent_surface::import_agent_fields (POS: what an imported expert is granted.)
+- .template_workspace::encode_template_files (POS: workspace template capacity diagnostics.)
 
 [OUTPUT]
-- build_preview_result: build structured preview dictionary for plugin import wizard.
-- load_existing_skill_ids: load active skills map for collision detection.
-- scan_skill_security: validate skill content security rules.
-- skill_content_too_large: check whether skill content exceeds storage ceiling.
+- build_preview_result: structured preview dictionary for the plugin import wizard.
+- compute_capability_diff: capability changes against the installed version of the plugin.
 
 [POS]
-Business-layer preview builder and offline validation logic for uploaded agent plugin archives.
+Business-layer preview builder for uploaded agent plugin archives.
 """
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
+from . import _gates
+from ._preview_context import PreviewContext, expert_key
+from .agent_surface import import_agent_fields
+from .template_workspace import OVERSIZED_FILE, encode_template_files
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.plugins.models import (
+        PluginAgent,
         PluginMcpServer,
         PluginParseResult,
         PluginSkill,
     )
 
-logger = logging.getLogger(__name__)
-
-MAX_SKILL_CONTENT_CHARS = SkillStore.MAX_SKILL_CONTENT_CHARS
-
-__all__ = [
-    "build_preview_result",
-    "compute_capability_diff",
-    "load_existing_skill_ids",
-    "scan_skill_security",
-    "skill_content_too_large",
-]
-
-
-def scan_skill_security(skill: PluginSkill) -> list[str]:
-    """Offline static security scan of a skill's content before preview/confirm.
-
-    Returns a list of human-readable issues; an empty list means the skill passed.
-    A scanner failure is treated as unsafe (fail-closed) so a broken validator
-    never lets a skill install silently or aborts the whole import.
-    """
-    from myrm_agent_harness.agent.skills.optimization.config import SecurityConfig
-    from myrm_agent_harness.agent.skills.optimization.security import (
-        SkillSecurityValidator,
-    )
-
-    try:
-        validator = SkillSecurityValidator(config=SecurityConfig())
-        full_skill = f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n{skill.content}"
-        result = validator.validate_skill(full_skill)
-    except Exception as exc:  # fail-closed: unable to verify -> blocked
-        logger.warning("Skill security scan failed for %r: %s", skill.name, exc)
-        return [f"Security scan failed: {exc}"]
-    return result.issues if not result.passed else []
-
-
-def load_existing_skill_ids() -> dict[str, str]:
-    """Map active skill names to their skill_ids (conflict-detection SSOT).
-
-    Queried at preview and again at confirm time so the decision always reflects
-    the latest store state (preview flags are UI hints only, never trusted).
-    """
-    from app.core.skills.store.evolution_store import get_evolution_skill_store
-
-    store = get_evolution_skill_store()
-    return {skill.name: skill.skill_id for skill in store.get_active_skills()}
-
-
-def skill_content_too_large(skill: PluginSkill) -> bool:
-    """True when the skill content exceeds the framework's storage limit."""
-    return bool(skill.content) and len(skill.content) > MAX_SKILL_CONTENT_CHARS
+__all__ = ["build_preview_result", "compute_capability_diff"]
 
 
 def _server_has_placeholders(server: PluginMcpServer) -> bool:
@@ -94,26 +50,99 @@ def _server_has_placeholders(server: PluginMcpServer) -> bool:
     return has_placeholders(*values)
 
 
-def _preview_skill(idx: int, skill: PluginSkill, existing_names: set[str]) -> dict[str, object]:
+def _preview_skill(idx: int, skill: PluginSkill, context: PreviewContext) -> dict[str, object]:
     """Serialize one skill for the preview payload."""
-    oversized = skill_content_too_large(skill)
-    scan_fn = scan_skill_security
-    import sys
-
-    svc = sys.modules.get("app.services.plugins.import_service")
-    if svc is not None and hasattr(svc, "_scan_skill_security"):
-        scan_fn = svc._scan_skill_security
+    blocked = _gates.skill_block_reason(skill, allows_local_skills=context.allows_local_skills)
     return {
         "name": skill.name,
         "description": skill.description,
         "file_count": len(skill.files),
         "virtual_id": f"skill:{idx}",
-        # Oversized skills can never be installed; skip the security scan so the
+        # A blocked skill can never be installed; skip the content scan so the
         # preview mirrors confirm-time behavior instead of doing wasted work.
-        "security_issues": [] if oversized else scan_fn(skill),
-        "oversized_content": oversized,
-        "conflict": skill.name in existing_names,
+        "security_issues": [] if blocked else _gates.scan_skill_security(skill),
+        "oversized_content": blocked == _gates.BLOCK_OVERSIZED,
+        "blocked_reason": blocked,
+        "conflict": skill.name.lower() in context.local_skill_names,
     }
+
+
+def _preview_server(idx: int, server: PluginMcpServer, context: PreviewContext) -> dict[str, object]:
+    return {
+        "name": server.name,
+        "type": server.server_type,
+        "command": server.command,
+        "url": server.url,
+        "env_key_count": len(server.env_key_names),
+        "has_placeholders": _server_has_placeholders(server),
+        "virtual_id": f"mcp:{idx}",
+        "missing_artifact": server.missing_artifact,
+        "is_runnable": server.is_runnable,
+        "missing_artifacts": list(server.missing_artifacts),
+        "capabilities": [c.value for c in server.capabilities],
+        "blocked_reason": _gates.server_block_reason(server, allow_stdio=context.allow_stdio),
+    }
+
+
+def _preview_agent(idx: int, agent: PluginAgent, result: PluginParseResult, context: PreviewContext) -> dict[str, object]:
+    """Serialize one expert: what it would be granted and which references would not resolve."""
+    imported = import_agent_fields(agent)
+    existing = context.experts_by_name.get(expert_key(agent.name))
+    bundled_skills = {skill.name.lower() for skill in result.skills}
+    bundled_servers = {server.name for server in result.servers}
+    package_experts = {expert_key(a.name) for a in result.agents} | {
+        expert_key(str(a.metadata["slug"])) for a in result.agents if a.metadata.get("slug")
+    }
+    return {
+        "name": agent.name,
+        "description": agent.description,
+        "system_prompt": agent.system_prompt,
+        "max_iterations": agent.max_iterations,
+        "effective_max_iterations": imported.fields.get("max_iterations"),
+        "skill_names": list(agent.skill_names),
+        "tool_names": list(agent.tool_names),
+        "granted_tools": list(imported.granted_tools),
+        "withheld_tools": list(imported.withheld_tools),
+        "mcp_names": list(agent.mcp_names),
+        "subagent_names": list(agent.subagent_names),
+        "is_subagent": agent.is_subagent,
+        "is_entry_agent": agent.is_entry_agent,
+        "virtual_id": f"agent:{idx}",
+        "conflict": existing is not None,
+        "existing_agent_id": existing.agent_id if existing is not None else None,
+        "existing_is_built_in": existing.is_built_in if existing is not None else False,
+        "unresolved_skills": [
+            n
+            for n in agent.skill_names
+            if n.strip().lower() not in bundled_skills and n.strip().lower() not in context.skill_ids_by_name
+        ],
+        "unresolved_connectors": [n for n in agent.mcp_names if n not in bundled_servers and n not in context.server_names],
+        "unresolved_subagents": [
+            n for n in agent.subagent_names if expert_key(n) not in package_experts or expert_key(n) == expert_key(agent.name)
+        ],
+    }
+
+
+def _template_diagnostics(result: PluginParseResult) -> list[dict[str, object]]:
+    """Warn about workspace template files that confirm will skip (capacity ceilings)."""
+    from myrm_agent_harness.agent.plugins.rules import MAX_TEMPLATE_FILE_BYTES, MAX_TOTAL_TEMPLATE_BYTES
+
+    diagnostics: list[dict[str, object]] = []
+    for rel_path, reason in encode_template_files(result.workspace_files).skipped:
+        if reason == OVERSIZED_FILE:
+            code = "OVERSIZED_TEMPLATE_FILE"
+            message = (
+                f"Workspace template file '{rel_path}' ({len(result.workspace_files[rel_path])} bytes) "
+                f"exceeds 1MB limit ({MAX_TEMPLATE_FILE_BYTES} bytes) and will be skipped"
+            )
+        else:
+            code = "OVERSIZED_WORKSPACE_TOTAL"
+            message = (
+                f"Workspace template file '{rel_path}' exceeds cumulative 5MB limit "
+                f"({MAX_TOTAL_TEMPLATE_BYTES} bytes) and will be skipped"
+            )
+        diagnostics.append({"component": f"workspace:{rel_path}", "code": code, "message": message, "level": "warning"})
+    return diagnostics
 
 
 def compute_capability_diff(
@@ -139,18 +168,17 @@ def compute_capability_diff(
 
 def build_preview_result(
     result: PluginParseResult,
-    existing_names: set[str] | None = None,
+    context: PreviewContext | None = None,
     installed_capabilities: set[str] | None = None,
 ) -> dict[str, object]:
     """Serialize a parse result into the preview response payload.
 
-    ``existing_names`` marks skills that already exist in the store so the UI
-    can offer replace/skip instead of silently duplicating them.
+    ``context`` carries the installation state (same-name skills and experts,
+    configured connectors, deployment limits) so the UI can offer replace/skip
+    and show what confirm would block; without it nothing conflicts or is blocked.
     """
     meta = result.meta
-    existing = existing_names or set()
-
-    from ._agent_persist import MAX_TEMPLATE_FILE_BYTES, MAX_TOTAL_TEMPLATE_BYTES
+    context = context or PreviewContext()
 
     diagnostics_list: list[dict[str, object]] = [
         {
@@ -161,36 +189,7 @@ def build_preview_result(
         }
         for d in result.diagnostics
     ]
-
-    total_ws_bytes = 0
-    for rel_path, content in result.workspace_files.items():
-        file_len = len(content)
-        if file_len > MAX_TEMPLATE_FILE_BYTES:
-            diagnostics_list.append(
-                {
-                    "component": f"workspace:{rel_path}",
-                    "code": "OVERSIZED_TEMPLATE_FILE",
-                    "message": (
-                        f"Workspace template file '{rel_path}' ({file_len} bytes) "
-                        f"exceeds 1MB limit ({MAX_TEMPLATE_FILE_BYTES} bytes) and will be skipped"
-                    ),
-                    "level": "warning",
-                }
-            )
-        elif total_ws_bytes + file_len > MAX_TOTAL_TEMPLATE_BYTES:
-            diagnostics_list.append(
-                {
-                    "component": f"workspace:{rel_path}",
-                    "code": "OVERSIZED_WORKSPACE_TOTAL",
-                    "message": (
-                        f"Workspace template file '{rel_path}' exceeds cumulative 5MB limit "
-                        f"({MAX_TOTAL_TEMPLATE_BYTES} bytes) and will be skipped"
-                    ),
-                    "level": "warning",
-                }
-            )
-        else:
-            total_ws_bytes += file_len
+    diagnostics_list.extend(_template_diagnostics(result))
 
     # Calculate effective capabilities and risk level
     aggregated_caps = [c.value for c in result.aggregated_capabilities]
@@ -246,39 +245,10 @@ def build_preview_result(
             "risk_level": risk_level,
             "capability_diff": capability_diff,
         },
-        "skills": [_preview_skill(idx, skill, existing) for idx, skill in enumerate(result.skills)],
-        "servers": [
-            {
-                "name": server.name,
-                "type": server.server_type,
-                "command": server.command,
-                "url": server.url,
-                "env_key_count": len(server.env_key_names),
-                "has_placeholders": _server_has_placeholders(server),
-                "virtual_id": f"mcp:{idx}",
-                "missing_artifact": getattr(server, "missing_artifact", None),
-                "is_runnable": getattr(server, "is_runnable", True),
-                "missing_artifacts": list(getattr(server, "missing_artifacts", ())),
-                "capabilities": [c.value for c in getattr(server, "capabilities", ())],
-            }
-            for idx, server in enumerate(result.servers)
-        ],
-        "agents": [
-            {
-                "name": agent.name,
-                "description": agent.description,
-                "system_prompt": agent.system_prompt,
-                "max_iterations": agent.max_iterations,
-                "skill_names": list(agent.skill_names),
-                "tool_names": list(agent.tool_names),
-                "mcp_names": list(agent.mcp_names),
-                "subagent_names": list(agent.subagent_names),
-                "is_subagent": agent.is_subagent,
-                "is_entry_agent": agent.is_entry_agent,
-                "virtual_id": f"agent:{idx}",
-            }
-            for idx, agent in enumerate(result.agents)
-        ],
+        "skills": [_preview_skill(idx, skill, context) for idx, skill in enumerate(result.skills)],
+        "servers": [_preview_server(idx, server, context) for idx, server in enumerate(result.servers)],
+        "agents": [_preview_agent(idx, agent, result, context) for idx, agent in enumerate(result.agents)],
+        "deployment": {"allows_local_skills": context.allows_local_skills, "allow_stdio": context.allow_stdio},
         "workspace_file_count": len(result.workspace_files),
         "diagnostics": diagnostics_list,
         "is_valid": meta is not None,

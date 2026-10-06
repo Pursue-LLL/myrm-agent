@@ -47,14 +47,16 @@ def test_collect_server_configs_skips_server_with_missing_build_artifacts() -> N
         PluginConfirmItem(component="mcp:valid-server", virtual_id="mcp:1", resolution="install", name="valid-server"),
     ]
 
-    configs, skipped = _collect_server_configs(
+    configs, skipped, failures = _collect_server_configs(
         session,
         decisions,
+        allow_stdio=True,
         plugin_name="test-plugin",
     )
 
-    # Broken server must be skipped, only valid server is allowed
-    assert skipped == 1
+    # The broken server is reported (not silently dropped); only the valid one is persisted.
+    assert skipped == 0
+    assert [(f.name, f.code) for f in failures] == [("broken-server", "missing_artifact")]
     assert len(configs) == 1
     assert configs[0]["name"] == "valid-server"
 
