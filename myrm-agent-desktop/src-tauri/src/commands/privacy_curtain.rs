@@ -11,7 +11,6 @@
 //! - commands::privacy_curtain_state (POS: 帷幕状态桥，curtain_state.json 的 Tauri 侧唯一读写入口)
 //! - commands::privacy_curtain_page (POS: 看板页面内容与承载它的自定义协议 URL)
 //! - commands::privacy_curtain_presentation (POS: 跨 Space / 菜单栏覆盖的平台呈现层)
-//! - config::{SystemConfig, ConfigManager} (POS: privacy_curtain_enabled 开关)
 //!
 //! [OUTPUT]
 //! - show/hide/active/set_texts/report_physical_input IPC
@@ -58,6 +57,13 @@ pub(crate) fn log_audit(action: &str, success: bool, reason: &str) {
     );
 }
 
+/// 呈现层（激活策略 / 窗口层级）失败不影响帷幕的遮蔽职责：记审计后继续。
+fn audit_presentation(action: &str, result: Result<(), String>) {
+    if let Err(reason) = result {
+        log_audit(action, false, &reason);
+    }
+}
+
 // ── 帷幕窗口管理 ──────────────────────────────────────────────────
 
 pub(crate) fn curtain_windows(app: &AppHandle) -> Vec<tauri::WebviewWindow> {
@@ -77,7 +83,7 @@ fn destroy_curtain_windows(app: &AppHandle) {
 /// 收起全部帷幕窗并恢复应用的常规呈现（Dock 图标 / 菜单栏）。
 pub(crate) fn close_curtain_windows(app: &AppHandle) {
     destroy_curtain_windows(app);
-    presentation::leave_overlay_mode(app);
+    audit_presentation("overlay_mode", presentation::leave_overlay_mode(app));
 }
 
 /// Windows：将帷幕窗从系统截图/投屏通道排除（WDA_EXCLUDEFROMCAPTURE）。
@@ -117,30 +123,29 @@ fn build_curtain_window(
     let position = monitor.position();
     let label = format!("{CURTAIN_LABEL_PREFIX}{generation}-{index}");
 
-    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::CustomProtocol(page_url.clone()))
-        .title("Privacy Curtain")
-        .always_on_top(true)
-        // 用户离机前可能停在他应用的全屏 Space，帷幕必须跟到每个 Space（仅 macOS 有此概念）。
-        .visible_on_all_workspaces(cfg!(target_os = "macos"))
-        // 页面首帧绘制前窗口底色就是黑的：持租约期间重建时屏幕前有人，不能闪白。
-        .background_color(Color(0, 0, 0, 255))
-        .decorations(false)
-        .skip_taskbar(true)
-        .focused(false)
-        .visible(true)
-        .resizable(false)
-        .maximizable(false)
-        .minimizable(false)
-        .closable(false)
-        .inner_size(size.width as f64 / scale, size.height as f64 / scale)
-        .position(position.x as f64 / scale, position.y as f64 / scale)
-        .build()
-        .map_err(|e| e.to_string())?;
+    let window =
+        WebviewWindowBuilder::new(app, &label, WebviewUrl::CustomProtocol(page_url.clone()))
+            .title("Privacy Curtain")
+            .always_on_top(true)
+            // 用户离机前可能停在他应用的全屏 Space，帷幕必须跟到每个 Space（仅 macOS 有此概念）。
+            .visible_on_all_workspaces(cfg!(target_os = "macos"))
+            // 页面首帧绘制前窗口底色就是黑的：持租约期间重建时屏幕前有人，不能闪白。
+            .background_color(Color(0, 0, 0, 255))
+            .decorations(false)
+            .skip_taskbar(true)
+            .focused(false)
+            .visible(true)
+            .resizable(false)
+            .maximizable(false)
+            .minimizable(false)
+            .closable(false)
+            .inner_size(size.width as f64 / scale, size.height as f64 / scale)
+            .position(position.x as f64 / scale, position.y as f64 / scale)
+            .build()
+            .map_err(|e| e.to_string())?;
 
     // 抬升失败只会让菜单栏露在帷幕之外，窗口本身仍在遮蔽：记审计而不回滚整次拉起。
-    if let Err(reason) = presentation::raise_above_menu_bar(&window) {
-        log_audit("raise_level", false, &reason);
-    }
+    audit_presentation("raise_level", presentation::raise_above_menu_bar(&window));
     // 帷幕必须接收交互（点击→上报→回锁），不能穿透：穿透会让路过者操作底层真实窗口。
     if let Err(reason) = apply_capture_exclusion(&window) {
         // 排除不了截图通道的窗口不能留下：它会把"受保护"的假象带到屏幕上。
@@ -170,7 +175,7 @@ pub(crate) fn deploy_curtain_windows(app: &AppHandle) -> Result<(), String> {
     let previous = curtain_windows(app);
     let generation = GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
     // 覆盖模式必须先于建窗生效；重建不经 close_curtain_windows，策略不会来回闪动。
-    presentation::enter_overlay_mode(app);
+    audit_presentation("overlay_mode", presentation::enter_overlay_mode(app));
 
     let mut built = Vec::with_capacity(monitors.len());
     for (index, monitor) in monitors.iter().enumerate() {
@@ -182,7 +187,7 @@ pub(crate) fn deploy_curtain_windows(app: &AppHandle) -> Result<(), String> {
                 }
                 if previous.is_empty() {
                     // 没有旧窗也没有新窗，就不会有人来 close：不能让应用停在覆盖模式。
-                    presentation::leave_overlay_mode(app);
+                    audit_presentation("overlay_mode", presentation::leave_overlay_mode(app));
                 }
                 return Err(reason);
             }
@@ -212,7 +217,7 @@ pub fn show_privacy_curtain(app: AppHandle, texts: Option<CurtainTexts>) -> Resu
     Ok(())
 }
 
-/// 收起帷幕（托盘/设置页入口；手动帷幕的唯一自动路径不存在）。
+/// 收起帷幕（托盘/设置页入口）。手动帷幕只能经此命令收起，watcher 不会替它收起。
 #[tauri::command]
 pub fn hide_privacy_curtain(app: AppHandle) -> Result<(), String> {
     close_curtain_windows(&app);

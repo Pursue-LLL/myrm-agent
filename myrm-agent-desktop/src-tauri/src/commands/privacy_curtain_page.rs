@@ -156,8 +156,7 @@ fn html_response(html: String) -> Response<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::{
-        curtain_html, default_texts, html_response, response, set_texts, url, CurtainTexts,
-        SCHEME,
+        curtain_html, default_texts, html_response, response, set_texts, url, CurtainTexts, SCHEME,
     };
     use tauri::http::header;
 

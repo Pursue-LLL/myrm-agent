@@ -15,6 +15,9 @@
 //! - raise_above_menu_bar: 把帷幕窗抬到菜单栏之上
 //! - leave_overlay_mode: 帷幕窗全部销毁后按主窗口是否在场恢复激活策略
 //!
+//! 三者失败均以 `Err(原因)` 返回，由调用方记审计：呈现层失败只影响覆盖范围与观感，
+//! 不构成放弃遮蔽的理由。
+//!
 //! [POS]
 //! 激活策略的语义由应用既有约定决定：Accessory = 主窗口隐藏（托盘常驻 / 开机自启），
 //! Regular = 主窗口在场（app/tray.rs、runtime/appshot、runtime/inline_input 同此）。
@@ -37,16 +40,19 @@ fn main_window_present(visible: bool, minimized: bool) -> bool {
 /// 创建帷幕窗口之前调用：Accessory 应用的窗口才能进入他应用的全屏 Space。
 /// 策略切换与窗口创建经同一条主线程消息通道，调用顺序即生效顺序。
 #[cfg(target_os = "macos")]
-pub(crate) fn enter_overlay_mode(app: &AppHandle) {
-    let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+pub(crate) fn enter_overlay_mode(app: &AppHandle) -> Result<(), String> {
+    app.set_activation_policy(tauri::ActivationPolicy::Accessory)
+        .map_err(|error| error.to_string())
 }
 
 #[cfg(not(target_os = "macos"))]
-pub(crate) fn enter_overlay_mode(_app: &AppHandle) {}
+pub(crate) fn enter_overlay_mode(_app: &AppHandle) -> Result<(), String> {
+    Ok(())
+}
 
 /// 全部帷幕窗口销毁之后调用：按主窗口当前是否在场恢复激活策略。
 #[cfg(target_os = "macos")]
-pub(crate) fn leave_overlay_mode(app: &AppHandle) {
+pub(crate) fn leave_overlay_mode(app: &AppHandle) -> Result<(), String> {
     use tauri::Manager;
 
     let present = app.get_webview_window("main").is_some_and(|window| {
@@ -60,11 +66,14 @@ pub(crate) fn leave_overlay_mode(app: &AppHandle) {
     } else {
         tauri::ActivationPolicy::Accessory
     };
-    let _ = app.set_activation_policy(policy);
+    app.set_activation_policy(policy)
+        .map_err(|error| error.to_string())
 }
 
 #[cfg(not(target_os = "macos"))]
-pub(crate) fn leave_overlay_mode(_app: &AppHandle) {}
+pub(crate) fn leave_overlay_mode(_app: &AppHandle) -> Result<(), String> {
+    Ok(())
+}
 
 /// 把帷幕窗抬到菜单栏之上（窗口创建后调用）。
 ///
