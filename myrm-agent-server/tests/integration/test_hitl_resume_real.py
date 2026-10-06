@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.core.events.types import AgentEventType
 
 from tests.support.minimal_app import build_minimal_app
 
@@ -26,6 +27,10 @@ from tests.api.agent.utils import (
     _strip_provider_prefix,
     get_model_selection,
 )
+
+# SSE type emitted when the agent suspends for tool approval (matched by value, not a literal,
+# so a rename in the harness fails loudly instead of silently turning these tests into no-ops).
+_APPROVAL_EVENT_TYPE = AgentEventType.TOOL_APPROVAL_REQUEST.value
 
 
 def _build_mock_user_configs() -> object:
@@ -143,7 +148,7 @@ class TestHITLResumeReal:
                     collected_events.append(data)
 
                     # 检测到Tool Approval事件
-                    if data.get("type") == "tool_approval":
+                    if data.get("type") == _APPROVAL_EVENT_TYPE:
                         print(f"✅ Tool Approval事件: {data.get('tool_name')}")
                         break  # 遇到Tool Approval就停止
                 except json.JSONDecodeError:
@@ -177,7 +182,7 @@ class TestHITLResumeReal:
                 except json.JSONDecodeError:
                     pass
 
-        tool_approval_events = [e for e in collected_events if e.get("type") == "tool_approval"]
+        tool_approval_events = [e for e in collected_events if e.get("type") == _APPROVAL_EVENT_TYPE]
         if not tool_approval_events:
             pytest.skip("LLM did not invoke write_file tool — cannot test HITL resume flow")
         assert len(resume_events) > 0, "Resume应该返回事件"
@@ -210,7 +215,7 @@ class TestHITLResumeReal:
                         data = json.loads(line[6:])
                         if not isinstance(data, dict):
                             continue
-                        if data.get("type") == "tool_approval":
+                        if data.get("type") == _APPROVAL_EVENT_TYPE:
                             break
                     except json.JSONDecodeError:
                         pass
