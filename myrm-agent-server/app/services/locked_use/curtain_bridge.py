@@ -2,22 +2,27 @@
 
 [INPUT]
 - MYRM_CURTAIN_STATE_FILE 环境变量（Tauri python_backend 注入；POS: 桌面端文件桥路径）
-- Tauri commands::privacy_curtain（POS: 帷幕窗口状态机的唯一所有者）
+- Tauri commands::privacy_curtain_state（POS: 帷幕状态机文件桥的 Tauri 侧读写入口）
 
 [OUTPUT]
-- read_curtain_state / mark_pending_auto_unlock / apply_excluded_capture_titles
+- read_curtain_state / mark_pending_auto_unlock / clear_pending_auto_unlock
+- apply_excluded_capture_titles
 - CurtainBridgeState / EXCLUDED_CAPTURE_TITLES（POS: CU 截图排除通道的窗口 title 契约）
 
 [POS]
 server 无人值守编排与 Tauri 帷幕状态机的唯一共享通道。
 读侧（watcher/goal 截图）容忍文件缺失（非桌面端部署零此文件）；
-写侧仅 pendingAutoUnlock 标记位（active/autoEngaged/lastPhysicalInputMs
-归 Tauri 所有，server 绝不覆写）。与 Tauri 侧无锁并发的最坏交错是
-帷幕多保持一个解锁周期（安全方向），无需文件锁。
+写侧仅 pendingAutoUnlock 租约位（active/autoEngaged/lastPhysicalInputMs
+归 Tauri 所有，server 绝不覆写）。该位是**电平**而非脉冲：服务端持有
+代解锁租约期间保持置位（桌面壳据此维持帷幕遮蔽），仅在确认回锁后清除。
+双方都以整文件原子替换写入（读者不会读到撕裂文档）；无文件锁，读-改-写之间
+的并发写入可能丢失一次更新，仅当 Tauri 恰在同一毫秒因物理输入写盘时发生：
+被覆盖的清除只让帷幕多保持（安全方向），被覆盖的置位会使帷幕提前收起。
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -84,28 +89,48 @@ def read_curtain_state() -> CurtainBridgeState | None:
         return None
 
 
-def mark_pending_auto_unlock() -> bool:
-    """落 pendingAutoUnlock 标记（server 仅有的写权限位）。
+def _write_pending_flag(value: bool) -> bool:
+    """Set the server-owned lease bit; False when the bridge file is unusable.
 
-    必须在执行解锁前调用：Tauri watcher 观察到解锁态时据此保持帷幕
-    （否则按用户本人解锁收起帷幕，屏幕内容裸奔）。幂等无害。
+    The file is replaced atomically: the desktop shell polls it every second and a
+    truncated document would read as the default (inactive) state.
     """
     path = curtain_state_path()
     if path is None or not path.is_file():
         return False
+    temp_path = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             return False
-        data["pendingAutoUnlock"] = True
-        path.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        data["pendingAutoUnlock"] = value
+        temp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(temp_path, path)
         return True
     except (OSError, ValueError) as error:
         logger.warning("Curtain pending flag write failed: %s", error)
+        with contextlib.suppress(OSError):
+            temp_path.unlink(missing_ok=True)
         return False
+
+
+def mark_pending_auto_unlock() -> bool:
+    """Acquire/hold the unlock lease: the desktop shell keeps the curtain up.
+
+    The flag is a *level*, not a pulse: the shell never consumes it on a tick.
+    It stays set for as long as we keep the screen unlocked and is released by
+    :func:`clear_pending_auto_unlock` after a verified re-lock. The only other
+    writer is the shell's input guard, which clears it together with a lock
+    request when someone physically touches the curtain. If this process dies
+    mid-lease the flag stays set, so the display remains covered (fail-safe)
+    until the next process adopts and releases it.
+    """
+    return _write_pending_flag(True)
+
+
+def clear_pending_auto_unlock() -> bool:
+    """Release the unlock lease after the screen is verifiably locked again."""
+    return _write_pending_flag(False)
 
 
 def apply_excluded_capture_titles(session: object) -> bool:

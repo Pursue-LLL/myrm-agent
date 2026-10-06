@@ -8,11 +8,11 @@
 //! [INPUT]
 //! - tauri AppHandle (POS: 窗口/事件/app data 目录)
 //! - utils::screen_lock (POS: 锁屏检测/回锁)
+//! - commands::privacy_curtain_state (POS: curtain_state.json 文件桥读写)
 //! - config::{SystemConfig, ConfigManager} (POS: privacy_curtain_enabled 开关)
 //!
 //! [OUTPUT]
 //! - show/hide/active/set_texts/report_physical_input IPC
-//! - curtain_state.json 文件桥（server 无人值守 watcher 读写）
 //! - curtain:state-changed / curtain:physical-input 事件
 //! - spawn_privacy_curtain_watcher（见 privacy_curtain_watcher.rs）
 //!
@@ -23,43 +23,17 @@
 //! 如实以看板文案告知"交互即锁定"。Linux 不支持帷幕（fail-fast），
 //! Windows <2004 WDA 失败时降级为不拉帷幕（由 Lock-Screen Guardian 兜底）。
 
-use std::fs;
-use std::path::PathBuf;
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindowBuilder};
 
+use crate::commands::privacy_curtain_state::{mutate_state, read_state};
 use crate::utils::screen_lock;
 
 const CURTAIN_LABEL_PREFIX: &str = "privacy-curtain-";
-/// 帷幕状态桥文件名（server 侧经 MYRM_CURTAIN_STATE_FILE 环境变量定位）。
-pub const CURTAIN_STATE_FILE: &str = "curtain_state.json";
-
-/// 文件桥状态：server 无人值守 watcher 与 Tauri 帷幕状态机的共享事实。
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", default)]
-pub struct CurtainState {
-    /// 帷幕当前拉起。
-    pub active: bool,
-    /// 由锁屏 watcher 自动拉起（区别于手动拉起；解锁时仅 auto 帷幕自动收起）。
-    pub auto_engaged: bool,
-    /// 最近一次帷幕上物理输入的时间戳（server 静默期判定基准）。
-    pub last_physical_input_ms: u64,
-    /// server 即将代为解锁：Tauri watcher 消费后保持帷幕。
-    pub pending_auto_unlock: bool,
-}
-
-impl Default for CurtainState {
-    fn default() -> Self {
-        Self {
-            active: false,
-            auto_engaged: false,
-            last_physical_input_ms: 0,
-            pending_auto_unlock: false,
-        }
-    }
-}
+/// 输入守卫等待系统确认锁定的上限；超时视为锁屏请求未生效。
+const LOCK_CONFIRM_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// 看板三段文案（由前端按当前 locale 注入缓存，Rust 侧仅存默认英文兜底）。
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -103,42 +77,6 @@ pub(crate) fn log_audit(action: &str, success: bool, reason: &str) {
         reason,
         now_ms()
     );
-}
-
-// ── 文件桥 ────────────────────────────────────────────────────────
-
-fn state_path(app: &AppHandle) -> PathBuf {
-    app.path()
-        .app_data_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join(CURTAIN_STATE_FILE)
-}
-
-pub(crate) fn read_state(app: &AppHandle) -> CurtainState {
-    fs::read_to_string(state_path(app))
-        .ok()
-        .and_then(|content| serde_json::from_str(&content).ok())
-        .unwrap_or_default()
-}
-
-fn write_state(app: &AppHandle, state: &CurtainState) {
-    let path = state_path(app);
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(content) = serde_json::to_string_pretty(state) {
-        let _ = fs::write(&path, content);
-    }
-}
-
-pub(crate) fn mutate_state(app: &AppHandle, apply: impl FnOnce(&mut CurtainState)) {
-    let mut state = read_state(app);
-    let before = state.active;
-    apply(&mut state);
-    write_state(app, &state);
-    if before != state.active {
-        let _ = app.emit("curtain:state-changed", state.clone());
-    }
 }
 
 // ── 看板 HTML ──────────────────────────────────────────────────────
@@ -353,59 +291,40 @@ pub fn curtain_set_texts(texts: CurtainTexts) -> Result<(), String> {
     Ok(())
 }
 
-/// 帷幕上的物理输入上报：更新静默期基准、清除代解锁标记、立即回锁。
+/// 帷幕上的物理输入上报：更新静默期基准并回锁屏幕。
 /// 帷幕输入不穿透到底层窗口，路过者交互唯一效果就是加固锁屏。
+///
+/// 代解锁租约位仅在系统确认已锁定后才清除：先清位会让 watcher 在锁屏生效前
+/// 的 tick 里把解锁态判为用户解锁并收起帷幕（桌面闪现）；锁屏请求被拒时
+/// 保留租约位，帷幕继续遮蔽。
 #[tauri::command]
-pub fn curtain_report_physical_input(app: AppHandle, source: String) -> Result<(), String> {
+pub async fn curtain_report_physical_input(app: AppHandle, source: String) -> Result<(), String> {
     mutate_state(&app, |state| {
         state.last_physical_input_ms = now_ms();
-        state.pending_auto_unlock = false;
     });
     log_audit("physical_input", true, &source);
     let _ = app.emit(
         "curtain:physical-input",
         serde_json::json!({ "source": source }),
     );
-    let locked = screen_lock::lock_screen();
+
+    let locked = tauri::async_runtime::spawn_blocking(|| {
+        screen_lock::lock_screen_confirmed(LOCK_CONFIRM_TIMEOUT)
+    })
+    .await
+    .map_err(|error| error.to_string())?;
     log_audit("relock_on_input", locked.is_ok(), "curtain input guard");
+    if locked.is_ok() {
+        mutate_state(&app, |state| {
+            state.pending_auto_unlock = false;
+        });
+    }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{curtain_html, default_texts, CurtainState, CurtainTexts};
-
-    #[test]
-    fn state_defaults_to_inactive() {
-        let state = CurtainState::default();
-        assert!(!state.active);
-        assert!(!state.auto_engaged);
-        assert!(!state.pending_auto_unlock);
-        assert_eq!(state.last_physical_input_ms, 0);
-    }
-
-    #[test]
-    fn state_roundtrips_through_camel_case_json() {
-        let state = CurtainState {
-            active: true,
-            auto_engaged: true,
-            last_physical_input_ms: 42,
-            pending_auto_unlock: true,
-        };
-        let json = serde_json::to_string(&state).expect("serialize");
-        assert!(json.contains("\"active\":true"));
-        assert!(json.contains("\"lastPhysicalInputMs\":42"));
-        let parsed: CurtainState = serde_json::from_str(&json).expect("deserialize");
-        assert!(parsed.active && parsed.pending_auto_unlock);
-    }
-
-    #[test]
-    fn partial_state_json_deserializes_with_defaults() {
-        let parsed: CurtainState =
-            serde_json::from_str("{\"active\":true}").expect("deserialize partial");
-        assert!(parsed.active);
-        assert!(!parsed.auto_engaged);
-    }
+    use super::{curtain_html, default_texts, CurtainTexts};
 
     #[test]
     fn html_escapes_untrusted_texts() {

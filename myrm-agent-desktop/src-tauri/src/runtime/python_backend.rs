@@ -204,7 +204,7 @@ pub async fn start_backend_with_config(
     if let Ok(data_dir) = app.path().app_data_dir() {
         cmd.env(
             "MYRM_CURTAIN_STATE_FILE",
-            data_dir.join(crate::commands::privacy_curtain::CURTAIN_STATE_FILE),
+            data_dir.join(crate::commands::privacy_curtain_state::CURTAIN_STATE_FILE),
         );
     }
 

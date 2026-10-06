@@ -11,7 +11,9 @@ Platform support:
   - Other:   graceful no-op
 
 Uses reference counting so concurrent tasks share a single inhibitor
-process; the inhibitor is released only when all tasks finish.
+process; the inhibitor is released only when all tasks finish. The
+display-awake requirement is counted separately, so a plain hold that
+started first cannot mask a CU session's need for an awake display.
 """
 
 from __future__ import annotations
@@ -39,6 +41,10 @@ class SleepInhibitor:
 
     _lock: asyncio.Lock | None = None
     _ref_count: int = 0
+    # 需要显示器常亮的持有者单独计数：普通 hold 先占位时，后到的 CU 显示器
+    # 需求不能被静默吞掉（否则 CU 截图会拍到已休眠的黑屏）。
+    _display_ref_count: int = 0
+    _display_active: bool = False
     _process: subprocess.Popen[bytes] | None = None
     _prev_exec_state: int | None = None
 
@@ -65,17 +71,37 @@ class SleepInhibitor:
             yield
             return
 
+        needs_display = prevent_display_sleep
         cls._ref_count += 1
+        if needs_display:
+            cls._display_ref_count += 1
+
         if cls._ref_count == 1:
-            cls._activate(prevent_display_sleep=prevent_display_sleep)
+            cls._activate(prevent_display_sleep=needs_display)
+            cls._display_active = needs_display
+        elif needs_display and not cls._display_active:
+            # 普通休眠抑制已在位：升级为同时常亮显示器（重建断言）。
+            cls._deactivate()
+            cls._activate(prevent_display_sleep=True)
+            cls._display_active = True
 
         try:
             yield
         finally:
             cls._ref_count -= 1
+            if needs_display:
+                cls._display_ref_count -= 1
             if cls._ref_count <= 0:
                 cls._ref_count = 0
+                cls._display_ref_count = 0
+                cls._display_active = False
                 cls._deactivate()
+            elif needs_display and cls._display_ref_count <= 0 and cls._display_active:
+                # 最后一位需要显示器常亮的持有者退出：降级回普通抑制。
+                cls._display_ref_count = 0
+                cls._deactivate()
+                cls._activate(prevent_display_sleep=False)
+                cls._display_active = False
 
     @classmethod
     def _activate(cls, *, prevent_display_sleep: bool = False) -> None:
@@ -86,9 +112,10 @@ class SleepInhibitor:
                 import ctypes.util
 
                 core_foundation_path = ctypes.util.find_library("CoreFoundation")
-                iokit_path = ctypes.cdll.LoadLibrary(ctypes.util.find_library("IOKit"))
-                if not core_foundation_path or not iokit_path:
+                iokit_lib_path = ctypes.util.find_library("IOKit")
+                if not core_foundation_path or not iokit_lib_path:
                     raise FileNotFoundError("CoreFoundation or IOKit not found")
+                iokit_path = ctypes.cdll.LoadLibrary(iokit_lib_path)
 
                 core_foundation = ctypes.cdll.LoadLibrary(core_foundation_path)
 
@@ -114,7 +141,7 @@ class SleepInhibitor:
                 iokit_path.IOPMAssertionRelease.restype = ctypes.c_int32
 
                 def create_cfstring(s: str) -> int:
-                    return core_foundation.CFStringCreateWithCString(None, s.encode("utf-8"), 0x08000100)
+                    return int(core_foundation.CFStringCreateWithCString(None, s.encode("utf-8"), 0x08000100))
 
                 assertion_types = [
                     "PreventUserIdleSystemSleep",
@@ -236,7 +263,10 @@ class SleepInhibitor:
                 import ctypes
                 import ctypes.util
 
-                iokit_path = ctypes.cdll.LoadLibrary(ctypes.util.find_library("IOKit"))
+                iokit_lib_path = ctypes.util.find_library("IOKit")
+                if not iokit_lib_path:
+                    return
+                iokit_path = ctypes.cdll.LoadLibrary(iokit_lib_path)
                 iokit_path.IOPMAssertionRelease.argtypes = [ctypes.c_uint32]
                 iokit_path.IOPMAssertionRelease.restype = ctypes.c_int32
                 for assertion_id in cls._mac_assertions:

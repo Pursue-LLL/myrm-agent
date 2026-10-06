@@ -5,7 +5,7 @@
 - app.services.locked_use.unattended._cu_session_active（POS: CU 会话活跃判定）
 
 [OUTPUT]
-- 环境开关解析、状态读取降级、pending 写入边界、排除 title 穿透 CuaDriver
+- 环境开关解析、状态读取降级、pending 写入边界与原子替换、排除 title 穿透 CuaDriver
   `_fallback` 链注入、状态载荷映射、CU 会话活跃判定
 
 [POS]
@@ -16,8 +16,9 @@
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -25,6 +26,7 @@ from app.services.locked_use import unattended
 from app.services.locked_use.curtain_bridge import (
     EXCLUDED_CAPTURE_TITLES,
     apply_excluded_capture_titles,
+    clear_pending_auto_unlock,
     curtain_status_payload,
     locked_use_enabled_from_env,
     mark_pending_auto_unlock,
@@ -123,6 +125,49 @@ def test_mark_pending_write_failure_returns_false(
         assert mark_pending_auto_unlock() is False
     assert "Curtain pending flag write failed" in caplog.text
     assert state_file.read_text(encoding="utf-8") == json.dumps(_VALID_STATE)
+
+
+def test_mark_pending_replaces_the_file_atomically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """写入走「临时文件 + 原子替换」：成功后不留临时文件，内容为新值。"""
+    state_file = _write_state(tmp_path, monkeypatch, json.dumps(_VALID_STATE))
+    assert mark_pending_auto_unlock() is True
+    assert list(tmp_path.glob("*.tmp")) == []
+    assert json.loads(state_file.read_text(encoding="utf-8"))["pendingAutoUnlock"] is True
+
+
+def test_mark_pending_failed_replace_keeps_original_and_removes_temp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """替换失败：原文件原样保留（桌面壳读到的仍是完整旧文档），临时文件被清理。"""
+    state_file = _write_state(tmp_path, monkeypatch, json.dumps(_VALID_STATE))
+    with patch("app.services.locked_use.curtain_bridge.os.replace", side_effect=OSError("busy")):
+        assert mark_pending_auto_unlock() is False
+    assert state_file.read_text(encoding="utf-8") == json.dumps(_VALID_STATE)
+    assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_reader_never_sees_a_torn_state_file_while_the_lease_bit_flips(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """桌面壳每秒轮询该文件：读者在租约位翻转期间绝不能读到被截断的文档（会被当成默认态）。"""
+    state_file = _write_state(tmp_path, monkeypatch, json.dumps(_VALID_STATE))
+    stop = threading.Event()
+    torn: list[str] = []
+
+    def reader() -> None:
+        while not stop.is_set():
+            content = state_file.read_text(encoding="utf-8")
+            try:
+                json.loads(content)
+            except ValueError:
+                torn.append(content)
+
+    thread = threading.Thread(target=reader)
+    thread.start()
+    try:
+        for round_index in range(1500):
+            flip = mark_pending_auto_unlock if round_index % 2 == 0 else clear_pending_auto_unlock
+            assert flip() is True
+    finally:
+        stop.set()
+        thread.join()
+    assert torn == []
 
 
 def test_apply_titles_injects_into_direct_backend() -> None:

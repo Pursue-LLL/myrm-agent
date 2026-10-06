@@ -3,8 +3,8 @@
 [INPUT]
 - app.services.locked_use.service.MacScreenUnlocker（POS: server 侧锁屏原语）
 - app.services.locked_use.curtain_bridge（POS: 状态桥）
-- myrm-agent-desktop/src-tauri/src/{utils/screen_lock.rs, commands/privacy_curtain.rs}
-  （POS: Tauri 侧锁屏/帷幕实现，源码字符串契约提取目标）
+- myrm-agent-desktop/src-tauri/src/{utils/screen_credential.rs, commands/privacy_curtain.rs,
+  commands/privacy_curtain_state.rs}（POS: Tauri 侧锁屏/帷幕实现，源码字符串契约提取目标）
 
 [OUTPUT]
 - Keychain service/account、帷幕窗 title、curtain_state 字段三契约对齐断言
@@ -47,7 +47,7 @@ def _tauri_source(relative: str) -> str:
 
 def test_keychain_service_contract_aligned() -> None:
     """Keychain service 名两侧必须一致（密码写入方=读取方）。"""
-    rust = _tauri_source("src/utils/screen_lock.rs")
+    rust = _tauri_source("src/utils/screen_credential.rs")
     match = re.search(r'KEYCHAIN_SERVICE:\s*&str\s*=\s*"([^"]+)"', rust)
     assert match is not None, "Tauri KEYCHAIN_SERVICE constant not found"
     assert match.group(1) == MacScreenUnlocker.KEYCHAIN_SERVICE
@@ -55,7 +55,7 @@ def test_keychain_service_contract_aligned() -> None:
 
 def test_keychain_account_contract_aligned() -> None:
     """Keychain account 名两侧必须一致。"""
-    rust = _tauri_source("src/utils/screen_lock.rs")
+    rust = _tauri_source("src/utils/screen_credential.rs")
     match = re.search(r'KEYCHAIN_ACCOUNT:\s*&str\s*=\s*"([^"]+)"', rust)
     assert match is not None, "Tauri KEYCHAIN_ACCOUNT constant not found"
     assert match.group(1) == MacScreenUnlocker.KEYCHAIN_ACCOUNT
@@ -71,7 +71,7 @@ def test_curtain_window_title_contract_aligned() -> None:
 
 def test_curtain_state_fields_contract_aligned() -> None:
     """curtain_state.json serde 契约：Rust camelCase 字段集与 server 解析字段集一致。"""
-    rust = _tauri_source("src/commands/privacy_curtain.rs")
+    rust = _tauri_source("src/commands/privacy_curtain_state.rs")
     struct = re.search(r"pub struct CurtainState\s*\{(.*?)\n\}", rust, re.DOTALL)
     assert struct is not None, "Tauri CurtainState struct not found"
     rust_fields = re.findall(r"pub (\w+):", struct.group(1))

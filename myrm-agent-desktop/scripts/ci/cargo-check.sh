@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Desktop Rust compile gate: stub sidecars → cargo check → config unit tests.
+# Desktop Rust compile gate: stub sidecars → cargo check → config + privacy curtain unit tests.
 set -euo pipefail
 
 DESKTOP_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -17,6 +17,8 @@ fi
 
 cd "$TAURI_DIR"
 cargo check --locked
-cargo test config::tests -- --nocapture
+# Multiple libtest filters are OR-ed; `commands::privacy_curtain` covers the curtain
+# state file bridge and the watcher decision table (incl. the unlock-lease level rule).
+cargo test --locked -- config::tests commands::privacy_curtain --nocapture
 
 echo "[desktop-cargo-check] OK"

@@ -21,7 +21,8 @@
 |------|------|------|-------|
 | `mod.rs` | 聚合 | 子模块声明 | — |
 | `power.rs` | 核心 | RAII 电源锁（macOS IOKit / Win32 / systemd-inhibit） | — |
-| `screen_lock.rs` | 核心 | 锁屏检测、锁定/解锁、Keychain 密码 | — |
+| `screen_lock.rs` | 核心 | 锁屏进程内检测（macOS CoreGraphics 会话字典 FFI）与系统确认式锁屏请求 | ✅ |
+| `screen_credential.rs` | 核心 | Locked Use 登录密码的平台钥匙串存取：密码经 `security -i` 的 stdin 写入（不进 argv），含控制字符拒收、缺失条目删除幂等与真实钥匙串往返 / 进程列表泄漏回归测试（`--ignored`） | ✅ |
 | `auth.rs` | 核心 | macOS 提权修复隔离属性 | — |
 | `quarantine.rs` | 核心 | com.apple.quarantine 扫描与静默修复 | — |
 | `updater_safety.rs` | 核心 | 启动期 OTA pubkey 占位符强校验 | ✅ |

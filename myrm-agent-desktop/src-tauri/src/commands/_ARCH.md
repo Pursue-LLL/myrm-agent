@@ -20,9 +20,10 @@ Leaf IPC command modules invoked from the main webview, session webviews, and pe
 | `process_registry.rs` | 核心 | 桌面受管进程注册表查询与定向终止 IPC | ✅ |
 | `power.rs` | 核心 | 节能与睡眠抑制控制 IPC | ✅ |
 | `recovery.rs` | 核心 | 崩溃状态收集与恢复 IPC | ✅ |
-| `screen_lock.rs` | 核心 | 屏幕锁定感知与隐私保护 IPC | ✅ |
-| `privacy_curtain.rs` | 核心 | 工位防窥帷幕：每显示器置顶黑幕窗口、输入守卫回锁、curtain_state.json 文件桥 | ✅ |
-| `privacy_curtain_watcher.rs` | 核心 | 锁屏 watcher 状态机：1s tick 自动拉/收帷幕、配置缓存 30s 刷新、显示器热插拔幂等重建 | ✅ |
+| `screen_lock.rs` | 核心 | Locked Use 解锁凭据 IPC：Keychain 存/查/删与平台能力查询（锁检测在进程内，解锁由 server 执行，均不经 IPC） | ✅ |
+| `privacy_curtain.rs` | 核心 | 工位防窥帷幕：每显示器置顶黑幕窗口、看板 HTML、输入守卫（回锁经系统确认后才交还租约位） | ✅ |
+| `privacy_curtain_state.rs` | 核心 | 帷幕状态桥：`curtain_state.json` 的 Tauri 侧唯一读写入口（`CurtainState`，整文件原子替换，读者不会读到撕裂文档），含并发撕裂读回归测试 | ✅ |
+| `privacy_curtain_watcher.rs` | 核心 | 锁屏 watcher：1s tick 执行纯决策表 `decide`（自动拉/收帷幕、server 租约电平保持帷幕、显示器热插拔重建，决策表含单测）、配置缓存 30s 刷新、启动时清除上一进程遗留状态 | ✅ |
 | `mod.rs` | 辅助 | 模块导出 | — |
 
 Pet-surface webview 仅允许调用：`pet_surface_set_ignore_cursor`、`pet_surface_set_focusable`、`pet_surface_focus_main_window`、`pet_surface_toggle_main_window`（见 `ipc_security/policy.rs`）。

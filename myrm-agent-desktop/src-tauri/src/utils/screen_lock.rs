@@ -1,134 +1,70 @@
-/// Screen lock detection and management for Computer Use sessions.
-///
-/// Provides platform-specific screen lock state detection and temporary unlock
-/// capability so CU operations can proceed when the display is locked.
-///
-/// Platform support:
-/// - macOS: CGSession + AppleScript (keystroke + Keychain password retrieval)
-/// - Linux/Windows: Detection only; unlock not yet implemented (graceful degradation)
-///
-/// Security guarantees:
-/// - Passwords stored exclusively in macOS Keychain (system-level encryption)
-/// - Unlock is RAII-guarded: screen re-locks automatically on guard drop
-/// - Physical input detection triggers immediate re-lock
-/// - All unlock/lock operations are logged for audit
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+//! Screen lock probe and lock request.
+//!
+//! The unlock itself (typing the credential into the login window) lives in the
+//! Python server, the only party that needs the credential (see
+//! `screen_credential`). This module owns what the desktop shell needs: the lock
+//! probe the curtain watcher polls every second and the lock request used by the
+//! curtain input guard.
+//!
+//! [INPUT]
+//! - macOS CoreGraphics session dictionary / Win32 input desktop / loginctl
+//!
+//! [OUTPUT]
+//! - ScreenLockError
+//! - is_screen_locked / lock_screen / lock_screen_confirmed
+//!
+//! [POS]
+//! Platform primitives behind `commands::privacy_curtain*` (probe + lock request).
+
+use std::time::{Duration, Instant};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ScreenLockError {
     #[error("screen lock operation failed: {0}")]
     OperationFailed(String),
-    #[error("unlock not supported on this platform")]
+    #[error("operation not supported on this platform")]
     #[allow(dead_code)]
     UnsupportedPlatform,
-    #[error("no password configured for screen unlock")]
-    NoPasswordConfigured,
 }
 
-/// Audit log entry for screen lock operations.
-#[derive(Debug, Clone, serde::Serialize)]
-#[allow(dead_code)]
-pub struct ScreenLockAuditEntry {
-    pub timestamp_ms: u64,
-    pub action: ScreenLockAction,
-    pub success: bool,
-    pub reason: String,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-#[allow(dead_code)]
-pub enum ScreenLockAction {
-    Unlock,
-    Relock,
-    DetectLocked,
-    DetectUnlocked,
-    PhysicalInputDetected,
-}
+/// Interval between probes while waiting for a lock request to take effect.
+const LOCK_CONFIRM_POLL: Duration = Duration::from_millis(50);
 
 /// Check whether the screen is currently locked.
+///
+/// A failed probe reports `false` (unlocked): callers treat that as "nothing to
+/// protect", never as proof the screen is safe.
 pub fn is_screen_locked() -> bool {
     platform::is_screen_locked()
 }
 
-/// Lock the screen immediately (curtain physical-input guard path).
+/// Request an immediate screen lock (fire-and-forget).
 pub fn lock_screen() -> Result<(), ScreenLockError> {
     platform::lock_screen()
 }
 
-/// RAII guard that re-locks the screen on drop.
-pub struct ScreenUnlockGuard {
-    active: Arc<AtomicBool>,
-    #[allow(dead_code)]
-    unlocked_at: Instant,
-}
-
-impl ScreenUnlockGuard {
-    /// Attempt to unlock the screen using the stored Keychain password.
-    /// Returns a guard that will re-lock on drop.
-    pub fn unlock(reason: &str) -> Result<Self, ScreenLockError> {
-        log_audit(ScreenLockAction::Unlock, true, reason);
-
-        platform::unlock_screen()?;
-
-        Ok(Self {
-            active: Arc::new(AtomicBool::new(true)),
-            unlocked_at: Instant::now(),
-        })
+/// Request a screen lock and wait until the system reports a locked session.
+///
+/// The lock chord is only a *request*: keystroke injection can succeed while
+/// nothing locks. Callers that must not expose the desktop in between (the
+/// curtain input guard) use this and keep the curtain up on `Err`.
+pub fn lock_screen_confirmed(timeout: Duration) -> Result<(), ScreenLockError> {
+    if is_screen_locked() {
+        return Ok(());
     }
-
-    #[allow(dead_code)]
-    pub fn is_active(&self) -> bool {
-        self.active.load(Ordering::Relaxed)
-    }
-
-    #[allow(dead_code)]
-    pub fn elapsed(&self) -> std::time::Duration {
-        self.unlocked_at.elapsed()
-    }
-}
-
-impl Drop for ScreenUnlockGuard {
-    fn drop(&mut self) {
-        if self.active.swap(false, Ordering::SeqCst) {
-            let _ = platform::lock_screen();
-            log_audit(ScreenLockAction::Relock, true, "guard dropped");
+    lock_screen()?;
+    let deadline = Instant::now() + timeout;
+    loop {
+        if is_screen_locked() {
+            return Ok(());
         }
+        if Instant::now() >= deadline {
+            return Err(ScreenLockError::OperationFailed(
+                "screen did not report locked in time".into(),
+            ));
+        }
+        std::thread::sleep(LOCK_CONFIRM_POLL);
     }
-}
-
-/// Store the user's login password in the platform keychain.
-pub fn store_password(password: &str) -> Result<(), ScreenLockError> {
-    platform::keychain_store(password)
-}
-
-/// Check whether a password is stored in the platform keychain.
-pub fn has_stored_password() -> bool {
-    platform::keychain_has_password()
-}
-
-/// Delete the stored password from the platform keychain.
-pub fn delete_password() -> Result<(), ScreenLockError> {
-    platform::keychain_delete()
-}
-
-fn log_audit(action: ScreenLockAction, success: bool, reason: &str) {
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as u64;
-    let entry = ScreenLockAuditEntry {
-        timestamp_ms: ts,
-        action,
-        success,
-        reason: reason.to_string(),
-    };
-    // Structured log for audit trail
-    println!(
-        "[AUDIT] screen_lock: action={:?} success={} reason={} ts={}",
-        entry.action, entry.success, entry.reason, entry.timestamp_ms
-    );
 }
 
 // ── macOS implementation ──────────────────────────────────────────
@@ -136,80 +72,98 @@ fn log_audit(action: ScreenLockAction, success: bool, reason: &str) {
 #[cfg(target_os = "macos")]
 mod platform {
     use super::ScreenLockError;
+    use std::ffi::{c_char, c_void, CStr};
     use std::process::Command;
+    use std::ptr;
 
-    const KEYCHAIN_SERVICE: &str = "com.myrm.agent.screen-unlock";
-    const KEYCHAIN_ACCOUNT: &str = "login-password";
+    /// Present (true) in the session dictionary only while the screen is locked.
+    const SESSION_SCREEN_LOCKED_KEY: &CStr = c"CGSSessionScreenIsLocked";
+    const UTF8_ENCODING: u32 = 0x0800_0100;
+    /// `kCFNumberSInt32Type`.
+    const CF_NUMBER_SINT32_TYPE: isize = 3;
 
+    type CFTypeRef = *const c_void;
+    type CFStringRef = *const c_void;
+    type CFDictionaryRef = *const c_void;
+
+    #[link(name = "CoreGraphics", kind = "framework")]
+    unsafe extern "C" {
+        fn CGSessionCopyCurrentDictionary() -> CFDictionaryRef;
+    }
+
+    #[link(name = "CoreFoundation", kind = "framework")]
+    unsafe extern "C" {
+        fn CFStringCreateWithCString(
+            alloc: *const c_void,
+            c_str: *const c_char,
+            encoding: u32,
+        ) -> CFStringRef;
+        fn CFDictionaryGetValue(dict: CFDictionaryRef, key: CFTypeRef) -> CFTypeRef;
+        fn CFGetTypeID(value: CFTypeRef) -> usize;
+        fn CFBooleanGetTypeID() -> usize;
+        fn CFBooleanGetValue(boolean: CFTypeRef) -> u8;
+        fn CFNumberGetTypeID() -> usize;
+        fn CFNumberGetValue(number: CFTypeRef, number_type: isize, value: *mut c_void) -> u8;
+        fn CFRelease(value: CFTypeRef);
+    }
+
+    /// Read a boolean-like entry (CFBoolean, or a non-zero CFNumber) from a dictionary.
+    ///
+    /// # Safety
+    /// `dict` must be a valid `CFDictionaryRef`.
+    unsafe fn dictionary_flag(dict: CFDictionaryRef, key: &CStr) -> bool {
+        let cf_key = CFStringCreateWithCString(ptr::null(), key.as_ptr(), UTF8_ENCODING);
+        if cf_key.is_null() {
+            return false;
+        }
+        // Get rule: `value` is borrowed from `dict`, only `cf_key` is ours to release.
+        let value = CFDictionaryGetValue(dict, cf_key);
+        CFRelease(cf_key);
+        if value.is_null() {
+            return false;
+        }
+
+        let type_id = CFGetTypeID(value);
+        if type_id == CFBooleanGetTypeID() {
+            return CFBooleanGetValue(value) != 0;
+        }
+        if type_id == CFNumberGetTypeID() {
+            let mut number: i32 = 0;
+            let read = CFNumberGetValue(
+                value,
+                CF_NUMBER_SINT32_TYPE,
+                ptr::from_mut(&mut number).cast(),
+            );
+            return read != 0 && number != 0;
+        }
+        false
+    }
+
+    /// In-process probe: a spawned `osascript` costs ~290 ms of CPU per call, which
+    /// at the watcher's 1 Hz tick is a quarter of a core.
     pub fn is_screen_locked() -> bool {
-        // CGSessionCopyCurrentDictionary → "CGSSessionScreenIsLocked"
-        let script = r#"
-            use framework "Foundation"
-            set sessionDict to current application's CGSessionCopyCurrentDictionary() as record
-            try
-                set isLocked to |CGSSessionScreenIsLocked| of sessionDict
-                if isLocked is 1 then return "locked"
-            end try
-            return "unlocked"
-        "#;
-        Command::new("osascript")
-            .args(["-l", "AppleScript", "-e", script])
-            .output()
-            .map(|o| {
-                String::from_utf8_lossy(&o.stdout)
-                    .trim()
-                    .eq_ignore_ascii_case("locked")
-            })
-            .unwrap_or(false)
+        // SAFETY: "Copy" rule — we own the returned dictionary and release it
+        // below; it is only read through `dictionary_flag`.
+        unsafe {
+            let session = CGSessionCopyCurrentDictionary();
+            if session.is_null() {
+                // No GUI session (e.g. SSH): there is no screen to lock.
+                return false;
+            }
+            let locked = dictionary_flag(session, SESSION_SCREEN_LOCKED_KEY);
+            CFRelease(session);
+            locked
+        }
     }
 
-    pub fn unlock_screen() -> Result<(), ScreenLockError> {
-        let password = keychain_read()?;
-
-        // Wake display first (in case it's asleep)
-        let _ = Command::new("caffeinate").args(["-u", "-t", "2"]).spawn();
-        std::thread::sleep(std::time::Duration::from_millis(500));
-
-        // Simulate keypress to dismiss login screen, then type password + Enter
-        let script = format!(
-            r#"
-            tell application "System Events"
-                key code 49 -- space to wake
-                delay 0.5
-                keystroke "{}"
-                delay 0.2
-                key code 36 -- return
-            end tell
-        "#,
-            password.replace('\\', "\\\\").replace('"', "\\\"")
-        );
-
-        let output = Command::new("osascript")
-            .args(["-e", &script])
-            .output()
-            .map_err(|e| ScreenLockError::OperationFailed(format!("osascript failed: {}", e)))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(ScreenLockError::OperationFailed(format!(
-                "unlock script failed: {}",
-                stderr.trim()
-            )));
-        }
-
-        // Verify unlock succeeded
-        std::thread::sleep(std::time::Duration::from_secs(1));
-        if is_screen_locked() {
-            return Err(ScreenLockError::OperationFailed(
-                "screen still locked after unlock attempt (wrong password?)".into(),
-            ));
-        }
-
-        Ok(())
-    }
-
+    /// Request a screen lock via the system lock chord.
+    ///
+    /// The chord is only a *request*: an unprivileged caller can see the
+    /// command succeed while nothing locks (keystroke injection needs
+    /// Accessibility). Callers that need certainty confirm with
+    /// [`is_screen_locked`] (see `lock_screen_confirmed`).
     pub fn lock_screen() -> Result<(), ScreenLockError> {
-        Command::new("osascript")
+        let output = Command::new("osascript")
             .args([
                 "-e",
                 r#"tell application "System Events" to keystroke "q" using {control down, command down}"#,
@@ -218,84 +172,124 @@ mod platform {
             .map_err(|e| {
                 ScreenLockError::OperationFailed(format!("lock screen failed: {}", e))
             })?;
-        Ok(())
-    }
-
-    pub fn keychain_store(password: &str) -> Result<(), ScreenLockError> {
-        // Delete existing entry first (idempotent)
-        let _ = keychain_delete();
-
-        let output = Command::new("security")
-            .args([
-                "add-generic-password",
-                "-s",
-                KEYCHAIN_SERVICE,
-                "-a",
-                KEYCHAIN_ACCOUNT,
-                "-w",
-                password,
-                "-U", // update if exists
-            ])
-            .output()
-            .map_err(|e| {
-                ScreenLockError::OperationFailed(format!("keychain store failed: {}", e))
-            })?;
-
         if !output.status.success() {
-            return Err(ScreenLockError::OperationFailed(
-                String::from_utf8_lossy(&output.stderr).trim().to_string(),
-            ));
+            return Err(ScreenLockError::OperationFailed(format!(
+                "lock screen command exited with {}",
+                output.status
+            )));
         }
         Ok(())
     }
 
-    pub fn keychain_has_password() -> bool {
-        Command::new("security")
-            .args([
-                "find-generic-password",
-                "-s",
-                KEYCHAIN_SERVICE,
-                "-a",
-                KEYCHAIN_ACCOUNT,
-            ])
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false)
-    }
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use std::time::Instant;
 
-    pub fn keychain_delete() -> Result<(), ScreenLockError> {
-        let _ = Command::new("security")
-            .args([
-                "delete-generic-password",
-                "-s",
-                KEYCHAIN_SERVICE,
-                "-a",
-                KEYCHAIN_ACCOUNT,
-            ])
-            .output();
-        Ok(())
-    }
-
-    fn keychain_read() -> Result<String, ScreenLockError> {
-        let output = Command::new("security")
-            .args([
-                "find-generic-password",
-                "-s",
-                KEYCHAIN_SERVICE,
-                "-a",
-                KEYCHAIN_ACCOUNT,
-                "-w", // output password only
-            ])
-            .output()
-            .map_err(|e| {
-                ScreenLockError::OperationFailed(format!("keychain read failed: {}", e))
-            })?;
-
-        if !output.status.success() {
-            return Err(ScreenLockError::NoPasswordConfigured);
+        #[link(name = "CoreFoundation", kind = "framework")]
+        unsafe extern "C" {
+            static kCFBooleanTrue: CFTypeRef;
+            static kCFBooleanFalse: CFTypeRef;
+            static kCFTypeDictionaryKeyCallBacks: u8;
+            static kCFTypeDictionaryValueCallBacks: u8;
+            fn CFDictionaryCreate(
+                alloc: *const c_void,
+                keys: *const CFTypeRef,
+                values: *const CFTypeRef,
+                count: isize,
+                key_callbacks: *const u8,
+                value_callbacks: *const u8,
+            ) -> CFDictionaryRef;
+            fn CFNumberCreate(
+                alloc: *const c_void,
+                number_type: isize,
+                value: *const c_void,
+            ) -> CFTypeRef;
         }
 
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+        /// Build a one-entry dictionary `{ SESSION_SCREEN_LOCKED_KEY: value }`.
+        unsafe fn dictionary_with(value: CFTypeRef) -> CFDictionaryRef {
+            let key = CFStringCreateWithCString(
+                ptr::null(),
+                SESSION_SCREEN_LOCKED_KEY.as_ptr(),
+                UTF8_ENCODING,
+            );
+            let dict = CFDictionaryCreate(
+                ptr::null(),
+                &key,
+                &value,
+                1,
+                ptr::addr_of!(kCFTypeDictionaryKeyCallBacks),
+                ptr::addr_of!(kCFTypeDictionaryValueCallBacks),
+            );
+            CFRelease(key);
+            dict
+        }
+
+        fn flag_for(value: CFTypeRef) -> bool {
+            // SAFETY: `dict` is created and released within this scope.
+            unsafe {
+                let dict = dictionary_with(value);
+                let flag = dictionary_flag(dict, SESSION_SCREEN_LOCKED_KEY);
+                CFRelease(dict);
+                flag
+            }
+        }
+
+        #[test]
+        fn cf_boolean_true_means_locked() {
+            assert!(flag_for(unsafe { kCFBooleanTrue }));
+        }
+
+        #[test]
+        fn cf_boolean_false_means_unlocked() {
+            assert!(!flag_for(unsafe { kCFBooleanFalse }));
+        }
+
+        #[test]
+        fn cf_number_is_read_as_non_zero() {
+            for (raw, expected) in [(1_i32, true), (0_i32, false)] {
+                // SAFETY: the number is created and released within this scope.
+                let flag = unsafe {
+                    let number = CFNumberCreate(
+                        ptr::null(),
+                        CF_NUMBER_SINT32_TYPE,
+                        ptr::from_ref(&raw).cast(),
+                    );
+                    let flag = flag_for(number);
+                    CFRelease(number);
+                    flag
+                };
+                assert_eq!(flag, expected, "CFNumber {raw}");
+            }
+        }
+
+        #[test]
+        fn absent_key_means_unlocked() {
+            let other = c"SomeOtherKey";
+            // SAFETY: dictionary is created and released within this scope.
+            let flag = unsafe {
+                let dict = dictionary_with(kCFBooleanTrue);
+                let flag = dictionary_flag(dict, other);
+                CFRelease(dict);
+                flag
+            };
+            assert!(!flag);
+        }
+
+        #[test]
+        fn live_probe_is_in_process_and_cheap() {
+            // Warm up once, then average: a probe that spawns osascript costs
+            // hundreds of milliseconds per call.
+            let _ = is_screen_locked();
+            let rounds = 20;
+            let started = Instant::now();
+            for _ in 0..rounds {
+                let _ = is_screen_locked();
+            }
+            let mean = started.elapsed() / rounds;
+            assert!(mean.as_millis() < 20, "probe mean {mean:?}");
+        }
     }
 }
 
@@ -314,26 +308,10 @@ mod platform {
             .unwrap_or(false)
     }
 
-    pub fn unlock_screen() -> Result<(), ScreenLockError> {
-        Err(ScreenLockError::UnsupportedPlatform)
-    }
-
     pub fn lock_screen() -> Result<(), ScreenLockError> {
         let _ = std::process::Command::new("loginctl")
             .args(["lock-session"])
             .output();
-        Ok(())
-    }
-
-    pub fn keychain_store(_password: &str) -> Result<(), ScreenLockError> {
-        Err(ScreenLockError::UnsupportedPlatform)
-    }
-
-    pub fn keychain_has_password() -> bool {
-        false
-    }
-
-    pub fn keychain_delete() -> Result<(), ScreenLockError> {
         Ok(())
     }
 }
@@ -362,23 +340,7 @@ mod platform {
         }
     }
 
-    pub fn unlock_screen() -> Result<(), ScreenLockError> {
-        Err(ScreenLockError::UnsupportedPlatform)
-    }
-
     pub fn lock_screen() -> Result<(), ScreenLockError> {
         Err(ScreenLockError::UnsupportedPlatform)
-    }
-
-    pub fn keychain_store(_password: &str) -> Result<(), ScreenLockError> {
-        Err(ScreenLockError::UnsupportedPlatform)
-    }
-
-    pub fn keychain_has_password() -> bool {
-        false
-    }
-
-    pub fn keychain_delete() -> Result<(), ScreenLockError> {
-        Ok(())
     }
 }
