@@ -222,6 +222,7 @@ function DraggableTaskCard({
   });
 
   return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- role, tabIndex and key listeners come from dnd-kit via spread
     <div
       ref={setNodeRef}
       {...listeners}

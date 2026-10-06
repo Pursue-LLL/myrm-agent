@@ -3,6 +3,7 @@ import React from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { isUrl, extractDomainFromUrl, isWebpageUrl } from '@/lib/utils/urlUtils';
 import { EnhancedSyntaxHighlighter } from './EnhancedSyntaxHighlighter';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface TextItemsRendererProps {
   items: { text: string }[];
@@ -81,6 +82,7 @@ const TextItemsRenderer: React.FC<TextItemsRendererProps> = ({ items, messageId,
         const isWeb = isLink && isWebpageUrl(item.text);
 
         return (
+          // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
           <div
             key={`${messageId}-item-${stepIndex}-${itemIndex}`}
             className={cn(
@@ -98,6 +100,9 @@ const TextItemsRenderer: React.FC<TextItemsRendererProps> = ({ items, messageId,
               isLink && 'cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400',
             )}
             onClick={isLink ? () => handleLinkClick(item.text) : undefined}
+            role={isLink ? 'link' : undefined}
+            tabIndex={isLink ? 0 : undefined}
+            onKeyDown={activateOnKey}
             title={isLink ? item.text : ''}
           >
             {isWeb && (

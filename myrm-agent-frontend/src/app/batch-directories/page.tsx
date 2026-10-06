@@ -416,6 +416,7 @@ export default function BatchDirectoriesPage() {
                   {dirEntries.map((entry) => {
                     const checked = selectedDirs.includes(entry.path);
                     return (
+                      // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- keyboard path is the nested Checkbox, whose click bubbles here
                       <label
                         key={entry.path}
                         onClick={() => handleToggleDir(entry.path)}

@@ -23,6 +23,7 @@ import { Button } from '@/components/primitives/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { listUnifiedRuns, type UnifiedRun, type RunSource, type RunStatus } from '@/services/runs';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 const ExecutionTraceTimeline = dynamic(
   () => import('@/components/features/settings/sections/system/ExecutionTraceTimeline'),
@@ -326,12 +327,16 @@ function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslati
   const compactStopReason = !run.error ? stopReasonMessage : null;
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
     <div
       className={cn(
         'rounded-lg border border-border/20 bg-card/30 transition-colors',
         hasDetail && 'cursor-pointer hover:bg-card/60',
       )}
       onClick={hasDetail ? () => setExpanded(!expanded) : undefined}
+      role={hasDetail ? 'button' : undefined}
+      tabIndex={hasDetail ? 0 : undefined}
+      onKeyDown={activateOnKey}
     >
       <div className="flex items-start gap-3 px-3 py-2.5">
         <div className="mt-0.5 shrink-0">{STATUS_ICON[run.status]}</div>

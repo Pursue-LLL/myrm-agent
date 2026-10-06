@@ -22,6 +22,7 @@ import { GoalStatusExpanded } from './GoalStatusExpanded';
 import type { GoalStatus } from './goalStatusTypes';
 import { translateGoalReason, computeEtaSeconds, formatEta } from './goalStatusUtils';
 import { TaskAirbagCapsule } from '@/components/features/checkpoint/TaskAirbagCapsule';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 export type { GoalStatus, GoalState, AcceptanceResultItem, AcceptanceHistoryEntry } from './goalStatusTypes';
 
@@ -326,6 +327,10 @@ function GoalStatusHeader({
       data-testid="goal-status-header"
       className="p-3 flex items-center justify-between cursor-pointer hover:bg-muted/50"
       onClick={onToggleExpand}
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
+      role="button"
+      tabIndex={0}
+      onKeyDown={activateOnKey}
     >
       <div className="flex items-center gap-3 overflow-hidden">
         <div className="flex-shrink-0">{statusIcon}</div>

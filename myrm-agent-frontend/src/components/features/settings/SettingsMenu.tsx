@@ -398,6 +398,7 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
   let itemGlobalIndex = 0;
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- roving-focus arrow keys delegated from focusable items
     <nav
       ref={navRef}
       className={cn('flex flex-col gap-0.5 overflow-y-auto scrollbar-hide', className)}

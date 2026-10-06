@@ -140,6 +140,7 @@ const FileDiffViewer: React.FC<FileDiffViewerProps> = ({ snapshotId, changes, on
               {changes.map((change, idx) => {
                 const lineStat = formatLineStat(change);
                 return (
+                  // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- pointer shortcut; the nested checkbox is the keyboard control
                   <li
                     key={`${change.path}-${idx}`}
                     className="px-4 py-1.5 flex items-center gap-2 text-xs font-mono hover:bg-muted/50 cursor-pointer"

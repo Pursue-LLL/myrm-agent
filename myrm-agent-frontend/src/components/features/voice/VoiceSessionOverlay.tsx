@@ -20,6 +20,7 @@ import { useTranslations } from 'next-intl';
 import type { VoiceSessionState, VoiceSessionMode } from '@/hooks/voice/useVoiceSession';
 import type { LiveMeetingSnapshot } from '@/services/liveMeeting';
 import LiveNotesBoard from './LiveNotesBoard';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface VoiceSessionOverlayProps {
   isOpen: boolean;
@@ -237,9 +238,11 @@ const VoiceSessionOverlay = memo(
         </div>
 
         {/* Audio waveform */}
+        {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis */}
         <div
           className={cn('w-64 sm:w-80 cursor-default transition-opacity', isSpeaking && 'cursor-pointer')}
           onClick={handleCenterClick}
+          onKeyDown={activateOnKey}
           role={isSpeaking ? 'button' : undefined}
           tabIndex={isSpeaking ? 0 : undefined}
         >

@@ -1,5 +1,5 @@
 /**
- * 非原生交互元素（div / span）的键盘激活处理器，与 `role="button"` + `tabIndex={0}` 配套使用。
+ * 非原生交互元素（div / span）的键盘激活处理器，与 `role="button"` / `role="link"` + `tabIndex={0}` 配套使用。
  *
  * 触发元素自身的原生 click，使键盘与鼠标共用同一条 `onClick` 路径：调用方无需复制激活逻辑，
  * 事件冒泡、`stopPropagation` 与 React 合成事件行为与鼠标点击完全一致。
@@ -18,7 +18,11 @@ export function activateOnKey(event: KeyboardEvent<HTMLElement>): void {
   if (event.key !== 'Enter' && event.key !== ' ') {
     return;
   }
-  // 空格的默认行为是滚动页面，需阻止
+  // 链接语义只响应 Enter，空格保留给页面滚动
+  if (event.key === ' ' && event.currentTarget.getAttribute('role') === 'link') {
+    return;
+  }
+  // 按钮语义下空格的默认行为是滚动页面，需阻止
   event.preventDefault();
   event.currentTarget.click();
 }

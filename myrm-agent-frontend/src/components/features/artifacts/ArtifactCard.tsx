@@ -54,6 +54,7 @@ import {
   type ArtifactDeployPreflight,
 } from './artifactUtils';
 import { buildPublicArtifactShareUrl } from '@/services/artifactShares';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface ArtifactCardProps {
   artifact: Artifact;
@@ -570,9 +571,13 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         onMouseLeave={handleMouseLeave}
       >
         {/* Card header */}
+        {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis */}
         <div
           className="flex items-center gap-3 p-3 cursor-pointer"
           onClick={() => canPreview && onPreview?.(artifactState)}
+          role={canPreview ? 'button' : undefined}
+          tabIndex={canPreview ? 0 : undefined}
+          onKeyDown={activateOnKey}
         >
           <div className={cn('flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center', colorClass)}>
             <Icon className="w-5 h-5" />

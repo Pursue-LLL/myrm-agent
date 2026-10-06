@@ -13,6 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/ale
 import { Badge } from '@/components/primitives/badge';
 import { toast } from '@/hooks/shared/useToast';
 import { resolveUserFacingArchiveSecurityError } from '@/services/archiveSecurityErrorCore';
+import { activateOnKey } from '@/lib/utils/a11y';
 interface SkillBatchImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -251,6 +252,9 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                 )}
                 {...dragHandlers}
                 onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
               >
                 <input
                   ref={fileInputRef}

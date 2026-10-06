@@ -349,6 +349,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
             : 'relative w-full'
         }
       >
+        {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- key delegation from focusable children */}
         <form
           onSubmit={(e) => {
             e.preventDefault();

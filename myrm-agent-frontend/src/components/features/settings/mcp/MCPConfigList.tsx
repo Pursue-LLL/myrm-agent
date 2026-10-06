@@ -22,6 +22,7 @@ import { BACKEND_BASE_URL } from '@/lib/api';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { useToast } from '@/hooks/shared/useToast';
 import { cn } from '@/lib/utils/classnameUtils';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 function severityBadgeClass(severity: string | null | undefined): string {
   switch (severity) {
@@ -226,6 +227,10 @@ export function MCPConfigList({
               <div
                 key={index}
                 onClick={() => onEditConfig(index)}
+                // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
                 className="flex items-center justify-between p-3 bg-secondary rounded-lg border border-border cursor-pointer hover:bg-muted/50 transition-colors group"
               >
                 <div className="flex items-center space-x-3">

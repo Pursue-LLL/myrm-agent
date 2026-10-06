@@ -515,6 +515,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
         data-expanded={isExpanded ? 'true' : 'false'}
         className="flex items-center justify-between mt-6 cursor-pointer group hover:opacity-90 transition-opacity duration-200"
         onClick={toggleExpanded}
+        role="presentation"
       >
         <div className="flex items-center gap-2.5">
           <div className="relative">
@@ -539,6 +540,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
           isExpanded ? 'p-4 sm:p-6' : 'p-3 sm:p-4 cursor-pointer',
         )}
         onClick={handleExpand}
+        role="presentation"
       >
         <style jsx>{`
           @keyframes progressFlow {

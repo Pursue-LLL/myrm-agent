@@ -225,6 +225,7 @@ export const AgentSidebarContent = memo<AgentSidebarContentProps>(
                     selectedId === agent.id && 'brand-selected-surface border-primary/30',
                   )}
                   onClick={() => handleUseAgent(agent)}
+                  role="presentation"
                 >
                   <div className="flex items-start gap-3">
                     <AgentAvatar url={agent.avatar_url} name={agent.name} agentId={agent.id} size="md" />

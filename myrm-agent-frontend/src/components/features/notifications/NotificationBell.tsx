@@ -10,6 +10,7 @@ import useAuthStore from '@/store/useAuthStore';
 import { cn } from '@/lib/utils/classnameUtils';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { toast } from '@/lib/utils/toast';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface SystemNotificationMeta {
   action_url?: string;
@@ -166,16 +167,13 @@ export default function NotificationBell() {
           ) : (
             <div className="flex flex-col">
               {notifications.map((notif) => (
+                // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
                 <div
                   key={notif.id}
                   role={notif.meta_data?.action_url ? 'button' : undefined}
                   tabIndex={notif.meta_data?.action_url ? 0 : undefined}
                   onClick={() => handleNotificationClick(notif)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      handleNotificationClick(notif);
-                    }
-                  }}
+                  onKeyDown={activateOnKey}
                   className={cn(
                     'p-4 border-b border-border/50 last:border-0 transition-colors',
                     !notif.is_read ? 'bg-primary/5' : 'hover:bg-muted/50',

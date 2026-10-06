@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/primitives/dialog';
 import { FullExportConfig } from '@/store/config/importExport';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 export type ImportCategory =
   | 'systemInstructions'
@@ -212,6 +213,10 @@ export function ImportPreviewDialog({
                   <div
                     className="flex items-center gap-3 p-3 hover:bg-muted/50 cursor-pointer transition-colors"
                     onClick={() => onToggleCategory(category)}
+                    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={activateOnKey}
                   >
                     <div
                       className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-colors flex-shrink-0 ${

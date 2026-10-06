@@ -18,6 +18,7 @@ import { Bot, Download, Loader2, Search, Store, CheckCircle, RefreshCw } from 'l
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { resolveLucideIcon } from '@/components/agent/agent-icons';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface OrgMarketplaceProps {
   className?: string;
@@ -215,6 +216,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {entries.map((entry) => (
+          // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
           <div
             key={entry.id}
             className={cn(
@@ -225,6 +227,9 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
               entry.is_installed && 'border-green-500/20 bg-green-500/5',
             )}
             onClick={() => !entry.is_installed && handleInstall(entry)}
+            role={!entry.is_installed ? 'button' : undefined}
+            tabIndex={!entry.is_installed ? 0 : undefined}
+            onKeyDown={activateOnKey}
           >
             <div className="flex items-center gap-2">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">

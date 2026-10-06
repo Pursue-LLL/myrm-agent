@@ -44,6 +44,7 @@ function ResourceItem({ resource, onToggle, onRemove }: ResourceItemProps) {
         resource.selected && 'bg-primary/5',
       )}
       onClick={() => onToggle(resource.id)}
+      role="presentation"
     >
       <button
         className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors"

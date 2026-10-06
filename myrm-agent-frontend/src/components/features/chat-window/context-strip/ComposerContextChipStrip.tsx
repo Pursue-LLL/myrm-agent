@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 import type { ContextChipItem, ComposerContextSummary } from '@/hooks/message-input/useComposerContextChips';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 export interface ComposerContextChipStripProps {
   chips: ContextChipItem[];
@@ -72,22 +73,14 @@ interface SingleChipProps {
 const SingleChip = ({ chip, disabled, onRemoveLabel }: SingleChipProps) => {
   const isClickable = Boolean(chip.onAction && !disabled);
   return (
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
     <div
       data-testid={chip.category === 'skill' ? 'skill-activation-chips' : `context-chip-${chip.id}`}
       data-context-chip-id={chip.id}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
       onClick={isClickable ? chip.onAction : undefined}
-      onKeyDown={
-        isClickable
-          ? (e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                chip.onAction?.();
-              }
-            }
-          : undefined
-      }
+      onKeyDown={activateOnKey}
       className={cn(
         'group inline-flex h-6 max-w-[220px] items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-xs font-medium text-foreground shadow-xs transition-colors hover:border-primary/40 dark:bg-card/90',
         chip.category === 'workflow' && 'border-amber-500/30 bg-amber-500/[0.06] text-amber-900 dark:text-amber-200',

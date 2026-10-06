@@ -101,6 +101,10 @@ const FileContentBlock = ({ file }: { file: FileType }) => {
   return (
     <div
       onClick={handleOpen}
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
+      role="button"
+      tabIndex={0}
+      onKeyDown={activateOnKey}
       className={cn(
         'group flex items-center justify-between w-64 p-3 rounded-xl border border-border/40',
         'bg-card hover:bg-secondary/40 hover:border-primary/30',

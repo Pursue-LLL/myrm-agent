@@ -27,6 +27,7 @@ import {
   type AssessmentImportValueSummary,
 } from '@/services/assessmentImportMetrics';
 import { useTranslations } from 'next-intl';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 export default function ProjectMilestonePanel() {
   const t = useTranslations();
@@ -514,9 +515,13 @@ function MilestoneRow({
               className="w-full h-4 px-0.5 text-[10px] rounded border border-primary/30 bg-transparent outline-none"
             />
           ) : (
+            // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
             <span
               className={cn('truncate block', hasDetails ? 'cursor-pointer hover:text-primary/80' : 'cursor-text')}
               onClick={() => hasDetails && setOpen(!open)}
+              role={hasDetails ? 'button' : undefined}
+              tabIndex={hasDetails ? 0 : undefined}
+              onKeyDown={activateOnKey}
               onDoubleClick={() => {
                 setEditValue(milestone.title);
                 setEditing(true);

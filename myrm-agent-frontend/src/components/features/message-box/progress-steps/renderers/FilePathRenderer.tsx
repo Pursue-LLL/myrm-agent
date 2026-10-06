@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { File, ChevronDown, ChevronRight } from 'lucide-react';
 import { DiffViewer } from '@/lib/diff/DiffViewer';
 import type { FilePathItem } from '../utils';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface FilePathRendererProps {
   items: FilePathItem[];
@@ -60,6 +61,7 @@ const FilePathRenderer: React.FC<FilePathRendererProps> = ({ items, messageId, s
 
         return (
           <div key={`${messageId}-step-${stepIndex}-file-${index}`}>
+            {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis */}
             <div
               className={cn(
                 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md',
@@ -70,6 +72,9 @@ const FilePathRenderer: React.FC<FilePathRendererProps> = ({ items, messageId, s
               )}
               title={item.file_path}
               onClick={hasDiff ? () => toggleExpand(index) : undefined}
+              role={hasDiff ? 'button' : undefined}
+              tabIndex={hasDiff ? 0 : undefined}
+              onKeyDown={activateOnKey}
             >
               {hasDiff ? (
                 isExpanded ? (

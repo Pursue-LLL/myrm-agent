@@ -83,6 +83,7 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
         'animate-in fade-in-0 zoom-in-95 duration-150',
       )}
       onMouseDown={(e) => e.preventDefault()}
+      role="presentation"
     >
       <span className="text-xs font-medium text-foreground px-1 select-none">{label}</span>
       <div className="h-3.5 w-px bg-border mx-0.5" />

@@ -19,6 +19,7 @@ import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getMediaTaskChatId, getMediaTaskPrompt } from '@/services/mediaTasks';
 import type { Task } from '@/store/tasks/types';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface MediaTaskRowProps {
   task: Task;
@@ -67,21 +68,13 @@ export function MediaTaskRow({ task, variant = 'active', onCancel, onNavigateCha
   );
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
     <div
       className={cn('px-4 py-3 transition-colors hover:bg-muted/30', chatId && 'cursor-pointer')}
       data-testid={`media-task-row-${task.task_id}`}
       data-variant={variant}
       onClick={chatId ? handleRowNavigate : undefined}
-      onKeyDown={
-        chatId
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                handleRowNavigate();
-              }
-            }
-          : undefined
-      }
+      onKeyDown={activateOnKey}
       role={chatId ? 'button' : undefined}
       tabIndex={chatId ? 0 : undefined}
     >

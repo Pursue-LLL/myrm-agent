@@ -20,6 +20,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Activity, ArrowRight, ShieldCheck, X } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface MemoryHygieneDiscoverChipProps {
   className?: string;
@@ -65,6 +66,10 @@ export const MemoryHygieneDiscoverChip = memo(function MemoryHygieneDiscoverChip
     <div
       data-testid="memory-hygiene-discover-chip"
       onClick={handleNavigate}
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
+      role="button"
+      tabIndex={0}
+      onKeyDown={activateOnKey}
       className={cn(
         'group relative w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl cursor-pointer select-none',
         'bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-cyan-500/5 dark:from-emerald-950/20 dark:via-teal-950/20 dark:to-cyan-950/20',

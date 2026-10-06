@@ -9,6 +9,7 @@ import { Label } from '@/components/primitives/label';
 import { listSkills } from '@/services/skill';
 import type { CommandBindingConfig } from '@/services/agent';
 import { cn } from '@/lib/utils';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface CommandBindingsEditorProps {
   value: CommandBindingConfig[];
@@ -116,6 +117,10 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
                 <div
                   className="flex items-center gap-2 px-3 py-2 cursor-pointer select-none"
                   onClick={() => setExpandedIndex(isExpanded ? null : index)}
+                  // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateOnKey}
                 >
                   <div className="flex-1 flex items-center gap-2 min-w-0">
                     <span className="text-xs font-mono text-primary shrink-0">/{binding.command_name || '...'}</span>

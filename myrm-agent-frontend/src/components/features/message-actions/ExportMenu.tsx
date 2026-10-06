@@ -117,6 +117,7 @@ export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
             <div
               className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
               onClick={() => setIncludeReasoning(!includeReasoning)}
+              role="presentation"
             >
               <Checkbox
                 id="export-reasoning"

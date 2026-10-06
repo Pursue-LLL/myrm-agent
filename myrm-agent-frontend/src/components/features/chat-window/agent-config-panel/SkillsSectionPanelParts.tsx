@@ -145,6 +145,7 @@ export function SkillCard({
           e.stopPropagation();
           toggleSkillCore(skill.id);
         }}
+        role="presentation"
       >
         <span className={cn('text-[10px] font-medium', isCore ? 'text-blue-500' : 'text-muted-foreground')}>
           {isCore ? 'Core' : 'Peripheral'}

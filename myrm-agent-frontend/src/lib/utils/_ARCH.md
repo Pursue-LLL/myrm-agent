@@ -26,7 +26,7 @@
 - `media/`：媒体凭据域子包 — 图片/TTS/视频三通道凭据就绪判定与警告收集（CredentialReadiness）、provider 状态映射与后端状态拉取（ProviderStatus），barrel 门面 `@/lib/utils/media`。详见 [media/_ARCH.md](media/_ARCH.md)。
 - `locale/`：Locale 域子包 — cookie 常量、客户端读取、后端格式映射、营销参数解析、RFC 7231 Accept-Language 协商（localeUtils）与多语言文本选择（localeText），barrel 门面 `@/lib/utils/locale`。详见 [locale/_ARCH.md](locale/_ARCH.md)。
 - `subagent/`：Subagent 数据域子包 — subagent 树数据工具（subagentTree）、任务拓扑图模型（taskTopologyModel）与阶段任务计数推导（stageTaskCount），barrel 门面 `@/lib/utils/subagent`。详见 [subagent/_ARCH.md](subagent/_ARCH.md)。
-- `a11y.ts`：键盘可达性 — `activateOnKey` 为 `role="button"` + `tabIndex={0}` 的非原生交互元素（div/span）提供 Enter / 空格激活，触发元素自身原生 click 以复用既有 `onClick`（键盘与鼠标同源）；子元素冒泡的按键与带修饰键的组合键不劫持。
+- `a11y.ts`：键盘可达性 — `activateOnKey` 为 `role="button"` / `role="link"` + `tabIndex={0}` 的非原生交互元素（div/span）提供键盘激活（按钮：Enter / 空格；链接：仅 Enter，空格留给页面滚动），触发元素自身原生 click 以复用既有 `onClick`（键盘与鼠标同源）；子元素冒泡的按键与带修饰键的组合键不劫持。
 - `apiConfig.ts`：后端服务基础 URL 访问 — `getBackendUrl` 统一后端基础地址出口（不含 API 路径前缀）。
 - `backend-url.ts`：后端服务基础地址层 — `BACKEND_BASE_URL` 动态解析常量与 `createDynamicUrl` 动态 URL 构建器（懒解析 toString/valueOf 伪装 string），独立于 API 请求层供 URL 类工具与 API 层共同消费。
 - `authHeaders.ts`：认证请求头构建 — 认证 token 读取（localStorage `auth_token`）与 `getAuthHeaders` 请求头组装，SSR 安全（window 未定义返回空）。

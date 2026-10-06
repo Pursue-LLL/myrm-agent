@@ -13,6 +13,7 @@ import {
 import useChatStore from '@/store/useChatStore';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import { useTranslations } from 'next-intl';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface URLItemsRendererProps {
   items: { url: string }[];
@@ -123,6 +124,10 @@ const URLItemsRenderer: React.FC<URLItemsRendererProps> = ({
                       animationDuration: '300ms',
                     }}
                     onClick={() => handleLinkClick(item.url)}
+                    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
+                    role="link"
+                    tabIndex={0}
+                    onKeyDown={activateOnKey}
                     title={item.url}
                   >
                     {/* 网站 Logo */}

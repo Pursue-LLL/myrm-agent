@@ -57,6 +57,7 @@ vi.mock('@/components/primitives/dropdown-menu', () => ({
     open: boolean;
     onOpenChange: (v: boolean) => void;
   }) => (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- test double that only forwards clicks
     <div data-testid="dropdown-menu" data-open={String(open)} onClick={() => onOpenChange(!open)}>
       {children}
     </div>
@@ -74,6 +75,7 @@ vi.mock('@/components/primitives/dropdown-menu', () => ({
     onClick?: () => void;
     className?: string;
   }) => (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- test double that only forwards clicks
     <div role="menuitem" onClick={onClick} className={className} data-testid="menu-item">
       {children}
     </div>

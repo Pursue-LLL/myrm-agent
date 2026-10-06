@@ -133,6 +133,7 @@ export function FailureSignatureClusteringPanel({ clusters, profileId }: Failure
               <div
                 className="p-3.5 flex items-start justify-between gap-3 cursor-pointer select-none"
                 onClick={() => toggleExpand(cluster.cluster_id)}
+                role="presentation"
               >
                 <div className="flex items-start gap-2.5 flex-1 min-w-0">
                   <button

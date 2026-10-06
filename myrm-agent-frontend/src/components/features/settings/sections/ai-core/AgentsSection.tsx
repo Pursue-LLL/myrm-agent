@@ -43,6 +43,7 @@ import useSkillStore from '@/store/skill/useSkillStore';
 import useConfigStore from '@/store/useConfigStore';
 import { validateAgentDependencies } from '@/lib/utils/agent-config';
 import CloneAgentDialog from './CloneAgentDialog';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 // 预设头像颜色方案
 const avatarGradients = [
@@ -336,6 +337,10 @@ export default function AgentsSection() {
                   'transition-all duration-300 cursor-pointer',
                 )}
                 onClick={() => handleSelectAgent(agent)}
+                // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
               >
                 {/* 卡片内容 */}
                 <div className="relative p-4">

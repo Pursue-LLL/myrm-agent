@@ -42,6 +42,7 @@ import {
   getMediaFileUrl,
   getMediaThumbnailUrl,
 } from '@/services/media';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 const TYPE_OPTIONS = ['image', 'video', 'audio'] as const;
 
@@ -599,6 +600,10 @@ function MediaCard({
         selected ? 'border-primary ring-2 ring-primary/20' : 'border-border/50 hover:border-primary/30 hover:shadow-md',
       )}
       onClick={onClick}
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
+      role="button"
+      tabIndex={0}
+      onKeyDown={activateOnKey}
     >
       <img src={thumbnailUrl} alt={item.prompt || ''} className="size-full object-cover" loading="lazy" />
 

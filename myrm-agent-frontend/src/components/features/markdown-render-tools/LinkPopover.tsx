@@ -130,7 +130,14 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
     const linkClassName = `bg-secondary px-1 rounded ml-1 no-underline text-xs text-black/70 dark:text-white/70 relative hover:bg-[#2a7f8e] hover:text-white transition-colors duration-200 ${className || ''}`;
 
     const popoverContent = (
-      <div className="flex flex-col flex-1 min-h-0 cursor-pointer select-none" onClick={handlePopoverClick}>
+      // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
+      <div
+        className="flex flex-col flex-1 min-h-0 cursor-pointer select-none"
+        onClick={handlePopoverClick}
+        role={isValidUrl ? 'link' : undefined}
+        tabIndex={isValidUrl ? 0 : undefined}
+        onKeyDown={activateOnKey}
+      >
         {domain && (
           <div className="flex items-center space-x-2 pb-2 mb-2 border-b border-border/50">
             <div className="w-4 h-4 flex-shrink-0 rounded overflow-hidden bg-white border border-border/30 inline-block">

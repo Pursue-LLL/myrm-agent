@@ -168,6 +168,7 @@ const SkillCard = memo(
           isQuarantined && 'opacity-60 border-destructive/50 bg-destructive/5',
         )}
         onClick={handleViewDetails}
+        role="presentation"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
