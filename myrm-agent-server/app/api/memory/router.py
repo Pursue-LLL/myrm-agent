@@ -18,6 +18,9 @@ from app.api.memory.codegraph_router import router as codegraph_router
 from app.api.memory.decay_lifecycle_router import (
     router as decay_lifecycle_router,
 )
+from app.api.memory.drift_router import (
+    router as memory_drift_router,
+)
 from app.api.memory.experience_gene_router import (
     router as experience_gene_router,
 )
@@ -109,6 +112,7 @@ router.include_router(wiki_memory_router, tags=["memory-wiki"])
 router.include_router(zero_llm_memory_router, tags=["memory-zero-llm"])
 router.include_router(memory_privacy_router, tags=["memory-privacy"])
 router.include_router(memory_mcp_router, tags=["memory-mcp-interop"])
+router.include_router(memory_drift_router, tags=["memory-drift-defense"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])

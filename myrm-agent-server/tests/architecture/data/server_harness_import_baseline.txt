@@ -251,6 +251,7 @@ myrm_agent_harness.core.security.air_gapped_sovereignty
 myrm_agent_harness.core.security.approval_metrics
 myrm_agent_harness.core.security.asr_privacy_tradeoff
 myrm_agent_harness.core.security.audit_coverage
+myrm_agent_harness.core.security.auto_review_resolution
 myrm_agent_harness.core.security.blast_radius_inspector
 myrm_agent_harness.core.security.bot_budget_guardrail
 myrm_agent_harness.core.security.causal_deception
@@ -341,6 +342,7 @@ myrm_agent_harness.core.security.pre_flight_budget
 myrm_agent_harness.core.security.pre_tool_use_interceptor
 myrm_agent_harness.core.security.prompt_anti_extraction
 myrm_agent_harness.core.security.provenance_gate
+myrm_agent_harness.core.security.readonly_research_sandbox
 myrm_agent_harness.core.security.risk_evaluator
 myrm_agent_harness.core.security.saga_dual_engine
 myrm_agent_harness.core.security.sandbox_hardening
@@ -569,6 +571,7 @@ myrm_agent_harness.toolkits.memory.compaction
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conversation_search.types
 myrm_agent_harness.toolkits.memory.decay
+myrm_agent_harness.toolkits.memory.drift_defense
 myrm_agent_harness.toolkits.memory.evolution
 myrm_agent_harness.toolkits.memory.graph
 myrm_agent_harness.toolkits.memory.graph.age_store
