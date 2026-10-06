@@ -15,7 +15,7 @@ silently. The package is verified by parsing it back before it is handed out.
 [OUTPUT]
 - ExportPreview / preview_expert_export: what an export would contain and which findings need a decision.
 - ExportedPackage / export_expert: the verified package bytes.
-- ExportError / ExportErrorCode / Omit / OmittedItem / ExportPlan / secret_names_of: re-exported contract types and helpers.
+- ExportError / ExportErrorCode / Omit / OmittedItem / OmittedKind / ExportPlan / secret_names_of: re-exported contract types and helpers.
 
 [POS]
 Export orchestration. Collecting lives in ``_export_closure``, rendering in ``_export_render``,
@@ -37,7 +37,7 @@ from app.core.skills.packaging.redaction import review_digest as compute_review_
 
 from ._export_closure import build_export_plan
 from ._export_connector import secret_names_of
-from ._export_models import ExportError, ExportErrorCode, ExportPlan, Omit, OmittedItem
+from ._export_models import ExportError, ExportErrorCode, ExportPlan, Omit, OmittedItem, OmittedKind
 from ._export_render import PACKAGE_VERSION, corpus_of, spec_of
 
 __all__ = [
@@ -48,6 +48,7 @@ __all__ = [
     "ExportedPackage",
     "Omit",
     "OmittedItem",
+    "OmittedKind",
     "export_expert",
     "preview_expert_export",
     "secret_names_of",

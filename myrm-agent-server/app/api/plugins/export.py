@@ -27,6 +27,8 @@ from app.services.plugins.export_service import (
     ExportError,
     ExportErrorCode,
     ExportPreview,
+    Omit,
+    OmittedKind,
     export_expert,
     preview_expert_export,
     secret_names_of,
@@ -76,9 +78,9 @@ class ExportWorkspaceFile(BaseModel):
 
 
 class ExportOmittedItem(BaseModel):
-    kind: str
+    kind: OmittedKind
     name: str
-    reason: str
+    reason: Omit
     owner: str | None = None
 
 
@@ -197,7 +199,7 @@ def _preview_response(preview: ExportPreview) -> ExportPreviewResponse:
         connectors=connectors,
         workspace_files=[ExportWorkspaceFile(path=path, size=len(content)) for path, content in plan.workspace_files.items()],
         omitted=[
-            ExportOmittedItem(kind=item.kind, name=item.name, reason=item.reason.value, owner=item.owner) for item in plan.omitted
+            ExportOmittedItem(kind=item.kind, name=item.name, reason=item.reason, owner=item.owner) for item in plan.omitted
         ],
         redactions=redactions or None,
         is_safe=not redactions,

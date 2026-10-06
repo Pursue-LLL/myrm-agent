@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - Omit: reason codes of everything an export leaves out (the UI localizes them).
+- OmittedKind: what sort of thing was left out (the UI localizes it too).
 - OmittedItem: one entry of the "not included in the package" list.
 - ExportError: a request the export refuses, with a machine-readable code.
 - ExportedSkill / ExpertDraft / ExportPlan: the dependency closure of one expert.
@@ -19,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Literal
 
 from myrm_agent_harness.agent.plugins.models import PluginAgent, PluginMcpServer
 
@@ -30,6 +32,7 @@ __all__ = [
     "ExportedSkill",
     "Omit",
     "OmittedItem",
+    "OmittedKind",
 ]
 
 
@@ -72,9 +75,12 @@ class Omit(StrEnum):
     ABOVE_DEFAULT = "above_default"  # loop budget above the system default is never shared
 
 
+OmittedKind = Literal["skill", "skill_file", "connector", "expert", "workspace_file", "setting"]
+
+
 @dataclass(frozen=True)
 class OmittedItem:
-    kind: str  # skill | skill_file | connector | expert | workspace_file | setting
+    kind: OmittedKind
     name: str
     reason: Omit
     owner: str | None = None  # the expert or skill the item belongs to

@@ -52,6 +52,7 @@ from ._export_models import (
     ExportPlan,
     Omit,
     OmittedItem,
+    OmittedKind,
 )
 from ._preview_context import expert_key
 from .agent_surface import MAX_NAME_CHARS, carried_max_iterations, profile_to_plugin_agent
@@ -130,7 +131,7 @@ class _Collector:
         self._text_bytes = 0
         self._omitted: list[OmittedItem] = []
 
-    def _omit(self, kind: str, name: str, reason: Omit, owner: str | None = None) -> None:
+    def _omit(self, kind: OmittedKind, name: str, reason: Omit, owner: str | None = None) -> None:
         self._omitted.append(OmittedItem(kind, name, reason, owner))
 
     async def walk(self, profile: AgentProfile, ancestors: tuple[str, ...] = ()) -> None:
