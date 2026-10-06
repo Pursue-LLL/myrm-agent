@@ -246,6 +246,7 @@ myrm_agent_harness.core.features.types
 myrm_agent_harness.core.security.action_grants
 myrm_agent_harness.core.security.admin_auth_surface
 myrm_agent_harness.core.security.agent_lifecycle_certificate
+myrm_agent_harness.core.security.agentic_commerce
 myrm_agent_harness.core.security.air_gapped
 myrm_agent_harness.core.security.air_gapped_sovereignty
 myrm_agent_harness.core.security.approval_metrics
