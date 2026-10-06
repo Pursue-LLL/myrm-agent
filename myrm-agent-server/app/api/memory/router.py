@@ -11,6 +11,9 @@ from app.api.memory import dream_diary
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
+from app.api.memory.budget_curator import (
+    router as memory_budget_curator_router,
+)
 from app.api.memory.client_partition import (
     router as memory_client_partition_router,
 )
@@ -165,6 +168,7 @@ router.include_router(memory_persona_router, tags=["memory-persona-router"])
 router.include_router(memory_client_partition_router, tags=["memory-client-partition"])
 router.include_router(memory_provenance_batch_router, tags=["memory-provenance-batch"])
 router.include_router(memory_shared_bus_router, tags=["memory-shared-bus"])
+router.include_router(memory_budget_curator_router, tags=["memory-budget-curator"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])

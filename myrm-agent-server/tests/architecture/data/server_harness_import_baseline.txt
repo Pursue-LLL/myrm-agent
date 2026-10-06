@@ -581,6 +581,7 @@ myrm_agent_harness.toolkits.memory.agent_surface.mcp
 myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
 myrm_agent_harness.toolkits.memory.auto_recall
 myrm_agent_harness.toolkits.memory.backup
+myrm_agent_harness.toolkits.memory.budget_curator
 myrm_agent_harness.toolkits.memory.client_partition
 myrm_agent_harness.toolkits.memory.codegraph
 myrm_agent_harness.toolkits.memory.compaction
