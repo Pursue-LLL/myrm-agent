@@ -13,6 +13,7 @@ myrm_agent_harness.agent.config
 myrm_agent_harness.agent.config.exceptions
 myrm_agent_harness.agent.config.llm
 myrm_agent_harness.agent.config.parsers
+myrm_agent_harness.agent.config.readiness
 myrm_agent_harness.agent.context_guard
 myrm_agent_harness.agent.context_guard.spillover_engine
 myrm_agent_harness.agent.context_guard.sweeper
@@ -91,6 +92,7 @@ myrm_agent_harness.agent.middlewares.moa_advisor_middleware
 myrm_agent_harness.agent.orchestration.steering
 myrm_agent_harness.agent.parallel.config
 myrm_agent_harness.agent.parallel.fission
+myrm_agent_harness.agent.plugins
 myrm_agent_harness.agent.plugins.mcp_config
 myrm_agent_harness.agent.plugins.models
 myrm_agent_harness.agent.plugins.parser
@@ -129,6 +131,7 @@ myrm_agent_harness.agent.security.workspace_trust.manifest
 myrm_agent_harness.agent.security.workspace_trust.provider
 myrm_agent_harness.agent.security.workspace_trust.types
 myrm_agent_harness.agent.skill_agent
+myrm_agent_harness.agent.skill_agent.skill_reference
 myrm_agent_harness.agent.skills.curator
 myrm_agent_harness.agent.skills.curator.consolidation
 myrm_agent_harness.agent.skills.evolution
@@ -612,6 +615,7 @@ myrm_agent_harness.toolkits.memory.profile_notes
 myrm_agent_harness.toolkits.memory.protocols.embedding
 myrm_agent_harness.toolkits.memory.protocols.relational
 myrm_agent_harness.toolkits.memory.protocols.vector
+myrm_agent_harness.toolkits.memory.provenance_batch
 myrm_agent_harness.toolkits.memory.relational.sqlite_store
 myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.self_verification

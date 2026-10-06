@@ -94,6 +94,9 @@ from app.api.memory.privacy_router import (
     router as memory_privacy_router,
 )
 from app.api.memory.profile_notes_router import router as profile_notes_router
+from app.api.memory.provenance_batch import (
+    router as memory_provenance_batch_router,
+)
 from app.api.memory.self_verification_router import (
     router as memory_self_verification_router,
 )
@@ -157,6 +160,7 @@ router.include_router(memory_intent_reflection_router, tags=["memory-intent-refl
 router.include_router(memory_override_stack_router, tags=["memory-override-stack"])
 router.include_router(memory_persona_router, tags=["memory-persona-router"])
 router.include_router(memory_client_partition_router, tags=["memory-client-partition"])
+router.include_router(memory_provenance_batch_router, tags=["memory-provenance-batch"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
