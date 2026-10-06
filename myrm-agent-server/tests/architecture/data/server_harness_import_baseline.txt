@@ -248,6 +248,7 @@ myrm_agent_harness.core.security.air_gapped
 myrm_agent_harness.core.security.approval_metrics
 myrm_agent_harness.core.security.asr_privacy_tradeoff
 myrm_agent_harness.core.security.audit_coverage
+myrm_agent_harness.core.security.blast_radius_inspector
 myrm_agent_harness.core.security.bot_budget_guardrail
 myrm_agent_harness.core.security.causal_deception
 myrm_agent_harness.core.security.change_guard
@@ -546,6 +547,7 @@ myrm_agent_harness.toolkits.memory
 myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
 myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.codegraph
+myrm_agent_harness.toolkits.memory.compaction
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conversation_search.types
 myrm_agent_harness.toolkits.memory.decay
