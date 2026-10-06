@@ -20,7 +20,6 @@ import type {
   IAppshotBridge,
   IDesktopBridge,
   INotificationBridge,
-  IPowerBridge,
   IShellBridge,
   ITrayBridge,
   IWindowBridge,
@@ -229,33 +228,6 @@ class TauriShellBridge implements IShellBridge {
   }
 }
 
-class TauriPowerBridge implements IPowerBridge {
-  async acquireLock(reason: string): Promise<string | null> {
-    if (!isTauriEnvironment()) {
-      return null;
-    }
-    try {
-      const lockId = await invokeTauriCommand<string>('acquire_power_lock', { reason });
-      return lockId || 'lock-acquired';
-    } catch (e) {
-      console.warn('Failed to acquire power lock:', e);
-      return null;
-    }
-  }
-
-  async releaseLock(lockId: string): Promise<boolean> {
-    if (!isTauriEnvironment()) {
-      return false;
-    }
-    try {
-      return await invokeTauriCommand<boolean>('release_power_lock', { lockId });
-    } catch (e) {
-      console.warn('Failed to release power lock:', e);
-      return false;
-    }
-  }
-}
-
 class TauriAppshotBridge implements IAppshotBridge {
   listenAppshot(handler: (payload: { path: string; mimeType: string }) => void): () => void {
     if (!isTauriEnvironment() || typeof window === 'undefined' || !window.__TAURI__?.event) {
@@ -340,7 +312,6 @@ export class TauriDesktopBridge implements IDesktopBridge {
   readonly window: IWindowBridge = new TauriWindowBridge();
   readonly tray: ITrayBridge = new TauriTrayBridge();
   readonly shell: IShellBridge = new TauriShellBridge();
-  readonly power: IPowerBridge = new TauriPowerBridge();
   readonly appshot: IAppshotBridge = new TauriAppshotBridge();
   readonly notification: INotificationBridge = new TauriNotificationBridge();
 
@@ -352,7 +323,6 @@ export class TauriDesktopBridge implements IDesktopBridge {
       hasNativeNotification: true,
       hasNativeClipboard: typeof navigator !== 'undefined' && 'clipboard' in navigator,
       hasNativeGlobalShortcuts: true,
-      hasNativePowerLock: true,
       hasNativeAppshot: true,
     };
   }

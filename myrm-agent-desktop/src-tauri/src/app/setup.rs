@@ -97,8 +97,6 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         token: Mutex::new(None),
     });
 
-    app.manage(commands::power::PowerState::new());
-
     let process_registry = runtime::ProcessRegistry::new();
     app.manage(process_registry);
 

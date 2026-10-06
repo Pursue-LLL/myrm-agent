@@ -10,7 +10,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | `message-input/` | 聊天输入、队列、流式渲染、@/Slash、输入历史                                                                                 | [_ARCH.md](message-input/_ARCH.md) |
 | `voice/`         | 全双工/PTT 语音（STT/TTS/Realtime/Gemini/Agent bridge）                                                                     | [_ARCH.md](voice/_ARCH.md)         |
-| `tauri/`         | 桌面 Tauri：invoke、tray、Inline Input/Appshot、更新、电源锁                                                                | [_ARCH.md](tauri/_ARCH.md)         |
+| `tauri/`         | 桌面 Tauri：invoke、tray、Inline Input/Appshot、更新、唤醒自愈                                                              | [_ARCH.md](tauri/_ARCH.md)         |
 | `approval/`      | 工具审批 HITL、visual snapshot、browser takeover                                                                            | [_ARCH.md](approval/_ARCH.md)      |
 | `settings/`      | System/Personal/MCP 配置与安全门禁                                                                                          | [_ARCH.md](settings/_ARCH.md)      |
 | `billing/`       | 订阅、entitlements、配额、ingress                                                                                           | [_ARCH.md](billing/_ARCH.md)       |

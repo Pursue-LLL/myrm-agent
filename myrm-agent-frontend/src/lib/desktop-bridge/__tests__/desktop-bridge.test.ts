@@ -31,7 +31,6 @@ describe('Desktop Bridge Protocol', () => {
       expect(bridge.platform).toBe('web');
       expect(bridge.capabilities.hasNativeDialog).toBe(false);
       expect(bridge.capabilities.hasNativeTray).toBe(false);
-      expect(bridge.capabilities.hasNativePowerLock).toBe(false);
       expect(bridge.capabilities.hasNativeAppshot).toBe(false);
     });
 
@@ -58,7 +57,7 @@ describe('Desktop Bridge Protocol', () => {
       await expect(bridge.window.isMaximized()).resolves.toBe(false);
     });
 
-    it('should handle tray, shell, and power safely without throwing', async () => {
+    it('should handle tray, shell, and appshot safely without throwing', async () => {
       await expect(bridge.tray.updateStatus({ liveness: 'idle', activeTasksCount: 0 })).resolves.toBeUndefined();
       const unsub = bridge.tray.onTrayEvent(() => {});
       expect(typeof unsub).toBe('function');
@@ -67,9 +66,6 @@ describe('Desktop Bridge Protocol', () => {
       await expect(bridge.shell.openLocalFolder('/tmp')).resolves.toBe(false);
       await expect(bridge.shell.showInFileManager('/tmp/test.txt')).resolves.toBe(false);
       await expect(bridge.shell.openFileDialog()).resolves.toBeNull();
-
-      await expect(bridge.power.acquireLock('test')).resolves.toBeNull();
-      await expect(bridge.power.releaseLock('lock-id')).resolves.toBe(false);
 
       await expect(bridge.appshot.captureScreen()).resolves.toBeNull();
       const unsubAppshot = bridge.appshot.listenAppshot(() => {});
@@ -83,7 +79,6 @@ describe('Desktop Bridge Protocol', () => {
       expect(bridge.isDesktop).toBe(true);
       expect(bridge.capabilities.hasNativeDialog).toBe(true);
       expect(bridge.capabilities.hasNativeTray).toBe(true);
-      expect(bridge.capabilities.hasNativePowerLock).toBe(true);
       expect(bridge.capabilities.hasNativeAppshot).toBe(true);
     });
   });

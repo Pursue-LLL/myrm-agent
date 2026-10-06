@@ -1,10 +1,10 @@
 # utils 模块架构
 
 [INPUT]
-- 平台原生 API（IOKit / Win32 / systemd-inhibit / Keychain）
+- 平台原生 API（CoreGraphics / Win32 / Keychain）
 
 [OUTPUT]
-- 电源锁、锁屏、隔离修复、OTA pubkey 校验等系统能力
+- 锁屏、凭据、隔离修复、OTA pubkey 校验、进程树管理等系统能力
 
 [POS]
 跨平台系统工具封装；由 commands/ IPC 或 app/ 启动期调用。
@@ -20,7 +20,6 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `mod.rs` | 聚合 | 子模块声明 | — |
-| `power.rs` | 核心 | RAII 电源锁（macOS IOKit / Win32 / systemd-inhibit） | — |
 | `screen_lock.rs` | 核心 | 锁屏进程内检测（macOS CoreGraphics 会话字典 FFI）与系统确认式锁屏请求 | ✅ |
 | `screen_credential.rs` | 核心 | Locked Use 登录密码的平台钥匙串存取：密码经 `security -i` 的 stdin 写入（不进 argv），含控制字符拒收、缺失条目删除幂等与真实钥匙串往返 / 进程列表泄漏回归测试（`--ignored`） | ✅ |
 | `auth.rs` | 核心 | macOS 提权修复隔离属性 | — |

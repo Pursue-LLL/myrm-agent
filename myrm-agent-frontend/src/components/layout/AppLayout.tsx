@@ -11,7 +11,6 @@ import { NAVBAR_WIDTH, useAppLayoutState } from './useAppLayoutState';
 import { PanelLeftOpen } from 'lucide-react';
 import { useTrayStatus } from '@/hooks/tauri/useTrayStatus';
 import { useTabBadge } from '@/hooks/shell/useTabBadge';
-import { usePowerLock } from '@/hooks/tauri/usePowerLock';
 import { useDesktopWakeRecovery } from '@/hooks/tauri/useDesktopWakeRecovery';
 import { useConnectionsChangedReload } from '@/hooks/tauri/useConnectionsChangedReload';
 import { useGlobalShortcuts } from '@/hooks/shell/useGlobalShortcuts';
@@ -83,7 +82,6 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
 
   useTrayStatus();
   useTabBadge();
-  usePowerLock();
   useDesktopWakeRecovery();
   useConnectionsChangedReload();
   useVisibilityThrottling();

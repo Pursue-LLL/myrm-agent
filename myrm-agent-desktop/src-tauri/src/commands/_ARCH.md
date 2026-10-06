@@ -18,7 +18,6 @@ Leaf IPC command modules invoked from the main webview, session webviews, and pe
 | `session_window.rs` | 核心 | 多会话 CLI 二级 webview | ✅ |
 | `visual_approval_overlay.rs` | 核心 | 视觉审批 overlay | ✅ |
 | `process_registry.rs` | 核心 | 桌面受管进程注册表查询与定向终止 IPC | ✅ |
-| `power.rs` | 核心 | 节能与睡眠抑制控制 IPC | ✅ |
 | `recovery.rs` | 核心 | 崩溃状态收集与恢复 IPC | ✅ |
 | `screen_lock.rs` | 核心 | Locked Use 解锁凭据 IPC：Keychain 存/查/删与平台能力查询（锁检测在进程内，解锁由 server 执行，均不经 IPC） | ✅ |
 | `privacy_curtain.rs` | 核心 | 工位防窥帷幕：每显示器置顶黑幕窗口（全空间可见、黑底防闪白）、输入守卫（回锁经系统确认后才交还租约位）；重建先建新一代窗口再拆旧一代（label 带代号），失败时旧窗原样保留；窗口生命周期托管应用激活策略（仅 deploy/close 两处） | ✅ |

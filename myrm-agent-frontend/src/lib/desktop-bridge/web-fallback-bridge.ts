@@ -16,7 +16,6 @@ import type {
   IAppshotBridge,
   IDesktopBridge,
   INotificationBridge,
-  IPowerBridge,
   IShellBridge,
   ITrayBridge,
   IWindowBridge,
@@ -93,16 +92,6 @@ class WebFallbackShellBridge implements IShellBridge {
   }
 }
 
-class WebFallbackPowerBridge implements IPowerBridge {
-  async acquireLock(_reason: string): Promise<string | null> {
-    return null;
-  }
-
-  async releaseLock(_lockId: string): Promise<boolean> {
-    return false;
-  }
-}
-
 class WebFallbackAppshotBridge implements IAppshotBridge {
   listenAppshot(_handler: (payload: { path: string; mimeType: string }) => void): () => void {
     return () => {};
@@ -145,14 +134,12 @@ export class WebFallbackDesktopBridge implements IDesktopBridge {
     hasNativeNotification: typeof window !== 'undefined' && 'Notification' in window,
     hasNativeClipboard: typeof navigator !== 'undefined' && 'clipboard' in navigator,
     hasNativeGlobalShortcuts: false,
-    hasNativePowerLock: false,
     hasNativeAppshot: false,
   };
 
   readonly window: IWindowBridge = new WebFallbackWindowBridge();
   readonly tray: ITrayBridge = new WebFallbackTrayBridge();
   readonly shell: IShellBridge = new WebFallbackShellBridge();
-  readonly power: IPowerBridge = new WebFallbackPowerBridge();
   readonly appshot: IAppshotBridge = new WebFallbackAppshotBridge();
   readonly notification: INotificationBridge = new WebFallbackNotificationBridge();
 

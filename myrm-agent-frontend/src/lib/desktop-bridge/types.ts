@@ -44,7 +44,6 @@ export interface DesktopBridgeCapabilities {
   hasNativeNotification: boolean;
   hasNativeClipboard: boolean;
   hasNativeGlobalShortcuts: boolean;
-  hasNativePowerLock: boolean;
   hasNativeAppshot: boolean;
 }
 
@@ -92,11 +91,6 @@ export interface IShellBridge {
   openFileDialog(options?: NativeOpenFileDialogOptions): Promise<string | string[] | null>;
 }
 
-export interface IPowerBridge {
-  acquireLock(reason: string): Promise<string | null>;
-  releaseLock(lockId: string): Promise<boolean>;
-}
-
 export interface IAppshotBridge {
   listenAppshot(handler: (payload: { path: string; mimeType: string }) => void): () => void;
   captureScreen(): Promise<{ base64: string; mimeType: string } | null>;
@@ -113,7 +107,6 @@ export interface IDesktopBridge {
   readonly window: IWindowBridge;
   readonly tray: ITrayBridge;
   readonly shell: IShellBridge;
-  readonly power: IPowerBridge;
   readonly appshot: IAppshotBridge;
   readonly notification: INotificationBridge;
   getWindowControlsState(): DesktopWindowControlsState;
@@ -123,7 +116,6 @@ export type DesktopBridge = IDesktopBridge;
 export type WindowBridge = IWindowBridge;
 export type TrayBridge = ITrayBridge;
 export type ShellBridge = IShellBridge;
-export type PowerBridge = IPowerBridge;
 export type AppshotBridge = IAppshotBridge;
 export type NotificationBridge = INotificationBridge;
 export type DesktopLivenessState = LivenessState;
