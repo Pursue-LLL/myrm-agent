@@ -244,6 +244,7 @@ myrm_agent_harness.core.features.types
 myrm_agent_harness.core.security.admin_auth_surface
 myrm_agent_harness.core.security.air_gapped
 myrm_agent_harness.core.security.approval_metrics
+myrm_agent_harness.core.security.asr_privacy_tradeoff
 myrm_agent_harness.core.security.audit_coverage
 myrm_agent_harness.core.security.causal_deception
 myrm_agent_harness.core.security.change_guard
