@@ -153,6 +153,7 @@ myrm_agent_harness.agent.skills.market.sources.github
 myrm_agent_harness.agent.skills.market.sources.static_index
 myrm_agent_harness.agent.skills.market.sources.wellknown
 myrm_agent_harness.agent.skills.market.taps
+myrm_agent_harness.agent.skills.market.transaction
 myrm_agent_harness.agent.skills.optimization
 myrm_agent_harness.agent.skills.optimization.config
 myrm_agent_harness.agent.skills.optimization.event_emitter
@@ -595,6 +596,7 @@ myrm_agent_harness.toolkits.memory.integration.fetcher
 myrm_agent_harness.toolkits.memory.integration.summarizer
 myrm_agent_harness.toolkits.memory.integration.tree_manager
 myrm_agent_harness.toolkits.memory.integration.types
+myrm_agent_harness.toolkits.memory.intent_reflection
 myrm_agent_harness.toolkits.memory.manager
 myrm_agent_harness.toolkits.memory.memory_search_policy
 myrm_agent_harness.toolkits.memory.metrics
@@ -626,8 +628,6 @@ myrm_agent_harness.toolkits.memory.types
 myrm_agent_harness.toolkits.memory.universal_mcp_bridge
 myrm_agent_harness.toolkits.memory.unload_guard
 myrm_agent_harness.toolkits.memory.vector_preflight
-myrm_agent_harness.toolkits.memory.wiki_memory
-myrm_agent_harness.toolkits.memory.zero_llm
 myrm_agent_harness.toolkits.mobile_adb
 myrm_agent_harness.toolkits.mobile_adb.session
 myrm_agent_harness.toolkits.openapi_bridge

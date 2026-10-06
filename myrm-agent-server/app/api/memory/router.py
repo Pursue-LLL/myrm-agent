@@ -41,6 +41,9 @@ from app.api.memory.graph_rrf_router import router as graph_rrf_router
 from app.api.memory.hindsight_reflection_router import (
     router as hindsight_reflection_router,
 )
+from app.api.memory.intent_reflection_router import (
+    router as memory_intent_reflection_router,
+)
 from app.api.memory.mcp_router import (
     router as memory_mcp_router,
 )
@@ -95,12 +98,6 @@ from app.api.memory.unload_router import (
 from app.api.memory.vector_preflight_router import (
     router as memory_vector_preflight_router,
 )
-from app.api.memory.wiki_memory_router import (
-    router as wiki_memory_router,
-)
-from app.api.memory.zero_llm_memory_router import (
-    router as zero_llm_memory_router,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -135,8 +132,6 @@ router.include_router(hindsight_reflection_router, tags=["memory-hindsight-refle
 router.include_router(code_memory_compaction_router, tags=["memory-code-compaction"])
 router.include_router(experience_gene_router, tags=["memory-experience-genes"])
 router.include_router(auto_recall_router, tags=["memory-auto-recall"])
-router.include_router(wiki_memory_router, tags=["memory-wiki"])
-router.include_router(zero_llm_memory_router, tags=["memory-zero-llm"])
 router.include_router(memory_privacy_router, tags=["memory-privacy"])
 router.include_router(memory_mcp_router, tags=["memory-mcp-interop"])
 router.include_router(memory_drift_router, tags=["memory-drift-defense"])
@@ -149,6 +144,7 @@ router.include_router(memory_universal_mcp_router, tags=["memory-universal-mcp"]
 router.include_router(memory_vector_preflight_router, tags=["memory-vector-preflight"])
 router.include_router(memory_self_verification_router, tags=["memory-self-verification"])
 router.include_router(memory_crystallization_router, tags=["memory-crystallization"])
+router.include_router(memory_intent_reflection_router, tags=["memory-intent-reflection"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
