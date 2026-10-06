@@ -313,6 +313,7 @@ myrm_agent_harness.core.security.hitl_denial_events
 myrm_agent_harness.core.security.hitl_fail_closed.pipeline
 myrm_agent_harness.core.security.hitl_fail_closed.secondary_guard
 myrm_agent_harness.core.security.hitl_fail_closed.types
+myrm_agent_harness.core.security.host_execution_guard
 myrm_agent_harness.core.security.http.secure_fetch
 myrm_agent_harness.core.security.immutable_sandbox_rollback.immutable_policy
 myrm_agent_harness.core.security.immutable_sandbox_rollback.rollback_manager
@@ -325,6 +326,7 @@ myrm_agent_harness.core.security.irreversible_write_guard
 myrm_agent_harness.core.security.keychain_rest_encryption
 myrm_agent_harness.core.security.legal_audit_attestation
 myrm_agent_harness.core.security.license_compliance
+myrm_agent_harness.core.security.live_session_credential_shield
 myrm_agent_harness.core.security.llm_egress_guard.guard
 myrm_agent_harness.core.security.llm_egress_guard.types
 myrm_agent_harness.core.security.local_first_vault
@@ -573,6 +575,7 @@ myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.codegraph
 myrm_agent_harness.toolkits.memory.compaction
 myrm_agent_harness.toolkits.memory.config
+myrm_agent_harness.toolkits.memory.conflict_arbitration
 myrm_agent_harness.toolkits.memory.conversation_search.types
 myrm_agent_harness.toolkits.memory.decay
 myrm_agent_harness.toolkits.memory.drift_defense

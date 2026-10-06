@@ -15,6 +15,9 @@ from app.api.memory.code_memory_compaction_router import (
     router as code_memory_compaction_router,
 )
 from app.api.memory.codegraph_router import router as codegraph_router
+from app.api.memory.conflict_router import (
+    router as memory_conflict_router,
+)
 from app.api.memory.decay_lifecycle_router import (
     router as decay_lifecycle_router,
 )
@@ -121,6 +124,7 @@ router.include_router(memory_mcp_router, tags=["memory-mcp-interop"])
 router.include_router(memory_drift_router, tags=["memory-drift-defense"])
 router.include_router(memory_unload_router, tags=["memory-unload-guard"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
+router.include_router(memory_conflict_router, tags=["memory-conflict-arbitration"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
