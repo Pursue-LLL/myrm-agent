@@ -46,8 +46,8 @@ def _local_remote_webui(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
 
     _reset_capabilities_cache_for_testing()
 
-    from app.database.models import Base
     from app.database.migrations import ensure_raw_sql_schema
+    from app.database.models import Base
     from app.platform_utils import get_database_engine, reset_database_engine
 
     async def _init_isolated_db() -> None:
