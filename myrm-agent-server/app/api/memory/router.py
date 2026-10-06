@@ -16,6 +16,7 @@ from app.api.memory.follow_ups import router as follow_ups_router
 from app.api.memory.four_layer_promotion_router import (
     router as four_layer_promotion_router,
 )
+from app.api.memory.graph_rrf_router import router as graph_rrf_router
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
@@ -75,6 +76,7 @@ router.include_router(profile_notes_router, tags=["memory-profile-notes"])
 router.include_router(four_layer_promotion_router, tags=["memory-four-layer-promotion"])
 router.include_router(codegraph_router, tags=["memory-codegraph"])
 router.include_router(decay_lifecycle_router, tags=["memory-decay-lifecycle"])
+router.include_router(graph_rrf_router, tags=["memory-graph-rrf"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
