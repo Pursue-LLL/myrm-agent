@@ -4,8 +4,8 @@
 - app.services.locked_use.service.MacScreenUnlocker（POS: 锁屏探测 / 解锁 / 单次回锁原语）
 
 [OUTPUT]
-- 探测语义（仅确定 LOCKED 才算已锁）、解锁串行化与持锁复探、密码仅经 stdin、
-  阻塞子进程不卡事件循环的断言
+- 探测语义（仅确定 LOCKED 才算已锁；硬件输入空闲不足或探测未知即视为人在机前）、
+  解锁串行化与持锁复探锁态/在场、密码仅经 stdin、阻塞子进程不卡事件循环的断言
 
 [POS]
 与 test_service_lease.py（回锁校验与租约生命周期）互补；Keychain 密码读取见
@@ -19,10 +19,11 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-from myrm_agent_harness.api.security import ScreenLockState
+from myrm_agent_harness.api.security import ScreenLockState, hid_idle_seconds
 
 from app.services.locked_use import service
-from app.services.locked_use.service import MacScreenUnlocker
+from app.services.locked_use.service import PRESENCE_IDLE_THRESHOLD_SECONDS, MacScreenUnlocker
+from tests.support.curtain_watcher import set_hid_idle
 
 
 @pytest.fixture(autouse=True)
@@ -60,6 +61,69 @@ class TestIsLocked:
             MacScreenUnlocker.is_locked()
         mean_seconds = (time.perf_counter() - started) / rounds
         assert mean_seconds < 0.02
+
+
+class TestUserPresence:
+    @pytest.mark.parametrize(
+        ("idle", "present"),
+        [
+            (None, True),  # 探测失败：无法证明无人，就不盲打密码
+            (0.0, True),
+            (PRESENCE_IDLE_THRESHOLD_SECONDS - 0.1, True),
+            (PRESENCE_IDLE_THRESHOLD_SECONDS, False),  # 恰满阈值即视为已离开
+            (3600.0, False),
+        ],
+    )
+    def test_idle_threshold_decides_presence(self, monkeypatch: pytest.MonkeyPatch, idle: float | None, present: bool) -> None:
+        set_hid_idle(monkeypatch, idle)
+        assert MacScreenUnlocker.user_present() is present
+
+    @pytest.mark.skipif(sys.platform != "darwin", reason="native HID probe is macOS-only")
+    def test_live_probe_yields_a_definite_answer(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """真实 OS 调用（无 mock）：harness 探针经 facade 可达，返回确定的布尔值而非抛错。"""
+        monkeypatch.setattr(service, "hid_idle_seconds", hid_idle_seconds)  # 换回真实探针，覆盖 autouse 桩
+        assert isinstance(MacScreenUnlocker.user_present(), bool)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("idle", [None, 2.0])
+    @patch.object(MacScreenUnlocker, "get_password")
+    @patch.object(MacScreenUnlocker, "is_locked", return_value=True)
+    @patch("subprocess.Popen")
+    @patch("subprocess.run")
+    async def test_unlock_types_nothing_while_a_user_is_present(
+        self,
+        mock_run: MagicMock,
+        mock_popen: MagicMock,
+        mock_is_locked: MagicMock,
+        mock_get_password: MagicMock,
+        idle: float | None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """人在机前：不键入、不唤醒显示器，连钥匙串里的密码都不读。"""
+        set_hid_idle(monkeypatch, idle)
+        assert await MacScreenUnlocker.unlock() is False
+        mock_get_password.assert_not_called()
+        mock_popen.assert_not_called()
+        mock_run.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
+    @patch.object(MacScreenUnlocker, "is_locked", side_effect=[True, False])
+    @patch("subprocess.Popen")
+    @patch("subprocess.run")
+    async def test_unlock_resumes_once_idle_threshold_is_reached(
+        self,
+        mock_run: MagicMock,
+        mock_popen: MagicMock,
+        mock_is_locked: MagicMock,
+        mock_get_password: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """阳性对照：与上例同一局面，仅空闲时长满阈值即照常键入（证明上例的拒绝出自在场门禁）。"""
+        mock_run.return_value = subprocess.CompletedProcess([], returncode=0)
+        set_hid_idle(monkeypatch, PRESENCE_IDLE_THRESHOLD_SECONDS)
+        assert await MacScreenUnlocker.unlock() is True
+        mock_run.assert_called_once()
 
 
 class TestMacScreenUnlocker:

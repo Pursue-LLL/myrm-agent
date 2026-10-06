@@ -25,6 +25,7 @@ from app.services.locked_use.service import (
     locked_use_session,
     release_unlock_lease,
 )
+from tests.support.curtain_watcher import set_hid_idle
 
 
 @pytest.fixture
@@ -145,6 +146,32 @@ class TestLockedUseSession:
         mock_unlock.assert_called_once()
         mock_ensure_locked.assert_awaited_once()
         clear.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch("platform.system", return_value="Darwin")
+    @patch.object(MacScreenUnlocker, "is_locked", return_value=True)
+    @patch.object(MacScreenUnlocker, "unlock", new_callable=AsyncMock, return_value=True)
+    @patch.object(MacScreenUnlocker, "ensure_locked", new_callable=AsyncMock, return_value=True)
+    async def test_user_at_the_machine_gets_no_unlock_and_no_lease(
+        self,
+        mock_ensure_locked: MagicMock,
+        mock_unlock: MagicMock,
+        mock_is_locked: MagicMock,
+        mock_system: MagicMock,
+        mock_sleep_inhibitor: MagicMock,
+        lease_bit: tuple[MagicMock, MagicMock],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """锁屏但人在机前：不取租约、不解锁。租约位若遗留，本人解锁后帷幕会继续盖在其桌面上。"""
+        set_hid_idle(monkeypatch, 2.0)
+        mark, clear = lease_bit
+        async with locked_use_session(LockedUseConfig(enabled=True)):
+            pass
+
+        mark.assert_not_called()
+        mock_unlock.assert_not_called()
+        mock_ensure_locked.assert_not_called()
+        clear.assert_not_called()
 
     @pytest.mark.asyncio
     @patch("platform.system", return_value="Darwin")

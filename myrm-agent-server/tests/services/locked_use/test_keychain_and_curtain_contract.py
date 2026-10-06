@@ -4,10 +4,10 @@
 - app.services.locked_use.service.MacScreenUnlocker（POS: server 侧锁屏原语）
 - app.services.locked_use.curtain_bridge（POS: 状态桥）
 - myrm-agent-desktop/src-tauri/src/{utils/screen_credential.rs, commands/privacy_curtain.rs,
-  commands/privacy_curtain_state.rs}（POS: Tauri 侧锁屏/帷幕实现，源码字符串契约提取目标）
+  commands/privacy_curtain_state.rs, runtime/python_backend.rs}（POS: Tauri 侧锁屏/帷幕实现与壳进程身份注入，源码字符串契约提取目标）
 
 [OUTPUT]
-- Keychain service/account、帷幕窗 title、curtain_state 字段三契约对齐断言
+- Keychain service/account、帷幕窗 title、curtain_state 字段、壳 PID 环境变量四契约对齐断言
 - curtain_state.json 跨进程读写协议 round-trip
 
 [POS]
@@ -26,6 +26,7 @@ import pytest
 
 from app.services.locked_use.curtain_bridge import (
     EXCLUDED_CAPTURE_TITLES,
+    SHELL_PID_ENV,
     mark_pending_auto_unlock,
     read_curtain_state,
 )
@@ -67,6 +68,14 @@ def test_curtain_window_title_contract_aligned() -> None:
     match = re.search(r'\.title\("([^"]+)"\)', rust)
     assert match is not None, "Tauri curtain window title not found"
     assert match.group(1) in EXCLUDED_CAPTURE_TITLES
+
+
+def test_shell_pid_env_contract_aligned() -> None:
+    """壳存活凭据：Tauri 注入的环境变量名必须与 server 读取的一致（改名即「壳永远失联」→ 代解锁整体失效）。"""
+    rust = _tauri_source("src/runtime/python_backend.rs")
+    match = re.search(r'\.env\(\s*"(MYRM_SHELL_PID)"\s*,\s*std::process::id\(\)', rust)
+    assert match is not None, "Tauri python_backend must inject the shell PID via std::process::id()"
+    assert match.group(1) == SHELL_PID_ENV
 
 
 def test_curtain_state_fields_contract_aligned() -> None:

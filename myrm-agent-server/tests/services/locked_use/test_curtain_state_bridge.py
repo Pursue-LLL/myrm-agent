@@ -7,6 +7,8 @@
 [OUTPUT]
 - 环境开关解析、状态读取降级、pending 写入边界与原子替换、排除 title 穿透 CuaDriver
   `_fallback` 链注入、状态载荷映射、CU 会话活跃判定
+- 壳存活判定（缺失/非法 PID fail-closed、僵尸/退出/无权限按失联）与其折入有效帷幕态
+  （壳失联时 active=False 而租约位原样保留，载荷如实）
 
 [POS]
 与 test_keychain_and_curtain_contract.py（跨语言契约钉死）互补：本文件覆盖
@@ -20,17 +22,20 @@ import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import psutil
 import pytest
 
 from app.services.locked_use import unattended
 from app.services.locked_use.curtain_bridge import (
     EXCLUDED_CAPTURE_TITLES,
+    SHELL_PID_ENV,
     apply_excluded_capture_titles,
     clear_pending_auto_unlock,
     curtain_status_payload,
     locked_use_enabled_from_env,
     mark_pending_auto_unlock,
     read_curtain_state,
+    shell_alive,
 )
 
 _VALID_STATE = {
@@ -218,6 +223,75 @@ def test_curtain_status_payload_maps_active_state(tmp_path: Path, monkeypatch: p
         "active": True,
         "autoEngaged": True,
         "pendingAutoUnlock": True,
+    }
+
+
+def test_shell_alive_true_for_a_running_process() -> None:
+    """conftest 以测试进程充当壳：存在且非僵尸即存活。"""
+    assert shell_alive() is True
+
+
+@pytest.mark.parametrize("raw", [None, "", "  ", "abc", "-5", "0", "1.5", "12x"])
+def test_shell_alive_fails_closed_on_missing_or_invalid_pid(monkeypatch: pytest.MonkeyPatch, raw: str | None) -> None:
+    """状态桥存在而壳身份不明（未注入/非法/非正）：按失联处理，宁可不代解锁。"""
+    if raw is None:
+        monkeypatch.delenv(SHELL_PID_ENV, raising=False)
+    else:
+        monkeypatch.setenv(SHELL_PID_ENV, raw)
+    assert shell_alive() is False
+
+
+def test_shell_alive_false_for_an_exited_process(monkeypatch: pytest.MonkeyPatch, dead_shell_pid: int) -> None:
+    """壳崩溃/被强杀后其 PID 不再存在。"""
+    monkeypatch.setenv(SHELL_PID_ENV, str(dead_shell_pid))
+    assert shell_alive() is False
+
+
+def test_shell_alive_treats_a_zombie_as_dead(monkeypatch: pytest.MonkeyPatch) -> None:
+    """僵尸进程仍占着 PID 但已不运行：不算存活。"""
+    zombie = MagicMock()
+    zombie.status.return_value = psutil.STATUS_ZOMBIE
+    monkeypatch.setattr(psutil, "Process", lambda _pid: zombie)
+    assert shell_alive() is False
+
+
+@pytest.mark.parametrize("error", [psutil.NoSuchProcess(1), psutil.AccessDenied(1)])
+def test_shell_alive_false_when_the_process_cannot_be_inspected(monkeypatch: pytest.MonkeyPatch, error: psutil.Error) -> None:
+    """检查途中进程消失或无权限读取：按失联处理，绝不抛出打断 watcher。"""
+    monkeypatch.setattr(psutil, "pid_exists", lambda _pid: True)
+    monkeypatch.setattr(psutil, "Process", MagicMock(side_effect=error))
+    assert shell_alive() is False
+
+
+def test_read_state_active_requires_a_living_shell(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dead_shell_pid: int) -> None:
+    """文件里的 active 只是壳的遗言：壳失联后有效帷幕态为 False，其余字段原样透传。"""
+    _write_state(tmp_path, monkeypatch, json.dumps({**_VALID_STATE, "autoEngaged": True, "pendingAutoUnlock": True}))
+
+    live = read_curtain_state()
+    assert live is not None
+    assert (live.active, live.shell_alive) == (True, True)
+
+    monkeypatch.setenv(SHELL_PID_ENV, str(dead_shell_pid))
+    gone = read_curtain_state()
+    assert gone is not None
+    assert (gone.active, gone.shell_alive) == (False, False)
+    # 租约位是 server 自己的账：壳失联不能让它凭空消失，watcher 要凭它回锁。
+    assert gone.auto_engaged is True
+    assert gone.pending_auto_unlock is True
+
+
+def test_curtain_status_payload_reports_inactive_when_the_shell_is_gone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dead_shell_pid: int
+) -> None:
+    """手机端「屏幕已保护」徽标读这个载荷：壳失联后必须如实显示未保护。"""
+    _write_state(tmp_path, monkeypatch, json.dumps(_VALID_STATE))
+    monkeypatch.setenv(SHELL_PID_ENV, str(dead_shell_pid))
+
+    assert curtain_status_payload() == {
+        "available": True,
+        "active": False,
+        "autoEngaged": False,
+        "pendingAutoUnlock": False,
     }
 
 

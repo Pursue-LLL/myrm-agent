@@ -3,17 +3,17 @@
 Provides an async context manager that:
 1. Acquires a display-aware sleep inhibitor (IOKit / ES_DISPLAY_REQUIRED)
 2. Detects if the screen is locked
-3. If locked and Locked Use is enabled, takes the unlock lease and unlocks the screen
+3. If locked, Locked Use is enabled and nobody is at the machine, takes the unlock lease and unlocks the screen
 4. Re-locks the screen, hands the lease back and releases the inhibitor on exit
 
 [INPUT]
 - app.services.infra.sleep_inhibitor.SleepInhibitor (display keep-awake)
-- myrm_agent_harness.api.security (native screen-lock probe)
+- myrm_agent_harness.api.security (native screen-lock probe, hardware input idle probe)
 - app.services.locked_use.curtain_bridge (lease bit shared with the desktop shell)
 - macOS Keychain (for password retrieval)
 
 [OUTPUT]
-- MacScreenUnlocker: lock probe / serialized unlock / verified re-lock primitives
+- MacScreenUnlocker: lock probe / presence probe / serialized unlock / verified re-lock primitives
 - release_unlock_lease: re-lock if needed, then hand the lease bit back
 - locked_use_session: async context manager for CU sessions
 
@@ -32,7 +32,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
-from myrm_agent_harness.api.security import ScreenLockState, get_default_screen_detector
+from myrm_agent_harness.api.security import ScreenLockState, get_default_screen_detector, hid_idle_seconds
 
 from app.services.locked_use.curtain_bridge import clear_pending_auto_unlock, mark_pending_auto_unlock
 
@@ -54,6 +54,12 @@ _RELOCK_ATTEMPTS = 3
 # Display wake lead time before typing, and settle time before the unlock is verified.
 _UNLOCK_WAKE_DELAY_SECONDS = 0.5
 _UNLOCK_SETTLE_DELAY_SECONDS = 1.0
+
+# Someone who touched the keyboard or mouse within this window is at the machine: typing the
+# password now would collide with their input and open the screen for whoever stands there.
+# It spans several watcher ticks and ordinary pauses at the login window, while an owner who
+# walked away delays the unattended run by no more than this.
+PRESENCE_IDLE_THRESHOLD_SECONDS = 15.0
 
 # `security find-generic-password -g` reports the secret on stderr as `password: "text"`
 # for plain printable data and as `password: 0x<HEX>  "<escaped>"` once it holds anything
@@ -93,6 +99,16 @@ class MacScreenUnlocker:
         return get_default_screen_detector().get_state(force_refresh=True) is ScreenLockState.LOCKED
 
     @classmethod
+    def user_present(cls) -> bool:
+        """True unless hardware input has been idle long enough to prove nobody is at the machine.
+
+        An unreadable probe counts as present: like :meth:`is_locked`, uncertainty leaves
+        the screen alone instead of typing the password blindly.
+        """
+        idle = hid_idle_seconds()
+        return idle is None or idle < PRESENCE_IDLE_THRESHOLD_SECONDS
+
+    @classmethod
     def get_password(cls) -> str | None:
         """Read the unlock password from the Keychain; None when absent, empty or unreadable.
 
@@ -113,11 +129,16 @@ class MacScreenUnlocker:
         """Unlock the screen; True when the screen is unlocked afterwards.
 
         Callers are serialized and the lock state is re-probed under the guard:
-        whoever waited finds the screen already unlocked and types nothing.
+        whoever waited finds the screen already unlocked and types nothing. Presence
+        is re-probed there too: the caller's own check is stale by the time the
+        guard is held, and a person who reached for the machine is never typed over.
         """
         async with _unlock_guard:
             if not cls.is_locked():
                 return True
+            if cls.user_present():
+                logger.info("Unlock deferred: a user is at the machine")
+                return False
             return await cls._type_password()
 
     @classmethod
@@ -237,8 +258,8 @@ async def locked_use_session(
     """Context manager for Computer Use sessions that need screen access.
 
     Layer 1 (Display Keep-Awake) is always active for CU sessions.
-    Layer 2 (Screen Unlock) only activates when config.enabled is True and
-    the screen is actually locked.
+    Layer 2 (Screen Unlock) only activates when config.enabled is True, the
+    screen is actually locked and nobody is at the machine.
 
     Example::
 
@@ -258,13 +279,18 @@ async def locked_use_session(
         # hand the lease bit back, otherwise the desktop shell keeps the curtain up.
         try:
             if cfg.enabled and is_mac and MacScreenUnlocker.is_locked():
-                logger.info("Screen is locked. Attempting temporary unlock for CU session...")
-                # Record the lease first: the desktop shell keeps the curtain up while the
-                # screen is unlocked (harmless when there is no curtain / no desktop shell).
-                mark_pending_auto_unlock()
-                lease_taken = True
-                if await MacScreenUnlocker.unlock():
-                    logger.info("Screen successfully unlocked")
+                if MacScreenUnlocker.user_present():
+                    # No lease either: a lease bit left behind would keep the curtain over the
+                    # desktop of an owner who then unlocks the screen themselves.
+                    logger.info("Screen is locked but a user is at the machine; leaving the unlock to them")
+                else:
+                    logger.info("Screen is locked. Attempting temporary unlock for CU session...")
+                    # Record the lease first: the desktop shell keeps the curtain up while the
+                    # screen is unlocked (harmless when there is no curtain / no desktop shell).
+                    mark_pending_auto_unlock()
+                    lease_taken = True
+                    if await MacScreenUnlocker.unlock():
+                        logger.info("Screen successfully unlocked")
             yield
         finally:
             if lease_taken:

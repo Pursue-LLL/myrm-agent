@@ -678,6 +678,15 @@ async def _phase_1b_parallel() -> None:
 
 async def _shutdown(app_instance: FastAPI) -> None:
     """Graceful shutdown: drain in-flight Agent turns, then stop all components."""
+    # First, before the (slow) drain: the desktop shell only waits seconds for a self-exit and
+    # takes the curtain down with it, so a lease still held would leave the Mac unlocked and uncovered.
+    try:
+        from app.services.locked_use.unattended import stop_unattended_curtain_watcher
+
+        await stop_unattended_curtain_watcher()
+    except Exception as e:
+        logger.error("[Shutdown] Unattended curtain watcher stop failed: %s", e)
+
     try:
         from app.services.agent.gateway import get_agent_gateway
 

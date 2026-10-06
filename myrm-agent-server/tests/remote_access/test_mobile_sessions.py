@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -13,6 +14,8 @@ from fastapi import HTTPException
 from app.api.remote_access.router import mobile_sessions
 from app.remote_access.pairing import MOBILE_HUB_LIST_PURPOSE, create_pairing_token
 from app.remote_access.trust_zone import TrustZone
+from app.services.locked_use.curtain_bridge import SHELL_PID_ENV
+from tests.support.curtain_watcher import dead_process_pid
 
 _MOBILE_SESSIONS_PATH = "/api/v1/remote-access/mobile/sessions"
 
@@ -164,9 +167,8 @@ async def test_mobile_sessions_reports_curtain_unavailable_without_bridge(
     assert curtain == {"available": False, "active": False}
 
 
-@pytest.mark.asyncio
-async def test_mobile_sessions_reports_live_curtain_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """桌面端部署：hub payload 透出真实帷幕态（无人值守时手机可见「屏幕已保护」）。"""
+def _write_active_curtain_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """壳最后一次写下的状态：帷幕 active（壳进程是否还活着由各用例决定）。"""
     state_file = tmp_path / "curtain_state.json"
     state_file.write_text(
         json.dumps(
@@ -180,6 +182,13 @@ async def test_mobile_sessions_reports_live_curtain_state(tmp_path: Path, monkey
         encoding="utf-8",
     )
     monkeypatch.setenv("MYRM_CURTAIN_STATE_FILE", str(state_file))
+
+
+@pytest.mark.asyncio
+async def test_mobile_sessions_reports_live_curtain_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """桌面端部署：hub payload 透出真实帷幕态（无人值守时手机可见「屏幕已保护」）。"""
+    _write_active_curtain_state(tmp_path, monkeypatch)
+    monkeypatch.setenv(SHELL_PID_ENV, str(os.getpid()))
     _stub_gateway(monkeypatch)
 
     result = await mobile_sessions(_mock_request(trust_zone=TrustZone.LOCAL_TRUSTED.value), pair=None)
@@ -191,3 +200,19 @@ async def test_mobile_sessions_reports_live_curtain_state(tmp_path: Path, monkey
         "autoEngaged": True,
         "pendingAutoUnlock": False,
     }
+
+
+@pytest.mark.asyncio
+async def test_mobile_sessions_stops_claiming_protection_when_the_shell_is_gone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """桌面壳崩溃后状态文件仍写着 active:true：手机端不得继续显示「屏幕已保护」。"""
+    _write_active_curtain_state(tmp_path, monkeypatch)
+    monkeypatch.setenv(SHELL_PID_ENV, str(dead_process_pid()))
+    _stub_gateway(monkeypatch)
+
+    result = await mobile_sessions(_mock_request(trust_zone=TrustZone.LOCAL_TRUSTED.value), pair=None)
+    curtain = _response_body(result)["data"]["curtain"]
+
+    assert curtain["available"] is True
+    assert curtain["active"] is False

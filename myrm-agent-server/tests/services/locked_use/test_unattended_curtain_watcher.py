@@ -1,4 +1,4 @@
-"""无人值守帷幕获取单测 — 五条件代解锁租约获取分支与 watcher 生命周期。
+"""无人值守帷幕获取单测 — 六条件代解锁租约获取分支与 watcher 生命周期。
 
 [INPUT]
 - app.services.locked_use.unattended（POS: watcher 编排逻辑）
@@ -7,6 +7,10 @@
 [OUTPUT]
 - 获取分支覆盖：无状态文件、未锁定重置计数、超限暂停、静默未满、
   CU 会话不活跃、租约位落盘失败、解锁成功/失败、异常吞掉
+- 机前有人不获取租约：不置租约位、不计失败、不键入，人离开后下个 tick 续跑
+  （主人离开的同款状态作阳性对照）
+- 壳失联不获取租约：mock 快照分支 + 真实读侧/真实状态文件的回归（壳崩溃后陈旧 active:true
+  不得触发键入登录密码；壳存活的同款状态作阳性对照）
 - start_unattended_curtain_watcher 幂等断言
 
 [POS]
@@ -17,23 +21,28 @@ tick 循环经哨兵异常退出，不真 sleep，恒定 CPU/内存消耗（电�
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.locked_use import unattended
+from app.services.locked_use import service, unattended
 from app.services.locked_use.curtain_bridge import (
     MAX_UNLOCK_ATTEMPTS,
+    SHELL_PID_ENV,
     CurtainBridgeState,
 )
 from app.services.locked_use.service import MacScreenUnlocker
 from tests.support.curtain_watcher import (
+    AWAY_IDLE_SECONDS,
     drive,
     has_session,
     make_state,
     no_session,
     record_clear,
+    set_hid_idle,
     set_locked,
 )
 
@@ -57,7 +66,7 @@ def test_lease_acquired_and_bit_cleared_on_unlock_failure(
 
 
 def test_lease_acquired_on_successful_unlock(monkeypatch: pytest.MonkeyPatch) -> None:
-    """五条件齐备且解锁成功：进入租约持有态。"""
+    """六条件齐备且解锁成功：进入租约持有态。"""
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: make_state())
     set_locked(monkeypatch, True)
     monkeypatch.setattr(unattended, "_cu_session_active", has_session)
@@ -145,6 +154,102 @@ def test_no_active_cu_session_skips_unlock(monkeypatch: pytest.MonkeyPatch) -> N
     unlock.assert_not_awaited()
 
 
+def test_gone_shell_never_acquires_a_lease(monkeypatch: pytest.MonkeyPatch) -> None:
+    """壳失联 = 没有帷幕在遮蔽：其余五个条件全齐也不置租约位、不代解锁。"""
+    mark = MagicMock()
+    unlock = AsyncMock()
+    monkeypatch.setattr(unattended, "read_curtain_state", lambda: make_state(shell_alive=False))
+    set_locked(monkeypatch, True)
+    monkeypatch.setattr(unattended, "_cu_session_active", has_session)
+    monkeypatch.setattr(unattended, "mark_pending_auto_unlock", mark)
+    monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
+
+    drive(monkeypatch)
+
+    mark.assert_not_called()
+    unlock.assert_not_awaited()
+    assert unattended._lease_held is False
+
+
+@pytest.mark.parametrize(("shell_is_alive", "expect_unlock"), [(True, True), (False, False)])
+def test_stale_state_file_of_a_gone_shell_never_unlocks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    dead_shell_pid: int,
+    shell_is_alive: bool,
+    expect_unlock: bool,
+) -> None:
+    """回归：壳崩溃后状态文件仍写着 active:true。
+
+    真实读侧 + 真实状态文件：没有壳就没有帷幕，绝不键入登录密码；壳存活的同款状态是
+    阳性对照，证明「不解锁」的断言不是因为场景本身凑不齐条件而空转。
+    """
+    state_file = tmp_path / "curtain_state.json"
+    state_file.write_text(
+        json.dumps({"active": True, "autoEngaged": True, "lastPhysicalInputMs": 0, "pendingAutoUnlock": False}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("MYRM_CURTAIN_STATE_FILE", str(state_file))
+    if not shell_is_alive:
+        monkeypatch.setenv(SHELL_PID_ENV, str(dead_shell_pid))
+    set_locked(monkeypatch, True)
+    monkeypatch.setattr(unattended, "_cu_session_active", has_session)
+    unlock = AsyncMock(return_value=True)
+    monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
+
+    drive(monkeypatch)
+
+    assert (unlock.await_count == 1) is expect_unlock
+    assert json.loads(state_file.read_text(encoding="utf-8"))["pendingAutoUnlock"] is expect_unlock
+
+
+@pytest.mark.parametrize(
+    ("idle_seconds", "expect_unlock"),
+    [(2.0, False), (None, False), (AWAY_IDLE_SECONDS, True)],
+)
+def test_user_at_the_machine_defers_the_lease(
+    monkeypatch: pytest.MonkeyPatch, idle_seconds: float | None, expect_unlock: bool
+) -> None:
+    """机前有人（或无法判定）：其余五个条件全齐也不置租约位、不计失败、不键入。
+
+    主人离开的同款状态是阳性对照，证明「不解锁」出自在场门禁而非场景凑不齐条件。
+    """
+    mark = MagicMock(return_value=True)
+    unlock = AsyncMock(return_value=True)
+    monkeypatch.setattr(unattended, "read_curtain_state", lambda: make_state())
+    set_locked(monkeypatch, True)
+    set_hid_idle(monkeypatch, idle_seconds)
+    monkeypatch.setattr(unattended, "_cu_session_active", has_session)
+    monkeypatch.setattr(unattended, "mark_pending_auto_unlock", mark)
+    monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
+
+    drive(monkeypatch)
+
+    assert (mark.call_count == 1) is expect_unlock
+    assert (unlock.await_count == 1) is expect_unlock
+    assert unattended._lease_held is expect_unlock
+    assert unattended._unlock_failures == 0
+
+
+def test_deferred_lease_resumes_once_the_user_steps_away(monkeypatch: pytest.MonkeyPatch) -> None:
+    """人在场的 tick 整个跳过，输入停下后的下一个 tick 自然续跑（无需任何额外状态）。"""
+    readings = iter([2.0, AWAY_IDLE_SECONDS])
+    mark = MagicMock(return_value=True)
+    unlock = AsyncMock(return_value=True)
+    monkeypatch.setattr(unattended, "read_curtain_state", lambda: make_state())
+    set_locked(monkeypatch, True)
+    monkeypatch.setattr(service, "hid_idle_seconds", lambda: next(readings))
+    monkeypatch.setattr(unattended, "_cu_session_active", has_session)
+    monkeypatch.setattr(unattended, "mark_pending_auto_unlock", mark)
+    monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
+
+    drive(monkeypatch, ticks=2)
+
+    assert mark.call_count == 1
+    assert unlock.await_count == 1
+    assert unattended._lease_held is True
+
+
 def test_pending_write_failure_aborts_unlock(monkeypatch: pytest.MonkeyPatch) -> None:
     """pending 落盘失败：必须放弃解锁（否则 Tauri 按用户解锁收起帷幕裸奔）。"""
     unlock = AsyncMock()
@@ -160,7 +265,7 @@ def test_pending_write_failure_aborts_unlock(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_successful_unlock_resets_count_and_audits(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """五条件齐备 → pending 先落盘再解锁；成功重置计数并审计。"""
+    """六条件齐备 → pending 先落盘再解锁；成功重置计数并审计。"""
     order: list[str] = []
 
     async def _unlock() -> bool:

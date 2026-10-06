@@ -1,13 +1,14 @@
 """帷幕状态桥 — server 与 Tauri 共享的 curtain_state.json 读写。
 
 [INPUT]
-- MYRM_CURTAIN_STATE_FILE 环境变量（Tauri python_backend 注入；POS: 桌面端文件桥路径）
+- MYRM_CURTAIN_STATE_FILE / MYRM_SHELL_PID 环境变量（Tauri python_backend 注入；POS: 桌面端文件桥路径与壳进程身份）
 - Tauri commands::privacy_curtain_state（POS: 帷幕状态桥，curtain_state.json 的 Tauri 侧唯一读写入口）
 
 [OUTPUT]
 - read_curtain_state / mark_pending_auto_unlock / clear_pending_auto_unlock
 - apply_excluded_capture_titles
 - CurtainBridgeState / EXCLUDED_CAPTURE_TITLES（POS: CU 截图排除通道的窗口 title 契约）
+- shell_alive / SHELL_PID_ENV（POS: 壳存活判定与跨进程契约名）
 
 [POS]
 server 无人值守编排与 Tauri 帷幕状态机的唯一共享通道。
@@ -18,6 +19,12 @@ server 无人值守编排与 Tauri 帷幕状态机的唯一共享通道。
 双方都以整文件原子替换写入（读者不会读到撕裂文档）；无文件锁，读-改-写之间
 的并发写入可能丢失一次更新，仅当 Tauri 恰在同一毫秒因物理输入写盘时发生：
 被覆盖的清除只让帷幕多保持（安全方向），被覆盖的置位会使帷幕提前收起。
+
+状态文件里的 active 只是壳最后一次写下的声明：帷幕窗口、输入守卫都活在壳进程里，
+壳崩溃/被强杀后文件不会被任何人更新。因此读侧把 ``CurtainBridgeState.active``
+定义为**有效**帷幕态（文件 active ∧ 壳存活），代解锁授权、手机端「屏幕已保护」
+徽标等所有消费方读到的都是真实遮蔽状态；``shell_alive`` 单独暴露，供 watcher
+区分「主人撤下帷幕（人在场，不反锁）」与「壳失联（无人遮蔽，必须回锁）」。
 """
 
 from __future__ import annotations
@@ -30,10 +37,16 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import psutil
+
 logger = logging.getLogger(__name__)
 
 # 与 Tauri privacy_curtain 窗口 title 的跨进程契约（勿单侧改名）。
 EXCLUDED_CAPTURE_TITLES: tuple[str, ...] = ("Privacy Curtain",)
+
+# 与 Tauri python_backend 注入的壳进程 PID 环境变量的跨进程契约（勿单侧改名）。
+# release 的 sidecar 是 PyInstaller --onefile：getppid 指向引导进程而非壳，必须显式注入。
+SHELL_PID_ENV = "MYRM_SHELL_PID"
 
 # 静默期：帷幕上最近物理输入后 N 秒内不代解锁（防反复触碰驱动的解锁死循环）。
 QUIET_PERIOD_SECONDS = 300.0
@@ -51,12 +64,16 @@ def locked_use_enabled_from_env() -> bool:
 
 @dataclass(frozen=True)
 class CurtainBridgeState:
-    """curtain_state.json 的 server 侧只读快照。"""
+    """curtain_state.json 的 server 侧只读快照。
+
+    ``active`` 是有效帷幕态（文件 active ∧ 壳存活），不是文件原值。
+    """
 
     active: bool
     auto_engaged: bool
     last_physical_input_ms: int
     pending_auto_unlock: bool
+    shell_alive: bool
 
     @property
     def quiet_period_elapsed(self) -> bool:
@@ -71,6 +88,22 @@ def curtain_state_path() -> Path | None:
     return Path(raw) if raw else None
 
 
+def shell_alive() -> bool:
+    """桌面壳进程是否仍存活（存在且非僵尸）。
+
+    壳消失后状态文件里的 active 只是它的遗言。PID 未注入或非法一律按失联处理
+    （fail-closed）：状态桥存在而壳身份不明时，宁可不代解锁。
+    """
+    raw = os.environ.get(SHELL_PID_ENV, "").strip()
+    if not raw.isdecimal() or int(raw) <= 0:
+        return False
+    pid = int(raw)
+    try:
+        return bool(psutil.pid_exists(pid) and psutil.Process(pid).status() != psutil.STATUS_ZOMBIE)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return False
+
+
 def read_curtain_state() -> CurtainBridgeState | None:
     """读帷幕状态；文件缺失/损坏返回 None（调用方按未拉帷幕处理）。"""
     path = curtain_state_path()
@@ -78,11 +111,13 @@ def read_curtain_state() -> CurtainBridgeState | None:
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
+        alive = shell_alive()
         return CurtainBridgeState(
-            active=bool(data.get("active", False)),
+            active=bool(data.get("active", False)) and alive,
             auto_engaged=bool(data.get("autoEngaged", False)),
             last_physical_input_ms=int(data.get("lastPhysicalInputMs", 0)),
             pending_auto_unlock=bool(data.get("pendingAutoUnlock", False)),
+            shell_alive=alive,
         )
     except (OSError, ValueError, TypeError) as error:
         logger.warning("Curtain state bridge read failed: %s", error)
@@ -154,6 +189,7 @@ def curtain_status_payload() -> dict[str, object]:
     """帷幕状态的对外载荷（HTTP 响应与移动端 hub 共用的单一映射）。
 
     非桌面端部署（无状态桥文件）返回 ``available=False``，消费方据此隐藏帷幕 UI。
+    ``active`` 是有效帷幕态：壳已失联时为 False，手机端不会再显示「屏幕已保护」。
     """
     state = read_curtain_state()
     if state is None:
