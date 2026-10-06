@@ -20,6 +20,7 @@ import { Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getLearningLoopStatus, type LearningLoopFiveRingStatusResponse } from '@/services/statistics';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface GrowingLoopDiscoveryChipProps {
   className?: string;
@@ -62,6 +63,9 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
   return (
     <div
       onClick={handleNavigate}
+      role="button"
+      tabIndex={0}
+      onKeyDown={activateOnKey}
       className={cn(
         'group flex items-center justify-between gap-3 px-3.5 py-2 rounded-full border cursor-pointer select-none transition-all duration-200',
         'bg-background/80 hover:bg-accent/50 border-primary/20 hover:border-primary/40 shadow-xs hover:shadow-sm backdrop-blur-md',

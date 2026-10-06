@@ -8,6 +8,7 @@ import { Button } from '@/components/primitives/button';
 import { getApiUrl } from '@/lib/api';
 import { buildWikiApiPath } from '@/services/wikiService';
 import { useTranslations } from 'next-intl';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), { ssr: false });
 
@@ -352,6 +353,9 @@ export default function WikiGraph3D({
               <div
                 className="flex items-center justify-between w-full px-3 py-2 cursor-pointer bg-muted/50 hover:bg-muted/80 transition-colors"
                 onClick={() => setIsLegendCollapsed(!isLegendCollapsed)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-foreground">
@@ -373,6 +377,9 @@ export default function WikiGraph3D({
                   <div
                     className="flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer hover:bg-muted/50 text-xs text-muted-foreground mb-1"
                     onClick={toggleAllGroups}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={activateOnKey}
                   >
                     <span>
                       {activeGroups.size === uniqueGroups.length
@@ -387,6 +394,9 @@ export default function WikiGraph3D({
                       <div
                         key={group}
                         onClick={() => toggleGroup(group)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={activateOnKey}
                         className={`flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition-all duration-200 ${
                           isActive ? 'bg-transparent hover:bg-muted/50' : 'opacity-50 hover:opacity-80 bg-muted/30'
                         }`}

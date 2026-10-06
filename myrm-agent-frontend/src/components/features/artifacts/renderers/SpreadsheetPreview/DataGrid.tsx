@@ -8,6 +8,7 @@ import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import useChatStore from '@/store/useChatStore';
 import { SpreadsheetSelectionToolbar } from './SpreadsheetSelectionToolbar';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface DataGridProps {
   headers: string[];
@@ -241,6 +242,9 @@ const DataGrid: React.FC<DataGridProps> = memo(
                 <div
                   key={i}
                   onClick={() => handleSort(i)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateOnKey}
                   className={cn(
                     'flex items-center px-3 text-[11px] font-semibold text-foreground cursor-pointer select-none whitespace-nowrap',
                     'border-r border-border last:border-r-0 hover:bg-muted/80 transition-colors',
@@ -262,6 +266,9 @@ const DataGrid: React.FC<DataGridProps> = memo(
                 <div
                   key={vRow.index}
                   onClick={() => setSelectedRow(isSelected ? null : vRow.index)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateOnKey}
                   className={cn(
                     'absolute left-0 right-0 flex cursor-pointer transition-colors',
                     isSelected

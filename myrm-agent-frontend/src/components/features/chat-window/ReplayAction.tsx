@@ -7,6 +7,7 @@ import { Button } from '@/components/primitives/button';
 import { toast } from '@/hooks/shared/useToast';
 import { replayChatSession, type ReplayDeterminismResponse } from '@/services/chat';
 import TrajectoryDiffModal from './TrajectoryDiffModal';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface ReplayActionProps {
   chatId: string;
@@ -56,6 +57,9 @@ export default function ReplayAction({ chatId }: ReplayActionProps) {
       {result && (
         <div
           onClick={() => setDiffOpen(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateOnKey}
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono cursor-pointer border transition-all ${
             result.determinism_score >= 0.95
               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'

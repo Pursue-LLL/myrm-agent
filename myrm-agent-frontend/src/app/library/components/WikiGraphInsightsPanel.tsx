@@ -11,6 +11,7 @@ import {
   type WikiUnexpectedConnectionItem,
   type WikiCommunityItem,
 } from '@/services/wikiService';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface WikiGraphInsightsPanelProps {
   agentId?: string | null;
@@ -139,6 +140,9 @@ export default function WikiGraphInsightsPanel({ agentId, onSelectNode }: WikiGr
                         <span
                           className="cursor-pointer font-medium text-foreground hover:underline"
                           onClick={() => onSelectNode?.(item.source)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={activateOnKey}
                         >
                           {item.source}
                         </span>
@@ -146,6 +150,9 @@ export default function WikiGraphInsightsPanel({ agentId, onSelectNode }: WikiGr
                         <span
                           className="cursor-pointer font-medium text-foreground hover:underline"
                           onClick={() => onSelectNode?.(item.target)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={activateOnKey}
                         >
                           {item.target}
                         </span>
@@ -187,6 +194,9 @@ export default function WikiGraphInsightsPanel({ agentId, onSelectNode }: WikiGr
                         <span
                           key={mIdx}
                           onClick={() => onSelectNode?.(member)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={activateOnKey}
                           className="cursor-pointer rounded bg-background/80 px-1.5 py-0.5 text-[10px] text-foreground transition-colors hover:bg-primary/20"
                         >
                           {member}

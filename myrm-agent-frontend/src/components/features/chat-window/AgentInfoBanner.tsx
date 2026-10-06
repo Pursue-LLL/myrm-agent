@@ -14,6 +14,7 @@ import { buildAgentConfig } from '@/lib/utils/agent-config';
 import useAgentStore from '@/store/useAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface AgentInfoBannerProps {
   agentId: string;
@@ -122,6 +123,9 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
                   item.id === agentId ? 'bg-accent/50' : '',
                 )}
                 onClick={() => handleSwitchAgent(item.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
               >
                 <AgentAvatar url={item.avatar_url} name={item.name} agentId={item.id} size="sm" className="h-6 w-6" />
                 <span className="flex-1 truncate">{getBuiltinAgentName(item.id, item.name, locale)}</span>
