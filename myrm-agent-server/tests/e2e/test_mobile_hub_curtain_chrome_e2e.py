@@ -85,6 +85,4 @@ def test_mobile_hub_curtain_status_chrome_e2e() -> None:
 
     # Badge shows only for an available, engaged curtain (MobileSessionHub rule).
     expected_badges = 1 if (available and active) else 0
-    assert probe.get("badgeCount") == expected_badges, (
-        f"curtain badge mismatch: curtain={curtain} probe={probe}"
-    )
+    assert probe.get("badgeCount") == expected_badges, f"curtain badge mismatch: curtain={curtain} probe={probe}"
