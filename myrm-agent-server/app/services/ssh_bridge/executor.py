@@ -19,6 +19,11 @@ import time
 from datetime import datetime, timezone
 from typing import Callable, Sequence
 
+from myrm_agent_harness.agent.middlewares import get_delegation_token
+from myrm_agent_harness.agent.security.delegation.guard import (
+    PrivilegeAmplificationBlockedError,
+    PrivilegeIntersectionGuard,
+)
 from myrm_agent_harness.api import ReadOnlySSHValidator
 
 from app.services.ssh_bridge.manager import SSHAssetManager
@@ -73,6 +78,32 @@ class SSHBridgeExecutor:
                 is_blocked=True,
                 block_reason="HOST_NOT_FOUND",
             )
+
+        # Triad delegation privilege amplification gate
+        delegation_token = get_delegation_token()
+        if delegation_token is not None:
+            val_res = self._readonly_validator.validate(command)
+            is_write_cmd = not val_res.is_safe
+            specific_scope = f"ssh:exec:{host_alias}:write" if is_write_cmd else f"ssh:exec:{host_alias}:read"
+            fallback_scope = "ssh:exec:write" if is_write_cmd else "ssh:exec:read"
+            if not delegation_token.has_scope(specific_scope):
+                try:
+                    PrivilegeIntersectionGuard.assert_scope_allowed(
+                        delegation_token,
+                        fallback_scope,
+                        action_name=f"ssh_exec:{host_alias}",
+                    )
+                except PrivilegeAmplificationBlockedError as exc:
+                    return SSHCommandResult(
+                        asset_alias=host_alias,
+                        command=command,
+                        exit_code=126,
+                        stdout="",
+                        stderr=f"Privilege Amplification Gate Blocked: {exc}",
+                        duration_ms=0.0,
+                        is_blocked=True,
+                        block_reason="PRIVILEGE_AMPLIFICATION_BLOCKED",
+                    )
 
         # Destructive command safety gate
         for pattern in _DESTRUCTIVE_COMMAND_PATTERNS:
