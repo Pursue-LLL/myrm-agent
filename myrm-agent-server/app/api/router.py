@@ -76,6 +76,7 @@ from app.api.migration.upload import router as migration_upload_router
 from app.api.mobile.router import router as mobile_router
 from app.api.notifications.router import router as notifications_router
 from app.api.ops.router import router as ops_router
+from app.api.plugins import export_router as plugins_export_router
 from app.api.plugins import import_router as plugins_import_router
 from app.api.progression import router as progression_router
 from app.api.projects import router as project_router
@@ -258,8 +259,9 @@ api_router.include_router(provider_balance_router, tags=["provider-balance"])
 # User Progression
 api_router.include_router(progression_router, prefix="/progression", tags=["progression"])
 
-# Agent Plugins (Agent Plugins 1.0.0 import)
+# Agent Plugins (Agent Plugins 1.0.0 import / expert export)
 api_router.include_router(plugins_import_router, prefix="/plugins", tags=["plugins"])
+api_router.include_router(plugins_export_router, prefix="/plugins", tags=["plugins"])
 
 # 集成与基础设施
 api_router.include_router(integrations_router, prefix="/integrations", tags=["integrations"])

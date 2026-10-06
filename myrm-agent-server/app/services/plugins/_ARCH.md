@@ -20,6 +20,11 @@ Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm
 | `_agent_plan.py` | 规划 | 专家绑定计划（纯函数）：逐专家显式绑定 + 入口专家隐式兜底、隐式团队、子专家先于主专家的创建顺序、环边剔除、未解析引用清单 | ✅ |
 | `_agent_persist.py` | 持久化 | `persist_imported_agents`：按计划写入专家；同名策略（`install` 建副本 "X (imported[ n])"、`replace` 原位更新用户自有专家并自动快照、内置专家永不替换）；失败回滚本次新建的专家；逐专家结果与 `ComponentFailure` | ✅ |
 | `template_workspace.py` | 物料 | 模板物料存储格式 SSOT：`encode_template_files`（容量护栏，跳过而非截断）、`decode_template_files`、`materialize_template_workspace_files`（新会话 JIT 释放，防路径穿越、不覆盖已有文件） | ✅ |
+| `export_service.py` | 门面 | 专家导出编排：`preview_expert_export`（依赖闭包 → 单次脱敏扫描 → 试构建，返回发现项、`review_digest`、包大小或构建失败原因）、`export_expert`（发现项必须被脱敏或被作者显式保留；保留决策须带匹配的 digest；经框架 `build_plugin_bundle` 构建并回读校验）；re-export 契约类型 | ✅ |
+| `_export_closure.py` | 收集 | `build_export_plan`：以入口专家为根的依赖闭包（子专家环安全、去重、上限 25；自有技能随文件、预置技能按名引用；连接器仅声明；入口专家物料）；一切不随包带出的内容记入 `omitted`（结构化原因码，由 UI 本地化） | ✅ |
+| `_export_connector.py` | 投影 | `connector_from_config`：已存连接器 → 可移植声明（env 值与 headers 字面值只留密钥名 / `{{secret:KEY}}` 占位；指向本机路径、依赖其它包携带文件、声明内含凭据、传输不受支持的连接器整体不随包）与 `secret_names_of` | ✅ |
+| `_export_render.py` | 渲染 | `corpus_of`（收件人可读的全部文本 → 单一评审语料）与 `spec_of`（评审后的语料 → `PluginBundleSpec`，所见即所发）；纯函数 | ✅ |
+| `_export_models.py` | 模型 | `ExportPlan` / `ExportedSkill` / `ExpertDraft` / `OmittedItem`、原因码 `Omit`、`ExportError` + `ExportErrorCode`；纯数据 | ✅ |
 | `_staging.py` | 存储 | `PluginStaging` 导入会话持久化（pickle + 24h TTL 清理） | ✅ |
 | `_mcp_persist.py` | 持久化 | MCP 落盘合并（`{"mcpConfigs": [...]}` + name 去重 + disabled 默认）、`invalidate_user_configs_cache` 失效、`_collect_server_configs`（部署与缺失产物阻断，作为 `ComponentFailure` 报告）、Agent 绑定 skill_ids+mcp_ids、secret 引用解析与 `required_secret_keys` 收集；`_server_to_config_dict` 将 `plugin_name`/`plugin_root`/`data_root` 嵌入 `extra_params`；卸载相关 `_remove_plugin_mcp_servers` 与 `_unbind_plugin_from_agents` | ✅ |
 | `_plugin_files.py` | 存储 | bundled 插件文件持久化：`server_needs_bundled_files`、`persist_plugin_files`（写入 `{data_dir}/plugins/{name}/` 与 `{name}_data/`）、`remove_plugin_files`、`plugin_dir_exists`/`is_safe_plugin_name` | ✅ |
@@ -39,6 +44,7 @@ Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm
 - **部署感知**：`deployment_capabilities.allows_local_skills` 为 false 的部署不安装技能，`settings.mcp.allow_stdio` 为 false 的部署（云沙箱）不导入 stdio 连接器；预览通过 `blocked_reason` 与 `deployment` 提前呈现，confirm 以服务端重新读取的事实为准并把被拒组件作为 `failures` 报告（而不是静默跳过或整体 500）。超长 SKILL.md（`SkillStore.MAX_SKILL_CONTENT_CHARS`）同样以 `oversized_content` 阻断。
 - **同名处理**：技能——预览按名称对已装技能标记 `conflict`；`install` 在版本不低于已装版本时原位升级，降级被版本保护以 `DOWNGRADE_BLOCKED` 拒绝，`replace` 显式允许降级。专家——同名时 `install` 创建 "X (imported[ n])" 副本、从不触碰用户已有专家；`replace` 原位更新用户自有专家（保持身份与历史，并自动保存上一版快照，内置专家永不替换）。未给出决策的专家不会被导入。
 - **专家导入（tighten-only）**：专家字段按处置表默认拒绝；导入只会收紧——内置工具限于默认授权（`web_search`/`memory`/`structured_clarify`，其余作为 `withheld_tools` 报告）、`max_iterations` 只降不升（5–50）、`security_overrides` / `default_security_preset` / `trusted_desktop_apps` / `prompt_mode` 等安全与机器本地字段一律丢弃。绑定逐专家显式（入口专家未声明技能/连接器时兜底获得本包安装的全部），入口专家未声明 `subagents` 时隐式带领其余专家，存在子专家的主专家 `agent_type="team"`。创建顺序子专家优先，环边剔除；任一写入失败回滚本次新建的专家。
+- **专家导出（所见即所发）**：导出方向只走一条脱敏管线——自有技能文件、入口专家工作区物料、每个专家的 system prompt / 描述 / 建议提示词汇入同一语料，经 `ContentSanitizer` 扫描；发现项要么被脱敏，要么由作者逐条显式保留（保留决策必须带预览时的 `review_digest`，专家在预览后被改动即以 `export_changed_since_preview` 拒绝），否则 `redaction_review_required`。包由评审后的语料构建，并经框架 `build_plugin_bundle` 回读逐项比对；预览已做同样的试构建，失败原因提前呈现。连接器只导出声明与密钥名，绝不带值；本机路径、被其它包携带的文件、声明内含凭据、不受支持的连接器以及无法评审的二进制/超大文件、`openapi_services` / `tool_gateway_config` 等可能含凭据的配置、高于系统默认的循环预算，全部进入 `omitted`（含所属专家与结构化原因码），不会静默丢失。内置专家不可导出；`skill_configs` 按处置表为 DROP（键为本机技能 id，不可移植）。
 - **MCP 去重**：confirm 落盘前与现有 `mcpServers` 按 name 去重，重名 server 被跳过且不计入 `imported_servers`、不绑定 Agent（计数/绑定仅反映实际落盘项）。合并基于已持久化的配置（`{"mcpConfigs": [...]}`，兼容 legacy 裸 list），保证导入仅追加、永不丢弃用户已有服务器。
 - **会话清理**：`PluginStaging` 通过 `cleanup_expired_sessions`（线程内执行同步清理）在后台删除超过 24h 的无主会话，防止磁盘堆积。
 - **沙箱能力模型与升级权限扩张防护**：
