@@ -622,6 +622,7 @@ myrm_agent_harness.toolkits.memory.strategies.subsumption
 myrm_agent_harness.toolkits.memory.types
 myrm_agent_harness.toolkits.memory.universal_mcp_bridge
 myrm_agent_harness.toolkits.memory.unload_guard
+myrm_agent_harness.toolkits.memory.vector_preflight
 myrm_agent_harness.toolkits.memory.wiki_memory
 myrm_agent_harness.toolkits.memory.zero_llm
 myrm_agent_harness.toolkits.mobile_adb

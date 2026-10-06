@@ -86,6 +86,9 @@ from app.api.memory.universal_mcp_router import (
 from app.api.memory.unload_router import (
     router as memory_unload_router,
 )
+from app.api.memory.vector_preflight_router import (
+    router as memory_vector_preflight_router,
+)
 from app.api.memory.wiki_memory_router import (
     router as wiki_memory_router,
 )
@@ -137,6 +140,7 @@ router.include_router(memory_conflict_router, tags=["memory-conflict-arbitration
 router.include_router(memory_openclaw_router, tags=["memory-openclaw-adapter"])
 router.include_router(memory_dual_track_router, tags=["memory-dual-track"])
 router.include_router(memory_universal_mcp_router, tags=["memory-universal-mcp"])
+router.include_router(memory_vector_preflight_router, tags=["memory-vector-preflight"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
