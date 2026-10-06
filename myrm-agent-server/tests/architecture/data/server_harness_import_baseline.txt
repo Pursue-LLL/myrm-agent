@@ -256,6 +256,7 @@ myrm_agent_harness.core.security.compound_shell_risk
 myrm_agent_harness.core.security.connector_guard
 myrm_agent_harness.core.security.credential_shield
 myrm_agent_harness.core.security.credential_vault
+myrm_agent_harness.core.security.data_isolation_probes
 myrm_agent_harness.core.security.data_plane_defense
 myrm_agent_harness.core.security.desktop_enclave
 myrm_agent_harness.core.security.desktop_micro_isolation
@@ -316,6 +317,7 @@ myrm_agent_harness.core.security.sandbox_trust_audit
 myrm_agent_harness.core.security.scoped_css_sentinel
 myrm_agent_harness.core.security.secops_audit
 myrm_agent_harness.core.security.secret_broker
+myrm_agent_harness.core.security.secretless_egress_proxy
 myrm_agent_harness.core.security.semantic_rbac
 myrm_agent_harness.core.security.sensitive_file_guard
 myrm_agent_harness.core.security.side_effect_gate
@@ -323,10 +325,12 @@ myrm_agent_harness.core.security.skill_governance
 myrm_agent_harness.core.security.slack_rotating_token
 myrm_agent_harness.core.security.sso_redirect
 myrm_agent_harness.core.security.sso_redirect_idempotent
+myrm_agent_harness.core.security.stacked_policy_governance
 myrm_agent_harness.core.security.streaming_gate
 myrm_agent_harness.core.security.structured_scan_errors.emitter
 myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.core.security.tracing_redaction
+myrm_agent_harness.core.security.tri_flow_isolation
 myrm_agent_harness.core.security.tripartite_ledger
 myrm_agent_harness.core.security.webhook_guard
 myrm_agent_harness.core.security.workspace_boundary
@@ -533,6 +537,7 @@ myrm_agent_harness.toolkits.memory.memory_search_policy
 myrm_agent_harness.toolkits.memory.metrics
 myrm_agent_harness.toolkits.memory.proactive
 myrm_agent_harness.toolkits.memory.proactive.types
+myrm_agent_harness.toolkits.memory.profile_notes
 myrm_agent_harness.toolkits.memory.protocols.embedding
 myrm_agent_harness.toolkits.memory.protocols.relational
 myrm_agent_harness.toolkits.memory.protocols.vector

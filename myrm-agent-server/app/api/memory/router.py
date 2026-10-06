@@ -37,6 +37,7 @@ from app.api.memory.operations.shared_context import (
     shared_context_migration,
     shared_contexts,
 )
+from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.test_seed import router as memory_test_seed_router
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ router.include_router(archive_restore.router, tags=["memory-archive-restore"])
 router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
 router.include_router(external_transcripts.router, tags=["memory-external-transcripts"])
 router.include_router(domain_mesh.router, tags=["memory-domain-mesh"])
+router.include_router(profile_notes_router, tags=["memory-profile-notes"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
