@@ -250,6 +250,7 @@ class PackagePreviewResponse(BaseModel):
     error: str | None = None
     redactions: dict[str, list[RedactionResponse]] | None = None
     eval_cases_count: int = 0
+    review_digest: str = ""
 
 
 class UploadSkillResponse(BaseModel):

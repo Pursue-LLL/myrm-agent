@@ -313,6 +313,22 @@ export interface PackagePreviewResponse {
   error: string | null;
   redactions: Record<string, RedactionResponse[]> | null;
   eval_cases_count: number;
+  /** 预览所基于的文件树摘要；导出时随“忽略脱敏”决定一并回传 */
+  review_digest: string;
+}
+
+/** 技能在预览之后被修改：忽略脱敏的索引已失效，需重新预览 */
+export const SKILL_CHANGED_SINCE_PREVIEW = 'skill_changed_since_preview';
+
+/** 技能导出失败（携带后端机器可读错误码） */
+export class SkillExportError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+  ) {
+    super(message);
+    this.name = 'SkillExportError';
+  }
 }
 
 /**
@@ -323,11 +339,31 @@ export async function previewSkillPackage(skillId: string): Promise<PackagePrevi
   return apiRequest<PackagePreviewResponse>(`${SKILLS_API_PREFIX}/${skillId}/preview`);
 }
 
+/** 解析导出失败响应：后端 detail 为字符串或 {message, error_code} */
+async function toSkillExportError(response: Response): Promise<SkillExportError> {
+  const raw = await response.text();
+  try {
+    const detail: unknown = (JSON.parse(raw) as { detail?: unknown }).detail;
+    if (typeof detail === 'string') {
+      return new SkillExportError(detail);
+    }
+    if (detail && typeof detail === 'object') {
+      const { message, error_code: code } = detail as { message?: string; error_code?: string };
+      return new SkillExportError(message ?? raw, code);
+    }
+  } catch {
+    // 非 JSON 响应：回退为原始文本
+  }
+  return new SkillExportError(raw);
+}
+
 /**
  * 下载技能为 ZIP 包
  * @param skillId 技能 ID
  * @param applyRedactions 是否应用脱敏
  * @param ignoredRedactions 忽略脱敏的索引字典 (filename -> indices)
+ * @param exportFormat 导出格式
+ * @param reviewDigest 预览返回的文件树摘要（携带忽略决定时必须回传）
  * @returns blob 与后端 Content-Disposition 提供的文件名
  */
 export async function downloadSkill(
@@ -335,6 +371,7 @@ export async function downloadSkill(
   applyRedactions: boolean = false,
   ignoredRedactions: Record<string, number[]> = {},
   exportFormat: 'agent_plugin' | 'raw_skill' = 'agent_plugin',
+  reviewDigest?: string,
 ): Promise<{ blob: Blob; filename: string | null }> {
   const response = await fetchWithTimeout(`${SKILLS_API_PREFIX}/${skillId}/export`, {
     method: 'POST',
@@ -346,12 +383,12 @@ export async function downloadSkill(
       apply_redactions: applyRedactions,
       ignored_redactions: ignoredRedactions,
       export_format: exportFormat,
+      review_digest: reviewDigest,
     }),
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`下载失败: ${error}`);
+    throw await toSkillExportError(response);
   }
 
   const blob = await response.blob();

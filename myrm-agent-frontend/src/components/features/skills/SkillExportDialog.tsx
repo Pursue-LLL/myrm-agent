@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/primitives/button';
 import { ScrollArea } from '@/components/primitives/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/alert';
-import { previewSkillPackage, downloadSkill } from '@/services/skill';
+import { previewSkillPackage, downloadSkill, SKILL_CHANGED_SINCE_PREVIEW } from '@/services/skill';
 import { triggerDownload } from '@/lib/utils/fileUtils';
 import type { PackagePreviewResponse } from '@/services/skill';
 import type { Skill } from '@/store/skill/types';
@@ -36,28 +36,35 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
 
   const [ignoredRedactions, setIgnoredRedactions] = useState<Record<string, number[]>>({});
 
-  useEffect(() => {
-    if (open && skill) {
-      setIsLoading(true);
-      setPreview(null);
-      setIgnoredRedactions({});
-      previewSkillPackage(skill.id)
-        .then((res) => {
-          setPreview(res);
-        })
-        .catch((err) => {
-          toast({
-            title: t('previewFailed'),
-            description: err.message,
-            variant: 'destructive',
-          });
-          onOpenChange(false);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
+  const loadPreview = useCallback(() => {
+    if (!skill) {
+      return;
     }
-  }, [open, skill, onOpenChange, t]);
+    setIsLoading(true);
+    setPreview(null);
+    setIgnoredRedactions({});
+    previewSkillPackage(skill.id)
+      .then((res) => {
+        setPreview(res);
+      })
+      .catch((err) => {
+        toast({
+          title: t('previewFailed'),
+          description: err.message,
+          variant: 'destructive',
+        });
+        onOpenChange(false);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [skill, onOpenChange, t]);
+
+  useEffect(() => {
+    if (open) {
+      loadPreview();
+    }
+  }, [open, loadPreview]);
 
   const handleExport = useCallback(
     async (applyRedactions: boolean) => {
@@ -66,13 +73,25 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
       }
       setIsExporting(true);
       try {
-        const { blob, filename } = await downloadSkill(skill.id, applyRedactions, ignoredRedactions);
+        const { blob, filename } = await downloadSkill(
+          skill.id,
+          applyRedactions,
+          ignoredRedactions,
+          'agent_plugin',
+          preview?.review_digest,
+        );
         await triggerDownload(blob, filename || `${skill.name}_v${skill.version || '1.0.0'}.zip`);
         toast({
           title: t('exportSuccess'),
         });
         onOpenChange(false);
       } catch (err) {
+        // 技能在预览后被修改：忽略索引已失效，必须重新审阅，不能带着旧决定导出
+        if ((err as { code?: string }).code === SKILL_CHANGED_SINCE_PREVIEW) {
+          toast({ title: t('changedSinceReview'), variant: 'destructive' });
+          loadPreview();
+          return;
+        }
         toast({
           title: t('exportFailed'),
           description: err instanceof Error ? err.message : String(err),
@@ -82,7 +101,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
         setIsExporting(false);
       }
     },
-    [skill, onOpenChange, t, ignoredRedactions],
+    [skill, onOpenChange, t, ignoredRedactions, preview, loadPreview],
   );
 
   const toggleRedaction = useCallback((filename: string, index: number) => {

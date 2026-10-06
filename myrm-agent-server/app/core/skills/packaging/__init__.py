@@ -3,6 +3,7 @@
 Server 层 Facade：技能的 ZIP 打包、验证、解包注册与导出脱敏，底层由 myrm_agent_harness 实现。
 """
 
+import asyncio
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -34,14 +35,14 @@ from myrm_agent_harness.agent.skills.packaging.validator import (
 )
 from myrm_agent_harness.agent.skills.security.content_sanitizer import content_sanitizer
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
-from myrm_agent_harness.toolkits.storage.paths import (
-    SKILL_METADATA_FILE,
-    get_skill_file_path,
-)
+from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
 
 from ..store.service import SkillsService, skills_service
-from ._helpers import _load_evolution_record, _sync_skill_md_version
-from ._models import PackageResult, UnpackResult
+from ._helpers import _load_evolution_record
+from ._models import SKILL_CHANGED_SINCE_PREVIEW, PackageResult, UnpackResult
+from .collect import collect_skill_files
+from .redaction import redact_files
+from .redaction import review_digest as compute_review_digest
 
 logger = logging.getLogger(__name__)
 
@@ -65,17 +66,20 @@ class SkillPackagingService:
         apply_redactions: bool = False,
         ignored_redactions: dict[str, list[int]] | None = None,
         export_format: str = "agent_plugin",
+        review_digest: str | None = None,
     ) -> PackageResult:
         """从 Server 的 SkillsService 获取并打包已注册的技能
 
         Args:
             skill_id: 技能 ID
-            preview_only: 如果为 True，仅返回脱敏预览结果，不实际生成 ZIP
+            preview_only: 如果为 True，仅返回脱敏预览结果与文件树摘要，不实际生成 ZIP
             apply_redactions: 如果为 True，将脱敏后的内容写入 ZIP；否则写入原始内容（用户确认无误或忽略警告）
             ignored_redactions: 字典，key 为文件名，value 为该文件中需要忽略脱敏的匹配项索引列表
             export_format: 导出格式，"agent_plugin" (Agent Plugins 1.0.0 规范，默认) 或 "raw_skill" (单技能结构)
+            review_digest: 预览返回的文件树摘要。导出携带"忽略脱敏"决定（ignored_redactions 非空）时必须与当前
+                文件树一致：忽略索引只对被预览的那份内容有效，技能在预览后被修改会让索引指向另一处密钥。
+                仅 apply_redactions（脱敏全部命中项）是单向收紧，无需摘要
         """
-        ignored_redactions = ignored_redactions or {}
         try:
             skill = await self._skills_svc.get_skill(skill_id)
             if not skill:
@@ -83,12 +87,8 @@ class SkillPackagingService:
                     success=False,
                     zip_content=None,
                     filename=None,
-                    error=f"技能不存在: {skill_id}",
+                    error=f"Skill not found: {skill_id}",
                 )
-
-            files = await self._skills_svc.list_skill_files(skill_id)
-            if not files:
-                return PackageResult(success=False, zip_content=None, filename=None, error="技能没有文件")
 
             # 从 evolution 存储读取回归门禁快照与真实演化版本
             eval_cases_count = 0
@@ -98,41 +98,31 @@ class SkillPackagingService:
                 eval_cases_count = len(record.eval_cases or [])
                 lineage_version = record.lineage.version
 
-            file_contents = {}
-            all_redactions = {}
-            is_safe = True
+            collected = await collect_skill_files(self._skills_svc, skill_id, lineage_version=lineage_version)
+            if not collected:
+                return PackageResult(success=False, zip_content=None, filename=None, error="Skill has no files")
 
-            for file_path in files:
-                if file_path == SKILL_METADATA_FILE or file_path == EVALS_FILE:
-                    # evals.json 为包内保留名，由下方快照逻辑生成，不作为普通技能文件打包
-                    continue
-                content = await self._skills_svc.get_skill_file(skill_id, file_path)
-                if content:
-                    # 导出前同步 frontmatter version，让包内版本与 DB lineage 一致
-                    if file_path == SKILL_MD_FILE and lineage_version is not None:
-                        text = content.decode("utf-8", errors="replace")
-                        synced = _sync_skill_md_version(text, str(lineage_version))
-                        if synced != text:
-                            content = synced.encode("utf-8")
+            current_digest = compute_review_digest(collected)
+            keeps_findings = any(ignored_redactions.values()) if ignored_redactions else False
+            if keeps_findings and not preview_only and review_digest != current_digest:
+                return PackageResult(
+                    success=False,
+                    zip_content=None,
+                    filename=None,
+                    error="The skill changed since the redaction preview; review the findings again.",
+                    error_code=SKILL_CHANGED_SINCE_PREVIEW,
+                    review_digest=current_digest,
+                )
 
-                    # Perform sanitization check
-                    file_ignored_indices = ignored_redactions.get(file_path, [])
-                    sanitization_result = content_sanitizer.sanitize(content, file_path, ignored_indices=file_ignored_indices)
-
-                    # If there are redactions (even if we ignore some, if there are remaining ones, it's not safe)
-                    # Actually, if we ignored ALL of them, is it safe?
-                    # The preview returns all found redactions.
-                    # If we are applying redactions, we pass ignored_indices.
-                    # The result redactions will only contain the ones that were NOT ignored.
-                    if not sanitization_result.is_safe:
-                        is_safe = False
-                        all_redactions[file_path] = sanitization_result.redactions
-
-                    # Decide which content to pack
-                    if apply_redactions and not sanitization_result.is_safe:
-                        file_contents[file_path] = sanitization_result.sanitized_content
-                    else:
-                        file_contents[file_path] = content
+            # 扫描是 CPU 密集型（~1 s/MB），放到线程池避免阻塞事件循环
+            outcome = await asyncio.to_thread(
+                redact_files,
+                collected,
+                apply=apply_redactions,
+                ignored=ignored_redactions,
+            )
+            file_contents = outcome.files
+            all_redactions = outcome.redactions
 
             # 追加 evals.json 回归门禁快照（自动脱敏，不进入用户确认流程）
             if record is not None and record.eval_cases:
@@ -145,16 +135,17 @@ class SkillPackagingService:
                         len(evals_sanitized.redactions),
                         EVALS_FILE,
                     )
-                file_contents[EVALS_FILE] = evals_sanitized.sanitized_content
+                file_contents[EVALS_FILE] = evals_sanitized.sanitized_content.encode("utf-8")
 
             if preview_only:
                 return PackageResult(
                     success=True,
                     zip_content=None,
                     filename=None,
-                    redactions=all_redactions if all_redactions else None,
-                    is_safe=is_safe,
+                    redactions=all_redactions or None,
+                    is_safe=outcome.is_safe,
                     eval_cases_count=eval_cases_count,
+                    review_digest=current_digest,
                 )
 
             # Actual packaging: 根据 export_format 选择打包规范
@@ -185,13 +176,14 @@ class SkillPackagingService:
                 zip_content=pack_result.zip_content,
                 filename=pack_result.filename,
                 error=pack_result.error,
-                redactions=all_redactions if all_redactions else None,
-                is_safe=is_safe,
+                redactions=all_redactions or None,
+                is_safe=outcome.is_safe,
                 eval_cases_count=eval_cases_count,
+                review_digest=current_digest,
             )
 
         except Exception as e:
-            logger.error(f"打包技能失败: {skill_id}, 错误: {e}")
+            logger.error(f"Failed to package skill {skill_id}: {e}")
             return PackageResult(success=False, zip_content=None, filename=None, error=str(e))
 
     async def package_workspace_directory(
@@ -332,6 +324,7 @@ class SkillPackagingService:
 skill_packaging_service = SkillPackagingService()
 
 __all__ = [
+    "SKILL_CHANGED_SINCE_PREVIEW",
     "SkillPackagingService",
     "skill_packaging_service",
     "SkillPacker",

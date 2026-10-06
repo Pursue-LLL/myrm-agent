@@ -7,6 +7,7 @@ profiles required for cross-sandbox installation. Secrets are always stripped.
 [INPUT]
 - database.repositories.uow::UnitOfWork (POS: Unit of Work 事务层)
 - core.skills.store.service::skills_service (POS: Skill CRUD 单例服务)
+- core.skills.packaging.collect / .redaction::collect_skill_files, redact_files (POS: 共享技能文件采集与脱敏)
 - services.agent.profile.profile_snapshot_service::mutable_snapshot_data (POS: Agent 字段序列化)
 - services.agent.marketplace.package_contract::build_marketplace_package
   (POS: Marketplace 包契约构建 + 完整性摘要)
@@ -15,17 +16,22 @@ profiles required for cross-sandbox installation. Secrets are always stripped.
 - export_agent_package(uow, agent_id): Contract-compliant marketplace package dict
 
 [POS]
-Server-side export for marketplace publish flow. Strips secrets, bundles
-custom dependencies (Skill content + resources + MCP + Subagent), produces
-a self-contained JSON package for cross-sandbox distribution.
+Server-side export for marketplace publish flow. Strips secrets (profile fields by
+name, skill files through the shared ContentSanitizer), bundles custom dependencies
+(Skill content + text resources + MCP + Subagent), produces a self-contained JSON
+package for cross-sandbox distribution.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
+from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from myrm_agent_harness.backends.profiles.types import AgentProfile
 
+from app.core.skills.packaging.collect import collect_skill_files
+from app.core.skills.packaging.redaction import redact_files
 from app.core.skills.store.service import skills_service
 from app.database.repositories.uow import UnitOfWork
 from app.services.agent.marketplace.package_contract import build_marketplace_package
@@ -89,7 +95,12 @@ async def export_agent_package(uow: UnitOfWork, agent_id: str) -> dict:
 
 
 async def _bundle_custom_skills(profile: AgentProfile) -> list[dict]:
-    """Bundle custom (non-builtin) Skill definitions with content and resources."""
+    """Bundle custom (non-builtin) Skill definitions with content and resources.
+
+    The package format is text-only JSON: binary resources are skipped (never
+    lossily decoded) and every text file passes the shared ContentSanitizer, so a
+    published package never carries secrets or home-directory paths.
+    """
     skill_ids: list[str] = profile.skills or []
     if not skill_ids:
         return []
@@ -101,40 +112,41 @@ async def _bundle_custom_skills(profile: AgentProfile) -> list[dict]:
         if skill.type.value == "prebuilt":
             continue
 
+        try:
+            files = await collect_skill_files(skills_service, skill.id)
+        except Exception:
+            logger.warning("Failed to read files of skill '%s', skipping", skill.name)
+            continue
+
+        texts: dict[str, bytes] = {}
+        for path, data in files.items():
+            try:
+                data.decode("utf-8")
+            except UnicodeDecodeError:
+                logger.warning("Skipping binary resource '%s/%s': the package format is text-only", skill.name, path)
+                continue
+            texts[path] = data
+        if SKILL_MD_FILE not in texts:
+            logger.warning("No readable SKILL.md for skill '%s', skipping", skill.name)
+            continue
+
+        outcome = await asyncio.to_thread(redact_files, texts, apply=True)
+        if outcome.redactions:
+            logger.warning(
+                "Skill '%s': auto-redacted sensitive content in %d file(s) before publishing",
+                skill.name,
+                len(outcome.redactions),
+            )
+
         skill_data: dict = {
             "name": skill.name,
             "description": skill.description,
             "id": skill.id,
+            "content": outcome.files[SKILL_MD_FILE].decode("utf-8"),
         }
-
-        try:
-            content = await skills_service.get_skill_file(skill.id, "SKILL.md")
-            if content:
-                skill_data["content"] = content.decode("utf-8", errors="replace")
-            else:
-                logger.warning("No SKILL.md for skill '%s', skipping", skill.name)
-                continue
-        except Exception:
-            logger.warning("Failed to get content for skill '%s'", skill.name)
-            continue
-
-        try:
-            file_list = await skills_service.list_skill_files(skill.id)
-            resources: dict[str, str] = {}
-            for fpath in file_list:
-                if fpath == "SKILL.md":
-                    continue
-                try:
-                    data = await skills_service.get_skill_file(skill.id, fpath)
-                    if data:
-                        resources[fpath] = data.decode("utf-8", errors="replace")
-                except Exception:
-                    logger.debug("Skipping resource '%s/%s'", skill.name, fpath)
-            if resources:
-                skill_data["resources"] = resources
-        except Exception:
-            logger.debug("No resource listing for skill '%s'", skill.name)
-
+        resources = {path: data.decode("utf-8") for path, data in outcome.files.items() if path != SKILL_MD_FILE}
+        if resources:
+            skill_data["resources"] = resources
         bundled.append(skill_data)
 
     return bundled

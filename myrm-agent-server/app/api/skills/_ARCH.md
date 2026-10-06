@@ -26,7 +26,7 @@
 | `instances.py` | 模块 | Skill instances API - CRUD operations for multi-instance skill support. | ✅ |
 | `local.py` | 模块 | Local skills management endpoints: 路径配置 CRUD、单路径 dry-run 预览 (`/preview`)、安全评分准入门禁原子采纳 (`/adopt`)、全量扫描与健康状态实时透出 (`path_statuses`)、严格防范路径穿越 (CWE-22) | ✅ |
 | `migrations.py` | 模块 | Controlled migration review API；approve skill_import 直接写 `~/.myrm/skills`，受沙箱能力门控（延迟导入避免独立加载循环依赖） | ✅ |
-| `packaging.py` | 模块 | Skill packaging and upload endpoints | ✅ |
+| `packaging.py` | 模块 | Skill packaging and upload endpoints；预览返回文件树摘要 `review_digest`，导出携带“忽略脱敏”决定时回传校验，技能预览后被改动则 409 `skill_changed_since_preview` | ✅ |
 | `permissions.py` | 模块 | Skill Permission Management API | ✅ |
 | `prebuilt.py` | 模块 | Prebuilt skill admin and update management API. | ✅ |
 | `quality.py` | 模块 | Skill Quality Aggregation API | ✅ |

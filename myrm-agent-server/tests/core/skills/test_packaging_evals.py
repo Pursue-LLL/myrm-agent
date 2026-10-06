@@ -146,9 +146,10 @@ async def test_export_as_agent_plugin_and_raw_skill(
     with zipfile.ZipFile(io.BytesIO(plugin_result.zip_content), "r") as zf:
         names = zf.namelist()
         assert "demo-skill/plugin.json" in names
-        assert "demo-skill/skills/demo-skill/SKILL.md" in names
-        assert f"demo-skill/skills/demo-skill/{EVALS_FILE}" in names
-        assert "demo-skill/skills/demo-skill/helper.py" in names
+        # The skill keeps its real directory name; only the plugin identity is slugified.
+        assert "demo-skill/skills/demo_skill/SKILL.md" in names
+        assert f"demo-skill/skills/demo_skill/{EVALS_FILE}" in names
+        assert "demo-skill/skills/demo_skill/helper.py" in names
 
     # 2. 测试 raw_skill 导出
     raw_result: PackageResult = await packaging_service.package_skill("demo_skill", export_format="raw_skill")

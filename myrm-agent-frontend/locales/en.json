@@ -4292,7 +4292,8 @@
         "exportSuccess": "Skill exported successfully",
         "exportFailed": "Failed to export skill",
         "toggleAll": "Toggle All",
-        "evalCasesIncluded": "{count} regression test cases included"
+        "evalCasesIncluded": "{count} regression test cases included",
+        "changedSinceReview": "This skill changed after you reviewed it. The preview was refreshed - please review the findings again."
       },
       "permissions": {
         "approved": "Permissions approved",

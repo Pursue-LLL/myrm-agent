@@ -16945,7 +16945,8 @@
         "exportSuccess": "스킬이 성공적으로 내보내졌습니다",
         "exportFailed": "스킬 내보내기 실패",
         "toggleAll": "모두 선택/해제",
-        "evalCasesIncluded": "회귀 테스트 케이스 {count}개 포함"
+        "evalCasesIncluded": "회귀 테스트 케이스 {count}개 포함",
+        "changedSinceReview": "검토 후 이 스킬이 변경되었습니다. 미리보기를 새로 고쳤으니 탐지 항목을 다시 확인해 주세요."
       },
       "permissions": {
         "approved": "권한이 승인되었습니다",

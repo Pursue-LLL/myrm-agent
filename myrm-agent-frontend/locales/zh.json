@@ -4292,7 +4292,8 @@
         "exportSuccess": "技能导出成功",
         "exportFailed": "导出技能失败",
         "toggleAll": "全选 / 全不选",
-        "evalCasesIncluded": "包含 {count} 条回归测试用例"
+        "evalCasesIncluded": "包含 {count} 条回归测试用例",
+        "changedSinceReview": "该技能在你审阅后已被修改，预览已刷新，请重新确认脱敏项。"
       },
       "permissions": {
         "approved": "权限已批准",

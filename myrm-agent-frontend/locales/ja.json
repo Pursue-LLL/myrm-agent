@@ -16945,7 +16945,8 @@
         "exportSuccess": "スキルをエクスポートしました",
         "exportFailed": "スキルのエクスポートに失敗",
         "toggleAll": "すべて切り替え",
-        "evalCasesIncluded": "回帰テスト ケース {count} 件を含む"
+        "evalCasesIncluded": "回帰テスト ケース {count} 件を含む",
+        "changedSinceReview": "レビュー後にこのスキルが変更されました。プレビューを更新したので、検出項目をもう一度確認してください。"
       },
       "permissions": {
         "approved": "権限が承認されました",

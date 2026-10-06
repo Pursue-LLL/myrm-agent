@@ -16945,7 +16945,8 @@
         "exportSuccess": "技能匯出成功",
         "exportFailed": "匯出技能失敗",
         "toggleAll": "全選 / 全不選",
-        "evalCasesIncluded": "包含 {count} 條回歸測試用例"
+        "evalCasesIncluded": "包含 {count} 條回歸測試用例",
+        "changedSinceReview": "此技能在你檢視後已被修改，預覽已重新整理，請重新確認脫敏項目。"
       },
       "permissions": {
         "approved": "權限已批准",

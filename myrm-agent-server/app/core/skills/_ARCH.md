@@ -32,6 +32,8 @@
 | `store/user_config.py` | 核心 | 用户技能配置（enabled/disabled prebuilt、本地路径） | ✅ |
 | `packaging/__init__.py` | 核心 | 技能打包业务 Facade 适配（转发 harness packer/validator） | — |
 | `packaging/_helpers.py` | 内部 | 打包内部辅助（`_load_evolution_record`/`_sync_skill_md_version`） | — |
+| `packaging/collect.py` | 核心 | 技能可导出文件树采集（单技能/专家导出共用） | — |
+| `packaging/redaction.py` | 核心 | 技能导出脱敏唯一通道 + 预览文件树摘要（单技能/专家/Marketplace 导出共用） | — |
 | `packaging/_models.py` | 内部 | 打包内部模型（Redaction 脱敏条目转发） | — |
 | `providers/local.py` | 核心 | 本地文件系统技能提供者 | — |
 | `creation/__init__.py` | 子域 | 技能创作域聚合出口 | — |

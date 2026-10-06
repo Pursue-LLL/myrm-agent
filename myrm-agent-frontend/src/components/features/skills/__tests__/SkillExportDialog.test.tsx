@@ -29,6 +29,7 @@ const TRANSLATIONS: Record<string, string> = {
   previewFailed: 'previewFailed',
   exportSuccess: 'exportSuccess',
   exportFailed: 'exportFailed',
+  changedSinceReview: 'changedSinceReview',
 };
 
 const stableT = (key: string, values?: Record<string, string | number>): string => {
@@ -52,6 +53,7 @@ vi.mock('@/hooks/shared/useToast', () => ({
 vi.mock('@/services/skill', () => ({
   previewSkillPackage: previewSkillPackageMock,
   downloadSkill: downloadSkillMock,
+  SKILL_CHANGED_SINCE_PREVIEW: 'skill_changed_since_preview',
 }));
 
 vi.mock('@/lib/utils/fileUtils', () => ({
@@ -113,6 +115,7 @@ describe('SkillExportDialog', () => {
       error: null,
       redactions: null,
       eval_cases_count: 0,
+      review_digest: 'digest-1',
     });
     downloadSkillMock.mockResolvedValue({
       blob: new Blob(['zip']),
@@ -127,7 +130,7 @@ describe('SkillExportDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /^export$/ }));
 
     await waitFor(() => {
-      expect(downloadSkillMock).toHaveBeenCalledWith('skill-1', true, {});
+      expect(downloadSkillMock).toHaveBeenCalledWith('skill-1', true, {}, 'agent_plugin', 'digest-1');
     });
     await waitFor(() => {
       expect(triggerDownloadMock).toHaveBeenCalledWith(expect.any(Blob), 'demo-skill_v7.zip');
@@ -180,5 +183,32 @@ describe('SkillExportDialog', () => {
       expect(screen.getByText(/warningDescription/)).toBeInTheDocument();
     });
     expect(screen.getByText(/2 eval cases/)).toBeInTheDocument();
+  });
+
+  it('re-runs the preview when the skill changed after it was reviewed', async () => {
+    previewSkillPackageMock.mockResolvedValue({
+      success: true,
+      is_safe: true,
+      error: null,
+      redactions: null,
+      eval_cases_count: 0,
+      review_digest: 'digest-1',
+    });
+    downloadSkillMock.mockRejectedValue(
+      Object.assign(new Error('changed'), { code: 'skill_changed_since_preview' }),
+    );
+
+    render(<SkillExportDialog skill={makeSkill()} open={true} onOpenChange={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^export$/ })).toBeEnabled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^export$/ }));
+
+    await waitFor(() => {
+      expect(previewSkillPackageMock).toHaveBeenCalledTimes(2);
+    });
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'changedSinceReview' }));
+    expect(triggerDownloadMock).not.toHaveBeenCalled();
   });
 });

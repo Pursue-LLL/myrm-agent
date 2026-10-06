@@ -14,7 +14,7 @@ from app.api.skills.schemas import (
     SkillPackageInfoResponse,
     UploadSkillResponse,
 )
-from app.core.skills.packaging import skill_packaging_service
+from app.core.skills.packaging import SKILL_CHANGED_SINCE_PREVIEW, skill_packaging_service
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,7 @@ async def preview_skill_package(
         error=result.error,
         redactions=redactions_response,
         eval_cases_count=result.eval_cases_count,
+        review_digest=result.review_digest,
     )
 
 
@@ -66,6 +67,7 @@ class ExportSkillRequest(BaseModel):
     apply_redactions: bool = False
     ignored_redactions: dict[str, list[int]] | None = None
     export_format: str = "agent_plugin"  # "agent_plugin" | "raw_skill"
+    review_digest: str | None = None  # from the preview; required when ignored_redactions keeps findings
 
 
 @router.post("/{skill_id}/export")
@@ -87,9 +89,15 @@ async def export_skill(
         apply_redactions=request.apply_redactions,
         ignored_redactions=request.ignored_redactions,
         export_format=request.export_format,
+        review_digest=request.review_digest,
     )
 
     if not result.success:
+        if result.error_code == SKILL_CHANGED_SINCE_PREVIEW:
+            raise HTTPException(
+                status_code=409,
+                detail={"message": result.error, "error_code": result.error_code},
+            )
         raise HTTPException(status_code=404, detail=result.error)
 
     return Response(
