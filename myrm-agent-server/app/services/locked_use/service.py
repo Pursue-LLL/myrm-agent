@@ -8,7 +8,7 @@ Provides an async context manager that:
 
 [INPUT]
 - app.services.infra.sleep_inhibitor.SleepInhibitor (display keep-awake)
-- myrm_agent_harness.api.security (native screen-lock probe, hardware input idle probe)
+- myrm_agent_harness.api.security::get_default_screen_detector / hid_idle_seconds (POS: native screen-lock probe and hardware input idle reading)
 - app.services.locked_use.curtain_bridge (lease bit shared with the desktop shell)
 - macOS Keychain (for password retrieval)
 
