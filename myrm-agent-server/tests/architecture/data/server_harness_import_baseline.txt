@@ -248,6 +248,7 @@ myrm_agent_harness.core.security.air_gapped
 myrm_agent_harness.core.security.approval_metrics
 myrm_agent_harness.core.security.asr_privacy_tradeoff
 myrm_agent_harness.core.security.audit_coverage
+myrm_agent_harness.core.security.bot_budget_guardrail
 myrm_agent_harness.core.security.causal_deception
 myrm_agent_harness.core.security.change_guard
 myrm_agent_harness.core.security.commerce_dispute_escrow
@@ -326,6 +327,7 @@ myrm_agent_harness.core.security.semantic_rbac
 myrm_agent_harness.core.security.sensitive_file_guard
 myrm_agent_harness.core.security.side_effect_gate
 myrm_agent_harness.core.security.skill_governance
+myrm_agent_harness.core.security.skill_spector_scanner
 myrm_agent_harness.core.security.slack_rotating_token
 myrm_agent_harness.core.security.sso_redirect
 myrm_agent_harness.core.security.sso_redirect_idempotent
@@ -342,6 +344,7 @@ myrm_agent_harness.core.security.workspace_boundary
 myrm_agent_harness.core.security.workspace_path_rbac
 myrm_agent_harness.core.security.workspace_scoper
 myrm_agent_harness.core.security.zero_credential_proxy
+myrm_agent_harness.core.security.zero_defense_reverification
 myrm_agent_harness.core.security.zero_egress_provenance
 myrm_agent_harness.eval
 myrm_agent_harness.eval.builder
@@ -529,6 +532,7 @@ myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.codegraph
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conversation_search.types
+myrm_agent_harness.toolkits.memory.decay
 myrm_agent_harness.toolkits.memory.graph
 myrm_agent_harness.toolkits.memory.graph.age_store
 myrm_agent_harness.toolkits.memory.graph.base

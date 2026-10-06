@@ -13,6 +13,9 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 
+from app.api.security.action_grant_router import (
+    router as action_grant_router,
+)
 from app.api.security.admin_auth_surface_router import (
     router as admin_auth_surface_router,
 )
@@ -27,6 +30,9 @@ from app.api.security.attestation_router import router as attestation_router
 from app.api.security.audit_coverage_router import (
     router as audit_coverage_router,
 )
+from app.api.security.bot_budget_guardrail_router import (
+    router as bot_budget_guardrail_router,
+)
 from app.api.security.causal_deception_router import (
     router as causal_deception_router,
 )
@@ -40,8 +46,20 @@ from app.api.security.commerce_dispute_escrow_router import (
 from app.api.security.companion_relationship_guard_router import (
     router as companion_relationship_guard_router,
 )
+from app.api.security.compound_shell_risk_router import (
+    router as compound_shell_risk_router,
+)
+from app.api.security.connector_guard_router import (
+    router as connector_guard_router,
+)
+from app.api.security.connector_trust_router import (
+    router as connector_trust_router,
+)
 from app.api.security.credential_shield_router import (
     router as credential_shield_router,
+)
+from app.api.security.data_isolation_probe_router import (
+    router as data_isolation_probe_router,
 )
 from app.api.security.data_plane_defense_router import (
     router as data_plane_defense_router,
@@ -52,6 +70,9 @@ from app.api.security.desktop_micro_isolation_router import (
 )
 from app.api.security.desktop_oauth_device_router import (
     router as desktop_oauth_device_router,
+)
+from app.api.security.dev_sandbox_fence_router import (
+    router as dev_sandbox_fence_router,
 )
 from app.api.security.dir_trust_gate_router import (
     router as dir_trust_gate_router,
@@ -75,8 +96,14 @@ from app.api.security.egress_dlp_router import router as egress_dlp_router
 from app.api.security.executable_probe_router import (
     router as executable_probe_router,
 )
+from app.api.security.externally_visible_action_router import (
+    router as externally_visible_action_router,
+)
 from app.api.security.financial_boundary_router import (
     router as financial_boundary_router,
+)
+from app.api.security.financial_safety_guard_router import (
+    router as financial_safety_guard_router,
 )
 from app.api.security.gate_guard_sanitizer_router import (
     router as gate_guard_sanitizer_router,
@@ -104,14 +131,29 @@ from app.api.security.integration_trust_router import (
     router as integration_trust_router,
 )
 from app.api.security.ipc_router import router as ipc_router
+from app.api.security.irreversible_write_guard_router import (
+    router as irreversible_write_guard_router,
+)
 from app.api.security.license_compliance_router import (
     router as license_compliance_router,
 )
 from app.api.security.llm_egress_guard_router import (
     router as llm_egress_guard_router,
 )
+from app.api.security.local_first_vault_router import (
+    router as local_first_vault_router,
+)
+from app.api.security.localhost_anti_hijack_router import (
+    router as localhost_anti_hijack_router,
+)
 from app.api.security.marketplace_contract_router import (
     router as marketplace_contract_router,
+)
+from app.api.security.memory_defense_firewall_router import (
+    router as memory_defense_firewall_router,
+)
+from app.api.security.muse_sentinel_isolation_router import (
+    router as muse_sentinel_isolation_router,
 )
 from app.api.security.native_credential_approval_router import (
     router as native_credential_approval_router,
@@ -120,6 +162,9 @@ from app.api.security.on_demand_masking_router import (
     router as on_demand_masking_router,
 )
 from app.api.security.pii_vault_router import router as pii_vault_router
+from app.api.security.plugin_guardrail_router import (
+    router as plugin_guardrail_router,
+)
 from app.api.security.policy_snapshot_router import router as policy_snapshot_router
 from app.api.security.pre_flight_budget_router import (
     router as pre_flight_budget_router,
@@ -135,10 +180,25 @@ from app.api.security.saga_dual_engine_router import router as saga_dual_engine_
 from app.api.security.sandbox_log_continuation_router import (
     router as sandbox_log_continuation_router,
 )
+from app.api.security.sandbox_trust_audit_router import (
+    router as sandbox_trust_audit_router,
+)
+from app.api.security.scoped_css_sentinel_router import (
+    router as scoped_css_sentinel_router,
+)
 from app.api.security.secops_audit_router import router as secops_audit_router
 from app.api.security.secret_broker_router import router as secret_broker_router
+from app.api.security.secretless_egress_proxy_router import (
+    router as secretless_egress_proxy_router,
+)
 from app.api.security.semantic_rbac_router import router as semantic_rbac_router
+from app.api.security.sensitive_file_guard_router import (
+    router as sensitive_file_guard_router,
+)
 from app.api.security.skill_governance_router import router as skill_governance_router
+from app.api.security.skill_spector_scanner_router import (
+    router as skill_spector_scanner_router,
+)
 from app.api.security.slack_rotating_token_router import (
     router as slack_rotating_token_router,
 )
@@ -147,6 +207,9 @@ from app.api.security.sso_redirect_idempotent_router import (
 )
 from app.api.security.sso_redirect_router import (
     router as sso_redirect_router,
+)
+from app.api.security.stacked_policy_governance_router import (
+    router as stacked_policy_governance_router,
 )
 from app.api.security.streaming_gate_router import (
     router as streaming_gate_router,
@@ -157,7 +220,13 @@ from app.api.security.structured_scan_errors_router import (
 from app.api.security.tracing_redaction_router import (
     router as tracing_redaction_router,
 )
+from app.api.security.tri_flow_safety_router import (
+    router as tri_flow_safety_router,
+)
 from app.api.security.tripartite_ledger_router import router as tripartite_ledger_router
+from app.api.security.untrusted_config_guard_router import (
+    router as untrusted_config_guard_router,
+)
 from app.api.security.webhook_guard_router import router as webhook_guard_router
 from app.api.security.workspace_boundary_router import (
     router as workspace_boundary_router,
@@ -166,6 +235,12 @@ from app.api.security.workspace_path_rbac_router import (
     router as workspace_path_rbac_router,
 )
 from app.api.security.workspace_scoper_router import router as workspace_scoper_router
+from app.api.security.zero_credential_proxy_router import (
+    router as zero_credential_proxy_router,
+)
+from app.api.security.zero_defense_reverification_router import (
+    router as zero_defense_reverification_router,
+)
 from app.api.security.zero_egress_provenance_router import (
     router as zero_egress_provenance_router,
 )
@@ -222,6 +297,7 @@ router.include_router(workspace_scoper_router)
 router.include_router(webhook_guard_router)
 router.include_router(financial_boundary_router)
 router.include_router(skill_governance_router)
+router.include_router(skill_spector_scanner_router)
 router.include_router(tripartite_ledger_router)
 router.include_router(governance_assembly_router)
 router.include_router(policy_snapshot_router)
@@ -270,6 +346,31 @@ router.include_router(workspace_path_rbac_router)
 router.include_router(pre_tool_use_interceptor_router)
 router.include_router(pre_flight_budget_router)
 router.include_router(docker_sandbox_hardening_router)
+router.include_router(zero_credential_proxy_router)
+router.include_router(compound_shell_risk_router)
+router.include_router(connector_guard_router)
+router.include_router(untrusted_config_guard_router)
+router.include_router(dev_sandbox_fence_router)
+router.include_router(sensitive_file_guard_router)
+router.include_router(irreversible_write_guard_router)
+router.include_router(muse_sentinel_isolation_router)
+router.include_router(sandbox_trust_audit_router)
+router.include_router(local_first_vault_router)
+router.include_router(scoped_css_sentinel_router)
+router.include_router(localhost_anti_hijack_router)
+router.include_router(action_grant_router)
+router.include_router(tri_flow_safety_router)
+router.include_router(data_isolation_probe_router)
+router.include_router(stacked_policy_governance_router)
+router.include_router(secretless_egress_proxy_router)
+router.include_router(memory_defense_firewall_router)
+router.include_router(financial_safety_guard_router)
+router.include_router(connector_trust_router)
+router.include_router(plugin_guardrail_router)
+router.include_router(externally_visible_action_router)
+router.include_router(bot_budget_guardrail_router)
+router.include_router(zero_defense_reverification_router)
+router.include_router(skill_spector_scanner_router)
 
 
 @router.get("/dashboard", response_model=SecurityDashboard)
