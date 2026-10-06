@@ -11028,7 +11028,7 @@
     "archiveRestoreResultBytes": "Restored payload: {bytes} bytes",
     "archiveRestoreResultArchive": "Archive: {path}",
     "thinking_budget_exhausted": "Model used all tokens for reasoning, no response produced",
-    "tool_call_truncated": "Tool arguments may be incomplete",
+    "tool_call_truncated": "Tool call was cut off and not run",
     "tool_call_retry": "Tool call was cut off — retrying",
     "empty_response_recovery": "Empty response detected — retrying",
     "analyzing_image": "Analyzing image...",

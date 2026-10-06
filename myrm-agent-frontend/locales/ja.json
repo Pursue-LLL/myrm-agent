@@ -3834,7 +3834,7 @@
     "archiveRestoreResultBytes": "復元ペイロード: {bytes} バイト",
     "archiveRestoreResultArchive": "アーカイブ: {path}",
     "thinking_budget_exhausted": "モデルがすべてのトークンを推論に使用し、回答を生成できませんでした",
-    "tool_call_truncated": "ツールのパラメータが不完全な可能性があります",
+    "tool_call_truncated": "ツール呼び出しが途切れたため、実行されませんでした",
     "tool_call_retry": "ツール呼び出しが途切れたため、再試行中",
     "empty_response_recovery": "空の応答を検出、再試行中",
     "analyzing_image": "画像を分析中...",
