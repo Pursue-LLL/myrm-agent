@@ -8,6 +8,7 @@ import logging
 from fastapi import APIRouter
 
 from app.api.memory import dream_diary
+from app.api.memory.codegraph_router import router as codegraph_router
 from app.api.memory.follow_ups import router as follow_ups_router
 from app.api.memory.four_layer_promotion_router import (
     router as four_layer_promotion_router,
@@ -69,6 +70,7 @@ router.include_router(external_transcripts.router, tags=["memory-external-transc
 router.include_router(domain_mesh.router, tags=["memory-domain-mesh"])
 router.include_router(profile_notes_router, tags=["memory-profile-notes"])
 router.include_router(four_layer_promotion_router, tags=["memory-four-layer-promotion"])
+router.include_router(codegraph_router, tags=["memory-codegraph"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
