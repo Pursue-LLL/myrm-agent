@@ -619,8 +619,8 @@
     "configured": "구성됨",
     "configure": "구성",
     "save": "저장",
-    "exportConfigAction": "구성 내보내기",
-    "exportConfigTitle": "에이전트 구성 내보내기",
+    "exportConfigAction": "에이전트 내보내기",
+    "exportConfigTitle": "이 에이전트를 공유 가능한 패키지로 내보내기",
     "exportConfigSaveFirst": "내보내기 전에 저장하세요",
     "rollbackLastAutoConfig": "마지막 구성 변경 실행 취소",
     "rollbackLastAutoConfigTitle": "이전에 저장된 에이전트 구성 스냅샷 복원",
@@ -1251,8 +1251,6 @@
     "rollbackConfirmRestoring": "복원 중…",
     "snapshotSaveFailed": "구성 백업 실패",
     "snapshotSaveFailedDesc": "변경 사항은 저장되었지만 롤백 스냅샷이 생성되지 않았습니다. 실행 취소를 사용할 수 없을 수 있습니다.",
-    "exportSuccess": "에이전트 구성이 내보내졌습니다",
-    "exportFailed": "에이전트 구성 내보내기 실패",
     "timeMachine": {
       "title": "구성 타임 머신",
       "description": "스냅샷 기록을 보고 이전의 안전한 상태를 복원하세요.",
@@ -1604,7 +1602,78 @@
     "a2aTrustedPeersDesc": "다중 에이전트 오케스트레이션 중 호출을 허용할 원격 피어를 선택하세요",
     "addA2APeer": "노드 승인",
     "noA2APeers": "승인된 원격 노드가 없습니다 (클릭하여 추가)",
-    "manageA2APeersLink": "원격 노드 레지스트리를 관리하려면 '통합 설정'으로 이동"
+    "manageA2APeersLink": "원격 노드 레지스트리를 관리하려면 '통합 설정'으로 이동",
+    "importAction": "가져오기",
+    "expertExport": {
+      "title": "에이전트 내보내기: {name}",
+      "description": "이 에이전트를 Agent Plugins 패키지(.zip)로 내보냅니다. 다운로드하기 전에 포함되는 내용과 제외되는 내용을 확인하세요.",
+      "scanning": "종속 항목을 수집하고 민감한 정보를 검사하는 중...",
+      "previewFailed": "내보내기 준비에 실패했습니다",
+      "exportSuccess": "에이전트 패키지를 내보냈습니다",
+      "exportFailed": "에이전트 내보내기에 실패했습니다",
+      "changedSinceReview": "검토 후 이 에이전트가 변경되었습니다. 미리보기를 새로 고쳤으니 탐지 항목을 다시 확인해 주세요.",
+      "buildErrorTitle": "이 패키지를 만들 수 없습니다",
+      "safeTitle": "내보내기 안전",
+      "safeDescription": "공유될 내용에서 민감한 정보(API 키, 절대 경로)가 감지되지 않았습니다.",
+      "warningTitle": "민감한 정보 감지됨",
+      "warningDescription": "잠재적으로 민감한 정보가 발견되었습니다. 편집된 버전으로 내보내는 것을 적극 권장합니다.",
+      "recommendedModel": "작성자가 사용한 모델: {model} (받는 사람에게 참고용으로만 표시되며 적용되지 않습니다)",
+      "omittedOwner": "{owner} 소속",
+      "workspaceMore": "파일 {count}개 더 있음",
+      "sections": {
+        "experts": "에이전트 ({count})",
+        "skills": "스킬 ({count})",
+        "connectors": "MCP 서버 ({count})",
+        "workspace": "작업 공간 템플릿 ({count})",
+        "omitted": "패키지에 포함되지 않음 ({count})"
+      },
+      "roles": {
+        "entry": "메인 에이전트",
+        "sub": "서브 에이전트"
+      },
+      "skill": {
+        "files": "파일 {count}개",
+        "preset": "내장, 이름으로 참조",
+        "origin": "출처: {source}"
+      },
+      "connector": {
+        "secrets": "받는 사람이 직접 제공해야 함: {keys}",
+        "noSecrets": "필요한 시크릿 없음"
+      },
+      "omittedKinds": {
+        "skill": "스킬",
+        "skill_file": "스킬 파일",
+        "connector": "MCP 서버",
+        "expert": "에이전트",
+        "workspace_file": "작업 공간 파일",
+        "setting": "설정"
+      },
+      "omitReason": {
+        "binary_file": "바이너리는 민감한 정보를 검사할 수 없습니다",
+        "oversized_file": "파일이 너무 커서 검토할 수 없습니다(1 MB 초과)",
+        "total_size_exceeded": "패키지 크기 한도에 도달했습니다",
+        "excluded_path": "숨김 파일과 빌드 산출물은 공유되지 않습니다",
+        "skill_unavailable": "설치되지 않았거나 읽을 수 없거나 내용이 불완전합니다",
+        "connector_missing": "이 환경에 구성되지 않았습니다",
+        "local_path": "이 컴퓨터의 경로에서 프로그램을 실행합니다",
+        "bundled_files": "다른 플러그인에 포함된 파일에 의존합니다",
+        "contains_secret": "자격 증명이 설정에 직접 들어 있습니다",
+        "unsupported_connector": "이 유형의 MCP 서버는 공유할 수 없습니다",
+        "built_in_expert": "내장 에이전트는 공유되지 않습니다",
+        "expert_missing": "이 서브 에이전트는 더 이상 존재하지 않습니다",
+        "cycle_edge": "상위 에이전트로 되돌아가는 순환 연결이 됩니다",
+        "too_many_experts": "패키지의 에이전트 수 한도에 도달했습니다",
+        "sub_expert_workspace": "작업 공간 템플릿은 메인 에이전트에만 포함됩니다",
+        "may_carry_credentials": "구성된 서비스에 자격 증명이 포함되어 있을 수 있습니다",
+        "above_default": "기본값을 넘는 반복 한도는 공유되지 않습니다"
+      },
+      "actions": {
+        "cancel": "취소",
+        "exportOriginal": "원본 내보내기 (안전하지 않음)",
+        "exportRedacted": "편집본 내보내기 (안전)",
+        "export": "내보내기"
+      }
+    }
   },
   "common": {
     "keyValueEditor": {
@@ -1732,7 +1801,12 @@
     },
     "back": "뒤로",
     "noOptions": "사용 가능한 옵션이 없습니다",
-    "providerDisabledWarning": "이 공급자가 비활성화되었습니다"
+    "providerDisabledWarning": "이 공급자가 비활성화되었습니다",
+    "redactionReview": {
+      "title": "편집 미리보기",
+      "toggleAll": "모두 선택/해제",
+      "line": "{number}번째 줄"
+    }
   },
   "chat": {
     "specialtyRouting": {
@@ -9922,6 +9996,17 @@
       "mergeSource": "보관(원본)",
       "planBindings": "옮겨가는 연결",
       "done": "완료"
+    },
+    "readiness": {
+      "dimensions": {
+        "model": "모델",
+        "mcp": "MCP 서버",
+        "skills": "스킬",
+        "tools": "도구",
+        "search": "검색",
+        "deployment": "실행 환경"
+      },
+      "fix": "해결하기"
     }
   },
   "settingsTabs": {
@@ -16936,7 +17021,6 @@
         "safeDescription": "이 스킬에서 민감한 정보(API 키, 절대 경로)가 감지되지 않았습니다.",
         "warningTitle": "민감한 정보 감지됨",
         "warningDescription": "잠재적으로 민감한 정보가 발견되었습니다. 편집된 버전으로 내보내는 것을 적극 권장합니다.",
-        "diffPreview": "편집 미리보기",
         "cancel": "취소",
         "exportOriginal": "원본 내보내기 (안전하지 않음)",
         "exportRedacted": "편집본 내보내기 (안전)",
@@ -16944,7 +17028,6 @@
         "previewFailed": "스킬 미리보기 실패",
         "exportSuccess": "스킬이 성공적으로 내보내졌습니다",
         "exportFailed": "스킬 내보내기 실패",
-        "toggleAll": "모두 선택/해제",
         "evalCasesIncluded": "회귀 테스트 케이스 {count}개 포함",
         "changedSinceReview": "검토 후 이 스킬이 변경되었습니다. 미리보기를 새로 고쳤으니 탐지 항목을 다시 확인해 주세요."
       },
@@ -19584,7 +19667,16 @@
           "skillsCount": "스킬 {count}개",
           "toolsCount": "도구 {count}개",
           "subagentsCount": "서브 에이전트 {count}개",
-          "templateFiles": "템플릿 파일 {count}개"
+          "templateFiles": "템플릿 파일 {count}개",
+          "conflict": "같은 이름의 에이전트가 이미 있습니다 - 사본으로 가져오거나 교체하거나 건너뛸 수 있습니다",
+          "conflictBuiltIn": "내장 에이전트가 같은 이름을 사용 중이라 교체할 수 없습니다 - 사본으로 가져오거나 건너뛰세요",
+          "withheldTools": "비활성 상태로 보류됨(필요하면 직접 켜세요): {tools}",
+          "unresolvedSkills": "이 환경에 없는 스킬: {names}",
+          "unresolvedConnectors": "이 환경에 없는 MCP 서버: {names}",
+          "unresolvedSubagents": "패키지에 없는 서브 에이전트: {names}",
+          "iterationsCapped": "반복 한도를 {requested}에서 {effective}(으)로 낮췄습니다",
+          "recommendedModel": "작성자가 사용한 모델: {model} (참고용으로만 표시되며 적용되지 않습니다)",
+          "ignoredDeclarations": "이 앱에서 사용하지 않음: {names}"
         },
         "serverType": {
           "local": "로컬 프로세스",
@@ -19598,7 +19690,10 @@
           "skip": "건너뛰기",
           "cancel": "취소",
           "confirm": "가져오기 확인",
-          "reselect": "다시 선택"
+          "reselect": "다시 선택",
+          "importCopy": "사본으로 가져오기",
+          "importAnother": "계속 가져오기",
+          "done": "완료"
         },
         "bind": {
           "label": "에이전트에 바인딩",
@@ -19619,7 +19714,9 @@
           "trustDisclosureLocal": "로컬/데스크톱 모드에서 실행 중입니다. 가져온 플러그인은 OS 권한으로 작동하며 셸 및 파일에 액세스할 수 있습니다.",
           "trustDisclosureCloud": "클라우드 샌드박스 모드에서 실행 중입니다. 가져온 플러그인은 전용 격리 볼륨 샌드박스 내에서 작동합니다.",
           "trustRiskHint": "신뢰할 수 없는 확장 프로그램에는 프롬프트 주입이 포함될 수 있습니다. 항상 패키지가 신뢰할 수 있는 출처에서 온 것인지 확인하세요.",
-          "trustedCheckboxLabel": "이 플러그인이 신뢰할 수 있는 출처임을 확인하고 시스템 도구 권한을 승인하며 설치에 동의합니다"
+          "trustedCheckboxLabel": "이 플러그인이 신뢰할 수 있는 출처임을 확인하고 시스템 도구 권한을 승인하며 설치에 동의합니다",
+          "skillsNotSupported": "이 환경에서는 사용자 지정 스킬을 쓸 수 없습니다 - 자동으로 건너뜁니다",
+          "stdioNotAllowed": "이 환경에서는 로컬 프로세스형 MCP 서버를 실행할 수 없습니다 - 자동으로 건너뜁니다"
         },
         "capabilities": {
           "undeclaredWarning": "선언되지 않은 권한 감지됨: 이 서비스는 plugin.json에 선언된 범위를 초과하는 권한을 요구합니다.",
@@ -19650,6 +19747,50 @@
           "description": "에이전트 {agents}개, 스킬 {skills}개, MCP 서버 {servers}개를 가져왔습니다",
           "requiredKeys": "가져온 후 Agent Secrets에서 다음 키를 구성하세요: {keys}",
           "disabledHint": "가져온 MCP 서버는 기본적으로 비활성화되어 있습니다. MCP 설정에서 활성화하세요"
+        },
+        "skills": {
+          "installedVersion": "설치된 버전: {version}"
+        },
+        "deployment": {
+          "noLocalSkills": "이 환경에서는 사용자 지정 스킬을 설치할 수 없어 플러그인의 스킬을 건너뜁니다.",
+          "noLocalConnectors": "이 환경에서는 로컬 프로세스형 MCP 서버를 실행할 수 없어 건너뜁니다."
+        },
+        "failures": {
+          "title": "일부 구성 요소를 가져오지 못했습니다",
+          "components": {
+            "skill": "스킬",
+            "mcp": "MCP 서버",
+            "agent": "에이전트"
+          },
+          "codes": {
+            "skills_not_supported": "이 환경에서는 사용자 지정 스킬이 허용되지 않습니다",
+            "oversized_content": "스킬 내용이 너무 큽니다",
+            "security_issues": "스킬이 보안 검사를 통과하지 못했습니다",
+            "INVALID_SKILL_NAME": "스킬 이름이 올바르지 않습니다",
+            "LIFECYCLE_SCRIPT_BLOCKED": "스킬에 설치 스크립트가 있어 차단되었습니다",
+            "SECURITY_SCORE_BELOW_THRESHOLD": "스킬의 안전 점수가 너무 낮습니다",
+            "DOWNGRADE_BLOCKED": "이 스킬의 더 새로운 버전이 이미 설치되어 있습니다",
+            "install_failed": "스킬을 설치하지 못했습니다",
+            "enable_failed": "설치되었지만 자동으로 켜지 못했습니다. 스킬 목록에서 직접 켜 주세요",
+            "stdio_not_allowed": "이 환경에서는 로컬 프로세스형 MCP 서버를 실행할 수 없습니다",
+            "persist_failed": "에이전트를 저장하지 못했습니다",
+            "invalid_agent": "에이전트 정의가 올바르지 않습니다",
+            "generic": "가져오지 못했습니다"
+          }
+        },
+        "result": {
+          "checking": "사용 가능 여부를 확인하는 중...",
+          "readinessUnavailable": "사용 가능 여부를 확인하지 못했습니다. 에이전트를 열어 직접 확인하세요.",
+          "allReady": "바로 사용할 수 있습니다",
+          "created": "신규",
+          "replaced": "교체됨",
+          "renamedFrom": "\"{name}\"에서 가져옴",
+          "previousVersionSaved": "이전 버전이 이 에이전트의 기록에 저장되었습니다",
+          "openAgent": "에이전트 열기",
+          "withheldTools": "비활성 상태로 보류됨(필요하면 직접 켜세요): {tools}",
+          "unresolvedSkills": "이 환경에 없는 스킬: {names}",
+          "unresolvedConnectors": "이 환경에 없는 MCP 서버: {names}",
+          "unresolvedSubagents": "패키지에 없는 서브 에이전트: {names}"
         }
       },
       "manager": {

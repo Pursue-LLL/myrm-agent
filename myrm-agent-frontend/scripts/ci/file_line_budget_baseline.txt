@@ -91,7 +91,6 @@ src/components/features/message-input-actions/ActiveWorkingMemoryPanel.tsx
 src/components/features/message-input-actions/AgentIndicator.tsx
 src/components/features/message-input-actions/GoalModeToggle.tsx
 src/components/features/onboarding/LocalCapabilitiesSetup.tsx
-src/components/features/plugins/PluginImportDialog.tsx
 src/components/features/runs/RunsHub.tsx
 src/components/features/settings/ConfigImportExport.tsx
 src/components/features/settings/SearchServiceEditDialog.tsx

@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Download, AlertTriangle, CheckCircle2, Loader2, FileCode2 } from 'lucide-react';
+import { Download, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,15 +12,14 @@ import {
   DialogTitle,
 } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
-import { ScrollArea } from '@/components/primitives/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/alert';
 import { previewSkillPackage, downloadSkill, SKILL_CHANGED_SINCE_PREVIEW } from '@/services/skill';
 import { triggerDownload } from '@/lib/utils/fileUtils';
 import type { PackagePreviewResponse } from '@/services/skill';
 import type { Skill } from '@/store/skill/types';
 import { toast } from '@/hooks/shared/useToast';
-
-import { Checkbox } from '@/components/primitives/checkbox';
+import RedactionReview from '@/components/features/redaction/RedactionReview';
+import { useRedactionDecisions } from '@/components/features/redaction/useRedactionDecisions';
 
 interface SkillExportDialogProps {
   skill: Skill | null;
@@ -33,8 +32,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [preview, setPreview] = useState<PackagePreviewResponse | null>(null);
-
-  const [ignoredRedactions, setIgnoredRedactions] = useState<Record<string, number[]>>({});
+  const { ignored, reset, toggle, toggleAll } = useRedactionDecisions();
 
   const loadPreview = useCallback(() => {
     if (!skill) {
@@ -42,7 +40,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
     }
     setIsLoading(true);
     setPreview(null);
-    setIgnoredRedactions({});
+    reset();
     previewSkillPackage(skill.id)
       .then((res) => {
         setPreview(res);
@@ -58,7 +56,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
       .finally(() => {
         setIsLoading(false);
       });
-  }, [skill, onOpenChange, t]);
+  }, [skill, onOpenChange, t, reset]);
 
   useEffect(() => {
     if (open) {
@@ -76,7 +74,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
         const { blob, filename } = await downloadSkill(
           skill.id,
           applyRedactions,
-          ignoredRedactions,
+          ignored,
           'agent_plugin',
           preview?.review_digest,
         );
@@ -101,37 +99,17 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
         setIsExporting(false);
       }
     },
-    [skill, onOpenChange, t, ignoredRedactions, preview, loadPreview],
+    [skill, onOpenChange, t, ignored, preview, loadPreview],
   );
-
-  const toggleRedaction = useCallback((filename: string, index: number) => {
-    setIgnoredRedactions((prev) => {
-      const fileIgnored = prev[filename] || [];
-      if (fileIgnored.includes(index)) {
-        return { ...prev, [filename]: fileIgnored.filter((i) => i !== index) };
-      } else {
-        return { ...prev, [filename]: [...fileIgnored, index] };
-      }
-    });
-  }, []);
-
-  const toggleAllRedactions = useCallback((filename: string, totalCount: number, isAllChecked: boolean) => {
-    setIgnoredRedactions((prev) => {
-      if (isAllChecked) {
-        // If currently all checked (meaning none ignored), we want to uncheck all (ignore all)
-        return { ...prev, [filename]: Array.from({ length: totalCount }, (_, i) => i) };
-      } else {
-        // Otherwise, check all (ignore none)
-        return { ...prev, [filename]: [] };
-      }
-    });
-  }, []);
 
   if (!skill) {
     return null;
   }
 
-  const hasRedactions = preview?.redactions && Object.keys(preview.redactions).length > 0;
+  const findings = preview?.redactions ?? null;
+  const hasRedactions = findings !== null && Object.keys(findings).length > 0;
+  const evalCasesNote =
+    preview && preview.eval_cases_count > 0 ? ` ${t('evalCasesIncluded', { count: preview.eval_cases_count })}` : '';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,9 +133,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                   <AlertTitle className="text-green-800 dark:text-green-300">{t('safeTitle')}</AlertTitle>
                   <AlertDescription className="text-green-700 dark:text-green-400">
                     {t('safeDescription')}
-                    {preview.eval_cases_count > 0
-                      ? ` ${t('evalCasesIncluded', { count: preview.eval_cases_count })}`
-                      : ''}
+                    {evalCasesNote}
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -166,87 +142,13 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                   <AlertTitle>{t('warningTitle')}</AlertTitle>
                   <AlertDescription>
                     {t('warningDescription')}
-                    {preview.eval_cases_count > 0
-                      ? ` ${t('evalCasesIncluded', { count: preview.eval_cases_count })}`
-                      : ''}
+                    {evalCasesNote}
                   </AlertDescription>
                 </Alert>
               )}
 
               {hasRedactions && (
-                <div className="flex-1 flex flex-col min-h-0 border rounded-md">
-                  <div className="bg-muted px-3 py-2 text-sm font-medium border-b flex items-center gap-2">
-                    <FileCode2 className="h-4 w-4" />
-                    {t('diffPreview')}
-                  </div>
-                  <ScrollArea className="flex-1 p-0">
-                    {Object.entries(preview.redactions ?? {}).map(([filename, redactions]) => (
-                      <div key={filename} className="mb-4 last:mb-0">
-                        <div className="bg-muted/50 px-3 py-1.5 text-xs font-mono border-y first:border-t-0 flex items-center justify-between">
-                          <span>{filename}</span>
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`toggle-all-${filename}`}
-                              checked={(ignoredRedactions[filename] || []).length === 0}
-                              onCheckedChange={() =>
-                                toggleAllRedactions(
-                                  filename,
-                                  redactions.length,
-                                  (ignoredRedactions[filename] || []).length === 0,
-                                )
-                              }
-                              className="h-3 w-3"
-                            />
-                            <label
-                              htmlFor={`toggle-all-${filename}`}
-                              className="cursor-pointer select-none text-[10px] text-muted-foreground"
-                            >
-                              {t('toggleAll')}
-                            </label>
-                          </div>
-                        </div>
-                        <div className="p-3 space-y-3">
-                          {redactions.map((r, i) => {
-                            const isIgnored = (ignoredRedactions[filename] || []).includes(i);
-                            return (
-                              <div
-                                key={i}
-                                className={`text-xs font-mono border rounded overflow-hidden transition-opacity ${isIgnored ? 'opacity-60' : ''}`}
-                              >
-                                <div className="bg-muted/30 px-2 py-1 border-b text-[10px] text-muted-foreground flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox
-                                      id={`redact-${filename}-${i}`}
-                                      checked={!isIgnored}
-                                      onCheckedChange={() => toggleRedaction(filename, i)}
-                                      className="h-3 w-3"
-                                    />
-                                    <label htmlFor={`redact-${filename}-${i}`} className="cursor-pointer select-none">
-                                      Line {r.line_number}
-                                    </label>
-                                  </div>
-                                  <span className="text-amber-600 dark:text-amber-400">{r.reason}</span>
-                                </div>
-                                <div className="grid grid-cols-1 divide-y">
-                                  <div className="bg-red-500/10 text-red-700 dark:text-red-400 p-2 overflow-x-auto whitespace-pre">
-                                    <span className="select-none opacity-50 mr-2">-</span>
-                                    {r.original}
-                                  </div>
-                                  {!isIgnored && (
-                                    <div className="bg-green-500/10 text-green-700 dark:text-green-400 p-2 overflow-x-auto whitespace-pre">
-                                      <span className="select-none opacity-50 mr-2">+</span>
-                                      {r.redacted}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </ScrollArea>
-                </div>
+                <RedactionReview findings={findings} ignored={ignored} onToggle={toggle} onToggleAll={toggleAll} />
               )}
             </>
           ) : null}

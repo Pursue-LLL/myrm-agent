@@ -643,8 +643,8 @@
     "configured": "已配置",
     "configure": "配置",
     "save": "儲存",
-    "exportConfigAction": "匯出配置",
-    "exportConfigTitle": "匯出智慧體配置",
+    "exportConfigAction": "匯出智慧體",
+    "exportConfigTitle": "將此智慧體匯出為可分享的套件",
     "exportConfigSaveFirst": "請先儲存再匯出",
     "rollbackLastAutoConfig": "撤銷上一次配置更改",
     "rollbackLastAutoConfigTitle": "恢復上一次儲存前的 Agent 配置快照",
@@ -659,8 +659,6 @@
     "rollbackConfirmRestoring": "恢復中…",
     "snapshotSaveFailed": "配置備份失敗",
     "snapshotSaveFailedDesc": "變更已儲存，但未建立可撤銷快照，可能無法一鍵回滾。",
-    "exportSuccess": "智慧體配置已匯出",
-    "exportFailed": "智慧體配置匯出失敗",
     "timeMachine": {
       "title": "配置時光機",
       "description": "檢視歷史配置快照，隨時一鍵回滾到任意安全狀態。",
@@ -1604,7 +1602,78 @@
     "a2aTrustedPeersDesc": "選擇該智慧體執行多 Agent 協同與編排時允許呼叫的遠端 Peer",
     "addA2APeer": "授權節點",
     "noA2APeers": "未授權任何遠端節點（點擊新增進行授權）",
-    "manageA2APeersLink": "前往「整合設定」管理所有遠端節點名冊"
+    "manageA2APeersLink": "前往「整合設定」管理所有遠端節點名冊",
+    "importAction": "匯入",
+    "expertExport": {
+      "title": "匯出智慧體: {name}",
+      "description": "將此智慧體匯出為 Agent Plugins 套件（.zip）。下載前請確認包含哪些內容、哪些內容不會帶出。",
+      "scanning": "正在收集相依項並掃描敏感資訊...",
+      "previewFailed": "準備匯出失敗",
+      "exportSuccess": "智慧體套件匯出成功",
+      "exportFailed": "匯出智慧體失敗",
+      "changedSinceReview": "此智慧體在你檢視後已被修改，預覽已重新整理，請重新確認脫敏項目。",
+      "buildErrorTitle": "無法產生此套件",
+      "safeTitle": "可以安全匯出",
+      "safeDescription": "待分享的內容中未檢測到敏感資訊（API Keys、絕對路徑）。",
+      "warningTitle": "檢測到敏感資訊",
+      "warningDescription": "我們發現了潛在的敏感資訊。強烈建議匯出脫敏後的版本。",
+      "recommendedModel": "作者使用的模型：{model}（僅供接收方參考，不會被套用）",
+      "omittedOwner": "來自 {owner}",
+      "workspaceMore": "另有 {count} 個檔案",
+      "sections": {
+        "experts": "智慧體 ({count})",
+        "skills": "技能 ({count})",
+        "connectors": "MCP 伺服器 ({count})",
+        "workspace": "工作區範本 ({count})",
+        "omitted": "未隨套件帶出 ({count})"
+      },
+      "roles": {
+        "entry": "主智慧體",
+        "sub": "子智慧體"
+      },
+      "skill": {
+        "files": "{count} 個檔案",
+        "preset": "內建，依名稱引用",
+        "origin": "來源：{source}"
+      },
+      "connector": {
+        "secrets": "接收方需自行提供：{keys}",
+        "noSecrets": "無需密鑰"
+      },
+      "omittedKinds": {
+        "skill": "技能",
+        "skill_file": "技能檔案",
+        "connector": "MCP 伺服器",
+        "expert": "智慧體",
+        "workspace_file": "工作區檔案",
+        "setting": "設定"
+      },
+      "omitReason": {
+        "binary_file": "二進位內容無法檢查是否含密鑰",
+        "oversized_file": "檔案過大，無法檢視（超過 1 MB）",
+        "total_size_exceeded": "已達到套件大小上限",
+        "excluded_path": "隱藏檔案與建置產物不會被分享",
+        "skill_unavailable": "未安裝、無法讀取或內容不完整",
+        "connector_missing": "此裝置上未設定",
+        "local_path": "從本機路徑啟動程式",
+        "bundled_files": "依賴其他外掛套件內的檔案",
+        "contains_secret": "憑證直接寫在設定裡",
+        "unsupported_connector": "暫不支援分享此類 MCP 伺服器",
+        "built_in_expert": "內建智慧體不會被分享",
+        "expert_missing": "此子智慧體已不存在",
+        "cycle_edge": "此關聯會形成循環，指回上層智慧體",
+        "too_many_experts": "已達到套件內智慧體數量上限",
+        "sub_expert_workspace": "工作區範本只隨主智慧體帶出",
+        "may_carry_credentials": "已設定的服務可能含有憑證",
+        "above_default": "高於預設值的迴圈上限不會被分享"
+      },
+      "actions": {
+        "cancel": "取消",
+        "exportOriginal": "匯出原版 (不安全)",
+        "exportRedacted": "匯出脫敏版 (安全)",
+        "export": "匯出"
+      }
+    }
   },
   "common": {
     "keyValueEditor": {
@@ -1732,7 +1801,12 @@
     },
     "back": "返回",
     "noOptions": "沒有可用選項",
-    "providerDisabledWarning": "此供應商已停用"
+    "providerDisabledWarning": "此供應商已停用",
+    "redactionReview": {
+      "title": "脫敏預覽",
+      "toggleAll": "全選 / 全不選",
+      "line": "第 {number} 行"
+    }
   },
   "chat": {
     "specialtyRouting": {
@@ -9922,6 +9996,17 @@
       "mergeSource": "歸檔（來源）",
       "planBindings": "將遷移的繫結",
       "done": "完成"
+    },
+    "readiness": {
+      "dimensions": {
+        "model": "模型",
+        "mcp": "MCP 伺服器",
+        "skills": "技能",
+        "tools": "工具",
+        "search": "搜尋",
+        "deployment": "執行環境"
+      },
+      "fix": "去修復"
     }
   },
   "settingsTabs": {
@@ -16936,7 +17021,6 @@
         "safeDescription": "未在此技能中檢測到敏感資訊（API Keys、絕對路徑）。",
         "warningTitle": "檢測到敏感資訊",
         "warningDescription": "我們發現了潛在的敏感資訊。強烈建議匯出脫敏後的版本。",
-        "diffPreview": "脫敏預覽",
         "cancel": "取消",
         "exportOriginal": "匯出原版 (不安全)",
         "exportRedacted": "匯出脫敏版 (安全)",
@@ -16944,7 +17028,6 @@
         "previewFailed": "預覽技能失敗",
         "exportSuccess": "技能匯出成功",
         "exportFailed": "匯出技能失敗",
-        "toggleAll": "全選 / 全不選",
         "evalCasesIncluded": "包含 {count} 條回歸測試用例",
         "changedSinceReview": "此技能在你檢視後已被修改，預覽已重新整理，請重新確認脫敏項目。"
       },
@@ -19584,7 +19667,16 @@
           "skillsCount": "{count} 個技能",
           "toolsCount": "{count} 個工具",
           "subagentsCount": "{count} 個子代理",
-          "templateFiles": "{count} 個範本檔案"
+          "templateFiles": "{count} 個範本檔案",
+          "conflict": "已存在同名智慧體 — 可匯入為副本、覆蓋或略過",
+          "conflictBuiltIn": "內建智慧體佔用了此名稱，無法覆蓋 — 可匯入為副本或略過",
+          "withheldTools": "暫不啟用，需你自行開啟：{tools}",
+          "unresolvedSkills": "目前環境缺少的技能：{names}",
+          "unresolvedConnectors": "目前環境缺少的 MCP 伺服器：{names}",
+          "unresolvedSubagents": "套件內缺失的子智慧體：{names}",
+          "iterationsCapped": "迴圈上限已由 {requested} 下調為 {effective}",
+          "recommendedModel": "作者使用的模型：{model}（僅供參考，不會被套用）",
+          "ignoredDeclarations": "本應用程式未使用：{names}"
         },
         "serverType": {
           "local": "本機服務",
@@ -19598,7 +19690,10 @@
           "skip": "略過",
           "cancel": "取消",
           "confirm": "確認匯入",
-          "reselect": "重新上傳"
+          "reselect": "重新上傳",
+          "importCopy": "匯入為副本",
+          "importAnother": "繼續匯入",
+          "done": "完成"
         },
         "bind": {
           "label": "綁定至智慧代理",
@@ -19631,7 +19726,9 @@
           "trustDisclosureCloud": "運行在雲端沙箱模式。導入的外掛在專屬隔離卷沙箱內執行，可訪問沙箱檔案與憑證。",
           "trustRiskHint": "不受信任的擴展可能包含提示詞注入指令。請務必確保安裝包來自受信任來源。",
           "trustedCheckboxLabel": "我確認此外掛來自受信任來源，知曉其系統工具權限，並同意安裝",
-          "missingArtifact": "缺失構建產物：{file}，已自動略過，防止執行時崩潰"
+          "missingArtifact": "缺失構建產物：{file}，已自動略過，防止執行時崩潰",
+          "skillsNotSupported": "目前環境不支援自訂技能 — 已自動略過",
+          "stdioNotAllowed": "目前環境無法執行本機行程類 MCP 伺服器 — 已自動略過"
         },
         "capabilities": {
           "title": "沙箱能力層級",
@@ -19650,6 +19747,50 @@
           "escalationTitle": "偵測到權限躍遷與敏感提權風險",
           "escalationWarning": "此版本較先前版本申請了更高敏感度的系統權限：新增【{added}】。請仔細甄別外掛來源後再確認匯入。",
           "undeclaredWarning": "檢測到未聲明的敏感特權：該服務索取的系統權限超出了 plugin.json 中的聲明範圍。"
+        },
+        "skills": {
+          "installedVersion": "已安裝版本：{version}"
+        },
+        "deployment": {
+          "noLocalSkills": "目前環境不支援安裝自訂技能，外掛中的技能將被略過。",
+          "noLocalConnectors": "目前環境無法執行本機行程類 MCP 伺服器，這些伺服器將被略過。"
+        },
+        "failures": {
+          "title": "部分內容未能匯入",
+          "components": {
+            "skill": "技能",
+            "mcp": "MCP 伺服器",
+            "agent": "智慧體"
+          },
+          "codes": {
+            "skills_not_supported": "目前環境不允許自訂技能",
+            "oversized_content": "技能內容過大",
+            "security_issues": "技能未通過安全掃描",
+            "INVALID_SKILL_NAME": "技能名稱無效",
+            "LIFECYCLE_SCRIPT_BLOCKED": "技能包含安裝指令碼，已被攔截",
+            "SECURITY_SCORE_BELOW_THRESHOLD": "技能的安全評分過低",
+            "DOWNGRADE_BLOCKED": "已安裝該技能的更新版本",
+            "install_failed": "技能安裝失敗",
+            "enable_failed": "已安裝，但未能自動啟用，請在技能清單中手動啟用",
+            "stdio_not_allowed": "目前環境無法執行本機行程類 MCP 伺服器",
+            "persist_failed": "智慧體儲存失敗",
+            "invalid_agent": "智慧體定義無效",
+            "generic": "無法匯入"
+          }
+        },
+        "result": {
+          "checking": "正在檢查可用性...",
+          "readinessUnavailable": "暫時無法檢查可用性，請開啟智慧體自行確認。",
+          "allReady": "已可使用",
+          "created": "新建",
+          "replaced": "已覆蓋",
+          "renamedFrom": "匯入自「{name}」",
+          "previousVersionSaved": "原版本已儲存到此智慧體的歷史記錄",
+          "openAgent": "開啟智慧體",
+          "withheldTools": "暫不啟用，需你自行開啟：{tools}",
+          "unresolvedSkills": "目前環境缺少的技能：{names}",
+          "unresolvedConnectors": "目前環境缺少的 MCP 伺服器：{names}",
+          "unresolvedSubagents": "套件內缺失的子智慧體：{names}"
         }
       },
       "manager": {

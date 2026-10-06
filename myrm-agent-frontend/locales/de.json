@@ -619,8 +619,8 @@
     "configured": "konfiguriert",
     "configure": "Konfigurieren",
     "save": "Speichern",
-    "exportConfigAction": "Konfiguration exportieren",
-    "exportConfigTitle": "Agentenkonfiguration exportieren",
+    "exportConfigAction": "Agent exportieren",
+    "exportConfigTitle": "Diesen Agenten als teilbares Paket exportieren",
     "exportConfigSaveFirst": "Vor dem Export speichern",
     "rollbackLastAutoConfig": "Letzte Konfigurationsänderung rückgängig",
     "rollbackLastAutoConfigTitle": "Den vorherigen gespeicherten Agenten-Konfigurations-Snapshot wiederherstellen",
@@ -1274,8 +1274,6 @@
     "rollbackConfirmRestoring": "Restoring…",
     "snapshotSaveFailed": "Konfigurations-Backup fehlgeschlagen",
     "snapshotSaveFailedDesc": "Ihre Änderungen wurden gespeichert, aber kein Rollback-Snapshot erstellt. Rückgängig ist möglicherweise nicht verfügbar.",
-    "exportSuccess": "Agentenkonfiguration exportiert",
-    "exportFailed": "Agentenkonfiguration konnte nicht exportiert werden",
     "timeMachine": {
       "title": "Konfigurations-Zeitmaschine",
       "description": "Snapshot-Verlauf ansehen und jeden vorherigen sicheren Zustand wiederherstellen.",
@@ -1604,7 +1602,78 @@
     "a2aTrustedPeersDesc": "Wählen Sie Remote-Peers aus, die während der Multi-Agenten-Orchestrierung aufgerufen werden dürfen",
     "addA2APeer": "Knoten autorisieren",
     "noA2APeers": "Keine Remote-Knoten autorisiert (zum Hinzufügen klicken)",
-    "manageA2APeersLink": "Gehen Sie zu Integrationseinstellungen, um das Knotenverzeichnis zu verwalten"
+    "manageA2APeersLink": "Gehen Sie zu Integrationseinstellungen, um das Knotenverzeichnis zu verwalten",
+    "importAction": "Importieren",
+    "expertExport": {
+      "title": "Agent exportieren: {name}",
+      "description": "Diesen Agenten als Agent-Plugins-Paket (.zip) teilen. Prüfen Sie vor dem Download, was enthalten ist und was draußen bleibt.",
+      "scanning": "Abhängigkeiten werden gesammelt und nach vertraulichen Informationen durchsucht...",
+      "previewFailed": "Export konnte nicht vorbereitet werden",
+      "exportSuccess": "Agent-Paket erfolgreich exportiert",
+      "exportFailed": "Export des Agenten fehlgeschlagen",
+      "changedSinceReview": "Dieser Agent wurde nach Ihrer Prüfung geändert. Die Vorschau wurde aktualisiert - bitte prüfen Sie die Fundstellen erneut.",
+      "buildErrorTitle": "Dieses Paket kann nicht erstellt werden",
+      "safeTitle": "Sicher zu exportieren",
+      "safeDescription": "In den zu teilenden Inhalten wurden keine sensiblen Informationen (API-Schlüssel, absolute Pfade) gefunden.",
+      "warningTitle": "Sensible Informationen erkannt",
+      "warningDescription": "Wir haben potenziell sensible Informationen gefunden. Es wird dringend empfohlen, die geschwärzte Version zu exportieren.",
+      "recommendedModel": "Verfasst für {model} - nur als Hinweis für den Empfänger, wird nie angewendet",
+      "omittedOwner": "aus {owner}",
+      "workspaceMore": "+{count} weitere Datei(en)",
+      "sections": {
+        "experts": "Agenten ({count})",
+        "skills": "Fähigkeiten ({count})",
+        "connectors": "MCP-Server ({count})",
+        "workspace": "Workspace-Vorlagen ({count})",
+        "omitted": "Nicht im Paket enthalten ({count})"
+      },
+      "roles": {
+        "entry": "Hauptagent",
+        "sub": "Unteragent"
+      },
+      "skill": {
+        "files": "{count} Datei(en)",
+        "preset": "Integriert, per Name referenziert",
+        "origin": "Von {source}"
+      },
+      "connector": {
+        "secrets": "Der Empfänger stellt bereit: {keys}",
+        "noSecrets": "Keine Secrets nötig"
+      },
+      "omittedKinds": {
+        "skill": "Fähigkeit",
+        "skill_file": "Fähigkeitsdatei",
+        "connector": "MCP-Server",
+        "expert": "Agentenprofil",
+        "workspace_file": "Workspace-Datei",
+        "setting": "Einstellung"
+      },
+      "omitReason": {
+        "binary_file": "Binärinhalt kann nicht auf Secrets geprüft werden",
+        "oversized_file": "Zu groß für eine Prüfung (über 1 MB)",
+        "total_size_exceeded": "Das Paket hat sein Größenlimit erreicht",
+        "excluded_path": "Versteckte Dateien und Build-Ausgaben werden nie geteilt",
+        "skill_unavailable": "Nicht installiert, nicht lesbar oder unvollständig",
+        "connector_missing": "Auf dieser Installation nicht eingerichtet",
+        "local_path": "Startet ein Programm von einem Pfad auf diesem Computer",
+        "bundled_files": "Hängt von Dateien in einem anderen Plugin ab",
+        "contains_secret": "Zugangsdaten stehen direkt in der Konfiguration",
+        "unsupported_connector": "Dieser MCP-Server-Typ kann nicht geteilt werden",
+        "built_in_expert": "Integrierte Agenten werden nicht geteilt",
+        "expert_missing": "Dieser Unteragent existiert nicht mehr",
+        "cycle_edge": "Die Verknüpfung würde zu einem übergeordneten Agenten zurückführen",
+        "too_many_experts": "Das Paket hat sein Agenten-Limit erreicht",
+        "sub_expert_workspace": "Workspace-Vorlagen werden nur mit dem Hauptagenten geliefert",
+        "may_carry_credentials": "Eingerichtete Dienste könnten Zugangsdaten enthalten",
+        "above_default": "Ein Schleifenlimit über dem Standard wird nie geteilt"
+      },
+      "actions": {
+        "cancel": "Abbrechen",
+        "exportOriginal": "Original exportieren (unsicher)",
+        "exportRedacted": "Geschwärzt exportieren (sicher)",
+        "export": "Exportieren"
+      }
+    }
   },
   "common": {
     "keyValueEditor": {
@@ -1732,7 +1801,12 @@
     "back": "Zurück",
     "noOptions": "Keine Optionen verfügbar",
     "providerDisabledWarning": "Dieser Anbieter ist deaktiviert",
-    "forkBranch": "Zweig abzweigen"
+    "forkBranch": "Zweig abzweigen",
+    "redactionReview": {
+      "title": "Schwärzungsvorschau",
+      "toggleAll": "Alle umschalten",
+      "line": "Zeile {number}"
+    }
   },
   "chat": {
     "specialtyRouting": {
@@ -9922,6 +9996,17 @@
       "mergeSource": "Archivieren (Quelle)",
       "planBindings": "Bindungen im Umzug",
       "done": "Fertig"
+    },
+    "readiness": {
+      "dimensions": {
+        "model": "Modell",
+        "mcp": "MCP-Server",
+        "skills": "Fähigkeiten",
+        "tools": "Werkzeuge",
+        "search": "Suche",
+        "deployment": "Umgebung"
+      },
+      "fix": "Beheben"
     }
   },
   "settingsTabs": {
@@ -16936,7 +17021,6 @@
         "safeDescription": "Keine sensiblen Informationen (API-Schlüssel, absolute Pfade) in dieser Fähigkeit erkannt.",
         "warningTitle": "Sensible Informationen erkannt",
         "warningDescription": "Wir haben potenziell sensible Informationen gefunden. Es wird dringend empfohlen, die geschwärzte Version zu exportieren.",
-        "diffPreview": "Schwärzungsvorschau",
         "cancel": "Abbrechen",
         "exportOriginal": "Original exportieren (unsicher)",
         "exportRedacted": "Geschwärzt exportieren (sicher)",
@@ -16944,7 +17028,6 @@
         "previewFailed": "Vorschau der Fähigkeit fehlgeschlagen",
         "exportSuccess": "Fähigkeit erfolgreich exportiert",
         "exportFailed": "Export der Fähigkeit fehlgeschlagen",
-        "toggleAll": "Alle umschalten",
         "evalCasesIncluded": "{count} Regressionstestfälle enthalten",
         "changedSinceReview": "Diese Fähigkeit wurde nach Ihrer Prüfung geändert. Die Vorschau wurde aktualisiert - bitte prüfen Sie die Fundstellen erneut."
       },
@@ -19584,7 +19667,16 @@
           "skillsCount": "{count} Fähigkeiten",
           "toolsCount": "{count} Werkzeuge",
           "subagentsCount": "{count} Subagenten",
-          "templateFiles": "{count} Vorlagendateien"
+          "templateFiles": "{count} Vorlagendateien",
+          "conflict": "Ein Agent mit diesem Namen existiert bereits - als Kopie importieren, ersetzen oder überspringen",
+          "conflictBuiltIn": "Ein integrierter Agent trägt diesen Namen und kann nicht ersetzt werden - als Kopie importieren oder überspringen",
+          "withheldTools": "Zurückgehalten, zum selbst Aktivieren: {tools}",
+          "unresolvedSkills": "Hier nicht verfügbare Fähigkeiten: {names}",
+          "unresolvedConnectors": "Hier nicht verfügbare MCP-Server: {names}",
+          "unresolvedSubagents": "Im Paket fehlende Unteragenten: {names}",
+          "iterationsCapped": "Schleifenlimit von {requested} auf {effective} gesenkt",
+          "recommendedModel": "Verfasst für {model} - nur Hinweis, wird nicht angewendet",
+          "ignoredDeclarations": "Von dieser App nicht verwendet: {names}"
         },
         "actions": {
           "selectAll": "Alle installieren",
@@ -19594,7 +19686,10 @@
           "skip": "Überspringen",
           "cancel": "Abbrechen",
           "confirm": "Import bestätigen",
-          "reselect": "Erneut auswählen"
+          "reselect": "Erneut auswählen",
+          "importCopy": "Als Kopie importieren",
+          "importAnother": "Weiteres importieren",
+          "done": "Fertig"
         },
         "bind": {
           "label": "Agent zuweisen",
@@ -19631,7 +19726,9 @@
           "trustDisclosureLocal": "Wird im lokalen/Desktop-Modus ausgeführt. Importierte Plugins werden mit den Rechten Ihres Betriebssystems ausgeführt.",
           "trustDisclosureCloud": "Wird im Cloud-Sandbox-Modus ausgeführt. Importierte Plugins werden in Ihrer dedizierten isolierten Volume-Sandbox ausgeführt.",
           "trustRiskHint": "Nicht vertrauenswürdige Erweiterungen können Prompt-Injections enthalten. Stellen Sie sicher, dass Pakete aus vertrauenswürdigen Quellen stammen.",
-          "trustedCheckboxLabel": "Ich bestätige, dass dieses Plugin aus einer vertrauenswürdigen Quelle stammt, akzeptiere die Systemwerkzeugberechtigungen und stimme der Installation zu"
+          "trustedCheckboxLabel": "Ich bestätige, dass dieses Plugin aus einer vertrauenswürdigen Quelle stammt, akzeptiere die Systemwerkzeugberechtigungen und stimme der Installation zu",
+          "skillsNotSupported": "Diese Umgebung erlaubt keine eigenen Fähigkeiten - automatisch übersprungen",
+          "stdioNotAllowed": "Lokale MCP-Server-Prozesse können in dieser Umgebung nicht laufen - automatisch übersprungen"
         },
         "capabilities": {
           "undeclaredWarning": "Nicht deklarierte Berechtigung erkannt: Dieser Dienst erfordert Berechtigungen, die über die in plugin.json deklarierten hinausgehen.",
@@ -19650,6 +19747,50 @@
           },
           "escalationTitle": "Privilegienerhöhung erkannt",
           "escalationWarning": "Diese Version fordert im Vergleich zur vorherigen Installation erweiterte Rechte an: neu hinzugefügt [{added}]. Bitte prüfen Sie die Quelle vor der Bestätigung."
+        },
+        "skills": {
+          "installedVersion": "Installierte Version: {version}"
+        },
+        "deployment": {
+          "noLocalSkills": "In dieser Umgebung können keine eigenen Fähigkeiten installiert werden, daher werden die Fähigkeiten des Plugins übersprungen.",
+          "noLocalConnectors": "Lokale MCP-Server-Prozesse können in dieser Umgebung nicht laufen und werden daher übersprungen."
+        },
+        "failures": {
+          "title": "Einige Komponenten wurden nicht importiert",
+          "components": {
+            "skill": "Fähigkeit",
+            "mcp": "MCP-Server",
+            "agent": "Agentenprofil"
+          },
+          "codes": {
+            "skills_not_supported": "Eigene Fähigkeiten sind in dieser Umgebung nicht erlaubt",
+            "oversized_content": "Der Inhalt der Fähigkeit ist zu groß",
+            "security_issues": "Die Fähigkeit hat den Sicherheitsscan nicht bestanden",
+            "INVALID_SKILL_NAME": "Der Name der Fähigkeit ist ungültig",
+            "LIFECYCLE_SCRIPT_BLOCKED": "Die Fähigkeit enthält Installationsskripte und wurde blockiert",
+            "SECURITY_SCORE_BELOW_THRESHOLD": "Der Sicherheitswert der Fähigkeit ist zu niedrig",
+            "DOWNGRADE_BLOCKED": "Eine neuere Version dieser Fähigkeit ist bereits installiert",
+            "install_failed": "Die Fähigkeit konnte nicht installiert werden",
+            "enable_failed": "Installiert, aber nicht automatisch aktiviert - aktivieren Sie sie in der Fähigkeitenliste",
+            "stdio_not_allowed": "Lokale MCP-Server-Prozesse können in dieser Umgebung nicht laufen",
+            "persist_failed": "Der Agent konnte nicht gespeichert werden",
+            "invalid_agent": "Die Agentendefinition ist ungültig",
+            "generic": "Konnte nicht importiert werden"
+          }
+        },
+        "result": {
+          "checking": "Bereitschaft wird geprüft...",
+          "readinessUnavailable": "Die Bereitschaft konnte nicht geprüft werden - öffnen Sie den Agenten zur Kontrolle.",
+          "allReady": "Einsatzbereit",
+          "created": "Neu",
+          "replaced": "Ersetzt",
+          "renamedFrom": "Importiert aus „{name}“",
+          "previousVersionSaved": "Die vorherige Version wurde im Verlauf dieses Agenten gespeichert",
+          "openAgent": "Agent öffnen",
+          "withheldTools": "Zurückgehalten, zum selbst Aktivieren: {tools}",
+          "unresolvedSkills": "Hier nicht verfügbare Fähigkeiten: {names}",
+          "unresolvedConnectors": "Hier nicht verfügbare MCP-Server: {names}",
+          "unresolvedSubagents": "Im Paket fehlende Unteragenten: {names}"
         }
       },
       "manager": {

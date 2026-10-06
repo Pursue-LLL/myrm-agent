@@ -34,15 +34,13 @@ import {
 import { Input } from '@/components/primitives/input';
 import useAuthStore from '@/store/useAuthStore';
 import { toast } from '@/hooks/shared/useToast';
-import { AgentListItem, listAgents, deleteAgent, importAgent, AGENT_LIST_BUILTIN_PAGE_SIZE } from '@/services/agent';
+import { AgentListItem, listAgents, deleteAgent, AGENT_LIST_BUILTIN_PAGE_SIZE } from '@/services/agent';
 import SettingsSection from '../SettingsSection';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import AgentEditPanel from './AgentEditPanel';
 import { isLocalMode } from '@/lib/deploy-mode';
-import useSkillStore from '@/store/skill/useSkillStore';
-import useConfigStore from '@/store/useConfigStore';
-import { validateAgentDependencies } from '@/lib/utils/agent-config';
 import CloneAgentDialog from './CloneAgentDialog';
+import PluginImportDialog from '@/components/features/plugins/PluginImportDialog';
 import { activateOnKey } from '@/lib/utils/a11y';
 
 // 预设头像颜色方案
@@ -85,10 +83,7 @@ export default function AgentsSection() {
   const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
   const [agentToClone, setAgentToClone] = useState<AgentListItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const { marketSkills, localSkills } = useSkillStore();
-  const { mcpConfigs } = useConfigStore();
-  const skills = useMemo(() => [...marketSkills, ...localSkills], [marketSkills, localSkills]);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   // 过滤后的智能体列表
   const filteredAgents = useMemo(() => {
@@ -122,7 +117,7 @@ export default function AgentsSection() {
     } finally {
       setLoading(false);
     }
-  }, [user, t]);
+  }, [isLocal, user, t]);
 
   useEffect(() => {
     if (isInitialized && !agentId && !isNewAgent) {
@@ -135,60 +130,6 @@ export default function AgentsSection() {
     // 使用 new=true 参数表示这是新建智能体
     router.push('/settings/agents?new=true');
   }, [router]);
-
-  // 处理导入智能体
-  const handleImportAgent = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) {
-        return;
-      }
-
-      try {
-        const text = await file.text();
-        const agentData = JSON.parse(text);
-
-        // 调用导入 API
-        const importedAgent = await importAgent(agentData);
-
-        // 检查依赖缺失
-        const validation = validateAgentDependencies(importedAgent, skills, mcpConfigs);
-
-        if (!validation.isValid) {
-          const missingParts = [];
-          if (validation.missingSkills.length > 0) {
-            missingParts.push(`${validation.missingSkills.length} 个技能`);
-          }
-          if (validation.missingMcps.length > 0) {
-            missingParts.push(`${validation.missingMcps.length} 个 MCP 服务`);
-          }
-
-          toast({
-            title: '导入成功，但存在依赖缺失',
-            description: `已成功导入智能体，但当前系统缺少该智能体依赖的 ${missingParts.join('和')}。请在编辑页面检查并重新配置。`,
-            variant: 'default',
-            duration: 8000,
-          });
-        } else {
-          toast({ title: '导入成功', description: `已成功导入智能体配置` });
-        }
-
-        // 重新加载列表
-        loadAgentList();
-      } catch (e) {
-        console.error('Import failed:', e);
-        toast({
-          title: '导入失败',
-          description: e instanceof Error ? e.message : '文件格式不正确或配置无效',
-          variant: 'destructive',
-        });
-      } finally {
-        // 清空 input，允许重复选择同一个文件
-        event.target.value = '';
-      }
-    },
-    [loadAgentList, skills, mcpConfigs],
-  );
 
   // 处理删除智能体
   const handleDeleteAgent = useCallback(async () => {
@@ -282,15 +223,10 @@ export default function AgentsSection() {
             </div>
           )}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <label>
-              <input type="file" accept=".json,.agent.json" className="hidden" onChange={handleImportAgent} />
-              <Button variant="outline" className="gap-2 cursor-pointer" asChild>
-                <span>
-                  <IconUpload className="w-[18px] h-[18px]" />
-                  <span className="hidden sm:inline">导入</span>
-                </span>
-              </Button>
-            </label>
+            <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
+              <IconUpload className="w-[18px] h-[18px]" />
+              <span className="hidden sm:inline">{t('agent.importAction')}</span>
+            </Button>
             <Button onClick={handleCreateAgent} className="gap-2">
               <IconPlus className="w-[18px] h-[18px]" />
               <span className="hidden sm:inline">{t('agent.create')}</span>
@@ -518,6 +454,7 @@ export default function AgentsSection() {
         agentName={agentToClone ? getBuiltinAgentName(agentToClone.id, agentToClone.name, locale) : null}
         onCloned={(cloned) => router.push(`/settings/agents?agentId=${cloned.id}`)}
       />
+      <PluginImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} onImportComplete={loadAgentList} />
     </SettingsSection>
   );
 }

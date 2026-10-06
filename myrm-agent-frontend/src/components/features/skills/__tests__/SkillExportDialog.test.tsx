@@ -20,8 +20,6 @@ const TRANSLATIONS: Record<string, string> = {
   warningTitle: 'warningTitle',
   warningDescription: 'warningDescription',
   evalCasesIncluded: '({count} eval cases)',
-  diffPreview: 'diffPreview',
-  toggleAll: 'toggleAll',
   cancel: 'cancel',
   exportOriginal: 'exportOriginal',
   exportRedacted: 'exportRedacted',
@@ -194,9 +192,7 @@ describe('SkillExportDialog', () => {
       eval_cases_count: 0,
       review_digest: 'digest-1',
     });
-    downloadSkillMock.mockRejectedValue(
-      Object.assign(new Error('changed'), { code: 'skill_changed_since_preview' }),
-    );
+    downloadSkillMock.mockRejectedValue(Object.assign(new Error('changed'), { code: 'skill_changed_since_preview' }));
 
     render(<SkillExportDialog skill={makeSkill()} open={true} onOpenChange={vi.fn()} />);
 

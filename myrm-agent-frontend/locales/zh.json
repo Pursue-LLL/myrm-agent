@@ -4283,7 +4283,6 @@
         "safeDescription": "未在此技能中检测到敏感信息（API Keys、绝对路径）。",
         "warningTitle": "检测到敏感信息",
         "warningDescription": "我们发现了潜在的敏感信息。强烈建议导出脱敏后的版本。",
-        "diffPreview": "脱敏预览",
         "cancel": "取消",
         "exportOriginal": "导出原版 (不安全)",
         "exportRedacted": "导出脱敏版 (安全)",
@@ -4291,7 +4290,6 @@
         "previewFailed": "预览技能失败",
         "exportSuccess": "技能导出成功",
         "exportFailed": "导出技能失败",
-        "toggleAll": "全选 / 全不选",
         "evalCasesIncluded": "包含 {count} 条回归测试用例",
         "changedSinceReview": "该技能在你审阅后已被修改，预览已刷新，请重新确认脱敏项。"
       },
@@ -6931,7 +6929,16 @@
           "skillsCount": "{count} 个技能",
           "toolsCount": "{count} 个工具",
           "subagentsCount": "{count} 个子代理",
-          "templateFiles": "{count} 个模板文件"
+          "templateFiles": "{count} 个模板文件",
+          "conflict": "已存在同名智能体 — 可导入为副本、覆盖或跳过",
+          "conflictBuiltIn": "内置智能体占用了该名称，无法覆盖 — 可导入为副本或跳过",
+          "withheldTools": "暂不启用，需你自行开启：{tools}",
+          "unresolvedSkills": "当前环境缺少的技能：{names}",
+          "unresolvedConnectors": "当前环境缺少的 MCP 服务器：{names}",
+          "unresolvedSubagents": "包内缺失的子智能体：{names}",
+          "iterationsCapped": "循环上限已由 {requested} 下调为 {effective}",
+          "recommendedModel": "作者使用的模型：{model}（仅供参考，不会被应用）",
+          "ignoredDeclarations": "本应用未使用：{names}"
         },
         "serverType": {
           "local": "本地服务",
@@ -6945,7 +6952,10 @@
           "skip": "跳过",
           "cancel": "取消",
           "confirm": "确认导入",
-          "reselect": "重新上传"
+          "reselect": "重新上传",
+          "importCopy": "导入为副本",
+          "importAnother": "继续导入",
+          "done": "完成"
         },
         "bind": {
           "label": "绑定到智能体",
@@ -6966,7 +6976,9 @@
           "trustDisclosureLocal": "当前为本地单机/桌面端运行模式。导入的第三方插件在执行时拥有当前操作系统的用户权限，可调用 Shell 与读写工作区文件。",
           "trustDisclosureCloud": "当前为云托管沙箱运行模式。导入的第三方插件将在为您分配的独立隔离 Volume 沙箱中执行，但仍可访问沙箱内工作区与配置凭据。",
           "trustRiskHint": "不可信的恶意扩展可能包含提示注入指令，诱导智能体在后台越权调用工具窃取敏感配置或执行恶意脚本。请务必确认包文件来源安全可信。",
-          "trustedCheckboxLabel": "我确认该插件来自可信来源，已知悉其拥有工具调用与系统权限，并同意安装"
+          "trustedCheckboxLabel": "我确认该插件来自可信来源，已知悉其拥有工具调用与系统权限，并同意安装",
+          "skillsNotSupported": "当前环境不支持自定义技能 — 已自动跳过",
+          "stdioNotAllowed": "当前环境无法运行本地进程类 MCP 服务器 — 已自动跳过"
         },
         "capabilities": {
           "title": "沙箱能力层级",
@@ -6997,6 +7009,50 @@
           "description": "已导入 {agents} 个智能体、{skills} 个技能、{servers} 个 MCP 服务器",
           "requiredKeys": "导入后请在「智能体密钥」中配置：{keys}",
           "disabledHint": "导入的 MCP 服务器默认停用，请在 MCP 设置中启用后再使用"
+        },
+        "skills": {
+          "installedVersion": "已安装版本：{version}"
+        },
+        "deployment": {
+          "noLocalSkills": "当前环境不支持安装自定义技能，插件中的技能将被跳过。",
+          "noLocalConnectors": "当前环境无法运行本地进程类 MCP 服务器，这些服务器将被跳过。"
+        },
+        "failures": {
+          "title": "部分内容未能导入",
+          "components": {
+            "skill": "技能",
+            "mcp": "MCP 服务器",
+            "agent": "智能体"
+          },
+          "codes": {
+            "skills_not_supported": "当前环境不允许自定义技能",
+            "oversized_content": "技能内容过大",
+            "security_issues": "技能未通过安全扫描",
+            "INVALID_SKILL_NAME": "技能名称无效",
+            "LIFECYCLE_SCRIPT_BLOCKED": "技能包含安装脚本，已被拦截",
+            "SECURITY_SCORE_BELOW_THRESHOLD": "技能的安全评分过低",
+            "DOWNGRADE_BLOCKED": "已安装该技能的更新版本",
+            "install_failed": "技能安装失败",
+            "enable_failed": "已安装，但未能自动启用，请在技能列表中手动启用",
+            "stdio_not_allowed": "当前环境无法运行本地进程类 MCP 服务器",
+            "persist_failed": "智能体保存失败",
+            "invalid_agent": "智能体定义无效",
+            "generic": "无法导入"
+          }
+        },
+        "result": {
+          "checking": "正在检查可用性...",
+          "readinessUnavailable": "暂时无法检查可用性，请打开智能体自行确认。",
+          "allReady": "已可使用",
+          "created": "新建",
+          "replaced": "已覆盖",
+          "renamedFrom": "导入自“{name}”",
+          "previousVersionSaved": "原版本已保存到该智能体的历史记录",
+          "openAgent": "打开智能体",
+          "withheldTools": "暂不启用，需你自行开启：{tools}",
+          "unresolvedSkills": "当前环境缺少的技能：{names}",
+          "unresolvedConnectors": "当前环境缺少的 MCP 服务器：{names}",
+          "unresolvedSubagents": "包内缺失的子智能体：{names}"
         }
       },
       "manager": {
@@ -7757,8 +7813,8 @@
     "configured": "已配置",
     "configure": "配置",
     "save": "保存",
-    "exportConfigAction": "导出配置",
-    "exportConfigTitle": "导出智能体配置",
+    "exportConfigAction": "导出智能体",
+    "exportConfigTitle": "将该智能体导出为可分享的包",
     "exportConfigSaveFirst": "请先保存再导出",
     "rollbackLastAutoConfig": "撤销上一次配置更改",
     "rollbackLastAutoConfigTitle": "恢复上一次保存前的 Agent 配置快照",
@@ -7773,8 +7829,6 @@
     "rollbackConfirmRestoring": "恢复中…",
     "snapshotSaveFailed": "配置备份失败",
     "snapshotSaveFailedDesc": "变更已保存，但未创建可撤销快照，可能无法一键回滚。",
-    "exportSuccess": "智能体配置已导出",
-    "exportFailed": "智能体配置导出失败",
     "timeMachine": {
       "title": "配置时光机",
       "description": "查看历史配置快照，随时一键回滚到任意安全状态。",
@@ -8718,6 +8772,77 @@
       "clear": "清空",
       "pasteError": "读取剪贴板失败，请检查授权",
       "clipboardEmpty": "剪贴板内容为空"
+    },
+    "importAction": "导入",
+    "expertExport": {
+      "title": "导出智能体: {name}",
+      "description": "将该智能体导出为 Agent Plugins 包（.zip）。下载前请确认包含了什么、哪些内容不会带出。",
+      "scanning": "正在收集依赖并扫描敏感信息...",
+      "previewFailed": "准备导出失败",
+      "exportSuccess": "智能体包导出成功",
+      "exportFailed": "导出智能体失败",
+      "changedSinceReview": "该智能体在你审阅后已被修改，预览已刷新，请重新确认脱敏项。",
+      "buildErrorTitle": "该包无法生成",
+      "safeTitle": "可以安全导出",
+      "safeDescription": "待分享的内容中未检测到敏感信息（API Keys、绝对路径）。",
+      "warningTitle": "检测到敏感信息",
+      "warningDescription": "我们发现了潜在的敏感信息。强烈建议导出脱敏后的版本。",
+      "recommendedModel": "作者使用的模型：{model}（仅供接收方参考，不会被应用）",
+      "omittedOwner": "来自 {owner}",
+      "workspaceMore": "另有 {count} 个文件",
+      "sections": {
+        "experts": "智能体 ({count})",
+        "skills": "技能 ({count})",
+        "connectors": "MCP 服务器 ({count})",
+        "workspace": "工作区模板 ({count})",
+        "omitted": "未随包带出 ({count})"
+      },
+      "roles": {
+        "entry": "主智能体",
+        "sub": "子智能体"
+      },
+      "skill": {
+        "files": "{count} 个文件",
+        "preset": "内置，按名称引用",
+        "origin": "来源：{source}"
+      },
+      "connector": {
+        "secrets": "接收方需自行提供：{keys}",
+        "noSecrets": "无需密钥"
+      },
+      "omittedKinds": {
+        "skill": "技能",
+        "skill_file": "技能文件",
+        "connector": "MCP 服务器",
+        "expert": "智能体",
+        "workspace_file": "工作区文件",
+        "setting": "设置"
+      },
+      "omitReason": {
+        "binary_file": "二进制内容无法检查是否含密钥",
+        "oversized_file": "文件过大，无法审阅（超过 1 MB）",
+        "total_size_exceeded": "已达到包体大小上限",
+        "excluded_path": "隐藏文件与构建产物不会被分享",
+        "skill_unavailable": "未安装、无法读取或内容不完整",
+        "connector_missing": "此设备上未配置",
+        "local_path": "从本机路径启动程序",
+        "bundled_files": "依赖其他插件包内的文件",
+        "contains_secret": "凭据直接写在了配置里",
+        "unsupported_connector": "暂不支持分享此类 MCP 服务器",
+        "built_in_expert": "内置智能体不会被分享",
+        "expert_missing": "该子智能体已不存在",
+        "cycle_edge": "该关联会形成循环，指回上级智能体",
+        "too_many_experts": "已达到包内智能体数量上限",
+        "sub_expert_workspace": "工作区模板只随主智能体带出",
+        "may_carry_credentials": "已配置的服务可能含有凭据",
+        "above_default": "高于默认值的循环上限不会被分享"
+      },
+      "actions": {
+        "cancel": "取消",
+        "exportOriginal": "导出原版 (不安全)",
+        "exportRedacted": "导出脱敏版 (安全)",
+        "export": "导出"
+      }
     }
   },
   "common": {
@@ -8846,7 +8971,12 @@
     },
     "back": "返回",
     "noOptions": "没有可用选项",
-    "providerDisabledWarning": "此服务商已被禁用"
+    "providerDisabledWarning": "此服务商已被禁用",
+    "redactionReview": {
+      "title": "脱敏预览",
+      "toggleAll": "全选 / 全不选",
+      "line": "第 {number} 行"
+    }
   },
   "chat": {
     "specialtyRouting": {
@@ -17036,6 +17166,17 @@
       "mergeSource": "归档（来源）",
       "planBindings": "将迁移的绑定",
       "done": "完成"
+    },
+    "readiness": {
+      "dimensions": {
+        "model": "模型",
+        "mcp": "MCP 服务器",
+        "skills": "技能",
+        "tools": "工具",
+        "search": "搜索",
+        "deployment": "运行环境"
+      },
+      "fix": "去修复"
     }
   },
   "settingsTabs": {

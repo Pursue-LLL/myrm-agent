@@ -650,8 +650,8 @@
     "configured": "設定済み",
     "configure": "設定",
     "save": "保存",
-    "exportConfigAction": "設定をエクスポート",
-    "exportConfigTitle": "エージェント設定をエクスポート",
+    "exportConfigAction": "エージェントをエクスポート",
+    "exportConfigTitle": "このエージェントを共有用パッケージとしてエクスポート",
     "exportConfigSaveFirst": "保存してからエクスポートしてください",
     "rollbackLastAutoConfig": "前回の設定変更を元に戻す",
     "rollbackLastAutoConfigTitle": "直前の保存済みエージェント設定スナップショットを復元",
@@ -666,8 +666,6 @@
     "rollbackConfirmRestoring": "復元中…",
     "snapshotSaveFailed": "設定バックアップに失敗",
     "snapshotSaveFailedDesc": "変更は保存されましたが、ロールバック用のスナップショットが作成されませんでした。元に戻せない可能性があります。",
-    "exportSuccess": "エージェント設定をエクスポートしました",
-    "exportFailed": "エージェント設定のエクスポートに失敗しました",
     "timeMachine": {
       "title": "設定のタイムマシン",
       "description": "設定スナップショットの履歴を表示し、任意の安全な状態へワンクリックでロールバックできます。",
@@ -1604,7 +1602,78 @@
     "a2aTrustedPeersDesc": "マルチエージェント協調時に呼び出しを許可するリモートピアを選択します",
     "addA2APeer": "ノードを承認",
     "noA2APeers": "承認されたリモートノードはありません（クリックして追加）",
-    "manageA2APeersLink": "「統合設定」に移動してリモートノード名簿を管理"
+    "manageA2APeersLink": "「統合設定」に移動してリモートノード名簿を管理",
+    "importAction": "インポート",
+    "expertExport": {
+      "title": "エージェントをエクスポート: {name}",
+      "description": "このエージェントを Agent Plugins パッケージ (.zip) としてエクスポートします。ダウンロード前に、含まれる内容と含まれない内容を確認してください。",
+      "scanning": "依存関係を収集し、機密情報をスキャン中...",
+      "previewFailed": "エクスポートの準備に失敗しました",
+      "exportSuccess": "エージェントパッケージをエクスポートしました",
+      "exportFailed": "エージェントのエクスポートに失敗しました",
+      "changedSinceReview": "確認後にこのエージェントが変更されました。プレビューを更新したので、検出項目をもう一度確認してください。",
+      "buildErrorTitle": "このパッケージは作成できません",
+      "safeTitle": "安全にエクスポートできます",
+      "safeDescription": "共有される内容から機密情報（API キー、絶対パス）は検出されませんでした。",
+      "warningTitle": "機密情報が検出されました",
+      "warningDescription": "潜在的に機密の情報が見つかりました。マスキング済みバージョンをエクスポートすることを強く推奨します。",
+      "recommendedModel": "作者が使用したモデル: {model}（受信者への参考情報で、適用はされません）",
+      "omittedOwner": "{owner} より",
+      "workspaceMore": "ほか {count} 件のファイル",
+      "sections": {
+        "experts": "エージェント ({count})",
+        "skills": "スキル ({count})",
+        "connectors": "MCP サーバー ({count})",
+        "workspace": "ワークスペースのテンプレート ({count})",
+        "omitted": "パッケージに含まれないもの ({count})"
+      },
+      "roles": {
+        "entry": "メインエージェント",
+        "sub": "サブエージェント"
+      },
+      "skill": {
+        "files": "{count} 個のファイル",
+        "preset": "組み込み・名前で参照",
+        "origin": "提供元: {source}"
+      },
+      "connector": {
+        "secrets": "受信者が用意するもの: {keys}",
+        "noSecrets": "シークレット不要"
+      },
+      "omittedKinds": {
+        "skill": "スキル",
+        "skill_file": "スキルのファイル",
+        "connector": "MCP サーバー",
+        "expert": "エージェント",
+        "workspace_file": "ワークスペースのファイル",
+        "setting": "設定"
+      },
+      "omitReason": {
+        "binary_file": "バイナリは機密情報を確認できません",
+        "oversized_file": "ファイルが大きすぎて確認できません（1 MB 超）",
+        "total_size_exceeded": "パッケージのサイズ上限に達しました",
+        "excluded_path": "隠しファイルとビルド成果物は共有されません",
+        "skill_unavailable": "未インストール、読み取り不可、または内容が不完全です",
+        "connector_missing": "この環境では設定されていません",
+        "local_path": "このコンピューター上のパスからプログラムを起動します",
+        "bundled_files": "別のプラグインに含まれるファイルに依存しています",
+        "contains_secret": "認証情報が設定内に直接書かれています",
+        "unsupported_connector": "この種類の MCP サーバーは共有できません",
+        "built_in_expert": "組み込みエージェントは共有されません",
+        "expert_missing": "このサブエージェントは存在しません",
+        "cycle_edge": "親エージェントへ循環する関連になります",
+        "too_many_experts": "パッケージ内のエージェント数の上限に達しました",
+        "sub_expert_workspace": "ワークスペースのテンプレートはメインエージェントにのみ含まれます",
+        "may_carry_credentials": "設定済みのサービスに認証情報が含まれる可能性があります",
+        "above_default": "既定値を超えるループ上限は共有されません"
+      },
+      "actions": {
+        "cancel": "キャンセル",
+        "exportOriginal": "原版をエクスポート（安全でない）",
+        "exportRedacted": "匿名化版をエクスポート（安全）",
+        "export": "エクスポート"
+      }
+    }
   },
   "common": {
     "keyValueEditor": {
@@ -1732,7 +1801,12 @@
     },
     "back": "戻る",
     "noOptions": "利用可能なオプションがありません",
-    "providerDisabledWarning": "このプロバイダーは無効です"
+    "providerDisabledWarning": "このプロバイダーは無効です",
+    "redactionReview": {
+      "title": "匿名化プレビュー",
+      "toggleAll": "すべて切り替え",
+      "line": "{number} 行目"
+    }
   },
   "chat": {
     "specialtyRouting": {
@@ -9922,6 +9996,17 @@
       "mergeSource": "アーカイブ（移行元）",
       "planBindings": "移行する紐付け",
       "done": "完了"
+    },
+    "readiness": {
+      "dimensions": {
+        "model": "モデル",
+        "mcp": "MCP サーバー",
+        "skills": "スキル",
+        "tools": "ツール",
+        "search": "検索",
+        "deployment": "実行環境"
+      },
+      "fix": "修正する"
     }
   },
   "settingsTabs": {
@@ -16936,7 +17021,6 @@
         "safeDescription": "このスキルで機密情報（API キー、絶対パス）は検出されませんでした。",
         "warningTitle": "機密情報が検出されました",
         "warningDescription": "潜在的に機密の情報が見つかりました。マスキング済みバージョンをエクスポートすることを強く推奨します。",
-        "diffPreview": "匿名化プレビュー",
         "cancel": "キャンセル",
         "exportOriginal": "原版をエクスポート（安全でない）",
         "exportRedacted": "匿名化版をエクスポート（安全）",
@@ -16944,7 +17028,6 @@
         "previewFailed": "プレビュースキル失敗",
         "exportSuccess": "スキルをエクスポートしました",
         "exportFailed": "スキルのエクスポートに失敗",
-        "toggleAll": "すべて切り替え",
         "evalCasesIncluded": "回帰テスト ケース {count} 件を含む",
         "changedSinceReview": "レビュー後にこのスキルが変更されました。プレビューを更新したので、検出項目をもう一度確認してください。"
       },
@@ -19584,7 +19667,16 @@
           "skillsCount": "{count} 個のスキル",
           "toolsCount": "{count} 個のツール",
           "subagentsCount": "{count} 個のサブエージェント",
-          "templateFiles": "{count} 個のテンプレートファイル"
+          "templateFiles": "{count} 個のテンプレートファイル",
+          "conflict": "同名のエージェントが既にあります - コピーとしてインポート、置き換え、またはスキップできます",
+          "conflictBuiltIn": "組み込みエージェントが同名のため置き換えできません - コピーとしてインポートするかスキップしてください",
+          "withheldTools": "有効化せず保留（必要に応じて手動で有効化）: {tools}",
+          "unresolvedSkills": "この環境にないスキル: {names}",
+          "unresolvedConnectors": "この環境にない MCP サーバー: {names}",
+          "unresolvedSubagents": "パッケージに含まれていないサブエージェント: {names}",
+          "iterationsCapped": "ループ上限を {requested} から {effective} に引き下げました",
+          "recommendedModel": "作者が使用したモデル: {model}（参考表示のみ、適用されません）",
+          "ignoredDeclarations": "このアプリでは使用されません: {names}"
         },
         "serverType": {
           "local": "ローカルプロセス",
@@ -19598,7 +19690,10 @@
           "skip": "スキップ",
           "cancel": "キャンセル",
           "confirm": "インポートを確定",
-          "reselect": "再選択"
+          "reselect": "再選択",
+          "importCopy": "コピーとしてインポート",
+          "importAnother": "続けてインポート",
+          "done": "完了"
         },
         "bind": {
           "label": "エージェントにバインド",
@@ -19619,7 +19714,9 @@
           "trustDisclosureLocal": "ローカル/デスクトップモードで実行中。インポートされたプラグインはOS権限で動作し、シェルやファイルにアクセスできます。",
           "trustDisclosureCloud": "クラウドサンドボックスモードで実行中。インポートされたプラグインは専用の隔離ボリュームサンドボックス内で動作します。",
           "trustRiskHint": "信頼できない拡張機能には、プロンプトインジェクションが含まれている可能性があります。常に信頼できるソースからのパッケージであることを確認してください。",
-          "trustedCheckboxLabel": "このプラグインが信頼できるソースからのものであることを確認し、システム権限を承認してインストールに同意します"
+          "trustedCheckboxLabel": "このプラグインが信頼できるソースからのものであることを確認し、システム権限を承認してインストールに同意します",
+          "skillsNotSupported": "この環境ではカスタムスキルは利用できません - 自動的にスキップします",
+          "stdioNotAllowed": "この環境ではローカルプロセス型の MCP サーバーは実行できません - 自動的にスキップします"
         },
         "capabilities": {
           "title": "サンドボックス権限階層",
@@ -19650,6 +19747,50 @@
           "description": "エージェント {agents} 個、スキル {skills} 個、MCP サーバー {servers} 個をインポートしました",
           "requiredKeys": "インポート後、Agent Secrets でこれらのキーを設定してください：{keys}",
           "disabledHint": "インポートした MCP サーバーは初期状態で無効です。MCP 設定で有効にしてください"
+        },
+        "skills": {
+          "installedVersion": "インストール済みバージョン: {version}"
+        },
+        "deployment": {
+          "noLocalSkills": "この環境ではカスタムスキルをインストールできないため、プラグイン内のスキルはスキップされます。",
+          "noLocalConnectors": "この環境ではローカルプロセス型の MCP サーバーを実行できないため、スキップされます。"
+        },
+        "failures": {
+          "title": "一部のコンポーネントをインポートできませんでした",
+          "components": {
+            "skill": "スキル",
+            "mcp": "MCP サーバー",
+            "agent": "エージェント"
+          },
+          "codes": {
+            "skills_not_supported": "この環境ではカスタムスキルは許可されていません",
+            "oversized_content": "スキルの内容が大きすぎます",
+            "security_issues": "スキルがセキュリティスキャンに通りませんでした",
+            "INVALID_SKILL_NAME": "スキル名が無効です",
+            "LIFECYCLE_SCRIPT_BLOCKED": "スキルにインストールスクリプトが含まれているためブロックされました",
+            "SECURITY_SCORE_BELOW_THRESHOLD": "スキルの安全性スコアが低すぎます",
+            "DOWNGRADE_BLOCKED": "このスキルの新しいバージョンが既にインストールされています",
+            "install_failed": "スキルをインストールできませんでした",
+            "enable_failed": "インストールしましたが自動で有効化できませんでした。スキル一覧で有効にしてください",
+            "stdio_not_allowed": "この環境ではローカルプロセス型の MCP サーバーは実行できません",
+            "persist_failed": "エージェントを保存できませんでした",
+            "invalid_agent": "エージェントの定義が無効です",
+            "generic": "インポートできませんでした"
+          }
+        },
+        "result": {
+          "checking": "利用可否を確認中...",
+          "readinessUnavailable": "利用可否を確認できませんでした。エージェントを開いて確認してください。",
+          "allReady": "すぐに使えます",
+          "created": "新規",
+          "replaced": "置き換え済み",
+          "renamedFrom": "「{name}」からインポート",
+          "previousVersionSaved": "以前のバージョンはこのエージェントの履歴に保存されました",
+          "openAgent": "エージェントを開く",
+          "withheldTools": "有効化せず保留（必要に応じて手動で有効化）: {tools}",
+          "unresolvedSkills": "この環境にないスキル: {names}",
+          "unresolvedConnectors": "この環境にない MCP サーバー: {names}",
+          "unresolvedSubagents": "パッケージに含まれていないサブエージェント: {names}"
         }
       },
       "manager": {

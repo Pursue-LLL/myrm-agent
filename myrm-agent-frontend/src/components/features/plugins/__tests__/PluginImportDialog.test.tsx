@@ -1,81 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const stableT = (key: string, values?: Record<string, unknown>): string => {
-  const map: Record<string, string> = {
-    title: 'Import Plugin',
-    subtitle: 'Install an agent plugin package',
-    'upload.dropHint': 'Drop your plugin ZIP here',
-    'upload.parsing': 'Parsing...',
-    'upload.formatHint': 'Accepts .zip archives',
-    'upload.archiveOnly': 'Only .zip archives are supported',
-    'upload.singleArchiveOnly': 'Only a single archive is allowed',
-    'upload.tooLarge': 'Archive exceeds the 20MB limit',
-    'errors.previewFailed': 'Preview failed',
-    'errors.confirmFailed': 'Confirm failed',
-    'errors.parseTitle': 'Parse error',
-    'errors.confirmTitle': 'Confirm error',
-    'actions.reselect': 'Reselect',
-    'actions.cancel': 'Cancel',
-    'actions.confirm': 'Import',
-    'actions.install': 'Install',
-    'actions.replace': 'Replace',
-    'actions.skip': 'Skip',
-    'actions.selectAll': 'Select all',
-    'actions.skipAll': 'Skip all',
-    'bind.label': 'Bind to agent',
-    'bind.placeholder': 'Select an agent',
-    'bind.hint': 'The selected agent will receive the MCP servers.',
-    'success.title': 'Import complete',
-    'success.description': 'Imported skills and servers',
-    summary: 'Summary',
-    'sections.skills': 'Skills',
-    'sections.servers': 'MCP Servers',
-    'sections.files': 'files',
-    'sections.placeholder': 'needs config',
-    'empty.title': 'No importable components',
-    'empty.hint': 'Check the diagnostics',
-    'serverType.local': 'Local process',
-    'serverType.remote': 'Remote service',
-    'sections.envCount': '{count} env vars',
-    'security.blocked': 'Blocked: {count} security risk(s) found — automatically skipped',
-    'security.oversized': 'Skill content exceeds the storage size limit (64 KB) — automatically skipped',
-    'security.conflict': 'A skill with this name already exists — Replace upgrades it, or Skip to keep the current one',
-    'security.trustDisclosureTitle': 'Trusted Source & System Permissions Security Disclosure',
-    'security.trustDisclosureLocal': 'Running in Local/Desktop mode. Full host OS permissions.',
-    'security.trustDisclosureCloud': 'Running in Cloud Sandbox mode. Dedicated isolated volume.',
-    'security.trustRiskHint': 'Untrusted extensions may contain prompt injection.',
-    'security.trustedCheckboxLabel': 'I confirm this plugin is from a trusted source',
-    'capabilities.title': 'Sandbox Capabilities',
-    'capabilities.read_only': 'Read-Only',
-    'capabilities.fs_read': 'File Read',
-    'capabilities.fs_write': 'File Write',
-    'capabilities.network': 'Network Outbound',
-    'capabilities.shell_exec': 'Shell Exec',
-    'capabilities.destructive': 'Destructive / System',
-    'capabilities.risk.low': 'Low Risk',
-    'capabilities.risk.medium': 'Medium Risk',
-    'capabilities.risk.high': 'High Risk',
-    'capabilities.risk.critical': 'Critical Risk',
-    'capabilities.undeclaredWarning':
-      'Undeclared capability detected: this service requires permissions beyond what was declared in plugin.json.',
-    'capabilities.escalationTitle': 'Privilege Escalation Risk Detected',
-    'capabilities.escalationWarning':
-      'This version requests elevated system permissions compared to previous installation: added [{added}]. Please verify the plugin source before confirming.',
-  };
-  let text = map[key] ?? key;
-  if (values) {
-    for (const [k, v] of Object.entries(values)) {
-      text = text.replaceAll(`{${k}}`, String(v));
-    }
-  }
-  return text;
-};
+import { confirmResult, previewPayload, serverPreview, skillPreview } from './pluginImportTestKit';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
-  useLocale: () => 'en',
-}));
+vi.mock('next-intl', async () => {
+  const kit = await import('./pluginImportTestKit');
+  return { useTranslations: kit.useTranslationsStub, useLocale: () => 'en' };
+});
 
 const mockFetchAgents = vi.fn();
 let mockAgents: Array<{ id: string; name: string }>;
@@ -87,6 +18,10 @@ vi.mock('@/store/useAgentStore', () => ({
 const mockToast = vi.fn();
 vi.mock('@/hooks/shared/useToast', () => ({
   toast: mockToast,
+}));
+
+vi.mock('@/services/agent', () => ({
+  getAgentReadiness: vi.fn().mockResolvedValue({ overall_level: 'ready', items: [], agent_id: 'a', checked_at: 0 }),
 }));
 
 vi.mock('sonner', () => ({
@@ -147,52 +82,16 @@ vi.mock('@/components/primitives/scroll-area', () => ({
   ScrollArea: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-const PLUGIN_PREVIEW = {
-  session_id: 'sess-1',
-  plugin: {
-    name: 'reports-plugin',
-    version: '1.0.0',
-    description: 'PDF report generation',
-    author: { name: 'Alice' },
-    homepage: null,
-    repository: null,
-    license: 'MIT',
-    keywords: ['pdf'],
-  },
+const PLUGIN_PREVIEW = previewPayload({
   skills: [
-    {
-      name: 'summarize',
-      description: 'Summarize a PDF',
-      file_count: 2,
-      virtual_id: 'skill:0',
-      security_issues: [],
-      oversized_content: false,
-      conflict: false,
-    },
-    {
-      name: 'extract',
-      description: 'Extract tables',
-      file_count: 1,
-      virtual_id: 'skill:1',
-      security_issues: [],
-      oversized_content: false,
-      conflict: false,
-    },
+    skillPreview({ name: 'summarize', description: 'Summarize a PDF', file_count: 2, virtual_id: 'skill:0' }),
+    skillPreview({ name: 'extract', description: 'Extract tables', file_count: 1, virtual_id: 'skill:1' }),
   ],
-  servers: [
-    {
-      name: 'pdf-server',
-      type: 'stdio',
-      command: './bin/pdf',
-      url: null,
-      env_key_count: 1,
-      has_placeholders: true,
-      virtual_id: 'mcp:0',
-    },
-  ],
+  servers: [serverPreview({ env_key_count: 1, has_placeholders: true })],
   diagnostics: [{ component: 'skill:1', code: 'warn', message: 'Missing description', level: 'warning' }],
-  is_valid: true,
-};
+});
+
+const CONFLICTING_SKILL = skillPreview({ description: 'Already installed skill', conflict: true });
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -202,6 +101,7 @@ describe('PluginImportDialog', () => {
   beforeEach(() => {
     mockToast.mockClear();
     mockFetchAgents.mockClear();
+    mockFetchAgents.mockResolvedValue(undefined);
     mockAgents = [{ id: 'agent-1', name: 'Research Assistant' }];
     fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
@@ -222,6 +122,18 @@ describe('PluginImportDialog', () => {
   function selectFile(file: File) {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
+  }
+
+  /** Render the dialog and drive it to the review step for `payload`. */
+  async function openPreview(payload: ReturnType<typeof previewPayload>, ...followUps: unknown[]) {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => payload });
+    for (const body of followUps) {
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => body });
+    }
+    const handlers = await renderDialog();
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    await screen.findByText(payload.plugin.name);
+    return handlers;
   }
 
   it('renders the upload dropzone when open', async () => {
@@ -270,15 +182,16 @@ describe('PluginImportDialog', () => {
     expect(await screen.findByText('boom')).toBeInTheDocument();
   });
 
-  it('renders the preview with plugin card, skills, servers and diagnostics', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => PLUGIN_PREVIEW,
-    });
+  it('keeps the dropzone visible with a progress message while the archive is being parsed', async () => {
+    fetchMock.mockReturnValueOnce(new Promise(() => {}));
     await renderDialog();
     selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    expect(await screen.findByText('Parsing...')).toBeInTheDocument();
+  });
 
-    expect(await screen.findByText('reports-plugin')).toBeInTheDocument();
+  it('renders the preview with plugin card, skills, servers and diagnostics', async () => {
+    await openPreview(PLUGIN_PREVIEW);
+
     expect(screen.getByText('v1.0.0')).toBeInTheDocument();
     expect(screen.getByText('MIT')).toBeInTheDocument();
     expect(screen.getByText('summarize')).toBeInTheDocument();
@@ -289,13 +202,7 @@ describe('PluginImportDialog', () => {
   });
 
   it('lets the user toggle a skill to skip and back', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => PLUGIN_PREVIEW,
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
-    await screen.findByText('summarize');
+    await openPreview(PLUGIN_PREVIEW);
 
     // Both skills + the MCP server start installed (3 "Install" toggles).
     const installButtons = screen.getAllByText('Install');
@@ -312,14 +219,11 @@ describe('PluginImportDialog', () => {
     expect(screen.queryByText('Skip')).not.toBeInTheDocument();
   });
 
-  it('submits the confirm request with the correct payload and finishes the flow', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => PLUGIN_PREVIEW }).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ imported_skills: 2, imported_servers: 1 }),
-    });
-    const { onImportComplete } = await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
-    await screen.findByText('reports-plugin');
+  it('submits the confirm request and stays open on a result page instead of closing', async () => {
+    const { onImportComplete, onOpenChange } = await openPreview(
+      PLUGIN_PREVIEW,
+      confirmResult({ imported_skills: 2, imported_servers: 1 }),
+    );
 
     // Bind to the agent and confirm.
     fireEvent.change(screen.getByTestId('agent-select'), {
@@ -349,13 +253,15 @@ describe('PluginImportDialog', () => {
       );
     });
 
-    await waitFor(() => {
-      expect(mockToast).toHaveBeenCalledWith({
-        title: 'Import complete',
-        description: expect.stringContaining('Imported skills and servers'),
-      });
-      expect(onImportComplete).toHaveBeenCalledTimes(1);
-    });
+    expect(await screen.findByText('Import complete')).toBeInTheDocument();
+    expect(screen.getByText('Imported 0 agents, 2 skills and 1 servers')).toBeInTheDocument();
+    expect(onImportComplete).toHaveBeenCalledTimes(1);
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(mockToast).not.toHaveBeenCalled();
+
+    // Done closes the dialog.
+    fireEvent.click(screen.getByText('Done'));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('shows an error toast when the confirm request fails', async () => {
@@ -376,120 +282,90 @@ describe('PluginImportDialog', () => {
         variant: 'destructive',
       });
     });
+    // The review stays in place so the user can retry.
+    expect(screen.getByText('summarize')).toBeInTheDocument();
   });
 
   it('reselect resets the form back to the upload dropzone', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => PLUGIN_PREVIEW,
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
-    await screen.findByText('reports-plugin');
+    await openPreview(PLUGIN_PREVIEW);
 
     fireEvent.click(screen.getByText('Reselect'));
     expect(screen.getByText('Drop your plugin ZIP here')).toBeInTheDocument();
   });
 
+  it('import another returns to the dropzone after a finished import', async () => {
+    await openPreview(PLUGIN_PREVIEW, confirmResult({ imported_skills: 2, imported_servers: 1 }));
+    fireEvent.click(screen.getByTestId('trusted-source-checkbox'));
+    fireEvent.click(screen.getByText('Import'));
+    await screen.findByText('Import complete');
+
+    fireEvent.click(screen.getByText('Import another'));
+    expect(screen.getByText('Drop your plugin ZIP here')).toBeInTheDocument();
+  });
+
   it('shows an empty state when the plugin has no importable components', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        ...PLUGIN_PREVIEW,
-        skills: [],
-        servers: [],
-      }),
-    });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => previewPayload() });
     await renderDialog();
     selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
     expect(await screen.findByText('No importable components')).toBeInTheDocument();
   });
 
   it('renders a friendly server type label and env count badge', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => PLUGIN_PREVIEW,
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
-    expect(await screen.findByText(/Local process/)).toBeInTheDocument();
+    await openPreview(PLUGIN_PREVIEW);
+    expect(screen.getByText(/Local process/)).toBeInTheDocument();
     expect(screen.getByText('1 env vars')).toBeInTheDocument();
   });
 
   it('marks skills with security issues as blocked and skips them by default', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        ...PLUGIN_PREVIEW,
+    await openPreview(
+      previewPayload({
         skills: [
-          {
+          skillPreview({
             name: 'risky',
             description: 'Dangerous skill',
-            file_count: 1,
-            virtual_id: 'skill:0',
             security_issues: ['Dangerous pattern detected: rm -rf'],
-            oversized_content: false,
-          },
+          }),
         ],
+        servers: [serverPreview()],
       }),
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    );
 
-    expect(await screen.findByText(/security risk/)).toBeInTheDocument();
+    expect(screen.getByText(/security risk/)).toBeInTheDocument();
     // The blocked skill is pre-skipped: only the MCP server offers an Install toggle.
     expect(screen.getAllByText('Install')).toHaveLength(1);
   });
 
   it('marks oversized skills as blocked and skips them by default', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        ...PLUGIN_PREVIEW,
+    await openPreview(
+      previewPayload({
         skills: [
-          {
+          skillPreview({
             name: 'huge',
             description: 'Too large',
-            file_count: 1,
-            virtual_id: 'skill:0',
-            security_issues: [],
             oversized_content: true,
-          },
+            blocked_reason: 'oversized_content',
+          }),
         ],
+        servers: [serverPreview()],
       }),
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    );
 
-    expect(await screen.findByText(/storage size limit|storage limit/)).toBeInTheDocument();
-    // The oversized skill is pre-skipped: only the MCP server offers an Install toggle.
+    expect(screen.getByText(/storage size limit/)).toBeInTheDocument();
     expect(screen.getAllByText('Install')).toHaveLength(1);
   });
 
   it('marks conflicting skills, pre-skips them and allows replace', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        ...PLUGIN_PREVIEW,
-        skills: [
-          {
-            name: 'summarize',
-            description: 'Already installed skill',
-            file_count: 1,
-            virtual_id: 'skill:0',
-            security_issues: [],
-            oversized_content: false,
-            conflict: true,
-          },
-        ],
+    await openPreview(
+      previewPayload({
+        skills: [{ ...CONFLICTING_SKILL, existing_version: '0.9.0' }],
+        servers: [serverPreview()],
       }),
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    );
 
-    // Conflict hint is shown and the conflicting skill starts skipped (only the
-    // MCP server keeps an Install toggle).
-    expect(await screen.findByText(/already exists/)).toBeInTheDocument();
+    // Conflict hint and the installed version are shown; the conflicting skill starts skipped
+    // (only the MCP server keeps an Install toggle).
+    expect(screen.getByText(/already exists/)).toBeInTheDocument();
+    expect(screen.getByText('Installed version: 0.9.0')).toBeInTheDocument();
     expect(screen.getByText('Skip')).toBeInTheDocument();
     expect(screen.getAllByText('Install')).toHaveLength(1);
 
@@ -502,43 +378,22 @@ describe('PluginImportDialog', () => {
   });
 
   it('turns conflicting skills into replace when using Select all', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        ...PLUGIN_PREVIEW,
+    await openPreview(
+      previewPayload({
         skills: [
-          {
-            name: 'fresh',
-            description: 'New skill',
-            file_count: 1,
-            virtual_id: 'skill:0',
-            security_issues: [],
-            oversized_content: false,
-            conflict: false,
-          },
-          {
-            name: 'summarize',
-            description: 'Already installed skill',
-            file_count: 1,
-            virtual_id: 'skill:1',
-            security_issues: [],
-            oversized_content: false,
-            conflict: true,
-          },
+          skillPreview({ name: 'fresh', description: 'New skill' }),
+          { ...CONFLICTING_SKILL, virtual_id: 'skill:1' },
         ],
+        servers: [serverPreview()],
       }),
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    );
 
-    await screen.findByText(/already exists/);
     // The fresh skill starts installed; the conflicting one starts skipped.
     expect(screen.getAllByText('Install')).toHaveLength(2);
     expect(screen.getByText('Skip')).toBeInTheDocument();
 
-    // Select all: the conflicting skill upgrades in place (Replace) instead of
-    // creating a duplicate, while the fresh skill stays a plain install.
-    // (Skills section renders before the MCP servers section, so [0] targets it.)
+    // Select all: the conflicting skill upgrades in place (Replace) instead of creating a duplicate,
+    // while the fresh skill stays a plain install. (Skills render before servers, so [0] targets them.)
     fireEvent.click(screen.getAllByText('Select all')[0]);
     expect(screen.getByText('Replace')).toBeInTheDocument();
     expect(screen.getAllByText('Install')).toHaveLength(2);
@@ -546,32 +401,11 @@ describe('PluginImportDialog', () => {
   });
 
   it('submits replace resolution for conflicting skills', async () => {
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          ...PLUGIN_PREVIEW,
-          skills: [
-            {
-              name: 'summarize',
-              description: 'Already installed skill',
-              file_count: 1,
-              virtual_id: 'skill:0',
-              security_issues: [],
-              oversized_content: false,
-              conflict: true,
-            },
-          ],
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ imported_skills: 1, imported_servers: 0 }),
-      });
-    await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    await openPreview(
+      previewPayload({ skills: [CONFLICTING_SKILL], servers: [serverPreview()] }),
+      confirmResult({ imported_skills: 1 }),
+    );
 
-    await screen.findByText(/already exists/);
     // Switch from default skip to replace, then confirm.
     fireEvent.click(screen.getByText('Skip'));
     fireEvent.click(screen.getByTestId('trusted-source-checkbox'));
@@ -582,8 +416,6 @@ describe('PluginImportDialog', () => {
         2,
         '/api/v1/plugins/import/confirm',
         expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             session_id: 'sess-1',
             skills: [{ component: 'skill', virtual_id: 'skill:0', name: 'summarize', resolution: 'replace' }],
@@ -597,10 +429,7 @@ describe('PluginImportDialog', () => {
   });
 
   it('disables the Import button until trusted source checkbox is checked', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => PLUGIN_PREVIEW });
-    await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
-    await screen.findByText('reports-plugin');
+    await openPreview(PLUGIN_PREVIEW);
 
     const importButton = screen.getByRole('button', { name: 'Import' });
     expect(importButton).toBeDisabled();
@@ -618,22 +447,9 @@ describe('PluginImportDialog', () => {
   });
 
   it('renders missing artifact warning and disables installation for broken servers', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        ...PLUGIN_PREVIEW,
-        servers: [
-          {
-            name: 'broken-server',
-            type: 'stdio',
-            command: 'node',
-            url: null,
-            env_key_count: 0,
-            has_placeholders: false,
-            virtual_id: 'mcp:0',
-            missing_artifact: 'dist/index.js',
-          },
-        ],
+    await openPreview(
+      previewPayload({
+        servers: [serverPreview({ name: 'broken-server', command: 'node', missing_artifact: 'dist/index.js' })],
         diagnostics: [
           {
             component: 'mcp:broken-server',
@@ -643,11 +459,8 @@ describe('PluginImportDialog', () => {
           },
         ],
       }),
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    );
 
-    await screen.findByText('broken-server');
     expect(screen.getAllByText(/dist\/index\.js/).length).toBeGreaterThan(0);
 
     // The button for the broken server should be disabled
@@ -657,38 +470,20 @@ describe('PluginImportDialog', () => {
   });
 
   it('marks server with is_runnable=false and missing_artifacts as disabled and displays error message', async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        session_id: 'test-session-unrunnable',
-        plugin: { name: 'unrunnable-plugin' },
-        skills: [],
+    await openPreview(
+      previewPayload({
+        plugin: { ...previewPayload().plugin, name: 'unrunnable-plugin' },
         servers: [
-          {
-            virtual_id: 'mcp:0',
+          serverPreview({
             name: 'unrunnable-server',
-            type: 'stdio',
             command: 'node',
-            env_key_count: 0,
-            has_placeholders: false,
             is_runnable: false,
             missing_artifacts: ['out/bundle.js'],
-          },
-        ],
-        diagnostics: [
-          {
-            component: 'mcp:unrunnable-server',
-            code: 'mcp_missing_artifact',
-            message: "MCP server 'unrunnable-server' references entrypoint 'out/bundle.js', which does not exist.",
-            level: 'error',
-          },
+          }),
         ],
       }),
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'unrunnable.zip', { type: 'application/zip' }));
+    );
 
-    await screen.findByText('unrunnable-server');
     expect(screen.getAllByText(/out\/bundle\.js/).length).toBeGreaterThan(0);
 
     const installButtons = screen.getAllByRole('button', { name: /Install|Skip/ });
@@ -699,42 +494,26 @@ describe('PluginImportDialog', () => {
   });
 
   it('renders capability tier badges and privilege escalation warning', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        session_id: 'test-session-capabilities',
+    await openPreview(
+      previewPayload({
         plugin: {
+          ...previewPayload().plugin,
           name: 'advanced-mcp-plugin',
           version: '1.2.0',
           capabilities: ['shell_exec', 'network'],
           effective_tier: 'shell_exec',
           risk_level: 'high',
-          capability_diff: {
-            added: ['shell_exec'],
-            removed: [],
-            has_escalation: true,
-          },
+          capability_diff: { added: ['shell_exec'], removed: [], has_escalation: true },
         },
-        skills: [],
         servers: [
-          {
-            virtual_id: 'mcp:0',
+          serverPreview({
             name: 'shell-runner-srv',
-            type: 'stdio',
             command: './run.sh',
-            env_key_count: 0,
-            has_placeholders: false,
-            is_runnable: true,
             capabilities: ['shell_exec', 'fs_read'],
-          },
+          }),
         ],
-        diagnostics: [],
       }),
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'advanced.zip', { type: 'application/zip' }));
-
-    await screen.findByText('advanced-mcp-plugin');
+    );
 
     // Risk badge
     expect(screen.getByText('High Risk')).toBeInTheDocument();
@@ -754,21 +533,14 @@ describe('PluginImportDialog', () => {
   });
 
   it('renders undeclared privilege warning on rogue mcp server', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        ...PLUGIN_PREVIEW,
+    await openPreview(
+      previewPayload({
         servers: [
-          {
-            virtual_id: 'mcp:0',
+          serverPreview({
             name: 'sneaky-srv',
-            type: 'stdio',
             command: 'bash -c rm',
-            env_key_count: 0,
-            has_placeholders: false,
-            is_runnable: true,
             capabilities: ['shell_exec', 'destructive'],
-          },
+          }),
         ],
         diagnostics: [
           {
@@ -779,11 +551,8 @@ describe('PluginImportDialog', () => {
           },
         ],
       }),
-    });
-    await renderDialog();
-    selectFile(new File(['zip'], 'sneaky.zip', { type: 'application/zip' }));
+    );
 
-    await screen.findByText('sneaky-srv');
     expect(
       screen.getByText(
         'Undeclared capability detected: this service requires permissions beyond what was declared in plugin.json.',

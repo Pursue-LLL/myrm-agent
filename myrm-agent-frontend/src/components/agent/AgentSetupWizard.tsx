@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
-import { CheckCircle2, CircleDashed, Loader2, MessageSquare, Sparkles, TriangleAlert } from 'lucide-react';
+import { Loader2, MessageSquare, Sparkles } from 'lucide-react';
 import {
   getTemplates,
   instantiateTemplate,
@@ -13,6 +13,7 @@ import {
   type AgentReadinessReport,
 } from '@/services/agent';
 import { toast } from '@/hooks/shared/useToast';
+import AgentReadinessList from './AgentReadinessList';
 
 type Step = 'template' | 'readiness' | 'verify' | 'done';
 
@@ -202,21 +203,7 @@ export function AgentSetupWizard({
                 {t('readiness.checking', { fallback: 'Checking…' })}
               </div>
             ) : (
-              report.items.map((item) => (
-                <div key={item.dimension} className="flex items-start gap-2 rounded-lg border p-3 text-sm">
-                  {item.level === 'ready' ? (
-                    <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-600" />
-                  ) : item.level === 'warning' ? (
-                    <TriangleAlert className="h-4 w-4 mt-0.5 text-amber-600" />
-                  ) : (
-                    <CircleDashed className="h-4 w-4 mt-0.5 text-destructive" />
-                  )}
-                  <div>
-                    <div className="font-medium">{item.dimension}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{item.reason}</div>
-                  </div>
-                </div>
-              ))
+              <AgentReadinessList items={report.items} />
             )}
           </div>
         )}

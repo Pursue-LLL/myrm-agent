@@ -15,7 +15,8 @@
 | `settings/`                                   | 设置页各 Section（含 Settings→通信→渠道 Provider 配置卡）            | [_ARCH.md](settings/_ARCH.md)                                                     |
 | `memory/`                                     | 记忆中心                                                             | [_ARCH.md](memory/_ARCH.md)                                                       |
 | `skills/`                                     | 技能管理、进化审核 Dashboard                                         | [_ARCH.md](skills/_ARCH.md)                                                       |
-| `plugins/`                                    | Agent Plugins 1.0.0 插件导入向导                                     | [_ARCH.md](plugins/_ARCH.md)                                                      |
+| `plugins/`                                    | Agent Plugins 1.0.0 导入向导 + 专家导出                              | [_ARCH.md](plugins/_ARCH.md)                                                      |
+| `redaction/`                                  | 导出前脱敏复核（技能导出与专家导出共用）                             | [_ARCH.md](redaction/_ARCH.md)                                                    |
 | `kanban/`                                     | 看板                                                                 | [_ARCH.md](kanban/_ARCH.md)                                                       |
 | `projects/`                                   | 项目域仪表盘（Kanban/Cron/Artifacts 入口聚合）                       | [_ARCH.md](projects/_ARCH.md)                                                     |
 | `project-workspace/`                          | Project 级同步目录绑定 UI（Mount Wizard）                            | [_ARCH.md](project-workspace/_ARCH.md)                                            |

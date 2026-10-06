@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { IconArrowRight, IconFileText, IconZap, IconBot, IconShield } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
+import { useAgentAiBuild } from '@/hooks/agent/useAgentAiBuild';
 import { useAgentEditor } from '@/hooks/agent/useAgentEditor';
 import { AgentBasicInfoTab } from './agent/AgentBasicInfoTab';
 import { AgentPreviewCard } from './agent/AgentPreviewCard';
@@ -17,10 +18,9 @@ import { AgentFaqTab } from './agent/AgentFaqTab';
 import { AgentInstinctInboxTab } from './agent/AgentInstinctInboxTab';
 import { AgentCapabilitiesTab } from './agent/AgentCapabilitiesTab';
 import { IconKey } from '@/components/features/icons/PremiumIcons';
-import { AGENT_LIST_BUILTIN_PAGE_SIZE, exportAgent } from '@/services/agent';
+import { AGENT_LIST_BUILTIN_PAGE_SIZE } from '@/services/agent';
+import ExpertExportDialog from '@/components/features/plugins/ExpertExportDialog';
 import { toast } from '@/hooks/shared/useToast';
-import { getApiUrl } from '@/lib/api';
-import type { BuiltinToolId } from '@/store/chat/types';
 import { Textarea } from '@/components/primitives/textarea';
 import { useSkillStore } from '@/store/skill';
 import { isFormalKoreanRepliesEnabled, setFormalKoreanRepliesEnabled } from '@/lib/utils/responseLocalePolicy';
@@ -43,19 +43,20 @@ interface AgentEditPanelProps {
 export default function AgentEditPanel({ agentId, isNew = false, onBack }: AgentEditPanelProps) {
   const t = useTranslations();
   const [activeTab, setActiveTab] = useState<ConfigTab>('basic');
-  const [exporting, setExporting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
   const [timeMachineExpanded, setTimeMachineExpanded] = useState(false);
 
   const editor = useAgentEditor(agentId, isNew, t);
 
-  const formalKoreanReplies = useMemo(() => isFormalKoreanRepliesEnabled(editor.engineParams), [editor.engineParams]);
+  const { engineParams, setEngineParams } = editor;
+  const formalKoreanReplies = useMemo(() => isFormalKoreanRepliesEnabled(engineParams), [engineParams]);
 
   const handleFormalKoreanRepliesChange = useCallback(
     (enabled: boolean) => {
-      editor.setEngineParams(setFormalKoreanRepliesEnabled(editor.engineParams, enabled));
+      setEngineParams(setFormalKoreanRepliesEnabled(engineParams, enabled));
     },
-    [editor.engineParams, editor.setEngineParams],
+    [engineParams, setEngineParams],
   );
 
   useEffect(() => {
@@ -80,105 +81,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
     await Promise.all([fetchMarketSkills(), fetchLocalSkills()]);
   }, [fetchMarketSkills, fetchLocalSkills]);
 
-  const [aiIntent, setAiIntent] = useState('');
-  const [aiGenerating, setAiGenerating] = useState(false);
-
-  const handleAiBuild = useCallback(
-    async (intent: string) => {
-      if (!intent.trim() || aiGenerating) {
-        return;
-      }
-      setAiGenerating(true);
-      let fullJson = '';
-      try {
-        const response = await fetch(getApiUrl('/user-agents/ai-build'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ intent, locale: navigator.language || 'en-US' }),
-        });
-        if (!response.ok) {
-          const err = await response.json().catch(() => null);
-          throw new Error(err?.detail || `HTTP ${response.status}`);
-        }
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error('No response body');
-        }
-        const decoder = new TextDecoder();
-        let buffer = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            break;
-          }
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) {
-              continue;
-            }
-            try {
-              const evt = JSON.parse(line.slice(6));
-              if (evt.type === 'content' && typeof evt.data === 'string') {
-                fullJson += evt.data;
-              }
-            } catch {
-              /* skip malformed SSE chunks */
-            }
-          }
-        }
-        let cleaned = fullJson.trim();
-        cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```\s*$/i, '');
-        const jsonStart = cleaned.indexOf('{');
-        const jsonEnd = cleaned.lastIndexOf('}');
-        if (jsonStart !== -1 && jsonEnd > jsonStart) {
-          cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
-        }
-        const config = JSON.parse(cleaned);
-
-        if (config.name) {
-          editor.setName(config.name);
-        }
-        if (config.description) {
-          editor.setDescription(config.description);
-        }
-
-        const validSkillIds = new Set(editor.enabledSkills.map((s) => s.id));
-        const validMcpNames = new Set(editor.enabledMcps.map((m) => m.name));
-        const validToolIds = new Set(['browser', 'shell_exec', 'code_exec', 'file_ops', 'search', 'image_gen']);
-
-        editor.handleConfigChange({
-          ...(config.system_prompt ? { systemPrompt: config.system_prompt } : {}),
-          ...(Array.isArray(config.skill_ids)
-            ? { selectedSkillIds: (config.skill_ids as string[]).filter((id) => validSkillIds.has(id)) }
-            : {}),
-          ...(Array.isArray(config.mcp_ids)
-            ? { selectedMcpNames: (config.mcp_ids as string[]).filter((id) => validMcpNames.has(id)) }
-            : {}),
-          ...(Array.isArray(config.builtin_tools)
-            ? {
-                enabledBuiltinTools: (config.builtin_tools as string[]).filter((id) =>
-                  validToolIds.has(id),
-                ) as BuiltinToolId[],
-              }
-            : {}),
-        });
-        setAiIntent('');
-        toast({ title: t('agent.aiBuilder.apply') });
-      } catch (e) {
-        console.error('AI Build failed:', e);
-        toast({
-          title: t('agent.aiBuilder.error'),
-          description: e instanceof Error ? e.message : undefined,
-          variant: 'destructive',
-        });
-      } finally {
-        setAiGenerating(false);
-      }
-    },
-    [aiGenerating, editor, t],
-  );
+  const { aiIntent, setAiIntent, aiGenerating, handleAiBuild } = useAgentAiBuild(editor);
 
   const handleRollback = async () => {
     if (!agentId) {
@@ -204,40 +107,6 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
       });
     } finally {
       setRollingBack(false);
-    }
-  };
-
-  const handleExport = async () => {
-    if (!agentId) {
-      return;
-    }
-    try {
-      setExporting(true);
-      const data = await exportAgent(agentId);
-
-      // 下载 JSON 文件
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const leader = data.leader as Record<string, unknown> | undefined;
-      const exportName = (data.name as string) || (leader?.name as string) || 'agent';
-      a.download = `${exportName}.agent.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast({ title: t('agent.exportSuccess') });
-    } catch (e) {
-      console.error('Failed to export agent:', e);
-      toast({
-        title: t('agent.exportFailed'),
-        description: e instanceof Error ? e.message : undefined,
-        variant: 'destructive',
-      });
-    } finally {
-      setExporting(false);
     }
   };
 
@@ -405,7 +274,6 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
             selectedGradient={editor.selectedGradient}
             hasChanges={editor.hasChanges}
             saving={editor.saving}
-            exporting={exporting}
             rollingBack={rollingBack}
             snapshotCount={editor.snapshotCount}
             skillCount={skillCount}
@@ -413,7 +281,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
             readonly={editor.isReadonly}
             onSave={editor.handleSave}
             onStartChat={editor.handleStartChat}
-            onExport={!isNew && !editor.isReadonly ? handleExport : undefined}
+            onExport={!isNew && !editor.isReadonly ? () => setExportOpen(true) : undefined}
             onRollback={!isNew && !editor.isReadonly ? handleRollback : undefined}
             onGradientChange={editor.setSelectedGradient}
           />
@@ -533,6 +401,10 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
         }}
         onRefreshSkills={refreshSkills}
       />
+
+      {!isNew && agentId ? (
+        <ExpertExportDialog agentId={agentId} agentName={editor.name} open={exportOpen} onOpenChange={setExportOpen} />
+      ) : null}
     </div>
   );
 }

@@ -7,6 +7,7 @@
 | `useAgentConfigPanel.ts` | AgentConfigPanel 业务编排                                                                           |
 | `useAgentEditor.ts`      | Settings Agent 编辑：load/save `skill_configs`（含 `instance_name`）、`hasChanges` 与 Chat 面板对齐 |
 | `useAgentGallery.ts`     | Agent gallery                                                                                       |
+| `useAgentAiBuild.ts`     | 新建 Agent 页「描述你想要的 Agent」：流式读取草稿并只应用本机存在的技能/MCP/内置工具                |
 | `usePresetAgent.ts`      | 预设智能体                                                                                          |
 | `useAgentResources.ts`   | 资源选择解析                                                                                        |
 | `useAgentName.ts`        | agent_id → 本地化显示名（内置 agent 走 `getBuiltinAgentName`）                                      |

@@ -52,7 +52,6 @@ interface AgentPreviewCardProps {
   selectedGradient: number;
   hasChanges: boolean;
   saving: boolean;
-  exporting?: boolean;
   rollingBack?: boolean;
   snapshotCount?: number;
   skillCount: number;
@@ -72,7 +71,6 @@ export function AgentPreviewCard({
   selectedGradient,
   hasChanges,
   saving,
-  exporting = false,
   rollingBack = false,
   snapshotCount = 0,
   skillCount,
@@ -183,13 +181,13 @@ export function AgentPreviewCard({
 
             {onExport && (
               <Button
-                disabled={saving || exporting || hasChanges}
+                disabled={saving || hasChanges}
                 onClick={onExport}
                 variant="outline"
                 className="w-full gap-2 rounded-xl h-11"
                 title={hasChanges ? t('agent.exportConfigSaveFirst') : t('agent.exportConfigTitle')}
               >
-                {exporting ? <IconLoader className="w-4 h-4 animate-spin" /> : <IconDownload className="w-4 h-4" />}
+                <IconDownload className="w-4 h-4" />
                 {t('agent.exportConfigAction')}
               </Button>
             )}
