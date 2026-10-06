@@ -173,6 +173,7 @@ async def execute_stream_pipeline(
     agent_wrapper._current_chat_id = effective_chat_id
 
     from app.services.agent.execution_cache import (
+        BuiltExecutionUnit,
         ExecutionMode,
         apply_built_unit,
         build_execution_scope_key,
@@ -191,12 +192,13 @@ async def execute_stream_pipeline(
         if agent_wrapper.agent is None:
             from .factory import build_general_agent
 
-            user_id = extra_context.get("user_id") if extra_context else None
+            raw_user_id = extra_context.get("user_id") if extra_context else None
+            user_id = raw_user_id if isinstance(raw_user_id, str) else None
             if use_execution_pool:
                 assert scope_key is not None
                 fingerprint = compute_execution_fingerprint(agent_wrapper)
 
-                async def build_unit():
+                async def build_unit() -> BuiltExecutionUnit:
                     skill_agent = await build_general_agent(
                         agent_wrapper,
                         effective_chat_id,
