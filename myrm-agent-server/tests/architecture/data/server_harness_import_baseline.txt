@@ -339,6 +339,7 @@ myrm_agent_harness.core.security.sandbox_zero_leakage_pii.pii_firewall
 myrm_agent_harness.core.security.sandbox_zero_leakage_pii.transparency_audit
 myrm_agent_harness.core.security.sandbox_zero_leakage_pii.types
 myrm_agent_harness.core.security.scoped_css_sentinel
+myrm_agent_harness.core.security.scoped_folder_sandbox_mount
 myrm_agent_harness.core.security.secops_audit
 myrm_agent_harness.core.security.secret_broker
 myrm_agent_harness.core.security.secretless_egress_proxy
