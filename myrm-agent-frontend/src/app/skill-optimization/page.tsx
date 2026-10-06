@@ -115,20 +115,37 @@ const SkillOptimizationPage = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">Skill ID Filter / 技能ID过滤</label>
+              <label htmlFor="skill-id-filter" className="text-sm font-medium mb-2 block">
+                Skill ID Filter / 技能ID过滤
+              </label>
               <Input
+                id="skill-id-filter"
                 placeholder="Optional / 可选"
                 value={skillIdFilter}
                 onChange={(e) => setSkillIdFilter(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Before Range (days) / 前期天数</label>
-              <Input type="number" value={beforeDays} onChange={(e) => setBeforeDays(parseInt(e.target.value) || 60)} />
+              <label htmlFor="before-range-days" className="text-sm font-medium mb-2 block">
+                Before Range (days) / 前期天数
+              </label>
+              <Input
+                id="before-range-days"
+                type="number"
+                value={beforeDays}
+                onChange={(e) => setBeforeDays(parseInt(e.target.value) || 60)}
+              />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">After Range (days) / 后期天数</label>
-              <Input type="number" value={afterDays} onChange={(e) => setAfterDays(parseInt(e.target.value) || 30)} />
+              <label htmlFor="after-range-days" className="text-sm font-medium mb-2 block">
+                After Range (days) / 后期天数
+              </label>
+              <Input
+                id="after-range-days"
+                type="number"
+                value={afterDays}
+                onChange={(e) => setAfterDays(parseInt(e.target.value) || 30)}
+              />
             </div>
             <div className="flex items-end">
               <Button onClick={fetchComparisons} disabled={loading} className="w-full">

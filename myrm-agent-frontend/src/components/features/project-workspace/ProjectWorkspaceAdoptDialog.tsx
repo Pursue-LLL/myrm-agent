@@ -287,8 +287,11 @@ export default function ProjectWorkspaceAdoptDialog({
           </div>
 
           <div>
-            <label className="text-xs font-medium text-muted-foreground">项目名称</label>
+            <label htmlFor="adopt-project-name" className="text-xs font-medium text-muted-foreground">
+              项目名称
+            </label>
             <Input
+              id="adopt-project-name"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               placeholder="项目名称"
