@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from ..test_fixtures import router as test_fixtures_router
+from .anchor_search import router as anchor_search_router
 from .catchup import router as catchup_router
 from .compaction import router as compaction_router
 from .copilot import router as copilot_router
@@ -29,6 +30,7 @@ from .zdr import router as zdr_router
 router = APIRouter()
 
 router.include_router(test_fixtures_router)
+router.include_router(anchor_search_router)
 router.include_router(trash_router)
 router.include_router(catchup_router)
 router.include_router(messages_router)

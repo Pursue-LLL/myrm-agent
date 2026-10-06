@@ -9,6 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 挂载子路由；**优先**挂载 `../test_fixtures`（E2E seed 路由） | ✅ |
+| `anchor_search.py` | 模块 | `GET /anchor-search` — 会话精确定位与高亮搜索，提供基于精确短语、布尔组合与滑动窗口切片的定位锚点（支持客户端平滑滚动与闪烁脉冲） | ✅ |
 | `catchup.py` | 模块 | Get catchup briefs for all chats with unread activity. | ✅ |
 | `compaction.py` | 模块 | 压缩摘要、归档只读、context pins/branches CRUD、snapshot bookmark fork | ✅ |
 | `copilot.py` | 模块 | Co-Pilot API：run-digest GET、advisor ask/messages/clear | ✅ |
