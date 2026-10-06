@@ -12743,7 +12743,7 @@
       "savePassword": "키체인에 저장",
       "saving": "저장 중...",
       "cancel": "취소",
-      "securityNote": "비밀번호는 macOS 키체인에 안전하게 암호화되어 저장됩니다 (Chrome과 1Password가 사용하는 것과 동일한 보안 저장소)",
+      "securityNote": "비밀번호는 이 Mac의 키체인에만 저장되며, 화면이 잠겼을 때 에이전트가 잠금을 해제하는 데에만 사용됩니다",
       "setPassword": "시스템 로그인 비밀번호 설정",
       "toastSaved": "비밀번호가 키체인에 저장되었습니다",
       "toastSaveFailed": "비밀번호 저장 실패: {error}",
@@ -12761,7 +12761,7 @@
       "toastEngaged": "커튼을 전개했습니다 (수동)",
       "toastReleased": "커튼을 해제했습니다",
       "toastFailed": "커튼 작업 실패: {error}",
-      "lockedUseHint": "무인 실행 시 위의 Locked Use를 함께 켜세요. 대기 시간이 지나면 커튼을 유지한 채 자동으로 잠금을 해제해 작업을 이어갑니다."
+      "lockedUseHint": "무인 실행 시 위의 Locked Use를 함께 켜세요. 에이전트가 화면이 필요할 때 커튼으로 가린 채 자동으로 잠금을 해제합니다. 사용자가 컴퓨터 앞에 있거나 방금 커튼을 만진 경우에는 해제하지 않습니다."
     },
     "desktopPermissions": {
       "title": "데스크톱 자동화 준비 상태",

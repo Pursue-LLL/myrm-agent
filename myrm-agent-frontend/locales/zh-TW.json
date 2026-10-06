@@ -12743,7 +12743,7 @@
       "savePassword": "儲存到 Keychain",
       "saving": "儲存中...",
       "cancel": "取消",
-      "securityNote": "密碼將加密儲存在 macOS Keychain 中（與 Chrome、1Password 使用的同一安全儲存）",
+      "securityNote": "密碼僅儲存在本機 macOS 的 Keychain 中，用於在螢幕鎖定時為 Agent 解鎖",
       "setPassword": "設定系統登入密碼",
       "toastSaved": "密碼已儲存到 Keychain",
       "toastSaveFailed": "儲存密碼失敗: {error}",
@@ -12761,7 +12761,7 @@
       "toastEngaged": "帷幕已拉起（手動）",
       "toastReleased": "帷幕已收起",
       "toastFailed": "帷幕操作失敗: {error}",
-      "lockedUseHint": "無人值守掛機時，建議同時開啟上方 Locked Use：靜默期滿後 Agent 可在帷幕保持遮蔽下自動解鎖續跑。"
+      "lockedUseHint": "無人值守時建議同時開啟上方的 Locked Use：Agent 需要操作螢幕時，會在帷幕遮蔽下自動解鎖；有人在電腦前或剛碰過帷幕時不會解鎖。"
     },
     "desktopPermissions": {
       "title": "桌面自動化就緒檢測",

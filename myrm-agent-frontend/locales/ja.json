@@ -12743,7 +12743,7 @@
       "savePassword": "Keychain に保存",
       "saving": "保存中...",
       "cancel": "キャンセル",
-      "securityNote": "パスワードは macOS Keychain に安全に暗号化して保存されます（Chrome や 1Password が使用するものと同じ安全なストレージ）",
+      "securityNote": "パスワードはこの Mac の Keychain にのみ保存され、画面ロック時にエージェントがロックを解除するためだけに使われます",
       "setPassword": "システムログインパスワードを設定",
       "toastSaved": "パスワードを Keychain に保存しました",
       "toastSaveFailed": "パスワードの保存に失敗しました: {error}",
@@ -12761,7 +12761,7 @@
       "toastEngaged": "カーテンを展開しました（手動）",
       "toastReleased": "カーテンを解除しました",
       "toastFailed": "カーテン操作に失敗しました: {error}",
-      "lockedUseHint": "無人運転で実行する際は、上の Locked Use を併用してください。静穏期間の経過後、カーテンを維持したまま自動的にロック解除して作業を再開できます。"
+      "lockedUseHint": "無人運転で実行する際は、上の Locked Use を併用してください。エージェントが画面を必要とするとき、カーテンで覆ったまま自動的にロックを解除します。誰かがパソコンの前にいる場合や、直前にカーテンへ触れた場合は解除しません。"
     },
     "desktopPermissions": {
       "title": "デスクトップ自動化の準備確認",

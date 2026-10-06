@@ -32,7 +32,7 @@
       "savePassword": "Save to Keychain",
       "saving": "Saving...",
       "cancel": "Cancel",
-      "securityNote": "Password will be securely encrypted in macOS Keychain (same secure storage used by Chrome and 1Password)",
+      "securityNote": "Your password is kept only in this Mac's Keychain and used to unlock the screen for the agent",
       "setPassword": "Set system login password",
       "toastSaved": "Password saved to Keychain",
       "toastSaveFailed": "Failed to save password: {error}",
@@ -50,7 +50,7 @@
       "toastEngaged": "Curtain engaged (manual)",
       "toastReleased": "Curtain released",
       "toastFailed": "Curtain operation failed: {error}",
-      "lockedUseHint": "For unattended runs, enable Locked Use above so the agent can quietly re-unlock after the quiet period while the curtain stays up."
+      "lockedUseHint": "For unattended runs, also turn on Locked Use above: when the agent needs the screen, it unlocks it behind the curtain. It will not unlock while someone is at the computer or has just touched the curtain."
     },
     "desktopPermissions": {
       "title": "Desktop Automation Readiness",

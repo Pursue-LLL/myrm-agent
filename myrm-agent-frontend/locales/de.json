@@ -12743,7 +12743,7 @@
       "savePassword": "Im Schlüsselbund speichern",
       "saving": "Sparen...",
       "cancel": "Abbrechen",
-      "securityNote": "Das Passwort wird sicher im macOS-Schlüsselbund verschlüsselt (gleicher sicherer Speicher wie Chrome und 1Password)",
+      "securityNote": "Das Passwort wird nur im Schlüsselbund dieses Macs gespeichert und dient dazu, den Bildschirm für den Agenten zu entsperren",
       "setPassword": "System-Anmeldepasswort festlegen",
       "toastSaved": "Passwort im Schlüsselbund gespeichert",
       "toastSaveFailed": "Passwort konnte nicht gespeichert werden: {error}",
@@ -12761,7 +12761,7 @@
       "toastEngaged": "Vorhang aktiviert (manuell)",
       "toastReleased": "Vorhang gelöst",
       "toastFailed": "Vorhang-Vorgang fehlgeschlagen: {error}",
-      "lockedUseHint": "Für unbeaufsichtigte Läufe aktivieren Sie oben zusätzlich Locked Use: Nach Ablauf der Ruhephase entsperrt der Agent automatisch weiter, während der Vorhang stehen bleibt."
+      "lockedUseHint": "Für unbeaufsichtigte Läufe aktivieren Sie oben zusätzlich Locked Use: Braucht der Agent den Bildschirm, entsperrt er ihn automatisch hinter dem Vorhang. Solange jemand am Computer sitzt oder den Vorhang gerade berührt hat, bleibt er gesperrt."
     },
     "desktopPermissions": {
       "title": "Desktop-Automatisierung – Bereitschaft",
