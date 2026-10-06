@@ -7,6 +7,7 @@ import logging
 
 from fastapi import APIRouter
 
+from app.api.memory import dream_diary
 from app.api.memory.follow_ups import router as follow_ups_router
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
@@ -67,3 +68,5 @@ router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
 router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
 router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
+router.include_router(dream_diary.router, tags=["memory-dream-diary"])
+router.include_router(dream_diary.unlearn_router, tags=["memory-surgical-unlearn"])
