@@ -206,6 +206,7 @@ const BudgetPolicySection = memo(() => {
         <button
           role="switch"
           aria-checked={policy.enabled}
+          aria-label={t('enableLabel')}
           onClick={() => updateField('enabled', !policy.enabled)}
           className={cn(
             'relative w-10 h-6 rounded-full transition-colors',

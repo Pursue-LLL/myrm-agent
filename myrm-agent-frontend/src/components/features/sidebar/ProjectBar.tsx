@@ -409,6 +409,8 @@ const ContextMenu = ({
           {PROJECT_COLORS.map((c) => (
             <button
               key={c}
+              aria-label={c}
+              aria-pressed={project.color === c}
               onClick={() => onChangeColor(project, c)}
               className={cn(
                 'w-4 h-4 rounded-full transition-transform hover:scale-125',

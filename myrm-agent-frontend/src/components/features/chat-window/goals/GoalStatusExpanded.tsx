@@ -95,6 +95,7 @@ export function GoalStatusExpanded({
                   className="flex-shrink-0 mt-0.5 p-1 rounded hover:bg-muted transition-colors opacity-60 sm:opacity-0 sm:group-hover/obj:opacity-100"
                   onClick={onStartEditObjective}
                   title={t('editObjective')}
+                  aria-label={t('editObjective')}
                 >
                   <svg
                     className="h-3 w-3 text-muted-foreground"

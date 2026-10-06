@@ -73,6 +73,9 @@ export function ActiveHoursEditor({ job, onUpdated }: ActiveHoursEditorProps) {
           <span className="text-xs font-medium text-muted-foreground">{t('activeHoursLabel')}</span>
         </div>
         <button
+          role="switch"
+          aria-checked={enabled}
+          aria-label={t('activeHoursLabel')}
           onClick={handleToggle}
           disabled={saving}
           className={cn(

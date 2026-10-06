@@ -16,6 +16,8 @@ import { updateCronJob } from '@/services/cron';
 import useCronStore from '@/store/useCronStore';
 import useChatStoreHook from '@/store/useChatStore';
 
+const PREFLIGHT_PROBE_LABEL = 'Pre-flight Probe (Python)';
+
 interface EditorProps {
   job: CronJob;
   onUpdated: () => void;
@@ -117,7 +119,7 @@ export function MaxFiresEditor({ job, onUpdated }: EditorProps) {
           <Hash className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground">{t('maxFiresLabel')}</span>
         </div>
-        <EditorToggle enabled={enabled} onToggle={handleToggle} disabled={saving} />
+        <EditorToggle enabled={enabled} onToggle={handleToggle} label={t('maxFiresLabel')} disabled={saving} />
       </div>
       {enabled && (
         <>
@@ -199,7 +201,7 @@ export function ExpiresAtEditor({ job, onUpdated }: EditorProps) {
           <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground">{t('expiresAtLabel')}</span>
         </div>
-        <EditorToggle enabled={enabled} onToggle={handleToggle} disabled={saving} />
+        <EditorToggle enabled={enabled} onToggle={handleToggle} label={t('expiresAtLabel')} disabled={saving} />
       </div>
       {enabled && (
         <>
@@ -370,7 +372,7 @@ export function FailureAlertEditor({ job, onUpdated }: EditorProps) {
           <Bell className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground">{t('failureAlertLabel')}</span>
         </div>
-        <EditorToggle enabled={enabled} onToggle={handleToggle} disabled={saving} />
+        <EditorToggle enabled={enabled} onToggle={handleToggle} label={t('failureAlertLabel')} disabled={saving} />
       </div>
       {enabled && (
         <>
@@ -437,7 +439,7 @@ export function SkipIfActiveEditor({ job, onUpdated }: EditorProps) {
           <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground">{t('skipIfActiveLabel')}</span>
         </div>
-        <EditorToggle enabled={enabled} onToggle={handleToggle} disabled={saving} />
+        <EditorToggle enabled={enabled} onToggle={handleToggle} label={t('skipIfActiveLabel')} disabled={saving} />
       </div>
       <p className="text-[11px] text-muted-foreground">{t('skipIfActiveDesc')}</p>
     </div>
@@ -649,9 +651,9 @@ export function PreConditionEditor({ job, onUpdated }: EditorProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Code className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground">Pre-flight Probe (Python)</span>
+          <span className="text-xs font-medium text-muted-foreground">{PREFLIGHT_PROBE_LABEL}</span>
         </div>
-        <EditorToggle enabled={enabled} onToggle={handleToggle} disabled={saving} />
+        <EditorToggle enabled={enabled} onToggle={handleToggle} label={PREFLIGHT_PROBE_LABEL} disabled={saving} />
       </div>
       {enabled && (
         <>

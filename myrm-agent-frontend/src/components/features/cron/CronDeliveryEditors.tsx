@@ -408,7 +408,12 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
           <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground">{t('failureDeliveryLabel')}</span>
         </div>
-        <EditorToggle enabled={enabled} onToggle={handleToggle} disabled={saving || testing} />
+        <EditorToggle
+          enabled={enabled}
+          onToggle={handleToggle}
+          label={t('failureDeliveryLabel')}
+          disabled={saving || testing}
+        />
       </div>
       {enabled && (
         <>

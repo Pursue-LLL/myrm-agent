@@ -659,6 +659,7 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = memo(({ previewUrl, 
           </span>
           <button
             onClick={() => setWarningDismissed(true)}
+            aria-label={t('close')}
             className="shrink-0 text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">

@@ -485,6 +485,9 @@ export default function GoalModeToggle() {
                           'relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full transition-colors',
                           goalCheckpointMode ? 'bg-accent-warm' : 'bg-muted',
                         )}
+                        role="switch"
+                        aria-checked={goalCheckpointMode}
+                        aria-label={t('checkpointModeLabel')}
                         onClick={() => setGoalCheckpointMode(!goalCheckpointMode)}
                       >
                         <span
@@ -503,6 +506,9 @@ export default function GoalModeToggle() {
                           'relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full transition-colors',
                           goalLoopOnPause ? 'bg-accent-warm' : 'bg-muted',
                         )}
+                        role="switch"
+                        aria-checked={goalLoopOnPause}
+                        aria-label={t('loopOnPauseLabel')}
                         onClick={() => setGoalLoopOnPause(!goalLoopOnPause)}
                       >
                         <span

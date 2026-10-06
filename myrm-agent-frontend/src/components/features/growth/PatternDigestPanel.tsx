@@ -182,6 +182,7 @@ export default function PatternDigestPanel() {
             return (
               <Card key={cardId} className="transition-shadow hover:shadow-sm">
                 <CardContent className="p-4">
+                  {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- name comes from nested text beyond the rule's inspection depth */}
                   <button
                     type="button"
                     className="w-full text-left"

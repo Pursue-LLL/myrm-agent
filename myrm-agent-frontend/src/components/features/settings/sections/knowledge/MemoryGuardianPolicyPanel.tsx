@@ -71,6 +71,7 @@ const MemoryGuardianPolicyPanel = memo(
               type="button"
               role="switch"
               aria-checked={policy.quiet_window_enabled}
+              aria-label={t('quietWindowLabel')}
               onClick={() => updateField('quiet_window_enabled', !policy.quiet_window_enabled)}
               className={cn(
                 'relative w-9 h-5 rounded-full transition-colors',

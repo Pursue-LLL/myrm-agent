@@ -161,6 +161,7 @@ const OptionPill = ({
   const { displayLabel, isRecommended } = parseOptionLabel(label);
 
   return (
+    // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- name comes from nested text beyond the rule's inspection depth
     <button
       type="button"
       onClick={onSelect}

@@ -100,7 +100,12 @@ export function IncrementalMonitorEditor({ job, onUpdated }: EditorProps) {
           <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground">{t('incrementalMonitorLabel')}</span>
         </div>
-        <EditorToggle enabled={enabled} onToggle={handleToggle} disabled={saving} />
+        <EditorToggle
+          enabled={enabled}
+          onToggle={handleToggle}
+          label={t('incrementalMonitorLabel')}
+          disabled={saving}
+        />
       </div>
       {enabled && (
         <>

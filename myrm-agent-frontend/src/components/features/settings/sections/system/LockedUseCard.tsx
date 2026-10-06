@@ -138,6 +138,9 @@ const LockedUseCard = memo<LockedUseCardProps>(({ enabled, onToggle }) => {
               </div>
             </div>
             <button
+              role="switch"
+              aria-checked={enabled}
+              aria-label={t('layer2Title')}
               onClick={() => onToggle(!enabled)}
               disabled={!supportsUnlock}
               className={cn(

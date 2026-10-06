@@ -189,7 +189,12 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
           <Zap className="h-3.5 w-3.5" />
           <span>{t('triggersLabel')}</span>
         </div>
-        <EditorToggle enabled={enabled} onToggle={() => void handleToggle(!enabled)} disabled={saving} />
+        <EditorToggle
+          enabled={enabled}
+          onToggle={() => void handleToggle(!enabled)}
+          label={t('triggersLabel')}
+          disabled={saving}
+        />
       </div>
       <p className="text-[11px] text-muted-foreground">{t('triggersDesc')}</p>
 

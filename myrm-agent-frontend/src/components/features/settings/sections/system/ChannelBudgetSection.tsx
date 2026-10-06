@@ -299,6 +299,7 @@ const ChannelBudgetSection = memo(() => {
                   <button
                     role="switch"
                     aria-checked={policy.enabled}
+                    aria-label={t('enabled')}
                     onClick={() => handleSave(st.channel_key, { ...policy, enabled: !policy.enabled })}
                     className={cn(
                       'relative w-8 h-5 rounded-full transition-colors',

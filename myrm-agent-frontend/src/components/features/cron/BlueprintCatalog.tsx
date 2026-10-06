@@ -73,6 +73,7 @@ export default function BlueprintCatalog({ onSelect, maxItems }: BlueprintCatalo
         const scheduleText = humanizeSchedule(defaultSchedule, t, locale);
 
         return (
+          // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- name comes from nested text beyond the rule's inspection depth
           <button
             key={bp.id}
             type="button"

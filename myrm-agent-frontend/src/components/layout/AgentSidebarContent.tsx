@@ -242,6 +242,7 @@ export const AgentSidebarContent = memo<AgentSidebarContentProps>(
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <button
+                          aria-label={t('common.more')}
                           className={cn(
                             'opacity-0 group-hover:opacity-100',
                             'p-1.5 rounded-full hover:bg-background/80',
