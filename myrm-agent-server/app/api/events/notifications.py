@@ -55,11 +55,3 @@ async def notification_stream(request: Request) -> StreamingResponse:
         media_type="text/event-stream",
         headers=SSE_RESPONSE_HEADERS,
     )
-
-
-@router.get("/curtain")
-async def curtain_status() -> dict[str, object]:
-    """Privacy curtain live status (unavailable on non-Tauri deployments)."""
-    from app.services.locked_use.curtain_bridge import curtain_status_payload
-
-    return curtain_status_payload()

@@ -7,10 +7,10 @@ real Chrome session (no mock, no fake payload):
      block carrying boolean ``available`` / ``active``;
   2. render — the ``/mobile`` hub paints in real Chrome;
   3. consistency — the shield badge is present iff the contract reports an
-     engaged curtain. The badge is the hub's only semantic
-     ``<output aria-live="polite">`` (see ``MobileSessionHub``), so the probe is
-     locale-independent, and a desktop-only capability never fakes protection
-     on a non-desktop host.
+     engaged curtain. The badge is located by its stable
+     ``data-testid="curtain-shield-badge"`` hook (see ``MobileSessionHub``), so
+     the probe is locale-independent, and a desktop-only capability never
+     fakes protection on a non-desktop host.
 """
 
 from __future__ import annotations
@@ -29,9 +29,9 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 
-# The hub shell plus the sole <output aria-live="polite"> (the curtain badge).
+# The hub shell plus the curtain shield badge (MobileSessionHub contract).
 _HUB_PROBE_JS = """(() => {
-  const badges = document.querySelectorAll('output[aria-live="polite"]');
+  const badges = document.querySelectorAll('[data-testid="curtain-shield-badge"]');
   const body = document.body;
   return {
     pathname: window.location.pathname,
