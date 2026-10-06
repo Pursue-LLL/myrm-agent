@@ -23,6 +23,7 @@ import type { AgentListItem } from '@/services/agent';
 import { buildKanbanBoardDeepLink } from '@/lib/kanban/kanbanChatBoard';
 import { ReviewCommentThread } from './ReviewCommentThread';
 import type { AcceptanceResultItem } from './ReviewCommentThread';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface TaskDetailsSectionProps {
   task: KanbanTask;
@@ -185,6 +186,9 @@ export function TaskDetailsSection({
             setTimeoutValue(task.max_runtime_seconds ?? null);
             setEditingTimeout(true);
           }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateOnKey}
         >
           {t('timeoutLabel')}: {formatDuration(task.max_runtime_seconds)}
         </span>
@@ -226,6 +230,9 @@ export function TaskDetailsSection({
             setSkillsText(task.extra_skill_ids.join(', '));
             setEditingSkills(true);
           }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateOnKey}
         >
           {task.extra_skill_ids.map((sid) => (
             <span
@@ -285,6 +292,9 @@ export function TaskDetailsSection({
             setModelValue(task.model_override ?? '');
             setEditingModel(true);
           }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateOnKey}
         >
           {t('modelLabel')}: {task.model_override}
         </span>
@@ -397,6 +407,9 @@ export function TaskDetailsSection({
               setCriteriaText(completionCriteriaToText(task.completion_criteria));
               setEditingCriteria(true);
             }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={activateOnKey}
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">

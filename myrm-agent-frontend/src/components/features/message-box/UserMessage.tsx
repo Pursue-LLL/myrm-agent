@@ -16,6 +16,7 @@ import { isImeComposing } from '@/lib/utils/imeUtils';
 import { ImageLightbox } from '../message-input-actions/ImageLightbox';
 import { ForkButton } from '../chat-window/ForkButton';
 import { RewindButton } from '../chat-window/RewindButton';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface UserMessageProps {
   content: string;
@@ -294,6 +295,9 @@ const UserMessage = React.memo(
                             const fullUrl = url.startsWith('http') ? url : `https://${url}`;
                             window.open(fullUrl, '_blank', 'noopener,noreferrer');
                           }}
+                          role="link"
+                          tabIndex={0}
+                          onKeyDown={activateOnKey}
                         >
                           {part.content}
                         </span>

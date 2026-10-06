@@ -23,6 +23,7 @@ import '@xyflow/react/dist/style.css';
 import { GitBranch } from 'lucide-react';
 import Dagre from '@dagrejs/dagre';
 import type { KanbanTask, TaskStatus, TaskDependency } from '@/services/kanban';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 const STATUS_NODE_COLORS: Record<TaskStatus, { bg: string; border: string }> = {
   triage: { bg: 'bg-purple-500/10', border: 'border-purple-500/40' },
@@ -75,6 +76,9 @@ function TaskNode({ data }: NodeProps<Node<TaskNodeData>>) {
           task.status === 'failed' && 'animate-shake',
         )}
         onClick={() => onSelect?.(task.task_id)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey}
       >
         <div className="flex items-center gap-1.5 mb-1">
           <span

@@ -8,6 +8,7 @@ import rehypeRaw from 'rehype-raw';
 import { visit } from 'unist-util-visit';
 import { ListTree, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 export interface TocItem {
   id: string;
@@ -178,6 +179,9 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isSt
           <div
             className="flex items-center justify-between cursor-pointer group"
             onClick={() => setIsCollapsed(!isCollapsed)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={activateOnKey}
           >
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
               <ListTree className="w-4 h-4" />

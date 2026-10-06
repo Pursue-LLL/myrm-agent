@@ -21,6 +21,7 @@ import { useSubagentStore, type SubagentNode, type SubagentStatus } from '@/stor
 import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import { STATUS_ICON_MAP } from './SubagentStream';
 import { cn } from '@/lib/utils';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 export interface ChatInlineTeamRunVisibilityStripProps {
   className?: string;
@@ -230,6 +231,9 @@ export function ChatInlineTeamRunVisibilityStrip({
                   e.stopPropagation();
                   handleOpen(node.task_id);
                 }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
                 className="relative inline-flex items-center justify-center ring-2 ring-background rounded-full hover:scale-110 transition-transform"
                 title={`${node.agent_type || node.role || 'Agent'} (${t(`statusLabel.${node.status}`)})`}
               >

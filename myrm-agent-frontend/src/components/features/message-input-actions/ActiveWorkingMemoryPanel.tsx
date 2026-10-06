@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useTranslations } from 'next-intl';
 import type { Artifact } from '@/store/chat/types';
 import { openWorkspaceFileInPortal } from '@/services/deliverable/openWorkspaceFileInPortal';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 // 提取文件扩展名
 const getExtension = (filename: string) => {
@@ -337,6 +338,9 @@ export default function ActiveWorkingMemoryPanel() {
               <TooltipTrigger asChild>
                 <div
                   onClick={() => handleChipClick(file)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateOnKey}
                   data-testid="working-memory-chip"
                   data-filename={file.filename}
                   data-diff={file.diff ? '1' : '0'}

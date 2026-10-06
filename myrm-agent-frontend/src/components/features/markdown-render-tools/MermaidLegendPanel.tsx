@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Maximize01Icon, Minimize01Icon } from 'hugeicons-react';
 import { useTranslations } from 'next-intl';
 import type { LegendItem } from './mermaid-theme';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface MermaidLegendPanelProps {
   legends: LegendItem[];
@@ -32,6 +33,9 @@ const MermaidLegendPanel: React.FC<MermaidLegendPanelProps> = ({ legends, active
       <div
         className="flex items-center justify-between w-full px-3 py-2 cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors"
         onClick={handleToggleCollapse}
+        role="button"
+        tabIndex={0}
+        onKeyDown={activateOnKey}
       >
         <span className="text-xs font-semibold text-foreground/80 tracking-wide">{t('legend') || '图例 (Legend)'}</span>
         <div className="text-muted-foreground">
@@ -50,6 +54,9 @@ const MermaidLegendPanel: React.FC<MermaidLegendPanelProps> = ({ legends, active
                   e.stopPropagation();
                   onToggleLegend(legend.className);
                 }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
                 className={`flex items-center space-x-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all duration-200 ${
                   isActive
                     ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'

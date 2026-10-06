@@ -13,6 +13,7 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import type { TracePerformanceSummary, GanttSpan } from '@/services/statistics';
 import { cn } from '@/lib/utils/classnameUtils';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface TraceGanttWaterfallProps {
   performance?: TracePerformanceSummary;
@@ -154,6 +155,9 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
               <div
                 key={idx}
                 onClick={() => setSelectedSpan(span)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
                 className="group relative h-7 w-full rounded bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer flex items-center px-2"
               >
                 {/* Span bar */}

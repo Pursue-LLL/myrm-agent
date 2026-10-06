@@ -21,6 +21,7 @@ import { isTouchDevice as checkTouchDevice } from '@/lib/utils/device';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 export function formatRelativeDate(
   dateStr: string,
@@ -190,6 +191,9 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
             <div
               className="flex items-center gap-1 cursor-pointer hover:opacity-70 transition-opacity"
               onClick={handleAgentBrowse}
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateOnKey}
             >
               <svg className="w-3 h-3 text-chart-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -219,7 +223,13 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
           {label}
         </a>
       ) : (
-        <span className={linkClassName} onClick={handleTriggerClick}>
+        <span
+          className={linkClassName}
+          onClick={handleTriggerClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={activateOnKey}
+        >
           {label}
         </span>
       ));
@@ -232,7 +242,13 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
       >
         <HoverCardTrigger asChild>
           {children ? (
-            <div className="inline-block cursor-pointer" onClick={handleTriggerClick}>
+            <div
+              className="inline-block cursor-pointer"
+              onClick={handleTriggerClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={activateOnKey}
+            >
               {children}
             </div>
           ) : (

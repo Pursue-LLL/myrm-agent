@@ -59,6 +59,7 @@ const preprocessVaultLinks = (text: string) => {
 };
 
 import { preprocessCitationMarkers } from '@/lib/citations/preprocessCitationMarkers';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 function normalizeWikiLevel(level: Source['level']): WikiSourceLevel | undefined {
   if (level === 'L0' || level === 'L1' || level === 'L2') {
@@ -388,6 +389,9 @@ const MarkdownContent = React.memo(
                       source.claim_text,
                     )
                   }
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateOnKey}
                 >
                   {num}
                 </span>

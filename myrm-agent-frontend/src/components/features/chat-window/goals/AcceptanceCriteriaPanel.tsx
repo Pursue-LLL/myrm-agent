@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { useTranslations } from 'next-intl';
 import { CheckCircleIcon, XCircleIcon } from './goal-icons';
 import type { AcceptanceResultItem, AcceptanceHistoryEntry } from './goalStatusTypes';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface AcceptanceCriteriaPanelProps {
   criteria: { type: string; command?: string; criteria?: string }[];
@@ -53,6 +54,9 @@ export function AcceptanceCriteriaPanel({ criteria, results, history, t }: Accep
                     : 'bg-primary/5 border-primary/10'
                 }`}
                 onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
               >
                 <span className="flex-shrink-0 mt-0.5">
                   {result ? (

@@ -34,6 +34,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitive
 import { cn } from '@/lib/utils/classnameUtils';
 import { getLearningLoopStatus, type LearningLoopFiveRingStatusResponse } from '@/services/statistics';
 import { showApiError } from '@/lib/api';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface LearningLoopFiveRingHubProps {
   onNavigateTab?: (tab: string) => void;
@@ -226,6 +227,9 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
               <div
                 key={ring.id}
                 onClick={() => onNavigateTab && onNavigateTab(ring.targetTab)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
                 className={cn(
                   'group relative flex flex-col justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-pointer',
                   'bg-background/60 hover:bg-accent/40 hover:shadow-md hover:border-primary/40',

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Globe } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { SourceItem } from '../utils';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface SourcesRendererProps {
   items: SourceItem[];
@@ -67,6 +68,9 @@ const SourcesRenderer: React.FC<SourcesRendererProps> = ({ items, messageId, ste
               animationDuration: '300ms',
             }}
             onClick={() => handleClick(item.url)}
+            role="link"
+            tabIndex={0}
+            onKeyDown={activateOnKey}
             title={item.url}
           >
             {/* Favicon */}

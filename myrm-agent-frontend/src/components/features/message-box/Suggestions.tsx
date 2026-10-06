@@ -2,6 +2,7 @@ import React from 'react';
 import { Layers3, Plus } from 'lucide-react';
 import useChatStore, { Message } from '@/store/useChatStore';
 import { useTranslations } from 'next-intl';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 const Suggestions = React.memo(({ message, loading }: { message: Message; loading: boolean }) => {
   const sendMessage = useChatStore((state) => state.sendMessage);
@@ -27,6 +28,9 @@ const Suggestions = React.memo(({ message, loading }: { message: Message; loadin
                   onClick={() => {
                     sendMessage(suggestion, undefined);
                   }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={activateOnKey}
                   className="cursor-pointer flex flex-row justify-between font-medium space-x-2 items-center"
                 >
                   <p className="transition duration-200 hover:text-primary">{suggestion}</p>

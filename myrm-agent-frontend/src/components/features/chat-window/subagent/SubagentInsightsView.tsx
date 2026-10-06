@@ -18,6 +18,7 @@ import { Card } from '@/components/primitives/card';
 import { Badge } from '@/components/primitives/badge';
 import { fmtCost, fmtTokens, extractCostUsd, extractTotalTokens } from '@/lib/utils/subagent/subagentTree';
 import type { SubagentNode } from '@/store/chat/useSubagentStore';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 interface SubagentInsightsViewProps {
   nodes: Record<string, SubagentNode> | SubagentNode[];
@@ -175,6 +176,9 @@ export const SubagentInsightsView: React.FC<SubagentInsightsViewProps> = ({ node
               <div
                 key={idx}
                 onClick={() => onSelectNode && onSelectNode(item.node.task_id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
                 className={`p-2.5 rounded-lg border text-xs flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                   item.severity === 'danger'
                     ? 'bg-red-50/40 dark:bg-red-950/20 border-red-200 dark:border-red-900/50 hover:bg-red-50/80'
