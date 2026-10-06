@@ -1,4 +1,10 @@
-"""Real Chrome MCP E2E: push approval deeplink navigates on an already-open chat tab."""
+"""Real Chrome MCP E2E: push approval deeplink navigates on an already-open chat tab.
+
+Every test is declared PRIVATE because it seeds chats and approvals through
+``POST /approvals/test/seed-mock`` (workspace backend code that the deployed shared
+epoch does not carry) and mutates the backend-global pending-approval queue, which
+an open Approval Drawer on any other session would otherwise pick up.
+"""
 
 from __future__ import annotations
 
@@ -7,11 +13,12 @@ import time
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
-    _reapply_shpoib_runtime_after_reload,
-    e2e_runtime_binding,
+    ChromeMcpClient,
+    McpPage,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
+    navigate_mcp_page,
     open_mcp_page,
     wait_for_state,
 )
@@ -115,21 +122,48 @@ def _seed_push_approval(api_url: str) -> dict[str, str]:
     }
 
 
-def _navigate_and_rebind(client, page, url: str) -> None:
-    """Navigate to a new URL and re-apply SHPOIB binding if active."""
-    client.navigate(page, url, timeout_ms=60_000)
-    if e2e_runtime_binding() is not None:
-        _reapply_shpoib_runtime_after_reload(client, page, timeout_sec=60.0)
-    else:
-        wait_for_state(
-            client,
-            page,
-            "(() => ({ ready: !!document.querySelector('[data-testid=\"app-layout\"]') }))()",
-            timeout_sec=30.0,
-        )
+_DEEPLINK_FORENSICS_JS = """(async () => {
+  const apiBase = window.__MYRM_E2E_API_BASE__ || '';
+  let pendingIds;
+  try {
+    const response = await fetch(`${apiBase}/api/v1/approvals?limit=100&offset=0`, { cache: 'no-store' });
+    pendingIds = ((await response.json()).approvals || []).map((item) => item.id);
+  } catch (error) {
+    pendingIds = String(error);
+  }
+  return {
+    href: location.href,
+    apiBase,
+    bound: window.name.startsWith('myrm-e2e-v1:'),
+    hasChatInput: !!document.querySelector('[data-chat-input]'),
+    dialogCount: document.querySelectorAll('[role="dialog"]').length,
+    pendingIds,
+    body: (document.body?.innerText || '').slice(0, 160),
+  };
+})()"""
 
 
-def _ensure_clean_chat_surface(client, page) -> None:
+def _wait_for_deeplink_state(
+    client: ChromeMcpClient,
+    page: McpPage,
+    expression: str,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    """``wait_for_state`` whose failure names the page and backend state.
+
+    A bare ``{'ready': False}`` cannot tell a drawer that never opened from a
+    deeplink consumed against the wrong backend; the snapshot shows which backend
+    the page talks to and which approvals it can see.
+    """
+    try:
+        return wait_for_state(client, page, expression, timeout_sec=timeout_sec)
+    except AssertionError as exc:
+        snapshot = client.evaluate(page, _DEEPLINK_FORENSICS_JS, timeout_sec=20.0)
+        raise AssertionError(f"{exc} | forensics={snapshot}") from exc
+
+
+def _ensure_clean_chat_surface(client: ChromeMcpClient, page: McpPage) -> None:
     for _ in range(24):
         state_raw = client.evaluate(page, _NO_APPROVAL_DIALOG_STATE, timeout_sec=5.0)
         state = state_raw if isinstance(state_raw, dict) else {"value": state_raw}
@@ -140,7 +174,12 @@ def _ensure_clean_chat_surface(client, page) -> None:
     raise AssertionError("Could not hide approval drawer before deeplink baseline")
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
@@ -163,19 +202,24 @@ def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
         assert baseline.get("ready") is True
         assert baseline.get("hasChatInput") is True
 
-        _navigate_and_rebind(client, page, deeplink_url)
+        navigate_mcp_page(client, page, deeplink_url)
 
-        opened = wait_for_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
+        opened = _wait_for_deeplink_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
         assert opened.get("ready") is True
         assert str(opened.get("pathname") or "").endswith(f"/{chat_id}")
 
-        stripped = wait_for_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
+        stripped = _wait_for_deeplink_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
         assert stripped.get("ready") is True
 
     _resolve_approval_cleanup(api_url, approval_id)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_push_approval_deeplink_cold_start_opens_drawer() -> None:
@@ -193,17 +237,22 @@ def test_push_approval_deeplink_cold_start_opens_drawer() -> None:
     deeplink_url = f"{ui_url}{push_url}"
 
     with open_mcp_page(deeplink_url) as (client, page):
-        opened = wait_for_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
+        opened = _wait_for_deeplink_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
         assert opened.get("ready") is True
         assert str(opened.get("pathname") or "").endswith(f"/{chat_id}")
 
-        stripped = wait_for_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
+        stripped = _wait_for_deeplink_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
         assert stripped.get("ready") is True
 
     _resolve_approval_cleanup(api_url, approval_id)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_push_approval_deeplink_from_different_open_chat_tab() -> None:
@@ -222,20 +271,25 @@ def test_push_approval_deeplink_from_different_open_chat_tab() -> None:
 
     with open_mcp_page(decoy_url) as (client, page):
         _ensure_clean_chat_surface(client, page)
-        _navigate_and_rebind(client, page, target_deeplink)
+        navigate_mcp_page(client, page, target_deeplink)
 
-        opened = wait_for_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
+        opened = _wait_for_deeplink_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
         assert opened.get("ready") is True
         assert str(opened.get("pathname") or "").endswith(f"/{target['chat_id']}")
 
-        stripped = wait_for_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
+        stripped = _wait_for_deeplink_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
         assert stripped.get("ready") is True
 
     for aid in (decoy["approval_id"], target["approval_id"]):
         _resolve_approval_cleanup(api_url, aid)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_push_approval_deeplink_unknown_id_strips_query_without_drawer() -> None:
@@ -261,7 +315,7 @@ def test_push_approval_deeplink_unknown_id_strips_query_without_drawer() -> None
 
     with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
         _ensure_clean_chat_surface(client, page)
-        _navigate_and_rebind(client, page, bogus_deeplink)
+        navigate_mcp_page(client, page, bogus_deeplink)
 
-        cleaned = wait_for_state(client, page, _QUERY_STRIPPED_NO_DIALOG, timeout_sec=90.0)
+        cleaned = _wait_for_deeplink_state(client, page, _QUERY_STRIPPED_NO_DIALOG, timeout_sec=90.0)
         assert cleaned.get("ready") is True

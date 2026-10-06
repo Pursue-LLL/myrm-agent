@@ -14,18 +14,36 @@ from fastapi import APIRouter
 
 from app.api.security.action_grant_router import router as action_grant_router
 from app.api.security.admin_auth_surface_router import router as admin_auth_surface_router
+from app.api.security.agent_lifecycle_certificate_router import (
+    router as agent_lifecycle_certificate_router,
+)
+from app.api.security.agentic_commerce_router import (
+    router as agentic_commerce_router,
+)
 from app.api.security.air_gapped_router import router as air_gapped_router
+from app.api.security.air_gapped_sovereignty_router import (
+    router as air_gapped_sovereignty_router,
+)
 from app.api.security.approval_metrics_router import router as approval_metrics_router
 from app.api.security.asr_privacy_tradeoff_router import router as asr_privacy_tradeoff_router
 from app.api.security.attestation_router import router as attestation_router
 from app.api.security.audit_coverage_router import router as audit_coverage_router
+from app.api.security.auto_review_resolution_router import (
+    router as auto_review_resolution_router,
+)
 from app.api.security.blast_radius_inspector_router import (
     router as blast_radius_inspector_router,
 )
 from app.api.security.bot_budget_guardrail_router import router as bot_budget_guardrail_router
+from app.api.security.case_variant_scrubber_router import (
+    router as case_variant_scrubber_router,
+)
 from app.api.security.causal_deception_router import router as causal_deception_router
 from app.api.security.change_guard_router import router as change_guard_router
 from app.api.security.client_secret_router import router as client_secret_router
+from app.api.security.code_signing_gate_router import (
+    router as code_signing_gate_router,
+)
 from app.api.security.commerce_dispute_escrow_router import (
     router as commerce_dispute_escrow_router,
 )
@@ -35,6 +53,9 @@ from app.api.security.companion_relationship_guard_router import (
 from app.api.security.compound_shell_risk_router import router as compound_shell_risk_router
 from app.api.security.connector_guard_router import router as connector_guard_router
 from app.api.security.connector_trust_router import router as connector_trust_router
+from app.api.security.consumer_action_guard_router import (
+    router as consumer_action_guard_router,
+)
 from app.api.security.cos_otp_isolation_jit_router import (
     router as cos_otp_isolation_jit_router,
 )
@@ -62,6 +83,9 @@ from app.api.security.docker_sandbox_hardening_router import (
     router as docker_sandbox_hardening_router,
 )
 from app.api.security.dual_tier_isolation_router import router as dual_tier_isolation_router
+from app.api.security.dual_track_content_audit_router import (
+    router as dual_track_content_audit_router,
+)
 from app.api.security.dual_track_sandbox_guard_router import (
     router as dual_track_sandbox_guard_router,
 )
@@ -69,6 +93,9 @@ from app.api.security.dual_use_containment_router import (
     router as dual_use_containment_router,
 )
 from app.api.security.egress_dlp_router import router as egress_dlp_router
+from app.api.security.event_capability_attenuation_router import (
+    router as event_capability_attenuation_router,
+)
 from app.api.security.executable_probe_router import router as executable_probe_router
 from app.api.security.externally_visible_action_router import (
     router as externally_visible_action_router,
@@ -80,6 +107,9 @@ from app.api.security.financial_safety_guard_router import (
 from app.api.security.gate_guard_sanitizer_router import router as gate_guard_sanitizer_router
 from app.api.security.git_leak_shield_router import router as git_leak_shield_router
 from app.api.security.governance_assembly_router import router as governance_assembly_router
+from app.api.security.hardened_sandbox_perimeter_router import (
+    router as hardened_sandbox_perimeter_router,
+)
 from app.api.security.headless_interactive_approval_router import (
     router as headless_interactive_approval_router,
 )
@@ -94,9 +124,15 @@ from app.api.security.inherited_identity_guard_router import (
     router as inherited_identity_guard_router,
 )
 from app.api.security.integration_trust_router import router as integration_trust_router
+from app.api.security.introspection_shield_router import (
+    router as introspection_shield_router,
+)
 from app.api.security.ipc_router import router as ipc_router
 from app.api.security.irreversible_write_guard_router import (
     router as irreversible_write_guard_router,
+)
+from app.api.security.keychain_rest_encryption_router import (
+    router as keychain_rest_encryption_router,
 )
 from app.api.security.legal_audit_attestation_router import (
     router as legal_audit_attestation_router,
@@ -136,6 +172,9 @@ from app.api.security.prompt_anti_extraction_router import (
     router as prompt_anti_extraction_router,
 )
 from app.api.security.provenance_staging_router import router as provenance_staging_router
+from app.api.security.readonly_research_sandbox_router import (
+    router as readonly_research_sandbox_router,
+)
 from app.api.security.risk_evaluator_router import router as risk_evaluator_router
 from app.api.security.saga_dual_engine_router import router as saga_dual_engine_router
 from app.api.security.sandbox_log_continuation_router import (
@@ -302,6 +341,19 @@ _SECURITY_SUBROUTERS: tuple[APIRouter, ...] = (
     decoupled_watchdog_router,
     dual_use_containment_router,
     legal_audit_attestation_router,
+    agent_lifecycle_certificate_router,
+    dual_track_content_audit_router,
+    consumer_action_guard_router,
+    hardened_sandbox_perimeter_router,
+    code_signing_gate_router,
+    air_gapped_sovereignty_router,
+    event_capability_attenuation_router,
+    auto_review_resolution_router,
+    readonly_research_sandbox_router,
+    keychain_rest_encryption_router,
+    introspection_shield_router,
+    case_variant_scrubber_router,
+    agentic_commerce_router,
 )
 
 
