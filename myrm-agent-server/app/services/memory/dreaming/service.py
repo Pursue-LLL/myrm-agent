@@ -1,7 +1,19 @@
 """Dream Diary and Grounded Dreaming business service.
 
-Manages the persistence, feedback lifecycle, and execution of Grounded Dreaming
-cycles and surgical precision unlearning on session-derived memories.
+[INPUT]
+- myrm_agent_harness.toolkits.memory::DreamDiaryEntry (POS: 梦境日记认知条目强类型)
+- myrm_agent_harness.toolkits.memory::DreamDiaryStatus (POS: 日记审核状态枚举)
+- myrm_agent_harness.toolkits.memory::DreamSessionFragment (POS: 会话碎片数据契约)
+- myrm_agent_harness.toolkits.memory::GroundedDreamingEngine (POS: 闲时跨会话做梦聚类引擎)
+- myrm_agent_harness.toolkits.memory::SurgicalSessionMemoryUnlearner (POS: 外科手术式会话记忆遗忘算子)
+- myrm_agent_harness.toolkits.memory::SurgicalUnlearnReport (POS: 外科手术式遗忘审计报告)
+
+[OUTPUT]
+- DreamDiaryService: 梦境日记持久化与用户交互反馈业务服务
+- get_dream_diary_service: 全局单例工厂方法
+
+[POS]
+记忆系统认知成长与遗忘服务。连接底层 Grounded Dreaming 跨会话聚类蒸馏、梦境日记审查流转与外科手术式会话记忆精准拔除。
 """
 
 from __future__ import annotations

@@ -1,8 +1,16 @@
 """Dream Diary and Surgical Memory Unlearning API endpoints.
 
-Exposes REST APIs for inspecting human-readable dream diary cognitive insights,
-submitting approval/rejection feedback, triggering idle dreaming consolidation,
-and executing surgical session memory erasure without altering chat histories.
+[INPUT]
+- app.services.memory.dreaming::get_dream_diary_service (POS: 梦境日记业务服务获取)
+- myrm_agent_harness.toolkits.memory::DreamDiaryStatus (POS: 梦境日记状态枚举)
+- myrm_agent_harness.toolkits.memory::DreamSessionFragment (POS: 会话碎片数据契约)
+
+[OUTPUT]
+- router: 梦境日记时间线查询、手动触发、点赞废弃反馈 REST 路由
+- unlearn_router: 外科手术式会话记忆遗忘 REST 路由
+
+[POS]
+记忆认知中心 HTTP 接入层。暴露人类可读的梦境日记时间线、审核反馈与保留原始聊天历史的会话派生记忆拔除接口。
 """
 
 from __future__ import annotations

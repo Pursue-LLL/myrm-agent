@@ -110,7 +110,10 @@ app/api/risk/router.py
 app/api/risk/schemas.py
 app/api/router.py
 app/api/security/allowlist.py
+app/api/security/asr_privacy_tradeoff_router.py
 app/api/security/dashboard_models.py
+app/api/security/dir_trust_gate_router.py
+app/api/security/on_demand_masking_router.py
 app/api/security/router.py
 app/api/security/schemas.py
 app/api/security/vault_credentials.py
@@ -272,7 +275,10 @@ app/platform_utils/sandbox/entitlements/__init__.py
 app/platform_utils/sandbox/entitlements/entitlement_guard.py
 app/platform_utils/sandbox/entitlements/platform_budget_adapter.py
 app/platform_utils/sandbox/storage.py
+app/schemas/asr_privacy_tradeoff.py
 app/schemas/context/bundle.py
+app/schemas/dir_trust_gate.py
+app/schemas/on_demand_masking.py
 app/server/exceptions.py
 app/server/middlewares.py
 app/server/runtime_dev_info.py
@@ -329,10 +335,13 @@ app/services/message_filter/config_version_service.py
 app/services/risk/constants.py
 app/services/risk/detection.py
 app/services/risk/rule_service.py
+app/services/security/asr_privacy_tradeoff_service.py
 app/services/security/cp_rate_limit.py
 app/services/security/cp_security_dashboard.py
+app/services/security/dir_trust_gate_service.py
 app/services/security/github_full.py
 app/services/security/github_supplement.py
+app/services/security/on_demand_masking_service.py
 app/services/security/tenant_guardrail.py
 app/services/security/vault_credential_service.py
 app/services/skill_optimization/ab_test_manager.py
