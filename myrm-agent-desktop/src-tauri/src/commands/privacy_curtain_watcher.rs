@@ -25,7 +25,7 @@
 use tauri::{AppHandle, Manager};
 
 use crate::commands::privacy_curtain::{
-    close_curtain_windows, curtain_windows, deploy_curtain_windows, log_audit, now_ms,
+    close_curtain_windows, curtain_windows, deploy_curtain_windows, log_audit,
 };
 use crate::commands::privacy_curtain_state::{mutate_state, read_state, CurtainState};
 use crate::utils::screen_lock;
@@ -55,7 +55,7 @@ enum TickAction {
     Idle,
     /// 开关已关：收起残留帷幕与状态。
     ReleaseDisabled,
-    /// 锁屏且帷幕未拉：自动拉起（静默期基准初始化）。
+    /// 锁屏且帷幕未拉：自动拉起。
     Engage,
     /// 屏幕已解锁且无人持有租约：用户本人解锁，收起 auto 帷幕。
     ReleaseOnUserUnlock,
@@ -95,6 +95,13 @@ fn decide(facts: &TickFacts) -> TickAction {
         return TickAction::Rebuild;
     }
     TickAction::Idle
+}
+
+/// 自动拉起帷幕的状态迁移。刻意不碰 last_physical_input_ms：静默期基准只记录帷幕上真实的
+/// 物理输入，锁屏本身不是输入——人是否还在机前由 server 的硬件输入空闲探针判定。
+fn mark_auto_engaged(s: &mut CurtainState) {
+    s.active = true;
+    s.auto_engaged = true;
 }
 
 /// 本 tick 是否需要比对显示器数量：只有重建会用到，且仅在 locked 或持租约时可能触发。
@@ -166,11 +173,7 @@ fn apply(app: &AppHandle, action: &TickAction) {
         }
         TickAction::Engage => match deploy_curtain_windows(app) {
             Ok(()) => {
-                mutate_state(app, |s| {
-                    s.active = true;
-                    s.auto_engaged = true;
-                    s.last_physical_input_ms = now_ms();
-                });
+                mutate_state(app, mark_auto_engaged);
                 log_audit("auto_engage", true, "screen locked");
             }
             Err(reason) => log_audit("auto_engage", false, &reason),
@@ -356,5 +359,19 @@ mod tests {
     fn unlocked_screen_without_curtain_is_idle() {
         let state = CurtainState::default();
         assert_eq!(decide(&facts(&state)), TickAction::Idle);
+    }
+
+    /// 锁屏不是帷幕上的物理输入：自动拉起若把它记成静默期起点，锁屏后 5 分钟内
+    /// 手机派发的任务都会被挡在屏幕外。
+    #[test]
+    fn auto_engage_keeps_the_physical_input_timestamp() {
+        let mut state = CurtainState {
+            last_physical_input_ms: 42,
+            ..CurtainState::default()
+        };
+        mark_auto_engaged(&mut state);
+        assert!(state.active);
+        assert!(state.auto_engaged);
+        assert_eq!(state.last_physical_input_ms, 42);
     }
 }

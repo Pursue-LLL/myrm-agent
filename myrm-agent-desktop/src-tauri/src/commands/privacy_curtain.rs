@@ -3,7 +3,7 @@
 //! 场景：用户离机挂机跑 Computer Use 任务时，锁屏即断 CU、不锁屏则裸奔机密。
 //! 帷幕在锁屏触发时自动拉起：每显示器一个全屏置顶黑幕+免扰看板，底层
 //! 截图通道被排除（macOS: server 侧 Quartz below-window；Windows: WDA_EXCLUDEFROMCAPTURE），
-//! 物理交互立即回锁，AI 会话经文件桥在静默期满后由 server 解锁续跑。
+//! 物理交互立即回锁，AI 会话在帷幕静默期满且机前无人时经文件桥由 server 按需解锁续跑。
 //!
 //! [INPUT]
 //! - tauri AppHandle (POS: 窗口/事件/app data 目录)
