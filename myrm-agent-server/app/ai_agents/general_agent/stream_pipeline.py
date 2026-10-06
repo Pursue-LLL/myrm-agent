@@ -365,7 +365,9 @@ async def execute_stream_pipeline(
         from app.services.infra.sleep_inhibitor import SleepInhibitor
 
         task_completed = False
-        async with SleepInhibitor.hold():
+        # 挂载了桌面会话的运行必须保持屏幕常亮：空闲熄屏会把屏幕锁住，CU 任务因此中断
+        keep_display_awake = getattr(agent_wrapper, "_desktop_session", None) is not None
+        async with SleepInhibitor.hold(prevent_display_sleep=keep_display_awake):
             from app.services.web_fetch.binding import open_web_fetch_escalation_context
 
             async with open_web_fetch_escalation_context(
