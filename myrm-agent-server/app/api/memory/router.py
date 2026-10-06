@@ -57,6 +57,9 @@ from app.api.memory.operations.shared_context import (
     shared_context_migration,
     shared_contexts,
 )
+from app.api.memory.privacy_router import (
+    router as memory_privacy_router,
+)
 from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.test_seed import router as memory_test_seed_router
 from app.api.memory.wiki_memory_router import (
@@ -101,6 +104,7 @@ router.include_router(experience_gene_router, tags=["memory-experience-genes"])
 router.include_router(auto_recall_router, tags=["memory-auto-recall"])
 router.include_router(wiki_memory_router, tags=["memory-wiki"])
 router.include_router(zero_llm_memory_router, tags=["memory-zero-llm"])
+router.include_router(memory_privacy_router, tags=["memory-privacy"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])

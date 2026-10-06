@@ -254,6 +254,7 @@ myrm_agent_harness.core.security.blast_radius_inspector
 myrm_agent_harness.core.security.bot_budget_guardrail
 myrm_agent_harness.core.security.causal_deception
 myrm_agent_harness.core.security.change_guard
+myrm_agent_harness.core.security.code_signing_gate
 myrm_agent_harness.core.security.commerce_dispute_escrow
 myrm_agent_harness.core.security.companion_relationship_guard
 myrm_agent_harness.core.security.compound_shell_risk
@@ -579,6 +580,7 @@ myrm_agent_harness.toolkits.memory.integration.types
 myrm_agent_harness.toolkits.memory.manager
 myrm_agent_harness.toolkits.memory.memory_search_policy
 myrm_agent_harness.toolkits.memory.metrics
+myrm_agent_harness.toolkits.memory.privacy_gate
 myrm_agent_harness.toolkits.memory.proactive
 myrm_agent_harness.toolkits.memory.proactive.types
 myrm_agent_harness.toolkits.memory.profile_notes
