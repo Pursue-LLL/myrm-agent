@@ -93,6 +93,7 @@ myrm_agent_harness.agent.orchestration.steering
 myrm_agent_harness.agent.parallel.config
 myrm_agent_harness.agent.parallel.fission
 myrm_agent_harness.agent.plugins
+myrm_agent_harness.agent.plugins.integrity
 myrm_agent_harness.agent.plugins.mcp_config
 myrm_agent_harness.agent.plugins.models
 myrm_agent_harness.agent.plugins.parser
@@ -620,6 +621,7 @@ myrm_agent_harness.toolkits.memory.relational.sqlite_store
 myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.self_verification
 myrm_agent_harness.toolkits.memory.session_post_process
+myrm_agent_harness.toolkits.memory.shared_bus
 myrm_agent_harness.toolkits.memory.sovereign_migration
 myrm_agent_harness.toolkits.memory.strategies.blind_spot
 myrm_agent_harness.toolkits.memory.strategies.consolidation

@@ -100,6 +100,9 @@ from app.api.memory.provenance_batch import (
 from app.api.memory.self_verification_router import (
     router as memory_self_verification_router,
 )
+from app.api.memory.shared_bus import (
+    router as memory_shared_bus_router,
+)
 from app.api.memory.test_seed import router as memory_test_seed_router
 from app.api.memory.universal_mcp_router import (
     router as memory_universal_mcp_router,
@@ -161,6 +164,7 @@ router.include_router(memory_override_stack_router, tags=["memory-override-stack
 router.include_router(memory_persona_router, tags=["memory-persona-router"])
 router.include_router(memory_client_partition_router, tags=["memory-client-partition"])
 router.include_router(memory_provenance_batch_router, tags=["memory-provenance-batch"])
+router.include_router(memory_shared_bus_router, tags=["memory-shared-bus"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
