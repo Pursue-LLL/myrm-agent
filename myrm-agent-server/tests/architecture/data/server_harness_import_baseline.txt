@@ -316,6 +316,7 @@ myrm_agent_harness.core.security.localhost_anti_hijack
 myrm_agent_harness.core.security.managed_permission_rollback
 myrm_agent_harness.core.security.marketplace_contract
 myrm_agent_harness.core.security.memory_defense_firewall
+myrm_agent_harness.core.security.memory_post_fetch_screening
 myrm_agent_harness.core.security.muse_sentinel_isolation
 myrm_agent_harness.core.security.native_credential_approval
 myrm_agent_harness.core.security.on_demand_masking
