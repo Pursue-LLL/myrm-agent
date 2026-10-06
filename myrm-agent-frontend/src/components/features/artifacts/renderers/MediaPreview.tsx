@@ -401,6 +401,7 @@ export const AudioPreview: React.FC<{ url: string; filename: string; errorMessag
               <IconHeadphones className="w-12 h-12 text-primary/80" />
             </div>
             <div className="w-full bg-background rounded-full shadow-sm border p-2">
+              {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- no captions are available for user-supplied or generated media */}
               <audio
                 src={url}
                 controls

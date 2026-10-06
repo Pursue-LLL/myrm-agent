@@ -86,6 +86,7 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
 
     const card = (
       <div className="rounded-lg border border-border/50 bg-card p-4 space-y-3">
+        {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- no captions are available for user-supplied or generated media */}
         <video controls className="w-full rounded-md bg-black/80" src={result.videoUrls[0]} preload="metadata">
           {t('videoUnsupported')}
         </video>

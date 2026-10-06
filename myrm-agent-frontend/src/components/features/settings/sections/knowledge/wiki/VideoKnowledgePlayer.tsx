@@ -188,6 +188,7 @@ export function VideoKnowledgePlayer({
 
       <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black/90 shadow-inner">
         {embedInfo.type === 'direct' ? (
+          // oxlint-disable-next-line jsx-a11y/media-has-caption -- no captions are available for user-supplied or generated media
           <video
             ref={videoRef}
             src={embedInfo.embedUrl}
@@ -205,6 +206,7 @@ export function VideoKnowledgePlayer({
           <iframe
             key={`${embedInfo.embedUrl}-${Math.floor(currentSeconds)}`}
             src={embedInfo.embedUrl}
+            title={title || sourceUrl}
             className="h-full w-full border-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen

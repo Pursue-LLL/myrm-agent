@@ -22,6 +22,7 @@ const MemoryTabSwitcher = memo<MemoryTabSwitcherProps>(
     return (
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-accent/50 p-1 sm:grid-cols-6">
         <button
+          aria-pressed={activeTab === 'pending'}
           onClick={() => onChange('pending')}
           className={cn(
             'flex items-center justify-center gap-2 rounded-lg px-4 py-2.5',
@@ -43,6 +44,7 @@ const MemoryTabSwitcher = memo<MemoryTabSwitcherProps>(
           )}
         </button>
         <button
+          aria-pressed={activeTab === 'all'}
           onClick={() => onChange('all')}
           className={cn(
             'flex items-center justify-center gap-2 rounded-lg px-4 py-2.5',
@@ -54,6 +56,7 @@ const MemoryTabSwitcher = memo<MemoryTabSwitcherProps>(
           {totalCount !== undefined && <span className="text-xs text-muted-foreground">({totalCount})</span>}
         </button>
         <button
+          aria-pressed={activeTab === 'context'}
           onClick={() => onChange('context')}
           className={cn(
             'flex items-center justify-center gap-2 rounded-lg px-4 py-2.5',
@@ -64,6 +67,7 @@ const MemoryTabSwitcher = memo<MemoryTabSwitcherProps>(
           {t('context.tab')}
         </button>
         <button
+          aria-pressed={activeTab === 'shared'}
           onClick={() => onChange('shared')}
           className={cn(
             'flex items-center justify-center gap-2 rounded-lg px-4 py-2.5',
@@ -76,7 +80,7 @@ const MemoryTabSwitcher = memo<MemoryTabSwitcherProps>(
         <button
           data-testid="memory-tab-recall"
           data-state={activeTab === 'recall' ? 'active' : 'inactive'}
-          aria-selected={activeTab === 'recall'}
+          aria-pressed={activeTab === 'recall'}
           onClick={() => onChange('recall')}
           className={cn(
             'flex items-center justify-center gap-2 rounded-lg px-4 py-2.5',
@@ -87,6 +91,7 @@ const MemoryTabSwitcher = memo<MemoryTabSwitcherProps>(
           {t('conversationRecall.tab')}
         </button>
         <button
+          aria-pressed={activeTab === 'trash'}
           onClick={() => onChange('trash')}
           className={cn(
             'flex items-center justify-center gap-2 rounded-lg px-4 py-2.5',

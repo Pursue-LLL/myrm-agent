@@ -40,7 +40,6 @@ const E2EESecurityPanel = memo<E2EESecurityPanelProps>(
           <button
             type="button"
             className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-400 transition-colors hover:bg-emerald-500/20"
-            role="status"
             aria-label={t('secured')}
           >
             <ShieldCheck className="h-3.5 w-3.5" />

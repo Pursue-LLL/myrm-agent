@@ -4,6 +4,7 @@ import BootScreen from '../boot-screen';
 import { shouldShowBootScreen, markBootScreenShown } from '../boot-screen-gate';
 
 vi.mock('next/image', () => ({
+  // oxlint-disable-next-line jsx-a11y/alt-text -- the mock forwards next/image props, including alt
   default: (props: Record<string, unknown>) => <img {...props} />,
 }));
 

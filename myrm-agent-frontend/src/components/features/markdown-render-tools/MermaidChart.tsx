@@ -584,8 +584,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   const normalContainer = (
     <div
       ref={containerRef}
-      tabIndex={0}
-      className="mermaid-container my-4 bg-secondary dark:bg-secondary rounded-xl border border-border relative group focus:outline-none focus:ring-2 focus:ring-ring/20 transition-all duration-200 hover:shadow-lg hover:shadow-muted/50"
+      className="mermaid-container my-4 bg-secondary dark:bg-secondary rounded-xl border border-border relative group transition-all duration-200 hover:shadow-lg hover:shadow-muted/50"
     >
       {renderStatusIndicator()}
       {renderControlButtons(false)}

@@ -34,7 +34,7 @@ describe('E2EESecurityPanel', () => {
     render(
       <E2EESecurityPanel {...baseProps} established fingerprint="a1b2 c3d4 e5f6 g7h8" sessionIdPrefix="sess1234" />,
     );
-    const badge = screen.getByRole('status');
+    const badge = screen.getByRole('button', { name: 'secured' });
     expect(badge).toHaveAttribute('aria-label', 'secured');
     expect(badge).toHaveTextContent('secured');
   });

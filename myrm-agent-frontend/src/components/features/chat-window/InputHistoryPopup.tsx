@@ -87,6 +87,7 @@ const InputHistoryPopup = memo<InputHistoryPopupProps>(({ popup, onSelect, onHov
       className="absolute bottom-full left-0 right-0 z-50 mb-2 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
     >
       {popup.entries.map((entry, index) => (
+        // oxlint-disable-next-line jsx-a11y/interactive-supports-focus -- options are not tab stops; the composer keeps focus and drives selection with the arrow keys
         <div
           key={`${entry.createdAt}-${index}`}
           data-history-index={index}

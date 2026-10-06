@@ -29,6 +29,7 @@ const SessionRecordingCard: React.FC<SessionRecordingCardProps> = ({ filename, p
         <Video className="w-3.5 h-3.5" />
         <span>{t('sessionRecording.label')}</span>
       </div>
+      {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- no captions are available for user-supplied or generated media */}
       <video className="w-full rounded-md" src={previewUrl} controls preload="metadata" aria-label={filename} />
       <span className="text-xs text-muted-foreground truncate">{filename}</span>
     </div>
