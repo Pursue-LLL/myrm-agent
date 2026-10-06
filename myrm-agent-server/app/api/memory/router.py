@@ -11,6 +11,9 @@ from app.api.memory import dream_diary
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
+from app.api.memory.client_partition import (
+    router as memory_client_partition_router,
+)
 from app.api.memory.code_memory_compaction_router import (
     router as code_memory_compaction_router,
 )
@@ -153,6 +156,7 @@ router.include_router(memory_crystallization_router, tags=["memory-crystallizati
 router.include_router(memory_intent_reflection_router, tags=["memory-intent-reflection"])
 router.include_router(memory_override_stack_router, tags=["memory-override-stack"])
 router.include_router(memory_persona_router, tags=["memory-persona-router"])
+router.include_router(memory_client_partition_router, tags=["memory-client-partition"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
