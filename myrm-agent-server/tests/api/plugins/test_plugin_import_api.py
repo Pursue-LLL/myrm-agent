@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.plugins.models import PluginParseResult
 
 from app.api.plugins import import_ as import_module
-from app.services.plugins._preview_context import ExistingExpert, PreviewContext
+from app.services.plugins._preview_context import ExistingExpert, ExistingSkill, PreviewContext
 from app.services.plugins.import_service import PluginImportSession
 
 PLUGIN_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
@@ -294,7 +294,9 @@ def test_preview_surfaces_oversized_skill_flag(client: TestClient, tmp_path: Pat
 
 def test_preview_surfaces_name_conflict_flag(client: TestClient, tmp_path: Path, preview_context: AsyncMock) -> None:
     """conflict must reach the HTTP contract, not vanish in the response model."""
-    preview_context.return_value = PreviewContext(local_skill_names=frozenset({"summarize"}))
+    preview_context.return_value = PreviewContext(
+        local_skills={"summarize": ExistingSkill("local::abc", "2.0.0", "agent-plugin")}
+    )
     with (
         patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
@@ -311,8 +313,9 @@ def test_preview_surfaces_name_conflict_flag(client: TestClient, tmp_path: Path,
         )
 
     assert response.status_code == 200
-    body = response.json()
-    assert body["skills"][0]["conflict"] is True
+    skill = response.json()["skills"][0]
+    assert skill["conflict"] is True
+    assert (skill["existing_version"], skill["existing_source"]) == ("2.0.0", "agent-plugin")
 
 
 def test_confirm_persists_components(client: TestClient, tmp_path: Path) -> None:
@@ -564,7 +567,8 @@ def test_preview_and_confirm_with_agents_and_workspace(client: TestClient, tmp_p
         )
         zf.writestr(
             "team-plugin/agents/worker.md",
-            "---\nname: Worker\ndescription: Team worker\nis_subagent: true\n---\nPrompt worker.",
+            "---\nname: Worker\ndescription: Team worker\nis_subagent: true\nrecommended_model: gpt-4o\n"
+            "security_overrides:\n  dangerously_skip_permissions: true\n---\nPrompt worker.",
         )
         zf.writestr(
             "team-plugin/workspace/guide.md",
@@ -601,6 +605,10 @@ def test_preview_and_confirm_with_agents_and_workspace(client: TestClient, tmp_p
         assert coordinator["conflict"] is False and coordinator["existing_agent_id"] is None
         assert worker["conflict"] is True
         assert worker["existing_agent_id"] == "old-worker" and worker["existing_is_built_in"] is False
+        # The author's model is shown, never applied; declarations nothing acts on are named, never echoed.
+        assert worker["recommended_model"] == "gpt-4o"
+        assert worker["ignored_declarations"] == ["security_overrides"]
+        assert coordinator["recommended_model"] is None and coordinator["ignored_declarations"] == []
 
         confirm_res = client.post(
             "/api/v1/plugins/import/confirm",

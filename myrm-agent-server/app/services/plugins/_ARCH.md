@@ -11,11 +11,12 @@ Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm
 | `__init__.py` | 包入口 | 统一导出插件服务模块公开 API | ✅ |
 | `import_service.py` | 门面 | 导入编排门面：ZIP 解析包装（archive security → 结构化错误）、`confirm_plugin_import`（技能安装 → bundled 文件 → MCP 落盘 → 专家持久化 → 可选绑定既有专家；返回计数、逐专家结果 `agents` 与逐组件 `failures`）、`list_installed_plugins` / `uninstall_plugin`，并 re-export 会话/模型/预览/上下文符号 | ✅ |
 | `_models.py` | 模型 | `PluginImportSession` / `PluginConfirmItem` / `ComponentFailure` 业务层 DTO | ✅ |
-| `_preview.py` | 预览 | `build_preview_result`（技能/连接器/专家的冲突、阻断、未解析引用、tighten-only 生效值，`deployment` 部署开关）、`compute_capability_diff`（升级权限扩张分析）、模板物料容量诊断 | ✅ |
-| `_preview_context.py` | 上下文 | `PreviewContext` / `load_preview_context`：预览与 confirm 共用的安装状态事实（已装技能、已配置连接器、同名专家、部署限制）；失败降级为空事实并记录 WARNING | ✅ |
+| `_preview.py` | 预览 | `build_preview_result`（技能/连接器/专家的冲突、阻断、未解析引用、tighten-only 生效值，同名技能的已装版本与来源，作者推荐模型（仅展示）与被忽略的声明名，`deployment` 部署开关）、`compute_capability_diff`（升级权限扩张分析）、模板物料容量诊断 | ✅ |
+| `_preview_context.py` | 上下文 | `PreviewContext` / `load_preview_context`：预览与 confirm 共用的安装状态事实（已装本地技能含版本与来源、已配置连接器、同名专家、部署限制）；失败降级为空事实并记录 WARNING | ✅ |
 | `_gates.py` | 门禁 | 预览与 confirm 共用的安装前判定：`scan_skill_security`（fail-closed）、`skill_block_reason` / `server_block_reason`（部署限制、超长内容）与 `BLOCK_*` 码 | ✅ |
-| `_skill_persist.py` | 持久化 | `install_plugin_skills`：技能经 `market_service.install_files`（生命周期脚本门禁 → 全文件安全评分 → 版本降级保护 → 原子提升）安装并挂载到技能目录，返回规范 skill id；逐技能失败隔离；清理旧版导入遗留的无文件记录 | ✅ |
-| `agent_surface.py` | 专家面 | 专家面 SSOT：`AgentBase` 47 个字段的处置表（CARRY/REFERENCE/DISPLAY/DERIVE/DROP，默认拒绝）、`import_agent_fields`（tighten-only：工具限于默认授权、循环预算只降不升、安全字段一律丢弃）、`profile_to_plugin_agent`（导出方向投影） | ✅ |
+| `_skill_persist.py` | 持久化 | `install_plugin_skills`：技能经 `market_service.install_files`（生命周期脚本门禁 → 全文件安全评分 → 版本降级保护 → 原子提升）安装并挂载到技能目录，返回规范 skill id；逐技能失败隔离；同名重导入时顺手清理该技能的旧版无文件记录 | ✅ |
+| `legacy_cleanup.py` | 修复 | `sweep_legacy_plugin_skill_records`：启动期一次性幂等清扫旧版导入遗留的无文件进化记录（谓词 `created_by == "plugin_import"` 且 `path` 以 `plugins/` 开头；id 已解析为已装技能的记录不动；删除前追加 JSONL 备份，经 `SkillStore.delete_skill`；同时摘除专家上指向它们的悬空绑定）；目录读取或备份失败时一律不删 | ✅ |
+| `agent_surface.py` | 专家面 | 专家面 SSOT：`AgentBase` 47 个字段的处置表（CARRY/REFERENCE/DISPLAY/DERIVE/DROP，默认拒绝）、`import_agent_fields`（tighten-only：工具限于默认授权、循环预算只降不升、安全字段一律丢弃）、`profile_to_plugin_agent`（导出方向投影；作者所选模型名以仅展示的 `recommended_model` 随行，循环预算仅在不高于系统默认时携带）、`ignored_declarations`（包内本产品不作处理的声明，仅名称） | ✅ |
 | `_agent_plan.py` | 规划 | 专家绑定计划（纯函数）：逐专家显式绑定 + 入口专家隐式兜底、隐式团队、子专家先于主专家的创建顺序、环边剔除、未解析引用清单 | ✅ |
 | `_agent_persist.py` | 持久化 | `persist_imported_agents`：按计划写入专家；同名策略（`install` 建副本 "X (imported[ n])"、`replace` 原位更新用户自有专家并自动快照、内置专家永不替换）；失败回滚本次新建的专家；逐专家结果与 `ComponentFailure` | ✅ |
 | `template_workspace.py` | 物料 | 模板物料存储格式 SSOT：`encode_template_files`（容量护栏，跳过而非截断）、`decode_template_files`、`materialize_template_workspace_files`（新会话 JIT 释放，防路径穿越、不覆盖已有文件） | ✅ |

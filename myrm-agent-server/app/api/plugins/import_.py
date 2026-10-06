@@ -73,6 +73,8 @@ class PluginSkillPreview(BaseModel):
     oversized_content: bool = False
     blocked_reason: str | None = Field(default=None, description="Why this deployment cannot install the skill")
     conflict: bool = False
+    existing_version: str | None = Field(default=None, description="Version of the installed skill with the same name")
+    existing_source: str | None = Field(default=None, description="Where the installed same-name skill came from")
 
 
 class PluginServerPreview(BaseModel):
@@ -100,6 +102,10 @@ class PluginAgentPreview(BaseModel):
     tool_names: list[str] = Field(default_factory=list)
     granted_tools: list[str] = Field(default_factory=list, description="Requested tools that will be enabled")
     withheld_tools: list[str] = Field(default_factory=list, description="Requested tools left for the user to enable")
+    recommended_model: str | None = Field(default=None, description="The author's model hint; shown only, never applied")
+    ignored_declarations: list[str] = Field(
+        default_factory=list, description="Names of package declarations this product does not act on"
+    )
     mcp_names: list[str] = Field(default_factory=list)
     subagent_names: list[str] = Field(default_factory=list)
     is_subagent: bool = False

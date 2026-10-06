@@ -12,6 +12,7 @@ Confirm re-queries it instead of trusting preview-time flags.
 - app.config.settings::settings (POS: ``mcp.allow_stdio`` cloud switch.)
 
 [OUTPUT]
+- ExistingSkill: an installed local skill under a package skill's name (version and install source for the conflict card).
 - ExistingExpert: an expert already present under a package expert's name.
 - PreviewContext: immutable snapshot of installed skills, connectors, experts and deployment limits.
 - load_preview_context: gather the snapshot (failures degrade to empty facts, never block a preview).
@@ -28,12 +29,19 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["ExistingExpert", "PreviewContext", "expert_key", "load_preview_context"]
+__all__ = ["ExistingExpert", "ExistingSkill", "PreviewContext", "expert_key", "load_preview_context"]
 
 
 def expert_key(name: str) -> str:
     """Same-name key of experts (case-insensitive, matches ``AgentService`` lookups)."""
     return name.strip().casefold()
+
+
+@dataclass(frozen=True)
+class ExistingSkill:
+    skill_id: str
+    version: str | None
+    source: str | None  # install provenance label (``origin.json`` source), None for hand-made skills
 
 
 @dataclass(frozen=True)
@@ -45,19 +53,24 @@ class ExistingExpert:
 @dataclass(frozen=True)
 class PreviewContext:
     skill_ids_by_name: Mapping[str, str] = field(default_factory=dict)  # lowercase name -> skill id (local + preset)
-    local_skill_names: frozenset[str] = frozenset()  # lowercase names of installed local skills (conflict basis)
+    local_skills: Mapping[str, ExistingSkill] = field(default_factory=dict)  # lowercase name -> installed local skill
     server_names: frozenset[str] = frozenset()  # connectors already configured
     experts_by_name: Mapping[str, ExistingExpert] = field(default_factory=dict)  # expert_key(name) -> match
     allows_local_skills: bool = True
     allow_stdio: bool = True
 
+    @property
+    def local_skill_names(self) -> frozenset[str]:
+        """Lowercase names of installed local skills (the conflict basis)."""
+        return frozenset(self.local_skills)
+
 
 async def load_preview_context(agent_names: Sequence[str] = ()) -> PreviewContext:
     """Snapshot the installation state relevant to a package carrying ``agent_names``."""
-    skill_ids_by_name, local_names = await _load_skills()
+    skill_ids_by_name, local_skills = await _load_skills()
     return PreviewContext(
         skill_ids_by_name=skill_ids_by_name,
-        local_skill_names=local_names,
+        local_skills=local_skills,
         server_names=await _load_server_names(),
         experts_by_name=await _load_experts(agent_names),
         allows_local_skills=_allows_local_skills(),
@@ -65,23 +78,28 @@ async def load_preview_context(agent_names: Sequence[str] = ()) -> PreviewContex
     )
 
 
-async def _load_skills() -> tuple[dict[str, str], frozenset[str]]:
+async def _load_skills() -> tuple[dict[str, str], dict[str, ExistingSkill]]:
     from app.core.skills.store.service import skills_service
 
     try:
         skills = await skills_service.list_skills()
     except Exception as exc:
         logger.warning("Failed to list installed skills for plugin import: %s", exc)
-        return {}, frozenset()
+        return {}, {}
 
     ids_by_name: dict[str, str] = {}
-    local_names: set[str] = set()
+    local_skills: dict[str, ExistingSkill] = {}
     # A package referencing a skill it does not bundle means the preset: presets win over local copies.
     for skill in sorted(skills, key=lambda s: s.id.startswith("local::"), reverse=True):
         ids_by_name[skill.name.lower()] = skill.id
         if skill.id.startswith("local::"):
-            local_names.add(skill.name.lower())
-    return ids_by_name, frozenset(local_names)
+            origin_source = (skill.installed_from or {}).get("source")
+            local_skills[skill.name.lower()] = ExistingSkill(
+                skill_id=skill.id,
+                version=skill.version or None,
+                source=origin_source if isinstance(origin_source, str) and origin_source else None,
+            )
+    return ids_by_name, local_skills
 
 
 async def _load_server_names() -> frozenset[str]:

@@ -12,7 +12,7 @@ from myrm_agent_harness.agent.plugins.models import (
 from myrm_agent_harness.agent.plugins.rules import MAX_TEMPLATE_FILE_BYTES, MAX_TOTAL_TEMPLATE_BYTES
 
 from app.services.plugins._preview import build_preview_result
-from app.services.plugins._preview_context import ExistingExpert, PreviewContext
+from app.services.plugins._preview_context import ExistingExpert, ExistingSkill, PreviewContext
 
 
 def _skill(name: str) -> PluginSkill:
@@ -68,11 +68,29 @@ class TestDeploymentAwareness:
         assert [s["blocked_reason"] for s in preview["servers"]] == ["stdio_not_allowed", None]
 
     def test_same_name_skill_conflicts_regardless_of_case(self) -> None:
-        context = PreviewContext(local_skill_names=frozenset({"report-writer"}))
+        context = PreviewContext(local_skills={"report-writer": ExistingSkill("local::abc", "1.4.0", "agent-plugin")})
 
         preview = build_preview_result(_result(skills=[_skill("Report-Writer"), _skill("other")]), context)
 
         assert [s["conflict"] for s in preview["skills"]] == [True, False]
+
+    def test_conflict_shows_the_installed_version_and_source(self) -> None:
+        context = PreviewContext(
+            local_skills={
+                "report-writer": ExistingSkill("local::abc", "1.4.0", "agent-plugin"),
+                "handmade": ExistingSkill("local::def", None, None),
+            }
+        )
+
+        skills = build_preview_result(_result(skills=[_skill("report-writer"), _skill("handmade"), _skill("new")]), context)[
+            "skills"
+        ]
+
+        assert [(s["existing_version"], s["existing_source"]) for s in skills] == [
+            ("1.4.0", "agent-plugin"),
+            (None, None),
+            (None, None),
+        ]
 
 
 class TestExpertFacts:

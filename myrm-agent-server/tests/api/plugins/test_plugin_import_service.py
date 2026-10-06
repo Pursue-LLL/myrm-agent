@@ -26,7 +26,7 @@ from app.services.plugins._mcp_persist import (
     _collect_required_secret_keys,
     _server_to_config_dict,
 )
-from app.services.plugins._preview_context import PreviewContext
+from app.services.plugins._preview_context import ExistingSkill, PreviewContext
 from app.services.plugins.import_service import (
     PluginConfirmItem,
     PluginImportSession,
@@ -239,7 +239,9 @@ class TestBuildPreviewResult:
 
     def test_preview_marks_conflicting_skill_name(self) -> None:
         result = parse_plugin_zip(_plugin_zip_bytes())
-        preview = build_preview_result(result, PreviewContext(local_skill_names=frozenset({"summarize"})))
+        preview = build_preview_result(
+            result, PreviewContext(local_skills={"summarize": ExistingSkill("local::abc", "2.0.0", None)})
+        )
         assert preview["skills"][0]["conflict"] is True
 
     def test_preview_marks_normal_skill_not_conflicting(self) -> None:

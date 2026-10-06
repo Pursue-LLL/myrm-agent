@@ -53,6 +53,7 @@ def _server_has_placeholders(server: PluginMcpServer) -> bool:
 def _preview_skill(idx: int, skill: PluginSkill, context: PreviewContext) -> dict[str, object]:
     """Serialize one skill for the preview payload."""
     blocked = _gates.skill_block_reason(skill, allows_local_skills=context.allows_local_skills)
+    existing = context.local_skills.get(skill.name.lower())
     return {
         "name": skill.name,
         "description": skill.description,
@@ -63,7 +64,9 @@ def _preview_skill(idx: int, skill: PluginSkill, context: PreviewContext) -> dic
         "security_issues": [] if blocked else _gates.scan_skill_security(skill),
         "oversized_content": blocked == _gates.BLOCK_OVERSIZED,
         "blocked_reason": blocked,
-        "conflict": skill.name.lower() in context.local_skill_names,
+        "conflict": existing is not None,
+        "existing_version": existing.version if existing is not None else None,
+        "existing_source": existing.source if existing is not None else None,
     }
 
 
@@ -103,6 +106,8 @@ def _preview_agent(idx: int, agent: PluginAgent, result: PluginParseResult, cont
         "tool_names": list(agent.tool_names),
         "granted_tools": list(imported.granted_tools),
         "withheld_tools": list(imported.withheld_tools),
+        "recommended_model": imported.recommended_model,
+        "ignored_declarations": list(imported.ignored_declarations),
         "mcp_names": list(agent.mcp_names),
         "subagent_names": list(agent.subagent_names),
         "is_subagent": agent.is_subagent,

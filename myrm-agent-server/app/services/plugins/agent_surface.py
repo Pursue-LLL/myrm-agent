@@ -20,7 +20,9 @@ both directions, so export and import can never drift apart:
 
 [OUTPUT]
 - Disposition / AGENT_FIELD_DISPOSITION: per-field sharing decision with its reason.
-- profile_to_plugin_agent: stored profile -> portable record (export).
+- profile_to_plugin_agent: stored profile -> portable record (export; the author's model name travels as a
+  display-only hint).
+- carried_max_iterations: the loop budget an export carries (only values an import would keep).
 - ImportedAgentFields / import_agent_fields: portable record -> product fields (import).
 - filter_tool_selections: per-connector tool whitelist limited to resolved connectors.
 
@@ -36,6 +38,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final, get_args
 
+from myrm_agent_harness.agent.plugins import AGENT_STRUCTURAL_KEYS
 from myrm_agent_harness.agent.plugins.models import PluginAgent
 from myrm_agent_harness.backends.profiles.types import AgentProfile
 
@@ -45,8 +48,10 @@ from app.services.agent.builtin_specs.builtin_tool_ids import DEFAULT_ENABLED_BU
 __all__ = [
     "AGENT_FIELD_DISPOSITION",
     "IMPORTED_MAX_ITERATIONS_CEILING",
+    "RECOMMENDED_MODEL_KEY",
     "Disposition",
     "ImportedAgentFields",
+    "carried_max_iterations",
     "filter_tool_selections",
     "import_agent_fields",
     "profile_to_plugin_agent",
@@ -132,6 +137,15 @@ _MIN_ITERATIONS: Final = 5  # AgentBase lower bound
 MAX_SUGGESTION_PROMPTS: Final = 6
 MAX_SUGGESTION_PROMPT_CHARS: Final = 200
 MAX_NAME_CHARS: Final = 255  # AgentBase.name bound
+MAX_MODEL_NAME_CHARS: Final = 128
+MAX_IGNORED_DECLARATIONS: Final = 20
+_MAX_DECLARATION_NAME_CHARS: Final = 64
+
+# The author's model choice travels as a display-only hint (model name, never a provider id).
+RECOMMENDED_MODEL_KEY: Final = "recommended_model"
+_CARRIED_EXTRA_KEYS: Final = frozenset(
+    {"personality_style", "suggestion_prompts", "allow_discovery", "mcp_tool_selections", RECOMMENDED_MODEL_KEY}
+)
 _MAX_TOOL_NAME_CHARS: Final = 128
 _MAX_SELECTED_TOOLS: Final = 200
 
@@ -162,12 +176,14 @@ def profile_to_plugin_agent(
     selections = filter_tool_selections(meta.get("mcp_tool_selections"), set(mcp_names))
     if selections:
         extras["mcp_tool_selections"] = selections
+    if profile.model and profile.model.strip():
+        extras[RECOMMENDED_MODEL_KEY] = profile.model.strip()[:MAX_MODEL_NAME_CHARS]
 
     return PluginAgent(
         name=profile.display_name or profile.id,
         description=profile.description or "",
         system_prompt=profile.system_prompt or "",
-        max_iterations=profile.max_iterations,
+        max_iterations=carried_max_iterations(profile.max_iterations),
         skill_names=skill_names,
         tool_names=_tool_ids(profile),
         mcp_names=mcp_names,
@@ -176,6 +192,13 @@ def profile_to_plugin_agent(
         is_entry_agent=is_entry_agent,
         metadata=extras,
     )
+
+
+def carried_max_iterations(value: int | None) -> int | None:
+    """The loop budget an export carries: only values an import would keep as they are."""
+    if value is None or value > IMPORTED_MAX_ITERATIONS_CEILING:
+        return None
+    return value
 
 
 @dataclass(frozen=True)
@@ -188,6 +211,8 @@ class ImportedAgentFields:
     granted_tools: tuple[str, ...]  # requested tools the expert is enabled with
     withheld_tools: tuple[str, ...]  # requested tools that are not auto-enabled
     dropped_fields: tuple[str, ...]  # supplied values that were invalid and discarded
+    recommended_model: str | None  # the author's model hint, shown in the preview and never applied
+    ignored_declarations: tuple[str, ...]  # declaration names this product does not act on (names only)
 
 
 def import_agent_fields(agent: PluginAgent) -> ImportedAgentFields:
@@ -230,6 +255,8 @@ def import_agent_fields(agent: PluginAgent) -> ImportedAgentFields:
         granted_tools=tuple(granted),
         withheld_tools=withheld,
         dropped_fields=tuple(dropped),
+        recommended_model=_recommended_model(meta),
+        ignored_declarations=_ignored_declarations(meta),
     )
 
 
@@ -245,6 +272,19 @@ def filter_tool_selections(raw: object, connectors: set[str] | None) -> dict[str
         if names:
             selections[connector] = names
     return selections
+
+
+def _recommended_model(meta: Mapping[str, object]) -> str | None:
+    model = meta.get(RECOMMENDED_MODEL_KEY)
+    if not isinstance(model, str) or not model.strip():
+        return None
+    return model.strip()[:MAX_MODEL_NAME_CHARS]
+
+
+def _ignored_declarations(meta: Mapping[str, object]) -> tuple[str, ...]:
+    """Names of package declarations that nothing here acts on (never their values)."""
+    names = {str(key)[:_MAX_DECLARATION_NAME_CHARS] for key in meta if key not in AGENT_STRUCTURAL_KEYS | _CARRIED_EXTRA_KEYS}
+    return tuple(sorted(names)[:MAX_IGNORED_DECLARATIONS])
 
 
 def _display_name(agent: PluginAgent) -> str:

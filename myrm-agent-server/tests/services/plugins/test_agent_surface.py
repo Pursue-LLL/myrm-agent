@@ -11,6 +11,7 @@ from app.services.plugins.agent_surface import (
     AGENT_FIELD_DISPOSITION,
     IMPORTED_MAX_ITERATIONS_CEILING,
     Disposition,
+    carried_max_iterations,
     filter_tool_selections,
     import_agent_fields,
     profile_to_plugin_agent,
@@ -126,6 +127,58 @@ class TestImportAgentFields:
         assert import_agent_fields(PluginAgent(name="", metadata={"slug": "lead-bot"})).name == "lead-bot"
         assert len(import_agent_fields(PluginAgent(name="n" * 400)).name) == 255
 
+    def test_declarations_nothing_acts_on_are_listed_by_name_only(self) -> None:
+        agent = PluginAgent(
+            name="A",
+            metadata={
+                "slug": "a",
+                "name": "A",
+                "skills": ["x"],
+                "personality_style": "friendly",
+                "recommended_model": "gpt-4o",
+                "security_overrides": {"dangerously_skip_permissions": True},
+                "hooks": ["rm -rf /"],
+                "arbitrary": "value",
+            },
+        )
+
+        listed = import_agent_fields(agent).ignored_declarations
+
+        assert listed == ("arbitrary", "hooks", "security_overrides")
+
+    def test_ignored_declaration_list_is_bounded(self) -> None:
+        agent = PluginAgent(name="A", metadata={**{f"extra-{i:03d}": 1 for i in range(100)}, "a" * 200: 1})
+
+        listed = import_agent_fields(agent).ignored_declarations
+
+        assert len(listed) == 20
+        assert listed[0] == "a" * 64  # names are bounded too (the 200-char key sorts first)
+        assert all(len(name) <= 64 for name in listed)
+
+    def test_recommended_model_is_a_hint_and_never_a_field(self) -> None:
+        imported = import_agent_fields(PluginAgent(name="A", metadata={"recommended_model": "  claude-opus  "}))
+
+        assert imported.recommended_model == "claude-opus"
+        assert not {"model", "model_selection"} & set(imported.fields)
+        assert imported.ignored_declarations == ()
+
+    @pytest.mark.parametrize("raw", [None, 3, "  ", ["gpt-4o"]])
+    def test_malformed_recommended_model_is_ignored(self, raw: object) -> None:
+        assert import_agent_fields(PluginAgent(name="A", metadata={"recommended_model": raw})).recommended_model is None
+
+    def test_recommended_model_is_bounded(self) -> None:
+        imported = import_agent_fields(PluginAgent(name="A", metadata={"recommended_model": "m" * 500}))
+        assert imported.recommended_model is not None and len(imported.recommended_model) == 128
+
+
+class TestCarriedMaxIterations:
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [(None, None), (5, 5), (IMPORTED_MAX_ITERATIONS_CEILING, IMPORTED_MAX_ITERATIONS_CEILING), (51, None), (500, None)],
+    )
+    def test_only_budgets_an_import_would_keep_are_carried(self, value: int | None, expected: int | None) -> None:
+        assert carried_max_iterations(value) == expected
+
 
 class TestToolSelections:
     def test_limited_to_resolved_connectors(self) -> None:
@@ -184,6 +237,30 @@ class TestProfileProjection:
             "allow_discovery": False,
             "mcp_tool_selections": {"fetch": ["get"]},
         }
+
+    def test_author_model_name_travels_as_a_hint(self) -> None:
+        agent = profile_to_plugin_agent(
+            self._profile(model="  gpt-4o  "),
+            skill_names=(),
+            mcp_names=(),
+            subagent_names=(),
+            is_subagent=False,
+            is_entry_agent=True,
+        )
+
+        assert agent.metadata["recommended_model"] == "gpt-4o"
+
+    def test_loop_budget_above_the_system_default_is_not_written(self) -> None:
+        agent = profile_to_plugin_agent(
+            self._profile(max_iterations=400),
+            skill_names=(),
+            mcp_names=(),
+            subagent_names=(),
+            is_subagent=False,
+            is_entry_agent=True,
+        )
+
+        assert agent.max_iterations is None
 
     def test_default_discovery_is_not_written(self) -> None:
         profile = self._profile()
