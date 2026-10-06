@@ -46,7 +46,7 @@
       "dismiss": "Verwerfen"
     },
     "message": {
-      "truncated": "Antwort wegen Längenlimit abgeschnitten. Setzen Sie das Gespräch fort, um den Rest zu erhalten.",
+      "truncated": "Die Antwort wurde nicht vollständig erzeugt. Setzen Sie das Gespräch fort, um den Rest zu erhalten.",
       "contentFiltered": "Ein Teil der Antwort wurde durch die Inhaltsrichtlinie gefiltert.",
       "budgetBlocked": "Ausführung durch Tagesbudget-Richtlinie blockiert. Passen Sie Ihr Budgetlimit in den Einstellungen an.",
       "workflowMergeWarning": "Einige Arbeitsbereichsdateien konnten nicht zurückgemergt werden. Prüfen Sie die Tool-Ausgabe für Details.",

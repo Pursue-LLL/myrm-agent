@@ -9660,7 +9660,7 @@
         "failed": "Failed to save workflow template",
         "fieldsRequired": "Display name and template slug are required"
       },
-      "truncated": "Response was truncated due to length limit. Continue the conversation to get the rest.",
+      "truncated": "The response was not fully generated. Continue the conversation to get the rest.",
       "cancelled": "Generation stopped. Partial response retained in context."
     },
     "toolImage": {

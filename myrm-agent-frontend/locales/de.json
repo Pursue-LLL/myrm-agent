@@ -2248,7 +2248,7 @@
         "failed": "Speichern der Workflow-Vorlage fehlgeschlagen",
         "fieldsRequired": "Anzeigename und Vorlagen-Slug sind erforderlich"
       },
-      "truncated": "Antwort wegen Längenlimit abgeschnitten. Setzen Sie das Gespräch fort, um den Rest zu erhalten.",
+      "truncated": "Die Antwort wurde nicht vollständig erzeugt. Setzen Sie das Gespräch fort, um den Rest zu erhalten.",
       "cancelled": "Generierung gestoppt. Teilweise Antwort im Kontext beibehalten."
     },
     "toolImage": {
