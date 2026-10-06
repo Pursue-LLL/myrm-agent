@@ -62,6 +62,9 @@ from app.api.memory.test_seed import router as memory_test_seed_router
 from app.api.memory.wiki_memory_router import (
     router as wiki_memory_router,
 )
+from app.api.memory.zero_llm_memory_router import (
+    router as zero_llm_memory_router,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +100,7 @@ router.include_router(code_memory_compaction_router, tags=["memory-code-compacti
 router.include_router(experience_gene_router, tags=["memory-experience-genes"])
 router.include_router(auto_recall_router, tags=["memory-auto-recall"])
 router.include_router(wiki_memory_router, tags=["memory-wiki"])
+router.include_router(zero_llm_memory_router, tags=["memory-zero-llm"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])

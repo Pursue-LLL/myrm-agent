@@ -244,6 +244,7 @@ myrm_agent_harness.core.features
 myrm_agent_harness.core.features.types
 myrm_agent_harness.core.security.action_grants
 myrm_agent_harness.core.security.admin_auth_surface
+myrm_agent_harness.core.security.agent_lifecycle_certificate
 myrm_agent_harness.core.security.air_gapped
 myrm_agent_harness.core.security.approval_metrics
 myrm_agent_harness.core.security.asr_privacy_tradeoff
@@ -256,6 +257,7 @@ myrm_agent_harness.core.security.commerce_dispute_escrow
 myrm_agent_harness.core.security.companion_relationship_guard
 myrm_agent_harness.core.security.compound_shell_risk
 myrm_agent_harness.core.security.connector_guard
+myrm_agent_harness.core.security.consumer_action_guard
 myrm_agent_harness.core.security.cos_otp_isolation_jit.jit_gate
 myrm_agent_harness.core.security.cos_otp_isolation_jit.otp_redactor
 myrm_agent_harness.core.security.cos_otp_isolation_jit.quota_rails
@@ -282,6 +284,7 @@ myrm_agent_harness.core.security.directory_trust_remote_memory
 myrm_agent_harness.core.security.dual_tier_isolation.isolation_gate
 myrm_agent_harness.core.security.dual_tier_isolation.key_vault
 myrm_agent_harness.core.security.dual_tier_isolation.types
+myrm_agent_harness.core.security.dual_track_content_audit
 myrm_agent_harness.core.security.dual_track_sandbox_guard.guard_interceptor
 myrm_agent_harness.core.security.dual_track_sandbox_guard.policy_compiler
 myrm_agent_harness.core.security.dual_track_sandbox_guard.types
@@ -596,6 +599,7 @@ myrm_agent_harness.toolkits.memory.strategies.preference_stability
 myrm_agent_harness.toolkits.memory.strategies.subsumption
 myrm_agent_harness.toolkits.memory.types
 myrm_agent_harness.toolkits.memory.wiki_memory
+myrm_agent_harness.toolkits.memory.zero_llm
 myrm_agent_harness.toolkits.mobile_adb
 myrm_agent_harness.toolkits.mobile_adb.session
 myrm_agent_harness.toolkits.openapi_bridge
