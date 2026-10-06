@@ -24,6 +24,7 @@ class MigrationSourceType(StrEnum):
     ZEP = "zep"
     CLAUDE_CODE = "claude_code"
     OPENCLAW = "openclaw"
+    HINDSIGHT = "hindsight"
     UNKNOWN = "unknown"
 
 

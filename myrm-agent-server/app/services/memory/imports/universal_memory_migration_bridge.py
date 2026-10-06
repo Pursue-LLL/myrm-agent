@@ -16,6 +16,7 @@ import hashlib
 import json
 
 from app.services.memory.imports.migration_adapters import (
+    HindsightMemoryAdapter,
     LangChainMemoryAdapter,
     LettaMemGPTMigrationAdapter,
     Mem0MigrationAdapter,
@@ -37,6 +38,8 @@ class UniversalMemoryMigrationBridge:
     def sniff_source(payload: dict[str, object]) -> MigrationSourceType:
         """Heuristically identify the origin memory framework schema."""
         source_tag = str(payload.get("_source") or "").lower()
+        if "hindsight" in source_tag:
+            return MigrationSourceType.HINDSIGHT
         if "mem0" in source_tag:
             return MigrationSourceType.MEM0
         if "letta" in source_tag or "memgpt" in source_tag:
@@ -48,6 +51,8 @@ class UniversalMemoryMigrationBridge:
         if "zep" in source_tag:
             return MigrationSourceType.ZEP
 
+        if "memory_units" in payload or "chunks" in payload:
+            return MigrationSourceType.HINDSIGHT
         if "persona" in payload or "archival_passages" in payload:
             return MigrationSourceType.LETTA_MEMGPT
         if "memories" in payload or "results" in payload:
@@ -77,7 +82,9 @@ class UniversalMemoryMigrationBridge:
         items: list[CanonicalMigratedItem] = []
         warnings: list[str] = []
 
-        if source == MigrationSourceType.MEM0:
+        if source == MigrationSourceType.HINDSIGHT:
+            items = HindsightMemoryAdapter.parse(payload)
+        elif source == MigrationSourceType.MEM0:
             items = Mem0MigrationAdapter.parse(payload)
         elif source == MigrationSourceType.LETTA_MEMGPT:
             items = LettaMemGPTMigrationAdapter.parse(payload)

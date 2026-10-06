@@ -316,3 +316,99 @@ class ZepMigrationAdapter:
                     )
                 )
         return items
+
+
+class HindsightMemoryAdapter:
+    """Full-fidelity parser for Hindsight database dumps (chunks & memory_units)."""
+
+    @staticmethod
+    def parse(payload: dict[str, object]) -> list[CanonicalMigratedItem]:
+        items: list[CanonicalMigratedItem] = []
+        bank_id = str(payload.get("bank_id") or "default_bank")
+
+        raw_units = payload.get("memory_units")
+        if isinstance(raw_units, list):
+            for unit in raw_units:
+                if not isinstance(unit, dict):
+                    continue
+                content = str(unit.get("content") or unit.get("fact") or "").strip()
+                if not content:
+                    continue
+                unit_id = str(unit.get("id") or uuid.uuid4().hex[:12])
+                fact_type = str(unit.get("fact_type") or unit.get("type") or "world").lower()
+                chunk_id = str(unit.get("chunk_id") or "")
+
+                raw_conf = unit.get("confidence") or unit.get("importance")
+                importance = 0.75
+                if isinstance(raw_conf, (int, float)):
+                    importance = max(0.0, min(1.0, float(raw_conf)))
+
+                if fact_type == "experience":
+                    target_bucket = MemoryTargetBucket.PROCEDURAL
+                    fidelity = MigrationFidelityLevel.PROCEDURAL_RULE
+                    importance = max(importance, 0.85)
+                elif fact_type == "observation":
+                    target_bucket = MemoryTargetBucket.CONVERSATION
+                    fidelity = MigrationFidelityLevel.STRUCTURED_SEMANTIC
+                    importance = max(importance, 0.60)
+                else:
+                    target_bucket = MemoryTargetBucket.SEMANTIC
+                    fidelity = MigrationFidelityLevel.STRUCTURED_SEMANTIC
+                    importance = max(importance, 0.75)
+
+                meta: dict[str, str | int | float | bool] = {
+                    "source_format": "hindsight_memory_unit",
+                    "bank_id": bank_id,
+                    "fact_type": fact_type,
+                }
+                if chunk_id:
+                    meta["chunk_id"] = chunk_id
+
+                items.append(
+                    CanonicalMigratedItem(
+                        item_id=f"hindsight_unit_{unit_id}",
+                        source_type=MigrationSourceType.HINDSIGHT,
+                        source_id=unit_id,
+                        target_bucket=target_bucket,
+                        fidelity_level=fidelity,
+                        content=content,
+                        importance=importance,
+                        tags=["hindsight", fact_type, bank_id],
+                        metadata=meta,
+                        created_at=str(unit.get("created_at")) if unit.get("created_at") else None,
+                        updated_at=str(unit.get("updated_at")) if unit.get("updated_at") else None,
+                    )
+                )
+
+        raw_chunks = payload.get("chunks")
+        if isinstance(raw_chunks, list):
+            for chunk in raw_chunks:
+                if not isinstance(chunk, dict):
+                    continue
+                content = str(chunk.get("content") or chunk.get("text") or "").strip()
+                if not content:
+                    continue
+                chunk_id = str(chunk.get("id") or uuid.uuid4().hex[:12])
+                chunk_meta: dict[str, str | int | float | bool] = {
+                    "source_format": "hindsight_chunk",
+                    "bank_id": bank_id,
+                    "chunk_id": chunk_id,
+                }
+                items.append(
+                    CanonicalMigratedItem(
+                        item_id=f"hindsight_chunk_{chunk_id}",
+                        source_type=MigrationSourceType.HINDSIGHT,
+                        source_id=chunk_id,
+                        target_bucket=MemoryTargetBucket.CONVERSATION,
+                        fidelity_level=MigrationFidelityLevel.LOSSLESS_VERBATIM,
+                        content=content,
+                        importance=DEFAULT_IMPORTANCE,
+                        tags=["hindsight_chunk", bank_id],
+                        metadata=chunk_meta,
+                        created_at=str(chunk.get("created_at")) if chunk.get("created_at") else None,
+                        updated_at=str(chunk.get("updated_at")) if chunk.get("updated_at") else None,
+                    )
+                )
+
+        return items
+
