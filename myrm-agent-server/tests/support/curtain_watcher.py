@@ -6,13 +6,14 @@
 - app.services.locked_use.curtain_bridge.CurtainBridgeState（POS: 状态桥快照）
 
 [OUTPUT]
-- make_state / drive / acquire / mark_watcher_running / record_clear / set_locked / set_hid_idle / has_session / no_session / StopLoop
+- make_state / drive / arm_on_demand_unlock / acquire / mark_watcher_running / record_clear / set_locked / set_hid_idle / has_session / no_session / StopLoop
 - AWAY_IDLE_SECONDS（主人离开已久的硬件输入空闲读数）
 - dead_process_pid（已退出并被回收的进程 PID，模拟壳崩溃）
 
 [POS]
-test_unattended_on_demand.py（按需获取）、test_unattended_curtain_watcher.py（watcher 循环）与
-test_unattended_lease.py（租约分支）共用；纯 mock，tick 循环经哨兵异常退出，不真 sleep。
+test_unattended_on_demand.py（获取门禁）、test_unattended_on_demand_concurrency.py（单飞与并发）、
+test_unattended_guardian_wiring.py（harness 会话接线）、test_unattended_curtain_watcher.py（watcher 循环）
+与 test_unattended_lease.py（租约分支）共用；纯 mock，tick 循环经哨兵异常退出，不真 sleep。
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ import asyncio
 import subprocess
 import sys
 import time
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -46,7 +47,6 @@ class StopLoop(BaseException):
 def make_state(
     *,
     active: bool = True,
-    auto_engaged: bool = True,
     pending_auto_unlock: bool = False,
     quiet_elapsed: bool = True,
     shell_alive: bool = True,
@@ -59,7 +59,6 @@ def make_state(
     offset_ms = -int(QUIET_PERIOD_SECONDS * 1000) - 1_000 if quiet_elapsed else -1_000
     return CurtainBridgeState(
         active=active and shell_alive,
-        auto_engaged=auto_engaged,
         last_physical_input_ms=now_ms + offset_ms,
         pending_auto_unlock=pending_auto_unlock,
         shell_alive=shell_alive,
@@ -97,6 +96,16 @@ def mark_watcher_running(monkeypatch: pytest.MonkeyPatch) -> None:
     live_watcher = MagicMock()
     live_watcher.done.return_value = False
     monkeypatch.setattr(unattended, "_watcher_task", live_watcher)
+
+
+def arm_on_demand_unlock(monkeypatch: pytest.MonkeyPatch, *, unlocks: bool = True) -> AsyncMock:
+    """五条件齐备的锁屏场景；返回代解锁桩（每个门禁用例只改动其中一个条件）。"""
+    monkeypatch.setattr(unattended, "read_curtain_state", lambda: make_state())
+    set_locked(monkeypatch, True)
+    monkeypatch.setattr(unattended, "mark_pending_auto_unlock", lambda: True)
+    unlock = AsyncMock(return_value=unlocks)
+    monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
+    return unlock
 
 
 def acquire(monkeypatch: pytest.MonkeyPatch) -> None:

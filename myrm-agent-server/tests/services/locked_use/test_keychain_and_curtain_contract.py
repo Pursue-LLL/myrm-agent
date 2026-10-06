@@ -79,7 +79,7 @@ def test_shell_pid_env_contract_aligned() -> None:
 
 
 def test_curtain_state_fields_contract_aligned() -> None:
-    """curtain_state.json serde 契约：Rust camelCase 字段集与 server 解析字段集一致。"""
+    """curtain_state.json serde 契约：Rust camelCase 字段集 = server 解析字段 ∪ 壳专属字段。"""
     rust = _tauri_source("src/commands/privacy_curtain_state.rs")
     struct = re.search(r"pub struct CurtainState\s*\{(.*?)\n\}", rust, re.DOTALL)
     assert struct is not None, "Tauri CurtainState struct not found"
@@ -90,10 +90,13 @@ def test_curtain_state_fields_contract_aligned() -> None:
     expected_keys = {
         "".join(part.capitalize() if index else part for index, part in enumerate(field.split("_"))) for field in rust_fields
     }
-    # server 侧解析键集合（read_curtain_state 的映射目标）。
-    server_keys = {"active", "autoEngaged", "lastPhysicalInputMs", "pendingAutoUnlock"}
-    assert expected_keys == server_keys, (
-        f"curtain_state.json serde contract drifted: rust={sorted(expected_keys)} server={sorted(server_keys)}"
+    # server 侧解析键集合（read_curtain_state 的映射目标）与 server 有意不读的壳专属键：
+    # 壳新增字段必须在两者之一显式归类，否则契约变红。
+    server_keys = {"active", "lastPhysicalInputMs", "pendingAutoUnlock"}
+    shell_only_keys = {"autoEngaged"}
+    assert expected_keys == server_keys | shell_only_keys, (
+        f"curtain_state.json serde contract drifted: rust={sorted(expected_keys)} "
+        f"server={sorted(server_keys)} shell_only={sorted(shell_only_keys)}"
     )
 
 
@@ -117,7 +120,6 @@ def test_curtain_state_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     state = read_curtain_state()
     assert state is not None
     assert state.active is True
-    assert state.auto_engaged is True
     assert state.last_physical_input_ms == 42
     assert state.pending_auto_unlock is False
 

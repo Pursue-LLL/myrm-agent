@@ -302,7 +302,6 @@ def test_read_state_active_requires_a_living_shell(tmp_path: Path, monkeypatch: 
     assert gone is not None
     assert (gone.active, gone.shell_alive) == (False, False)
     # 租约位是 server 自己的账：壳失联不能让它凭空消失，watcher 要凭它回锁。
-    assert gone.auto_engaged is True
     assert gone.pending_auto_unlock is True
 
 

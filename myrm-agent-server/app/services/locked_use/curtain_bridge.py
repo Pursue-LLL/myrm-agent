@@ -70,7 +70,6 @@ class CurtainBridgeState:
     """
 
     active: bool
-    auto_engaged: bool
     last_physical_input_ms: int
     pending_auto_unlock: bool
     shell_alive: bool
@@ -121,7 +120,6 @@ def read_curtain_state() -> CurtainBridgeState | None:
         alive = shell_alive()
         return CurtainBridgeState(
             active=bool(data.get("active", False)) and alive,
-            auto_engaged=bool(data.get("autoEngaged", False)),
             last_physical_input_ms=int(data.get("lastPhysicalInputMs", 0)),
             pending_auto_unlock=bool(data.get("pendingAutoUnlock", False)),
             shell_alive=alive,

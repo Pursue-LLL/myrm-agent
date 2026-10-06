@@ -33,7 +33,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_paginated_table_harvest_flow_e2e.py` | E2E | Universal Task Flow E2E：多页表格翻页抓取、双哨兵防死循环（首行指纹哈希与硬上限）及 UTF-8-SIG CSV/Excel 工件生成与解析全链路测试 |
 | `e2e/test_paginated_table_harvest_chrome_e2e.py` | E2E | Chrome E2E：真实浏览器动态多页表格提取与双哨兵（首行指纹哈希/末页置灰按钮）翻页终止自动化测试 |
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
-| `support/curtain_watcher.py` | 辅助 | 无人值守帷幕 watcher 单测共享支撑：`make_state` 状态快照（`shell_alive` 模拟壳失联）、`drive` 哨兵退出的 tick 驱动器、`dead_process_pid` 已退出进程 PID、`record_clear` / `set_locked` / `has_session` / `no_session` 桩、`set_hid_idle` / `AWAY_IDLE_SECONDS` 固定硬件输入空闲读数（在场门禁；真实探针读开发机此刻键鼠，用例须经此固定；`tests/services/locked_use/` 获取分支、租约分支与会话路径测试共用） |
+| `support/curtain_watcher.py` | 辅助 | 无人值守帷幕单测共享支撑：`make_state` 状态快照（`shell_alive` 模拟壳失联）、`drive` 哨兵退出的 tick 驱动器、`arm_on_demand_unlock`（五条件齐备的锁屏场景，返回代解锁桩）/ `acquire` / `mark_watcher_running` 按需解锁入口、`dead_process_pid` 已退出进程 PID、`record_clear` / `set_locked` / `has_session` / `no_session` 桩、`set_hid_idle` / `AWAY_IDLE_SECONDS` 固定硬件输入空闲读数（在场门禁；真实探针读开发机此刻键鼠，用例须经此固定；`tests/services/locked_use/` 获取门禁、并发、harness 会话接线、watcher 循环、租约分支与会话路径测试共用） |
 | `support/verify_api_base.py` | 辅助 | Live 集成测 verify-api 私池 base SSOT（`resolve_verify_api_base()`；epoch 匹配 + `--ensure-backend` seed） |
 | `support/theme_marketplace_e2e.py` | 辅助 | Theme marketplace E2E：CP 探活、JWT、official seed、listing 查询 |
 | `support/gap_toast_chrome_e2e_contract.py` | 辅助 | Gap Toast E2E Dual-Plane SSOT（Verification=API/integration · Experience=browser send+poll；禁止 chrome_e2e body 内 agent-stream httpx） |
