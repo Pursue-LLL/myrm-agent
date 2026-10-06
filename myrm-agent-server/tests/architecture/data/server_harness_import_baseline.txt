@@ -254,6 +254,7 @@ myrm_agent_harness.core.security.audit_coverage
 myrm_agent_harness.core.security.auto_review_resolution
 myrm_agent_harness.core.security.blast_radius_inspector
 myrm_agent_harness.core.security.bot_budget_guardrail
+myrm_agent_harness.core.security.case_variant_scrubber
 myrm_agent_harness.core.security.causal_deception
 myrm_agent_harness.core.security.change_guard
 myrm_agent_harness.core.security.code_signing_gate
@@ -598,6 +599,7 @@ myrm_agent_harness.toolkits.memory.protocols.vector
 myrm_agent_harness.toolkits.memory.relational.sqlite_store
 myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.session_post_process
+myrm_agent_harness.toolkits.memory.sovereign_migration
 myrm_agent_harness.toolkits.memory.strategies.blind_spot
 myrm_agent_harness.toolkits.memory.strategies.consolidation
 myrm_agent_harness.toolkits.memory.strategies.consolidation_rollback
