@@ -15,6 +15,7 @@ from app.api.agents import (
     suggestions,
     templates,
 )
+from app.api.agents.agent_handoff_router import router as agent_handoff_router
 from app.api.agents.fleet_overview import router as fleet_overview_router
 from app.api.agents.governance import router as governance_router
 from app.api.agents.openapi_services import router as openapi_services_router
@@ -25,6 +26,7 @@ from app.api.api_keys import router as api_keys_router
 from app.api.approvals import router as approvals_router
 from app.api.audit.auth_router import router as auth_audit_router
 from app.api.audit.bash_router import router as audit_router
+from app.api.audit.local_action_router import router as local_action_router
 from app.api.background_tasks.router import router as background_tasks_router
 from app.api.batch_directory import router as batch_directory_router
 from app.api.batch_optimization import router as batch_optimization_router
@@ -150,6 +152,7 @@ api_router.include_router(readiness_router, prefix="/user-agents", tags=["user-a
 api_router.include_router(agent_recovery_router, prefix="", tags=["user-agents"])
 api_router.include_router(goals_router)
 api_router.include_router(external_agents_router, prefix="/external-agents", tags=["external-agents"])
+api_router.include_router(agent_handoff_router, prefix="/agents", tags=["agents-handoff"])
 
 # 核心业务
 api_router.include_router(approvals_router)
@@ -276,6 +279,7 @@ api_router.include_router(message_filter_router, tags=["message-filter"])
 api_router.include_router(risk_router, prefix="/risk", tags=["risk"])
 api_router.include_router(auth_audit_router, tags=["audit"])
 api_router.include_router(audit_router, tags=["audit"])
+api_router.include_router(local_action_router)
 api_router.include_router(health_router, prefix="/health", tags=["health"])
 api_router.include_router(ops_router)
 api_router.include_router(diagnostic_router, prefix="/diagnostic", tags=["diagnostic"])

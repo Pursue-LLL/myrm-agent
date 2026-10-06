@@ -20,6 +20,7 @@ myrm_agent_harness.agent.context_guard.types
 myrm_agent_harness.agent.context_management.archive_checkpoint
 myrm_agent_harness.agent.context_management.archive_checkpoint.store
 myrm_agent_harness.agent.context_management.archive_checkpoint.summary_service
+myrm_agent_harness.agent.context_management.handoff
 myrm_agent_harness.agent.context_management.infra.cache_policy
 myrm_agent_harness.agent.context_management.infra.context_budget
 myrm_agent_harness.agent.context_management.infra.schemas
@@ -299,6 +300,7 @@ myrm_agent_harness.core.security.gate_guard_sanitizer
 myrm_agent_harness.core.security.git_leak_shield
 myrm_agent_harness.core.security.governance_assembly
 myrm_agent_harness.core.security.guards.ssrf
+myrm_agent_harness.core.security.hardened_sandbox_perimeter
 myrm_agent_harness.core.security.headless_interactive_approval
 myrm_agent_harness.core.security.hitl_denial
 myrm_agent_harness.core.security.hitl_denial_events
