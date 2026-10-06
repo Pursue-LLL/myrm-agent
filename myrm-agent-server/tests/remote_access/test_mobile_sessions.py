@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -137,4 +138,56 @@ async def test_mobile_sessions_assembles_recent_with_agent_names(monkeypatch: py
         "agentId": "a1",
         "agentName": "Research Agent",
         "updatedAt": "2026-10-02T02:00:00",
+    }
+
+
+def _stub_gateway(monkeypatch: pytest.MonkeyPatch) -> None:
+    gateway = MagicMock()
+    gateway.get_active_sessions.return_value = []
+    gateway.config.max_per_user = 2
+    gateway.get_available_slots.return_value = 2
+    monkeypatch.setattr("app.api.remote_access.router.get_agent_gateway", lambda: gateway)
+    _stub_payload(monkeypatch)
+
+
+@pytest.mark.asyncio
+async def test_mobile_sessions_reports_curtain_unavailable_without_bridge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """非桌面端部署（无状态桥）：curtain.available=False，手机端据此隐藏帷幕胶囊。"""
+    monkeypatch.delenv("MYRM_CURTAIN_STATE_FILE", raising=False)
+    _stub_gateway(monkeypatch)
+
+    result = await mobile_sessions(_mock_request(trust_zone=TrustZone.LOCAL_TRUSTED.value), pair=None)
+    curtain = _response_body(result)["data"]["curtain"]
+
+    assert curtain == {"available": False, "active": False}
+
+
+@pytest.mark.asyncio
+async def test_mobile_sessions_reports_live_curtain_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """桌面端部署：hub payload 透出真实帷幕态（无人值守时手机可见「屏幕已保护」）。"""
+    state_file = tmp_path / "curtain_state.json"
+    state_file.write_text(
+        json.dumps(
+            {
+                "active": True,
+                "autoEngaged": True,
+                "lastPhysicalInputMs": 0,
+                "pendingAutoUnlock": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("MYRM_CURTAIN_STATE_FILE", str(state_file))
+    _stub_gateway(monkeypatch)
+
+    result = await mobile_sessions(_mock_request(trust_zone=TrustZone.LOCAL_TRUSTED.value), pair=None)
+    curtain = _response_body(result)["data"]["curtain"]
+
+    assert curtain == {
+        "available": True,
+        "active": True,
+        "autoEngaged": True,
+        "pendingAutoUnlock": False,
     }
