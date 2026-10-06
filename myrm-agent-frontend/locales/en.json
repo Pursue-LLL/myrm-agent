@@ -21,10 +21,10 @@
     "lockedUse": {
       "title": "Computer Use / Locked Use",
       "layer1Title": "Display Keep-Awake",
-      "layer1Desc": "Automatically prevents display sleep during CU sessions, zero config",
+      "layer1Desc": "Automatically prevents display sleep while the agent is using your computer, zero config",
       "layer1Badge": "Always On",
       "layer2Title": "Screen Unlock",
-      "layer2DescSupported": "Automatically unlocks screen temporarily for CU tasks when locked",
+      "layer2DescSupported": "With the Privacy Curtain below turned on, a locked screen is unlocked temporarily when the agent needs to use your computer, then locked again when the task ends",
       "layer2DescUnsupported": "Auto-unlock is not supported on current platform ({platform})",
       "passwordSaved": "Password saved to system Keychain",
       "deletePassword": "Delete saved password",
@@ -42,7 +42,7 @@
     "privacyCurtain": {
       "title": "Privacy Curtain",
       "autoTitle": "Auto engage on lock",
-      "autoDesc": "Blank all displays the moment you lock and leave: the agent keeps working through an excluded capture channel, passers-by see only the dark board",
+      "autoDesc": "Covers all displays the moment you lock and leave, so passers-by see only a dark board",
       "activeBadge": "Curtain engaged",
       "inactiveBadge": "Curtain idle",
       "engage": "Engage now",

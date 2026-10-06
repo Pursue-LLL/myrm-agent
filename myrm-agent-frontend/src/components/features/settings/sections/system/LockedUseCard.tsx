@@ -15,8 +15,9 @@ interface LockedUseCardProps {
 /**
  * Locked Use configuration card for Computer Use screen lock management.
  *
- * Layer 1 (Display Keep-Awake): Always active during CU sessions, zero config.
- * Layer 2 (Screen Unlock): Opt-in, requires password stored in macOS Keychain.
+ * Layer 1 (Display Keep-Awake): Always active while an agent run drives the desktop, zero config.
+ * Layer 2 (Screen Unlock): Opt-in, requires a password stored in the macOS Keychain and a
+ * raised Privacy Curtain; the screen is re-locked once the run ends.
  */
 const LockedUseCard = memo<LockedUseCardProps>(({ enabled, onToggle }) => {
   const t = useTranslations('settings.lockedUse');

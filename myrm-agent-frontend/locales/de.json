@@ -12731,11 +12731,11 @@
     },
     "lockedUse": {
       "title": "Computernutzung / gesperrte Nutzung",
-      "layer1Title": "Wach halten anzeigen",
-      "layer1Desc": "Verhindert automatisch den Bildschirmschlaf während CU-Sitzungen, keine Konfiguration erforderlich",
+      "layer1Title": "Bildschirm wach halten",
+      "layer1Desc": "Verhindert automatisch den Bildschirmschlaf, solange der Agent den Computer bedient, keine Konfiguration erforderlich",
       "layer1Badge": "Immer an",
       "layer2Title": "Bildschirm entsperren",
-      "layer2DescSupported": "Entsperrt den Bildschirm bei gesperrtem Zustand vorübergehend automatisch für CU-Aufgaben",
+      "layer2DescSupported": "Bei aktivem Privatsphäre-Vorhang (unten) wird ein gesperrter Bildschirm vorübergehend entsperrt, wenn der Agent den Computer bedienen muss, und nach der Aufgabe wieder gesperrt",
       "layer2DescUnsupported": "Die automatische Entsperrung wird auf der aktuellen Plattform ({platform}) nicht unterstützt.",
       "passwordSaved": "Passwort im System-Schlüsselbund gespeichert",
       "deletePassword": "Gespeichertes Passwort löschen",
@@ -12753,7 +12753,7 @@
     "privacyCurtain": {
       "title": "Privatsphäre-Vorhang",
       "autoTitle": "Automatisch beim Sperren",
-      "autoDesc": "Sobald Sie den Bildschirm sperren und gehen, werden alle Displays abgedunkelt: Der Agent arbeitet über einen ausgeschlossenen Aufnahmekanal weiter, Vorbeigehende sehen nur das schwarze Board",
+      "autoDesc": "Sobald Sie den Bildschirm sperren und gehen, werden alle Displays abgedunkelt, Vorbeigehende sehen nur das schwarze Board",
       "activeBadge": "Vorhang aktiv",
       "inactiveBadge": "Vorhang inaktiv",
       "engage": "Jetzt aktivieren",

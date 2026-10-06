@@ -21,10 +21,10 @@
     "lockedUse": {
       "title": "计算机使用 / 锁定使用",
       "layer1Title": "保持屏幕常亮",
-      "layer1Desc": "CU 回合期间自动阻止屏幕关闭，无需配置",
+      "layer1Desc": "Agent 操作电脑期间自动阻止屏幕关闭，无需配置",
       "layer1Badge": "始终开启",
       "layer2Title": "屏幕解锁",
-      "layer2DescSupported": "屏幕已锁定时自动临时解锁以执行 CU 操作",
+      "layer2DescSupported": "开启下方的工位防窥帷幕后，屏幕锁定时 Agent 需要操作电脑会临时自动解锁，任务结束后重新锁屏",
       "layer2DescUnsupported": "当前平台 ({platform}) 不支持自动解锁",
       "passwordSaved": "密码已保存在系统 Keychain 中",
       "deletePassword": "删除保存的密码",
@@ -42,7 +42,7 @@
     "privacyCurtain": {
       "title": "工位防窥帷幕",
       "autoTitle": "锁屏离机自动拉起",
-      "autoDesc": "锁屏离开的瞬间全屏遮蔽：Agent 经排除截图通道继续作业，路过者只见黑色看板",
+      "autoDesc": "锁屏离开的瞬间全屏遮蔽，路过者只见黑色看板",
       "activeBadge": "帷幕已拉起",
       "inactiveBadge": "帷幕未拉起",
       "engage": "立即拉起",

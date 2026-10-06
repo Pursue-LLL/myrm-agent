@@ -12732,10 +12732,10 @@
     "lockedUse": {
       "title": "電腦使用 / 鎖定使用",
       "layer1Title": "保持螢幕常亮",
-      "layer1Desc": "CU 回合期間自動阻止螢幕關閉，無需配置",
+      "layer1Desc": "Agent 操作電腦期間自動阻止螢幕關閉，無需配置",
       "layer1Badge": "始終開啟",
       "layer2Title": "螢幕解鎖",
-      "layer2DescSupported": "螢幕已鎖定時自動臨時解鎖以執行 CU 操作",
+      "layer2DescSupported": "開啟下方的工位防窺帷幕後，螢幕鎖定時 Agent 需要操作電腦會暫時自動解鎖，任務結束後重新鎖定螢幕",
       "layer2DescUnsupported": "當前平臺 ({platform}) 不支援自動解鎖",
       "passwordSaved": "密碼已儲存在系統 Keychain 中",
       "deletePassword": "刪除儲存的密碼",
@@ -12753,7 +12753,7 @@
     "privacyCurtain": {
       "title": "工位防窺帷幕",
       "autoTitle": "鎖屏離機自動拉起",
-      "autoDesc": "鎖屏離開的瞬間全螢幕遮蔽：Agent 透過排除截圖通道繼續作業，路過者只見黑色看板",
+      "autoDesc": "鎖屏離開的瞬間全螢幕遮蔽，路過者只見黑色看板",
       "activeBadge": "帷幕已拉起",
       "inactiveBadge": "帷幕未拉起",
       "engage": "立即拉起",
