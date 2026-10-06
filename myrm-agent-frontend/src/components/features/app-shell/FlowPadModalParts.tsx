@@ -117,6 +117,7 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
       <button type="button" className="absolute top-4 right-4 text-white/80 hover:text-white" onClick={onClose}>
         <X className="w-6 h-6" />
       </button>
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- propagation barrier only; the image is not interactive */}
       <img
         src={src}
         alt={alt}

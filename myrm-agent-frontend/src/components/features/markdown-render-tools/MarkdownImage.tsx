@@ -47,20 +47,26 @@ const MarkdownImage: React.FC<MarkdownImageProps> = ({ src, alt }) => {
     <>
       <span className="block my-3 max-w-xl">
         {!loaded && <span className="block w-full h-48 rounded-lg bg-muted/60 animate-pulse" />}
-        <img
-          src={src}
-          alt={alt || ''}
-          loading="lazy"
-          onLoad={handleLoad}
-          onError={handleError}
+        <button
+          type="button"
           onClick={() => setPreviewOpen(true)}
-          className={cn(
-            '!m-0 rounded-lg shadow-md border border-border/40 cursor-pointer',
-            'transition-opacity duration-300 hover:shadow-lg hover:border-border/60',
-            'max-w-full h-auto',
-            loaded ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden',
-          )}
-        />
+          aria-label={alt || t('preview')}
+          className="block max-w-full cursor-pointer rounded-lg"
+        >
+          <img
+            src={src}
+            alt={alt || ''}
+            loading="lazy"
+            onLoad={handleLoad}
+            onError={handleError}
+            className={cn(
+              '!m-0 rounded-lg shadow-md border border-border/40',
+              'transition-opacity duration-300 hover:shadow-lg hover:border-border/60',
+              'max-w-full h-auto',
+              loaded ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden',
+            )}
+          />
+        </button>
       </span>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

@@ -173,6 +173,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
       </div>
 
       {lightboxIndex !== null && images[lightboxIndex] && (
+        // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop click-away is a pointer shortcut; Esc and the Close button are the keyboard paths
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
           onClick={closeLightbox}
@@ -218,7 +219,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
             </button>
           )}
 
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- propagation barrier only; the image is not interactive */}
           <img
             src={getImageSrc(images[lightboxIndex])}
             alt={`${images[lightboxIndex].toolName} screenshot full`}

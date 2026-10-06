@@ -3,6 +3,7 @@
 import { Settings } from 'lucide-react';
 import { Label } from '@/components/primitives/label';
 import { cn } from '@/lib/utils/classnameUtils';
+import { activateOnKey } from '@/lib/utils/a11y';
 
 export interface SelectableCardProps {
   id: string;
@@ -27,7 +28,11 @@ export function SelectableCard({
   rightElement,
   disabled = false,
 }: SelectableCardProps) {
+  // 没有内嵌控件（如 Switch）时卡片自身就是复选框；否则由内嵌控件承担键盘操作
+  const isStandalone = !rightElement;
+
   return (
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
     <div
       data-testid={id}
       className={cn(
@@ -51,6 +56,11 @@ export function SelectableCard({
         }
         onCheckedChange();
       }}
+      role={isStandalone ? 'checkbox' : undefined}
+      aria-checked={isStandalone ? checked : undefined}
+      aria-disabled={isStandalone && disabled ? true : undefined}
+      tabIndex={isStandalone && !disabled ? 0 : undefined}
+      onKeyDown={activateOnKey}
     >
       {icon && (
         <div
@@ -73,7 +83,7 @@ export function SelectableCard({
         {description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{description}</p>}
       </div>
       {rightElement && <div className="shrink-0 flex items-center">{rightElement}</div>}
-      {!rightElement && (
+      {isStandalone && (
         <div
           className={cn(
             'shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all',

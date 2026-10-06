@@ -1,6 +1,6 @@
 'use client';
 
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { expectNonNull } from '@/test-utils/expectDefined';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
@@ -259,7 +259,7 @@ describe('MobileStatusBoard Live Preview', () => {
     expect(document.body.style.overflow).toBe('');
   });
 
-  it('does not close Lightbox when clicking the image (stopPropagation)', () => {
+  it('does not close Lightbox when clicking the image', () => {
     _browserState.viewData = {
       screenshotBase64: 'abc',
       mimeType: 'image/png',
@@ -292,8 +292,9 @@ describe('MobileStatusBoard Live Preview', () => {
     expectNonNull(thumbButton, 'thumbnail button');
     fireEvent.click(thumbButton);
 
-    const dialog = screen.getByRole('dialog');
-    fireEvent.click(dialog);
+    // 遮罩是全屏的原生按钮：它才是用户点击与键盘聚焦的真实命中目标
+    const backdrop = within(screen.getByRole('dialog')).getByRole('button');
+    fireEvent.click(backdrop);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

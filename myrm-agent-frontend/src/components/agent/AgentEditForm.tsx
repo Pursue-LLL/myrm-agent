@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
+import { activateOnKey } from '@/lib/utils/a11y';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import { toast } from '@/hooks/shared/useToast';
 import { CommandBindingsEditor } from '@/components/agent/CommandBindingsEditor';
@@ -242,7 +243,14 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-4">
             <div className="flex flex-col items-center gap-4 mb-6">
-              <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
+              <div
+                className="relative group cursor-pointer"
+                onClick={handleAvatarClick}
+                role="button"
+                tabIndex={0}
+                onKeyDown={activateOnKey}
+                aria-label={t('avatar.hint', { fallback: 'Select an icon or click above to upload' })}
+              >
                 <AgentAvatar
                   url={avatarUrl}
                   name={name || 'New Agent'}
