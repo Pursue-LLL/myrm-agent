@@ -28,6 +28,7 @@ export default function RejectModeView({ feedback, setFeedback, onConfirm, onCan
         value={feedback}
         onChange={(e) => setFeedback(e.target.value)}
         className="min-h-[60px] text-sm"
+        // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
         autoFocus
       />
       <div className="flex gap-2">

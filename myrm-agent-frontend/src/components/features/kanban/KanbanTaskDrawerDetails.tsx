@@ -158,6 +158,7 @@ export function TaskDetailsSection({
             value={timeoutValue === null ? '' : String(timeoutValue)}
             onChange={(e) => setTimeoutValue(e.target.value ? Number(e.target.value) : null)}
             className="w-full text-xs px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-chart-5"
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
           >
             <option value="">{t('timeoutDefault')}</option>
@@ -263,6 +264,7 @@ export function TaskDetailsSection({
             value={modelValue}
             onChange={(e) => setModelValue(e.target.value)}
             className="w-full text-xs px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-chart-2"
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
           >
             <option value="">{t('inheritAgentModel')}</option>
@@ -382,6 +384,7 @@ export function TaskDetailsSection({
               placeholder={t('criteriaPlaceholder')}
               className="w-full text-xs px-2 py-1.5 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-none"
               rows={3}
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
               autoFocus
             />
             <div className="flex gap-1.5">

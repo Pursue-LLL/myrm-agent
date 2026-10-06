@@ -139,6 +139,7 @@ export const MoveDialog: React.FC<MoveDialogProps> = ({ node, workspace, onCompl
       >
         <h3 className="font-semibold text-sm mb-3">{t('moveTitle', { name: node.name })}</h3>
         <input
+          // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
           autoFocus
           value={targetDir}
           onChange={(e) => setTargetDir(e.target.value)}

@@ -214,6 +214,7 @@ export function WikiConceptsList({
               value={dialogInput}
               onChange={(e) => setDialogInput(e.target.value)}
               placeholder={t('namePlaceholder')}
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {

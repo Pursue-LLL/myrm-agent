@@ -232,6 +232,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                   'text-sm font-medium text-black/90 dark:text-white/90 bg-transparent border-b border-primary/50 outline-none w-full',
                   isMobile && 'text-xs',
                 )}
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
                 autoFocus
                 onClick={(e) => e.preventDefault()}
               />

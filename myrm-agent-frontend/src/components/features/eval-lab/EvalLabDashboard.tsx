@@ -426,6 +426,7 @@ export default function EvalLabDashboard() {
                 handleCreateDataset();
               }
             }}
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
           />
           <div className="mt-3 flex items-center gap-2">

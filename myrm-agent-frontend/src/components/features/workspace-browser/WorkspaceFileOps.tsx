@@ -347,6 +347,7 @@ export const NewDirButton: React.FC<NewDirButtonProps> = ({ workspace, currentDi
       <div className="flex items-center gap-1 px-2">
         <FolderPlus className="h-3.5 w-3.5 text-amber-500 shrink-0" />
         <input
+          // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -414,6 +415,7 @@ export const InlineRenameInput: React.FC<InlineRenameInputProps> = ({ workspace,
 
   return (
     <input
+      // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
       autoFocus
       value={value}
       onChange={(e) => setValue(e.target.value)}

@@ -290,6 +290,7 @@ export default function KanbanSection() {
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder={t('boardNamePlaceholder')}
                   className="w-full text-sm px-3 py-2 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                  // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
                   autoFocus
                 />
                 <input
@@ -397,6 +398,7 @@ export default function KanbanSection() {
             onChange={(e) => setNewBoardName(e.target.value)}
             placeholder={t('boardNamePlaceholder')}
             className="w-full text-sm px-3 py-2 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
           />
           <input

@@ -111,6 +111,7 @@ export const CommandEditor: React.FC<CommandEditorProps> = ({ open, onOpenChange
               placeholder={t('fields.name.placeholder')}
               value={name}
               onChange={(e) => setName(e.target.value)}
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
               autoFocus
             />
             <p className="text-xs text-muted-foreground">{t('fields.name.hint')}</p>

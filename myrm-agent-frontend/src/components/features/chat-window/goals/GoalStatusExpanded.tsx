@@ -281,6 +281,7 @@ function ObjectiveEditor({
         maxLength={2000}
         value={editedObjective}
         onChange={(e) => onEditedObjectiveChange(e.target.value)}
+        // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
         autoFocus
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {

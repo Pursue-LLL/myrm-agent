@@ -301,6 +301,7 @@ export default function PetOverlayWindowApp() {
             }}
             placeholder={t('composerPlaceholder')}
             className="min-w-0 flex-1 bg-transparent px-2 py-1 text-xs outline-none"
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
           />
           <button

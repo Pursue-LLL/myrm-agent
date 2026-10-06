@@ -26,6 +26,7 @@ const Toggle = memo<ToggleProps>(
       <button
         role="switch"
         aria-checked={checked}
+        // oxlint-disable-next-line jsx-a11y/no-autofocus -- opt-in prop forwarded from the caller
         autoFocus={autoFocus}
         onClick={(e) => {
           e.preventDefault();

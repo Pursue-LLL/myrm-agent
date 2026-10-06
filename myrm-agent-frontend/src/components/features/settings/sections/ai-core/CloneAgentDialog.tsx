@@ -75,6 +75,7 @@ export default function CloneAgentDialog({ open, onOpenChange, agentId, agentNam
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t('agent.cloneNamePlaceholder')}
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
             onKeyDown={(e) => {
               if (e.key === 'Enter' && name.trim() && !loading) {

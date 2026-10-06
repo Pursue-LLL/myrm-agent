@@ -88,6 +88,7 @@ export default function EditModeView({
             value={editedArgs[inputEntries[0][0]] ?? ''}
             onChange={(e) => setEditedArgs({ ...editedArgs, [inputEntries[0][0]]: e.target.value })}
             className="font-mono text-xs min-h-[80px]"
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
           />
         ) : (

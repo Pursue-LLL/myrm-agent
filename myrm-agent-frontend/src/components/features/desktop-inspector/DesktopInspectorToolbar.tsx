@@ -125,6 +125,7 @@ const DesktopInspectorToolbar: React.FC<DesktopInspectorToolbarProps> = ({
             onChange={(e) => onSearchQueryChange(e.target.value)}
             placeholder={t('searchPlaceholder')}
             className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
           />
           {searchQuery && (

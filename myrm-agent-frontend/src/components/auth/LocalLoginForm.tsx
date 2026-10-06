@@ -73,6 +73,7 @@ const LocalLoginForm = memo(
                   placeholder={t('login.placeholderPassword')}
                   disabled={loading}
                   autoComplete="current-password"
+                  // oxlint-disable-next-line jsx-a11y/no-autofocus -- sole field of the login page
                   autoFocus
                 />
                 <button

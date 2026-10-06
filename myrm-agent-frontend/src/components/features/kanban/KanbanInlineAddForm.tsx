@@ -219,6 +219,7 @@ export default function KanbanInlineAddForm({
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder={t('triageIdeaPlaceholder')}
           className="text-sm px-2 py-1.5 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-purple-500"
+          // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
           autoFocus
         />
         <p className="text-[10px] text-muted-foreground italic">{t('triageHelpHint')}</p>
@@ -245,6 +246,7 @@ export default function KanbanInlineAddForm({
         onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
         placeholder={t('taskTitlePlaceholder')}
         className="text-sm px-2 py-1.5 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+        // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
         autoFocus
       />
       <input

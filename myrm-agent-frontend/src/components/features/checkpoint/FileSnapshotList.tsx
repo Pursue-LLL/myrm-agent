@@ -251,6 +251,7 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
             }}
             placeholder={t('createPlaceholder')}
             maxLength={80}
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
             className="flex-1 px-3 py-1.5 text-sm rounded-lg bg-muted border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground placeholder:text-muted-foreground"
           />

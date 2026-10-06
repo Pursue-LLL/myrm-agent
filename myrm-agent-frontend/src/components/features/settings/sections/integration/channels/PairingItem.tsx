@@ -131,6 +131,7 @@ export function PairingItem({
                     onChange={(e) => setEditQuotaValue(e.target.value)}
                     className="h-5 text-xs px-1.5 w-16"
                     placeholder={t('unlimitedQuota')}
+                    // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -236,6 +237,7 @@ export function PairingItem({
                 onChange={(e) => setEditNameValue(e.target.value)}
                 className="h-6 text-sm px-1.5 w-32"
                 placeholder={t('displayNamePlaceholder')}
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {

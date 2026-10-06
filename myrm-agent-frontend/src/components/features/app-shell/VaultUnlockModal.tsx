@@ -87,6 +87,7 @@ export function VaultUnlockModal() {
               }
             }}
             disabled={isSubmitting}
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
           />
         </div>

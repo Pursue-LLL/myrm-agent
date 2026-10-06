@@ -181,6 +181,7 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
                         t('chat.captureEvalCase.newDatasetPlaceholder') || 'Enter dataset name (e.g., regressions)'
                       }
                       className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
                       autoFocus
                     />
                     <div className="flex justify-end">

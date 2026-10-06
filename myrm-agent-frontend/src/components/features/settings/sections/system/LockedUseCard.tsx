@@ -188,6 +188,7 @@ const LockedUseCard = memo<LockedUseCardProps>(({ enabled, onToggle }) => {
                     }}
                     placeholder={t('inputPlaceholder')}
                     className="w-full px-3 py-2 text-sm rounded-xl bg-muted/30 border border-border/30 focus:border-indigo-500 focus:outline-none"
+                    // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
                     autoFocus
                   />
                   <div className="flex gap-2">

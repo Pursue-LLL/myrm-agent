@@ -481,6 +481,7 @@ export const SubagentTreeNode = ({ node, chatId, setOpen, onOpenDetail }: TreeNo
             value={steerMessage}
             onChange={(e) => setSteerMessage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSteer()}
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
           />
           <Button size="sm" onClick={handleSteer}>

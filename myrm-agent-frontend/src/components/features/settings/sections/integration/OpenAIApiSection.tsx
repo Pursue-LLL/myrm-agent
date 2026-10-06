@@ -208,6 +208,7 @@ for chunk in response:
                 onChange={(e) => setKeyName(e.target.value)}
                 placeholder={t('keyNamePlaceholder')}
                 className="mt-1 w-full h-9 px-3 rounded-full border border-input bg-background text-sm"
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
                 autoFocus
               />
             </div>

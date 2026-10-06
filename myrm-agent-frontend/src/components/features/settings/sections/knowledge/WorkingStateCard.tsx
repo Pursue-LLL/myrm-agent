@@ -126,6 +126,7 @@ const WorkingStateCard = memo(() => {
             rows={3}
             maxLength={500}
             placeholder={t('placeholder')}
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
             autoFocus
           />
           <div className="flex items-center justify-between">
