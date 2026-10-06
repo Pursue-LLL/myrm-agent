@@ -3,9 +3,11 @@
 //! [INPUT]
 //! - config::ConfigManager (POS: 配置管理)
 //! - runtime::{PythonBackend, NextJSFrontend, graceful_stop_backend, stop_frontend} (POS: Sidecar 进程管理)
+//! - commands::privacy_curtain::relock_outstanding_lease (POS: 帷幕随进程消失前的租约兜底回锁)
 //!
 //! [OUTPUT]
-//! - graceful_shutdown: 完整优雅停机流程（防重入；后端优雅停止已内化为 graceful_stop_backend）
+//! - graceful_shutdown: 完整优雅停机流程（防重入；后端优雅停止已内化为 graceful_stop_backend；
+//!   后端停止后若代解锁租约仍未交还，由壳回锁屏幕）
 //!
 //! [POS]
 //! 桌面端退出生命周期管理。协调后端、前端、隧道的有序关闭。
@@ -14,6 +16,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::{AppHandle, Manager};
 
+use crate::commands::privacy_curtain::relock_outstanding_lease;
 use crate::runtime::{graceful_stop_backend, stop_frontend, NextJSFrontend, PythonBackend};
 
 static SHUTDOWN_INITIATED: AtomicBool = AtomicBool::new(false);
@@ -31,6 +34,8 @@ pub async fn graceful_shutdown(app: AppHandle) {
         Ok(message) => println!("Backend stop: {}", message),
         Err(e) => println!("Backend stop failed: {}", e),
     }
+    // 帷幕窗口随进程消失：后端没来得及交还租约（停机预算内回锁不完 / 被强杀）则由壳回锁。
+    relock_outstanding_lease(&app).await;
 
     let frontend_state = app.state::<NextJSFrontend>();
     let _ = stop_frontend(app.clone(), frontend_state);

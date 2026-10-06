@@ -26,7 +26,7 @@ Tauri 应用组装层：插件注册、全局快捷键分发、`setup` 钩子、
 | `linux_gpu.rs` | Linux NVIDIA + Wayland WebKitGTK 兼容 |
 | `menu.rs` | 原生应用主菜单与 Edit 快捷键桥接（macOS AppKit / Win32 Responder Chain） |
 | `tray.rs` | 系统托盘菜单、状态 tooltip、隐私帷幕切换项、IPC `set_tray_status` |
-| `lifecycle.rs` | 优雅停机：`SHUTDOWN_INITIATED` 防重入 + `graceful_stop_backend`（停 monitors → 服务端 drain → 等待自退 → 兜底强杀）+ Sidecar 有序关闭 |
+| `lifecycle.rs` | 优雅停机：`SHUTDOWN_INITIATED` 防重入 + `graceful_stop_backend`（停 monitors → 服务端 drain → 等待自退 → 兜底强杀）+ Sidecar 有序关闭；后端停止后代解锁租约仍未交还则 `relock_outstanding_lease` 兜底回锁（帷幕窗口随进程消失，不能留下解锁态桌面） |
 
 ## 依赖
 

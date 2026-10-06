@@ -15,6 +15,7 @@
 //! [OUTPUT]
 //! - show/hide/active/set_texts/report_physical_input IPC
 //! - curtain:state-changed / curtain:physical-input 事件
+//! - relock_outstanding_lease（壳退出前租约仍未交还时的兜底回锁，由 app/lifecycle.rs 调用）
 //! - spawn_privacy_curtain_watcher（见 privacy_curtain_watcher.rs）
 //!
 //! [POS]
@@ -242,12 +243,43 @@ pub fn curtain_set_texts(texts: CurtainTexts) -> Result<(), String> {
     Ok(())
 }
 
-/// 帷幕上的物理输入上报：更新静默期基准并回锁屏幕。
-/// 帷幕输入不穿透到底层窗口，路过者交互唯一效果就是加固锁屏。
-///
-/// 代解锁租约位仅在系统确认已锁定后才清除：先清位会让 watcher 在锁屏生效前
+/// 请求系统回锁并等待确认，确认后才交还代解锁租约位：先清位会让 watcher 在锁屏生效前
 /// 的 tick 里把解锁态判为用户解锁并收起帷幕（桌面闪现）；锁屏请求被拒时
 /// 保留租约位，帷幕继续遮蔽。
+async fn relock_and_release_lease(
+    app: &AppHandle,
+    action: &str,
+    reason: &str,
+) -> Result<(), String> {
+    let locked = tauri::async_runtime::spawn_blocking(|| {
+        screen_lock::lock_screen_confirmed(LOCK_CONFIRM_TIMEOUT)
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    log_audit(action, locked.is_ok(), reason);
+    if locked.is_ok() {
+        mutate_state(app, |state| {
+            state.pending_auto_unlock = false;
+        });
+    }
+    Ok(())
+}
+
+/// 壳退出前的兜底回锁：帷幕窗口随进程消失，租约位此时若仍置位，说明 server 没来得及
+/// （停机预算内）或没能（被强杀 / 回锁失败）把屏幕交还成已锁状态，桌面会就此无人看管地裸露。
+pub(crate) async fn relock_outstanding_lease(app: &AppHandle) {
+    if !read_state(app).pending_auto_unlock {
+        return;
+    }
+    if let Err(reason) =
+        relock_and_release_lease(app, "relock_on_exit", "lease outstanding at shell exit").await
+    {
+        log_audit("relock_on_exit", false, &reason);
+    }
+}
+
+/// 帷幕上的物理输入上报：更新静默期基准并回锁屏幕。
+/// 帷幕输入不穿透到底层窗口，路过者交互唯一效果就是加固锁屏。
 #[tauri::command]
 pub async fn curtain_report_physical_input(app: AppHandle, source: String) -> Result<(), String> {
     mutate_state(&app, |state| {
@@ -259,16 +291,5 @@ pub async fn curtain_report_physical_input(app: AppHandle, source: String) -> Re
         serde_json::json!({ "source": source }),
     );
 
-    let locked = tauri::async_runtime::spawn_blocking(|| {
-        screen_lock::lock_screen_confirmed(LOCK_CONFIRM_TIMEOUT)
-    })
-    .await
-    .map_err(|error| error.to_string())?;
-    log_audit("relock_on_input", locked.is_ok(), "curtain input guard");
-    if locked.is_ok() {
-        mutate_state(&app, |state| {
-            state.pending_auto_unlock = false;
-        });
-    }
-    Ok(())
+    relock_and_release_lease(&app, "relock_on_input", "curtain input guard").await
 }
