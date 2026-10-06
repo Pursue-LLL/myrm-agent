@@ -312,6 +312,7 @@ myrm_agent_harness.core.security.llm_egress_guard.guard
 myrm_agent_harness.core.security.llm_egress_guard.types
 myrm_agent_harness.core.security.local_first_vault
 myrm_agent_harness.core.security.localhost_anti_hijack
+myrm_agent_harness.core.security.managed_permission_rollback
 myrm_agent_harness.core.security.marketplace_contract
 myrm_agent_harness.core.security.memory_defense_firewall
 myrm_agent_harness.core.security.muse_sentinel_isolation
