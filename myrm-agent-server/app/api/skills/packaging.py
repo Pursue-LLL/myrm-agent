@@ -13,6 +13,7 @@ from app.api.skills.schemas import (
     PackagePreviewResponse,
     SkillPackageInfoResponse,
     UploadSkillResponse,
+    redaction_responses,
 )
 from app.core.skills.packaging import SKILL_CHANGED_SINCE_PREVIEW, skill_packaging_service
 
@@ -38,26 +39,11 @@ async def preview_skill_package(
     if not result.success:
         raise HTTPException(status_code=404, detail=result.error)
 
-    redactions_response = None
-    if result.redactions:
-        redactions_response = {
-            filename: [
-                {
-                    "line_number": r["line_number"],
-                    "original": r["original"],
-                    "redacted": r["redacted"],
-                    "reason": r["reason"],
-                }
-                for r in file_redactions
-            ]
-            for filename, file_redactions in result.redactions.items()
-        }
-
     return PackagePreviewResponse(
         success=result.success,
         is_safe=result.is_safe,
         error=result.error,
-        redactions=redactions_response,
+        redactions=redaction_responses(result.redactions) if result.redactions else None,
         eval_cases_count=result.eval_cases_count,
         review_digest=result.review_digest,
     )

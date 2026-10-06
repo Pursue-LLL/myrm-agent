@@ -24,6 +24,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/memory/test_command_center_graph_api.py` | 单元 | 记忆指挥中心知识图谱双视图（Hub 聚合排序、孤岛三态与连通度度数）API 单元与契约测试 |
 | `api/agent/test_agent_clone_e2e.py` | 模块 | Agent 克隆 API E2E（自定义名 / 默认「(Copy)」/ 不存在 404 / 提示词与技能随克隆保留、家目录与头像不带）+ 已退役的 JSON 导入导出与工作区文件束路由不再对外提供（404/405 守卫） |
 | `integration/test_expert_export_i18n_sync.py` | 模块 | 跨层同步：专家导出的 `Omit` 原因码与 `OmittedKind` 种类须与 6 个 locale 的 `agent.expertExport.omitReason` / `omittedKinds` 键完全一致，避免导出对话框显示原始 key |
+| `services/plugins/test_export_acceptance.py` | 模块 | 专家导出验收（以官方冻结 schema 与归档字节为判据，不对内部结构做断言）：`plugin.json`/`mcp.json` schema 合规与 `ai.myrm` 独占扩展 · 归档路径安全 · 脱敏只触及秘密（其余字节不变）· 未带出清单对账（含反例）· 导出→导入→再导出定点往返 · 本地导出→云端导入的 stdio 降级 |
+| `services/plugins/test_third_party_plugin.py` | 模块 | 第三方真实插件（`fixtures/agent_plugins/third_party/hindsight/`）在平铺与单层包裹两种归档下都能解析并预览：技能与远程连接器不丢，外来 `extensions` 命名空间保持外来 |
+| `fixtures/agent_plugins/` | 辅助 | 官方冻结 JSON Schema（`plugin.schema.json` / `mcp.schema.json`）与第三方真实插件夹具（`third_party/hindsight/`，`NOTICE` 记录来源与许可） |
+| `integration/test_expert_exchange_integration.py` | 模块 | 专家交换真实栈集成（真实数据库 + 连接器配置库 + 技能安装流水线 + 导出/导入路由 + ZIP，无 mock）：团队（含泄漏密钥、越权策略、远程连接器）导出 → 空的第二套安装导入（子专家重新连线 · 密钥与越权策略不外带 · 连接器默认停用且头部为占位符）；自定义技能（安装 → 导出 → 卸载 → 导入：路径泄漏被脱敏、专家重新指向新装技能）；同机导入默认生成「(imported)」副本且不动原件，选择「替换」时保存可回滚版本并保持用户自己的安全策略 |
 | `core/utils/test_error_redaction.py` | 单元 | 全局异常处理与标准 HTTP 异常响应消息自动凭据与路径脱敏测试 |
 | `e2e/test_control_ui_error_redaction_flow_e2e.py` | E2E | Task Flow E2E：Control UI 错误脱敏跨渠道测试连通性与 FastAPI 入口/出口全局防护全链路测试 |
 | `e2e/test_error_redaction_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Control UI Toast 弹窗与设置界面敏感凭据打码防护测试 |

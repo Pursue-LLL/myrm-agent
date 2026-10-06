@@ -1,7 +1,9 @@
 """Skills API request/response schemas."""
 
 import logging
+from collections.abc import Mapping, Sequence
 
+from myrm_agent_harness.agent.skills.security.content_sanitizer import Redaction
 from pydantic import BaseModel
 
 from app.core.skills.models import Skill
@@ -240,6 +242,19 @@ class RedactionResponse(BaseModel):
     original: str
     redacted: str
     reason: str
+
+
+def redaction_responses(redactions: Mapping[str, Sequence[Redaction]]) -> dict[str, list[RedactionResponse]]:
+    """Per-file findings in the shape the redaction review dialog renders."""
+    return {
+        path: [
+            RedactionResponse(
+                line_number=item["line_number"], original=item["original"], redacted=item["redacted"], reason=item["reason"]
+            )
+            for item in findings
+        ]
+        for path, findings in redactions.items()
+    }
 
 
 class PackagePreviewResponse(BaseModel):

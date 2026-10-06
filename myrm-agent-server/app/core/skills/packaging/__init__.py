@@ -212,7 +212,8 @@ class SkillPackagingService:
         sandbox_path = Path(workspace_svc.get_workspace_absolute_path(workspace))
         search_dir = sandbox_path / (directory or ".")
 
-        return self._packer.package_directory(search_dir)
+        packed = self._packer.package_directory(search_dir)
+        return PackageResult(success=packed.success, zip_content=packed.zip_content, filename=packed.filename, error=packed.error)
 
     async def validate_skill_zip(self, zip_content: bytes) -> SkillPackageInfo:
         """验证技能 ZIP 包"""

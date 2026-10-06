@@ -52,9 +52,9 @@ _SENSITIVE_FIELDS = frozenset(
 )
 
 
-def _strip_sensitive(data: dict) -> dict:
+def _strip_sensitive(data: dict[str, object]) -> dict[str, object]:
     """Recursively strip sensitive fields from a dict."""
-    cleaned: dict = {}
+    cleaned: dict[str, object] = {}
     for key, value in data.items():
         if key.lower() in _SENSITIVE_FIELDS:
             continue
@@ -67,7 +67,7 @@ def _strip_sensitive(data: dict) -> dict:
     return cleaned
 
 
-async def export_agent_package(uow: UnitOfWork, agent_id: str) -> dict:
+async def export_agent_package(uow: UnitOfWork, agent_id: str) -> dict[str, object]:
     """Export an Agent profile as a marketplace-ready package.
 
     Matches the API-layer call: export_agent_package(uow, agent_id).
@@ -94,7 +94,7 @@ async def export_agent_package(uow: UnitOfWork, agent_id: str) -> dict:
     )
 
 
-async def _bundle_custom_skills(profile: AgentProfile) -> list[dict]:
+async def _bundle_custom_skills(profile: AgentProfile) -> list[dict[str, object]]:
     """Bundle custom (non-builtin) Skill definitions with content and resources.
 
     The package format is text-only JSON: binary resources are skipped (never
@@ -107,7 +107,7 @@ async def _bundle_custom_skills(profile: AgentProfile) -> list[dict]:
 
     skills = await skills_service.get_skills_by_ids(skill_ids)
 
-    bundled: list[dict] = []
+    bundled: list[dict[str, object]] = []
     for skill in skills:
         if skill.type.value == "prebuilt":
             continue
@@ -138,7 +138,7 @@ async def _bundle_custom_skills(profile: AgentProfile) -> list[dict]:
                 len(outcome.redactions),
             )
 
-        skill_data: dict = {
+        skill_data: dict[str, object] = {
             "name": skill.name,
             "description": skill.description,
             "id": skill.id,
@@ -152,7 +152,7 @@ async def _bundle_custom_skills(profile: AgentProfile) -> list[dict]:
     return bundled
 
 
-def _bundle_mcp_configs(profile: AgentProfile) -> list[dict]:
+def _bundle_mcp_configs(profile: AgentProfile) -> list[dict[str, object]]:
     """Bundle MCP server configurations, stripping credentials."""
     metadata = profile.metadata or {}
     mcp_ids = metadata.get("mcp_ids")
@@ -160,9 +160,9 @@ def _bundle_mcp_configs(profile: AgentProfile) -> list[dict]:
         return []
 
     mcp_tool_selections = metadata.get("mcp_tool_selections")
-    configs: list[dict] = []
+    configs: list[dict[str, object]] = []
     for mcp_id in mcp_ids:
-        config: dict = {"original_id": str(mcp_id)}
+        config: dict[str, object] = {"original_id": str(mcp_id)}
         if isinstance(mcp_tool_selections, dict):
             selections = mcp_tool_selections.get(str(mcp_id))
             if selections:
@@ -172,14 +172,14 @@ def _bundle_mcp_configs(profile: AgentProfile) -> list[dict]:
     return configs
 
 
-async def _bundle_subagents(uow: UnitOfWork, profile: AgentProfile) -> list[dict]:
+async def _bundle_subagents(uow: UnitOfWork, profile: AgentProfile) -> list[dict[str, object]]:
     """Bundle first-level Subagent profiles (non-recursive)."""
     metadata = profile.metadata or {}
     subagent_ids = metadata.get("subagent_ids")
     if not isinstance(subagent_ids, list) or not subagent_ids:
         return []
 
-    bundled: list[dict] = []
+    bundled: list[dict[str, object]] = []
     for sub_id in subagent_ids:
         sub_profile = await uow.agent_repo.get_profile(str(sub_id))
         if not sub_profile:

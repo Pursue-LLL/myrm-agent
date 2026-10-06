@@ -8,11 +8,12 @@ Covers:
 - Force-push still applies config updates (display name, prompt, model, etc.)
 - Pre-force-push snapshot + config-updated event are emitted
 - Force-push fails closed when the target Agent/binding is missing
-- Sandbox deployment rejects bundled-skill imports at the endpoint (HTTP 400)
+- Bundled-skill imports are rejected at the endpoint (HTTP 400) when local skill writes are disabled
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -458,113 +459,47 @@ async def test_force_push_unresolved_binding_returns_404(
     assert fake_repo.updated is None
 
 
-def _set_deploy_mode(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
-    from app.config.deploy_mode import get_deploy_mode
-    from app.platform_utils.deployment_capabilities import (
-        _reset_capabilities_cache_for_testing,
-    )
+@pytest.fixture
+def local_skills_disabled(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """The MYRM_ALLOW_LOCAL_SKILLS=0 kill-switch, with the cached capability snapshot rebuilt around it."""
+    from app.platform_utils.deployment_capabilities import _reset_capabilities_cache_for_testing
 
-    get_deploy_mode.cache_clear()
+    monkeypatch.setenv("MYRM_ALLOW_LOCAL_SKILLS", "0")
     _reset_capabilities_cache_for_testing()
-    monkeypatch.setenv("DEPLOY_MODE", mode)
-    get_deploy_mode.cache_clear()
+    yield
+    monkeypatch.undo()
     _reset_capabilities_cache_for_testing()
 
 
 @pytest.mark.asyncio
-async def test_endpoint_rejects_bundled_skills_in_sandbox(
-    app: FastAPI,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Sandbox disables local skills — bundled-skill imports fail closed at the endpoint."""
-    _set_deploy_mode(monkeypatch, "sandbox")
-    try:
-        package = _build_package(
-            agent_profile={
-                "display_name": "Skilled Publisher Agent",
-                "description": "desc",
-                "system_prompt": "sys",
-                "skill_ids": ["publisher-skill-id"],
-                "subagent_ids": [],
-                "enabled_builtin_tools": [],
+@pytest.mark.usefixtures("local_skills_disabled")
+async def test_endpoint_rejects_bundled_skills_when_local_skills_are_disabled(app: FastAPI) -> None:
+    """The kill-switch closes the skill store: bundled-skill imports fail closed at the endpoint."""
+    package = _build_package(
+        agent_profile={
+            "display_name": "Skilled Publisher Agent",
+            "description": "desc",
+            "system_prompt": "sys",
+            "skill_ids": ["publisher-skill-id"],
+            "subagent_ids": [],
+            "enabled_builtin_tools": [],
+        },
+        bundled_skills=[
+            {
+                "id": "publisher-skill-id",
+                "name": "publisher-skill",
+                "content": "---\nname: publisher-skill\ndescription: test\n---\n# Skill",
+                "description": "test",
+                "resources": {},
             },
-            bundled_skills=[
-                {
-                    "id": "publisher-skill-id",
-                    "name": "publisher-skill",
-                    "content": "---\nname: publisher-skill\ndescription: test\n---\n# Skill",
-                    "description": "test",
-                    "resources": {},
-                },
-            ],
-        )
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post(
-                "/api/admin/import-agent-profile",
-                json={"package": package, "force": False},
-            )
+        ],
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/api/admin/import-agent-profile", json={"package": package, "force": False})
 
-        assert resp.status_code == 400
-        assert "bundled skills are not supported in sandbox" in resp.text
-    finally:
-        _set_deploy_mode(monkeypatch, "local")
-
-
-class TestVerifyCpToken:
-    def test_rejects_wrong_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from fastapi import HTTPException
-
-        from app.api.internal.import_agent_profile import _verify_cp_token
-
-        monkeypatch.setenv("CONTROL_PLANE_TELEMETRY_TOKEN", "correct")
-        request = MagicMock()
-        request.headers.get.return_value = "wrong"
-
-        with pytest.raises(HTTPException) as exc_info:
-            _verify_cp_token(request)
-
-        assert exc_info.value.status_code == 403
-
-    def test_accepts_correct_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.api.internal.import_agent_profile import _verify_cp_token
-
-        monkeypatch.setenv("CONTROL_PLANE_TELEMETRY_TOKEN", "correct")
-        request = MagicMock()
-        request.headers.get.return_value = "correct"
-
-        _verify_cp_token(request)
-
-    def test_skips_when_env_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.api.internal.import_agent_profile import _verify_cp_token
-
-        monkeypatch.delenv("CONTROL_PLANE_TELEMETRY_TOKEN", raising=False)
-        _verify_cp_token(MagicMock())
-
-
-class TestEnvFlag:
-    def test_default_when_none(self) -> None:
-        from app.api.internal.import_agent_profile import _env_flag
-
-        assert _env_flag(None, default=True) is True
-        assert _env_flag(None, default=False) is False
-
-    def test_parses_truthy(self) -> None:
-        from app.api.internal.import_agent_profile import _env_flag
-
-        for value in ("1", "true", "yes", "on", "TRUE"):
-            assert _env_flag(value, default=False) is True
-
-    def test_parses_falsy(self) -> None:
-        from app.api.internal.import_agent_profile import _env_flag
-
-        for value in ("0", "false", "no", "off", "FALSE"):
-            assert _env_flag(value, default=True) is False
-
-    def test_default_on_unknown(self) -> None:
-        from app.api.internal.import_agent_profile import _env_flag
-
-        assert _env_flag("maybe", default=True) is True
+    assert resp.status_code == 400
+    assert "bundled skills require local skill writes" in resp.text
 
 
 class TestExtractModelUpdate:

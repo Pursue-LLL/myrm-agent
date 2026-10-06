@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.plugins.export_service::preview_expert_export, export_expert (POS: export orchestration.)
-- app.api.skills.schemas::RedactionResponse (POS: the redaction diff shape shared with skill export.)
+- app.api.skills.schemas::RedactionResponse, redaction_responses (POS: the redaction diff shape and mapper shared with skill export.)
 
 [OUTPUT]
 - POST /plugins/export/preview — what exporting an expert would ship (experts, skills, connectors,
@@ -22,7 +22,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from app.api.skills.schemas import RedactionResponse
+from app.api.skills.schemas import RedactionResponse, redaction_responses
 from app.services.plugins.export_service import (
     ExportError,
     ExportErrorCode,
@@ -179,18 +179,7 @@ def _preview_response(preview: ExportPreview) -> ExportPreviewResponse:
         )
         for server in plan.connectors
     ]
-    redactions = {
-        path: [
-            RedactionResponse(
-                line_number=item["line_number"],
-                original=item["original"],
-                redacted=item["redacted"],
-                reason=item["reason"],
-            )
-            for item in findings
-        ]
-        for path, findings in preview.redactions.items()
-    }
+    redactions = redaction_responses(preview.redactions)
     return ExportPreviewResponse(
         plugin_name=plan.plugin_name,
         version=preview.version,
