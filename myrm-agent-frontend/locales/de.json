@@ -3745,7 +3745,7 @@
     "archiveRestoreResultBytes": "Wiederhergestellte Nutzlast: {bytes} Bytes",
     "archiveRestoreResultArchive": "Archiv: {path}",
     "thinking_budget_exhausted": "Modell hat alle Token für Schlussfolgerung verwendet, keine Antwort erzeugt",
-    "tool_call_truncated": "Werkzeugparameter möglicherweise unvollständig aufgrund der Ausgabelängenbegrenzung",
+    "tool_call_truncated": "Werkzeugparameter möglicherweise unvollständig",
     "tool_call_retry": "Werkzeugaufruf unterbrochen — Wiederholung läuft",
     "empty_response_recovery": "Leere Antwort erkannt — Wiederholung läuft",
     "text_continuation": "Antwort abgeschnitten, automatische Fortsetzung...",
