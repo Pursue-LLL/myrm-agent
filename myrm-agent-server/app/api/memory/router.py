@@ -30,6 +30,9 @@ from app.api.memory.crystallization_router import (
 from app.api.memory.decay_lifecycle_router import (
     router as decay_lifecycle_router,
 )
+from app.api.memory.dialectic import (
+    router as memory_dialectic_router,
+)
 from app.api.memory.drift_router import (
     router as memory_drift_router,
 )
@@ -169,6 +172,7 @@ router.include_router(memory_client_partition_router, tags=["memory-client-parti
 router.include_router(memory_provenance_batch_router, tags=["memory-provenance-batch"])
 router.include_router(memory_shared_bus_router, tags=["memory-shared-bus"])
 router.include_router(memory_budget_curator_router, tags=["memory-budget-curator"])
+router.include_router(memory_dialectic_router, tags=["memory-dialectic"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])

@@ -590,6 +590,7 @@ myrm_agent_harness.toolkits.memory.conflict_arbitration
 myrm_agent_harness.toolkits.memory.conversation_search.types
 myrm_agent_harness.toolkits.memory.crystallization
 myrm_agent_harness.toolkits.memory.decay
+myrm_agent_harness.toolkits.memory.dialectic
 myrm_agent_harness.toolkits.memory.drift_defense
 myrm_agent_harness.toolkits.memory.dual_track_extraction
 myrm_agent_harness.toolkits.memory.evolution
