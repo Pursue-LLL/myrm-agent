@@ -974,10 +974,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 config_kwargs["image_constraints"] = constraints
             config = ComputerUseConfig(**config_kwargs)
             session = create_desktop_session(config=config, permission_callback=gate)
-            from app.services.locked_use.curtain_bridge import apply_excluded_capture_titles
+            from app.services.locked_use.unattended import attach_desktop_session
 
-            if apply_excluded_capture_titles(session):
-                logger.info("Curtain capture exclusion injected into desktop session")
+            if attach_desktop_session(session):
+                logger.info("Desktop session attached to the privacy curtain (capture exclusion + on-demand unlock)")
             computer_tools = create_desktop_tools(session)
             tools.extend(computer_tools)
             self._desktop_session = session

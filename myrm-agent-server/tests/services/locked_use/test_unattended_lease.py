@@ -11,7 +11,8 @@
 - 关闭期交还：停 watcher 后回锁、回锁失败保留租约、无租约不碰屏幕、幂等
 
 [POS]
-与 test_unattended_curtain_watcher.py（五条件获取分支）互补。纯 mock，不真 sleep。
+与 test_unattended_on_demand.py（按需获取）和 test_unattended_curtain_watcher.py（watcher 循环）互补。
+纯 mock，不真 sleep。
 """
 
 from __future__ import annotations

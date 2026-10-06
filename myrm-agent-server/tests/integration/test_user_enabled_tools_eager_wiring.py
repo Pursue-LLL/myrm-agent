@@ -30,8 +30,9 @@ def _assert_turn1_eager(registry: ToolRegistry, tool_name: str) -> None:
 @pytest.mark.asyncio
 async def test_computer_use_tools_eager_when_enabled() -> None:
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
+    from app.services.locked_use.unattended import unlock_screen_on_demand
 
-    fake_session = SimpleNamespace(_config=SimpleNamespace(image_constraints=SimpleNamespace(max_edge_px=1568)))
+    fake_session = MagicMock(_config=SimpleNamespace(image_constraints=SimpleNamespace(max_edge_px=1568)))
     fake_tools = [
         SimpleNamespace(name="desktop_snapshot_tool"),
         SimpleNamespace(name="desktop_interact_tool"),
@@ -61,6 +62,7 @@ async def test_computer_use_tools_eager_when_enabled() -> None:
     assert tools == fake_tools
     create_session.assert_called_once()
     assert create_session.call_args.kwargs.get("permission_callback") is not None
+    fake_session.set_screen_unlock_callback.assert_called_once_with(unlock_screen_on_demand)
 
     registry = _register_eager_tools(tools)
     _assert_turn1_eager(registry, "desktop_snapshot_tool")

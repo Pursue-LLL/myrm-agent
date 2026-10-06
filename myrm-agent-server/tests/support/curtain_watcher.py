@@ -6,13 +6,13 @@
 - app.services.locked_use.curtain_bridge.CurtainBridgeState（POS: 状态桥快照）
 
 [OUTPUT]
-- make_state / drive / record_clear / set_locked / set_hid_idle / has_session / no_session / StopLoop
+- make_state / drive / acquire / mark_watcher_running / record_clear / set_locked / set_hid_idle / has_session / no_session / StopLoop
 - AWAY_IDLE_SECONDS（主人离开已久的硬件输入空闲读数）
 - dead_process_pid（已退出并被回收的进程 PID，模拟壳崩溃）
 
 [POS]
-test_unattended_curtain_watcher.py（获取分支）与 test_unattended_lease.py（租约分支）共用；
-纯 mock，tick 循环经哨兵异常退出，不真 sleep。
+test_unattended_on_demand.py（按需获取）、test_unattended_curtain_watcher.py（watcher 循环）与
+test_unattended_lease.py（租约分支）共用；纯 mock，tick 循环经哨兵异常退出，不真 sleep。
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ import asyncio
 import subprocess
 import sys
 import time
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -89,6 +90,19 @@ def drive(monkeypatch: pytest.MonkeyPatch, ticks: int = 1) -> None:
     monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
     with pytest.raises(StopLoop):
         asyncio.run(unattended._watch_loop())
+
+
+def mark_watcher_running(monkeypatch: pytest.MonkeyPatch) -> None:
+    """令按需解锁的受理前提（watcher 在运行）成立，而不真启动 watcher 循环。"""
+    live_watcher = MagicMock()
+    live_watcher.done.return_value = False
+    monkeypatch.setattr(unattended, "_watcher_task", live_watcher)
+
+
+def acquire(monkeypatch: pytest.MonkeyPatch) -> None:
+    """以「watcher 运行中」为前提跑一次按需解锁（harness Guardian 撞上锁屏时的回调）。"""
+    mark_watcher_running(monkeypatch)
+    asyncio.run(unattended.unlock_screen_on_demand())
 
 
 def dead_process_pid() -> int:

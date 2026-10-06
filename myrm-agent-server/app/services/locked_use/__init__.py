@@ -11,7 +11,7 @@
 - release_unlock_lease: hands the lease back only once the screen is confirmed locked
 - locked_use_session: async context manager that acquires and releases the CU lease
 - curtain_bridge: bridge state read + lease-bit write + capture-exclusion titles
-- unattended: curtain watcher (lease acquisition after the quiet period)
+- unattended: on-demand unlock for Computer Use sessions (attach_desktop_session) and the lease-keeping watcher
 
 [POS]
 Business coordination layer between Computer Use and screen lock management,
