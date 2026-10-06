@@ -18,6 +18,9 @@ from app.api.memory.codegraph_router import router as codegraph_router
 from app.api.memory.conflict_router import (
     router as memory_conflict_router,
 )
+from app.api.memory.crystallization_router import (
+    router as memory_crystallization_router,
+)
 from app.api.memory.decay_lifecycle_router import (
     router as decay_lifecycle_router,
 )
@@ -145,6 +148,7 @@ router.include_router(memory_dual_track_router, tags=["memory-dual-track"])
 router.include_router(memory_universal_mcp_router, tags=["memory-universal-mcp"])
 router.include_router(memory_vector_preflight_router, tags=["memory-vector-preflight"])
 router.include_router(memory_self_verification_router, tags=["memory-self-verification"])
+router.include_router(memory_crystallization_router, tags=["memory-crystallization"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])

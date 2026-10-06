@@ -382,6 +382,7 @@ myrm_agent_harness.core.security.tool_result_seam_screening
 myrm_agent_harness.core.security.tracing_redaction
 myrm_agent_harness.core.security.tri_flow_isolation
 myrm_agent_harness.core.security.tripartite_ledger
+myrm_agent_harness.core.security.types
 myrm_agent_harness.core.security.webhook_guard
 myrm_agent_harness.core.security.workspace_boundary
 myrm_agent_harness.core.security.workspace_path_rbac
@@ -579,6 +580,7 @@ myrm_agent_harness.toolkits.memory.compaction
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conflict_arbitration
 myrm_agent_harness.toolkits.memory.conversation_search.types
+myrm_agent_harness.toolkits.memory.crystallization
 myrm_agent_harness.toolkits.memory.decay
 myrm_agent_harness.toolkits.memory.drift_defense
 myrm_agent_harness.toolkits.memory.dual_track_extraction
