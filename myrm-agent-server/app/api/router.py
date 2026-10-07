@@ -80,6 +80,7 @@ from app.api.plugins import export_router as plugins_export_router
 from app.api.plugins import import_router as plugins_import_router
 from app.api.progression import router as progression_router
 from app.api.projects import router as project_router
+from app.api.projects.project_state import router as project_state_router
 from app.api.providers import provider_balance_router
 from app.api.remote_access.router import router as remote_access_router
 from app.api.risk.router import router as risk_router
@@ -159,6 +160,7 @@ api_router.include_router(agent_handoff_router, prefix="/agents", tags=["agents-
 api_router.include_router(approvals_router)
 api_router.include_router(chat_router, prefix="/chats", tags=["chats"])
 api_router.include_router(project_router, prefix="/projects", tags=["projects"])
+api_router.include_router(project_state_router)
 api_router.include_router(files_router, prefix="/files", tags=["files"])
 api_router.include_router(theme_router)
 api_router.include_router(

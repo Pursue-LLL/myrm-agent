@@ -28,6 +28,7 @@ myrm_agent_harness.agent.context_management.infra.context_budget
 myrm_agent_harness.agent.context_management.infra.schemas
 myrm_agent_harness.agent.context_management.infra.session_lock
 myrm_agent_harness.agent.context_management.pre_compact_service
+myrm_agent_harness.agent.context_management.project_state
 myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard
 myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store
 myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout
@@ -262,6 +263,7 @@ myrm_agent_harness.core.security.audit_coverage
 myrm_agent_harness.core.security.auto_review_resolution
 myrm_agent_harness.core.security.blast_radius_inspector
 myrm_agent_harness.core.security.bot_budget_guardrail
+myrm_agent_harness.core.security.bot_screen_intervention
 myrm_agent_harness.core.security.browser_human_handoff
 myrm_agent_harness.core.security.case_variant_scrubber
 myrm_agent_harness.core.security.causal_deception
@@ -345,6 +347,7 @@ myrm_agent_harness.core.security.managed_permission_rollback
 myrm_agent_harness.core.security.marketplace_contract
 myrm_agent_harness.core.security.memory_defense_firewall
 myrm_agent_harness.core.security.memory_post_fetch_screening
+myrm_agent_harness.core.security.model_sovereignty_circuit_breaker
 myrm_agent_harness.core.security.muse_sentinel_isolation
 myrm_agent_harness.core.security.native_credential_approval
 myrm_agent_harness.core.security.on_demand_masking
@@ -384,6 +387,7 @@ myrm_agent_harness.core.security.sso_redirect_idempotent
 myrm_agent_harness.core.security.stacked_policy_governance
 myrm_agent_harness.core.security.streaming_gate
 myrm_agent_harness.core.security.structured_scan_errors.emitter
+myrm_agent_harness.core.security.subdomain_ticket_gateway
 myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.core.security.tool_registry.registry
 myrm_agent_harness.core.security.tool_result_seam_screening
