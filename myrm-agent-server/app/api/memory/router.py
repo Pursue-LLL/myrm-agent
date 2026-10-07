@@ -189,6 +189,9 @@ from app.api.memory.screen_observation_safety_router import (
 from app.api.memory.self_verification_router import (
     router as memory_self_verification_router,
 )
+from app.api.memory.session_commit_router import (
+    router as session_commit_router,
+)
 from app.api.memory.shared_bus import (
     router as memory_shared_bus_router,
 )
@@ -377,6 +380,11 @@ router.include_router(
     experience_injection_router,
     tags=["memory-experience-injection"],
 )
+router.include_router(
+    session_commit_router,
+    tags=["memory-session-commit"],
+)
+
 
 
 
