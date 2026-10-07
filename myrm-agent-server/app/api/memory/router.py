@@ -8,6 +8,7 @@ import logging
 from fastapi import APIRouter
 
 from app.api.memory import (
+    capacity_hitl,
     cognitive_box,
     context_ingestion,
     cvfs,
@@ -200,6 +201,7 @@ router.include_router(memory_budget_curator_router, tags=["memory-budget-curator
 router.include_router(memory_dialectic_router, tags=["memory-dialectic"])
 router.include_router(memory_subagent_isolation_router, tags=["memory-subagent-isolation"])
 router.include_router(cross_agent_router, tags=["memory-cross-agent"])
+router.include_router(kg_screening_router, tags=["memory-kg-screening"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
@@ -221,3 +223,4 @@ router.include_router(decontamination.router, tags=["memory-decontamination"])
 router.include_router(cvfs.router, tags=["memory-cvfs"])
 router.include_router(cognitive_box.router, tags=["memory-cognitive-box"])
 router.include_router(proactive_care.router, tags=["memory-proactive-care"])
+router.include_router(capacity_hitl.router, tags=["memory-capacity-hitl"])
