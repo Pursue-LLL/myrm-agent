@@ -2,7 +2,6 @@
 
 from datetime import datetime, timezone
 
-from myrm_agent_harness.toolkits.memory.types import MemorySearchResult, MemoryType
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Chat, Message
@@ -42,19 +41,3 @@ async def seed_chat_and_messages(db: AsyncSession) -> str:
     await ConversationRecallRepository.rebuild_chat(db, chat_id)
     await db.commit()
     return chat_id
-
-
-class FakeConversationMemoryManager:
-    def __init__(self, results: list[MemorySearchResult]) -> None:
-        self._results = results
-
-    async def search(
-        self,
-        query: str,
-        memory_types: list[MemoryType] | None = None,
-        limit: int = 5,
-        include_raw: bool = False,
-        since: datetime | None = None,
-        until: datetime | None = None,
-    ) -> list[MemorySearchResult]:
-        return self._results[:limit]

@@ -724,7 +724,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 conversation_provider = ConversationHistorySearchProvider(
                     current_chat_id=binding.conversation_id,
                     agent_id=self.agent_id,
-                    memory_manager=manager,
                     default_scope="same_source" if is_external_channel else None,
                 )
             search_backends = MemorySearchBackends(

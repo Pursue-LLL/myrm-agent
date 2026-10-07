@@ -7,17 +7,16 @@ myrm_agent_harness.toolkits.memory.protocols.conversation_search::ConversationSe
 
 [OUTPUT]
 ConversationHistorySearchProvider: Server adapter implementing Harness conversation search protocol.
-ConversationSearchService: Business service for exact + semantic conversation recall, index coverage reporting, cron source demotion, and expand_message_id windows.
+ConversationSearchService: Business service for FTS5 conversation recall, index coverage reporting, cron source demotion, and expand_message_id windows.
 
 [POS]
-会话历史召回服务。将 Server 的 Chat DB、FTS5、预计算摘要与 Harness MemoryManager 语义召回组合为 agent 可用的只读工具能力。
+会话历史召回服务。将 Server 的 Chat DB、FTS5 与预计算摘要组合为 agent 可用的只读工具能力。
 """
 
 from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from myrm_agent_harness.api import (
@@ -31,8 +30,6 @@ from myrm_agent_harness.toolkits.memory.conversation_search.types import (
     ConversationSearchResponse,
     ConversationSourceRef,
 )
-from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-from myrm_agent_harness.toolkits.memory.types import ConversationMemory, MemoryType
 from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,20 +54,8 @@ logger = logging.getLogger(__name__)
 FTS_CANDIDATE_MULTIPLIER = 5
 MAX_FTS_CANDIDATES = 48
 SAME_AGENT_BOOST = 0.06
-SEMANTIC_SCORE_WEIGHT = 0.9
 _DEMOTED_CHAT_SOURCES = frozenset({"cron"})
 _INTERACTIVE_CHAT_SOURCES = frozenset({"web", "feishu", "telegram", "wechat", "discord", "slack"})
-
-
-@dataclass(frozen=True, slots=True)
-class _SemanticCandidate:
-    conversation_id: str
-    message_id: str | None
-    summary: str
-    score: float
-    metadata: dict[str, str | int | float | bool]
-    created_at: datetime | None
-    updated_at: datetime | None
 
 
 class ConversationHistorySearchProvider:
@@ -81,12 +66,10 @@ class ConversationHistorySearchProvider:
         *,
         current_chat_id: str | None,
         agent_id: str | None,
-        memory_manager: MemoryManager | None,
         default_scope: str | None = None,
     ) -> None:
         self._current_chat_id = current_chat_id
         self._agent_id = agent_id
-        self._memory_manager = memory_manager
         self._default_scope = default_scope
 
     async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
@@ -94,15 +77,11 @@ class ConversationHistorySearchProvider:
         if self._default_scope:
             updates["scope"] = self._default_scope
         effective = request.model_copy(update=updates)
-        return await ConversationSearchService.search(
-            effective,
-            agent_id=self._agent_id,
-            memory_manager=self._memory_manager,
-        )
+        return await ConversationSearchService.search(effective, agent_id=self._agent_id)
 
 
 class ConversationSearchService:
-    """Conversation-level exact and semantic recall."""
+    """Conversation-level FTS5 recall."""
 
     @staticmethod
     async def set_chat_excluded(chat_id: str, excluded: bool) -> bool:
@@ -140,7 +119,6 @@ class ConversationSearchService:
         request: ConversationSearchRequest,
         *,
         agent_id: str | None,
-        memory_manager: MemoryManager | None,
     ) -> ConversationSearchResponse:
         if request.expand_message_id and request.expand_conversation_id:
             return await ConversationSearchService._expand_message_window(
@@ -159,13 +137,8 @@ class ConversationSearchService:
             fts_queries=fts_queries,
             agent_id=agent_id,
         )
-        semantic_hits = await ConversationSearchService._search_semantic(
-            request,
-            agent_id=agent_id,
-            memory_manager=memory_manager,
-        )
-        merged_hits, recall_debug = _merge_hits(fts_hits, semantic_hits, request.limit)
-        hits = [hit for hit in merged_hits if hit.score >= request.min_score]
+        ranked_hits, recall_debug = _rank_fts_hits(fts_hits, request.limit)
+        hits = [hit for hit in ranked_hits if hit.score >= request.min_score]
         rejected_reason = None if hits else "No sufficiently relevant previous conversations found."
         coverage = await ConversationSearchService._compute_coverage()
         return ConversationSearchResponse(
@@ -336,116 +309,6 @@ class ConversationSearchService:
                         return hits, relaxed_used, effective_tokens
         return hits, relaxed_used, effective_tokens
 
-    @staticmethod
-    async def _search_semantic(
-        request: ConversationSearchRequest,
-        *,
-        agent_id: str | None,
-        memory_manager: MemoryManager | None,
-    ) -> list[ConversationSearchHit]:
-        if memory_manager is None:
-            return []
-        candidate_limit = min(
-            MAX_FTS_CANDIDATES,
-            max(request.limit * FTS_CANDIDATE_MULTIPLIER, request.limit),
-        )
-        try:
-            results = await memory_manager.search(
-                request.query,
-                memory_types=[MemoryType.CONVERSATION],
-                limit=candidate_limit,
-                include_raw=False,
-                since=request.since,
-                until=request.until,
-            )
-        except Exception as exc:
-            logger.warning("Conversation semantic search failed: %s", exc)
-            return []
-
-        candidates: list[_SemanticCandidate] = []
-        for result in results:
-            memory = result.memory
-            if not isinstance(memory, ConversationMemory):
-                continue
-            conversation_id = memory.source_chat_id or memory.id
-            if request.current_conversation_id and conversation_id == request.current_conversation_id:
-                continue
-            score = _clamp(result.score * SEMANTIC_SCORE_WEIGHT)
-            if score < request.min_score:
-                continue
-            candidates.append(
-                _SemanticCandidate(
-                    conversation_id=conversation_id,
-                    message_id=memory.source_message_id,
-                    summary=memory.content,
-                    score=score,
-                    metadata=memory.metadata,
-                    created_at=memory.created_at,
-                    updated_at=memory.updated_at,
-                )
-            )
-        return await _hydrate_semantic_hits(candidates, request=request, agent_id=agent_id)
-
-
-async def _hydrate_semantic_hits(
-    candidates: list[_SemanticCandidate],
-    *,
-    request: ConversationSearchRequest,
-    agent_id: str | None,
-) -> list[ConversationSearchHit]:
-    if not candidates:
-        return []
-    chat_message_ids = {candidate.conversation_id: candidate.message_id for candidate in candidates}
-    async with UnitOfWork() as uow:
-        session = uow.session
-        if session is None:
-            return []
-        context = await _conversation_context(session, request, agent_id)
-        lineage_chat_ids = await _lineage_chat_ids(session, request)
-        if request.lineage != "all" and not lineage_chat_ids:
-            return []
-        rows = await ConversationRecallLookupRepository.hydrate_visible_rows(
-            session,
-            chat_message_ids=chat_message_ids,
-            current_chat_id=request.current_conversation_id,
-            agent_id=context.agent_id,
-            current_source=context.source,
-            scope=request.scope,
-            lineage_chat_ids=lineage_chat_ids,
-            since=request.since,
-            until=request.until,
-        )
-
-    hits: list[ConversationSearchHit] = []
-    for candidate in candidates:
-        row = rows.get(candidate.conversation_id)
-        if row is None:
-            continue
-        summary = row.summary or candidate.summary
-        source_ref = _source_ref(row, score=candidate.score, lineage=None, summary=summary)
-        hits.append(
-            ConversationSearchHit(
-                conversation_id=row.chat_id,
-                title=row.title or _metadata_text(candidate.metadata, "title"),
-                snippet=_sanitize_snippet(row.snippet),
-                summary=summary,
-                score=candidate.score,
-                source="semantic",
-                message_id=row.message_id or candidate.message_id,
-                created_at=row.created_at or candidate.created_at,
-                updated_at=row.updated_at or candidate.updated_at,
-                metadata={
-                    **candidate.metadata,
-                    "agent_id": row.agent_id or "",
-                    "source": row.source,
-                },
-                source_ref=source_ref,
-            )
-        )
-        if len(hits) >= request.limit:
-            break
-    return hits
-
 
 async def _conversation_context(
     session: AsyncSession,
@@ -536,66 +399,25 @@ def _copy_source_ref_score(source_ref: ConversationSourceRef | None, score: floa
     return source_ref.model_copy(update={"score": score})
 
 
-def _merge_hits(
+def _rank_fts_hits(
     fts_hits: list[ConversationSearchHit],
-    semantic_hits: list[ConversationSearchHit],
     limit: int,
-    *,
-    fts_latency_ms: float | None = None,
-    semantic_latency_ms: float | None = None,
 ) -> tuple[list[ConversationSearchHit], dict[str, object]]:
-    """Merge FTS and semantic hits using deterministic RRF with adaptive normalization."""
-    raw_by_id: dict[str, ConversationSearchHit] = {}
-    for hit in [*fts_hits, *semantic_hits]:
-        cid = hit.conversation_id
-        if cid not in raw_by_id:
-            raw_by_id[cid] = hit
-        else:
-            existing = raw_by_id[cid]
-            raw_by_id[cid] = existing.model_copy(
-                update={
-                    "summary": existing.summary or hit.summary,
-                    "snippet": existing.snippet or hit.snippet,
-                    "message_id": existing.message_id or hit.message_id,
-                }
-            )
-
-    ranked_lists = [
-        RankedList(
-            source="conversation_fts",
-            items=fts_hits,
-            weight=1.0,
-            latency_ms=fts_latency_ms,
-        ),
-        RankedList(
-            source="conversation_semantic",
-            items=semantic_hits,
-            weight=1.0,
-            latency_ms=semantic_latency_ms,
-        ),
-    ]
-
+    """Re-score FTS hits by rank with deterministic RRF, normalized to [0, 1] for the ``min_score`` filter."""
     fused_results, recall_debug = fuse_rrf_deterministic(
-        ranked_lists,
+        [RankedList(source="conversation_fts", items=fts_hits)],
         key_func=lambda h: h.conversation_id,
         top_k=limit,
     )
-
-    merged: list[ConversationSearchHit] = []
-    for f_hit in fused_results:
-        base = raw_by_id[f_hit.item.conversation_id]
-        is_hybrid = len(f_hit.hit_by) > 1
-        source = "hybrid" if is_hybrid else (f_hit.hit_by[0].source if f_hit.hit_by else base.source)
-        merged.append(
-            base.model_copy(
-                update={
-                    "score": f_hit.score,
-                    "source": source,
-                    "source_ref": _copy_source_ref_score(base.source_ref, f_hit.score),
-                }
-            )
+    ranked = [
+        f_hit.item.model_copy(
+            update={
+                "score": f_hit.score,
+                "source_ref": _copy_source_ref_score(f_hit.item.source_ref, f_hit.score),
+            }
         )
-
+        for f_hit in fused_results
+    ]
     debug_dict: dict[str, object] = {
         "fused_count": recall_debug.fused_count,
         "per_source": [
@@ -607,8 +429,7 @@ def _merge_hits(
             for s in recall_debug.per_source
         ],
     }
-
-    return merged, debug_dict
+    return ranked, debug_dict
 
 
 def _same_agent_boost(row_agent_id: str | None, current_agent_id: str | None) -> float:
@@ -643,24 +464,18 @@ def _clamp(value: float) -> float:
     return max(0.0, min(1.0, value))
 
 
-def _metadata_text(metadata: dict[str, str | int | float | bool], key: str) -> str | None:
-    value = metadata.get(key)
-    return value if isinstance(value, str) and value else None
-
-
 def _source_ref(
     row: ConversationRecallRow,
     *,
     score: float,
     lineage: str | None,
-    summary: str | None = None,
 ) -> ConversationSourceRef:
     return ConversationSourceRef(
         conversation_id=row.chat_id,
         message_id=row.message_id,
         title=row.title,
         snippet=_sanitize_snippet(row.snippet),
-        summary=summary if summary is not None else row.summary,
+        summary=row.summary,
         score=score,
         agent_id=row.agent_id,
         surface=row.source,

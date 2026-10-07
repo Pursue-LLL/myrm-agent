@@ -185,7 +185,6 @@ def _rebind_subagent_memory_search_tool(
         conversation_provider = ConversationHistorySearchProvider(
             current_chat_id=chat_id,
             agent_id=agent_id,
-            memory_manager=memory_manager,
         )
 
     search_policy = MemorySearchPolicy(allow_wiki=allow_wiki, allow_sessions=allow_sessions)

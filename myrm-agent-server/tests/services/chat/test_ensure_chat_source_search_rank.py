@@ -60,7 +60,6 @@ async def test_ensure_chat_source_sync_demotes_in_search_without_rebuild(
     response = await ConversationSearchService.search(
         ConversationSearchRequest(query="alpha project", limit=3),
         agent_id=None,
-        memory_manager=None,
     )
 
     assert len(response.hits) >= 2

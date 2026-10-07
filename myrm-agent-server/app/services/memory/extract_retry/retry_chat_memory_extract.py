@@ -17,8 +17,8 @@ run_retry_extract_for_chat: 对最新 user/assistant turn 执行压缩轨提取�
 [POS]
 Business-layer recovery for failed memory extraction. Enqueues durable tasks consumed
 by the background worker, reusing harness extract with factory-aligned memory binding
-and extraction LLM. Retries run compressed-track only (enable_verbatim=False) to avoid
-duplicating verbatim chunks that the original auto-extract already stored.
+and extraction LLM. Retries run compressed-track only (enable_verbatim=False): verbatim
+capture belongs to the original turn, so a retry never stores that exchange a second time.
 When privacy is enabled, the extraction task re-establishes the harness privacy
 context (policy + PseudonymStore + regex PII pseudonymizer) so retried memories
 are protected exactly like the agent-run path. When the user has additionally

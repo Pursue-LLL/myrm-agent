@@ -36,7 +36,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `compact_service.py` | ✅ 核心 | 无损上下文压缩 **facade**（实现见 `compact/` 子包）；导出 `compact_chat` / idle estimate / cooldown / anti-thrash 接线 | ✅ |
 | `compact/` | ✅ 核心 | 压缩子模块：`service.py`（compact_chat）、`persist.py`、`idle_estimate.py`、`message_io.py`、`summarize_guard.py`、`llm_config.py`、`archive.py` | ✅ |
 | `stale_compact_gate.py` | ✅ 核心 | Pre-reply idle stale compaction gate（`engine_params.idle_compact_after_seconds`，默认 0；idle 锚点=最后消息时间；**Hermes predicate：tokens>floor only（无 min_messages）**；request-level token floor（summary+tail+overhead）；gate 向 `compact_chat` 传递 `request_tokens_for_guard` 与 anti-thrash 同口径；**compression failure cooldown** + **anti-thrash**；**模型窗口不可用 fail-closed**；Web 经 `pre_reply_compact_sse` 发 active/completed/failure SSE；Channel 入站前 best-effort 调用） | ✅ |
-| `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；FTS5+semantic、索引覆盖度元数据注入、`_source_interaction_boost`（cron demote / interactive boost）、`expand_message_id` 窗口、可见性策略与 source refs、CJK 两档平滑降级（CjkFtsQueryPlanner） | ✅ |
+| `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；FTS5 召回（RRF 名次归一化打分）、索引覆盖度元数据注入、`_source_interaction_boost`（cron demote / interactive boost）、`expand_message_id` 窗口、可见性策略与 source refs、CJK 两档平滑降级（CjkFtsQueryPlanner） | ✅ |
 | `conversation_anchor_search_service.py` | ✅ 核心 | 会话精确定位与高亮搜索业务服务；协调 FTS5 粗排与 Harness ConversationExactSearchMatcher 短语匹配器，提取前缀/后缀/字符偏移量（start_char/end_char）与相关性得分，为前端平滑滚动定位与脉冲闪烁锚点提供强类型契约 | ✅ |
 | `conversation_recall_query.py` | ✅ 辅助 | Conversation Recall 查询规划；精确 FTS 优先，结合 CjkFtsQueryPlanner 两档平滑降级（strict / relaxed），在结果不足时提供无 LLM 的本地 OR/term 宽召回兜底并透出 is_relaxed。 | ✅ |
 | `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填（**startup `bootstrap_missing`**）、重建、增量追加、排除/恢复、删除、健康检查、管理列表、**GUI `@chat:` `search_citable_chats` SSOT**。 | ✅ |
@@ -85,7 +85,7 @@ ChatService
 | `load_web_chat_history()` | 从 DB 加载历史，返回框架层格式（带 `{ts}` 元数据） |
 | `persist_assistant_message_safe()` | 流结束后存储 assistant message，把 `citedMemoryRefs` 与 `memoryRetrievalTraces` 旁路写入记忆操作账本，并旁路调用 `sync_chat_usage` 重建 `Chat.total_*` 用量缓存；当传入 `request_message_id`（WebUI 回合的 `r-` 前缀请求 ID）时写入 `extra_data["request_message_id"]`，供前端刷新后 hydrate 恢复该回合标识（assistant 消息 DB 主键为 UUID，与文件快照的 `r-` key 对齐依赖此字段） |
 | `search_messages()` | FTS5 全文搜索历史消息（snippet 高亮 + 分页 + trigram 中文分词 + since/until 时间范围过滤） |
-| `ConversationSearchService.search()` | Agent 工具用历史会话召回；空查询返回最近会话，非空查询走消息段索引并返回精准 snippet + compacted_summary + source refs；semantic-only 命中必须回查 Server 索引补齐证据 |
+| `ConversationSearchService.search()` | Agent 工具用历史会话召回；空查询返回最近会话，非空查询走消息段索引并返回精准 snippet + compacted_summary + source refs |
 
 ### 频道端
 
@@ -103,7 +103,7 @@ ChatService
 - `app/database/repositories/uow.py`：使用 UnitOfWork 管理 Chat/Message 主表事务，确保主表失败自动回滚；派生 recall 索引不再阻塞主表提交。
 - `app/database/repositories/chat_repo.py`：Chat/Message CRUD、compaction CAS 与 sibling group 持久化仓储；消息级全文检索由其委托给 `chat_message_search_repo.py`。
 - `app/database/repositories/conversation_recall/`：Conversation Recall 索引子包；`repo.py` 编排索引写入与 health 查询，`sql.py`/`types.py` 承担 SQL 契约与 DTO 转换。
-- `app/database/repositories/conversation_recall/lookup_repo.py`：Conversation Recall 只读可见性查找仓储，用于 semantic-only 命中按统一 scope/exclusion/lineage 策略补齐 snippet/source_ref。
+- `app/database/repositories/conversation_recall/lookup_repo.py`：Conversation Recall 只读可见性查找仓储，用于 prior_chat mention 文档查找与 `expand_message_id` 窗口读取（统一 scope/exclusion 可见性过滤）。
 - `app/services/chat/conversation_recall_index_service.py`：Conversation Recall 生命周期边界，供 ChatService、Compaction、Fork 与管理 API 统一调用。
 - `app/database/`：Chat、Message 模型
 - `app/services/infra/`：删除聊天时清理沙箱工作空间

@@ -6,13 +6,8 @@ import pytest
 from myrm_agent_harness.toolkits.memory.conversation_search import (
     ConversationSearchRequest,
 )
-from myrm_agent_harness.toolkits.memory.types import (
-    ConversationMemory,
-    MemorySearchResult,
-    MemoryType,
-)
 from pydantic import ValidationError
-from search_support import FakeConversationMemoryManager, seed_chat_and_messages
+from search_support import seed_chat_and_messages
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,7 +37,6 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="docker", limit=3, current_conversation_id=None),
             agent_id="agent-a",
-            memory_manager=None,
         )
 
         assert response.mode == "search"
@@ -58,7 +52,6 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="Kubernetes", limit=3, current_conversation_id=None),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert response.hits
@@ -73,7 +66,6 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="", limit=3, current_conversation_id=None),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert response.mode == "recent"
@@ -86,7 +78,6 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="docker", limit=3, current_conversation_id=chat_id),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert response.hits == []
@@ -104,7 +95,6 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="docker", limit=3, scope="current_agent"),
             agent_id="agent-b",
-            memory_manager=None,
         )
 
         assert response.hits == []
@@ -138,7 +128,6 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="docker", limit=3, scope="current_agent"),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert [hit.conversation_id for hit in response.hits] == [null_agent_chat_id]
@@ -163,7 +152,6 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="bluegreenphoenix", limit=3),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert [hit.conversation_id for hit in response.hits] == [chat_id]
@@ -191,107 +179,13 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="bluegreen canary approval", limit=3),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert [hit.conversation_id for hit in response.hits] == [chat_id]
         assert "Bluegreen" in response.hits[0].snippet
 
     @pytest.mark.asyncio
-    async def test_semantic_hit_is_hydrated_from_recall_index(self, fts_db: AsyncSession):
-        chat_id = await seed_chat_and_messages(fts_db)
-        manager = FakeConversationMemoryManager(
-            [
-                MemorySearchResult(
-                    memory=ConversationMemory(
-                        id="mem-docker",
-                        content="Semantic deployment summary",
-                        raw_exchange="",
-                        source_chat_id=chat_id,
-                        source_message_id="msg-1",
-                    ),
-                    score=0.92,
-                    memory_type=MemoryType.CONVERSATION,
-                )
-            ]
-        )
-
-        response = await ConversationSearchService.search(
-            ConversationSearchRequest(query="semantic-only", limit=3),
-            agent_id=None,
-            memory_manager=manager,
-        )
-
-        assert [hit.conversation_id for hit in response.hits] == [chat_id]
-        assert response.hits[0].message_id == "msg-1"
-        assert "Docker Compose" in response.hits[0].snippet
-        assert response.hits[0].source_ref is not None
-        assert "Docker Compose" in response.hits[0].source_ref.snippet
-
-    @pytest.mark.asyncio
-    async def test_semantic_search_respects_excluded_conversation(self, fts_db: AsyncSession):
-        chat_id = await seed_chat_and_messages(fts_db)
-        await ConversationRecallRepository.set_excluded(fts_db, chat_id, True)
-        await fts_db.commit()
-        manager = FakeConversationMemoryManager(
-            [
-                MemorySearchResult(
-                    memory=ConversationMemory(
-                        id="mem-excluded",
-                        content="Excluded deployment summary",
-                        raw_exchange="Excluded raw text should not leak.",
-                        source_chat_id=chat_id,
-                        source_message_id="msg-1",
-                    ),
-                    score=0.98,
-                    memory_type=MemoryType.CONVERSATION,
-                )
-            ]
-        )
-
-        response = await ConversationSearchService.search(
-            ConversationSearchRequest(query="semantic-only", limit=3),
-            agent_id=None,
-            memory_manager=manager,
-        )
-
-        assert response.hits == []
-
-    @pytest.mark.asyncio
-    async def test_semantic_search_uses_server_agent_scope(self, fts_db: AsyncSession):
-        chat_id = await seed_chat_and_messages(fts_db)
-        await fts_db.execute(
-            text("UPDATE chats SET agent_id = 'agent-a' WHERE id = :chat_id"),
-            {"chat_id": chat_id},
-        )
-        await ConversationRecallRepository.rebuild_chat(fts_db, chat_id)
-        await fts_db.commit()
-        manager = FakeConversationMemoryManager(
-            [
-                MemorySearchResult(
-                    memory=ConversationMemory(
-                        id="mem-agent-a",
-                        content="Agent scoped summary",
-                        raw_exchange="",
-                        source_chat_id=chat_id,
-                        source_message_id="msg-1",
-                    ),
-                    score=0.91,
-                    memory_type=MemoryType.CONVERSATION,
-                )
-            ]
-        )
-
-        response = await ConversationSearchService.search(
-            ConversationSearchRequest(query="semantic-only", limit=3, scope="current_agent"),
-            agent_id="agent-b",
-            memory_manager=manager,
-        )
-
-        assert response.hits == []
-
-    @pytest.mark.asyncio
-    async def test_semantic_search_respects_lineage(self, fts_db: AsyncSession):
+    async def test_lineage_ancestors_restricts_recall_to_parent_chain(self, fts_db: AsyncSession):
         parent_id = "chat-parent"
         current_id = "chat-current"
         unrelated_id = "chat-unrelated"
@@ -333,31 +227,6 @@ class TestConversationSearchService:
         await ConversationRecallRepository.rebuild_chat(fts_db, unrelated_id)
         await fts_db.commit()
 
-        manager = FakeConversationMemoryManager(
-            [
-                MemorySearchResult(
-                    memory=ConversationMemory(
-                        id="mem-parent",
-                        content="Parent deployment summary",
-                        raw_exchange="Parent chat discussed Docker deployment.",
-                        source_chat_id=parent_id,
-                    ),
-                    score=0.9,
-                    memory_type=MemoryType.CONVERSATION,
-                ),
-                MemorySearchResult(
-                    memory=ConversationMemory(
-                        id="mem-unrelated",
-                        content="Unrelated deployment summary",
-                        raw_exchange="Unrelated chat discussed Docker deployment.",
-                        source_chat_id=unrelated_id,
-                    ),
-                    score=0.95,
-                    memory_type=MemoryType.CONVERSATION,
-                ),
-            ]
-        )
-
         response = await ConversationSearchService.search(
             ConversationSearchRequest(
                 query="docker",
@@ -366,7 +235,6 @@ class TestConversationSearchService:
                 lineage="ancestors",
             ),
             agent_id=None,
-            memory_manager=manager,
         )
 
         assert [hit.conversation_id for hit in response.hits] == [parent_id]
@@ -380,7 +248,6 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="docker", limit=3),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert response.hits == []
@@ -411,7 +278,6 @@ class TestConversationSearchService:
                 expand_window=2,
             ),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert len(response.hits) == 1
@@ -467,12 +333,48 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="alpha project", limit=3),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert len(response.hits) >= 2
         assert response.hits[0].conversation_id == web_id
         assert response.hits[0].score >= response.hits[1].score
+
+    @pytest.mark.asyncio
+    async def test_fts_hits_use_rank_normalized_scores_and_index_source(self, fts_db: AsyncSession) -> None:
+        await seed_chat_and_messages(fts_db)
+        second_id = "chat-docker-second"
+        fts_db.add(Chat(id=second_id, title="Second docker notes", action_mode="agent"))
+        fts_db.add(
+            Message(
+                id="msg-docker-second",
+                chat_id=second_id,
+                role="assistant",
+                content="Docker image layers explained.",
+                sent_at=datetime(2026, 4, 18, 12, 0, 0, tzinfo=timezone.utc),
+                sent_timezone="UTC",
+            )
+        )
+        await fts_db.commit()
+        await ConversationRecallRepository.rebuild_chat(fts_db, second_id)
+        await fts_db.commit()
+
+        response = await ConversationSearchService.search(
+            ConversationSearchRequest(query="docker", limit=3),
+            agent_id=None,
+        )
+
+        # Deterministic RRF normalized to [0, 1]: 0.98 * 61 / (60 + rank).
+        assert [hit.score for hit in response.hits] == pytest.approx([0.98, 0.98 * 61 / 62])
+        assert {hit.source for hit in response.hits} == {"conversation_index"}
+        assert all(hit.source_ref is not None and hit.source_ref.score == hit.score for hit in response.hits)
+        assert response.recall_debug is not None
+        assert response.recall_debug["fused_count"] == 2
+
+        filtered = await ConversationSearchService.search(
+            ConversationSearchRequest(query="docker", limit=3, min_score=0.97),
+            agent_id=None,
+        )
+        assert [hit.conversation_id for hit in filtered.hits] == [response.hits[0].conversation_id]
 
     def test_source_interaction_boost_values(self) -> None:
         from app.services.chat.conversation_search_service import (
@@ -493,7 +395,6 @@ class TestConversationSearchService:
         provider = ConversationHistorySearchProvider(
             current_chat_id="chat-feishu-1",
             agent_id="agent-1",
-            memory_manager=None,
             default_scope="same_source",
         )
 
@@ -515,7 +416,6 @@ class TestConversationSearchService:
         response = await ConversationSearchService.search(
             ConversationSearchRequest(query="Kubernetes", limit=3),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert response.coverage is not None
@@ -529,7 +429,6 @@ class TestConversationSearchService:
         recent_response = await ConversationSearchService.search(
             ConversationSearchRequest(query="", limit=3),
             agent_id=None,
-            memory_manager=None,
         )
         assert recent_response.coverage is not None
         assert recent_response.coverage.total_conversations >= 1
@@ -549,7 +448,6 @@ class TestConversationSearchService:
                 expand_window=3,
             ),
             agent_id=None,
-            memory_manager=None,
         )
 
         assert expand_response.mode == "search"

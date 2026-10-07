@@ -321,10 +321,9 @@ def test_rebind_subagent_memory_search_tool_replaces_inherited_tool(monkeypatch)
         approval_required = False
 
     class FakeProvider:
-        def __init__(self, *, current_chat_id: str | None, agent_id: str, memory_manager: object) -> None:
+        def __init__(self, *, current_chat_id: str | None, agent_id: str) -> None:
             self.current_chat_id = current_chat_id
             self.agent_id = agent_id
-            self.memory_manager = memory_manager
 
     captured: dict[str, object] = {}
 
