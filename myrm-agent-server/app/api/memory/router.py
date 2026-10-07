@@ -12,6 +12,7 @@ from app.api.memory import (
     external_bridge,
     ltra,
     onboarding,
+    world_model,
     zero_hallucination,
 )
 from app.api.memory.auto_recall_router import (
@@ -194,5 +195,7 @@ router.include_router(ltra.router, tags=["memory-ltra-cognitive"])
 router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
 router.include_router(external_bridge.router, tags=["memory-external-skill-bridge"])
 router.include_router(zero_hallucination.router, tags=["memory-zero-hallucination-diagnostics"])
+router.include_router(world_model.router, tags=["memory-world-model"])
+
 
 
