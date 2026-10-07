@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
@@ -60,14 +60,16 @@ export function SkillQualityTrendChart({
   const [loading, setLoading] = useState(true);
   const [selectedTimeRange, setSelectedTimeRange] = useState(timeRange);
 
+  // Refetch on range/skill/refresh changes only, using the latest fetch closure.
+  const refreshTrends = useEffectEvent(() => fetchTrends());
   useEffect(() => {
-    fetchTrends();
+    refreshTrends();
 
     if (autoRefresh) {
       let timeoutId: NodeJS.Timeout;
       const handleSseEvent = () => {
         clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => fetchTrends(), 1000);
+        timeoutId = setTimeout(() => refreshTrends(), 1000);
       };
       window.addEventListener('skill_quality_updated', handleSseEvent);
       window.addEventListener('app_resync_required', handleSseEvent);

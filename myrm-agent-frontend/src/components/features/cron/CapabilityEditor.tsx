@@ -117,8 +117,8 @@ export function CapabilityEditor({ job, onUpdated }: EditorProps) {
   const t = useTranslations('cron');
   const tPanel = useTranslations('agent.configPanel');
 
-  const serverCaps = job.required_capabilities ?? [];
-  const serverTools = job.tools_allowed ?? [];
+  const serverCaps = useMemo(() => job.required_capabilities ?? [], [job.required_capabilities]);
+  const serverTools = useMemo(() => job.tools_allowed ?? [], [job.tools_allowed]);
   const [localCaps, setLocalCaps] = useState<string[]>(serverCaps);
   const [localTools, setLocalTools] = useState<string[]>(serverTools);
   const [saving, setSaving] = useState(false);

@@ -102,7 +102,12 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
         const safeContent = isStreaming ? content.replace(/<script[\s\S]*?<\/script>/gi, '') : content;
         return safeContent;
       }
-      return buildWidgetSrcdoc(content, themeVarsRef.current, isStreaming, initialStorageRef.current);
+      return buildWidgetSrcdoc(
+        content,
+        themeVarsRef.current,
+        isStreaming,
+        storageReady ? initialStorageRef.current : undefined,
+      );
     }, [url, content, isStreaming, injectTheme, storageReady]);
 
     // Send picker mode toggle to iframe when pickerMode changes

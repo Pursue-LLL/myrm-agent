@@ -221,14 +221,17 @@ export const CompactedSummaryView = () => {
     }
   };
 
-  const navigateToForkedChat = (newChatId: string) => {
-    const target = `/${newChatId}`;
-    router.push(target);
-    // SHPOIB Chrome E2E: soft navigation can lag behind CDP pathname probes; hard nav is SSOT there.
-    if (typeof window !== 'undefined' && resolveE2eApiBase()) {
-      window.location.assign(target);
-    }
-  };
+  const navigateToForkedChat = useCallback(
+    (newChatId: string) => {
+      const target = `/${newChatId}`;
+      router.push(target);
+      // SHPOIB Chrome E2E: soft navigation can lag behind CDP pathname probes; hard nav is SSOT there.
+      if (typeof window !== 'undefined' && resolveE2eApiBase()) {
+        window.location.assign(target);
+      }
+    },
+    [router],
+  );
 
   const handleForkFromBookmark = useCallback(
     async (bookmark: ContextBranchRecord) => {
@@ -288,7 +291,7 @@ export const CompactedSummaryView = () => {
         setForkingBranchId(null);
       }
     },
-    [chatId, forkingBranchId, router],
+    [chatId, forkingBranchId, navigateToForkedChat],
   );
 
   useEffect(() => {

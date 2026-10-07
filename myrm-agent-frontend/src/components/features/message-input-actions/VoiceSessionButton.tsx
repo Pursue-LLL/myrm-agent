@@ -100,6 +100,7 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
     agentId: agentId ?? undefined,
     chatId: chatId ?? undefined,
   });
+  const { speakResponse, stopSession } = voice;
 
   const lastAssistantRef = useRef<string | null>(null);
   const messages = useChatStore((s) => s.messages);
@@ -154,12 +155,12 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
         pendingAnnounceRef.current.push(text);
         return;
       }
-      voice.speakResponse(text, { queue: true });
+      speakResponse(text, { queue: true });
     };
 
     window.addEventListener('voice-bg-done', handleVoiceBgDone);
     return () => window.removeEventListener('voice-bg-done', handleVoiceBgDone);
-  }, [voiceMode, voice.isActive, voice.speakResponse, voice.sessionState, chatId]);
+  }, [voiceMode, voice.isActive, speakResponse, voice.sessionState, chatId]);
 
   // Flush deferred announcements once the agent stops speaking.
   useEffect(() => {
@@ -169,9 +170,9 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
     const pending = pendingAnnounceRef.current;
     pendingAnnounceRef.current = [];
     for (const text of pending) {
-      voice.speakResponse(text, { queue: true });
+      speakResponse(text, { queue: true });
     }
-  }, [voice.sessionState, voice.speakResponse]);
+  }, [voice.sessionState, speakResponse]);
 
   const [bubbleMinimized, setBubbleMinimized] = useState(false);
 
@@ -186,9 +187,9 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
   useEffect(() => {
     if (voice.isActive && !stopFiredRef.current && isStopCommand(voice.interimText)) {
       stopFiredRef.current = true;
-      voice.stopSession();
+      stopSession();
     }
-  }, [voice.isActive, voice.interimText, voice.stopSession]);
+  }, [voice.isActive, voice.interimText, stopSession]);
 
   const handleToggle = useCallback(() => {
     if (voice.isActive) {

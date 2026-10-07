@@ -588,7 +588,7 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
 
       commitConfig(finalFormData, gate.scanResult);
     },
-    [commitConfig, t, toast, validateMCPConfig],
+    [commitConfig, t, toast],
   );
 
   const handleSaveConfig = useCallback(async () => {
@@ -786,7 +786,7 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
         },
       });
     },
-    [configs, persistConfigs, t],
+    [configs, persistConfigs, t, toast],
   );
 
   // 取消删除

@@ -11,7 +11,7 @@
  * Chat-side task SSE subscriber. Shares one browser EventSource with Panel, tray, and global media notify via taskEventStream.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Task } from '@/store/tasks/types';
 import { notificationService } from '@/services/notification';
@@ -23,6 +23,16 @@ export function useTasksSubscription(task_ids: string[]) {
   const t = useTranslations('notifications');
 
   const stableIds = useMemo(() => task_ids.join(','), [task_ids]);
+
+  // Read the latest translator without resubscribing the task stream when the locale changes.
+  const notifyTerminalTask = useEffectEvent((task: Task) => {
+    const title =
+      task.status === 'succeeded'
+        ? t('taskCompleted', { taskType: task.task_type })
+        : t('taskFailed', { taskType: task.task_type });
+    const body = task.status === 'failed' ? task.error?.message || t('taskUnknownError') : undefined;
+    notificationService.notify(title, { body });
+  });
 
   useEffect(() => {
     if (!stableIds) {
@@ -55,12 +65,7 @@ export function useTasksSubscription(task_ids: string[]) {
       }
       notifiedTerminalTaskIds.add(dedupeKey);
 
-      const title =
-        task.status === 'succeeded'
-          ? t('taskCompleted', { taskType: task.task_type })
-          : t('taskFailed', { taskType: task.task_type });
-      const body = task.status === 'failed' ? task.error?.message || t('taskUnknownError') : undefined;
-      notificationService.notify(title, { body });
+      notifyTerminalTask(task);
     };
 
     const fetchTaskById = async (taskId: string): Promise<Task | null> => {

@@ -60,10 +60,12 @@ export const ProviderLowBalanceWarningHUD = memo<ProviderLowBalanceWarningHUDPro
     const rawFallback: SingleModelSelection | null =
       defaultModelConfig?.baseModel?.fallback ?? defaultModelConfig?.liteModel?.primary ?? null;
 
-    const safetyFallback =
-      rawFallback?.providerId && rawFallback?.model
-        ? { providerId: rawFallback.providerId, model: rawFallback.model }
-        : null;
+    const fallbackProviderId = rawFallback?.providerId;
+    const fallbackModel = rawFallback?.model;
+    const safetyFallback = useMemo(
+      () => (fallbackProviderId && fallbackModel ? { providerId: fallbackProviderId, model: fallbackModel } : null),
+      [fallbackProviderId, fallbackModel],
+    );
 
     const handleSwitchToSafetyFallback = useCallback(() => {
       if (!safetyFallback?.providerId || !safetyFallback?.model) {

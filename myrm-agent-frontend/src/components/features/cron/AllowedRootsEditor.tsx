@@ -13,7 +13,7 @@ const COMMON_PATHS = ['~/Documents', '~/Desktop', '/tmp', '~/Downloads'] as cons
 
 export function AllowedRootsEditor({ job, onUpdated }: EditorProps) {
   const t = useTranslations('cron');
-  const serverRoots = job.allowed_roots ?? [];
+  const serverRoots = useMemo(() => job.allowed_roots ?? [], [job.allowed_roots]);
   const [localRoots, setLocalRoots] = useState<string[]>(serverRoots);
   const [newPath, setNewPath] = useState('');
   const [saving, setSaving] = useState(false);

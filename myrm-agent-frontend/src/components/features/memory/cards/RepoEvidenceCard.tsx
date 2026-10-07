@@ -11,7 +11,7 @@
  * Command Center Workspace Memory tab. Renders recent commits and workspace repository branch status.
  */
 
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useEffectEvent, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { GitBranch, GitCommit, RefreshCw, FolderGit2, AlertCircle, FileCode } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -41,8 +41,9 @@ export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, cl
     }
   };
 
+  const loadDigest = useEffectEvent(() => fetchDigest());
   useEffect(() => {
-    void fetchDigest();
+    void loadDigest();
   }, [workspacePath]);
 
   if (!data && !loading && !error) {

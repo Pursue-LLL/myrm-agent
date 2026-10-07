@@ -34,7 +34,6 @@ async function resumeVncSession(uiMode: BrowserTakeoverUiMode): Promise<{ learne
 
 export function useBrowserTakeoverActions() {
   const t = useTranslations('billing.vnc');
-  const messageId = useBrowserTakeoverStore((s) => s.messageId);
   const completeTakeover = useBrowserTakeoverStore((s) => s.completeTakeover);
 
   const handleTakeoverComplete = useCallback(async () => {
@@ -93,7 +92,7 @@ export function useBrowserTakeoverActions() {
       });
       toast.error(t('takeoverResumeFailed'));
     }
-  }, [messageId, completeTakeover, t]);
+  }, [completeTakeover, t]);
 
   const handleTakeoverSkip = useCallback(async () => {
     const snapshot = {
@@ -126,7 +125,7 @@ export function useBrowserTakeoverActions() {
       });
       toast.error(t('takeoverResumeFailed'));
     }
-  }, [messageId, completeTakeover, t]);
+  }, [completeTakeover, t]);
 
   return { handleTakeoverComplete, handleTakeoverSkip };
 }

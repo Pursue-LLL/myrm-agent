@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useEffectEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconPlay,
@@ -25,10 +25,13 @@ export function EvaluationSection() {
   const [casesContent, setCasesContent] = useState('');
   const [isSavingCases, setIsSavingCases] = useState(false);
 
-  useEffect(() => {
+  const loadInitialData = useEffectEvent(() => {
     fetchLatestReport();
     fetchCases();
     checkStatus();
+  });
+  useEffect(() => {
+    loadInitialData();
   }, []);
 
   const fetchCases = async () => {
@@ -53,10 +56,11 @@ export function EvaluationSection() {
     }
   };
 
+  const pollStatus = useEffectEvent(() => checkStatus());
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isRunning) {
-      interval = setInterval(checkStatus, 2000);
+      interval = setInterval(() => pollStatus(), 2000);
     }
     return () => clearInterval(interval);
   }, [isRunning]);

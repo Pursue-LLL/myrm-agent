@@ -8,13 +8,15 @@ import { useCredentialsStorage } from './useCredentialsStorage';
 export function useCredentialsSection() {
   const storage = useCredentialsStorage();
   const oauth = useCredentialsOAuth();
+  const { loadCredentials, loadVaultCredentials } = storage;
+  const { fetchOauthCreds } = oauth;
   const { marketSkills, localSkills } = useSkillStore();
 
   useEffect(() => {
-    storage.loadCredentials();
-    storage.loadVaultCredentials();
-    oauth.fetchOauthCreds();
-  }, [oauth.fetchOauthCreds, storage.loadCredentials, storage.loadVaultCredentials]);
+    loadCredentials();
+    loadVaultCredentials();
+    fetchOauthCreds();
+  }, [fetchOauthCreds, loadCredentials, loadVaultCredentials]);
 
   const missingCredentials = useMemo(() => {
     const allSkills = [...marketSkills, ...localSkills];

@@ -437,7 +437,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
         clearTimeout(debounceRef.current);
       }
     };
-  }, [chatId, cursorPosition, inputMessage]);
+  }, [chatId, cursorPosition, inputMessage, locale]);
 
   const dismiss = useCallback(() => {
     setState((prev) => ({ ...prev, isOpen: false, results: [], selectedIndex: 0 }));

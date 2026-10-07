@@ -23,7 +23,6 @@
 
 import { isHiddenBuiltinAgent } from '@/lib/product-surface';
 import { useMemo, useCallback, useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 import type { PresetAgent } from '@/types/presetAgent';
@@ -50,7 +49,6 @@ export function useAgentGallery({
 }: UseAgentGalleryParams) {
   const t = useTranslations('presetAgent');
   const locale = useLocale();
-  const router = useRouter();
 
   // 本地管理的工作目录状态（从 localStorage 读取）
   const [localWorkingDirectory, setLocalWorkingDirectory] = useState<string>(() => {
@@ -183,7 +181,7 @@ export function useAgentGallery({
 
       onSelectPreset(agent);
     },
-    [onSelectPreset, t, router, effectiveWorkingDirectory],
+    [onSelectPreset, t, effectiveWorkingDirectory],
   );
 
   // 处理自定义智能体点击

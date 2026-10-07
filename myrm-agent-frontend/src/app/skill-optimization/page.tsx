@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
@@ -67,8 +67,9 @@ const SkillOptimizationPage = () => {
     }
   };
 
+  const loadComparisons = useEffectEvent(() => fetchComparisons());
   useEffect(() => {
-    fetchComparisons();
+    loadComparisons();
   }, []);
 
   const getImprovementBadge = (improvement_pct: number, is_significant: boolean) => {

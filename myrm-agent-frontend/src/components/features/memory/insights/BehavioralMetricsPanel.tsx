@@ -13,7 +13,7 @@
  * 响应时延分位数（P50/P90）、高频协作者 Top-K，无任何原生 emoji，支持深浅双色主题与国际化。
  */
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/shared/useToast';
@@ -40,10 +40,14 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
   t: parentT,
 }: BehavioralMetricsPanelProps & { t?: (key: string, values?: Record<string, string | number>) => string }) {
   const fallbackT = useTranslations('settings.memory.commandCenter.behavioral');
-  const tb = parentT
-    ? (key: string, values?: Record<string, string | number>) => parentT(`commandCenter.behavioral.${key}`, values)
-    : (key: string, values?: Record<string, string | number>) =>
-        fallbackT(`commandCenter.behavioral.${key}` as Parameters<typeof fallbackT>[0], values);
+  const tb = useMemo(
+    () =>
+      parentT
+        ? (key: string, values?: Record<string, string | number>) => parentT(`commandCenter.behavioral.${key}`, values)
+        : (key: string, values?: Record<string, string | number>) =>
+            fallbackT(`commandCenter.behavioral.${key}` as Parameters<typeof fallbackT>[0], values),
+    [parentT, fallbackT],
+  );
   const [data, setData] = useState<MemoryBehavioralInsights | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);

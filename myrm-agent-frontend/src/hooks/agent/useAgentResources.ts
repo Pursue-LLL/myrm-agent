@@ -39,9 +39,11 @@ export function useAgentResources(selectedSkillIds: string[], selectedMcpNames: 
     })),
   );
 
+  // isSkillEnabled reads enabled-id state from the store; the id lists are the real invalidation signals.
   const enabledSkills = useMemo(() => {
     const allSkills = [...marketSkills, ...localSkills];
     return allSkills.filter((skill) => isSkillEnabled(skill.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketSkills, localSkills, isSkillEnabled, enabledPrebuiltIds, enabledLocalSkillIds]);
 
   const selectedSkillDetails = useMemo(() => {

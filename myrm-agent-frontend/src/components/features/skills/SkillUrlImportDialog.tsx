@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useCallback, useEffect } from 'react';
+import { memo, useState, useCallback, useEffect, useEffectEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link as LinkIcon, Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
 import {
@@ -38,6 +38,8 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
   const [error, setError] = useState<string | null>(null);
   const [trustedSourceConfirmed, setTrustedSourceConfirmed] = useState(false);
 
+  const analyzeInitialUrl = useEffectEvent((initial: string) => handleAnalyze(initial));
+
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (open) {
@@ -49,7 +51,7 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
 
       if (initialUrl && initialUrl.trim() !== '') {
         setTimeout(() => {
-          handleAnalyze(initialUrl);
+          analyzeInitialUrl(initialUrl);
         }, 100);
       }
     }
@@ -127,13 +129,13 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
     }
   };
 
-  const handleImportSelected = useCallback(() => {
+  const handleImportSelected = () => {
     const urlsToInstall = Array.from(selectedUrls);
     if (urlsToInstall.length === 0 || !trustedSourceConfirmed) {
       return;
     }
     handleInstallList(urlsToInstall);
-  }, [selectedUrls, trustedSourceConfirmed]);
+  };
 
   const toggleSelection = (u: string) => {
     setSelectedUrls((prev) => {

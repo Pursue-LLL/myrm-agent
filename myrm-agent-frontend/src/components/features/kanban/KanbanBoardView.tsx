@@ -13,7 +13,7 @@
  */
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -269,9 +269,13 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     fetchAgents();
   }, [fetchAgents]);
 
-  useEffect(() => {
+  // Reset only when the board changes, not when resetAddForm's identity changes.
+  const resetBoardScopedState = useEffectEvent(() => {
     setSelectedTaskIds([]);
     resetAddForm();
+  });
+  useEffect(() => {
+    resetBoardScopedState();
   }, [board.board_id]);
 
   useEffect(() => {

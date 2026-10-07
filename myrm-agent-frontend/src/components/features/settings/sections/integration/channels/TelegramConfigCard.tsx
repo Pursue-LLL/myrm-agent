@@ -59,7 +59,8 @@ export function TelegramConfigCard() {
       i18nPrefix: 'telegram',
     });
 
-  const commands = creds.commands ?? [];
+  const credCommands = creds.commands;
+  const commands = useMemo(() => credCommands ?? [], [credCommands]);
 
   const commandErrors = useMemo(() => commands.map(validateCommand), [commands]);
 
@@ -175,9 +176,7 @@ export function TelegramConfigCard() {
                   <IconTrash className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              {errKey && (
-                <p className="text-xs text-destructive pl-1">{t(errKey)}</p>
-              )}
+              {errKey && <p className="text-xs text-destructive pl-1">{t(errKey)}</p>}
             </div>
           );
         })}

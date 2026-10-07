@@ -230,16 +230,22 @@ export default function SingleApprovalCard({
   const progressPercent = Math.max(0, (remainingSeconds / request.timeoutSeconds) * 100);
   const isHandover = request.displayMode === 'handover';
 
-  const guidanceExtra = guidance.trim() ? { guidance: guidance.trim() } : undefined;
+  const guidanceExtra = useMemo(() => {
+    const trimmed = guidance.trim();
+    return trimmed ? { guidance: trimmed } : undefined;
+  }, [guidance]);
 
-  const directoryGrantExtra =
-    request.pathGrantEligible && grantDirectoryAccess
-      ? {
-          grant_directory: true,
-          ...(request.pathGrantPath && { grant_directory_path: request.pathGrantPath }),
-          grant_directory_writable: request.pathGrantWritable ?? false,
-        }
-      : undefined;
+  const directoryGrantExtra = useMemo(
+    () =>
+      request.pathGrantEligible && grantDirectoryAccess
+        ? {
+            grant_directory: true,
+            ...(request.pathGrantPath && { grant_directory_path: request.pathGrantPath }),
+            grant_directory_writable: request.pathGrantWritable ?? false,
+          }
+        : undefined,
+    [request.pathGrantEligible, request.pathGrantPath, request.pathGrantWritable, grantDirectoryAccess],
+  );
 
   const handleApprove = useCallback(
     async () =>
@@ -331,6 +337,7 @@ export default function SingleApprovalCard({
     guidance,
     request.requestId,
     request.toolInput,
+    request.toolName,
     shellCommand,
     onResolve,
     t,

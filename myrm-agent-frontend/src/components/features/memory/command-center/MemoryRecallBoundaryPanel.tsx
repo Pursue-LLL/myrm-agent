@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect, useEffectEvent, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Shield, Database, Sparkles, AlertTriangle, CheckCircle, RefreshCw, Pin, Layers, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -32,8 +32,9 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
     }
   };
 
+  const loadBoundary = useEffectEvent(() => fetchBoundary());
   useEffect(() => {
-    fetchBoundary();
+    loadBoundary();
   }, [agentId, taskId]);
 
   if (loading && !data) {

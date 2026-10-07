@@ -235,8 +235,8 @@ export const useAgentConfigPanel = () => {
   }, []);
 
   /** 保存配置 */
-  const handleSaveConfig = useCallback(
-    createSaveConfigHandler(agentConfig, updateAgentConfig, setAgentConfig, setCurrentBuiltinTools),
+  const handleSaveConfig = useMemo(
+    () => createSaveConfigHandler(agentConfig, updateAgentConfig, setAgentConfig, setCurrentBuiltinTools),
     [agentConfig, updateAgentConfig, setAgentConfig, setCurrentBuiltinTools],
   );
 

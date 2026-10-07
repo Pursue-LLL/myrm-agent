@@ -126,6 +126,7 @@ export function useKanbanAddTask({ boardId, onCreated }: UseKanbanAddTaskOptions
     newTaskBranch,
     newTaskGoalMode,
     newTaskGoalMaxTurns,
+    newTaskRequireApproval,
     newTaskAttachments,
     selectedDeps,
     addingColumn,

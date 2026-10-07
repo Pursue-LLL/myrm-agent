@@ -117,6 +117,8 @@ const BaseModelSelector = () => {
     }
   }, [showMoaPresets, activeMoaPresetId, agentConfig?.engineParams, setActiveMoaPresetId]);
 
+  // getEnabledModels reads provider state from the store, so `providers` is the real invalidation signal.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels, providers]);
 
   const currentSelection = useMemo(

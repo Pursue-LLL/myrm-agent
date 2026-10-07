@@ -202,7 +202,7 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [fullscreen]);
+  }, [fullscreen, rankedHubs.length]);
 
   const filteredData = useMemo<ForceGraphData | null>(() => {
     if (!data) {

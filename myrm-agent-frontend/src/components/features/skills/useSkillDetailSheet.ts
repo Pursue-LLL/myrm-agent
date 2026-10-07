@@ -273,7 +273,7 @@ export function useSkillDetailSheet({
     } finally {
       setIsOptimizing(false);
     }
-  }, [skill, optimizeInstruction]);
+  }, [skill, optimizeInstruction, t]);
 
   return {
     skillContent,

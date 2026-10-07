@@ -295,7 +295,7 @@ const ModelServiceSection = memo(() => {
         }
       }
     },
-    [providers, handleSelectProvider, addProvider, updateProvider],
+    [providers, handleSelectProvider, setProviders, updateProvider],
   );
 
   if (initError) {

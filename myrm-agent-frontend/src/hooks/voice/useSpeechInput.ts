@@ -109,6 +109,8 @@ export function useSpeechInput({
   const wsRef = useRef<WebSocket | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
+  // setupAudioAnalysis outlives renders; it must stop via the latest stopRecording.
+  const stopRecordingRef = useRef<() => void>(() => {});
 
   const cleanup = useCallback(() => {
     if (timerRef.current) {
@@ -218,7 +220,7 @@ export function useSpeechInput({
             } else if (Date.now() - silenceStartRef.current > silenceTimeout) {
               const elapsedMs = Date.now() - startTimeRef.current;
               if (elapsedMs > minDuration && stateRef.current === 'recording') {
-                stopRecording();
+                stopRecordingRef.current();
                 return;
               }
             }
@@ -352,7 +354,7 @@ export function useSpeechInput({
         }
       };
     },
-    [keyterms, onTranscript, onInterimTranscript, handleSttErrorMessage, cleanup],
+    [keyterms, onTranscript, onInterimTranscript, handleSttErrorMessage, cleanup, onError],
   );
 
   // ── Server-side STT (MediaRecorder → upload) ──
@@ -494,6 +496,10 @@ export function useSpeechInput({
       recognitionRef.current.stop();
     }
   }, [minDuration, enableSounds, cleanup, onError]);
+
+  useEffect(() => {
+    stopRecordingRef.current = stopRecording;
+  }, [stopRecording]);
 
   const startRecording = useCallback(async () => {
     if (stateRef.current !== 'idle') {

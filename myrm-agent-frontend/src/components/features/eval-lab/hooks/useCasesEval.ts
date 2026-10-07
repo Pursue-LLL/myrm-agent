@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -258,8 +258,12 @@ export function useCasesEval(selectedDatasetId: string): CasesEval {
     [t],
   );
 
+  // Initial load only: later fetches are triggered explicitly, not by locale or callback identity changes.
+  const loadInitialData = useEffectEvent(() =>
+    Promise.all([fetchStatus(), fetchReport(), fetchHistory()]).finally(() => setReady(true)),
+  );
   useEffect(() => {
-    Promise.all([fetchStatus(), fetchReport(), fetchHistory()]).finally(() => setReady(true));
+    void loadInitialData();
   }, []);
 
   useEffect(() => {

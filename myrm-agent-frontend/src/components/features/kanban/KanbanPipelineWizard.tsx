@@ -132,7 +132,7 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
     } finally {
       setCreating(false);
     }
-  }, [boardId, selectedTemplate, answers, onCreated, onClose, t]);
+  }, [boardId, selectedTemplate, selectedVariantId, answers, onCreated, onClose, t]);
 
   const updateAnswer = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));

@@ -12,7 +12,7 @@
  */
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useEffectEvent, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
@@ -369,6 +369,7 @@ export function WikiSection() {
   };
 
   const migrationVaultHandoffRef = useRef(false);
+  const finishMigrationVaultImport = useEffectEvent(finishImportResult);
   useEffect(() => {
     if (migrationVaultHandoffRef.current || typeof window === 'undefined') {
       return;
@@ -387,7 +388,11 @@ export function WikiSection() {
     void wikiService
       .importObsidianFolder(handoff.vaultPath, true, agentScopeId)
       .then(async (result) => {
-        await finishImportResult(result, { kind: 'obsidian-folder', folderPath: handoff.vaultPath }, 'obsidian');
+        await finishMigrationVaultImport(
+          result,
+          { kind: 'obsidian-folder', folderPath: handoff.vaultPath },
+          'obsidian',
+        );
       })
       .catch(() => {
         toast.error(t('import.migrationVaultHandoffFailed'));
@@ -395,7 +400,7 @@ export function WikiSection() {
       .finally(() => {
         setIsImportingObsidian(false);
       });
-  }, [agentScopeId, finishImportResult, t]);
+  }, [agentScopeId, t]);
 
   const retryImportWithSupersede = async (reason: string) => {
     if (!pendingImportRetry) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useEffectEvent } from 'react';
 import { useLocale } from 'next-intl';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/primitives/table';
@@ -63,8 +63,9 @@ const AuditLogTable = () => {
     }
   };
 
+  const refreshLogs = useEffectEvent(() => fetchLogs());
   useEffect(() => {
-    fetchLogs();
+    refreshLogs();
   }, [commandTypeFilter, riskLevelFilter]);
 
   const exportLogs = async (format: 'json' | 'csv') => {

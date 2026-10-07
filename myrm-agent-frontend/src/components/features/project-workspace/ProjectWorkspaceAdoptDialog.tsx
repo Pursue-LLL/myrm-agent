@@ -67,6 +67,8 @@ export default function ProjectWorkspaceAdoptDialog({
   const [filterQuery, setFilterQuery] = useState('');
   const loadGenRef = useRef(0);
 
+  // Re-read the recent list from storage each time the browse dialog toggles.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const recentDirs = useMemo(() => getRecentDirectoryPaths(PROJECT_WORKSPACE_RECENT_KEY), [browseOpen]);
 
   useEffect(() => {

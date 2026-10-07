@@ -28,6 +28,7 @@ export default function PetStatusBubble({ petState, className }: PetStatusBubble
     setSpec(next);
   }, [petState]);
 
+  // themeEpoch invalidates the memo: the tone resolver reads live theme CSS variables.
   const toneVisual = useMemo(() => {
     if (!spec) {
       return resolveCompanionBubbleTone('neutral');
@@ -39,6 +40,7 @@ export default function PetStatusBubble({ petState, className }: PetStatusBubble
       return resolveCompanionBubbleTone('error');
     }
     return resolveCompanionBubbleTone('neutral');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec, themeEpoch]);
 
   if (!spec) {

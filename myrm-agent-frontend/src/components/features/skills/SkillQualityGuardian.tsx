@@ -181,15 +181,16 @@ export function SkillQualityGuardian({ skillId, onPromoted, onStopped }: SkillQu
     }
   }, [skillId]);
 
+  const isTestRunning = testStatus?.status === 'RUNNING';
   useEffect(() => {
     void fetchStatus();
     const timer = setInterval(() => {
-      if (testStatus && testStatus.status === 'RUNNING') {
+      if (isTestRunning) {
         void fetchStatus();
       }
     }, 5000);
     return () => clearInterval(timer);
-  }, [fetchStatus, testStatus?.status]);
+  }, [fetchStatus, isTestRunning]);
 
   const handleStartShadow = async () => {
     if (baselineVersion === null || pendingCandidateVersion === null) {

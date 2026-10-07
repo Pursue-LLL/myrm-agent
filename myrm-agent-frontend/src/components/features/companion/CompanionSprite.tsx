@@ -60,6 +60,8 @@ export default function CompanionSprite({
   const mood = useCompanionStore((s) => s.mood);
   const effectiveRarity: Rarity = (evolvedRarity ?? bones.rarity) as Rarity;
   const abilities = getRarityAbilities(effectiveRarity);
+  // themeEpoch invalidates the memo: the resolver reads live theme CSS variables.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const rarityVisual = useMemo(() => resolveCompanionRarityVisual(effectiveRarity), [effectiveRarity, themeEpoch]);
 
   const activeAgent = useAgentStore((s) => s.selectedAgent);

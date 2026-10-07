@@ -22,6 +22,7 @@ export default function DeepLinkListener() {
     const isTauri = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ !== undefined;
 
     const dispatcher = new IntentDispatcher(router, openFlowPad);
+    const recentDispatch = recentDispatchRef.current;
 
     if (isTauri) {
       // 1. Handle cold start and hot start deep links via official plugin
@@ -80,7 +81,7 @@ export default function DeepLinkListener() {
         if (unlisten) {
           unlisten();
         }
-        recentDispatchRef.current.clear();
+        recentDispatch.clear();
         dispatchQueueRef.current = Promise.resolve();
       };
     } else {

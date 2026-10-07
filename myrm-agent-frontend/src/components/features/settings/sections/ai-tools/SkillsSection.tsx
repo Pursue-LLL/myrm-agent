@@ -336,7 +336,7 @@ const SkillsSection = memo(() => {
         }
       }
     },
-    [user?.id, toggleSkill, toggleLocalSkill, t],
+    [user?.id, toggleSkill, toggleLocalSkill, t, allInstalledSkills],
   );
 
   const handleBatchToggle = useCallback(

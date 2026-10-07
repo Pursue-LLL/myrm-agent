@@ -122,7 +122,7 @@ const SearchSection = memo(() => {
     } finally {
       setQuickEnabling(false);
     }
-  }, [addSearchServiceConfig, handleStartSearxngDocker, isLocal, t]);
+  }, [addSearchServiceConfig, isLocal, t]);
 
   const handleSave = async (config: SearchServiceConfigItem) => {
     if (isCreating) {

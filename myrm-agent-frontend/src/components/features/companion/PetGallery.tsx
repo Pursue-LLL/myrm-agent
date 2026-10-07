@@ -260,7 +260,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
         setInstallingSlug(null);
       }
     },
-    [persistSpriteSelection, setSpriteConfig, setSpriteEnabled],
+    [persistSpriteSelection, setSpriteConfig, setSpriteEnabled, t],
   );
 
   const handleRequestUninstall = useCallback((pet: InstalledCompanionPet) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useCallback, useEffect, useRef } from 'react';
+import { memo, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconExternalLink } from './catalog-icons';
 import { Button } from '@/components/primitives/button';
@@ -128,7 +128,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
   ({ entry, locale, onClose, onConnected }) => {
     const t = useTranslations('settings.integrationCatalog.connectDialog');
     const tSettings = useTranslations('settings');
-    const credentialFields = entry.credentialFields ?? [];
+    const credentialFields = useMemo(() => entry.credentialFields ?? [], [entry.credentialFields]);
     const hasMultiFields = credentialFields.length > 0;
 
     const [credential, setCredential] = useState('');
@@ -489,11 +489,11 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         isSandboxMode,
         locale,
         mcpConfigs,
-        setMCPConfigs,
-        onConnected,
         t,
         probeUrl,
         runProbe,
+        runCatalogSecurityGate,
+        credentialFields,
       ],
     );
 

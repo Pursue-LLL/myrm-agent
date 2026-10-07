@@ -187,7 +187,7 @@ const DataGrid: React.FC<DataGridProps> = memo(
 
       const chatInput = document.querySelector('[data-chat-input]') as HTMLElement | null;
       chatInput?.focus();
-    }, [selectedRow, sortedRows, headers, sheetName, artifactId]);
+    }, [selectedRow, sortedRows, headers, sheetName, artifactId, t]);
 
     const showTruncated = totalRows != null && totalRows > rows.length;
     const showFiltered = deferredSearch.trim() && sortedRows.length !== rows.length;

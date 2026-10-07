@@ -60,27 +60,6 @@ export function useSmoothStream(options: UseSmoothStreamOptions = {}): UseSmooth
   const lastUpdateTimeRef = useRef<number>(0);
   const streamDoneRef = useRef(false);
 
-  /** 将文本 chunk 分割为 grapheme cluster 并加入队列 */
-  const addChunk = useCallback((chunk: string) => {
-    if (!chunk) {
-      return;
-    }
-
-    // 使用 Intl.Segmenter 按 grapheme cluster 分割
-    const segments = Array.from(segmenter.segment(chunk));
-    const chars = segments.map((s) => s.segment);
-
-    chunkQueueRef.current = [...chunkQueueRef.current, ...chars];
-    streamDoneRef.current = false;
-
-    // 如果动画循环未启动，启动它
-    if (!animationFrameRef.current) {
-      setIsAnimating(true);
-      lastUpdateTimeRef.current = 0;
-      animationFrameRef.current = requestAnimationFrame(renderLoop);
-    }
-  }, []);
-
   /** 渲染循环 */
   const renderLoop = useCallback(
     (currentTime: number) => {
@@ -120,6 +99,30 @@ export function useSmoothStream(options: UseSmoothStreamOptions = {}): UseSmooth
       animationFrameRef.current = requestAnimationFrame(renderLoop);
     },
     [minDelay],
+  );
+
+  /** 将文本 chunk 分割为 grapheme cluster 并加入队列 */
+  const addChunk = useCallback(
+    (chunk: string) => {
+      if (!chunk) {
+        return;
+      }
+
+      // 使用 Intl.Segmenter 按 grapheme cluster 分割
+      const segments = Array.from(segmenter.segment(chunk));
+      const chars = segments.map((s) => s.segment);
+
+      chunkQueueRef.current = [...chunkQueueRef.current, ...chars];
+      streamDoneRef.current = false;
+
+      // 如果动画循环未启动，启动它
+      if (!animationFrameRef.current) {
+        setIsAnimating(true);
+        lastUpdateTimeRef.current = 0;
+        animationFrameRef.current = requestAnimationFrame(renderLoop);
+      }
+    },
+    [renderLoop],
   );
 
   /** 立即显示队列中所有剩余内容 */

@@ -182,6 +182,7 @@ const AgentConfigEditDialog = ({
     initialUseGlobalInstruction,
     initialAutoRestoreDomains,
     initialBuiltinTools,
+    initialBrowserSource,
     initialEphemeralSubagents,
   ]);
 
@@ -422,6 +423,11 @@ const AgentConfigEditDialog = ({
     localPrompt,
     localUseGlobalInstruction,
     localBuiltinTools,
+    localAutoRestoreDomains,
+    localBrowserSource,
+    localDialogPolicy,
+    localSessionRecording,
+    localMcpToolSelections,
     localEphemeralSubagents,
     displayNameErrors,
     externalCliSaveBlocked,

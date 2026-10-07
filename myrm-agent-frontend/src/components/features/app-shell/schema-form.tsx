@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -185,7 +185,8 @@ function renderField(
 
 export const SchemaForm = memo<SchemaFormProps>(({ schema, value, onChange, disabled, className }) => {
   const t = useTranslations('common.schemaForm');
-  const properties = schema.properties || {};
+  const schemaProperties = schema.properties;
+  const properties = useMemo(() => schemaProperties ?? {}, [schemaProperties]);
   const requiredFields = new Set(schema.required || []);
   const [touched, setTouched] = useState<Set<string>>(new Set());
 

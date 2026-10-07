@@ -25,9 +25,9 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
   const [privacyMode, setPrivacyMode] = useState(false);
   const [selectedSpan, setSelectedSpan] = useState<GanttSpan | null>(null);
 
-  const spans = performance?.gantt_spans || [];
-  const selectedAttempt =
-    selectedSpan?.attempt || (selectedSpan?.retry_count ? selectedSpan.retry_count + 1 : 0);
+  const ganttSpans = performance?.gantt_spans;
+  const spans = useMemo(() => ganttSpans ?? [], [ganttSpans]);
+  const selectedAttempt = selectedSpan?.attempt || (selectedSpan?.retry_count ? selectedSpan.retry_count + 1 : 0);
 
   const { minStart, timeRange } = useMemo(() => {
     if (spans.length === 0) {

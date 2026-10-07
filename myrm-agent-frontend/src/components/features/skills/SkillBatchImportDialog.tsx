@@ -145,7 +145,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
         setIsParsing(false);
       }
     },
-    [resolveUserFacingApiError, t],
+    [resolveUserFacingApiError, t, tdlg],
   );
 
   const { isDragging, dragHandlers } = useDragDrop({

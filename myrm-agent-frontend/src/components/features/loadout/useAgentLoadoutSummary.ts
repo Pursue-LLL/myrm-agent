@@ -219,12 +219,11 @@ export function useAgentLoadoutSummary({
     preCompactEnabled,
     preCompactBudgetTokens,
     skillCount,
-    refreshKey,
   ]);
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   return { data, loading, error, reload: load };
 }

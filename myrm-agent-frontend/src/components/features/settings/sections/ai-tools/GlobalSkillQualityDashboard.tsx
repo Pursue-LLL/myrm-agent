@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
@@ -44,8 +44,10 @@ export function GlobalSkillQualityDashboard() {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<number>(30);
 
+  // Refetch only when the time range changes, using the latest fetch closure.
+  const refreshAllData = useEffectEvent(() => fetchAllData());
   useEffect(() => {
-    fetchAllData();
+    refreshAllData();
   }, [timeRange]);
 
   const fetchAllData = async () => {

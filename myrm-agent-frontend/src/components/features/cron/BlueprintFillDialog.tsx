@@ -105,7 +105,7 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
     } finally {
       setSaving(false);
     }
-  }, [blueprint, values, userTz, locale, deliveryChannel, deliveryTarget, createJob, t, onOpenChange]);
+  }, [blueprint, values, userTz, locale, deliveryChannel, deliveryTarget, createJob, t]);
 
   if (!blueprint) {
     return null;

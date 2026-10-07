@@ -13,7 +13,7 @@
  * Wiki Settings 顶层知识治理工作台，彻底终结信息腐烂，支持一键延期、归档与复活。
  */
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useCallback, useEffect, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { ShieldCheck, Clock, Archive, RefreshCw, AlertTriangle, Undo2, Check } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
@@ -59,7 +59,7 @@ export function WikiGovernanceWorkbench({
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await wikiService.getGovernanceOverview(agentId, 90);
@@ -69,11 +69,11 @@ export function WikiGovernanceWorkbench({
     } finally {
       setLoading(false);
     }
-  };
+  }, [agentId]);
 
   useEffect(() => {
     loadData();
-  }, [agentId]);
+  }, [loadData]);
 
   const handleExtend = async (conceptName: string) => {
     try {

@@ -131,7 +131,7 @@ export function PendingEvolutionsDashboard() {
         setIsLoading(false);
       }
     },
-    [t, user?.id],
+    [t, user?.id, fetchLocalSkills],
   );
 
   useEffect(() => {

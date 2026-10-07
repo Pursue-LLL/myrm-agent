@@ -103,7 +103,7 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
         openStartedAtRef.current = null;
       }
       wasOpenRef.current = open;
-    }, [contextKey, level, open, surface]);
+    }, [contextKey, level, open, surface, snapshotStatus]);
 
     useEffect(() => {
       return () => {

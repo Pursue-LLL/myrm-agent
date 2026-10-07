@@ -249,7 +249,7 @@ const CodeBlock: React.FC<{
     }
 
     return result;
-  }, [cacheKey, getTheme, isStreaming]);
+  }, [cacheKey, safeLanguage, displayValue, getTheme, isStreaming]);
 
   return (
     <div

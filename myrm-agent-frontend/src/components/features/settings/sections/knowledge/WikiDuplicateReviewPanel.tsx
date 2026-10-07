@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
@@ -164,6 +164,10 @@ export function WikiDuplicateReviewPanel({ agentScopeId, scopeLabel, onVaultMuta
     toast.message(t('scan.stillRunning'));
   }, [agentScopeId, loadGroups, loadVaultHygiene, onVaultMutated, t]);
 
+  const notifyScanFailedOnMount = useEffectEvent(() => {
+    toast.error(t('errors.scanFailed'));
+  });
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -173,7 +177,7 @@ export function WikiDuplicateReviewPanel({ agentScopeId, scopeLabel, onVaultMuta
           return;
         }
         if (shouldNotifyDedupScanFailedOnMount(progress.phase)) {
-          toast.error(t('errors.scanFailed'));
+          notifyScanFailedOnMount();
           return;
         }
         if (!shouldResumeDedupPoll(progress.phase)) {

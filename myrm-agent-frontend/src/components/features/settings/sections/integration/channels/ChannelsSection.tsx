@@ -557,7 +557,7 @@ export default function ChannelsSection() {
         </div>
       );
     },
-    [state, t, isChannelEffectivelyEnabled, ingressSnapshot],
+    [state, t, isChannelEffectivelyEnabled, ingressSnapshot, setSelectedChannel],
   );
 
   return (

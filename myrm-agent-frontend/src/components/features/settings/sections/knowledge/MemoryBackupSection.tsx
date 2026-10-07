@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useEffectEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
@@ -63,8 +63,9 @@ export default function MemoryBackupSection() {
     }
   };
 
+  const loadInitialBackups = useEffectEvent(() => loadBackups());
   useEffect(() => {
-    loadBackups();
+    loadInitialBackups();
   }, []);
 
   const createBackup = async () => {

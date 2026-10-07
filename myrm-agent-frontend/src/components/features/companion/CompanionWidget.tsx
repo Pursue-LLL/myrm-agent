@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/primitives/hover-card';
@@ -313,6 +313,7 @@ export default function CompanionWidget() {
 
   // Detect loading→false transition for bounce + Observer trigger
   const [animState, setAnimState] = useState<'idle' | 'working' | 'bounce'>('idle');
+  const translateReaction = useEffectEvent((path: string) => t(path));
   useEffect(() => {
     if (loading) {
       setAnimState('working');
@@ -345,7 +346,7 @@ export default function CompanionWidget() {
         const snippet = lastContent.slice(0, 200);
         const category = getHeuristicCategory(snippet);
         const index = Math.floor(Math.random() * 4);
-        const reaction = t(`reactions.${bones.peakStat}.${category}.${index}`);
+        const reaction = translateReaction(`reactions.${bones.peakStat}.${category}.${index}`);
         if (reaction) {
           store.setReaction(reaction);
         }
@@ -417,10 +418,8 @@ export default function CompanionWidget() {
   const conversationCount = useCompanionStore((s) => s.conversationCount);
   const lastInteractionAt = useCompanionStore((s) => s.lastInteractionAt);
   const isGoalComplete = goal?.status === 'complete';
-  const isEvolutionRecent = useMemo(() => {
-    const ea = useCompanionStore.getState().evolvedAt;
-    return !!ea && Date.now() - ea < 60_000;
-  }, [evolvedRarity]);
+  const evolvedAt = useCompanionStore((s) => s.evolvedAt);
+  const isEvolutionRecent = useMemo(() => !!evolvedAt && Date.now() - evolvedAt < 60_000, [evolvedAt]);
 
   useEffect(() => {
     const store = useCompanionStore.getState();

@@ -323,6 +323,7 @@ const Chat = ({
   // 计算消息内容的哈希值，用于检测消息内容变化
   const messagesContentHash = useMemo(() => buildMessageRenderFingerprint(messages), [messages]);
 
+  // The fingerprint invalidates the memo when message content changes without a new array reference.
   const messageBoxElements = useMemo(() => {
     const elements = messages.map((msg, i) => {
       if (msg.isCompactedSummaryView) {
@@ -352,6 +353,7 @@ const Chat = ({
     });
 
     return elements;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, loading, messagesContentHash, highlightMessageId]);
 
   useEffect(() => {
@@ -616,7 +618,9 @@ const Chat = ({
             <RewindDialog
               open={true}
               onOpenChange={(open) => {
-                if (!open) {closeRewind();}
+                if (!open) {
+                  closeRewind();
+                }
               }}
               chatId={rewindTarget.chatId}
               messageId={rewindTarget.messageId}
@@ -681,7 +685,9 @@ const Chat = ({
           <RewindDialog
             open={true}
             onOpenChange={(open) => {
-              if (!open) {closeRewind();}
+              if (!open) {
+                closeRewind();
+              }
             }}
             chatId={rewindTarget.chatId}
             messageId={rewindTarget.messageId}
