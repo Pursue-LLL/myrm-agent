@@ -17,6 +17,7 @@ from app.api.memory import (
     external_bridge,
     ltra,
     onboarding,
+    proactive_care,
     repair,
     sqlite_vec,
     tool_backup,
@@ -38,6 +39,9 @@ from app.api.memory.code_memory_compaction_router import (
 from app.api.memory.codegraph_router import router as codegraph_router
 from app.api.memory.conflict_router import (
     router as memory_conflict_router,
+)
+from app.api.memory.cross_agent_router import (
+    router as cross_agent_router,
 )
 from app.api.memory.crystallization_router import (
     router as memory_crystallization_router,
@@ -67,6 +71,9 @@ from app.api.memory.hindsight_reflection_router import (
 )
 from app.api.memory.intent_reflection_router import (
     router as memory_intent_reflection_router,
+)
+from app.api.memory.kg_screening_router import (
+    router as kg_screening_router,
 )
 from app.api.memory.mcp_router import (
     router as memory_mcp_router,
@@ -192,6 +199,7 @@ router.include_router(memory_shared_bus_router, tags=["memory-shared-bus"])
 router.include_router(memory_budget_curator_router, tags=["memory-budget-curator"])
 router.include_router(memory_dialectic_router, tags=["memory-dialectic"])
 router.include_router(memory_subagent_isolation_router, tags=["memory-subagent-isolation"])
+router.include_router(cross_agent_router, tags=["memory-cross-agent"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
@@ -212,3 +220,4 @@ router.include_router(context_ingestion.router, tags=["memory-context-ingestion"
 router.include_router(decontamination.router, tags=["memory-decontamination"])
 router.include_router(cvfs.router, tags=["memory-cvfs"])
 router.include_router(cognitive_box.router, tags=["memory-cognitive-box"])
+router.include_router(proactive_care.router, tags=["memory-proactive-care"])
