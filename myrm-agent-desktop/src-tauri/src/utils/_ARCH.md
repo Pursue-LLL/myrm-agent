@@ -4,7 +4,7 @@
 - 平台原生 API（CoreGraphics / Win32 / Keychain）
 
 [OUTPUT]
-- 锁屏、凭据、隔离修复、OTA pubkey 校验、进程树管理等系统能力
+- 锁屏、凭据、隔离修复、OTA pubkey 校验、进程树管理、自定义协议页面原语等系统能力
 
 [POS]
 跨平台系统工具封装；由 commands/ IPC 或 app/ 启动期调用。
@@ -26,6 +26,7 @@
 | `quarantine.rs` | 核心 | com.apple.quarantine 扫描与静默修复 | — |
 | `updater_safety.rs` | 核心 | 启动期 OTA pubkey 占位符强校验 | ✅ |
 | `process_tree.rs` | 核心 | 跨平台进程树递归销毁与 Windows Job Object 管理 | ✅ |
+| `protocol_page.rs` | 核心 | 自定义协议页面共用原语：入口 URL（`page_url`，含 Windows `http://<scheme>.localhost` 形态与查询参数）、`html_escape`、不缓存的 `html_response`；帷幕看板页与视觉审批高亮页共用，窗口页不走 `data:` URL 的原因记在模块头 | ✅ |
 
 ## 依赖
 

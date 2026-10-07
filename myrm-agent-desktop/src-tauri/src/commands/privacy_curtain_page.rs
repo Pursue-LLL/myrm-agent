@@ -1,13 +1,12 @@
 //! 工位防窥帷幕——看板页面：文案缓存、HTML 模板，以及承载页面的自定义协议。
 //!
-//! 页面必须经应用自注册的自定义协议（`myrm-curtain`）提供，而不是 `data:` URL：
-//! - tauri 未启用 `webview-data-url` 特性，`data:` 页在建窗时就被拒绝（帷幕根本拉不起来）；
-//! - 自定义协议页属 Local 来源，`capabilities/curtain.json` 的 ACL 才会放行页内的
-//!   `curtain_report_physical_input`；`data:` 页属 Remote 来源，输入上报会被拒，
-//!   帷幕将失去"交互即回锁"。
+//! 页面经应用自注册的自定义协议（`myrm-curtain`）提供，而不是 `data:` URL（原因见
+//! `utils::protocol_page`）：页内的 `curtain_report_physical_input` 只有在 Local 来源下才被
+//! `capabilities/curtain.json` 放行，`data:` 页的输入上报会被拒，帷幕将失去"交互即回锁"。
 //!
 //! [INPUT]
 //! - 前端经 `set_texts` 注入的看板文案（POS: 按当前 locale 缓存，Rust 侧仅存默认英文兜底）
+//! - utils::protocol_page（POS: 自定义协议页面共用的入口 URL / HTML 转义 / 不缓存响应）
 //!
 //! [OUTPUT]
 //! - CurtainTexts / set_texts: 看板三段文案及其缓存
@@ -19,7 +18,9 @@
 
 use std::sync::Mutex;
 
-use tauri::http::{header, HeaderValue, Response};
+use tauri::http::Response;
+
+use crate::utils::protocol_page::{html_escape, html_response, page_url};
 
 /// 自定义协议名；`app/mod.rs` 注册协议与本模块 `url` 共用同一常量。
 pub(crate) const SCHEME: &str = "myrm-curtain";
@@ -59,15 +60,6 @@ pub(crate) fn set_texts(texts: CurtainTexts) {
 }
 
 // ── 看板 HTML ──────────────────────────────────────────────────────
-
-fn html_escape(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
-}
 
 fn curtain_html(texts: &CurtainTexts) -> String {
     format!(
@@ -125,40 +117,19 @@ fn curtain_html(texts: &CurtainTexts) -> String {
 
 // ── 自定义协议 ─────────────────────────────────────────────────────
 
-/// 帷幕窗口的入口 URL。Windows 上 WebView2 以 `http://<scheme>.localhost` 承载自定义协议，
-/// 其余平台使用 `<scheme>://localhost`。
+/// 帷幕窗口的入口 URL。
 pub(crate) fn url() -> Result<tauri::Url, String> {
-    let raw = if cfg!(windows) {
-        format!("http://{SCHEME}.localhost/")
-    } else {
-        format!("{SCHEME}://localhost/")
-    };
-    tauri::Url::parse(&raw).map_err(|error| error.to_string())
+    page_url(SCHEME, &[])
 }
 
-/// 自定义协议的响应：按最新文案渲染看板页面。
+/// 自定义协议的响应：按最新文案渲染看板页面（文案随语言切换而变，响应不缓存）。
 pub(crate) fn response() -> Response<Vec<u8>> {
     html_response(curtain_html(&current_texts()))
 }
 
-fn html_response(html: String) -> Response<Vec<u8>> {
-    let mut response = Response::new(html.into_bytes());
-    let headers = response.headers_mut();
-    headers.insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static("text/html; charset=utf-8"),
-    );
-    // 文案随语言切换而变，页面不得被 webview 缓存。
-    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-    response
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{
-        curtain_html, default_texts, html_response, response, set_texts, url, CurtainTexts, SCHEME,
-    };
-    use tauri::http::header;
+    use super::{curtain_html, default_texts, response, set_texts, url, CurtainTexts, SCHEME};
 
     #[test]
     fn html_escapes_untrusted_texts() {
@@ -191,17 +162,6 @@ mod tests {
             assert_eq!(url.scheme(), SCHEME);
             assert_eq!(url.host_str(), Some("localhost"));
         }
-    }
-
-    #[test]
-    fn html_response_is_uncached_utf8_html() {
-        let response = html_response(curtain_html(&default_texts()));
-        assert_eq!(
-            response.headers()[header::CONTENT_TYPE],
-            "text/html; charset=utf-8"
-        );
-        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
-        assert!(response.body().starts_with(b"<!DOCTYPE html>"));
     }
 
     /// 仅本用例触碰进程级文案缓存，其余用例走纯函数，互不干扰。
