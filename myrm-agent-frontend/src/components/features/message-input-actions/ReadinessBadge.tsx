@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * - @/hooks/agent/useAgentReadiness::useAgentReadiness (POS: SWR readiness polling)
+ * - @/components/agent/useReadinessText::useReadinessText (POS: localized wording of findings)
  *
  * [OUTPUT]
  * - ReadinessBadge: Compact dot + tooltip in the message-input toolbar.
@@ -10,13 +11,14 @@
  *
  * [POS]
  * Proactive readiness indicator next to AgentIndicator. Tooltip shows
- * per-dimension issues with deep-link buttons to Settings.
+ * per-dimension issues, worded from the findings' stable codes, with deep-link buttons to Settings.
  */
 
 import { memo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, XCircle } from 'lucide-react';
+import { useReadinessText } from '@/components/agent/useReadinessText';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { useAgentReadiness } from '@/hooks/agent/useAgentReadiness';
 import type { ReadinessLevel, AgentReadinessItem } from '@/services/agent';
@@ -34,6 +36,7 @@ const ICON_MAP: Record<Exclude<ReadinessLevel, 'ready'>, typeof AlertTriangle> =
 const ReadinessBadge = memo(() => {
   const t = useTranslations('agent.readiness');
   const router = useRouter();
+  const { label, reason } = useReadinessText();
   const { report, overallLevel, hasIssues, isLoading } = useAgentReadiness();
 
   const handleDeepLink = useCallback(
@@ -69,7 +72,7 @@ const ReadinessBadge = memo(() => {
               .filter((item: AgentReadinessItem) => item.level !== 'ready')
               .map((item: AgentReadinessItem) => (
                 <button
-                  key={item.dimension}
+                  key={`${item.dimension}:${item.code}`}
                   type="button"
                   className="flex items-start gap-2 w-full text-left text-xs text-muted-foreground hover:text-foreground transition-colors rounded p-1 -m-1 hover:bg-muted/50"
                   onClick={() => handleDeepLink(item.settings_path)}
@@ -82,9 +85,9 @@ const ReadinessBadge = memo(() => {
                     />
                   </span>
                   <span>
-                    <span className="font-medium text-foreground">{item.dimension}</span>
+                    <span className="font-medium text-foreground">{label(item)}</span>
                     {' — '}
-                    {item.next_action}
+                    {reason(item)}
                   </span>
                 </button>
               ))}

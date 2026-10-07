@@ -67,11 +67,9 @@ const PluginManagerDialog = memo(({ open, onOpenChange, onPluginChanged }: Plugi
       }
       setPlugins((await res.json()) as InstalledPlugin[]);
     } catch (error) {
-      toast({
-        title: t('errors.listFailed'),
-        description: error instanceof Error ? error.message : undefined,
-        variant: 'destructive',
-      });
+      // The cause is a diagnostic for the console; the title already says what failed, in the user's language.
+      console.error('Listing installed plugins failed:', error);
+      toast({ title: t('errors.listFailed'), variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -90,9 +88,7 @@ const PluginManagerDialog = memo(({ open, onOpenChange, onPluginChanged }: Plugi
         const res = await fetch(`/api/v1/plugins/import/${encodeURIComponent(plugin.name)}`, { method: 'DELETE' });
         if (!res.ok) {
           const payload = (await res.json().catch(() => null)) as { detail?: unknown } | null;
-          throw new Error(
-            typeof payload?.detail === 'string' ? payload.detail : (t('errors.uninstallFailed') as string),
-          );
+          throw new Error(typeof payload?.detail === 'string' ? payload.detail : `HTTP ${res.status}`);
         }
         const result = (await res.json()) as UninstallResult;
         setPlugins((prev) => prev.filter((item) => item.name !== plugin.name));
@@ -105,11 +101,8 @@ const PluginManagerDialog = memo(({ open, onOpenChange, onPluginChanged }: Plugi
         });
         onPluginChanged();
       } catch (error) {
-        toast({
-          title: t('errors.uninstallFailed'),
-          description: error instanceof Error ? error.message : undefined,
-          variant: 'destructive',
-        });
+        console.error('Plugin uninstall failed:', error);
+        toast({ title: t('errors.uninstallFailed'), variant: 'destructive' });
       } finally {
         setUninstalling(null);
         setPendingUninstall(null);
@@ -194,6 +187,7 @@ const PluginManagerDialog = memo(({ open, onOpenChange, onPluginChanged }: Plugi
                         size="sm"
                         className="h-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                         disabled={uninstalling !== null}
+                        aria-label={t('actions.uninstall')}
                         onClick={() => setPendingUninstall(plugin)}
                       >
                         {uninstalling === plugin.name ? (
