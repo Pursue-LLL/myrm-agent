@@ -164,6 +164,9 @@ from app.api.memory.privacy_router import (
 from app.api.memory.private_notebook_router import (
     router as private_notebook_router,
 )
+from app.api.memory.procedure_experience_router import (
+    router as procedure_experience_router,
+)
 from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.provenance_batch import (
     router as memory_provenance_batch_router,
@@ -363,6 +366,11 @@ router.include_router(
     fact_supersession_router,
     tags=["memory-fact-supersession"],
 )
+router.include_router(
+    procedure_experience_router,
+    tags=["memory-procedure-experience"],
+)
+
 
 
 
