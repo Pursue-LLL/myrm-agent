@@ -106,6 +106,9 @@ from app.api.memory.kg_screening_router import (
 from app.api.memory.lineage_search_router import (
     router as lineage_search_router,
 )
+from app.api.memory.markdown_curator_router import (
+    router as markdown_curator_router,
+)
 from app.api.memory.mcp_router import (
     router as memory_mcp_router,
 )
@@ -348,6 +351,10 @@ router.include_router(
 router.include_router(
     relational_backtrack_router,
     tags=["memory-relational-backtrack"],
+)
+router.include_router(
+    markdown_curator_router,
+    tags=["memory-markdown-curator"],
 )
 
 
