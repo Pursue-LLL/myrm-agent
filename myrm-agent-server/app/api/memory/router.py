@@ -15,6 +15,7 @@ from app.api.memory import (
     onboarding,
     repair,
     sqlite_vec,
+    tool_backup,
     world_model,
     zero_hallucination,
 )
@@ -202,3 +203,4 @@ router.include_router(world_model.router, tags=["memory-world-model"])
 router.include_router(sqlite_vec.router, tags=["memory-sqlite-vec"])
 router.include_router(decisions.router, tags=["memory-engineering-decisions"])
 router.include_router(repair.router, tags=["memory-repair"])
+router.include_router(tool_backup.router, tags=["memory-tool-backup"])
