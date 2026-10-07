@@ -26,6 +26,24 @@ interface AiBuildDraft {
 // Tools the builder may switch on; anything else the model invents is dropped.
 const BUILDER_TOOL_IDS = new Set(['browser', 'shell_exec', 'code_exec', 'file_ops', 'search', 'image_gen']);
 
+/** `error_code` the builder sends when it cannot start for lack of a usable model. */
+const MODEL_NOT_CONFIGURED_CODE = 'model_not_configured';
+
+interface RefusalBody {
+  detail?: string | { error_code?: string };
+}
+
+/** The builder refused before streaming; `code` is its stable `error_code`, when it sent one. */
+class AiBuildRefusal extends Error {
+  readonly code: string | undefined;
+
+  constructor(code: string | undefined) {
+    super('The AI builder request was refused');
+    this.name = 'AiBuildRefusal';
+    this.code = code;
+  }
+}
+
 /** Concatenates the `content` events of the builder's SSE stream. */
 async function readBuilderStream(response: Response): Promise<string> {
   const reader = response.body?.getReader();
@@ -92,8 +110,8 @@ export function useAgentAiBuild(editor: AiBuildTarget) {
           body: JSON.stringify({ intent, locale: navigator.language || 'en-US' }),
         });
         if (!response.ok) {
-          const err = await response.json().catch(() => null);
-          throw new Error(err?.detail || `HTTP ${response.status}`);
+          const body: RefusalBody | null = await response.json().catch(() => null);
+          throw new AiBuildRefusal(typeof body?.detail === 'object' ? body.detail?.error_code : undefined);
         }
         const draft = parseDraft(await readBuilderStream(response));
 
@@ -126,10 +144,13 @@ export function useAgentAiBuild(editor: AiBuildTarget) {
         setAiIntent('');
         toast({ title: t('agent.aiBuilder.apply') });
       } catch (e) {
+        // Backend and parser messages are English diagnostics for the console; only a missing model is
+        // something the user can act on, so it is the one failure explained beyond the generic title.
         console.error('AI Build failed:', e);
+        const needsModel = e instanceof AiBuildRefusal && e.code === MODEL_NOT_CONFIGURED_CODE;
         toast({
           title: t('agent.aiBuilder.error'),
-          description: e instanceof Error ? e.message : undefined,
+          description: needsModel ? t('agent.aiBuilder.noModel') : undefined,
           variant: 'destructive',
         });
       } finally {

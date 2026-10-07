@@ -7887,7 +7887,8 @@
       "subtitle": "Describe what you need, AI will generate the complete configuration",
       "apply": "Apply",
       "retry": "Retry",
-      "error": "Generation failed, please try again"
+      "error": "Generation failed, please try again",
+      "noModel": "No model is set up yet. Add a model provider in Settings, then try again."
     },
     "viewDescription": "View the configuration of this built-in agent",
     "builtInReadonly": "Built-in (Read-only)",

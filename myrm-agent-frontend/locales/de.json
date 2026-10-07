@@ -640,7 +640,8 @@
       "subtitle": "Beschreiben Sie Ihren Bedarf, die KI erstellt die vollständige Konfiguration",
       "apply": "Anwenden",
       "retry": "Wiederholen",
-      "error": "Generierung fehlgeschlagen, bitte erneut versuchen"
+      "error": "Generierung fehlgeschlagen, bitte erneut versuchen",
+      "noModel": "Es ist noch kein Modell eingerichtet. Fügen Sie in den Einstellungen einen Modellanbieter hinzu und versuchen Sie es erneut."
     },
     "viewDescription": "Konfiguration dieses integrierten Agenten ansehen",
     "builtInReadonly": "Integriert (Schreibgeschützt)",

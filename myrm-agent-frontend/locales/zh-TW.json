@@ -705,7 +705,8 @@
       "subtitle": "描述你的需求，AI 將自動生成完整配置",
       "apply": "應用",
       "retry": "重試",
-      "error": "生成失敗，請重試"
+      "error": "生成失敗，請重試",
+      "noModel": "尚未設定模型。請先在設定中新增模型供應商，然後重試。"
     },
     "viewDescription": "檢視內建智慧體的配置資訊",
     "builtInReadonly": "內建智慧體（只讀）",

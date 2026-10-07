@@ -87,8 +87,12 @@ describe('useAgentAiBuild', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('reports the server reason and keeps the intent when generation fails', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({ detail: 'No model configured' }) });
+  it('tells the user to set up a model when the builder refuses for lack of one, and keeps the intent', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({ detail: { message: 'LLM provider is not configured', error_code: 'model_not_configured' } }),
+    });
     const target = makeTarget();
     const { result } = renderHook(() => useAgentAiBuild(target));
     act(() => result.current.setAiIntent('a planner'));
@@ -97,12 +101,25 @@ describe('useAgentAiBuild', () => {
 
     expect(toastMock).toHaveBeenCalledWith({
       title: 'agent.aiBuilder.error',
-      description: 'No model configured',
+      description: 'agent.aiBuilder.noModel',
       variant: 'destructive',
     });
     expect(target.handleConfigChange).not.toHaveBeenCalled();
     expect(result.current.aiIntent).toBe('a planner');
     expect(result.current.aiGenerating).toBe(false);
+  });
+
+  it('keeps backend wording out of the toast for any other refusal', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 502, json: async () => ({ detail: 'upstream exploded' }) });
+    const { result } = renderHook(() => useAgentAiBuild(makeTarget()));
+
+    await act(() => result.current.handleAiBuild('a planner'));
+
+    expect(toastMock).toHaveBeenCalledWith({
+      title: 'agent.aiBuilder.error',
+      description: undefined,
+      variant: 'destructive',
+    });
   });
 
   it('reports a draft that is not valid JSON instead of applying part of it', async () => {

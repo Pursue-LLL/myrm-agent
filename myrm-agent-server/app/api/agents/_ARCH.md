@@ -14,7 +14,7 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `agent_extras.py` | 核心 | Agent 辅助端点：Secrets CRUD、使用统计、动作空间 ASCS 评估。 | ✅ |
 | `agent_portability.py` | 核心 | Agent 可移植性：克隆、Marketplace 跨沙箱分发（导出/导入）。专家之间交换只走 Agent Plugins ZIP（`/plugins/export`、`/plugins/import`），JSON 导入导出与工作区文件束已退役。 | ✅ |
 | `agent_history.py` | 模块 | Get the version history of an agent's profile. | ✅ |
-| `ai_build.py` | 模块 | AI-driven agent config generator: accepts a natural-language intent, streams a complete AgentCreate-compatible JSON (name, prompt, skills, MCPs, tools) | ✅ |
+| `ai_build.py` | 模块 | AI-driven agent config generator: accepts a natural-language intent, streams a complete AgentCreate-compatible JSON (name, prompt, skills, MCPs, tools); without a usable model it refuses with 422 `{message, error_code: model_not_configured}` so the client can localize it | ✅ |
 | `generate_prompt.py` | 模块 | Thin API for the agent editor: resolves the user's default model and streams a draft system prompt | ✅ |
 | `media.py` | 模块 | Request to test media generation configuration connectivity. | ✅ |
 | `openapi_services.py` | 模块 | OpenAPI Services API. | ✅ |

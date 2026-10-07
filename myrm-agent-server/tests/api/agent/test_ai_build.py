@@ -45,6 +45,7 @@ async def test_ai_build_no_model_configured(client: AsyncClient):
             )
             resp = await client.post(f"{API_PREFIX}/user-agents/ai-build", json={"intent": "test agent"})
             assert resp.status_code == 422
+            assert resp.json()["detail"]["error_code"] == "model_not_configured"
 
 
 @pytest.mark.asyncio

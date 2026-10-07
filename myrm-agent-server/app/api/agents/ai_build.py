@@ -172,9 +172,13 @@ async def ai_build(request: AIBuildRequest) -> StreamingResponse:
         resolve_model_config(providers_dict)
     except ConfigIncompleteError as exc:
         logger.warning("AI Build blocked: %s", exc.technical_details)
+        # `error_code` is the stable contract the client localizes; `message` is an English diagnostic.
         raise HTTPException(
             status_code=422,
-            detail="LLM provider is not configured. Please add a model provider in Settings before using this feature.",
+            detail={
+                "message": "LLM provider is not configured. Please add a model provider in Settings before using this feature.",
+                "error_code": "model_not_configured",
+            },
         ) from exc
 
     return StreamingResponse(
