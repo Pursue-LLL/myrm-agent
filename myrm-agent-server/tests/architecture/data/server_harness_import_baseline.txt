@@ -260,6 +260,7 @@ myrm_agent_harness.core.security.air_gapped
 myrm_agent_harness.core.security.air_gapped_sovereignty
 myrm_agent_harness.core.security.approval_metrics
 myrm_agent_harness.core.security.asr_privacy_tradeoff
+myrm_agent_harness.core.security.assignment_sweep
 myrm_agent_harness.core.security.audit_coverage
 myrm_agent_harness.core.security.auto_review_resolution
 myrm_agent_harness.core.security.autonomous_signing_airgap
@@ -410,6 +411,7 @@ myrm_agent_harness.core.security.tracing_redaction
 myrm_agent_harness.core.security.tri_flow_isolation
 myrm_agent_harness.core.security.tripartite_ledger
 myrm_agent_harness.core.security.types
+myrm_agent_harness.core.security.vnc_hardening
 myrm_agent_harness.core.security.webhook_guard
 myrm_agent_harness.core.security.workspace_boundary
 myrm_agent_harness.core.security.workspace_path_rbac
@@ -510,6 +512,7 @@ myrm_agent_harness.toolkits.code_execution.factory
 myrm_agent_harness.toolkits.code_execution.interceptor
 myrm_agent_harness.toolkits.code_execution.sandbox.providers.null
 myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types
+myrm_agent_harness.toolkits.code_execution.security
 myrm_agent_harness.toolkits.code_execution.security.bff_refactor
 myrm_agent_harness.toolkits.code_execution.security.client_secret_scanner
 myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer
