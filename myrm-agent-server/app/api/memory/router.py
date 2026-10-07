@@ -162,6 +162,9 @@ from app.api.memory.subagent_isolation import (
 from app.api.memory.task_triad_trajectory_router import (
     router as task_triad_trajectory_router,
 )
+from app.api.memory.temporal_graph_router import (
+    router as temporal_graph_router,
+)
 from app.api.memory.test_seed import router as memory_test_seed_router
 from app.api.memory.universal_mcp_router import (
     router as memory_universal_mcp_router,
@@ -285,6 +288,10 @@ router.include_router(
 router.include_router(
     four_tier_fts_router,
     tags=["memory-four-tier-fts"],
+)
+router.include_router(
+    temporal_graph_router,
+    tags=["memory-temporal-graph"],
 )
 
 
