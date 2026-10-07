@@ -6,18 +6,18 @@
 
 ## 文件清单
 
-| 文件                         | 地位 | 职责                                                                                                                                                                      | I/O/P |
-| ---------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `AgentAvatar.tsx`            | 核心 | 智能体头像（icon/lucide/emoji/image/首字母）                                                                                                                              | ✅    |
-| `agent-icons.tsx`            | 核心 | 内置智能体 SVG 图标注册表与 `AgentIcon`                                                                                                                                   | ✅    |
-| `builtin-agent-i18n-data.ts` | 核心 | 内置智能体 i18n 数据 SSOT（key 须与 server `_BUILTIN_AGENTS` id 一一对应；`__tests__/builtin-agent-i18n-data.test.ts` + server `test_builtin_agent_i18n_parity.py` 守护） | ✅    |
-| `builtin-agent-i18n.ts`      | 核心 | 内置智能体 locale 解析（getBuiltinAgentName/Description）                                                                                                                 | ✅    |
-| `AgentEditForm.tsx`          | 辅助 | 智能体创建/编辑表单（名称、图标、指令、模型槽位、责任三属性）                                                                                                             | ✅    |
-| `CommandBindingsEditor.tsx`  | 辅助 | Agent 斜杠命令绑定列表编辑                                                                                                                                                | ✅    |
-| `GovernancePanel.tsx`        | 辅助 | 责任单元治理面板（孤儿/重叠展示 + 孤儿直删；仅 needs_attention 时渲染）                                                                                                   | ✅    |
-| `GovernanceMergeWizard.tsx`  | 辅助 | 合并向导（来源/目标双选 + dry-run 明细 + typed确认 + 成功后Undo；成功后锁定选项防错位）                                                                                   | ✅    |
-| `AgentSetupWizard.tsx`       | 辅助 | 新手向导（模板选择 + 就绪检查 + 试用对话 + 完成；复用模板/就绪 API 与 AgentEditForm；toC 文案经 `Agent.setupWizard` i18n）                                                | ✅    |
-| `AgentReadinessList.tsx`     | 辅助 | 就绪度逐维度列表（模型/MCP/技能/工具/搜索/部署；未知维度原样显示），`withLinks` 时为未就绪项提供设置深链；新手向导与插件导入结果页共用                                    | ✅    |
+| 文件                         | 地位 | 职责                                                                                                                                                                                                                                                                                         | I/O/P |
+| ---------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `AgentAvatar.tsx`            | 核心 | 智能体头像（icon/lucide/emoji/image/首字母）                                                                                                                                                                                                                                                 | ✅    |
+| `agent-icons.tsx`            | 核心 | 内置智能体 SVG 图标注册表与 `AgentIcon`                                                                                                                                                                                                                                                      | ✅    |
+| `builtin-agent-i18n-data.ts` | 核心 | 内置智能体 i18n 数据 SSOT（key 须与 server `_BUILTIN_AGENTS` id 一一对应；`__tests__/builtin-agent-i18n-data.test.ts` + server `test_builtin_agent_i18n_parity.py` 守护）                                                                                                                    | ✅    |
+| `builtin-agent-i18n.ts`      | 核心 | 内置智能体 locale 解析（getBuiltinAgentName/Description）                                                                                                                                                                                                                                    | ✅    |
+| `AgentEditForm.tsx`          | 辅助 | 智能体创建/编辑表单（名称、图标、指令、模型槽位、责任三属性）                                                                                                                                                                                                                                | ✅    |
+| `CommandBindingsEditor.tsx`  | 辅助 | Agent 斜杠命令绑定列表编辑                                                                                                                                                                                                                                                                   | ✅    |
+| `GovernancePanel.tsx`        | 辅助 | 责任单元治理面板（孤儿/重叠展示 + 孤儿直删；仅 needs_attention 时渲染）                                                                                                                                                                                                                      | ✅    |
+| `GovernanceMergeWizard.tsx`  | 辅助 | 合并向导（来源/目标双选 + dry-run 明细 + typed确认 + 成功后Undo；成功后锁定选项防错位）                                                                                                                                                                                                      | ✅    |
+| `AgentSetupWizard.tsx`       | 辅助 | 新手向导（模板选择 + 就绪检查 + 试用对话 + 完成；复用模板/就绪 API 与 AgentEditForm；toC 文案经 `Agent.setupWizard` i18n）                                                                                                                                                                   | ✅    |
+| `AgentReadinessList.tsx`     | 辅助 | 就绪度逐项列表：按后端稳定 `code` + `names/count` 本地化说明（`Agent.readiness.reasons.*`；后端英文 `reason`/`next_action` 仅作诊断、从不展示；未知 `code` 回退按等级的通用句、未知维度回退「其他」，长名单只列前 3 项），`withLinks` 时为未就绪项提供设置深链；新手向导与插件导入结果页共用 | ✅    |
 
 ## 消费方（示例）
 

@@ -1668,6 +1668,13 @@
         "may_carry_credentials": "구성된 서비스에 자격 증명이 포함되어 있을 수 있습니다",
         "above_default": "기본값을 넘는 반복 한도는 공유되지 않습니다"
       },
+      "errors": {
+        "generic": "문제가 발생했습니다. 다시 시도해 주세요.",
+        "expert_not_found": "이 에이전트는 더 이상 존재하지 않습니다. 목록을 새로고침한 후 다시 시도해 주세요.",
+        "built_in_expert": "내장 에이전트는 내보낼 수 없습니다.",
+        "redaction_review_required": "내보내기 전에 감지된 민감 정보를 모두 검토해 주세요.",
+        "package_rejected": "이 에이전트의 일부는 아직 패키지로 만들 수 없습니다. 아래에 나열된 항목과 포함되지 않는 항목을 확인한 후 다시 시도해 주세요."
+      },
       "actions": {
         "cancel": "취소",
         "exportOriginal": "원본 내보내기 (안전하지 않음)",
@@ -10017,7 +10024,26 @@
         "skills": "스킬",
         "tools": "도구",
         "search": "검색",
-        "deployment": "실행 환경"
+        "deployment": "실행 환경",
+        "agent": "에이전트",
+        "other": "기타"
+      },
+      "reasons": {
+        "agent_not_found": "이 에이전트를 찾을 수 없습니다.",
+        "model_not_ready": "사용할 수 있는 모델이 아직 없습니다.",
+        "mcp_not_enabled": "설치되었지만 꺼져 있는 MCP 서버 {count}개: {names}",
+        "mcp_not_found": "이 에이전트가 사용하는 MCP 서버 {count}개가 설정에 없습니다: {names}",
+        "mcp_missing_secrets": "MCP 서버에 필요한 키가 없습니다: {names}",
+        "skills_missing": "이 에이전트가 사용하는 스킬 {count}개를 찾을 수 없습니다.",
+        "tools_none_enabled": "켜져 있는 기본 제공 도구가 없습니다.",
+        "search_not_configured": "검색 서비스가 설정되지 않았습니다.",
+        "computer_use_in_sandbox": "이 실행 환경에서는 컴퓨터 사용 기능이 제한될 수 있습니다.",
+        "local_skills_unavailable": "이 실행 환경에서는 로컬 스킬을 사용할 수 없습니다."
+      },
+      "fallback": {
+        "ready": "준비됨",
+        "warning": "에이전트의 기능이 제한될 수 있습니다.",
+        "blocked": "에이전트가 작동하려면 먼저 이 문제를 해결해야 합니다."
       },
       "fix": "해결하기"
     }
@@ -19752,7 +19778,9 @@
         "errors": {
           "parseTitle": "분석 오류",
           "previewFailed": "플러그인 분석에 실패했습니다. 파일 형식을 확인하세요",
+          "requestFailed": "요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.",
           "confirmTitle": "가져오기 실패",
+          "sessionExpired": "업로드가 만료되었습니다. 플러그인 파일을 다시 선택해 주세요.",
           "confirmFailed": "플러그인 가져오기에 실패했습니다. 다시 시도하세요"
         },
         "success": {

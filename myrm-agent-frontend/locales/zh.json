@@ -7001,7 +7001,9 @@
         "errors": {
           "parseTitle": "解析失败",
           "previewFailed": "插件解析失败，请检查文件格式",
+          "requestFailed": "请求未能完成，请稍后重试。",
           "confirmTitle": "导入失败",
+          "sessionExpired": "上传已过期，请重新选择插件文件。",
           "confirmFailed": "插件导入失败，请重试"
         },
         "success": {
@@ -8837,6 +8839,13 @@
         "sub_expert_workspace": "工作区模板只随主智能体带出",
         "may_carry_credentials": "已配置的服务可能含有凭据",
         "above_default": "高于默认值的循环上限不会被分享"
+      },
+      "errors": {
+        "generic": "出了点问题，请重试。",
+        "expert_not_found": "该智能体已不存在，请刷新列表后重试。",
+        "built_in_expert": "内置智能体无法导出。",
+        "redaction_review_required": "请先逐项确认敏感信息，再导出。",
+        "package_rejected": "该智能体的部分内容暂时无法打包。请查看下方列出的内容和不会带出的部分，然后重试。"
       },
       "actions": {
         "cancel": "取消",
@@ -17187,7 +17196,26 @@
         "skills": "技能",
         "tools": "工具",
         "search": "搜索",
-        "deployment": "运行环境"
+        "deployment": "运行环境",
+        "agent": "智能体",
+        "other": "其他"
+      },
+      "reasons": {
+        "agent_not_found": "找不到该智能体。",
+        "model_not_ready": "还没有可用的模型。",
+        "mcp_not_enabled": "已安装但未启用的 MCP 服务器（{count} 个）：{names}",
+        "mcp_not_found": "该智能体使用的 {count} 个 MCP 服务器已不在配置中：{names}",
+        "mcp_missing_secrets": "MCP 服务器缺少密钥：{names}",
+        "skills_missing": "该智能体使用的 {count} 个技能已找不到。",
+        "tools_none_enabled": "没有启用任何内置工具。",
+        "search_not_configured": "尚未配置搜索服务。",
+        "computer_use_in_sandbox": "在当前运行环境中，计算机使用能力可能受限。",
+        "local_skills_unavailable": "当前运行环境不支持本地技能。"
+      },
+      "fallback": {
+        "ready": "已就绪",
+        "warning": "这可能会限制智能体的能力。",
+        "blocked": "需要先解决这个问题，智能体才能工作。"
       },
       "fix": "去修复"
     }

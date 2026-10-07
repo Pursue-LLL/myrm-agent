@@ -3,6 +3,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '@/lib/api';
 import type { ExpertExportPreview } from '@/services/expertPackage';
 
 import ExpertExportDialog from '../ExpertExportDialog';
@@ -15,7 +16,7 @@ const { toastMock, previewMock, downloadMock, triggerDownloadMock } = vi.hoisted
 }));
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => Object.assign((key: string) => key, { has: () => true }),
 }));
 
 vi.mock('@/hooks/shared/useToast', () => ({ toast: toastMock }));
@@ -81,6 +82,9 @@ async function readyToExport(name = 'actions.export') {
 describe('ExpertExportDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Failures log the backend diagnostic for developers; keep the test output quiet.
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     previewMock.mockResolvedValue(makePreview());
     downloadMock.mockResolvedValue({ blob: new Blob(['zip']), filename: 'report-lead_v1.2.0.zip' });
   });
@@ -188,20 +192,40 @@ describe('ExpertExportDialog', () => {
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
-  it('keeps the dialog open and explains a refused export', async () => {
-    downloadMock.mockRejectedValue(new Error('Package is too large'));
+  it('keeps the dialog open and explains a refused export in the words of its code', async () => {
+    const { ExpertExportError } = await import('@/services/expertPackage');
+    downloadMock.mockRejectedValue(new ExpertExportError('Package is 52428801 bytes', 'package_rejected'));
     const onOpenChange = renderDialog();
 
     fireEvent.click(await readyToExport());
 
     await waitFor(() =>
       expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({ title: 'exportFailed', description: 'Package is too large', variant: 'destructive' }),
+        expect.objectContaining({
+          title: 'exportFailed',
+          description: 'errors.package_rejected',
+          variant: 'destructive',
+        }),
       ),
     );
     expect(onOpenChange).not.toHaveBeenCalled();
     // The author can try again.
     expect(screen.getByRole('button', { name: 'actions.export' })).toBeEnabled();
+  });
+
+  it('never shows a backend sentence to the user; it goes to the console instead', async () => {
+    const failure = new Error('Failed to fetch');
+    downloadMock.mockRejectedValue(failure);
+    renderDialog();
+
+    fireEvent.click(await readyToExport());
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'exportFailed', description: 'errors.generic' }),
+      ),
+    );
+    expect(console.error).toHaveBeenCalledWith('Expert export request failed:', failure);
   });
 
   it('refuses an export that could not even be built', async () => {
@@ -211,17 +235,30 @@ describe('ExpertExportDialog', () => {
     renderDialog();
 
     expect(await screen.findByText('buildErrorTitle')).toBeInTheDocument();
-    expect(screen.getByText('Package exceeds the size limit')).toBeInTheDocument();
+    expect(screen.getByText('errors.package_rejected')).toBeInTheDocument();
+    expect(screen.queryByText('Package exceeds the size limit')).not.toBeInTheDocument();
+    expect(console.warn).toHaveBeenCalledWith('Expert package cannot be built:', 'Package exceeds the size limit');
     expect(screen.getByRole('button', { name: 'actions.exportRedacted' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'actions.exportOriginal' })).not.toBeInTheDocument();
   });
 
-  it('reports a preview failure and offers no export', async () => {
-    previewMock.mockRejectedValue(new Error('Agent not found'));
+  it('reports a preview failure by its code and offers no export', async () => {
+    const refusal = new ApiError('Expert not found', 404);
+    refusal.data = { message: 'Expert not found', error_code: 'expert_not_found' };
+    previewMock.mockRejectedValue(refusal);
     renderDialog();
 
     expect(await screen.findByText('previewFailed')).toBeInTheDocument();
-    expect(screen.getByText('Agent not found')).toBeInTheDocument();
+    expect(screen.getByText('errors.expert_not_found')).toBeInTheDocument();
+    expect(screen.queryByText('Expert not found')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'actions.export' })).not.toBeInTheDocument();
+  });
+
+  it('falls back to a generic sentence when the preview fails without a known code', async () => {
+    previewMock.mockRejectedValue(new Error('upstream exploded'));
+    renderDialog();
+
+    expect(await screen.findByText('errors.generic')).toBeInTheDocument();
+    expect(screen.queryByText('upstream exploded')).not.toBeInTheDocument();
   });
 });

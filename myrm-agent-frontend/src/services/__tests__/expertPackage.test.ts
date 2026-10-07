@@ -1,16 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { apiRequestMock, fetchWithTimeoutMock } = vi.hoisted(() => ({
-  apiRequestMock: vi.fn(),
-  fetchWithTimeoutMock: vi.fn(),
-}));
+const { apiRequestMock, fetchWithTimeoutMock, ApiErrorStub } = vi.hoisted(() => {
+  class ApiErrorStub extends Error {
+    data?: Record<string, unknown>;
+  }
+  return { apiRequestMock: vi.fn(), fetchWithTimeoutMock: vi.fn(), ApiErrorStub };
+});
 
 vi.mock('@/lib/api', () => ({
   apiRequest: apiRequestMock,
   fetchWithTimeout: fetchWithTimeoutMock,
+  ApiError: ApiErrorStub,
 }));
 
-import { downloadExpertPackage, ExpertExportError, previewExpertExport } from '../expertPackage';
+import { downloadExpertPackage, ExpertExportError, expertExportErrorCode, previewExpertExport } from '../expertPackage';
 
 function response(init: { ok: boolean; body?: string; blob?: Blob; disposition?: string }): Response {
   return {
@@ -114,5 +117,36 @@ describe('downloadExpertPackage', () => {
 
     expect(error).toBeInstanceOf(ExpertExportError);
     expect(error).toMatchObject({ message: 'upstream exploded' });
+  });
+});
+
+describe('expertExportErrorCode', () => {
+  function apiError(errorCode: unknown): Error {
+    const error = new ApiErrorStub('boom');
+    error.data = { message: 'boom', error_code: errorCode };
+    return error;
+  }
+
+  it('reads the code of a rejected download', () => {
+    expect(expertExportErrorCode(new ExpertExportError('x', 'package_rejected'))).toBe('package_rejected');
+  });
+
+  it('reads the code of a rejected preview, which arrives as an api error', () => {
+    expect(expertExportErrorCode(apiError('built_in_expert'))).toBe('built_in_expert');
+  });
+
+  it('knows the changed-since-preview code the dialog reacts to', () => {
+    expect(expertExportErrorCode(new ExpertExportError('x', 'export_changed_since_preview'))).toBe(
+      'export_changed_since_preview',
+    );
+  });
+
+  it('is null for a code this build does not know or for errors without one', () => {
+    expect(expertExportErrorCode(new ExpertExportError('x', 'brand_new_code'))).toBeNull();
+    expect(expertExportErrorCode(new ExpertExportError('x'))).toBeNull();
+    expect(expertExportErrorCode(apiError(undefined))).toBeNull();
+    expect(expertExportErrorCode(apiError(42))).toBeNull();
+    expect(expertExportErrorCode(new Error('Failed to fetch'))).toBeNull();
+    expect(expertExportErrorCode('plain string')).toBeNull();
   });
 });

@@ -94,6 +94,7 @@ const PLUGIN_PREVIEW = previewPayload({
 const CONFLICTING_SKILL = skillPreview({ description: 'Already installed skill', conflict: true });
 
 let fetchMock: ReturnType<typeof vi.fn>;
+let consoleErrorSpy: { mockRestore: () => void };
 
 describe('PluginImportDialog', () => {
   const originalFetch = global.fetch;
@@ -105,10 +106,13 @@ describe('PluginImportDialog', () => {
     mockAgents = [{ id: 'agent-1', name: 'Research Assistant' }];
     fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
+    // Refused requests log the backend diagnostic for developers; keep the test output quiet.
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
+    consoleErrorSpy.mockRestore();
   });
 
   async function renderDialog() {
@@ -175,11 +179,43 @@ describe('PluginImportDialog', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('shows a parse error when the preview endpoint fails', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ detail: 'boom' }) });
+  it('says the file is unusable when the preview endpoint rejects it, without the backend sentence', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ detail: 'plugin.json is missing' }),
+    });
     await renderDialog();
     selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
-    expect(await screen.findByText('boom')).toBeInTheDocument();
+    expect(await screen.findByText('Preview failed')).toBeInTheDocument();
+    expect(screen.queryByText('plugin.json is missing')).not.toBeInTheDocument();
+  });
+
+  it('says the request failed when the service itself fails or cannot be reached', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 502, json: async () => ({ detail: 'bad gateway' }) });
+    await renderDialog();
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    expect(await screen.findByText('Request failed')).toBeInTheDocument();
+
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument();
+    expect(await screen.findByText('Request failed')).toBeInTheDocument();
+  });
+
+  it('localizes a security refusal of the archive by its code', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        detail: { message: 'Executable found', error_code: 'archive_security.executable_binary_detected' },
+      }),
+    });
+    await renderDialog();
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    expect(await screen.findByText('Blocked: executable binary')).toBeInTheDocument();
+    expect(screen.queryByText('Executable found')).not.toBeInTheDocument();
   });
 
   it('keeps the dropzone visible with a progress message while the archive is being parsed', async () => {
@@ -265,9 +301,11 @@ describe('PluginImportDialog', () => {
   });
 
   it('shows an error toast when the confirm request fails', async () => {
-    fetchMock
-      .mockResolvedValueOnce({ ok: true, json: async () => PLUGIN_PREVIEW })
-      .mockResolvedValueOnce({ ok: false, json: async () => ({ detail: 'confirm failed' }) });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => PLUGIN_PREVIEW }).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ detail: 'Plugin import failed. Retry.' }),
+    });
     await renderDialog();
     selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
     await screen.findByText('reports-plugin');
@@ -278,12 +316,34 @@ describe('PluginImportDialog', () => {
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({
         title: 'Confirm error',
-        description: 'confirm failed',
+        description: 'Confirm failed',
         variant: 'destructive',
       });
     });
     // The review stays in place so the user can retry.
     expect(screen.getByText('summarize')).toBeInTheDocument();
+  });
+
+  it('tells the user to upload again when the staged import has expired', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => PLUGIN_PREVIEW }).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ detail: 'Import session is invalid or expired.' }),
+    });
+    await renderDialog();
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    await screen.findByText('reports-plugin');
+
+    fireEvent.click(screen.getByTestId('trusted-source-checkbox'));
+    fireEvent.click(screen.getByText('Import'));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith({
+        title: 'Confirm error',
+        description: 'Session expired',
+        variant: 'destructive',
+      });
+    });
   });
 
   it('reselect resets the form back to the upload dropzone', async () => {

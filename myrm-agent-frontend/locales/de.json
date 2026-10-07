@@ -1668,6 +1668,13 @@
         "may_carry_credentials": "Eingerichtete Dienste könnten Zugangsdaten enthalten",
         "above_default": "Ein Schleifenlimit über dem Standard wird nie geteilt"
       },
+      "errors": {
+        "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+        "expert_not_found": "Dieser Agent existiert nicht mehr. Aktualisieren Sie die Liste und versuchen Sie es erneut.",
+        "built_in_expert": "Integrierte Agenten können nicht exportiert werden.",
+        "redaction_review_required": "Prüfen Sie vor dem Export alle erkannten sensiblen Angaben.",
+        "package_rejected": "Ein Teil dieses Agenten lässt sich noch nicht verpacken. Prüfen Sie unten, was enthalten ist und was ausgelassen wird, und versuchen Sie es erneut."
+      },
       "actions": {
         "cancel": "Abbrechen",
         "exportOriginal": "Original exportieren (unsicher)",
@@ -10017,7 +10024,26 @@
         "skills": "Fähigkeiten",
         "tools": "Werkzeuge",
         "search": "Suche",
-        "deployment": "Umgebung"
+        "deployment": "Umgebung",
+        "agent": "KI-Agent",
+        "other": "Sonstiges"
+      },
+      "reasons": {
+        "agent_not_found": "Dieser Agent wurde nicht gefunden.",
+        "model_not_ready": "Es ist noch kein Modell einsatzbereit.",
+        "mcp_not_enabled": "{count} MCP-Server installiert, aber ausgeschaltet: {names}",
+        "mcp_not_found": "{count} MCP-Server dieses Agents sind nicht mehr konfiguriert: {names}",
+        "mcp_missing_secrets": "Für MCP-Server fehlen Schlüssel: {names}",
+        "skills_missing": "{count} Fähigkeiten dieses Agents wurden nicht gefunden.",
+        "tools_none_enabled": "Keine integrierten Werkzeuge aktiviert.",
+        "search_not_configured": "Kein Suchdienst eingerichtet.",
+        "computer_use_in_sandbox": "Computernutzung kann in dieser Umgebung eingeschränkt sein.",
+        "local_skills_unavailable": "Lokale Fähigkeiten sind in dieser Umgebung nicht verfügbar."
+      },
+      "fallback": {
+        "ready": "Bereit",
+        "warning": "Das kann die Möglichkeiten des Agenten einschränken.",
+        "blocked": "Das muss behoben werden, bevor der Agent arbeiten kann."
       },
       "fix": "Beheben"
     }
@@ -19713,7 +19739,9 @@
         "errors": {
           "parseTitle": "Parse-Fehler",
           "previewFailed": "Plugin konnte nicht analysiert werden. Dateiformat prüfen",
+          "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuchen Sie es gleich noch einmal.",
           "confirmTitle": "Import fehlgeschlagen",
+          "sessionExpired": "Der Upload ist abgelaufen. Wählen Sie die Plugin-Datei erneut aus.",
           "confirmFailed": "Plugin-Import fehlgeschlagen. Bitte erneut versuchen"
         },
         "success": {

@@ -1668,6 +1668,13 @@
         "may_carry_credentials": "已設定的服務可能含有憑證",
         "above_default": "高於預設值的迴圈上限不會被分享"
       },
+      "errors": {
+        "generic": "發生問題，請重試。",
+        "expert_not_found": "此智慧體已不存在，請重新整理清單後再試。",
+        "built_in_expert": "內建智慧體無法匯出。",
+        "redaction_review_required": "請先逐項確認敏感資訊，再匯出。",
+        "package_rejected": "此智慧體的部分內容暫時無法打包。請查看下方列出的內容與不會帶出的部分，然後重試。"
+      },
       "actions": {
         "cancel": "取消",
         "exportOriginal": "匯出原版 (不安全)",
@@ -10017,7 +10024,26 @@
         "skills": "技能",
         "tools": "工具",
         "search": "搜尋",
-        "deployment": "執行環境"
+        "deployment": "執行環境",
+        "agent": "智慧體",
+        "other": "其他"
+      },
+      "reasons": {
+        "agent_not_found": "找不到此智慧體。",
+        "model_not_ready": "目前沒有可用的模型。",
+        "mcp_not_enabled": "已安裝但未啟用的 MCP 伺服器（{count} 個）：{names}",
+        "mcp_not_found": "此智慧體使用的 {count} 個 MCP 伺服器已不在設定中：{names}",
+        "mcp_missing_secrets": "MCP 伺服器缺少金鑰：{names}",
+        "skills_missing": "此智慧體使用的 {count} 個技能已找不到。",
+        "tools_none_enabled": "尚未啟用任何內建工具。",
+        "search_not_configured": "尚未設定搜尋服務。",
+        "computer_use_in_sandbox": "在目前的執行環境中，電腦使用功能可能受限。",
+        "local_skills_unavailable": "目前的執行環境不支援本機技能。"
+      },
+      "fallback": {
+        "ready": "已就緒",
+        "warning": "這可能會限制智慧體的能力。",
+        "blocked": "需要先解決這個問題，智慧體才能運作。"
       },
       "fix": "去修復"
     }
@@ -19721,7 +19747,9 @@
         "errors": {
           "parseTitle": "解析失敗",
           "previewFailed": "外掛程式解析失敗，請檢查檔案格式",
+          "requestFailed": "請求未能完成，請稍後重試。",
           "confirmTitle": "匯入失敗",
+          "sessionExpired": "上傳已過期，請重新選擇外掛程式檔案。",
           "confirmFailed": "外掛程式匯入失敗，請重試"
         },
         "success": {

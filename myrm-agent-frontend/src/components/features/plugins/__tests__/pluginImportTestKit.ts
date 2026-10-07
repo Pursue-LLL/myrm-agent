@@ -23,6 +23,8 @@ const IMPORT_TEXT: Record<string, string> = {
   'upload.singleArchiveOnly': 'Only a single archive is allowed',
   'upload.tooLarge': 'Archive exceeds the 20MB limit',
   'errors.previewFailed': 'Preview failed',
+  'errors.requestFailed': 'Request failed',
+  'errors.sessionExpired': 'Session expired',
   'errors.confirmFailed': 'Confirm failed',
   'errors.parseTitle': 'Parse error',
   'errors.confirmTitle': 'Confirm error',
@@ -126,7 +128,13 @@ const TEXT: Record<string, string> = {
   ...Object.fromEntries(Object.entries(IMPORT_TEXT).map(([key, value]) => [`${IMPORT_NAMESPACE}.${key}`, value])),
   'Agent.readiness.dimensions.model': 'Model',
   'Agent.readiness.dimensions.mcp': 'MCP servers',
+  'Agent.readiness.dimensions.other': 'Other',
+  'Agent.readiness.reasons.model_not_ready': 'No model is ready yet',
+  'Agent.readiness.fallback.warning': 'This may limit the agent',
+  'Agent.readiness.fallback.blocked': 'This needs attention',
   'Agent.readiness.fix': 'Fix',
+  // Archive-security refusals reuse the skills import wording.
+  'settings.skills.batchImport.errors.archiveSecurity.executableBinaryDetected': 'Blocked: executable binary',
 };
 
 export function translate(fullKey: string, values?: Record<string, unknown>): string {
@@ -139,8 +147,10 @@ export function translate(fullKey: string, values?: Record<string, unknown>): st
 
 /** Drop-in for `useTranslations(namespace)`: resolves `${namespace}.${key}` against the texts above. */
 export function useTranslationsStub(namespace?: string) {
-  return (key: string, values?: Record<string, unknown>): string =>
-    translate(namespace ? `${namespace}.${key}` : key, values);
+  const fullKey = (key: string) => (namespace ? `${namespace}.${key}` : key);
+  return Object.assign((key: string, values?: Record<string, unknown>): string => translate(fullKey(key), values), {
+    has: (key: string): boolean => fullKey(key) in TEXT,
+  });
 }
 
 export function skillPreview(overrides: Partial<PluginSkillPreview> = {}): PluginSkillPreview {

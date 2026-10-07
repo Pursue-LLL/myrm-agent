@@ -1668,6 +1668,13 @@
         "may_carry_credentials": "設定済みのサービスに認証情報が含まれる可能性があります",
         "above_default": "既定値を超えるループ上限は共有されません"
       },
+      "errors": {
+        "generic": "問題が発生しました。もう一度お試しください。",
+        "expert_not_found": "このエージェントはすでに存在しません。一覧を更新して、もう一度お試しください。",
+        "built_in_expert": "組み込みエージェントはエクスポートできません。",
+        "redaction_review_required": "エクスポートする前に、検出された機密情報をすべて確認してください。",
+        "package_rejected": "このエージェントの一部はまだパッケージ化できません。下に表示された内容と含まれない項目を確認して、もう一度お試しください。"
+      },
       "actions": {
         "cancel": "キャンセル",
         "exportOriginal": "原版をエクスポート（安全でない）",
@@ -10017,7 +10024,26 @@
         "skills": "スキル",
         "tools": "ツール",
         "search": "検索",
-        "deployment": "実行環境"
+        "deployment": "実行環境",
+        "agent": "エージェント",
+        "other": "その他"
+      },
+      "reasons": {
+        "agent_not_found": "このエージェントが見つかりません。",
+        "model_not_ready": "利用できるモデルがまだありません。",
+        "mcp_not_enabled": "インストール済みですが無効の MCP サーバー（{count} 件）：{names}",
+        "mcp_not_found": "このエージェントが使う MCP サーバー {count} 件が設定に見つかりません：{names}",
+        "mcp_missing_secrets": "MCP サーバーに必要なキーが不足しています：{names}",
+        "skills_missing": "このエージェントが使うスキル {count} 件が見つかりません。",
+        "tools_none_enabled": "有効な組み込みツールがありません。",
+        "search_not_configured": "検索サービスが設定されていません。",
+        "computer_use_in_sandbox": "この実行環境では、コンピューター使用の機能が制限される場合があります。",
+        "local_skills_unavailable": "この実行環境ではローカルスキルを利用できません。"
+      },
+      "fallback": {
+        "ready": "準備完了",
+        "warning": "エージェントの機能が制限される可能性があります。",
+        "blocked": "エージェントを動かすには、先にこの問題を解決する必要があります。"
       },
       "fix": "修正する"
     }
@@ -19752,7 +19778,9 @@
         "errors": {
           "parseTitle": "解析エラー",
           "previewFailed": "プラグインの解析に失敗しました。ファイル形式を確認してください",
+          "requestFailed": "リクエストを完了できませんでした。しばらくしてからもう一度お試しください。",
           "confirmTitle": "インポート失敗",
+          "sessionExpired": "アップロードの有効期限が切れました。プラグインファイルをもう一度選択してください。",
           "confirmFailed": "プラグインのインポートに失敗しました。再試行してください"
         },
         "success": {

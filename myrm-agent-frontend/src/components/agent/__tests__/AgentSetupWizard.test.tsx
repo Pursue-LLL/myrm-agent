@@ -7,7 +7,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { AgentSetupWizard } from '../AgentSetupWizard';
 
 vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (key: string) => `${namespace}.${key}`,
+  useTranslations: (namespace: string) => Object.assign((key: string) => `${namespace}.${key}`, { has: () => true }),
   useLocale: () => 'en',
 }));
 
@@ -44,7 +44,18 @@ function report(level: 'ready' | 'warning' | 'blocked') {
     overall_level: level,
     agent_id: 'a1',
     checked_at: 0,
-    items: [{ dimension: 'model', level, reason: 'r', next_action: 'n', settings_path: 's' }],
+    items: [
+      {
+        dimension: 'model',
+        level,
+        code: 'model_not_ready',
+        reason: 'r',
+        next_action: 'n',
+        settings_path: 's',
+        names: [],
+        count: 0,
+      },
+    ],
   };
 }
 

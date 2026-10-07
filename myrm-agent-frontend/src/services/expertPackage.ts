@@ -2,23 +2,34 @@
  * 专家导出 API 服务（Agent Plugins 1.0.0 ZIP）
  *
  * [INPUT]
- * @/lib/api::apiRequest,fetchWithTimeout (POS: frontend API request helper)
+ * @/lib/api::apiRequest,fetchWithTimeout,ApiError (POS: frontend API request helper)
  * @/services/skill::RedactionResponse (POS: 脱敏发现的差异结构，与技能导出同形)
  *
  * [OUTPUT]
- * previewExpertExport / downloadExpertPackage、ExpertExportError 与导出契约 DTO、拒绝码常量。
+ * previewExpertExport / downloadExpertPackage、ExpertExportError、expertExportErrorCode（拒绝码识别）与导出契约 DTO。
  *
  * [POS]
  * Frontend 专家导出 API client。`/plugins/export/*` REST 契约；脱敏决定语义与技能导出一致。
  */
 
-import { apiRequest, fetchWithTimeout } from '@/lib/api';
+import { ApiError, apiRequest, fetchWithTimeout } from '@/lib/api';
 import type { RedactionResponse } from '@/services/skill';
 
 const EXPORT_API_PREFIX = '/plugins/export';
 
 /** 专家在预览之后被改动：保留/忽略脱敏的索引已失效，需重新预览 */
 export const EXPERT_EXPORT_CHANGED_SINCE_PREVIEW = 'export_changed_since_preview';
+
+/** 后端以稳定 `error_code` 报告的拒绝原因；界面按码本地化，不展示后端英文原文 */
+const EXPORT_ERROR_CODES = [
+  'expert_not_found',
+  'built_in_expert',
+  EXPERT_EXPORT_CHANGED_SINCE_PREVIEW,
+  'redaction_review_required',
+  'package_rejected',
+] as const;
+
+export type ExpertExportErrorCode = (typeof EXPORT_ERROR_CODES)[number];
 
 export interface ExpertExportCard {
   name: string;
@@ -97,6 +108,13 @@ export class ExpertExportError extends Error {
     super(message);
     this.name = 'ExpertExportError';
   }
+}
+
+/** 导出请求失败时后端给出的已知拒绝码；未携带或不认识时为 null */
+export function expertExportErrorCode(error: unknown): ExpertExportErrorCode | null {
+  const code =
+    error instanceof ExpertExportError ? error.code : error instanceof ApiError ? error.data?.error_code : undefined;
+  return EXPORT_ERROR_CODES.find((known) => known === code) ?? null;
 }
 
 export async function previewExpertExport(agentId: string): Promise<ExpertExportPreview> {

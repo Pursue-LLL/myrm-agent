@@ -221,9 +221,12 @@ describe('PluginImportDialog - agents', () => {
         {
           dimension: 'model',
           level: 'blocked',
+          code: 'model_not_ready',
           reason: 'provider_not_configured',
           next_action: 'n',
           settings_path: '/settings/models',
+          names: [],
+          count: 0,
         },
       ],
     });
@@ -261,6 +264,9 @@ describe('PluginImportDialog - agents', () => {
     const link = await screen.findByRole('link', { name: 'Fix' });
     expect(link).toHaveAttribute('href', '/settings/models');
     expect(screen.getByText('Model')).toBeInTheDocument();
+    // The finding is explained in localized words, not the backend's identifier.
+    expect(screen.getByText('No model is ready yet')).toBeInTheDocument();
+    expect(screen.queryByText('provider_not_configured')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open agent' })).toHaveAttribute(
       'href',
       '/settings/agents?agentId=agent-new#loadout',

@@ -883,9 +883,15 @@ export type ReadinessLevel = 'ready' | 'warning' | 'blocked';
 export interface AgentReadinessItem {
   dimension: string;
   level: ReadinessLevel;
+  /** Stable finding identifier; the interface localizes it. `reason` and `next_action` are English diagnostics. */
+  code: string;
   reason: string;
   next_action: string;
   settings_path: string;
+  /** Connector names or secret keys the finding refers to. */
+  names: string[];
+  /** How many things are affected (skills are counted, not named). */
+  count: number;
 }
 
 export interface AgentReadinessReport {

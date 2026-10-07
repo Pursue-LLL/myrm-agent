@@ -7001,7 +7001,9 @@
         "errors": {
           "parseTitle": "Parse Error",
           "previewFailed": "Failed to parse plugin, check the file format",
+          "requestFailed": "The request did not go through. Please try again in a moment.",
           "confirmTitle": "Import Failed",
+          "sessionExpired": "The upload expired. Select the plugin file again to continue.",
           "confirmFailed": "Plugin import failed, please retry"
         },
         "success": {
@@ -8837,6 +8839,13 @@
         "sub_expert_workspace": "Workspace templates ship with the entry agent only",
         "may_carry_credentials": "Configured services may hold credentials",
         "above_default": "A loop limit above the default is never shared"
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "expert_not_found": "This agent no longer exists. Refresh the list and try again.",
+        "built_in_expert": "Built-in agents cannot be exported.",
+        "redaction_review_required": "Review every sensitive finding before exporting.",
+        "package_rejected": "Part of this agent cannot be packaged yet. Check what is listed below and what stays behind, then try again."
       },
       "actions": {
         "cancel": "Cancel",
@@ -17187,7 +17196,26 @@
         "skills": "Skills",
         "tools": "Tools",
         "search": "Search",
-        "deployment": "Environment"
+        "deployment": "Environment",
+        "agent": "Agent",
+        "other": "Other"
+      },
+      "reasons": {
+        "agent_not_found": "This agent could not be found.",
+        "model_not_ready": "No model is ready to use yet.",
+        "mcp_not_enabled": "{count} MCP server(s) installed but turned off: {names}",
+        "mcp_not_found": "{count} MCP server(s) this agent uses are no longer configured: {names}",
+        "mcp_missing_secrets": "MCP servers are missing keys: {names}",
+        "skills_missing": "{count} skill(s) this agent uses can no longer be found.",
+        "tools_none_enabled": "No built-in tools are turned on.",
+        "search_not_configured": "No search service is set up.",
+        "computer_use_in_sandbox": "Computer Use may be limited in this environment.",
+        "local_skills_unavailable": "Local skills are not available in this environment."
+      },
+      "fallback": {
+        "ready": "Ready",
+        "warning": "This may limit what the agent can do.",
+        "blocked": "This must be fixed before the agent can work."
       },
       "fix": "Fix"
     }

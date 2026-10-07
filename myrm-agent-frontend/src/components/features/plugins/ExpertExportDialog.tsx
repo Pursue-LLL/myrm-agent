@@ -23,7 +23,9 @@ import {
   downloadExpertPackage,
   EXPERT_EXPORT_CHANGED_SINCE_PREVIEW,
   ExpertExportError,
+  expertExportErrorCode,
   previewExpertExport,
+  type ExpertExportErrorCode,
   type ExpertExportPreview,
 } from '@/services/expertPackage';
 import { formatFileSize } from '@/types/artifact';
@@ -38,8 +40,13 @@ interface ExpertExportDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+/** What a failed request is reported as: a stable code the dialog has words for, or the generic sentence. */
+type FailureKey = ExpertExportErrorCode | 'generic';
+
+/** The backend's English detail is a diagnostic: it goes to the console and only the key reaches the UI. */
+function diagnoseFailure(error: unknown): FailureKey {
+  console.error('Expert export request failed:', error);
+  return expertExportErrorCode(error) ?? 'generic';
 }
 
 /**
@@ -49,20 +56,33 @@ function errorMessage(error: unknown): string {
 const ExpertExportDialog = memo(({ agentId, agentName, open, onOpenChange }: ExpertExportDialogProps) => {
   const t = useTranslations('agent.expertExport');
   const [preview, setPreview] = useState<ExpertExportPreview | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<FailureKey | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const { ignored, reset, toggle, toggleAll } = useRedactionDecisions();
 
+  // A code without wording of its own (e.g. one only meaningful on export) reads as the generic sentence.
+  const failureText = useCallback(
+    (failure: FailureKey): string => {
+      const key = `errors.${failure}` as Parameters<typeof t.has>[0];
+      return t.has(key) ? t(key) : t('errors.generic');
+    },
+    [t],
+  );
+
   const loadPreview = useCallback(async () => {
     setIsLoading(true);
     setPreview(null);
-    setLoadError(null);
+    setLoadFailure(null);
     reset();
     try {
-      setPreview(await previewExpertExport(agentId));
+      const loaded = await previewExpertExport(agentId);
+      if (loaded.build_error) {
+        console.warn('Expert package cannot be built:', loaded.build_error);
+      }
+      setPreview(loaded);
     } catch (error) {
-      setLoadError(errorMessage(error));
+      setLoadFailure(diagnoseFailure(error));
     } finally {
       setIsLoading(false);
     }
@@ -101,12 +121,12 @@ const ExpertExportDialog = memo(({ agentId, agentName, open, onOpenChange }: Exp
           void loadPreview();
           return;
         }
-        toast({ title: t('exportFailed'), description: errorMessage(error), variant: 'destructive' });
+        toast({ title: t('exportFailed'), description: failureText(diagnoseFailure(error)), variant: 'destructive' });
       } finally {
         setIsExporting(false);
       }
     },
-    [agentId, findings, ignored, loadPreview, onOpenChange, preview, t],
+    [agentId, failureText, findings, ignored, loadPreview, onOpenChange, preview, t],
   );
 
   // A package that cannot be built would fail the same way on export, so it is not offered.
@@ -128,11 +148,11 @@ const ExpertExportDialog = memo(({ agentId, agentName, open, onOpenChange }: Exp
             </div>
           )}
 
-          {loadError && (
+          {loadFailure && (
             <Alert variant="destructive">
               <IconAlertTriangle className="h-4 w-4" />
               <AlertTitle>{t('previewFailed')}</AlertTitle>
-              <AlertDescription>{loadError}</AlertDescription>
+              <AlertDescription>{failureText(loadFailure)}</AlertDescription>
             </Alert>
           )}
 
@@ -149,7 +169,7 @@ const ExpertExportDialog = memo(({ agentId, agentName, open, onOpenChange }: Exp
                 <Alert variant="destructive">
                   <IconAlertTriangle className="h-4 w-4" />
                   <AlertTitle>{t('buildErrorTitle')}</AlertTitle>
-                  <AlertDescription className="break-words">{preview.build_error}</AlertDescription>
+                  <AlertDescription className="break-words">{t('errors.package_rejected')}</AlertDescription>
                 </Alert>
               )}
 

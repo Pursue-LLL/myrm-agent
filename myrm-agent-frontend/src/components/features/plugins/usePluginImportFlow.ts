@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { resolveUserFacingArchiveSecurityError } from '@/services/archiveSecurityErrorCore';
+import { resolveApiErrorDetail, resolveArchiveSecurityErrorI18nKey } from '@/services/archiveSecurityErrorCore';
 import { toast } from '@/hooks/shared/useToast';
 import useAgentStore from '@/store/useAgentStore';
 
@@ -24,10 +24,6 @@ interface ApiErrorPayload {
   detail?: unknown;
 }
 
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message.trim() ? error.message : fallback;
-}
-
 interface UsePluginImportFlowOptions {
   onOpenChange: (open: boolean) => void;
   onImportComplete: () => void;
@@ -36,6 +32,8 @@ interface UsePluginImportFlowOptions {
 /** Upload → preview → decide → confirm. The dialog only renders what this hook holds. */
 export function usePluginImportFlow({ onOpenChange, onImportComplete }: UsePluginImportFlowOptions) {
   const t = useTranslations('settings.plugins.import');
+  // Archive-security refusals share the wording of the skills import.
+  const tArchive = useTranslations('settings.skills');
   const { agents, fetchAgents } = useAgentStore();
 
   const [isParsing, setIsParsing] = useState(false);
@@ -47,10 +45,19 @@ export function usePluginImportFlow({ onOpenChange, onImportComplete }: UsePlugi
   const [trusted, setTrusted] = useState(false);
   const [result, setResult] = useState<PluginConfirmResult | null>(null);
 
-  const userFacingError = useCallback(
-    (detail: unknown, fallback: string): string =>
-      resolveUserFacingArchiveSecurityError(detail, fallback, (key) => t(key as Parameters<typeof t>[0])),
-    [t],
+  /**
+   * Localized sentence for a refused request. Only the backend's stable archive-security codes have
+   * wording of their own; every other backend sentence is an English diagnostic, so it goes to the
+   * console and the caller's fallback is shown instead.
+   */
+  const refusalText = useCallback(
+    async (res: Response, fallback: string): Promise<string> => {
+      const { detail } = (await res.json().catch(() => ({}))) as ApiErrorPayload;
+      console.error('Plugin import request refused:', res.status, detail);
+      const key = resolveArchiveSecurityErrorI18nKey(resolveApiErrorDetail(detail, '').errorCode);
+      return key ? tArchive(key as Parameters<typeof tArchive>[0]) : fallback;
+    },
+    [tArchive],
   );
 
   const reset = useCallback(() => {
@@ -87,8 +94,11 @@ export function usePluginImportFlow({ onOpenChange, onImportComplete }: UsePlugi
         formData.append('file', selected);
         const res = await fetch('/api/v1/plugins/import/preview', { method: 'POST', body: formData });
         if (!res.ok) {
-          const errPayload = (await res.json().catch(() => ({}))) as ApiErrorPayload;
-          throw new Error(userFacingError(errPayload.detail, t('errors.previewFailed')));
+          // 400: the file itself is unusable; anything else is the service failing.
+          setParseError(
+            await refusalText(res, t(res.status === 400 ? 'errors.previewFailed' : 'errors.requestFailed')),
+          );
+          return;
         }
         const data = (await res.json()) as PluginPreviewPayload;
         setPreview(data);
@@ -97,12 +107,13 @@ export function usePluginImportFlow({ onOpenChange, onImportComplete }: UsePlugi
           fetchAgents().catch(() => {});
         }
       } catch (error: unknown) {
-        setParseError(errorMessage(error, t('errors.previewFailed')));
+        console.error('Plugin import preview failed:', error);
+        setParseError(t('errors.requestFailed'));
       } finally {
         setIsParsing(false);
       }
     },
-    [agents.length, fetchAgents, t, userFacingError],
+    [agents.length, fetchAgents, refusalText, t],
   );
 
   const setResolution = useCallback((kind: ComponentKind, virtualId: string, resolution: Resolution) => {
@@ -151,8 +162,13 @@ export function usePluginImportFlow({ onOpenChange, onImportComplete }: UsePlugi
         }),
       });
       if (!res.ok) {
-        const errPayload = (await res.json().catch(() => ({}))) as ApiErrorPayload;
-        throw new Error(userFacingError(errPayload.detail, t('errors.confirmFailed')));
+        // 400: the staged upload is gone, so the file has to be uploaded again.
+        const description = await refusalText(
+          res,
+          t(res.status === 400 ? 'errors.sessionExpired' : 'errors.confirmFailed'),
+        );
+        toast({ title: t('errors.confirmTitle'), description, variant: 'destructive' });
+        return;
       }
       const data = (await res.json()) as PluginConfirmResult;
       setResult(data);
@@ -161,15 +177,12 @@ export function usePluginImportFlow({ onOpenChange, onImportComplete }: UsePlugi
         fetchAgents(1, undefined, true).catch(() => {});
       }
     } catch (error: unknown) {
-      toast({
-        title: t('errors.confirmTitle'),
-        description: errorMessage(error, t('errors.confirmFailed')),
-        variant: 'destructive',
-      });
+      console.error('Plugin import confirm failed:', error);
+      toast({ title: t('errors.confirmTitle'), description: t('errors.confirmFailed'), variant: 'destructive' });
     } finally {
       setIsImporting(false);
     }
-  }, [bindAgentId, decisions, fetchAgents, onImportComplete, preview, t, userFacingError]);
+  }, [bindAgentId, decisions, fetchAgents, onImportComplete, preview, refusalText, t]);
 
   const close = useCallback(() => {
     reset();
