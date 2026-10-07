@@ -165,6 +165,9 @@ from app.api.memory.provenance_batch import (
 from app.api.memory.revocable_provenance_router import (
     router as revocable_provenance_router,
 )
+from app.api.memory.rule_cascade_router import (
+    router as rule_cascade_router,
+)
 from app.api.memory.screen_observation_safety_router import (
     router as screen_observation_safety_router,
 )
@@ -334,6 +337,10 @@ router.include_router(
 router.include_router(
     ephemeral_delta_router,
     tags=["memory-ephemeral-delta"],
+)
+router.include_router(
+    rule_cascade_router,
+    tags=["memory-rule-cascade"],
 )
 
 

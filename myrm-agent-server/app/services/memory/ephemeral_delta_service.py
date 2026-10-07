@@ -10,8 +10,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from langchain_core.messages import HumanMessage, SystemMessage
-
-from myrm_agent_harness.agent.middlewares.memory_context.ephemeral_delta import (
+from myrm_agent_harness.toolkits.memory import (
     DeltaCategory,
     EphemeralDeltaRegistry,
     HumanTailDeltaInjector,
