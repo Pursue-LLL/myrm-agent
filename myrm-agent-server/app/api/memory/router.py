@@ -167,6 +167,9 @@ from app.api.memory.operations.shared_context import (
 from app.api.memory.override_stack_router import (
     router as memory_override_stack_router,
 )
+from app.api.memory.peer_cognition_router import (
+    router as peer_cognition_router,
+)
 from app.api.memory.persona_router import (
     router as memory_persona_router,
 )
@@ -404,6 +407,10 @@ router.include_router(
 router.include_router(
     failure_search_router,
     tags=["memory-failure-search"],
+)
+router.include_router(
+    peer_cognition_router,
+    tags=["memory-peer-cognition"],
 )
 
 
