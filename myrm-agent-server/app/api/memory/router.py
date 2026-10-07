@@ -17,6 +17,7 @@ from app.api.memory import (
     dream_diary,
     external_bridge,
     ltra,
+    migration,
     onboarding,
     proactive_care,
     repair,
@@ -224,3 +225,4 @@ router.include_router(cvfs.router, tags=["memory-cvfs"])
 router.include_router(cognitive_box.router, tags=["memory-cognitive-box"])
 router.include_router(proactive_care.router, tags=["memory-proactive-care"])
 router.include_router(capacity_hitl.router, tags=["memory-capacity-hitl"])
+router.include_router(migration.router, tags=["memory-migration"])
