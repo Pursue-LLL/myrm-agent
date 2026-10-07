@@ -78,6 +78,9 @@ from app.api.memory.four_layer_promotion_router import (
 from app.api.memory.four_tier_fts_router import (
     router as four_tier_fts_router,
 )
+from app.api.memory.git_okf_router import (
+    router as git_okf_router,
+)
 from app.api.memory.graph_rrf_router import router as graph_rrf_router
 from app.api.memory.hindsight_reflection_router import (
     router as hindsight_reflection_router,
@@ -299,6 +302,10 @@ router.include_router(
 router.include_router(
     disk_reconciliation_router,
     tags=["memory-reconciliation"],
+)
+router.include_router(
+    git_okf_router,
+    tags=["memory-git-okf"],
 )
 
 
