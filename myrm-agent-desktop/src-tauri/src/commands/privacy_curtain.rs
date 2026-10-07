@@ -16,6 +16,7 @@
 //! - show/hide/active/set_texts/report_physical_input IPC
 //! - curtain:state-changed / curtain:physical-input 事件
 //! - relock_outstanding_lease（壳退出前租约仍未交还时的兜底回锁，由 app/lifecycle.rs 调用）
+//! - is_curtain_label（窗口 label 是否属于帷幕；app/setup.rs 据此豁免应用级窗口策略）
 //! - spawn_privacy_curtain_watcher（见 privacy_curtain_watcher.rs）
 //!
 //! [POS]
@@ -67,10 +68,20 @@ fn audit_presentation(action: &str, result: Result<(), String>) {
 
 // ── 帷幕窗口管理 ──────────────────────────────────────────────────
 
+/// 窗口 label 是否属于帷幕（label 前缀的唯一定义处）。
+pub(crate) fn is_curtain_label(label: &str) -> bool {
+    label.starts_with(CURTAIN_LABEL_PREFIX)
+}
+
+/// 帷幕窗的 label：`<前缀><代号>-<显示器序号>`。
+fn curtain_label(generation: u64, index: usize) -> String {
+    format!("{CURTAIN_LABEL_PREFIX}{generation}-{index}")
+}
+
 pub(crate) fn curtain_windows(app: &AppHandle) -> Vec<tauri::WebviewWindow> {
     app.webview_windows()
         .into_iter()
-        .filter(|(label, _)| label.starts_with(CURTAIN_LABEL_PREFIX))
+        .filter(|(label, _)| is_curtain_label(label))
         .map(|(_, window)| window)
         .collect()
 }
@@ -122,7 +133,7 @@ fn build_curtain_window(
     let scale = monitor.scale_factor();
     let size = monitor.size();
     let position = monitor.position();
-    let label = format!("{CURTAIN_LABEL_PREFIX}{generation}-{index}");
+    let label = curtain_label(generation, index);
 
     let window =
         WebviewWindowBuilder::new(app, &label, WebviewUrl::CustomProtocol(page_url.clone()))
@@ -292,4 +303,29 @@ pub async fn curtain_report_physical_input(app: AppHandle, source: String) -> Re
     );
 
     relock_and_release_lease(&app, "relock_on_input", "curtain input guard").await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{curtain_label, is_curtain_label};
+
+    /// 应用级窗口策略的豁免靠 label 前缀识别帷幕窗：建窗用的 label 必须永远落在这个前缀下。
+    #[test]
+    fn every_curtain_window_label_is_recognised_as_a_curtain() {
+        for (generation, index) in [(1, 0), (1, 1), (42, 3)] {
+            assert!(is_curtain_label(&curtain_label(generation, index)));
+        }
+    }
+
+    #[test]
+    fn the_curtain_predicate_does_not_claim_other_windows() {
+        for label in [
+            "main",
+            "pet-surface",
+            "session-42",
+            "visual-approval-overlay-1",
+        ] {
+            assert!(!is_curtain_label(label), "{label}");
+        }
+    }
 }

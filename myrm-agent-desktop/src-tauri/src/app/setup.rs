@@ -1,4 +1,5 @@
-//! Tauri `setup` 钩子：配置管理、快捷键注册、Sidecar 自启动（Python + Next 始终）。
+//! Tauri `setup` 钩子：配置管理、快捷键注册、Sidecar 自启动（Python + Next 始终）；
+//! 以及应用级窗口事件策略（关闭到托盘、窗口销毁即退出编排；帷幕与审批高亮覆盖层豁免）。
 
 use std::sync::Mutex;
 use std::time::Duration;
@@ -215,7 +216,18 @@ fn register_shortcut_from_config(
     Ok(())
 }
 
+/// 应用级窗口策略（关闭到托盘、退出编排）是否管辖该窗口。帷幕与审批高亮是按需建、用完即销的
+/// 覆盖层，并不承载应用：被关闭时，"关闭到托盘"会把它拦成永不销毁的隐藏窗并把应用切到
+/// Accessory（Dock 图标消失）；被销毁时，`Destroyed` 会被当作应用退出，把后端与前端一并停掉。
+fn governs_app_lifecycle(label: &str) -> bool {
+    !commands::privacy_curtain::is_curtain_label(label)
+        && !commands::visual_approval_overlay::is_overlay_label(label)
+}
+
 pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
+    if !governs_app_lifecycle(window.label()) {
+        return;
+    }
     match event {
         tauri::WindowEvent::CloseRequested { api, .. } => {
             let config_manager = window.app_handle().state::<ConfigManager>();
@@ -240,5 +252,29 @@ pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
             });
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::governs_app_lifecycle;
+
+    #[test]
+    fn overlay_surfaces_are_exempt_from_the_app_lifecycle_policy() {
+        for label in [
+            "privacy-curtain-1-0",
+            "privacy-curtain-7-2",
+            "visual-approval-overlay-0",
+            "visual-approval-overlay-31",
+        ] {
+            assert!(!governs_app_lifecycle(label), "{label}");
+        }
+    }
+
+    #[test]
+    fn every_other_window_stays_under_the_app_lifecycle_policy() {
+        for label in ["main", "pet-surface", "session-42"] {
+            assert!(governs_app_lifecycle(label), "{label}");
+        }
     }
 }

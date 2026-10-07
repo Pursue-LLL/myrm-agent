@@ -22,3 +22,4 @@ pub mod recovery;
 pub mod screen_lock;
 pub mod session_window;
 pub mod visual_approval_overlay;
+pub mod visual_approval_overlay_page;
