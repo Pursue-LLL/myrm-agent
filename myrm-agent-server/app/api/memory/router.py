@@ -72,6 +72,9 @@ from app.api.memory.follow_ups import router as follow_ups_router
 from app.api.memory.four_layer_promotion_router import (
     router as four_layer_promotion_router,
 )
+from app.api.memory.four_tier_fts_router import (
+    router as four_tier_fts_router,
+)
 from app.api.memory.graph_rrf_router import router as graph_rrf_router
 from app.api.memory.hindsight_reflection_router import (
     router as hindsight_reflection_router,
@@ -279,5 +282,10 @@ router.include_router(
     revocable_provenance_router,
     tags=["memory-revocable-provenance"],
 )
+router.include_router(
+    four_tier_fts_router,
+    tags=["memory-four-tier-fts"],
+)
+
 
 
