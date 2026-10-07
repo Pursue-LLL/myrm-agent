@@ -21,6 +21,7 @@ from app.api.memory import (
     context_ingestion,
     decontamination,
     cvfs,
+    cognitive_box,
 )
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
@@ -210,3 +211,4 @@ router.include_router(tool_backup.router, tags=["memory-tool-backup"])
 router.include_router(context_ingestion.router, tags=["memory-context-ingestion"])
 router.include_router(decontamination.router, tags=["memory-decontamination"])
 router.include_router(cvfs.router, tags=["memory-cvfs"])
+router.include_router(cognitive_box.router, tags=["memory-cognitive-box"])
