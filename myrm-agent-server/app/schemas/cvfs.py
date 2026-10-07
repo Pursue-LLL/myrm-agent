@@ -56,8 +56,9 @@ class VFSMkdirRequest(BaseModel):
 class VFSFindRequest(BaseModel):
     """Request payload to search virtual nodes."""
 
-    keyword: str = Field(..., description="Search keyword in name or content")
+    keyword: str = Field(..., description="Search keyword in name, content, or URI")
     prefix_uri: str = Field(default="ctx://", description="Prefix URI boundary for search")
+    node_type: str | None = Field(default=None, description="Optional node type filter: directory or file")
 
 
 class VFSFindResponse(BaseModel):
@@ -65,3 +66,31 @@ class VFSFindResponse(BaseModel):
 
     matches: list[VFSNodeResponse] = Field(default_factory=list, description="Matched VFS nodes")
     total: int = Field(..., description="Total matched node count")
+
+
+class VFSSubtreeStatsResponse(BaseModel):
+    """Aggregated volume and structural statistics for a VFS subtree."""
+
+    root_uri: str = Field(..., description="Target subtree root URI")
+    total_nodes: int = Field(default=0, ge=0, description="Total node count in subtree")
+    file_count: int = Field(default=0, ge=0, description="Total file count in subtree")
+    directory_count: int = Field(default=0, ge=0, description="Total directory count in subtree")
+    total_bytes: int = Field(default=0, ge=0, description="Total storage bytes across files")
+
+
+class VFSMountRequest(BaseModel):
+    """Request payload to mount an external context provider."""
+
+    mount_point: str = Field(..., description="Target mount point URI")
+    description: str = Field(default="", description="Mount description")
+    is_read_only: bool = Field(default=True, description="Whether mount is strictly read-only")
+
+
+class VFSMountResponse(BaseModel):
+    """Response descriptor for a mounted context provider."""
+
+    mount_point: str = Field(..., description="Target mount point URI")
+    description: str = Field(default="", description="Mount description")
+    is_read_only: bool = Field(default=True, description="Whether mount is strictly read-only")
+    mounted_at_epoch: float = Field(..., description="Timestamp of mounting in epoch seconds")
+

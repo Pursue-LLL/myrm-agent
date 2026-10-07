@@ -7,14 +7,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.toolkits.memory import (
     ContextVirtualFileSystem,
     CVFSProtocolError,
+    VFSNodeType,
 )
 
 from app.schemas.cvfs import (
     VFSFindRequest,
     VFSFindResponse,
     VFSMkdirRequest,
+    VFSMountRequest,
+    VFSMountResponse,
     VFSNodeResponse,
     VFSReadResponse,
+    VFSSubtreeStatsResponse,
     VFSTreeResponse,
     VFSWriteRequest,
 )
@@ -141,14 +145,81 @@ def create_vfs_directory(
     )
 
 
+@router.get("/stat", response_model=VFSSubtreeStatsResponse)
+def get_vfs_subtree_stat(
+    uri: str = "ctx://",
+    vfs: ContextVirtualFileSystem = Depends(get_context_vfs),
+) -> VFSSubtreeStatsResponse:
+    """Calculate aggregated node counts and storage byte size for a given URI subtree."""
+    try:
+        res = vfs.stat_subtree(uri=uri)
+    except CVFSProtocolError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return VFSSubtreeStatsResponse(
+        root_uri=res.root_uri,
+        total_nodes=res.total_nodes,
+        file_count=res.file_count,
+        directory_count=res.directory_count,
+        total_bytes=res.total_bytes,
+    )
+
+
+@router.post("/mount", response_model=VFSMountResponse)
+def mount_vfs_provider(
+    req: VFSMountRequest,
+    vfs: ContextVirtualFileSystem = Depends(get_context_vfs),
+) -> VFSMountResponse:
+    """Mount external context provider at specified virtual path."""
+    try:
+        info = vfs.mount(
+            mount_point=req.mount_point,
+            description=req.description,
+            is_read_only=req.is_read_only,
+        )
+    except CVFSProtocolError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return VFSMountResponse(
+        mount_point=info.mount_point,
+        description=info.description,
+        is_read_only=info.is_read_only,
+        mounted_at_epoch=info.mounted_at_epoch,
+    )
+
+
+@router.get("/mounts", response_model=list[VFSMountResponse])
+def list_vfs_mounts(
+    vfs: ContextVirtualFileSystem = Depends(get_context_vfs),
+) -> list[VFSMountResponse]:
+    """List all registered mounted context providers."""
+    mounts = vfs.list_mounts()
+    return [
+        VFSMountResponse(
+            mount_point=m.mount_point,
+            description=m.description,
+            is_read_only=m.is_read_only,
+            mounted_at_epoch=m.mounted_at_epoch,
+        )
+        for m in mounts
+    ]
+
+
 @router.post("/find", response_model=VFSFindResponse)
 def find_vfs_nodes(
     req: VFSFindRequest,
     vfs: ContextVirtualFileSystem = Depends(get_context_vfs),
 ) -> VFSFindResponse:
-    """Find context nodes matching keyword in name or content."""
+    """Find context nodes matching keyword in name, content, or URI, optionally filtered by node type."""
+    node_type_enum: VFSNodeType | None = None
+    if req.node_type is not None:
+        try:
+            node_type_enum = VFSNodeType(req.node_type)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid node_type: {req.node_type}") from exc
+
     try:
-        matches = vfs.find(keyword=req.keyword, prefix_uri=req.prefix_uri)
+        matches = vfs.find(keyword=req.keyword, prefix_uri=req.prefix_uri, node_type=node_type_enum)
     except CVFSProtocolError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -180,3 +251,4 @@ def delete_vfs_node(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return {"uri": uri, "deleted": deleted}
+

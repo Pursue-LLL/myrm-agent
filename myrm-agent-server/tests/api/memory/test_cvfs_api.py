@@ -154,3 +154,84 @@ async def test_cvfs_mkdir_find_and_delete_api_flow(client: AsyncClient) -> None:
     # 4. Verify file is deleted
     read_del = await client.get("/api/memory/cvfs/read?uri=ctx://artifacts/sess_999/benchmark_report.md")
     assert read_del.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_cvfs_context_protocol_and_stats_api_flow(client: AsyncClient) -> None:
+    """Verify primary context:// protocol, cross-scheme read, and subtree stats endpoint."""
+    # 1. Write file under context://memories
+    mem_payload = {
+        "uri": "context://memories/preferences/rules.md",
+        "content": "Always produce clean and maintainable code.",
+        "metadata": {"type": "system_prompt"},
+    }
+    write_resp = await client.post("/api/memory/cvfs/write", json=mem_payload)
+    assert write_resp.status_code == 200
+    assert write_resp.json()["uri"] == "context://memories/preferences/rules.md"
+
+    # 2. Read with primary scheme
+    read_resp = await client.get("/api/memory/cvfs/read?uri=context://memories/preferences/rules.md")
+    assert read_resp.status_code == 200
+    assert read_resp.json()["content"] == mem_payload["content"]
+
+    # 3. Read with compat scheme (fallback cross-scheme)
+    compat_read = await client.get("/api/memory/cvfs/read?uri=ctx://memories/preferences/rules.md")
+    assert compat_read.status_code == 200
+    assert compat_read.json()["content"] == mem_payload["content"]
+
+    # 4. Stat subtree
+    stat_resp = await client.get("/api/memory/cvfs/stat?uri=context://memories")
+    assert stat_resp.status_code == 200
+    stat_data = stat_resp.json()
+    assert stat_data["file_count"] >= 1
+    assert stat_data["total_nodes"] >= 2
+    assert stat_data["total_bytes"] > 0
+
+
+@pytest.mark.asyncio
+async def test_cvfs_mount_and_type_filter_api_flow(client: AsyncClient) -> None:
+    """Verify mounting context provider and type-filtered node search."""
+    # 1. Mount provider
+    mount_req = {
+        "mount_point": "context://skills/data_analysis",
+        "description": "Dynamic analysis tools mount",
+        "is_read_only": True,
+    }
+    mount_resp = await client.post("/api/memory/cvfs/mount", json=mount_req)
+    assert mount_resp.status_code == 200
+    mount_data = mount_resp.json()
+    assert mount_data["mount_point"] == "context://skills/data_analysis"
+    assert mount_data["is_read_only"] is True
+
+    # 2. List mounts
+    list_resp = await client.get("/api/memory/cvfs/mounts")
+    assert list_resp.status_code == 200
+    mount_list = list_resp.json()
+    assert len(mount_list) >= 1
+    assert any(m["mount_point"] == "context://skills/data_analysis" for m in mount_list)
+
+    # 3. Write file and create directory for type filter test
+    await client.post("/api/memory/cvfs/mkdir", json={"uri": "context://skills/nlp"})
+    await client.post(
+        "/api/memory/cvfs/write",
+        json={"uri": "context://skills/nlp/tokenize.py", "content": "def tokenize(): pass"},
+    )
+
+    # 4. Search files only
+    file_find = await client.post(
+        "/api/memory/cvfs/find",
+        json={"keyword": "tokenize", "prefix_uri": "context://skills", "node_type": "file"},
+    )
+    assert file_find.status_code == 200
+    assert file_find.json()["total"] == 1
+    assert file_find.json()["matches"][0]["node_type"] == "file"
+
+    # 5. Search directories only
+    dir_find = await client.post(
+        "/api/memory/cvfs/find",
+        json={"keyword": "nlp", "prefix_uri": "context://skills", "node_type": "directory"},
+    )
+    assert dir_find.status_code == 200
+    assert dir_find.json()["total"] >= 1
+    assert all(m["node_type"] == "directory" for m in dir_find.json()["matches"])
+
