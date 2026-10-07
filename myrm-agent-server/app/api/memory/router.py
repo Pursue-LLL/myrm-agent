@@ -31,6 +31,9 @@ from app.api.memory import (
 from app.api.memory.activity_compactor_router import (
     router as activity_compactor_router,
 )
+from app.api.memory.authoritative_conclusions_router import (
+    router as authoritative_conclusions_router,
+)
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
@@ -411,6 +414,10 @@ router.include_router(
 router.include_router(
     peer_cognition_router,
     tags=["memory-peer-cognition"],
+)
+router.include_router(
+    authoritative_conclusions_router,
+    tags=["memory-conclusions"],
 )
 
 
