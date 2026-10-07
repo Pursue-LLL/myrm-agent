@@ -35,6 +35,9 @@ from app.api.security.blast_radius_inspector_router import (
     router as blast_radius_inspector_router,
 )
 from app.api.security.bot_budget_guardrail_router import router as bot_budget_guardrail_router
+from app.api.security.browser_human_handoff_router import (
+    router as browser_human_handoff_router,
+)
 from app.api.security.case_variant_scrubber_router import (
     router as case_variant_scrubber_router,
 )
@@ -65,6 +68,9 @@ from app.api.security.data_erasure_portability_router import (
 )
 from app.api.security.data_isolation_probe_router import router as data_isolation_probe_router
 from app.api.security.data_plane_defense_router import router as data_plane_defense_router
+from app.api.security.data_sovereignty_watchdog_router import (
+    router as data_sovereignty_watchdog_router,
+)
 from app.api.security.decoupled_watchdog_router import (
     router as decoupled_watchdog_router,
 )
@@ -92,6 +98,9 @@ from app.api.security.dual_track_sandbox_guard_router import (
 from app.api.security.dual_use_containment_router import (
     router as dual_use_containment_router,
 )
+from app.api.security.dynamic_toolchain_provenance_router import (
+    router as dynamic_toolchain_provenance_router,
+)
 from app.api.security.egress_dlp_router import router as egress_dlp_router
 from app.api.security.event_capability_attenuation_router import (
     router as event_capability_attenuation_router,
@@ -116,6 +125,9 @@ from app.api.security.headless_interactive_approval_router import (
 from app.api.security.hitl_denial_events_router import router as hitl_denial_events_router
 from app.api.security.hitl_denial_router import router as hitl_denial_router
 from app.api.security.hitl_fail_closed_router import router as hitl_fail_closed_router
+from app.api.security.host_execution_guard_router import (
+    router as host_execution_guard_router,
+)
 from app.api.security.immutable_sandbox_rollback_router import (
     router as immutable_sandbox_rollback_router,
 )
@@ -138,6 +150,9 @@ from app.api.security.legal_audit_attestation_router import (
     router as legal_audit_attestation_router,
 )
 from app.api.security.license_compliance_router import router as license_compliance_router
+from app.api.security.live_session_credential_shield_router import (
+    router as live_session_credential_shield_router,
+)
 from app.api.security.llm_egress_guard_router import router as llm_egress_guard_router
 from app.api.security.local_first_vault_router import router as local_first_vault_router
 from app.api.security.localhost_anti_hijack_router import router as localhost_anti_hijack_router
@@ -354,6 +369,11 @@ _SECURITY_SUBROUTERS: tuple[APIRouter, ...] = (
     introspection_shield_router,
     case_variant_scrubber_router,
     agentic_commerce_router,
+    host_execution_guard_router,
+    live_session_credential_shield_router,
+    data_sovereignty_watchdog_router,
+    browser_human_handoff_router,
+    dynamic_toolchain_provenance_router,
 )
 
 
