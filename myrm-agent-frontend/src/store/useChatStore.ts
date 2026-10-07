@@ -940,7 +940,7 @@ const useChatStore = create<ChatState>()(
           // 因为loading状态可能由于连续对话而一直为true
           const targetChatId = latestState.chatId;
           if (targetChatId && latestState.messages.length > 0) {
-            import('./chat/messageManagement')
+            import('./chat/chatTitleAutoSave')
               .then(({ autoSaveChat }) =>
                 autoSaveChat(targetChatId, latestState.messages, latestState.actionMode, latestState.incognitoMode),
               )

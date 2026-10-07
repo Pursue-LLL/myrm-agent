@@ -1,45 +1,29 @@
 /**
  * [INPUT]
- * @/services/chat::getChatDetail (POS: Chat API client)
- * @/lib/utils/agent-config::buildAgentConfig (POS: Agent→AgentConfig 标准映射)
+ * @/services/chat::getChatDetail, getMessages (POS: Chat API client)
+ * ./messageHydration::parseMessages (POS: persisted message normalization)
  *
  * [OUTPUT]
  * loadMessages: Fetch chat history; agent-bound chats defer isMessagesLoaded until restore completes.
- * autoSaveChat: Auto-generate and save chat titles.
+ * loadOlderMessages / loadThroughTurn: Paginate history.
  *
  * [POS]
- * Chat history lifecycle manager (DB fetch, hydration, attach, title auto-save). Session switching lives in chatSessionInit.ts.
+ * Chat history loader (DB fetch, hydration, active-turn attach). Reads useChatStore, so the store only imports it lazily.
+ * Session switching lives in chatSessionInit.ts; title auto-save in chatTitleAutoSave.ts.
  */
 
-import { Message, ChatHistoryItem, type ActionMode } from '@/store/chat/types';
+import type { ActionMode } from '@/store/chat/types';
 import type { ChatActionsMethods } from './messageRequest';
-import {
-  getChatDetail,
-  getMessages,
-  generateChatTitle,
-  updateChatTitle,
-  getContextPins,
-  listContextBranches,
-} from '@/services/chat';
+import { getChatDetail, getMessages, getContextPins, listContextBranches } from '@/services/chat';
 import { ApiError, apiRequest } from '@/lib/api';
 import { stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
-import { disambiguateChatTitle } from '@/lib/utils/titleUtils';
-import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
 import { restoreAgentConfigFromChat } from '@/store/chat/chatAgentSessionRestore';
 import { shouldDeferMessagesReadyUntilAgentRestore } from '@/store/chat/sessionAgentHydration';
-import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
-import { normalizeHydratedDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { normalizeSessionAccessRoots } from '@/store/chat/types/sessionAccess';
-import { resolveMessageCreatedAtMs } from '@/components/features/message-box/memoryLifecyclePhases';
-
 import { resolveHydratedMoaPresetId, writeStoredMoaPresetId } from '@/store/chat/moaPresetStorage';
-import { useProjectStore } from '@/store/useProjectStore';
-import { consumeMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
-import { moveChatToProject } from '@/services/projects';
+import { parseMessages } from './messageHydration';
 
-const CHAT_TITLE_MAX_LENGTH = 50;
-const CHAT_SUMMARY_MAX_LENGTH = 100;
 const VALID_ACTION_MODES: readonly ActionMode[] = ['fast', 'agent', 'deep_research'];
 
 export interface LoadMessagesOptions {
@@ -417,269 +401,3 @@ export const loadThroughTurn = async (targetMessageId: string, actions: ChatActi
 
   return isLoaded();
 };
-
-function parseMessages(raw: Message[]): Message[] {
-  return raw.map((msg) => {
-    const rawRecord = msg as Record<string, unknown>;
-    const metadata =
-      typeof rawRecord.metadata === 'string'
-        ? (JSON.parse(rawRecord.metadata) as Record<string, unknown>)
-        : ((rawRecord.metadata as Record<string, unknown> | undefined) ?? {});
-
-    const citedMemoryIds = normalizeStringArray(metadata.citedMemoryIds ?? rawRecord.citedMemoryIds);
-    const citedMemoryRefs = normalizeCitedMemoryRefs(metadata.citedMemoryRefs ?? rawRecord.citedMemoryRefs);
-
-    const createdAtMs = resolveMessageCreatedAtMs(
-      (msg.createdAt ?? rawRecord.created_at ?? rawRecord.createdAt) as Date | string | number | undefined,
-    );
-
-    const parsed = {
-      ...msg,
-      ...metadata,
-      createdAt: createdAtMs !== null && createdAtMs !== undefined ? new Date(createdAtMs) : new Date(),
-      ...(citedMemoryIds ? { citedMemoryIds } : {}),
-      ...(citedMemoryRefs ? { citedMemoryRefs } : {}),
-    } as Message;
-
-    const persistedRequestMessageId = metadata.request_message_id;
-    if (typeof persistedRequestMessageId === 'string' && persistedRequestMessageId.length > 0) {
-      parsed.requestMessageId = persistedRequestMessageId;
-    }
-
-    if (parsed.clarification) {
-      parsed.clarification = normalizeHydratedClarification(parsed.clarification);
-    }
-
-    if (parsed.directoryRequest) {
-      parsed.directoryRequest = normalizeHydratedDirectoryRequest(parsed.directoryRequest);
-    }
-
-    if (!parsed.reasoning) {
-      const persistedReasoning = metadata.reasoning_content;
-      if (typeof persistedReasoning === 'string' && persistedReasoning.trim().length > 0) {
-        parsed.reasoning = persistedReasoning;
-      }
-    }
-
-    const rawBudget = metadata.contextBudget ?? metadata.context_budget;
-    if (rawBudget && typeof rawBudget === 'object' && !parsed.contextBudget) {
-      parsed.contextBudget = rawBudget as Message['contextBudget'];
-    }
-
-    const rawDeliverableTier = metadata.deliverableTier ?? metadata.deliverable_tier;
-    if (rawDeliverableTier && typeof rawDeliverableTier === 'object' && !parsed.deliverableTier) {
-      parsed.deliverableTier = rawDeliverableTier as Message['deliverableTier'];
-    }
-
-    const rawStagedArtifacts = metadata.stagedArtifacts ?? metadata.staged_artifacts;
-    if (Array.isArray(rawStagedArtifacts) && !parsed.stagedArtifacts) {
-      parsed.stagedArtifacts = rawStagedArtifacts as Message['stagedArtifacts'];
-    }
-
-    const rawTtsrInterventions = metadata.ttsrInterventions ?? metadata.ttsr_interventions;
-    if (Array.isArray(rawTtsrInterventions)) {
-      parsed.ttsrInterventions = normalizeTtsrInterventions(rawTtsrInterventions);
-    }
-
-    const rawAsyncUserMessages = metadata.asyncUserMessages ?? metadata.async_user_messages;
-    if (Array.isArray(rawAsyncUserMessages) && !parsed.asyncUserMessages) {
-      parsed.asyncUserMessages = rawAsyncUserMessages.map((item: Record<string, unknown>) => {
-        const rawReplies = item.suggestedReplies ?? item.suggested_replies;
-        const normalizedReplies = Array.isArray(rawReplies)
-          ? rawReplies.filter((r): r is string => typeof r === 'string' && r.trim().length > 0)
-          : undefined;
-        return {
-          callId: (item.callId ?? item.call_id ?? '') as string,
-          message: (item.message ?? '') as string,
-          category: (item.category ?? 'progress') as 'progress' | 'milestone' | 'question',
-          recommendation: (item.recommendation ?? null) as string | null,
-          suggested_replies: normalizedReplies,
-          suggestedReplies: normalizedReplies,
-          status: (item.status === 'resolved' ? 'resolved' : 'pending') as 'pending' | 'resolved',
-          resolvedText: (item.resolvedText ?? item.resolved_text ?? null) as string | null,
-        };
-      });
-    }
-
-    return parsed;
-  });
-}
-
-function normalizeStringArray(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const ids = value.filter((item): item is string => typeof item === 'string' && item.length > 0);
-  return ids.length > 0 ? ids : undefined;
-}
-
-function normalizeCitedMemoryRefs(value: unknown): Message['citedMemoryRefs'] {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const refs = value.filter(
-    (item): item is NonNullable<Message['citedMemoryRefs']>[number] =>
-      typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string',
-  );
-  return refs.length > 0 ? refs : undefined;
-}
-
-function normalizeTtsrInterventions(value: unknown): Message['ttsrInterventions'] {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const result: NonNullable<Message['ttsrInterventions']> = [];
-  for (const item of value) {
-    if (typeof item !== 'object' || item === null) {
-      continue;
-    }
-    const record = item as Record<string, unknown>;
-    const rawId = record.ruleId ?? record.rule_id;
-    if (typeof rawId !== 'string' || !rawId.trim()) {
-      continue;
-    }
-    const rawName = record.ruleName ?? record.rule_name;
-    const ruleName = typeof rawName === 'string' && rawName.trim() ? rawName.trim() : rawId.trim();
-    const reminder = typeof record.reminder === 'string' ? record.reminder : '';
-    const rawTarget = record.target;
-    const target =
-      rawTarget === 'assistant' || rawTarget === 'thinking' || rawTarget === 'tool_args' || rawTarget === 'all'
-        ? rawTarget
-        : undefined;
-    const rawRetry = record.retryCount ?? record.retry_count;
-    const retryCount = typeof rawRetry === 'number' && rawRetry >= 0 ? rawRetry : 1;
-    const rawMax = record.maxRetries ?? record.max_retries;
-    const maxRetries = typeof rawMax === 'number' && rawMax >= 0 ? rawMax : 2;
-
-    result.push({
-      ruleId: rawId.trim(),
-      ruleName,
-      reminder,
-      target,
-      retryCount,
-      maxRetries,
-      timestamp: record.timestamp ? (record.timestamp as string | number | Date) : undefined,
-    });
-  }
-  return result.length > 0 ? result : undefined;
-}
-
-/**
- * 自动保存聊天元数据（标题 + 侧边栏）。
- * 消息持久化已由后端 Agent 入口完成，此处只负责标题生成和 UI 同步。
- */
-export const autoSaveChat = async (
-  chatId: string,
-  messages: Message[],
-  actionMode: string,
-  isIncognito: boolean = false,
-): Promise<void> => {
-  try {
-    if (!messages.length || !chatId) {
-      return;
-    }
-
-    // Lazy Session Persistence: Do not auto-save titles or add session to sidebar
-    // until at least one assistant message exists (avoids phantom blank sessions on early abort).
-    const hasAssistantMessage = messages.some((msg) => msg.role === 'assistant');
-    if (!hasAssistantMessage) {
-      return;
-    }
-
-    const title = await _generateTitle(messages);
-
-    await updateChatTitle(chatId, title);
-
-    if (isIncognito) {
-      // 阅后即焚模式：禁止将无痕会话添加到前端本地的侧边栏历史列表中，防止 UI 状态泄漏
-      return;
-    }
-
-    const lastMessage = messages[messages.length - 1]?.content || '';
-    const firstUserMessage = messages.find((msg) => msg.role === 'user');
-    const firstMessage = firstUserMessage?.content
-      ? stripUserMessageDisplayText(firstUserMessage.content).slice(0, CHAT_SUMMARY_MAX_LENGTH)
-      : '';
-
-    _updateSidebar(chatId, title, firstMessage, lastMessage, actionMode);
-  } catch (error) {
-    console.warn(`❌ autoSaveChat failed for ${chatId}:`, error instanceof Error ? error.message : String(error));
-  }
-};
-
-function _generateTitle(messages: Message[]): Promise<string> {
-  const configState = useConfigStore.getState();
-  if (configState.enableAutoTitleGeneration && messages.length > 0) {
-    return generateChatTitle(messages).catch(() => _fallbackTitle(messages));
-  }
-  return Promise.resolve(_fallbackTitle(messages));
-}
-
-function _fallbackTitle(messages: Message[]): string {
-  const firstUserMessage = messages.find((msg) => msg.role === 'user');
-  const clean = firstUserMessage?.content ? stripUserMessageDisplayText(firstUserMessage.content) : '';
-  return clean
-    ? clean.slice(0, CHAT_TITLE_MAX_LENGTH) + (clean.length > CHAT_TITLE_MAX_LENGTH ? '...' : '')
-    : 'Untitled Chat';
-}
-
-function _updateSidebar(
-  chatId: string,
-  title: string,
-  firstMessage: string,
-  lastMessage: string,
-  actionMode: string,
-): void {
-  const { chatHistoryItems, setChatHistoryItems } = useChatStore.getState();
-  const summary =
-    lastMessage.slice(0, CHAT_SUMMARY_MAX_LENGTH) + (lastMessage.length > CHAT_SUMMARY_MAX_LENGTH ? '...' : '');
-
-  const now = new Date();
-  const existing = chatHistoryItems.findIndex((item) => item.id === chatId);
-
-  // 会话标题自动消歧（除当前正在更新的会话之外，若已有同名标题则追加自增序号）
-  const otherTitles = chatHistoryItems.filter((item) => item.id !== chatId).map((item) => item.title);
-  const resolvedTitle = disambiguateChatTitle(title, otherTitles);
-
-  const resolveProjectIdForSidebar = (): string | null => {
-    const boundProjectId = consumeMigrationBoundProjectId();
-    if (boundProjectId) {
-      return boundProjectId;
-    }
-    const filter = useProjectStore.getState().activeFilter;
-    return typeof filter === 'string' ? filter : null;
-  };
-
-  const projectId =
-    existing === -1
-      ? resolveProjectIdForSidebar()
-      : (() => {
-          const boundProjectId = consumeMigrationBoundProjectId();
-          if (boundProjectId) {
-            moveChatToProject(chatId, boundProjectId).catch(() => {});
-            return boundProjectId;
-          }
-          return chatHistoryItems[existing]?.projectId ?? null;
-        })();
-
-  const newItem: ChatHistoryItem = {
-    id: chatId,
-    title: resolvedTitle,
-    firstMessage,
-    lastMessage: summary,
-    actionMode,
-    source: 'web',
-    projectId,
-    updatedAt: now,
-    createdAt: now,
-  };
-
-  if (existing !== -1) {
-    setChatHistoryItems([newItem, ...chatHistoryItems.filter((item) => item.id !== chatId)]);
-  } else {
-    if (projectId) {
-      moveChatToProject(chatId, projectId).catch(() => {});
-    }
-    setChatHistoryItems([newItem, ...chatHistoryItems]);
-  }
-}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { autoSaveChat } from '../messageManagement';
+import { autoSaveChat } from '../chatTitleAutoSave';
 import type { Message } from '../types';
 
 vi.mock('@/services/chat', () => ({
