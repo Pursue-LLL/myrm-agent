@@ -8,6 +8,7 @@ import logging
 from fastapi import APIRouter
 
 from app.api.memory import (
+    batch_learn,
     capacity_hitl,
     cognitive_box,
     context_ingestion,
@@ -226,3 +227,4 @@ router.include_router(cognitive_box.router, tags=["memory-cognitive-box"])
 router.include_router(proactive_care.router, tags=["memory-proactive-care"])
 router.include_router(capacity_hitl.router, tags=["memory-capacity-hitl"])
 router.include_router(migration.router, tags=["memory-migration"])
+router.include_router(batch_learn.router, tags=["memory-batch-learn"])
