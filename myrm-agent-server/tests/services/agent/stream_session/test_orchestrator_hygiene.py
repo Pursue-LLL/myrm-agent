@@ -99,11 +99,19 @@ def test_run_agent_stream_facade_signature_matches_orchestrator():
 
 @pytest.mark.asyncio
 async def test_run_agent_stream_hygiene_block(mock_request, mock_http_request, monkeypatch):
-    """Test that gateway blocks massive text payloads."""
+    """The gateway backstop rejects a massive payload the context guard could not spill.
+
+    With the guard healthy an oversized prompt is spilled to the chat workspace instead
+    of rejected (covered by the context guard tests), so the guard is made unavailable.
+    """
     # Create a payload of 360,001 characters
     massive_text = "A" * 360001
     mock_request.query = massive_text
 
+    monkeypatch.setattr(
+        "app.services.agent.context_guard_service.ContextGuardService.guard_inbound_prompt",
+        AsyncMock(side_effect=OSError("workspace unavailable")),
+    )
     # Mock try_stream_reconnect and prevalidate_archive_restore_actions
     monkeypatch.setattr(
         "app.services.agent.stream_session.orchestrator.try_stream_reconnect",

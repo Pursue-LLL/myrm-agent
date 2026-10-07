@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import sqlite3
+from dataclasses import dataclass
 from pathlib import Path
 
 from sqlalchemy import event
@@ -40,6 +41,22 @@ _TRANSACTION_CTL_WORDS = (
     "SAVEPOINT",
     "RELEASE",
 )
+
+_TRANSACTION_STATE_KEY = "myrm_transaction_state"
+
+
+@dataclass(slots=True)
+class _TransactionState:
+    """Bookkeeping of the transaction currently open on a pooled connection."""
+
+    write_locked: bool = False  # BEGIN IMMEDIATE was issued: the write lock is held
+    read_seen: bool = False  # a statement already read: the deferred snapshot must be kept
+
+
+def _transaction_state(conn: Connection) -> _TransactionState | None:
+    """The open transaction's state, or ``None`` when the engine doesn't run the policy."""
+    state = conn.info.get(_TRANSACTION_STATE_KEY)
+    return state if isinstance(state, _TransactionState) else None
 
 
 def get_sqlite_busy_timeout_ms() -> int:
@@ -131,8 +148,7 @@ def register_sqlite_transaction_events(engine: AsyncEngine) -> None:
         (the event loop is never blocked).
         """
         conn.exec_driver_sql("BEGIN")
-        conn._myrm_immediate = False
-        conn._myrm_read_seen = False
+        conn.info[_TRANSACTION_STATE_KEY] = _TransactionState()
 
     @event.listens_for(engine.sync_engine, "before_cursor_execute")
     def _escalate_write_transaction(
@@ -143,26 +159,55 @@ def register_sqlite_transaction_events(engine: AsyncEngine) -> None:
         _context: object,
         _executemany: bool,
     ) -> None:
-        if getattr(conn, "_myrm_immediate", False) or not conn.in_transaction():
+        state = _transaction_state(conn)
+        if state is None or state.write_locked or not conn.in_transaction():
             return
         if _IMPLICIT_WRITE_RE.match(statement):
-            if getattr(conn, "_myrm_read_seen", False):
-                # Read-then-write transaction: keep the deferred snapshot so the
-                # values already read stay consistent with the upcoming writes.
-                # If a concurrent writer committed in between, SQLite aborts the
-                # upgrade with SQLITE_BUSY_SNAPSHOT and the registered busy
-                # handlers surface a retryable 503 instead of losing the update.
-                return
-            conn._myrm_immediate = True
-            # A deferred BEGIN is lazy: nothing has touched the database yet, so
-            # committing it is a harmless no-op that lets us re-enter with
-            # BEGIN IMMEDIATE and take the write lock under busy_timeout.
-            conn.exec_driver_sql("COMMIT")
-            conn.exec_driver_sql("BEGIN IMMEDIATE")
+            # Read-then-write transaction: keep the deferred snapshot so the
+            # values already read stay consistent with the upcoming writes.
+            # If a concurrent writer committed in between, SQLite aborts the
+            # upgrade with SQLITE_BUSY_SNAPSHOT and the registered busy
+            # handlers surface a retryable 503 instead of losing the update.
+            # Flows that must not lose their write call ``acquire_write_lock``.
+            if not state.read_seen:
+                _take_write_lock(conn)
         else:
             first_word = statement.lstrip().split(None, 1)[0].upper()
             if first_word not in _TRANSACTION_CTL_WORDS:
-                conn._myrm_read_seen = True
+                state.read_seen = True
+
+
+def _take_write_lock(conn: Connection) -> None:
+    """Re-enter the still-untouched transaction as ``BEGIN IMMEDIATE``."""
+    state = _transaction_state(conn)
+    if state is None or state.write_locked:
+        return
+    if state.read_seen:
+        raise RuntimeError("The write lock must be taken before the transaction's first read")
+    state.write_locked = True  # set first: the statements below must not re-enter this path
+    # A deferred BEGIN is lazy: nothing has touched the database yet, so
+    # committing it is a harmless no-op that lets us re-enter with
+    # BEGIN IMMEDIATE and take the write lock under busy_timeout.
+    conn.exec_driver_sql("COMMIT")
+    conn.exec_driver_sql("BEGIN IMMEDIATE")
+
+
+async def acquire_write_lock(session: AsyncSession) -> None:
+    """Take the SQLite write lock before ``session`` reads anything.
+
+    A transaction that reads first keeps its deferred snapshot, so a writer
+    committing between that read and the transaction's first write aborts it
+    with SQLITE_BUSY_SNAPSHOT ("database is locked", which busy_timeout does not
+    cover). A unit of work that always writes, and reads as part of doing so,
+    calls this first: it then waits for the lock under busy_timeout and nothing
+    can commit between its read and its write. A no-op on engines that do not
+    run the transaction policy.
+
+    Raises:
+        RuntimeError: the session's transaction already executed a statement.
+    """
+    connection = await session.connection()
+    await connection.run_sync(_take_write_lock)
 
 
 def create_engine() -> AsyncEngine:
@@ -212,4 +257,5 @@ __all__ = [
     "create_session_factory",
     "set_sqlite_pragma",
     "register_sqlite_transaction_events",
+    "acquire_write_lock",
 ]

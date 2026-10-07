@@ -224,7 +224,11 @@ class _ChatMessageMixin(_ChatServiceBase):
         except ImportError:
             pass
 
-        async with UnitOfWork() as uow:
+        # Reads the chat and message first, then always writes. Taking the write lock up
+        # front keeps a concurrent writer from committing in between, which would abort
+        # the insert with "database is locked" and fail the whole turn before the agent
+        # starts (this runs in the turn's background task, where nothing retries).
+        async with UnitOfWork(write=True) as uow:
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id)
             if not chat:
                 chat = ChatDTO(

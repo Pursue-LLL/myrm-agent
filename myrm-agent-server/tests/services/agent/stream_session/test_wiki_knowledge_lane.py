@@ -29,6 +29,7 @@ async def test_wiki_knowledge_lane_emits_sources_message_and_lane_end(
         sources=[{"path": "concepts/api.md", "filename": "api.md", "snippet": "Plan A"}],
         related_articles=["api"],
         confidence_score=0.82,
+        refused=False,
         retrieval_result=QueryResult(
             question="How many migration plans?",
             answer="Two migration plans were recorded.",
@@ -83,6 +84,7 @@ async def test_wiki_knowledge_lane_forwards_shared_context_ids_and_names(
         sources=[{"path": "concepts/guide.md", "filename": "guide.md", "snippet": "Text", "kb_name": "Shared KB"}],
         related_articles=["guide"],
         confidence_score=0.9,
+        refused=False,
         retrieval_result=QueryResult(
             question="What is the shared policy?",
             answer="Federated answer from shared vaults.",

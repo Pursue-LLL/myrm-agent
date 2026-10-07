@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.database.connection (POS: 数据库连接管理)
+- app.database.factory::acquire_write_lock (POS: 事务起始处获取 SQLite 写锁，供读后写的工作单元使用)
 - myrm_agent_harness.backends.profiles.types::AgentProfile (POS: Agent Profile 数据类型定义)
 - app.database.repositories.agent_repo::AgentRepository (POS: Agent 领域数据仓储)
 - app.database.repositories.chat_repo::ChatRepository (POS: Chat 领域数据仓储)
@@ -17,13 +18,14 @@ Unit of Work 事务层。管理业务服务与多个仓储之间的事务一致�
 import logging
 from datetime import datetime
 from types import TracebackType
-from typing import Self, cast
+from typing import Self
 
 from myrm_agent_harness.backends.profiles.types import AgentProfile
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.database.dto import ChatDTO, MessageDTO
+from app.database.factory import acquire_write_lock
 from app.database.repositories.agent_repo import AgentRepository
 from app.database.repositories.chat_message_search_repo import MessageFtsSearchRow
 from app.database.repositories.chat_repo import ChatRepository, SiblingDetail
@@ -46,14 +48,33 @@ class UnitOfWork:
             # 自动 commit，如果有异常则自动 rollback
     """
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession] | None = None) -> None:
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession] | None = None,
+        *,
+        write: bool = False,
+    ) -> None:
+        """
+        Args:
+            session_factory: 缺省使用全局会话工厂。
+            write: 事务必定写入且需要先读（读后写）时置 True：进入上下文即获取 SQLite 写锁
+                （见 ``acquire_write_lock``），并发写入方只能等待，不会在读写之间提交而使本事务失败。
+        """
         self.session_factory = session_factory or get_session_factory()
+        self._write = write
         self.session: AsyncSession | None = None
         self._chat_repo: BoundChatRepository | None = None
         self._agent_repo: BoundAgentRepository | None = None
 
     async def __aenter__(self) -> Self:
         self.session = self.session_factory()
+        if self._write:
+            try:
+                await acquire_write_lock(self.session)
+            except BaseException:
+                await self.session.close()
+                self.session = None
+                raise
         return self
 
     async def __aexit__(
@@ -276,10 +297,7 @@ class BoundAgentRepository:
         limit: int | None = None,
         exclude_ids: list[str] | None = None,
     ) -> list[AgentProfile]:
-        return cast(
-            list[AgentProfile],
-            await AgentRepository.list_profiles(self.session, offset=offset, limit=limit, exclude_ids=exclude_ids),
-        )
+        return await AgentRepository.list_profiles(self.session, offset=offset, limit=limit, exclude_ids=exclude_ids)
 
     async def count_profiles(self, *, exclude_ids: list[str] | None = None) -> int:
         return await AgentRepository.count_profiles(self.session, exclude_ids=exclude_ids)

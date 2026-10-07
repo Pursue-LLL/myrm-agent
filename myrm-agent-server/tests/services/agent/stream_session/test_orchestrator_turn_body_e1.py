@@ -72,11 +72,8 @@ async def test_launch_early_buffered_stream_returns_json_when_multiplexed() -> N
     assert "msg-mux-1" in payload
 
 
-@pytest.mark.asyncio
-async def test_persist_user_message_is_separate_from_history_load(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    request = SimpleNamespace(
+def _persist_request() -> SimpleNamespace:
+    return SimpleNamespace(
         chat_id="chat-1",
         sibling_group_id=None,
         resume_value=None,
@@ -90,8 +87,48 @@ async def test_persist_user_message_is_separate_from_history_load(
         incognito_mode=False,
         active_moa_preset_id=None,
     )
+
+
+@pytest.mark.asyncio
+async def test_persist_user_message_defers_a_new_chat_until_the_first_assistant_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    appended: list[object] = []
+
+    async def fake_missing_chat(_chat_id: str) -> None:
+        return None
+
+    async def fake_append(**kwargs: object) -> object:
+        appended.append(kwargs)
+        return SimpleNamespace(id="never-persisted")
+
+    monkeypatch.setattr(chat_history_bootstrap.ChatService, "get_chat_metadata", staticmethod(fake_missing_chat))
+    monkeypatch.setattr(
+        chat_history_bootstrap.ChatService,
+        "ensure_chat_and_append_user_message",
+        staticmethod(fake_append),
+    )
+
+    message_id = await chat_history_bootstrap.persist_user_message(_persist_request(), text_content="hello")
+
+    assert appended == []
+    assert isinstance(message_id, chat_history_bootstrap.BootstrappedMessageId)
+    assert message_id == "msg-1"
+    draft = message_id.pending_draft
+    assert draft is not None
+    assert (draft.chat_id, draft.message_id, draft.user_content) == ("chat-1", "msg-1", "hello")
+
+
+@pytest.mark.asyncio
+async def test_persist_user_message_is_separate_from_history_load(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _persist_request()
     persisted = SimpleNamespace(id="msg-1")
     calls: list[str] = []
+
+    async def fake_existing_chat(_chat_id: str) -> object:
+        return SimpleNamespace(id="chat-1")
 
     async def fake_append(**_kwargs: object) -> object:
         calls.append("persist")
@@ -101,6 +138,7 @@ async def test_persist_user_message_is_separate_from_history_load(
         calls.append("history")
         return [["user", "hello"]]
 
+    monkeypatch.setattr(chat_history_bootstrap.ChatService, "get_chat_metadata", staticmethod(fake_existing_chat))
     monkeypatch.setattr(
         chat_history_bootstrap.ChatService,
         "ensure_chat_and_append_user_message",

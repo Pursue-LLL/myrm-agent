@@ -35,8 +35,12 @@ def temp_workspace_dir() -> Path:
 
 
 @pytest.mark.asyncio
-async def test_pdf_generator_skill_metadata_and_contract(temp_workspace_dir: Path) -> None:
+async def test_pdf_generator_skill_metadata_and_contract(
+    temp_workspace_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """验证 pdf-generator 预置技能的元数据、允许工具与五个阶段的契约结构。"""
+    # The seed sync runs once per process; an earlier test may already have consumed it.
+    monkeypatch.setattr(prebuilt_sync, "_synced", False)
     storage = LocalStorageBackend(str(temp_workspace_dir))
     sync_result = await prebuilt_sync.sync_prebuilt_seeds(storage)
 
