@@ -19,6 +19,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
+from app.services.agent.readiness import ReadinessCode
 
 
 def _profile(mcp_ids: tuple[str, ...] = ("github-monitor",)) -> ResolvedAgentProfile:
@@ -89,6 +90,8 @@ async def test_missing_required_secret_warns(_vault: AsyncMock) -> None:
     assert item.level.value == "warning"
     assert "MISSING_TOKEN" in item.reason
     assert item.settings_path == "/settings/agents?agentId=agent-1#secrets"
+    # Only the keys the vault lacks are named, so the client can show them verbatim.
+    assert (item.code, item.names, item.count) == (ReadinessCode.MCP_MISSING_SECRETS, ("MISSING_TOKEN",), 1)
 
 
 @pytest.mark.asyncio

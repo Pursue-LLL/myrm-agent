@@ -7,15 +7,13 @@ also preflights scoped secrets (``required_secrets`` + ``{{secret:KEY}}`` header
 references) against the agent vault so missing credentials surface before runtime.
 
 [INPUT]
+- .models::AgentReadinessItem, AgentReadinessReport, ReadinessCode, ReadinessLevel (POS: wire contract)
 - app.services.agent.profile.profile_resolver::AgentProfileResolver (POS: per-agent profile SSOT)
 - app.core.channel_bridge.config_readiness::ProviderConfigChecker (POS: provider readiness)
 - app.core.channel_bridge.config_loader::load_user_configs (POS: global user config)
 - app.services.agent.backends.secret_backend::DatabaseSecretBackend (POS: agent secret vault)
 
 [OUTPUT]
-- ReadinessLevel: ready / warning / blocked
-- AgentReadinessItem: single-dimension check result
-- AgentReadinessReport: aggregated per-agent report
 - _agent_settings_path: canonical deep-link to the agent editor tab on Settings
 - _collect_bound_secret_keys: dedupe secret keys bound MCP servers depend on
 - resolve_agent_readiness: async entry point
@@ -33,8 +31,6 @@ import asyncio
 import logging
 import re
 import time
-from dataclasses import dataclass, field
-from enum import Enum
 from typing import TYPE_CHECKING, Sequence
 from urllib.parse import quote
 
@@ -42,6 +38,8 @@ from app.services.agent.profile.profile_resolver import (
     ResolvedAgentProfile,
     get_agent_profile_resolver,
 )
+
+from .models import AgentReadinessItem, AgentReadinessReport, ReadinessCode, ReadinessLevel
 
 if TYPE_CHECKING:
     from app.core.types import MCPServerConfig
@@ -51,50 +49,6 @@ logger = logging.getLogger(__name__)
 _CACHE_TTL_SECONDS = 300.0
 
 _SECRET_REF_PATTERN = re.compile(r"\{\{secret:([^}]+)\}\}")
-
-
-class ReadinessLevel(str, Enum):
-    READY = "ready"
-    WARNING = "warning"
-    BLOCKED = "blocked"
-
-
-@dataclass(frozen=True, slots=True)
-class AgentReadinessItem:
-    """Single dimension check result."""
-
-    dimension: str
-    level: ReadinessLevel
-    reason: str
-    next_action: str
-    settings_path: str
-
-
-@dataclass(frozen=True, slots=True)
-class AgentReadinessReport:
-    """Aggregated per-agent readiness report."""
-
-    overall_level: ReadinessLevel
-    items: tuple[AgentReadinessItem, ...]
-    agent_id: str
-    checked_at: float = field(default_factory=time.time)
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "overall_level": self.overall_level.value,
-            "items": [
-                {
-                    "dimension": item.dimension,
-                    "level": item.level.value,
-                    "reason": item.reason,
-                    "next_action": item.next_action,
-                    "settings_path": item.settings_path,
-                }
-                for item in self.items
-            ],
-            "agent_id": self.agent_id,
-            "checked_at": self.checked_at,
-        }
 
 
 def _aggregate_level(items: Sequence[AgentReadinessItem]) -> ReadinessLevel:
@@ -128,6 +82,7 @@ def _check_model(
     return AgentReadinessItem(
         dimension="model",
         level=ReadinessLevel.BLOCKED,
+        code=ReadinessCode.MODEL_NOT_READY,
         reason=(result.missing_items[0] if result.missing_items else "provider_not_configured"),
         next_action=(result.suggestions[0] if result.suggestions else "Configure model provider"),
         settings_path="/settings/models",
@@ -198,9 +153,12 @@ async def _check_mcp(
             AgentReadinessItem(
                 dimension="mcp",
                 level=ReadinessLevel.WARNING,
+                code=ReadinessCode.MCP_NOT_ENABLED,
                 reason=f"{len(not_enabled)} MCP server(s) installed but not enabled",
                 next_action=f"Enable in MCP settings: {', '.join(not_enabled[:3])}",
                 settings_path="/settings/mcp",
+                names=tuple(not_enabled),
+                count=len(not_enabled),
             )
         )
     if missing:
@@ -208,9 +166,12 @@ async def _check_mcp(
             AgentReadinessItem(
                 dimension="mcp",
                 level=ReadinessLevel.WARNING,
+                code=ReadinessCode.MCP_NOT_FOUND,
                 reason=f"{len(missing)} MCP server(s) not found in config",
                 next_action=f"Check MCP configuration for: {', '.join(missing[:3])}",
                 settings_path="/settings/mcp",
+                names=tuple(missing),
+                count=len(missing),
             )
         )
 
@@ -227,9 +188,12 @@ async def _check_mcp(
                     AgentReadinessItem(
                         dimension="mcp",
                         level=ReadinessLevel.WARNING,
+                        code=ReadinessCode.MCP_MISSING_SECRETS,
                         reason=f"MCP servers missing secrets: {', '.join(missing_keys[:3])}",
                         next_action="Add the missing secrets in agent settings",
                         settings_path=_agent_settings_path(profile.agent_id, anchor="secrets"),
+                        names=tuple(missing_keys),
+                        count=len(missing_keys),
                     )
                 )
         except Exception as exc:
@@ -255,9 +219,11 @@ async def _check_skills(profile: ResolvedAgentProfile) -> list[AgentReadinessIte
                 AgentReadinessItem(
                     dimension="skills",
                     level=ReadinessLevel.WARNING,
+                    code=ReadinessCode.SKILLS_MISSING,
                     reason=f"{len(missing)} skill(s) not found: {', '.join(missing[:3])}",
                     next_action="Remove or replace missing skills in agent settings",
                     settings_path=_agent_settings_path(profile.agent_id),
+                    count=len(missing),
                 )
             )
     except Exception as exc:
@@ -273,6 +239,7 @@ def _check_tools(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]:
             AgentReadinessItem(
                 dimension="tools",
                 level=ReadinessLevel.WARNING,
+                code=ReadinessCode.TOOLS_NONE_ENABLED,
                 reason="No built-in tools enabled",
                 next_action="Enable at least one tool in agent settings",
                 settings_path=_agent_settings_path(profile.agent_id),
@@ -290,6 +257,7 @@ def _check_search(
     return AgentReadinessItem(
         dimension="search",
         level=ReadinessLevel.WARNING,
+        code=ReadinessCode.SEARCH_NOT_CONFIGURED,
         reason="No search service configured",
         next_action="Enable SearXNG or add a search provider in Settings",
         settings_path="/settings/search",
@@ -311,6 +279,7 @@ def _check_deployment(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]
                 AgentReadinessItem(
                     dimension="deployment",
                     level=ReadinessLevel.WARNING,
+                    code=ReadinessCode.COMPUTER_USE_IN_SANDBOX,
                     reason="Computer Use may have limited capabilities in sandbox",
                     next_action="Verify browser tools are available in sandbox",
                     settings_path=_agent_settings_path(profile.agent_id),
@@ -321,6 +290,7 @@ def _check_deployment(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]
                 AgentReadinessItem(
                     dimension="deployment",
                     level=ReadinessLevel.WARNING,
+                    code=ReadinessCode.LOCAL_SKILLS_UNAVAILABLE,
                     reason="Local skills not available in current deployment",
                     next_action="Use prebuilt or marketplace skills instead",
                     settings_path=_agent_settings_path(profile.agent_id),
@@ -347,8 +317,9 @@ async def resolve_agent_readiness(agent_id: str) -> AgentReadinessReport:
             overall_level=ReadinessLevel.BLOCKED,
             items=(
                 AgentReadinessItem(
-                    dimension="model",
+                    dimension="agent",
                     level=ReadinessLevel.BLOCKED,
+                    code=ReadinessCode.AGENT_NOT_FOUND,
                     reason="Agent not found",
                     next_action="Check agent ID or create a new agent",
                     settings_path="/settings/agents",

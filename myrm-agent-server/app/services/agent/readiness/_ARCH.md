@@ -7,14 +7,16 @@ Per-agent configuration readiness resolver — proactive dry-run before Agent ex
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `__init__.py` | Package | Re-exports ReadinessLevel, AgentReadinessItem, AgentReadinessReport, resolve_agent_readiness, get_readiness_resolver | — |
-| `resolver.py` | Core | 6-dimension readiness checker (model/mcp/skills/tools/search/deployment) + MCP scoped-secret preflight; separates "installed but not enabled" from "not found" connectors; skills are looked up in the installed catalog and evolution records; static config checks; TTL-cached singleton | ✅ |
+| `__init__.py` | Package | Re-exports ReadinessLevel, ReadinessCode, AgentReadinessItem, AgentReadinessReport, resolve_agent_readiness, get_readiness_resolver | — |
+| `models.py` | Data | Wire contract: `ReadinessLevel`, `ReadinessCode` (stable finding identifiers), `AgentReadinessItem` (`code` + `names` + `count` next to the English `reason` / `next_action`), `AgentReadinessReport.to_dict` | ✅ |
+| `resolver.py` | Core | 6-dimension readiness checker (model/mcp/skills/tools/search/deployment) + MCP scoped-secret preflight; separates "installed but not enabled" from "not found" connectors; skills are looked up in the installed catalog and evolution records; static config checks; every finding carries its `ReadinessCode`; TTL-cached singleton | ✅ |
 
 ## Architecture
 
 - **No harness dependency**: All checks are business-layer logic (profile_resolver, config_readiness, MCP service)
 - **Reuses existing checkers**: ProviderConfigChecker for model dimension
 - **Three-tier levels**: ready / warning / blocked
+- **Localizable findings**: `reason` / `next_action` are English diagnostics (server messages are never shown to users). Clients render `code` through their own translation table, filling in `names` (connector names, secret keys) and `count` (skills are counted, not named, because their ids are internal); an unknown code falls back to a generic message per level, so adding a code never breaks an older client
 - **MCP check**: Static config match — compares agent's mcp_ids against configured MCP servers; the configured set covers both the user's own config (`mcpServers`) and org-managed servers pushed by the Control Plane (`orgMcpServers`), matching the runtime merge via `config_parsers.merge_org_mcp_configs` (shared by every execution entry point). Bound servers that declare `requiredSecrets` or `{{secret:KEY}}` header references are cross-checked against the agent vault (via `DatabaseSecretBackend.list_secret_keys`, key names only — no decryption), and missing keys surface as a WARNING with a deep-link to the agent Secrets tab (`/settings/agents?agentId={id}#secrets`)
 - **Deep-links**: Agent-dimension items deep-link to `/settings/agents?agentId={id}#loadout` (capabilities tab) or `#secrets` (secrets tab) via `_agent_settings_path`, matching the frontend `agentSettingsHref` canonical route; global-dimension items deep-link to their settings tab (e.g. `/settings/mcp`, `/settings/models`, `/settings/search`)
 - **Cache**: 5min TTL, invalidated on Settings save via frontend
