@@ -141,6 +141,9 @@ from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.provenance_batch import (
     router as memory_provenance_batch_router,
 )
+from app.api.memory.revocable_provenance_router import (
+    router as revocable_provenance_router,
+)
 from app.api.memory.screen_observation_safety_router import (
     router as screen_observation_safety_router,
 )
@@ -271,6 +274,10 @@ router.include_router(
 router.include_router(
     job_compounding_router,
     tags=["memory-job-compounding"],
+)
+router.include_router(
+    revocable_provenance_router,
+    tags=["memory-revocable-provenance"],
 )
 
 
