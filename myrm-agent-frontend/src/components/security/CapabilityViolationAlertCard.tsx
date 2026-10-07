@@ -252,7 +252,7 @@ export const CapabilityViolationAlertCard: React.FC<CapabilityViolationAlertCard
             <button
               type="button"
               onClick={() => setShowDetails(!showDetails)}
-              className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
+              className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background transition-colors"
               aria-expanded={showDetails}
             >
               <span>{showDetails ? '收起详情' : '展开证据链'}</span>
