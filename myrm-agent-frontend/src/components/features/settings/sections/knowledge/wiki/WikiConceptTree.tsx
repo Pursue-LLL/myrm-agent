@@ -60,6 +60,14 @@ export function WikiConceptTree({
       searchTerm={query}
       searchMatch={(node, term) => node.data.name.toLowerCase().includes(term.toLowerCase())}
       onMove={onMove}
+      // 鼠标点击与键盘（空格）共用 react-arborist 的激活入口；节点内的操作按钮会阻止冒泡，不会误触发
+      onActivate={(node) => {
+        if (node.data.is_dir) {
+          node.toggle();
+        } else {
+          void onSelectConcept(node.id);
+        }
+      }}
       width="100%"
       height={treeHeight}
       rowHeight={32}
@@ -76,17 +84,8 @@ export function WikiConceptTree({
             className={cn(
               'group flex items-center justify-between px-2 py-1 cursor-pointer hover:bg-muted/50 transition-colors',
               isSelected && 'bg-muted border-l-2 border-l-primary',
+              node.isFocused && !isSelected && 'ring-1 ring-inset ring-ring',
             )}
-            onClick={(e) => {
-              if ((e.target as HTMLElement).closest('[data-wiki-node-action]')) {
-                return;
-              }
-              if (node.data.is_dir) {
-                node.toggle();
-              } else {
-                void onSelectConcept(node.id);
-              }
-            }}
           >
             <div className="flex items-center gap-2 overflow-hidden pointer-events-none">
               {node.data.is_dir ? (
