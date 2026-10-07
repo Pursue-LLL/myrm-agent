@@ -13,7 +13,6 @@ experts bind to.
 - app.core.skills.marketplace.market_service::market_service (POS: ``install_files`` quarantine pipeline.)
 - app.core.skills.discovery.mount::maybe_mount_after_install, resolve_mount_skill_id
   (POS: enable an installed skill in the user catalog; canonical id.)
-- app.core.skills.store.evolution_store::get_evolution_skill_store (POS: legacy record cleanup.)
 
 [OUTPUT]
 - SkillImportOutcome: canonical ids of installed skills, skip count, per-skill failures.
@@ -38,7 +37,6 @@ from ._models import ComponentFailure, PluginConfirmItem, PluginImportSession
 logger = logging.getLogger(__name__)
 
 SKILL_SOURCE = "agent-plugin"
-_LEGACY_RECORD_CREATOR = "plugin_import"
 _MAX_REPORTED_ISSUES = 3
 
 __all__ = ["SKILL_SOURCE", "SkillImportOutcome", "install_plugin_skills"]
@@ -119,30 +117,9 @@ async def _install_one(
     if skill_id is None:
         return ComponentFailure("skill", name, "install_failed", f"Skill '{name}' installed without a resolvable id")
     installed[name] = skill_id
-    await _drop_legacy_record(plugin_name, name)
 
     mount = await maybe_mount_after_install(result, agent_id=None, mount_to_agent=True)
     if mount is not None and not mount.mounted:
         # Files are in place and usable; the user can still enable the skill from the catalog.
         return ComponentFailure("skill", name, "enable_failed", mount.error or "Skill installed but not enabled")
     return None
-
-
-async def _drop_legacy_record(plugin_name: str, skill_name: str) -> None:
-    """Remove the file-less database record an older import left for this skill.
-
-    Those records were never loadable (no files existed for them) and would show
-    up next to the real skill that now replaces them.
-    """
-    from app.core.skills.store.evolution_store import get_evolution_skill_store
-
-    legacy_path = f"plugins/{plugin_name}/{skill_name}/SKILL.md"
-    try:
-        store = get_evolution_skill_store()
-        records = await asyncio.to_thread(store.get_active_skills)
-        for record in records:
-            if record.path == legacy_path and record.lineage.created_by == _LEGACY_RECORD_CREATOR:
-                await store.delete_skill(record.skill_id)
-                logger.info("Removed legacy plugin skill record %s for '%s'", record.skill_id, skill_name)
-    except Exception as exc:
-        logger.warning("Legacy plugin skill record cleanup failed for '%s': %s", skill_name, exc)

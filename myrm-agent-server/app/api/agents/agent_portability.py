@@ -12,14 +12,13 @@ api.agents._agent_response::_to_agent_response (POS: Agent 响应序列化工具
 
 [POS]
 Agent 可移植性端点：克隆与 Marketplace 级跨沙箱分发。用户之间交换专家一律走 Agent Plugins ZIP
-（`/plugins/export`、`/plugins/import`），这里不再提供 JSON 导入导出与工作区文件束。
+（`/plugins/export`、`/plugins/import`）。
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -65,7 +64,7 @@ async def marketplace_export_agent(
 
 
 def _parse_marketplace_import_request_body(
-    body: dict[str, Any],
+    body: dict[str, object],
 ) -> tuple[dict[str, object], str | None]:
     package_candidate = body.get("package")
     if isinstance(package_candidate, dict):
@@ -101,7 +100,7 @@ def _marketplace_signature_policy() -> tuple[bool, str | None]:
 
 @router.post("/marketplace-import", response_model=None)
 async def marketplace_import_agent(
-    body: dict[str, Any],
+    body: dict[str, object],
 ) -> JSONResponse:
     """Import Agent from marketplace package (with bundled dependencies + ID remapping)."""
     from app.core.skills.creation.service import skill_creation_service

@@ -9,7 +9,7 @@ shared; the caller lists it as "not included" instead.
 [INPUT]
 - myrm_agent_harness.agent.plugins.integrity::verify_mcp_server_artifacts (POS: local entrypoint detection.)
 - myrm_agent_harness.agent.skills.security.content_sanitizer::content_sanitizer (POS: secret detection.)
-- ._mcp_persist::_is_secret_reference (POS: ``{{secret:KEY}}`` reference test.)
+- ._mcp_persist::SECRET_REF_PATTERN, is_secret_reference (POS: ``{{secret:KEY}}`` reference grammar.)
 
 [OUTPUT]
 - ConnectorOutcome: the portable declaration, or the reason it cannot be shared.
@@ -32,7 +32,7 @@ from myrm_agent_harness.agent.plugins.models import PluginMcpServer
 from myrm_agent_harness.agent.skills.security.content_sanitizer import content_sanitizer
 
 from ._export_models import Omit
-from ._mcp_persist import _SECRET_REF_PATTERN, _is_secret_reference
+from ._mcp_persist import SECRET_REF_PATTERN, is_secret_reference
 
 __all__ = ["ConnectorOutcome", "connector_from_config", "secret_names_of"]
 
@@ -115,7 +115,7 @@ def connector_from_config(cfg: Mapping[str, object]) -> ConnectorOutcome:
 
 def secret_names_of(server: PluginMcpServer) -> list[str]:
     """Secrets the recipient must provide: environment variable names plus header placeholder keys."""
-    header_keys = [key for value in (server.headers or {}).values() for key in _SECRET_REF_PATTERN.findall(value)]
+    header_keys = [key for value in (server.headers or {}).values() for key in SECRET_REF_PATTERN.findall(value)]
     return sorted({*server.env_key_names, *header_keys})
 
 
@@ -149,7 +149,7 @@ def _portable_headers(raw: object) -> dict[str, str] | None:
     if not isinstance(raw, dict):
         return None
     headers = {
-        str(key): value if isinstance(value, str) and _is_secret_reference(value) else "{{secret:" + str(key) + "}}"
+        str(key): value if isinstance(value, str) and is_secret_reference(value) else "{{secret:" + str(key) + "}}"
         for key, value in raw.items()
         if str(key).strip()
     }

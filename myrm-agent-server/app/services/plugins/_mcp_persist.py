@@ -21,6 +21,7 @@ skill ids / server names to an Agent profile.
   required_secrets for Scoped Secret Injection); embeds plugin_name / cwd / env
   and the persisted plugin_root / data_root into extra_params.
 - _collect_required_secret_keys: dedupe secret keys an import requires.
+- SECRET_REF_PATTERN / is_secret_reference: the ``{{secret:KEY}}`` reference grammar, shared with export.
 - _bind_agent: atomically append skill_ids + mcp_ids to an Agent profile.
 - _remove_plugin_mcp_servers: drop every mcpServers entry imported by a plugin
   name (uninstall).
@@ -50,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 BLOCK_MISSING_ARTIFACT = "missing_artifact"
 
-_SECRET_REF_PATTERN = re.compile(r"\{\{secret:([^}]+)\}\}")
+SECRET_REF_PATTERN = re.compile(r"\{\{secret:([^}]+)\}\}")
 
 
 def _collect_server_configs(
@@ -126,7 +127,7 @@ def _server_to_config_dict(
         # Credential material never lands as plaintext: values that are already
         # secret references stay verbatim, anything else maps to a
         # ``{{secret:KEY}}`` reference keyed by the header name.
-        cfg["headers"] = {k: (v if _is_secret_reference(v) else "{{secret:" + k + "}}") for k, v in server.headers.items()}
+        cfg["headers"] = {k: (v if is_secret_reference(v) else "{{secret:" + k + "}}") for k, v in server.headers.items()}
     extra_params: dict[str, object] = {}
     if plugin_name:
         extra_params["plugin_name"] = plugin_name
@@ -148,8 +149,8 @@ def _server_to_config_dict(
     return cfg
 
 
-def _is_secret_reference(value: str) -> bool:
-    return _SECRET_REF_PATTERN.search(value) is not None
+def is_secret_reference(value: str) -> bool:
+    return SECRET_REF_PATTERN.search(value) is not None
 
 
 def _collect_required_secret_keys(configs: list[dict[str, object]]) -> list[str]:
@@ -167,7 +168,7 @@ def _collect_required_secret_keys(configs: list[dict[str, object]]) -> list[str]
         if isinstance(headers, dict):
             for value in headers.values():
                 if isinstance(value, str):
-                    keys.extend(_SECRET_REF_PATTERN.findall(value))
+                    keys.extend(SECRET_REF_PATTERN.findall(value))
     return list(dict.fromkeys(key.strip() for key in keys if key.strip()))
 
 

@@ -138,7 +138,7 @@ class PluginImportPreviewResponse(BaseModel):
     servers: list[PluginServerPreview]
     agents: list[PluginAgentPreview] = Field(default_factory=list)
     workspace_file_count: int = 0
-    deployment: PluginDeploymentFlags = Field(default_factory=lambda: PluginDeploymentFlags())
+    deployment: PluginDeploymentFlags = Field(default_factory=PluginDeploymentFlags)
     diagnostics: list[PluginDiagnosticResponse]
     is_valid: bool
 

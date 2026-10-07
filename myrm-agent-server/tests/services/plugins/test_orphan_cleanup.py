@@ -1,4 +1,4 @@
-"""Startup repair of the file-less skill records an older plugin import left behind."""
+"""Startup repair of plugin skill records that have no skill files."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from myrm_agent_harness.agent.skills.evolution import SkillStore
 from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionType, SkillLineage, SkillRecord
 
 from app.database.dto import AgentUpdate
-from app.services.plugins import legacy_cleanup
-from app.services.plugins.legacy_cleanup import sweep_legacy_plugin_skill_records
+from app.services.plugins import orphan_cleanup
+from app.services.plugins.orphan_cleanup import sweep_orphan_plugin_skill_records
 
 
 def _record(skill_id: str, *, creator: str, path: str) -> SkillRecord:
@@ -78,13 +78,13 @@ class _Env:
         ]
 
 
-async def _sweep(env: _Env) -> legacy_cleanup.LegacyCleanupReport:
+async def _sweep(env: _Env) -> orphan_cleanup.OrphanCleanupReport:
     from contextlib import ExitStack
 
     with ExitStack() as stack:
         for active in env.patches():
             stack.enter_context(active)  # type: ignore[arg-type]
-        return await sweep_legacy_plugin_skill_records()
+        return await sweep_orphan_plugin_skill_records()
 
 
 @pytest.mark.asyncio
@@ -106,7 +106,7 @@ async def test_dead_records_are_removed_after_a_backup_and_real_skills_are_left_
     remaining = {record.skill_id for record in store.get_active_skills()}
     assert remaining == {"evolved", "hand-made"}
     assert report.removed_records == 2
-    assert report.backup_path == backup_dir / "legacy_plugin_skill_records.jsonl"
+    assert report.backup_path == backup_dir / "orphan_plugin_skill_records.jsonl"
 
     lines = [json.loads(line) for line in report.backup_path.read_text(encoding="utf-8").splitlines()]
     assert {line["record"]["skill_id"] for line in lines} == {"ghost-1", "ghost-2"}
@@ -124,7 +124,7 @@ async def test_a_second_sweep_is_a_no_op(store: SkillStore, backup_dir: Path) ->
     second = await _sweep(env)
 
     assert first.removed_records == 1
-    assert second == legacy_cleanup.LegacyCleanupReport()
+    assert second == orphan_cleanup.OrphanCleanupReport()
     assert first.backup_path is not None and first.backup_path.read_text(encoding="utf-8") == backup_before
 
 
@@ -164,7 +164,7 @@ async def test_only_dangling_bindings_are_dropped_and_untouched_experts_are_not_
 
 @pytest.mark.asyncio
 async def test_every_page_of_experts_is_visited(store: SkillStore, backup_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(legacy_cleanup, "_PAGE_SIZE", 2)
+    monkeypatch.setattr(orphan_cleanup, "_PAGE_SIZE", 2)
     await store.save_skills_batch([_ghost("ghost-1")])
     experts = [_profile(f"e{i}", ["ghost-1"]) for i in range(5)]
     env = _Env(store, installed=[], experts=experts)
@@ -188,10 +188,10 @@ async def test_nothing_is_deleted_when_the_catalog_cannot_be_read(store: SkillSt
         for active in patches:
             stack.enter_context(active)  # type: ignore[arg-type]
         with pytest.raises(RuntimeError, match="down"):
-            await sweep_legacy_plugin_skill_records()
+            await sweep_orphan_plugin_skill_records()
 
     assert [record.skill_id for record in store.get_active_skills()] == ["ghost-1"]
-    assert not (backup_dir / "legacy_plugin_skill_records.jsonl").exists()
+    assert not (backup_dir / "orphan_plugin_skill_records.jsonl").exists()
 
 
 @pytest.mark.asyncio
@@ -212,7 +212,7 @@ async def test_a_failed_expert_update_does_not_stop_the_sweep(store: SkillStore,
     with ExitStack() as stack:
         for active in patches:
             stack.enter_context(active)  # type: ignore[arg-type]
-        report = await sweep_legacy_plugin_skill_records()
+        report = await sweep_orphan_plugin_skill_records()
 
     assert env.updates == [("good", [])]
     assert report.removed_records == 1 and report.cleaned_bindings == 1

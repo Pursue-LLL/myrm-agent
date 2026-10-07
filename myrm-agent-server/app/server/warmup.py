@@ -309,11 +309,11 @@ async def run_async_warmup() -> None:
     warmup_tasks.append(_recover_incomplete_memory_import_rollbacks())
 
     try:
-        from app.services.plugins.legacy_cleanup import sweep_legacy_plugin_skill_records
+        from app.services.plugins.orphan_cleanup import sweep_orphan_plugin_skill_records
 
-        warmup_tasks.append(sweep_legacy_plugin_skill_records())
+        warmup_tasks.append(sweep_orphan_plugin_skill_records())
     except Exception as e:
-        logger.warning("Legacy plugin skill cleanup skipped in warmup: %s", e)
+        logger.warning("Orphan plugin skill cleanup skipped in warmup: %s", e)
 
     try:
         from myrm_agent_harness.toolkits.retriever.bm25 import preload_tokenizer

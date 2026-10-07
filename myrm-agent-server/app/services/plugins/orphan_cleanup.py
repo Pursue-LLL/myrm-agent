@@ -1,10 +1,10 @@
-"""One-time repair of the skill records an older plugin import left behind (business layer).
+"""Startup repair of plugin skill records that have no skill files (business layer).
 
-An earlier import saved every plugin skill only as a database record
-(``path == "plugins/<plugin>/<skill>/SKILL.md"``, ``created_by == "plugin_import"``) and
-never wrote skill files, so those skills could not load. The records still counted
-against the evolution budget and experts kept bound ids that resolve to nothing.
-Plugin skills now install as real skills, so the records are dead weight.
+A record with ``path == "plugins/<plugin>/<skill>/SKILL.md"`` and
+``created_by == "plugin_import"`` lives only in the evolution database: no skill directory
+exists for it, so it can never load. It still counts against the evolution budget and
+experts keep bound ids that resolve to nothing. Plugin skills are installed as real
+skills, so such a record has no owner and is removed.
 
 [INPUT]
 - app.core.skills.store.evolution_store::get_evolution_skill_store (POS: skills.db access.)
@@ -13,8 +13,8 @@ Plugin skills now install as real skills, so the records are dead weight.
 - app.config.settings::settings (POS: state directory for the backup file.)
 
 [OUTPUT]
-- LegacyCleanupReport: what one sweep removed.
-- sweep_legacy_plugin_skill_records: idempotent sweep (a clean store is a no-op).
+- OrphanCleanupReport: what one sweep removed.
+- sweep_orphan_plugin_skill_records: idempotent sweep (a clean store is a no-op).
 
 [POS]
 Startup repair. Every removed record is appended to a JSONL backup first, deletion goes
@@ -33,25 +33,25 @@ from pathlib import Path
 
 from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
 
-__all__ = ["LegacyCleanupReport", "sweep_legacy_plugin_skill_records"]
+__all__ = ["OrphanCleanupReport", "sweep_orphan_plugin_skill_records"]
 
 logger = logging.getLogger(__name__)
 
-_LEGACY_CREATOR = "plugin_import"
-_LEGACY_PATH_PREFIX = "plugins/"
-_BACKUP_FILENAME = "legacy_plugin_skill_records.jsonl"
+_IMPORT_CREATOR = "plugin_import"
+_IMPORT_PATH_PREFIX = "plugins/"
+_BACKUP_FILENAME = "orphan_plugin_skill_records.jsonl"
 _PAGE_SIZE = 200
 
 
 @dataclass(frozen=True)
-class LegacyCleanupReport:
+class OrphanCleanupReport:
     removed_records: int = 0
     cleaned_bindings: int = 0  # expert bindings dropped because they pointed at a removed record
     backup_path: Path | None = None
 
 
-async def sweep_legacy_plugin_skill_records() -> LegacyCleanupReport:
-    """Remove file-less plugin skill records and the expert bindings that point at them.
+async def sweep_orphan_plugin_skill_records() -> OrphanCleanupReport:
+    """Remove orphaned plugin skill records and the expert bindings that point at them.
 
     Nothing is deleted when the installed-skill catalog cannot be read or the backup
     cannot be written: with no proof that a record is dead, it is kept.
@@ -60,14 +60,14 @@ async def sweep_legacy_plugin_skill_records() -> LegacyCleanupReport:
 
     store = get_evolution_skill_store()
     active = await asyncio.to_thread(store.get_active_skills)
-    candidates = [record for record in active if _is_legacy_record(record)]
+    candidates = [record for record in active if _is_orphan_candidate(record)]
     if not candidates:
-        return LegacyCleanupReport()
+        return OrphanCleanupReport()
 
     installed_ids = await _installed_skill_ids()
     dead = [record for record in candidates if record.skill_id not in installed_ids]
     if not dead:
-        return LegacyCleanupReport()
+        return OrphanCleanupReport()
 
     backup_path = await asyncio.to_thread(_append_backup, dead)
     removed: set[str] = set()
@@ -75,22 +75,22 @@ async def sweep_legacy_plugin_skill_records() -> LegacyCleanupReport:
         try:
             await store.delete_skill(record.skill_id)
         except Exception as exc:
-            logger.warning("Legacy plugin skill record %s could not be removed: %s", record.skill_id, exc)
+            logger.warning("Orphan plugin skill record %s could not be removed: %s", record.skill_id, exc)
             continue
         removed.add(record.skill_id)
 
     cleaned = await _unbind_from_experts(removed)
     logger.info(
-        "Legacy plugin skill cleanup: removed %d record(s), dropped %d expert binding(s); backup %s",
+        "Orphan plugin skill cleanup: removed %d record(s), dropped %d expert binding(s); backup %s",
         len(removed),
         cleaned,
         backup_path,
     )
-    return LegacyCleanupReport(removed_records=len(removed), cleaned_bindings=cleaned, backup_path=backup_path)
+    return OrphanCleanupReport(removed_records=len(removed), cleaned_bindings=cleaned, backup_path=backup_path)
 
 
-def _is_legacy_record(record: SkillRecord) -> bool:
-    return record.lineage.created_by == _LEGACY_CREATOR and record.path.startswith(_LEGACY_PATH_PREFIX)
+def _is_orphan_candidate(record: SkillRecord) -> bool:
+    return record.lineage.created_by == _IMPORT_CREATOR and record.path.startswith(_IMPORT_PATH_PREFIX)
 
 
 async def _installed_skill_ids() -> frozenset[str]:
