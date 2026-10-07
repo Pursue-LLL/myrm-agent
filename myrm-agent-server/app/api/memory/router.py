@@ -162,6 +162,9 @@ from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.provenance_batch import (
     router as memory_provenance_batch_router,
 )
+from app.api.memory.relational_backtrack_router import (
+    router as relational_backtrack_router,
+)
 from app.api.memory.revocable_provenance_router import (
     router as revocable_provenance_router,
 )
@@ -341,6 +344,10 @@ router.include_router(
 router.include_router(
     rule_cascade_router,
     tags=["memory-rule-cascade"],
+)
+router.include_router(
+    relational_backtrack_router,
+    tags=["memory-relational-backtrack"],
 )
 
 
