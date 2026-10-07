@@ -23,6 +23,7 @@ from app.api.memory import (
     proactive_care,
     repair,
     sqlite_vec,
+    tombstone,
     tool_backup,
     world_model,
     zero_hallucination,
@@ -228,3 +229,4 @@ router.include_router(proactive_care.router, tags=["memory-proactive-care"])
 router.include_router(capacity_hitl.router, tags=["memory-capacity-hitl"])
 router.include_router(migration.router, tags=["memory-migration"])
 router.include_router(batch_learn.router, tags=["memory-batch-learn"])
+router.include_router(tombstone.router, tags=["memory-tombstone"])
