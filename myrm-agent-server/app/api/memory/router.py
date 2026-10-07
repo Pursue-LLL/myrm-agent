@@ -8,7 +8,11 @@ import logging
 from fastapi import APIRouter
 
 from app.api.memory import (
+    cognitive_box,
+    context_ingestion,
+    cvfs,
     decisions,
+    decontamination,
     dream_diary,
     external_bridge,
     ltra,
@@ -18,10 +22,6 @@ from app.api.memory import (
     tool_backup,
     world_model,
     zero_hallucination,
-    context_ingestion,
-    decontamination,
-    cvfs,
-    cognitive_box,
 )
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
