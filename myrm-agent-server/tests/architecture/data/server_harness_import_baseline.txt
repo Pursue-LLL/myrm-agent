@@ -616,6 +616,10 @@ myrm_agent_harness.toolkits.memory.compaction
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conflict_arbitration
 myrm_agent_harness.toolkits.memory.conversation_search.types
+myrm_agent_harness.toolkits.memory.cross_agent.arbitrator
+myrm_agent_harness.toolkits.memory.cross_agent.integrity
+myrm_agent_harness.toolkits.memory.cross_agent.projector
+myrm_agent_harness.toolkits.memory.cross_agent.types
 myrm_agent_harness.toolkits.memory.crystallization
 myrm_agent_harness.toolkits.memory.decay
 myrm_agent_harness.toolkits.memory.dialectic
