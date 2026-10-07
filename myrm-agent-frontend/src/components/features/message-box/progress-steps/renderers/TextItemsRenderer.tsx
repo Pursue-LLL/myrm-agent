@@ -111,7 +111,7 @@ const TextItemsRenderer: React.FC<TextItemsRendererProps> = ({ items, messageId,
                   src={`https://s2.googleusercontent.com/s2/favicons?domain_url=${item.text}`}
                   width={16}
                   height={16}
-                  alt="favicon"
+                  alt=""
                   className="object-contain"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';

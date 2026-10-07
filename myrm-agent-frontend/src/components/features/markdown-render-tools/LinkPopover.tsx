@@ -141,7 +141,7 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
         {domain && (
           <div className="flex items-center space-x-2 pb-2 mb-2 border-b border-border/50">
             <div className="w-4 h-4 flex-shrink-0 rounded overflow-hidden bg-white border border-border/30 inline-block">
-              <img src={faviconUrl} width={16} height={16} alt="favicon" className="object-contain" loading="lazy" />
+              <img src={faviconUrl} width={16} height={16} alt="" className="object-contain" loading="lazy" />
             </div>
             <span className="truncate font-medium text-xs text-muted-foreground">{siteName || domain}</span>
             {authority && (

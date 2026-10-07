@@ -433,7 +433,7 @@ export function SourceItem({ source }: { source: Source }) {
         {faviconUrl ? (
           <img
             src={faviconUrl}
-            alt="favicon"
+            alt=""
             width={24}
             height={24}
             className="w-6 h-6 object-contain"

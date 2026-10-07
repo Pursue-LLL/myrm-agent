@@ -137,7 +137,7 @@ const URLItemsRenderer: React.FC<URLItemsRendererProps> = ({
                           src={faviconUrl}
                           width={32}
                           height={32}
-                          alt="website logo"
+                          alt=""
                           className="object-contain w-full h-full"
                           style={{ imageRendering: '-webkit-optimize-contrast' }}
                           onError={(e) => {

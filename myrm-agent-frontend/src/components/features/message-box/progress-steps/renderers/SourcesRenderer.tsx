@@ -80,7 +80,7 @@ const SourcesRenderer: React.FC<SourcesRendererProps> = ({ items, messageId, ste
                   src={faviconUrl}
                   width={24}
                   height={24}
-                  alt="favicon"
+                  alt=""
                   className="w-full h-full object-contain"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
