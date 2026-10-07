@@ -82,6 +82,9 @@ from app.api.memory.kg_screening_router import (
 from app.api.memory.mcp_router import (
     router as memory_mcp_router,
 )
+from app.api.memory.screen_observation_safety_router import (
+    router as screen_observation_safety_router,
+)
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
@@ -230,3 +233,7 @@ router.include_router(capacity_hitl.router, tags=["memory-capacity-hitl"])
 router.include_router(migration.router, tags=["memory-migration"])
 router.include_router(batch_learn.router, tags=["memory-batch-learn"])
 router.include_router(tombstone.router, tags=["memory-tombstone"])
+router.include_router(
+    screen_observation_safety_router,
+    tags=["memory-screen-observation-safety"],
+)
