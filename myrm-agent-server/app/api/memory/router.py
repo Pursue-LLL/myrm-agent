@@ -12,6 +12,7 @@ from app.api.memory import (
     external_bridge,
     ltra,
     onboarding,
+    sqlite_vec,
     world_model,
     zero_hallucination,
 )
@@ -196,6 +197,4 @@ router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
 router.include_router(external_bridge.router, tags=["memory-external-skill-bridge"])
 router.include_router(zero_hallucination.router, tags=["memory-zero-hallucination-diagnostics"])
 router.include_router(world_model.router, tags=["memory-world-model"])
-
-
-
+router.include_router(sqlite_vec.router, tags=["memory-sqlite-vec"])
