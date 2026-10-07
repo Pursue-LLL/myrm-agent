@@ -82,9 +82,6 @@ from app.api.memory.kg_screening_router import (
 from app.api.memory.mcp_router import (
     router as memory_mcp_router,
 )
-from app.api.memory.screen_observation_safety_router import (
-    router as screen_observation_safety_router,
-)
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
@@ -132,6 +129,9 @@ from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.provenance_batch import (
     router as memory_provenance_batch_router,
 )
+from app.api.memory.screen_observation_safety_router import (
+    router as screen_observation_safety_router,
+)
 from app.api.memory.self_verification_router import (
     router as memory_self_verification_router,
 )
@@ -140,6 +140,9 @@ from app.api.memory.shared_bus import (
 )
 from app.api.memory.subagent_isolation import (
     router as memory_subagent_isolation_router,
+)
+from app.api.memory.task_triad_trajectory_router import (
+    router as task_triad_trajectory_router,
 )
 from app.api.memory.test_seed import router as memory_test_seed_router
 from app.api.memory.universal_mcp_router import (
@@ -236,4 +239,8 @@ router.include_router(tombstone.router, tags=["memory-tombstone"])
 router.include_router(
     screen_observation_safety_router,
     tags=["memory-screen-observation-safety"],
+)
+router.include_router(
+    task_triad_trajectory_router,
+    tags=["memory-triad-trajectory"],
 )
