@@ -44,6 +44,10 @@ interface PickerModelSelection {
 
 type SlotMode = 'primary' | 'fallback' | 'safety';
 
+/** Inset ring keeps the keyboard focus indicator inside the track instead of overlapping neighbouring tabs. */
+const SLOT_TAB_CLASS =
+  'flex-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none border-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring';
+
 interface MoaPresetOption {
   id: string;
   label: string;
@@ -389,7 +393,7 @@ export default function ModelPickerPopover({
                 type="button"
                 onClick={() => setActiveSlot('primary')}
                 className={cn(
-                  'flex-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none border-none outline-none',
+                  SLOT_TAB_CLASS,
                   activeSlot === 'primary'
                     ? 'bg-background text-foreground'
                     : 'text-muted-foreground hover:text-foreground',
@@ -409,7 +413,7 @@ export default function ModelPickerPopover({
                 type="button"
                 onClick={() => setActiveSlot('fallback')}
                 className={cn(
-                  'flex-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none border-none outline-none',
+                  SLOT_TAB_CLASS,
                   activeSlot === 'fallback'
                     ? 'bg-background text-foreground'
                     : 'text-muted-foreground hover:text-foreground',
@@ -442,7 +446,7 @@ export default function ModelPickerPopover({
                   type="button"
                   onClick={() => setActiveSlot('safety')}
                   className={cn(
-                    'flex-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none border-none outline-none',
+                    SLOT_TAB_CLASS,
                     activeSlot === 'safety'
                       ? 'bg-background text-foreground'
                       : 'text-muted-foreground hover:text-foreground',

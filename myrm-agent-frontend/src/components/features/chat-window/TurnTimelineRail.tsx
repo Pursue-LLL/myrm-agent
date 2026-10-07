@@ -361,7 +361,8 @@ export const MobileTurnOutlineSheet = memo<MobileTurnOutlineSheetProps>(
                 key={item.turnIndex}
                 type="button"
                 className="w-full text-left p-2.5 rounded-lg border border-border/50 hover:bg-accent/60
-                    transition-all cursor-pointer bg-card/60 flex flex-col gap-1 outline-none"
+                    transition-all cursor-pointer bg-card/60 flex flex-col gap-1 outline-none
+                    focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 onClick={() => handleSelect(item)}
               >
                 <div className="flex items-center justify-between text-xs font-medium">
