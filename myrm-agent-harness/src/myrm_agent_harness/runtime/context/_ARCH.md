@@ -15,6 +15,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | agent_session_kernel.py | Core | Unified AgentSession Kernel implementation. | ✅ |
 | agent_state_capsule.py | Core | Universal Agent State Capsule & Cross-Device Migration Bundle Engine. | ✅ |
 | agent_state_capsule_types.py | Types | Data contracts and models for Universal Agent State Capsule. | ✅ |
+| already_told_sentinel.py | Core | Already-told intent sentinel: detects retrospective instruction references and recalls the original user instruction. | ✅ |
+| already_told_sentinel_types.py | Types | Types and models for the already-told intent sentinel and instruction recall. | ✅ |
 | append_only_compaction_ledger_engine.py | Core | Append-only compaction ledger engine with atomic tool-pair cut points and split-turn fusion. | ✅ |
 | append_only_compaction_types.py | Types | Types for append-only compaction ledger and atomic tool-pair cut-point engine. | ✅ |
 | append_only_context_pipeline.py | Core | Append-only context pipeline and deterministic summarization engine. | ✅ |
@@ -25,6 +27,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | artifact_heuristic_rule_engine.py | Core | Artifact-aware heuristic rule engine for next action prediction. | ✅ |
 | ast_symbol_stub_extractor.py | Core | AST symbol stub extractor for lightweight code signature harvesting. | ✅ |
 | atomic_tool_pair_cut_point_resolver.py | Core | Atomic tool-pair cut-point resolver for context compaction. | ✅ |
+| batch_task_cost_scheduler.py | Core | Cost-aware batch task scheduler for peak/off-peak economic arbitrage. | ✅ |
+| batch_task_cost_scheduler_types.py | Types | Types and schemas for peak/off-peak cost-aware batch task scheduling. | ✅ |
 | bidi_agent_channel_gateway.py | Core | Bi-directional agent channel gateway for active peer-to-peer collaboration. | ✅ |
 | big_at_context_bridge.py | Core | Bridges cross-discipline sessions via 'Big @' syntax, eliminating manual translation friction without context window bloat. | ✅ |
 | bounded_hydration_types.py | Types | Types and data models for bounded initial page loading and upward cursor hydration. | ✅ |
@@ -53,6 +57,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | content_density_ladder.py | Core | Progressive content density ladder and peek/skim token throttler. | ✅ |
 | content_density_ladder_types.py | Types | Type definitions for progressive content density ladder and peek/skim token throttler. | ✅ |
 | context_branches.py | Core | Volume-backed snapshot branch manifest (`branches.json`); list/append/get by branch_id for GUI bookmark fork. | ✅ |
+| context_cognitive_gauge.py | Core | Engine and Meta-Tool Factory for Context Cognitive Gauge and Agent Self-Awareness. | ✅ |
+| context_cognitive_gauge_types.py | Types | Types and models for Context Cognitive Gauge and Agent Context Self-Awareness. | ✅ |
 | context_engineering_pipeline.py | Core | Unified Context Engineering Pipeline orchestrating ReAct remediation, ACI linting, and virtual memory. | ✅ |
 | context_engineering_types.py | Types | Context engineering types and data protocols for ReAct trap remediation and ACI design. | ✅ |
 | context_lifecycle_visualizer.py | Core | Context lifecycle visualizer rendering three-tier compression dashboards. | ✅ |
@@ -75,6 +81,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | deferred_session_runtime_factory.py | Core | Deferred session runtime factory orchestrating outside-in assembly. | ✅ |
 | deterministic_prefix_cache_guard.py | Core | Deterministic hash-pinned prefix cache guard. | ✅ |
 | deterministic_prefix_cache_types.py | Types | Types and data models for deterministic hash-pinned prefix cache guard and append-only pipeline. | ✅ |
+| dialogue_state_machine_engine.py | Core | Engine for Dialogue State Machine and Per-State Adaptive Context Optimization. | ✅ |
+| dialogue_state_machine_types.py | Types | Types and models for Dialogue State Machine and Adaptive Context Optimization. | ✅ |
 | diff_protocol_scorer.py | Core | Robust content-addressed diff application engine. | ✅ |
 | diff_protocol_types.py | Types | Data models and parser for model-generated unified diffs. | ✅ |
 | disambiguated_overflow_guard.py | Core | Disambiguated length overflow detector and single-recovery conversational guard. | ✅ |
@@ -115,6 +123,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | hierarchical_instruction_hub_types.py | Types | Type definitions for Project-Specific Goosehints and Hierarchical Instruction Hub. | ✅ |
 | hierarchical_project_matrix.py | Core | Hierarchical Project Context Matrix and Agent Dynamic Binding Gate. | ✅ |
 | hierarchical_project_matrix_types.py | Types | Data contracts for Hierarchical Project Context Matrix and Dynamic Binding Gate. | ✅ |
+| historical_retrieval_trigger.py | Core | Monitors tool execution failures and actively suggests searching session archives when blind retries are detected. | ✅ |
+| historical_retrieval_trigger_types.py | Types | Types and models for historical retrieval trigger. | ✅ |
 | in_context_next_action_predictor.py | Core | In-Context Next Action and Question Predictor. | ✅ |
 | in_flight_steer_controller.py | Core | In-flight steering controller for active session redirection. | ✅ |
 | in_process_bm25_retriever.py | Core | In-process sub-millisecond BM25 lexical retriever for AI agent context engineering. | ✅ |
@@ -142,6 +152,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | model_free_tool_pruner.py | Core | Model-free deterministic tool result pruner and zero-cost context compactor. | ✅ |
 | model_free_tool_pruner_types.py | Types | Type definitions for model-free deterministic tool result pruner and zero-cost context compactor. | ✅ |
 | model_harness_cost_router.py | Core | Model and Harness orthogonal decoupling with Total Cost-to-Outcome routing. | ✅ |
+| model_switch_barrier.py | Core | Model switch subagent partitioning barrier and KV cache preservation engine. | ✅ |
+| model_switch_barrier_types.py | Types | Types and schemas for model switch subagent partitioning barrier and prefix protection. | ✅ |
 | multi_dimension_at_resolver.py | Core | Unified Multi-Dimension At-Symbol Context Resolver and Snapshot Ingestion Hub. | ✅ |
 | multi_dimension_at_resolver_types.py | Types | Data contracts and models for Unified Multi-Dimension At-Symbol Context Resolver. | ✅ |
 | multi_gateway_trust_governor.py | Core | Multi-Gateway trust tiering, high-risk action interception, and signed Handoff Cards. | ✅ |
@@ -149,6 +161,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | multi_ide_ruleset_bridge.py | Core | Multi-IDE Universal Ruleset Parser and Trae Rules Compatibility Bridge. | ✅ |
 | multi_ide_ruleset_bridge_types.py | Types | Type definitions for Multi-IDE Universal Ruleset Parser and Trae Rules Compatibility Bridge. | ✅ |
 | multi_transport_adapters.py | Core | Multi-transport adapters for the unified AgentSession kernel. | ✅ |
+| negative_decision_ledger.py | Core | Engine for Negative Decision Ledger and Anti-Regression Protection. | ✅ |
+| negative_decision_ledger_types.py | Types | Types and models for Negative Decision Ledger and Anti-Regression Protection. | ✅ |
 | next_action_predictor_types.py | Types | Types and data contracts for In-Context Next Action and Question Predictor. | ✅ |
 | offload.py | Core | Context offload: persist full tool outputs and conversation snapshots through framework-neutral scope IDs, with lifecycle access tracking and cleanup entrypoint re-exports. | ✅ |
 | omniglyph_types.py | Types | OmniGlyph multimodal visual context channel and Ultra token governor types. | ✅ |
@@ -166,6 +180,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | plan_mode_boundary_locker.py | Core | Runtime context layer boundary locking and plan review governance component. | ✅ |
 | pluggable_context_pipeline_types.py | Types | Types for pluggable context projection and entry transform pipeline. | ✅ |
 | pluggable_context_projection_pipeline.py | Core | Pluggable context projection and entry transform pipeline engine. | ✅ |
+| prefix_anchor_compaction_types.py | Types | Types and schemas for prefix-anchor-preserving non-linear context compaction. | ✅ |
+| prefix_anchor_compactor.py | Core | Prefix-anchor-preserving non-linear context compactor. | ✅ |
 | prefix_integrity_barrier_types.py | Types | Types and schemas for pre-flight prefix integrity freeze and assertion barrier. | ✅ |
 | prefix_integrity_freeze_barrier.py | Core | Active pre-flight barrier defending 99% prompt cache hits before provider dispatch. | ✅ |
 | prefix_preserving_canonicalizer.py | Core | Prefix preserving canonicalizer for Prompt Cache optimization. | ✅ |
@@ -209,6 +225,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | scoped_rules_importer.py | Core | Hermes and OpenClaw scoped rules asset importer. | ✅ |
 | selective_context_trust_gate.py | Core | Selective context trust gate and misleading signal arbiter (SCOPE). | ✅ |
 | selective_context_trust_types.py | Types | Types for selective context preference optimization and misleading signal gate (SCOPE). | ✅ |
+| session_archive_search_engine.py | Core | Engine and Meta-Tool Factory for Session Archive Search. | ✅ |
+| session_archive_search_types.py | Types | Types and models for Full Archive Searchable History Meta-Tool. | ✅ |
 | session_checkpoint_storage.py | Core | Storage layer for Session Step Checkpoints supporting atomic persistence. | ✅ |
 | session_checkpoint_types.py | Types | Domain models and data contracts for Session State Checkpoint and Atomic Resume. | ✅ |
 | session_cwd_guard.py | Core | Protects agent toolkits and bash execution sandboxes from working directory drift across machines, branches, and folder moves. | ✅ |
@@ -219,6 +237,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | session_epoch_splitter_types.py | Types | Data contracts and models for Long Session Epoch Splitter and Milestone Archiver. | ✅ |
 | session_fork_manager.py | Core | Session fork manager and background pipe-back pipeline. | ✅ |
 | session_fork_steer_types.py | Types | Session fork and in-flight steer control types. | ✅ |
+| session_handoff_continuation_engine.py | Core | Engine for Session Handoff and Clean Window Continuation. | ✅ |
+| session_handoff_continuation_types.py | Types | Types and models for Session Handoff and Clean Window Continuation. | ✅ |
 | session_keyword_resurrection_engine.py | Core | Session keyword resurrection engine for seamless historical agent revival. | ✅ |
 | session_lifecycle_log_archiver.py | Core | Session lifecycle log archiver and offline bundle export engine. | ✅ |
 | session_lifecycle_log_archiver_types.py | Types | Session lifecycle log archive and offline bundle export types. | ✅ |
@@ -232,6 +252,9 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | session_state_delta_types.py | Types | Types and schemas for session state diff delta protocol and explicit invalidation. | ✅ |
 | session_tree_navigator.py | Core | Delivers audit-grade conversation branching, time travel navigation, and branch summary reconciliation. | ✅ |
 | single_kernel_transport_types.py | Types | Type contracts for single-kernel multi-transport decoupling and async-ack RPC protocol. | ✅ |
+| skill_state_constant_prompt_engine.py | Core | Constant prompt engine maintaining explicit state table instead of growing history. | ✅ |
+| skill_state_patch_governor.py | Core | Pure RFC 7386 JSON Merge Patch implementation. | ✅ |
+| skill_state_types.py | Types | Types and models for skill state. | ✅ |
 | sliding_window_session_lifecycle.py | Core | Adaptive inactivity sliding window session lifecycle manager and KV cache keeper. | ✅ |
 | sliding_window_session_lifecycle_types.py | Types | Types and data contracts for sliding window session lifecycle and KV cache keeper. | ✅ |
 | social_work_context_graph.py | Core | Social Collaboration Graph and Cross-Application Work Context Engine. | ✅ |
@@ -244,6 +267,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | tail_deferred_overflow_types.py | Types | Tail-only context append and disambiguated overflow types. | ✅ |
 | tail_deferred_write_queue.py | Core | Tail-only context append and deferred write queue. | ✅ |
 | theme_palette_synthesizer.py | Core | Core palette synthesis engine supporting WCAG contrast safety and XSS protection. | ✅ |
+| three_tier_memory_funnel_aggregator.py | Core | Aggregates Active Workbench (Layer 1), Session Notes & Ledger (Layer 2), and Archive Vault (Layer 3). | ✅ |
+| three_tier_memory_funnel_types.py | Types | Types and models for three tier memory funnel. | ✅ |
 | tiered_context_compression_pipeline.py | Core | Four-Tier Progressive Context Compression Pipeline. | ✅ |
 | tiered_token_compression_governor.py | Core | Tiered token compression governor with reasoning preservation and budget enforcement. | ✅ |
 | token_estimator.py | Core | Provides high-throughput, drift-free token estimation anchored on provider billing data for context management decisions. | ✅ |
