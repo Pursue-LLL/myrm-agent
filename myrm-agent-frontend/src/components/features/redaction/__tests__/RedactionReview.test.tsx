@@ -4,10 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { RedactionFindings } from '../useRedactionDecisions';
 import RedactionReview from '../RedactionReview';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, string | number>) =>
+const { stableT } = vi.hoisted(() => ({
+  stableT: (key: string, values?: Record<string, string | number>) =>
     values ? `${key} ${Object.values(values).join(',')}` : key,
 }));
+
+vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
 
 vi.mock('@/components/primitives/scroll-area', () => ({
   ScrollArea: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

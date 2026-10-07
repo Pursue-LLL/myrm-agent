@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAgentAiBuild, type AiBuildTarget } from '../useAgentAiBuild';
 
-const { toastMock } = vi.hoisted(() => ({ toastMock: vi.fn() }));
+const { toastMock, stableT } = vi.hoisted(() => ({ toastMock: vi.fn(), stableT: (key: string) => key }));
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
 vi.mock('@/hooks/shared/useToast', () => ({ toast: toastMock }));
 vi.mock('@/lib/api', () => ({ getApiUrl: (path: string) => `/api/v1${path}` }));
 
