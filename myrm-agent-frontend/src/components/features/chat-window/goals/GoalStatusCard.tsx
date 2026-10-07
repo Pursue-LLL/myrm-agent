@@ -24,8 +24,6 @@ import { translateGoalReason, computeEtaSeconds, formatEta } from './goalStatusU
 import { TaskAirbagCapsule } from '@/components/features/checkpoint/TaskAirbagCapsule';
 import { activateOnKey } from '@/lib/utils/a11y';
 
-export type { GoalStatus, GoalState, AcceptanceResultItem, AcceptanceHistoryEntry } from './goalStatusTypes';
-
 export function GoalStatusCard() {
   const t = useTranslations('Goal');
   const [isExpanded, setIsExpanded] = useState(false);

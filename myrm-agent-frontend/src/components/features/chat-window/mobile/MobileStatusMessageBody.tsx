@@ -12,7 +12,7 @@ import { getArtifactIcon, formatBytes } from '@/components/features/artifacts/ar
 import { getStorageUrl } from '@/lib/api';
 import type { Message, Artifact, ArtifactType } from '@/store/chat/types';
 import type { Plan } from '@/store/chat/goals/usePlanStore';
-import type { GoalState } from '@/components/features/chat-window/goals/GoalStatusCard';
+import type { GoalState } from '@/components/features/chat-window/goals/goalStatusTypes';
 import type { InspectorViewSnapshot } from '@/lib/approval/visualApprovalContext';
 
 interface MobileStatusMessageBodyProps {

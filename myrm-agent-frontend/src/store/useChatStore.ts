@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * @/store/chat/messageRequest::sendMessage (POS: Chat message request assembly layer)
+ * @/store/chat/messageRequest::sendMessage (POS: Chat message request assembly layer, lazily imported)
  * @/store/useWorkspaceStore::useWorkspaceStore (POS: Workspace state manager)
  *
  * [OUTPUT]
@@ -15,16 +15,12 @@ import { immer } from 'zustand/middleware/immer';
 import { ChatState, Message, DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
 export type { Message, File, ProgressItem, ChatHistoryItem, PaginationInfo, AgentConfig } from '@/store/chat/types';
 import { normalizeArchiveRestoreActions } from './chat/archiveRestoreActions';
-import { sendMessage } from './chat/messageRequest';
 import { generateStreamRequestMessageId } from './chat/streamRequestMessageId';
 import {
-  loadMessages,
-  loadOlderMessages,
   initializeChat,
-  autoSaveChat,
   persistActiveChatNavigationSnapshot,
   resolveInstantChatSnapshot,
-} from './chat/messageManagement';
+} from './chat/chatSessionInit';
 import { processSuggestions, findAssistantMessageIndex, removeWaitingForTurnStep } from './chat/messageUtils';
 import { disarmYoloForPreset, normalizeSecurityPreset } from './chat/securityPreset';
 import { useMessageQueueStore } from './chat/useMessageQueueStore';
@@ -907,6 +903,8 @@ const useChatStore = create<ChatState>()(
       },
 
       loadOlderMessages: async () => {
+        // Lazy: history loading reads this store, so a static import would form an import cycle.
+        const { loadMessages } = await import('./chat/messageManagement');
         const actions = {
           setMessages: (updater: (state: ChatState) => void) => set(updater),
           setLoading: (loading: boolean) => set({ loading }),
@@ -927,6 +925,7 @@ const useChatStore = create<ChatState>()(
       },
 
       // 调度自动保存（防抖）
+        const { loadOlderMessages } = await import('./chat/messageManagement');
       scheduleAutoSave: () => {
         const { _autoSaveTimer } = get();
 
@@ -941,7 +940,10 @@ const useChatStore = create<ChatState>()(
           // 因为loading状态可能由于连续对话而一直为true
           const targetChatId = latestState.chatId;
           if (targetChatId && latestState.messages.length > 0) {
-            autoSaveChat(targetChatId, latestState.messages, latestState.actionMode, latestState.incognitoMode)
+            import('./chat/messageManagement')
+              .then(({ autoSaveChat }) =>
+                autoSaveChat(targetChatId, latestState.messages, latestState.actionMode, latestState.incognitoMode),
+              )
               .catch((error) => {
                 console.error('autoSaveChat 执行失败:', error);
               })
@@ -981,7 +983,9 @@ const useChatStore = create<ChatState>()(
         const state = get();
         const streamChatId = state.chatId;
         set({ isConfigPanelExpanded: false, environmentAlerts: new Set<string>() });
-        return sendMessage(
+        // Lazy: the request pipeline reads this store, so a static import would form an import cycle.
+        const { sendMessage: sendChatMessage } = await import('./chat/messageRequest');
+        return sendChatMessage(
           input,
           messageId,
           state,

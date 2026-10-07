@@ -54,7 +54,7 @@
     "jsx-a11y/role-supports-aria-props": "warn",
     "jsx-a11y/label-has-associated-control": ["warn", { "depth": 6 }],
     "import/no-anonymous-default-export": "warn",
-    "import/no-cycle": "warn",
+    "import/no-cycle": "error",
     "no-console": "off",
     "no-debugger": "warn",
     "no-unused-vars": "off",

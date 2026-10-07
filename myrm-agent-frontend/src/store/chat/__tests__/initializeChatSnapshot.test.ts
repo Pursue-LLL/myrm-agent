@@ -5,7 +5,7 @@ import {
   resetChatNavigationSnapshotsForTests,
   saveChatNavigationSnapshot,
 } from '@/store/chat/chatNavigationSnapshotCache';
-import { initializeChat } from '@/store/chat/messageManagement';
+import { initializeChat } from '@/store/chat/chatSessionInit';
 
 const getChatDetailMock = vi.hoisted(() => vi.fn());
 const getMessagesMock = vi.hoisted(() => vi.fn());
@@ -47,6 +47,7 @@ const chatStoreMock = vi.hoisted(() => ({
   setContextPinnedFiles: vi.fn(),
   setContextPinnedFilesLoadError: vi.fn(),
   setContextBranchesLoadError: vi.fn(),
+  fetchTurnOutlines: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/store/useChatStore', () => ({
@@ -239,11 +240,13 @@ describe('initializeChat navigation snapshot', () => {
       loading: false,
     } as unknown as ChatState;
 
+    const observedIsMessagesLoaded: boolean[] = [];
     const actions = {
       setMessages: (updater: (state: ChatState) => void) => {
         const draft = { ...currentState } as ChatState;
         updater(draft);
         currentState = draft;
+        observedIsMessagesLoaded.push(currentState.isMessagesLoaded);
       },
       clearCurrentSessionMessageId: vi.fn(),
     };
@@ -252,11 +255,13 @@ describe('initializeChat navigation snapshot', () => {
 
     expect(currentState.isMessagesLoaded).toBe(true);
 
+    // History loading is deferred; wait for the whole silent refresh to finish.
     await vi.waitFor(() => {
-      expect(getChatDetailMock).toHaveBeenCalled();
+      expect(chatStoreMock.fetchTurnOutlines).toHaveBeenCalled();
     });
 
-    expect(currentState.isMessagesLoaded).toBe(true);
+    expect(observedIsMessagesLoaded.length).toBeGreaterThan(1);
+    expect(observedIsMessagesLoaded.every(Boolean)).toBe(true);
   });
 
   it('preserves actionMode during silent background refresh after snapshot restore', async () => {
@@ -287,11 +292,13 @@ describe('initializeChat navigation snapshot', () => {
       loading: false,
     } as unknown as ChatState;
 
+    const observedActionModes: ChatState['actionMode'][] = [];
     const actions = {
       setMessages: (updater: (state: ChatState) => void) => {
         const draft = { ...currentState } as ChatState;
         updater(draft);
         currentState = draft;
+        observedActionModes.push(currentState.actionMode);
       },
       clearCurrentSessionMessageId: vi.fn(),
     };
@@ -300,11 +307,12 @@ describe('initializeChat navigation snapshot', () => {
 
     expect(currentState.actionMode).toBe('deep_research');
 
+    // History loading is deferred; wait for the silent refresh and the DB-bound agent restore.
     await vi.waitFor(() => {
-      expect(getChatDetailMock).toHaveBeenCalled();
+      expect(fetchAgentMock).toHaveBeenCalledWith('agent-server');
     });
 
-    expect(currentState.actionMode).toBe('deep_research');
-    expect(fetchAgentMock).not.toHaveBeenCalled();
+    expect(observedActionModes.length).toBeGreaterThan(1);
+    expect(observedActionModes.every((mode) => mode === 'deep_research')).toBe(true);
   });
 });

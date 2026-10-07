@@ -78,7 +78,7 @@ export interface GoalStatusPayload {
   goal_id: string;
   objective: string;
   ui_summary?: string;
-  status: import('@/components/features/chat-window/goals/GoalStatusCard').GoalStatus;
+  status: import('@/components/features/chat-window/goals/goalStatusTypes').GoalStatus;
   tokens_used: number;
   time_used_seconds: number;
   cost_usd?: number;

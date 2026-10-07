@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GoalStatusCard } from '../goals/GoalStatusCard';
-import type { GoalState } from '../goals/GoalStatusCard';
+import type { GoalState } from '../goals/goalStatusTypes';
 
 const makeGoal = (overrides: Partial<GoalState> = {}): GoalState => ({
   goalId: 'goal-1',

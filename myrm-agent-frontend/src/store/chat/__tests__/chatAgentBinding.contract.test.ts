@@ -25,7 +25,8 @@ describe('chat agent binding architecture contracts', () => {
   });
 
   it('forbids silent snapshot refresh from preserving isMessagesLoaded', () => {
-    const source = readSource('messageManagement.ts');
+    expect(readSource('messageManagement.ts')).not.toContain('preservedIsMessagesLoaded');
+    const source = readSource('chatSessionInit.ts');
     expect(source).not.toContain('preservedIsMessagesLoaded');
     expect(source).toContain('isMessagesLoaded: never preserve');
   });

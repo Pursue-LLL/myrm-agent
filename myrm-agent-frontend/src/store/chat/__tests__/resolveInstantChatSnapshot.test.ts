@@ -5,7 +5,7 @@ import {
   resetChatNavigationSnapshotsForTests,
   saveChatNavigationSnapshot,
 } from '@/store/chat/chatNavigationSnapshotCache';
-import { resolveInstantChatSnapshot } from '@/store/chat/messageManagement';
+import { resolveInstantChatSnapshot } from '@/store/chat/chatSessionInit';
 
 const workspacePanes: Array<{ chatId: string | null; snapshot: Partial<ChatState> | null }> = [];
 

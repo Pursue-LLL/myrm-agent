@@ -22,7 +22,7 @@ import type {
   ErrorKind,
 } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
-import type { GoalState } from '@/components/features/chat-window/goals/GoalStatusCard';
+import type { GoalState } from '@/components/features/chat-window/goals/goalStatusTypes';
 import type { SubagentStatus } from '../useSubagentStore';
 
 const SUBAGENT_STATUSES = new Set<SubagentStatus>([

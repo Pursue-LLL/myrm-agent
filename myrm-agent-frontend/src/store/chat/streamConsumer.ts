@@ -16,7 +16,7 @@ import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspect
 import { parseSseEnvelope } from './schema';
 import { handleMessageStream, StreamHandlerState, StreamHandlerActions } from './messageStreamHandler';
 import type { TurnMeta } from './messageStream/handleMessageStream';
-import { ChatActionsState, ChatActionsMethods, createMessageRequest } from './messageRequest';
+import type { ChatActionsState, ChatActionsMethods } from './messageRequest';
 import {
   type AgentStreamEvent,
   type ArchiveRestoreAction,
@@ -281,6 +281,8 @@ export async function executeStreamWithRetry(
         }
       }
 
+      // Lazy: messageRequest imports this module, so a static import would form a cycle.
+      const { createMessageRequest } = await import('./messageRequest');
       const res = await createMessageRequest(
         input,
         requestMessageId,
