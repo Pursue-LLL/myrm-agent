@@ -7,7 +7,13 @@ import logging
 
 from fastapi import APIRouter
 
-from app.api.memory import dream_diary, external_bridge, ltra, onboarding
+from app.api.memory import (
+    dream_diary,
+    external_bridge,
+    ltra,
+    onboarding,
+    zero_hallucination,
+)
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
@@ -187,3 +193,6 @@ router.include_router(dream_diary.unlearn_router, tags=["memory-surgical-unlearn
 router.include_router(ltra.router, tags=["memory-ltra-cognitive"])
 router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
 router.include_router(external_bridge.router, tags=["memory-external-skill-bridge"])
+router.include_router(zero_hallucination.router, tags=["memory-zero-hallucination-diagnostics"])
+
+

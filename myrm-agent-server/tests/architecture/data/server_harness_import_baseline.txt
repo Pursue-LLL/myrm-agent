@@ -300,6 +300,7 @@ myrm_agent_harness.core.security.desktop_oauth_device.token_rotator
 myrm_agent_harness.core.security.desktop_oauth_device.types
 myrm_agent_harness.core.security.detection.leak_detector
 myrm_agent_harness.core.security.dev_sandbox_fence
+myrm_agent_harness.core.security.device_whitelist
 myrm_agent_harness.core.security.dir_trust_gate
 myrm_agent_harness.core.security.directory_trust_gate
 myrm_agent_harness.core.security.directory_trust_remote_memory
@@ -414,6 +415,7 @@ myrm_agent_harness.core.security.tracing_redaction
 myrm_agent_harness.core.security.tri_flow_isolation
 myrm_agent_harness.core.security.tripartite_ledger
 myrm_agent_harness.core.security.types
+myrm_agent_harness.core.security.vault_secret_redaction
 myrm_agent_harness.core.security.vnc_hardening
 myrm_agent_harness.core.security.webhook_guard
 myrm_agent_harness.core.security.workspace_boundary
