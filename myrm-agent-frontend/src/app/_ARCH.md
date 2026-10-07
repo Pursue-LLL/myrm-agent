@@ -46,3 +46,4 @@
 - 新页面优先复用 `features/` 组件，不在 `app/` 堆业务逻辑。
 - 单文件 page >600 行应下沉到 `features/`（如 `batch-optimization/page.tsx`）。
 - `layout.tsx`：构建期静态 `metadata`（`lib/metadata/static-metadata.ts`）；`<body suppressHydrationWarning>` 压制浏览器扩展注入属性导致的 hydration warning；`LocalizedProviders` 仍在 Suspense 内（cookie locale）。
+- `focus-ring.css`（由 `globals.css` 引入）：键盘焦点环基线，只作用于自身无 `focus`/`focus-visible` 样式的可交互元素（`@layer base`，任何 Tailwind utility 与组件样式都可覆盖；不匹配文本输入）；复用主题 token `--ring`，鼠标/触摸不触发。

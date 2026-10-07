@@ -1,0 +1,29 @@
+/* Keyboard focus indicator for interactive elements that define no focus style of their own
+   (role="button" cards, bare <button>/<a>, tabindex containers).
+
+   - Lives in @layer base, so every Tailwind utility (outline-none, focus-visible:ring-*) and any
+     unlayered component CSS overrides it; components with their own focus design are unaffected.
+   - Elements whose class list already declares a focus/focus-visible variant are skipped, which
+     avoids a second ring next to their own box-shadow ring.
+   - Text inputs and contenteditable regions are intentionally not matched: their containers draw
+     the focus state, and browsers already outline them natively.
+   - :focus-visible only fires for keyboard navigation, so mouse clicks and touch taps show nothing.
+   - The inset offset keeps the ring visible inside rounded cards that use overflow-hidden. */
+@layer base {
+  :is(
+      a[href],
+      button,
+      summary,
+      [role='button'],
+      [role='link'],
+      [role='switch'],
+      [role='tab'],
+      [role='menuitem'],
+      [role='checkbox'],
+      [role='radio'],
+      [tabindex]:not([tabindex='-1'])
+    ):not([class*='focus-visible:'], [class*='focus:']):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+}
