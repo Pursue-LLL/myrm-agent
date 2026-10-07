@@ -8762,7 +8762,9 @@
     "wechatTroubleshootRefreshSuccess": "WeChat-Verbindungsstatus aktualisiert",
     "wechatTroubleshootRefreshError": "Statusaktualisierung fehlgeschlagen",
     "wechatTroubleshootReportCopied": "Diagnosebericht in die Zwischenablage kopiert",
-    "wechatTroubleshootReportCopyError": "Kopieren des Diagnoseberichts fehlgeschlagen"
+    "wechatTroubleshootReportCopyError": "Kopieren des Diagnoseberichts fehlgeschlagen",
+    "whatsappQrAlt": "WhatsApp-Anmelde-QR-Code",
+    "wechatQrAlt": "WeChat-Anmelde-QR-Code"
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",

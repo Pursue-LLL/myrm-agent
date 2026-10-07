@@ -8762,7 +8762,9 @@
     "wechatTroubleshootRefreshSuccess": "WeChat 연결 상태를 새로고침했습니다",
     "wechatTroubleshootRefreshError": "상태 새로고침 실패",
     "wechatTroubleshootReportCopied": "진단 정보가 클립보드에 복사되었습니다",
-    "wechatTroubleshootReportCopyError": "진단 정보 복사 실패"
+    "wechatTroubleshootReportCopyError": "진단 정보 복사 실패",
+    "whatsappQrAlt": "WhatsApp 로그인 QR 코드",
+    "wechatQrAlt": "WeChat 로그인 QR 코드"
   },
   "voice": {
     "sectionTitle": "음성 설정",

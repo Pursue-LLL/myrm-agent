@@ -15934,7 +15934,9 @@
     "imessageAppleWatchGuideDesc": "当 Agent 请求敏感操作审批时，在 Apple Watch 或 iPhone 上长按该条 iMessage 消息并点赞 👍（批准）或点踩 👎（拒绝），即可秒级完成人机协同审批。",
     "imessageDeployGuideTitle": "部署模式指引",
     "imessageDeployGuideLocal": "本地 / 桌面端：直接连接 Mac 本机常开的 BlueBubbles 服务（如 http://localhost:1234）。",
-    "imessageDeployGuideCloud": "云端部署：通过 Cloudflare Tunnel、Tailscale 或 Ngrok 安全连接自建的 Mac iMessage 网关。"
+    "imessageDeployGuideCloud": "云端部署：通过 Cloudflare Tunnel、Tailscale 或 Ngrok 安全连接自建的 Mac iMessage 网关。",
+    "whatsappQrAlt": "WhatsApp 登录二维码",
+    "wechatQrAlt": "微信登录二维码"
   },
   "voice": {
     "sectionTitle": "语音设置",

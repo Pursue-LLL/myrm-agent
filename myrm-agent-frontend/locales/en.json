@@ -15934,7 +15934,9 @@
     "imessageAppleWatchGuideDesc": "When an agent requests approval for a sensitive action, long-press the iMessage bubble on your Apple Watch or iPhone and react with 👍 (Approve) or 👎 (Reject) for instant Human-In-The-Loop action.",
     "imessageDeployGuideTitle": "Deployment Modes",
     "imessageDeployGuideLocal": "Local / Tauri: Connect directly to BlueBubbles running on your Mac (e.g. http://localhost:1234).",
-    "imessageDeployGuideCloud": "Cloud: Connect to your Mac's BlueBubbles server via Cloudflare Tunnel, Tailscale, or Ngrok."
+    "imessageDeployGuideCloud": "Cloud: Connect to your Mac's BlueBubbles server via Cloudflare Tunnel, Tailscale, or Ngrok.",
+    "whatsappQrAlt": "WhatsApp login QR code",
+    "wechatQrAlt": "WeChat login QR code"
   },
   "voice": {
     "sectionTitle": "Voice Settings",

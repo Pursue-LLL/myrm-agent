@@ -8762,7 +8762,9 @@
     "wechatTroubleshootRefreshSuccess": "已重新整理微信連線狀態",
     "wechatTroubleshootRefreshError": "重新整理狀態失敗",
     "wechatTroubleshootReportCopied": "排障診斷資訊已複製到剪貼簿",
-    "wechatTroubleshootReportCopyError": "複製排障診斷資訊失敗"
+    "wechatTroubleshootReportCopyError": "複製排障診斷資訊失敗",
+    "whatsappQrAlt": "WhatsApp 登入 QR Code",
+    "wechatQrAlt": "微信登入 QR Code"
   },
   "voice": {
     "sectionTitle": "語音設定",

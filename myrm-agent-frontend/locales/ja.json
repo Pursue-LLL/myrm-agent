@@ -8762,7 +8762,9 @@
     "wechatTroubleshootRefreshSuccess": "WeChat 接続状態を更新しました",
     "wechatTroubleshootRefreshError": "状態の更新に失敗しました",
     "wechatTroubleshootReportCopied": "診断情報をクリップボードにコピーしました",
-    "wechatTroubleshootReportCopyError": "診断情報のコピーに失敗しました"
+    "wechatTroubleshootReportCopyError": "診断情報のコピーに失敗しました",
+    "whatsappQrAlt": "WhatsApp ログイン用 QR コード",
+    "wechatQrAlt": "WeChat ログイン用 QR コード"
   },
   "voice": {
     "sectionTitle": "音声設定",

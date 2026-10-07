@@ -266,7 +266,7 @@ export function WeChatAccountCard({
           <p className="text-xs text-muted-foreground">{t('wechatScanQR')}</p>
           <div className="inline-block bg-white p-3 rounded-lg">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={cardStatus.qr_code} alt={t('wechatScanQR')} className="w-48 h-48" />
+            <img src={cardStatus.qr_code} alt={t('wechatQrAlt')} className="w-48 h-48" />
           </div>
           <p className="text-xs text-muted-foreground">{t('wechatQRExpiry')}</p>
         </div>
