@@ -263,6 +263,7 @@ myrm_agent_harness.core.security.asr_privacy_tradeoff
 myrm_agent_harness.core.security.audit_coverage
 myrm_agent_harness.core.security.auto_review_resolution
 myrm_agent_harness.core.security.autonomous_signing_airgap
+myrm_agent_harness.core.security.blast_radius_approval
 myrm_agent_harness.core.security.blast_radius_inspector
 myrm_agent_harness.core.security.bot_budget_guardrail
 myrm_agent_harness.core.security.bot_screen_intervention
@@ -323,6 +324,7 @@ myrm_agent_harness.core.security.four_zone
 myrm_agent_harness.core.security.gate_guard_sanitizer
 myrm_agent_harness.core.security.git_leak_shield
 myrm_agent_harness.core.security.governance_assembly
+myrm_agent_harness.core.security.governed_write_safety
 myrm_agent_harness.core.security.guards.ssrf
 myrm_agent_harness.core.security.hardened_sandbox_perimeter
 myrm_agent_harness.core.security.headless_interactive_approval
@@ -390,6 +392,7 @@ myrm_agent_harness.core.security.semantic_rbac
 myrm_agent_harness.core.security.sensitive_file_guard
 myrm_agent_harness.core.security.side_effect_gate
 myrm_agent_harness.core.security.skill_governance
+myrm_agent_harness.core.security.skill_health_audit
 myrm_agent_harness.core.security.skill_spector_scanner
 myrm_agent_harness.core.security.slack_rotating_token
 myrm_agent_harness.core.security.sso_redirect

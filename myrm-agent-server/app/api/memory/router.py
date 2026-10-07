@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter
 
-from app.api.memory import dream_diary
+from app.api.memory import dream_diary, ltra
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
@@ -184,3 +184,4 @@ router.include_router(migration_readiness_fixture_router, tags=["memory-test-fix
 router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
 router.include_router(dream_diary.router, tags=["memory-dream-diary"])
 router.include_router(dream_diary.unlearn_router, tags=["memory-surgical-unlearn"])
+router.include_router(ltra.router, tags=["memory-ltra-cognitive"])
