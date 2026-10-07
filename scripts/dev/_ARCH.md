@@ -25,6 +25,7 @@
 | `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 薄 re-export → `chrome-e2e/{runtime,focus,lifecycle}.sh` |
 | `chrome-e2e/` | Unix | **AOS SSOT**：`surface.py`（Agent Window）、`focus.sh`（macOS FALLBACK）、`cli.sh`、`hil.py` |
 | `chrome-e2e-doctor.sh` | Unix | `./myrm doctor --chrome` 一站式诊断 |
+| `browser-unified-cli.sh` | Unix | `./myrm browser` 入口（由 monorepo 根 `scripts/dev/myrm` 分发；子命令 `status` / `stop` / `open`）：汇总 ChromeAgent `:9410` 与 ChromeE2E `:9333` 状态；`stop` 级联停止全部浏览器与后台 daemon；`open` 拉起前台可见窗口 |
 | `cursor-mcp-isolation-doctor.sh` | Unix | Cursor Agent MCP isolation doctor（`./myrm doctor --mcp-isolation`）：ChromeAutoConnect 每日契约校验；委托 `lib/e2e_core/cursor_mcp_isolation.py`；被 `test_browser_mcp_ssot_static` / `test_chrome_e2e_module_static` 静态守卫引用 |
 | `ensure-myrm-chrome-agent.sh` | Unix | 拉起/验证 Myrm Agent Chrome（pipe-proxy `:9410`，不抢 macOS 焦点）；`./myrm ready --chrome-agent`；幂等健康检查 + stale listener 回收 + 首跑自动机器级 install + nohup 启动 pipe-cdp-proxy（`current` 符号链接解析） |
 | `install-chrome-agent-launchagent.sh` | Unix | 安装/启动 macOS LaunchAgent `com.myrm.chrome-agent`（KeepAlive + RunAtLoad，常驻 pipe-proxy 离屏）；`./myrm ready --chrome-agent --daemon`；**委托机器级 CLI `chrome-agent/myrm-chrome-agent.sh install`**，plist 指向 `~/.local/lib/myrm-chrome-agent/current`（解耦：删仓不影响运行） |
