@@ -77,6 +77,9 @@ from app.api.memory.ephemeral_delta_router import (
 from app.api.memory.experience_gene_router import (
     router as experience_gene_router,
 )
+from app.api.memory.experience_injection_router import (
+    router as experience_injection_router,
+)
 from app.api.memory.fact_supersession_router import (
     router as fact_supersession_router,
 )
@@ -370,6 +373,11 @@ router.include_router(
     procedure_experience_router,
     tags=["memory-procedure-experience"],
 )
+router.include_router(
+    experience_injection_router,
+    tags=["memory-experience-injection"],
+)
+
 
 
 
