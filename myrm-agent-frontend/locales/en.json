@@ -9735,7 +9735,11 @@
       "placeholder": "Type a message...",
       "uploadingImage": "Uploading image...",
       "collapseToolbar": "Collapse toolbar",
-      "expandToolbar": "Expand toolbar"
+      "expandToolbar": "Expand toolbar",
+      "expandEditor": "Expand editor (Ctrl/⌘+Shift+Enter)",
+      "collapseEditor": "Collapse editor (Ctrl/⌘+Shift+Enter)",
+      "expandedPlaceholder": "Enter for a new line · Ctrl/⌘+Enter to send · Esc to exit",
+      "stop": "Stop"
     },
     "queue": {
       "queued": "Queued ({index}/{total})",
@@ -9748,7 +9752,15 @@
       "edit": "Edit message",
       "saveEdit": "Save",
       "cancelEdit": "Cancel",
-      "stuck": "Queued message failed to send after multiple retries. Please try again manually."
+      "stuck": "Queued messages couldn't be sent because the agent is still busy.",
+      "placeholderExpanded": "Agent busy... Ctrl/⌘+Enter to steer · ⌥+Enter to queue follow-up",
+      "pausedStopped": "Queue paused because you stopped the reply.",
+      "resume": "Resume",
+      "retry": "Retry",
+      "attachments": "{count, plural, one {# attachment} other {# attachments}}",
+      "editHint": "Enter to save · Shift+Enter for a new line · Esc to cancel",
+      "reorder": "Drag to reorder",
+      "listLabel": "Queued messages"
     },
     "fileMention": {
       "title": "Workspace References",

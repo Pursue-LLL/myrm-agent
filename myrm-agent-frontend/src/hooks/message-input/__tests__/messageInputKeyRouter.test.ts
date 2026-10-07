@@ -106,6 +106,65 @@ describe('resolveDualChannelAction (Dual-Channel Steering vs Queue Router)', () 
     });
   });
 
+  describe('expanded=true (全屏编辑器)', () => {
+    it.each([
+      ['空闲', false],
+      ['运行时', true],
+    ])('%s：普通 Enter 保持换行（none，不阻止默认行为）', (_label, loading) => {
+      const event = createMockKeyEvent({ key: 'Enter' });
+      const action = resolveDualChannelAction(event, { loading, expanded: true });
+
+      expect(action).toBe('none');
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['Ctrl+Enter', { ctrlKey: true }],
+      ['⌘+Enter', { metaKey: true }],
+    ])('%s 阻止默认行为并触发 submit（运行时即引导纠偏）', (_label, modifier) => {
+      const idle = createMockKeyEvent(modifier);
+      expect(resolveDualChannelAction(idle, { loading: false, expanded: true })).toBe('submit');
+      expect(idle.preventDefault).toHaveBeenCalledTimes(1);
+
+      const running = createMockKeyEvent(modifier);
+      expect(resolveDualChannelAction(running, { loading: true, expanded: true })).toBe('submit');
+      expect(running.preventDefault).toHaveBeenCalledTimes(1);
+    });
+
+    it('Alt+Enter 的排队语义不变：运行时 queue，空闲时 submit', () => {
+      const running = createMockKeyEvent({ altKey: true });
+      expect(resolveDualChannelAction(running, { loading: true, expanded: true })).toBe('queue');
+
+      const idle = createMockKeyEvent({ altKey: true });
+      expect(resolveDualChannelAction(idle, { loading: false, expanded: true })).toBe('submit');
+    });
+
+    it('Shift+Enter（含 Ctrl/⌘+Shift+Enter）保持原生换行，不误触提交', () => {
+      const plain = createMockKeyEvent({ shiftKey: true });
+      expect(resolveDualChannelAction(plain, { loading: false, expanded: true })).toBe('none');
+
+      const withModifier = createMockKeyEvent({ shiftKey: true, metaKey: true });
+      expect(resolveDualChannelAction(withModifier, { loading: false, expanded: true })).toBe('none');
+      expect(withModifier.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('IME 组合态下 Ctrl+Enter 也不触发任何动作', () => {
+      const event = createMockKeyEvent({ ctrlKey: true, isComposing: true });
+
+      expect(resolveDualChannelAction(event, { loading: false, expanded: true })).toBe('none');
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('非全屏时 Ctrl/⌘+Enter 与普通 Enter 等价（仍为 submit）', () => {
+      const event = createMockKeyEvent({ ctrlKey: true });
+
+      expect(resolveDualChannelAction(event, { loading: false })).toBe('submit');
+      expect(resolveDualChannelAction(createMockKeyEvent({ metaKey: true }), { loading: false, expanded: false })).toBe(
+        'submit',
+      );
+    });
+  });
+
   describe('其他按键事件放行', () => {
     it('普通文本按键（如字符 a、Backspace、Tab）不应被拦截', () => {
       const event = createMockKeyEvent({ key: 'a' });

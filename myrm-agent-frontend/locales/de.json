@@ -2267,7 +2267,11 @@
       "placeholder": "Nachricht eingeben...",
       "uploadingImage": "Bild wird hochgeladen...",
       "collapseToolbar": "Symbolleiste einklappen",
-      "expandToolbar": "Symbolleiste ausklappen"
+      "expandToolbar": "Symbolleiste ausklappen",
+      "expandEditor": "Editor vergrößern (Strg/⌘+Umschalt+Enter)",
+      "collapseEditor": "Editor verkleinern (Strg/⌘+Umschalt+Enter)",
+      "expandedPlaceholder": "Enter für neue Zeile · Strg/⌘+Enter zum Senden · Esc zum Schließen",
+      "stop": "Stopp"
     },
     "queue": {
       "queued": "Warteschlange ({index}/{total})",
@@ -2280,7 +2284,15 @@
       "edit": "Nachricht bearbeiten",
       "saveEdit": "Speichern",
       "cancelEdit": "Abbrechen",
-      "stuck": "Die Nachricht in der Warteschlange konnte nach mehreren Versuchen nicht gesendet werden. Bitte versuchen Sie es manuell erneut."
+      "stuck": "Die Nachrichten in der Warteschlange konnten nicht gesendet werden, weil der Agent noch beschäftigt ist.",
+      "placeholderExpanded": "Agent beschäftigt... Strg/⌘+Enter zum Steuern · ⌥+Enter zum Einreihen",
+      "pausedStopped": "Warteschlange pausiert, weil Sie die Antwort gestoppt haben.",
+      "resume": "Fortsetzen",
+      "retry": "Erneut versuchen",
+      "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
+      "editHint": "Enter zum Speichern · Umschalt+Enter für neue Zeile · Esc zum Abbrechen",
+      "reorder": "Zum Umsortieren ziehen",
+      "listLabel": "Eingereihte Nachrichten"
     },
     "fileMention": {
       "title": "Arbeitsbereich-Dateien",

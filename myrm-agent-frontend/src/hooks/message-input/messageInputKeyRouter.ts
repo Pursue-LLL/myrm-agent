@@ -6,7 +6,8 @@
  * - resolveDualChannelAction: 聊天输入框双通道键盘事件路由判定（实时引导 vs 非中断排队）
  *
  * [POS]
- * 聊天输入框双通道键盘交互路由核心。负责在运行时与空闲态下对 Enter、Alt+Enter、Shift+Enter 及输入法合成态进行纯函数分流决策。
+ * 聊天输入框双通道键盘交互路由核心。负责在运行时与空闲态、紧凑与全屏编辑模式下，
+ * 对 Enter、Alt+Enter、Ctrl/⌘+Enter、Shift+Enter 及输入法合成态进行纯函数分流决策。
  */
 import { isImeComposing, type KeyboardEventLike } from '@/lib/utils/imeUtils';
 
@@ -16,7 +17,16 @@ export interface DualChannelKeyEvent extends KeyboardEventLike {
   key: string;
   altKey: boolean;
   shiftKey: boolean;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
   preventDefault?: () => void;
+}
+
+export interface DualChannelOptions {
+  /** The agent is running a turn. */
+  loading: boolean;
+  /** Full-screen editor: writing long text, so a bare Enter must not send. */
+  expanded?: boolean;
 }
 
 /**
@@ -30,10 +40,13 @@ export interface DualChannelKeyEvent extends KeyboardEventLike {
  * 2. 空闲时 (loading=false)：
  *    - Enter 或 Alt+Enter：触发常规消息提交发送；
  *    - Shift+Enter：保持多行文本换行，不拦截；
- * 3. 输入法合成态 (IME isComposing)：
+ * 3. 全屏编辑 (expanded=true)：
+ *    - Enter (无修饰键)：保持换行，不拦截；
+ *    - Ctrl/⌘+Enter：提交（运行时即引导纠偏）；Alt+Enter 的排队语义不变；
+ * 4. 输入法合成态 (IME isComposing)：
  *    - 严格放行，避免拼音/候选词确认击发误触。
  */
-export function resolveDualChannelAction(e: DualChannelKeyEvent, options: { loading: boolean }): DualChannelAction {
+export function resolveDualChannelAction(e: DualChannelKeyEvent, options: DualChannelOptions): DualChannelAction {
   if (isImeComposing(e)) {
     return 'none';
   }
@@ -50,6 +63,10 @@ export function resolveDualChannelAction(e: DualChannelKeyEvent, options: { load
   if (e.altKey) {
     e.preventDefault?.();
     return options.loading ? 'queue' : 'submit';
+  }
+
+  if (options.expanded && !e.ctrlKey && !e.metaKey) {
+    return 'none';
   }
 
   e.preventDefault?.();

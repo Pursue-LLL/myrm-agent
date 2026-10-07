@@ -7,10 +7,14 @@ const mockValidateMessageQuota = vi.hoisted(() =>
 const mockRecordChatWikiQueryAttempt = vi.hoisted(() => vi.fn());
 const mockRecordChatWikiQuerySubmitted = vi.hoisted(() => vi.fn());
 const mockQueuePendingChatWikiQuerySuccess = vi.hoisted(() => vi.fn());
-const mockSendMessage = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined));
+const mockSendMessage = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true));
 const mockSteerMessage = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true));
 const mockRedirectMessage = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true));
-const mockEnqueue = vi.hoisted(() => vi.fn());
+const mockEnqueue = vi.hoisted(() => vi.fn<(...args: unknown[]) => number>(() => 1));
+const mockSetFiles = vi.hoisted(() => vi.fn());
+const mockAddInputHistory = vi.hoisted(() => vi.fn());
+const mockUseDraftPersistence = vi.hoisted(() => vi.fn());
+const mockToastInfo = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilitySelectionSubmitted = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilityOverrideApplied = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilityOverrideNoop = vi.hoisted(() => vi.fn());
@@ -22,7 +26,8 @@ const mockSetPendingArchiveRestoreActions = vi.hoisted(() => vi.fn());
 const mockClearDraft = vi.hoisted(() => vi.fn());
 const chatStoreRef = vi.hoisted(() => ({ state: {} as Record<string, unknown> }));
 
-const stableT = (key: string) => key;
+// Renders ICU values into the key so assertions can see what the user would be told.
+const stableT = (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -35,10 +40,13 @@ vi.mock('@/hooks/billing/useQuotaGuard', () => ({
 }));
 
 vi.mock('@/hooks/shared/useDraftPersistence', () => ({
-  useDraftPersistence: () => ({
-    initialDraft: '',
-    clearDraft: (...args: unknown[]) => mockClearDraft(...args),
-  }),
+  useDraftPersistence: (...args: unknown[]) => {
+    mockUseDraftPersistence(...args);
+    return {
+      initialDraft: '',
+      clearDraft: (...clearArgs: unknown[]) => mockClearDraft(...clearArgs),
+    };
+  },
 }));
 
 vi.mock('@/store/useChatStore', () => {
@@ -54,14 +62,20 @@ vi.mock('@/store/useChatStore', () => {
 vi.mock('@/hooks/message-input/useMessageQueue', () => ({
   useMessageQueue: () => ({
     queue: [],
+    pausedReason: null,
+    editingId: null,
     enqueue: (...args: unknown[]) => mockEnqueue(...args),
-    dequeue: vi.fn(() => null),
     editMessage: vi.fn(),
     removeMessage: vi.fn(),
     clearQueue: vi.fn(),
-    requeue: vi.fn(),
     reorder: vi.fn(),
+    setEditingId: vi.fn(),
+    resume: vi.fn(),
   }),
+}));
+
+vi.mock('@/hooks/message-input/useQueueDrain', () => ({
+  useQueueDrain: vi.fn(),
 }));
 
 vi.mock('@/hooks/message-input/useInputFileUpload', () => ({
@@ -86,7 +100,7 @@ vi.mock('@/store/chat/archiveRestoreActions', () => ({
 }));
 
 vi.mock('@/hooks/message-input/useInputHistory', () => ({
-  addInputHistory: vi.fn(),
+  addInputHistory: (...args: unknown[]) => mockAddInputHistory(...args),
 }));
 
 vi.mock('@/hooks/message-input/useMessageInputWikiEvidenceCore', () => ({
@@ -110,7 +124,7 @@ vi.mock('@/services/chat', () => ({
 
 vi.mock('@/lib/utils/toast', () => ({
   toast: {
-    info: vi.fn(),
+    info: (...args: unknown[]) => mockToastInfo(...args),
     error: vi.fn(),
     warning: vi.fn(),
     loading: vi.fn(),
@@ -127,7 +141,7 @@ function buildChatState(overrides: Partial<Record<string, unknown>> = {}): Recor
     actionMode: 'agent',
     setActionMode: vi.fn(),
     files: [],
-    setFiles: vi.fn(),
+    setFiles: (...args: unknown[]) => mockSetFiles(...args),
     hideAttachList: false,
     setHideAttachList: vi.fn(),
     stopMessage: vi.fn(),
@@ -147,6 +161,7 @@ function buildChatState(overrides: Partial<Record<string, unknown>> = {}): Recor
     loading: false,
     messages: [],
     agentConfig: null,
+    incognitoMode: false,
     ...overrides,
   };
 }
@@ -160,6 +175,11 @@ describe('useMessageInput submit telemetry integration', () => {
     mockSteerMessage.mockClear();
     mockRedirectMessage.mockClear();
     mockEnqueue.mockClear();
+    mockEnqueue.mockReturnValue(1);
+    mockSetFiles.mockClear();
+    mockAddInputHistory.mockClear();
+    mockUseDraftPersistence.mockClear();
+    mockToastInfo.mockClear();
     mockSetInputMessage.mockClear();
     mockSetPendingArchiveRestoreActions.mockClear();
     mockClearDraft.mockClear();
@@ -434,5 +454,133 @@ describe('useMessageInput submit telemetry integration', () => {
     expect(mockEnqueue).toHaveBeenCalledWith('follow-up task', [], undefined, null);
     expect(mockRedirectMessage).not.toHaveBeenCalled();
     expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  describe('queue attachments', () => {
+    const attachment = { id: 'file-1', name: 'notes.zip', status: 'done' };
+
+    it('moves the staged attachments into the queued message and empties the composer', async () => {
+      chatStoreRef.state = buildChatState({ files: [attachment] });
+      const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+      const { result } = renderHook(() => useMessageInput());
+
+      await act(async () => {
+        await result.current.handleQueueSubmit();
+      });
+
+      expect(mockEnqueue).toHaveBeenCalledWith('hello world', [attachment], undefined, null);
+      expect(mockSetFiles).toHaveBeenCalledWith([]);
+    });
+
+    it('queues a busy submit that carries attachments instead of redirecting it as text only', async () => {
+      chatStoreRef.state = buildChatState({ loading: true, inputMessage: 'see attached', files: [attachment] });
+      const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+      const { result } = renderHook(() => useMessageInput());
+
+      await act(async () => {
+        await result.current.handleSubmit();
+      });
+
+      expect(mockEnqueue).toHaveBeenCalledWith('see attached', [attachment], undefined, null);
+      expect(mockRedirectMessage).not.toHaveBeenCalled();
+      expect(mockSteerMessage).not.toHaveBeenCalled();
+    });
+
+    it('requeues a busy-refused message with the attachments it was sent with and reports its real position', async () => {
+      const busyError = new Error('busy');
+      busyError.name = 'AgentBusyError';
+      chatStoreRef.state = buildChatState({ files: [attachment] });
+      mockSendMessage.mockImplementationOnce(async () => {
+        // By the time the refusal reaches the hook the store has already emptied the composer attachments.
+        chatStoreRef.state.files = [];
+        throw busyError;
+      });
+      mockEnqueue.mockReturnValue(3);
+      const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+      const { result } = renderHook(() => useMessageInput());
+
+      await act(async () => {
+        await result.current.handleSubmit();
+        await Promise.resolve();
+      });
+
+      expect(mockEnqueue).toHaveBeenCalledWith('hello world', [attachment], undefined, null);
+      expect(mockToastInfo).toHaveBeenCalledWith('queue.added_with_position:{"position":3}');
+    });
+
+    it('restores the sent attachments when the archive restore action is rejected', async () => {
+      const { FatalNetworkError, ARCHIVE_RESTORE_ACTION_INVALID } = await import('@/lib/utils/networkResilience');
+      chatStoreRef.state = buildChatState({ files: [attachment] });
+      mockSendMessage.mockImplementationOnce(async () => {
+        chatStoreRef.state.files = [];
+        throw new FatalNetworkError('invalid restore action', {
+          status: 400,
+          errorCode: ARCHIVE_RESTORE_ACTION_INVALID,
+        });
+      });
+      const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+      const { result } = renderHook(() => useMessageInput());
+
+      await act(async () => {
+        await result.current.handleSubmit();
+        await Promise.resolve();
+      });
+
+      expect(mockSetFiles).toHaveBeenCalledWith([attachment]);
+      expect(mockSetInputMessage).toHaveBeenLastCalledWith('hello world');
+    });
+  });
+
+  it('does not count a locally refused request as a settled capability override', async () => {
+    mockSendMessage.mockResolvedValueOnce(false);
+    chatStoreRef.state = buildChatState({
+      agentConfig: {
+        selectedSkillIds: ['skill-a', 'skill-b'],
+        selectedMcpNames: ['mcp-a'],
+        systemPrompt: '',
+        useGlobalInstruction: true,
+      },
+    });
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+    const { result } = renderHook(() => useMessageInput());
+
+    act(() => {
+      result.current.setTurnCapabilitySelection({ skillIds: ['skill-b'], mcpNames: null });
+    });
+    await act(async () => {
+      await result.current.handleSubmit();
+      await Promise.resolve();
+    });
+
+    expect(mockRecordTurnCapabilityOverrideApplied).not.toHaveBeenCalled();
+    expect(mockRecordTurnCapabilityOverrideNoop).not.toHaveBeenCalled();
+  });
+
+  describe('incognito sessions', () => {
+    it('keeps drafts and input history off disk', async () => {
+      chatStoreRef.state = buildChatState({ incognitoMode: true });
+      const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+      const { result } = renderHook(() => useMessageInput());
+
+      await act(async () => {
+        await result.current.handleSubmit();
+      });
+
+      expect(mockUseDraftPersistence).toHaveBeenCalledWith(null, expect.any(String));
+      expect(mockAddInputHistory).not.toHaveBeenCalled();
+      expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('persists drafts and input history in regular sessions', async () => {
+      const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+      const { result } = renderHook(() => useMessageInput());
+
+      await act(async () => {
+        await result.current.handleSubmit();
+      });
+
+      expect(mockUseDraftPersistence).toHaveBeenCalledWith('chat-test', expect.any(String));
+      expect(mockAddInputHistory).toHaveBeenCalledTimes(1);
+    });
   });
 });

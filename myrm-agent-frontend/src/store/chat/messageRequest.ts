@@ -9,7 +9,7 @@
  * validateChatModelConfig: Block send when default model / provider is incomplete.
  * resolveEffectiveAgentId: Resolve the agent identity used for chat memory bindings.
  * createMessageRequest: Assemble the agent chat request payload and stream it.
- * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for missing chat, kanban board guard, processing lock).
+ * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for missing chat, kanban board guard, processing lock); resolves whether the request was dispatched, a busy refusal retracts the optimistic bubble, queued messages send their own attachments.
  * createSmartUpdater: Route state updates to active store or background snapshot.
  * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn.
  *
@@ -29,6 +29,7 @@ import {
   type MentionReference,
   type MentionReferenceType,
   type TurnCapabilityTerminalTelemetry,
+  type QueuedAttachments,
   type ChatState,
 } from '@/store/chat/types';
 import useConfigStore from '../useConfigStore';
@@ -48,6 +49,7 @@ import {
   FatalNetworkError,
   consumeStream,
 } from './streamConsumer';
+import { resolveRequestState, retractUserBubble } from './sendLifecycle';
 import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
 import useToolApprovalStore from '../useToolApprovalStore';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -1044,7 +1046,8 @@ export const sendMessage = async (
   agentConfigOverride?: AgentConfig | null,
   shouldRecordWikiQuerySuccess: boolean = false,
   turnCapabilityTelemetry?: TurnCapabilityTerminalTelemetry,
-): Promise<void> => {
+  queuedAttachments?: QueuedAttachments,
+): Promise<boolean> => {
   const isHitlResume = resumeValue !== undefined;
 
   if (state.loading && !isHitlResume) {
@@ -1054,7 +1057,7 @@ export const sendMessage = async (
       type: 'warning',
       duration: 3000,
     });
-    return;
+    return false;
   }
 
   if (!state.chatId?.trim()) {
@@ -1063,7 +1066,7 @@ export const sendMessage = async (
       type: 'warning',
       duration: 5000,
     });
-    return;
+    return false;
   }
 
   if (state.actionMode === 'agent' && state.currentBuiltinTools.includes('kanban')) {
@@ -1079,13 +1082,12 @@ export const sendMessage = async (
         type: 'warning',
         duration: 5000,
       });
-      return;
+      return false;
     }
   }
 
   const requestMessageId = messageId ?? (isHitlResume ? getCurrentSessionMessageId() : allocateNewSessionMessageId());
-  const requestState: ChatActionsState =
-    agentConfigOverride === undefined ? state : { ...state, agentConfig: agentConfigOverride };
+  const requestState = resolveRequestState(state, agentConfigOverride, queuedAttachments);
 
   // 防重锁：检查该消息是否正在被处理（通过按钮审批或其他文本审批）
   if (!isHitlResume && useToolApprovalStore.getState().isProcessing(requestMessageId)) {
@@ -1094,11 +1096,14 @@ export const sendMessage = async (
       type: 'warning',
       duration: 4000,
     });
-    return;
+    return false;
   }
 
   // 标记为正在处理，防止并发
   useToolApprovalStore.getState().markProcessing(requestMessageId);
+
+  let pushedUserBubble = false;
+  let dispatched = false;
 
   try {
     // 搜索服务检查：
@@ -1110,14 +1115,14 @@ export const sendMessage = async (
       const { guardSearchServiceConfigured } = await import('@/store/config/searchService');
       const { searchServiceConfigs } = useConfigStore.getState();
       if (!guardSearchServiceConfigured(searchServiceConfigs)) {
-        return;
+        return false;
       }
     }
 
     // 验证配置
     const { valid, modelSelection } = validateConfig(requestState.actionMode, requestState.agentConfig);
     if (!valid) {
-      return;
+      return false;
     }
 
     // Auto-reset workflow mode after sending to prevent accidental high-cost subsequent messages
@@ -1150,7 +1155,8 @@ export const sendMessage = async (
 
     const isRegenerate = !!state.regenerateSiblingGroupId;
 
-    const persistFiles = state.files.length > 0 ? state.files.map(({ contentHash: _, ...rest }) => rest) : undefined;
+    const persistFiles =
+      requestState.files.length > 0 ? requestState.files.map(({ contentHash: _, ...rest }) => rest) : undefined;
 
     if (!isRegenerate && !resumeValue) {
       smartActions.setMessages((innerState) => {
@@ -1166,8 +1172,10 @@ export const sendMessage = async (
           files: persistFiles,
         });
       });
+      pushedUserBubble = true;
     }
 
+    dispatched = true;
     await executeStreamWithRetry(
       input,
       requestMessageId,
@@ -1187,7 +1195,11 @@ export const sendMessage = async (
     const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
 
     if (error instanceof AgentBusyError) {
-      // Let the UI handle requeueing
+      // The server refused the turn: retract the optimistic bubble so the caller's requeue
+      // does not leave a duplicate of the same message in the transcript.
+      if (pushedUserBubble) {
+        smartSetMessages(retractUserBubble(requestMessageId));
+      }
       throw error;
     }
     if (isArchiveRestoreActionInvalidError(error)) {
@@ -1240,8 +1252,11 @@ export const sendMessage = async (
       innerState.loading = false;
       innerState.abortController = null;
       innerState.currentSessionMessageId = null;
-      innerState.files = [];
-      innerState.cameraFrames = [];
+      // A queued message sends its own attachments; the live ones belong to the message being composed.
+      if (!queuedAttachments) {
+        innerState.files = [];
+        innerState.cameraFrames = [];
+      }
     });
 
     if (state.chatId) {
@@ -1278,6 +1293,7 @@ export const sendMessage = async (
       );
     }
   }
+  return dispatched;
 };
 
 export type AttachToChatOptions = {

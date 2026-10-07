@@ -9734,7 +9734,11 @@
       "placeholder": "输入消息...",
       "uploadingImage": "上传图片中...",
       "collapseToolbar": "收起工具栏",
-      "expandToolbar": "展开工具栏"
+      "expandToolbar": "展开工具栏",
+      "expandEditor": "展开编辑器（Ctrl/⌘+Shift+Enter）",
+      "collapseEditor": "收起编辑器（Ctrl/⌘+Shift+Enter）",
+      "expandedPlaceholder": "Enter 换行 · Ctrl/⌘+Enter 发送 · Esc 退出",
+      "stop": "停止"
     },
     "queue": {
       "queued": "排队中 ({index}/{total})",
@@ -9747,7 +9751,15 @@
       "edit": "编辑消息",
       "saveEdit": "保存",
       "cancelEdit": "取消",
-      "stuck": "队列消息多次重试后仍无法发送，请手动重试。"
+      "stuck": "智能体仍在忙碌，排队消息暂时无法发送。",
+      "placeholderExpanded": "正在执行... Ctrl/⌘+Enter 引导纠偏 · ⌥+Enter 排队跟进",
+      "pausedStopped": "你已停止回复，队列已暂停。",
+      "resume": "继续发送",
+      "retry": "重试",
+      "attachments": "{count} 个附件",
+      "editHint": "Enter 保存 · Shift+Enter 换行 · Esc 取消",
+      "reorder": "拖动调整顺序",
+      "listLabel": "排队消息"
     },
     "fileMention": {
       "title": "工作区引用",

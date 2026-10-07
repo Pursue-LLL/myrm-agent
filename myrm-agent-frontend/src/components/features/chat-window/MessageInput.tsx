@@ -190,9 +190,13 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
     handleSkipAtSymbol,
     confirmCompact,
     queue,
+    queuePausedReason,
+    queueEditingId,
     editMessage,
     removeMessage,
     reorder,
+    setQueueEditingId,
+    resumeQueue,
   } = useMessageInput();
 
   const showBtwDisambiguation = React.useMemo(
@@ -256,7 +260,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
   const updateCursorPosition = React.useCallback(() => {
     const pos = inputRef.current?.selectionStart || 0;
     setCursorPosition(pos);
-  }, []);
+  }, [inputRef]);
 
   // 监听输入变化，更新光标位置
   React.useEffect(() => {
@@ -376,7 +380,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               return;
             }
 
-            if (e.key === 'Enter' && e.ctrlKey && e.shiftKey) {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
               e.preventDefault();
               setIsExpanded((prev) => !prev);
               return;
@@ -401,7 +405,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               return;
             }
 
-            const dualAction = resolveDualChannelAction(e, { loading });
+            const dualAction = resolveDualChannelAction(e, { loading, expanded: isExpanded });
             if (dualAction === 'queue') {
               void handleQueueSubmit();
               return;
@@ -448,7 +452,16 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
           )}
 
           {/* 消息排队提示 */}
-          <QueuedMessagesList queue={queue} editMessage={editMessage} removeMessage={removeMessage} reorder={reorder} />
+          <QueuedMessagesList
+            queue={queue}
+            pausedReason={queuePausedReason}
+            editingId={queueEditingId}
+            setEditingId={setQueueEditingId}
+            editMessage={editMessage}
+            removeMessage={removeMessage}
+            reorder={reorder}
+            resume={resumeQueue}
+          />
 
           {/* 文件列表显示区域 */}
           {!hideAttachList && files.length > 0 && (
@@ -554,14 +567,14 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                   onPaste={handlePaste}
                   onKeyUp={updateCursorPosition}
                   onClick={updateCursorPosition}
-                  minRows={2}
+                  minRows={isExpanded ? 8 : 2}
                   className={`bg-transparent placeholder:text-muted-foreground/50 text-sm text-black dark:text-white resize-none focus:outline-none w-full ${isExpanded ? 'max-h-[75vh]' : 'max-h-24 sm:max-h-[35vh] lg:max-h-[40vh]'}`}
                   placeholder={
                     inputHistory.ghostText
                       ? inputHistory.ghostText
                       : loading
-                        ? chatT('queue.placeholder')
-                        : chatT('input.placeholder')
+                        ? chatT(isExpanded ? 'queue.placeholderExpanded' : 'queue.placeholder')
+                        : chatT(isExpanded ? 'input.expandedPlaceholder' : 'input.placeholder')
                   }
                 />
                 {/* 操作栏 */}
@@ -613,8 +626,8 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                         type="button"
                         onClick={() => setIsExpanded((prev) => !prev)}
                         className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        aria-label={isExpanded ? 'Collapse editor' : 'Expand editor'}
-                        title="Ctrl+Shift+Enter"
+                        aria-label={chatT(isExpanded ? 'input.collapseEditor' : 'input.expandEditor')}
+                        title={chatT(isExpanded ? 'input.collapseEditor' : 'input.expandEditor')}
                       >
                         {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
                       </button>
@@ -676,7 +689,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                           type="button"
                           onClick={stopMessage}
                           className="bg-slate-500 dark:bg-white text-white dark:text-black hover:bg-black/80 dark:hover:bg-white/80 transition duration-100 rounded-full p-2"
-                          aria-label="Stop"
+                          aria-label={chatT('input.stop')}
                         >
                           <Square size={17} />
                         </button>

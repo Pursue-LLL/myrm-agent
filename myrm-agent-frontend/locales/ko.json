@@ -2269,7 +2269,11 @@
       "placeholder": "메시지 입력...",
       "uploadingImage": "이미지 업로드 중...",
       "collapseToolbar": "도구 모음 접기",
-      "expandToolbar": "도구 모음 펼치기"
+      "expandToolbar": "도구 모음 펼치기",
+      "expandEditor": "편집기 확대 (Ctrl/⌘+Shift+Enter)",
+      "collapseEditor": "편집기 축소 (Ctrl/⌘+Shift+Enter)",
+      "expandedPlaceholder": "Enter로 줄바꿈 · Ctrl/⌘+Enter로 전송 · Esc로 닫기",
+      "stop": "중지"
     },
     "queue": {
       "queued": "대기 중 ({index}/{total})",
@@ -2282,7 +2286,15 @@
       "edit": "메시지 편집",
       "saveEdit": "저장",
       "cancelEdit": "취소",
-      "stuck": "대기열 메시지가 여러 번 재시도 후에도 전송되지 않았습니다. 수동으로 다시 시도해 주세요."
+      "stuck": "에이전트가 아직 작업 중이라 대기열 메시지를 전송하지 못했습니다.",
+      "placeholderExpanded": "실행 중... Ctrl/⌘+Enter로 안내 · ⌥+Enter로 대기열에 추가",
+      "pausedStopped": "응답을 중지하여 대기열이 일시 중지되었습니다.",
+      "resume": "다시 시작",
+      "retry": "다시 시도",
+      "attachments": "첨부 파일 {count}개",
+      "editHint": "Enter로 저장 · Shift+Enter로 줄바꿈 · Esc로 취소",
+      "reorder": "드래그하여 순서 변경",
+      "listLabel": "대기 중인 메시지"
     },
     "fileMention": {
       "title": "워크스페이스 파일",

@@ -2491,7 +2491,11 @@
       "placeholder": "輸入訊息...",
       "uploadingImage": "上傳圖片中...",
       "collapseToolbar": "收起工具欄",
-      "expandToolbar": "展開工具欄"
+      "expandToolbar": "展開工具欄",
+      "expandEditor": "展開編輯器（Ctrl/⌘+Shift+Enter）",
+      "collapseEditor": "收起編輯器（Ctrl/⌘+Shift+Enter）",
+      "expandedPlaceholder": "Enter 換行 · Ctrl/⌘+Enter 傳送 · Esc 退出",
+      "stop": "停止"
     },
     "queue": {
       "queued": "排隊中 ({index}/{total})",
@@ -2503,7 +2507,15 @@
       "edit": "編輯訊息",
       "saveEdit": "儲存",
       "cancelEdit": "取消",
-      "stuck": "佇列訊息多次重試後仍無法傳送，請手動重試。",
+      "stuck": "智慧體仍在忙碌，排隊訊息暫時無法傳送。",
+      "placeholderExpanded": "正在執行... Ctrl/⌘+Enter 引導糾偏 · ⌥+Enter 排隊跟進",
+      "pausedStopped": "你已停止回覆，佇列已暫停。",
+      "resume": "繼續傳送",
+      "retry": "重試",
+      "attachments": "{count} 個附件",
+      "editHint": "Enter 儲存 · Shift+Enter 換行 · Esc 取消",
+      "reorder": "拖曳調整順序",
+      "listLabel": "排隊訊息",
       "added_with_position": "消息已排隊（第 {position} 條）— 當前任務完成後自動發送"
     },
     "fileMention": {

@@ -193,7 +193,7 @@ describe('SessionContextHealthPanel', () => {
   });
 
   it('submits active-session restore ranges as typed actions', async () => {
-    const sendMessage = vi.fn<typeof originalSendMessage>().mockResolvedValue(undefined);
+    const sendMessage = vi.fn<typeof originalSendMessage>().mockResolvedValue(true);
     useChatStore.setState({ chatId: 'session-1', sendMessage });
 
     renderPanel({

@@ -28,6 +28,7 @@ import {
 import { processSuggestions, findAssistantMessageIndex, removeWaitingForTurnStep } from './chat/messageUtils';
 import { disarmYoloForPreset, normalizeSecurityPreset } from './chat/securityPreset';
 import useQuoteStore from './useQuoteStore';
+import { useMessageQueueStore } from './chat/useMessageQueueStore';
 import useWorkspaceStore from './useWorkspaceStore';
 import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent, type ChatItem } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
@@ -671,6 +672,8 @@ const useChatStore = create<ChatState>()(
             useWorkspaceStore.getState().setPaneAbortController(paneId, null);
             void releaseTurnInspectorControls(chatId);
             set((state) => {
+            // Stopping the turn must not let the next queued message fire straight into the stopped chat.
+            useMessageQueueStore.getState().pauseOnStop(chatId);
               state.loading = false;
               state.abortController = null;
               state.messageAppeared = true;
@@ -698,6 +701,7 @@ const useChatStore = create<ChatState>()(
         void releaseTurnInspectorControls(chatId);
         set((state) => {
           state.loading = false;
+        useMessageQueueStore.getState().pauseOnStop(chatId);
           state.abortController = null;
           state.messageAppeared = true;
           if (chatSessionMessageId) {
@@ -976,7 +980,8 @@ const useChatStore = create<ChatState>()(
         const state = get();
         const streamChatId = state.chatId;
         set({ isConfigPanelExpanded: false, environmentAlerts: new Set<string>() });
-        await sendMessage(
+        queuedAttachments,
+        return sendMessage(
           input,
           messageId,
           state,
@@ -1016,6 +1021,7 @@ const useChatStore = create<ChatState>()(
       },
 
       recoverHitlStream: async (chatId: string) => {
+          queuedAttachments,
         const normalized = chatId.trim();
         if (!normalized) {
           return { ok: false as const, err: 'empty-chat-id' };

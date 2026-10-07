@@ -1,15 +1,17 @@
 /**
  * [INPUT]
- * - @/hooks/message-input/useMessageQueue::QueuedMessage (POS: 消息排队状态机)
+ * - @/store/chat/useMessageQueueStore::{QueuedMessage, QueuePauseReason} (POS: 排队消息内存状态源)
+ * - ./QueuedMessageItem::QueuedMessageItem (POS: 单条排队消息行)
  *
  * [OUTPUT]
- * - QueuedMessagesList: 可拖拽排序的排队消息列表组件。
+ * - QueuedMessagesList: 可拖拽排序的排队消息列表，附带暂停/卡住状态条。
  *
  * [POS]
  * 消息队列可视化与拖拽排序。复用 @dnd-kit 模式与 GoalQueueSection 保持一致。
+ * 编辑锁（editingId）属于队列状态而非本组件：列表卸载或切换会话时必须释放，否则队首消息会被永久锁住。
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   DndContext,
@@ -21,172 +23,52 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { Clock, Pencil, X, Check, GripVertical } from 'lucide-react';
-import type { QueuedMessage } from '@/hooks/message-input/useMessageQueue';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { ArrowClockwise } from '@phosphor-icons/react';
+import type { QueuedMessage, QueuePauseReason } from '@/store/chat/useMessageQueueStore';
+import { QueuedMessageItem } from './QueuedMessageItem';
 
 interface QueuedMessagesListProps {
   queue: QueuedMessage[];
+  pausedReason: QueuePauseReason | null;
+  editingId: string | null;
+  setEditingId: (id: string | null) => void;
   editMessage: (id: string, text: string) => void;
   removeMessage: (id: string) => void;
   reorder: (oldIndex: number, newIndex: number) => void;
+  resume: () => void;
 }
 
-function SortableQueueItem({
-  msg,
-  index,
-  total,
-  isEditing,
-  editText,
-  onEditTextChange,
-  onStartEdit,
-  onConfirmEdit,
-  onCancelEdit,
-  onRemove,
-}: {
-  msg: QueuedMessage;
-  index: number;
-  total: number;
-  isEditing: boolean;
-  editText: string;
-  onEditTextChange: (text: string) => void;
-  onStartEdit: () => void;
-  onConfirmEdit: () => void;
-  onCancelEdit: () => void;
-  onRemove: () => void;
-}) {
+function QueueStatusBanner({ reason, onResume }: { reason: QueuePauseReason; onResume: () => void }) {
   const t = useTranslations('chat');
-  const tTurn = useTranslations('chat.turnCapabilities');
-  const editInputRef = useRef<HTMLInputElement>(null);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: msg.id });
-
-  const overrideSummary = useMemo(() => {
-    if (!msg.turnCapabilitySelection) {
-      return null;
-    }
-    const parts: string[] = [];
-    if (msg.turnCapabilitySelection.skillIds !== null) {
-      parts.push(tTurn('overrideSkillsShort', { skills: msg.turnCapabilitySelection.skillIds.length }));
-    }
-    if (msg.turnCapabilitySelection.mcpNames !== null) {
-      parts.push(tTurn('overrideMcpShort', { mcps: msg.turnCapabilitySelection.mcpNames.length }));
-    }
-    return parts.join(' · ');
-  }, [msg.turnCapabilitySelection, tTurn]);
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 10 : undefined,
-  };
-
-  const handleStartEdit = useCallback(() => {
-    onStartEdit();
-    requestAnimationFrame(() => editInputRef.current?.focus());
-  }, [onStartEdit]);
+  const isStuck = reason === 'stuck';
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="group/queue flex items-center justify-between bg-primary/8 border border-accent-warm/25 rounded-lg px-3 py-2 text-sm shadow-brand touch-none"
-    >
-      {isEditing ? (
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Clock size={14} className="text-accent-warm flex-shrink-0" />
-          <input
-            ref={editInputRef}
-            type="text"
-            value={editText}
-            onChange={(e) => onEditTextChange(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                onConfirmEdit();
-              } else if (e.key === 'Escape') {
-                e.preventDefault();
-                onCancelEdit();
-              }
-            }}
-            className="flex-1 min-w-0 bg-transparent text-sm text-foreground outline-none border-b border-accent-warm/50 focus:border-accent-warm"
-          />
-          <button
-            type="button"
-            onClick={onConfirmEdit}
-            className="text-accent-warm hover:text-accent-warm/80 transition-colors p-1"
-            title={t('queue.saveEdit')}
-          >
-            <Check size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={onCancelEdit}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1"
-            title={t('queue.cancelEdit')}
-          >
-            <X size={14} />
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
-            <div
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing shrink-0 text-muted-foreground/50 group-hover/queue:text-muted-foreground transition-colors"
-            >
-              <GripVertical size={14} />
-            </div>
-            <Clock size={14} className="text-accent-warm flex-shrink-0 animate-pulse" />
-            <span className="text-accent-warm font-medium flex-shrink-0">
-              {t('queue.queued', { index: String(index + 1), total: String(total) })}
-            </span>
-            {overrideSummary && (
-              <span
-                className="inline-flex items-center rounded border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary shrink-0"
-                title={overrideSummary}
-              >
-                {overrideSummary}
-              </span>
-            )}
-            <span className="text-muted-foreground truncate">{msg.text}</span>
-          </div>
-          <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover/queue:opacity-100 transition-opacity">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                handleStartEdit();
-              }}
-              className="text-muted-foreground hover:text-foreground transition-colors p-1"
-              title={t('queue.edit')}
-            >
-              <Pencil size={14} />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                onRemove();
-              }}
-              className="text-muted-foreground hover:text-destructive transition-colors p-1"
-              title={t('queue.cancel')}
-            >
-              <X size={14} />
-            </button>
-          </div>
-        </>
-      )}
-    </div>
+    <output className="flex items-center justify-between gap-3 rounded-lg border border-accent-warm/30 bg-accent-warm/10 px-3 py-2 text-xs text-foreground">
+      <span className="min-w-0">{isStuck ? t('queue.stuck') : t('queue.pausedStopped')}</span>
+      <button
+        type="button"
+        onClick={onResume}
+        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-accent-warm/40 px-2 py-1 font-medium text-accent-warm transition-colors hover:bg-accent-warm/15 pointer-coarse:min-h-9 pointer-coarse:px-3"
+      >
+        <ArrowClockwise size={12} weight="bold" aria-hidden />
+        {isStuck ? t('queue.retry') : t('queue.resume')}
+      </button>
+    </output>
   );
 }
 
-export function QueuedMessagesList({ queue, editMessage, removeMessage, reorder }: QueuedMessagesListProps) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState('');
+export function QueuedMessagesList({
+  queue,
+  pausedReason,
+  editingId,
+  setEditingId,
+  editMessage,
+  removeMessage,
+  reorder,
+  resume,
+}: QueuedMessagesListProps) {
+  const t = useTranslations('chat');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -194,7 +76,9 @@ export function QueuedMessagesList({ queue, editMessage, removeMessage, reorder 
     useSensor(KeyboardSensor),
   );
 
-  const sortableIds = useMemo(() => queue.map((m) => m.id), [queue]);
+  const sortableIds = useMemo(() => queue.map((message) => message.id), [queue]);
+
+  useEffect(() => () => setEditingId(null), [setEditingId]);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -203,8 +87,8 @@ export function QueuedMessagesList({ queue, editMessage, removeMessage, reorder 
         return;
       }
 
-      const oldIndex = queue.findIndex((m) => m.id === active.id);
-      const newIndex = queue.findIndex((m) => m.id === over.id);
+      const oldIndex = queue.findIndex((message) => message.id === active.id);
+      const newIndex = queue.findIndex((message) => message.id === over.id);
       if (oldIndex === -1 || newIndex === -1) {
         return;
       }
@@ -214,45 +98,41 @@ export function QueuedMessagesList({ queue, editMessage, removeMessage, reorder 
     [queue, reorder],
   );
 
-  const confirmEdit = useCallback(() => {
-    if (editingId && editingText.trim()) {
-      editMessage(editingId, editingText.trim());
-    }
-    setEditingId(null);
-    setEditingText('');
-  }, [editingId, editingText, editMessage]);
+  const handleSaveEdit = useCallback(
+    (id: string, text: string) => {
+      editMessage(id, text);
+      setEditingId(null);
+    },
+    [editMessage, setEditingId],
+  );
 
-  const cancelEdit = useCallback(() => {
-    setEditingId(null);
-    setEditingText('');
-  }, []);
+  const handleCancelEdit = useCallback(() => setEditingId(null), [setEditingId]);
 
   if (queue.length === 0) {
     return null;
   }
 
   return (
-    <div className="flex flex-col gap-2 mb-2 w-full">
+    <div className="mb-2 flex w-full flex-col gap-2">
+      {pausedReason && <QueueStatusBanner reason={pausedReason} onResume={resume} />}
+      {/* DndContext renders its screen-reader helpers as siblings, so it must wrap the <ul> rather than sit inside it. */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          {queue.map((msg, index) => (
-            <SortableQueueItem
-              key={msg.id}
-              msg={msg}
-              index={index}
-              total={queue.length}
-              isEditing={editingId === msg.id}
-              editText={editingText}
-              onEditTextChange={setEditingText}
-              onStartEdit={() => {
-                setEditingId(msg.id);
-                setEditingText(msg.text);
-              }}
-              onConfirmEdit={confirmEdit}
-              onCancelEdit={cancelEdit}
-              onRemove={() => removeMessage(msg.id)}
-            />
-          ))}
+          <ul aria-label={t('queue.listLabel')} className="flex flex-col gap-2">
+            {queue.map((message, index) => (
+              <QueuedMessageItem
+                key={message.id}
+                message={message}
+                index={index}
+                total={queue.length}
+                isEditing={editingId === message.id}
+                onStartEdit={setEditingId}
+                onSaveEdit={handleSaveEdit}
+                onCancelEdit={handleCancelEdit}
+                onRemove={removeMessage}
+              />
+            ))}
+          </ul>
         </SortableContext>
       </DndContext>
     </div>

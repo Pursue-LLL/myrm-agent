@@ -1,154 +1,90 @@
 /**
  * [INPUT]
- * - @/store/chat/types::ArchiveRestoreAction (POS: Chat domain state and request contracts)
+ * - @/store/chat/useMessageQueueStore::useMessageQueueStore (POS: 排队消息内存状态源)
+ * - @/store/chat/messageQueueStorage::{readStoredQueue, writeStoredQueue} (POS: 排队消息 localStorage 持久化层)
+ * - @/store/useChatStore::useChatStore (POS: 聊天状态总线，读取无痕模式)
+ * - @/store/chat/types::{ArchiveRestoreAction, File} (POS: Chat domain state and request contracts)
  *
  * [OUTPUT]
- * - useMessageQueue: persistent per-chat queued message state with optional typed restore actions.
+ * - useMessageQueue: one chat's queued messages with mutations bound to the chat, persisted unless incognito.
  *
  * [POS]
- * 消息排队状态机。保存等待发送的文本、附件和结构化恢复动作，确保忙碌重试不丢控制协议。
+ * 排队消息的 React 视图层。所有消费者（输入框、工件选区动作）共享同一份队列，因此任何一处入队都对输入框可见；
+ * 无痕会话只保留在内存中，不写入 localStorage。
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { ArchiveRestoreAction, File as ChatFile } from '@/store/chat/types';
+import { readStoredQueue, writeStoredQueue } from '@/store/chat/messageQueueStorage';
+import { EMPTY_CHAT_QUEUE, useMessageQueueStore } from '@/store/chat/useMessageQueueStore';
+import useChatStore from '@/store/useChatStore';
 import type { TurnCapabilitySelection } from './turnCapabilityOverrideCore';
 
-const QUEUE_STORAGE_KEY_PREFIX = 'myrm_message_queue_';
-
-export interface QueuedMessage {
-  id: string;
-  text: string;
-  files: ChatFile[];
-  archiveRestoreActions?: ArchiveRestoreAction[];
-  turnCapabilitySelection?: TurnCapabilitySelection | null;
-  timestamp: number;
-}
-
 export const useMessageQueue = (chatId: string | null | undefined) => {
-  const [queue, setQueue] = useState<QueuedMessage[]>([]);
+  const incognito = useChatStore((state) => state.incognitoMode);
+  const queue = useMessageQueueStore((state) => (chatId ? state.queues[chatId] : undefined)) ?? EMPTY_CHAT_QUEUE;
+  const { items, pausedReason, hydrated } = queue;
 
-  // Load queue from localStorage on mount or chatId change
   useEffect(() => {
-    if (!chatId || typeof window === 'undefined') {
-      setQueue([]);
-      return;
+    if (chatId && !incognito) {
+      useMessageQueueStore.getState().hydrate(chatId, readStoredQueue(chatId));
     }
+  }, [chatId, incognito]);
 
-    const storageKey = `${QUEUE_STORAGE_KEY_PREFIX}${chatId}`;
-    try {
-      const storedQueue = localStorage.getItem(storageKey);
-      if (storedQueue) {
-        // Note: File objects cannot be fully serialized to localStorage.
-        // For a robust implementation, we'd need IndexedDB or to only store text/metadata.
-        // Current strategy restores serializable fields and may drop non-serializable File blobs after reload.
-        const parsed = JSON.parse(storedQueue);
-        if (Array.isArray(parsed)) {
-          setQueue(parsed);
-        }
-      } else {
-        setQueue([]);
-      }
-    } catch (e) {
-      console.error('Failed to load message queue from localStorage', e);
-      setQueue([]);
+  useEffect(() => {
+    if (chatId && !incognito && hydrated) {
+      writeStoredQueue(chatId, { items, pausedReason });
     }
+  }, [chatId, incognito, hydrated, items, pausedReason]);
+
+  const actions = useMemo(() => {
+    const store = () => useMessageQueueStore.getState();
+    return {
+      /** Queues a message and returns its 1-based position in the queue (0 when there is no active chat). */
+      enqueue: (
+        text: string,
+        files: ChatFile[],
+        archiveRestoreActions?: ArchiveRestoreAction[],
+        turnCapabilitySelection?: TurnCapabilitySelection | null,
+      ): number => {
+        if (!chatId) {
+          return 0;
+        }
+        store().enqueue(chatId, { text, files, archiveRestoreActions, turnCapabilitySelection });
+        return store().queues[chatId]?.items.length ?? 0;
+      },
+      editMessage: (id: string, text: string): void => {
+        if (chatId) {
+          store().editMessage(chatId, id, text);
+        }
+      },
+      removeMessage: (id: string): void => {
+        if (chatId) {
+          store().removeMessage(chatId, id);
+        }
+      },
+      clearQueue: (): void => {
+        if (chatId) {
+          store().clearQueue(chatId);
+        }
+      },
+      reorder: (oldIndex: number, newIndex: number): void => {
+        if (chatId) {
+          store().reorder(chatId, oldIndex, newIndex);
+        }
+      },
+      setEditingId: (id: string | null): void => {
+        if (chatId) {
+          store().setEditingId(chatId, id);
+        }
+      },
+      resume: (): void => {
+        if (chatId) {
+          store().resume(chatId);
+        }
+      },
+    };
   }, [chatId]);
 
-  // Save queue to localStorage whenever it changes
-  useEffect(() => {
-    if (!chatId || typeof window === 'undefined') {
-      return;
-    }
-
-    const storageKey = `${QUEUE_STORAGE_KEY_PREFIX}${chatId}`;
-    try {
-      if (queue.length > 0) {
-        const serializableQueue = queue.map((msg) => ({
-          ...msg,
-          files: msg.files,
-        }));
-        localStorage.setItem(storageKey, JSON.stringify(serializableQueue));
-      } else {
-        localStorage.removeItem(storageKey);
-      }
-    } catch (e) {
-      console.error('Failed to save message queue to localStorage', e);
-    }
-  }, [queue, chatId]);
-
-  const enqueue = useCallback(
-    (
-      text: string,
-      files: ChatFile[],
-      archiveRestoreActions?: ArchiveRestoreAction[],
-      turnCapabilitySelection?: TurnCapabilitySelection | null,
-    ) => {
-      const newMessage: QueuedMessage = {
-        id: Math.random().toString(36).substring(2, 9),
-        text,
-        files,
-        archiveRestoreActions,
-        turnCapabilitySelection,
-        timestamp: Date.now(),
-      };
-      setQueue((prev) => [...prev, newMessage]);
-      return newMessage;
-    },
-    [],
-  );
-
-  const dequeue = useCallback(() => {
-    if (queue.length === 0) {
-      return null;
-    }
-    const message = queue[0];
-    setQueue((prev) => prev.slice(1));
-    return message;
-  }, [queue]);
-
-  const removeMessage = useCallback((id: string) => {
-    setQueue((prev) => prev.filter((msg) => msg.id !== id));
-  }, []);
-
-  const editMessage = useCallback((id: string, newText: string) => {
-    setQueue((prev) => prev.map((msg) => (msg.id === id ? { ...msg, text: newText } : msg)));
-  }, []);
-
-  const clearQueue = useCallback(() => {
-    setQueue([]);
-  }, []);
-
-  // For 409 Conflict: put the message back at the front of the queue
-  const requeue = useCallback((message: QueuedMessage) => {
-    setQueue((prev) => {
-      if (prev.some((m) => m.id === message.id)) {
-        return prev;
-      }
-      return [message, ...prev];
-    });
-  }, []);
-
-  const reorder = useCallback((oldIndex: number, newIndex: number) => {
-    setQueue((prev) => {
-      if (oldIndex === newIndex || oldIndex < 0 || newIndex < 0 || oldIndex >= prev.length || newIndex >= prev.length) {
-        return prev;
-      }
-      const next = [...prev];
-      const [moved] = next.splice(oldIndex, 1);
-      next.splice(newIndex, 0, moved);
-      return next;
-    });
-  }, []);
-
-  return {
-    queue,
-    enqueue,
-    dequeue,
-    editMessage,
-    removeMessage,
-    clearQueue,
-    requeue,
-    reorder,
-    hasQueuedMessages: queue.length > 0,
-  };
+  return { queue: items, pausedReason, editingId: queue.editingId, ...actions };
 };

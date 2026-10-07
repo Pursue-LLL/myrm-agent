@@ -4,7 +4,7 @@
  * ./sessionConfig::AgentConfig (POS: 会话级 Agent 与模式配置类型)
  *
  * [OUTPUT]
- * ChatState 接口（Zustand 形状 + actions）。
+ * ChatState 接口（Zustand 形状 + actions）；QueuedAttachments（排队消息随单轮请求携带的附件）。
  *
  * [POS]
  * useChatStore 状态与操作方法契约。
@@ -31,6 +31,14 @@ export interface TurnCapabilityTerminalTelemetry {
   source: 'direct' | 'queue_drain';
   effectiveSkillCount: number;
   effectiveMcpCount: number;
+}
+
+/**
+ * Attachments a queued message carries into its own turn. They replace the live composer
+ * attachments for that single request, so files staged for the next message are left untouched.
+ */
+export interface QueuedAttachments {
+  files: File[];
 }
 
 export interface PendingExplicitSkillActivation {
@@ -282,6 +290,11 @@ export interface ChatState {
   getChatHistory: (endIndex: number) => Message[];
 
   // 聊天功能
+  /**
+   * Resolves `true` once the request was dispatched (including turns that later fail visibly or are aborted)
+   * and `false` when it was rejected locally before anything was shown or sent (guards, validation).
+   * Rejects with `AgentBusyError` when the server is still running another turn.
+   */
   sendMessage: (
     input: string,
     messageId?: string,
@@ -291,7 +304,8 @@ export interface ChatState {
     agentConfigOverride?: AgentConfig | null,
     shouldRecordWikiQuerySuccess?: boolean,
     turnCapabilityTelemetry?: TurnCapabilityTerminalTelemetry,
-  ) => Promise<void>;
+    queuedAttachments?: QueuedAttachments,
+  ) => Promise<boolean>;
   recoverHitlStream: (
     chatId: string,
   ) => Promise<{ ok: true; attached: boolean; queueLen: number; source: string } | { ok: false; err: string }>;
