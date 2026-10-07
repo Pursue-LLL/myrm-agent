@@ -18,6 +18,7 @@ from app.api.memory import (
     tool_backup,
     world_model,
     zero_hallucination,
+    context_ingestion,
 )
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
@@ -204,3 +205,4 @@ router.include_router(sqlite_vec.router, tags=["memory-sqlite-vec"])
 router.include_router(decisions.router, tags=["memory-engineering-decisions"])
 router.include_router(repair.router, tags=["memory-repair"])
 router.include_router(tool_backup.router, tags=["memory-tool-backup"])
+router.include_router(context_ingestion.router, tags=["memory-context-ingestion"])
