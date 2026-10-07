@@ -304,6 +304,7 @@ myrm_agent_harness.core.security.dual_track_sandbox_guard.guard_interceptor
 myrm_agent_harness.core.security.dual_track_sandbox_guard.policy_compiler
 myrm_agent_harness.core.security.dual_track_sandbox_guard.types
 myrm_agent_harness.core.security.dual_use_containment
+myrm_agent_harness.core.security.dynamic_toolchain_provenance
 myrm_agent_harness.core.security.egress_dlp
 myrm_agent_harness.core.security.event_capability_attenuation
 myrm_agent_harness.core.security.executable_probe
