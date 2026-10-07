@@ -1,18 +1,17 @@
-"""帷幕状态桥行为单测 — server 侧读写协议与截图排除注入链路。
+"""帷幕状态桥行为单测 — server 侧读写协议。
 
 [INPUT]
-- app.services.locked_use.curtain_bridge（POS: 状态桥读写+排除注入）
+- app.services.locked_use.curtain_bridge（POS: 状态桥读写）
 - app.services.locked_use.unattended._cu_session_active（POS: CU 会话活跃判定）
 
 [OUTPUT]
-- 环境开关解析、状态读取降级、pending 写入边界与原子替换、排除 title 穿透 CuaDriver
-  `_fallback` 链注入、状态载荷映射、CU 会话活跃判定
+- 环境开关解析、状态读取降级、pending 写入边界与原子替换、状态载荷映射、CU 会话活跃判定
 - 壳存活判定（缺失/非法 PID fail-closed、僵尸/退出/无权限/PID 被晚于本进程的进程复用按失联）与其折入有效帷幕态
   （壳失联时 active=False 而租约位原样保留，载荷如实）
 
 [POS]
 与 test_keychain_and_curtain_contract.py（跨语言契约钉死）互补：本文件覆盖
-状态桥的行为分支与注入链路，契约文件覆盖 Rust/Python 双实现漂移。
+状态桥的行为分支，契约文件覆盖 Rust/Python 双实现漂移。
 """
 
 from __future__ import annotations
@@ -29,9 +28,7 @@ import pytest
 
 from app.services.locked_use import unattended
 from app.services.locked_use.curtain_bridge import (
-    EXCLUDED_CAPTURE_TITLES,
     SHELL_PID_ENV,
-    apply_excluded_capture_titles,
     clear_pending_auto_unlock,
     curtain_status_payload,
     locked_use_enabled_from_env,
@@ -53,22 +50,6 @@ def _write_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, payload: str) 
     state_file.write_text(payload, encoding="utf-8")
     monkeypatch.setenv("MYRM_CURTAIN_STATE_FILE", str(state_file))
     return state_file
-
-
-class _FakeBackend:
-    """模拟 platform backend：可选排除 title setter + 任意深度 fallback 链。"""
-
-    def __init__(self, *, has_setter: bool = True, fallback: object | None = None) -> None:
-        self._fallback = fallback
-        self.setter: MagicMock = MagicMock()
-        if has_setter:
-            self.set_excluded_capture_window_titles = self.setter
-
-
-def _session(backend: object | None) -> object:
-    session = MagicMock()
-    session._backend = backend
-    return session
 
 
 def test_locked_use_enabled_env_truthy_values(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -175,33 +156,6 @@ def test_reader_never_sees_a_torn_state_file_while_the_lease_bit_flips(tmp_path:
         stop.set()
         thread.join()
     assert torn == []
-
-
-def test_apply_titles_injects_into_direct_backend() -> None:
-    """原生 backend 直接暴露 setter：一次注入命中，返回 True。"""
-    backend = _FakeBackend()
-    assert apply_excluded_capture_titles(_session(backend)) is True
-    backend.setter.assert_called_once_with(list(EXCLUDED_CAPTURE_TITLES))
-
-
-def test_apply_titles_pierces_cua_driver_fallback_chain() -> None:
-    """CuaDriver 无 setter 时穿透 `_fallback` 委托到原生 backend（注入真实生效）。"""
-    native = _FakeBackend()
-    driver = _FakeBackend(has_setter=False, fallback=native)
-    assert apply_excluded_capture_titles(_session(driver)) is True
-    native.setter.assert_called_once_with(list(EXCLUDED_CAPTURE_TITLES))
-
-
-def test_apply_titles_without_capability_returns_false() -> None:
-    """链上无 setter（Windows/Linux）：返回 False 静默降级，不抛异常。"""
-    deepest = _FakeBackend(has_setter=False)
-    middle = _FakeBackend(has_setter=False, fallback=deepest)
-    assert apply_excluded_capture_titles(_session(middle)) is False
-
-
-def test_apply_titles_without_backend_returns_false() -> None:
-    """会话无 backend 属性：返回 False（能力检测失败不应致命）。"""
-    assert apply_excluded_capture_titles(_session(None)) is False
 
 
 def test_curtain_status_payload_unavailable_without_bridge(

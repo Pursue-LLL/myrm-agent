@@ -85,7 +85,7 @@ def attach_desktop_session(session: ComputerSession) -> bool:
     """
     session.set_screen_unlock_callback(unlock_screen_on_demand)
     excluded = exclude_capture_windows(session, EXCLUDED_CAPTURE_TITLES)
-    if not excluded and platform.system() != "":
+    if not excluded and platform.system() == "Darwin":
         logger.warning("Capture exclusion is unavailable on macOS: the privacy curtain will show in agent screenshots")
     return excluded
 

@@ -6,8 +6,7 @@
 
 [OUTPUT]
 - read_curtain_state / mark_pending_auto_unlock / clear_pending_auto_unlock
-- apply_excluded_capture_titles
-- CurtainBridgeState / EXCLUDED_CAPTURE_TITLES（POS: CU 截图排除通道的窗口 title 契约）
+- CurtainBridgeState / EXCLUDED_CAPTURE_TITLES（POS: CU 截图排除通道的窗口 title 契约，注入由 unattended.attach_desktop_session 调 harness 完成）
 - shell_alive / SHELL_PID_ENV（POS: 壳存活判定与跨进程契约名）
 
 [POS]
@@ -171,23 +170,6 @@ def mark_pending_auto_unlock() -> bool:
 def clear_pending_auto_unlock() -> bool:
     """Release the unlock lease after the screen is verifiably locked again."""
     return _write_pending_flag(False)
-
-
-def apply_excluded_capture_titles(session: object) -> bool:
-    """向 CU 会话 backend 注入排除窗口 title（穿透 CuaDriver 包装链）。
-
-    幂等恒注入：帷幕未拉起时 harness 找不到匹配窗，自动走原截图路径，
-    因此无需按帷幕态做条件开关。返回 False = 平台 backend 无此能力（静默降级）。
-    """
-    titles = list(EXCLUDED_CAPTURE_TITLES)
-    backend = getattr(session, "_backend", None)
-    while backend is not None:
-        setter = getattr(backend, "set_excluded_capture_window_titles", None)
-        if callable(setter):
-            setter(titles)
-            return True
-        backend = getattr(backend, "_fallback", None)
-    return False
 
 
 def curtain_status_payload() -> dict[str, object]:
