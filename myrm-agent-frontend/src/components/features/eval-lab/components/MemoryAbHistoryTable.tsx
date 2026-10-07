@@ -50,7 +50,9 @@ export default function MemoryAbHistoryTable({ items, selectedTimestamp, onSelec
               <th className="px-4 py-2 font-medium">{t('historyJudge')}</th>
               <th className="px-4 py-2 font-medium">{t('armNoMemory')}</th>
               <th className="px-4 py-2 font-medium">{t('armWithMemory')}</th>
-              <th className="px-4 py-2 font-medium" />
+              <th className="px-4 py-2 font-medium">
+                <span className="sr-only">{t('historyActions')}</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y">

@@ -260,7 +260,7 @@ export const TaskSpaceDock: React.FC<TaskSpaceDockProps> = ({ className, autoRef
               {activeSnapshot.screenshot_jpeg_b64 ? (
                 <img
                   src={`data:image/jpeg;base64,${activeSnapshot.screenshot_jpeg_b64}`}
-                  alt="TaskSpace Snapshot"
+                  alt={t('snapshotAlt')}
                   className="w-full rounded-lg border border-border/60 max-h-48 object-cover object-top"
                 />
               ) : (

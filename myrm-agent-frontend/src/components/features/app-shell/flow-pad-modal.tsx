@@ -802,7 +802,7 @@ export function FlowPadModal() {
         </DialogContent>
       </Dialog>
 
-      {lightboxSrc && <ImageLightbox src={lightboxSrc} alt="Appshot" onClose={() => setLightboxSrc(null)} />}
+      {lightboxSrc && <ImageLightbox src={lightboxSrc} alt={t('appshotAlt')} onClose={() => setLightboxSrc(null)} />}
     </>
   );
 }

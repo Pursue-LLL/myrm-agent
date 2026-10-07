@@ -159,7 +159,7 @@ export function WhatsAppCard({ waStatus, loading, onRefresh, t }: WhatsAppCardPr
           <p className="text-sm text-muted-foreground">{t('whatsappScanQR')}</p>
           <div className="inline-block bg-white p-4 rounded-lg">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={displayQrCode} alt="WhatsApp QR Code" className="w-48 h-48" />
+            <img src={displayQrCode} alt={t('whatsappScanQR')} className="w-48 h-48" />
           </div>
         </div>
       )}

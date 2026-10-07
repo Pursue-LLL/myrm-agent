@@ -285,7 +285,7 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
                   <div className="relative rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900/40 p-1 group">
                     <img
                       src={imageUrl}
-                      alt="Sandbox Plot Artifact"
+                      alt={t('plotAlt')}
                       className="max-w-full h-auto rounded object-contain max-h-[350px] transition-transform duration-200 hover:scale-[1.02]"
                     />
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-950/80 text-[10px] text-zinc-400 px-2 py-0.5 rounded border border-zinc-800">

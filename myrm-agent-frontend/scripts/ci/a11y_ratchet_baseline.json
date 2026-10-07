@@ -1,7 +1,6 @@
 {
   "rules": {
     "click-events-have-key-events": 1,
-    "control-has-associated-label": 3,
     "no-static-element-interactions": 3,
     "prefer-tag-over-role": 80
   },

@@ -10963,7 +10963,8 @@
       "sizeBadge": "{lines} lines · {size}",
       "storageTruncated": "Storage capped; file may be incomplete",
       "loadingPage": "Loading page...",
-      "searchPagePlaceholder": "Search current page..."
+      "searchPagePlaceholder": "Search current page...",
+      "plotAlt": "Plot generated in the sandbox"
     },
     "task": "Task Steps",
     "viewStepDetail": "View Step Details",
@@ -13363,7 +13364,8 @@
       "rollbackFailed": "Rollback failed",
       "noJob": "No rollbackable job",
       "workspaceMissing": "Workspace path unavailable",
-      "invalidPlan": "Invalid organize plan JSON"
+      "invalidPlan": "Invalid organize plan JSON",
+      "colActions": "Actions"
     },
     "sideBySide": "Side by Side",
     "overlay": "Overlay",
@@ -14496,7 +14498,13 @@
     "triggerStreamDesc": "Real-time monitoring via outbound WebSocket or SSE connection. Works behind NAT.",
     "triggerStreamJsonPath": "JSONPath e.g. $.data.price",
     "triggerStreamLabel": "Stream (WS/SSE)",
-    "triggerStreamRegex": "Regex filter (optional)"
+    "triggerStreamRegex": "Regex filter (optional)",
+    "preflightProbe": "Pre-flight Probe (Python)",
+    "preflightDisabled": "Pre-flight probe disabled",
+    "preflightUpdated": "Pre-flight probe updated",
+    "preflightTemplateInserted": "Template inserted",
+    "preflightInsertTemplate": "Insert Template",
+    "preflightDesc": "Run a sandboxed Python script before the job runs. Print <skip></skip> or <action></action> to abort the run and save tokens. Any other output is injected as context."
   },
   "heartbeat": {
     "title": "Agent Auto-Check",
@@ -16397,7 +16405,8 @@
       "pathLabel": "Script File"
     },
     "clarificationRequired": "Error Clarification Required",
-    "fixParameters": "Fix Parameters (JSON)"
+    "fixParameters": "Fix Parameters (JSON)",
+    "visualContextAlt": "Screenshot of the action awaiting approval"
   },
   "notifications": {
     "title": "System Notifications",
@@ -18127,7 +18136,8 @@
       "historyLayeredBadge": "Layered",
       "historyAbortedBadge": "Aborted",
       "historyCurrent": "Viewing",
-      "historyView": "View"
+      "historyView": "View",
+      "historyActions": "Actions"
     },
     "wbBench": {
       "title": "Benchmark Datasets",
@@ -18186,7 +18196,8 @@
       "historyView": "View",
       "sampled": "sampled",
       "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)",
-      "abortedBadge": "aborted"
+      "abortedBadge": "aborted",
+      "historyActions": "Actions"
     },
     "skillAb": {
       "title": "Skill A/B Evaluation Protocol",
@@ -18809,7 +18820,8 @@
     "inlineRouteTemplateRetry": "Failed to load templates, click to retry",
     "inlineRouteTemplateNoResults": "No matching expert templates",
     "inlineRouteTemplateEmpty": "No expert templates available",
-    "inlineRouteTemplateApplyFailed": "Failed to summon expert template"
+    "inlineRouteTemplateApplyFailed": "Failed to summon expert template",
+    "appshotAlt": "Captured app screenshot"
   },
   "billing": {
     "wuBalance": "Work Units",
@@ -20061,7 +20073,8 @@
     "activePages": "{count} active tabs",
     "emptyState": "No active parallel browser spaces",
     "snapshotPreview": "Live Space Snapshot",
-    "takeoverHint": "You have full control of this workspace. Click release when done."
+    "takeoverHint": "You have full control of this workspace. Click release when done.",
+    "snapshotAlt": "Task space snapshot"
   },
   "modelPlaybook": {
     "title": "Model Orchestration Playbook",

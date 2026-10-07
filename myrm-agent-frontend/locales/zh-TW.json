@@ -3791,7 +3791,8 @@
       "sizeBadge": "{lines} 行 · {size}",
       "storageTruncated": "儲存已截斷，檔案可能不完整",
       "loadingPage": "正在載入分頁...",
-      "searchPagePlaceholder": "搜尋目前頁..."
+      "searchPagePlaceholder": "搜尋目前頁...",
+      "plotAlt": "沙箱產生的圖表"
     },
     "task": "任務步驟",
     "diagnosticHint": "診斷建議",
@@ -6244,7 +6245,8 @@
       "rollbackFailed": "回滾失敗",
       "noJob": "沒有可回滾的任務",
       "workspaceMissing": "工作區路徑不可用",
-      "invalidPlan": "無效的 organize-plan.json"
+      "invalidPlan": "無效的 organize-plan.json",
+      "colActions": "操作"
     },
     "sideBySide": "並排顯示",
     "overlay": "浮層顯示",
@@ -7324,7 +7326,13 @@
     "triggerStreamDesc": "透過對外 WebSocket 或 SSE 連線即時監控。支援 NAT 穿透。",
     "triggerStreamJsonPath": "JSONPath，例如 $.data.price",
     "triggerStreamLabel": "串流（WS/SSE）",
-    "triggerStreamRegex": "正則過濾（選用）"
+    "triggerStreamRegex": "正則過濾（選用）",
+    "preflightProbe": "預檢探針（Python）",
+    "preflightDisabled": "預檢探針已停用",
+    "preflightUpdated": "預檢探針已更新",
+    "preflightTemplateInserted": "已插入範本",
+    "preflightInsertTemplate": "插入範本",
+    "preflightDesc": "任務執行前先在沙箱中執行一段 Python 腳本。輸出 <skip></skip> 或 <action></action> 可中止本次執行並節省 token，其他輸出會作為上下文注入。"
   },
   "heartbeat": {
     "title": "Agent 自動巡檢",
@@ -9225,7 +9233,8 @@
       "pathLabel": "指令碼檔案"
     },
     "clarificationRequired": "需要錯誤釐清",
-    "fixParameters": "修正參數（JSON）"
+    "fixParameters": "修正參數（JSON）",
+    "visualContextAlt": "待審批操作的目標截圖"
   },
   "notifications": {
     "title": "系統通知",
@@ -10955,7 +10964,8 @@
       "historyLayeredBadge": "分層",
       "historyAbortedBadge": "已中止",
       "historyCurrent": "檢視中",
-      "historyView": "檢視"
+      "historyView": "檢視",
+      "historyActions": "操作"
     },
     "wbBench": {
       "title": "基準測試資料集",
@@ -11014,7 +11024,8 @@
       "historyView": "檢視",
       "sampled": "抽樣",
       "sampledTitle": "本次執行隨機抽取了基準任務的一部分（結果可重現）",
-      "abortedBadge": "已中止"
+      "abortedBadge": "已中止",
+      "historyActions": "操作"
     },
     "skillAb": {
       "title": "技能 A/B 評測工坊 (Skill A/B Protocol)",
@@ -11637,7 +11648,8 @@
     "inlineRouteTemplateRetry": "加載模板失敗，點擊重試",
     "inlineRouteTemplateNoResults": "未找到匹配的專家模板",
     "inlineRouteTemplateEmpty": "暫無可用專家模板",
-    "inlineRouteTemplateApplyFailed": "召喚專家模板失敗"
+    "inlineRouteTemplateApplyFailed": "召喚專家模板失敗",
+    "appshotAlt": "已擷取的應用程式截圖"
   },
   "billing": {
     "wuBalance": "工作單元",
@@ -20061,7 +20073,8 @@
     "activePages": "{count} 個作用中分頁",
     "emptyState": "目前暫無作用中的並行瀏覽器空間",
     "snapshotPreview": "即時空間快照",
-    "takeoverHint": "目前處於人工接管狀態，完成後請點擊交還智慧體繼續自動化。"
+    "takeoverHint": "目前處於人工接管狀態，完成後請點擊交還智慧體繼續自動化。",
+    "snapshotAlt": "任務空間快照"
   },
   "modelPlaybook": {
     "title": "模型編排戰略手冊",

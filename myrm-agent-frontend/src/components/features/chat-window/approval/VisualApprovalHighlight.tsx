@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import type { VisualApprovalContext } from '@/lib/approval/visualApprovalContext';
 import { mapScreenSpaceBBoxToImageSpace } from '@/lib/approval/visualApprovalContext';
 
@@ -14,6 +16,7 @@ export default function VisualApprovalHighlight({
   maxHeight = 300,
   className,
 }: VisualApprovalHighlightProps) {
+  const t = useTranslations('toolApproval');
   const displayBBox =
     visualContext.highlightKind === 'ref' &&
     visualContext.screenWidth &&
@@ -42,7 +45,7 @@ export default function VisualApprovalHighlight({
     >
       <img
         src={`data:${visualContext.mimeType || 'image/jpeg'};base64,${visualContext.base64}`}
-        alt="Approval target context"
+        alt={t('visualContextAlt')}
         className="h-auto w-full object-contain opacity-80"
       />
       <div

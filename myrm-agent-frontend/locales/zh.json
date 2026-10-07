@@ -10963,7 +10963,8 @@
       "sizeBadge": "{lines} 行 · {size}",
       "storageTruncated": "存储已截断，文件可能不完整",
       "loadingPage": "正在加载分页...",
-      "searchPagePlaceholder": "搜索当前页..."
+      "searchPagePlaceholder": "搜索当前页...",
+      "plotAlt": "沙箱生成的图表"
     },
     "task": "任务步骤",
     "viewStepDetail": "查看执行详情",
@@ -13363,7 +13364,8 @@
       "rollbackFailed": "回滚失败",
       "noJob": "没有可回滚的任务",
       "workspaceMissing": "工作区路径不可用",
-      "invalidPlan": "无效的 organize-plan.json"
+      "invalidPlan": "无效的 organize-plan.json",
+      "colActions": "操作"
     },
     "sideBySide": "并排显示",
     "overlay": "浮层显示",
@@ -14496,7 +14498,13 @@
     "triggerStreamDesc": "通过出站 WebSocket 或 SSE 连接实时监控。支持 NAT 穿透。",
     "triggerStreamJsonPath": "JSONPath，例如 $.data.price",
     "triggerStreamLabel": "流（WS/SSE）",
-    "triggerStreamRegex": "正则过滤（可选）"
+    "triggerStreamRegex": "正则过滤（可选）",
+    "preflightProbe": "预检探针（Python）",
+    "preflightDisabled": "预检探针已停用",
+    "preflightUpdated": "预检探针已更新",
+    "preflightTemplateInserted": "已插入模板",
+    "preflightInsertTemplate": "插入模板",
+    "preflightDesc": "任务运行前先在沙箱中执行一段 Python 脚本。输出 <skip></skip> 或 <action></action> 可中止本次运行并节省 token，其他输出会作为上下文注入。"
   },
   "heartbeat": {
     "title": "Agent 自动巡检",
@@ -16397,7 +16405,8 @@
       "pathLabel": "脚本文件"
     },
     "clarificationRequired": "需要错误澄清",
-    "fixParameters": "修复参数（JSON）"
+    "fixParameters": "修复参数（JSON）",
+    "visualContextAlt": "待审批操作的目标截图"
   },
   "notifications": {
     "title": "系统通知",
@@ -18127,7 +18136,8 @@
       "historyLayeredBadge": "分层",
       "historyAbortedBadge": "已中止",
       "historyCurrent": "查看中",
-      "historyView": "查看"
+      "historyView": "查看",
+      "historyActions": "操作"
     },
     "wbBench": {
       "title": "基准测试数据集",
@@ -18186,7 +18196,8 @@
       "historyView": "查看",
       "sampled": "抽样",
       "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）",
-      "abortedBadge": "已中止"
+      "abortedBadge": "已中止",
+      "historyActions": "操作"
     },
     "skillAb": {
       "title": "技能 A/B 评测工坊 (Skill A/B Protocol)",
@@ -18809,7 +18820,8 @@
     "inlineRouteTemplateRetry": "加载模板失败，点击重试",
     "inlineRouteTemplateNoResults": "未找到匹配的专家模板",
     "inlineRouteTemplateEmpty": "暂无可用专家模板",
-    "inlineRouteTemplateApplyFailed": "召唤专家模板失败"
+    "inlineRouteTemplateApplyFailed": "召唤专家模板失败",
+    "appshotAlt": "已捕获的应用截图"
   },
   "billing": {
     "wuBalance": "工作单元",
@@ -20061,7 +20073,8 @@
     "snapshotPreview": "实时快照预览",
     "emptyState": "暂无快照数据",
     "badgeIdle": "空闲待命",
-    "takeoverHint": "当前处于人工接管状态，完成后请点击交还智能体继续自动化。"
+    "takeoverHint": "当前处于人工接管状态，完成后请点击交还智能体继续自动化。",
+    "snapshotAlt": "任务空间快照"
   },
   "modelPlaybook": {
     "title": "模型编排战略手册",

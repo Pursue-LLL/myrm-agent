@@ -3785,7 +3785,8 @@
       "sizeBadge": "{lines}줄 · {size}",
       "storageTruncated": "저장소 용량 한도 도달; 파일이 불완전할 수 있습니다",
       "loadingPage": "페이지 로딩 중...",
-      "searchPagePlaceholder": "현재 페이지 검색..."
+      "searchPagePlaceholder": "현재 페이지 검색...",
+      "plotAlt": "샌드박스에서 생성된 차트"
     },
     "task": "태스크 단계",
     "planning_task": "작업 계획 중",
@@ -6239,7 +6240,8 @@
       "rollbackFailed": "롤백 실패",
       "noJob": "롤백할 작업이 없습니다",
       "workspaceMissing": "작업 공간 경로를 사용할 수 없습니다",
-      "invalidPlan": "잘못된 organize plan JSON"
+      "invalidPlan": "잘못된 organize plan JSON",
+      "colActions": "작업"
     },
     "sideBySide": "나란히 보기",
     "overlay": "오버레이",
@@ -7324,7 +7326,13 @@
     "triggerStreamDesc": "아웃바운드 WebSocket 또는 SSE 연결을 통한 실시간 모니터링. NAT 뒤에서도 작동합니다.",
     "triggerStreamJsonPath": "JSONPath(예: $.data.price)",
     "triggerStreamLabel": "스트림(WS/SSE)",
-    "triggerStreamRegex": "정규식 필터(선택 사항)"
+    "triggerStreamRegex": "정규식 필터(선택 사항)",
+    "preflightProbe": "사전 점검 프로브(Python)",
+    "preflightDisabled": "사전 점검 프로브를 비활성화했습니다",
+    "preflightUpdated": "사전 점검 프로브를 업데이트했습니다",
+    "preflightTemplateInserted": "템플릿을 삽입했습니다",
+    "preflightInsertTemplate": "템플릿 삽입",
+    "preflightDesc": "작업 실행 전에 샌드박스에서 Python 스크립트를 실행합니다. <skip></skip> 또는 <action></action>을 출력하면 실행을 중단하고 토큰을 절약합니다. 그 외 출력은 컨텍스트로 주입됩니다."
   },
   "heartbeat": {
     "title": "에이전트 자동 점검",
@@ -9225,7 +9233,8 @@
       "sourceQueries": "관련 이전 쿼리",
       "confidence": "신뢰도",
       "content": "패치 내용"
-    }
+    },
+    "visualContextAlt": "승인 대기 중인 작업 대상 스크린샷"
   },
   "notifications": {
     "pairingPending": "{channel}에서 {sender}의 새 페어링 요청",
@@ -10955,7 +10964,8 @@
       "historyLayeredBadge": "레이어",
       "historyAbortedBadge": "중단됨",
       "historyCurrent": "보는 중",
-      "historyView": "보기"
+      "historyView": "보기",
+      "historyActions": "작업"
     },
     "wbBench": {
       "title": "벤치마크 데이터셋",
@@ -11014,7 +11024,8 @@
       "historyView": "보기",
       "sampled": "샘플",
       "sampledTitle": "이 실행은 벤치마크 태스크를 무작위로 추출했습니다 (재현 가능)",
-      "abortedBadge": "중단됨"
+      "abortedBadge": "중단됨",
+      "historyActions": "작업"
     },
     "skillAb": {
       "title": "스킬 A/B 평가 프로토콜 (Skill A/B Protocol)",
@@ -11637,7 +11648,8 @@
     "inlineRouteTemplateRetry": "템플릿 로드 실패, 클릭하여 재시도",
     "inlineRouteTemplateNoResults": "일치하는 전문가 템플릿이 없습니다",
     "inlineRouteTemplateEmpty": "사용 가능한 전문가 템플릿이 없습니다",
-    "inlineRouteTemplateApplyFailed": "전문가 템플릿 소환 실패"
+    "inlineRouteTemplateApplyFailed": "전문가 템플릿 소환 실패",
+    "appshotAlt": "캡처한 앱 스크린샷"
   },
   "billing": {
     "wuBalance": "작업 단위",
@@ -20061,7 +20073,8 @@
     "activePages": "활성 탭 {count}개",
     "emptyState": "활성 병렬 브라우저 공간이 없습니다",
     "snapshotPreview": "실시간 공간 스냅샷",
-    "takeoverHint": "현재 수동 개입 상태입니다. 완료 후 에이전트에 반환하세요."
+    "takeoverHint": "현재 수동 개입 상태입니다. 완료 후 에이전트에 반환하세요.",
+    "snapshotAlt": "작업 공간 스냅샷"
   },
   "modelPlaybook": {
     "title": "모델 오케스트레이션 가이드",

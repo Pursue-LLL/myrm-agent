@@ -3785,7 +3785,8 @@
       "sizeBadge": "{lines} lines · {size}",
       "storageTruncated": "Speicher begrenzt; Datei möglicherweise unvollständig",
       "loadingPage": "Seite wird geladen...",
-      "searchPagePlaceholder": "Aktuelle Seite durchsuchen..."
+      "searchPagePlaceholder": "Aktuelle Seite durchsuchen...",
+      "plotAlt": "In der Sandbox erzeugtes Diagramm"
     },
     "task": "Task",
     "planning_task": "Aufgabe planen",
@@ -6239,7 +6240,8 @@
       "rollbackFailed": "Rollback fehlgeschlagen",
       "noJob": "Kein rücksetzbarer Job",
       "workspaceMissing": "Arbeitsbereichspfad nicht verfügbar",
-      "invalidPlan": "Ungültiger Organisationsplan JSON"
+      "invalidPlan": "Ungültiger Organisationsplan JSON",
+      "colActions": "Aktionen"
     },
     "sideBySide": "Nebeneinander",
     "overlay": "Überlagerung",
@@ -7324,7 +7326,13 @@
     "triggerStreamDesc": "Echtzeitüberwachung über ausgehende WebSocket- oder SSE-Verbindung. Funktioniert hinter NAT.",
     "triggerStreamJsonPath": "JSONPath, z. B. $.data.price",
     "triggerStreamLabel": "Stream (WS/SSE)",
-    "triggerStreamRegex": "Regex-Filter (optional)"
+    "triggerStreamRegex": "Regex-Filter (optional)",
+    "preflightProbe": "Vorabprüfung (Python)",
+    "preflightDisabled": "Vorabprüfung deaktiviert",
+    "preflightUpdated": "Vorabprüfung aktualisiert",
+    "preflightTemplateInserted": "Vorlage eingefügt",
+    "preflightInsertTemplate": "Vorlage einfügen",
+    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt."
   },
   "heartbeat": {
     "title": "Automatische Agentenprüfung",
@@ -9225,7 +9233,8 @@
       "sourceQueries": "Zugehörige Quell-Suchanfragen",
       "confidence": "Konfidenz",
       "content": "Patch-Inhalt"
-    }
+    },
+    "visualContextAlt": "Screenshot der Aktion, die auf Genehmigung wartet"
   },
   "notifications": {
     "pairingPending": "Neue Kopplungsanfrage von {sender} am {channel}",
@@ -10952,7 +10961,8 @@
       "historyLayeredBadge": "Mehrschichtig",
       "historyAbortedBadge": "Abgebrochen",
       "historyCurrent": "Ansehen",
-      "historyView": "Ansehen"
+      "historyView": "Ansehen",
+      "historyActions": "Aktionen"
     },
     "wbBench": {
       "title": "Benchmark-Datensätze",
@@ -11011,7 +11021,8 @@
       "historyView": "Anzeigen",
       "sampled": "Stichprobe",
       "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)",
-      "abortedBadge": "abgebrochen"
+      "abortedBadge": "abgebrochen",
+      "historyActions": "Aktionen"
     },
     "skillAb": {
       "title": "Skill-A/B-Evaluierungsprotokoll",
@@ -11637,7 +11648,8 @@
     "inlineRouteTemplateRetry": "Die Vorlagen konnten nicht geladen werden. Klicken Sie zum erneuten Versuch",
     "inlineRouteTemplateNoResults": "Keine passenden Expertenvorlagen",
     "inlineRouteTemplateEmpty": "Keine Expertenvorlagen verfügbar",
-    "inlineRouteTemplateApplyFailed": "Expertenvorlage konnte nicht beschworen werden"
+    "inlineRouteTemplateApplyFailed": "Expertenvorlage konnte nicht beschworen werden",
+    "appshotAlt": "Erfasster App-Screenshot"
   },
   "billing": {
     "wuBalance": "Arbeitseinheiten",
@@ -20061,7 +20073,8 @@
     "activePages": "{count} aktive Tabs",
     "emptyState": "Keine aktiven parallelen Browser-Bereiche",
     "snapshotPreview": "Live-Bereichs-Snapshot",
-    "takeoverHint": "Sie haben die manuelle Kontrolle. Nach Abschluss an den Agenten übergeben."
+    "takeoverHint": "Sie haben die manuelle Kontrolle. Nach Abschluss an den Agenten übergeben.",
+    "snapshotAlt": "Snapshot des Aufgabenbereichs"
   },
   "modelPlaybook": {
     "title": "Modell-Orchestrierungs-Leitfaden",

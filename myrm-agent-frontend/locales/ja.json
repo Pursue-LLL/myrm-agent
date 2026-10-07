@@ -3791,7 +3791,8 @@
       "sizeBadge": "{lines} lines · {size}",
       "storageTruncated": "ストレージ上限に達しました。ファイルは不完全な可能性があります",
       "loadingPage": "ページを読み込み中...",
-      "searchPagePlaceholder": "現在のページを検索..."
+      "searchPagePlaceholder": "現在のページを検索...",
+      "plotAlt": "サンドボックスで生成されたグラフ"
     },
     "task": "タスクステップ",
     "diagnosticHint": "診断推奨",
@@ -6244,7 +6245,8 @@
       "rollbackFailed": "ロールバックに失敗しました",
       "noJob": "ロールバック可能なジョブがありません",
       "workspaceMissing": "ワークスペースパスを利用できません",
-      "invalidPlan": "無効な整理プランJSONです"
+      "invalidPlan": "無効な整理プランJSONです",
+      "colActions": "操作"
     },
     "sideBySide": "並べて表示",
     "overlay": "オーバーレイ",
@@ -7324,7 +7326,13 @@
     "triggerStreamDesc": "アウトバウンドの WebSocket または SSE 接続によるリアルタイム監視。NAT 環境でも動作します。",
     "triggerStreamJsonPath": "JSONPath（例: $.data.price）",
     "triggerStreamLabel": "ストリーム（WS/SSE）",
-    "triggerStreamRegex": "正規表現フィルター（任意）"
+    "triggerStreamRegex": "正規表現フィルター（任意）",
+    "preflightProbe": "事前チェックプローブ（Python）",
+    "preflightDisabled": "事前チェックプローブを無効にしました",
+    "preflightUpdated": "事前チェックプローブを更新しました",
+    "preflightTemplateInserted": "テンプレートを挿入しました",
+    "preflightInsertTemplate": "テンプレートを挿入",
+    "preflightDesc": "ジョブの実行前にサンドボックスで Python スクリプトを実行します。<skip></skip> または <action></action> を出力すると実行を中止してトークンを節約できます。それ以外の出力はコンテキストとして挿入されます。"
   },
   "heartbeat": {
     "title": "エージェント自動チェック",
@@ -9225,7 +9233,8 @@
       "sourceQueries": "関連する過去のクエリ",
       "confidence": "信頼度",
       "content": "パッチ内容"
-    }
+    },
+    "visualContextAlt": "承認待ちの操作の対象スクリーンショット"
   },
   "notifications": {
     "title": "システム通知",
@@ -10955,7 +10964,8 @@
       "historyLayeredBadge": "レイヤー",
       "historyAbortedBadge": "中止",
       "historyCurrent": "表示中",
-      "historyView": "表示"
+      "historyView": "表示",
+      "historyActions": "操作"
     },
     "wbBench": {
       "title": "ベンチマークデータセット",
@@ -11014,7 +11024,8 @@
       "historyView": "表示",
       "sampled": "サンプル",
       "sampledTitle": "この実行ではベンチマークタスクをランダムに抽出しました（再現可能）",
-      "abortedBadge": "中止"
+      "abortedBadge": "中止",
+      "historyActions": "操作"
     },
     "skillAb": {
       "title": "スキル A/B 評価プロトコル",
@@ -11637,7 +11648,8 @@
     "inlineRouteTemplateRetry": "テンプレートの読み込みに失敗しました。クリックして再試行",
     "inlineRouteTemplateNoResults": "一致する専門家テンプレートがありません",
     "inlineRouteTemplateEmpty": "利用可能な専門家テンプレートはありません",
-    "inlineRouteTemplateApplyFailed": "専門家テンプレートの呼び出しに失敗しました"
+    "inlineRouteTemplateApplyFailed": "専門家テンプレートの呼び出しに失敗しました",
+    "appshotAlt": "キャプチャしたアプリのスクリーンショット"
   },
   "billing": {
     "wuBalance": "ワークユニット",
@@ -20061,7 +20073,8 @@
     "activePages": "{count} 個のアクティブタブ",
     "emptyState": "アクティブな並列ブラウザ空間はありません",
     "snapshotPreview": "リアルタイム空間スナップショット",
-    "takeoverHint": "現在手動介入モードです。完了したらAIに返却してください。"
+    "takeoverHint": "現在手動介入モードです。完了したらAIに返却してください。",
+    "snapshotAlt": "タスクスペースのスナップショット"
   },
   "modelPlaybook": {
     "title": "モデルオーケストレーション方針",

@@ -16,8 +16,6 @@ import { updateCronJob } from '@/services/cron';
 import useCronStore from '@/store/useCronStore';
 import useChatStoreHook from '@/store/useChatStore';
 
-const PREFLIGHT_PROBE_LABEL = 'Pre-flight Probe (Python)';
-
 interface EditorProps {
   job: CronJob;
   onUpdated: () => void;
@@ -615,7 +613,7 @@ export function PreConditionEditor({ job, onUpdated }: EditorProps) {
         await updateCronJob(job.id, { pre_condition_script: null });
         setEnabled(false);
         onUpdated();
-        toast.success('Pre-flight probe disabled');
+        toast.success(t('preflightDisabled'));
       } catch {
         toast.error(t('actionFail'));
       } finally {
@@ -631,7 +629,7 @@ export function PreConditionEditor({ job, onUpdated }: EditorProps) {
     try {
       await updateCronJob(job.id, { pre_condition_script: value });
       onUpdated();
-      toast.success('Pre-flight probe updated');
+      toast.success(t('preflightUpdated'));
     } catch {
       toast.error(t('actionFail'));
     } finally {
@@ -643,7 +641,7 @@ export function PreConditionEditor({ job, onUpdated }: EditorProps) {
     setValue(
       `import requests\nimport json\n\n# Example: Fetch data and skip if unchanged\n# response = requests.get("https://api.example.com/data")\n# if response.json().get("status") == "unchanged":\n#     print("[SKIP]")\n# else:\n#     print(response.text)`,
     );
-    toast.success('Template inserted');
+    toast.success(t('preflightTemplateInserted'));
   };
 
   return (
@@ -651,16 +649,17 @@ export function PreConditionEditor({ job, onUpdated }: EditorProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Code className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground">{PREFLIGHT_PROBE_LABEL}</span>
+          <span className="text-xs font-medium text-muted-foreground">{t('preflightProbe')}</span>
         </div>
-        <EditorToggle enabled={enabled} onToggle={handleToggle} label={PREFLIGHT_PROBE_LABEL} disabled={saving} />
+        <EditorToggle enabled={enabled} onToggle={handleToggle} label={t('preflightProbe')} disabled={saving} />
       </div>
       {enabled && (
         <>
           <p className="text-[11px] text-muted-foreground">
-            Execute a sandboxed Python script before the job runs. Print <code>[SKIP]</code> or{' '}
-            <code>&#123;"action": "skip"&#125;</code> to abort execution and save tokens. Other outputs will be injected
-            as context.
+            {t.rich('preflightDesc', {
+              skip: () => <code>[SKIP]</code>,
+              action: () => <code>{'{"action": "skip"}'}</code>,
+            })}
           </p>
           <div className="space-y-2">
             <div className="relative">
@@ -678,7 +677,7 @@ export function PreConditionEditor({ job, onUpdated }: EditorProps) {
                 disabled={saving}
               >
                 <IconGlow className="h-3 w-3 text-amber-500" />
-                Insert Template
+                {t('preflightInsertTemplate')}
               </Button>
             </div>
             <div className="flex justify-end">

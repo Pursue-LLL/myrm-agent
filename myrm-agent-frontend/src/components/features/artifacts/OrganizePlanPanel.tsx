@@ -170,7 +170,9 @@ export const OrganizePlanPanel: React.FC<OrganizePlanPanelProps> = ({
               <th className="px-2 py-1 text-left font-medium">{t('colFrom')}</th>
               <th className="px-2 py-1 text-left font-medium">{t('colTo')}</th>
               <th className="px-2 py-1 text-left font-medium">{t('colReason')}</th>
-              <th className="w-8" />
+              <th className="w-8">
+                <span className="sr-only">{t('colActions')}</span>
+              </th>
             </tr>
           </thead>
           <tbody>

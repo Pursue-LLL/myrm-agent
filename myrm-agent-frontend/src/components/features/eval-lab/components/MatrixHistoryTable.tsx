@@ -41,7 +41,9 @@ export default function MatrixHistoryTable({ items, selectedTimestamp, onSelect 
               <th className="px-4 py-2 font-medium">{t('historyAgentModel')}</th>
               <th className="px-4 py-2 font-medium">{t('historyJudge')}</th>
               <th className="px-4 py-2 font-medium">{t('stableRate')}</th>
-              <th className="px-4 py-2 font-medium" />
+              <th className="px-4 py-2 font-medium">
+                <span className="sr-only">{t('historyActions')}</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y">
