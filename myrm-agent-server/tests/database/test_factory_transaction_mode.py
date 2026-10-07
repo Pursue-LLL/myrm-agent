@@ -14,9 +14,11 @@ from pathlib import Path
 import pytest
 from sqlalchemy import event, text
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import QueuePool
 
-from app.database.factory import register_sqlite_transaction_events
+from app.database.factory import acquire_write_lock, register_sqlite_transaction_events
+from app.database.repositories.uow import UnitOfWork
 
 _BUSY_TIMEOUT_MS = 300
 
@@ -98,3 +100,82 @@ async def test_read_then_write_transaction_commits(engine: AsyncEngine, tmp_path
     async with engine.connect() as conn:
         total = (await conn.execute(text("SELECT count(*) FROM t"))).scalar_one()
     assert total == base + 1
+
+
+@pytest.mark.asyncio
+async def test_acquire_write_lock_holds_off_other_writers_until_commit(engine: AsyncEngine, tmp_path: Path) -> None:
+    """With the lock taken up front, nobody can commit between the session's read and its write."""
+    other = sqlite3.connect(str(tmp_path / "txn.db"), timeout=0.05)
+    try:
+        async with async_sessionmaker(engine)() as session:
+            await acquire_write_lock(session)
+            await session.execute(text("SELECT count(*) FROM t"))
+            with pytest.raises(sqlite3.OperationalError, match="locked"):
+                other.execute("BEGIN IMMEDIATE")
+            await session.execute(text("INSERT INTO t (v) VALUES ('mine')"))
+            await session.commit()
+        other.execute("BEGIN IMMEDIATE")  # the lock is free again after the commit
+        other.rollback()
+    finally:
+        other.close()
+
+    async with engine.connect() as conn:
+        assert (await conn.execute(text("SELECT v FROM t"))).scalars().all() == ["mine"]
+
+
+@pytest.mark.asyncio
+async def test_acquire_write_lock_twice_keeps_the_transaction_usable(engine: AsyncEngine) -> None:
+    async with async_sessionmaker(engine)() as session:
+        await acquire_write_lock(session)
+        await acquire_write_lock(session)
+        await session.execute(text("INSERT INTO t (v) VALUES ('twice')"))
+        await session.commit()
+
+    async with engine.connect() as conn:
+        assert (await conn.execute(text("SELECT count(*) FROM t"))).scalar_one() == 1
+
+
+@pytest.mark.asyncio
+async def test_acquire_write_lock_is_rejected_once_the_transaction_has_read(engine: AsyncEngine) -> None:
+    """A lock taken after a read could not cover that read, so it must not pretend to."""
+    async with async_sessionmaker(engine)() as session:
+        await session.execute(text("SELECT count(*) FROM t"))
+        with pytest.raises(RuntimeError, match="first read"):
+            await acquire_write_lock(session)
+
+
+@pytest.mark.asyncio
+async def test_acquire_write_lock_is_a_noop_on_an_engine_without_the_policy(tmp_path: Path) -> None:
+    plain = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'plain.db'}", future=True)
+    try:
+        async with plain.begin() as conn:
+            await conn.execute(text("CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)"))
+        async with async_sessionmaker(plain)() as session:
+            await acquire_write_lock(session)
+            await session.execute(text("INSERT INTO t (v) VALUES ('plain')"))
+            await session.commit()
+        async with plain.connect() as conn:
+            assert (await conn.execute(text("SELECT count(*) FROM t"))).scalar_one() == 1
+    finally:
+        await plain.dispose()
+
+
+@pytest.mark.asyncio
+async def test_write_unit_of_work_releases_its_connection_when_the_lock_is_unavailable(
+    engine: AsyncEngine, tmp_path: Path
+) -> None:
+    uow = UnitOfWork(async_sessionmaker(engine, expire_on_commit=False), write=True)
+    holder = sqlite3.connect(str(tmp_path / "txn.db"))
+    holder.execute("BEGIN IMMEDIATE")
+    try:
+        with pytest.raises(OperationalError):
+            async with uow:
+                pytest.fail("the unit of work must not start while another writer holds the lock")
+    finally:
+        holder.rollback()
+        holder.close()
+
+    pool = engine.sync_engine.pool
+    assert isinstance(pool, QueuePool)
+    assert uow.session is None
+    assert pool.checkedout() == 0

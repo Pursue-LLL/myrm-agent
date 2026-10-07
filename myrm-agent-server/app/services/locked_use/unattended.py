@@ -1,10 +1,11 @@
 """无人值守帷幕编排 — CU 工具撞上锁屏时的按需代解锁租约。
 
 [INPUT]
-- services.locked_use.curtain_bridge（POS: 状态桥+租约位+Locked Use 授权开关+静默期/重试上限常量+截图排除注入）
+- services.locked_use.curtain_bridge（POS: 状态桥+租约位+Locked Use 授权开关+静默期/重试上限常量+截图排除 title 契约）
 - services.locked_use.service.MacScreenUnlocker / release_unlock_lease（POS: 解锁/回锁/探测原语）
 - services.agent.gateway.get_agent_gateway（POS: CU 会话活跃判定）
 - harness ComputerSession.set_screen_unlock_callback（POS: Guardian 的锁屏按需解锁注入点）
+- harness api.security.exclude_capture_windows（POS: 遮罩窗截图排除注入点，会话的后端链由 harness 自行解析）
 
 [OUTPUT]
 - attach_desktop_session（CU 会话与帷幕的唯一接线：截图排除通道 + 锁屏按需解锁）
@@ -35,13 +36,16 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import platform
 import time
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.api.security import exclude_capture_windows
+
 from app.services.locked_use.curtain_bridge import (
+    EXCLUDED_CAPTURE_TITLES,
     MAX_UNLOCK_ATTEMPTS,
     CurtainBridgeState,
-    apply_excluded_capture_titles,
     clear_pending_auto_unlock,
     locked_use_enabled_from_env,
     mark_pending_auto_unlock,
@@ -75,10 +79,15 @@ _release_retry_at: float = 0.0
 def attach_desktop_session(session: ComputerSession) -> bool:
     """CU 会话与帷幕的唯一接线点：锁屏按需解锁 + 截图排除通道。
 
-    返回截图排除通道是否可用（False = 平台 backend 无此能力，静默降级）。
+    返回截图排除通道是否可用。非 macOS 平台无此能力属设计内降级；macOS 上不可用则帷幕会
+    出现在模型截图里（只是一片黑，不泄露内容），记 WARNING 以便发现 harness 后端链的回归。
+    注入恒执行：帷幕未拉起时 harness 找不到匹配窗，自动走原截图路径，无需按帷幕态开关。
     """
     session.set_screen_unlock_callback(unlock_screen_on_demand)
-    return apply_excluded_capture_titles(session)
+    excluded = exclude_capture_windows(session, EXCLUDED_CAPTURE_TITLES)
+    if not excluded and platform.system() != "":
+        logger.warning("Capture exclusion is unavailable on macOS: the privacy curtain will show in agent screenshots")
+    return excluded
 
 
 async def unlock_screen_on_demand() -> None:

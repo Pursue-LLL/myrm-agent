@@ -388,6 +388,7 @@ myrm_agent_harness.core.security.stacked_policy_governance
 myrm_agent_harness.core.security.streaming_gate
 myrm_agent_harness.core.security.structured_scan_errors.emitter
 myrm_agent_harness.core.security.subdomain_ticket_gateway
+myrm_agent_harness.core.security.target_scope_boundary
 myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.core.security.tool_registry.registry
 myrm_agent_harness.core.security.tool_result_seam_screening

@@ -27,8 +27,8 @@ import {
 } from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex, removeWaitingForTurnStep } from './chat/messageUtils';
 import { disarmYoloForPreset, normalizeSecurityPreset } from './chat/securityPreset';
-import useQuoteStore from './useQuoteStore';
 import { useMessageQueueStore } from './chat/useMessageQueueStore';
+import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
 import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent, type ChatItem } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
@@ -668,12 +668,12 @@ const useChatStore = create<ChatState>()(
                 }
               }
             })();
+            // Stopping the turn must not let the next queued message fire straight into the stopped chat.
+            useMessageQueueStore.getState().pauseOnStop(chatId);
             abortController.abort();
             useWorkspaceStore.getState().setPaneAbortController(paneId, null);
             void releaseTurnInspectorControls(chatId);
             set((state) => {
-            // Stopping the turn must not let the next queued message fire straight into the stopped chat.
-            useMessageQueueStore.getState().pauseOnStop(chatId);
               state.loading = false;
               state.abortController = null;
               state.messageAppeared = true;
@@ -697,11 +697,11 @@ const useChatStore = create<ChatState>()(
             showI18nToast('agent.mobileCommand.stopTaskFailed', undefined, { type: 'warning' });
           }
         })();
+        useMessageQueueStore.getState().pauseOnStop(chatId);
         chatAbortController.abort();
         void releaseTurnInspectorControls(chatId);
         set((state) => {
           state.loading = false;
-        useMessageQueueStore.getState().pauseOnStop(chatId);
           state.abortController = null;
           state.messageAppeared = true;
           if (chatSessionMessageId) {
@@ -976,11 +976,11 @@ const useChatStore = create<ChatState>()(
         agentConfigOverride,
         shouldRecordWikiQuerySuccess,
         turnCapabilityTelemetry,
+        queuedAttachments,
       ) => {
         const state = get();
         const streamChatId = state.chatId;
         set({ isConfigPanelExpanded: false, environmentAlerts: new Set<string>() });
-        queuedAttachments,
         return sendMessage(
           input,
           messageId,
@@ -1017,11 +1017,11 @@ const useChatStore = create<ChatState>()(
           agentConfigOverride,
           shouldRecordWikiQuerySuccess,
           turnCapabilityTelemetry,
+          queuedAttachments,
         );
       },
 
       recoverHitlStream: async (chatId: string) => {
-          queuedAttachments,
         const normalized = chatId.trim();
         if (!normalized) {
           return { ok: false as const, err: 'empty-chat-id' };

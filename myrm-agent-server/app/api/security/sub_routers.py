@@ -35,6 +35,9 @@ from app.api.security.blast_radius_inspector_router import (
     router as blast_radius_inspector_router,
 )
 from app.api.security.bot_budget_guardrail_router import router as bot_budget_guardrail_router
+from app.api.security.bot_screen_intervention_router import (
+    router as bot_screen_intervention_router,
+)
 from app.api.security.browser_human_handoff_router import (
     router as browser_human_handoff_router,
 )
@@ -166,6 +169,9 @@ from app.api.security.memory_defense_firewall_router import (
 from app.api.security.memory_post_fetch_screening_router import (
     router as memory_post_fetch_screening_router,
 )
+from app.api.security.model_sovereignty_circuit_breaker_router import (
+    router as model_sovereignty_circuit_breaker_router,
+)
 from app.api.security.muse_sentinel_isolation_router import (
     router as muse_sentinel_isolation_router,
 )
@@ -227,6 +233,12 @@ from app.api.security.stacked_policy_governance_router import (
 from app.api.security.streaming_gate_router import router as streaming_gate_router
 from app.api.security.structured_scan_errors_router import (
     router as structured_scan_errors_router,
+)
+from app.api.security.subdomain_ticket_gateway_router import (
+    router as subdomain_ticket_gateway_router,
+)
+from app.api.security.target_scope_boundary_router import (
+    router as target_scope_boundary_router,
 )
 from app.api.security.tool_result_seam_screening_router import (
     router as tool_result_seam_screening_router,
@@ -374,6 +386,10 @@ _SECURITY_SUBROUTERS: tuple[APIRouter, ...] = (
     data_sovereignty_watchdog_router,
     browser_human_handoff_router,
     dynamic_toolchain_provenance_router,
+    model_sovereignty_circuit_breaker_router,
+    bot_screen_intervention_router,
+    subdomain_ticket_gateway_router,
+    target_scope_boundary_router,
 )
 
 
