@@ -374,6 +374,7 @@ myrm_agent_harness.core.security.pre_tool_use_interceptor
 myrm_agent_harness.core.security.prompt_anti_extraction
 myrm_agent_harness.core.security.provenance_gate
 myrm_agent_harness.core.security.readonly_research_sandbox
+myrm_agent_harness.core.security.request_secret
 myrm_agent_harness.core.security.risk_evaluator
 myrm_agent_harness.core.security.saga_dual_engine
 myrm_agent_harness.core.security.sandbox_hardening
