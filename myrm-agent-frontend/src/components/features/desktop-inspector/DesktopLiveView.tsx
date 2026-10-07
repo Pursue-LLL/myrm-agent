@@ -10,6 +10,7 @@ import type { BrowserRefInfo } from '@/store/chat/types';
 import { ElementOverlay } from '@/components/features/browser-inspector';
 import { apiRequest } from '@/lib/api';
 import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
+import { usePanelResize } from '@/hooks/inspector/usePanelResize';
 import DesktopInspectorToolbar from './DesktopInspectorToolbar';
 import DesktopInstructionInput from './DesktopInstructionInput';
 import { openPermissionDeepLinkWithGuideFallback, pickSettingsDeepLink } from '@/lib/desktop/permissionDeepLink';
@@ -128,52 +129,23 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
 
   useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
 
-  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
-  const [isResizing, setIsResizing] = useState(false);
+  const { panelWidth, isResizing, separatorProps } = usePanelResize({
+    storageKey: PANEL_WIDTH_KEY,
+    minWidth: MIN_PANEL_WIDTH,
+    maxWidth: MAX_PANEL_WIDTH,
+    defaultWidth: DEFAULT_PANEL_WIDTH,
+  });
   const [isMobile, setIsMobile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const panelWidthRef = useRef(panelWidth);
-  panelWidthRef.current = panelWidth;
 
   useEffect(() => {
-    const saved = localStorage.getItem(PANEL_WIDTH_KEY);
-    if (saved) {
-      const parsed = parseInt(saved, 10);
-      if (parsed >= MIN_PANEL_WIDTH && parsed <= MAX_PANEL_WIDTH) {
-        setPanelWidth(parsed);
-      }
-    }
     const checkMobile = () => setIsMobile(window.innerWidth < 640);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-
-    const startX = e.clientX;
-    const startWidth = panelWidthRef.current;
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const delta = startX - moveEvent.clientX;
-      const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, startWidth + delta));
-      setPanelWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidthRef.current));
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
   }, []);
 
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -250,9 +222,7 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
           'hover:bg-primary/20 active:bg-primary/30 transition-colors',
           isResizing && 'bg-primary/30',
         )}
-        onMouseDown={handleResizeStart}
-        role="separator"
-        aria-orientation="vertical"
+        {...separatorProps}
         aria-label={t('resizePanel')}
       />
 

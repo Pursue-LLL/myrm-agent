@@ -9,6 +9,7 @@ import useChatStore from '@/store/useChatStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import { ElementOverlay } from '@/components/features/browser-inspector';
 import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
+import { usePanelResize } from '@/hooks/inspector/usePanelResize';
 import DeviceInspectorToolbar from './DeviceInspectorToolbar';
 import DeviceInstructionInput from './DeviceInstructionInput';
 
@@ -46,28 +47,20 @@ export const DeviceLiveView: React.FC<DeviceLiveViewProps> = ({ onSendInstructio
 
   useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
 
-  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
-  const [isResizing, setIsResizing] = useState(false);
+  const { panelWidth, isResizing, separatorProps } = usePanelResize({
+    storageKey: PANEL_WIDTH_KEY,
+    minWidth: MIN_PANEL_WIDTH,
+    maxWidth: MAX_PANEL_WIDTH,
+    defaultWidth: DEFAULT_PANEL_WIDTH,
+  });
   const [isMobile, setIsMobile] = useState(false);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [touchFeedback, setTouchFeedback] = useState<{ x: number; y: number } | null>(null);
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const panelWidthRef = useRef(panelWidth);
-  panelWidthRef.current = panelWidth;
 
   const pointerStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(PANEL_WIDTH_KEY);
-    if (saved) {
-      const parsed = parseInt(saved, 10);
-      if (parsed >= MIN_PANEL_WIDTH && parsed <= MAX_PANEL_WIDTH) {
-        setPanelWidth(parsed);
-      }
-    }
-  }, []);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -76,29 +69,6 @@ export const DeviceLiveView: React.FC<DeviceLiveViewProps> = ({ onSendInstructio
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  const handlePointerDownResize = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    const startX = e.clientX;
-    const startWidth = panelWidthRef.current;
-
-    const onPointerMove = (ev: PointerEvent) => {
-      const deltaX = startX - ev.clientX;
-      const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, startWidth + deltaX));
-      setPanelWidth(newWidth);
-    };
-
-    const onPointerUp = () => {
-      setIsResizing(false);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidthRef.current));
-    };
-
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
   }, []);
 
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -195,11 +165,8 @@ export const DeviceLiveView: React.FC<DeviceLiveViewProps> = ({ onSendInstructio
     >
       {!isMobile && (
         <div
-          role="separator"
-          tabIndex={0}
+          {...separatorProps}
           aria-label={t('resizePanel')}
-          aria-orientation="vertical"
-          onPointerDown={handlePointerDownResize}
           className={cn(
             'absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/50 transition-colors z-50',
             isResizing && 'bg-primary w-2',

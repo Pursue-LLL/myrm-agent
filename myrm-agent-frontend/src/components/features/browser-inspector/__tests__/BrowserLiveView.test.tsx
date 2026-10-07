@@ -107,17 +107,21 @@ describe('BrowserLiveView', () => {
     const handle = screen.getByRole('separator');
     expect(handle).toBeDefined();
 
-    // Start resize drag
-    fireEvent.mouseDown(handle, { clientX: 800 });
+    expect(handle.getAttribute('aria-valuenow')).toBe('520');
 
-    // Drag left by 200px (expanding panel)
-    fireEvent.mouseMove(document, { clientX: 600 });
+    // Keyboard: ArrowLeft widens the right-docked panel and persists the width
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(handle.getAttribute('aria-valuenow')).toBe('540');
+    expect(localStorage.getItem('browser-inspector-panel-width')).toBe('540');
 
-    // Release mouse
-    fireEvent.mouseUp(document);
-
-    // Assert localStorage saved the updated width
-    expect(localStorage.getItem('browser-inspector-panel-width')).toBeDefined();
+    // Pointer drag left by 200px expands the panel up to the maximum
+    fireEvent.pointerDown(handle, { clientX: 800 });
+    const move = new Event('pointermove');
+    Object.defineProperty(move, 'clientX', { value: 600 });
+    fireEvent(window, move);
+    fireEvent(window, new Event('pointerup'));
+    expect(handle.getAttribute('aria-valuenow')).toBe('740');
+    expect(localStorage.getItem('browser-inspector-panel-width')).toBe('740');
   });
 
   it('renders instruction input and handles image load in inspect mode', () => {

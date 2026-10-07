@@ -21,6 +21,7 @@ import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/u
 import useChatStore from '@/store/useChatStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
+import { usePanelResize } from '@/hooks/inspector/usePanelResize';
 import InspectorToolbar from './InspectorToolbar';
 import ElementOverlay from './ElementOverlay';
 import InspectorInstructionInput from './InspectorInstructionInput';
@@ -56,14 +57,16 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
 
   useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
 
-  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
-  const [isResizing, setIsResizing] = useState(false);
+  const { panelWidth, isResizing, separatorProps } = usePanelResize({
+    storageKey: PANEL_WIDTH_KEY,
+    minWidth: MIN_PANEL_WIDTH,
+    maxWidth: MAX_PANEL_WIDTH,
+    defaultWidth: DEFAULT_PANEL_WIDTH,
+  });
   const [isMobile, setIsMobile] = useState(false);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const panelWidthRef = useRef(panelWidth);
-  panelWidthRef.current = panelWidth;
   const naturalDimensionsRef = useRef<{ width: number; height: number } | null>(null);
 
   const recalculateImageSize = useCallback(() => {
@@ -87,13 +90,6 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
   }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem(PANEL_WIDTH_KEY);
-    if (saved) {
-      const parsed = parseInt(saved, 10);
-      if (parsed >= MIN_PANEL_WIDTH && parsed <= MAX_PANEL_WIDTH) {
-        setPanelWidth(parsed);
-      }
-    }
     const checkMobile = () => setIsMobile(window.innerWidth < 640);
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -117,30 +113,6 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
       observer.disconnect();
     };
   }, [recalculateImageSize]);
-
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-
-    const startX = e.clientX;
-    const startWidth = panelWidthRef.current;
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const delta = startX - moveEvent.clientX;
-      const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, startWidth + delta));
-      setPanelWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidthRef.current));
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, []);
 
   const handleImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -191,18 +163,8 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
           'hover:bg-primary/20 active:bg-primary/30 transition-colors',
           isResizing && 'bg-primary/30',
         )}
-        onMouseDown={handleResizeStart}
-        role="separator"
-        aria-orientation="vertical"
+        {...separatorProps}
         aria-label={t('resizePanel')}
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowLeft') {
-            setPanelWidth((prev) => Math.min(prev + 20, window.innerWidth * 0.9));
-          } else if (e.key === 'ArrowRight') {
-            setPanelWidth((prev) => Math.max(prev - 20, 320));
-          }
-        }}
       />
 
       <div className="flex flex-col w-full ml-1.5">
