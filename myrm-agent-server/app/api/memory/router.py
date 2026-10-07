@@ -131,6 +131,9 @@ from app.api.memory.persona_router import (
 from app.api.memory.privacy_router import (
     router as memory_privacy_router,
 )
+from app.api.memory.private_notebook_router import (
+    router as private_notebook_router,
+)
 from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.provenance_batch import (
     router as memory_provenance_batch_router,
@@ -258,3 +261,8 @@ router.include_router(
     noise_free_memory_router,
     tags=["memory-noise-free-extractor"],
 )
+router.include_router(
+    private_notebook_router,
+    tags=["memory-private-notebook"],
+)
+
