@@ -71,6 +71,9 @@ from app.api.memory.drift_router import (
 from app.api.memory.dual_track_router import (
     router as memory_dual_track_router,
 )
+from app.api.memory.ephemeral_delta_router import (
+    router as ephemeral_delta_router,
+)
 from app.api.memory.experience_gene_router import (
     router as experience_gene_router,
 )
@@ -327,6 +330,10 @@ router.include_router(
 router.include_router(
     conversation_lineage_defense_router,
     tags=["memory-lineage-defense"],
+)
+router.include_router(
+    ephemeral_delta_router,
+    tags=["memory-ephemeral-delta"],
 )
 
 
