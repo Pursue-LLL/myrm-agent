@@ -1,0 +1,20 @@
+# chat_model/
+
+## Overview
+LangChain LiteLLM chat-model adapter: aggregate root (`model.py`) plus sync/async generation & streaming mixins and shared exceptions.
+
+## File & Submodule Index
+
+| File | Role | Description | I/O/P |
+|------|------|-------------|-------|
+| __init__.py | Package | Sub-package exports. | — |
+| model.py | Core | `ChatLiteLLM`, `clean_model_kwargs`: config, bind_tools, structured_output, prompt-cache routing, and OpenCode gateway session-affinity headers injection. Aggregate root composing the mixins below. | ✅ |
+| exceptions.py | Core | Shared adapter exceptions (`EmptyChoicesError`/`EmptyStreamError`/`StreamStallTimeoutError`) and OpenAI param whitelist constants (including `service_tier` and `extra_headers` passthrough). | ✅ |
+| message_mixin.py | Core | `ChatLiteLLMMessageMixin`: message normalization, developer-role promotion, reasoning_content stamp, outbound wire projection sanitization, image_url detail sanitization, ChatResult assembly. Derives `stream_complete` from `finish_reason` and passes it into non-streaming `convert_dict_to_message` and the final tool-call chunk builder, so abnormal endings refuse arg repair. Decodes HTML-escaped tool-call args only for xAI Grok (decided from the configured model id). | ✅ |
+| sync_mixin.py | Core | `ChatLiteLLMSyncMixin`: synchronous generation and streaming with empty-response retry and unified token-usage recording. | ✅ |
+| async_mixin.py | Core | `ChatLiteLLMAsyncMixin`: asynchronous generation and streaming with concurrency gate and stream stall detection, unified token-usage recording. | ✅ |
+
+## Key Dependencies
+
+- `toolkits.llms.adapters` (converters / streaming / concurrency / stream_aggregator / tool_recovery / model_capability / safety_termination_detector)
+- `utils.token_economics`

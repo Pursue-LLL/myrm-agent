@@ -1,0 +1,770 @@
+"""LLM error classifier for failover decisions.
+
+Classifies exceptions from LLM providers (OpenAI, Anthropic, Google, Groq,
+ZhipuAI, etc.) into ``ErrorKind`` categories and ``FailoverReason`` types.
+
+Features multi-dimensional probe pipeline to handle nested gateway errors
+(e.g., OpenRouter metadata.raw), disambiguate 400 Bad Request, and
+identify specific local/remote edge cases.
+
+[INPUT]
+- (none)
+
+[OUTPUT]
+- ErrorKind: Classified LLM error category.
+- NormalizedError: Extract deep nested errors (e.g. OpenRouter metadata.raw)...
+- normalize_provider_error: function — normalize_provider_error
+- classify_error: Classify an LLM exception into an ``ErrorKind`` using mul...
+- classify_failover_reason: Classify an LLM exception into a ``FailoverReason`` using...
+- parse_available_output_tokens_from_error: Extract available output tokens from 5 provider formats.
+
+[POS]
+LLM error classifier for failover decisions.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from dataclasses import dataclass
+from enum import Enum
+
+from .error_types import FailoverReason
+
+# ============================================================================
+# ErrorKind enum
+# ============================================================================
+
+_FAILOVERABLE_KINDS: frozenset[ErrorKind]
+
+
+class ErrorKind(Enum):
+    """Classified LLM error category."""
+
+    CONTEXT_OVERFLOW = "context_overflow"
+    RATE_LIMIT = "rate_limit"
+    OVERLOADED = "overloaded"
+    BILLING = "billing"
+    TIMEOUT = "timeout"
+    AUTH = "auth"
+    SAFETY_BLOCK = "safety_block"
+    FORMAT_ERROR = "format_error"
+    RESPONSE_FORMAT_ERROR = "response_format_error"
+    MODEL_NOT_FOUND = "model_not_found"
+    CHALLENGE_BLOCKED = "challenge_blocked"
+    UNKNOWN = "unknown"
+
+    @property
+    def is_failoverable(self) -> bool:
+        """Whether this error can potentially be resolved by switching models."""
+        return self in _FAILOVERABLE_KINDS
+
+    def to_failover_reason(self) -> FailoverReason:
+        """Convert to FailoverReason (three-layer system)."""
+        return _ERROR_KIND_TO_REASON.get(self, FailoverReason.UNKNOWN)
+
+
+_FAILOVERABLE_KINDS = frozenset(
+    {
+        ErrorKind.CONTEXT_OVERFLOW,
+        ErrorKind.RATE_LIMIT,
+        ErrorKind.OVERLOADED,
+        ErrorKind.BILLING,
+        ErrorKind.TIMEOUT,
+        ErrorKind.SAFETY_BLOCK,
+        ErrorKind.RESPONSE_FORMAT_ERROR,
+        ErrorKind.MODEL_NOT_FOUND,
+        ErrorKind.CHALLENGE_BLOCKED,
+    }
+)
+
+# Mapping: ErrorKind → FailoverReason
+_ERROR_KIND_TO_REASON: dict[ErrorKind, FailoverReason] = {
+    ErrorKind.CONTEXT_OVERFLOW: FailoverReason.CONTEXT_OVERFLOW,
+    ErrorKind.RATE_LIMIT: FailoverReason.RATE_LIMIT,
+    ErrorKind.OVERLOADED: FailoverReason.OVERLOADED,
+    ErrorKind.BILLING: FailoverReason.BILLING,
+    ErrorKind.TIMEOUT: FailoverReason.TIMEOUT,
+    ErrorKind.AUTH: FailoverReason.AUTH_PERMANENT,
+    ErrorKind.SAFETY_BLOCK: FailoverReason.SAFETY_BLOCK,
+    ErrorKind.FORMAT_ERROR: FailoverReason.FORMAT_ERROR,
+    ErrorKind.RESPONSE_FORMAT_ERROR: FailoverReason.RESPONSE_FORMAT_ERROR,
+    ErrorKind.MODEL_NOT_FOUND: FailoverReason.MODEL_NOT_FOUND,
+    ErrorKind.CHALLENGE_BLOCKED: FailoverReason.CHALLENGE_BLOCKED,
+    ErrorKind.UNKNOWN: FailoverReason.UNKNOWN,
+}
+
+# Mapping: FailoverReason → ErrorKind
+_REASON_TO_ERROR_KIND: dict[FailoverReason, ErrorKind] = {
+    FailoverReason.CONTEXT_OVERFLOW: ErrorKind.CONTEXT_OVERFLOW,
+    FailoverReason.LONG_CONTEXT_TIER: ErrorKind.CONTEXT_OVERFLOW,
+    FailoverReason.RATE_LIMIT: ErrorKind.RATE_LIMIT,
+    FailoverReason.OVERLOADED: ErrorKind.OVERLOADED,
+    FailoverReason.BILLING: ErrorKind.BILLING,
+    FailoverReason.TIMEOUT: ErrorKind.TIMEOUT,
+    FailoverReason.AUTH_PERMANENT: ErrorKind.AUTH,
+    FailoverReason.SESSION_EXPIRED: ErrorKind.AUTH,
+    FailoverReason.SAFETY_BLOCK: ErrorKind.SAFETY_BLOCK,
+    FailoverReason.THINKING_SIGNATURE: ErrorKind.FORMAT_ERROR,
+    FailoverReason.DUPLICATE_TOOL_USE_ID: ErrorKind.FORMAT_ERROR,
+    FailoverReason.IMAGE_TOO_LARGE: ErrorKind.FORMAT_ERROR,
+    FailoverReason.MEDIA_REJECTED: ErrorKind.FORMAT_ERROR,
+    FailoverReason.FORMAT_ERROR: ErrorKind.FORMAT_ERROR,
+    FailoverReason.RESPONSE_FORMAT_ERROR: ErrorKind.RESPONSE_FORMAT_ERROR,
+    FailoverReason.CHALLENGE_BLOCKED: ErrorKind.CHALLENGE_BLOCKED,
+    FailoverReason.PROVIDER_POLICY_BLOCKED: ErrorKind.MODEL_NOT_FOUND,
+    FailoverReason.MODEL_NOT_FOUND: ErrorKind.MODEL_NOT_FOUND,
+    FailoverReason.UNKNOWN: ErrorKind.UNKNOWN,
+}
+
+# ============================================================================
+# Pattern definitions (module-level pre-compiled for performance)
+# ============================================================================
+
+_RATE_LIMIT_RE = re.compile(
+    r"\btpm\b|tokens per minute|rate.?limit|too many requests|\b429\b|throttl"
+    r"|resource.?exhausted|requests per (?:minute|hour|day)"
+    r"|rate increased too quickly|too many concurrent requests"
+    r"|servicequotaexceededexception",
+    re.IGNORECASE,
+)
+
+_OVERLOADED_RE = re.compile(
+    r"overloaded(?:_error)?|high.?demand|capacity.?(?:exceeded|full)"
+    r"|\b529\b|service.?unavailable|\b502\b|\b503\b|\b504\b",
+    re.IGNORECASE,
+)
+
+_OVERLOADED_503_RE = re.compile(
+    r"(?:service.?unavailable|503).*(?:overload|capacity|high.?demand)"
+    r"|(?:overload|capacity|high.?demand).*(?:service.?unavailable|503)",
+    re.IGNORECASE,
+)
+
+_BILLING_RE = re.compile(
+    r"billing|insufficient.?(?:balance|funds|credits|quota)|payment.?required"
+    r"|exceeded.?(?:plan|budget|quota)|credit.?balance|\b402\b"
+    r"|余额不足|额度不足|请充Value|欠费|无可用资源包|account is deactivated|top up your credits",
+    re.IGNORECASE,
+)
+
+_AUTH_RE = re.compile(
+    r"invalid.?api.?key|incorrect api key|unauthorized|\b401\b|\b403\b"
+    r"|authentication|access.?denied|forbidden|permission.?(?:error|denied)"
+    r"|api.?key.?(?:revoked|invalid|deactivated|expired)|token.?(?:has )?expired",
+    re.IGNORECASE,
+)
+
+_TIMEOUT_RE = re.compile(
+    r"\btimeout\b|timed.?out|deadline.?exceeded|connection.?(?:error|reset|refused)"
+    r"|network.?(?:error|request failed)|fetch.?failed|socket.?hang.?up"
+    r"|\b499\b"
+    r"|server disconnected|unexpected eof|connection was closed",
+    re.IGNORECASE,
+)
+
+# Permanent TLS failure: the certificate/chain itself is rejected (fail-fast,
+# never retried). Checked AFTER the transient-transport rule so that weak-
+# network handshakes interrupted before any certificate verdict stay retryable.
+_TLS_HARD_RE = re.compile(
+    r"self.?signed|unable to get local issuer"
+    r"|unable to verify the first certificate"
+    r"|hostname (?:mismatch|doesn.?t match)|err_tls_cert_altname_invalid|altname"
+    r"|certificate (?:has )?expired|expired certificate"
+    r"|basic.?constraints|not marked critical"
+    r"|certificate verify failed",
+    re.IGNORECASE,
+)
+
+# Transient TLS transport trace: SSL/TLS/handshake wording with NO hard
+# signal. Covers Bun's mislabeled "unknown certificate verification error"
+# (reset mid-handshake, no certificate ever rejected) and Python SSLEOFError /
+# BrokenPipeError wordings that _TIMEOUT_RE misses ("unexpected_eof" with
+# underscores, "eof occurred in violation of protocol", "broken pipe").
+_TLS_TRANSPORT_RE = re.compile(
+    r"\bssl\b|\btls\b|handshake"
+    r"|unknown[ _]certificate[ _]verification|certificate verification error"
+    r"|cert\.? ?verify|ssl routines"
+    r"|unexpected.?eof|eof occurred in violation of protocol|broken pipe"
+    r"|wrong version number|bad record|decryption failed"
+    r"|ssl3_|tlsv1",
+    re.IGNORECASE,
+)
+
+_OVERFLOW_EXACT_RE = re.compile(
+    r"|".join(
+        [
+            r"request_too_large",
+            r"context[_ ]?length[_ ]?exceeded",
+            r"maximum context length",
+            r"(?:model[_ ]?)?context[_ ]?window[_ ]?exceeded",
+            r"exceeds?[_ ](?:the[_ ])?model.?s?[_ ]?(?:maximum[_ ])?context",
+            r"prompt is too long",
+            r"model token limit",
+            r"exceed context limit",
+            r"request exceeds the maximum size",
+            r"request size exceeds",
+            r"exceeds the max_model_len",
+            r"max_model_len",
+            r"maximum model length",
+            r"slot context",
+            r"n_ctx_slot",
+            r"exceeds the maximum number of input tokens",
+            r"token.?limit.?exceeded",
+            r"prompt exceeds max length",
+            r"tokens in request more than max tokens allowed",
+            r"total message size.*exceeds limit",
+            r"context size has been exceeded",
+            r"available context size",
+            r"input tokens exceed",
+        ]
+    ),
+    re.IGNORECASE,
+)
+
+_OVERFLOW_COMPOUND_CHECKS: list[tuple[re.Pattern[str], ...]] = [
+    (
+        re.compile(r"max_tokens", re.IGNORECASE),
+        re.compile(r"exceed", re.IGNORECASE),
+        re.compile(r"context", re.IGNORECASE),
+    ),
+    (
+        re.compile(r"input length", re.IGNORECASE),
+        re.compile(r"exceed", re.IGNORECASE),
+        re.compile(r"context", re.IGNORECASE),
+    ),
+    (re.compile(r"413", re.IGNORECASE), re.compile(r"too large", re.IGNORECASE)),
+]
+
+_OVERFLOW_CN_KEYWORDS = (
+    "上下文过长",
+    "上下文超出",
+    "上下文长度超",
+    "超出最大上下文",
+    "请压缩上下文",
+)
+
+_LITELLM_INIT_BUG_RE = re.compile(
+    r"BadRequestError\.__init__\(\).*missing.*required positional argument",
+    re.IGNORECASE,
+)
+
+_PROVIDER_FORMAT_400_RE = re.compile(
+    r"must be in JSON format|InvalidParameter.*(?:function|arguments)"
+    r"|schema validation error|invalid format|invalid json format|valid JSON",
+    re.IGNORECASE,
+)
+
+_MODEL_NOT_FOUND_RE = re.compile(
+    r"is not a valid model|invalid model|model not found|model_not_found"
+    r"|does not exist|no such model|unknown model|unsupported model"
+    r"|no endpoints found that support tool use"
+    r"|no available channel(?: for model)?",
+    re.IGNORECASE,
+)
+
+_USAGE_LIMIT_TRANSIENT_SIGNALS = [
+    "try again",
+    "retry",
+    "resets at",
+    "reset in",
+    "wait",
+    "requests remaining",
+    "periodic",
+    "window",
+]
+
+_USAGE_LIMIT_PATTERNS = ["usage limit", "quota", "limit exceeded", "key limit exceeded"]
+
+_SAFETY_BLOCK_RE = re.compile(
+    r"content_policy_violation|violating our usage policy|safety system"
+    r"|content filtered|responsible ai policy|safety block",
+    re.IGNORECASE,
+)
+
+_THINKING_SIGNATURE_RE = re.compile(
+    r"signature.*thinking|thinking.*signature",
+    re.IGNORECASE,
+)
+
+_DUPLICATE_TOOL_USE_ID_RE = re.compile(
+    r"tool_use.{0,40}(?:unique|duplicate|duplicat|must be)"
+    r"|duplicate.{0,40}tool_use"
+    r"|tool_call_id.{0,40}(?:unique|duplicate|duplicat|must be)"
+    r"|(?:unique|duplicate).{0,40}tool_call_id"
+    r"|messages\.\d+\.tool_calls\.\d+\.id",
+    re.IGNORECASE,
+)
+
+_IMAGE_TOO_LARGE_RE = re.compile(
+    r"image exceeds|image.{0,6}too.{0,3}large|image_too_large|image size exceeds"
+    r"|exceeds.+per.?image.+limit"
+    r"|image.?dimensions?.+exceed|dimensions?.+exceed.+(?:maximum|max|limit|allowed)"
+    r"|exceeds.+(?:maximum|max).+(?:allowed )?size.+\d+",
+    re.IGNORECASE,
+)
+
+_PAYLOAD_TOO_LARGE_RE = re.compile(
+    r"payload too large"
+    r"|request entity too large"
+    r"|request body too large"
+    r"|client intended to send too large body"
+    r"|body size exceeds"
+    r"|payload size exceeds"
+    r"|payload exceeds"
+    r"|request body exceeds"
+    r"|request size exceeds"
+    r"|entity too large"
+    r"|client_max_body_size"
+    r"|exceeded the maximum request size"
+    r"|exceeds.+maximum.+request.+size"
+    r"|maximum payload size exceeded"
+    r"|body exceeds size limit"
+    r"|request exceeds maximum.+size",
+    re.IGNORECASE,
+)
+
+_LONG_CONTEXT_TIER_RE = re.compile(
+    r"extra usage.+(?:required|needed).+long context",
+    re.IGNORECASE,
+)
+
+_MEDIA_REJECTED_RE = re.compile(
+    r"does not support (?:image|vision|multimodal|media)"
+    r"|(?:image|vision|multimodal|media).+(?:not supported|not available|unsupported)"
+    r"|cannot process (?:image|media|multimodal)"
+    r"|model does not have vision"
+    r"|content type.+image.+not supported"
+    r"|invalid content type.+image",
+    re.IGNORECASE,
+)
+
+_PROVIDER_POLICY_BLOCKED_RE = re.compile(
+    r"no endpoints available matching your (?:guardrail|data policy)"
+    r"|organization has been (?:disabled|suspended|blocked)"
+    r"|third[- ]party (?:client|app|application|integration|tool).*(?:not (?:permitted|allowed|supported|authorized)|disallowed|restricted)"
+    r"|(?:not (?:authorized|permitted|allowed|supported)|unauthorized).*(?:third[- ]party|external|direct api)"
+    r"|credential is not authorized for (?:direct )?(?:api|third[- ]party|client) access"
+    r"|subscription tier does not allow (?:external|api|tool)"
+    r"|claude (?:pro|max|team)? (?:subscription|account).*(?:not (?:permitted|allowed|supported)|requires? (?:extra|approved)|extra usage credits)"
+    r"|(?:extra )?usage credits required"
+    r"|only available (?:via|in) (?:claude code|official|claude\.ai)"
+    r"|blocked by (?:provider|anthropic) policy",
+    re.IGNORECASE,
+)
+
+_WAF_CHALLENGE_RE = re.compile(
+    r"challenges\.cloudflare\.com"
+    r"|cf-turnstile"
+    r"|cf-ray"
+    r"|cf_chl_opt"
+    r"|just a moment\.{3}"
+    r"|attention required!? \| cloudflare"
+    r"|error code:? (?:1020|1015|1006|1007|1008)"
+    r"|cloudflare-nginx"
+    r"|challenge-platform"
+    r"|verify you are human"
+    r"|checking your browser before accessing"
+    r"|ddos protection by cloudflare"
+    r"|x-amzn-waf-action"
+    r"|request blocked by (?:aws )?waf"
+    r"|blocked by administrative rules"
+    r"|akamaighost"
+    r"|access denied.*?permission to access"
+    r"|generated by cloudfront"
+    r"|blocked by web application firewall"
+    r"|waf block(?:ed)?"
+    r"|waf challenge"
+    r"|(?:ip|client) (?:address )?(?:is )?blocked"
+    r"|blocked by security policy"
+    r"|access denied by security"
+    r"|bot (?:traffic|detection|protection|challenge)"
+    r"|turnstile[-_ ]required",
+    re.IGNORECASE,
+)
+_CLOUDFLARE_CHALLENGE_RE = _WAF_CHALLENGE_RE
+
+
+# ============================================================================
+# Normalizer
+# ============================================================================
+
+
+@dataclass
+class NormalizedError:
+    status_code: int | None
+    message: str
+    body: dict
+
+
+def _extract_status_code(error: Exception) -> int | None:
+    current = error
+    for _ in range(5):
+        code = getattr(current, "status_code", None)
+        if isinstance(code, int):
+            return code
+        code = getattr(current, "status", None)
+        if isinstance(code, int) and 100 <= code < 600:
+            return code
+        cause = getattr(current, "__cause__", None) or getattr(current, "__context__", None)
+        if cause is None or cause is current:
+            break
+        current = cause
+    return None
+
+
+def _extract_error_body(error: Exception) -> dict:
+    body = getattr(error, "body", None)
+    if isinstance(body, dict):
+        return body
+    response = getattr(error, "response", None)
+    if response is not None:
+        try:
+            json_body = response.json()
+            if isinstance(json_body, dict):
+                return json_body
+        except Exception:
+            pass
+    return {}
+
+
+def normalize_provider_error(error: Exception) -> NormalizedError:
+    """Extract deep nested errors (e.g. OpenRouter metadata.raw) and status codes."""
+    status_code = _extract_status_code(error)
+    body = _extract_error_body(error)
+
+    # Extract deeply nested message
+    _raw_msg = str(error).lower()
+    _body_msg = ""
+    _metadata_msg = ""
+    if isinstance(body, dict):
+        _err_obj = body.get("error", {})
+        if isinstance(_err_obj, dict):
+            _body_msg = str(_err_obj.get("message") or "").lower()
+            _metadata = _err_obj.get("metadata", {})
+            if isinstance(_metadata, dict):
+                _raw_json = _metadata.get("raw") or ""
+                if isinstance(_raw_json, str) and _raw_json.strip():
+                    try:
+                        _inner = json.loads(_raw_json)
+                        if isinstance(_inner, dict):
+                            _inner_err = _inner.get("error", {})
+                            if isinstance(_inner_err, dict):
+                                _metadata_msg = str(_inner_err.get("message") or "").lower()
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+    # Extract raw HTML or text snippet if response body is non-JSON (e.g. Cloudflare challenges)
+    _resp_text = ""
+    response = getattr(error, "response", None)
+    if response is not None:
+        text_attr = getattr(response, "text", None)
+        if isinstance(text_attr, str):
+            _resp_text = text_attr[:2000].lower()
+        elif hasattr(response, "content"):
+            content_attr = getattr(response, "content", None)
+            if isinstance(content_attr, (bytes, bytearray)):
+                _resp_text = content_attr[:2000].decode("utf-8", errors="ignore").lower()
+
+    combined_message = f"{_raw_msg} | {_body_msg} | {_metadata_msg} | {_resp_text}"
+    return NormalizedError(status_code=status_code, message=combined_message, body=body)
+
+
+# ============================================================================
+# Public API
+# ============================================================================
+
+
+def classify_error(exc: Exception) -> ErrorKind:
+    """Classify an LLM exception into an ``ErrorKind`` using multi-probe pipeline."""
+    reason = classify_failover_reason(exc)
+    return _REASON_TO_ERROR_KIND.get(reason, ErrorKind.UNKNOWN)
+
+
+def classify_failover_reason(exc: Exception) -> FailoverReason:
+    """Classify an LLM exception into a ``FailoverReason`` using deep inspection.
+
+    Priority (specific → broad):
+      thinking_signature → duplicate_tool_use_id → image_too_large → media_rejected →
+      long_context_tier → billing → rate_limit → provider_policy_blocked → auth →
+      provider_format → safety_block → model_not_found → overloaded → context_overflow →
+      timeout → UNKNOWN
+    """
+    if isinstance(exc, TypeError) and _LITELLM_INIT_BUG_RE.search(str(exc)):
+        return FailoverReason.TIMEOUT
+
+    normalized = normalize_provider_error(exc)
+    msg = normalized.message
+
+    if not msg.strip() and not normalized.body:
+        return FailoverReason.UNKNOWN
+
+    # 0a. Anthropic thinking block signature invalid (400) — must precede generic 400
+    if normalized.status_code == 400 and _THINKING_SIGNATURE_RE.search(msg):
+        return FailoverReason.THINKING_SIGNATURE
+
+    # 0a2. Duplicate tool_use / tool_call_id — must precede generic 400
+    if normalized.status_code == 400 and _DUPLICATE_TOOL_USE_ID_RE.search(msg):
+        return FailoverReason.DUPLICATE_TOOL_USE_ID
+
+    # 0b. Per-image size or Gateway payload limit exceeded — must precede generic 400 / overflow
+    if _IMAGE_TOO_LARGE_RE.search(msg) or _PAYLOAD_TOO_LARGE_RE.search(msg):
+        return FailoverReason.IMAGE_TOO_LARGE
+
+    # 0b2. Model rejects multimodal input entirely — must precede generic 400
+    if _MEDIA_REJECTED_RE.search(msg):
+        return FailoverReason.MEDIA_REJECTED
+
+    # 0c. Anthropic long-context tier gate (429) — must precede generic rate_limit
+    if normalized.status_code == 429 and _LONG_CONTEXT_TIER_RE.search(msg):
+        return FailoverReason.LONG_CONTEXT_TIER
+
+    # 1. Billing (highest priority to avoid retry loops)
+    if _BILLING_RE.search(msg):
+        return FailoverReason.BILLING
+
+    # 2. Rate Limit
+    if _RATE_LIMIT_RE.search(msg):
+        return FailoverReason.RATE_LIMIT
+
+    # Usage Disambiguation (Rate Limit vs Billing)
+    has_usage_limit = any(p in msg for p in _USAGE_LIMIT_PATTERNS)
+    if has_usage_limit:
+        has_transient = any(p in msg for p in _USAGE_LIMIT_TRANSIENT_SIGNALS)
+        if has_transient:
+            return FailoverReason.RATE_LIMIT
+        return FailoverReason.BILLING
+
+    # 3. Provider Policy / Guardrail Block (must precede generic 401/403 auth)
+    if _PROVIDER_POLICY_BLOCKED_RE.search(msg):
+        return FailoverReason.PROVIDER_POLICY_BLOCKED
+
+    # 3.5. Cloudflare / WAF Anti-bot Challenge (must precede generic 401/403 auth fallback)
+    is_html_doc = "<html" in msg or "<!doctype html" in msg
+    if _CLOUDFLARE_CHALLENGE_RE.search(msg) or (is_html_doc and (normalized.status_code == 403 or "403" in msg)):
+        return FailoverReason.CHALLENGE_BLOCKED
+
+    # 4. Authentication (permanent credential / key errors)
+    if _AUTH_RE.search(msg):
+        return FailoverReason.AUTH_PERMANENT
+
+    # 5. Model / Format / Safety (usually 400s or specific codes)
+    if _PROVIDER_FORMAT_400_RE.search(msg):
+        # API gateway validation error on LLM output (e.g., "must be in JSON format")
+        # This is a model issue (weak model generated invalid JSON), not our bug
+        return FailoverReason.RESPONSE_FORMAT_ERROR
+
+    if _SAFETY_BLOCK_RE.search(msg):
+        return FailoverReason.SAFETY_BLOCK
+
+    # Model-not-found before overloaded: ServiceUnavailableError wrappers often match
+    # service.?unavailable while the inner message is a missing-model distributor error.
+    if _MODEL_NOT_FOUND_RE.search(msg):
+        return FailoverReason.MODEL_NOT_FOUND
+
+    # 5. Overloaded (prioritize over generic timeout)
+    if _OVERLOADED_RE.search(msg) or _OVERLOADED_503_RE.search(msg):
+        return FailoverReason.OVERLOADED
+
+    # 6. Context Overflow
+    if _is_context_overflow(msg):
+        return FailoverReason.CONTEXT_OVERFLOW
+
+    # 7. Transport/Timeouts (+ transient TLS: transport errors carrying an
+    # SSL/TLS/handshake trace but no hard certificate verdict — same class
+    # as connection reset, e.g. Bun's "unknown certificate verification
+    # error" emitted on mid-handshake reset)
+    if _TIMEOUT_RE.search(msg) or (_TLS_TRANSPORT_RE.search(msg) and not _TLS_HARD_RE.search(msg)):
+        return FailoverReason.TIMEOUT
+
+    # 7b. Hard TLS failure: the certificate/chain itself is rejected.
+    # Fail-fast as AUTH_PERMANENT (peer-identity credential can never verify
+    # by retrying); the diagnostic engine still surfaces the tls_certificate
+    # remediation hint for these.
+    if _TLS_HARD_RE.search(msg):
+        return FailoverReason.AUTH_PERMANENT
+
+    # 8. Fallback Status Code Probes
+    if normalized.status_code == 400:
+        # A generic 400 that isn't caught by above patterns is treated as a format error
+        # to prevent infinite retry loops.
+        return FailoverReason.FORMAT_ERROR
+
+    if normalized.status_code == 403:
+        if is_html_doc:
+            return FailoverReason.CHALLENGE_BLOCKED
+        return FailoverReason.AUTH_PERMANENT
+
+    if normalized.status_code == 401:
+        return FailoverReason.AUTH_PERMANENT
+
+    if normalized.status_code == 402:
+        return FailoverReason.BILLING
+
+    if normalized.status_code == 413:
+        if _PAYLOAD_TOO_LARGE_RE.search(msg) or _IMAGE_TOO_LARGE_RE.search(msg):
+            return FailoverReason.IMAGE_TOO_LARGE
+        return FailoverReason.CONTEXT_OVERFLOW
+
+    if normalized.status_code == 429:
+        return FailoverReason.RATE_LIMIT
+
+    if normalized.status_code in (500, 502, 503, 504, 529):
+        return FailoverReason.OVERLOADED
+
+    return FailoverReason.UNKNOWN
+
+
+def is_context_overflow(exc: Exception) -> bool:
+    """Return ``True`` if *exc* signals a context-window overflow."""
+    if classify_error(exc) == ErrorKind.CONTEXT_OVERFLOW:
+        return True
+    msg = normalize_provider_error(exc).message
+    return _is_context_overflow(msg)
+
+
+def is_payload_overflow(exc: Exception) -> bool:
+    """Return ``True`` if *exc* indicates HTTP 413 or Payload/Request/Entity Too Large."""
+    normalized = normalize_provider_error(exc)
+    if normalized.status_code == 413:
+        return True
+    msg = normalized.message.lower()
+    if _PAYLOAD_TOO_LARGE_RE.search(msg) or _IMAGE_TOO_LARGE_RE.search(msg):
+        return True
+    if "413" in msg and ("payload" in msg or "entity" in msg or "too large" in msg):
+        return True
+    reason = classify_failover_reason(exc)
+    return reason == FailoverReason.IMAGE_TOO_LARGE
+
+
+def extract_retry_after(exc: Exception) -> float | None:
+    """Extract ``Retry-After`` seconds from an LLM exception's HTTP response.
+
+    Walks the exception chain looking for an HTTP response with a
+    ``Retry-After`` header.  Returns the value as a positive float, or
+    ``None`` if unavailable / unparseable.
+    """
+    current: Exception | None = exc
+    for _ in range(5):
+        if current is None:
+            break
+        response = getattr(current, "response", None)
+        if response is not None:
+            headers = getattr(response, "headers", None)
+            if headers is not None:
+                raw = headers.get("retry-after") or headers.get("Retry-After")
+                if raw is not None:
+                    try:
+                        value = float(raw)
+                        if value > 0:
+                            return value
+                    except (ValueError, TypeError):
+                        pass
+        current = getattr(current, "__cause__", None) or getattr(current, "__context__", None)
+    return None
+
+
+_AVAILABLE_TOKENS_RE = re.compile(r"available\s*_?tokens\s*:\s*(\d+)", re.IGNORECASE)
+
+_OPENROUTER_BREAKDOWN_RE = re.compile(
+    r"\((\d+)\s+of text input,\s*(\d+)\s+of tool input,\s*\d+\s+in the output\)",
+    re.IGNORECASE,
+)
+
+_MAX_CTX_LENGTH_RE = re.compile(r"maximum context length is (\d+)\s*token", re.IGNORECASE)
+
+_CHAR_PROMPT_RE = re.compile(r"prompt contains (\d+)\s*character", re.IGNORECASE)
+
+_INPUT_TOKENS_RE = re.compile(r"prompt contains (?:at least )?(\d+)\s*input tokens", re.IGNORECASE)
+
+_DASHSCOPE_RANGE_RE = re.compile(r"range of max_tokens should be\s*\[\s*\d+\s*,\s*(\d+)\s*\]", re.IGNORECASE)
+
+_IS_OUTPUT_CAP_KEYWORDS = (
+    ("max_tokens", "available_tokens"),
+    ("max_tokens", "available tokens"),
+    ("in the output", "maximum context length"),
+    ("maximum context length", "requested", "output tokens"),
+)
+
+
+def _looks_like_output_cap_error(msg: str) -> bool:
+    for keywords in _IS_OUTPUT_CAP_KEYWORDS:
+        if all(kw in msg for kw in keywords):
+            return True
+    return "range of max_tokens should be" in msg
+
+
+def parse_available_output_tokens_from_error(exc: Exception) -> int | None:
+    """Extract available output tokens from an output-cap error.
+
+    Covers 5 provider error formats:
+    1. Anthropic: ``available_tokens: 10000``
+    2. OpenRouter/Nous: ``(A of text input, B of tool input, C in the output)``
+    3. LM Studio/llama.cpp (chars): ``prompt contains N characters``
+    4. vLLM: ``prompt contains at least N input tokens``
+    5. DashScope/Alibaba: ``Range of max_tokens should be [1, 65536]``
+    """
+    normalized = normalize_provider_error(exc)
+    msg = normalized.message
+
+    if not _looks_like_output_cap_error(msg):
+        return None
+
+    # DashScope: "Range of max_tokens should be [1, 65536]"
+    m_range = _DASHSCOPE_RANGE_RE.search(msg)
+    if m_range:
+        cap = int(m_range.group(1))
+        if cap >= 1:
+            return cap
+
+    # Anthropic: "available_tokens: 10000" or "available tokens: 10000"
+    m_avail = _AVAILABLE_TOKENS_RE.search(msg)
+    if m_avail:
+        try:
+            tokens = int(m_avail.group(1))
+            if tokens >= 1:
+                return tokens
+        except (ValueError, TypeError):
+            pass
+
+    # OpenRouter: "(150000 of text input, 40000 of tool input, 5000 in the output)"
+    m_ctx = _MAX_CTX_LENGTH_RE.search(msg)
+    m_parts = _OPENROUTER_BREAKDOWN_RE.search(msg)
+    if m_ctx and m_parts:
+        available = int(m_ctx.group(1)) - int(m_parts.group(1)) - int(m_parts.group(2))
+        if available >= 1:
+            return available
+
+    # vLLM: "prompt contains at least 65537 input tokens"
+    m_vllm = _INPUT_TOKENS_RE.search(msg)
+    if m_ctx and m_vllm:
+        available = int(m_ctx.group(1)) - int(m_vllm.group(1))
+        if available >= 1:
+            return available
+
+    # LM Studio/llama.cpp: "prompt contains 77409 characters"
+    m_chars = _CHAR_PROMPT_RE.search(msg)
+    if m_ctx and m_chars:
+        est_input = (int(m_chars.group(1)) + 2) // 3
+        available = int(m_ctx.group(1)) - est_input
+        if available >= 1:
+            return available
+
+    return None
+
+
+# ============================================================================
+# Internal helpers
+# ============================================================================
+
+
+def _is_context_overflow(msg: str) -> bool:
+    """Check raw message string for context overflow patterns."""
+    if _OVERFLOW_EXACT_RE.search(msg):
+        return True
+
+    for patterns in _OVERFLOW_COMPOUND_CHECKS:
+        if all(p.search(msg) for p in patterns):
+            return True
+
+    return any(kw in msg for kw in _OVERFLOW_CN_KEYWORDS)

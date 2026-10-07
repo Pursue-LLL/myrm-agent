@@ -1,0 +1,48 @@
+"""Agent execution errors with unified diagnostics.
+
+Provides base classes for all tool execution errors with structured
+diagnostic information including execution phase, command context,
+and intelligently truncated output previews.
+"""
+
+from myrm_agent_harness.utils.errors import ToolErrorCategory
+
+from .agent_errors import (
+    AgentBusyError,
+    RunawayCircuitBreakException,
+    ToolStuckException,
+)
+from .diagnostics import DiagnosticResult, ErrorContext, LLMErrorDiagnostic
+from .fault_side import (
+    FaultSide,
+    classify_diagnostic_fault_side,
+    classify_fault_side,
+    classify_llm_fault_side,
+    classify_tool_fault_side,
+)
+from .operator_error_sanitizer import (
+    OperatorErrorCode,
+    OperatorErrorSanitizer,
+    SanitizedOperatorError,
+)
+from .tool_execution_error import ExecutionPhase, ToolExecutionError
+
+__all__ = [
+    "AgentBusyError",
+    "DiagnosticResult",
+    "ErrorContext",
+    "ExecutionPhase",
+    "FaultSide",
+    "LLMErrorDiagnostic",
+    "OperatorErrorCode",
+    "OperatorErrorSanitizer",
+    "RunawayCircuitBreakException",
+    "SanitizedOperatorError",
+    "ToolErrorCategory",
+    "ToolExecutionError",
+    "ToolStuckException",
+    "classify_diagnostic_fault_side",
+    "classify_fault_side",
+    "classify_llm_fault_side",
+    "classify_tool_fault_side",
+]
