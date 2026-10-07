@@ -21,6 +21,7 @@ myrm_agent_harness.agent.context_guard.types
 myrm_agent_harness.agent.context_management.archive_checkpoint
 myrm_agent_harness.agent.context_management.archive_checkpoint.store
 myrm_agent_harness.agent.context_management.archive_checkpoint.summary_service
+myrm_agent_harness.agent.context_management.compression_flush
 myrm_agent_harness.agent.context_management.handoff
 myrm_agent_harness.agent.context_management.infra.cache_policy
 myrm_agent_harness.agent.context_management.infra.context_budget

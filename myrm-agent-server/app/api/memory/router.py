@@ -109,6 +109,9 @@ from app.api.memory.self_verification_router import (
 from app.api.memory.shared_bus import (
     router as memory_shared_bus_router,
 )
+from app.api.memory.subagent_isolation import (
+    router as memory_subagent_isolation_router,
+)
 from app.api.memory.test_seed import router as memory_test_seed_router
 from app.api.memory.universal_mcp_router import (
     router as memory_universal_mcp_router,
@@ -173,6 +176,7 @@ router.include_router(memory_provenance_batch_router, tags=["memory-provenance-b
 router.include_router(memory_shared_bus_router, tags=["memory-shared-bus"])
 router.include_router(memory_budget_curator_router, tags=["memory-budget-curator"])
 router.include_router(memory_dialectic_router, tags=["memory-dialectic"])
+router.include_router(memory_subagent_isolation_router, tags=["memory-subagent-isolation"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
