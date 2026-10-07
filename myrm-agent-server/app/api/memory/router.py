@@ -220,6 +220,9 @@ from app.api.memory.temporal_graph_router import (
     router as temporal_graph_router,
 )
 from app.api.memory.test_seed import router as memory_test_seed_router
+from app.api.memory.two_layer_dialectic_router import (
+    router as two_layer_dialectic_router,
+)
 from app.api.memory.universal_mcp_router import (
     router as memory_universal_mcp_router,
 )
@@ -418,6 +421,10 @@ router.include_router(
 router.include_router(
     authoritative_conclusions_router,
     tags=["memory-conclusions"],
+)
+router.include_router(
+    two_layer_dialectic_router,
+    tags=["memory-two-layer-dialectic"],
 )
 
 
