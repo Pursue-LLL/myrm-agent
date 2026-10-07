@@ -223,6 +223,9 @@ from app.api.memory.temporal_graph_router import (
     router as temporal_graph_router,
 )
 from app.api.memory.test_seed import router as memory_test_seed_router
+from app.api.memory.tiered_consensus_router import (
+    router as tiered_consensus_router,
+)
 from app.api.memory.two_layer_dialectic_router import (
     router as two_layer_dialectic_router,
 )
@@ -432,6 +435,10 @@ router.include_router(
 router.include_router(
     peer_gateway_router,
     tags=["memory-peer-gateway"],
+)
+router.include_router(
+    tiered_consensus_router,
+    tags=["memory-tiered-consensus"],
 )
 
 
