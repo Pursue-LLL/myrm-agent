@@ -37,6 +37,9 @@ from app.api.memory.auto_recall_router import (
 from app.api.memory.budget_curator import (
     router as memory_budget_curator_router,
 )
+from app.api.memory.business_template_router import (
+    router as business_template_router,
+)
 from app.api.memory.client_partition import (
     router as memory_client_partition_router,
 )
@@ -383,6 +386,10 @@ router.include_router(
 router.include_router(
     session_commit_router,
     tags=["memory-session-commit"],
+)
+router.include_router(
+    business_template_router,
+    tags=["memory-business-templates"],
 )
 
 
