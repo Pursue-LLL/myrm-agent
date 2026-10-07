@@ -79,6 +79,9 @@ from app.api.memory.hindsight_reflection_router import (
 from app.api.memory.intent_reflection_router import (
     router as memory_intent_reflection_router,
 )
+from app.api.memory.job_compounding_router import (
+    router as job_compounding_router,
+)
 from app.api.memory.kg_screening_router import (
     router as kg_screening_router,
 )
@@ -265,4 +268,9 @@ router.include_router(
     private_notebook_router,
     tags=["memory-private-notebook"],
 )
+router.include_router(
+    job_compounding_router,
+    tags=["memory-job-compounding"],
+)
+
 
