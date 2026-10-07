@@ -68,6 +68,9 @@ from app.api.memory.decay_lifecycle_router import (
 from app.api.memory.dialectic import (
     router as memory_dialectic_router,
 )
+from app.api.memory.dialectic_guard_router import (
+    router as dialectic_guard_router,
+)
 from app.api.memory.disk_reconciliation_router import (
     router as disk_reconciliation_router,
 )
@@ -446,6 +449,10 @@ router.include_router(
 router.include_router(
     thinking_sanitizer_router,
     tags=["memory-thinking-sanitizer"],
+)
+router.include_router(
+    dialectic_guard_router,
+    tags=["memory-dialectic-guard"],
 )
 
 
