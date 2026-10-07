@@ -173,6 +173,9 @@ from app.api.memory.override_stack_router import (
 from app.api.memory.peer_cognition_router import (
     router as peer_cognition_router,
 )
+from app.api.memory.peer_gateway_router import (
+    router as peer_gateway_router,
+)
 from app.api.memory.persona_router import (
     router as memory_persona_router,
 )
@@ -425,6 +428,10 @@ router.include_router(
 router.include_router(
     two_layer_dialectic_router,
     tags=["memory-two-layer-dialectic"],
+)
+router.include_router(
+    peer_gateway_router,
+    tags=["memory-peer-gateway"],
 )
 
 
