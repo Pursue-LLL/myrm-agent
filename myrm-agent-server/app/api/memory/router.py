@@ -47,6 +47,9 @@ from app.api.memory.codegraph_router import router as codegraph_router
 from app.api.memory.conflict_router import (
     router as memory_conflict_router,
 )
+from app.api.memory.conversation_lineage_defense_router import (
+    router as conversation_lineage_defense_router,
+)
 from app.api.memory.cross_agent_router import (
     router as cross_agent_router,
 )
@@ -81,12 +84,12 @@ from app.api.memory.four_tier_fts_router import (
 from app.api.memory.git_okf_router import (
     router as git_okf_router,
 )
-from app.api.memory.hybrid_memory_router import (
-    router as hybrid_memory_router,
-)
 from app.api.memory.graph_rrf_router import router as graph_rrf_router
 from app.api.memory.hindsight_reflection_router import (
     router as hindsight_reflection_router,
+)
+from app.api.memory.hybrid_memory_router import (
+    router as hybrid_memory_router,
 )
 from app.api.memory.intent_reflection_router import (
     router as memory_intent_reflection_router,
@@ -96,6 +99,9 @@ from app.api.memory.job_compounding_router import (
 )
 from app.api.memory.kg_screening_router import (
     router as kg_screening_router,
+)
+from app.api.memory.lineage_search_router import (
+    router as lineage_search_router,
 )
 from app.api.memory.mcp_router import (
     router as memory_mcp_router,
@@ -313,6 +319,14 @@ router.include_router(
 router.include_router(
     hybrid_memory_router,
     tags=["memory-hybrid"],
+)
+router.include_router(
+    lineage_search_router,
+    tags=["memory-lineage-search"],
+)
+router.include_router(
+    conversation_lineage_defense_router,
+    tags=["memory-lineage-defense"],
 )
 
 
