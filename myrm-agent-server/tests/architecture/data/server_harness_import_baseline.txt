@@ -262,6 +262,7 @@ myrm_agent_harness.core.security.approval_metrics
 myrm_agent_harness.core.security.asr_privacy_tradeoff
 myrm_agent_harness.core.security.audit_coverage
 myrm_agent_harness.core.security.auto_review_resolution
+myrm_agent_harness.core.security.autonomous_signing_airgap
 myrm_agent_harness.core.security.blast_radius_inspector
 myrm_agent_harness.core.security.bot_budget_guardrail
 myrm_agent_harness.core.security.bot_screen_intervention
@@ -273,6 +274,7 @@ myrm_agent_harness.core.security.code_signing_gate
 myrm_agent_harness.core.security.commerce_dispute_escrow
 myrm_agent_harness.core.security.companion_relationship_guard
 myrm_agent_harness.core.security.compound_shell_risk
+myrm_agent_harness.core.security.confidential_payment_sandbox
 myrm_agent_harness.core.security.connector_guard
 myrm_agent_harness.core.security.consumer_action_guard
 myrm_agent_harness.core.security.cos_otp_isolation_jit.jit_gate
@@ -309,9 +311,11 @@ myrm_agent_harness.core.security.dual_track_sandbox_guard.types
 myrm_agent_harness.core.security.dual_use_containment
 myrm_agent_harness.core.security.dynamic_toolchain_provenance
 myrm_agent_harness.core.security.egress_dlp
+myrm_agent_harness.core.security.enterprise_hipaa_compliance
 myrm_agent_harness.core.security.ephemeral_identity_voucher
 myrm_agent_harness.core.security.event_capability_attenuation
 myrm_agent_harness.core.security.executable_probe
+myrm_agent_harness.core.security.execution_approval_sanitizer
 myrm_agent_harness.core.security.externally_visible_action
 myrm_agent_harness.core.security.financial_boundary
 myrm_agent_harness.core.security.financial_safety_guard
@@ -347,6 +351,7 @@ myrm_agent_harness.core.security.local_first_vault
 myrm_agent_harness.core.security.localhost_anti_hijack
 myrm_agent_harness.core.security.managed_permission_rollback
 myrm_agent_harness.core.security.marketplace_contract
+myrm_agent_harness.core.security.media_artifact_grants
 myrm_agent_harness.core.security.memory_defense_firewall
 myrm_agent_harness.core.security.memory_post_fetch_screening
 myrm_agent_harness.core.security.model_sovereignty_circuit_breaker
@@ -359,6 +364,7 @@ myrm_agent_harness.core.security.pii_vault
 myrm_agent_harness.core.security.plugin_guardrail_auditor
 myrm_agent_harness.core.security.plugin_trust_attestation.trust_verifier
 myrm_agent_harness.core.security.plugin_trust_attestation.types
+myrm_agent_harness.core.security.policy_conformance
 myrm_agent_harness.core.security.policy_snapshot
 myrm_agent_harness.core.security.pre_flight_budget
 myrm_agent_harness.core.security.pre_tool_use_interceptor
@@ -374,6 +380,7 @@ myrm_agent_harness.core.security.sandbox_zero_leakage_pii.attestation
 myrm_agent_harness.core.security.sandbox_zero_leakage_pii.pii_firewall
 myrm_agent_harness.core.security.sandbox_zero_leakage_pii.transparency_audit
 myrm_agent_harness.core.security.sandbox_zero_leakage_pii.types
+myrm_agent_harness.core.security.scoped_approval
 myrm_agent_harness.core.security.scoped_css_sentinel
 myrm_agent_harness.core.security.scoped_folder_sandbox_mount
 myrm_agent_harness.core.security.secops_audit
@@ -391,6 +398,7 @@ myrm_agent_harness.core.security.stacked_policy_governance
 myrm_agent_harness.core.security.streaming_gate
 myrm_agent_harness.core.security.structured_scan_errors.emitter
 myrm_agent_harness.core.security.subdomain_ticket_gateway
+myrm_agent_harness.core.security.system_app_boundary
 myrm_agent_harness.core.security.target_scope_boundary
 myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.core.security.tool_registry.registry
