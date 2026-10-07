@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - 探测语义（仅确定 LOCKED 才算已锁；硬件输入空闲不足或探测未知即视为人在机前）、
-  解锁串行化与持锁复探锁态/在场、密码仅经 stdin、阻塞子进程不卡事件循环的断言
+  解锁串行化与持锁复探锁态/在场、密码仅经 stdin、唤醒键先于密码且不产生字符、阻塞子进程不卡事件循环的断言
 
 [POS]
 与 test_service_lease.py（回锁校验与租约生命周期）互补；Keychain 密码读取见
@@ -155,6 +155,29 @@ class TestMacScreenUnlocker:
         assert args[0] == ["osascript", "-"]
         assert "my_password" in kwargs["input"]
         assert all("my_password" not in part for part in args[0])
+
+    @pytest.mark.asyncio
+    @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
+    @patch.object(MacScreenUnlocker, "is_locked", side_effect=[True, False])
+    @patch("subprocess.Popen")
+    @patch("subprocess.run")
+    async def test_wake_keypress_inserts_no_character(
+        self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock
+    ) -> None:
+        """唤醒键先于密码且不产生字符：焦点中的密码框会把可打印键当成密码的第一个字符。"""
+        mock_run.return_value = subprocess.CompletedProcess([], returncode=0)
+        await MacScreenUnlocker.unlock()
+        script = mock_run.call_args.kwargs["input"]
+        statements = [
+            line.strip().split(" -- ")[0] for line in script.splitlines() if line.strip() and not line.strip().startswith("delay")
+        ]
+        assert statements == [
+            'tell application "System Events"',
+            "key code 123",  # Left Arrow：任何键盘布局下键码相同，空输入框里无副作用
+            'keystroke "my_password"',
+            "key code 36",  # Return
+            "end tell",
+        ]
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password")

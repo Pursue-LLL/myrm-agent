@@ -150,6 +150,11 @@ class MacScreenUnlocker:
         only the exit code, because ``CalledProcessError.cmd`` / osascript
         stderr can both echo the script body. Blocking subprocess calls run
         off the event loop so the API stays responsive during the ~2 s typing.
+
+        The wake keypress must not insert a character: the password field may already
+        hold focus, where a printable key such as Space would become the first character
+        of the typed password. Left Arrow does nothing in an empty field, and its key
+        code is the same on every keyboard layout (a letter's key code is not).
         """
         password = await asyncio.to_thread(cls.get_password)
         if not password:
@@ -163,7 +168,7 @@ class MacScreenUnlocker:
         escaped_password = password.replace("\\", "\\\\").replace('"', '\\"')
         script = f"""
             tell application "System Events"
-                key code 49 -- space to wake
+                key code 123 -- left arrow to wake
                 delay 0.5
                 keystroke "{escaped_password}"
                 delay 0.2
