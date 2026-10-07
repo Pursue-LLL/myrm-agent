@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 
-from myrm_agent_harness.toolkits.vector.sqlite_vec import (
+from myrm_agent_harness.toolkits.vector import (
     SqliteVecConfig,
     SqliteVecStore,
 )
