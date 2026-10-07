@@ -41,7 +41,3 @@ Stable public import surface for external consumers (`myrm-agent-server`, third-
 - `agent.types` (POS: Agent core runtime type definitions)
 - `core.events.types` (POS: Event type definitions)
 - `backends.skills.protocols` (POS: Skill backend protocol definition)
-
-## Distribution
-
-See [DISTRIBUTION_SYSTEM.md](../../../harness_packaging/DISTRIBUTION_SYSTEM.md).

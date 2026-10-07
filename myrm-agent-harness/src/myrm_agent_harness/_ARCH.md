@@ -32,7 +32,7 @@ Full cross-layer map: [ARCHITECTURE.md](../../ARCHITECTURE.md) §跨层概念映
 | eval/ | Eval Framework — Agent behavior quality evaluation (Protocol-based; not a toolkit). See [eval/_ARCH.md](eval/_ARCH.md). |
 | infra/ | Infrastructure layer — file locks, message delivery, OpenTelemetry tracing (`infra/tracing/`), state monitoring. |
 | observability/ | Cross-cutting metrics, health diagnostics, ContextVar log tracing. See [observability/_ARCH.md](observability/_ARCH.md). |
-| runtime/ | Agent runtime infrastructure for single-instance execution. Includes `install_guard/` for dual-wheel install readiness. |
+| runtime/ | Agent runtime infrastructure for single-instance execution. Includes `install_guard/` for post-install verification. |
 | toolkits/ | Generic, framework-agnostic toolkit collection (like lodash). MUST NOT depend on agent/. |
 | utils/ | Utility library — error handling, logging, text processing, token tracking, URL tools. |
 

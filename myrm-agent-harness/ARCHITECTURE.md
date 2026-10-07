@@ -1,6 +1,6 @@
 # Myrm Agent Harness - 架构文档
 
-> **许可**: Proprietary（见 [LICENSE](LICENSE) 与 `pyproject.toml`）。框架层不与业务逻辑耦合，类似 LangChain，供 `myrm-agent-server` 等业务项目引用。
+> **许可**: MIT（见 [LICENSE](LICENSE) 与 `pyproject.toml`）。框架层不与业务逻辑耦合，类似 LangChain，供 `myrm-agent-server` 等业务项目引用。
 
 > 📐 本项目采用分形自文档结构，通过 INPUT/OUTPUT/POS 三元组和文件夹架构文档形成自组织系统。
 
@@ -58,13 +58,13 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 | 模块       | 路径                                | 职责                                                                                                                                                                                                                               |
 | ---------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Core 层** | `myrm_agent_harness/core/`         | **框架无关基础能力层**。提供 security（安全检测/审计/防护）、config（LLM 配置）、events（事件类型/流式枚举）、hooks（Hook 类型定义/生命周期事件）、artifacts（工件类型/映射常量）。同时被 `agent/` 和 `toolkits/` 引用，消除二者间的耦合 |
-| **Public API** | `myrm_agent_harness/api/`       | **闭源分发公开接口**。第三方框架与 server 的唯一推荐 import 路径（factory、Protocol、DTO）。详见 [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md) |
+| **Public API** | `myrm_agent_harness/api/`       | **公开接口**。第三方框架与 server 的唯一推荐 import 路径（factory、Protocol、DTO）。 |
 | Agent 核心 | `myrm_agent_harness/agent/`         | BaseAgent / SkillAgent 运行时；模块导航见 [agent/_ARCH.md](src/myrm_agent_harness/agent/_ARCH.md) |
 | SDK 入口   | `myrm_agent_harness/client.py`      | SDK Facade — `AgentClient` 便利层；**PyPI 稳定契约**见 `api/`                                                                                                                                                          |
 | ACP 薄入口 | `myrm_agent_harness/agent/acp/`    | 独立 ACP Server 的 default factory 与 CLI 入口；完整 ACP runtime 在 `toolkits/acp/`                                                                                                                                                |
 | 后端抽象层 | `myrm_agent_harness/backends/`      | Profile / Secret / Skill 三类存储后端的 Protocol 与 Local/Memory/Storage 实现；Skill 热重载失效信号持久化于 `MYRM_DATA_DIR/.skill_config_version`（server re-export）；公开扩展点见 `api/protocols`                                                                                                                      |
 | 基础设施层 | `myrm_agent_harness/infra/`         | 提供通用机制：统一文件锁、消息投递队列（StorageProvider + 弹性机制 + Metrics）、链路追踪、增量状态监控                                                                                                                             |
-| 运行时层   | `myrm_agent_harness/runtime/`       | 单 Agent **实例守护**（checkpoint、内存压力、doctor、quota）及 `install_guard/` 双 wheel 安装门禁 — 非 Agent 推理循环，非 `toolkits/tasks/` 作业队列                                                                                                                             |
+| 运行时层   | `myrm_agent_harness/runtime/`       | 单 Agent **实例守护**（checkpoint、内存压力、doctor、quota）及 `install_guard/` 安装后验证 CLI — 非 Agent 推理循环，非 `toolkits/tasks/` 作业队列                                                                                                                             |
 | 功能标志   | `myrm_agent_harness/core/features/` | Feature Flag 引擎，支持功能生命周期管理与运行时动态配置查询                                                                                                                                                                        |
 | 诊断自检   | `myrm_agent_harness/observability/diagnostics/` | Diagnostic Protocol — 健康探针、benchmark probes，暴露各组件“为什么不能工作”的原因                                                                                                                                    |
 | 观测监控层 | `myrm_agent_harness/observability/` | 提供全局 Prometheus 监控基建，记录 Agent 运行时关键指标（执行耗时、工具调用、Token 消耗等）                                                                                                                                        |
@@ -73,7 +73,6 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 | 工具函数库 | `myrm_agent_harness/utils/`         | 提供通用工具函数（错误处理、日志、文本处理、Token 追踪、URL 工具）                                                                                                                                                                 |
 | 测试套件   | `tests/`                            | 单元测试、集成测试、沙箱测试、性能测试；公开 API 冒烟见 `tests/api/`                                                                                                                                               |
 | 性能基准   | `benchmarks/`                       | CI 回归基准（startup、boundary）；`archive/` 存放非门禁历史脚本                                                                                                                                                                    |
-| **分发构建** | `harness_packaging/`              | 闭源分发：`codegen.py`、`assemble.py`、core manifest（`directories` SSOT）、Nuitka 编译、release wheel 源码剥离。详见 [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md) |
 
 ### 跨层概念映射（一名一义）
 
@@ -164,7 +163,6 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 - **`[acp]`**: agent-client-protocol（外部 Agent 委托 + ACP Server）
 - **`[browser]`**: patchright, camoufox[async], orjson（浏览器自动化与会话持久化 JSON）
 - **`[observability]`**: prometheus-client, opentelemetry-sdk, opentelemetry-exporter-otlp-proto-grpc, openinference-instrumentation-langchain（Prometheus 指标 + Phoenix / OTLP 追踪）
-- **`[compiled-core]`** / **`[compiled-core-musl]`**: 平台 native 扩展 wheel（8 平台，见 `harness_packaging/DISTRIBUTION_SYSTEM.md`）
 - **`[all]`**: 包含上述全部 extras（含 `[web]`）
 - **E2B / S3 / ripgrep**: 由业务层或运行时可选接入
 
@@ -305,7 +303,6 @@ agent/ (运行时核心层)
 | [CONTEXT_ENGINEERING.md](src/myrm_agent_harness/agent/context_management/CONTEXT_ENGINEERING.md) | 上下文工程（行业理论） |
 | [ACP_SYSTEM.md](src/myrm_agent_harness/toolkits/acp/ACP_SYSTEM.md) | ACP 协议 |
 | [TRACE_STORAGE_SYSTEM.md](src/myrm_agent_harness/infra/tracing/TRACE_STORAGE_SYSTEM.md) | Trace 存储 |
-| [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md) | 闭源分发 |
 | [EVENT_LOG_SYSTEM.md](src/myrm_agent_harness/agent/event_log/EVENT_LOG_SYSTEM.md) | 事件日志 |
 | [DYNAMIC_WORKFLOW_SYSTEM.md](src/myrm_agent_harness/agent/dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md) | 动态工作流 |
 | [DEEP_RESEARCH_SYSTEM.md](src/myrm_agent_harness/agent/deep_research/DEEP_RESEARCH_SYSTEM.md) | 深度研究 |

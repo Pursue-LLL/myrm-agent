@@ -10,7 +10,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO_ROOT))
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from harness_packaging.component_snapshots import (  # noqa: E402
+from tests.architecture.component_snapshots import (  # noqa: E402
     get_snapshots_dir,
     save_snapshots_to_disk,
 )

@@ -312,8 +312,7 @@ myrm-agent-harness/          # 本仓库根（示意）
 │       └── utils/                   # 通用工具函数
 │
 ├── tests/                           # 测试套件（单元 / 集成 / 架构门禁 / 性能）
-├── harness_packaging/               # 分发构建（Nuitka compiled-core + release wheel）
-└── scripts/                         # 边界检测、构建与发布脚本
+└── scripts/                         # 边界检测、发布与文档门禁脚本
 ```
 
 详细架构说明请参考 [ARCHITECTURE.md](ARCHITECTURE.md)。
@@ -592,7 +591,7 @@ uv sync --python 3.13 --locked --extra all --group dev
 source .venv/bin/activate
 
 # 与 CI 相同：严格按 uv.lock 安装。修改 pyproject.toml（依赖、extras、version）后运行 `uv lock` 并提交 uv.lock，
-# 否则 `--locked` 会失败。compiled-core* 平台包发版前不在 PyPI 上，开发锁通过 [tool.uv] exclude-dependencies（需 uv ≥ 0.9.8）排除它们。
+# 否则 `--locked` 会失败。
 
 # ⚠️ 重要：安装 pre-commit（自动化边界检测）
 pip install pre-commit

@@ -122,22 +122,6 @@ observability = [
   "opentelemetry-exporter-otlp-proto-grpc>=1.44.0",
   "openinference-instrumentation-langchain>=0.1.73",
 ]
-compiled-core = [
-# BEGIN compiled-core (generated — do not edit)
-"myrm-agent-harness-core-darwin-arm64==0.1.0rc6; platform_system == 'Darwin' and platform_machine == 'arm64'",
-  "myrm-agent-harness-core-darwin-x64==0.1.0rc6; platform_system == 'Darwin' and platform_machine == 'x86_64'",
-  "myrm-agent-harness-core-linux-x64==0.1.0rc6; platform_system == 'Linux' and platform_machine == 'x86_64'",
-  "myrm-agent-harness-core-linux-arm64==0.1.0rc6; platform_system == 'Linux' and platform_machine == 'aarch64'",
-  "myrm-agent-harness-core-win32-x64==0.1.0rc6; platform_system == 'Windows' and platform_machine == 'AMD64'",
-  "myrm-agent-harness-core-win32-arm64==0.1.0rc6; platform_system == 'Windows' and platform_machine == 'ARM64'",
-# END compiled-core
-]
-compiled-core-musl = [
-# BEGIN compiled-core-musl (generated — do not edit)
-"myrm-agent-harness-core-linux-x64-musl==0.1.0rc6; platform_system == 'Linux' and platform_machine == 'x86_64'",
-  "myrm-agent-harness-core-linux-arm64-musl==0.1.0rc6; platform_system == 'Linux' and platform_machine == 'aarch64'",
-# END compiled-core-musl
-]
 all = [
   "myrm-agent-harness[acp,browser,computer-use,image-processing,qdrant,retrieval,file-parsers,fastapi,observability,web]",
 ]
@@ -145,19 +129,6 @@ all = [
 [tool.uv]
 # Universal lock for the Python 3.13 interpreter used by development and CI.
 environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
-# Platform core wheels (the compiled-core* extras above) exist on PyPI only after a release is
-# published, so the dev lock never resolves them; the published wheel metadata keeps the pins.
-# One entry per platform in harness_packaging/platforms.py (PUBLISH_PLATFORMS): a platform missing here makes `uv lock` fail.
-exclude-dependencies = [
-  "myrm-agent-harness-core-darwin-arm64",
-  "myrm-agent-harness-core-darwin-x64",
-  "myrm-agent-harness-core-linux-x64",
-  "myrm-agent-harness-core-linux-arm64",
-  "myrm-agent-harness-core-linux-x64-musl",
-  "myrm-agent-harness-core-linux-arm64-musl",
-  "myrm-agent-harness-core-win32-x64",
-  "myrm-agent-harness-core-win32-arm64",
-]
 override-dependencies = [
   "click>=8.5.0",
   "patchright>=1.59.1",
@@ -397,10 +368,6 @@ include = [
 exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "\\.\\.\\."]
 
 [dependency-groups]
-build = [
-  "nuitka>=4.1.2",
-  "build>=1.5.0",
-]
 dev = [
   "pytest>=9.1.1",                   # 测试框架
   "pytest-asyncio>=1.4.0",           # 异步测试支持

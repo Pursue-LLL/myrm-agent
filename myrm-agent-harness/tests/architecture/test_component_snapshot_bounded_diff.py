@@ -16,7 +16,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from harness_packaging.component_snapshots import (
+from tests.architecture.component_snapshots import (
     compute_bounded_diff,
     export_all_snapshots,
     get_snapshots_dir,

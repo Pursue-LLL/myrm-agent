@@ -20,16 +20,6 @@ overrides = [
     { name = "opentelemetry-semantic-conventions", specifier = ">=0.61b0" },
     { name = "patchright", specifier = ">=1.59.1" },
 ]
-excludes = [
-    "myrm-agent-harness-core-darwin-arm64",
-    "myrm-agent-harness-core-darwin-x64",
-    "myrm-agent-harness-core-linux-arm64",
-    "myrm-agent-harness-core-linux-arm64-musl",
-    "myrm-agent-harness-core-linux-x64",
-    "myrm-agent-harness-core-linux-x64-musl",
-    "myrm-agent-harness-core-win32-arm64",
-    "myrm-agent-harness-core-win32-x64",
-]
 
 [[package]]
 name = "agent-client-protocol"
@@ -435,20 +425,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/78/6f/8975af88d203efd70cc69477ebac702babef38201d04621c9583f2508f25/browserforge-1.2.4.tar.gz", hash = "sha256:05686473793769856ebd3528c69071f5be0e511260993e8b2ba839863711a0c4", size = 36700, upload-time = "2026-02-03T02:52:09.721Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/35/ce962f738ae28ffce6293e7607b129075633e6bb185a5ab87e49246eedc2/browserforge-1.2.4-py3-none-any.whl", hash = "sha256:fb1c14e62ac09de221dcfc73074200269f697596c642cb200ceaab1127a17542", size = 37890, upload-time = "2026-02-03T02:52:08.745Z" },
-]
-
-[[package]]
-name = "build"
-version = "1.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "colorama", marker = "(os_name == 'nt' and platform_machine != 'aarch64' and sys_platform == 'linux') or (os_name == 'nt' and sys_platform != 'darwin' and sys_platform != 'linux')" },
-    { name = "packaging" },
-    { name = "pyproject-hooks" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/78/e0/df5e171f685f82f37b12e1f208064e24244911079d7b767447d1af7e0d70/build-1.5.0.tar.gz", hash = "sha256:302c22c3ba2a0fd5f3911918651341ebb3896176cbdec15bd421f80b1afc7647", size = 89796, upload-time = "2026-04-30T03:18:25.17Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/fe/6bea5c9162869c5beba5d9c8abbed835ec85bf1ec1fba05a3822325c45f3/build-1.5.0-py3-none-any.whl", hash = "sha256:13f3eecb844759ab66efec90ca17639bbf14dc06cb2fdf37a9010322d9c50a6f", size = 26018, upload-time = "2026-04-30T03:18:23.644Z" },
 ]
 
 [[package]]
@@ -2739,10 +2715,6 @@ web = [
 ]
 
 [package.dev-dependencies]
-build = [
-    { name = "build" },
-    { name = "nuitka" },
-]
 dev = [
     { name = "blockbuster" },
     { name = "greenlet" },
@@ -2788,14 +2760,6 @@ requires-dist = [
     { name = "lxml", specifier = ">=6.1.2" },
     { name = "mcp", specifier = ">=2.1.1" },
     { name = "myrm-agent-harness", extras = ["acp", "browser", "computer-use", "image-processing", "qdrant", "retrieval", "file-parsers", "fastapi", "observability", "web"], marker = "extra == 'all'" },
-    { name = "myrm-agent-harness-core-darwin-arm64", marker = "platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
-    { name = "myrm-agent-harness-core-darwin-x64", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
-    { name = "myrm-agent-harness-core-linux-arm64", marker = "platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
-    { name = "myrm-agent-harness-core-linux-arm64-musl", marker = "platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'compiled-core-musl'", specifier = "==0.1.0rc6" },
-    { name = "myrm-agent-harness-core-linux-x64", marker = "platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
-    { name = "myrm-agent-harness-core-linux-x64-musl", marker = "platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'compiled-core-musl'", specifier = "==0.1.0rc6" },
-    { name = "myrm-agent-harness-core-win32-arm64", marker = "platform_machine == 'ARM64' and sys_platform == 'win32' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
-    { name = "myrm-agent-harness-core-win32-x64", marker = "platform_machine == 'AMD64' and sys_platform == 'win32' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
     { name = "numpy", marker = "extra == 'retrieval'", specifier = ">=2.5.2" },
     { name = "openinference-instrumentation-langchain", marker = "extra == 'observability'", specifier = ">=0.1.73" },
     { name = "openpyxl", marker = "extra == 'file-parsers'", specifier = ">=3.1.5" },
@@ -2824,13 +2788,9 @@ requires-dist = [
     { name = "watchdog", specifier = ">=6.0.0" },
     { name = "youtube-transcript-api", marker = "extra == 'web'", specifier = ">=1.2.4" },
 ]
-provides-extras = ["browser", "qdrant", "retrieval", "acp", "image-processing", "computer-use", "web", "file-parsers", "pdf-ocr", "fastapi", "observability", "compiled-core", "compiled-core-musl", "all"]
+provides-extras = ["browser", "qdrant", "retrieval", "acp", "image-processing", "computer-use", "web", "file-parsers", "pdf-ocr", "fastapi", "observability", "all"]
 
 [package.metadata.requires-dev]
-build = [
-    { name = "build", specifier = ">=1.5.0" },
-    { name = "nuitka", specifier = ">=4.1.2" },
-]
 dev = [
     { name = "blockbuster", specifier = ">=1.5.26" },
     { name = "greenlet", specifier = ">=3.5.1" },
@@ -2877,12 +2837,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/9a/8e/105de02c1322cfada
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/c8/12811c9b48fde162bb72b6f2e78fada9a247a09d7bb5be2050a5d099c77b/nodeenv-1.11.0-py2.py3-none-any.whl", hash = "sha256:edaa16e6c14d7cf395d75d4bbd5a26390f4dc06501a33b4e76282b02cc688a25", size = 34277, upload-time = "2026-09-26T11:29:19.933Z" },
 ]
-
-[[package]]
-name = "nuitka"
-version = "4.1.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e6/2e/9ea398ca1a4fc458958fdf477ae18d3395bee8c9f8950ca6f0f039ea2585/nuitka-4.1.2.tar.gz", hash = "sha256:efc2359b171d7b63046ca8ec8dee57015c3466a9df74b68a049c2c1a7e93ecee", size = 4561050, upload-time = "2026-05-28T08:26:07.947Z" }
 
 [[package]]
 name = "numpy"
@@ -4018,15 +3972,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e8/52/d87eba7cb129b81563019d1679026e7a112ef76855d6159d24754dbd2a51/pyperclip-1.11.0.tar.gz", hash = "sha256:244035963e4428530d9e3a6101a1ef97209c6825edab1567beac148ccc1db1b6", size = 12185, upload-time = "2025-09-26T14:40:37.245Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/df/80/fc9d01d5ed37ba4c42ca2b55b4339ae6e200b456be3a1aaddf4a9fa99b8c/pyperclip-1.11.0-py3-none-any.whl", hash = "sha256:299403e9ff44581cb9ba2ffeed69c7aa96a008622ad0c46cb575ca75b5b84273", size = 11063, upload-time = "2025-09-26T14:40:36.069Z" },
-]
-
-[[package]]
-name = "pyproject-hooks"
-version = "1.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e7/82/28175b2414effca1cdac8dc99f76d660e7a4fb0ceefa4b4ab8f5f6742925/pyproject_hooks-1.2.0.tar.gz", hash = "sha256:1e859bd5c40fae9448642dd871adf459e5e2084186e8d2c2a79a824c970da1f8", size = 19228, upload-time = "2024-09-29T09:24:13.293Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl", hash = "sha256:9e5c6bfa8dcc30091c74b0cf803c81fdd29d94f01992a7707bc97babb1141913", size = 10216, upload-time = "2024-09-29T09:24:11.978Z" },
 ]
 
 [[package]]

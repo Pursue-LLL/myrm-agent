@@ -149,7 +149,7 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 from myrm_agent_harness import __version__
 from scripts.boundary_check import main
-from tests.architecture import distribution_wheel_helpers
+from tests.architecture import component_snapshots
 """
 
 _PROBE_PATH = _REPO_ROOT / "tests" / "architecture" / "test_probe_sample.py"

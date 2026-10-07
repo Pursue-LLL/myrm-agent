@@ -1,6 +1,6 @@
 # Myrm Agent Harness 框架设计原则
 
-> **许可**: `myrm-agent-harness` 是独立**闭源**仓库，与 `myrm-control-plane`（闭源）相对；`myrm-agent-server`、`myrm-agent-frontend`、`myrm-agent-desktop` 为开源仓库。
+> **许可**: `myrm-agent-harness` 为 MIT 开源框架，与 `myrm-agent-server`、`myrm-agent-frontend`、`myrm-agent-desktop` 同属 `myrm-agent` 仓库；`myrm-control-plane` 为闭源仓库。
 
 Myrm Agent Harness 是一个独立于业务逻辑的底层执行引擎与编排框架。为了保持代码库的高质量、可维护性与扩展性，任何向本仓库贡献代码的开发者，必须严格遵守以下设计原则：
 
@@ -23,22 +23,14 @@ Myrm Agent Harness 是一个独立于业务逻辑的底层执行引擎与编排�
 本项目采用 `Agent-in-Sandbox` 架构。在单用户或 SaaS 多租户调度下，主智能体和所有子智能体都会运行在专属的隔离持久化 Volume 内。
 基于此优势，框架层原生支持通过 `ArtifactVault` 和 `vault://` 协议传递大文件结果，彻底避免多智能体交互时的内存和 Token 爆炸。
 
-## 5. 闭源分发策略 (Proprietary Distribution)
+## 5. 开源分发策略 (Open-Source Distribution)
 
-`myrm-agent-harness` 作为闭源 Python 包分发，模式参考 Claude Code（npm 壳 + 原生 binary）：
+`myrm-agent-harness` 以 MIT 许可证发布到 PyPI，源码即发行物：
 
-| 层 | 格式 | 内容 |
-|----|------|------|
-| **公开 API** (`myrm_agent_harness.api`) | `.py` 源码 | factory、Protocol、DTO、hooks — 第三方框架接入面 |
-| **核心 IP** (`harness_packaging/core_manifest.yaml`) | Nuitka 编译 `.so` | skill 进化、context pipeline、memory 策略等 |
-| **平台包** (`myrm-agent-harness-core-{platform}`) | 按平台 optional dep | 与 Claude Code 的 `@anthropic-ai/claude-code-darwin-arm64` 同模式（8 平台含 musl） |
-
-- **开发模式**：editable install，全部 `.py` 源码，`runtime.install_guard.probe.get_distribution_mode()` 返回 `source`
-- **发行模式**：`pip install 'myrm-agent-harness[compiled-core]'` 或手动安装平台包 `myrm-agent-harness-core-darwin-arm64`
-- **构建**：`uv sync --group build && .venv/bin/python scripts/assemble_production.py`（推荐）或 `build_core.py` + `build_release_wheel.py`（CI: `publish-pypi.yml`、`build-core-wheels.yml`）
-- **安装验证**：`verify-harness-distribution` console script（Docker builder/runtime、Tauri、`assemble_production.py --install`）
-- **Release 保护**：`core_manifest.yaml` 用 `directories` 声明算法子树；`scripts/sync_distribution_metadata.py` 生成 `runtime/install_guard/_generated/core_ip_manifest.py` 与 compiled-core pin；主 wheel 剥离 manifest `.py`；平台 wheel 注入 `.so`；`runtime.install_guard.probe` 校验 release/core 版本与 `__platform_key__`
-- **外部消费者**：优先 `from myrm_agent_harness.api import create_skill_agent`，禁止依赖 `_core` 内部模块
+- **单一 wheel**：纯 Python wheel（`uv build`，hatchling），不含编译产物、不剪裁源码；所见即所装
+- **发布**：tag `harness-v<project.version>` → `harness-publish.yml` 校验 tag 与 `pyproject.toml` 版本一致 → 构建 wheel → PyPI Trusted Publishing（OIDC，无长期 token）
+- **安装验证**：`verify-harness-distribution` console script（`runtime/install_guard/verify.py`）校验核心运行时依赖与公开 API 可解析，供 Docker builder/runtime、Tauri 与 CI 使用
+- **外部消费者**：优先 `from myrm_agent_harness.api import create_skill_agent`，禁止依赖内部实现模块
 
 ## 6. 基础设施环境变量 vs Agent 配置 (Infra Env vs Agent Config)
 

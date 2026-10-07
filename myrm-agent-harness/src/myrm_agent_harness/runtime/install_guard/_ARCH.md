@@ -2,7 +2,7 @@
 
 ## 概述
 
-双 wheel 闭源分发的 **运行时安装门禁**：manifest codegen 目标、源码/编译模式探测、platform key 校验、安装后 verify CLI。
+安装后验证：确认已安装的 harness wheel 可导入、核心运行时依赖可用、公开 API 可解析，可选校验 Docker 运行镜像的 matplotlib CJK 字体。
 
 归属 `runtime/` 层 — 与 `doctor.py` 并列，回答「这个环境能否跑 Harness / Agent」。
 
@@ -10,14 +10,10 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 | --- | --- | --- | --- |
-| `__init__.py` | 门面 | Re-export `DistributionMode`、`assert_distribution_ready` 等 | ✅ |
-| `probe.py` | 核心 | `source` / `compiled` / `incomplete` 探测 + fail-closed 校验（含 `unknown` platform key 拒绝） | ✅ |
-| `platform.py` | 核心 | **生成文件** — `harness_packaging/platform_key.py` → 运行时 platform key | — |
-| `verify.py` | 核心 | Console script `verify-harness-distribution` 入口 | ✅ |
-| `_generated/core_ip_manifest.py` | 核心 | **生成文件** — YAML manifest → import 路径 SSOT | — |
+| `__init__.py` | 门面 | 模块说明（无 re-export） | ✅ |
+| `verify.py` | 核心 | Console script `verify-harness-distribution` 入口；`python -m myrm_agent_harness.runtime.install_guard.verify [--matplotlib-cjk]` | ✅ |
 
 ## 依赖
 
 - 父模块 [`../_ARCH.md`](../_ARCH.md)
-- `harness_packaging/codegen.py`（build-time 写入 `_generated/core_ip_manifest.py` 与 `platform.py`）
-- 详见 [`../../../../harness_packaging/DISTRIBUTION_SYSTEM.md`](../../../../harness_packaging/DISTRIBUTION_SYSTEM.md)
+- `myrm_agent_harness.api`（公开 API 可解析性检查）

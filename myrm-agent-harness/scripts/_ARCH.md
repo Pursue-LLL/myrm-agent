@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Harness 仓维护脚本：框架-业务边界 enforcement、PyPI 发布校验、compiled-core 构建与 tool registry 校验。详见 [ARCHITECTURE.md](../ARCHITECTURE.md)。
+Harness 仓维护脚本：框架-业务边界 enforcement、发布 tag 校验、组件快照更新与 tool registry 校验。详见 [ARCHITECTURE.md](../ARCHITECTURE.md)。
 
 ## 文件清单
 
@@ -11,16 +11,8 @@ Harness 仓维护脚本：框架-业务边界 enforcement、PyPI 发布校验、
 | `boundary_check.py` | 核心 | CLI：全量/增量扫描 `src/myrm_agent_harness/` 非法跨层 import | ✅ |
 | `boundary_config.py` | 核心 | 白名单前缀、禁止前缀、允许路径配置 | ✅ |
 | `boundary_engine.py` | 核心 | AST 静态/动态 import 检测引擎 | ✅ |
-| `build_core.py` | 核心 | compiled-core 构建 + wheel 后 inline artifact verify | ✅ |
-| `build_release_wheel.py` | 核心 | 发布 wheel 组装 + strip 后 inline artifact verify | ✅ |
-| `sync_distribution_metadata.py` | 核心 | 从 `core_manifest.yaml` 再生成 `runtime/install_guard` codegen 产物与 compiled-core pin | ✅ |
 | `check_package_root_layout.py` | Gate | 包根禁止平铺实现模块（仅允许 `__init__.py` / `client.py`）；`tests/` 根禁止散落测试模块（仅允许 `__init__.py` / `conftest.py`）；回归 legacy 平铺文件名 | — |
-| `assemble_production.py` | 辅助 | 生产包组装 | ✅ |
-| `verify_release_tag.py` | 辅助 | tag 与 `project.version` 一致性校验 | ✅ |
-| `verify_pypi_publish.py` | 辅助 | PyPI 发布后索引校验（6 core 必选；musl 已索引则必选） | ✅ |
-| `validate_pypi_wheels.py` | 辅助 | wheel 数量/版本 + zip artifact 校验 | ✅ |
-| `publish_pypi_rc1.py` | 辅助 | RC 发布脚本 | ✅ |
-| `bootstrap_pypi_core_upload.sh` | 辅助 | core extra 首次上传引导 | ✅ |
+| `verify_release_tag.py` | 辅助 | `harness-v*` tag 与 `project.version` 一致性校验 | ✅ |
 | `tool_registry_config.py` | 辅助 | Tool registry 扫描配置 | ✅ |
 | `tool_registry_engine.py` | 辅助 | Tool registry 扫描引擎 | ✅ |
 | `tool_registry_models.py` | 辅助 | Tool registry 数据模型 | ✅ |

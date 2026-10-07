@@ -39,13 +39,6 @@ _DEFAULT_TESTS_ROOT = _REPO_ROOT / "tests"
 _ALLOWED_ROOT_PY = frozenset({"__init__.py", "client.py", "py.typed"})
 _ALLOWED_TESTS_ROOT_PY = frozenset({"__init__.py", "conftest.py"})
 
-_FORBIDDEN_LEGACY_FLAT = (
-    "_distribution.py",
-    "_runtime_platform.py",
-    "_core_ip_manifest.py",
-    "_verify_distribution.py",
-)
-
 
 @dataclass(frozen=True)
 class RootViolation:
@@ -90,10 +83,6 @@ def scan_tree(root: Path) -> list[RootViolation]:
     return violations
 
 
-def scan_legacy_flat(package_root: Path) -> list[str]:
-    return [name for name in _FORBIDDEN_LEGACY_FLAT if (package_root / name).is_file()]
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check Python package root flat-layout rules.")
     parser.add_argument(
@@ -113,9 +102,8 @@ def main(argv: list[str] | None = None) -> int:
 
     root = args.root.resolve()
     violations = scan_tree(root)
-    legacy = scan_legacy_flat(root)
     tests_violation = scan_tests_root(args.tests_root.resolve())
-    failed = bool(violations or legacy or tests_violation)
+    failed = bool(violations or tests_violation)
 
     if args.json:
         payload = {
@@ -127,15 +115,11 @@ def main(argv: list[str] | None = None) -> int:
                 }
                 for v in violations
             ],
-            "legacy_flat_files": legacy,
             "tests_root_forbidden_files": (list(tests_violation.forbidden_files) if tests_violation else []),
         }
         print(json.dumps(payload, indent=2))
         return 1 if failed else 0
 
-    if legacy:
-        for name in legacy:
-            print(f"LEGACY_FLAT: {root / name}", file=sys.stderr)
     for v in violations:
         rel = v.package_root.relative_to(root) if v.package_root != root else Path(".")
         print(
@@ -149,7 +133,7 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
 
-    if violations or legacy:
+    if violations:
         print(
             "Package root layout violations detected. "
             "Move implementation modules into domain subpackages; "
