@@ -22,6 +22,7 @@ myrm_agent_harness.agent.context_management.archive_checkpoint
 myrm_agent_harness.agent.context_management.archive_checkpoint.store
 myrm_agent_harness.agent.context_management.archive_checkpoint.summary_service
 myrm_agent_harness.agent.context_management.compression_flush
+myrm_agent_harness.agent.context_management.dependency_expansion
 myrm_agent_harness.agent.context_management.handoff
 myrm_agent_harness.agent.context_management.infra.cache_policy
 myrm_agent_harness.agent.context_management.infra.context_budget
@@ -308,6 +309,7 @@ myrm_agent_harness.core.security.dual_track_sandbox_guard.types
 myrm_agent_harness.core.security.dual_use_containment
 myrm_agent_harness.core.security.dynamic_toolchain_provenance
 myrm_agent_harness.core.security.egress_dlp
+myrm_agent_harness.core.security.ephemeral_identity_voucher
 myrm_agent_harness.core.security.event_capability_attenuation
 myrm_agent_harness.core.security.executable_probe
 myrm_agent_harness.core.security.externally_visible_action
@@ -351,6 +353,7 @@ myrm_agent_harness.core.security.model_sovereignty_circuit_breaker
 myrm_agent_harness.core.security.muse_sentinel_isolation
 myrm_agent_harness.core.security.native_credential_approval
 myrm_agent_harness.core.security.on_demand_masking
+myrm_agent_harness.core.security.outbound_ebrake_mesh
 myrm_agent_harness.core.security.path
 myrm_agent_harness.core.security.pii_vault
 myrm_agent_harness.core.security.plugin_guardrail_auditor
