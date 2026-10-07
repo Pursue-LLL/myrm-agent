@@ -10,7 +10,7 @@ Strict typing applied: No `Any` types allowed.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from myrm_agent_harness.agent.context_management.handoff import (
+from myrm_agent_harness.toolkits.memory.handoff import (
     HandoffAlreadyClaimedError,
     HandoffAlreadyCompletedError,
     HandoffInvalidTransitionError,

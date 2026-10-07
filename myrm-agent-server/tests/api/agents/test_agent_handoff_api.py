@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from myrm_agent_harness.agent.context_management.handoff import AgentHandoffEngine
+from myrm_agent_harness.toolkits.memory.handoff import AgentHandoffEngine
 from starlette.testclient import TestClient
 
 from app.api.agents.agent_handoff_router import router as agent_handoff_router

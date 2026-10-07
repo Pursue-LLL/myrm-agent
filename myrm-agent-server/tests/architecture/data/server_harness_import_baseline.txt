@@ -23,7 +23,6 @@ myrm_agent_harness.agent.context_management.archive_checkpoint.store
 myrm_agent_harness.agent.context_management.archive_checkpoint.summary_service
 myrm_agent_harness.agent.context_management.compression_flush
 myrm_agent_harness.agent.context_management.dependency_expansion
-myrm_agent_harness.agent.context_management.handoff
 myrm_agent_harness.agent.context_management.infra.cache_policy
 myrm_agent_harness.agent.context_management.infra.context_budget
 myrm_agent_harness.agent.context_management.infra.schemas
@@ -628,6 +627,7 @@ myrm_agent_harness.toolkits.memory.graph.age_store
 myrm_agent_harness.toolkits.memory.graph.base
 myrm_agent_harness.toolkits.memory.graph.sqlite_store
 myrm_agent_harness.toolkits.memory.graph_rrf
+myrm_agent_harness.toolkits.memory.handoff
 myrm_agent_harness.toolkits.memory.health
 myrm_agent_harness.toolkits.memory.integration.fetcher
 myrm_agent_harness.toolkits.memory.integration.summarizer

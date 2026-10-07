@@ -12,11 +12,11 @@ from __future__ import annotations
 import logging
 from threading import Lock
 
-from myrm_agent_harness.agent.context_management.handoff import AgentHandoffEngine
 from myrm_agent_harness.toolkits.memory.agent_surface.mcp import (
     AiMemoryWireAdapter,
     create_interop_memory_mcp_server,
 )
+from myrm_agent_harness.toolkits.memory.handoff import AgentHandoffEngine
 from myrm_agent_harness.toolkits.memory.privacy_gate import MemoryPrivacyBoundaryGate
 
 from app.schemas.memory_mcp import (

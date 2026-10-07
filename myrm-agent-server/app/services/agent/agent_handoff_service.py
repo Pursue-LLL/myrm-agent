@@ -1,6 +1,6 @@
 """
 [POS] app/services/agent/agent_handoff_service.py
-[INPUT] pathlib.Path, app/schemas/agent_handoff.py, myrm_agent_harness.agent.context_management.handoff
+[INPUT] pathlib.Path, app/schemas/agent_handoff.py, myrm_agent_harness.toolkits.memory.handoff
 [OUTPUT] AgentHandoffService, get_agent_handoff_service
 
 Service layer governing typed cross-agent handoff memorandum persistence, CAS claim, and lifecycle state.
@@ -13,7 +13,7 @@ import os
 import threading
 from pathlib import Path
 
-from myrm_agent_harness.agent.context_management.handoff import (
+from myrm_agent_harness.toolkits.memory.handoff import (
     AgentHandoffEngine,
     AgentHandoffSpec,
     FailedApproachRecord,
