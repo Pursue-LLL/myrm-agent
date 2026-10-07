@@ -91,6 +91,9 @@ from app.api.memory.migration_readiness_seed import (
 from app.api.memory.migration_router import (
     router as memory_migration_router,
 )
+from app.api.memory.noise_free_memory_router import (
+    router as noise_free_memory_router,
+)
 from app.api.memory.openclaw_router import (
     router as memory_openclaw_router,
 )
@@ -250,4 +253,8 @@ router.include_router(
 router.include_router(
     activity_compactor_router,
     tags=["memory-activity-compactor"],
+)
+router.include_router(
+    noise_free_memory_router,
+    tags=["memory-noise-free-extractor"],
 )
