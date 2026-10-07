@@ -59,6 +59,9 @@ from app.api.memory.decay_lifecycle_router import (
 from app.api.memory.dialectic import (
     router as memory_dialectic_router,
 )
+from app.api.memory.disk_reconciliation_router import (
+    router as disk_reconciliation_router,
+)
 from app.api.memory.drift_router import (
     router as memory_drift_router,
 )
@@ -292,6 +295,10 @@ router.include_router(
 router.include_router(
     temporal_graph_router,
     tags=["memory-temporal-graph"],
+)
+router.include_router(
+    disk_reconciliation_router,
+    tags=["memory-reconciliation"],
 )
 
 
