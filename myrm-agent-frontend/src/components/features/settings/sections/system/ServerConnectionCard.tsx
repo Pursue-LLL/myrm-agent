@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { IconPlug, IconCheck, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
 import { isTauriRuntime, getRemoteGatewayConfig, setRemoteGatewayConfig } from '@/lib/deploy-mode';
 import { switchRemoteFollow } from '@/lib/remote-follow-switch';
-import { getActiveSessions } from '@/services/agent';
 import ActiveSessionsSwitchConfirmDialog from './ActiveSessionsSwitchConfirmDialog';
 import {
   addRemoteProfile,
@@ -22,6 +21,7 @@ import Toggle from '../../common/Toggle';
 import RemoteFirstRunChooser from './RemoteFirstRunChooser';
 import ServerConnectionCloudSection from './ServerConnectionCloudSection';
 import ServerConnectionRoster from './ServerConnectionRoster';
+import { useActiveSessionsGuard } from './useActiveSessionsGuard';
 import { testRemoteHealth, useConnectionsRollbackGuard } from './useConnectionsRollbackGuard';
 
 const FIRST_RUN_SEEN_KEY = 'myrm-remote-first-run-seen';
@@ -49,7 +49,6 @@ const ServerConnectionCard = memo(() => {
   const [testState, setTestState] = useState<ConnectionTestState>('idle');
   const [testingId, setTestingId] = useState<string | null>(null);
   const [switchingKey, setSwitchingKey] = useState<string | null>(null);
-  const [pendingConfirm, setPendingConfirm] = useState<{ count: number; proceed: () => void } | null>(null);
   const [showFirstRun, setShowFirstRun] = useState(
     () => typeof window !== 'undefined' && !window.localStorage.getItem(FIRST_RUN_SEEN_KEY),
   );
@@ -73,37 +72,9 @@ const ServerConnectionCard = memo(() => {
   // reload 后 pending 切换复验与回滚（不可达目标恢复 last-good）。
   useConnectionsRollbackGuard({ onRestored: refresh });
 
-  // 切断当前活跃连接前确认：后端有生成中会话时弹窗告知（切换等待其完成
-  // 并刷新页面）。查询失败（后端已停/不可达）时放行，避免锁死切换路径。
-  const guardActiveSessions = useCallback(async (proceed: () => void): Promise<void> => {
-    try {
-      const { activeSessions } = await getActiveSessions();
-      if (activeSessions.length > 0) {
-        setPendingConfirm({ count: activeSessions.length, proceed });
-        return;
-      }
-    } catch {
-      // 放行：本地后端不可达本身就是切换动机之一
-    }
-    proceed();
-  }, []);
-
-  const resolvePendingConfirm = useCallback(
-    (confirmed: boolean) => {
-      // 先取值再 setState：updater 必须保持纯函数（StrictMode 双调不重复执行 proceed）
-      const pending = pendingConfirm;
-      setPendingConfirm(null);
-      if (!pending) {
-        return;
-      }
-      if (confirmed) {
-        pending.proceed();
-      } else {
-        setSwitchingKey(null);
-      }
-    },
-    [pendingConfirm],
-  );
+  // 切断当前活跃连接前确认：后端有生成中会话时弹窗告知切换会中断它们；取消则复位进行中状态。
+  const clearSwitching = useCallback(() => setSwitchingKey(null), []);
+  const { guard: guardActiveSessions, dialog: activeSessionsDialog } = useActiveSessionsGuard(clearSwitching);
 
   // Health-gated switch commit: unhealthy targets abort unless the user
   // explicitly forces by repeating the same action (manual override).
@@ -401,12 +372,7 @@ const ServerConnectionCard = memo(() => {
         )}
       </div>
 
-      <ActiveSessionsSwitchConfirmDialog
-        open={pendingConfirm !== null}
-        count={pendingConfirm?.count ?? 0}
-        onConfirm={() => resolvePendingConfirm(true)}
-        onCancel={() => resolvePendingConfirm(false)}
-      />
+      <ActiveSessionsSwitchConfirmDialog {...activeSessionsDialog} />
     </section>
   );
 });

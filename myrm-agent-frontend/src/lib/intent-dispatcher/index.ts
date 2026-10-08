@@ -46,7 +46,7 @@ export class IntentDispatcher {
    * 1) 消耗待决授权（state、TTL 校验，一次性）；
    * 2) 用 PKCE verifier 兑换 token、沙箱列表校验 token——这一步及之前任何失败都零副作用；
    * 3) 先切换连接（停本地 sidecar、广播连接变更，窗口随后重载），成功后才改本地会话与档案。
-   * 进行中会话的知情确认发生在发起登录之前（设置页），这里不再二次拦截。
+   * 进行中会话的知情确认由设置页在发起登录前完成，回跳时直接切换。
    */
   private async handleOAuthCallback(exchange: string, state: string) {
     try {

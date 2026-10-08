@@ -33,8 +33,9 @@
 | 文件                               | 职责                                                                                                                                                                                                                                                      |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AccessCard.tsx`                   | 访问地址、CF tunnel 启停、Mobile Hub QR、PWA 引导、E2EE 指纹与算法详情                                                                                                                                                                                    |
-| `ServerConnectionCard.tsx`         | Tauri Desktop 远程服务器网关：本地/远程模式切换、多档案 roster、URL 输入、连接测试、断开恢复本地 token；切换经 `connection-switch-guard` 健康门（测活拦截+二次点击强制，reload 后复验失败按 roster id 回滚，回滚到本地显式 `switchRemoteFollow(false)` 重启后端；云档案持 OAuth 校验免检，切换按钮带 busy 态）；Rust 侧编排先于 apply（失败 toast 提示且 UI 状态零变化，可安全重试）；切断当前连接前的活跃会话 guard（`getActiveSessions` 查询，有生成中会话弹 `ActiveSessionsSwitchConfirmDialog` 知情确认，查询失败放行不锁死；档案切换、发起云端登录、发现沙箱三条入口共用）；发现沙箱经 `commitSwitch`（可信）先编排后建 Cloud 档案；reload 由 `app:connections-changed` 事件全局驱动 |
+| `ServerConnectionCard.tsx`         | Tauri Desktop 远程服务器网关：本地/远程模式切换、多档案 roster、URL 输入、连接测试、断开恢复本地 token；切换经 `connection-switch-guard` 健康门（测活拦截+二次点击强制，reload 后复验失败按 roster id 回滚，回滚到本地显式 `switchRemoteFollow(false)` 重启后端；云档案持 OAuth 校验免检，切换按钮带 busy 态）；Rust 侧编排先于 apply（失败 toast 提示且 UI 状态零变化，可安全重试）；切断当前连接前的活跃会话 guard（`useActiveSessionsGuard`：有生成中会话弹 `ActiveSessionsSwitchConfirmDialog` 知情确认，查询失败放行不锁死；档案切换、发起云端登录、发现沙箱三条入口共用）；发现沙箱经 `commitSwitch`（可信）先编排后建 Cloud 档案；reload 由 `app:connections-changed` 事件全局驱动 |
 | `ActiveSessionsSwitchConfirmDialog.tsx` | 切断连接前（含发起云端登录前）活跃会话知情确认对话框，文案如实说明切换会中断进行中的轮次（六语言 locales `activeSessionsDialog`，复用 primitives AlertDialog，indigo 主题）                                                                                                                               |
+| `useActiveSessionsGuard.ts` | 切断连接前活跃会话守卫 Hook（`getActiveSessions` 查询，有生成中会话时暂存继续动作并输出确认对话框状态，取消回调复位调用方进行中状态；查询失败放行） |
 | `useConnectionsRollbackGuard.ts` | 连接切换复验回滚 Hook（reload 后 pending 复验、不可达按 last-good 回滚、本地回滚显式重启后端；导出 `testRemoteHealth` 探测函数供连接守卫域共享）                                                                                  |
 | `RemoteFirstRunChooser.tsx`        | 首启三选一（本机/远端/云托管，一次性指引，可关闭）                                                                                                                                                                                                        |
 | `ServerConnectionCloudSection.tsx` | 云托管区：CP 登录方式查询、浏览器 OAuth（PKCE S256；无法拉起浏览器或准备失败时提示）、沙箱发现验证 token；登录与发现都先经父级注入的 `guardSwitch` 确认，真正的切换与建档由父级完成                                                                                                                                                                                         |
@@ -172,5 +173,7 @@
 - `@/lib/deploy-mode::getDocsUrl`
 - `@/lib/deploy-mode::getRemoteGatewayConfig` / `setRemoteGatewayConfig` / `isTauriRuntime`（ServerConnectionCard）
 - `@/lib/remote-follow-switch::switchRemoteFollow`（ServerConnectionCard / local-backend-unavailable-banner：连接切换后端生命周期编排入口）
-- `@/services/agent::getActiveSessions`（ServerConnectionCard 切换前活跃会话 guard）
+- `@/services/agent::getActiveSessions`（useActiveSessionsGuard 切断连接前活跃会话查询）
+- `@/lib/remote-profiles::ensureCloudProfile`（ServerConnectionCard 发现沙箱切换成功后建立并激活 Cloud 档案）
+- `@/lib/desktop-oauth::beginDesktopOAuth`（ServerConnectionCloudSection 发起 state + PKCE 登录）
 - `@/lib/connection-switch-guard::setLastGood` / `getLastGood` / `setPendingSwitch` / `getPendingSwitch` / `isPendingFresh`（ServerConnectionCard 切换守卫存储）
