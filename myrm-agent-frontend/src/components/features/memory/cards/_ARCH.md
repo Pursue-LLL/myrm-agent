@@ -21,6 +21,7 @@
 | `PreferenceStabilityCard.tsx`  | 辅助 | 偏好稳定性卡（动态信号权重收敛度）                   | ✅    |
 | `TasteSummaryCard.tsx`         | 辅助 | 偏好雷达摘要卡                                       | ✅    |
 | `MemoryProceduralDetails.tsx`  | 辅助 | 行为规约与行为禁令（Veto）详情渲染与自愈建议展现     | ✅    |
+| `PendingTargetHint.tsx`        | 辅助 | 待审批提案的目标记忆披露块（卡片与审批弹窗共用）     | ✅    |
 
 ## 依赖
 

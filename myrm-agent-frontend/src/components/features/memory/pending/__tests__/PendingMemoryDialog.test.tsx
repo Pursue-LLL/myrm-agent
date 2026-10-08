@@ -137,4 +137,78 @@ describe('PendingMemoryDialog', () => {
       expect(mockRejectMemory).toHaveBeenCalledWith('pending-1');
     });
   });
+
+  it('discloses the correction target when approving a CORRECT proposal', () => {
+    expectNonNull(mockState.currentPendingMemory, 'mockState.currentPendingMemory');
+    mockState.currentPendingMemory = {
+      ...mockState.currentPendingMemory,
+      resolution_action: 'correct',
+      target_memory_id: 'mem-old',
+      target_content: 'User preferred light mode.',
+    };
+
+    renderWithProviders(<PendingMemoryDialog />);
+
+    expect(screen.getByTestId('pending-target-hint')).toBeInTheDocument();
+    expect(screen.getByText('fields.willCorrect')).toBeInTheDocument();
+    expect(screen.getByText('User preferred light mode.', { exact: false })).toBeInTheDocument();
+  });
+
+  it('warns before a delete proposal removes an existing memory', () => {
+    expectNonNull(mockState.currentPendingMemory, 'mockState.currentPendingMemory');
+    mockState.currentPendingMemory = {
+      ...mockState.currentPendingMemory,
+      resolution_action: 'delete',
+      target_memory_id: 'mem-old',
+      target_content: 'User lived in Berlin.',
+    };
+
+    renderWithProviders(<PendingMemoryDialog />);
+
+    expect(screen.getByTestId('pending-target-hint')).toBeInTheDocument();
+    expect(screen.getByText('fields.willDelete')).toBeInTheDocument();
+  });
+
+  it('lets the reviewer reword a plain addition and sends the edit with approval', async () => {
+    renderWithProviders(<PendingMemoryDialog />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit/i }));
+    fireEvent.change(screen.getByPlaceholderText('editPlaceholder'), { target: { value: 'Reworded memory.' } });
+    fireEvent.click(screen.getByRole('button', { name: /saveAndAccept/i }));
+
+    await waitFor(() => {
+      expect(mockApproveMemory).toHaveBeenCalledWith('pending-1', 'Reworded memory.');
+    });
+  });
+
+  it('offers no edit for forget proposals, which carry no text to reword', () => {
+    expectNonNull(mockState.currentPendingMemory, 'mockState.currentPendingMemory');
+    mockState.currentPendingMemory = {
+      ...mockState.currentPendingMemory,
+      resolution_action: 'delete',
+      target_memory_id: 'mem-old',
+    };
+
+    renderWithProviders(<PendingMemoryDialog />);
+
+    expect(screen.queryByRole('button', { name: /Edit/i })).not.toBeInTheDocument();
+  });
+
+  it('offers no edit for profile entries', () => {
+    expectNonNull(mockState.currentPendingMemory, 'mockState.currentPendingMemory');
+    mockState.currentPendingMemory = { ...mockState.currentPendingMemory, memory_type: 'profile' };
+
+    renderWithProviders(<PendingMemoryDialog />);
+
+    expect(screen.queryByRole('button', { name: /Edit/i })).not.toBeInTheDocument();
+  });
+
+  it('shows no target hint for plain additions', () => {
+    expectNonNull(mockState.currentPendingMemory, 'mockState.currentPendingMemory');
+    mockState.currentPendingMemory = { ...mockState.currentPendingMemory, resolution_action: 'store' };
+
+    renderWithProviders(<PendingMemoryDialog />);
+
+    expect(screen.queryByTestId('pending-target-hint')).not.toBeInTheDocument();
+  });
 });

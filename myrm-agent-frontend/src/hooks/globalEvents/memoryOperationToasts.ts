@@ -88,6 +88,15 @@ export function showMemoryOperationToasts(data: Record<string, unknown>, deps: M
     return;
   }
 
+  if (operation === 'implicit_feedback_personal') {
+    // New correct/forget proposals landed in the personal review queue; the chat
+    // window's pending-count toast and badge react to the refreshed queue.
+    void import('@/store/memory').then(({ useMemoryStore }) => {
+      void useMemoryStore.getState().fetchPendingMemories(true);
+    });
+    return;
+  }
+
   if (operation === 'goal_completion_consolidation_failed') {
     toast.error(t('goalMemoryArchiveFailed'), {
       duration: 10_000,
