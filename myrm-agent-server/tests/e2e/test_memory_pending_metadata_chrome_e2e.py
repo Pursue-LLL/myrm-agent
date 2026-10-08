@@ -1,4 +1,4 @@
-"""Chrome READ E2E: Memory pending candidate structured metadata contract and settings view."""
+"""Chrome E2E: Memory pending candidate structured metadata contract and settings view."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ _PENDING_METADATA_CHECK_JS = """(async () => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="READ",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
     private_reason="exclusive_backend",
 )
