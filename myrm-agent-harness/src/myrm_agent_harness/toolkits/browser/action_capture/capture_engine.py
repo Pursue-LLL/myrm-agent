@@ -152,19 +152,21 @@ class ActionCaptureEngine:
             await self._inject_capture(active=True)
 
     async def _inject_capture(self, *, active: bool) -> None:
-        """(Re)inject capture listeners and sync the active gate in one world.
+        """(Re)inject capture listeners and sync the active gate in the main world.
 
-        `add_init_script` is deliberately not used: it targets the main world
-        while `page.evaluate` defaults to the isolated world, and a main-world
-        context is only materialized lazily after navigation — listeners would
-        silently stop firing. Injecting via `evaluate` keeps every listener in
-        the same world as the state gate, so stop/pause/resume always control
-        exactly the listeners that produce steps. Re-injection is idempotent:
-        `capture_script.js` guards on `window.__myrmActionCapture`.
+        `page.expose_function` binds the bridge in the page's main world, while patchright evaluates in an
+        isolated world by default, where the bridge does not exist and every captured event would be dropped.
+        Both the listeners and the state gate therefore run with `isolated_context=False`. `add_init_script`
+        is deliberately not used: its main-world context is only materialized lazily after navigation, so
+        listeners would silently stop firing. Re-injection is idempotent: `capture_script.js` guards on
+        `window.__myrmActionCapture`.
         """
         try:
-            await self._page.evaluate(_CAPTURE_JS)
-            await self._page.evaluate(f"window.__myrmCaptureActive = {'true' if active else 'false'}")
+            await self._page.evaluate(_CAPTURE_JS, isolated_context=False)
+            await self._page.evaluate(
+                f"window.__myrmCaptureActive = {'true' if active else 'false'}",
+                isolated_context=False,
+            )
         except Exception:
             logger.debug("Capture injection failed (page may have closed)")
 

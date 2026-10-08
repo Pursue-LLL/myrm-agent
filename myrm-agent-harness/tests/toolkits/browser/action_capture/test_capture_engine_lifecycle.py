@@ -32,6 +32,7 @@ class _FakePage:
         self.exposed: list[str] = []
         self.init_scripts: list[str] = []
         self.evaluated: list[str] = []
+        self.evaluated_isolated: list[bool] = []
         self.listeners: dict[str, object] = {}
         self.screenshot_raises = False
 
@@ -41,8 +42,9 @@ class _FakePage:
     async def add_init_script(self, js: str) -> None:
         self.init_scripts.append(js)
 
-    async def evaluate(self, expr: str) -> None:
+    async def evaluate(self, expr: str, *, isolated_context: bool = True) -> None:
         self.evaluated.append(expr)
+        self.evaluated_isolated.append(isolated_context)
 
     def on(self, event: str, cb: object) -> None:
         self.listeners[event] = cb
@@ -95,6 +97,8 @@ async def test_start_attaches_and_evaluates_script() -> None:
     assert len(page.evaluated) == 2
     assert "function truncateText" in page.evaluated[0]
     assert page.evaluated[1] == "window.__myrmCaptureActive = true"
+    # The bridge from expose_function only exists in the main world, so nothing may run isolated.
+    assert page.evaluated_isolated == [False, False]
     assert "framenavigated" in page.listeners
 
 
