@@ -6,18 +6,21 @@
 prebuilt/user/workspace 组合）全部在此处理。
 """
 
+import asyncio
 import logging
 from pathlib import Path
 
 from myrm_agent_harness.api import SkillBackend
 from myrm_agent_harness.backends.skills import (
     CompositeSkillBackend,
+    InMemorySkillBackend,
     LocalSkillBackend,
     QuarantineAwareSkillBackend,
     StorageSkillBackend,
     VersionAwareSkillBackend,
 )
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillTrust
+from myrm_agent_harness.core.security.path import safe_join_path
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 
 logger = logging.getLogger(__name__)
@@ -34,21 +37,44 @@ WORKSPACE_SKILL_DIRS = (
 )
 
 
+def _list_local_resources(skill_dir: Path) -> list[str]:
+    try:
+        return [
+            str(item.relative_to(skill_dir))
+            for item in skill_dir.rglob("*")
+            if item.is_file() and not item.name.startswith(".") and item.name != "SKILL.md"
+        ]
+    except OSError:
+        return []
+
+
 class _UserSkillBackend:
     """用户技能后端（内部实现）
 
-    将用户技能的 skill_name 映射到实际 storage_path，
-    通过 StorageProvider 按需读取文件。
+    技能以运行时名称列出；调用方可用该名称或元数据上的 storage_skill_id 取回内容。
+    存储类技能（prebuilt）经 StorageProvider 按 storage_path 读取；LOCAL 技能位于
+    StorageProvider 根之外的本机目录，直接从该目录读取。
     """
 
     def __init__(
         self,
         storage: StorageProvider,
         skills: list[SkillMetadata],
+        local_skill_ids: frozenset[str] = frozenset(),
     ):
         self._storage = storage
         self._skills = skills
-        self._by_name = {s.name: s for s in skills}
+        self._local_skill_ids = local_skill_ids
+        self._by_key = {key: skill for skill in skills for key in (skill.name, skill.storage_skill_id) if key}
+
+    def _locate(self, skill_key: str) -> tuple[SkillMetadata, str]:
+        skill = self._by_key.get(skill_key)
+        if not skill or not skill.storage_path:
+            raise FileNotFoundError(f"User skill not found: {skill_key}")
+        return skill, skill.storage_path
+
+    def _is_local(self, skill: SkillMetadata) -> bool:
+        return skill.storage_skill_id in self._local_skill_ids
 
     async def list_skills(self) -> list[SkillMetadata]:
         return list(self._skills)
@@ -58,24 +84,53 @@ class _UserSkillBackend:
         return [s for s in self._skills if s.name in id_set or s.storage_skill_id in id_set]
 
     async def get_skill_content(self, skill_name: str) -> str:
-        skill = self._by_name.get(skill_name)
-        if not skill or not skill.storage_path:
-            raise FileNotFoundError(f"User skill not found: {skill_name}")
-        return str(await self._storage.read_text(f"{skill.storage_path}/SKILL.md"))
+        skill, root = self._locate(skill_name)
+        if self._is_local(skill):
+            return await asyncio.to_thread((Path(root) / "SKILL.md").read_text, encoding="utf-8")
+        return str(await self._storage.read_text(f"{root}/SKILL.md"))
 
     async def get_skill_resources(self, skill_name: str, path: str) -> bytes:
-        skill = self._by_name.get(skill_name)
-        if not skill or not skill.storage_path:
-            raise FileNotFoundError(f"User skill not found: {skill_name}")
-        return bytes(await self._storage.read(f"{skill.storage_path}/{path}"))
+        skill, root = self._locate(skill_name)
+        if self._is_local(skill):
+            return await asyncio.to_thread(safe_join_path(root, path).read_bytes)
+        return bytes(await self._storage.read(f"{root}/{path}"))
 
     async def list_skill_resources(self, skill_name: str) -> list[str]:
-        skill = self._by_name.get(skill_name)
-        if not skill or not skill.storage_path:
+        try:
+            skill, root = self._locate(skill_name)
+        except FileNotFoundError:
             return []
-        prefix = f"{skill.storage_path}/"
+        if self._is_local(skill):
+            return await asyncio.to_thread(_list_local_resources, Path(root))
+        prefix = f"{root}/"
         files = await self._storage.list(prefix=prefix)
         return [f[len(prefix) :] for f in files if not f.endswith("/SKILL.md")]
+
+
+class _EnabledPrebuiltBackend(InMemorySkillBackend):
+    """用户已启用的 prebuilt 技能：元数据驻留内存，内容与资源由 prebuilt 存储提供。"""
+
+    def __init__(self, skills: list[SkillMetadata], store: SkillBackend):
+        super().__init__(skills=skills)
+        self._store = store
+        self._enabled = frozenset(key for skill in skills for key in (skill.name, skill.storage_skill_id) if key)
+
+    def _require_enabled(self, skill_key: str) -> None:
+        if skill_key not in self._enabled:
+            raise FileNotFoundError(f"Prebuilt skill not enabled: {skill_key}")
+
+    async def get_skill_content(self, skill_name: str) -> str:
+        self._require_enabled(skill_name)
+        return await self._store.get_skill_content(skill_name)
+
+    async def get_skill_resources(self, skill_name: str, path: str) -> bytes:
+        self._require_enabled(skill_name)
+        return await self._store.get_skill_resources(skill_name, path)
+
+    async def list_skill_resources(self, skill_name: str) -> list[str]:
+        if skill_name not in self._enabled:
+            return []
+        return await self._store.list_skill_resources(skill_name)
 
 
 async def create_skill_backend(
@@ -123,13 +178,11 @@ async def create_skill_backend(
             routes["/user/"] = user_backend
             logger.warning("📦 已加载 %d 个用户技能", len(skill_ids))
 
-    from myrm_agent_harness.backends.skills import InMemorySkillBackend
-
     if allowed_prebuilt_ids is not None and len(allowed_prebuilt_ids) > 0:
         all_prebuilt = await prebuilt_backend.list_skills()
         filtered = [s for s in all_prebuilt if s.name in allowed_prebuilt_ids]
         if filtered:
-            routes["/prebuilt/"] = InMemorySkillBackend(skills=filtered)
+            routes["/prebuilt/"] = _EnabledPrebuiltBackend(filtered, prebuilt_backend)
             logger.info(
                 "Prebuilt whitelist: %d/%d skills allowed",
                 len(filtered),
@@ -227,6 +280,7 @@ async def _load_user_skill_backend(
     user_id: str,
 ) -> _UserSkillBackend | None:
     """加载用户技能后端（内部）"""
+    from app.core.skills.models import SkillType
     from app.core.skills.store.service import skills_service
     from app.core.skills.utils import normalize_skill_name
 
@@ -256,7 +310,8 @@ async def _load_user_skill_backend(
         if not metadata_list:
             return None
 
-        return _UserSkillBackend(storage=storage, skills=metadata_list)
+        local_skill_ids = frozenset(skill.id for skill in skills if skill.type == SkillType.LOCAL)
+        return _UserSkillBackend(storage=storage, skills=metadata_list, local_skill_ids=local_skill_ids)
 
     except Exception as e:
         logger.error(f"Failed to load user skills for {user_id}: {e}")

@@ -46,7 +46,13 @@ myrm_agent_harness.backends.skills/   框架层实现
 SkillBackend.load_skills(skill_ids)
     → 解析 SKILL.md frontmatter
     → 返回 SkillMetadata 列表
+
+SkillBackend.get_skill_content(列表里的名称或 storage_skill_id)
+    → CompositeSkillBackend 按列表优先级逐后端询问，由持有该技能的后端返回 SKILL.md
+    → /user/ 的 LOCAL 技能直接读其磁盘目录；/prebuilt/ 只读用户已启用的 prebuilt
 ```
+
+列出的技能都能读到内容（SOP、hooks、资源）：运行时按 `[use <名称>]` 激活技能时，名称既可以是 Catalog 名称（`hookprobe-1a2b`），也可以是运行时名称（`hookprobe_1a2b_skill`）或 `storage_skill_id`。
 
 ### 3.2 技能发现与安装
 
