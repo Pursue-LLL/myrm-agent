@@ -49,17 +49,29 @@ const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionClou
   }, [cpBaseInput]);
 
   const handleCloudSignIn = useCallback(
-    (provider: string) => {
+    async (provider: string) => {
       const cpBase = cpBaseInput.trim().replace(/\/+$/, '');
       if (!cpBase) {
         return;
       }
-      const redirect = encodeURIComponent(beginDesktopOAuth(cpBase));
-      void desktopBridge.openExternal(
-        `${cpBase}/api/auth/oauth/${encodeURIComponent(provider)}/authorize?redirect=${redirect}`,
-      );
+      try {
+        const { redirect, codeChallenge } = await beginDesktopOAuth(cpBase);
+        const query = new URLSearchParams({
+          redirect,
+          code_challenge: codeChallenge,
+          code_challenge_method: 'S256',
+        });
+        const opened = await desktopBridge.openExternal(
+          `${cpBase}/api/auth/oauth/${encodeURIComponent(provider)}/authorize?${query.toString()}`,
+        );
+        if (!opened) {
+          toast.error(t('signInStartFailed'));
+        }
+      } catch {
+        toast.error(t('signInStartFailed'));
+      }
     },
-    [cpBaseInput],
+    [cpBaseInput, t],
   );
 
   const handleDiscoverSandbox = useCallback(async () => {
@@ -134,7 +146,7 @@ const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionClou
             <button
               key={provider}
               type="button"
-              onClick={() => handleCloudSignIn(provider)}
+              onClick={() => void handleCloudSignIn(provider)}
               className="px-4 py-2.5 rounded-xl bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 transition-colors"
             >
               {t('continueWith', { provider })}

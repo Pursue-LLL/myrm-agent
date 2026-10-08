@@ -5362,6 +5362,7 @@
         "providersUnavailable": "Sign-in is unavailable on this address. Check the address and try again.",
         "continueWith": "Continue with {provider}",
         "signInFirst": "Sign in with your cloud account first.",
+        "signInStartFailed": "Couldn't start sign-in. Please try again.",
         "discoverSandbox": "Discover my sandbox",
         "discoverFailed": "Sandbox not found. Sign in first or check your plan.",
         "wizardTitle": "Where does your assistant run?",
@@ -20217,6 +20218,7 @@
   "intentDispatcher": {
     "invalidLink": "Invalid external link or parameters",
     "oauthSuccess": "Authorization successful",
-    "oauthFailed": "Authorization check failed, please try again"
+    "oauthFailed": "Authorization check failed, please try again",
+    "oauthBusy": "A task is still running. Finish or stop it, then sign in again."
   }
 }

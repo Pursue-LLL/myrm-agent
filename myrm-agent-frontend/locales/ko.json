@@ -18275,6 +18275,7 @@
         "providersUnavailable": "이 주소에서는 로그인할 수 없습니다. 주소를 확인하세요.",
         "continueWith": "{provider}로 계속",
         "signInFirst": "먼저 클라우드 계정으로 로그인하세요.",
+        "signInStartFailed": "로그인을 시작하지 못했습니다. 다시 시도해 주세요.",
         "discoverSandbox": "내 샌드박스 찾기",
         "discoverFailed": "샌드박스를 찾지 못했습니다. 로그인 또는 요금제를 확인하세요.",
         "wizardTitle": "어시스턴트 실행 위치",
@@ -20222,6 +20223,7 @@
   "intentDispatcher": {
     "invalidLink": "잘못된 외부 링크 또는 매개변수입니다",
     "oauthSuccess": "인증에 성공했습니다",
-    "oauthFailed": "인증 확인에 실패했습니다. 다시 시도해 주세요"
+    "oauthFailed": "인증 확인에 실패했습니다. 다시 시도해 주세요",
+    "oauthBusy": "실행 중인 작업이 있습니다. 완료하거나 중지한 뒤 다시 로그인하세요."
   }
 }

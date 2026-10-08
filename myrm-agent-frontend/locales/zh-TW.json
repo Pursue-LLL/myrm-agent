@@ -18275,6 +18275,7 @@
         "providersUnavailable": "該位址暫不支援登入，請檢查位址後重試。",
         "continueWith": "使用 {provider} 繼續",
         "signInFirst": "請先使用雲端帳號登入。",
+        "signInStartFailed": "無法發起登入，請重試。",
         "discoverSandbox": "發現我的沙箱",
         "discoverFailed": "未找到沙箱，請先登入或檢查訂閱。",
         "wizardTitle": "你的助手運行在哪裡？",
@@ -20222,6 +20223,7 @@
   "intentDispatcher": {
     "invalidLink": "無效的外部連結或參數錯誤",
     "oauthSuccess": "授權成功",
-    "oauthFailed": "授權驗證失敗，請重試"
+    "oauthFailed": "授權驗證失敗，請重試",
+    "oauthBusy": "仍有任務在執行。請先完成或停止，然後重新登入。"
   }
 }

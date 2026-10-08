@@ -18275,6 +18275,7 @@
         "providersUnavailable": "このアドレスではサインインできません。アドレスを確認してください。",
         "continueWith": "{provider}で続ける",
         "signInFirst": "先にクラウドアカウントでサインインしてください。",
+        "signInStartFailed": "サインインを開始できませんでした。もう一度お試しください。",
         "discoverSandbox": "サンドボックスを検出",
         "discoverFailed": "サンドボックスが見つかりません。サインインまたはプランを確認してください。",
         "wizardTitle": "アシスタントの実行場所",
@@ -20222,6 +20223,7 @@
   "intentDispatcher": {
     "invalidLink": "無効な外部リンクまたはパラメータです",
     "oauthSuccess": "認証に成功しました",
-    "oauthFailed": "認証の検証に失敗しました。もう一度お試しください"
+    "oauthFailed": "認証の検証に失敗しました。もう一度お試しください",
+    "oauthBusy": "実行中のタスクがあります。完了または停止してから、もう一度サインインしてください。"
   }
 }

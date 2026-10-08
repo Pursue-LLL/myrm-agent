@@ -5362,6 +5362,7 @@
         "providersUnavailable": "该地址暂不支持登录，请检查地址后重试。",
         "continueWith": "使用 {provider} 继续",
         "signInFirst": "请先使用云账号登录。",
+        "signInStartFailed": "无法发起登录，请重试。",
         "discoverSandbox": "发现我的沙箱",
         "discoverFailed": "未找到沙箱，请先登录或检查订阅。",
         "wizardTitle": "你的助手运行在哪里？",
@@ -20217,6 +20218,7 @@
   "intentDispatcher": {
     "invalidLink": "无效的外部链接或参数错误",
     "oauthSuccess": "授权成功",
-    "oauthFailed": "授权校验失败，请重试"
+    "oauthFailed": "授权校验失败，请重试",
+    "oauthBusy": "仍有任务在运行。请先完成或停止，然后重新登录。"
   }
 }

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseIntentUrl } from '@/lib/intent-dispatcher/schema';
 import {
   CLOUD_OAUTH_PENDING_KEY,
@@ -7,6 +7,7 @@ import {
   buildDesktopDeepLink,
   consumeDesktopOAuth,
   parseDesktopReturn,
+  peekDesktopOAuth,
 } from '@/lib/desktop-oauth';
 
 function installStorage() {
@@ -32,6 +33,16 @@ function stateOf(redirect: string): string {
   return new URL(redirect, 'http://local.invalid').searchParams.get('state') ?? '';
 }
 
+async function begin(cpBaseUrl: string, now?: number): Promise<string> {
+  return stateOf((await beginDesktopOAuth(cpBaseUrl, now)).redirect);
+}
+
+/** RFC 7636 S256，独立于实现计算。 */
+async function challengeOf(verifier: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  return Buffer.from(digest).toString('base64url');
+}
+
 describe('desktop-oauth', () => {
   const originalWindow = globalThis.window;
   let store: Map<string, string>;
@@ -41,59 +52,100 @@ describe('desktop-oauth', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow });
   });
 
-  describe('beginDesktopOAuth / consumeDesktopOAuth', () => {
-    it('records the pending sign-in and returns a redirect carrying desktop marker and state', () => {
-      const redirect = beginDesktopOAuth('https://cp.example.com/', 1_000);
+  describe('beginDesktopOAuth', () => {
+    it('records the pending sign-in and returns a redirect carrying desktop marker and state', async () => {
+      const { redirect } = await beginDesktopOAuth('https://cp.example.com/', 1_000);
 
       const state = stateOf(redirect);
       expect(redirect.startsWith('/auth/oauth/callback?desktop=1&state=')).toBe(true);
       expect(state).toMatch(/^[0-9a-f]{32}$/);
-      expect(JSON.parse(store.get(CLOUD_OAUTH_PENDING_KEY) ?? '{}')).toEqual({
+      expect(JSON.parse(store.get(CLOUD_OAUTH_PENDING_KEY) ?? '{}')).toMatchObject({
         cpBaseUrl: 'https://cp.example.com',
         state,
         createdAt: 1_000,
       });
     });
 
-    it('generates a fresh state per sign-in', () => {
-      expect(stateOf(beginDesktopOAuth('https://cp.example.com'))).not.toBe(
-        stateOf(beginDesktopOAuth('https://cp.example.com')),
-      );
+    it('generates a fresh state per sign-in', async () => {
+      const first = await beginDesktopOAuth('https://cp.example.com');
+      const second = await beginDesktopOAuth('https://cp.example.com');
+
+      expect(stateOf(first.redirect)).not.toBe(stateOf(second.redirect));
+      expect(first.codeChallenge).not.toBe(second.codeChallenge);
     });
 
-    it('returns the control plane address once for the matching state, then refuses a replay', () => {
-      const state = stateOf(beginDesktopOAuth('https://cp.example.com', 1_000));
+    it('returns the S256 challenge of the stored verifier and never the verifier itself', async () => {
+      const { redirect, codeChallenge } = await beginDesktopOAuth('https://cp.example.com', 1_000);
 
-      expect(consumeDesktopOAuth(state, 2_000)).toBe('https://cp.example.com');
+      const { codeVerifier } = peekDesktopOAuth(stateOf(redirect), 2_000) ?? { codeVerifier: '' };
+      expect(codeVerifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(codeChallenge).toBe(await challengeOf(codeVerifier));
+      expect(codeChallenge).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(redirect).not.toContain(codeVerifier);
+    });
+
+    it.each(['not a url', 'javascript:alert(1)', 'myrmagent://oauth'])(
+      'rejects %s as a control plane address without storing anything',
+      async (cpBaseUrl) => {
+        await expect(beginDesktopOAuth(cpBaseUrl)).rejects.toThrow();
+        expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(false);
+      },
+    );
+
+    it('stores nothing when SHA-256 is unavailable', async () => {
+      vi.spyOn(crypto.subtle, 'digest').mockRejectedValueOnce(new Error('no subtle'));
+
+      await expect(beginDesktopOAuth('https://cp.example.com')).rejects.toThrow('no subtle');
+      expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(false);
+    });
+  });
+
+  describe('peekDesktopOAuth / consumeDesktopOAuth', () => {
+    it('returns the control plane address and verifier once for the matching state, then refuses a replay', async () => {
+      const state = await begin('https://cp.example.com', 1_000);
+
+      const session = consumeDesktopOAuth(state, 2_000);
+      expect(session?.cpBaseUrl).toBe('https://cp.example.com');
+      expect(session?.codeVerifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
       expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(false);
       expect(consumeDesktopOAuth(state, 2_001)).toBeNull();
     });
 
-    it('refuses a wrong state without cancelling the real sign-in', () => {
-      const state = stateOf(beginDesktopOAuth('https://cp.example.com', 1_000));
+    it('peeks without consuming', async () => {
+      const state = await begin('https://cp.example.com', 1_000);
 
-      expect(consumeDesktopOAuth('forged', 2_000)).toBeNull();
+      expect(peekDesktopOAuth(state, 2_000)).toEqual(peekDesktopOAuth(state, 2_001));
       expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(true);
-      expect(consumeDesktopOAuth(state, 2_001)).toBe('https://cp.example.com');
+      expect(consumeDesktopOAuth(state, 2_002)).not.toBeNull();
     });
 
-    it('refuses and drops an expired sign-in', () => {
-      const state = stateOf(beginDesktopOAuth('https://cp.example.com', 1_000));
+    it('refuses a wrong state without cancelling the real sign-in', async () => {
+      const state = await begin('https://cp.example.com', 1_000);
 
-      expect(consumeDesktopOAuth(state, 1_000 + DESKTOP_OAUTH_TTL_MS + 1)).toBeNull();
+      expect(peekDesktopOAuth('forged', 2_000)).toBeNull();
+      expect(consumeDesktopOAuth('forged', 2_000)).toBeNull();
+      expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(true);
+      expect(consumeDesktopOAuth(state, 2_001)?.cpBaseUrl).toBe('https://cp.example.com');
+    });
+
+    it('refuses and drops an expired sign-in, even when only peeking', async () => {
+      const state = await begin('https://cp.example.com', 1_000);
+
+      expect(peekDesktopOAuth(state, 1_000 + DESKTOP_OAUTH_TTL_MS + 1)).toBeNull();
       expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(false);
     });
 
-    it('accepts a sign-in right at the TTL boundary', () => {
-      const state = stateOf(beginDesktopOAuth('https://cp.example.com', 1_000));
+    it('accepts a sign-in right at the TTL boundary', async () => {
+      const state = await begin('https://cp.example.com', 1_000);
 
-      expect(consumeDesktopOAuth(state, 1_000 + DESKTOP_OAUTH_TTL_MS)).toBe('https://cp.example.com');
+      expect(consumeDesktopOAuth(state, 1_000 + DESKTOP_OAUTH_TTL_MS)?.cpBaseUrl).toBe('https://cp.example.com');
     });
 
-    it('treats a missing or unreadable record as nothing pending', () => {
+    it('treats a missing, unreadable or verifier-less record as nothing pending', () => {
       expect(consumeDesktopOAuth('anything')).toBeNull();
 
       store.set(CLOUD_OAUTH_PENDING_KEY, '{not-json');
@@ -102,14 +154,20 @@ describe('desktop-oauth', () => {
 
       store.set(CLOUD_OAUTH_PENDING_KEY, JSON.stringify({ cpBaseUrl: 'https://cp.example.com' }));
       expect(consumeDesktopOAuth('anything')).toBeNull();
+
+      store.set(
+        CLOUD_OAUTH_PENDING_KEY,
+        JSON.stringify({ cpBaseUrl: 'https://cp.example.com', state: 'st', createdAt: Date.now() }),
+      );
+      expect(consumeDesktopOAuth('st')).toBeNull();
     });
 
-    it('lets a newer sign-in replace the previous one', () => {
-      const first = stateOf(beginDesktopOAuth('https://cp.example.com', 1_000));
-      const second = stateOf(beginDesktopOAuth('https://cp.example.com', 1_500));
+    it('lets a newer sign-in replace the previous one', async () => {
+      const first = await begin('https://cp.example.com', 1_000);
+      const second = await begin('https://cp.example.com', 1_500);
 
       expect(consumeDesktopOAuth(first, 2_000)).toBeNull();
-      expect(consumeDesktopOAuth(second, 2_000)).toBe('https://cp.example.com');
+      expect(consumeDesktopOAuth(second, 2_000)?.cpBaseUrl).toBe('https://cp.example.com');
     });
   });
 
@@ -133,8 +191,8 @@ describe('desktop-oauth', () => {
   });
 
   describe('end-to-end contract', () => {
-    it('survives the control plane returning the redirect as a query value', () => {
-      const redirect = beginDesktopOAuth('https://cp.example.com', 1_000);
+    it('survives the control plane returning the redirect as a query value', async () => {
+      const { redirect } = await beginDesktopOAuth('https://cp.example.com', 1_000);
       // 控制平面把 redirect 当作查询参数值回传：desktop 标记不在顶层。
       const callbackUrl = new URL(
         `https://cp.example.com/auth/oauth/callback?${new URLSearchParams({ exchange: 'ex-1', redirect }).toString()}`,
@@ -147,7 +205,7 @@ describe('desktop-oauth', () => {
       const link = buildDesktopDeepLink('ex-1', desktopReturn?.state ?? '');
       const intent = parseIntentUrl(link);
       expect(intent).toMatchObject({ action: 'oauth', exchange: 'ex-1', state: stateOf(redirect) });
-      expect(consumeDesktopOAuth(stateOf(redirect), 2_000)).toBe('https://cp.example.com');
+      expect(consumeDesktopOAuth(stateOf(redirect), 2_000)?.cpBaseUrl).toBe('https://cp.example.com');
     });
 
     it('url-encodes the exchange id inside the deep link', () => {

@@ -18275,6 +18275,7 @@
         "providersUnavailable": "Anmeldung unter dieser Adresse nicht verfügbar. Prüfen Sie die Adresse.",
         "continueWith": "Mit {provider} fortfahren",
         "signInFirst": "Melden Sie sich zuerst mit Ihrem Cloud-Konto an.",
+        "signInStartFailed": "Anmeldung konnte nicht gestartet werden. Bitte erneut versuchen.",
         "discoverSandbox": "Meine Sandbox finden",
         "discoverFailed": "Keine Sandbox gefunden. Melden Sie sich an oder prüfen Sie Ihren Plan.",
         "wizardTitle": "Wo läuft Ihr Assistent?",
@@ -20222,6 +20223,7 @@
   "intentDispatcher": {
     "invalidLink": "Ungültiger externer Link oder ungültige Parameter",
     "oauthSuccess": "Autorisierung erfolgreich",
-    "oauthFailed": "Autorisierungsprüfung fehlgeschlagen, bitte erneut versuchen"
+    "oauthFailed": "Autorisierungsprüfung fehlgeschlagen, bitte erneut versuchen",
+    "oauthBusy": "Eine Aufgabe läuft noch. Beenden oder stoppen Sie sie und melden Sie sich dann erneut an."
   }
 }
