@@ -60,7 +60,6 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "get_backend_status"
             | "get_remote_follow"
             | "get_updater_safety"
-            | "get_desktop_process_registry"
             | "screen_lock_has_password"
             | "screen_lock_platform_support"
             | "privacy_curtain_active"
@@ -83,7 +82,6 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "reveal_app_folder"
             | "screen_lock_store_password"
             | "screen_lock_delete_password"
-            | "kill_desktop_process"
             | "issue_sensitive_action_ticket"
     );
 
@@ -99,7 +97,6 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "pet_surface_focus_main_window"
             | "pet_surface_toggle_main_window"
             | "open_session_window"
-            | "close_session_window"
             | "set_tray_status"
             | "update_tray_info"
             | "show_privacy_curtain"
@@ -132,7 +129,6 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "switch_remote_follow"
             | "stop_frontend"
             | "open_session_window"
-            | "close_session_window"
             | "force_appshot_capture"
             | "migrate_data_dir"
             | "export_local_sqlite"

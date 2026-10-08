@@ -17,7 +17,6 @@ pub mod privacy_curtain_page;
 pub mod privacy_curtain_presentation;
 pub mod privacy_curtain_state;
 pub mod privacy_curtain_watcher;
-pub mod process_registry;
 pub mod recovery;
 pub mod screen_lock;
 pub mod session_window;
