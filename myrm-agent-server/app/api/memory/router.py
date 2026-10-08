@@ -34,11 +34,17 @@ from app.api.memory.activity_compactor_router import (
 from app.api.memory.authoritative_conclusions_router import (
     router as authoritative_conclusions_router,
 )
+from app.api.memory.auto_memory_consolidation_router import (
+    router as auto_memory_consolidation_router,
+)
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
 from app.api.memory.budget_curator import (
     router as memory_budget_curator_router,
+)
+from app.api.memory.budget_packing_router import (
+    router as budget_packing_router,
 )
 from app.api.memory.business_template_router import (
     router as business_template_router,
@@ -77,6 +83,9 @@ from app.api.memory.directory_dominance_router import (
 from app.api.memory.disk_reconciliation_router import (
     router as disk_reconciliation_router,
 )
+from app.api.memory.dream_cognitive_router import (
+    router as dream_cognitive_router,
+)
 from app.api.memory.drift_router import (
     router as memory_drift_router,
 )
@@ -111,6 +120,9 @@ from app.api.memory.four_tier_fts_router import (
 from app.api.memory.git_okf_router import (
     router as git_okf_router,
 )
+from app.api.memory.graph_memory_router import (
+    router as graph_memory_router,
+)
 from app.api.memory.graph_rrf_router import router as graph_rrf_router
 from app.api.memory.hindsight_reflection_router import (
     router as hindsight_reflection_router,
@@ -138,6 +150,12 @@ from app.api.memory.markdown_curator_router import (
 )
 from app.api.memory.mcp_router import (
     router as memory_mcp_router,
+)
+from app.api.memory.mem_cube_router import (
+    router as mem_cube_router,
+)
+from app.api.memory.memory_lineage_router import (
+    router as memory_lineage_router,
 )
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
@@ -246,18 +264,6 @@ from app.api.memory.tiered_consensus_router import (
 )
 from app.api.memory.two_layer_dialectic_router import (
     router as two_layer_dialectic_router,
-)
-from app.api.memory.budget_packing_router import (
-    router as budget_packing_router,
-)
-from app.api.memory.auto_memory_consolidation_router import (
-    router as auto_memory_consolidation_router,
-)
-from app.api.memory.mem_cube_router import (
-    router as mem_cube_router,
-)
-from app.api.memory.dream_cognitive_router import (
-    router as dream_cognitive_router,
 )
 from app.api.memory.universal_mcp_router import (
     router as memory_universal_mcp_router,
@@ -479,6 +485,10 @@ router.include_router(
     tags=["memory-dream-cognitive"],
 )
 router.include_router(
+    memory_lineage_router,
+    tags=["memory-lineage"],
+)
+router.include_router(
     peer_gateway_router,
     tags=["memory-peer-gateway"],
 )
@@ -510,6 +520,11 @@ router.include_router(
     queuefs_router,
     tags=["memory-queuefs"],
 )
+router.include_router(
+    graph_memory_router,
+    tags=["memory-graph"],
+)
+
 
 
 
