@@ -14,6 +14,7 @@ sandbox wrapping is active or on non-POSIX hosts; callers fall back to PIPE.
 from __future__ import annotations
 
 import asyncio
+import errno
 import logging
 import os
 import pty
@@ -107,10 +108,24 @@ def pty_spawn_eligible(*, sandbox_enabled: bool) -> bool:
     return os.name != "nt" and not sandbox_enabled
 
 
+class _PtyReaderProtocol(asyncio.StreamReaderProtocol):
+    """Stream protocol that reports Linux's PTY hang-up (EIO) as a clean end-of-stream.
+
+    Once every slave fd is closed, a read on the PTY master fails with EIO on Linux (macOS returns EOF).
+    Surfacing it as an exception would make StreamReader raise before it hands out the output the child
+    already wrote, so the hang-up is mapped to EOF and buffered output stays readable.
+    """
+
+    def connection_lost(self, exc: Exception | None) -> None:
+        if isinstance(exc, OSError) and exc.errno == errno.EIO:
+            exc = None
+        super().connection_lost(exc)
+
+
 async def _connect_pty_reader(master_fd: int) -> tuple[asyncio.StreamReader, asyncio.BaseTransport, object]:
     loop = asyncio.get_running_loop()
     reader = asyncio.StreamReader(limit=_STREAM_LIMIT_BYTES)
-    protocol = asyncio.StreamReaderProtocol(reader)
+    protocol = _PtyReaderProtocol(reader)
     read_file = os.fdopen(master_fd, "rb", buffering=0)
     transport, _ = await loop.connect_read_pipe(lambda: protocol, read_file)
     return reader, transport, read_file

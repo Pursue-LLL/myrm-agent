@@ -795,7 +795,8 @@ async def test_wiki_ingest_local_txt_with_folder(
     )
 
     assert "Successfully ingested" in result
-    assert (wiki_structure.raw_dir / "Research" / "Notes" / "notes.md").exists()
+    # Folder segments are normalized to lowercase slugs on disk (case-sensitive filesystems expose this).
+    assert (wiki_structure.raw_dir / "research" / "notes" / "notes.md").exists()
 
 
 @pytest.mark.asyncio

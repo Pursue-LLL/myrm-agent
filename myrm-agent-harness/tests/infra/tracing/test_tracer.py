@@ -1,5 +1,7 @@
 """Unit tests for OpenTelemetry tracer."""
 
+import sys
+
 import pytest
 
 from myrm_agent_harness.infra.tracing import (
@@ -234,6 +236,13 @@ def test_degraded_console_posture_when_exporters_fail(monkeypatch):
     )
 
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+    # Exporter construction never contacts the collector, so degradation only happens when the
+    # exporter modules are unusable; make that explicit instead of depending on installed extras.
+    for module in (
+        "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+        "opentelemetry.exporter.otlp.proto.grpc.trace_exporter",
+    ):
+        monkeypatch.setitem(sys.modules, module, None)
     shutdown_tracing()
 
     setup_tracing(
@@ -291,5 +300,3 @@ def test_force_flush_tracing_bounded():
     setup_tracing(service_name="test-flush-tracing", console_export=False)
     assert force_flush_tracing(timeout_ms=1000.0) is True
     shutdown_tracing()
-
-

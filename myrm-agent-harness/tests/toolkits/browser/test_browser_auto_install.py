@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -290,7 +291,10 @@ class TestLaunchNewBrowserAutoInstall:
         assert call_count == 2  # First failed, second succeeded after install
 
     @pytest.mark.asyncio
-    async def test_no_auto_install_for_camoufox(self) -> None:
+    async def test_no_auto_install_for_camoufox(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # camoufox ships in the `all` extra, so the "not installed" branch needs the import blocked explicitly.
+        for module in ("camoufox", "camoufox.async_api", "camoufox.utils"):
+            monkeypatch.setitem(sys.modules, module, None)
         launcher = BrowserLauncher(
             launch_options={"headless": True},
             launch_mode=LaunchMode.LAUNCH,

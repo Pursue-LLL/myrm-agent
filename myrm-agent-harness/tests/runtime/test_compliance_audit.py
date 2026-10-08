@@ -1,6 +1,11 @@
 """Tests for compliance audit engine."""
 
+from collections.abc import Iterator
+
+import pytest
+
 from myrm_agent_harness.core.security.tool_registry.registry import (
+    _PTC_SAFETY_METADATA,
     MCPAnnotations,
     SafetyMetadata,
     evict_skill_safety_metadata,
@@ -10,6 +15,18 @@ from myrm_agent_harness.runtime.diagnostics.compliance import (
     ComplianceAuditEngine,
     ComplianceStatus,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_safety_registry() -> Iterator[None]:
+    """The audit reads the process-wide safety registry; skills registered by other tests must not leak in."""
+    snapshot = {skill: dict(tools) for skill, tools in _PTC_SAFETY_METADATA.items()}
+    _PTC_SAFETY_METADATA.clear()
+    try:
+        yield
+    finally:
+        _PTC_SAFETY_METADATA.clear()
+        _PTC_SAFETY_METADATA.update(snapshot)
 
 
 def test_compliance_audit_engine_clean():
@@ -28,15 +45,11 @@ def test_compliance_audit_engine_clean():
 def test_compliance_audit_detects_unregistered_ghost_skill():
     skill_name = "ghost_plugin_alpha"
     tool_name = "ghost_tool"
-    register_ptc_safety_metadata(
-        skill_name, tool_name, SafetyMetadata(), MCPAnnotations()
-    )
+    register_ptc_safety_metadata(skill_name, tool_name, SafetyMetadata(), MCPAnnotations())
 
     try:
         # Active list does not include ghost_plugin_alpha
-        report = ComplianceAuditEngine.evaluate_full_compliance(
-            active_skill_names=[skill_name]
-        )
+        report = ComplianceAuditEngine.evaluate_full_compliance(active_skill_names=[skill_name])
         assert report.is_fully_compliant is True
 
         eviction_needed_report = ComplianceAuditEngine.evaluate_full_compliance(
@@ -48,10 +61,7 @@ def test_compliance_audit_detects_unregistered_ghost_skill():
         )
         assert eviction_needed_report.compliance_score < 100
         assert eviction_needed_report.is_fully_compliant is False
-        assert any(
-            "ghost_plugin_alpha" in v.target
-            for v in eviction_needed_report.violations
-        )
+        assert any("ghost_plugin_alpha" in v.target for v in eviction_needed_report.violations)
         assert eviction_needed_report.questions["Q2_REGISTRY_CLEAN"] is False
     finally:
         evict_skill_safety_metadata(skill_name)

@@ -144,7 +144,13 @@ class TestBashFlavorNoColor:
         """A single-line command still round-trips through the wrapper."""
         flavor = BashFlavor()
         wrapped = flavor.build_wrapped_command("echo a; echo b", "EX", "END", "$?")
-        assert "{\necho a; echo b\n__myrm_rc__=$?\n}\n" in wrapped
+        assert "{\necho a; echo b\n\n__myrm_rc__=$?\n}\n" in wrapped
+
+    def test_wrapped_command_trailing_backslash_keeps_rc_capture_on_its_own_line(self) -> None:
+        """A dangling line-continuation must not splice the rc capture onto the user's last line."""
+        flavor = BashFlavor()
+        wrapped = flavor.build_wrapped_command("echo a \\", "EX", "END", "$?")
+        assert "{\necho a \\\n\n__myrm_rc__=$?\n}\n" in wrapped
 
 
 class TestPowerShellFlavor:
@@ -228,4 +234,3 @@ class TestPowerShellFlavor:
             safe_env_vars=frozenset(),
         )
         assert isinstance(get_flavor(cmd_platform), WindowsFlavor)
-
