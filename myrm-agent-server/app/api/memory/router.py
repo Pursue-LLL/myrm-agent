@@ -192,6 +192,9 @@ from app.api.memory.procedure_experience_router import (
     router as procedure_experience_router,
 )
 from app.api.memory.profile_notes_router import router as profile_notes_router
+from app.api.memory.progressive_sidecar_router import (
+    router as progressive_sidecar_router,
+)
 from app.api.memory.provenance_batch import (
     router as memory_provenance_batch_router,
 )
@@ -453,6 +456,10 @@ router.include_router(
 router.include_router(
     dialectic_guard_router,
     tags=["memory-dialectic-guard"],
+)
+router.include_router(
+    progressive_sidecar_router,
+    tags=["memory-progressive-sidecar"],
 )
 
 
