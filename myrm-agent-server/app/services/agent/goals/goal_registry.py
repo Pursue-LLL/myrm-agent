@@ -66,6 +66,17 @@ async def _resolve_shared_context_ids_for_goal(session_id: str) -> list[str]:
     )
 
 
+def _screen_is_capturable() -> bool:
+    """False while the session is locked or asleep: a capture would only show the lock screen.
+
+    Unlocking is the unattended watcher's decision (it alone checks presence and the
+    unlock lease); the evaluator falls back to a text-only verdict instead of unlocking.
+    """
+    from myrm_agent_harness.api.security import ScreenLockState, get_default_screen_detector
+
+    return get_default_screen_detector().get_state() not in (ScreenLockState.LOCKED, ScreenLockState.SLEEPING)
+
+
 async def _collect_session_deliverables(session_id: str) -> list[dict[str, str]]:
     """Collect all artifacts produced in a chat session for goal deliverable aggregation."""
     from sqlalchemy import select
@@ -158,27 +169,9 @@ class ServerGoalManager(GoalManager):
 
                 if not screenshot_b64:
                     desktop_session = gateway.get_active_desktop_session(self.session_id)
-                    if desktop_session is not None:
+                    if desktop_session is not None and _screen_is_capturable():
                         try:
-                            from app.services.locked_use.curtain_bridge import (
-                                locked_use_enabled_from_env,
-                                read_curtain_state,
-                            )
-                            from app.services.locked_use.service import (
-                                LockedUseConfig,
-                                locked_use_session,
-                            )
-
-                            # 帷幕拉起时锁屏下评估截图无价值；Locked Use 授权 + 帷幕态
-                            # 下临时解锁取真实画面（pending 协议保证帷幕保持遮蔽）。
-                            curtain = read_curtain_state()
-                            authorized = locked_use_enabled_from_env() and bool(
-                                curtain and curtain.active
-                            )
-                            async with locked_use_session(
-                                LockedUseConfig(enabled=authorized)
-                            ):
-                                action_result = await desktop_session.take_screenshot()
+                            action_result = await desktop_session.take_screenshot()
                             if action_result and action_result.success and action_result.screenshot_base64:
                                 screenshot_b64 = action_result.screenshot_base64
                         except Exception as e:

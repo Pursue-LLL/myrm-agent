@@ -1,13 +1,10 @@
-"""LockedUseService — orchestrates screen unlock for Computer Use sessions.
+"""LockedUseService — screen unlock lease primitives for unattended Computer Use.
 
-Provides an async context manager that:
-1. Acquires a display-aware sleep inhibitor (IOKit / ES_DISPLAY_REQUIRED)
-2. Detects if the screen is locked
-3. If locked, Locked Use is enabled and nobody is at the machine, takes the unlock lease and unlocks the screen
-4. Re-locks the screen, hands the lease back and releases the inhibitor on exit
+Business-layer primitives for the unattended unlock lease: lock probe, presence probe, serialized
+unlock and verified re-lock. The unattended watcher (``unattended.py``) is the only caller that
+decides to unlock; nothing here initiates an unlock on its own.
 
 [INPUT]
-- app.services.infra.sleep_inhibitor.SleepInhibitor (display keep-awake)
 - myrm_agent_harness.api.security::get_default_screen_detector / hid_idle_seconds (POS: native screen-lock probe and hardware input idle reading)
 - app.services.locked_use.curtain_bridge (lease bit shared with the desktop shell)
 - macOS Keychain (for password retrieval)
@@ -15,32 +12,26 @@ Provides an async context manager that:
 [OUTPUT]
 - MacScreenUnlocker: lock probe / presence probe / serialized unlock / verified re-lock primitives
 - release_unlock_lease: re-lock if needed, then hand the lease bit back
-- locked_use_session: async context manager for CU sessions
 
 [POS]
-Business-layer coordinator for Computer Use screen access.
+Business-layer coordinator for the unattended screen unlock lease.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-import platform
 import re
 import subprocess
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
-from dataclasses import dataclass
 
 from myrm_agent_harness.api.security import ScreenLockState, get_default_screen_detector, hid_idle_seconds
 
-from app.services.locked_use.curtain_bridge import clear_pending_auto_unlock, mark_pending_auto_unlock
+from app.services.locked_use.curtain_bridge import clear_pending_auto_unlock
 
 logger = logging.getLogger(__name__)
 
-# Serializes password typing: the CU session path and the unattended lease watcher
-# can both decide to unlock within the same second, and a second typing run would
-# land the password in whatever window has focus on the already-unlocked desktop.
+# Serializes password typing: an overlapping second run would land the password in
+# whatever window has focus on the already-unlocked desktop.
 _unlock_guard = asyncio.Lock()
 
 # Ctrl+Cmd+Q — the system lock chord. AppleScript source is a module constant so
@@ -247,60 +238,3 @@ async def release_unlock_lease() -> bool:
         return False
     clear_pending_auto_unlock()
     return True
-
-
-@dataclass(frozen=True)
-class LockedUseConfig:
-    """Configuration for a Locked Use session."""
-
-    enabled: bool = False
-
-
-@asynccontextmanager
-async def locked_use_session(
-    config: LockedUseConfig | None = None,
-) -> AsyncIterator[None]:
-    """Context manager for Computer Use sessions that need screen access.
-
-    Layer 1 (Display Keep-Awake) is always active for CU sessions.
-    Layer 2 (Screen Unlock) only activates when config.enabled is True, the
-    screen is actually locked and nobody is at the machine.
-
-    Example::
-
-        async with locked_use_session(LockedUseConfig(enabled=True)):
-            result = await computer_session.take_screenshot()
-    """
-    from app.services.infra.sleep_inhibitor import SleepInhibitor
-
-    cfg = config or LockedUseConfig()
-    is_mac = platform.system() == "Darwin"
-    lease_taken = False
-
-    async with SleepInhibitor.hold(prevent_display_sleep=True):
-        logger.debug("Display keep-awake acquired for CU session")
-
-        # The unlock sits inside the try: a failed or cancelled unlock must still
-        # hand the lease bit back, otherwise the desktop shell keeps the curtain up.
-        try:
-            if cfg.enabled and is_mac and MacScreenUnlocker.is_locked():
-                if MacScreenUnlocker.user_present():
-                    # No lease either: a lease bit left behind would keep the curtain over the
-                    # desktop of an owner who then unlocks the screen themselves.
-                    logger.info("Screen is locked but a user is at the machine; leaving the unlock to them")
-                else:
-                    logger.info("Screen is locked. Attempting temporary unlock for CU session...")
-                    # Record the lease first: the desktop shell keeps the curtain up while the
-                    # screen is unlocked (harmless when there is no curtain / no desktop shell).
-                    mark_pending_auto_unlock()
-                    lease_taken = True
-                    if await MacScreenUnlocker.unlock():
-                        logger.info("Screen successfully unlocked")
-            yield
-        finally:
-            if lease_taken:
-                logger.info("CU session ended. Releasing the unlock lease...")
-                if not await release_unlock_lease():
-                    logger.error("Screen could not be re-locked; keeping the curtain lease so the display stays covered")
-
-        logger.debug("CU session ended, releasing display keep-awake")
