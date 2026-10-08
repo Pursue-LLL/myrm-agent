@@ -5376,7 +5376,7 @@
         "rollbackFailed": "恢复上次可用连接未完成，请稍后重试。",
         "activeSessionsDialog": {
           "title": "存在活跃会话",
-          "description": "本地有 {count} 个会话正在生成。切换连接会中断它们；已保存的会话记录仍会保留。",
+          "description": "当前连接上有 {count} 个会话正在生成。切换连接可能会中断它们；已保存的会话记录仍会保留。",
           "confirm": "仍然继续",
           "cancel": "取消"
         }

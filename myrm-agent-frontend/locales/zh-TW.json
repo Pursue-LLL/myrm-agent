@@ -18289,7 +18289,7 @@
         "rollbackFailed": "恢復上次可用連接未完成，請稍後重試。",
         "activeSessionsDialog": {
           "title": "存在活躍會話",
-          "description": "本地有 {count} 個會話正在生成。切換連線會中斷它們；已儲存的會話記錄仍會保留。",
+          "description": "目前連線上有 {count} 個會話正在生成。切換連線可能會中斷它們；已儲存的會話記錄仍會保留。",
           "confirm": "仍然繼續",
           "cancel": "取消"
         }

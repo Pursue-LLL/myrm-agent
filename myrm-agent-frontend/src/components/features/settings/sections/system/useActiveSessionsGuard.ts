@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - `@/services/agent::getActiveSessions` (POS: 本地后端进行中会话查询)
+ * - `@/services/agent::getActiveSessions` (POS: 当前连接后端的进行中会话查询)
  *
  * [OUTPUT]
  * - `useActiveSessionsGuard`: 切断当前连接前的活跃会话守卫，返回 `guard`（有生成中会话时挂起 `proceed` 等待确认）与确认对话框状态。
@@ -35,7 +35,7 @@ export function useActiveSessionsGuard(onDeclined: () => void): ActiveSessionsGu
         return;
       }
     } catch {
-      // 放行：本地后端不可达本身就是切换动机之一
+      // 放行：当前连接的后端不可达本身就是切换动机之一
     }
     proceed();
   }, []);

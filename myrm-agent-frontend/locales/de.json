@@ -18289,7 +18289,7 @@
         "rollbackFailed": "Wiederherstellung der letzten funktionierenden Verbindung nicht abgeschlossen. Bitte versuchen Sie es gleich erneut.",
         "activeSessionsDialog": {
           "title": "Aktive Sitzungen erkannt",
-          "description": "{count, plural, one {# Sitzung wird} other {# Sitzungen werden}} lokal noch generiert. Der Verbindungswechsel unterbricht sie; der gespeicherte Sitzungsverlauf bleibt erhalten.",
+          "description": "{count, plural, one {# Sitzung wird} other {# Sitzungen werden}} auf der aktuellen Verbindung noch generiert. Der Verbindungswechsel kann sie unterbrechen; der gespeicherte Sitzungsverlauf bleibt erhalten.",
           "confirm": "Trotzdem fortfahren",
           "cancel": "Abbrechen"
         }

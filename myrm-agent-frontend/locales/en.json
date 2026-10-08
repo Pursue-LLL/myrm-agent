@@ -5376,7 +5376,7 @@
         "rollbackFailed": "Couldn't restore the last working connection. Please try again shortly.",
         "activeSessionsDialog": {
           "title": "Active sessions detected",
-          "description": "{count, plural, one {# session is} other {# sessions are}} still generating locally. Switching the connection interrupts {count, plural, one {it} other {them}}; saved session history is kept.",
+          "description": "{count, plural, one {# session is} other {# sessions are}} still generating on the current connection. Switching may interrupt {count, plural, one {it} other {them}}; saved session history is kept.",
           "confirm": "Continue anyway",
           "cancel": "Cancel"
         }
