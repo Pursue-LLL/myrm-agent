@@ -149,6 +149,32 @@ describe('ServerConnectionCard cloud connection', () => {
     });
   });
 
+  describe('triggering again while the session query is still pending', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('runs a single guarded switch instead of one per trigger', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      localStorage.setItem(
+        ROSTER_KEY,
+        JSON.stringify({
+          profiles: [{ id: 'p1', name: 'Pi', url: 'http://pi.example.com', kind: 'server' }],
+          activeId: 'p1',
+        }),
+      );
+      stubBackends({ runningSessions: 'hang' });
+      render(<ServerConnectionCard />);
+
+      fireEvent.click(screen.getByLabelText('modeRemote'));
+      await vi.advanceTimersByTimeAsync(500);
+      fireEvent.click(screen.getByLabelText('modeRemote'));
+      await vi.advanceTimersByTimeAsync(3500);
+
+      await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith('disconnected'));
+      expect(mocks.switchRemoteFollow).toHaveBeenCalledExactlyOnceWith(false);
+      expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('disconnecting back to local', () => {
     function renderConnectedCard() {
       localStorage.setItem(
