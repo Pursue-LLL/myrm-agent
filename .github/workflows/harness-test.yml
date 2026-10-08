@@ -78,15 +78,6 @@ jobs:
       - name: Install Patchright Chromium
         run: uv run --no-sync patchright install --with-deps chromium
 
-      - name: TEMP diagnose failing integration suites
-        continue-on-error: true
-        run: >-
-          uv run --no-sync pytest -n0 -q --tb=short
-          tests/integration/test_grep_regex_support.py
-          tests/agent/_factory/test_mcp_routing_real_stdio_integration.py
-          tests/toolkits/acp/test_real_integration.py
-          -m "integration or e2e" --timeout=120 --timeout-method=thread -o faulthandler_timeout=100
-
       - name: Run browser integration tests
         run: >-
           uv run --no-sync pytest -n0 -v --tb=short tests/
