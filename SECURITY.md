@@ -9,8 +9,9 @@ Security fixes are applied to the latest release on the default branch of [myrm-
 | `myrm-agent-server` | FastAPI backend, channels, API surface |
 | `myrm-agent-frontend` | Next.js Web UI |
 | `myrm-agent-desktop` | Tauri desktop shell |
+| `myrm-agent-harness` | Agent execution framework (also published to PyPI as `myrm-agent-harness`) |
 
-`myrm-agent-harness` and `myrm-control-plane` are separate private repositories; report issues in those components through your MyrmAgent enterprise contact if applicable.
+`myrm-control-plane` is a separate private repository; report issues in that component through your MyrmAgent enterprise contact if applicable.
 
 ## Reporting a Vulnerability
 
