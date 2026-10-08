@@ -636,6 +636,7 @@ myrm_agent_harness.toolkits.memory.graph_reorganization
 myrm_agent_harness.toolkits.memory.graph_rrf
 myrm_agent_harness.toolkits.memory.handoff
 myrm_agent_harness.toolkits.memory.health
+myrm_agent_harness.toolkits.memory.inode_identity
 myrm_agent_harness.toolkits.memory.integration.fetcher
 myrm_agent_harness.toolkits.memory.integration.summarizer
 myrm_agent_harness.toolkits.memory.integration.tree_manager

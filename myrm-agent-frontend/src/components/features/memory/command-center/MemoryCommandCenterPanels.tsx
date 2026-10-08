@@ -97,6 +97,7 @@ import { ExperienceCompoundingStudioCard } from './ExperienceCompoundingStudioCa
 import { ConclusionAttributionStudioCard } from './ConclusionAttributionStudioCard';
 import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
 import { CodebaseDiffInspectionCard } from './CodebaseDiffInspectionCard';
+import { InodeIdentityInspectionCard } from './InodeIdentityInspectionCard';
 
 
 
@@ -395,6 +396,9 @@ export const UnderstandSection = ({
 
     {/* Codebase Memory Large Diff Fallback Inspection Card (Item 144 P1) */}
     <CodebaseDiffInspectionCard />
+
+    {/* Directory Inode Identity & Double-Sync Prevention Inspection Card (Item 145 P0) */}
+    <InodeIdentityInspectionCard />
 
 
 

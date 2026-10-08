@@ -154,6 +154,9 @@ from app.api.memory.hybrid_memory_router import (
 from app.api.memory.hybrid_search import (
     router as hybrid_search_router,
 )
+from app.api.memory.inode_identity_router import (
+    router as inode_identity_router,
+)
 from app.api.memory.intent_reflection_router import (
     router as memory_intent_reflection_router,
 )
@@ -649,4 +652,8 @@ router.include_router(
 router.include_router(
     codebase_diff_router,
     tags=["memory-codebase-diff"],
+)
+router.include_router(
+    inode_identity_router,
+    tags=["memory-inode-identity"],
 )
