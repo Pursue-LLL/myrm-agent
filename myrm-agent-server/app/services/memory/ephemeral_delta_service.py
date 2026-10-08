@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/ephemeral_delta_service.py
-# [INPUT]: Harness ephemeral_delta engine, Server schemas
-# [OUTPUT]: Domain service managing session delta lifecycle, preview injection, and batch reconciliation
+"""Domain service managing session delta lifecycle, preview injection, and batch reconciliation.
+
+[POS]
+app/services/memory/ephemeral_delta_service.py
+
+[INPUT]
+- Harness ephemeral_delta engine, Server schemas
+
+[OUTPUT]
+- Domain service managing session delta lifecycle, preview injection, and batch reconciliation
+"""
 
 from __future__ import annotations
 

@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/peer_gateway_router.py
-# [INPUT]: app.schemas.peer_gateway, app.services.memory.peer_gateway_service
-# [OUTPUT]: router (FastAPI APIRouter for Multi-Channel Peer Gateway Suite)
+"""FastAPI router for Multi-Channel Peer Alias & Anti-Cross-Contamination Gateway Suite (Item 113).
 
-"""FastAPI router for Multi-Channel Peer Alias & Anti-Cross-Contamination Gateway Suite (Item 113)."""
+[POS]
+app/api/memory/peer_gateway_router.py
+
+[INPUT]
+- app.schemas.peer_gateway, app.services.memory.peer_gateway_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Multi-Channel Peer Gateway Suite)
+"""
+
 
 from __future__ import annotations
 

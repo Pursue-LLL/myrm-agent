@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/markdown_curator_service.py
-# [INPUT]: app.schemas.markdown_curator, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: MarkdownCuratorService, get_markdown_curator_service
+"""MarkdownCuratorService, get_markdown_curator_service.
+
+[POS]
+app/services/memory/markdown_curator_service.py
+
+[INPUT]
+- app.schemas.markdown_curator, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- MarkdownCuratorService, get_markdown_curator_service
+"""
 
 from __future__ import annotations
 

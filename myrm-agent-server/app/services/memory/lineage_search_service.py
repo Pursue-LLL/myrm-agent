@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/lineage_search_service.py
-# [INPUT]: SQLite database path, session metadata, messages, query options
-# [OUTPUT]: LineageSearchService facade managing lineage dedup, cron demotion, and adaptive hydration
+"""LineageSearchService facade managing lineage dedup, cron demotion, and adaptive hydration.
+
+[POS]
+app/services/memory/lineage_search_service.py
+
+[INPUT]
+- SQLite database path, session metadata, messages, query options
+
+[OUTPUT]
+- LineageSearchService facade managing lineage dedup, cron demotion, and adaptive hydration
+"""
 
 from __future__ import annotations
 

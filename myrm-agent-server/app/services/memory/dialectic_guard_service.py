@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/dialectic_guard_service.py
-# [INPUT]: app.schemas.dialectic_guard, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: DialecticGuardService, get_dialectic_guard_service
+"""Business service implementing Dialectic Liveness Guard & Stale Pivot Discard (Item 116).
 
-"""Business service implementing Dialectic Liveness Guard & Stale Pivot Discard (Item 116)."""
+[POS]
+app/services/memory/dialectic_guard_service.py
+
+[INPUT]
+- app.schemas.dialectic_guard, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- DialecticGuardService, get_dialectic_guard_service
+"""
+
 
 from __future__ import annotations
 

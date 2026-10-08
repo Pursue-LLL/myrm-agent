@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/git_okf_service.py
-# [INPUT]: OKF bundle path, query parameters, validation requests
-# [OUTPUT]: GitOKFService facade coordinating bundle loading, BM25 search, rot validation, and progressive disclosure
+"""GitOKFService facade coordinating bundle loading, BM25 search, rot validation, and progressive disclosure.
+
+[POS]
+app/services/memory/git_okf_service.py
+
+[INPUT]
+- OKF bundle path, query parameters, validation requests
+
+[OUTPUT]
+- GitOKFService facade coordinating bundle loading, BM25 search, rot validation, and progressive disclosure
+"""
 
 from __future__ import annotations
 

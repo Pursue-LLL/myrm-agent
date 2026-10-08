@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/peer_cognition_router.py
-# [INPUT]: app.schemas.peer_cognition, app.services.memory.peer_cognition_service
-# [OUTPUT]: router (FastAPI APIRouter for Peer-Centric Social Cognition and Persona Card Suite)
+"""FastAPI router for Peer-Centric Social Cognition and Persona Card Suite (Item 110).
 
-"""FastAPI router for Peer-Centric Social Cognition and Persona Card Suite (Item 110)."""
+[POS]
+app/api/memory/peer_cognition_router.py
+
+[INPUT]
+- app.schemas.peer_cognition, app.services.memory.peer_cognition_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Peer-Centric Social Cognition and Persona Card Suite)
+"""
+
 
 from __future__ import annotations
 

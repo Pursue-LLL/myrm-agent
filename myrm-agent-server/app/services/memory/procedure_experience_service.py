@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/procedure_experience_service.py
-# [INPUT]: app.schemas.procedure_experience, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: ProcedureExperienceService, get_procedure_experience_service
+"""ProcedureExperienceService, get_procedure_experience_service.
+
+[POS]
+app/services/memory/procedure_experience_service.py
+
+[INPUT]
+- app.schemas.procedure_experience, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- ProcedureExperienceService, get_procedure_experience_service
+"""
 
 from __future__ import annotations
 

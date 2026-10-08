@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/auto_memory_consolidation_service.py
-# [INPUT]: myrm_agent_harness.toolkits.memory.auto_consolidation, app.schemas.auto_memory_consolidation
-# [OUTPUT]: AutoMemoryConsolidationService, get_auto_memory_consolidation_service
+"""Domain service for Idle & Budget Gated Auto-Memory Consolidation Suite (Item 123).
 
-"""Domain service for Idle & Budget Gated Auto-Memory Consolidation Suite (Item 123)."""
+[POS]
+app/services/memory/auto_memory_consolidation_service.py
+
+[INPUT]
+- myrm_agent_harness.toolkits.memory.auto_consolidation, app.schemas.auto_memory_consolidation
+
+[OUTPUT]
+- AutoMemoryConsolidationService, get_auto_memory_consolidation_service
+"""
+
 
 from __future__ import annotations
 

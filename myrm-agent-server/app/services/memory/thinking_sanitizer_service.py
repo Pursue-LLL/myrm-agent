@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/thinking_sanitizer_service.py
-# [INPUT]: app.schemas.thinking_sanitizer, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: ThinkingSanitizerService, get_thinking_sanitizer_service
+"""Business service implementing Thinking Block Sanitizer & Prompt Contamination Shield (Item 115).
 
-"""Business service implementing Thinking Block Sanitizer & Prompt Contamination Shield (Item 115)."""
+[POS]
+app/services/memory/thinking_sanitizer_service.py
+
+[INPUT]
+- app.schemas.thinking_sanitizer, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- ThinkingSanitizerService, get_thinking_sanitizer_service
+"""
+
 
 from __future__ import annotations
 

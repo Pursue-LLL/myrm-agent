@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/experience_injection_service.py
-# [INPUT]: app.schemas.experience_injection, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: ExperienceInjectionService, get_experience_injection_service
+"""ExperienceInjectionService, get_experience_injection_service.
+
+[POS]
+app/services/memory/experience_injection_service.py
+
+[INPUT]
+- app.schemas.experience_injection, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- ExperienceInjectionService, get_experience_injection_service
+"""
 
 from __future__ import annotations
 

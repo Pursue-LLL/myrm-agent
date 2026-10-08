@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/two_layer_dialectic_router.py
-# [INPUT]: app.schemas.two_layer_dialectic, app.services.memory.two_layer_dialectic_service
-# [OUTPUT]: router (FastAPI APIRouter for Two-Layer Dialectic Suite)
+"""FastAPI router for Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation (Item 112).
 
-"""FastAPI router for Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation (Item 112)."""
+[POS]
+app/api/memory/two_layer_dialectic_router.py
+
+[INPUT]
+- app.schemas.two_layer_dialectic, app.services.memory.two_layer_dialectic_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Two-Layer Dialectic Suite)
+"""
+
 
 from __future__ import annotations
 

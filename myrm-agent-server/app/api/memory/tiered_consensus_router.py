@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/tiered_consensus_router.py
-# [INPUT]: app.schemas.tiered_consensus, app.services.memory.tiered_consensus_service
-# [OUTPUT]: router (FastAPI APIRouter for Tiered Memory Hierarchy & Proposed Consensus Flow)
+"""FastAPI router for Tiered Memory Hierarchy and Proposed Consensus Flow Suite (Item 114).
 
-"""FastAPI router for Tiered Memory Hierarchy and Proposed Consensus Flow Suite (Item 114)."""
+[POS]
+app/api/memory/tiered_consensus_router.py
+
+[INPUT]
+- app.schemas.tiered_consensus, app.services.memory.tiered_consensus_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Tiered Memory Hierarchy & Proposed Consensus Flow)
+"""
+
 
 from __future__ import annotations
 

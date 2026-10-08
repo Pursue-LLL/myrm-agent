@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/failure_search_service.py
-# [INPUT]: app.schemas.failure_search, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: FailureSearchService, get_failure_search_service
+"""Business service implementing failure-triggered historical session retrieval (Item 109).
 
-"""Business service implementing failure-triggered historical session retrieval (Item 109)."""
+[POS]
+app/services/memory/failure_search_service.py
+
+[INPUT]
+- app.schemas.failure_search, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- FailureSearchService, get_failure_search_service
+"""
+
 
 from __future__ import annotations
 

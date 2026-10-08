@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/conversation_lineage_defense_service.py
-# [INPUT]: Harness lineage defense engine, Server schemas
-# [OUTPUT]: Domain service managing lineage dedup, automation demotion, and hydration stats
+"""Domain service managing lineage dedup, automation demotion, and hydration stats.
+
+[POS]
+app/services/memory/conversation_lineage_defense_service.py
+
+[INPUT]
+- Harness lineage defense engine, Server schemas
+
+[OUTPUT]
+- Domain service managing lineage dedup, automation demotion, and hydration stats
+"""
 
 from __future__ import annotations
 

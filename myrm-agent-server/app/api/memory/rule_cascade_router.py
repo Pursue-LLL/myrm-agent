@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/rule_cascade_router.py
-# [INPUT]: app.schemas.rule_cascade, app.services.memory.rule_cascade_service
-# [OUTPUT]: router (FastAPI APIRouter for deterministic rule cascade and pre-filtering)
+"""router (FastAPI APIRouter for deterministic rule cascade and pre-filtering).
+
+[POS]
+app/api/memory/rule_cascade_router.py
+
+[INPUT]
+- app.schemas.rule_cascade, app.services.memory.rule_cascade_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for deterministic rule cascade and pre-filtering)
+"""
 
 from __future__ import annotations
 

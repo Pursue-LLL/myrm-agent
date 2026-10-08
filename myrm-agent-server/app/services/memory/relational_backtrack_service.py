@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/relational_backtrack_service.py
-# [INPUT]: app.schemas.relational_backtrack, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: RelationalBacktrackService, get_relational_backtrack_service
+"""RelationalBacktrackService, get_relational_backtrack_service.
+
+[POS]
+app/services/memory/relational_backtrack_service.py
+
+[INPUT]
+- app.schemas.relational_backtrack, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- RelationalBacktrackService, get_relational_backtrack_service
+"""
 
 from __future__ import annotations
 

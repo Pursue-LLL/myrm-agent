@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/budget_packing_router.py
-# [INPUT]: app.schemas.budget_packing, app.services.memory.budget_packing_service
-# [OUTPUT]: router (FastAPI APIRouter for Budget Greedy Marginal Value Recall Packing Suite)
+"""FastAPI router for Budget Greedy Marginal Value Recall Packing Suite (Item 122).
 
-"""FastAPI router for Budget Greedy Marginal Value Recall Packing Suite (Item 122)."""
+[POS]
+app/api/memory/budget_packing_router.py
+
+[INPUT]
+- app.schemas.budget_packing, app.services.memory.budget_packing_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Budget Greedy Marginal Value Recall Packing Suite)
+"""
+
 
 from __future__ import annotations
 

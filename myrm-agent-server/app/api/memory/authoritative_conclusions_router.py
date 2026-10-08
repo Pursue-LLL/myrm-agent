@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/authoritative_conclusions_router.py
-# [INPUT]: app.schemas.authoritative_conclusions, app.services.memory.authoritative_conclusions_service
-# [OUTPUT]: router (FastAPI APIRouter for Explicit Authoritative Conclusions Suite)
+"""FastAPI router for Explicit Authoritative Conclusions and Audit Tooling Suite (Item 111).
 
-"""FastAPI router for Explicit Authoritative Conclusions and Audit Tooling Suite (Item 111)."""
+[POS]
+app/api/memory/authoritative_conclusions_router.py
+
+[INPUT]
+- app.schemas.authoritative_conclusions, app.services.memory.authoritative_conclusions_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Explicit Authoritative Conclusions Suite)
+"""
+
 
 from __future__ import annotations
 

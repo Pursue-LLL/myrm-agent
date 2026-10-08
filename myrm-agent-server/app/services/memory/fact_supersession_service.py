@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/fact_supersession_service.py
-# [INPUT]: app.schemas.fact_supersession, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: FactSupersessionService, get_fact_supersession_service
+"""FactSupersessionService, get_fact_supersession_service.
+
+[POS]
+app/services/memory/fact_supersession_service.py
+
+[INPUT]
+- app.schemas.fact_supersession, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- FactSupersessionService, get_fact_supersession_service
+"""
 
 from __future__ import annotations
 

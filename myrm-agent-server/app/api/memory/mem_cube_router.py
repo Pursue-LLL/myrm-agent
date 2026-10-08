@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/mem_cube_router.py
-# [INPUT]: fastapi, app.schemas.mem_cube, app.services.memory.mem_cube_service
-# [OUTPUT]: router (FastAPI APIRouter for Memory Cube Scoped Isolation & Dynamic Mounting Suite)
+"""FastAPI router for Memory Cube Scoped Isolation & Dynamic Mounting Suite (Item 124).
 
-"""FastAPI router for Memory Cube Scoped Isolation & Dynamic Mounting Suite (Item 124)."""
+[POS]
+app/api/memory/mem_cube_router.py
+
+[INPUT]
+- fastapi, app.schemas.mem_cube, app.services.memory.mem_cube_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Memory Cube Scoped Isolation & Dynamic Mounting Suite)
+"""
+
 
 from __future__ import annotations
 

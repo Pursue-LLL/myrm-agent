@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/business_template_router.py
-# [INPUT]: app.schemas.business_templates, app.services.memory.business_template_service
-# [OUTPUT]: router (FastAPI APIRouter for Business Scenario Experience Templates Suite)
+"""router (FastAPI APIRouter for Business Scenario Experience Templates Suite).
+
+[POS]
+app/api/memory/business_template_router.py
+
+[INPUT]
+- app.schemas.business_templates, app.services.memory.business_template_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Business Scenario Experience Templates Suite)
+"""
 
 from __future__ import annotations
 

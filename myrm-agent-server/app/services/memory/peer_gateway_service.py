@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/peer_gateway_service.py
-# [INPUT]: app.schemas.peer_gateway, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: PeerGatewayService, get_peer_gateway_service
+"""Business service implementing Multi-Channel Peer Alias & Anti-Cross-Contamination Gateway (Item 113).
 
-"""Business service implementing Multi-Channel Peer Alias & Anti-Cross-Contamination Gateway (Item 113)."""
+[POS]
+app/services/memory/peer_gateway_service.py
+
+[INPUT]
+- app.schemas.peer_gateway, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- PeerGatewayService, get_peer_gateway_service
+"""
+
 
 from __future__ import annotations
 

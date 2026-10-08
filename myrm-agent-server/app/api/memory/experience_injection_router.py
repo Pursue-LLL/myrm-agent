@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/experience_injection_router.py
-# [INPUT]: app.schemas.experience_injection, app.services.memory.experience_injection_service
-# [OUTPUT]: router (FastAPI APIRouter for Experience Injection Suite)
+"""router (FastAPI APIRouter for Experience Injection Suite).
+
+[POS]
+app/api/memory/experience_injection_router.py
+
+[INPUT]
+- app.schemas.experience_injection, app.services.memory.experience_injection_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Experience Injection Suite)
+"""
 
 from __future__ import annotations
 

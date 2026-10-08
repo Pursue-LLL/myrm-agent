@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/auto_memory_consolidation_router.py
-# [INPUT]: fastapi, app.schemas.auto_memory_consolidation, app.services.memory.auto_memory_consolidation_service
-# [OUTPUT]: router (FastAPI APIRouter for Idle & Budget Gated Auto-Memory Engine Suite)
+"""FastAPI router for Idle & Budget Gated Auto-Memory Consolidation Suite (Item 123).
 
-"""FastAPI router for Idle & Budget Gated Auto-Memory Consolidation Suite (Item 123)."""
+[POS]
+app/api/memory/auto_memory_consolidation_router.py
+
+[INPUT]
+- fastapi, app.schemas.auto_memory_consolidation, app.services.memory.auto_memory_consolidation_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Idle & Budget Gated Auto-Memory Engine Suite)
+"""
+
 
 from __future__ import annotations
 

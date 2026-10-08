@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/business_template_service.py
-# [INPUT]: app.schemas.business_templates, myrm_agent_harness.toolkits.memory.business_templates
-# [OUTPUT]: BusinessTemplateService, get_business_template_service
+"""BusinessTemplateService, get_business_template_service.
+
+[POS]
+app/services/memory/business_template_service.py
+
+[INPUT]
+- app.schemas.business_templates, myrm_agent_harness.toolkits.memory.business_templates
+
+[OUTPUT]
+- BusinessTemplateService, get_business_template_service
+"""
 
 from __future__ import annotations
 

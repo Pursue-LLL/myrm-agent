@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/session_commit_router.py
-# [INPUT]: app.schemas.session_commit, app.services.memory.session_commit_service
-# [OUTPUT]: router (FastAPI APIRouter for Session Commit Two-Phase & Memory Diff Audit)
+"""router (FastAPI APIRouter for Session Commit Two-Phase & Memory Diff Audit).
+
+[POS]
+app/api/memory/session_commit_router.py
+
+[INPUT]
+- app.schemas.session_commit, app.services.memory.session_commit_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Session Commit Two-Phase & Memory Diff Audit)
+"""
 
 from __future__ import annotations
 

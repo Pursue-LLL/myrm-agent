@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/two_layer_dialectic_service.py
-# [INPUT]: app.schemas.two_layer_dialectic, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: TwoLayerDialecticService, get_two_layer_dialectic_service
+"""Business service implementing Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation (Item 112).
 
-"""Business service implementing Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation (Item 112)."""
+[POS]
+app/services/memory/two_layer_dialectic_service.py
+
+[INPUT]
+- app.schemas.two_layer_dialectic, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- TwoLayerDialecticService, get_two_layer_dialectic_service
+"""
+
 
 from __future__ import annotations
 
@@ -43,7 +50,7 @@ def _candidate_to_dto(c: DialecticConflictCandidate) -> DialecticConflictCandida
 def _result_to_dto(r: DialecticReconciliationResult) -> DialecticReconciliationResultDTO:
     """Map harness reconciliation result to API DTO."""
     return DialecticReconciliationResultDTO(
-        passes_executed=[p.value for p in r.passes_executed],
+        passes_executed=[p.value if hasattr(p, "value") else str(p) for p in r.passes_executed],
         resolved_statement=r.resolved_statement,
         superseded_statements=r.superseded_statements,
         confidence=r.confidence,

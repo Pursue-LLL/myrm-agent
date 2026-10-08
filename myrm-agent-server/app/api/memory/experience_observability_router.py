@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/experience_observability_router.py
-# [INPUT]: app.schemas.experience_observability, app.services.memory.experience_observability_service
-# [OUTPUT]: router (FastAPI APIRouter for Experience Observability and Host Plugin Suite)
+"""FastAPI router for Experience Observability Dashboard and Host Plugin Lifecycle (Item 108).
 
-"""FastAPI router for Experience Observability Dashboard and Host Plugin Lifecycle (Item 108)."""
+[POS]
+app/api/memory/experience_observability_router.py
+
+[INPUT]
+- app.schemas.experience_observability, app.services.memory.experience_observability_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Experience Observability and Host Plugin Suite)
+"""
+
 
 from __future__ import annotations
 

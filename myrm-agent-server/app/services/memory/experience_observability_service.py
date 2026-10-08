@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/experience_observability_service.py
-# [INPUT]: app.schemas.experience_observability, myrm_agent_harness.toolkits.memory.experience_observability
-# [OUTPUT]: ExperienceObservabilityService, get_experience_observability_service
+"""ExperienceObservabilityService, get_experience_observability_service.
+
+[POS]
+app/services/memory/experience_observability_service.py
+
+[INPUT]
+- app.schemas.experience_observability, myrm_agent_harness.toolkits.memory.experience_observability
+
+[OUTPUT]
+- ExperienceObservabilityService, get_experience_observability_service
+"""
 
 from __future__ import annotations
 

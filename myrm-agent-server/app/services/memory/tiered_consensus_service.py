@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/tiered_consensus_service.py
-# [INPUT]: app.schemas.tiered_consensus, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: TieredConsensusService, get_tiered_consensus_service
+"""Business service implementing Tiered Memory Hierarchy & Proposed Consensus Flow (Item 114).
 
-"""Business service implementing Tiered Memory Hierarchy & Proposed Consensus Flow (Item 114)."""
+[POS]
+app/services/memory/tiered_consensus_service.py
+
+[INPUT]
+- app.schemas.tiered_consensus, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- TieredConsensusService, get_tiered_consensus_service
+"""
+
 
 from __future__ import annotations
 

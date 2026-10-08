@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/procedure_experience_router.py
-# [INPUT]: app.schemas.procedure_experience, app.services.memory.procedure_experience_service
-# [OUTPUT]: router (FastAPI APIRouter for Procedure Experience & Dual-Node Retrieval)
+"""router (FastAPI APIRouter for Procedure Experience & Dual-Node Retrieval).
+
+[POS]
+app/api/memory/procedure_experience_router.py
+
+[INPUT]
+- app.schemas.procedure_experience, app.services.memory.procedure_experience_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Procedure Experience & Dual-Node Retrieval)
+"""
 
 from __future__ import annotations
 

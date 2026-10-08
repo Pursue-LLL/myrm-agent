@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/dialectic_guard_router.py
-# [INPUT]: app.schemas.dialectic_guard, app.services.memory.dialectic_guard_service
-# [OUTPUT]: router
+"""FastAPI router for Dialectic Liveness Guard & Stale Pivot Discard (Item 116).
 
-"""FastAPI router for Dialectic Liveness Guard & Stale Pivot Discard (Item 116)."""
+[POS]
+app/api/memory/dialectic_guard_router.py
+
+[INPUT]
+- app.schemas.dialectic_guard, app.services.memory.dialectic_guard_service
+
+[OUTPUT]
+- router
+"""
+
 
 from __future__ import annotations
 

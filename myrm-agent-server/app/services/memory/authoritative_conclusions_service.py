@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/authoritative_conclusions_service.py
-# [INPUT]: app.schemas.authoritative_conclusions, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: AuthoritativeConclusionsService, get_authoritative_conclusions_service
+"""Business service implementing Explicit Authoritative Conclusions and Audit Tooling Suite (Item 111).
 
-"""Business service implementing Explicit Authoritative Conclusions and Audit Tooling Suite (Item 111)."""
+[POS]
+app/services/memory/authoritative_conclusions_service.py
+
+[INPUT]
+- app.schemas.authoritative_conclusions, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- AuthoritativeConclusionsService, get_authoritative_conclusions_service
+"""
+
 
 from __future__ import annotations
 

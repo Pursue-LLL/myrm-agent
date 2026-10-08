@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/relational_backtrack_router.py
-# [INPUT]: app.schemas.relational_backtrack, app.services.memory.relational_backtrack_service
-# [OUTPUT]: router (FastAPI APIRouter for relational backtrace and cross-session entity backtracking)
+"""router (FastAPI APIRouter for relational backtrace and cross-session entity backtracking).
+
+[POS]
+app/api/memory/relational_backtrack_router.py
+
+[INPUT]
+- app.schemas.relational_backtrack, app.services.memory.relational_backtrack_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for relational backtrace and cross-session entity backtracking)
+"""
 
 from __future__ import annotations
 

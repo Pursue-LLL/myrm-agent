@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/markdown_curator_router.py
-# [INPUT]: app.schemas.markdown_curator, app.services.memory.markdown_curator_service
-# [OUTPUT]: router (FastAPI APIRouter for Markdown bidi-sync and Curator Studio)
+"""router (FastAPI APIRouter for Markdown bidi-sync and Curator Studio).
+
+[POS]
+app/api/memory/markdown_curator_router.py
+
+[INPUT]
+- app.schemas.markdown_curator, app.services.memory.markdown_curator_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Markdown bidi-sync and Curator Studio)
+"""
 
 from __future__ import annotations
 

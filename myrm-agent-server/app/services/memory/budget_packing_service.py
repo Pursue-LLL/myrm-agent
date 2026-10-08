@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/budget_packing_service.py
-# [INPUT]: app.schemas.budget_packing, myrm_agent_harness.toolkits.memory.budget_packing
-# [OUTPUT]: BudgetPackingService, get_budget_packing_service
+"""Business service coordinating Budget Greedy Marginal Value Recall Packing (Item 122).
 
-"""Business service coordinating Budget Greedy Marginal Value Recall Packing (Item 122)."""
+[POS]
+app/services/memory/budget_packing_service.py
+
+[INPUT]
+- app.schemas.budget_packing, myrm_agent_harness.toolkits.memory.budget_packing
+
+[OUTPUT]
+- BudgetPackingService, get_budget_packing_service
+"""
+
 
 from __future__ import annotations
 

@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/thinking_sanitizer_router.py
-# [INPUT]: app.schemas.thinking_sanitizer, app.services.memory.thinking_sanitizer_service
-# [OUTPUT]: router
+"""FastAPI router for Thinking Block Sanitizer & Prompt Contamination Shield (Item 115).
 
-"""FastAPI router for Thinking Block Sanitizer & Prompt Contamination Shield (Item 115)."""
+[POS]
+app/api/memory/thinking_sanitizer_router.py
+
+[INPUT]
+- app.schemas.thinking_sanitizer, app.services.memory.thinking_sanitizer_service
+
+[OUTPUT]
+- router
+"""
+
 
 from __future__ import annotations
 

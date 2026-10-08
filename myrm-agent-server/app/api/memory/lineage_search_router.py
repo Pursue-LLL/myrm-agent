@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/lineage_search_router.py
-# [INPUT]: FastAPI APIRouter, Depends, HTTPException, and lineage search DTOs
-# [OUTPUT]: REST endpoints for session lineage discovery search, cron demotion, and hydration
+"""REST endpoints for session lineage discovery search, cron demotion, and hydration.
+
+[POS]
+app/api/memory/lineage_search_router.py
+
+[INPUT]
+- FastAPI APIRouter, Depends, HTTPException, and lineage search DTOs
+
+[OUTPUT]
+- REST endpoints for session lineage discovery search, cron demotion, and hydration
+"""
 
 from __future__ import annotations
 

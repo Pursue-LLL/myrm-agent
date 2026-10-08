@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/mem_cube_service.py
-# [INPUT]: myrm_agent_harness.toolkits.memory, app.schemas.mem_cube
-# [OUTPUT]: MemCubeService, get_mem_cube_service
+"""Domain service for Memory Cube Scoped Isolation & Dynamic Mounting Suite (Item 124).
 
-"""Domain service for Memory Cube Scoped Isolation & Dynamic Mounting Suite (Item 124)."""
+[POS]
+app/services/memory/mem_cube_service.py
+
+[INPUT]
+- myrm_agent_harness.toolkits.memory, app.schemas.mem_cube
+
+[OUTPUT]
+- MemCubeService, get_mem_cube_service
+"""
+
 
 from __future__ import annotations
 

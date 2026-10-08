@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/git_okf_router.py
-# [INPUT]: FastAPI APIRouter, Depends, Query, Path, and GitOKF DTOs
-# [OUTPUT]: REST endpoints for Git-native OKF v0.2 bundle loading, search, validation, and progressive disclosure
+"""REST endpoints for Git-native OKF v0.2 bundle loading, search, validation, and progressive disclosure.
+
+[POS]
+app/api/memory/git_okf_router.py
+
+[INPUT]
+- FastAPI APIRouter, Depends, Query, Path, and GitOKF DTOs
+
+[OUTPUT]
+- REST endpoints for Git-native OKF v0.2 bundle loading, search, validation, and progressive disclosure
+"""
 
 from __future__ import annotations
 

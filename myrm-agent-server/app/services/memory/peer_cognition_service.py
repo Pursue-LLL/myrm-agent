@@ -1,8 +1,15 @@
-# [POS]: app/services/memory/peer_cognition_service.py
-# [INPUT]: app.schemas.peer_cognition, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: PeerCognitionService, get_peer_cognition_service
+"""Business service implementing Peer-Centric Social Cognition and Persona Card Suite (Item 110).
 
-"""Business service implementing Peer-Centric Social Cognition and Persona Card Suite (Item 110)."""
+[POS]
+app/services/memory/peer_cognition_service.py
+
+[INPUT]
+- app.schemas.peer_cognition, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- PeerCognitionService, get_peer_cognition_service
+"""
+
 
 from __future__ import annotations
 

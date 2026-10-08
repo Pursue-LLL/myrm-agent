@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/session_commit_service.py
-# [INPUT]: app.schemas.session_commit, myrm_agent_harness.toolkits.memory
-# [OUTPUT]: SessionCommitService, get_session_commit_service
+"""SessionCommitService, get_session_commit_service.
+
+[POS]
+app/services/memory/session_commit_service.py
+
+[INPUT]
+- app.schemas.session_commit, myrm_agent_harness.toolkits.memory
+
+[OUTPUT]
+- SessionCommitService, get_session_commit_service
+"""
 
 from __future__ import annotations
 

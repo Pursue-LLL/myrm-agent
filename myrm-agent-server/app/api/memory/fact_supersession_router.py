@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/fact_supersession_router.py
-# [INPUT]: app.schemas.fact_supersession, app.services.memory.fact_supersession_service
-# [OUTPUT]: router (FastAPI APIRouter for Fact Supersession and Temporal Validity)
+"""router (FastAPI APIRouter for Fact Supersession and Temporal Validity).
+
+[POS]
+app/api/memory/fact_supersession_router.py
+
+[INPUT]
+- app.schemas.fact_supersession, app.services.memory.fact_supersession_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Fact Supersession and Temporal Validity)
+"""
 
 from __future__ import annotations
 

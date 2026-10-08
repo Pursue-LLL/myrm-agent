@@ -1,8 +1,15 @@
-# [POS]: app/api/memory/failure_search_router.py
-# [INPUT]: app.schemas.failure_search, app.services.memory.failure_search_service
-# [OUTPUT]: router (FastAPI APIRouter for Failure-Triggered Historical Session Retrieval Suite)
+"""FastAPI router for Failure-Triggered Historical Session Retrieval Suite (Item 109).
 
-"""FastAPI router for Failure-Triggered Historical Session Retrieval Suite (Item 109)."""
+[POS]
+app/api/memory/failure_search_router.py
+
+[INPUT]
+- app.schemas.failure_search, app.services.memory.failure_search_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for Failure-Triggered Historical Session Retrieval Suite)
+"""
+
 
 from __future__ import annotations
 
