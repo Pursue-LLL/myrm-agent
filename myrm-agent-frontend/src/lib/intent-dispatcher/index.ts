@@ -32,7 +32,8 @@ export class IntentDispatcher {
 
   /**
    * Desktop OAuth 回调：持久化 CP token 并用沙箱列表校验，成功后落为 Cloud 档案。
-   * 用户在浏览器点“回到桌面”显式触发，无静默登录；校验失败则清 token 防错绑。
+   * 仅响应本机发起过的授权（存在待决请求）；无待决请求的回调一律拒绝，
+   * 避免任意深链静默写入会话。校验失败零副作用，不动本地会话。
    */
   private async handleOAuthCallback(token: string) {
     const LOCAL_TOKEN_BACKUP_KEY = 'myrm-local-auth-token-backup';
@@ -42,15 +43,17 @@ export class IntentDispatcher {
       const pending = pendingRaw ? (JSON.parse(pendingRaw) as { cpBaseUrl?: string }) : null;
       const cpBaseUrl = typeof pending?.cpBaseUrl === 'string' ? pending.cpBaseUrl.replace(/\/+$/, '') : null;
 
+      if (!cpBaseUrl) {
+        throw new Error('No pending OAuth request');
+      }
+
       // 先验后写：token 有效性用沙箱列表校验，通过后才动本地会话，失败零副作用。
-      if (cpBaseUrl) {
-        const res = await fetch(`${cpBaseUrl}/api/sandboxes`, {
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          cache: 'no-store',
-        });
-        if (!res.ok) {
-          throw new Error(`Sandbox discovery failed: ${res.status}`);
-        }
+      const res = await fetch(`${cpBaseUrl}/api/sandboxes`, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        throw new Error(`Sandbox discovery failed: ${res.status}`);
       }
 
       if (typeof window !== 'undefined') {
@@ -64,16 +67,14 @@ export class IntentDispatcher {
       const { default: useAuthStore } = await import('@/store/useAuthStore');
       await useAuthStore.getState().login(token);
 
-      if (cpBaseUrl) {
-        const { addRemoteProfile, listRemoteProfiles, setActiveRemoteProfileId } =
-          await import('@/lib/remote-profiles');
-        const proxyBase = `${cpBaseUrl}/proxy/me`;
-        const existing = listRemoteProfiles().find((p) => p.url === proxyBase);
-        if (existing) {
-          setActiveRemoteProfileId(existing.id);
-        } else {
-          addRemoteProfile('Cloud sandbox', proxyBase, { kind: 'cloud', cpBaseUrl });
-        }
+      const { addRemoteProfile, listRemoteProfiles, setActiveRemoteProfileId } =
+        await import('@/lib/remote-profiles');
+      const proxyBase = `${cpBaseUrl}/proxy/me`;
+      const existing = listRemoteProfiles().find((p) => p.url === proxyBase);
+      if (existing) {
+        setActiveRemoteProfileId(existing.id);
+      } else {
+        addRemoteProfile('Cloud sandbox', proxyBase, { kind: 'cloud', cpBaseUrl });
       }
 
       toast.success('授权成功');

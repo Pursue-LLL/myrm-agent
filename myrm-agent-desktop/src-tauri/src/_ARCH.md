@@ -21,7 +21,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 3. **配置管理**（`SystemConfig`，包括 WebUI 模式、全局快捷键、最小化托盘配置等）
 4. **系统 API 封装**（后台托盘动态状态、任务栏进度条、完成弹跳通知、系统级原生通知、文件对话框等）
 5. **热键管理**（全局快捷键的动态 IPC 注册与拦截，含 Appshot 截屏快捷键、Voice PTT 语音对讲快捷键）
-6. **单实例锁与二次启动聚焦及参数派发**（`tauri-plugin-single-instance` 原生单实例互斥，二次启动自动唤醒置顶已有主窗口，并通过 `app:second-instance` 原生事件广播 CLI args/cwd 上下文，彻底杜绝 Sidecar 端口冲突并闭环唤醒协议）
+6. **单实例锁与二次启动聚焦及深链转交**（`tauri-plugin-single-instance` 原生单实例互斥，二次启动自动唤醒置顶已有主窗口，彻底杜绝 Sidecar 端口冲突；启用其 `deep-link` 特性后，Windows/Linux 热启动时以新进程 argv 到达的深链由它转交已运行实例的 deep-link 插件，OAuth 回跳等深链才不会丢失，注册顺序须先于 deep-link 插件）
 7. **端口冲突检测与幸存者智能自愈**（启动前检查端口占用，自动诊断并 Re-kill 自身残留的幸存者孤儿进程，防止冲突与文件锁死）
 8. **自动更新**（`tauri-plugin-updater`，前端通过 `@tauri-apps/plugin-updater` JS API 驱动）+ 启动期 Updater pubkey 占位符强校验（`utils/updater_safety.rs`）+ 进程树销毁与受控重启（`utils/process_tree.rs`，防止 OTA 升级文件锁死）
 

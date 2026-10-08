@@ -61,6 +61,36 @@ describe('dispatcher oauth callback', () => {
     expect(pushed).toEqual(['/settings']);
   });
 
+  it('rejects a callback that no local authorization request is waiting for', async () => {
+    const store = makeWindow();
+    store.set('auth_token', 'local_user_token');
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const pushed: string[] = [];
+    const dispatcher = new IntentDispatcher(mockRouter(pushed), () => undefined);
+    const ok = await dispatcher.dispatch('myrmagent://oauth/callback?token=forged-token');
+
+    expect(ok).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(store.get('auth_token')).toBe('local_user_token');
+    expect(useAuthStore.getState().token).toBeNull();
+    expect(listRemoteProfiles()).toHaveLength(0);
+    expect(pushed).toEqual(['/settings']);
+  });
+
+  it('rejects a callback whose pending request is unreadable', async () => {
+    const store = makeWindow();
+    store.set('myrm-cloud-oauth-pending', '{not-json');
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+
+    const dispatcher = new IntentDispatcher(mockRouter([]), () => undefined);
+    await dispatcher.dispatch('myrmagent://oauth/callback?token=forged-token');
+
+    expect(useAuthStore.getState().token).toBeNull();
+    expect(listRemoteProfiles()).toHaveLength(0);
+  });
+
   it('leaves local session untouched when discovery fails', async () => {
     const store = makeWindow();
     store.set('auth_token', 'local_user_token');
