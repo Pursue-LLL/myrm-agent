@@ -94,7 +94,9 @@ data-viz = [
 index-url = "https://pypi.org/simple"
 # Universal lock; the harness is the in-repo editable path source declared in [tool.uv.sources].
 prerelease = "allow"
-environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
+# Supported targets only: patchright (browser extra) ships no wheels for emscripten/other platforms,
+# so a universal fork over them is unsatisfiable under current uv resolvers.
+environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'", "sys_platform == 'win32'"]
 override-dependencies = [
   "click>=8.4.2",
   "patchright>=1.62.1",
