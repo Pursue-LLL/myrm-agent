@@ -5,6 +5,7 @@ Outbound: message/send API (text/markdown/media).
 
 [INPUT]
 - channels.core.base::BaseChannel, (POS: Provides FileOperationObserver.)
+- channels.providers.wecom.inbound::WeComInboundMixin (POS: webhook verification and encrypted callback handling)
 
 [OUTPUT]
 - WeComChannel: WeCom self-built application bidirectional Channel
@@ -18,13 +19,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import tempfile
 import time
 from pathlib import Path
 
-import defusedxml.ElementTree as ET
 import httpx
-from fastapi import Request
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
@@ -32,11 +30,9 @@ from app.channels.core.exceptions import ChannelAuthError, ChannelSendError
 from app.channels.providers.wecom.crypto import WeComCrypto
 from app.channels.providers.wecom.user_resolver import WeComUserResolver
 from app.channels.rendering.renderer import render
-from app.channels.security.errors import WebhookResponseError
 from app.channels.types import (
     ChannelCapabilities,
     ChannelStatus,
-    InboundMessage,
     MediaAttachment,
     MediaType,
     OutboundMessage,
@@ -48,23 +44,15 @@ from app.channels.types.status import (
     IssueSeverity,
 )
 
+from .constants import API_BASE, SEND_TIMEOUT, TOKEN_REFRESH_BUFFER, UPLOAD_TIMEOUT
+from .inbound import WeComInboundMixin
+
 logger = logging.getLogger(__name__)
 
-_API_BASE = "https://qyapi.weixin.qq.com/cgi-bin"
-_SEND_TIMEOUT = 15.0
-_UPLOAD_TIMEOUT = 30.0
 _MAX_TEXT_LENGTH = 2048
-_TOKEN_REFRESH_BUFFER = 300
-
-_MSG_TYPE_TO_MEDIA: dict[str, MediaType] = {
-    "image": MediaType.IMAGE,
-    "voice": MediaType.AUDIO,
-    "video": MediaType.VIDEO,
-    "file": MediaType.DOCUMENT,
-}
 
 
-class WeComChannel(BaseChannel):
+class WeComChannel(WeComInboundMixin, BaseChannel):
     """WeCom (WeCom) self-built application channel.
 
     Supports AES-CBC encrypted webhook callbacks, multi-format outbound
@@ -192,94 +180,6 @@ class WeComChannel(BaseChannel):
 
     # ── Inbound: webhook verification + encrypted callback ────
 
-    async def verify(self, request: Request, body: bytes) -> None:
-        """SignatureVerifier Protocol: validate WeCom AES-CBC signature.
-
-        WeCom passes msg_signature, timestamp, and nonce as query parameters.
-        Signature verification is combined with timestamp validation since
-        WeCom computes the signature from timestamp+nonce+encrypted_body.
-        """
-        if not self._crypto:
-            return
-
-        msg_sig = request.query_params.get("msg_signature", "")
-        timestamp_str = request.query_params.get("timestamp", "")
-        nonce = request.query_params.get("nonce", "")
-
-        if not msg_sig or not timestamp_str:
-            return
-
-        try:
-            encrypted = WeComCrypto.extract_encrypted_from_xml(body.decode("utf-8"))
-            if not self._crypto.verify_signature(msg_sig, timestamp_str, nonce, encrypted):
-                trace_id = getattr(request.state, "_webhook_trace_id", "")
-                raise WebhookResponseError(
-                    status_code=403,
-                    error_type="signature-invalid",
-                    title="Invalid Signature",
-                    detail="WeCom message signature verification failed",
-                    trace_id=trace_id,
-                )
-        except WebhookResponseError:
-            raise
-        except Exception as exc:
-            trace_id = getattr(request.state, "_webhook_trace_id", "")
-            raise WebhookResponseError(
-                status_code=403,
-                error_type="signature-invalid",
-                title="Invalid Signature",
-                detail="WeCom signature verification error",
-                trace_id=trace_id,
-            ) from exc
-
-    def verify_url(self, msg_signature: str, timestamp: str, nonce: str, echostr: str) -> str:
-        """Verify WeCom callback URL registration.
-
-        Decrypts echostr and returns plaintext for the verification handshake.
-        Raises ValueError if crypto is not configured or signature is invalid.
-        """
-        if not self._crypto:
-            raise ValueError("WeCom crypto not configured")
-        if not self._crypto.verify_signature(msg_signature, timestamp, nonce, echostr):
-            raise ValueError("Signature verification failed")
-        return self._crypto.decrypt(echostr)
-
-    async def handle_callback(
-        self,
-        xml_body: str | bytes,
-        *,
-        msg_signature: str = "",
-        timestamp: str = "",
-        nonce: str = "",
-    ) -> None:
-        """Process a WeCom callback XML message.
-
-        When crypto is configured, verifies signature and decrypts the payload.
-        When crypto is not configured, parses the XML directly (dev mode).
-        """
-        raw_xml = xml_body if isinstance(xml_body, str) else xml_body.decode("utf-8")
-
-        if self._crypto and msg_signature:
-            try:
-                encrypted = WeComCrypto.extract_encrypted_from_xml(raw_xml)
-                if not self._crypto.verify_signature(msg_signature, timestamp, nonce, encrypted):
-                    logger.warning("WeCom signature verification failed")
-                    return
-                raw_xml = self._crypto.decrypt(encrypted)
-            except Exception as exc:
-                logger.warning("WeCom decrypt failed: %s", exc)
-                return
-
-        try:
-            root = ET.fromstring(raw_xml)
-        except ET.ParseError as exc:
-            logger.debug("WeCom XML parse failed: %s", exc)
-            return
-
-        msg = await self._parse_xml_message(root)
-        if msg:
-            await self._emit_inbound(msg)
-
     # ── Outbound: send / placeholder ──────────────────────────
 
     async def send(self, msg: OutboundMessage) -> str | None:
@@ -346,7 +246,7 @@ class WeComChannel(BaseChannel):
             )
 
             config = MediaDownloadConfig(
-                timeout_seconds=_UPLOAD_TIMEOUT,
+                timeout_seconds=UPLOAD_TIMEOUT,
                 max_size_bytes=MAX_FORWARD_DOWNLOAD_BYTES,
             )
             downloader = MediaDownloader(http_client=self._http, enable_default_cache=True)
@@ -375,10 +275,10 @@ class WeComChannel(BaseChannel):
         await self._ensure_token()
         try:
             resp = await self._http.post(
-                f"{_API_BASE}/media/upload",
+                f"{API_BASE}/media/upload",
                 params={"access_token": self._access_token, "type": media_type},
                 files={"media": (filename, data, mime_type)},
-                timeout=_UPLOAD_TIMEOUT,
+                timeout=UPLOAD_TIMEOUT,
             )
             try:
                 body = resp.json()
@@ -400,152 +300,6 @@ class WeComChannel(BaseChannel):
 
     # ── Internal helpers ──────────────────────────────────────
 
-    async def _parse_xml_message(self, root: ET.Element) -> InboundMessage | None:
-        msg_type = root.findtext("MsgType", "")
-        from_user = root.findtext("FromUserName", "")
-        msg_id = root.findtext("MsgId", "")
-        agent_id_str = root.findtext("AgentID", "")
-
-        content = ""
-        media_list: list[MediaAttachment] = []
-
-        if msg_type == "text":
-            content = root.findtext("Content", "")
-        elif msg_type in _MSG_TYPE_TO_MEDIA:
-            media_type = _MSG_TYPE_TO_MEDIA[msg_type]
-            if msg_type == "image":
-                pic_url = root.findtext("PicUrl", "")
-                media_list.append(MediaAttachment(media_type=media_type, url=pic_url or None))
-            else:
-                media_id = root.findtext("MediaId", "")
-                attachment = await self._download_inbound_media(media_id, media_type)
-                if attachment:
-                    media_list.append(attachment)
-        elif msg_type == "location":
-            lat = root.findtext("Location_X", "")
-            lng = root.findtext("Location_Y", "")
-            label = root.findtext("Label", "")
-            content = f"[Location] {label} ({lat}, {lng})" if label else f"[Location] ({lat}, {lng})"
-        elif msg_type == "link":
-            title = root.findtext("Title", "")
-            url = root.findtext("Url", "")
-            content = f"[Link] {title}: {url}" if title else f"[Link] {url}"
-        elif msg_type == "appmsg":
-            title = root.findtext("Title", "")
-            desc = root.findtext("Description", "")
-            url = root.findtext("Url", "")
-            parts = []
-            if title:
-                parts.append(f"[AppMsg] {title}")
-            if desc:
-                parts.append(desc)
-            if url:
-                parts.append(url)
-            content = "\n".join(parts)
-
-            # Try to extract media if present in WeCom AI Bot appmsg
-            media_id = root.findtext("MediaId", "")
-            if media_id:
-                attachment = await self._download_inbound_media(media_id, MediaType.DOCUMENT)
-                if attachment:
-                    media_list.append(attachment)
-        elif msg_type == "event":
-            return None
-
-        if not content.strip() and not media_list:
-            return None
-
-        is_group = bool(root.findtext("ChatId"))
-        chat_id = root.findtext("ChatId", "") or from_user
-
-        mentioned = not is_group
-        if is_group:
-            mentioned = self._check_mentioned(root)
-
-        metadata: dict[str, object] = {
-            "msg_type": msg_type,
-            "agent_id": agent_id_str,
-        }
-
-        sent_at = __import__("time").time()
-        create_time = root.findtext("CreateTime", "")
-        if create_time:
-            try:
-                sent_at = float(create_time)
-            except (ValueError, TypeError):
-                pass
-
-        return self._build_inbound(
-            sender_id=from_user,
-            content=content.strip(),
-            sent_at=sent_at,
-            sent_timezone="UTC",
-            chat_id=chat_id,
-            is_group=is_group,
-            mentioned=mentioned,
-            media=tuple(media_list),
-            metadata=metadata,
-            message_id=msg_id or "",
-            sender_name=await self._resolve_sender_name(from_user),
-        )
-
-    async def _resolve_sender_name(self, sender_id: str) -> str | None:
-        """Resolve a WeCom sender's display name via contact API (fail-open).
-
-        Returns None when the ID is missing, resolution fails, or the user
-        cannot be found — callers fall back to the opaque userid.
-        """
-        if not sender_id:
-            return None
-        try:
-            return await self._user_resolver.resolve_user(sender_id)
-        except Exception:
-            logger.debug("Failed to resolve WeCom sender name for %s", sender_id)
-            return None
-
-    async def _download_inbound_media(self, media_id: str, media_type: MediaType) -> MediaAttachment | None:
-        """Download inbound media from WeCom /media/get API and save to temp file."""
-        if not media_id:
-            return MediaAttachment(media_type=media_type)
-
-        await self._ensure_token()
-        try:
-            resp = await self._http.get(
-                f"{_API_BASE}/media/get",
-                params={"access_token": self._access_token, "media_id": media_id},
-                timeout=_UPLOAD_TIMEOUT,
-            )
-            if resp.status_code != 200:
-                logger.debug("WeCom media download failed: HTTP %d", resp.status_code)
-                return MediaAttachment(media_type=media_type)
-
-            content_type = resp.headers.get("content-type", "")
-            if "json" in content_type:
-                logger.debug("WeCom media download error: %s", resp.text[:200])
-                return MediaAttachment(media_type=media_type)
-
-            ext = self._media_extension(media_type)
-            suffix = f".{ext}"
-            tmp = tempfile.NamedTemporaryFile(prefix="wecom_", suffix=suffix, delete=False)
-            tmp.write(resp.content)
-            tmp.close()
-
-            return MediaAttachment(
-                media_type=media_type,
-                path=str(Path(tmp.name)),
-                mime_type=content_type.split(";")[0].strip() if content_type else None,
-            )
-        except Exception as exc:
-            logger.debug("WeCom media download error: %s", exc)
-            return MediaAttachment(media_type=media_type)
-
-    def _check_mentioned(self, root: ET.Element) -> bool:
-        """Check if the bot is @mentioned in a group message."""
-        content = root.findtext("Content", "")
-        if not content:
-            return False
-        return f"@{self._agent_id}" in content or "@all" in content.lower()
-
     async def _api_send(self, user_id: str, msg_type: str, body: dict[str, str]) -> bool:
         """Send a message via WeCom message/send API. Raises ChannelSendError on failure."""
         payload: dict[str, str | int | dict[str, str]] = {
@@ -556,10 +310,10 @@ class WeComChannel(BaseChannel):
         }
         try:
             resp = await self._http.post(
-                f"{_API_BASE}/message/send",
+                f"{API_BASE}/message/send",
                 params={"access_token": self._access_token},
                 json=payload,
-                timeout=_SEND_TIMEOUT,
+                timeout=SEND_TIMEOUT,
             )
             if resp.status_code >= 400:
                 raise ChannelSendError(f"WeCom send failed: HTTP {resp.status_code}", channel=self.name)
@@ -589,7 +343,7 @@ class WeComChannel(BaseChannel):
         await self._ensure_token()
         try:
             resp = await self._http.get(
-                f"{_API_BASE}/user/get",
+                f"{API_BASE}/user/get",
                 params={"access_token": self._access_token, "userid": user_id},
                 timeout=10.0,
             )
@@ -609,7 +363,7 @@ class WeComChannel(BaseChannel):
 
     async def _refresh_token(self) -> None:
         resp = await self._http.get(
-            f"{_API_BASE}/gettoken",
+            f"{API_BASE}/gettoken",
             params={"corpid": self._corp_id, "corpsecret": self._corp_secret},
             timeout=10.0,
         )
@@ -632,7 +386,7 @@ class WeComChannel(BaseChannel):
             )
         self._access_token = str(data.get("access_token", ""))
         expire = int(data.get("expires_in", 7200))
-        self._token_expires_at = time.monotonic() + expire - _TOKEN_REFRESH_BUFFER
+        self._token_expires_at = time.monotonic() + expire - TOKEN_REFRESH_BUFFER
         logger.info("WeCom token refreshed, expires in %ds", expire)
 
     async def _ensure_token(self) -> None:
