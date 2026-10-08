@@ -151,6 +151,9 @@ from app.api.memory.live_correction_router import (
 from app.api.memory.markdown_chunker import (
     router as markdown_chunker_router,
 )
+from app.api.memory.hybrid_search import (
+    router as hybrid_search_router,
+)
 from app.api.memory.markdown_curator_router import (
     router as markdown_curator_router,
 )
@@ -565,6 +568,10 @@ router.include_router(
 router.include_router(
     markdown_chunker_router,
     tags=["memory-chunker"],
+)
+router.include_router(
+    hybrid_search_router,
+    tags=["memory-hybrid-search"],
 )
 
 
