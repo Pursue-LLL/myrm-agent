@@ -14,8 +14,9 @@
  * 并与 @/lib/desktop-bridge 体系深度融合，为纯 WebUI / Tauri 桌面端 / Cloud 沙箱提供 100% 同构支持。
  */
 
-import { isTauriEnvironment } from '@/lib/tauri';
+import { detectDesktopPlatform } from '@/lib/desktop-bridge/platform-detection';
 import { desktopBridge as coreDesktopBridge, type IDesktopBridge } from '@/lib/desktop-bridge';
+import { isTauriEnvironment } from '@/lib/tauri';
 
 export interface FileFilterOption {
   name: string;
@@ -82,17 +83,17 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
   }
 
   public isMacOS(): boolean {
-    if (typeof navigator === 'undefined') {
+    if (!this.isDesktop()) {
       return false;
     }
-    return /(Macintosh|Mac OS X)/i.test(navigator.userAgent) || this.core.platform === 'macos';
+    return detectDesktopPlatform() === 'macos';
   }
 
   public isWindows(): boolean {
-    if (typeof navigator === 'undefined') {
+    if (!this.isDesktop()) {
       return false;
     }
-    return /(Windows|Win32|Win64)/i.test(navigator.userAgent) || this.core.platform === 'windows';
+    return detectDesktopPlatform() === 'windows';
   }
 
   public async showItemInFolder(path: string): Promise<boolean> {
