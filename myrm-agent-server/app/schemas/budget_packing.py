@@ -1,4 +1,4 @@
-"""Pydantic schemas for Budget Greedy Marginal Value Recall Packing Suite (Item 122).
+"""Pydantic schemas for Budget Greedy Marginal Value Recall Packing Suite.
 
 [INPUT]
 - pydantic::{BaseModel, Field} (POS: validated request and response models)

@@ -1,4 +1,4 @@
-"""Pydantic schemas and DTOs for failure-triggered historical session retrieval (Item 109).
+"""Pydantic schemas and DTOs for failure-triggered historical session retrieval.
 
 [INPUT]
 - pydantic::{BaseModel, Field} (POS: validated request and response models)

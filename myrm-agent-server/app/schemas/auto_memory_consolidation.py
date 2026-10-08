@@ -1,4 +1,4 @@
-"""Pydantic schemas for Idle & Budget Gated Auto-Memory Consolidation Suite (Item 123).
+"""Pydantic schemas for Idle & Budget Gated Auto-Memory Consolidation Suite.
 
 [INPUT]
 - pydantic::{BaseModel, Field} (POS: validated request and response models)
@@ -7,7 +7,7 @@
 - AutoMemoryGatingConfigDTO: gating thresholds (idle timeout, minimum turns, information density, remaining budget, cost ratio)
 - TurnGatingDecisionDTO, BudgetGatingDecisionDTO, IdleDetectionStateDTO, OverallGatingReportDTO: per-gate decisions and the combined gating report
 - SixDimensionalMemoryArtifactDTO: consolidated memory artifact of one session
-- EvaluateGatingRequest/Response, ConsolidateSessionRequest/Response, UpdateGatingConfigRequest: endpoint payloads
+- EvaluateGatingRequest, EvaluateGatingResponse, ConsolidateSessionRequest, ConsolidateSessionResponse, UpdateGatingConfigRequest: endpoint payloads
 
 [POS]
 API contracts of idle- and budget-gated auto-memory consolidation, shared by its router and service.

@@ -1,4 +1,4 @@
-"""Pydantic schemas and DTOs for Explicit Authoritative Conclusions and Audit Tooling Suite (Item 111).
+"""Pydantic schemas and DTOs for Explicit Authoritative Conclusions and Audit Tooling Suite.
 
 [INPUT]
 - pydantic::{BaseModel, Field} (POS: validated request and response models)

@@ -1,4 +1,4 @@
-"""Pydantic schemas and DTOs for Thinking Block Sanitizer & Prompt Contamination Shield (Item 115).
+"""Pydantic schemas and DTOs for Thinking Block Sanitizer & Prompt Contamination Shield.
 
 [INPUT]
 - pydantic::{BaseModel, Field} (POS: validated request and response models)

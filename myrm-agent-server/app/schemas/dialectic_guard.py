@@ -1,11 +1,11 @@
-"""Pydantic schemas and DTOs for Dialectic Liveness Guard & Stale Pivot Discard (Item 116).
+"""Pydantic schemas and DTOs for Dialectic Liveness Guard & Stale Pivot Discard.
 
 [INPUT]
 - pydantic::{BaseModel, Field} (POS: validated request and response models)
 
 [OUTPUT]
 - DialecticLivenessConfigDTO, LivenessTelemetryDTO, DialecticAuditLogDTO: guard configuration, live telemetry and audit entries
-- ShouldTrigger, SubmitResult, ConsumePending and NotifyMutation request/response models: dialectic cycle payloads
+- ShouldTriggerRequest, ShouldTriggerResponse, SubmitResultRequest, SubmitResultResponse, ConsumePendingRequest, ConsumePendingResponse, NotifyMutationRequest, NotifyMutationResponse: dialectic cycle payloads
 
 [POS]
 API contracts of the dialectic liveness guard, shared by its router and service.

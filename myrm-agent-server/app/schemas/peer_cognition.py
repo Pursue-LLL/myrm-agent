@@ -1,4 +1,4 @@
-"""Pydantic schemas and DTOs for Peer-Centric Social Cognition and Persona Card Suite (Item 110).
+"""Pydantic schemas and DTOs for Peer-Centric Social Cognition and Persona Card Suite.
 
 [INPUT]
 - pydantic::{BaseModel, Field} (POS: validated request and response models)

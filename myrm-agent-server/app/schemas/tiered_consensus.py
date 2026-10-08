@@ -1,4 +1,4 @@
-"""Pydantic schemas and DTOs for Tiered Memory Hierarchy & Proposed Consensus Flow (Item 114).
+"""Pydantic schemas and DTOs for Tiered Memory Hierarchy & Proposed Consensus Flow.
 
 [INPUT]
 - pydantic::{BaseModel, Field} (POS: validated request and response models)

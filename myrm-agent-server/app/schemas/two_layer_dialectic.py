@@ -1,4 +1,4 @@
-"""Pydantic schemas and DTOs for Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation Suite (Item 112).
+"""Pydantic schemas and DTOs for Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation Suite.
 
 [INPUT]
 - pydantic::{BaseModel, Field} (POS: validated request and response models)

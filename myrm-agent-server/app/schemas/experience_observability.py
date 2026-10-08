@@ -1,4 +1,4 @@
-"""Schemas for Zero-Refactor Host Lifecycle Plugin and Experience Observability Suite (Item 108).
+"""Schemas for Zero-Refactor Host Lifecycle Plugin and Experience Observability Suite.
 
 [INPUT]
 - pydantic::{BaseModel, ConfigDict, Field} (POS: validated request and response models)

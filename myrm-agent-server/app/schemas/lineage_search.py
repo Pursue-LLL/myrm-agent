@@ -4,7 +4,7 @@
 - pydantic::{BaseModel, Field} (POS: validated request and response models)
 
 [OUTPUT]
-- SessionMetaDTO, ConversationMessageDTO, AddSessionRequestDTO/ResponseDTO, AddMessageRequestDTO/ResponseDTO: session and message ingestion
+- SessionMetaDTO, ConversationMessageDTO, AddSessionRequestDTO, AddSessionResponseDTO, AddMessageRequestDTO, AddMessageResponseDTO: session and message ingestion
 - LineageSearchRequestDTO, HydratedSessionHitDTO, LineageSearchResponseDTO: lineage search with hydrated hits
 - LineageSearchStatsDTO: index statistics including hidden and demoted source counts
 

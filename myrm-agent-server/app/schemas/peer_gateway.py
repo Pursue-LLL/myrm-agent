@@ -1,4 +1,4 @@
-"""Pydantic schemas and DTOs for Multi-Channel Peer Alias & Anti-Cross-Contamination Gateway (Item 113).
+"""Pydantic schemas and DTOs for Multi-Channel Peer Alias & Anti-Cross-Contamination Gateway.
 
 [INPUT]
 - pydantic::{BaseModel, Field} (POS: validated request and response models)
