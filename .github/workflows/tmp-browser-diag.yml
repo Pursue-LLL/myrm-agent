@@ -55,6 +55,12 @@ jobs:
                               print(f"[diag] TASK {t.get_name()}", file=sys.stderr)
                               for line in _chain(t.get_coro()):
                                   print(f"[diag]     {line}", file=sys.stderr)
+                          import inspect
+                          for g in gc.get_objects():
+                              if inspect.isasyncgen(g) and g.ag_await is not None:
+                                  print(f"[diag] ASYNCGEN {g.ag_code.co_filename.split('tests/')[-1]}:{g.ag_frame.f_lineno} {g.ag_code.co_name}", file=sys.stderr)
+                                  for line in _chain(g.ag_await):
+                                      print(f"[diag]     {line}", file=sys.stderr)
                           sys.stderr.flush()
                       obj.call_soon_threadsafe(cb)
               print(subprocess.run(["ps", "-eo", "pid,ppid,stat,etime,cmd", "--sort=start_time"], capture_output=True, text=True).stdout[-3000:], file=sys.stderr, flush=True)
