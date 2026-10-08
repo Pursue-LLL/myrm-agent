@@ -26,14 +26,14 @@ import pytest
 
 from app.services.locked_use import unattended
 from app.services.locked_use.curtain_bridge import MAX_UNLOCK_ATTEMPTS, CurtainBridgeState
-from app.services.locked_use.service import MacScreenUnlocker
+from app.services.locked_use.service import MacScreenUnlocker, UnlockAttemptOutcome
 from tests.support.curtain_watcher import drive, has_session, make_state, set_locked
 
 
 def test_loop_never_acquires_a_lease_by_itself(monkeypatch: pytest.MonkeyPatch) -> None:
     """所有解锁条件齐备时 watcher 也只监护不获取：纯文本任务不得因「有会话」被解锁折腾。"""
     mark = MagicMock(return_value=True)
-    unlock = AsyncMock(return_value=True)
+    unlock = AsyncMock(return_value=UnlockAttemptOutcome.SUCCESS)
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: make_state())
     set_locked(monkeypatch, True)
     monkeypatch.setattr(unattended, "_cu_session_active", has_session)

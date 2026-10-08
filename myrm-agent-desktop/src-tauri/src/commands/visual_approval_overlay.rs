@@ -1,4 +1,4 @@
-//! 视觉审批的 OS 级高亮 overlay（仅 macOS）：把 harness 的屏幕坐标或图像坐标映射到最匹配的显示器，
+//! 视觉审批的 OS 级高亮 overlay（macOS / Windows）：把 harness 的屏幕坐标或图像坐标映射到最匹配的显示器，
 //! 在其上用透明、置顶、点击穿透的窗口画出红色高亮框。
 //!
 //! 窗口生命周期（页面内容见 `visual_approval_overlay_page.rs`）：
@@ -11,15 +11,15 @@
 //! - 窗口点击穿透，因此不进截图排除集：排除集同时驱动 harness 的全局指针守卫，
 //!   把它放进去会让 agent 自己的点击被判为被遮挡。
 //!
-//! 非 macOS 平台 show 返回明确错误（前端应 gate）：建窗只在 macOS 上验证过，且 tauri 文档指出
-//! Windows 上在同步命令中建窗会死锁。
+//! Windows 上必须在 UI 主线程异步建窗（同步 IPC 命令内建窗会死锁）；Linux 等平台 show 返回明确错误。
 //!
 //! [INPUT]
 //! - 前端 `visualApprovalOsOverlay.ts` 的 payload（POS: 审批目标的屏幕/图像坐标）
 //! - visual_approval_overlay_page（POS: 高亮页入口 URL 与高亮框类型）
 //!
 //! [OUTPUT]
-//! - show_visual_approval_overlay / hide_visual_approval_overlay: Tauri 命令
+//! - show_visual_approval_overlay: 返回 `VisualApprovalOverlayShowResult`（含 degraded fail-closed）
+//! - hide_visual_approval_overlay: Tauri 命令
 //! - is_overlay_label: 窗口 label 是否属于审批高亮（app/setup.rs 据此豁免应用级窗口策略）
 //!
 //! [POS]
@@ -33,11 +33,27 @@ use super::visual_approval_overlay_page::{self as page, HighlightBox};
 
 const WINDOW_LABEL_PREFIX: &str = "visual-approval-overlay-";
 const SCREEN_MONITOR_TOLERANCE: f64 = 0.05;
+const DEGRADE_REASON_SCREEN_DIMENSION_MISMATCH: &str = "screen_dimension_mismatch";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OpenOverlayOutcome {
+    Shown,
+    DegradedScreenDimensionMismatch,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VisualApprovalOverlayShowResult {
+    pub shown: bool,
+    pub degraded: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
 
 /// 窗口 label 的代号：每个高亮窗口独占一个，永不复用。
 static WINDOW_GENERATION: AtomicU64 = AtomicU64::new(0);
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VisualApprovalOverlayPayload {
     pub x: f64,
@@ -168,11 +184,25 @@ pub(crate) fn is_overlay_label(label: &str) -> bool {
     label.starts_with(WINDOW_LABEL_PREFIX)
 }
 
+fn screen_mode_monitor_dimension_mismatch(
+    payload: &VisualApprovalOverlayPayload,
+    monitor_screen_w: f64,
+    monitor_screen_h: f64,
+) -> bool {
+    payload.coordinate_mode == "screen"
+        && !monitor_dimensions_compatible(
+            payload.screen_width,
+            payload.screen_height,
+            monitor_screen_w,
+            monitor_screen_h,
+        )
+}
+
 /// 在匹配的显示器上建一扇点击穿透的高亮窗口，返回其 label。
 fn open_overlay_window(
     app: &AppHandle,
     payload: &VisualApprovalOverlayPayload,
-) -> Result<String, String> {
+) -> Result<(OpenOverlayOutcome, String), String> {
     let (match_w, match_h) = monitor_match_dimensions(payload);
     let monitor = monitor_for_viewport(app, match_w, match_h)?;
 
@@ -185,15 +215,15 @@ fn open_overlay_window(
     let pos_x = position.x as f64 / scale_factor;
     let pos_y = position.y as f64 / scale_factor;
 
-    if payload.coordinate_mode == "screen"
-        && !monitor_dimensions_compatible(
+    if screen_mode_monitor_dimension_mismatch(payload, screen_w, screen_h) {
+        eprintln!(
+            "[visual-approval-overlay] screen dimension mismatch (expected {}x{}, monitor {}x{}); OS overlay suppressed",
             payload.screen_width,
             payload.screen_height,
             screen_w,
-            screen_h,
-        )
-    {
-        return Err("Screen dimensions mismatch; overlay suppressed".to_string());
+            screen_h
+        );
+        return Ok((OpenOverlayOutcome::DegradedScreenDimensionMismatch, String::new()));
     }
 
     let highlight = resolve_overlay_box(payload, screen_w, screen_h, pos_x, pos_y);
@@ -221,7 +251,29 @@ fn open_overlay_window(
         .set_ignore_cursor_events(true)
         .map_err(|error| error.to_string())?;
 
-    Ok(label)
+    Ok((OpenOverlayOutcome::Shown, label))
+}
+
+/// Windows：在 WebView 主线程上建窗，避免同步 IPC 命令内 `WebviewWindowBuilder::build` 死锁。
+#[cfg(target_os = "windows")]
+async fn open_overlay_on_ui_thread(
+    app: &AppHandle,
+    payload: VisualApprovalOverlayPayload,
+) -> Result<(OpenOverlayOutcome, String), String> {
+    use tauri::Manager;
+
+    let main = app
+        .get_webview_window("main")
+        .ok_or_else(|| "Main window not available for overlay creation".to_string())?;
+    let app_in_thread = app.clone();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    main.run_on_main_thread(move || {
+        let result = open_overlay_window(&app_in_thread, &payload);
+        let _ = tx.send(result);
+    })
+    .map_err(|error| error.to_string())?;
+    rx.await
+        .map_err(|_| "Overlay window creation aborted".to_string())?
 }
 
 /// 销毁全部高亮窗口（label 前缀匹配），`keep` 指定的窗口除外。
@@ -235,19 +287,34 @@ fn destroy_overlay_windows(app: &AppHandle, keep: Option<&str>) -> Result<(), St
 }
 
 #[tauri::command]
-pub fn show_visual_approval_overlay(
+pub async fn show_visual_approval_overlay(
     app: AppHandle,
     payload: VisualApprovalOverlayPayload,
-) -> Result<(), String> {
-    if !cfg!(target_os = "macos") {
-        return Err(
-            "visual approval OS overlay is only supported on macOS (Windows sync window creation can deadlock)"
-                .to_string(),
-        );
-    }
+) -> Result<VisualApprovalOverlayShowResult, String> {
+    #[cfg(target_os = "macos")]
+    let open_result = open_overlay_window(&app, &payload);
+    #[cfg(target_os = "windows")]
+    let open_result = open_overlay_on_ui_thread(&app, payload).await;
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    return Err("visual approval OS overlay is not supported on this platform".to_string());
 
-    match open_overlay_window(&app, &payload) {
-        Ok(label) => destroy_overlay_windows(&app, Some(label.as_str())),
+    match open_result {
+        Ok((OpenOverlayOutcome::Shown, label)) => {
+            destroy_overlay_windows(&app, Some(label.as_str()))?;
+            Ok(VisualApprovalOverlayShowResult {
+                shown: true,
+                degraded: false,
+                reason: None,
+            })
+        }
+        Ok((OpenOverlayOutcome::DegradedScreenDimensionMismatch, _)) => {
+            destroy_overlay_windows(&app, None)?;
+            Ok(VisualApprovalOverlayShowResult {
+                shown: false,
+                degraded: true,
+                reason: Some(DEGRADE_REASON_SCREEN_DIMENSION_MISMATCH.to_string()),
+            })
+        }
         Err(error) => {
             // 失败后屏幕上也不应残留上一个审批目标的高亮，更不能留下一扇抢点击的半成品窗口。
             let _ = destroy_overlay_windows(&app, None);
@@ -265,7 +332,8 @@ pub fn hide_visual_approval_overlay(app: AppHandle) -> Result<(), String> {
 mod tests {
     use super::{
         is_overlay_label, monitor_dimensions_compatible, monitor_match_score, next_window_label,
-        resolve_overlay_box, scaled_box, VisualApprovalOverlayPayload,
+        resolve_overlay_box, scaled_box, screen_mode_monitor_dimension_mismatch,
+        VisualApprovalOverlayPayload,
     };
 
     fn sample_payload(coordinate_mode: &str) -> VisualApprovalOverlayPayload {
@@ -368,5 +436,24 @@ mod tests {
         for label in ["main", "pet-surface", "session-42", "privacy-curtain-1-0"] {
             assert!(!is_overlay_label(label), "{label}");
         }
+    }
+
+    #[test]
+    fn screen_mode_mismatch_triggers_degrade_without_window() {
+        let payload = VisualApprovalOverlayPayload {
+            x: 10.0,
+            y: 20.0,
+            width: 30.0,
+            height: 40.0,
+            viewport_width: 1280.0,
+            viewport_height: 800.0,
+            coordinate_mode: "screen".to_string(),
+            screen_width: 1440.0,
+            screen_height: 900.0,
+            label: None,
+        };
+
+        assert!(screen_mode_monitor_dimension_mismatch(&payload, 2560.0, 1440.0));
+        assert!(!screen_mode_monitor_dimension_mismatch(&payload, 1440.0, 900.0));
     }
 }

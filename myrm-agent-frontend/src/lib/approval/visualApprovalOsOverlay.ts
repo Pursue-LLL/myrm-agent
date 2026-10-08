@@ -1,13 +1,13 @@
 /**
  * [INPUT]
  * - @/lib/approval/visualApprovalContext::VisualApprovalContext (POS: BBox viewport context)
- * - @/lib/desktopBridge::desktopBridge.isMacOS (POS: macOS-only OS overlay gate)
+ * - @/lib/desktopBridge::desktopBridge.isMacOS / isWindows (POS: OS overlay gate)
  * - @/lib/tauri::invokeTauriCommand (POS: Tauri IPC bridge)
  * - @/lib/deploy-mode::isTauriRuntime (POS: Tauri runtime detection)
  *
  * [OUTPUT]
  * - buildVisualApprovalOsOverlayPayload: maps visual context to Tauri overlay IPC payload
- * - showVisualApprovalOsOverlay / hideVisualApprovalOsOverlay: native OS highlight control (show: macOS Tauri only)
+ * - showVisualApprovalOsOverlay / hideVisualApprovalOsOverlay: native OS highlight control (show: macOS/Windows Tauri)
  *
  * [POS]
  * Desktop bridge for Tauri visual approval overlay (host screen red frame).
@@ -19,6 +19,12 @@ import { isTauriRuntime } from '@/lib/deploy-mode';
 import { invokeTauriCommand } from '@/lib/tauri';
 
 export type VisualApprovalCoordinateMode = 'screen' | 'image';
+
+export interface VisualApprovalOsOverlayShowResult {
+  shown: boolean;
+  degraded: boolean;
+  reason?: string;
+}
 
 export interface VisualApprovalOsOverlayPayload {
   x: number;
@@ -78,12 +84,18 @@ export function buildVisualApprovalOsOverlayPayload(
   };
 }
 
-export async function showVisualApprovalOsOverlay(payload: VisualApprovalOsOverlayPayload): Promise<void> {
-  if (!isTauriRuntime() || !desktopBridge.isMacOS()) {
-    return;
+function osOverlayShowSupported(): boolean {
+  return desktopBridge.isMacOS() || desktopBridge.isWindows();
+}
+
+export async function showVisualApprovalOsOverlay(
+  payload: VisualApprovalOsOverlayPayload,
+): Promise<VisualApprovalOsOverlayShowResult | null> {
+  if (!isTauriRuntime() || !osOverlayShowSupported()) {
+    return null;
   }
 
-  await invokeTauriCommand('show_visual_approval_overlay', { payload });
+  return invokeTauriCommand<VisualApprovalOsOverlayShowResult>('show_visual_approval_overlay', { payload });
 }
 
 export async function hideVisualApprovalOsOverlay(): Promise<void> {
