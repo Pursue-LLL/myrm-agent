@@ -352,6 +352,9 @@ artifact_deep_link_named = { $filename }
 deliverable_attached_only = Deliverable attached.
 deliverable_oversized_note = { $filename } ({ $size }) exceeds the channel attachment size limit and wasn't attached.
 deliverable_compressed_note = { $filename } ({ $size }) exceeded the channel size limit — a compressed version was sent.
+attachment_stripped_note = The attachment couldn't be sent, so only the text was delivered.
+attachment_omitted_note = Attachment not sent: { $name } (not supported in this chat)
+attachment_failed_note = These attachments couldn't be delivered: { $names }
 goal_completed =
     ✅ Goal completed: "{ $objective }"
     { $turns } turns · { $duration } min · { $files } files modified

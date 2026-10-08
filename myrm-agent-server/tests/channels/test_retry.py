@@ -1,7 +1,10 @@
 """Tests for channels/retry: per-channel retry with jitter and max delay."""
 
+import asyncio
+
 import pytest
 
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.reliability.retry import (
     RetryConfig,
     _apply_jitter,
@@ -9,6 +12,7 @@ from app.channels.reliability.retry import (
     default_should_retry,
     send_with_retry,
 )
+from app.channels.types import MediaAttachment, MediaType, OutboundMessage
 
 
 class TestRetryConfig:
@@ -169,6 +173,88 @@ class TestSendWithRetry:
             extract_retry_after=lambda _: 0.01,
         )
         assert result == "ok"
+
+
+def _media_msg(content: str = "report ready", *, locale: str | None = None) -> OutboundMessage:
+    return OutboundMessage(
+        channel="fake",
+        recipient_id="user1",
+        content=content,
+        user_id="u1",
+        media=(MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/report.pdf"),),
+        metadata={"locale": locale} if locale else None,
+    )
+
+
+class TestMediaFallbackAndPartialDelivery:
+    @pytest.mark.asyncio
+    async def test_non_retryable_media_failure_falls_back_to_localized_text(self):
+        sent: list[OutboundMessage] = []
+
+        async def fn(msg: OutboundMessage) -> str:
+            sent.append(msg)
+            if msg.media:
+                raise ChannelSendError("file too large", retriable=False)
+            return "mid-1"
+
+        result = await send_with_retry(fn, _media_msg(locale="zh-CN"), config=RetryConfig(max_retries=2, base_delay=0.0))
+
+        assert result == "mid-1"
+        assert [bool(m.media) for m in sent] == [True, False]
+        assert sent[-1].content == "report ready\n\n附件发送失败，仅发送了文字内容。"
+
+    @pytest.mark.asyncio
+    async def test_exhausted_retries_fall_back_to_text_once(self):
+        calls = 0
+
+        async def fn(msg: OutboundMessage) -> str:
+            nonlocal calls
+            calls += 1
+            if msg.media:
+                raise OSError("upload timeout")
+            return "mid-2"
+
+        config = RetryConfig(max_retries=2, base_delay=0.0, jitter=0.0)
+        assert await send_with_retry(fn, _media_msg(), config=config) == "mid-2"
+        assert calls == 3  # two media attempts, then one text-only send
+
+    @pytest.mark.asyncio
+    async def test_text_only_failure_is_not_degraded(self):
+        async def fn(msg: OutboundMessage) -> str:
+            raise ChannelSendError("rejected", retriable=False)
+
+        with pytest.raises(ChannelSendError):
+            await send_with_retry(fn, _media_msg().strip_media(), config=RetryConfig(max_retries=2, base_delay=0.0))
+
+    @pytest.mark.asyncio
+    async def test_accepted_partial_delivery_is_neither_retried_nor_stripped(self):
+        calls = 0
+
+        async def fn(msg: OutboundMessage) -> str:
+            nonlocal calls
+            calls += 1
+            raise ChannelSendError("attachment rejected", accepted=True, failed_attachments=("report.pdf",))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await send_with_retry(fn, _media_msg(), config=RetryConfig(max_retries=3, base_delay=0.0))
+
+        assert calls == 1
+        assert excinfo.value.accepted is True
+        assert excinfo.value.failed_attachments == ("report.pdf",)
+
+    @pytest.mark.asyncio
+    async def test_cancellation_during_media_send_propagates(self):
+        calls = 0
+
+        async def fn(msg: OutboundMessage) -> str:
+            nonlocal calls
+            calls += 1
+            raise asyncio.CancelledError
+
+        with pytest.raises(asyncio.CancelledError):
+            await send_with_retry(fn, _media_msg(), config=RetryConfig(max_retries=3, base_delay=0.0))
+
+        assert calls == 1
 
 
 # --- helpers ---

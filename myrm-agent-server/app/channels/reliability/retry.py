@@ -4,8 +4,9 @@ Channel providers declare retry_config + should_retry + extract_retry_after;
 send_with_retry receives these parameters as a pure function to execute retry logic.
 
 [INPUT]
-(no external dependencies, pure asyncio implementation)
 - infra.tracing (POS: distributed tracing)
+- channels.i18n::channel_t, get_locale_from_metadata (POS: localized note for text-only fallback)
+- channels.types::OutboundMessage (POS: media-stripping fallback target)
 
 [OUTPUT]
 - RetryConfig: retry configuration dataclass
@@ -13,7 +14,9 @@ send_with_retry receives these parameters as a pure function to execute retry lo
 
 [POS]
 Async retry utility with exponential backoff. Channel providers declare retry policies;
-send_with_retry executes generic retry logic as a pure function.
+send_with_retry executes generic retry logic. When an outbound message carrying media keeps
+failing, it falls back to a text-only send with a localized note. Partial deliveries
+(``ChannelSendError.accepted``) are never retried or degraded, and cancellation always propagates.
 """
 
 from __future__ import annotations
@@ -33,6 +36,8 @@ from app.channels.core.exceptions import (
     ChannelSendError,
     RateLimitError,
 )
+from app.channels.i18n import channel_t, get_locale_from_metadata
+from app.channels.types import OutboundMessage
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer(__name__)
@@ -111,6 +116,12 @@ def _apply_jitter(delay: float, jitter: float) -> float:
     return max(0.0, delay * (1 + offset))
 
 
+def _strip_media_with_note(msg: OutboundMessage) -> OutboundMessage:
+    """Drop attachments and tell the recipient (in their language) that only text was sent."""
+    note = str(channel_t(get_locale_from_metadata(msg.metadata), "attachment_stripped_note"))
+    return msg.strip_media(note)
+
+
 async def send_with_retry(
     fn: Callable[..., Awaitable[_T]],
     *args: object,
@@ -129,7 +140,7 @@ async def send_with_retry(
         extract_retry_after: Extract platform-specific retry-after seconds.
         label: Human-readable label for log messages.
     """
-    last_error: BaseException | None = None
+    last_error: Exception | None = None
 
     with tracer.start_as_current_span(f"retry:{label}") as span:
         span.set_attribute("retry.max_retries", config.max_retries)
@@ -143,23 +154,29 @@ async def send_with_retry(
                 span.set_attribute("retry.success", True)
                 return result
 
-            except BaseException as exc:
+            except Exception as exc:
+                if isinstance(exc, ChannelSendError) and exc.accepted:
+                    # Part of the message already reached the recipient: a retry or a
+                    # text-only fallback would duplicate it, so surface the failure as is.
+                    span.set_attribute("retry.partial_delivery", True)
+                    span.set_attribute("error.type", type(exc).__name__)
+                    span.record_exception(exc)
+                    raise
+
                 is_retryable = should_retry(exc)
 
                 # If the error is non-retryable OR we've exhausted retries, try stripping media as a fallback
                 if not is_retryable or attempt >= config.max_retries - 1:
                     msg = args[0] if args else None
-                    if msg and hasattr(msg, "strip_media") and getattr(msg, "media", None):
-                        new_msg = msg.strip_media()
-                        if new_msg is not msg:
-                            args = (new_msg,) + args[1:]
-                            logger.warning(
-                                "Channel %s encountered error with media: %s. Stripped media and retrying text.",
-                                label,
-                                exc,
-                            )
-                            attempt = 0  # Reset attempt counter for the stripped message
-                            continue
+                    if isinstance(msg, OutboundMessage) and msg.media:
+                        args = (_strip_media_with_note(msg),) + args[1:]
+                        logger.warning(
+                            "Channel %s encountered error with media: %s. Stripped media and retrying text.",
+                            label,
+                            exc,
+                        )
+                        attempt = 0  # Reset attempt counter for the stripped message
+                        continue
 
                 if not is_retryable:
                     span.set_attribute("retry.non_retryable", True)

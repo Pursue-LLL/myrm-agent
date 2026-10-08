@@ -229,6 +229,12 @@ class ChannelCapabilities:
     - ``typing_indicator``: channel supports start_typing / stop_typing
     - ``typing_keepalive_interval``: seconds between periodic typing refreshes
       (0 = no keepalive; platforms like WeChat auto-dismiss after ~5 s)
+
+    Delivery flag:
+    - ``message_ids``: ``send()`` returns the platform message id on success.
+      Channels whose send API returns no id (DingTalk, IRC, WeCom, ...) declare
+      ``False`` so that a ``None`` result counts as delivered; failures on such
+      channels must raise instead of returning ``None``.
     """
 
     text: bool = True
@@ -248,6 +254,7 @@ class ChannelCapabilities:
     typing_keepalive_interval: float = 0.0
     max_text_length: int = 4000
     send_rate_limit: float = 0.0
+    message_ids: bool = True
 
 
 @dataclass(frozen=True, slots=True)

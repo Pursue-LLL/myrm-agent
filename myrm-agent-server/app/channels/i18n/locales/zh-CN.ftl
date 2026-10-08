@@ -352,6 +352,9 @@ artifact_deep_link_named = { $filename }
 deliverable_attached_only = 交付物已附上。
 deliverable_oversized_note = { $filename }（{ $size }）超出渠道附件大小限制，未作为附件发送。
 deliverable_compressed_note = { $filename }（{ $size }）超出渠道大小限制，已发送压缩版本。
+attachment_stripped_note = 附件发送失败，仅发送了文字内容。
+attachment_omitted_note = 未发送附件：{ $name }（当前聊天不支持附件）
+attachment_failed_note = 以下附件未能送达：{ $names }
 goal_completed =
     ✅ 目标已完成："{ $objective }"
     { $turns } 轮 · { $duration } 分钟 · { $files } 个文件变更

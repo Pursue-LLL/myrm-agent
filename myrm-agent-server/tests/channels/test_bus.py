@@ -221,7 +221,7 @@ class TestDowngradeComponents:
         result = downgrade_components(msg, ch)
         assert len(result.media) == 0
         assert "[Image: https://example.com/img.png]" in result.content
-        assert "[Video attachment omitted (unsupported channel)]" in result.content
+        assert "Attachment not sent: video.mp4 (not supported in this chat)" in result.content
 
     def test_media_kept_when_supported(self) -> None:
         import dataclasses

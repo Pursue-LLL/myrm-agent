@@ -178,8 +178,6 @@ class WeComChannel(WeComInboundMixin, BaseChannel):
             )
         return issues
 
-    # ── Inbound: webhook verification + encrypted callback ────
-
     # ── Outbound: send / placeholder ──────────────────────────
 
     async def send(self, msg: OutboundMessage) -> str | None:

@@ -337,8 +337,6 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
         except Exception as exc:
             logger.error("WeComAiBot stream guardian error: %s", exc)
 
-    # ── Frame handling ────────────────────────────────────────
-
     # ── Outbound frame helpers ────────────────────────────────
 
     async def _send_frame(self, frame: dict[str, object]) -> None:

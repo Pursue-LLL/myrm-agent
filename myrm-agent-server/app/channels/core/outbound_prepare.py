@@ -26,6 +26,7 @@ import contextvars
 import dataclasses
 import logging
 import uuid
+from pathlib import Path
 
 from app.channels.core.base import BaseChannel
 from app.channels.i18n import channel_t, get_locale_from_metadata
@@ -229,7 +230,8 @@ def downgrade_components(msg: OutboundMessage, channel: BaseChannel) -> Outbound
                 if m.url:
                     media_fallback_parts.append(f"[{m.media_type.value.capitalize()}: {m.url}]")
                 elif m.path:
-                    media_fallback_parts.append(f"[{m.media_type.value.capitalize()} attachment omitted (unsupported channel)]")
+                    name = m.filename or Path(m.path).name
+                    media_fallback_parts.append(str(channel_t(locale, "attachment_omitted_note", name=name)))
             else:
                 keep_media_list.append(m)
 

@@ -348,18 +348,13 @@ class OutboundMessage:
             correlation_context=correlation_context,
         )
 
-    def strip_media(self, placeholder: str = "\n\n[Image/FileSendFailure，Only保留text]") -> OutboundMessage:
-        """Return a new message with media stripped and a placeholder appended."""
+    def strip_media(self, note: str = "") -> OutboundMessage:
+        """Return a copy without media; ``note`` tells the recipient what was left out."""
         if not self.media:
             return self
 
-        new_content = self.content
-        if new_content:
-            new_content += placeholder
-        else:
-            new_content = placeholder.strip()
-
-        return replace(self, media=(), content=new_content)
+        content = f"{self.content}\n\n{note}" if self.content and note else self.content or note
+        return replace(self, media=(), content=content)
 
 
 @dataclass(frozen=True, slots=True)

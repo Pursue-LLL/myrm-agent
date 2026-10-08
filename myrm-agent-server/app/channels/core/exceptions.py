@@ -36,7 +36,13 @@ class ChannelError(Exception):
 
 
 class ChannelSendError(ChannelError):
-    """Message delivery failed. May be retriable depending on status code."""
+    """Message delivery failed. May be retriable depending on status code.
+
+    ``accepted`` marks a partial delivery: the platform already accepted part of the
+    message (text chunks or other attachments) before the failure, so the sender must
+    neither retry nor degrade the message — that would duplicate what the recipient
+    already received. ``failed_attachments`` names the attachments that did not arrive.
+    """
 
     def __init__(
         self,
@@ -45,10 +51,14 @@ class ChannelSendError(ChannelError):
         channel: str = "",
         status_code: int = 0,
         retriable: bool = True,
+        accepted: bool = False,
+        failed_attachments: tuple[str, ...] = (),
     ) -> None:
         super().__init__(message, channel=channel)
         self.status_code = status_code
         self.retriable = retriable
+        self.accepted = accepted
+        self.failed_attachments = failed_attachments
 
 
 class RateLimitError(ChannelSendError):
