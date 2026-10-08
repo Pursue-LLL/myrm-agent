@@ -197,14 +197,6 @@ class TestSteerEndpoint:
         )
         assert resp.status_code == 422
 
-    def test_steer_buffered_reconciles_redirect_on_register(self, client: TestClient) -> None:
-        """Verify redirect buffered via SteeringRegistry retains redirect_requested upon register."""
-        assert SteeringRegistry.redirect("chat-buffered-e2e", "redirect immediately", buffer_if_missing=True)
-        token = SteeringToken()
-        SteeringRegistry.register("chat-buffered-e2e", token)
-        assert token.redirect_requested
-        assert token.activate() == ["redirect immediately"]
-
     def test_steer_with_question_context_prefixes_message(self, client: TestClient) -> None:
         """Verify steer request with question_context formats enriched payload for Agent."""
         token = SteeringToken()

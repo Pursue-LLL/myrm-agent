@@ -24,7 +24,6 @@ def _clean_state() -> None:
     reset_for_tests()
     with SteeringRegistry._lock:
         SteeringRegistry._tokens.clear()
-        SteeringRegistry._pending_buffers.clear()
 
 
 class TestSteerPolicyEndpoint:
