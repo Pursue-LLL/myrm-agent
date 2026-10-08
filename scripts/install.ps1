@@ -130,15 +130,15 @@ function Verify-HarnessInstall {
     if (-not (Test-Path $py)) {
         throw "Missing $py after uv sync."
     }
-    & $py -c "from myrm_agent_harness.runtime.install_guard.probe import assert_distribution_ready; assert_distribution_ready()"
+    & $py -m myrm_agent_harness.runtime.install_guard.verify
     if ($LASTEXITCODE -ne 0) {
         throw @"
-Harness distribution check failed / Harness 分发校验失败.
-Run myrm setup from the repo root (or install the platform core wheel for this machine).
-请在仓库根目录运行 myrm setup（或安装与本机匹配的平台 core 包）。
+Harness install check failed / Harness 安装校验失败.
+Re-run this installer, or run: cd myrm-agent-server; uv sync
+请重新运行安装脚本，或执行：cd myrm-agent-server; uv sync
 "@
     }
-    Write-Ok "Harness distribution OK."
+    Write-Ok "Harness install OK."
 }
 
 function Setup-Backend {

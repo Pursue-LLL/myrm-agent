@@ -21,7 +21,7 @@ git push origin v0.1.0
 
 ## 本地构建
 
-路径相对于 **myrm-agent 仓库根**（`open-perplexity` 联调根下为 `myrm-agent/myrm-agent-desktop`）：
+路径相对于 **myrm-agent 仓库根**：
 
 ```bash
 cd myrm-agent-desktop

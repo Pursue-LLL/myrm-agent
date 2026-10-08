@@ -11,47 +11,38 @@ $PidFile = Join-Path $StateDir "backend.pid"
 $LogFile = Join-Path $StateDir "backend.log"
 $HealthUrl = "http://127.0.0.1:8080/api/v1/health"
 
-function Test-MonorepoHarnessEditable {
+# The server venv must import the in-repo harness (editable path source); a stale venv that still
+# holds an installed wheel would make tests pass while the live backend runs old harness code.
+function Test-HarnessEditable {
     param([string]$ServerDirPath, [string]$PythonExe)
 
-    if ($env:MYRM_SKIP_HARNESS_EDITABLE_CHECK -eq "1") {
-        return
-    }
-
-    $agentRoot = Split-Path $ServerDirPath -Parent
-    $monorepoRoot = Split-Path $agentRoot -Parent
-    $harnessSrc = Join-Path $monorepoRoot "myrm-agent-harness\src\myrm_agent_harness"
+    $harnessSrc = Join-Path (Split-Path $ServerDirPath -Parent) "myrm-agent-harness\src\myrm_agent_harness"
     if (-not (Test-Path $harnessSrc)) {
-        return
+        Write-Error "Harness source not found at $harnessSrc."
+        exit 1
     }
 
     $expectedSrc = (Resolve-Path $harnessSrc).Path
-    $check = & $PythonExe -c @"
+    $pkgDir = & $PythonExe -c @"
 import pathlib
 import myrm_agent_harness
-from myrm_agent_harness.runtime.install_guard.probe import get_distribution_mode
 from myrm_agent_harness.api import create_skill_agent  # noqa: F401
-pkg = pathlib.Path(myrm_agent_harness.__file__).resolve().parent
-print(get_distribution_mode().value)
-print(pkg)
+print(pathlib.Path(myrm_agent_harness.__file__).resolve().parent)
 "@
-    if (-not $check -or $check.Count -lt 2) {
+    if (-not $pkgDir) {
         Write-Error @"
-Monorepo harness source present but myrm_agent_harness import failed.
-Run: myrm setup (or monorepo harness install) then retry.
+myrm_agent_harness import failed in the server venv.
+Run: myrm setup (or: cd myrm-agent-server; uv sync) then retry.
 If a stale backend is running:  myrm stop
 "@
         exit 1
     }
 
-    $mode = $check[0]
-    $pkgDir = $check[1]
-    if ($mode -ne "source" -or $pkgDir -ne $expectedSrc) {
+    if ($pkgDir -ne $expectedSrc) {
         Write-Error @"
-Server venv harness is not monorepo editable source (mode=$mode).
+Server venv harness is not the in-repo editable source.
 pytest may pass while live agent-stream misses ui_update (stale wheel).
-Fix: monorepo harness install then myrm stop and restart.
-PyPI consumer test only:  MYRM_SKIP_HARNESS_EDITABLE_CHECK=1 myrm dev
+Fix: cd myrm-agent-server; uv sync then myrm stop and restart.
 "@
         exit 1
     }
@@ -63,7 +54,7 @@ if (Test-Path $PidFile) {
         Write-Host "Backend already running (pid $oldPid)"
         $pyRunning = Join-Path $ServerDir ".venv\Scripts\python.exe"
         if (Test-Path $pyRunning) {
-            Test-MonorepoHarnessEditable -ServerDirPath $ServerDir -PythonExe $pyRunning
+            Test-HarnessEditable -ServerDirPath $ServerDir -PythonExe $pyRunning
         }
         exit 0
     }
@@ -81,7 +72,7 @@ $env:DEPLOY_MODE = "local"
 $env:HOST = "127.0.0.1"
 $env:PORT = "8080"
 
-Test-MonorepoHarnessEditable -ServerDirPath $ServerDir -PythonExe $py
+Test-HarnessEditable -ServerDirPath $ServerDir -PythonExe $py
 
 Set-Location $ServerDir
 if (Test-Path $LogFile) {

@@ -10,7 +10,7 @@
 |------|------|
 | `prepare-check-stub-sidecars.sh` | PR/CI：`cargo check` 前写入 host-triple sidecar stub 二进制 |
 | `inject-version.sh` | tag → `myrm-agent-desktop/src-tauri/tauri.conf.json` 版本 |
-| `sync-server-venv.sh` | 生产 sidecar venv（`--no-group dev`）；GHA+`MYRM_HARNESS_INSTALL_MODE=pypi` 时走 PyPI.org（规避 lock 内清华镜像 403） |
+| `sync-server-venv.sh` | 生产 sidecar venv（`--no-group dev`）：`uv sync --frozen` 装依赖（跳过 harness 本体）后，用仓库内 `myrm-agent-harness/` 构建 wheel 并安装（非 editable） |
 | `finalize-release.sh` | 下载 Release 资产（与 API 计数对齐重试）→ 匹配 updater 包 + `.sig` → `latest.json` + `.sha256` → upload；`REQUIRED_OTA_PLATFORM_KEYS` 存在时缺 platform/.sig 硬失败 |
 | `pick-platform-asset.sh` | OTA 平台资产匹配（`finalize-release.sh` / fixture 共用；glob 加引号 + nullglob） |
 | `bundle-paths.sh` | `is_release_bundle_path` / `is_updater_bundle_path`（Windows 反斜路径兼容） |

@@ -47,7 +47,7 @@
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed、创建 chat、`registerWaveLedger`、SSE delegate → JSON |
 | `moa-overlay-e2e-prepare.mjs` | 双平台 | MoA overlay prepare：临时 Agent（`moa_overlay`）、PATCH `active-moa-preset`、`agent-stream` 带 `active_moa_preset_id`、断言 SSE `moa_overlay_active` + `moa_ref_done` → JSON；Env：`E2E_API_BASE` / `E2E_UI_BASE` / `E2E_MOA_PRESET_ID` |
 | `subagent-dashboard-e2e-chat.mjs` | Bun | P2c Subagent Dashboard E2E light chat scope（不 spawn subagent）：纯 UI 注入类 dashboard 测试（sort/stop-all/teammate/stream/overtime/stale/expand/header）直接 seed store bridge → stdout JSON `{ chatId, uiUrl, apiBase }`；被 `myrm-agent-server/tests/e2e/test_subagent_dashboard_ui_chrome_e2e.py` 调用 |
-| `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
+| `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；检测 server venv 的 harness 未指向仓库内源码时 **exit 1** |
 | `lib/dev_state_paths.sh` | Unix | pid/log 路径 SSOT + 子目录回退读取；见 [lib/_ARCH.md](lib/_ARCH.md) |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
 
