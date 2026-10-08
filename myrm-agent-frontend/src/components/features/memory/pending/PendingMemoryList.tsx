@@ -9,6 +9,7 @@ import type { ConflictResolution } from '@/store/memory';
 import MemoryCard from '../cards/MemoryCard';
 import ConflictCard from '../cards/ConflictCard';
 import { toast } from '@/hooks/shared/useToast';
+import { approveFailureMessage } from './approveFailureMessage';
 
 interface PendingMemoryListProps {
   className?: string;
@@ -48,11 +49,18 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
     }
     setIsProcessing(true);
     try {
-      await batchApprove();
-      toast({
-        title: t('batchApproveSuccess'),
-        description: t('batchApproveSuccessDesc', { count: selectedCount }),
-      });
+      const { successCount, failedCount } = await batchApprove();
+      toast(
+        failedCount > 0
+          ? {
+              title: t('batchApproveSuccess'),
+              description: t('batchApprovePartialDesc', { success: successCount, failed: failedCount }),
+            }
+          : {
+              title: t('batchApproveSuccess'),
+              description: t('batchApproveSuccessDesc', { count: successCount }),
+            },
+      );
     } catch (error) {
       toast({
         title: t('batchApproveFailed'),
@@ -62,7 +70,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
     } finally {
       setIsProcessing(false);
     }
-  }, [batchApprove, selectedCount, t, isProcessing]);
+  }, [batchApprove, t, isProcessing]);
 
   const handleBatchReject = useCallback(async () => {
     if (isProcessing) {
@@ -95,11 +103,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
           description: t('approveSuccessDesc'),
         });
       } catch (error) {
-        toast({
-          title: t('approveFailed'),
-          description: error instanceof Error ? error.message : t('unknownError'),
-          variant: 'destructive',
-        });
+        toast({ ...approveFailureMessage(t, error), variant: 'destructive' });
       }
     },
     [approveMemory, t],

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNonNull } from '@/test-utils/expectDefined';
 import { TooltipProvider } from '@/components/primitives/tooltip';
 import PendingMemoryDialog from '../PendingMemoryDialog';
+import { ApiError } from '@/lib/api';
 import type { PendingMemory } from '@/services/memory/core';
 
 const { mockApproveMemory, mockRejectMemory, mockCloseConfirmDialog, mockState, toastMock } = vi.hoisted(() => {
@@ -124,6 +125,21 @@ describe('PendingMemoryDialog', () => {
 
     await waitFor(() => {
       expect(mockApproveMemory).toHaveBeenCalledWith('pending-1', undefined);
+    });
+  });
+
+  it('tells the user a suggestion is out of date instead of showing backend text', async () => {
+    mockApproveMemory.mockRejectedValue(new ApiError('Memory mem-1 changed after proposal pending-1 was queued', 409));
+    renderWithProviders(<PendingMemoryDialog />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Accept/i }));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith({
+        title: 'targetChangedTitle',
+        description: 'targetChangedDesc',
+        variant: 'destructive',
+      });
     });
   });
 

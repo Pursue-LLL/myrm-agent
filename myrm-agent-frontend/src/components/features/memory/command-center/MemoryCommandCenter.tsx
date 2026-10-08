@@ -5,6 +5,7 @@
  * @/services/memory/commandCenter::getMemoryCommandCenter (POS: Frontend Personal Brain Command Center client)
  * @/services/memory/archive::dryRunRollbackMemoryImport, exportMemoryArchive (POS: Frontend Memory Archive and import API client)
  * @/services/projects::getProjects (POS: 项目管理 API 服务层)
+ * @/services/memory/pendingTargetChanged::isPendingTargetChanged (POS: 待审建议所针对的记忆已变化时给出本地化「已过期」提示)
  *
  * [OUTPUT]
  * MemoryCommandCenter: Personal Brain Command Center container with health dashboard, governance, diagnostics, archive export, rollback preview orchestration, SSE-backed live memory stream, and project-scoped memory filtering.
@@ -61,6 +62,7 @@ import MemoryHealthDashboard from '../insights/MemoryHealthDashboard';
 import { canDeepLinkMigrationSource, registerMigrationSourceManifest } from '@/services/migrationDiscovery';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { MemoryRecallBoundaryPanel } from './MemoryRecallBoundaryPanel';
+import { isPendingTargetChanged } from '@/services/memory/pendingTargetChanged';
 
 const SECTIONS = ['observe', 'understand', 'act', 'verify', 'boundary'] as const;
 const HEALTH_STATUSES = ['healthy', 'degraded', 'critical', 'unknown'] as const;
@@ -221,9 +223,10 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
         toast({ title: t('commandCenter.actionSuccess') });
         await loadSnapshot();
       } catch (err) {
+        const stale = isPendingTargetChanged(err);
         toast({
-          title: t('commandCenter.actionFailed'),
-          description: err instanceof Error ? err.message : t('unknownError'),
+          title: stale ? t('targetChangedTitle') : t('commandCenter.actionFailed'),
+          description: stale ? t('targetChangedDesc') : err instanceof Error ? err.message : t('unknownError'),
           variant: 'destructive',
         });
       } finally {

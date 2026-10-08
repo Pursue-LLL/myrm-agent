@@ -67,7 +67,7 @@ export interface MemoryState {
   fetchPendingMemories: (force?: boolean) => Promise<void>;
   approveMemory: (id: string, editedContent?: string) => Promise<void>;
   rejectMemory: (id: string) => Promise<void>;
-  batchApprove: () => Promise<void>;
+  batchApprove: () => Promise<{ successCount: number; failedCount: number }>;
   batchReject: () => Promise<void>;
 
   // 选择操作

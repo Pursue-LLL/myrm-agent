@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act } from '@testing-library/react';
-import { enableMapSet } from 'immer';
-
-enableMapSet();
 
 const makePending = (id: string, content = `memory-${id}`) => ({
   id,
@@ -20,7 +17,7 @@ const m3 = makePending('m3');
 const mockGetPendingMemories = vi.fn();
 const mockApproveMemory = vi.fn().mockResolvedValue(undefined);
 const mockRejectMemory = vi.fn().mockResolvedValue(undefined);
-const mockBatchApproveMemories = vi.fn().mockResolvedValue(undefined);
+const mockBatchApproveMemories = vi.fn().mockResolvedValue({ success_count: 2, failed_count: 0, failed_ids: [] });
 const mockBatchRejectMemories = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/services/memory', () => ({
@@ -40,7 +37,8 @@ vi.mock('@/services/memory', () => ({
   purgeMemory: vi.fn(),
 }));
 
-vi.mock('@/lib/deploy-mode', () => ({
+vi.mock('@/lib/deploy-mode', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deploy-mode')>()),
   isLocalMode: () => true,
 }));
 
@@ -52,7 +50,7 @@ describe('useMemoryStore - pending memory operations', () => {
     mockGetPendingMemories.mockReset();
     mockApproveMemory.mockReset().mockResolvedValue(undefined);
     mockRejectMemory.mockReset().mockResolvedValue(undefined);
-    mockBatchApproveMemories.mockReset().mockResolvedValue(undefined);
+    mockBatchApproveMemories.mockReset().mockResolvedValue({ success_count: 2, failed_count: 0, failed_ids: [] });
     mockBatchRejectMemories.mockReset().mockResolvedValue(undefined);
     const mod = await import('@/store/memory/useMemoryStore');
     useMemoryStore = mod.default;
@@ -368,6 +366,23 @@ describe('useMemoryStore - pending memory operations', () => {
     });
   });
 
+  describe('stale suggestions', () => {
+    it('approveMemory keeps the typed conflict error and leaves the suggestion pending', async () => {
+      const { ApiError } = await import('@/lib/api');
+      mockApproveMemory.mockRejectedValue(new ApiError('changed', 409));
+
+      act(() => {
+        useMemoryStore.setState({ pendingMemories: [m1], pendingCount: 1, currentPendingMemory: m1 });
+      });
+
+      await expect(useMemoryStore.getState().approveMemory('m1')).rejects.toBeInstanceOf(ApiError);
+
+      const state = useMemoryStore.getState();
+      expect(state.pendingMemories.map((m) => m.id)).toEqual(['m1']);
+      expect(state.pendingCount).toBe(1);
+    });
+  });
+
   // ==================== 批量操作 ====================
 
   describe('batch operations', () => {
@@ -393,6 +408,29 @@ describe('useMemoryStore - pending memory operations', () => {
       const state = useMemoryStore.getState();
       expect(state.selectedPendingIds.size).toBe(0);
       expect(mockBatchApproveMemories).toHaveBeenCalledWith(['m1', 'm2']);
+    });
+
+    it('batchApprove should keep suggestions the server could not approve and report them', async () => {
+      mockBatchApproveMemories.mockResolvedValue({ success_count: 1, failed_count: 1, failed_ids: ['m2'] });
+      mockGetPendingMemories.mockResolvedValue({ items: [m2, m3], total: 2 });
+
+      act(() => {
+        useMemoryStore.setState({
+          pendingMemories: [m1, m2, m3],
+          pendingCount: 3,
+          selectedPendingIds: new Set(['m1', 'm2']),
+        });
+      });
+
+      let result: { successCount: number; failedCount: number } | undefined;
+      await act(async () => {
+        result = await useMemoryStore.getState().batchApprove();
+      });
+
+      expect(result).toEqual({ successCount: 1, failedCount: 1 });
+      const state = useMemoryStore.getState();
+      expect(state.pendingMemories.map((m) => m.id)).toContain('m2');
+      expect(state.pendingMemories.map((m) => m.id)).not.toContain('m1');
     });
 
     it('batchReject should reject all selected and clear selection', async () => {

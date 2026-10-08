@@ -31,6 +31,7 @@ import { useMemoryStore } from '@/store/memory';
 import MemoryTypeIcon from '../cards/MemoryTypeIcon';
 import PendingTargetHint from '../cards/PendingTargetHint';
 import { toast } from '@/hooks/shared/useToast';
+import { approveFailureMessage } from './approveFailureMessage';
 
 const PendingMemoryDialog = memo(() => {
   const t = useTranslations('memory');
@@ -82,11 +83,7 @@ const PendingMemoryDialog = memo(() => {
         description: t('approveSuccessDesc'),
       });
     } catch (error) {
-      toast({
-        title: t('approveFailed'),
-        description: error instanceof Error ? error.message : t('unknownError'),
-        variant: 'destructive',
-      });
+      toast({ ...approveFailureMessage(t, error), variant: 'destructive' });
     } finally {
       setIsLoading(false);
       setIsEditing(false);
