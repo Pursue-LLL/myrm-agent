@@ -40,6 +40,33 @@ const PrivacyCurtainCard = memo<PrivacyCurtainCardProps>(({ enabled, onToggle })
     void refreshActive();
   }, [refreshActive]);
 
+  // 自动拉起/回锁收起由壳侧 watcher 触发，设置页开着时靠事件回显而不是只在挂载读一次。
+  useEffect(() => {
+    if (!isTauri) {
+      return undefined;
+    }
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+
+    void import('@tauri-apps/api/event')
+      .then(({ listen }) => listen('curtain:state-changed', () => void refreshActive()))
+      .then((fn) => {
+        if (disposed) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      })
+      .catch((err) => {
+        console.warn('[PrivacyCurtainCard] Failed to subscribe to curtain:state-changed:', err);
+      });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [isTauri, refreshActive]);
+
   const handleEngage = useCallback(async () => {
     if (!invoke) {
       return;

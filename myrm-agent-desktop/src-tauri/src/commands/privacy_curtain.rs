@@ -14,7 +14,7 @@
 //!
 //! [OUTPUT]
 //! - show/hide/active/set_texts/report_physical_input IPC
-//! - curtain:state-changed / curtain:physical-input 事件
+//! - curtain:state-changed 事件（由 privacy_curtain_state 在 active 变化时广播，设置页订阅回显）
 //! - relock_outstanding_lease（壳退出前租约仍未交还时的兜底回锁，由 app/lifecycle.rs 调用）
 //! - is_curtain_label（窗口 label 是否属于帷幕；app/setup.rs 据此豁免应用级窗口策略）
 //! - spawn_privacy_curtain_watcher（见 privacy_curtain_watcher.rs）
@@ -31,7 +31,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use tauri::{AppHandle, Emitter, Manager, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 
 use crate::commands::privacy_curtain_page::{self as page, CurtainTexts};
 use crate::commands::privacy_curtain_presentation as presentation;
@@ -297,10 +297,6 @@ pub async fn curtain_report_physical_input(app: AppHandle, source: String) -> Re
         state.last_physical_input_ms = now_ms();
     });
     log_audit("physical_input", true, &source);
-    let _ = app.emit(
-        "curtain:physical-input",
-        serde_json::json!({ "source": source }),
-    );
 
     relock_and_release_lease(&app, "relock_on_input", "curtain input guard").await
 }
