@@ -4,6 +4,7 @@
 - myrm_agent_harness.toolkits.memory.strategies.extractor::extract_goal_learnings (POS: LLM-based goal learnings extraction)
 - myrm_agent_harness.api.hooks::create_extraction_llm_func, persist_extracted_memories (POS: LLM wrapper and persistence utilities; deep_scan_llm_func wiring for PII pseudonymization)
 - myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: memory lifecycle manager)
+- myrm_agent_harness.utils.chat_utils::extract_text_content (POS: multimodal message content → plain text, so screenshots never enter the learnings prompt)
 
 [OUTPUT]
 - build_goal_terminal_callback: Factory for on_goal_terminal callback (deep_scan flag enables PII pseudonymization on stored learnings)
@@ -24,13 +25,14 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from langchain_core.messages import BaseMessage
     from myrm_agent_harness.agent.goals.types import Goal, GoalExecutionSummary
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+    from myrm_agent_harness.utils.chat_utils import ContentItem
 
 logger = logging.getLogger(__name__)
 
@@ -99,15 +101,15 @@ def build_goal_terminal_callback(
                 from myrm_agent_harness.toolkits.memory.strategies.extractor import (
                     extract_goal_learnings,
                 )
+                from myrm_agent_harness.utils.chat_utils import extract_text_content
 
-                dict_messages = [
-                    {
-                        "role": "assistant" if msg.type == "ai" else "user",
-                        "content": str(msg.content),
-                    }
+                # Learnings are distilled from words only: attachments and tool screenshots carry
+                # no learnable text and their base64 would otherwise flood the extraction prompt.
+                turns = [
+                    ("assistant" if msg.type == "ai" else "user", extract_text_content(cast("ContentItem", msg.content)))
                     for msg in messages
-                    if hasattr(msg, "content") and msg.content
                 ]
+                dict_messages = [{"role": role, "content": text} for role, text in turns if text]
 
                 if len(dict_messages) < 3:
                     logger.info("Goal %s: too few messages for learnings extraction", goal.goal_id)
