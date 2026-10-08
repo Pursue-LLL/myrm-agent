@@ -17,94 +17,59 @@ defaults:
 jobs:
   diag:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: astral-sh/setup-uv@d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5 # v4.0.0
         with:
           version: "0.12.7"
       - run: uv python install 3.13
-      - run: uv sync --python 3.13 --locked --extra browser --group dev
+      - run: uv sync --python 3.13 --locked --extra all --group dev
       - run: uv run --no-sync patchright install --with-deps chromium
-      - name: Write probe
+      - name: Write diagnostic plugin
         run: |
-          cat > /tmp/probe.py <<'PY'
-          import asyncio, sys, time, threading, traceback
-          from http.server import HTTPServer, SimpleHTTPRequestHandler
-          import tempfile, pathlib, functools
+          mkdir -p /tmp/diag
+          cat > /tmp/diag/diagplugin.py <<'PY'
+          import asyncio, gc, subprocess, sys, threading
+          import pytest
 
-          VARIANT = sys.argv[1]
+          def _chain(coro):
+              out = []
+              while coro is not None:
+                  frame = getattr(coro, "cr_frame", None) or getattr(coro, "ag_frame", None) or getattr(coro, "gi_frame", None)
+                  if frame is not None:
+                      out.append(f"{frame.f_code.co_filename.split('site-packages/')[-1]}:{frame.f_lineno} {frame.f_code.co_name}")
+                  nxt = getattr(coro, "cr_await", None) or getattr(coro, "ag_await", None) or getattr(coro, "gi_yieldfrom", None)
+                  if nxt is not None and not hasattr(nxt, "cr_frame") and not hasattr(nxt, "gi_frame") and not hasattr(nxt, "ag_frame"):
+                      out.append(f"awaiting {nxt!r}")
+                      break
+                  coro = nxt
+              return out
 
-          def log(msg):
-              print(f"[{VARIANT}] {time.monotonic() - T0:6.2f}s {msg}", flush=True)
+          def _dump(label):
+              print(f"[diag] ===== stall dump for {label} =====", file=sys.stderr, flush=True)
+              for obj in gc.get_objects():
+                  if isinstance(obj, asyncio.BaseEventLoop) and obj.is_running():
+                      def cb(loop=obj):
+                          for t in asyncio.all_tasks(loop):
+                              print(f"[diag] TASK {t.get_name()}", file=sys.stderr)
+                              for line in _chain(t.get_coro()):
+                                  print(f"[diag]     {line}", file=sys.stderr)
+                          sys.stderr.flush()
+                      obj.call_soon_threadsafe(cb)
+              print(subprocess.run(["ps", "-eo", "pid,ppid,stat,etime,cmd", "--sort=start_time"], capture_output=True, text=True).stdout[-3000:], file=sys.stderr, flush=True)
 
-          async def step(name, coro, limit=20):
-              log(f"{name}: begin")
+          @pytest.hookimpl(hookwrapper=True)
+          def pytest_runtest_teardown(item, nextitem):
+              timer = threading.Timer(45, _dump, args=(item.nodeid,))
+              timer.daemon = True
+              timer.start()
               try:
-                  await asyncio.wait_for(coro, limit)
-                  log(f"{name}: ok")
-              except asyncio.TimeoutError:
-                  log(f"{name}: HUNG > {limit}s")
-                  for t in asyncio.all_tasks():
-                      print("TASK", t.get_name(), t.get_coro(), flush=True)
-                      for f in t.get_stack(limit=6):
-                          print("   ", f.f_code.co_filename.split("site-packages/")[-1], f.f_lineno, f.f_code.co_name, flush=True)
-                  return False
-              return True
-
-          async def main():
-              from patchright.async_api import async_playwright
-              tmp = pathlib.Path(tempfile.mkdtemp())
-              (tmp / "p1.html").write_text("<html><body><button id='b'>p1</button></body></html>")
-              server = HTTPServer(("127.0.0.1", 0), functools.partial(SimpleHTTPRequestHandler, directory=str(tmp)))
-              threading.Thread(target=server.serve_forever, daemon=True).start()
-              url = f"http://127.0.0.1:{server.server_port}/p1.html"
-
-              pw = await async_playwright().start()
-              browser = await pw.chromium.launch(headless=True)
-              page = await browser.new_page()
-              await page.goto(url)
-
-              if VARIANT in ("bridge", "engine"):
-                  seen = []
-                  async def cb(raw):
-                      seen.append(raw)
-                  await page.expose_function("__bridge", cb)
-                  await page.evaluate("document.addEventListener('click', () => window.__bridge('x'))", isolated_context=False)
-                  await page.click("#b")
-                  await asyncio.sleep(0.4)
-                  log(f"bridge calls: {len(seen)}")
-
-              if VARIANT == "engine":
-                  from myrm_agent_harness.toolkits.browser.action_capture.capture_engine import ActionCaptureEngine
-                  page2 = await browser.new_page()
-                  await page2.goto(url)
-                  eng = ActionCaptureEngine(page2, capture_screenshots=False)
-                  await eng.start()
-                  await page2.click("#b")
-                  await asyncio.sleep(0.4)
-                  await step("engine.stop", eng.stop())
-
-              await step("browser.close", browser.close())
-              await step("pw.stop", pw.stop())
-              server.shutdown()
-              log("done")
-
-          T0 = time.monotonic()
-          asyncio.run(main())
+                  yield
+              finally:
+                  timer.cancel()
           PY
-      - name: Variant plain
-        if: always()
-        run: timeout 120 uv run --no-sync python /tmp/probe.py plain
-      - name: Variant bridge
-        if: always()
-        run: timeout 120 uv run --no-sync python /tmp/probe.py bridge
-      - name: Variant engine
-        if: always()
-        run: timeout 120 uv run --no-sync python /tmp/probe.py engine
-      - name: Variant pytest single test
-        if: always()
+      - name: Full serial browser integration with stall dump
         run: >-
-          timeout 200 uv run --no-sync pytest -n0 -v -s --tb=short
-          tests/toolkits/browser/action_capture/test_capture_engine_navigation_integration.py
-          -m integration --timeout=150 --timeout-method=thread -o faulthandler_timeout=60
+          PYTHONPATH=/tmp/diag uv run --no-sync pytest -p diagplugin -n0 -v -s --tb=short tests/
+          -m "integration or e2e" --timeout=120 --timeout-method=thread -o faulthandler_timeout=100
