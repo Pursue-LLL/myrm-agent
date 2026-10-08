@@ -6,7 +6,7 @@ import { setRemoteGatewayConfig } from '@/lib/deploy-mode';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
 import { beginDesktopOAuth } from '@/lib/desktop-oauth';
 import { desktopBridge } from '@/lib/desktopBridge';
-import { addRemoteProfile, listRemoteProfiles, removeRemoteProfile } from '@/lib/remote-profiles';
+import { ensureCloudProfile } from '@/lib/remote-profiles';
 import { toast } from '@/lib/utils/toast';
 
 interface ServerConnectionCloudSectionProps {
@@ -79,14 +79,7 @@ const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionClou
         toast.error(t('discoverFailed'));
         return;
       }
-      const proxyBase = `${cpBase}/proxy/me`;
-      let profile = listRemoteProfiles().find((p) => p.url === proxyBase) ?? null;
-      if (!profile) {
-        profile = addRemoteProfile(t('cloudProfileName'), proxyBase, { kind: 'cloud', cpBaseUrl: cpBase });
-      } else if (profile.kind !== 'cloud') {
-        removeRemoteProfile(profile.id);
-        profile = addRemoteProfile(t('cloudProfileName'), proxyBase, { kind: 'cloud', cpBaseUrl: cpBase });
-      }
+      const profile = ensureCloudProfile(t('cloudProfileName'), cpBase);
       if (!profile) {
         toast.error(t('duplicateProfile'));
         return;

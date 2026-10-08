@@ -86,19 +86,15 @@ export class IntentDispatcher {
       const { default: useAuthStore } = await import('@/store/useAuthStore');
       await useAuthStore.getState().login(token, { id: userId, email });
 
-      const { addRemoteProfile, listRemoteProfiles, setActiveRemoteProfileId } =
-        await import('@/lib/remote-profiles');
-      const proxyBase = `${cpBaseUrl}/proxy/me`;
-      const existing = listRemoteProfiles().find((p) => p.url === proxyBase);
-      if (existing) {
-        setActiveRemoteProfileId(existing.id);
-      } else {
-        addRemoteProfile(this.messages.cloudProfileName, proxyBase, { kind: 'cloud', cpBaseUrl });
+      const { ensureCloudProfile } = await import('@/lib/remote-profiles');
+      if (!ensureCloudProfile(this.messages.cloudProfileName, cpBaseUrl)) {
+        throw new Error('Cloud profile could not be created');
       }
 
       toast.success(this.messages.oauthSuccess);
       this.router.push('/settings');
-    } catch {
+    } catch (error) {
+      console.warn('[UIP] OAuth callback rejected:', error instanceof Error ? error.message : 'unknown error');
       toast.error(this.messages.oauthFailed);
       this.router.push('/settings');
     }

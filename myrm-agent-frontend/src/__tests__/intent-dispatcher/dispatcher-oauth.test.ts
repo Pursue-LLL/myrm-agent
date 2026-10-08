@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { CLOUD_OAUTH_PENDING_KEY, DESKTOP_OAUTH_TTL_MS, beginDesktopOAuth } from '@/lib/desktop-oauth';
 import { IntentDispatcher } from '@/lib/intent-dispatcher';
-import { getActiveRemoteProfile, listRemoteProfiles } from '@/lib/remote-profiles';
+import { addRemoteProfile, getActiveRemoteProfile, listRemoteProfiles } from '@/lib/remote-profiles';
 import useAuthStore from '@/store/useAuthStore';
 
 const CP = 'https://cp.example.com';
@@ -104,6 +104,17 @@ describe('dispatcher oauth callback', () => {
     expect(pushed).toEqual(['/settings']);
   });
 
+  it('still ends up with an active cloud profile when the default name is taken', async () => {
+    addRemoteProfile('Cloud box', 'https://nuc.example.com');
+    const state = startSignIn();
+    stubControlPlane();
+
+    await dispatcher.dispatch(callbackLink('ex-1', state));
+
+    expect(useAuthStore.getState().token).toBe('cp-token-abc');
+    expect(getActiveRemoteProfile()).toMatchObject({ kind: 'cloud', name: 'Cloud box 2', url: `${CP}/proxy/me` });
+  });
+
   it('rejects a callback when no sign-in is pending', async () => {
     store.set('auth_token', 'local_user_token');
     const { spy } = stubControlPlane();
@@ -202,7 +213,10 @@ describe('dispatcher oauth callback', () => {
 
     await dispatcher.dispatch(callbackLink('secret-exchange', state));
 
-    const written = sinks.flatMap((sink) => sink.mock.calls).map((args) => args.map(String).join(' ')).join('\n');
+    const written = sinks
+      .flatMap((sink) => sink.mock.calls)
+      .map((args) => args.map(String).join(' '))
+      .join('\n');
     expect(written).toContain('[UIP]');
     expect(written).not.toContain('secret-exchange');
     expect(written).not.toContain(state);
