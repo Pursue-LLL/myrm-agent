@@ -222,6 +222,9 @@ from app.api.memory.progressive_sidecar_router import (
 from app.api.memory.provenance_batch import (
     router as memory_provenance_batch_router,
 )
+from app.api.memory.quadruple_retrieval_router import (
+    router as quadruple_retrieval_router,
+)
 from app.api.memory.queuefs_router import (
     router as queuefs_router,
 )
@@ -489,6 +492,10 @@ router.include_router(
     tags=["memory-lineage"],
 )
 router.include_router(
+    quadruple_retrieval_router,
+    tags=["memory-quadruple-retrieval"],
+)
+router.include_router(
     peer_gateway_router,
     tags=["memory-peer-gateway"],
 )
@@ -524,6 +531,11 @@ router.include_router(
     graph_memory_router,
     tags=["memory-graph"],
 )
+router.include_router(
+    quadruple_retrieval_router,
+    tags=["memory-quadruple-retrieval"],
+)
+
 
 
 
