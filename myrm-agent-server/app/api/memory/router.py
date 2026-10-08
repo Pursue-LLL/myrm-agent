@@ -247,6 +247,12 @@ from app.api.memory.tiered_consensus_router import (
 from app.api.memory.two_layer_dialectic_router import (
     router as two_layer_dialectic_router,
 )
+from app.api.memory.budget_packing_router import (
+    router as budget_packing_router,
+)
+from app.api.memory.auto_memory_consolidation_router import (
+    router as auto_memory_consolidation_router,
+)
 from app.api.memory.universal_mcp_router import (
     router as memory_universal_mcp_router,
 )
@@ -449,6 +455,14 @@ router.include_router(
 router.include_router(
     two_layer_dialectic_router,
     tags=["memory-two-layer-dialectic"],
+)
+router.include_router(
+    budget_packing_router,
+    tags=["memory-budget-packing"],
+)
+router.include_router(
+    auto_memory_consolidation_router,
+    tags=["memory-auto-consolidation"],
 )
 router.include_router(
     peer_gateway_router,
