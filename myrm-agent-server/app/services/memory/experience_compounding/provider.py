@@ -20,7 +20,10 @@ from __future__ import annotations
 import logging
 from typing import ClassVar
 
-from myrm_agent_harness.toolkits.memory import ExperienceCompoundingSuite
+from myrm_agent_harness.toolkits.memory import (
+    CompoundedExperienceItem,
+    ExperienceCompoundingSuite,
+)
 
 from app.schemas.experience_compounding import (
     AddExperienceItemRequest,
@@ -30,6 +33,8 @@ from app.schemas.experience_compounding import (
     DecondenseRuleRequest,
     ExperienceCompoundingStatsResponse,
     GoldenRuleDTO,
+    PenalizeExperienceItemRequest,
+    PenalizeExperienceItemResponse,
     ReinforceExperienceRequest,
 )
 
@@ -79,6 +84,24 @@ class ExperienceCompoundingServiceProvider:
         )
         logger.info("Bootstrapped baseline experiences in ExperienceCompoundingServiceProvider")
 
+    def _to_item_dto(self, item: CompoundedExperienceItem) -> CompoundedExperienceItemDTO:
+        """Convert domain entity to API DTO with peak_weight anchor."""
+        return CompoundedExperienceItemDTO(
+            item_id=item.item_id,
+            content=item.content,
+            topic=item.topic,
+            base_weight=item.base_weight,
+            compounded_weight=item.compounded_weight,
+            peak_weight=item.peak_weight,
+            hit_count=item.hit_count,
+            adoption_count=item.adoption_count,
+            state=item.state.value,
+            half_life_days=item.half_life_days,
+            is_pinned=item.is_pinned,
+            is_temporary=item.is_temporary,
+            tags=item.tags,
+        )
+
     def add_experience(
         self, request: AddExperienceItemRequest
     ) -> CompoundedExperienceItemDTO:
@@ -92,24 +115,27 @@ class ExperienceCompoundingServiceProvider:
             tags=request.tags,
             item_id=request.item_id,
         )
-        return CompoundedExperienceItemDTO(
-            item_id=item.item_id,
-            content=item.content,
-            topic=item.topic,
-            base_weight=item.base_weight,
-            compounded_weight=item.compounded_weight,
-            hit_count=item.hit_count,
-            adoption_count=item.adoption_count,
-            state=item.state.value,
-            half_life_days=item.half_life_days,
-            is_pinned=item.is_pinned,
-            is_temporary=item.is_temporary,
-            tags=item.tags,
-        )
+        return self._to_item_dto(item)
 
     def reinforce(self, request: ReinforceExperienceRequest) -> float:
         """Reinforce the compounding weight of an experience item."""
         return self._suite.reinforce(item_id=request.item_id, adopted=request.adopted)
+
+    def penalize(
+        self, request: PenalizeExperienceItemRequest
+    ) -> PenalizeExperienceItemResponse:
+        """Penalize an experience item upon user contradiction or rejection."""
+        new_weight = self._suite.penalize(
+            item_id=request.item_id, severity=request.severity
+        )
+        item = self._suite.get_item(request.item_id)
+        half_life = item.half_life_days if item else 7.0
+        return PenalizeExperienceItemResponse(
+            item_id=request.item_id,
+            new_weight=new_weight,
+            half_life_days=half_life,
+            status="penalized",
+        )
 
     def condense(self) -> CondensationResponseDTO:
         """Condense scattered active fragments into Golden Rules."""
@@ -139,23 +165,7 @@ class ExperienceCompoundingServiceProvider:
     ) -> list[CompoundedExperienceItemDTO]:
         """Roll back a Golden Rule and reactivate its archived fragments."""
         reactivated = self._suite.decondense(rule_id=request.rule_id)
-        return [
-            CompoundedExperienceItemDTO(
-                item_id=it.item_id,
-                content=it.content,
-                topic=it.topic,
-                base_weight=it.base_weight,
-                compounded_weight=it.compounded_weight,
-                hit_count=it.hit_count,
-                adoption_count=it.adoption_count,
-                state=it.state.value,
-                half_life_days=it.half_life_days,
-                is_pinned=it.is_pinned,
-                is_temporary=it.is_temporary,
-                tags=it.tags,
-            )
-            for it in reactivated
-        ]
+        return [self._to_item_dto(it) for it in reactivated]
 
     def anneal(self) -> AnnealingResponseDTO:
         """Run obsolete context annealing and cold tiering."""
@@ -170,23 +180,7 @@ class ExperienceCompoundingServiceProvider:
 
     def list_active(self) -> list[CompoundedExperienceItemDTO]:
         """Return all hot active experience items."""
-        return [
-            CompoundedExperienceItemDTO(
-                item_id=it.item_id,
-                content=it.content,
-                topic=it.topic,
-                base_weight=it.base_weight,
-                compounded_weight=it.compounded_weight,
-                hit_count=it.hit_count,
-                adoption_count=it.adoption_count,
-                state=it.state.value,
-                half_life_days=it.half_life_days,
-                is_pinned=it.is_pinned,
-                is_temporary=it.is_temporary,
-                tags=it.tags,
-            )
-            for it in self._suite.list_active_items()
-        ]
+        return [self._to_item_dto(it) for it in self._suite.list_active_items()]
 
     def list_rules(self) -> list[GoldenRuleDTO]:
         """Return all active Golden Rules."""

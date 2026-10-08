@@ -284,9 +284,10 @@ export const useMessageInput = () => {
     recordChatWikiQueryAttempt(chatState.messages, chatState.chatId);
   }, []);
 
-  // Steer only reaches a registered, running turn. When the server cannot take the instruction mid-turn (the turn is
-  // still starting or has just ended, or the request failed) it is queued instead of lost: it stays behind earlier
-  // queued messages, Stop holds it like any other, and the drain sends it at once if the agent is already idle.
+  // Steer only reaches a registered, running turn. When the turn cannot take the instruction (it is still starting or
+  // has just ended, or the request failed) `steerMessage` resolves false and the instruction joins the queue, so it is
+  // never dropped: it waits behind earlier queued messages, Stop holds it like any other, and the drain sends it at
+  // once if the agent is already idle.
   const steerOrQueue = useCallback(
     async (instruction: string): Promise<void> => {
       if (await steerMessage(instruction)) {

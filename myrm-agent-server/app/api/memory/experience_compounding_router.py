@@ -28,6 +28,8 @@ from app.schemas.experience_compounding import (
     DecondenseRuleRequest,
     ExperienceCompoundingStatsResponse,
     GoldenRuleDTO,
+    PenalizeExperienceItemRequest,
+    PenalizeExperienceItemResponse,
     ReinforceExperienceRequest,
 )
 from app.services.memory.experience_compounding.provider import (
@@ -68,6 +70,22 @@ async def reinforce_experience(
     """Reinforce experience adoption count and dynamically extend half-life."""
     new_weight = service.reinforce(request)
     return {"status": "reinforced", "item_id": request.item_id, "new_weight": new_weight}
+
+
+@router.post(
+    "/penalize",
+    response_model=PenalizeExperienceItemResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Record contradiction penalty and accelerate cold decay to prevent upward blindness",
+)
+async def penalize_experience(
+    request: PenalizeExperienceItemRequest,
+    service: ExperienceCompoundingServiceProvider = Depends(
+        get_experience_compounding_service
+    ),
+) -> PenalizeExperienceItemResponse:
+    """Penalize contradicted experience item to prevent upward blindness."""
+    return service.penalize(request)
 
 
 @router.post(

@@ -607,6 +607,7 @@ myrm_agent_harness.toolkits.mcp.security
 myrm_agent_harness.toolkits.memory
 myrm_agent_harness.toolkits.memory.agent_surface.mcp
 myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
+myrm_agent_harness.toolkits.memory.auto_consolidation
 myrm_agent_harness.toolkits.memory.auto_recall
 myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.budget_curator
@@ -631,6 +632,10 @@ myrm_agent_harness.toolkits.memory.graph.age_store
 myrm_agent_harness.toolkits.memory.graph.base
 myrm_agent_harness.toolkits.memory.graph.sqlite_store
 myrm_agent_harness.toolkits.memory.graph_rrf
+myrm_agent_harness.toolkits.memory.graph_reorganization
+myrm_agent_harness.toolkits.memory.quadruple_retrieval
+myrm_agent_harness.toolkits.memory.quadruple_retrieval.parallel_retriever
+myrm_agent_harness.toolkits.memory.live_correction
 myrm_agent_harness.toolkits.memory.handoff
 myrm_agent_harness.toolkits.memory.health
 myrm_agent_harness.toolkits.memory.integration.fetcher
@@ -642,6 +647,8 @@ myrm_agent_harness.toolkits.memory.intent_reflection
 myrm_agent_harness.toolkits.memory.kg_screening.shield
 myrm_agent_harness.toolkits.memory.kg_screening.types
 myrm_agent_harness.toolkits.memory.manager
+myrm_agent_harness.toolkits.memory.mem_cube.models
+myrm_agent_harness.toolkits.memory.mem_cube.orchestrator
 myrm_agent_harness.toolkits.memory.memory_search_policy
 myrm_agent_harness.toolkits.memory.metrics
 myrm_agent_harness.toolkits.memory.openclaw_adapter
@@ -676,6 +683,7 @@ myrm_agent_harness.toolkits.memory.types
 myrm_agent_harness.toolkits.memory.universal_mcp_bridge
 myrm_agent_harness.toolkits.memory.unload_guard
 myrm_agent_harness.toolkits.memory.vector_preflight
+myrm_agent_harness.toolkits.memory.budget_packing
 myrm_agent_harness.toolkits.mobile_adb
 myrm_agent_harness.toolkits.mobile_adb.session
 myrm_agent_harness.toolkits.openapi_bridge

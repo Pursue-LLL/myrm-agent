@@ -37,6 +37,22 @@ class ReinforceExperienceRequest(BaseModel):
     adopted: bool = Field(default=True, description="Whether the suggestion was positively adopted")
 
 
+class PenalizeExperienceItemRequest(BaseModel):
+    """Payload to record user contradiction or rejection against an experience item."""
+
+    item_id: str = Field(min_length=1, description="Unique identifier of the target experience item")
+    severity: float = Field(default=0.5, gt=0.0, le=1.0, description="Penalty severity ratio (0.1 to 1.0)")
+
+
+class PenalizeExperienceItemResponse(BaseModel):
+    """Result of contradiction penalty operation."""
+
+    item_id: str = Field(description="Unique identifier of the penalized item")
+    new_weight: float = Field(description="Updated compounded weight after penalty")
+    half_life_days: float = Field(description="Updated half-life in days")
+    status: str = Field(description="Operational status")
+
+
 class DecondenseRuleRequest(BaseModel):
     """Payload to roll back a synthesized Golden Rule into original active fragments."""
 
@@ -51,6 +67,7 @@ class CompoundedExperienceItemDTO(BaseModel):
     topic: str = Field(description="Domain topic")
     base_weight: float = Field(description="Initial base weight")
     compounded_weight: float = Field(description="Compounded weight score after reinforcement")
+    peak_weight: float = Field(default=1.0, description="Historical peak compounded weight anchor")
     hit_count: int = Field(ge=0, description="Total hit count")
     adoption_count: int = Field(ge=0, description="Total positive adoption count")
     state: str = Field(description="Lifecycle state: active, condensed_archived, cold_tiered")

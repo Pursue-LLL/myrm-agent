@@ -227,7 +227,7 @@ describe('useMessageInput submit telemetry integration', () => {
   });
 
   describe('an instruction the running turn cannot take', () => {
-    it('queues a refused steer instead of sending it into the busy agent, and says so', async () => {
+    it('queues a refused steer and tells the user it is sent after the current task', async () => {
       chatStoreRef.state = buildChatState({ loading: true });
       mockSteerMessage.mockResolvedValueOnce(false);
       mockEnqueue.mockReturnValue(2);
@@ -245,7 +245,7 @@ describe('useMessageInput submit telemetry integration', () => {
       expect(mockSetInputMessage).toHaveBeenCalledWith('');
     });
 
-    it('queues a refused steer without a notice once the agent has gone idle, since the drain sends it at once', async () => {
+    it('queues a refused steer without a notice when the agent has gone idle', async () => {
       mockSteerMessage.mockResolvedValueOnce(false);
       const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
       const { result } = renderHook(() => useMessageInput());

@@ -144,3 +144,39 @@ async def test_stats_and_active_endpoints(test_app: FastAPI) -> None:
         assert active_resp.status_code == 200
         active_items = active_resp.json()
         assert len(active_items) == stats["active_items"]
+
+
+@pytest.mark.asyncio
+async def test_penalize_experience_endpoint(test_app: FastAPI) -> None:
+    """Verify penalizing contradicted experience item with downward decay."""
+    async with AsyncClient(
+        transport=ASGITransport(app=test_app), base_url="http://test"
+    ) as client:
+        # 1. Fetch active items
+        active_resp = await client.get("/api/memory/compounding/active")
+        assert active_resp.status_code == 200
+        items = active_resp.json()
+        assert len(items) > 0
+        target_item = items[0]
+        initial_weight = target_item["compounded_weight"]
+
+        # 2. Penalize item
+        pen_resp = await client.post(
+            "/api/memory/compounding/penalize",
+            json={"item_id": target_item["item_id"], "severity": 0.5},
+        )
+        assert pen_resp.status_code == 200
+        pen_data = pen_resp.json()
+        assert pen_data["status"] == "penalized"
+        assert pen_data["new_weight"] < initial_weight
+        assert pen_data["item_id"] == target_item["item_id"]
+
+        # 3. Verify in active list
+        active_after = await client.get("/api/memory/compounding/active")
+        assert active_after.status_code == 200
+        updated_item = next(
+            it for it in active_after.json() if it["item_id"] == target_item["item_id"]
+        )
+        assert updated_item["compounded_weight"] == pen_data["new_weight"]
+        assert "peak_weight" in updated_item
+
