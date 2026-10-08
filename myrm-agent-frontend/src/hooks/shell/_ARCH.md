@@ -9,5 +9,6 @@
 | `useNavBadges.ts`       | NavBar badge（cron/approvals/notifications）               |
 | `useGlobalShortcuts.ts` | Cmd+N/B/1-9 等全局快捷键                                   |
 | `useCrashLoopGuard.ts`  | 崩溃循环检测与恢复对话框                                   |
+| `useIntentMessages.ts`  | 深链/OAuth 回调 toast 与默认档案名的本地化文案（memo 稳定）   |
 
 消费者：`AppLayout`、`NavBar`、`LivenessIndicator`、`tauri/useTrayStatus`。

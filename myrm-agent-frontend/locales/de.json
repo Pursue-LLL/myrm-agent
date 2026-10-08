@@ -18268,6 +18268,7 @@
         "remove": "Entfernen",
         "profileNamePlaceholder": "Name, z. B. Homelab",
         "offlineHint": "Geplante Aufgaben laufen auf dem Remote-Server weiter, auch wenn dieser Desktop offline ist.",
+        "cloudProfileName": "Cloud-Sandbox",
         "cloudTitle": "Cloud-Hosting",
         "cloudDesc": "Melden Sie sich mit Ihrem Cloud-Konto an und finden Sie Ihre gehostete Sandbox. Keine Serveradresse nötig.",
         "checkProviders": "Anmeldeoptionen prüfen",

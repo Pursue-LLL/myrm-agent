@@ -1,5 +1,6 @@
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
-import { parseIntentUrl, UIPIntent } from './schema';
+import { parseIntentUrl, redactIntentUrl, UIPIntent } from './schema';
+import { consumeDesktopOAuth } from '@/lib/desktop-oauth';
 import { toast } from 'sonner';
 
 /**
@@ -13,6 +14,7 @@ export interface IntentMessages {
   invalidLink: string;
   oauthSuccess: string;
   oauthFailed: string;
+  cloudProfileName: string;
 }
 
 export class IntentDispatcher {
@@ -28,7 +30,7 @@ export class IntentDispatcher {
 
   public async dispatch(rawUrl: string, parsedIntent?: UIPIntent): Promise<boolean> {
     try {
-      console.log(`[UIP] Received deep link: ${rawUrl}`);
+      console.log(`[UIP] Received deep link: ${redactIntentUrl(rawUrl)}`);
       const intent = parsedIntent ?? parseIntentUrl(rawUrl);
       await this.execute(intent);
       return true;
@@ -40,20 +42,31 @@ export class IntentDispatcher {
   }
 
   /**
-   * Desktop OAuth 回调：持久化 CP token 并用沙箱列表校验，成功后落为 Cloud 档案。
-   * 仅响应本机发起过的授权（存在待决请求）；无待决请求的回调一律拒绝，
-   * 避免任意深链静默写入会话。校验失败零副作用，不动本地会话。
+   * Desktop OAuth 回调：校验本机发起的授权（state 匹配且未过期，一次性），用控制平面的一次性
+   * exchange 换出会话 token，沙箱列表校验通过后才落为 Cloud 档案。
+   * 任何校验失败都零副作用，不动本地会话。
    */
-  private async handleOAuthCallback(token: string) {
+  private async handleOAuthCallback(exchange: string, state: string) {
     const LOCAL_TOKEN_BACKUP_KEY = 'myrm-local-auth-token-backup';
-    const { CLOUD_OAUTH_PENDING_KEY } = await import('@/lib/remote-profiles');
     try {
-      const pendingRaw = typeof window !== 'undefined' ? window.localStorage.getItem(CLOUD_OAUTH_PENDING_KEY) : null;
-      const pending = pendingRaw ? (JSON.parse(pendingRaw) as { cpBaseUrl?: string }) : null;
-      const cpBaseUrl = typeof pending?.cpBaseUrl === 'string' ? pending.cpBaseUrl.replace(/\/+$/, '') : null;
-
+      const cpBaseUrl = consumeDesktopOAuth(state);
       if (!cpBaseUrl) {
-        throw new Error('No pending OAuth request');
+        throw new Error('No matching pending OAuth request');
+      }
+
+      const redeemRes = await fetch(`${cpBaseUrl}/api/auth/oauth/exchange`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exchange }),
+        cache: 'no-store',
+      });
+      if (!redeemRes.ok) {
+        throw new Error(`Exchange redemption failed: ${redeemRes.status}`);
+      }
+      const redeemed = (await redeemRes.json()) as { token?: string; user_id?: string; email?: string };
+      const { token, user_id: userId, email = '' } = redeemed;
+      if (!token || !userId) {
+        throw new Error('Exchange response is incomplete');
       }
 
       // 先验后写：token 有效性用沙箱列表校验，通过后才动本地会话，失败零副作用。
@@ -65,16 +78,13 @@ export class IntentDispatcher {
         throw new Error(`Sandbox discovery failed: ${res.status}`);
       }
 
-      if (typeof window !== 'undefined') {
-        const current = window.localStorage.getItem('auth_token');
-        if (current && current !== token && !window.localStorage.getItem(LOCAL_TOKEN_BACKUP_KEY)) {
-          window.localStorage.setItem(LOCAL_TOKEN_BACKUP_KEY, current);
-        }
-        window.localStorage.removeItem(CLOUD_OAUTH_PENDING_KEY);
+      const current = window.localStorage.getItem('auth_token');
+      if (current && current !== token && !window.localStorage.getItem(LOCAL_TOKEN_BACKUP_KEY)) {
+        window.localStorage.setItem(LOCAL_TOKEN_BACKUP_KEY, current);
       }
 
       const { default: useAuthStore } = await import('@/store/useAuthStore');
-      await useAuthStore.getState().login(token);
+      await useAuthStore.getState().login(token, { id: userId, email });
 
       const { addRemoteProfile, listRemoteProfiles, setActiveRemoteProfileId } =
         await import('@/lib/remote-profiles');
@@ -83,7 +93,7 @@ export class IntentDispatcher {
       if (existing) {
         setActiveRemoteProfileId(existing.id);
       } else {
-        addRemoteProfile('Cloud sandbox', proxyBase, { kind: 'cloud', cpBaseUrl });
+        addRemoteProfile(this.messages.cloudProfileName, proxyBase, { kind: 'cloud', cpBaseUrl });
       }
 
       toast.success(this.messages.oauthSuccess);
@@ -95,7 +105,7 @@ export class IntentDispatcher {
   }
 
   private async execute(intent: UIPIntent) {
-    console.log(`[UIP] Executing intent:`, intent);
+    console.log(`[UIP] Executing intent: ${intent.action}`);
 
     // Ensure the window is visible and focused when receiving a deep link
     if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
@@ -123,7 +133,7 @@ export class IntentDispatcher {
         this.openFlowPad(intent.text);
         break;
       case 'oauth':
-        await this.handleOAuthCallback(intent.token);
+        await this.handleOAuthCallback(intent.exchange, intent.state);
         break;
       case 'install-skill':
         this.router.push(`/settings/skills?action=install&url=${encodeURIComponent(intent.url)}`);

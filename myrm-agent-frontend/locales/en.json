@@ -5355,6 +5355,7 @@
         "remove": "Remove",
         "profileNamePlaceholder": "Name, e.g. Homelab",
         "offlineHint": "Scheduled tasks keep running on the remote server even when this desktop is offline or closed.",
+        "cloudProfileName": "Cloud sandbox",
         "cloudTitle": "Cloud hosting",
         "cloudDesc": "Sign in with your cloud account, then discover your hosted sandbox. No server address to paste.",
         "checkProviders": "Check sign-in options",

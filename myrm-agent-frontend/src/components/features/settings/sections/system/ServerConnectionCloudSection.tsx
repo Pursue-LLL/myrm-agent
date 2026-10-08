@@ -4,12 +4,9 @@ import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { setRemoteGatewayConfig } from '@/lib/deploy-mode';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
-import {
-  CLOUD_OAUTH_PENDING_KEY,
-  addRemoteProfile,
-  listRemoteProfiles,
-  removeRemoteProfile,
-} from '@/lib/remote-profiles';
+import { beginDesktopOAuth } from '@/lib/desktop-oauth';
+import { desktopBridge } from '@/lib/desktopBridge';
+import { addRemoteProfile, listRemoteProfiles, removeRemoteProfile } from '@/lib/remote-profiles';
 import { toast } from '@/lib/utils/toast';
 
 interface ServerConnectionCloudSectionProps {
@@ -57,16 +54,9 @@ const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionClou
       if (!cpBase) {
         return;
       }
-      try {
-        window.localStorage.setItem(CLOUD_OAUTH_PENDING_KEY, JSON.stringify({ cpBaseUrl: cpBase }));
-      } catch {
-        // ignore
-      }
-      const redirect = encodeURIComponent('/auth/oauth/callback?desktop=1');
-      window.open(
-        `${cpBase}/api/auth/oauth/${provider}/authorize?redirect=${redirect}`,
-        '_blank',
-        'noopener,noreferrer',
+      const redirect = encodeURIComponent(beginDesktopOAuth(cpBase));
+      void desktopBridge.openExternal(
+        `${cpBase}/api/auth/oauth/${encodeURIComponent(provider)}/authorize?redirect=${redirect}`,
       );
     },
     [cpBaseInput],
@@ -92,10 +82,10 @@ const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionClou
       const proxyBase = `${cpBase}/proxy/me`;
       let profile = listRemoteProfiles().find((p) => p.url === proxyBase) ?? null;
       if (!profile) {
-        profile = addRemoteProfile('Cloud sandbox', proxyBase, { kind: 'cloud', cpBaseUrl: cpBase });
+        profile = addRemoteProfile(t('cloudProfileName'), proxyBase, { kind: 'cloud', cpBaseUrl: cpBase });
       } else if (profile.kind !== 'cloud') {
         removeRemoteProfile(profile.id);
-        profile = addRemoteProfile('Cloud sandbox', proxyBase, { kind: 'cloud', cpBaseUrl: cpBase });
+        profile = addRemoteProfile(t('cloudProfileName'), proxyBase, { kind: 'cloud', cpBaseUrl: cpBase });
       }
       if (!profile) {
         toast.error(t('duplicateProfile'));

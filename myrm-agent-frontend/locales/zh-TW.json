@@ -18268,6 +18268,7 @@
         "remove": "移除",
         "profileNamePlaceholder": "名稱，例如家庭伺服器",
         "offlineHint": "即使本機關機或離線，排程任務仍在遠端伺服器上繼續執行。",
+        "cloudProfileName": "雲端沙箱",
         "cloudTitle": "雲託管",
         "cloudDesc": "使用雲端帳號登入，然後發現你的雲端沙箱，無需貼上伺服器位址。",
         "checkProviders": "查看登入方式",

@@ -5355,6 +5355,7 @@
         "remove": "移除",
         "profileNamePlaceholder": "名称，例如家庭服务器",
         "offlineHint": "即使本机关机或离线，定时任务仍在远端服务器上继续运行。",
+        "cloudProfileName": "云端沙箱",
         "cloudTitle": "云托管",
         "cloudDesc": "使用云账号登录，然后发现你的云端沙箱，无需粘贴服务器地址。",
         "checkProviders": "查看登录方式",

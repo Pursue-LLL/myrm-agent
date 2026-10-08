@@ -29,11 +29,12 @@ export const QuickAskIntentSchema = BaseIntentSchema.extend({
   text: z.string().min(1, 'Query text is required'),
 });
 
-// 4. OAuth Callback Intent: myrmagent://oauth/callback?token={token}
+// 4. OAuth Callback Intent: myrmagent://oauth/callback?exchange={id}&state={nonce}
 export const OAuthIntentSchema = BaseIntentSchema.extend({
   action: z.literal('oauth'),
   path: z.literal('callback'),
-  token: z.string().min(1, 'Token is required'),
+  exchange: z.string().min(1, 'Exchange id is required'),
+  state: z.string().min(1, 'State is required'),
 });
 
 // 5. Install Skill Intent: myrmagent://install-skill?url={url}
@@ -52,6 +53,23 @@ export const UIPIntentSchema = z.discriminatedUnion('action', [
 ]);
 
 export type UIPIntent = z.infer<typeof UIPIntentSchema>;
+
+const SENSITIVE_PARAMS = ['exchange', 'state', 'token'];
+
+/** Masks credential-bearing query params so deep links can be logged safely. */
+export function redactIntentUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl);
+    for (const key of SENSITIVE_PARAMS) {
+      if (url.searchParams.has(key)) {
+        url.searchParams.set(key, 'redacted');
+      }
+    }
+    return url.toString();
+  } catch {
+    return '[unparseable-url]';
+  }
+}
 
 /**
  * Parses a raw URL string into a strongly-typed UIP Intent.
@@ -116,7 +134,8 @@ export function parseIntentUrl(rawUrl: string): UIPIntent {
         return OAuthIntentSchema.parse({
           ...basePayload,
           path,
-          token: url.searchParams.get('token') || '',
+          exchange: url.searchParams.get('exchange') || '',
+          state: url.searchParams.get('state') || '',
         });
       case 'install-skill':
         return InstallSkillIntentSchema.parse({
@@ -127,7 +146,7 @@ export function parseIntentUrl(rawUrl: string): UIPIntent {
         throw new Error(`Unsupported action: ${action}`);
     }
   } catch (error) {
-    console.error('[UIP] Failed to parse intent URL:', rawUrl, error);
+    console.error('[UIP] Failed to parse intent URL:', redactIntentUrl(rawUrl), error);
     throw error;
   }
 }

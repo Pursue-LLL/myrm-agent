@@ -1,4 +1,4 @@
-import { parseIntentUrl } from '@/lib/intent-dispatcher/schema';
+import { parseIntentUrl, redactIntentUrl } from '@/lib/intent-dispatcher/schema';
 
 describe('Universal Intent Protocol (UIP) Schema Parser', () => {
   describe('Valid Intents', () => {
@@ -18,8 +18,14 @@ describe('Universal Intent Protocol (UIP) Schema Parser', () => {
     });
 
     it('should parse oauth callback intent correctly', () => {
-      const result = parseIntentUrl('myrmagent://oauth/callback?token=secret-token');
-      expect(result).toEqual({ scheme: 'myrmagent', action: 'oauth', path: 'callback', token: 'secret-token' });
+      const result = parseIntentUrl('myrmagent://oauth/callback?exchange=ex-1&state=st-1');
+      expect(result).toEqual({
+        scheme: 'myrmagent',
+        action: 'oauth',
+        path: 'callback',
+        exchange: 'ex-1',
+        state: 'st-1',
+      });
     });
 
     it('should parse install-skill intent correctly', () => {
@@ -47,8 +53,14 @@ describe('Universal Intent Protocol (UIP) Schema Parser', () => {
     });
 
     it('should parse web-based oauth callback correctly', () => {
-      const result = parseIntentUrl('https://app.myrmagent.com/intent/oauth/callback?token=abc123');
-      expect(result).toEqual({ scheme: 'https', action: 'oauth', path: 'callback', token: 'abc123' });
+      const result = parseIntentUrl('https://app.myrmagent.com/intent/oauth/callback?exchange=ex-2&state=st-2');
+      expect(result).toEqual({
+        scheme: 'https',
+        action: 'oauth',
+        path: 'callback',
+        exchange: 'ex-2',
+        state: 'st-2',
+      });
     });
 
     it('should handle URL-encoded special characters in text', () => {
@@ -74,6 +86,18 @@ describe('Universal Intent Protocol (UIP) Schema Parser', () => {
       expect(() => parseIntentUrl('myrmagent://ask')).toThrow();
     });
 
+    it('should throw on oauth callback without a state', () => {
+      expect(() => parseIntentUrl('myrmagent://oauth/callback?exchange=ex-1')).toThrow();
+    });
+
+    it('should throw on oauth callback without an exchange id', () => {
+      expect(() => parseIntentUrl('myrmagent://oauth/callback?state=st-1')).toThrow();
+    });
+
+    it('should reject the legacy token-carrying oauth callback', () => {
+      expect(() => parseIntentUrl('myrmagent://oauth/callback?token=abc')).toThrow();
+    });
+
     it('should throw on malicious javascript injection attempt in URL', () => {
       expect(() => parseIntentUrl('javascript:alert(1)')).toThrow();
     });
@@ -94,6 +118,23 @@ describe('Universal Intent Protocol (UIP) Schema Parser', () => {
       const result = parseIntentUrl('myrmagent://chat/../../../etc/passwd');
       expect(result.action).toBe('chat');
       expect(result).toHaveProperty('id');
+    });
+  });
+
+  describe('redactIntentUrl', () => {
+    it('masks exchange, state and token params while keeping the rest of the link', () => {
+      const out = redactIntentUrl('myrmagent://oauth/callback?exchange=secret-ex&state=secret-st&token=secret-tk&x=1');
+      expect(out).not.toContain('secret');
+      expect(out).toContain('x=1');
+      expect(out.startsWith('myrmagent://oauth/callback')).toBe(true);
+    });
+
+    it('leaves links without sensitive params untouched', () => {
+      expect(redactIntentUrl('myrmagent://chat/123')).toBe('myrmagent://chat/123');
+    });
+
+    it('never echoes an unparseable input', () => {
+      expect(redactIntentUrl('not a url token=secret')).toBe('[unparseable-url]');
     });
   });
 });
