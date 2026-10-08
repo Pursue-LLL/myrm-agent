@@ -5,6 +5,9 @@ system prompt, press "Export agent", and read the review panel. The backend prev
 FastAPI + DB, no LLM) reports stable ``kinds`` codes; the panel must render them as localized
 sentences, never as raw codes and never as the English wording of an older build.
 
+Both zh and en are checked, then the redacted export is pressed so the real download and success
+toast run.
+
 The locale is switched through the ``NEXT_LOCALE`` cookie exactly as the language picker does,
 and restored afterwards so the shared E2E browser profile is left as it was found.
 """
@@ -57,12 +60,20 @@ def _set_locale_js(value: str | None) -> str:
     return f"(() => {{ document.cookie = {json.dumps(cookie)}; location.reload(); return {{ ok: true }}; }})()"
 
 
-_EXPORT_BUTTON_JS = """(() => {
-  const btn = Array.from(document.querySelectorAll('button')).find((b) =>
-    /^(导出智能体|Export agent)$/.test((b.textContent || '').trim()),
+# agent.expertExport.{exportSuccess, actions.exportRedacted} from locales/{zh,en}.json
+_EXPORT_REDACTED = {"zh": "导出脱敏版 (安全)", "en": "Export Redacted (Safe)"}
+_EXPORT_SUCCESS = {"zh": "智能体包导出成功", "en": "Agent package exported successfully"}
+_BUTTON_LABEL = {"zh": "导出智能体", "en": "Export agent"}
+
+
+def _export_button_js(label: str) -> str:
+    # Matching the expected label (not any label) keeps the poll from reading the pre-reload page.
+    return f"""(() => {{
+  const btn = Array.from(document.querySelectorAll('button')).find(
+    (b) => (b.textContent || '').trim() === {json.dumps(label)},
   );
-  return { ready: !!btn && !btn.disabled, found: !!btn, label: btn ? (btn.textContent || '').trim() : null };
-})()"""
+  return {{ ready: !!btn && !btn.disabled, found: !!btn }};
+}})()"""
 
 
 def _review_state_js(*, expect: tuple[str, ...], leaked: tuple[str, ...]) -> str:
@@ -88,6 +99,34 @@ def _review_state_js(*, expect: tuple[str, ...], leaked: tuple[str, ...]) -> str
     leaked: present,
     text: text.slice(0, 1800),
   }};
+}})()"""
+
+
+def _confirm_export_js(locale: str) -> str:
+    """Press the redacted-export button once; done when the dialog has closed after that click.
+
+    The dialog closes only on a successful export (a failure keeps it open under an error toast), so
+    closure after the click is the verdict. The success toast is transient, so it is only recorded.
+    """
+    return f"""(() => {{
+  const w = window;
+  // innerText skips the inlined <script> payload, which carries every translated string.
+  if ((document.body.innerText || '').includes({json.dumps(_EXPORT_SUCCESS[locale])})) w.__kindsToastSeen = true;
+  const exportDialogs = () =>
+    Array.from(document.querySelectorAll('[role="dialog"]')).filter((node) =>
+      /导出智能体|Export Agent|Export agent/.test(node.textContent || ''),
+    );
+  if (!w.__kindsExportClicked) {{
+    const btn = exportDialogs()
+      .flatMap((node) => Array.from(node.querySelectorAll('button')))
+      .find((b) => (b.textContent || '').trim() === {json.dumps(_EXPORT_REDACTED[locale])} && !b.disabled);
+    if (btn) {{ btn.click(); w.__kindsExportClicked = true; }}
+    return {{ ready: false, clicked: !!w.__kindsExportClicked }};
+  }}
+  // Radix flips data-state to "closed" at once; the node itself lingers until its exit animation ends,
+  // which never fires while the shared E2E tab is not painted.
+  const states = exportDialogs().map((node) => node.getAttribute('data-state'));
+  return {{ ready: !states.includes('open'), dialogStates: states, toastSeen: !!w.__kindsToastSeen }};
 }})()"""
 
 
@@ -133,21 +172,26 @@ def test_expert_export_review_renders_localized_finding_kinds() -> None:
             previous = client.evaluate(page, _READ_LOCALE_JS, timeout_sec=15.0)
             assert isinstance(previous, dict), previous
             try:
-                client.evaluate(page, _set_locale_js("zh"), timeout_sec=15.0)
-                button = wait_for_state(client, page, _EXPORT_BUTTON_JS, timeout_sec=90.0)
-                assert button.get("ready") is True and button.get("label") == "导出智能体", button
+                for locale, own, other in (("zh", 1, 2), ("en", 2, 1)):
+                    client.evaluate(page, _set_locale_js(locale), timeout_sec=15.0)
+                    button = wait_for_state(client, page, _export_button_js(_BUTTON_LABEL[locale]), timeout_sec=90.0)
+                    assert button.get("ready") is True, (locale, button)
 
-                review = wait_for_state(
-                    client,
-                    page,
-                    _review_state_js(
-                        expect=(_API_TOKEN[1], _ABSOLUTE_PATH[1]),
-                        leaked=(_API_TOKEN[0], _ABSOLUTE_PATH[0], "kinds.", _API_TOKEN[2], _ABSOLUTE_PATH[2]),
-                    ),
-                    timeout_sec=90.0,
-                )
-                assert review.get("missing") == [], review
-                assert review.get("leaked") == [], review
+                    review = wait_for_state(
+                        client,
+                        page,
+                        _review_state_js(
+                            expect=(_API_TOKEN[own], _ABSOLUTE_PATH[own]),
+                            leaked=(_API_TOKEN[0], _ABSOLUTE_PATH[0], "kinds.", _API_TOKEN[other], _ABSOLUTE_PATH[other]),
+                        ),
+                        timeout_sec=90.0,
+                    )
+                    assert review.get("missing") == [], (locale, review)
+                    assert review.get("leaked") == [], (locale, review)
+
+                # The author accepts the redacted package: the real download runs and the dialog closes.
+                done = wait_for_state(client, page, _confirm_export_js("en"), timeout_sec=90.0)
+                assert done.get("ready") is True, done
             finally:
                 client.evaluate(page, _set_locale_js(previous.get("value")), timeout_sec=15.0)
     finally:
