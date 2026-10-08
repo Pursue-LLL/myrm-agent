@@ -9,6 +9,7 @@ import { getActiveSessions } from '@/services/agent';
 import ActiveSessionsSwitchConfirmDialog from './ActiveSessionsSwitchConfirmDialog';
 import {
   addRemoteProfile,
+  ensureCloudProfile,
   getActiveRemoteProfileId,
   listRemoteProfiles,
   removeRemoteProfile,
@@ -245,15 +246,32 @@ const ServerConnectionCard = memo(() => {
     });
   }, [t, refresh, commitSwitch]);
 
-  const handleCloudConnected = useCallback(async () => {
-    refresh();
-    toast.success(t('connected'));
-    try {
-      await switchRemoteFollow(true);
-    } catch {
-      toast.error(t('switchFailed'));
-    }
-  }, [t, refresh]);
+  // 发现沙箱验证通过后的连接切换：与档案切换同一条路径（先 Rust 编排、成功后才建档案激活）。
+  const handleSandboxVerified = useCallback(
+    (cpBase: string) => {
+      setSwitchingKey('cloud');
+      void commitSwitch(
+        cpBase,
+        () => {
+          const profile = ensureCloudProfile(t('cloudProfileName'), cpBase);
+          if (!profile) {
+            toast.error(t('duplicateProfile'));
+            setSwitchingKey(null);
+            return;
+          }
+          setRemoteGatewayConfig({ enabled: true, url: profile.url });
+          refresh();
+          toast.success(t('connected'));
+        },
+        true,
+      ).then((applied) => {
+        if (!applied) {
+          setSwitchingKey(null);
+        }
+      });
+    },
+    [t, refresh, commitSwitch],
+  );
 
   if (!isTauriRuntime()) {
     return null;
@@ -374,7 +392,11 @@ const ServerConnectionCard = memo(() => {
 
             <div className="h-px bg-white/5" />
 
-            <ServerConnectionCloudSection onConnected={handleCloudConnected} />
+            <ServerConnectionCloudSection
+              guardSwitch={guardActiveSessions}
+              onSandboxVerified={handleSandboxVerified}
+              busy={switchingKey === 'cloud'}
+            />
           </>
         )}
       </div>

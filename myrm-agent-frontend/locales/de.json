@@ -18289,8 +18289,8 @@
         "rollbackFailed": "Wiederherstellung der letzten funktionierenden Verbindung nicht abgeschlossen. Bitte versuchen Sie es gleich erneut.",
         "activeSessionsDialog": {
           "title": "Aktive Sitzungen erkannt",
-          "description": "{count} Sitzungen werden lokal noch generiert. Der Wechsel wartet auf deren Abschluss und lädt die Seite dann neu; der Sitzungsverlauf bleibt erhalten.",
-          "confirm": "Trotzdem wechseln",
+          "description": "{count} Sitzungen werden lokal noch generiert. Der Verbindungswechsel unterbricht sie; der gespeicherte Sitzungsverlauf bleibt erhalten.",
+          "confirm": "Trotzdem fortfahren",
           "cancel": "Abbrechen"
         }
       },
@@ -20223,7 +20223,6 @@
   "intentDispatcher": {
     "invalidLink": "Ungültiger externer Link oder ungültige Parameter",
     "oauthSuccess": "Autorisierung erfolgreich",
-    "oauthFailed": "Autorisierungsprüfung fehlgeschlagen, bitte erneut versuchen",
-    "oauthBusy": "Eine Aufgabe läuft noch. Beenden oder stoppen Sie sie und melden Sie sich dann erneut an."
+    "oauthFailed": "Autorisierungsprüfung fehlgeschlagen, bitte erneut versuchen"
   }
 }

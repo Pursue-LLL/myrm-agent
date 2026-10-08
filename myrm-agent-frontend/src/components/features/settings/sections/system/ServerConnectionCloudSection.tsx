@@ -2,18 +2,22 @@
 
 import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { setRemoteGatewayConfig } from '@/lib/deploy-mode';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
 import { beginDesktopOAuth } from '@/lib/desktop-oauth';
 import { desktopBridge } from '@/lib/desktopBridge';
-import { ensureCloudProfile } from '@/lib/remote-profiles';
 import { toast } from '@/lib/utils/toast';
 
 interface ServerConnectionCloudSectionProps {
-  onConnected: () => void;
+  /** 切断当前连接前的知情确认（有进行中会话时弹窗）；登录与发现沙箱都先过它。 */
+  guardSwitch: (proceed: () => void) => Promise<void>;
+  /** 已验证 token 可用后由父级完成真正的连接切换。 */
+  onSandboxVerified: (cpBase: string) => void;
+  /** 父级切换连接进行中。 */
+  busy: boolean;
 }
 
-const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionCloudSectionProps) => {
+const ServerConnectionCloudSection = memo((props: ServerConnectionCloudSectionProps) => {
+  const { guardSwitch, onSandboxVerified, busy } = props;
   const t = useTranslations('settings.system.serverConnection');
 
   const [cpBaseInput, setCpBaseInput] = useState(() => {
@@ -48,12 +52,8 @@ const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionClou
     }
   }, [cpBaseInput]);
 
-  const handleCloudSignIn = useCallback(
-    async (provider: string) => {
-      const cpBase = cpBaseInput.trim().replace(/\/+$/, '');
-      if (!cpBase) {
-        return;
-      }
+  const startSignIn = useCallback(
+    async (cpBase: string, provider: string) => {
       try {
         const { redirect, codeChallenge } = await beginDesktopOAuth(cpBase);
         const query = new URLSearchParams({
@@ -71,7 +71,19 @@ const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionClou
         toast.error(t('signInStartFailed'));
       }
     },
-    [cpBaseInput, t],
+    [t],
+  );
+
+  // 登录回跳后会直接切换连接，所以确认必须在打开浏览器之前完成。
+  const handleCloudSignIn = useCallback(
+    (provider: string) => {
+      const cpBase = cpBaseInput.trim().replace(/\/+$/, '');
+      if (!cpBase) {
+        return;
+      }
+      void guardSwitch(() => void startSignIn(cpBase, provider));
+    },
+    [cpBaseInput, guardSwitch, startSignIn],
   );
 
   const handleDiscoverSandbox = useCallback(async () => {
@@ -91,19 +103,13 @@ const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionClou
         toast.error(t('discoverFailed'));
         return;
       }
-      const profile = ensureCloudProfile(t('cloudProfileName'), cpBase);
-      if (!profile) {
-        toast.error(t('duplicateProfile'));
-        return;
-      }
-      setRemoteGatewayConfig({ enabled: true, url: profile.url });
-      onConnected();
+      void guardSwitch(() => onSandboxVerified(cpBase));
     } catch {
       toast.error(t('discoverFailed'));
     } finally {
       setDiscovering(false);
     }
-  }, [cpBaseInput, t, onConnected]);
+  }, [cpBaseInput, t, guardSwitch, onSandboxVerified]);
 
   return (
     <div className="space-y-3">
@@ -131,7 +137,7 @@ const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionClou
         <button
           type="button"
           onClick={() => void handleDiscoverSandbox()}
-          disabled={discovering || !cpBaseInput.trim()}
+          disabled={discovering || busy || !cpBaseInput.trim()}
           className="px-4 py-2 rounded-xl border border-white/10 text-xs font-bold hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {discovering ? t('testing') : t('discoverSandbox')}
@@ -146,7 +152,7 @@ const ServerConnectionCloudSection = memo(({ onConnected }: ServerConnectionClou
             <button
               key={provider}
               type="button"
-              onClick={() => void handleCloudSignIn(provider)}
+              onClick={() => handleCloudSignIn(provider)}
               className="px-4 py-2.5 rounded-xl bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 transition-colors"
             >
               {t('continueWith', { provider })}

@@ -5376,8 +5376,8 @@
         "rollbackFailed": "Couldn't restore the last working connection. Please try again shortly.",
         "activeSessionsDialog": {
           "title": "Active sessions detected",
-          "description": "{count} sessions are still generating locally. The switch waits for them to finish, then refreshes the page; session history is preserved.",
-          "confirm": "Switch anyway",
+          "description": "{count} sessions are still generating locally. Switching the connection interrupts them; saved session history is kept.",
+          "confirm": "Continue anyway",
           "cancel": "Cancel"
         }
       },
@@ -20218,7 +20218,6 @@
   "intentDispatcher": {
     "invalidLink": "Invalid external link or parameters",
     "oauthSuccess": "Authorization successful",
-    "oauthFailed": "Authorization check failed, please try again",
-    "oauthBusy": "A task is still running. Finish or stop it, then sign in again."
+    "oauthFailed": "Authorization check failed, please try again"
   }
 }

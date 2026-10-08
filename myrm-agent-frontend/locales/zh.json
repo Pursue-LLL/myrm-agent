@@ -5376,8 +5376,8 @@
         "rollbackFailed": "恢复上次可用连接未完成，请稍后重试。",
         "activeSessionsDialog": {
           "title": "存在活跃会话",
-          "description": "本地有 {count} 个会话正在生成。切换会等待其完成并刷新页面；会话记录仍会保留。",
-          "confirm": "仍然切换",
+          "description": "本地有 {count} 个会话正在生成。切换连接会中断它们；已保存的会话记录仍会保留。",
+          "confirm": "仍然继续",
           "cancel": "取消"
         }
       },
@@ -20218,7 +20218,6 @@
   "intentDispatcher": {
     "invalidLink": "无效的外部链接或参数错误",
     "oauthSuccess": "授权成功",
-    "oauthFailed": "授权校验失败，请重试",
-    "oauthBusy": "仍有任务在运行。请先完成或停止，然后重新登录。"
+    "oauthFailed": "授权校验失败，请重试"
   }
 }

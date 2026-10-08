@@ -7,7 +7,6 @@ import {
   buildDesktopDeepLink,
   consumeDesktopOAuth,
   parseDesktopReturn,
-  peekDesktopOAuth,
 } from '@/lib/desktop-oauth';
 
 function installStorage() {
@@ -81,7 +80,7 @@ describe('desktop-oauth', () => {
     it('returns the S256 challenge of the stored verifier and never the verifier itself', async () => {
       const { redirect, codeChallenge } = await beginDesktopOAuth('https://cp.example.com', 1_000);
 
-      const { codeVerifier } = peekDesktopOAuth(stateOf(redirect), 2_000) ?? { codeVerifier: '' };
+      const { codeVerifier } = JSON.parse(store.get(CLOUD_OAUTH_PENDING_KEY) ?? '{}') as { codeVerifier: string };
       expect(codeVerifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
       expect(codeChallenge).toBe(await challengeOf(codeVerifier));
       expect(codeChallenge).toMatch(/^[A-Za-z0-9_-]{43}$/);
@@ -104,7 +103,7 @@ describe('desktop-oauth', () => {
     });
   });
 
-  describe('peekDesktopOAuth / consumeDesktopOAuth', () => {
+  describe('consumeDesktopOAuth', () => {
     it('returns the control plane address and verifier once for the matching state, then refuses a replay', async () => {
       const state = await begin('https://cp.example.com', 1_000);
 
@@ -115,27 +114,18 @@ describe('desktop-oauth', () => {
       expect(consumeDesktopOAuth(state, 2_001)).toBeNull();
     });
 
-    it('peeks without consuming', async () => {
-      const state = await begin('https://cp.example.com', 1_000);
-
-      expect(peekDesktopOAuth(state, 2_000)).toEqual(peekDesktopOAuth(state, 2_001));
-      expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(true);
-      expect(consumeDesktopOAuth(state, 2_002)).not.toBeNull();
-    });
-
     it('refuses a wrong state without cancelling the real sign-in', async () => {
       const state = await begin('https://cp.example.com', 1_000);
 
-      expect(peekDesktopOAuth('forged', 2_000)).toBeNull();
       expect(consumeDesktopOAuth('forged', 2_000)).toBeNull();
       expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(true);
       expect(consumeDesktopOAuth(state, 2_001)?.cpBaseUrl).toBe('https://cp.example.com');
     });
 
-    it('refuses and drops an expired sign-in, even when only peeking', async () => {
+    it('refuses and drops an expired sign-in', async () => {
       const state = await begin('https://cp.example.com', 1_000);
 
-      expect(peekDesktopOAuth(state, 1_000 + DESKTOP_OAUTH_TTL_MS + 1)).toBeNull();
+      expect(consumeDesktopOAuth(state, 1_000 + DESKTOP_OAUTH_TTL_MS + 1)).toBeNull();
       expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(false);
     });
 

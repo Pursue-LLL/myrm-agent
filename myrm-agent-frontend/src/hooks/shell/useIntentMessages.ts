@@ -22,7 +22,6 @@ export function useIntentMessages(): IntentMessages {
       invalidLink: t('invalidLink'),
       oauthSuccess: t('oauthSuccess'),
       oauthFailed: t('oauthFailed'),
-      oauthBusy: t('oauthBusy'),
       cloudProfileName: tServer('cloudProfileName'),
     }),
     [t, tServer],

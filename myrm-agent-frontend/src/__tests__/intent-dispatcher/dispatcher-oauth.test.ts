@@ -7,13 +7,11 @@ import useAuthStore from '@/store/useAuthStore';
 
 const mocks = vi.hoisted(() => ({
   switchRemoteFollow: vi.fn<(deferred: boolean) => Promise<void>>(),
-  getActiveSessions: vi.fn<() => Promise<{ activeSessions: string[] }>>(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
 }));
 
 vi.mock('@/lib/remote-follow-switch', () => ({ switchRemoteFollow: mocks.switchRemoteFollow }));
-vi.mock('@/services/agent', () => ({ getActiveSessions: mocks.getActiveSessions }));
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError, success: mocks.toastSuccess } }));
 
 const CP = 'https://cp.example.com';
@@ -21,7 +19,6 @@ const messages = {
   invalidLink: 'invalid',
   oauthSuccess: 'ok',
   oauthFailed: 'failed',
-  oauthBusy: 'busy',
   cloudProfileName: 'Cloud box',
 };
 
@@ -95,7 +92,6 @@ describe('dispatcher oauth callback', () => {
     dispatcher = new IntentDispatcher(mockRouter(pushed), () => undefined, messages);
     useAuthStore.setState({ token: null, isAuthenticated: false });
     mocks.switchRemoteFollow.mockReset().mockResolvedValue(undefined);
-    mocks.getActiveSessions.mockReset().mockResolvedValue({ activeSessions: [] });
     mocks.toastError.mockReset();
     mocks.toastSuccess.mockReset();
   });
@@ -141,49 +137,6 @@ describe('dispatcher oauth callback', () => {
     expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(false);
     expect(mocks.toastSuccess).toHaveBeenCalledWith('ok');
     expect(pushed).toEqual(['/settings/system']);
-  });
-
-  it('refuses while a local session is running and keeps the pending sign-in for a retry', async () => {
-    store.set('auth_token', 'local_user_token');
-    const state = await startSignIn();
-    const { spy } = stubControlPlane();
-    mocks.getActiveSessions.mockResolvedValueOnce({ activeSessions: ['s-1'] });
-
-    await dispatcher.dispatch(callbackLink('ex-1', state));
-
-    expect(spy).not.toHaveBeenCalled();
-    expect(mocks.switchRemoteFollow).not.toHaveBeenCalled();
-    expect(mocks.toastError).toHaveBeenCalledExactlyOnceWith('busy');
-    expect(store.get('auth_token')).toBe('local_user_token');
-    expect(listRemoteProfiles()).toHaveLength(0);
-    expect(store.has(CLOUD_OAUTH_PENDING_KEY)).toBe(true);
-    expect(pushed).toEqual([]);
-
-    mocks.getActiveSessions.mockResolvedValue({ activeSessions: [] });
-    await dispatcher.dispatch(callbackLink('ex-1', state));
-
-    expect(useAuthStore.getState().token).toBe('cp-token-abc');
-    expect(mocks.switchRemoteFollow).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not run the session check for a forged callback', async () => {
-    await startSignIn();
-    stubControlPlane();
-
-    await dispatcher.dispatch(callbackLink('forged-ex', 'forged-state'));
-
-    expect(mocks.getActiveSessions).not.toHaveBeenCalled();
-  });
-
-  it('proceeds when the running-session query itself fails', async () => {
-    const state = await startSignIn();
-    stubControlPlane();
-    mocks.getActiveSessions.mockRejectedValueOnce(new Error('local backend down'));
-
-    await dispatcher.dispatch(callbackLink('ex-1', state));
-
-    expect(mocks.switchRemoteFollow).toHaveBeenCalledWith(true);
-    expect(useAuthStore.getState().token).toBe('cp-token-abc');
   });
 
   it('leaves the local session and profiles untouched when the connection switch fails', async () => {

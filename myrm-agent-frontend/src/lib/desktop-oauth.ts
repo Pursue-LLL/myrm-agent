@@ -5,8 +5,7 @@
  * [OUTPUT]
  * - beginDesktopOAuth: record a pending sign-in (state + PKCE verifier) and build the `redirect` value and
  *   S256 `codeChallenge` handed to the control plane
- * - peekDesktopOAuth: validate a returning `state` against the pending sign-in without consuming it
- * - consumeDesktopOAuth: same validation, then drop the pending sign-in (one-shot, TTL-bound)
+ * - consumeDesktopOAuth: validate a returning `state` against the pending sign-in, then drop it (one-shot, TTL-bound)
  * - parseDesktopReturn: read `desktop`/`state` back out of the callback page's `redirect` param
  * - buildDesktopDeepLink: `myrmagent://oauth/callback` URL carrying the one-time exchange id
  *
@@ -115,10 +114,10 @@ export async function beginDesktopOAuth(
 }
 
 /**
- * Returns the pending sign-in when `state` matches and is still fresh, leaving it in place. A wrong `state`
+ * Returns the pending sign-in when `state` matches and is still fresh, and drops it (one-shot). A wrong `state`
  * leaves the record alone so a forged link cannot cancel the user's real sign-in; an expired record is dropped.
  */
-export function peekDesktopOAuth(state: string, now: number = Date.now()): DesktopOAuthSession | null {
+export function consumeDesktopOAuth(state: string, now: number = Date.now()): DesktopOAuthSession | null {
   const pending = readPending();
   if (!pending || now - pending.createdAt > DESKTOP_OAUTH_TTL_MS) {
     window.localStorage.removeItem(CLOUD_OAUTH_PENDING_KEY);
@@ -127,16 +126,8 @@ export function peekDesktopOAuth(state: string, now: number = Date.now()): Deskt
   if (pending.state !== state) {
     return null;
   }
+  window.localStorage.removeItem(CLOUD_OAUTH_PENDING_KEY);
   return { cpBaseUrl: pending.cpBaseUrl, codeVerifier: pending.codeVerifier };
-}
-
-/** Like {@link peekDesktopOAuth}, and additionally consumes the pending sign-in on a match (one-shot). */
-export function consumeDesktopOAuth(state: string, now: number = Date.now()): DesktopOAuthSession | null {
-  const session = peekDesktopOAuth(state, now);
-  if (session) {
-    window.localStorage.removeItem(CLOUD_OAUTH_PENDING_KEY);
-  }
-  return session;
 }
 
 /** Extracts the desktop state from the `redirect` query value the control plane handed back. */

@@ -1,6 +1,6 @@
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { parseIntentUrl, redactIntentUrl, UIPIntent } from './schema';
-import { consumeDesktopOAuth, peekDesktopOAuth } from '@/lib/desktop-oauth';
+import { consumeDesktopOAuth } from '@/lib/desktop-oauth';
 import { toast } from 'sonner';
 
 /**
@@ -14,19 +14,7 @@ export interface IntentMessages {
   invalidLink: string;
   oauthSuccess: string;
   oauthFailed: string;
-  oauthBusy: string;
   cloudProfileName: string;
-}
-
-/** 查询失败按"无进行中会话"处理，与设置页连接切换的会话守卫一致。 */
-async function hasActiveSessions(): Promise<boolean> {
-  try {
-    const { getActiveSessions } = await import('@/services/agent');
-    const { activeSessions } = await getActiveSessions();
-    return activeSessions.length > 0;
-  } catch {
-    return false;
-  }
 }
 
 export class IntentDispatcher {
@@ -55,22 +43,16 @@ export class IntentDispatcher {
 
   /**
    * Desktop OAuth 回调：把一次深链登录落成真正的"切到云端"。顺序即不变式：
-   * 1) 校验待决授权（state、TTL）但先不消耗，并确认没有进行中的本地会话（否则拒绝，待决授权保留，用户收尾后可重试）；
-   * 2) 消耗授权、用 PKCE verifier 兑换 token、沙箱列表校验 token——这一步及之前任何失败都零副作用；
+   * 1) 消耗待决授权（state、TTL 校验，一次性）；
+   * 2) 用 PKCE verifier 兑换 token、沙箱列表校验 token——这一步及之前任何失败都零副作用；
    * 3) 先切换连接（停本地 sidecar、广播连接变更，窗口随后重载），成功后才改本地会话与档案。
+   * 进行中会话的知情确认发生在发起登录之前（设置页），这里不再二次拦截。
    */
   private async handleOAuthCallback(exchange: string, state: string) {
     try {
-      if (!peekDesktopOAuth(state)) {
-        throw new Error('No matching pending OAuth request');
-      }
-      if (await hasActiveSessions()) {
-        toast.error(this.messages.oauthBusy);
-        return;
-      }
       const session = consumeDesktopOAuth(state);
       if (!session) {
-        throw new Error('Pending OAuth request expired');
+        throw new Error('No matching or expired pending OAuth request');
       }
       const { cpBaseUrl, codeVerifier } = session;
 

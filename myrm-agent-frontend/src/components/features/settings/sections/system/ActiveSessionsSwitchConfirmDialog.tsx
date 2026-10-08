@@ -4,11 +4,11 @@
  * - `next-intl` (`settings.system.serverConnection.activeSessionsDialog`)
  *
  * [OUTPUT]
- * - `ActiveSessionsSwitchConfirmDialog`: 本地→远程切换前的活跃会话确认对话框。
+ * - `ActiveSessionsSwitchConfirmDialog`: 切断当前连接前的活跃会话确认对话框。
  *
  * [POS]
- * 切换连接前发现本地活跃生成会话时弹出，用户知情确认后才执行切换
- * （切换会等待活跃会话完成并断开本地流）。父组件持有开关与回调，本组件无状态副作用。
+ * 切断当前连接前（含发起云端登录前）发现本地活跃生成会话时弹出，用户知情确认后才继续
+ * （切换会中断进行中的轮次，已保存的会话记录保留）。父组件持有开关与回调，本组件无状态副作用。
  */
 
 'use client';
@@ -50,21 +50,13 @@ export default function ActiveSessionsSwitchConfirmDialog({
             <IconAlertCircle className="h-5 w-5 text-amber-500" aria-hidden />
             {t('title')}
           </AlertDialogTitle>
-          <AlertDialogDescription>
-            {t('description', { count })}
-          </AlertDialogDescription>
+          <AlertDialogDescription>{t('description', { count })}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel
-            onClick={onCancel}
-            className="border border-white/10 hover:bg-white/5"
-          >
+          <AlertDialogCancel onClick={onCancel} className="border border-white/10 hover:bg-white/5">
             {t('cancel')}
           </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            className={cn('bg-indigo-500 text-white hover:bg-indigo-600')}
-          >
+          <AlertDialogAction onClick={onConfirm} className={cn('bg-indigo-500 text-white hover:bg-indigo-600')}>
             {t('confirm')}
           </AlertDialogAction>
         </AlertDialogFooter>

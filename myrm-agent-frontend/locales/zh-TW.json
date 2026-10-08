@@ -18289,8 +18289,8 @@
         "rollbackFailed": "恢復上次可用連接未完成，請稍後重試。",
         "activeSessionsDialog": {
           "title": "存在活躍會話",
-          "description": "本地有 {count} 個會話正在生成。切換會等待其完成並重新整理頁面；會話記錄仍會保留。",
-          "confirm": "仍然切換",
+          "description": "本地有 {count} 個會話正在生成。切換連線會中斷它們；已儲存的會話記錄仍會保留。",
+          "confirm": "仍然繼續",
           "cancel": "取消"
         }
       },
@@ -20223,7 +20223,6 @@
   "intentDispatcher": {
     "invalidLink": "無效的外部連結或參數錯誤",
     "oauthSuccess": "授權成功",
-    "oauthFailed": "授權驗證失敗，請重試",
-    "oauthBusy": "仍有任務在執行。請先完成或停止，然後重新登入。"
+    "oauthFailed": "授權驗證失敗，請重試"
   }
 }
