@@ -154,6 +154,9 @@ from app.api.memory.mcp_router import (
 from app.api.memory.mem_cube_router import (
     router as mem_cube_router,
 )
+from app.api.memory.memory_feedback_router import (
+    router as memory_feedback_router,
+)
 from app.api.memory.memory_lineage_router import (
     router as memory_lineage_router,
 )
@@ -532,8 +535,8 @@ router.include_router(
     tags=["memory-graph"],
 )
 router.include_router(
-    quadruple_retrieval_router,
-    tags=["memory-quadruple-retrieval"],
+    memory_feedback_router,
+    tags=["memory-live-correction"],
 )
 
 
