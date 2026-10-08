@@ -204,6 +204,9 @@ from app.api.memory.progressive_sidecar_router import (
 from app.api.memory.provenance_batch import (
     router as memory_provenance_batch_router,
 )
+from app.api.memory.queuefs_router import (
+    router as queuefs_router,
+)
 from app.api.memory.relational_backtrack_router import (
     router as relational_backtrack_router,
 )
@@ -474,6 +477,10 @@ router.include_router(
 router.include_router(
     lifecycle_hotness_router,
     tags=["memory-lifecycle-hotness"],
+)
+router.include_router(
+    queuefs_router,
+    tags=["memory-queuefs"],
 )
 
 
