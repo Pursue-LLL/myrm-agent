@@ -245,6 +245,22 @@ def blocking_io_gate() -> Iterator[BlockBuster]:
         yield bb
 
 
+@pytest.fixture
+def outside_system_tmp() -> Iterator[Path]:
+    """Scratch dir outside ``/tmp``, which the command validator always allows.
+
+    ``tmp_path`` lives under ``/tmp`` on Linux, so tests asserting that a path is *blocked* need a
+    location beside the test tree instead. Skips when the checkout itself sits under ``/tmp``.
+    """
+    root = Path(tempfile.mkdtemp(prefix="outside_tmp_", dir=Path(__file__).resolve().parent))
+    try:
+        if root.resolve().is_relative_to(Path("/tmp").resolve()):
+            pytest.skip("checkout lives under /tmp, which the validator always allows")
+        yield root
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_call(item: pytest.Item) -> Iterator[None]:
     """Auto-gate tests under tests/blocking_io/ with blockbuster.

@@ -8,9 +8,6 @@ Covers:
 
 from __future__ import annotations
 
-import shutil
-import tempfile
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -44,23 +41,14 @@ def tmp_venv(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def outside_tmp_zone() -> Iterator[tuple[Path, Path]]:
-    """Workspace and venv python outside the always-allowed ``/tmp`` zone.
-
-    pytest's ``tmp_path`` lives under ``/tmp`` on Linux, which would make the venv look allowed.
-    """
-    root = Path(tempfile.mkdtemp(prefix="venv_whitelist_", dir=Path(__file__).parent))
-    try:
-        if root.resolve().is_relative_to(Path("/tmp").resolve()):
-            pytest.skip("checkout lives under /tmp, which the validator always allows")
-        workspace = root / "workspace"
-        workspace.mkdir()
-        python = root / ".sandbox_venv" / "bin" / "python"
-        python.parent.mkdir(parents=True)
-        python.touch()
-        yield workspace, python
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
+def outside_tmp_zone(outside_system_tmp: Path) -> tuple[Path, Path]:
+    """Workspace and venv python placed where the validator does not auto-allow them."""
+    workspace = outside_system_tmp / "workspace"
+    workspace.mkdir()
+    python = outside_system_tmp / ".sandbox_venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.touch()
+    return workspace, python
 
 
 @pytest.fixture

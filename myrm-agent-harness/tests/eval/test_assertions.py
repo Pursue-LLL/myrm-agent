@@ -285,11 +285,11 @@ class TestTestSuiteGradingAssets:
         assert scores["pass_rate"] == 1.0
 
     @pytest.mark.asyncio
-    async def test_external_grader_blocked_without_readonly_mount(self, executor, tmp_path):
+    async def test_external_grader_blocked_without_readonly_mount(self, executor, outside_system_tmp):
         """Without readonly_paths the workspace-external grader path is blocked."""
-        ws = tmp_path / "ws"
+        ws = outside_system_tmp / "ws"
         ws.mkdir()
-        graders = tmp_path / "graders"
+        graders = outside_system_tmp / "graders"
         graders.mkdir()
         (graders / "verifier.py").write_text("print('nope')\n")
 
