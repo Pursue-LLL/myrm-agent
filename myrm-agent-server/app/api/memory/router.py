@@ -253,6 +253,9 @@ from app.api.memory.budget_packing_router import (
 from app.api.memory.auto_memory_consolidation_router import (
     router as auto_memory_consolidation_router,
 )
+from app.api.memory.mem_cube_router import (
+    router as mem_cube_router,
+)
 from app.api.memory.universal_mcp_router import (
     router as memory_universal_mcp_router,
 )
@@ -463,6 +466,10 @@ router.include_router(
 router.include_router(
     auto_memory_consolidation_router,
     tags=["memory-auto-consolidation"],
+)
+router.include_router(
+    mem_cube_router,
+    tags=["memory-cubes"],
 )
 router.include_router(
     peer_gateway_router,
