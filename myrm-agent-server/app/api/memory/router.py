@@ -95,6 +95,9 @@ from app.api.memory.drift_router import (
 from app.api.memory.dual_track_router import (
     router as memory_dual_track_router,
 )
+from app.api.memory.durable_revision_router import (
+    router as durable_revision_router,
+)
 from app.api.memory.ephemeral_delta_router import (
     router as ephemeral_delta_router,
 )
@@ -607,6 +610,10 @@ router.include_router(
 router.include_router(
     context_hooks_router,
     tags=["memory-context-hooks"],
+)
+router.include_router(
+    durable_revision_router,
+    tags=["memory-durable-revision"],
 )
 
 
