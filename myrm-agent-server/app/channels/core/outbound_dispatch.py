@@ -50,24 +50,6 @@ logger = logging.getLogger(__name__)
 _TEXT_ONLY = ChannelCapabilities()
 
 
-def _record_data_plane_outbound(msg: OutboundMessage) -> None:
-    """Fire-and-forget: persist outbound agent message to the channel data plane."""
-    try:
-        from app.channels.routing.channel_data_plane import ChannelDataPlaneService
-
-        asyncio.create_task(
-            ChannelDataPlaneService.record_outbound(
-                channel=msg.channel,
-                chat_id=msg.chat_id,
-                content=msg.content,
-                thread_id=msg.thread_id,
-                reply_to_id=msg.reply_to_id,
-            )
-        )
-    except Exception as exc:
-        logger.debug("Failed to schedule data plane outbound recording: %s", exc)
-
-
 def _is_partial_delivery(exc: Exception) -> bool:
     """The platform already accepted part of the message, so the channel itself is healthy."""
     return isinstance(exc, ChannelSendError) and exc.accepted
@@ -180,7 +162,6 @@ class OutboundDispatchMixin(OutboundFailureMixin):
         discard_ephemeral_media(origin.media)
         if route.channel is not None:
             route.channel.activity.record_outbound(latency_ms=(time.monotonic() - t0) * 1000)
-        _record_data_plane_outbound(msg)
         if route.capabilities.send_rate_limit > 0:
             self._last_send_times[msg.channel] = time.monotonic()
         return message_id
