@@ -27,8 +27,10 @@ import websockets
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.onebot.helpers import (
     build_onebot_message,
+    can_send_media,
     parse_onebot_message,
 )
 from app.channels.rendering.renderer import render
@@ -42,6 +44,9 @@ from app.channels.types.messages import (
 from app.channels.types.status import ChannelCapabilities, ChannelStatus
 
 logger = logging.getLogger(__name__)
+
+# OneBot v11 retcodes for requests that can never succeed as sent (bad request, unauthorized, forbidden, not found).
+_PERMANENT_RETCODES = frozenset({1400, 1401, 1403, 1404})
 
 
 class OneBotChannel(BaseChannel):
@@ -377,57 +382,66 @@ class OneBotChannel(BaseChannel):
             raise
 
     async def send(self, msg: OutboundMessage) -> str | None:
-        """Send a message via OneBot API with render() multi-chunk delivery."""
+        """Send a message via OneBot API with render() multi-chunk delivery.
+
+        Images, voice and video ride with the first chunk; any other attachment is reported after the
+        rest went out, so the bus never replays text the recipient already has.
+        """
         if not self._active_ws or self._active_ws.closed:
-            logger.error("OneBotChannel: Cannot send message, no client connected")
-            return None
+            raise ChannelSendError("No OneBot client connected", channel=self.name)
+        try:
+            target_id = int(msg.recipient_id)
+        except ValueError:
+            raise ChannelSendError(
+                "OneBot recipient must be a numeric QQ or group id", channel=self.name, retriable=False
+            ) from None
 
-        is_group = False
-        if msg.metadata and msg.metadata.get("is_group") is True:
-            is_group = True
-        elif len(msg.recipient_id) < 11:
-            pass
-
+        is_group = bool(msg.metadata and msg.metadata.get("is_group") is True)
         action = "send_group_msg" if is_group else "send_private_msg"
         id_key = "group_id" if is_group else "user_id"
-        last_message_id: str | None = None
+
+        sendable = tuple(a for a in msg.media if can_send_media(a))
+        unsupported = [a.display_name for a in msg.media if not can_send_media(a)]
 
         chunks = list(render(msg, self.render_style)) if msg.content else []
-        if not chunks:
-            if not msg.media:
-                return None
+        if not chunks and sendable:
             chunks = [""]
 
+        last_message_id: str | None = None
         for i, chunk in enumerate(chunks):
-            chunk_msg = dataclasses.replace(
-                msg,
-                content=chunk,
-                media=msg.media if i == 0 else (),
-            )
-            params: dict[str, object] = {
-                id_key: int(msg.recipient_id),
-                "message": build_onebot_message(chunk_msg),
-            }
-            try:
-                response = await self._call_api(action, params)
-                data = response.get("data", {})
-                if data:
-                    last_message_id = str(data.get("message_id"))
-                if i < len(chunks) - 1:
-                    await asyncio.sleep(0.5)
-            except Exception as e:
-                logger.error(
-                    "Failed to send OneBot message chunk %d/%d: %s",
-                    i + 1,
-                    len(chunks),
-                    e,
-                )
-                self.health.record_failure(str(e))
-                break
+            chunk_msg = dataclasses.replace(msg, content=chunk, media=sendable if i == 0 else ())
+            params: dict[str, object] = {id_key: target_id, "message": build_onebot_message(chunk_msg)}
+            last_message_id = await self._send_chunk(action, params) or last_message_id
+            if i < len(chunks) - 1:
+                await asyncio.sleep(0.5)
 
         if last_message_id is not None:
             self.health.record_success()
+        if unsupported:
+            raise ChannelSendError.for_attachments(self.name, unsupported, delivered_any=bool(chunks), retriable=False)
         return last_message_id
+
+    async def _send_chunk(self, action: str, params: dict[str, object]) -> str | None:
+        """Send one message; raises ``ChannelSendError`` unless the client reports success. Returns its message id."""
+        try:
+            response = await self._call_api(action, params)
+        except Exception as exc:
+            self.health.record_failure(str(exc))
+            raise ChannelSendError(f"OneBot request failed: {type(exc).__name__}", channel=self.name) from exc
+
+        if response.get("status") == "failed":
+            retcode = response.get("retcode")
+            reason = response.get("wording") or response.get("message") or "unknown error"
+            self.health.record_failure(f"retcode {retcode}: {reason}")
+            raise ChannelSendError(
+                f"OneBot client rejected the message (retcode {retcode}): {reason}",
+                channel=self.name,
+                retriable=retcode not in _PERMANENT_RETCODES,
+            )
+
+        data = response.get("data")
+        message_id = data.get("message_id") if isinstance(data, dict) else None
+        return str(message_id) if message_id is not None else None
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:
         """Recall a message."""

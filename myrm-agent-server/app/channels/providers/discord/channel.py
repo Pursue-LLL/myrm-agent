@@ -23,9 +23,10 @@ Discord channel implementation with Forum channel support.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from typing import TYPE_CHECKING, ClassVar, Self
 
 import discord
@@ -39,10 +40,11 @@ from app.channels.core.credentials import (
     credential_field,
     credential_spec,
 )
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.discord.config import (
     DiscordChannelConfig,
 )
-from app.channels.providers.discord.helpers import build_discord_files
+from app.channels.providers.discord.helpers import build_discord_media
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     METADATA_EXPLICIT_MENTION_KEY,
@@ -381,15 +383,19 @@ class DiscordChannel(BaseChannel):
         self,
         forum: discord.abc.Messageable,
         content: str,
-    ) -> str | None:
+        *,
+        files: Sequence[discord.File] = (),
+    ) -> str:
         """Create a new thread in a Forum channel and return the starter message ID.
 
         Handles the ``require_tag`` scenario: when a Forum is configured to
         require at least one tag, the first available tag is applied
-        automatically so the API call does not fail.
+        automatically so the API call does not fail. ``discord.DiscordException`` propagates.
         """
         thread_name = self._derive_thread_name(content)
         kwargs: dict[str, object] = {"name": thread_name, "content": content}
+        if files:
+            kwargs["files"] = list(files)
 
         requires_tag = getattr(forum, "requires_tag", False)
         if callable(requires_tag):
@@ -399,15 +405,7 @@ class DiscordChannel(BaseChannel):
             if available:
                 kwargs["applied_tags"] = [available[0]]
 
-        try:
-            thread = await forum.create_thread(**kwargs)  # type: ignore[arg-type]
-        except Exception as exc:
-            logger.error(
-                "Failed to create forum thread in %s: %s",
-                getattr(forum, "id", "?"),
-                exc,
-            )
-            return None
+        thread = await forum.create_thread(**kwargs)  # type: ignore[arg-type]
 
         starter_msg = getattr(thread, "message", None)
         thread_obj = thread if hasattr(thread, "send") else getattr(thread, "thread", None)
@@ -419,44 +417,67 @@ class DiscordChannel(BaseChannel):
     async def send(self, message: OutboundMessage) -> str | None:
         channel = await self._resolve_channel(message.recipient_id)
         if not channel:
-            return None
-        if self._is_forum_channel(channel):
-            return await self._create_forum_thread(channel, message.content)
+            raise ChannelSendError(f"Discord channel {message.recipient_id} is not reachable", channel=self.name)
+        media = build_discord_media(message.media)
+        # URL-only attachments travel as links in the text: Discord unfurls them and the splitter chunks them with it.
+        outbound = dataclasses.replace(message, content="\n".join(filter(None, (message.content, *media.links))))
         try:
-            files = build_discord_files(message.media) if message.media else []
-            last_sent_id: str | None = None
-            if message.content:
-                chunks = render(message, self.render_style)
-                for i, chunk in enumerate(chunks):
-                    chunk_files = files if i == 0 and files else discord.utils.MISSING
-                    kwargs: dict[str, object] = {
-                        "content": chunk,
-                        "files": chunk_files,
-                    }
-                    if message.reply_to_id and i == 0:
-                        try:
-                            kwargs["reference"] = discord.MessageReference(
-                                message_id=int(message.reply_to_id),
-                                fail_if_not_exists=False,
-                            )
-                        except (ValueError, TypeError):
-                            pass
-                    sent = await channel.send(**kwargs)  # type: ignore[arg-type]
-                    last_sent_id = str(sent.id)
-            elif files:
-                sent = await channel.send(files=files)  # type: ignore[arg-type]
+            if self._is_forum_channel(channel):
+                sent_id: str | None = await self._create_forum_thread(channel, outbound.content, files=media.files)
+            else:
+                sent_id = await self._send_chunks(channel, outbound, media.files)
+        except discord.HTTPException as exc:
+            raise ChannelSendError(
+                f"Discord send failed: {exc}",
+                channel=self.name,
+                status_code=exc.status,
+                retriable=exc.status == 429 or exc.status >= 500,
+            ) from exc
+        except discord.DiscordException as exc:
+            raise ChannelSendError(f"Discord send failed: {exc}", channel=self.name) from exc
+        if media.failed:
+            raise ChannelSendError.for_attachments(self.name, media.failed, delivered_any=sent_id is not None)
+        return sent_id
+
+    async def _send_chunks(
+        self,
+        channel: discord.abc.Messageable,
+        message: OutboundMessage,
+        files: list[discord.File],
+    ) -> str | None:
+        """Send the text in chunks with ``files`` on the first one (or files alone); return the last message id."""
+        last_sent_id: str | None = None
+        if message.content:
+            for i, chunk in enumerate(render(message, self.render_style)):
+                kwargs: dict[str, object] = {
+                    "content": chunk,
+                    "files": files if i == 0 and files else discord.utils.MISSING,
+                }
+                if message.reply_to_id and i == 0:
+                    try:
+                        kwargs["reference"] = discord.MessageReference(
+                            message_id=int(message.reply_to_id),
+                            fail_if_not_exists=False,
+                        )
+                    except (ValueError, TypeError):
+                        pass
+                sent = await channel.send(**kwargs)  # type: ignore[arg-type]
                 last_sent_id = str(sent.id)
-            return last_sent_id
-        except Exception as exc:
-            logger.error("Failed to send Discord message: %s", exc)
-            return None
+        elif files:
+            sent = await channel.send(files=files)  # type: ignore[arg-type]
+            last_sent_id = str(sent.id)
+        return last_sent_id
 
     async def send_placeholder(self, chat_id: str, text: str, *, thread_id: str | None = None) -> str | None:
         channel = await self._resolve_channel(chat_id)
         if not channel:
             return None
         if self._is_forum_channel(channel):
-            return await self._create_forum_thread(channel, text)
+            try:
+                return await self._create_forum_thread(channel, text)
+            except discord.DiscordException as exc:
+                logger.error("Failed to create forum placeholder thread: %s", exc)
+                return None
         try:
             sent = await channel.send(content=text)
             return str(sent.id)

@@ -136,8 +136,9 @@ class TestGoogleChatSend:
     async def test_send_no_recipient(self) -> None:
         ch = GoogleChatChannel(service_account_json="")
         msg = OutboundMessage(channel="googlechat", user_id="u1", recipient_id="", content="hi")
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+        assert exc_info.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_send_no_content(self) -> None:

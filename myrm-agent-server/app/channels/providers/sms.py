@@ -5,6 +5,7 @@ Outbound: text → Twilio Messages REST API → recipient phone
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
+- channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
 - channels.providers._twilio_utils::verify_twilio_signature (POS: Twilio signature verification)
 - channels.core.credentials::credential_field, credential_spec (POS: Credential declarations)
 
@@ -25,6 +26,7 @@ import httpx
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers._twilio_utils import verify_twilio_signature
 from app.channels.rendering.renderer import render
 from app.channels.types import (
@@ -218,12 +220,11 @@ class SMSChannel(BaseChannel):
     async def send(self, msg: OutboundMessage) -> str | None:
         """Send SMS to recipient via Twilio Messages REST API."""
         if not self._phone_number:
-            logger.error("SMS: cannot send — phone_number not configured")
-            return None
+            raise ChannelSendError("SMS sender phone number is not configured", channel=self.name, retriable=False)
 
         to_number = msg.recipient_id
         if not to_number:
-            return None
+            raise ChannelSendError("SMS message has no recipient", channel=self.name, retriable=False)
 
         chunks = render(msg, self.render_style)
         if not chunks:
@@ -231,18 +232,17 @@ class SMSChannel(BaseChannel):
 
         last_sid: str | None = None
         for chunk in chunks:
-            sid = await self._send_sms(to_number, chunk)
-            if sid:
-                last_sid = sid
-                self.health.record_success()
-            else:
+            try:
+                last_sid = await self._send_sms(to_number, chunk) or last_sid
+            except ChannelSendError:
                 self.health.record_failure(f"SMS send failed to {_redact_phone(to_number)}")
-                break
+                raise
+            self.health.record_success()
 
         return last_sid
 
     async def _send_sms(self, to: str, body: str) -> str | None:
-        """Send a single SMS via Twilio REST API. Returns message SID or None."""
+        """Send a single SMS via Twilio REST API; raises ``ChannelSendError`` when Twilio does not accept it."""
         client = self._client or httpx.AsyncClient(timeout=_SEND_TIMEOUT)
         url = f"{_TWILIO_API_BASE}/{self._account_sid}/Messages.json"
 
@@ -252,16 +252,12 @@ class SMSChannel(BaseChannel):
                 data={"From": self._phone_number, "To": to, "Body": body},
                 auth=(self._account_sid, self._auth_token),
             )
-            if resp.status_code >= 400:
-                error_body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
-                error_msg = error_body.get("message", resp.text[:200])
-                logger.error("SMS: send failed (%d): %s", resp.status_code, error_msg)
-                return None
-            data = resp.json()
-            return data.get("sid")
         except httpx.HTTPError as exc:
-            logger.error("SMS: send error to %s: %s", _redact_phone(to), exc)
-            return None
+            raise ChannelSendError(f"SMS request to Twilio failed: {type(exc).__name__}", channel=self.name) from exc
+        if resp.status_code >= 400:
+            error_body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            raise ChannelSendError.from_http_status(self.name, resp.status_code, str(error_body.get("message", resp.text)))
+        return resp.json().get("sid")
 
     # -- retry override for Twilio rate limits --------------------------------
 

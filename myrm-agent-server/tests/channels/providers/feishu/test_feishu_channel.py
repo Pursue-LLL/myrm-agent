@@ -10,8 +10,9 @@ import httpx
 import pytest
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError, RateLimitError
 from app.channels.providers.feishu import FeishuChannel
-from app.channels.providers.feishu.api import FeishuClient
+from app.channels.providers.feishu.api import FeishuClient, FeishuRateLimitError, FeishuSendError
 from app.channels.providers.feishu.parser import FeishuInboundEvent
 from app.channels.security.errors import WebhookResponseError
 from app.channels.types import (
@@ -283,6 +284,87 @@ class TestSend:
             payload = json.loads(call[0][2])
             parts.append(str(payload["text"]))
         assert "".join(parts) == long_body
+
+
+class TestSendDelivery:
+    @pytest.mark.asyncio
+    async def test_no_recipient_is_a_permanent_failure(self) -> None:
+        ch = _make_channel()
+        _mock_client(ch)
+        msg = OutboundMessage(channel="feishu", recipient_id="", content="Hello", user_id="u1")
+
+        with pytest.raises(ChannelSendError, match="no recipient") as excinfo:
+            await ch.send(msg)
+
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_text_goes_out_before_the_attachments(self) -> None:
+        ch = _make_channel()
+        mock = _mock_client(ch)
+        mock.upload_image.return_value = "img_key"
+        mock.send_message.side_effect = ["om_text", "om_image"]
+        att = MediaAttachment(media_type=MediaType.IMAGE, path="/tmp/chart.png")
+        msg = OutboundMessage(channel="feishu", recipient_id="oc_chat1", content="Chart", user_id="u1", media=(att,))
+
+        with patch("pathlib.Path.read_bytes", return_value=b"PNG"):
+            mid = await ch.send(msg)
+
+        assert mid == "om_text"
+        assert [call[0][1] for call in mock.send_message.call_args_list] == ["text", "image"]
+
+    @pytest.mark.asyncio
+    async def test_failed_attachment_after_the_text_is_a_partial_delivery(self) -> None:
+        ch = _make_channel()
+        mock = _mock_client(ch)
+        mock.send_message.return_value = "om_text"
+        att = MediaAttachment(media_type=MediaType.DOCUMENT, path="/nonexistent/report.pdf", filename="report.pdf")
+        msg = OutboundMessage(channel="feishu", recipient_id="oc_chat1", content="Report", user_id="u1", media=(att,))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        mock.send_message.assert_called_once()
+        assert excinfo.value.failed_attachments == ("report.pdf",)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
+
+    @pytest.mark.asyncio
+    async def test_attachment_only_failure_delivered_nothing(self) -> None:
+        ch = _make_channel()
+        mock = _mock_client(ch)
+        att = MediaAttachment(media_type=MediaType.DOCUMENT, path="/nonexistent/report.pdf", filename="report.pdf")
+        msg = OutboundMessage(channel="feishu", recipient_id="oc_chat1", content="", user_id="u1", media=(att,))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        mock.send_message.assert_not_called()
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (False, False)
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_becomes_a_retriable_channel_error(self) -> None:
+        ch = _make_channel()
+        mock = _mock_client(ch)
+        mock.send_message.side_effect = FeishuRateLimitError("Feishu send rate limited", retry_after=3.0)
+        msg = OutboundMessage(channel="feishu", recipient_id="oc_chat1", content="Hello", user_id="u1")
+
+        with pytest.raises(RateLimitError) as excinfo:
+            await ch.send(msg)
+
+        assert excinfo.value.retry_after == 3.0
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("status", "retriable"), [(400, False), (503, True)])
+    async def test_send_errors_keep_their_retry_class(self, status: int, retriable: bool) -> None:
+        ch = _make_channel()
+        mock = _mock_client(ch)
+        mock.send_message.side_effect = FeishuSendError("Feishu send failed", status_code=status, retriable=retriable)
+        msg = OutboundMessage(channel="feishu", recipient_id="oc_chat1", content="Hello", user_id="u1")
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        assert (excinfo.value.status_code, excinfo.value.retriable) == (status, retriable)
 
 
 class TestEditMessage:
@@ -1011,12 +1093,36 @@ class TestSendMedia:
         mock.upload_file.assert_called_once_with(b"FILE_DATA", "report.pdf")
 
     @pytest.mark.asyncio
-    async def test_no_data_returns_none(self) -> None:
+    async def test_attachment_without_a_source_raises_permanently(self) -> None:
         ch = _make_channel()
         _mock_client(ch)
         att = MediaAttachment(media_type=MediaType.IMAGE)
-        mid = await ch._send_media("oc_chat", "chat_id", att)
-        assert mid is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch._send_media("oc_chat", "chat_id", att)
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_rejected_upload_raises(self) -> None:
+        ch = _make_channel()
+        mock = _mock_client(ch)
+        mock.upload_image.return_value = None
+        att = MediaAttachment(media_type=MediaType.IMAGE, path="/tmp/test_img.jpg")
+        with patch("pathlib.Path.read_bytes", return_value=b"IMG_DATA"), pytest.raises(ChannelSendError, match="image upload"):
+            await ch._send_media("oc_chat", "chat_id", att)
+        mock.send_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rejected_attachment_message_raises(self) -> None:
+        ch = _make_channel()
+        mock = _mock_client(ch)
+        mock.upload_file.return_value = "file_key"
+        mock.send_message.return_value = None
+        att = MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/test.pdf", filename="report.pdf")
+        with (
+            patch("pathlib.Path.read_bytes", return_value=b"FILE_DATA"),
+            pytest.raises(ChannelSendError, match="attachment message"),
+        ):
+            await ch._send_media("oc_chat", "chat_id", att)
 
 
 class TestDownloadAttachment:
@@ -1039,12 +1145,31 @@ class TestDownloadAttachment:
         assert result == b"URL_DATA"
 
     @pytest.mark.asyncio
-    async def test_no_path_no_url_returns_none(self) -> None:
+    async def test_no_path_no_url_raises(self) -> None:
         ch = _make_channel()
         _mock_client(ch)
         att = MediaAttachment(media_type=MediaType.IMAGE)
-        result = await ch._download_attachment(att)
-        assert result is None
+        with pytest.raises(ChannelSendError, match="neither path nor url"):
+            await ch._download_attachment(att)
+
+    @pytest.mark.asyncio
+    async def test_unreadable_local_file_raises_permanently(self) -> None:
+        ch = _make_channel()
+        _mock_client(ch)
+        att = MediaAttachment(media_type=MediaType.IMAGE, path="/nonexistent/test.jpg")
+        with pytest.raises(ChannelSendError, match="unreadable") as excinfo:
+            await ch._download_attachment(att)
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_failed_url_download_raises_retriably(self) -> None:
+        ch = _make_channel()
+        mock = _mock_client(ch)
+        mock.download_url.return_value = None
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png")
+        with pytest.raises(ChannelSendError, match="could not be downloaded") as excinfo:
+            await ch._download_attachment(att)
+        assert excinfo.value.retriable is True
 
 
 class TestCollectIssues:

@@ -1,30 +1,30 @@
 """Email channel — bidirectional messaging via IMAP (inbound) + SMTP (outbound).
 
 Inbound: IMAP periodic poll → _parse_email (EmailInboundMixin) → _emit_inbound
-Outbound: SMTP send (text/HTML)
+Outbound: SMTP send (HTML body + file attachments)
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
 - channels.providers.email.inbound::EmailInboundMixin (POS: RFC 822 → InboundMessage parsing)
+- channels.providers.email.outbound::build_message, load_attachments (POS: attachment loading and MIME assembly)
 - channels.types::OutboundMessage (POS: outbound message envelope)
 
 [OUTPUT]
 - EmailChannel: Email bidirectional messaging Channel (IMAP + SMTP)
 
 [POS]
-Email channel implementation: credentials, lifecycle, IMAP polling and SMTP sending. Message parsing (attachments,
-forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``.
+Email channel implementation: credentials, lifecycle, IMAP polling and SMTP transport. Message parsing (attachments,
+forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME
+assembly live in ``outbound.py``.
 """
 
 from __future__ import annotations
 
 import asyncio
-import email.mime.multipart
-import email.mime.text
-import email.utils
 import imaplib
 import logging
 import smtplib
+from collections.abc import Sequence
 from typing import Self
 
 from app.channels.core.base import BaseChannel
@@ -44,6 +44,7 @@ from app.channels.types import (
 )
 
 from .inbound import EmailInboundMixin
+from .outbound import LoadedAttachment, build_message, load_attachments
 
 logger = logging.getLogger(__name__)
 
@@ -178,13 +179,17 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
             return False
 
     async def send(self, msg: OutboundMessage) -> str | None:
+        """Send the reply as one email; attachments that cannot be loaded are reported after it went out."""
         to_address = msg.recipient_id
 
-        if not msg.content:
+        if not msg.content and not msg.media:
             return None
 
-        chunks = render(msg, self.render_style)
-        full_body = "\n".join(chunks)
+        attachments, failed = await load_attachments(msg.media)
+        if not msg.content and not attachments:
+            raise ChannelSendError.for_attachments(self.name, failed, delivered_any=False)
+
+        full_body = "\n".join(render(msg, self.render_style)) if msg.content else ""
 
         subject = "Reply"
         if msg.metadata:
@@ -197,9 +202,9 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
                 subject,
                 full_body,
                 msg.reply_to_id,
+                attachments,
             )
             self.health.record_success()
-            return message_id
         except smtplib.SMTPAuthenticationError as exc:
             self.health.record_failure(f"SMTP auth: {exc}")
             raise ChannelSendError(
@@ -214,6 +219,9 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
                 channel=self.name,
                 retriable=True,
             ) from exc
+        if failed:
+            raise ChannelSendError.for_attachments(self.name, failed, delivered_any=True)
+        return message_id
 
     def collect_issues(self) -> list[ChannelIssue]:
         issues: list[ChannelIssue] = []
@@ -263,19 +271,9 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
         subject: str,
         body_html: str,
         in_reply_to: str | None = None,
+        attachments: Sequence[LoadedAttachment] = (),
     ) -> str:
-        msg = email.mime.multipart.MIMEMultipart("alternative")
-        msg["From"] = self._from_address
-        msg["To"] = to_address
-        msg["Subject"] = subject
-        msg_id = email.utils.make_msgid()
-        msg["Message-ID"] = msg_id
-
-        if in_reply_to:
-            msg["In-Reply-To"] = in_reply_to
-            msg["References"] = in_reply_to
-
-        msg.attach(email.mime.text.MIMEText(body_html, "html"))
+        msg, msg_id = build_message(self._from_address, to_address, subject, body_html, in_reply_to, attachments)
 
         if self._smtp_port == 465:
             with smtplib.SMTP_SSL(

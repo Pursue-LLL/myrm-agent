@@ -2,7 +2,7 @@
 
 Inbound: Stream API (WebSocket, zero public exposure) or HTTP webhook callback
 Outbound: OpenAPI (Markdown/text/image/file) with DM/group routing
-  - Three-level media fallback: URL direct → upload+send → file send → text fallback
+  - Three-level media fallback: URL direct → upload+send → file send; a failed attachment is reported to the bus
   - AI Card streaming: create → stream update → finalize (打字机效果)
 
 [INPUT]
@@ -25,10 +25,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from functools import partial
 from pathlib import Path
 
+from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.reliability.reconnect import reconnect_loop
 from app.channels.rendering.renderer import render
 from app.channels.types import (
@@ -92,6 +95,7 @@ class DingTalkChannel(DingTalkCardMixin, DingTalkInboundMixin, BaseChannel):
         reactions=True,
         typing_indicator=False,
         max_text_length=MAX_TEXT_LENGTH,
+        message_ids=False,
     )
     render_style = RenderStyle(
         format="markdown",
@@ -185,8 +189,7 @@ class DingTalkChannel(DingTalkCardMixin, DingTalkInboundMixin, BaseChannel):
         await self._api.ensure_token()
         recipient = msg.recipient_id
         if not recipient:
-            logger.warning("DingTalkChannel: no recipient_id, skipping")
-            return None
+            raise ChannelSendError("DingTalk message has no recipient", channel=self.name, retriable=False)
 
         is_group = recipient in self._group_conversations
 
@@ -196,12 +199,12 @@ class DingTalkChannel(DingTalkCardMixin, DingTalkInboundMixin, BaseChannel):
             for chunk in render(msg, self.render_style):
                 await self._send_text(recipient, title, chunk, is_group=is_group, metadata=msg.metadata)
 
-        for attachment in msg.media:
-            ok = await self._send_attachment(recipient, attachment, is_group=is_group)
-            if not ok:
-                fname = guess_filename(attachment)
-                await self._send_text(recipient, "Error", f"[Attachment send failed: {fname}]", is_group=is_group)
-
+        await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_attachment, recipient, is_group=is_group),
+            text_delivered=bool(msg.content),
+        )
         return None
 
     @staticmethod
@@ -235,20 +238,20 @@ class DingTalkChannel(DingTalkCardMixin, DingTalkInboundMixin, BaseChannel):
         is_group: bool = False,
         metadata: dict[str, object] | None = None,
     ) -> None:
-        """Send a Markdown message via the appropriate API (DM/group/webhook)."""
+        """Send a Markdown message via the appropriate API (DM/group/webhook); raise when DingTalk rejects it."""
         text = self._normalize_dingtalk_markdown(text)
         webhook_url = metadata.get("webhookUrl") if metadata else None
         if webhook_url:
-            await self._api.post_webhook(
+            sent = await self._api.post_webhook(
                 str(webhook_url),
                 {"msgtype": "markdown", "markdown": {"title": title, "text": text}},
             )
-            return
-
-        if is_group:
-            await self._api.send_group_markdown(recipient, title, text)
+        elif is_group:
+            sent = await self._api.send_group_markdown(recipient, title, text)
         else:
-            await self._api.send_dm_markdown(recipient, title, text)
+            sent = await self._api.send_dm_markdown(recipient, title, text)
+        if not sent:
+            raise ChannelSendError("DingTalk rejected the message", channel=self.name)
 
     async def _send_attachment(
         self,
@@ -256,43 +259,46 @@ class DingTalkChannel(DingTalkCardMixin, DingTalkInboundMixin, BaseChannel):
         att: MediaAttachment,
         *,
         is_group: bool = False,
-    ) -> bool:
-        """Send a media attachment with three-level fallback.
+    ) -> None:
+        """Send one attachment with a two-level fallback; raise when DingTalk does not accept it.
 
         1. Image URL → direct send via sampleImageMsg (DM only)
         2. Download/read → upload → send as image or file
-        3. Return False so caller can send a text fallback
 
-        Group attachments degrade to Markdown link (DingTalk group API limitation).
+        Group chats only accept a Markdown link (DingTalk group API limitation), so a local file
+        without a URL cannot be delivered there.
         """
         is_image = att.media_type == MediaType.IMAGE
 
         if not is_group and att.url and is_image:
             if await self._api.send_image_dm(recipient, att.url):
-                return True
+                return
             logger.warning("DingTalk image URL direct send failed, trying upload: %s", att.url[:200])
 
         if is_group:
-            url = att.url or att.path or ""
-            fname = guess_filename(att)
-            await self._api.send_group_markdown(recipient, "Attachment", f"\U0001f4ce [{fname}]({url})")
-            return True
+            if not att.url:
+                raise ChannelSendError("DingTalk group chats cannot receive local files", channel=self.name, retriable=False)
+            link = f"\U0001f4ce [{guess_filename(att)}]({att.url})"
+            if not await self._api.send_group_markdown(recipient, "Attachment", link):
+                raise ChannelSendError("DingTalk rejected the attachment link", channel=self.name)
+            return
 
         data, filename, mime = await self._read_media(att)
         if not data:
-            return False
+            raise ChannelSendError("DingTalk attachment has no readable content", channel=self.name)
 
         upload_type = guess_upload_type(filename)
         media_id = await self._api.upload_media(data, upload_type, filename, mime)
         if not media_id:
-            return False
+            raise ChannelSendError("DingTalk media upload failed", channel=self.name)
 
         if is_image or upload_type == "image":
             if await self._api.send_image_dm(recipient, media_id):
-                return True
+                return
             logger.warning("DingTalk image media_id send failed, falling back to file: %s", filename)
 
-        return await self._api.send_file_dm(recipient, media_id, filename)
+        if not await self._api.send_file_dm(recipient, media_id, filename):
+            raise ChannelSendError("DingTalk rejected the file message", channel=self.name)
 
     async def _read_media(self, att: MediaAttachment) -> tuple[bytes | None, str, str]:
         """Read media bytes from URL or local path. Returns (data, filename, mime)."""

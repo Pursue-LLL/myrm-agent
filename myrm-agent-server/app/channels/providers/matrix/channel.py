@@ -1,7 +1,17 @@
 """Matrix channel — mautrix SDK with optional E2EE.
 
-Delegates to auth.py (login/sync), handlers.py (events), crypto.py (E2EE),
-html.py (markdown), media.py (uploads). Core class: lifecycle, outbound, diagnostics.
+[INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstraction every provider implements)
+- channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with partial-failure reporting)
+- channels.providers.matrix.auth / handlers / html / media (POS: login and sync, inbound events, markdown payloads, uploads)
+- mautrix.client::Client (POS: Matrix client SDK, optional dependency)
+
+[OUTPUT]
+- MatrixChannel: lifecycle, text and media send, edit/delete, reactions, typing indicator and diagnostics for Matrix rooms
+
+[POS]
+Core Matrix channel class. Delegates to auth.py (login/sync), handlers.py (events), crypto.py (E2EE),
+html.py (markdown), media.py (uploads); this class owns lifecycle, outbound and diagnostics.
 """
 
 from __future__ import annotations
@@ -10,14 +20,16 @@ import asyncio
 import contextlib
 import logging
 import time
+from functools import partial
 
+from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import (
     credential_field,
     credential_spec,
     parse_bool,
 )
-from app.channels.core.exceptions import ChannelAuthError
+from app.channels.core.exceptions import ChannelAuthError, ChannelSendError
 from app.channels.providers.matrix.auth import (
     authenticate,
     create_aiohttp_session,
@@ -47,6 +59,7 @@ from app.channels.types import (
     ChannelStatus,
     IssueKind,
     IssueSeverity,
+    MediaAttachment,
     OutboundMessage,
     RenderStyle,
 )
@@ -360,25 +373,26 @@ class MatrixChannel(BaseChannel):
 
     async def send(self, msg: OutboundMessage) -> str | None:
         if self._status != ChannelStatus.RUNNING or not self._client:
-            logger.debug("MatrixChannel: not running, skipping send")
-            return None
+            raise ChannelSendError("Matrix channel is not running", channel=self.name)
 
         room_id = msg.recipient_id
         last_event_id: str | None = None
 
-        for att in msg.media:
-            eid = await send_media(self._client, room_id, att, self._encryption)
-            if eid:
-                last_event_id = eid
-
         if msg.content:
             chunks = render(msg, self.render_style)
             for chunk in chunks:
-                eid = await self._send_text(room_id, chunk, msg.reply_to_id)
-                if eid:
-                    last_event_id = eid
+                last_event_id = await self._send_text(room_id, chunk, msg.reply_to_id) or last_event_id
 
-        return last_event_id
+        attachment_event_id = await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_attachment, room_id),
+            text_delivered=bool(msg.content),
+        )
+        return last_event_id or attachment_event_id
+
+    async def _send_attachment(self, room_id: str, attachment: MediaAttachment) -> str | None:
+        return await send_media(self._client, room_id, attachment, self._encryption)
 
     async def _send_text(
         self,
@@ -386,8 +400,9 @@ class MatrixChannel(BaseChannel):
         text: str,
         reply_to_id: str | None = None,
     ) -> str | None:
+        """Send one text event and return its id; raises ``ChannelSendError`` when the homeserver does not take it."""
         if not self._client:
-            return None
+            raise ChannelSendError("Matrix channel is not running", channel=self.name)
 
         members = await self._get_room_members(room_id)
         if members:
@@ -409,8 +424,7 @@ class MatrixChannel(BaseChannel):
             return str(event_id) if event_id else None
         except Exception as exc:
             if not (self._encryption and getattr(self._client, "crypto", None)):
-                logger.debug("Matrix send failed: %s", exc)
-                return None
+                raise ChannelSendError(f"Matrix send failed: {exc}", channel=self.name) from exc
             # Retry after sharing E2EE keys
             try:
                 await self._client.crypto.share_keys()
@@ -424,8 +438,7 @@ class MatrixChannel(BaseChannel):
                 )
                 return str(event_id) if event_id else None
             except Exception as retry_exc:
-                logger.error("Matrix: send failed after key share retry: %s", retry_exc)
-                return None
+                raise ChannelSendError(f"Matrix send failed after key share retry: {retry_exc}", channel=self.name) from retry_exc
 
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
         if not self._client:

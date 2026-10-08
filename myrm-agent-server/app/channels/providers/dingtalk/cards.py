@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import uuid
 
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.types import OutboundMessage
 
 from .api import DingTalkApiClient
@@ -31,6 +32,7 @@ class DingTalkCardMixin:
     Requires the host class to provide the attributes below plus ``_normalize_dingtalk_markdown``.
     """
 
+    name: str
     _card_template_id: str
     _api: DingTalkApiClient
     _streaming_cards: dict[str, str]
@@ -81,11 +83,14 @@ class DingTalkCardMixin:
         message_id: str,
         msg: OutboundMessage,
     ) -> None:
-        track_id = self._streaming_cards.pop(message_id, "")
+        """Finalize the card with the reply; raise when it cannot, so the bus sends the reply as a normal message."""
+        track_id = self._streaming_cards.get(message_id)
         if not track_id:
-            return
+            raise ChannelSendError("DingTalk streaming card is no longer active", channel=self.name, retriable=False)
         content = self._normalize_dingtalk_markdown((msg.content or "")[:MAX_TEXT_LENGTH])
-        await self._api.streaming_update(track_id, "content", content, is_finalize=True)
+        if not await self._api.streaming_update(track_id, "content", content, is_finalize=True):
+            raise ChannelSendError("DingTalk rejected the final card update", channel=self.name)
+        del self._streaming_cards[message_id]
 
     async def _finalize_active_cards(self) -> None:
         """Finalize all active streaming cards to prevent stale 'typing' state."""

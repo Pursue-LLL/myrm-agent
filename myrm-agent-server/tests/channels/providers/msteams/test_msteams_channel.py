@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from app.channels.core.base import BaseChannel, ChannelStatus
-from app.channels.core.exceptions import ChannelAuthError
+from app.channels.core.exceptions import ChannelAuthError, ChannelSendError
 from app.channels.providers.msteams import MSTeamsChannel
 from app.channels.providers.msteams.helpers import (
     build_adaptive_card_activity,
@@ -603,8 +603,66 @@ class TestOutbound:
             mime_type="image/png",
         )
         msg = _make_outbound("conv_media", "", media=(media,))
-        await ch.send(msg)
-        assert mock_http.post.call_count >= 1
+        assert await ch.send(msg) == "act_m"
+        assert mock_http.post.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_text_is_posted_before_attachments_and_the_text_id_is_returned(self) -> None:
+        ch = _make_channel()
+        _set_valid_token(ch)
+        _seed_service_url(ch, "conv_order")
+        responses = [MagicMock(status_code=200), MagicMock(status_code=200)]
+        responses[0].json.return_value = {"id": "text_id"}
+        responses[1].json.return_value = {"id": "media_id"}
+        mock_http = _mock_http_on_channel(ch)
+        mock_http.post = AsyncMock(side_effect=responses)
+
+        media = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png", mime_type="image/png")
+        result = await ch.send(_make_outbound("conv_order", "Look", media=(media,)))
+
+        assert result == "text_id"
+        sent = [call.kwargs["json"] for call in mock_http.post.await_args_list]
+        assert sent[0] == {"type": "message", "text": "Look"}
+        assert "attachments" in sent[1]
+
+    @pytest.mark.asyncio
+    async def test_rejected_text_is_raised_with_its_http_classification(self) -> None:
+        ch = _make_channel()
+        _set_valid_token(ch)
+        _seed_service_url(ch, "conv_rej")
+        mock_http = _mock_http_on_channel(ch)
+        mock_http.post = AsyncMock(return_value=MagicMock(status_code=403, text="forbidden"))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(_make_outbound("conv_rej", "Hello"))
+
+        assert (excinfo.value.status_code, excinfo.value.retriable) == (403, False)
+
+    @pytest.mark.asyncio
+    async def test_unknown_conversation_cannot_be_written_to(self) -> None:
+        ch = _make_channel()
+        _set_valid_token(ch)
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(_make_outbound("never_seen", "Hello"))
+
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_attachment_without_public_url_after_delivered_text_is_a_partial_delivery(self) -> None:
+        ch = _make_channel()
+        _set_valid_token(ch)
+        _seed_service_url(ch, "conv_local")
+        mock_http = _mock_http_on_channel(ch)
+        mock_http.post = AsyncMock(return_value=MagicMock(status_code=200, **{"json.return_value": {"id": "t1"}}))
+
+        local = MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/report.pdf")
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(_make_outbound("conv_local", "Here", media=(local,)))
+
+        mock_http.post.assert_awaited_once()  # only the text reached Teams
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
+        assert excinfo.value.failed_attachments == ("report.pdf",)
 
     @pytest.mark.asyncio
     async def test_send_empty_content_no_components_returns_none(self) -> None:
@@ -703,6 +761,16 @@ class TestOutbound:
         assert result is None
 
     @pytest.mark.asyncio
+    async def test_send_placeholder_rejected_is_best_effort(self) -> None:
+        ch = _make_channel()
+        _set_valid_token(ch)
+        _seed_service_url(ch, "conv_ph_rej")
+        mock_http = _mock_http_on_channel(ch)
+        mock_http.post = AsyncMock(return_value=MagicMock(status_code=500, text="boom"))
+
+        assert await ch.send_placeholder("conv_ph_rej", "Thinking...") is None
+
+    @pytest.mark.asyncio
     async def test_start_typing(self) -> None:
         ch = _make_channel()
         _set_valid_token(ch)
@@ -755,14 +823,27 @@ class TestOutbound:
         mock_http = _mock_http_on_channel(ch)
         mock_http.post = AsyncMock(return_value=mock_resp)
 
-        result = await ch._api.post_activity("https://svc.url", "conv_1", {"type": "message", "text": "hi"})
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch._api.post_activity("https://svc.url", "conv_1", {"type": "message", "text": "hi"})
+        assert (excinfo.value.status_code, excinfo.value.retriable) == (500, True)
+
+    @pytest.mark.asyncio
+    async def test_post_activity_transport_failure_may_be_retried(self) -> None:
+        ch = _make_channel()
+        _set_valid_token(ch)
+        mock_http = _mock_http_on_channel(ch)
+        mock_http.post = AsyncMock(side_effect=httpx.ConnectError("down"))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch._api.post_activity("https://svc.url", "conv_1", {"type": "message"})
+        assert excinfo.value.retriable is True
 
     @pytest.mark.asyncio
     async def test_post_activity_no_service_url(self) -> None:
         ch = _make_channel()
-        result = await ch._api.post_activity("", "conv_1", {"type": "message"})
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch._api.post_activity("", "conv_1", {"type": "message"})
+        assert excinfo.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_post_activity_non_json_response(self) -> None:
@@ -782,8 +863,9 @@ class TestOutbound:
     async def test_send_attachment_no_url(self) -> None:
         ch = _make_channel()
         media = MediaAttachment(media_type=MediaType.IMAGE, url="", mime_type="image/png")
-        result = await ch._api.send_attachment("https://svc.url", "conv_1", media)
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch._api.send_attachment("https://svc.url", "conv_1", media)
+        assert excinfo.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_send_attachment_with_caption(self) -> None:

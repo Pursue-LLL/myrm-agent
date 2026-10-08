@@ -32,7 +32,7 @@ from myrm_agent_harness.runtime.deps.lazy_deps import feature_missing
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
-from app.channels.core.exceptions import ChannelAuthError
+from app.channels.core.exceptions import ChannelAuthError, ChannelSendError
 from app.channels.helpers import QRCodeLoginHelper
 from app.channels.protocols import LoginMethod
 from app.channels.providers._ilink.client import ILinkClient
@@ -97,6 +97,7 @@ class WeChatILinkChannel(WeChatILinkInboundMixin, WeChatILinkLoginMixin, BaseCha
         typing_indicator=True,
         typing_keepalive_interval=5.0,
         max_text_length=_MAX_TEXT_LENGTH,
+        message_ids=False,
     )
     render_style = RenderStyle(
         format="plaintext",
@@ -270,24 +271,31 @@ class WeChatILinkChannel(WeChatILinkInboundMixin, WeChatILinkLoginMixin, BaseCha
     # ── Outbound ───────────────────────────────────────────────────────
 
     async def send(self, msg: OutboundMessage) -> str | None:
+        """Send text and attachments in one iLink message; iLink reports no message id.
+
+        Attachments that cannot be prepared (unsupported type, upload failure) are reported only after the
+        remaining items went out, so the bus republishes just those.
+        """
         to_user_id = msg.recipient_id
         if not to_user_id:
-            logger.warning("WeChatILinkChannel: no recipient_id, skipping")
-            return None
+            raise ChannelSendError("WeChat iLink message has no recipient", channel=self.name, retriable=False)
 
         context_token = self._context_tokens.get(to_user_id)
         items: list[MessageItem] = []
+        failed: list[str] = []
 
-        if msg.media:
-            for attachment in msg.media:
-                item = await prepare_outbound_media(
-                    attachment,
-                    to_user_id,
-                    self._client.get_upload_url,
-                    self._client.http,
-                )
-                if item:
-                    items.append(item)
+        for attachment in msg.media:
+            item = await prepare_outbound_media(
+                attachment,
+                to_user_id,
+                self._client.get_upload_url,
+                self._client.http,
+            )
+            if item:
+                items.append(item)
+            else:
+                logger.warning("WeChatILinkChannel: attachment %s could not be prepared", attachment.display_name)
+                failed.append(attachment.display_name)
 
         if msg.content:
             chunks = render(msg, self.render_style)
@@ -297,7 +305,8 @@ class WeChatILinkChannel(WeChatILinkInboundMixin, WeChatILinkLoginMixin, BaseCha
         if items:
             await self._client.send_message(to_user_id, items, context_token)
             logger.info("WeChatILinkChannel: sent to %s (items=%d)", to_user_id, len(items))
-
+        if failed:
+            raise ChannelSendError.for_attachments(self.name, failed, delivered_any=bool(items))
         return None
 
     async def _ensure_typing_ticket(self, chat_id: str) -> str | None:

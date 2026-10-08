@@ -1,6 +1,8 @@
 """Feishu outbound: message send (text / post / card), media upload, CardKit streaming and reactions.
 
 [INPUT]
+- channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
+- channels.core.exceptions::ChannelSendError, RateLimitError (POS: delivery failure classification)
 - channels.providers.feishu.cards (POS: card / post content builders)
 - channels.providers.feishu.reactions::UNICODE_TO_FEISHU_EMOJI (POS: reaction emoji vocabulary)
 - channels.rendering.renderer::render (POS: channel message rendering pipeline)
@@ -21,7 +23,10 @@ import logging
 import re
 import uuid
 from datetime import UTC, datetime
+from functools import partial
 
+from app.channels.core.attachment_delivery import deliver_attachments
+from app.channels.core.exceptions import ChannelSendError, RateLimitError
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     MediaAttachment,
@@ -30,7 +35,7 @@ from app.channels.types import (
     RenderStyle,
 )
 
-from .api import FeishuClient
+from .api import FeishuClient, FeishuRateLimitError, FeishuSendError
 from .cards import (
     build_card_actions,
     build_post_content,
@@ -56,6 +61,7 @@ class FeishuOutboundMixin:
     Requires the host class to provide the attributes below.
     """
 
+    name: str
     render_style: RenderStyle
     _client: FeishuClient
     _render_mode: str
@@ -66,21 +72,23 @@ class FeishuOutboundMixin:
     async def send(self, msg: OutboundMessage) -> str | None:
         chat_id = msg.recipient_id
         if not chat_id:
-            logger.warning("FeishuChannel: no recipient_id, skipping")
-            return None
+            raise ChannelSendError("Feishu message has no recipient", channel=self.name, retriable=False)
 
         from .comment_handler import COMMENT_DOC_PREFIX
 
-        if chat_id.startswith(COMMENT_DOC_PREFIX):
-            return await self._send_comment_reply(chat_id, msg)
+        try:
+            if chat_id.startswith(COMMENT_DOC_PREFIX):
+                return await self._send_comment_reply(chat_id, msg)
+            return await self._send_chat_message(chat_id, msg)
+        except FeishuRateLimitError as exc:
+            raise RateLimitError(str(exc), channel=self.name, retry_after=exc.retry_after) from exc
+        except FeishuSendError as exc:
+            raise ChannelSendError(str(exc), channel=self.name, status_code=exc.status_code, retriable=exc.retriable) from exc
 
+    async def _send_chat_message(self, chat_id: str, msg: OutboundMessage) -> str | None:
+        """Send the text first, then each attachment: attachment failures are then a partial delivery."""
         receive_type = self._resolve_receive_type(chat_id, msg)
         last_msg_id: str | None = None
-
-        for attachment in msg.media:
-            mid = await self._send_media(chat_id, receive_type, attachment, msg.reply_to_id)
-            if mid:
-                last_msg_id = mid
 
         if msg.content:
             from .table_slicer import slice_card_markdown
@@ -112,6 +120,12 @@ class FeishuOutboundMixin:
                 if mid_str:
                     last_msg_id = mid_str
 
+        await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_media, chat_id, receive_type, reply_to_id=msg.reply_to_id),
+            text_delivered=bool(msg.content),
+        )
         return last_msg_id
 
     async def _send_comment_reply(self, recipient_id: str, msg: OutboundMessage) -> str | None:
@@ -124,20 +138,19 @@ class FeishuOutboundMixin:
 
         route = parse_comment_recipient(recipient_id)
         if not route:
-            logger.warning("FeishuChannel: malformed comment recipient_id: %s", recipient_id)
-            return None
+            raise ChannelSendError(f"Feishu comment recipient is malformed: {recipient_id}", channel=self.name, retriable=False)
 
         content = (msg.content or "").strip()
         if not content or _NO_REPLY_SENTINEL in content:
+            # A deliberate NO_REPLY is a handled outcome: it reports the comment locator like a delivered
+            # reply, because None would read as a lost delivery.
             logger.info("FeishuChannel: comment NO_REPLY, skipping delivery")
-            return None
+            return recipient_id
 
-        ok = await deliver_comment_reply(self._client, route, content)
-        if ok:
-            logger.info("FeishuChannel: comment reply delivered to %s", recipient_id)
-        else:
-            logger.error("FeishuChannel: comment reply delivery failed for %s", recipient_id)
-        return recipient_id if ok else None
+        if not await deliver_comment_reply(self._client, route, content):
+            raise ChannelSendError(f"Feishu comment reply failed for {recipient_id}", channel=self.name)
+        logger.info("FeishuChannel: comment reply delivered to %s", recipient_id)
+        return recipient_id
 
     async def send_placeholder(
         self,
@@ -258,43 +271,54 @@ class FeishuOutboundMixin:
         receive_type: str,
         attachment: MediaAttachment,
         reply_to_id: str | None = None,
-    ) -> str | None:
+    ) -> str:
+        """Upload one attachment and send it, returning the message id; raise when Feishu does not take it."""
         data = await self._download_attachment(attachment)
-        if not data:
-            return None
 
         if attachment.media_type == MediaType.IMAGE:
             image_key = await self._client.upload_image(data)
             if not image_key:
-                return None
+                raise ChannelSendError("Feishu rejected the image upload", channel=self.name)
             content = json.dumps({"image_key": image_key})
             msg_type = "image"
         else:
             fname = attachment.filename or f"file.{attachment.media_type.value}"
             file_key = await self._client.upload_file(data, fname)
             if not file_key:
-                return None
+                raise ChannelSendError("Feishu rejected the file upload", channel=self.name)
             content = json.dumps({"file_key": file_key, "file_name": fname})
             msg_type = "file"
 
-        return await self._client.send_message(
+        message_id = await self._client.send_message(
             receive_id,
             msg_type,
             content,
             receive_id_type=receive_type,
             reply_in_thread=bool(reply_to_id),
         )
+        if not message_id:
+            raise ChannelSendError("Feishu rejected the attachment message", channel=self.name)
+        return message_id
 
-    async def _download_attachment(self, attachment: MediaAttachment) -> bytes | None:
+    async def _download_attachment(self, attachment: MediaAttachment) -> bytes:
+        """Read a local file or download a URL; raise when the content cannot be obtained."""
         from pathlib import Path
 
         if attachment.path:
             try:
                 return Path(attachment.path).read_bytes()
             except OSError as exc:
-                logger.debug("Failed to read local file %s: %s", attachment.path, exc)
-                return None
-        return await self._client.download_url(attachment.url) if attachment.url else None
+                raise ChannelSendError(
+                    f"Feishu attachment {attachment.display_name} is unreadable: {exc}", channel=self.name, retriable=False
+                ) from exc
+        if not attachment.url:
+            raise ChannelSendError(
+                f"Feishu attachment {attachment.display_name} has neither path nor url", channel=self.name, retriable=False
+            )
+        data = await self._client.download_url(attachment.url)
+        if not data:
+            raise ChannelSendError(f"Feishu attachment {attachment.display_name} could not be downloaded", channel=self.name)
+        return data
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
         if not message_id:

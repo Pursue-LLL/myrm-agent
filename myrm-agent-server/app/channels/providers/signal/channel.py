@@ -8,6 +8,7 @@ reaction handling, mention parsing, edit-message detection.
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
+- channels.core.attachment_delivery::attempt_attachments (POS: per-attachment delivery with aggregated failure)
 - .helpers::TypedDict structures, constants, _render_mentions (POS: types and pure functions)
 
 [OUTPUT]
@@ -30,8 +31,12 @@ import time
 from pathlib import Path
 from typing import cast
 
+import httpx
+
+from app.channels.core.attachment_delivery import attempt_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.mixins import CachedGroupMixin
 from app.channels.providers.signal.api import SignalClient
 from app.channels.providers.signal.helpers import (
@@ -203,77 +208,54 @@ class SignalChannel(BaseChannel, CachedGroupMixin):
     # ---- outbound ---------------------------------------------------------
 
     async def send(self, msg: OutboundMessage) -> str | None:
+        """Send text and attachments through signal-cli; attachments ride with the first chunk.
+
+        An attachment that cannot be encoded is reported after the rest went out, so the bus republishes
+        only that attachment.
+        """
         if not msg.recipient_id:
-            logger.warning("Signal send: no recipient_id")
+            raise ChannelSendError("Signal message has no recipient", channel=self.name, retriable=False)
+        if not msg.content and not msg.media:
             return None
+
+        attempts = await attempt_attachments(self.name, msg.media, self._encode_attachment)
+        encoded = list(attempts.results)
+        chunks = render(msg, self.render_style) if msg.content else ([""] if encoded else [])
+
+        timestamp: str | None = None
+        for index, chunk in enumerate(chunks):
+            payload: dict[str, str | list[str]] = {
+                "message": chunk,
+                "number": self._phone,
+                "recipients": [msg.recipient_id],
+            }
+            if index == 0 and encoded:
+                payload["base64_attachments"] = encoded
+            sent_at = await self._post_send(payload)
+            timestamp = timestamp or sent_at
+
+        attempts.raise_for_failures(self.name, delivered_any=bool(chunks))
+        return timestamp
+
+    async def _post_send(self, payload: dict[str, str | list[str]]) -> str | None:
+        """POST one message to signal-cli and return its timestamp; raises ``ChannelSendError`` when it is not accepted."""
         try:
-            if msg.media:
-                return await self._send_with_attachments(msg)
-            if msg.content:
-                return await self._send_text(msg)
-            return None
-        except Exception as exc:
-            logger.error("Signal send failed to %s: %s", msg.recipient_id, exc)
+            resp = await self._api.send_message(payload)
+        except httpx.HTTPError as exc:
             self.health.record_failure(f"send: {exc}")
+            raise ChannelSendError(f"Signal request failed: {type(exc).__name__}", channel=self.name) from exc
+        if resp.status_code != 201:
+            self.health.record_failure(f"send: HTTP {resp.status_code}")
+            raise ChannelSendError.from_http_status(self.name, resp.status_code)
+        try:
+            data = resp.json()
+        except ValueError:
             return None
+        timestamp = data.get("timestamp") if isinstance(data, dict) else None
+        return str(timestamp) if timestamp else None
 
-    async def _send_text(self, msg: OutboundMessage) -> str | None:
-        chunks = render(msg, self.render_style)
-        ts: str | None = None
-        for chunk in chunks:
-            payload: dict[str, str | list[str]] = {
-                "message": chunk,
-                "number": self._phone,
-                "recipients": [msg.recipient_id],
-            }
-            resp = await self._api.send_message(payload)
-            if resp.status_code == 201:
-                if ts is None:
-                    data = resp.json()
-                    if isinstance(data, dict):
-                        ts = str(data.get("timestamp", "")) or None
-            else:
-                logger.warning("Signal send text HTTP %s", resp.status_code)
-        return ts
-
-    async def _send_with_attachments(self, msg: OutboundMessage) -> str | None:
-        """Send message with base64-encoded attachments via /v2/send."""
-        b64_attachments: list[str] = []
-        for att in msg.media:
-            encoded = await self._encode_attachment(att)
-            if encoded:
-                b64_attachments.append(encoded)
-
-        text = msg.content or ""
-        if not text and not b64_attachments:
-            return None
-
-        chunks = render(msg, self.render_style) if text else [""]
-        ts: str | None = None
-
-        for i, chunk in enumerate(chunks):
-            payload: dict[str, str | list[str]] = {
-                "message": chunk,
-                "number": self._phone,
-                "recipients": [msg.recipient_id],
-            }
-            if i == 0 and b64_attachments:
-                payload["base64_attachments"] = b64_attachments
-
-            resp = await self._api.send_message(payload)
-            if resp.status_code == 201:
-                if ts is None:
-                    data = resp.json()
-                    if isinstance(data, dict):
-                        ts = str(data.get("timestamp", "")) or None
-            else:
-                logger.warning("Signal send attachment HTTP %s", resp.status_code)
-        return ts
-
-    async def _encode_attachment(self, att: MediaAttachment) -> str | None:
-        """Encode a MediaAttachment to base64 data URI for signal-cli REST API."""
-        raw_bytes: bytes | None = None
-
+    async def _encode_attachment(self, att: MediaAttachment) -> str:
+        """Encode an attachment as the base64 data URI signal-cli expects; raises ``ChannelSendError`` when it cannot be read."""
         if att.url:
             from app.channels.media import (
                 MAX_FORWARD_DOWNLOAD_BYTES,
@@ -288,17 +270,18 @@ class SignalChannel(BaseChannel, CachedGroupMixin):
             downloader = MediaDownloader(http_client=self._api._http, enable_default_cache=True)
             result = await downloader.download(att.url, config=config)
             if not result.success or not result.data:
-                return None
+                raise ChannelSendError(f"Signal could not download {att.display_name}", channel=self.name)
             raw_bytes = result.data
         elif att.path:
             try:
                 raw_bytes = await asyncio.to_thread(Path(att.path).read_bytes)
-            except Exception as exc:
-                logger.warning("Signal: failed to read attachment %s: %s", att.path, exc)
-                return None
+            except OSError as exc:
+                raise ChannelSendError(f"Signal cannot read {att.display_name}", channel=self.name, retriable=False) from exc
+        else:
+            raise ChannelSendError(f"Signal has no source for {att.display_name}", channel=self.name, retriable=False)
 
         if not raw_bytes:
-            return None
+            raise ChannelSendError(f"Signal attachment {att.display_name} is empty", channel=self.name, retriable=False)
 
         mime = att.mime_type or "application/octet-stream"
         b64 = base64.b64encode(raw_bytes).decode("ascii")

@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.reliability.reconnect import reconnect_loop
 from app.channels.rendering.renderer import render
 from app.channels.types import (
@@ -84,10 +85,9 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
     capabilities = ChannelCapabilities(
         text=True,
         markdown=True,
-        media=True,
-        file_upload=True,
         edit=True,
         max_text_length=_MAX_TEXT_LENGTH,
+        message_ids=False,
     )
     render_style = RenderStyle(
         format="markdown",
@@ -193,8 +193,7 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
 
     async def send(self, msg: OutboundMessage) -> str | None:
         if not self._ws:
-            logger.warning("WeComAiBotChannel: no WebSocket connection, cannot send")
-            return None
+            raise ChannelSendError("WeCom AI Bot is not connected", channel=self.name)
 
         req_id = str(msg.metadata.get("req_id", "")) if msg.metadata else ""
         chat_id = msg.recipient_id
@@ -207,18 +206,17 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
                 for i, chunk in enumerate(chunks):
                     accumulated = f"{accumulated}\n{chunk}" if accumulated else chunk
                     is_final = i == len(chunks) - 1
-                    await self._send_respond_msg(
-                        req_id,
-                        accumulated,
-                        finish=is_final,
-                        stream_id=stream_id,
-                    )
+                    sent = await self._send_respond_msg(req_id, accumulated, finish=is_final, stream_id=stream_id)
+                    self._require_sent(sent)
             elif chunks:
                 if not chat_id:
-                    logger.warning("WeComAiBotChannel: no req_id or recipient_id, cannot send")
-                    return None
+                    raise ChannelSendError(
+                        "WeCom AI Bot message has neither req_id nor recipient_id",
+                        channel=self.name,
+                        retriable=False,
+                    )
                 for chunk in chunks:
-                    await self._send_proactive_msg(chat_id, chunk)
+                    self._require_sent(await self._send_proactive_msg(chat_id, chunk))
         return None
 
     async def send_placeholder(
@@ -276,19 +274,22 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
             # No active stream; send everything via proactive message
             for chunk in chunks:
                 if chunk:
-                    await self._send_proactive_msg(chat_id, chunk)
+                    self._require_sent(await self._send_proactive_msg(chat_id, chunk))
         elif state.is_force_closed:
             # Stream was closed by sentinel; deliver first chunk via respond_msg, rest proactive
-            await self._send_respond_msg(state.req_id, first_chunk, finish=True)
+            self._require_sent(await self._send_respond_msg(state.req_id, first_chunk, finish=True))
             for chunk in overflow_chunks:
                 if chunk:
-                    await self._send_proactive_msg(chat_id, chunk)
+                    self._require_sent(await self._send_proactive_msg(chat_id, chunk))
         elif self._ws:
             # Active stream; morph first chunk in place, send remaining chunks proactively
-            await self._send_respond_msg(state.req_id, first_chunk, finish=True, stream_id=message_id)
+            sent = await self._send_respond_msg(state.req_id, first_chunk, finish=True, stream_id=message_id)
+            self._require_sent(sent)
             for chunk in overflow_chunks:
                 if chunk:
-                    await self._send_proactive_msg(chat_id, chunk)
+                    self._require_sent(await self._send_proactive_msg(chat_id, chunk))
+        else:
+            raise ChannelSendError("WeCom AI Bot is not connected", channel=self.name)
 
     # ── WebSocket session ─────────────────────────────────────
 
@@ -339,15 +340,25 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
 
     # ── Outbound frame helpers ────────────────────────────────
 
-    async def _send_frame(self, frame: dict[str, object]) -> None:
-        """Send a JSON frame through the WebSocket."""
+    def _require_sent(self, sent: bool) -> None:
+        """Final-delivery paths must not treat a frame that never left as delivered."""
+        if not sent:
+            raise ChannelSendError("WeCom AI Bot frame was not sent: connection down", channel=self.name)
+
+    async def _send_frame(self, frame: dict[str, object]) -> bool:
+        """Send a JSON frame through the WebSocket; False when the connection is down or the write failed.
+
+        Streaming progress and keep-alive ignore the result (best effort); final delivery checks it.
+        """
         if not self._ws:
-            return
+            return False
         try:
             await self._ws.send(json.dumps(frame))
         except Exception as exc:
             logger.debug("WeComAiBot send frame error: %s", exc)
             self.health.record_failure(str(exc))
+            return False
+        return True
 
     async def _send_respond_msg(
         self,
@@ -356,8 +367,8 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
         *,
         finish: bool = True,
         stream_id: str | None = None,
-    ) -> None:
-        """Send aibot_respond_msg (streaming or final)."""
+    ) -> bool:
+        """Send aibot_respond_msg (streaming or final); False when the frame could not be sent."""
         sid = stream_id or uuid.uuid4().hex[:16]
         frame: dict[str, object] = {
             "cmd": "aibot_respond_msg",
@@ -371,7 +382,7 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
                 },
             },
         }
-        await self._send_frame(frame)
+        return await self._send_frame(frame)
 
     async def _send_proactive_msg(
         self,
@@ -379,14 +390,13 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
         content: str,
         *,
         chat_type: int | None = None,
-    ) -> None:
+    ) -> bool:
         """Send proactive message. Falls back to respond_msg for groups (API restriction)."""
         is_group = chat_id.startswith(("wr", "chat"))
 
         cached_req_id = self._group_req_ids.get(chat_id) if is_group else None
         if cached_req_id:
-            await self._send_respond_msg(cached_req_id, content, finish=True)
-            return
+            return await self._send_respond_msg(cached_req_id, content, finish=True)
 
         if chat_type is None:
             chat_type = 1 if is_group else 0
@@ -401,4 +411,4 @@ class WeComAiBotChannel(WeComAiBotInboundMixin, BaseChannel):
                 "text": {"content": content},
             },
         }
-        await self._send_frame(frame)
+        return await self._send_frame(frame)

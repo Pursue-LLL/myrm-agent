@@ -1,11 +1,12 @@
 """Matrix media upload and encrypted attachment helpers.
 
 [INPUT]
+- channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
 - mautrix.client::Client (POS: mautrix Matrix client for upload/send)
 - mautrix.crypto.attachments (POS: Attachment encryption for E2EE rooms)
 
 [OUTPUT]
-- send_media: Upload and send a media attachment to a Matrix room
+- send_media: Upload and send a media attachment to a Matrix room; raises ChannelSendError when it is not delivered
 - send_media_event: Send a media event with pre-uploaded mxc:// URL
 
 [POS]
@@ -20,6 +21,7 @@ import asyncio
 import logging
 from pathlib import Path
 
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.types import (
     MediaAttachment,
     MediaType,
@@ -36,24 +38,26 @@ async def send_media(
     att: MediaAttachment,
     encryption: bool,
 ) -> str | None:
-    """Upload and send a media attachment. Returns event_id or None."""
+    """Upload and send a media attachment; returns the event id.
+
+    Raises ``ChannelSendError`` when it is not delivered: a local file or an ``mxc://`` URL is required.
+    """
     if not att.url and not att.path:
-        return None
+        raise ChannelSendError("Matrix attachment has neither a file nor an mxc:// URL", channel="matrix", retriable=False)
     if not client:
-        return None
+        raise ChannelSendError("Matrix client is not connected", channel="matrix")
 
     from mautrix.types import RoomID
 
-    data: bytes | None = None
     filename = att.filename or "file"
     content_type = att.mime_type or "application/octet-stream"
 
     if att.path:
         p = Path(att.path)
         if not p.exists():
-            return None
+            raise ChannelSendError(f"Matrix cannot read {att.display_name}", channel="matrix", retriable=False)
         data = p.read_bytes()
-    elif att.url:
+    else:
         if att.url.startswith("mxc://"):
             return await send_media_event(
                 client,
@@ -63,10 +67,7 @@ async def send_media(
                 content_type,
                 att.media_type,
             )
-        return None
-
-    if data is None:
-        return None
+        raise ChannelSendError("Matrix only forwards mxc:// URLs; attach a local file instead", channel="matrix", retriable=False)
 
     upload_data, encrypted_file = await _maybe_encrypt_attachment(
         client,
@@ -83,8 +84,7 @@ async def send_media(
             size=len(upload_data),
         )
     except Exception as exc:
-        logger.error("Matrix: upload failed: %s", exc)
-        return None
+        raise ChannelSendError(f"Matrix upload failed: {exc}", channel="matrix") from exc
 
     return await send_media_event(
         client,
@@ -141,9 +141,9 @@ async def send_media_event(
     encrypted_file: object | None = None,
     file_size: int = 0,
 ) -> str | None:
-    """Send a media event (m.image/m.audio/m.video/m.file) to a room."""
+    """Send a media event (m.image/m.audio/m.video/m.file) to a room; raises ``ChannelSendError`` on failure."""
     if not client:
-        return None
+        raise ChannelSendError("Matrix client is not connected", channel="matrix")
 
     from mautrix.types import EventType, RoomID
 
@@ -178,5 +178,4 @@ async def send_media_event(
         )
         return str(event_id) if event_id else None
     except Exception as exc:
-        logger.debug("Matrix media send failed: %s", exc)
-        return None
+        raise ChannelSendError(f"Matrix media send failed: {exc}", channel="matrix") from exc

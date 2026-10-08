@@ -1,11 +1,11 @@
 """GitHub helpers — signature verification and API client.
 
 [INPUT]
-(no external channel dependencies)
+- channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
 
 [OUTPUT]
 - verify_github_signature: X-Hub-Signature-256 HMAC verification
-- post_issue_comment: Post a comment to a GitHub issue/PR via REST API
+- post_issue_comment: Post a comment to a GitHub issue/PR via REST API; raises ChannelSendError when GitHub does not accept it
 
 [POS]
 Pure-function signature verification and minimal GitHub REST API client
@@ -19,6 +19,8 @@ import hmac
 import logging
 
 import httpx
+
+from app.channels.core.exceptions import ChannelSendError
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +50,10 @@ async def post_issue_comment(
     repo: str,
     issue_number: int,
     body: str,
-) -> bool:
+) -> None:
     """Post a comment to a GitHub issue or pull request.
 
-    Returns True on success, False on failure.
+    Raises ``ChannelSendError`` unless GitHub accepted the comment.
     """
     url = f"{_API_BASE}/repos/{repo}/issues/{issue_number}/comments"
     headers = {
@@ -62,14 +64,7 @@ async def post_issue_comment(
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.post(url, json={"body": body}, headers=headers)
-            if resp.status_code == 201:
-                return True
-            logger.warning(
-                "GitHub API comment failed: %d %s",
-                resp.status_code,
-                resp.text[:200],
-            )
-            return False
     except httpx.HTTPError as exc:
-        logger.error("GitHub API request error: %s", exc)
-        return False
+        raise ChannelSendError(f"GitHub API request failed: {exc}", channel="github") from exc
+    if resp.status_code != 201:
+        raise ChannelSendError.from_http_status("github", resp.status_code, resp.text)

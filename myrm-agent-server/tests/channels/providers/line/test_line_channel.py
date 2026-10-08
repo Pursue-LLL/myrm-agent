@@ -9,6 +9,7 @@ import pytest
 
 from app.channels.core.allow_policy import AllowPolicy, ChatPolicy
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.line import LINEChannel, _ReplyToken
 from app.channels.types import (
     ChannelStatus,
@@ -645,11 +646,12 @@ def _outbound(
 
 class TestSendEmptyRecipient:
     @pytest.mark.asyncio
-    async def test_empty_recipient_returns_none(self) -> None:
+    async def test_empty_recipient_raises_permanent_error(self) -> None:
         ch, _ = _make_channel()
         msg = _outbound(content="hello", recipient_id="")
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+        assert exc_info.value.retriable is False
 
 
 class TestSendPush:
@@ -664,12 +666,38 @@ class TestSendPush:
         assert ch._quote_tokens.get("Uuser1") == "qt-out"
 
     @pytest.mark.asyncio
-    async def test_push_http_error_returns_none(self) -> None:
+    async def test_push_http_error_raises_retriable_error(self) -> None:
         ch, _ = _make_channel()
         ch._api.push = AsyncMock(return_value=_mock_response(429))
 
-        result = await ch.send(_outbound(content="test"))
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(_outbound(content="test"))
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.retriable is True
+
+    @pytest.mark.asyncio
+    async def test_push_rejection_is_permanent_and_carries_the_reason(self) -> None:
+        ch, _ = _make_channel()
+        ch._api.push = AsyncMock(return_value=_mock_response(400, {"message": "Invalid originalContentUrl"}))
+
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(_outbound(content="test"))
+        assert exc_info.value.retriable is False
+        assert "Invalid originalContentUrl" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_a_failing_later_batch_is_reported_not_swallowed(self) -> None:
+        ch, _ = _make_channel()
+        ch._api.push = AsyncMock(
+            side_effect=[
+                _mock_response(200, {"sentMessages": [{"id": "mid-batch-1"}]}),
+                _mock_response(500),
+            ],
+        )
+
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(_outbound(content="LINE long reply segment.\n" * 1100))
+        assert exc_info.value.retriable is True
 
     @pytest.mark.asyncio
     async def test_long_message_uses_batch_push(self) -> None:
@@ -767,8 +795,10 @@ class TestSendException:
         ch, _ = _make_channel()
         ch._api.push = AsyncMock(side_effect=RuntimeError("connection reset"))
 
-        result = await ch.send(_outbound(content="fail"))
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(_outbound(content="fail"))
+        assert exc_info.value.retriable is True
+        assert "connection reset" in (ch.health.last_error or "")
 
 
 # ---------------------------------------------------------------------------
@@ -835,6 +865,56 @@ class TestBuildOutboundQuickReply:
         assert len(captured_messages) > 0
         last_msg = captured_messages[-1]
         assert "quickReply" in last_msg
+
+
+class TestSendUnsupportedMedia:
+    """LINE carries public-URL images, videos and audio only; everything else is reported, never dropped."""
+
+    @pytest.mark.asyncio
+    async def test_unsupported_attachment_is_reported_after_the_text_went_out(self) -> None:
+        ch, _ = _make_channel()
+        ch._api.push = AsyncMock(return_value=_mock_response(200, {"sentMessages": [{"id": "m1"}]}))
+        report = MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/report.pdf")
+
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(_outbound(content="Here is the report", media=(report,)))
+
+        ch._api.push.assert_awaited_once()
+        assert exc_info.value.accepted is True
+        assert exc_info.value.retriable is False
+        assert exc_info.value.failed_attachments == ("report.pdf",)
+
+    @pytest.mark.asyncio
+    async def test_only_unsupported_attachments_send_nothing(self) -> None:
+        ch, _ = _make_channel()
+        ch._reply_tokens["Uuser1"] = _ReplyToken("rt-keep")
+        ch._api.push = AsyncMock()
+        ch._api.reply = AsyncMock()
+        report = MediaAttachment(media_type=MediaType.DOCUMENT, url="https://example.com/doc.pdf")
+
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(_outbound(content="", media=(report,)))
+
+        ch._api.push.assert_not_awaited()
+        ch._api.reply.assert_not_awaited()
+        assert "Uuser1" in ch._reply_tokens
+        assert exc_info.value.accepted is False
+        assert exc_info.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_supported_media_still_goes_out_next_to_an_unsupported_one(self) -> None:
+        ch, _ = _make_channel()
+        ch._api.push = AsyncMock(return_value=_mock_response(200, {"sentMessages": [{"id": "m1"}]}))
+        image = MediaAttachment(media_type=MediaType.IMAGE, url="https://cdn.example.com/p.jpg")
+        report = MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/report.pdf")
+
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(_outbound(content="", media=(report, image)))
+
+        (batch,) = [call.args[1] for call in ch._api.push.await_args_list]
+        assert [m["type"] for m in batch] == ["image"]
+        assert exc_info.value.accepted is True
+        assert exc_info.value.failed_attachments == ("report.pdf",)
 
 
 class TestSendWithMedia:

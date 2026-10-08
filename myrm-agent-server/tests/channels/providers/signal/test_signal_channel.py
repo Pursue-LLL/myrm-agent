@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.media.downloader import MediaDownloadResult
 from app.channels.providers.signal import (
     SignalChannel,
@@ -448,8 +449,9 @@ class TestSignalOutbound:
 
         ch = SignalChannel(api_url="http://signal:8080", phone_number="+1234567890")
         msg = OutboundMessage(channel="signal", user_id="u1", recipient_id="", content="Hi")
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+        assert exc_info.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_send_with_media(self) -> None:
@@ -481,7 +483,7 @@ class TestSignalOutbound:
             assert result is not None
 
     @pytest.mark.asyncio
-    async def test_send_failure_handled(self) -> None:
+    async def test_send_connection_failure_raises_retriable_error(self) -> None:
         from unittest.mock import AsyncMock
 
         from app.channels.types import OutboundMessage
@@ -490,8 +492,10 @@ class TestSignalOutbound:
         ch._api._http.post = AsyncMock(side_effect=httpx.ConnectError("refused"))  # type: ignore[assignment]
 
         msg = OutboundMessage(channel="signal", user_id="u1", recipient_id="+9999", content="Hi")
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+        assert exc_info.value.retriable is True
+        assert "refused" in (ch.health.last_error or "")
 
     @pytest.mark.asyncio
     async def test_start_typing(self) -> None:
@@ -562,8 +566,10 @@ class TestSignalOutbound:
         ch._api._http.post = AsyncMock(return_value=mock_resp)  # type: ignore[assignment]
 
         msg = OutboundMessage(channel="signal", user_id="u1", recipient_id="+9999", content="Hello!")
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.retriable is True
 
     @pytest.mark.asyncio
     async def test_send_no_content_no_media(self) -> None:
@@ -607,8 +613,13 @@ class TestSignalOutbound:
         with patch("asyncio.to_thread", new_callable=AsyncMock, side_effect=FileNotFoundError("not found")):
             media = MediaAttachment(media_type=MediaType.IMAGE, path="/tmp/missing.png", mime_type="image/png")
             msg = OutboundMessage(channel="signal", user_id="u1", recipient_id="+9999", content="text", media=(media,))
-            result = await ch.send(msg)
-            assert result is not None
+            with pytest.raises(ChannelSendError) as exc_info:
+                await ch.send(msg)
+
+        # The text still went out; only the unreadable file is reported so the bus never replays the text.
+        ch._api._http.post.assert_awaited_once()
+        assert exc_info.value.accepted is True
+        assert exc_info.value.failed_attachments == ("missing.png",)
 
     @pytest.mark.asyncio
     async def test_send_with_media_no_data(self) -> None:
@@ -617,8 +628,10 @@ class TestSignalOutbound:
         ch = SignalChannel(api_url="http://signal:8080", phone_number="+1234567890")
         media = MediaAttachment(media_type=MediaType.IMAGE)
         msg = OutboundMessage(channel="signal", user_id="u1", recipient_id="+9999", content="", media=(media,))
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+        assert exc_info.value.accepted is False
+        assert exc_info.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_send_with_media_download_returns_none(self) -> None:
@@ -646,8 +659,11 @@ class TestSignalOutbound:
         ):
             media = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/bad.png")
             msg = OutboundMessage(channel="signal", user_id="u1", recipient_id="+9999", content="text", media=(media,))
-            result = await ch.send(msg)
-            assert result is not None
+            with pytest.raises(ChannelSendError) as exc_info:
+                await ch.send(msg)
+
+        assert exc_info.value.accepted is True
+        assert exc_info.value.failed_attachments == ("https://example.com/bad.png",)
 
     @pytest.mark.asyncio
     async def test_typing_start_error_silenced(self) -> None:

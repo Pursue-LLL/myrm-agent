@@ -424,8 +424,19 @@ class TestQQSend:
         ch._chat_types["G123"] = "group"
         msg = OutboundMessage(channel="qq", recipient_id="G123", content="Hi", user_id="U")
         with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_err_json(400)):
-            result = await ch.send(msg)
-        assert result is None
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(msg)
+        assert (excinfo.value.status_code, excinfo.value.retriable) == (400, False)
+
+    @pytest.mark.asyncio
+    async def test_send_text_server_error_may_be_retried(self) -> None:
+        ch = _make_channel()
+        ch._chat_types["G123"] = "group"
+        msg = OutboundMessage(channel="qq", recipient_id="G123", content="Hi", user_id="U")
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_err_json(503)):
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(msg)
+        assert excinfo.value.retriable is True
 
 
 # ── Media Upload ─────────────────────────────────────────────────────
@@ -464,8 +475,10 @@ class TestQQMedia:
             media=(attachment,),
         )
         with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_err_json(400)):
-            result = await ch.send(msg)
-        assert result is None
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(msg)
+        assert len(excinfo.value.failed_attachments) == 1
+        assert excinfo.value.accepted is False
 
     @pytest.mark.asyncio
     async def test_send_media_no_url(self) -> None:
@@ -479,8 +492,9 @@ class TestQQMedia:
             user_id="U",
             media=(attachment,),
         )
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.retriable is False  # local files can never be fetched by QQ
 
     @pytest.mark.asyncio
     async def test_send_media_no_file_info(self) -> None:
@@ -496,8 +510,38 @@ class TestQQMedia:
         )
         resp = _ok_json({})
         with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=resp):
-            result = await ch.send(msg)
-        assert result is None
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(msg)
+        assert excinfo.value.retriable is True
+
+    @pytest.mark.asyncio
+    async def test_text_is_sent_before_attachments_and_a_failed_attachment_is_a_partial_delivery(self) -> None:
+        ch = _make_channel()
+        ch._chat_types["G123"] = "group"
+        image = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.qq.com/1.png", filename="1.png")
+        msg = OutboundMessage(channel="qq", recipient_id="G123", content="Here", user_id="U", media=(image,))
+        post = AsyncMock(side_effect=[_ok_json({"id": "text_1"}), _err_json(400)])
+        with patch.object(ch._api._http, "post", post), pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        assert post.await_args_list[0].kwargs["json"]["content"] == "Here"
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
+        assert excinfo.value.failed_attachments == ("1.png",)
+
+    @pytest.mark.asyncio
+    async def test_every_attachment_is_attempted_even_when_the_first_fails(self) -> None:
+        ch = _make_channel()
+        ch._chat_types["G123"] = "group"
+        first = MediaAttachment(media_type=MediaType.IMAGE, filename="local.png")  # no public URL
+        second = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.qq.com/2.png", filename="2.png")
+        msg = OutboundMessage(channel="qq", recipient_id="G123", content="", user_id="U", media=(first, second))
+        post = AsyncMock(side_effect=[_ok_json({"file_info": "fi"}), _ok_json({"id": "media_2"})])
+        with patch.object(ch._api._http, "post", post), pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        assert post.await_count == 2
+        assert excinfo.value.failed_attachments == ("local.png",)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
 
 
 # ── msg_seq ──────────────────────────────────────────────────────────

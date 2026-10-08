@@ -25,6 +25,7 @@ from xml.sax.saxutils import quoteattr
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     ChannelCapabilities,
@@ -61,6 +62,7 @@ class VoiceCallChannel(BaseChannel):
     capabilities = ChannelCapabilities(
         text=True,
         max_text_length=_MAX_TEXT_LENGTH,
+        message_ids=False,
     )
     render_style = RenderStyle(format="text", max_text_length=_MAX_TEXT_LENGTH)
 
@@ -167,8 +169,7 @@ class VoiceCallChannel(BaseChannel):
         call_sid = msg.recipient_id
         call_entry = self._active_calls.get(call_sid)
         if not call_entry:
-            logger.debug("VoiceCallChannel: no active call for %s", call_sid)
-            return None
+            raise ChannelSendError(f"No active voice call for {call_sid}", channel=self.name, retriable=False)
 
         send_fn, _ = call_entry
         if msg.content:
@@ -177,10 +178,10 @@ class VoiceCallChannel(BaseChannel):
             payload = json.dumps({"type": "text", "token": text, "last": True})
             try:
                 await send_fn(payload)
-                self.health.record_success()
-            except Exception:
+            except Exception as exc:
                 self.health.record_failure(f"send failed for call {call_sid}")
-                logger.debug("VoiceCallChannel: send failed for %s", call_sid)
+                raise ChannelSendError(f"Voice send failed for call {call_sid}", channel=self.name, retriable=False) from exc
+            self.health.record_success()
         return None
 
     # -- TwiML generation ----------------------------------------------------

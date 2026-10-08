@@ -279,7 +279,7 @@ def delivery_unconfirmed(capabilities: ChannelCapabilities, msg: OutboundMessage
 def undelivered_part(msg: OutboundMessage, failed_names: tuple[str, ...]) -> OutboundMessage:
     """Attachments-only remainder of ``msg`` after a partial delivery.
 
-    Selects the attachments reported as failed (all of them when the provider named none) so a
+    Selects the attachments reported as failed (all of them when none of the names matches) so a
     later re-send never duplicates text or attachments the recipient already received.
     """
     failed = tuple(m for m in msg.media if m.display_name in failed_names) or msg.media

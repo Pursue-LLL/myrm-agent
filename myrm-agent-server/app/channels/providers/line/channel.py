@@ -25,6 +25,7 @@ import httpx
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.line.api import LineClient
 from app.channels.providers.line.helpers import (
     _DATA_API_BASE,
@@ -175,22 +176,20 @@ class LINEChannel(BaseChannel):
     # -- outbound ------------------------------------------------------------
 
     async def send(self, msg: OutboundMessage) -> str | None:
+        """Send text and media as Reply (free) or Push messages.
+
+        LINE carries only public-URL images, videos and audio; any other attachment is reported after the
+        rest went out, so the bus never replays what the recipient already has.
+        """
         if not msg.recipient_id:
-            logger.warning("LINE send: empty recipient_id, skipping")
-            return None
-        try:
-            return await self._send_impl(msg)
-        except Exception as exc:
-            self.health.record_failure(str(exc))
-            logger.debug("LINE send failed: %s", exc)
-            return None
+            raise ChannelSendError("LINE message has no recipient", channel=self.name, retriable=False)
+        all_messages, unsupported = self._build_outbound_messages(msg)
+        last_msg_id = await self._deliver(msg.recipient_id, all_messages) if all_messages else None
+        if unsupported:
+            raise ChannelSendError.for_attachments(self.name, unsupported, delivered_any=bool(all_messages), retriable=False)
+        return last_msg_id
 
-    async def _send_impl(self, msg: OutboundMessage) -> str | None:
-        all_messages = self._build_outbound_messages(msg)
-        if not all_messages:
-            return None
-
-        chat_id = msg.recipient_id
+    async def _deliver(self, chat_id: str, all_messages: list[dict[str, object]]) -> str | None:
         reply_entry = self._reply_tokens.pop(chat_id, None)
         quote_token = self._quote_tokens.pop(chat_id, None)
 
@@ -207,17 +206,21 @@ class LINEChannel(BaseChannel):
                 if first.get("type") == "text":
                     first["quoteToken"] = quote_token
 
+            resp: httpx.Response | None = None
+            pushed = False
             if batch_index == 0 and reply_entry and not reply_entry.expired:
-                result = await self._call_reply(reply_entry.token, batch)
-                if result is not None:
-                    last_msg_id = result
-                    batch_index += 1
-                    continue
-                logger.debug("LINE reply token failed, falling back to push")
+                resp = await self._call_reply(reply_entry.token, batch)
+                if resp is None:
+                    logger.debug("LINE reply token failed, falling back to push")
+            if resp is None:
+                resp = await self._call_push(chat_id, batch)
+                pushed = True
 
-            result = await self._call_push(chat_id, batch)
-            if result is not None:
-                last_msg_id = result
+            data = self._parse_response(resp)
+            if data:
+                last_msg_id = self._extract_message_id_from(data) or last_msg_id
+                if pushed:
+                    self._store_quote_token(chat_id, data)
             batch_index += 1
 
         return last_msg_id
@@ -225,13 +228,17 @@ class LINEChannel(BaseChannel):
     def _build_outbound_messages(
         self,
         msg: OutboundMessage,
-    ) -> list[dict[str, object]]:
+    ) -> tuple[list[dict[str, object]], list[str]]:
+        """Build the LINE message objects and the names of attachments LINE cannot carry."""
         messages: list[dict[str, object]] = []
+        unsupported: list[str] = []
 
         for ma in msg.media:
             media_msg = self._build_media_message(ma)
             if media_msg:
                 messages.append(media_msg)
+            else:
+                unsupported.append(ma.display_name)
 
         if msg.content:
             chunks = render(msg, self.render_style)
@@ -252,7 +259,7 @@ class LINEChannel(BaseChannel):
             ]
             messages[-1]["quickReply"] = {"items": items}
 
-        return messages
+        return messages, unsupported
 
     @staticmethod
     def _build_media_message(ma: MediaAttachment) -> dict[str, object] | None:
@@ -279,31 +286,31 @@ class LINEChannel(BaseChannel):
         self,
         reply_token: str,
         messages: list[dict[str, object]],
-    ) -> str | None:
-        resp = await self._api.reply(reply_token, messages)
-        if resp.status_code >= 400:
+    ) -> httpx.Response | None:
+        """Reply with the free token; ``None`` when LINE does not take it, so the caller falls back to push."""
+        try:
+            resp = await self._api.reply(reply_token, messages)
+        except Exception as exc:
+            logger.debug("LINE reply request failed: %s", exc)
             return None
-        return self._extract_message_id(resp)
+        return None if resp.status_code >= 400 else resp
 
     async def _call_push(
         self,
         to: str,
         messages: list[dict[str, object]],
-    ) -> str | None:
-        resp = await self._api.push(to, messages)
+    ) -> httpx.Response:
+        """Push messages; raises ``ChannelSendError`` when LINE does not take them."""
+        try:
+            resp = await self._api.push(to, messages)
+        except Exception as exc:
+            self.health.record_failure(str(exc))
+            raise ChannelSendError(f"LINE request failed: {type(exc).__name__}", channel=self.name) from exc
         if resp.status_code >= 400:
-            logger.debug("LINE push failed: HTTP %d", resp.status_code)
-            return None
-        data = self._parse_response(resp)
-        msg_id = self._extract_message_id_from(data) if data else None
-        if data:
-            self._store_quote_token(to, data)
-        return msg_id
-
-    @staticmethod
-    def _extract_message_id(resp: httpx.Response) -> str | None:
-        data = LINEChannel._parse_response(resp)
-        return LINEChannel._extract_message_id_from(data) if data else None
+            self.health.record_failure(f"HTTP {resp.status_code}")
+            detail = (self._parse_response(resp) or {}).get("message")
+            raise ChannelSendError.from_http_status(self.name, resp.status_code, str(detail or ""))
+        return resp
 
     @staticmethod
     def _parse_response(resp: httpx.Response) -> dict[str, object] | None:

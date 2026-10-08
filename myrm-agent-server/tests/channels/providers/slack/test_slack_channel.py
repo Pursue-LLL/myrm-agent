@@ -821,6 +821,66 @@ class TestSlackSend:
         pathlib.Path(fpath).unlink(missing_ok=True)
 
 
+class TestSlackSendAttachmentFailures:
+    """A file Slack does not take is reported, never silently dropped."""
+
+    @staticmethod
+    def _doc(name: str = "f.txt") -> MediaAttachment:
+        return MediaAttachment(media_type="document", path=f"/tmp/{name}", filename=name)
+
+    @pytest.mark.asyncio
+    async def test_failed_upload_after_delivered_text_is_a_partial_delivery(self) -> None:
+        ch = _make_channel()
+        msg = OutboundMessage(channel="slack", recipient_id="C", content="Report", user_id="U", media=(self._doc("a.pdf"),))
+        with (
+            patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1.1"})),
+            patch.object(ch._api, "upload_file", new_callable=AsyncMock, return_value=False),
+            pytest.raises(ChannelSendError) as excinfo,
+        ):
+            await ch.send(msg)
+
+        assert excinfo.value.failed_attachments == ("a.pdf",)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
+
+    @pytest.mark.asyncio
+    async def test_files_only_message_whose_upload_failed_delivered_nothing(self) -> None:
+        ch = _make_channel()
+        msg = OutboundMessage(channel="slack", recipient_id="C", content="", user_id="U", media=(self._doc("a.pdf"),))
+        with (
+            patch.object(ch._api, "upload_file", new_callable=AsyncMock, return_value=False),
+            pytest.raises(ChannelSendError) as excinfo,
+        ):
+            await ch.send(msg)
+
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (False, True)
+
+    @pytest.mark.asyncio
+    async def test_every_attachment_is_attempted(self) -> None:
+        ch = _make_channel()
+        msg = OutboundMessage(
+            channel="slack", recipient_id="C", content="", user_id="U", media=(self._doc("a.pdf"), self._doc("b.pdf"))
+        )
+        upload = AsyncMock(side_effect=[False, True])
+        with patch.object(ch._api, "upload_file", upload), pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        assert upload.await_count == 2
+        assert excinfo.value.failed_attachments == ("a.pdf",)
+
+    @pytest.mark.asyncio
+    async def test_assistant_status_is_cleared_even_when_delivery_fails(self) -> None:
+        ch = _make_channel()
+        msg = OutboundMessage(channel="slack", recipient_id="C", content="", user_id="U", media=(self._doc(),))
+        with (
+            patch.object(ch._api, "upload_file", new_callable=AsyncMock, return_value=False),
+            patch.object(ch, "_clear_assistant_status", new_callable=AsyncMock) as clear,
+            pytest.raises(ChannelSendError),
+        ):
+            await ch.send(msg)
+
+        clear.assert_awaited_once_with("C")
+
+
 class TestSlackUploadExtended:
     """Extended upload tests for URL download path and edge cases."""
 

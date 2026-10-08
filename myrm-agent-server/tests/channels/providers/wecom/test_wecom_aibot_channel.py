@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.wecom.aibot_channel import (
     WeComAiBotChannel,
     WeComStreamState,
@@ -319,8 +320,13 @@ class TestInboundEventCallback:
 
 
 class TestOutboundSend:
+    def test_capabilities_match_what_send_can_do(self) -> None:
+        caps = WeComAiBotChannel.capabilities
+        assert (caps.media, caps.file_upload) == (False, False)  # send() is text-only
+        assert caps.message_ids is False
+
     @pytest.mark.asyncio
-    async def test_send_without_ws_returns_none(self) -> None:
+    async def test_send_without_ws_raises_so_the_bus_can_retry(self) -> None:
         ch = _make_channel()
         msg = OutboundMessage(
             channel="wecom_aibot",
@@ -328,8 +334,21 @@ class TestOutboundSend:
             content="hi",
             user_id="u1",
         )
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError, match="not connected") as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.retriable is True
+
+    @pytest.mark.asyncio
+    async def test_send_raises_when_the_frame_cannot_be_written(self) -> None:
+        ch = _make_channel()
+        ch._ws = AsyncMock()
+        ch._ws.send.side_effect = ConnectionError("socket closed")
+        msg = OutboundMessage(channel="wecom_aibot", recipient_id="chat1", content="hi", user_id="u1")
+
+        with pytest.raises(ChannelSendError, match="frame was not sent"):
+            await ch.send(msg)
+
+        assert ch.health.consecutive_failures > 0
 
     @pytest.mark.asyncio
     async def test_send_with_req_id_uses_stream(self) -> None:
@@ -372,7 +391,7 @@ class TestOutboundSend:
         assert sent_data["body"]["chatid"] == "chat1"
 
     @pytest.mark.asyncio
-    async def test_send_without_recipient_and_req_id_warns(self) -> None:
+    async def test_send_without_recipient_and_req_id_raises(self) -> None:
         ch = _make_channel()
         mock_ws = AsyncMock()
         ch._ws = mock_ws
@@ -383,9 +402,27 @@ class TestOutboundSend:
             content="orphan msg",
             user_id="u1",
         )
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError, match="neither req_id nor recipient_id") as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.retriable is False
         assert not mock_ws.send.called
+
+    @pytest.mark.asyncio
+    async def test_finalizing_a_stream_raises_when_the_connection_dropped(self) -> None:
+        ch = _make_channel()
+        ch._active_streams["sid"] = WeComStreamState(stream_id="sid", chat_id="chat1", req_id="req1")
+        msg = OutboundMessage(channel="wecom_aibot", recipient_id="chat1", content="final", user_id="u1")
+
+        with pytest.raises(ChannelSendError, match="not connected"):
+            await ch.edit_placeholder_message("chat1", "sid", msg)
+
+    @pytest.mark.asyncio
+    async def test_proactive_final_reply_raises_when_the_frame_was_not_sent(self) -> None:
+        ch = _make_channel()
+        msg = OutboundMessage(channel="wecom_aibot", recipient_id="chat1", content="final", user_id="u1")
+
+        with pytest.raises(ChannelSendError, match="frame was not sent"):
+            await ch.edit_placeholder_message("chat1", "unknown-stream", msg)
 
 
 # ── Outbound: Placeholder / Streaming ─────────────────────────

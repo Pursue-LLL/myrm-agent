@@ -95,6 +95,9 @@ from app.api.memory.dual_track_router import (
 from app.api.memory.ephemeral_delta_router import (
     router as ephemeral_delta_router,
 )
+from app.api.memory.experience_compounding_router import (
+    router as experience_compounding_router,
+)
 from app.api.memory.experience_gene_router import (
     router as experience_gene_router,
 )
@@ -586,6 +589,10 @@ router.include_router(
 router.include_router(
     pitfall_alert_router,
     tags=["memory-pitfall-alert"],
+)
+router.include_router(
+    experience_compounding_router,
+    tags=["memory-compounding"],
 )
 
 

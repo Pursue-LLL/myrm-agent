@@ -5,6 +5,7 @@ import pytest
 pytest.importorskip("discord")
 import discord
 
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.discord.channel import (
     DiscordChannel,
 )
@@ -537,10 +538,11 @@ async def test_send_placeholder_to_forum(channel):
 
 @pytest.mark.asyncio
 async def test_forum_thread_creation_failure(channel):
-    """_create_forum_thread returns None on API failure."""
+    """send() raises a permanent ChannelSendError when Discord refuses the forum thread."""
+    response = MagicMock(status=403, reason="Forbidden")
     mock_forum = _make_forum_mock()
     mock_forum.id = 12345
-    mock_forum.create_thread = AsyncMock(side_effect=Exception("Permission denied"))
+    mock_forum.create_thread = AsyncMock(side_effect=discord.Forbidden(response, "Permission denied"))
 
     _setup_resolve(channel, mock_forum)
 
@@ -550,8 +552,9 @@ async def test_forum_thread_creation_failure(channel):
         content="Should fail",
         user_id="u1",
     )
-    result = await channel.send(msg)
-    assert result is None
+    with pytest.raises(ChannelSendError) as excinfo:
+        await channel.send(msg)
+    assert (excinfo.value.status_code, excinfo.value.retriable) == (403, False)
 
 
 @pytest.mark.asyncio

@@ -4,6 +4,7 @@ Handles OAuth token lifecycle (client_credentials grant), serviceUrl-based
 activity posting, and conversation-scoped serviceUrl caching with TTL eviction.
 
 [INPUT]
+- channels.core.exceptions::ChannelAuthError, ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
 
 [OUTPUT]
 - BotFrameworkApi: async API client for Bot Framework Connector REST API
@@ -22,7 +23,7 @@ from collections import OrderedDict
 
 import httpx
 
-from app.channels.core.exceptions import ChannelAuthError
+from app.channels.core.exceptions import ChannelAuthError, ChannelSendError
 from app.channels.types import MediaAttachment
 
 logger = logging.getLogger(__name__)
@@ -119,21 +120,26 @@ class BotFrameworkApi:
         conversation_id: str,
         payload: dict[str, object],
     ) -> str | None:
+        """Post an activity and return its id (``None`` when Teams accepted it without one).
+
+        Raises ``ChannelSendError`` when the activity was not accepted.
+        """
         if not service_url:
-            logger.debug("MSTeams: no service_url, cannot send")
-            return None
+            raise ChannelSendError("Teams has no service URL for this conversation", channel="teams", retriable=False)
 
         await self.ensure_token()
         url = f"{service_url.rstrip('/')}/v3/conversations/{conversation_id}/activities"
-        resp = await self._http.post(
-            url,
-            headers=self._auth_headers(),
-            json=payload,
-            timeout=_SEND_TIMEOUT,
-        )
+        try:
+            resp = await self._http.post(
+                url,
+                headers=self._auth_headers(),
+                json=payload,
+                timeout=_SEND_TIMEOUT,
+            )
+        except httpx.HTTPError as exc:
+            raise ChannelSendError(f"Teams request failed: {type(exc).__name__}", channel="teams") from exc
         if resp.status_code >= 400:
-            logger.debug("MSTeams send failed: HTTP %d — %s", resp.status_code, resp.text[:200])
-            return None
+            raise ChannelSendError.from_http_status("teams", resp.status_code, resp.text)
         try:
             data = resp.json()
         except (ValueError, UnicodeDecodeError):
@@ -159,8 +165,8 @@ class BotFrameworkApi:
         conversation_id: str,
         media: MediaAttachment,
     ) -> str | None:
-        if not service_url or not media.url:
-            return None
+        if not media.url:
+            raise ChannelSendError("Teams only sends attachments from a public URL", channel="teams", retriable=False)
 
         payload: dict[str, object] = {
             "type": "message",

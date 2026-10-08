@@ -241,8 +241,8 @@ class OutboundDispatchMixin(OutboundFailureMixin):
             route.channel.activity.record_error()
         logger.warning("Channel '%s' send failed: %s", msg.channel, exc)
 
-        if isinstance(exc, ChannelSendError) and exc.accepted and msg.media:
-            names = exc.failed_attachments or tuple(m.display_name for m in msg.media)
+        if isinstance(exc, ChannelSendError) and exc.accepted and exc.failed_attachments and msg.media:
+            names = exc.failed_attachments
             remainder = undelivered_part(msg, names)
             await self._record_outbound_failure(remainder, str(exc), retries_exhausted=True)
             await self.publish_outbound(partial_failure_note(msg, names))

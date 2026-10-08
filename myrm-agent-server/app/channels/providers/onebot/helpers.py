@@ -6,6 +6,7 @@
 [OUTPUT]
 - parse_onebot_message: Parse OneBot 消息数组为纯text和媒体附件
 - build_onebot_message: 将 OutboundMessage Convert为 OneBot 消息数组
+- can_send_media: Whether an attachment can ride in a OneBot message segment
 
 [POS]
 Pure-function helpers for the OneBot channel. Handles bidirectional conversion between
@@ -23,6 +24,18 @@ from app.channels.types.messages import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Documents and other files need a separate upload API that this channel does not use.
+_MEDIA_SEGMENTS: dict[MediaType, str] = {
+    MediaType.IMAGE: "image",
+    MediaType.AUDIO: "record",
+    MediaType.VIDEO: "video",
+}
+
+
+def can_send_media(attachment: MediaAttachment) -> bool:
+    """Whether the attachment can ride in a message segment: an image, voice or video with a URL or local file."""
+    return attachment.media_type in _MEDIA_SEGMENTS and bool(attachment.url or attachment.path)
 
 
 def parse_onebot_message(message: list[dict[str, object]] | str) -> tuple[str, list[MediaAttachment]]:
@@ -93,17 +106,15 @@ def build_onebot_message(msg: OutboundMessage) -> list[dict[str, object]]:
     if msg.reply_to_id:
         segments.append({"type": "reply", "data": {"id": msg.reply_to_id}})
 
-    # 2. Handle Media
+    # 2. Handle Media (the channel reports the attachments that cannot ride in a segment)
     for attachment in msg.media:
-        if attachment.media_type == MediaType.IMAGE:
-            segments.append({"type": "image", "data": {"file": attachment.url or f"file://{attachment.path}"}})
-        elif attachment.media_type == MediaType.AUDIO:
-            segments.append({"type": "record", "data": {"file": attachment.url or f"file://{attachment.path}"}})
-        elif attachment.media_type == MediaType.VIDEO:
-            segments.append({"type": "video", "data": {"file": attachment.url or f"file://{attachment.path}"}})
-        # Document/File sending in OneBot usually requires a different API (upload_group_file),
-        # but some clients support it via message segment. We skip it here for simplicity
-        # or fallback to text link if URL is provided.
+        if can_send_media(attachment):
+            segments.append(
+                {
+                    "type": _MEDIA_SEGMENTS[attachment.media_type],
+                    "data": {"file": attachment.url or f"file://{attachment.path}"},
+                }
+            )
 
     # 3. Handle Text
     if msg.content:

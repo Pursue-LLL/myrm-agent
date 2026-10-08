@@ -7,6 +7,7 @@ Mixin providing all outbound-related methods used by TelegramChannel.
 - channels.types::OutboundMessage, RenderStyle
 - telegram.api::TelegramClient, TelegramApiError
 - telegram.helpers::build_inline_keyboard, send_media_attachment
+- channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - telegram.html_converter::md_to_telegram_html, split_message (POS: Markdown to Telegram HTML conversion and splitting.)
 - telegram.outbound_rich::TelegramRichOutboundMixin (POS: Rich Message send with HTML fallback.)
 
@@ -21,10 +22,13 @@ sendMessageDraft streaming placeholders, and media attachment dispatch.
 from __future__ import annotations
 
 import logging
+from functools import partial
 from typing import TYPE_CHECKING
 
+from app.channels.core.attachment_delivery import deliver_attachments
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.rendering.renderer import render
-from app.channels.types import OutboundMessage, RenderStyle
+from app.channels.types import MediaAttachment, OutboundMessage, RenderStyle
 
 from .api import TelegramApiError
 from .helpers import build_inline_keyboard, send_media_attachment
@@ -51,6 +55,7 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
     - self._silent_notification_kwargs(), self._outbound_notification_kwargs(msg)
     """
 
+    name: str
     _client: TelegramClient
     render_style: RenderStyle
     _rich_render_style: RenderStyle
@@ -65,72 +70,95 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
         await self._client.send_chat_action(chat_id, "typing")
 
     async def send(self, msg: OutboundMessage) -> str | None:
-        """Send media attachments then text chunks via Telegram Bot API.
+        """Send the text, then each attachment, via Telegram Bot API.
 
-        When Bot API 10.1 Rich Messages are available, sends raw Markdown via
-        ``sendRichMessage`` for native tables/math/headings rendering. Falls back
-        transparently to the HTML path on capability or parse errors.
+        An attachment Telegram does not take is reported after the text and the other attachments went out,
+        so the bus republishes only that attachment.
         """
         chat_id = msg.recipient_id
         if not chat_id:
-            return None
-        last_message_id: str | None = None
+            raise ChannelSendError("Telegram message has no chat", channel=self.name, retriable=False)
         notify_kwargs = self._outbound_notification_kwargs(msg)
 
-        for attachment in msg.media:
+        last_message_id = await self._send_text(msg, chat_id, notify_kwargs) if msg.content else None
+        await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_attachment, chat_id, msg.reply_to_id, notify_kwargs),
+            text_delivered=bool(msg.content),
+        )
+        return last_message_id
+
+    async def _send_attachment(
+        self,
+        chat_id: str,
+        reply_to_id: str | None,
+        notify_kwargs: dict[str, bool],
+        attachment: MediaAttachment,
+    ) -> None:
+        """Send one attachment; a Telegram rejection becomes a ``ChannelSendError`` classified by its error code."""
+        try:
             await send_media_attachment(
                 self._client,
                 chat_id,
                 attachment,
-                msg.reply_to_id,
+                reply_to_id,
                 notification_kwargs=notify_kwargs,
             )
+        except TelegramApiError as exc:
+            raise ChannelSendError.from_http_status(self.name, exc.error_code, exc.description) from exc
 
-        if msg.content:
-            reply_markup = build_inline_keyboard(msg)
-            reply_to = int(msg.reply_to_id) if msg.reply_to_id else None
-            thread_id = int(msg.thread_id) if msg.thread_id else None
+    async def _send_text(self, msg: OutboundMessage, chat_id: str, notify_kwargs: dict[str, bool]) -> str | None:
+        """Send the message text as Rich Messages when available, else as HTML chunks.
 
-            if self._rich_send_available is not False:
-                mid = await self._try_send_rich(msg, chat_id, reply_to, thread_id, reply_markup, notify_kwargs)
-                if mid is not None:
-                    return mid
+        Rich Messages (Bot API 10.1) render tables/math/headings natively and fall back transparently
+        to the HTML path on capability or parse errors.
+        """
+        last_message_id: str | None = None
+        reply_markup = build_inline_keyboard(msg)
+        reply_to = int(msg.reply_to_id) if msg.reply_to_id else None
+        thread_id = int(msg.thread_id) if msg.thread_id else None
 
-            chunks = render(msg, self.render_style)
-            for i, chunk in enumerate(chunks):
-                html_text = md_to_telegram_html(chunk)
-                for part in split_message(html_text):
-                    markup = reply_markup if (i == len(chunks) - 1 and reply_markup) else None
-                    try:
+        if self._rich_send_available is not False:
+            mid = await self._try_send_rich(msg, chat_id, reply_to, thread_id, reply_markup, notify_kwargs)
+            if mid is not None:
+                return mid
+
+        chunks = render(msg, self.render_style)
+        for i, chunk in enumerate(chunks):
+            html_text = md_to_telegram_html(chunk)
+            for part in split_message(html_text):
+                markup = reply_markup if (i == len(chunks) - 1 and reply_markup) else None
+                try:
+                    result = await self._client.send_message(
+                        chat_id,
+                        part,
+                        reply_to_message_id=reply_to,
+                        message_thread_id=thread_id,
+                        reply_markup=markup,
+                        **notify_kwargs,
+                    )
+                    mid = result.get("message_id")
+                    if mid is not None:
+                        last_message_id = str(mid)
+                    reply_to = None
+                except TelegramApiError as exc:
+                    if exc.is_parse_error:
+                        logger.warning("TelegramChannel: HTML parse failed, retrying as plain text")
                         result = await self._client.send_message(
                             chat_id,
                             part,
+                            parse_mode="",
                             reply_to_message_id=reply_to,
                             message_thread_id=thread_id,
-                            reply_markup=markup,
                             **notify_kwargs,
                         )
                         mid = result.get("message_id")
                         if mid is not None:
                             last_message_id = str(mid)
                         reply_to = None
-                    except TelegramApiError as exc:
-                        if exc.is_parse_error:
-                            logger.warning("TelegramChannel: HTML parse failed, retrying as plain text")
-                            result = await self._client.send_message(
-                                chat_id,
-                                part,
-                                parse_mode="",
-                                reply_to_message_id=reply_to,
-                                message_thread_id=thread_id,
-                                **notify_kwargs,
-                            )
-                            mid = result.get("message_id")
-                            if mid is not None:
-                                last_message_id = str(mid)
-                            reply_to = None
-                        else:
-                            raise
+                    else:
+                        raise
 
         return last_message_id
 

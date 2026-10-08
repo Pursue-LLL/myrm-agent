@@ -140,6 +140,17 @@ class TestPartialDelivery:
             assert "b.pdf" in notes[0].content
 
     @pytest.mark.asyncio
+    async def test_missing_text_chunks_never_replay_attachments_that_arrived(self, tmp_path: Path) -> None:
+        channel = ProbeChannel(error=ChannelSendError("chunk 2 rejected", accepted=True))
+        async with running_bus(tmp_path, channel) as bus:
+            with pytest.raises(ChannelSendError):
+                await bus.send_now(make_msg("a very long answer", media=(make_doc("a.pdf"),)))
+
+            assert [m.content for m in channel.sent] == ["a very long answer"]  # no retry, no attachment note
+            (failed,) = await bus.get_dlq_messages()
+            assert failed.content["content"] == "a very long answer"
+
+    @pytest.mark.asyncio
     async def test_does_not_count_against_channel_health(self, tmp_path: Path) -> None:
         channel = ProbeChannel(error=self._partial_error(), error_only_with_media=True)
         async with running_bus(tmp_path, channel) as bus:

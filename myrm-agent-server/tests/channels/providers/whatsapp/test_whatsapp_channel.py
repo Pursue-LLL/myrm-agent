@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.whatsapp.channel import WhatsAppChannel
 from app.channels.providers.whatsapp.helpers import (
     _normalize_jid,
@@ -537,8 +538,9 @@ class TestWhatsAppSend:
             content="Hello",
             user_id="U",
         )
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises(ChannelSendError, match="not connected") as exc_info:
             await ch.send(msg)
+        assert exc_info.value.retriable is True
 
     @pytest.mark.asyncio
     async def test_send_media(self) -> None:
@@ -553,6 +555,79 @@ class TestWhatsAppSend:
         result = await ch.send(msg)
         assert result is None
         ch._process.stdin.write.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_text_goes_out_before_attachments(self) -> None:
+        ch = _make_channel()
+
+        async def _resolve_sent() -> None:
+            await asyncio.sleep(0.01)
+            for fut in list(ch._sent_futures.values()):
+                if not fut.done():
+                    fut.set_result({"id": "key_1"})
+
+        commands: list[str] = []
+
+        def _record(data: bytes) -> None:
+            cmd = json.loads(data.decode())
+            commands.append(cmd["type"])
+            if cmd["type"] == "send":
+                asyncio.ensure_future(_resolve_sent())
+
+        ch._process.stdin.write = MagicMock(side_effect=_record)
+        msg = OutboundMessage(
+            channel="whatsapp",
+            recipient_id="999@s.whatsapp.net",
+            content="Report attached",
+            user_id="U",
+            media=(MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/report.pdf"),),
+        )
+        result = await ch.send(msg)
+
+        assert commands == ["send", "send_media"]
+        assert json.loads(result or "{}")["id"] == "key_1"
+
+    @pytest.mark.asyncio
+    async def test_attachment_without_a_source_is_reported_after_the_text(self) -> None:
+        ch = _make_channel()
+
+        async def _resolve_sent() -> None:
+            await asyncio.sleep(0.01)
+            for fut in list(ch._sent_futures.values()):
+                if not fut.done():
+                    fut.set_result({"id": "key_1"})
+
+        ch._process.stdin.write = MagicMock(side_effect=lambda _: asyncio.ensure_future(_resolve_sent()))
+        msg = OutboundMessage(
+            channel="whatsapp",
+            recipient_id="999@s.whatsapp.net",
+            content="Look",
+            user_id="U",
+            media=(MediaAttachment(media_type=MediaType.IMAGE),),
+        )
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+
+        assert exc_info.value.accepted is True
+        assert exc_info.value.retriable is False
+        assert exc_info.value.failed_attachments == ("image",)
+
+    @pytest.mark.asyncio
+    async def test_only_sourceless_attachments_hand_nothing_to_the_bridge(self) -> None:
+        ch = _make_channel()
+        msg = OutboundMessage(
+            channel="whatsapp",
+            recipient_id="999@s.whatsapp.net",
+            content="",
+            user_id="U",
+            media=(MediaAttachment(media_type=MediaType.IMAGE),),
+        )
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+
+        ch._process.stdin.write.assert_not_called()
+        assert exc_info.value.accepted is False
+        assert exc_info.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_edit_message(self) -> None:
@@ -849,20 +924,22 @@ class TestWhatsAppSendPlaceholder:
 class TestWhatsAppSendMedia:
     """Tests for _send_media with various attachment types."""
 
-    def test_send_media_with_url(self) -> None:
+    @pytest.mark.asyncio
+    async def test_send_media_with_url(self) -> None:
         ch = _make_channel()
         attachment = MediaAttachment(
             media_type=MediaType.IMAGE,
             url="https://example.com/img.png",
             filename="img.png",
         )
-        ch._send_media("999@s.whatsapp.net", attachment)
+        await ch._send_media("999@s.whatsapp.net", attachment)
         written = ch._process.stdin.write.call_args[0][0]
         cmd = json.loads(written.decode())
         assert cmd["type"] == "send_media"
         assert cmd["url"] == "https://example.com/img.png"
 
-    def test_send_media_with_path(self) -> None:
+    @pytest.mark.asyncio
+    async def test_send_media_with_path(self) -> None:
         ch = _make_channel()
         attachment = MediaAttachment(
             media_type=MediaType.DOCUMENT,
@@ -870,13 +947,14 @@ class TestWhatsAppSendMedia:
             filename="doc.pdf",
             mime_type="application/pdf",
         )
-        ch._send_media("999@s.whatsapp.net", attachment)
+        await ch._send_media("999@s.whatsapp.net", attachment)
         written = ch._process.stdin.write.call_args[0][0]
         cmd = json.loads(written.decode())
         assert cmd["path"] == "/tmp/doc.pdf"
         assert cmd["mimetype"] == "application/pdf"
 
-    def test_send_media_with_caption(self) -> None:
+    @pytest.mark.asyncio
+    async def test_send_media_with_caption(self) -> None:
         ch = _make_channel()
         attachment = MediaAttachment(
             media_type=MediaType.IMAGE,
@@ -884,7 +962,7 @@ class TestWhatsAppSendMedia:
             filename="img.png",
             caption="Look at this!",
         )
-        ch._send_media("999@s.whatsapp.net", attachment)
+        await ch._send_media("999@s.whatsapp.net", attachment)
         written = ch._process.stdin.write.call_args[0][0]
         cmd = json.loads(written.decode())
         assert cmd["caption"] == "Look at this!"

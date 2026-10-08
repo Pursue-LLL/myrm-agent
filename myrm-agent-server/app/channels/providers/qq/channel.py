@@ -8,6 +8,7 @@ Outbound: REST API (text/markdown + 2-step rich media upload)
   - URL sanitization for group messages (domain dots → fullwidth period)
 
 [INPUT]
+- channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
 - channels.reliability.reconnect::reconnect_loop (POS: automatic reconnection)
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
@@ -25,11 +26,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from functools import partial
 from typing import TYPE_CHECKING, Self
 
 if TYPE_CHECKING:
     import websockets
 
+from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec, parse_bool
 from app.channels.reliability.reconnect import reconnect_loop
@@ -41,6 +44,7 @@ from app.channels.types import (
     InboundMessage,
     IssueKind,
     IssueSeverity,
+    MediaAttachment,
     OutboundMessage,
     RenderStyle,
     ToolSummaryDisplay,
@@ -183,17 +187,6 @@ class QQChannel(BaseChannel):
         is_group = chat_type == "group"
         last_id: str | None = None
 
-        for attachment in msg.media:
-            mid = await self._api.send_media(
-                msg.recipient_id,
-                attachment,
-                chat_type,
-                self._last_msg_ids.get(msg.recipient_id),
-                self._next_seq(msg.recipient_id),
-            )
-            if mid:
-                last_id = mid
-
         if msg.content:
             chunks = render(msg, self.render_style)
             for chunk in chunks:
@@ -208,7 +201,22 @@ class QQChannel(BaseChannel):
                 if mid:
                     last_id = mid
 
-        return last_id
+        attachment_id = await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_attachment, msg.recipient_id, chat_type),
+            text_delivered=bool(msg.content),
+        )
+        return last_id or attachment_id
+
+    async def _send_attachment(self, recipient_id: str, chat_type: str, attachment: MediaAttachment) -> str | None:
+        return await self._api.send_media(
+            recipient_id,
+            attachment,
+            chat_type,
+            self._last_msg_ids.get(recipient_id),
+            self._next_seq(recipient_id),
+        )
 
     async def start_typing(self, chat_id: str) -> None:
         """Send QQ InputNotify (msg_type=6) typing indicator."""

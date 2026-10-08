@@ -12,6 +12,7 @@ Outbound:
   - Other: chat.delete / reactions.add
 
 [INPUT]
+- channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
 - channels.providers.slack.api::SlackClient (POS: HTTP/API layer)
 - channels.providers.slack.inbound::SlackInboundMixin (POS: Events API / interactive payload parsing)
@@ -31,14 +32,17 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from functools import partial
 
 from myrm_agent_harness.infra.tracing import get_meter
 
+from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import (
     credential_field,
     credential_spec,
 )
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.slack.api import SlackClient
 from app.channels.providers.slack.thread_tracker import (
     ThreadTrackerMetrics,
@@ -52,6 +56,7 @@ from app.channels.types import (
     InboundMessage,
     IssueKind,
     IssueSeverity,
+    MediaAttachment,
     OutboundMessage,
     RenderStyle,
     ReplyContext,
@@ -249,35 +254,44 @@ class SlackChannel(SlackInboundMixin, BaseChannel):
         thread_ts = msg.thread_id or (msg.metadata.get("thread_ts") if msg.metadata else None)
         last_ts: str | None = None
 
-        if msg.content:
-            chunks = render(msg, self.render_style)
-            blocks = build_blocks(msg)
-            for i, chunk in enumerate(chunks):
-                payload: dict[str, object] = {
-                    "channel": channel_id,
-                    "text": chunk,
-                }
-                if thread_ts:
-                    payload["thread_ts"] = thread_ts
-                elif msg.reply_to_id:
-                    payload["thread_ts"] = msg.reply_to_id
-                if blocks and i == len(chunks) - 1:
-                    payload["blocks"] = blocks
+        try:
+            if msg.content:
+                chunks = render(msg, self.render_style)
+                blocks = build_blocks(msg)
+                for i, chunk in enumerate(chunks):
+                    payload: dict[str, object] = {
+                        "channel": channel_id,
+                        "text": chunk,
+                    }
+                    if thread_ts:
+                        payload["thread_ts"] = thread_ts
+                    elif msg.reply_to_id:
+                        payload["thread_ts"] = msg.reply_to_id
+                    if blocks and i == len(chunks) - 1:
+                        payload["blocks"] = blocks
 
-                ts = await self._api.post_message(payload)
-                if ts:
-                    last_ts = ts
+                    ts = await self._api.post_message(payload)
+                    if ts:
+                        last_ts = ts
 
-                # Track thread participation
-                actual_thread_ts = payload.get("thread_ts")
-                if actual_thread_ts and isinstance(actual_thread_ts, str):
-                    self._thread_tracker.add(actual_thread_ts)
+                    # Track thread participation
+                    actual_thread_ts = payload.get("thread_ts")
+                    if actual_thread_ts and isinstance(actual_thread_ts, str):
+                        self._thread_tracker.add(actual_thread_ts)
 
-        for attachment in msg.media:
-            await self._api.upload_file(channel_id, attachment, thread_ts)
-
-        await self._clear_assistant_status(channel_id)
+            await deliver_attachments(
+                self.name,
+                msg.media,
+                partial(self._upload_attachment, channel_id, thread_ts=thread_ts),
+                text_delivered=bool(msg.content),
+            )
+        finally:
+            await self._clear_assistant_status(channel_id)
         return last_ts
+
+    async def _upload_attachment(self, channel_id: str, attachment: MediaAttachment, *, thread_ts: object | None) -> None:
+        if not await self._api.upload_file(channel_id, attachment, thread_ts):
+            raise ChannelSendError(f"Slack did not accept {attachment.display_name}", channel=self.name)
 
     async def send_placeholder(
         self,

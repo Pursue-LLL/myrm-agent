@@ -238,7 +238,8 @@ class BaseChannel(ABC, EventEmitter):
         on success; for every other channel a ``None`` result for a message with text is treated as an
         unconfirmed delivery (media-only sends are exempt). When the platform accepted part of the
         message (for example the text but not an attachment), raise
-        ``ChannelSendError(accepted=True, failed_attachments=...)`` so only the remainder is reported.
+        ``ChannelSendError(accepted=True, failed_attachments=...)`` so only the remainder is reported;
+        ``accepted=True`` without names means only later text chunks are missing and nothing is re-sent.
         Callers that need the outcome use ``MessageBus.send_now()`` (raises) or ``send_tracked()``
         (returns the id or ``None``); both bypass the queue.
         """

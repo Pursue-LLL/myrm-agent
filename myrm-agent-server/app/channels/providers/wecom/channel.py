@@ -20,10 +20,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from functools import partial
 from pathlib import Path
 
 import httpx
 
+from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelAuthError, ChannelSendError
@@ -76,6 +78,7 @@ class WeComChannel(WeComInboundMixin, BaseChannel):
         file_upload=True,
         typing_indicator=False,
         max_text_length=_MAX_TEXT_LENGTH,
+        message_ids=False,
     )
     render_style = RenderStyle(
         format="markdown",
@@ -183,10 +186,6 @@ class WeComChannel(WeComInboundMixin, BaseChannel):
     async def send(self, msg: OutboundMessage) -> str | None:
         await self._ensure_token()
 
-        if msg.media:
-            for attachment in msg.media:
-                await self._send_media(msg.recipient_id, attachment)
-
         if msg.content:
             from app.channels.reliability.retry import send_with_retry
 
@@ -209,6 +208,13 @@ class WeComChannel(WeComInboundMixin, BaseChannel):
                         channel=self.name,
                         retriable=False,
                     ) from exc
+
+        await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_media, msg.recipient_id),
+            text_delivered=bool(msg.content),
+        )
         return None
 
     async def send_placeholder(
@@ -227,15 +233,17 @@ class WeComChannel(WeComInboundMixin, BaseChannel):
     # ── Media upload + send ───────────────────────────────────
 
     async def _send_media(self, recipient_id: str, attachment: MediaAttachment) -> None:
-        """Upload media to WeCom temporary storage and send to user."""
+        """Upload media to WeCom temporary storage and send it; raises when it cannot be delivered."""
         media_data: bytes | None = None
+
+        if not attachment.path and not attachment.url:
+            raise ChannelSendError("WeCom attachment has neither url nor path", channel=self.name, retriable=False)
 
         if attachment.path:
             try:
                 media_data = Path(attachment.path).read_bytes()
-            except Exception as exc:
-                logger.debug("WeCom media read failed: %s", exc)
-                return
+            except OSError as exc:
+                raise ChannelSendError(f"WeCom media read failed: {exc}", channel=self.name, retriable=False) from exc
         elif attachment.url:
             from app.channels.media import (
                 MAX_FORWARD_DOWNLOAD_BYTES,
@@ -253,48 +261,36 @@ class WeComChannel(WeComInboundMixin, BaseChannel):
                 media_data = result.data
 
         if not media_data:
-            return
+            raise ChannelSendError("WeCom attachment has no readable content", channel=self.name)
 
         wecom_type = self._media_type_to_wecom(attachment.media_type)
         filename = attachment.filename or f"file.{self._media_extension(attachment.media_type)}"
         mime = attachment.mime_type or "application/octet-stream"
 
         media_id = await self._upload_media(wecom_type, media_data, filename, mime)
-        if not media_id:
-            return
+        await self._api_send(recipient_id, wecom_type, {"media_id": media_id})
 
-        try:
-            await self._api_send(recipient_id, wecom_type, {"media_id": media_id})
-        except ChannelSendError as exc:
-            logger.debug("WeCom media send failed: %s", exc)
-
-    async def _upload_media(self, media_type: str, data: bytes, filename: str, mime_type: str) -> str | None:
-        """Upload media to WeCom and return media_id."""
+    async def _upload_media(self, media_type: str, data: bytes, filename: str, mime_type: str) -> str:
+        """Upload media to WeCom and return its media_id; raises when the platform does not return one."""
         await self._ensure_token()
+        resp = await self._http.post(
+            f"{API_BASE}/media/upload",
+            params={"access_token": self._access_token, "type": media_type},
+            files={"media": (filename, data, mime_type)},
+            timeout=UPLOAD_TIMEOUT,
+        )
         try:
-            resp = await self._http.post(
-                f"{API_BASE}/media/upload",
-                params={"access_token": self._access_token, "type": media_type},
-                files={"media": (filename, data, mime_type)},
-                timeout=UPLOAD_TIMEOUT,
+            body = resp.json()
+        except ValueError as exc:
+            raise ChannelSendError("WeCom media upload: non-JSON response", channel=self.name) from exc
+        media_id = body.get("media_id")
+        if not media_id:
+            raise ChannelSendError(
+                f"WeCom media upload rejected: errcode={body.get('errcode')}, errmsg={body.get('errmsg')}",
+                channel=self.name,
+                retriable=False,
             )
-            try:
-                body = resp.json()
-            except (ValueError, KeyError):
-                logger.debug("WeCom media upload: non-JSON response")
-                return None
-            media_id = body.get("media_id")
-            if not media_id:
-                logger.debug(
-                    "WeCom media upload failed: errcode=%s, errmsg=%s",
-                    body.get("errcode"),
-                    body.get("errmsg"),
-                )
-                return None
-            return str(media_id)
-        except Exception as exc:
-            logger.debug("WeCom media upload error: %s", exc)
-            return None
+        return str(media_id)
 
     # ── Internal helpers ──────────────────────────────────────
 

@@ -12,6 +12,7 @@ from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import (
     ChannelAuthError,
     ChannelConnectionError,
+    ChannelSendError,
 )
 from app.channels.providers._ilink.media import _get_temp_dir
 from app.channels.providers._ilink.types import (
@@ -199,13 +200,18 @@ class TestSend:
         await ch.send(msg)
         ch._client.send_message.assert_called_once()
 
+    def test_declares_that_it_returns_no_message_ids(self) -> None:
+        assert WeChatILinkChannel.capabilities.message_ids is False
+
     @pytest.mark.asyncio
-    async def test_send_no_recipient(self) -> None:
+    async def test_send_no_recipient_raises_permanent_error(self) -> None:
         ch = _make_channel()
         ch._client.send_message = AsyncMock()
 
         msg = OutboundMessage(channel="wechat", recipient_id="", content="hello", user_id="u1")
-        await ch.send(msg)
+        with pytest.raises(ChannelSendError, match="no recipient") as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.retriable is False
         ch._client.send_message.assert_not_called()
 
     @pytest.mark.asyncio
@@ -259,8 +265,27 @@ class TestSend:
 
         attachment = MediaAttachment(media_type=MediaType.IMAGE, path="/nonexistent/file.jpg")
         msg = OutboundMessage(channel="wechat", recipient_id="user1", content="", user_id="u1", media=(attachment,))
-        await ch.send(msg)
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.failed_attachments == ("file.jpg",)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (False, True)
         ch._client.send_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_unpreparable_attachment_is_reported_after_the_rest_was_delivered(self) -> None:
+        ch = _make_channel()
+        ch._client.send_message = AsyncMock()
+
+        good = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.com/1.jpg")
+        bad = MediaAttachment(media_type=MediaType.IMAGE, path="/nonexistent/file.jpg")
+        msg = OutboundMessage(channel="wechat", recipient_id="user1", content="caption", user_id="u1", media=(good, bad))
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        ch._client.send_message.assert_called_once()
+        assert [item.type for item in ch._client.send_message.call_args[0][1]] == [ItemType.IMAGE, ItemType.TEXT]
+        assert excinfo.value.failed_attachments == ("file.jpg",)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
 
 
 # ── Typing ─────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -10,6 +11,7 @@ pytest.importorskip("discord")
 import discord
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.discord.channel import (
     DiscordChannel,
 )
@@ -530,54 +532,181 @@ class TestDiscordSendMedia:
 
     @pytest.mark.asyncio
     async def test_make_discord_file_from_path(self) -> None:
-        """build_discord_files creates discord.File from local path."""
+        """build_discord_media uploads a local path as discord.File."""
         import os
         import tempfile
 
-        from app.channels.providers.discord.helpers import build_discord_files
+        from app.channels.providers.discord.helpers import build_discord_media
         from app.channels.types.messages import MediaAttachment, MediaType
 
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
             f.write(b"a,b,c")
             tmp_path = f.name
         try:
-            files = build_discord_files((MediaAttachment(media_type=MediaType.DOCUMENT, path=tmp_path, filename="data.csv"),))
-            assert len(files) == 1
-            assert isinstance(files[0], discord.File)
-            assert files[0].filename == "data.csv"
+            media = build_discord_media((MediaAttachment(media_type=MediaType.DOCUMENT, path=tmp_path, filename="data.csv"),))
+            assert len(media.files) == 1
+            assert isinstance(media.files[0], discord.File)
+            assert media.files[0].filename == "data.csv"
+            assert (media.links, media.failed) == ([], [])
+            media.files[0].close()
         finally:
             os.unlink(tmp_path)
 
     @pytest.mark.asyncio
-    async def test_make_discord_file_from_url(self) -> None:
-        """build_discord_files skips URL-only attachments (no download)."""
-        from app.channels.providers.discord.helpers import build_discord_files
+    async def test_url_only_attachment_becomes_a_link(self) -> None:
+        """A URL-only attachment is not downloaded: it is posted as a link Discord unfurls."""
+        from app.channels.providers.discord.helpers import build_discord_media
         from app.channels.types.messages import MediaAttachment, MediaType
 
-        files = build_discord_files(
+        media = build_discord_media(
             (MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png", filename="img.png"),)
         )
-        assert files == []
+        assert (media.files, media.links, media.failed) == ([], ["https://example.com/img.png"], [])
 
     @pytest.mark.asyncio
-    async def test_make_discord_file_nonexistent_path(self) -> None:
-        """build_discord_files with non-existent path raises FileNotFoundError at discord.File creation."""
-        from app.channels.providers.discord.helpers import build_discord_files
+    async def test_unreadable_path_is_reported_as_failed(self) -> None:
+        """A missing file must not abort the whole message: it is listed as failed."""
+        from app.channels.providers.discord.helpers import build_discord_media
         from app.channels.types.messages import MediaAttachment, MediaType
 
-        with pytest.raises(FileNotFoundError):
-            build_discord_files(
-                (MediaAttachment(media_type=MediaType.DOCUMENT, path="/nonexistent/file.txt", filename="file.txt"),)
-            )
+        media = build_discord_media(
+            (MediaAttachment(media_type=MediaType.DOCUMENT, path="/nonexistent/file.txt", filename="file.txt"),)
+        )
+        assert (media.files, media.links, media.failed) == ([], [], ["file.txt"])
 
     @pytest.mark.asyncio
-    async def test_make_discord_file_no_source(self) -> None:
-        """build_discord_files with no path or url returns empty."""
-        from app.channels.providers.discord.helpers import build_discord_files
+    async def test_attachment_without_a_source_is_reported_as_failed(self) -> None:
+        from app.channels.providers.discord.helpers import build_discord_media
         from app.channels.types.messages import MediaAttachment, MediaType
 
-        files = build_discord_files((MediaAttachment(media_type=MediaType.DOCUMENT, filename="orphan.txt"),))
-        assert files == []
+        media = build_discord_media((MediaAttachment(media_type=MediaType.DOCUMENT, filename="orphan.txt"),))
+        assert (media.files, media.links, media.failed) == ([], [], ["orphan.txt"])
+
+
+class TestDiscordSendDelivery:
+    """send() must raise instead of reporting a lost message as delivered."""
+
+    @staticmethod
+    def _channel_with(mock_ch: MagicMock) -> DiscordChannel:
+        ch, client = _make_mock_channel()
+        mock_ch.type = discord.ChannelType.text
+        client.get_channel = MagicMock(return_value=mock_ch)
+        return ch
+
+    @staticmethod
+    def _http_error(status: int) -> discord.HTTPException:
+        response = MagicMock()
+        response.status = status
+        response.reason = "error"
+        return discord.HTTPException(response, "boom")
+
+    @pytest.mark.asyncio
+    async def test_unreachable_channel_raises_a_retriable_error(self) -> None:
+        ch, client = _make_mock_channel()
+        client.get_channel = MagicMock(return_value=None)
+        client.fetch_channel = AsyncMock(side_effect=RuntimeError("unknown channel"))
+
+        with pytest.raises(ChannelSendError, match="not reachable") as excinfo:
+            await ch.send(_make_msg())
+
+        assert excinfo.value.retriable is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("status", "retriable"), [(403, False), (404, False), (429, True), (503, True)])
+    async def test_http_errors_carry_their_retry_class(self, status: int, retriable: bool) -> None:
+        mock_ch = _make_mock_messageable()
+        mock_ch.send = AsyncMock(side_effect=self._http_error(status))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await self._channel_with(mock_ch).send(_make_msg())
+
+        assert (excinfo.value.status_code, excinfo.value.retriable) == (status, retriable)
+
+    @pytest.mark.asyncio
+    async def test_other_discord_errors_are_retriable(self) -> None:
+        mock_ch = _make_mock_messageable()
+        mock_ch.send = AsyncMock(side_effect=discord.ClientException("not connected"))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await self._channel_with(mock_ch).send(_make_msg())
+
+        assert excinfo.value.retriable is True
+
+    @pytest.mark.asyncio
+    async def test_url_only_attachment_is_delivered_as_a_link(self) -> None:
+        from app.channels.types.messages import MediaAttachment, MediaType
+
+        mock_ch = _make_mock_messageable()
+        attachment = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png")
+        msg = OutboundMessage(channel="discord", recipient_id="123", content="Chart", user_id="u1", media=(attachment,))
+
+        assert await self._channel_with(mock_ch).send(msg) == "42"
+
+        assert mock_ch.send.call_args.kwargs["content"] == "Chart\nhttps://example.com/img.png"
+
+    @pytest.mark.asyncio
+    async def test_unreadable_file_is_reported_after_the_text_was_delivered(self) -> None:
+        from app.channels.types.messages import MediaAttachment, MediaType
+
+        mock_ch = _make_mock_messageable()
+        attachment = MediaAttachment(media_type=MediaType.DOCUMENT, path="/nonexistent/file.txt", filename="file.txt")
+        msg = OutboundMessage(channel="discord", recipient_id="123", content="Report", user_id="u1", media=(attachment,))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await self._channel_with(mock_ch).send(msg)
+
+        mock_ch.send.assert_called_once()
+        assert excinfo.value.failed_attachments == ("file.txt",)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
+
+    @pytest.mark.asyncio
+    async def test_message_with_only_unreadable_files_sends_nothing_and_stays_retriable(self) -> None:
+        from app.channels.types.messages import MediaAttachment, MediaType
+
+        mock_ch = _make_mock_messageable()
+        attachment = MediaAttachment(media_type=MediaType.DOCUMENT, path="/nonexistent/file.txt", filename="file.txt")
+        msg = OutboundMessage(channel="discord", recipient_id="123", content="", user_id="u1", media=(attachment,))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await self._channel_with(mock_ch).send(msg)
+
+        mock_ch.send.assert_not_called()
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (False, True)
+
+    @staticmethod
+    def _forum_channel(create_thread: AsyncMock) -> DiscordChannel:
+        mock_forum = MagicMock(spec=discord.ForumChannel)
+        mock_forum.type = MagicMock(value=15)
+        mock_forum.requires_tag = False
+        mock_forum.create_thread = create_thread
+        ch, _ = _make_mock_channel()
+        ch._resolve_channel = AsyncMock(return_value=mock_forum)  # type: ignore[method-assign]
+        return ch
+
+    @pytest.mark.asyncio
+    async def test_forum_thread_carries_the_files(self, tmp_path: Path) -> None:
+        from app.channels.types.messages import MediaAttachment, MediaType
+
+        report = tmp_path / "report.txt"
+        report.write_text("data")
+        thread = MagicMock(id=99, message=MagicMock(id=88), send=AsyncMock())
+        create_thread = AsyncMock(return_value=thread)
+        ch = self._forum_channel(create_thread)
+        attachment = MediaAttachment(media_type=MediaType.DOCUMENT, path=str(report), filename="report.txt")
+        msg = OutboundMessage(channel="discord", recipient_id="123", content="Weekly", user_id="u1", media=(attachment,))
+
+        assert await ch.send(msg) == "88"
+
+        files = create_thread.call_args.kwargs["files"]
+        assert [f.filename for f in files] == ["report.txt"]
+        for f in files:
+            f.close()
+
+    @pytest.mark.asyncio
+    async def test_forum_placeholder_failure_stays_soft(self) -> None:
+        ch = self._forum_channel(AsyncMock(side_effect=self._http_error(500)))
+
+        assert await ch.send_placeholder("123", "thinking") is None
 
 
 @pytest.mark.skip(reason="Placeholder: not implemented")
