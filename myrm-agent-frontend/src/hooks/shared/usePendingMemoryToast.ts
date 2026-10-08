@@ -26,11 +26,19 @@ export function usePendingMemoryToast(): void {
 
   useEffect(() => {
     const store = useMemoryStore;
-    // null = 首次拉取尚未落地；其间的变更都属于基线，不提示。
+    // null = 基线未建立：首次拉取在途时，其结果即基线；首次拉取失败时，
+    // 之后第一次成功刷新作为基线，已有积压不会被当作新增提示。
     let baseline: number | null = null;
+    let firstFetchSettled = false;
 
     const unsubscribe = store.subscribe((state, previous) => {
-      if (baseline === null || state.pendingCount === previous.pendingCount) {
+      if (state.pendingCount === previous.pendingCount) {
+        return;
+      }
+      if (baseline === null) {
+        if (firstFetchSettled && !state.pendingLoading) {
+          baseline = state.pendingCount;
+        }
         return;
       }
       if (state.pendingCount > baseline) {
@@ -47,7 +55,9 @@ export function usePendingMemoryToast(): void {
       .getState()
       .fetchPendingMemories(true)
       .then(() => {
-        baseline = store.getState().pendingCount;
+        firstFetchSettled = true;
+        const { pendingError, pendingCount } = store.getState();
+        baseline = pendingError ? null : pendingCount;
       });
 
     return unsubscribe;

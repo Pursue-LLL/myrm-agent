@@ -73,6 +73,25 @@ describe('usePendingMemoryToast', () => {
     expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'pendingToast.description:1' }));
   });
 
+  it('treats the first successful refresh after a failed first load as the baseline', async () => {
+    mocks.getPendingMemories.mockRejectedValueOnce(new Error('offline'));
+    renderHook(() => usePendingMemoryToast());
+    await waitFor(() => expect(useMemoryStore.getState().pendingError).toBe('offline'));
+
+    mocks.getPendingMemories.mockResolvedValueOnce(queue(5));
+    await act(async () => {
+      await useMemoryStore.getState().fetchPendingMemories(true);
+    });
+    expect(mocks.toast).not.toHaveBeenCalled();
+
+    mocks.getPendingMemories.mockResolvedValueOnce(queue(7));
+    await act(async () => {
+      await useMemoryStore.getState().fetchPendingMemories(true);
+    });
+    expect(mocks.toast).toHaveBeenCalledOnce();
+    expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'pendingToast.description:2' }));
+  });
+
   it('stops observing the store after unmount', async () => {
     mocks.getPendingMemories.mockResolvedValueOnce(queue(0));
     const { unmount } = renderHook(() => usePendingMemoryToast());
