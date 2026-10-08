@@ -69,10 +69,10 @@ async def test_pending_list_discloses_correct_and_forget_targets() -> None:
     content = await _render_pending_list(records, locale="en")
 
     assert "Replaces:" in content and "User works at ByteDance" in content
-    assert "Forgets:" in content and "User lives in Berlin" in content
+    assert "Moves to trash:" in content and "User lives in Berlin" in content
     # Plain additions get no target line: exactly one line per kind of disclosure.
     assert content.count("Replaces:") == 1
-    assert content.count("Forgets:") == 1
+    assert content.count("Moves to trash:") == 1
 
 
 @pytest.mark.asyncio

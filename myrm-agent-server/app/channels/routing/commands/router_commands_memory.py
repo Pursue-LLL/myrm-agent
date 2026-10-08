@@ -38,7 +38,7 @@ logger = logging.getLogger("app.channels.routing.router")
 # Keyed by ``PendingResolutionAction`` values (a StrEnum) so no runtime harness import is needed.
 _PENDING_TARGET_KEYS: dict[str, str] = {
     "correct": "memory_pending_correct",
-    "delete": "memory_pending_forget",
+    "delete": "memory_pending_trash",
 }
 
 
