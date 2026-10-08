@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Server architecture gates (harness contract, imports, docs links).
-# Requires local harness (vortexai layout) or PyPI-published harness for the pinned version.
+# The harness comes from the sibling ../myrm-agent-harness directory (editable path source).
 set -euo pipefail
 
 SERVER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
