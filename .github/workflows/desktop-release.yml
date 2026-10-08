@@ -19,7 +19,7 @@ concurrency:
 jobs:
   prepare-frontend:
     name: Prepare frontend (build once)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -91,8 +91,6 @@ jobs:
         run: echo "TARGET_ARCH=arm64" >> $GITHUB_ENV
 
       - name: Sync server venv (desktop production)
-        env:
-          MYRM_HARNESS_INSTALL_MODE: pypi
         run: bash scripts/ci/desktop-release/sync-server-venv.sh
 
       - name: Build Sidecars
@@ -146,7 +144,7 @@ jobs:
     name: Publish GitHub Release (macOS ARM)
     needs: build-macos-arm
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.build-macos-arm.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -210,8 +208,6 @@ jobs:
         run: echo "TARGET_ARCH=x86_64" >> $GITHUB_ENV
 
       - name: Sync server venv (desktop production)
-        env:
-          MYRM_HARNESS_INSTALL_MODE: pypi
         run: bash scripts/ci/desktop-release/sync-server-venv.sh
 
       - name: Build Sidecars
@@ -296,8 +292,6 @@ jobs:
         shell: bash
 
       - name: Sync server venv (desktop production)
-        env:
-          MYRM_HARNESS_INSTALL_MODE: pypi
         run: bash scripts/ci/desktop-release/sync-server-venv.sh
         shell: bash
 
@@ -401,8 +395,6 @@ jobs:
         run: echo "TARGET_ARCH=x86_64" >> $GITHUB_ENV
 
       - name: Sync server venv (desktop production)
-        env:
-          MYRM_HARNESS_INSTALL_MODE: pypi
         run: bash scripts/ci/desktop-release/sync-server-venv.sh
 
       - name: Build Sidecars
@@ -454,7 +446,7 @@ jobs:
       needs.publish-release.result == 'success' &&
       needs.build-macos-x64.result == 'success' &&
       needs.build-windows.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -486,7 +478,7 @@ jobs:
       always() &&
       needs.finalize-release.result == 'success' &&
       needs.build-linux.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
