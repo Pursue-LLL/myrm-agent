@@ -4,6 +4,7 @@
 - app.channels.types::InboundMessage, ReplyContext (POS: Ingress messages from providers or Control Plane.)
 - myrm_agent_harness.agent.security.detection.content_boundary::sanitize (POS: Content boundary defense core. Five-layer defense-in-depth (Unicode folding, structural framing strip, marker sanitization, random boundaries, pattern detection) for prompt injection prevention.)
 - app.core.utils.delivery_provenance::prepend_plain_banner, ingress_from_channel_metadata (POS: Shared LLM-visible delivery banners.)
+- app.core.utils.skill_invocation::decorate_behind_skill_tag (POS: keeps a leading ``[use skill]`` tag first.)
 
 [OUTPUT]
 - build_channel_inbound_query: Multimodal or plain-text query with delivery provenance banner.
@@ -19,10 +20,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.channels.types import ContextEntry, InboundMessage, ReplyContext
-from app.core.utils.delivery_provenance import (
-    ingress_from_channel_metadata,
-    prepend_plain_banner,
-)
+from app.core.utils.delivery_provenance import ingress_from_channel_metadata, prepend_plain_banner
+from app.core.utils.skill_invocation import decorate_behind_skill_tag
 
 _REPLY_CONTENT_MAX_LEN = 500
 _FWD_BODY_MAX_LEN = 5000
@@ -139,11 +138,7 @@ def _format_group_context_section(context_messages: tuple[ContextEntry, ...], us
     context_block = "\n".join(lines)
     if not context_block:
         return user_trigger_line
-    return (
-        f"[Recent group chat messages for context]\n"
-        f"{_OBSERVED_CONTEXT_DECLARATION}\n"
-        f"{context_block}\n---\n{user_trigger_line}"
-    )
+    return f"[Recent group chat messages for context]\n{_OBSERVED_CONTEXT_DECLARATION}\n{context_block}\n---\n{user_trigger_line}"
 
 
 def _format_forwarded_email_context(meta: dict[str, object], user_content: str) -> str:
@@ -180,20 +175,8 @@ def _format_forwarded_email_context(meta: dict[str, object], user_content: str) 
     return "\n".join(parts) if len(parts) > 1 else ""
 
 
-def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, object]]:
-    """Assemble the channel user payload as plain text or multimodal query.
-
-    When ``msg.metadata["image_data_list"]`` is present (populated by Harness
-    image enrichment), constructs an OpenAI Vision-compatible multimodal
-    content list. Otherwise returns plain text with a delivery banner.
-
-    When ``msg.reply_to`` is present, prepends structured reply context so the
-    LLM can disambiguate which prior message the user is referencing.
-    """
-    meta = msg.metadata if isinstance(msg.metadata, dict) else None
-    ingress = ingress_from_channel_metadata(meta)
-
-    user_text = msg.content
+def _decorate_user_text(msg: InboundMessage, user_text: str, ingress: str) -> str:
+    """Reply context, group context and the delivery banner around the words the user typed."""
     if msg.reply_to:
         reply_prefix = _format_reply_context(msg.reply_to)
         user_text = f"{reply_prefix}\n---\n{user_text}"
@@ -203,7 +186,24 @@ def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, obj
     else:
         body = user_text
 
-    text = prepend_plain_banner(channel_label=msg.channel, ingress_label=ingress, body=body)
+    return prepend_plain_banner(channel_label=msg.channel, ingress_label=ingress, body=body)
+
+
+def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, object]]:
+    """Assemble the channel user payload as plain text or multimodal query.
+
+    When ``msg.metadata["image_data_list"]`` is present (populated by Harness
+    image enrichment), constructs an OpenAI Vision-compatible multimodal
+    content list. Otherwise returns plain text with a delivery banner.
+
+    When ``msg.reply_to`` is present, prepends structured reply context so the
+    LLM can disambiguate which prior message the user is referencing. A leading
+    ``[use skill]`` invocation (skill-bound slash commands) stays in front of all of it.
+    """
+    meta = msg.metadata if isinstance(msg.metadata, dict) else None
+    ingress = ingress_from_channel_metadata(meta)
+
+    text = decorate_behind_skill_tag(msg.content, lambda typed: _decorate_user_text(msg, typed, ingress))
 
     if isinstance(msg.metadata, dict):
         doc_blocks = msg.metadata.get("document_text_blocks")

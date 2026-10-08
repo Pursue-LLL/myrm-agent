@@ -16,6 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database.models import Base
+from tests.support.session_mock_guard import restore_leaked_session_mocks
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -44,6 +45,7 @@ async def setup_companion_database(tmp_path: Path):
         return TestSession
 
     with (
+        restore_leaked_session_mocks(mock_get_session, mock_get_session_factory),
         patch("app.database.connection.get_session", mock_get_session),
         patch("app.database.connection.get_session_factory", mock_get_session_factory),
         patch("app.platform_utils.get_session_factory", mock_get_session_factory),

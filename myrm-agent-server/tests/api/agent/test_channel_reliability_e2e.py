@@ -149,8 +149,12 @@ async def test_router_stream_thread_id_propagation_and_media_strip():
     # Publish message to bus
     await bus._handle_inbound(inbound)
 
-    # Wait for processing
-    await asyncio.sleep(0.5)
+    # Wait until the reply is delivered. A fixed sleep races the cold-import cost of the first
+    # routed message (it fails whenever this test runs first in a process), so poll with a deadline.
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + 15.0
+    while not channel.sent_messages and loop.time() < deadline:
+        await asyncio.sleep(0.05)
 
     # Stop the router and bus
     await router.stop()

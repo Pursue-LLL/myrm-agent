@@ -4,7 +4,7 @@ import hashlib
 import time
 from pathlib import Path
 
-from app.services.chat.context_bomb_defense_service import ContextBombDefenseService
+from app.services.chat.context_bomb_guard import ContextBombDefenseService
 
 
 def test_process_incoming_content_under_threshold(tmp_path: Path) -> None:
@@ -53,6 +53,7 @@ def test_cleanup_transient_spillover_cache(tmp_path: Path) -> None:
     fresh_file.write_text("fresh text", encoding="utf-8")
 
     import os
+
     past = time.time() - 1000
     os.utime(old_file, (past, past))
 

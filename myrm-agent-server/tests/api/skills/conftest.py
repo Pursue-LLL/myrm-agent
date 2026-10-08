@@ -8,6 +8,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from tests.support.session_mock_guard import restore_leaked_session_mocks
+
 _DRAFTS_MODULE = None
 _CURATOR_MODULE = None
 
@@ -115,6 +117,7 @@ async def setup_test_database():
         return TestSession
 
     with (
+        restore_leaked_session_mocks(mock_get_session, mock_get_session_factory),
         patch("app.database.connection.get_session", mock_get_session),
         patch("app.api.skills.drafts.get_session", mock_get_session),
         patch("app.services.approvals.registry.get_session", mock_get_session),

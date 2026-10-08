@@ -3,7 +3,8 @@
 Banners prepend to Human-visible text only — never mutate leading System prefixes.
 
 [INPUT]
-- (none beyond stdlib typing)
+- myrm_agent_harness.agent.skill_agent.skill_reference::parse_use_tag (POS: grammar of the explicit ``[use skill]`` tag)
+- app.core.utils.skill_invocation::decorate_behind_skill_tag (POS: keeps a leading ``[use skill]`` tag first)
 
 [OUTPUT]
 - format_delivery_banner: Canonical routing banner lines ending with "---".
@@ -13,12 +14,17 @@ Banners prepend to Human-visible text only — never mutate leading System prefi
 - apply_general_agent_pipeline_banner: Convenience wrapper for SkillAgent ingress before execute_stream_pipeline.
 
 [POS]
-Pure server-side prose assembly for SECURITY_BOUNDARY–aligned modeling hints.
+Pure server-side prose assembly for SECURITY_BOUNDARY–aligned modeling hints. An explicit skill invocation
+(``[use skill] ...``) is only recognized at the very start of the user's text, so the banner goes behind that tag.
 """
 
 from __future__ import annotations
 
 from typing import cast
+
+from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag
+
+from app.core.utils.skill_invocation import decorate_behind_skill_tag
 
 _PROVENANCE_HEADER = "[Inbound channel message]"
 _DEFAULT_INGRESS_FALLBACK = "local_connector"
@@ -43,8 +49,21 @@ def ingress_from_channel_metadata(metadata: dict[str, object] | None) -> str:
     return _DEFAULT_INGRESS_FALLBACK
 
 
+def _is_bannered(text: str) -> bool:
+    """Whether ``text`` already carries a delivery banner, leading or right behind an explicit skill tag."""
+    if text.lstrip().startswith(_PROVENANCE_HEADER):
+        return True
+    invocation = parse_use_tag(text)
+    return invocation is not None and invocation.text.startswith(_PROVENANCE_HEADER)
+
+
+def _with_banner(text: str, banner: str) -> str:
+    return decorate_behind_skill_tag(text, lambda user_text: f"{banner}\n\n{user_text}")
+
+
 def prepend_plain_banner(*, channel_label: str, ingress_label: str, body: str) -> str:
-    return f"{format_delivery_banner(channel_label=channel_label, ingress_label=ingress_label)}\n\n{body}"
+    banner = format_delivery_banner(channel_label=channel_label, ingress_label=ingress_label)
+    return _with_banner(body, banner)
 
 
 def resolve_general_agent_pipeline_labels(channel_name: str) -> tuple[str, str]:
@@ -75,8 +94,8 @@ def apply_delivery_banner(
 ) -> object:
     """Annotate multimodal-capable ingress text with routing metadata (idempotent).
 
-    Queries that already start with `_PROVENANCE_HEADER` — including turns fully wrapped by
-    `prepend_plain_banner` — are returned unchanged.
+    Queries that already carry the banner — including turns fully wrapped by `prepend_plain_banner` —
+    are returned unchanged.
     """
     if not isinstance(query, (str, list)):
         return query
@@ -84,10 +103,9 @@ def apply_delivery_banner(
     banner_full = format_delivery_banner(channel_label=channel_label, ingress_label=ingress_label)
 
     if isinstance(query, str):
-        stripped = query.lstrip()
-        if stripped.startswith(_PROVENANCE_HEADER):
+        if _is_bannered(query):
             return query
-        return prepend_plain_banner(channel_label=channel_label, ingress_label=ingress_label, body=query)
+        return _with_banner(query, banner_full)
 
     if not query:
         return query
@@ -99,19 +117,18 @@ def apply_delivery_banner(
             blocks.append(dict(blk))
         else:
             blocks.append(blk)
-    banner_prefix = f"{banner_full}\n\n"
 
     first = blocks[0]
     if isinstance(first, dict) and first.get("type") == "text":
         text_val = first.get("text")
-        if isinstance(text_val, str) and text_val.lstrip().startswith(_PROVENANCE_HEADER):
+        if isinstance(text_val, str) and _is_bannered(text_val):
             return blocks
         merged_first = dict(first)
-        merged_first["text"] = f"{banner_prefix}{text_val}" if isinstance(text_val, str) else banner_prefix.rstrip("\n")
+        merged_first["text"] = _with_banner(text_val, banner_full) if isinstance(text_val, str) else banner_full
         blocks[0] = merged_first
         return blocks
 
-    return [{"type": "text", "text": banner_prefix.rstrip("\n")}, *blocks]
+    return [{"type": "text", "text": banner_full}, *blocks]
 
 
 def apply_general_agent_pipeline_banner(query: object, *, channel_name: str) -> object:

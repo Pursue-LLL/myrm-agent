@@ -16,6 +16,7 @@ from .monitors import (
     stop_auth_alert_monitor,
     stop_memory_pressure_monitor,
 )
+from .risk_rules import init_risk_rules
 from .schedulers import (
     start_approval_ttl_scheduler,
     start_auth_log_cleanup_scheduler,
@@ -44,7 +45,6 @@ from .schedulers import (
 from .skills import shutdown_skill_optimization_listeners, start_skill_optimization_listeners
 from .system import (
     init_allowlist_store,
-    init_risk_rules,
     init_workspace_trust_store,
     pause_orphaned_active_goals,
     resume_durable_offline_tasks,

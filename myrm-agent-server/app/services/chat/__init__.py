@@ -2,7 +2,7 @@
 
 [INPUT]
 - .chat_service::ChatService
-- .context_bomb_defense_service::ContextBombDefenseService, SpilloverPayloadResult, MESSAGE_MAX_CHARS, SPILLED_FILE_TTL_SECONDS
+- .context_bomb_guard::ContextBombDefenseService, SpilloverPayloadResult, MESSAGE_MAX_CHARS, SPILLED_FILE_TTL_SECONDS
 - .turn_outline_service::TurnOutlineProjectionService
 
 [OUTPUT]
@@ -13,7 +13,7 @@ Domain service package in app/services/chat/.
 """
 
 from app.services.chat.chat_service import ChatService
-from app.services.chat.context_bomb_defense_service import (
+from app.services.chat.context_bomb_guard import (
     MESSAGE_MAX_CHARS,
     SPILLED_FILE_TTL_SECONDS,
     ContextBombDefenseService,

@@ -7,7 +7,8 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `auto_continue.py` | 核心 | **InterruptedTurnMarker 普通回合崩溃自动续跑**：扫描 eligible markers（freshness 15min / max 2 attempts crash-loop breaker）并后台重跑（经 `build_agent_runtime_context` 注入 POOLED runtime context，且原子回放未消费持久化 Steering 消息）；流内收集 `message_end.token_economics` 作为消息 `extra_data` 持久化，与主路径共享消息级成本记账口径；成功/失败均创建 SystemNotification；finally 清理 marker | ✅ |
-| `system.py` | 核心 | 启动编排：Channel Gateway 启动/关闭、RiskRule 内置规则播种、HITL 白名单持久化存储初始化、OfflineDurableTask 断点续跑（经 `build_agent_runtime_context` 注入 POOLED runtime context；成功/失败均创建 SystemNotification）、孤儿 Goal 自动暂停、IdleTask 进度事件转发到 ServerEventBus（含 CAPTURED 技能提案统一成长生命周期路由） | ✅ |
+| `risk_rules.py` | 核心 | 启动风险规则初始化：播种内置 RiskRule 并重载检测引擎；先读后写的事务若被并发启动写入方抢先提交，SQLite 会立刻报 `database is locked` 且不受 busy_timeout 约束，故失败时用新事务重试，最多 3 次 | ✅ |
+| `system.py` | 核心 | 启动编排：Channel Gateway 启动/关闭、HITL 白名单持久化存储初始化、OfflineDurableTask 断点续跑（经 `build_agent_runtime_context` 注入 POOLED runtime context；成功/失败均创建 SystemNotification）、孤儿 Goal 自动暂停、IdleTask 进度事件转发到 ServerEventBus（含 CAPTURED 技能提案统一成长生命周期路由） | ✅ |
 | `schedulers.py` | 核心 | 定时任务调度：Cron 启动（含 legacy `monitor_config` 启动批量清洗，批次数受限以保护冷启动时延，并输出续清状态日志）、Kanban Dispatcher 启动/关闭（含 Boot Recovery）、上下文清理(每日3:00)、DB维护(每6h: WAL checkpoint+备份+Qdrant优化+线程清理+Memory import cleanup+**async task queue cleanup**+Kanban GC+**Artifact share registry GC**+**Channel data plane GC**)、审批TTL(5min)、登录会话清理(5min)、审计日志归档(每日4:00)、ContextCompaction + `app/services/agent/memory_brief_telemetry/` MemoryBriefStatus + MemoryGuardianGuard 遥测分发器生命周期、**Kanban TaskSpecifier/TaskDecomposer 注入** | ✅ |
 | `memory_guardian.py` | 核心 | 记忆守护者 Facade。封装 `CognitiveClockCoordinator` 的自适应维护调用，提供向后兼容的手动触发与安全门禁拦截，保证外部调用方无感桥接 | ✅ |
 | `cognitive_clock/` | 核心 | 嵌套多频认知时钟中枢（T0 微步、T1 会话防抖提炼、T2 闲时固化、T3 历元自进化），集成用户打字避让传感器与唤醒平滑防洪门禁 | [cognitive_clock/_ARCH.md](cognitive_clock/_ARCH.md) |

@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from typing import Optional
 from unittest.mock import patch
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.config.litellm_routing import normalize_env_model_selection_string
@@ -30,6 +31,33 @@ def force_invalid_model_llm_error(invalid_model: str) -> Iterator[None]:
         side_effect=_mock_fallback,
     ):
         yield
+
+
+_SSE_HEARTBEAT_EVENT_LINE = "event: heartbeat"
+
+
+def drop_sse_heartbeats(lines: Iterator[str]) -> Iterator[str]:
+    """Yield SSE lines without keep-alive frames (`event: heartbeat` and its `data: null`)."""
+    in_heartbeat_frame = False
+    for line in lines:
+        if line == _SSE_HEARTBEAT_EVENT_LINE:
+            in_heartbeat_frame = True
+        elif not in_heartbeat_frame:
+            yield line
+        elif not line:  # the blank line closes the frame
+            in_heartbeat_frame = False
+
+
+def hide_sse_heartbeats(response: httpx.Response) -> None:
+    """httpx response hook: `iter_lines()` on a streamed SSE body yields application events only.
+
+    The server emits a keep-alive frame whenever a turn is idle for 15 s, which is routine for a
+    slow model or a loaded host. It carries no application event, so test clients drop it before
+    parsing every `data:` line as an event object.
+    """
+    if response.headers.get("content-type", "").startswith("text/event-stream"):
+        iter_lines = response.iter_lines
+        response.iter_lines = lambda: drop_sse_heartbeats(iter_lines())
 
 
 # 顶层 error 事件中可识别为环境问题（而非真实 Agent bug）的关键字

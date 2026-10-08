@@ -93,7 +93,7 @@ ChannelGateway / AgentRouter / ChannelAgentExecutor
 这表示外部身份解析、thread/task 绑定和基础触发门控已经在 CP 边界完成，
 Router 不再把这类消息误当成本地 provider 直接上送的原始 inbound。
 
-`ChannelAgentExecutor.execute_stream()` 在进入模型前会通过 `agent_executor/helpers.py::build_channel_inbound_query`（`delivery_provenance.prepend_plain_banner`）构建查询：纯文本消息返回带 `[Inbound channel message] … ingress=…` 横幅的字符串；当 Harness 图片富化写入 `metadata["image_data_list"]` 时返回 OpenAI Vision 兼容的多模态 content list。把投递路径显式写给模型但不写入 System Prompt，以降低「路由元数据当成超级用户指令」的风险。
+`ChannelAgentExecutor.execute_stream()` 在进入模型前会通过 `agent_executor/helpers.py::build_channel_inbound_query`（`delivery_provenance.prepend_plain_banner`）构建查询：纯文本消息返回带 `[Inbound channel message] … ingress=…` 横幅的字符串；当 Harness 图片富化写入 `metadata["image_data_list"]` 时返回 OpenAI Vision 兼容的多模态 content list。把投递路径显式写给模型但不写入 System Prompt，以降低「路由元数据当成超级用户指令」的风险。消息以 `[use skill]` 标签开头时（IM 技能命令），回复/群聊上下文与横幅都落在标签之后（`decorate_behind_skill_tag`）：harness 只认文本最开头的标签。
 
 HTTP/SSE 主链路在 `execute_stream_pipeline` 内 **INFO 记录解析后的投递标签**，再对用户 Human `apply_delivery_banner`；还包括 **Headless wakeup**（见 `services/agent/_ARCH.md::wakeup_handler`）等对 `GeneralAgent.channel_name` 的信任链。
 

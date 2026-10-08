@@ -107,9 +107,7 @@ class _ChatMessageMixin(_ChatServiceBase):
         # Guard against incoming context bomb by transparently spilling over massive user text
         final_content = content
         if role == "user":
-            from app.services.chat.context_bomb_defense_service import (
-                ContextBombDefenseService,
-            )
+            from app.services.chat.context_bomb_guard import ContextBombDefenseService
 
             spill_res = ContextBombDefenseService.process_incoming_content(
                 content,
@@ -200,9 +198,7 @@ class _ChatMessageMixin(_ChatServiceBase):
     ) -> MessageDTO:
         # Guard against incoming context bomb by transparently spilling over massive user text
         final_content = content
-        from app.services.chat.context_bomb_defense_service import (
-            ContextBombDefenseService,
-        )
+        from app.services.chat.context_bomb_guard import ContextBombDefenseService
 
         spill_res = ContextBombDefenseService.process_incoming_content(
             content,

@@ -24,7 +24,9 @@ from tests.api.agent.utils import (
     _require_env,
     _strip_provider_prefix,
     build_memory_e2e_embedding_retrieval_dict,
+    hide_sse_heartbeats,
 )
+from tests.support.session_mock_guard import restore_leaked_session_mocks
 from tests.support.test_secrets import resolve_test_env
 
 
@@ -231,6 +233,7 @@ def app() -> FastAPI:
 @pytest.fixture(scope="function")
 def client(app: FastAPI, setup_test_database) -> TestClient:
     with TestClient(app) as test_client:
+        test_client.event_hooks["response"].append(hide_sse_heartbeats)
         yield test_client
 
 
@@ -284,6 +287,7 @@ async def setup_test_database(tmp_path: Path):
         return TestSession
 
     with (
+        restore_leaked_session_mocks(mock_get_session, mock_get_session_factory),
         patch("app.database.connection.get_session", mock_get_session),
         patch("app.services.approvals.registry.get_session", mock_get_session),
         patch("app.platform_utils.get_session_factory", mock_get_session_factory),

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import cast
 
+from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag
+
 from app.core.utils.delivery_provenance import (
     apply_delivery_banner,
     apply_general_agent_pipeline_banner,
@@ -74,3 +76,56 @@ def test_apply_delivery_banner_multimodal_text_first_block() -> None:
     assert isinstance(text0, dict)
     assert isinstance(text0.get("text"), str)
     assert "[Inbound channel message]" in cast(str, text0.get("text"))
+
+
+# --- explicit skill invocation: the harness only recognizes ``[use skill]`` at the very start of the text ---
+
+_WIRE = "[use hookprobe-1a2b3c4d] Run exactly this command: echo HOOK-E2E-OK"
+
+
+def test_web_chat_banner_keeps_the_skill_invocation_recognizable() -> None:
+    """The text a browser turn hands to SkillAgent.run must still parse as the user's explicit invocation."""
+    received = cast(str, apply_general_agent_pipeline_banner(_WIRE, channel_name="web_chat"))
+
+    invocation = parse_use_tag(received)
+    assert invocation is not None
+    assert invocation.references == ("hookprobe-1a2b3c4d",)
+    assert invocation.text.startswith("[Inbound channel message] channel=http_gui ingress=browser_sse")
+    assert invocation.text.endswith("Run exactly this command: echo HOOK-E2E-OK")
+
+
+def test_banner_goes_first_when_there_is_no_skill_invocation() -> None:
+    out = cast(str, apply_delivery_banner("plain words", channel_label="http_gui", ingress_label="browser_sse"))
+    assert out.startswith("[Inbound channel message] channel=http_gui ingress=browser_sse")
+    assert out.endswith("\n\nplain words")
+
+
+def test_skill_invocation_banner_is_idempotent() -> None:
+    first = cast(str, apply_delivery_banner(_WIRE, channel_label="http_gui", ingress_label="browser_sse"))
+    second = cast(str, apply_delivery_banner(first, channel_label="http_gui", ingress_label="browser_sse"))
+    assert first == second
+    assert first.count("[Inbound channel message]") == 1
+
+
+def test_prepend_plain_banner_keeps_the_skill_invocation_first() -> None:
+    out = prepend_plain_banner(channel_label="slack", ingress_label="local_connector", body="[use a,b] go")
+    assert out.startswith("[use a,b]\n\n[Inbound channel message] channel=slack")
+    assert out.endswith("\n\ngo")
+
+
+def test_skill_invocation_without_words_still_gets_a_banner() -> None:
+    out = cast(str, apply_delivery_banner("[use a]", channel_label="http_gui", ingress_label="browser_sse"))
+    invocation = parse_use_tag(out)
+    assert invocation is not None and invocation.references == ("a",)
+    assert "[Inbound channel message]" in invocation.text
+
+
+def test_multimodal_first_text_block_keeps_the_skill_invocation_first() -> None:
+    payload: list[object] = [{"type": "text", "text": "[use a] look at this"}, {"type": "image_url", "image_url": {}}]
+    out = cast(list[object], apply_delivery_banner(payload, channel_label="http_gui", ingress_label="browser_sse"))
+
+    first = cast(dict[str, object], out[0])
+    invocation = parse_use_tag(cast(str, first["text"]))
+    assert invocation is not None and invocation.references == ("a",)
+    assert invocation.text.endswith("look at this")
+    assert out[1] == payload[1]

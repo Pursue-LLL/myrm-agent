@@ -4,6 +4,8 @@ import os
 import time
 from pathlib import Path
 
+from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag
+
 from app.services.chat.context_bomb_guard import (
     ContextBombDefenseService,
     extract_text_from_query,
@@ -50,6 +52,55 @@ def test_guard_and_spill_query_over_limit_spills(tmp_path: Path) -> None:
     expected_file = tmp_path / meta.file_path
     assert expected_file.exists()
     assert expected_file.read_text(encoding="utf-8") == query
+
+
+def test_spilled_query_keeps_an_explicit_skill_invocation_in_front(tmp_path: Path) -> None:
+    """The harness only recognizes ``[use skill]`` at the very start of the user's text."""
+    service = ContextBombDefenseService(max_chars=50, preview_chars=15)
+    query = "[use pdf-skill] " + "X" * 120
+
+    transformed, is_spilled, _ = service.guard_and_spill_query(query, workspace_dir=tmp_path)
+
+    assert is_spilled is True
+    assert isinstance(transformed, str)
+    invocation = parse_use_tag(transformed)
+    assert invocation is not None
+    assert invocation.references == ("pdf-skill",)
+    assert invocation.text.startswith("<file_spillover path=")
+
+
+def test_spilled_attachment_query_keeps_an_explicit_skill_invocation_in_its_first_text_block(tmp_path: Path) -> None:
+    service = ContextBombDefenseService(max_chars=50, preview_chars=15)
+    image_block: dict[str, object] = {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}}
+    query: list[dict[str, object]] = [{"type": "text", "text": "[use pdf-skill] " + "X" * 120}, image_block]
+
+    transformed, is_spilled, _ = service.guard_and_spill_query(query, workspace_dir=tmp_path)
+
+    assert is_spilled is True
+    assert isinstance(transformed, list)
+    assert transformed[1:] == [image_block]
+    first_text = transformed[0]["text"]
+    assert isinstance(first_text, str)
+    invocation = parse_use_tag(first_text)
+    assert invocation is not None
+    assert invocation.references == ("pdf-skill",)
+    assert invocation.text.startswith("<file_spillover path=")
+
+
+def test_spilled_message_keeps_an_explicit_skill_invocation_in_front(tmp_path: Path) -> None:
+    """Persisted user messages go through the same spill: the turn's invocation must stay readable in history."""
+    res = ContextBombDefenseService.process_incoming_content(
+        "[use pdf-skill] " + "Y" * 200,
+        chat_id="chat_tag",
+        workspace_root=tmp_path,
+        max_chars=50,
+    )
+
+    assert res.is_spilled is True
+    invocation = parse_use_tag(res.processed_content)
+    assert invocation is not None
+    assert invocation.references == ("pdf-skill",)
+    assert invocation.text.startswith("<file_spillover path=")
 
 
 def test_process_incoming_content_classmethod(tmp_path: Path) -> None:

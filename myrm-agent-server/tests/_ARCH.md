@@ -12,6 +12,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/browser_process_cleanup.py` | 辅助 | pytest 进程树内 browser 自动化子进程 teardown |
 | `support/test_browser_process_cleanup.py` | 单元 | browser_process_cleanup 单测（100% 覆盖） |
 | `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
+| `support/session_mock_guard.py` | 辅助 | `restore_leaked_session_mocks(mock_get_session, mock_get_session_factory)`：列在 DB 会话 `patch` 之前的上下文守卫，退出时把「补丁生效期间首次 import 而捕获了 mock」的模块全局重绑回真实可调用对象（`patch` 只还原它点名的属性）；`tests/api/{agent,skills,companion,notifications,approvals}/conftest.py` 的会话夹具共用 |
+| `support/test_session_mock_guard.py` | 单元 | 守卫回归：补丁期间首次 import 的模块在无守卫时保留 mock（复现后续用例 `no such table: user_configs`），有守卫时重绑为真实函数 |
 | `support/e2e_provider_seed.py` | 辅助 | LIVE E2E provider seed SSOT：`resolve_e2e_llm_endpoints`（OmniRoute `:20128` preflight · fail-fast，无 silent fallback）、`seed_live_e2e_providers` |
 | `support/test_e2e_provider_seed.py` | 单元 | `resolve_e2e_llm_endpoints` keep/fallback 契约 |
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
@@ -48,12 +50,20 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `../../scripts/dev/lib/e2e_core/shared_ui_session.py` | 辅助 | R51-v2 Shared UI Session Contract（marker `e2e_search_policy` · conftest env · bootstrap/`click_new_chat` 四阶段 reset） |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
 | `support/evicted_drawer_selectors.py` | 辅助 | UECD Drawer Chrome E2E 共享选择器/探针 SSOT（`data-testid` 定位 + `/files/evicted` 分页参数断言 + `drawer_mount_wait_js` 等待 lazy drawer mount） |
-| `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
+| `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装；`hide_sse_heartbeats` 响应钩子让行解析器看不到 keep-alive 帧；`check_e2e_errors` 环境类错误 skip） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
 | `integration/test_repo_call_graph_integration.py` | 模块 | 代码调用图谱与改动影响面分析集成任务流测试（多语言代码库索引、正反向拓扑遍历、受影响测试套件触达、增量重索引一致性） |
 | `e2e/test_migration_readiness_gap_chrome_e2e.py` | 模块 | migration post-import readiness gap（LIVE×3 SHPOIB：`mcp_warning` · `provider_critical` · `diagnostic_critical` 各独立 `::test_*` · R139 禁 batch） |
 | `e2e/test_mem0_import_review_chrome_e2e.py` | 模块 | mem0 export 真实 UI 导入 Chrome E2E（SHARED+NAMESPACE_WRITE×1：/settings/memory file picker 上传 mem0 `memories` JSON → 前端 POST dry-run → server auto-detect=mem0 → review dialog 渲染翻译后 `sources.mem0`（C1 无 raw key 泄漏）+ `memories` 映射桶；**停在 confirm 前不写真实记忆**，写路径由 unit/API 覆盖） |
 | `e2e/test_mcp_reload_confirm_chrome_e2e.py` | 模块 | MCP Settings reload 确认 Chrome E2E（READ×1 SHPOIB 单会话：toggle cancel/confirm · delete · import JSON · add/save → `GET /config/mcpServers` 断言） |
+| `e2e/test_skill_hooks_live_chrome_e2e.py` | 模块 | 技能 command hooks 治理真实 WebUI 对话回合 Chrome LIVE E2E（PRIVATE+LIVE，六场景各自独立 `file::test` 运行以守 600s BODY 墙钟：斜杠面板选技能 chip 发送 → `[use skill]` 线上消息 → 真实模型调 bash → SessionStart/PreToolUse/PostToolUse/SessionEnd 钩子写出可观测文件；被命令门禁拒绝的第三方钩子不运行；`fail_closed` 钩子拦下工具调用；HITL 审批卡批准后恢复回合重新激活钩子；带附件（content blocks）与超长消息落盘引用两种载体仍调用技能；不带技能的后续消息不复活钩子） |
+| `support/chrome_skill_hooks_live_e2e.py` | 辅助 | 技能钩子 LIVE E2E 的后端装配：经产品 API 采纳带 `hooks:` 的本地技能，`setup_skill_chat` / `SkillChat`（providers + 持有该技能的智能体 + 空聊天），`audit_hooks()` / `fail_closed_hooks()` 生成写可观测文件的 SKILL.md `hooks:` 块 |
+| `support/chrome_skill_hooks_composer.py` | 辅助 | 技能钩子 Chrome E2E 的浏览器侧：真实 composer 里斜杠选技能 chip、可选经真实 file input 挂附件、输入并点真实发送键，HITL 审批卡等待与点击批准，转录区 chip 渲染探针 |
+| `support/chrome_skill_hooks_observe.py` | 辅助 | 技能钩子回合留下的证据：等用户消息/助手回复落库、读取钩子写出的文件与后端日志，`assert_no_hook_raised` / `assert_audit_turn_governed` |
+| `api/agent/test_sse_heartbeat_filter.py` | 模块 | agent 测试客户端对行解析器隐藏 SSE keep-alive 帧（帧由真实 `ResilientStreamBuffer` 产出，格式变更在此报红，避免 `data: null` 解析洞在约 45 个流测试里重开） |
+| `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
+| `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
+| `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
 | `e2e/test_muse_spark_responses_wire_chrome_e2e.py` | 模块 | muse-spark Responses wire Chrome LIVE×1 SHPOIB（PRIVATE+LIVE：`muse-spark-1.2-contributor` + OpenCode Go BYOK API seed → agent 关 workflow · 仅 `web_search` → Turn1 `TOOL_LOOP_OK` → Turn2 reasoning blob replay `TURN2_OK`；前置 `~/.cursor-byok/opencode-go.json`；**shared**：`./myrm ready --attach --chrome` → `./myrm test -m chrome_e2e -n0 ::test_muse_spark_responses_wire_two_turn_tool_loop`；**争用隔离**：`./myrm isolate muse-spark-wire restart --chrome` + `MYRM_E2E_ISOLATED_RUNTIME_ID=muse-spark-wire MYRM_E2E_FULL_ISOLATED=1` 同上 test） |
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×14：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板 + stats bar running N/M + ready 排队 badge ±（占满显示/未满不显示）+ 多 ready 同时排队 badge + 真实执行排队释放闭环 + 队列按序释放 badge 递减 + model_override UI 建卡 / 抽屉徽章编辑清除 + 技能选择器 UI 建卡（真实技能集，picker 搜索选择 → extra_skill_ids 持久化）+ 抽屉技能编辑保存（chips → 编辑态 → picker 增选 → 保存 → 退出编辑态且持久化）） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |

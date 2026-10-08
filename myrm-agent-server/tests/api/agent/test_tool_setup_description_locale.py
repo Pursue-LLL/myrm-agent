@@ -33,7 +33,6 @@ class _Stub(ToolSetupMixin):
 def test_web_fetch_tool_receives_resolved_description_locale() -> None:
     with (
         patch("myrm_agent_harness.toolkits.create_web_fetch_tool") as mock_create,
-        patch.object(ToolSetupMixin, "_setup_x_live_search_tool"),
         patch.object(ToolSetupMixin, "_setup_image_generation_tools"),
         patch.object(ToolSetupMixin, "_setup_video_generation_tools"),
         patch.object(ToolSetupMixin, "_setup_tts_tools"),
@@ -52,7 +51,6 @@ def test_web_fetch_tool_description_locale_defaults_to_english() -> None:
 
     with (
         patch("myrm_agent_harness.toolkits.create_web_fetch_tool") as mock_create,
-        patch.object(ToolSetupMixin, "_setup_x_live_search_tool"),
         patch.object(ToolSetupMixin, "_setup_image_generation_tools"),
         patch.object(ToolSetupMixin, "_setup_video_generation_tools"),
         patch.object(ToolSetupMixin, "_setup_tts_tools"),
