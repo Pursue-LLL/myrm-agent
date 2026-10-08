@@ -175,6 +175,84 @@ describe('ServerConnectionCard cloud connection', () => {
     });
   });
 
+  describe('while a connection switch is in flight', () => {
+    afterEach(() => vi.useRealTimers());
+
+    function seedRoster() {
+      localStorage.setItem(
+        ROSTER_KEY,
+        JSON.stringify({
+          profiles: [
+            { id: 'p1', name: 'Home', url: 'http://home.example.com', kind: 'server' },
+            { id: 'p2', name: 'Office', url: 'http://office.example.com', kind: 'server' },
+            { id: 'p3', name: 'Cloud', url: 'http://cloud.example.com', kind: 'cloud' },
+          ],
+          activeId: 'p1',
+        }),
+      );
+    }
+
+    /** 无会话在跑；`p2` 的健康检查 5 s 后才应答，用来拉长切换窗口。 */
+    function stubSlowHealthProbe() {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = String(input);
+          if (url.includes('active-sessions')) {
+            return Response.json({
+              data: { activeSessions: [], recentSessions: [], maxConcurrent: 0, availableSlots: 0 },
+            });
+          }
+          if (url === 'http://office.example.com/health') {
+            return new Promise<Response>((resolve) => setTimeout(() => resolve(new Response('ok')), 5000));
+          }
+          throw new Error(`unexpected request: ${url}`);
+        }),
+      );
+    }
+
+    it('blocks every other switch entry so only the first target is applied', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      seedRoster();
+      stubSlowHealthProbe();
+      render(<ServerConnectionCard />);
+
+      fireEvent.click(screen.getAllByText('save')[0]);
+      await vi.advanceTimersByTimeAsync(500);
+
+      const cloudSwitch = screen.getAllByText('save')[0] as HTMLButtonElement;
+      expect(cloudSwitch.disabled).toBe(true);
+      expect((screen.getByLabelText('modeRemote') as HTMLButtonElement).disabled).toBe(true);
+      expect((screen.getByText('discoverSandbox') as HTMLButtonElement).disabled).toBe(true);
+
+      fireEvent.click(cloudSwitch);
+      await vi.advanceTimersByTimeAsync(6000);
+
+      expect(mocks.switchRemoteFollow).toHaveBeenCalledExactlyOnceWith(true);
+      expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
+      expect(readRoster().activeId).toBe('p2');
+    });
+
+    it('holds the seat from the click on disconnect and frees it once local is restored', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      seedRoster();
+      stubBackends({ runningSessions: 'hang' });
+      render(<ServerConnectionCard />);
+
+      fireEvent.click(screen.getByLabelText('modeRemote'));
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect((screen.getAllByText('save')[0] as HTMLButtonElement).disabled).toBe(true);
+      expect((screen.getByLabelText('modeRemote') as HTMLButtonElement).disabled).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(3000);
+
+      await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith('disconnected'));
+      expect(mocks.switchRemoteFollow).toHaveBeenCalledExactlyOnceWith(false);
+      expect((screen.getByLabelText('modeLocal') as HTMLButtonElement).disabled).toBe(false);
+    });
+  });
+
   describe('disconnecting back to local', () => {
     function renderConnectedCard() {
       localStorage.setItem(

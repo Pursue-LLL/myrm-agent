@@ -48,7 +48,9 @@ const ServerConnectionCard = memo(() => {
   const [urlInput, setUrlInput] = useState(currentConfig?.url ?? '');
   const [testState, setTestState] = useState<ConnectionTestState>('idle');
   const [testingId, setTestingId] = useState<string | null>(null);
+  // 同一时刻只允许一个连接切换在飞：占座者的 key 用于该行显示“切换中”，其余切换入口一律禁用。
   const [switchingKey, setSwitchingKey] = useState<string | null>(null);
+  const switching = switchingKey !== null;
   const [showFirstRun, setShowFirstRun] = useState(
     () => typeof window !== 'undefined' && !window.localStorage.getItem(FIRST_RUN_SEEN_KEY),
   );
@@ -207,6 +209,7 @@ const ServerConnectionCard = memo(() => {
   );
 
   const handleDisconnect = useCallback(() => {
+    setSwitchingKey('disconnect');
     void guardActiveSessions(() => {
       void commitSwitch(null, () => {
         setRemoteGatewayConfig(null);
@@ -215,7 +218,7 @@ const ServerConnectionCard = memo(() => {
         setTestState('idle');
         refresh();
         toast.success(t('disconnected'));
-      });
+      }).then(() => setSwitchingKey(null));
     });
   }, [t, refresh, commitSwitch, guardActiveSessions]);
 
@@ -288,6 +291,7 @@ const ServerConnectionCard = memo(() => {
                 setIsRemote(true);
               }
             }}
+            disabled={switching}
             ariaLabel={isRemote ? t('modeRemote') : t('modeLocal')}
           />
         </div>
@@ -356,7 +360,7 @@ const ServerConnectionCard = memo(() => {
               <button
                 type="button"
                 onClick={handleAddConnect}
-                disabled={!urlInput.trim() || switchingKey === 'add'}
+                disabled={!urlInput.trim() || switching}
                 className="flex-1 px-5 py-2.5 rounded-xl bg-indigo-500 text-white text-sm font-bold hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {switchingKey === 'add' ? t('testing') : t('save')}
@@ -368,7 +372,7 @@ const ServerConnectionCard = memo(() => {
             <ServerConnectionCloudSection
               guardSwitch={guardActiveSessions}
               onSandboxVerified={handleSandboxVerified}
-              busy={switchingKey === 'cloud'}
+              busy={switching}
             />
           </>
         )}

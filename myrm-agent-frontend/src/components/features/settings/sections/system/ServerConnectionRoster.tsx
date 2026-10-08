@@ -60,7 +60,7 @@ const ServerConnectionRoster = memo<ServerConnectionRosterProps>(
                 <button
                   type="button"
                   onClick={() => onSelect(p.id)}
-                  disabled={switchingKey === p.id}
+                  disabled={switchingKey !== null}
                   className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 disabled:opacity-50 transition-colors"
                 >
                   {switchingKey === p.id ? t('testing') : t('save')}
