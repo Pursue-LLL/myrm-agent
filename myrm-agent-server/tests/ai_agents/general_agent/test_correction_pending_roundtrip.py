@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.toolkits.memory import MemoryManager
+from myrm_agent_harness.toolkits.memory import InvalidPendingEditError, MemoryManager
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.relational.sqlite_store import SQLiteRelationalStore
 from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import CorrectionAction, CorrectionProposal
@@ -98,7 +98,7 @@ async def test_forget_proposal_archives_target_on_approval(manager: MemoryManage
 async def test_forget_proposal_rejects_an_edit_and_stays_reviewable(manager: MemoryManager) -> None:
     pending_id = await _queue(manager, _proposal(CorrectionAction.DELETE, "User no longer works at ByteDance"))
 
-    with pytest.raises(ValueError, match="no editable content"):
+    with pytest.raises(InvalidPendingEditError, match="no editable content"):
         await manager.approve(pending_id, edited_content="reworded")
 
     assert await manager.count_pending() == 1

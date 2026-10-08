@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryNotFoundError
+from myrm_agent_harness.toolkits.memory import InvalidPendingEditError, MemoryManager, MemoryNotFoundError
 from myrm_agent_harness.toolkits.memory.types import MemoryType, PendingRecord
 
 from app.api.dependencies import get_deploy_identity
@@ -121,7 +121,7 @@ class TestApprovePending:
         override_memory_manager.approve.assert_awaited_once_with("p-1", edited_content="Reworded fact")
 
     def test_unusable_edit_maps_to_400(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
-        override_memory_manager.approve = AsyncMock(side_effect=ValueError("This proposal has no editable content"))
+        override_memory_manager.approve = AsyncMock(side_effect=InvalidPendingEditError("This proposal has no editable content"))
 
         with patch(
             "app.api.memory.operations.pending._load_pending_memory",
@@ -146,6 +146,21 @@ class TestApprovePending:
             resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
 
         assert resp.status_code == 404
+
+    def test_internal_value_error_is_not_reported_as_a_client_error(
+        self, client: TestClient, auth_headers: dict[str, str], override_memory_manager
+    ) -> None:
+        """A ValueError raised while rebuilding a stored record is a server fault, not a bad edit."""
+        override_memory_manager.approve = AsyncMock(side_effect=ValueError("Cannot reconstruct memory from type"))
+
+        with patch(
+            "app.api.memory.operations.pending._load_pending_memory",
+            AsyncMock(return_value=None),
+        ):
+            resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
+
+        assert resp.status_code == 500
+        assert "reconstruct" not in resp.text
 
     def test_unexpected_failure_maps_to_500(
         self, client: TestClient, auth_headers: dict[str, str], override_memory_manager

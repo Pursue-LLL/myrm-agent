@@ -24,7 +24,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试 |
 | `api/memory/test_evidence_playback_api.py` | 单元 | 记忆证据链溯源、上下文切片回放与凭据脱敏 API 集成测试 |
 | `api/memory/test_command_center_graph_api.py` | 单元 | 记忆指挥中心知识图谱双视图（Hub 聚合排序、孤岛三态与连通度度数）API 单元与契约测试 |
-| `api/memory/test_pending_api.py` | 单元 | 待审批记忆 HTTP 面（`/memory/pending`）：列表、单条/批量批准与拒绝（含审批者改写文本透传、不可编辑提案 400），记录缺失 404 与服务端失败 500 的错误映射 |
+| `api/memory/test_pending_api.py` | 单元 | 待审批记忆 HTTP 面（`/memory/pending`）：列表、单条/批量批准与拒绝（含审批者改写文本透传、不可编辑提案 400、内部 ValueError 仍为 500），记录缺失 404 与服务端失败 500 的错误映射 |
 | `api/memory/test_command_center_actions.py` | 单元 | 记忆指挥中心治理动作分发器：待审批批准/拒绝/编辑、共享提案动作、冲突仲裁委托，以及纠正/置顶/遗忘等通用动作 |
 | `ai_agents/general_agent/test_correction_pending_roundtrip.py` | 集成 | 隐式纠正生产者 → 真实 SQLite 审批队列 → `approve` 往返：纠正提案保留目标并应用审批者改写，遗忘提案批准即归档（非硬删除），不可编辑提案拒绝改写且保持待审 |
 | `channels/routing/test_memory_pending_command.py` | 单元 | IM `/memory` 待审批列表：纠正/遗忘提案附目标记忆摘要（含多语言），普通新增不附加 |
@@ -108,7 +108,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/eval/test_memory_ab_live_integration.py` | 模块 | Memory A/B Live 集成（`@pytest.mark.e2e`）：真实 embedding probe + WBBench office 真实下载构建 + 双臂真实 LLM 执行 + `memory_tool_calls` 报告 + 临时记忆卷清理（关键路径禁 mock；执行 case 数受限） |
 | `e2e/test_memory_ab_chrome_e2e.py` | 模块 | Memory A/B Chrome E2E（READ×1 + NAMESPACE_WRITE×2）：WBBench 卡片 Memory A/B 入口 + 确认对话框取消（READ）；预置双报告渲染双臂矩阵 + Run History 表（per-arm pass-rate + `memory_tool_calls`）+ 点击历史 View 加载（NAMESPACE_WRITE）；真实 run 启动（SSE running + header Stop）+ Stop abort 清理（NAMESPACE_WRITE，run 前置配本地 embedding 端点并还原 retrieval 配置，不依赖外部 embedding 账户配额） |
 | `e2e/test_memory_ab_model_disclosure_chrome_e2e.py` | 模块 | Memory A/B 模型披露 Chrome E2E（PRIVATE+LIVE）：config API 配置 providers + 本地 embedding 端点 → Eval Lab Sources 卡片 limit=1 真实 Memory A/B 双臂 run → 历史表断言 Agent Model / Judge Model 列披露（本地 embedding 端点为产品支持的自托管用法，避免外部账户配额依赖） |
-| `e2e/test_memory_pending_proposal_review_chrome_e2e.py` | 模块 | 隐式纠正提案审阅 Chrome E2E（PRIVATE+NAMESPACE_WRITE×1：真实记忆 API 建目标 → `submit_pending` 入队 CORRECT/DELETE → `/settings/memory` 待审批卡片展示「将纠正/删除已有记忆 + 目标」→ UI 点「接受」→ 卡片离队，生成 `correction_of` 关联的纠正记忆 / 旧记忆被删除；失败时输出卡片可见性与 `/memory` 请求状态取证） |
+| `e2e/test_memory_pending_proposal_review_chrome_e2e.py` | 模块 | 隐式纠正提案审阅 Chrome E2E（PRIVATE+NAMESPACE_WRITE×1：真实记忆 API 建目标 → `submit_pending` 入队 CORRECT/DELETE → `/settings/memory` 待审批卡片展示「将纠正已有记忆 / 将已有记忆移入回收站 + 目标」→ UI 点「接受」→ 卡片离队，生成 `correction_of` 关联的纠正记忆 / 旧记忆进入回收站（可恢复）；失败时输出卡片可见性与 `/memory` 请求状态取证） |
 | `services/agent/test_subagent_rebind_event.py` | 模块 | `SUBAGENT_REBIND_REQUIRED` 事件：`subagent_ids` 变更时 publish、同值/非绑定字段不 emit |
 | `services/agent/readiness/test_readiness_mcp_secrets.py` | 模块 | readiness mcp 维度密钥预检（`_check_mcp` 六分支：requiredSecrets 全齐不报 / 缺失报 / headers `{{secret:KEY}}` 引用报 / disabled 跳过 / 无声明不查 / vault 异常跳过）+ org MCP 合并单测 |
 | `api/internal/test_org_mcp_sync_integration.py` | 模块 | org MCP 真实 DB 全链路集成：CP `POST /api/admin/org-mcp-sync` → ConfigService 加密落库 → `load_user_config_entry` 解密加载 → `merge_org_mcp_configs` 合并（scope=org）→ readiness `_check_mcp` 识别绑定 org server（关键路径无 mock） |

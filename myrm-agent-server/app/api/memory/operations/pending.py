@@ -15,6 +15,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.toolkits.memory import (
+    InvalidPendingEditError,
     MemoryManager,
     MemoryNotFoundError,
     MemoryOperationKind,
@@ -60,7 +61,7 @@ def _raise_approval_http_error(exc: Exception) -> None:
     """
     if isinstance(exc, MemoryNotFoundError):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    if isinstance(exc, ValueError):
+    if isinstance(exc, InvalidPendingEditError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     logger.error("Memory approval failed", exc_info=True)
     raise HTTPException(status_code=500, detail="Memory approval failed") from exc
