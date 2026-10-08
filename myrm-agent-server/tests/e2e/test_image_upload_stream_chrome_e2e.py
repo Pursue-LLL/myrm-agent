@@ -391,14 +391,16 @@ async def _run_image_flow(
     # The persisted row references the image via the storage file URL
     # (metadata.original_query.image_url), not necessarily the bare filename.
     persisted_hit = False
+    user_rows: list[str] = []
     for msg in fetch_chat_messages(chat_id, api_url=api_url):
         if not isinstance(msg, dict) or str(msg.get("role") or "") != "user":
             continue
         blob = json.dumps(msg, ensure_ascii=False, default=str)
+        user_rows.append(blob[:600])
         if _IMAGE_FILENAME in blob or '"image_url"' in blob or "/api/v1/files/storage/files/" in blob:
             persisted_hit = True
             break
-    assert persisted_hit, f"user message persisted without staged image file_id: chat_id={chat_id}"
+    assert persisted_hit, f"user message persisted without staged image file_id: chat_id={chat_id} user_rows={user_rows}"
     return chat_id
 
 
