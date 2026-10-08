@@ -148,6 +148,9 @@ from app.api.memory.lineage_search_router import (
 from app.api.memory.live_correction_router import (
     router as live_correction_router,
 )
+from app.api.memory.markdown_chunker import (
+    router as markdown_chunker_router,
+)
 from app.api.memory.markdown_curator_router import (
     router as markdown_curator_router,
 )
@@ -559,6 +562,11 @@ router.include_router(
     space_guard_router,
     tags=["memory-space-guard"],
 )
+router.include_router(
+    markdown_chunker_router,
+    tags=["memory-chunker"],
+)
+
 
 
 

@@ -343,10 +343,15 @@ def disable_memory_auto_extraction():
     async def _noop(*args: object, **kwargs: object) -> None:
         return
 
-    with patch(
-        "myrm_agent_harness.agent._internals.memory_extraction.auto_extract_memories",
-        new=_noop,
-    ):
+    try:
+        import myrm_agent_harness.agent._internals.memory_extraction  # noqa: F401
+
+        with patch(
+            "myrm_agent_harness.agent._internals.memory_extraction.auto_extract_memories",
+            new=_noop,
+        ):
+            yield
+    except (ImportError, AttributeError):
         yield
 
 
