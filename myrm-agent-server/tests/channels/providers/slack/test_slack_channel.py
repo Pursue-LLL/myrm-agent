@@ -1097,7 +1097,7 @@ class TestSlackInbound:
     def test_verify_request(self) -> None:
         ch = SlackChannel(bot_token="xoxb-test", signing_secret="mysecret")
         with patch(
-            "app.channels.providers.slack.channel.verify_slack_signature",
+            "app.channels.providers.slack.inbound.verify_slack_signature",
             return_value=True,
         ):
             assert ch.verify_request(b"body", "123", "v0=sig") is True
