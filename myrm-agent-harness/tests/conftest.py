@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import atexit
 import inspect
 import logging
@@ -71,14 +72,21 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 
 
 _BROWSER_TEST_ROOT = Path(__file__).resolve().parent / "toolkits" / "browser"
+_BROWSER_POOL_RESET_TIMEOUT_S = 30.0
 _TESTS_ROOT = Path(__file__).resolve().parent
 _INTEGRATION_TEST_ROOT = _TESTS_ROOT / "integration"
 
 
 def _needs_browser_singleton_reset(request: pytest.FixtureRequest) -> bool:
-    """Return whether a test may touch the GlobalBrowserPool singleton."""
+    """Return whether a test may leave a live Chromium in the GlobalBrowserPool singleton.
+
+    Browser tests drive the pool directly. Integration/e2e tests reach it through web-fetch escalation (a
+    crawl falls back to the browser fetcher), which launches a real Chromium on that test's event loop.
+    """
     item_path = Path(request.fspath).resolve()
-    return bool(item_path.is_relative_to(_BROWSER_TEST_ROOT))
+    if item_path.is_relative_to(_BROWSER_TEST_ROOT):
+        return True
+    return any(request.node.get_closest_marker(name) is not None for name in ("integration", "e2e"))
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -210,8 +218,10 @@ async def _reset_global_browser_pool_singleton(request: pytest.FixtureRequest) -
 
     ``get_global_browser_pool()`` keeps a module-level instance with a lifecycle
     background task; without teardown, Chromium workers can outlive the test.
-    Scoped to browser/integration/e2e paths to avoid async fixture overhead on
-    the full ~20k unit-test matrix.
+    Scoped to browser/integration/e2e tests to avoid async fixture overhead on
+    the full ~20k unit-test matrix. The pool must be shut down on the event loop
+    that used it: a browser left behind by an earlier test is bound to a closed
+    loop, so a later teardown would wait on its connection forever.
     """
     yield
     if not _needs_browser_singleton_reset(request):
@@ -219,11 +229,18 @@ async def _reset_global_browser_pool_singleton(request: pytest.FixtureRequest) -
 
     try:
         from myrm_agent_harness.toolkits.browser.pool import reset_global_browser_pool_for_tests
-
-        with suppress(Exception):
-            await reset_global_browser_pool_for_tests()
     except ImportError:
-        pass
+        return
+    try:
+        await asyncio.wait_for(reset_global_browser_pool_for_tests(), timeout=_BROWSER_POOL_RESET_TIMEOUT_S)
+    except TimeoutError:
+        pytest.fail(
+            f"GlobalBrowserPool shutdown hung for {_BROWSER_POOL_RESET_TIMEOUT_S}s; a previous test left a browser "
+            "bound to a closed event loop.",
+            pytrace=False,
+        )
+    except Exception:
+        logger.debug("GlobalBrowserPool reset failed", exc_info=True)
 
 
 # ---------------------------------------------------------------------------
