@@ -22,6 +22,7 @@ existing code), zero impact on prompt cache or agent system.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -40,13 +41,17 @@ from app.api.statistics.daily_journal import (
     _parse_day,
 )
 from app.core.utils.chat_utils import extract_answer_text
-from app.core.utils.errors import StandardHTTPException, internal_error
+from app.core.utils.errors import StandardHTTPException, internal_error, timeout_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.models.daily_wrap import DailyWrapCache
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# Upper bound for one generation: without it a stalled lite model keeps the request open
+# for the model client's own multi-minute default.
+_WRAP_LLM_TIMEOUT_S = 60.0
 
 
 # ── LLM Generation ──────────────────────────────────────────────────
@@ -139,13 +144,20 @@ async def _generate_wrap_via_llm(
 
     user_prompt = _build_activity_prompt(date, sessions, approvals, cron_runs, kanban_events)
 
-    response = await llm.ainvoke(
-        [
-            SystemMessage(content=_WRAP_SYSTEM_PROMPT),
-            HumanMessage(content=user_prompt),
-        ],
-        config={"max_tokens": 500, "timeout": 15},
-    )
+    try:
+        response = await asyncio.wait_for(
+            llm.ainvoke(
+                [
+                    SystemMessage(content=_WRAP_SYSTEM_PROMPT),
+                    HumanMessage(content=user_prompt),
+                ]
+            ),
+            timeout=_WRAP_LLM_TIMEOUT_S,
+        )
+    except TimeoutError as exc:
+        # A bare TimeoutError would be reported as a database timeout by internal_error().
+        logger.warning("Daily wrap generation timed out (limit %.0fs)", _WRAP_LLM_TIMEOUT_S)
+        raise timeout_error(operation="Daily wrap generation") from exc
 
     # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
     raw = extract_answer_text(response).strip()

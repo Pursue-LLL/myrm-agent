@@ -152,7 +152,7 @@ export interface VisionHealthResult {
 }
 
 /**
- * Lightweight reachability check using 1-token probe.
+ * Lightweight reachability check using a single minimal prompt.
  * Faster and cheaper than validateLLM — ideal for local model (Ollama) setup.
  */
 export const checkModelReachability = async (config: ModelConfig): Promise<ReachabilityResult> => {
