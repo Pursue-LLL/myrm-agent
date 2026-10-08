@@ -18065,6 +18065,8 @@
         "appshotShortcutDesc": "画面をキャプチャしてウィンドウのテキストを抽出し、チャットにコンテキストとして送信します",
         "voicePttShortcut": "音声プッシュトゥトーク",
         "voicePttShortcutDesc": "どのアプリでもこのショートカットを押している間話せます。離すと送信されます",
+        "shortcutRecording": "記録中...",
+        "shortcutPlaceholder": "例: Alt+Space",
         "appshotPrivacyBlacklist": "アプショットのプライバシーブラックリスト",
         "appshotPrivacyBlacklistDesc": "リスト内のアプリがフォアグラウンドのとき、機密データを守るためスクリーンショットがブロックされます",
         "appshotAddAppPlaceholder": "アプリ名を入力...",

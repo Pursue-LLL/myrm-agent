@@ -18075,6 +18075,8 @@
         "appshotShortcutDesc": "화면을 캡처하고 창 텍스트를 추출하여 채팅 컨텍스트로 전송",
         "voicePttShortcut": "음성 푸시-투-토크",
         "voicePttShortcutDesc": "어디서나 이 단축키를 길게 눌러 에이전트에게 말하고, 놓으면 전송",
+        "shortcutRecording": "입력 대기 중...",
+        "shortcutPlaceholder": "예: Alt+Space",
         "appshotPrivacyBlacklist": "앱샷 개인정보 블랙리스트",
         "appshotPrivacyBlacklistDesc": "이 목록의 앱은 민감 데이터를 보호하기 위해 화면 캡처에서 차단됩니다",
         "appshotAddAppPlaceholder": "앱 이름 입력...",

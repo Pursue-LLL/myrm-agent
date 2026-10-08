@@ -18065,6 +18065,8 @@
         "appshotShortcutDesc": "擷取當前螢幕並提取視窗文字作為上下文傳送到對話",
         "voicePttShortcut": "語音對講快捷鍵",
         "voicePttShortcutDesc": "在任意應用中按住此快捷鍵說話，鬆開即傳送給 Agent",
+        "shortcutRecording": "錄製中...",
+        "shortcutPlaceholder": "例如 Alt+Space",
         "appshotPrivacyBlacklist": "截圖隱私黑名單",
         "appshotPrivacyBlacklistDesc": "黑名單中的應用在前臺時，截圖將被阻止以保護敏感資料",
         "appshotAddAppPlaceholder": "輸入應用名稱...",

@@ -5274,6 +5274,8 @@
         "appshotShortcutDesc": "截取当前屏幕并提取窗口文本作为上下文发送到对话",
         "voicePttShortcut": "语音对讲快捷键",
         "voicePttShortcutDesc": "在任意应用中按住此快捷键说话，松开即发送给 Agent",
+        "shortcutRecording": "录制中...",
+        "shortcutPlaceholder": "例如 Alt+Space",
         "appshotPrivacyBlacklist": "截屏隐私黑名单",
         "appshotPrivacyBlacklistDesc": "黑名单中的应用在前台时，截屏将被阻止以保护敏感数据",
         "appshotAddAppPlaceholder": "输入应用名称...",

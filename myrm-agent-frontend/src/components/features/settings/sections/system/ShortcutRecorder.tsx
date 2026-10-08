@@ -5,12 +5,14 @@
  */
 
 import { memo, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 
 const ShortcutRecorder = memo<{
   value: string;
   onChange: (value: string) => void;
 }>(({ value, onChange }) => {
+  const t = useTranslations('settings.system.config');
   const [isRecording, setIsRecording] = useState(false);
 
   const handleKeyDown = useCallback(
@@ -77,11 +79,11 @@ const ShortcutRecorder = memo<{
   return (
     <input
       type="text"
-      value={isRecording ? '录制中...' : value}
+      value={isRecording ? t('shortcutRecording') : value}
       onFocus={() => setIsRecording(true)}
       onBlur={() => setIsRecording(false)}
       onKeyDown={handleKeyDown}
-      placeholder="e.g. Alt+Space"
+      placeholder={t('shortcutPlaceholder')}
       readOnly
       className={cn(
         'w-40 px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-center text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer transition-colors',

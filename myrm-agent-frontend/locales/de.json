@@ -18075,6 +18075,8 @@
         "appshotShortcutDesc": "Erfassen Sie den Bildschirm und extrahieren Sie Fenstertext, um ihn als Kontext an den Chat zu senden",
         "voicePttShortcut": "Sprach-Push-to-Talk",
         "voicePttShortcutDesc": "Halten Sie diese Verknüpfung an einer beliebigen Stelle gedrückt, um mit dem Agenten zu sprechen, und lassen Sie sie zum Senden los",
+        "shortcutRecording": "Aufnahme läuft...",
+        "shortcutPlaceholder": "z. B. Alt+Space",
         "appshotPrivacyBlacklist": "Appshot-Datenschutz-Blacklist",
         "appshotPrivacyBlacklistDesc": "Für Apps in dieser Liste wird die Bildschirmaufnahme blockiert, um sensible Daten zu schützen",
         "appshotAddAppPlaceholder": "App-Namen eingeben...",
