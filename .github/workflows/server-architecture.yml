@@ -41,6 +41,11 @@ jobs:
     name: Harness contract & arch tests
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # CI has no LLM credentials: tests resolve model identifiers from the environment first, so
+    # offline placeholders stand in for the developer-only .env.test (e2e tests are excluded).
+    env:
+      BASIC_MODEL: openai/ci-offline-placeholder
+      LITE_MODEL: openai/ci-offline-placeholder
     defaults:
       run:
         working-directory: myrm-agent-server
