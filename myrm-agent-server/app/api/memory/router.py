@@ -256,6 +256,9 @@ from app.api.memory.auto_memory_consolidation_router import (
 from app.api.memory.mem_cube_router import (
     router as mem_cube_router,
 )
+from app.api.memory.dream_cognitive_router import (
+    router as dream_cognitive_router,
+)
 from app.api.memory.universal_mcp_router import (
     router as memory_universal_mcp_router,
 )
@@ -470,6 +473,10 @@ router.include_router(
 router.include_router(
     mem_cube_router,
     tags=["memory-cubes"],
+)
+router.include_router(
+    dream_cognitive_router,
+    tags=["memory-dream-cognitive"],
 )
 router.include_router(
     peer_gateway_router,
