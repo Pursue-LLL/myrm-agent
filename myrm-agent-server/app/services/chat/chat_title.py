@@ -45,6 +45,8 @@ async def call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> 
     model_kwargs = dict(title_model.model_kwargs or {})
     model_kwargs.setdefault("temperature", 0.3)
     model_kwargs.setdefault("max_tokens", 1024)
+    # A title never needs the output floor a thinking model would otherwise get.
+    model_kwargs["supports_reasoning"] = False
     cfg = enrich_model_config(
         ModelConfig(
             model=title_model.model,
@@ -125,11 +127,7 @@ async def generate_chat_title(
             str,
             await resilient_llm_call(
                 primary_fn=lambda: call_llm_for_title(content, title_model),
-                fallback_fn=(
-                    (lambda: call_llm_for_title(content, fallback_title_model))
-                    if fallback_title_model
-                    else None
-                ),
+                fallback_fn=((lambda: call_llm_for_title(content, fallback_title_model)) if fallback_title_model else None),
             ),
         )
     except Exception as exc:

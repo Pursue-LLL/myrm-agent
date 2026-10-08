@@ -7945,7 +7945,7 @@
     "topP": "Top-P",
     "topPDesc": "核采样参数，限制候选词范围",
     "maxTokens": "最大输出长度",
-    "maxTokensDesc": "限制单次回复的最大 token 数",
+    "maxTokensDesc": "限制单次回复的最大长度（token 数）。推理模型若此值不足以完成思考与回答，会自动获得更大的上限。",
     "maxTokensPlaceholder": "留空使用模型默认值",
     "precise": "精确",
     "creative": "创意",

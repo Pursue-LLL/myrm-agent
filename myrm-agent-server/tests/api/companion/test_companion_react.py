@@ -67,3 +67,4 @@ async def test_companion_react_uses_load_llm_from_model_config(companion_app) ->
     assert invoke_cfg.temperature == 0.9
     assert invoke_cfg.model_kwargs is not None
     assert invoke_cfg.model_kwargs.get("max_tokens") == 30
+    assert invoke_cfg.model_kwargs.get("supports_reasoning") is False

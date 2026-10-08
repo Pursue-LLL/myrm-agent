@@ -112,3 +112,33 @@ async def test_generate_chat_title_llm_exception(monkeypatch):
 
     title = await _ChatTurnMixin.generate_chat_title(messages=[msg], title_model=title_model_config)
     assert title == "Hello world exceptio..."
+
+
+@pytest.mark.asyncio
+async def test_call_llm_for_title_keeps_its_cap_off_the_thinking_floor(monkeypatch):
+    """A title keeps its own small cap: the call opts out of the thinking-model output floor."""
+    from langchain_core.messages import AIMessage
+    from myrm_agent_harness.toolkits.llms import llm_manager
+
+    from app.services.chat.chat_title import call_llm_for_title
+
+    captured = {}
+
+    class _TitleLlm:
+        async def ainvoke(self, _messages):
+            return AIMessage(content="Asyncio blocking")
+
+    async def _get_llm_from_config(cfg, *, streaming):
+        captured["cfg"] = cfg
+        return _TitleLlm()
+
+    monkeypatch.setattr(llm_manager, "get_llm_from_config", _get_llm_from_config)
+
+    title = await call_llm_for_title(
+        "Why does asyncio block?",
+        _TitleModelConfig(model="o3-mini", apiKey="test-key", baseUrl="http://test"),
+    )
+
+    assert title == "Asyncio blocking"
+    assert captured["cfg"].model_kwargs["max_tokens"] == 1024
+    assert captured["cfg"].model_kwargs["supports_reasoning"] is False

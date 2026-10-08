@@ -63,3 +63,4 @@ async def test_ask_advisor_tier1_uses_load_llm_from_model_config() -> None:
     assert invoke_cfg.temperature == 0.2
     assert invoke_cfg.model_kwargs is not None
     assert invoke_cfg.model_kwargs.get("max_tokens") == 256
+    assert invoke_cfg.model_kwargs.get("supports_reasoning") is False

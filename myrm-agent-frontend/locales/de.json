@@ -1314,7 +1314,7 @@
     "topP": "Top-P",
     "topPDesc": "Nucleus-Sampling-Parameter, begrenzt den Kandidaten-Token-Bereich",
     "maxTokens": "Max. Ausgabe-Tokens",
-    "maxTokensDesc": "Maximale Tokens in einer einzelnen Antwort",
+    "maxTokensDesc": "Begrenzt die Länge einer einzelnen Antwort (in Tokens). Reasoning-Modelle erhalten automatisch mehr Spielraum, wenn der Wert zum Denken und Antworten nicht reicht.",
     "maxTokensPlaceholder": "Leer lassen für Modellstandard",
     "precise": "Präzise",
     "creative": "Kreativ",

@@ -7941,7 +7941,7 @@
     "topP": "Top-P",
     "topPDesc": "Nucleus sampling parameter, limits candidate token range",
     "maxTokens": "Max Output Tokens",
-    "maxTokensDesc": "Maximum tokens in a single response",
+    "maxTokensDesc": "Maximum length of a single reply. Reasoning models automatically get more room when this is too small for them to think and answer.",
     "maxTokensPlaceholder": "Leave empty for model default",
     "precise": "Precise",
     "creative": "Creative",
