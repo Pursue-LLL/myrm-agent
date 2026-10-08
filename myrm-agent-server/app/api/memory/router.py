@@ -258,6 +258,9 @@ from app.api.memory.session_commit_router import (
 from app.api.memory.shared_bus import (
     router as memory_shared_bus_router,
 )
+from app.api.memory.space_guard import (
+    router as space_guard_router,
+)
 from app.api.memory.subagent_isolation import (
     router as memory_subagent_isolation_router,
 )
@@ -552,6 +555,11 @@ router.include_router(
     multimodal_memory_router,
     tags=["memory-multimodal"],
 )
+router.include_router(
+    space_guard_router,
+    tags=["memory-space-guard"],
+)
+
 
 
 
