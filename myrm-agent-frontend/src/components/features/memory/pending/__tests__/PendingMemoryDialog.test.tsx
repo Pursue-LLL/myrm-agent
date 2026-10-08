@@ -197,6 +197,38 @@ describe('PendingMemoryDialog', () => {
     });
   });
 
+  it('keeps the reviewer edit when approval fails so it can be retried', async () => {
+    mockApproveMemory.mockRejectedValueOnce(new ApiError('Network down', 500));
+    renderWithProviders(<PendingMemoryDialog />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit/i }));
+    fireEvent.change(screen.getByPlaceholderText('editPlaceholder'), { target: { value: 'Reworded memory.' } });
+    fireEvent.click(screen.getByRole('button', { name: /saveAndAccept/i }));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalled();
+    });
+    expect(screen.getByPlaceholderText('editPlaceholder')).toHaveValue('Reworded memory.');
+
+    fireEvent.click(screen.getByRole('button', { name: /saveAndAccept/i }));
+    await waitFor(() => {
+      expect(mockApproveMemory).toHaveBeenLastCalledWith('pending-1', 'Reworded memory.');
+    });
+    expect(mockApproveMemory).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves edit mode once an edited approval succeeds', async () => {
+    renderWithProviders(<PendingMemoryDialog />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit/i }));
+    fireEvent.change(screen.getByPlaceholderText('editPlaceholder'), { target: { value: 'Reworded memory.' } });
+    fireEvent.click(screen.getByRole('button', { name: /saveAndAccept/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('editPlaceholder')).not.toBeInTheDocument();
+    });
+  });
+
   it('offers no edit for forget proposals, which carry no text to reword', () => {
     expectNonNull(mockState.currentPendingMemory, 'mockState.currentPendingMemory');
     mockState.currentPendingMemory = {

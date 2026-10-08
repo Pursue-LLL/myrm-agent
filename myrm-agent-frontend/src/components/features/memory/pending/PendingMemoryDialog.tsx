@@ -78,16 +78,17 @@ const PendingMemoryDialog = memo(() => {
     try {
       const content = isEditing && editedContent !== currentPendingMemory.content ? editedContent : undefined;
       await approveMemory(currentPendingMemory.id, content);
+      setIsEditing(false);
+      setEditedContent('');
       toast({
         title: t('approveSuccess'),
         description: t('approveSuccessDesc'),
       });
     } catch (error) {
+      // Keep the reviewer's edit so a failed approval can be retried without retyping.
       toast(approveFailureMessage(t, error));
     } finally {
       setIsLoading(false);
-      setIsEditing(false);
-      setEditedContent('');
     }
   }, [currentPendingMemory, isEditing, editedContent, approveMemory, t]);
 
