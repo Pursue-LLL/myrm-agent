@@ -11,6 +11,9 @@
 | 文件                                  | 职责                                                                                                    |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `SystemSection.tsx`                   | WebUI 开关、端口、系统诊断等主面板（共享 Toggle；帷幕/锁屏卡片绑定暂存值）                                                                    |
+| `SystemConfigCard.tsx`                | 系统配置卡（托盘/开机启动/快捷键/空闲回收/WebUI 端口与密码 + 保存与重启）：纯呈现，状态与持久化由 SystemSection 持有 |
+| `ShortcutRecorder.tsx`                | 全局快捷键录制输入框（聚焦录制 / Esc 取消 / Backspace 清空） |
+| `AppshotExcludedAppsEditor.tsx`       | Appshot 隐私黑名单编辑器 |
 | `SystemCenterSection.tsx`             | 系统 Tab 容器                                                                                           |
 | `AboutSection.tsx`                    | 关于/版本信息                                                                                           |
 | `StackUpdatePanel.tsx`                | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
