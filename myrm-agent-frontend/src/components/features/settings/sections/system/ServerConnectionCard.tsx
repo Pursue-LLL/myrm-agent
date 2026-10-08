@@ -15,11 +15,12 @@ import {
   setActiveRemoteProfileId,
   type RemoteConnectionProfile,
 } from '@/lib/remote-profiles';
-import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { setLastGood, setPendingSwitch } from '@/lib/connection-switch-guard';
+import Toggle from '../../common/Toggle';
 import RemoteFirstRunChooser from './RemoteFirstRunChooser';
 import ServerConnectionCloudSection from './ServerConnectionCloudSection';
+import ServerConnectionRoster from './ServerConnectionRoster';
 import { testRemoteHealth, useConnectionsRollbackGuard } from './useConnectionsRollbackGuard';
 
 const FIRST_RUN_SEEN_KEY = 'myrm-remote-first-run-seen';
@@ -214,6 +215,17 @@ const ServerConnectionCard = memo(() => {
     [t, refresh, commitSwitch, guardActiveSessions],
   );
 
+  const handleTestProfile = useCallback(
+    (profile: RemoteConnectionProfile) => {
+      setTestingId(profile.id);
+      void testRemoteHealth(profile.url).then((ok) => {
+        setTestingId(null);
+        toast[ok ? 'success' : 'error'](ok ? t('testSuccess') : t('testFailed'));
+      });
+    },
+    [t],
+  );
+
   const handleRemove = useCallback(
     (id: string) => {
       removeRemoteProfile(id);
@@ -276,28 +288,17 @@ const ServerConnectionCard = memo(() => {
             <label className="text-sm font-bold text-foreground">{isRemote ? t('modeRemote') : t('modeLocal')}</label>
             <p className="text-xs text-muted-foreground">{isRemote ? t('remoteDesc') : t('localDesc')}</p>
           </div>
-          <button
-            type="button"
-            aria-label={isRemote ? t('modeRemote') : t('modeLocal')}
-            onClick={() => {
+          <Toggle
+            checked={isRemote}
+            onChange={() => {
               if (isRemote) {
                 handleDisconnect();
               } else {
                 setIsRemote(true);
               }
             }}
-            className={cn(
-              'relative w-12 h-6 rounded-full transition-colors',
-              isRemote ? 'bg-indigo-500' : 'bg-white/10',
-            )}
-          >
-            <div
-              className={cn(
-                'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                isRemote && 'translate-x-6',
-              )}
-            />
-          </button>
+            ariaLabel={isRemote ? t('modeRemote') : t('modeLocal')}
+          />
         </div>
 
         {isRemote && (
@@ -305,57 +306,15 @@ const ServerConnectionCard = memo(() => {
             <div className="h-px bg-white/5" />
 
             {profiles.length > 0 && (
-              <div className="space-y-2">
-                {profiles.map((p) => (
-                  <div
-                    key={p.id}
-                    className={cn(
-                      'flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center',
-                      p.id === activeId ? 'border-indigo-500/50 bg-indigo-500/5' : 'border-white/10',
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-foreground">{p.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{p.url}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      {p.kind !== 'cloud' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTestingId(p.id);
-                            void testRemoteHealth(p.url).then((ok) => {
-                              setTestingId(null);
-                              toast[ok ? 'success' : 'error'](ok ? t('testSuccess') : t('testFailed'));
-                            });
-                          }}
-                          disabled={testingId === p.id}
-                          className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 disabled:opacity-50 transition-colors"
-                        >
-                          {testingId === p.id ? t('testing') : t('testConnection')}
-                        </button>
-                      )}
-                      {p.id !== activeId && (
-                        <button
-                          type="button"
-                          onClick={() => handleSelect(p.id)}
-                          disabled={switchingKey === p.id}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 disabled:opacity-50 transition-colors"
-                        >
-                          {switchingKey === p.id ? t('testing') : t('save')}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(p.id)}
-                        className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold text-muted-foreground hover:bg-white/5 transition-colors"
-                      >
-                        {t('remove')}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ServerConnectionRoster
+                profiles={profiles}
+                activeId={activeId}
+                testingId={testingId}
+                switchingKey={switchingKey}
+                onTest={handleTestProfile}
+                onSelect={handleSelect}
+                onRemove={handleRemove}
+              />
             )}
 
             <div className="grid gap-3 sm:grid-cols-[1fr_2fr]">

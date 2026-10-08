@@ -17,6 +17,7 @@ import CloudBrowserCard from './CloudBrowserCard';
 import { AccessCard } from './AccessCard';
 import LockedUseCard from './LockedUseCard';
 import PrivacyCurtainCard from './PrivacyCurtainCard';
+import Toggle from '../../common/Toggle';
 import DesktopPermissionsCard from './DesktopPermissionsCard';
 import MemoryMonitorCard from '../knowledge/MemoryMonitorCard';
 import { DoctorDashboard } from '../../../health/DoctorDashboard';
@@ -414,21 +415,11 @@ const SystemSection = memo(() => {
               <label className="text-sm font-bold text-foreground">{t('config.closeToTray')}</label>
               <p className="text-xs text-muted-foreground">{t('config.closeToTrayDesc')}</p>
             </div>
-            <button
-              aria-label={t('config.closeToTray')}
-              onClick={() => handleChange('closeToTray', !localConfig.closeToTray)}
-              className={cn(
-                'relative w-12 h-6 rounded-full transition-colors',
-                localConfig.closeToTray ? 'bg-indigo-500' : 'bg-white/10',
-              )}
-            >
-              <div
-                className={cn(
-                  'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                  localConfig.closeToTray && 'translate-x-6',
-                )}
-              />
-            </button>
+            <Toggle
+              checked={localConfig.closeToTray}
+              onChange={() => handleChange('closeToTray', !localConfig.closeToTray)}
+              ariaLabel={t('config.closeToTray')}
+            />
           </div>
 
           <div className="h-px bg-white/5" />
@@ -439,21 +430,11 @@ const SystemSection = memo(() => {
               <label className="text-sm font-bold text-foreground">{t('config.autoLaunchAtLogin')}</label>
               <p className="text-xs text-muted-foreground">{t('config.autoLaunchAtLoginDesc')}</p>
             </div>
-            <button
-              aria-label={t('config.autoLaunchAtLogin')}
-              onClick={() => handleChange('autoLaunchAtLogin', !localConfig.autoLaunchAtLogin)}
-              className={cn(
-                'relative w-12 h-6 rounded-full transition-colors',
-                localConfig.autoLaunchAtLogin ? 'bg-indigo-500' : 'bg-white/10',
-              )}
-            >
-              <div
-                className={cn(
-                  'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                  localConfig.autoLaunchAtLogin && 'translate-x-6',
-                )}
-              />
-            </button>
+            <Toggle
+              checked={localConfig.autoLaunchAtLogin}
+              onChange={() => handleChange('autoLaunchAtLogin', !localConfig.autoLaunchAtLogin)}
+              ariaLabel={t('config.autoLaunchAtLogin')}
+            />
           </div>
 
           <div className="h-px bg-white/5" />
@@ -532,21 +513,11 @@ const SystemSection = memo(() => {
               <label className="text-sm font-bold text-foreground">{t('config.enableWebUI')}</label>
               <p className="text-xs text-muted-foreground">{t('config.enableWebUIDesc')}</p>
             </div>
-            <button
-              aria-label={t('config.enableWebUI')}
-              onClick={() => handleChange('enableWebUIMode', !localConfig.enableWebUIMode)}
-              className={cn(
-                'relative w-12 h-6 rounded-full transition-colors',
-                localConfig.enableWebUIMode ? 'bg-indigo-500' : 'bg-white/10',
-              )}
-            >
-              <div
-                className={cn(
-                  'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                  localConfig.enableWebUIMode && 'translate-x-6',
-                )}
-              />
-            </button>
+            <Toggle
+              checked={localConfig.enableWebUIMode}
+              onChange={() => handleChange('enableWebUIMode', !localConfig.enableWebUIMode)}
+              ariaLabel={t('config.enableWebUI')}
+            />
           </div>
 
           {/* 远程访问 */}
@@ -558,21 +529,11 @@ const SystemSection = memo(() => {
                   <label className="text-sm font-bold text-foreground">{t('config.enableRemote')}</label>
                   <p className="text-xs text-muted-foreground">{t('config.enableRemoteDesc')}</p>
                 </div>
-                <button
-                  aria-label={t('config.enableRemote')}
-                  onClick={() => handleChange('enableRemoteAccess', !localConfig.enableRemoteAccess)}
-                  className={cn(
-                    'relative w-12 h-6 rounded-full transition-colors',
-                    localConfig.enableRemoteAccess ? 'bg-indigo-500' : 'bg-white/10',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                      localConfig.enableRemoteAccess && 'translate-x-6',
-                    )}
-                  />
-                </button>
+                <Toggle
+                  checked={localConfig.enableRemoteAccess}
+                  onChange={() => handleChange('enableRemoteAccess', !localConfig.enableRemoteAccess)}
+                  ariaLabel={t('config.enableRemote')}
+                />
               </div>
 
               {/* 端口配置 */}
@@ -615,22 +576,11 @@ const SystemSection = memo(() => {
                   <label className="text-sm font-bold text-foreground">{t('config.requirePassword')}</label>
                   <p className="text-xs text-muted-foreground">{t('config.requirePasswordDesc')}</p>
                 </div>
-                <button
-                  type="button"
-                  aria-label={t('config.requirePassword')}
-                  onClick={() => void handleRequirePasswordToggle()}
-                  className={cn(
-                    'relative w-12 h-6 rounded-full transition-colors',
-                    localConfig.requirePassword ? 'bg-primary' : 'bg-muted',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                      localConfig.requirePassword && 'translate-x-6',
-                    )}
-                  />
-                </button>
+                <Toggle
+                  checked={localConfig.requirePassword}
+                  onChange={() => void handleRequirePasswordToggle()}
+                  ariaLabel={t('config.requirePassword')}
+                />
               </div>
 
               {isLocal && <WebuiAccessSecurityPanel />}
@@ -708,10 +658,16 @@ const SystemSection = memo(() => {
       />
 
       {/* Locked Use (Computer Use + Screen Lock) */}
-      <LockedUseCard enabled={config.lockedUseEnabled} onToggle={(v) => handleChange('lockedUseEnabled', v)} />
+      <LockedUseCard
+        enabled={localConfig.lockedUseEnabled}
+        onToggle={(v) => handleChange('lockedUseEnabled', v)}
+      />
 
       {/* Privacy Curtain (unattended workstation shield) */}
-      <PrivacyCurtainCard enabled={config.privacyCurtainEnabled} onToggle={(v) => handleChange('privacyCurtainEnabled', v)} />
+      <PrivacyCurtainCard
+        enabled={localConfig.privacyCurtainEnabled}
+        onToggle={(v) => handleChange('privacyCurtainEnabled', v)}
+      />
 
       {/* Desktop Permissions Diagnostic */}
       <DesktopPermissionsCard />

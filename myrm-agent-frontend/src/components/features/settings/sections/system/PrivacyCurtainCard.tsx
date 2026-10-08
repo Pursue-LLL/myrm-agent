@@ -6,6 +6,7 @@ import { EyeOff, MonitorX } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { useTauri } from '@/hooks/tauri/useTauri';
+import Toggle from '@/components/features/settings/common/Toggle';
 
 interface PrivacyCurtainCardProps {
   enabled: boolean;
@@ -88,21 +89,7 @@ const PrivacyCurtainCard = memo<PrivacyCurtainCardProps>(({ enabled, onToggle })
                 <p className="text-xs text-muted-foreground">{t('autoDesc')}</p>
               </div>
             </div>
-            <button
-              onClick={() => onToggle(!enabled)}
-              aria-label={t('autoTitle')}
-              className={cn(
-                'relative w-12 h-6 rounded-full transition-colors',
-                enabled ? 'bg-indigo-500' : 'bg-white/10',
-              )}
-            >
-              <div
-                className={cn(
-                  'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                  enabled && 'translate-x-6',
-                )}
-              />
-            </button>
+            <Toggle checked={enabled} onChange={() => onToggle(!enabled)} ariaLabel={t('autoTitle')} />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 pl-12">

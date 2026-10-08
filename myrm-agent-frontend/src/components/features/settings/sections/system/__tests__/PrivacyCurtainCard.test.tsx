@@ -122,7 +122,10 @@ describe('PrivacyCurtainCard', () => {
     render(<PrivacyCurtainCard enabled={false} onToggle={onToggle} />);
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('privacy_curtain_active'));
 
-    fireEvent.click(screen.getByLabelText('autoTitle'));
+    const toggle = screen.getByRole('switch', { name: 'autoTitle' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+    fireEvent.click(toggle);
 
     expect(onToggle).toHaveBeenCalledWith(true);
   });
