@@ -155,10 +155,31 @@ _SEND_READY_JS = """((text) => {
   return { ready: Boolean(send) && !send.disabled && !linkPromptOpen && wire.includes(text), wire };
 })"""
 
+# Pass-through trace of every request the page makes after the click, so a message the server never stored
+# can be told apart from one the page never sent.
 _CLICK_SEND_JS = """(() => {
   window.__MYRM_E2E_DIRECT_SSE__ = true;
   const send = document.querySelector('button.message-send-btn');
   if (!send || send.disabled) return { ok: false, err: 'send-button-unavailable' };
+  if (!window.__MYRM_SEND_TRACE__) {
+    const trace = (window.__MYRM_SEND_TRACE__ = []);
+    const original = window.fetch;
+    window.fetch = async (...args) => {
+      const target = args[0];
+      const record = { url: String(target?.url ?? target).slice(-140), method: String(args[1]?.method ?? target?.method ?? 'GET') };
+      trace.push(record);
+      try {
+        const response = await original.apply(window, args);
+        record.status = response.status;
+        return response;
+      } catch (error) {
+        record.error = String(error).slice(0, 160);
+        throw error;
+      }
+    };
+    window.addEventListener('unhandledrejection', (event) => trace.push({ rejection: String(event.reason).slice(0, 200) }));
+    window.addEventListener('error', (event) => trace.push({ error: String(event.message).slice(0, 200) }));
+  }
   send.click();
   return { ok: true };
 })()"""
@@ -179,6 +200,7 @@ _SEND_DIAGNOSTICS_JS = """(() => {
     isStreaming: snap.isStreaming ?? null,
     sendButtonDisabled: send ? send.disabled : null,
     notices,
+    requests: (window.__MYRM_SEND_TRACE__ ?? []).slice(-12),
   };
 })()"""
 
