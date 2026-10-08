@@ -11,6 +11,7 @@ from myrm_agent_harness.toolkits.code_execution.tool_discovery import (
     DetectedTool,
     ToolDefinition,
     detect_all,
+    detector,
     get_cli_tools_context,
     refresh_cache,
 )
@@ -22,6 +23,13 @@ from myrm_agent_harness.toolkits.code_execution.tool_discovery.detector import (
     _detect_one,
     _expanded_path,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_detection_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`detect_all(use_cache=False)` repopulates the process-level cache, so a test that stubs
+    `shutil.which` would otherwise leak an empty tool list to later tests in the same worker."""
+    monkeypatch.setattr(detector, "_cache", None)
 
 
 class TestToolDefinition:

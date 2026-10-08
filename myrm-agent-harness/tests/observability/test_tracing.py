@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import logging
 
+import pytest
+
 from myrm_agent_harness.observability.tracing import (
     JsonFormatter,
     TracingContext,
@@ -204,7 +206,11 @@ class TestJsonFormatter:
 
 
 class TestTracingInitializationPosture:
-    def test_is_tracing_initialized_false_before_setup(self) -> None:
-        from myrm_agent_harness.infra.tracing.tracer import is_tracing_initialized
+    def test_is_tracing_initialized_false_before_setup(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from myrm_agent_harness.infra.tracing import tracer
 
-        assert is_tracing_initialized() is False
+        # Other tests call `setup_tracing()`, which flips a process-global flag; the posture before setup is
+        # asserted against a pristine flag rather than whatever ran earlier on this worker.
+        monkeypatch.setattr(tracer, "_initialized", False)
+
+        assert tracer.is_tracing_initialized() is False

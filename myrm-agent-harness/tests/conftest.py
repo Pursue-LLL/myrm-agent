@@ -174,6 +174,21 @@ def _reset_session_executor_stash() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _reset_subagent_checkpointer_singleton() -> Iterator[None]:
+    """Give every test its own subagent checkpointer.
+
+    The singleton's SQLite saver binds asyncio locks to the event loop that first used it, while
+    pytest-asyncio runs each test on a fresh loop; a saver left behind by one test (for example after a
+    hard-timeout cancellation) fails the next one with "Lock is bound to a different event loop".
+    """
+    from myrm_agent_harness.agent.sub_agents.checkpointer import reset_subagent_checkpointer
+
+    reset_subagent_checkpointer()
+    yield
+    reset_subagent_checkpointer()
+
+
+@pytest.fixture(autouse=True)
 def _restore_chat_id_var() -> Iterator[None]:
     """Isolate the active chat id ContextVar between all tests.
 
