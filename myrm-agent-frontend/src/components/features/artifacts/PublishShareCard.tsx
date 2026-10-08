@@ -76,7 +76,7 @@ export const PublishShareCard: React.FC<PublishShareCardProps> = ({
           <Input
             value={publishUrl}
             readOnly
-            className="bg-transparent border-none focus-visible:ring-0 font-mono text-xs text-primary shadow-none h-8 px-2 select-all"
+            className="bg-transparent border-none font-mono text-xs text-primary shadow-none h-8 px-2 select-all"
           />
           <div className="flex gap-1 pr-1 shrink-0">
             <Button

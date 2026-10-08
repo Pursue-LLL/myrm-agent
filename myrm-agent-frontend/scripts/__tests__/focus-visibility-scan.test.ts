@@ -77,6 +77,28 @@ describe('findInvisibleFocusSites', () => {
     expect(findInvisibleFocusSites(source)).toHaveLength(1);
   });
 
+  it('does not accept focus:text-* as a visible replacement', () => {
+    expect(findInvisibleFocusSites(`<button className="outline-none focus:text-foreground" />`)).toHaveLength(1);
+  });
+
+  it('flags the shared Input primitive when focus-visible:ring-0 leaves no replacement', () => {
+    expect(findInvisibleFocusSites(`<Input className="border-none shadow-none focus-visible:ring-0" />`)).toEqual([
+      { line: 1, tag: 'Input' },
+    ]);
+    expect(findInvisibleFocusSites(`<Input className="focus-visible:ring-0 focus-visible:border-primary" />`)).toEqual(
+      [],
+    );
+  });
+
+  it('leaves Input alone when it does not zero the primitive ring, even with outline-none', () => {
+    expect(findInvisibleFocusSites(`<Input className="h-6 border-none bg-transparent" />`)).toEqual([]);
+    expect(findInvisibleFocusSites(`<Input className="outline-none" />`)).toEqual([]);
+  });
+
+  it('does not treat ring-0 on non-Input elements as an offender by itself', () => {
+    expect(findInvisibleFocusSites(`<button className="focus-visible:ring-0" />`)).toEqual([]);
+  });
+
   it('ignores outline-none outside className attributes', () => {
     expect(findInvisibleFocusSites(`const x = 'outline-none';\n<button className="p-2" />`)).toEqual([]);
   });

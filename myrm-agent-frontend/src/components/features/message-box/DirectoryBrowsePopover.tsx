@@ -144,7 +144,7 @@ export default function DirectoryBrowsePopover({
                   void loadDirectory(pathInput.trim());
                 }
               }}
-              className="h-6 flex-1 border-none bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
+              className="h-6 flex-1 border-none bg-transparent px-1 text-xs shadow-none"
               placeholder={t('pathPlaceholder')}
             />
             <Button
@@ -184,7 +184,7 @@ export default function DirectoryBrowsePopover({
               <Input
                 value={filterQuery}
                 onChange={(event) => setFilterQuery(event.target.value)}
-                className="h-6 border-none bg-muted/30 px-2 text-xs shadow-none focus-visible:ring-0"
+                className="h-6 border-none bg-muted/30 px-2 text-xs shadow-none"
                 placeholder={t('filter')}
               />
             </div>
