@@ -8,6 +8,9 @@ Covers:
 
 from __future__ import annotations
 
+import shutil
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -38,6 +41,26 @@ def tmp_venv(tmp_path: Path) -> Path:
     (venv / "bin" / "python").touch()
     (venv / "bin" / "pip").touch()
     return venv
+
+
+@pytest.fixture
+def outside_tmp_zone() -> Iterator[tuple[Path, Path]]:
+    """Workspace and venv python outside the always-allowed ``/tmp`` zone.
+
+    pytest's ``tmp_path`` lives under ``/tmp`` on Linux, which would make the venv look allowed.
+    """
+    root = Path(tempfile.mkdtemp(prefix="venv_whitelist_", dir=Path(__file__).parent))
+    try:
+        if root.resolve().is_relative_to(Path("/tmp").resolve()):
+            pytest.skip("checkout lives under /tmp, which the validator always allows")
+        workspace = root / "workspace"
+        workspace.mkdir()
+        python = root / ".sandbox_venv" / "bin" / "python"
+        python.parent.mkdir(parents=True)
+        python.touch()
+        yield workspace, python
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 @pytest.fixture
@@ -130,15 +153,15 @@ class TestValidateCommandWithVenvWhitelist:
         )
         assert result.is_safe
 
-    def test_without_additional_paths_venv_blocked(self, tmp_workspace: Path, tmp_venv: Path) -> None:
+    def test_without_additional_paths_venv_blocked(self, outside_tmp_zone: tuple[Path, Path]) -> None:
         """Before the fix: venv paths are blocked without additional_paths."""
-        python_path = str(tmp_venv / "bin" / "python")
-        script = tmp_workspace / "run.py"
+        workspace, python = outside_tmp_zone
+        script = workspace / "run.py"
         script.touch()
-        cmd = f"{python_path} {script}"
+        cmd = f"{python} {script}"
         result = validate_command(
             cmd,
-            workspace_path=tmp_workspace,
+            workspace_path=workspace,
             additional_paths=None,
         )
         assert not result.is_safe
@@ -228,7 +251,7 @@ class TestIsPathAllowed:
         python_path = str(tmp_venv / "bin" / "python")
         assert _is_path_allowed(python_path, allowed) is True
 
-    def test_venv_path_without_additional_blocked(self, tmp_workspace: Path, tmp_venv: Path) -> None:
-        allowed = _get_allowed_paths(workspace_path=tmp_workspace)
-        python_path = str(tmp_venv / "bin" / "python")
-        assert _is_path_allowed(python_path, allowed) is False
+    def test_venv_path_without_additional_blocked(self, outside_tmp_zone: tuple[Path, Path]) -> None:
+        workspace, python = outside_tmp_zone
+        allowed = _get_allowed_paths(workspace_path=workspace)
+        assert _is_path_allowed(str(python), allowed) is False

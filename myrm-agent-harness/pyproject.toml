@@ -268,6 +268,9 @@ filterwarnings = [
     "ignore::DeprecationWarning:google",
     "ignore::DeprecationWarning:pkg_resources",
     "ignore::DeprecationWarning:websockets",
+    # jieba 0.42.1 (sdist-only) ships non-raw regex literals; the compile-time warning fires on its first
+    # import in a fresh environment (no cached bytecode yet) and would otherwise turn into a SyntaxError.
+    "ignore:invalid escape sequence:SyntaxWarning:.*jieba",
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",
 ]

@@ -11,6 +11,8 @@ or the AX tree is unavailable, so they are safe to run on any CI host.
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from myrm_agent_harness.toolkits.computer_use.dref.errors import (
@@ -21,6 +23,8 @@ from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
     capture_ax_snapshot,
     inspect_foreground,
 )
+
+pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="live AX capture drives macOS osascript")
 
 
 def _skip_without_accessibility(exc: BaseException) -> None:

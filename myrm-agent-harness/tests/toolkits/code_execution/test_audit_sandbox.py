@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 from unittest.mock import patch
 
@@ -8,6 +9,16 @@ from myrm_agent_harness.toolkits.code_execution.security.audit_sandbox import (
     SecurityError,
     install,
 )
+
+
+@pytest.fixture(autouse=True)
+def _keep_ctypes_importable(monkeypatch):
+    """``install()`` blanks ctypes/_ctypes in ``sys.modules`` for the whole process; undo it per test."""
+    import _ctypes
+    import ctypes
+
+    monkeypatch.setitem(sys.modules, "ctypes", ctypes)
+    monkeypatch.setitem(sys.modules, "_ctypes", _ctypes)
 
 
 @pytest.fixture
