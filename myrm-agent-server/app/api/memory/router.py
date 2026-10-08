@@ -130,6 +130,9 @@ from app.api.memory.hindsight_reflection_router import (
 from app.api.memory.hybrid_memory_router import (
     router as hybrid_memory_router,
 )
+from app.api.memory.hybrid_search import (
+    router as hybrid_search_router,
+)
 from app.api.memory.intent_reflection_router import (
     router as memory_intent_reflection_router,
 )
@@ -151,12 +154,6 @@ from app.api.memory.live_correction_router import (
 from app.api.memory.markdown_chunker import (
     router as markdown_chunker_router,
 )
-from app.api.memory.hybrid_search import (
-    router as hybrid_search_router,
-)
-from app.api.memory.migration_wizard import (
-    router as migration_wizard_router,
-)
 from app.api.memory.markdown_curator_router import (
     router as markdown_curator_router,
 )
@@ -177,6 +174,9 @@ from app.api.memory.migration_readiness_seed import (
 )
 from app.api.memory.migration_router import (
     router as memory_migration_router,
+)
+from app.api.memory.migration_wizard import (
+    router as migration_wizard_router,
 )
 from app.api.memory.multimodal_memory_router import (
     router as multimodal_memory_router,
@@ -223,6 +223,9 @@ from app.api.memory.peer_gateway_router import (
 )
 from app.api.memory.persona_router import (
     router as memory_persona_router,
+)
+from app.api.memory.pitfall_alert_router import (
+    router as pitfall_alert_router,
 )
 from app.api.memory.privacy_router import (
     router as memory_privacy_router,
@@ -579,6 +582,10 @@ router.include_router(
 router.include_router(
     migration_wizard_router,
     tags=["memory-migration-wizard"],
+)
+router.include_router(
+    pitfall_alert_router,
+    tags=["memory-pitfall-alert"],
 )
 
 
