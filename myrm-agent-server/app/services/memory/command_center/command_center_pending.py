@@ -13,6 +13,7 @@
 [POS]
 指挥中心读取待审内容的唯一入口。审批队列（harness `pending_records`）是普通提案与隐式纠正提案的唯一事实源；
 ORM `pending_memories` 只保存记忆冲突待裁决行，因此仅用于冲突计数与候选列表补充。
+队列内容与审批开关无关：推断写入（自动提取）在开关关闭时同样入队，读取视图必须始终展示它们。
 """
 
 from __future__ import annotations
@@ -41,11 +42,10 @@ _DEFAULT_SOURCE = "extraction"
 async def count_pending_review(db: AsyncSession, manager: MemoryManager) -> int:
     """Everything awaiting the user's decision: queued proposals plus unresolved memory conflicts."""
     queued = 0
-    if manager.approval_required:
-        try:
-            queued = await manager.count_pending()
-        except Exception:
-            logger.warning("Failed to count the approval queue for the command center", exc_info=True)
+    try:
+        queued = await manager.count_pending()
+    except Exception:
+        logger.warning("Failed to count the approval queue for the command center", exc_info=True)
     conflicts = await db.execute(
         select(func.count())
         .select_from(PendingMemory)
@@ -130,8 +130,6 @@ async def build_pending_timeline(manager: MemoryManager, *, limit: int = 6) -> l
 
 
 async def _list_queue(manager: MemoryManager, limit: int) -> list[PendingRecord]:
-    if not manager.approval_required:
-        return []
     try:
         return await manager.list_pending(limit=limit)
     except Exception:

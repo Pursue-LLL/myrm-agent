@@ -58,12 +58,12 @@ async def test_count_is_queue_plus_open_conflicts_only(test_db: SessionFactory) 
 
 
 @pytest.mark.asyncio
-async def test_count_ignores_queue_when_approval_is_off(test_db: SessionFactory) -> None:
+async def test_count_includes_inferred_proposals_when_approval_is_off(test_db: SessionFactory) -> None:
     await _seed_orm_rows(test_db)
     async with test_db() as db:
         count = await pending_views.count_pending_review(db, _manager([_record("p-1")], approval_required=False))
 
-    assert count == 1
+    assert count == 2  # auto-extracted proposals queue even with the approval switch off
 
 
 @pytest.mark.asyncio
@@ -120,9 +120,8 @@ async def test_timeline_fallback_lists_queued_proposals() -> None:
 
 
 @pytest.mark.asyncio
-async def test_views_are_empty_when_approval_is_off() -> None:
+async def test_views_list_inferred_proposals_when_approval_is_off() -> None:
     manager = _manager([_record("p-1")], approval_required=False)
 
-    assert await pending_views.build_pending_governance(manager) == []
-    assert await pending_views.build_pending_timeline(manager) == []
-    manager.list_pending.assert_not_awaited()
+    assert [item.id for item in await pending_views.build_pending_governance(manager)] == ["p-1"]
+    assert [event.id for event in await pending_views.build_pending_timeline(manager)] == ["pending:p-1"]
