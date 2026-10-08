@@ -2,6 +2,17 @@
 
 Exposes REST and MCP-aligned endpoints for causal memory creation,
 bidirectional graph traversal, ripple impact analysis, and audit-ready evidence packaging.
+
+[POS]
+HTTP boundary of the conclusion attribution domain; delegates all behavior to the provider.
+
+[INPUT]
+- fastapi
+- app.schemas.conclusion_attribution
+- app.services.memory.conclusion_attribution.provider
+
+[OUTPUT]
+- router (FastAPI APIRouter)
 """
 
 from __future__ import annotations

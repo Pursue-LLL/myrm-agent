@@ -2,6 +2,16 @@
 
 Wraps the pure execution harness ConclusionAttributionSuite, converts between domain
 entities and API schemas, and maintains single-process state.
+
+[POS]
+Business adapter between the attribution router and the harness suite.
+
+[INPUT]
+- myrm_agent_harness.toolkits.memory.conclusion_attribution
+- app.schemas.conclusion_attribution
+
+[OUTPUT]
+- ConclusionAttributionProvider (singleton)
 """
 
 from __future__ import annotations

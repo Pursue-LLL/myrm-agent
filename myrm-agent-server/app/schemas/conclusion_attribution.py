@@ -2,6 +2,15 @@
 
 Defines Pydantic V2 schemas for conclusion creation, bidirectional graph traversal,
 ripple impact evaluation, and verifiable chat evidence packages.
+
+[POS]
+API contract of the conclusion attribution domain, shared by the router and the provider.
+
+[INPUT]
+- pydantic
+
+[OUTPUT]
+- Conclusion, traversal, ripple impact, chat evidence and metrics request/response models
 """
 
 from __future__ import annotations
