@@ -10,6 +10,8 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | DingTalk channel package — re-exports DingTalkChannel for registry. | ✅ |
 | `api.py` | 模块 | DingTalk OpenAPI client. Encapsulates token management, message sending (DM/group), media upload/download, and AI Card streaming for DingTalkChannel. | ✅ |
+| `cards.py` | 模块 | DingTalk AI Card streaming mixin: placeholder card creation, incremental updates and finalization. | ✅ |
 | `channel.py` | 模块 | DingTalk robot channel. Stream API WebSocket for inbound, OpenAPI for outbound. Supports DM/group routing, media upload with fallback, AI Card streaming, and st | ✅ |
 | `helpers.py` | 模块 | app.channels.providers.dingtalk.helpers — Pure helper functions for DingTalk channel. | ✅ |
+| `inbound.py` | 模块 | DingTalk inbound mixin: webhook callbacks, Stream API WebSocket session and media download-code resolution. | ✅ |
 | `models.py` | 模块 | Pydantic models for DingTalk robot callback payloads. | ✅ |
