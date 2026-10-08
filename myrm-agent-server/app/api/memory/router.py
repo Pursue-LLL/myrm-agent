@@ -59,6 +59,9 @@ from app.api.memory.codegraph_router import router as codegraph_router
 from app.api.memory.conflict_router import (
     router as memory_conflict_router,
 )
+from app.api.memory.context_hooks_router import (
+    router as context_hooks_router,
+)
 from app.api.memory.conversation_lineage_defense_router import (
     router as conversation_lineage_defense_router,
 )
@@ -600,6 +603,10 @@ router.include_router(
 router.include_router(
     life_milestones_router,
     tags=["memory-life-milestones"],
+)
+router.include_router(
+    context_hooks_router,
+    tags=["memory-context-hooks"],
 )
 
 
