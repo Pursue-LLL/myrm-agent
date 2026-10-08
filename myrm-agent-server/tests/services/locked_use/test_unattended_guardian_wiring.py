@@ -34,8 +34,8 @@ from myrm_agent_harness.toolkits.computer_use.session import ComputerSession
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult, ComputerUseConfig
 
 from app.services.locked_use import unattended
-from app.services.locked_use.service import UnlockAttemptOutcome
 from app.services.locked_use.curtain_bridge import EXCLUDED_CAPTURE_TITLES
+from app.services.locked_use.service import UnlockAttemptOutcome
 from tests.support.curtain_watcher import arm_on_demand_unlock, mark_watcher_running
 
 
