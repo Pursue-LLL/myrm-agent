@@ -120,9 +120,9 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
         thread_id = int(msg.thread_id) if msg.thread_id else None
 
         if self._rich_send_available is not False:
-            mid = await self._try_send_rich(msg, chat_id, reply_to, thread_id, reply_markup, notify_kwargs)
-            if mid is not None:
-                return mid
+            rich_id = await self._try_send_rich(msg, chat_id, reply_to, thread_id, reply_markup, notify_kwargs)
+            if rich_id is not None:
+                return rich_id
 
         chunks = render(msg, self.render_style)
         for i, chunk in enumerate(chunks):

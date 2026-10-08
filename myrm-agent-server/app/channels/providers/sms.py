@@ -257,7 +257,8 @@ class SMSChannel(BaseChannel):
         if resp.status_code >= 400:
             error_body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
             raise ChannelSendError.from_http_status(self.name, resp.status_code, str(error_body.get("message", resp.text)))
-        return resp.json().get("sid")
+        sid: str | None = resp.json().get("sid")
+        return sid
 
     # -- retry override for Twilio rate limits --------------------------------
 

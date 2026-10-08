@@ -8,6 +8,7 @@ Feishu/Lark custom bot hook URLs use ``feishu_bot_webhook`` (``msg_type=text`` J
 WeCom group bot hook URLs use ``wecom_bot_webhook`` (``msgtype=markdown`` JSON).
 Channel delivery goes through ``MessageBus.send_now`` (the same preparation, routing and
 failure bookkeeping as queued sends) and raises on failure (delivery_status=FAILED).
+Workspace files the result mentions ride along as attachments (see ``channel_deliverables``).
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
 
 from app.channels import OutboundMessage
 
+from .channel_deliverables import collect_cron_deliverables
 from .feishu_bot_webhook import deliver_feishu_bot_webhook, is_feishu_bot_hook_url
 from .wecom_bot_webhook import deliver_wecom_bot_webhook, is_wecom_bot_hook_url
 
@@ -68,21 +70,24 @@ class ChannelResultDelivery:
         from app.core.channel_bridge import channel_gateway
         from app.core.channel_bridge.topic_config import SqlTopicManager
 
-        content = result.output or ""
-        if result.error:
-            content += f"\n\n**Error:** {result.error[:500]}"
-
         recipient_id = self._resolve_recipient(job)
 
         topic = await SqlTopicManager().resolve_topic(job.delivery.channel, recipient_id, job.delivery.thread_id)
         if topic is not None and topic.identity_revoked:
             raise RuntimeError(f"Cron job {job.id}: team identity revoked for {job.delivery.channel}/{recipient_id}")
 
+        deliverables = await collect_cron_deliverables(job, result.output or "")
+        content = deliverables.content
+        if result.error:
+            content += f"\n\n**Error:** {result.error[:500]}"
+
         meta: dict[str, object] = dict(result.metadata) if result.metadata else {}
         meta["job_name"] = job.name
         meta["success"] = result.success
         meta["proactive"] = True
         meta["followup_kind"] = "cron_writeback"
+        if deliverables.locale:
+            meta.setdefault("locale", deliverables.locale)
 
         msg = OutboundMessage(
             channel=job.delivery.channel,
@@ -90,6 +95,8 @@ class ChannelResultDelivery:
             content=content,
             user_id=job.user_id,
             thread_id=job.delivery.thread_id,
+            media=deliverables.media,
+            components=deliverables.components,
             metadata=meta,
         )
 

@@ -1,11 +1,11 @@
 """Post-stream reply assembly for channel agent execution.
 
 [INPUT]
-- app.channels.types::InboundMessage, MediaAttachment, OutboundMessage (POS: Channel message types.)
+- app.channels.types::InboundMessage, MediaAttachment, OutboundMessage, SessionPolicy (POS: Channel message types.)
 - app.channels.core.outbound_media::discard_ephemeral_media (POS: temp attachment cleanup)
 - app.core.channel_bridge.executor_helpers::StreamAccumulator, persist_assistant_message (POS: Stream accumulation for channel turns.)
 - agent_executor.deliverable::build_artifact_deep_links (POS: Artifact delivery helpers for ChannelAgentExecutor.)
-- agent_executor.deliverable::collect_deliverable_paths_from_text, resolve_chat_workspace_root (POS: Channel deliverable attachment mode (Hermes parity). Complements artifact event collection in deliverable.deep_links.collect_channel_artifacts.)
+- agent_executor.deliverable::append_deliverable_notes, collect_deliverable_paths_from_text, resolve_chat_workspace_root (POS: Channel deliverable attachment mode (Hermes parity). Complements artifact event collection in deliverable.deep_links.collect_channel_artifacts.)
 - app.channels.i18n::channel_t, resolve_message_locale (POS: Channel i18n message catalog and locale resolution)
 
 [OUTPUT]
@@ -32,8 +32,8 @@ from app.channels.types import (
     MediaAttachment,
     MediaType,
     OutboundMessage,
+    SessionPolicy,
 )
-from app.core.channel_bridge.config_parsers import SessionPolicy
 from app.core.channel_bridge.executor_helpers import (
     StreamAccumulator,
     generate_channel_title,
@@ -43,6 +43,7 @@ from app.core.channel_bridge.executor_helpers import (
 from app.core.types.business import ModelConfig
 
 from .deliverable import (
+    append_deliverable_notes,
     build_artifact_deep_links,
     collect_deliverable_paths_from_text,
     resolve_chat_workspace_root,
@@ -83,7 +84,7 @@ async def finalize_channel_stream_reply(
             collect_deliverable_paths_from_text,
             content,
             workspace_root=workspace_root,
-            existing_filenames={m.filename for m in acc.file_attachments},
+            existing_filenames={m.filename for m in acc.file_attachments if m.filename},
         )
 
     oversized_raw = list(dict.fromkeys(scanned_oversized + acc.oversized_deliverables))
@@ -153,18 +154,12 @@ async def finalize_channel_stream_reply(
             logger.warning("ChannelAgentExecutor: empty LLM response for %s", msg.sender_id)
             content = "[No response generated]"
 
-    if oversized_notes or compressed_notes:
-        locale = resolve_message_locale(msg)
-        note_lines = [
-            str(channel_t(locale, "deliverable_oversized_note", filename=fname, size=size)) for fname, size in oversized_notes
-        ]
-        note_lines.extend(
-            str(channel_t(locale, "deliverable_compressed_note", filename=fname, size=size)) for fname, size in compressed_notes
-        )
-        if content.strip():
-            content = f"{content.strip()}\n\n" + "\n".join(note_lines)
-        else:
-            content = "\n".join(note_lines)
+    content = append_deliverable_notes(
+        content,
+        locale=resolve_message_locale(msg),
+        oversized_notes=oversized_notes,
+        compressed_notes=compressed_notes,
+    )
 
     await persist_assistant_message(
         chat_id,

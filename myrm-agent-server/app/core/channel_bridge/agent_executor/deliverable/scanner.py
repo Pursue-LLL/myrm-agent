@@ -10,9 +10,11 @@ containment check, so nothing outside the workspace can be attached.
 - Assistant reply markdown/text
 - Chat workspace root directory
 - deliverable.media::MAX_CHANNEL_ATTACHMENT_BYTES, compress_oversized_image, format_human_size, is_compressible_image (POS: Channel deliverable attachment cap + oversized-image fallback)
+- app.channels.i18n::channel_t (POS: Localized oversized / compressed attachment notes)
 
 [OUTPUT]
 - collect_deliverable_paths_from_text(): attachments + stripped text + oversized/compressed notes
+- append_deliverable_notes(): appends the localized notes to the text a message carries
 - extract_deliverable_path_tokens / resolve_deliverable_path / resolve_chat_workspace_root
 
 [POS]
@@ -24,8 +26,10 @@ from __future__ import annotations
 
 import mimetypes
 import re
+from collections.abc import Sequence
 from pathlib import Path
 
+from app.channels.i18n import channel_t
 from app.channels.types import MediaAttachment, MediaType, guess_media_type
 
 from .media import (
@@ -235,6 +239,26 @@ def collect_deliverable_paths_from_text(
         stripped = stripped.replace(token, "")
 
     return stripped.strip(), attachments, oversized_notes, compressed_notes
+
+
+def append_deliverable_notes(
+    content: str,
+    *,
+    locale: str,
+    oversized_notes: Sequence[tuple[str, str]],
+    compressed_notes: Sequence[tuple[str, str]],
+) -> str:
+    """Append the localized oversized / compressed notes of ``collect_deliverable_paths_from_text`` to ``content``."""
+    note_lines = [
+        str(channel_t(locale, "deliverable_oversized_note", filename=filename, size=size)) for filename, size in oversized_notes
+    ]
+    note_lines.extend(
+        str(channel_t(locale, "deliverable_compressed_note", filename=filename, size=size)) for filename, size in compressed_notes
+    )
+    if not note_lines:
+        return content
+    notes = "\n".join(note_lines)
+    return f"{content.strip()}\n\n{notes}" if content.strip() else notes
 
 
 async def resolve_chat_workspace_root(chat_id: str) -> str | None:

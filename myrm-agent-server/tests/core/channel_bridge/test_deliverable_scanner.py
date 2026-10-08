@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from app.core.channel_bridge.agent_executor.deliverable.scanner import (
+    append_deliverable_notes,
     collect_deliverable_paths_from_text,
     extract_deliverable_path_tokens,
     resolve_deliverable_path,
@@ -265,3 +266,29 @@ async def test_resolve_chat_workspace_root_empty_or_error() -> None:
     ) as get_session:
         get_session.return_value = mock_session_cm
         assert await resolve_chat_workspace_root("chat-1") is None
+
+
+def test_append_deliverable_notes_without_notes_keeps_content() -> None:
+    assert append_deliverable_notes("  body  ", locale="en", oversized_notes=[], compressed_notes=[]) == "  body  "
+
+
+def test_append_deliverable_notes_follow_the_text() -> None:
+    text = append_deliverable_notes(
+        "Report ready.\n",
+        locale="en",
+        oversized_notes=[("big.zip", "8.2 MB")],
+        compressed_notes=[("shot.png", "6.1 MB")],
+    )
+
+    body, notes = text.split("\n\n", 1)
+    assert body == "Report ready."
+    assert notes.splitlines() == [
+        "big.zip (8.2 MB) exceeds the channel attachment size limit and wasn't attached.",
+        "shot.png (6.1 MB) exceeded the channel size limit — a compressed version was sent.",
+    ]
+
+
+def test_append_deliverable_notes_alone_when_text_is_blank() -> None:
+    text = append_deliverable_notes(" \n", locale="zh-CN", oversized_notes=[("big.zip", "8.2 MB")], compressed_notes=[])
+
+    assert text == "big.zip（8.2 MB）超出渠道附件大小限制，未作为附件发送。"

@@ -27,7 +27,8 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/sqlalchemy_aggregation.py` | 核心 | Token 用量聚合查询（按天/按任务/按模型），CronStore 协议之外的业务扩展 | — |
 | `adapters/agent_runner.py` | 核心 | JobRunner：ConfigService + AgentFactory；可选 `workflow_template_id` 走 pinned DW（`create_dynamic_workflow_stream` unattended）；执行前 `validate_cron_template_at_execution`（trust/args/readonly）；Cron 绑模板同 SSOT；cron 渠道 `enable_cron_eager=False` 且剔除 `cron` builtin；[SILENT] + SituationReport | — |
 | `adapters/situation_sections.py` | 核心 | SituationSection 具体实现（PendingReminders、SystemHealth），及 builder 工厂函数 | ✅ |
-| `adapters/channel_delivery.py` | 核心 | ResultDelivery 实现：IM 渠道通过 `send_with_retry` 同步投递，Webhook 委托给框架的 `WebhookDelivery` | — |
+| `adapters/channel_delivery.py` | 核心 | ResultDelivery 实现：IM 渠道经 `MessageBus.send_now` 同步投递（与队列发送同一套准备/路由/失败记账，失败抛给调度器），产出里的工作区交付物随消息作为附件；Webhook 委托给框架的 `WebhookDelivery` | — |
+| `adapters/channel_deliverables.py` | 核心 | Cron 产出 → IM 交付物：扫描产出文本中的工作区相对路径（绑定 chat 的 workspace）→ 附件 + 超限/压缩提示 + 网页接力按钮（仅有附件时；纯文本路由降级为链接） | ✅ |
 | `adapters/delivery_resolver.py` | 核心 | Cron 工具 webhook URL → `DeliveryConfig`（非空 → `webhook`；格式化在投递层） | — |
 | `adapters/feishu_bot_webhook.py` | 核心 | Feishu/Lark bot v2 hook 专用 POST（`msg_type=text`） | — |
 | `adapters/sqlalchemy_trigger_provider.py` | 核心 | TriggerProvider 实现：从数据库查询带 triggers 的活跃任务，执行 event regex / system_event / webhook 匹配 | ✅ |
@@ -61,6 +62,7 @@ app.core.cron.adapters.setup (组装入口)
     ├── AgentJobRunner        → app.core.channel_bridge.config_loader (实时配置加载)
     │                         → app.ai_agents (AgentFactory, GeneralAgent)
     ├── ChannelResultDelivery → app.core.channel_bridge (channel_gateway)
+    │                         → channel_deliverables (工作区交付物 → 附件 + 网页接力按钮)
     │                         → WebhookDelivery (框架内置，webhook 投递委托)
     ├── delivery_resolver     → tool_setup.create_cron_tools(delivery_resolver=..., default_delivery=..., blueprint_catalog_provider=...)
     ├── feishu_bot_webhook    → channel_delivery 检测 hook URL 时 Feishu 文本格式投递
@@ -92,7 +94,7 @@ JobResult (text + metadata)
     ↓ scheduler._try_deliver()
     ↓ 检测 [SILENT] 标记 → skip delivery（仅成功结果）
     ↓ ChannelResultDelivery.deliver()
-    ↓ IM 渠道: send_with_retry(channel.send, msg) — 复用渠道自身重试策略
+    ↓ IM 渠道: 扫描产出中的工作区交付物（附件 + 网页接力按钮）→ bus.send_now(msg) — 路由/降级后复用渠道自身重试策略
     ↓ Webhook: _retry(max=2, backoff=2s/4s) — 永久错误跳过重试
     ↓ 失败 → delivery_status=FAILED + delivery_error 记录到 CronRunRecord
 ```
