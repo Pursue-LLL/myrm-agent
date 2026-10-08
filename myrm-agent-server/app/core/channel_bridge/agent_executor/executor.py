@@ -24,7 +24,6 @@ and sibling module stream_events.py.
 from __future__ import annotations
 
 import logging
-import os
 from collections.abc import AsyncGenerator
 from uuid import uuid4
 
@@ -194,7 +193,7 @@ class ChannelAgentExecutor:
             ):
                 yield progress
 
-            reply, tmp_paths = await finalize_channel_stream_reply(
+            reply = await finalize_channel_stream_reply(
                 msg,
                 acc=acc,
                 chat_id=chat_id,
@@ -206,14 +205,7 @@ class ChannelAgentExecutor:
                 session_was_auto_reset=session_was_auto_reset,
                 session_policy=session_policy,
             )
-            try:
-                yield reply
-            finally:
-                for p in tmp_paths:
-                    try:
-                        os.unlink(p)
-                    except OSError:
-                        pass
+            yield reply
         except ConfigIncompleteError as exc:
             logger.warning(
                 "ChannelAgentExecutor: config incomplete for %s: %s",

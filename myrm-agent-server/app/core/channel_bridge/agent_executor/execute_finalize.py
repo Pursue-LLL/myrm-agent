@@ -2,13 +2,15 @@
 
 [INPUT]
 - app.channels.types::InboundMessage, MediaAttachment, OutboundMessage (POS: Channel message types.)
+- app.channels.core.outbound_media::discard_ephemeral_media (POS: temp attachment cleanup)
 - app.core.channel_bridge.executor_helpers::StreamAccumulator, persist_assistant_message (POS: Stream accumulation for channel turns.)
 - agent_executor.deliverable::build_artifact_deep_links (POS: Artifact delivery helpers for ChannelAgentExecutor.)
 - agent_executor.deliverable::collect_deliverable_paths_from_text, resolve_chat_workspace_root (POS: Channel deliverable attachment mode (Hermes parity). Complements artifact event collection in deliverable.deep_links.collect_channel_artifacts.)
 - app.channels.i18n::channel_t, resolve_message_locale (POS: Channel i18n message catalog and locale resolution)
 
 [OUTPUT]
-- finalize_channel_stream_reply: persist assistant turn and build OutboundMessage reply
+- finalize_channel_stream_reply: persist assistant turn and build OutboundMessage reply (temp files ride along
+  as ``ephemeral`` attachments; the message bus deletes them once delivery is final)
 
 [POS]
 Finalizes a completed harness stream into a channel OutboundMessage: content cleanup,
@@ -24,6 +26,7 @@ import tempfile
 
 from myrm_agent_harness.utils.text_utils import strip_internal_markers
 
+from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.types import (
     InboundMessage,
     MediaAttachment,
@@ -60,7 +63,7 @@ async def finalize_channel_stream_reply(
     chat_history: list[object],
     session_was_auto_reset: bool,
     session_policy: SessionPolicy,
-) -> tuple[OutboundMessage, list[str]]:
+) -> OutboundMessage:
     """Build the final channel reply after stream accumulation."""
     from app.channels.i18n import channel_t, resolve_message_locale
 
@@ -70,14 +73,12 @@ async def finalize_channel_stream_reply(
     scanned_attachments: list[MediaAttachment] = []
     scanned_oversized: list[tuple[str, str]] = []
     scanned_compressed: list[tuple[str, str]] = []
-    scanned_tmp_paths: list[str] = []
     if content.strip() and workspace_root:
         (
             content,
             scanned_attachments,
             scanned_oversized,
             scanned_compressed,
-            scanned_tmp_paths,
         ) = await asyncio.to_thread(
             collect_deliverable_paths_from_text,
             content,
@@ -89,7 +90,6 @@ async def finalize_channel_stream_reply(
     compressed_raw = list(dict.fromkeys(scanned_compressed + acc.compressed_deliverables))
 
     media_list: list[MediaAttachment] = []
-    tmp_paths: list[str] = list(acc.pending_tmp_paths)
     if acc.last_image_base64:
         ext = "jpg" if "jpeg" in acc.last_image_mime else "png"
         try:
@@ -101,13 +101,13 @@ async def finalize_channel_stream_reply(
             )
             tmp.write(img_bytes)
             tmp.close()
-            tmp_paths.append(tmp.name)
             media_list.append(
                 MediaAttachment(
                     media_type=MediaType.IMAGE,
                     path=tmp.name,
                     filename=f"screenshot.{ext}",
                     mime_type=acc.last_image_mime,
+                    ephemeral=True,
                 ),
             )
         except Exception:
@@ -125,7 +125,6 @@ async def finalize_channel_stream_reply(
 
     media_list.extend(acc.file_attachments)
     media_list.extend(scanned_attachments)
-    tmp_paths.extend(scanned_tmp_paths)
 
     artifact_components, linked_filenames = await build_artifact_deep_links(
         acc,
@@ -134,6 +133,7 @@ async def finalize_channel_stream_reply(
 
     # Deep-linked artifacts get buttons, so their duplicate attachment and
     # fallback note are suppressed.
+    discard_ephemeral_media(m for m in media_list if m.filename in linked_filenames)
     media_list = [m for m in media_list if m.filename not in linked_filenames]
     oversized_notes = [(fname, size) for fname, size in oversized_raw if fname not in linked_filenames]
     compressed_notes = compressed_raw
@@ -236,4 +236,4 @@ async def finalize_channel_stream_reply(
         components=artifact_components,
         quick_replies=quick_replies,
     )
-    return reply, tmp_paths
+    return reply

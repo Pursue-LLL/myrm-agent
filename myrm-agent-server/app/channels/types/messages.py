@@ -54,6 +54,9 @@ class MediaAttachment:
     Exactly one of ``url`` or ``path`` should be set:
     - ``url``: remote URL (channel downloads or passes through)
     - ``path``: local file path (channel reads and uploads)
+
+    ``ephemeral`` marks ``path`` as a temporary file made for this delivery (screenshot, compressed
+    image, synthesized speech): the message bus deletes it once the delivery outcome is final.
     """
 
     media_type: MediaType
@@ -62,6 +65,7 @@ class MediaAttachment:
     filename: str | None = None
     mime_type: str | None = None
     caption: str | None = None
+    ephemeral: bool = False
 
     @property
     def display_name(self) -> str:
@@ -301,6 +305,7 @@ class OutboundMessage:
                 filename=m_data.get("filename"),
                 mime_type=m_data.get("mime_type"),
                 caption=m_data.get("caption"),
+                ephemeral=bool(m_data.get("ephemeral", False)),
             )
 
         def _deserialize_component(

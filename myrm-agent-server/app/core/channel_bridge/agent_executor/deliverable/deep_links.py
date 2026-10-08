@@ -90,7 +90,6 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
                     max_bytes=MAX_CHANNEL_ATTACHMENT_BYTES,
                 )
                 if compressed is not None:
-                    acc.pending_tmp_paths.append(str(compressed))
                     out_mime = mimetypes.guess_type(str(compressed))[0] or "application/octet-stream"
                     acc.file_attachments.append(
                         MediaAttachment(
@@ -98,6 +97,7 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
                             path=str(compressed),
                             filename=Path(fname).stem + Path(str(compressed)).suffix,
                             mime_type=out_mime,
+                            ephemeral=True,
                         )
                     )
                     acc.compressed_deliverables.append((fname, format_human_size(file_size)))

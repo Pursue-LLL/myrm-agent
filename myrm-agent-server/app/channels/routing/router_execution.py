@@ -14,6 +14,7 @@ import time
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
+from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.i18n import channel_t, get_text, resolve_message_locale
 from app.channels.routing.placeholder_strategy import (
     DeferredPlaceholder,
@@ -250,6 +251,7 @@ class RouterExecutionMixin:
         placeholder_id = await deferred.resolve_for_delivery(result) if deferred else None
 
         if result and _is_silent_content(result.content):
+            discard_ephemeral_media(result.media)
             if placeholder_id:
                 await self._fx.cleanup_placeholder(msg.channel, chat_id, placeholder_id, "\u200b")
             return False

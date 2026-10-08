@@ -237,6 +237,7 @@ class TestMaybeTTS:
         assert len(result.media) == 1
         assert result.media[0].media_type == MediaType.AUDIO
         assert result.media[0].path == str(audio_path)
+        assert result.media[0].ephemeral is True  # the bus removes the synthesized file once delivery is final
         audio_path.unlink(missing_ok=True)
 
     @pytest.mark.asyncio

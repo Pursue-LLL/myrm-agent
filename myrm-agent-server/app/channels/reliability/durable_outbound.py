@@ -121,6 +121,10 @@ class DurableOutboundGate:
         if delivery_id:
             self._inflight_ids.discard(delivery_id)
 
+    def retains(self, msg: OutboundMessage) -> bool:
+        """True when a disk record keeps ``msg`` deliverable after its in-memory copy is dropped."""
+        return self.is_enabled() and self.is_durable_channel(msg.channel) and self.get_delivery_id(msg) is not None
+
     async def persist_direct_send(self, msg: OutboundMessage) -> OutboundMessage:
         """Persist before a direct send path (send_tracked / cron / edit)."""
         return await self.prepare_enqueue(msg)

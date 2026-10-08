@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -98,6 +99,25 @@ class TestDeliverAgentResultSilentFilter:
         fx.cleanup_placeholder.assert_called_once_with("telegram", "chat1", "ph_123", "\u200b")
         bus.publish_outbound.assert_not_called()
         fx.edit_placeholder.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_silent_result_releases_its_temp_attachments(self) -> None:
+        from app.channels.types import InboundMessage, OutboundMessage
+        from tests.channels.core.outbound_testkit import make_ephemeral_doc
+
+        mixin, _fx, bus = self._make_mixin()
+        doc = make_ephemeral_doc("report.pdf")
+        result = OutboundMessage(channel="telegram", recipient_id="chat1", content="[SILENT]", user_id="u1", media=(doc,))
+        deferred = AsyncMock()
+        deferred.resolve_for_delivery = AsyncMock(return_value=None)
+        msg = InboundMessage(channel="telegram", sender_id="u1", content="@bot hello", message_id="m1")
+
+        await mixin._deliver_agent_result(
+            result=result, deferred=deferred, msg=msg, chat_id="chat1", last_progress_at=0.0, inbound_had_voice=False
+        )
+
+        bus.publish_outbound.assert_not_called()
+        assert not Path(doc.path).exists()
 
     @pytest.mark.asyncio
     async def test_silent_result_without_placeholder_returns_silently(self) -> None:

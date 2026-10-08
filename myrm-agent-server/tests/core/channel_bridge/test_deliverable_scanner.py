@@ -31,22 +31,22 @@ def test_collect_attachments_and_strip_text(tmp_path: Path) -> None:
     report = tmp_path / "output.csv"
     report.write_text("a,b\n1,2")
     text = "Done. Delivered workspace/output.csv for review."
-    stripped, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+    stripped, attachments, oversized, compressed = collect_deliverable_paths_from_text(
         text,
         workspace_root=str(tmp_path),
     )
     assert len(attachments) == 1
     assert attachments[0].filename == "output.csv"
+    assert attachments[0].ephemeral is False  # a workspace file the bus must never delete
     assert "workspace/output.csv" not in stripped
     assert oversized == []
     assert compressed == []
-    assert tmp_paths == []
 
 
 def test_attachment_only_reply_strips_path_only_content(tmp_path: Path) -> None:
     report = tmp_path / "only.pdf"
     report.write_bytes(b"%PDF")
-    stripped, attachments, _, _, _ = collect_deliverable_paths_from_text(
+    stripped, attachments, _, _ = collect_deliverable_paths_from_text(
         "workspace/only.pdf",
         workspace_root=str(tmp_path),
     )
@@ -55,7 +55,7 @@ def test_attachment_only_reply_strips_path_only_content(tmp_path: Path) -> None:
 
 
 def test_skips_missing_files(tmp_path: Path) -> None:
-    _, attachments, _, _, _ = collect_deliverable_paths_from_text(
+    _, attachments, _, _ = collect_deliverable_paths_from_text(
         "See workspace/missing.pdf",
         workspace_root=str(tmp_path),
     )
@@ -71,7 +71,7 @@ def test_oversized_image_compressed_into_attachment(tmp_path: Path, monkeypatch:
     img = tmp_path / "big_chart.png"
     Image.effect_noise((400, 400), 90).convert("RGB").save(img, format="PNG")
 
-    stripped, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+    stripped, attachments, oversized, compressed = collect_deliverable_paths_from_text(
         "Chart: workspace/big_chart.png",
         workspace_root=str(tmp_path),
     )
@@ -83,11 +83,9 @@ def test_oversized_image_compressed_into_attachment(tmp_path: Path, monkeypatch:
     assert attachments[0].path is not None
     assert attachments[0].path != str(img.resolve())
     assert attachments[0].mime_type == "image/png"
-    assert len(tmp_paths) == 1
-    assert tmp_paths[0] == attachments[0].path
+    assert attachments[0].ephemeral is True  # the compressed temp file is handed to the bus for cleanup
     assert "workspace/big_chart.png" not in stripped
-    for p in tmp_paths:
-        Path(p).unlink(missing_ok=True)
+    Path(attachments[0].path).unlink(missing_ok=True)
 
 
 def test_oversized_webp_compressed_filename_aligned(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -100,7 +98,7 @@ def test_oversized_webp_compressed_filename_aligned(tmp_path: Path, monkeypatch:
     img = tmp_path / "hero.webp"
     Image.effect_noise((400, 400), 90).convert("RGB").save(img, format="WEBP")
 
-    _, attachments, _, _, tmp_paths = collect_deliverable_paths_from_text(
+    _, attachments, _, _ = collect_deliverable_paths_from_text(
         "Poster: workspace/hero.webp",
         workspace_root=str(tmp_path),
     )
@@ -109,8 +107,8 @@ def test_oversized_webp_compressed_filename_aligned(tmp_path: Path, monkeypatch:
     assert attachments[0].mime_type == "image/jpeg"
     assert attachments[0].path is not None
     assert attachments[0].path.endswith(".jpg")
-    for p in tmp_paths:
-        Path(p).unlink(missing_ok=True)
+    assert attachments[0].ephemeral is True
+    Path(attachments[0].path).unlink(missing_ok=True)
 
 
 def test_oversized_non_image_reported_as_note(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -120,13 +118,12 @@ def test_oversized_non_image_reported_as_note(tmp_path: Path, monkeypatch: pytes
     doc = tmp_path / "report.pdf"
     doc.write_bytes(b"%PDF-1.4" + b"x" * 500)
 
-    stripped, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+    stripped, attachments, oversized, compressed = collect_deliverable_paths_from_text(
         "See workspace/report.pdf",
         workspace_root=str(tmp_path),
     )
     assert attachments == []
     assert compressed == []
-    assert tmp_paths == []
     assert oversized == [("report.pdf", "508 B")]
     assert "workspace/report.pdf" not in stripped
 
@@ -138,13 +135,12 @@ def test_oversized_uncompressible_image_reported_as_note(tmp_path: Path, monkeyp
     img = tmp_path / "photo.gif"
     img.write_bytes(b"GIF89a" + b"x" * 500)
 
-    _, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+    _, attachments, oversized, compressed = collect_deliverable_paths_from_text(
         "Photo: workspace/photo.gif",
         workspace_root=str(tmp_path),
     )
     assert attachments == []
     assert compressed == []
-    assert tmp_paths == []
     assert oversized[0][0] == "photo.gif"
 
 
@@ -174,14 +170,13 @@ def test_resolve_plain_relative_path(tmp_path: Path) -> None:
 def test_collect_skips_empty_file(tmp_path: Path) -> None:
     empty = tmp_path / "empty.csv"
     empty.write_bytes(b"")
-    text, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+    text, attachments, oversized, compressed = collect_deliverable_paths_from_text(
         "Here: workspace/empty.csv",
         workspace_root=str(tmp_path),
     )
     assert attachments == []
     assert oversized == []
     assert compressed == []
-    assert tmp_paths == []
     assert "workspace/empty.csv" in text
 
 
@@ -189,7 +184,7 @@ def test_collect_deduplicates_against_existing_filenames(tmp_path: Path) -> None
     """A filename already attached by another source is dropped (token removed)."""
     dup = tmp_path / "report.pdf"
     dup.write_bytes(b"%PDF-1.4")
-    text, attachments, _oversized, _compressed, _tmp = collect_deliverable_paths_from_text(
+    text, attachments, _oversized, _compressed = collect_deliverable_paths_from_text(
         "See workspace/report.pdf",
         workspace_root=str(tmp_path),
         existing_filenames={"report.pdf"},
@@ -199,7 +194,7 @@ def test_collect_deduplicates_against_existing_filenames(tmp_path: Path) -> None
 
 
 def test_collect_returns_input_when_no_tokens(tmp_path: Path) -> None:
-    text, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+    text, attachments, oversized, compressed = collect_deliverable_paths_from_text(
         "No files here.",
         workspace_root=str(tmp_path),
     )
@@ -207,7 +202,6 @@ def test_collect_returns_input_when_no_tokens(tmp_path: Path) -> None:
     assert attachments == []
     assert oversized == []
     assert compressed == []
-    assert tmp_paths == []
 
 
 def test_extract_deduplicates_and_normalizes_tokens(tmp_path: Path) -> None:

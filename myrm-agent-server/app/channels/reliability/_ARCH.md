@@ -14,7 +14,7 @@ Transmission reliability: rate limiting, concurrency control, reconnect, and cra
 | rate_limiter.py | Core | Per-channel outbound rate limiting. Prevents platform bans due to excessive send frequency. | ✅ |
 | reconnect.py | Core | Reconnect loop with exponential backoff + jitter for long-lived connections. | ✅ |
 | retry.py | Core | Async retry utility with exponential backoff. Channel providers declare retry policies; media failures fall back to a localized text-only send; partial deliveries (`ChannelSendError.accepted`) are never retried or degraded; cancellation propagates. | ✅ |
-| durable_outbound.py | Core | Durable outbound gate: disk persist before IM send, startup/enable/dispatch-idle recovery, inflight tracking, skip web/chat/silent; retains obligation when channel disabled/stopped/unregistered; null-send must not ack. | ✅ |
+| durable_outbound.py | Core | Durable outbound gate: disk persist before IM send, startup/enable/dispatch-idle recovery, inflight tracking, skip web/chat/silent; retains obligation when channel disabled/stopped/unregistered (`retains()` tells the bus whether a disk record still owns a dropped message's attachments); null-send must not ack. | ✅ |
 | delivery_notify_ledger.py | Core | Permanent-failure toast dedupe ledger (separate from outbound persist). | ✅ |
 
 ## Architecture: Symmetric Reliability

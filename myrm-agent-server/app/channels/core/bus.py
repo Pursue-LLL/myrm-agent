@@ -160,7 +160,7 @@ class MessageBus(OutboundDispatchMixin):
             self._durable_outbound.track_enqueued(msg)
         except asyncio.QueueFull:
             logger.warning("Outbound queue full, dropping message for channel '%s'", msg.channel)
-            self._durable_outbound.release_inflight(msg)
+            self._release_unqueued(msg)
 
     async def edit_channel_message(self, channel_name: str, chat_id: str, message_id: str, content: str) -> bool:
         """Edit a previously sent message on a channel. Returns True if successful."""

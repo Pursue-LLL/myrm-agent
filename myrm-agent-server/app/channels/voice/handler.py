@@ -279,6 +279,7 @@ async def maybe_tts(
         media_type=MediaType.AUDIO,
         path=str(audio_path),
         mime_type="audio/mpeg",
+        ephemeral=True,
     )
     logger.warning("Voice: TTS synthesized %s", audio_path.name)
     return dataclasses.replace(

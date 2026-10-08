@@ -12,7 +12,7 @@ containment check, so nothing outside the workspace can be attached.
 - deliverable.media::MAX_CHANNEL_ATTACHMENT_BYTES, compress_oversized_image, format_human_size, is_compressible_image (POS: Channel deliverable attachment cap + oversized-image fallback)
 
 [OUTPUT]
-- collect_deliverable_paths_from_text(): attachments + stripped text + oversized/compressed notes + tmp paths
+- collect_deliverable_paths_from_text(): attachments + stripped text + oversized/compressed notes
 - extract_deliverable_path_tokens / resolve_deliverable_path / resolve_chat_workspace_root
 
 [POS]
@@ -162,25 +162,23 @@ def collect_deliverable_paths_from_text(
     list[MediaAttachment],
     list[tuple[str, str]],
     list[tuple[str, str]],
-    list[str],
 ]:
     """Scan reply text, attach deliverable files, and strip matched path tokens.
 
-    Returns ``(stripped_text, attachments, oversized_notes, compressed_notes, tmp_paths)``:
+    Returns ``(stripped_text, attachments, oversized_notes, compressed_notes)``:
     - oversized_notes: ``(filename, size_str)`` pairs that exceed the channel cap
       and could not be delivered as attachments.
     - compressed_notes: ``(filename, size_str)`` pairs whose oversized images were
-      compressed and sent as attachments instead.
-    - tmp_paths: temp files produced by image compression, cleaned by caller.
+      compressed and sent as attachments instead. The compressed files are temp files,
+      flagged ``ephemeral`` so the message bus deletes them after delivery.
     """
     tokens = extract_deliverable_path_tokens(text)
     if not tokens:
-        return text, [], [], [], []
+        return text, [], [], []
 
     attachments: list[MediaAttachment] = []
     oversized_notes: list[tuple[str, str]] = []
     compressed_notes: list[tuple[str, str]] = []
-    tmp_paths: list[str] = []
     used_filenames = set(existing_filenames or ())
     stripped = text
 
@@ -208,7 +206,6 @@ def collect_deliverable_paths_from_text(
                     max_bytes=MAX_CHANNEL_ATTACHMENT_BYTES,
                 )
                 if compressed is not None:
-                    tmp_paths.append(str(compressed))
                     mime = mimetypes.guess_type(str(compressed))[0] or "application/octet-stream"
                     attachments.append(
                         MediaAttachment(
@@ -216,6 +213,7 @@ def collect_deliverable_paths_from_text(
                             path=str(compressed),
                             filename=Path(filename).stem + Path(str(compressed)).suffix,
                             mime_type=mime,
+                            ephemeral=True,
                         )
                     )
                     compressed_notes.append((filename, format_human_size(size)))
@@ -236,7 +234,7 @@ def collect_deliverable_paths_from_text(
         used_filenames.add(filename)
         stripped = stripped.replace(token, "")
 
-    return stripped.strip(), attachments, oversized_notes, compressed_notes, tmp_paths
+    return stripped.strip(), attachments, oversized_notes, compressed_notes
 
 
 async def resolve_chat_workspace_root(chat_id: str) -> str | None:
