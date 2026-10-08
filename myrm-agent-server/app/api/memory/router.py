@@ -145,6 +145,9 @@ from app.api.memory.job_compounding_router import (
 from app.api.memory.kg_screening_router import (
     router as kg_screening_router,
 )
+from app.api.memory.life_milestones_router import (
+    router as life_milestones_router,
+)
 from app.api.memory.lifecycle_hotness_router import (
     router as lifecycle_hotness_router,
 )
@@ -593,6 +596,10 @@ router.include_router(
 router.include_router(
     experience_compounding_router,
     tags=["memory-compounding"],
+)
+router.include_router(
+    life_milestones_router,
+    tags=["memory-life-milestones"],
 )
 
 
