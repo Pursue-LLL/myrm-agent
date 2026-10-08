@@ -123,7 +123,8 @@ async def test_channel_media_supported_generates_image():
 @pytest.mark.asyncio
 async def test_rogue_tool_media_stripped_by_bus():
     """Test that MessageBus strips media even if a tool forces it."""
-    from app.channels.core.bus import MessageBus, downgrade_components
+    from app.channels.core.bus import MessageBus
+    from app.channels.core.outbound_prepare import downgrade_components
     from app.channels.types import MediaAttachment, MediaType, OutboundMessage
 
     # 1. Create a channel that does NOT support media

@@ -19,7 +19,7 @@ from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
 
 from app.channels import OutboundMessage
-from app.channels.core.bus import downgrade_components
+from app.channels.core.outbound_prepare import downgrade_components
 from app.channels.reliability.retry import send_with_retry
 from app.channels.types.status import ChannelStatus
 

@@ -368,7 +368,7 @@ class TestBtwTaskNotifier:
                 return_value="Test notification",
             ),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(
@@ -432,7 +432,7 @@ class TestBtwTaskNotifier:
                 return_value="Test notification",
             ),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
             patch(
                 "app.services.chat.chat_service.ChatService.get_channel_chat_by_key",
@@ -560,7 +560,7 @@ class TestBtwTaskNotifier:
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(
@@ -598,7 +598,7 @@ class TestBtwTaskNotifier:
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(
@@ -662,7 +662,7 @@ class TestBtwTaskNotifier:
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(

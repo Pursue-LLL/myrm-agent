@@ -83,10 +83,8 @@ if TYPE_CHECKING:
 
 from myrm_agent_harness.utils.locale import resolve_locale
 
-from app.channels.core.bus import (
-    MessageBus,
-    set_correlation_context,
-)
+from app.channels.core.bus import MessageBus
+from app.channels.core.outbound_prepare import set_correlation_context
 from app.channels.delegation import (
     DelegationCoordinator,
     DelegationIngressGuard,

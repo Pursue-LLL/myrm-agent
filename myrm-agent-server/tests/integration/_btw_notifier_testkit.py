@@ -167,7 +167,7 @@ def _patched_delivery(mock_gateway: MagicMock) -> Iterator[None]:
     """Route BtwTaskNotifier channel lookups and component downgrades to the fake gateway."""
     with (
         patch("app.core.channel_bridge.channel_gateway", mock_gateway),
-        patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+        patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
     ):
         yield
 

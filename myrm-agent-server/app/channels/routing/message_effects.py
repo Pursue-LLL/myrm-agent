@@ -33,10 +33,8 @@ from functools import partial
 
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 
-from app.channels.core.bus import (
-    MessageBus,
-    downgrade_components,
-)
+from app.channels.core.bus import MessageBus
+from app.channels.core.outbound_prepare import downgrade_components
 from app.channels.i18n import channel_t, get_text
 from app.channels.reliability.retry import send_with_retry
 from app.channels.rendering.renderer import render

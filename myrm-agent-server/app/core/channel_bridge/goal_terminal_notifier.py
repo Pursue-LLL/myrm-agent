@@ -78,7 +78,7 @@ class GoalTerminalNotifier:
                 logger.warning("GoalTerminalNotifier delivery failed: %s", exc, exc_info=True)
 
     async def _deliver(self, data: dict[str, object]) -> None:
-        from app.channels.core.bus import downgrade_components
+        from app.channels.core.outbound_prepare import downgrade_components
         from app.channels.reliability.retry import send_with_retry
         from app.channels.types.status import ChannelStatus
         from app.core.channel_bridge import channel_gateway

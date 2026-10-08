@@ -98,7 +98,7 @@ class TestGoalTerminalNotifier:
                 return_value="Goal completed notification",
             ),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(_goal_event_data())
@@ -194,7 +194,7 @@ class TestGoalTerminalNotifier:
                 return_value="msg",
             ),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(_goal_event_data(thread_id="t789"))
@@ -225,7 +225,7 @@ class TestGoalTerminalNotifier:
                 return_value="msg",
             ),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(_goal_event_data(thread_id=""))
@@ -256,7 +256,7 @@ class TestGoalTerminalNotifier:
                 return_value="msg",
             ),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(_goal_event_data())
@@ -298,7 +298,7 @@ class TestGoalTerminalNotifier:
                 return_value="msg",
             ),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
             patch(
                 "app.remote_access.mobile_deep_link.resolve_web_handoff_components",
@@ -336,7 +336,7 @@ class TestGoalTerminalNotifier:
                 return_value="ja notification",
             ) as mock_t,
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(data)
@@ -369,7 +369,7 @@ class TestGoalTerminalNotifier:
                 return_value="en notification",
             ) as mock_t,
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.channels.core.outbound_prepare.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(data)

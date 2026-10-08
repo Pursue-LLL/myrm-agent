@@ -11,6 +11,7 @@ drop final replies. Web/chat channels are excluded (SSE already durable).
 
 [OUTPUT]
 - DurableOutboundGate: persist / mark_attempting / ack / recover / count_pending / track_enqueued / release_inflight
+- OutboundPublisher: protocol of the queue front-end recovered deliveries are re-published into
 - METADATA_DELIVERY_ID: internal metadata key for delivery correlation
 
 [POS]
@@ -25,7 +26,7 @@ import logging
 import time
 from dataclasses import replace
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 from myrm_agent_harness.infra.delivery.storage import (
     QueuedDelivery,
@@ -38,15 +39,18 @@ from myrm_agent_harness.infra.delivery.storage import (
 from app.channels.i18n import channel_t, get_locale_from_metadata
 from app.channels.types import OutboundMessage
 
-if TYPE_CHECKING:
-    from app.channels.core.bus import MessageBus
-
 logger = logging.getLogger(__name__)
 
 METADATA_DELIVERY_ID = "_durable_delivery_id"
 METADATA_RECOVERED = "_durable_recovered"
 
 _SKIP_CHANNELS = frozenset({"web", "chat", "silent"})
+
+
+class OutboundPublisher(Protocol):
+    """Queue front-end that recovered deliveries are re-injected into (``MessageBus``)."""
+
+    async def publish_outbound(self, msg: OutboundMessage, *, _skip_durable_persist: bool = False) -> None: ...
 
 
 class DurableOutboundGate:
@@ -164,7 +168,7 @@ class DurableOutboundGate:
         pending = await load_pending_deliveries(base_dir=self._base_dir)
         return len(pending)
 
-    async def recover_into_bus(self, bus: MessageBus) -> int:
+    async def recover_into_bus(self, bus: OutboundPublisher) -> int:
         """Re-inject disk-pending deliveries into the in-memory outbound queue."""
         if not self.is_enabled():
             return 0

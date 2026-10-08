@@ -8,10 +8,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.channels.core.base import BaseChannel
-from app.channels.core.bus import (
-    MessageBus,
-    downgrade_components,
-)
+from app.channels.core.bus import MessageBus
+from app.channels.core.outbound_prepare import downgrade_components
 from app.channels.types import (
     ActionButton,
     ChannelCapabilities,
@@ -678,30 +676,30 @@ class TestMessageBusEdgeCases:
 
 
 class TestOutboundRiskGate:
-    """Tests for _apply_outbound_risk_gate in bus.py."""
+    """Tests for apply_outbound_risk_gate in outbound_prepare.py."""
 
     def test_passthrough_when_no_rules(self) -> None:
         from unittest.mock import patch
 
-        from app.channels.core.bus import _apply_outbound_risk_gate
+        from app.channels.core.outbound_prepare import apply_outbound_risk_gate
 
         msg = _make_out(content="secret phone 13812345678")
         with patch("app.services.risk.detection.get_detection_service") as mock_svc:
             mock_svc.return_value.rule_count = 0
-            result = _apply_outbound_risk_gate(msg)
+            result = apply_outbound_risk_gate(msg)
         assert result is msg
 
     def test_passthrough_when_empty_content(self) -> None:
-        from app.channels.core.bus import _apply_outbound_risk_gate
+        from app.channels.core.outbound_prepare import apply_outbound_risk_gate
 
         msg = _make_out(content="")
-        result = _apply_outbound_risk_gate(msg)
+        result = apply_outbound_risk_gate(msg)
         assert result is msg
 
     def test_blocks_matching_content(self) -> None:
         from unittest.mock import patch
 
-        from app.channels.core.bus import _apply_outbound_risk_gate
+        from app.channels.core.outbound_prepare import apply_outbound_risk_gate
         from app.services.risk.detection import DetectionResult, RiskMatch
 
         msg = _make_out(content="My phone is 13812345678")
@@ -717,11 +715,11 @@ class TestOutboundRiskGate:
 
         with (
             patch("app.services.risk.detection.get_detection_service") as mock_svc,
-            patch("app.channels.core.bus.asyncio.ensure_future"),
+            patch("app.channels.core.outbound_prepare.asyncio.ensure_future"),
         ):
             mock_svc.return_value.rule_count = 5
             mock_svc.return_value.detect.return_value = blocked_result
-            result = _apply_outbound_risk_gate(msg)
+            result = apply_outbound_risk_gate(msg)
 
         assert result is not msg
         assert "13812345678" not in result.content
@@ -731,7 +729,7 @@ class TestOutboundRiskGate:
     def test_passthrough_when_no_match(self) -> None:
         from unittest.mock import patch
 
-        from app.channels.core.bus import _apply_outbound_risk_gate
+        from app.channels.core.outbound_prepare import apply_outbound_risk_gate
         from app.services.risk.detection import DetectionResult
 
         msg = _make_out(content="Safe message without sensitive data")
@@ -740,7 +738,7 @@ class TestOutboundRiskGate:
         with patch("app.services.risk.detection.get_detection_service") as mock_svc:
             mock_svc.return_value.rule_count = 5
             mock_svc.return_value.detect.return_value = no_match
-            result = _apply_outbound_risk_gate(msg)
+            result = apply_outbound_risk_gate(msg)
 
         assert result is msg
 
