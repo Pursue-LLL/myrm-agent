@@ -62,9 +62,6 @@ from app.api.memory.conclusion_attribution_router import (
 from app.api.memory.conclusion_evidence_router import (
     router as conclusion_evidence_router,
 )
-from app.api.memory.score_honesty_router import (
-    router as score_honesty_router,
-)
 from app.api.memory.conflict_router import (
     router as memory_conflict_router,
 )
@@ -281,6 +278,9 @@ from app.api.memory.revocable_provenance_router import (
 )
 from app.api.memory.rule_cascade_router import (
     router as rule_cascade_router,
+)
+from app.api.memory.score_honesty_router import (
+    router as score_honesty_router,
 )
 from app.api.memory.screen_observation_safety_router import (
     router as screen_observation_safety_router,

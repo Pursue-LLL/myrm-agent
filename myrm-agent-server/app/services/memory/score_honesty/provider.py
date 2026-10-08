@@ -20,6 +20,7 @@ from myrm_agent_harness.toolkits.memory.score_honesty import (
     HonestScoredCandidate,
     RetrievalScoreHonestySuite,
 )
+
 from app.schemas.score_honesty import (
     CandidateEvaluationItem,
     DualThresholdConfigDTO,
