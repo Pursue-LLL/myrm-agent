@@ -1,3 +1,4 @@
+// @orphan-ok MultiServerFleetProfileSwitcher and Zero-Downtime Gateway Connection Manager
 /**
  * MultiServerFleetProfileSwitcher and Zero-Downtime Gateway Connection Manager.
  *

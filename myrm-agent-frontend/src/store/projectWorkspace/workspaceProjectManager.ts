@@ -1,3 +1,4 @@
+// @orphan-ok WorkspaceProjectManager for first-class project workspace container and branching sessions
 /**
  * [INPUT]
  * ./projectHierarchyTypes::ProjectContainer, TopicSessionBranch, BranchInheritancePolicy, IntentNamingResult

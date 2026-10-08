@@ -1,3 +1,4 @@
+// @orphan-ok Adaptive RAF-throttled chunk buffer preventing UI frame drops during high-speed streaming
 /**
  * [INPUT]
  * Stream tokens/chunks from LLM SSE or WebSocket channels
