@@ -103,7 +103,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
           description: t('approveSuccessDesc'),
         });
       } catch (error) {
-        toast({ ...approveFailureMessage(t, error), variant: 'destructive' });
+        toast(approveFailureMessage(t, error));
       }
     },
     [approveMemory, t],

@@ -138,7 +138,7 @@ describe('PendingMemoryDialog', () => {
       expect(toastMock).toHaveBeenCalledWith({
         title: 'targetChangedTitle',
         description: 'targetChangedDesc',
-        variant: 'destructive',
+        variant: 'default',
       });
     });
   });

@@ -13,12 +13,20 @@ import { isPendingTargetChanged } from '@/services/memory/pendingTargetChanged';
 
 type Translate = (key: 'approveFailed' | 'targetChangedTitle' | 'targetChangedDesc' | 'unknownError') => string;
 
-export function approveFailureMessage(t: Translate, error: unknown): { title: string; description: string } {
+interface ApproveFailureMessage {
+  title: string;
+  description: string;
+  variant: 'default' | 'destructive';
+}
+
+/** An out-of-date suggestion is not a malfunction, so it is shown as a plain notice rather than an error. */
+export function approveFailureMessage(t: Translate, error: unknown): ApproveFailureMessage {
   if (isPendingTargetChanged(error)) {
-    return { title: t('targetChangedTitle'), description: t('targetChangedDesc') };
+    return { title: t('targetChangedTitle'), description: t('targetChangedDesc'), variant: 'default' };
   }
   return {
     title: t('approveFailed'),
     description: error instanceof Error ? error.message : t('unknownError'),
+    variant: 'destructive',
   };
 }

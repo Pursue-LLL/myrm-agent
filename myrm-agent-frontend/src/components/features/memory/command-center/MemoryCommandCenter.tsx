@@ -227,7 +227,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
         toast({
           title: stale ? t('targetChangedTitle') : t('commandCenter.actionFailed'),
           description: stale ? t('targetChangedDesc') : err instanceof Error ? err.message : t('unknownError'),
-          variant: 'destructive',
+          variant: stale ? 'default' : 'destructive',
         });
       } finally {
         setActionId(null);

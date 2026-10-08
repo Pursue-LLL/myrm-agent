@@ -83,7 +83,7 @@ const PendingMemoryDialog = memo(() => {
         description: t('approveSuccessDesc'),
       });
     } catch (error) {
-      toast({ ...approveFailureMessage(t, error), variant: 'destructive' });
+      toast(approveFailureMessage(t, error));
     } finally {
       setIsLoading(false);
       setIsEditing(false);
