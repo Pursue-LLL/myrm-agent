@@ -145,6 +145,9 @@ from app.api.memory.lifecycle_hotness_router import (
 from app.api.memory.lineage_search_router import (
     router as lineage_search_router,
 )
+from app.api.memory.live_correction_router import (
+    router as live_correction_router,
+)
 from app.api.memory.markdown_curator_router import (
     router as markdown_curator_router,
 )
@@ -165,6 +168,9 @@ from app.api.memory.migration_readiness_seed import (
 )
 from app.api.memory.migration_router import (
     router as memory_migration_router,
+)
+from app.api.memory.multimodal_memory_router import (
+    router as multimodal_memory_router,
 )
 from app.api.memory.noise_free_memory_router import (
     router as noise_free_memory_router,
@@ -537,6 +543,14 @@ router.include_router(
 router.include_router(
     memory_feedback_router,
     tags=["memory-live-correction"],
+)
+router.include_router(
+    live_correction_router,
+    tags=["memory-live-correction-suite"],
+)
+router.include_router(
+    multimodal_memory_router,
+    tags=["memory-multimodal"],
 )
 
 
