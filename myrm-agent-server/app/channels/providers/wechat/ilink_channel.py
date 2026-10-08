@@ -7,6 +7,8 @@ Outbound: sendmessage with text/media items, CDN upload with AES encryption
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Provides FileOperationObserver.)
+- providers.wechat.ilink_login::WeChatILinkLoginMixin (POS: QR code login flow)
+- providers.wechat.ilink_inbound::WeChatILinkInboundMixin (POS: long-polling inbound)
 - providers._ilink.client::ILinkClient (POS: iLink Bot protocol HTTP client. Single-instance httpx connection reuse with unified exception mapping.)
 - providers._ilink.media::process_inbound_item, (POS: iLink media processing utility functions. Inbound parsing and outbound upload, zero state dependencies.)
 - providers._ilink.types::data (POS: Pure data type definitions and serialization utilities for the iLink Bot protocol.)
@@ -24,7 +26,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import AsyncIterator
 from pathlib import Path
 
 from myrm_agent_harness.runtime.deps.lazy_deps import feature_missing
@@ -33,19 +34,16 @@ from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelAuthError
 from app.channels.helpers import QRCodeLoginHelper
-from app.channels.protocols import LoginEvent, LoginMethod
+from app.channels.protocols import LoginMethod
 from app.channels.providers._ilink.client import ILinkClient
 from app.channels.providers._ilink.media import (
     cleanup_temp_dir,
     prepare_outbound_media,
-    process_inbound_item,
 )
 from app.channels.providers._ilink.types import (
     ILinkCredentials,
-    ILinkMessage,
     ItemType,
     MessageItem,
-    MessageType,
     TextItem,
     TypingStatus,
 )
@@ -54,14 +52,15 @@ from app.channels.types import (
     ChannelCapabilities,
     ChannelIssue,
     ChannelStatus,
-    InboundMessage,
     IssueKind,
     IssueSeverity,
-    MediaAttachment,
     OutboundMessage,
     RenderStyle,
     StartMode,
 )
+
+from .ilink_inbound import WeChatILinkInboundMixin
+from .ilink_login import WeChatILinkLoginMixin
 
 logger = logging.getLogger(__name__)
 
@@ -69,14 +68,11 @@ _WECHAT_SILK_FEATURE = "platform.wechat-silk"
 _WECHAT_SILK_INSTALL = "uv sync --extra wechat-silk"
 
 _MAX_TEXT_LENGTH = 4096
-_MAX_CONSECUTIVE_FAILURES = 5
-_INITIAL_BACKOFF = 2.0
-_MAX_BACKOFF = 30.0
 
 _TYPING_TICKET_TTL = 540.0  # iLink platform TTL is 600s; 60s buffer for proactive refresh
 
 
-class WeChatILinkChannel(BaseChannel):
+class WeChatILinkChannel(WeChatILinkInboundMixin, WeChatILinkLoginMixin, BaseChannel):
     """WeChat personal account channel using iLink Bot protocol.
 
     Inbound: Long-polling for messages (text, image, voice, file, video)
@@ -149,111 +145,6 @@ class WeChatILinkChannel(BaseChannel):
     @poll_state.setter
     def poll_state(self, value: str) -> None:
         self._get_updates_buf = value
-
-    # ── Async Login (AsyncLoginProtocol) ──────────────────────────────
-
-    async def start_login(
-        self,
-        method: object,
-        *,
-        timeout: float = 300.0,
-        callback_url: str | None = None,
-    ) -> AsyncIterator[LoginEvent]:
-        """Start async QR code login flow.
-
-        Implements AsyncLoginProtocol for WeChat iLink QR authentication.
-
-        Args:
-            method: LoginMethod.QR_CODE (only supported method)
-            timeout: Maximum seconds to wait for QR scan
-            callback_url: Not used (QR login does not require callback URL)
-
-        Yields:
-            LoginEvent: State change events
-
-        Raises:
-            ValueError: If method is not LoginMethod.QR_CODE
-            ChannelAuthError: If QR fetch or polling fails
-            TimeoutError: If login times out
-        """
-        if method != LoginMethod.QR_CODE:
-            raise ValueError(f"Unsupported login method: {method}, expected QR_CODE")
-
-        if self._client.http.is_closed:
-            self._client = ILinkClient(self._client.credentials)
-
-        self._login_helper = QRCodeLoginHelper(
-            fetch_qr_fn=self._fetch_qr_code,
-            poll_status_fn=self._poll_qr_status,
-            max_refresh=3,
-            qr_ttl=120.0,
-            poll_interval=1.0,
-        )
-
-        async for event in self._login_helper.run(timeout, self.name):
-            if event.credentials:
-                creds = ILinkCredentials(
-                    bot_token=event.credentials["bot_token"],
-                    ilink_bot_id=event.credentials["ilink_bot_id"],
-                    base_url=event.credentials.get("base_url", "https://ilinkai.weixin.qq.com"),
-                    ilink_user_id=event.credentials.get("ilink_user_id"),
-                )
-                self._client = ILinkClient(creds)
-                if self._status != ChannelStatus.RUNNING:
-                    await self.start()
-                logger.info("WeChatILinkChannel: QR login successful")
-
-            yield event
-
-    async def cancel_login(self) -> None:
-        """Cancel current QR login flow."""
-        if self._login_helper:
-            self._login_helper.cancel()
-        self._client._qr_code_cache = None
-        logger.info("WeChatILinkChannel: QR login cancelled")
-
-    async def _fetch_qr_code(self) -> tuple[str, bytes]:
-        """Fetch QR code from iLink API.
-
-        Returns:
-            (qr_id, qr_image_bytes) where qr_id is the qrcode string
-            and qr_image_bytes is the decoded PNG image.
-        """
-        import base64
-
-        qr_id, qr_image_base64 = await self._client.fetch_qr_code()
-        self._client._qr_code_cache = {"qr_id": qr_id, "qr_image_base64": qr_image_base64}
-        qr_image_bytes = base64.b64decode(qr_image_base64)
-        return qr_id, qr_image_bytes
-
-    async def _poll_qr_status(self, qr_id: str) -> dict[str, str] | None:
-        """Poll QR scan status.
-
-        Args:
-            qr_id: QR code ID from fetch
-
-        Returns:
-            Credentials dict if scanned, None if pending
-
-        Raises:
-            ChannelAuthError: If QR expired or polling failed
-        """
-        try:
-            creds = await self._client.poll_qr_status(qr_id)
-        except ChannelAuthError as exc:
-            if "expired" in str(exc).lower():
-                raise
-            logger.error("WeChatILinkChannel: QR polling failed: %s", exc)
-            raise
-
-        if creds:
-            return {
-                "bot_token": creds.bot_token,
-                "ilink_bot_id": creds.ilink_bot_id,
-                "base_url": creds.base_url,
-                "ilink_user_id": creds.ilink_user_id or "",
-            }
-        return None
 
     # ── Lifecycle ──────────────────────────────────────────────────────
 
@@ -449,112 +340,3 @@ class WeChatILinkChannel(BaseChannel):
                 await self._client.send_typing(chat_id, ticket, TypingStatus.CANCEL)
             except Exception as exc:
                 logger.warning("WeChatILinkChannel: stop_typing failed: %s", exc)
-
-    # ── Inbound (long-polling) ─────────────────────────────────────────
-
-    async def _poll_loop(self) -> None:
-        backoff = _INITIAL_BACKOFF
-
-        while self._status in (ChannelStatus.RUNNING, ChannelStatus.DEGRADED):
-            try:
-                messages, new_buf = await self._client.get_updates(self._get_updates_buf)
-
-                backoff = _INITIAL_BACKOFF
-                self.health.record_success()
-
-                if new_buf != self._get_updates_buf:
-                    self._get_updates_buf = new_buf
-
-                if messages:
-                    logger.info("WeChatILinkChannel: received %d message(s)", len(messages))
-                for ilink_msg in messages:
-                    try:
-                        inbound = await self._parse_message(ilink_msg)
-                        if inbound:
-                            await self._emit_inbound(inbound)
-                    except Exception as exc:
-                        logger.warning("WeChatILinkChannel: parse error: %s", exc)
-
-            except asyncio.CancelledError:
-                break
-
-            except ChannelAuthError:
-                logger.warning("WeChatILinkChannel: session expired, stopping")
-                self._status = ChannelStatus.DEGRADED
-                self._set_connected(False)
-                break
-
-            except Exception as exc:
-                self.health.record_failure(str(exc))
-                failures = self.health.consecutive_failures
-                logger.warning(
-                    "WeChatILinkChannel: poll error (%d/%d): %s",
-                    failures,
-                    _MAX_CONSECUTIVE_FAILURES,
-                    exc,
-                )
-
-                if failures >= _MAX_CONSECUTIVE_FAILURES:
-                    logger.warning("WeChatILinkChannel: %d consecutive failures, backing off %ds", failures, _MAX_BACKOFF)
-                    self.health.record_success()
-                    await asyncio.sleep(_MAX_BACKOFF)
-                    backoff = _INITIAL_BACKOFF
-                else:
-                    await asyncio.sleep(backoff)
-                    backoff = min(backoff * 2, _MAX_BACKOFF)
-
-    async def _parse_message(self, ilink_msg: ILinkMessage) -> InboundMessage | None:
-        """Parse ILinkMessage into InboundMessage."""
-        if ilink_msg.message_type != MessageType.USER:
-            return None
-
-        from_user = ilink_msg.from_user_id
-        if not from_user:
-            return None
-
-        if ilink_msg.context_token:
-            self._context_tokens[from_user] = ilink_msg.context_token
-
-        text_parts: list[str] = []
-        media_list: list[MediaAttachment] = []
-
-        for item in ilink_msg.item_list:
-            await process_inbound_item(
-                item,
-                text_parts,
-                media_list,
-                self._temp_files,
-                self._client.base_url,
-                self._client.http,
-            )
-
-        content = "\n".join(text_parts)
-        if not content and not media_list:
-            return None
-
-        is_group = bool(ilink_msg.group_id)
-        chat_id: str = ilink_msg.group_id if ilink_msg.group_id else from_user
-
-        mentioned = False
-        if is_group and content:
-            bot_name = self._client.credentials.ilink_bot_id if self._client.credentials else ""
-            mentioned = f"@{bot_name}" in content or "@bot" in content.lower()
-
-        metadata: dict[str, object] = {
-            "context_token": ilink_msg.context_token,
-            "session_id": ilink_msg.session_id,
-            "message_id": ilink_msg.message_id,
-            "group_id": ilink_msg.group_id,
-        }
-
-        return self._build_inbound(
-            sender_id=from_user,
-            content=content,
-            chat_id=chat_id,
-            sender_name=ilink_msg.from_user_name,
-            is_group=is_group,
-            mentioned=mentioned,
-            media=tuple(media_list),
-            metadata=metadata,
-            message_id=str(ilink_msg.message_id) if ilink_msg.message_id else "",
-        )
