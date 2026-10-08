@@ -42,7 +42,7 @@ async def _seed_orm_rows(factory: SessionFactory) -> None:
         db.add_all(
             [
                 PendingMemory(id="conflict-1", memory_type="semantic", content="conflict text", is_conflict=True),
-                PendingMemory(id="legacy-1", memory_type="semantic", content="never written today", is_conflict=False),
+                PendingMemory(id="orm-nonconflict-1", memory_type="semantic", content="never written today", is_conflict=False),
             ]
         )
         await db.commit()

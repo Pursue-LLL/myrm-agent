@@ -8,7 +8,7 @@ and pushes human-readable notifications to user-configured IM channels
 
 边界约束：
 - 本模块只负责“消息投递”，不是审批事实源
-- `Review Inbox` 的真实待审数据来自 `PendingMemory`、审批主链上的 evolution records，以及 migration pending records
+- `Review Inbox` 的真实待审数据来自 Harness 审批队列（`pending_records`）、记忆冲突待裁决行（`PendingMemory`）、审批主链上的 evolution records，以及 migration pending records
 - 如需提醒用户有待审项，可以复用通知模块发送提醒，但不能把通知记录当成审批状态来源
 
 ## Data Flow
