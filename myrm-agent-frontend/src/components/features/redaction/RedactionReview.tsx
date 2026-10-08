@@ -71,8 +71,8 @@ const RedactionReview = memo(({ findings, ignored, onToggle, onToggleAll, disabl
                         kept && 'opacity-60',
                       )}
                     >
-                      <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-start justify-between gap-2 border-b bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
+                        <div className="flex shrink-0 items-center gap-2">
                           <Checkbox
                             id={`redaction-${path}-${index}`}
                             checked={!kept}
@@ -84,7 +84,7 @@ const RedactionReview = memo(({ findings, ignored, onToggle, onToggleAll, disabl
                             {t('line', { number: item.line_number })}
                           </label>
                         </div>
-                        <span className="min-w-0 truncate text-amber-600 dark:text-amber-400" title={kindsLabel}>
+                        <span className="min-w-0 break-words text-right text-amber-600 dark:text-amber-400">
                           {kindsLabel}
                         </span>
                       </div>
