@@ -777,3 +777,44 @@ except Exception:
 3. **契约字段与返回对象解耦**：发布类服务返回的路径绝不能直接调用 `str(obj)`，必须显式提取相对路径属性（如 `relative_path`），避免因对象表示方法变更泄露环境物理路径。
 
 ---
+
+## BUG-AGENT-2026-10-08-001: 本地模型连通性测试与每日回顾的超时从未生效（限制写在 `config` 里到不了提供方）
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-08 |
+| 修复日期 | 2026-10-08 |
+| 严重程度 | P2（挂起的模型端点让设置页测试与每日回顾无限期等待，设置页只显示不带原因的失败） |
+| 影响范围 | `myrm-agent-server/app/api/config/router.py`（`POST /config/test-local-model`）, `myrm-agent-server/app/api/statistics/daily_wrap.py`, `myrm-agent-server/app/api/integrations/llms.py`（文档）, `myrm-agent-frontend/src/services/llm-config.ts`（注释） |
+| 出现次数 | 1 |
+| 关联 | harness `BUG-HARNESS-2026-10-08-004`（根因与框架侧修复） |
+
+### 现象
+
+1. 设置页「隐私路由 → 本地模型 → 测试」对挂起的端点：页面在 15 秒后自行中止请求，只弹出不带原因的“连接失败”；服务端侧没有任何截止时间，等待只受模型自身的 300 秒超时约束；
+2. 每日回顾生成遇到停滞的轻量模型：请求一直打开，客户端在 30 秒后中止；服务端侧同样没有截止时间；
+3. 代码里写着“5 秒超时、`max_tokens=1`”与“15 秒超时、`max_tokens=500`”，文档还写着“1-token 探活”，实测并不生效。
+
+### 根因
+
+`llm.ainvoke(messages, config={"max_tokens": ..., "timeout": ...})` 的 `config` 是 LangChain 的 RunnableConfig，不是模型调用参数。实测到达提供方的是 `max_tokens=4096`、`force_timeout=300.0`。
+
+### 修复
+
+1. `/test-local-model`：`asyncio.wait_for` 12 秒截止（低于设置页的 15 秒中止），超时经 `_classify_local_model_error` 返回“Connection timed out — check the server address”；失败日志改记异常类型，避免空消息；
+2. `daily_wrap`：`asyncio.wait_for` 60 秒截止；到期转为 408 `timeout_error`，因为裸 `TimeoutError` 会被 `_classify_exception` 归为 `Database operation timeout`（去掉转换的变异实测：500 `Get daily wrap failed: Database operation timeout`）；
+3. 不强制 `max_tokens`：推理模型会拒绝过小的输出预算，成本由截止时间约束；
+4. 修正“1-token 探活”的 docstring、测试说明、前端注释与 `_ARCH.md`。
+
+### 验证
+
+1. 新增 `tests/api/config/test_local_model_endpoint.py`（3 个）、`test_daily_wrap.py` 与 `test_daily_wrap_integration.py` 各 1 个；去掉截止时间的变异使 3 个超时用例全部失败，去掉 408 转换的变异使 2 个每日回顾用例失败；
+2. 受影响的 4 个测试文件共 55 个用例通过。
+
+### 踩坑经验
+
+1. 给模型调用加时间上限只能靠模型构造参数或 `asyncio.wait_for`，`config=` 不是调用参数；
+2. `TimeoutError` 直接交给 `internal_error()` 会被报成数据库超时，LLM 截止必须在边界处转成 `timeout_error`；
+3. 12 秒与 60 秒是按设置页 15 秒中止与客户端默认 30 秒超时取的设计值，没有时延分布数据；服务端依赖已发布的 harness 版本，`/check-reachability` 的真实截止时间要等 harness 升版后生效。
+
+---
