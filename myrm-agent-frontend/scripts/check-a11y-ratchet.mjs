@@ -13,9 +13,9 @@
  * 低于基线 → 基线 drift，失败（需用 `--ratchet` 收紧，否则空出的额度会被后续改动悄悄占用）。
  *
  * 硬门禁（键盘焦点可见性）：全局 focus-ring.css 在 `@layer base`，会被 `outline-none` 覆盖，而 jsx-a11y/axe
- * 都无法判断聚焦后是否可见。`focus-visibility-scan.ts` 解析 className 属性值，凡含 `outline-none`
- * 且无 `focus(-visible)?:ring/border/shadow/bg/...` 替代的元素一律失败；文本输入、媒体、Radix `*.Content`
- * 容器与 `tabIndex={-1}` 元素不属于键盘焦点目标，自动豁免。
+ * 都无法判断聚焦后是否可见。`focus-visibility-scan.ts` 解析 className 属性值，凡含 `outline-none/hidden/0`
+ * 且无生效的 `focus(-visible)?:ring/border/shadow/bg/...` 替代（`ring-0` 等无效写法不算）的元素一律失败；
+ * 文本输入、媒体、Radix 浮层 `*.Content` 容器与 `tabIndex={-1}` 元素不是键盘焦点目标，自动豁免。
  *
  * 反向自检：oxlint 未产出可解析 JSON 或扫描文件数为 0 时直接失败，而不是静默通过。
  *

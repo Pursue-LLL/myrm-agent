@@ -3,22 +3,26 @@
  *
  * 为什么需要：全局 `src/app/focus-ring.css` 位于 `@layer base`，会被无层级的 Tailwind
  * `outline-none` 工具类覆盖；而 jsx-a11y 与 axe 都无法判断“聚焦后是否有可见变化”，
- * 于是键盘用户 Tab 到这类元素时看不到焦点（见 BaseModelSelector / model-picker-popover 的修复）。
+ * 于是键盘用户 Tab 到这类元素时看不到焦点。
  *
  * 判定单元是完整的 className 属性值（含 cn() 多参数、三元、模板字符串跨行），而不是单行文本——
  * 替代样式常写在同一个 cn() 的另一行参数里，按行匹配会大量误报。
  */
 
-/** 聚焦时可见的替代样式（ring / border / shadow / bg / underline / text / 非 none 的 outline）。 */
+/** 聚焦时可见的替代样式（ring / border / shadow / bg / underline / text / 实际生效的 outline）。 */
 const VISIBLE_FOCUS_STYLE =
-  /\bfocus(?:-visible|-within)?:(?:ring|border|shadow|bg|underline|text|outline-(?!none|hidden))|data-\[selected(?:=true)?\]:bg/;
-const OUTLINE_NONE = /(?<![\w-])outline-none(?![\w-])/;
+  /\bfocus(?:-visible|-within)?:(?:ring|border|shadow|bg|underline|text|outline-(?!none|hidden|0\b|offset|solid|dashed|dotted|double))|data-\[selected(?:=true)?\]:bg/;
+/** 名义上是 focus 样式、实际抹掉或不产生可见变化的写法，不能算作替代（否则 `focus-visible:ring-0` 即可绕过门禁）。 */
+const INEFFECTIVE_FOCUS_STYLE =
+  /\bfocus(?:-visible|-within)?:(?:ring-0|ring-transparent|ring-offset-\S+|border-0|border-none|border-transparent|shadow-none|bg-transparent)(?![\w/-])/g;
+/** `outline-hidden`（Tailwind v4）与 `outline-0` 同样抹掉默认焦点轮廓。 */
+const OUTLINE_REMOVED = /(?<![\w-])outline-(?:none|hidden|0)(?![\w-])/;
 const CLASS_ATTRIBUTE = /\b\w*[cC]lassName\s*=\s*/g;
 /**
- * 无需自带焦点环的元素：文本输入由外层容器承担焦点反馈、媒体由浏览器原生控件承担、
- * Radix `*.Content` 浮层容器由库在打开时程序化聚焦。
+ * 无需自带焦点环的元素：文本输入以插入符指示焦点、媒体由浏览器原生控件承担、
+ * Radix 浮层 `*.Content` 由库在打开时程序化聚焦。`Tabs*.Content` 是 `tabIndex=0` 的 Tab 停靠点，不在此列。
  */
-const EXEMPT_TAG = /^(?:audio|video)$|input$|select$|textarea|content$/i;
+const EXEMPT_TAG = /^(?:audio|video|input|select|textarea)$|Input$|Select$|Text[Aa]rea|(?<!Tabs\w*\.)(?<!Tabs)Content$/;
 /** tabIndex={-1} 的元素无法被 Tab 到达，只会被程序化聚焦，不需要键盘焦点环。 */
 const NOT_TAB_REACHABLE = /\btabIndex=\{-1\}/;
 
@@ -92,7 +96,7 @@ export function findInvisibleFocusSites(source: string): InvisibleFocusSite[] {
   for (const match of source.matchAll(CLASS_ATTRIBUTE)) {
     const valueStart = match.index + match[0].length;
     const value = source.slice(valueStart, readAttributeValueEnd(source, valueStart));
-    if (!OUTLINE_NONE.test(value) || VISIBLE_FOCUS_STYLE.test(value)) {
+    if (!OUTLINE_REMOVED.test(value) || VISIBLE_FOCUS_STYLE.test(value.replace(INEFFECTIVE_FOCUS_STYLE, ''))) {
       continue;
     }
     const open = source.lastIndexOf('<', match.index);
@@ -103,7 +107,7 @@ export function findInvisibleFocusSites(source: string): InvisibleFocusSite[] {
     if (EXEMPT_TAG.test(tag) || NOT_TAB_REACHABLE.test(source.slice(open, readOpeningTagEnd(source, open)))) {
       continue;
     }
-    const offset = valueStart + value.search(OUTLINE_NONE);
+    const offset = valueStart + value.search(OUTLINE_REMOVED);
     sites.push({ line: source.slice(0, offset).split('\n').length, tag });
   }
   return sites;

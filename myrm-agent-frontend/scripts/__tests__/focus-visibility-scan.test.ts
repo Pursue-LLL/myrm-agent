@@ -45,6 +45,28 @@ describe('findInvisibleFocusSites', () => {
     expect(findInvisibleFocusSites(`<Item className="outline-none data-[selected=true]:bg-accent" />`)).toEqual([]);
   });
 
+  it('does not accept no-op focus styles (ring-0, ring-offset, transparent) as a replacement', () => {
+    expect(findInvisibleFocusSites(`<button className="outline-none focus-visible:ring-0" />`)).toHaveLength(1);
+    expect(findInvisibleFocusSites(`<button className="outline-none focus-visible:ring-offset-2" />`)).toHaveLength(1);
+    expect(findInvisibleFocusSites(`<button className="outline-none focus:border-transparent" />`)).toHaveLength(1);
+    expect(
+      findInvisibleFocusSites(`<button className="outline-none focus-visible:ring-0 focus-visible:ring-2" />`),
+    ).toEqual([]);
+  });
+
+  it('treats outline-hidden and outline-0 like outline-none', () => {
+    expect(findInvisibleFocusSites(`<button className="focus:outline-hidden" />`)).toHaveLength(1);
+    expect(findInvisibleFocusSites(`<button className="outline-0" />`)).toHaveLength(1);
+    expect(findInvisibleFocusSites(`<button className="focus:outline-hidden focus-visible:ring-1" />`)).toEqual([]);
+  });
+
+  it('flags Tabs content panels because they are tabIndex=0 tab stops', () => {
+    expect(
+      findInvisibleFocusSites(`<TabsContent className="focus-visible:outline-none focus-visible:ring-0" />`),
+    ).toHaveLength(1);
+    expect(findInvisibleFocusSites(`<TabsPrimitive.Content className="outline-none" />`)).toHaveLength(1);
+  });
+
   it('exempts elements that cannot be reached by Tab (tabIndex={-1})', () => {
     const source = `<div ref={ref} tabIndex={-1} className={cn('flex', 'focus:outline-none')} />`;
     expect(findInvisibleFocusSites(source)).toEqual([]);

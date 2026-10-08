@@ -154,23 +154,23 @@ const MemoryCenterSection = memo(() => {
           )}
         </TabsList>
 
-        <TabsContent value="explorer" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="explorer">
           <MemorySection />
         </TabsContent>
-        <TabsContent value="backup" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="backup">
           <MemoryBackupSection />
         </TabsContent>
-        <TabsContent value="cloud-backup" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="cloud-backup">
           <RemoteBackupSection />
         </TabsContent>
-        <TabsContent value="follow-ups" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="follow-ups">
           <FollowUpsPanel />
         </TabsContent>
-        <TabsContent value="team-hub" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="team-hub">
           <TeamAssetsHub />
         </TabsContent>
         {showMigration && (
-          <TabsContent value="migration" className="focus-visible:outline-none focus-visible:ring-0 space-y-6">
+          <TabsContent value="migration" className="space-y-6">
             <MigrationPendingReviewSection refreshToken={pendingReviewRefresh} />
             <MigrationWizardSection onMigrationComplete={() => setPendingReviewRefresh((v) => v + 1)} />
           </TabsContent>

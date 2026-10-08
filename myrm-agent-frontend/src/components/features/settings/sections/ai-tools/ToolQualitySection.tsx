@@ -58,10 +58,10 @@ const ToolQualitySection = memo(() => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="quality" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="quality">
           <SkillQualitySection />
         </TabsContent>
-        <TabsContent value="stability" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="stability">
           <ToolStabilitySection />
         </TabsContent>
       </Tabs>

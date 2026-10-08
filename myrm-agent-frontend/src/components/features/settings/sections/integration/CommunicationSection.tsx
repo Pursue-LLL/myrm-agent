@@ -67,13 +67,13 @@ const CommunicationSection = memo(() => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="channels" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="channels" tabIndex={-1}>
           <ChannelsSection />
         </TabsContent>
-        <TabsContent value="routing" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="routing" tabIndex={-1}>
           <ChannelRoutingSection />
         </TabsContent>
-        <TabsContent value="voice" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="voice" tabIndex={-1}>
           <VoiceSection />
         </TabsContent>
       </Tabs>
