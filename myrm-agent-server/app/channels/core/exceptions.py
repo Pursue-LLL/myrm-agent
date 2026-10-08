@@ -5,7 +5,8 @@ and extract platform-specific retry-after hints.
 
 Hierarchy:
     ChannelError
-    ├── ChannelSendError      — message delivery failed
+    ├── ChannelSendError      — message delivery failed (``accepted`` = partially delivered)
+    │   ├── DeliveryUnconfirmedError — send() returned no id although the channel reports ids
     │   └── RateLimitError    — platform rate limit hit (carries retry_after)
     ├── ChannelAuthError      — credentials invalid or expired (never retry)
     └── ChannelConnectionError — transport layer failure (always retry)
@@ -16,6 +17,7 @@ Hierarchy:
 [OUTPUT]
 - ChannelError: Base exception for all channel-related errors.
 - ChannelSendError: Message delivery failed. May be retriable depending on st...
+- DeliveryUnconfirmedError: send() returned no message id on a channel that reports ids.
 - RateLimitError: Platform rate limit hit. Always retriable with specific d...
 - ChannelAuthError: Credentials invalid or expired. Never retry — requires re...
 - ChannelConnectionError: Transport layer failure (DNS, timeout, connection reset)....
@@ -59,6 +61,16 @@ class ChannelSendError(ChannelError):
         self.retriable = retriable
         self.accepted = accepted
         self.failed_attachments = failed_attachments
+
+
+class DeliveryUnconfirmedError(ChannelSendError):
+    """``send()`` returned no message id on a channel that reports ids, so delivery is unproven.
+
+    Deterministic provider-side failure: re-sending would risk a duplicate without a better outcome.
+    """
+
+    def __init__(self, *, channel: str = "") -> None:
+        super().__init__("channel send returned no message_id", channel=channel, retriable=False)
 
 
 class RateLimitError(ChannelSendError):

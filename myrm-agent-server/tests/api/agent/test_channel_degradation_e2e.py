@@ -154,7 +154,7 @@ async def test_rogue_tool_media_stripped_by_bus():
 
     # 3. Send through bus
     # We call downgrade_components directly to simulate what send_tracked does
-    downgraded_msg = downgrade_components(msg, channel)
+    downgraded_msg = downgrade_components(msg, channel.capabilities, channel_name=channel.name)
 
     # 4. Verify
     assert len(downgraded_msg.media) == 0

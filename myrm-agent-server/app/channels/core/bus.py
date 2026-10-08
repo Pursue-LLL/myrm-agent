@@ -15,6 +15,7 @@ priority-based dispatch with back-pressure.
 [OUTPUT]
 - MessageBus: async message bus managing outbound/inbound queues, channel registration and DLQ admin
 - MessageBus.publish_outbound(): enqueues with DurableOutboundGate disk persist (IM channels)
+- MessageBus.send_now() / send_tracked(): direct send that raises / returns the message id (from the dispatch mixin)
 - MessageBus.edit_channel_message(): edits a sent message (for updating approval status)
 - create_default_message_bus: convenience factory with DLQ support
 

@@ -1,20 +1,20 @@
-"""Integration test: _emit_btw_done → real PubSubBus → BtwTaskNotifier → channel.send.
+"""Integration test: _emit_btw_done → real PubSubBus → BtwTaskNotifier → MessageBus.send_now.
 
-Uses real PubSubBus (no mock on pub/sub path) and a fake channel adapter to
-capture the OutboundMessage that BtwTaskNotifier delivers. Shared test
-infrastructure lives in ``_btw_notifier_testkit``.
+Uses real PubSubBus (no mock on pub/sub path) and a fake gateway to capture the
+OutboundMessage that BtwTaskNotifier delivers. Shared test infrastructure lives
+in ``_btw_notifier_testkit``.
 """
 
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from _btw_notifier_testkit import (
     _background_event,
     _btw_task,
-    _fake_channel,
+    _fake_gateway,
     _FakeRunner,
     _make_notifier_harness,
     _make_review_store,
@@ -26,8 +26,7 @@ from myrm_agent_harness.infra.pubsub.event_bus import PubSubBus
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
-from app.channels.reliability.retry import RetryConfig
-from app.channels.types.status import ChannelStatus
+from app.channels.core.exceptions import ChannelSendError
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 
@@ -140,17 +139,13 @@ async def test_notifier_ignores_unrelated_events() -> None:
 
 
 @pytest.mark.asyncio
-async def test_notifier_skips_disabled_channel() -> None:
-    """BtwTaskNotifier skips delivery when channel status is DISABLED."""
+async def test_notifier_swallows_channel_refused_by_bus() -> None:
+    """A channel the bus refuses (disabled, stopped, unregistered) is logged, not raised."""
     captured: list[object] = []
-    bus, notifier, mock_gateway = await _make_notifier_harness(captured)
+    bus, notifier, _ = await _make_notifier_harness(captured)
+    refusing = _fake_gateway(captured, failures={"off-ch": ChannelSendError("Channel 'off-ch' is disabled")})
 
-    ch = MagicMock()
-    ch.status = ChannelStatus.DISABLED
-    ch.send = MagicMock()
-    mock_gateway.bus.channels.get.return_value = ch
-
-    with _patched_delivery(mock_gateway):
+    with _patched_delivery(refusing):
         _background_event(
             bus,
             task_id="t-dis",
@@ -164,7 +159,7 @@ async def test_notifier_skips_disabled_channel() -> None:
         await asyncio.sleep(0.15)
 
     await notifier.stop()
-    ch.send.assert_not_called()
+    assert captured == []
 
 
 @pytest.mark.asyncio
@@ -228,34 +223,12 @@ async def test_concurrent_events_all_delivered() -> None:
 
 @pytest.mark.asyncio
 async def test_send_failure_does_not_crash_notifier() -> None:
-    """channel.send raising does not crash the notifier loop."""
+    """A send_now failure does not crash the notifier loop; later events still deliver."""
     captured_after: list[object] = []
-    bus, notifier, mock_gateway = await _make_notifier_harness(captured_after)
+    bus, notifier, _ = await _make_notifier_harness(captured_after)
+    flaky = _fake_gateway(captured_after, failures={"fail-ch": ConnectionError("network down")})
 
-    fail_ch = MagicMock()
-    fail_ch.status = ChannelStatus.RUNNING
-    fail_ch.retry_config = RetryConfig(max_retries=1, base_delay=0.01, max_delay=0.01, jitter=0)
-    fail_ch.should_retry = lambda _exc: False
-    fail_ch.extract_retry_after = lambda _exc: None
-    fail_ch.activity = MagicMock()
-
-    async def _fail_send(_msg: object) -> None:
-        raise ConnectionError("network down")
-
-    fail_ch.send = _fail_send
-
-    ok_ch = _fake_channel(captured_after)
-
-    def _get_channel(name: str) -> MagicMock | None:
-        if name == "fail-ch":
-            return fail_ch
-        if name == "ok-ch":
-            return ok_ch
-        return None
-
-    mock_gateway.bus.channels.get.side_effect = _get_channel
-
-    with _patched_delivery(mock_gateway):
+    with _patched_delivery(flaky):
         _background_event(
             bus,
             task_id="t-fail",
@@ -282,8 +255,7 @@ async def test_send_failure_does_not_crash_notifier() -> None:
 
     await notifier.stop()
 
-    fail_ch.activity.record_error.assert_called_once()
-    assert len(captured_after) == 1
+    assert [m.channel for m in captured_after] == ["ok-ch"]
 
 
 @pytest.mark.asyncio

@@ -24,6 +24,7 @@ from app.channels.core.exceptions import (
     ChannelConnectionError,
     ChannelError,
     ChannelSendError,
+    DeliveryUnconfirmedError,
     RateLimitError,
 )
 from app.channels.core.factory import create_channels
@@ -60,6 +61,7 @@ __all__ = [
     "ChatPolicyOverride",
     "CredentialField",
     "CredentialSource",
+    "DeliveryUnconfirmedError",
     "EventEmitter",
     "FilterReason",
     "LinkProbeResult",

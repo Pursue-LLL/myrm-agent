@@ -34,7 +34,7 @@ from functools import partial
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 
 from app.channels.core.bus import MessageBus
-from app.channels.core.outbound_prepare import downgrade_components
+from app.channels.core.outbound_prepare import prepare_outbound
 from app.channels.i18n import channel_t, get_text
 from app.channels.reliability.retry import send_with_retry
 from app.channels.rendering.renderer import render
@@ -206,7 +206,7 @@ class MessageEffects:
             await self._bus.publish_outbound(result)
             return
 
-        result = downgrade_components(result, ch)
+        result = prepare_outbound(result, ch.capabilities, channel_name=channel)
 
         chunks = render(result, ch.render_style)
 

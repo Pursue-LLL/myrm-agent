@@ -18,6 +18,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field, replace
 from enum import IntEnum, StrEnum
+from pathlib import PurePath
 
 from .components import ComponentRow, QuickReply, ToolStep
 from .status import ChannelCapabilities
@@ -61,6 +62,15 @@ class MediaAttachment:
     filename: str | None = None
     mime_type: str | None = None
     caption: str | None = None
+
+    @property
+    def display_name(self) -> str:
+        """Name shown to recipients in notes and used to report failed attachments."""
+        if self.filename:
+            return self.filename
+        if self.path:
+            return PurePath(self.path).name
+        return self.url or self.media_type.value
 
 
 _IMAGE_EXTS = frozenset((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico"))

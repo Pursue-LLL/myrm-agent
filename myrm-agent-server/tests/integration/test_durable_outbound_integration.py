@@ -21,6 +21,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import DeliveryUnconfirmedError
 from app.channels.core.gateway import ChannelGateway
 from app.channels.routing.message_effects import MessageEffects
 from app.channels.types import ChannelStatus, OutboundMessage, RenderStyle
@@ -287,8 +288,8 @@ async def test_stopped_channel_retains_disk_obligation(tmp_path) -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_cron_send_returns_none_retains_disk(tmp_path) -> None:
-    """Cron IM delivery must not ack when channel.send returns None."""
+async def test_cron_send_returns_none_is_failure_not_delivery(tmp_path) -> None:
+    """Cron IM delivery never counts a None send result as delivered: it raises and the DLQ owns the message."""
     channel = _NullSendFeishuChannel()
     gateway = ChannelGateway(dlq_dir=tmp_path)
     gateway.register(channel)
@@ -308,11 +309,11 @@ async def test_cron_send_returns_none_retains_disk(tmp_path) -> None:
             schedule=Schedule(kind="cron", expr="0 9 * * *"),
             delivery=DeliveryConfig(channel="feishu", target="user_integration"),
         )
-        with pytest.raises(RuntimeError, match="no message_id"):
+        with pytest.raises(DeliveryUnconfirmedError, match="no message_id"):
             await ChannelResultDelivery().deliver(job, JobResult(success=True, output="Cron fail body"))
 
-        pending = await load_pending_deliveries(base_dir=tmp_path)
-        assert len(pending) == 1
+        assert await load_pending_deliveries(base_dir=tmp_path) == []
+        assert len(await gateway.bus.get_dlq_messages()) == 1
     finally:
         channel_bridge.channel_gateway = previous
         await gateway.stop()

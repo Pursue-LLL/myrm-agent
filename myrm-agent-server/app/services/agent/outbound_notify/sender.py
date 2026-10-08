@@ -7,7 +7,7 @@
 - .types::NotifyResult, NotifyTarget, NotifyToolConfig (POS: outbound notification data types)
 
 [OUTPUT]
-- ChannelNotificationSender: NotificationSender implementation via ChannelGateway bus send_tracked.
+- ChannelNotificationSender: NotificationSender implementation via ChannelGateway bus send_now.
 - create_notification_sender: Factory from agent notify_targets.
 
 [POS]
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class ChannelNotificationSender:
-    """Sends notifications via ChannelGateway bus send_tracked (synchronous delivery result)."""
+    """Sends notifications via ChannelGateway bus send_now (synchronous delivery result)."""
 
     __slots__ = ("_targets",)
 
@@ -46,7 +46,6 @@ class ChannelNotificationSender:
         try:
             from app.channels.types import OutboundMessage
             from app.channels.types.messages import MessagePriority
-            from app.channels.types.status import ChannelStatus
             from app.core.channel_bridge import channel_gateway
 
             if channel_gateway is None:
@@ -54,20 +53,6 @@ class ChannelNotificationSender:
                     success=False,
                     channel=target.channel,
                     error="Channel gateway not initialized",
-                )
-
-            channel = channel_gateway.bus.channels.get(target.channel)
-            if channel is None:
-                return NotifyResult(
-                    success=False,
-                    channel=target.channel,
-                    error=f"No channel registered for '{target.channel}'",
-                )
-            if channel.status in (ChannelStatus.DISABLED, ChannelStatus.STOPPED):
-                return NotifyResult(
-                    success=False,
-                    channel=target.channel,
-                    error=f"Channel '{target.channel}' is {channel.status.value}",
                 )
 
             msg = OutboundMessage(
@@ -79,13 +64,7 @@ class ChannelNotificationSender:
                 media=media,
                 metadata={METADATA_KEY_NOTIFY_SOURCE: NOTIFY_SOURCE_AGENT},
             )
-            message_id = await channel_gateway.bus.send_tracked(msg)
-            if message_id is None:
-                return NotifyResult(
-                    success=False,
-                    channel=target.channel,
-                    error="Channel delivery failed after retries",
-                )
+            message_id = await channel_gateway.bus.send_now(msg)
 
             logger.info(
                 "Notification sent: channel=%s, recipient=%s, len=%d, media=%d, message_id=%s",
@@ -98,7 +77,7 @@ class ChannelNotificationSender:
             return NotifyResult(
                 success=True,
                 channel=target.channel,
-                message_id=message_id,
+                message_id=message_id or "",
             )
         except Exception as exc:
             logger.warning(

@@ -3,7 +3,7 @@
 Subscribes to the global ServerEventBus and filters for GOAL_TERMINAL events
 that carry source channel metadata (injected by goal_handler._set_goal).
 For each matching event it sends a localised summary to the channel/chat_id/thread_id
-stored in the Goal metadata, using the existing ``send_with_retry`` infrastructure.
+stored in the Goal metadata through ``MessageBus.send_now`` (best-effort: failures are logged).
 
 Only IM-originated Goals carry source metadata; WebUI and Cron Goals are silently
 skipped (no channel info → no delivery target).
@@ -24,8 +24,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.i18n import channel_t
 from app.channels.types import OutboundMessage
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
@@ -78,22 +78,11 @@ class GoalTerminalNotifier:
                 logger.warning("GoalTerminalNotifier delivery failed: %s", exc, exc_info=True)
 
     async def _deliver(self, data: dict[str, object]) -> None:
-        from app.channels.core.outbound_prepare import downgrade_components
-        from app.channels.reliability.retry import send_with_retry
-        from app.channels.types.status import ChannelStatus
         from app.core.channel_bridge import channel_gateway
 
         channel_name = str(data.get("channel", ""))
         chat_id = str(data.get("chat_id", ""))
         if not channel_name or not chat_id:
-            return
-
-        channel = channel_gateway.bus.channels.get(channel_name)
-        if not channel:
-            logger.debug("GoalTerminalNotifier: channel '%s' not registered, skipping", channel_name)
-            return
-        if channel.status in (ChannelStatus.DISABLED, ChannelStatus.STOPPED):
-            logger.debug("GoalTerminalNotifier: channel '%s' is %s, skipping", channel_name, channel.status)
             return
 
         status = str(data.get("status", ""))
@@ -125,22 +114,17 @@ class GoalTerminalNotifier:
             components=components or None,
         )
 
-        msg = downgrade_components(msg, channel)
-        t0 = time.monotonic()
         try:
-            await send_with_retry(
-                channel.send,
-                msg,
-                config=channel.retry_config,
-                should_retry=channel.should_retry,
-                extract_retry_after=channel.extract_retry_after,
-                label=f"goal-notify:{channel_name}",
-            )
-            channel.activity.record_outbound(latency_ms=(time.monotonic() - t0) * 1000)
+            await channel_gateway.bus.send_now(msg)
             logger.info("Goal result delivered to %s/%s", channel_name, chat_id)
         except Exception as exc:
-            channel.activity.record_error()
-            logger.warning("Failed to deliver goal result to %s/%s: %s", channel_name, chat_id, exc, exc_info=True)
+            logger.warning(
+                "Failed to deliver goal result to %s/%s: %s",
+                channel_name,
+                chat_id,
+                exc,
+                exc_info=not isinstance(exc, ChannelSendError),
+            )
 
 
 def _format_goal_notification(

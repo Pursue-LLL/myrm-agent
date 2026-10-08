@@ -3,7 +3,7 @@
 Subscribes to the global ServerEventBus and filters for BACKGROUND_TASK_DONE events
 (published by ``_emit_btw_done`` in the Kanban service). For each event it
 sends a localised summary to the channel/chat_id/thread_id stored in the
-task metadata, using the existing ``send_with_retry`` infrastructure.
+task metadata through ``MessageBus.send_now`` (best-effort: failures are logged).
 
 Runs in parallel with ``NotificationDispatcher`` (which handles
 user-configured notification targets); this notifier specifically addresses
@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.i18n import channel_t
 from app.channels.types import OutboundMessage
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
@@ -74,9 +74,6 @@ class BtwTaskNotifier:
             await self._deliver(event.data)
 
     async def _deliver(self, data: dict[str, object]) -> None:
-        from app.channels.core.outbound_prepare import downgrade_components
-        from app.channels.reliability.retry import send_with_retry
-        from app.channels.types.status import ChannelStatus
         from app.core.channel_bridge import channel_gateway
 
         channel_name = str(data.get("channel", ""))
@@ -130,39 +127,16 @@ class BtwTaskNotifier:
             components=components or None,
         )
 
-        channel = channel_gateway.bus.channels.get(channel_name)
-        if not channel:
-            logger.debug("BtwTaskNotifier: channel '%s' not registered, skipping", channel_name)
-            return
-        if channel.status in (ChannelStatus.DISABLED, ChannelStatus.STOPPED):
-            logger.debug(
-                "BtwTaskNotifier: channel '%s' is %s, skipping",
-                channel_name,
-                channel.status,
-            )
-            return
-
-        msg = downgrade_components(msg, channel)
-        t0 = time.monotonic()
         try:
-            await send_with_retry(
-                channel.send,
-                msg,
-                config=channel.retry_config,
-                should_retry=channel.should_retry,
-                extract_retry_after=channel.extract_retry_after,
-                label=f"btw-notify:{channel_name}",
-            )
-            channel.activity.record_outbound(latency_ms=(time.monotonic() - t0) * 1000)
+            await channel_gateway.bus.send_now(msg)
             logger.info("Btw task result delivered to %s/%s", channel_name, chat_id)
         except Exception as exc:
-            channel.activity.record_error()
             logger.warning(
                 "Failed to deliver btw result to %s/%s: %s",
                 channel_name,
                 chat_id,
                 exc,
-                exc_info=True,
+                exc_info=not isinstance(exc, ChannelSendError),
             )
 
     async def _resolve_im_target(

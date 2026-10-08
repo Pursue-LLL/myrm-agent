@@ -100,7 +100,7 @@ async def test_multiple_dead_links_warning(gate: OutboundContentGate) -> None:
 
 
 @pytest.mark.asyncio
-async def test_cron_fail_closed_hold_on_dead_link(gate: OutboundContentGate) -> None:
+async def test_unattended_message_with_dead_link_is_annotated_not_withheld(gate: OutboundContentGate) -> None:
     cron_metadata = {"cron_context": {"job_name": "daily_report"}, "job_id": "cron-123"}
     msg = _make_msg("Morning brief: https://broken-link.com/post", metadata=cron_metadata)
 
@@ -113,7 +113,9 @@ async def test_cron_fail_closed_hold_on_dead_link(gate: OutboundContentGate) -> 
         )
 
         result = await gate.evaluate_and_apply(msg)
-        assert result is None  # Fail-Closed HOLD
+
+    assert result.content.startswith("Morning brief: https://broken-link.com/post")
+    assert result.content.count("https://broken-link.com/post") == 2  # original text + warning note
 
 
 @pytest.mark.asyncio

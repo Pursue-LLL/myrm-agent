@@ -1,22 +1,25 @@
-"""Outbound message preparation: correlation lineage, capability downgrade and risk gate.
+"""Outbound message preparation: correlation lineage, capability downgrade, risk gate and delivery verdicts.
 
 [INPUT]
-- channels.core.base::BaseChannel (POS: channel abstract base class; exposes capabilities)
 - channels.i18n::channel_t, get_locale_from_metadata (POS: channel-scoped localized text)
-- channels.types::OutboundMessage, CorrelationContext, MediaType (POS: channel message value types)
+- channels.types::OutboundMessage, ChannelCapabilities, CorrelationContext, MediaType (POS: channel message value types)
 - services.risk.detection::get_detection_service (POS: stateful risk detection engine with compiled regex cache)
 
 [OUTPUT]
 - set_correlation_context / get_correlation_context: implicit routing lineage across async tasks
 - apply_correlation_context: corrects drifted routes from the active lineage
+- prepare_outbound: capability downgrade + risk gate, the one preparation step shared by every outbound path
 - downgrade_components: interactive component and media downgrade (appends text fallback when channel lacks support)
 - apply_outbound_risk_gate: content safety detection before send (reuses RiskDetectionService)
+- delivery_unconfirmed: whether a ``send()`` result proves delivery on the channel's declared contract
+- undelivered_part / partial_failure_note: the attachments-only remainder and in-band note after a partial delivery
 
 [POS]
 Pure message transformations shared by the outbound paths. Outbound messages are auto-downgraded
 before dispatch for channels lacking interactive component support: components are rendered as
 text appended to content; quick_replies only downgrade ``required=True`` items, silently dropping
-non-required ones.
+non-required ones. Callers pass the capabilities of the route actually used (control-plane egress
+is text-only), never the channel object, so the downgrade stays independent of provider instances.
 """
 
 from __future__ import annotations
@@ -26,12 +29,11 @@ import contextvars
 import dataclasses
 import logging
 import uuid
-from pathlib import Path
 
-from app.channels.core.base import BaseChannel
 from app.channels.i18n import channel_t, get_locale_from_metadata
 from app.channels.types import (
     ActionButton,
+    ChannelCapabilities,
     ComponentRow,
     CorrelationContext,
     MediaType,
@@ -135,8 +137,13 @@ async def _record_outbound_risk_hits(matches: tuple[object, ...], msg: OutboundM
         logger.debug("Failed to record outbound risk hits (non-critical)", exc_info=True)
 
 
-def downgrade_components(msg: OutboundMessage, channel: BaseChannel) -> OutboundMessage:
-    """Downgrade interactive components to text when the channel lacks native support.
+def prepare_outbound(msg: OutboundMessage, capabilities: ChannelCapabilities, *, channel_name: str) -> OutboundMessage:
+    """Make ``msg`` safe and sendable for a route: capability downgrade, then the content risk gate."""
+    return apply_outbound_risk_gate(downgrade_components(msg, capabilities, channel_name=channel_name))
+
+
+def downgrade_components(msg: OutboundMessage, capabilities: ChannelCapabilities, *, channel_name: str) -> OutboundMessage:
+    """Downgrade interactive components to text when the route lacks native support.
 
     Returns the original message unchanged if no downgrade is needed.
 
@@ -171,14 +178,14 @@ def downgrade_components(msg: OutboundMessage, channel: BaseChannel) -> Outbound
         )
 
         # After downgrade (WhatsApp doesn't support buttons)
-        result = downgrade_components(msg, whatsapp_channel)
+        result = downgrade_components(msg, whatsapp_channel.capabilities, channel_name="whatsapp")
         # result.content = "Choose an option:\\n\\n• Approve → /approve"
         # result.components = ()
     """
     if not msg.components and not msg.quick_replies and not msg.media:
         return msg
 
-    caps = channel.capabilities
+    caps = capabilities
     locale = get_locale_from_metadata(msg.metadata)
     changed = False
     fallback_parts: list[str] = []
@@ -230,8 +237,7 @@ def downgrade_components(msg: OutboundMessage, channel: BaseChannel) -> Outbound
                 if m.url:
                     media_fallback_parts.append(f"[{m.media_type.value.capitalize()}: {m.url}]")
                 elif m.path:
-                    name = m.filename or Path(m.path).name
-                    media_fallback_parts.append(str(channel_t(locale, "attachment_omitted_note", name=name)))
+                    media_fallback_parts.append(str(channel_t(locale, "attachment_omitted_note", name=m.display_name)))
             else:
                 keep_media_list.append(m)
 
@@ -247,7 +253,7 @@ def downgrade_components(msg: OutboundMessage, channel: BaseChannel) -> Outbound
 
     logger.info(
         "Downgrading components/media for channel '%s': %s → text fallback",
-        channel.name,
+        channel_name,
         ", ".join(downgraded_types),
     )
 
@@ -258,4 +264,40 @@ def downgrade_components(msg: OutboundMessage, channel: BaseChannel) -> Outbound
         components=tuple(kept_rows),
         quick_replies=keep_quick_replies,
         media=keep_media,
+    )
+
+
+def delivery_unconfirmed(capabilities: ChannelCapabilities, msg: OutboundMessage, result: str | None) -> bool:
+    """True when ``send()`` returned nothing although the channel promises ids for this message.
+
+    Channels declaring ``message_ids=False`` never return ids, so ``None`` is their success.
+    Media-only sends are exempt: providers such as Slack and Telegram return no id for them.
+    """
+    return result is None and capabilities.message_ids and bool(msg.content)
+
+
+def undelivered_part(msg: OutboundMessage, failed_names: tuple[str, ...]) -> OutboundMessage:
+    """Attachments-only remainder of ``msg`` after a partial delivery.
+
+    Selects the attachments reported as failed (all of them when the provider named none) so a
+    later re-send never duplicates text or attachments the recipient already received.
+    """
+    failed = tuple(m for m in msg.media if m.display_name in failed_names) or msg.media
+    return dataclasses.replace(msg, content="", media=failed, components=(), quick_replies=())
+
+
+def partial_failure_note(msg: OutboundMessage, failed_names: tuple[str, ...]) -> OutboundMessage:
+    """In-band note telling the recipient which attachments did not arrive."""
+    locale = get_locale_from_metadata(msg.metadata)
+    note = str(channel_t(locale, "attachment_failed_note", names=", ".join(failed_names)))
+    metadata = {"locale": msg.metadata["locale"]} if msg.metadata and "locale" in msg.metadata else None
+    return OutboundMessage(
+        channel=msg.channel,
+        recipient_id=msg.recipient_id,
+        content=note,
+        user_id=msg.user_id,
+        metadata=metadata,
+        reply_to_id=msg.reply_to_id,
+        thread_id=msg.thread_id,
+        priority=msg.priority,
     )

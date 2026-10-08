@@ -62,21 +62,21 @@ class TestDowngradeComponents:
     def test_no_components_returns_same(self) -> None:
         ch = FakeChannel()
         msg = _make_out()
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert result is msg
 
     def test_buttons_kept_when_supported(self) -> None:
         ch = FakeChannel(caps=ChannelCapabilities(buttons=True))
         btn = ActionButton(label="OK", action_id="test:ok")
         msg = _make_out(components=((btn,),))
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert result is msg
 
     def test_buttons_downgraded_when_unsupported(self) -> None:
         ch = FakeChannel(caps=ChannelCapabilities(buttons=False))
         btn = ActionButton(label="OK", action_id="test:ok")
         msg = _make_out(content="Choose:", components=((btn,),))
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert len(result.components) == 0
         assert "OK" in result.content
 
@@ -89,7 +89,7 @@ class TestDowngradeComponents:
             options=(SelectOption(label="A", value="a"),),
         )
         msg = _make_out(components=((btn,), (sel,)))
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert len(result.components) == 1  # button row kept
         assert "A" in result.content or "Pick" in result.content
 
@@ -97,7 +97,7 @@ class TestDowngradeComponents:
         ch = FakeChannel(caps=ChannelCapabilities(quick_replies=False))
         qr = QuickReply(label="Yes", text="yes", required=True)
         msg = _make_out(quick_replies=(qr,))
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert len(result.quick_replies) == 0
         assert "Yes" in result.content
 
@@ -105,7 +105,7 @@ class TestDowngradeComponents:
         ch = FakeChannel(caps=ChannelCapabilities(quick_replies=False))
         qr = QuickReply(label="Search", text="search")
         msg = _make_out(quick_replies=(qr,))
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert len(result.quick_replies) == 0
         assert "Search" not in result.content
 
@@ -114,7 +114,7 @@ class TestDowngradeComponents:
         suggestion = QuickReply(label="Search", text="search")
         action = QuickReply(label="Approve", text="/approve", required=True)
         msg = _make_out(quick_replies=(suggestion, action))
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert len(result.quick_replies) == 0
         assert "Approve" in result.content
         assert "Search" not in result.content
@@ -124,7 +124,7 @@ class TestDowngradeComponents:
         ch = FakeChannel(caps=ChannelCapabilities(quick_replies=False))
         qr = QuickReply(label="Yes", text="yes", required=True)
         msg = _make_out(quick_replies=(qr,))
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert "Reply with a number" in result.content
 
     def test_fallback_uses_chinese_when_specified(self) -> None:
@@ -139,7 +139,7 @@ class TestDowngradeComponents:
             quick_replies=(qr,),
             metadata={"locale": "zh"},
         )
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert "回复数字选择" in result.content
         assert "Reply with a number" not in result.content
 
@@ -160,7 +160,7 @@ class TestDowngradeComponents:
             quick_replies=(qr,),
         )
 
-        downgrade_components(msg, ch)
+        downgrade_components(msg, ch.capabilities, channel_name=ch.name)
 
         # Verify log was emitted
         assert len(caplog.records) == 1
@@ -175,7 +175,7 @@ class TestDowngradeComponents:
         ch = FakeChannel(caps=ChannelCapabilities(buttons=False))
         url_button = ActionButton(label="View Details", action_id="view", url="https://example.com/details")
         msg = _make_out(components=((url_button,),))
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert "View Details → https://example.com/details" in result.content
         assert "/view" not in result.content  # Should NOT show action_id for URL buttons
 
@@ -193,7 +193,7 @@ class TestDowngradeComponents:
 
         # English default
         msg_en = _make_out(components=((menu,),))
-        result_en = downgrade_components(msg_en, ch)
+        result_en = downgrade_components(msg_en, ch.capabilities, channel_name=ch.name)
         assert "Options:" in result_en.content or "• Options:" in result_en.content
 
         # Chinese
@@ -205,7 +205,7 @@ class TestDowngradeComponents:
             components=((menu,),),
             metadata={"locale": "zh"},
         )
-        result_zh = downgrade_components(msg_zh, ch)
+        result_zh = downgrade_components(msg_zh, ch.capabilities, channel_name=ch.name)
         assert "选项:" in result_zh.content or "• 选项:" in result_zh.content
 
     def test_media_downgraded_when_unsupported(self) -> None:
@@ -218,7 +218,7 @@ class TestDowngradeComponents:
         media2 = MediaAttachment(media_type=MediaType.VIDEO, path="/local/video.mp4")
         msg = _make_out(content="Look at this:")
         msg = dataclasses.replace(msg, media=(media1, media2))
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert len(result.media) == 0
         assert "[Image: https://example.com/img.png]" in result.content
         assert "Attachment not sent: video.mp4 (not supported in this chat)" in result.content
@@ -232,7 +232,7 @@ class TestDowngradeComponents:
         media1 = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png")
         msg = _make_out(content="Look at this:")
         msg = dataclasses.replace(msg, media=(media1,))
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert len(result.media) == 1
         assert "[Image: https://example.com/img.png]" not in result.content
 
@@ -249,7 +249,7 @@ class TestDowngradeComponents:
         msg = _make_out(content="Choose:", components=((btn,),))
         msg = dataclasses.replace(msg, media=(media1,))
 
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
 
         # Buttons should be kept
         assert len(result.components) == 1
@@ -265,7 +265,7 @@ class TestDowngradeComponents:
         ch = FakeChannel(caps=ChannelCapabilities(media=False))
         msg = _make_out(content="Hello")
         msg = dataclasses.replace(msg, media=())
-        result = downgrade_components(msg, ch)
+        result = downgrade_components(msg, ch.capabilities, channel_name=ch.name)
         assert result is msg
         assert result.content == "Hello"
 
