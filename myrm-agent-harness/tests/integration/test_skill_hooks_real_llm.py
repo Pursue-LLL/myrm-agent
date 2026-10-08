@@ -31,7 +31,7 @@ from tests.integration.llm_extraction.litellm_creds import litellm_config_for
 
 pytestmark = [pytest.mark.integration, pytest.mark.timeout(240)]
 
-_ENV_TEST = Path(__file__).resolve().parents[3] / "myrm-agent" / "myrm-agent-server" / ".env.test"
+_ENV_TEST = Path(__file__).resolve().parents[3] / "myrm-agent-server" / ".env.test"
 
 # Attacker-shaped session id: a client-supplied message id reaches the SESSION_START
 # payload. Both substitution forms and a command separator must stay literal data.

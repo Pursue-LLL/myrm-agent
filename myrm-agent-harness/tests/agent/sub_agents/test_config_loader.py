@@ -434,11 +434,10 @@ def test_convenience_function(temp_config_dir, valid_config_yaml):
 
 
 def test_load_real_core_configs():
-    """Integration test: Load actual core configs from configs/subagents/core/"""
-    core_configs_path = Path(__file__).parent.parent.parent.parent / "configs" / "subagents" / "core"
-
-    if not core_configs_path.exists():
-        pytest.skip("Core configs directory not found")
+    """Integration test: load the real core presets shipped by myrm-agent-server."""
+    monorepo_root = Path(__file__).resolve().parents[4]
+    core_configs_path = monorepo_root / "myrm-agent-server" / "app" / "config" / "subagents" / "core"
+    assert core_configs_path.is_dir(), f"core subagent presets missing: {core_configs_path}"
 
     configs = load_subagent_configs_from_directory(core_configs_path)
 
@@ -461,7 +460,7 @@ class TestCodingYamlIntegration:
         """Path to the real coding.yaml file in myrm-agent-server."""
         monorepo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
         path = (
-            monorepo_root / "myrm-agent" / "myrm-agent-server" / "app" / "config" / "subagents" / "core" / "coding.yaml"
+            monorepo_root / "myrm-agent-server" / "app" / "config" / "subagents" / "core" / "coding.yaml"
         )
         if not path.exists():
             pytest.skip("coding.yaml not found (run tests from harness repo root)")
@@ -543,7 +542,6 @@ class TestDeepAuditYamlIntegration:
         monorepo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
         path = (
             monorepo_root
-            / "myrm-agent"
             / "myrm-agent-server"
             / "app"
             / "config"
@@ -629,7 +627,6 @@ class TestStructureDeliverablePresetsIntegration:
         monorepo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
         path = (
             monorepo_root
-            / "myrm-agent"
             / "myrm-agent-server"
             / "app"
             / "config"

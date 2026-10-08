@@ -28,7 +28,7 @@ Myrm Agent Harness 是一个独立于业务逻辑的底层执行引擎与编排�
 `myrm-agent-harness` 以 MIT 许可证发布到 PyPI，源码即发行物：
 
 - **单一 wheel**：纯 Python wheel（`uv build`，hatchling），不含编译产物、不剪裁源码；所见即所装
-- **发布**：tag `harness-v<project.version>` → `harness-publish.yml` 校验 tag 与 `pyproject.toml` 版本一致 → 构建 wheel → PyPI Trusted Publishing（OIDC，无长期 token）
+- **发布**：tag `harness-v<project.version>` → `harness-publish.yml` 校验 tag 与 `pyproject.toml` 版本一致 → 构建 sdist + wheel → 干净环境装 wheel 并跑 `verify-harness-distribution` → PyPI Trusted Publishing（OIDC，无长期 token）
 - **安装验证**：`verify-harness-distribution` console script（`runtime/install_guard/verify.py`）校验核心运行时依赖与公开 API 可解析，供 Docker builder/runtime、Tauri 与 CI 使用
 - **外部消费者**：优先 `from myrm_agent_harness.api import create_skill_agent`，禁止依赖内部实现模块
 

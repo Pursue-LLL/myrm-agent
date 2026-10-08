@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first 通用 AI 工作助手 harness**（WebUI / Tauri / 云沙箱），框架层与业务解耦，供 `myrm-agent-server` 通过 `uv.lock` 消费。整体架构、模块导航与依赖关系见 **[ARCHITECTURE.md](ARCHITECTURE.md)**；框架设计原则见 **[FRAMEWORK_DESIGN_PRINCIPLES.md](FRAMEWORK_DESIGN_PRINCIPLES.md)**。
+MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first 通用 AI 工作助手 harness**（WebUI / Tauri / 云沙箱），框架层与业务解耦，供同仓的 `myrm-agent-server` 以 in-repo editable path source 消费。整体架构、模块导航与依赖关系见 **[ARCHITECTURE.md](ARCHITECTURE.md)**；框架设计原则见 **[FRAMEWORK_DESIGN_PRINCIPLES.md](FRAMEWORK_DESIGN_PRINCIPLES.md)**。
 
 ## 根目录文件
 
@@ -26,8 +26,8 @@ MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first �
 
 ## 模块依赖
 
-- **被依赖方**：`myrm-agent/myrm-agent-server`（业务编排，优先 `myrm_agent_harness.api` / `api.hooks` / `api.skills` 公开路径）
-- **构建**：tag `harness-v*` → CI 构建单个纯 Python wheel 并经 OIDC 发 PyPI → vortexai `./myrm harness sync-lock` 刷新 OSS `uv.lock`
+- **被依赖方**：`myrm-agent-server`（业务编排，优先 `myrm_agent_harness.api` / `api.hooks` / `api.skills` 公开路径）
+- **构建**：tag `harness-v*` → `.github/workflows/harness-publish.yml` 构建 sdist + 纯 Python wheel 并经 OIDC 发 PyPI；server 的 `uv.lock` 始终解析到同仓 harness，无需发布后回刷
 
 ## 约束
 

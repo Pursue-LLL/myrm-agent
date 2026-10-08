@@ -413,7 +413,7 @@ class UserService:
 ### 范围与验证
 
 - **代码**：以 `myrm_agent_harness/` 与 `tests/` 为真源；模块职责见各目录的 `*_SYSTEM.md` / `*_DESIGN.md` 技术方案文档。
-- **测试**：默认 `pytest`（串行 + 安全 marker 过滤，见 `tests/_ARCH.md`）；覆盖率策略见 `pyproject.toml` 的 `[tool.coverage.*]`；CI 见 `.github/workflows/test.yml`。
+- **测试**：默认 `pytest`（串行 + 安全 marker 过滤，见 `tests/_ARCH.md`）；覆盖率策略见 `pyproject.toml` 的 `[tool.coverage.*]`；CI 见 `.github/workflows/harness-test.yml`（仓库根）。
 - **性能**：对外宣称延迟、吞吐或加速比时，须附带可复现命令、环境与数据。
 
 ### 性能数据（实测）

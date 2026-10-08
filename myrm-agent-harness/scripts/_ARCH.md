@@ -47,7 +47,7 @@ python scripts/check_file_line_limit.py --baseline scripts/file_line_baseline.tx
 python scripts/check_file_line_limit.py --incremental  # pre-commit: changed files only
 python scripts/validate_arch_inventory.py --root src/myrm_agent_harness
 python scripts/validate_arch_inventory.py --root . --md-refs          # 仓根（含顶层文档）引用校验
-python scripts/validate_arch_inventory.py --root ../myrm-agent/myrm-agent-server --md-refs  # 跨仓扫描
+python scripts/validate_arch_inventory.py --root ../myrm-agent-server --md-refs  # 跨仓扫描
 python scripts/check_test_source_assertions.py            # 全量扫描 tests/
 python scripts/check_test_source_assertions.py --incremental  # pre-commit: changed tests only
 python scripts/check_module_coverage.py --data .coverage  # 需先以 --cov 产出覆盖率数据

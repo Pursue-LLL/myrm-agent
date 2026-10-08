@@ -19,4 +19,4 @@ Pytest-only helpers for harness test teardown and local dev hygiene. Not shipped
 - `myrm_agent_harness.utils.os_compat::terminate_process_graceful`
 - Invoked from `tests/conftest.py` and `tests/toolkits/browser/conftest.py` via `pytest_sessionfinish` / `atexit`
 - Complements `toolkits.browser.doctor` global orphan cleanup
-- Mirror copy: `myrm-agent/myrm-agent-server/tests/support/browser_process_cleanup.py` (keep markers in sync)
+- Mirror copy: `myrm-agent-server/tests/support/browser_process_cleanup.py` (keep markers in sync)

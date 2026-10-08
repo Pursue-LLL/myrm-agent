@@ -9,12 +9,7 @@ from pathlib import Path
 def test_harness_and_server_cleanup_modules_share_markers() -> None:
     harness_path = Path(__file__).resolve().parent / "browser_process_cleanup.py"
     server_path = (
-        Path(__file__).resolve().parents[3]
-        / "myrm-agent"
-        / "myrm-agent-server"
-        / "tests"
-        / "support"
-        / "browser_process_cleanup.py"
+        Path(__file__).resolve().parents[3] / "myrm-agent-server" / "tests" / "support" / "browser_process_cleanup.py"
     )
     assert server_path.is_file(), f"Missing server mirror: {server_path}"
 

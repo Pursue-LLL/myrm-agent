@@ -9,7 +9,7 @@ import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _HARNESS_SRC = _REPO_ROOT / "src" / "myrm_agent_harness"
-_SERVER_ROOT = _REPO_ROOT.parent / "myrm-agent" / "myrm-agent-server"
+_SERVER_ROOT = _REPO_ROOT.parent / "myrm-agent-server"
 
 _BROADCAST_EVENT_BUS_IMPORT = re.compile(
     r"from\s+myrm_agent_harness\.agent\.streaming\.broadcast\.event_bus\s+import\s+EventBus\b"

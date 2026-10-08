@@ -178,7 +178,7 @@ def test_server_md_refs_pass_in_monorepo() -> None:
     import sys
 
     script = _repo_root / "scripts" / "validate_arch_inventory.py"
-    server_root = _repo_root.parent / "myrm-agent" / "myrm-agent-server"
+    server_root = _repo_root.parent / "myrm-agent-server"
     if not server_root.is_dir():
         pytest.skip("myrm-agent-server not checked out next to harness")
     result = subprocess.run(

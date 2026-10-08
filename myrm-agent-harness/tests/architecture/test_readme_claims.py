@@ -8,34 +8,13 @@ from pathlib import Path
 import pytest
 
 _TEST_FILE = Path(__file__).resolve()
-
-
-def _resolve_harness_root() -> Path:
-    """Resolve harness repo root from tests/architecture/ regardless of monorepo layout."""
-    direct_root = _TEST_FILE.parents[2]
-    if (direct_root / "src" / "myrm_agent_harness").is_dir():
-        return direct_root
-
-    monorepo_root = _TEST_FILE.parents[3]
-    nested_root = monorepo_root / "myrm-agent-harness"
-    if (nested_root / "src" / "myrm_agent_harness").is_dir():
-        return nested_root
-
-    raise RuntimeError("Could not locate myrm-agent-harness root from tests/architecture/test_readme_claims.py")
-
-
-def _resolve_monorepo_root(harness_root: Path) -> Path | None:
-    candidate = harness_root.parent
-    if (candidate / "myrm-control-plane").is_dir() and (candidate / "myrm-agent").is_dir():
-        return candidate
-    return None
-
-
-HARNESS_ROOT = _resolve_harness_root()
+HARNESS_ROOT = _TEST_FILE.parents[2]
 README_PATH = HARNESS_ROOT / "README.md"
-MONOREPO_ROOT = _resolve_monorepo_root(HARNESS_ROOT)
-SERVER_ROOT = MONOREPO_ROOT / "myrm-agent" / "myrm-agent-server" if MONOREPO_ROOT else None
-CONTROL_PLANE_ROOT = MONOREPO_ROOT / "myrm-control-plane" if MONOREPO_ROOT else None
+REPO_ROOT = HARNESS_ROOT.parent
+SERVER_ROOT = REPO_ROOT / "myrm-agent-server"
+# The control plane is closed-source and only exists in the private dev shell wrapping this repo.
+_control_plane = REPO_ROOT.parent / "myrm-control-plane"
+CONTROL_PLANE_ROOT = _control_plane if _control_plane.is_dir() else None
 
 
 def _read_text(path: Path) -> str:
@@ -114,7 +93,7 @@ def test_readme_sandbox_modes_have_code_support(
         path = HARNESS_ROOT / harness_relative
     else:
         if CONTROL_PLANE_ROOT is None or monorepo_relative is None:
-            pytest.skip("Docker/E2B sandbox modes live in myrm-control-plane (monorepo only)")
+            pytest.skip("Docker/E2B sandbox modes live in the closed-source myrm-control-plane")
         path = CONTROL_PLANE_ROOT / monorepo_relative
 
     assert path.exists(), f"Missing implementation file for sandbox mode '{label}': {path}"
@@ -125,9 +104,6 @@ def test_readme_agent_count_matches_server_agents() -> None:
     readme = _read_text(README_PATH)
     if "1 个统一 Agent" not in readme:
         pytest.skip("README no longer documents monorepo agent count; skipping server layout check")
-
-    if SERVER_ROOT is None:
-        pytest.skip("Server agent layout check requires myrm-agent monorepo checkout")
 
     agent_files = sorted((SERVER_ROOT / "app" / "ai_agents").glob("*/agent.py"))
     assert len(agent_files) == 1, f"Expected 1 top-level agent implementation, found {len(agent_files)}"

@@ -41,7 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from md_ref_validator import PRUNE_DIR_NAMES, MdRefReport, scan_md_refs
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_MONOREPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_MONOREPO_ROOT = _REPO_ROOT.parent
 _TABLE_HEADER_CELLS = frozenset({"File", "Module", "Submodule", "文件"})
 _FAIL_LINE = "FAIL - fix _ARCH.md file tables (python scripts/fix_fractal_docs.py --write <paths>)"
 

@@ -32,7 +32,7 @@ os.environ["OTEL_METRICS_EXPORTER"] = "none"
 os.environ["OTEL_TRACES_EXPORTER"] = "none"
 
 _env_test_candidates = (
-    Path(__file__).resolve().parent.parent.parent / "myrm-agent" / "myrm-agent-server" / ".env.test",
+    Path(__file__).resolve().parent.parent.parent / "myrm-agent-server" / ".env.test",
     Path(__file__).resolve().parent.parent / ".env.test",
 )
 for _candidate in _env_test_candidates:

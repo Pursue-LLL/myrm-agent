@@ -24,7 +24,7 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
 
 pytestmark = pytest.mark.e2e
 
-_ENV_TEST = Path(__file__).resolve().parents[4] / "myrm-agent" / "myrm-agent-server" / ".env.test"
+_ENV_TEST = Path(__file__).resolve().parents[4] / "myrm-agent-server" / ".env.test"
 _OPENAI_COMPAT = {"openai-like", "openai_compatible", "openai-compatible", "openai_like"}
 
 

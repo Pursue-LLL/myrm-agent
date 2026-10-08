@@ -18,7 +18,7 @@ from myrm_agent_harness.toolkits.web_search.engine import WebSearchTools
 from myrm_agent_harness.toolkits.web_search.providers.web_searcher import SearchServiceConfig
 from myrm_agent_harness.utils.url_utils import extract_domain
 
-_ENV_TEST = Path(__file__).resolve().parents[3] / ".." / "myrm-agent" / "myrm-agent-server" / ".env.test"
+_ENV_TEST = Path(__file__).resolve().parents[3] / ".." / "myrm-agent-server" / ".env.test"
 
 
 def _load_env_test() -> None:
