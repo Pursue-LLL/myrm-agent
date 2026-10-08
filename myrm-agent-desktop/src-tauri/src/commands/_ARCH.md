@@ -8,7 +8,7 @@
 - Tauri `#[tauri::command]` handlers registered via `command_registry_macro.in`
 
 [POS]
-Leaf IPC command modules invoked from the main webview, session webviews, and pet-surface webview.
+Leaf IPC command modules invoked from the main webview, session webviews, and pet-surface webview. Sidecar lifecycle registry lives under `runtime/process_registry/` (internal; no renderer IPC).
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
@@ -16,7 +16,7 @@ Leaf IPC command modules invoked from the main webview, session webviews, and pe
 | `data_migration.rs` | 核心 | 数据目录迁移预检、流式同步（含逐条目进度回调与拷贝后体积对账）与自愈容灾引擎 | ✅ |
 | `pet_surface.rs` | 核心 | 透明置顶 `/pet-overlay` webview；bounds/show/hide/ignore/focus/toggle | ✅ |
 | `session_window.rs` | 核心 | 多会话 CLI 二级 webview | ✅ |
-| `visual_approval_overlay.rs` | 核心 | 视觉审批 OS 高亮 overlay（仅 macOS，其余平台 show 为空操作）：屏幕/图像坐标映射到最匹配显示器，在其上开透明置顶的点击穿透窗口。每次 show 以全新 label 建窗（异步销毁未完成时同名重建会失败）、先建新窗再销毁旧窗、失败不留窗；hide 按 label 前缀全部销毁（销毁而非关闭：关闭只是可被拦截的请求）。窗口不受应用级窗口策略（托盘常驻 / 退出编排）管辖（`is_overlay_label`，见 `app/setup.rs`）。窗口点击穿透，故不进截图排除集（排除集同时驱动 harness 全局指针守卫） | ✅ |
+| `visual_approval_overlay.rs` | 核心 | 视觉审批 OS 高亮 overlay（仅 macOS，非 macOS show 返回 Err；前端 gate）：屏幕/图像坐标映射到最匹配显示器，在其上开透明置顶的点击穿透窗口。每次 show 以全新 label 建窗（异步销毁未完成时同名重建会失败）、先建新窗再销毁旧窗、失败不留窗；hide 按 label 前缀全部销毁（销毁而非关闭：关闭只是可被拦截的请求）。窗口不受应用级窗口策略（托盘常驻 / 退出编排）管辖（`is_overlay_label`，见 `app/setup.rs`）。窗口点击穿透，故不进截图排除集（排除集同时驱动 harness 全局指针守卫） | ✅ |
 | `visual_approval_overlay_page.rs` | 核心 | 审批高亮页面：自定义协议 `myrm-overlay` 的入口 URL（框几何与标签全在查询参数里，页面无状态、窗口间不串页）、HTML 模板与协议响应（`app/mod.rs` 注册协议）；参数缺失或非法时返回透明占位页 | ✅ |
 | `recovery.rs` | 核心 | 崩溃状态收集与恢复 IPC | ✅ |
 | `screen_lock.rs` | 核心 | Locked Use 解锁凭据 IPC：Keychain 存/查/删与平台能力查询（锁检测在进程内，解锁由 server 执行，均不经 IPC） | ✅ |

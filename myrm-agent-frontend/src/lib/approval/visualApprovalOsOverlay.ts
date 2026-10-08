@@ -1,18 +1,20 @@
 /**
  * [INPUT]
  * - @/lib/approval/visualApprovalContext::VisualApprovalContext (POS: BBox viewport context)
+ * - @/lib/desktopBridge::desktopBridge.isMacOS (POS: macOS-only OS overlay gate)
  * - @/lib/tauri::invokeTauriCommand (POS: Tauri IPC bridge)
  * - @/lib/deploy-mode::isTauriRuntime (POS: Tauri runtime detection)
  *
  * [OUTPUT]
  * - buildVisualApprovalOsOverlayPayload: maps visual context to Tauri overlay IPC payload
- * - showVisualApprovalOsOverlay / hideVisualApprovalOsOverlay: native OS highlight control
+ * - showVisualApprovalOsOverlay / hideVisualApprovalOsOverlay: native OS highlight control (show: macOS Tauri only)
  *
  * [POS]
- * Desktop-only bridge for §7 Tauri visual approval overlay (host screen red frame).
+ * Desktop bridge for Tauri visual approval overlay (host screen red frame).
  */
 
 import type { VisualApprovalContext } from '@/lib/approval/visualApprovalContext';
+import { desktopBridge } from '@/lib/desktopBridge';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { invokeTauriCommand } from '@/lib/tauri';
 
@@ -77,7 +79,7 @@ export function buildVisualApprovalOsOverlayPayload(
 }
 
 export async function showVisualApprovalOsOverlay(payload: VisualApprovalOsOverlayPayload): Promise<void> {
-  if (!isTauriRuntime()) {
+  if (!isTauriRuntime() || !desktopBridge.isMacOS()) {
     return;
   }
 

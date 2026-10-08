@@ -11,8 +11,8 @@
 //! - 窗口点击穿透，因此不进截图排除集：排除集同时驱动 harness 的全局指针守卫，
 //!   把它放进去会让 agent 自己的点击被判为被遮挡。
 //!
-//! 非 macOS 平台 show 为空操作：建窗只在 macOS 上验证过，且 tauri 文档指出 Windows 上
-//! 在同步命令中建窗会死锁。
+//! 非 macOS 平台 show 返回明确错误（前端应 gate）：建窗只在 macOS 上验证过，且 tauri 文档指出
+//! Windows 上在同步命令中建窗会死锁。
 //!
 //! [INPUT]
 //! - 前端 `visualApprovalOsOverlay.ts` 的 payload（POS: 审批目标的屏幕/图像坐标）
@@ -240,7 +240,10 @@ pub fn show_visual_approval_overlay(
     payload: VisualApprovalOverlayPayload,
 ) -> Result<(), String> {
     if !cfg!(target_os = "macos") {
-        return Ok(());
+        return Err(
+            "visual approval OS overlay is only supported on macOS (Windows sync window creation can deadlock)"
+                .to_string(),
+        );
     }
 
     match open_overlay_window(&app, &payload) {
