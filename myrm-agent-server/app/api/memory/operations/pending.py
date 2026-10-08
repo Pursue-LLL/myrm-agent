@@ -19,6 +19,7 @@ from myrm_agent_harness.toolkits.memory import (
     InvalidPendingEditError,
     MemoryManager,
     MemoryNotFoundError,
+    PendingTargetChangedError,
 )
 from myrm_agent_harness.toolkits.memory.types import PendingRecord
 
@@ -47,12 +48,15 @@ router = APIRouter()
 def _raise_approval_http_error(exc: Exception) -> None:
     """Map a harness approval failure to the right HTTP status.
 
-    A missing record is a 404; an unusable edit (blank, or on a proposal without
-    editable text) is a 400; any other failure (wrong memory type, storage error)
-    is a server-side 500 — never a misleading 404.
+    A missing record is a 404; a proposal whose target memory changed since it was
+    queued is a 409 (it stays pending for a fresh decision); an unusable edit (blank,
+    or on a proposal without editable text) is a 400; any other failure (wrong memory
+    type, storage error) is a server-side 500 — never a misleading 404.
     """
     if isinstance(exc, MemoryNotFoundError):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if isinstance(exc, PendingTargetChangedError):
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if isinstance(exc, InvalidPendingEditError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     logger.error("Memory approval failed", exc_info=True)

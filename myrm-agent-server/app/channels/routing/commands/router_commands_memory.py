@@ -5,7 +5,7 @@
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
 - channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
-- services.memory.operations.pending_review::{approve_pending, reject_pending} (POS: 审批队列统一审批与审计入口，运行时在 /memory 处理器内惰性导入)
+- services.memory.operations.pending_review::{approve_pending, batch_approve_pending, reject_pending} (POS: 审批队列统一审批与审计入口，运行时在 /memory 处理器内惰性导入；目标已变化的提案以用户语言提示并保持待审，`approve all` 逐条审批并汇报未通过数量)
 - core.channel_bridge.agent_executor.session::build_channel_budget_key (POS: budget key construction, runtime import in _get_channel_budget_summary.)
 - services.budget.channel_budget::get_channel_budget_registry (POS: per-channel budget isolation, runtime import in _get_channel_budget_summary.)
 
@@ -281,9 +281,12 @@ class RouterCommandsMemoryMixin:
             return
 
         try:
+            from myrm_agent_harness.toolkits.memory import PendingTargetChangedError
+
             from app.services.memory.operations.pending_review import (
                 PendingReviewSource,
                 approve_pending,
+                batch_approve_pending,
                 reject_pending,
             )
 
@@ -308,8 +311,11 @@ class RouterCommandsMemoryMixin:
                 if not matched:
                     content = get_text(msg, "memory_not_found", id=memory_id)
                 else:
-                    await approve_pending(manager, matched, source=PendingReviewSource.CHANNEL)
-                    content = get_text(msg, "memory_approved", id=matched[:8])
+                    try:
+                        await approve_pending(manager, matched, source=PendingReviewSource.CHANNEL)
+                        content = get_text(msg, "memory_approved", id=matched[:8])
+                    except PendingTargetChangedError:
+                        content = get_text(msg, "memory_target_changed", id=matched[:8])
 
             elif action == "reject" and memory_id:
                 matched = await _resolve_pending_id(manager, memory_id)
@@ -324,9 +330,14 @@ class RouterCommandsMemoryMixin:
                 if not records:
                     content = get_text(msg, "memory_no_pending")
                 else:
-                    for rec in records:
-                        await approve_pending(manager, rec.id, source=PendingReviewSource.CHANNEL)
-                    content = get_text(msg, "memory_approved_all", count=len(records))
+                    approved, failed = await batch_approve_pending(
+                        manager, [rec.id for rec in records], source=PendingReviewSource.CHANNEL
+                    )
+                    content = (
+                        get_text(msg, "memory_approved_partial", count=approved, skipped=len(failed))
+                        if failed
+                        else get_text(msg, "memory_approved_all", count=approved)
+                    )
             else:
                 content = get_text(msg, "memory_no_pending")
 

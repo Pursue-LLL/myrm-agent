@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
-from myrm_agent_harness.toolkits.memory import MemoryNotFoundError, MemoryOperationKind
+from myrm_agent_harness.toolkits.memory import MemoryNotFoundError, MemoryOperationKind, PendingTargetChangedError
 
 from app.api.memory.operations import command_center_actions as actions
 from app.schemas.memory.command_center import MemoryCommandActionRequest
@@ -98,6 +98,15 @@ class TestRunPendingAction:
             await actions.run_pending_action(_body(target_kind="pending_memory", target_id="gone", action="approve"), AsyncMock())
 
         assert exc.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_stale_target_raises_409(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(actions, "approve_pending", AsyncMock(side_effect=PendingTargetChangedError("changed")))
+
+        with pytest.raises(HTTPException) as exc:
+            await actions.run_pending_action(_body(target_kind="pending_memory", target_id="p-1", action="approve"), AsyncMock())
+
+        assert exc.value.status_code == 409
 
     @pytest.mark.asyncio
     async def test_edit_is_not_a_queue_action(self, monkeypatch: pytest.MonkeyPatch) -> None:

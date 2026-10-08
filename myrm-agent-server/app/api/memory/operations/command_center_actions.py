@@ -22,6 +22,7 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryNotFoundError,
     MemoryOperationKind,
     MemoryType,
+    PendingTargetChangedError,
 )
 from myrm_agent_harness.toolkits.memory.types import MemoryStatus
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,6 +53,8 @@ async def run_pending_action(body: MemoryCommandActionRequest, manager: MemoryMa
             await reject_pending(manager, body.target_id, source=PendingReviewSource.COMMAND_CENTER)
     except MemoryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending memory not found") from exc
+    except PendingTargetChangedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
 
 async def run_shared_proposal_action(body: MemoryCommandActionRequest, db: AsyncSession) -> None:

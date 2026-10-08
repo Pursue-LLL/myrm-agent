@@ -12,7 +12,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.memory import InvalidPendingEditError, MemoryManager, MemoryNotFoundError
+from myrm_agent_harness.toolkits.memory import (
+    InvalidPendingEditError,
+    MemoryManager,
+    MemoryNotFoundError,
+    PendingTargetChangedError,
+)
 from myrm_agent_harness.toolkits.memory.types import MemoryType, PendingRecord
 
 from app.api.dependencies import get_deploy_identity
@@ -118,6 +123,16 @@ class TestApprovePending:
         assert resp.status_code == 400
         assert "no editable content" in resp.text
 
+    def test_stale_target_maps_to_409_and_stays_pending(
+        self, client: TestClient, auth_headers: dict[str, str], override_memory_manager
+    ) -> None:
+        override_memory_manager.approve = AsyncMock(side_effect=PendingTargetChangedError("changed"))
+
+        resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
+
+        assert resp.status_code == 409
+        override_memory_manager.reject.assert_not_awaited()
+
     def test_missing_record_maps_to_404(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
         override_memory_manager.approve = AsyncMock(side_effect=MemoryNotFoundError("gone"))
 
@@ -181,7 +196,7 @@ class TestRejectPending:
 
 class TestBatchPending:
     def test_batch_approve(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
-        override_memory_manager.batch_approve = AsyncMock(return_value=(2, []))
+        override_memory_manager.approve = AsyncMock(return_value=None)
 
         resp = client.post(
             "/api/v1/memory/pending/batch/approve",
@@ -191,9 +206,11 @@ class TestBatchPending:
 
         assert resp.status_code == 200
         assert resp.json()["success_count"] == 2
+        assert [call.args[0] for call in override_memory_manager.approve.await_args_list] == ["p-1", "p-2"]
 
     def test_batch_reject(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
-        override_memory_manager.batch_reject = AsyncMock(return_value=2)
+        override_memory_manager.get_pending = AsyncMock(return_value=_pending_record())
+        override_memory_manager.reject = AsyncMock(return_value=None)
 
         resp = client.post(
             "/api/v1/memory/pending/batch/reject",
@@ -242,7 +259,7 @@ class TestBatchPending:
     def test_batch_approve_reports_partial_failure(
         self, client: TestClient, auth_headers: dict[str, str], override_memory_manager
     ) -> None:
-        override_memory_manager.batch_approve = AsyncMock(return_value=(1, ["p-2"]))
+        override_memory_manager.approve = AsyncMock(side_effect=[None, MemoryNotFoundError("p-2")])
 
         resp = client.post(
             "/api/v1/memory/pending/batch/approve",
@@ -258,7 +275,8 @@ class TestBatchPending:
     def test_batch_reject_reports_failures(
         self, client: TestClient, auth_headers: dict[str, str], override_memory_manager
     ) -> None:
-        override_memory_manager.batch_reject = AsyncMock(return_value=1)
+        override_memory_manager.get_pending = AsyncMock(return_value=_pending_record())
+        override_memory_manager.reject = AsyncMock(side_effect=[None, MemoryNotFoundError("p-2")])
 
         resp = client.post(
             "/api/v1/memory/pending/batch/reject",

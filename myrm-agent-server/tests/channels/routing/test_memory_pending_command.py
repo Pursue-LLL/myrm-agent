@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.memory import PendingTargetChangedError
 from myrm_agent_harness.toolkits.memory.types import (
     MemoryType,
     PendingRecord,
@@ -124,3 +125,34 @@ async def test_reject_and_approve_all_use_the_review_service() -> None:
 
     reject.assert_awaited_once_with(manager, "bbbbbbbb-2", source=PendingReviewSource.CHANNEL)
     assert [call.args[1] for call in approve.await_args_list] == ["aaaaaaaa-1", "bbbbbbbb-2"]
+
+
+@pytest.mark.asyncio
+async def test_approve_of_stale_proposal_replies_in_user_language_and_keeps_it_pending() -> None:
+    records = [_record("aaaaaaaa-1", "User now works at Google")]
+
+    with patch(
+        "app.services.memory.operations.pending_review.approve_pending",
+        AsyncMock(side_effect=PendingTargetChangedError("changed")),
+    ):
+        en, _ = await _run_memory_command(records, "approve aaaaaaaa")
+        zh, _ = await _run_memory_command(records, "approve aaaaaaaa", locale="zh-CN")
+
+    assert "out of date" in en and "aaaaaaaa" in en
+    assert "已过期" in zh
+    assert "Memory command failed" not in en
+
+
+@pytest.mark.asyncio
+async def test_approve_all_reports_proposals_that_could_not_be_approved() -> None:
+    records = [_record("aaaaaaaa-1", "one"), _record("bbbbbbbb-2", "two"), _record("cccccccc-3", "three")]
+
+    async def _approve(_manager: object, pending_id: str, **_: object) -> bool:
+        if pending_id == "bbbbbbbb-2":
+            raise PendingTargetChangedError("changed")
+        return True
+
+    with patch("app.services.memory.operations.pending_review.approve_pending", AsyncMock(side_effect=_approve)):
+        content, _ = await _run_memory_command(records, "approve all")
+
+    assert "Approved 2" in content and "1 could not be approved" in content
