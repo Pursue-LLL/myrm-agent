@@ -6,12 +6,22 @@
  * - `useActiveSessionsGuard`: 切断当前连接前的活跃会话守卫，返回 `guard`（有生成中会话时挂起 `proceed` 等待确认）与确认对话框状态。
  *
  * [POS]
- * 连接切换入口（切换档案、发起云端登录、发现沙箱）共用的会话知情确认：有生成中会话时暂存继续动作并交给
- * `ActiveSessionsSwitchConfirmDialog`，确认后才执行；查询失败（后端已停或不可达）直接放行，避免锁死切换路径。
+ * 连接切换入口（添加/选择档案、断开回本地、发起云端登录、发现沙箱）共用的会话知情确认：有生成中会话时暂存继续动作并交给
+ * `ActiveSessionsSwitchConfirmDialog`，确认后才执行；查询失败或超时（后端已停或不可达）直接放行，避免锁死切换路径。
  */
 
 import { useCallback, useState } from 'react';
 import { getActiveSessions } from '@/services/agent';
+
+/** 超过该时长无应答即视为当前连接不可达：切走不可达连接不应被前置查询卡住。 */
+const QUERY_TIMEOUT_MS = 3000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('active sessions query timed out')), ms);
+    promise.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
 
 interface PendingConfirm {
   count: number;
@@ -29,7 +39,7 @@ export function useActiveSessionsGuard(onDeclined: () => void): ActiveSessionsGu
 
   const guard = useCallback(async (proceed: () => void): Promise<void> => {
     try {
-      const { activeSessions } = await getActiveSessions();
+      const { activeSessions } = await withTimeout(getActiveSessions(), QUERY_TIMEOUT_MS);
       if (activeSessions.length > 0) {
         setPending({ count: activeSessions.length, proceed });
         return;

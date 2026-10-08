@@ -29,13 +29,16 @@ function readRoster(): { profiles: { kind: string; url: string }[]; activeId: st
   return JSON.parse(localStorage.getItem(ROSTER_KEY) ?? '{"profiles":[],"activeId":null}');
 }
 
-/** 本地后端的会话查询与控制平面各自应答；其余请求一律失败。 */
-function stubBackends(options: { runningSessions: number }) {
+/** 当前连接的会话查询与控制平面各自应答；`'hang'` 表示会话查询永不返回（网络黑洞）；其余请求一律失败。 */
+function stubBackends(options: { runningSessions: number | 'hang' }) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('active-sessions')) {
+        if (options.runningSessions === 'hang') {
+          return new Promise<Response>(() => undefined);
+        }
         const activeSessions = Array.from({ length: options.runningSessions }, (_, index) => ({ id: `s-${index}` }));
         return Response.json({ data: { activeSessions, recentSessions: [], maxConcurrent: 0, availableSlots: 0 } });
       }
@@ -125,6 +128,65 @@ describe('ServerConnectionCard cloud connection', () => {
       await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith('connected'));
       expect(mocks.switchRemoteFollow).toHaveBeenCalledExactlyOnceWith(true);
       expect(readRoster().profiles).toHaveLength(1);
+    });
+  });
+
+  describe('when the current connection does not answer the session query', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('stops waiting after the timeout and proceeds with the switch', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      stubBackends({ runningSessions: 'hang' });
+      renderCloudCard();
+
+      fireEvent.click(screen.getByText('discoverSandbox'));
+      await vi.advanceTimersByTimeAsync(2900);
+      expect(mocks.switchRemoteFollow).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(200);
+      await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith('connected'));
+      expect(mocks.switchRemoteFollow).toHaveBeenCalledExactlyOnceWith(true);
+    });
+  });
+
+  describe('disconnecting back to local', () => {
+    function renderConnectedCard() {
+      localStorage.setItem(
+        ROSTER_KEY,
+        JSON.stringify({
+          profiles: [{ id: 'p1', name: 'Pi', url: 'http://pi.example.com', kind: 'server' }],
+          activeId: 'p1',
+        }),
+      );
+      render(<ServerConnectionCard />);
+    }
+
+    it('asks before interrupting running sessions and switches back only after the user confirms', async () => {
+      stubBackends({ runningSessions: 1 });
+      renderConnectedCard();
+
+      fireEvent.click(screen.getByLabelText('modeRemote'));
+      fireEvent.click(await screen.findByText('cancel'));
+
+      expect(mocks.switchRemoteFollow).not.toHaveBeenCalled();
+      expect(readRoster().activeId).toBe('p1');
+
+      fireEvent.click(screen.getByLabelText('modeRemote'));
+      fireEvent.click(await screen.findByText('confirm'));
+
+      await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith('disconnected'));
+      expect(mocks.switchRemoteFollow).toHaveBeenCalledExactlyOnceWith(false);
+      expect(readRoster().activeId).toBeNull();
+    });
+
+    it('switches back immediately when nothing is running', async () => {
+      stubBackends({ runningSessions: 0 });
+      renderConnectedCard();
+
+      fireEvent.click(screen.getByLabelText('modeRemote'));
+
+      await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith('disconnected'));
+      expect(mocks.switchRemoteFollow).toHaveBeenCalledExactlyOnceWith(false);
     });
   });
 

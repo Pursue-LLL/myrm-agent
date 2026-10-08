@@ -207,15 +207,17 @@ const ServerConnectionCard = memo(() => {
   );
 
   const handleDisconnect = useCallback(() => {
-    void commitSwitch(null, () => {
-      setRemoteGatewayConfig(null);
-      setIsRemote(false);
-      setUrlInput('');
-      setTestState('idle');
-      refresh();
-      toast.success(t('disconnected'));
+    void guardActiveSessions(() => {
+      void commitSwitch(null, () => {
+        setRemoteGatewayConfig(null);
+        setIsRemote(false);
+        setUrlInput('');
+        setTestState('idle');
+        refresh();
+        toast.success(t('disconnected'));
+      });
     });
-  }, [t, refresh, commitSwitch]);
+  }, [t, refresh, commitSwitch, guardActiveSessions]);
 
   // 发现沙箱验证通过后的连接切换：与档案切换同一条路径（先 Rust 编排、成功后才建档案激活）。
   const handleSandboxVerified = useCallback(
