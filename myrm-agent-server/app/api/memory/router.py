@@ -56,6 +56,12 @@ from app.api.memory.code_memory_compaction_router import (
     router as code_memory_compaction_router,
 )
 from app.api.memory.codegraph_router import router as codegraph_router
+from app.api.memory.conclusion_attribution_router import (
+    router as conclusion_attribution_router,
+)
+from app.api.memory.conclusion_evidence_router import (
+    router as conclusion_evidence_router,
+)
 from app.api.memory.conflict_router import (
     router as memory_conflict_router,
 )
@@ -622,13 +628,11 @@ router.include_router(
     document_attachment_router,
     tags=["memory-document-attachment"],
 )
-
-
-
-
-
-
-
-
-
-
+router.include_router(
+    conclusion_attribution_router,
+    tags=["memory-attribution"],
+)
+router.include_router(
+    conclusion_evidence_router,
+    tags=["memory-conclusion-evidence"],
+)
