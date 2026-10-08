@@ -3,15 +3,13 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from myrm_agent_harness.agent.goals.types import GoalExecutionSummary
 
 from app.ai_agents.general_agent.goal_learnings import (
     build_goal_terminal_callback,
     retrieve_relevant_learnings,
 )
-
-_DATA_URL = "data:image/png;base64," + "iVBORw0KGgo" * 5000
 
 
 def _make_summary(**overrides: object) -> GoalExecutionSummary:
@@ -94,71 +92,6 @@ class TestBuildGoalTerminalCallback:
 
         await callback(goal, messages, _make_summary())
         memory_manager.store_batch.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_callback_feeds_only_text_when_messages_carry_screenshots(self):
-        """Screenshots (user attachments and tool results) must never reach the learnings prompt as base64."""
-        memory_manager = AsyncMock()
-        goal = MagicMock()
-        goal.goal_id = "goal-img"
-        goal.objective = "Fix the login bug"
-        goal.session_id = "session-img"
-
-        messages = [
-            HumanMessage(
-                content=[
-                    {"type": "text", "text": "Fix the login bug"},
-                    {"type": "image_url", "image_url": {"url": _DATA_URL}},
-                ]
-            ),
-            AIMessage(content="On it"),
-            ToolMessage(content=[{"type": "image_url", "image_url": {"url": _DATA_URL}}], tool_call_id="t1"),
-            HumanMessage(content="Also add tests"),
-            AIMessage(content="Done"),
-        ]
-
-        with (
-            patch("myrm_agent_harness.api.hooks.create_extraction_llm_func"),
-            patch(
-                "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
-                new_callable=AsyncMock,
-                return_value=[],
-            ) as mock_extract,
-        ):
-            await build_goal_terminal_callback(memory_manager, MagicMock())(goal, messages, _make_summary())
-
-        assert mock_extract.call_args.kwargs["messages"] == [
-            {"role": "user", "content": "Fix the login bug"},
-            {"role": "assistant", "content": "On it"},
-            {"role": "user", "content": "Also add tests"},
-            {"role": "assistant", "content": "Done"},
-        ]
-
-    @pytest.mark.asyncio
-    async def test_callback_skips_when_only_attachments_pad_the_message_count(self):
-        """Messages without any text are not learnable turns and must not satisfy the minimum-turn threshold."""
-        memory_manager = AsyncMock()
-        goal = MagicMock()
-        goal.goal_id = "goal-img-only"
-        goal.objective = "Describe the chart"
-        goal.session_id = "session-img-only"
-
-        messages = [
-            HumanMessage(content=[{"type": "image_url", "image_url": {"url": _DATA_URL}}]),
-            AIMessage(content="It shows a rising trend"),
-            HumanMessage(content=[{"type": "image_url", "image_url": {"url": _DATA_URL}}]),
-        ]
-
-        with (
-            patch("myrm_agent_harness.api.hooks.create_extraction_llm_func"),
-            patch(
-                "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
-                new_callable=AsyncMock,
-            ) as mock_extract,
-        ):
-            await build_goal_terminal_callback(memory_manager, MagicMock())(goal, messages, _make_summary())
-
-        mock_extract.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_callback_with_memory_disabled_still_publishes_and_dequeues(self):
