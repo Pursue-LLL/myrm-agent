@@ -65,6 +65,12 @@ jobs:
                       obj.call_soon_threadsafe(cb)
               print(subprocess.run(["ps", "-eo", "pid,ppid,stat,etime,cmd", "--sort=start_time"], capture_output=True, text=True).stdout[-3000:], file=sys.stderr, flush=True)
 
+          _seen = {"state": False}
+
+          def _pool_state():
+              mod = sys.modules.get("myrm_agent_harness.toolkits.browser.pool.singleton")
+              return bool(mod is not None and mod._global_pool is not None)
+
           @pytest.hookimpl(hookwrapper=True)
           def pytest_runtest_teardown(item, nextitem):
               timer = threading.Timer(45, _dump, args=(item.nodeid,))
@@ -74,6 +80,10 @@ jobs:
                   yield
               finally:
                   timer.cancel()
+                  now = _pool_state()
+                  if now != _seen["state"]:
+                      print(f"[diag] GLOBAL POOL {'CREATED' if now else 'CLEARED'} by {item.nodeid}", file=sys.stderr, flush=True)
+                      _seen["state"] = now
           PY
       - name: Full serial browser integration with stall dump
         run: >-
