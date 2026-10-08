@@ -45,10 +45,7 @@ _run_fractal_docs() {
 
 _run_md_refs() {
   local harness_root py
-  if ! harness_root="$(myrm_ci_resolve_harness_root)"; then
-    echo "CI md-refs: harness source unavailable (PyPI mode); skipping markdown ref check"
-    return 0
-  fi
+  harness_root="$(myrm_ci_resolve_harness_root)"
   py="${SERVER_ROOT}/.venv/bin/python"
   [[ -x "${py}" ]] || py="python3"
   "${py}" "${harness_root}/scripts/validate_arch_inventory.py" \
@@ -70,14 +67,15 @@ _run_profile_capability_gate() {
 }
 
 _run_dependency_vuln_gate() {
-  local harness_root py
-  if ! harness_root="$(myrm_ci_resolve_harness_root)"; then
-    echo "CI dep-vuln-gate: harness source unavailable (PyPI mode); skipping dependency vuln check"
+  local gate="${SERVER_ROOT}/../../scripts/ci/check_workspace_dependency_vulns.py"
+  local py
+  if [[ ! -f "${gate}" ]]; then
+    echo "CI dep-vuln-gate: workspace gate script not present (standalone checkout); skipping"
     return 0
   fi
   py="${SERVER_ROOT}/.venv/bin/python"
   [[ -x "${py}" ]] || py="python3"
-  "${py}" "${SERVER_ROOT}/../../scripts/ci/check_workspace_dependency_vulns.py" --offline
+  "${py}" "${gate}" --offline
 }
 
 _run_prometheus_rules_semantic_check() {

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TypeVar
 
 _SERVER_ROOT = Path(__file__).resolve().parent.parent
-_HARNESS_SRC = _SERVER_ROOT.parent.parent / "myrm-agent-harness" / "src"
+_HARNESS_SRC = _SERVER_ROOT.parent / "myrm-agent-harness" / "src"
 if _HARNESS_SRC.exists() and str(_HARNESS_SRC) not in sys.path:
     sys.path.insert(0, str(_HARNESS_SRC))
 
@@ -88,7 +88,7 @@ def _prepend_monorepo_pythonpath() -> None:
     import sys
 
     candidates = (
-        _SERVER_ROOT.parent.parent / "myrm-agent-harness" / "src",
+        _SERVER_ROOT.parent / "myrm-agent-harness" / "src",
         _SERVER_ROOT / "src",
     )
     extra = [str(path) for path in candidates if path.is_dir()]

@@ -6,7 +6,7 @@ from pathlib import Path
 # Add server and harness to path
 server_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(server_root))
-harness_src = server_root.parent.parent / "myrm-agent-harness" / "src"
+harness_src = server_root.parent / "myrm-agent-harness" / "src"
 sys.path.insert(0, str(harness_src))
 
 from app.api.statistics.session_trace import _empty_trace_payload, _enrich_performance_and_gantt

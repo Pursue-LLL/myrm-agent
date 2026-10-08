@@ -8,8 +8,6 @@ from pathlib import Path
 
 import pytest
 
-from tests.architecture.test_uv_lock_harness_registry import _harness_sync_lock_ready_on_pypi
-
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _PYPROJECT = _SERVER_ROOT / "pyproject.toml"
 _LOCK_PATH = _SERVER_ROOT / "uv.lock"
@@ -104,22 +102,23 @@ def test_lock_provides_extras_match_pyproject() -> None:
 
 
 @pytest.mark.architecture
-@pytest.mark.skipif(
-    _harness_sync_lock_ready_on_pypi(),
-    reason="PyPI harness pin active; editable monorepo path is not committed in uv.lock",
-)
-def test_lock_harness_editable_monorepo_path() -> None:
-    """Monorepo dev: harness editable path must resolve from myrm-agent-server/."""
-    text = _LOCK_PATH.read_text(encoding="utf-8")
-    import re
+def test_harness_is_in_repo_editable_path_source() -> None:
+    """The harness lives in this repository: pyproject declares the path source and the lock resolves it."""
+    sources = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))["tool"]["uv"]["sources"]
+    assert sources["myrm-agent-harness"] == {"path": "../myrm-agent-harness", "editable": True}
+    lock_text = _LOCK_PATH.read_text(encoding="utf-8")
+    assert re.search(
+        r'name = "myrm-agent-harness"\nversion = "[^"]+"\nsource = \{ editable = "\.\./myrm-agent-harness" \}',
+        lock_text,
+    ), "uv.lock must resolve myrm-agent-harness from the in-repo editable path"
+    assert "myrm-agent-harness-core" not in lock_text, "platform core wheels no longer exist"
 
-    if re.search(
-        r'name = "myrm-agent-harness"[\s\S]*?source = \{ registry = "https://[^"]+/simple/?" \}',
-        text,
-    ):
-        pytest.skip("lock already pinned to registry; PyPI network check may have been unreachable")
-    assert 'editable = "../../myrm-agent-harness"' in text
-    assert 'editable = "../myrm-agent-harness"' not in text
+
+@pytest.mark.architecture
+def test_lock_uses_only_canonical_package_hosts() -> None:
+    """A lock generated behind a regional mirror pins mirror URLs that break CI and release builds."""
+    hosts = set(re.findall(r"https?://([^/\"]+)", _LOCK_PATH.read_text(encoding="utf-8")))
+    assert hosts <= {"pypi.org", "files.pythonhosted.org"}, f"non-canonical hosts in uv.lock: {sorted(hosts)}"
 
 
 @pytest.mark.architecture

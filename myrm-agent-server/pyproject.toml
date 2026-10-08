@@ -22,7 +22,7 @@ dependencies = [
   "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   "watchdog>=6.0.0", # Workspace vault file change detection (file_watch_service.py)
   # --- Agent 框架 (litellm/langchain/langchain-core via harness; server 不重复 pin) ---
-  "myrm-agent-harness[browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core,computer-use]==0.1.0rc5",
+  "myrm-agent-harness[browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,computer-use]",
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
   "aiohttp>=3.14.3",           # Matrix channel + alert notifier HTTP client
   # --- 图片处理 ---
@@ -92,8 +92,7 @@ data-viz = [
 
 [tool.uv]
 index-url = "https://pypi.org/simple"
-# Universal lock: keep harness pin and compiled-core platform wheels aligned with uv.lock.
-# When bumping harness version, update this pin and regenerate uv.lock in the same change.
+# Universal lock; the harness is the in-repo editable path source declared in [tool.uv.sources].
 prerelease = "allow"
 environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
 override-dependencies = [
@@ -107,8 +106,10 @@ override-dependencies = [
   "mcp>=2.0.0",
 ]
 
-# OSS CI consumes harness from PyPI via uv.lock (--frozen). Local monorepo dev may add
-# [tool.uv.sources] myrm-agent-harness editable override in a private overlay (not committed).
+# The harness lives in this repository (../myrm-agent-harness): the server always develops, tests and
+# ships against the same commit. Release images build the harness wheel from this path.
+[tool.uv.sources]
+myrm-agent-harness = { path = "../myrm-agent-harness", editable = true }
 
 # Desktop/commercial PyInstaller bundle (no GPL extras in shipped binary):
 #   uv sync --all-extras --no-group dev --no-extra matrix-e2ee --no-extra voice-tts --no-extra wechat-silk
@@ -172,7 +173,7 @@ ignore = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["../../myrm-agent-harness/src", "."]
+pythonpath = ["../myrm-agent-harness/src", "."]
 addopts = "-m 'not e2e and not chrome_e2e and not performance' --timeout=300"
 markers = [
   "docker: Docker 沙箱测试（内存占用高，默认排除可加 -m 'not docker'）",

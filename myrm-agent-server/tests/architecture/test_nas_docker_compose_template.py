@@ -13,6 +13,13 @@ _WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
 _NAS_COMPOSE_PATH = _WORKSPACE_ROOT / "docker-compose.nas.yml"
 _BASE_COMPOSE_PATH = _WORKSPACE_ROOT / "docker-compose.yml"
 
+# The NAS overlay lives in the private dev-shell root that wraps this repository; a standalone
+# checkout has no such root, so the contract can only be verified inside the dev shell.
+pytestmark = pytest.mark.skipif(
+    not _NAS_COMPOSE_PATH.is_file(),
+    reason="docker-compose.nas.yml is part of the private dev-shell root",
+)
+
 
 def _resolve_compose_command() -> list[str] | None:
     """Return the first working Compose CLI invocation, or None when unavailable.

@@ -68,8 +68,8 @@ def clean_pycache() -> None:
 def setup_browser_path() -> None:
     """Set Patchright/Playwright browser binary search path.
 
-    When a local myrm-agent-harness checkout exists, sets PLAYWRIGHT_BROWSERS_PATH
-    to harness/.browsers. Otherwise leaves the env unset (Playwright/Patchright defaults).
+    When the in-repo myrm-agent-harness has a .browsers directory, sets
+    PLAYWRIGHT_BROWSERS_PATH to it. Otherwise leaves the env unset (Playwright/Patchright defaults).
     PATCHRIGHT_BROWSERS_PATH is NOT overwritten here.
     """
     # __file__ = .../myrm-agent-server/app/startup/env_loader.py
