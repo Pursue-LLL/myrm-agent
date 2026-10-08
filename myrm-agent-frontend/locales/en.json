@@ -20197,5 +20197,10 @@
   "ttsAudio": {
     "generatedSpeech": "Generated speech",
     "playbackFailed": "Audio playback failed — the file may have expired."
+  },
+  "intentDispatcher": {
+    "invalidLink": "Invalid external link or parameters",
+    "oauthSuccess": "Authorization successful",
+    "oauthFailed": "Authorization check failed, please try again"
   }
 }

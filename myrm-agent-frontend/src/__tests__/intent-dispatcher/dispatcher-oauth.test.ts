@@ -4,6 +4,8 @@ import { IntentDispatcher } from '@/lib/intent-dispatcher';
 import { getActiveRemoteProfile, listRemoteProfiles } from '@/lib/remote-profiles';
 import useAuthStore from '@/store/useAuthStore';
 
+const messages = { invalidLink: 'invalid', oauthSuccess: 'ok', oauthFailed: 'failed' };
+
 function mockRouter(pushed: string[]): AppRouterInstance {
   return { push: (url: string) => pushed.push(url) } as unknown as AppRouterInstance;
 }
@@ -50,7 +52,7 @@ describe('dispatcher oauth callback', () => {
     ) as unknown as typeof fetch;
 
     const pushed: string[] = [];
-    const dispatcher = new IntentDispatcher(mockRouter(pushed), () => undefined);
+    const dispatcher = new IntentDispatcher(mockRouter(pushed), () => undefined, messages);
     const ok = await dispatcher.dispatch('myrmagent://oauth/callback?token=cp-token-abc');
     expect(ok).toBe(true);
     expect(useAuthStore.getState().token).toBe('cp-token-abc');
@@ -68,7 +70,7 @@ describe('dispatcher oauth callback', () => {
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
     const pushed: string[] = [];
-    const dispatcher = new IntentDispatcher(mockRouter(pushed), () => undefined);
+    const dispatcher = new IntentDispatcher(mockRouter(pushed), () => undefined, messages);
     const ok = await dispatcher.dispatch('myrmagent://oauth/callback?token=forged-token');
 
     expect(ok).toBe(true);
@@ -84,7 +86,7 @@ describe('dispatcher oauth callback', () => {
     store.set('myrm-cloud-oauth-pending', '{not-json');
     globalThis.fetch = vi.fn() as unknown as typeof fetch;
 
-    const dispatcher = new IntentDispatcher(mockRouter([]), () => undefined);
+    const dispatcher = new IntentDispatcher(mockRouter([]), () => undefined, messages);
     await dispatcher.dispatch('myrmagent://oauth/callback?token=forged-token');
 
     expect(useAuthStore.getState().token).toBeNull();
@@ -98,7 +100,7 @@ describe('dispatcher oauth callback', () => {
     globalThis.fetch = vi.fn(async () => new Response('nope', { status: 401 })) as unknown as typeof fetch;
 
     const pushed: string[] = [];
-    const dispatcher = new IntentDispatcher(mockRouter(pushed), () => undefined);
+    const dispatcher = new IntentDispatcher(mockRouter(pushed), () => undefined, messages);
     const ok = await dispatcher.dispatch('myrmagent://oauth/callback?token=bad-token');
     expect(ok).toBe(true);
     expect(store.get('auth_token')).toBe('local_user_token');

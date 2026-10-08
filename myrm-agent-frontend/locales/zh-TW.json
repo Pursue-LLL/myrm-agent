@@ -20197,5 +20197,10 @@
   "ttsAudio": {
     "generatedSpeech": "已生成語音",
     "playbackFailed": "音訊播放失敗——檔案可能已過期。"
+  },
+  "intentDispatcher": {
+    "invalidLink": "無效的外部連結或參數錯誤",
+    "oauthSuccess": "授權成功",
+    "oauthFailed": "授權驗證失敗，請重試"
   }
 }

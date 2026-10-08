@@ -20197,5 +20197,10 @@
   "ttsAudio": {
     "generatedSpeech": "생성된 음성",
     "playbackFailed": "오디오 재생 실패——파일이 만료되었을 수 있습니다."
+  },
+  "intentDispatcher": {
+    "invalidLink": "잘못된 외부 링크 또는 매개변수입니다",
+    "oauthSuccess": "인증에 성공했습니다",
+    "oauthFailed": "인증 확인에 실패했습니다. 다시 시도해 주세요"
   }
 }

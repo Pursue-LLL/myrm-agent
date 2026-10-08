@@ -20197,5 +20197,10 @@
   "ttsAudio": {
     "generatedSpeech": "已生成语音",
     "playbackFailed": "音频播放失败——文件可能已过期。"
+  },
+  "intentDispatcher": {
+    "invalidLink": "无效的外部链接或参数错误",
+    "oauthSuccess": "授权成功",
+    "oauthFailed": "授权校验失败，请重试"
   }
 }

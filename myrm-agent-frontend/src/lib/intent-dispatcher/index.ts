@@ -8,13 +8,22 @@ import { toast } from 'sonner';
  * Supports both raw URL parsing and page-provided parsed intents.
  */
 
+/** 用户可见的 toast 文案，由调用方按当前语言注入（dispatcher 本身不依赖 React i18n）。 */
+export interface IntentMessages {
+  invalidLink: string;
+  oauthSuccess: string;
+  oauthFailed: string;
+}
+
 export class IntentDispatcher {
   private router: AppRouterInstance;
   private openFlowPad: (text: string) => void;
+  private messages: IntentMessages;
 
-  constructor(router: AppRouterInstance, openFlowPad: (text: string) => void) {
+  constructor(router: AppRouterInstance, openFlowPad: (text: string) => void, messages: IntentMessages) {
     this.router = router;
     this.openFlowPad = openFlowPad;
+    this.messages = messages;
   }
 
   public async dispatch(rawUrl: string, parsedIntent?: UIPIntent): Promise<boolean> {
@@ -25,7 +34,7 @@ export class IntentDispatcher {
       return true;
     } catch (error) {
       console.error('[UIP] Dispatch failed:', error);
-      toast.error('无效的外部链接或参数错误');
+      toast.error(this.messages.invalidLink);
       return false;
     }
   }
@@ -77,10 +86,10 @@ export class IntentDispatcher {
         addRemoteProfile('Cloud sandbox', proxyBase, { kind: 'cloud', cpBaseUrl });
       }
 
-      toast.success('授权成功');
+      toast.success(this.messages.oauthSuccess);
       this.router.push('/settings');
     } catch {
-      toast.error('授权校验失败，请重试');
+      toast.error(this.messages.oauthFailed);
       this.router.push('/settings');
     }
   }

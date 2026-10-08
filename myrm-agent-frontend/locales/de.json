@@ -20197,5 +20197,10 @@
   "ttsAudio": {
     "generatedSpeech": "Generierte Sprache",
     "playbackFailed": "Audio-Wiedergabe fehlgeschlagen — die Datei ist möglicherweise abgelaufen."
+  },
+  "intentDispatcher": {
+    "invalidLink": "Ungültiger externer Link oder ungültige Parameter",
+    "oauthSuccess": "Autorisierung erfolgreich",
+    "oauthFailed": "Autorisierungsprüfung fehlgeschlagen, bitte erneut versuchen"
   }
 }

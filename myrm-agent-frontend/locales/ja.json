@@ -20197,5 +20197,10 @@
   "ttsAudio": {
     "generatedSpeech": "生成された音声",
     "playbackFailed": "音声再生に失敗しました——ファイルの期限が切れた可能性があります。"
+  },
+  "intentDispatcher": {
+    "invalidLink": "無効な外部リンクまたはパラメータです",
+    "oauthSuccess": "認証に成功しました",
+    "oauthFailed": "認証の検証に失敗しました。もう一度お試しください"
   }
 }

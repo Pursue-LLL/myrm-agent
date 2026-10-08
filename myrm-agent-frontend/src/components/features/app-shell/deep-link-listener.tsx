@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { IntentDispatcher } from '@/lib/intent-dispatcher';
 import { useFlowPadStore } from '@/store/useFlowPadStore';
 
@@ -13,6 +14,7 @@ import { useFlowPadStore } from '@/store/useFlowPadStore';
  */
 export default function DeepLinkListener() {
   const router = useRouter();
+  const t = useTranslations('intentDispatcher');
   const openFlowPad = useFlowPadStore((s) => s.open);
   const dispatchQueueRef = useRef<Promise<void>>(Promise.resolve());
   const recentDispatchRef = useRef<Map<string, number>>(new Map());
@@ -21,7 +23,11 @@ export default function DeepLinkListener() {
     // Check if we are running in Tauri
     const isTauri = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ !== undefined;
 
-    const dispatcher = new IntentDispatcher(router, openFlowPad);
+    const dispatcher = new IntentDispatcher(router, openFlowPad, {
+      invalidLink: t('invalidLink'),
+      oauthSuccess: t('oauthSuccess'),
+      oauthFailed: t('oauthFailed'),
+    });
     const recentDispatch = recentDispatchRef.current;
 
     if (isTauri) {
@@ -88,7 +94,7 @@ export default function DeepLinkListener() {
       // 2. Web/SaaS mode: /intent/* routes are handled by dedicated pages.
       // Keep this listener as a no-op to avoid duplicate dispatches.
     }
-  }, [router, openFlowPad]);
+  }, [router, openFlowPad, t]);
 
   return null;
 }
