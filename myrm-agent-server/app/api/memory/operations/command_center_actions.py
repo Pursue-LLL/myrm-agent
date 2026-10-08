@@ -121,18 +121,14 @@ async def run_memory_action(body: MemoryCommandActionRequest, manager: MemoryMan
         await manager.unpin_memory(body.target_id)
         return
     if body.action == "forget":
-        if not body.memory_type:
-            await manager.update_memory(body.target_id, status=MemoryStatus.ARCHIVED)
-            return
-        mem_type = MemoryType(body.memory_type)
+        mem_type = MemoryType(body.memory_type) if body.memory_type else None
         if mem_type == MemoryType.PROFILE:
             await manager.delete_profile(body.target_id)
         elif mem_type == MemoryType.PROCEDURAL:
             await manager.delete_rule(body.target_id)
         else:
+            # Archiving already cascades derived graph cleanup and is restorable.
             await manager.update_memory(body.target_id, status=MemoryStatus.ARCHIVED)
-            if hasattr(manager, "_cascade_clean_derived_graph_nodes"):
-                await manager._cascade_clean_derived_graph_nodes(body.target_id)
         return
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported memory action")
 

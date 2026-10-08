@@ -31,8 +31,23 @@ from .commands import parse_memory_args
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory import MemoryManager
+    from myrm_agent_harness.toolkits.memory.types import PendingRecord
 
 logger = logging.getLogger("app.channels.routing.router")
+
+# Keyed by ``PendingResolutionAction`` values (a StrEnum) so no runtime harness import is needed.
+_PENDING_TARGET_KEYS: dict[str, str] = {
+    "correct": "memory_pending_correct",
+    "delete": "memory_pending_forget",
+}
+
+
+def _pending_target_line(msg: InboundMessage, rec: PendingRecord) -> str | None:
+    """Disclose which existing memory a correct/forget proposal would replace or retire."""
+    key = _PENDING_TARGET_KEYS.get(rec.resolution_action)
+    if key is None or not rec.target_content:
+        return None
+    return get_text(msg, key, target=rec.target_content[:60])
 
 
 def _get_channel_budget_summary(msg: InboundMessage) -> dict[str, object] | None:
@@ -274,6 +289,9 @@ class RouterCommandsMemoryMixin:
                     for rec in records:
                         short_id = rec.id[:8]
                         lines.append(f"  `{short_id}` [{rec.memory_type.value}] {rec.content[:60]}")
+                        target_line = _pending_target_line(msg, rec)
+                        if target_line:
+                            lines.append(f"      {target_line}")
                     lines.append("")
                     lines.append(get_text(msg, "memory_pending_hint"))
                     content = "\n".join(lines)

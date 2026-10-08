@@ -19,7 +19,7 @@
 | `crud.py` | 模块 | Memory CRUD HTTP routes — thin transport layer. | ✅ |
 | `external_transcripts.py` | 模块 | 外部 Agent 转录记忆召回 API。支持本地目录扫描增量建索与云端批量文件增量同步 | ✅ |
 | `guardian.py` | 模块 | 记忆守护者 API。暴露健康分与调度状态；手动维护触发支持 `safe/force` 契约；提供守护策略（频率档位 + quiet window）读写与晨间摘要查询（按最新完成维护窗口聚合）；健康/摘要读路径支持首访浏览器时区初始化，并在缺少客户端时区头时使用服务端本地时区兜底初始化（后续客户端头可自动纠偏）；`/health` 返回守卫不可用告警聚合；`/overview` 返回 health/policy/alerts + digest 单契约；告警聚合采用按 frequency tier 自适应的最小事件阈值与 escalation 阈值策略（reason count + ratio）。 | ✅ |
-| `pending.py` | 模块 | 待处理记忆 API 操作层。提供待处理记忆的审批流管理（列表/审批/拒绝/批量）与结构化元数据（置信度/类别/有效期/依据）投影。 | ✅ |
+| `pending.py` | 模块 | 待处理记忆 API 操作层。提供待处理记忆的审批流管理（列表/审批/拒绝/批量）与结构化元数据（置信度/类别/有效期/依据）投影；审批透传审批者改写文本 `edited_content`（不可编辑的提案 → 400），遗忘类提案批准即归档目标记忆（保留期内可恢复）。 | ✅ |
 | `conflicts.py` | 模块 | 待裁决记忆冲突 API 操作层。列出并裁决 `pending_memories.is_conflict` 记录，复用 Harness 记忆变更（`update_memory` / `add_knowledge`）保持新旧事实生命周期一致。 | ✅ |
 | `shared_context/`（子包） | 模块 | 共享上下文 API 子域：CRUD、健康检查、历史证据、遗留迁移 + 序列化辅助。5 个 `shared_context_*` 模块聚合于此，`shared_context/__init__.py` 为聚合门面统一 re-export | ✅ |
 | `reindex.py` | 模块 | Memory reindex API — orphan detection, estimation, and execution for embedding model migration. | ✅ |

@@ -54,11 +54,14 @@ async def _load_pending_memory(memory_id: str) -> PendingMemory | None:
 def _raise_approval_http_error(exc: Exception) -> None:
     """Map a harness approval failure to the right HTTP status.
 
-    A missing record is a 404; any other failure (wrong memory type, storage
-    error) is a server-side 500 — never a misleading 404.
+    A missing record is a 404; an unusable edit (blank, or on a proposal without
+    editable text) is a 400; any other failure (wrong memory type, storage error)
+    is a server-side 500 — never a misleading 404.
     """
     if isinstance(exc, MemoryNotFoundError):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if isinstance(exc, ValueError):
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     logger.error("Memory approval failed", exc_info=True)
     raise HTTPException(status_code=500, detail="Memory approval failed") from exc
 
@@ -225,7 +228,7 @@ async def approve_pending_memory(
         raise HTTPException(status_code=400, detail="Approval is not enabled")
     pending = await _load_pending_memory(memory_id)
     try:
-        await manager.approve(memory_id)
+        await manager.approve(memory_id, edited_content=request.edited_content)
     except Exception as e:
         _raise_approval_http_error(e)
     if pending is not None:
