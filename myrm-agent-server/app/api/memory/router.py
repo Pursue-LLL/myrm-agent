@@ -154,6 +154,9 @@ from app.api.memory.markdown_chunker import (
 from app.api.memory.hybrid_search import (
     router as hybrid_search_router,
 )
+from app.api.memory.migration_wizard import (
+    router as migration_wizard_router,
+)
 from app.api.memory.markdown_curator_router import (
     router as markdown_curator_router,
 )
@@ -572,6 +575,10 @@ router.include_router(
 router.include_router(
     hybrid_search_router,
     tags=["memory-hybrid-search"],
+)
+router.include_router(
+    migration_wizard_router,
+    tags=["memory-migration-wizard"],
 )
 
 
