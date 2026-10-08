@@ -658,6 +658,7 @@ myrm_agent_harness.toolkits.memory.protocols.relational
 myrm_agent_harness.toolkits.memory.protocols.vector
 myrm_agent_harness.toolkits.memory.provenance_batch
 myrm_agent_harness.toolkits.memory.relational.sqlite_store
+myrm_agent_harness.toolkits.memory.score_honesty
 myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.self_verification
 myrm_agent_harness.toolkits.memory.session_post_process

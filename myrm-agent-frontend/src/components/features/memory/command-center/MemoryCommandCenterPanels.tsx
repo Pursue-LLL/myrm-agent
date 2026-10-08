@@ -95,6 +95,7 @@ import { MultiPlatformMemoryMigrationStudioCard } from './MultiPlatformMemoryMig
 import { ProactiveDecisionAssistStudioCard } from './ProactiveDecisionAssistStudioCard';
 import { ExperienceCompoundingStudioCard } from './ExperienceCompoundingStudioCard';
 import { ConclusionAttributionStudioCard } from './ConclusionAttributionStudioCard';
+import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
 
 
 
@@ -387,6 +388,9 @@ export const UnderstandSection = ({
 
     {/* Conclusion Attribution & Verifiable Chat Evidence Studio Card (Item 141 P1) */}
     <ConclusionAttributionStudioCard />
+
+    {/* Retrieval Score Honesty & Raw vs Ranking Inspection Card (Item 142 P1) */}
+    <ScoreHonestyInspectionCard />
 
 
 

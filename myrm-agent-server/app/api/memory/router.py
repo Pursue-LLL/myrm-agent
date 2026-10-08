@@ -62,6 +62,9 @@ from app.api.memory.conclusion_attribution_router import (
 from app.api.memory.conclusion_evidence_router import (
     router as conclusion_evidence_router,
 )
+from app.api.memory.score_honesty_router import (
+    router as score_honesty_router,
+)
 from app.api.memory.conflict_router import (
     router as memory_conflict_router,
 )
@@ -635,4 +638,8 @@ router.include_router(
 router.include_router(
     conclusion_evidence_router,
     tags=["memory-conclusion-evidence"],
+)
+router.include_router(
+    score_honesty_router,
+    tags=["memory-score-honesty"],
 )
