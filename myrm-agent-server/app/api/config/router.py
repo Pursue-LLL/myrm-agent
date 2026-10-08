@@ -1260,6 +1260,13 @@ _LOCAL_MODEL_TEST_TIMEOUT_S = 12.0
 
 def _classify_local_model_error(exc: Exception) -> str:
     """Map internal exceptions to user-friendly connection test messages."""
+    if isinstance(exc, TimeoutError):
+        # The request deadline expired without an answer: a model that is still loading is
+        # indistinguishable from a wrong address, so the message names both.
+        return (
+            f"No response within {_LOCAL_MODEL_TEST_TIMEOUT_S:g} seconds"
+            " — the model may still be loading, or check the server address"
+        )
     name = type(exc).__name__.lower()
     msg = str(exc).lower()
     if "refused" in msg or "connectionrefused" in name:

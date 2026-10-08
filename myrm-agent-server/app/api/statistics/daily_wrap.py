@@ -10,6 +10,7 @@ cached in the main SQLite database (one row per date) to minimize LLM costs.
 - app.core.channel_bridge.config_parsers (POS: extract lite model config)
 - myrm_agent_harness.toolkits.llms (POS: create_litellm_model for LLM calls)
 - core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
+- app.core.utils.errors::{StandardHTTPException, internal_error, timeout_error} (POS: 服务端核心错误处理与异常出口门禁)
 
 [OUTPUT]
 - router: Daily Wrap APIRouter (get_daily_wrap, regenerate_daily_wrap)

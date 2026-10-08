@@ -801,15 +801,16 @@ except Exception:
 
 ### 修复
 
-1. `/test-local-model`：`asyncio.wait_for` 12 秒截止（低于设置页的 15 秒中止），超时经 `_classify_local_model_error` 返回“Connection timed out — check the server address”；失败日志改记异常类型，避免空消息；
+1. `/test-local-model`：`asyncio.wait_for` 12 秒截止（低于设置页的 15 秒中止）；到期返回“No response within 12 seconds — the model may still be loading, or check the server address”，与提供方侧的“Connection timed out — check the server address”区分（模型冷启动与地址错误在 12 秒内表现相同，不能只指责地址）；失败日志改记异常类型，避免空消息；
 2. `daily_wrap`：`asyncio.wait_for` 60 秒截止；到期转为 408 `timeout_error`，因为裸 `TimeoutError` 会被 `_classify_exception` 归为 `Database operation timeout`（去掉转换的变异实测：500 `Get daily wrap failed: Database operation timeout`）；
 3. 不强制 `max_tokens`：推理模型会拒绝过小的输出预算，成本由截止时间约束；
 4. 修正“1-token 探活”的 docstring、测试说明、前端注释与 `_ARCH.md`。
 
 ### 验证
 
-1. 新增 `tests/api/config/test_local_model_endpoint.py`（3 个）、`test_daily_wrap.py` 与 `test_daily_wrap_integration.py` 各 1 个；去掉截止时间的变异使 3 个超时用例全部失败，去掉 408 转换的变异使 2 个每日回顾用例失败；
-2. 受影响的 4 个测试文件共 55 个用例通过。
+1. 新增 `tests/api/config/test_local_model_endpoint.py`（4 个）、`test_daily_wrap.py` 与 `test_daily_wrap_integration.py` 各 1 个；去掉截止时间的变异使 3 个超时用例全部失败，去掉 408 转换的变异使 2 个每日回顾用例失败，去掉到期分支的变异使到期用例失败，把所有超时都报成到期的变异使提供方超时用例失败；
+2. 受影响的 4 个测试文件共 56 个用例通过；
+3. 真实套接字实验（litellm、OpenAI SDK 与本地挂起的 HTTP 服务，没有任何 mock）：端点 12.10 秒返回失败消息；返回后 0.01 秒服务端观察到对端关闭连接，说明取消真正到达套接字；随后对正常服务的再次调用成功；对照组中适配器自身在 15 秒时仍未返回。
 
 ### 踩坑经验
 

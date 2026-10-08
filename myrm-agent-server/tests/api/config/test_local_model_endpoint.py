@@ -41,8 +41,8 @@ def test_reachable_model_reports_success() -> None:
     assert "config" not in ainvoke.await_args.kwargs
 
 
-def test_stalled_model_is_cancelled_and_reported_as_timeout() -> None:
-    """A model that never answers is abandoned at the deadline and classified as a timeout."""
+def test_stalled_model_is_cancelled_and_reported_as_no_response() -> None:
+    """A model that never answers is abandoned at the deadline and reported as silent, not as unreachable."""
     state = {"cancelled": False}
 
     async def _stall(*_args: object, **_kwargs: object) -> None:
@@ -61,8 +61,18 @@ def test_stalled_model_is_cancelled_and_reported_as_timeout() -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is False
-    assert "timed out" in data["message"]
+    assert data["message"].startswith("No response within 0.05 seconds")
+    assert "still be loading" in data["message"]
     assert state["cancelled"] is True
+
+
+def test_provider_side_timeout_keeps_the_connection_message() -> None:
+    """A timeout reported by the provider client is a connection problem, not a deadline expiry."""
+    ainvoke = AsyncMock(side_effect=RuntimeError("litellm.Timeout: Connection timed out after 30 seconds"))
+    with patch(_FACTORY, return_value=_llm_with(ainvoke)):
+        response = client.post(_URL, json=_PAYLOAD)
+
+    assert response.json()["message"] == "Connection timed out — check the server address"
 
 
 def test_provider_failure_is_classified() -> None:
