@@ -11,12 +11,18 @@ import json
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.api.agent.utils import hide_sse_heartbeats_async
+
 pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        event_hooks={"response": [hide_sse_heartbeats_async]},
+    ) as client:
         yield client
 
 

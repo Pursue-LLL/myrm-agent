@@ -5,7 +5,7 @@
 
 import json
 import uuid
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager
 from typing import Optional
 from unittest.mock import patch
@@ -36,16 +36,40 @@ def force_invalid_model_llm_error(invalid_model: str) -> Iterator[None]:
 _SSE_HEARTBEAT_EVENT_LINE = "event: heartbeat"
 
 
-def drop_sse_heartbeats(lines: Iterator[str]) -> Iterator[str]:
-    """Yield SSE lines without keep-alive frames (`event: heartbeat` and its `data: null`)."""
-    in_heartbeat_frame = False
-    for line in lines:
+class _HeartbeatFrameFilter:
+    """Line-by-line recognizer of SSE keep-alive frames (`event: heartbeat`, its `data: null`, the blank line)."""
+
+    def __init__(self) -> None:
+        self._inside_frame = False
+
+    def keeps(self, line: str) -> bool:
+        """Whether `line` belongs to an application event rather than to a keep-alive frame."""
         if line == _SSE_HEARTBEAT_EVENT_LINE:
-            in_heartbeat_frame = True
-        elif not in_heartbeat_frame:
+            self._inside_frame = True
+            return False
+        if not self._inside_frame:
+            return True
+        if not line:  # the blank line closes the frame
+            self._inside_frame = False
+        return False
+
+
+def drop_sse_heartbeats(lines: Iterator[str]) -> Iterator[str]:
+    """Yield SSE lines without keep-alive frames."""
+    frames = _HeartbeatFrameFilter()
+    return (line for line in lines if frames.keeps(line))
+
+
+async def adrop_sse_heartbeats(lines: AsyncIterator[str]) -> AsyncIterator[str]:
+    """Async twin of `drop_sse_heartbeats`."""
+    frames = _HeartbeatFrameFilter()
+    async for line in lines:
+        if frames.keeps(line):
             yield line
-        elif not line:  # the blank line closes the frame
-            in_heartbeat_frame = False
+
+
+def _is_sse(response: httpx.Response) -> bool:
+    return response.headers.get("content-type", "").startswith("text/event-stream")
 
 
 def hide_sse_heartbeats(response: httpx.Response) -> None:
@@ -55,9 +79,16 @@ def hide_sse_heartbeats(response: httpx.Response) -> None:
     slow model or a loaded host. It carries no application event, so test clients drop it before
     parsing every `data:` line as an event object.
     """
-    if response.headers.get("content-type", "").startswith("text/event-stream"):
+    if _is_sse(response):
         iter_lines = response.iter_lines
         response.iter_lines = lambda: drop_sse_heartbeats(iter_lines())
+
+
+async def hide_sse_heartbeats_async(response: httpx.Response) -> None:
+    """`hide_sse_heartbeats` for `httpx.AsyncClient`: `aiter_lines()` yields application events only."""
+    if _is_sse(response):
+        aiter_lines = response.aiter_lines
+        response.aiter_lines = lambda: adrop_sse_heartbeats(aiter_lines())
 
 
 # 顶层 error 事件中可识别为环境问题（而非真实 Agent bug）的关键字

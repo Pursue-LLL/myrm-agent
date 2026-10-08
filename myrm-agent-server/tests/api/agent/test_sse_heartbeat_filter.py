@@ -1,7 +1,8 @@
-"""The agent test client hides SSE keep-alive frames from line-oriented parsers.
+"""The agent test clients (sync ``TestClient`` and async ``httpx.AsyncClient``) hide SSE keep-alive frames
+from line-oriented parsers.
 
 The frames are produced by the real ``ResilientStreamBuffer``, so a change to the heartbeat wire
-format fails here instead of silently re-opening the ``data: null`` parsing hole in the ~45 stream
+format fails here instead of silently re-opening the ``data: null`` parsing hole in the stream
 tests that do ``json.loads(line[6:]).get("type")``.
 """
 
@@ -9,12 +10,14 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 
+import httpx
+import pytest
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.streaming.stream_buffer import ResilientStreamBuffer
 
-from tests.api.agent.utils import drop_sse_heartbeats, hide_sse_heartbeats
+from tests.api.agent.utils import adrop_sse_heartbeats, drop_sse_heartbeats, hide_sse_heartbeats, hide_sse_heartbeats_async
 
 _HEARTBEAT_INTERVAL = 0.05
 
@@ -89,3 +92,44 @@ def test_drop_sse_heartbeats_keeps_the_frames_around_a_keep_alive_intact() -> No
 
 def test_the_agent_client_fixture_registers_the_filter(client: TestClient) -> None:
     assert hide_sse_heartbeats in client.event_hooks["response"]
+
+
+def _async_client(*, hidden: bool) -> httpx.AsyncClient:
+    hooks = {"response": [hide_sse_heartbeats_async]} if hidden else {}
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=_build_sse_app()), base_url="http://test", event_hooks=hooks)
+
+
+async def _astream_lines(client: httpx.AsyncClient) -> list[str]:
+    async with client.stream("GET", "/sse") as response:
+        return [line async for line in response.aiter_lines()]
+
+
+@pytest.mark.asyncio
+async def test_an_async_client_meets_the_same_keep_alive_without_the_hook() -> None:
+    async with _async_client(hidden=False) as client:
+        lines = await _astream_lines(client)
+
+    assert "event: heartbeat" in lines
+    assert None in _parse_events(lines)
+
+
+@pytest.mark.asyncio
+async def test_hidden_keep_alives_leave_only_application_events_for_an_async_client() -> None:
+    async with _async_client(hidden=True) as client:
+        lines = await _astream_lines(client)
+        plain = await client.get("/json")
+
+    assert "event: heartbeat" not in lines
+    assert [event["type"] for event in _parse_events(lines)] == ["first", "second"]
+    assert plain.json() == {"status": "ok"}
+
+
+@pytest.mark.asyncio
+async def test_the_async_filter_drops_exactly_what_the_sync_filter_drops() -> None:
+    lines = ["data: {}", "", "event: heartbeat", "data: null", "", "event: message", "data: {}", ""]
+
+    async def source() -> AsyncIterator[str]:
+        for line in lines:
+            yield line
+
+    assert [line async for line in adrop_sse_heartbeats(source())] == list(drop_sse_heartbeats(iter(lines)))

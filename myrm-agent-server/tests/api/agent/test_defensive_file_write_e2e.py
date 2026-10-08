@@ -11,7 +11,7 @@ import httpx
 import pytest
 from dotenv import load_dotenv
 
-from tests.api.agent.utils import get_model_selection
+from tests.api.agent.utils import get_model_selection, hide_sse_heartbeats_async
 
 load_dotenv(override=True)
 
@@ -47,7 +47,12 @@ async def test_defensive_file_write_e2e(app):
     events = []
     tool_calls = []
 
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver", timeout=60.0) as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+        timeout=60.0,
+        event_hooks={"response": [hide_sse_heartbeats_async]},
+    ) as client:
         async with client.stream("POST", "/api/v1/agents/agent-stream", json=payload) as resp:
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
 
