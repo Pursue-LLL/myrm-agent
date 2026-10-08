@@ -1,4 +1,17 @@
-"""Score honesty service provider for server business logic."""
+"""Score honesty service provider for server business logic.
+
+[POS]
+Business service provider wrapping harness RetrievalScoreHonestySuite,
+handling DTO transformation, dual-threshold evaluation, and singleton state.
+
+[INPUT]
+- myrm_agent_harness.toolkits.memory.score_honesty
+- app.schemas.score_honesty
+
+[OUTPUT]
+- ScoreHonestyProvider
+- get_score_honesty_provider
+"""
 
 from __future__ import annotations
 

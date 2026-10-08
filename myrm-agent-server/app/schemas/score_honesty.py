@@ -1,4 +1,23 @@
-"""Pydantic V2 schemas for retrieval score honesty API endpoints."""
+"""Pydantic V2 schemas for retrieval score honesty API endpoints.
+
+[POS]
+Data transfer objects and request/response models for retrieval score honesty,
+separating raw physical similarity from composite ranking scores.
+
+[INPUT]
+- pydantic::BaseModel, Field
+
+[OUTPUT]
+- CandidateEvaluationItem
+- DualThresholdConfigDTO
+- ScoreBreakdownDTO
+- ThresholdEvaluationVerdictDTO
+- HonestCandidateResponseDTO
+- ScoreHonestyStatsDTO
+- EvaluateCandidatesRequest
+- EvaluateCandidatesResponse
+- FilterCandidatesResponse
+"""
 
 from __future__ import annotations
 

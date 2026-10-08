@@ -1,4 +1,17 @@
-"""FastAPI router for retrieval score honesty and raw vs ranking evaluation."""
+"""FastAPI router for retrieval score honesty and raw vs ranking evaluation.
+
+[POS]
+HTTP boundary for retrieval score honesty, exposing dual-threshold evaluation,
+admitted filtering, and diagnostic statistics.
+
+[INPUT]
+- fastapi::APIRouter, Depends
+- app.schemas.score_honesty
+- app.services.memory.score_honesty.provider
+
+[OUTPUT]
+- router (FastAPI APIRouter)
+"""
 
 from __future__ import annotations
 
