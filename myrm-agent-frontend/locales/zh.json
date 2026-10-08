@@ -6980,6 +6980,23 @@
           "skillsNotSupported": "当前环境不支持自定义技能 — 已自动跳过",
           "stdioNotAllowed": "当前环境无法运行本地进程类 MCP 服务器 — 已自动跳过"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "插件包",
+            "skill": "技能：{name}",
+            "servers": "MCP 服务器",
+            "server": "MCP 服务器：{name}"
+          },
+          "messages": {
+            "unsupportedFormat": "这不是受支持的插件包，无法导入。",
+            "manifestInvalid": "插件的描述文件内容无效，请联系插件作者修复。",
+            "serversInvalid": "MCP 服务器配置无效，不会导入任何 MCP 服务器，技能仍可导入。",
+            "skillSkipped": "该技能存在问题，已自动跳过。",
+            "serverSkipped": "该 MCP 服务器配置无效，已自动跳过。",
+            "filesIgnored": "包内的隐藏文件未被导入。",
+            "generic": "该插件存在可能影响导入的问题。"
+          }
+        },
         "capabilities": {
           "title": "沙箱能力层级",
           "read_only": "只读安全",

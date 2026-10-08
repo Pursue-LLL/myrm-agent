@@ -7,6 +7,7 @@ import { IconAlertTriangle, IconShieldCheck, IconTerminal } from '@/components/f
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
 
+import { UNDECLARED_PRIVILEGE_CODE } from './pluginDiagnostics';
 import { ImportSection, Note, ResolutionToggle } from './PluginImportParts';
 import {
   isServerBlocked,
@@ -217,7 +218,7 @@ export const PluginServersSection = memo(
             resolution={decisions.find((d) => d.virtual_id === item.virtual_id)?.resolution}
             disabled={disabled}
             undeclaredPrivilege={diagnostics.some(
-              (d) => d.code === 'capability_undeclared_privilege' && d.component === `mcp:${item.name}`,
+              (d) => d.code === UNDECLARED_PRIVILEGE_CODE && d.component === `mcp:${item.name}`,
             )}
             onResolve={(resolution) => onResolve(item.virtual_id, resolution)}
           />

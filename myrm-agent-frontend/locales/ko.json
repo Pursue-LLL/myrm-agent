@@ -19771,6 +19771,23 @@
           "skillsNotSupported": "이 환경에서는 사용자 지정 스킬을 쓸 수 없습니다 - 자동으로 건너뜁니다",
           "stdioNotAllowed": "이 환경에서는 로컬 프로세스형 MCP 서버를 실행할 수 없습니다 - 자동으로 건너뜁니다"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "플러그인 패키지",
+            "skill": "스킬: {name}",
+            "servers": "MCP 서버",
+            "server": "MCP 서버: {name}"
+          },
+          "messages": {
+            "unsupportedFormat": "지원되지 않는 플러그인 패키지라서 가져올 수 없습니다.",
+            "manifestInvalid": "플러그인 설명 파일의 내용이 올바르지 않습니다. 플러그인 작성자에게 수정을 요청하세요.",
+            "serversInvalid": "MCP 서버 설정이 올바르지 않아 MCP 서버를 가져오지 않습니다. 스킬은 계속 가져올 수 있습니다.",
+            "skillSkipped": "이 스킬에 문제가 있어 건너뛰었습니다.",
+            "serverSkipped": "이 MCP 서버 설정이 올바르지 않아 건너뛰었습니다.",
+            "filesIgnored": "패키지 안의 숨김 파일은 가져오지 않았습니다.",
+            "generic": "이 플러그인에 가져오기에 영향을 줄 수 있는 문제가 있습니다."
+          }
+        },
         "capabilities": {
           "undeclaredWarning": "선언되지 않은 권한 감지됨: 이 서비스는 plugin.json에 선언된 범위를 초과하는 권한을 요구합니다.",
           "title": "샌드박스 권한 계층",

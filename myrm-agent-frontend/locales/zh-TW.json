@@ -19785,6 +19785,23 @@
           "skillsNotSupported": "目前環境不支援自訂技能 — 已自動略過",
           "stdioNotAllowed": "目前環境無法執行本機行程類 MCP 伺服器 — 已自動略過"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "外掛包",
+            "skill": "技能：{name}",
+            "servers": "MCP 伺服器",
+            "server": "MCP 伺服器：{name}"
+          },
+          "messages": {
+            "unsupportedFormat": "這不是支援的外掛包，無法匯入。",
+            "manifestInvalid": "外掛的描述檔內容無效，請聯絡外掛作者修正。",
+            "serversInvalid": "MCP 伺服器設定無效，不會匯入任何 MCP 伺服器，技能仍可匯入。",
+            "skillSkipped": "此技能存在問題，已自動略過。",
+            "serverSkipped": "此 MCP 伺服器設定無效，已自動略過。",
+            "filesIgnored": "套件內的隱藏檔案未被匯入。",
+            "generic": "此外掛存在可能影響匯入的問題。"
+          }
+        },
         "capabilities": {
           "title": "沙箱能力層級",
           "read_only": "唯讀安全",

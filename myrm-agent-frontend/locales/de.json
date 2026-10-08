@@ -19785,6 +19785,23 @@
           "skillsNotSupported": "Diese Umgebung erlaubt keine eigenen Fähigkeiten - automatisch übersprungen",
           "stdioNotAllowed": "Lokale MCP-Server-Prozesse können in dieser Umgebung nicht laufen - automatisch übersprungen"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "Plugin-Paket",
+            "skill": "Fähigkeit: {name}",
+            "servers": "MCP-Server",
+            "server": "MCP-Server: {name}"
+          },
+          "messages": {
+            "unsupportedFormat": "Dies ist kein unterstütztes Plugin-Paket und kann nicht importiert werden.",
+            "manifestInvalid": "Die Beschreibungsdatei des Plugins ist ungültig. Bitten Sie den Plugin-Autor, sie zu korrigieren.",
+            "serversInvalid": "Die MCP-Server-Einstellungen sind ungültig, daher werden keine MCP-Server importiert. Fähigkeiten können weiterhin importiert werden.",
+            "skillSkipped": "Diese Fähigkeit hat ein Problem und wurde übersprungen.",
+            "serverSkipped": "Dieser MCP-Server hat ungültige Einstellungen und wurde übersprungen.",
+            "filesIgnored": "Versteckte Dateien im Paket wurden nicht importiert.",
+            "generic": "Dieses Plugin hat ein Problem, das den Import beeinträchtigen kann."
+          }
+        },
         "capabilities": {
           "undeclaredWarning": "Nicht deklarierte Berechtigung erkannt: Dieser Dienst erfordert Berechtigungen, die über die in plugin.json deklarierten hinausgehen.",
           "title": "Sandbox-Fähigkeitsstufen",

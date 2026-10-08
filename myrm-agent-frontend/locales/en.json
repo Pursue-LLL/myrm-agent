@@ -6980,6 +6980,23 @@
           "skillsNotSupported": "This environment does not allow custom skills - automatically skipped",
           "stdioNotAllowed": "Local-process MCP servers cannot run in this environment - automatically skipped"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "Plugin package",
+            "skill": "Skill: {name}",
+            "servers": "MCP servers",
+            "server": "MCP server: {name}"
+          },
+          "messages": {
+            "unsupportedFormat": "This is not a supported plugin package, so it cannot be imported.",
+            "manifestInvalid": "The plugin's description file has invalid content. Ask the plugin author to fix it.",
+            "serversInvalid": "The MCP server settings are invalid, so no MCP servers are imported. Skills can still be imported.",
+            "skillSkipped": "This skill has a problem and was skipped.",
+            "serverSkipped": "This MCP server has invalid settings and was skipped.",
+            "filesIgnored": "Hidden files in the package were not imported.",
+            "generic": "This plugin has an issue that may affect the import."
+          }
+        },
         "capabilities": {
           "title": "Sandbox Capabilities",
           "read_only": "Read-Only",

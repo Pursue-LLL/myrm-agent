@@ -19771,6 +19771,23 @@
           "skillsNotSupported": "この環境ではカスタムスキルは利用できません - 自動的にスキップします",
           "stdioNotAllowed": "この環境ではローカルプロセス型の MCP サーバーは実行できません - 自動的にスキップします"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "プラグインパッケージ",
+            "skill": "スキル：{name}",
+            "servers": "MCP サーバー",
+            "server": "MCP サーバー：{name}"
+          },
+          "messages": {
+            "unsupportedFormat": "サポートされていないプラグインパッケージのため、インポートできません。",
+            "manifestInvalid": "プラグインの記述ファイルの内容が無効です。プラグインの作者に修正を依頼してください。",
+            "serversInvalid": "MCP サーバーの設定が無効なため、MCP サーバーはインポートされません。スキルはインポートできます。",
+            "skillSkipped": "このスキルに問題があるため、スキップされました。",
+            "serverSkipped": "この MCP サーバーの設定が無効なため、スキップされました。",
+            "filesIgnored": "パッケージ内の隠しファイルはインポートされませんでした。",
+            "generic": "このプラグインには、インポートに影響する可能性のある問題があります。"
+          }
+        },
         "capabilities": {
           "title": "サンドボックス権限階層",
           "read_only": "読み取り専用",
