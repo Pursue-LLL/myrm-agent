@@ -1,8 +1,16 @@
-# [POS]: app/schemas/budget_packing.py
-# [INPUT]: None (pydantic BaseModel, Field)
-# [OUTPUT]: RecallCandidateDTO, BilledTokenBudgetDTO, MarginalValueMetricsDTO, PackedCandidateItemDTO, DroppedCandidateItemDTO, TokenAccountingReportDTO, PackedRecallResultDTO, PackRecallRequest, InspectMarginalRequest, InspectMarginalResponseItem
+"""Pydantic schemas for Budget Greedy Marginal Value Recall Packing Suite (Item 122).
 
-"""Pydantic schemas for Budget Greedy Marginal Value Recall Packing Suite (Item 122)."""
+[INPUT]
+- pydantic::{BaseModel, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- RecallCandidateDTO, BilledTokenBudgetDTO: packing inputs (scored candidate, billed-token budget with diversity penalty)
+- MarginalValueMetricsDTO, PackedCandidateItemDTO, DroppedCandidateItemDTO, TokenAccountingReportDTO, PackedRecallResultDTO: packing outcome with per-item metrics and token accounting
+- PackRecallRequest, InspectMarginalRequest, InspectMarginalResponseItem: endpoint payloads
+
+[POS]
+API contracts of budget-greedy recall packing, shared by its router and service.
+"""
 
 from __future__ import annotations
 

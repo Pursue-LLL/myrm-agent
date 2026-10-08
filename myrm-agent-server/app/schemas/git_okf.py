@@ -1,6 +1,17 @@
-# [POS]: app/schemas/git_okf.py
-# [INPUT]: Pydantic BaseModel, Field, and typing primitives
-# [OUTPUT]: Request and response DTO schemas for Git-native OKF v0.2 knowledge bundles
+"""Pydantic schemas for Git-native OKF v0.2 knowledge bundles.
+
+[INPUT]
+- pydantic::{BaseModel, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- LoadBundleRequestDTO, LoadBundleResponseDTO: bundle loading
+- OKFSearchRequestDTO, OKFSearchResultDTO: concept search
+- OKFConceptDetailDTO, ConceptSummaryItemDTO, OKFDisclosureSummaryDTO: concept detail and progressive-disclosure summary
+- OKFValidationReportDTO: conformance and staleness report
+
+[POS]
+API contracts of the Git-native OKF knowledge bundle feature, shared by its router and service.
+"""
 
 from __future__ import annotations
 

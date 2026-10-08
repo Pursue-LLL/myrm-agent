@@ -1,8 +1,16 @@
-# [POS]: app/schemas/thinking_sanitizer.py
-# [INPUT]: None (Standard library & Pydantic)
-# [OUTPUT]: ThinkingSanitizerConfigDTO, SanitizationResultDTO, SanitizeTextRequest, CheckUsableSummaryRequest, UsableSummaryCheckResponse
+"""Pydantic schemas and DTOs for Thinking Block Sanitizer & Prompt Contamination Shield (Item 115).
 
-"""Pydantic schemas and DTOs for Thinking Block Sanitizer & Prompt Contamination Shield (Item 115)."""
+[INPUT]
+- pydantic::{BaseModel, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- ThinkingSanitizerConfigDTO: sanitizer options
+- SanitizeTextRequest, SanitizationResultDTO: text sanitization and its result
+- CheckUsableSummaryRequest, UsableSummaryCheckResponse: usable-summary check
+
+[POS]
+API contracts of the thinking block sanitizer, shared by its router and service.
+"""
 
 from __future__ import annotations
 

@@ -1,6 +1,17 @@
-# [POS]: app/schemas/business_templates.py
-# [INPUT]: None (Pydantic models for Business Scenario Experience Templates)
-# [OUTPUT]: ChecklistStepDTO, BusinessExperienceTemplateDTO, ListTemplatesResponseDTO, EscalationEvaluationRequest, EscalationEvaluationResponseDTO, RecordValidationRequest, RecordValidationResponseDTO
+"""Pydantic schemas for business scenario experience templates, escalation evaluation and validation feedback.
+
+[INPUT]
+- pydantic::{BaseModel, ConfigDict, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- ChecklistStepDTO, BusinessExperienceTemplateDTO, ListTemplatesResponseDTO: template catalogue
+- EscalationEvaluationRequest, EscalationEvaluationResponseDTO: escalation decision payloads (aliased EvaluateEscalationRequest/EvaluateEscalationResponse)
+- RecordValidationRequest, RecordValidationResponseDTO: template validation feedback (response aliased RecordValidationResponse)
+- ExportProcedureMemoryItem, ExportProcedureMemoriesResponseDTO: templates exported as procedure memories
+
+[POS]
+API contracts of business scenario experience templates, shared by its router and service.
+"""
 
 from __future__ import annotations
 

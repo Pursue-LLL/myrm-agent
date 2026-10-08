@@ -1,6 +1,16 @@
-# [POS]: app/schemas/markdown_curator.py
-# [INPUT]: None (Pydantic models for Markdown Curator Studio)
-# [OUTPUT]: CuratedMemoryEntryDTO, CurateEntryRequest, UpdateCurateEntryRequest, AuditEntryRequest, MarkdownSyncRequest, MarkdownSyncResponseDTO, CuratorStudioSummaryDTO
+"""Pydantic schemas for the Markdown bidirectional sync and memory curator studio.
+
+[INPUT]
+- pydantic::{BaseModel, ConfigDict, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- CuratedMemoryEntryDTO, CurateEntryRequest, UpdateCurateEntryRequest, AuditEntryRequest: curated entry and its create, update and audit requests
+- MarkdownSyncRequest, MarkdownSyncResponseDTO: Markdown round trip with added, updated and deleted entries
+- CuratorStudioSummaryDTO: entry counts by status and category
+
+[POS]
+API contracts of the Markdown curator studio, shared by its router and service.
+"""
 
 from __future__ import annotations
 

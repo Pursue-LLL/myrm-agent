@@ -1,8 +1,16 @@
-# [POS]: app/schemas/failure_search.py
-# [INPUT]: None (Standard library & Pydantic)
-# [OUTPUT]: ErrorFingerprintDTO, HistoricalResolutionEntryDTO, FailureRetrievalResultDTO, SearchFailureRequest, RecordHistoricalResolutionRequest, InterceptFailureRequest, InterceptFailureResponseDTO, FailureTriggerConfigDTO
+"""Pydantic schemas and DTOs for failure-triggered historical session retrieval (Item 109).
 
-"""Pydantic schemas and DTOs for failure-triggered historical session retrieval (Item 109)."""
+[INPUT]
+- pydantic::{BaseModel, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- ErrorFingerprintDTO, HistoricalResolutionEntryDTO, FailureRetrievalResultDTO: normalized error fingerprint, recorded resolution and retrieval result
+- SearchFailureRequest, RecordHistoricalResolutionRequest, InterceptFailureRequest, InterceptFailureResponseDTO: endpoint payloads
+- FailureTriggerConfigDTO: automatic trigger configuration
+
+[POS]
+API contracts of failure-triggered historical session retrieval, shared by its router and service.
+"""
 
 from __future__ import annotations
 

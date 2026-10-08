@@ -1,6 +1,17 @@
-# [POS]: app/schemas/rule_cascade.py
-# [INPUT]: None (Pydantic models)
-# [OUTPUT]: RegisterRuleRequest, RegisterRuleResponse, QueryCascadedRulesRequest, CascadedRuleSetDTO, PreFilterEvidenceRequest, PreFilteredEvidenceResponse
+"""Pydantic schemas for deterministic rule cascading and five-dimension evidence pre-filtering.
+
+[INPUT]
+- pydantic::{BaseModel, ConfigDict, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- FiveDimEvidenceMetadataDTO, DeterministicRuleEntryDTO: evidence metadata and a deterministic rule
+- RegisterRuleRequest, RegisterRuleResponse: rule registration
+- QueryCascadedRulesRequest, CascadedRuleSetDTO: rules cascaded for a target path
+- PreFilterEvidenceRequest, PreFilteredEvidenceResponse: evidence pre-filtering by scope, authority, confidence and decay
+
+[POS]
+API contracts of the deterministic rule cascade, shared by its router and service.
+"""
 
 from __future__ import annotations
 

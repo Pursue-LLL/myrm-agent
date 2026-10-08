@@ -1,6 +1,17 @@
-# [POS]: app/schemas/procedure_experience.py
-# [INPUT]: None (Pydantic models for Procedure-Shaped Experience Protocol & Dual-Node Retrieval)
-# [OUTPUT]: ProcedureMemoryEntryDTO, RegisterProcedureMemoryRequest, DualNodeRetrievalRequest, DualNodeRetrievalResponseDTO, ProtocolValidationResponseDTO, MultiIntentSplitRequest, MultiIntentSplitResponseDTO
+"""Pydantic schemas for procedure-shaped experience memories and dual-node retrieval.
+
+[INPUT]
+- pydantic::{BaseModel, ConfigDict, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- ProcedureMemoryEntryDTO, RegisterProcedureMemoryRequest: procedure memory entry and its registration
+- DualNodeRetrievalRequest, DualNodeRetrievalResponseDTO: fixed-count dual-node retrieval
+- ProtocolValidationResponseDTO: protocol violations of an entry
+- MultiIntentSplitRequest, MultiIntentSplitResponseDTO: splitting a text into intent fragments
+
+[POS]
+API contracts of procedure experience memories, shared by its router and service.
+"""
 
 from __future__ import annotations
 

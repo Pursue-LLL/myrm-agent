@@ -1,6 +1,16 @@
-# [POS]: app/schemas/session_commit.py
-# [INPUT]: None (Pydantic models for Session Commit Two-Phase & Memory Diff Audit)
-# [OUTPUT]: SessionArchiveMessageDTO, SessionCommitRequest, SessionCommitResponseDTO, MemoryDiffItemDTO, MemoryDiffStatsDTO, MemoryDiffAuditResponseDTO, CommitTaskStatusResponseDTO
+"""Pydantic schemas for two-phase session commit and memory diff audit.
+
+[INPUT]
+- pydantic::{BaseModel, ConfigDict, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- SessionArchiveMessageDTO, SessionCommitRequest, SessionCommitResponseDTO: archived messages and the phase-1 commit
+- CommitTaskStatusResponseDTO: background commit task status
+- MemoryDiffItemDTO, MemoryDiffStatsDTO, MemoryDiffAuditResponseDTO: memory changes caused by a commit
+
+[POS]
+API contracts of two-phase session commit, shared by its router and service.
+"""
 
 from __future__ import annotations
 

@@ -1,6 +1,16 @@
-# [POS]: app/schemas/lineage_search.py
-# [INPUT]: Pydantic BaseModel, Field, and typing primitives
-# [OUTPUT]: Request and response DTO schemas for session lineage search and source demotion
+"""Pydantic schemas for session lineage search and source demotion.
+
+[INPUT]
+- pydantic::{BaseModel, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- SessionMetaDTO, ConversationMessageDTO, AddSessionRequestDTO/ResponseDTO, AddMessageRequestDTO/ResponseDTO: session and message ingestion
+- LineageSearchRequestDTO, HydratedSessionHitDTO, LineageSearchResponseDTO: lineage search with hydrated hits
+- LineageSearchStatsDTO: index statistics including hidden and demoted source counts
+
+[POS]
+API contracts of session lineage search, shared by its router and service.
+"""
 
 from __future__ import annotations
 

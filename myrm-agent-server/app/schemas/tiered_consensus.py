@@ -1,8 +1,15 @@
-# [POS]: app/schemas/tiered_consensus.py
-# [INPUT]: None (Standard library & Pydantic)
-# [OUTPUT]: TieredMemoryRecordDTO, ConsensusAuditLogDTO, ProposeRecordRequest, ReviewProposalRequest, RevokeConsensusRequest
+"""Pydantic schemas and DTOs for Tiered Memory Hierarchy & Proposed Consensus Flow (Item 114).
 
-"""Pydantic schemas and DTOs for Tiered Memory Hierarchy & Proposed Consensus Flow (Item 114)."""
+[INPUT]
+- pydantic::{BaseModel, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- TieredMemoryRecordDTO, ConsensusAuditLogDTO: tiered record and consensus audit entry
+- ProposeRecordRequest, ReviewProposalRequest, RevokeConsensusRequest: proposal, review and revocation requests
+
+[POS]
+API contracts of tiered memory consensus, shared by its router and service.
+"""
 
 from __future__ import annotations
 

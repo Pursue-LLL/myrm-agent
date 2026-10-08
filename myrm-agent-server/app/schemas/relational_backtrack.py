@@ -1,6 +1,15 @@
-# [POS]: app/schemas/relational_backtrack.py
-# [INPUT]: None (Pydantic models)
-# [OUTPUT]: TemporalRelationTripletDTO, RecordTripletRequest, RecordTripletResponse, RelationalBacktrackQueryRequest, RelationalBacktrackHitDTO, RelationalBacktrackResponseDTO
+"""Pydantic schemas for temporal relation triplets and cross-session relational backtracking.
+
+[INPUT]
+- pydantic::{BaseModel, ConfigDict, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- TemporalRelationTripletDTO, RecordTripletRequest, RecordTripletResponse: triplet record and its registration
+- RelationalBacktrackQueryRequest, RelationalBacktrackHitDTO, RelationalBacktrackResponseDTO: backtrack query and scored hits with an inferred answer
+
+[POS]
+API contracts of relational backtracking, shared by its router and service.
+"""
 
 from __future__ import annotations
 

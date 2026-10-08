@@ -1,8 +1,16 @@
-# [POS]: app/schemas/peer_gateway.py
-# [INPUT]: None (Standard library & Pydantic)
-# [OUTPUT]: ResolvedPeerIdentityDTO, PeerBoundaryCheckResultDTO, ResolvePeerRequest, VerifyBoundaryRequest, RegisterAliasRequest, EscalateHashRequest, EscalateHashResultDTO
+"""Pydantic schemas and DTOs for Multi-Channel Peer Alias & Anti-Cross-Contamination Gateway (Item 113).
 
-"""Pydantic schemas and DTOs for Multi-Channel Peer Alias & Anti-Cross-Contamination Gateway (Item 113)."""
+[INPUT]
+- pydantic::{BaseModel, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- ResolvedPeerIdentityDTO, ResolvePeerRequest: canonical peer resolution from a channel id
+- PeerBoundaryCheckResultDTO, VerifyBoundaryRequest: cross-peer boundary verification
+- RegisterAliasRequest, EscalateHashRequest, EscalateHashResultDTO: alias registration and hash-collision escalation
+
+[POS]
+API contracts of the multi-channel peer gateway, shared by its router and service.
+"""
 
 from __future__ import annotations
 

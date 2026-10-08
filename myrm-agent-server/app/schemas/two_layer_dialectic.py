@@ -1,8 +1,16 @@
-# [POS]: app/schemas/two_layer_dialectic.py
-# [INPUT]: None (Standard library & Pydantic)
-# [OUTPUT]: DialecticConflictCandidateDTO, DialecticReconciliationResultDTO, BaseContextPayloadDTO, TwoLayerContextInjectionResultDTO, DialecticInspectRequest, DialecticReconcileRequest, AssembleInjectionRequest
+"""Pydantic schemas and DTOs for Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation Suite (Item 112).
 
-"""Pydantic schemas and DTOs for Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation Suite (Item 112)."""
+[INPUT]
+- pydantic::{BaseModel, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- DialecticConflictCandidateDTO, DialecticReconciliationResultDTO: conflicting statements and the reconciliation result
+- BaseContextPayloadDTO, TwoLayerContextInjectionResultDTO: cached base context layer and the assembled two-layer injection
+- DialecticInspectRequest, DialecticReconcileRequest, AssembleInjectionRequest: endpoint payloads
+
+[POS]
+API contracts of two-layer context injection and dialectic reconciliation, shared by its router and service.
+"""
 
 from __future__ import annotations
 

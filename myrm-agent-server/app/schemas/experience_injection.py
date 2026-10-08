@@ -1,6 +1,16 @@
-# [POS]: app/schemas/experience_injection.py
-# [INPUT]: None (Pydantic models for Experience Injection Suite)
-# [OUTPUT]: InjectSkillExperienceRequest, InjectSkillExperienceResponseDTO, InjectSubagentExperienceRequest, InjectSubagentExperienceResponseDTO, PreWriteCheckRequest, PreWriteCheckResponseDTO
+"""Pydantic schemas for the experience injection suite (skill load, subagent spawn and pre-write check).
+
+[INPUT]
+- pydantic::{BaseModel, ConfigDict, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- InjectSkillExperienceRequest, InjectSkillExperienceResponseDTO: experience enrichment of a loaded skill body
+- InjectSubagentExperienceRequest, InjectSubagentExperienceResponseDTO: experience enrichment of a subagent task prompt
+- PreWriteCheckRequest, PreWriteCheckResponseDTO: pre-write context and verdict
+
+[POS]
+API contracts of experience injection, shared by its router and service.
+"""
 
 from __future__ import annotations
 

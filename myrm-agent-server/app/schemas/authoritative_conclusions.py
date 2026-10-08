@@ -1,8 +1,15 @@
-# [POS]: app/schemas/authoritative_conclusions.py
-# [INPUT]: None (Standard library & Pydantic)
-# [OUTPUT]: AuthoritativeConclusionDTO, ConclusionAuditRecordDTO, ConclusionAnchorProjectionDTO, WriteConclusionRequest, DeprecateConclusionRequest, DeleteConclusionRequest
+"""Pydantic schemas and DTOs for Explicit Authoritative Conclusions and Audit Tooling Suite (Item 111).
 
-"""Pydantic schemas and DTOs for Explicit Authoritative Conclusions and Audit Tooling Suite (Item 111)."""
+[INPUT]
+- pydantic::{BaseModel, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- AuthoritativeConclusionDTO, ConclusionAuditRecordDTO, ConclusionAnchorProjectionDTO: conclusion record, audit entry and prompt-anchor projection
+- WriteConclusionRequest, DeprecateConclusionRequest, DeleteConclusionRequest: write and lifecycle requests
+
+[POS]
+API contracts of the authoritative conclusions feature, shared by its router and service.
+"""
 
 from __future__ import annotations
 

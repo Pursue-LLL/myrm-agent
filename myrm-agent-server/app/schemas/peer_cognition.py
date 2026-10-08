@@ -1,8 +1,16 @@
-# [POS]: app/schemas/peer_cognition.py
-# [INPUT]: None (Standard library & Pydantic)
-# [OUTPUT]: PeerIdentityDTO, PeerRelationEdgeDTO, PeerPersonaCardDTO, PeerCognitionProjectionDTO, RegisterPeerRequest, AddRelationEdgeRequest, UpdatePersonaCardRequest, RecordInteractionRequest, GenerateProjectionRequest
+"""Pydantic schemas and DTOs for Peer-Centric Social Cognition and Persona Card Suite (Item 110).
 
-"""Pydantic schemas and DTOs for Peer-Centric Social Cognition and Persona Card Suite (Item 110)."""
+[INPUT]
+- pydantic::{BaseModel, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- PeerIdentityDTO, PeerRelationEdgeDTO, PeerPersonaCardDTO: peer identity, relation edge and persona card
+- PeerCognitionProjectionDTO, GenerateProjectionRequest: low-token prompt projection of selected peers
+- RegisterPeerRequest, AddRelationEdgeRequest, UpdatePersonaCardRequest, RecordInteractionRequest: write requests
+
+[POS]
+API contracts of peer social cognition and persona cards, shared by its router and service.
+"""
 
 from __future__ import annotations
 

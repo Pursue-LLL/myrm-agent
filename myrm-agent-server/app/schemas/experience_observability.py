@@ -1,8 +1,16 @@
-# [POS]: app/schemas/experience_observability.py
-# [INPUT]: None (Pydantic models for experience observability and host plugin)
-# [OUTPUT]: DTOs for experience observability triad dashboard and host plugin lifecycle
+"""Schemas for Zero-Refactor Host Lifecycle Plugin and Experience Observability Suite (Item 108).
 
-"""Schemas for Zero-Refactor Host Lifecycle Plugin and Experience Observability Suite (Item 108)."""
+[INPUT]
+- pydantic::{BaseModel, ConfigDict, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- ExperienceObservabilityMetricDTO, SessionTraceEvidenceDTO, ObservabilityDashboardResponseDTO: per-experience metrics, session trace evidence and the dashboard
+- HostPluginConfigDTO, UpdatePluginConfigRequest: host lifecycle plugin configuration
+- RecordRecallEventRequest, RecordEffectEventRequest: recall and effect event payloads
+
+[POS]
+API contracts of experience observability and the host lifecycle plugin, shared by its router and service.
+"""
 
 from __future__ import annotations
 

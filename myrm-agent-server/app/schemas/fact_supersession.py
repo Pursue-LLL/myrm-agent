@@ -1,6 +1,17 @@
-# [POS]: app/schemas/fact_supersession.py
-# [INPUT]: None (Pydantic models for Fact Supersession and Temporal Validity)
-# [OUTPUT]: TemporalFactRecordDTO, RegisterFactRequest, RegisterFactResponse, TimeTravelRecallRequest, DialecticRecallResponseDTO, QuarantineItemDTO, ResolveQuarantineRequest, FactHistoryResponseDTO
+"""Pydantic schemas for fact supersession, temporal validity and contradiction quarantine.
+
+[INPUT]
+- pydantic::{BaseModel, ConfigDict, Field} (POS: validated request and response models)
+
+[OUTPUT]
+- TemporalFactRecordDTO, FactHistoryResponseDTO: temporal fact record and its ancestor chain
+- RegisterFactRequest, RegisterFactResponse: fact registration with the action taken and an optional quarantine id
+- TimeTravelRecallRequest, DialecticRecallResponseDTO: as-of-time recall with active facts and superseded lineage
+- QuarantineItemDTO, ResolveQuarantineRequest: contradiction quarantine review
+
+[POS]
+API contracts of fact supersession and temporal validity, shared by its router and service.
+"""
 
 from __future__ import annotations
 
