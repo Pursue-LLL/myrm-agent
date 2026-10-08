@@ -9762,7 +9762,7 @@
       "edit": "Edit message",
       "saveEdit": "Save",
       "cancelEdit": "Cancel",
-      "stuck": "Queued messages couldn't be sent because the agent is still busy.",
+      "stuck": "Queued messages couldn't be sent yet and are on hold.",
       "placeholderExpanded": "Agent busy... Ctrl/⌘+Enter to steer · ⌥+Enter to queue follow-up",
       "pausedStopped": "Queue paused because you stopped the reply.",
       "resume": "Resume",

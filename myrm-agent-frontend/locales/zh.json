@@ -9761,7 +9761,7 @@
       "edit": "编辑消息",
       "saveEdit": "保存",
       "cancelEdit": "取消",
-      "stuck": "智能体仍在忙碌，排队消息暂时无法发送。",
+      "stuck": "排队消息暂时无法发送，已暂停。",
       "placeholderExpanded": "正在执行... Ctrl/⌘+Enter 引导纠偏 · ⌥+Enter 排队跟进",
       "pausedStopped": "你已停止回复，队列已暂停。",
       "resume": "继续发送",

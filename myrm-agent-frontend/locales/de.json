@@ -2292,7 +2292,7 @@
       "edit": "Nachricht bearbeiten",
       "saveEdit": "Speichern",
       "cancelEdit": "Abbrechen",
-      "stuck": "Die Nachrichten in der Warteschlange konnten nicht gesendet werden, weil der Agent noch beschäftigt ist.",
+      "stuck": "Die Nachrichten in der Warteschlange konnten noch nicht gesendet werden und sind pausiert.",
       "placeholderExpanded": "Agent beschäftigt... Strg/⌘+Enter zum Steuern · ⌥+Enter zum Einreihen",
       "pausedStopped": "Warteschlange pausiert, weil Sie die Antwort gestoppt haben.",
       "resume": "Fortsetzen",

@@ -2515,7 +2515,7 @@
       "edit": "編輯訊息",
       "saveEdit": "儲存",
       "cancelEdit": "取消",
-      "stuck": "智慧體仍在忙碌，排隊訊息暫時無法傳送。",
+      "stuck": "排隊訊息暫時無法傳送，已暫停。",
       "placeholderExpanded": "正在執行... Ctrl/⌘+Enter 引導糾偏 · ⌥+Enter 排隊跟進",
       "pausedStopped": "你已停止回覆，佇列已暫停。",
       "resume": "繼續傳送",

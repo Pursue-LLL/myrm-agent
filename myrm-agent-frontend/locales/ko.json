@@ -2294,7 +2294,7 @@
       "edit": "메시지 편집",
       "saveEdit": "저장",
       "cancelEdit": "취소",
-      "stuck": "에이전트가 아직 작업 중이라 대기열 메시지를 전송하지 못했습니다.",
+      "stuck": "대기열 메시지를 아직 전송하지 못해 일시 중지되었습니다.",
       "placeholderExpanded": "실행 중... Ctrl/⌘+Enter로 안내 · ⌥+Enter로 대기열에 추가",
       "pausedStopped": "응답을 중지하여 대기열이 일시 중지되었습니다.",
       "resume": "다시 시작",
