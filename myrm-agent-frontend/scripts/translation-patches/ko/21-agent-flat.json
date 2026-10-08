@@ -114,7 +114,7 @@
     "topP": "Top-P",
     "topPDesc": "핵심 샘플링 매개변수, 후보 토큰 범위 제한",
     "maxTokens": "최대 출력 토큰",
-    "maxTokensDesc": "단일 응답의 최대 토큰 수",
+    "maxTokensDesc": "단일 응답의 최대 길이(토큰 수)를 제한합니다. 추론 모델은 이 값이 사고와 답변에 부족하면 상한이 자동으로 높아집니다.",
     "maxTokensPlaceholder": "비워 두면 모델 기본값 사용",
     "precise": "정밀",
     "creative": "창의적",
