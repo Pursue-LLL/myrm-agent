@@ -55,6 +55,9 @@ from app.api.memory.client_partition import (
 from app.api.memory.code_memory_compaction_router import (
     router as code_memory_compaction_router,
 )
+from app.api.memory.codebase_diff_router import (
+    router as codebase_diff_router,
+)
 from app.api.memory.codegraph_router import router as codegraph_router
 from app.api.memory.conclusion_attribution_router import (
     router as conclusion_attribution_router,
@@ -278,9 +281,6 @@ from app.api.memory.revocable_provenance_router import (
 )
 from app.api.memory.rule_cascade_router import (
     router as rule_cascade_router,
-)
-from app.api.memory.codebase_diff_router import (
-    router as codebase_diff_router,
 )
 from app.api.memory.score_honesty_router import (
     router as score_honesty_router,
