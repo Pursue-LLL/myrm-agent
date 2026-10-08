@@ -14,15 +14,12 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
-
-# Bound at collection time: this directory's autouse fixture replaces the module attribute with a no-op
-# (extraction is off for every other test here), so the real function is only reachable through this import.
-from myrm_agent_harness.api.hooks import auto_extract_memories as real_auto_extract_memories
 from PIL import Image
 
 from tests.api.agent.utils import build_memory_e2e_embedding_retrieval_dict, get_model_selection
+from tests.support.memory_extraction_probe import ExtractionProbe, install_real_extraction_probe
 
-_EXTRACTION_POLL_ATTEMPTS = 12
+_EXTRACTION_POLL_ATTEMPTS = 40
 _EXTRACTION_POLL_INTERVAL_SEC = 3.0
 _NO_TOOLS = "只用一句话确认，禁止调用任何工具。"
 _FACT = f"我的项目强制要求使用 Python 3.14，绝对不能使用更老的版本。{_NO_TOOLS}"
@@ -38,7 +35,7 @@ def _noise_jpeg_data_url() -> str:
 
 
 def _send_turn(
-    client: TestClient, chat_id: str, query: str | list[dict[str, object]], retrieval: dict
+    client: TestClient, chat_id: str, query: str | list[dict[str, object]], retrieval: dict[str, object]
 ) -> list[dict[str, object]]:
     request = {
         "messageId": str(uuid.uuid4()),
@@ -61,6 +58,14 @@ def _send_turn(
     return events
 
 
+async def _wait_until_persisted(probe: ExtractionProbe) -> None:
+    """Extraction runs as a fire-and-forget task after the stream closes: wait for it, not a fixed delay."""
+    for _ in range(_EXTRACTION_POLL_ATTEMPTS):
+        if probe.saw_prompt_containing(_SCREENSHOT_TURN) and probe.persisted:
+            return
+        await asyncio.sleep(_EXTRACTION_POLL_INTERVAL_SEC)
+
+
 @pytest.mark.e2e
 @pytest.mark.timeout(480)
 @pytest.mark.skipif(not os.environ.get("BASIC_API_KEY"), reason="E2E test requires BASIC_API_KEY")
@@ -70,33 +75,7 @@ async def test_screenshot_turn_is_extracted_from_its_words_only(client: TestClie
     if retrieval is None:
         pytest.skip("No embedding credential")
 
-    from myrm_agent_harness.agent._internals import memory_extraction
-
-    monkeypatch.setattr(memory_extraction, "auto_extract_memories", real_auto_extract_memories)
-
-    extraction_prompts: list[list[dict[str, str]]] = []
-    build_messages = memory_extraction.build_extraction_messages
-
-    def _record(*args: object, **kwargs: object) -> list[dict[str, str]]:
-        messages = build_messages(*args, **kwargs)
-        extraction_prompts.append(messages)
-        return messages
-
-    monkeypatch.setattr(memory_extraction, "build_extraction_messages", _record)
-
-    persisted: list[tuple[list[str], int]] = []
-    persist = memory_extraction.persist_extracted_memories
-
-    async def _persist_recorder(memories: list[object], *args: object, **kwargs: object) -> int:
-        stored_count = await persist(memories, *args, **kwargs)  # type: ignore[arg-type]
-        persisted.append(([str(getattr(memory, "content", memory)) for memory in memories], stored_count))
-        return stored_count
-
-    monkeypatch.setattr(memory_extraction, "persist_extracted_memories", _persist_recorder)
-
-    def _screenshot_prompt_seen() -> bool:
-        return any(_SCREENSHOT_TURN in turn["content"] for prompt in extraction_prompts for turn in prompt)
-
+    probe = install_real_extraction_probe(monkeypatch)
     chat_id = f"mem-mm-{uuid.uuid4().hex[:8]}"
     data_url = _noise_jpeg_data_url()
 
@@ -110,23 +89,17 @@ async def test_screenshot_turn_is_extracted_from_its_words_only(client: TestClie
         ],
         retrieval,
     )
-
     for events in (fact_events, screenshot_events):
         assert any(event.get("type") == "message" for event in events), json.dumps(events, ensure_ascii=False)[:1500]
 
-    # Extraction runs as a fire-and-forget task after the stream closes; wait until it has persisted, not a fixed delay.
-    for _ in range(_EXTRACTION_POLL_ATTEMPTS):
-        if _screenshot_prompt_seen() and persisted:
-            break
-        await asyncio.sleep(_EXTRACTION_POLL_INTERVAL_SEC)
+    await _wait_until_persisted(probe)
 
-    prompt_text = json.dumps(extraction_prompts, ensure_ascii=False)
-    assert _screenshot_prompt_seen(), f"Post-turn extraction never ran on the screenshot turn: {prompt_text[:600]}"
+    prompt_text = probe.prompt_text()
+    assert probe.saw_prompt_containing(_SCREENSHOT_TURN), f"Extraction never ran on the screenshot turn: {probe.prompts}"
     assert "data:image" not in prompt_text
     assert data_url[60:120] not in prompt_text
     assert len(prompt_text) < len(data_url) // 4
 
-    extracted = [content for contents, _ in persisted for content in contents]
-    assert any("3.14" in content for content in extracted), f"The fact must survive extraction: {extracted}"
-    assert sum(stored_count for _, stored_count in persisted) >= 1, f"Nothing was persisted: {persisted}"
-    assert not any("base64" in content or "data:image" in content for content in extracted)
+    assert any("3.14" in content for content in probe.extracted_contents), probe.extracted_contents
+    assert probe.stored_count >= 1, probe.persisted
+    assert not any("base64" in content or "data:image" in content for content in probe.extracted_contents)

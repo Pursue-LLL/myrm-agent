@@ -69,7 +69,7 @@ async def adrop_sse_heartbeats(lines: AsyncIterator[str]) -> AsyncIterator[str]:
 
 
 def _is_sse(response: httpx.Response) -> bool:
-    return response.headers.get("content-type", "").startswith("text/event-stream")
+    return str(response.headers.get("content-type", "")).startswith("text/event-stream")
 
 
 def hide_sse_heartbeats(response: httpx.Response) -> None:
@@ -81,14 +81,14 @@ def hide_sse_heartbeats(response: httpx.Response) -> None:
     """
     if _is_sse(response):
         iter_lines = response.iter_lines
-        response.iter_lines = lambda: drop_sse_heartbeats(iter_lines())
+        response.iter_lines = lambda: drop_sse_heartbeats(iter_lines())  # type: ignore[method-assign]
 
 
 async def hide_sse_heartbeats_async(response: httpx.Response) -> None:
     """`hide_sse_heartbeats` for `httpx.AsyncClient`: `aiter_lines()` yields application events only."""
     if _is_sse(response):
         aiter_lines = response.aiter_lines
-        response.aiter_lines = lambda: adrop_sse_heartbeats(aiter_lines())
+        response.aiter_lines = lambda: adrop_sse_heartbeats(aiter_lines())  # type: ignore[method-assign]
 
 
 # 顶层 error 事件中可识别为环境问题（而非真实 Agent bug）的关键字
