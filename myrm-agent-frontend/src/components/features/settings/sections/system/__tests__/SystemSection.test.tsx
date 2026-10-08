@@ -116,7 +116,15 @@ describe('SystemSection staged toggles', () => {
     mocks.updateWebuiProtection.mockResolvedValue(undefined);
     mocks.invoke.mockImplementation((cmd: string) => {
       if (cmd === 'screen_lock_platform_support') {
-        return Promise.resolve({ detection: true, unlock: true, keychain: true, platform: 'macos' });
+        return Promise.resolve({
+          detection: true,
+          unlock: true,
+          keychain: true,
+          curtain_supported: true,
+          curtain_capture_excluded_on_desktop: true,
+          curtain_capture_exclusion_ready: true,
+          platform: 'macos',
+        });
       }
       return Promise.resolve(false);
     });
