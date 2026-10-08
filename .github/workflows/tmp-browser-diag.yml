@@ -65,6 +65,15 @@ jobs:
                       obj.call_soon_threadsafe(cb)
               print(subprocess.run(["ps", "-eo", "pid,ppid,stat,etime,cmd", "--sort=start_time"], capture_output=True, text=True).stdout[-3000:], file=sys.stderr, flush=True)
 
+          def pytest_configure(config):
+              import os, traceback
+              import myrm_agent_harness.toolkits.browser.pool.browser_pool as bp
+              real_init = bp.GlobalBrowserPool.__init__
+              def spy(self, *a, **k):
+                  print(f"[diag] POOL INIT during {os.environ.get('PYTEST_CURRENT_TEST', '<collection>')}\n" + "".join(traceback.format_stack(limit=10)[:-1]), file=sys.stderr, flush=True)
+                  real_init(self, *a, **k)
+              bp.GlobalBrowserPool.__init__ = spy
+
           _seen = {"state": False}
 
           def _pool_state():
