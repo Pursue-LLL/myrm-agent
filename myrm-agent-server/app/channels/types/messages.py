@@ -1,4 +1,4 @@
-"""Core message types: inbound, outbound, media, rendering and streaming.
+"""Core message types: inbound, outbound, media and rendering.
 
 [INPUT]
 - channels.types.components::ComponentRow, QuickReply, ToolStep (POS: UI component types)
@@ -7,12 +7,10 @@
 - InboundMessage, OutboundMessage: inbound/outbound messages
 - MediaAttachment, MediaType: media attachments
 - RenderStyle, ToolSummaryDisplay: rendering configuration
-- ProgressUpdate, StreamingText: streaming transport
-- VoiceConfig, TTSMode, STTResult: voice configuration
 
 [POS]
-Core message type definitions. All cross-channel communication data structures
-are defined here; zero I/O, pure data.
+Core message type definitions shared by every channel; topic routing, stream
+events and voice configuration live in sibling modules. Zero I/O, pure data.
 """
 
 from __future__ import annotations
@@ -23,7 +21,6 @@ from enum import IntEnum, StrEnum
 
 from .components import ComponentRow, QuickReply, ToolStep
 from .status import ChannelCapabilities
-from .thread_sharing import ThreadSharingMode
 
 
 class MessagePriority(IntEnum):
@@ -470,189 +467,3 @@ class InboundMessage:
             user_id=self.user_id,
             locale=locale_val,
         )
-
-
-class ReplyMode(StrEnum):
-    """Controls whether outbound channel replies require human review."""
-
-    AUTO = "auto"
-    DRAFT_REVIEW = "draft_review"
-
-
-class DraftTimeoutAction(StrEnum):
-    """What happens when a draft review approval expires."""
-
-    AUTO_SEND = "auto_send"
-    AUTO_REJECT = "auto_reject"
-
-
-class IdentityScopeMode(StrEnum):
-    """Team-shared identity scope for a topic/channel binding.
-
-    - ``INHERIT`` (default): use the channel baseline shared identity.
-    - ``SHARED``: this binding carries its own named shared identity.
-    - ``PRIVATE``: independent identity, no baseline inheritance.
-    """
-
-    INHERIT = "inherit"
-    SHARED = "shared"
-    PRIVATE = "private"
-
-
-@dataclass(frozen=True, slots=True)
-class TopicContext:
-    """Per-topic configuration for forum-style thread routing.
-
-    When a message arrives from a forum topic (e.g. Telegram supergroup topic),
-    this context carries topic-specific overrides that affect session isolation
-    and Agent selection.
-
-    ``thread_sharing_mode``: Controls chat history visibility within a thread.
-    - ``isolated`` (default): Each user has their own conversation history.
-    - ``shared``: All users in the thread share the same conversation history,
-      enabling collaborative scenarios (Discord Forum, Telegram Forum Topics).
-
-    ``reply_mode``: Controls outbound message delivery.
-    - ``auto`` (default): Agent replies are sent immediately (existing behavior).
-    - ``draft_review``: Agent replies are held as drafts for human approval
-      before being sent to the channel. Essential for enterprise customer
-      service and sales scenarios where AI responses need quality control.
-
-    ``identity_scope`` / ``identity_id`` / ``identity_name``: Team-shared
-    identity attached to this binding. ``identity_name`` is display-only;
-    routing and audit always use the stable ``identity_id``. ``revoked``
-    freezes the identity (routes to the default agent, keeps stored memory
-    for a later rejoin) without deleting the binding.
-
-    ``completion_receipts``: Post a delivery receipt in the origin thread
-    when a long/delegated task finishes (default on).
-    ``stall_nudge``: Proactively @-mention on stalled threads with pending
-    items (default off, explicit opt-in).
-    """
-    topic_id: str
-    agent_id: str | None = None
-    project_id: str | None = None
-    authorized_path: str | None = None
-    enabled: bool = True
-    bound_at: str | None = None
-    matched_by: str | None = None
-    thread_sharing_mode: ThreadSharingMode = ThreadSharingMode.ISOLATED
-    reply_mode: ReplyMode = ReplyMode.AUTO
-    draft_timeout_minutes: int = 5
-    draft_timeout_action: DraftTimeoutAction = DraftTimeoutAction.AUTO_REJECT
-    personality_style: str | None = None
-    identity_scope: IdentityScopeMode = IdentityScopeMode.INHERIT
-    identity_id: str | None = None
-    identity_name: str | None = None
-    identity_revoked: bool = False
-    completion_receipts: bool = True
-    stall_nudge: bool = False
-
-
-@dataclass(frozen=True, slots=True)
-class ProgressUpdate:
-    """A human-readable progress label emitted during Agent execution.
-
-    Yielded by AgentExecutor.execute_stream() between tool calls.
-    Consumed by AgentRouter to edit Placeholder messages in real-time.
-
-    When ``quick_replies`` is non-empty, the Router sends them alongside
-    the progress text — enabling interactive prompts like tool approval
-    buttons in IM channels.
-    """
-
-    label: str
-    quick_replies: tuple[QuickReply, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class FissionTopologyNode:
-    """Represents a single subagent node in a Fission topology map."""
-
-    node_id: str
-    agent_type: str
-    objective: str
-    status: str  # "pending", "running", "completed", "failed", "paused"
-    error: str | None = None
-    cost_usd: float = 0.0
-
-
-@dataclass(frozen=True, slots=True)
-class FissionTopologyUpdate:
-    """A structured update for a Swarm Fission topology map.
-
-    Yielded by AgentExecutor.execute_stream() when subagents spawn, update status, or complete.
-    Consumed by Frontend GUI to render a React Flow DAG representing the parallel task execution.
-    """
-
-    fission_id: str
-    nodes: tuple[FissionTopologyNode, ...]
-    total_cost_usd: float = 0.0
-
-
-@dataclass(frozen=True, slots=True)
-class StreamingText:
-    """Accumulated streaming text snapshot emitted during answer generation.
-
-    Yielded by AgentExecutor.execute_stream() as the LLM generates tokens.
-    Consumed by AgentRouter to progressively edit Placeholder messages,
-    giving users real-time visibility into the response being generated.
-    The ``text`` field contains the full accumulated text (not a delta).
-    """
-
-    text: str
-
-
-# ---------------------------------------------------------------------------
-# Voice STT/TTS types
-# ---------------------------------------------------------------------------
-
-
-class TTSMode(StrEnum):
-    """Controls when Agent replies are converted to audio."""
-
-    OFF = "off"
-    ALWAYS = "always"
-    INBOUND = "inbound"
-
-
-@dataclass(frozen=True, slots=True)
-class VoiceConfig:
-    """Combined STT + TTS configuration injected by the business layer.
-
-    STT: transcribes inbound voice messages to text before Agent processing.
-    TTS: converts Agent text replies to audio before sending.
-    """
-
-    stt_enabled: bool = False
-    stt_provider: str = "openai"
-    stt_api_key: str = ""
-    stt_model: str = "whisper-1"
-    stt_language: str | None = None
-
-    stt_local_model: str = "base"
-    stt_local_device: str = "auto"
-    stt_local_compute_type: str = "auto"
-    stt_base_url: str = ""
-
-    tts_mode: TTSMode = TTSMode.OFF
-    tts_provider: str = "edge"
-    tts_api_key: str = ""
-    tts_base_url: str = ""
-    tts_voice: str = ""
-    tts_speed: float = 1.0
-    tts_pitch: float = 0.0
-    tts_max_length: int = 4000
-
-    tts_summary_enabled: bool = True
-    tts_summary_threshold: int = 1500
-    tts_summary_model: str = ""
-
-
-@dataclass(frozen=True, slots=True)
-class STTResult:
-    """Result of speech-to-text transcription."""
-
-    text: str
-    language: str | None = None
-    duration: float | None = None
