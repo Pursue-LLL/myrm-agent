@@ -9004,7 +9004,22 @@
     "redactionReview": {
       "title": "脱敏预览",
       "toggleAll": "全选 / 全不选",
-      "line": "第 {number} 行"
+      "line": "第 {number} 行",
+      "kinds": {
+        "api_token": "API 密钥或令牌",
+        "environment_variable": "环境变量",
+        "config_secret": "配置密钥",
+        "json_secret_field": "JSON 密钥字段",
+        "database_credential": "数据库凭据",
+        "url_secret_parameter": "链接中的密钥参数",
+        "url_credential": "链接中的账号凭据",
+        "cli_secret_flag": "命令行密钥参数",
+        "telegram_bot_token": "Telegram 机器人令牌",
+        "authorization_header": "授权请求头",
+        "private_key": "私钥",
+        "absolute_path": "本机文件路径",
+        "unknown": "敏感信息"
+      }
     }
   },
   "chat": {

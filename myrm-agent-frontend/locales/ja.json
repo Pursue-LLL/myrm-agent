@@ -1813,7 +1813,22 @@
     "redactionReview": {
       "title": "匿名化プレビュー",
       "toggleAll": "すべて切り替え",
-      "line": "{number} 行目"
+      "line": "{number} 行目",
+      "kinds": {
+        "api_token": "APIキーまたはトークン",
+        "environment_variable": "環境変数",
+        "config_secret": "設定内のシークレット",
+        "json_secret_field": "JSONのシークレット項目",
+        "database_credential": "データベース認証情報",
+        "url_secret_parameter": "URL内のシークレットパラメータ",
+        "url_credential": "URL内の認証情報",
+        "cli_secret_flag": "コマンドラインのシークレット",
+        "telegram_bot_token": "Telegramボットトークン",
+        "authorization_header": "認可ヘッダー",
+        "private_key": "秘密鍵",
+        "absolute_path": "ローカルのファイルパス",
+        "unknown": "機密情報"
+      }
     }
   },
   "chat": {
@@ -12893,6 +12908,8 @@
     },
     "privacyCurtain": {
       "title": "プライバシーカーテン",
+      "platformUnsupported": "このプラットフォーム（{platform}）では Privacy Curtain を利用できません。macOS または Windows の Myrm デスクトップアプリをご利用ください。",
+      "captureExclusionUnavailable": "この PC ではカーテンを画面キャプチャから除外できません（Windows 10 バージョン 2004 以降が必要です）。誤解を避けるため、カーテンの展開は無効です。",
       "autoTitle": "ロック時の自動展開",
       "autoDesc": "画面ロックして離席した瞬間に全画面を遮蔽します。通行人には黒いボードだけが見えます",
       "activeBadge": "カーテン展開中",
@@ -18045,6 +18062,9 @@
       "mode": {
         "desktop": "デスクトップ",
         "webui": "WebUI"
+      },
+      "unattendedDesktop": {
+        "title": "無人デスクトップ"
       },
       "copied": "コピーしました",
       "saved": "保存しました",

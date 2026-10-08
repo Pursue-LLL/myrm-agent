@@ -9004,7 +9004,22 @@
     "redactionReview": {
       "title": "Redaction Preview",
       "toggleAll": "Toggle All",
-      "line": "Line {number}"
+      "line": "Line {number}",
+      "kinds": {
+        "api_token": "API key or token",
+        "environment_variable": "Environment variable",
+        "config_secret": "Config secret",
+        "json_secret_field": "JSON secret field",
+        "database_credential": "Database credential",
+        "url_secret_parameter": "URL secret parameter",
+        "url_credential": "URL credential",
+        "cli_secret_flag": "Command-line secret",
+        "telegram_bot_token": "Telegram bot token",
+        "authorization_header": "Authorization header",
+        "private_key": "Private key",
+        "absolute_path": "Local file path",
+        "unknown": "Sensitive information"
+      }
     }
   },
   "chat": {

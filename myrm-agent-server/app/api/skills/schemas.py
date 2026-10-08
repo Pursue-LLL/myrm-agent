@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Mapping, Sequence
 
-from myrm_agent_harness.agent.skills.security.content_sanitizer import Redaction
+from myrm_agent_harness.agent.skills.security.content_sanitizer import Redaction, SecretKind
 from pydantic import BaseModel
 
 from app.core.skills.models import Skill
@@ -241,7 +241,7 @@ class RedactionResponse(BaseModel):
     line_number: int
     original: str
     redacted: str
-    reason: str
+    kinds: list[SecretKind]
 
 
 def redaction_responses(redactions: Mapping[str, Sequence[Redaction]]) -> dict[str, list[RedactionResponse]]:
@@ -249,7 +249,7 @@ def redaction_responses(redactions: Mapping[str, Sequence[Redaction]]) -> dict[s
     return {
         path: [
             RedactionResponse(
-                line_number=item["line_number"], original=item["original"], redacted=item["redacted"], reason=item["reason"]
+                line_number=item["line_number"], original=item["original"], redacted=item["redacted"], kinds=item["kinds"]
             )
             for item in findings
         ]

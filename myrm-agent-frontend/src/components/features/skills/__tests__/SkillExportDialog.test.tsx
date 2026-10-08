@@ -30,7 +30,7 @@ const TRANSLATIONS: Record<string, string> = {
   changedSinceReview: 'changedSinceReview',
 };
 
-const stableT = (key: string, values?: Record<string, string | number>): string => {
+const translate = (key: string, values?: Record<string, string | number>): string => {
   let text = TRANSLATIONS[key] ?? key;
   if (values) {
     for (const [k, v] of Object.entries(values)) {
@@ -39,6 +39,7 @@ const stableT = (key: string, values?: Record<string, string | number>): string 
   }
   return text;
 };
+const stableT = Object.assign(translate, { has: () => true });
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -168,7 +169,7 @@ describe('SkillExportDialog', () => {
             line_number: 3,
             original: 'api_key=sk-secret',
             redacted: 'api_key=<REDACTED>',
-            reason: 'API key',
+            kinds: ['api_token'],
           },
         ],
       },

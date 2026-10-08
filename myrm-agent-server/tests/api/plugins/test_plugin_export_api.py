@@ -110,7 +110,8 @@ class TestPreview:
         (finding,) = body["redactions"][PROMPT_PATH]
         assert TOKEN in finding["original"]
         assert TOKEN not in finding["redacted"]
-        assert set(finding) == {"line_number", "original", "redacted", "reason"}
+        assert set(finding) == {"line_number", "original", "redacted", "kinds"}
+        assert finding["kinds"] == ["api_token"]
 
     def test_a_clean_expert_has_no_findings(self, client: TestClient, world: ExportWorld) -> None:
         world.expert("lead", "Lead")

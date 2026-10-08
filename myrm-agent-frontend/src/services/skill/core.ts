@@ -300,11 +300,26 @@ export interface UploadSkillResponse {
   restored_eval_cases: number;
 }
 
+/** What a redaction finding detected; the review panel renders each kind in the user's language. */
+export type SecretKind =
+  | 'api_token'
+  | 'environment_variable'
+  | 'config_secret'
+  | 'json_secret_field'
+  | 'database_credential'
+  | 'url_secret_parameter'
+  | 'url_credential'
+  | 'cli_secret_flag'
+  | 'telegram_bot_token'
+  | 'authorization_header'
+  | 'private_key'
+  | 'absolute_path';
+
 export interface RedactionResponse {
   line_number: number;
   original: string;
   redacted: string;
-  reason: string;
+  kinds: SecretKind[];
 }
 
 export interface PackagePreviewResponse {

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/lib/api';
 import type { ExpertExportPreview } from '@/services/expertPackage';
+import type { RedactionResponse } from '@/services/skill';
 
 import ExpertExportDialog from '../ExpertExportDialog';
 
@@ -32,10 +33,10 @@ vi.mock('@/services/expertPackage', async (importOriginal) => {
   return { ...actual, previewExpertExport: previewMock, downloadExpertPackage: downloadMock };
 });
 
-const FINDINGS = {
+const FINDINGS: Record<string, RedactionResponse[]> = {
   'agents/report-lead.md': [
-    { line_number: 3, original: 'token=sk-1', redacted: 'token=<REDACTED>', reason: 'API key' },
-    { line_number: 9, original: 'password=abc', redacted: 'password=<REDACTED>', reason: 'Password' },
+    { line_number: 3, original: 'token=sk-1', redacted: 'token=<REDACTED>', kinds: ['api_token'] },
+    { line_number: 9, original: 'password=abc', redacted: 'password=<REDACTED>', kinds: ['config_secret'] },
   ],
 };
 

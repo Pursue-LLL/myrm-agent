@@ -1813,7 +1813,22 @@
     "redactionReview": {
       "title": "脫敏預覽",
       "toggleAll": "全選 / 全不選",
-      "line": "第 {number} 行"
+      "line": "第 {number} 行",
+      "kinds": {
+        "api_token": "API 金鑰或權杖",
+        "environment_variable": "環境變數",
+        "config_secret": "設定密鑰",
+        "json_secret_field": "JSON 密鑰欄位",
+        "database_credential": "資料庫憑證",
+        "url_secret_parameter": "連結中的密鑰參數",
+        "url_credential": "連結中的帳號憑證",
+        "cli_secret_flag": "命令列密鑰參數",
+        "telegram_bot_token": "Telegram 機器人權杖",
+        "authorization_header": "授權標頭",
+        "private_key": "私密金鑰",
+        "absolute_path": "本機檔案路徑",
+        "unknown": "敏感資訊"
+      }
     }
   },
   "chat": {
@@ -12893,6 +12908,8 @@
     },
     "privacyCurtain": {
       "title": "工位防窺帷幕",
+      "platformUnsupported": "目前平台（{platform}）不支援工位防窺帷幕，請在 macOS 或 Windows 上使用 Myrm 桌面用戶端。",
+      "captureExclusionUnavailable": "本機無法從螢幕擷取中排除帷幕（Windows 需 2004 及以上）。已停用拉起帷幕，避免自動化截圖誤以為已防窺。",
       "autoTitle": "鎖屏離機自動拉起",
       "autoDesc": "鎖屏離開的瞬間全螢幕遮蔽，路過者只見黑色看板",
       "activeBadge": "帷幕已拉起",
@@ -18045,6 +18062,9 @@
       "mode": {
         "desktop": "桌面",
         "webui": "WebUI"
+      },
+      "unattendedDesktop": {
+        "title": "無人值守桌面"
       },
       "copied": "已複製",
       "saved": "儲存成功",

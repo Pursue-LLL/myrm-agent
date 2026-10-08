@@ -1813,7 +1813,22 @@
     "redactionReview": {
       "title": "Schwärzungsvorschau",
       "toggleAll": "Alle umschalten",
-      "line": "Zeile {number}"
+      "line": "Zeile {number}",
+      "kinds": {
+        "api_token": "API-Schlüssel oder Token",
+        "environment_variable": "Umgebungsvariable",
+        "config_secret": "Geheimnis in der Konfiguration",
+        "json_secret_field": "Geheimes JSON-Feld",
+        "database_credential": "Datenbank-Zugangsdaten",
+        "url_secret_parameter": "Geheimer URL-Parameter",
+        "url_credential": "Zugangsdaten in der URL",
+        "cli_secret_flag": "Geheimer Kommandozeilenparameter",
+        "telegram_bot_token": "Telegram-Bot-Token",
+        "authorization_header": "Authorization-Header",
+        "private_key": "Privater Schlüssel",
+        "absolute_path": "Lokaler Dateipfad",
+        "unknown": "Vertrauliche Information"
+      }
     }
   },
   "chat": {
@@ -12893,6 +12908,8 @@
     },
     "privacyCurtain": {
       "title": "Privatsphäre-Vorhang",
+      "platformUnsupported": "Privacy Curtain ist auf dieser Plattform ({platform}) nicht verfügbar. Bitte die Myrm-Desktop-App unter macOS oder Windows verwenden.",
+      "captureExclusionUnavailable": "Dieser PC kann den Vorhang nicht von Bildschirmaufnahmen ausschließen (Windows 10 Version 2004 oder neuer erforderlich). Das Ausklappen ist deaktiviert, damit automatisierte Screenshots nicht irreführend sind.",
       "autoTitle": "Automatisch beim Sperren",
       "autoDesc": "Sobald Sie den Bildschirm sperren und gehen, werden alle Displays abgedunkelt, Vorbeigehende sehen nur das schwarze Board",
       "activeBadge": "Vorhang aktiv",
@@ -18045,6 +18062,9 @@
       "mode": {
         "desktop": "Desktop-App",
         "webui": "WebUI"
+      },
+      "unattendedDesktop": {
+        "title": "Unbeaufsichtigter Desktop"
       },
       "copied": "Kopiert",
       "saved": "Erfolgreich gespeichert",
