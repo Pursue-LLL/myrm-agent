@@ -86,6 +86,9 @@ from app.api.memory.directory_dominance_router import (
 from app.api.memory.disk_reconciliation_router import (
     router as disk_reconciliation_router,
 )
+from app.api.memory.document_attachment_router import (
+    router as document_attachment_router,
+)
 from app.api.memory.dream_cognitive_router import (
     router as dream_cognitive_router,
 )
@@ -614,6 +617,10 @@ router.include_router(
 router.include_router(
     durable_revision_router,
     tags=["memory-durable-revision"],
+)
+router.include_router(
+    document_attachment_router,
+    tags=["memory-document-attachment"],
 )
 
 
