@@ -611,6 +611,7 @@ myrm_agent_harness.toolkits.memory.auto_recall
 myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.budget_curator
 myrm_agent_harness.toolkits.memory.client_partition
+myrm_agent_harness.toolkits.memory.codebase_diff_fallback
 myrm_agent_harness.toolkits.memory.codegraph
 myrm_agent_harness.toolkits.memory.compaction
 myrm_agent_harness.toolkits.memory.conclusion_attribution

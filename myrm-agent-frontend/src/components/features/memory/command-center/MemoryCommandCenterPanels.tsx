@@ -96,6 +96,7 @@ import { ProactiveDecisionAssistStudioCard } from './ProactiveDecisionAssistStud
 import { ExperienceCompoundingStudioCard } from './ExperienceCompoundingStudioCard';
 import { ConclusionAttributionStudioCard } from './ConclusionAttributionStudioCard';
 import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
+import { CodebaseDiffInspectionCard } from './CodebaseDiffInspectionCard';
 
 
 
@@ -391,6 +392,9 @@ export const UnderstandSection = ({
 
     {/* Retrieval Score Honesty & Raw vs Ranking Inspection Card (Item 142 P1) */}
     <ScoreHonestyInspectionCard />
+
+    {/* Codebase Memory Large Diff Fallback Inspection Card (Item 144 P1) */}
+    <CodebaseDiffInspectionCard />
 
 
 

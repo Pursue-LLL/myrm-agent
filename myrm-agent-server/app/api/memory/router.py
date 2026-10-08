@@ -279,6 +279,9 @@ from app.api.memory.revocable_provenance_router import (
 from app.api.memory.rule_cascade_router import (
     router as rule_cascade_router,
 )
+from app.api.memory.codebase_diff_router import (
+    router as codebase_diff_router,
+)
 from app.api.memory.score_honesty_router import (
     router as score_honesty_router,
 )
@@ -642,4 +645,8 @@ router.include_router(
 router.include_router(
     score_honesty_router,
     tags=["memory-score-honesty"],
+)
+router.include_router(
+    codebase_diff_router,
+    tags=["memory-codebase-diff"],
 )
