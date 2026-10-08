@@ -22,7 +22,7 @@ import logging
 
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind
 from myrm_agent_harness.toolkits.memory.types import PendingRecord, PendingResolutionAction
-from sqlalchemy import desc, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.memory import PendingMemory
@@ -73,7 +73,7 @@ async def build_candidate_records(db: AsyncSession, manager: MemoryManager, *, l
         conflict_rows = await db.execute(
             select(PendingMemory)
             .where(PendingMemory.status == "pending", PendingMemory.is_conflict.is_(True))
-            .order_by(desc(PendingMemory.created_at))
+            .order_by(PendingMemory.created_at.desc())
             .limit(remaining)
         )
         candidates.extend(
