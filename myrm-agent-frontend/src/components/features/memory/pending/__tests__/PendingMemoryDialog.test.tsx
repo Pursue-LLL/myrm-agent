@@ -129,7 +129,7 @@ describe('PendingMemoryDialog', () => {
   });
 
   it('tells the user a suggestion is out of date instead of showing backend text', async () => {
-    mockApproveMemory.mockRejectedValue(new ApiError('Memory mem-1 changed after proposal pending-1 was queued', 409));
+    mockApproveMemory.mockRejectedValue(new ApiError('Memory mem-1 is no longer what proposal pending-1 was queued against (content_changed); review it again', 409));
     renderWithProviders(<PendingMemoryDialog />);
 
     fireEvent.click(screen.getByRole('button', { name: /Accept/i }));
