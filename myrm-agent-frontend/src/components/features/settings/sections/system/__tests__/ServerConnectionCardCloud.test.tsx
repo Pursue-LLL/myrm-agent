@@ -233,6 +233,20 @@ describe('ServerConnectionCard cloud connection', () => {
       expect(readRoster().activeId).toBe('p2');
     });
 
+    it('frees the seat when the user declines the running-session confirmation', async () => {
+      seedRoster();
+      stubBackends({ runningSessions: 1 });
+      render(<ServerConnectionCard />);
+
+      fireEvent.click(screen.getAllByText('save')[0]);
+      fireEvent.click(await screen.findByText('cancel'));
+
+      await waitFor(() => expect((screen.getAllByText('save')[0] as HTMLButtonElement).disabled).toBe(false));
+      expect((screen.getByLabelText('modeRemote') as HTMLButtonElement).disabled).toBe(false);
+      expect(mocks.switchRemoteFollow).not.toHaveBeenCalled();
+      expect(readRoster().activeId).toBe('p1');
+    });
+
     it('holds the seat from the click on disconnect and frees it once local is restored', async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       seedRoster();
