@@ -230,7 +230,6 @@ async def get_memory_economics(
     )
 
 
-
 @router.get("/graph", response_model=MemoryCommandGraphResponse)
 async def get_memory_graph(
     limit: int = 50,
@@ -380,7 +379,7 @@ async def run_memory_command_action(
     """Execute a GUI governance action from the command center."""
 
     if body.target_kind == "pending_memory":
-        await run_pending_action(body, db, memory_manager)
+        await run_pending_action(body, memory_manager)
     elif body.target_kind == "shared_context_proposal":
         await run_shared_proposal_action(body, db)
     elif body.target_kind == "conflict_pair" or body.action in ("keep_new", "keep_old", "coexist"):
@@ -388,17 +387,19 @@ async def run_memory_command_action(
     else:
         await run_memory_action(body, memory_manager)
 
-    await MemoryOperationLedgerService(db).record_event(
-        kind=action_to_operation(body.action),
-        status=MemoryOperationStatus.SUCCESS,
-        summary=f"Command center action {body.action} completed for {body.target_kind}:{body.target_id}.",
-        memory_id=body.target_id if body.target_kind == "memory" else None,
-        memory_type=body.memory_type,
-        source="memory_command_center",
-        target_kind=body.target_kind,
-        target_id=body.target_id,
-        commit=True,
-    )
+    # The pending-review service writes its own, richer ledger events.
+    if body.target_kind != "pending_memory":
+        await MemoryOperationLedgerService(db).record_event(
+            kind=action_to_operation(body.action),
+            status=MemoryOperationStatus.SUCCESS,
+            summary=f"Command center action {body.action} completed for {body.target_kind}:{body.target_id}.",
+            memory_id=body.target_id if body.target_kind == "memory" else None,
+            memory_type=body.memory_type,
+            source="memory_command_center",
+            target_kind=body.target_kind,
+            target_id=body.target_id,
+            commit=True,
+        )
     return MemoryCommandActionResponse(
         status="success",
         target_kind=body.target_kind,

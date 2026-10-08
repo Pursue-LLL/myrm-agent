@@ -1,7 +1,7 @@
 """Memory Command Center Action Handlers.
 
 [INPUT]
-app.database.models.memory::{PendingMemory}
+app.services.memory.operations.pending_review::{approve_pending, reject_pending} (POS: 审批队列统一审批与审计入口)
 app.schemas.memory.command_center::{MemoryCommandActionRequest}
 myrm_agent_harness.toolkits.memory::{MemoryManager, MemoryOperationKind, MemoryType, MemoryStatus}
 app.services.memory.shared_context.shared_context::SharedContextService
@@ -11,7 +11,7 @@ app.services.memory.shared_context.shared_context_materializer::SharedContextPro
 Functions: `run_pending_action`, `run_shared_proposal_action`, `run_memory_action`, `action_to_operation`.
 
 [POS]
-记忆指挥中心动作执行实现层。处理 GUI 治理动作（审批、拒绝、编辑、修正、Pin/Unpin、遗忘）。
+记忆指挥中心动作执行实现层。处理 GUI 治理动作（审批、拒绝、编辑、修正、Pin/Unpin、遗忘）。待审批记忆的批准/拒绝走审批队列的统一审批入口。
 """
 
 from __future__ import annotations
@@ -19,43 +19,39 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 from myrm_agent_harness.toolkits.memory import (
     MemoryManager,
+    MemoryNotFoundError,
     MemoryOperationKind,
     MemoryType,
 )
 from myrm_agent_harness.toolkits.memory.types import MemoryStatus
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.memory import PendingMemory
 from app.schemas.memory.command_center import MemoryCommandActionRequest
+from app.services.memory.operations.pending_review import (
+    PendingReviewSource,
+    approve_pending,
+    reject_pending,
+)
 from app.services.memory.shared_context.shared_context import SharedContextService
 from app.services.memory.shared_context.shared_context_materializer import (
     SharedContextProposalMaterializer,
 )
 
 
-async def run_pending_action(body: MemoryCommandActionRequest, db: AsyncSession, manager: MemoryManager) -> None:
-    pending = await db.get(PendingMemory, body.target_id)
-    if pending is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending memory not found")
-    if body.action == "approve":
-        await manager.approve(body.target_id)
-        return
-    if body.action == "reject":
-        await manager.reject(body.target_id)
-        return
-    if body.action == "edit":
-        if not body.content or not body.content.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Edited memory content is required",
-            )
-        pending.content = body.content.strip()
-        await db.commit()
-        return
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Unsupported pending memory action",
-    )
+async def run_pending_action(body: MemoryCommandActionRequest, manager: MemoryManager) -> None:
+    """Approve or reject a queued proposal; editing happens in the review dialog via ``edited_content``."""
+    if body.action not in ("approve", "reject"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported pending memory action",
+        )
+    try:
+        if body.action == "approve":
+            await approve_pending(manager, body.target_id, source=PendingReviewSource.COMMAND_CENTER)
+        else:
+            await reject_pending(manager, body.target_id, source=PendingReviewSource.COMMAND_CENTER)
+    except MemoryNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending memory not found") from exc
 
 
 async def run_shared_proposal_action(body: MemoryCommandActionRequest, db: AsyncSession) -> None:

@@ -1,4 +1,4 @@
-"""`/memory` pending review in IM: correct/forget proposals disclose their target."""
+"""`/memory` pending review in IM: proposals disclose their target and approvals go through the audited review service."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from myrm_agent_harness.toolkits.memory.types import (
 
 from app.channels.routing.commands.router_commands_memory import RouterCommandsMemoryMixin
 from app.channels.types.messages import InboundMessage
+from app.services.memory.operations.pending_review import PendingReviewSource
 
 
 def _record(
@@ -32,7 +33,7 @@ def _record(
     )
 
 
-async def _render_pending_list(records: list[PendingRecord], *, locale: str) -> str:
+async def _run_memory_command(records: list[PendingRecord], raw_args: str, *, locale: str = "en") -> tuple[str, MagicMock]:
     manager = MagicMock()
     manager.list_pending = AsyncMock(return_value=records)
     host = MagicMock()
@@ -43,9 +44,14 @@ async def _render_pending_list(records: list[PendingRecord], *, locale: str) -> 
         patch("app.services.agent.platform_config.require_platform_embedding_config", AsyncMock()),
         patch("app.core.memory.adapters.setup.create_memory_manager", AsyncMock(return_value=manager)),
     ):
-        await RouterCommandsMemoryMixin._handle_memory_command(host, msg, "")
+        await RouterCommandsMemoryMixin._handle_memory_command(host, msg, raw_args)
 
-    return str(host._bus.publish_outbound.await_args.args[0].content)
+    return str(host._bus.publish_outbound.await_args.args[0].content), manager
+
+
+async def _render_pending_list(records: list[PendingRecord], *, locale: str) -> str:
+    content, _ = await _run_memory_command(records, "", locale=locale)
+    return content
 
 
 @pytest.mark.asyncio
@@ -88,3 +94,33 @@ async def test_pending_list_target_lines_are_localised() -> None:
 
     assert "将替换：" in content
     assert "Replaces:" not in content
+
+
+@pytest.mark.asyncio
+async def test_approve_by_short_id_goes_through_the_audited_review_service() -> None:
+    records = [_record("aaaaaaaa-1", "User now works at Google")]
+
+    with (
+        patch("app.services.memory.operations.pending_review.approve_pending", AsyncMock()) as approve,
+        patch("app.services.memory.operations.pending_review.reject_pending", AsyncMock()) as reject,
+    ):
+        content, manager = await _run_memory_command(records, "approve aaaaaaaa")
+
+    approve.assert_awaited_once_with(manager, "aaaaaaaa-1", source=PendingReviewSource.CHANNEL)
+    reject.assert_not_awaited()
+    assert "aaaaaaaa" in content
+
+
+@pytest.mark.asyncio
+async def test_reject_and_approve_all_use_the_review_service() -> None:
+    records = [_record("aaaaaaaa-1", "one"), _record("bbbbbbbb-2", "two")]
+
+    with (
+        patch("app.services.memory.operations.pending_review.approve_pending", AsyncMock()) as approve,
+        patch("app.services.memory.operations.pending_review.reject_pending", AsyncMock()) as reject,
+    ):
+        _, manager = await _run_memory_command(records, "reject bbbbbbbb")
+        await _run_memory_command(records, "approve all")
+
+    reject.assert_awaited_once_with(manager, "bbbbbbbb-2", source=PendingReviewSource.CHANNEL)
+    assert [call.args[1] for call in approve.await_args_list] == ["aaaaaaaa-1", "bbbbbbbb-2"]

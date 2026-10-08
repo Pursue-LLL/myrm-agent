@@ -1,7 +1,7 @@
 """Unit tests for the Memory Command Center action dispatchers.
 
 These exercise the GUI governance actions directly (no HTTP layer): pending
-approve/reject/edit, shared-proposal actions, conflict arbitration delegation,
+approve/reject, shared-proposal actions, conflict arbitration delegation,
 and the generic memory actions (correct / pin / unpin / forget).
 """
 
@@ -12,10 +12,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
-from myrm_agent_harness.toolkits.memory import MemoryOperationKind
+from myrm_agent_harness.toolkits.memory import MemoryNotFoundError, MemoryOperationKind
 
 from app.api.memory.operations import command_center_actions as actions
 from app.schemas.memory.command_center import MemoryCommandActionRequest
+from app.services.memory.operations.pending_review import PendingReviewSource
 
 
 def _body(**overrides: object) -> MemoryCommandActionRequest:
@@ -66,65 +67,50 @@ class TestRunConflictAction:
 
 class TestRunPendingAction:
     @pytest.mark.asyncio
-    async def test_approve(self) -> None:
-        db = AsyncMock()
-        db.get = AsyncMock(return_value=SimpleNamespace())
+    async def test_approve_goes_through_review_service(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        approve, reject = AsyncMock(), AsyncMock()
+        monkeypatch.setattr(actions, "approve_pending", approve)
+        monkeypatch.setattr(actions, "reject_pending", reject)
         manager = AsyncMock()
 
-        await actions.run_pending_action(_body(target_kind="pending_memory", target_id="p-1", action="approve"), db, manager)
+        await actions.run_pending_action(_body(target_kind="pending_memory", target_id="p-1", action="approve"), manager)
 
-        manager.approve.assert_awaited_once_with("p-1")
+        approve.assert_awaited_once_with(manager, "p-1", source=PendingReviewSource.COMMAND_CENTER)
+        reject.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_reject(self) -> None:
-        db = AsyncMock()
-        db.get = AsyncMock(return_value=SimpleNamespace())
+    async def test_reject_goes_through_review_service(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        approve, reject = AsyncMock(), AsyncMock()
+        monkeypatch.setattr(actions, "approve_pending", approve)
+        monkeypatch.setattr(actions, "reject_pending", reject)
         manager = AsyncMock()
 
-        await actions.run_pending_action(_body(target_kind="pending_memory", target_id="p-1", action="reject"), db, manager)
+        await actions.run_pending_action(_body(target_kind="pending_memory", target_id="p-1", action="reject"), manager)
 
-        manager.reject.assert_awaited_once_with("p-1")
-
-    @pytest.mark.asyncio
-    async def test_edit_updates_content(self) -> None:
-        pending = SimpleNamespace(content="old")
-        db = AsyncMock()
-        db.get = AsyncMock(return_value=pending)
-
-        await actions.run_pending_action(
-            _body(target_kind="pending_memory", target_id="p-1", action="edit", content=" new "),
-            db,
-            AsyncMock(),
-        )
-
-        assert pending.content == "new"
-        db.commit.assert_awaited_once()
+        reject.assert_awaited_once_with(manager, "p-1", source=PendingReviewSource.COMMAND_CENTER)
+        approve.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_missing_pending_raises_404(self) -> None:
-        db = AsyncMock()
-        db.get = AsyncMock(return_value=None)
+    async def test_unknown_queue_id_raises_404(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(actions, "approve_pending", AsyncMock(side_effect=MemoryNotFoundError("gone")))
 
         with pytest.raises(HTTPException) as exc:
-            await actions.run_pending_action(
-                _body(target_kind="pending_memory", target_id="gone", action="approve"), db, AsyncMock()
-            )
+            await actions.run_pending_action(_body(target_kind="pending_memory", target_id="gone", action="approve"), AsyncMock())
 
         assert exc.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_blank_edit_raises_400(self) -> None:
-        db = AsyncMock()
-        db.get = AsyncMock(return_value=SimpleNamespace())
+    async def test_edit_is_not_a_queue_action(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        approve = AsyncMock()
+        monkeypatch.setattr(actions, "approve_pending", approve)
 
         with pytest.raises(HTTPException) as exc:
             await actions.run_pending_action(
-                _body(target_kind="pending_memory", target_id="p-1", action="edit", content="   "),
-                db,
-                AsyncMock(),
+                _body(target_kind="pending_memory", target_id="p-1", action="edit", content="new"), AsyncMock()
             )
 
         assert exc.value.status_code == 400
+        approve.assert_not_awaited()
 
 
 class TestRunSharedProposalAction:

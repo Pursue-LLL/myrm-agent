@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 - app.schemas.memory.crud::{PendingMemoryItem, PendingMemoriesResponse, ResolveConflictRequest} (POS: 记忆 API 通用 Schema 层)
+- app.services.memory.operations.pending_review::record_pending_event (POS: 审批/裁决审计的统一账本写入入口)
 
 [OUTPUT]
 router: 冲突列表与冲突裁决端点
@@ -16,7 +17,6 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind
 
-from app.api.memory.operations.pending import _record_pending_event
 from app.api.memory.utils import get_memory_manager
 from app.database.connection import get_session
 from app.database.models import PendingMemory
@@ -26,6 +26,7 @@ from app.schemas.memory.crud import (
     ResolveConflictRequest,
 )
 from app.schemas.responses import StandardSuccessResponse, create_success_response
+from app.services.memory.operations.pending_review import record_pending_event
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +152,7 @@ async def resolve_conflict(
 
     await _mark_conflict_resolved(conflict_id, resolution)
 
-    await _record_pending_event(
+    await record_pending_event(
         kind=MemoryOperationKind.APPROVE,
         memory_id=conflict_id,
         memory_type=conflict.memory_type,

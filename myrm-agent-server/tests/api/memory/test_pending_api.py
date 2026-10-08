@@ -2,7 +2,8 @@
 
 Covers the harness-backed ``/memory/pending`` surface: listing, single and batch
 approve/reject, and the error mapping that distinguishes a missing record (404)
-from a server-side failure (500).
+from a server-side failure (500). Audit recording itself is covered by
+``tests/services/memory/operations/test_pending_review.py``.
 """
 
 from __future__ import annotations
@@ -43,6 +44,7 @@ def override_auth():
 def override_memory_manager():
     mock_manager = AsyncMock(spec=MemoryManager)
     mock_manager.approval_required = True
+    mock_manager.get_pending = AsyncMock(return_value=None)
     app.dependency_overrides[get_memory_manager] = lambda: mock_manager
     yield mock_manager
     app.dependency_overrides.pop(get_memory_manager, None)
@@ -84,15 +86,7 @@ class TestApprovePending:
     def test_approve_success(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
         override_memory_manager.approve = AsyncMock(return_value=None)
 
-        with (
-            patch(
-                "app.api.memory.operations.pending._load_pending_memory",
-                AsyncMock(return_value=_pending_record()),
-            ),
-            patch("app.api.memory.operations.pending.record_experience_event", AsyncMock()),
-            patch("app.api.memory.operations.pending._record_pending_event", AsyncMock()),
-        ):
-            resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
+        resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
 
         assert resp.status_code == 200
         assert resp.json()["data"]["status"] == "approved"
@@ -103,19 +97,11 @@ class TestApprovePending:
     ) -> None:
         override_memory_manager.approve = AsyncMock(return_value=None)
 
-        with (
-            patch(
-                "app.api.memory.operations.pending._load_pending_memory",
-                AsyncMock(return_value=_pending_record()),
-            ),
-            patch("app.api.memory.operations.pending.record_experience_event", AsyncMock()),
-            patch("app.api.memory.operations.pending._record_pending_event", AsyncMock()),
-        ):
-            resp = client.post(
-                "/api/v1/memory/pending/p-1/approve",
-                headers=auth_headers,
-                json={"edited_content": "Reworded fact"},
-            )
+        resp = client.post(
+            "/api/v1/memory/pending/p-1/approve",
+            headers=auth_headers,
+            json={"edited_content": "Reworded fact"},
+        )
 
         assert resp.status_code == 200
         override_memory_manager.approve.assert_awaited_once_with("p-1", edited_content="Reworded fact")
@@ -123,15 +109,11 @@ class TestApprovePending:
     def test_unusable_edit_maps_to_400(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
         override_memory_manager.approve = AsyncMock(side_effect=InvalidPendingEditError("This proposal has no editable content"))
 
-        with patch(
-            "app.api.memory.operations.pending._load_pending_memory",
-            AsyncMock(return_value=_pending_record()),
-        ):
-            resp = client.post(
-                "/api/v1/memory/pending/p-1/approve",
-                headers=auth_headers,
-                json={"edited_content": "anything"},
-            )
+        resp = client.post(
+            "/api/v1/memory/pending/p-1/approve",
+            headers=auth_headers,
+            json={"edited_content": "anything"},
+        )
 
         assert resp.status_code == 400
         assert "no editable content" in resp.text
@@ -139,11 +121,7 @@ class TestApprovePending:
     def test_missing_record_maps_to_404(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
         override_memory_manager.approve = AsyncMock(side_effect=MemoryNotFoundError("gone"))
 
-        with patch(
-            "app.api.memory.operations.pending._load_pending_memory",
-            AsyncMock(return_value=None),
-        ):
-            resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
+        resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
 
         assert resp.status_code == 404
 
@@ -153,11 +131,7 @@ class TestApprovePending:
         """A ValueError raised while rebuilding a stored record is a server fault, not a bad edit."""
         override_memory_manager.approve = AsyncMock(side_effect=ValueError("Cannot reconstruct memory from type"))
 
-        with patch(
-            "app.api.memory.operations.pending._load_pending_memory",
-            AsyncMock(return_value=None),
-        ):
-            resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
+        resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
 
         assert resp.status_code == 500
         assert "reconstruct" not in resp.text
@@ -167,28 +141,32 @@ class TestApprovePending:
     ) -> None:
         override_memory_manager.approve = AsyncMock(side_effect=RuntimeError("storage down"))
 
-        with patch(
-            "app.api.memory.operations.pending._load_pending_memory",
-            AsyncMock(return_value=None),
+        resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
+
+        assert resp.status_code == 500
+
+    def test_approving_a_queued_proposal_is_audited(
+        self, client: TestClient, auth_headers: dict[str, str], override_memory_manager
+    ) -> None:
+        override_memory_manager.get_pending = AsyncMock(return_value=_pending_record())
+        override_memory_manager.approve = AsyncMock(return_value=None)
+
+        with (
+            patch("app.services.memory.operations.pending_review.record_experience_event", AsyncMock()) as ledger,
+            patch("app.services.memory.operations.pending_review.record_pending_event", AsyncMock()) as timeline,
         ):
             resp = client.post("/api/v1/memory/pending/p-1/approve", headers=auth_headers, json={})
 
-        assert resp.status_code == 500
+        assert resp.status_code == 200
+        ledger.assert_awaited_once()
+        timeline.assert_awaited_once()
 
 
 class TestRejectPending:
     def test_reject_success(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
         override_memory_manager.reject = AsyncMock(return_value=None)
 
-        with (
-            patch(
-                "app.api.memory.operations.pending._load_pending_memory",
-                AsyncMock(return_value=_pending_record()),
-            ),
-            patch("app.api.memory.operations.pending.record_experience_event", AsyncMock()),
-            patch("app.api.memory.operations.pending._record_pending_event", AsyncMock()),
-        ):
-            resp = client.post("/api/v1/memory/pending/p-1/reject", headers=auth_headers, json={})
+        resp = client.post("/api/v1/memory/pending/p-1/reject", headers=auth_headers, json={})
 
         assert resp.status_code == 200
         assert resp.json()["data"]["status"] == "rejected"
@@ -196,11 +174,7 @@ class TestRejectPending:
     def test_not_found_maps_to_404(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
         override_memory_manager.reject = AsyncMock(side_effect=MemoryNotFoundError("gone"))
 
-        with patch(
-            "app.api.memory.operations.pending._load_pending_memory",
-            AsyncMock(return_value=None),
-        ):
-            resp = client.post("/api/v1/memory/pending/p-1/reject", headers=auth_headers, json={})
+        resp = client.post("/api/v1/memory/pending/p-1/reject", headers=auth_headers, json={})
 
         assert resp.status_code == 404
 
@@ -209,19 +183,11 @@ class TestBatchPending:
     def test_batch_approve(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
         override_memory_manager.batch_approve = AsyncMock(return_value=(2, []))
 
-        with (
-            patch(
-                "app.api.memory.operations.pending._load_pending_memory",
-                AsyncMock(return_value=_pending_record()),
-            ),
-            patch("app.api.memory.operations.pending.record_experience_event", AsyncMock()),
-            patch("app.api.memory.operations.pending._record_pending_event", AsyncMock()),
-        ):
-            resp = client.post(
-                "/api/v1/memory/pending/batch/approve",
-                headers=auth_headers,
-                json={"memory_ids": ["p-1", "p-2"]},
-            )
+        resp = client.post(
+            "/api/v1/memory/pending/batch/approve",
+            headers=auth_headers,
+            json={"memory_ids": ["p-1", "p-2"]},
+        )
 
         assert resp.status_code == 200
         assert resp.json()["success_count"] == 2
@@ -229,19 +195,11 @@ class TestBatchPending:
     def test_batch_reject(self, client: TestClient, auth_headers: dict[str, str], override_memory_manager) -> None:
         override_memory_manager.batch_reject = AsyncMock(return_value=2)
 
-        with (
-            patch(
-                "app.api.memory.operations.pending._load_pending_memory",
-                AsyncMock(return_value=None),
-            ),
-            patch("app.api.memory.operations.pending.record_experience_event", AsyncMock()),
-            patch("app.api.memory.operations.pending._record_pending_event", AsyncMock()),
-        ):
-            resp = client.post(
-                "/api/v1/memory/pending/batch/reject",
-                headers=auth_headers,
-                json={"memory_ids": ["p-1", "p-2"]},
-            )
+        resp = client.post(
+            "/api/v1/memory/pending/batch/reject",
+            headers=auth_headers,
+            json={"memory_ids": ["p-1", "p-2"]},
+        )
 
         assert resp.status_code == 200
         assert resp.json()["success_count"] == 2
@@ -286,19 +244,11 @@ class TestBatchPending:
     ) -> None:
         override_memory_manager.batch_approve = AsyncMock(return_value=(1, ["p-2"]))
 
-        with (
-            patch(
-                "app.api.memory.operations.pending._load_pending_memory",
-                AsyncMock(return_value=_pending_record()),
-            ),
-            patch("app.api.memory.operations.pending.record_experience_event", AsyncMock()),
-            patch("app.api.memory.operations.pending._record_pending_event", AsyncMock()),
-        ):
-            resp = client.post(
-                "/api/v1/memory/pending/batch/approve",
-                headers=auth_headers,
-                json={"memory_ids": ["p-1", "p-2"]},
-            )
+        resp = client.post(
+            "/api/v1/memory/pending/batch/approve",
+            headers=auth_headers,
+            json={"memory_ids": ["p-1", "p-2"]},
+        )
 
         assert resp.status_code == 200
         body = resp.json()
@@ -310,24 +260,11 @@ class TestBatchPending:
     ) -> None:
         override_memory_manager.batch_reject = AsyncMock(return_value=1)
 
-        rejected = _pending_record("p-1")
-        rejected.status = "rejected"
-        # p-2 stays pending, so the ledger loop must skip it.
-        pending = _pending_record("p-2")
-
-        async def _load(memory_id: str) -> PendingRecord:
-            return rejected if memory_id == "p-1" else pending
-
-        with (
-            patch("app.api.memory.operations.pending._load_pending_memory", _load),
-            patch("app.api.memory.operations.pending.record_experience_event", AsyncMock()),
-            patch("app.api.memory.operations.pending._record_pending_event", AsyncMock()),
-        ):
-            resp = client.post(
-                "/api/v1/memory/pending/batch/reject",
-                headers=auth_headers,
-                json={"memory_ids": ["p-1", "p-2"]},
-            )
+        resp = client.post(
+            "/api/v1/memory/pending/batch/reject",
+            headers=auth_headers,
+            json={"memory_ids": ["p-1", "p-2"]},
+        )
 
         assert resp.status_code == 200
         body = resp.json()

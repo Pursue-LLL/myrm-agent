@@ -2,7 +2,7 @@
 
 [INPUT]
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
-app.database.models.memory::PendingMemory (POS: 记忆域模型)
+app.services.memory.command_center.command_center_pending::{count_pending_review, build_candidate_records, build_pending_governance, build_pending_timeline} (POS: 审批队列在指挥中心的读取视图)
 app.database.models.memory::SharedContextModel (POS: 记忆域模型)
 app.services.memory.shared_context.shared_context::SharedContextService (POS: 共享上下文业务服务)
 
@@ -34,7 +34,6 @@ from app.config.deploy_mode import get_deploy_mode, get_embedding_mode, get_stor
 from app.config.settings import settings
 from app.database.models.memory import (
     MemoryOperationEventModel,
-    PendingMemory,
     SharedContextBindingModel,
     SharedContextModel,
     SharedContextWriteProposalModel,
@@ -42,7 +41,6 @@ from app.database.models.memory import (
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 from app.schemas.memory.command_center import (
     MemoryApprovedRecord,
-    MemoryCandidateRecord,
     MemoryCommandCenterResponse,
     MemoryCommandGovernanceItem,
     MemoryCommandHealth,
@@ -64,6 +62,12 @@ from app.services.memory.command_center.command_center_economics import (
 )
 from app.services.memory.command_center.command_center_insights import (
     MemoryCommandCenterInsights,
+)
+from app.services.memory.command_center.command_center_pending import (
+    build_candidate_records,
+    build_pending_governance,
+    build_pending_timeline,
+    count_pending_review,
 )
 from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 from app.services.memory.imports.import_ledger import MemoryImportLedgerService
@@ -187,9 +191,7 @@ class MemoryCommandCenterService:
     async def build_snapshot(self) -> MemoryCommandCenterResponse:
         generated_at = datetime.now(UTC)
         by_type = await self._count_memories_by_type()
-        pending_memories = await self._count_rows(
-            select(func.count()).select_from(PendingMemory).where(PendingMemory.status == "pending")
-        )
+        pending_memories = await count_pending_review(self._db, self._memory_manager)
         pending_shared_proposals = await self._count_rows(
             select(func.count())
             .select_from(SharedContextWriteProposalModel)
@@ -338,23 +340,7 @@ class MemoryCommandCenterService:
                 )
             )
 
-        pending_result = await self._db.execute(
-            select(PendingMemory).where(PendingMemory.status == "pending").order_by(desc(PendingMemory.created_at)).limit(20)
-        )
-        candidates: list[MemoryCandidateRecord] = [
-            MemoryCandidateRecord(
-                id=item.id,
-                memory_type=item.memory_type,
-                content_preview=self._preview(item.content, limit=120),
-                confidence=float(item.confidence if item.confidence is not None else 0.8),
-                source=str((item.metadata_json or {}).get("source") or "extraction")
-                if isinstance(item.metadata_json, dict)
-                else "extraction",
-                created_at=item.created_at,
-                status="pending",
-            )
-            for item in pending_result.scalars().all()
-        ]
+        candidates = await build_candidate_records(self._db, self._memory_manager)
 
         # Calculate partition summary and approved records sample
         total_chars = 0
@@ -545,31 +531,7 @@ class MemoryCommandCenterService:
         project_ctx_ids = await self._resolve_project_context_ids()
 
         if project_ctx_ids is None:
-            pending_result = await self._db.execute(
-                select(PendingMemory)
-                .where(PendingMemory.status == "pending", PendingMemory.is_conflict.is_(False))
-                .order_by(desc(PendingMemory.created_at))
-                .limit(5)
-            )
-            for item in pending_result.scalars().all():
-                conflict_meta = (item.metadata_json or {}) if isinstance(item.metadata_json, dict) else {}
-                items.append(
-                    MemoryCommandGovernanceItem(
-                        id=item.id,
-                        kind=MemoryOperationKind.PROPOSE.value,
-                        target_kind="pending_memory",
-                        title=item.memory_type,
-                        description=self._preview(item.content),
-                        severity="warning",
-                        status=item.status,
-                        created_at=item.created_at,
-                        available_actions=["approve", "reject", "edit"],
-                        existing_value=str(conflict_meta.get("existing_value", "")),
-                        candidate_value=str(conflict_meta.get("candidate_value", "")),
-                        confidence=float(item.confidence) if item.confidence is not None else None,
-                        conflict_reason=str(conflict_meta.get("conflict_reason", "")),
-                    )
-                )
+            items.extend(await build_pending_governance(self._memory_manager))
 
         proposal_stmt = (
             select(SharedContextWriteProposalModel)
@@ -706,20 +668,7 @@ class MemoryCommandCenterService:
         events: list[MemoryCommandTimelineEvent] = []
 
         if project_ctx_ids is None:
-            pending_result = await self._db.execute(select(PendingMemory).order_by(desc(PendingMemory.created_at)).limit(6))
-            for item in pending_result.scalars().all():
-                events.append(
-                    MemoryCommandTimelineEvent(
-                        id=f"pending:{item.id}",
-                        kind=MemoryOperationKind.PROPOSE.value,
-                        status=item.status,
-                        occurred_at=item.created_at,
-                        title=item.memory_type,
-                        description=self._preview(item.content),
-                        source="pending_memory",
-                        memory_type=item.memory_type,
-                    )
-                )
+            events.extend(await build_pending_timeline(self._memory_manager))
 
         proposal_stmt = (
             select(SharedContextWriteProposalModel).order_by(desc(SharedContextWriteProposalModel.created_at)).limit(6)
