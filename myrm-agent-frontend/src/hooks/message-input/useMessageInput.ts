@@ -62,6 +62,14 @@ function clearPendingExplicitSkillActivation(): void {
   }
 }
 
+/** Registers the deferred wiki-evidence success for an instruction the running turn accepted (steer or redirect). */
+function confirmInstructionLanded(): void {
+  const chatState = useChatStore.getState();
+  const currentSessionMessageId =
+    typeof chatState.getCurrentSessionMessageId === 'function' ? chatState.getCurrentSessionMessageId() : undefined;
+  queuePendingChatWikiQuerySuccess(chatState.messages, chatState.chatId, currentSessionMessageId);
+}
+
 export const useMessageInput = () => {
   const t = useTranslations('chat');
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -276,6 +284,23 @@ export const useMessageInput = () => {
     recordChatWikiQueryAttempt(chatState.messages, chatState.chatId);
   }, []);
 
+  // Steer only reaches a registered, running turn. When the server cannot take the instruction mid-turn (the turn is
+  // still starting or has just ended, or the request failed) it is queued instead of lost: it stays behind earlier
+  // queued messages, Stop holds it like any other, and the drain sends it at once if the agent is already idle.
+  const steerOrQueue = useCallback(
+    async (instruction: string): Promise<void> => {
+      if (await steerMessage(instruction)) {
+        confirmInstructionLanded();
+        return;
+      }
+      const position = enqueue(instruction, [], undefined, null);
+      if (useChatStore.getState().loading) {
+        toast.info(t('queue.added_with_position', { position }));
+      }
+    },
+    [steerMessage, enqueue, t],
+  );
+
   /**
    * Steer 模式提交：中断当前任务的后续工具调用，立即转向新指令
    */
@@ -290,22 +315,13 @@ export const useMessageInput = () => {
 
     setInputMessage('');
     clearPendingExplicitSkillActivation();
-    const success = await steerMessage(injectedText);
-    if (success) {
-      const chatState = useChatStore.getState();
-      const currentSessionMessageId =
-        typeof chatState.getCurrentSessionMessageId === 'function' ? chatState.getCurrentSessionMessageId() : undefined;
-      queuePendingChatWikiQuerySuccess(chatState.messages, chatState.chatId, currentSessionMessageId);
-    } else {
-      sendMessage(injectedText, undefined, undefined, undefined, undefined, undefined, true).catch(() => {});
-    }
+    await steerOrQueue(injectedText);
   }, [
     _validateAndPrepare,
     clearDraft,
     inputMessage,
     setInputMessage,
-    steerMessage,
-    sendMessage,
+    steerOrQueue,
     _injectDirtyArtifacts,
     recordChatQueryMetric,
   ]);
@@ -324,14 +340,10 @@ export const useMessageInput = () => {
 
     setInputMessage('');
     clearPendingExplicitSkillActivation();
-    const success = await redirectMessage(injectedText);
-    if (success) {
-      const chatState = useChatStore.getState();
-      const currentSessionMessageId =
-        typeof chatState.getCurrentSessionMessageId === 'function' ? chatState.getCurrentSessionMessageId() : undefined;
-      queuePendingChatWikiQuerySuccess(chatState.messages, chatState.chatId, currentSessionMessageId);
+    if (await redirectMessage(injectedText)) {
+      confirmInstructionLanded();
     } else {
-      await handleSteerSubmit();
+      await steerOrQueue(injectedText);
     }
   }, [
     _validateAndPrepare,
@@ -339,7 +351,7 @@ export const useMessageInput = () => {
     inputMessage,
     setInputMessage,
     redirectMessage,
-    handleSteerSubmit,
+    steerOrQueue,
     _injectDirtyArtifacts,
     recordChatQueryMetric,
   ]);

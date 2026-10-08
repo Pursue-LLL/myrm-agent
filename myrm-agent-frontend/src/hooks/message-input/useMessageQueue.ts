@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - @/store/chat/useMessageQueueStore::useMessageQueueStore (POS: 排队消息内存状态源)
- * - @/store/chat/messageQueueStorage::{readStoredQueue, writeStoredQueue} (POS: 排队消息 localStorage 持久化层)
+ * - @/store/chat/messageQueueStorage::{readStoredQueue, writeStoredQueue} (POS: 排队消息标签页级 sessionStorage 持久化层)
  * - @/store/useChatStore::useChatStore (POS: 聊天状态总线，读取无痕模式)
  * - @/store/chat/types::{ArchiveRestoreAction, File} (POS: Chat domain state and request contracts)
  *
@@ -10,7 +10,7 @@
  *
  * [POS]
  * 排队消息的 React 视图层。所有消费者（输入框、工件选区动作）共享同一份队列，因此任何一处入队都对输入框可见；
- * 无痕会话只保留在内存中，不写入 localStorage。
+ * 无痕会话只保留在内存中，不写入 sessionStorage。
  */
 
 import { useEffect, useMemo } from 'react';

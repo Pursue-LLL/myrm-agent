@@ -13,14 +13,14 @@ vi.mock('@/store/useChatStore', () => ({
 const QUEUE_KEY = (chatId: string) => `myrm_message_queue_${chatId}`;
 const PAUSE_KEY = (chatId: string) => `myrm_message_queue_paused_${chatId}`;
 
-/** Simulates a page reload: in-memory queue state is gone, localStorage survives. */
+/** Simulates a reload of the same tab: in-memory queue state is gone, the tab's sessionStorage survives. */
 function simulateReload(): void {
   useMessageQueueStore.setState({ queues: {} });
 }
 
 describe('useMessageQueue', () => {
   beforeEach(() => {
-    localStorage.clear();
+    sessionStorage.clear();
     chatStoreRef.incognitoMode = false;
     useMessageQueueStore.setState({ queues: {} });
   });
@@ -226,12 +226,12 @@ describe('useMessageQueue', () => {
   });
 
   describe('persistence', () => {
-    it('writes the queue to localStorage and restores it after a reload', () => {
+    it('writes the queue to sessionStorage and restores it after a reload', () => {
       const first = renderHook(() => useMessageQueue('chat-persist'));
       act(() => {
         first.result.current.enqueue('survives reload', []);
       });
-      expect(JSON.parse(localStorage.getItem(QUEUE_KEY('chat-persist')) ?? '[]')).toHaveLength(1);
+      expect(JSON.parse(sessionStorage.getItem(QUEUE_KEY('chat-persist')) ?? '[]')).toHaveLength(1);
       first.unmount();
 
       simulateReload();
@@ -241,14 +241,14 @@ describe('useMessageQueue', () => {
     });
 
     it('does not overwrite the stored queue with an empty one before it was restored', () => {
-      localStorage.setItem(
+      sessionStorage.setItem(
         QUEUE_KEY('chat-hydrate-first'),
         JSON.stringify([{ id: 'stored-1', text: 'stored', files: [], timestamp: 1 }]),
       );
 
       renderHook(() => useMessageQueue('chat-hydrate-first'));
 
-      expect(JSON.parse(localStorage.getItem(QUEUE_KEY('chat-hydrate-first')) ?? '[]')).toHaveLength(1);
+      expect(JSON.parse(sessionStorage.getItem(QUEUE_KEY('chat-hydrate-first')) ?? '[]')).toHaveLength(1);
     });
 
     it('persists the pause marker so a stopped queue stays paused after a reload', () => {
@@ -259,7 +259,7 @@ describe('useMessageQueue', () => {
       act(() => {
         useMessageQueueStore.getState().pauseOnStop('chat-paused');
       });
-      expect(localStorage.getItem(PAUSE_KEY('chat-paused'))).toBe('stopped');
+      expect(sessionStorage.getItem(PAUSE_KEY('chat-paused'))).toBe('stopped');
       first.unmount();
 
       simulateReload();
@@ -270,7 +270,7 @@ describe('useMessageQueue', () => {
         second.result.current.resume();
       });
       expect(second.result.current.pausedReason).toBeNull();
-      expect(localStorage.getItem(PAUSE_KEY('chat-paused'))).toBeNull();
+      expect(sessionStorage.getItem(PAUSE_KEY('chat-paused'))).toBeNull();
     });
 
     it('removes the stored entries once the queue is empty', () => {
@@ -284,7 +284,7 @@ describe('useMessageQueue', () => {
         result.current.removeMessage(id);
       });
 
-      expect(localStorage.getItem(QUEUE_KEY('chat-empty-storage'))).toBeNull();
+      expect(sessionStorage.getItem(QUEUE_KEY('chat-empty-storage'))).toBeNull();
     });
 
     it('keeps incognito queues in memory only', () => {
@@ -296,7 +296,7 @@ describe('useMessageQueue', () => {
       });
 
       expect(result.current.queue).toHaveLength(1);
-      expect(localStorage.getItem(QUEUE_KEY('chat-incognito'))).toBeNull();
+      expect(sessionStorage.getItem(QUEUE_KEY('chat-incognito'))).toBeNull();
     });
   });
 });
