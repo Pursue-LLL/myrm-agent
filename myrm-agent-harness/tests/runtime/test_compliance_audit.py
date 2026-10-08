@@ -5,7 +5,9 @@ from collections.abc import Iterator
 import pytest
 
 from myrm_agent_harness.core.security.tool_registry.registry import (
+    _PTC_LOCK,
     _PTC_SAFETY_METADATA,
+    _PTC_TOOL_FLAT_INDEX,
     MCPAnnotations,
     SafetyMetadata,
     evict_skill_safety_metadata,
@@ -20,13 +22,19 @@ from myrm_agent_harness.runtime.diagnostics.compliance import (
 @pytest.fixture(autouse=True)
 def _isolated_safety_registry() -> Iterator[None]:
     """The audit reads the process-wide safety registry; skills registered by other tests must not leak in."""
-    snapshot = {skill: dict(tools) for skill, tools in _PTC_SAFETY_METADATA.items()}
-    _PTC_SAFETY_METADATA.clear()
+    with _PTC_LOCK:
+        tree_snapshot = {skill: dict(tools) for skill, tools in _PTC_SAFETY_METADATA.items()}
+        flat_snapshot = dict(_PTC_TOOL_FLAT_INDEX)
+        _PTC_SAFETY_METADATA.clear()
+        _PTC_TOOL_FLAT_INDEX.clear()
     try:
         yield
     finally:
-        _PTC_SAFETY_METADATA.clear()
-        _PTC_SAFETY_METADATA.update(snapshot)
+        with _PTC_LOCK:
+            _PTC_SAFETY_METADATA.clear()
+            _PTC_SAFETY_METADATA.update(tree_snapshot)
+            _PTC_TOOL_FLAT_INDEX.clear()
+            _PTC_TOOL_FLAT_INDEX.update(flat_snapshot)
 
 
 def test_compliance_audit_engine_clean():
