@@ -1,6 +1,7 @@
 """Feishu inbound: webhook / websocket event handling for messages, card actions, reactions and comments.
 
 [INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
 - channels.providers.feishu.parser::parse_inbound_event, extract_message_text (POS: inbound event parser)
 - channels.providers.feishu.cards::parse_card_action (POS: card action parser)
 - channels.providers.feishu.models::FeishuWebhookPayload, FeishuCardEvent (POS: webhook payload models)
@@ -23,6 +24,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from app.channels.core.base import BaseChannel
 from app.channels.types import (
     MediaAttachment,
     MediaType,
@@ -43,7 +45,7 @@ logger = logging.getLogger(__name__)
 _MAX_MEDIA_CONCURRENCY = 3
 
 
-class FeishuInboundMixin:
+class FeishuInboundMixin(BaseChannel):
     """Feishu inbound event handling for ``FeishuChannel``.
 
     Requires the host class to provide the attributes below plus ``_emit_inbound`` / ``_build_inbound``

@@ -1,6 +1,7 @@
 """WeCom AI Bot inbound: WebSocket session, frame dispatch and inbound message / event parsing.
 
 [INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
 - channels.reliability / websockets (POS: long-lived WebSocket transport to openws.work.weixin.qq.com)
 - channels.types::InboundMessage, MediaAttachment, ReplyContext (POS: channel message value types)
 
@@ -20,6 +21,7 @@ import logging
 import uuid
 from typing import TYPE_CHECKING
 
+from app.channels.core.base import BaseChannel
 from app.channels.types import (
     MediaAttachment,
     MediaType,
@@ -37,7 +39,7 @@ _WS_URL = "wss://openws.work.weixin.qq.com"
 _HEARTBEAT_INTERVAL = 30.0
 
 
-class WeComAiBotInboundMixin:
+class WeComAiBotInboundMixin(BaseChannel):
     """WeCom AI Bot WebSocket session and inbound parsing for ``WeComAiBotChannel``.
 
     Requires the host class to provide the attributes below plus ``_emit_inbound`` / ``_build_inbound`` /

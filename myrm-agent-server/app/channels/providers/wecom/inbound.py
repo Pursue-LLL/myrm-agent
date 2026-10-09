@@ -1,6 +1,7 @@
 """WeCom inbound: webhook signature verification, encrypted XML callback handling and inbound media download.
 
 [INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
 - channels.providers.wecom.crypto::WeComCrypto (POS: AES-CBC callback crypto)
 - channels.providers.wecom.user_resolver::WeComUserResolver (POS: sender display-name resolution)
 - channels.security.errors::WebhookResponseError (POS: RFC 7807 webhook error response)
@@ -19,11 +20,13 @@ from __future__ import annotations
 import logging
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import defusedxml.ElementTree as ET
 import httpx
 from fastapi import Request
 
+from app.channels.core.base import BaseChannel
 from app.channels.providers.wecom.crypto import WeComCrypto
 from app.channels.providers.wecom.user_resolver import WeComUserResolver
 from app.channels.security.errors import WebhookResponseError
@@ -45,7 +48,7 @@ _MSG_TYPE_TO_MEDIA: dict[str, MediaType] = {
 }
 
 
-class WeComInboundMixin:
+class WeComInboundMixin(BaseChannel):
     """WeCom self-built application inbound handling for ``WeComChannel``.
 
     Requires the host class to provide the attributes and helpers below plus ``_emit_inbound`` /
@@ -57,6 +60,13 @@ class WeComInboundMixin:
     _http: httpx.AsyncClient
     _access_token: str
     _user_resolver: WeComUserResolver
+
+    if TYPE_CHECKING:
+
+        async def _ensure_token(self) -> None: ...
+
+        @staticmethod
+        def _media_extension(media_type: MediaType) -> str: ...
 
     async def verify(self, request: Request, body: bytes) -> None:
         """SignatureVerifier Protocol: validate WeCom AES-CBC signature.

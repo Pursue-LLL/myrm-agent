@@ -1,6 +1,7 @@
 """Slack inbound context: thread-parent cache and mention annotation.
 
 [INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
 - channels.providers.slack.api::SlackClient (POS: HTTP/API layer used to fetch the thread parent)
 - channels.providers.slack.user_resolver::SlackUserResolver (POS: user id to display name resolution)
 - channels.types::ReplyContext, MediaAttachment (POS: channel message value types)
@@ -20,6 +21,7 @@ import re
 import time
 from typing import TYPE_CHECKING
 
+from app.channels.core.base import BaseChannel
 from app.channels.providers.slack.api import SlackClient
 from app.channels.types import (
     MediaAttachment,
@@ -35,7 +37,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class SlackContextMixin:
+class SlackContextMixin(BaseChannel):
     """Thread-parent cache and mention annotation for ``SlackChannel``.
 
     Requires the host class to provide the attributes below.

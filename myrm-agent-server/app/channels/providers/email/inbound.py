@@ -4,6 +4,7 @@ Handles multipart bodies, HTML-to-Markdown cleaning, attachment extraction, thre
 automated-sender filtering and forwarded-message parsing (MIME message/rfc822, subject prefix, body separator).
 
 [INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
 - channels.providers.email.forward::FWD_SUBJECT_PREFIXES, parse_forwarded_body (POS: forwarded email parsing)
 - channels.types::InboundMessage, MediaAttachment, MediaType (POS: channel message value types)
 
@@ -24,6 +25,7 @@ import logging
 import tempfile
 from pathlib import Path
 
+from app.channels.core.base import BaseChannel
 from app.channels.types import (
     InboundMessage,
     MediaAttachment,
@@ -104,7 +106,7 @@ def _html_to_markdown(html: str) -> str:
     return converter.handle(html).strip()
 
 
-class EmailInboundMixin:
+class EmailInboundMixin(BaseChannel):
     """Email inbound message parsing for ``EmailChannel``.
 
     Requires the host class to provide the attributes below plus ``_build_inbound`` from ``BaseChannel``.
