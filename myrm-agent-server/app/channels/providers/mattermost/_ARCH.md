@@ -10,4 +10,5 @@ Mattermost 渠道 Provider 实现（入站/出站、凭证、路由）。上级�
 |------|------|------|-------|
 | `__init__.py` | 入口 | Mattermost channel provider — WebSocket inbound + REST API v4 outbound. | ✅ |
 | `api.py` | 模块 | app.channels.providers.mattermost.api — Mattermost REST API v4 client with Bot Access Token auth. | ✅ |
-| `channel.py` | 模块 | app.channels.providers.mattermost.channel — Mattermost WebSocket inbound + REST API v4 outbound. | ✅ |
+| `channel.py` | 模块 | app.channels.providers.mattermost.channel — credentials, lifecycle, REST API v4 outbound, groups and diagnostics; composes `MattermostInboundMixin`. | ✅ |
+| `inbound.py` | 模块 | `MattermostInboundMixin`: WebSocket session (`_ws_connect`), `posted` / `reaction_added` parsing, mention handling and inbound media. | ✅ |
