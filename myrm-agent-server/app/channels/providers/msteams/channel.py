@@ -303,13 +303,3 @@ class MSTeamsChannel(MSTeamsInboundMixin, BaseChannel):
             await self._api.add_reaction(service_url, conversation_id, activity_id, reaction_type)
         except Exception:
             pass
-
-
-
-
-
-
-
-
-
-

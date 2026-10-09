@@ -12,6 +12,6 @@ Microsoft Teams 渠道 Provider 实现（入站/出站、凭证、路由）。�
 | `api.py` | 模块 | Bot Framework HTTP layer. Wraps OAuth token management, serviceUrl caching, activity POST/PUT/DELETE, providing low-level API capabilities for MSTeamsChannel. " | ✅ |
 | `auth.py` | 模块 | app.channels.providers.msteams.auth — Bot Framework JWT validator. Fetches public keys via OpenID Connect metadata, verifies JWT signature, issuer, audience, an | ✅ |
 | `channel.py` | 模块 | MSTeams Bot channel implementation. Supports message edit/delete, Adaptive Card interactive components, file attachments, typing indicator, and placeholder streaming. `edit_placeholder_message` uses first render chunk only (Item 46). | ✅ |
-| `helpers.py` | 模块 | Stateless helpers extracted from MSTeamsChannel to keep channel.py focused on the Channel lifecycle and I/O. | ✅ |
+| `helpers.py` | 模块 | Stateless helpers for MSTeamsChannel; channel.py stays focused on the Channel lifecycle and I/O. | ✅ |
 | `inbound.py` | 模块 | `MSTeamsInboundMixin`: Bot Framework activity parsing, JWT verification, invoke / conversationUpdate handling and the webhook route (`register_routes`). | ✅ |
 | `models.py` | 模块 | Pydantic models for Microsoft Bot Framework activity payloads. | ✅ |

@@ -20,8 +20,8 @@ instead of raw internal errors.
 - friendly_error_message(): Classify exception → user-friendly localized message with reference ID
 
 [POS]
-Message side-effect operations collection. Extracted from Router core routing logic,
-encapsulating all auxiliary channel interaction operations. Router holds an instance via composition.
+Message side-effect operations collection: every auxiliary channel interaction the router performs
+(typing, reactions, placeholders, replies, busy acks). Router holds an instance via composition.
 """
 
 from __future__ import annotations
