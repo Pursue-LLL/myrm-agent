@@ -16,14 +16,13 @@ import type { IntentMessages } from '@/lib/intent-dispatcher';
 
 export function useIntentMessages(): IntentMessages {
   const t = useTranslations('intentDispatcher');
-  const tServer = useTranslations('settings.system.serverConnection');
   return useMemo(
     () => ({
       invalidLink: t('invalidLink'),
       oauthSuccess: t('oauthSuccess'),
       oauthFailed: t('oauthFailed'),
-      cloudProfileName: tServer('cloudProfileName'),
+      cloudProfileName: t('cloudProfileName'),
     }),
-    [t, tServer],
+    [t],
   );
 }
