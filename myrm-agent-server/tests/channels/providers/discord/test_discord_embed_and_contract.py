@@ -677,7 +677,7 @@ class TestDiscordSendDelivery:
     def _forum_channel(create_thread: AsyncMock) -> DiscordChannel:
         mock_forum = MagicMock(spec=discord.ForumChannel)
         mock_forum.type = MagicMock(value=15)
-        mock_forum.requires_tag = False
+        mock_forum.flags = discord.ChannelFlags(require_tag=False)
         mock_forum.create_thread = create_thread
         ch, _ = _make_mock_channel()
         ch._resolve_channel = AsyncMock(return_value=mock_forum)  # type: ignore[method-assign]
@@ -733,7 +733,7 @@ class TestDiscordInboundBranches:
     async def test_on_ready_sets_bot_id(self) -> None:
         pass
 
-    """Unit tests for _derive_thread_name."""
+    """Unit tests for derive_thread_name."""
 
     def test_first_line(self) -> None:
         pass

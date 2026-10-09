@@ -12,6 +12,7 @@ from app.channels.providers.discord.channel import (
 from app.channels.providers.discord.config import (
     DiscordChannelConfig,
 )
+from app.channels.providers.discord.helpers import derive_thread_name, is_forum_channel, reply_reference
 from app.channels.types import ChannelStatus, OutboundMessage
 from app.channels.types.messages import MediaType
 
@@ -328,58 +329,58 @@ async def test_on_message_image_by_dimensions_fallback(channel):
 
 class TestIsForumChannel:
     def test_none_returns_false(self):
-        assert DiscordChannel._is_forum_channel(None) is False
+        assert is_forum_channel(None) is False
 
     def test_regular_channel_returns_false(self):
         ch = MagicMock(spec=discord.TextChannel)
         ch.type = MagicMock()
         ch.type.value = 0
-        assert DiscordChannel._is_forum_channel(ch) is False
+        assert is_forum_channel(ch) is False
 
     def test_forum_channel_by_isinstance(self):
         ch = MagicMock(spec=discord.ForumChannel)
-        assert DiscordChannel._is_forum_channel(ch) is True
+        assert is_forum_channel(ch) is True
 
     def test_forum_channel_by_type_value(self):
         ch = MagicMock()
         del ch.spec  # Not a ForumChannel instance
         ch.type = MagicMock()
         ch.type.value = 15
-        assert DiscordChannel._is_forum_channel(ch) is True
+        assert is_forum_channel(ch) is True
 
     def test_no_type_attribute(self):
         ch = MagicMock(spec=[])
-        assert DiscordChannel._is_forum_channel(ch) is False
+        assert is_forum_channel(ch) is False
 
 
 class TestDeriveThreadName:
     def test_single_line(self):
-        assert DiscordChannel._derive_thread_name("Hello world") == "Hello world"
+        assert derive_thread_name("Hello world") == "Hello world"
 
     def test_multi_line(self):
-        assert DiscordChannel._derive_thread_name("First\nSecond") == "First"
+        assert derive_thread_name("First\nSecond") == "First"
 
     def test_strips_markdown_heading(self):
-        assert DiscordChannel._derive_thread_name("## My Title") == "My Title"
+        assert derive_thread_name("## My Title") == "My Title"
 
     def test_empty_content(self):
-        assert DiscordChannel._derive_thread_name("") == "New Post"
+        assert derive_thread_name("") == "New Post"
 
     def test_whitespace_only(self):
-        assert DiscordChannel._derive_thread_name("   \n  ") == "New Post"
+        assert derive_thread_name("   \n  ") == "New Post"
 
     def test_hash_only(self):
-        assert DiscordChannel._derive_thread_name("###") == "New Post"
+        assert derive_thread_name("###") == "New Post"
 
     def test_skips_empty_leading_lines(self):
-        assert DiscordChannel._derive_thread_name("\n\nActual Title\nBody") == "Actual Title"
+        assert derive_thread_name("\n\nActual Title\nBody") == "Actual Title"
 
     def test_skips_blank_leading_with_markdown(self):
-        assert DiscordChannel._derive_thread_name("\n# Report Title\nContent") == "Report Title"
+        assert derive_thread_name("\n# Report Title\nContent") == "Report Title"
 
     def test_truncates_to_100(self):
         long = "A" * 200
-        assert len(DiscordChannel._derive_thread_name(long)) == 100
+        assert len(derive_thread_name(long)) == 100
 
 
 def _setup_resolve(channel, mock_channel):
@@ -391,7 +392,7 @@ def _make_forum_mock(*, requires_tag: bool = False, available_tags: list[MagicMo
     mock_forum = MagicMock(spec=discord.ForumChannel)
     mock_forum.type = MagicMock()
     mock_forum.type.value = 15
-    mock_forum.requires_tag = requires_tag
+    mock_forum.flags = discord.ChannelFlags(require_tag=requires_tag)
     mock_forum.available_tags = available_tags or []
     return mock_forum
 
@@ -515,6 +516,42 @@ async def test_send_long_message_splits_via_render(channel):
     for i, call in enumerate(mock_ch.send.call_args_list):
         assert call.kwargs["content"] == expected_chunks[i]
     assert result == str(10000 + mock_ch.send.call_count)
+
+
+@pytest.mark.asyncio
+async def test_send_reply_targets_original_message_on_first_chunk_only(channel):
+    """A reply is a native Discord reply (message id + channel id) and only the first chunk carries it."""
+    mock_ch = MagicMock(spec=discord.TextChannel)
+    mock_ch.id = 12345
+    mock_ch.type = MagicMock()
+    mock_ch.type.value = 0
+    mock_ch.send = AsyncMock(return_value=MagicMock(id=1))
+    _setup_resolve(channel, mock_ch)
+
+    msg = OutboundMessage(
+        channel="discord",
+        recipient_id="12345",
+        content="Discord long reply line.\n" * 180,
+        user_id="u1",
+        reply_to_id="777",
+    )
+    await channel.send(msg)
+
+    calls = mock_ch.send.call_args_list
+    assert len(calls) >= 2
+    reference = calls[0].kwargs["reference"]
+    assert (reference.message_id, reference.channel_id, reference.fail_if_not_exists) == (777, 12345, False)
+    assert all("reference" not in call.kwargs for call in calls[1:])
+
+
+def test_reply_reference_requires_a_snowflake_message_and_a_channel_id():
+    """Ids that Discord cannot address degrade to a plain post instead of raising."""
+    channel_with_id = MagicMock(spec=discord.TextChannel)
+    channel_with_id.id = 42
+    channel_without_id = MagicMock(spec=discord.abc.Messageable)
+
+    assert reply_reference(channel_with_id, "not-a-snowflake") is None
+    assert reply_reference(channel_without_id, "777") is None
 
 
 @pytest.mark.asyncio
