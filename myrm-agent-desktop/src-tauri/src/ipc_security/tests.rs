@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use super::capability::REGISTERED_COMMANDS;
 use super::confirmation::{
     build_confirmation_message, build_confirmation_request, classify_confirmation_error,
     confirmation_copy, execute_confirmation_request, parse_confirmation_locale, ConfirmationLocale,
@@ -7,8 +8,6 @@ use super::confirmation::{
 };
 use super::policy::{authorize_request, CommandRisk, DeniedInvoke, DenyMode};
 use super::ticket_store::{SensitiveAction, TicketStore, MAX_PENDING_SENSITIVE_TICKETS};
-
-include!("../../command_registry_macro.in");
 
 #[test]
 fn parses_confirmation_locale_variants() {
@@ -249,17 +248,14 @@ fn enforces_pending_ticket_cap() {
 
 #[test]
 fn build_manifest_commands_are_covered_by_policy() {
-    macro_rules! command_name_vec {
-        ($(($name:literal, $handler:path)),* $(,)?) => {
-            vec![$($name.to_string()),*]
-        };
-    }
-    let commands: Vec<String> = tauri_command_registry!(command_name_vec);
+    assert!(
+        !REGISTERED_COMMANDS.is_empty(),
+        "command registry should not be empty"
+    );
 
-    assert!(!commands.is_empty(), "command registry should not be empty");
-
-    let unknown: Vec<String> = commands
-        .into_iter()
+    let unknown: Vec<&str> = REGISTERED_COMMANDS
+        .iter()
+        .copied()
         .filter(|command| {
             matches!(
                 authorize_request(command, "main"),
@@ -280,19 +276,12 @@ fn build_manifest_commands_are_covered_by_policy() {
 
 #[test]
 fn command_registry_has_no_duplicate_names() {
-    macro_rules! command_name_vec {
-        ($(($name:literal, $handler:path)),* $(,)?) => {
-            vec![$($name),*]
-        };
-    }
-    let commands: Vec<&'static str> = tauri_command_registry!(command_name_vec);
     let mut seen = std::collections::HashSet::new();
-    let mut duplicates = Vec::new();
-    for command in commands {
-        if !seen.insert(command) {
-            duplicates.push(command);
-        }
-    }
+    let duplicates: Vec<&str> = REGISTERED_COMMANDS
+        .iter()
+        .copied()
+        .filter(|command| !seen.insert(*command))
+        .collect();
     assert!(
         duplicates.is_empty(),
         "duplicate command names found in registry: {:?}",

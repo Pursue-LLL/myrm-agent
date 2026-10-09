@@ -10,7 +10,7 @@
 //!
 //! [OUTPUT]
 //! - CurtainTexts / set_texts: 看板三段文案及其缓存
-//! - SCHEME / url / response: 自定义协议名、页面入口 URL、协议响应（app/mod.rs 注册协议，privacy_curtain.rs 建窗）
+//! - SCHEME / url / response: 自定义协议名、页面入口 URL、协议响应（app/chain.rs 注册协议，privacy_curtain.rs 建窗）
 //!
 //! [POS]
 //! 帷幕"显示什么"的唯一来源；窗口生命周期与 IPC 命令在 `privacy_curtain.rs`。
@@ -22,7 +22,7 @@ use tauri::http::Response;
 
 use crate::utils::protocol_page::{html_escape, html_response, page_url};
 
-/// 自定义协议名；`app/mod.rs` 注册协议与本模块 `url` 共用同一常量。
+/// 自定义协议名；`app/chain.rs` 注册协议与本模块 `url` 共用同一常量。
 pub(crate) const SCHEME: &str = "myrm-curtain";
 
 /// 看板三段文案（由前端按当前 locale 注入缓存，Rust 侧仅存默认英文兜底）。

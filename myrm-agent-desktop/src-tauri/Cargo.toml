@@ -58,4 +58,6 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [dev-dependencies]
 tempfile = "3"
+# mock runtime：进程内启动配置与 ACL 契约测试（仅测试构建启用，不进发布二进制）
+tauri = { version = "2.0", features = ["test"] }
 

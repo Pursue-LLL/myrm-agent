@@ -2,14 +2,16 @@
 //!
 //! [INPUT]
 //! - commands / config / runtime / utils 各模块 (POS: IPC 与 Sidecar 编排)
-//! - tauri::Builder 插件链 (shell, updater, global-shortcut, window-state 等)
+//! - chain (POS: 官方插件与窗口页自定义协议的 Builder 片段)
+//! - tauri::Builder 插件 (single-instance, window-state, global-shortcut)
 //!
 //! [OUTPUT]
-//! - run(): 桌面应用主循环、统一 IPC sender gate、generate_handler IPC 注册表、帷幕看板与审批高亮的自定义协议注册
+//! - run(): 桌面应用主循环、统一 IPC sender gate、generate_handler IPC 注册表
 //!
 //! [POS]
 //! Tauri Builder 组装层唯一入口；main.rs 仅委托本模块。
 
+pub(crate) mod chain;
 pub(crate) mod lifecycle;
 mod linux_gpu;
 mod menu;
@@ -21,8 +23,6 @@ include!("../../command_registry_macro.in");
 
 pub(crate) use tray::update_native_tray_status;
 
-use crate::commands::privacy_curtain_page as curtain_page;
-use crate::commands::visual_approval_overlay_page as overlay_page;
 use crate::runtime;
 
 macro_rules! command_handler_list {
@@ -47,7 +47,7 @@ pub fn run() {
     let invoke_handler: Box<dyn Fn(tauri::ipc::Invoke) -> bool + Send + Sync> =
         Box::new(tauri_command_registry!(command_handler_list));
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         // 必须先于 deep-link 插件注册：Windows/Linux 热启动时深链以新进程 argv 到达，
         // single-instance 的 `deep-link` 特性负责把它转交给已运行实例的 deep-link 插件。
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -58,19 +58,9 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
-        .plugin(tauri_plugin_window_state::Builder::new().build())
-        .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(
-            tauri_plugin_autostart::Builder::new()
-                .args(["--auto-launched"])
-                .build(),
-        )
+        .plugin(tauri_plugin_window_state::Builder::new().build());
+
+    chain::with_page_protocols(chain::with_product_plugins(builder))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
@@ -78,13 +68,6 @@ pub fn run() {
                 })
                 .build(),
         )
-        // 窗口页面经自定义协议提供：data: URL 在本应用被 tauri 拒绝，且页内 IPC 属 Remote 来源。
-        .register_uri_scheme_protocol(curtain_page::SCHEME, |_ctx, _request| {
-            curtain_page::response()
-        })
-        .register_uri_scheme_protocol(overlay_page::SCHEME, |_ctx, request| {
-            overlay_page::response(&request)
-        })
         .setup(setup::on_setup)
         .on_window_event(setup::on_window_event)
         .invoke_handler(move |invoke: tauri::ipc::Invoke| {
