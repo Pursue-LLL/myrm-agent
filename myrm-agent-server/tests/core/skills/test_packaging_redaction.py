@@ -76,6 +76,21 @@ class TestRedactFiles:
         assert set(outcome.redactions) == {"SKILL.md", "notes.txt"}
         assert not outcome.is_safe
 
+    @pytest.mark.parametrize(
+        ("line", "secret"),
+        [
+            ("API_KEY=abc123def456ghi789", "abc123def456ghi789"),
+            ('export SECRET_TOKEN="abc123def456ghi789"', "abc123def456ghi789"),
+            ("curl -H 'Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123456789'", "abcdefghijklmnopqrstuvwxyz0123456789"),
+            ("curl https://x.io/a?api_key=abc123def456ghi789&b=1", "abc123def456ghi789"),
+            ("password: hunter2hunter2", "hunter2hunter2"),
+        ],
+    )
+    def test_common_secret_shapes_leave_no_trace_in_the_exported_file(self, line: str, secret: str) -> None:
+        outcome = redact_files({"scripts/run.sh": f"{line}\n".encode()}, apply=True)
+        assert secret not in outcome.files["scripts/run.sh"].decode()
+        assert not outcome.is_safe
+
     def test_preview_mode_reports_without_rewriting(self) -> None:
         files = {"SKILL.md": SKILL_MD.encode()}
         outcome = redact_files(files, apply=False)
@@ -120,9 +135,7 @@ class TestPackageSkillDigestGuard:
         assert not result.success
         assert result.error_code == SKILL_CHANGED_SINCE_PREVIEW
 
-    async def test_redact_everything_is_a_one_way_tightening_and_needs_no_digest(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_redact_everything_is_a_one_way_tightening_and_needs_no_digest(self, monkeypatch: pytest.MonkeyPatch) -> None:
         service, _ = _service(monkeypatch, _files())
         result = await service.package_skill("demo", apply_redactions=True, export_format="raw_skill")
         assert result.success, result.error

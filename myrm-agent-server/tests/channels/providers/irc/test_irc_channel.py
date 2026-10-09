@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.irc import (
     IRCChannel,
     _sanitize_outbound,
@@ -157,19 +158,35 @@ class TestIRCHealthCheck:
 
 
 class TestIRCSend:
+    def test_declares_that_irc_returns_no_message_ids(self) -> None:
+        assert IRCChannel.capabilities.message_ids is False
+
     @pytest.mark.asyncio
-    async def test_send_no_writer(self) -> None:
+    async def test_send_without_connection_raises_so_the_bus_can_retry(self) -> None:
         ch = IRCChannel(server="irc.example.com", nick="bot")
         msg = MagicMock(spec=OutboundMessage)
         msg.recipient_id = "#test"
         msg.content = "hello"
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError, match="not connected") as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.retriable is True
+
+    @pytest.mark.asyncio
+    async def test_send_on_closing_connection_raises(self) -> None:
+        ch = IRCChannel(server="irc.example.com", nick="bot")
+        ch._writer = MagicMock()
+        ch._writer.is_closing.return_value = True
+        msg = MagicMock(spec=OutboundMessage)
+        msg.recipient_id = "#test"
+        msg.content = "hello"
+        with pytest.raises(ChannelSendError, match="not connected"):
+            await ch.send(msg)
 
     @pytest.mark.asyncio
     async def test_send_with_writer(self) -> None:
         ch = IRCChannel(server="irc.example.com", nick="bot")
         ch._writer = MagicMock()
+        ch._writer.is_closing.return_value = False
 
         msg = MagicMock(spec=OutboundMessage)
         msg.recipient_id = "#test"

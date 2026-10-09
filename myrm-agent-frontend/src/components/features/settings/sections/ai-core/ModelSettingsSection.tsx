@@ -62,10 +62,10 @@ const ModelSettingsSection = memo(() => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="providers" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="providers" tabIndex={-1}>
           <ModelServiceSection />
         </TabsContent>
-        <TabsContent value="default" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="default" tabIndex={-1}>
           <DefaultModelSection />
         </TabsContent>
       </Tabs>

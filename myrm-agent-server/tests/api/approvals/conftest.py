@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.api.approvals.router import router as approvals_router
 from app.database.models import Base
+from tests.support.session_mock_guard import restore_leaked_session_mocks
 
 
 @pytest.fixture(scope="function")
@@ -46,6 +47,7 @@ async def setup_test_database():
         return test_session
 
     with (
+        restore_leaked_session_mocks(mock_get_session, mock_get_session_factory),
         patch("app.database.connection.get_session", mock_get_session),
         patch("app.services.approvals.registry.get_session", mock_get_session),
         patch("app.platform_utils.get_session_factory", mock_get_session_factory),

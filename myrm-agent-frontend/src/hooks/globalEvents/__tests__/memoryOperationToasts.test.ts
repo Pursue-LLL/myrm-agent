@@ -11,6 +11,7 @@ const toastMocks = vi.hoisted(() => ({
 
 const storeMocks = vi.hoisted(() => ({
   fetchConflicts: vi.fn(),
+  fetchPendingMemories: vi.fn(),
 }));
 
 vi.mock('@/lib/utils/toast', () => ({
@@ -19,7 +20,10 @@ vi.mock('@/lib/utils/toast', () => ({
 
 vi.mock('@/store/memory', () => ({
   useMemoryStore: {
-    getState: () => ({ fetchConflicts: storeMocks.fetchConflicts }),
+    getState: () => ({
+      fetchConflicts: storeMocks.fetchConflicts,
+      fetchPendingMemories: storeMocks.fetchPendingMemories,
+    }),
   },
 }));
 
@@ -30,6 +34,17 @@ describe('showMemoryOperationToasts', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('refreshes the pending queue when implicit feedback queues personal proposals', async () => {
+    showMemoryOperationToasts({ operation: 'implicit_feedback_personal', proposal_count: 2 }, { t, router });
+
+    await vi.waitFor(() => {
+      expect(storeMocks.fetchPendingMemories).toHaveBeenCalledWith(true);
+    });
+    // The chat window's pending toast announces it; the event itself stays silent.
+    expect(toastMocks.info).not.toHaveBeenCalled();
+    expect(toastMocks.success).not.toHaveBeenCalled();
   });
 
   it('shows success toast for auto-approved goal completion', () => {

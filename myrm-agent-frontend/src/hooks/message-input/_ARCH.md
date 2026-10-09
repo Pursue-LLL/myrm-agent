@@ -6,9 +6,9 @@
 
 | 文件                                 | 职责                                                                                                                                                                                                                                |
 | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useMessageInput.ts`                 | 输入框状态、提交编排、草稿、与 queue/upload/wiki 组合；agent 忙且带附件时改走排队（redirect/steer 只带文本）；无痕模式不写草稿与输入历史                                                                                            |
-| `useMessageQueue.ts`                 | 排队消息的会话级薄 hook：绑定 `useMessageQueueStore` 当前会话切片，负责 localStorage 持久化与水合（无痕仅内存）；`enqueue` 返回真实队列位置；输入框与工件选区动作共享同一队列                                                       |
-| `useQueueDrain.ts`                   | 排队消息出队循环：单飞认领队首（编辑中的消息不出队）、Stop 后暂停、busy 阶梯退避后转 stuck 交由用户重试；队首随自身附件（`queuedAttachments`）发送，不占用输入框当前附件                                                            |
+| `useMessageInput.ts`                 | 输入框状态、提交编排、草稿、与 queue/upload/wiki 组合；agent 忙且带附件时改走排队（redirect/steer 只带文本）；redirect/steer 未被运行中的轮次接收时转入队列（同一条已拼装文本，不丢、不插队）；无痕模式不写草稿与输入历史           |
+| `useMessageQueue.ts`                 | 排队消息的会话级薄 hook：绑定 `useMessageQueueStore` 当前会话切片，负责标签页级 sessionStorage 持久化与水合（无痕仅内存）；`enqueue` 返回真实队列位置；输入框与工件选区动作共享同一队列                                             |
+| `useQueueDrain.ts`                   | 排队消息出队循环：单飞认领队首（编辑中的消息不出队）、Stop 后暂停、busy 阶梯退避用尽或请求被本地拒绝后转 stuck 交由用户重试（stuck 文案保持中性，不断言原因）；队首随自身附件（`queuedAttachments`）发送，不占用输入框当前附件      |
 | `messageInputKeyRouter.ts`           | 聊天输入框双通道键盘交互路由核心：判定 Enter（引导纠偏）与 Alt+Enter（非中断排队跟进）、IME 组合态守卫与多行编辑换行；展开编辑器内 Enter 换行、Ctrl/⌘+Enter 发送                                                                    |
 | `turnCapabilityOverrideCore.ts`      | 本轮能力覆写核心：按 Agent 基线归一化 Skill/MCP 子集并构建 `agentConfigOverride`                                                                                                                                                    |
 | `turnCapabilityTelemetry.ts`         | 单轮能力覆写埋点：`useTurnCapabilityTelemetry` 统一提交/入队/忙碌回队/终态埋点，`resolveTerminalTelemetry` 生成请求体终态遥测；直发与出队共用同一口径                                                                               |

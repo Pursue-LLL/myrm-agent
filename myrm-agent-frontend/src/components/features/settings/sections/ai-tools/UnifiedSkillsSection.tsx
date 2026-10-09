@@ -96,19 +96,19 @@ const UnifiedSkillsSection = memo(() => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="inventory" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="inventory">
           <SkillsSection />
         </TabsContent>
-        <TabsContent value="compounding" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="compounding">
           <CompoundingChecklistSection />
         </TabsContent>
-        <TabsContent value="workflowTemplates" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="workflowTemplates">
           <WorkflowTemplateLibrarySection />
         </TabsContent>
-        <TabsContent value="pending" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="pending">
           <PendingEvolutionsDashboard />
         </TabsContent>
-        <TabsContent value="rejections" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="rejections">
           <EvolutionRejectionDashboard />
         </TabsContent>
       </Tabs>

@@ -9,6 +9,7 @@
 | 文件                     | 职责                                                                                                              |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | `core.ts`                | Memory API DTO 与 CRUD/export/guardian health/policy/digest/rating/status/taste/trash/working-state helper        |
+| `pendingTargetChanged.ts` | 判定批准失败是否因建议所针对的记忆在入队后已变化（HTTP 409），供 UI 展示本地化「已过期」提示 |
 | `archive.ts`             | Typed Memory Archive export/restore 与 server-bound memory import 请求（dry-run/confirm + post-import readiness） |
 | `commandCenter.ts`       | Personal Brain Command Center：GUI 治理动作、可执行诊断、迁移完整性状态、导入清理指标                             |
 | `externalTranscripts.ts` | 外部 Agent 转录增量同步 API：状态查询与增量同步触发（本地/上传）                                                  |

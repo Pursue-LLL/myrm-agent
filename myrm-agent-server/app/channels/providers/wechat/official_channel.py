@@ -23,11 +23,13 @@ import hashlib
 import hmac
 import logging
 import time
+from functools import partial
 from pathlib import Path
 
 import defusedxml.ElementTree as ET
 import httpx
 
+from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import (
@@ -55,6 +57,11 @@ _MAX_TEXT_LENGTH = 600
 _TOKEN_REFRESH_BUFFER = 300
 _TOKEN_EXPIRED_ERRCODES = {40001, 42001}
 _RATE_LIMIT_ERRCODES = {45011, 45015, 45047}
+_WX_MEDIA_TYPES = {
+    MediaType.IMAGE: "image",
+    MediaType.AUDIO: "voice",
+    MediaType.VIDEO: "video",
+}
 
 
 class WeChatOfficialChannel(BaseChannel):
@@ -74,6 +81,7 @@ class WeChatOfficialChannel(BaseChannel):
         voice_message=True,
         typing_indicator=False,
         max_text_length=_MAX_TEXT_LENGTH,
+        message_ids=False,
     )
     render_style = RenderStyle(
         format="text",
@@ -131,10 +139,6 @@ class WeChatOfficialChannel(BaseChannel):
     async def send(self, msg: OutboundMessage) -> str | None:
         await self._ensure_token()
 
-        if msg.media:
-            for attachment in msg.media:
-                await self._send_media_message(msg.recipient_id, attachment)
-
         if msg.content:
             from app.channels.reliability.retry import send_with_retry
 
@@ -156,6 +160,13 @@ class WeChatOfficialChannel(BaseChannel):
                         channel=self.name,
                         retriable=False,
                     ) from exc
+
+        await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_media_message, msg.recipient_id),
+            text_delivered=bool(msg.content),
+        )
         return None
 
     def verify_url(self, signature: str, timestamp: str, nonce: str) -> bool:
@@ -238,20 +249,11 @@ class WeChatOfficialChannel(BaseChannel):
         await self._call_customer_api(payload)
 
     async def _send_media_message(self, openid: str, attachment: MediaAttachment) -> None:
-        """Send media via customer message API (requires media_id upload)."""
-        media_id = await self._upload_temp_media(attachment)
-        if not media_id:
-            return
-
-        type_map = {
-            MediaType.IMAGE: "image",
-            MediaType.AUDIO: "voice",
-            MediaType.VIDEO: "video",
-        }
-        wx_type = type_map.get(attachment.media_type)
+        """Send media via customer message API (requires media_id upload); raises when it cannot be delivered."""
+        wx_type = _WX_MEDIA_TYPES.get(attachment.media_type)
         if not wx_type:
-            logger.debug("WeChat: unsupported media type %s", attachment.media_type)
-            return
+            raise ChannelSendError(f"Unsupported media type {attachment.media_type}", channel=self.name, retriable=False)
+        media_id = await self._upload_temp_media(attachment, wx_type)
 
         payload: dict[str, object] = {
             "touser": openid,
@@ -288,18 +290,9 @@ class WeChatOfficialChannel(BaseChannel):
             channel="wechat_official",
         )
 
-    async def _upload_temp_media(self, attachment: MediaAttachment) -> str | None:
-        """Upload media to WeChat temporary material API, return media_id."""
-        type_map = {
-            MediaType.IMAGE: "image",
-            MediaType.AUDIO: "voice",
-            MediaType.VIDEO: "video",
-        }
-        wx_type = type_map.get(attachment.media_type)
-        if not wx_type:
-            return None
-
-        media_bytes: bytes | None = None
+    async def _upload_temp_media(self, attachment: MediaAttachment, wx_type: str) -> str:
+        """Upload media to WeChat temporary material API and return its media_id; raises on any failure."""
+        media_bytes: bytes
         filename = "media"
 
         if attachment.url:
@@ -316,17 +309,16 @@ class WeChatOfficialChannel(BaseChannel):
             downloader = MediaDownloader(http_client=self._http, enable_default_cache=True)
             result = await downloader.download(attachment.url, config=config)
             if not result.success or not result.data:
-                return None
+                raise ChannelSendError("WeChat media download failed", channel=self.name)
             media_bytes = result.data
         elif attachment.path:
             file_path = Path(attachment.path)
             if not file_path.exists():
-                logger.warning("WeChat: media File not found: %s", attachment.path)
-                return None
+                raise ChannelSendError(f"WeChat media file not found: {attachment.path}", channel=self.name, retriable=False)
             media_bytes = file_path.read_bytes()
             filename = attachment.filename or file_path.name
         else:
-            return None
+            raise ChannelSendError("WeChat attachment has neither url nor path", channel=self.name, retriable=False)
 
         resp = await self._http.post(
             f"{_API_BASE}/media/upload",
@@ -337,8 +329,7 @@ class WeChatOfficialChannel(BaseChannel):
         data = resp.json()
         media_id = data.get("media_id")
         if not isinstance(media_id, str):
-            logger.warning("WeChat: upload failed: %s", data)
-            return None
+            raise ChannelSendError(f"WeChat media upload failed: {data}", channel=self.name, retriable=False)
         return media_id
 
     def build_passive_reply(self, to_user: str, from_user: str, content: str) -> str:

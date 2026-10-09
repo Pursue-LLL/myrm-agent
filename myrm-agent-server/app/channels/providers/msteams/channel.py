@@ -7,6 +7,7 @@ Inbound: HTTP webhook (Bot Framework activity) → _parse_activity → _emit_inb
 Outbound: Bot Framework connector API (text/adaptive card/file attachment)
 
 [INPUT]
+- channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - channels.providers.msteams.api::BotFrameworkApi (POS: HTTP/OAuth layer)
@@ -25,13 +26,16 @@ from __future__ import annotations
 
 import json
 import logging
+from functools import partial
 
 import httpx
 from fastapi import Request
 from pydantic import ValidationError
 
+from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.msteams.api import BotFrameworkApi
 from app.channels.providers.msteams.auth import BotFrameworkJwtVerifier
 from app.channels.providers.msteams.helpers import (
@@ -185,13 +189,7 @@ class MSTeamsChannel(BaseChannel):
 
         has_components = bool(msg.components or msg.quick_replies)
 
-        if msg.media:
-            for ma in msg.media:
-                await self._api.send_attachment(service_url, conversation_id, ma)
-
-        if not msg.content and not has_components:
-            return None
-
+        last_id: str | None = None
         if has_components:
             chunks = render(msg, self.render_style)
             text_body = "\n\n".join(chunks) if chunks else ""
@@ -200,15 +198,18 @@ class MSTeamsChannel(BaseChannel):
                 msg.quick_replies,
                 text_body,
             )
-            return await self._api.post_activity(service_url, conversation_id, payload)
+            last_id = await self._api.post_activity(service_url, conversation_id, payload)
+        elif msg.content:
+            for chunk in render(msg, self.render_style):
+                last_id = await self._api.send_text_activity(service_url, conversation_id, chunk) or last_id
 
-        chunks = render(msg, self.render_style)
-        last_id: str | None = None
-        for chunk in chunks:
-            mid = await self._api.send_text_activity(service_url, conversation_id, chunk)
-            if mid:
-                last_id = mid
-        return last_id
+        attachment_id = await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._api.send_attachment, service_url, conversation_id),
+            text_delivered=has_components or bool(msg.content),
+        )
+        return last_id or attachment_id
 
     async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
         decoded = decode_message_key(message_id)
@@ -258,7 +259,11 @@ class MSTeamsChannel(BaseChannel):
         if not service_url:
             return None
         await self._api.ensure_token()
-        activity_id = await self._api.send_text_activity(service_url, chat_id, text)
+        try:
+            activity_id = await self._api.send_text_activity(service_url, chat_id, text)
+        except ChannelSendError as exc:
+            logger.warning("MSTeams placeholder failed: %s", exc)
+            return None
         if not activity_id:
             return None
         return encode_message_key(activity_id, service_url, chat_id)

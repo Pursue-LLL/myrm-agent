@@ -124,6 +124,8 @@ async def ask_advisor(
     model_cfg = filter_cfg or configs.model_cfg
     model_kwargs = dict(model_cfg.model_kwargs or {})
     model_kwargs["max_tokens"] = 256
+    # A short answer must not be lifted to a thinking model's output floor.
+    model_kwargs["supports_reasoning"] = False
     invoke_cfg = model_cfg.model_copy(
         update={"temperature": 0.2, "model_kwargs": model_kwargs},
     )

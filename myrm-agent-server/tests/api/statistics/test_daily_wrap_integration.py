@@ -8,6 +8,7 @@ at the boundary to supply controlled activity data, while all other paths
 
 from __future__ import annotations
 
+import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -261,6 +262,42 @@ class TestDailyWrapEdgeCases:
             resp = await client.get("/api/v1/statistics/daily-wrap", params={"date": "2026-06-12"})
 
         assert resp.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_llm_stall_returns_request_timeout(self, client: AsyncClient):
+        """A stalled LLM hits the generation deadline and is reported as a request timeout.
+
+        A bare TimeoutError would be classified by internal_error() as a database timeout.
+        """
+        fetchers = _patch_fetchers(sessions=SAMPLE_SESSIONS)
+
+        mock_configs = MagicMock()
+        mock_configs.providers_dict = {"mock": "provider"}
+        mock_lite_cfg = MagicMock()
+        mock_lite_cfg.model = "gpt-4o-mini"
+        mock_lite_cfg.base_url = None
+        mock_lite_cfg.api_key = "sk-test"
+
+        async def _stall(*_args: object, **_kwargs: object) -> None:
+            await asyncio.sleep(5)  # far above the patched deadline, bounded so a missing deadline fails fast
+
+        mock_llm = AsyncMock()
+        mock_llm.ainvoke = AsyncMock(side_effect=_stall)
+
+        with (
+            fetchers[0],
+            fetchers[1],
+            fetchers[2],
+            fetchers[3],
+            patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock, return_value=mock_configs),
+            patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=mock_lite_cfg),
+            patch("myrm_agent_harness.toolkits.llms.create_litellm_model", return_value=mock_llm),
+            patch("app.api.statistics.daily_wrap._WRAP_LLM_TIMEOUT_S", 0.05),
+        ):
+            resp = await client.get("/api/v1/statistics/daily-wrap", params={"date": "2026-06-08"})
+
+        assert resp.status_code == 408
+        assert "database" not in resp.text.lower()
 
     @pytest.mark.asyncio
     async def test_llm_non_json_response_graceful_degradation(self, client: AsyncClient):

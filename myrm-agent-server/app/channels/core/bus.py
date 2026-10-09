@@ -6,40 +6,29 @@ priority-based dispatch with back-pressure.
 
 
 [INPUT]
-- channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.core.outbound_dispatch::OutboundDispatchMixin (POS: priority dispatch loop and direct-send pipeline)
+- channels.core.outbound_prepare::apply_correlation_context, get_correlation_context (POS: correlation lineage)
 - channels.core.base::BaseChannel (POS: channel abstract base class)
-- channels.reliability.retry::send_with_retry (POS: async retry utility with exponential backoff)
-- channels.reliability.rate_limiter::ChannelRateLimiter (POS: per-channel rate limiter)
-- services.risk.detection::RiskDetectionService (POS: stateful risk detection engine with compiled regex cache)
+- channels.reliability.durable_outbound::DurableOutboundGate (POS: disk-backed outbound obligation)
+- channels.reliability.rate_limiter::create_limiter (POS: per-channel rate limiter)
 
 [OUTPUT]
-- MessageBus: async message bus managing outbound/inbound queues and channel registration
+- MessageBus: async message bus managing outbound/inbound queues, channel registration and DLQ admin
 - MessageBus.publish_outbound(): enqueues with DurableOutboundGate disk persist (IM channels)
-- MessageBus.send_tracked(): bypasses queue for direct send, returns message_id; null-send guard; on failure persists to DLQ and invokes on_permanent_failure
-- MessageBus._maybe_recover_durable_outbound(): re-injects disk-pending when outbound queue has capacity
-- MessageBus._record_outbound_failure(): shared DLQ + permanent-failure callback for sync and async send paths
+- MessageBus.send_now() / send_tracked(): direct send that raises / returns the message id (from the dispatch mixin)
 - MessageBus.edit_channel_message(): edits a sent message (for updating approval status)
-- downgrade_components: interactive component downgrade (appends text fallback when channel lacks support)
-- _apply_outbound_risk_gate: content safety detection before send (reuses RiskDetectionService)
+- create_default_message_bus: convenience factory with DLQ support
 
 [POS]
-Message routing hub. Producers call publish_outbound; the bus dispatches by priority
-to the target channel (SYSTEM > NORMAL > BULK). Inbound messages enter the _inbound
+Message routing hub and state holder. Producers call publish_outbound; the dispatch loop (mixin) routes
+by priority to the target channel (SYSTEM > NORMAL > BULK). Inbound messages enter the _inbound
 queue via channel _emit_inbound callbacks, consumed by AgentRouter.
-
-Outbound messages are auto-downgraded before dispatch for channels lacking interactive
-component support: components are rendered as text appended to content; quick_replies
-only downgrade ``required=True`` items, silently dropping non-required ones.
 """
 
 from __future__ import annotations
 
 import asyncio
-import contextvars
-import dataclasses
 import logging
-import time
-import uuid
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -50,143 +39,19 @@ from myrm_agent_harness.infra.delivery.notification_ledger import (
 from myrm_agent_harness.infra.delivery.storage import (
     QueuedDelivery,
     delete_failed_delivery,
-    move_to_failed,
 )
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.events import EventEmitter
-from app.channels.core.outbound_gate import get_outbound_content_gate
-from app.channels.i18n import channel_t, get_locale_from_metadata
+from app.channels.core.outbound_dispatch import OutboundDispatchMixin
+from app.channels.core.outbound_prepare import apply_correlation_context, get_correlation_context
 from app.channels.reliability.durable_outbound import DurableOutboundGate
-from app.channels.reliability.rate_limiter import (
-    TokenBucket,
-    create_limiter,
-)
-from app.channels.reliability.retry import send_with_retry
-from app.channels.types import (
-    ActionButton,
-    ChannelStatus,
-    ComponentRow,
-    CorrelationContext,
-    InboundMessage,
-    OutboundMessage,
-    SelectMenu,
-    render_components_as_text,
-    render_quick_replies_as_text,
-)
+from app.channels.reliability.rate_limiter import create_limiter
+from app.channels.types import InboundMessage, OutboundMessage
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_QUEUE_SIZE = 256
-_DEFAULT_DLQ_ALERT_THRESHOLD = 100
-
-# Global context var for implicit routing lineage across async tasks
-_correlation_context_var: contextvars.ContextVar[CorrelationContext | None] = contextvars.ContextVar(
-    "correlation_context", default=None
-)
-
-
-def set_correlation_context(
-    ctx: CorrelationContext | None,
-) -> contextvars.Token[CorrelationContext | None]:
-    """Set the current correlation context for the async execution flow."""
-    return _correlation_context_var.set(ctx)
-
-
-def get_correlation_context() -> CorrelationContext | None:
-    """Get the current correlation context for the async execution flow."""
-    return _correlation_context_var.get()
-
-
-def _apply_correlation_context(msg: OutboundMessage) -> OutboundMessage:
-    """Apply the active correlation context to an outbound message, correcting drifted routes."""
-    ctx = msg.correlation_context or get_correlation_context()
-    if not ctx:
-        return msg
-
-    # If the message already has the exact same context, no need to replace
-    if msg.correlation_context == ctx and msg.channel == ctx.channel and msg.recipient_id == ctx.chat_id:
-        return msg
-
-    # Correct the routing using the immutable lineage context
-    return dataclasses.replace(
-        msg,
-        channel=ctx.channel,
-        recipient_id=ctx.chat_id or msg.recipient_id,
-        correlation_context=ctx,
-    )
-
-
-def _apply_outbound_risk_gate(msg: OutboundMessage) -> OutboundMessage:
-    """Apply risk detection to outbound message content before sending to IM channels.
-
-    Uses the global RiskDetectionService (compiled regex cache, <1ms).
-    If blocked, replaces content with a safe i18n message and fires audit asynchronously.
-    Returns the original message unchanged when no rules match or service has zero rules.
-    """
-    if not msg.content:
-        return msg
-
-    from app.services.risk.detection import get_detection_service
-
-    service = get_detection_service()
-    if service.rule_count == 0:
-        return msg
-
-    result = service.detect(msg.content)
-    if not result.blocked:
-        return msg
-
-    locale = get_locale_from_metadata(msg.metadata)
-    blocked_content = channel_t(locale, "risk_outbound_blocked")
-
-    logger.info(
-        "Outbound risk gate blocked message on channel '%s': rules=%s",
-        msg.channel,
-        [m.display_name for m in result.matches],
-    )
-
-    asyncio.ensure_future(_record_outbound_risk_hits(result.matches, msg))
-
-    return dataclasses.replace(msg, content=blocked_content)
-
-
-async def _record_outbound_risk_hits(matches: tuple[object, ...], msg: OutboundMessage) -> None:
-    """Fire-and-forget: persist risk hit records for outbound blocked messages."""
-    try:
-        from app.platform_utils import get_session_factory
-        from app.services.risk.detection import get_detection_service
-
-        service = get_detection_service()
-        session_factory = get_session_factory()
-        async with session_factory() as db:
-            await service.record_hits(
-                db,
-                matches,  # type: ignore[arg-type]
-                trace_id=str(uuid.uuid4()),
-                session_id=msg.recipient_id,
-            )
-            await db.commit()
-    except Exception:
-        logger.debug("Failed to record outbound risk hits (non-critical)", exc_info=True)
-
-
-def _record_data_plane_outbound(msg: OutboundMessage) -> None:
-    """Fire-and-forget: persist outbound agent message to the channel data plane."""
-    try:
-        from app.channels.routing.channel_data_plane import ChannelDataPlaneService
-
-        asyncio.create_task(
-            ChannelDataPlaneService.record_outbound(
-                channel=msg.channel,
-                chat_id=msg.chat_id,
-                content=msg.content,
-                thread_id=msg.thread_id,
-                reply_to_id=msg.reply_to_id,
-            )
-        )
-    except Exception as exc:
-        logger.debug("Failed to schedule data plane outbound recording: %s", exc)
 
 
 def create_default_message_bus(
@@ -206,134 +71,7 @@ def create_default_message_bus(
     )
 
 
-def downgrade_components(msg: OutboundMessage, channel: BaseChannel) -> OutboundMessage:
-    """Downgrade interactive components to text when the channel lacks native support.
-
-    Returns the original message unchanged if no downgrade is needed.
-
-    Per-row granularity: a row containing SelectMenu items is downgraded
-    independently from rows containing only ActionButton items, allowing
-    channels that support buttons but not select menus to keep the buttons.
-
-    For quick_replies, only ``required=True`` items are rendered as text
-    fallback (e.g. approval prompts). Non-required items (e.g. suggestions)
-    are silently dropped to avoid cluttering text-only channels.
-
-    **Locale support**: Reads ``msg.metadata["locale"]`` (default: "en" for framework
-    internationalization compliance). Business layer should inject user's preferred
-    locale via metadata (e.g., from UserConfig or browser Accept-Language header).
-    Fallback messages are rendered in the specified language:
-    - "zh": "item", "reply countselect"
-    - "en": "Options", "Reply with a number to select"
-
-    **Logging**: When components are downgraded, an INFO-level log is emitted:
-    ``Downgrading components for channel 'whatsapp': buttons, quick_replies(2) → text fallback``
-
-    **Example**::
-
-        # Original message with buttons
-        msg = OutboundMessage(
-            channel="whatsapp",
-            recipient_id="user123",
-            content="Choose an option:",
-            components=(
-                (ActionButton(label="Approve", action_id="approve"),),
-            ),
-        )
-
-        # After downgrade (WhatsApp doesn't support buttons)
-        result = downgrade_components(msg, whatsapp_channel)
-        # result.content = "Choose an option:\\n\\n• Approve → /approve"
-        # result.components = ()
-    """
-    if not msg.components and not msg.quick_replies and not msg.media:
-        return msg
-
-    caps = channel.capabilities
-    locale = get_locale_from_metadata(msg.metadata)
-    changed = False
-    fallback_parts: list[str] = []
-    kept_rows: list[ComponentRow] = []
-    downgraded_types: list[str] = []
-
-    for row in msg.components:
-        has_select = any(isinstance(c, SelectMenu) for c in row)
-        has_button = any(isinstance(c, ActionButton) for c in row)
-
-        if has_select and not caps.select_menus:
-            text = render_components_as_text((row,), locale=locale)
-            if text:
-                fallback_parts.append(text)
-            changed = True
-            if "select_menus" not in downgraded_types:
-                downgraded_types.append("select_menus")
-        elif has_button and not caps.buttons:
-            text = render_components_as_text((row,), locale=locale)
-            if text:
-                fallback_parts.append(text)
-            changed = True
-            if "buttons" not in downgraded_types:
-                downgraded_types.append("buttons")
-        else:
-            kept_rows.append(row)
-
-    keep_quick_replies = msg.quick_replies
-    if msg.quick_replies and not caps.quick_replies:
-        required_qrs = tuple(qr for qr in msg.quick_replies if qr.required)
-        if required_qrs:
-            text = render_quick_replies_as_text(required_qrs, locale=locale)
-            if text:
-                fallback_parts.append(text)
-            downgraded_types.append(f"quick_replies({len(required_qrs)})")
-        keep_quick_replies = ()
-        changed = True
-
-    keep_media = msg.media
-    if msg.media:
-        media_fallback_parts = []
-        keep_media_list = []
-
-        from app.channels.types.messages import MediaType
-
-        for m in msg.media:
-            is_document = m.media_type == MediaType.DOCUMENT
-            should_strip = (is_document and not caps.file_upload) or (not is_document and not caps.media)
-
-            if should_strip:
-                if m.url:
-                    media_fallback_parts.append(f"[{m.media_type.value.capitalize()}: {m.url}]")
-                elif m.path:
-                    media_fallback_parts.append(f"[{m.media_type.value.capitalize()} attachment omitted (unsupported channel)]")
-            else:
-                keep_media_list.append(m)
-
-        if media_fallback_parts:
-            fallback_parts.extend(media_fallback_parts)
-            downgraded_types.append(f"media({len(media_fallback_parts)})")
-            changed = True
-
-        keep_media = tuple(keep_media_list)
-
-    if not changed:
-        return msg
-
-    logger.info(
-        "Downgrading components/media for channel '%s': %s → text fallback",
-        channel.name,
-        ", ".join(downgraded_types),
-    )
-
-    suffix = "\n\n" + "\n".join(fallback_parts) if fallback_parts else ""
-    return dataclasses.replace(
-        msg,
-        content=msg.content + suffix,
-        components=tuple(kept_rows),
-        quick_replies=keep_quick_replies,
-        media=keep_media,
-    )
-
-
-class MessageBus:
+class MessageBus(OutboundDispatchMixin):
     """Async message bus with outbound dispatch and inbound collection."""
 
     def __init__(
@@ -345,141 +83,27 @@ class MessageBus:
         notification_ledger: PermanentFailureNotificationLedger | None = None,
     ) -> None:
         self._max_queue_size = max_queue_size
-        self._outbound: asyncio.PriorityQueue[tuple[int, int, OutboundMessage]] | None = None
+        self._outbound = None
         self._outbound_seq = 0
         self._inbound: asyncio.Queue[InboundMessage] | None = None
-        self._channels: dict[str, BaseChannel] = {}
-        self._limiters: dict[str, TokenBucket] = {}
-        self._last_send_times: dict[str, float] = {}
+        self._channels = {}
+        self._limiters = {}
+        self._last_send_times = {}
         self._dispatch_task: asyncio.Task[None] | None = None
         self._running = False
         self._dlq_dir = dlq_dir
-        self._dlq: DeadLetterQueue | None = None
+        self._dlq = None
         self.events = EventEmitter("MessageBus")
         self._dlq_alert_cooldown_sec = dlq_alert_cooldown_sec
-        self._last_dlq_alert_times: dict[str, float] = {}
+        self._last_dlq_alert_times = {}
         self.on_permanent_failure = on_permanent_failure
         self._notification_ledger = notification_ledger
-        self._presync_notified_delivery_ids: set[str] = set()
+        self._presync_notified_delivery_ids = set()
         self._durable_outbound = DurableOutboundGate(dlq_dir)
 
     @property
     def durable_outbound(self) -> DurableOutboundGate:
         return self._durable_outbound
-
-    def _is_permanent_failure_already_notified(self, delivery_id: str) -> bool:
-        if delivery_id in self._presync_notified_delivery_ids:
-            return True
-        if self._dlq is not None and delivery_id in self._dlq._permanent_failure_notified_ids:
-            return True
-        if self._notification_ledger is not None and self._notification_ledger.was_notified(delivery_id):
-            self._presync_notified_delivery_ids.add(delivery_id)
-            if self._dlq is not None:
-                self._dlq.mark_permanent_failure_notified(delivery_id)
-            return True
-        return False
-
-    def _mark_permanent_failure_notified(self, delivery_id: str) -> None:
-        self._presync_notified_delivery_ids.add(delivery_id)
-        if self._dlq is not None:
-            self._dlq.mark_permanent_failure_notified(delivery_id)
-        elif self._notification_ledger is not None:
-            self._notification_ledger.mark_notified(delivery_id)
-
-    async def _dlq_enqueue(
-        self,
-        channel: str,
-        recipient: str,
-        content: dict[str, object],
-        priority: int = 2,
-    ) -> str:
-        """Callback for DeadLetterQueue to re-enqueue a failed message."""
-        msg = OutboundMessage.from_dict(content)
-        await self.publish_outbound(msg)
-
-        # Track metric if channel exists
-        ch = self._channels.get(channel)
-        if ch and hasattr(ch, "metrics"):
-            ch.metrics.record_dlq_retry_success()
-
-        return "enqueued"
-
-    def _dlq_max_retries(self) -> int:
-        if self._dlq is not None:
-            return self._dlq.max_retries
-        return 3
-
-    async def _emit_dlq_threshold_if_needed(self, channel_name: str) -> None:
-        if self._dlq is None or self._dlq_dir is None:
-            return
-        dlq_count = await self._dlq.get_failed_count()
-        if dlq_count < _DEFAULT_DLQ_ALERT_THRESHOLD:
-            return
-        now = time.time()
-        last_alert_time = self._last_dlq_alert_times.get(channel_name, 0.0)
-        if now - last_alert_time < self._dlq_alert_cooldown_sec:
-            logger.debug(
-                "DLQ threshold exceeded for '%s', but alert is on cooldown",
-                channel_name,
-            )
-            return
-        self._last_dlq_alert_times[channel_name] = now
-        self.events.emit(
-            "DLQ_THRESHOLD_EXCEEDED",
-            {"count": dlq_count, "channel": channel_name},
-        )
-
-    async def _record_outbound_failure(
-        self,
-        msg: OutboundMessage,
-        error: str,
-        *,
-        retries_exhausted: bool,
-    ) -> None:
-        """Persist a failed outbound send to DLQ and optionally notify permanent failure."""
-        await self._durable_outbound.ack(msg)
-
-        if self._dlq_dir is None and self.on_permanent_failure is None:
-            return
-
-        max_retries = self._dlq_max_retries()
-        delivery = QueuedDelivery(
-            id=uuid.uuid4().hex,
-            channel=msg.channel,
-            recipient=msg.recipient_id,
-            content=msg.to_dict(),
-            enqueued_at=time.time(),
-            priority=msg.priority.value,
-            retry_count=max_retries if retries_exhausted else 0,
-            last_attempt_at=time.time(),
-            last_error=error,
-            failed_at=time.time() if retries_exhausted else None,
-        )
-
-        if self._dlq_dir is not None:
-            try:
-                await move_to_failed(delivery, base_dir=self._dlq_dir)
-                logger.debug("Message added to DLQ for channel '%s'", msg.channel)
-                await self._emit_dlq_threshold_if_needed(msg.channel)
-            except Exception as dlq_e:
-                logger.error(
-                    "Failed to save message to DLQ for channel '%s': %s",
-                    msg.channel,
-                    dlq_e,
-                )
-
-        if retries_exhausted and self.on_permanent_failure is not None:
-            if self._is_permanent_failure_already_notified(delivery.id):
-                return
-            try:
-                await self.on_permanent_failure(delivery, error)
-                self._mark_permanent_failure_notified(delivery.id)
-            except Exception as cb_e:
-                logger.error(
-                    "Error in on_permanent_failure callback for channel '%s': %s",
-                    msg.channel,
-                    cb_e,
-                )
 
     def _ensure_queues(self) -> None:
         if self._outbound is None:
@@ -527,7 +151,7 @@ class MessageBus:
         """Enqueue an outbound message for priority-based delivery."""
         self._ensure_queues()
         assert self._outbound is not None
-        msg = _apply_correlation_context(msg)
+        msg = apply_correlation_context(msg)
         if not _skip_durable_persist:
             msg = await self._durable_outbound.prepare_enqueue(msg)
         try:
@@ -536,76 +160,7 @@ class MessageBus:
             self._durable_outbound.track_enqueued(msg)
         except asyncio.QueueFull:
             logger.warning("Outbound queue full, dropping message for channel '%s'", msg.channel)
-            self._durable_outbound.release_inflight(msg)
-
-    async def send_tracked(self, msg: OutboundMessage) -> str | None:
-        """Send a message directly (bypassing the queue) and return its platform message_id.
-
-        Used for messages that need lifecycle management (e.g. approval prompts
-        that will be edited after the user responds). Applies the same retry
-        policy as the dispatch loop for reliability.
-        """
-        msg = _apply_correlation_context(msg)
-        channel = self._channels.get(msg.channel)
-        if not channel:
-            logger.warning("No channel registered for '%s', cannot send_tracked", msg.channel)
-            return None
-        if channel.status == ChannelStatus.DISABLED:
-            logger.debug("Channel '%s' is disabled, cannot send_tracked", msg.channel)
-            return None
-        if channel.status == ChannelStatus.STOPPED:
-            logger.debug("Channel '%s' is stopped, cannot send_tracked", msg.channel)
-            return None
-        msg = downgrade_components(msg, channel)
-        msg = _apply_outbound_risk_gate(msg)
-        msg = await self._durable_outbound.persist_direct_send(msg)
-
-        rate_limit = channel.capabilities.send_rate_limit
-        if rate_limit > 0:
-            last_send = self._last_send_times.get(msg.channel, 0.0)
-            elapsed = time.monotonic() - last_send
-            if elapsed < rate_limit:
-                await asyncio.sleep(rate_limit - elapsed)
-
-        t0 = time.monotonic()
-        try:
-            await self._durable_outbound.mark_attempting(msg)
-            if await self._try_cp_egress(msg):
-                await self._durable_outbound.ack(msg)
-                latency_ms = (time.monotonic() - t0) * 1000
-                channel.activity.record_outbound(latency_ms=latency_ms)
-                _record_data_plane_outbound(msg)
-                if rate_limit > 0:
-                    self._last_send_times[msg.channel] = time.monotonic()
-                return "cp_egress"
-
-            result = await send_with_retry(
-                channel.send,
-                msg,
-                config=channel.retry_config,
-                should_retry=channel.should_retry,
-                extract_retry_after=channel.extract_retry_after,
-                label=f"send_tracked:{msg.channel}",
-            )
-            if result is None:
-                await self._record_outbound_failure(
-                    msg,
-                    "channel send returned no message_id",
-                    retries_exhausted=True,
-                )
-                return None
-            await self._durable_outbound.ack(msg)
-            latency_ms = (time.monotonic() - t0) * 1000
-            channel.activity.record_outbound(latency_ms=latency_ms)
-            _record_data_plane_outbound(msg)
-            if rate_limit > 0:
-                self._last_send_times[msg.channel] = time.monotonic()
-            return result
-        except Exception as e:
-            channel.activity.record_error()
-            logger.warning("Channel '%s' send_tracked failed after retries: %s", msg.channel, e)
-            await self._record_outbound_failure(msg, str(e), retries_exhausted=True)
-            return None
+            self._release_unqueued(msg)
 
     async def edit_channel_message(self, channel_name: str, chat_id: str, message_id: str, content: str) -> bool:
         """Edit a previously sent message on a channel. Returns True if successful."""
@@ -716,154 +271,3 @@ class MessageBus:
         self._inbound = None
         self._dlq = None
         logger.info("MessageBus stopped")
-
-    async def _try_cp_egress(self, msg: OutboundMessage) -> bool:
-        """Route outbound via Control Plane when running in SaaS sandbox."""
-        from app.services.channels.cp_egress_client import (
-            send_via_control_plane,
-            should_route_via_control_plane,
-        )
-
-        meta = msg.metadata if isinstance(msg.metadata, dict) else None
-        if not should_route_via_control_plane(msg.channel, meta):
-            return False
-
-        tenant_id = msg.user_id or ""
-        ctx = msg.correlation_context or get_correlation_context()
-        if ctx and ctx.user_id:
-            tenant_id = ctx.user_id
-
-        update_id = None
-        if meta and meta.get("update_message_id"):
-            update_id = str(meta["update_message_id"])
-
-        result = await send_via_control_plane(
-            channel=msg.channel,
-            chat_id=msg.recipient_id,
-            content=msg.content,
-            tenant_id=tenant_id,
-            reply_to_message_id=msg.reply_to_id,
-            update_message_id=update_id,
-            thread_id=msg.thread_id,
-        )
-        return result is not None
-
-    async def _maybe_recover_durable_outbound(self) -> None:
-        """Re-inject disk-pending deliveries when the in-memory queue has capacity."""
-        if not self._durable_outbound.is_enabled() or self._outbound is None:
-            return
-        if self._outbound.qsize() >= self._max_queue_size:
-            return
-        await self._durable_outbound.recover_into_bus(self)
-
-    async def _dispatch_loop(self) -> None:
-        """Continuously dequeue outbound messages and route to channels (priority order)."""
-        self._ensure_queues()
-        assert self._outbound is not None
-        while self._running:
-            try:
-                _priority, _seq, msg = await asyncio.wait_for(self._outbound.get(), timeout=1.0)
-            except TimeoutError:
-                await self._maybe_recover_durable_outbound()
-                continue
-            except asyncio.CancelledError:
-                break
-
-            channel = self._channels.get(msg.channel)
-            if not channel:
-                if await self._try_cp_egress(msg):
-                    await self._durable_outbound.ack(msg)
-                    continue
-                logger.warning(
-                    "No channel registered for '%s', retaining durable outbound obligation",
-                    msg.channel,
-                )
-                self._durable_outbound.release_inflight(msg)
-                continue
-            if channel.status in (ChannelStatus.DISABLED, ChannelStatus.STOPPED):
-                logger.debug(
-                    "Channel '%s' is %s, retaining durable outbound obligation",
-                    msg.channel,
-                    channel.status.value,
-                )
-                self._durable_outbound.release_inflight(msg)
-                continue
-
-            if channel.health.circuit_open:
-                remaining = channel.health.circuit_open_until - time.monotonic()
-                logger.debug(
-                    "Channel '%s' circuit breaker open (%.1fs remaining), re-queuing",
-                    msg.channel,
-                    remaining,
-                )
-                self._outbound_seq += 1
-                self._outbound.put_nowait((msg.priority, self._outbound_seq, msg))
-                await asyncio.sleep(min(remaining, 1.0))
-                continue
-
-            msg = downgrade_components(msg, channel)
-            msg = _apply_outbound_risk_gate(msg)
-
-            # Pre-Publish Outbound Content & Link Liveness Gate
-            gate_result = await get_outbound_content_gate().evaluate_and_apply(msg)
-            if gate_result is None:
-                # Fail-Closed HOLD triggered on dead links for unattended cron/broadcast messages
-                logger.warning(
-                    "Outbound message held by pre-publish content gate for channel '%s'",
-                    msg.channel,
-                )
-                await self._durable_outbound.ack(msg)
-                continue
-            msg = gate_result
-
-            limiter = self._limiters.get(msg.channel)
-            if limiter:
-                await limiter.acquire()
-
-            rate_limit = channel.capabilities.send_rate_limit
-            if rate_limit > 0:
-                last_send = self._last_send_times.get(msg.channel, 0.0)
-                elapsed = time.monotonic() - last_send
-                if elapsed < rate_limit:
-                    await asyncio.sleep(rate_limit - elapsed)
-
-            t0 = time.monotonic()
-            try:
-                await self._durable_outbound.mark_attempting(msg)
-                if await self._try_cp_egress(msg):
-                    await self._durable_outbound.ack(msg)
-                    latency_ms = (time.monotonic() - t0) * 1000
-                    channel.activity.record_outbound(latency_ms=latency_ms)
-                    channel.health.record_success()
-                    _record_data_plane_outbound(msg)
-                    if rate_limit > 0:
-                        self._last_send_times[msg.channel] = time.monotonic()
-                    continue
-
-                send_result = await send_with_retry(
-                    channel.send,
-                    msg,
-                    config=channel.retry_config,
-                    should_retry=channel.should_retry,
-                    extract_retry_after=channel.extract_retry_after,
-                    label=f"send:{msg.channel}",
-                )
-                if send_result is None:
-                    await self._record_outbound_failure(
-                        msg,
-                        "channel send returned no message_id",
-                        retries_exhausted=True,
-                    )
-                    continue
-                await self._durable_outbound.ack(msg)
-                latency_ms = (time.monotonic() - t0) * 1000
-                channel.activity.record_outbound(latency_ms=latency_ms)
-                channel.health.record_success()
-                _record_data_plane_outbound(msg)
-                if rate_limit > 0:
-                    self._last_send_times[msg.channel] = time.monotonic()
-            except Exception as e:
-                channel.activity.record_error()
-                channel.health.record_failure(str(e))
-                logger.warning("Channel '%s' send failed after retries: %s", msg.channel, e)
-                await self._record_outbound_failure(msg, str(e), retries_exhausted=False)

@@ -9,7 +9,6 @@
 [OUTPUT]
 - MacScreenUnlocker: lock probe / serialized unlock / verified re-lock primitives
 - release_unlock_lease: hands the lease back only once the screen is confirmed locked
-- locked_use_session: async context manager that acquires and releases the CU lease
 - curtain_bridge: bridge state read + lease-bit write + capture-exclusion titles
 - unattended: on-demand unlock for Computer Use sessions (attach_desktop_session) and the lease-keeping watcher
 

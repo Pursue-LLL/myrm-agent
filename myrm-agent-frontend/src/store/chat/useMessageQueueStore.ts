@@ -19,6 +19,11 @@ import { create } from 'zustand';
 import type { ArchiveRestoreAction, File as ChatFile } from '@/store/chat/types';
 import type { TurnCapabilitySelection } from '@/hooks/message-input/turnCapabilityOverrideCore';
 
+/**
+ * Why a chat's queue stopped sending on its own:
+ * - stopped: the user stopped the running reply.
+ * - stuck: sending needs the user to act; the busy backoff ran out or the request was refused locally.
+ */
 export type QueuePauseReason = 'stopped' | 'stuck';
 
 /**

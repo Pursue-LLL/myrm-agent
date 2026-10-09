@@ -32,10 +32,11 @@ class _LocalBashExecutor(CodeExecutor):
             ),
         )
         return ExecutionResult(
+            success=res.returncode == 0,
             exit_code=res.returncode,
             stdout=res.stdout,
             stderr=res.stderr,
-            duration=0.1,
+            execution_time=0.1,
         )
 
     async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
@@ -50,16 +51,17 @@ class _LocalBashExecutor(CodeExecutor):
             ),
         )
         return ExecutionResult(
+            success=res.returncode == 0,
             exit_code=res.returncode,
             stdout=res.stdout,
             stderr=res.stderr,
-            duration=0.1,
+            execution_time=0.1,
         )
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_goal_acceptance_e2e_real_model(client: TestClient):
+async def test_goal_acceptance_e2e_real_model(client: TestClient) -> None:
     """
     E2E Test for Goal Acceptance Criteria with REAL MODEL.
     Verifies that:

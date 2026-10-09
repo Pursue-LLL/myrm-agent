@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.dingtalk import DingTalkChannel
 from app.channels.providers.dingtalk.helpers import (
     filename_from_url,
@@ -444,14 +445,33 @@ class TestDingTalkSend:
         await ch.send(msg)
         ch._api.send_group_markdown.assert_called_once()
 
+    def test_declares_that_it_returns_no_message_ids(self) -> None:
+        assert DingTalkChannel.capabilities.message_ids is False
+
     @pytest.mark.asyncio
-    async def test_send_no_recipient(self) -> None:
+    async def test_send_no_recipient_raises_permanent_error(self) -> None:
         ch = _make_channel()
         ch._api.ensure_token = AsyncMock()
 
         msg = OutboundMessage(channel="dingtalk", recipient_id="", content="Hello", user_id="U")
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError, match="no recipient") as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("target", ["send_dm_markdown", "send_group_markdown", "post_webhook"])
+    async def test_rejected_text_raises_instead_of_pretending_delivery(self, target: str) -> None:
+        ch = _make_channel()
+        ch._api.ensure_token = AsyncMock()
+        setattr(ch._api, target, AsyncMock(return_value=False))
+        ch._group_conversations.add("grp1")
+        recipient = "grp1" if target == "send_group_markdown" else "user1"
+        metadata = {"webhookUrl": "https://oapi.dingtalk.com/robot/send?access_token=x"} if target == "post_webhook" else {}
+
+        msg = OutboundMessage(channel="dingtalk", recipient_id=recipient, content="Hello", user_id="U", metadata=metadata)
+        with pytest.raises(ChannelSendError, match="rejected the message") as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.retriable is True
 
     @pytest.mark.asyncio
     async def test_send_via_webhook(self) -> None:
@@ -503,12 +523,12 @@ class TestDingTalkSend:
         ch._api.send_group_markdown.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_send_attachment_fallback_text(self) -> None:
+    async def test_unreadable_attachment_is_reported_not_announced_in_chat(self) -> None:
         ch = _make_channel()
         ch._api.ensure_token = AsyncMock()
         ch._api.send_image_dm = AsyncMock(return_value=False)
         ch._api.download_url = AsyncMock(return_value=None)
-        ch._api.send_dm_markdown = AsyncMock()
+        ch._api.send_dm_markdown = AsyncMock(return_value=True)
 
         msg = OutboundMessage(
             channel="dingtalk",
@@ -517,8 +537,73 @@ class TestDingTalkSend:
             user_id="U",
             media=(MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg"),),
         )
-        await ch.send(msg)
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        assert excinfo.value.failed_attachments == ("https://img.example.com/1.jpg",)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (False, True)
+        ch._api.send_dm_markdown.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_failed_attachment_after_delivered_text_is_a_partial_delivery(self) -> None:
+        ch = _make_channel()
+        ch._api.ensure_token = AsyncMock()
+        ch._api.send_dm_markdown = AsyncMock(return_value=True)
+        ch._api.download_url = AsyncMock(return_value=(b"filedata", "application/pdf"))
+        ch._api.upload_media = AsyncMock(return_value=None)
+
+        msg = OutboundMessage(
+            channel="dingtalk",
+            recipient_id="user1",
+            content="Here is the report",
+            user_id="U",
+            media=(MediaAttachment(media_type=MediaType.DOCUMENT, url="https://example.com/doc.pdf"),),
+        )
+        with pytest.raises(ChannelSendError, match="doc.pdf") as excinfo:
+            await ch.send(msg)
+
         ch._api.send_dm_markdown.assert_called_once()
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
+
+    @pytest.mark.asyncio
+    async def test_group_chat_cannot_receive_a_local_file(self) -> None:
+        ch = _make_channel()
+        ch._api.ensure_token = AsyncMock()
+        ch._api.send_group_markdown = AsyncMock(return_value=True)
+        ch._group_conversations.add("grp1")
+
+        msg = OutboundMessage(
+            channel="dingtalk",
+            recipient_id="grp1",
+            content="",
+            user_id="U",
+            media=(MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/report.pdf"),),
+        )
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        assert excinfo.value.failed_attachments == ("report.pdf",)
+        assert excinfo.value.retriable is False  # permanent: the bus falls back to text without retrying
+        ch._api.send_group_markdown.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rejected_file_message_raises(self) -> None:
+        ch = _make_channel()
+        ch._api.ensure_token = AsyncMock()
+        ch._api.download_url = AsyncMock(return_value=(b"filedata", "application/pdf"))
+        ch._api.upload_media = AsyncMock(return_value="media_id_456")
+        ch._api.send_file_dm = AsyncMock(return_value=False)
+
+        msg = OutboundMessage(
+            channel="dingtalk",
+            recipient_id="user1",
+            content="",
+            user_id="U",
+            media=(MediaAttachment(media_type=MediaType.DOCUMENT, url="https://example.com/doc.pdf"),),
+        )
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.failed_attachments == ("https://example.com/doc.pdf",)
 
     @pytest.mark.asyncio
     async def test_send_attachment_upload_flow(self) -> None:
@@ -639,6 +724,30 @@ class TestDingTalkStreamingCard:
         await ch.edit_placeholder_message("conv1", "track1", msg)
         ch._api.streaming_update.assert_called_once_with("track1", "content", "Final answer", is_finalize=True)
         assert "track1" not in ch._streaming_cards
+
+    @pytest.mark.asyncio
+    async def test_finalizing_a_card_that_is_gone_raises_so_the_reply_is_sent_normally(self) -> None:
+        ch = DingTalkChannel(app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema")
+        ch._api.streaming_update = AsyncMock(return_value=True)
+
+        msg = OutboundMessage(channel="dingtalk", recipient_id="conv1", content="Final answer", user_id="U")
+        with pytest.raises(ChannelSendError, match="no longer active") as excinfo:
+            await ch.edit_placeholder_message("conv1", "stale-track", msg)
+
+        assert excinfo.value.retriable is False
+        ch._api.streaming_update.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rejected_final_card_update_raises_and_keeps_the_card_for_retry(self) -> None:
+        ch = DingTalkChannel(app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema")
+        ch._api.streaming_update = AsyncMock(return_value=False)
+        ch._streaming_cards["track1"] = "track1"
+
+        msg = OutboundMessage(channel="dingtalk", recipient_id="conv1", content="Final answer", user_id="U")
+        with pytest.raises(ChannelSendError, match="rejected the final card update"):
+            await ch.edit_placeholder_message("conv1", "track1", msg)
+
+        assert "track1" in ch._streaming_cards
 
     @pytest.mark.asyncio
     async def test_finalize_active_cards(self) -> None:

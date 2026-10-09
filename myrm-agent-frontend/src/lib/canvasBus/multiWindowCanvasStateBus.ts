@@ -1,3 +1,4 @@
+// @orphan-ok Cross-window/cross-tab state event bus for multi-window canvas synchronization
 /**
  * [INPUT]
  * Browser BroadcastChannel API or window CustomEvent fallback

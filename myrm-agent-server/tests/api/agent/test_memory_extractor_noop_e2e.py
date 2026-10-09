@@ -3,15 +3,17 @@
 import asyncio
 import os
 import uuid
+from collections.abc import Iterable
 
 import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import build_memory_e2e_embedding_retrieval_dict, get_model_selection
+from tests.support.memory_extraction_probe import install_real_extraction_probe
 
 
-def _exhaust_stream(resp):
-    for _line in resp.iter_lines():
+def _exhaust_stream(lines: Iterable[str]) -> None:
+    for _line in lines:
         pass
 
 
@@ -22,7 +24,9 @@ def _exhaust_stream(resp):
     reason="E2E test requires BASIC_API_KEY",
 )
 @pytest.mark.asyncio
-async def test_memory_extractor_noop_and_valuable_e2e(client: TestClient):
+async def test_memory_extractor_noop_and_valuable_e2e(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    probe = install_real_extraction_probe(monkeypatch)
+
     retrieval = build_memory_e2e_embedding_retrieval_dict()
     if retrieval is None:
         pytest.skip("No embedding credential")
@@ -43,7 +47,7 @@ async def test_memory_extractor_noop_and_valuable_e2e(client: TestClient):
 
     with client.stream("POST", "/api/v1/agents/agent-stream", json=req_trivial, timeout=120.0) as r1:
         assert r1.status_code == 200
-        _exhaust_stream(r1)
+        _exhaust_stream(r1.iter_lines())
 
     # Need at least 4 messages (2 turns) to bypass quality filter length check in some cases
     # We will just send a valuable constraint now.
@@ -62,7 +66,7 @@ async def test_memory_extractor_noop_and_valuable_e2e(client: TestClient):
 
     with client.stream("POST", "/api/v1/agents/agent-stream", json=req_valuable, timeout=120.0) as r2:
         assert r2.status_code == 200
-        _exhaust_stream(r2)
+        _exhaust_stream(r2.iter_lines())
 
     req_trigger = {
         "messageId": str(uuid.uuid4()),
@@ -77,20 +81,17 @@ async def test_memory_extractor_noop_and_valuable_e2e(client: TestClient):
 
     with client.stream("POST", "/api/v1/agents/agent-stream", json=req_trigger, timeout=120.0) as r3:
         assert r3.status_code == 200
-        _exhaust_stream(r3)
+        _exhaust_stream(r3.iter_lines())
 
-    # Wait for async background task to finish extraction
-    await asyncio.sleep(10.0)
+    # Wait for the fire-and-forget extraction of the valuable constraint to persist
+    for _ in range(40):
+        if any("3.14" in content for content in probe.extracted_contents):
+            break
+        await asyncio.sleep(3.0)
 
-    # Query for the trivial message (should NOT exist)
-    sr_trivial = client.get("/api/v1/memory/search", params={"query": "天气不错", "limit": 10})
-    assert sr_trivial.status_code == 200
-    blob_trivial = sr_trivial.json()
-    assert len(blob_trivial.get("results", [])) == 0, "Trivial chat should be blocked by No-Op Default"
-
-    # Query for the valuable constraint
-    sr_valuable = client.get("/api/v1/memory/search", params={"query": "Python 3.14 版本", "limit": 10})
-    assert sr_valuable.status_code == 200
-    blob_valuable = sr_valuable.json()
-    results_str = str(blob_valuable.get("results", []))
-    assert "3.14" in results_str, "Valuable constraint should have been extracted"
+    # Inferred memories land in the review queue, so assert on what extraction produced rather than on search.
+    extracted = probe.extracted_contents
+    assert not any("天气" in content for content in extracted), "Trivial chat should be blocked by No-Op Default"
+    assert any("3.14" in content for content in extracted), (
+        f"Valuable constraint should have been extracted: {probe.persisted}; prompts={probe.prompts}"
+    )

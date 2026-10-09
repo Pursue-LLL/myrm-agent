@@ -3,11 +3,13 @@
  * - @/store/chat/useMessageQueueStore::{QueuedMessage, QueuePauseReason, StoredQueue} (POS: 排队消息内存状态源)
  *
  * [OUTPUT]
- * - readStoredQueue: restore one chat's queued messages and pause marker from localStorage.
+ * - readStoredQueue: restore one chat's queued messages and pause marker from the tab's sessionStorage.
  * - writeStoredQueue: persist (or clear) them.
  *
  * [POS]
- * localStorage 持久化层。队列内容与暂停标记分键存储，条目逐个校验，损坏数据只丢弃坏项而不拖垮整个队列。
+ * sessionStorage 持久化层（标签页私有）。刷新页面保留队列与 Stop 暂停；新开标签页从空队列开始，
+ * 因此同一浏览器的多个标签页不会各自发送同一批排队消息，关闭标签页即丢弃其队列。
+ * 队列内容与暂停标记分键存储，条目逐个校验，损坏数据只丢弃坏项而不拖垮整个队列。
  * 附件以元数据形式存储（id/fileUrl/localPath），发送只依赖这些稳定引用；乐观预览 URL 刷新后失效，不参与发送。
  */
 import type { QueuedMessage, QueuePauseReason, StoredQueue } from '@/store/chat/useMessageQueueStore';
@@ -34,13 +36,13 @@ export function readStoredQueue(chatId: string): StoredQueue {
     return EMPTY_STORED_QUEUE;
   }
   try {
-    const rawItems = localStorage.getItem(`${QUEUE_KEY_PREFIX}${chatId}`);
+    const rawItems = sessionStorage.getItem(`${QUEUE_KEY_PREFIX}${chatId}`);
     const parsed: unknown = rawItems ? JSON.parse(rawItems) : [];
     const items = Array.isArray(parsed) ? parsed.filter(isQueuedMessage) : [];
-    const rawPause = localStorage.getItem(`${PAUSE_KEY_PREFIX}${chatId}`);
+    const rawPause = sessionStorage.getItem(`${PAUSE_KEY_PREFIX}${chatId}`);
     return { items, pausedReason: items.length > 0 && isPauseReason(rawPause) ? rawPause : null };
   } catch (error) {
-    console.warn('Failed to restore the message queue from localStorage', error);
+    console.warn('Failed to restore the message queue from sessionStorage', error);
     return EMPTY_STORED_QUEUE;
   }
 }
@@ -53,17 +55,17 @@ export function writeStoredQueue(chatId: string, queue: StoredQueue): void {
     const queueKey = `${QUEUE_KEY_PREFIX}${chatId}`;
     const pauseKey = `${PAUSE_KEY_PREFIX}${chatId}`;
     if (queue.items.length === 0) {
-      localStorage.removeItem(queueKey);
-      localStorage.removeItem(pauseKey);
+      sessionStorage.removeItem(queueKey);
+      sessionStorage.removeItem(pauseKey);
       return;
     }
-    localStorage.setItem(queueKey, JSON.stringify(queue.items));
+    sessionStorage.setItem(queueKey, JSON.stringify(queue.items));
     if (queue.pausedReason) {
-      localStorage.setItem(pauseKey, queue.pausedReason);
+      sessionStorage.setItem(pauseKey, queue.pausedReason);
     } else {
-      localStorage.removeItem(pauseKey);
+      sessionStorage.removeItem(pauseKey);
     }
   } catch (error) {
-    console.warn('Failed to persist the message queue to localStorage', error);
+    console.warn('Failed to persist the message queue to sessionStorage', error);
   }
 }

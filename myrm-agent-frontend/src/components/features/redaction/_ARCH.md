@@ -8,12 +8,12 @@
 
 ## 文件清单
 
-| 文件                                      | 地位 | 职责                                                                                                                            | I/O/P |
-| ----------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `useRedactionDecisions.ts`                | 核心 | 复核状态 hook（`ignored` / `toggle` / `toggleAll` / `reset`）与纯函数 `keepEveryFinding`、`hasKeptFindings`；预览重载时 `reset` | ✅    |
-| `RedactionReview.tsx`                     | 核心 | 逐文件 diff 复核列表：勾选 = 脱敏，取消勾选 = 保留原文；`disabled` 在导出进行中锁定决定                                         | ✅    |
-| `__tests__/useRedactionDecisions.test.ts` | 测试 | 决定语义：逐条切换、整文件切换（部分保留时重新全部脱敏）、重置、`keepEveryFinding`                                              | ✅    |
-| `__tests__/RedactionReview.test.tsx`      | 测试 | 渲染原文与占位、保留项不显示占位行、切换回调、勾选状态、禁用态                                                                  | ✅    |
+| 文件                                      | 地位 | 职责                                                                                                                                                                                         | I/O/P |
+| ----------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `useRedactionDecisions.ts`                | 核心 | 复核状态 hook（`ignored` / `toggle` / `toggleAll` / `reset`）与纯函数 `keepEveryFinding`、`hasKeptFindings`；预览重载时 `reset`                                                              | ✅    |
+| `RedactionReview.tsx`                     | 核心 | 逐文件 diff 复核列表：勾选 = 脱敏，取消勾选 = 保留原文；每条发现按 `kinds` 稳定码显示本地化类型（`common.redactionReview.kinds.*`，未知码回落到 `unknown`）；`disabled` 在导出进行中锁定决定 | ✅    |
+| `__tests__/useRedactionDecisions.test.ts` | 测试 | 决定语义：逐条切换、整文件切换（部分保留时重新全部脱敏）、重置、`keepEveryFinding`                                                                                                           | ✅    |
+| `__tests__/RedactionReview.test.tsx`      | 测试 | 渲染原文与占位、本地化类型（多类型拼接、未知码回落）、保留项不显示占位行、切换回调、勾选状态、禁用态                                                                                         | ✅    |
 
 ## 依赖
 

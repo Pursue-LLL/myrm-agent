@@ -13,14 +13,14 @@
 | `backup.py` | 模块 | Memory backup and restore endpoints. | ✅ |
 | `backup_remote.py` | 模块 | Remote backup API endpoints. | ✅ |
 | `command_center.py` | 模块 | 记忆指挥中心 API 操作层。将单用户/单沙箱记忆运行快照暴露给设置页 UI，含 Claim/Evidence 知识图谱（支持 namespace 过滤），`GET /command-center` 支持可选 `project_id` 查询参数将快照聚焦到单个项目的 SharedContext 记忆空间；`GET /command-center/recall-boundary` 返回任务级审查优先召回边界与候选/生效分区快照。 | ✅ |
-| `command_center_actions.py` | 模块 | 记忆指挥中心动作执行实现层。处理 GUI 治理动作（审批、拒绝、编辑、修正、Pin/Unpin、遗忘）。纪律默认一键恢复 `restore_disciplined_defaults` 归 Memory Doctor 修复执行器，不在本动作域。 | ✅ |
+| `command_center_actions.py` | 模块 | 记忆指挥中心动作执行实现层。处理 GUI 治理动作（审批、拒绝、修正、Pin/Unpin、遗忘）；待审批记忆的批准/拒绝经审批队列统一审批入口（`services/memory/operations/pending_review.py`），编辑在审阅弹窗的 `edited_content` 完成。纪律默认一键恢复 `restore_disciplined_defaults` 归 Memory Doctor 修复执行器，不在本动作域。 | ✅ |
 | `command_center_consolidation.py` | 模块 | 记忆合并回滚 API 操作层。将 Harness 层的 consolidation_rollback 逻辑暴露给设置页 UI。 | ✅ |
 | `command_center_diagnostics.py` | 模块 | 记忆指挥中心诊断与修复 API 操作层。包含 Memory Doctor 动作触发、历史基准趋势与结构化白名单修复。 | ✅ |
 | `crud.py` | 模块 | Memory CRUD HTTP routes — thin transport layer. | ✅ |
 | `external_transcripts.py` | 模块 | 外部 Agent 转录记忆召回 API。支持本地目录扫描增量建索与云端批量文件增量同步 | ✅ |
 | `guardian.py` | 模块 | 记忆守护者 API。暴露健康分与调度状态；手动维护触发支持 `safe/force` 契约；提供守护策略（频率档位 + quiet window）读写与晨间摘要查询（按最新完成维护窗口聚合）；健康/摘要读路径支持首访浏览器时区初始化，并在缺少客户端时区头时使用服务端本地时区兜底初始化（后续客户端头可自动纠偏）；`/health` 返回守卫不可用告警聚合；`/overview` 返回 health/policy/alerts + digest 单契约；告警聚合采用按 frequency tier 自适应的最小事件阈值与 escalation 阈值策略（reason count + ratio）。 | ✅ |
-| `pending.py` | 模块 | 待处理记忆 API 操作层。提供待处理记忆的审批流管理（列表/审批/拒绝/批量）与结构化元数据（置信度/类别/有效期/依据）投影。 | ✅ |
-| `conflicts.py` | 模块 | 待裁决记忆冲突 API 操作层。列出并裁决 `pending_memories.is_conflict` 记录，复用 Harness 记忆变更（`update_memory` / `add_knowledge`）保持新旧事实生命周期一致。 | ✅ |
+| `pending.py` | 模块 | 待处理记忆 API 操作层。提供待处理记忆的审批流管理（列表/审批/拒绝/批量）与结构化元数据（置信度/类别/有效期/依据）投影；审批透传审批者改写文本 `edited_content`（不可编辑的提案 → 400；提案所针对的记忆在入队后已变化 → 409 且提案保持待审），遗忘类提案批准即归档目标记忆（保留期内可恢复）；批准/拒绝（含批量）统一经 `pending_review` 写审计。 | ✅ |
+| `conflicts.py` | 模块 | 待裁决记忆冲突 API 操作层。列出并裁决 `pending_memories.is_conflict` 记录，复用 Harness 记忆变更（`update_memory` / `add_knowledge`）保持新旧事实生命周期一致；裁决结果经 `pending_review.record_pending_event` 写入操作账本。 | ✅ |
 | `shared_context/`（子包） | 模块 | 共享上下文 API 子域：CRUD、健康检查、历史证据、遗留迁移 + 序列化辅助。5 个 `shared_context_*` 模块聚合于此，`shared_context/__init__.py` 为聚合门面统一 re-export | ✅ |
 | `reindex.py` | 模块 | Memory reindex API — orphan detection, estimation, and execution for embedding model migration. | ✅ |
 | `radar.py` | 模块 | 动态偏好雷达 API。暴露当前会话雷达状态、手动微调与隐式反馈记录 HTTP 接口。 | ✅ |

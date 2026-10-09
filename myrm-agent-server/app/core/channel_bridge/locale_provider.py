@@ -1,15 +1,17 @@
 """UserConfig-backed locale provider for channel ingress.
 
 [INPUT]
-- app.core.channel_bridge.config_loader::load_user_configs (POS: cached user config bundle)
+- app.core.channel_bridge.config_loader::load_user_config_entry (POS: single decrypted UserConfig entry)
 - myrm_agent_harness.utils.locale::normalize_locale (POS: BCP-47 normalization)
 
 [OUTPUT]
+- resolve_user_locale: the GUI user's language preference, for system-generated messages outside an inbound turn
 - UserConfigLocaleProvider: LocaleProvider implementation
 
 [POS]
 Business-layer adapter that resolves the GUI user's language preference
-(personalSettings.locale) for channel slash command replies.
+(personalSettings.locale) for channel slash command replies and for system-generated
+messages sent outside an inbound turn (e.g. cron delivery notes).
 """
 
 from __future__ import annotations
@@ -23,18 +25,23 @@ from app.channels.types import InboundMessage
 logger = logging.getLogger(__name__)
 
 
+async def resolve_user_locale() -> str:
+    """Resolve the locale from personalSettings.locale in UserConfig (global per deployment instance)."""
+    try:
+        from app.core.channel_bridge.config_loader import load_user_config_entry
+
+        personal = await load_user_config_entry("personalSettings") or {}
+        locale_val = personal.get("locale")
+        if locale_val:
+            return normalize_locale(str(locale_val))
+    except Exception as exc:
+        logger.warning("Failed to resolve user locale from config: %s", exc)
+    return normalize_locale(None)
+
+
 class UserConfigLocaleProvider:
     """Resolve locale from personalSettings.locale in UserConfig."""
 
     async def resolve_locale(self, msg: InboundMessage) -> str:
         del msg  # Single-user server; locale is global per deployment instance.
-        try:
-            from app.core.channel_bridge.config_loader import load_user_config_entry
-
-            personal = await load_user_config_entry("personalSettings") or {}
-            locale_val = personal.get("locale")
-            if locale_val:
-                return normalize_locale(str(locale_val))
-        except Exception as exc:
-            logger.warning("Failed to resolve user locale from config: %s", exc)
-        return normalize_locale(None)
+        return await resolve_user_locale()

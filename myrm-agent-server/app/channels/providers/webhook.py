@@ -54,6 +54,8 @@ class WebhookChannel(BaseChannel):
         markdown=True,
         typing_indicator=False,
         max_text_length=10_000,
+        # A receiver owes no message id; its 2xx answer is the delivery proof.
+        message_ids=False,
     )
     render_style = RenderStyle(
         format="markdown",
@@ -83,35 +85,22 @@ class WebhookChannel(BaseChannel):
     async def send(self, msg: OutboundMessage) -> str | None:
         url = msg.recipient_id
         if not url:
-            logger.warning("WebhookChannel: no URL provided, skipping")
-            return None
+            raise ChannelSendError("Webhook URL is missing", channel=self.name, retriable=False)
 
         payload = self._build_payload(msg)
 
         try:
-            client = self._get_client()
-            resp = await client.post(
+            resp = await self._get_client().post(
                 url,
                 content=json.dumps(payload, ensure_ascii=False),
                 headers={"Content-Type": "application/json"},
             )
-            if resp.status_code >= 400:
-                self.health.record_failure(f"HTTP {resp.status_code}")
-                raise ChannelSendError(
-                    f"Webhook POST failed: HTTP {resp.status_code}",
-                    channel="webhook",
-                    status_code=resp.status_code,
-                    retriable=resp.status_code >= 500,
-                )
-        except ChannelSendError:
-            raise
         except Exception as exc:
             self.health.record_failure(str(exc))
-            raise ChannelSendError(
-                f"Webhook POST error: {exc}",
-                channel="webhook",
-                retriable=True,
-            ) from exc
+            raise ChannelSendError(f"Webhook POST error: {exc}", channel=self.name) from exc
+        if resp.status_code >= 400:
+            self.health.record_failure(f"HTTP {resp.status_code}")
+            raise ChannelSendError.from_http_status(self.name, resp.status_code)
 
         self.health.record_success()
         logger.debug("WebhookChannel: delivered to %s", url[:60])

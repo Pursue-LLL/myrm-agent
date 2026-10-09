@@ -21,10 +21,10 @@ class EntityCategory(str, enum.Enum):
     """Categorization of extracted real-world entities."""
 
     ORGANIZATION = "organization"  # Company, team, research lab, community
-    PRODUCT = "product"            # App, model, framework, open-source tool
-    PERSON = "person"              # Key researcher, speaker, author, executive
+    PRODUCT = "product"  # App, model, framework, open-source tool
+    PERSON = "person"  # Key researcher, speaker, author, executive
     TECH_CONCEPT = "tech_concept"  # Architecture pattern, algorithm, standard
-    INCIDENT_RISK = "incident_risk"# Outage, vulnerability, blocker, breaking change
+    INCIDENT_RISK = "incident_risk"  # Outage, vulnerability, blocker, breaking change
 
 
 @dataclass(frozen=True)
@@ -112,7 +112,9 @@ class ChatEntityDigestReport:
                 lines.append("")
 
         lines.append("---")
-        lines.append(f"*由 Myrm 渠道数据智能中枢自动生成 · 生成时间 {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.generated_timestamp))}*")
+        lines.append(
+            f"*由 Myrm 渠道数据智能中枢自动生成 · 生成时间 {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.generated_timestamp))}*"
+        )
         return "\n".join(lines)
 
 

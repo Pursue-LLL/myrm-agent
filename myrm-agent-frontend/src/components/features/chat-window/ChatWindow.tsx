@@ -17,6 +17,7 @@ import { AgentConfig } from '@/store/chat/types';
 import { useSkillStore } from '@/store/skill';
 import { validateAgentDependencies, buildMissingDependenciesParts } from '@/lib/utils/agent-config';
 import { toast } from '@/hooks/shared/useToast';
+import { usePendingMemoryToast } from '@/hooks/shared/usePendingMemoryToast';
 import { useTranslations } from 'next-intl';
 import ToolApprovalDialog from './ToolApprovalDialog';
 import ToolApprovalExpiryWatcher from './ToolApprovalExpiryWatcher';
@@ -138,7 +139,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const [routeHydrationEpoch, setRouteHydrationEpoch] = useState(0);
   const [activeTab, setActiveTab] = useState<'chat' | 'trace'>('chat');
   const recoveryT = useTranslations('recovery');
-  const prevPendingCountRef = useRef<number>(-1);
 
   useEffect(() => {
     if (!id) {
@@ -554,23 +554,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   );
 
   const pendingMemories = useMemoryStore((s) => s.pendingMemories);
-  const pendingCount = useMemoryStore((s) => s.pendingCount);
   const openConfirmDialog = useMemoryStore((s) => s.openConfirmDialog);
-  const memoryT = useTranslations('memory');
-
-  useEffect(() => {
-    const prev = prevPendingCountRef.current;
-    prevPendingCountRef.current = pendingCount;
-    // prev === -1 表示首次加载，不触发 toast（避免页面刷新时已有 pending 也弹 toast）
-    if (prev >= 0 && pendingCount > prev) {
-      const added = pendingCount - prev;
-      toast({
-        title: memoryT('pendingToast.title'),
-        description: memoryT('pendingToast.description', { count: added }),
-        duration: 4000,
-      });
-    }
-  }, [pendingCount, memoryT]);
+  usePendingMemoryToast();
 
   const handlePendingMemoryClick = useCallback(() => {
     if (pendingMemories.length > 0) {

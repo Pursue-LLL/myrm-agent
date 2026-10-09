@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import smtplib
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,6 +14,7 @@ from app.channels.providers.email import EmailChannel
 from app.channels.types import (
     ChannelStatus,
     IssueKind,
+    MediaAttachment,
     MediaType,
     OutboundMessage,
 )
@@ -217,6 +219,91 @@ class TestEmailSend:
         sent_msg = mock_server.send_message.call_args[0][0]
         assert sent_msg["In-Reply-To"] == "<orig123@example.com>"
         assert sent_msg["References"] == "<orig123@example.com>"
+
+
+class TestEmailSendAttachments:
+    @staticmethod
+    def _smtp() -> tuple[MagicMock, MagicMock]:
+        """Patch-ready SMTP double: returns (class mock, server the ``with`` block yields)."""
+        server = MagicMock()
+        smtp_cls = MagicMock()
+        smtp_cls.return_value.__enter__ = MagicMock(return_value=server)
+        smtp_cls.return_value.__exit__ = MagicMock(return_value=False)
+        return smtp_cls, server
+
+    def test_declares_what_send_really_does(self) -> None:
+        caps = EmailChannel.capabilities
+        assert (caps.media, caps.file_upload, caps.message_ids) == (True, True, True)
+
+    @pytest.mark.asyncio
+    async def test_files_travel_with_the_email(self, tmp_path: Path) -> None:
+        ch = _make_channel()
+        report = tmp_path / "report.pdf"
+        report.write_bytes(b"%PDF-1.7")
+        attachment = MediaAttachment(media_type=MediaType.DOCUMENT, path=str(report))
+        msg = OutboundMessage(
+            channel="email", user_id="u1", recipient_id="user@example.com", content="Report attached", media=(attachment,)
+        )
+
+        smtp_cls, server = self._smtp()
+        with patch("smtplib.SMTP", smtp_cls):
+            result = await ch.send(msg)
+
+        assert result is not None
+        sent = server.send_message.call_args[0][0]
+        assert sent.get_content_type() == "multipart/mixed"
+        attachment_part = sent.get_payload()[1]
+        assert attachment_part.get_filename() == "report.pdf"
+        assert attachment_part.get_payload(decode=True) == b"%PDF-1.7"
+
+    @pytest.mark.asyncio
+    async def test_a_message_with_only_files_is_still_sent(self, tmp_path: Path) -> None:
+        ch = _make_channel()
+        chart = tmp_path / "chart.png"
+        chart.write_bytes(b"\x89PNG")
+        attachment = MediaAttachment(media_type=MediaType.IMAGE, path=str(chart))
+        msg = OutboundMessage(channel="email", user_id="u1", recipient_id="user@example.com", content="", media=(attachment,))
+
+        smtp_cls, server = self._smtp()
+        with patch("smtplib.SMTP", smtp_cls):
+            result = await ch.send(msg)
+
+        assert result is not None
+        server.send_message.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_unloadable_file_is_reported_after_the_email_went_out(self, tmp_path: Path) -> None:
+        ch = _make_channel()
+        good = tmp_path / "good.txt"
+        good.write_text("ok")
+        media = (
+            MediaAttachment(media_type=MediaType.DOCUMENT, path=str(good)),
+            MediaAttachment(media_type=MediaType.DOCUMENT, path=str(tmp_path / "gone.txt")),
+        )
+        msg = OutboundMessage(channel="email", user_id="u1", recipient_id="user@example.com", content="Files", media=media)
+
+        smtp_cls, server = self._smtp()
+        with patch("smtplib.SMTP", smtp_cls), pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        server.send_message.assert_called_once()
+        assert excinfo.value.failed_attachments == ("gone.txt",)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
+
+    @pytest.mark.asyncio
+    async def test_nothing_is_sent_when_no_file_can_be_loaded_and_there_is_no_text(self, tmp_path: Path) -> None:
+        ch = _make_channel()
+        attachment = MediaAttachment(media_type=MediaType.DOCUMENT, path=str(tmp_path / "gone.txt"))
+        msg = OutboundMessage(channel="email", user_id="u1", recipient_id="user@example.com", content="", media=(attachment,))
+
+        smtp_cls, server = self._smtp()
+        with patch("smtplib.SMTP", smtp_cls), pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        smtp_cls.assert_not_called()
+        server.send_message.assert_not_called()
+        assert excinfo.value.failed_attachments == ("gone.txt",)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (False, True)
 
 
 class TestEmailCollectIssues:

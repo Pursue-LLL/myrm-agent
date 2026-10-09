@@ -7,6 +7,7 @@ import pytest
 from app.channels.core.base import BaseChannel
 from app.channels.core.bus import MessageBus
 from app.channels.core.exceptions import ChannelSendError
+from app.channels.i18n import channel_t
 from app.channels.protocols.agent import AgentExecutor
 from app.channels.protocols.pairing import (
     ChannelPolicyProvider,
@@ -43,13 +44,14 @@ class DummyChannel(BaseChannel):
 
         return ChannelCapabilities(media=True)
 
-    async def send(self, msg: OutboundMessage) -> None:
+    async def send(self, msg: OutboundMessage) -> str | None:
         print(f"DummyChannel sending message: {msg}")
         if getattr(msg, "media", None):
             print("Raising ChannelSendError due to media")
             raise ChannelSendError("Media not supported", channel=self.name, retriable=False)
         self.sent_messages.append(msg)
         print(f"DummyChannel appended message. Total: {len(self.sent_messages)}")
+        return f"dummy-{len(self.sent_messages)}"
 
     async def start(self) -> None:
         pass
@@ -149,8 +151,12 @@ async def test_router_stream_thread_id_propagation_and_media_strip():
     # Publish message to bus
     await bus._handle_inbound(inbound)
 
-    # Wait for processing
-    await asyncio.sleep(0.5)
+    # Wait until the reply is delivered. A fixed sleep races the cold-import cost of the first
+    # routed message (it fails whenever this test runs first in a process), so poll with a deadline.
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + 15.0
+    while not channel.sent_messages and loop.time() < deadline:
+        await asyncio.sleep(0.05)
 
     # Stop the router and bus
     await router.stop()
@@ -166,4 +172,4 @@ async def test_router_stream_thread_id_propagation_and_media_strip():
 
     # Verify media was stripped by retry logic
     assert not sent_msg.media
-    assert "[Image/FileSendFailure" in sent_msg.content
+    assert sent_msg.content.endswith(str(channel_t("en", "attachment_stripped_note")))

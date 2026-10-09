@@ -6,12 +6,10 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from app.channels.types.messages import (
-    InboundMessage,
-    TopicContext,
-)
+from app.channels.types.messages import InboundMessage
 from app.channels.types.session import SessionKey
 from app.channels.types.thread_sharing import ThreadSharingMode
+from app.channels.types.topics import TopicContext
 
 
 class TestThreadSharingModeEnum:

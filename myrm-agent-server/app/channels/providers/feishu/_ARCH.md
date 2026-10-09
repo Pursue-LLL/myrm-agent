@@ -17,8 +17,11 @@
 | `comment_handler.py` | 模块 | Feishu drive document comment handler. Converts comment events to InboundMessage | ✅ |
 | `contact_fuzzy.py` | 模块 | High-precision phonetic & Levenshtein contact fuzzy matching and disambiguation engine. | ✅ |
 | `doctor.py` | 模块 | Feishu channel Doctor diagnostic suite (CardKit streaming permissions, tokens, transport reachability). | ✅ |
+| `inbound.py` | 模块 | Feishu inbound mixin. Webhook / websocket event handling for messages, card actions, reactions and comments; reply-context, sender-name and inbound-media resolution. | ✅ |
 | `models.py` | 模块 | Pydantic models for Feishu/Lark event subscription webhook payloads. | ✅ |
+| `outbound.py` | 模块 | Feishu outbound mixin. Message send (text / post / card), media upload, CardKit streaming, placeholder edit and reactions. | ✅ |
 | `parser.py` | 模块 | Feishu inbound message parser. Converts Feishu event JSON to structured data. Supports post rich-text -> Markdown, @mention detection, and image/media key extra | ✅ |
+| `reactions.py` | 模块 | Feishu reaction emoji vocabulary shared by the inbound and outbound mixins. | ✅ |
 | `registration.py` | 模块 | Channel provider utility. Encapsulates the Feishu device-code registration flow for automated bot app provisioning. Used by server-layer endpoints. | ✅ |
 | `streaming_dashboard.py` | 模块 | Feishu CardKit streaming dashboard, tool execution header state machine, and 300ms adaptive throttler. | ✅ |
 | `table_slicer.py` | 模块 | Feishu 24KB card boundary slicer, Markdown table header preservation, and Lark Markdown cleaner. | ✅ |

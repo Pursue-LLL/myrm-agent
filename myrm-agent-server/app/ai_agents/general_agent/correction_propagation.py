@@ -17,10 +17,11 @@ Harness 审批队列（个人记忆，HITL）与绑定的 SharedContext 写入�
 import hashlib
 import logging
 from collections.abc import Awaitable, Callable, Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast, get_args
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory import MemoryManager
+    from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import CorrectionProposal
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +166,7 @@ async def _recall_candidate_memories(
 
 
 async def _route_proposals_to_personal_memory(
-    proposals: list,
+    proposals: "list[CorrectionProposal]",
     *,
     agent_id: str,
     chat_id: str | None,
@@ -211,6 +212,10 @@ async def _route_proposals_to_personal_memory(
             CorrectionAction.DELETE: PendingResolutionAction.DELETE,
         }[proposal.action]
 
+        # The review surface shows which memory will be replaced or removed, so
+        # the user can tell an addition apart from a destructive correction.
+        target_content = recalled.get(target_memory_id) if target_memory_id else None
+
         memory = SemanticMemory(
             id=build_correction_proposal_source_id(chat_id, proposal.content),
             content=proposal.content,
@@ -224,6 +229,7 @@ async def _route_proposals_to_personal_memory(
                 memory,
                 resolution_action=action,
                 target_memory_id=target_memory_id,
+                target_content=target_content,
             )
         except Exception:
             logger.warning(
@@ -256,14 +262,18 @@ async def _route_proposals_to_personal_memory(
 
 
 def _resolve_target_memory_id(proposal: object, recalled: dict[str, str]) -> str | None:
-    """Resolve the memory a correction targets, using the planner id or recalled content.
+    """Resolve the memory a correction targets, from the recalled candidate set only.
 
-    Falls back to content matching only when the match is unambiguous: picking
-    among several candidates would demote the wrong memory, so an ambiguous
-    ``old_content`` yields ``None`` (the proposal is skipped) rather than a guess.
+    The planner only ever sees ids from ``recalled`` and cannot reliably echo a
+    UUID back, so an explicit id is trusted only when it names a candidate that
+    was actually offered this turn — a hallucinated or stale id must not shadow
+    the content match, or the correction would silently degrade to an addition.
+    Content matching is used only when unambiguous: picking among several
+    candidates would demote the wrong memory, so an ambiguous ``old_content``
+    yields ``None`` (the proposal is skipped) rather than a guess.
     """
     explicit = getattr(proposal, "target_memory_id", None)
-    if explicit:
+    if explicit and str(explicit) in recalled:
         return str(explicit)
 
     old_content = getattr(proposal, "old_content", None)
@@ -283,7 +293,7 @@ def _resolve_target_memory_id(proposal: object, recalled: dict[str, str]) -> str
 
 
 async def _route_proposals_to_shared_contexts(
-    proposals: list,
+    proposals: "list[CorrectionProposal]",
     *,
     agent_id: str,
     chat_id: str | None,
@@ -293,14 +303,27 @@ async def _route_proposals_to_shared_contexts(
 
     from app.database.connection import get_session
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-    from app.services.memory.shared_context.shared_context import SharedContextService, resolve_shared_context_ids
+    from app.services.memory.shared_context.shared_context import (
+        SharedContextMemoryType,
+        SharedContextService,
+        resolve_shared_context_ids,
+    )
     from app.services.memory.shared_context.shared_context_materializer import SharedContextProposalMaterializer
 
     context_ids = await resolve_shared_context_ids(agent_id=agent_id)
     if not context_ids:
         return
 
-    add_or_update_proposals = [p for p in proposals if p.action in (CorrectionAction.ADD, CorrectionAction.UPDATE)]
+    # The planner may also emit memory types a SharedContext cannot hold (e.g. procedural);
+    # those are skipped so one of them cannot abort routing of the remaining proposals.
+    holdable_types = frozenset(get_args(SharedContextMemoryType))
+    candidates = [p for p in proposals if p.action in (CorrectionAction.ADD, CorrectionAction.UPDATE)]
+    add_or_update_proposals = [p for p in candidates if p.memory_type in holdable_types]
+    if len(add_or_update_proposals) < len(candidates):
+        logger.info(
+            "Skipping %d correction proposal(s) whose memory type a SharedContext cannot hold",
+            len(candidates) - len(add_or_update_proposals),
+        )
     if not add_or_update_proposals:
         return
 
@@ -319,7 +342,7 @@ async def _route_proposals_to_shared_contexts(
             for proposal in add_or_update_proposals:
                 sc_proposal = await svc.create_write_proposal(
                     context_id=context_id,
-                    memory_type=proposal.memory_type,
+                    memory_type=cast(SharedContextMemoryType, proposal.memory_type),
                     content=proposal.content,
                     metadata={
                         "source_agent_id": agent_id,

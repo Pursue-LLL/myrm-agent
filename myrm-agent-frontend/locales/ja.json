@@ -764,7 +764,7 @@
     "topP": "Top-P",
     "topPDesc": "ニュークリアスサンプリングパラメータ。候補トークンの範囲を制限します",
     "maxTokens": "最大出力トークン数",
-    "maxTokensDesc": "単一応答の最大トークン数を制限",
+    "maxTokensDesc": "単一応答の最大長（トークン数）を制限します。推論モデルは、この値が思考と回答に足りない場合、自動的に上限が引き上げられます。",
     "maxTokensPlaceholder": "空欄のままにするとモデルのデフォルト値を使用",
     "precise": "高精度",
     "creative": "クリエイティブ",
@@ -1813,7 +1813,22 @@
     "redactionReview": {
       "title": "匿名化プレビュー",
       "toggleAll": "すべて切り替え",
-      "line": "{number} 行目"
+      "line": "{number} 行目",
+      "kinds": {
+        "api_token": "APIキーまたはトークン",
+        "environment_variable": "環境変数",
+        "config_secret": "設定内のシークレット",
+        "json_secret_field": "JSONのシークレット項目",
+        "database_credential": "データベース認証情報",
+        "url_secret_parameter": "URL内のシークレットパラメータ",
+        "url_credential": "URL内の認証情報",
+        "cli_secret_flag": "コマンドラインのシークレット",
+        "telegram_bot_token": "Telegramボットトークン",
+        "authorization_header": "認可ヘッダー",
+        "private_key": "秘密鍵",
+        "absolute_path": "ローカルのファイルパス",
+        "unknown": "機密情報"
+      }
     }
   },
   "chat": {
@@ -2503,7 +2518,7 @@
       "edit": "メッセージを編集",
       "saveEdit": "保存",
       "cancelEdit": "キャンセル",
-      "stuck": "エージェントがまだ処理中のため、キューのメッセージを送信できませんでした。",
+      "stuck": "キューのメッセージをまだ送信できないため、一時停止しています。",
       "placeholderExpanded": "実行中... Ctrl/⌘+Enter でガイダンス · ⌥+Enter でキューに追加",
       "pausedStopped": "応答を停止したため、キューを一時停止しました。",
       "resume": "再開",
@@ -4186,6 +4201,9 @@
     "batchApproveSuccess": "一括で承認しました",
     "batchApproveSuccessDesc": "{count} 件のメモリを承認しました",
     "batchApproveFailed": "一括承認に失敗しました",
+    "targetChangedTitle": "この提案は古くなっています",
+    "targetChangedDesc": "提案後に対象のメモリが変更されました。提案は一覧に残っているため、却下するかそのままにしてください。",
+    "batchApprovePartialDesc": "{success} 件を承認しました。{failed} 件は承認できず（対象のメモリが変更された可能性があります）、一覧に残っています。",
     "batchRejectSuccess": "一括で拒否しました",
     "batchRejectSuccessDesc": "{count} 件のメモリを拒否しました",
     "batchRejectFailed": "一括拒否に失敗しました",
@@ -4968,6 +4986,9 @@
       "action": "アクション",
       "confidence": "信頼度",
       "corrects": "修正",
+      "willCorrect": "既存の記憶を修正します",
+      "willDelete": "既存の記憶をごみ箱に移します。後から復元できます",
+      "targetContent": "対象",
       "content": "内容",
       "tags": "タグ",
       "relatedEntities": "関連実体",
@@ -12890,6 +12911,8 @@
     },
     "privacyCurtain": {
       "title": "プライバシーカーテン",
+      "platformUnsupported": "このプラットフォーム（{platform}）では Privacy Curtain を利用できません。macOS または Windows の Myrm デスクトップアプリをご利用ください。",
+      "captureExclusionUnavailable": "この PC ではカーテンを画面キャプチャから除外できません（Windows 10 バージョン 2004 以降が必要です）。誤解を避けるため、カーテンの展開は無効です。",
       "autoTitle": "ロック時の自動展開",
       "autoDesc": "画面ロックして離席した瞬間に全画面を遮蔽します。通行人には黒いボードだけが見えます",
       "activeBadge": "カーテン展開中",
@@ -18043,6 +18066,9 @@
         "desktop": "デスクトップ",
         "webui": "WebUI"
       },
+      "unattendedDesktop": {
+        "title": "無人デスクトップ"
+      },
       "copied": "コピーしました",
       "saved": "保存しました",
       "saveFailed": "保存に失敗しました",
@@ -18065,6 +18091,8 @@
         "appshotShortcutDesc": "画面をキャプチャしてウィンドウのテキストを抽出し、チャットにコンテキストとして送信します",
         "voicePttShortcut": "音声プッシュトゥトーク",
         "voicePttShortcutDesc": "どのアプリでもこのショートカットを押している間話せます。離すと送信されます",
+        "shortcutRecording": "記録中...",
+        "shortcutPlaceholder": "例: Alt+Space",
         "appshotPrivacyBlacklist": "アプショットのプライバシーブラックリスト",
         "appshotPrivacyBlacklistDesc": "リスト内のアプリがフォアグラウンドのとき、機密データを守るためスクリーンショットがブロックされます",
         "appshotAddAppPlaceholder": "アプリ名を入力...",
@@ -18243,12 +18271,14 @@
         "remove": "削除",
         "profileNamePlaceholder": "名前（例：自宅サーバー）",
         "offlineHint": "このPCがオフラインでも、定期タスクはリモートサーバーで実行され続けます。",
+        "cloudProfileName": "クラウドサンドボックス",
         "cloudTitle": "クラウドホスティング",
         "cloudDesc": "クラウドアカウントでサインインし、ホストされたサンドボックスを検出します。URLの貼り付けは不要です。",
         "checkProviders": "サインイン方法を確認",
         "providersUnavailable": "このアドレスではサインインできません。アドレスを確認してください。",
         "continueWith": "{provider}で続ける",
         "signInFirst": "先にクラウドアカウントでサインインしてください。",
+        "signInStartFailed": "サインインを開始できませんでした。もう一度お試しください。",
         "discoverSandbox": "サンドボックスを検出",
         "discoverFailed": "サンドボックスが見つかりません。サインインまたはプランを確認してください。",
         "wizardTitle": "アシスタントの実行場所",
@@ -18262,8 +18292,8 @@
         "rollbackFailed": "最後に動作した接続への復元が完了しませんでした。しばらくしてからもう一度お試しください。",
         "activeSessionsDialog": {
           "title": "アクティブなセッションがあります",
-          "description": "ローカルで {count} 件のセッションが生成中です。切り替えは完了を待ってからページを更新します。セッション履歴は保持されます。",
-          "confirm": "それでも切り替える",
+          "description": "現在の接続で {count} 件のセッションが生成中です。接続を切り替えると中断される場合があります。保存済みのセッション履歴は保持されます。",
+          "confirm": "それでも続行",
           "cancel": "キャンセル"
         }
       },
@@ -19771,6 +19801,23 @@
           "skillsNotSupported": "この環境ではカスタムスキルは利用できません - 自動的にスキップします",
           "stdioNotAllowed": "この環境ではローカルプロセス型の MCP サーバーは実行できません - 自動的にスキップします"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "プラグインパッケージ",
+            "skill": "スキル：{name}",
+            "servers": "MCP サーバー",
+            "server": "MCP サーバー：{name}"
+          },
+          "messages": {
+            "unsupportedFormat": "サポートされていないプラグインパッケージのため、インポートできません。",
+            "manifestInvalid": "プラグインの記述ファイルの内容が無効です。プラグインの作者に修正を依頼してください。",
+            "serversInvalid": "MCP サーバーの設定が無効なため、MCP サーバーはインポートされません。スキルはインポートできます。",
+            "skillSkipped": "このスキルに問題があるため、スキップされました。",
+            "serverSkipped": "この MCP サーバーの設定が無効なため、スキップされました。",
+            "filesIgnored": "パッケージ内の隠しファイルはインポートされませんでした。",
+            "generic": "このプラグインには、インポートに影響する可能性のある問題があります。"
+          }
+        },
         "capabilities": {
           "title": "サンドボックス権限階層",
           "read_only": "読み取り専用",
@@ -20175,5 +20222,10 @@
   "ttsAudio": {
     "generatedSpeech": "生成された音声",
     "playbackFailed": "音声再生に失敗しました——ファイルの期限が切れた可能性があります。"
+  },
+  "intentDispatcher": {
+    "invalidLink": "無効な外部リンクまたはパラメータです",
+    "oauthSuccess": "認証に成功しました",
+    "oauthFailed": "認証の検証に失敗しました。もう一度お試しください"
   }
 }

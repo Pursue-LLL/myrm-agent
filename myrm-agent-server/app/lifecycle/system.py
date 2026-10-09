@@ -2,7 +2,6 @@
 
 [INPUT]
 - app.core.channel_bridge.setup::start_channel_gateway (POS: 渠道网关启动器)
-- app.services.risk.rule_service::RiskRuleService (POS: 风险规则业务服务)
 - app.database.allowlist_store::DBAllowlistStore (POS: HITL 白名单持久化存储)
 - app.database.models.chat::OfflineDurableTask (POS: 离线持久任务表模型)
 - app.services.agent.streaming::ai_agent_service_stream (POS: Agent 流式服务层)
@@ -12,14 +11,13 @@
 
 [OUTPUT]
 - start_channel_gateway: 启动渠道网关（多聊天平台集成）
-- init_risk_rules: 播种内置风险规则并初始化检测引擎
 - init_allowlist_store: 初始化 HITL 白名单持久化存储
 - resume_durable_offline_tasks: 恢复中断的后台任务（LangGraph 断点续跑）
 - pause_orphaned_active_goals: 重启后暂停孤儿活跃目标
 - start_idle_task_listeners: 转发 IdleTask 进度事件到 ServerEventBus
 
 [POS]
-启动编排层。聚合渠道网关、风险规则、HITL 白名单、离线任务恢复、孤儿 Goal 暂停、
+启动编排层。聚合渠道网关、HITL 白名单、离线任务恢复、孤儿 Goal 暂停、
 空闲任务监听等系统组件在启动时的初始化与编排。
 """
 
@@ -36,25 +34,6 @@ async def start_channel_gateway() -> None:
     from app.core.channel_bridge.setup import start_channel_gateway as _start_gateway
 
     await _start_gateway()
-
-
-async def init_risk_rules() -> None:
-    """Seed built-in risk rules and initialize the detection engine."""
-    try:
-        from app.platform_utils import get_session_factory
-        from app.services.risk.detection import get_detection_service
-        from app.services.risk.rule_service import RiskRuleService
-
-        session_factory = get_session_factory()
-        async with session_factory() as db:
-            inserted = await RiskRuleService().seed_builtin_rules(db)
-            await db.commit()
-            if inserted > 0:
-                logger.info("Seeded %d built-in risk rules on startup", inserted)
-            await get_detection_service().reload(db)
-        logger.info("Risk detection engine initialized")
-    except Exception as e:
-        logger.error("Risk rule initialization failed: %s", e)
 
 
 async def init_allowlist_store() -> None:

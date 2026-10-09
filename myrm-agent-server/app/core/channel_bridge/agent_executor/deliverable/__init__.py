@@ -24,6 +24,7 @@ from .media import (
     is_compressible_image,
 )
 from .scanner import (
+    append_deliverable_notes,
     collect_deliverable_paths_from_text,
     extract_deliverable_path_tokens,
     resolve_chat_workspace_root,
@@ -32,6 +33,7 @@ from .scanner import (
 
 __all__ = [
     "MAX_CHANNEL_ATTACHMENT_BYTES",
+    "append_deliverable_notes",
     "build_artifact_deep_links",
     "collect_channel_artifacts",
     "collect_deliverable_paths_from_text",

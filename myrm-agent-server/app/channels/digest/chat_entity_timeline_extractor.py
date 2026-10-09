@@ -13,6 +13,7 @@ Extraction and clustering logic for `app/channels/digest/`.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import time
 from typing import Sequence
@@ -23,9 +24,8 @@ from app.channels.digest.entity_timeline_models import (
     EntityCluster,
     TimelineFactItem,
 )
-from app.utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Known technical entities and keywords for deterministic high-precision matching
 DEFAULT_KNOWN_ENTITIES: dict[str, tuple[EntityCategory, tuple[str, ...]]] = {
@@ -112,7 +112,7 @@ class ChatEntityTimelineExtractor:
         """
         now = time.time()
         start_time = now - (window_hours * 3600)
-        report_id = f"dig_{int(now*1000)}_{hashlib.sha256(f'{channel_name}:{chat_id}'.encode()).hexdigest()[:8]}"
+        report_id = f"dig_{int(now * 1000)}_{hashlib.sha256(f'{channel_name}:{chat_id}'.encode()).hexdigest()[:8]}"
 
         total_scanned = len(messages)
         noise_filtered = 0
@@ -144,9 +144,7 @@ class ChatEntityTimelineExtractor:
             if not detected_entities:
                 # If no specific known entity matches, group under generic topic category
                 generic_name = "综合动态与讨论"
-                fact_id = (
-                    f"f_{hashlib.md5(f'{msg_ts}:{raw_text}'.encode()).hexdigest()[:8]}"
-                )
+                fact_id = f"f_{hashlib.md5(f'{msg_ts}:{raw_text}'.encode()).hexdigest()[:8]}"
                 valid_items.append(
                     (
                         generic_name,

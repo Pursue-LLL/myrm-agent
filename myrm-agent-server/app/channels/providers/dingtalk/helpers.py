@@ -7,6 +7,7 @@ detection, and filename extraction. All functions are side-effect-free.
 - app.channels.types::InboundMessage, MediaAttachment (POS: Channel domain types.)
 
 [OUTPUT]
+- MAX_TEXT_LENGTH: DingTalk single-message text limit shared by the channel and its card mixin.
 - ParsedCallback: Structured result from parse_callback for type-safe access.
 - verify_signature: HMAC-SHA256 webhook signature verification.
 - parse_callback: DingTalk event body → ParsedCallback fields.
@@ -41,6 +42,8 @@ from app.channels.types import (
 from .models import DingTalkCallbackPayload
 
 logger = logging.getLogger(__name__)
+
+MAX_TEXT_LENGTH = 20000
 
 
 class ParsedCallback(TypedDict):

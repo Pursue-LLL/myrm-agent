@@ -6,6 +6,7 @@ import { EyeOff, MonitorX } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { useTauri } from '@/hooks/tauri/useTauri';
+import Toggle from '@/components/features/settings/common/Toggle';
 
 interface PrivacyCurtainCardProps {
   enabled: boolean;
@@ -38,6 +39,33 @@ const PrivacyCurtainCard = memo<PrivacyCurtainCardProps>(({ enabled, onToggle })
   useEffect(() => {
     void refreshActive();
   }, [refreshActive]);
+
+  // 自动拉起/回锁收起由壳侧 watcher 触发，设置页开着时靠事件回显而不是只在挂载读一次。
+  useEffect(() => {
+    if (!isTauri) {
+      return undefined;
+    }
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+
+    void import('@tauri-apps/api/event')
+      .then(({ listen }) => listen('curtain:state-changed', () => void refreshActive()))
+      .then((fn) => {
+        if (disposed) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      })
+      .catch((err) => {
+        console.warn('[PrivacyCurtainCard] Failed to subscribe to curtain:state-changed:', err);
+      });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [isTauri, refreshActive]);
 
   const handleEngage = useCallback(async () => {
     if (!invoke) {
@@ -88,21 +116,7 @@ const PrivacyCurtainCard = memo<PrivacyCurtainCardProps>(({ enabled, onToggle })
                 <p className="text-xs text-muted-foreground">{t('autoDesc')}</p>
               </div>
             </div>
-            <button
-              onClick={() => onToggle(!enabled)}
-              aria-label={t('autoTitle')}
-              className={cn(
-                'relative w-12 h-6 rounded-full transition-colors',
-                enabled ? 'bg-indigo-500' : 'bg-white/10',
-              )}
-            >
-              <div
-                className={cn(
-                  'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                  enabled && 'translate-x-6',
-                )}
-              />
-            </button>
+            <Toggle checked={enabled} onChange={() => onToggle(!enabled)} ariaLabel={t('autoTitle')} />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 pl-12">

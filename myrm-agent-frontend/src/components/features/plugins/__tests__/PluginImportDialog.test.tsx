@@ -95,6 +95,7 @@ const CONFLICTING_SKILL = skillPreview({ description: 'Already installed skill',
 
 let fetchMock: ReturnType<typeof vi.fn>;
 let consoleErrorSpy: { mockRestore: () => void };
+let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
 describe('PluginImportDialog', () => {
   const originalFetch = global.fetch;
@@ -108,11 +109,14 @@ describe('PluginImportDialog', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
     // Refused requests log the backend diagnostic for developers; keep the test output quiet.
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // Preview diagnostics are logged for developers in English.
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
     consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
   });
 
   async function renderDialog() {
@@ -233,7 +237,11 @@ describe('PluginImportDialog', () => {
     expect(screen.getByText('summarize')).toBeInTheDocument();
     expect(screen.getByText('extract')).toBeInTheDocument();
     expect(screen.getByText('pdf-server')).toBeInTheDocument();
-    expect(screen.getByText('Missing description')).toBeInTheDocument();
+    expect(screen.getByText('Skill: 1')).toBeInTheDocument();
+    expect(screen.getByText('This plugin has an issue that may affect the import')).toBeInTheDocument();
+    // The backend's English sentence is a console diagnostic, never UI copy.
+    expect(screen.queryByText('Missing description')).not.toBeInTheDocument();
+    expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Missing description'));
     expect(screen.getByText(/needs config/)).toBeInTheDocument();
   });
 
@@ -504,6 +512,34 @@ describe('PluginImportDialog', () => {
     fireEvent.click(checkbox);
     expect(checkbox).not.toBeChecked();
     expect(importButton).toBeDisabled();
+  });
+
+  it("explains diagnostics in the user's language and does not repeat what a row already says", async () => {
+    await openPreview(
+      previewPayload({
+        servers: [serverPreview({ name: 'broken-server', command: 'node', missing_artifact: 'dist/index.js' })],
+        diagnostics: [
+          {
+            component: 'plugin',
+            code: 'files_ignored',
+            message: '2 hidden files were not imported: .env',
+            level: 'info',
+          },
+          {
+            component: 'mcp:broken-server',
+            code: 'mcp_missing_artifact',
+            message: 'English artifact sentence',
+            level: 'error',
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByText('Plugin package')).toBeInTheDocument();
+    expect(screen.getByText('Hidden files were not imported')).toBeInTheDocument();
+    expect(screen.queryByText(/hidden files were not imported: \.env/)).not.toBeInTheDocument();
+    expect(screen.queryByText('MCP server: broken-server')).not.toBeInTheDocument();
+    expect(screen.queryByText('English artifact sentence')).not.toBeInTheDocument();
   });
 
   it('renders missing artifact warning and disables installation for broken servers', async () => {

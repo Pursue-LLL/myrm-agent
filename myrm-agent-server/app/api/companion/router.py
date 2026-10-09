@@ -103,6 +103,8 @@ async def companion_react(
 
     model_kwargs = dict(model_cfg.model_kwargs or {})
     model_kwargs["max_tokens"] = _MAX_REACTION_TOKENS
+    # A reaction this short must not be lifted to a thinking model's output floor.
+    model_kwargs["supports_reasoning"] = False
     invoke_cfg = model_cfg.model_copy(
         update={"temperature": 0.9, "model_kwargs": model_kwargs},
     )

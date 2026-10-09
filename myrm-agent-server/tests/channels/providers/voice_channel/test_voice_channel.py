@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.voice_channel import (
     _CALL_TTL,
     VoiceCallChannel,
@@ -266,11 +267,15 @@ class TestSend:
         assert payload["type"] == "text"
         assert payload["last"] is True
 
+    def test_declares_that_voice_returns_no_message_ids(self) -> None:
+        assert VoiceCallChannel.capabilities.message_ids is False
+
     @pytest.mark.asyncio
-    async def test_send_no_active_call(self) -> None:
+    async def test_send_after_hang_up_raises_instead_of_pretending_delivery(self) -> None:
         ch = _ch()
-        result = await ch.send(_outbound("CA_missing"))
-        assert result is None
+        with pytest.raises(ChannelSendError, match="No active voice call") as excinfo:
+            await ch.send(_outbound("CA_missing"))
+        assert excinfo.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_send_empty_content(self) -> None:
@@ -285,7 +290,8 @@ class TestSend:
         ch = _ch()
         mock_send = AsyncMock(side_effect=ConnectionError("broken"))
         ch._active_calls["CA123"] = (mock_send, time.monotonic())
-        await ch.send(_outbound("CA123", "test"))
+        with pytest.raises(ChannelSendError, match="Voice send failed"):
+            await ch.send(_outbound("CA123", "test"))
         assert ch.health.consecutive_failures > 0
 
     @pytest.mark.asyncio

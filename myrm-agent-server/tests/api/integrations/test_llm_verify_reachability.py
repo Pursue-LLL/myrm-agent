@@ -117,7 +117,7 @@ class TestCheckModelReachability:
         return client.post("/api/v1/integrations/llm/check-reachability", json=payload).json()["data"]
 
     def test_reachable_probe(self, client: TestClient) -> None:
-        """Healthy 1-token probe reports reachable with latency."""
+        """Healthy probe reports reachable with latency."""
         from app.api.integrations.llms import _reachability_cache
 
         _reachability_cache.clear()

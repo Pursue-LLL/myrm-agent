@@ -1314,7 +1314,7 @@
     "topP": "Top-P",
     "topPDesc": "Nucleus-Sampling-Parameter, begrenzt den Kandidaten-Token-Bereich",
     "maxTokens": "Max. Ausgabe-Tokens",
-    "maxTokensDesc": "Maximale Tokens in einer einzelnen Antwort",
+    "maxTokensDesc": "Begrenzt die Länge einer einzelnen Antwort (in Tokens). Reasoning-Modelle erhalten automatisch mehr Spielraum, wenn der Wert zum Denken und Antworten nicht reicht.",
     "maxTokensPlaceholder": "Leer lassen für Modellstandard",
     "precise": "Präzise",
     "creative": "Kreativ",
@@ -1813,7 +1813,22 @@
     "redactionReview": {
       "title": "Schwärzungsvorschau",
       "toggleAll": "Alle umschalten",
-      "line": "Zeile {number}"
+      "line": "Zeile {number}",
+      "kinds": {
+        "api_token": "API-Schlüssel oder Token",
+        "environment_variable": "Umgebungsvariable",
+        "config_secret": "Geheimnis in der Konfiguration",
+        "json_secret_field": "Geheimes JSON-Feld",
+        "database_credential": "Datenbank-Zugangsdaten",
+        "url_secret_parameter": "Geheimer URL-Parameter",
+        "url_credential": "Zugangsdaten in der URL",
+        "cli_secret_flag": "Geheimer Kommandozeilenparameter",
+        "telegram_bot_token": "Telegram-Bot-Token",
+        "authorization_header": "Authorization-Header",
+        "private_key": "Privater Schlüssel",
+        "absolute_path": "Lokaler Dateipfad",
+        "unknown": "Vertrauliche Information"
+      }
     }
   },
   "chat": {
@@ -2292,7 +2307,7 @@
       "edit": "Nachricht bearbeiten",
       "saveEdit": "Speichern",
       "cancelEdit": "Abbrechen",
-      "stuck": "Die Nachrichten in der Warteschlange konnten nicht gesendet werden, weil der Agent noch beschäftigt ist.",
+      "stuck": "Die Nachrichten in der Warteschlange konnten noch nicht gesendet werden und sind pausiert.",
       "placeholderExpanded": "Agent beschäftigt... Strg/⌘+Enter zum Steuern · ⌥+Enter zum Einreihen",
       "pausedStopped": "Warteschlange pausiert, weil Sie die Antwort gestoppt haben.",
       "resume": "Fortsetzen",
@@ -4141,6 +4156,9 @@
     "batchApproveSuccess": "Chargenfreigabe erfolgreich",
     "batchApproveSuccessDesc": "{count}-Erinnerungen erfolgreich genehmigt",
     "batchApproveFailed": "Die Chargengenehmigung ist fehlgeschlagen",
+    "targetChangedTitle": "Dieser Vorschlag ist veraltet",
+    "targetChangedDesc": "Die Erinnerung, auf die er sich bezieht, hat sich seit dem Vorschlag geändert. Er bleibt in deiner Liste – lehne ihn ab oder lass ihn unverändert.",
+    "batchApprovePartialDesc": "{success} genehmigt. {failed} konnten nicht genehmigt werden (die zugehörige Erinnerung hat sich möglicherweise geändert) und bleiben in deiner Liste.",
     "batchRejectSuccess": "Chargenablehnung erfolgreich",
     "batchRejectSuccessDesc": "{count} Erinnerungen erfolgreich abgelehnt",
     "batchRejectFailed": "Die Ablehnung der Charge ist fehlgeschlagen",
@@ -4204,6 +4222,9 @@
       "action": "Aktion",
       "confidence": "Vertrauen",
       "corrects": "Korrigiert",
+      "willCorrect": "Korrigiert eine vorhandene Erinnerung",
+      "willDelete": "Verschiebt eine vorhandene Erinnerung in den Papierkorb, wo sie sich wiederherstellen lässt",
+      "targetContent": "Ziel",
       "content": "Inhalt",
       "tags": "Schlagworte",
       "relatedEntities": "Verwandte Entitäten",
@@ -12890,6 +12911,8 @@
     },
     "privacyCurtain": {
       "title": "Privatsphäre-Vorhang",
+      "platformUnsupported": "Privacy Curtain ist auf dieser Plattform ({platform}) nicht verfügbar. Bitte die Myrm-Desktop-App unter macOS oder Windows verwenden.",
+      "captureExclusionUnavailable": "Dieser PC kann den Vorhang nicht von Bildschirmaufnahmen ausschließen (Windows 10 Version 2004 oder neuer erforderlich). Das Ausklappen ist deaktiviert, damit automatisierte Screenshots nicht irreführend sind.",
       "autoTitle": "Automatisch beim Sperren",
       "autoDesc": "Sobald Sie den Bildschirm sperren und gehen, werden alle Displays abgedunkelt, Vorbeigehende sehen nur das schwarze Board",
       "activeBadge": "Vorhang aktiv",
@@ -18043,6 +18066,9 @@
         "desktop": "Desktop-App",
         "webui": "WebUI"
       },
+      "unattendedDesktop": {
+        "title": "Unbeaufsichtigter Desktop"
+      },
       "copied": "Kopiert",
       "saved": "Erfolgreich gespeichert",
       "saveFailed": "Speichern fehlgeschlagen",
@@ -18075,6 +18101,8 @@
         "appshotShortcutDesc": "Erfassen Sie den Bildschirm und extrahieren Sie Fenstertext, um ihn als Kontext an den Chat zu senden",
         "voicePttShortcut": "Sprach-Push-to-Talk",
         "voicePttShortcutDesc": "Halten Sie diese Verknüpfung an einer beliebigen Stelle gedrückt, um mit dem Agenten zu sprechen, und lassen Sie sie zum Senden los",
+        "shortcutRecording": "Aufnahme läuft...",
+        "shortcutPlaceholder": "z. B. Alt+Space",
         "appshotPrivacyBlacklist": "Appshot-Datenschutz-Blacklist",
         "appshotPrivacyBlacklistDesc": "Für Apps in dieser Liste wird die Bildschirmaufnahme blockiert, um sensible Daten zu schützen",
         "appshotAddAppPlaceholder": "App-Namen eingeben...",
@@ -18243,12 +18271,14 @@
         "remove": "Entfernen",
         "profileNamePlaceholder": "Name, z. B. Homelab",
         "offlineHint": "Geplante Aufgaben laufen auf dem Remote-Server weiter, auch wenn dieser Desktop offline ist.",
+        "cloudProfileName": "Cloud-Sandbox",
         "cloudTitle": "Cloud-Hosting",
         "cloudDesc": "Melden Sie sich mit Ihrem Cloud-Konto an und finden Sie Ihre gehostete Sandbox. Keine Serveradresse nötig.",
         "checkProviders": "Anmeldeoptionen prüfen",
         "providersUnavailable": "Anmeldung unter dieser Adresse nicht verfügbar. Prüfen Sie die Adresse.",
         "continueWith": "Mit {provider} fortfahren",
         "signInFirst": "Melden Sie sich zuerst mit Ihrem Cloud-Konto an.",
+        "signInStartFailed": "Anmeldung konnte nicht gestartet werden. Bitte erneut versuchen.",
         "discoverSandbox": "Meine Sandbox finden",
         "discoverFailed": "Keine Sandbox gefunden. Melden Sie sich an oder prüfen Sie Ihren Plan.",
         "wizardTitle": "Wo läuft Ihr Assistent?",
@@ -18262,8 +18292,8 @@
         "rollbackFailed": "Wiederherstellung der letzten funktionierenden Verbindung nicht abgeschlossen. Bitte versuchen Sie es gleich erneut.",
         "activeSessionsDialog": {
           "title": "Aktive Sitzungen erkannt",
-          "description": "{count} Sitzungen werden lokal noch generiert. Der Wechsel wartet auf deren Abschluss und lädt die Seite dann neu; der Sitzungsverlauf bleibt erhalten.",
-          "confirm": "Trotzdem wechseln",
+          "description": "{count, plural, one {# Sitzung wird} other {# Sitzungen werden}} auf der aktuellen Verbindung noch generiert. Der Verbindungswechsel kann sie unterbrechen; der gespeicherte Sitzungsverlauf bleibt erhalten.",
+          "confirm": "Trotzdem fortfahren",
           "cancel": "Abbrechen"
         }
       },
@@ -19785,6 +19815,23 @@
           "skillsNotSupported": "Diese Umgebung erlaubt keine eigenen Fähigkeiten - automatisch übersprungen",
           "stdioNotAllowed": "Lokale MCP-Server-Prozesse können in dieser Umgebung nicht laufen - automatisch übersprungen"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "Plugin-Paket",
+            "skill": "Fähigkeit: {name}",
+            "servers": "MCP-Server",
+            "server": "MCP-Server: {name}"
+          },
+          "messages": {
+            "unsupportedFormat": "Dies ist kein unterstütztes Plugin-Paket und kann nicht importiert werden.",
+            "manifestInvalid": "Die Beschreibungsdatei des Plugins ist ungültig. Bitten Sie den Plugin-Autor, sie zu korrigieren.",
+            "serversInvalid": "Die MCP-Server-Einstellungen sind ungültig, daher werden keine MCP-Server importiert. Fähigkeiten können weiterhin importiert werden.",
+            "skillSkipped": "Diese Fähigkeit hat ein Problem und wurde übersprungen.",
+            "serverSkipped": "Dieser MCP-Server hat ungültige Einstellungen und wurde übersprungen.",
+            "filesIgnored": "Versteckte Dateien im Paket wurden nicht importiert.",
+            "generic": "Dieses Plugin hat ein Problem, das den Import beeinträchtigen kann."
+          }
+        },
         "capabilities": {
           "undeclaredWarning": "Nicht deklarierte Berechtigung erkannt: Dieser Dienst erfordert Berechtigungen, die über die in plugin.json deklarierten hinausgehen.",
           "title": "Sandbox-Fähigkeitsstufen",
@@ -20175,5 +20222,10 @@
   "ttsAudio": {
     "generatedSpeech": "Generierte Sprache",
     "playbackFailed": "Audio-Wiedergabe fehlgeschlagen — die Datei ist möglicherweise abgelaufen."
+  },
+  "intentDispatcher": {
+    "invalidLink": "Ungültiger externer Link oder ungültige Parameter",
+    "oauthSuccess": "Autorisierung erfolgreich",
+    "oauthFailed": "Autorisierungsprüfung fehlgeschlagen, bitte erneut versuchen"
   }
 }

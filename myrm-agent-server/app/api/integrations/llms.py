@@ -357,10 +357,10 @@ def _cache_key(request: LLMVerifyRequest) -> str:
 
 @router.post("/check-reachability", response_model=StandardSuccessResponse)
 async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
-    """Lightweight model reachability check using a 1-token probe.
+    """Lightweight model reachability check using a single minimal prompt.
 
     Faster and cheaper than /verify — uses ``lightweight_health_check``
-    which sends a minimal prompt with ``max_tokens=1``.
+    which sends one minimal prompt and gives up after its deadline.
     Results are cached for 30 seconds to avoid redundant probes.
 
     Useful for local model (Ollama) configuration to quickly verify
@@ -900,4 +900,3 @@ async def reset_circuit_breaker(request: ResetCircuitBreakerRequest | None = Non
     else:
         count = registry.reset_all()
         return success_response(data={"reset_count": count, "success": True})
-

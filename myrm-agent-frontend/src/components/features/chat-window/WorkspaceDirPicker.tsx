@@ -200,7 +200,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
               value={pathInput}
               onChange={(e) => setPathInput(e.target.value)}
               onKeyDown={handlePathInputKeyDown}
-              className="h-6 flex-1 border-none bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
+              className="h-6 flex-1 border-none bg-transparent px-1 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-ring"
               placeholder={t('placeholder')}
             />
             <Button
@@ -251,7 +251,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
               <Input
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
-                className="h-6 border-none bg-muted/30 px-2 text-xs shadow-none focus-visible:ring-0"
+                className="h-6 border-none bg-muted/30 px-2 text-xs shadow-none"
                 placeholder={t('filter')}
               />
             </div>

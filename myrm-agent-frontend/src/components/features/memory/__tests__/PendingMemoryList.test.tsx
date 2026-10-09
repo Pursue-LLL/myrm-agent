@@ -87,7 +87,7 @@ describe('PendingMemoryList - batch operations', () => {
   });
 
   it('calls batchApprove and shows success toast', async () => {
-    mockBatchApprove.mockResolvedValueOnce(undefined);
+    mockBatchApprove.mockResolvedValueOnce({ successCount: 2, failedCount: 0 });
     const user = userEvent.setup();
     render(<PendingMemoryList />);
 
@@ -101,6 +101,21 @@ describe('PendingMemoryList - batch operations', () => {
       expect(toastMock).toHaveBeenCalledWith({
         title: 'batchApproveSuccess',
         description: 'batchApproveSuccessDesc',
+      });
+    });
+  });
+
+  it('reports suggestions that could not be approved instead of claiming full success', async () => {
+    mockBatchApprove.mockResolvedValueOnce({ successCount: 1, failedCount: 1 });
+    const user = userEvent.setup();
+    render(<PendingMemoryList />);
+
+    await user.click(screen.getByText('batchAccept'));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith({
+        title: 'batchApproveSuccess',
+        description: 'batchApprovePartialDesc',
       });
     });
   });
@@ -157,9 +172,9 @@ describe('PendingMemoryList - batch operations', () => {
   });
 
   it('disables buttons during batch approve processing', async () => {
-    let resolveApprove: (() => void) | undefined;
+    let resolveApprove: ((result: { successCount: number; failedCount: number }) => void) | undefined;
     mockBatchApprove.mockReturnValueOnce(
-      new Promise<void>((resolve) => {
+      new Promise<{ successCount: number; failedCount: number }>((resolve) => {
         resolveApprove = resolve;
       }),
     );
@@ -182,7 +197,7 @@ describe('PendingMemoryList - batch operations', () => {
       expect(rejectButton).toBeDisabled();
     });
 
-    resolveApprove?.();
+    resolveApprove?.({ successCount: 1, failedCount: 0 });
 
     await waitFor(() => {
       expect(approveButton).not.toBeDisabled();
@@ -191,9 +206,9 @@ describe('PendingMemoryList - batch operations', () => {
   });
 
   it('prevents concurrent batch operations (approve blocks reject)', async () => {
-    let resolveApprove: (() => void) | undefined;
+    let resolveApprove: ((result: { successCount: number; failedCount: number }) => void) | undefined;
     mockBatchApprove.mockReturnValueOnce(
-      new Promise<void>((resolve) => {
+      new Promise<{ successCount: number; failedCount: number }>((resolve) => {
         resolveApprove = resolve;
       }),
     );
@@ -209,7 +224,7 @@ describe('PendingMemoryList - batch operations', () => {
 
     expect(mockBatchReject).not.toHaveBeenCalled();
 
-    resolveApprove?.();
+    resolveApprove?.({ successCount: 1, failedCount: 0 });
 
     await waitFor(() => {
       expect(mockBatchApprove).toHaveBeenCalledTimes(1);

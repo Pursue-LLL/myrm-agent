@@ -1253,8 +1253,20 @@ class TestLocalModelResponse(BaseModel):
     latency_ms: int
 
 
+# Stays below the 15 s request abort of the settings UI so a slow model is reported with a
+# classified message instead of the page giving up first.
+_LOCAL_MODEL_TEST_TIMEOUT_S = 12.0
+
+
 def _classify_local_model_error(exc: Exception) -> str:
     """Map internal exceptions to user-friendly connection test messages."""
+    if isinstance(exc, TimeoutError):
+        # The request deadline expired without an answer: a model that is still loading is
+        # indistinguishable from a wrong address, so the message names both.
+        return (
+            f"No response within {_LOCAL_MODEL_TEST_TIMEOUT_S:g} seconds"
+            " — the model may still be loading, or check the server address"
+        )
     name = type(exc).__name__.lower()
     msg = str(exc).lower()
     if "refused" in msg or "connectionrefused" in name:
@@ -1276,7 +1288,8 @@ def _classify_local_model_error(exc: Exception) -> str:
 async def test_local_model(request: TestLocalModelRequest) -> TestLocalModelResponse:
     """Test connectivity to a local LLM (e.g. Ollama).
 
-    Sends a minimal request to verify the model is reachable and responsive.
+    Sends a minimal request to verify the model is reachable and responsive; the request is
+    abandoned after ``_LOCAL_MODEL_TEST_TIMEOUT_S`` seconds.
     """
     from langchain_core.messages import HumanMessage
     from myrm_agent_harness.toolkits.llms import create_litellm_model
@@ -1290,15 +1303,15 @@ async def test_local_model(request: TestLocalModelRequest) -> TestLocalModelResp
             temperature=0.0,
             streaming=False,
         )
-        await llm.ainvoke(
-            [HumanMessage(content="hi")],
-            config={"max_tokens": 1, "timeout": 5},
+        await asyncio.wait_for(
+            llm.ainvoke([HumanMessage(content="hi")]),
+            timeout=_LOCAL_MODEL_TEST_TIMEOUT_S,
         )
         elapsed = int((time.monotonic() - start) * 1000)
         return TestLocalModelResponse(success=True, message="OK", latency_ms=elapsed)
     except Exception as exc:
         elapsed = int((time.monotonic() - start) * 1000)
-        logger.warning("Local model test failed: %s", exc)
+        logger.warning("Local model test failed: %s: %s", type(exc).__name__, exc)
         user_msg = _classify_local_model_error(exc)
         return TestLocalModelResponse(
             success=False,

@@ -6,7 +6,7 @@ import type { RedactionResponse } from '@/services/skill';
 import { hasKeptFindings, keepEveryFinding, useRedactionDecisions } from '../useRedactionDecisions';
 
 function finding(line: number): RedactionResponse {
-  return { line_number: line, original: `secret-${line}`, redacted: '<REDACTED>', reason: 'API key' };
+  return { line_number: line, original: `secret-${line}`, redacted: '<REDACTED>', kinds: ['api_token'] };
 }
 
 describe('keepEveryFinding', () => {

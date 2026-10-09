@@ -1,8 +1,8 @@
 """Inbound Message Journal — WAL-style persistence for in-flight message processing.
 
-Symmetric to the Outbound DLQ (dlq.py): DLQ handles outbound delivery failures,
-while the Inbound Journal ensures inbound user messages are not lost when the
-process crashes or restarts mid-processing.
+Symmetric to the outbound dead-letter queue (harness ``DeadLetterQueue``, driven by the
+MessageBus): the DLQ handles outbound delivery failures, while the Inbound Journal ensures
+inbound user messages are not lost when the process crashes or restarts mid-processing.
 
 Lifecycle:
 1. Router writes a journal entry BEFORE starting agent execution

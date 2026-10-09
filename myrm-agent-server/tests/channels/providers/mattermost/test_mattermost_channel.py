@@ -101,7 +101,7 @@ class TestMattermostOutbound:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_send_no_recipient_returns_none(self) -> None:
+    async def test_send_no_recipient_raises_permanent_error(self) -> None:
         ch = _make_channel()
         msg = OutboundMessage(
             channel="mattermost",
@@ -109,8 +109,9 @@ class TestMattermostOutbound:
             content="Hello",
             user_id="u1",
         )
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+        assert exc_info.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_send_http_error_raises_channel_send_error(self) -> None:

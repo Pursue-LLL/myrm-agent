@@ -773,7 +773,7 @@
     "topP": "Top-P",
     "topPDesc": "核取樣引數，限制候選詞範圍",
     "maxTokens": "最大輸出長度",
-    "maxTokensDesc": "限制單次回覆的最大 token 數",
+    "maxTokensDesc": "限制單次回覆的最大長度（token 數）。推理模型若此值不足以完成思考與回答，會自動獲得更大的上限。",
     "maxTokensPlaceholder": "留空使用模型預設值",
     "precise": "精確",
     "creative": "創意",
@@ -1813,7 +1813,22 @@
     "redactionReview": {
       "title": "脫敏預覽",
       "toggleAll": "全選 / 全不選",
-      "line": "第 {number} 行"
+      "line": "第 {number} 行",
+      "kinds": {
+        "api_token": "API 金鑰或權杖",
+        "environment_variable": "環境變數",
+        "config_secret": "設定密鑰",
+        "json_secret_field": "JSON 密鑰欄位",
+        "database_credential": "資料庫憑證",
+        "url_secret_parameter": "連結中的密鑰參數",
+        "url_credential": "連結中的帳號憑證",
+        "cli_secret_flag": "命令列密鑰參數",
+        "telegram_bot_token": "Telegram 機器人權杖",
+        "authorization_header": "授權標頭",
+        "private_key": "私密金鑰",
+        "absolute_path": "本機檔案路徑",
+        "unknown": "敏感資訊"
+      }
     }
   },
   "chat": {
@@ -2515,7 +2530,7 @@
       "edit": "編輯訊息",
       "saveEdit": "儲存",
       "cancelEdit": "取消",
-      "stuck": "智慧體仍在忙碌，排隊訊息暫時無法傳送。",
+      "stuck": "排隊訊息暫時無法傳送，已暫停。",
       "placeholderExpanded": "正在執行... Ctrl/⌘+Enter 引導糾偏 · ⌥+Enter 排隊跟進",
       "pausedStopped": "你已停止回覆，佇列已暫停。",
       "resume": "繼續傳送",
@@ -4227,6 +4242,9 @@
     "batchApproveSuccess": "批次確認成功",
     "batchApproveSuccessDesc": "已成功確認 {count} 條記憶",
     "batchApproveFailed": "批次確認失敗",
+    "targetChangedTitle": "這則建議已過期",
+    "targetChangedDesc": "它所針對的記憶在建議提出後已發生變化。這則建議仍保留在清單中，你可以拒絕它或暫不處理。",
+    "batchApprovePartialDesc": "已批准 {success} 則。另有 {failed} 則未能批准（它們所針對的記憶可能已變化），仍保留在清單中。",
     "batchRejectSuccess": "批次拒絕成功",
     "batchRejectSuccessDesc": "已成功拒絕 {count} 條記憶",
     "batchRejectFailed": "批次拒絕失敗",
@@ -5012,6 +5030,9 @@
       "action": "執行動作",
       "confidence": "置信度",
       "corrects": "糾正了",
+      "willCorrect": "將糾正已有記憶",
+      "willDelete": "將已有記憶移入回收站，可隨時還原",
+      "targetContent": "目標",
       "content": "內容",
       "tags": "標籤",
       "relatedEntities": "相關實體",
@@ -12890,6 +12911,8 @@
     },
     "privacyCurtain": {
       "title": "工位防窺帷幕",
+      "platformUnsupported": "目前平台（{platform}）不支援工位防窺帷幕，請在 macOS 或 Windows 上使用 Myrm 桌面用戶端。",
+      "captureExclusionUnavailable": "本機無法從螢幕擷取中排除帷幕（Windows 需 2004 及以上）。已停用拉起帷幕，避免自動化截圖誤以為已防窺。",
       "autoTitle": "鎖屏離機自動拉起",
       "autoDesc": "鎖屏離開的瞬間全螢幕遮蔽，路過者只見黑色看板",
       "activeBadge": "帷幕已拉起",
@@ -18043,6 +18066,9 @@
         "desktop": "桌面",
         "webui": "WebUI"
       },
+      "unattendedDesktop": {
+        "title": "無人值守桌面"
+      },
       "copied": "已複製",
       "saved": "儲存成功",
       "saveFailed": "儲存失敗",
@@ -18065,6 +18091,8 @@
         "appshotShortcutDesc": "擷取當前螢幕並提取視窗文字作為上下文傳送到對話",
         "voicePttShortcut": "語音對講快捷鍵",
         "voicePttShortcutDesc": "在任意應用中按住此快捷鍵說話，鬆開即傳送給 Agent",
+        "shortcutRecording": "錄製中...",
+        "shortcutPlaceholder": "例如 Alt+Space",
         "appshotPrivacyBlacklist": "截圖隱私黑名單",
         "appshotPrivacyBlacklistDesc": "黑名單中的應用在前臺時，截圖將被阻止以保護敏感資料",
         "appshotAddAppPlaceholder": "輸入應用名稱...",
@@ -18243,12 +18271,14 @@
         "remove": "移除",
         "profileNamePlaceholder": "名稱，例如家庭伺服器",
         "offlineHint": "即使本機關機或離線，排程任務仍在遠端伺服器上繼續執行。",
+        "cloudProfileName": "雲端沙箱",
         "cloudTitle": "雲託管",
         "cloudDesc": "使用雲端帳號登入，然後發現你的雲端沙箱，無需貼上伺服器位址。",
         "checkProviders": "查看登入方式",
         "providersUnavailable": "該位址暫不支援登入，請檢查位址後重試。",
         "continueWith": "使用 {provider} 繼續",
         "signInFirst": "請先使用雲端帳號登入。",
+        "signInStartFailed": "無法發起登入，請重試。",
         "discoverSandbox": "發現我的沙箱",
         "discoverFailed": "未找到沙箱，請先登入或檢查訂閱。",
         "wizardTitle": "你的助手運行在哪裡？",
@@ -18262,8 +18292,8 @@
         "rollbackFailed": "恢復上次可用連接未完成，請稍後重試。",
         "activeSessionsDialog": {
           "title": "存在活躍會話",
-          "description": "本地有 {count} 個會話正在生成。切換會等待其完成並重新整理頁面；會話記錄仍會保留。",
-          "confirm": "仍然切換",
+          "description": "目前連線上有 {count} 個會話正在生成。切換連線可能會中斷它們；已儲存的會話記錄仍會保留。",
+          "confirm": "仍然繼續",
           "cancel": "取消"
         }
       },
@@ -19785,6 +19815,23 @@
           "skillsNotSupported": "目前環境不支援自訂技能 — 已自動略過",
           "stdioNotAllowed": "目前環境無法執行本機行程類 MCP 伺服器 — 已自動略過"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "外掛包",
+            "skill": "技能：{name}",
+            "servers": "MCP 伺服器",
+            "server": "MCP 伺服器：{name}"
+          },
+          "messages": {
+            "unsupportedFormat": "這不是支援的外掛包，無法匯入。",
+            "manifestInvalid": "外掛的描述檔內容無效，請聯絡外掛作者修正。",
+            "serversInvalid": "MCP 伺服器設定無效，不會匯入任何 MCP 伺服器，技能仍可匯入。",
+            "skillSkipped": "此技能存在問題，已自動略過。",
+            "serverSkipped": "此 MCP 伺服器設定無效，已自動略過。",
+            "filesIgnored": "套件內的隱藏檔案未被匯入。",
+            "generic": "此外掛存在可能影響匯入的問題。"
+          }
+        },
         "capabilities": {
           "title": "沙箱能力層級",
           "read_only": "唯讀安全",
@@ -20175,5 +20222,10 @@
   "ttsAudio": {
     "generatedSpeech": "已生成語音",
     "playbackFailed": "音訊播放失敗——檔案可能已過期。"
+  },
+  "intentDispatcher": {
+    "invalidLink": "無效的外部連結或參數錯誤",
+    "oauthSuccess": "授權成功",
+    "oauthFailed": "授權驗證失敗，請重試"
   }
 }

@@ -33,6 +33,14 @@ vi.mock('@/hooks/tauri/useTauri', () => ({
   useTauri: () => useTauriMock(),
 }));
 
+const eventMocks = vi.hoisted(() => ({
+  unlisten: vi.fn(),
+  listen: vi.fn(),
+}));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: (...args: unknown[]) => eventMocks.listen(...args),
+}));
+
 import { toast } from '@/lib/utils/toast';
 
 describe('PrivacyCurtainCard', () => {
@@ -40,6 +48,37 @@ describe('PrivacyCurtainCard', () => {
     vi.clearAllMocks();
     invokeMock.mockReset();
     invokeMock.mockResolvedValue(false);
+    eventMocks.listen.mockReset();
+    eventMocks.unlisten.mockReset();
+    eventMocks.listen.mockResolvedValue(eventMocks.unlisten);
+  });
+
+  it('re-reads the active state when the shell broadcasts a curtain change', async () => {
+    useTauriMock.mockReturnValue({ isTauri: true, invoke: invokeMock });
+    invokeMock.mockResolvedValue(false);
+
+    render(<PrivacyCurtainCard enabled onToggle={vi.fn()} />);
+    expect(await screen.findByText('inactiveBadge')).toBeInTheDocument();
+    await waitFor(() => expect(eventMocks.listen).toHaveBeenCalledWith('curtain:state-changed', expect.any(Function)));
+
+    invokeMock.mockResolvedValue(true);
+    const handler = eventMocks.listen.mock.calls[0][1] as () => void;
+    handler();
+
+    expect(await screen.findByText('activeBadge')).toBeInTheDocument();
+  });
+
+  it('unsubscribes from curtain changes on unmount', async () => {
+    useTauriMock.mockReturnValue({ isTauri: true, invoke: invokeMock });
+
+    const { unmount } = render(<PrivacyCurtainCard enabled onToggle={vi.fn()} />);
+    await waitFor(() => expect(eventMocks.listen).toHaveBeenCalled());
+    // 订阅完成（unlisten 句柄落地）发生在 listen resolve 之后的微任务里
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    unmount();
+
+    expect(eventMocks.unlisten).toHaveBeenCalledTimes(1);
   });
 
   it('renders nothing outside the desktop runtime', () => {
@@ -122,7 +161,10 @@ describe('PrivacyCurtainCard', () => {
     render(<PrivacyCurtainCard enabled={false} onToggle={onToggle} />);
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('privacy_curtain_active'));
 
-    fireEvent.click(screen.getByLabelText('autoTitle'));
+    const toggle = screen.getByRole('switch', { name: 'autoTitle' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+    fireEvent.click(toggle);
 
     expect(onToggle).toHaveBeenCalledWith(true);
   });

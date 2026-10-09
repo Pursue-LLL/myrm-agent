@@ -19,24 +19,15 @@ from .messages import (
     ContextEntry,
     CorrelationContext,
     CronContext,
-    DraftTimeoutAction,
-    IdentityScopeMode,
     InboundMessage,
     MediaAttachment,
     MediaType,
     MessagePriority,
     OutboundMessage,
-    ProgressUpdate,
     ReasoningDisplay,
     RenderStyle,
     ReplyContext,
-    ReplyMode,
-    StreamingText,
-    STTResult,
     ToolSummaryDisplay,
-    TopicContext,
-    TTSMode,
-    VoiceConfig,
     extract_cron_context,
     guess_media_type,
 )
@@ -46,6 +37,8 @@ from .notification import (
     METADATA_NOTIFY_KEY,
     ChannelNotificationMode,
     parse_notification_mode,
+    should_notify,
+    with_final_notify,
 )
 from .session import (
     SessionKey,
@@ -65,7 +58,20 @@ from .status import (
     ReactionLevel,
     StartMode,
 )
+from .streaming import (
+    FissionTopologyNode,
+    FissionTopologyUpdate,
+    ProgressUpdate,
+    StreamingText,
+)
 from .thread_sharing import ThreadSharingMode
+from .topics import (
+    DraftTimeoutAction,
+    IdentityScopeMode,
+    ReplyMode,
+    TopicContext,
+)
+from .voice import STTResult, TTSMode, VoiceConfig
 
 __all__ = [
     "METADATA_EXPLICIT_MENTION_KEY",
@@ -84,6 +90,8 @@ __all__ = [
     "CorrelationContext",
     "CronContext",
     "DraftTimeoutAction",
+    "FissionTopologyNode",
+    "FissionTopologyUpdate",
     "GroupInfo",
     "IdentityScopeMode",
     "InboundMessage",

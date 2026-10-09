@@ -28,7 +28,7 @@ import pytest
 
 from app.services.locked_use import unattended
 from app.services.locked_use.curtain_bridge import MAX_UNLOCK_ATTEMPTS, SHELL_PID_ENV
-from app.services.locked_use.service import MacScreenUnlocker
+from app.services.locked_use.service import MacScreenUnlocker, UnlockAttemptOutcome
 from tests.support.curtain_watcher import (
     AWAY_IDLE_SECONDS,
     acquire,
@@ -51,9 +51,9 @@ class TestAcquisitionGates:
             order.append("pending")
             return True
 
-        async def _unlock() -> bool:
+        async def _unlock() -> UnlockAttemptOutcome:
             order.append("unlock")
-            return True
+            return UnlockAttemptOutcome.SUCCESS
 
         arm_on_demand_unlock(monkeypatch)
         monkeypatch.setattr(unattended, "mark_pending_auto_unlock", _mark_pending)
@@ -160,7 +160,7 @@ class TestAcquisitionGates:
         if not shell_is_alive:
             monkeypatch.setenv(SHELL_PID_ENV, str(dead_shell_pid))
         set_locked(monkeypatch, True)
-        unlock = AsyncMock(return_value=True)
+        unlock = AsyncMock(return_value=UnlockAttemptOutcome.SUCCESS)
         monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
 
         acquire(monkeypatch)

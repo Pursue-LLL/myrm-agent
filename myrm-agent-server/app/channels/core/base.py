@@ -232,9 +232,16 @@ class BaseChannel(ABC, EventEmitter):
     async def send(self, msg: OutboundMessage) -> str | None:
         """Deliver an outbound message through this channel.
 
-        Returns the platform message_id if available, or None.
-        Callers that need the id (e.g. approval lifecycle) should use
-        MessageBus.send_tracked() which bypasses the queue.
+        Returns the platform message id. The bus acknowledges a delivery only when this call returns
+        normally, so every failure must raise ``ChannelSendError`` instead of returning quietly.
+        Channels that cannot report ids declare ``capabilities.message_ids = False`` and return ``None``
+        on success; for every other channel a ``None`` result for a message with text is treated as an
+        unconfirmed delivery (media-only sends are exempt). When the platform accepted part of the
+        message (for example the text but not an attachment), raise
+        ``ChannelSendError(accepted=True, failed_attachments=...)`` so only the remainder is reported;
+        ``accepted=True`` without names means only later text chunks are missing and nothing is re-sent.
+        Callers that need the outcome use ``MessageBus.send_now()`` (raises) or ``send_tracked()``
+        (returns the id or ``None``); both bypass the queue.
         """
 
     async def respond(

@@ -98,21 +98,21 @@ const DeveloperCenterSection = memo(() => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="devtools" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="devtools" tabIndex={-1}>
           <DeveloperSection />
         </TabsContent>
-        <TabsContent value="experimental" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="experimental" tabIndex={-1}>
           <ExperimentalFeaturesSection />
         </TabsContent>
-        <TabsContent value="usage" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="usage" tabIndex={-1}>
           <UsageStatisticsSection />
         </TabsContent>
         {isCompanionEnabled && (
-          <TabsContent value="companion" className="focus-visible:outline-none focus-visible:ring-0">
+          <TabsContent value="companion" tabIndex={-1}>
             <CompanionSection />
           </TabsContent>
         )}
-        <TabsContent value="importexport" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="importexport" tabIndex={-1}>
           <ImportExportSection />
         </TabsContent>
       </Tabs>

@@ -23,12 +23,12 @@ import {
 } from './chat/chatSessionInit';
 import { processSuggestions, findAssistantMessageIndex, removeWaitingForTurnStep } from './chat/messageUtils';
 import { disarmYoloForPreset, normalizeSecurityPreset } from './chat/securityPreset';
+import { postTurnInstruction } from './chat/turnInstruction';
 import { useMessageQueueStore } from './chat/useMessageQueueStore';
 import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
 import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent, type ChatItem } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
-import { fetchWithTimeout } from '@/lib/api';
 import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspectorControls';
 import { useProjectStore } from '@/store/useProjectStore';
 import {
@@ -732,42 +732,14 @@ const useChatStore = create<ChatState>()(
         if (options?.questionContext !== undefined) {
           payload.question_context = options.questionContext;
         }
-        try {
-          const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
-          if (isMobileRemoteSurface()) {
-            await mobileRemotePost(`/api/v1/agents/chats/${chatId}/steer`, payload);
-            return true;
-          }
-          const res = await fetchWithTimeout(`/agents/chats/${chatId}/steer`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          return res.ok;
-        } catch {
-          return false;
-        }
+        return postTurnInstruction(chatId, 'steer', payload);
       },
       redirectMessage: async (message: string) => {
         const { chatId } = get();
         if (!chatId) {
           return false;
         }
-        try {
-          const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
-          if (isMobileRemoteSurface()) {
-            await mobileRemotePost(`/api/v1/agents/chats/${chatId}/redirect`, { message });
-            return true;
-          }
-          const res = await fetchWithTimeout(`/agents/chats/${chatId}/redirect`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message }),
-          });
-          return res.ok;
-        } catch {
-          return false;
-        }
+        return postTurnInstruction(chatId, 'redirect', { message });
       },
       resolveAsyncUserMessage: (messageId: string, callId: string, resolvedText: string) => {
         set((state) => {

@@ -1,13 +1,17 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { SecretKind } from '@/services/skill';
+
 import type { RedactionFindings } from '../useRedactionDecisions';
 import RedactionReview from '../RedactionReview';
 
-const { stableT } = vi.hoisted(() => ({
-  stableT: (key: string, values?: Record<string, string | number>) =>
-    values ? `${key} ${Object.values(values).join(',')}` : key,
-}));
+const { stableT } = vi.hoisted(() => {
+  const translate = (key: string, values?: Record<string, string | number>) =>
+    values ? `${key} ${Object.values(values).join(',')}` : key;
+  // Only the kinds this client ships a sentence for; anything else must fall back.
+  return { stableT: Object.assign(translate, { has: (key: string) => !key.endsWith('.mystery') }) };
+});
 
 vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
 
@@ -17,10 +21,15 @@ vi.mock('@/components/primitives/scroll-area', () => ({
 
 const FINDINGS: RedactionFindings = {
   'SKILL.md': [
-    { line_number: 3, original: 'api_key=sk-1', redacted: 'api_key=<REDACTED>', reason: 'API key' },
-    { line_number: 9, original: 'password=abc', redacted: 'password=<REDACTED>', reason: 'Password' },
+    { line_number: 3, original: 'api_key=sk-1', redacted: 'api_key=<REDACTED>', kinds: ['api_token'] },
+    {
+      line_number: 9,
+      original: 'password=abc',
+      redacted: 'password=<REDACTED>',
+      kinds: ['config_secret', 'absolute_path'],
+    },
   ],
-  'agents/lead.md': [{ line_number: 1, original: 'token=t-1', redacted: 'token=<REDACTED>', reason: 'Token' }],
+  'agents/lead.md': [{ line_number: 1, original: 'token=t-1', redacted: 'token=<REDACTED>', kinds: ['api_token'] }],
 };
 
 function renderReview(ignored: Record<string, number[]> = {}, disabled = false) {
@@ -47,7 +56,16 @@ describe('RedactionReview', () => {
     expect(screen.getByText('api_key=sk-1')).toBeInTheDocument();
     expect(screen.getByText('api_key=<REDACTED>')).toBeInTheDocument();
     expect(screen.getByText('line 3')).toBeInTheDocument();
-    expect(screen.getByText('Password')).toBeInTheDocument();
+    expect(screen.getAllByText('kinds.api_token')).toHaveLength(2);
+    expect(screen.getByText('kinds.config_secret / kinds.absolute_path')).toBeInTheDocument();
+  });
+
+  it('falls back to a generic sentence for a kind this client does not know', () => {
+    const unknown = { 'a.md': [{ line_number: 1, original: 'x', redacted: 'y', kinds: ['mystery' as SecretKind] }] };
+    render(<RedactionReview findings={unknown} ignored={{}} onToggle={vi.fn()} onToggleAll={vi.fn()} />);
+
+    expect(screen.getByText('kinds.unknown')).toBeInTheDocument();
+    expect(screen.queryByText('kinds.mystery')).not.toBeInTheDocument();
   });
 
   it('shows a kept finding without a replacement line', () => {

@@ -192,7 +192,7 @@
     "maxIterationsDesc": "Maximale Tool-Aufrundungen pro Gesprächsrunde (leer lassen für Standard: 100)",
     "maxIterationsPlaceholder": "Standard 100",
     "maxTokens": "Max. Ausgabe-Tokens",
-    "maxTokensDesc": "Maximale Tokens in einer einzelnen Antwort",
+    "maxTokensDesc": "Begrenzt die Länge einer einzelnen Antwort (in Tokens). Reasoning-Modelle erhalten automatisch mehr Spielraum, wenn der Wert zum Denken und Antworten nicht reicht.",
     "maxTokensPlaceholder": "Leer lassen für Modellstandard",
     "mcpServices": "MCP-Dienste",
     "mcpServicesDesc": "Externe Dienste verbinden, um Agentenfähigkeiten zu erweitern",

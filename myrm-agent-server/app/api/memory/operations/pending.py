@@ -3,6 +3,7 @@
 [INPUT]
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 app.schemas.memory.crud::PendingMemoryItem (POS: 记忆 API 通用 Schema 层)
+app.services.memory.operations.pending_review::{approve_pending, reject_pending, batch_approve_pending, batch_reject_pending} (POS: 审批队列统一审批与审计入口)
 
 [OUTPUT]
 router: 待处理记忆列表、批准、拒绝、批量操作端点
@@ -15,16 +16,14 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.toolkits.memory import (
+    InvalidPendingEditError,
     MemoryManager,
     MemoryNotFoundError,
-    MemoryOperationKind,
-    MemoryOperationStatus,
+    PendingTargetChangedError,
 )
 from myrm_agent_harness.toolkits.memory.types import PendingRecord
 
 from app.api.memory.utils import get_memory_manager
-from app.database.connection import get_session
-from app.database.models import PendingMemory
 from app.schemas.memory.crud import (
     ApproveMemoryRequest,
     BatchMemoryRequest,
@@ -33,12 +32,12 @@ from app.schemas.memory.crud import (
     PendingMemoryItem,
 )
 from app.schemas.responses import StandardSuccessResponse, create_success_response
-from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
-from app.services.skills.experience_ledger import (
-    ExperienceEntityType,
-    ExperienceEventType,
-    ExperienceLedgerWrite,
-    record_experience_event,
+from app.services.memory.operations.pending_review import (
+    PendingReviewSource,
+    approve_pending,
+    batch_approve_pending,
+    batch_reject_pending,
+    reject_pending,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,42 +45,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def _load_pending_memory(memory_id: str) -> PendingMemory | None:
-    async with get_session() as db:
-        return await db.get(PendingMemory, memory_id)
-
-
 def _raise_approval_http_error(exc: Exception) -> None:
     """Map a harness approval failure to the right HTTP status.
 
-    A missing record is a 404; any other failure (wrong memory type, storage
-    error) is a server-side 500 — never a misleading 404.
+    A missing record is a 404; a proposal whose target memory changed since it was
+    queued is a 409 (it stays pending for a fresh decision); an unusable edit (blank,
+    or on a proposal without editable text) is a 400; any other failure (wrong memory
+    type, storage error) is a server-side 500 — never a misleading 404.
     """
     if isinstance(exc, MemoryNotFoundError):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if isinstance(exc, PendingTargetChangedError):
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if isinstance(exc, InvalidPendingEditError):
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     logger.error("Memory approval failed", exc_info=True)
     raise HTTPException(status_code=500, detail="Memory approval failed") from exc
-
-
-async def _record_pending_event(
-    *,
-    kind: MemoryOperationKind,
-    memory_id: str,
-    memory_type: str | None,
-    summary: str,
-) -> None:
-    async with get_session() as db:
-        await MemoryOperationLedgerService(db).record_event(
-            kind=kind,
-            status=MemoryOperationStatus.SUCCESS,
-            summary=summary,
-            memory_id=memory_id,
-            memory_type=memory_type,
-            source="memory_pending_api",
-            target_kind="pending_memory",
-            target_id=memory_id,
-            commit=True,
-        )
 
 
 def _record_to_item(r: PendingRecord) -> PendingMemoryItem:
@@ -137,32 +116,7 @@ async def batch_approve_memories(
     """Batch approve multiple pending memories and persist to storage."""
     if not manager.approval_required:
         raise HTTPException(status_code=400, detail="Approval is not enabled")
-    pending_map = {
-        memory_id: pending for memory_id in request.memory_ids if (pending := await _load_pending_memory(memory_id)) is not None
-    }
-    success, failed = await manager.batch_approve(request.memory_ids)
-    for memory_id in request.memory_ids:
-        pending = pending_map.get(memory_id)
-        if pending is None or memory_id in failed:
-            continue
-        await record_experience_event(
-            ExperienceLedgerWrite(
-                event_type=ExperienceEventType.REVIEW_APPROVED,
-                entity_type=ExperienceEntityType.REVIEW,
-                entity_id=memory_id,
-                lineage_id=f"memory:{memory_id}",
-                outcome="approved",
-                summary=f"Review approved for memory:{memory_id}",
-                artifact_refs={"review_type": "memory", "memory_type": pending.memory_type},
-                detail={"review_type": "memory", "review_id": memory_id, "batch": True},
-            )
-        )
-        await _record_pending_event(
-            kind=MemoryOperationKind.APPROVE,
-            memory_id=memory_id,
-            memory_type=pending.memory_type,
-            summary="Pending memory approved in batch.",
-        )
+    success, failed = await batch_approve_pending(manager, request.memory_ids, source=PendingReviewSource.WEB_API)
     return BatchMemoryResponse(
         success_count=success,
         failed_count=len(failed),
@@ -178,35 +132,7 @@ async def batch_reject_memories(
     """Batch reject multiple pending memories."""
     if not manager.approval_required:
         raise HTTPException(status_code=400, detail="Approval is not enabled")
-    pending_map = {
-        memory_id: pending for memory_id in request.memory_ids if (pending := await _load_pending_memory(memory_id)) is not None
-    }
-    count = await manager.batch_reject(request.memory_ids)
-    for memory_id in request.memory_ids:
-        pending = pending_map.get(memory_id)
-        if pending is None:
-            continue
-        current = await _load_pending_memory(memory_id)
-        if current is None or current.status != "rejected":
-            continue
-        await record_experience_event(
-            ExperienceLedgerWrite(
-                event_type=ExperienceEventType.REVIEW_REJECTED,
-                entity_type=ExperienceEntityType.REVIEW,
-                entity_id=memory_id,
-                lineage_id=f"memory:{memory_id}",
-                outcome="rejected",
-                summary=f"Review rejected for memory:{memory_id}",
-                artifact_refs={"review_type": "memory", "memory_type": pending.memory_type},
-                detail={"review_type": "memory", "review_id": memory_id, "batch": True},
-            )
-        )
-        await _record_pending_event(
-            kind=MemoryOperationKind.REJECT,
-            memory_id=memory_id,
-            memory_type=pending.memory_type,
-            summary="Pending memory rejected in batch.",
-        )
+    count = await batch_reject_pending(manager, request.memory_ids, source=PendingReviewSource.WEB_API)
     return BatchMemoryResponse(
         success_count=count,
         failed_count=len(request.memory_ids) - count,
@@ -223,30 +149,10 @@ async def approve_pending_memory(
     """Approve a pending memory and persist to permanent storage."""
     if not manager.approval_required:
         raise HTTPException(status_code=400, detail="Approval is not enabled")
-    pending = await _load_pending_memory(memory_id)
     try:
-        await manager.approve(memory_id)
+        await approve_pending(manager, memory_id, source=PendingReviewSource.WEB_API, edited_content=request.edited_content)
     except Exception as e:
         _raise_approval_http_error(e)
-    if pending is not None:
-        await record_experience_event(
-            ExperienceLedgerWrite(
-                event_type=ExperienceEventType.REVIEW_APPROVED,
-                entity_type=ExperienceEntityType.REVIEW,
-                entity_id=memory_id,
-                lineage_id=f"memory:{memory_id}",
-                outcome="approved",
-                summary=f"Review approved for memory:{memory_id}",
-                artifact_refs={"review_type": "memory", "memory_type": pending.memory_type},
-                detail={"review_type": "memory", "review_id": memory_id},
-            )
-        )
-        await _record_pending_event(
-            kind=MemoryOperationKind.APPROVE,
-            memory_id=memory_id,
-            memory_type=pending.memory_type,
-            summary="Pending memory approved.",
-        )
     return create_success_response(data={"status": "approved", "memory_id": memory_id})
 
 
@@ -258,28 +164,8 @@ async def reject_pending_memory(
     """Reject a pending memory (will not be stored)."""
     if not manager.approval_required:
         raise HTTPException(status_code=400, detail="Approval is not enabled")
-    pending = await _load_pending_memory(memory_id)
     try:
-        await manager.reject(memory_id)
+        await reject_pending(manager, memory_id, source=PendingReviewSource.WEB_API)
     except Exception as e:
         _raise_approval_http_error(e)
-    if pending is not None:
-        await record_experience_event(
-            ExperienceLedgerWrite(
-                event_type=ExperienceEventType.REVIEW_REJECTED,
-                entity_type=ExperienceEntityType.REVIEW,
-                entity_id=memory_id,
-                lineage_id=f"memory:{memory_id}",
-                outcome="rejected",
-                summary=f"Review rejected for memory:{memory_id}",
-                artifact_refs={"review_type": "memory", "memory_type": pending.memory_type},
-                detail={"review_type": "memory", "review_id": memory_id},
-            )
-        )
-        await _record_pending_event(
-            kind=MemoryOperationKind.REJECT,
-            memory_id=memory_id,
-            memory_type=pending.memory_type,
-            summary="Pending memory rejected.",
-        )
     return create_success_response(data={"status": "rejected", "memory_id": memory_id})

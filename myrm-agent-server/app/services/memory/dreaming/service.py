@@ -29,8 +29,10 @@ from collections.abc import Awaitable, Callable, Sequence
 from typing import Mapping
 
 from myrm_agent_harness.toolkits.memory import (
+    AutonomousDreamingSynthesizer,
     DreamDiaryEntry,
     DreamDiaryStatus,
+    DreamingSynthesisReport,
     DreamingTriggerReason,
     DreamSessionFragment,
     GroundedDreamingEngine,
@@ -50,11 +52,30 @@ class DreamDiaryService:
         self,
         engine: GroundedDreamingEngine | None = None,
         scheduler: GroundedDreamingScheduler | None = None,
+        synthesizer: AutonomousDreamingSynthesizer | None = None,
     ) -> None:
         self._engine = engine or GroundedDreamingEngine()
         self._scheduler = scheduler or GroundedDreamingScheduler(engine=self._engine)
+        self._synthesizer = synthesizer or AutonomousDreamingSynthesizer(dreaming_engine=self._engine)
         self._entries: dict[str, DreamDiaryEntry] = {}
         self._lock = threading.Lock()
+
+    def synthesize_and_prune(
+        self,
+        fragments: Sequence[DreamSessionFragment],
+        raw_memories: list[dict[str, object]] | None = None,
+        target_project_id: str | None = None,
+    ) -> DreamingSynthesisReport:
+        """Run autonomous dreaming consolidation and pruning cycle, storing insights."""
+        report = self._synthesizer.consolidate_and_prune(
+            fragments=fragments,
+            raw_memories=raw_memories,
+            target_project_id=target_project_id,
+        )
+        with self._lock:
+            for entry in report.synthesized_insights:
+                self._entries[entry.entry_id] = entry
+        return report
 
     def get_entries(
         self,

@@ -19,10 +19,13 @@ import asyncio
 import json
 import logging
 import uuid
+from functools import partial
 from pathlib import Path
 
 from app.channels.core.allow_policy import OPEN_POLICY
+from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.mixins import CachedGroupMixin
 from app.channels.core.rate_limit import DEFAULT_RATE_LIMIT
 from app.channels.protocols.async_login import (
@@ -180,19 +183,17 @@ class WhatsAppChannel(BaseChannel, CachedGroupMixin, BridgeProcessMixin):
     # ------------------------------------------------------------------
 
     async def send(self, msg: OutboundMessage) -> str | None:
-        """Send a message (media + text) to a WhatsApp user via the bridge.
+        """Send text, then attachments, to a WhatsApp chat via the bridge.
 
-        Returns the platform message key (JSON) of the last text chunk sent,
-        or None if only media was sent.
+        Returns the platform message key (JSON) of the last text chunk sent, or None if only media was
+        sent. The bridge acknowledges text only: an attachment counts as sent once the bridge has it, and
+        a bridge-side upload failure shows up in the bridge log instead of here.
         """
         if not self._process or not self._connected.is_set():
-            raise RuntimeError("WhatsAppChannel not connected")
+            raise ChannelSendError("WhatsApp is not connected", channel=self.name)
 
         jid = _normalize_jid(msg.recipient_id)
         last_key: str | None = None
-
-        for attachment in msg.media:
-            self._send_media(jid, attachment)
 
         if msg.content:
             chunks = list(render(msg, self.render_style))
@@ -212,7 +213,13 @@ class WhatsAppChannel(BaseChannel, CachedGroupMixin, BridgeProcessMixin):
                 except TimeoutError:
                     self._sent_futures.pop(nonce, None)
 
-        logger.warning("WhatsAppChannel: sent to %s (media=%d)", jid, len(msg.media))
+        await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_media, jid),
+            text_delivered=bool(msg.content),
+        )
+        logger.info("WhatsAppChannel: sent to %s (media=%d)", jid, len(msg.media))
         return last_key
 
     @staticmethod
@@ -232,8 +239,10 @@ class WhatsAppChannel(BaseChannel, CachedGroupMixin, BridgeProcessMixin):
             pass
         return None
 
-    def _send_media(self, jid: str, attachment: MediaAttachment) -> None:
-        """Write a send_media command to the bridge for a single attachment."""
+    async def _send_media(self, jid: str, attachment: MediaAttachment) -> None:
+        """Hand one attachment to the bridge; raises ``ChannelSendError`` when it has no file or URL to send."""
+        if not (attachment.url or attachment.path):
+            raise ChannelSendError(f"WhatsApp has no source for {attachment.display_name}", channel=self.name, retriable=False)
         cmd: dict[str, str] = {
             "type": "send_media",
             "to": jid,

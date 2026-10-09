@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.zalo import ZaloChannel
 from app.channels.types import (
     ChannelStatus,
@@ -152,6 +154,33 @@ class TestZaloSend:
         result = await ch.send(msg)
         assert result is None
 
+    @pytest.mark.asyncio
+    async def test_a_failed_chunk_never_hides_the_ids_of_earlier_chunks_nor_passes_silently(self) -> None:
+        ch = ZaloChannel(access_token="tok123")
+        msg = OutboundMessage(channel="zalo", recipient_id="user123", content="x" * 5000, user_id="u1")
+
+        sent = AsyncMock(side_effect=["mid1", ChannelSendError("rejected", channel="zalo")])
+        with patch.object(ch, "_send_text", sent), pytest.raises(ChannelSendError):
+            await ch.send(msg)
+
+        assert sent.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_failed_attachment_after_delivered_text_is_a_partial_delivery(self) -> None:
+        ch = ZaloChannel(access_token="tok123")
+        att = MediaAttachment(url="https://example.com/img.jpg", media_type=MediaType.IMAGE, filename="img.jpg")
+        msg = OutboundMessage(channel="zalo", recipient_id="user123", content="look", user_id="u1", media=(att,))
+
+        with (
+            patch.object(ch, "_send_text", new_callable=AsyncMock, return_value="mid1"),
+            patch.object(ch, "_send_media", new_callable=AsyncMock, side_effect=ChannelSendError("no", channel="zalo")),
+            pytest.raises(ChannelSendError) as excinfo,
+        ):
+            await ch.send(msg)
+
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
+        assert excinfo.value.failed_attachments == ("img.jpg",)
+
 
 class TestZaloWebhook:
     @pytest.mark.asyncio
@@ -264,17 +293,19 @@ class TestZaloPostMessage:
         ch._http = AsyncMock()
         ch._http.post = AsyncMock(return_value=mock_resp)
 
-        result = await ch._post_message({"recipient": {"user_id": "u1"}})
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch._post_message({"recipient": {"user_id": "u1"}})
+        assert (excinfo.value.status_code, excinfo.value.retriable) == (400, False)
 
     @pytest.mark.asyncio
-    async def test_post_message_exception(self) -> None:
+    async def test_post_message_transport_failure_may_be_retried(self) -> None:
         ch = ZaloChannel(access_token="tok123")
         ch._http = AsyncMock()
-        ch._http.post = AsyncMock(side_effect=Exception("network"))
+        ch._http.post = AsyncMock(side_effect=httpx.ConnectError("network"))
 
-        result = await ch._post_message({"recipient": {"user_id": "u1"}})
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch._post_message({"recipient": {"user_id": "u1"}})
+        assert excinfo.value.retriable is True
 
     @pytest.mark.asyncio
     async def test_post_message_api_error(self) -> None:
@@ -285,8 +316,9 @@ class TestZaloPostMessage:
         ch._http = AsyncMock()
         ch._http.post = AsyncMock(return_value=mock_resp)
 
-        result = await ch._post_message({"recipient": {"user_id": "u1"}})
-        assert result is None
+        with pytest.raises(ChannelSendError, match="invalid token") as excinfo:
+            await ch._post_message({"recipient": {"user_id": "u1"}})
+        assert excinfo.value.retriable is False
 
 
 class TestZaloSendText:
@@ -329,8 +361,17 @@ class TestZaloUploadMedia:
     async def test_upload_no_url_no_path(self) -> None:
         ch = ZaloChannel(access_token="tok123")
         att = MediaAttachment(media_type=MediaType.IMAGE)
-        result = await ch._upload_media(att)
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch._upload_media(att)
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_upload_missing_local_file_is_permanent(self) -> None:
+        ch = ZaloChannel(access_token="tok123")
+        att = MediaAttachment(path="/nonexistent/report.pdf", media_type=MediaType.DOCUMENT)
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch._upload_media(att)
+        assert excinfo.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_upload_download_fails(self) -> None:
@@ -340,8 +381,9 @@ class TestZaloUploadMedia:
         ch._http = AsyncMock()
         ch._http.get = AsyncMock(side_effect=Exception("timeout"))
 
-        result = await ch._upload_media(att)
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch._upload_media(att)
+        assert excinfo.value.retriable is True
 
     @pytest.mark.asyncio
     async def test_upload_api_error(self) -> None:
@@ -359,8 +401,23 @@ class TestZaloUploadMedia:
         ch._http.get = AsyncMock(return_value=dl_resp)
         ch._http.post = AsyncMock(return_value=upload_resp)
 
-        result = await ch._upload_media(att)
-        assert result is None
+        with pytest.raises(ChannelSendError):
+            await ch._upload_media(att)
+
+    @pytest.mark.asyncio
+    async def test_upload_without_attachment_id_is_reported(self) -> None:
+        ch = ZaloChannel(access_token="tok123")
+        att = MediaAttachment(url="https://example.com/img.jpg", media_type=MediaType.IMAGE)
+        upload_resp = MagicMock()
+        upload_resp.status_code = 200
+        upload_resp.json.return_value = {"error": 0, "data": {}}
+        ch._http = AsyncMock()
+        ch._http.post = AsyncMock(return_value=upload_resp)
+
+        with patch("app.channels.media.downloader.MediaDownloader.download", new_callable=AsyncMock) as mock_download:
+            mock_download.return_value = MagicMock(success=True, data=b"imgdata")
+            with pytest.raises(ChannelSendError, match="attachment_id"):
+                await ch._upload_media(att)
 
 
 class TestZaloSendMedia:
@@ -385,9 +442,9 @@ class TestZaloSendMedia:
         ch = ZaloChannel(access_token="tok123")
         att = MediaAttachment(url="https://example.com/img.jpg", media_type=MediaType.IMAGE)
 
-        with patch.object(ch, "_upload_media", new_callable=AsyncMock, return_value=None):
-            result = await ch._send_media("user1", att)
-        assert result is None
+        upload = AsyncMock(side_effect=ChannelSendError("upload failed", channel="zalo"))
+        with patch.object(ch, "_upload_media", upload), pytest.raises(ChannelSendError):
+            await ch._send_media("user1", att)
 
 
 class TestZaloFetchOaId:

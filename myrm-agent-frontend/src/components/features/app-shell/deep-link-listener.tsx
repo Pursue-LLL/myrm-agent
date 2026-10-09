@@ -2,7 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useIntentMessages } from '@/hooks/shell/useIntentMessages';
 import { IntentDispatcher } from '@/lib/intent-dispatcher';
+import { redactIntentUrl } from '@/lib/intent-dispatcher/schema';
 import { useFlowPadStore } from '@/store/useFlowPadStore';
 
 /**
@@ -13,6 +15,7 @@ import { useFlowPadStore } from '@/store/useFlowPadStore';
  */
 export default function DeepLinkListener() {
   const router = useRouter();
+  const messages = useIntentMessages();
   const openFlowPad = useFlowPadStore((s) => s.open);
   const dispatchQueueRef = useRef<Promise<void>>(Promise.resolve());
   const recentDispatchRef = useRef<Map<string, number>>(new Map());
@@ -21,7 +24,7 @@ export default function DeepLinkListener() {
     // Check if we are running in Tauri
     const isTauri = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ !== undefined;
 
-    const dispatcher = new IntentDispatcher(router, openFlowPad);
+    const dispatcher = new IntentDispatcher(router, openFlowPad, messages);
     const recentDispatch = recentDispatchRef.current;
 
     if (isTauri) {
@@ -66,7 +69,7 @@ export default function DeepLinkListener() {
           // Dynamic import keeps Tauri-only APIs out of SSR evaluation.
           const { onOpenUrl } = await import('@tauri-apps/plugin-deep-link');
           unlisten = await onOpenUrl((urls) => {
-            console.log('[DeepLinkListener] Received URLs from Tauri:', urls);
+            console.log('[DeepLinkListener] Received URLs from Tauri:', urls.map(redactIntentUrl));
             enqueueDeepLinks(urls);
           });
           console.log('[DeepLinkListener] Successfully registered Tauri deep link handler');
@@ -88,7 +91,7 @@ export default function DeepLinkListener() {
       // 2. Web/SaaS mode: /intent/* routes are handled by dedicated pages.
       // Keep this listener as a no-op to avoid duplicate dispatches.
     }
-  }, [router, openFlowPad]);
+  }, [router, openFlowPad, messages]);
 
   return null;
 }

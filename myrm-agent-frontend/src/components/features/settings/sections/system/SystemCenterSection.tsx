@@ -59,10 +59,10 @@ const SystemCenterSection = memo(() => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="settings" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="settings" tabIndex={-1}>
           <SystemSection />
         </TabsContent>
-        <TabsContent value="about" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="about" tabIndex={-1}>
           <div className="space-y-6">
             <TrustBadgeCard />
             <RecoveryGuideCard />

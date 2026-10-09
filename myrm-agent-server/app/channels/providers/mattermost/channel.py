@@ -12,6 +12,7 @@ and inbound media attachment parsing.
 - app.channels.types::ChannelCapabilities (POS: Channel capability and artifact type definitions.)
 - app.channels.media::MediaDownloadConfig (POS: Media download cache with LRU eviction.)
 - app.channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy.)
+- app.channels.core.attachment_delivery::attempt_attachments (POS: per-attachment delivery with aggregated failure)
 - app.channels.core.mixins::CachedGroupMixin (POS: Reusable channel capability mixin components.)
 
 [OUTPUT]
@@ -26,10 +27,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from functools import partial
+from pathlib import Path
 
 import httpx
 
 from app.channels import BaseChannel, InboundMessage, OutboundMessage
+from app.channels.core.attachment_delivery import attempt_attachments
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.core.mixins import CachedGroupMixin
@@ -334,8 +338,15 @@ class MattermostChannel(BaseChannel, CachedGroupMixin):
     # ── Outbound ──────────────────────────────────────────────────
 
     async def send(self, msg: OutboundMessage) -> str | None:
+        """Post the message; uploaded files ride with its first post.
+
+        A file that cannot be uploaded is reported after the post went out, so the bus republishes only
+        that file instead of replaying the whole message.
+        """
         channel_id = msg.recipient_id
-        if not channel_id or not msg.content:
+        if not channel_id:
+            raise ChannelSendError("Mattermost message has no channel", channel=self.name, retriable=False)
+        if not msg.content and not msg.media:
             return None
 
         root_id = msg.reply_to_id or ""
@@ -344,9 +355,13 @@ class MattermostChannel(BaseChannel, CachedGroupMixin):
 
         last_id: str | None = None
         try:
-            file_ids = await self._upload_media(channel_id, msg.media)
+            uploads = await attempt_attachments(self.name, msg.media, partial(self._upload_attachment, channel_id))
+            file_ids = list(uploads.results)
+            chunks = list(render(msg, self.render_style)) if msg.content else []
+            if file_ids and not chunks:
+                chunks = [""]  # a files-only message is one post that only carries the files
 
-            for chunk in render(msg, self.render_style):
+            for chunk in chunks:
                 result = await self._api.create_post(
                     channel_id,
                     chunk,
@@ -373,44 +388,50 @@ class MattermostChannel(BaseChannel, CachedGroupMixin):
                 channel=self.name,
             ) from exc
 
+        uploads.raise_for_failures(self.name, delivered_any=last_id is not None)
         return last_id
 
-    async def _upload_media(
-        self,
-        channel_id: str,
-        media: tuple[MediaAttachment, ...],
-    ) -> list[str]:
-        """Upload media attachments and return file_ids."""
-        if not media:
-            return []
-
-        file_ids: list[str] = []
-        http = self._api._get_http()
-        for attachment in media:
-            if not attachment.url:
-                continue
+    async def _upload_attachment(self, channel_id: str, attachment: MediaAttachment) -> str:
+        """Upload one attachment and return its file id; raises ``ChannelSendError`` when Mattermost does not take it."""
+        if attachment.path:
+            path = Path(attachment.path)
             try:
-                from app.channels.media import (
-                    MAX_FORWARD_DOWNLOAD_BYTES,
-                    MediaDownloadConfig,
-                    MediaDownloader,
-                )
+                data = await asyncio.to_thread(path.read_bytes)
+            except OSError as exc:
+                raise ChannelSendError(
+                    f"Mattermost cannot read {attachment.display_name}", channel=self.name, retriable=False
+                ) from exc
+            filename = attachment.filename or path.name
+        elif attachment.url:
+            data = await self._download_attachment(attachment)
+            filename = attachment.filename or "file"
+        else:
+            raise ChannelSendError(f"Mattermost has no source for {attachment.display_name}", channel=self.name, retriable=False)
 
-                config = MediaDownloadConfig(
-                    timeout_seconds=30.0,
-                    max_size_bytes=MAX_FORWARD_DOWNLOAD_BYTES,
-                )
-                downloader = MediaDownloader(http_client=http, enable_default_cache=True)
-                result = await downloader.download(attachment.url, config=config)
-                if not result.success or not result.data:
-                    continue
-                filename = attachment.filename or "file"
-                fid = await self._api.upload_file(channel_id, filename, result.data)
-                if fid:
-                    file_ids.append(fid)
-            except Exception as exc:
-                logger.debug("Mattermost: media upload failed for %s: %s", attachment.filename, exc)
-        return file_ids
+        try:
+            file_id = await self._api.upload_file(channel_id, filename, data)
+        except httpx.HTTPStatusError as exc:
+            raise ChannelSendError.from_http_status(self.name, exc.response.status_code, "file upload") from exc
+        except httpx.HTTPError as exc:
+            raise ChannelSendError(f"Mattermost upload failed: {type(exc).__name__}", channel=self.name) from exc
+        if not file_id:
+            raise ChannelSendError(f"Mattermost returned no file id for {attachment.display_name}", channel=self.name)
+        return file_id
+
+    async def _download_attachment(self, attachment: MediaAttachment) -> bytes:
+        """Fetch a remote attachment so it can be uploaded to Mattermost."""
+        from app.channels.media import (
+            MAX_FORWARD_DOWNLOAD_BYTES,
+            MediaDownloadConfig,
+            MediaDownloader,
+        )
+
+        config = MediaDownloadConfig(timeout_seconds=30.0, max_size_bytes=MAX_FORWARD_DOWNLOAD_BYTES)
+        downloader = MediaDownloader(http_client=self._api._get_http(), enable_default_cache=True)
+        result = await downloader.download(attachment.url or "", config=config)
+        if not result.success or not result.data:
+            raise ChannelSendError(f"Mattermost could not download {attachment.display_name}", channel=self.name)
+        return result.data
 
     async def send_placeholder(
         self,

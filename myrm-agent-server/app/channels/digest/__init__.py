@@ -3,10 +3,10 @@
 [INPUT]
 - .entity_timeline_models::ChatEntityDigestReport, EntityCategory, EntityCluster, NLDigestCronBlueprint, TimelineFactItem
 - .chat_entity_timeline_extractor::ChatEntityTimelineExtractor
-- .nl_digest_cron_pipeline::NaturalLanguageDigestCronPipeline
+- .nl_digest_cron_pipeline::NLDigestCronPipeline
 
 [OUTPUT]
-- ChatEntityDigestReport, EntityCategory, EntityCluster, NLDigestCronBlueprint, TimelineFactItem, ChatEntityTimelineExtractor, NaturalLanguageDigestCronPipeline
+- ChatEntityDigestReport, EntityCategory, EntityCluster, NLDigestCronBlueprint, TimelineFactItem, ChatEntityTimelineExtractor, NLDigestCronPipeline
 
 [POS]
 Package in app/channels/digest/.
@@ -20,7 +20,7 @@ from .entity_timeline_models import (
     NLDigestCronBlueprint,
     TimelineFactItem,
 )
-from .nl_digest_cron_pipeline import NaturalLanguageDigestCronPipeline
+from .nl_digest_cron_pipeline import NLDigestCronPipeline
 
 __all__ = [
     "ChatEntityDigestReport",
@@ -29,5 +29,5 @@ __all__ = [
     "NLDigestCronBlueprint",
     "TimelineFactItem",
     "ChatEntityTimelineExtractor",
-    "NaturalLanguageDigestCronPipeline",
+    "NLDigestCronPipeline",
 ]

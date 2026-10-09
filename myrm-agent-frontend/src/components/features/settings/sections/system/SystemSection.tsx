@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconSettings, IconWifi, IconStop, IconRefresh } from '@/components/features/icons/PremiumIcons';
+import { IconWifi } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { isLocalMode, isTauriRuntime } from '@/lib/deploy-mode';
@@ -17,11 +17,11 @@ import CloudBrowserCard from './CloudBrowserCard';
 import { AccessCard } from './AccessCard';
 import LockedUseCard from './LockedUseCard';
 import PrivacyCurtainCard from './PrivacyCurtainCard';
+import SystemConfigCard from './SystemConfigCard';
 import DesktopPermissionsCard from './DesktopPermissionsCard';
 import MemoryMonitorCard from '../knowledge/MemoryMonitorCard';
 import { DoctorDashboard } from '../../../health/DoctorDashboard';
 import { fetchWebuiProtection, updateWebuiProtection } from '@/services/webui-auth';
-import WebuiAccessSecurityPanel from './WebuiAccessSecurityPanel';
 import ServerConnectionCard from './ServerConnectionCard';
 import StorageCard from './StorageCard';
 import { useIngressRequirement } from '@/hooks/billing/useIngressRequirement';
@@ -42,174 +42,6 @@ import AgentCommerceBudgetSection from './AgentCommerceBudgetSection';
  *   - 显示本地和远程访问地址
  *   - 提供重启应用功能
  */
-
-// ============================================================================
-// 子组件
-// ============================================================================
-
-const ShortcutRecorder = memo<{
-  value: string;
-  onChange: (value: string) => void;
-}>(({ value, onChange }) => {
-  const [isRecording, setIsRecording] = useState(false);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (!isRecording) {
-        return;
-      }
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Don't record if only modifiers are pressed
-      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
-        return;
-      }
-
-      // Escape to cancel recording
-      if (e.key === 'Escape') {
-        setIsRecording(false);
-        return;
-      }
-
-      // Backspace to clear shortcut
-      if (e.key === 'Backspace' || e.key === 'Delete') {
-        onChange('');
-        setIsRecording(false);
-        return;
-      }
-
-      const keys: string[] = [];
-
-      if (e.metaKey) {
-        keys.push('Super');
-      }
-      if (e.ctrlKey) {
-        keys.push('Control');
-      }
-      if (e.altKey) {
-        keys.push('Alt');
-      }
-      if (e.shiftKey) {
-        keys.push('Shift');
-      }
-
-      let mainKey = e.key.toUpperCase();
-      if (e.code === 'Space') {
-        mainKey = 'Space';
-      }
-      if (mainKey.length === 1 && mainKey >= 'A' && mainKey <= 'Z') {
-        // ok
-      } else if (mainKey >= '0' && mainKey <= '9') {
-        // ok
-      } else if (mainKey !== 'SPACE') {
-        mainKey = e.code.replace('Key', '').replace('Digit', '');
-      }
-
-      keys.push(mainKey === 'SPACE' ? 'Space' : mainKey);
-
-      onChange(keys.join('+'));
-      setIsRecording(false);
-    },
-    [isRecording, onChange],
-  );
-
-  return (
-    <input
-      type="text"
-      value={isRecording ? '录制中...' : value}
-      onFocus={() => setIsRecording(true)}
-      onBlur={() => setIsRecording(false)}
-      onKeyDown={handleKeyDown}
-      placeholder="e.g. Alt+Space"
-      readOnly
-      className={cn(
-        'w-40 px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-center text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer transition-colors',
-        isRecording && 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400',
-      )}
-    />
-  );
-});
-ShortcutRecorder.displayName = 'ShortcutRecorder';
-
-const AppshotExcludedAppsEditor = memo<{
-  apps: string[];
-  onChange: (apps: string[]) => void;
-}>(({ apps, onChange }) => {
-  const t = useTranslations('settings.system.config');
-  const [inputValue, setInputValue] = useState('');
-
-  const handleAdd = useCallback(() => {
-    const val = inputValue.trim();
-    if (!val || apps.includes(val)) {
-      return;
-    }
-    onChange([...apps, val]);
-    setInputValue('');
-  }, [inputValue, apps, onChange]);
-
-  const handleRemove = useCallback(
-    (idx: number) => {
-      onChange(apps.filter((_, i) => i !== idx));
-    },
-    [apps, onChange],
-  );
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleAdd();
-      }
-    },
-    [handleAdd],
-  );
-
-  return (
-    <div className="space-y-2">
-      <div className="space-y-1">
-        <label className="text-sm font-bold text-foreground">{t('appshotPrivacyBlacklist')}</label>
-        <p className="text-xs text-muted-foreground">{t('appshotPrivacyBlacklistDesc')}</p>
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {apps.map((app, idx) => (
-          <span
-            key={`${app}-${idx}`}
-            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-destructive/10 text-destructive border border-destructive/20"
-          >
-            {app}
-            <button
-              type="button"
-              onClick={() => handleRemove(idx)}
-              className="ml-0.5 hover:text-destructive/80 transition-colors"
-            >
-              ×
-            </button>
-          </span>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={t('appshotAddAppPlaceholder')}
-          className="flex-1 px-3 py-1.5 bg-muted/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!inputValue.trim()}
-          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {t('appshotAddApp')}
-        </button>
-      </div>
-    </div>
-  );
-});
-AppshotExcludedAppsEditor.displayName = 'AppshotExcludedAppsEditor';
 
 const ModeStatusBadge = memo<{ currentMode: 'desktop' | 'webui' }>(({ currentMode }) => {
   const t = useTranslations('settings.system');
@@ -399,289 +231,18 @@ const SystemSection = memo(() => {
       </section>
 
       {/* WebUI 模式配置 */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-3 px-2">
-          <IconSettings className="w-5 h-5 text-muted-foreground" />
-          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">
-            {t('config.title')}
-          </h2>
-        </div>
-
-        <div className="space-y-6 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
-          {/* 关闭时隐藏到托盘 */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">{t('config.closeToTray')}</label>
-              <p className="text-xs text-muted-foreground">{t('config.closeToTrayDesc')}</p>
-            </div>
-            <button
-              aria-label={t('config.closeToTray')}
-              onClick={() => handleChange('closeToTray', !localConfig.closeToTray)}
-              className={cn(
-                'relative w-12 h-6 rounded-full transition-colors',
-                localConfig.closeToTray ? 'bg-indigo-500' : 'bg-white/10',
-              )}
-            >
-              <div
-                className={cn(
-                  'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                  localConfig.closeToTray && 'translate-x-6',
-                )}
-              />
-            </button>
-          </div>
-
-          <div className="h-px bg-white/5" />
-
-          {/* 开机自动启动 */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">{t('config.autoLaunchAtLogin')}</label>
-              <p className="text-xs text-muted-foreground">{t('config.autoLaunchAtLoginDesc')}</p>
-            </div>
-            <button
-              aria-label={t('config.autoLaunchAtLogin')}
-              onClick={() => handleChange('autoLaunchAtLogin', !localConfig.autoLaunchAtLogin)}
-              className={cn(
-                'relative w-12 h-6 rounded-full transition-colors',
-                localConfig.autoLaunchAtLogin ? 'bg-indigo-500' : 'bg-white/10',
-              )}
-            >
-              <div
-                className={cn(
-                  'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                  localConfig.autoLaunchAtLogin && 'translate-x-6',
-                )}
-              />
-            </button>
-          </div>
-
-          <div className="h-px bg-white/5" />
-
-          {/* 全局唤醒快捷键 */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">{t('config.globalShortcut')}</label>
-              <p className="text-xs text-muted-foreground">{t('config.globalShortcutDesc')}</p>
-            </div>
-            <ShortcutRecorder
-              value={localConfig.globalShortcut}
-              onChange={(value) => handleChange('globalShortcut', value)}
-            />
-          </div>
-
-          <div className="h-px bg-white/5" />
-
-          {/* Appshot 截屏快捷键 */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">{t('config.appshotShortcut')}</label>
-              <p className="text-xs text-muted-foreground">{t('config.appshotShortcutDesc')}</p>
-            </div>
-            <ShortcutRecorder
-              value={localConfig.appshotShortcut}
-              onChange={(value) => handleChange('appshotShortcut', value)}
-            />
-          </div>
-
-          <div className="h-px bg-white/5" />
-
-          {/* Voice PTT 快捷键 */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">{t('config.voicePttShortcut')}</label>
-              <p className="text-xs text-muted-foreground">{t('config.voicePttShortcutDesc')}</p>
-            </div>
-            <ShortcutRecorder
-              value={localConfig.voicePttShortcut ?? ''}
-              onChange={(value) => handleChange('voicePttShortcut', value)}
-            />
-          </div>
-
-          {/* Appshot 隐私黑名单 */}
-          <AppshotExcludedAppsEditor
-            apps={localConfig.appshotExcludedApps ?? []}
-            onChange={(apps) => handleChange('appshotExcludedApps', apps)}
-          />
-
-          <div className="h-px bg-white/5" />
-
-          {/* 会话空闲重资源回收 */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">{t('config.idleReclaim')}</label>
-              <p className="text-xs text-muted-foreground">{t('config.idleReclaimDesc')}</p>
-            </div>
-            <select
-              value={localConfig.idleReclaimTimeoutSeconds ?? 1800}
-              onChange={(e) => handleChange('idleReclaimTimeoutSeconds', Number.parseInt(e.target.value) || 0)}
-              className="px-3 py-1.5 bg-black/20 border border-white/10 rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-            >
-              <option value={900}>{t('config.idleReclaim15m')}</option>
-              <option value={1800}>{t('config.idleReclaim30m')}</option>
-              <option value={3600}>{t('config.idleReclaim1h')}</option>
-              <option value={0}>{t('config.idleReclaimNever')}</option>
-            </select>
-          </div>
-
-          <div className="h-px bg-white/5" />
-
-          {/* 启用 WebUI 模式 */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <label className="text-sm font-bold text-foreground">{t('config.enableWebUI')}</label>
-              <p className="text-xs text-muted-foreground">{t('config.enableWebUIDesc')}</p>
-            </div>
-            <button
-              aria-label={t('config.enableWebUI')}
-              onClick={() => handleChange('enableWebUIMode', !localConfig.enableWebUIMode)}
-              className={cn(
-                'relative w-12 h-6 rounded-full transition-colors',
-                localConfig.enableWebUIMode ? 'bg-indigo-500' : 'bg-white/10',
-              )}
-            >
-              <div
-                className={cn(
-                  'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                  localConfig.enableWebUIMode && 'translate-x-6',
-                )}
-              />
-            </button>
-          </div>
-
-          {/* 远程访问 */}
-          {(localConfig.enableWebUIMode || isLocal) && (
-            <>
-              <div className="h-px bg-white/5" />
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <label className="text-sm font-bold text-foreground">{t('config.enableRemote')}</label>
-                  <p className="text-xs text-muted-foreground">{t('config.enableRemoteDesc')}</p>
-                </div>
-                <button
-                  aria-label={t('config.enableRemote')}
-                  onClick={() => handleChange('enableRemoteAccess', !localConfig.enableRemoteAccess)}
-                  className={cn(
-                    'relative w-12 h-6 rounded-full transition-colors',
-                    localConfig.enableRemoteAccess ? 'bg-indigo-500' : 'bg-white/10',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                      localConfig.enableRemoteAccess && 'translate-x-6',
-                    )}
-                  />
-                </button>
-              </div>
-
-              {/* 端口配置 */}
-              <div className="h-px bg-white/5" />
-              <div className={cn('grid gap-4', showApiPortInSettings ? 'grid-cols-2' : 'grid-cols-1')}>
-                {/* 前端端口 */}
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-foreground">{t('config.webuiPort')}</label>
-                  <input
-                    type="number"
-                    value={localConfig.webuiPort}
-                    onChange={(e) => handleChange('webuiPort', Number.parseInt(e.target.value) || 3000)}
-                    min={1024}
-                    max={65535}
-                    className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                  />
-                  <p className="text-xs text-muted-foreground">{t('config.webuiPortDesc')}</p>
-                </div>
-
-                {showApiPortInSettings && (
-                  <div className="space-y-3">
-                    <label className="text-sm font-bold text-foreground">{t('config.apiPort')}</label>
-                    <input
-                      type="number"
-                      value={localConfig.apiPort}
-                      onChange={(e) => handleChange('apiPort', Number.parseInt(e.target.value) || 25808)}
-                      min={1024}
-                      max={65535}
-                      className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                    />
-                    <p className="text-xs text-muted-foreground">{t('config.apiPortDesc')}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* 需要密码 */}
-              <div className="h-px bg-white/5" />
-              <div id="require-password" className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <label className="text-sm font-bold text-foreground">{t('config.requirePassword')}</label>
-                  <p className="text-xs text-muted-foreground">{t('config.requirePasswordDesc')}</p>
-                </div>
-                <button
-                  type="button"
-                  aria-label={t('config.requirePassword')}
-                  onClick={() => void handleRequirePasswordToggle()}
-                  className={cn(
-                    'relative w-12 h-6 rounded-full transition-colors',
-                    localConfig.requirePassword ? 'bg-primary' : 'bg-muted',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                      localConfig.requirePassword && 'translate-x-6',
-                    )}
-                  />
-                </button>
-              </div>
-
-              {isLocal && <WebuiAccessSecurityPanel />}
-            </>
-          )}
-
-          {/* 配置变更提示 */}
-          {isDirty && (
-            <>
-              <div className="h-px bg-white/5" />
-              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
-                <IconRefresh className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-amber-500 mb-1">{t('config.restartRequired')}</p>
-                  <p className="text-xs text-amber-500/80 leading-relaxed">{t('config.restartRequiredDesc')}</p>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* 操作按钮 */}
-          <div className="h-px bg-white/5" />
-          <div className="flex gap-3">
-            <button
-              onClick={handleSave}
-              disabled={!isDirty || isSaving}
-              className={cn(
-                'flex-1 px-6 py-3 rounded-xl font-bold text-sm transition-all',
-                isDirty
-                  ? 'bg-indigo-500 text-white hover:bg-indigo-600'
-                  : 'bg-white/5 text-muted-foreground cursor-not-allowed',
-              )}
-            >
-              {isSaving ? t('saving') : t('save')}
-            </button>
-            <button
-              onClick={handleRestart}
-              disabled={isRestarting}
-              className={cn(
-                'px-6 py-3 rounded-xl border font-bold text-sm transition-all flex items-center gap-2',
-                isDirty
-                  ? 'bg-indigo-500 text-white hover:bg-indigo-600 border-indigo-500'
-                  : 'bg-white/5 hover:bg-white/10 border-white/10',
-              )}
-            >
-              {isRestarting ? <IconRefresh className="w-4 h-4 animate-spin" /> : <IconStop className="w-4 h-4" />}
-              {isDirty ? t('saveAndRestart') : t('restart')}
-            </button>
-          </div>
-        </div>
-      </section>
+      <SystemConfigCard
+        localConfig={localConfig}
+        isLocal={isLocal}
+        isDirty={isDirty}
+        isSaving={isSaving}
+        isRestarting={isRestarting}
+        showApiPortInSettings={showApiPortInSettings}
+        onChange={handleChange}
+        onRequirePasswordToggle={() => void handleRequirePasswordToggle()}
+        onSave={handleSave}
+        onRestart={handleRestart}
+      />
 
       {/* 访问地址 */}
       <section className="space-y-6">
@@ -708,10 +269,16 @@ const SystemSection = memo(() => {
       />
 
       {/* Locked Use (Computer Use + Screen Lock) */}
-      <LockedUseCard enabled={config.lockedUseEnabled} onToggle={(v) => handleChange('lockedUseEnabled', v)} />
+      <LockedUseCard
+        enabled={localConfig.lockedUseEnabled}
+        onToggle={(v) => handleChange('lockedUseEnabled', v)}
+      />
 
       {/* Privacy Curtain (unattended workstation shield) */}
-      <PrivacyCurtainCard enabled={config.privacyCurtainEnabled} onToggle={(v) => handleChange('privacyCurtainEnabled', v)} />
+      <PrivacyCurtainCard
+        enabled={localConfig.privacyCurtainEnabled}
+        onToggle={(v) => handleChange('privacyCurtainEnabled', v)}
+      />
 
       {/* Desktop Permissions Diagnostic */}
       <DesktopPermissionsCard />

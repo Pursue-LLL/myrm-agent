@@ -25,6 +25,7 @@ from typing import Self
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec, parse_bool
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.reliability.reconnect import reconnect_loop
 from app.channels.rendering.renderer import render
 from app.channels.types import (
@@ -76,6 +77,7 @@ class IRCChannel(BaseChannel):
     capabilities = ChannelCapabilities(
         text=True,
         max_text_length=_MAX_TEXT_LENGTH,
+        message_ids=False,
     )
     render_style = RenderStyle(format="text", max_text_length=_MAX_TEXT_LENGTH)
 
@@ -172,8 +174,8 @@ class IRCChannel(BaseChannel):
         return issues
 
     async def send(self, msg: OutboundMessage) -> str | None:
-        if not self._writer:
-            return None
+        if not self._writer or self._writer.is_closing():
+            raise ChannelSendError("IRC is not connected", channel=self.name)
         target = msg.recipient_id
         if msg.content:
             chunks = render(msg, self.render_style)

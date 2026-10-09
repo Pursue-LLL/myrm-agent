@@ -15,3 +15,5 @@
 | `draft_service.py` | 模块 | HITL draft pipeline: resolve digest/author → title/digest/HTML visible-text compliance scan before upload (high-risk block; non-blocking hits returned); inline images before thumb; draft content = body + embedded `<style>` (from formatter SSOT) + block inline styles; uploadimg + draft/add; inline failures fail-loud. | ✅ |
 | `wechat_api_errors.py` | 模块 | Locale-aware WeChat API errcode hints for HITL onboarding (IP whitelist, busy, rate limit). | ✅ |
 | `egress_ip.py` | 模块 | Sandbox outbound public IP probe for Official Account IP whitelist setup UI. | ✅ |
+| `ilink_inbound.py` | 模块 | WeChat iLink inbound mixin: getupdates long-polling loop with exponential backoff and ILinkMessage to InboundMessage conversion. | ✅ |
+| `ilink_login.py` | 模块 | WeChat iLink QR code login mixin (AsyncLoginProtocol): QR fetch/poll callbacks and authenticated client swap. | ✅ |

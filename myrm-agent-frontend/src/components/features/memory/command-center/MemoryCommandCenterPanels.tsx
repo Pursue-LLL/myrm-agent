@@ -41,6 +41,70 @@ import { RepoEvidenceCard } from '../cards/RepoEvidenceCard';
 import { ToolGuidancePanel } from './ToolGuidancePanel';
 import { CognitiveClockPanel } from './CognitiveClockPanel';
 import { MemoryEconomicsPanel } from './MemoryEconomicsPanel';
+import { DualLayerMemoryCard } from '@/components/agent/DualLayerMemoryCard';
+import { FourLayerPromotionAuditCard } from './FourLayerPromotionAuditCard';
+import { CodeGraphAssetCard } from './CodeGraphAssetCard';
+import { EbbinghausLifecycleCard } from './EbbinghausLifecycleCard';
+import { GraphRRFRetrievalCard } from './GraphRRFRetrievalCard';
+import { HindsightReflectionCard } from './HindsightReflectionCard';
+import { CodeMemoryCompactionCard } from './CodeMemoryCompactionCard';
+import { GeneEvolutionInspectorCard } from './GeneEvolutionInspectorCard';
+import { AutoRecallGovernanceCard } from './AutoRecallGovernanceCard';
+import { GroundTruthDriftDefenseCard } from './GroundTruthDriftDefenseCard';
+import { SovereignMigrationInspectorCard } from './SovereignMigrationInspectorCard';
+import { CrossAgentConflictArbitrationCard } from './CrossAgentConflictArbitrationCard';
+import { KnowledgeGraphPoisoningShieldCard } from './KnowledgeGraphPoisoningShieldCard';
+import { IntegrationRetainedContextPurgeCard } from './IntegrationRetainedContextPurgeCard';
+import { ProjectLivingFactLedgerCard } from './ProjectLivingFactLedgerCard';
+import { FirstEncounterReportCard } from './FirstEncounterReportCard';
+import { ScreenObservationSafetyCard } from './ScreenObservationSafetyCard';
+import { TaskTriadTrajectoryCard } from './TaskTriadTrajectoryCard';
+import { ActivityCompactorCard } from './ActivityCompactorCard';
+import { NoiseFreeMemoryCard } from './NoiseFreeMemoryCard';
+import { PrivateNotebookCard } from './PrivateNotebookCard';
+import { JobCompoundingCard } from './JobCompoundingCard';
+import { RevocableProvenanceCard } from './RevocableProvenanceCard';
+import { FourTierPersistentMemoryCard } from './FourTierPersistentMemoryCard';
+import { TemporalKnowledgeGraphCard } from './TemporalKnowledgeGraphCard';
+import { DiskMemoryReconciliationCard } from './DiskMemoryReconciliationCard';
+import { GitNativeKnowledgeBundleCard } from './GitNativeKnowledgeBundleCard';
+import { ConversationLineageDefenseCard } from './ConversationLineageDefenseCard';
+import { PromptCachePreservingDeltaCard } from './PromptCachePreservingDeltaCard';
+import { DeterministicRuleCascadeCard } from './DeterministicRuleCascadeCard';
+import { TemporalRelationalBacktrackingCard } from './TemporalRelationalBacktrackingCard';
+import { MemoryCuratorStudioCard } from './MemoryCuratorStudioCard';
+import { ProcedureExperienceRetrievalCard } from './ProcedureExperienceRetrievalCard';
+import { ExperienceInjectionStudioCard } from './ExperienceInjectionStudioCard';
+import { BusinessScenarioTemplatesCard } from './BusinessScenarioTemplatesCard';
+import { ExperienceObservabilityStudioCard } from './ExperienceObservabilityStudioCard';
+import { FailureSessionRetrievalStudioCard } from './FailureSessionRetrievalStudioCard';
+import { PeerCognitionStudioCard } from './PeerCognitionStudioCard';
+import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
+import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
+import { AutoMemoryConsolidationStudioCard } from './AutoMemoryConsolidationStudioCard';
+import { MemoryCubeStudioCard } from './MemoryCubeStudioCard';
+import { DreamCognitiveStudioCard } from './DreamCognitiveStudioCard';
+import { MemoryLineageStudioCard } from './MemoryLineageStudioCard';
+import { QuadrupleRetrievalStudioCard } from './QuadrupleRetrievalStudioCard';
+import { LiveCorrectionStudioCard } from './LiveCorrectionStudioCard';
+import { SqliteVecStudioCard } from './SqliteVecStudioCard';
+import { VectorSpaceGuardStudioCard } from './VectorSpaceGuardStudioCard';
+import { MarkdownChunkerStudioCard } from './MarkdownChunkerStudioCard';
+import { DualEngineHybridSearchStudioCard } from './DualEngineHybridSearchStudioCard';
+import { MultiPlatformMemoryMigrationStudioCard } from './MultiPlatformMemoryMigrationStudioCard';
+import { ProactiveDecisionAssistStudioCard } from './ProactiveDecisionAssistStudioCard';
+import { ExperienceCompoundingStudioCard } from './ExperienceCompoundingStudioCard';
+import { ConclusionAttributionStudioCard } from './ConclusionAttributionStudioCard';
+import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
+import { CodebaseDiffInspectionCard } from './CodebaseDiffInspectionCard';
+import { InodeIdentityInspectionCard } from './InodeIdentityInspectionCard';
+import { CjkIterationInspectionCard } from './CjkIterationInspectionCard';
+
+
+
+
+
+
 
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 
@@ -178,7 +242,174 @@ export const UnderstandSection = ({
     {/* Repository History Evidence Digest Card */}
     <RepoEvidenceCard />
 
+    {/* CodeGraph Memory Asset & Pre-Modification Impact Analysis Card */}
+    <CodeGraphAssetCard />
+
+    {/* Hybrid Vector and Knowledge Graph Reciprocal Rank Fusion Memory Card */}
+    <GraphRRFRetrievalCard />
+
+    {/* Hindsight Experience Replay and Retrospective Reflection Buffer Card */}
+    <HindsightReflectionCard />
+
+    {/* Token-Budget-Aware Codebase Semantic Memory Compaction Card */}
+    <CodeMemoryCompactionCard />
+
+    {/* Causal Experience Gene Synthesizer and Confidence Evolution Ledger Card */}
+    <GeneEvolutionInspectorCard />
+
+    {/* Targeted Experience Auto-Recall Trigger and 5-Turn Sliding Dedup Gate Card */}
+    <AutoRecallGovernanceCard />
+
+    {/* Ground Truth Priority & Code Drift Stale Memory Defense Card */}
+    <GroundTruthDriftDefenseCard />
+
+    {/* Cross-Agent Composable Context & Conflict Arbitration Engine Suite Card */}
+    <CrossAgentConflictArbitrationCard />
+
+    {/* Knowledge Graph Pre-Extraction Content Screening & Prompt Injection Shield Card */}
+    <KnowledgeGraphPoisoningShieldCard />
+
+    {/* Integration Disconnect Retained Context Purge & Provenance Revocation Shield Card (Item 179) */}
+    <IntegrationRetainedContextPurgeCard />
+
+    {/* Project State Living Fact Ledger & 4-Tier Context Projection Card (Item 63) */}
+    <ProjectLivingFactLedgerCard />
+
+    {/* First Encounter Onboarding Insight Sampling & Report Card (Item 67) */}
+    <FirstEncounterReportCard />
+
+    {/* Screen Observation Safety Gate & Anti-Injection Card (Item 85) */}
+    <ScreenObservationSafetyCard />
+
+    {/* Task Triad State Trajectory & Anti-Loop Blackbox Card (Item 86) */}
+    <TaskTriadTrajectoryCard />
+
+    {/* Hierarchical Activity Compactor & Telemetry Pipe Card (Item 87) */}
+    <ActivityCompactorCard />
+
+    {/* Tool-Noise-Free Async Memory & Purge Generation Epoch Suite Card (Item 88) */}
+    <NoiseFreeMemoryCard />
+
+    {/* Transparent Inspectable Model Private Notebook Suite Card (Item 89 P0) */}
+    <PrivateNotebookCard />
+
+    {/* Domain-Specific Agent Job Description & Preference Compounding Card (Item 90 P0) */}
+    <JobCompoundingCard />
+
+    {/* Revocable Provenance-Qualified Memory & Dream Diary Suite Card (Item 91 P0) */}
+    <RevocableProvenanceCard />
+
+    {/* Four-Tier Persistent Memory & FTS5 Self-Maintenance Compaction Card (Item 92 P0) */}
+    <FourTierPersistentMemoryCard />
+
+    {/* Temporal Knowledge Graph Decay & Entity Fact Conflict Resolution Card (Item 93 P0) */}
+    <TemporalKnowledgeGraphCard />
+
+    {/* Disk Memory FTS Reconciliation Loop & Explicit Write Gate Card (Item 94 P0) */}
+    <DiskMemoryReconciliationCard />
+
+    {/* Git-Native Project Knowledge Bundle & Memory Rot Prevention Card (Item 95 P0) */}
+    <GitNativeKnowledgeBundleCard />
+
+    {/* Conversation Lineage Dedup & Automation Demotion Suite Card (Item 97 P0) */}
+    <ConversationLineageDefenseCard />
+
+    {/* Prompt-Cache Preserving Ephemeral Delta Memory Suite Card (Item 98 P0) */}
+    <PromptCachePreservingDeltaCard />
+
+    {/* Deterministic Rule Cascade & 5D Pre-Filter Suite Card (Item 99 P0) */}
+    <DeterministicRuleCascadeCard />
+
+    {/* Temporal Relational Anchor & Cross-Session Backtracking Card (Item 100 P0) */}
+    <TemporalRelationalBacktrackingCard />
+
+    {/* Human-Readable Markdown Bidi-Sync & Memory Curator Studio Card (Item 101 P0) */}
+    <MemoryCuratorStudioCard />
+
+    {/* Procedure-Shaped Experience Protocol & Fixed-Count Dual-Node Retrieval Card (Item 104 P0) */}
+    <ProcedureExperienceRetrievalCard />
+
+    {/* Skill Load, Subagent Spawn & Pre-Write Experience Injection Studio Card (Item 105 P0) */}
+    <ExperienceInjectionStudioCard />
+
+    {/* Business Scenario Experience Templates & Escalation Gate Card (Item 107 P0) */}
+    <BusinessScenarioTemplatesCard />
+
+    {/* Zero-Refactor Host Lifecycle Plugin & Experience Observability Studio Card (Item 108 P1) */}
+    <ExperienceObservabilityStudioCard />
+
+    {/* Failure-Triggered Historical Session Retrieval Studio Card (Item 109 P0) */}
+    <FailureSessionRetrievalStudioCard />
+
+    {/* Peer-Centric Social Cognition Entity Graph & Agent Persona Card Studio Card (Item 110 P0) */}
+    <PeerCognitionStudioCard />
+
+    {/* Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation Studio Card (Item 112 P1) */}
+    <TwoLayerDialecticStudioCard />
+
+    {/* Budget Greedy Marginal Value Recall Packing Studio Card (Item 122 P2) */}
+    <BudgetGreedyPackingStudioCard />
+
+    {/* Idle & Budget Gated Auto-Memory Consolidation Studio Card (Item 123 P1) */}
+    <AutoMemoryConsolidationStudioCard />
+
+    {/* Memory Cube Scoped Isolation & Dynamic Mounting Studio Card (Item 124 P0) */}
+    <MemoryCubeStudioCard />
+
+    {/* Dream Cognitive Consolidation & AI Mind Growth Diary Studio Card (Item 125 P1) */}
+    <DreamCognitiveStudioCard />
+
+    {/* Graph Memory Reorganization & Lineage Traceability Studio Card (Item 126 P1) */}
+    <MemoryLineageStudioCard />
+
+    {/* Goal-Driven Quadruple Retrieval & Reasoner Studio Card (Item 127 P1) */}
+    <QuadrupleRetrievalStudioCard />
+
+    {/* Natural Language Memory Feedback & Live Correction Studio Card (Item 128 P0) */}
+    <LiveCorrectionStudioCard />
+
+    {/* SqliteVec Embedded Zero-Dependency Vector Store Studio Card (Item 130 P0) */}
+    <SqliteVecStudioCard />
+
+    {/* Embedding Model Dimension & Vector Space Guard Studio Card (Item 131 P0) */}
+    <VectorSpaceGuardStudioCard />
+
+    {/* Incremental Sliding Window Markdown Chunker Studio Card (Item 132 P1) */}
+    <MarkdownChunkerStudioCard />
+
+    {/* Dual-Engine Hybrid Search & Graceful Fallback Studio Card (Item 133 P1) */}
+    <DualEngineHybridSearchStudioCard />
+
+    {/* Multi-Platform Memory Migration & Import Engine Studio Card (Item 134 P1) */}
+    <MultiPlatformMemoryMigrationStudioCard />
+
+    {/* Proactive Past-Pitfall Alert & Decision Assist Studio Card (Item 135 P1) */}
+    <ProactiveDecisionAssistStudioCard />
+
+    {/* Experience Compounding & Knowledge Condensation Studio Card (Item 136 P1) */}
+    <ExperienceCompoundingStudioCard />
+
+    {/* Conclusion Attribution & Verifiable Chat Evidence Studio Card (Item 141 P1) */}
+    <ConclusionAttributionStudioCard />
+
+    {/* Retrieval Score Honesty & Raw vs Ranking Inspection Card (Item 142 P1) */}
+    <ScoreHonestyInspectionCard />
+
+    {/* Codebase Memory Large Diff Fallback Inspection Card (Item 144 P1) */}
+    <CodebaseDiffInspectionCard />
+
+    {/* Directory Inode Identity & Double-Sync Prevention Inspection Card (Item 145 P0) */}
+    <InodeIdentityInspectionCard />
+
+    {/* CJK Ideographic Iteration Mark ('々') Disambiguation & Recall Inspection Card (Item 146 P1) */}
+    <CjkIterationInspectionCard />
+
+
+
     <div className="grid gap-4 xl:grid-cols-2">
+
+
+
       <Panel title={t('commandCenter.influenceTitle')}>
         {snapshot.influence.length ? (
           <div className="space-y-2">
@@ -273,8 +504,12 @@ export const ActSection = ({
         />
       </Panel>
     </div>
+    <DualLayerMemoryCard />
+    <FourLayerPromotionAuditCard />
+    <EbbinghausLifecycleCard />
     <CognitiveClockPanel />
     <ToolGuidancePanel />
+    <SovereignMigrationInspectorCard />
   </div>
 );
 

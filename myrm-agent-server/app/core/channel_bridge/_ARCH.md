@@ -39,7 +39,7 @@ Channel 系统的业务适配层。基于 `app.channels` 的渠道框架协议�
 | `goal_terminal_notifier.py` | ✅ 核心 | GoalTerminalNotifier：ServerEventBus 订阅器，监听 `GOAL_TERMINAL` 事件，将 Goal 完成/失败结果通过 `send_with_retry` 回推到原始发起的 IM 渠道（channel/chat_id/thread_id），仅处理携带 source channel metadata 的 IM 发起 Goal（WebUI/Cron 发起的自动跳过），支持 deeplink 按钮和 i18n 多语言通知 | ✅ |
 | `status_handler.py` | ✅ 核心 | ChannelStatusProvider：StatusProvider 协议的业务层实现。查询最近的 Chat 会话元数据（session_id、title、tokens、cost、calls、model、created_at、last_activity）供 /status 命令显示 | ✅ |
 | `route_registry.py` | ✅ 辅助 | ChannelRouteRegistry 运行时持有者（startup 写入、routes management 读取） | ✅ |
-| `locale_provider.py` | ✅ 核心 | UserConfigLocaleProvider：LocaleProvider 协议实现，从 `personalSettings.locale` 解析用户语言偏好并注入渠道 slash 命令 i18n | ✅ |
+| `locale_provider.py` | ✅ 核心 | `resolve_user_locale`（从 `personalSettings.locale` 解析用户语言偏好，供入站回合之外的系统消息使用，如 cron 投递说明）与 UserConfigLocaleProvider（LocaleProvider 协议实现，注入渠道 slash 命令 i18n） | ✅ |
 | `goal_handler.py` | ✅ 核心 | ChannelGoalCommandHandler：/goal 与 /subgoal 业务处理器，创建 Goal 时注入 source channel metadata（channel/chat_id/thread_id/locale）供 GoalTerminalNotifier 闭环回推，全部静态回复走 harness channel i18n catalog | ✅ |
 | `learn_handler.py` | ✅ 核心 | Learn SSOT：`parse_learn_slash_args` / `rewrite_learn_query_if_needed`（渠道与 WebUI 共用 `_build_learn_prompt`）；`_AUTHORING_STANDARDS` 含 Myrm-tool framing 块与 description good/bad 示例；ChannelLearnCommandHandler 注入 rewrite 后 prompt；`apply_learn_skill_manage_permission_overlay` 在 explore 等 preset 仍 deny 时将本 turn 的 `skill_manage` 升为 ASK；`params/converter.py` 在 permission overlay 前调用 rewrite | ✅ |
 | `kanban_command_handler.py` | ✅ 核心 | ChannelKanbanCommandHandler：KanbanCommandHandler 协议的业务层实现。处理 /kanban (/kb) 斜杠命令的 10 个子命令（list/show/create/comment/edit/complete/block/unblock/archive/stats），调用 KanbanService 完成操作并格式化 Markdown 响应 | ✅ |
@@ -93,7 +93,7 @@ ChannelGateway / AgentRouter / ChannelAgentExecutor
 这表示外部身份解析、thread/task 绑定和基础触发门控已经在 CP 边界完成，
 Router 不再把这类消息误当成本地 provider 直接上送的原始 inbound。
 
-`ChannelAgentExecutor.execute_stream()` 在进入模型前会通过 `agent_executor/helpers.py::build_channel_inbound_query`（`delivery_provenance.prepend_plain_banner`）构建查询：纯文本消息返回带 `[Inbound channel message] … ingress=…` 横幅的字符串；当 Harness 图片富化写入 `metadata["image_data_list"]` 时返回 OpenAI Vision 兼容的多模态 content list。把投递路径显式写给模型但不写入 System Prompt，以降低「路由元数据当成超级用户指令」的风险。
+`ChannelAgentExecutor.execute_stream()` 在进入模型前会通过 `agent_executor/helpers.py::build_channel_inbound_query`（`delivery_provenance.prepend_plain_banner`）构建查询：纯文本消息返回带 `[Inbound channel message] … ingress=…` 横幅的字符串；当 Harness 图片富化写入 `metadata["image_data_list"]` 时返回 OpenAI Vision 兼容的多模态 content list。把投递路径显式写给模型但不写入 System Prompt，以降低「路由元数据当成超级用户指令」的风险。消息以 `[use skill]` 标签开头时（IM 技能命令），回复/群聊上下文与横幅都落在标签之后（`decorate_behind_skill_tag`）：harness 只认文本最开头的标签。
 
 HTTP/SSE 主链路在 `execute_stream_pipeline` 内 **INFO 记录解析后的投递标签**，再对用户 Human `apply_delivery_banner`；还包括 **Headless wakeup**（见 `services/agent/_ARCH.md::wakeup_handler`）等对 `GeneralAgent.channel_name` 的信任链。
 

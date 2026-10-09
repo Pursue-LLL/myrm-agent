@@ -5274,6 +5274,8 @@
         "appshotShortcutDesc": "Capture screen and extract window text to send as context to chat",
         "voicePttShortcut": "Voice Push-to-Talk",
         "voicePttShortcutDesc": "Hold this shortcut anywhere to speak to the agent, release to send",
+        "shortcutRecording": "Recording...",
+        "shortcutPlaceholder": "e.g. Alt+Space",
         "appshotPrivacyBlacklist": "Appshot Privacy Blacklist",
         "appshotPrivacyBlacklistDesc": "Apps in this list will be blocked from screen capture to protect sensitive data",
         "appshotAddAppPlaceholder": "Enter app name...",
@@ -5353,12 +5355,14 @@
         "remove": "Remove",
         "profileNamePlaceholder": "Name, e.g. Homelab",
         "offlineHint": "Scheduled tasks keep running on the remote server even when this desktop is offline or closed.",
+        "cloudProfileName": "Cloud sandbox",
         "cloudTitle": "Cloud hosting",
         "cloudDesc": "Sign in with your cloud account, then discover your hosted sandbox. No server address to paste.",
         "checkProviders": "Check sign-in options",
         "providersUnavailable": "Sign-in is unavailable on this address. Check the address and try again.",
         "continueWith": "Continue with {provider}",
         "signInFirst": "Sign in with your cloud account first.",
+        "signInStartFailed": "Couldn't start sign-in. Please try again.",
         "discoverSandbox": "Discover my sandbox",
         "discoverFailed": "Sandbox not found. Sign in first or check your plan.",
         "wizardTitle": "Where does your assistant run?",
@@ -5372,8 +5376,8 @@
         "rollbackFailed": "Couldn't restore the last working connection. Please try again shortly.",
         "activeSessionsDialog": {
           "title": "Active sessions detected",
-          "description": "{count} sessions are still generating locally. The switch waits for them to finish, then refreshes the page; session history is preserved.",
-          "confirm": "Switch anyway",
+          "description": "{count, plural, one {# session is} other {# sessions are}} still generating on the current connection. Switching may interrupt {count, plural, one {it} other {them}}; saved session history is kept.",
+          "confirm": "Continue anyway",
           "cancel": "Cancel"
         }
       },
@@ -6980,6 +6984,23 @@
           "skillsNotSupported": "This environment does not allow custom skills - automatically skipped",
           "stdioNotAllowed": "Local-process MCP servers cannot run in this environment - automatically skipped"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "Plugin package",
+            "skill": "Skill: {name}",
+            "servers": "MCP servers",
+            "server": "MCP server: {name}"
+          },
+          "messages": {
+            "unsupportedFormat": "This is not a supported plugin package, so it cannot be imported.",
+            "manifestInvalid": "The plugin's description file has invalid content. Ask the plugin author to fix it.",
+            "serversInvalid": "The MCP server settings are invalid, so no MCP servers are imported. Skills can still be imported.",
+            "skillSkipped": "This skill has a problem and was skipped.",
+            "serverSkipped": "This MCP server has invalid settings and was skipped.",
+            "filesIgnored": "Hidden files in the package were not imported.",
+            "generic": "This plugin has an issue that may affect the import."
+          }
+        },
         "capabilities": {
           "title": "Sandbox Capabilities",
           "read_only": "Read-Only",
@@ -7941,7 +7962,7 @@
     "topP": "Top-P",
     "topPDesc": "Nucleus sampling parameter, limits candidate token range",
     "maxTokens": "Max Output Tokens",
-    "maxTokensDesc": "Maximum tokens in a single response",
+    "maxTokensDesc": "Maximum length of a single reply. Reasoning models automatically get more room when this is too small for them to think and answer.",
     "maxTokensPlaceholder": "Leave empty for model default",
     "precise": "Precise",
     "creative": "Creative",
@@ -8985,7 +9006,22 @@
     "redactionReview": {
       "title": "Redaction Preview",
       "toggleAll": "Toggle All",
-      "line": "Line {number}"
+      "line": "Line {number}",
+      "kinds": {
+        "api_token": "API key or token",
+        "environment_variable": "Environment variable",
+        "config_secret": "Config secret",
+        "json_secret_field": "JSON secret field",
+        "database_credential": "Database credential",
+        "url_secret_parameter": "URL secret parameter",
+        "url_credential": "URL credential",
+        "cli_secret_flag": "Command-line secret",
+        "telegram_bot_token": "Telegram bot token",
+        "authorization_header": "Authorization header",
+        "private_key": "Private key",
+        "absolute_path": "Local file path",
+        "unknown": "Sensitive information"
+      }
     }
   },
   "chat": {
@@ -9762,7 +9798,7 @@
       "edit": "Edit message",
       "saveEdit": "Save",
       "cancelEdit": "Cancel",
-      "stuck": "Queued messages couldn't be sent because the agent is still busy.",
+      "stuck": "Queued messages couldn't be sent yet and are on hold.",
       "placeholderExpanded": "Agent busy... Ctrl/⌘+Enter to steer · ⌥+Enter to queue follow-up",
       "pausedStopped": "Queue paused because you stopped the reply.",
       "resume": "Resume",
@@ -11462,6 +11498,9 @@
       "title": "Personal Brain Command Center",
       "description": "Review what the agent remembers, which memory spaces are active, what still needs approval, and whether the local memory runtime is healthy. The Observe tab streams memory operations in real time via SSE.",
       "refresh": "Refresh",
+    "targetChangedTitle": "This suggestion is out of date",
+    "targetChangedDesc": "The memory it refers to has changed since the suggestion was made. It stays in your list — reject it, or leave it as is.",
+    "batchApprovePartialDesc": "Approved {success}. {failed} could not be approved (the memory they refer to may have changed) and stay in your list.",
       "refreshing": "Refreshing",
       "loadFailed": "Failed to load memory command center",
       "lastUpdated": "Updated {time}",
@@ -12183,6 +12222,9 @@
       "action": "Action",
       "confidence": "Confidence",
       "corrects": "Corrects",
+      "willCorrect": "Corrects an existing memory",
+      "willDelete": "Moves an existing memory to the trash, where you can restore it",
+      "targetContent": "Target",
       "content": "Content",
       "tags": "Tags",
       "relatedEntities": "Related Entities",
@@ -20175,5 +20217,10 @@
   "ttsAudio": {
     "generatedSpeech": "Generated speech",
     "playbackFailed": "Audio playback failed — the file may have expired."
+  },
+  "intentDispatcher": {
+    "invalidLink": "Invalid external link or parameters",
+    "oauthSuccess": "Authorization successful",
+    "oauthFailed": "Authorization check failed, please try again"
   }
 }

@@ -171,7 +171,7 @@ class TestThreeTierEmojiCoverage:
                 id="matrix",
             ),
             pytest.param(
-                "app.channels.providers.feishu.channel._FEISHU_EMOJI_TO_UNICODE",
+                "app.channels.providers.feishu.inbound.FEISHU_EMOJI_TO_UNICODE",
                 None,
                 id="feishu",
             ),

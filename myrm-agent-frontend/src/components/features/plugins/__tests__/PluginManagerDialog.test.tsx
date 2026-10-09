@@ -143,11 +143,42 @@ describe('PluginManagerDialog', () => {
     expect(await screen.findByText('No installed plugins')).toBeInTheDocument();
   });
 
-  it('shows an error toast on list failure', async () => {
+  it('shows only the localized title when listing fails, never the technical cause', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
 
     render(<PluginManagerDialog {...baseProps} />);
 
-    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' })));
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith({ title: 'Failed to load installed plugins', variant: 'destructive' }),
+    );
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it('shows only the localized title when uninstalling fails, never the server sentence', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ name: 'demo-plugin', servers: ['pdf-server'], has_bundled_files: false }],
+      })
+      .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ detail: 'database is locked' }) });
+
+    render(<PluginManagerDialog {...baseProps} />);
+    await screen.findByText('demo-plugin');
+    fireEvent.click(screen.getByRole('button', { name: 'Uninstall' }));
+    // The confirmation's action carries the same label; it is the last "Uninstall" button.
+    const actions = await screen.findAllByRole('button', { name: 'Uninstall' });
+    fireEvent.click(actions[actions.length - 1]);
+
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith({ title: 'Failed to uninstall the plugin', variant: 'destructive' }),
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      'Plugin uninstall failed:',
+      expect.objectContaining({ message: 'database is locked' }),
+    );
+    consoleError.mockRestore();
   });
 });

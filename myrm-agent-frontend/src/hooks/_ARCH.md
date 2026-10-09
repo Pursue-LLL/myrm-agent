@@ -40,12 +40,13 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 
 ## 测试
 
-| 位置                                          | 说明                                                                                                           |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `<domain>/__tests__/`                         | hook 单元测试与实现同域共置（colocated）                                                                       |
-| `__tests__/useManagedPolicyEffective.test.ts` | 根级 MAP hook（mount / visibility refetch / SSE push / revision skip / inflight dedupe / stale YOLO clear）    |
-| `__tests__/useOrgModelPolicy.test.ts`         | 根级 org model policy hook（fail-closed 委托 store / whitelist 匹配）                                          |
-| `__tests__/useLoopStatus.test.ts`             | 根级 loop hook（周期倒计时、`session-loop-changed` 事件瞬时刷新、卸载清理、目标达成 Toast 通知与手动停止抑制） |
+| 位置                                          | 说明                                                                                                                    |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `<domain>/__tests__/`                         | hook 单元测试与实现同域共置（colocated）                                                                                |
+| `__tests__/useManagedPolicyEffective.test.ts` | 根级 MAP hook（mount / visibility refetch / SSE push / revision skip / inflight dedupe / stale YOLO clear）             |
+| `__tests__/useOrgModelPolicy.test.ts`         | 根级 org model policy hook（fail-closed 委托 store / whitelist 匹配）                                                   |
+| `__tests__/useLoopStatus.test.ts`             | 根级 loop hook（周期倒计时、`session-loop-changed` 事件瞬时刷新、卸载清理、目标达成 Toast 通知与手动停止抑制）          |
+| `__tests__/usePendingMemoryToast.test.ts`     | `hooks/shared` 待审批 toast（首次拉取基线不提示、首次失败后以首次成功刷新为基线、增长提示增量、缩小后重基线、卸载退订） |
 
 政策 SSOT：根 [_ARCH.md](../../_ARCH.md)「测试」表（默认 colocated）。
 

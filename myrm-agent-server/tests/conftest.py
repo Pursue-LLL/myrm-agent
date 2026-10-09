@@ -428,6 +428,25 @@ def _reset_global_browser_pool_after_test(
         _logger.warning("Failed to reset GlobalBrowserPool after test: %s", exc)
 
 
+def _reset_subagent_checkpointer_if_loaded() -> None:
+    module = sys.modules.get("myrm_agent_harness.agent.sub_agents.checkpointer")
+    if module is not None:
+        module.reset_subagent_checkpointer()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_subagent_checkpointer() -> Iterator[None]:
+    """Give every test its own sub-agent checkpointer.
+
+    The process-wide sqlite saver binds an ``asyncio.Lock`` and an aiosqlite worker thread to the event
+    loop of the test that first used it. Each test runs on a fresh loop, so a survivor makes later tests
+    fail with "bound to a different event loop".
+    """
+    _reset_subagent_checkpointer_if_loaded()
+    yield
+    _reset_subagent_checkpointer_if_loaded()
+
+
 def _e2e_dev_lib_path() -> Path:
     return _SERVER_ROOT.parents[1] / "scripts" / "dev" / "lib"
 

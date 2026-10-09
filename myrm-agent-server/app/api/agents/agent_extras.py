@@ -245,14 +245,12 @@ async def evaluate_action_space(
 
         total_score = 0
 
-        for skill_id in req.skill_ids:
-            is_core = req.skill_configs.get(skill_id, {}).get("is_core", True)
-            skill = await skills_service.get_skill_by_id(skill_id)
-            if skill:
-                cost = ActionSpaceProfiler.BASE_TOOL_COST + (len(skill.description or "") // 50)
-                if not is_core:
-                    cost = int(cost * 0.5)
-                total_score += cost
+        for skill in await skills_service.get_skills_by_ids(skill_ids=req.skill_ids):
+            is_core = req.skill_configs.get(skill.id, {}).get("is_core", True)
+            cost = ActionSpaceProfiler.BASE_TOOL_COST + (len(skill.description or "") // 50)
+            if not is_core:
+                cost = int(cost * 0.5)
+            total_score += cost
 
         total_score += ActionSpaceProfiler.estimate_external_load(
             mcp_count=len(req.mcp_servers),

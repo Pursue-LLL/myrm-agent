@@ -1,6 +1,6 @@
 """
 [INPUT] models.base::Base (POS: ORM 模型基类)
-[OUTPUT] ProfileAttribute: 用户画像属性, ProceduralRule: 程序性规则, PendingMemory: 待审批记忆,
+[OUTPUT] ProfileAttribute: 用户画像属性, ProceduralRule: 程序性规则, PendingMemory: 记忆冲突待裁决记录,
 SharedContextModel: 共享上下文, SharedContextBindingModel: 共享上下文绑定,
 SharedContextWriteProposalModel: 共享上下文写入提案, MemoryOperationEventModel: 记忆操作账本,
 MemoryHealthSnapshotModel: 记忆健康快照, MemoryMigrationProvenanceModel: 记忆迁移来源,
@@ -61,10 +61,10 @@ class ProceduralRule(Base):
 
 
 class PendingMemory(Base):
-    """待审批记忆条目表
+    """记忆冲突待裁决记录表
 
-    Agent 从对话中提取的记忆候选，需要用户确认后才正式存储。
-    同时承载冲突裁决记录（is_conflict=True 时生效）。
+    新旧事实冲突时由冲突回调写入（is_conflict=True），等待用户裁决或到期自动处理。
+    普通记忆提案不在此表，它们由 Harness 审批队列（pending_records）承载。
     """
 
     __tablename__ = "pending_memories"

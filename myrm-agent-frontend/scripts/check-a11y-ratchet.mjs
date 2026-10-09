@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * 无障碍棘轮门禁：jsx-a11y 的各规则告警数与规则豁免总数只降不升。
+ * 无障碍门禁：jsx-a11y 的各规则告警数与规则豁免总数只降不升（棘轮），
+ * 且不允许出现“写了 outline-none 却没有可见焦点替代”的元素（硬门禁，零容忍）。
  *
  * 背景：jsx-a11y 规则全部为 `warn`，`bun run lint` 不会因告警失败，新增的 `role="button"` /
  * 无键盘支持的点击元素会悄无声息地把已清理的存量再推回去；而单纯用 `oxlint-disable` 豁免也能让
@@ -10,6 +11,12 @@
  *
  * 基线 `scripts/ci/a11y_ratchet_baseline.json` 登记当前存量。当前值高于基线 → 新增退化，失败；
  * 低于基线 → 基线 drift，失败（需用 `--ratchet` 收紧，否则空出的额度会被后续改动悄悄占用）。
+ *
+ * 硬门禁（键盘焦点可见性）：全局 focus-ring.css 在 `@layer base`，会被 `outline-none` 覆盖，而 jsx-a11y/axe
+ * 都无法判断聚焦后是否可见。`focus-visibility-scan.ts` 解析 className 属性值，凡含 `outline-none/hidden/0`
+ * 且无生效的 `focus(-visible)?:ring/border/shadow/bg/...` 替代（`ring-0` 等无效写法不算）的元素一律失败；
+ * 共享 `Input` 原语自带焦点环，其上写 `focus(-visible):ring-0` 且无替代同样失败。
+ * 原生文本输入与 `*Input/*Select/*Textarea` 封装、媒体、Radix 浮层 `*.Content` 容器与 `tabIndex={-1}` 元素自动豁免。
  *
  * 反向自检：oxlint 未产出可解析 JSON 或扫描文件数为 0 时直接失败，而不是静默通过。
  *
@@ -23,6 +30,8 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { findInvisibleFocusSites } from './focus-visibility-scan.ts';
+
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = join(rootDir, 'src');
 const baselinePath = join(rootDir, 'scripts', 'ci', 'a11y_ratchet_baseline.json');
@@ -32,6 +41,7 @@ const A11Y_CODE = /^jsx-a11y\(([^)]+)\)$/;
 const WAIVER_PATTERN = /oxlint-disable(?:-next-line|-line)?[^\n]*jsx-a11y\//g;
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
 const PRUNE_DIRS = new Set(['node_modules', '.next', 'dist']);
+const TEST_PATH = /(?:^|[\\/])__tests__[\\/]|\.test\.tsx?$/;
 
 function fail(message) {
   console.error(`[a11y-ratchet] ${message}`);
@@ -79,6 +89,34 @@ function countWaivers(dir) {
   return total;
 }
 
+function collectInvisibleFocusSites(dir) {
+  const found = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (PRUNE_DIRS.has(entry.name)) {
+      continue;
+    }
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      found.push(...collectInvisibleFocusSites(full));
+    } else if (extname(entry.name) === '.tsx' && !TEST_PATH.test(full)) {
+      for (const { line, tag } of findInvisibleFocusSites(readFileSync(full, 'utf8'))) {
+        found.push(`${relative(rootDir, full)}:${line} <${tag}>`);
+      }
+    }
+  }
+  return found;
+}
+
+const invisibleFocusSites = collectInvisibleFocusSites(srcDir);
+if (invisibleFocusSites.length > 0) {
+  console.error('[a11y-ratchet] 键盘焦点不可见（outline-none 无 focus-visible 替代）：');
+  invisibleFocusSites.forEach((site) => console.error(`    - ${site}`));
+  console.error(
+    '\n处理方式：补 `focus-visible:ring-2 focus-visible:ring-ring`（被容器内边距包裹的元素加 `focus-visible:ring-inset`）；若元素仅被程序化聚焦，改用 `tabIndex={-1}`。',
+  );
+  process.exit(1);
+}
+
 const current = { rules: countRuleWarnings(), waivers: countWaivers(srcDir) };
 
 if (process.argv.includes('--ratchet')) {
@@ -123,4 +161,6 @@ if (regressed.length > 0 || drifted.length > 0) {
 }
 
 const total = Object.values(current.rules).reduce((sum, n) => sum + n, 0);
-console.log(`[a11y-ratchet] OK：jsx-a11y 告警 ${total} 条、豁免 ${current.waivers} 条，与基线一致。`);
+console.log(
+  `[a11y-ratchet] OK：jsx-a11y 告警 ${total} 条、豁免 ${current.waivers} 条，与基线一致；键盘焦点可见性 0 违规。`,
+);

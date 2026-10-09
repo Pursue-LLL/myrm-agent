@@ -21,7 +21,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 3. **配置管理**（`SystemConfig`，包括 WebUI 模式、全局快捷键、最小化托盘配置等）
 4. **系统 API 封装**（后台托盘动态状态、任务栏进度条、完成弹跳通知、系统级原生通知、文件对话框等）
 5. **热键管理**（全局快捷键的动态 IPC 注册与拦截，含 Appshot 截屏快捷键、Voice PTT 语音对讲快捷键）
-6. **单实例锁与二次启动聚焦及参数派发**（`tauri-plugin-single-instance` 原生单实例互斥，二次启动自动唤醒置顶已有主窗口，并通过 `app:second-instance` 原生事件广播 CLI args/cwd 上下文，彻底杜绝 Sidecar 端口冲突并闭环唤醒协议）
+6. **单实例锁与二次启动聚焦及深链转交**（`tauri-plugin-single-instance` 原生单实例互斥，二次启动自动唤醒置顶已有主窗口，彻底杜绝 Sidecar 端口冲突；启用其 `deep-link` 特性后，Windows/Linux 热启动时以新进程 argv 到达的深链由它转交已运行实例的 deep-link 插件，OAuth 回跳等深链才不会丢失，注册顺序须先于 deep-link 插件）
 7. **端口冲突检测与幸存者智能自愈**（启动前检查端口占用，自动诊断并 Re-kill 自身残留的幸存者孤儿进程，防止冲突与文件锁死）
 8. **自动更新**（`tauri-plugin-updater`，前端通过 `@tauri-apps/plugin-updater` JS API 驱动）+ 启动期 Updater pubkey 占位符强校验（`utils/updater_safety.rs`）+ 进程树销毁与受控重启（`utils/process_tree.rs`，防止 OTA 升级文件锁死）
 
@@ -38,7 +38,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `runtime/` | ✅ 核心 | Sidecar 运行时（见下表） | ✅ |
 | `ipc_security/` | ✅ 核心 | IPC sender gate（main/session 来源校验）、命令风险分级（reject/drop）、高敏操作短时票据 + 原生确认（多语言文案 + 主窗口 parent 绑定，防主窗注入静默执行），并内置确认执行自动化回归（通过/取消/超时/回传失败）与 `ipc-sensitive-confirmation` 运行时审计事件 | ✅ |
 | `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC；dev 用 venv，release 校验 sidecar 非空；冷启动最多 30s `/health` 轮询 | ✅ |
-| `runtime/process_registry/` | ✅ 核心 | 桌面受管进程注册表与生命周期中心（多 Sidecar 全局登记、退出码捕获、定向销毁） | ✅ |
+| `runtime/process_registry/` | ✅ 核心 | 桌面受管进程注册表与生命周期中心（多 Sidecar 全局登记、退出码捕获） | ✅ |
 | `runtime/watchdog.rs` | ✅ 核心 | 后端 Sidecar 健康监控与崩溃自动恢复（30s 周期检查、指数退避重启、循环崩溃保护） | ✅ |
 | `runtime/nextjs_frontend.rs` | ✅ 核心 | Next.js Standalone 前端进程（Tauri 启动时始终自启） | ✅ |
 | `runtime/appshot/` | ✅ 核心 | 全局快捷键：Appshot 截屏、Voice PTT、窗口 toggle（见 `runtime/appshot/_ARCH.md`） | ✅ |
@@ -69,8 +69,8 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 ### 外部依赖
 - `tauri`：桌面应用框架
 - `tauri-plugin-shell`：进程管理
-- `tauri-plugin-dialog`：系统对话框（保存/打开，配合前端 triggerDownload 保存文件）
-- `tauri-plugin-fs`：文件读写（前端 triggerDownload 的 Tauri 分支经 fs:allow-write-file + scope ** 写入用户选择的路径）
+- `tauri-plugin-dialog`：系统对话框（保存/打开）；capability `default` 经 `dialog:default` 仅授予 `main` 窗口的 Local 页（无 `remote`）
+- `tauri-plugin-fs`：文件读写；capability `default` 仅授予 `fs:allow-write-file`（scope `**`）给 `main` 窗口的 Local 页（无 `remote`）
 - `tauri-plugin-updater`：自动更新（检查/下载/安装，前端 JS API 驱动）
 - `tauri-plugin-window-state`：窗口位置/尺寸跨重启持久化（三平台）
 - `tokio`：异步运行时

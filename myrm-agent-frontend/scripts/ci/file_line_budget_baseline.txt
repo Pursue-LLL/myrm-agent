@@ -150,7 +150,6 @@ src/components/features/settings/sections/system/SessionAnalyticsDialog.tsx
 src/components/features/settings/sections/system/SessionContextHealthPanel.tsx
 src/components/features/settings/sections/system/SessionContextHealthPanelRestore.tsx
 src/components/features/settings/sections/system/StorageCard.tsx
-src/components/features/settings/sections/system/SystemSection.tsx
 src/components/features/settings/sections/system/UsageStatisticsSection.tsx
 src/components/features/settings/sections/system/useSecurityPolicy.ts
 src/components/features/sidebar/ChatHistoryList.tsx

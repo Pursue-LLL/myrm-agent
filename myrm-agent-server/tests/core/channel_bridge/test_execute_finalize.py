@@ -66,7 +66,7 @@ async def _finalize(
             finalize_channel_stream_reply,
         )
 
-        reply, _tmp_paths = await finalize_channel_stream_reply(
+        reply = await finalize_channel_stream_reply(
             _make_message(),
             acc=acc,
             chat_id="chat-1",
@@ -199,6 +199,10 @@ async def test_screenshot_base64_saved_to_temp_file() -> None:
     assert len(reply.media) == 1
     assert reply.media[0].media_type == MediaType.IMAGE
     assert reply.media[0].filename == "screenshot.png"
+    # The temp file outlives finalize (delivery is still pending) and is handed to the bus for cleanup.
+    assert reply.media[0].ephemeral is True
+    assert Path(reply.media[0].path).is_file()
+    Path(reply.media[0].path).unlink()
 
 
 @pytest.mark.asyncio
@@ -356,3 +360,20 @@ async def test_content_and_note_lines_concatenated(tmp_path: Path) -> None:
     assert "big.bin" in persisted
     assert "1.0 KB" in persisted
     assert "\n\n" in persisted
+
+
+@pytest.mark.asyncio
+async def test_deep_linked_compressed_attachment_is_released_immediately(tmp_path: Path) -> None:
+    """A temp attachment dropped in favour of a share button is never delivered, so its file goes at once."""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".jpg", prefix="deliverable_", delete=False) as tmp:
+        tmp.write(b"jpeg")
+    acc = StreamAccumulator()
+    acc.file_attachments.append(MediaAttachment(media_type=MediaType.IMAGE, path=tmp.name, filename="chart.jpg", ephemeral=True))
+    acc.shareable_artifacts.append(ShareableArtifact("art-1", "chart.jpg", "image/jpeg"))
+
+    _persist_mock, reply = await _finalize(acc, ((MagicMock(),), frozenset({"chart.jpg"})))
+
+    assert reply.media == ()
+    assert not Path(tmp.name).exists()

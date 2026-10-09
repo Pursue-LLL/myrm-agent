@@ -13,7 +13,6 @@ def _clean_registry() -> None:
     """Ensure a clean registry for each test."""
     with SteeringRegistry._lock:
         SteeringRegistry._tokens.clear()
-        SteeringRegistry._pending_buffers.clear()
 
 
 class TestSteeringRegistry:
@@ -125,42 +124,29 @@ class TestSteeringRegistry:
         assert msgs[0] == "burst-0"
         assert msgs[99] == "burst-99"
 
-    def test_steer_buffered_when_inactive_and_reconciles_on_register(self) -> None:
-        """Steering with buffer_if_missing buffers the message and auto-injects on register."""
-        # Chat is inactive
-        assert not SteeringRegistry.has_active("chat-buf")
-        assert SteeringRegistry.steer("chat-buf", "hint-1", buffer_if_missing=True)
-        assert SteeringRegistry.steer("chat-buf", "hint-2", buffer_if_missing=True)
-        assert SteeringRegistry.has_pending_buffer("chat-buf")
+    def test_refused_steer_is_not_replayed_on_the_next_turn(self) -> None:
+        """A refused steer stays with the caller (the client queues it); a later turn never receives it."""
+        assert not SteeringRegistry.steer("chat-early", "too early")
 
-        # Now new turn registers token
         token = SteeringToken()
-        SteeringRegistry.register("chat-buf", token)
+        SteeringRegistry.register("chat-early", token)
 
-        assert not SteeringRegistry.has_pending_buffer("chat-buf")
-        assert token.has_pending
-        msgs = token.activate()
-        assert msgs == ["hint-1", "hint-2"]
+        assert not token.has_pending
 
-    def test_redirect_buffered_when_inactive(self) -> None:
-        """Redirect with buffer_if_missing buffers message when inactive."""
-        assert SteeringRegistry.redirect("chat-redir-buf", "urgent hint", buffer_if_missing=True)
+    def test_redirect_reaches_token(self) -> None:
         token = SteeringToken()
-        SteeringRegistry.register("chat-redir-buf", token)
+        SteeringRegistry.register("chat-redir", token)
+
+        assert SteeringRegistry.redirect("chat-redir", "change course")
+
         assert token.redirect_requested
-        msgs = token.activate()
-        assert msgs == ["urgent hint"]
+        assert token.activate() == ["change course"]
 
-    def test_steer_buffered_expired_ttl_is_dropped(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Buffered messages older than TTL are dropped on register."""
-        SteeringRegistry.steer("chat-exp", "old hint", buffer_if_missing=True)
-
-        # Fast-forward time by 15 seconds (TTL is 10s)
-        import time
-
-        orig_time = time.time
-        monkeypatch.setattr(time, "time", lambda: orig_time() + 15.0)
+    def test_refused_redirect_is_not_replayed_on_the_next_turn(self) -> None:
+        assert not SteeringRegistry.redirect("chat-redir-early", "urgent")
 
         token = SteeringToken()
-        SteeringRegistry.register("chat-exp", token)
+        SteeringRegistry.register("chat-redir-early", token)
+
+        assert not token.redirect_requested
         assert not token.has_pending

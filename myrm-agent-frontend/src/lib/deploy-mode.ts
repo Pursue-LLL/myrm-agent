@@ -104,7 +104,8 @@ export function isRemoteGatewayActive(): boolean {
   return isTauriRuntime() && getRemoteGatewayConfig() !== null;
 }
 
-function backupLocalAuthToken(): void {
+/** Keeps the pre-remote local session token so disconnecting can restore it; the first backup is never overwritten. */
+export function backupLocalAuthToken(): void {
   if (typeof window === 'undefined') {
     return;
   }

@@ -99,7 +99,7 @@ async def stream_with_swarm_fission_resume(
 
     from langgraph.types import Command
 
-    from app.channels.types.messages import FissionTopologyNode, FissionTopologyUpdate
+    from app.channels.types.streaming import FissionTopologyNode, FissionTopologyUpdate
     from app.database.repositories.fission_repo import FissionRepository
     from app.platform_utils import get_session_factory
 

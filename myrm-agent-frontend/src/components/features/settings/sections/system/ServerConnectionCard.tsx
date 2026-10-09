@@ -5,21 +5,23 @@ import { useTranslations } from 'next-intl';
 import { IconPlug, IconCheck, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
 import { isTauriRuntime, getRemoteGatewayConfig, setRemoteGatewayConfig } from '@/lib/deploy-mode';
 import { switchRemoteFollow } from '@/lib/remote-follow-switch';
-import { getActiveSessions } from '@/services/agent';
 import ActiveSessionsSwitchConfirmDialog from './ActiveSessionsSwitchConfirmDialog';
 import {
   addRemoteProfile,
+  ensureCloudProfile,
   getActiveRemoteProfileId,
   listRemoteProfiles,
   removeRemoteProfile,
   setActiveRemoteProfileId,
   type RemoteConnectionProfile,
 } from '@/lib/remote-profiles';
-import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { setLastGood, setPendingSwitch } from '@/lib/connection-switch-guard';
+import Toggle from '../../common/Toggle';
 import RemoteFirstRunChooser from './RemoteFirstRunChooser';
 import ServerConnectionCloudSection from './ServerConnectionCloudSection';
+import ServerConnectionRoster from './ServerConnectionRoster';
+import { useActiveSessionsGuard } from './useActiveSessionsGuard';
 import { testRemoteHealth, useConnectionsRollbackGuard } from './useConnectionsRollbackGuard';
 
 const FIRST_RUN_SEEN_KEY = 'myrm-remote-first-run-seen';
@@ -46,8 +48,9 @@ const ServerConnectionCard = memo(() => {
   const [urlInput, setUrlInput] = useState(currentConfig?.url ?? '');
   const [testState, setTestState] = useState<ConnectionTestState>('idle');
   const [testingId, setTestingId] = useState<string | null>(null);
+  // 同一时刻只允许一个连接切换在飞：占座者的 key 用于该行显示“切换中”，其余切换入口一律禁用。
   const [switchingKey, setSwitchingKey] = useState<string | null>(null);
-  const [pendingConfirm, setPendingConfirm] = useState<{ count: number; proceed: () => void } | null>(null);
+  const switching = switchingKey !== null;
   const [showFirstRun, setShowFirstRun] = useState(
     () => typeof window !== 'undefined' && !window.localStorage.getItem(FIRST_RUN_SEEN_KEY),
   );
@@ -71,37 +74,9 @@ const ServerConnectionCard = memo(() => {
   // reload 后 pending 切换复验与回滚（不可达目标恢复 last-good）。
   useConnectionsRollbackGuard({ onRestored: refresh });
 
-  // 切断当前活跃连接前确认：后端有生成中会话时弹窗告知（切换等待其完成
-  // 并刷新页面）。查询失败（后端已停/不可达）时放行，避免锁死切换路径。
-  const guardActiveSessions = useCallback(async (proceed: () => void): Promise<void> => {
-    try {
-      const { activeSessions } = await getActiveSessions();
-      if (activeSessions.length > 0) {
-        setPendingConfirm({ count: activeSessions.length, proceed });
-        return;
-      }
-    } catch {
-      // 放行：本地后端不可达本身就是切换动机之一
-    }
-    proceed();
-  }, []);
-
-  const resolvePendingConfirm = useCallback(
-    (confirmed: boolean) => {
-      // 先取值再 setState：updater 必须保持纯函数（StrictMode 双调不重复执行 proceed）
-      const pending = pendingConfirm;
-      setPendingConfirm(null);
-      if (!pending) {
-        return;
-      }
-      if (confirmed) {
-        pending.proceed();
-      } else {
-        setSwitchingKey(null);
-      }
-    },
-    [pendingConfirm],
-  );
+  // 切断当前活跃连接前确认：后端有生成中会话时弹窗告知切换会中断它们；取消则复位进行中状态。
+  const clearSwitching = useCallback(() => setSwitchingKey(null), []);
+  const { guard: guardActiveSessions, dialog: activeSessionsDialog } = useActiveSessionsGuard(clearSwitching);
 
   // Health-gated switch commit: unhealthy targets abort unless the user
   // explicitly forces by repeating the same action (manual override).
@@ -214,6 +189,17 @@ const ServerConnectionCard = memo(() => {
     [t, refresh, commitSwitch, guardActiveSessions],
   );
 
+  const handleTestProfile = useCallback(
+    (profile: RemoteConnectionProfile) => {
+      setTestingId(profile.id);
+      void testRemoteHealth(profile.url).then((ok) => {
+        setTestingId(null);
+        toast[ok ? 'success' : 'error'](ok ? t('testSuccess') : t('testFailed'));
+      });
+    },
+    [t],
+  );
+
   const handleRemove = useCallback(
     (id: string) => {
       removeRemoteProfile(id);
@@ -223,25 +209,45 @@ const ServerConnectionCard = memo(() => {
   );
 
   const handleDisconnect = useCallback(() => {
-    void commitSwitch(null, () => {
-      setRemoteGatewayConfig(null);
-      setIsRemote(false);
-      setUrlInput('');
-      setTestState('idle');
-      refresh();
-      toast.success(t('disconnected'));
+    setSwitchingKey('disconnect');
+    void guardActiveSessions(() => {
+      void commitSwitch(null, () => {
+        setRemoteGatewayConfig(null);
+        setIsRemote(false);
+        setUrlInput('');
+        setTestState('idle');
+        refresh();
+        toast.success(t('disconnected'));
+      }).then(() => setSwitchingKey(null));
     });
-  }, [t, refresh, commitSwitch]);
+  }, [t, refresh, commitSwitch, guardActiveSessions]);
 
-  const handleCloudConnected = useCallback(async () => {
-    refresh();
-    toast.success(t('connected'));
-    try {
-      await switchRemoteFollow(true);
-    } catch {
-      toast.error(t('switchFailed'));
-    }
-  }, [t, refresh]);
+  // 发现沙箱验证通过后的连接切换：与档案切换同一条路径（先 Rust 编排、成功后才建档案激活）。
+  const handleSandboxVerified = useCallback(
+    (cpBase: string) => {
+      setSwitchingKey('cloud');
+      void commitSwitch(
+        cpBase,
+        () => {
+          const profile = ensureCloudProfile(t('cloudProfileName'), cpBase);
+          if (!profile) {
+            toast.error(t('duplicateProfile'));
+            setSwitchingKey(null);
+            return;
+          }
+          setRemoteGatewayConfig({ enabled: true, url: profile.url });
+          refresh();
+          toast.success(t('connected'));
+        },
+        true,
+      ).then((applied) => {
+        if (!applied) {
+          setSwitchingKey(null);
+        }
+      });
+    },
+    [t, refresh, commitSwitch],
+  );
 
   if (!isTauriRuntime()) {
     return null;
@@ -276,28 +282,18 @@ const ServerConnectionCard = memo(() => {
             <label className="text-sm font-bold text-foreground">{isRemote ? t('modeRemote') : t('modeLocal')}</label>
             <p className="text-xs text-muted-foreground">{isRemote ? t('remoteDesc') : t('localDesc')}</p>
           </div>
-          <button
-            type="button"
-            aria-label={isRemote ? t('modeRemote') : t('modeLocal')}
-            onClick={() => {
+          <Toggle
+            checked={isRemote}
+            onChange={() => {
               if (isRemote) {
                 handleDisconnect();
               } else {
                 setIsRemote(true);
               }
             }}
-            className={cn(
-              'relative w-12 h-6 rounded-full transition-colors',
-              isRemote ? 'bg-indigo-500' : 'bg-white/10',
-            )}
-          >
-            <div
-              className={cn(
-                'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
-                isRemote && 'translate-x-6',
-              )}
-            />
-          </button>
+            disabled={switching}
+            ariaLabel={isRemote ? t('modeRemote') : t('modeLocal')}
+          />
         </div>
 
         {isRemote && (
@@ -305,57 +301,15 @@ const ServerConnectionCard = memo(() => {
             <div className="h-px bg-white/5" />
 
             {profiles.length > 0 && (
-              <div className="space-y-2">
-                {profiles.map((p) => (
-                  <div
-                    key={p.id}
-                    className={cn(
-                      'flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center',
-                      p.id === activeId ? 'border-indigo-500/50 bg-indigo-500/5' : 'border-white/10',
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-foreground">{p.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{p.url}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      {p.kind !== 'cloud' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTestingId(p.id);
-                            void testRemoteHealth(p.url).then((ok) => {
-                              setTestingId(null);
-                              toast[ok ? 'success' : 'error'](ok ? t('testSuccess') : t('testFailed'));
-                            });
-                          }}
-                          disabled={testingId === p.id}
-                          className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 disabled:opacity-50 transition-colors"
-                        >
-                          {testingId === p.id ? t('testing') : t('testConnection')}
-                        </button>
-                      )}
-                      {p.id !== activeId && (
-                        <button
-                          type="button"
-                          onClick={() => handleSelect(p.id)}
-                          disabled={switchingKey === p.id}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 disabled:opacity-50 transition-colors"
-                        >
-                          {switchingKey === p.id ? t('testing') : t('save')}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(p.id)}
-                        className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold text-muted-foreground hover:bg-white/5 transition-colors"
-                      >
-                        {t('remove')}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ServerConnectionRoster
+                profiles={profiles}
+                activeId={activeId}
+                testingId={testingId}
+                switchingKey={switchingKey}
+                onTest={handleTestProfile}
+                onSelect={handleSelect}
+                onRemove={handleRemove}
+              />
             )}
 
             <div className="grid gap-3 sm:grid-cols-[1fr_2fr]">
@@ -406,7 +360,7 @@ const ServerConnectionCard = memo(() => {
               <button
                 type="button"
                 onClick={handleAddConnect}
-                disabled={!urlInput.trim() || switchingKey === 'add'}
+                disabled={!urlInput.trim() || switching}
                 className="flex-1 px-5 py-2.5 rounded-xl bg-indigo-500 text-white text-sm font-bold hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {switchingKey === 'add' ? t('testing') : t('save')}
@@ -415,17 +369,16 @@ const ServerConnectionCard = memo(() => {
 
             <div className="h-px bg-white/5" />
 
-            <ServerConnectionCloudSection onConnected={handleCloudConnected} />
+            <ServerConnectionCloudSection
+              guardSwitch={guardActiveSessions}
+              onSandboxVerified={handleSandboxVerified}
+              busy={switching}
+            />
           </>
         )}
       </div>
 
-      <ActiveSessionsSwitchConfirmDialog
-        open={pendingConfirm !== null}
-        count={pendingConfirm?.count ?? 0}
-        onConfirm={() => resolvePendingConfirm(true)}
-        onCancel={() => resolvePendingConfirm(false)}
-      />
+      <ActiveSessionsSwitchConfirmDialog {...activeSessionsDialog} />
     </section>
   );
 });

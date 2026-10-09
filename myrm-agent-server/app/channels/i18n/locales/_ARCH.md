@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `en.ftl` | 数据 | 英文 Fluent 翻译（渠道命令回复、系统消息、WebUI 后台 bash 完成通知 `bash_bg_finish_*`、Goal stream 失败通知 `goal_stream_failed_*`、Agent picker 提示、预算拦截消息） | — |
+| `en.ftl` | 数据 | 英文 Fluent 翻译（渠道命令回复、系统消息、WebUI 后台 bash 完成通知 `bash_bg_finish_*`、Goal stream 失败通知 `goal_stream_failed_*`、Agent picker 提示、预算拦截消息、附件降级/失败提示 `attachment_*_note`） | — |
 | `zh-CN.ftl` | 数据 | 简体中文 Fluent 翻译（含 `bash_bg_finish_*`、`goal_stream_failed_*`） | — |
 | `zh-TW.ftl` | 数据 | 繁体中文 Fluent 翻译（基于 zh-CN.ftl OpenCC s2twp 转换） | — |
 | `ja.ftl` | 数据 | 日文 Fluent 翻译（基于 en.ftl 全量翻译） | — |

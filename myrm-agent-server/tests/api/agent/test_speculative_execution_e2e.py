@@ -11,7 +11,7 @@ import httpx
 import pytest
 from dotenv import load_dotenv
 
-from tests.api.agent.utils import get_model_selection
+from tests.api.agent.utils import get_model_selection, hide_sse_heartbeats_async
 
 load_dotenv(override=True)
 
@@ -50,6 +50,7 @@ async def test_speculative_execution_race_mode(app):
         transport=httpx.ASGITransport(app=app),
         base_url="http://testserver",
         timeout=120.0,  # Subagents might take a while
+        event_hooks={"response": [hide_sse_heartbeats_async]},
     ) as client:
         async with client.stream("POST", "/api/v1/agents/agent-stream", json=payload) as resp:
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"

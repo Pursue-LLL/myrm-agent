@@ -1,10 +1,13 @@
 """[INPUT]
 - app.config.settings::get_settings (POS: application settings SSOT)
 - myrm_agent_harness.toolkits.code_execution::create_workspace_service (POS: sandbox workspace lifecycle)
+- myrm_agent_harness.toolkits.code_execution.security::validate_path_component (POS: path-component whitelist)
 - app.services.chat.chat_service::ChatService (POS: chat metadata persistence)
 - app.services.agent.profile.profile_resolver::get_agent_profile_resolver (POS: agent profile SSOT resolver)
 
 [OUTPUT]
+- default_workspaces_root(): directory holding every JIT chat workspace (pure)
+- default_chat_workspace_path(): where a chat's JIT workspace lives, without creating it (pure; rejects ids that cannot name a directory)
 - resolve_default_chat_workspace_dir(): JIT workspace path for a chat session
 - _materialize_agent_template_files(): safely materialize agent's template workspace files into the sandbox
 
@@ -17,8 +20,48 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.code_execution import WorkspaceService
 
 logger = logging.getLogger(__name__)
+
+
+def _chat_workspace_service() -> WorkspaceService:
+    """Workspace service rooted at the harness directory, shared by every JIT chat workspace."""
+    from myrm_agent_harness.toolkits.code_execution import create_workspace_service
+
+    from app.config.settings import get_settings
+
+    return create_workspace_service(root_dir=Path(get_settings().database.harness_dir))
+
+
+def _chat_session_id(chat_id: str) -> str:
+    return f"chat_{chat_id}"
+
+
+def default_workspaces_root() -> Path:
+    """Directory that holds every JIT chat workspace."""
+    return _chat_workspace_service().workspaces_root
+
+
+def default_chat_workspace_path(chat_id: str) -> Path:
+    """Where a chat's JIT workspace lives. Pure: nothing is created on disk.
+
+    Equals the directory ``resolve_default_chat_workspace_dir`` creates, so a file written here
+    before the chat's first turn is already inside the workspace the agent later runs in.
+
+    Raises:
+        ValueError: ``chat_id`` cannot name a workspace directory (path separators, ``..``, ...).
+    """
+    from myrm_agent_harness.toolkits.code_execution.security import validate_path_component
+
+    session_id = _chat_session_id(chat_id)
+    validation = validate_path_component(session_id, "chat workspace id")
+    if not validation.is_safe:
+        raise ValueError(validation.reason)
+    return default_workspaces_root() / session_id
 
 
 async def materialize_default_chat_workspace_dir(chat_id: str) -> str | None:
@@ -32,18 +75,10 @@ async def resolve_default_chat_workspace_dir(
     persist_workspace: bool,
 ) -> str | None:
     try:
-        from myrm_agent_harness.toolkits.code_execution import (
-            create_workspace_service,
-        )
-
-        from app.config.settings import get_settings
         from app.services.chat.chat_service import ChatService
 
-        session_id = f"chat_{chat_id}"
-        workspace_svc = create_workspace_service(
-            root_dir=Path(get_settings().database.harness_dir),
-        )
-        workspace = await workspace_svc.get_or_create(session_id=session_id)
+        workspace_svc = _chat_workspace_service()
+        workspace = await workspace_svc.get_or_create(session_id=_chat_session_id(chat_id))
         chat_workspace_dir = workspace_svc.get_workspace_absolute_path(workspace)
         if persist_workspace:
             await ChatService.update_chat_fields(chat_id, {"workspace_dir": chat_workspace_dir})

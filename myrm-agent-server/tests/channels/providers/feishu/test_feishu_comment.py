@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.feishu import FeishuChannel
 from app.channels.providers.feishu.api import FeishuClient
 from app.channels.providers.feishu.comment_content import (
@@ -286,8 +287,32 @@ class TestChannelCommentRouting:
             user_id="ou_user",
         )
         result = await ch.send(msg)
-        assert result is None
+        # A deliberate NO_REPLY is a handled outcome: it reports the locator, never None (a lost delivery).
+        assert result == "comment-doc:docx:ft_abc:c123:0"
         client.reply_to_comment.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_malformed_comment_recipient_is_a_permanent_failure(self) -> None:
+        ch = _make_channel()
+        _mock_client(ch)
+        msg = OutboundMessage(channel="feishu", recipient_id="comment-doc:broken", content="reply", user_id="ou_user")
+
+        with pytest.raises(ChannelSendError, match="malformed") as excinfo:
+            await ch.send(msg)
+
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_rejected_comment_reply_raises(self) -> None:
+        ch = _make_channel()
+        client = _mock_client(ch)
+        client.reply_to_comment.return_value = (False, 99)
+        msg = OutboundMessage(
+            channel="feishu", recipient_id="comment-doc:docx:ft_abc:c123:0", content="AI reply here", user_id="ou_user"
+        )
+
+        with pytest.raises(ChannelSendError, match="comment reply failed"):
+            await ch.send(msg)
 
 
 # ── Webhook event routing ──────────────────────────────────────

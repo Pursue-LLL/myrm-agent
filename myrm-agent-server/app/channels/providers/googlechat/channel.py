@@ -198,9 +198,11 @@ class GoogleChatChannel(BaseChannel):
     # ── Outbound ──────────────────────────────────────────────────
 
     async def send(self, msg: OutboundMessage) -> str | None:
-        space = msg.recipient_id
-        if not space or not msg.content:
+        if not msg.content:
             return None
+        space = msg.recipient_id
+        if not space:
+            raise ChannelSendError("Google Chat message has no space", channel=self.name, retriable=False)
 
         thread_key: str | None = msg.thread_id
         if not thread_key and msg.metadata and isinstance(msg.metadata, dict):

@@ -6,6 +6,7 @@ Outbound: posts comments to GitHub issues/PRs via REST API (render multi-chunk).
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
+- channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
 - channels.providers.github.event_parser (POS: Structured event parsing)
 - channels.providers.github.helpers (POS: Signature verification + API)
 
@@ -25,6 +26,7 @@ from typing import Any
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.github.event_parser import (
     format_event_as_markdown,
     parse_github_event,
@@ -204,16 +206,14 @@ class GitHubChannel(BaseChannel):
     async def send(self, msg: OutboundMessage) -> str | None:
         """Post Agent response as a comment on the originating GitHub issue/PR."""
         if not self._token:
-            logger.warning("GitHubChannel: no token configured, cannot send")
             self.health.record_failure("No token")
-            return None
+            raise ChannelSendError("GitHub token is not configured", channel=self.name, retriable=False)
 
         recipient = msg.recipient_id or ""
         repo, number = self._parse_recipient(recipient)
         if not repo or number is None:
-            logger.warning("GitHubChannel: invalid recipient_id '%s'", recipient)
             self.health.record_failure("Invalid recipient")
-            return None
+            raise ChannelSendError(f"GitHub recipient '{recipient}' is not owner/repo#number", channel=self.name, retriable=False)
 
         chunks = render(msg, self.render_style)
         if not chunks:
@@ -221,10 +221,11 @@ class GitHubChannel(BaseChannel):
 
         last_id: str | None = None
         for chunk in chunks:
-            success = await post_issue_comment(self._token, repo, number, chunk)
-            if not success:
-                self.health.record_failure("API error")
-                return last_id
+            try:
+                await post_issue_comment(self._token, repo, number, chunk)
+            except ChannelSendError as exc:
+                self.health.record_failure(str(exc))
+                raise
             last_id = f"gh-comment-{repo}-{number}"
 
         self.health.record_success()

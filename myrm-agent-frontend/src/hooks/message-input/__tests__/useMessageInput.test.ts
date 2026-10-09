@@ -226,25 +226,80 @@ describe('useMessageInput submit telemetry integration', () => {
     expect(mockEnqueue).toHaveBeenCalledWith('hello world', [], undefined, null);
   });
 
-  it('records query attempt and falls back to sendMessage when steer fails', async () => {
-    mockSteerMessage.mockResolvedValueOnce(false);
-    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
-    const { result } = renderHook(() => useMessageInput());
+  describe('an instruction the running turn cannot take', () => {
+    it('queues a refused steer and tells the user it is sent after the current task', async () => {
+      chatStoreRef.state = buildChatState({ loading: true });
+      mockSteerMessage.mockResolvedValueOnce(false);
+      mockEnqueue.mockReturnValue(2);
+      const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+      const { result } = renderHook(() => useMessageInput());
 
-    await act(async () => {
-      await result.current.handleSteerSubmit();
+      await act(async () => {
+        await result.current.handleSteerSubmit();
+      });
+
+      expect(mockRecordChatWikiQueryAttempt).toHaveBeenCalledTimes(1);
+      expect(mockEnqueue).toHaveBeenCalledWith('hello world', [], undefined, null);
+      expect(mockToastInfo).toHaveBeenCalledWith('queue.added_with_position:{"position":2}');
+      expect(mockSendMessage).not.toHaveBeenCalled();
+      expect(mockSetInputMessage).toHaveBeenCalledWith('');
     });
 
-    expect(mockRecordChatWikiQueryAttempt).toHaveBeenCalledTimes(1);
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      'hello world',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      true,
-    );
+    it('queues a refused steer without a notice when the agent has gone idle', async () => {
+      mockSteerMessage.mockResolvedValueOnce(false);
+      const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+      const { result } = renderHook(() => useMessageInput());
+
+      await act(async () => {
+        await result.current.handleSteerSubmit();
+      });
+
+      expect(mockEnqueue).toHaveBeenCalledWith('hello world', [], undefined, null);
+      expect(mockToastInfo).not.toHaveBeenCalled();
+      expect(mockSendMessage).not.toHaveBeenCalled();
+    });
+
+    it('hands a failed redirect to steer as the same composed message and queues it, validating and recording once', async () => {
+      const pendingSkill = { skillNames: ['pdf'] };
+      chatStoreRef.state = buildChatState({
+        loading: true,
+        pendingExplicitSkillActivation: pendingSkill,
+        setPendingExplicitSkillActivation: (value: unknown) => {
+          chatStoreRef.state.pendingExplicitSkillActivation = value;
+        },
+      });
+      mockRedirectMessage.mockResolvedValueOnce(false);
+      mockSteerMessage.mockResolvedValueOnce(false);
+      const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+      const { result } = renderHook(() => useMessageInput());
+
+      await act(async () => {
+        await result.current.handleRedirectSubmit();
+      });
+
+      expect(mockRedirectMessage).toHaveBeenCalledWith('[use pdf] hello world');
+      expect(mockSteerMessage).toHaveBeenCalledWith('[use pdf] hello world');
+      expect(mockEnqueue).toHaveBeenCalledWith('[use pdf] hello world', [], undefined, null);
+      expect(mockSendMessage).not.toHaveBeenCalled();
+      expect(mockValidateMessageQuota).toHaveBeenCalledTimes(1);
+      expect(mockRecordChatWikiQueryAttempt).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not queue a redirect the running turn accepted', async () => {
+      chatStoreRef.state = buildChatState({ loading: true });
+      mockRedirectMessage.mockResolvedValueOnce(true);
+      const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+      const { result } = renderHook(() => useMessageInput());
+
+      await act(async () => {
+        await result.current.handleRedirectSubmit();
+      });
+
+      expect(mockQueuePendingChatWikiQuerySuccess).toHaveBeenCalledTimes(1);
+      expect(mockSteerMessage).not.toHaveBeenCalled();
+      expect(mockEnqueue).not.toHaveBeenCalled();
+      expect(mockSendMessage).not.toHaveBeenCalled();
+    });
   });
 
   it('queues pending query success when steer succeeds', async () => {

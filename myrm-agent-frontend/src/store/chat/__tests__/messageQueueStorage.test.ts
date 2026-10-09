@@ -11,6 +11,7 @@ const message = (id: string, text: string): QueuedMessage => ({ id, text, files:
 
 describe('messageQueueStorage', () => {
   beforeEach(() => {
+    sessionStorage.clear();
     localStorage.clear();
   });
 
@@ -30,8 +31,22 @@ describe('messageQueueStorage', () => {
     expect(readStoredQueue(CHAT)).toEqual({ items, pausedReason: 'stopped' });
   });
 
+  it('belongs to its own tab: it never reads or writes the storage every tab of the browser shares', () => {
+    const otherTab = [message('other-tab', 'queued in another tab')];
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(otherTab));
+    localStorage.setItem(PAUSE_KEY, 'stopped');
+
+    expect(readStoredQueue(CHAT)).toEqual({ items: [], pausedReason: null });
+
+    writeStoredQueue(CHAT, { items: [message('mine', 'queued here')], pausedReason: null });
+
+    expect(sessionStorage.getItem(QUEUE_KEY)).not.toBeNull();
+    expect(JSON.parse(localStorage.getItem(QUEUE_KEY) ?? '[]')).toEqual(otherTab);
+    expect(localStorage.getItem(PAUSE_KEY)).toBe('stopped');
+  });
+
   it('drops malformed entries and keeps the valid ones', () => {
-    localStorage.setItem(
+    sessionStorage.setItem(
       QUEUE_KEY,
       JSON.stringify([message('ok', 'valid'), null, 'text', { id: 1, text: 'bad id', files: [] }, { id: 'x' }]),
     );
@@ -42,19 +57,19 @@ describe('messageQueueStorage', () => {
   it('survives corrupt JSON and non-array payloads', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    localStorage.setItem(QUEUE_KEY, '{not json');
+    sessionStorage.setItem(QUEUE_KEY, '{not json');
     expect(readStoredQueue(CHAT)).toEqual({ items: [], pausedReason: null });
 
-    localStorage.setItem(QUEUE_KEY, JSON.stringify({ items: [] }));
+    sessionStorage.setItem(QUEUE_KEY, JSON.stringify({ items: [] }));
     expect(readStoredQueue(CHAT)).toEqual({ items: [], pausedReason: null });
   });
 
   it('ignores a pause marker that has no messages to hold back or an unknown value', () => {
-    localStorage.setItem(PAUSE_KEY, 'stopped');
+    sessionStorage.setItem(PAUSE_KEY, 'stopped');
     expect(readStoredQueue(CHAT).pausedReason).toBeNull();
 
-    localStorage.setItem(QUEUE_KEY, JSON.stringify([message('a', 'first')]));
-    localStorage.setItem(PAUSE_KEY, 'something-else');
+    sessionStorage.setItem(QUEUE_KEY, JSON.stringify([message('a', 'first')]));
+    sessionStorage.setItem(PAUSE_KEY, 'something-else');
     expect(readStoredQueue(CHAT).pausedReason).toBeNull();
   });
 
@@ -63,8 +78,8 @@ describe('messageQueueStorage', () => {
 
     writeStoredQueue(CHAT, { items: [], pausedReason: null });
 
-    expect(localStorage.getItem(QUEUE_KEY)).toBeNull();
-    expect(localStorage.getItem(PAUSE_KEY)).toBeNull();
+    expect(sessionStorage.getItem(QUEUE_KEY)).toBeNull();
+    expect(sessionStorage.getItem(PAUSE_KEY)).toBeNull();
   });
 
   it('clears a stale pause marker when the queue resumes', () => {
@@ -72,8 +87,8 @@ describe('messageQueueStorage', () => {
 
     writeStoredQueue(CHAT, { items: [message('a', 'first')], pausedReason: null });
 
-    expect(localStorage.getItem(PAUSE_KEY)).toBeNull();
-    expect(localStorage.getItem(QUEUE_KEY)).not.toBeNull();
+    expect(sessionStorage.getItem(PAUSE_KEY)).toBeNull();
+    expect(sessionStorage.getItem(QUEUE_KEY)).not.toBeNull();
   });
 
   it('keeps chats separate', () => {
@@ -86,7 +101,7 @@ describe('messageQueueStorage', () => {
 
   it('never throws when the browser refuses the write', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+    vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError');
     });
 

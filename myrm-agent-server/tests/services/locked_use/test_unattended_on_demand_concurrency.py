@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.services.locked_use import unattended
-from app.services.locked_use.service import MacScreenUnlocker
+from app.services.locked_use.service import MacScreenUnlocker, UnlockAttemptOutcome
 from tests.support.curtain_watcher import arm_on_demand_unlock, mark_watcher_running, record_clear
 
 
@@ -34,11 +34,11 @@ class _GatedUnlock:
         self.release = asyncio.Event()
         self.calls = 0
 
-    async def __call__(self) -> bool:
+    async def __call__(self) -> UnlockAttemptOutcome:
         self.calls += 1
         self.started.set()
         await self.release.wait()
-        return True
+        return UnlockAttemptOutcome.SUCCESS
 
 
 class TestConcurrency:
@@ -109,9 +109,9 @@ class TestConcurrency:
             order.append("released")
             return True
 
-        async def _unlock() -> bool:
+        async def _unlock() -> UnlockAttemptOutcome:
             order.append("unlock")
-            return True
+            return UnlockAttemptOutcome.SUCCESS
 
         arm_on_demand_unlock(monkeypatch)
         mark_watcher_running(monkeypatch)
@@ -138,7 +138,7 @@ class TestConcurrency:
         order: list[str] = []
         typing = _GatedUnlock()
 
-        async def _unlock() -> bool:
+        async def _unlock() -> UnlockAttemptOutcome:
             order.append("unlock-start")
             result = await typing()
             order.append("unlock-done")

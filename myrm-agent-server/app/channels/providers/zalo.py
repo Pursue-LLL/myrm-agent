@@ -4,7 +4,9 @@ Inbound: webhook callback → handle_webhook → _emit_inbound
 Outbound: text via message/cs, media via upload + attachment template
 
 [INPUT]
+- channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
+- channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 
 [OUTPUT]
@@ -17,13 +19,17 @@ getoa health check, and collect_issues diagnostics.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from functools import partial
 from pathlib import Path
 
 import httpx
 
+from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     ChannelCapabilities,
@@ -125,15 +131,15 @@ class ZaloChannel(BaseChannel):
         if msg.content:
             chunks = render(msg, self.render_style)
             for chunk in chunks:
-                last_msg_id = await self._send_text(msg.recipient_id, chunk)
+                last_msg_id = await self._send_text(msg.recipient_id, chunk) or last_msg_id
 
-        if msg.media:
-            for att in msg.media:
-                mid = await self._send_media(msg.recipient_id, att)
-                if mid:
-                    last_msg_id = mid
-
-        return last_msg_id
+        attachment_id = await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_media, msg.recipient_id),
+            text_delivered=bool(msg.content),
+        )
+        return last_msg_id or attachment_id
 
     async def handle_webhook(self, body: dict[str, object]) -> None:
         """Process inbound webhook events from Zalo OA."""
@@ -231,9 +237,6 @@ class ZaloChannel(BaseChannel):
 
     async def _send_media(self, user_id: str, att: MediaAttachment) -> str | None:
         attachment_id = await self._upload_media(att)
-        if not attachment_id:
-            logger.debug("Zalo media upload failed for %s", att.url or att.path)
-            return None
 
         is_image = att.media_type == MediaType.IMAGE
         media_type = "image" if is_image else "file"
@@ -257,13 +260,16 @@ class ZaloChannel(BaseChannel):
         }
         return await self._post_message(payload)
 
-    async def _upload_media(self, att: MediaAttachment) -> str | None:
-        """Upload media to Zalo and return attachment_id."""
+    async def _upload_media(self, att: MediaAttachment) -> str:
+        """Upload media to Zalo and return attachment_id; raises ``ChannelSendError`` when Zalo does not take it."""
         is_image = att.media_type == MediaType.IMAGE
         endpoint = f"{_API_V2}upload/image" if is_image else f"{_API_V2}upload/file"
 
         if att.path:
-            file_bytes = Path(att.path).read_bytes()
+            try:
+                file_bytes = await asyncio.to_thread(Path(att.path).read_bytes)
+            except OSError as exc:
+                raise ChannelSendError(f"Zalo cannot read {att.display_name}", channel=self.name, retriable=False) from exc
             filename = Path(att.path).name
         elif att.url:
             from app.channels.media import (
@@ -279,11 +285,11 @@ class ZaloChannel(BaseChannel):
             downloader = MediaDownloader(http_client=self._http, enable_default_cache=True)
             result = await downloader.download(att.url, config=config)
             if not result.success or not result.data:
-                return None
+                raise ChannelSendError(f"Zalo could not download {att.display_name}", channel=self.name)
             file_bytes = result.data
             filename = att.url.rsplit("/", 1)[-1] or "file"
         else:
-            return None
+            raise ChannelSendError(f"Zalo has no source for {att.display_name}", channel=self.name, retriable=False)
 
         try:
             resp = await self._http.post(
@@ -291,38 +297,36 @@ class ZaloChannel(BaseChannel):
                 files={"file": (filename, file_bytes)},
                 timeout=_UPLOAD_TIMEOUT,
             )
-            if resp.status_code != 200:
-                return None
-            data = resp.json()
-            if isinstance(data, dict) and data.get("error") == 0:
-                raw_data = data.get("data")
-                if isinstance(raw_data, dict):
-                    aid = raw_data.get("attachment_id", "")
-                    return str(aid) if aid else None
-        except Exception:
-            logger.debug("Zalo media upload failed")
-        return None
+        except httpx.HTTPError as exc:
+            raise ChannelSendError(f"Zalo upload failed: {type(exc).__name__}", channel=self.name) from exc
+        if resp.status_code != 200:
+            raise ChannelSendError.from_http_status(self.name, resp.status_code)
+        data = resp.json()
+        raw_data = data.get("data") if isinstance(data, dict) and data.get("error") == 0 else None
+        attachment_id = raw_data.get("attachment_id") if isinstance(raw_data, dict) else None
+        if not attachment_id:
+            raise ChannelSendError(f"Zalo upload of {att.display_name} returned no attachment_id", channel=self.name)
+        return str(attachment_id)
 
     async def _post_message(self, payload: dict[str, object]) -> str | None:
-        """Post a message to Zalo OA API and return msg_id if available."""
+        """Post a message to Zalo OA API; returns msg_id if available, raises when Zalo does not accept it."""
         try:
             resp = await self._http.post(
                 f"{_API_V3}message/cs",
                 json=payload,
                 timeout=_SEND_TIMEOUT,
             )
-            if resp.status_code >= 400:
-                logger.debug("Zalo send failed: HTTP %d", resp.status_code)
-                return None
-            data = resp.json()
-            if isinstance(data, dict) and data.get("error") == 0:
-                raw_data = data.get("data")
-                if isinstance(raw_data, dict):
-                    mid = raw_data.get("message_id", "")
-                    return str(mid) if mid else None
-        except Exception:
-            logger.debug("Zalo send exception")
-        return None
+        except httpx.HTTPError as exc:
+            raise ChannelSendError(f"Zalo request failed: {type(exc).__name__}", channel=self.name) from exc
+        if resp.status_code >= 400:
+            raise ChannelSendError.from_http_status(self.name, resp.status_code)
+        data = resp.json()
+        if not isinstance(data, dict) or data.get("error") != 0:
+            reason = data.get("message") if isinstance(data, dict) else None
+            raise ChannelSendError(f"Zalo rejected the message: {reason or 'unknown error'}", channel=self.name, retriable=False)
+        raw_data = data.get("data")
+        mid = raw_data.get("message_id", "") if isinstance(raw_data, dict) else ""
+        return str(mid) if mid else None
 
     async def _fetch_oa_id(self) -> str:
         """Fetch OA ID via getoa API for _bot_id."""

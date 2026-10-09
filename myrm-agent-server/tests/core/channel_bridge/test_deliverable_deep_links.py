@@ -630,12 +630,11 @@ class TestCollectMultipleArtifacts:
         assert len(acc.file_attachments) == 1
         assert acc.file_attachments[0].filename == "huge.png"
         assert acc.file_attachments[0].mime_type == "image/png"
-        assert len(acc.pending_tmp_paths) == 1
+        assert acc.file_attachments[0].ephemeral is True  # compressed temp file is bus-owned
         assert acc.oversized_deliverables == []
         assert len(acc.compressed_deliverables) == 1
         assert acc.compressed_deliverables[0][0] == "huge.png"
-        for p in acc.pending_tmp_paths:
-            Path(p).unlink(missing_ok=True)
+        Path(acc.file_attachments[0].path).unlink(missing_ok=True)
 
     def test_oversized_webp_compressed_filename_aligned(self, tmp_path, monkeypatch):  # noqa: ANN001
         from PIL import Image
@@ -668,8 +667,8 @@ class TestCollectMultipleArtifacts:
         assert acc.file_attachments[0].filename == "hero.jpg"
         assert acc.file_attachments[0].mime_type == "image/jpeg"
         assert acc.file_attachments[0].path.endswith(".jpg")
-        for p in acc.pending_tmp_paths:
-            Path(p).unlink(missing_ok=True)
+        assert acc.file_attachments[0].ephemeral is True
+        Path(acc.file_attachments[0].path).unlink(missing_ok=True)
 
     @patch("app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True)
     def test_nonexistent_file_skipped(self, mock_shareable: MagicMock, caplog: pytest.LogCaptureFixture):  # noqa: ANN001

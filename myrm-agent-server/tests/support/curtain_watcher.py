@@ -31,7 +31,12 @@ from app.services.locked_use.curtain_bridge import (
     QUIET_PERIOD_SECONDS,
     CurtainBridgeState,
 )
-from app.services.locked_use.service import MacScreenUnlocker
+from app.services.locked_use.service import MacScreenUnlocker, UnlockAttemptOutcome
+
+
+def unlock_outcome_for_success(unlocks: bool) -> UnlockAttemptOutcome:
+    """Map legacy bool stubs to production ``UnlockAttemptOutcome``."""
+    return UnlockAttemptOutcome.SUCCESS if unlocks else UnlockAttemptOutcome.STILL_LOCKED
 
 # 主人离开已久（一小时）：远超任何合理的在场阈值。
 AWAY_IDLE_SECONDS = 3600.0
@@ -103,7 +108,7 @@ def arm_on_demand_unlock(monkeypatch: pytest.MonkeyPatch, *, unlocks: bool = Tru
     monkeypatch.setattr(unattended, "read_curtain_state", lambda: make_state())
     set_locked(monkeypatch, True)
     monkeypatch.setattr(unattended, "mark_pending_auto_unlock", lambda: True)
-    unlock = AsyncMock(return_value=unlocks)
+    unlock = AsyncMock(return_value=unlock_outcome_for_success(unlocks))
     monkeypatch.setattr(MacScreenUnlocker, "unlock", unlock)
     return unlock
 
@@ -131,6 +136,11 @@ async def has_session() -> bool:
 
 def set_locked(monkeypatch: pytest.MonkeyPatch, locked: bool) -> None:
     monkeypatch.setattr(MacScreenUnlocker, "is_locked", staticmethod(lambda: locked))
+    monkeypatch.setattr(
+        MacScreenUnlocker,
+        "is_verifiably_unlocked",
+        staticmethod(lambda: not locked),
+    )
 
 
 def set_hid_idle(monkeypatch: pytest.MonkeyPatch, seconds: float | None) -> None:

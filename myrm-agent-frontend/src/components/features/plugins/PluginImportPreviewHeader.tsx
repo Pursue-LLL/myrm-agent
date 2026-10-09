@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { IconAlertTriangle, IconBot, IconPlug, IconShieldCheck } from '@/components/features/icons/PremiumIcons';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 
+import { diagnosticMessageKey, diagnosticScope, headerDiagnostics } from './pluginDiagnostics';
 import { getCapabilityTierBadgeStyle } from './PluginImportSections';
 import type { PluginMeta, PluginPreviewPayload } from './pluginImportTypes';
 
@@ -105,7 +106,15 @@ interface PluginImportPreviewHeaderProps {
 /** Plugin identity and everything the user should read before choosing components. */
 export const PluginImportPreviewHeader = memo(({ preview, disabled, onReselect }: PluginImportPreviewHeaderProps) => {
   const t = useTranslations('settings.plugins.import');
-  const { plugin, diagnostics, deployment } = preview;
+  const { plugin, deployment } = preview;
+  const diagnostics = headerDiagnostics(preview.diagnostics);
+
+  // The backend's English wording is for developers; users read the localized sentence below.
+  useEffect(() => {
+    for (const diagnostic of preview.diagnostics) {
+      console.warn(`Plugin diagnostic [${diagnostic.component}] ${diagnostic.code}: ${diagnostic.message}`);
+    }
+  }, [preview.diagnostics]);
 
   return (
     <>
@@ -137,13 +146,20 @@ export const PluginImportPreviewHeader = memo(({ preview, disabled, onReselect }
 
       {diagnostics.length > 0 && (
         <div className="space-y-2">
-          {diagnostics.map((diagnostic, index) => (
-            <Alert key={index} variant={diagnostic.level === 'error' ? 'destructive' : 'default'} className="py-2">
-              <IconAlertTriangle className="h-4 w-4" />
-              <AlertTitle className="text-xs font-medium">{diagnostic.component}</AlertTitle>
-              <AlertDescription className="text-xs">{diagnostic.message}</AlertDescription>
-            </Alert>
-          ))}
+          {diagnostics.map((diagnostic, index) => {
+            const { scope, name } = diagnosticScope(diagnostic.component);
+            return (
+              <Alert key={index} variant={diagnostic.level === 'error' ? 'destructive' : 'default'} className="py-2">
+                <IconAlertTriangle className="h-4 w-4" />
+                <AlertTitle className="text-xs font-medium">
+                  {t(`diagnostics.scope.${scope}` as Parameters<typeof t>[0], { name })}
+                </AlertTitle>
+                <AlertDescription className="text-xs">
+                  {t(`diagnostics.messages.${diagnosticMessageKey(diagnostic.code)}` as Parameters<typeof t>[0])}
+                </AlertDescription>
+              </Alert>
+            );
+          })}
         </div>
       )}
     </>

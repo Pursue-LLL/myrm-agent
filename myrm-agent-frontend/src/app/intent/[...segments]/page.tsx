@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useIntentMessages } from '@/hooks/shell/useIntentMessages';
 import { IntentDispatcher } from '@/lib/intent-dispatcher';
 import { parseIntentUrl } from '@/lib/intent-dispatcher/schema';
 import { useFlowPadStore } from '@/store/useFlowPadStore';
@@ -20,6 +21,7 @@ import { useFlowPadStore } from '@/store/useFlowPadStore';
  */
 export default function IntentPage() {
   const router = useRouter();
+  const messages = useIntentMessages();
   const openFlowPad = useFlowPadStore((state) => state.open);
   const hasDispatchedRef = useRef(false);
 
@@ -31,7 +33,7 @@ export default function IntentPage() {
 
     let cancelled = false;
     const currentUrl = window.location.href;
-    const dispatcher = new IntentDispatcher(router, openFlowPad);
+    const dispatcher = new IntentDispatcher(router, openFlowPad, messages);
     let parsedIntent: ReturnType<typeof parseIntentUrl> | null = null;
     let shouldReturnHome = false;
 
@@ -64,7 +66,7 @@ export default function IntentPage() {
     return () => {
       cancelled = true;
     };
-  }, [router, openFlowPad]);
+  }, [router, openFlowPad, messages]);
 
   return null;
 }

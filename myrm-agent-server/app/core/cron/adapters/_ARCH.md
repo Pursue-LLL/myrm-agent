@@ -25,7 +25,8 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 | `python_condition.py` | PreFlightCondition 协议实现：SandboxedPythonCondition 在沙箱内安全执行前置探针脚本 |
 | `agent_runner.py` | JobRunner 协议实现：通过 Agent 管道执行 cron 任务。始终以 `unattended_mode=True` 运行（跳过 ask_question_tool 工具注册 + 注入无人值守系统提示词），防止定时任务被 HITL 交互阻塞。当 `workflow_template_id` 绑定时，启动 DW stream 前调用 `workflow_templates/validation.validate_cron_template_at_execution`（trust_latch + args + readonly spawn 复检）。当 CronJob.agent_id 存在时，通过 AgentProfileResolver 加载完整配置（含 `enabled_builtin_tools`、`auto_restore_domains`、`memory_decay_profile`、`cron_post_run_verify`），team protocol 与 **`profile_output_suffixes`**（人格 + `response_locale_policy`）注入 `user_instructions` 尾，并通过 `resolve_builtin_tool_flags()` 统一映射 builtin 工具 flag，解析 agent/cron/chat 绑定的 Shared Context 注入 `memory_shared_context_ids`。**`enable_memory` 双门控（`_resolve_cron_enable_memory`）：intersect 后工具集含 memory（`tools_allowed` 白名单）AND 用户全局 `enableMemory` 开启（与 channel/voice 一致）**，任一不满足即禁挂 memory 工具组，防止受限/用户关闭记忆的任务自动写长期记忆。**桌面无人值守信任闩**：profile `trusted_desktop_apps`（`{name, app_id?}`）经 `resolve_trust_key` 解析为信任键后注入 `GeneralAgentParams.desktop_preapproved_trust_keys`，并置 `desktop_unattended_fail_fast=True`——预信任应用秒过门禁，其余秒级拒否（不等 60 秒），失败走既有 failure webhook 非无声阻塞。**Post-run delivery verification**：Agent 流结束后、可选调用 `post_run_verification.apply_cron_post_run_verification()`（verifier-only，120s 超时；FAIL 不改变 run success，写入 `metadata.verification`）。**Thread Automation**：当 `session_target=MAIN` 且 `chat_id` 存在时，通过 `_load_thread_history` 加载目标会话的 compacted_summary + 近 30 条消息作为 `chat_history` 注入 Agent，实现定时任务的上下文连续性。**Heartbeat follow-up ack**：heartbeat 运行结束后调用 `_finalize_heartbeat_follow_up_delivery()`，按 `[SILENT]` 判定 SENT 或 snooze，并顺带跑一次群停滞懒扫描（覆盖全静默群） |
 | `post_run_verification.py` | Cron 后置交付复核：当 Agent `cron_post_run_verify=true` 且 run 成功且检测到 mutating 工具使用时，spawn `adversarial-reviewer`（`verify_worker_output`，不重跑 worker）。effectful 工具 SSOT：`completion_guard.is_mutating_tool()`（registry fail-closed：未知工具视为 effectful）。注入 `metadata.deliverable_tier` 与 `metadata.verification`。 |
-| `channel_delivery.py` | ResultDelivery 协议实现：IM 渠道投递 + Webhook；Feishu/Lark **bot hook** 走 `feishu_bot_webhook.py`；WeCom **bot hook** 走 `wecom_bot_webhook.py`；构造函数可注入 `WebhookDelivery`（测试投递端点用于零重试快速验证）。群投递门禁：冻结身份拒收（fail-closed）、`DeliveryConfig.thread_id` 进串、主动元数据标记 |
+| `channel_delivery.py` | ResultDelivery 协议实现：IM 渠道投递 + Webhook；Feishu/Lark **bot hook** 走 `feishu_bot_webhook.py`；WeCom **bot hook** 走 `wecom_bot_webhook.py`；构造函数可注入 `WebhookDelivery`（测试投递端点用于零重试快速验证）。群投递门禁：冻结身份拒收（fail-closed）、`DeliveryConfig.thread_id` 进串、主动元数据标记。IM 渠道经 `MessageBus.send_now` 投递，产出里的工作区交付物随消息作为附件（`channel_deliverables.py`）；Feishu/WeCom bot hook 与通用 webhook 保持纯文本 |
+| `channel_deliverables.py` | Cron 产出 → IM 交付物（`channel_reply` 交付物装配的 cron 对应物）：扫描产出文本中的工作区相对路径（工作区取自 job 绑定 chat 的 `workspace_dir`，沙箱内解析、跳过代码块）→ `MediaAttachment`；超限/压缩提示按用户语言（`resolve_user_locale`）追加，仅剩附件时补「交付物已附上」；有附件才附带「在浏览器继续」网页接力按钮（文本路由/云托管出站降级为链接）。非临时的工作区文件不删，压缩副本为 `ephemeral`，在交给总线前被取消则就地清理 |
 | `delivery_resolver.py` | Cron 工具 webhook URL → `DeliveryConfig`（非空 URL 均为 `webhook` channel，Agent 创建任务时生成 HMAC secret） |
 | `feishu_bot_webhook.py` | Feishu/Lark 自定义机器人 hook：`msg_type=text` JSON POST |
 | `wecom_bot_webhook.py` | WeCom (企业微信) 群机器人 hook：`msgtype=markdown` JSON POST |
@@ -41,7 +42,8 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 
 ### 内部依赖
 - `myrm_agent_harness.toolkits.cron`：CronManager, CronScheduler, WebhookDelivery, 协议定义
-- `../../channel_bridge/`：ChannelGateway（channel_delivery 使用）
+- `../../channel_bridge/`：ChannelGateway（channel_delivery 使用）；`agent_executor/deliverable` 路径扫描 + `locale_provider` 用户语言（channel_deliverables 使用）
+- `../../../remote_access/mobile_deep_link`：网页接力按钮（channel_deliverables 使用）
 - `../../channel_bridge/config_loader`：用户配置加载（agent_runner 使用）
 - `../../../ai_agents/`：AgentFactory（agent_runner 使用）
 - `../../../services/agent/profile/profile_resolver`：AgentProfileResolver（agent_runner 使用，agent_id 绑定时加载完整配置）

@@ -44,6 +44,12 @@ def _goal_event_data(
     }
 
 
+def _gateway_with_send_now(**send_now_kwargs: object) -> MagicMock:
+    gateway = MagicMock()
+    gateway.bus.send_now = AsyncMock(**send_now_kwargs)
+    return gateway
+
+
 class TestGoalTerminalNotifier:
     """Unit tests for GoalTerminalNotifier lifecycle and delivery."""
 
@@ -75,58 +81,39 @@ class TestGoalTerminalNotifier:
     async def test_deliver_sends_to_channel(self) -> None:
         from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
 
-        bus = _make_event_bus()
-        notifier = GoalTerminalNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.send = AsyncMock()
-        mock_channel.retry_config = MagicMock()
-        mock_channel.should_retry = MagicMock(return_value=False)
-        mock_channel.extract_retry_after = MagicMock(return_value=None)
-        mock_channel.activity = MagicMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
-        mock_send_with_retry = AsyncMock()
+        notifier = GoalTerminalNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
 
         with (
             patch(
                 "app.core.channel_bridge.goal_terminal_notifier.channel_t",
                 return_value="Goal completed notification",
             ),
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(_goal_event_data())
 
-            mock_send_with_retry.assert_called_once()
-            sent_msg = mock_send_with_retry.call_args[0][1]
-            assert sent_msg.channel == "feishu"
-            assert sent_msg.recipient_id == "g123"
-            assert sent_msg.content == "Goal completed notification"
+        mock_gateway.bus.send_now.assert_awaited_once()
+        sent_msg = mock_gateway.bus.send_now.call_args[0][0]
+        assert sent_msg.channel == "feishu"
+        assert sent_msg.recipient_id == "g123"
+        assert sent_msg.content == "Goal completed notification"
 
     @pytest.mark.asyncio
-    async def test_deliver_skips_missing_channel(self) -> None:
+    async def test_deliver_swallows_undeliverable_channel(self) -> None:
+        from app.channels.core.exceptions import ChannelSendError
         from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
 
-        bus = _make_event_bus()
-        notifier = GoalTerminalNotifier(bus)
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = None
+        notifier = GoalTerminalNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(side_effect=ChannelSendError("No channel registered for 'nonexistent'"))
 
         with (
-            patch(
-                "app.core.channel_bridge.goal_terminal_notifier.channel_t",
-                return_value="msg",
-            ),
+            patch("app.core.channel_bridge.goal_terminal_notifier.channel_t", return_value="msg"),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(_goal_event_data(channel="nonexistent"))
+
+        mock_gateway.bus.send_now.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_deliver_skips_empty_channel(self) -> None:
@@ -145,141 +132,57 @@ class TestGoalTerminalNotifier:
         await notifier._deliver(_goal_event_data(channel="feishu", chat_id=""))
 
     @pytest.mark.asyncio
-    async def test_deliver_skips_stopped_channel(self) -> None:
-        from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
-
-        bus = _make_event_bus()
-        notifier = GoalTerminalNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.STOPPED
-        mock_channel.send = AsyncMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
-
-        with (
-            patch(
-                "app.core.channel_bridge.goal_terminal_notifier.channel_t",
-                return_value="msg",
-            ),
-            patch("app.core.channel_bridge.channel_gateway", mock_gateway),
-        ):
-            await notifier._deliver(_goal_event_data())
-
-        mock_channel.send.assert_not_called()
-
-    @pytest.mark.asyncio
     async def test_deliver_includes_thread_id_metadata(self) -> None:
         from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
 
-        bus = _make_event_bus()
-        notifier = GoalTerminalNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.activity = MagicMock()
-        mock_send_with_retry = AsyncMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
+        notifier = GoalTerminalNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
 
         with (
-            patch(
-                "app.core.channel_bridge.goal_terminal_notifier.channel_t",
-                return_value="msg",
-            ),
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.core.channel_bridge.goal_terminal_notifier.channel_t", return_value="msg"),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(_goal_event_data(thread_id="t789"))
 
-            sent_msg = mock_send_with_retry.call_args[0][1]
-            assert sent_msg.metadata == {"thread_id": "t789"}
+        assert mock_gateway.bus.send_now.call_args[0][0].metadata == {"thread_id": "t789"}
 
     @pytest.mark.asyncio
     async def test_deliver_no_thread_id_metadata_is_none(self) -> None:
         from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
 
-        bus = _make_event_bus()
-        notifier = GoalTerminalNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.activity = MagicMock()
-        mock_send_with_retry = AsyncMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
+        notifier = GoalTerminalNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
 
         with (
-            patch(
-                "app.core.channel_bridge.goal_terminal_notifier.channel_t",
-                return_value="msg",
-            ),
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.core.channel_bridge.goal_terminal_notifier.channel_t", return_value="msg"),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(_goal_event_data(thread_id=""))
 
-            sent_msg = mock_send_with_retry.call_args[0][1]
-            assert sent_msg.metadata is None
+        assert mock_gateway.bus.send_now.call_args[0][0].metadata is None
 
     @pytest.mark.asyncio
     async def test_deliver_handles_send_failure(self) -> None:
         from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
 
-        bus = _make_event_bus()
-        notifier = GoalTerminalNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.activity = MagicMock()
-        mock_send_with_retry = AsyncMock(side_effect=ConnectionError("network down"))
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
+        notifier = GoalTerminalNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(side_effect=ConnectionError("network down"))
 
         with (
-            patch(
-                "app.core.channel_bridge.goal_terminal_notifier.channel_t",
-                return_value="msg",
-            ),
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.core.channel_bridge.goal_terminal_notifier.channel_t", return_value="msg"),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(_goal_event_data())
 
-        mock_channel.activity.record_error.assert_called_once()
+        mock_gateway.bus.send_now.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_deliver_adds_deeplink_components(self) -> None:
         from app.channels.types.components import ActionButton, ButtonStyle
         from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
 
-        bus = _make_event_bus()
-        notifier = GoalTerminalNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.activity = MagicMock()
-        mock_send_with_retry = AsyncMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
+        notifier = GoalTerminalNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
 
         deep_link_components = (
             (
@@ -293,12 +196,7 @@ class TestGoalTerminalNotifier:
         )
 
         with (
-            patch(
-                "app.core.channel_bridge.goal_terminal_notifier.channel_t",
-                return_value="msg",
-            ),
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.core.channel_bridge.goal_terminal_notifier.channel_t", return_value="msg"),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
             patch(
                 "app.remote_access.mobile_deep_link.resolve_web_handoff_components",
@@ -307,25 +205,14 @@ class TestGoalTerminalNotifier:
         ):
             await notifier._deliver(_goal_event_data(session_id="sess-1"))
 
-            sent_msg = mock_send_with_retry.call_args[0][1]
-            assert sent_msg.components == deep_link_components
+        assert mock_gateway.bus.send_now.call_args[0][0].components == deep_link_components
 
     @pytest.mark.asyncio
     async def test_deliver_uses_locale_from_event_data(self) -> None:
         from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
 
-        bus = _make_event_bus()
-        notifier = GoalTerminalNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.activity = MagicMock()
-        mock_send_with_retry = AsyncMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
+        notifier = GoalTerminalNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
 
         data = _goal_event_data()
         data["locale"] = "ja"
@@ -335,30 +222,18 @@ class TestGoalTerminalNotifier:
                 "app.core.channel_bridge.goal_terminal_notifier.channel_t",
                 return_value="ja notification",
             ) as mock_t,
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(data)
 
-            assert mock_t.call_args[0][0] == "ja"
+        assert mock_t.call_args[0][0] == "ja"
 
     @pytest.mark.asyncio
     async def test_deliver_defaults_locale_to_en(self) -> None:
         from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier
 
-        bus = _make_event_bus()
-        notifier = GoalTerminalNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.activity = MagicMock()
-        mock_send_with_retry = AsyncMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
+        notifier = GoalTerminalNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
 
         data = _goal_event_data()
         assert "locale" not in data
@@ -368,13 +243,11 @@ class TestGoalTerminalNotifier:
                 "app.core.channel_bridge.goal_terminal_notifier.channel_t",
                 return_value="en notification",
             ) as mock_t,
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(data)
 
-            assert mock_t.call_args[0][0] == "en"
+        assert mock_t.call_args[0][0] == "en"
 
 
 class TestFormatGoalNotification:

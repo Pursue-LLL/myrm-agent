@@ -8,6 +8,7 @@ import { Loader2, Shield } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { sanitizeAuthRedirectPath } from '@/lib/auth-redirect';
+import { buildDesktopDeepLink, parseDesktopReturn } from '@/lib/desktop-oauth';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
 import useAuthStore from '@/store/useAuthStore';
 import { syncCookieLocaleToPersonalSettings } from '@/lib/locale-personal-sync';
@@ -19,9 +20,7 @@ export default function OAuthCallbackPage() {
   const cpLogin = useAuthStore((s) => s.login);
 
   const [error, setError] = useState('');
-  const [desktopToken, setDesktopToken] = useState<string | null>(null);
-
-  const isDesktopReturn = searchParams.get('desktop') === '1';
+  const [desktopLink, setDesktopLink] = useState<string | null>(null);
 
   useEffect(() => {
     const oauthError = searchParams.get('error');
@@ -38,6 +37,13 @@ export default function OAuthCallbackPage() {
       return;
     }
 
+    // 桌面回跳：一次性 exchange 经用户显式点击 myrmagent:// 深链交回桌面，由桌面自己兑换，不在此浏览器落会话。
+    const desktopReturn = parseDesktopReturn(searchParams.get('redirect'));
+    if (desktopReturn) {
+      setDesktopLink(buildDesktopDeepLink(exchange, desktopReturn.state));
+      return;
+    }
+
     void (async () => {
       try {
         const response = await fetch(`${resolveCpBaseUrl()}/api/auth/oauth/exchange`, {
@@ -50,11 +56,6 @@ export default function OAuthCallbackPage() {
           setError(typeof data.detail === 'string' ? data.detail : t('failed'));
           return;
         }
-        // 桌面回跳：token 经用户显式点击 myrmagent:// 深链交回桌面，不在此浏览器落会话。
-        if (isDesktopReturn && typeof data.token === 'string' && data.token) {
-          setDesktopToken(data.token);
-          return;
-        }
         await cpLogin(data.token, { id: data.user_id, email: data.email });
         await syncCookieLocaleToPersonalSettings();
         window.location.href = postAuthPath;
@@ -62,7 +63,7 @@ export default function OAuthCallbackPage() {
         setError(t('failed'));
       }
     })();
-  }, [cpLogin, router, searchParams, t, isDesktopReturn]);
+  }, [cpLogin, router, searchParams, t]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-background to-primary-50 dark:from-gray-900 dark:via-background dark:to-gray-900 p-4">
@@ -82,14 +83,14 @@ export default function OAuthCallbackPage() {
                 <Link href="/auth/login">{t('backToLogin')}</Link>
               </Button>
             </>
-          ) : desktopToken ? (
+          ) : desktopLink ? (
             <>
               <p className="text-sm text-muted-foreground text-center px-2">{t('desktopDescription')}</p>
               <Button
                 type="button"
                 className="w-full sm:w-auto"
                 onClick={() => {
-                  window.location.href = `myrmagent://oauth/callback?token=${encodeURIComponent(desktopToken)}`;
+                  window.location.href = desktopLink;
                 }}
               >
                 {t('openInDesktop')}

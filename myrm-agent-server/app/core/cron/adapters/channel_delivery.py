@@ -6,23 +6,21 @@ Routes cron job results through the application's existing
 Webhook delivery is delegated to the framework's ``WebhookDelivery``.
 Feishu/Lark custom bot hook URLs use ``feishu_bot_webhook`` (``msg_type=text`` JSON).
 WeCom group bot hook URLs use ``wecom_bot_webhook`` (``msgtype=markdown`` JSON).
-Channel delivery uses the channel's own ``send_with_retry`` for
-synchronous error propagation (delivery_status=FAILED on failure).
+Channel delivery goes through ``MessageBus.send_now`` (the same preparation, routing and
+failure bookkeeping as queued sends) and raises on failure (delivery_status=FAILED).
+Workspace files the result mentions ride along as attachments (see ``channel_deliverables``).
 """
 
 from __future__ import annotations
 
 import logging
-import time
 
 from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
 
 from app.channels import OutboundMessage
-from app.channels.core.bus import downgrade_components
-from app.channels.reliability.retry import send_with_retry
-from app.channels.types.status import ChannelStatus
 
+from .channel_deliverables import collect_cron_deliverables
 from .feishu_bot_webhook import deliver_feishu_bot_webhook, is_feishu_bot_hook_url
 from .wecom_bot_webhook import deliver_wecom_bot_webhook, is_wecom_bot_hook_url
 
@@ -35,7 +33,7 @@ class ChannelResultDelivery:
     """Delivers cron results through ChannelGateway or webhook.
 
     Webhook delivery delegates to the framework's ``WebhookDelivery``.
-    Channel delivery uses ``send_with_retry`` for synchronous error
+    Channel delivery uses ``MessageBus.send_now`` for synchronous error
     propagation.  Exceptions propagate to the scheduler so it can record
     ``delivery_status = FAILED`` in the CronRun record.
     """
@@ -72,21 +70,24 @@ class ChannelResultDelivery:
         from app.core.channel_bridge import channel_gateway
         from app.core.channel_bridge.topic_config import SqlTopicManager
 
-        content = result.output or ""
-        if result.error:
-            content += f"\n\n**Error:** {result.error[:500]}"
-
         recipient_id = self._resolve_recipient(job)
 
         topic = await SqlTopicManager().resolve_topic(job.delivery.channel, recipient_id, job.delivery.thread_id)
         if topic is not None and topic.identity_revoked:
             raise RuntimeError(f"Cron job {job.id}: team identity revoked for {job.delivery.channel}/{recipient_id}")
 
+        deliverables = await collect_cron_deliverables(job, result.output or "")
+        content = deliverables.content
+        if result.error:
+            content += f"\n\n**Error:** {result.error[:500]}"
+
         meta: dict[str, object] = dict(result.metadata) if result.metadata else {}
         meta["job_name"] = job.name
         meta["success"] = result.success
         meta["proactive"] = True
         meta["followup_kind"] = "cron_writeback"
+        if deliverables.locale:
+            meta.setdefault("locale", deliverables.locale)
 
         msg = OutboundMessage(
             channel=job.delivery.channel,
@@ -94,35 +95,12 @@ class ChannelResultDelivery:
             content=content,
             user_id=job.user_id,
             thread_id=job.delivery.thread_id,
+            media=deliverables.media,
+            components=deliverables.components,
             metadata=meta,
         )
 
-        channel = channel_gateway.bus.channels.get(msg.channel)
-        if not channel:
-            raise RuntimeError(f"No channel registered for '{msg.channel}'")
-        if channel.status in (ChannelStatus.DISABLED, ChannelStatus.STOPPED):
-            raise RuntimeError(f"Channel '{msg.channel}' is {channel.status}")
-
-        msg = downgrade_components(msg, channel)
-        msg = await channel_gateway.bus.durable_outbound.persist_direct_send(msg)
-        t0 = time.monotonic()
-        try:
-            await channel_gateway.bus.durable_outbound.mark_attempting(msg)
-            send_result = await send_with_retry(
-                channel.send,
-                msg,
-                config=channel.retry_config,
-                should_retry=channel.should_retry,
-                extract_retry_after=channel.extract_retry_after,
-                label=f"cron-delivery:{msg.channel}",
-            )
-            if send_result is None:
-                raise RuntimeError("channel send returned no message_id")
-            await channel_gateway.bus.durable_outbound.ack(msg)
-            channel.activity.record_outbound(latency_ms=(time.monotonic() - t0) * 1000)
-        except BaseException:
-            channel.activity.record_error()
-            raise
+        await channel_gateway.bus.send_now(msg)
 
     @staticmethod
     def _resolve_recipient(job: CronJob) -> str:

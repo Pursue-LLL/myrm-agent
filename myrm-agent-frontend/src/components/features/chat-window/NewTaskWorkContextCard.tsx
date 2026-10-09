@@ -371,7 +371,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
                           loadDirectory(pathInput.trim());
                         }
                       }}
-                      className="h-6 flex-1 border-none bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
+                      className="h-6 flex-1 border-none bg-transparent px-1 text-xs shadow-none"
                       placeholder={tDir('placeholder')}
                     />
                     <Button
@@ -423,7 +423,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
                       <Input
                         value={filterQuery}
                         onChange={(e) => setFilterQuery(e.target.value)}
-                        className="h-6 border-none bg-muted/30 px-2 text-xs shadow-none focus-visible:ring-0"
+                        className="h-6 border-none bg-muted/30 px-2 text-xs shadow-none"
                         placeholder={tDir('filter')}
                       />
                     </div>

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.channels.core.base import BaseChannel, ChannelStatus
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.telegram import TelegramChannel
 from app.channels.providers.telegram.api import (
     TelegramApiError,
@@ -1397,11 +1399,12 @@ class TestTelegramChannelOutbound:
         ch._client.send_message.assert_called()
 
     @pytest.mark.asyncio
-    async def test_send_empty_recipient(self) -> None:
+    async def test_send_empty_recipient_raises_permanent_error(self) -> None:
         ch = _make_channel()
         msg = OutboundMessage(channel="telegram", user_id="u1", recipient_id="", content="Hello!")
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+        assert exc_info.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_start_typing(self) -> None:
@@ -2237,10 +2240,29 @@ class TestSendMediaAttachment:
         client.send_document.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_send_no_source_skipped(self) -> None:
+    async def test_send_no_source_is_a_permanent_failure(self) -> None:
         client = MagicMock(spec=TelegramClient)
         att = MediaAttachment(media_type=MediaType.IMAGE)
-        await send_media_attachment(client, "123", att, None)
+        with pytest.raises(ChannelSendError) as exc_info:
+            await send_media_attachment(client, "123", att, None)
+        assert exc_info.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_send_missing_local_file_is_a_permanent_failure(self, tmp_path: Path) -> None:
+        client = MagicMock(spec=TelegramClient)
+        att = MediaAttachment(media_type=MediaType.DOCUMENT, path=str(tmp_path / "gone.pdf"))
+        with pytest.raises(ChannelSendError) as exc_info:
+            await send_media_attachment(client, "123", att, None)
+        assert exc_info.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_send_empty_local_file_is_a_permanent_failure(self, tmp_path: Path) -> None:
+        client = MagicMock(spec=TelegramClient)
+        empty = tmp_path / "empty.pdf"
+        empty.write_bytes(b"")
+        with pytest.raises(ChannelSendError) as exc_info:
+            await send_media_attachment(client, "123", MediaAttachment(media_type=MediaType.DOCUMENT, path=str(empty)), None)
+        assert exc_info.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_send_with_filename(self) -> None:

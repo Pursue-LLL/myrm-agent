@@ -186,7 +186,7 @@ wechat_d4e5f6   ← 额外实例 2
 - 入站：`_emit_inbound()` → 入站队列 → `AgentRouter.consume()`
 - 出站：`OutboundMessage` → 目标渠道 `send()`
 - **Rich Message 组件降级**：不支持原生组件的渠道自动降级为文本（支持国际化）
-- DISABLED 拦截：三道防线（`_emit_inbound` / `_dispatch_loop` / `send_tracked`）
+- DISABLED 拦截：三道防线（`_emit_inbound` / `_dispatch_loop` / `send_now`）
 
 **Rich Message System 自动降级机制**：
 
@@ -341,7 +341,7 @@ for binding in _channel_bindings():
 
 1. **BaseChannel._emit_inbound**：DISABLED 渠道的入站消息直接丢弃
 2. **MessageBus._dispatch_loop**：DISABLED 渠道的出站消息不分发
-3. **MessageBus.send_tracked**：DISABLED 渠道的直发消息被拦截
+3. **MessageBus.send_now**（含其封装 `send_tracked`）：DISABLED 渠道的直发消息被拦截并抛错
 
 ### 5.3 启动时行为
 
@@ -398,24 +398,33 @@ AgentRouter.consume()
 ### 6.2 出站流程
 
 ```
-Agent/Cron → OutboundMessage
+Agent/Cron/通知 → OutboundMessage
     ↓
-MessageBus 出站分发
+MessageBus 出站管线（队列 publish_outbound 与直发 send_now 共用同一套路由、准备与结算）
     ├── DurableOutboundGate.save (IM 渠道，web/chat 跳过)
-    ├── [DISABLED 检查]
-    ├── 自动重试 (指数退避)
-    ├── 持久化死信队列 (DeadLetterQueue)
-    ├── downgrade_components() (组件降级)
-    └── Channel.send()
+    ├── 路由解析 (云托管 CP egress 优先，仅纯文本；否则本地渠道；DISABLED/STOPPED/未注册 → 队列保留 obligation，send_now 直接抛错)
+    ├── prepare_outbound(msg, 路由能力) = downgrade_components (组件/媒体降级) → 出站风险门
+    ├── [仅队列分发] 内容门：死链仅注释，不拦截
+    └── Channel.send()  (send_with_retry 指数退避，partial delivery 不重试)
         ├── render(msg, render_style) → chunks
-        ├── send_with_retry(chunk) (指数退避)
         ├── [平台限制] 超出单次 API 上限时分 batch 多次 send（如 LINE 每请求 ≤5 条 message）
         ├── [媒体附件] safe_download_media() → SSRF 验证 → 下载 → 上传到平台
-        └── activity.record_outbound()
-            └── ack_delivery (成功后删除磁盘队列条目)
+        └── 返回平台 message_id
+            ├── 成功 → ack_delivery (删除磁盘队列条目) + activity.record_outbound()
+            └── 失败 → DLQ + 永久失败回调 + 释放磁盘 obligation
 ```
 
 进程重启时 `DurableOutboundGate.recover_into_bus` 自动重注入未送达消息；`attempting` 阶段中断恢复时前缀 i18n 提示。
+
+**送达判定契约**：
+- 渠道 `send()` 只有正常返回才算送达，任何失败必须抛 `ChannelSendError`，不得吞错返回 `None`。
+- 渠道能力 `message_ids`（默认 True）声明是否回传平台消息 id：True 的渠道对含文本的消息返回 `None` 视为未确认（`DeliveryUnconfirmedError`，进 DLQ 不再重试）；纯媒体消息豁免（Slack/Telegram/MSTeams 此时合法返回 `None`）；不回传 id 的渠道声明 `message_ids=False`，`None` 即成功。声明为 False 的有 DingTalk、IRC、VoiceCall、WeChat iLink、WeChat 公众号、企业微信智能机器人、企业微信应用、Webhook。
+- 部分送达：平台已接收文本但附件失败时抛 `ChannelSendError(accepted=True, failed_attachments=(…))`；总线不重试、不整条重放，仅把失败附件落 DLQ（`undelivered_part`），并向收件人发一条本地化说明（`partial_failure_note`）。`send_now` 仍向调用方抛出该异常。
+- Provider 发送规则（完整表见 `providers/_ARCH.md`）：先发文本再逐个发附件，一个附件失败不阻塞其余（`attempt_attachments` / `deliver_attachments`，LINE 单次请求且媒体在前）；失败汇总为一次 `ChannelSendError.for_attachments`，已有内容送达则 `accepted=True` 并具名 `failed_attachments`，否则按失败性质决定重试。仅"重试不可能改变结果"的失败判永久（类型不支持、本地文件缺失或为空、无可用来源、平台校验拒绝；`ChannelSendError.from_http_status` 对 4xx 同理），URL 下载失败与网络错误按临时失败重试。附件不得静默丢弃；永久失败由总线剥离媒体并发本地化说明。`tests/channels/providers/test_send_contract.py` 以 AST 守卫 `message_ids` 声明与 `send()` 内不吞错。
+- 已知局限：多段文本发送中途失败不标记 `accepted`，重试会重发已送达的段（宁可重复不缺失，续发需按分片断点恢复）；WhatsApp 桥接对媒体无送达回执，仅能确认已交给桥接进程。
+- `send_now` 是严格直发：成功返回平台 id（无 id 渠道返回 `None`），失败先按队列同一套规则结算（DLQ、永久失败回调、释放 obligation）再抛错；`send_tracked` 是其宽松封装（失败返回 `None`），用于只需要消息 id 的场景（如审批消息后续编辑）。cron、btw、目标终态通知、出站通知均走 `send_now`；cron 投递还会把产出里提到的工作区文件作为附件一并发出并附网页接力按钮（`core/cron/adapters/channel_deliverables.py`，纯文本路由降级为说明与链接）。
+- 临时附件所有权：`MediaAttachment.ephemeral=True` 标记为送达而生成的临时文件（截图、压缩图、TTS 音频）；交给总线后由总线在终态统一删除，生产方不得先删。删除时机：送达 ack 之后；部分送达时删除已送达者、保留失败者；被能力降级或被路由丢弃的附件；无磁盘记录可重放的丢弃（队列满、渠道不可用且无 durable 记录，`DurableOutboundGate.retains`）。其余失败路径保留文件，供 DLQ 手动重试引用。仅删除系统临时目录内的文件（`discard_ephemeral_media`）。
+- 占位符编辑（`MessageEffects.edit_placeholder`）与普通出站同样先 `prepare_outbound`；编辑只改文本，附件随后以纯媒体消息经总线发送（带重试、持久化与部分送达处理），额外文本分片不携带附件/按钮；编辑失败时整条回复（含附件）改走正常发布。
 
 
 **出站媒体 SSRF 防护**：`MediaAttachment.url` 可能来自 Agent 生成内容（受 prompt injection 影响），
@@ -436,7 +445,7 @@ StreamCoordinator
         ↓
     edit_placeholder(chunk)
         ↓
-    最终 edit_placeholder(full_reply)
+    最终 edit_placeholder(full_reply，仅文本；附件随后以纯媒体消息送出)
 ```
 
 ---
@@ -481,7 +490,7 @@ StreamCoordinator
 - 发送成功 `ack_delivery`；永久失败移交 DLQ 后 ack 磁盘条目
 - 进程重启 `recover_into_bus` 重注入内存队列；dispatch 空闲时亦自动 recover（QueueFull 后无需重启）；`attempting` 中断恢复带 i18n 前缀
 - 渠道 DISABLED / STOPPED 或未注册（非 CP egress）时 **保留** 磁盘 obligation（不 ack）；`enable_channel` 触发 recover
-- `channel.send` / CP egress 未返回 `message_id` 时 **不得 ack**（dispatch → DLQ；cron → 抛错留盘）
+- `channel.send` / CP egress 未证明送达（渠道声明回传 id 却返回 `None`、CP 无 `message_id`）时 **不得 ack**：队列分发与 `send_now` 一律结算为失败（DLQ + 永久失败回调 + 释放磁盘条目），`send_now` 另向调用方抛错
 - `GET /api/v1/health/liveness` 暴露 `pendingOutboundCount` 供运维观测
 - 与 `delivery_notify_ledger` 职责分离：后者仅 permanent-failure toast 去重
 - 云托管 CP egress：`cp_egress_client` 仅在 CP 返回 `message_id` 时视为成功

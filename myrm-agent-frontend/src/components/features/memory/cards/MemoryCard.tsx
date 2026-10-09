@@ -28,6 +28,7 @@ import type { PendingMemory, Memory, MemoryType } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
 import { EvidenceBadge } from './EvidenceBadge';
 import { MemoryProceduralDetails } from './MemoryProceduralDetails';
+import PendingTargetHint from './PendingTargetHint';
 
 interface MemoryCardProps {
   memory: PendingMemory | Memory;
@@ -118,7 +119,9 @@ const MemoryCard = memo<MemoryCardProps>(
           className,
         )}
         onClick={(e) => {
-          if (!onClick) {return;}
+          if (!onClick) {
+            return;
+          }
           const target = e.target as HTMLElement;
           if (target.closest('button, [role="button"], input, a, [data-prevent-card-click]')) {
             return;
@@ -344,6 +347,8 @@ const MemoryCard = memo<MemoryCardProps>(
           ) : (
             <p className="text-sm text-foreground leading-relaxed line-clamp-3">{displayContent}</p>
           )}
+
+          {isPending && 'resolution_action' in memory && <PendingTargetHint memory={memory} className="mt-2.5" clamp />}
 
           {confirmed?.source_error && (
             <div className="mt-2 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-lg px-2.5 py-1.5">

@@ -4,6 +4,7 @@
  *
  * [OUTPUT]
  * - RemoteConnectionProfile roster CRUD + active selection SSOT.
+ * - ensureCloudProfile: activate or create the Cloud profile for a control plane (name collisions resolved).
  * - Legacy single-slot migration (once, then delete legacy key).
  *
  * [POS]
@@ -35,8 +36,6 @@ interface RosterPayload {
 
 const ROSTER_STORAGE_KEY = 'myrm-remote-gateway-roster';
 const LEGACY_STORAGE_KEY = 'myrm-remote-gateway';
-/** 桌面 OAuth 回跳前在浏览器侧暂存的 CP 地址键（深链仅带 token）。 */
-export const CLOUD_OAUTH_PENDING_KEY = 'myrm-cloud-oauth-pending';
 const MAX_NAME_LENGTH = 64;
 
 function isBrowser(): boolean {
@@ -197,6 +196,36 @@ export function addRemoteProfile(
   roster.activeId = profile.id;
   writeRoster(roster);
   return profile;
+}
+
+const MAX_CLOUD_NAME_ATTEMPTS = 20;
+
+/**
+ * 激活（或创建）某控制平面对应的 Cloud 档案，并设为 active。
+ * 同 URL 的非 cloud 档案被替换；默认名被占用时追加序号，避免登录成功却没有可用档案。
+ */
+export function ensureCloudProfile(name: string, cpBaseUrl: string): RemoteConnectionProfile | null {
+  const cpBase = normalizeUrl(cpBaseUrl);
+  if (!cpBase) {
+    return null;
+  }
+  const proxyBase = `${cpBase}/proxy/me`;
+  const existing = readRoster().profiles.find((p) => p.url === proxyBase);
+  if (existing?.kind === 'cloud') {
+    setActiveRemoteProfileId(existing.id);
+    return existing;
+  }
+  if (existing) {
+    removeRemoteProfile(existing.id);
+  }
+  for (let attempt = 1; attempt <= MAX_CLOUD_NAME_ATTEMPTS; attempt++) {
+    const candidate = attempt === 1 ? name : `${name} ${attempt}`;
+    const profile = addRemoteProfile(candidate, proxyBase, { kind: 'cloud', cpBaseUrl: cpBase });
+    if (profile) {
+      return profile;
+    }
+  }
+  return null;
 }
 
 export function removeRemoteProfile(id: string): void {

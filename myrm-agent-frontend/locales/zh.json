@@ -5274,6 +5274,8 @@
         "appshotShortcutDesc": "截取当前屏幕并提取窗口文本作为上下文发送到对话",
         "voicePttShortcut": "语音对讲快捷键",
         "voicePttShortcutDesc": "在任意应用中按住此快捷键说话，松开即发送给 Agent",
+        "shortcutRecording": "录制中...",
+        "shortcutPlaceholder": "例如 Alt+Space",
         "appshotPrivacyBlacklist": "截屏隐私黑名单",
         "appshotPrivacyBlacklistDesc": "黑名单中的应用在前台时，截屏将被阻止以保护敏感数据",
         "appshotAddAppPlaceholder": "输入应用名称...",
@@ -5353,12 +5355,14 @@
         "remove": "移除",
         "profileNamePlaceholder": "名称，例如家庭服务器",
         "offlineHint": "即使本机关机或离线，定时任务仍在远端服务器上继续运行。",
+        "cloudProfileName": "云端沙箱",
         "cloudTitle": "云托管",
         "cloudDesc": "使用云账号登录，然后发现你的云端沙箱，无需粘贴服务器地址。",
         "checkProviders": "查看登录方式",
         "providersUnavailable": "该地址暂不支持登录，请检查地址后重试。",
         "continueWith": "使用 {provider} 继续",
         "signInFirst": "请先使用云账号登录。",
+        "signInStartFailed": "无法发起登录，请重试。",
         "discoverSandbox": "发现我的沙箱",
         "discoverFailed": "未找到沙箱，请先登录或检查订阅。",
         "wizardTitle": "你的助手运行在哪里？",
@@ -5372,8 +5376,8 @@
         "rollbackFailed": "恢复上次可用连接未完成，请稍后重试。",
         "activeSessionsDialog": {
           "title": "存在活跃会话",
-          "description": "本地有 {count} 个会话正在生成。切换会等待其完成并刷新页面；会话记录仍会保留。",
-          "confirm": "仍然切换",
+          "description": "当前连接上有 {count} 个会话正在生成。切换连接可能会中断它们；已保存的会话记录仍会保留。",
+          "confirm": "仍然继续",
           "cancel": "取消"
         }
       },
@@ -6980,6 +6984,23 @@
           "skillsNotSupported": "当前环境不支持自定义技能 — 已自动跳过",
           "stdioNotAllowed": "当前环境无法运行本地进程类 MCP 服务器 — 已自动跳过"
         },
+        "diagnostics": {
+          "scope": {
+            "plugin": "插件包",
+            "skill": "技能：{name}",
+            "servers": "MCP 服务器",
+            "server": "MCP 服务器：{name}"
+          },
+          "messages": {
+            "unsupportedFormat": "这不是受支持的插件包，无法导入。",
+            "manifestInvalid": "插件的描述文件内容无效，请联系插件作者修复。",
+            "serversInvalid": "MCP 服务器配置无效，不会导入任何 MCP 服务器，技能仍可导入。",
+            "skillSkipped": "该技能存在问题，已自动跳过。",
+            "serverSkipped": "该 MCP 服务器配置无效，已自动跳过。",
+            "filesIgnored": "包内的隐藏文件未被导入。",
+            "generic": "该插件存在可能影响导入的问题。"
+          }
+        },
         "capabilities": {
           "title": "沙箱能力层级",
           "read_only": "只读安全",
@@ -7945,7 +7966,7 @@
     "topP": "Top-P",
     "topPDesc": "核采样参数，限制候选词范围",
     "maxTokens": "最大输出长度",
-    "maxTokensDesc": "限制单次回复的最大 token 数",
+    "maxTokensDesc": "限制单次回复的最大长度（token 数）。推理模型若此值不足以完成思考与回答，会自动获得更大的上限。",
     "maxTokensPlaceholder": "留空使用模型默认值",
     "precise": "精确",
     "creative": "创意",
@@ -8985,7 +9006,22 @@
     "redactionReview": {
       "title": "脱敏预览",
       "toggleAll": "全选 / 全不选",
-      "line": "第 {number} 行"
+      "line": "第 {number} 行",
+      "kinds": {
+        "api_token": "API 密钥或令牌",
+        "environment_variable": "环境变量",
+        "config_secret": "配置密钥",
+        "json_secret_field": "JSON 密钥字段",
+        "database_credential": "数据库凭据",
+        "url_secret_parameter": "链接中的密钥参数",
+        "url_credential": "链接中的账号凭据",
+        "cli_secret_flag": "命令行密钥参数",
+        "telegram_bot_token": "Telegram 机器人令牌",
+        "authorization_header": "授权请求头",
+        "private_key": "私钥",
+        "absolute_path": "本机文件路径",
+        "unknown": "敏感信息"
+      }
     }
   },
   "chat": {
@@ -9761,7 +9797,7 @@
       "edit": "编辑消息",
       "saveEdit": "保存",
       "cancelEdit": "取消",
-      "stuck": "智能体仍在忙碌，排队消息暂时无法发送。",
+      "stuck": "排队消息暂时无法发送，已暂停。",
       "placeholderExpanded": "正在执行... Ctrl/⌘+Enter 引导纠偏 · ⌥+Enter 排队跟进",
       "pausedStopped": "你已停止回复，队列已暂停。",
       "resume": "继续发送",
@@ -11463,6 +11499,9 @@
       "title": "个人大脑指挥中心",
       "description": "集中查看 Agent 记住了什么、哪些记忆空间正在生效、哪些内容仍需确认，以及本地记忆运行时是否健康。观察区的 Live 面板通过 SSE 实时推送记忆操作。",
       "refresh": "刷新",
+    "targetChangedTitle": "这条建议已过期",
+    "targetChangedDesc": "它所针对的记忆在建议提出后已发生变化。该建议仍保留在列表中，你可以拒绝它或暂不处理。",
+    "batchApprovePartialDesc": "已批准 {success} 条。另有 {failed} 条未能批准（它们所针对的记忆可能已变化），仍保留在列表中。",
       "refreshing": "刷新中",
       "loadFailed": "记忆指挥中心加载失败",
       "lastUpdated": "更新时间 {time}",
@@ -12184,6 +12223,9 @@
       "action": "执行动作",
       "confidence": "置信度",
       "corrects": "纠正了",
+      "willCorrect": "将纠正已有记忆",
+      "willDelete": "将已有记忆移入回收站，可随时恢复",
+      "targetContent": "目标",
       "content": "内容",
       "tags": "标签",
       "relatedEntities": "相关实体",
@@ -20175,5 +20217,10 @@
   "ttsAudio": {
     "generatedSpeech": "已生成语音",
     "playbackFailed": "音频播放失败——文件可能已过期。"
+  },
+  "intentDispatcher": {
+    "invalidLink": "无效的外部链接或参数错误",
+    "oauthSuccess": "授权成功",
+    "oauthFailed": "授权校验失败，请重试"
   }
 }

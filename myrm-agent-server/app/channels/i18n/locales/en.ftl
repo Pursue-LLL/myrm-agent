@@ -328,9 +328,13 @@ memory_unavailable = ℹ Memory system is unavailable.
 memory_no_pending = ℹ No pending memories to review.
 memory_pending_header = 📋 **Pending Memories** ({ $count }):
 memory_pending_hint = Use `/memory approve <id>` or `/memory reject <id>` to review, or `/memory approve all` to approve all.
+memory_pending_correct = Replaces: { $target }
+memory_pending_trash = Moves to trash: { $target }
 memory_approved = ✅ Memory `{ $id }` approved.
 memory_rejected = ❌ Memory `{ $id }` rejected.
 memory_approved_all = ✅ Approved { $count } pending memories.
+memory_target_changed = ℹ Memory `{ $id }` is out of date: the memory it refers to has changed since it was proposed. It stays pending; reject it with `/memory reject { $id }` or leave it.
+memory_approved_partial = ⚠ Approved { $count } pending memories; { $skipped } could not be approved (the memory they refer to changed, or an error occurred). They stay pending; see `/memory pending`.
 memory_not_found = ℹ No pending memory matching `{ $id }`.
 memory_error = ❌ Memory command failed. Please try again.
 cmd_memory = Review pending memory writes (approve/reject)
@@ -350,6 +354,9 @@ artifact_deep_link_named = { $filename }
 deliverable_attached_only = Deliverable attached.
 deliverable_oversized_note = { $filename } ({ $size }) exceeds the channel attachment size limit and wasn't attached.
 deliverable_compressed_note = { $filename } ({ $size }) exceeded the channel size limit — a compressed version was sent.
+attachment_stripped_note = The attachment couldn't be sent, so only the text was delivered.
+attachment_omitted_note = Attachment not sent: { $name } (not supported in this chat)
+attachment_failed_note = These attachments couldn't be delivered: { $names }
 goal_completed =
     ✅ Goal completed: "{ $objective }"
     { $turns } turns · { $duration } min · { $files } files modified

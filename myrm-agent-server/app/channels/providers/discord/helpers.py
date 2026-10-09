@@ -7,7 +7,7 @@
 [OUTPUT]
 - build_discord_components: 将 Myrm ComponentConvert为 discord.ui.View
 - build_discord_embed: 将 Myrm 消息ContentConvert为 discord.Embed
-- build_discord_files: 将 Myrm 媒体附件Convert为 discord.File List
+- DiscordMedia / build_discord_media: split media attachments into uploads, unfurled links and unsendable ones
 
 [POS]
 Pure-function helpers for the Discord channel. Converts framework message objects to Discord native objects.
@@ -16,6 +16,8 @@ Pure-function helpers for the Discord channel. Converts framework message object
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import discord
@@ -127,17 +129,32 @@ def build_discord_embed(msg: OutboundMessage) -> discord.Embed | None:
     return embed
 
 
-def build_discord_files(media: tuple[MediaAttachment, ...]) -> list[discord.File]:
-    """Convert MediaAttachments to discord.File objects."""
-    files = []
+@dataclass(frozen=True, slots=True)
+class DiscordMedia:
+    """Outbound attachments sorted by how Discord can take them."""
+
+    files: list[discord.File]
+    """Local files, uploaded with the message."""
+    links: list[str]
+    """URL-only attachments: posted as links, which Discord unfurls into previews."""
+    failed: list[str]
+    """Display names of attachments that cannot be sent at all (unreadable file, no source)."""
+
+
+def build_discord_media(media: Sequence[MediaAttachment]) -> DiscordMedia:
+    """Sort MediaAttachments into uploads, links and unsendable ones."""
+    files: list[discord.File] = []
+    links: list[str] = []
+    failed: list[str] = []
     for m in media:
         if m.path:
-            # Local file upload
-            files.append(discord.File(fp=m.path, filename=m.filename))
+            try:
+                files.append(discord.File(fp=m.path, filename=m.filename))
+            except OSError as exc:
+                logger.warning("Discord attachment %s is unreadable: %s", m.display_name, exc)
+                failed.append(m.display_name)
         elif m.url:
-            # For URLs, we usually just append them to the content text in Discord
-            # But if we strictly need to upload, we'd need to download it first.
-            # Here we assume the channel implementation handles URL downloads before calling this,
-            # or we just ignore URLs here and let the content text handle them.
-            pass
-    return files
+            links.append(m.url)
+        else:
+            failed.append(m.display_name)
+    return DiscordMedia(files, links, failed)

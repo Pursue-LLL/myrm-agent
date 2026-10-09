@@ -43,8 +43,38 @@ class TestWebhookSend:
     async def test_send_no_url(self) -> None:
         ch = WebhookChannel()
         msg = OutboundMessage(channel="webhook", recipient_id="", content="Hello", user_id="u1")
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+        assert exc_info.value.retriable is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("body", [{}, {"ok": True}, None])
+    async def test_receiver_without_message_id_still_counts_as_delivered(self, body: object) -> None:
+        ch = WebhookChannel()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = body
+        mock_client = MagicMock()
+        mock_client.post = AsyncMock(return_value=mock_resp)
+        ch._client = mock_client
+
+        msg = OutboundMessage(channel="webhook", recipient_id="https://example.com/hook", content="Hello", user_id="u1")
+        assert await ch.send(msg) is None
+        assert ch.capabilities.message_ids is False
+
+    @pytest.mark.asyncio
+    async def test_throttled_receiver_may_be_retried(self) -> None:
+        ch = WebhookChannel()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 429
+        mock_client = MagicMock()
+        mock_client.post = AsyncMock(return_value=mock_resp)
+        ch._client = mock_client
+
+        msg = OutboundMessage(channel="webhook", recipient_id="https://example.com/hook", content="Hello", user_id="u1")
+        with pytest.raises(ChannelSendError) as exc_info:
+            await ch.send(msg)
+        assert (exc_info.value.status_code, exc_info.value.retriable) == (429, True)
 
     @pytest.mark.asyncio
     async def test_send_http_error(self) -> None:

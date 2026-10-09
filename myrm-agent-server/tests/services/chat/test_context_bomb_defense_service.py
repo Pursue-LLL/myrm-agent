@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from app.services.chat.context_bomb_defense_service import (
+from app.services.chat.context_bomb_guard import (
     MESSAGE_MAX_CHARS,
     ContextBombDefenseService,
 )
@@ -50,6 +50,7 @@ def test_cleanup_transient_spillover_cache(tmp_path: Path) -> None:
     stale_file.write_text("stale content")
     past_time = time.time() - 100_000
     import os
+
     os.utime(stale_file, (past_time, past_time))
 
     removed = ContextBombDefenseService.cleanup_transient_spillover_cache(

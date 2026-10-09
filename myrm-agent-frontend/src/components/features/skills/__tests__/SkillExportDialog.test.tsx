@@ -30,7 +30,7 @@ const TRANSLATIONS: Record<string, string> = {
   changedSinceReview: 'changedSinceReview',
 };
 
-const stableT = (key: string, values?: Record<string, string | number>): string => {
+const translate = (key: string, values?: Record<string, string | number>): string => {
   let text = TRANSLATIONS[key] ?? key;
   if (values) {
     for (const [k, v] of Object.entries(values)) {
@@ -39,6 +39,7 @@ const stableT = (key: string, values?: Record<string, string | number>): string 
   }
   return text;
 };
+const stableT = Object.assign(translate, { has: () => true });
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -168,7 +169,7 @@ describe('SkillExportDialog', () => {
             line_number: 3,
             original: 'api_key=sk-secret',
             redacted: 'api_key=<REDACTED>',
-            reason: 'API key',
+            kinds: ['api_token'],
           },
         ],
       },
@@ -206,5 +207,71 @@ describe('SkillExportDialog', () => {
     });
     expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'changedSinceReview' }));
     expect(triggerDownloadMock).not.toHaveBeenCalled();
+  });
+
+  it('closes the dialog and reports when the preview cannot be loaded', async () => {
+    previewSkillPackageMock.mockRejectedValue(new Error('boom'));
+    const onOpenChange = vi.fn();
+
+    render(<SkillExportDialog skill={makeSkill()} open={true} onOpenChange={onOpenChange} />);
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'previewFailed', variant: 'destructive' }),
+      );
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('reports a failed export and keeps the dialog open', async () => {
+    previewSkillPackageMock.mockResolvedValue({
+      success: true,
+      is_safe: true,
+      error: null,
+      redactions: null,
+      eval_cases_count: 0,
+    });
+    downloadSkillMock.mockRejectedValue(new Error('disk full'));
+    const onOpenChange = vi.fn();
+
+    render(<SkillExportDialog skill={makeSkill()} open={true} onOpenChange={onOpenChange} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^export$/ })).toBeEnabled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^export$/ }));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'exportFailed', variant: 'destructive' }),
+      );
+    });
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(triggerDownloadMock).not.toHaveBeenCalled();
+  });
+
+  it('exports the original files, without applying redactions, when the author chooses to', async () => {
+    previewSkillPackageMock.mockResolvedValue({
+      success: true,
+      is_safe: false,
+      error: null,
+      redactions: {
+        'SKILL.md': [{ line_number: 3, original: 'api_key=sk-secret', redacted: 'api_key=<X>', kinds: ['api_token'] }],
+      },
+      eval_cases_count: 0,
+      review_digest: 'digest-2',
+    });
+    downloadSkillMock.mockResolvedValue({ blob: new Blob(['zip']), filename: 'demo.zip' });
+
+    render(<SkillExportDialog skill={makeSkill()} open={true} onOpenChange={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'exportOriginal' })).toBeEnabled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'exportOriginal' }));
+
+    await waitFor(() => {
+      expect(downloadSkillMock).toHaveBeenCalledWith('skill-1', false, {}, 'agent_plugin', 'digest-2');
+    });
   });
 });

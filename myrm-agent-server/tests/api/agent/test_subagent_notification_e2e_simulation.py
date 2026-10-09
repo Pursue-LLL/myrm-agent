@@ -128,8 +128,10 @@ async def test_intelligent_agent_subagent_notification_no_injection(client: Test
     logger.info("=" * 60)
 
     # Prepare request
+    # The WebUI always sends a chatId; evicted tool output is only persisted (and readable) inside a chat scope.
     request_payload = {
         "messageId": str(uuid.uuid4()),
+        "chatId": str(uuid.uuid4()),
         "query": "帮我搜索2026年最新的AI监管政策",
         "modelSelection": get_model_selection(),
         "actionMode": "agent",
@@ -217,6 +219,7 @@ async def test_intelligent_agent_with_sync_subagent_backward_compatibility(clien
 
     request_payload = {
         "messageId": str(uuid.uuid4()),
+        "chatId": str(uuid.uuid4()),
         "query": "告诉我今天的日期",
         "modelSelection": get_model_selection(),
         "actionMode": "agent",

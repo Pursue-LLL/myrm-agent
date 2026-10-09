@@ -7,6 +7,8 @@ instead of raw internal errors.
 
 [INPUT]
 - channels.core.bus::MessageBus (POS: async message bus)
+- channels.core.outbound_media::discard_ephemeral_media (POS: temp attachment cleanup)
+- channels.core.outbound_prepare::prepare_outbound (POS: shared outbound preparation)
 - channels.types::InboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - channels.reliability.retry::send_with_retry (POS: async retry utility with exponential backoff)
 - channels.rendering.renderer::render (POS: outbound message formatting pipeline)
@@ -33,10 +35,9 @@ from functools import partial
 
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 
-from app.channels.core.bus import (
-    MessageBus,
-    downgrade_components,
-)
+from app.channels.core.bus import MessageBus
+from app.channels.core.outbound_media import discard_ephemeral_media
+from app.channels.core.outbound_prepare import prepare_outbound
 from app.channels.i18n import channel_t, get_text
 from app.channels.reliability.retry import send_with_retry
 from app.channels.rendering.renderer import render
@@ -201,19 +202,22 @@ class MessageEffects:
 
         Prefers edit_placeholder_message (rich formatting with full message context)
         when the channel supports it, falling back to edit_message with text content.
-        Falls back to normal outbound publish if editing fails entirely.
+        An edit carries text only, so attachments follow as a message of their own through
+        the bus (retry, durable record and partial-delivery handling included).
+        Falls back to a normal outbound publish if editing fails entirely.
         """
         ch = self._bus.get_channel(channel)
         if not ch:
             await self._bus.publish_outbound(result)
             return
 
-        result = downgrade_components(result, ch)
+        prepared = prepare_outbound(result, ch.capabilities, channel_name=channel)
+        discard_ephemeral_media(result.media, keep_paths={m.path for m in prepared.media})
+        text_reply = dataclasses.replace(prepared, media=())
+        chunks = render(text_reply, ch.render_style)
 
-        chunks = render(result, ch.render_style)
-
-        meta = dict(result.metadata) if isinstance(result.metadata, dict) else {}
-        first_result = dataclasses.replace(result, content=chunks[0], metadata=meta)
+        meta = dict(prepared.metadata) if isinstance(prepared.metadata, dict) else {}
+        first_result = dataclasses.replace(text_reply, content=chunks[0], metadata=meta)
         first_result = await self._bus.durable_outbound.persist_direct_send(first_result)
 
         try:
@@ -229,14 +233,27 @@ class MessageEffects:
                 extract_retry_after=ch.extract_retry_after,
                 label=f"edit:{channel}",
             )
-            await self._bus.durable_outbound.ack(first_result)
-            for extra_chunk in chunks[1:]:
-                extra = dataclasses.replace(result, content=extra_chunk)
-                await self._bus.publish_outbound(extra)
         except Exception as exc:
             logger.warning("placeholder edit failed, sending normally: %s", exc)
             await self._bus.durable_outbound.ack(first_result)
-            await self._bus.publish_outbound(result)
+            await self._bus.publish_outbound(prepared)
+            return
+
+        await self._bus.durable_outbound.ack(first_result)
+        for extra_chunk in chunks[1:]:
+            extra = dataclasses.replace(text_reply, content=extra_chunk, components=(), quick_replies=())
+            await self._bus.publish_outbound(extra)
+        if prepared.media:
+            files_only = dataclasses.replace(
+                text_reply,
+                content="",
+                media=prepared.media,
+                components=(),
+                quick_replies=(),
+                reasoning=None,
+                tool_steps=(),
+            )
+            await self._bus.publish_outbound(files_only)
 
     async def cleanup_placeholder(
         self,

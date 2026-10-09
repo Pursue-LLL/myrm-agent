@@ -2,17 +2,18 @@
 
 Extracts external URLs from outbound messages, probes them concurrently via
 fast HTTP HEAD (with GET-range fallback on 403/405), caches results with TTL,
-and enforces fail-closed HOLD policy on dead links for unattended Cron/broadcast
-channels or soft-warning downgrade on interactive chats.
+and appends a soft warning for links that look dead. The message itself is never withheld.
 
 [INPUT]
-- channels.types::OutboundMessage
-- channels.types.messages::MessagePriority
+- channels.i18n::channel_t, get_locale_from_metadata (POS: localized dead-link warning)
+- channels.types.messages::OutboundMessage
 
 [OUTPUT]
-- OutboundContentGate: asynchronous link liveness and attribution gate
+- OutboundContentGate: asynchronous link liveness gate that annotates messages with dead links
 - get_outbound_content_gate(): singleton access
-- apply_outbound_content_gate(): convenience filter for MessageBus dispatch loop
+
+[POS]
+Content gate of the queued dispatch path only; direct sends skip it to stay free of network probes.
 """
 
 from __future__ import annotations
@@ -209,12 +210,11 @@ class OutboundContentGate:
         all_alive = all(r.is_alive for r in results)
         return all_alive, list(results)
 
-    async def evaluate_and_apply(self, msg: OutboundMessage) -> OutboundMessage | None:
-        """Applies outbound content gate policy to the message.
+    async def evaluate_and_apply(self, msg: OutboundMessage) -> OutboundMessage:
+        """Applies the outbound content gate to the message.
 
         - If all links are alive (or no links): returns msg unchanged.
-        - If dead links exist in Cron/broadcast messages: returns None (Fail-Closed HOLD).
-        - If dead links exist in interactive chats: appends dead-link warning note.
+        - If dead links exist: returns msg with a dead-link warning note appended.
         """
         if not self._enabled or not msg.content:
             return msg
@@ -224,22 +224,6 @@ class OutboundContentGate:
             return msg
 
         dead_links = [r for r in probe_results if not r.is_alive]
-        dead_summary = ", ".join(f"{r.url} ({r.error or 'unreachable'})" for r in dead_links)
-
-        is_cron = bool(msg.metadata and (msg.metadata.get("cron_context") or msg.metadata.get("job_id")))
-        is_broadcast = bool(msg.metadata and msg.metadata.get("broadcast"))
-
-        if is_cron or is_broadcast:
-            logger.warning(
-                "Outbound content gate HOLD fail-closed on channel '%s' (cron=%s, broadcast=%s): %s",
-                msg.channel,
-                is_cron,
-                is_broadcast,
-                dead_summary,
-            )
-            return None
-
-        # Interactive chat: annotate with warning rather than blocking
         locale = get_locale_from_metadata(msg.metadata)
         warning_tmpl = channel_t(locale, "outbound_dead_link_warning")
         if warning_tmpl == "outbound_dead_link_warning":

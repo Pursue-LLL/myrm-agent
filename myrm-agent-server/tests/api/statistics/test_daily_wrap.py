@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,6 +12,7 @@ from app.api.statistics.daily_wrap import (
     _build_activity_prompt,
     _generate_wrap_via_llm,
 )
+from app.core.utils.errors import StandardHTTPException
 from app.database.models.daily_wrap import DailyWrapCache
 
 
@@ -195,6 +197,50 @@ class TestGenerateWrapViaLlm:
             assert result is not None
             assert result["summary"] == "Good day"
             assert result["keywords"] == ["test"]
+
+    @pytest.mark.asyncio
+    async def test_stalled_model_is_cancelled_at_the_deadline(self):
+        state = {"cancelled": False}
+
+        async def _stall(*_args: object, **_kwargs: object) -> None:
+            try:
+                await asyncio.sleep(5)  # far above the patched deadline, bounded so a missing deadline fails fast
+            except asyncio.CancelledError:
+                state["cancelled"] = True
+                raise
+
+        mock_configs = MagicMock()
+        mock_configs.providers_dict = {"some": "config"}
+
+        mock_lite_cfg = MagicMock()
+        mock_lite_cfg.model = "gpt-4o-mini"
+        mock_lite_cfg.base_url = None
+        mock_lite_cfg.api_key = "test-key"
+
+        mock_llm = AsyncMock()
+        mock_llm.ainvoke = AsyncMock(side_effect=_stall)
+
+        with (
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_lite_model_config",
+                return_value=mock_lite_cfg,
+            ),
+            patch(
+                "myrm_agent_harness.toolkits.llms.create_litellm_model",
+                return_value=mock_llm,
+            ),
+            patch("app.api.statistics.daily_wrap._WRAP_LLM_TIMEOUT_S", 0.05),
+            pytest.raises(StandardHTTPException) as exc_info,
+        ):
+            await _generate_wrap_via_llm("2026-06-20", [], [], [], [])
+
+        assert exc_info.value.status_code == 408
+        assert state["cancelled"] is True
 
 
 class TestDailyWrapCacheModel:

@@ -1,6 +1,6 @@
 """Shared test infrastructure for btw-notifier integration tests.
 
-Contains the fake channel adapter, dispatcher fakes, review-store seeder,
+Contains the fake channel gateway, dispatcher fakes, review-store seeder,
 notifier harness, and event helpers used by ``test_btw_notifier_e2e.py``.
 Kept out of the test module so the test file stays focused on the cases.
 """
@@ -23,26 +23,26 @@ from myrm_agent_harness.toolkits.kanban.types import (
     VerificationResult,
 )
 
-from app.channels.reliability.retry import RetryConfig
-from app.channels.types.status import ChannelStatus
 from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 
-def _fake_channel(captured: list[object]) -> MagicMock:
-    """Build a fake channel adapter that records sent messages."""
-    ch = MagicMock()
-    ch.status = ChannelStatus.RUNNING
-    ch.retry_config = RetryConfig(max_retries=1, base_delay=0.01, max_delay=0.01, jitter=0)
-    ch.should_retry = lambda _exc: False
-    ch.extract_retry_after = lambda _exc: None
-    ch.activity = MagicMock()
+def _fake_gateway(captured: list[object], *, failures: dict[str, Exception] | None = None) -> MagicMock:
+    """Build a fake ChannelGateway whose bus records ``send_now`` messages.
 
-    async def _send(msg: object) -> None:
+    ``failures`` maps a channel name to the exception ``send_now`` raises for it.
+    """
+    gateway = MagicMock()
+
+    async def _send_now(msg: object) -> str:
+        error = (failures or {}).get(msg.channel)
+        if error is not None:
+            raise error
         captured.append(msg)
+        return "mid-1"
 
-    ch.send = _send
-    return ch
+    gateway.bus.send_now = _send_now
+    return gateway
 
 
 class _PassVerifier:
@@ -116,18 +116,15 @@ async def _make_review_store(task_id: str, metadata: dict[str, object]) -> tuple
 async def _make_notifier_harness(
     captured: list[object],
 ) -> tuple[ServerEventBus, BtwTaskNotifier, MagicMock]:
-    """Build a running BtwTaskNotifier whose channel lookups all hit one fake channel.
+    """Build a running BtwTaskNotifier whose deliveries all hit one fake gateway.
 
-    Returns the bus, the running notifier, and the patched gateway so tests can
+    Returns the bus, the running notifier, and the fake gateway so tests can
     publish events and assert on the captured OutboundMessages.
     """
     bus: ServerEventBus = PubSubBus()
     notifier = BtwTaskNotifier(bus)
     await notifier.start()
-    fake_ch = _fake_channel(captured)
-    mock_gateway = MagicMock()
-    mock_gateway.bus.channels.get.return_value = fake_ch
-    return bus, notifier, mock_gateway
+    return bus, notifier, _fake_gateway(captured)
 
 
 def _background_event(
@@ -164,16 +161,13 @@ def _background_event(
 
 @contextmanager
 def _patched_delivery(mock_gateway: MagicMock) -> Iterator[None]:
-    """Route BtwTaskNotifier channel lookups and component downgrades to the fake gateway."""
-    with (
-        patch("app.core.channel_bridge.channel_gateway", mock_gateway),
-        patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
-    ):
+    """Route BtwTaskNotifier deliveries to the fake gateway."""
+    with patch("app.core.channel_bridge.channel_gateway", mock_gateway):
         yield
 
 
 async def _wait_for_messages(captured: list[object], count: int, timeout: float = 2.0) -> None:
-    """Poll until ``count`` OutboundMessages arrive on the fake channel."""
+    """Poll until ``count`` OutboundMessages arrive on the fake gateway."""
     deadline = asyncio.get_running_loop().time() + timeout
     while len(captured) < count:
         if asyncio.get_running_loop().time() >= deadline:

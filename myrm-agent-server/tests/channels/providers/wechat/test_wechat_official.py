@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import time
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -12,7 +12,9 @@ import pytest
 from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import (
     ChannelAuthError,
+    ChannelSendError,
 )
+from app.channels.media import MediaDownloadResult
 from app.channels.providers.wechat.official_channel import (
     _MAX_TEXT_LENGTH,
     WeChatOfficialChannel,
@@ -389,56 +391,96 @@ class TestSend:
 
         assert ch._http.post.call_count == 2
 
+    def test_declares_that_wechat_official_returns_no_message_ids(self) -> None:
+        assert WeChatOfficialChannel.capabilities.message_ids is False
+
     @pytest.mark.asyncio
-    async def test_send_media_unsupported_type(self) -> None:
+    async def test_text_is_sent_before_attachments(self) -> None:
+        ch = _make_channel()
+        ok = httpx.Response(200, json={"errcode": 0}, request=httpx.Request("POST", "https://api.weixin.qq.com"))
+        ch._http = AsyncMock()
+        ch._http.post = AsyncMock(return_value=ok)
+        ch._upload_temp_media = AsyncMock(return_value="media-1")  # type: ignore[method-assign]
+
+        image = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg")
+        await ch.send(
+            OutboundMessage(channel="wechat_official", recipient_id="u1", content="caption", user_id="u1", media=(image,))
+        )
+
+        sent_types = [call.kwargs["json"]["msgtype"] for call in ch._http.post.await_args_list]
+        assert sent_types == ["text", "image"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "attachment",
+        [
+            MediaAttachment(media_type=MediaType.DOCUMENT, url="https://example.com/doc.pdf"),
+            MediaAttachment(media_type=MediaType.IMAGE),
+            MediaAttachment(media_type=MediaType.IMAGE, path="/nonexistent/chart.png"),
+        ],
+        ids=["unsupported-type", "no-source", "missing-file"],
+    )
+    async def test_undeliverable_attachment_is_reported_not_dropped(self, attachment: MediaAttachment) -> None:
         ch = _make_channel()
         ch._http = AsyncMock()
+        msg = OutboundMessage(channel="wechat_official", recipient_id="u1", content="", user_id="u1", media=(attachment,))
 
-        attachment = MediaAttachment(media_type=MediaType.DOCUMENT, url="https://example.com/doc.pdf")
-        msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,))
-        await ch.send(msg)
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
 
-    @pytest.mark.asyncio
-    async def test_send_media_no_url(self) -> None:
-        ch = _make_channel()
-        ch._http = AsyncMock()
-
-        attachment = MediaAttachment(media_type=MediaType.IMAGE)
-        msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,))
-        await ch.send(msg)
+        assert excinfo.value.failed_attachments == (attachment.display_name,)
+        assert excinfo.value.accepted is False  # nothing reached the recipient
+        assert excinfo.value.retriable is False  # retrying cannot help; the bus falls back to text right away
 
     @pytest.mark.asyncio
-    async def test_send_media_download_failure(self) -> None:
+    async def test_failed_download_is_reported(self) -> None:
         ch = _make_channel()
         ch._http = AsyncMock()
         ch._http.get = AsyncMock(side_effect=httpx.ConnectError("fail"))
-
         attachment = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg")
-        msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,))
-        await ch.send(msg)
+        msg = OutboundMessage(channel="wechat_official", recipient_id="u1", content="", user_id="u1", media=(attachment,))
+
+        with pytest.raises(ChannelSendError, match="img.example.com") as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.retriable is True  # a failed download may be transient
 
     @pytest.mark.asyncio
-    async def test_send_media_upload_no_media_id(self) -> None:
+    async def test_upload_without_media_id_is_reported(self) -> None:
         ch = _make_channel()
-
-        dl_resp = httpx.Response(
-            200,
-            content=b"image-bytes",
-            request=httpx.Request("GET", "https://img.example.com/1.jpg"),
-        )
-        upload_resp = httpx.Response(
-            200,
-            json={"errcode": 40004},
-            request=httpx.Request("POST", "https://api.weixin.qq.com"),
-        )
-
+        upload_resp = httpx.Response(200, json={"errcode": 40004}, request=httpx.Request("POST", "https://api.weixin.qq.com"))
         ch._http = AsyncMock()
-        ch._http.get = AsyncMock(return_value=dl_resp)
         ch._http.post = AsyncMock(return_value=upload_resp)
-
         attachment = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg")
-        msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,))
-        await ch.send(msg)
+        msg = OutboundMessage(channel="wechat_official", recipient_id="u1", content="", user_id="u1", media=(attachment,))
+        downloaded = MediaDownloadResult(
+            success=True, data=b"image-bytes", content_type="image/jpeg", error=None, url=attachment.url or "", size_bytes=11
+        )
+
+        with (
+            patch("app.channels.media.downloader.MediaDownloader.download", new_callable=AsyncMock, return_value=downloaded),
+            pytest.raises(ChannelSendError, match="img.example.com") as excinfo,
+        ):
+            await ch.send(msg)
+
+        ch._http.post.assert_awaited_once()  # the upload really was attempted
+        assert excinfo.value.retriable is False  # the platform rejected the upload itself
+
+    @pytest.mark.asyncio
+    async def test_failed_attachment_after_delivered_text_is_a_partial_delivery(self) -> None:
+        ch = _make_channel()
+        ok = httpx.Response(200, json={"errcode": 0}, request=httpx.Request("POST", "https://api.weixin.qq.com"))
+        ch._http = AsyncMock()
+        ch._http.post = AsyncMock(return_value=ok)
+        good = MediaAttachment(media_type=MediaType.IMAGE, filename="a.png", url="https://img.example.com/a.png")
+        bad = MediaAttachment(media_type=MediaType.DOCUMENT, filename="b.pdf", url="https://example.com/b.pdf")
+        ch._upload_temp_media = AsyncMock(return_value="media-1")  # type: ignore[method-assign]
+        msg = OutboundMessage(channel="wechat_official", recipient_id="u1", content="here", user_id="u1", media=(good, bad))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        assert excinfo.value.accepted is True  # text and the first attachment arrived: never replay them
+        assert excinfo.value.failed_attachments == ("b.pdf",)
 
 
 # ── Passive Reply ──────────────────────────────────────────────────────

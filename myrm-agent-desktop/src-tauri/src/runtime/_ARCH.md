@@ -32,7 +32,7 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js 进程生�
 | `setup_token.rs` | 核心 | WebUI Remote Setup Token IPC | — |
 | `port.rs` | 工具 | 端口占用检测 | — |
 | `survivor_diag.rs` | 核心 | 端口幸存者跨平台命令行与路径诊断、安全 Re-kill 自愈回收与 TCP 释放确认 | ✅ |
-| `process_registry/` | 核心 | 桌面受管进程注册中心（多 Sidecar 全生命周期追踪与定向销毁） | ✅ |
+| `process_registry/` | 核心 | 桌面受管进程注册中心（多 Sidecar 全生命周期追踪） | ✅ |
 | `inline_input.rs` | 核心 | Inline Input 全局快捷键与 paste_back | ✅ |
 | `appshot/` | 核心 | Appshot 截屏、Voice PTT、窗口 toggle | ✅ |
 

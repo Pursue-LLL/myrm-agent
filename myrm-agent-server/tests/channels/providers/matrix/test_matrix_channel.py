@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers.matrix import MatrixChannel
 from app.channels.providers.matrix.channel import _MAUTRIX_AVAILABLE
 from app.channels.providers.matrix.media import (
@@ -260,8 +261,9 @@ class TestMatrixSend:
         msg.content = "hello"
         msg.media = ()
         msg.reply_to_id = ""
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.retriable is True  # the sync loop may reconnect before the retry
 
     @pytest.mark.asyncio
     async def test_send_text_success(self) -> None:
@@ -302,8 +304,45 @@ class TestMatrixSend:
         msg.user_id = "@user:example.com"
         msg.metadata = None
 
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError, match="forbidden"):
+            await ch.send(msg)
+
+    @pytest.mark.asyncio
+    async def test_text_goes_out_before_attachments_and_a_failed_upload_is_a_partial_delivery(self) -> None:
+        ch = MatrixChannel(homeserver="https://matrix.example.com", access_token="tok")
+        ch._status = ChannelStatus.RUNNING
+        mock_client = AsyncMock()
+        mock_client.send_message_event = AsyncMock(return_value="$text")
+        mock_client.get_joined_members = AsyncMock(return_value={})
+        mock_client.upload_media = AsyncMock(side_effect=Exception("too large"))
+        ch._client = mock_client
+
+        report = MediaAttachment(path=__file__, media_type=MediaType.DOCUMENT, filename="report.pdf")
+        msg = OutboundMessage(
+            channel="matrix", recipient_id="!room:example.com", content="Here", user_id="@user:example.com", media=(report,)
+        )
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        mock_client.send_message_event.assert_awaited_once()  # the text event; the file never became an event
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
+        assert excinfo.value.failed_attachments == ("report.pdf",)
+
+    @pytest.mark.asyncio
+    async def test_files_only_message_returns_the_media_event_id(self) -> None:
+        ch = MatrixChannel(homeserver="https://matrix.example.com", access_token="tok")
+        ch._status = ChannelStatus.RUNNING
+        mock_client = AsyncMock()
+        mock_client.send_message_event = AsyncMock(return_value="$media")
+        mock_client.upload_media = AsyncMock(return_value="mxc://example.com/abc")
+        ch._client = mock_client
+
+        report = MediaAttachment(path=__file__, media_type=MediaType.DOCUMENT, filename="report.pdf")
+        msg = OutboundMessage(
+            channel="matrix", recipient_id="!r:example.com", content="", user_id="@u:example.com", media=(report,)
+        )
+
+        assert await ch.send(msg) == "$media"
 
 
 @_requires_mautrix
@@ -532,8 +571,9 @@ class TestMatrixSendMedia:
     async def test_send_media_no_url_no_path(self) -> None:
         mock_client = AsyncMock()
         att = MediaAttachment(media_type=MediaType.IMAGE)
-        result = await send_media(mock_client, "!room:example.com", att, False)
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await send_media(mock_client, "!room:example.com", att, False)
+        assert excinfo.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_send_media_no_client(self) -> None:
@@ -541,8 +581,31 @@ class TestMatrixSendMedia:
             url="mxc://example.com/img",
             media_type=MediaType.IMAGE,
         )
-        result = await send_media(None, "!room:example.com", att, False)
-        assert result is None
+        with pytest.raises(ChannelSendError):
+            await send_media(None, "!room:example.com", att, False)
+
+    @pytest.mark.asyncio
+    async def test_send_media_http_url_cannot_be_forwarded(self) -> None:
+        att = MediaAttachment(url="https://example.com/a.png", media_type=MediaType.IMAGE)
+        with pytest.raises(ChannelSendError) as excinfo:
+            await send_media(AsyncMock(), "!room:example.com", att, False)
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_send_media_missing_local_file_is_permanent(self) -> None:
+        att = MediaAttachment(path="/nonexistent/a.png", media_type=MediaType.IMAGE)
+        with pytest.raises(ChannelSendError) as excinfo:
+            await send_media(AsyncMock(), "!room:example.com", att, False)
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_send_media_event_failure_is_raised(self) -> None:
+        mock_client = AsyncMock()
+        mock_client.send_message_event = AsyncMock(side_effect=Exception("homeserver down"))
+        att = MediaAttachment(url="mxc://example.com/img", media_type=MediaType.IMAGE)
+        with pytest.raises(ChannelSendError, match="homeserver down") as excinfo:
+            await send_media(mock_client, "!room:example.com", att, False)
+        assert excinfo.value.retriable is True
 
 
 class TestMatrixCredentialSpec:

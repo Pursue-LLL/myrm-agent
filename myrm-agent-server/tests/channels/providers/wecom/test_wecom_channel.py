@@ -434,6 +434,52 @@ class TestWeComMediaDownload:
 
 
 class TestWeComSend:
+    def test_declares_that_wecom_returns_no_message_ids(self) -> None:
+        assert WeComChannel.capabilities.message_ids is False
+
+    @pytest.mark.asyncio
+    async def test_failed_attachment_after_text_is_a_partial_delivery(self) -> None:
+        ch = _make_channel()
+        ok = _ok_json()
+        bad = MediaAttachment(media_type=MediaType.IMAGE, filename="chart.png", path="/nonexistent/chart.png")
+        msg = OutboundMessage(channel="wecom", recipient_id="user1", content="here", user_id="U", media=(bad,))
+        with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=ok) as post:
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(msg)
+
+        assert post.await_count == 1  # the text went out first
+        assert excinfo.value.accepted is True
+        assert excinfo.value.failed_attachments == ("chart.png",)
+
+    @pytest.mark.asyncio
+    async def test_media_only_message_with_a_missing_file_is_not_retried(self) -> None:
+        ch = _make_channel()
+        bad = MediaAttachment(media_type=MediaType.IMAGE, filename="chart.png", path="/nonexistent/chart.png")
+        msg = OutboundMessage(channel="wecom", recipient_id="user1", content="", user_id="U", media=(bad,))
+
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        assert excinfo.value.accepted is False  # nothing reached the recipient
+        assert excinfo.value.retriable is False  # the file will not appear on retry; the bus falls back to text
+
+    @pytest.mark.asyncio
+    async def test_media_only_message_with_a_failed_download_stays_retriable(self) -> None:
+        ch = _make_channel()
+        att = MediaAttachment(media_type=MediaType.IMAGE, filename="chart.png", url="https://img.example.com/chart.png")
+        msg = OutboundMessage(channel="wecom", recipient_id="user1", content="", user_id="U", media=(att,))
+        failed = MediaDownloadResult(
+            success=False, data=None, content_type=None, error="timeout", url=att.url or "", size_bytes=0
+        )
+
+        with (
+            patch("app.channels.media.downloader.MediaDownloader.download", new_callable=AsyncMock, return_value=failed),
+            pytest.raises(ChannelSendError) as excinfo,
+        ):
+            await ch.send(msg)
+
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (False, True)
+
     @pytest.mark.asyncio
     async def test_send_chunk_retry_failure(self) -> None:
         from app.channels.core.exceptions import ChannelSendError
@@ -552,23 +598,23 @@ class TestWeComMediaUpload:
         ch = _make_channel()
         resp = _ok_json({"errcode": 40004, "errmsg": "invalid media type"})
         with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=resp):
-            result = await ch._upload_media("image", b"data", "img.png", "image/png")
-        assert result is None
+            with pytest.raises(ChannelSendError, match="errcode=40004"):
+                await ch._upload_media("image", b"data", "img.png", "image/png")
 
     @pytest.mark.asyncio
     async def test_upload_non_json(self) -> None:
         ch = _make_channel()
         resp = httpx.Response(200, content=b"not json")
         with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=resp):
-            result = await ch._upload_media("image", b"data", "img.png", "image/png")
-        assert result is None
+            with pytest.raises(ChannelSendError, match="non-JSON"):
+                await ch._upload_media("image", b"data", "img.png", "image/png")
 
     @pytest.mark.asyncio
-    async def test_upload_exception(self) -> None:
+    async def test_upload_transport_error_propagates(self) -> None:
         ch = _make_channel()
-        with patch.object(ch._http, "post", new_callable=AsyncMock, side_effect=Exception("net")):
-            result = await ch._upload_media("image", b"data", "img.png", "image/png")
-        assert result is None
+        with patch.object(ch._http, "post", new_callable=AsyncMock, side_effect=httpx.ConnectError("net")):
+            with pytest.raises(httpx.ConnectError):
+                await ch._upload_media("image", b"data", "img.png", "image/png")
 
 
 # ── Send media flow ───────────────────────────────────────────
@@ -615,16 +661,46 @@ class TestWeComSendMedia:
             await ch._send_media("user1", att)
 
     @pytest.mark.asyncio
-    async def test_send_media_no_data(self) -> None:
+    async def test_send_media_without_a_source_is_permanent(self) -> None:
         ch = _make_channel()
         att = MediaAttachment(media_type=MediaType.IMAGE)
-        await ch._send_media("user1", att)
+        with pytest.raises(ChannelSendError, match="neither url nor path") as excinfo:
+            await ch._send_media("user1", att)
+        assert excinfo.value.retriable is False
+
+    @pytest.mark.asyncio
+    async def test_send_media_empty_download_has_no_readable_content(self) -> None:
+        ch = _make_channel()
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg")
+        empty = MediaDownloadResult(success=True, data=b"", content_type=None, error=None, url=att.url or "", size_bytes=0)
+        with (
+            patch("app.channels.media.downloader.MediaDownloader.download", new_callable=AsyncMock, return_value=empty),
+            pytest.raises(ChannelSendError, match="no readable content"),
+        ):
+            await ch._send_media("user1", att)
 
     @pytest.mark.asyncio
     async def test_send_media_path_read_error(self) -> None:
         ch = _make_channel()
         att = MediaAttachment(media_type=MediaType.IMAGE, path="/nonexistent/file.png")
-        await ch._send_media("user1", att)
+        with pytest.raises(ChannelSendError, match="read failed"):
+            await ch._send_media("user1", att)
+
+    @pytest.mark.asyncio
+    async def test_send_media_platform_rejection_is_raised(self) -> None:
+        ch = _make_channel()
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg")
+        upload_resp = _ok_json({"errcode": 0, "media_id": "mid"})
+        reject_resp = _ok_json({"errcode": 45009, "errmsg": "api freq out of limit"})
+        download = MediaDownloadResult(
+            success=True, data=b"x", content_type="image/jpeg", error=None, url=att.url or "", size_bytes=1
+        )
+        with (
+            patch("app.channels.media.downloader.MediaDownloader.download", new_callable=AsyncMock, return_value=download),
+            patch.object(ch._http, "post", new_callable=AsyncMock, side_effect=[upload_resp, reject_resp]),
+            pytest.raises(ChannelSendError, match="45009"),
+        ):
+            await ch._send_media("user1", att)
 
 
 # ── Static helpers ────────────────────────────────────────────

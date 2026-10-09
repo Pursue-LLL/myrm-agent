@@ -323,6 +323,27 @@ class TestEmitSourceChatDone:
         assert queue.empty()
 
 
+def _deliver_data(**overrides: object) -> dict[str, object]:
+    data: dict[str, object] = {
+        "channel": "discord",
+        "chat_id": "ch1",
+        "status": "completed",
+        "title": "test task",
+        "result": "done",
+        "thread_id": "th1",
+        "user_id": "uid1",
+        "locale": "en",
+    }
+    data.update(overrides)
+    return data
+
+
+def _gateway_with_send_now(**send_now_kwargs: object) -> MagicMock:
+    gateway = MagicMock()
+    gateway.bus.send_now = AsyncMock(**send_now_kwargs)
+    return gateway
+
+
 class TestBtwTaskNotifier:
     """Unit tests for BtwTaskNotifier lifecycle and delivery."""
 
@@ -345,73 +366,29 @@ class TestBtwTaskNotifier:
     async def test_deliver_sends_to_channel(self) -> None:
         from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-        bus = _make_event_bus()
-        notifier = BtwTaskNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.send = AsyncMock()
-        mock_channel.retry_config = MagicMock()
-        mock_channel.should_retry = MagicMock(return_value=False)
-        mock_channel.extract_retry_after = MagicMock(return_value=None)
-        mock_channel.activity = MagicMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
-        mock_send_with_retry = AsyncMock()
+        notifier = BtwTaskNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
 
         with (
-            patch(
-                "app.core.channel_bridge.btw_notifier.channel_t",
-                return_value="Test notification",
-            ),
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="Test notification"),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
-            await notifier._deliver(
-                {
-                    "channel": "discord",
-                    "chat_id": "ch1",
-                    "status": "completed",
-                    "title": "test task",
-                    "result": "done",
-                    "thread_id": "th1",
-                    "user_id": "uid1",
-                    "locale": "en",
-                }
-            )
+            await notifier._deliver(_deliver_data())
 
-            mock_send_with_retry.assert_called_once()
-            sent_msg = mock_send_with_retry.call_args[0][1]
-            assert sent_msg.channel == "discord"
-            assert sent_msg.recipient_id == "ch1"
-            assert sent_msg.user_id == "uid1"
-            assert sent_msg.content == "Test notification"
+        mock_gateway.bus.send_now.assert_awaited_once()
+        sent_msg = mock_gateway.bus.send_now.call_args[0][0]
+        assert sent_msg.channel == "discord"
+        assert sent_msg.recipient_id == "ch1"
+        assert sent_msg.user_id == "uid1"
+        assert sent_msg.content == "Test notification"
 
     @pytest.mark.asyncio
     async def test_deliver_adds_mobile_status_button_when_task_id_present(self) -> None:
         from app.channels.types.components import ActionButton, ButtonStyle
         from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-        bus = _make_event_bus()
-        notifier = BtwTaskNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.send = AsyncMock()
-        mock_channel.retry_config = MagicMock()
-        mock_channel.should_retry = MagicMock(return_value=False)
-        mock_channel.extract_retry_after = MagicMock(return_value=None)
-        mock_channel.activity = MagicMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
-        mock_send_with_retry = AsyncMock()
+        notifier = BtwTaskNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
         mobile_components = (
             (
                 ActionButton(
@@ -427,12 +404,7 @@ class TestBtwTaskNotifier:
         mock_chat.id = "chat-uuid-1"
 
         with (
-            patch(
-                "app.core.channel_bridge.btw_notifier.channel_t",
-                return_value="Test notification",
-            ),
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="Test notification"),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
             patch(
                 "app.services.chat.chat_service.ChatService.get_channel_chat_by_key",
@@ -444,50 +416,27 @@ class TestBtwTaskNotifier:
                 AsyncMock(return_value=mobile_components),
             ),
         ):
-            await notifier._deliver(
-                {
-                    "channel": "discord",
-                    "chat_id": "ch1",
-                    "status": "completed",
-                    "title": "test task",
-                    "result": "done",
-                    "thread_id": "th1",
-                    "user_id": "uid1",
-                    "locale": "en",
-                    "task_id": "task-42",
-                }
-            )
+            await notifier._deliver(_deliver_data(task_id="task-42"))
 
-            mock_send_with_retry.assert_called_once()
-            sent_msg = mock_send_with_retry.call_args[0][1]
-            assert sent_msg.components == mobile_components
+        mock_gateway.bus.send_now.assert_awaited_once()
+        sent_msg = mock_gateway.bus.send_now.call_args[0][0]
+        assert sent_msg.components == mobile_components
 
     @pytest.mark.asyncio
-    async def test_deliver_skips_missing_channel(self) -> None:
+    async def test_deliver_swallows_undeliverable_channel(self) -> None:
+        from app.channels.core.exceptions import ChannelSendError
         from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-        bus = _make_event_bus()
-        notifier = BtwTaskNotifier(bus)
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = None
+        notifier = BtwTaskNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(side_effect=ChannelSendError("No channel registered for 'nonexistent'"))
 
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
-            await notifier._deliver(
-                {
-                    "channel": "nonexistent",
-                    "chat_id": "c1",
-                    "status": "completed",
-                    "title": "t",
-                    "result": "",
-                    "thread_id": "",
-                    "user_id": "",
-                    "locale": "en",
-                }
-            )
+            await notifier._deliver(_deliver_data(channel="nonexistent", thread_id="", user_id=""))
+
+        mock_gateway.bus.send_now.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_deliver_skips_empty_channel(self) -> None:
@@ -506,116 +455,34 @@ class TestBtwTaskNotifier:
         await notifier._deliver({"channel": "discord", "chat_id": ""})
 
     @pytest.mark.asyncio
-    async def test_deliver_skips_stopped_channel(self) -> None:
-        from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
-
-        bus = _make_event_bus()
-        notifier = BtwTaskNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.STOPPED
-        mock_channel.send = AsyncMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
-
-        with (
-            patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
-            patch("app.core.channel_bridge.channel_gateway", mock_gateway),
-        ):
-            await notifier._deliver(
-                {
-                    "channel": "stopped-ch",
-                    "chat_id": "c1",
-                    "status": "completed",
-                    "title": "t",
-                    "result": "",
-                    "thread_id": "",
-                    "user_id": "",
-                    "locale": "en",
-                }
-            )
-
-        mock_channel.send.assert_not_called()
-
-    @pytest.mark.asyncio
     async def test_deliver_handles_send_failure(self) -> None:
         from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-        bus = _make_event_bus()
-        notifier = BtwTaskNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.activity = MagicMock()
-        mock_send_with_retry = AsyncMock(side_effect=ConnectionError("network down"))
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
+        notifier = BtwTaskNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(side_effect=ConnectionError("network down"))
 
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
-            await notifier._deliver(
-                {
-                    "channel": "test",
-                    "chat_id": "c1",
-                    "status": "completed",
-                    "title": "t",
-                    "result": "",
-                    "thread_id": "",
-                    "user_id": "",
-                    "locale": "en",
-                }
-            )
+            await notifier._deliver(_deliver_data(channel="test", thread_id="", user_id=""))
 
-        mock_channel.activity.record_error.assert_called_once()
+        mock_gateway.bus.send_now.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_deliver_no_thread_id_metadata_is_none(self) -> None:
         from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-        bus = _make_event_bus()
-        notifier = BtwTaskNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.activity = MagicMock()
-        mock_send_with_retry = AsyncMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
+        notifier = BtwTaskNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
 
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
-            await notifier._deliver(
-                {
-                    "channel": "test",
-                    "chat_id": "c1",
-                    "status": "completed",
-                    "title": "t",
-                    "result": "",
-                    "thread_id": "",
-                    "user_id": "u1",
-                    "locale": "en",
-                }
-            )
+            await notifier._deliver(_deliver_data(channel="test", thread_id="", user_id="u1"))
 
-            sent_msg = mock_send_with_retry.call_args[0][1]
-            assert sent_msg.metadata is None
+        assert mock_gateway.bus.send_now.call_args[0][0].metadata is None
 
     @pytest.mark.asyncio
     async def test_stop_when_not_started(self) -> None:
@@ -642,44 +509,16 @@ class TestBtwTaskNotifier:
     async def test_user_id_fallback(self) -> None:
         from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-        bus = _make_event_bus()
-        notifier = BtwTaskNotifier(bus)
-
-        from app.channels.types.status import ChannelStatus
-
-        mock_channel = MagicMock()
-        mock_channel.status = ChannelStatus.RUNNING
-        mock_channel.send = AsyncMock()
-        mock_channel.retry_config = MagicMock()
-        mock_channel.should_retry = MagicMock(return_value=False)
-        mock_channel.extract_retry_after = MagicMock(return_value=None)
-        mock_channel.activity = MagicMock()
-
-        mock_gateway = MagicMock()
-        mock_gateway.bus.channels.get.return_value = mock_channel
-        mock_send_with_retry = AsyncMock()
+        notifier = BtwTaskNotifier(_make_event_bus())
+        mock_gateway = _gateway_with_send_now(return_value="mid-1")
 
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
-            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
-            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
-            await notifier._deliver(
-                {
-                    "channel": "test",
-                    "chat_id": "c1",
-                    "status": "completed",
-                    "title": "t",
-                    "result": "",
-                    "thread_id": "",
-                    "user_id": "",
-                    "locale": "en",
-                }
-            )
+            await notifier._deliver(_deliver_data(channel="test", thread_id="", user_id=""))
 
-            sent_msg = mock_send_with_retry.call_args[0][1]
-            assert sent_msg.user_id == "local-user"
+        assert mock_gateway.bus.send_now.call_args[0][0].user_id == "local-user"
 
 
 class TestFormatNotification:

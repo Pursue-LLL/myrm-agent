@@ -32,6 +32,12 @@ from app.schemas.dreaming_governance import (
     EntryLockRequest,
     SchedulerTriggerRequest,
 )
+from app.schemas.dreaming_prune import (
+    DreamingRunPruneRequest,
+    DreamingRunPruneResponse,
+    PrunedRecordDTO,
+    SynthesizedInsightDTO,
+)
 from app.services.memory.dreaming import get_dream_diary_service
 
 router = APIRouter(prefix="/dream-diary", tags=["memory-dream-diary"])
@@ -274,3 +280,91 @@ async def surgical_unlearn_session(
         "status": "success",
         "report": report.to_dict(),
     }
+
+
+@router.post(
+    "/synthesize-and-prune",
+    response_model=DreamingRunPruneResponse,
+    summary="Autonomous dreaming consolidation and memory pruning",
+)
+def run_synthesize_and_prune(
+    payload: DreamingRunPruneRequest,
+) -> DreamingRunPruneResponse:
+    """Run autonomous cross-session dreaming and pruning consolidation."""
+    service = get_dream_diary_service()
+
+    fragments: list[DreamSessionFragment] = []
+    for frag in payload.fragments:
+        mem_dicts = [
+            {
+                "id": m.id,
+                "memory_id": m.memory_id,
+                "content": m.content,
+                "confidence": m.confidence,
+                "evidence": m.evidence,
+            }
+            for m in frag.memories
+        ]
+        fragments.append(
+            DreamSessionFragment(
+                session_id=frag.session_id,
+                memories=mem_dicts,
+                topic_keywords=frag.topic_keywords,
+                chat_turn_count=frag.chat_turn_count,
+                project_id=frag.project_id or payload.target_project_id,
+            )
+        )
+
+    raw_mem_dicts = [
+        {
+            "id": m.id,
+            "memory_id": m.memory_id,
+            "content": m.content,
+            "confidence": m.confidence,
+            "evidence": m.evidence,
+        }
+        for m in payload.raw_memories
+    ]
+
+    report = service.synthesize_and_prune(
+        fragments=fragments,
+        raw_memories=raw_mem_dicts,
+        target_project_id=payload.target_project_id,
+    )
+
+    insights_dto = [
+        SynthesizedInsightDTO(
+            entry_id=entry.entry_id,
+            cognitive_statement=entry.cognitive_statement,
+            source_session_ids=entry.source_session_ids,
+            evidence_snippets=entry.evidence_snippets,
+            confidence_delta=entry.confidence_delta,
+            status=entry.status.value,
+            created_at=entry.created_at.isoformat(),
+            project_id=entry.project_id,
+        )
+        for entry in report.synthesized_insights
+    ]
+
+    pruned_dto = [
+        PrunedRecordDTO(
+            memory_id=p.memory_id,
+            decision=p.decision.value,
+            reason=p.reason,
+            superseded_by_statement=p.superseded_by_statement,
+            pruned_at=p.pruned_at.isoformat(),
+        )
+        for p in report.pruned_records
+    ]
+
+    return DreamingRunPruneResponse(
+        run_id=report.run_id,
+        timestamp=report.timestamp.isoformat(),
+        duration_ms=report.duration_ms,
+        candidate_count=report.candidate_count,
+        synthesized_count=len(insights_dto),
+        pruned_count=len(pruned_dto),
+        synthesized_insights=insights_dto,
+        pruned_records=pruned_dto,
+    )
+

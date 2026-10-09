@@ -102,7 +102,7 @@ const SingleChip = ({ chip, disabled, onRemoveLabel }: SingleChipProps) => {
             e.stopPropagation();
             chip.onRemove?.();
           }}
-          className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-xs text-muted-foreground/70 transition-colors hover:bg-destructive/15 hover:text-destructive focus:outline-hidden"
+          className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-xs text-muted-foreground/70 transition-colors hover:bg-destructive/15 hover:text-destructive focus:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
           aria-label={`${onRemoveLabel}: ${chip.label}`}
         >
           <X size={10} />
@@ -200,7 +200,7 @@ export function ComposerContextChipStrip({
               type="button"
               onClick={onOpenCapabilityEditor}
               data-testid="composer-overload-nudge"
-              className="inline-flex cursor-pointer items-center gap-1 rounded-xs bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 transition-colors hover:bg-amber-500/20 focus:outline-hidden dark:text-amber-300 dark:hover:bg-amber-500/25"
+              className="inline-flex cursor-pointer items-center gap-1 rounded-xs bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 transition-colors hover:bg-amber-500/20 focus:outline-hidden focus-visible:ring-1 focus-visible:ring-ring dark:text-amber-300 dark:hover:bg-amber-500/25"
               title={t('overloadWarning')}
               aria-label={t('overloadAria')}
             >

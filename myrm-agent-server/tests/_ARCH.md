@@ -12,6 +12,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/browser_process_cleanup.py` | 辅助 | pytest 进程树内 browser 自动化子进程 teardown |
 | `support/test_browser_process_cleanup.py` | 单元 | browser_process_cleanup 单测（100% 覆盖） |
 | `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
+| `support/session_mock_guard.py` | 辅助 | `restore_leaked_session_mocks(mock_get_session, mock_get_session_factory)`：列在 DB 会话 `patch` 之前的上下文守卫，退出时把「补丁生效期间首次 import 而捕获了 mock」的模块全局重绑回真实可调用对象（`patch` 只还原它点名的属性）；`tests/api/{agent,skills,companion,notifications,approvals}/conftest.py` 的会话夹具共用 |
+| `support/test_session_mock_guard.py` | 单元 | 守卫回归：补丁期间首次 import 的模块在无守卫时保留 mock（复现后续用例 `no such table: user_configs`），有守卫时重绑为真实函数 |
 | `support/e2e_provider_seed.py` | 辅助 | LIVE E2E provider seed SSOT：`resolve_e2e_llm_endpoints`（OmniRoute `:20128` preflight · fail-fast，无 silent fallback）、`seed_live_e2e_providers` |
 | `support/test_e2e_provider_seed.py` | 单元 | `resolve_e2e_llm_endpoints` keep/fallback 契约 |
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
@@ -22,8 +24,14 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试 |
 | `api/memory/test_evidence_playback_api.py` | 单元 | 记忆证据链溯源、上下文切片回放与凭据脱敏 API 集成测试 |
 | `api/memory/test_command_center_graph_api.py` | 单元 | 记忆指挥中心知识图谱双视图（Hub 聚合排序、孤岛三态与连通度度数）API 单元与契约测试 |
+| `api/memory/test_pending_api.py` | 单元 | 待审批记忆 HTTP 面（`/memory/pending`）：列表、单条/批量批准与拒绝（含审批者改写文本透传、不可编辑提案 400、内部 ValueError 仍为 500），记录缺失 404 与服务端失败 500 的错误映射 |
+| `api/memory/test_command_center_actions.py` | 单元 | 记忆指挥中心治理动作分发器：待审批批准/拒绝/编辑、共享提案动作、冲突仲裁委托，以及纠正/置顶/遗忘等通用动作 |
+| `ai_agents/general_agent/test_correction_pending_roundtrip.py` | 集成 | 隐式纠正生产者 → 真实 SQLite 审批队列 → `approve` 往返：纠正提案保留目标并应用审批者改写，遗忘提案批准即归档（非硬删除），不可编辑提案拒绝改写且保持待审 |
+| `channels/routing/test_memory_pending_command.py` | 单元 | IM `/memory` 待审批：列表对纠正/遗忘提案附目标记忆摘要（含多语言），普通新增不附加；目标已变化的提案以用户语言提示，`approve all` 汇报未通过数量 |
+| `api/memory/test_pending_proposal_seed.py` | 单元 | `POST /memory/test/seed-pending-proposal` 契约（local-only 404 · correct/delete 入队 · 目标不存在或非语义记忆 404 · 重复提案 409） |
 | `api/agent/test_agent_clone_e2e.py` | 模块 | Agent 克隆 API E2E（自定义名 / 默认「(Copy)」/ 不存在 404 / 提示词与技能随克隆保留、家目录与头像不带）+ 已退役的 JSON 导入导出与工作区文件束路由不再对外提供（404/405 守卫） |
 | `integration/test_expert_export_i18n_sync.py` | 模块 | 跨层同步：专家导出的 `Omit` 原因码与 `OmittedKind` 种类须与 6 个 locale 的 `agent.expertExport.omitReason` / `omittedKinds` 键完全一致，避免导出对话框显示原始 key |
+| `integration/test_readiness_i18n_sync.py` | 模块 | 跨层同步：`ReadinessCode` 须与 6 个 locale 的 `Agent.readiness.reasons` 键完全一致，`ExportErrorCode`（重试流程码除外）须被 `agent.expertExport.errors` 覆盖，文案均非空，避免新增错误码在界面上静默降级为通用句 |
 | `services/plugins/test_export_acceptance.py` | 模块 | 专家导出验收（以官方冻结 schema 与归档字节为判据，不对内部结构做断言）：`plugin.json`/`mcp.json` schema 合规与 `ai.myrm` 独占扩展 · 归档路径安全 · 脱敏只触及秘密（其余字节不变）· 未带出清单对账（含反例）· 导出→导入→再导出定点往返 · 本地导出→云端导入的 stdio 降级 |
 | `services/plugins/test_third_party_plugin.py` | 模块 | 第三方真实插件（`fixtures/agent_plugins/third_party/hindsight/`）在平铺与单层包裹两种归档下都能解析并预览：技能与远程连接器不丢，外来 `extensions` 命名空间保持外来 |
 | `fixtures/agent_plugins/` | 辅助 | 官方冻结 JSON Schema（`plugin.schema.json` / `mcp.schema.json`）与第三方真实插件夹具（`third_party/hindsight/`，`NOTICE` 记录来源与许可） |
@@ -44,12 +52,21 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/gap_toast_chrome_e2e_contract.py` | 辅助 | Gap Toast E2E Dual-Plane SSOT（Verification=API/integration · Experience=browser send+poll；禁止 chrome_e2e body 内 agent-stream httpx） |
 | `support/bash_compressor_e2e.py` | 辅助 | bash compressor live/API E2E 共享 helper（模型 probe、workspace 压缩回放） |
 | `support/local_embedding_server.py` | 辅助 | 本地 OpenAI 兼容 embedding 端点（`/v1/embeddings`，确定性 1024 维哈希向量）；产品支持任意自托管 embedding `api_base`，用于外部 embedding 账户配额不可用时打通真实链路（`e2e/test_memory_ab_model_disclosure_chrome_e2e.py` 使用） |
+| `support/retrieval_embedding.py` | 辅助 | `configured_retrieval_embedding(api_url)`：为 Chrome E2E 写入 WebUI `retrieval.embeddingConfig`（已配置则沿用；否则用 `.env.test` 的真实 embedding 账户，缺失时回退 `local_embedding_server`），使 `create_memory_manager` 走真实嵌入 |
 | `support/e2e_wall_progress.py` | 辅助 | Chrome E2E 墙钟 progress token（R57：仅 touch，不再重置 body 计时） |
 | `../../scripts/dev/lib/e2e_core/shared_ui_session.py` | 辅助 | R51-v2 Shared UI Session Contract（marker `e2e_search_policy` · conftest env · bootstrap/`click_new_chat` 四阶段 reset） |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
 | `support/evicted_drawer_selectors.py` | 辅助 | UECD Drawer Chrome E2E 共享选择器/探针 SSOT（`data-testid` 定位 + `/files/evicted` 分页参数断言 + `drawer_mount_wait_js` 等待 lazy drawer mount） |
-| `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
+| `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装；`hide_sse_heartbeats`（同步 `TestClient`）与 `hide_sse_heartbeats_async`（`httpx.AsyncClient`）响应钩子共用同一状态机，让行解析器看不到 keep-alive 帧；`check_e2e_errors` 环境类错误 skip） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
+| `e2e/test_skill_hooks_live_chrome_e2e.py` | 模块 | 技能 command hooks 治理真实 WebUI 对话回合 Chrome LIVE E2E（PRIVATE+LIVE，六场景各自独立 `file::test` 运行以守 600s BODY 墙钟：斜杠面板选技能 chip 发送 → `[use skill]` 线上消息 → 真实模型调 bash → SessionStart/PreToolUse/PostToolUse/SessionEnd 钩子写出可观测文件；被命令门禁拒绝的第三方钩子不运行；`fail_closed` 钩子拦下工具调用；HITL 审批卡批准后恢复回合重新激活钩子；带附件（content blocks）与超长消息落盘引用两种载体仍调用技能；不带技能的后续消息不复活钩子） |
+| `support/chrome_skill_hooks_live_e2e.py` | 辅助 | 技能钩子 LIVE E2E 的后端装配：经产品 API 采纳带 `hooks:` 的本地技能，`setup_skill_chat` / `SkillChat`（providers + 持有该技能的智能体 + 空聊天），`audit_hooks()` / `fail_closed_hooks()` 生成写可观测文件的 SKILL.md `hooks:` 块 |
+| `support/chrome_skill_hooks_composer.py` | 辅助 | 技能钩子 Chrome E2E 的浏览器侧：真实 composer 里斜杠选技能 chip、可选经真实 file input 挂附件、输入并点真实发送键，HITL 审批卡等待与点击批准，转录区 chip 渲染探针 |
+| `support/chrome_skill_hooks_observe.py` | 辅助 | 技能钩子回合留下的证据：等用户消息/助手回复落库、读取钩子写出的文件与后端日志，`assert_no_hook_raised` / `assert_audit_turn_governed` |
+| `api/agent/test_sse_heartbeat_filter.py` | 模块 | agent 测试客户端（同步 `TestClient` 与异步 `httpx.AsyncClient`）对行解析器隐藏 SSE keep-alive 帧（帧由真实 `ResilientStreamBuffer` 产出，格式变更在此报红，避免 `data: null` 解析洞在流测试里重开） |
+| `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
+| `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
+| `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
 | `integration/test_repo_call_graph_integration.py` | 模块 | 代码调用图谱与改动影响面分析集成任务流测试（多语言代码库索引、正反向拓扑遍历、受影响测试套件触达、增量重索引一致性） |
 | `e2e/test_migration_readiness_gap_chrome_e2e.py` | 模块 | migration post-import readiness gap（LIVE×3 SHPOIB：`mcp_warning` · `provider_critical` · `diagnostic_critical` 各独立 `::test_*` · R139 禁 batch） |
 | `e2e/test_mem0_import_review_chrome_e2e.py` | 模块 | mem0 export 真实 UI 导入 Chrome E2E（SHARED+NAMESPACE_WRITE×1：/settings/memory file picker 上传 mem0 `memories` JSON → 前端 POST dry-run → server auto-detect=mem0 → review dialog 渲染翻译后 `sources.mem0`（C1 无 raw key 泄漏）+ `memories` 映射桶；**停在 confirm 前不写真实记忆**，写路径由 unit/API 覆盖） |
@@ -91,6 +108,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/eval/test_memory_ab_live_integration.py` | 模块 | Memory A/B Live 集成（`@pytest.mark.e2e`）：真实 embedding probe + WBBench office 真实下载构建 + 双臂真实 LLM 执行 + `memory_tool_calls` 报告 + 临时记忆卷清理（关键路径禁 mock；执行 case 数受限） |
 | `e2e/test_memory_ab_chrome_e2e.py` | 模块 | Memory A/B Chrome E2E（READ×1 + NAMESPACE_WRITE×2）：WBBench 卡片 Memory A/B 入口 + 确认对话框取消（READ）；预置双报告渲染双臂矩阵 + Run History 表（per-arm pass-rate + `memory_tool_calls`）+ 点击历史 View 加载（NAMESPACE_WRITE）；真实 run 启动（SSE running + header Stop）+ Stop abort 清理（NAMESPACE_WRITE，run 前置配本地 embedding 端点并还原 retrieval 配置，不依赖外部 embedding 账户配额） |
 | `e2e/test_memory_ab_model_disclosure_chrome_e2e.py` | 模块 | Memory A/B 模型披露 Chrome E2E（PRIVATE+LIVE）：config API 配置 providers + 本地 embedding 端点 → Eval Lab Sources 卡片 limit=1 真实 Memory A/B 双臂 run → 历史表断言 Agent Model / Judge Model 列披露（本地 embedding 端点为产品支持的自托管用法，避免外部账户配额依赖） |
+| `e2e/test_memory_pending_proposal_review_chrome_e2e.py` | 模块 | 隐式纠正提案审阅 Chrome E2E（PRIVATE+NAMESPACE_WRITE×1：真实记忆 API 建目标 → `submit_pending` 入队 CORRECT/DELETE → `/settings/memory` 待审批卡片展示「将纠正已有记忆 / 将已有记忆移入回收站 + 目标」→ UI 点「接受」→ 卡片离队，生成 `correction_of` 关联的纠正记忆 / 旧记忆进入回收站（可恢复）；失败时输出卡片可见性与 `/memory` 请求状态取证） |
 | `services/agent/test_subagent_rebind_event.py` | 模块 | `SUBAGENT_REBIND_REQUIRED` 事件：`subagent_ids` 变更时 publish、同值/非绑定字段不 emit |
 | `services/agent/readiness/test_readiness_mcp_secrets.py` | 模块 | readiness mcp 维度密钥预检（`_check_mcp` 六分支：requiredSecrets 全齐不报 / 缺失报 / headers `{{secret:KEY}}` 引用报 / disabled 跳过 / 无声明不查 / vault 异常跳过）+ org MCP 合并单测 |
 | `api/internal/test_org_mcp_sync_integration.py` | 模块 | org MCP 真实 DB 全链路集成：CP `POST /api/admin/org-mcp-sync` → ConfigService 加密落库 → `load_user_config_entry` 解密加载 → `merge_org_mcp_configs` 合并（scope=org）→ readiness `_check_mcp` 识别绑定 org server（关键路径无 mock） |

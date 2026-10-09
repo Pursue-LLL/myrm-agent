@@ -168,7 +168,7 @@ class TestEditPlaceholder:
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.channels.routing.message_effects.downgrade_components",
+                "app.channels.routing.message_effects.prepare_outbound",
                 return_value=result,
             ),
         ):
@@ -195,7 +195,7 @@ class TestEditPlaceholder:
                 side_effect=Exception("edit fail"),
             ),
             patch(
-                "app.channels.routing.message_effects.downgrade_components",
+                "app.channels.routing.message_effects.prepare_outbound",
                 return_value=result,
             ),
         ):
@@ -220,7 +220,7 @@ class TestEditPlaceholder:
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.channels.routing.message_effects.downgrade_components",
+                "app.channels.routing.message_effects.prepare_outbound",
                 return_value=result,
             ),
         ):
@@ -244,7 +244,7 @@ class TestEditPlaceholder:
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.channels.routing.message_effects.downgrade_components",
+                "app.channels.routing.message_effects.prepare_outbound",
                 return_value=result,
             ),
             patch(

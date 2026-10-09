@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.media.downloader import MediaDownloadResult
 from app.channels.providers.imessage import IMessageChannel
 from app.channels.providers.imessage.helpers import filename_from_url, mime_to_media_type
@@ -377,21 +378,24 @@ class TestIMessageSend:
     async def test_send_empty_recipient(self) -> None:
         ch = _make_channel()
         msg = OutboundMessage(channel="imessage", recipient_id="", content="Hello!", user_id="U")
-        result = await ch.send(msg)
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+        assert excinfo.value.retriable is False
 
     @pytest.mark.asyncio
-    async def test_send_text_http_error(self) -> None:
+    @pytest.mark.parametrize(("status", "retriable"), [(500, True), (404, False)])
+    async def test_send_text_http_error(self, status: int, retriable: bool) -> None:
         ch = _make_channel()
-        with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=_err_resp(500)):
+        with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=_err_resp(status)):
             msg = OutboundMessage(
                 channel="imessage",
                 recipient_id="chat1",
                 content="Hello!",
                 user_id="U",
             )
-            result = await ch.send(msg)
-        assert result is None
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(msg)
+        assert (excinfo.value.status_code, excinfo.value.retriable) == (status, retriable)
 
     @pytest.mark.asyncio
     async def test_send_text_exception(self) -> None:
@@ -403,8 +407,16 @@ class TestIMessageSend:
                 content="Hello!",
                 user_id="U",
             )
-            result = await ch.send(msg)
-        assert result is None
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(msg)
+        assert excinfo.value.retriable is True
+
+    @pytest.mark.asyncio
+    async def test_unreadable_response_leaves_delivery_unconfirmed(self) -> None:
+        ch = _make_channel()
+        with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=httpx.Response(200, text="<html>")):
+            msg = OutboundMessage(channel="imessage", recipient_id="chat1", content="Hello!", user_id="U")
+            assert await ch.send(msg) is None
 
     @pytest.mark.asyncio
     async def test_send_with_attachment(self) -> None:
@@ -459,8 +471,9 @@ class TestIMessageSend:
                 user_id="U",
                 media=(MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg"),),
             )
-            result = await ch.send(msg)
-        assert result is None
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(msg)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (False, True)  # a download can be retried
 
     @pytest.mark.asyncio
     async def test_send_attachment_http_error(self) -> None:
@@ -487,8 +500,41 @@ class TestIMessageSend:
                 user_id="U",
                 media=(MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg"),),
             )
-            result = await ch.send(msg)
-        assert result is None
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(msg)
+        assert excinfo.value.failed_attachments == ("https://img.example.com/1.jpg",)
+
+    @pytest.mark.asyncio
+    async def test_missing_local_file_is_a_permanent_attachment_failure(self) -> None:
+        ch = _make_channel()
+        msg = OutboundMessage(
+            channel="imessage",
+            recipient_id="chat1",
+            content="",
+            user_id="U",
+            media=(MediaAttachment(media_type=MediaType.IMAGE, path="/nonexistent/photo.png"),),
+        )
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (False, False)
+
+    @pytest.mark.asyncio
+    async def test_failed_attachment_after_delivered_text_is_a_partial_delivery(self) -> None:
+        ch = _make_channel()
+        post = AsyncMock(return_value=_ok_json({"data": {"guid": "text-1"}}))
+        msg = OutboundMessage(
+            channel="imessage",
+            recipient_id="chat1",
+            content="Here you go",
+            user_id="U",
+            media=(MediaAttachment(media_type=MediaType.IMAGE, path="/nonexistent/photo.png"),),
+        )
+        with patch.object(ch._http, "post", post), pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(msg)
+
+        post.assert_awaited_once()  # the text went out; the unreadable attachment never reached BlueBubbles
+        assert (excinfo.value.accepted, excinfo.value.retriable) == (True, False)
+        assert excinfo.value.failed_attachments == ("photo.png",)
 
     @pytest.mark.asyncio
     async def test_send_attachment_from_path(self) -> None:

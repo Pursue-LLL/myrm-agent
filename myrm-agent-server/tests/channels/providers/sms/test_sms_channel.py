@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers._twilio_utils import (
     port_variant_url,
     verify_twilio_signature,
@@ -218,14 +219,16 @@ class TestSMSSend:
     @pytest.mark.asyncio
     async def test_send_no_phone(self):
         ch = SMSChannel(account_sid="AC123", auth_token="token", phone_number="")
-        result = await ch.send(self._msg("+19998887777"))
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(self._msg("+19998887777"))
+        assert excinfo.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_send_no_recipient(self):
         ch = SMSChannel(account_sid="AC123", auth_token="token", phone_number="+15551234567")
-        result = await ch.send(self._msg(""))
-        assert result is None
+        with pytest.raises(ChannelSendError) as excinfo:
+            await ch.send(self._msg(""))
+        assert excinfo.value.retriable is False
 
     @pytest.mark.asyncio
     async def test_send_success(self):
@@ -255,9 +258,26 @@ class TestSMSSend:
             request=httpx.Request("POST", "https://api.twilio.com/x"),
         )
         with patch.object(ch._client, "post", new_callable=AsyncMock, return_value=mock_resp):
-            result = await ch.send(self._msg("+1bad"))
-            assert result is None
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(self._msg("+1bad"))
 
+        assert (excinfo.value.status_code, excinfo.value.retriable) == (400, False)
+        assert "Invalid To" in str(excinfo.value)
+        assert ch.health.last_error
+        await ch.stop()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", [429, 503])
+    async def test_send_throttled_or_unavailable_may_be_retried(self, status: int):
+        ch = SMSChannel(account_sid="AC123", auth_token="token", phone_number="+15551234567")
+        await ch.start()
+
+        mock_resp = httpx.Response(status, text="busy", request=httpx.Request("POST", "https://api.twilio.com/x"))
+        with patch.object(ch._client, "post", new_callable=AsyncMock, return_value=mock_resp):
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(self._msg("+19998887777"))
+
+        assert excinfo.value.retriable is True
         await ch.stop()
 
     @pytest.mark.asyncio
@@ -266,9 +286,10 @@ class TestSMSSend:
         await ch.start()
 
         with patch.object(ch._client, "post", new_callable=AsyncMock, side_effect=httpx.ConnectError("timeout")):
-            result = await ch.send(self._msg("+1999"))
-            assert result is None
+            with pytest.raises(ChannelSendError) as excinfo:
+                await ch.send(self._msg("+1999"))
 
+        assert excinfo.value.retriable is True
         await ch.stop()
 
 

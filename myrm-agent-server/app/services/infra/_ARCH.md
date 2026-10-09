@@ -28,5 +28,4 @@
 ### 被依赖方
 - `app/services/chat/`：删除聊天时调用沙箱清理
 - `app/ai_agents/general_agent/stream_pipeline.py`：`execute_stream_pipeline` 中使用 `SleepInhibitor.hold(prevent_display_sleep=…)`——运行挂载了桌面会话时同时保持显示器常亮，避免空闲熄屏锁住屏幕、打断 CU 任务
-- `app/services/locked_use/service.py`：`locked_use_session` 中使用 `SleepInhibitor.hold(prevent_display_sleep=True)`
 - `app/api/statistics/wiki_evidence.py`：治理告警写入系统通知

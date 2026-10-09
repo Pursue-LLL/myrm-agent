@@ -38,12 +38,3 @@ pub fn open_session_window(app: AppHandle, session_id: String) -> Result<(), Str
 
     Ok(())
 }
-
-#[tauri::command]
-pub fn close_session_window(app: AppHandle, session_id: String) -> Result<(), String> {
-    let label = session_window_label(&session_id);
-    if let Some(window) = app.get_webview_window(&label) {
-        window.close().map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}

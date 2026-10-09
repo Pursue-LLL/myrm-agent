@@ -136,8 +136,7 @@ class QQClient:
             raise ChannelSendError(str(exc), channel="qq") from exc
 
         if resp.status_code >= 400:
-            logger.warning("QQ send failed: HTTP %d, body=%s", resp.status_code, resp.text[:200])
-            return None
+            raise ChannelSendError.from_http_status("qq", resp.status_code, resp.text)
         return str(resp.json().get("id", "")) or None
 
     async def send_media(
@@ -148,10 +147,13 @@ class QQClient:
         msg_id: str | None,
         msg_seq: int,
     ) -> str | None:
-        """Upload media via 2-step flow: upload to /files → send msg_type=7."""
+        """Upload media via 2-step flow: upload to /files → send msg_type=7.
+
+        Raises ``ChannelSendError`` when QQ does not take the attachment; the platform only fetches public URLs.
+        """
         media_url = attachment.url
         if not media_url:
-            return None
+            raise ChannelSendError("QQ only sends media from a public URL", channel="qq", retriable=False)
 
         upload_url = build_media_upload_url(self._api_base, target_id, chat_type)
         file_type = qq_file_type(attachment)
@@ -169,17 +171,14 @@ class QQClient:
                 timeout=30.0,
             )
         except Exception as exc:
-            logger.warning("QQ media upload failed: %s", exc)
-            return None
+            raise ChannelSendError(f"QQ media upload failed: {exc}", channel="qq") from exc
 
         if resp.status_code >= 400:
-            logger.warning("QQ media upload HTTP %d: %s", resp.status_code, resp.text[:200])
-            return None
+            raise ChannelSendError.from_http_status("qq", resp.status_code, resp.text)
 
         file_info = resp.json().get("file_info")
         if not file_info:
-            logger.warning("QQ media upload returned no file_info")
-            return None
+            raise ChannelSendError("QQ media upload returned no file_info", channel="qq")
 
         send_url = build_message_url(self._api_base, target_id, chat_type)
         send_payload: dict[str, object] = {
@@ -198,12 +197,10 @@ class QQClient:
                 timeout=_SEND_TIMEOUT,
             )
         except Exception as exc:
-            logger.warning("QQ media send failed: %s", exc)
-            return None
+            raise ChannelSendError(f"QQ media send failed: {exc}", channel="qq") from exc
 
         if resp.status_code >= 400:
-            logger.warning("QQ media send HTTP %d: %s", resp.status_code, resp.text[:200])
-            return None
+            raise ChannelSendError.from_http_status("qq", resp.status_code, resp.text)
         return str(resp.json().get("id", "")) or None
 
     async def send_typing(

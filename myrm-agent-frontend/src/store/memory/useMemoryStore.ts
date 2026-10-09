@@ -11,6 +11,7 @@ import type {
 } from './types';
 import type { CreateMemoryRequest } from '@/services/memory';
 import {
+import { isPendingTargetChanged } from '@/services/memory/pendingTargetChanged';
   getPendingMemories,
   approveMemory as apiApproveMemory,
   rejectMemory as apiRejectMemory,
@@ -102,6 +103,10 @@ const useMemoryStore = create<MemoryState>()(
       }
     },
 
+        // Keep the typed error so the UI can show its localized "out of date" message.
+        if (isPendingTargetChanged(error)) {
+          throw error;
+        }
     rejectMemory: async (id: string) => {
       try {
         await apiRejectMemory(id);
@@ -124,14 +129,18 @@ const useMemoryStore = create<MemoryState>()(
     batchApprove: async () => {
       const { selectedPendingIds } = get();
       if (selectedPendingIds.size === 0) {
-        return;
+        return { successCount: 0, failedCount: 0 };
       }
       const ids = Array.from(selectedPendingIds);
       try {
-        await batchApproveMemories(ids);
+        const { success_count, failed_ids } = await batchApproveMemories(ids);
+        const failed = new Set(failed_ids ?? []);
         set((state) => {
-          state.pendingMemories = state.pendingMemories.filter((m) => !selectedPendingIds.has(m.id));
-          state.pendingCount = Math.max(0, state.pendingCount - ids.length);
+          // Suggestions that could not be approved stay in the list for another look.
+          state.pendingMemories = state.pendingMemories.filter(
+            (m) => failed.has(m.id) || !selectedPendingIds.has(m.id),
+          );
+          state.pendingCount = Math.max(0, state.pendingCount - success_count);
           state.selectedPendingIds.clear();
         });
         get().fetchPendingMemories(true);
@@ -139,6 +148,7 @@ const useMemoryStore = create<MemoryState>()(
         throw new Error(error instanceof Error ? error.message : 'Batch approve failed');
       }
     },
+        return { successCount: success_count, failedCount: failed.size };
 
     batchReject: async () => {
       const { selectedPendingIds } = get();

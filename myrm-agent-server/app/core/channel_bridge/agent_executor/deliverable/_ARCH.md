@@ -10,8 +10,8 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 交付域门面：聚合导出 media / scanner / deep_links 的对外能力。 | ✅ |
 | `media.py` | 模块 | 渠道附件大小上限统一常量 + 超限图片渐进压缩（Hermes parity），供 artifact 事件与路径扫描两链路复用。 | ✅ |
-| `scanner.py` | 模块 | Channel 回复正文 workspace 路径扫描 → IM 原生附件（跳过 code block/inline code；workspace 沙箱内解析）；超限图片压缩降级、超限文件提示。 | ✅ |
-| `deep_links.py` | 模块 | 可分享 artifact 的 IM 附件收集（含超限压缩/深链/提示三态；缺失 file_path / ingress / version_id 打 WARNING） + HMAC 深链 ActionButton 生成 + DB version 批量查询。 | ✅ |
+| `scanner.py` | 模块 | Channel 回复（及 cron 产出）正文 workspace 路径扫描 → IM 原生附件（跳过 code block/inline code；workspace 沙箱内解析）；超限图片压缩降级（压缩副本为 `ephemeral` 附件，由消息总线删除）、超限文件提示；`append_deliverable_notes` 把超限/压缩提示按用户语言追加到正文（回复终稿与 cron 投递共用）。 | ✅ |
+| `deep_links.py` | 模块 | 可分享 artifact 的 IM 附件收集（含超限压缩/深链/提示三态，压缩副本为 `ephemeral` 附件；缺失 file_path / ingress / version_id 打 WARNING） + HMAC 深链 ActionButton 生成 + DB version 批量查询。 | ✅ |
 
 ## 测试
 

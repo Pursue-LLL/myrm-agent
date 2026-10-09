@@ -8,7 +8,7 @@
 
 | 文件                | 职责                                                |
 | ------------------- | --------------------------------------------------- |
-| `useMemoryStore.ts` | 记忆列表、筛选、CRUD 乐观更新                       |
+| `useMemoryStore.ts` | 记忆列表、筛选、CRUD 乐观更新；启用 immer MapSet    |
 | `types.ts`          | `Memory`、`PendingMemory`、`MemoryStatsResponse` 等 |
 | `index.ts`          | 类型与 store 再导出（子模块唯一允许的桶入口）       |
 

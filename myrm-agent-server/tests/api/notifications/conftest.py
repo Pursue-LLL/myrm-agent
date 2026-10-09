@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database.models import Base
+from tests.support.session_mock_guard import restore_leaked_session_mocks
 
 
 @pytest.fixture(autouse=True)
@@ -33,6 +34,7 @@ async def notifications_isolated_db() -> Iterator[None]:
         return test_session
 
     with (
+        restore_leaked_session_mocks(mock_get_session, mock_get_session_factory),
         patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
         patch("app.database.connection.get_session", mock_get_session),
         patch("app.services.infra.system_notification.get_session", mock_get_session),

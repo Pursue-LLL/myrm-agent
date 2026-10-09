@@ -1,29 +1,52 @@
-"""Local-only memory evolution Chrome E2E seed route.
+"""Local-only memory Chrome E2E seed routes.
 
 [INPUT]
 app.config.deploy_mode::is_local_mode (POS: local/tauri gate)
 app.services.config.service::config_service (POS: WebUI retrieval config store)
 app.core.memory.adapters.setup::create_memory_manager (POS: real memory pipeline)
+app.services.agent.platform_config::require_platform_embedding_config (POS: WebUI embedding config resolver)
+myrm_agent_harness.toolkits.memory::MemoryManager (POS: memory facade; submit_pending queues approval proposals)
 
 [OUTPUT]
 seed_memory_evolution_fixture: POST /test/seed-evolution-fixture for Chrome E2E
+seed_pending_proposal: POST /test/seed-pending-proposal queues a CORRECT/DELETE approval proposal
 
 [POS]
-Memory API local test fixture for MemoryDetailSheet evolution history Chrome E2E.
-Bootstraps WebUI retrieval embedding config BEFORE creating the memory manager
-(dependency-injection would fail fast otherwise), then seeds one semantic memory
-carrying merge audit fields through the real memory pipeline.
+Memory API local test fixtures for Chrome E2E.
+
+The evolution fixture backs the MemoryDetailSheet evolution history E2E: it bootstraps
+WebUI retrieval embedding config BEFORE creating the memory manager (dependency-injection
+would fail fast otherwise), then seeds one semantic memory carrying merge audit fields
+through the real memory pipeline.
+
+The pending-proposal fixture backs the approval-review E2E: it queues the same
+resolution-aware record implicit-correction propagation submits, so the WebUI review and
+approve dispatch run against a real queued record. The caller owns the embedding config.
 """
 
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from app.config.deploy_mode import is_local_mode
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.memory import MemoryManager
+    from myrm_agent_harness.toolkits.vector.base import CollectionInfo
+
 router = APIRouter()
+
+
+@runtime_checkable
+class _CollectionInspector(Protocol):
+    """Vector backends that can report a collection's live metadata (e.g. Qdrant)."""
+
+    async def get_collection_info(self, name: str) -> CollectionInfo | None: ...
+
 
 _EVOLUTION_SEED_CONTENT = "E2E evolution seed - user prefers dark mode (v3)"
 _EVOLUTION_SEED_HISTORY = "09-12 10:00|MERGE|prefers dark mode\n09-13 18:30|REPLACE|moved dark mode preference to global scope"
@@ -66,6 +89,28 @@ async def _ensure_embedding_configured() -> None:
     invalidate_user_configs_cache()
 
 
+async def _create_seed_manager() -> MemoryManager:
+    """Real memory manager (approval bypassed), bound like the memory HTTP dependencies."""
+    from app.core.memory.adapters.setup import (
+        create_memory_manager,
+        resolve_context_binding,
+    )
+    from app.services.agent.platform_config import require_platform_embedding_config
+
+    embedding_cfg = await require_platform_embedding_config()
+    return await create_memory_manager(
+        resolve_context_binding(
+            namespaces=None,
+            agent_id=None,
+            channel_id=None,
+            conversation_id=None,
+            task_id=None,
+        ),
+        embedding_cfg,
+        approval_required=False,
+    )
+
+
 @router.post("/test/seed-evolution-fixture", include_in_schema=False)
 async def seed_memory_evolution_fixture() -> dict[str, str]:
     """Local dev/test only: bootstrap retrieval config, then seed a merge-audit memory.
@@ -81,32 +126,15 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
 
     from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
-    from app.core.memory.adapters.setup import (
-        create_memory_manager,
-        resolve_context_binding,
-    )
-    from app.services.agent.platform_config import require_platform_embedding_config
-
     await _ensure_embedding_configured()
-
-    embedding_cfg = await require_platform_embedding_config()
-    manager = await create_memory_manager(
-        resolve_context_binding(
-            namespaces=None,
-            agent_id=None,
-            channel_id=None,
-            conversation_id=None,
-            task_id=None,
-        ),
-        embedding_cfg,
-        approval_required=False,
-    )
+    manager = await _create_seed_manager()
 
     try:
         # 动态获取当前 semantic collection 的实际向量维度（避免硬编码 1024 与系统已配置 embedding 模型如 1536 不一致导致 broadcast 错误）
         dim = _PRESEEDED_EMBEDDING_DIM
-        if hasattr(manager, "_vector") and manager._vector:
-            col_info = await manager._vector.get_collection_info(manager._config.semantic_collection)
+        vector = manager._vector
+        if isinstance(vector, _CollectionInspector):
+            col_info = await vector.get_collection_info(manager._config.semantic_collection)
             if col_info and col_info.dimension:
                 dim = col_info.dimension
 
@@ -121,9 +149,7 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
         )
         persisted = await manager.store(base, _bypass_approval=True)
         if not isinstance(persisted, SemanticMemory):
-            raise HTTPException(
-                status_code=500, detail="seed store returned non-semantic memory"
-            )
+            raise HTTPException(status_code=500, detail="seed store returned non-semantic memory")
 
         seeded = persisted.model_copy(
             update={
@@ -146,9 +172,7 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
         )
         corrected = await manager.store(correction, _bypass_approval=True)
         if getattr(corrected, "correction_of", None) != str(persisted.id):
-            raise HTTPException(
-                status_code=500, detail="correction chain not persisted"
-            )
+            raise HTTPException(status_code=500, detail="correction chain not persisted")
 
         return {
             "id": str(persisted.id),
@@ -159,3 +183,41 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+class PendingProposalSeedRequest(BaseModel):
+    """A proposal as implicit-correction propagation submits it against a stored memory."""
+
+    content: str = Field(..., min_length=1, max_length=2000)
+    resolution_action: Literal["correct", "delete"]
+    target_memory_id: str = Field(..., min_length=1)
+
+
+@router.post("/test/seed-pending-proposal", include_in_schema=False)
+async def seed_pending_proposal(request: PendingProposalSeedRequest) -> dict[str, str]:
+    """Local dev/test only: queue a CORRECT/DELETE proposal against a stored semantic memory.
+
+    Mirrors ``correction_propagation._route_proposals_to_personal_memory``: the proposal goes
+    through ``MemoryManager.submit_pending`` and the reviewed target's content is read from the
+    stored memory, the way the planner's recall supplies it in production. Only semantic
+    memories are valid targets, matching what that recall offers.
+    """
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction, SemanticMemory
+
+    manager = await _create_seed_manager()
+    target = await manager.get_memory(request.target_memory_id)
+    if not isinstance(target, SemanticMemory):
+        raise HTTPException(status_code=404, detail="Target semantic memory not found")
+
+    pending_id = await manager.submit_pending(
+        SemanticMemory(content=request.content, confidence=0.9, importance=0.9),
+        resolution_action=PendingResolutionAction(request.resolution_action),
+        target_memory_id=request.target_memory_id,
+        target_content=target.content,
+    )
+    if not pending_id:
+        raise HTTPException(status_code=409, detail="An identical proposal is already queued")
+    return {"pending_id": pending_id}

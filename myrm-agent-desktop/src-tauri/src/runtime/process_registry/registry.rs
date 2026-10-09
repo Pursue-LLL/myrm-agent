@@ -2,20 +2,18 @@
 //!
 //! [INPUT]
 //! - super::types::{ManagedProcessEntry, ProcessRole, ProcessStatus}
-//! - crate::utils::process_tree::kill_process_tree (POS: 跨平台进程树级联销毁)
 //!
 //! [OUTPUT]
 //! - ProcessRegistry: 线程安全的全局受管进程注册中心
 //!
 //! [POS]
-//! 维护桌面端所有 Sidecar 及派生进程的生命周期，提供毫秒级事件流转与定点销毁能力。
+//! 维护桌面端所有 Sidecar 及派生进程的生命周期，提供毫秒级事件流转。
 
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use super::types::{ManagedProcessEntry, ProcessRole, ProcessStatus};
-use crate::utils::process_tree::kill_process_tree;
 
 /// 已退出历史进程最大保留条数（LRU 边界防护，防止内存无限膨胀）
 const MAX_STOPPED_HISTORY_ENTRIES: usize = 50;
@@ -91,36 +89,11 @@ impl ProcessRegistry {
         }
     }
 
-    /// 获取所有受管进程快照
-    pub async fn snapshot_all(&self) -> Vec<ManagedProcessEntry> {
-        let map = self.entries.read().await;
-        map.values().cloned().collect()
-    }
-
     /// 查询特定进程状态
     #[allow(dead_code)]
     pub async fn get_entry(&self, id: &str) -> Option<ManagedProcessEntry> {
         let map = self.entries.read().await;
         map.get(id).cloned()
-    }
-
-    /// 定向强制终止指定受管进程及其整棵子孙进程树
-    pub async fn kill_managed_process(&self, id: &str) -> Result<(), String> {
-        let pid_opt = {
-            let map = self.entries.read().await;
-            map.get(id).and_then(|e| e.pid)
-        };
-
-        if let Some(pid) = pid_opt {
-            kill_process_tree(pid);
-            self.mark_stopped(id, Some(-1)).await;
-            Ok(())
-        } else {
-            Err(format!(
-                "Process '{}' has no active PID or is not registered",
-                id
-            ))
-        }
     }
 
     /// 修剪过量的已停止/已崩溃历史记录，保持恒定内存

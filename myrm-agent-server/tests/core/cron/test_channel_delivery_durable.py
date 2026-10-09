@@ -1,4 +1,4 @@
-"""Unit tests for ChannelResultDelivery durable gate wiring."""
+"""Unit tests for ChannelResultDelivery wiring to MessageBus.send_now (durable gate, failure bookkeeping)."""
 
 from __future__ import annotations
 
@@ -13,12 +13,13 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.exceptions import ChannelSendError, DeliveryUnconfirmedError
 from app.channels.types import ChannelCapabilities, ChannelStatus, OutboundMessage
 from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 
 
 @pytest.mark.asyncio
-async def test_deliver_channel_null_send_retains_disk(tmp_path) -> None:
+async def test_deliver_channel_unconfirmed_send_raises_and_moves_to_dlq(tmp_path) -> None:
     class _NullChannel(BaseChannel):
         name = "feishu"
         capabilities = ChannelCapabilities()
@@ -47,12 +48,12 @@ async def test_deliver_channel_null_send_retains_disk(tmp_path) -> None:
     previous = channel_bridge.channel_gateway
     channel_bridge.channel_gateway = gateway
     try:
-        with pytest.raises(RuntimeError, match="no message_id"):
+        with pytest.raises(DeliveryUnconfirmedError, match="no message_id"):
             await ChannelResultDelivery().deliver(job, JobResult(success=True, output="body"))
 
-        pending = await load_pending_deliveries(base_dir=tmp_path)
-        assert len(pending) == 1
-        assert pending[0].channel == "feishu"
+        assert await load_pending_deliveries(base_dir=tmp_path) == []
+        failed = await gateway.bus.get_dlq_messages()
+        assert [item.channel for item in failed] == ["feishu"]
     finally:
         channel_bridge.channel_gateway = previous
         await gateway.stop()
@@ -90,7 +91,7 @@ async def test_deliver_disabled_channel_raises() -> None:
     previous = channel_bridge.channel_gateway
     channel_bridge.channel_gateway = gateway
     try:
-        with pytest.raises(RuntimeError, match="disabled"):
+        with pytest.raises(ChannelSendError, match="disabled"):
             await ChannelResultDelivery().deliver(job, JobResult(success=True, output="body"))
     finally:
         channel_bridge.channel_gateway = previous
@@ -109,7 +110,7 @@ async def test_deliver_missing_channel_raises() -> None:
         delivery=DeliveryConfig(channel="missing", target="chat-1"),
     )
 
-    with pytest.raises(RuntimeError, match="No channel registered"):
+    with pytest.raises(ChannelSendError, match="No channel registered"):
         await ChannelResultDelivery().deliver(job, JobResult(success=True, output="body"))
 
 

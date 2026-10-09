@@ -328,9 +328,13 @@ memory_unavailable = ℹ 记忆系统不可用。
 memory_no_pending = ℹ 没有待审批的记忆。
 memory_pending_header = 📋 **待审批记忆** ({ $count })：
 memory_pending_hint = 使用 `/memory approve <id>` 或 `/memory reject <id>` 审批，或 `/memory approve all` 一键全部批准。
+memory_pending_correct = 将替换：{ $target }
+memory_pending_trash = 将移入回收站：{ $target }
 memory_approved = ✅ 记忆 `{ $id }` 已批准。
 memory_rejected = ❌ 记忆 `{ $id }` 已拒绝。
 memory_approved_all = ✅ 已批准 { $count } 条待审批记忆。
+memory_target_changed = ℹ 记忆 `{ $id }` 已过期：它所针对的记忆在提出后发生了变化。它仍保留在待审批列表中；可用 `/memory reject { $id }` 拒绝，或暂不处理。
+memory_approved_partial = ⚠ 已批准 { $count } 条待审批记忆；另有 { $skipped } 条未能批准（它们所针对的记忆已变化，或发生错误）。它们仍保留在待审批列表中，请查看 `/memory pending`。
 memory_not_found = ℹ 未找到匹配 `{ $id }` 的待审批记忆。
 memory_error = ❌ 记忆命令执行失败，请重试。
 cmd_memory = 查看并审批待确认的记忆写入
@@ -350,6 +354,9 @@ artifact_deep_link_named = { $filename }
 deliverable_attached_only = 交付物已附上。
 deliverable_oversized_note = { $filename }（{ $size }）超出渠道附件大小限制，未作为附件发送。
 deliverable_compressed_note = { $filename }（{ $size }）超出渠道大小限制，已发送压缩版本。
+attachment_stripped_note = 附件发送失败，仅发送了文字内容。
+attachment_omitted_note = 未发送附件：{ $name }（当前聊天不支持附件）
+attachment_failed_note = 以下附件未能送达：{ $names }
 goal_completed =
     ✅ 目标已完成："{ $objective }"
     { $turns } 轮 · { $duration } 分钟 · { $files } 个文件变更

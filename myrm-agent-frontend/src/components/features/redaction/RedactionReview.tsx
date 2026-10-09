@@ -7,6 +7,7 @@ import { IconFileText } from '@/components/features/icons/PremiumIcons';
 import { Checkbox } from '@/components/primitives/checkbox';
 import { ScrollArea } from '@/components/primitives/scroll-area';
 import { cn } from '@/lib/utils/classnameUtils';
+import type { SecretKind } from '@/services/skill';
 
 import type { IgnoredRedactions, RedactionFindings } from './useRedactionDecisions';
 
@@ -24,6 +25,8 @@ interface RedactionReviewProps {
  */
 const RedactionReview = memo(({ findings, ignored, onToggle, onToggleAll, disabled = false }: RedactionReviewProps) => {
   const t = useTranslations('common.redactionReview');
+  // A kind this client has no sentence for still reads as a sentence, never as a raw key.
+  const kindLabel = (kind: SecretKind) => (t.has(`kinds.${kind}`) ? t(`kinds.${kind}`) : t('kinds.unknown'));
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card">
@@ -59,6 +62,7 @@ const RedactionReview = memo(({ findings, ignored, onToggle, onToggleAll, disabl
               <ul className="space-y-3 p-3">
                 {items.map((item, index) => {
                   const kept = (ignored[path] ?? []).includes(index);
+                  const kindsLabel = item.kinds.map(kindLabel).join(' / ');
                   return (
                     <li
                       key={index}
@@ -67,8 +71,8 @@ const RedactionReview = memo(({ findings, ignored, onToggle, onToggleAll, disabl
                         kept && 'opacity-60',
                       )}
                     >
-                      <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-start justify-between gap-2 border-b bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
+                        <div className="flex shrink-0 items-center gap-2">
                           <Checkbox
                             id={`redaction-${path}-${index}`}
                             checked={!kept}
@@ -80,7 +84,9 @@ const RedactionReview = memo(({ findings, ignored, onToggle, onToggleAll, disabl
                             {t('line', { number: item.line_number })}
                           </label>
                         </div>
-                        <span className="truncate text-amber-600 dark:text-amber-400">{item.reason}</span>
+                        <span className="min-w-0 break-words text-right text-amber-600 dark:text-amber-400">
+                          {kindsLabel}
+                        </span>
                       </div>
                       <div className="divide-y">
                         <div className="overflow-x-auto whitespace-pre bg-red-500/10 p-2 text-red-700 dark:text-red-400">

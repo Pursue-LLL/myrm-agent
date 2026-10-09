@@ -1,6 +1,7 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import {
   addRemoteProfile,
+  ensureCloudProfile,
   getActiveRemoteProfile,
   listRemoteProfiles,
   removeRemoteProfile,
@@ -71,5 +72,57 @@ describe('remote profiles roster', () => {
     removeRemoteProfile(created?.id ?? '');
     expect(getActiveRemoteProfile()).toBeNull();
     expect(setActiveRemoteProfileId('missing')).toBe(false);
+  });
+
+  describe('ensureCloudProfile', () => {
+    const CP = 'https://cp.example.com';
+
+    it('creates an active cloud profile pointing at the CP proxy', () => {
+      makeWindow();
+
+      const profile = ensureCloudProfile('Cloud sandbox', `${CP}/`);
+
+      expect(profile).toMatchObject({ name: 'Cloud sandbox', url: `${CP}/proxy/me`, kind: 'cloud', cpBaseUrl: CP });
+      expect(getActiveRemoteProfile()?.id).toBe(profile?.id);
+    });
+
+    it('re-activates the existing cloud profile instead of duplicating it', () => {
+      makeWindow();
+      const first = ensureCloudProfile('Cloud sandbox', CP);
+      addRemoteProfile('Home NUC', 'https://nuc.example.com');
+
+      const again = ensureCloudProfile('Cloud sandbox', CP);
+
+      expect(again?.id).toBe(first?.id);
+      expect(listRemoteProfiles()).toHaveLength(2);
+      expect(getActiveRemoteProfile()?.id).toBe(first?.id);
+    });
+
+    it('replaces a non-cloud profile that squats the proxy url', () => {
+      makeWindow();
+      addRemoteProfile('Manual', `${CP}/proxy/me`);
+
+      const profile = ensureCloudProfile('Cloud sandbox', CP);
+
+      expect(profile?.kind).toBe('cloud');
+      expect(listRemoteProfiles().map((p) => p.name)).toEqual(['Cloud sandbox']);
+    });
+
+    it('numbers the name when the default one is already taken', () => {
+      makeWindow();
+      addRemoteProfile('Cloud sandbox', 'https://nuc.example.com');
+
+      const profile = ensureCloudProfile('cloud sandbox', CP);
+
+      expect(profile?.name).toBe('cloud sandbox 2');
+      expect(getActiveRemoteProfile()?.id).toBe(profile?.id);
+    });
+
+    it('returns null for an invalid control plane address', () => {
+      makeWindow();
+
+      expect(ensureCloudProfile('Cloud sandbox', 'not a url')).toBeNull();
+      expect(listRemoteProfiles()).toHaveLength(0);
+    });
   });
 });

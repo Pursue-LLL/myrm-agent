@@ -2,6 +2,7 @@
 
 [INPUT]
 - channels.types::ActionButton, InboundMessage, OutboundMessage
+- channels.core.exceptions::ChannelSendError (POS: typed delivery failure)
 
 [OUTPUT]
 - BotCommand, _MediaGroupBuffer, build_inline_keyboard, send_media_attachment
@@ -18,6 +19,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.types import (
     ActionButton,
     InboundMessage,
@@ -107,7 +109,8 @@ async def send_media_attachment(
     """Send a single media attachment via the appropriate Telegram Bot API method.
 
     Intelligently routes AUDIO media based on MIME type (voice vs audio vs document)
-    and automatically falls back to send_document if size exceeds limits.
+    and automatically falls back to send_document if size exceeds limits. Raises a permanent
+    ``ChannelSendError`` when the attachment has nothing to send (no source, unreadable or empty file).
     """
     from .api import get_recommended_send_method
     from .exceptions import AudioFileTooLargeError, VoiceMessageTooLargeError
@@ -116,12 +119,16 @@ async def send_media_attachment(
     if attachment.url:
         source: str | bytes = attachment.url
     elif attachment.path:
-        source = await asyncio.to_thread(Path(attachment.path).read_bytes)
+        try:
+            source = await asyncio.to_thread(Path(attachment.path).read_bytes)
+        except OSError as exc:
+            raise ChannelSendError(
+                f"Telegram cannot read {attachment.display_name}", channel="telegram", retriable=False
+            ) from exc
     else:
-        source = None  # type: ignore[assignment]
+        raise ChannelSendError(f"Telegram has no source for {attachment.display_name}", channel="telegram", retriable=False)
     if not source:
-        logger.warning("TelegramChannel: skipping media with no url or path")
-        return
+        raise ChannelSendError(f"Telegram attachment {attachment.display_name} is empty", channel="telegram", retriable=False)
 
     caption_prefix = ""
 

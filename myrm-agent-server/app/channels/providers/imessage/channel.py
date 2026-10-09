@@ -4,6 +4,7 @@ Inbound: webhook callback → _parse_message → _emit_inbound
 Outbound: REST API (text + multipart attachment) with Tapback reactions
 
 [INPUT]
+- channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.base::BaseChannel (POS: Channel abstract base)
 
 [OUTPUT]
@@ -21,13 +22,15 @@ import hmac
 import logging
 import mimetypes
 import uuid
+from functools import partial
 from pathlib import Path
 
 import httpx
 
+from app.channels.core.attachment_delivery import deliver_attachments
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec
-from app.channels.core.exceptions import ChannelConnectionError
+from app.channels.core.exceptions import ChannelConnectionError, ChannelSendError
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     ChannelCapabilities,
@@ -284,8 +287,7 @@ class IMessageChannel(BaseChannel):
     async def send(self, msg: OutboundMessage) -> str | None:
         chat_guid = msg.recipient_id or ""
         if not chat_guid:
-            logger.warning("iMessage send: no recipient_id")
-            return None
+            raise ChannelSendError("iMessage message has no recipient", channel=self.name, retriable=False)
 
         last_guid: str | None = None
         reply_to_guid = msg.reply_to_id if msg.reply_to_id else None
@@ -294,20 +296,19 @@ class IMessageChannel(BaseChannel):
             first_chunk = True
             for chunk in render(msg, self.render_style):
                 quote_id = reply_to_guid if first_chunk else None
-                guid = await self._send_text(chat_guid, chunk, reply_to=quote_id)
-                if guid:
-                    last_guid = guid
+                last_guid = await self._send_text(chat_guid, chunk, reply_to=quote_id) or last_guid
                 first_chunk = False
 
-        for attachment in msg.media:
-            guid = await self._send_attachment(chat_guid, attachment)
-            if guid:
-                last_guid = guid
-
-        return last_guid
+        attachment_guid = await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_attachment, chat_guid),
+            text_delivered=bool(msg.content),
+        )
+        return last_guid or attachment_guid
 
     async def _send_text(self, chat_guid: str, text: str, *, reply_to: str | None = None) -> str | None:
-        """Send a text message. Returns message guid on success."""
+        """Send a text message; returns the message guid, raises ``ChannelSendError`` when BlueBubbles refuses it."""
         payload: dict[str, object] = {
             "chatGuid": chat_guid,
             "tempGuid": f"temp-{uuid.uuid4()}",
@@ -324,22 +325,15 @@ class IMessageChannel(BaseChannel):
                 json=payload,
                 timeout=SEND_TIMEOUT,
             )
-            if resp.status_code >= 400:
-                logger.warning("iMessage text send failed: HTTP %d", resp.status_code)
-                return None
-            body = resp.json()
-            return str(body.get("data", {}).get("guid", "")) if isinstance(body.get("data"), dict) else None
         except Exception as exc:
-            logger.warning("iMessage text send error: %s", exc)
-            return None
+            raise ChannelSendError(f"iMessage text send failed: {exc}", channel=self.name) from exc
+        if resp.status_code >= 400:
+            raise ChannelSendError.from_http_status(self.name, resp.status_code)
+        return self._reported_guid(resp)
 
     async def _send_attachment(self, chat_guid: str, att: MediaAttachment) -> str | None:
-        """Send a media attachment via multipart upload."""
+        """Send a media attachment via multipart upload; raises ``ChannelSendError`` when it does not arrive."""
         data, filename, mime = await self._read_media(att)
-        if not data:
-            logger.warning("iMessage attachment: no data for %s", att.filename or "unknown")
-            return None
-
         try:
             resp = await self._http.post(
                 f"{self._api_url}/api/v1/message/attachment",
@@ -352,17 +346,23 @@ class IMessageChannel(BaseChannel):
                 files={"attachment": (filename, data, mime)},
                 timeout=MEDIA_TIMEOUT,
             )
-            if resp.status_code >= 400:
-                logger.warning("iMessage attachment send failed: HTTP %d", resp.status_code)
-                return None
-            body = resp.json()
-            return str(body.get("data", {}).get("guid", "")) if isinstance(body.get("data"), dict) else None
         except Exception as exc:
-            logger.warning("iMessage attachment send error: %s", exc)
-            return None
+            raise ChannelSendError(f"iMessage attachment send failed: {exc}", channel=self.name) from exc
+        if resp.status_code >= 400:
+            raise ChannelSendError.from_http_status(self.name, resp.status_code)
+        return self._reported_guid(resp)
 
-    async def _read_media(self, att: MediaAttachment) -> tuple[bytes | None, str, str]:
-        """Read media bytes from URL or local path."""
+    @staticmethod
+    def _reported_guid(resp: httpx.Response) -> str | None:
+        """Guid BlueBubbles reports for an accepted send; an unreadable body leaves delivery unconfirmed."""
+        try:
+            data = resp.json().get("data")
+        except ValueError:
+            return None
+        return (str(data.get("guid") or "") or None) if isinstance(data, dict) else None
+
+    async def _read_media(self, att: MediaAttachment) -> tuple[bytes, str, str]:
+        """Read media bytes from URL or local path; raises ``ChannelSendError`` when neither yields data."""
         if att.url:
             from app.channels.media import (
                 MAX_FORWARD_DOWNLOAD_BYTES,
@@ -388,7 +388,8 @@ class IMessageChannel(BaseChannel):
                 mime = att.mime_type or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
                 return data, path.name, mime
 
-        return None, "", ""
+        # A failed download may work next time; a missing local file never will.
+        raise ChannelSendError(f"iMessage cannot read {att.display_name}", channel=self.name, retriable=bool(att.url))
 
     # ── Reactions ─────────────────────────────────────────────────────
 

@@ -29,7 +29,9 @@ import {
 } from '@/components/primitives/dialog';
 import { useMemoryStore } from '@/store/memory';
 import MemoryTypeIcon from '../cards/MemoryTypeIcon';
+import PendingTargetHint from '../cards/PendingTargetHint';
 import { toast } from '@/hooks/shared/useToast';
+import { approveFailureMessage } from './approveFailureMessage';
 
 const PendingMemoryDialog = memo(() => {
   const t = useTranslations('memory');
@@ -76,20 +78,17 @@ const PendingMemoryDialog = memo(() => {
     try {
       const content = isEditing && editedContent !== currentPendingMemory.content ? editedContent : undefined;
       await approveMemory(currentPendingMemory.id, content);
+      setIsEditing(false);
+      setEditedContent('');
       toast({
         title: t('approveSuccess'),
         description: t('approveSuccessDesc'),
       });
     } catch (error) {
-      toast({
-        title: t('approveFailed'),
-        description: error instanceof Error ? error.message : t('unknownError'),
-        variant: 'destructive',
-      });
+      // Keep the reviewer's edit so a failed approval can be retried without retyping.
+      toast(approveFailureMessage(t, error));
     } finally {
       setIsLoading(false);
-      setIsEditing(false);
-      setEditedContent('');
     }
   }, [currentPendingMemory, isEditing, editedContent, approveMemory, t]);
 
@@ -121,6 +120,8 @@ const PendingMemoryDialog = memo(() => {
   }
 
   const memoryType = currentPendingMemory.memory_type;
+  // Profile entries and forget proposals carry no free text to reword.
+  const canEdit = memoryType !== 'profile' && currentPendingMemory.resolution_action !== 'delete';
 
   return (
     <Dialog open={isConfirmDialogOpen} onOpenChange={handleOpenChange}>
@@ -264,6 +265,8 @@ const PendingMemoryDialog = memo(() => {
                 <p className="text-sm text-foreground leading-relaxed">{currentPendingMemory.content}</p>
               )}
 
+              <PendingTargetHint memory={currentPendingMemory} />
+
               {/* 提取推理依据 */}
               {currentPendingMemory.influence_explanation && (
                 <div className="pt-2 border-t border-border/40">
@@ -287,7 +290,7 @@ const PendingMemoryDialog = memo(() => {
 
           {/* 操作按钮 */}
           <DialogFooter className="mt-6 flex-col sm:flex-row gap-2">
-            {!isEditing && (
+            {canEdit && !isEditing && (
               <button
                 onClick={handleStartEdit}
                 disabled={isLoading}

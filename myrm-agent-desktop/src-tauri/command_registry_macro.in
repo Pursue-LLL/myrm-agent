@@ -75,7 +75,6 @@ macro_rules! tauri_command_registry {
                 crate::commands::pet_surface::pet_surface_toggle_main_window
             ),
             ("open_session_window", crate::commands::session_window::open_session_window),
-            ("close_session_window", crate::commands::session_window::close_session_window),
             ("force_appshot_capture", crate::commands::config::force_appshot_capture),
             ("migrate_data_dir", crate::commands::config::migrate_data_dir),
             ("export_local_sqlite", crate::commands::recovery::export_local_sqlite),
@@ -83,14 +82,6 @@ macro_rules! tauri_command_registry {
             (
                 "issue_sensitive_action_ticket",
                 crate::ipc_security::issue_sensitive_action_ticket
-            ),
-            (
-                "get_desktop_process_registry",
-                crate::commands::process_registry::get_desktop_process_registry
-            ),
-            (
-                "kill_desktop_process",
-                crate::commands::process_registry::kill_desktop_process
             ),
             ("set_tray_status", tray::set_tray_status),
             ("update_tray_info", tray::update_tray_info),

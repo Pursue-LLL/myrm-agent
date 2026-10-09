@@ -5,11 +5,12 @@
 
 import json
 import uuid
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager
 from typing import Optional
 from unittest.mock import patch
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.config.litellm_routing import normalize_env_model_selection_string
@@ -30,6 +31,64 @@ def force_invalid_model_llm_error(invalid_model: str) -> Iterator[None]:
         side_effect=_mock_fallback,
     ):
         yield
+
+
+_SSE_HEARTBEAT_EVENT_LINE = "event: heartbeat"
+
+
+class _HeartbeatFrameFilter:
+    """Line-by-line recognizer of SSE keep-alive frames (`event: heartbeat`, its `data: null`, the blank line)."""
+
+    def __init__(self) -> None:
+        self._inside_frame = False
+
+    def keeps(self, line: str) -> bool:
+        """Whether `line` belongs to an application event rather than to a keep-alive frame."""
+        if line == _SSE_HEARTBEAT_EVENT_LINE:
+            self._inside_frame = True
+            return False
+        if not self._inside_frame:
+            return True
+        if not line:  # the blank line closes the frame
+            self._inside_frame = False
+        return False
+
+
+def drop_sse_heartbeats(lines: Iterator[str]) -> Iterator[str]:
+    """Yield SSE lines without keep-alive frames."""
+    frames = _HeartbeatFrameFilter()
+    return (line for line in lines if frames.keeps(line))
+
+
+async def adrop_sse_heartbeats(lines: AsyncIterator[str]) -> AsyncIterator[str]:
+    """Async twin of `drop_sse_heartbeats`."""
+    frames = _HeartbeatFrameFilter()
+    async for line in lines:
+        if frames.keeps(line):
+            yield line
+
+
+def _is_sse(response: httpx.Response) -> bool:
+    return str(response.headers.get("content-type", "")).startswith("text/event-stream")
+
+
+def hide_sse_heartbeats(response: httpx.Response) -> None:
+    """httpx response hook: `iter_lines()` on a streamed SSE body yields application events only.
+
+    The server emits a keep-alive frame whenever a turn is idle for 15 s, which is routine for a
+    slow model or a loaded host. It carries no application event, so test clients drop it before
+    parsing every `data:` line as an event object.
+    """
+    if _is_sse(response):
+        iter_lines = response.iter_lines
+        response.iter_lines = lambda: drop_sse_heartbeats(iter_lines())  # type: ignore[method-assign]
+
+
+async def hide_sse_heartbeats_async(response: httpx.Response) -> None:
+    """`hide_sse_heartbeats` for `httpx.AsyncClient`: `aiter_lines()` yields application events only."""
+    if _is_sse(response):
+        aiter_lines = response.aiter_lines
+        response.aiter_lines = lambda: adrop_sse_heartbeats(aiter_lines())  # type: ignore[method-assign]
 
 
 # 顶层 error 事件中可识别为环境问题（而非真实 Agent bug）的关键字
