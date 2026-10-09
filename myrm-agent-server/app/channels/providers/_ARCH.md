@@ -18,16 +18,30 @@
 | `__init__.py` | 入口 | Channel providers — concrete channel implementations. | ✅ |
 | `_http_timeout.py` | 模块 | app.channels.providers._http_timeout — Shared HTTP timeout resolution for channel API clients. | ✅ |
 | `_twilio_utils.py` | 模块 | Internal utility module. Shared by Twilio-based channels (SMS, Voice) to avoid duplicating signature verification logic. | ✅ |
+| `dingtalk/` | 包 | DingTalk channel via Stream API WebSocket + OpenAPI. Inbound mixin plus AI Card mixin (typewriter-style streaming replies). See `dingtalk/_ARCH.md`. | ✅ |
+| `discord/` | 包 | Discord channel via Gateway WebSocket + REST. Inbound / outbound / voice-control mixins around `channel.py`; `voice/` holds the voice subsystem. See `discord/_ARCH.md`. | ✅ |
 | `email/` | 包 | Email channel (IMAP inbound + SMTP outbound). Attachment/forwarded-mail parsing, HTML-to-Markdown cleaning, thread tracking. See `email/_ARCH.md`. | ✅ |
+| `feishu/` | 包 | Feishu/Lark channel with dual transport (webhook / WebSocket). Inbound and outbound mixins, interactive cards, document comment handling, SDK wrappers. See `feishu/_ARCH.md`. | ✅ |
 | `github/` | 包 | GitHub webhook channel. Inbound Issue/PR/Push/Review events via X-Hub-Signature-256 verified webhooks; outbound comments via REST API. See `github/_ARCH.md`. | ✅ |
+| `googlechat/` | 包 | Google Chat channel — Webhook inbound + Chat API v1 outbound. See `googlechat/_ARCH.md`. | ✅ |
 | `imessage/` | 包 | iMessage channel via BlueBubbles API. Quoted replies, Tapback reactions, typing indicator, webhook auto-registration, read receipts, structured diagnostics. Submodules: channel.py, helpers.py, parser.py, webhook.py. | ✅ |
 | `irc.py` | 模块 | IRC channel implementation. Raw asyncio TCP connection, supports SSL/TLS, NickServ authentication, nick collision auto-recovery, control character filtering, ou | ✅ |
+| `line/` | 包 | LINE channel via Webhook + Messaging API. Webhook event parsing lives in the inbound mixin. See `line/_ARCH.md`. | ✅ |
+| `matrix/` | 包 | Matrix channel via the mautrix SDK with optional E2EE. The connection mixin builds and tears down the client. See `matrix/_ARCH.md`. | ✅ |
+| `mattermost/` | 包 | Mattermost channel — WebSocket inbound (event parsing in the inbound mixin) + REST API v4 outbound. See `mattermost/_ARCH.md`. | ✅ |
+| `msteams/` | 包 | Microsoft Teams channel via Bot Framework REST. The inbound mixin turns activities into inbound messages. See `msteams/_ARCH.md`. | ✅ |
+| `onebot/` | 包 | OneBot v11 channel adapter running as a Reverse WebSocket server. See `onebot/_ARCH.md`. | ✅ |
+| `qq/` | 包 | QQ Official Bot channel — WebSocket event reception + REST message sending. See `qq/_ARCH.md`. | ✅ |
 | `registry.py` | 模块 | Channel provider registry — lazy-loading, thread-safe, zero overhead for unused channels. | ✅ |
+| `signal/` | 包 | Signal channel via the Signal CLI REST API. The inbound mixin turns envelopes into inbound messages. See `signal/_ARCH.md`. | ✅ |
+| `slack/` | 包 | Slack Bot channel — Events API + Web API + Socket Mode. Context and inbound/outbound mixins around `channel.py`. See `slack/_ARCH.md`. | ✅ |
 | `sms.py` | 模块 | SMS channel provider. Sends/receives text messages via Twilio. Inbound via webhook, outbound via REST API. Pure text (no markdown). | ✅ |
+| `telegram/` | 包 | Telegram Bot channel via Bot API (polling / webhook). See `telegram/_ARCH.md`. | ✅ |
 | `voice_channel.py` | 模块 | Voice/phone call channel. Twilio ConversationRelay WebSocket protocol. Framework layer is WebSocket-library-agnostic — business layer injects receive/send funct | ✅ |
 | `webhook.py` | 模块 | Generic webhook push channel. Converts OutboundMessage to JSON POST to user-specified URL. Suitable for third-party integrations like n8n, Zapier, or platforms. Reasoning payload is security-default OFF and requires explicit `metadata.webhook_include_reasoning=true` opt-in. | ✅ |
 | `wechat/` | 包 | WeChat channel via iLink protocol. QR code login (AsyncLoginProtocol), bidirectional text/media messaging, typing indicator, multi-account support. See `wechat/_ARCH.md`. | ✅ |
-| `whatsapp/` | 包 | WhatsApp channel via whatsapp-web.js Node bridge. QR code pairing (AsyncLoginProtocol), bidirectional text/media/reaction messaging, presence sync. See `whatsapp/_ARCH.md`. | ✅ |
+| `wecom/` | 包 | WeCom channel — self-built application (Webhook + AES-CBC) and AI Bot (`aibot_channel.py`), each with its own inbound mixin. See `wecom/_ARCH.md`. | ✅ |
+| `whatsapp/` | 包 | WhatsApp channel via the Baileys 7.x Node bridge. QR code pairing (AsyncLoginProtocol), bidirectional text/media/reaction messaging, presence sync. See `whatsapp/_ARCH.md`. | ✅ |
 | `_ilink/` | 共享库 | WeChat iLink HTTP protocol client. QR code fetch/poll, message send/receive, media upload/download, silk audio conversion. Used by `wechat/`. See `_ilink/_ARCH.md`. | ✅ |
 | `zalo.py` | 模块 | Zalo Official Account channel. Supports bidirectional text/image/file messaging, getoa health check, and collect_issues diagnostics. | ✅ |
 
