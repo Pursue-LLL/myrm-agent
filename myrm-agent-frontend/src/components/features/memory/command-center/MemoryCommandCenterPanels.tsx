@@ -98,6 +98,7 @@ import { ConclusionAttributionStudioCard } from './ConclusionAttributionStudioCa
 import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
 import { CodebaseDiffInspectionCard } from './CodebaseDiffInspectionCard';
 import { InodeIdentityInspectionCard } from './InodeIdentityInspectionCard';
+import { CjkIterationInspectionCard } from './CjkIterationInspectionCard';
 
 
 
@@ -399,6 +400,9 @@ export const UnderstandSection = ({
 
     {/* Directory Inode Identity & Double-Sync Prevention Inspection Card (Item 145 P0) */}
     <InodeIdentityInspectionCard />
+
+    {/* CJK Ideographic Iteration Mark ('々') Disambiguation & Recall Inspection Card (Item 146 P1) */}
+    <CjkIterationInspectionCard />
 
 
 

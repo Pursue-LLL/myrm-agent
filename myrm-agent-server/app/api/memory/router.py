@@ -49,6 +49,9 @@ from app.api.memory.budget_packing_router import (
 from app.api.memory.business_template_router import (
     router as business_template_router,
 )
+from app.api.memory.cjk_iteration_router import (
+    router as cjk_iteration_router,
+)
 from app.api.memory.client_partition import (
     router as memory_client_partition_router,
 )
@@ -656,4 +659,8 @@ router.include_router(
 router.include_router(
     inode_identity_router,
     tags=["memory-inode-identity"],
+)
+router.include_router(
+    cjk_iteration_router,
+    tags=["memory-cjk-iteration"],
 )

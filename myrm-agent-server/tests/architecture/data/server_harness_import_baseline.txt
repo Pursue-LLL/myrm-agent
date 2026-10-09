@@ -610,6 +610,8 @@ myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
 myrm_agent_harness.toolkits.memory.auto_recall
 myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.budget_curator
+myrm_agent_harness.toolkits.memory.cjk_iteration_mark.facade
+myrm_agent_harness.toolkits.memory.cjk_iteration_mark.models
 myrm_agent_harness.toolkits.memory.client_partition
 myrm_agent_harness.toolkits.memory.codebase_diff_fallback
 myrm_agent_harness.toolkits.memory.codegraph
