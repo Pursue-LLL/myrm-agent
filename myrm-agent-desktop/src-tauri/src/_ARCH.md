@@ -69,7 +69,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 
 ### 外部依赖
 - `tauri`：桌面应用框架
-- `tauri-plugin-shell`：产品页只获 `shell:allow-open` 打开外链（含 `x-apple.systempreferences:` / `ms-settings:` 系统设置深链），可打开的协议由 `tauri.conf.json#plugins.shell.open` 限定；不授 execute / spawn / kill / stdin-write（Sidecar 全由 Rust 侧管理）
+- `tauri-plugin-shell`：产品页只获 `shell:allow-open` 打开外链（含 `x-apple.systempreferences:` / `ms-settings:` 系统设置深链与 `cursor://` / `vscode://` 「在 IDE 中打开」唤起链接，后者只放行裸协议），可打开的协议由 `tauri.conf.json#plugins.shell.open` 限定；不授 execute / spawn / kill / stdin-write（Sidecar 全由 Rust 侧管理）
 - `tauri-plugin-dialog`：系统对话框（保存/打开/消息）；`main` 与 `session-*` 的产品页获 `dialog:allow-open` / `allow-save` / `allow-message`
 - `tauri-plugin-fs`：仅授 `fs:allow-read-file` / `fs:allow-write-file` 且不配静态 scope——可访问路径只来自用户在对话框里的选择与拖放（插件运行期加入 scope）；`tauri.conf.json` 不得有 `plugins.fs`（插件拒绝未知键，发布版启动即 panic）
 - `tauri-plugin-updater`：自动更新（检查/下载/安装，前端 JS API 驱动；产品页获 `updater:allow-check` / `allow-download` / `allow-install`）

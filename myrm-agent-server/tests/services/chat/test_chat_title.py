@@ -142,3 +142,49 @@ async def test_call_llm_for_title_keeps_its_cap_off_the_thinking_floor(monkeypat
     assert title == "Asyncio blocking"
     assert captured["cfg"].model_kwargs["max_tokens"] == 1024
     assert captured["cfg"].model_kwargs["supports_reasoning"] is False
+
+
+@pytest.mark.asyncio
+async def test_call_llm_for_title_cleanses_and_rejects_dirty_candidates(monkeypatch):
+    """Taxonomy cleanses superficial wrappers and drops invalid CoT/menu candidates to fallback."""
+    from langchain_core.messages import AIMessage
+    from myrm_agent_harness.toolkits.llms import llm_manager
+
+    from app.services.chat.chat_title import call_llm_for_title
+
+    class _MockLlm:
+        def __init__(self, response_text: str):
+            self._text = response_text
+
+        async def ainvoke(self, _messages):
+            return AIMessage(content=self._text)
+
+    cfg = _TitleModelConfig(model="qwen-7b", apiKey="test-key", baseUrl="http://test")
+
+    async def _mock_get(text: str):
+        return _MockLlm(text)
+
+    # 1. Superficial wrap is cleanly cleansed
+    monkeypatch.setattr(llm_manager, "get_llm_from_config", lambda *a, **kw: _mock_get("Here is a title: Stripe Webhook"))
+    t1 = await call_llm_for_title("Configure Stripe webhook", cfg)
+    assert t1 == "Stripe Webhook"
+
+    # 2. Option menu is rejected, safely falling back to deterministic preview
+    monkeypatch.setattr(
+        llm_manager,
+        "get_llm_from_config",
+        lambda *a, **kw: _mock_get("Option 1: Stripe Webhook\nOption 2: Stripe Signatures"),
+    )
+    t2 = await call_llm_for_title("Configure Stripe webhook signature verification", cfg)
+    assert "Configure Stripe" in t2
+    assert t2.endswith("...")
+
+    # 3. Residual unclosed thinking leak is rejected to fallback
+    monkeypatch.setattr(
+        llm_manager,
+        "get_llm_from_config",
+        lambda *a, **kw: _mock_get("Thinking Process: I should title this Stripe Integration"),
+    )
+    t3 = await call_llm_for_title("Configure Stripe webhook signature verification", cfg)
+    assert "Configure Stripe" in t3
+    assert t3.endswith("...")

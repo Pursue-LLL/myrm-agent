@@ -90,8 +90,9 @@ mod tests {
         Regex::new(&format!("^{pattern}$")).expect("plugins.shell.open must compile")
     }
 
-    /// 产品页只需打开网页链接、邮件/电话链接与系统设置深链；其余协议（`file:`、`javascript:`、
-    /// 自定义协议）以及形如命令行开关的值一律拒绝。
+    /// 产品页只需打开网页链接、邮件/电话链接、系统设置深链与「在 IDE 中打开」的唤起链接
+    /// （前端 `ide-handoff.ts` 只给出裸协议）；其余协议（`file:`、`javascript:`、自定义协议）、
+    /// 带路径的 IDE 链接（扩展安装、仓库克隆等）以及形如命令行开关的值一律拒绝。
     #[test]
     fn shell_open_scope_admits_product_links_only() {
         let validator = shell_open_validator();
@@ -102,6 +103,8 @@ mod tests {
             "tel:5551234",
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
             "ms-settings:privacy-webcam",
+            "cursor://",
+            "vscode://",
         ] {
             assert!(validator.is_match(allowed), "must be openable: {allowed}");
         }
@@ -109,6 +112,9 @@ mod tests {
             "file:///etc/passwd",
             "javascript:alert(1)",
             "myrmagent://oauth/callback",
+            "cursor://file/etc/passwd",
+            "vscode://vscode.git/clone?url=https://example.com/r.git",
+            "cursor:",
             "ftp://example.com/",
             "https://",
             "https://example.com/a b",

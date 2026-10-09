@@ -85,17 +85,17 @@ const PET_SURFACE_NATIVE_PERMISSIONS: &[&str] = &[
 enum Surface {
     Main,
     Session,
-    PetSurface,
+    Pet,
 }
 
 impl Surface {
-    const ALL: [Surface; 3] = [Surface::Main, Surface::Session, Surface::PetSurface];
+    const ALL: [Surface; 3] = [Surface::Main, Surface::Session, Surface::Pet];
 
     fn capability_id(self) -> &'static str {
         match self {
             Surface::Main => "product-main",
             Surface::Session => "product-session",
-            Surface::PetSurface => "product-pet-surface",
+            Surface::Pet => "product-pet-surface",
         }
     }
 
@@ -104,7 +104,7 @@ impl Surface {
         match self {
             Surface::Main => MAIN_WEBVIEW_LABEL.to_string(),
             Surface::Session => format!("{SESSION_WEBVIEW_PREFIX}*"),
-            Surface::PetSurface => PET_SURFACE_WEBVIEW_LABEL.to_string(),
+            Surface::Pet => PET_SURFACE_WEBVIEW_LABEL.to_string(),
         }
     }
 
@@ -112,14 +112,14 @@ impl Surface {
     fn probe_label(self) -> String {
         match self {
             Surface::Session => format!("{SESSION_WEBVIEW_PREFIX}probe"),
-            Surface::Main | Surface::PetSurface => self.window_pattern(),
+            Surface::Main | Surface::Pet => self.window_pattern(),
         }
     }
 
     fn native_permissions(self) -> &'static [&'static str] {
         match self {
             Surface::Main | Surface::Session => PRODUCT_PAGE_NATIVE_PERMISSIONS,
-            Surface::PetSurface => PET_SURFACE_NATIVE_PERMISSIONS,
+            Surface::Pet => PET_SURFACE_NATIVE_PERMISSIONS,
         }
     }
 

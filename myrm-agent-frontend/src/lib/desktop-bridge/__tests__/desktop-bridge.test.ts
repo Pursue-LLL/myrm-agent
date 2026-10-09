@@ -97,8 +97,8 @@ describe('Desktop Bridge Protocol', () => {
         shellOpen.mockRejectedValue(new Error('url not allowed'));
         const windowOpen = vi.spyOn(window, 'open').mockImplementation(() => null);
 
-        await expect(bridge.shell.openExternalUrl('cursor://')).resolves.toBe(true);
-        expect(windowOpen).toHaveBeenCalledWith('cursor://', '_blank', 'noopener,noreferrer');
+        await expect(bridge.shell.openExternalUrl('ftp://example.com/readme')).resolves.toBe(true);
+        expect(windowOpen).toHaveBeenCalledWith('ftp://example.com/readme', '_blank', 'noopener,noreferrer');
       });
 
       it('skips the shell plugin outside the desktop runtime', async () => {

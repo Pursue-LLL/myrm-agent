@@ -62,11 +62,19 @@ async def call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> 
         f"<user_input>\n{content[:200]}\n</user_input>"
     )
     response = await llm.ainvoke([HumanMessage(content=prompt)])
-    title = extract_answer_text(response).strip().strip("\"'「」【】：:。.")
-    title = re.sub(r"^(Title|标题|Chat Title)[:：\s]*", "", title, flags=re.IGNORECASE)
-    if len(title) < 2 or len(title) > 50:
+    raw_answer = extract_answer_text(response)
+    from myrm_agent_harness.agent.context_management import InvalidGeneratedTitleRecoverySuite
+
+    recovery_suite = InvalidGeneratedTitleRecoverySuite()
+    validation = recovery_suite.taxonomy.validate_and_cleanse(raw_answer)
+    if not validation.is_valid:
+        logger.warning(
+            "Generated chat title rejected by taxonomy (%s): %r",
+            validation.diagnostic_details,
+            raw_answer,
+        )
         return generate_fallback_title(content)
-    return title
+    return validation.cleaned_title
 
 
 async def generate_chat_title(
