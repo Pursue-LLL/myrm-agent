@@ -25,12 +25,6 @@ describe('desktopBridge', () => {
     expect(desktopBridge.isDesktop()).toBe(true);
   });
 
-  it('returns false for showItemInFolder when not in desktop', async () => {
-    vi.spyOn(tauriModule, 'isTauriEnvironment').mockReturnValue(false);
-    const result = await desktopBridge.showItemInFolder('/test/path');
-    expect(result).toBe(false);
-  });
-
   it('handles openExternal with browser fallback when not in desktop', async () => {
     vi.spyOn(tauriModule, 'isTauriEnvironment').mockReturnValue(false);
     const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);

@@ -47,16 +47,8 @@ export interface DesktopBridgeInterface {
   isMacOS: () => boolean;
   /** 判断当前宿主是否为 Windows */
   isWindows: () => boolean;
-  /** 在系统默认文件管理器中定位并高亮显示指定文件/目录 */
-  showItemInFolder: (path: string) => Promise<boolean>;
   /** 使用系统默认浏览器打开外部超链接 */
   openExternal: (url: string) => Promise<boolean>;
-  /** 最小化桌面主窗口 */
-  minimizeWindow: () => Promise<void>;
-  /** 切换桌面主窗口最大化/还原状态 */
-  toggleMaximizeWindow: () => Promise<void>;
-  /** 关闭桌面主窗口（按配置退回托盘或退出） */
-  closeWindow: () => Promise<void>;
   /** 获取桌面宿主应用版本号 */
   getAppVersion: () => Promise<string>;
   /** 安全写入系统剪贴板 */
@@ -96,33 +88,11 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
     return detectDesktopPlatform() === 'windows';
   }
 
-  public async showItemInFolder(path: string): Promise<boolean> {
-    if (!path) {
-      return false;
-    }
-    if (this.isDesktop()) {
-      return await this.core.shell.showInFileManager(path);
-    }
-    return false;
-  }
-
   public async openExternal(url: string): Promise<boolean> {
     if (!url) {
       return false;
     }
     return await this.core.shell.openExternalUrl(url);
-  }
-
-  public async minimizeWindow(): Promise<void> {
-    await this.core.window.minimize();
-  }
-
-  public async toggleMaximizeWindow(): Promise<void> {
-    await this.core.window.toggleMaximize();
-  }
-
-  public async closeWindow(): Promise<void> {
-    await this.core.window.close();
   }
 
   public async getAppVersion(): Promise<string> {
