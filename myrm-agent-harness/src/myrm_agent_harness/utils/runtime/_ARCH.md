@@ -1,0 +1,20 @@
+# runtime/
+
+## Overview
+Agent run() lifecycle control parameters. All based on ContextVar for request-level isolation.
+
+## File & Submodule Index
+
+| File | Role | Description | I/O/P |
+|------|------|-------------|-------|
+| __init__.py | Package | Agent run() lifecycle control parameters. All based on ContextVar for request-level isolation. | — |
+| cancellation.py | Core | Cancellation token + CancellationRegistry（cancel / cancel_all for E-Stop） | ✅ |
+| cancellation_metrics.py | Core | Cancellation metrics data structures. | ✅ |
+| progress_sink.py | Core | Progress event push mechanism. Tools implicitly obtain a sink via ContextVar to push intermediate pr | ✅ |
+| steering.py | Core | Steering token mechanism. Allows external message injection (steer/redirect) during Agent runtime. Steer waits for tool boundary; redirect immediately breaks astream and preserves partial output. | ✅ |
+| wakeup_registry.py | Core | Global registry for async wakeup events (Idle Wakeup). | ✅ |
+| background_job_finish_registry.py | Core | ``BackgroundJobFinishResult`` DTO + ``BackgroundJobFinishHandler`` Protocol; server registers handler at warmup for natural bash background job ``exited`` events (no headless LLM). | ✅ |
+
+## Key Dependencies
+
+- `agent`

@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'myrm-agent-server/**'
+      - 'myrm-agent-harness/src/**'
+      - 'myrm-agent-harness/pyproject.toml'
+      - 'myrm-agent-harness/uv.lock'
       - 'shared/**'
       - '.github/workflows/server-unit-tests.yml'
 
@@ -14,8 +17,13 @@ concurrency:
 jobs:
   default-pytest:
     name: Default pytest (-m not e2e)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
+    # CI has no LLM credentials: tests resolve model identifiers from the environment first, so
+    # offline placeholders stand in for the developer-only .env.test (e2e tests are excluded).
+    env:
+      BASIC_MODEL: openai/ci-offline-placeholder
+      LITE_MODEL: openai/ci-offline-placeholder
     defaults:
       run:
         working-directory: myrm-agent-server

@@ -32,7 +32,7 @@ from app.core.skills.store.user_config import (
 
 
 def _load_registered_tool_names() -> set[str]:
-    harness_root = Path(__file__).resolve().parents[3].parent.parent / "myrm-agent-harness"
+    harness_root = Path(__file__).resolve().parents[3].parent / "myrm-agent-harness"
     harness_src = str(harness_root)
     if harness_src not in sys.path:
         sys.path.insert(0, harness_src)

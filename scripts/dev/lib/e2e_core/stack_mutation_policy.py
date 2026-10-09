@@ -43,7 +43,7 @@ if __package__ in (None, ""):
 
 PENDING_DRIFT_FILENAME: Final[str] = "pending-stack-drift.json"
 _HARNESS_IMPORT_FAILED_TOKEN: Final[str] = (
-    "monorepo harness source present but myrm_agent_harness import failed"
+    "myrm_agent_harness import failed in the server venv"
 )
 
 

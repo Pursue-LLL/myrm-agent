@@ -19,9 +19,9 @@ from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
-_SERVER_LOCALES_DIR = _REPO_ROOT / "myrm-agent" / "myrm-agent-server" / "app" / "channels" / "i18n" / "locales"
+_SERVER_LOCALES_DIR = _REPO_ROOT / "myrm-agent-server" / "app" / "channels" / "i18n" / "locales"
 _HARNESS_LOCALES_DIR = (
     _REPO_ROOT / "myrm-agent-harness" / "src" / "myrm_agent_harness" / "agent" / "errors" / "diagnostics" / "i18n" / "locales"
 )

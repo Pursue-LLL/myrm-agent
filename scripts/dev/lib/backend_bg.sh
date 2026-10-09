@@ -15,20 +15,16 @@ set -euo pipefail
 # shellcheck source=dev_state_paths.sh
 source "${BASH_SOURCE[0]%/*}/dev_state_paths.sh"
 
-_require_harness_editable_for_monorepo() {
+# The server venv must import the in-repo harness (editable path source); a stale venv that still
+# holds an installed wheel would make tests pass while the live backend runs old harness code.
+_require_harness_editable() {
   local server_dir="$1"
-  local agent_root harness_src expected_src py mode pkg_dir
+  local expected_src py pkg_dir
 
-  if [[ "${MYRM_SKIP_HARNESS_EDITABLE_CHECK:-0}" == "1" ]]; then
-    return 0
-  fi
-
-  agent_root="$(cd "${server_dir}/.." && pwd)"
-  harness_src="$(cd "${agent_root}/.." 2>/dev/null && pwd)/myrm-agent-harness/src/myrm_agent_harness"
-  if [[ ! -d "${harness_src}" ]]; then
-    return 0
-  fi
-  expected_src="$(cd "${harness_src}" && pwd)"
+  expected_src="$(cd "${server_dir}/../myrm-agent-harness/src/myrm_agent_harness" 2>/dev/null && pwd)" || {
+    echo "ERROR: harness source not found at ${server_dir}/../myrm-agent-harness." >&2
+    exit 1
+  }
 
   py=""
   if [[ -x "${server_dir}/.venv/bin/python" ]]; then
@@ -40,33 +36,24 @@ _require_harness_editable_for_monorepo() {
     return 0
   fi
 
-  if ! {
-    read -r mode
-    read -r pkg_dir
-  } < <(
-    cd "${server_dir}" && "${py}" -c "
+  if ! pkg_dir="$(cd "${server_dir}" && "${py}" -c "
 import pathlib
 import myrm_agent_harness
-from myrm_agent_harness.runtime.install_guard.probe import get_distribution_mode
 from myrm_agent_harness.api import create_skill_agent  # noqa: F401 (stable public API probe)
-pkg = pathlib.Path(myrm_agent_harness.__file__).resolve().parent
-print(get_distribution_mode().value)
-print(pkg)
-" 2>/dev/null
-  ); then
-    echo "ERROR: monorepo harness source present but myrm_agent_harness import failed." >&2
-    echo "   Run: from open-perplexity root  ./myrm harness install  then retry." >&2
+print(pathlib.Path(myrm_agent_harness.__file__).resolve().parent)
+" 2>/dev/null)"; then
+    echo "ERROR: myrm_agent_harness import failed in the server venv." >&2
+    echo "   Run: myrm setup  (or: cd myrm-agent-server && uv sync)  then retry." >&2
     echo "   If a stale backend is running:  myrm stop" >&2
     exit 1
   fi
 
-  if [[ "${mode}" != "source" || "${pkg_dir}" != "${expected_src}" ]]; then
-    echo "ERROR: Server venv harness is not monorepo editable source." >&2
-    echo "   mode=${mode}  import=${pkg_dir}" >&2
+  if [[ "${pkg_dir}" != "${expected_src}" ]]; then
+    echo "ERROR: Server venv harness is not the in-repo editable source." >&2
+    echo "   import=${pkg_dir}" >&2
     echo "   expected=${expected_src}" >&2
     echo "   pytest may pass while live agent-stream misses ui_update (stale wheel)." >&2
-    echo "   Fix: from open-perplexity root run  ./myrm harness install  then  myrm stop  and restart." >&2
-    echo "   PyPI consumer test only:  MYRM_SKIP_HARNESS_EDITABLE_CHECK=1 myrm dev" >&2
+    echo "   Fix: cd myrm-agent-server && uv sync  then  myrm stop  and restart." >&2
     exit 1
   fi
 }
@@ -145,7 +132,7 @@ _start_backend_bg() {
       done
 
       if [[ "${owner_healthy}" -eq 1 ]]; then
-        _require_harness_editable_for_monorepo "${server_dir}"
+        _require_harness_editable "${server_dir}"
         local stack_epoch_lib stored_fp current_fp
         stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
         if [[ -f "${stack_epoch_lib}" ]]; then
@@ -297,7 +284,7 @@ _start_backend_bg() {
   # memory/cron/task state from the rest of the stack.
   export_spawn_home
 
-  _require_harness_editable_for_monorepo "${server_dir}"
+  _require_harness_editable "${server_dir}"
 
   cd "${server_dir}"
   export SKIP_HEALTH_CHECK="${SKIP_HEALTH_CHECK:-true}"

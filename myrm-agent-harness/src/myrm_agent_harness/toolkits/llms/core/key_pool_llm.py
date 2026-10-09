@@ -1,0 +1,283 @@
+"""Key-pool LLM wrapper — transparent API key rotation on errors.
+
+Wraps multiple ``ChatLiteLLM`` instances (same model, different keys)
+behind a single ``BaseChatModel`` interface. On rate-limit, auth, or
+billing errors the wrapper automatically rotates to the next available
+key from the pool while preserving the pool's dispatch strategy.
+
+Layering:  KeyPoolLLM (key rotation) → ManagedLLM (model failover)
+
+[INPUT]
+- core.credential_pool::CredentialPool (POS: Framework-level credential scheduling and rotation)
+- errors.classifier::ErrorKind, classify_error (POS: LLM error classifier)
+- errors.exceptions::EgressChallengeBlockedError (POS: Standardized LLM exceptions for the Harness framework)
+
+[OUTPUT]
+- KeyPoolLLM: BaseChatModel with transparent key rotation and strategy-aware observability
+
+[POS]
+Framework-level LLM wrapper. Sits below ManagedLLM in the call chain.
+Enables high-throughput multi-pane scenarios where a single API key
+would hit rate limits or become invalid.
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import AsyncIterator
+from typing import Any, NoReturn
+
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
+from langchain_core.outputs import ChatGenerationChunk, ChatResult
+from pydantic import PrivateAttr
+
+from myrm_agent_harness.toolkits.llms.core.credential_pool import CredentialPool
+from myrm_agent_harness.toolkits.llms.errors.classifier import (
+    ErrorKind,
+    classify_error,
+    extract_retry_after,
+)
+from myrm_agent_harness.toolkits.llms.errors.exceptions import EgressChallengeBlockedError
+
+logger = logging.getLogger(__name__)
+
+
+_KEY_ROTATABLE_KINDS = frozenset(
+    {
+        ErrorKind.RATE_LIMIT,
+        ErrorKind.AUTH,
+        ErrorKind.BILLING,
+    }
+)
+
+
+class KeyPoolLLM(BaseChatModel):
+    """BaseChatModel wrapper that rotates API keys on key-specific errors.
+
+    Holds one ``ChatLiteLLM`` instance per key and delegates calls to the
+    currently selected instance. When a rate limit, auth failure, or billing
+    error is detected, the failing key enters cooldown and the next available
+    key is tried automatically.
+
+    Transparent to callers — behaves exactly like a single ``ChatLiteLLM``.
+    """
+
+    _instances: dict[str, BaseChatModel] = PrivateAttr(default_factory=dict)
+    _pool: CredentialPool | None = PrivateAttr(default=None)
+    _primary_key: str = PrivateAttr(default="")
+
+    def __init__(
+        self,
+        instances: dict[str, BaseChatModel],
+        pool: CredentialPool,
+    ) -> None:
+        super().__init__()
+        if not instances:
+            raise ValueError("KeyPoolLLM requires at least one LLM instance")
+        self._instances = instances
+        self._pool = pool
+        # Keep a stable reference for bind_tools / property delegation
+        self._primary_key = next(iter(instances))
+        logger.warning(
+            "KeyPoolLLM initialized: %d keys for model %s using %s",
+            pool.size,
+            getattr(instances[self._primary_key], "model", "unknown"),
+            pool.strategy.value,
+        )
+
+    @property
+    def credential_pool(self) -> CredentialPool:
+        if self._pool is None:
+            raise RuntimeError("KeyPoolLLM pool is not initialized")
+        return self._pool
+
+    @property
+    def pool(self) -> CredentialPool:
+        if self._pool is None:
+            raise RuntimeError("KeyPoolLLM pool is not initialized")
+        return self._pool
+
+    @property
+    def instances(self) -> dict[str, BaseChatModel]:
+        return self._instances
+
+    # ------------------------------------------------------------------
+    # BaseChatModel interface
+    # ------------------------------------------------------------------
+
+    def _report_error(self, key: str, exc: Exception, kind: ErrorKind) -> None:
+        """Report an error to the pool, extracting Retry-After when available."""
+        retry_after = extract_retry_after(exc) if kind == ErrorKind.RATE_LIMIT else None
+        self._pool.report_error(key, kind.value, cooldown_hint_s=retry_after)
+
+    @staticmethod
+    def _raise_challenge_blocked(key: str, exc: Exception, action: str = "request") -> NoReturn:
+        masked_key = key[-6:] if len(key) >= 6 else "***"
+        logger.error(
+            "Cloudflare/WAF challenge blocked %s for key ...%s. "
+            "Circuit breaker triggered: halting key rotation to protect remaining pool keys.",
+            action,
+            masked_key,
+        )
+        raise EgressChallengeBlockedError(
+            default_msg=(
+                f"Cloudflare/WAF anti-bot challenge blocked {action} for key ...{masked_key}: {exc}. "
+                "Circuit breaker triggered: halting key rotation."
+            ),
+            context={"key_suffix": masked_key, "action": action},
+            original_exc=exc,
+        ) from exc
+
+    async def _agenerate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        last_exc: Exception | None = None
+        for _attempt in range(self._pool.size):
+            key = self._pool.acquire()
+            llm = self._instances.get(key)
+            if llm is None:
+                continue
+            try:
+                result = await llm._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+                self._pool.report_success(key)
+                return result
+            except Exception as exc:
+                kind = classify_error(exc)
+                if kind == ErrorKind.CHALLENGE_BLOCKED:
+                    self._raise_challenge_blocked(key, exc, action="request")
+                if kind not in _KEY_ROTATABLE_KINDS:
+                    raise
+                self._report_error(key, exc, kind)
+                last_exc = exc
+        if last_exc is None:
+            raise RuntimeError("KeyPoolLLM failed to locate a credential pool instance")
+        raise last_exc
+
+    async def _astream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[ChatGenerationChunk]:
+        last_exc: Exception | None = None
+        for _attempt in range(self._pool.size):
+            key = self._pool.acquire()
+            llm = self._instances.get(key)
+            if llm is None:
+                continue
+            try:
+                async for chunk in llm._astream(messages, stop=stop, run_manager=run_manager, **kwargs):
+                    yield chunk
+                self._pool.report_success(key)
+                return
+            except Exception as exc:
+                kind = classify_error(exc)
+                if kind == ErrorKind.CHALLENGE_BLOCKED:
+                    self._raise_challenge_blocked(key, exc, action="stream")
+                if kind not in _KEY_ROTATABLE_KINDS:
+                    raise
+                self._report_error(key, exc, kind)
+                last_exc = exc
+        if last_exc is None:
+            raise RuntimeError("KeyPoolLLM failed to locate a credential pool instance")
+        raise last_exc
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        """Sync generation — mirrors the async rotation behavior."""
+        last_exc: Exception | None = None
+        for _attempt in range(self._pool.size):
+            key = self._pool.acquire()
+            llm = self._instances.get(key)
+            if llm is None:
+                continue
+            try:
+                result = llm._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+                self._pool.report_success(key)
+                return result
+            except Exception as exc:
+                kind = classify_error(exc)
+                if kind == ErrorKind.CHALLENGE_BLOCKED:
+                    self._raise_challenge_blocked(key, exc, action="request")
+                if kind not in _KEY_ROTATABLE_KINDS:
+                    raise
+                self._report_error(key, exc, kind)
+                last_exc = exc
+        if last_exc is None:
+            raise RuntimeError("KeyPoolLLM failed to locate a credential pool instance")
+        raise last_exc
+
+    def bind_tools(self, tools: Any, **kwargs: Any) -> KeyPoolLLM:
+        """Bind tools on all underlying LLM instances, preserving key rotation.
+
+        Unlike the naive approach of delegating to the primary instance (which
+        returns a new ``ChatLiteLLM`` that loses rotation capability), this
+        binds tools on every pooled instance and returns ``self`` so that all
+        subsequent calls continue to rotate keys transparently.
+        """
+        for instance in self._instances.values():
+            instance.bind_tools(tools, **kwargs)
+        return self
+
+    # ------------------------------------------------------------------
+    # Identity passthrough (model / api_base / base_url)
+    # ------------------------------------------------------------------
+    # All pooled instances share the same model + endpoint, so delegate to
+    # the stable primary instance. Downstream consumers (capability learning,
+    # error diagnostics) read these via getattr()/property lookup.
+
+    @property
+    def model(self) -> str:
+        """Model name of the pooled LLM instances."""
+        return getattr(self._instances[self._primary_key], "model", "")
+
+    @property
+    def model_name(self) -> str | None:
+        """Model name alias of the pooled LLM instances."""
+        return getattr(self._instances[self._primary_key], "model_name", None)
+
+    @property
+    def api_base(self) -> str | None:
+        """API base URL of the pooled LLM instances."""
+        return getattr(self._instances[self._primary_key], "api_base", None)
+
+    @property
+    def base_url(self) -> str | None:
+        """API base URL alias of the pooled LLM instances."""
+        return getattr(self._instances[self._primary_key], "base_url", None) or self.api_base
+
+    @property
+    def _llm_type(self) -> str:
+        return "key_pool_llm"
+
+    @property
+    def _identifying_params(self) -> dict[str, Any]:
+        primary = self._instances[self._primary_key]
+        return {
+            "model": getattr(primary, "model", "unknown"),
+            "pool_size": self._pool.size,
+            "pool_strategy": self._pool.strategy.value,
+        }
+
+    def get_pool_stats(self) -> dict[str, object]:
+        """Get underlying credential pool stats for observability."""
+        if self._pool is None:
+            return {}
+        return self._pool.stats()
+
+    def reset_cooldowns(self, key_suffix: str | None = None) -> int:
+        """Reset cooldown timers in the credential pool."""
+        if self._pool is None:
+            return 0
+        return self._pool.reset_cooldowns(key_suffix)

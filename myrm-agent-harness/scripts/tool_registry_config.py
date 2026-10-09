@@ -1,0 +1,153 @@
+"""Configuration for tool-registry validation.
+
+Centralizes scan roots, whitelists, and exemption rules used by
+`tool_registry_engine` and `validate_tool_registry` CLI.
+
+Must stay aligned with ``agent/orchestration/signals/catalog.py`` and
+``agent/orchestration/hooks.py`` (orchestration signals + runtime hooks).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+HARNESS_ROOT = REPO_ROOT
+HARNESS_SRC = HARNESS_ROOT / "src" / "myrm_agent_harness"
+SERVER_ROOT = REPO_ROOT.parent / "myrm-agent-server"
+SERVER_SRC = SERVER_ROOT / "app"
+
+SCAN_ROOTS: tuple[Path, ...] = (HARNESS_SRC, SERVER_SRC)
+
+PTC_RUNTIME_TOOL_NAMES: frozenset[str] = frozenset(
+    {
+        "spawn_subagent",
+        "notify",
+        "llm_query",
+        "llm_query_batched",
+        "human_ask",
+        "steer_child",
+    }
+)
+
+INTERNAL_TOOL_PREFIXES: tuple[str, ...] = ("_",)
+
+# Orchestration signals + runtime hooks — excluded from _TOOL_LAYERS (see agent/orchestration/).
+INTERNAL_TOOL_NAMES: frozenset[str] = frozenset(
+    {
+        "_completion_check",
+        "submit_verdict",
+    }
+)
+
+# JSON schema signals (no @tool AST) — DR orchestrator bind_tools only.
+SCHEMA_ONLY_TOOL_NAMES: frozenset[str] = frozenset(
+    {
+        "dispatch_research",
+        "finalize_report",
+        "think",
+    }
+)
+
+# Built-in tools whose JSON schema is bound by the server (no @tool AST in harness).
+SERVER_BOUND_SCHEMA_TOOL_NAMES: frozenset[str] = frozenset({"request_answer_user_tool"})
+
+CROSS_MODULE_CONSTANTS: dict[str, str] = {
+    "CONVERSATION_SEARCH_TOOL_NAME": "conversation_search_tool",
+}
+
+# Legacy harness factories / Admin REST tools — declared in code but not Turn1 Action Tool SSOT.
+LAYER_EXEMPT_TOOL_NAMES: frozenset[str] = frozenset(
+    {
+        "conversation_search_tool",
+        "wiki_compile_tool",
+        "wiki_maintain_tool",
+        # Memory-governance / context meta-tools that ship with unit tests but have
+        # no Turn1 mount: not in the Action Tool SSOT until a profile wires them.
+        "analyze_code_impact",
+        "arbitrate_cross_agent_memory_conflict",
+        "check_memory_ground_truth_drift",
+        "compact_code_memory",
+        "evaluate_auto_recall_trigger",
+        "inspect_context",
+        "inspect_experience_gene_advice",
+        "inspect_hindsight_warnings",
+        "manage_integration_retained_context",
+        "manage_sovereign_memory_assets",
+        "screen_kg_extraction_content",
+        "search_hybrid_knowledge_graph",
+        "search_session_archive",
+    }
+)
+
+ORPHAN_FACTORY_WHITELIST: frozenset[str] = frozenset(
+    {
+        "create_desktop_tools",
+        "create_browser_tools",
+        "create_skill_select_tool",
+        "create_kanban_tools",
+        "create_conversation_search_tool",
+        "create_cron_tools",
+        "create_invoke_acp_agent_tool",
+        "create_goal_tools",
+        "create_memory_tools",
+        "create_submit_verdict_tool",
+        "create_mobile_adb_tools",
+        "create_wiki_admin_tools",
+        "create_restricted_ax_browser_tools",
+        # Landed selectively-wired: exposed via public api for callers that
+        # supply a live message accessor; not part of the Turn1 meta-tool set.
+        "create_refetch_historical_turn_tool",
+        # Memory-governance factories: implemented and unit-tested under
+        # toolkits/memory/*, deliberately not mounted on any agent profile yet.
+        "create_auto_recall_evaluator_tool",
+        "create_code_impact_tool",
+        "create_code_memory_compaction_tool",
+        "create_cross_agent_arbitration_tool",
+        "create_experience_gene_advice_tool",
+        "create_graph_rrf_search_tool",
+        "create_ground_truth_drift_check_tool",
+        "create_hindsight_reflection_tool",
+        "create_integration_context_purge_tool",
+        "create_kg_content_screening_tool",
+        "create_sovereign_migration_tool",
+    }
+)
+
+BOOTSTRAP_FILES: frozenset[str] = frozenset(
+    {
+        str(SERVER_ROOT / "app" / "ai_agents" / "general_agent" / "tools" / "_tool_layer_bootstrap.py"),
+    }
+)
+
+EXCLUDED_DIRS: frozenset[str] = frozenset(
+    {
+        "__pycache__",
+        "tests",
+        "node_modules",
+        ".venv",
+        "venv",
+        "build",
+        "dist",
+    }
+)
+
+
+def is_test_path(path: Path) -> bool:
+    """Heuristic: a file is test code if any path segment looks test-related."""
+    parts = {p.lower() for p in path.parts}
+    return bool(parts & {"tests", "test", "testing", "conftest.py", "fixtures"})
+
+
+def validate_config() -> None:
+    """Validate config at import time. Raises AssertionError on misuse."""
+    assert SCAN_ROOTS, "SCAN_ROOTS must not be empty"
+    for root in SCAN_ROOTS:
+        assert root.is_absolute(), f"SCAN_ROOTS entries must be absolute: {root}"
+    for name in INTERNAL_TOOL_NAMES:
+        assert name and isinstance(name, str), f"Invalid internal tool name: {name!r}"
+    for factory in ORPHAN_FACTORY_WHITELIST:
+        assert factory.startswith("create_"), f"ORPHAN_FACTORY_WHITELIST entries must start with 'create_': {factory}"
+
+
+validate_config()

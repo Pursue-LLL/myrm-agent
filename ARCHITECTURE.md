@@ -6,22 +6,21 @@
 
 ---
 
-## 五仓与依赖边界
+## 仓库与依赖边界
 
 | 仓库 | 路径（monorepo） | 许可 | 职责 |
 |------|------------------|------|------|
-| **myrm-agent** | `myrm-agent/` | MIT 开源 | 单机业务 server、Web UI、Tauri 桌面 |
-| **myrm-agent-harness** | `myrm-agent-harness/` | 闭源 | Agent 执行引擎（类 LangChain）；PyPI 分发 |
+| **myrm-agent** | `myrm-agent/` | MIT 开源 | 本仓：`myrm-agent-harness/`（Agent 执行引擎，类 LangChain，同时以 PyPI 包分发）+ 单机业务 server、Web UI、Tauri 桌面 |
 | **myrm-control-plane** | `myrm-control-plane/` | 闭源 | SaaS/企业：调度**每用户独立沙箱 + Volume**（非传统多租户 DB） |
 | **myrm-agent-brand** | `myrm-agent-brand/` | 闭源 | 官网 `myrm-website/`、文档 `myrm-docs/` |
 
 **依赖铁律**
 
-- OSS **永不** vendoring harness 源码；server 仅 `uv.lock` → PyPI `myrm-agent-harness`。
+- harness 与 server 同仓同提交：server 经 `[tool.uv.sources]` 以 in-repo editable path 依赖 `myrm-agent-harness/`；harness 另以 `harness-v*` tag 发布到 PyPI 供第三方使用。
 - server = **单租户**业务编排（`MYRM_DATA_DIR`），**无** `user_id` 多租户。
 - CP **不 import** harness；沙箱内跑 server。
-- harness **不感知** GUI / CP / 产品品牌。
-- 沙箱代码执行、工具编排与记忆内核由 PyPI `myrm-agent-harness` 提供；本仓仅通过公开 API 消费。
+- harness **不感知** GUI / CP / 产品品牌，**禁止** import `app.*`（server）；依赖方向 server → harness 单向（边界由 `myrm-agent-harness/scripts/boundary_check.py` 与 `harness-boundary.yml` 守门）。
+- 沙箱代码执行、工具编排与记忆内核由 `myrm-agent-harness/` 提供；server 优先通过公开 API（`myrm_agent_harness.api`）消费。
 
 ---
 
@@ -44,12 +43,13 @@
 
 ```
 myrm-agent/
-├── ARCHITECTURE.md          ← 本文件（五仓 + 三模式 + 文档索引）
+├── ARCHITECTURE.md          ← 本文件（仓库边界 + 三模式 + 文档索引）
 ├── LICENSE                  ← MIT（全仓）
 ├── CONTRIBUTING.md          ← 贡献指南
 ├── SECURITY.md              ← 漏洞报告策略
 ├── _ARCH.md                 ← 子目录职责表（分形 L3 入口）
 ├── shared/                  ← 前后端共享静态配置 → shared/_ARCH.md
+├── myrm-agent-harness/      ← Agent 执行引擎框架（MIT，PyPI 同名包）→ myrm-agent-harness/_ARCH.md
 ├── myrm-agent-server/       ← FastAPI 业务层 → _ARCH.md + server/ARCHITECTURE.md
 ├── myrm-agent-frontend/   ← Next.js WebUI
 ├── myrm-agent-desktop/      ← Tauri + sidecar 打包 → desktop/_ARCH.md
@@ -70,7 +70,7 @@ myrm-agent/
 | Browser Extension | [myrm-agent-extension/_ARCH.md](myrm-agent-extension/_ARCH.md) |
 | Security Center（供应链仪表盘） | WebUI [`/security`](myrm-agent-frontend/src/app/security/page.tsx) · API `myrm-agent-server/app/api/security/router.py` · SaaS 部署时告警由 Control Plane 聚合，Server 经 internal API 拉取 |
 
-**Git 与分发**：本文件即 OSS 产品仓的 Git/五仓/三模式定稿。独立 clone 使用 `scripts/install.sh` 与 `myrm` CLI；发布与 CI 见 `.github/workflows/`。
+**Git 与分发**：本文件即 OSS 仓库的 Git/仓库边界/三模式定稿。独立 clone 使用 `scripts/install.sh` 与 `myrm` CLI；发布与 CI 见 `.github/workflows/`。
 
 ---
 
@@ -83,7 +83,7 @@ myrm-agent/
 
 Server 门禁：`myrm-agent-server/scripts/check_fractal_docs.py`（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt`；`--no-stub` 守卫 `api/` 与 `channels/providers/`）；`tests/architecture/test_api_services_vocabulary.py`（`api/`↔`services/` 顶域与 `CONTRIBUTING.md` 同步）。`check_file_line_budget.py` 保留为**本地自查工具**（超限台账 `scripts/ci/file_line_budget_baseline.txt`），不接入 CI 阻断。Frontend：`check_fractal_docs.py`（strict roots + recursive baseline）+ `verify:i18n` + `next build` 校验 settings 模块图（见 `.github/workflows/frontend-build.yml`）；`check_file_line_budget.py` 同为本地自查。Desktop：`scripts/check-fractal-docs.ts`（14 项 `_ARCH` + 14 核心 IOP；见 `desktop-fractal-docs.yml`）。
 
-**运行时产物 gitignore（五仓口径）**：`.myrm/`、`.agent/`（harness workspace 树）— 仓根与各子项目 `.gitignore` 均已覆盖，勿提交。
+**运行时产物 gitignore**：`.myrm/`、`.agent/`（harness workspace 树）— 仓根与各子项目 `.gitignore` 均已覆盖，勿提交。
 
 ---
 
@@ -92,8 +92,7 @@ Server 门禁：`myrm-agent-server/scripts/check_fractal_docs.py`（`app/**` 目
 ```mermaid
 flowchart TD
   A[run.py CLI] --> B[app/startup/env_loader]
-  B --> C[assert_distribution_ready harness]
-  C --> D[app/startup/config_check]
+  B --> D[app/startup/config_check]
   D --> E[app/startup/server_lock]
   E --> F[uvicorn_runner / granian_runner]
   F --> G[app/main.py FastAPI]
@@ -124,12 +123,12 @@ flowchart TD
 ## 快速启动（贡献者）
 
 ```bash
-# OSS-only clone（PyPI harness）
+# 独立 clone（in-repo harness 经 uv sync 装为 editable）
 bash scripts/install.sh   # or: myrm setup
 myrm start                # backend :8080 + frontend :3000
 ```
 
-Monorepo 联调（旁路 `myrm-agent-harness`）：`setup` 自动 editable；`myrm dev` 要求 venv harness 为源码。详见 [scripts/_ARCH.md](scripts/_ARCH.md)。
+`myrm dev` 要求 server venv 的 harness 指向仓库内源码（修复：`cd myrm-agent-server && uv sync`）。详见 [scripts/_ARCH.md](scripts/_ARCH.md)。
 
 WebUI: http://localhost:3000 · API: http://localhost:8080
 

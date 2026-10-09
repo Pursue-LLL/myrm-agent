@@ -1,12 +1,12 @@
 # Contributing to myrm-agent
 
-Thank you for helping improve MyrmAgent. This repository is the MIT-licensed product monorepo (server, Web UI, desktop).
+Thank you for helping improve MyrmAgent. This repository is the MIT-licensed monorepo: the Agent framework (`myrm-agent-harness`), the product server, Web UI and desktop client.
 
 ## Before you start
 
-1. Read [ARCHITECTURE.md](ARCHITECTURE.md) for five-repo boundaries and deployment modes.
+1. Read [ARCHITECTURE.md](ARCHITECTURE.md) for repository boundaries and deployment modes.
 2. Read [_ARCH.md](_ARCH.md) for directory responsibilities.
-3. Agent execution lives in the closed-source PyPI package `myrm-agent-harness` — do not vendor harness source here.
+3. Agent execution lives in [myrm-agent-harness/](myrm-agent-harness/) (the framework, also published to PyPI as `myrm-agent-harness`). It must never import from the product server — see [myrm-agent-harness/FRAMEWORK_DESIGN_PRINCIPLES.md](myrm-agent-harness/FRAMEWORK_DESIGN_PRINCIPLES.md).
 
 ## Documentation reading path (~30 min)
 
@@ -14,7 +14,7 @@ Use this order on your first contribution — you do not need to read all 300+ `
 
 | Step | Read | Why |
 |------|------|-----|
-| 1 | [ARCHITECTURE.md](ARCHITECTURE.md) | Five-repo boundaries, three deployment modes, harness vs server split |
+| 1 | [ARCHITECTURE.md](ARCHITECTURE.md) | Repository boundaries, three deployment modes, harness vs server split |
 | 2 | [_ARCH.md](_ARCH.md) | Top-level package map (server / frontend / desktop / extension / shared) |
 | 3 | Area you will touch | Server: [app/_ARCH.md](myrm-agent-server/app/_ARCH.md) · Frontend: [src/components/_ARCH.md](myrm-agent-frontend/src/components/_ARCH.md) · Desktop: [myrm-agent-desktop/_ARCH.md](myrm-agent-desktop/_ARCH.md) · Extension: [myrm-agent-extension/_ARCH.md](myrm-agent-extension/_ARCH.md) |
 | 4 | Target subdirectory `_ARCH.md` | File table for the module you are editing (CI requires keeping it in sync) |
@@ -58,12 +58,10 @@ For channels work, use [task path C](#c--channels-im--webhook) below (three-laye
 ## Development setup
 
 ```bash
-# From repo root (OSS-only: PyPI harness via uv sync)
+# From repo root (the in-repo harness is installed editable via uv sync)
 bash scripts/install.sh   # or: myrm setup
 myrm start                # backend :8080 + frontend :3000
 ```
-
-Monorepo maintainers with a sibling harness checkout: `setup` auto-installs editable; see [scripts/_ARCH.md](scripts/_ARCH.md).
 
 Manual split:
 
@@ -100,7 +98,7 @@ See [scripts/_ARCH.md](scripts/_ARCH.md) for CLI details.
 
 ## Harness vs product boundaries (read before adding tools or skills)
 
-Myrm splits **Agent framework** (`myrm-agent-harness` on PyPI) from **product** (`myrm-agent-server`).
+Myrm splits **Agent framework** (`myrm-agent-harness/`, published to PyPI) from **product** (`myrm-agent-server`).
 
 | Want to add… | Put it here | Do **not** put it here |
 |--------------|-------------|-------------------------|

@@ -14,6 +14,8 @@ on:
       - 'myrm-agent-server/Dockerfile'
       - 'myrm-agent-server/docker/**'
       - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
+      - 'myrm-agent-harness/src/**'
+      - 'myrm-agent-harness/pyproject.toml'
   pull_request:
     paths:
       - 'myrm-agent-server/app/**'
@@ -25,6 +27,8 @@ on:
       - 'myrm-agent-server/Dockerfile'
       - 'myrm-agent-server/docker/**'
       - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
+      - 'myrm-agent-harness/src/**'
+      - 'myrm-agent-harness/pyproject.toml'
       - 'shared/**'
       - '.github/workflows/server-architecture.yml'
 
@@ -35,8 +39,13 @@ concurrency:
 jobs:
   architecture:
     name: Harness contract & arch tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # CI has no LLM credentials: tests resolve model identifiers from the environment first, so
+    # offline placeholders stand in for the developer-only .env.test (e2e tests are excluded).
+    env:
+      BASIC_MODEL: openai/ci-offline-placeholder
+      LITE_MODEL: openai/ci-offline-placeholder
     defaults:
       run:
         working-directory: myrm-agent-server
@@ -48,12 +57,25 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
 
+      - name: Install promtool
+        env:
+          PROMETHEUS_VERSION: "3.15.0"
+          PROMETHEUS_SHA256: 2a542df32eac02ee17b9d844fb2aa1de00dafa5476579ba8a3ba862e9d572ea0
+        run: |
+          dir="prometheus-${PROMETHEUS_VERSION}.linux-amd64"
+          curl -fsSL -o "${RUNNER_TEMP}/${dir}.tar.gz" \
+            "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/${dir}.tar.gz"
+          echo "${PROMETHEUS_SHA256}  ${RUNNER_TEMP}/${dir}.tar.gz" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/${dir}.tar.gz" -C "${RUNNER_TEMP}" "${dir}/promtool"
+          sudo install -m 0755 "${RUNNER_TEMP}/${dir}/promtool" /usr/local/bin/promtool
+          promtool --version
+
       - name: Run architecture gates
         run: bash scripts/ci/run_architecture_gates.sh
 
   docker-image:
-    name: OSS server Docker image (PyPI harness)
-    runs-on: ubuntu-latest
+    name: OSS server Docker image (in-repo harness wheel)
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
