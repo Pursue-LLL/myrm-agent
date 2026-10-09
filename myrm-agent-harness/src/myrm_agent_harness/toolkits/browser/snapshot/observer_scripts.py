@@ -7,10 +7,12 @@
 - MUTATION_OBSERVER_SCRIPT: MutationObserver initialization script
 - CURSOR_DETECT_SCRIPT: cursor-interactive element detection script
 - BBOX_COLLECTOR_SCRIPT: batch bounding-box collection script
+- MODAL_BLOCKING_SCRIPT: blocking-modal detection (dialog / modal attribute / out-of-flow backdrop cover)
+- HOVER_SURFACE_SCRIPT: hover-revealed surface detection
 
 [POS]
 Browser-side JavaScript script constants. Single responsibility: defines DOM mutation
-observation, cursor detection, and bounding-box collection logic.
+observation, cursor detection, bounding-box collection, modal blocking and hover surface logic.
 """
 
 MUTATION_OBSERVER_SCRIPT = """
@@ -310,10 +312,16 @@ MODAL_BLOCKING_SCRIPT = """
     const h = Math.max(0, Math.min(rect.bottom, vp.height) - Math.max(rect.top, 0));
     const coverage = (w * h) / vpArea;
 
-    // Check if element qualifies as a modal or backdrop cover
-    if (isModalAttr || isDialog || coverage >= 0.5) {
-      let zIndex = parseInt(style.zIndex, 10);
-      if (isNaN(zIndex)) zIndex = 0;
+    let zIndex = parseInt(style.zIndex, 10);
+    if (isNaN(zIndex)) zIndex = 0;
+
+    // A backdrop cover is an out-of-flow layer (fixed, or absolute with an explicit stacking order).
+    // In-flow containers (html/body, a full-height app root, a tall article) also cover the viewport
+    // but never intercept clicks, so treating them as blockers hides every input behind "[blocked]".
+    const isOverlayLayer = style.position === 'fixed' || (style.position === 'absolute' && zIndex > 0);
+    const isBackdropCover = coverage >= 0.5 && isOverlayLayer;
+
+    if (isModalAttr || isDialog || isBackdropCover) {
       candidates.push({
         element: el,
         role: role || (isDialog ? 'dialog' : 'region'),
@@ -334,13 +342,19 @@ MODAL_BLOCKING_SCRIPT = """
   });
 
   const best = candidates[0];
-  // Extract visible element names inside this modal
-  const innerInteractive = [];
+  // Extract the accessible names inside this modal; they are matched against the ARIA tree, so fields
+  // named by label/placeholder (no inner text) must be listed too or they would be blocked as "outside".
+  const innerInteractive = new Set();
   const innerElements = best.element.querySelectorAll('button, a, input, select, textarea, [role="button"], [role="link"], [role="checkbox"]');
   for (const item of innerElements) {
-    const text = (item.innerText || item.getAttribute('aria-label') || '').trim();
-    if (text) {
-      innerInteractive.push(text.substring(0, 50));
+    const label = item.labels && item.labels.length > 0 ? item.labels[0].innerText : '';
+    const names = [
+      item.getAttribute('aria-label'), label, item.innerText,
+      item.getAttribute('placeholder'), item.getAttribute('title'),
+    ];
+    for (const name of names) {
+      const text = (name || '').trim();
+      if (text) innerInteractive.add(text.substring(0, 50));
     }
   }
 
@@ -348,7 +362,7 @@ MODAL_BLOCKING_SCRIPT = """
     role: best.role,
     coverage: Math.round(best.coverage * 100) / 100,
     zIndex: best.zIndex,
-    innerInteractive: innerInteractive.slice(0, 30)
+    innerInteractive: Array.from(innerInteractive).slice(0, 60)
   };
 })();
 """
