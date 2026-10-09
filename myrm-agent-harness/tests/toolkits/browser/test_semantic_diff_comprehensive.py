@@ -158,14 +158,14 @@ async def test_diff_immune_to_ref_id_changes(browser_session: BrowserSession) ->
     await tab_handle.page.wait_for_timeout(300)
 
     result_2 = await browser_session.snapshot(scope="full", diff=True)
-    ref_id_2 = result_2.aria_tree.split("[ref=")[1].split("]")[0] if "[ref=" in result_2.aria_tree else None
 
     assert "--- Snapshot diff ---" in result_2.aria_tree
-    assert "Unchanged interactive" in result_2.aria_tree
-    assert ref_id_1 == ref_id_2 or "Stable" in result_2.aria_tree
+    assert ref_id_1 is not None
+    # An unchanged element is reported by its original ref, not as removed + added under a new one.
+    assert ref_id_1 in result_2.aria_tree.split("Unchanged interactive:")[1]
 
     print(" Test 5: Immune to ref ID changes")
-    print(f"Ref IDs: {ref_id_1} → {ref_id_2}")
+    print(f"Ref ID kept: {ref_id_1}")
 
 
 @pytest.mark.integration
