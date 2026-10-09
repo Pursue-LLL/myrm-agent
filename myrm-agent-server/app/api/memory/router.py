@@ -40,6 +40,9 @@ from app.api.memory.auto_memory_consolidation_router import (
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
+from app.api.memory.bitemporal_tms_router import (
+    router as bitemporal_tms_router,
+)
 from app.api.memory.budget_curator import (
     router as memory_budget_curator_router,
 )
@@ -657,4 +660,9 @@ router.include_router(
     skill_triad_router,
     tags=["memory-skill-triad"],
 )
+router.include_router(
+    bitemporal_tms_router,
+    tags=["memory-bitemporal-tms"],
+)
+
 
