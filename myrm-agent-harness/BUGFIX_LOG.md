@@ -2,6 +2,38 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-09-002 · `browser_navigate` 只给正文脱敏，来源里的最终 URL 仍是原文：OAuth 回调的 `code` 可随工具结果进入模型上下文和引用列表
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-09 |
+| **修复时间** | 2026-10-09 |
+| **症状** | 导航到 OAuth 回调地址（`https://x.com/callback?code=...&state=...`）时，返回的 `content` 里的 URL 已被脱敏，但同一个返回字典里的 `metadata.sources[].url` 与 `source_key` 仍是浏览器的原始最终 URL，`title` 也未脱敏。来源事件与引用栏、记忆溯源都读取这份 metadata |
+| **关联产品** | myrm-agent-harness `toolkits/browser/tools/navigate.py` |
+| **根因** | 只有 `content` 经过 `mark_untrusted`（先 `redact_sensitive_text` 再包裹）；来源直接取 `page.url` 与 `await page.title()`。工具返回的字典整体就是 ToolMessage 的内容（`agent/streaming/event_handlers.py::_extract_tool_metadata` 从中取 metadata），所以原始 URL 与正文并列存在于同一条工具结果里 |
+| **修复** | `url`、`title` 先过 `redact_sensitive_text`，`source_key` 使用脱敏后的 URL；脱敏后的链接保留 `?code=` 键名与掩码值，仍是可点击的引用 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 模型是否真的看到整份字典取决于适配层如何序列化 ToolMessage 内容，这一环按代码路径推断，没有抓取真实模型请求验证；回归用例的“修复前失败”按构造成立（旧代码原样返回 `page.url`），没有单独跑一次修复前版本。`web_fetch` 等其他返回 `metadata.sources` 的工具没有逐个核查 |
+| **回归** | `tests/toolkits/browser/test_mark_untrusted_redaction.py::test_navigate_sources_redact_credentials_in_final_url`；既有 `test_navigate_redacted_and_wrapped` 与 `test_tools_comprehensive.py::test_browser_navigate_basic` 保持通过 |
+| **代码位置** | `toolkits/browser/tools/navigate.py::create_navigate_tool` |
+
+### BUG-HARNESS-2026-10-09-001 · 快照把普通长页面和真实对话框里的输入框全部标成 `[blocked]`，代理无法点击或输入
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-08 |
+| **修复时间** | 2026-10-09 |
+| **症状** | 真实 Chromium 中，正文高度超过视口的普通页面、撑满视口高度的应用根容器，其上所有输入框在 ARIA 树里带 `[blocked]` 且没有引用，代理无法操作；真实 `<dialog>` 内只靠 `label`、`placeholder` 或 `title` 命名的输入框同样被判为“在弹窗之外”而被阻塞 |
+| **关联产品** | myrm-agent-harness `toolkits/browser/snapshot/observer_scripts.py`（`MODAL_BLOCKING_SCRIPT`）及其 `[blocked]` 标注 |
+| **根因** | 两处叠加：（1）遮罩判定只看“覆盖视口 ≥50%”，把不拦截点击的流内容器（`html`/`body`、整页应用根、长文章）也当作遮罩；（2）弹窗内部可交互名称只取 `innerText` 或 `aria-label`，漏掉 `label`、`placeholder`、`title`，与 ARIA 树按名称匹配时这些字段被当成弹窗外元素 |
+| **修复** | 遮罩必须是脱离文档流的图层：`position: fixed`，或 `absolute` 且 `z-index > 0`；`dialog` 与 modal 属性的判定不变。内部名称收集 `aria-label`、关联 `label`、文本、`placeholder`、`title`，去重，上限由 30 提到 60 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 没有 `dialog`/modal 属性、`absolute` 且 `z-index: auto` 的全屏遮罩不再被识别为阻塞层，这是有意取舍，没有拿真实站点样本验证；名称仍只截取前 50 个字符参与匹配，这一点没有改动 |
+| **回归** | `tests/toolkits/browser/test_modal_blocking_integration.py`（3 个真实 Chromium 用例：长页面、满高应用根、对话框自身字段可达且背后页面被阻塞），修复前失败、修复后通过；`test_aria_enhancer.py`、`test_cursor_detect_script.py` 保持通过 |
+| **代码位置** | `toolkits/browser/snapshot/observer_scripts.py::MODAL_BLOCKING_SCRIPT` |
+
 ### BUG-HARNESS-2026-10-08-004 · 健康探活与连通性测试的“5 秒超时、1 个 token”从未生效：写在 `config` 里的限制到不了提供方，挂起的端点最多占住调用方 300 秒
 
 | 字段 | 内容 |
