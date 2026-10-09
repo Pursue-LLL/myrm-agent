@@ -9,6 +9,7 @@
 - drive_chat_turn(): slash-pick the skill chip, optionally attach a file, type the request, press send
 - TextAttachment: a small text file picked through the composer's real file input
 - wait_for_approval_card() / click_approve(): the tool-approval card of a HITL-parked run
+- describe_page() / describe_unanswered_resume(): failure text for a turn the page sent or an approval it resumed
 - TRANSCRIPT_CHIP_JS: the sent message renders the skill as a chip, not as the raw ``[use skill]`` text
 
 [POS]
@@ -35,7 +36,7 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 from tests.support.chrome_skill_hooks_live_e2e import SkillChat
-from tests.support.chrome_skill_hooks_observe import wait_user_message_persisted
+from tests.support.chrome_skill_hooks_observe import backend_log_since, wait_user_message_persisted
 
 
 @dataclass(frozen=True)
@@ -200,7 +201,9 @@ _SEND_DIAGNOSTICS_JS = """(() => {
     isStreaming: snap.isStreaming ?? null,
     sendButtonDisabled: send ? send.disabled : null,
     notices,
-    requests: (window.__MYRM_SEND_TRACE__ ?? []).slice(-12),
+    approvalQueueLen: window.__MYRM_E2E_CHAT__?.toolApprovalSnapshot?.().queueLen ?? null,
+    sseTail: (window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? []).slice(-40),
+    requests: (window.__MYRM_SEND_TRACE__ ?? []).slice(-25),
   };
 })()"""
 
@@ -304,11 +307,35 @@ def drive_chat_turn(
         try:
             wait_user_message_persisted(chat_id, get_e2e_api_url(), wire, exact=attachment is None, spilled=spilled)
         except pytest.fail.Exception as failure:
-            page_state = client.evaluate(page, _SEND_DIAGNOSTICS_JS, timeout_sec=15.0)
-            pytest.fail(f"{failure}\nbrowser state after send: {json.dumps(page_state, ensure_ascii=False)}")
+            pytest.fail(f"{failure}\n{describe_page(client, page)}")
         if while_open is not None:
             while_open(client, page)
         return wire
+
+
+def describe_page(client: ChromeMcpClient, page: McpPage) -> str:
+    """What the page itself believes about the turn it sent: requests it made, stream events it saw, open approvals."""
+    state = client.evaluate(page, _SEND_DIAGNOSTICS_JS, timeout_sec=15.0)
+    return f"browser state: {json.dumps(state, ensure_ascii=False)}"
+
+
+def describe_unanswered_resume(
+    failure: BaseException,
+    client: ChromeMcpClient,
+    page: McpPage,
+    probe: SkillChat,
+    *,
+    log_offset: int,
+) -> str:
+    """Failure text for an approved run that never answered: the hooks' files, the page's view, the server's log."""
+    session = probe.out / "session_payload.json"
+    session_text = session.read_text(encoding="utf-8")[:300] if session.exists() else None
+    return (
+        f"{failure}\n"
+        f"hook files after approve: {sorted(path.name for path in probe.out.iterdir())}; session payload: {session_text}\n"
+        f"{describe_page(client, page)}\n"
+        f"--- backend log since approve ---\n{backend_log_since(get_e2e_api_url(), log_offset)}"
+    )
 
 
 def wait_for_approval_card(client: ChromeMcpClient, page: McpPage, *, timeout_sec: float = 240.0) -> dict[str, object]:

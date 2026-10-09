@@ -47,6 +47,7 @@ from tests.support.chrome_skill_hooks_composer import (
     TRANSCRIPT_CHIP_JS,
     TextAttachment,
     click_approve,
+    describe_unanswered_resume,
     drive_chat_turn,
     wait_for_approval_card,
 )
@@ -62,6 +63,7 @@ from tests.support.chrome_skill_hooks_live_e2e import (
 from tests.support.chrome_skill_hooks_observe import (
     assert_audit_turn_governed,
     assert_no_hook_raised,
+    backend_log_offset,
     read_json,
     transcript_text,
     wait_assistant_reply_ending_with,
@@ -175,9 +177,13 @@ def test_approved_tool_call_runs_the_skills_hooks_in_the_resumed_run(
         # The run is parked at its HITL interrupt: SessionStart already ran, the tool call has not.
         parked["session"] = read_json(out / "session_payload.json", api_url=api_url)
         parked["pre_tool_payload_exists"] = (out / "pre_tool_payload.json").exists()
+        log_offset = backend_log_offset(api_url)
         click_approve(client, page)
         # Keep the page open until the resumed run has streamed its answer.
-        parked["reply"] = wait_assistant_reply_ending_with(probe.chat_id, api_url, DONE_TOKEN, timeout_sec=240.0)
+        try:
+            parked["reply"] = wait_assistant_reply_ending_with(probe.chat_id, api_url, DONE_TOKEN, timeout_sec=240.0)
+        except pytest.fail.Exception as failure:
+            pytest.fail(describe_unanswered_resume(failure, client, page, probe, log_offset=log_offset))
 
     drive_chat_turn(
         ui_url,
