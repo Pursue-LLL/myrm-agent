@@ -3097,6 +3097,30 @@ def snapshot_backend_log_offset(api_url: str | None = None) -> int:
     return path.stat().st_size
 
 
+@contextlib.contextmanager
+def dump_backend_log_on_failure(
+    api_url: str | None = None,
+    *,
+    tail_bytes: int = 64_000,
+) -> Iterator[None]:
+    """Print the backend log written during the block when it raises.
+
+    PRIVATE runtimes are reaped at teardown together with their ``backend.log``,
+    so a failed live flow would otherwise leave no server-side evidence.
+    """
+    start = snapshot_backend_log_offset(api_url=api_url)
+    try:
+        yield
+    except BaseException:
+        path = backend_log_path(api_url=api_url)
+        if path.is_file():
+            with path.open("rb") as handle:
+                handle.seek(max(start, path.stat().st_size - tail_bytes))
+                text = handle.read().decode("utf-8", errors="replace")
+            print(f"\nBACKEND_LOG_ON_FAILURE ({path}):\n{text}\nBACKEND_LOG_ON_FAILURE_END", flush=True)
+        raise
+
+
 def count_execution_cache_in_log(
     *,
     since_offset: int,
