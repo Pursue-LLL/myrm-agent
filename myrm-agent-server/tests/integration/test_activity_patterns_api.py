@@ -101,7 +101,6 @@ def setup_event_logs(tmp_path):
                         "errors": 0,
                         "approvals": 0,
                         "compactions": 0,
-                        "failovers": 0,
                         "security_decisions": 0,
                         "duration_ms": 7200000,
                     }
