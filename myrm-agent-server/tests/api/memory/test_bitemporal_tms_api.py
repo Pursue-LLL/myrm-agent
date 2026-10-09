@@ -184,3 +184,137 @@ async def test_project_snapshot(test_app: FastAPI) -> None:
         retracted_ids = [r["evidence_id"] for r in snap_data["retracted_evidences"]]
         assert "f-snap-temp" in retracted_ids
         assert snap_data["total_count"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_invalid_inputs_validation_errors(test_app: FastAPI) -> None:
+    """Test rigorous 422 Unprocessable Entity responses for invalid intervals and parameters."""
+    async with AsyncClient(
+        transport=ASGITransport(app=test_app), base_url="http://test"
+    ) as client:
+        # 1. Invalid fact interval: valid_start > valid_end
+        res_inv_fact = await client.post(
+            "/api/memory/bitemporal-tms/facts",
+            json={
+                "evidence_id": "bad-fact",
+                "content": "Inverted interval",
+                "valid_start": 200.0,
+                "valid_end": 100.0,
+            },
+        )
+        assert res_inv_fact.status_code == 422
+
+        # 2. Empty premises for derived inference
+        res_empty_prem = await client.post(
+            "/api/memory/bitemporal-tms/inferences",
+            json={
+                "inference_id": "bad-inf",
+                "content": "No premises",
+                "premise_ids": [],
+                "justification": "Unsupported",
+            },
+        )
+        assert res_empty_prem.status_code == 422
+
+        # 3. Confidence out of bounds (> 1.0)
+        res_bad_conf = await client.post(
+            "/api/memory/bitemporal-tms/facts",
+            json={
+                "evidence_id": "over-conf-fact",
+                "content": "Overconfident",
+                "valid_start": 0.0,
+                "confidence": 1.5,
+            },
+        )
+        assert res_bad_conf.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_retract_nonexistent_or_redundant_record(test_app: FastAPI) -> None:
+    """Test idempotent handling and rejection of nonexistent or redundant retractions."""
+    async with AsyncClient(
+        transport=ASGITransport(app=test_app), base_url="http://test"
+    ) as client:
+        # 1. Retract non-existent record
+        res_nonexistent = await client.post(
+            "/api/memory/bitemporal-tms/retract",
+            json={"evidence_id": "ghost-evidence-404", "retracted_at": 100.0},
+        )
+        assert res_nonexistent.status_code == 200
+        assert res_nonexistent.json()["success"] is False
+
+        # 2. Create normal fact
+        await client.post(
+            "/api/memory/bitemporal-tms/facts",
+            json={
+                "evidence_id": "fact-idempotent-test",
+                "content": "Test immutable retraction",
+                "valid_start": 10.0,
+                "known_start": 10.0,
+            },
+        )
+
+        # 3. First retraction succeeds
+        res_first = await client.post(
+            "/api/memory/bitemporal-tms/retract",
+            json={"evidence_id": "fact-idempotent-test", "retracted_at": 50.0},
+        )
+        assert res_first.status_code == 200
+        assert res_first.json()["success"] is True
+
+        # 4. Redundant second retraction is rejected (immutable)
+        res_second = await client.post(
+            "/api/memory/bitemporal-tms/retract",
+            json={"evidence_id": "fact-idempotent-test", "retracted_at": 60.0},
+        )
+        assert res_second.status_code == 200
+        assert res_second.json()["success"] is False
+
+
+@pytest.mark.asyncio
+async def test_advanced_query_filtering_combinations(test_app: FastAPI) -> None:
+    """Test advanced query filter combinations across confidence, type, and active flags."""
+    async with AsyncClient(
+        transport=ASGITransport(app=test_app), base_url="http://test"
+    ) as client:
+        # Create fact and inference
+        await client.post(
+            "/api/memory/bitemporal-tms/facts",
+            json={
+                "evidence_id": "fact-filter-base",
+                "content": "Base configuration fact",
+                "valid_start": 0.0,
+                "confidence": 0.9,
+            },
+        )
+        await client.post(
+            "/api/memory/bitemporal-tms/inferences",
+            json={
+                "inference_id": "inf-filter-speculative",
+                "content": "Speculative conclusion",
+                "premise_ids": ["fact-filter-base"],
+                "justification": "Probabilistic guess",
+                "valid_start": 0.0,
+                "confidence": 0.4,
+            },
+        )
+
+        # Filter with min_confidence = 0.8: only fact-filter-base should match
+        res_high_conf = await client.post(
+            "/api/memory/bitemporal-tms/query",
+            json={"min_confidence": 0.8, "require_active_support": True},
+        )
+        assert res_high_conf.status_code == 200
+        matched_ids = [r["evidence_id"] for r in res_high_conf.json()["records"]]
+        assert "fact-filter-base" in matched_ids
+        assert "inf-filter-speculative" not in matched_ids
+
+        # Filter strictly by evidence_types = ["inference"]
+        res_inf_only = await client.post(
+            "/api/memory/bitemporal-tms/query",
+            json={"evidence_types": ["inference"], "min_confidence": 0.0},
+        )
+        assert res_inf_only.status_code == 200
+        inf_ids = [r["evidence_id"] for r in res_inf_only.json()["records"]]
+        assert "inf-filter-speculative" in inf_ids
+        assert "fact-filter-base" not in inf_ids

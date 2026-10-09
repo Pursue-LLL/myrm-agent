@@ -24,7 +24,7 @@ non-destructive evidence retraction, justification graph reasoning, and temporal
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class TimeIntervalDTO(BaseModel):
@@ -63,6 +63,14 @@ class RecordFactRequest(BaseModel):
     confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence level")
     metadata: dict[str, str] = Field(default_factory=dict, description="Additional metadata")
 
+    @model_validator(mode="after")
+    def validate_interval(self) -> RecordFactRequest:
+        if self.valid_end is not None and self.valid_start > self.valid_end:
+            raise ValueError(
+                f"valid_start ({self.valid_start}) cannot exceed valid_end ({self.valid_end})"
+            )
+        return self
+
 
 class DeriveInferenceRequest(BaseModel):
     """Request to derive a supported inference from premises."""
@@ -77,6 +85,18 @@ class DeriveInferenceRequest(BaseModel):
     causal_distance: int = Field(default=1, ge=1, description="Topological distance from premises")
     confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence level")
     metadata: dict[str, str] = Field(default_factory=dict, description="Additional metadata")
+
+    @model_validator(mode="after")
+    def validate_interval(self) -> DeriveInferenceRequest:
+        if (
+            self.valid_start is not None
+            and self.valid_end is not None
+            and self.valid_start > self.valid_end
+        ):
+            raise ValueError(
+                f"valid_start ({self.valid_start}) cannot exceed valid_end ({self.valid_end})"
+            )
+        return self
 
 
 class RetractRecordRequest(BaseModel):
