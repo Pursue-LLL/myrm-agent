@@ -117,7 +117,6 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "cron_digest",
         "device",
         "event",
-        "host_assets",
         "hosting",
         "infra",
         "locked_use",
@@ -131,10 +130,8 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "org_model_policy",
         "power",
         "project",
-        "remote_host",
         "repair",
         "rules",
-        "ssh_bridge",
         "trajectory",
         "web_fetch",
     }
