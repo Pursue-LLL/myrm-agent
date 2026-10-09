@@ -88,6 +88,14 @@ class MemoryManagerMutationsMixin:
     # ── Get / Update single memory ──
 
     async def get_memory(self, memory_id: str) -> AnyMemory | None:
+        return await self._find_memory(memory_id, self._namespaces)
+
+    async def _memory_exists_in_any_scope(self, memory_id: str) -> bool:
+        """Whether the memory exists in any namespace, including ones this manager cannot read."""
+        return await self._find_memory(memory_id, None) is not None
+
+    async def _find_memory(self, memory_id: str, namespaces: list[str] | None) -> AnyMemory | None:
+        """Look a memory up across stores; ``namespaces=None`` skips the namespace filter."""
         tasks: list[asyncio.Task[AnyMemory | None]] = []
         if self._vector is not None:
             tasks.append(
@@ -96,12 +104,12 @@ class MemoryManagerMutationsMixin:
                         memory_id,
                         self._vector,
                         self._config,
-                        namespaces=self._namespaces,
+                        namespaces=namespaces,
                     )
                 )
             )
         if self._relational is not None:
-            tasks.append(asyncio.create_task(self._relational.get_rule(memory_id, namespaces=self._namespaces)))
+            tasks.append(asyncio.create_task(self._relational.get_rule(memory_id, namespaces=namespaces)))
         for r in await asyncio.gather(*tasks, return_exceptions=True):
             if isinstance(r, BaseException):
                 logger.warning("Get memory error: %s", r)
@@ -295,15 +303,23 @@ class MemoryManagerMutationsMixin:
         if status is not None:
             updated.status = status
             if status == MemoryStatus.ARCHIVED:
-                now = datetime.now(UTC)
-                updated.metadata = {
-                    **updated.metadata,
-                    **archive_retention_stamps(now),
-                    "archive_reason": "user_deleted",
-                }
-                await self._cascade_clean_derived_graph_nodes(memory_id)
-                if self._cache is not None and updated.content and hasattr(self._cache, "evict"):
-                    await self._cache.evict(updated.content)
+                # Re-archiving keeps the original deadline so repeated deletes cannot push
+                # back the purge of data the user asked to forget. An archive that carries
+                # no retention stamp is still stamped, otherwise the purge scanner could
+                # never reclaim it.
+                already_reclaimable = existing.status == MemoryStatus.ARCHIVED and bool(
+                    existing.metadata.get("archive_expires_at") or existing.metadata.get("archived_at")
+                )
+                if not already_reclaimable:
+                    now = datetime.now(UTC)
+                    updated.metadata = {
+                        **updated.metadata,
+                        **archive_retention_stamps(now),
+                        "archive_reason": "user_deleted",
+                    }
+                    await self._cascade_clean_derived_graph_nodes(memory_id)
+                    if self._cache is not None and updated.content and hasattr(self._cache, "evict"):
+                        await self._cache.evict(updated.content)
             elif existing.status == MemoryStatus.ARCHIVED and status == MemoryStatus.ACTIVE:
                 updated.metadata.pop("archived_at", None)
                 updated.metadata.pop("archive_expires_at", None)

@@ -151,6 +151,14 @@ class MemoryProtectedError(MemoryError):
     """Raised when a user-protected memory is written without explicit consent."""
 
 
+class InvalidPendingEditError(MemoryError):
+    """Raised when a reviewer edit cannot be applied to a pending proposal."""
+
+
+class PendingTargetChangedError(MemoryError):
+    """Raised when a proposal's target memory is no longer what the reviewer was shown."""
+
+
 # ======================================================================
 # Embedding helpers
 # ======================================================================

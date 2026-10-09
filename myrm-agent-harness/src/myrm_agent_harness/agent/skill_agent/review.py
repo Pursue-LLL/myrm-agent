@@ -3,6 +3,7 @@
 [INPUT]
 - skills.evolution.review (POS: Skill review evaluator, pruner, reviewer)
 - skill_agent.context (POS: Background task tracking)
+- utils.chat_utils::extract_text_content (POS: multimodal query → plain text for the wiki archive and the skill-review goal)
 
 [OUTPUT]
 - SkillAgentReviewMixin: Mixin providing session-end review methods for SkillAgent
@@ -17,6 +18,9 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
+from langgraph.types import Command
+
+from myrm_agent_harness.utils.chat_utils import extract_text_content
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from .context import track_background_task
@@ -48,13 +52,17 @@ class SkillAgentReviewMixin:
     - _user_id: str | None
     - _last_context: dict | None
     - _agent: LangGraph agent instance
-    - llm: BaseChatModel
     - config: AgentRuntimeConfig
+
+    Clears ``_active_skill`` when a session ends.
     """
+
+    llm: BaseChatModel
+    _active_skill: SkillMetadata | None
 
     @staticmethod
     def _build_recurrence_summary(
-        query: str | list[dict[str, object]] | object,
+        query: str | list[dict[str, object]] | Command[object],
         assistant_chunks: list[str],
     ) -> str:
         """Extract a concise topic summary from user query for recurrence detection."""
@@ -72,7 +80,7 @@ class SkillAgentReviewMixin:
 
     def _maybe_archive_to_wiki(
         self,
-        query: str | list[dict[str, object]] | object,
+        query: str | list[dict[str, object]] | Command[object],
         assistant_chunks: list[str],
         chat_id: str | None = None,
     ) -> None:
@@ -90,7 +98,9 @@ class SkillAgentReviewMixin:
         if len(reply) < 500:
             return
 
-        query_text = query if isinstance(query, str) else str(query)
+        # Archive the user's words only: a multimodal query's repr would write the
+        # attachments' base64 into the wiki, and a HITL resume has no words to archive.
+        query_text = extract_text_content(query) if isinstance(query, (str, list)) else ""
         archive_content = f"# Query\n\n{query_text}\n\n# Response\n\n{reply}"
         config = getattr(self, "config", None)
 
@@ -140,7 +150,7 @@ class SkillAgentReviewMixin:
         track_background_task(task)
         logger.info("Wiki auto-archive scheduled (content=%d chars)", len(archive_content))
 
-    def _should_trigger_skill_review(self, query: str | list[dict[str, object]] | object) -> bool:
+    def _should_trigger_skill_review(self, query: str | list[dict[str, object]] | Command[object]) -> bool:
         """Determine if a background skill review should be triggered.
 
         Uses HeartbeatEvaluator for expression volume + task complexity assessment.
@@ -178,18 +188,14 @@ class SkillAgentReviewMixin:
 
         if isinstance(query, str):
             expression_length = len(query)
-        elif hasattr(query, "resume"):
-            resume_val = getattr(query, "resume", "")
-            expression_length = len(str(resume_val))
+        elif isinstance(query, list):
+            expression_length = sum(
+                len(str(item.get("text", "")))
+                for item in query
+                if isinstance(item, dict) and item.get("type") == "text"
+            )
         else:
-            try:
-                expression_length = sum(
-                    len(str(item.get("text", "")))
-                    for item in query  # type: ignore[union-attr]
-                    if isinstance(item, dict) and item.get("type") == "text"
-                )
-            except TypeError:
-                expression_length = 0
+            expression_length = len(str(getattr(query, "resume", "")))
 
         from myrm_agent_harness.agent.skills.evolution.review.evaluator import (
             HeartbeatEvaluator,
@@ -200,7 +206,7 @@ class SkillAgentReviewMixin:
 
     async def _trigger_background_skill_review(
         self,
-        query: str | list[dict[str, object]] | object,
+        query: str | list[dict[str, object]] | Command[object],
         chat_history: ChatHistoryReq | list[BaseMessage] | None,
         assistant_chunks: list[str],
         active_skills: list[str] | None = None,
@@ -235,7 +241,9 @@ class SkillAgentReviewMixin:
         agent_instance = getattr(self, "_agent", None)
         config = {"configurable": {"thread_id": session_chat_id}}
         fetched_state = False
-        query_text = query if isinstance(query, str) else "[multimodal]"
+        # The reviewer judges goal drift against the user's own words: attachments add nothing and a
+        # HITL resume carries none, in which case the reviewer is told the goal was not provided.
+        query_text = extract_text_content(query) if isinstance(query, (str, list)) else ""
 
         if agent_instance is not None:
             try:
@@ -247,7 +255,8 @@ class SkillAgentReviewMixin:
                 logger.warning("Failed to fetch full state for skill review: %s", e)
 
         if not fetched_state:
-            messages.append(HumanMessage(content=query_text))
+            if query_text:
+                messages.append(HumanMessage(content=query_text))
 
             assistant_reply = "".join(assistant_chunks)
             if assistant_reply:
@@ -315,7 +324,7 @@ class SkillAgentReviewMixin:
 
     async def _cleanup_session(
         self,
-        query: str | list[dict[str, object]] | object,
+        query: str | list[dict[str, object]] | Command[object],
         chat_history: ChatHistoryReq | list[BaseMessage] | None,
         assistant_chunks: list[str],
         active_skills: list[str] | None = None,
@@ -369,6 +378,8 @@ class SkillAgentReviewMixin:
                         llm: BaseChatModel = self.llm
                         extraction_llm: BaseChatModel | None = getattr(self, "_extraction_llm", None)
                         wiki_boundary_enabled = bool(getattr(self, "_wiki_base_dir", None))
+                        # Extraction reads the user's words; a HITL resume (a Command) carries none.
+                        extraction_query: str | list[dict[str, object]] = [] if isinstance(query, Command) else query
 
                         async def _background_extraction() -> None:
                             # Fire-and-forget task runs outside the LangGraph
@@ -381,7 +392,7 @@ class SkillAgentReviewMixin:
 
                             async with background_memory_write():
                                 await auto_extract_memories(
-                                    query,
+                                    extraction_query,
                                     chat_history,
                                     memory_manager,
                                     llm,

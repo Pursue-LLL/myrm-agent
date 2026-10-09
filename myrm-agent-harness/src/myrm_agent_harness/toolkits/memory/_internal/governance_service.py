@@ -2,7 +2,7 @@
 
 
 [INPUT]
-- memory._internal.approval::{memory_to_pending, pending_to_memory} (POS: approval queue helpers)
+- memory._internal.approval::{apply_edited_content, memory_to_pending, pending_to_memory} (POS: approval queue helpers)
 - memory._internal.memory_scanner::{scan_and_clean_memory} (POS: content safety scanner)
 - memory.protocols.relational::RelationalStoreProtocol (POS: relational store protocol)
 
@@ -10,7 +10,8 @@
 - GovernanceService: Governance orchestrator (approval flow, profile updates, scanning)
 
 [POS]
-Governance-side orchestration. Handles approval flow, profile updates, and content
+Governance-side orchestration. Handles approval flow (including the stale-target guard
+that refuses proposals whose target changed after queueing), profile updates, and content
 scanning. Not part of the public API.
 """
 
@@ -19,19 +20,28 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 
-from myrm_agent_harness.toolkits.memory._internal.approval import memory_to_pending, pending_to_memory
+from myrm_agent_harness.toolkits.memory._internal.approval import (
+    apply_edited_content,
+    memory_to_pending,
+    pending_to_memory,
+)
 from myrm_agent_harness.toolkits.memory._internal.memory_scanner import (
     MemoryTaintedError,
     ScanVerdict,
     get_scan_metrics,
     scan_memory_content,
 )
-from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError, MemoryNotFoundError
+from myrm_agent_harness.toolkits.memory._internal.storage import (
+    MemoryError,
+    MemoryNotFoundError,
+    PendingTargetChangedError,
+)
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.protocols.relational import RelationalStoreProtocol
 from myrm_agent_harness.toolkits.memory.types import (
     AnyMemory,
     MemoryScope,
+    MemoryStatus,
     MemoryType,
     PendingRecord,
     PendingResolutionAction,
@@ -40,6 +50,53 @@ from myrm_agent_harness.toolkits.memory.types import (
 logger = logging.getLogger(__name__)
 
 StoreFunc = Callable[[AnyMemory], Awaitable[AnyMemory]]
+ReadFunc = Callable[[str], Awaitable[AnyMemory | None]]
+ExistsFunc = Callable[[str], Awaitable[bool]]
+
+
+def _drift_reason(record: PendingRecord, target: AnyMemory) -> str | None:
+    """Why ``target`` is no longer what the reviewer was shown, or ``None`` when it still is."""
+    shown = record.target_content
+    current = getattr(target, "content", None)
+    if shown is not None and current is not None and current != shown:
+        return "content_changed"
+    if record.resolution_action == PendingResolutionAction.CORRECT:
+        if getattr(target, "status", MemoryStatus.ACTIVE) != MemoryStatus.ACTIVE:
+            return "not_active"
+        if (getattr(target, "metadata", None) or {}).get("corrected") is True:
+            return "already_corrected"
+    return None
+
+
+async def _ensure_target_reviewable(record: PendingRecord, read_func: ReadFunc, exists_func: ExistsFunc) -> None:
+    """Refuse to apply a proposal to a memory that is not what the reviewer was shown.
+
+    A ``CORRECT`` also needs the target to be live and not yet corrected: correcting
+    twice would leave two competing corrections active. A target that is truly gone
+    is not refused; the callers already resolve that case. A target that still exists
+    but lies outside the reviewer's namespaces is refused too: reading it as missing
+    would store a duplicate correction or report a forget that never happened.
+    """
+    target_id = str(record.target_memory_id)
+    target = await read_func(target_id)
+    if target is None:
+        if not await exists_func(target_id):
+            return
+        reason: str | None = "out_of_scope"
+    else:
+        reason = _drift_reason(record, target)
+    if reason is None:
+        return
+    logger.info(
+        "Pending %s proposal %s refused: target %s is not applicable (%s)",
+        record.resolution_action,
+        record.id,
+        target_id,
+        reason,
+    )
+    raise PendingTargetChangedError(
+        f"Memory {target_id} is no longer what proposal {record.id} was queued against ({reason}); review it again"
+    )
 
 
 class GovernanceService:
@@ -74,12 +131,18 @@ class GovernanceService:
         *,
         resolution_action: PendingResolutionAction = PendingResolutionAction.STORE,
         target_memory_id: str | None = None,
+        target_content: str | None = None,
     ) -> str:
         rel = self._rel()
         if await rel.pending_exists(memory.memory_type.value, memory.content):
             return ""
         return await rel.submit_pending(
-            memory_to_pending(memory, resolution_action=resolution_action, target_memory_id=target_memory_id)
+            memory_to_pending(
+                memory,
+                resolution_action=resolution_action,
+                target_memory_id=target_memory_id,
+                target_content=target_content,
+            )
         )
 
     async def approve(
@@ -88,12 +151,30 @@ class GovernanceService:
         *,
         store_func: StoreFunc,
         correct_func: Callable[[str, str], Awaitable[AnyMemory]],
-        delete_func: Callable[[str], Awaitable[int]],
+        forget_func: Callable[[str], Awaitable[AnyMemory]],
+        read_func: ReadFunc,
+        exists_func: ExistsFunc,
+        edited_content: str | None = None,
     ) -> AnyMemory | None:
+        """Apply a pending proposal; ``edited_content`` is the reviewer's rewording.
+
+        ``forget_func`` retires the targeted memory (archive, not hard delete) so
+        a mistaken approval stays restorable during the archive retention window.
+        ``read_func`` loads the target within the reviewer's namespaces and
+        ``exists_func`` tells a target that is gone from one the reviewer cannot
+        reach, so a proposal is never applied to a memory that changed since the
+        reviewer saw it or to one this review cannot see (``PendingTargetChangedError``).
+        """
         rel = self._rel()
         record = await rel.get_pending(pending_id)
         if record is None:
             raise MemoryNotFoundError(f"Pending record {pending_id} not found")
+        if record.status != "pending":
+            # Stale double submit: applying again would duplicate a stored memory or re-run a correction.
+            logger.info("Pending record %s is already %s; approval is a no-op", pending_id, record.status)
+            return None
+        if edited_content is not None:
+            record = apply_edited_content(record, edited_content)
         if record.memory_type == MemoryType.PROFILE:
             data = record.memory_data
             scope_data = data.get("scope")
@@ -104,12 +185,29 @@ class GovernanceService:
 
         if record.resolution_action == PendingResolutionAction.DELETE:
             if record.target_memory_id:
-                await delete_func(record.target_memory_id)
+                await _ensure_target_reviewable(record, read_func, exists_func)
+                try:
+                    await forget_func(record.target_memory_id)
+                except MemoryNotFoundError:
+                    # Already forgotten or purged while queued: the user's intent
+                    # (this fact is gone) already holds, so approval stays idempotent.
+                    logger.warning("Forget target %s is already gone; approving as a no-op", record.target_memory_id)
             await rel.mark_pending(pending_id, "approved")
             return None
 
         if record.resolution_action == PendingResolutionAction.CORRECT and record.target_memory_id:
-            stored = await correct_func(record.target_memory_id, record.content)
+            await _ensure_target_reviewable(record, read_func, exists_func)
+            try:
+                stored = await correct_func(record.target_memory_id, record.content)
+            except MemoryNotFoundError:
+                # The fact the user asked to correct was forgotten or purged while
+                # the proposal sat in the queue. Approval must still honour the
+                # confirmed correction: keep it as a new memory instead of failing.
+                logger.warning(
+                    "Correction target %s is gone; storing the approved correction as a new memory",
+                    record.target_memory_id,
+                )
+                stored = await store_func(pending_to_memory(record))
             await rel.mark_pending(pending_id, "approved")
             return stored
 
@@ -118,7 +216,18 @@ class GovernanceService:
         return stored
 
     async def reject(self, pending_id: str) -> None:
-        await self._rel().mark_pending(pending_id, "rejected")
+        rel = self._rel()
+        record = await rel.get_pending(pending_id)
+        if record is None:
+            raise MemoryNotFoundError(f"Pending record {pending_id} not found")
+        if record.status != "pending":
+            # An approved proposal must not be flipped to rejected after it was applied.
+            logger.info("Pending record %s is already %s; rejection is a no-op", pending_id, record.status)
+            return
+        await rel.mark_pending(pending_id, "rejected")
+
+    async def get_pending(self, pending_id: str) -> PendingRecord | None:
+        return await self._rel().get_pending(pending_id)
 
     async def list_pending(self, *, limit: int) -> list[PendingRecord]:
         return await self._rel().list_pending(limit=limit)

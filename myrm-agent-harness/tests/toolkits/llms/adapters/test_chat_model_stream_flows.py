@@ -327,7 +327,6 @@ class TestAsyncAgenerateStreaming:
         import myrm_agent_harness.toolkits.llms.errors.classifier as cls
 
         monkeypatch.setattr(cls, "is_context_overflow", lambda e: True)
-        monkeypatch.setattr(cls, "parse_available_output_tokens_from_error", lambda e: None)
 
         with pytest.raises(ValueError, match="context length"):
             async for _ in model._astream([HumanMessage(content="hi")]):
@@ -399,39 +398,6 @@ class TestAsyncAgenerateStreaming:
         with pytest.raises(TypeError, match="unrelated"):
             await model._agenerate_inner([HumanMessage(content="hi")], streaming=True)
 
-    @pytest.mark.asyncio
-    async def test_async_stream_context_overflow_injects_max_tokens(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Context overflow with available tokens retries with injected max_tokens."""
-        model = ChatLiteLLM(model="openai/test-model")
-        model.client = MagicMock()
-        calls = {"count": 0}
-
-        async def _flaky(messages: Any, **kwargs: Any) -> Any:
-            calls["count"] += 1
-            if calls["count"] == 1:
-                raise ValueError("context length exceeded, need 800 more")
-            return _async_iter(
-                [
-                    {"choices": [{"delta": {"role": "assistant", "content": "ok"}}]},
-                    {"choices": [{"delta": {"content": None}, "finish_reason": "stop"}]},
-                ]
-            )
-
-        model.client.acreate = AsyncMock(side_effect=_flaky)
-        model.empty_retry_max_attempts = 2
-        model.empty_retry_delay = 0.05
-
-        import myrm_agent_harness.toolkits.llms.errors.classifier as cls
-
-        monkeypatch.setattr(cls, "is_context_overflow", lambda e: True)
-        monkeypatch.setattr(cls, "parse_available_output_tokens_from_error", lambda e: 800)
-
-        collected = []
-        async for chunk in model._astream([HumanMessage(content="hi")]):
-            collected.append(chunk)
-        assert calls["count"] == 2
-        assert any("ok" in str(c.message.content) for c in collected)
-
 
 class TestResponsesWireAgenerateStreaming:
     @pytest.mark.asyncio
@@ -467,7 +433,9 @@ class TestResponsesWireAgenerateStreaming:
             {"choices": [], "usage": {"prompt_tokens": 3, "completion_tokens": 2, "total_tokens": 5}},
         ]
 
-        async def _mock_stream_responses_async(client: Any, message_dicts: Any, params: Any) -> AsyncIterator[dict[str, Any]]:
+        async def _mock_stream_responses_async(
+            client: Any, message_dicts: Any, params: Any
+        ) -> AsyncIterator[dict[str, Any]]:
             for chunk in stream_chunks:
                 yield chunk
 
@@ -504,7 +472,6 @@ class TestContextOverflowFastFail:
         import myrm_agent_harness.toolkits.llms.errors.classifier as cls
 
         monkeypatch.setattr(cls, "is_context_overflow", lambda e: True)
-        monkeypatch.setattr(cls, "parse_available_output_tokens_from_error", lambda e: None)
 
         with pytest.raises(ValueError, match="context length"):
             model._generate([HumanMessage(content="hi")])

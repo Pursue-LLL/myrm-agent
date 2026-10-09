@@ -68,7 +68,7 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 |------|------|-------------|-------|
 | `__init__.py` | Package | Agent core module — public API. | — |
 | `base_agent.py` | Core | Base Agent — streaming, token tracking, artifacts. | ✅ |
-| `types.py` | Config | AgentRuntimeSpec, EngineParams, run statistics. | ✅ |
+| `types.py` | Config | AgentRuntimeSpec, EngineParams, run statistics; `map_to_completion_status` maps raw finish reasons (plus the dropped-stream sentinel) to `CompletionStatus`. | ✅ |
 
 | Submodule | Description | L2 Doc |
 |-----------|-------------|--------|
@@ -94,6 +94,7 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 | `middlewares/` | Framework middleware stack | [MIDDLEWARE_SYSTEM.md](middlewares/MIDDLEWARE_SYSTEM.md) |
 | `parallel/` | Shared subagent spawn path (batch/swarm semaphore) | [parallel/_ARCH.md](parallel/_ARCH.md) |
 | `plugins/` | Agent Plugins 1.0.0 package parser (client-agnostic) | [plugins/_ARCH.md](plugins/_ARCH.md) |
+| `proactive_kernel/` | Proactive agent micro-kernel, heartbeat loops, and zero-nag etiquette gate suite (Item 319) | [proactive_kernel/_ARCH.md](proactive_kernel/_ARCH.md) |
 | `security/` | Agent security engine (HITL, rate limiter, transcript classifier) | [security/SECURITY_SYSTEM.md](security/SECURITY_SYSTEM.md) |
 | `skill_agent/` | SkillAgent domain — class, mixins, ContextVar session state, factory facade | [skill_agent/_ARCH.md](skill_agent/_ARCH.md) |
 | `skills/` | Skill system (discovery, evolution, optimization, sync) | [skills/SKILL_SYSTEM.md](skills/SKILL_SYSTEM.md) |
@@ -101,7 +102,7 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 | `sub_agents/` | Sub-agent lifecycle | [SUB_AGENT_SYSTEM.md](sub_agents/SUB_AGENT_SYSTEM.md) |
 | `tool_management/` | Tool registry, layers, dedup | [TOOL_MANAGEMENT_SYSTEM.md](tool_management/TOOL_MANAGEMENT_SYSTEM.md) |
 | `workspace_coordination/` | Parallel write isolation + batch merge | [workspace_coordination/_ARCH.md](workspace_coordination/_ARCH.md) |
-| `workspace_rules/` | Project context file discovery | [workspace_rules/_ARCH.md](workspace_rules/_ARCH.md) |
+| `workspace_rules/` | Project context file discovery, canonical scaffolding & zero-friction handover suite (Item 320) | [workspace_rules/_ARCH.md](workspace_rules/_ARCH.md) |
 
 ## Key Dependencies
 

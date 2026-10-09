@@ -242,10 +242,13 @@ vectors_config = {
 1. **Compressed Track**（始终运行）：
    - LLM提取SemanticMemory/EpisodicMemory
    - Context compression + efficiency
+   - 提取输入仅为**文本**：多模态消息只取 text 块，图片/音频块（含 base64）不进入提示词；无文本的回合（纯图片消息、HITL 恢复）整条省略，不注入占位文本
 2. **Verbatim Track**（`enable_verbatim=True` 显式开启，**默认关闭**）：
    - 无LLM处理；每轮只存储**当前一轮**的 exchange pair（`User Q + AI A`），更早的轮次已由各自回合存储
    - 直接写入会话索引，绕过待审批队列（`_bypass_approval=True`），仍经过内容安全扫描
-   - 100% lossless preservation
+   - 100% lossless preservation；用户消息无文本的回合不构成 exchange，不存储
+   - 失败隔离：该轨道抛错只上报 `write` 阶段 ERROR 事件，不影响 Compressed Track
+   - 召回：`MemoryConversationSearchProvider` 以 `include_raw=True` 检索，命中的 `snippet` 为 verbatim exchange（`recent` 模式走 `list_memories`，只返回摘要）
    - 默认关闭的原因：每轮 2 次 embedding 并新增 1 个向量点，而压缩轨道已保留值得记忆的内容
    - 实现：`agent/_internals/memory_verbatim.py::capture_current_exchange`
 
@@ -686,7 +689,7 @@ retention = 0.35 × time_score + 0.25 × access_score + 0.15 × importance_score
 
 作用域安全：`run_forgetting` 的向量 scroll 按 `primary_namespace ∈ 当前 manager.namespaces` 精确过滤，只清理本 scope 的低保留记忆，绝不跨 agent/channel/task 误删（仅共享 `global` 广播命名空间的其他 agent 记忆不会进入扫描）；`delete_rule`、`delete_memory` 与按类型清空 `delete_by_type` 同样校验所有权（`get_rule(namespaces=...)`/`_owns_vector_doc` 按 `primary_namespace` 主判定、缺失时按 namespaces 交集兜底/`list_rules(namespaces)` 分页删除），规则与记忆只能在归属 scope 内被删除，杜绝跨 scope 越权删除；`delete_memory` 同步级联清理 Claim Graph 派生节点并精准驱逐 `EmbeddingCache` 中的文本缓存；统一检索出口 `_filter_results` 严格阻断 `archived`/`disabled` 状态数据流出，避免幽灵召回。
 
-**ARCHIVE 字段契约**：向量层以 `archived` 布尔 payload 作为归档过滤标准——`_user_filter` 默认 `archived == False`，归档记忆必须同步设置 `archived: True` 才会被常规检索排除。任一归档写入路径都通过 `types.archive_retention_stamps(now)` 生成 `archived_at` + `archive_expires_at`（`ARCHIVE_RETENTION_DAYS` = 7 天），保证时间戳同源一致且条目必然可回收：`run_forgetting` ARCHIVE 分支、staleness review REMOVE、`update_memory(status=archived)`。恢复走 `update_memory(status=ACTIVE)`，写回 `archived=False` 并清除 `archived_at`/`archive_expires_at`/`archive_reason`（而非删除字段，避免 Qdrant 对缺失字段的 MatchValue 不匹配导致恢复后记忆从检索消失）。
+**ARCHIVE 字段契约**：向量层以 `archived` 布尔 payload 作为归档过滤标准——`_user_filter` 默认 `archived == False`，归档记忆必须同步设置 `archived: True` 才会被常规检索排除。任一归档写入路径都通过 `types.archive_retention_stamps(now)` 生成 `archived_at` + `archive_expires_at`（`ARCHIVE_RETENTION_DAYS` = 7 天），保证时间戳同源一致且条目必然可回收：`run_forgetting` ARCHIVE 分支、staleness review REMOVE、`update_memory(status=archived)`。对已带保留戳的归档记忆重复归档是空操作（不改写时间戳、不重复图级联与缓存驱逐），重复删除不会延后用户已要求遗忘数据的清除期限；未带任何保留戳的归档会被补戳，保证可被回收。恢复走 `update_memory(status=ACTIVE)`，写回 `archived=False` 并清除 `archived_at`/`archive_expires_at`/`archive_reason`（而非删除字段，避免 Qdrant 对缺失字段的 MatchValue 不匹配导致恢复后记忆从检索消失）。
 
 **归档回收（唯一入口 `_manager/archival.py`）**：归档是软删除，回收由 `purge_expired_archived_memories`（向量记忆）与 `purge_expired_archived_rules`（procedural 规则）承担，server 侧 guardian 通过 `purge_expired_archives` 委派调用，本模块是唯一实现。两者共用同一到期判定（`_retention_elapsed`）：以 `archive_expires_at` 为准；缺失该字段时回退 `archived_at` + `ARCHIVE_RETENTION_DAYS`，使未写入到期戳的归档同样可被回收。向量侧**必须覆盖全部可承载归档状态的 collection**（semantic / episodic / conversation —— `update_memory(status=archived)` 无类型门禁，三类都会落戳），任一遗漏都会让该 collection 的到期条目永不回收。两个扫描都**翻页至耗尽**（记忆用 `scroll` 返回的游标，规则用 `offset`），并以页数上限、删除批量上限与**单周期删除总预算**（`_MAX_PURGE_DELETIONS_PER_CYCLE`）约束单周期工作量，超出部分由下一周期继续；记忆的删除在整个扫描结束后分批执行（`_PURGE_DELETE_BATCH_SIZE`），既避免中途改动集合使游标失效，也避免单周期以无界量的图级联删除挤占事件循环。规则回收以 `allow_protected=False` 删除，用户保护（`is_user_protected`）的规则保持跳过、永久可恢复。
 
@@ -887,15 +890,18 @@ tools = create_memory_tools(manager=manager)
 
 | 方法                                                                              | 功能                                                                              |
 | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None)`       | 提交记忆到审批队列（去重），并声明批准后应执行的落库语义                          |
-| `approve(pending_id)`                                                             | 按 `resolution_action` 分派：`STORE` 持久化新记忆 / `CORRECT` 纠正目标记忆 / `DELETE` 删除目标记忆 |
-| `reject(pending_id)`                                                              | 拒绝                                                                              |
+| `submit_pending(memory, *, resolution_action=STORE, target_memory_id=None, target_content=None)` | 提交记忆到审批队列（去重），并声明批准后应执行的落库语义与待审目标展示内容 |
+| `approve(pending_id, *, edited_content=None)`                                     | 按 `resolution_action` 分派：`STORE` 持久化新记忆 / `CORRECT` 纠正目标记忆 / `DELETE` 归档目标记忆；`edited_content` 为审批者改写后的文本 |
+| `reject(pending_id)`                                                              | 拒绝；记录不存在抛 `MemoryNotFoundError`，已处理（非 `pending`）的记录重复拒绝/批准是空操作，不会重复落库或改写已批准状态 |
+| `get_pending(pending_id)`                                                         | 按 id 读取单条待审批记录（含已处理状态），不存在返回 `None`；供业务层在批准/拒绝前取得审计所需元数据 |
 | `list_pending(limit=50)`                                                          | 列出待审批记忆                                                                    |
 | `count_pending()`                                                                 | 统计待审批数量                                                                    |
 | `batch_approve(ids)`                                                              | 批量审批                                                                          |
 | `batch_reject(ids)`                                                               | 批量拒绝                                                                          |
 
-`PendingResolutionAction` 取值：`STORE`（默认，持久化候选记忆本身）、`CORRECT`（以候选内容纠正 `target_memory_id`，触发旧记忆降级并建立纠正链）、`DELETE`（删除 `target_memory_id`）。`CORRECT`/`DELETE` 需携带 `target_memory_id`；删除经 `delete_memory_by_id` 按记忆 id 解析集合后走带所有权校验的删除路径。
+`PendingResolutionAction` 取值：`STORE`（默认，持久化候选记忆本身）、`CORRECT`（以候选内容纠正 `target_memory_id`，触发旧记忆降级并建立纠正链）、`DELETE`（归档 `target_memory_id`）。`CORRECT`/`DELETE` 需携带 `target_memory_id`；`DELETE` 走 `update_memory(status=ARCHIVED)`（软删除：召回即刻排除，保留期内可恢复，到期由归档回收清除），目标已被清除时批准幂等完成。`edited_content` 同时更新 `content` 与 `memory_data["content"]`（`STORE` 据后者重建、`CORRECT` 读前者）；空白文本、`profile`/`DELETE` 提案无可编辑文本，传入编辑抛 `InvalidPendingEditError` 且提案保持待审。若 `CORRECT` 的目标在审批前已被遗忘/清除，批准会退化为 `STORE`（保留用户已确认的纠正内容），而非报错。
+
+目标漂移保护：批准前读取目标，若自提案入队后目标被改写（内容与 `target_content` 快照不一致）、`CORRECT` 目标已被纠正过（`metadata.corrected`）或不再 `ACTIVE`，或 `DELETE` 目标内容已被改写，则抛 `PendingTargetChangedError`、提案保持待审，避免两条纠正并存或覆盖用户的手动编辑；目标仍存在但落在审批 manager 的 namespace 之外（如智能体仅读写自身作用域）时同样拒绝，不会被当作「已删除」而静默存成新记忆或空操作；无快照的旧记录跳过内容比对，目标真正已不存在/已归档的幂等路径不受影响。同一提案的并发审批串行由调用方负责（server 的 `pending_review` 按 pending_id 加锁）。
 
 ---
 

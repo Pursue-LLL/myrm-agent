@@ -21,7 +21,7 @@ MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first �
 |------|------|------|
 | `src/myrm_agent_harness/` | 核心 | 框架源码（agent、toolkits、runtime、api 等）· [\_ARCH.md](src/myrm_agent_harness/_ARCH.md) |
 | `tests/` | 辅助 | 单元 / 集成 / API 冒烟 · [\_ARCH.md](tests/_ARCH.md) |
-| `benchmarks/` | 辅助 | CI 性能回归；`archive/` 存历史脚本 · [\_ARCH.md](benchmarks/_ARCH.md) |
+| `benchmarks/` | 辅助 | CI 性能回归基线与诊断基准 · [\_ARCH.md](benchmarks/_ARCH.md) |
 | `scripts/` | 辅助 | 边界检测、发布 tag 校验、tool registry、分形 `_ARCH` 门禁 · [\_ARCH.md](scripts/_ARCH.md) |
 
 ## 模块依赖

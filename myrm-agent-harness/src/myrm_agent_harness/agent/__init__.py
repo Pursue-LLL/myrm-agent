@@ -103,9 +103,188 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.agent.context_guard",
         "SpilloverPayload",
     ),
+    "ProactiveAgentKernelSuite": (
+        "myrm_agent_harness.agent.proactive_kernel",
+        "ProactiveAgentKernelSuite",
+    ),
+    "ProactiveAgentKernelContractAndInstinctiveProactivityLoopSuite": (
+        "myrm_agent_harness.agent.proactive_kernel",
+        "ProactiveAgentKernelContractAndInstinctiveProactivityLoopSuite",
+    ),
+    "HeartbeatManifestParser": (
+        "myrm_agent_harness.agent.proactive_kernel",
+        "HeartbeatManifestParser",
+    ),
+    "OpportunitySensingEngine": (
+        "myrm_agent_harness.agent.proactive_kernel",
+        "OpportunitySensingEngine",
+    ),
+    "ZeroNagDiscretionGate": (
+        "myrm_agent_harness.agent.proactive_kernel",
+        "ZeroNagDiscretionGate",
+    ),
+    "CanonicalScaffoldingSuite": (
+        "myrm_agent_harness.agent.workspace_rules.canonical_scaffolding",
+        "CanonicalScaffoldingSuite",
+    ),
+    "CanonicalAgentWorkspaceScaffoldingAndZeroFrictionHandoverSuite": (
+        "myrm_agent_harness.agent.workspace_rules.canonical_scaffolding",
+        "CanonicalAgentWorkspaceScaffoldingAndZeroFrictionHandoverSuite",
+    ),
+    "TopologyValidator": (
+        "myrm_agent_harness.agent.workspace_rules.canonical_scaffolding",
+        "TopologyValidator",
+    ),
+    "HeterogeneousWorkspaceSnifferAndWizard": (
+        "myrm_agent_harness.agent.workspace_rules.canonical_scaffolding",
+        "HeterogeneousWorkspaceSnifferAndWizard",
+    ),
+    "SandboxedSafeWorkspaceEncapsulator": (
+        "myrm_agent_harness.agent.workspace_rules.canonical_scaffolding",
+        "SandboxedSafeWorkspaceEncapsulator",
+    ),
+    "CrossHarnessSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "CrossHarnessSuite",
+    ),
+    "CrossHarnessContextStateASTAndLosslessRehydrationSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "CrossHarnessContextStateASTAndLosslessRehydrationSuite",
+    ),
+    "HeterogeneousContextHydrationBridge": (
+        "myrm_agent_harness.agent.context_management",
+        "HeterogeneousContextHydrationBridge",
+    ),
+    "ArtifactContinuityGateway": (
+        "myrm_agent_harness.agent.context_management",
+        "ArtifactContinuityGateway",
+    ),
+    "SessionStateASTEngine": (
+        "myrm_agent_harness.agent.context_management",
+        "SessionStateASTEngine",
+    ),
+    "BilateralSovereigntyArchiveHub": (
+        "myrm_agent_harness.agent.context_management",
+        "BilateralSovereigntyArchiveHub",
+    ),
+    "ZeroLockinUniversalContextPortabilitySuite": (
+        "myrm_agent_harness.agent.context_management",
+        "ZeroLockinUniversalContextPortabilitySuite",
+    ),
+    "UniversalArchiveSpecEngine": (
+        "myrm_agent_harness.agent.context_management",
+        "UniversalArchiveSpecEngine",
+    ),
+    "CrossPlatformTranscriptNormalizer": (
+        "myrm_agent_harness.agent.context_management",
+        "CrossPlatformTranscriptNormalizer",
+    ),
+    "OfflineMemoryProfileHydrationEngine": (
+        "myrm_agent_harness.agent.context_management",
+        "OfflineMemoryProfileHydrationEngine",
+    ),
+    "DecoupledMemoryConsolidationSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "DecoupledMemoryConsolidationSuite",
+    ),
+    "DecoupledMemoryConsolidationDreamingEngineAndServerlessStateSyncSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "DecoupledMemoryConsolidationDreamingEngineAndServerlessStateSyncSuite",
+    ),
+    "DirectMemoryDriveChannel": (
+        "myrm_agent_harness.agent.context_management",
+        "DirectMemoryDriveChannel",
+    ),
+    "NightlyDreamingPipeline": (
+        "myrm_agent_harness.agent.context_management",
+        "NightlyDreamingPipeline",
+    ),
+    "LockFreeSnapshotBroadcaster": (
+        "myrm_agent_harness.agent.context_management",
+        "LockFreeSnapshotBroadcaster",
+    ),
+    "DeterministicPersonaMemoryDriftAuditSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "DeterministicPersonaMemoryDriftAuditSuite",
+    ),
+    "DeterministicPersonaMemoryDriftAuditAndLineByLineReconciliationSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "DeterministicPersonaMemoryDriftAuditAndLineByLineReconciliationSuite",
+    ),
+    "LineByLineRealityReconciler": (
+        "myrm_agent_harness.agent.context_management",
+        "LineByLineRealityReconciler",
+    ),
+    "PurificationDiffEngine": (
+        "myrm_agent_harness.agent.context_management",
+        "PurificationDiffEngine",
+    ),
+    "EndToEndSealedDecisionHandoffSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "EndToEndSealedDecisionHandoffSuite",
+    ),
+    "DecisionSealPacker": (
+        "myrm_agent_harness.agent.context_management",
+        "DecisionSealPacker",
+    ),
+    "DecisionInvalidationGraph": (
+        "myrm_agent_harness.agent.context_management",
+        "DecisionInvalidationGraph",
+    ),
+    "PreSealSecretMasker": (
+        "myrm_agent_harness.agent.context_management",
+        "PreSealSecretMasker",
+    ),
+    "TwoStageRankedSnippetAndSelectiveDeepExtractSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "TwoStageRankedSnippetAndSelectiveDeepExtractSuite",
+    ),
+    "ContextCacheWarmthGaugeAndHeartbeatKeepAliveSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "ContextCacheWarmthGaugeAndHeartbeatKeepAliveSuite",
+    ),
+    "CacheWarmthGauge": (
+        "myrm_agent_harness.agent.context_management",
+        "CacheWarmthGauge",
+    ),
 }
 
 __all__ = [
+    "ArtifactContinuityGateway",
+    "BilateralSovereigntyArchiveHub",
+    "CanonicalAgentWorkspaceScaffoldingAndZeroFrictionHandoverSuite",
+    "CanonicalScaffoldingSuite",
+    "CacheWarmthGauge",
+    "ContextCacheWarmthGaugeAndHeartbeatKeepAliveSuite",
+    "CrossHarnessContextStateASTAndLosslessRehydrationSuite",
+    "CrossHarnessSuite",
+    "CrossPlatformTranscriptNormalizer",
+    "DecoupledMemoryConsolidationDreamingEngineAndServerlessStateSyncSuite",
+    "DecoupledMemoryConsolidationSuite",
+    "DecisionInvalidationGraph",
+    "DecisionSealPacker",
+    "DeterministicPersonaMemoryDriftAuditAndLineByLineReconciliationSuite",
+    "DeterministicPersonaMemoryDriftAuditSuite",
+    "DirectMemoryDriveChannel",
+    "EndToEndSealedDecisionHandoffSuite",
+    "HeartbeatManifestParser",
+    "HeterogeneousContextHydrationBridge",
+    "HeterogeneousWorkspaceSnifferAndWizard",
+    "LineByLineRealityReconciler",
+    "LockFreeSnapshotBroadcaster",
+    "NightlyDreamingPipeline",
+    "OfflineMemoryProfileHydrationEngine",
+    "OpportunitySensingEngine",
+    "ProactiveAgentKernelContractAndInstinctiveProactivityLoopSuite",
+    "ProactiveAgentKernelSuite",
+    "PreSealSecretMasker",
+    "PurificationDiffEngine",
+    "SandboxedSafeWorkspaceEncapsulator",
+    "TwoStageRankedSnippetAndSelectiveDeepExtractSuite",
+    "UniversalArchiveSpecEngine",
+    "ZeroLockinUniversalContextPortabilitySuite",
+    "SessionStateASTEngine",
+    "TopologyValidator",
     "SUBAGENT_CONFIGS",
     "AgentEventType",
     "AgentRunStatistics",
@@ -136,6 +315,7 @@ __all__ = [
     "SubAgentStatus",
     "SubagentConfig",
     "TokenUsage",
+    "ZeroNagDiscretionGate",
     "auto_register_subagent_configs",
     "create_skill_agent",
     "fire_hook",

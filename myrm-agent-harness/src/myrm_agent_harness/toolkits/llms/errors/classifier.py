@@ -16,7 +16,7 @@ identify specific local/remote edge cases.
 - normalize_provider_error: function — normalize_provider_error
 - classify_error: Classify an LLM exception into an ``ErrorKind`` using mul...
 - classify_failover_reason: Classify an LLM exception into a ``FailoverReason`` using...
-- parse_available_output_tokens_from_error: Extract available output tokens from 5 provider formats.
+- is_quota_exhausted: Detect irreversible quota/credit exhaustion errors for instant failover...
 
 [POS]
 LLM error classifier for failover decisions.
@@ -433,14 +433,35 @@ def normalize_provider_error(error: Exception) -> NormalizedError:
     status_code = _extract_status_code(error)
     body = _extract_error_body(error)
 
-    # Extract deeply nested message
+    # Extract deeply nested message, structured error codes, and types
     _raw_msg = str(error).lower()
     _body_msg = ""
+    _codes: list[str] = []
+    _types: list[str] = []
     _metadata_msg = ""
+
+    # Direct exception attributes from client SDKs (OpenAI, Anthropic, LiteLLM)
+    direct_code = getattr(error, "code", None)
+    if direct_code is not None and not callable(direct_code):
+        _codes.append(str(direct_code).lower())
+    direct_type = getattr(error, "type", None)
+    if direct_type is not None and not callable(direct_type):
+        _types.append(str(direct_type).lower())
+
     if isinstance(body, dict):
+        if "code" in body and body["code"]:
+            _codes.append(str(body["code"]).lower())
+        if "type" in body and body["type"]:
+            _types.append(str(body["type"]).lower())
+
         _err_obj = body.get("error", {})
         if isinstance(_err_obj, dict):
             _body_msg = str(_err_obj.get("message") or "").lower()
+            if "code" in _err_obj and _err_obj["code"]:
+                _codes.append(str(_err_obj["code"]).lower())
+            if "type" in _err_obj and _err_obj["type"]:
+                _types.append(str(_err_obj["type"]).lower())
+
             _metadata = _err_obj.get("metadata", {})
             if isinstance(_metadata, dict):
                 _raw_json = _metadata.get("raw") or ""
@@ -451,6 +472,10 @@ def normalize_provider_error(error: Exception) -> NormalizedError:
                             _inner_err = _inner.get("error", {})
                             if isinstance(_inner_err, dict):
                                 _metadata_msg = str(_inner_err.get("message") or "").lower()
+                                if "code" in _inner_err and _inner_err["code"]:
+                                    _codes.append(str(_inner_err["code"]).lower())
+                                if "type" in _inner_err and _inner_err["type"]:
+                                    _types.append(str(_inner_err["type"]).lower())
                     except (json.JSONDecodeError, TypeError):
                         pass
 
@@ -466,7 +491,11 @@ def normalize_provider_error(error: Exception) -> NormalizedError:
             if isinstance(content_attr, (bytes, bytearray)):
                 _resp_text = content_attr[:2000].decode("utf-8", errors="ignore").lower()
 
-    combined_message = f"{_raw_msg} | {_body_msg} | {_metadata_msg} | {_resp_text}"
+    _codes_str = " ".join(_codes)
+    _types_str = " ".join(_types)
+    combined_message = (
+        f"{_raw_msg} | {_body_msg} | {_codes_str} | {_types_str} | {_metadata_msg} | {_resp_text}"
+    )
     return NormalizedError(status_code=status_code, message=combined_message, body=body)
 
 
@@ -519,8 +548,8 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
     if normalized.status_code == 429 and _LONG_CONTEXT_TIER_RE.search(msg):
         return FailoverReason.LONG_CONTEXT_TIER
 
-    # 1. Billing (highest priority to avoid retry loops)
-    if _BILLING_RE.search(msg):
+    # 1. Billing & Quota Exhaustion (highest priority to avoid retry loops)
+    if _BILLING_RE.search(msg) or _QUOTA_EXHAUSTED_RE.search(msg):
         return FailoverReason.BILLING
 
     # 2. Rate Limit
@@ -637,6 +666,37 @@ def is_payload_overflow(exc: Exception) -> bool:
     return reason == FailoverReason.IMAGE_TOO_LARGE
 
 
+_QUOTA_EXHAUSTED_RE = re.compile(
+    r"insufficient_quota"
+    r"|quota_exceeded"
+    r"|exceeded your current quota"
+    r"|exceeded your quota"
+    r"|check your plan and billing details"
+    r"|free tier limit exceeded"
+    r"|daily limit exceeded"
+    r"|per-day limit"
+    r"|requests per day.*exhausted"
+    r"|usage limit reached"
+    r"|额度用尽|额度耗尽|账户欠费|超出每日限额",
+    re.IGNORECASE,
+)
+
+
+def is_quota_exhausted(exc: Exception) -> bool:
+    """Return ``True`` if *exc* signals non-transient quota exhaustion or zero balance.
+
+    Unlike momentary rate limits (e.g. RPM/TPM bursts that recover within seconds),
+    quota exhaustion (daily quota, prepaid credit depleted, plan limits) cannot be
+    resolved by short-interval transient retries.
+    """
+    normalized = normalize_provider_error(exc)
+    msg = normalized.message
+    if _QUOTA_EXHAUSTED_RE.search(msg):
+        return True
+    reason = classify_failover_reason(exc)
+    return reason == FailoverReason.BILLING
+
+
 def extract_retry_after(exc: Exception) -> float | None:
     """Extract ``Retry-After`` seconds from an LLM exception's HTTP response.
 
@@ -661,95 +721,6 @@ def extract_retry_after(exc: Exception) -> float | None:
                     except (ValueError, TypeError):
                         pass
         current = getattr(current, "__cause__", None) or getattr(current, "__context__", None)
-    return None
-
-
-_AVAILABLE_TOKENS_RE = re.compile(r"available\s*_?tokens\s*:\s*(\d+)", re.IGNORECASE)
-
-_OPENROUTER_BREAKDOWN_RE = re.compile(
-    r"\((\d+)\s+of text input,\s*(\d+)\s+of tool input,\s*\d+\s+in the output\)",
-    re.IGNORECASE,
-)
-
-_MAX_CTX_LENGTH_RE = re.compile(r"maximum context length is (\d+)\s*token", re.IGNORECASE)
-
-_CHAR_PROMPT_RE = re.compile(r"prompt contains (\d+)\s*character", re.IGNORECASE)
-
-_INPUT_TOKENS_RE = re.compile(r"prompt contains (?:at least )?(\d+)\s*input tokens", re.IGNORECASE)
-
-_DASHSCOPE_RANGE_RE = re.compile(r"range of max_tokens should be\s*\[\s*\d+\s*,\s*(\d+)\s*\]", re.IGNORECASE)
-
-_IS_OUTPUT_CAP_KEYWORDS = (
-    ("max_tokens", "available_tokens"),
-    ("max_tokens", "available tokens"),
-    ("in the output", "maximum context length"),
-    ("maximum context length", "requested", "output tokens"),
-)
-
-
-def _looks_like_output_cap_error(msg: str) -> bool:
-    for keywords in _IS_OUTPUT_CAP_KEYWORDS:
-        if all(kw in msg for kw in keywords):
-            return True
-    return "range of max_tokens should be" in msg
-
-
-def parse_available_output_tokens_from_error(exc: Exception) -> int | None:
-    """Extract available output tokens from an output-cap error.
-
-    Covers 5 provider error formats:
-    1. Anthropic: ``available_tokens: 10000``
-    2. OpenRouter/Nous: ``(A of text input, B of tool input, C in the output)``
-    3. LM Studio/llama.cpp (chars): ``prompt contains N characters``
-    4. vLLM: ``prompt contains at least N input tokens``
-    5. DashScope/Alibaba: ``Range of max_tokens should be [1, 65536]``
-    """
-    normalized = normalize_provider_error(exc)
-    msg = normalized.message
-
-    if not _looks_like_output_cap_error(msg):
-        return None
-
-    # DashScope: "Range of max_tokens should be [1, 65536]"
-    m_range = _DASHSCOPE_RANGE_RE.search(msg)
-    if m_range:
-        cap = int(m_range.group(1))
-        if cap >= 1:
-            return cap
-
-    # Anthropic: "available_tokens: 10000" or "available tokens: 10000"
-    m_avail = _AVAILABLE_TOKENS_RE.search(msg)
-    if m_avail:
-        try:
-            tokens = int(m_avail.group(1))
-            if tokens >= 1:
-                return tokens
-        except (ValueError, TypeError):
-            pass
-
-    # OpenRouter: "(150000 of text input, 40000 of tool input, 5000 in the output)"
-    m_ctx = _MAX_CTX_LENGTH_RE.search(msg)
-    m_parts = _OPENROUTER_BREAKDOWN_RE.search(msg)
-    if m_ctx and m_parts:
-        available = int(m_ctx.group(1)) - int(m_parts.group(1)) - int(m_parts.group(2))
-        if available >= 1:
-            return available
-
-    # vLLM: "prompt contains at least 65537 input tokens"
-    m_vllm = _INPUT_TOKENS_RE.search(msg)
-    if m_ctx and m_vllm:
-        available = int(m_ctx.group(1)) - int(m_vllm.group(1))
-        if available >= 1:
-            return available
-
-    # LM Studio/llama.cpp: "prompt contains 77409 characters"
-    m_chars = _CHAR_PROMPT_RE.search(msg)
-    if m_ctx and m_chars:
-        est_input = (int(m_chars.group(1)) + 2) // 3
-        available = int(m_ctx.group(1)) - est_input
-        if available >= 1:
-            return available
-
     return None
 
 

@@ -2,6 +2,70 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-08-004 · 健康探活与连通性测试的“5 秒超时、1 个 token”从未生效：写在 `config` 里的限制到不了提供方，挂起的端点最多占住调用方 300 秒
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-08 |
+| **修复时间** | 2026-10-08 |
+| **症状** | 假客户端加真实适配器实测：`llm.ainvoke(messages, config={"max_tokens": 1, "timeout": 5.0})` 到达提供方调用的参数是 `max_tokens=4096`、`force_timeout=300.0`，两个限制都没有生效。受影响的调用点共三处：`lightweight_health_check`（故障转移对冷却候选的探活，以及服务端 `/check-reachability`）、设置页「测试本地模型」`POST /config/test-local-model`、每日回顾生成 `daily_wrap`。端点挂起时调用方最多等 300 秒；设置页在 15 秒后中止请求，只能显示不带原因的“连接失败”。文档与注释还写着“1-token 探活”，与行为不符；`lightweight_health_check_with_retry` 全仓库没有调用方 |
+| **关联产品** | myrm-agent-harness `toolkits/llms/fallback/health_check.py`；myrm-agent-server `app/api/config/router.py`、`app/api/statistics/daily_wrap.py`、`app/api/integrations/llms.py`（文档） |
+| **根因** | `ainvoke` 的 `config` 是 LangChain 的 RunnableConfig（回调、标签、元数据），不是模型调用参数，其中的 `max_tokens`、`timeout` 不会被转给提供方；真正的超时要么来自模型自己的 `request_timeout`（默认 300 秒），要么必须由调用方用 `asyncio.wait_for` 强制 |
+| **修复** | `lightweight_health_check` 改为 `asyncio.wait_for(llm.ainvoke(...), timeout_s)`，到期即取消并返回 False；不强制 `max_tokens`（推理模型会拒绝低于其思考预留的预算，探活成本由截止时间约束）；删除无调用方的 `lightweight_health_check_with_retry` 及其导出。服务端：`/test-local-model` 设 12 秒截止（低于设置页的 15 秒中止，到期报告为“无响应，模型可能仍在加载或地址有误”，与提供方侧的连接超时区分）；`daily_wrap` 设 60 秒截止，到期转为 408 `timeout_error`，因为裸 `TimeoutError` 会被 `internal_error()` 报成 `Database operation timeout`（去掉转换的变异实测：500 `Get daily wrap failed: Database operation timeout`）；各处“1-token”文档与注释改为真实行为 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 把 `config=` 当作单次调用参数是同一个误读，harness `src`、服务端 `app`、控制平面 `src` 中该写法已清零（逐目录搜索无剩余）。要给模型调用加时间上限，只能用模型构造参数或 `asyncio.wait_for`。12 秒与 60 秒是按设置页 15 秒中止和端点现有行为取的设计值，没有时延分布数据；服务端依赖已发布的 harness 版本，`/check-reachability` 的真实截止时间要等 harness 升版后才随发布生效 |
+| **回归** | harness：`tests/toolkits/llms/fallback/test_health_check.py`（7 个，含到期取消与不转发 config）；服务端：`tests/api/config/test_local_model_endpoint.py`（4 个）、`tests/api/statistics/test_daily_wrap.py` 与 `test_daily_wrap_integration.py` 各 1 个；去掉截止时间的变异使 3 个超时用例全部失败；真实套接字实验（无 mock）：`lightweight_health_check` 对挂起的服务 2.01 秒返回 False 并关闭连接，端点 12.10 秒返回，取消后再次调用正常，对照组中适配器自身 15 秒仍未返回 |
+| **代码位置** | `toolkits/llms/fallback/health_check.py::lightweight_health_check` · 服务端 `app/api/config/router.py::test_local_model/_LOCAL_MODEL_TEST_TIMEOUT_S` · `app/api/statistics/daily_wrap.py::_generate_wrap_via_llm/_WRAP_LLM_TIMEOUT_S` |
+
+### BUG-HARNESS-2026-10-08-003 · 提供方拒绝 `max_tokens` 时整轮失败或误触发破坏性压缩，流式重试还会把已发出的内容再发一遍
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-08 |
+| **修复时间** | 2026-10-08 |
+| **症状** | 真实 litellm `BadRequestError` 逐条实测（修复前 `c61149b4^`）：DashScope、DeepSeek、Azure/OpenAI（`supports at most N completion tokens`）、Anthropic（`max_tokens: X > N, which is the maximum allowed number of output tokens`）、网关（`exceeds model's maximum output tokens (N)`）、火山方舟（`expected a value <= N`）、Groq（`must be less than or equal to N`）七类“超出模型输出上限”的 400 全部分类为 `FORMAT_ERROR`，`is_context_overflow` 为 False；旧解析只认出 DashScope（8192），其余六类解析为空，没有任何恢复，整轮失败。压力闸门 `is_presumed_overflow`（`FORMAT_ERROR` + HTTP 400 + 占用 ≥ 0.85）还会把这类 400 当成上下文溢出，触发破坏性压缩。另一条路径：流式调用先流出 `Hello` 再报窗口溢出（Anthropic 措辞），旧代码重启请求，调用方收到 `['Hello', 'Hello', ' world']`，即 `HelloHello world`（真实重放 `c61149b4^`） |
+| **关联产品** | myrm-agent-harness `toolkits/llms/errors` · `toolkits/llms/adapters/chat_model` · `agent/streaming/recovery` |
+| **根因** | 三处叠加：（1）旧解析器只覆盖 5 种措辞（Anthropic `available_tokens`、OpenRouter 分解、LM Studio 字符数、vLLM、DashScope 范围），模型上限类只有 DashScope 能解析，且只作为单次覆盖使用，不会被记住，每个新请求都再被拒一次；（2）四个调用循环（异步/同步 × 流式/非流式）各自复制一份恢复代码，“尚未向调用方发出任何内容”的保护只存在于其中一块；（3）压力闸门用“FORMAT_ERROR + 400 + 高占用”推断溢出，无法区分模型上限拒绝。推理模型的输出预留下限（16384）还会把请求预算抬高，增加触顶机会 |
+| **修复** | 新增 `errors/output_limit.py`：`parse_output_limit` 返回类型化的 `OutputLimit(tokens, model_cap)`，覆盖七类模型上限与窗口余量措辞；新增 `adapters/chat_model/output_cap_recovery.py`：四个循环共用同一恢复步骤，重试之间只改 `max_tokens`（提示前缀缓存照常命中）；模型上限按声明值采用，并按（模型、base_url）记入有界（256 条、先进先出）、带过期（3600 秒）的内存表，只会在截断放大覆盖之后向下收紧；窗口余量留 64 个 token 余量且不记忆；采用值低于 500、不小于原请求、不高于思考预算，或拒绝状态码不在 400/413/422 时拒绝恢复。网关参数、payload 与输出上限三处恢复统一加“尚未发出任何内容”保护，内容已流出后的错误原样抛给调用方；压力闸门遇到明确的模型上限措辞不再判为溢出 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 全部改动被另一会话使用共享索引的提交带走，落在 `c61149b4`（提交说明写的是别的特性，历史不能改写）。七类措辞取自提供方 issue、文档与网关测试集，没有做真实提供方调用；被拒的 400 是否计费未核实；3600 秒过期、500 下限、64 余量是设计取值，没有频率或时延数据 |
+| **回归** | `tests/toolkits/llms/test_output_limit.py`（49 个）· `tests/toolkits/llms/adapters/test_output_cap_recovery.py`（44 个，含流式“内容已发出后不重启”、重试只改 `max_tokens`、记忆表有界先进先出与过期）· `tests/agent/streaming/test_context_pressure_gate.py`（+1 个）；去掉“尚未发出内容”保护的变异使 6 个流式用例失败，“首块之前仍恢复”的用例保持通过 |
+| **代码位置** | `toolkits/llms/errors/output_limit.py` · `toolkits/llms/adapters/chat_model/output_cap_recovery.py` · `adapters/chat_model/async_mixin.py` / `sync_mixin.py` / `model.py` · `agent/streaming/recovery/context_pressure_gate.py::is_presumed_overflow` |
+
+### BUG-HARNESS-2026-10-08-002 · `litellm` 下限被抬到 1.104 后依赖集无解：`uv lock` 与 `uv sync --locked` 失败，发布的 wheel 也装不上
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-08 |
+| **修复时间** | 2026-10-08 |
+| **症状** | `pyproject.toml` 核心依赖同时要求 `litellm>=1.104.0` 与 `filelock>=4.0.12`；`litellm` 1.104 起的基础依赖要求 `filelock<4`，二者互斥，`uv lock` 与 `uv sync --locked` 无解，按该元数据发布的 wheel 同样无法安装 |
+| **关联产品** | myrm-agent-harness `pyproject.toml`（核心依赖）· `uv.lock` |
+| **根因** | `777f32ab` 把 `litellm` 下限抬到 1.104.0，没有考虑它对 `filelock` 的传递性上限与项目自己的 `filelock>=4.0.12` 冲突；这类冲突只有依赖解析器会报 |
+| **修复** | 下限回到 `litellm>=1.98.0`，依赖行注释写明“`litellm>=1.104` 要求 `filelock<4`，下限不可越过 1.103.x”；`uv.lock` 保持 litellm 1.103.3，只刷新说明符行，锁定版本没有变化 |
+| **反复次数** | 第 1 次发现；与 `BUG-HARNESS-2026-10-07-007` 同属“核心依赖下限与其他依赖的传递性约束互斥”一类 |
+| **踩坑** | 抬升核心依赖下限必须同时重新解析（`uv lock`）。本机 uv 配置了清华镜像，在仓库内重新生成锁文件会把全部 registry 地址改写成镜像地址，提交前必须确认 `uv.lock` 的差异不含镜像 URL |
+| **回归** | `tests/architecture/test_core_dependencies.py::test_uv_lock_core_matches_pyproject`；`.github/workflows/test.yml` 的 `uv sync --locked` |
+| **代码位置** | `pyproject.toml`（`litellm` 依赖行） |
+
+### BUG-HARNESS-2026-10-08-001 · 技能与专家导出的脱敏把密钥原样留在包里、把无害设置改成占位符，且审阅面板的类型标签是英文原文
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-08 |
+| **修复时间** | 2026-10-08 |
+| **症状** | 用修复前的脱敏器（`27c02425^`）对单行样本实测：`https://x.io/cb?access_token=abcdef1234567890abcd&a=1` 输出 `https://x.io/cb<REDACTED_PARAM>abcdef1234567890abcd&a=<REDACTED_VALUE>1`，令牌原文仍在、URL 被破坏；`Authorization: Bearer abcdefghijklmnop12345678` 输出 `Authorization: <REDACTED_TOKEN>abcdefghijklmnop12345678`，令牌原文仍在；`OPENAI_API_KEY=sk-…` 输出 `<REDACTED_TOKEN<REDACTED_VALUE>>`（占位符嵌套）。第一轮修复后（`27c02425`）密钥已被替换，但 `max_tokens: 4096`、`auth_type: bearer`、`api_key_env: OPENAI_API_KEY`、`api_key: $OPENAI_API_KEY`、`token: <your-token>` 这类只是描述或指向密钥的设置也被改成 `<REDACTED_VALUE>`，导出的专家包因此被改坏。审阅面板每条发现旁显示的类型是后端英文原文，非中文界面的用户直接看到英文 |
+| **关联产品** | myrm-agent-harness `agent/skills/security/content_sanitizer.py`；消费方：单技能导出、专家导出、Marketplace 发布（共用同一脱敏器） |
+| **根因** | （1）检测按共享正则的捕获组序号读取，组序号与规则漂移后替换的区间是密钥旁边的文字，而不是密钥本身；（2）关键词命中即脱敏，没有区分“密钥本身”和“关于密钥的设置/指向密钥的占位”；（3）重叠命中只保留一个，较短的那条所覆盖的片段会残留；（4）发现项携带的是展示用英文文本，而不是调用方可本地化的稳定码 |
+| **修复** | 脱敏改为规则表：每条规则显式声明密钥所在的捕获组（以及名称组），复用运行期同一份关键词守卫；`_NON_SECRET_KEY_RE` 放过描述密钥的设置名（`max_tokens`、`*_type`、`*_env`、`*_url` 等），`_PLACEHOLDER_RE` 放过 `$VAR`、`{{x}}`、`<your-token>`、全大写变量名；重叠命中取并集，一个密钥不会只被遮住一半；发现项的 `reason` 改为封闭枚举 `SecretKind` 的 `kinds: list[SecretKind]`，server 原样透传，前端按六语言文案渲染，未知码回落到通用文案。取舍：单次脱敏比旧版慢约 1.3–2 倍（4000 行 / 360 KB 实测 266–406 ms 对 190–225 ms；64 KB 封顶时约 50 ms），换来的是上述密钥不再残留 |
+| **反复次数** | 第 2 次发现（同一脱敏器连续两轮修复：先修“替换了错的区间”，再修“误伤设置与占位符”） |
+| **踩坑** | 只改捕获组序号不会暴露问题，因为旧用例只断言“输出里出现占位符”，没有断言“密钥原文不再出现”；占位符 `$VAR`、全大写变量名与真密钥长得很像，必须用真实样本逐条对照；规则的组布局漂移必须由测试拦截，否则下次共享正则改动会悄悄复发 |
+| **回归** | `tests/agent/skills/test_content_sanitizer.py::TestSecretNeverSurvives` · `::TestSurroundingSyntaxIsPreserved` · `::TestProseIsNotRedacted` · `::TestMultipleSecretsPerLine` · `::TestFindingKinds` · `::TestRuleTable`（组布局、每个类型码可达、重叠取并集）；跨层：myrm-agent-server `tests/integration/test_redaction_kinds_i18n_sync.py`（类型码与前端六语言文案一一对应） |
+| **代码位置** | `agent/skills/security/content_sanitizer.py::_SECRET_RULES/_merge_overlaps/_NON_SECRET_KEY_RE/_PLACEHOLDER_RE/Redaction/SecretKind` |
+
 ### BUG-HARNESS-2026-10-07-008 · 连接在工具调用中途被干净关闭时，LiteLLM 合成的 `stop` 让半截参数被补全并当作完整调用执行
 
 | 字段 | 内容 |
@@ -15,7 +79,7 @@
 | **修复** | 包装器自己记录提供方真正发送的结束原因（`received_finish_reason` / `intermittent_finish_reason`）；`StreamAggregator.track` 记住正在消费的提供方流，`provider_reported_finish` 在流耗尽后读取这两个标记，都为空即判定提供方没有结束这条流，`is_stream_complete(finish_reason, provider_finish)` 随之返回 False，沿用既有的“扣留—重试一次”协议；没有这两个标记的流（Responses 线路的迭代器）返回 None，仍只看 `finish_reason`；`finish_reason` 的记录、遥测与完成状态口径不变；`async_mixin.py`、`sync_mixin.py` 各改 1 行，行数不变。取舍：从不发送 `finish_reason` 的网关，其格式错误且需要补全的工具参数现在会被扣留并重试一次，而不是补全后执行（格式正确的参数走快速路径，不受影响） |
 | **反复次数** | 第 1 次发现 |
 | **踩坑** | 初版用例把切口放在字符串值内部，修复前后都通过（该情形早有闸门拦截），证明不了修复；切口必须落在两个值之间才暴露补全；判断依据用包装器真实记录的两个标记，而不是去猜“合成的 stop”；LiteLLM 改名这两个属性时，切断用例会变红而不是悄悄放行，起金丝雀作用；不把该信号写进 `finish_reason` 遥测，避免对从不发 `finish_reason` 的网关把每个回合都标成截断 |
-| **回归** | `tests/toolkits/llms/core/test_stream_cut_wire.py`（OpenAI 对话与 Anthropic 的值间切断被扣留、值内切断仍被扣留、完整调用照常执行、被切断的文本回答原样保留）· `tests/toolkits/llms/adapters/test_stream_aggregator.py::TestFinalizeStreamProviderFinish` · `tests/toolkits/llms/adapters/test_streaming_and_parser_edges.py::TestProviderReportedFinish` · `tests/toolkits/llms/adapters/test_tool_recovery.py::TestIsStreamComplete` |
+| **回归** | `tests/toolkits/llms/core/test_stream_cut_wire.py`（OpenAI 对话与 Anthropic 的值间切断被扣留、值内切断仍被扣留、完整调用照常执行、被切断的文本回答原样保留）· `tests/toolkits/llms/adapters/test_stream_aggregator.py::TestFinalizeStreamProviderFinish` · `tests/toolkits/llms/adapters/test_streaming_and_parser_edges.py::TestProviderReportedFinish` · `tests/toolkits/llms/adapters/test_tool_recovery.py::TestIsStreamComplete` · 2026-10-08 复核：`test_stream_cut_wire.py`、`test_native_anthropic_wire.py`、`test_output_budget_wire.py` 三个回环文件在 LiteLLM 1.98.0、1.103.3（lock 版本）、1.104.1（最新发布）上均通过；litellm ≥1.103 下需要 `pyproject.toml` 放行 pydantic 对 LiteLLM `ReadOnly` TypedDict 的 `UserWarning`，否则 `filterwarnings = error` 会让这些用例全部失败 |
 | **代码位置** | `toolkits/llms/adapters/streaming.py::provider_reported_finish` · `toolkits/llms/adapters/stream_aggregator.py::StreamAggregator.track/provider_finish` · `toolkits/llms/adapters/tool_recovery.py::is_stream_complete` · `toolkits/llms/adapters/chat_model/async_mixin.py` · `toolkits/llms/adapters/chat_model/sync_mixin.py` |
 
 ### BUG-HARNESS-2026-10-07-007 · 安装 `myrm-agent-harness[pdf-ocr]` 依赖无解：核心要求 `PyYAML>=6.0.3`，而 PaddleOCR 链固定 `PyYAML==6.0.2`，与 `retrieval` 同装时又被 numpy 上限卡死
@@ -92,7 +156,7 @@
 | **症状** | 输出在工具调用参数中途被长度上限截断，或参数是无法解析的文本时，真实智能体循环（`create_agent` + `StreamExecutor.execute()` 的脚本化回放）出现两种结果：截断落在字符串值内时，闭合后的前缀可解析，被截断的文件正文被当作完整调用写盘（命令、路径同理）；调用被扣留（不可执行）后整轮没有任何提示地结束，用户看到一个空回合；预期的“重试一次并上报”从未发生 |
 | **关联产品** | myrm-agent-harness `agent/streaming` · `toolkits/llms/adapters` · `toolkits/llms/utils` · `agent/errors/diagnostics` |
 | **根因** | 三处叠加：（1）被扣留的调用只记录在最终 AIMessage 的 `additional_kwargs["tool_call_recovery"]`，该消息没有 `tool_calls`，LangGraph 据此结束整轮；`process_updates_chunk` 又把“无内容、无 tool_calls”的 AIMessage 当空消息丢弃，恢复处理器永远看不到它，`_try_tool_call_retry` 在真实循环里从未触发；（2）长度截断处理器只在 `finish_reason` 为 `length`/`max_tokens` 时触发且只数 `tool_calls`，空响应处理器同样只数 `tool_calls`，会把扣留消息当空回复叠加恢复并最终抛 `MyrmLLMError`；（3）截断落在字符串值内时 `close_truncated_json` 闭合出的前缀可解析，被当成可安全执行的修复，而路径、命令、文件正文都是“更短但合法”的值；此外 `tool_call_retry` 诊断文案在 5 种语言里缺失，状态事件会泄漏 `[Missing translation: …]` |
-| **修复** | 单一谓词 `has_withheld_tool_calls`（`tool_recovery.py`）识别扣留记录；`event_handlers` 保留这类消息；`_handle_length_truncation` 在“长度截断”或“存在扣留调用”任一成立时触发，`_has_tool_calls`（截断与空响应处理器共用）把扣留调用计入工具调用；重试仍最多 1 次、输出预算翻倍（以 `MAX_EPHEMERAL_OUTPUT_TOKENS` 为上限；配置预算已达上限时保持原值，覆盖值不再低于配置预算）、请求前缀只追加一条提示（提示缓存前缀不变），重试失败上报 `tool_call_truncated`（用户可见文案说明该调用未执行，处理建议为重新发送请求，不再提示检查输出文件）；新增 `truncated_json.py::ends_inside_string` 与 `litellm_utils` 的闸门：截断落在字符串值内一律拒绝修复（`truncated_mid_value`，不可执行），数字、字面量、键、容器边界处的截断仍可补全；重试提示改为与成因一致（参数不完整或无效）；补齐 5 种语言的 `tool_call_retry` 文案；流在收到最终元数据块之前断开时，`finish_reason` 记为哨兵 `__stream_dropped__`：用量账本的 finish_reason 桶由空串改为该值，`completion_status` 由 `complete` 改为 `truncated`，并禁止“补全 JSON”式修复；统计截断率的报表需按原始 `finish_reason` 把 `length`/`max_tokens` 与 `__stream_dropped__` 分开，并以 2026-10-07 作为口径分界；上游干净关闭时 LiteLLM 会合成 `stop`，这类流不会落入该哨兵（实测，LiteLLM 1.98.0），其工具参数由 BUG-HARNESS-2026-10-07-007 处理 |
+| **修复** | 单一谓词 `has_withheld_tool_calls`（`tool_recovery.py`）识别扣留记录；`event_handlers` 保留这类消息；`_handle_length_truncation` 在“长度截断”或“存在扣留调用”任一成立时触发，`_has_tool_calls`（截断与空响应处理器共用）把扣留调用计入工具调用；重试仍最多 1 次、输出预算翻倍（以 `MAX_EPHEMERAL_OUTPUT_TOKENS` 为上限；配置预算已达上限时保持原值，覆盖值不再低于配置预算）、请求前缀只追加一条提示（提示缓存前缀不变），重试失败上报 `tool_call_truncated`（用户可见文案说明该调用未执行，处理建议为重新发送请求，不再提示检查输出文件）；新增 `truncated_json.py::ends_inside_string` 与 `litellm_utils` 的闸门：截断落在字符串值内一律拒绝修复（`truncated_mid_value`，不可执行），数字、字面量、键、容器边界处的截断仍可补全；重试提示改为与成因一致（参数不完整或无效）；补齐 5 种语言的 `tool_call_retry` 文案；流在收到最终元数据块之前断开时，`finish_reason` 记为哨兵 `__stream_dropped__`：用量账本的 finish_reason 桶由空串改为该值，`completion_status` 由 `complete` 改为 `truncated`，并禁止“补全 JSON”式修复；统计截断率的报表需按原始 `finish_reason` 把 `length`/`max_tokens` 与 `__stream_dropped__` 分开，并以 2026-10-07 作为口径分界；上游干净关闭时 LiteLLM 会合成 `stop`，这类流不会落入该哨兵（实测，LiteLLM 1.98.0），其工具参数由 BUG-HARNESS-2026-10-07-008 处理 |
 | **反复次数** | 第 1 次发现 |
 | **踩坑** | “不执行”不等于“已处理”：不可执行的调用若不产生下游信号，整轮会静默结束；多个恢复处理器判断“这一轮是否以失败的工具调用结束”必须共用同一个谓词，否则一个放行、另一个把同一条消息当空回复；“过滤空消息”这类清理要检查被过滤对象是否承载恢复所需的元数据；不能只信提供方上报的 `finish_reason`；字符串内部的截断无法靠工具 schema 发现，必须在参数层拒绝；边界处（数字、字面量）的截断在信息上无法与完整值区分，由工具 schema 校验兜底；用户提示要说明后果（“未执行”），而不是内部状态（“参数可能不完整”）；“放大输出预算”的覆盖值必须与配置预算比较，单看上限夹取会把已超过上限的配置预算反而调低 |
 | **回归** | `tests/agent/streaming/test_withheld_tool_call_retry.py`（真实智能体循环：成功路径不变、如实长度截断重试一次且预算翻倍、重试请求等于首次请求加一条提示、提供方谎报正常结束、垃圾 JSON、无望场景有界上报、并行调用中一条被扣留；处理器单测与更新流保留规则）· `tests/toolkits/llms/adapters/test_tool_call_argument_recovery.py`（字符串内截断拒绝、边界截断仍补全、谓词与生产者一致）· `tests/toolkits/llms/utils/test_close_truncated_json.py` · `tests/agent/errors/diagnostics/test_error_diagnostics.py`（5 种语言文案齐全）· `tests/toolkits/llms/adapters/test_stream_aggregator.py` 与 `tests/agent/test_completion_status_mapping.py`（断流哨兵进入响应、账本、tracker，并映射为 `truncated`）· `tests/toolkits/llms/adapters/test_stream_aggregator_dsml.py`（标签解析出工具调用后，响应与 tracker 记录 `tool_calls`）· `tests/agent/streaming/test_stream_executor_length_truncation.py`（配置预算低于、等于、高于上限时重试覆盖值从不低于配置预算） |

@@ -8,11 +8,12 @@ Streaming error-recovery strategies. **`stream_recovery.py`** composes the four 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports the four recovery mixins | ✅ |
-| context_pressure_gate.py | Gate | Pre-flight context pressure gate, token budget compaction, and presumed-overflow recovery handler | ✅ |
-| stream_recovery.py | Core | StreamRecoveryMixin — composes overflow, LLM failover, safety refusal fallback, escalation, transient retry, iteration-limit, empty-response, truncation, steering, subagent, and goal continuation recovery | ✅ |
+| context_pressure_gate.py | Gate | Pre-flight context pressure gate, token budget compaction, and presumed-overflow recovery handler (a 400 that states the model's own output ceiling is never presumed to be an overflow) | ✅ |
+| stream_recovery.py | Core | StreamRecoveryMixin — composes overflow, LLM failover (with fast-failover on is_quota_exhausted), safety refusal fallback, escalation, transient retry (short-circuited on quota exhaustion), iteration-limit, empty-response, truncation, steering, subagent, and goal continuation recovery | ✅ |
+| stream_recovery_budget.py | Core | StreamOutputBudgetMixin — output-budget half of truncation recovery, inherited by `StreamTruncationRecoveryMixin`: `_boost_output_tokens` sets the one-shot larger budget a retry runs with (2x/3x/4x of the base, capped at `MAX_EPHEMERAL_OUTPUT_TOKENS` and at the model's documented output ceiling; a base that already reaches a cap or ceiling is kept as is), starting from the configured `max_tokens` or, failing that, a thinking model's headroom floor | ✅ |
 | stream_recovery_continuation.py | Core | StreamContinuationRecoveryMixin — steering injection, subagent completion, goal continuation | ✅ |
 | stream_recovery_oneshot.py | Core | OneshotRecoveryMixin — targeted one-shot recovery (THINKING_SIGNATURE / DUPLICATE_TOOL_USE_ID / IMAGE_TOO_LARGE / MEDIA_REJECTED / ALLOWED_TOOLS_TOOL_CHOICE_REJECTED / LONG_CONTEXT_TIER), with per-image and aggregate historical image eviction fallback | ✅ |
-| stream_recovery_truncation.py | Core | StreamTruncationRecoveryMixin — length/max-token continuation, retry of truncated or withheld tool calls (one retry with a doubled output budget, capped at `MAX_EPHEMERAL_OUTPUT_TOKENS`; a configured budget that already reaches the cap is kept as is), reasoning-only retry (non-resume) + report-only (resume), `reset_ephemeral_max_output_tokens` | ✅ |
+| stream_recovery_truncation.py | Core | StreamTruncationRecoveryMixin — length/max-token continuation, retry of truncated or withheld tool calls (one retry with a larger output budget from `StreamOutputBudgetMixin`), reasoning-only retry (non-resume) + report-only (resume), `reset_ephemeral_max_output_tokens` | ✅ |
 
 ## Invariants
 
@@ -30,6 +31,11 @@ Streaming error-recovery strategies. **`stream_recovery.py`** composes the four 
   it, so the turn is retried once or reported (`tool_call_truncated`); it never ends silently or
   is mistaken for an empty reply. The retry re-sends the original request plus one appended hint
   and a one-shot larger `max_tokens`; the prompt prefix is untouched, so the provider cache hits.
+- **An output ceiling is not an overflow.** A 400 stating the model's own `max_tokens` ceiling has
+  nothing to do with context size. The adapter loop (`adapters/chat_model/output_cap_recovery.py`)
+  lowers `max_tokens` and retries; when it declines, `is_presumed_overflow` declines too (it reads the
+  same wording through `errors.output_limit.parse_output_limit`), so a high-occupancy session is not
+  compacted — a destructive step that cannot cure the error — and the original error surfaces.
 - **Resume turns cannot be retried.** `agent_input` is a `Command` that LangGraph has already
   consumed; replaying one advances no work (verified: it emits zero stream chunks). Recovery
   therefore reports the condition and ends. It must **not** raise the output budget as a
@@ -39,7 +45,10 @@ Streaming error-recovery strategies. **`stream_recovery.py`** composes the four 
   floors a thinking model's `max_tokens` at creation time.
 - **Budget boost needs a real base.** `_boost_output_tokens` scales from the configured
   `max_tokens`; with none configured it falls back to `thinking_output_floor` for known thinking
-  models and stays a safe no-op otherwise (an unknown ceiling could otherwise be overshot).
+  models and stays a safe no-op otherwise (an unknown ceiling could otherwise be overshot). The scaled
+  budget is also bounded by the model's documented output ceiling (`clamp_budget_to_model_ceiling`), so a
+  retry cannot turn a truncated answer into a provider 400; a ceiling below the base is a stale table
+  entry — the base was already served — and is ignored.
 
 ## Key Dependencies
 

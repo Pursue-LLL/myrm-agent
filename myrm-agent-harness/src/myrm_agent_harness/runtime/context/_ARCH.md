@@ -70,6 +70,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | conversation_tree_types.py | Types | Type definitions for tree-structured conversation graph and branch replay engine. | ✅ |
 | cow_session_branch.py | Core | Instant Session Forking and Copy-on-Write (CoW) State Branching Engine. | ✅ |
 | cow_session_branch_types.py | Types | Type definitions for Instant Session Forking and Copy-on-Write (CoW) State Branching. | ✅ |
+| cross_agent_communication_graph_engine.py | Core | Runtime engine for cross-agent communication causal DAG tracing and phase-end ephemeral pruning. | ✅ |
+| cross_agent_communication_graph_types.py | Types | Types and models for cross agent communication graph. | ✅ |
 | cross_file_diff_applier.py | Core | Atomic cross-file diff applier with two-phase verification and rollback. | ✅ |
 | cross_session_handoff_ledger.py | Core | Continuity ledger for managing cross-session handoff contracts and lifecycle. | ✅ |
 | cross_session_handoff_types.py | Types | Type definitions for cross-session handoff contracts and continuity ledger. | ✅ |
@@ -169,7 +171,6 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | omniglyph_visual_channel.py | Core | OmniGlyph visual context channel renderer and arbitration governor. | ✅ |
 | orphaned_tool_healing_transform.py | Core | Sits between session tree/history projection and provider request transport. | ✅ |
 | output_spill_to_disk_middleware.py | Core | Output spill to disk middleware. | ✅ |
-| overflow_compaction_guard.py | Core | Bounds the compact-and-retry loop at one attempt per user action, preventing infinite compaction token burn. | ✅ |
 | path_scoped_rule_matcher.py | Core | Path-scoped and task-phase rule matching router for dynamic working set slicing. | ✅ |
 | path_stable_doc_session.py | Core | File-Path SHA-256 Stable Document Session Binding Hub. | ✅ |
 | path_stable_doc_session_types.py | Types | Type definitions for File-Path SHA-256 Stable Document Session Binding Hub. | ✅ |
@@ -227,6 +228,8 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | selective_context_trust_types.py | Types | Types for selective context preference optimization and misleading signal gate (SCOPE). | ✅ |
 | session_archive_search_engine.py | Core | Engine and Meta-Tool Factory for Session Archive Search. | ✅ |
 | session_archive_search_types.py | Types | Types and models for Full Archive Searchable History Meta-Tool. | ✅ |
+| session_branching_engine.py | Core | Core engine for arbitrary checkpoint session forking, timeline rewinding, and lineage tracking. | ✅ |
+| session_branching_types.py | Types | Types and models for session branching. | ✅ |
 | session_checkpoint_storage.py | Core | Storage layer for Session Step Checkpoints supporting atomic persistence. | ✅ |
 | session_checkpoint_types.py | Types | Domain models and data contracts for Session State Checkpoint and Atomic Resume. | ✅ |
 | session_cwd_guard.py | Core | Protects agent toolkits and bash execution sandboxes from working directory drift across machines, branches, and folder moves. | ✅ |

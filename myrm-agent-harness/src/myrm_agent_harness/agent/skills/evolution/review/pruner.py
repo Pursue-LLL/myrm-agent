@@ -5,14 +5,13 @@
 
 核心目标：降低 Token 成本（避免将全量历史丢给复盘 LLM），同时保留核心决策路径。
 
-真实收益：
-- API 成本降低 80%+（实测：全量历史 ~10k tokens -> 剪枝后 ~2k tokens）。
-- 保留决策骨架，复盘 LLM 仍能理解“探索-发现-解决”的闭环。
+每条思考与工具结果按固定长度截断，输入规模有上界；保留决策骨架，
+复盘 LLM 仍能理解“探索-发现-解决”的闭环。
 
 遵循 code_quality_guidelines：纯函数设计，无副作用。
 
 [INPUT]
-- (none)
+- utils.chat_utils::extract_text_content (POS: multimodal message content → plain text, so images and reasoning blocks never enter the skeleton)
 
 [OUTPUT]
 - prune_trajectory: Args:
@@ -25,6 +24,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.utils.chat_utils import extract_text_content
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 if TYPE_CHECKING:
@@ -80,11 +80,11 @@ def prune_trajectory(
         msg_type = getattr(msg, "type", "unknown")
 
         if msg_type == "human":
-            content = _truncate(str(msg.content), max_thought_length)
+            content = _truncate(extract_text_content(msg.content), max_thought_length)
             skeleton_parts.append(f"<User>: {content}")
 
         elif msg_type == "ai":
-            content = str(msg.content) if msg.content else ""
+            content = extract_text_content(msg.content)
             tool_calls = getattr(msg, "tool_calls", None) or []
 
             if content:
@@ -99,7 +99,7 @@ def prune_trajectory(
                     skeleton_parts.append(f"<Tool-Call>: {tool_name}({args_str})")
 
         elif msg_type == "tool":
-            content = str(msg.content) if msg.content else ""
+            content = extract_text_content(msg.content)
             result_summary = _truncate(content, max_tool_result_length)
             tool_name = getattr(msg, "name", "unknown")
             skeleton_parts.append(f"<Tool-Result[{tool_name}]>: {result_summary}")
@@ -114,7 +114,7 @@ def _truncate(text: str, max_len: int) -> str:
     return text[:max_len] + "...(truncated)"
 
 
-def _format_args(args: dict) -> str:
+def _format_args(args: dict[str, object]) -> str:
     """格式化工具调用参数（简化显示）。"""
     if not args:
         return ""

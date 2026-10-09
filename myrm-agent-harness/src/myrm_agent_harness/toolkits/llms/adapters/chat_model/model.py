@@ -7,6 +7,8 @@
 - adapters.converters (POS: message and tool call converters)
 - adapters.streaming (POS: streaming response processing)
 - adapters.concurrency (POS: concurrency gate for LLM calls)
+- adapters.chat_model.allowed_params::inject_allowed_params (POS: per-call allowed_openai_params injection)
+- adapters.chat_model.output_cap_recovery::ChatLiteLLMOutputCapMixin (POS: provider-stated output-limit recovery and learned model ceilings)
 - adapters.stream_aggregator (POS: stream data aggregation module)
 - adapters.tool_recovery (POS: tool call recovery module)
 - adapters.safety_termination_detector (POS: Safety termination detector for truncated tool call suppression)
@@ -33,7 +35,9 @@ Stream only supports fully empty stream retry (mid-stream interruptions cannot b
 business layer exports via retry_metrics.to_dict() for monitoring integration.
 **Parameter protection**: injects per-call ``allowed_openai_params`` to prevent LiteLLM from
 silently dropping framework params (tools, tool_choice) or user-supplied model_kwargs when
-a provider's capability declaration is incomplete (e.g. ``xiaomi_mimo``).
+a provider's capability declaration is incomplete (e.g. ``xiaomi_mimo``). Calls to the first-party
+Anthropic Messages API are the exception: that API rejects raw OpenAI-shaped fields, so LiteLLM's own
+translation builds the request body there.
 Cross-provider compatible via LiteLLM. As the adapter layer, used by core.llm and business layer,
 bridging LangChain and LiteLLM.
 Provider-aware message normalization keeps providers that reject ``system`` turns
@@ -71,11 +75,11 @@ from langchain_core.utils.pydantic import is_basemodel_subclass
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.allowed_params import inject_allowed_params
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin import (
     ChatLiteLLMAsyncMixin,
 )
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
-    _FRAMEWORK_REQUIRED_OPENAI_PARAMS,
     DEVELOPER_ROLE_PATTERN,
     EmptyChoicesError,
     EmptyStreamError,
@@ -83,6 +87,9 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
 )
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.message_mixin import (
     ChatLiteLLMMessageMixin,
+)
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import (
+    ChatLiteLLMOutputCapMixin,
 )
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import (
     ChatLiteLLMSyncMixin,
@@ -111,7 +118,13 @@ __all__ = [
 ]
 
 
-class ChatLiteLLM(ChatLiteLLMMessageMixin, ChatLiteLLMSyncMixin, ChatLiteLLMAsyncMixin, BaseChatModel):
+class ChatLiteLLM(
+    ChatLiteLLMMessageMixin,
+    ChatLiteLLMOutputCapMixin,
+    ChatLiteLLMSyncMixin,
+    ChatLiteLLMAsyncMixin,
+    BaseChatModel,
+):
     """Minimal LangChain ChatModel adapter for litellm.
 
     Implements the subset of features this project uses: non-streaming/streaming
@@ -279,49 +292,7 @@ class ChatLiteLLM(ChatLiteLLMMessageMixin, ChatLiteLLMSyncMixin, ChatLiteLLMAsyn
 
         return {**self._default_params, **creds}
 
-    @staticmethod
-    def _inject_allowed_params(params: dict[str, object]) -> None:
-        """Ensure all explicitly-supplied parameters bypass LiteLLM's provider whitelist.
-
-        LiteLLM silently drops parameters not declared in a provider's
-        ``supported_params`` when ``litellm.drop_params=True``.  Some providers
-        (e.g. ``xiaomi_mimo``) have incomplete capability declarations, causing
-        critical params like ``tools`` / ``tool_choice`` — and any user-supplied
-        model_kwargs — to be discarded.
-
-        This injects ``allowed_openai_params`` into *params* so that every key
-        we explicitly passed is white-listed for the current call, while the
-        global ``drop_params`` safety-net remains active for truly unknown params.
-
-        ``tool_choice.type=allowed_tools`` is excluded from forced whitelisting so
-        unsupported gateways can drop it instead of returning HTTP 400.
-        """
-        allowed = set(params.keys())
-        allowed |= _FRAMEWORK_REQUIRED_OPENAI_PARAMS
-        tool_choice = params.get("tool_choice")
-        if isinstance(tool_choice, dict) and tool_choice.get("type") == "allowed_tools":
-            allowed.discard("tool_choice")
-        params["allowed_openai_params"] = sorted(allowed)
-
-    @staticmethod
-    def _apply_ephemeral_output_override(params: dict[str, object]) -> None:
-        """Apply and consume the ephemeral max-output-tokens override if set.
-
-        The truncation recovery layer sets this ContextVar to progressively
-        boost the output budget during text continuation or tool-call retry.
-        The override is consumed (reset to None) after a single read so that
-        subsequent normal calls use the configured default.
-        """
-        from myrm_agent_harness.toolkits.llms.ephemeral_output_tokens import (
-            get_ephemeral_max_output_tokens,
-            reset_ephemeral_max_output_tokens,
-        )
-
-        override = get_ephemeral_max_output_tokens()
-        if override is not None:
-            params["max_tokens"] = override
-            reset_ephemeral_max_output_tokens()
-            logger.info(" Ephemeral max_tokens override applied: %d", override)
+    _inject_allowed_params = staticmethod(inject_allowed_params)
 
     def _inject_prompt_routing_key(self, params: dict[str, object]) -> None:
         """Inject session-scoped routing keys for KV cache and gateway affinity.

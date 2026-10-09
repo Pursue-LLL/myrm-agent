@@ -20,7 +20,6 @@ Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 | _assistant_retrieval.py  | Internal | Two-Pass Assistant Retrieval for assistant-reference queries (MemPalace enhancement).                         | ✅    |
 | adaptive.py              | Core     | Adaptive dual-channel selection logic. Analyzes query characteristics (token count,                           | ✅    |
 | backup.py                | Core     | Provides BackupMetadata, BackupResult, RestoreResult.                                                         | ✅    |
-| chunking.py              | Core     | Chunking utilities for ConversationMemory and extraction pipelines. Provides configurable strategies (fixed, turn, message, semantic, and episodes chunking via EpisodesChunker with idle-time gap detection and causal sliding overlap). | ✅    |
 | cards.py                 | Core     | A-MEM card-box (Zettelkasten) network. Evidence-conclusion decoupling with EvidenceReference binding, bidirectional graph indexing (incoming_links), immutable evolution chain with lineage tracing, and knowledge subgraph traversal. | ✅    |
 | compression.py           | Core     | Transparent payload compression and external BLOB storage for ConversationMemory raw_exchange fields.         | ✅    |
 | consolidation.py         | Core     | Hyper Consolidation Memory Block: 会话终态将工作记忆提取为 ProceduralMemory（自愈避坑规程，内置纯净性守卫过滤先验与未解决假说）与镜像为 EpisodicMemory 的 TaskDigest 资产并持久落盘。 | ✅    |
@@ -45,7 +44,6 @@ Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 | signals.py               | Core     | Context signal calculator for memory retrieval scoring. Provides normalized [0,1] factors                     | ✅    |
 | text_utils.py            | Core     | Unified multi-language tokenization for memory retrieval. Uses re.UNICODE                                     | ✅    |
 | tool_capture.py          | Core     | Tool-scoped memory capture hook. Detects user edicts and repeated tool failures, auto-creates procedural rules. | ✅    |
-| tool_guidance.py         | Facade   | Facade re-exporting types and synthesis engine from `tool_guidance` domain subpackage.                         | ✅    |
 | memory_search_policy.py   | Facade   | Facade re-exporting memory_search_policy from agent_surface for harness surface.                               | —    |
 
 | Submodule   | Description                                                                       |
@@ -119,6 +117,40 @@ Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 | tool_guidance/ | Deterministic, cache-stable synthesis of procedural tool memory (traps, edicts) into bounded, zero-LLM tool guidance. See [tool_guidance/_ARCH.md](tool_guidance/_ARCH.md). |
 | world_model/ | L3 world model: four-dimension macro project entities (rules, environment, contract, domain knowledge) with versioned records and compact macro-context rendering. See [world_model/_ARCH.md](world_model/_ARCH.md). |
 | zero_hallucination/ | Fault-transparent retrieval protocol and anti-fabrication prompt guard for memory queries. See [zero_hallucination/_ARCH.md](zero_hallucination/_ARCH.md). |
+| git_okf/ | Git-native loader for Google OKF v0.2 knowledge bundles. See [git_okf/_ARCH.md](git_okf/_ARCH.md). |
+| hybrid_engine/ | Orchestrates zero-config SQLite FTS5, offline synonym expansion,. See [hybrid_engine/_ARCH.md](hybrid_engine/_ARCH.md). |
+| authoritative_conclusions/ | Context anchor formatter for authoritative conclusions. See [authoritative_conclusions/_ARCH.md](authoritative_conclusions/_ARCH.md). |
+| business_templates/ | Pre-seeded industrial business experience templates. See [business_templates/_ARCH.md](business_templates/_ARCH.md). |
+| dialectic_guard/ | State machine governing background dialectic inference liveness and lifecycle. See [dialectic_guard/_ARCH.md](dialectic_guard/_ARCH.md). |
+| directory_dominance/ | Hierarchical retriever leveraging directory dominance ratios and sibling context bundling. See [directory_dominance/_ARCH.md](directory_dominance/_ARCH.md). |
+| ephemeral_delta/ | In-memory, session-scoped transient buffer for prompt-cache-preserving deltas. See [ephemeral_delta/_ARCH.md](ephemeral_delta/_ARCH.md). |
+| experience_injection/ | PostCallHook adapter injecting relevant procedure experiences into skill bodies. See [experience_injection/_ARCH.md](experience_injection/_ARCH.md). |
+| experience_observability/ | Zero-refactor host lifecycle plugin adapter. See [experience_observability/_ARCH.md](experience_observability/_ARCH.md). |
+| fact_supersession/ | Gate evaluating factual contradictions and routing low-confidence candidates into quarantine. See [fact_supersession/_ARCH.md](fact_supersession/_ARCH.md). |
+| failure_retrieval/ | Error fingerprint extractor for failure-triggered session retrieval. See [failure_retrieval/_ARCH.md](failure_retrieval/_ARCH.md). |
+| lifecycle_hotness/ | Compute deterministic 0.0–1.0 hotness score based on access frequency and recency decay. See [lifecycle_hotness/_ARCH.md](lifecycle_hotness/_ARCH.md). |
+| lineage_search/ | Collapses multi-generation compacted or branched session continuations. See [lineage_search/_ARCH.md](lineage_search/_ARCH.md). |
+| markdown_curator/ | Calculates bi-directional deltas between in-memory stores and Markdown mirrors. See [markdown_curator/_ARCH.md](markdown_curator/_ARCH.md). |
+| peer_cognition/ | Self-evolving standing persona card engine and low-token context projector. See [peer_cognition/_ARCH.md](peer_cognition/_ARCH.md). |
+| peer_gateway/ | Adaptive hash collision escalation algorithm for deterministic peer normalization. See [peer_gateway/_ARCH.md](peer_gateway/_ARCH.md). |
+| procedure_experience/ | Fixed-count dual-node retriever for procedure-shaped experience memories. See [procedure_experience/_ARCH.md](procedure_experience/_ARCH.md). |
+| progressive_sidecar/ | Seamless adapter linking Context VFS with L0/L1/L2 progressive sidecar disclosure. See [progressive_sidecar/_ARCH.md](progressive_sidecar/_ARCH.md). |
+| queuefs/ | Asynchronous QueueFS engine managing named semantic tasks across sequential DAG stages. See [queuefs/_ARCH.md](queuefs/_ARCH.md). |
+| relational_backtrack/ | Core backtracking engine for cross-session entity and temporal causal recall. See [relational_backtrack/_ARCH.md](relational_backtrack/_ARCH.md). |
+| rule_cascade/ | Hierarchical deterministic rule cascade loader inspired by Claude Code. See [rule_cascade/_ARCH.md](rule_cascade/_ARCH.md). |
+| session_commit/ | Orchestrates two-phase session archival, reliable boundary gating, and memory_diff auditing. See [session_commit/_ARCH.md](session_commit/_ARCH.md). |
+| thinking_sanitizer/ | Sanitizer and egress guard for scrubbing reasoning blocks and drafts. See [thinking_sanitizer/_ARCH.md](thinking_sanitizer/_ARCH.md). |
+| tiered_consensus/ | Manager engine governing tiered memory hierarchy and proposal consensus lifecycle. See [tiered_consensus/_ARCH.md](tiered_consensus/_ARCH.md). |
+| two_layer_dialectic/ | Dual-layer context injection engine preserving LLM Prompt Cache while resolving contradictions. See [two_layer_dialectic/_ARCH.md](two_layer_dialectic/_ARCH.md). |
+| multimodal/ | Multimodal asset memory suite: stores vision assets and sandbox artifacts as long-term memory items and serves natural-language cross-modal search with UI card previews. See [multimodal/_ARCH.md](multimodal/_ARCH.md). |
+| graph_reorganization/ | Graph Memory Reorganization and Lineage Traceability Suite: synthesizes multi-relational edges and maintains immutable lineage DAG preventing amnesia. See [graph_reorganization/_ARCH.md](graph_reorganization/_ARCH.md). |
+| quadruple_retrieval/ | Goal-Driven Quadruple Parallel Retrieval and Reasoner Suite: deconstructs task goals, recalls via Graph/Vector/Lexical/Metadata channels, and reranks via Reasoner. See [quadruple_retrieval/_ARCH.md](quadruple_retrieval/_ARCH.md). |
+| live_correction/ | Natural Language Memory Feedback and Live Correction Suite: detects conversational corrections, localizes conflicts, executes atomic mutations, and generates receipts. See [live_correction/_ARCH.md](live_correction/_ARCH.md). |
+| chunking/ | Incremental Sliding Window Markdown Chunker Suite: semantic sliding window with 80-token overlap, content-hash incremental diffing, and line-level pointers. See [chunking/_ARCH.md](chunking/_ARCH.md). |
+| pitfall_alert/ | Proactive Past-Pitfall Alert and Decision Assist Suite: deterministic shadow intent recognizer, causal triad retrieval, session mute governance, and non-intrusive alert callouts. See [pitfall_alert/_ARCH.md](pitfall_alert/_ARCH.md). |
+| experience_compounding/ | Experience Compounding and Knowledge Condensation Suite: bounded logarithmic frequency compounding, semantic Golden Rule synthesis with lineage preservation, and obsolete context annealing governor. See [experience_compounding/_ARCH.md](experience_compounding/_ARCH.md). |
+| life_milestones/ | Life milestones and personal timeline suite: significance-gated milestone timeline, evolving value beliefs projected into prompts, and growth diary retrospective cards. See [life_milestones/_ARCH.md](life_milestones/_ARCH.md). |
+| context_hook_pipeline/ | Pluggable context hook pipeline: synchronous lifecycle hook chain plus dual-layer (private and shared) memory weaving within a token budget. See [context_hook_pipeline/_ARCH.md](context_hook_pipeline/_ARCH.md). |
 
 ## Key Dependencies
 

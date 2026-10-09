@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-提供流式中断安全捕获、最长公共前缀（LCP）动态去重清洗、思考与升级标签脱毒、高频事件压实与无缝断点续接引导能力。
+提供流式事件转换与分发、思考与升级标签脱毒、重复循环熔断、高频事件压实、Last-Event-ID 重连重放缓冲，以及流式错误的重试与恢复能力。详细设计见 [STREAMING_SYSTEM.md](STREAMING_SYSTEM.md)。
 
 ## 文件清单
 
@@ -29,3 +29,6 @@
 | `types.py` | 核心 | 流式事件类型定义与 core.events.types 兼容重导出 |
 | `turn_outline.py` | 核心 | 回合大纲投影提取器（`TurnOutlineItem` / `TurnOutlineProjection` / `TurnOutlineExtractor`），为轻量会话折叠导航提供结构数据 |
 | `utils.py` | 辅助 | 时间戳规则、时区管理上下文变量及工具名称规范化等通用辅助函数 |
+| `graceful_interruption_types.py` | 核心 | Types and models for graceful interruption. |
+| `graceful_turn_interrupter.py` | 核心 | Thread-safe graceful turn interruption sentinel and clean breakpoint detector. |
+| `partial_artifact_flush_pipeline.py` | 核心 | Pipelines safely flushing partial in-progress artifacts and seamlessly stitching subsequent context. |

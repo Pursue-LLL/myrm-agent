@@ -5,13 +5,16 @@ credentials, PEM keys, DB connection strings) from skill files before export.
 Two-stage design: scan → return structured Diff → user confirms → apply.
 
 Reuses proven patterns from core/security/redact/patterns.py (runtime redactor) to
-ensure export-time detection parity with runtime masking.
+ensure export-time detection parity with runtime masking. Each rule names the
+capture group that holds the secret, so only the secret is replaced and the
+surrounding syntax (keys, quotes, flags, URL structure) stays intact.
 
 [INPUT]
-- core.security.redact.patterns (POS: Compiled regex patterns for token prefix and context-based detection)
+- core.security.redact.patterns (POS: Compiled regex patterns and the keyword guard shared with the runtime redactor)
 
 [OUTPUT]
-- Redaction: TypedDict — single redaction finding
+- SecretKind: Literal — closed set of finding kinds; callers render them in their own language
+- Redaction: TypedDict — single redaction finding (``kinds`` instead of display text)
 - SanitizationResult: dataclass — complete scan result
 - ContentSanitizer: class — stateless sanitizer
 - content_sanitizer: singleton instance
@@ -24,36 +27,43 @@ files and provides structured per-line Diff for the frontend preview UI.
 import logging
 import re
 from dataclasses import dataclass
-from typing import TypedDict
+from typing import Literal, NamedTuple, TypedDict
 
 from myrm_agent_harness.core.security.redact.patterns import (
     _AUTH_HEADER_RE,
     _CLI_FLAG_RE,
     _DB_CONNSTR_RE,
+    _ENV_ASSIGN_LOWER_RE,
     _ENV_ASSIGN_RE,
     _JSON_FIELD_RE,
+    _JWT_RE,
     _PREFIX_RE,
     _PRIVATE_KEY_RE,
+    _SECRET_HEADER_RE,
     _TELEGRAM_BOT_RE,
+    _URL_BARE_TOKEN_RE,
     _URL_QUERY_RE,
+    _URL_USERINFO_RE,
+    _YAML_ASSIGN_RE,
+    _redact_value,
 )
 
 logger = logging.getLogger(__name__)
 
-# ── Pattern categories for structured redaction ──────────────────────────────
-# Each entry: (compiled_pattern, reason_label, replacement_template)
-# For patterns with capture groups, group(0) is the full match unless noted.
-
-_TOKEN_PREFIX_REASON = "API Key / Token"
-_ENV_REASON = "Environment Variable"
-_JSON_REASON = "JSON Secret Field"
-_DB_REASON = "Database Credential"
-_URL_REASON = "URL Secret Parameter"
-_CLI_REASON = "CLI Secret Flag"
-_TELEGRAM_REASON = "Telegram Bot Token"
-_AUTH_REASON = "Authorization Header"
-_PEM_REASON = "Private Key"
-_PATH_REASON = "Absolute Path"
+SecretKind = Literal[
+    "api_token",
+    "environment_variable",
+    "config_secret",
+    "json_secret_field",
+    "database_credential",
+    "url_secret_parameter",
+    "url_credential",
+    "cli_secret_flag",
+    "telegram_bot_token",
+    "authorization_header",
+    "private_key",
+    "absolute_path",
+]
 
 # Absolute paths (macOS/Linux) — supports line-start via (?:^|...) with MULTILINE
 _MACOS_PATH_RE = re.compile(
@@ -69,20 +79,70 @@ _WINDOWS_PATH_RE = re.compile(
     r"(?i)(?:(?<=[\s\"'=:(])|(?<=^))[A-Z]:\\(?:Users|Documents and Settings)\\[^\s\"']+",
     re.MULTILINE,
 )
+_PATH_RES = (_MACOS_PATH_RE, _LINUX_PATH_RE, _WINDOWS_PATH_RE)
+
+# A value that points at a secret instead of containing one: shell / CI variable, template
+# placeholder, angle-bracket stand-in, or an ALL_CAPS variable name.
+_PLACEHOLDER_RE = re.compile(r"\$[{(A-Za-z_]|\{\{|%[^%\s]+%$|<[^<>\s]*>$|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$")
+
+# A key whose keyword describes a setting about a secret (limits, kinds, pointers), not the secret.
+_NON_SECRET_KEY_RE = re.compile(
+    r"(?:tokens|[_.\-](?:type|name|method|mode|scheme|url|uri|endpoint|file|path|env|var|header|field"
+    r"|limit|count|budget|ttl|expiry|expires?))$",
+    re.IGNORECASE,
+)
+
+
+class _SecretRule(NamedTuple):
+    """One detector: the capture group holding the secret decides what gets replaced.
+
+    ``name_group`` (0 = none) points at the key / flag capture group; the runtime
+    redactor's keyword guard then decides whether that key really names a
+    credential, so prose such as ``tokenizer=gpt2`` or ``os.getenv(...)`` lookups
+    stay untouched. Every rule's groups must exist in its pattern.
+    """
+
+    pattern: re.Pattern[str]
+    kind: SecretKind
+    replacement: str
+    value_group: int
+    name_group: int = 0
+
+
+# Specific detectors come before the generic key=value ones: when several rules match the
+# same secret, the earliest rule supplies the kind shown in the review.
+_SECRET_RULES: tuple[_SecretRule, ...] = (
+    _SecretRule(_PREFIX_RE, "api_token", "<REDACTED_TOKEN>", 1),
+    _SecretRule(_AUTH_HEADER_RE, "authorization_header", "<REDACTED_TOKEN>", 3),
+    _SecretRule(_SECRET_HEADER_RE, "authorization_header", "<REDACTED_TOKEN>", 2),
+    _SecretRule(_URL_QUERY_RE, "url_secret_parameter", "<REDACTED_PARAM>", 2),
+    _SecretRule(_URL_USERINFO_RE, "url_credential", "***", 3),
+    _SecretRule(_URL_BARE_TOKEN_RE, "url_credential", "<REDACTED_TOKEN>", 2),
+    _SecretRule(_DB_CONNSTR_RE, "database_credential", "***", 2),
+    _SecretRule(_TELEGRAM_BOT_RE, "telegram_bot_token", "<REDACTED_BOT_TOKEN>", 2),
+    _SecretRule(_JSON_FIELD_RE, "json_secret_field", "<REDACTED_SECRET>", 2),
+    _SecretRule(_CLI_FLAG_RE, "cli_secret_flag", "<REDACTED_VALUE>", 2, 1),
+    _SecretRule(_ENV_ASSIGN_RE, "environment_variable", "<REDACTED_VALUE>", 2, 1),
+    _SecretRule(_ENV_ASSIGN_LOWER_RE, "environment_variable", "<REDACTED_VALUE>", 2, 1),
+    _SecretRule(_YAML_ASSIGN_RE, "config_secret", "<REDACTED_VALUE>", 3, 1),
+    _SecretRule(_JWT_RE, "api_token", "<REDACTED_TOKEN>", 0),
+)
 
 
 class _ScanMatch(TypedDict):
     start: int
     end: int
     replacement: str
-    reason: str
+    kind: SecretKind
 
 
 class Redaction(TypedDict):
+    """One finding on one line; ``kinds`` are stable codes the caller renders in its own language."""
+
     line_number: int
     original: str
     redacted: str
-    reason: str
+    kinds: list[SecretKind]
 
 
 @dataclass
@@ -92,6 +152,44 @@ class SanitizationResult:
     sanitized_content: str
 
 
+def _secret_span(m: re.Match[str], group: int) -> tuple[int, int]:
+    """Span of the secret itself; the quotes around a quoted value stay in place."""
+    start, end = m.span(group)
+    if end - start >= 2 and m.string[start] in "\"'" and m.string[end - 1] == m.string[start]:
+        return start + 1, end - 1
+    return start, end
+
+
+def _merge_overlaps(matches: list[_ScanMatch]) -> list[_ScanMatch]:
+    """Union overlapping matches so no part of a secret is left behind; last match first.
+
+    The longest member of each union supplies the replacement and the kind. Last-first
+    order lets replacements be applied in place without shifting the offsets still to come.
+    """
+    clusters: list[list[_ScanMatch]] = []
+    cluster_end = 0
+    for match in sorted(matches, key=lambda x: x["start"]):
+        if clusters and match["start"] < cluster_end:
+            clusters[-1].append(match)
+            cluster_end = max(cluster_end, match["end"])
+        else:
+            clusters.append([match])
+            cluster_end = match["end"]
+
+    merged: list[_ScanMatch] = []
+    for cluster in reversed(clusters):
+        lead = max(cluster, key=lambda x: x["end"] - x["start"])
+        merged.append(
+            {
+                "start": cluster[0]["start"],
+                "end": max(x["end"] for x in cluster),
+                "replacement": lead["replacement"],
+                "kind": lead["kind"],
+            }
+        )
+    return merged
+
+
 class ContentSanitizer:
     """Skill content sanitizer for export-time privacy protection."""
 
@@ -99,104 +197,24 @@ class ContentSanitizer:
         """Scan a single line for all sensitive patterns. Returns match info list."""
         matches: list[_ScanMatch] = []
 
-        # 1. Token prefix patterns (28 formats: ghp_, AKIA, sk_live_, etc.)
-        for m in _PREFIX_RE.finditer(line):
-            matches.append(
-                {
-                    "start": m.start(1),
-                    "end": m.end(1),
-                    "replacement": "<REDACTED_TOKEN>",
-                    "reason": _TOKEN_PREFIX_REASON,
-                }
-            )
+        for rule in _SECRET_RULES:
+            for m in rule.pattern.finditer(line):
+                start, end = _secret_span(m, rule.value_group)
+                if start >= end or _PLACEHOLDER_RE.match(line, start, end):
+                    continue
+                if rule.name_group:
+                    name = m.group(rule.name_group)
+                    if (
+                        _NON_SECRET_KEY_RE.search(name.strip(" \t="))
+                        or _redact_value(name, m.group(rule.value_group)) is None
+                    ):
+                        continue
+                matches.append({"start": start, "end": end, "replacement": rule.replacement, "kind": rule.kind})
 
-        # 2. Environment variable assignments (API_KEY=xxx, SECRET=xxx)
-        for m in _ENV_ASSIGN_RE.finditer(line):
-            matches.append(
-                {
-                    "start": m.start(3),
-                    "end": m.end(3),
-                    "replacement": "<REDACTED_VALUE>",
-                    "reason": _ENV_REASON,
-                }
-            )
-
-        # 3. JSON secret fields ("token": "xxx")
-        for m in _JSON_FIELD_RE.finditer(line):
-            matches.append(
-                {
-                    "start": m.start(2),
-                    "end": m.end(2),
-                    "replacement": "<REDACTED_SECRET>",
-                    "reason": _JSON_REASON,
-                }
-            )
-
-        # 4. Database connection strings (postgres://user:PASS@host)
-        for m in _DB_CONNSTR_RE.finditer(line):
-            matches.append(
-                {
-                    "start": m.start(2),
-                    "end": m.end(2),
-                    "replacement": "***",
-                    "reason": _DB_REASON,
-                }
-            )
-
-        # 5. URL query parameters (?api_key=xxx)
-        for m in _URL_QUERY_RE.finditer(line):
-            matches.append(
-                {
-                    "start": m.start(1),
-                    "end": m.end(1),
-                    "replacement": "<REDACTED_PARAM>",
-                    "reason": _URL_REASON,
-                }
-            )
-
-        # 6. CLI flags (--api-key xxx, --token xxx)
-        for m in _CLI_FLAG_RE.finditer(line):
-            matches.append(
-                {
-                    "start": m.start(2),
-                    "end": m.end(2),
-                    "replacement": "<REDACTED_VALUE>",
-                    "reason": _CLI_REASON,
-                }
-            )
-
-        # 7. Telegram bot tokens (bot123456:ABC-xxx)
-        for m in _TELEGRAM_BOT_RE.finditer(line):
-            matches.append(
-                {
-                    "start": m.start(1),
-                    "end": m.end(1),
-                    "replacement": "<REDACTED_BOT_TOKEN>",
-                    "reason": _TELEGRAM_REASON,
-                }
-            )
-
-        # 8. Authorization headers (Bearer token)
-        for m in _AUTH_HEADER_RE.finditer(line):
-            matches.append(
-                {
-                    "start": m.start(2),
-                    "end": m.end(2),
-                    "replacement": "<REDACTED_TOKEN>",
-                    "reason": _AUTH_REASON,
-                }
-            )
-
-        # 9. Absolute paths (macOS, Linux, Windows)
-        for pattern in (_MACOS_PATH_RE, _LINUX_PATH_RE, _WINDOWS_PATH_RE):
+        for pattern in _PATH_RES:
             for m in pattern.finditer(line):
                 matches.append(
-                    {
-                        "start": m.start(),
-                        "end": m.end(),
-                        "replacement": "<REDACTED_PATH>",
-                        "reason": _PATH_REASON,
-                    }
+                    {"start": m.start(), "end": m.end(), "replacement": "<REDACTED_PATH>", "kind": "absolute_path"}
                 )
 
         return matches
@@ -235,7 +253,7 @@ class ContentSanitizer:
                             line_number=i + 1,
                             original=original_line,
                             redacted=modified_line,
-                            reason=_PEM_REASON,
+                            kinds=["private_key"],
                         )
                     )
                 sanitized_lines.append(modified_line)
@@ -248,34 +266,22 @@ class ContentSanitizer:
                 redaction_index += 1
 
                 if current_index not in ignored_indices:
-                    # Sort by start position descending to avoid index shift
-                    line_matches.sort(key=lambda x: x["start"], reverse=True)
-
-                    # Deduplicate overlapping matches (keep the longest)
-                    filtered: list[_ScanMatch] = []
-                    for match_info in line_matches:
-                        overlaps = False
-                        for existing in filtered:
-                            if match_info["start"] < existing["end"] and match_info["end"] > existing["start"]:
-                                overlaps = True
-                                break
-                        if not overlaps:
-                            filtered.append(match_info)
-
-                    reasons = []
-                    for match_info in filtered:
-                        start = match_info["start"]
-                        end = match_info["end"]
-                        modified_line = modified_line[:start] + match_info["replacement"] + modified_line[end:]
-                        if match_info["reason"] not in reasons:
-                            reasons.append(match_info["reason"])
+                    kinds: list[SecretKind] = []
+                    for match_info in _merge_overlaps(line_matches):
+                        modified_line = (
+                            modified_line[: match_info["start"]]
+                            + match_info["replacement"]
+                            + modified_line[match_info["end"] :]
+                        )
+                        kinds.append(match_info["kind"])
 
                     redactions.append(
                         Redaction(
                             line_number=i + 1,
                             original=original_line,
                             redacted=modified_line,
-                            reason=" / ".join(reasons),
+                            # Replacements run last-first; report kinds in reading order.
+                            kinds=list(dict.fromkeys(reversed(kinds))),
                         )
                     )
 

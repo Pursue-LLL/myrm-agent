@@ -20,6 +20,7 @@ from myrm_agent_harness.toolkits.memory.types import (
     MemoryScope,
     MemoryType,
     PendingRecord,
+    PendingResolutionAction,
     ProceduralMemory,
 )
 
@@ -296,9 +297,7 @@ async def test_update_rule_preserves_tool_fields(store: SQLiteRelationalStore) -
     from myrm_agent_harness.toolkits.memory.types import ToolRulePriority
 
     created = await store.create_rule(_make_tool_rule("web_fetch_tool", "normal"))
-    updated_rule = _make_tool_rule(
-        "web_fetch_tool", "critical", "timeout retry", "use exponential backoff"
-    )
+    updated_rule = _make_tool_rule("web_fetch_tool", "critical", "timeout retry", "use exponential backoff")
     updated = await store.update_rule(created.id, updated_rule)
     assert updated.tool_rule_priority == ToolRulePriority.CRITICAL
 
@@ -323,6 +322,30 @@ async def test_submit_and_get_pending(store: SQLiteRelationalStore) -> None:
     assert fetched is not None
     assert fetched.content == "test memory"
     assert fetched.status == "pending"
+
+
+@pytest.mark.asyncio
+async def test_pending_action_metadata_round_trips(store: SQLiteRelationalStore) -> None:
+    """resolution_action / target_memory_id / target_content survive persistence.
+
+    The approval dispatcher and review UI read these fields, so a column/order
+    regression in the pending table must fail loudly here.
+    """
+    record = PendingRecord(
+        memory_type=MemoryType.SEMANTIC,
+        content="User now works at Google",
+        resolution_action=PendingResolutionAction.CORRECT,
+        target_memory_id="mem-old",
+        target_content="User works at ByteDance",
+    )
+
+    pid = await store.submit_pending(record)
+    fetched = await store.get_pending(pid)
+
+    assert fetched is not None
+    assert fetched.resolution_action == PendingResolutionAction.CORRECT
+    assert fetched.target_memory_id == "mem-old"
+    assert fetched.target_content == "User works at ByteDance"
 
 
 @pytest.mark.asyncio
@@ -487,9 +510,7 @@ async def test_close_is_idempotent(store: SQLiteRelationalStore) -> None:
 
 
 @pytest.mark.asyncio
-async def test_query_error_branches_raise(
-    store: SQLiteRelationalStore, monkeypatch
-) -> None:
+async def test_query_error_branches_raise(store: SQLiteRelationalStore, monkeypatch) -> None:
     """DB failures surface as RelationalQueryError across CRUD methods."""
 
     class _ExplodingCursor:
@@ -607,11 +628,15 @@ _STALE_CREATED_AT = "2020-01-01T00:00:00+00:00"
 async def _record_two_exact_facts(store: SQLiteRelationalStore) -> None:
     """Write two exact facts, backdate the first to a stale created_at."""
     await store.record_exact_fact(
-        memory_id="m-old", user_id="u1", content="old deploy runbook fact",
+        memory_id="m-old",
+        user_id="u1",
+        content="old deploy runbook fact",
         identifiers=[_OLD_UUID],
     )
     await store.record_exact_fact(
-        memory_id="m-new", user_id="u1", content="new deploy runbook fact",
+        memory_id="m-new",
+        user_id="u1",
+        content="new deploy runbook fact",
         identifiers=[_NEW_UUID],
     )
     conn = await store._get_connection()
@@ -633,16 +658,10 @@ async def test_search_fts5_time_bounds_filter_btree_identifier_matches(
     ids_all = sorted(m.memory.id for m in await store.search_fts5(q, 10))
     assert ids_all == ["m-new", "m-old"]
 
-    ids_since = sorted(
-        m.memory.id
-        for m in await store.search_fts5(q, 10, since=datetime(2024, 1, 1, tzinfo=UTC))
-    )
+    ids_since = sorted(m.memory.id for m in await store.search_fts5(q, 10, since=datetime(2024, 1, 1, tzinfo=UTC)))
     assert ids_since == ["m-new"]
 
-    ids_until = sorted(
-        m.memory.id
-        for m in await store.search_fts5(q, 10, until=datetime(2024, 1, 1, tzinfo=UTC))
-    )
+    ids_until = sorted(m.memory.id for m in await store.search_fts5(q, 10, until=datetime(2024, 1, 1, tzinfo=UTC)))
     assert ids_until == ["m-old"]
 
 
@@ -657,14 +676,12 @@ async def test_search_fts5_time_bounds_filter_fts5_keyword_matches(
     assert ids_all == ["m-new", "m-old"]
 
     ids_until = sorted(
-        m.memory.id
-        for m in await store.search_fts5("runbook", 10, until=datetime(2024, 1, 1, tzinfo=UTC))
+        m.memory.id for m in await store.search_fts5("runbook", 10, until=datetime(2024, 1, 1, tzinfo=UTC))
     )
     assert ids_until == ["m-old"]
 
     ids_since = sorted(
-        m.memory.id
-        for m in await store.search_fts5("runbook", 10, since=datetime(2024, 1, 1, tzinfo=UTC))
+        m.memory.id for m in await store.search_fts5("runbook", 10, since=datetime(2024, 1, 1, tzinfo=UTC))
     )
     assert ids_since == ["m-new"]
 
