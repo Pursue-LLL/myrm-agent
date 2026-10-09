@@ -667,6 +667,8 @@ myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.self_verification
 myrm_agent_harness.toolkits.memory.session_post_process
 myrm_agent_harness.toolkits.memory.shared_bus
+myrm_agent_harness.toolkits.memory.skill_triad.facade
+myrm_agent_harness.toolkits.memory.skill_triad.models
 myrm_agent_harness.toolkits.memory.sovereign_migration
 myrm_agent_harness.toolkits.memory.strategies.blind_spot
 myrm_agent_harness.toolkits.memory.strategies.consolidation
