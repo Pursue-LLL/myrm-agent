@@ -26,7 +26,7 @@ dependencies = [
   "aiosqlite>=0.22.1",                  # async SQLite (memory stores + checkpointer)
   "dill>=0.4.1",                        # checkpoint serde (ChatLiteLLM / complex objects)
   # --- LLM 多供应商适配 ---
-  "litellm>=1.98.0", # 统一 LLM API 代理 (100+ 供应商)
+  "litellm>=1.90.2", # 统一 LLM API 代理 (100+ 供应商；server 的 aioboto3 钉住 boto3<1.40.62，litellm>=1.98 需要 boto3>=1.43，故下限不可更高)
   # --- 数据验证与序列化 ---
   "pydantic>=2.13.5", # 数据模型验证
   "PyYAML>=6.0.2",    # YAML 配置解析（下限 6.0.2：pdf-ocr 的 paddlex 固定 PyYAML==6.0.2）
