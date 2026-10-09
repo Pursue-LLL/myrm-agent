@@ -271,6 +271,9 @@ filterwarnings = [
     # jieba 0.42.1 (sdist-only) ships non-raw regex literals; the compile-time warning fires on its first
     # import in a fresh environment (no cached bytecode yet) and would otherwise turn into a SyntaxError.
     "ignore:invalid escape sequence:SyntaxWarning:.*jieba",
+    # scrapling passes strip_cdata to lxml's HTMLParser, which lxml >= 6.1 reports as a DeprecationWarning
+    # although the option has no effect; as an error it would fail every scrapling parse under pytest.
+    "ignore:The 'strip_cdata' option of HTMLParser:DeprecationWarning",
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",
 ]
