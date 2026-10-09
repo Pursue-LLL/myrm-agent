@@ -432,6 +432,52 @@ def _private_credit_granted_owner_pids() -> frozenset[int]:
     return frozenset(owners)
 
 
+def _private_admit_queue_wait_sec_for_pid(pid: int) -> float:
+    """Seconds the session containing ``pid`` waited in the PRIVATE admission queue.
+
+    The session wall clock starts at submit, so a granted holder's bootstrap
+    clock still contains its queue wait. Queue time is bounded by the ADMIT
+    budget; bootstrap/epoch-drift caps must only measure time after the grant.
+    Returns 0.0 when the pid holds no granted credit or the store is unreadable.
+    """
+    try:
+        from dev_gate.store import DevGateStore, default_store_path  # noqa: PLC0415
+    except ImportError:
+        return 0.0
+    try:
+        store = DevGateStore(default_store_path())
+        with store._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT s.owner_pid, s.submitted_at, pa.granted_at
+                FROM private_admission pa
+                JOIN sessions s ON s.session_id = pa.session_id
+                WHERE pa.granted_at IS NOT NULL
+                  AND pa.released_at IS NULL
+                  AND s.state NOT IN ('SUCCEEDED', 'FAILED', 'CANCELLED')
+                """
+            ).fetchall()
+    except (OSError, sqlite3.Error):
+        return 0.0
+    if not rows:
+        return 0.0
+    try:
+        from e2e_core.process_identity import _descendant_pids  # noqa: PLC0415
+    except ImportError:
+        return 0.0
+    for row in rows:
+        owner_pid = row["owner_pid"]
+        if not isinstance(owner_pid, int) or owner_pid <= 0:
+            continue
+        if (
+            pid == owner_pid
+            or pid in _descendant_pids(owner_pid)
+            or owner_pid in _descendant_pids(pid)
+        ):
+            return max(0.0, float(row["granted_at"]) - float(row["submitted_at"]))
+    return 0.0
+
+
 def _pid_in_private_credit_holder_tree(pid: int) -> bool:
     """True when pid is the credit owner or lives under an owner process tree."""
     owners = _private_credit_granted_owner_pids()
@@ -1308,7 +1354,10 @@ def _epoch_drift_elapsed_sec(row: LiveE2ESessionRow) -> float:
         if snapshot is not None:
             phase_elapsed = phase_elapsed_from_snapshot(snapshot)
             if phase_elapsed is not None:
-                return float(phase_elapsed)
+                return max(
+                    0.0,
+                    float(phase_elapsed) - _private_admit_queue_wait_sec_for_pid(row.pid),
+                )
         if row.admit_elapsed_sec is not None:
             return max(0.0, float(row.elapsed_sec) - float(row.admit_elapsed_sec))
     return float(row.elapsed_sec)
