@@ -64,6 +64,17 @@ _FOCUS_AND_MEASURE_JS = """(() => {
       clippedBy.push(el.tagName + '[' + overflow + ']');
     }
   }
+  // A ring is a non-inset shadow with zero blur and positive spread; `ring-0` still yields a
+  // non-empty box-shadow string (0px spread), so the width must be measured, not just presence.
+  const ringWidthPx = style.boxShadow
+    .split(/,(?![^(]*\\))/)
+    .map((layer) => layer.trim())
+    .filter((layer) => layer && !layer.startsWith('inset') && !layer.includes(' inset'))
+    .reduce((max, layer) => {
+      const nums = layer.match(/-?[\\d.]+px/g) || [];
+      const spread = nums.length >= 4 ? parseFloat(nums[3]) : 0;
+      return Math.max(max, spread);
+    }, 0);
   return {
     ready: true,
     focused: document.activeElement === input,
@@ -71,7 +82,8 @@ _FOCUS_AND_MEASURE_JS = """(() => {
     matchesFocus: input.matches(':focus'),
     docHasFocus: document.hasFocus(),
     className: input.className,
-    boxShadow: style.boxShadow.split(/,(?![^(]*\\))/).filter((s) => !s.includes('rgba(0, 0, 0, 0)')).join(','),
+    boxShadow: style.boxShadow,
+    ringWidthPx,
     outlineStyle: style.outlineStyle,
     clippedBy,
   };
@@ -124,5 +136,6 @@ def test_workspace_path_input_has_visible_focus_ring_chrome_e2e() -> None:
     assert isinstance(measured, dict) and measured.get("ready") is True, detail
     assert measured.get("focused") is True, detail
     assert measured.get("focusVisible") is True, detail
-    assert measured.get("boxShadow") not in (None, "", "none"), detail
+    ring_width = measured.get("ringWidthPx")
+    assert isinstance(ring_width, (int, float)) and ring_width >= 1, detail
     assert measured.get("clippedBy") == [], detail

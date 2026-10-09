@@ -200,7 +200,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
               value={pathInput}
               onChange={(e) => setPathInput(e.target.value)}
               onKeyDown={handlePathInputKeyDown}
-              className="h-6 flex-1 border-none bg-transparent px-1 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="h-6 flex-1 border-none bg-transparent px-1 text-xs shadow-none"
               placeholder={t('placeholder')}
             />
             <Button
