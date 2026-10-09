@@ -418,7 +418,7 @@ MessageBus 出站管线（队列 publish_outbound 与直发 send_now 共用同�
 
 **送达判定契约**：
 - 渠道 `send()` 只有正常返回才算送达，任何失败必须抛 `ChannelSendError`，不得吞错返回 `None`。
-- 渠道能力 `message_ids`（默认 True）声明是否回传平台消息 id：True 的渠道对含文本的消息返回 `None` 视为未确认（`DeliveryUnconfirmedError`，进 DLQ 不再重试）；纯媒体消息豁免（Slack/Telegram/MSTeams 此时合法返回 `None`）；不回传 id 的渠道声明 `message_ids=False`，`None` 即成功。声明为 False 的有 DingTalk、IRC、VoiceCall、WeChat iLink、WeChat 公众号、企业微信智能机器人、企业微信应用、Webhook。
+- 渠道能力 `message_ids`（默认 True）声明是否回传平台消息 id：True 的渠道对含文本的消息返回 `None` 视为未确认（`DeliveryUnconfirmedError`，进入 DLQ，不重试）；纯媒体消息豁免（Slack/Telegram/MSTeams 此时合法返回 `None`）；不回传 id 的渠道声明 `message_ids=False`，`None` 即成功。声明为 False 的有 DingTalk、IRC、VoiceCall、WeChat iLink、WeChat 公众号、企业微信智能机器人、企业微信应用、Webhook。
 - 部分送达：平台已接收文本但附件失败时抛 `ChannelSendError(accepted=True, failed_attachments=(…))`；总线不重试、不整条重放，仅把失败附件落 DLQ（`undelivered_part`），并向收件人发一条本地化说明（`partial_failure_note`）。`send_now` 仍向调用方抛出该异常。
 - Provider 发送规则（完整表见 `providers/_ARCH.md`）：先发文本再逐个发附件，一个附件失败不阻塞其余（`attempt_attachments` / `deliver_attachments`，LINE 单次请求且媒体在前）；失败汇总为一次 `ChannelSendError.for_attachments`，已有内容送达则 `accepted=True` 并具名 `failed_attachments`，否则按失败性质决定重试。仅"重试不可能改变结果"的失败判永久（类型不支持、本地文件缺失或为空、无可用来源、平台校验拒绝；`ChannelSendError.from_http_status` 对 4xx 同理），URL 下载失败与网络错误按临时失败重试。附件不得静默丢弃；永久失败由总线剥离媒体并发本地化说明。`tests/channels/providers/test_send_contract.py` 以 AST 守卫 `message_ids` 声明与 `send()` 内不吞错。
 - 已知局限：多段文本发送中途失败不标记 `accepted`，重试会重发已送达的段（宁可重复不缺失，续发需按分片断点恢复）；WhatsApp 桥接对媒体无送达回执，仅能确认已交给桥接进程。
@@ -728,7 +728,7 @@ registry.register_all(app)
 
 | Method | 描述 | 使用场景 | Helper |
 |--------|------|---------|--------|
-| `QR_CODE` | 二维码扫描 | WeChat、企微个人号 | `QRCodeLoginHelper` |
+| `QR_CODE` | 二维码扫描 | WeChat、企微个人号、WhatsApp | `QRCodeLoginHelper`（WhatsApp 的 QR 由 Baileys 桥接事件推送，自行驱动，见 `providers/whatsapp/login.py`） |
 | `OAUTH2` | OAuth2授权码流程 | Google Chat、Slack、GitHub | `OAuth2LoginHelper` |
 | `API_TOKEN` | API Token输入 | Telegram Bot、Discord Bot | 手动实现 |
 | `PASSWORD` | 用户名密码 | SMTP、IMAP、内部系统 | 手动实现 |
