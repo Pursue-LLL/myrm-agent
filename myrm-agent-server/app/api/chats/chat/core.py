@@ -43,9 +43,11 @@ async def get_chats(
     project_id: str | None = Query(None, description="按项目过滤"),
     unassigned: bool = Query(False, description="仅显示未归属项目的会话"),
     keyword: str | None = Query(None, description="按标题或首条消息模糊搜索"),
+    tags: list[str] | None = Query(None, description="按多维度会话标签过滤（如 BugFix, Refactor 等）"),
+    match_mode: str = Query("any", description="标签聚合模式 (any: 并集, all: 交集)"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
-    """获取聊天历史列表（支持分页、来源、项目和关键词过滤）"""
+    """获取聊天历史列表（支持分页、来源、项目、关键词及标签过滤）"""
     try:
         chats, total = await ChatService.get_chat_list(
             page,
@@ -54,6 +56,8 @@ async def get_chats(
             project_id=project_id,
             unassigned=unassigned,
             keyword=keyword,
+            tags=tags,
+            match_mode=match_mode,
         )
 
         chat_items = [
@@ -68,6 +72,7 @@ async def get_chats(
                 isPinned=chat.is_pinned,
                 pinOrder=chat.pin_order,
                 projectId=chat.project_id,
+                tags=chat.tags,
                 created_at=chat.created_at,
                 updated_at=chat.updated_at,
             )
@@ -662,3 +667,27 @@ async def get_chat_delivery_contracts(
         raise
     except Exception as e:
         raise internal_error(operation="Get delivery contracts", exception=e) from e
+
+
+class UpdateTagsRequest(BaseModel):
+    tags: list[str] = Field(..., description="会话多维度层级标签列表")
+
+
+@router.patch("/{chat_id}/tags", response_model=StandardSuccessResponse)
+async def update_chat_tags_endpoint(
+    chat_id: str,
+    body: UpdateTagsRequest,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """更新会话关联的多维度层级标签"""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+        updated_tags = await ChatService.update_chat_tags(chat_id, body.tags)
+        return success_response(data={"chatId": chat_id, "tags": updated_tags})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Update chat tags", exception=e) from e
+

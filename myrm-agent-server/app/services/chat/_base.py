@@ -30,7 +30,12 @@ class _ChatRepositoryPort(Protocol):
         source: str | None = None,
         project_id: str | None = None,
         unassigned: bool = False,
+        keyword: str | None = None,
+        tags: list[str] | None = None,
+        match_mode: str = "any",
     ) -> tuple[list[ChatDTO], int]: ...
+
+    async def update_chat_tags(self, chat_id: str, tags: list[str]) -> list[str]: ...
 
     async def get_chat_by_id(self, chat_id: str, load_messages: bool = False) -> ChatDTO | None: ...
 

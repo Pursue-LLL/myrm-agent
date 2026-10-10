@@ -20,7 +20,17 @@ from datetime import UTC, datetime
 from typing import TypedDict, cast
 from uuid import uuid4
 
-from sqlalchemy import delete, desc, func, or_, select, update
+from sqlalchemy import (
+    String as SQLString,
+    and_,
+    cast as sql_cast,
+    delete,
+    desc,
+    func,
+    or_,
+    select,
+    update,
+)
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -64,6 +74,8 @@ class ChatRepository:
         project_id: str | None = None,
         unassigned: bool = False,
         keyword: str | None = None,
+        tags: list[str] | None = None,
+        match_mode: str = "any",
     ) -> tuple[list[ChatDTO], int]:
         where_clause: list[ColumnElement[bool]] = [Chat.deleted_at.is_(None), Chat.is_incognito.is_(False)]
         if source:
@@ -84,6 +96,14 @@ class ChatRepository:
                 where_clause.append(or_(ilike_cond, Chat.id.in_(fts_chat_ids)))
             else:
                 where_clause.append(ilike_cond)
+        if tags:
+            clean_tags = [t.strip().lstrip("#") for t in tags if t.strip()]
+            if clean_tags:
+                tag_conds = [sql_cast(Chat.tags, SQLString).ilike(f'%"{t}"%') for t in clean_tags]
+                if match_mode.lower() == "all":
+                    where_clause.append(and_(*tag_conds))
+                else:
+                    where_clause.append(or_(*tag_conds))
 
         count_stmt = select(func.count(Chat.id)).where(*where_clause)
         count_result = await db.execute(count_stmt)
@@ -99,6 +119,12 @@ class ChatRepository:
         result = await db.execute(query_stmt)
         chats = result.scalars().all()
         return [ChatDTO.model_validate(c) for c in chats], total
+
+    @staticmethod
+    async def update_chat_tags(db: AsyncSession, chat_id: str, tags: list[str]) -> list[str]:
+        clean_tags = list(dict.fromkeys(t.strip().lstrip("#") for t in tags if t.strip()))
+        await db.execute(update(Chat).where(Chat.id == chat_id).values(tags=clean_tags))
+        return clean_tags
 
     @staticmethod
     async def get_chat_by_id(

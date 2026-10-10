@@ -139,6 +139,8 @@ class BoundChatRepository:
         project_id: str | None = None,
         unassigned: bool = False,
         keyword: str | None = None,
+        tags: list[str] | None = None,
+        match_mode: str = "any",
     ) -> tuple[list[ChatDTO], int]:
         return await ChatRepository.get_chats_paginated(
             self.session,
@@ -148,7 +150,12 @@ class BoundChatRepository:
             project_id=project_id,
             unassigned=unassigned,
             keyword=keyword,
+            tags=tags,
+            match_mode=match_mode,
         )
+
+    async def update_chat_tags(self, chat_id: str, tags: list[str]) -> list[str]:
+        return await ChatRepository.update_chat_tags(self.session, chat_id, tags)
 
     async def get_chat_by_id(self, chat_id: str, load_messages: bool = False) -> ChatDTO | None:
         return await ChatRepository.get_chat_by_id(self.session, chat_id, load_messages)

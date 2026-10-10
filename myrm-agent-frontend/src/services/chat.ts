@@ -119,6 +119,7 @@ export interface ChatItem {
   isPinned?: boolean;
   pinOrder?: number;
   projectId?: string | null;
+  tags?: string[];
   updatedAt: Date;
   createdAt: Date;
 }
@@ -138,7 +139,7 @@ export interface ChatHistoryResponse {
 }
 
 /**
- * 获取聊天历史列表（支持分页、来源和项目过滤）
+ * 获取聊天历史列表（支持分页、来源、项目和多维度标签过滤）
  */
 export const getChatHistory = async (
   page: number = 1,
@@ -146,6 +147,8 @@ export const getChatHistory = async (
   source?: string,
   projectId?: string | null,
   keyword?: string,
+  tags?: string[],
+  matchMode: 'any' | 'all' = 'any',
 ): Promise<ChatHistoryResponse> => {
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   if (source) {
@@ -159,6 +162,10 @@ export const getChatHistory = async (
   }
   if (keyword) {
     params.set('keyword', keyword);
+  }
+  if (tags && tags.length > 0) {
+    tags.forEach((tag) => params.append('tags', tag));
+    params.set('match_mode', matchMode);
   }
   const data = (await apiRequest(`/chats?${params}`)) as {
     items?: unknown[];
@@ -187,6 +194,7 @@ export const getChatHistory = async (
     isPinned: Boolean(chat.isPinned),
     pinOrder: (chat.pinOrder as number) || 0,
     projectId: (chat.projectId as string | null) ?? null,
+    tags: Array.isArray(chat.tags) ? (chat.tags as string[]) : [],
     updatedAt: new Date((chat.updated_at || chat.created_at) as string),
     createdAt: new Date((chat.created_at || chat.updated_at) as string),
   }));
@@ -201,6 +209,19 @@ export const getChatHistory = async (
 export const getChatHistoryLegacy = async (): Promise<ChatItem[]> => {
   const response = await getChatHistory(1, 50); // 默认获取前50条
   return response.items;
+};
+
+/**
+ * 更新会话的多维度层级标签 (Item 156)
+ */
+export const updateChatTags = async (
+  chatId: string,
+  tags: string[],
+): Promise<{ chatId: string; tags: string[] }> => {
+  return apiRequest(`/chats/${chatId}/tags`, {
+    method: 'PATCH',
+    body: JSON.stringify({ tags }),
+  });
 };
 
 export interface SearchResult {
