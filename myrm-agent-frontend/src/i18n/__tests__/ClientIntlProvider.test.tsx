@@ -63,7 +63,10 @@ describe('ClientIntlProvider deferred locale', () => {
   });
 
   it('keys the deferred request by locale so the HTTP cache cannot replay another language', async () => {
-    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
+    const fetchMock = vi.fn(async (_url?: RequestInfo | URL, _init?: RequestInit) => ({
+      ok: true,
+      json: async () => ({}),
+    }));
     vi.stubGlobal('fetch', fetchMock);
 
     render(

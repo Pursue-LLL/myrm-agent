@@ -98,54 +98,48 @@ export interface BitemporalTmsHealthResponse {
 export const bitemporalTmsApi = {
   /** Record external ground truth fact with bitemporal intervals */
   async recordFact(request: RecordFactRequest): Promise<EvidenceRecordDTO> {
-    const res = await apiClient.post<EvidenceRecordDTO>(
+    return apiClient.post<EvidenceRecordDTO>(
       '/api/memory/bitemporal-tms/facts',
       request
     );
-    return res.data;
   },
 
   /** Derive reasoned inference with justification links to premises */
   async deriveInference(request: DeriveInferenceRequest): Promise<EvidenceRecordDTO> {
-    const res = await apiClient.post<EvidenceRecordDTO>(
+    return apiClient.post<EvidenceRecordDTO>(
       '/api/memory/bitemporal-tms/inferences',
       request
     );
-    return res.data;
   },
 
   /** Non-destructively retract an evidence record, invalidating active support */
   async retractRecord(request: RetractRecordRequest): Promise<RetractRecordResponse> {
-    const res = await apiClient.post<RetractRecordResponse>(
+    return apiClient.post<RetractRecordResponse>(
       '/api/memory/bitemporal-tms/retract',
       request
     );
-    return res.data;
   },
 
   /** Query active records at target bitemporal coordinates */
   async queryActive(request: TemporalQueryRequest): Promise<TemporalQueryResponse> {
-    const res = await apiClient.post<TemporalQueryResponse>(
+    return apiClient.post<TemporalQueryResponse>(
       '/api/memory/bitemporal-tms/query',
       request
     );
-    return res.data;
   },
 
   /** Project partitioned snapshot of active vs invalidated entities */
   async projectSnapshot(request: SnapshotRequest): Promise<SnapshotResponse> {
-    const res = await apiClient.post<SnapshotResponse>(
+    return apiClient.post<SnapshotResponse>(
       '/api/memory/bitemporal-tms/snapshot',
       request
     );
-    return res.data;
   },
 
   /** Retrieve health status of bitemporal TMS subsystem */
   async getHealth(): Promise<BitemporalTmsHealthResponse> {
-    const res = await apiClient.get<BitemporalTmsHealthResponse>(
+    return apiClient.get<BitemporalTmsHealthResponse>(
       '/api/memory/bitemporal-tms/health'
     );
-    return res.data;
   },
 };

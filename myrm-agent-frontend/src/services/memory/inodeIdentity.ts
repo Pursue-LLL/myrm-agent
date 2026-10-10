@@ -65,27 +65,24 @@ export interface InodeIdentityHealthResponse {
 export const inodeIdentityApi = {
   /** Resolve physical device and inode identity for a directory path */
   async resolveIdentity(request: ResolveIdentityRequest): Promise<ResolveIdentityResponse> {
-    const res = await apiClient.post<ResolveIdentityResponse>(
+    return apiClient.post<ResolveIdentityResponse>(
       '/api/memory/inode-identity/resolve',
       request
     );
-    return res.data;
   },
 
   /** Verify workspace directory physical identity before sync to detect moves/double-sync */
   async verifySync(request: VerifySyncRequest): Promise<VerifySyncResponse> {
-    const res = await apiClient.post<VerifySyncResponse>(
+    return apiClient.post<VerifySyncResponse>(
       '/api/memory/inode-identity/verify-sync',
       request
     );
-    return res.data;
   },
 
   /** Retrieve health status of inode identity subsystem */
   async getHealth(): Promise<InodeIdentityHealthResponse> {
-    const res = await apiClient.get<InodeIdentityHealthResponse>(
+    return apiClient.get<InodeIdentityHealthResponse>(
       '/api/memory/inode-identity/health'
     );
-    return res.data;
   },
 };

@@ -61,27 +61,24 @@ export interface CjkIterationHealthResponse {
 export const cjkIterationApi = {
   /** Disambiguate CJK iteration marks into normalized text and 3D token matrix */
   async disambiguate(request: DisambiguateCjkRequest): Promise<DisambiguateCjkResponse> {
-    const res = await apiClient.post<DisambiguateCjkResponse>(
+    return apiClient.post<DisambiguateCjkResponse>(
       '/api/memory/cjk-iteration/disambiguate',
       request
     );
-    return res.data;
   },
 
   /** Calculate bidirectional recall match score between query and target memory */
   async match(request: MatchCjkRecallRequest): Promise<MatchCjkRecallResponse> {
-    const res = await apiClient.post<MatchCjkRecallResponse>(
+    return apiClient.post<MatchCjkRecallResponse>(
       '/api/memory/cjk-iteration/match',
       request
     );
-    return res.data;
   },
 
   /** Retrieve health status of CJK iteration mark subsystem */
   async getHealth(): Promise<CjkIterationHealthResponse> {
-    const res = await apiClient.get<CjkIterationHealthResponse>(
+    return apiClient.get<CjkIterationHealthResponse>(
       '/api/memory/cjk-iteration/health'
     );
-    return res.data;
   },
 };
