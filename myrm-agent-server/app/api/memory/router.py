@@ -64,6 +64,9 @@ from app.api.memory.transcript_projection_router import (
 from app.api.memory.vector_dim_guard_router import (
     router as vector_dim_guard_router,
 )
+from app.api.memory.project_dongle_router import (
+    router as project_dongle_router,
+)
 from app.api.memory.client_partition import (
     router as memory_client_partition_router,
 )
@@ -684,6 +687,10 @@ router.include_router(
 router.include_router(
     vector_dim_guard_router,
     tags=["memory-vector-dim-guard"],
+)
+router.include_router(
+    project_dongle_router,
+    tags=["memory-project-dongle"],
 )
 
 
