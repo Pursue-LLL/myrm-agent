@@ -55,6 +55,9 @@ from app.api.memory.business_template_router import (
 from app.api.memory.cjk_iteration_router import (
     router as cjk_iteration_router,
 )
+from app.api.memory.safe_forget_router import (
+    router as safe_forget_router,
+)
 from app.api.memory.client_partition import (
     router as memory_client_partition_router,
 )
@@ -663,6 +666,10 @@ router.include_router(
 router.include_router(
     bitemporal_tms_router,
     tags=["memory-bitemporal-tms"],
+)
+router.include_router(
+    safe_forget_router,
+    tags=["memory-safe-forget"],
 )
 
 
