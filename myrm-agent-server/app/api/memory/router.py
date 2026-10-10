@@ -79,6 +79,9 @@ from app.api.memory.person_card_router import (
 from app.api.memory.domain_isolation_router import (
     router as domain_isolation_router,
 )
+from app.api.memory.snapshot_freshness_router import (
+    router as snapshot_freshness_router,
+)
 from app.api.memory.client_partition import (
     router as memory_client_partition_router,
 )
@@ -719,6 +722,10 @@ router.include_router(
 router.include_router(
     domain_isolation_router,
     tags=["memory-domain-isolation"],
+)
+router.include_router(
+    snapshot_freshness_router,
+    tags=["memory-snapshot-freshness"],
 )
 
 
