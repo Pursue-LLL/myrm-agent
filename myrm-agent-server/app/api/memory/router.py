@@ -58,6 +58,9 @@ from app.api.memory.cjk_iteration_router import (
 from app.api.memory.safe_forget_router import (
     router as safe_forget_router,
 )
+from app.api.memory.transcript_projection_router import (
+    router as transcript_projection_router,
+)
 from app.api.memory.client_partition import (
     router as memory_client_partition_router,
 )
@@ -670,6 +673,10 @@ router.include_router(
 router.include_router(
     safe_forget_router,
     tags=["memory-safe-forget"],
+)
+router.include_router(
+    transcript_projection_router,
+    tags=["memory-transcript-projection"],
 )
 
 
