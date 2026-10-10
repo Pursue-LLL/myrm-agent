@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
 # 作为脚本直接执行时（`python .../e2e_core/warm_ui_heal.py`），sys.path[0] 指向模块自身所在
 # 目录而非 dev lib 根，导致模块级导入 e2e_core.* / dev_gate.* 失败；
 # 自举 dev lib 根（当前目录的父目录或向上两级），与 dev_gate/cli.py 保持同模式。
@@ -16,13 +17,14 @@ if __package__ in (None, ""):
     if _lib_root not in sys.path:
         sys.path.insert(0, _lib_root)
 
+from dev_gate.contract import attach_ui_heal_ensure_subprocess_sec
 from e2e_core.frontend_dev_pause import is_frontend_dev_paused
+from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 from e2e_core.real_user_home import real_user_home
 
 _DEFAULT_DEBOUNCE_SEC = 60.0
 _DEFAULT_FLOCK_WAIT_SEC = 5.0
 _ATTACH_FLOCK_WAIT_SEC = 120.0
-_ATTACH_SUBPROCESS_TIMEOUT_SEC = 180.0
 _ATTACH_LEADER_STALE_SEC = 120.0
 _ATTACH_FRONTEND_ENSURE_WAIT_SEC = 120.0
 
@@ -182,7 +184,7 @@ def heal_shared_frontend_debounced(
                     "90" if parallel else "360",
                 ),
             }
-            subprocess.run(
+            proc = subprocess.run(
                 ["bash", str(dev_stack), "frontend-only", "ensure"],
                 cwd=str(monorepo_root),
                 env=heal_env,
@@ -193,6 +195,12 @@ def heal_shared_frontend_debounced(
             )
         except subprocess.TimeoutExpired:
             return False
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()[-400:]
+            print(
+                f"CHROME_E2E_HEAL: warm frontend ensure failed rc={proc.returncode} {detail}",
+                file=sys.stderr,
+            )
         _write_heal_stamp()
         return True
     finally:
@@ -219,12 +227,12 @@ def probe_indicates_ui_connection_refused(probe: dict[str, object]) -> bool:
     body = str(probe.get("bodyText") or probe.get("bodySnippet") or "")
     if "ERR_CONNECTION_REFUSED" in body:
         return True
-    if "拒绝了我们的连接" in body:
-        return True
-    return False
+    return "拒绝了我们的连接" in body
 
 
-def launch_force_blocks_frontend_heal(*, probe: dict[str, object] | None = None) -> bool:
+def launch_force_blocks_frontend_heal(
+    *, probe: dict[str, object] | None = None
+) -> bool:
     """R291 guard: skip preemptive heal under launch-force when UI is already reachable."""
     if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() != "1":
         return False
@@ -244,9 +252,12 @@ def ensure_shared_ui_before_cdp_navigate(
         return
     if probe is None and _shared_ui_probe_ok(timeout_sec=8.0):
         return
-    if probe is not None and not probe_indicates_ui_connection_refused(probe):
-        if _shared_ui_probe_ok(timeout_sec=8.0):
-            return
+    if (
+        probe is not None
+        and not probe_indicates_ui_connection_refused(probe)
+        and _shared_ui_probe_ok(timeout_sec=8.0)
+    ):
+        return
     heal_shared_frontend_debounced(
         monorepo_root,
         debounce_sec=15.0,
@@ -266,7 +277,10 @@ def ensure_shared_ui_before_cdp_navigate(
 def _shared_client_hot_ok() -> bool:
     """HTTP 200 alone is insufficient — Turbopack can stall with app-shell-skeleton."""
     try:
-        from e2e_core.runtime_identity import read_frontend_epoch, read_frontend_hot_state
+        from e2e_core.runtime_identity import (
+            read_frontend_epoch,
+            read_frontend_hot_state,
+        )
 
         frontend = read_frontend_epoch()
         _, client_hot = read_frontend_hot_state(frontend)
@@ -279,16 +293,18 @@ def heal_shared_frontend_attach(
     monorepo_root: Path,
     *,
     flock_wait_sec: float = _ATTACH_FLOCK_WAIT_SEC,
-    subprocess_timeout_sec: float = _ATTACH_SUBPROCESS_TIMEOUT_SEC,
+    subprocess_timeout_sec: float | None = None,
     poll_sec: float = 5.0,
     warmup_routes: tuple[str, ...] = ("/", "/meeting"),
 ) -> str:
     """Single-writer attach frontend heal across parallel chrome_e2e ADMIT sessions."""
     if is_frontend_dev_paused():
         return "paused_skip"
-    if os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1":
-        if _shared_ui_probe_ok():
-            return "follower_ok"
+    if (
+        os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1"
+        and _shared_ui_probe_ok()
+    ):
+        return "follower_ok"
     dev_stack = monorepo_root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
     if not dev_stack.is_file():
         return "missing_stack"
@@ -343,6 +359,13 @@ def heal_shared_frontend_attach(
                     file=sys.stderr,
                 )
                 time.sleep(poll_sec)
+        ensure_timeout_sec = (
+            subprocess_timeout_sec
+            if subprocess_timeout_sec is not None
+            else float(
+                attach_ui_heal_ensure_subprocess_sec(parallel_active_test_count_ssot())
+            )
+        )
         try:
             proc = subprocess.run(
                 ["bash", str(dev_stack), "frontend-only", "ensure"],
@@ -361,7 +384,7 @@ def heal_shared_frontend_attach(
                 },
                 capture_output=True,
                 text=True,
-                timeout=subprocess_timeout_sec,
+                timeout=ensure_timeout_sec,
                 check=False,
             )
         except subprocess.TimeoutExpired:

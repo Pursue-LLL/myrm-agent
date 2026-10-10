@@ -406,7 +406,66 @@ print(data.get('pid', ''))
   fi
 }
 
+# --- Restart admission (frontend_lifecycle) ---------------------------------------------
+# A slow Next dev server is not a dead one. Every SIGTERM of the frontend asks the gate,
+# which admits heuristic restarts only on proof of a stall (flat CPU/log of the whole
+# process tree, or an unhealthy episode longer than three cold compiles) and journals the
+# caller and evidence. Deterministic reasons (operator reset, pause, API-binding mismatch,
+# Turbopack panic residue) carry their own proof and skip the gate.
+FRONTEND_GATE_HEALTHY=10
+FRONTEND_GATE_DENIED=11
+
+_frontend_restart_reason_deterministic() {
+  case "$1" in
+    reset | pause | binding_mismatch | panic_residue) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+_frontend_lifecycle() {
+  PYTHONPATH="${SCRIPT_DIR}/lib${PYTHONPATH:+:${PYTHONPATH}}" \
+    "${PREFLIGHT_PY:-python3}" -m frontend_lifecycle "$@"
+}
+
+# $1 = reason. Returns 0 allow | 10 frontend healthy (do not restart) | 11 denied.
+# A gate failure denies: a stuck heal is recoverable, a wrongly killed compile is not.
+_frontend_restart_admit() {
+  local reason="$1" rc=0
+  if _frontend_restart_reason_deterministic "${reason}"; then
+    return 0
+  fi
+  _frontend_lifecycle admit --reason "${reason}" --port "${FRONTEND_PORT}" \
+    --url "${APP_URL}/" --state-dir "${STATE_DIR}" \
+    --pid-file "${FRONTEND_PID}" --log-file "${FRONTEND_LOG}" || rc=$?
+  case "${rc}" in
+    0 | "${FRONTEND_GATE_HEALTHY}" | "${FRONTEND_GATE_DENIED}") return "${rc}" ;;
+    *)
+      echo "STACK_WARN: frontend restart gate error (rc=${rc}) — refusing restart (fail closed)" >&2
+      return "${FRONTEND_GATE_DENIED}"
+      ;;
+  esac
+}
+
+_frontend_journal_kill() {
+  _frontend_lifecycle journal --reason "$1" --state-dir "${STATE_DIR}" \
+    --port "${FRONTEND_PORT}" --pids "${2:-}" >/dev/null 2>&1 || true
+}
+
+# Gate + kill + orphan cleanup ahead of a relaunch. $1 = reason. Returns 0 (clear to
+# launch) | 10 (frontend healthy — do not launch) | 11 (denied: still compiling or not
+# proven dead) | 1 (kill refused by the wave gate).
+_frontend_restart_prepare() {
+  local reason="$1" rc=0
+  _kill_frontend_supervisor "${reason}" || rc=$?
+  if [[ "${rc}" -ne 0 ]]; then
+    return "${rc}"
+  fi
+  _repair_orphan_frontend "${reason}" || rc=$?
+  return "${rc}"
+}
+
 _repair_orphan_frontend() {
+  local reason="${1:-orphan}" admit_rc=0
   if _frontend_healthy; then
     _sync_frontend_pid_from_lock
     return 0
@@ -417,14 +476,19 @@ _repair_orphan_frontend() {
   if _lock_supervisor_alive; then
     return 0
   fi
-  echo "STACK_WARN: orphan :${FRONTEND_PORT} listener without dev-server.lock — clearing" >&2
   if ! _wave_assert_stack_write_allowed; then
     echo "STACK_FAIL: orphan frontend cleanup denied while wave pins stack" >&2
     return 1
   fi
+  _frontend_restart_admit "${reason}" || admit_rc=$?
+  if [[ "${admit_rc}" -ne 0 ]]; then
+    return "${admit_rc}"
+  fi
+  echo "STACK_WARN: orphan :${FRONTEND_PORT} listener without dev-server.lock — clearing" >&2
   local pids
   pids="$(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
   if [[ -n "${pids}" ]]; then
+    _frontend_journal_kill "${reason}" "${pids}"
     # shellcheck disable=SC2086
     kill ${pids} 2>/dev/null || true
     sleep 1
@@ -450,21 +514,30 @@ _wave_assert_stack_write_allowed() {
   bash "${wave_sh}" check-stack-write
 }
 
+# $1 = reason (frontend_lifecycle.policy.Reason; unknown/empty is treated as heuristic).
+# Returns 0 killed | 1 wave gate refused | 10 frontend healthy | 11 restart denied.
 _kill_frontend_supervisor() {
+  local reason="${1:-unresponsive}" admit_rc=0
   if ! _wave_assert_stack_write_allowed; then
     echo "STACK_FAIL: frontend kill denied while wave pins stack" >&2
     return 1
   fi
-  if [[ -f "${FRONTEND_PID}" ]]; then
-    local fe_pid
-    fe_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
-    if [[ -n "${fe_pid}" ]]; then
-      kill -TERM "${fe_pid}" 2>/dev/null || true
-      sleep 1
-      kill -9 "${fe_pid}" 2>/dev/null || true
-    fi
-    rm -f "${FRONTEND_PID}"
+  _frontend_restart_admit "${reason}" || admit_rc=$?
+  if [[ "${admit_rc}" -ne 0 ]]; then
+    return "${admit_rc}"
   fi
+  local fe_pid=""
+  if [[ -f "${FRONTEND_PID}" ]]; then
+    fe_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
+  fi
+  _frontend_journal_kill "${reason}" \
+    "${fe_pid} $(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
+  if [[ -n "${fe_pid}" ]]; then
+    kill -TERM "${fe_pid}" 2>/dev/null || true
+    sleep 1
+    kill -9 "${fe_pid}" 2>/dev/null || true
+  fi
+  rm -f "${FRONTEND_PID}"
   if _frontend_port_listening; then
     local pids
     pids="$(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
@@ -498,7 +571,7 @@ _launch_frontend_supervisor() {
   fi
   cd "${FRONTEND_DIR}"
   # Frontend child must run under real user home so next cache/harness paths
-  # don't leak into sandboxed ~/.cursor2.
+  # don't leak into sandboxed ~/.cursor-3.
   export_spawn_home
   bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
   if [[ -f "${FRONTEND_LOG}" ]]; then
@@ -557,6 +630,12 @@ _heal_stale_next_dev_lock() {
   if ! kill -0 "${stale_pid}" 2>/dev/null; then
     return 1
   fi
+  # The pid comes from a log line of an earlier run; a recycled pid must never be signalled.
+  local stale_cmd=""
+  stale_cmd="$(ps -p "${stale_pid}" -o command= 2>/dev/null || true)"
+  if [[ "${stale_cmd}" != *next* ]]; then
+    return 1
+  fi
   echo "STACK_HEAL: stale Next.js dev lock PID ${stale_pid} — terminating orphan next-server" >&2
   kill -TERM "${stale_pid}" 2>/dev/null || true
   sleep 1
@@ -564,11 +643,13 @@ _heal_stale_next_dev_lock() {
   return 0
 }
 
+# Returns 0 ready | 1 failed | 11 restart denied (server still compiling or not proven dead).
 _try_frontend_start_with_clean_fallback() {
+  local gate_rc=0
   if _frontend_turbopack_panic_residue; then
     echo "STACK_WARN: Turbopack panic residue — skip non-clean, force --clean cold start" >&2
-    _kill_frontend_supervisor
-    _repair_orphan_frontend
+    _kill_frontend_supervisor panic_residue || return 1
+    _repair_orphan_frontend panic_residue || return 1
     _launch_frontend_supervisor 1
     if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
       _sync_frontend_pid_from_lock
@@ -587,22 +668,36 @@ _try_frontend_start_with_clean_fallback() {
   local last_code
   last_code="$(_frontend_http_status)"
   if [[ "${last_code}" == "000" ]] && _heal_stale_next_dev_lock; then
-    _kill_frontend_supervisor || true
-    _repair_orphan_frontend || true
+    _frontend_restart_prepare unresponsive || gate_rc=$?
+    case "${gate_rc}" in
+      0) ;;
+      "${FRONTEND_GATE_HEALTHY}") _sync_frontend_pid_from_lock; echo "STACK_OK: frontend → ${APP_URL} (healthy at restart gate)"; return 0 ;;
+      "${FRONTEND_GATE_DENIED}") return "${FRONTEND_GATE_DENIED}" ;;
+      *) return 1 ;;
+    esac
     _launch_frontend_supervisor 0
     if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
       _sync_frontend_pid_from_lock
       echo "STACK_OK: frontend → ${APP_URL} (after stale next-server heal)"
       return 0
     fi
+    last_code="$(_frontend_http_status)"
   fi
   if [[ "${last_code}" != "404" && "${last_code}" != "000" ]]; then
     echo "STACK_WARN: frontend slow to start (last HTTP ${last_code}) — check ${FRONTEND_LOG}" >&2
     return 1
   fi
   echo "STACK_WARN: frontend HTTP ${last_code} — retry with bun run dev --clean" >&2
-  _kill_frontend_supervisor
-  _repair_orphan_frontend
+  local clean_reason="unresponsive"
+  [[ "${last_code}" == "404" ]] && clean_reason="bad_http"
+  gate_rc=0
+  _frontend_restart_prepare "${clean_reason}" || gate_rc=$?
+  case "${gate_rc}" in
+    0) ;;
+    "${FRONTEND_GATE_HEALTHY}") _sync_frontend_pid_from_lock; echo "STACK_OK: frontend → ${APP_URL} (healthy at restart gate)"; return 0 ;;
+    "${FRONTEND_GATE_DENIED}") return "${FRONTEND_GATE_DENIED}" ;;
+    *) return 1 ;;
+  esac
   _launch_frontend_supervisor 1
   if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
     _sync_frontend_pid_from_lock
@@ -613,12 +708,14 @@ _try_frontend_start_with_clean_fallback() {
   return 1
 }
 
+# Returns 0 ready | 1 failed | 11 restart denied (server still compiling or not proven dead).
 _start_frontend_supervisor() {
+  local gate_rc=0
   if _frontend_dev_paused; then
     if _frontend_healthy || _frontend_port_listening; then
       echo "STACK_FRONTEND_RECLAIM: pause active — stopping existing frontend on :${FRONTEND_PORT}" >&2
-      _kill_frontend_supervisor || true
-      _repair_orphan_frontend || true
+      _kill_frontend_supervisor pause || true
+      _repair_orphan_frontend pause || true
     fi
     echo "STACK_FRONTEND_SKIP: frontend dev paused (bun run cleanup); run: frontend-only clear-pause" >&2
     return 0
@@ -633,7 +730,7 @@ _start_frontend_supervisor() {
     # Reusing this frontend would keep serving /api/v1 from the wrong backend, and the
     # compile wait below would be satisfied by the same stale process. Stop it so the
     # launch path starts a fresh server with the current API_PORT.
-    _kill_frontend_supervisor || return 1
+    _kill_frontend_supervisor binding_mismatch || return 1
   fi
 
   if _lock_supervisor_alive; then
@@ -648,14 +745,23 @@ _start_frontend_supervisor() {
     last_code="$(_frontend_http_status)"
     if [[ "${last_code}" == "404" ]]; then
       echo "STACK_WARN: compile wait got HTTP 404 — retry with --clean" >&2
-      _kill_frontend_supervisor
-      _repair_orphan_frontend
-      _try_frontend_start_with_clean_fallback && return 0
+      _frontend_restart_prepare bad_http || gate_rc=$?
+      case "${gate_rc}" in
+        0) _try_frontend_start_with_clean_fallback || return $?; return 0 ;;
+        "${FRONTEND_GATE_HEALTHY}") _sync_frontend_pid_from_lock; echo "STACK_OK: frontend ready (healthy at restart gate)"; return 0 ;;
+        "${FRONTEND_GATE_DENIED}") return "${FRONTEND_GATE_DENIED}" ;;
+      esac
     fi
     return 1
   fi
 
-  _repair_orphan_frontend
+  _repair_orphan_frontend orphan || gate_rc=$?
+  case "${gate_rc}" in
+    0) ;;
+    "${FRONTEND_GATE_HEALTHY}") _sync_frontend_pid_from_lock; echo "STACK_OK: frontend ready (healthy at restart gate)"; return 0 ;;
+    "${FRONTEND_GATE_DENIED}") return "${FRONTEND_GATE_DENIED}" ;;
+    *) return 1 ;;
+  esac
 
   if [[ -z "${MYRM_BUN}" ]]; then
     echo "STACK_FAIL: bun not found — run: myrm setup" >&2
@@ -808,6 +914,8 @@ cmd_ensure() {
 cmd_reset() {
   _wave_assert_stack_write_allowed || exit 3
 
+  _frontend_journal_kill reset \
+    "$(cat "${FRONTEND_PID}" 2>/dev/null || true) $(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
   if [[ -f "${FRONTEND_PID}" ]]; then
     local fe_pid
     fe_pid="$(cat "${FRONTEND_PID}")"
@@ -1057,11 +1165,12 @@ cmd_backend_only_stop() {
 }
 
 cmd_frontend_only_ensure() {
+  local gate_rc=0 start_rc=0
   if _frontend_dev_paused; then
     if _frontend_healthy || _frontend_port_listening; then
       echo "STACK_FRONTEND_RECLAIM: pause active — stopping existing frontend on :${FRONTEND_PORT}" >&2
-      _kill_frontend_supervisor || true
-      _repair_orphan_frontend || true
+      _kill_frontend_supervisor pause || true
+      _repair_orphan_frontend pause || true
     fi
     echo "STACK_FRONTEND_ONLY_ENSURE_SKIP: frontend dev paused (bun run cleanup); run: frontend-only clear-pause" >&2
     exit 0
@@ -1080,14 +1189,24 @@ cmd_frontend_only_ensure() {
       exit 0
     fi
     echo "STACK_HEAL: frontend HTTP 200 but client_hot=no — clean restart (attach frontend heal)" >&2
-    _frontend_clear_warmth || true
     if _frontend_heal_stack_write_allowed; then
-      _kill_frontend_supervisor || true
-      _repair_orphan_frontend || true
-      if _try_frontend_start_with_clean_fallback; then
-        echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} client_hot_heal=clean_retry"
-        exit 0
-      fi
+      _frontend_restart_prepare client_hot_no || gate_rc=$?
+      case "${gate_rc}" in
+        0)
+          _frontend_clear_warmth || true
+          if _try_frontend_start_with_clean_fallback; then
+            echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} client_hot_heal=clean_retry"
+            exit 0
+          fi
+          ;;
+        "${FRONTEND_GATE_HEALTHY}")
+          # A missing hydration record is the normal state after any restart and the attach
+          # flow's own CDP warmup writes it; killing a serving frontend would only cost every
+          # peer a cold compile (the restart clears the record again).
+          echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} client_hot=pending"
+          exit 0
+          ;;
+      esac
     fi
     echo "STACK_FAIL: frontend client_hot heal failed within attach frontend heal" >&2
     exit 1
@@ -1100,26 +1219,55 @@ cmd_frontend_only_ensure() {
     fi
     if _frontend_heal_stack_write_allowed; then
       echo "STACK_HEAL: frontend listening but not HTTP 200 — clean retry (E2E attach heal)" >&2
-      _kill_frontend_supervisor || true
-      _repair_orphan_frontend || true
-      if _try_frontend_start_with_clean_fallback; then
-        echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} compile_wait=clean_retry"
-        exit 0
-      fi
+      _frontend_restart_prepare unresponsive || gate_rc=$?
+      case "${gate_rc}" in
+        0)
+          if _try_frontend_start_with_clean_fallback; then
+            echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} compile_wait=clean_retry"
+            exit 0
+          fi
+          ;;
+        "${FRONTEND_GATE_HEALTHY}")
+          _sync_frontend_pid_from_lock
+          echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} compile_wait=yes"
+          exit 0
+          ;;
+        "${FRONTEND_GATE_DENIED}")
+          echo "STACK_FAIL: frontend still compiling — restart denied, nothing was killed (retry later)" >&2
+          exit 1
+          ;;
+      esac
     fi
     echo "STACK_FAIL: frontend listening but not HTTP 200 within ${ATTACH_WAIT_SEC}s" >&2
     exit 1
   fi
   echo "STACK_HEAL: shared frontend port :${FRONTEND_PORT} dead — cold start (no kill)" >&2
-  if ! _start_frontend_supervisor; then
+  _start_frontend_supervisor || start_rc=$?
+  if [[ "${start_rc}" -eq "${FRONTEND_GATE_DENIED}" ]]; then
+    echo "STACK_FAIL: frontend still compiling — restart denied, nothing was killed (retry later)" >&2
+    exit 1
+  fi
+  if [[ "${start_rc}" -ne 0 ]]; then
     if _frontend_heal_stack_write_allowed; then
       echo "STACK_HEAL: frontend cold start failed — retry with --clean (E2E attach heal)" >&2
-      _kill_frontend_supervisor || true
-      _repair_orphan_frontend || true
-      if _try_frontend_start_with_clean_fallback; then
-        echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} cold_start=clean_retry"
-        exit 0
-      fi
+      _frontend_restart_prepare unresponsive || gate_rc=$?
+      case "${gate_rc}" in
+        0)
+          if _try_frontend_start_with_clean_fallback; then
+            echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} cold_start=clean_retry"
+            exit 0
+          fi
+          ;;
+        "${FRONTEND_GATE_HEALTHY}")
+          _sync_frontend_pid_from_lock
+          echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} cold_start=yes"
+          exit 0
+          ;;
+        "${FRONTEND_GATE_DENIED}")
+          echo "STACK_FAIL: frontend still compiling — restart denied, nothing was killed (retry later)" >&2
+          exit 1
+          ;;
+      esac
     fi
     echo "STACK_FAIL: frontend cold start failed" >&2
     exit 1
