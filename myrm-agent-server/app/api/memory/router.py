@@ -73,6 +73,9 @@ from app.api.memory.context_fabric_router import (
 from app.api.memory.experience_flywheel_router import (
     router as experience_flywheel_router,
 )
+from app.api.memory.person_card_router import (
+    router as person_card_router,
+)
 from app.api.memory.client_partition import (
     router as memory_client_partition_router,
 )
@@ -705,6 +708,10 @@ router.include_router(
 router.include_router(
     experience_flywheel_router,
     tags=["memory-experience-flywheel"],
+)
+router.include_router(
+    person_card_router,
+    tags=["memory-person-card"],
 )
 
 
