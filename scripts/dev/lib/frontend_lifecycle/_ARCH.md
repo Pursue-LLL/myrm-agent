@@ -29,7 +29,8 @@
 | `gate.py` | `admit()` 观测循环、`is_stalled()` 停滞判定、可注入 `Probes` |
 | `episode.py` | `EpisodeStore`：跨调用持久化的「连续不健康时长」（flock + 原子替换，间隔超过 `gap_sec` 视为已恢复） |
 | `journal.py` | 带调用链的 JSONL 决策/kill 日志（2MiB 轮转，写失败不影响决策） |
-| `cli.py` / `__main__.py` | `admit` / `journal` 子命令，bash 的进程边界 |
+| `report.py` | 只读体检：基线窗口内的 journal 准入/kill 统计 vs `frontend.log` 的 `Received SIGTERM`，差值 = 门外的 kill 路径；入口 `dev-stack.sh frontend-only restart-report` |
+| `cli.py` / `__main__.py` | `admit` / `journal` / `report` 子命令，bash 的进程边界 |
 
 ## 依赖
 

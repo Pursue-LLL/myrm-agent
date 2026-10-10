@@ -1276,7 +1276,7 @@ cmd_frontend_only_ensure() {
 }
 
 usage() {
-  echo "Usage: dev-stack.sh ensure|attach|reset|status|backend-only ensure|backend-only stop|frontend-only ensure|frontend-only clear-pause" >&2
+  echo "Usage: dev-stack.sh ensure|attach|reset|status|backend-only ensure|backend-only stop|frontend-only ensure|frontend-only clear-pause|frontend-only restart-report [--mark]" >&2
 }
 
 _supervisor_delegate_or_fail() {
@@ -1354,6 +1354,12 @@ main() {
       case "${subcmd}" in
         clear-pause)
           "${PREFLIGHT_PY:-python3}" "${SCRIPT_DIR}/lib/e2e_core/frontend_dev_pause.py" clear
+          exit $?
+          ;;
+        restart-report)
+          # Read plane: journal kills vs SIGTERMs in frontend.log; "--mark" restarts the window.
+          _frontend_lifecycle report --state-dir "${STATE_DIR}" --log-file "${FRONTEND_LOG}" \
+            ${3:+"$3"}
           exit $?
           ;;
         ensure)

@@ -1,4 +1,4 @@
-"""CLI glue for dev-stack.sh: ``python -m frontend_lifecycle admit|journal``.
+"""CLI glue for dev-stack.sh: ``python -m frontend_lifecycle admit|journal|report``.
 
 [INPUT]
   argv from dev-stack.sh (reason, port, url, state/pid/log paths)
@@ -7,6 +7,7 @@
   admit exit codes: 0 = kill allowed, 10 = frontend healthy (do not restart), 11 = denied
   (still compiling / not proven dead); a STACK_RESTART_* line on stderr.
   journal: appends a kill record naming the target pids.
+  report: read-only comparison of journal kills with SIGTERMs in frontend.log (see report.py).
 
 [POS]
   Thin process boundary so Bash restart paths consult the same policy as the unit tests.
@@ -16,10 +17,11 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from frontend_lifecycle import journal
+from frontend_lifecycle import journal, report
 from frontend_lifecycle.gate import GateContext, admit
 from frontend_lifecycle.policy import Policy, Reason, Verdict
 
@@ -58,11 +60,35 @@ def _parser() -> argparse.ArgumentParser:
     kill_cmd.add_argument("--state-dir", type=Path, required=True)
     kill_cmd.add_argument("--port", type=int, required=True)
     kill_cmd.add_argument("--pids", default="")
+
+    report_cmd = sub.add_parser(
+        "report", help="read-only: journal kills vs SIGTERMs in frontend.log"
+    )
+    report_cmd.add_argument("--state-dir", type=Path, required=True)
+    report_cmd.add_argument("--log-file", type=Path, required=True)
+    report_cmd.add_argument(
+        "--mark", action="store_true", help="restart the window after reporting"
+    )
     return parser
+
+
+def _report(args: argparse.Namespace) -> int:
+    now = time.time()
+    baseline = report.load_baseline(args.state_dir)
+    if baseline is None:
+        report.save_baseline(args.state_dir, args.log_file, now)
+        print("FRONTEND_RESTART_REPORT baseline set now; run again later to compare")
+        return 0
+    print(report.render(report.build(args.state_dir, args.log_file, baseline, now)))
+    if args.mark:
+        report.save_baseline(args.state_dir, args.log_file, now)
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "report":
+        return _report(args)
     if args.command == "journal":
         journal.append(
             args.state_dir,
