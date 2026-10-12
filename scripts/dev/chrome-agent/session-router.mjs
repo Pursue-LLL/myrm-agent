@@ -236,10 +236,15 @@ export class SessionRouter {
         }
     }
 
+    /** Replays parents before children (Map order = attach order); a child keeps its parent's envelope. */
     replayAutoAttach(client) {
-        for (const [sessionId, { targetInfo, waitingForDebugger }] of this.knownSessions) {
+        for (const [sessionId, { targetInfo, waitingForDebugger, parentSessionId }] of this.knownSessions) {
             this.deliver(
-                { method: 'Target.attachedToTarget', params: { sessionId, targetInfo, waitingForDebugger } },
+                {
+                    method: ATTACHED,
+                    params: { sessionId, targetInfo, waitingForDebugger },
+                    ...(parentSessionId && { sessionId: parentSessionId }),
+                },
                 client,
             );
         }
@@ -328,11 +333,20 @@ export class SessionRouter {
             this.knownSessions.set(params.sessionId, {
                 targetInfo: params.targetInfo,
                 waitingForDebugger: params.waitingForDebugger ?? false,
+                parentSessionId: msg.sessionId,
             });
             if (params.targetInfo) this.knownTargets.set(params.targetInfo.targetId, params.targetInfo);
         } else if (method === DETACHED && params?.sessionId) {
-            this.knownSessions.delete(params.sessionId);
-            this.contextReplay.forget(params.sessionId);
+            this.#forgetBase(params.sessionId);
+        }
+    }
+
+    /** Drops a base session and its descendants: a child is unreachable once its parent is gone. */
+    #forgetBase(sessionId) {
+        this.knownSessions.delete(sessionId);
+        this.contextReplay.forget(sessionId);
+        for (const [childId, { parentSessionId }] of this.knownSessions) {
+            if (parentSessionId === sessionId) this.#forgetBase(childId);
         }
     }
 

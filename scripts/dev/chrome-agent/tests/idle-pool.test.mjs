@@ -6,19 +6,28 @@ import { IdlePool } from '../idle-pool.mjs';
 
 const page = (targetId, url = 'about:blank') => ({ targetId, type: 'page', url });
 
-function setup({ pages, minIdle = 3, maxPages = 6, leased = new Set() }) {
+function setup({ pages, minIdle = 3, maxPages = 6, leased = new Set(), abandoned = [] }) {
     const calls = [];
     const logs = [];
     const state = { pages };
     const cdpRequest = async (method, params) => {
         calls.push({ method, params });
         if (method === 'Target.getTargets') return { result: { targetInfos: state.pages } };
+        if (method === 'Target.closeTarget') {
+            state.pages = state.pages.filter((t) => t.targetId !== params.targetId);
+            return { result: { success: true } };
+        }
         state.pages = [...state.pages, page(`NEW${state.pages.length}`)];
         return { result: { targetId: 'x' } };
     };
-    const pool = new IdlePool({ cdpRequest, isLeased: (id) => leased.has(id), log: (l) => logs.push(l), minIdle, maxPages });
+    const graceCalls = [];
+    const pool = new IdlePool({
+        cdpRequest, isLeased: (id) => leased.has(id), log: (l) => logs.push(l), minIdle, maxPages,
+        takeAbandoned: (grace) => { graceCalls.push(grace); return abandoned; }, abandonGraceMs: 600_000,
+    });
     const created = () => calls.filter((c) => c.method === 'Target.createTarget');
-    return { pool, calls, logs, created, state };
+    const closed = () => calls.filter((c) => c.method === 'Target.closeTarget').map((c) => c.params.targetId);
+    return { pool, calls, logs, created, closed, graceCalls, state };
 }
 
 test('a fresh Chrome with one tab is topped up to the floor, in the background', async () => {
@@ -81,6 +90,7 @@ test('a failing Chrome is logged and the next tick retries', async () => {
             return method === 'Target.getTargets' ? { result: { targetInfos: [page('A'), page('B'), page('C')] } } : { result: {} };
         },
         isLeased: () => false, log: (l) => logs.push(l), minIdle: 3, maxPages: 6,
+        takeAbandoned: () => [], abandonGraceMs: 1,
     });
     await pool.reconcile();
     assert.match(logs[0], /reconcile skipped.*Chrome not running/);
@@ -98,8 +108,35 @@ test('a createTarget error stops the batch instead of looping', async () => {
                 ? { result: { targetInfos: [page('A')] } }
                 : { error: { message: 'no browser window' } };
         },
-        isLeased: () => false, log() {}, minIdle: 3, maxPages: 6,
+        isLeased: () => false, log() {}, minIdle: 3, maxPages: 6, takeAbandoned: () => [], abandonGraceMs: 1,
     });
     await pool.reconcile();
     assert.equal(calls.filter((m) => m === 'Target.createTarget').length, 1);
+});
+
+test('an abandoned tab is closed and replaced, other busy tabs are left alone', async () => {
+    const { pool, closed, created, graceCalls } = setup({
+        pages: [page('A'), page('B'), page('LEAK', 'https://x.com/a'), page('MINE', 'https://x.com/b')],
+        abandoned: ['LEAK'],
+    });
+    await pool.reconcile();
+    assert.deepEqual(closed(), ['LEAK']);
+    assert.deepEqual(graceCalls, [600_000]);
+    assert.equal(created().length, 1);
+});
+
+test('an expired tab that was released, re-leased or is already gone is not closed', async () => {
+    const { pool, closed } = setup({
+        pages: [page('A'), page('B'), page('C'), page('RELEASED'), page('RELEASED2', 'https://x.com/c')],
+        leased: new Set(['RELEASED2']),
+        abandoned: ['RELEASED', 'RELEASED2', 'GONE'],
+    });
+    await pool.reconcile();
+    assert.deepEqual(closed(), []);
+});
+
+test('abandoned tabs are not reclaimed when the pool is disabled', async () => {
+    const { pool, closed } = setup({ pages: [page('A', 'https://x.com/a')], minIdle: 0, abandoned: ['A'] });
+    await pool.reconcile();
+    assert.deepEqual(closed(), []);
 });

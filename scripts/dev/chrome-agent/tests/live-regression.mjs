@@ -68,7 +68,8 @@ const scenarios = {
         c.stop();
         await sleep(3000);
         await expectConsistent('t2b: B consistent 3s after C exits', b);
-        const leaked = listener.events.filter((e) => e.at >= exitedAt && e.method === 'Target.detachedFromTarget');
+        // Chrome-internal targets (type 'other') detach on their own schedule; only page sessions are C's.
+        const leaked = listener.events.filter((e) => e.at >= exitedAt && e.method === 'Target.detachedFromTarget' && (e.type === undefined || e.type === 'page'));
         await check('t2b: bystander sees no detach events from C exiting', leaked.length === 0, `${leaked.length} events`);
         await sleep(5000);
         await expectConsistent('t2b: B still consistent 8s after C exits', b);
@@ -175,6 +176,40 @@ const scenarios = {
         const g = proxy.mcp('G'); await g.start();
         await evaluates(g, 'client restarted while nobody else is connected', titles);
         g.stop();
+    },
+
+    // Content of cross-site iframes (out-of-process frames) must be visible to every client,
+    // including one that joins after the frame already exists (second MCP, restarted MCP).
+    async oopifVisibility() {
+        const frameServer = http.createServer((_, res) => { res.setHeader('content-type', 'text/html'); res.end('<p>OOPIF-INNER-TEXT</p>'); });
+        await new Promise((r) => frameServer.listen(0, '127.0.0.1', r));
+        const pageServer = http.createServer((_, res) => {
+            res.setHeader('content-type', 'text/html');
+            res.end(`<h1>HOST-TEXT</h1><iframe src="http://localhost:${frameServer.address().port}/"></iframe>`);
+        });
+        await new Promise((r) => pageServer.listen(0, '127.0.0.1', r));
+        const url = `http://127.0.0.1:${pageServer.address().port}/`;
+        const sees = async (mcp, pageId) => (await mcp.tool('take_snapshot', { pageId })).text.includes('OOPIF-INNER-TEXT');
+        const open = async (mcp, pageId) => {
+            await mcp.tool('select_page', { pageId });
+            await mcp.tool('navigate_page', { pageId, type: 'url', url });
+            await sleep(2000);
+        };
+
+        const b = proxy.mcp('B'); await b.start();
+        const [first, second] = await b.pages();
+        await open(b, first.id);
+        await check('oopifVisibility: owner sees the iframe content', await sees(b, first.id));
+        const d = proxy.mcp('D'); await d.start(); await d.pages();
+        await check('oopifVisibility: late client sees the iframe content of an existing page', await sees(d, first.id));
+        await check('oopifVisibility: owner still sees the iframe content after a client joined late', await sees(b, first.id));
+        await open(d, second.id);
+        await check('oopifVisibility: client sees the iframe content of the page it navigated', await sees(d, second.id));
+        await check('oopifVisibility: earlier client sees the iframe content of the later client\'s page', await sees(b, second.id));
+        b.stop(); await sleep(1500);
+        const f = proxy.mcp('F'); await f.start(); await f.pages();
+        await check('oopifVisibility: restarted client sees the iframe content of both pages', (await sees(f, first.id)) && (await sees(f, second.id)));
+        d.stop(); f.stop(); frameServer.close(); pageServer.close();
     },
 
     // A client may not detach a session it does not own; its own detach still works.
@@ -285,19 +320,22 @@ const scenarios = {
         await check('idlePool: a fresh Chrome is topped up from 1 tab to 3 idle tabs', await waitFor(async () => (await blanks()) === 3), `blank=${await blanks()}`);
 
         const holders = [];
+        // A tab another session has just navigated can still be listed as about:blank for a few ms;
+        // the proxy refuses it (TAB_LEASED) and the session picks the next idle tab, as the prompt says.
         const claim = async () => {
-            const cdpClient = await pooled.cdp();
-            const page = (await pooled.chromePages()).find((p) => p.url === 'about:blank');
-            if (!page) { cdpClient.close(); return false; }
-            const { result } = await cdpClient.send('Target.attachToTarget', { targetId: page.id, flatten: true });
-            const nav = await cdpClient.send('Page.navigate', { url: `data:text/html,held-${holders.length}` }, result.sessionId);
-            if (nav.error) { cdpClient.close(); return false; }
-            holders.push(cdpClient);
-            return true;
+            for (const page of (await pooled.chromePages()).filter((p) => p.url === 'about:blank')) {
+                const cdpClient = await pooled.cdp();
+                const { result } = await cdpClient.send('Target.attachToTarget', { targetId: page.id, flatten: true });
+                const nav = await cdpClient.send('Page.navigate', { url: `data:text/html,held-${holders.length}` }, result.sessionId);
+                if (!nav.error) { holders.push(cdpClient); return true; }
+                cdpClient.close();
+            }
+            return false;
         };
         for (let i = 0; i < 3; i++) await claim();
         await check('idlePool: after 3 claims the pool is replenished within the cap', await waitFor(async () => (await blanks()) >= 2), `blank=${await blanks()} total=${await total()}`);
-        await check('idlePool: a 4th concurrent session still finds an idle tab', await claim());
+        const simultaneous = await Promise.all([claim(), claim()]);
+        await check('idlePool: two simultaneous sessions each still find their own idle tab', simultaneous.every(Boolean), simultaneous.join(','));
         for (let i = 0; i < 4; i++) await claim();
         await sleep(3000);
         await check('idlePool: total tabs never exceed the cap', (await total()) <= 5, `total=${await total()}`);
