@@ -20,6 +20,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
+from myrm_agent_harness.toolkits.memory.manager import MemoryTaintedError
 
 from app.api.mem0_compat.converter import (
     extract_content_from_messages,
@@ -155,6 +156,8 @@ async def update_memory(
     if body.text:
         try:
             await manager.update_memory(memory_id, content=body.text)
+        except MemoryTaintedError:
+            raise  # rendered as a 400 by the global handler
         except Exception as e:
             raise HTTPException(status_code=500, detail="Failed to update memory") from e
 

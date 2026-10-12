@@ -4,6 +4,7 @@
 - fastapi.responses::JSONResponse (POS: JSON响应封装)
 - myrm_agent_harness.api::redact_sensitive_text (POS: 敏感凭证与文本脱敏)
 - myrm_agent_harness.toolkits.llms.errors::FailoverReason (POS: 模型故障原因分类)
+- myrm_agent_harness.toolkits.memory.manager::MemoryTaintedError (POS: 记忆写入被安全扫描拒绝，惰性导入以免拉起整个记忆包)
 - app.schemas.responses::{BusinessCode, ErrorDetail, create_error_response} (POS: 业务响应状态码与错误体构造)
 
 [OUTPUT]
@@ -158,6 +159,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     In debug mode (DEBUG=true), error responses include full stack traces
     for faster troubleshooting. In production, only structured error info is returned.
     """
+    from myrm_agent_harness.toolkits.memory.manager import MemoryTaintedError
+
     from app.config.env import is_debug_mode
 
     @app.exception_handler(MyrmError)
@@ -210,6 +213,16 @@ def register_exception_handlers(app: FastAPI) -> None:
             content={"detail": redact_error_payload(exc.detail)},
             headers=getattr(exc, "headers", None),
         )
+
+    @app.exception_handler(MemoryTaintedError)
+    async def _handle_memory_tainted(request: Request, exc: MemoryTaintedError) -> JSONResponse:
+        """A memory the write scan rejected is a client error, never a 500.
+
+        Writers that do not map it themselves (profile/rule create, correction, conflict
+        resolution, imports) all surface the same user-safe ``detail`` under the legacy contract.
+        """
+        logger.warning("[%s] memory write rejected by the security scan", request.url.path)
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": str(exc)})
 
     @app.exception_handler(AttributeError)
     async def _handle_attribute_error(request: Request, exc: AttributeError) -> JSONResponse:

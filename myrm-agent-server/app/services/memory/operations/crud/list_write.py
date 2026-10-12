@@ -21,6 +21,7 @@ import logging
 
 from fastapi import Depends, HTTPException, Query
 from myrm_agent_harness.toolkits.memory import MemoryError, MemoryManager, MemoryOperationKind, MemoryType
+from myrm_agent_harness.toolkits.memory.manager import MemoryTaintedError
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 from pydantic import BaseModel
 
@@ -268,6 +269,8 @@ async def correct_memory(
             metadata={"correction_of": memory_id},
         )
         return memory_to_item(correction, MemoryType.SEMANTIC)
+    except MemoryTaintedError:
+        raise  # rendered as a 400 by the global handler
     except Exception as e:
         error_msg = str(e)
         if "not found" in error_msg.lower():

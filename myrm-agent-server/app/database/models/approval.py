@@ -26,11 +26,11 @@ class ApprovalRecord(Base):
 
     action_type: Mapped[str] = mapped_column(
         String(50), nullable=False, index=True
-    )  # e.g. skill_patch, memory_mutation, shell_command
+    )  # e.g. skill_patch, knowledge_patch, shell_command
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     severity: Mapped[str] = mapped_column(String(20), default="warning", nullable=False)
 
-    # 存储 ApprovalContract 的 payload
+    # 随 action_type 变化的结构化审批载荷
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
 
     status: Mapped[str] = mapped_column(String(50), default="PENDING", nullable=False, index=True)  # PENDING, APPROVED, REJECTED
