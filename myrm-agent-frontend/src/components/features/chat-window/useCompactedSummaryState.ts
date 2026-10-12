@@ -26,9 +26,9 @@ import {
   getChatArchive,
   listContextBranches,
   updateCompactionSummary,
+  type ArchivedChatMessage,
   type ContextBranchRecord,
 } from '@/services/chat';
-import type { Message } from '@/store/chat/types';
 import { showI18nToast } from '@/services/i18nToastService';
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
 
@@ -92,7 +92,7 @@ export function useCompactedSummaryState() {
   const [forkingBranchId, setForkingBranchId] = useState<string | null>(null);
 
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
-  const [archiveMessages, setArchiveMessages] = useState<Message[]>([]);
+  const [archiveMessages, setArchiveMessages] = useState<ArchivedChatMessage[]>([]);
   const [isLoadingArchive, setIsLoadingArchive] = useState(false);
   const [bookmarksLoading, setBookmarksLoading] = useState(false);
 

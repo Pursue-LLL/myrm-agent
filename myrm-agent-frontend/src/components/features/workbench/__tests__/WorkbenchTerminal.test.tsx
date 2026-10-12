@@ -43,14 +43,14 @@ describe('WorkbenchTerminal component', () => {
           command: 'ls -la',
           output: 'total 0\nfile.txt',
           exitCode: 0,
-          timestamp: 1700000000,
+          timestamp: '2023-11-14T22:13:20Z',
         },
         {
           id: 'log-2',
           command: 'cat missing.txt',
           output: 'No such file or directory',
           exitCode: 1,
-          timestamp: 1700000001,
+          timestamp: '2023-11-14T22:13:21Z',
         },
       ],
     });
@@ -118,7 +118,7 @@ describe('WorkbenchTerminal component', () => {
           command: 'ls',
           output: 'out',
           exitCode: 0,
-          timestamp: 1700000000,
+          timestamp: '2023-11-14T22:13:20Z',
         },
       ],
     });
@@ -141,7 +141,7 @@ describe('WorkbenchTerminal component', () => {
           command: 'git status',
           output: 'On branch main',
           exitCode: 0,
-          timestamp: 1700000000,
+          timestamp: '2023-11-14T22:13:20Z',
         },
       ],
     });

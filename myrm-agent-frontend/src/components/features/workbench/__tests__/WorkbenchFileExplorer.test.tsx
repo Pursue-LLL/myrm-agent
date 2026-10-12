@@ -21,21 +21,23 @@ vi.mock('@/services/workbench', () => ({
 
 const mockTreeData: workbenchService.FileTreeResponse = {
   root_path: '/workspace',
+  total_files: 2,
+  total_dirs: 1,
   nodes: [
     {
       name: 'src',
       path: 'src',
       node_type: 'directory',
       size_bytes: 0,
-      modified_at: 1700000000,
-      extension: null,
+      modified_at: '2023-11-14T22:13:20Z',
+      extension: '',
       children: [
         {
           name: 'index.ts',
           path: 'src/index.ts',
           node_type: 'file',
           size_bytes: 2048,
-          modified_at: 1700000000,
+          modified_at: '2023-11-14T22:13:20Z',
           extension: 'ts',
         },
       ],
@@ -45,7 +47,7 @@ const mockTreeData: workbenchService.FileTreeResponse = {
       path: 'README.md',
       node_type: 'file',
       size_bytes: 1024,
-      modified_at: 1700000000,
+      modified_at: '2023-11-14T22:13:20Z',
       extension: 'md',
     },
   ],
@@ -64,7 +66,8 @@ describe('WorkbenchFileExplorer component', () => {
       content: 'console.log("hello world");\nexport const x = 1;',
       language: 'typescript',
       size_bytes: 50,
-      modified_at: 1700000000,
+      is_binary: false,
+      modified_at: '2023-11-14T22:13:20Z',
     });
   });
 

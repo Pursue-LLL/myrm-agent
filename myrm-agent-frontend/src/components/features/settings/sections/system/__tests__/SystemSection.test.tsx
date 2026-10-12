@@ -63,7 +63,8 @@ vi.mock('@/lib/utils/toast', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-vi.mock('@/lib/deploy-mode', () => ({
+vi.mock('@/lib/deploy-mode', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deploy-mode')>()),
   isLocalMode: () => true,
   isTauriRuntime: () => false,
 }));

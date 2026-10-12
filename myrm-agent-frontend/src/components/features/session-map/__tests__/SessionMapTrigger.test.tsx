@@ -47,12 +47,13 @@ const mockProjects: ProjectCluster[] = [
 const mockSummary: FleetCockpitSummary = {
   total_projects: 1,
   total_sessions: 1,
-  active_working_count: 1,
-  ready_count: 0,
-  waiting_input_count: 0,
-  error_count: 0,
+  total_agents: 1,
+  working_agents: 1,
+  ready_agents: 0,
+  waiting_input_agents: 0,
+  error_agents: 0,
   total_tokens_consumed: 12500,
-  health_rate: 1.0,
+  top_active_sessions: [],
 };
 
 const mockFetchSessionMapProjects = vi.fn();

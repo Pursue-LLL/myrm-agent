@@ -49,7 +49,8 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
-vi.mock('@/lib/deploy-mode', () => ({
+vi.mock('@/lib/deploy-mode', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deploy-mode')>()),
   isTauriRuntime: () => mockIsTauri,
 }));
 

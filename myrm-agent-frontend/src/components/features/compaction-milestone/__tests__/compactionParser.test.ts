@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseCompactionEntry } from '../compactionParser';
-import type { LastCompactionMeta, Message } from '@/store/chat/types';
+import type { ArchivedChatMessage } from '@/services/chat';
+import type { LastCompactionMeta } from '@/store/chat/types';
 
 describe('compactionParser', () => {
   it('parses structured sections from markdown correctly', () => {
@@ -28,26 +29,22 @@ describe('compactionParser', () => {
       },
     };
 
-    const mockMessages: Message[] = [
-      {
-        messageId: 'msg-1',
-        role: 'user',
-        content: 'hello',
-        createdAt: '2026-08-31T10:00:00Z',
-      } as Message,
+    const mockMessages: ArchivedChatMessage[] = [
+      { id: 'msg-1', role: 'user', content: 'hello', created_at: '2026-08-31T10:00:00Z' },
     ];
 
     const result = parseCompactionEntry(rawMarkdown, meta, mockMessages);
 
     expect(result.id).toBe('snapshots/step27.json');
     expect(result.savedTokens).toBe(12500);
-    expect(result.compactedMessageCount).toBe(1);
+    expect(result.compactedMessagesCount).toBe(1);
     expect(result.goal).toContain('完成前端 UX 路线图');
     expect(result.progress).toContain('已实现类型定义');
     expect(result.keyDecisions).toHaveLength(2);
     expect(result.nextSteps).toHaveLength(2);
-    expect(result.archivedSnapshots).toHaveLength(1);
-    expect(result.archivedSnapshots[0].content).toBe('hello');
+    expect(result.filesTouched).toEqual(['src/fileA.ts', 'src/fileB.ts']);
+    expect(result.originalMessages).toHaveLength(1);
+    expect(result.originalMessages[0]).toMatchObject({ id: 'msg-1', content: 'hello', timestamp: '2026-08-31T10:00:00Z' });
   });
 
   it('handles unstructured fallback gracefully', () => {
@@ -58,5 +55,8 @@ describe('compactionParser', () => {
     expect(result.savedTokens).toBe(0);
     expect(result.keyDecisions.length).toBeGreaterThan(0);
     expect(result.nextSteps.length).toBeGreaterThan(0);
+    expect(result.originalMessages).toEqual([]);
+    expect(result.filesTouched).toEqual([]);
+    expect(result.compactedMessagesCount).toBe(0);
   });
 });

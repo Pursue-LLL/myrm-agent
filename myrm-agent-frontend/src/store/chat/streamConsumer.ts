@@ -622,8 +622,7 @@ export async function consumeStream(
                 watchdog.markTerminalReceived();
               } else if (
                 ('usage' in event && Boolean(event.usage)) ||
-                ('token_economics' in event && Boolean(event.token_economics)) ||
-                event.type === 'token_economics'
+                ('token_economics' in event && Boolean(event.token_economics))
               ) {
                 watchdog.notifyUsageReceived();
               }

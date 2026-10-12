@@ -4,7 +4,7 @@
  * Context compaction history archive modal dialog.
  *
  * [INPUT]
- * - messages: Array of Message entities (POS: Conversational message record stream)
+ * - messages: Array of ArchivedChatMessage records (POS: pre-compaction backup wire format)
  * - isOpen: Modal visibility toggle state
  * - onClose: Modal close callback
  *
@@ -22,12 +22,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import type { Message } from '@/store/chat/types';
+import type { ArchivedChatMessage } from '@/services/chat';
 
 interface CompactedArchiveModalProps {
   isOpen: boolean;
   isLoading: boolean;
-  messages: Message[];
+  messages: ArchivedChatMessage[];
   title: string;
   emptyLabel: string;
   roleUserLabel: string;
@@ -74,12 +74,12 @@ export function CompactedArchiveModal({
           ) : (
             messages.map((msg, idx) => (
               <div
-                key={msg.messageId || idx}
+                key={msg.id || idx}
                 className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
               >
                 <div className="text-xs text-muted-foreground mb-1">
                   {msg.role === 'user' ? roleUserLabel : roleAssistantLabel} •{' '}
-                  {msg.createdAt ? format(new Date(msg.createdAt), 'yyyy-MM-dd HH:mm:ss') : ''}
+                  {msg.created_at ? format(new Date(msg.created_at), 'yyyy-MM-dd HH:mm:ss') : ''}
                 </div>
                 <div
                   className={`prose dark:prose-invert prose-sm break-words w-full max-w-[85%] rounded-2xl px-4 py-3 text-sm ${

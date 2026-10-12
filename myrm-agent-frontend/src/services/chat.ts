@@ -1340,10 +1340,18 @@ export const resumePlanConfirmStream = async (
   await finalizeAgentStreamTurn(chatState.chatId);
 };
 
+/** Wire format of a message persisted in the pre-compaction workspace backup. */
+export interface ArchivedChatMessage {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string | null;
+}
+
 /**
  * Retrieve all archived messages from the workspace backup files.
  */
-export const getChatArchive = async (chatId: string): Promise<{ messages: Message[] }> => {
+export const getChatArchive = async (chatId: string): Promise<{ messages: ArchivedChatMessage[] }> => {
   return apiRequest(`/chats/${chatId}/archive`);
 };
 

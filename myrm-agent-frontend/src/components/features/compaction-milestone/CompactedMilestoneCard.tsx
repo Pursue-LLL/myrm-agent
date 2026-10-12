@@ -48,6 +48,8 @@ export function CompactedMilestoneCard({
   const [isTimeMachineOpen, setIsTimeMachineOpen] = useState<boolean>(false);
 
   const formattedTokens = entry.savedTokens.toLocaleString();
+  // The archive loads lazily, so the count is 0 until the Time Machine has been opened.
+  const hasMessageCount = entry.compactedMessagesCount > 0;
 
   return (
     <article
@@ -72,12 +74,16 @@ export function CompactedMilestoneCard({
               <span className="font-semibold text-xs text-foreground truncate">
                 {t('capsuleTitle')}
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-primary/10 text-primary font-medium">
-                {entry.compactedMessagesCount} msgs
-              </span>
+              {hasMessageCount && (
+                <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-primary/10 text-primary font-medium">
+                  {entry.compactedMessagesCount} msgs
+                </span>
+              )}
             </div>
             <p className="text-[11px] text-muted-foreground truncate font-mono">
-              {t('capsuleSubtitle', { count: entry.compactedMessagesCount, tokens: formattedTokens })}
+              {hasMessageCount
+                ? t('capsuleSubtitle', { count: entry.compactedMessagesCount, tokens: formattedTokens })
+                : t('capsuleSubtitleTokensOnly', { tokens: formattedTokens })}
             </p>
           </div>
         </div>

@@ -12,7 +12,13 @@
  * dropping `turn_end` / `message_end` after usage chunk).
  */
 
-export interface StreamWatchdogOptions {
+/** Minimal message shape the watchdog inspects; callers keep their concrete message type via the generic. */
+export interface WatchdogMessage {
+  role?: string;
+  content?: string;
+}
+
+export interface StreamWatchdogOptions<TMessage extends WatchdogMessage = WatchdogMessage> {
   /** Silence threshold before triggering completion watchdog (default: 3500ms). */
   silenceTimeoutMs?: number;
   /** Grace period after receiving usage event before triggering completion watchdog (default: 1500ms). */
@@ -22,14 +28,14 @@ export interface StreamWatchdogOptions {
   /** State getter function. */
   getState: () => {
     loading?: boolean;
-    messages?: Array<{ role?: string; content?: string }>;
+    messages?: TMessage[];
   };
   /** Actions for mutating chat state. */
   actions: {
     setLoading: (loading: boolean) => void;
     clearActiveStream?: () => void;
     setMessageAppeared?: (appeared: boolean) => void;
-    _processSuggestions?: (message: unknown) => void;
+    _processSuggestions?: (message: TMessage) => void | Promise<void>;
     scheduleAutoSave?: () => void;
   };
 }
@@ -47,7 +53,9 @@ export interface StreamWatchdog {
 const DEFAULT_SILENCE_TIMEOUT_MS = 3500;
 const DEFAULT_USAGE_GRACE_MS = 1500;
 
-export function createStreamWatchdog(options: StreamWatchdogOptions): StreamWatchdog {
+export function createStreamWatchdog<TMessage extends WatchdogMessage = WatchdogMessage>(
+  options: StreamWatchdogOptions<TMessage>,
+): StreamWatchdog {
   const silenceTimeoutMs = options.silenceTimeoutMs ?? DEFAULT_SILENCE_TIMEOUT_MS;
   const usageGraceMs = options.usageGraceMs ?? DEFAULT_USAGE_GRACE_MS;
 

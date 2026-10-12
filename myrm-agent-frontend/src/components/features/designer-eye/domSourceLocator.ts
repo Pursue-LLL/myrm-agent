@@ -99,7 +99,8 @@ function findReactFiber(el: Element): ReactFiberNode | null {
  */
 function getFiberComponentName(fiber: ReactFiberNode): string | undefined {
   if (typeof fiber.type === 'function') {
-    return fiber.type.displayName || fiber.type.name || undefined;
+    const fn = fiber.type as { displayName?: string; name?: string };
+    return fn.displayName || fn.name || undefined;
   }
   if (fiber.type && typeof fiber.type === 'object') {
     const typeObj = fiber.type as { displayName?: string; name?: string };

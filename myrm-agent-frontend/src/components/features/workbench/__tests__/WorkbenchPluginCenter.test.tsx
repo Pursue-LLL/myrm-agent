@@ -27,7 +27,8 @@ const mockPlugins: workbenchService.PluginItem[] = [
     status: 'healthy',
     author: 'Myrmidon',
     github_repo: 'https://github.com/myrmidon/git-plugin',
-    installed_at: '2026-01-01T00:00:00Z',
+    is_installed: true,
+    last_probed_at: '2026-01-01T00:00:00Z',
   },
   {
     plugin_id: 'plugin-linter',
@@ -37,7 +38,8 @@ const mockPlugins: workbenchService.PluginItem[] = [
     status: 'degraded',
     author: 'Community',
     github_repo: null,
-    installed_at: '2026-02-01T00:00:00Z',
+    is_installed: true,
+    last_probed_at: '2026-02-01T00:00:00Z',
   },
 ];
 
@@ -50,6 +52,7 @@ describe('WorkbenchPluginCenter component', () => {
       status: 'healthy',
       latency_ms: 18,
       message: 'All endpoints responding within SLA',
+      details: {},
     });
   });
 

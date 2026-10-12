@@ -150,12 +150,11 @@ export const CompactedSummaryView = () => {
         <BranchSummaryCard
           entry={{
             id: latestBookmark.branch_id,
+            sourceBranchId: latestBookmark.branch_id,
             sourceBranchName: bookmarkDisplayLabel(latestBookmark),
+            summary: t('branchContextDistilled'),
+            keyTakeaways: [t('branchSnapshotArchived', { path: latestBookmark.snapshot_path })],
             createdAt: latestBookmark.created_at || new Date().toISOString(),
-            insights: [
-              `快照归档: ${latestBookmark.snapshot_path}`,
-              '已在此分叉节点提炼记忆上下文与工作台状态',
-            ],
           }}
           className="mb-4"
         />
