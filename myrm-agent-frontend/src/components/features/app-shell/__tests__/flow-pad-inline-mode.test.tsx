@@ -8,7 +8,8 @@ type Listener = (state: Record<string, unknown>, prev: Record<string, unknown>) 
 let subscribers: Listener[] = [];
 const mockChatState = {
   agentConfig: { name: 'TestAgent' },
-  sendMessage: vi.fn().mockResolvedValue(undefined),
+  // Resolves whether the chat took the message (false = refused before the turn, the user was told why).
+  sendMessage: vi.fn().mockResolvedValue(true),
   setFiles: vi.fn(),
   getCurrentSessionMessageId: vi.fn(() => 'inline-msg-1'),
   files: [],
@@ -888,5 +889,24 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     expect(mockAgentStoreState.fetchAgent).toHaveBeenCalledWith('cloudq-instance', expect.any(AbortSignal));
 
     await screen.findByDisplayValue('Diagnose cloud outage');
+  });
+
+  it('stops generating, keeps the typed text and announces nothing when the chat refuses the message', async () => {
+    const { toast } = await import('@/lib/utils/toast');
+    // A refused send never raises `loading`, so nothing in the chat store ends the request afterwards.
+    mockChatState.sendMessage.mockResolvedValueOnce(false);
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 2000);
+    render(<FlowPadModal />);
+
+    await submitInlineMessage('summarize this');
+    act(() => {
+      simulateChatStoreChange({ messages: [] });
+    });
+
+    expect(useFlowPadStore.getState().inlineGenerating).toBe(false);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox')).toHaveValue('summarize this');
   });
 });

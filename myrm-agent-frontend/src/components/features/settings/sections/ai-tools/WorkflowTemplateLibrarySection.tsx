@@ -133,6 +133,10 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
           toast({ title: t('runNoChat'), variant: 'destructive' });
           return;
         }
+        if (result.reason === 'refused') {
+          // The chat already told the user why it did not take the run.
+          return;
+        }
         toast({ title: t('runFailed'), variant: 'destructive' });
       } finally {
         setRunningTemplateId(null);

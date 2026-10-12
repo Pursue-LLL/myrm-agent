@@ -3,7 +3,8 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFlowPadStore, type FlowPadCapture } from '@/store/useFlowPadStore';
 
-const mockSendMessage = vi.fn().mockResolvedValue(undefined);
+// sendMessage resolves whether the chat took the message (false = refused before the turn, the user was told why).
+const mockSendMessage = vi.fn().mockResolvedValue(true);
 const mockSetFiles = vi.fn();
 
 const mockUseLocale = vi.hoisted(() => vi.fn(() => 'en'));
@@ -385,8 +386,8 @@ describe('FlowPadModal', () => {
   });
 
   it('prevents double submission when clicking send rapidly', async () => {
-    let resolveFirst: () => void;
-    const firstCallPromise = new Promise<void>((resolve) => {
+    let resolveFirst: (dispatched: boolean) => void;
+    const firstCallPromise = new Promise<boolean>((resolve) => {
       resolveFirst = resolve;
     });
     mockSendMessage.mockImplementationOnce(() => firstCallPromise);
@@ -409,7 +410,7 @@ describe('FlowPadModal', () => {
     });
 
     await act(async () => {
-      resolveFirst();
+      resolveFirst(true);
     });
 
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -417,7 +418,7 @@ describe('FlowPadModal', () => {
 
   it('re-enables submit after failed attempt', async () => {
     mockSendMessage.mockRejectedValueOnce(new Error('Timeout'));
-    mockSendMessage.mockResolvedValueOnce(undefined);
+    mockSendMessage.mockResolvedValueOnce(true);
 
     useFlowPadStore.getState().open();
     render(<FlowPadModal />);
@@ -445,6 +446,69 @@ describe('FlowPadModal', () => {
 
     expect(mockSendMessage).toHaveBeenCalledTimes(2);
     expect(useFlowPadStore.getState().isOpen).toBe(false);
+  });
+
+  it('keeps the pad open with the typed text and announces nothing when the chat refuses the message', async () => {
+    const { toast } = await import('@/lib/utils/toast');
+    vi.mocked(toast.success).mockClear();
+    mockSendMessage.mockResolvedValueOnce(false);
+
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Critical question' } });
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(useFlowPadStore.getState().isOpen).toBe(true);
+    expect(textarea).toHaveValue('Critical question');
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('does not stack screenshots on the composer across refused attempts', async () => {
+    const { default: useChatStore } = await import('@/store/useChatStore');
+    const composer = useChatStore.getState() as unknown as { files: unknown[] };
+    composer.files = [];
+    // Write through so the pad sees the composer the way the real store behaves.
+    mockSetFiles.mockImplementation((files: unknown[]) => {
+      composer.files = files;
+    });
+
+    try {
+      mockSendMessage.mockResolvedValue(false);
+      useFlowPadStore.getState().addCapture(makeCapture({ screenshot: 'stacked_shot' }));
+      render(<FlowPadModal />);
+
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: 'Look at this' } });
+      const submit = () =>
+        act(async () => {
+          fireEvent.keyDown(textarea, {
+            key: 'Enter',
+            code: 'Enter',
+            nativeEvent: { isComposing: false },
+          });
+        });
+
+      await submit();
+      expect(composer.files).toHaveLength(0);
+      await submit();
+      expect(composer.files).toHaveLength(0);
+      expect(mockSendMessage).toHaveBeenCalledTimes(2);
+      expect(useFlowPadStore.getState().isOpen).toBe(true);
+    } finally {
+      mockSetFiles.mockReset();
+      mockSendMessage.mockReset();
+      mockSendMessage.mockResolvedValue(true);
+      composer.files = [];
+    }
   });
 
   describe('Quick Actions', () => {
@@ -479,8 +543,8 @@ describe('FlowPadModal', () => {
     });
 
     it('prevents double click on quick action', async () => {
-      let resolveFirst: () => void;
-      const firstCallPromise = new Promise<void>((resolve) => {
+      let resolveFirst: (dispatched: boolean) => void;
+      const firstCallPromise = new Promise<boolean>((resolve) => {
         resolveFirst = resolve;
       });
       mockSendMessage.mockImplementationOnce(() => firstCallPromise);
@@ -499,7 +563,7 @@ describe('FlowPadModal', () => {
       });
 
       await act(async () => {
-        resolveFirst();
+        resolveFirst(true);
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -519,13 +583,32 @@ describe('FlowPadModal', () => {
       expect(useFlowPadStore.getState().isOpen).toBe(true);
       expect(useFlowPadStore.getState().captures).toHaveLength(1);
 
-      mockSendMessage.mockResolvedValueOnce(undefined);
+      mockSendMessage.mockResolvedValueOnce(true);
       await act(async () => {
         replyBtn.click();
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(2);
       expect(useFlowPadStore.getState().isOpen).toBe(false);
+    });
+
+    it('keeps the pad open, announces nothing and takes the screenshot back off when the chat refuses the action', async () => {
+      const { toast } = await import('@/lib/utils/toast');
+      vi.mocked(toast.success).mockClear();
+      mockSendMessage.mockResolvedValueOnce(false);
+
+      useFlowPadStore.getState().addCapture(makeCapture({ screenshot: 'quick_shot_data' }));
+      render(<FlowPadModal />);
+
+      await act(async () => {
+        screen.getByText('quickSummarize').click();
+      });
+
+      expect(useFlowPadStore.getState().isOpen).toBe(true);
+      expect(useFlowPadStore.getState().captures).toHaveLength(1);
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(mockSetFiles).toHaveBeenCalledTimes(2);
+      expect(mockSetFiles).toHaveBeenLastCalledWith([]);
     });
 
     it('each quick action sends correct prompt key', async () => {

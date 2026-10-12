@@ -316,22 +316,6 @@ export function FlowPadModal() {
     return () => unsub();
   }, [mode, isOpen]);
 
-  const attachScreenshots = useCallback(() => {
-    const screenshotFiles = captures
-      .filter((c) => c.screenshot)
-      .map((c, idx) => ({
-        fileName: `appshot_${idx + 1}.jpg`,
-        fileExtension: 'jpg',
-        fileUrl: `data:image/jpeg;base64,${c.screenshot}`,
-        fileType: 'uploaded' as const,
-      }));
-
-    if (screenshotFiles.length > 0) {
-      const currentFiles = useChatStore.getState().files;
-      setFiles([...currentFiles, ...screenshotFiles]);
-    }
-  }, [captures, setFiles]);
-
   const handleSelectInlineRouteAgent = useCallback(
     async (agentId: string | null, options?: { fromTemplate?: boolean }): Promise<boolean> => {
       setAgentRouteMenuOpen(false);
@@ -494,18 +478,19 @@ export function FlowPadModal() {
     ],
   );
 
+  /** Resolves false when the chat refused the message before the turn started (it has already told the user why). */
   const sendWithInlineRoute = useCallback(
-    async (message: string) => {
+    async (message: string): Promise<boolean> => {
+      if (mode !== 'inline') {
+        return sendMessage(message);
+      }
+
+      const inlineRequestId = getCurrentSessionMessageId();
+      inlineActiveRequestIdRef.current = inlineRequestId;
+      useFlowPadStore.setState({ inlineResult: '', inlineGenerating: true });
+
+      let dispatched = false;
       try {
-        if (mode !== 'inline') {
-          await sendMessage(message);
-          return;
-        }
-
-        const inlineRequestId = getCurrentSessionMessageId();
-        inlineActiveRequestIdRef.current = inlineRequestId;
-        useFlowPadStore.setState({ inlineResult: '', inlineGenerating: true });
-
         if (inlineRouteSelection) {
           const summoned = summonedRouteRef.current;
           if (summoned && !summoned.firstMessageSent && summoned.agentId === inlineRouteSelection.id) {
@@ -517,19 +502,59 @@ export function FlowPadModal() {
               usedUseCase: summoned.usedUseCase,
             });
           }
-          await sendMessage(message, inlineRequestId, undefined, undefined, undefined, inlineRouteSelection.config);
-          return;
+          dispatched = await sendMessage(
+            message,
+            inlineRequestId,
+            undefined,
+            undefined,
+            undefined,
+            inlineRouteSelection.config,
+          );
+        } else {
+          dispatched = await sendMessage(message, inlineRequestId);
         }
-        await sendMessage(message, inlineRequestId);
-      } catch (error) {
-        if (mode === 'inline') {
+        return dispatched;
+      } finally {
+        // A turn that never started raises no loading transition, so nothing else would end the spinner.
+        if (!dispatched) {
           inlineActiveRequestIdRef.current = null;
           useFlowPadStore.setState({ inlineGenerating: false });
         }
-        throw error;
       }
     },
     [mode, inlineRouteSelection, sendMessage, getCurrentSessionMessageId],
+  );
+
+  /**
+   * Sends the message with the captured screenshots attached to the composer. When the chat does not take the
+   * message (refused or failed) the screenshots come back off, so a retry does not attach them twice.
+   */
+  const sendWithScreenshots = useCallback(
+    async (message: string): Promise<boolean> => {
+      const screenshotFiles = captures
+        .filter((c) => c.screenshot)
+        .map((c, idx) => ({
+          fileName: `appshot_${idx + 1}.jpg`,
+          fileExtension: 'jpg',
+          fileUrl: `data:image/jpeg;base64,${c.screenshot}`,
+          fileType: 'uploaded' as const,
+        }));
+      const composerFiles = useChatStore.getState().files;
+      if (screenshotFiles.length > 0) {
+        setFiles([...composerFiles, ...screenshotFiles]);
+      }
+
+      let dispatched = false;
+      try {
+        dispatched = await sendWithInlineRoute(message);
+        return dispatched;
+      } finally {
+        if (!dispatched && screenshotFiles.length > 0) {
+          setFiles(composerFiles);
+        }
+      }
+    },
+    [captures, setFiles, sendWithInlineRoute],
   );
 
   const handleSubmit = useCallback(async () => {
@@ -549,10 +574,6 @@ export function FlowPadModal() {
 
     setIsSubmitting(true);
     try {
-      if (hasCaptures) {
-        attachScreenshots();
-      }
-
       const parts: string[] = [];
       if (hasCaptures) {
         parts.push(formatAppshotMessage(captures));
@@ -562,8 +583,9 @@ export function FlowPadModal() {
       }
 
       const message = parts.join('\n\n');
-      if (message) {
-        await sendWithInlineRoute(message);
+      // A refusal has already been explained to the user: keep the pad and the typed text so they can adjust and retry.
+      if (message && !(await sendWithScreenshots(message))) {
+        return;
       }
 
       if (mode === 'inline') {
@@ -579,18 +601,7 @@ export function FlowPadModal() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [
-    captures,
-    text,
-    attachScreenshots,
-    sendWithInlineRoute,
-    close,
-    currentAgentLabel,
-    t,
-    isSubmitting,
-    inlineRouteSwitching,
-    mode,
-  ]);
+  }, [captures, text, sendWithScreenshots, close, currentAgentLabel, t, isSubmitting, inlineRouteSwitching, mode]);
 
   const handleSpeechTranscript = useCallback((transcript: string) => {
     setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
@@ -609,11 +620,11 @@ export function FlowPadModal() {
 
       setIsSubmitting(true);
       try {
-        attachScreenshots();
-
         const prompt = t(promptKey);
         const message = `${formatAppshotMessage(captures)}\n\n${prompt}`;
-        await sendWithInlineRoute(message);
+        if (!(await sendWithScreenshots(message))) {
+          return;
+        }
 
         if (mode === 'inline') {
           toast.success(t('inlineSubmitted'), { duration: 2000 });
@@ -629,17 +640,7 @@ export function FlowPadModal() {
         setIsSubmitting(false);
       }
     },
-    [
-      isSubmitting,
-      captures,
-      attachScreenshots,
-      sendWithInlineRoute,
-      close,
-      currentAgentLabel,
-      t,
-      inlineRouteSwitching,
-      mode,
-    ],
+    [isSubmitting, captures, sendWithScreenshots, close, currentAgentLabel, t, inlineRouteSwitching, mode],
   );
 
   const handleKeyDown = useCallback(

@@ -4,7 +4,9 @@
  * - a busy refusal retracts the optimistic user bubble (the caller requeues the message),
  * - a server refusal (non-retryable HTTP error) reports the turn as not dispatched so the caller keeps the message,
  *   while a failure after the server took the turn still counts as dispatched,
- * - a queued message sends its own attachments and leaves the composer's live attachments alone.
+ * - a queued message sends its own attachments and leaves the composer's live attachments alone,
+ * - a refusal before the request lifecycle starts leaves the composer attachments in place, one inside it empties
+ *   them: the composer restores its draft from exactly that difference.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithTimeout } from '@/lib/api';
@@ -272,5 +274,61 @@ describe('sendMessage queue semantics', () => {
     expect(requestBody.uploaded_file_ids).toEqual(['queued-a', 'queued-b']);
     expect(pushedBubbleFiles[0]?.map((file) => file.id)).toEqual(['queued-a', 'queued-b']);
     expect(store.files.map((file) => file.id)).toEqual(['live']);
+  });
+
+  it('tells the user to wait, with a localized notice, when the chat is still loading', async () => {
+    await expect(send({ loading: true })).resolves.toBe(false);
+
+    expect(showI18nToast).toHaveBeenCalledWith(
+      'chat.sendBlocked.title',
+      undefined,
+      expect.objectContaining({ descriptionKey: 'chat.sendBlocked.busyDescription' }),
+    );
+  });
+
+  // The composer restores its draft after a refusal; what is left in the store differs by refusal path.
+  describe('what a refusal leaves in the composer', () => {
+    const attachmentIds = () => store.files.map((file) => file.id);
+
+    it('keeps the attachments and never resets the attachment list when the chat is still loading', async () => {
+      const actions = buildActions();
+
+      await expect(send({ loading: true }, actions)).resolves.toBe(false);
+
+      expect(attachmentIds()).toEqual(['live']);
+      expect(actions.setHideAttachList).not.toHaveBeenCalled();
+    });
+
+    it('keeps the attachments and never resets the attachment list when there is no chat yet', async () => {
+      const actions = buildActions();
+      (store as unknown as { chatId: string }).chatId = '';
+
+      await expect(send({}, actions)).resolves.toBe(false);
+
+      expect(attachmentIds()).toEqual(['live']);
+      expect(actions.setHideAttachList).not.toHaveBeenCalled();
+    });
+
+    it('empties the attachments and shows the attachment list again when the model configuration is invalid', async () => {
+      const actions = buildActions();
+      useProviderStore.setState({ providers: [] });
+
+      await expect(send({}, actions)).resolves.toBe(false);
+
+      expect(attachmentIds()).toEqual([]);
+      expect(actions.setHideAttachList).toHaveBeenCalledWith(false);
+    });
+
+    it('empties the attachments and shows the attachment list again when the server refuses the turn', async () => {
+      const actions = buildActions();
+      vi.mocked(createAISearchStream).mockResolvedValue(
+        new Response(JSON.stringify({ detail: 'too large' }), { status: 413 }),
+      );
+
+      await expect(send({}, actions)).resolves.toBe(false);
+
+      expect(attachmentIds()).toEqual([]);
+      expect(actions.setHideAttachList).toHaveBeenCalledWith(false);
+    });
   });
 });

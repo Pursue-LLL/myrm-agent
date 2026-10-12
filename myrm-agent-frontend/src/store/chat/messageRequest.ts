@@ -1081,9 +1081,8 @@ export const sendMessage = async (
   const isHitlResume = resumeValue !== undefined;
 
   if (state.loading && !isHitlResume) {
-    showI18nToast('chat.messageFailed.title', undefined, {
-      descriptionKey: 'chat.messageFailed.description',
-      descriptionValues: { error: 'Please wait for the current message to finish' },
+    showI18nToast('chat.sendBlocked.title', undefined, {
+      descriptionKey: 'chat.sendBlocked.busyDescription',
       type: 'warning',
       duration: 3000,
     });

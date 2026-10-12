@@ -2310,6 +2310,7 @@
     "sendBlocked": {
       "title": "送信できません",
       "processingDescription": "前のメッセージが処理中です。しばらくお待ちください。",
+      "busyDescription": "エージェントが前のメッセージを処理中です。完了してから送信してください。",
       "noChatDescription": "チャットセッションの準備ができていません。ページを更新するか、新しいチャットを開始してください。",
       "kanbanNoBoardDescription": "カンバンツールを有効にするには、まず設定でカンバンボードを作成してから送信してください。",
       "kanbanNeedBoardDescription": "送信する前にツールパネルで対象のカンバンボードを選択してください。"

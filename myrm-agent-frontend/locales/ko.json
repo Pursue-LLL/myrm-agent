@@ -2310,6 +2310,7 @@
     "sendBlocked": {
       "title": "보낼 수 없음",
       "processingDescription": "이 메시지는 아직 처리 중입니다. 잠시 기다려주세요.",
+      "busyDescription": "에이전트가 이전 메시지를 처리 중입니다. 완료된 후에 보내 주세요.",
       "noChatDescription": "채팅 세션이 준비되지 않았습니다. 페이지를 새로고침하거나 새 채팅을 시작하세요.",
       "kanbanNoBoardDescription": "칸반 도구를 활성화하고 보내기 전에 설정에서 칸반 보드를 만드세요.",
       "kanbanNeedBoardDescription": "보내기 전에 도구 패널에서 대상 칸반 보드를 선택하세요."

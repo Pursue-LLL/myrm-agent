@@ -472,8 +472,26 @@ export const useMessageInput = () => {
       telemetry.recordSelectionSubmitted('direct', currentTurnSelection);
     }
     // The store clears the composer attachments once the request settles; the busy fallback and the
-    // archive-restore recovery below work from this snapshot instead of the already emptied composer.
+    // restore of a refused send below work from this snapshot instead of the already emptied composer.
     const sentFiles = useChatStore.getState().files;
+    const sentChatId = useChatStore.getState().chatId;
+    // A send the agent never took must not eat the draft: put it back unless the user already moved on.
+    const restoreUnsentDraft = () => {
+      const live = useChatStore.getState();
+      // Refusals that return before the request starts leave this very array in the store; anything else
+      // non-empty means the user attached something new meanwhile.
+      const filesUntouched = live.files.length === 0 || live.files === sentFiles;
+      if (live.chatId !== sentChatId || live.inputMessage.trim() || !filesUntouched) {
+        return;
+      }
+      setInputMessage(finalMessage);
+      setFiles(sentFiles);
+      setHideAttachList(false);
+      setPendingArchiveRestoreActions(archiveRestoreActions ?? []);
+      if (currentTurnSelection) {
+        setTurnCapabilitySelection(currentTurnSelection);
+      }
+    };
 
     sendMessage(
       finalMessage,
@@ -488,6 +506,8 @@ export const useMessageInput = () => {
       .then((dispatched) => {
         if (dispatched) {
           telemetry.recordSettled('direct', currentTurnSelection, turnAgentConfigOverride);
+        } else {
+          restoreUnsentDraft();
         }
       })
       .catch((error) => {
@@ -502,12 +522,7 @@ export const useMessageInput = () => {
         }
         telemetry.recordFailed('direct', currentTurnSelection, turnAgentConfigOverride, error);
         if (isArchiveRestoreActionInvalidError(error)) {
-          setInputMessage(finalMessage);
-          setFiles(sentFiles);
-          setPendingArchiveRestoreActions(archiveRestoreActions ?? []);
-          if (currentTurnSelection) {
-            setTurnCapabilitySelection(currentTurnSelection);
-          }
+          restoreUnsentDraft();
         }
       });
   }, [

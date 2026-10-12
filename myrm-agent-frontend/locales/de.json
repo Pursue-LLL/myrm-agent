@@ -2310,6 +2310,7 @@
     "sendBlocked": {
       "title": "Senden nicht möglich",
       "processingDescription": "Diese Nachricht wird noch verarbeitet. Bitte warten Sie einen Moment.",
+      "busyDescription": "Der Agent bearbeitet noch Ihre vorherige Nachricht. Bitte warten Sie, bis er fertig ist.",
       "noChatDescription": "Chat-Sitzung ist nicht bereit. Seite neu laden oder neuen Chat starten.",
       "kanbanNoBoardDescription": "Erstellen Sie ein Kanban-Board in den Einstellungen, bevor Sie mit aktivierten Kanban-Tools senden.",
       "kanbanNeedBoardDescription": "Wählen Sie ein Ziel-Kanban-Board im Tool-Panel, bevor Sie senden."

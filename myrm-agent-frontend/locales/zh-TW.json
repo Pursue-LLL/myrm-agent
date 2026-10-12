@@ -2310,6 +2310,7 @@
     "sendBlocked": {
       "title": "無法傳送",
       "processingDescription": "上一條訊息仍在處理中，請稍候。",
+      "busyDescription": "智慧體仍在處理上一則訊息，請等待其完成後再傳送。",
       "noChatDescription": "會話尚未就緒，請重新整理頁面或新建對話。",
       "kanbanNoBoardDescription": "已啟用看板工具，請先在設定中建立看板後再傳送。",
       "kanbanNeedBoardDescription": "請在工具面板中選擇目標看板後再傳送。"

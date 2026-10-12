@@ -188,11 +188,14 @@ export function ArtifactAnnotationPanel({
     }
     setBusy(true);
     try {
-      await useChatStore.getState().sendMessage(composeReviewMessage(buildPayload()));
-      markSubmitted(
-        artifactId,
-        openAnnotations.map((a) => a.id),
-      );
+      const dispatched = await useChatStore.getState().sendMessage(composeReviewMessage(buildPayload()));
+      // A refusal has already been explained to the user; the comments stay open so they can be sent again.
+      if (dispatched) {
+        markSubmitted(
+          artifactId,
+          openAnnotations.map((a) => a.id),
+        );
+      }
     } catch {
       toast.error(t('annotation.sendFailed', { fallback: 'Failed to send review feedback.' }));
     } finally {
