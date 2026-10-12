@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   AlertDialog,
@@ -12,24 +12,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
-import { IconGlobe, IconRefresh, IconTrash } from '@/components/features/icons/PremiumIcons';
+import {
+  IconChevronDown,
+  IconChevronUp,
+  IconGlobe,
+  IconRefresh,
+  IconTrash,
+} from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils/classnameUtils';
-
-interface DoctorCheck {
-  status: string;
-  message: string;
-  fix?: string | null;
-  details?: Record<string, unknown>;
-}
-
-interface BrowserDoctorReport {
-  summary: string;
-  overall_healthy: boolean;
-  checks: Record<string, DoctorCheck>;
-  recommendations: string[];
-}
+import { buildDoctorView, statusLabelKey, type BrowserDoctorReport, type DoctorTone } from './browserDoctorView';
 
 interface OrphanCleanupFailed {
   pid: number;
@@ -46,25 +39,20 @@ interface OrphanCleanupResult {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes <= 0) {return '0 B';}
+  if (bytes <= 0) {
+    return '0 B';
+  }
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / Math.pow(1024, i);
   return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-const STATUS_COLOR: Record<string, string> = {
+const TONE_COLOR: Record<DoctorTone, string> = {
   ok: 'text-emerald-500',
-  warning: 'text-amber-500',
+  optional: 'text-muted-foreground',
+  attention: 'text-amber-500',
   error: 'text-red-500',
-  missing: 'text-red-500',
-};
-
-const STATUS_KEYS: Record<string, string> = {
-  ok: 'statusOk',
-  warning: 'statusWarning',
-  error: 'statusError',
-  missing: 'statusMissing',
 };
 
 const KNOWN_CHECK_NAMES = [
@@ -124,6 +112,8 @@ const BrowserDoctorCard = memo(() => {
   const [cleanupError, setCleanupError] = useState<string | null>(null);
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
   const [cleanupHasFailures, setCleanupHasFailures] = useState(false);
+  // null follows the default: technical details open by default only while something has failed.
+  const [technicalOverride, setTechnicalOverride] = useState<boolean | null>(null);
 
   const fetchDoctor = useCallback(
     async (includeLaunchTest: boolean) => {
@@ -207,7 +197,8 @@ const BrowserDoctorCard = memo(() => {
     }
   }, [fetchDoctor, launchTest, t]);
 
-  const healthy = report?.overall_healthy ?? false;
+  const view = useMemo(() => (report ? buildDoctorView(report) : null), [report]);
+  const technicalOpen = technicalOverride ?? view?.hasFailure ?? false;
   const orphanCheck = report?.checks?.orphan_processes;
   const staleSandboxes =
     typeof orphanCheck?.details?.stale_sandboxes === 'number' ? orphanCheck.details.stale_sandboxes : 0;
@@ -242,53 +233,67 @@ const BrowserDoctorCard = memo(() => {
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 
-        {report && !error && (
+        {report && view && !error && (
           <>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-medium">{report.summary}</p>
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">
+                  {view.needsAttention > 0
+                    ? t('summaryNeedsAttention', { count: view.needsAttention })
+                    : t('summaryAllClear')}
+                </p>
+                {view.optionalCount > 0 && (
+                  <p className="text-xs text-muted-foreground">{t('summaryOptional', { count: view.optionalCount })}</p>
+                )}
+              </div>
               <span
                 className={cn(
                   'inline-flex w-fit rounded-full px-2.5 py-0.5 text-xs font-bold uppercase',
-                  healthy ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500',
+                  view.healthy ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500',
                 )}
               >
-                {healthy ? t('healthy') : t('unhealthy')}
+                {view.healthy ? t('healthy') : t('unhealthy')}
               </span>
             </div>
 
-            {report.recommendations.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t('recommendations')}
-                </p>
-                <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
-                  {report.recommendations.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('checks')}</p>
-              <div className="max-h-72 space-y-2 overflow-y-auto">
-                {Object.entries(report.checks).map(([name, check]) => (
-                  <div key={name} className="rounded-lg border border-white/5 bg-background/40 p-3 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('checks')}</p>
+                <button
+                  type="button"
+                  aria-expanded={technicalOpen}
+                  onClick={() => setTechnicalOverride(!technicalOpen)}
+                  className="inline-flex items-center gap-1 rounded text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {t('technicalDetails')}
+                  {technicalOpen ? (
+                    <IconChevronUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <IconChevronDown className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
+              <div className="max-h-96 space-y-2 overflow-y-auto">
+                {view.rows.map(({ name, check, tone, hint }) => (
+                  <div key={name} className="rounded-lg border border-border/60 bg-background/40 p-3 text-xs">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <span className="break-all font-medium">
                         {(KNOWN_CHECK_NAMES as readonly string[]).includes(name) ? t(`checkNames.${name}`) : name}
                       </span>
-                      <span
-                        className={cn('font-bold uppercase', STATUS_COLOR[check.status] ?? 'text-muted-foreground')}
-                      >
-                        {t(STATUS_KEYS[check.status] ?? check.status)}
+                      <span className={cn('font-bold uppercase', TONE_COLOR[tone])}>
+                        {t(statusLabelKey(tone, check.status))}
                       </span>
                     </div>
-                    <p className="mt-1 text-muted-foreground">{check.message}</p>
-                    {check.fix && !(name === 'orphan_processes' && hasOrphans) && (
-                      <p className="mt-1 text-indigo-400/90">
-                        {t('fix')}: {check.fix}
-                      </p>
+                    {hint && <p className="mt-1 text-muted-foreground">{t(hint.key, hint.values)}</p>}
+                    {technicalOpen && (
+                      <div className="mt-2 space-y-1 rounded-md bg-muted/50 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+                        <p className="break-words">{check.message}</p>
+                        {check.fix && !(name === 'orphan_processes' && hasOrphans) && (
+                          <p className="break-words text-indigo-600 dark:text-indigo-400">
+                            {t('fix')}: {check.fix}
+                          </p>
+                        )}
+                      </div>
                     )}
                     {name === 'orphan_processes' && hasOrphans && (
                       <div className="mt-2">
@@ -315,6 +320,21 @@ const BrowserDoctorCard = memo(() => {
                 ))}
               </div>
             </div>
+
+            {technicalOpen && report.recommendations.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t('recommendations')}
+                </p>
+                <ul className="list-disc space-y-1 pl-4 font-mono text-[11px] text-muted-foreground">
+                  {report.recommendations.map((item) => (
+                    <li key={item} className="break-words">
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </>
         )}
       </div>

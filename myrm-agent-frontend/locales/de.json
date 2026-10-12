@@ -19264,7 +19264,21 @@
       "cleanedWithReclaimed": "{count} verwaiste Prozesse bereinigt und {size} Speicherplatz freigegeben",
       "reclaimedOnly": "Veraltete Sandbox-Caches bereinigt, {size} Speicherplatz freigegeben",
       "cleanupPartial": "{failed} Element(e) konnten nicht bereinigt werden",
-      "cleanupFailed": "Bereinigung verbleibender Ressourcen fehlgeschlagen"
+      "cleanupFailed": "Bereinigung verbleibender Ressourcen fehlgeschlagen",
+      "summaryAllClear": "Alles Erforderliche funktioniert",
+      "summaryNeedsAttention": "{count, plural, one {# Punkt erfordert Aufmerksamkeit} other {# Punkte erfordern Aufmerksamkeit}}",
+      "summaryOptional": "{count, plural, one {# optionale Funktion nicht eingerichtet} other {# optionale Funktionen nicht eingerichtet}}",
+      "statusOptional": "Optional",
+      "optionalCamoufox": "Zusätzliche Engine für Websites, die automatisiertes Browsen blockieren. Nicht eingerichtet – normales Browsen funktioniert weiterhin.",
+      "optionalExtension": "Verbinden Sie die Browser-Erweiterung, damit der Agent Ihre angemeldeten Sitzungen nutzen kann. Derzeit nicht verbunden.",
+      "memoryOk": "{size, number} GB Arbeitsspeicher verfügbar",
+      "memoryLow": "Nur {size, number} GB Arbeitsspeicher verfügbar. Schließen Sie andere Apps, um Speicher freizugeben.",
+      "diskOk": "{size, number} GB Speicherplatz verfügbar",
+      "diskLow": "Nur noch {size, number} GB Speicherplatz frei. Geben Sie etwas Speicherplatz frei.",
+      "orphansFound": "Es wurden übrig gebliebene Browser-Prozesse oder Caches gefunden.",
+      "attentionGeneric": "Einen Blick wert. Einzelheiten finden Sie in den technischen Details.",
+      "errorGeneric": "Dadurch sind Browser-Funktionen blockiert. Ursache und Lösung finden Sie in den technischen Details.",
+      "technicalDetails": "Technische Details"
     },
     "cloudBrowser": {
       "title": "Cloud-Browser",

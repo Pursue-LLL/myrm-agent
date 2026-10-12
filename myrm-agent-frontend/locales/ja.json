@@ -19264,7 +19264,21 @@
       "cleanedWithReclaimed": "{count} 個の孤立プロセスをクリーンアップし、{size} のディスク容量を解放しました",
       "reclaimedOnly": "古いサンドボックスキャッシュをクリーンアップし、{size} のディスク容量を解放しました",
       "cleanupPartial": "{failed} 項目のクリーンアップに失敗しました",
-      "cleanupFailed": "残存リソースのクリーンアップに失敗しました"
+      "cleanupFailed": "残存リソースのクリーンアップに失敗しました",
+      "summaryAllClear": "必要な機能はすべて動作しています",
+      "summaryNeedsAttention": "{count, plural, other {# 件に注意が必要です}}",
+      "summaryOptional": "{count, plural, other {オプション機能 # 件が未設定です}}",
+      "statusOptional": "任意",
+      "optionalCamoufox": "自動化ブラウジングをブロックするサイト向けの追加エンジンです。未設定ですが、通常のブラウジングは問題なく動作します。",
+      "optionalExtension": "ブラウザ拡張機能を接続すると、エージェントがログイン済みのセッションを利用できます。現在は未接続です。",
+      "memoryOk": "利用可能なメモリ: {size, number} GB",
+      "memoryLow": "利用可能なメモリは {size, number} GB のみです。他のアプリを閉じてメモリを空けてください。",
+      "diskOk": "利用可能なディスク容量: {size, number} GB",
+      "diskLow": "ディスクの空き容量が {size, number} GB しかありません。空き容量を確保してください。",
+      "orphansFound": "残留したブラウザプロセスまたはキャッシュが見つかりました。",
+      "attentionGeneric": "確認をおすすめします。詳細は「技術的な詳細」をご覧ください。",
+      "errorGeneric": "ブラウザ機能に影響しています。原因と対処方法は「技術的な詳細」をご覧ください。",
+      "technicalDetails": "技術的な詳細"
     },
     "cloudBrowser": {
       "title": "クラウドブラウザ",

@@ -19264,7 +19264,21 @@
       "cleanedWithReclaimed": "已清理 {count} 個孤兒進程，釋放 {size} 磁碟空間",
       "reclaimedOnly": "已清理陳舊沙箱快取，釋放 {size} 磁碟空間",
       "cleanupPartial": "有 {failed} 項未能清理",
-      "cleanupFailed": "清理殘留資源失敗"
+      "cleanupFailed": "清理殘留資源失敗",
+      "summaryAllClear": "所需功能皆已就緒",
+      "summaryNeedsAttention": "{count, plural, other {有 # 項需要留意}}",
+      "summaryOptional": "{count, plural, other {# 項選用功能未啟用}}",
+      "statusOptional": "選用",
+      "optionalCamoufox": "用於應對封鎖自動化存取的網站的備用引擎，尚未設定，不影響一般瀏覽。",
+      "optionalExtension": "連接瀏覽器擴充功能後，智能體可使用已登入的工作階段；目前尚未連接。",
+      "memoryOk": "可用記憶體 {size, number} GB",
+      "memoryLow": "可用記憶體僅 {size, number} GB，建議關閉其他應用程式以釋放記憶體。",
+      "diskOk": "可用磁碟空間 {size, number} GB",
+      "diskLow": "磁碟空間僅剩 {size, number} GB，建議釋放一些空間。",
+      "orphansFound": "發現殘留的瀏覽器處理程序或快取。",
+      "attentionGeneric": "值得留意，展開技術詳情查看具體資訊。",
+      "errorGeneric": "此問題會影響瀏覽器功能，展開技術詳情查看原因與修復方式。",
+      "technicalDetails": "技術詳情"
     },
     "cloudBrowser": {
       "title": "雲瀏覽器",

@@ -19264,7 +19264,21 @@
       "cleanedWithReclaimed": "고아 프로세스 {count}개를 정리하고 {size}의 디스크 공간을 확보했습니다",
       "reclaimedOnly": "오래된 샌드박스 캐시를 정리하고 {size}의 디스크 공간을 확보했습니다",
       "cleanupPartial": "{failed}개 항목을 정리하지 못했습니다",
-      "cleanupFailed": "잔여 리소스 정리에 실패했습니다"
+      "cleanupFailed": "잔여 리소스 정리에 실패했습니다",
+      "summaryAllClear": "필요한 기능이 모두 정상 작동 중입니다",
+      "summaryNeedsAttention": "{count, plural, other {#개 항목에 주의가 필요합니다}}",
+      "summaryOptional": "{count, plural, other {선택 기능 #개가 설정되지 않았습니다}}",
+      "statusOptional": "선택",
+      "optionalCamoufox": "자동화 브라우징을 차단하는 사이트를 위한 추가 엔진입니다. 설정되지 않았지만 일반 브라우징은 정상 작동합니다.",
+      "optionalExtension": "브라우저 확장 프로그램을 연결하면 에이전트가 로그인된 세션을 사용할 수 있습니다. 아직 연결되지 않았습니다.",
+      "memoryOk": "사용 가능한 메모리 {size, number} GB",
+      "memoryLow": "사용 가능한 메모리가 {size, number} GB뿐입니다. 다른 앱을 종료해 메모리를 확보하세요.",
+      "diskOk": "사용 가능한 디스크 공간 {size, number} GB",
+      "diskLow": "디스크 공간이 {size, number} GB만 남았습니다. 공간을 확보하세요.",
+      "orphansFound": "남아 있는 브라우저 프로세스 또는 캐시가 발견되었습니다.",
+      "attentionGeneric": "확인해 보시길 권장합니다. 자세한 내용은 '기술 세부 정보'를 확인하세요.",
+      "errorGeneric": "브라우저 기능에 영향을 주고 있습니다. 원인과 해결 방법은 '기술 세부 정보'를 확인하세요.",
+      "technicalDetails": "기술 세부 정보"
     },
     "cloudBrowser": {
       "title": "클라우드 브라우저",

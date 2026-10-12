@@ -309,3 +309,102 @@ describe('BrowserDoctorCard', () => {
     expect(await screen.findByText('loadFailed')).toBeInTheDocument();
   });
 });
+
+describe('BrowserDoctorCard presentation', () => {
+  const RAW_CAMOUFOX = 'camoufox not ready: package is not installed (stealth auto-upgrade unavailable)';
+  const RAW_LAUNCH = 'Browser launch failed: executable missing';
+
+  function serveReport(report: unknown): void {
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(report)));
+  }
+
+  function optionalOnlyReport() {
+    return {
+      summary: '2/3 checks passed, 1 warnings',
+      overall_healthy: true,
+      checks: {
+        patchright: { status: 'ok', message: 'patchright 1.63.0 installed' },
+        camoufox: { status: 'warning', message: RAW_CAMOUFOX, fix: 'uv add camoufox', details: { optional: true } },
+      },
+      recommendations: [],
+    };
+  }
+
+  function failedLaunchReport() {
+    return {
+      summary: '1/2 checks passed, 1 errors',
+      overall_healthy: false,
+      checks: {
+        patchright: { status: 'ok', message: 'patchright 1.63.0 installed' },
+        browser_launch: { status: 'error', message: RAW_LAUNCH, fix: 'patchright install chromium' },
+      },
+      recommendations: ['patchright install chromium'],
+    };
+  }
+
+  it('summarizes optional warnings as a calm, localized state and keeps raw diagnostics hidden', async () => {
+    serveReport(optionalOnlyReport());
+
+    render(<BrowserDoctorCard />);
+
+    expect(await screen.findByText('summaryAllClear')).toBeInTheDocument();
+    expect(screen.getByText('summaryOptional')).toBeInTheDocument();
+    expect(screen.getByText('healthy')).toBeInTheDocument();
+    expect(screen.getByText('optionalCamoufox')).toBeInTheDocument();
+    expect(screen.getByText('statusOptional')).toBeInTheDocument();
+    expect(screen.queryByText('summaryNeedsAttention')).not.toBeInTheDocument();
+    expect(screen.queryByText(RAW_CAMOUFOX)).not.toBeInTheDocument();
+    expect(screen.queryByText('2/3 checks passed, 1 warnings')).not.toBeInTheDocument();
+  });
+
+  it('reveals the raw English message and fix only after opening technical details', async () => {
+    serveReport(optionalOnlyReport());
+
+    render(<BrowserDoctorCard />);
+
+    const toggle = await screen.findByRole('button', { name: 'technicalDetails' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText(RAW_CAMOUFOX)).toBeInTheDocument();
+    expect(screen.getByText('fix: uv add camoufox')).toBeInTheDocument();
+
+    await userEvent.click(toggle);
+
+    expect(screen.queryByText(RAW_CAMOUFOX)).not.toBeInTheDocument();
+  });
+
+  it('opens technical details by default when something failed and lets the user collapse them', async () => {
+    serveReport(failedLaunchReport());
+
+    render(<BrowserDoctorCard />);
+
+    expect(await screen.findByText('summaryNeedsAttention')).toBeInTheDocument();
+    expect(screen.getByText('unhealthy')).toBeInTheDocument();
+    expect(screen.getByText('errorGeneric')).toBeInTheDocument();
+    expect(screen.getByText(RAW_LAUNCH)).toBeInTheDocument();
+    expect(screen.getByRole('list')).toHaveTextContent('patchright install chromium');
+
+    await userEvent.click(screen.getByRole('button', { name: 'technicalDetails' }));
+
+    expect(screen.queryByText(RAW_LAUNCH)).not.toBeInTheDocument();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('does not report a healthy stack when a real warning exists even if the backend verdict is healthy', async () => {
+    serveReport({
+      summary: '1/2 checks passed, 1 warnings',
+      overall_healthy: true,
+      checks: { disk: { status: 'warning', message: 'Disk space tight', details: { available_gb: 0.8 } } },
+      recommendations: [],
+    });
+
+    render(<BrowserDoctorCard />);
+
+    expect(await screen.findByText('summaryNeedsAttention')).toBeInTheDocument();
+    expect(screen.getByText('unhealthy')).toBeInTheDocument();
+    expect(screen.getByText('diskLow')).toBeInTheDocument();
+  });
+});

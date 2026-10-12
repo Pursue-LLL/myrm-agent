@@ -19264,7 +19264,21 @@
       "cleanedWithReclaimed": "Cleaned {count} orphan process(es) and reclaimed {size} disk space",
       "reclaimedOnly": "Cleaned stale sandbox caches, {size} disk space reclaimed",
       "cleanupPartial": "{failed} item(s) could not be cleaned",
-      "cleanupFailed": "Failed to clean up residual resources"
+      "cleanupFailed": "Failed to clean up residual resources",
+      "summaryAllClear": "Everything needed is working",
+      "summaryNeedsAttention": "{count, plural, one {# item needs attention} other {# items need attention}}",
+      "summaryOptional": "{count, plural, one {# optional feature not set up} other {# optional features not set up}}",
+      "statusOptional": "Optional",
+      "optionalCamoufox": "Extra engine for sites that block automated browsing. Not set up — standard browsing still works.",
+      "optionalExtension": "Connect the browser extension to let the agent use your signed-in sessions. Not connected yet.",
+      "memoryOk": "{size, number} GB of memory available",
+      "memoryLow": "Only {size, number} GB of memory available. Close other apps to free some up.",
+      "diskOk": "{size, number} GB of disk space available",
+      "diskLow": "Only {size, number} GB of disk space left. Free up some space.",
+      "orphansFound": "Leftover browser processes or caches were found.",
+      "attentionGeneric": "Worth a look. Open technical details for specifics.",
+      "errorGeneric": "This is blocking browser features. Open technical details for the cause and fix.",
+      "technicalDetails": "Technical details"
     },
     "cloudBrowser": {
       "title": "Cloud Browser",
