@@ -173,7 +173,7 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["../../myrm-agent-harness/src", "."]
-addopts = "-m 'not e2e and not chrome_e2e and not performance' --timeout=300"
+addopts = "-m 'not e2e and not chrome_e2e and not performance' --timeout=300 --import-mode=importlib"
 markers = [
   "docker: Docker 沙箱测试（内存占用高，默认排除可加 -m 'not docker'）",
   "chrome_e2e: Formal real-Chrome MCP UI E2E with declared runtime resources",
@@ -187,7 +187,6 @@ markers = [
   "requires_empty_search_services: Legacy alias for e2e_search_policy(empty)",
 ]
 python_files = "test_*.py"
-import_mode = "importlib"
 filterwarnings = [
   "ignore::DeprecationWarning",
   "ignore::UserWarning:langsmith.schemas", # langsmith 的 Pydantic V1 兼容性警告
