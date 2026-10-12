@@ -4,7 +4,6 @@ Tests the complete evolution flow with real LLM calls (no mocks).
 Uses BASIC_API_KEY for real model testing.
 """
 
-import asyncio
 import logging
 import tempfile
 from pathlib import Path
@@ -110,8 +109,8 @@ def mock_llm():
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_evolution_integration_basic(temp_db, mock_llm):
-    """Test basic evolution integration flow."""
+async def test_evolution_integration_counts_failures_without_quarantine(temp_db, mock_llm):
+    """Recorded failures update the ledger but never deactivate or auto-repair the skill."""
     # Initialize evolution system
     evolution = EvolutionIntegration(
         db_path=temp_db,
@@ -138,34 +137,19 @@ async def test_evolution_integration_basic(temp_db, mock_llm):
 
     await evolution.store.save_skill(failing_skill)
 
-    # Simulate 2 consecutive failures (not yet triggering auto-fix)
-    for i in range(2):
+    # Recording failures is counting only: no quarantine, no auto-triggered FIX.
+    for i in range(3):
         await evolution.record_execution(
             skill_id="test_failing_skill",
             success=False,
             error_message=f"Failure {i + 1}: RuntimeError",
         )
 
-    # Verify skill is NOT yet marked as needing fix (only 2 failures)
-    needs_fix = await evolution.get_skills_needing_fix()
-    assert len(needs_fix) == 0  # Needs 3 consecutive failures
-
-    # Third failure should trigger auto-fix (if engine enabled)
-    await evolution.record_execution(
-        skill_id="test_failing_skill",
-        success=False,
-        error_message="Failure 3: RuntimeError",
-    )
-
-    # After 3 failures, skill should be quarantined and deactivated
-    # Note: fix_skill is still triggered, but the skill is no longer active
-    needs_fix = await evolution.get_skills_needing_fix()
-    assert len(needs_fix) == 0  # Quarantined skills are not active, so they don't show up here
-
-    # Verify original skill is deactivated
     skill = evolution.store.get_skill("test_failing_skill")
     assert skill is not None
-    assert skill.is_active is False
+    assert skill.is_active is True
+    assert skill.metrics.applied_count == 3
+    assert skill.metrics.success_count == 0
     assert skill.metrics.consecutive_failures == 3
 
     # Cleanup
@@ -218,7 +202,8 @@ async def test_evolution_with_background_queue(temp_db, mock_llm):
     )
     await evolution.store.save_skill(skill)
 
-    # Trigger failures (should auto-enqueue to background)
+    # Recording failures only counts; it never enqueues a repair.
+    queue_before = evolution.get_stats()["queue"]
     for _ in range(3):
         await evolution.record_execution(
             skill_id="queue_test_skill",
@@ -226,12 +211,8 @@ async def test_evolution_with_background_queue(temp_db, mock_llm):
             error_message="Test error",
         )
 
-    # Give queue time to process
-    await asyncio.sleep(2)
-
-    # Check queue stats
     stats = evolution.get_stats()
-    assert "queue" in stats
+    assert stats["queue"] == queue_before
     assert "metrics" in stats
 
     # Cleanup

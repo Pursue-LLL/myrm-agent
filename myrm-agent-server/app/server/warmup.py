@@ -47,7 +47,7 @@ from app.lifecycle import (
     warmup_browser_sessions,
     warmup_global_browser_pool,
 )
-from app.services.agent.evolution.monitor_service import init_evolution_monitor_service
+from app.services.agent.evolution.evolution_runtime import init_evolution_runtime
 from app.services.agent.wakeup_handler import ServerWakeupHandler
 
 logger = logging.getLogger(__name__)
@@ -247,7 +247,7 @@ async def run_async_warmup() -> None:
             start_cancellation_cleanup_scheduler(),
             start_memory_guardian_scheduler(),
             start_idle_task_listeners(),
-            init_evolution_monitor_service(),
+            init_evolution_runtime(),
             resume_durable_offline_tasks(),
             auto_continue_interrupted_turns(),
             cleanup_old_notifications(),

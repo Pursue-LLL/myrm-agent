@@ -1,7 +1,7 @@
 """
 [INPUT]
 - myrm_agent_harness.runtime.events.skill_events::SkillFailureEvent (POS: Framework-level skill failure event DTOs. They carry runtime evidence for business layers without importing product, GUI, approval, or tenant concepts.)
-- myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system, implements Error-Aware Smart Quarantine (1-Strike/3-Strikes).)
+- myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system. Provides EvolutionIntegration singleton with 15-Call Sliding Window trigger, execution ledger recording, and background queue orchestration.)
 - app.services.skills.evolution_reviews::RuntimeFailureEvidence (POS: 统一的 evolution 审核生命周期服务。以 ApprovalRecord 为唯一事实源，提供幂等落地、回滚与 apply-failed 重试语义。)
 - app.services.agent.confidence_approval_flow::ConfidenceApprovalFlow (POS: 基于置信度+客观风控信号的智能审批流。高分且低风险静默自动合并，任何风控红灯即降级人工 Diff Review。)
 [OUTPUT]

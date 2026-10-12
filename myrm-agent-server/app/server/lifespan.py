@@ -71,8 +71,8 @@ from app.server.shutdown import (
     stop_rate_limiter_cleanup,
 )
 from app.server.warmup import run_async_warmup
-from app.services.agent.evolution.monitor_service import (
-    shutdown_evolution_monitor_service,
+from app.services.agent.evolution.evolution_runtime import (
+    shutdown_evolution_runtime,
 )
 from app.services.memory.imports.integration_sync_daemon import (
     stop_integration_sync_daemon,
@@ -816,7 +816,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
         safe_wait_background_tasks(),
         safe_shutdown_observability(),
         shutdown_skill_optimization_listeners(),
-        shutdown_evolution_monitor_service(),
+        shutdown_evolution_runtime(),
         stop_integration_sync_daemon(),
         harness_bridge_task,
         _shutdown_mcp(),

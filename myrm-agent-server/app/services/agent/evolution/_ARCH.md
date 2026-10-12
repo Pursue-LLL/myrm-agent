@@ -10,7 +10,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `engine.py` | 核心 | 技能草案提炼触发入口（`trigger_skill_evolution`）。由 `stream_finalize` 在 profile `skill_manage` ON 且 stream 正常结束时 fire-and-forget 调用。支持普通对话（从 ChatService 加载历史）和 DW 模式（直接传入 collector 内容）。引入 `SkillBudgetGovernor` 容量守卫进行软硬阈值前检（硬限熔断并 WS 广播 `SKILL_CAPACITY_LIMIT`，软限广播预警），防止长会长程会话中技能无节制膨胀拖垮 Compactor。后台 task 调用 Harness 层 `SkillEvolutionEngine.capture_skill_from_trajectory`，通过 5 层安全管线后生成 `EvolutionProposal`，再经 `ConfidenceApprovalFlow` 处理并 WebSocket 广播。**并发去重**：以 chat_id 为键的进程内任务表 `_RUNNING_EVOLUTION_TASKS` 保证同一 chat 的后台进化单飞；**触发门槛**：普通对话需 `tool_steps_count >= 3` 才触发。 | ✅ |
-| `monitor_service.py` | 核心 | 业务层后台驻留服务。封装 Harness 的 `MetricMonitor`，定时触发错误扫描，并将生成的 `EvolutionProposal` 通过 ConfidenceApprovalFlow 处理。高分提议（具备通用性）将被静默自动合并 (Auto-Merge) 形成 Aha Moment，其余仍将作为草稿分发到 WebSocket。 | ✅ |
+| `evolution_runtime.py` | 核心 | 技能进化运行时装配。启动期构建全局 `EvolutionIntegration`（进化模型、筛选器、后台队列），把队列产出的 `EvolutionProposal` 经 `ConfidenceApprovalFlow` 落地：高分且具备通用性的提议静默自动合并 (Auto-Merge)，其余作为草稿经 WebSocket 分发。不做失败率扫描，也不自动判定修复——修复只由失败事件（`skill_immune_service.py`）、轨迹切片与用户操作触发。 | ✅ |
 | `skill_immune_service.py` | 核心 | 技能免疫业务服务。监听 Harness 运行时技能失败证据（含 session/LoopGuard 元数据），执行业务分类、幂等去重、修复提案生成与审批落地 | ✅ |
 
 ## 触发链路

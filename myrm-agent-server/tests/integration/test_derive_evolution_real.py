@@ -4,7 +4,7 @@ Tests the complete derive evolution pipeline with real LLM calls (no mocks):
 1. Register a skill in evolution store
 2. Trigger DERIVED evolution with real LLM
 3. Verify the evolved skill is different from original
-4. Verify Intent Context injection works end-to-end
+4. Trigger FIX evolution explicitly from a failure reason
 """
 
 import logging
@@ -21,7 +21,6 @@ from myrm_agent_harness.agent.skills.evolution import (
     SkillLineage,
     SkillRecord,
 )
-from myrm_agent_harness.api.hooks import set_task_intent
 
 load_dotenv(override=True)
 
@@ -143,43 +142,8 @@ Organize files by moving them into subdirectories based on their extension.
 @pytest.mark.asyncio
 @pytest.mark.e2e
 @pytest.mark.skipif(not _has_real_api_key(), reason="BASIC_API_KEY not configured")
-async def test_intent_context_injection_real(temp_workspace, real_llm):
-    """Test that task_intent ContextVar is properly injected into execution records."""
-    evolution = EvolutionIntegration(
-        db_path=temp_workspace["db_path"],
-        llm=real_llm,
-        enable_tde=False,
-    )
-
-    skill = SkillRecord(
-        skill_id="intent-test-skill",
-        name="intent-test",
-        description="Test intent injection",
-        content="# Intent Test Skill",
-        path="/test/intent",
-        lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED, version=1),
-    )
-    await evolution.store.save_skill(skill)
-
-    set_task_intent("Help me organize my project files by date")
-
-    await evolution.record_execution(
-        skill_id="intent-test-skill",
-        success=True,
-    )
-
-    stored_skill = evolution.store.get_skill("intent-test-skill")
-    assert stored_skill is not None
-    assert stored_skill.metrics.success_count == 1
-
-    await evolution.close()
-
-
-@pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.skipif(not _has_real_api_key(), reason="BASIC_API_KEY not configured")
 async def test_fix_evolution_real_llm(temp_workspace, real_llm):
-    """Test FIX evolution with real LLM when skill has consecutive failures."""
+    """Test FIX evolution with real LLM, triggered explicitly from a failure reason."""
     evolution = EvolutionIntegration(
         db_path=temp_workspace["db_path"],
         llm=real_llm,
@@ -217,26 +181,17 @@ Parse CSV files. Currently has a bug where it doesn't handle quoted fields corre
     )
     await evolution.store.save_skill(skill)
 
-    for _i in range(3):
-        await evolution.record_execution(
-            skill_id="csv-parser-v1",
-            success=False,
-            error_message="Failed to parse CSV: unmatched quote in field",
-        )
+    proposal = await evolution.evolve_skill(
+        "csv-parser-v1",
+        EvolutionType.FIX,
+        reason="Failed to parse CSV: unmatched quote in field",
+    )
 
-    active_skills = evolution.store.get_active_skills()
-    original_skill = evolution.store.get_skill("csv-parser-v1")
-
-    logger.info("Active skills after 3 failures: %d", len(active_skills))
-    if original_skill:
-        logger.info("Original skill deactivated: %s", not original_skill.is_active)
-
-    if len(active_skills) > 0 and active_skills[0].lineage.version > 1:
-        evolved = active_skills[0]
-        assert evolved.lineage.parent_id == "csv-parser-v1"
-        assert evolved.content != buggy_content
-        logger.info("FIX evolution succeeded: v%d created", evolved.lineage.version)
+    if proposal is not None:
+        assert proposal.skill_id == "csv-parser-v1"
+        assert proposal.proposed_content != buggy_content
+        logger.info("FIX evolution proposed (score=%.2f)", proposal.score)
     else:
-        logger.warning("FIX evolution may not have produced a new version (model-dependent)")
+        logger.warning("FIX evolution produced no proposal (model-dependent)")
 
     await evolution.close()

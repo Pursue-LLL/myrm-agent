@@ -8,7 +8,7 @@ from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
 
 
 @pytest.mark.asyncio
-async def test_evolution_monitor_service_handles_fix_and_derive():
+async def test_approval_flow_handles_fix_and_derive():
     """测试 ConfidenceApprovalFlow 对 Fix 和 Derive 的处理，验证 ApprovalRecord 写入。"""
 
     fix_proposal = EvolutionProposal(

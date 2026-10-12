@@ -151,7 +151,6 @@ myrm_agent_harness.agent.skills.evolution.core.types
 myrm_agent_harness.agent.skills.evolution.db.store
 myrm_agent_harness.agent.skills.evolution.execution.sandbox_validator
 myrm_agent_harness.agent.skills.evolution.infra.integration
-myrm_agent_harness.agent.skills.evolution.infra.monitor
 myrm_agent_harness.agent.skills.evolution.infra.queue
 myrm_agent_harness.agent.skills.evolution.pipeline.frustration_detector
 myrm_agent_harness.agent.skills.evolution.pipeline.patch
