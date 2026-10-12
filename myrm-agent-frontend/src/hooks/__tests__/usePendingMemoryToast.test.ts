@@ -16,7 +16,10 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/hooks/shared/useToast', () => ({ toast: mocks.toast }));
 
-vi.mock('@/lib/deploy-mode', () => ({ isLocalMode: () => true }));
+vi.mock('@/lib/deploy-mode', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deploy-mode')>()),
+  isLocalMode: () => true,
+}));
 
 vi.mock('@/services/memory', () => ({
   getPendingMemories: (...args: unknown[]) => mocks.getPendingMemories(...args),
