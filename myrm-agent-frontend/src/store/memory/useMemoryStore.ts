@@ -1,3 +1,4 @@
+import { enableMapSet } from 'immer';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type {
@@ -10,8 +11,8 @@ import type {
   ConflictResolution,
 } from './types';
 import type { CreateMemoryRequest } from '@/services/memory';
-import {
 import { isPendingTargetChanged } from '@/services/memory/pendingTargetChanged';
+import {
   getPendingMemories,
   approveMemory as apiApproveMemory,
   rejectMemory as apiRejectMemory,
@@ -29,6 +30,9 @@ import { isPendingTargetChanged } from '@/services/memory/pendingTargetChanged';
   getConflicts as apiGetConflicts,
   resolveConflict as apiResolveConflict,
 } from '@/services/memory';
+
+// `selectedPendingIds` is a Set inside immer state; immer drafts a Set only once the MapSet plugin is enabled.
+enableMapSet();
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -54,6 +58,7 @@ const initialState = {
   conflicts: [] as PendingMemory[],
   conflictCount: 0,
   conflictsLoading: false,
+  conflictAutoResolveHours: 72,
   archivedMemories: [],
   archivedLoading: false,
   archivedPagination: null,
@@ -77,6 +82,9 @@ const useMemoryStore = create<MemoryState>()(
           pendingMemories: response.items,
           pendingCount: response.total,
           pendingLoading: false,
+          ...(response.policy?.low_risk_auto_resolve_hours != null
+            ? { conflictAutoResolveHours: response.policy.low_risk_auto_resolve_hours }
+            : {}),
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch pending memories';
@@ -99,14 +107,14 @@ const useMemoryStore = create<MemoryState>()(
         });
         get().fetchPendingMemories(true);
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : 'Failed to approve memory');
-      }
-    },
-
         // Keep the typed error so the UI can show its localized "out of date" message.
         if (isPendingTargetChanged(error)) {
           throw error;
         }
+        throw new Error(error instanceof Error ? error.message : 'Failed to approve memory');
+      }
+    },
+
     rejectMemory: async (id: string) => {
       try {
         await apiRejectMemory(id);
@@ -144,11 +152,11 @@ const useMemoryStore = create<MemoryState>()(
           state.selectedPendingIds.clear();
         });
         get().fetchPendingMemories(true);
+        return { successCount: success_count, failedCount: failed.size };
       } catch (error) {
         throw new Error(error instanceof Error ? error.message : 'Batch approve failed');
       }
     },
-        return { successCount: success_count, failedCount: failed.size };
 
     batchReject: async () => {
       const { selectedPendingIds } = get();
@@ -382,6 +390,9 @@ const useMemoryStore = create<MemoryState>()(
           conflicts: response.items,
           conflictCount: response.total,
           conflictsLoading: false,
+          ...(response.policy?.low_risk_auto_resolve_hours != null
+            ? { conflictAutoResolveHours: response.policy.low_risk_auto_resolve_hours }
+            : {}),
         });
       } catch {
         set({ conflictsLoading: false });

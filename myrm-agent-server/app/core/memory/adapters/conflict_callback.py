@@ -39,6 +39,14 @@ _HIGH_RISK_IMPORTANCE = 0.9
 _CONFLICT_AUTO_RESOLVE_HOURS = 72
 
 
+def get_memory_conflict_policy() -> dict[str, float | int]:
+    """SSOT for conflict auto-resolve policy exposed to the GUI."""
+    return {
+        "low_risk_auto_resolve_hours": _CONFLICT_AUTO_RESOLVE_HOURS,
+        "high_risk_importance_threshold": _HIGH_RISK_IMPORTANCE,
+    }
+
+
 async def _record_conflict_ledger_event(
     *,
     conflict_id: str,

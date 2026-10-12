@@ -1,5 +1,16 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/store/memory::useMemoryStore (POS: conflict count and policy hours from server)
+ *
+ * [OUTPUT]
+ * MemoryConflictChatBanner: Chat-area banner when memory conflicts need review
+ *
+ * [POS]
+ * Personal Agent GUI surfacing for pending memory conflicts (companion to SSE toast + badge).
+ */
+
 import { memo, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -16,6 +27,7 @@ interface MemoryConflictChatBannerProps {
 const MemoryConflictChatBanner = memo<MemoryConflictChatBannerProps>(({ chatId, className }) => {
   const t = useTranslations('memory');
   const conflictCount = useMemoryStore((s) => s.conflictCount);
+  const conflictAutoResolveHours = useMemoryStore((s) => s.conflictAutoResolveHours);
   const fetchConflicts = useMemoryStore((s) => s.fetchConflicts);
   const [dismissed, setDismissed] = useState(false);
 
@@ -67,8 +79,9 @@ const MemoryConflictChatBanner = memo<MemoryConflictChatBannerProps>(({ chatId, 
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
           {t('conflict.lowRiskPolicyHint', {
+            hours: conflictAutoResolveHours,
             defaultMessage:
-              'Lower-importance conflicts keep the previous memory if you do not choose within about 72 hours.',
+              'Lower-importance conflicts keep the previous memory if you do not choose within about {hours} hours.',
           })}
         </p>
         <Link

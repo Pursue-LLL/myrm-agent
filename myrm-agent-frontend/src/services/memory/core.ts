@@ -39,6 +39,9 @@ export interface PendingMemory {
   conflict_accuracy_score?: number;
   conflict_importance?: number;
   conflict_auto_resolve_at?: string | null;
+  resolution_action?: 'store' | 'correct' | 'delete' | null;
+  target_memory_id?: string | null;
+  target_content?: string | null;
   confidence?: number;
   importance?: number;
   kind?: string;
@@ -102,9 +105,15 @@ export interface MemoryPaginationInfo {
   has_prev: boolean;
 }
 
+export interface MemoryConflictPolicy {
+  low_risk_auto_resolve_hours: number;
+  high_risk_importance_threshold: number;
+}
+
 export interface PendingMemoryListResponse {
   items: PendingMemory[];
   total: number;
+  policy?: MemoryConflictPolicy | null;
 }
 
 export interface MemoryListResponse {

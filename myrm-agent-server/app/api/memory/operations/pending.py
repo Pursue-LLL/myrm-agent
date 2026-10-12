@@ -98,11 +98,19 @@ async def get_pending_memories(
     manager: MemoryManager = Depends(get_memory_manager),
 ) -> PendingMemoriesResponse:
     """Get pending memories awaiting user approval."""
+    from app.core.memory.adapters.conflict_callback import get_memory_conflict_policy
+    from app.schemas.memory.crud import MemoryConflictPolicy
+
+    policy = MemoryConflictPolicy(**get_memory_conflict_policy())
     if not manager.approval_required:
-        return PendingMemoriesResponse(items=[], total=0)
+        return PendingMemoriesResponse(items=[], total=0, policy=policy)
     records = await manager.list_pending()
     total = await manager.count_pending()
-    return PendingMemoriesResponse(items=[_record_to_item(r) for r in records], total=total)
+    return PendingMemoriesResponse(
+        items=[_record_to_item(r) for r in records],
+        total=total,
+        policy=policy,
+    )
 
 
 # Batch routes MUST be declared before the ``/pending/{memory_id}/...`` routes:

@@ -20,7 +20,9 @@ from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKin
 from app.api.memory.utils import get_memory_manager
 from app.database.connection import get_session
 from app.database.models import PendingMemory
+from app.core.memory.adapters.conflict_callback import get_memory_conflict_policy
 from app.schemas.memory.crud import (
+    MemoryConflictPolicy,
     PendingMemoriesResponse,
     PendingMemoryItem,
     ResolveConflictRequest,
@@ -97,7 +99,8 @@ async def get_pending_conflicts(
         conflicts = result.scalars().all()
 
     items = [_conflict_to_item(c) for c in conflicts]
-    return PendingMemoriesResponse(items=items, total=len(items))
+    policy = MemoryConflictPolicy(**get_memory_conflict_policy())
+    return PendingMemoriesResponse(items=items, total=len(items), policy=policy)
 
 
 @router.post("/conflicts/{conflict_id}/resolve")

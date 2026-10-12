@@ -11,17 +11,23 @@ from myrm_agent_harness.toolkits.memory.types import ConflictResolution
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 from app.core.memory.adapters.setup import (
+    _dedup_llm_cache_token,
     _memory_manager_cache,
     create_memory_manager,
     resolve_context_binding,
+)
+from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
+    reset_platform_dedup_llm_for_test,
 )
 
 
 @pytest.fixture(autouse=True)
 def _clear_manager_cache():
     _memory_manager_cache.clear()
+    reset_platform_dedup_llm_for_test()
     yield
     _memory_manager_cache.clear()
+    reset_platform_dedup_llm_for_test()
     _run_async_teardown(_clear_harness_embedded_stores())
 
 
@@ -195,10 +201,20 @@ async def test_create_memory_manager_applies_binding_memory_policy(tmp_path: Pat
 async def test_create_memory_manager_reuses_vector_backend_across_approval_modes(
     tmp_path: Path,
 ):
+    from unittest.mock import AsyncMock, MagicMock
+    from unittest.mock import patch as mock_patch
+
     custom_base_path = tmp_path / "shared_backend_memory"
     embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+    shared_vector = MagicMock()
 
-    with _patch_memory_path(str(custom_base_path)):
+    with (
+        _patch_memory_path(str(custom_base_path)),
+        mock_patch(
+            "app.core.retriever.vector.defaults.create_default_vector_store",
+            new=AsyncMock(return_value=shared_vector),
+        ),
+    ):
         binding = resolve_context_binding(
             namespaces=None,
             agent_id="builder",
@@ -572,6 +588,58 @@ async def test_create_memory_manager_cache_hit_refreshes_consolidation_callback(
 
     assert first._on_consolidation_complete is None
     assert second._on_consolidation_complete is None
+
+
+def test_dedup_llm_cache_token_platform_default() -> None:
+    assert _dedup_llm_cache_token(None) == ("platform_default",)
+
+
+def test_dedup_llm_cache_token_uses_model_name() -> None:
+    class _FakeLite:
+        model_name = "openai/gpt-4o-mini"
+
+    assert _dedup_llm_cache_token(_FakeLite()) == ("model", "openai/gpt-4o-mini")
+
+
+@pytest.mark.asyncio
+async def test_create_memory_manager_platform_dedup_singleton_and_cache_hit(
+    tmp_path: Path,
+) -> None:
+    from unittest.mock import AsyncMock, patch
+
+    custom_base_path = tmp_path / "platform_dedup_singleton"
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+    binding = resolve_context_binding(
+        namespaces=None,
+        agent_id="agent-dedup-cache",
+        channel_id=None,
+        conversation_id="chat-dedup-cache",
+        task_id=None,
+    )
+    mock_lite = object()
+    get_platform = AsyncMock(return_value=mock_lite)
+
+    with (
+        _patch_memory_path(str(custom_base_path)),
+        patch(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.get_platform_dedup_llm",
+            get_platform,
+        ),
+    ):
+        first = await create_memory_manager(
+            binding,
+            embedding_config=embedding_config,
+            dedup_llm=None,
+        )
+        second = await create_memory_manager(
+            binding,
+            embedding_config=embedding_config,
+            dedup_llm=None,
+        )
+
+    assert first is second
+    assert get_platform.await_count == 1
+    assert first._on_conflict is not None
 
 
 def test_memory_policy_adapter_and_dto_serialization_roundtrip():
