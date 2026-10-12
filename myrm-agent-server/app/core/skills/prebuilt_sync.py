@@ -33,6 +33,7 @@ from myrm_agent_harness.api.skills import (
     compute_content_hash,
     parse_skill_frontmatter,
 )
+from myrm_agent_harness.backends.skills.types import SkillRequires
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 from myrm_agent_harness.toolkits.storage.paths import (
     SKILL_METADATA_FILE,
@@ -78,6 +79,7 @@ def _build_skill_from_seed(
     version: str | None,
     tags: list[str],
     allowed_tools: list[str] | None = None,
+    requires: SkillRequires | None = None,
     required_oauth_issuers: list[str] | None = None,
     required_mcp_server_ids: list[str] | None = None,
 ) -> Skill:
@@ -101,12 +103,51 @@ def _build_skill_from_seed(
         tags=tags,
         token_cost=token_cost,
         allowed_tools=allowed_tools,
+        requires=requires or SkillRequires(),
         required_oauth_issuers=required_oauth_issuers or [],
         required_mcp_server_ids=required_mcp_server_ids or [],
         trust="trusted",
         created_at=now,
         updated_at=now,
     )
+
+
+def _kept_requires(
+    stored_md: str,
+    matches_seed: bool,
+    seed_requires: SkillRequires,
+    skill_dir_name: str,
+    snapshot: dict[str, object] | None,
+) -> SkillRequires:
+    """``requires`` of the SKILL.md that stays in storage unless the seed replaces it.
+
+    The runtime parses the stored copy, so a user-edited copy decides, not the seed. An unparsable
+    copy keeps the snapshot's current value rather than guessing.
+    """
+    if matches_seed:
+        return seed_requires
+    try:
+        return parse_skill_frontmatter(stored_md, skill_dir_name).requires or SkillRequires()
+    except SkillMetadataError:
+        persisted = snapshot.get("requires") if snapshot else None
+        return SkillRequires.from_dict(persisted if isinstance(persisted, dict) else None)
+
+
+async def _patch_snapshot_requires(
+    storage: StorageProvider,
+    metadata_path: str,
+    snapshot: dict[str, object] | None,
+    requires: SkillRequires,
+) -> None:
+    """Align a snapshot the sync is not otherwise rewriting with the SKILL.md kept in storage.
+
+    Snapshots written before ``requires`` was recorded hold an empty value, which would keep the
+    Skills page from gating skills that the runtime already gates.
+    """
+    if snapshot is None or snapshot.get("requires") == requires.to_dict():
+        return
+    await storage.write_text(metadata_path, json.dumps({**snapshot, "requires": requires.to_dict()}, indent=2))
+    logger.info("Refreshed requires in prebuilt skill snapshot: %s", metadata_path)
 
 
 async def _write_skill_to_storage(
@@ -145,7 +186,7 @@ async def _sync_skill_bundle_files(
         if path.suffix in {".py", ".md", ".txt", ".json", ".yaml", ".yml", ".sh"}:
             await storage.write_text(storage_path, path.read_text(encoding="utf-8"))
         else:
-            await storage.write_bytes(storage_path, path.read_bytes())
+            await storage.write(storage_path, path.read_bytes())
 
 
 async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
@@ -190,6 +231,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
         allowed_tools_list = (
             [t.strip() for t in frontmatter.allowed_tools.split() if t.strip()] if frontmatter.allowed_tools else None
         )
+        seed_requires = frontmatter.requires or SkillRequires()
         skill = _build_skill_from_seed(
             skill_dir_name=skill_dir.name,
             content=source_content,
@@ -199,6 +241,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             version=frontmatter.version,
             tags=tags,
             allowed_tools=allowed_tools_list,
+            requires=seed_requires,
             required_oauth_issuers=frontmatter.required_oauth_issuers,
             required_mcp_server_ids=frontmatter.required_mcp_server_ids,
         )
@@ -228,8 +271,10 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             logger.info("Synced new prebuilt skill: %s", skill_id)
             continue
 
-        origin_hash = existing_meta.get("origin_hash") if existing_meta else None
+        persisted_origin = existing_meta.get("origin_hash") if existing_meta else None
+        origin_hash = persisted_origin if isinstance(persisted_origin, str) else None
         current_hash = compute_content_hash(existing_md)
+        kept_requires = _kept_requires(existing_md, current_hash == source_hash, seed_requires, skill_dir.name, existing_meta)
 
         if origin_hash is None:
             # Migration from pre-origin_hash era: baseline current content as origin
@@ -244,6 +289,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
                 # Can't tell if user modified or upstream changed — preserve user copy,
                 # record source_hash as origin for future three-way detection
                 skill.has_upstream_update = True
+                skill.requires = kept_requires
                 meta_json = json.dumps(skill.to_dict(), indent=2)
                 await storage.write_text(metadata_storage, meta_json)
                 logger.info("Preserved user copy of prebuilt skill %s (migration, marked upstream update)", skill_id)
@@ -256,9 +302,12 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
                 # Upstream also changed — mark for user review
                 skill.origin_hash = origin_hash
                 skill.has_upstream_update = True
+                skill.requires = kept_requires
                 meta_json = json.dumps(skill.to_dict(), indent=2)
                 await storage.write_text(metadata_storage, meta_json)
                 logger.info("Prebuilt skill %s: user-modified, upstream update available", skill_id)
+            else:
+                await _patch_snapshot_requires(storage, metadata_storage, existing_meta, kept_requires)
             await _sync_skill_bundle_files(storage, skill_id, skill_dir)
             continue
 
@@ -269,6 +318,8 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             await _write_skill_to_storage(storage, skill, skill_md_storage, metadata_storage, source_content)
             synced += 1
             logger.info("Updated prebuilt skill: %s (upstream changed)", skill_id)
+        else:
+            await _patch_snapshot_requires(storage, metadata_storage, existing_meta, kept_requires)
 
         await _sync_skill_bundle_files(storage, skill_id, skill_dir)
 
