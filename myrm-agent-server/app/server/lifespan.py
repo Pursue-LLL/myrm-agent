@@ -6,6 +6,7 @@
 - app.lifecycle (POS: 应用生命周期编排)
 - app.config.settings (POS: 应用配置)
 - app.database.connection (POS: 数据库连接管理)
+- app.startup.desktop_path (POS: 桌面 sidecar 启动时补全 PATH，dev 与 release 入口共用)
 
 [OUTPUT]
 - optimized_lifespan: FastAPI lifespan context manager
@@ -124,6 +125,11 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     global _checkpointer_cleanup, _context_cleanup_scheduler_instance, _skill_watcher
 
     print(f"🐍 Python {sys.version.split()[0]}")
+
+    # Before any subsystem spawns a child process or checks skill `requires.bins` against PATH.
+    from app.startup.desktop_path import hydrate_desktop_path
+
+    await asyncio.to_thread(hydrate_desktop_path)
 
     from myrm_agent_harness.infra.tls_compat import apply_global_tls_relaxation
 
