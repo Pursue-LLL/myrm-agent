@@ -202,6 +202,7 @@ const scenarios = {
         await check('oopifVisibility: owner sees the iframe content', await sees(b, first.id));
         const d = proxy.mcp('D'); await d.start(); await d.pages();
         await check('oopifVisibility: late client sees the iframe content of an existing page', await sees(d, first.id));
+        await check('oopifVisibility: owner still sees the iframe content after a client joined late', await sees(b, first.id));
         await open(d, second.id);
         await check('oopifVisibility: client sees the iframe content of the page it navigated', await sees(d, second.id));
         await check('oopifVisibility: earlier client sees the iframe content of the later client\'s page', await sees(b, second.id));
