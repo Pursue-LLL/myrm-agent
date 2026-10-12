@@ -153,10 +153,14 @@ export class SandboxProxy {
         const ws = new WebSocket(version.webSocketDebuggerUrl);
         await new Promise((resolve) => ws.addEventListener('open', resolve, { once: true }));
         const events = [];
+        const typeOf = new Map();
         ws.addEventListener('message', (e) => {
             const msg = JSON.parse(e.data);
+            if (msg.method === 'Target.attachedToTarget') typeOf.set(msg.params.sessionId, msg.params.targetInfo?.type);
             if (msg.method === 'Target.attachedToTarget' || msg.method === 'Target.detachedFromTarget') {
-                events.push({ method: msg.method, sessionId: msg.params.sessionId, at: Date.now() });
+                // `type` is the target type announced when this session attached ('other' = Chrome-internal
+                // targets that come and go on their own); undefined = a session this listener never saw.
+                events.push({ method: msg.method, sessionId: msg.params.sessionId, type: typeOf.get(msg.params.sessionId), at: Date.now() });
             }
         });
         return { events, close: () => ws.close() };

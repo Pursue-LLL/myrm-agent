@@ -347,7 +347,7 @@ function proxyStatus() {
 }
 
 const idlePool = startIdlePool({
-    cdpRequest, log, chromeUp: () => Boolean(chromeWritable), isLeased: (id) => router.tabLease.leases.has(id),
+    cdpRequest, log, chromeUp: () => Boolean(chromeWritable), lease: router.tabLease,
 });
 const server = createHttpServer({
     port: PROXY_PORT,

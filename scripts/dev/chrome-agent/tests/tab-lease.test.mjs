@@ -103,6 +103,47 @@ test('revoke only undoes the lease the refused request acquired', () => {
     assert.equal(lease.leases.size, 0);
 });
 
+test('a lessee that leaves a loaded tab behind abandons it; a released or blank tab is not abandoned', () => {
+    const { lease, urls, advance } = setup();
+    const a = client('c1');
+    lease.guard(a, T, navigate('https://x.com/a'));
+    urls.set(T, 'https://x.com/a');
+    lease.guard(a, 'BLANKED-DDDDDDDD', navigate('https://x.com/b'));
+    urls.set('BLANKED-DDDDDDDD', 'about:blank');
+    lease.onClientClosed(a);
+    assert.deepEqual([...lease.abandoned.keys()], [T]);
+    advance(599_000);
+    assert.deepEqual(lease.takeAbandoned(600_000), []);
+    advance(2_000);
+    assert.deepEqual(lease.takeAbandoned(600_000), [T]);
+    assert.deepEqual(lease.takeAbandoned(600_000), []);
+});
+
+test('a new lease, a release to about:blank, or tab destruction cancels the abandonment', () => {
+    const { lease, urls } = setup();
+    const [a, b] = [client('c1'), client('c2')];
+    for (const id of ['T1-AAAAAAAA', 'T2-BBBBBBBB', 'T3-CCCCCCCC']) {
+        lease.guard(a, id, navigate('https://x.com/a'));
+        urls.set(id, 'https://x.com/a');
+    }
+    lease.onClientClosed(a);
+    assert.equal(lease.abandoned.size, 3);
+    lease.guard(b, 'T1-AAAAAAAA', navigate('https://x.com/new'));
+    lease.guard(b, 'T2-BBBBBBBB', navigate('about:blank'));
+    lease.forget('T3-CCCCCCCC');
+    assert.equal(lease.abandoned.size, 0);
+});
+
+test('reset forgets abandoned tabs too', () => {
+    const { lease, urls } = setup();
+    const a = client('c1');
+    lease.guard(a, T, navigate('https://x.com/a'));
+    urls.set(T, 'https://x.com/a');
+    lease.onClientClosed(a);
+    lease.reset();
+    assert.equal(lease.abandoned.size, 0);
+});
+
 // ── wiring inside the router ────────────────────────────────────────
 
 function routerSetup() {
