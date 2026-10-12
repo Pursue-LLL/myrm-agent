@@ -4,6 +4,7 @@
 - app.services.agent.stream_session.orchestrator helpers (POS: shared turn setup)
 - app.services.agent.stream_session.pre_reply_compact_sse (POS: idle compact SSE)
 - app.services.agent.stream_session.stream_pump::pump_to_buffer (POS: SSE pump)
+- app.services.agent.params.routing_memory::remember_turn_routing (POS: per-chat routing memory reused when a HITL turn resumes)
 
 [OUTPUT]
 - launch_early_buffered_stream: return StreamingResponse immediately after reserve

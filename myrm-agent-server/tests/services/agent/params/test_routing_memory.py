@@ -99,7 +99,7 @@ class TestSplitRecentRouting:
         assert recent.tiers == [RoutingTier.STANDARD, RoutingTier.REASONING, RoutingTier.SIMPLE]
         assert recent.specialties == [TaskSpecialty.CODE, TaskSpecialty.REASONING, TaskSpecialty.LONG_DOC]
 
-    def test_specialty_values_no_longer_discard_the_tier_history(self) -> None:
+    def test_specialty_values_do_not_discard_the_tier_history(self) -> None:
         recent = split_recent_routing(["simple", "standard", "code"])
 
         assert recent.tiers == [RoutingTier.SIMPLE, RoutingTier.STANDARD]
@@ -236,3 +236,38 @@ class TestResolveTurnRouting:
         assert len(routing_memory._turns) == limit
         assert "chat-0" not in routing_memory._turns
         assert f"chat-{limit}" in routing_memory._turns
+
+
+# Model slot a routed turn runs on, by harness enum member. None = the main model ran. A member added to the harness
+# enums fails the coverage test below until it is classified here and in `routing_memory._slot_selections`.
+_SPECIALTY_SLOT_MODEL: dict[TaskSpecialty, str | None] = {
+    TaskSpecialty.CODE: "claude-sonnet",
+    TaskSpecialty.LONG_DOC: "gemini-pro",
+    TaskSpecialty.REASONING: "deepseek-reasoner",
+    TaskSpecialty.MULTIMODAL: None,
+    TaskSpecialty.CASUAL: None,
+    TaskSpecialty.GENERAL: None,
+}
+_TIER_SLOT_MODEL: dict[RoutingTier, str | None] = {
+    RoutingTier.SIMPLE: "gpt-4o-mini",
+    RoutingTier.STANDARD: None,
+    RoutingTier.REASONING: "deepseek-reasoner",
+}
+
+
+class TestSlotMapping:
+    def test_every_harness_tier_and_specialty_is_classified(self) -> None:
+        assert set(_SPECIALTY_SLOT_MODEL) == set(TaskSpecialty)
+        assert set(_TIER_SLOT_MODEL) == set(RoutingTier)
+
+    @pytest.mark.parametrize("specialty", list(TaskSpecialty))
+    def test_specialty_turn_maps_to_its_slot(self, specialty: TaskSpecialty) -> None:
+        selection, _ = routing_memory._slot_selections(_request(), specialty.value, specialty.value)
+
+        assert (selection.model if selection else None) == _SPECIALTY_SLOT_MODEL[specialty]
+
+    @pytest.mark.parametrize("tier", list(RoutingTier))
+    def test_complexity_turn_maps_to_its_slot(self, tier: RoutingTier) -> None:
+        selection, _ = routing_memory._slot_selections(_request(), tier.value, None)
+
+        assert (selection.model if selection else None) == _TIER_SLOT_MODEL[tier]

@@ -161,7 +161,7 @@ class TestResumeContinuesOnTheRoutedModel:
 
 
 class TestRoutingHistoryWiring:
-    async def test_specialty_history_in_routing_tier_no_longer_drops_the_tier_momentum(self) -> None:
+    async def test_specialty_history_in_routing_tier_keeps_the_tier_momentum(self) -> None:
         turn = _turn(query="ok", light_model_selection=_LIGHT, reasoning_model_selection=_REASONING)
         routed = RoutingResult(
             tier=RoutingTier.STANDARD,

@@ -265,10 +265,7 @@ async def convert_to_general_agent_params(
 
     if pinned_routing is None and bool(request.code_model_selection or request.long_doc_model_selection):
         try:
-            from myrm_agent_harness.api import (
-                TaskSpecialty,
-                route_task_specialty,
-            )
+            from myrm_agent_harness.toolkits.llms.routing import TaskSpecialty, route_task_specialty
 
             specialty_slots: dict[TaskSpecialty, ModelConfig] = {}
             specialty_fallback_slots: dict[TaskSpecialty, ModelConfig] = {}

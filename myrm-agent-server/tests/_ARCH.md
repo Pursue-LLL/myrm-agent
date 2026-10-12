@@ -236,6 +236,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_migration_readiness_anchor.py` | 模块 | migration readiness 首轮结果归类单测（success/failed/no_output） |
 | `services/agent/stream_session/test_migration_bound_project.py` | 模块 | migration vault bind 同窗 handoff：`persist` 后 `move_chat_to_project`；已有 project / resume 跳过 |
 | `services/agent/stream_session/test_orchestrator_turn_body_e1.py` | 模块 | E1 early buffered stream 形状（SSE/JSON）+ `_background_turn` 绑定 harness `session_lock` chat_id（快照以真实 chat_id 落盘的关键前置） |
+| `services/agent/params/test_routing_memory.py` | 模块 | Smart Routing 记忆：持久化 `routingTier` 历史按枚举分流（reasoning 双归属、未知值丢弃）· HITL resume 沿用被中断回合的路由结果（模型/fallback/档位/原因；主模型变化、槽位不可解析、记忆缺失时退回重新路由；LRU 淘汰）· 槽位映射枚举全覆盖 |
+| `services/agent/params/test_converter_routing_resume.py` | 模块 | converter 经真实 `convert_to_general_agent_params` 验证 resume 路由连续性（code specialty / reasoning 档位沿用、空 query 不重新路由、非 resume 回合不读写记忆）与历史动量接线（specialty 历史不再吞掉档位动量；代码回合后的短追问留在代码模型） |
+| `services/agent/params/test_resolvers_secret_logging.py` | 模块 | 模型配置解析日志不含 provider 密钥，且仍记录解析动作（防空断言） |
+| `services/statistics/test_usage_aggregation_savings.py` | 模块 | 路由省钱估算：按 token 加权的金标准值、路由更贵/标准档样本不足/无标准档 token 时隐藏、`aggregate_usage` 端到端 |
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate.py` | 模块 | HITL pending 审批守卫单元测（5 态：pending 拦截 / 0 pending 放行 / resume 绕过 / store 异常 fail-open / 无 chat_id 跳过） |
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate_integration.py` | 模块 | HITL pending 审批守卫真 DB 集成（关键路径禁 mock：真 `ApprovalRecord` → 真 `count_pending_for_chat` → SSE AgentBusyError 且预留前触发；APPROVED/growth/他 chat 不拦；resume 带真 pending 放行） |
 | `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测 |

@@ -8,7 +8,7 @@
 
 | 文件 | 职责 |
 | --- | --- |
-| `usage_aggregation.py` | 用量聚合纯逻辑（会话级聚合、路由/模型/隐私/cache 维度、Chat.total_* 缓存重建） |
+| `usage_aggregation.py` | 用量聚合纯逻辑（会话级聚合、路由/模型/隐私/cache 维度、按 token 加权的路由省钱估算、Chat.total_* 缓存重建） |
 
 ## 依赖方向
 
