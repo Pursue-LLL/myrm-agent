@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - ContextAssembly: facade + optional binding for a single agent run
-- ContextAssemblyService: builds facade and binding from runtime inputs
+- ContextAssemblyService: builds facade and binding from runtime inputs; harness_storage_root is the single source of the harness storage root
 - ChatMemoryBindingContext: chat-scoped memory binding for manual retry paths
 - ContextAssemblyService.resolve_binding_for_chat: binding aligned with agent factory/converter
 
@@ -60,6 +60,11 @@ class ContextAssemblyService:
         )
 
     @staticmethod
+    def harness_storage_root() -> str:
+        """Host storage root handed to the harness as ``workspaces_storage_root``; also roots its idle task registry."""
+        return str(ContextAssemblyService.build_facade(ensure_layout=False).harness_path().resolve())
+
+    @staticmethod
     def resolve_for_agent(
         agent: GeneralAgent,
         effective_chat_id: str,
@@ -71,9 +76,7 @@ class ContextAssemblyService:
         if enable_memory:
             task_root = agent.declared_allowed_roots[0] if agent.declared_allowed_roots else None
             extra_namespaces_raw = getattr(agent, "memory_extra_namespaces", None)
-            extra_namespaces = (
-                [str(item) for item in extra_namespaces_raw] if isinstance(extra_namespaces_raw, list) else None
-            )
+            extra_namespaces = [str(item) for item in extra_namespaces_raw] if isinstance(extra_namespaces_raw, list) else None
             project_id = getattr(agent, "project_id", None)
             binding = resolve_context_binding(
                 namespaces=extra_namespaces,

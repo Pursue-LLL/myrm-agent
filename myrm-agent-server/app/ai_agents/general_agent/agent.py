@@ -392,7 +392,7 @@ class GeneralAgent(ToolSetupMixin):
         from app.services.context.context_assembly import ContextAssemblyService
 
         bundle = ContextAssemblyService.build_facade(ensure_layout=False)
-        context["workspaces_storage_root"] = str(bundle.harness_path().resolve())
+        context["workspaces_storage_root"] = ContextAssemblyService.harness_storage_root()
         context["context_bundle_id"] = bundle.spec.bundle_id
         if self.agent_id:
             context["agent_id"] = self.agent_id

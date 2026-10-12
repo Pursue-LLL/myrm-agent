@@ -70,9 +70,9 @@ async def enqueue_cognitive_subsumption(payload: EvolutionApprovalPayload) -> No
         get_idle_task_registry,
     )
 
-    from app.config.settings import settings
+    from app.services.context.context_assembly import ContextAssemblyService
 
-    registry = get_idle_task_registry(workspace_root=settings.database.state_dir)
+    registry = get_idle_task_registry(workspace_root=ContextAssemblyService.harness_storage_root())
     await registry.enqueue(
         session_id=GLOBAL_SESSION_ID,
         task_type="cognitive_subsumption",
@@ -217,8 +217,13 @@ def _attribute_manifest_after_apply(
     Returns None when no manifest exists (no eval_cases / description-only evolution).
     """
     manifest_dict = payload.change_manifest
-    if not isinstance(manifest_dict, dict) or not manifest_dict.get("predictions"):
+    if not isinstance(manifest_dict, dict):
         return None
+    raw_predictions = manifest_dict.get("predictions")
+    if not isinstance(raw_predictions, list) or not raw_predictions:
+        return None
+    created_at = manifest_dict.get("created_at")
+    rollback_patch = manifest_dict.get("rollback_patch")
 
     from myrm_agent_harness.agent.skills.evolution.core.eval_regression import (
         evaluate_content_assertions,
@@ -230,11 +235,11 @@ def _attribute_manifest_after_apply(
             manifest_id=str(manifest_dict.get("manifest_id", "")),
             target_component=str(manifest_dict.get("target_component", "")),
             rationale=str(manifest_dict.get("rationale", "")),
-            created_at=manifest_dict.get("created_at"),
-            rollback_patch=manifest_dict.get("rollback_patch"),
+            created_at=created_at if isinstance(created_at, str) else None,
+            rollback_patch=rollback_patch if isinstance(rollback_patch, str) else None,
             predictions=[],
         )
-        for pred in manifest_dict["predictions"]:
+        for pred in raw_predictions:
             if not isinstance(pred, dict):
                 continue
             manifest.predictions.append(
