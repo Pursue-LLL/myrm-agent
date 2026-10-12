@@ -11415,8 +11415,7 @@
       },
       "cognitive_derivation": {
         "working": "선호도를 학습하는 중…",
-        "completed": "선호도 업데이트 완료",
-        "notification": "선호도가 업데이트되었습니다"
+        "completed": "선호도 업데이트 완료"
       },
       "cognitive_subsumption": {
         "working": "비슷한 기억을 병합하는 중…",

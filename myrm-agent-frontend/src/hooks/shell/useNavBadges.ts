@@ -64,7 +64,6 @@ export function useNavBadges(): NavBadges {
     const events = [
       'approval-required',
       'message_dead_lettered',
-      'idle-status',
       'skill-draft-created',
       'skill-growth-updated',
       'cron_updated',

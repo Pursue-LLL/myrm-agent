@@ -11414,8 +11414,7 @@
       },
       "cognitive_derivation": {
         "working": "好みを学習しています…",
-        "completed": "好みを更新しました",
-        "notification": "好みを更新しました"
+        "completed": "好みを更新しました"
       },
       "cognitive_subsumption": {
         "working": "似た記憶をまとめています…",

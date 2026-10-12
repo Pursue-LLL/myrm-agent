@@ -18715,8 +18715,7 @@
       },
       "cognitive_derivation": {
         "working": "正在学习你的偏好…",
-        "completed": "偏好已更新",
-        "notification": "你的偏好已更新"
+        "completed": "偏好已更新"
       },
       "cognitive_subsumption": {
         "working": "正在合并相似记忆…",

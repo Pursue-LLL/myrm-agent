@@ -72,11 +72,9 @@ class TestRegisterAllIdleHandlers:
     """Tests for handler registration."""
 
     def test_registers_handlers(self) -> None:
-        with patch("app.core.infra.idle_handlers.register_idle_task_handler") as mock_register:
-            from app.core.infra.idle_handlers import register_all_idle_handlers
+        with patch("app.core.infra.idle_handlers.register_context_compaction_handler") as mock_register:
+            from app.core.infra.idle_handlers import context_compact_impl, register_all_idle_handlers
 
             register_all_idle_handlers()
 
-            calls = {c.args[0] for c in mock_register.call_args_list}
-            assert "_context_compact_impl" in calls
-            assert "wiki_maintenance" not in calls
+            mock_register.assert_called_once_with(context_compact_impl)

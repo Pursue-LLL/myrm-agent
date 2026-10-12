@@ -116,11 +116,9 @@ export default function NotificationBell() {
   useEffect(() => {
     const handleSseEvent = () => fetchNotifications();
     window.addEventListener('message_dead_lettered', handleSseEvent);
-    window.addEventListener('idle-status', handleSseEvent);
     window.addEventListener('system_notification', handleSseEvent);
     return () => {
       window.removeEventListener('message_dead_lettered', handleSseEvent);
-      window.removeEventListener('idle-status', handleSseEvent);
       window.removeEventListener('system_notification', handleSseEvent);
     };
   }, [fetchNotifications]);

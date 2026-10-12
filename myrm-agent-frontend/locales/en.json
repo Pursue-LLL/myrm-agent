@@ -18736,8 +18736,7 @@
       },
       "cognitive_derivation": {
         "working": "Learning your preferences…",
-        "completed": "Preferences updated",
-        "notification": "Your preferences were updated"
+        "completed": "Preferences updated"
       },
       "cognitive_subsumption": {
         "working": "Tidying up similar memories…",

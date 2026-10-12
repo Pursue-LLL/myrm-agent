@@ -11415,8 +11415,7 @@
       },
       "cognitive_derivation": {
         "working": "Ihre Vorlieben werden gelernt…",
-        "completed": "Vorlieben aktualisiert",
-        "notification": "Ihre Vorlieben wurden aktualisiert"
+        "completed": "Vorlieben aktualisiert"
       },
       "cognitive_subsumption": {
         "working": "Ähnliche Erinnerungen werden zusammengeführt…",

@@ -1,7 +1,7 @@
 """Handlers for harness-level idle tasks injected by the server.
 
 [INPUT]
-- myrm_agent_harness.agent.background_worker.idle_tasks::register_idle_task_handler (POS: Default callbacks and tasks for the idle worker.)
+- myrm_agent_harness.agent.background_worker.idle_tasks::register_context_compaction_handler (POS: Default callbacks and tasks for the idle worker.)
 - app.services.chat.compact_service::compact_chat (POS: Lossless context compaction service.)
 
 [OUTPUT]
@@ -15,7 +15,7 @@ for harness-level idle background tasks (context compaction).
 
 import logging
 
-from myrm_agent_harness.agent.background_worker.idle_tasks import register_idle_task_handler
+from myrm_agent_harness.agent.background_worker.idle_tasks import register_context_compaction_handler
 
 logger = logging.getLogger(__name__)
 
@@ -43,5 +43,5 @@ async def context_compact_impl(chat_id: str, session_id: str) -> dict[str, objec
 
 def register_all_idle_handlers() -> None:
     """Register all server-level idle task handlers."""
-    register_idle_task_handler("_context_compact_impl", context_compact_impl)
+    register_context_compaction_handler(context_compact_impl)
     logger.info("Registered server-level idle task handlers")

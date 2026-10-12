@@ -58,6 +58,18 @@ describe('LifeStatusCapsule', () => {
     expect(screen.queryByText('raw backend text')).toBeNull();
   });
 
+  it('falls back when a task has no label for the emitted status', () => {
+    render(<LifeStatusCapsule currentSessionId="s1" />);
+    emitIdleStatus({ status: 'notification', task_name: 'cognitive_derivation' });
+    expect(screen.getByText('processingCapsule')).toBeTruthy();
+  });
+
+  it('falls back when a task has no label for the emitted status', () => {
+    render(<LifeStatusCapsule currentSessionId="s1" />);
+    emitIdleStatus({ status: 'notification', task_name: 'cognitive_derivation' });
+    expect(screen.getByText('processingCapsule')).toBeTruthy();
+  });
+
   it('treats prototype property names as unknown tasks', () => {
     render(<LifeStatusCapsule currentSessionId="s1" />);
     emitIdleStatus({ status: 'working', task_name: 'constructor' });
