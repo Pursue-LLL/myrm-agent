@@ -441,7 +441,7 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
     """replace 覆盖场景：必须继承原技能的演化元数据。
 
     语义：与单包导入 force 覆盖一致——replace 仅更新内容/描述/回归门禁，
-    版本号、禁用/锁定状态、演化统计、陷阱与验证步骤均保留，不被整行覆盖重置。
+    版本号、禁用/锁定状态、演化统计与验证步骤均保留，不被整行覆盖重置。
     """
     client = _make_client()
     skill_name = f"preserve-meta-{uuid.uuid4().hex[:8]}"
@@ -475,7 +475,7 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         "restored_eval_cases": 1,
     }
 
-    # Step 2: 模拟技能在演化系统中已积累元数据（v3、锁定、统计、陷阱）
+    # Step 2: 模拟技能在演化系统中已积累元数据（v3、锁定、统计）
     # 注意：此处保持 is_active=True，禁用状态在 preview 通过后再设置（见 Step 3），
     # 因为批量导入冲突检测基于 get_active_skills（[batch_import.py:106]），
     # 禁用技能不会产生冲突，无法走 replace 路径。
@@ -487,7 +487,6 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         original.lineage.version = 3
         original.evolution_locked = True
         original.metrics.record_applied(success=True)
-        original.traps.append({"description": "past failure", "occurrence_count": 1})
         original.verification_steps.append({"step": "run", "expected": "ok"})
         store._save_skill_sync(original)  # noqa: SLF001 - harness 同步落盘入口，避免引入 event loop
     finally:
@@ -546,7 +545,6 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         assert replaced.evolution_locked is True
         assert replaced.metrics.applied_count == 1
         assert replaced.metrics.success_count == 1
-        assert replaced.traps == [{"description": "past failure", "occurrence_count": 1}]
         assert replaced.verification_steps == [{"step": "run", "expected": "ok"}]
         assert len(replaced.eval_cases) == 1
         assert replaced.eval_cases[0]["message"] == "sum 1 and 2"

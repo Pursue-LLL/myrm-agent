@@ -17327,8 +17327,6 @@
         "cleanupInvalid": "クリーンアップ",
         "revealFailed": "パスの表示に失敗しました",
         "evalCases": "回帰テストケース",
-        "knownPitfalls": "既知の落とし穴",
-        "pitfallTrigger": "トリガー",
         "tokenCost": "コンテキストコスト：会話ごとに約 {count} tokens",
         "export": "エクスポート",
         "previewTab": "プレビュー",

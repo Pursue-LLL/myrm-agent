@@ -92,8 +92,6 @@
         "evolutionUnlockedDesc": "\"{name}\"이(가) 이제 에이전트에 의해 자동 진화될 수 있습니다",
         "evolutionLockFailed": "진화 잠금 업데이트 실패",
         "evalCases": "회귀 테스트 사례",
-        "knownPitfalls": "알려진 함정",
-        "pitfallTrigger": "트리거",
         "tokenCost": "컨텍스트 비용: 대화당 약 {count} 토큰",
         "pathInvalid": "경로가 잘못되었거나 삭제되었습니다",
         "storagePath": "저장 경로",

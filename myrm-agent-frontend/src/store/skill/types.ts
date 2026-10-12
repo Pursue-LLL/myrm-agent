@@ -46,14 +46,6 @@ export interface SecurityScanSummary {
   findings: SecurityFinding[];
 }
 
-export interface SkillTrap {
-  description: string;
-  severity: string;
-  trigger_condition: string;
-  mitigation: string;
-  occurrence_count: number;
-}
-
 export interface SkillVerificationStep {
   step_id: string;
   description: string;
@@ -150,7 +142,6 @@ export interface Skill {
     pinned: boolean;
   } | null;
 
-  traps: SkillTrap[];
   verification_steps: SkillVerificationStep[];
   eval_cases: SkillEvalCase[];
 

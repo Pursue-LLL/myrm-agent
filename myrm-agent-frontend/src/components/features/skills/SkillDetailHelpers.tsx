@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Shield, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, ChevronDown, FileCheck2 } from 'lucide-react';
+import { Shield, ShieldCheck, ShieldAlert, ShieldX, ChevronDown, FileCheck2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Badge } from '@/components/primitives/badge';
-import type { SkillEvalCase, SkillTrap, SecurityScanSummary } from '@/store/skill/types';
+import type { SkillEvalCase, SecurityScanSummary } from '@/store/skill/types';
 
 /** next-intl translator compatible with useTranslations('settings.skills'). */
 export type SkillSectionTranslator = ReturnType<typeof useTranslations<'settings.skills'>>;
@@ -193,57 +193,6 @@ export function EvalCasesSection({ cases, t }: { cases: SkillEvalCase[]; t: Skil
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-/* ─── KnownPitfallsSection ─── */
-
-const trapSeverityConfig: Record<string, { color: string; icon: string }> = {
-  critical: { color: 'text-red-600 dark:text-red-400', icon: '!!!' },
-  high: { color: 'text-orange-600 dark:text-orange-400', icon: '!!' },
-  medium: { color: 'text-yellow-600 dark:text-yellow-400', icon: '!' },
-  low: { color: 'text-blue-600 dark:text-blue-400', icon: '~' },
-};
-
-export function KnownPitfallsSection({ traps, t }: { traps: SkillTrap[]; t: SkillSectionTranslator }) {
-  return (
-    <div>
-      <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-        <AlertTriangle size={14} className="text-amber-500" />
-        {t('detail.knownPitfalls')}
-        <Badge variant="secondary" className="text-xs">
-          {traps.length}
-        </Badge>
-      </h4>
-      <div className="space-y-2">
-        {traps.map((trap, i) => {
-          const cfg = trapSeverityConfig[trap.severity] || trapSeverityConfig.medium;
-          return (
-            <div key={`${trap.description}-${i}`} className="rounded-lg border bg-muted/30 p-2.5 text-sm">
-              <div className="flex items-start gap-2">
-                <span className={cn('font-mono text-xs font-bold shrink-0 mt-0.5', cfg.color)}>[{cfg.icon}]</span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground">{trap.description}</p>
-                  {trap.trigger_condition && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t('detail.pitfallTrigger')}: {trap.trigger_condition}
-                    </p>
-                  )}
-                  {trap.mitigation && (
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">→ {trap.mitigation}</p>
-                  )}
-                  {trap.occurrence_count > 0 && (
-                    <span className="text-[10px] text-muted-foreground/60 mt-1 inline-block">
-                      x{trap.occurrence_count}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

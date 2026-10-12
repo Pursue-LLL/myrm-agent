@@ -63,7 +63,7 @@ async def execute_batch_import_confirm(
 
     - Phase 1: 逐项安全预检，命中恶意代码立即撤销本次导入。
     - Phase 2: 为每个技能构建 .tmp 目录，全保真写入文件、剥离 evals.json，
-       replace 场景继承 DB 回归门禁快照与全部演化元数据（版本号/禁用/锁定/统计/陷阱）。
+       replace 场景继承 DB 回归门禁快照与全部演化元数据（版本号/禁用/锁定/统计）。
     - Phase 3: DB 单事务批量写入。
     - Phase 4: 全部 DB 提交成功后执行操作系统级蓝绿目录原子替换。
     - 任一阶段失败：清空本次 .tmp 目录、尽力恢复 old 目录并重新抛出。
@@ -167,7 +167,6 @@ async def execute_batch_import_confirm(
                     updated_at=datetime.now(),
                     is_active=inherited.is_active,
                     evolution_locked=inherited.evolution_locked,
-                    traps=inherited.traps,
                     verification_steps=inherited.verification_steps,
                 )
             else:

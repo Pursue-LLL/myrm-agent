@@ -106,7 +106,6 @@ class SkillResponse(BaseModel):
     has_upstream_update: bool = False
     installed_from: dict[str, object] | None = None
 
-    traps: list[dict[str, object]] = []
     verification_steps: list[dict[str, object]] = []
     eval_cases: list[dict[str, object]] = []
 

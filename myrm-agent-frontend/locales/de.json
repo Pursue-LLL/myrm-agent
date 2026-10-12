@@ -17327,8 +17327,6 @@
         "cleanupInvalid": "Bereinigen",
         "revealFailed": "Anzeigen des Pfads fehlgeschlagen",
         "evalCases": "Regressionstestfälle",
-        "knownPitfalls": "Bekannte Stolperfallen",
-        "pitfallTrigger": "Auslöser",
         "tokenCost": "Kontextkosten: ~{count} Token pro Konversation",
         "export": "Exportieren",
         "previewTab": "Vorschau",

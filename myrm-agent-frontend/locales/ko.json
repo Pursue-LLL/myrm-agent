@@ -17327,8 +17327,6 @@
         "cleanupInvalid": "정리",
         "revealFailed": "경로를 표시하지 못했습니다",
         "evalCases": "회귀 테스트 사례",
-        "knownPitfalls": "알려진 함정",
-        "pitfallTrigger": "트리거",
         "tokenCost": "컨텍스트 비용: 대화당 약 {count} 토큰",
         "export": "내보내기",
         "previewTab": "미리보기",

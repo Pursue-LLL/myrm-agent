@@ -103,9 +103,7 @@
         "revealInManager": "Anzeigen",
         "cleanupInvalid": "Bereinigen",
         "revealFailed": "Anzeigen des Pfads fehlgeschlagen",
-        "evalCases": "Regressionstestfälle",
-        "knownPitfalls": "Bekannte Stolperfallen",
-        "pitfallTrigger": "Auslöser"
+        "evalCases": "Regressionstestfälle"
       },
       "growth": {
         "title": "Fähigkeitswachstum",

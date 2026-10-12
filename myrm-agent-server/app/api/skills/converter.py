@@ -39,8 +39,8 @@ def _stat_float(stats: dict[str, object], key: str) -> float:
 
 def _lookup_evolution_data(
     skill_name: str,
-) -> tuple[list[dict[str, object]], list[dict[str, object]], bool, list[dict[str, object]]]:
-    """Best-effort lookup of evolution traps, verification steps, lock status and eval cases."""
+) -> tuple[list[dict[str, object]], bool, list[dict[str, object]]]:
+    """Best-effort lookup of evolution verification steps, lock status and eval cases."""
     try:
         from myrm_agent_harness.agent.skills.evolution.infra.integration import (
             get_global_evolution_integration,
@@ -51,14 +51,13 @@ def _lookup_evolution_data(
             record = evolution.store.get_skill_by_name_version(skill_name)
             if record:
                 return (
-                    record.traps,
                     record.verification_steps,
                     record.evolution_locked,
                     record.eval_cases,
                 )
     except Exception as e:
         logger.debug("Evolution data lookup failed for %s: %s", skill_name, e)
-    return [], [], False, []
+    return [], False, []
 
 
 def skill_to_response(skill: Skill) -> SkillResponse:
@@ -81,7 +80,7 @@ def skill_to_response(skill: Skill) -> SkillResponse:
             ],
         )
 
-    traps, verification_steps, store_evolution_locked, eval_cases = _lookup_evolution_data(skill.name)
+    verification_steps, store_evolution_locked, eval_cases = _lookup_evolution_data(skill.name)
     evolution_locked = skill.evolution_locked or store_evolution_locked
 
     usage = SkillUsageStatsResponse()
@@ -134,7 +133,6 @@ def skill_to_response(skill: Skill) -> SkillResponse:
         config_schema=skill.config_schema,
         has_upstream_update=skill.has_upstream_update,
         installed_from=skill.installed_from,
-        traps=traps,
         verification_steps=verification_steps,
         eval_cases=eval_cases,
         created_at=skill.created_at.isoformat(),

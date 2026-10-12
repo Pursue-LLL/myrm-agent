@@ -57,7 +57,6 @@ import {
   EvalCasesSection,
   RequirementRow,
   SecurityScanSection,
-  KnownPitfallsSection,
   type SkillSectionTranslator,
 } from './SkillDetailHelpers';
 
@@ -581,14 +580,6 @@ export function SkillDetailSheetContent({
               )}
             </div>
           </div>
-        </>
-      )}
-
-      {/* Known Pitfalls */}
-      {skill.traps && skill.traps.length > 0 && (
-        <>
-          <div className="border-t" />
-          <KnownPitfallsSection traps={skill.traps} t={t} />
         </>
       )}
 
