@@ -167,36 +167,36 @@ class TestResolveLoginShell:
         assert desktop_path._resolve_login_shell("/definitely/not/installed") is None
 
 
-class TestMergeAndSeeds:
+class TestMergeAndCommonToolDirs:
     def test_merge_orders_groups_dedupes_and_drops_empty_entries(self) -> None:
         merged = desktop_path._merge_entries(["/a", "/b"], ["/b", "", "/c"], ["/a", "/d"])
 
         assert merged == ["/a", "/b", "/c", "/d"]
 
-    def test_seed_dirs_skip_missing_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_common_tool_dirs_skip_missing_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         present = tmp_path / ".cargo" / "bin"
         present.mkdir(parents=True)
         monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(present), str(tmp_path / ".local" / "bin")))
 
-        assert desktop_path._existing_seed_dirs() == [str(present)]
+        assert desktop_path._existing_common_tool_dirs() == [str(present)]
 
-    def test_seed_dirs_are_the_list_cli_discovery_searches(self) -> None:
+    def test_common_tool_dirs_are_the_list_cli_discovery_searches(self) -> None:
         """One list for both: the prompt's CLI inventory and the shell's PATH must not drift apart."""
-        assert desktop_path.COMMON_TOOL_DIRS is tool_discovery.COMMON_TOOL_DIRS
+        assert vars(desktop_path)["COMMON_TOOL_DIRS"] is tool_discovery.COMMON_TOOL_DIRS
 
 
 class TestHydrate:
-    def test_login_shell_entries_lead_and_seeds_trail(
+    def test_login_shell_entries_lead_and_common_tool_dirs_trail(
         self, fake_shell: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        seed = tmp_path / "seed"
-        seed.mkdir()
-        monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(seed), str(tmp_path / "missing")))
+        tool_dir = tmp_path / "tools"
+        tool_dir.mkdir()
+        monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(tool_dir), str(tmp_path / "missing")))
 
         added = desktop_path.hydrate_desktop_path()
 
-        assert os.environ["PATH"] == f"/opt/fake/bin:/usr/bin:/bin:{seed}"
-        assert added == ["/opt/fake/bin", str(seed)]
+        assert os.environ["PATH"] == f"/opt/fake/bin:/usr/bin:/bin:{tool_dir}"
+        assert added == ["/opt/fake/bin", str(tool_dir)]
 
     def test_is_idempotent(self, fake_shell: Path) -> None:
         desktop_path.hydrate_desktop_path()
@@ -205,21 +205,23 @@ class TestHydrate:
         assert desktop_path.hydrate_desktop_path() == []
         assert os.environ["PATH"] == first
 
-    def test_failed_probe_still_adds_seeds(self, fake_shell: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        seed = tmp_path / "seed"
-        seed.mkdir()
-        monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(seed),))
-        monkeypatch.setattr(desktop_path, "_probe_login_shell_path", lambda: [])
-
-        assert desktop_path.hydrate_desktop_path() == [str(seed)]
-        assert os.environ["PATH"] == f"/usr/bin:/bin:{seed}"
-
-    def test_no_resolvable_shell_degrades_to_seeds(
+    def test_failed_probe_still_adds_common_tool_dirs(
         self, fake_shell: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        seed = tmp_path / "seed"
-        seed.mkdir()
-        monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(seed),))
+        tool_dir = tmp_path / "tools"
+        tool_dir.mkdir()
+        monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(tool_dir),))
+        monkeypatch.setattr(desktop_path, "_probe_login_shell_path", lambda: [])
+
+        assert desktop_path.hydrate_desktop_path() == [str(tool_dir)]
+        assert os.environ["PATH"] == f"/usr/bin:/bin:{tool_dir}"
+
+    def test_no_resolvable_shell_degrades_to_common_tool_dirs(
+        self, fake_shell: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        tool_dir = tmp_path / "tools"
+        tool_dir.mkdir()
+        monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(tool_dir),))
         monkeypatch.setattr(desktop_path, "_resolve_login_shell", lambda _account_shell: None)
 
-        assert desktop_path.hydrate_desktop_path() == [str(seed)]
+        assert desktop_path.hydrate_desktop_path() == [str(tool_dir)]

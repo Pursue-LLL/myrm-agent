@@ -122,7 +122,7 @@ describe('SkillCard availability action', () => {
 });
 
 describe('SkillCard quarantine badge', () => {
-  it('labels a quarantined skill through translations instead of hard-coded English', () => {
+  it('renders the quarantine badge text from translations', () => {
     const skill = buildSkill({ is_active: false, available: true });
     render(
       <TooltipProvider>

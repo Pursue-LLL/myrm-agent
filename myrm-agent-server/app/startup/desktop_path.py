@@ -109,7 +109,7 @@ def _probe_login_shell_path() -> list[str]:
         return _parse_probe_output(output.read())
 
 
-def _existing_seed_dirs() -> list[str]:
+def _existing_common_tool_dirs() -> list[str]:
     """Fill-in directories for users whose shell rc files do not export them; merged last so they only fill gaps."""
     return [directory for directory in COMMON_TOOL_DIRS if os.path.isdir(directory)]
 
@@ -130,14 +130,14 @@ def hydrate_desktop_path() -> list[str]:
     """Merge the user's shell PATH into this process; returns the entries that were newly added.
 
     No-op unless launched by the desktop shell on a POSIX platform. Entries from the login shell come first so the
-    user's own toolchain order wins over the system stubs in /usr/bin; the inherited PATH and the seed directories
-    follow, so a failed probe still leaves the app strictly better off than the bare launchd PATH.
+    user's own toolchain order wins over the system stubs in /usr/bin; the inherited PATH and the common tool
+    directories follow, so a failed probe still leaves the app strictly better off than the bare launchd PATH.
     """
     if not _spawned_by_desktop_shell():
         return []
 
     current = os.environ.get("PATH", "").split(os.pathsep)
-    merged = _merge_entries(_probe_login_shell_path(), current, _existing_seed_dirs())
+    merged = _merge_entries(_probe_login_shell_path(), current, _existing_common_tool_dirs())
     added = [entry for entry in merged if entry not in current]
     os.environ["PATH"] = os.pathsep.join(merged)
     logger.info("[Startup] Desktop PATH hydrated: %d entries added", len(added))
