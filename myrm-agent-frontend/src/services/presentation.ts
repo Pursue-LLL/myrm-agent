@@ -15,6 +15,7 @@
  * Single file < 120 lines. Zero `any` types.
  */
 
+import { API_BASE_URL } from '@/lib/api';
 import { apiClient } from './api';
 
 export type SlideLayoutType =
@@ -74,7 +75,7 @@ export interface PresentationArtifactResponse {
   created_at: string;
 }
 
-const PRESENTATION_BASE = '/api/v1/presentation';
+const PRESENTATION_BASE = '/presentation';
 
 export async function generatePresentation(
   payload: PresentationGenerateRequest,
@@ -92,5 +93,5 @@ export async function getPresentation(
 }
 
 export function getPresentationDownloadUrl(id: string): string {
-  return `${PRESENTATION_BASE}/${id}/download`;
+  return `${API_BASE_URL}${PRESENTATION_BASE}/${id}/download`;
 }

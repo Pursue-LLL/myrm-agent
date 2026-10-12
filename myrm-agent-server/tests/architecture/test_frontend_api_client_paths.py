@@ -25,12 +25,7 @@ _WEBUI_PREFIX = "/webui"
 _SKIP_WITHOUT_FRONTEND = pytest.mark.skipif(not _FRONTEND_SRC.is_dir(), reason="frontend sources are not part of this checkout")
 
 # Client calls whose server route does not exist yet; each entry must disappear once the route lands.
-_KNOWN_MISSING_ROUTES = frozenset(
-    {
-        ("GET", "/memory/retrieval/quadruple/stats"),
-        ("GET", "/memory/cubes/records/{}"),
-    }
-)
+_KNOWN_MISSING_ROUTES: frozenset[tuple[str, str]] = frozenset()
 
 # Template expressions holding a query string rather than a path segment.
 _QUERY_EXPRESSIONS = frozenset({"q", "qs", "qStr", "params", "query", "queryStr", "queryString"})
@@ -78,12 +73,16 @@ def _client_calls() -> list[tuple[str, str, str]]:
 
 def _route_table() -> list[tuple[list[str], set[str]]]:
     from app.api.internal.org_policy_sync.org_model_policy_sync import frontend_router as org_policy_router
+    from app.api.memory.operations import command_center, command_center_consolidation, command_center_diagnostics
     from app.api.router import api_router
     from app.api.webui.router import router as webui_router
 
     app = FastAPI()
     app.include_router(api_router, prefix=_API_PREFIX)
     app.include_router(org_policy_router, prefix=_API_PREFIX)
+    # Lab-gated (MYRM_MEMORY_LABS) routers are only mounted at runtime when enabled; the client still targets them.
+    for lab_router in (command_center.router, command_center_consolidation.router, command_center_diagnostics.router):
+        app.include_router(lab_router, prefix=f"{_API_PREFIX}/memory")
     app.include_router(webui_router)
     table: list[tuple[list[str], set[str]]] = []
     for path, operations in app.openapi()["paths"].items():

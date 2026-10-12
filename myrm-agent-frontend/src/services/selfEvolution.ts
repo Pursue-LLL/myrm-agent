@@ -94,7 +94,7 @@ export interface SelfEvolutionRecoverResponse {
   restored_checkpoint_id: string;
 }
 
-const SELF_EVOLUTION_BASE = '/api/v1/self-evolution';
+const SELF_EVOLUTION_BASE = '/self-evolution';
 
 export async function locateSourceCandidates(
   payload: SelfEvolutionLocateRequest,

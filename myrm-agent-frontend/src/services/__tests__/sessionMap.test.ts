@@ -52,7 +52,7 @@ describe('sessionMap service', () => {
       vi.mocked(apiClient.get).mockResolvedValueOnce(mockClusters);
 
       const result = await fetchSessionMapProjects();
-      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/session-map/projects');
+      expect(apiClient.get).toHaveBeenCalledWith('/session-map/projects');
       expect(result).toEqual(mockClusters);
     });
 
@@ -61,7 +61,7 @@ describe('sessionMap service', () => {
 
       await fetchSessionMapProjects('working');
       expect(apiClient.get).toHaveBeenCalledWith(
-        '/api/v1/session-map/projects?state_filter=working',
+        '/session-map/projects?state_filter=working',
       );
     });
   });
@@ -83,7 +83,7 @@ describe('sessionMap service', () => {
       vi.mocked(apiClient.get).mockResolvedValueOnce(mockSummary);
 
       const result = await fetchFleetCockpitSummary();
-      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/session-map/cockpit');
+      expect(apiClient.get).toHaveBeenCalledWith('/session-map/cockpit');
       expect(result).toEqual(mockSummary);
     });
   });
@@ -114,7 +114,7 @@ describe('sessionMap service', () => {
       vi.mocked(apiClient.post).mockResolvedValueOnce(mockResponse);
 
       const result = await searchSessionMap('auth', 'proj-01', 'working');
-      expect(apiClient.post).toHaveBeenCalledWith('/api/v1/session-map/search', {
+      expect(apiClient.post).toHaveBeenCalledWith('/session-map/search', {
         query: 'auth',
         project_id: 'proj-01',
         state: 'working',

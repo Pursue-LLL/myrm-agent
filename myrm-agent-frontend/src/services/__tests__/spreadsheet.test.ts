@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { API_BASE_URL } from '@/lib/api';
 import { apiClient } from '../api';
 import {
   generateStyledExcelBlob,
@@ -32,7 +33,7 @@ describe('spreadsheet service client', () => {
     ],
   };
 
-  it('generateStyledExcelBlob sends POST request to /api/v1/spreadsheet/generate-excel', async () => {
+  it('generateStyledExcelBlob sends POST request to /spreadsheet/generate-excel', async () => {
     const mockBlob = new Blob(['mock-binary-data'], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
@@ -45,7 +46,7 @@ describe('spreadsheet service client', () => {
 
     const result = await generateStyledExcelBlob(samplePayload);
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/v1/spreadsheet/generate-excel', {
+    expect(mockFetch).toHaveBeenCalledWith(`${API_BASE_URL}/spreadsheet/generate-excel`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -96,7 +97,7 @@ describe('spreadsheet service client', () => {
     vi.unstubAllGlobals();
   });
 
-  it('syncSpreadsheetToOffice sends POST request to /api/v1/spreadsheet/sync-office', async () => {
+  it('syncSpreadsheetToOffice sends POST request to /spreadsheet/sync-office', async () => {
     const syncRequest: OfficeSyncRequest = {
       platform: 'feishu_bitable',
       table_name: '核心指标看板',
@@ -118,7 +119,7 @@ describe('spreadsheet service client', () => {
     const result = await syncSpreadsheetToOffice(syncRequest);
 
     expect(apiClient.post).toHaveBeenCalledWith(
-      '/api/v1/spreadsheet/sync-office',
+      '/spreadsheet/sync-office',
       syncRequest,
     );
     expect(result).toEqual(mockResponse);

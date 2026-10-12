@@ -109,16 +109,16 @@ export async function fetchWorkspaceFiles(
     params.root_dir = rootDir;
   }
   const queryString = new URLSearchParams(params).toString();
-  return apiClient.get<FileTreeResponse>(`/api/v1/workbench/files?${queryString}`);
+  return apiClient.get<FileTreeResponse>(`/workbench/files?${queryString}`);
 }
 
 export async function fetchFileContent(path: string): Promise<FileContentResponse> {
   const queryString = new URLSearchParams({ path }).toString();
-  return apiClient.get<FileContentResponse>(`/api/v1/workbench/file/content?${queryString}`);
+  return apiClient.get<FileContentResponse>(`/workbench/file/content?${queryString}`);
 }
 
 export async function computeFileDiff(req: FileDiffRequest): Promise<FileDiffResponse> {
-  return apiClient.post<FileDiffResponse>('/api/v1/workbench/diff', req);
+  return apiClient.post<FileDiffResponse>('/workbench/diff', req);
 }
 
 export async function executeTerminalCommand(
@@ -131,13 +131,13 @@ export async function executeTerminalCommand(
     cwd: cwd ?? null,
     timeout_seconds: timeoutSeconds,
   };
-  return apiClient.post<TerminalExecResponse>('/api/v1/workbench/terminal/exec', payload);
+  return apiClient.post<TerminalExecResponse>('/workbench/terminal/exec', payload);
 }
 
 export async function fetchWorkbenchPlugins(): Promise<PluginItem[]> {
-  return apiClient.get<PluginItem[]>('/api/v1/workbench/plugins');
+  return apiClient.get<PluginItem[]>('/workbench/plugins');
 }
 
 export async function probePluginHealth(pluginId: string): Promise<PluginProbeResponse> {
-  return apiClient.post<PluginProbeResponse>(`/api/v1/workbench/plugins/${pluginId}/probe`, {});
+  return apiClient.post<PluginProbeResponse>(`/workbench/plugins/${pluginId}/probe`, {});
 }

@@ -31,7 +31,7 @@ describe('workbench service', () => {
     vi.mocked(apiClient.get).mockResolvedValueOnce(mockTree);
 
     const result = await fetchWorkspaceFiles('src', 4);
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/workbench/files?max_depth=4&root_dir=src');
+    expect(apiClient.get).toHaveBeenCalledWith('/workbench/files?max_depth=4&root_dir=src');
     expect(result).toEqual(mockTree);
   });
 
@@ -47,7 +47,7 @@ describe('workbench service', () => {
     vi.mocked(apiClient.get).mockResolvedValueOnce(mockContent);
 
     const result = await fetchFileContent('src/main.py');
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/workbench/file/content?path=src%2Fmain.py');
+    expect(apiClient.get).toHaveBeenCalledWith('/workbench/file/content?path=src%2Fmain.py');
     expect(result).toEqual(mockContent);
   });
 
@@ -63,7 +63,7 @@ describe('workbench service', () => {
 
     const req = { file_path: 'app.ts', original_content: 'old', modified_content: 'new' };
     const result = await computeFileDiff(req);
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/workbench/diff', req);
+    expect(apiClient.post).toHaveBeenCalledWith('/workbench/diff', req);
     expect(result).toEqual(mockDiff);
   });
 
@@ -78,7 +78,7 @@ describe('workbench service', () => {
     vi.mocked(apiClient.post).mockResolvedValueOnce(mockExec);
 
     const result = await executeTerminalCommand('echo ok', '/workspace', 15);
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/workbench/terminal/exec', {
+    expect(apiClient.post).toHaveBeenCalledWith('/workbench/terminal/exec', {
       command: 'echo ok',
       cwd: '/workspace',
       timeout_seconds: 15,
@@ -101,7 +101,7 @@ describe('workbench service', () => {
     vi.mocked(apiClient.get).mockResolvedValueOnce(mockPlugins);
 
     const plugins = await fetchWorkbenchPlugins();
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/workbench/plugins');
+    expect(apiClient.get).toHaveBeenCalledWith('/workbench/plugins');
     expect(plugins).toEqual(mockPlugins);
 
     const mockProbe = {
@@ -114,7 +114,7 @@ describe('workbench service', () => {
     vi.mocked(apiClient.post).mockResolvedValueOnce(mockProbe);
 
     const probe = await probePluginHealth('p1');
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/workbench/plugins/p1/probe', {});
+    expect(apiClient.post).toHaveBeenCalledWith('/workbench/plugins/p1/probe', {});
     expect(probe).toEqual(mockProbe);
   });
 });

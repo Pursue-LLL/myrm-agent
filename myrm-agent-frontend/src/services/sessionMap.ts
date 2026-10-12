@@ -73,7 +73,7 @@ export interface SessionSearchResponse {
   hits: SessionSearchHit[];
 }
 
-const SESSION_MAP_BASE = '/api/v1/session-map';
+const SESSION_MAP_BASE = '/session-map';
 
 export async function fetchSessionMapProjects(
   stateFilter?: AgentState,

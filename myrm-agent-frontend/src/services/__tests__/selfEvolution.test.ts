@@ -21,7 +21,7 @@ describe('selfEvolution service client', () => {
     vi.clearAllMocks();
   });
 
-  it('createSelfEvolutionTask sends POST payload to /api/v1/self-evolution/tasks', async () => {
+  it('createSelfEvolutionTask sends POST payload to /self-evolution/tasks', async () => {
     const mockRequest: SelfEvolutionTaskCreateRequest = {
       dom_selector: '#mobile-hub > div.card',
       tag_name: 'div',
@@ -53,13 +53,13 @@ describe('selfEvolution service client', () => {
     const result = await createSelfEvolutionTask(mockRequest);
 
     expect(apiClient.post).toHaveBeenCalledWith(
-      '/api/v1/self-evolution/tasks',
+      '/self-evolution/tasks',
       mockRequest,
     );
     expect(result).toEqual(mockResponse);
   });
 
-  it('listSelfEvolutionTasks fetches task list from /api/v1/self-evolution/tasks', async () => {
+  it('listSelfEvolutionTasks fetches task list from /self-evolution/tasks', async () => {
     const mockList: SelfEvolutionTaskResponse[] = [
       {
         task_id: 'evo-aaa',
@@ -76,12 +76,12 @@ describe('selfEvolution service client', () => {
 
     const result = await listSelfEvolutionTasks();
 
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/self-evolution/tasks');
+    expect(apiClient.get).toHaveBeenCalledWith('/self-evolution/tasks');
     expect(result).toEqual(mockList);
     expect(result).toHaveLength(1);
   });
 
-  it('recoverSelfEvolution sends rollback request to /api/v1/self-evolution/recover', async () => {
+  it('recoverSelfEvolution sends rollback request to /self-evolution/recover', async () => {
     const mockRecoverRes: SelfEvolutionRecoverResponse = {
       success: true,
       message: 'Successfully rolled back to safe checkpoint chk-aaa',
@@ -92,7 +92,7 @@ describe('selfEvolution service client', () => {
 
     const result = await recoverSelfEvolution({ checkpoint_id: 'chk-aaa' });
 
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/self-evolution/recover', {
+    expect(apiClient.post).toHaveBeenCalledWith('/self-evolution/recover', {
       checkpoint_id: 'chk-aaa',
     });
     expect(result).toEqual(mockRecoverRes);

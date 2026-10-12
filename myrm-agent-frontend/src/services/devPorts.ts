@@ -48,7 +48,7 @@ export interface DevPortSniffRequest {
   log_text: string;
 }
 
-const DEV_PORTS_BASE = '/api/v1/dev-ports';
+const DEV_PORTS_BASE = '/dev-ports';
 
 export async function listDevPorts(): Promise<DevPortInfo[]> {
   return apiClient.get<DevPortInfo[]>(DEV_PORTS_BASE);

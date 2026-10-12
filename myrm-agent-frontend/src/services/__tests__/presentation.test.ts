@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { API_BASE_URL } from '@/lib/api';
 import { apiClient } from '../api';
 import {
   generatePresentation,
@@ -20,7 +21,7 @@ describe('presentation service client', () => {
     vi.clearAllMocks();
   });
 
-  it('generatePresentation sends POST payload to /api/v1/presentation/generate', async () => {
+  it('generatePresentation sends POST payload to /presentation/generate', async () => {
     const payload: PresentationGenerateRequest = {
       topic: '企业级云原生微服务',
       template_style: 'enterprise_blue',
@@ -52,13 +53,13 @@ describe('presentation service client', () => {
     const result = await generatePresentation(payload);
 
     expect(apiClient.post).toHaveBeenCalledWith(
-      '/api/v1/presentation/generate',
+      '/presentation/generate',
       payload,
     );
     expect(result).toEqual(mockResponse);
   });
 
-  it('getPresentation sends GET request to /api/v1/presentation/{id}', async () => {
+  it('getPresentation sends GET request to /presentation/{id}', async () => {
     const mockResponse: PresentationArtifactResponse = {
       id: 'pres_123456',
       topic: '企业级云原生微服务',
@@ -75,12 +76,12 @@ describe('presentation service client', () => {
 
     const result = await getPresentation('pres_123456');
 
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/presentation/pres_123456');
+    expect(apiClient.get).toHaveBeenCalledWith('/presentation/pres_123456');
     expect(result).toEqual(mockResponse);
   });
 
   it('getPresentationDownloadUrl constructs correct download url', () => {
     const url = getPresentationDownloadUrl('pres_999');
-    expect(url).toBe('/api/v1/presentation/pres_999/download');
+    expect(url).toBe(`${API_BASE_URL}/presentation/pres_999/download`);
   });
 });

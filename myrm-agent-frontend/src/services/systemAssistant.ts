@@ -51,7 +51,7 @@ export interface SystemAssistantStatusResponse {
   last_heartbeat: string;
 }
 
-const SYSTEM_ASSISTANT_BASE = '/api/v1/system-assistant';
+const SYSTEM_ASSISTANT_BASE = '/system-assistant';
 
 export async function executeSystemAssistantCommand(
   payload: SystemAssistantCommandRequest,

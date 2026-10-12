@@ -24,7 +24,7 @@ describe('devPorts service client', () => {
     vi.clearAllMocks();
   });
 
-  it('listDevPorts sends GET request to /api/v1/dev-ports', async () => {
+  it('listDevPorts sends GET request to /dev-ports', async () => {
     const mockPorts: DevPortInfo[] = [
       {
         port: 3000,
@@ -42,11 +42,11 @@ describe('devPorts service client', () => {
 
     const result = await listDevPorts();
 
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/dev-ports');
+    expect(apiClient.get).toHaveBeenCalledWith('/dev-ports');
     expect(result).toEqual(mockPorts);
   });
 
-  it('registerDevPort sends POST request to /api/v1/dev-ports with payload', async () => {
+  it('registerDevPort sends POST request to /dev-ports with payload', async () => {
     const request: DevPortRegisterRequest = {
       port: 5173,
       process_name: 'vite',
@@ -67,20 +67,20 @@ describe('devPorts service client', () => {
 
     const result = await registerDevPort(request);
 
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/dev-ports', request);
+    expect(apiClient.post).toHaveBeenCalledWith('/dev-ports', request);
     expect(result).toEqual(mockResponse);
   });
 
-  it('closeDevPort sends DELETE request to /api/v1/dev-ports/{port}', async () => {
+  it('closeDevPort sends DELETE request to /dev-ports/{port}', async () => {
     vi.mocked(apiClient.delete).mockResolvedValueOnce({ success: true });
 
     const result = await closeDevPort(3000);
 
-    expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/dev-ports/3000');
+    expect(apiClient.delete).toHaveBeenCalledWith('/dev-ports/3000');
     expect(result).toEqual({ success: true });
   });
 
-  it('createDevPortTunnel sends POST request to /api/v1/dev-ports/{port}/tunnel', async () => {
+  it('createDevPortTunnel sends POST request to /dev-ports/{port}/tunnel', async () => {
     const mockTunnel: DevPortTunnelResponse = {
       port: 3000,
       tunnel_url: 'https://tunnel-3000.sandbox.myrm.io',
@@ -91,11 +91,11 @@ describe('devPorts service client', () => {
 
     const result = await createDevPortTunnel(3000);
 
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/dev-ports/3000/tunnel');
+    expect(apiClient.post).toHaveBeenCalledWith('/dev-ports/3000/tunnel');
     expect(result).toEqual(mockTunnel);
   });
 
-  it('sniffAndRegisterDevPorts sends POST request to /api/v1/dev-ports/sniff with log_text', async () => {
+  it('sniffAndRegisterDevPorts sends POST request to /dev-ports/sniff with log_text', async () => {
     const rawLogs = 'Ready in 2.1s - Local: http://localhost:3000';
     const mockDiscovered: DevPortInfo[] = [
       {
@@ -114,7 +114,7 @@ describe('devPorts service client', () => {
 
     const result = await sniffAndRegisterDevPorts(rawLogs);
 
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/dev-ports/sniff', {
+    expect(apiClient.post).toHaveBeenCalledWith('/dev-ports/sniff', {
       log_text: rawLogs,
     });
     expect(result).toEqual(mockDiscovered);

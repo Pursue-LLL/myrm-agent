@@ -20,7 +20,7 @@ describe('systemAssistant service client', () => {
     vi.clearAllMocks();
   });
 
-  it('executeSystemAssistantCommand sends POST payload to /api/v1/system-assistant/command', async () => {
+  it('executeSystemAssistantCommand sends POST payload to /system-assistant/command', async () => {
     const mockRequest: SystemAssistantCommandRequest = {
       user_prompt: '帮我创建一个前端重构项目',
     };
@@ -43,13 +43,13 @@ describe('systemAssistant service client', () => {
     const result = await executeSystemAssistantCommand(mockRequest);
 
     expect(apiClient.post).toHaveBeenCalledWith(
-      '/api/v1/system-assistant/command',
+      '/system-assistant/command',
       mockRequest,
     );
     expect(result).toEqual(mockResponse);
   });
 
-  it('getSystemAssistantStatus fetches status from /api/v1/system-assistant/status', async () => {
+  it('getSystemAssistantStatus fetches status from /system-assistant/status', async () => {
     const mockStatus: SystemAssistantStatusResponse = {
       active_agents_count: 2,
       running_tasks_count: 2,
@@ -63,7 +63,7 @@ describe('systemAssistant service client', () => {
 
     const result = await getSystemAssistantStatus();
 
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/system-assistant/status');
+    expect(apiClient.get).toHaveBeenCalledWith('/system-assistant/status');
     expect(result).toEqual(mockStatus);
     expect(result.voice_enabled).toBe(true);
   });

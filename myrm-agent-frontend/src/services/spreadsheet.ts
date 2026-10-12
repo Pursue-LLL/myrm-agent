@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * @/services/api::apiClient (POS: centralized frontend API client adapter)
+ * @/lib/api::API_BASE_URL (POS: backend base for raw blob fetch)
  *
  * [OUTPUT]
  * - SpreadsheetTheme, ColumnType, SpreadsheetColumn, SpreadsheetRow
@@ -14,6 +15,7 @@
  * Single file < 120 lines. Zero `any` types.
  */
 
+import { API_BASE_URL } from '@/lib/api';
 import { apiClient } from './api';
 
 export type SpreadsheetTheme =
@@ -61,12 +63,12 @@ export interface OfficeSyncResponse {
   message: string;
 }
 
-const SPREADSHEET_BASE = '/api/v1/spreadsheet';
+const SPREADSHEET_BASE = '/spreadsheet';
 
 export async function generateStyledExcelBlob(
   payload: SpreadsheetGenerateRequest,
 ): Promise<Blob> {
-  const response = await fetch(`${SPREADSHEET_BASE}/generate-excel`, {
+  const response = await fetch(`${API_BASE_URL}${SPREADSHEET_BASE}/generate-excel`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
