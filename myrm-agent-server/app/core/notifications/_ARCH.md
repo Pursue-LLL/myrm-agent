@@ -61,7 +61,7 @@ are silently skipped — they are high-frequency or internal and not suitable fo
 `APPROVAL_REQUIRED` is the one event with a localized, channel-aware card:
 
 - **Language** — copy comes from the channel catalog (`app/channels/i18n`, keys `approval_*`) in the owner's language.
-- **Buttons** — Approve/Deny are attached only for `APPROVAL_CLICK_CHANNELS` (Telegram, the only provider whose click reaches the router's approval handler). Every other channel gets a localized "open the app" hint instead of buttons that would do nothing.
+- **Buttons** — Approve/Deny are attached only for `APPROVAL_CLICK_CHANNELS` (Telegram, the only provider whose click reaches the router's approval handler). Every other channel gets a localized "open the app" hint, because a click there never reaches the approval handler.
 - **Held reply content** — an `outbound_draft` card quotes the incoming message and the drafted reply (truncated) and lists attachment file names, so the owner can decide in chat. URLs are never shown because they may embed an access token.
 - **Who may press** — decided by the router, not here: held replies accept only the owner (`routing/_ARCH.md`, *Owner Check*).
 

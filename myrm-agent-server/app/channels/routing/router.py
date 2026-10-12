@@ -14,7 +14,7 @@ and voice STT/TTS via voice_handler module.
 - channels.routing.command_registry::CommandRegistry, ResolvedCommand (POS: central O(1) command lookup)
 - channels.routing.commands::parse_approval_command, handle_* (POS: slash command argument parsing and handling)
 - channels.routing.policy_resolver::PolicyResolver (POS: DM/group policy resolution + identity resolution)
-- channels.routing.policy_resolver_support::is_admin_sender (POS: the owner check behind admin-only commands)
+- channels.routing.policy_resolver_support::is_admin_sender (POS: PolicyResolver helpers plus the owner rule for admin-only commands and held-reply decisions)
 - channels.routing.session_gate::SessionGate (POS: message debounce and concurrency control)
 - channels.routing.context_buffer::GroupContextBuffer (POS: group chat context accumulation buffer)
 - channels.routing.message_effects::MessageEffects (POS: typing/reaction/placeholder side effects)

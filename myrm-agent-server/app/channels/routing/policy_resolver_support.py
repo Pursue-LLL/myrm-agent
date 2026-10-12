@@ -1,7 +1,8 @@
-"""Support types for inbound policy resolution (cooldown + group follow-up tracking).
+"""Support helpers for inbound policy resolution: cooldown and follow-up tracking, group sender arbitration, owner check.
 
 [INPUT]
-- (stdlib only)
+- app.channels.protocols.pairing::PairingRole, PairingStatus (POS: storage protocol for channel user identity binding)
+- app.channels.types::METADATA_GUEST_TURN_KEY (POS: channel notification and message-metadata constants)
 
 [OUTPUT]
 - BoundedCooldownMap: TTL-bounded rate-limit map
@@ -11,7 +12,8 @@
 - is_admin_sender: the one owner rule, shared by admin-only commands and the decision on a held channel reply
 
 [POS]
-Extracted helpers for PolicyResolver to keep the resolver module under line budget.
+PolicyResolver helpers split out to keep the resolver module under its line budget, plus the owner rule that
+AgentRouter applies to admin-only commands and held-reply decisions.
 """
 
 from __future__ import annotations
@@ -107,9 +109,7 @@ class GroupFollowUpTracker:
         self._active_threads.pop(key, None)
 
 
-async def query_dm_policy(
-    policy_provider: ChannelPolicyProvider | None, channel: str
-) -> DmPolicy:
+async def query_dm_policy(policy_provider: ChannelPolicyProvider | None, channel: str) -> DmPolicy:
     """Resolve DM policy with fallback to ALLOWLIST."""
     from app.channels.protocols.pairing import DmPolicy
 
@@ -118,9 +118,7 @@ async def query_dm_policy(
     return DmPolicy.ALLOWLIST
 
 
-async def query_group_policy(
-    policy_provider: ChannelPolicyProvider | None, channel: str
-) -> GroupPolicy:
+async def query_group_policy(policy_provider: ChannelPolicyProvider | None, channel: str) -> GroupPolicy:
     """Resolve group policy with fallback to DISABLED."""
     from app.channels.protocols.pairing import GroupPolicy
 
@@ -129,9 +127,7 @@ async def query_group_policy(
     return GroupPolicy.DISABLED
 
 
-async def query_group_trigger(
-    policy_provider: ChannelPolicyProvider | None, channel: str
-) -> tuple[GroupTriggerMode, list[str]]:
+async def query_group_trigger(policy_provider: ChannelPolicyProvider | None, channel: str) -> tuple[GroupTriggerMode, list[str]]:
     """Resolve group trigger mode and prefix list with fallback."""
     from app.channels.protocols.pairing import GroupTriggerMode
 
@@ -149,9 +145,7 @@ async def query_enabled_groups(
     return set()
 
 
-async def check_guest_mention_allowed(
-    policy_provider: ChannelPolicyProvider | None, msg: InboundMessage
-) -> bool:
+async def check_guest_mention_allowed(policy_provider: ChannelPolicyProvider | None, msg: InboundMessage) -> bool:
     """Guest mode: one-shot explicit entity mention in a non-enabled group."""
     from app.channels.types import METADATA_EXPLICIT_MENTION_KEY
 
@@ -199,9 +193,7 @@ async def resolve_lid_fallback_helper(
     if not default_uid:
         return None
 
-    await pairing.bind(
-        msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name
-    )
+    await pairing.bind(msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name)
     logger.warning(
         "PolicyResolver: LID auto-bound to default user %s → %s",
         msg.sender_id,
@@ -231,9 +223,7 @@ async def check_sender_daily_quota(
     )
 
     async with get_session() as session:
-        usage_count = await ChannelMessageRepository.get_daily_trigger_count(
-            session, msg.channel, msg.sender_id
-        )
+        usage_count = await ChannelMessageRepository.get_daily_trigger_count(session, msg.channel, msg.sender_id)
 
     if usage_count >= daily_quota:
         return True, daily_quota, usage_count
@@ -327,11 +317,7 @@ async def should_respond_in_group_support(
     # 2. Check for explicit mute command
     cleaned_content = msg.content.strip()
     if cleaned_content in ("/mute", "/shutup", "闭嘴", "别吵"):
-        thread_key = (
-            f"{msg.channel}:{msg.chat_id}:{msg.thread_id}"
-            if msg.thread_id
-            else None
-        )
+        thread_key = f"{msg.channel}:{msg.chat_id}:{msg.thread_id}" if msg.thread_id else None
         if thread_key and tracker.is_active(thread_key):
             tracker.mute(thread_key)
             from app.channels.routing.follow_up import mute_tracked_thread

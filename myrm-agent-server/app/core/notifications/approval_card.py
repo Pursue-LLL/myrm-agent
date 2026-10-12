@@ -44,7 +44,7 @@ def build_approval_card(
     """Render one approval request for ``channel``.
 
     Approve/Deny buttons are attached only where a click can be resolved; every other channel gets a
-    pointer to the app instead of buttons that would do nothing.
+    pointer to the app, since a click there never reaches the approval handler.
     """
     approval_id = str(data.get("approval_id") or "")
     action_type = str(data.get("action_type") or "action")

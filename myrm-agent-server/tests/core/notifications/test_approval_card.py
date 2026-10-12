@@ -173,7 +173,7 @@ class TestGenericApprovalCard:
         "description": "Drop table users in prod",
     }
 
-    def test_english_copy_is_unchanged(self) -> None:
+    def test_english_card_lists_action_severity_and_description(self) -> None:
         content, components = build_approval_card(self.DATA, "telegram", "en")
 
         assert content == "⚠️ **Approval Required: delete_database**\nSeverity: `critical`\n\n> Drop table users in prod"

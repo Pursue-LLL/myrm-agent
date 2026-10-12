@@ -198,8 +198,8 @@ class DurableOutboundGate:
             except Exception:
                 # A record that cannot be decoded can never become deliverable, and raising here would abort
                 # every startup/enable recovery (and with it the gateway start) for all the healthy records.
-                # It moves to the dead-letter directory instead of being deleted: it may be the only copy of a
-                # reply someone is waiting for, and the dead-letter queue reports it once as permanently failed.
+                # The record is kept in the dead-letter directory (it may be the only copy of a reply someone is
+                # waiting for), and the dead-letter queue reports it once as permanently failed.
                 logger.error(
                     "Quarantining undecodable durable outbound record %s (channel=%s)",
                     delivery.id,

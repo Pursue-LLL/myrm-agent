@@ -961,7 +961,14 @@ class TestApprovalCardDispatch:
     async def test_events_without_a_localized_card_skip_the_language_lookup(self) -> None:
         event = AppEvent(
             event_type=AppEventType.HEALTH_ALERT,
-            data={"component": "test", "status": "fail", "message": "down", "detail": "", "fix_suggestion": "", "layer": "server"},
+            data={
+                "component": "test",
+                "status": "fail",
+                "message": "down",
+                "detail": "",
+                "fix_suggestion": "",
+                "layer": "server",
+            },
         )
 
         publish, locale = await self._dispatch(

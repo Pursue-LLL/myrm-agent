@@ -5,6 +5,8 @@
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
 - channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
+- channels.i18n::get_text (POS: multi-language gateway command replies and system-generated channel messages.)
+- services.approvals.registry::ApprovalRegistry (POS: unified approval flow scheduler that persists, pushes and resolves approvals.)
 
 [OUTPUT]
 - RouterCommandsApprovalMixin: _abort_session_task, approval command handlers, decision resume payloads

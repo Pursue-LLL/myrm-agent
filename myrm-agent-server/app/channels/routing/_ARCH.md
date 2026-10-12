@@ -57,7 +57,7 @@ Approval requests reach IM chats as `ActionButton`s whose `action_id` is
   request belongs to (`chat.source != "web"`).
 - The notification dispatcher's owner card (`core/notifications/approval_card.py`)
   attaches buttons only for `APPROVAL_CLICK_CHANNELS` (Telegram). Other channels
-  get a localized "open the app" hint instead of buttons nobody could answer.
+  get a localized "open the app" hint, since their clicks never reach this handler.
 
 Telegram's inbound parser is the only one that turns a click into
 `InboundMessage(content="approval:approve:{id}", metadata={"callback_prefix": "act",
@@ -119,7 +119,7 @@ that could expose a reply before a human approved it. While it holds,
 `_consume_executor_stream(hold_reply=True)` never edits streamed text into the
 placeholder (progress updates still show) — resumed turns included, which is why
 the flag is separate from `topic_context` — and `_deliver_agent_result` turns the
-final reply into an `outbound_draft` approval instead of sending it.
+final reply into an `outbound_draft` approval; nothing is sent until the owner approves it.
 
 ## `/new` Session Boundary Cleanup
 
