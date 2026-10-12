@@ -3,7 +3,7 @@
 Verifies the Browser Doctor diagnostics card renders and executes a real
 diagnosis round trip against the backend:
 1. Settings/System page loads and the Browser Doctor card is visible
-2. Running diagnostics renders the check report (Patchright check present)
+2. Running diagnostics renders the check report (engine and cleanup rows present)
 3. The report renders the healthy/unhealthy status badge
 """
 
@@ -61,12 +61,12 @@ _BROWSER_DOCTOR_CARD_JS = """(() => {
 
 _BROWSER_DOCTOR_REPORT_JS = """(() => {
   const text = document.body?.innerText || '';
-  const hasPatchright = /Patchright Engine|Patchright 引擎/.test(text);
-  const hasBadge = /Browser stack healthy|浏览器栈正常|Issues detected|发现问题/.test(text);
-  const hasOrphanCheck = /Orphans & Sandbox Caches|孤儿进程与沙箱治理/.test(text);
+  const hasEngineRow = /Stealth engine|隐身引擎/.test(text);
+  const hasBadge = /Browser is working|浏览器运行正常|Issues detected|发现问题/.test(text);
+  const hasOrphanCheck = /Leftover processes & caches|残留进程与缓存/.test(text);
   return {
-    ready: hasPatchright && hasBadge && hasOrphanCheck,
-    hasPatchright,
+    ready: hasEngineRow && hasBadge && hasOrphanCheck,
+    hasEngineRow,
     hasBadge,
     hasOrphanCheck,
     snippet: text.slice(0, 1600),
@@ -135,7 +135,7 @@ def test_chrome_ui_browser_doctor_card_renders_report() -> None:
             timeout_sec=_warm_ui_parallel_wait_sec(180.0),
         )
         assert report.get("ready") is True, json.dumps(report, indent=2, ensure_ascii=False)
-        assert report.get("hasPatchright") is True
+        assert report.get("hasEngineRow") is True
         assert report.get("hasBadge") is True
         assert report.get("hasOrphanCheck") is True
 

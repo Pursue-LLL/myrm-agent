@@ -1,19 +1,22 @@
 """Browser doctor API tests.
 
 Covers ``/api/v1/health/browser/doctor`` and ``/api/v1/health/browser/orphans``:
-- doctor endpoint injects the real server port into ``run_doctor`` (D2 regression)
+- doctor endpoint hands the server-owned extension relay check to ``run_doctor`` as an extra check,
+  so the relay row is part of the report and of its summary
 - orphan list/cleanup endpoints use the unified automation scan and keep the
   ``confirm`` safety semantics (D1/D3 regression)
-Also covers the remaining health/browser endpoints: ``/browser`` pool health,
+Also covers the remaining health/browser endpoints: ``/browser`` pool health (dict or degraded),
 ``/browser/test-cloud-connection`` and ``/browser/test-proxy-connection``.
 """
 
+import logging
 import sys
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.browser.doctor import CheckStatus, DoctorCheckResult
 
 from tests.support.minimal_app import build_minimal_app
 
@@ -40,19 +43,21 @@ def _fake_report() -> SimpleNamespace:
     )
 
 
+_RELAY_CHECK = "app.services.extension.relay_check.check_extension_relay"
+
+
 @patch("app.lifecycle.browser.resolve_browser_proxy_pool", return_value=None)
 @patch("myrm_agent_harness.toolkits.browser.run_doctor")
-def test_browser_doctor_injects_real_server_port(
+def test_browser_doctor_passes_the_extension_relay_check_to_run_doctor(
     mock_run_doctor: object,
     mock_proxy: object,
     client: TestClient,
 ) -> None:
-    """The doctor endpoint must forward the actual server port as the relay base URL."""
-    from app.config.settings import settings
-
+    """The relay probe is server-owned, so the endpoint supplies it as an extra check."""
     mock_run_doctor.return_value = _fake_report()  # type: ignore[attr-defined]
 
-    response = client.get("/api/v1/health/browser/doctor")
+    with patch(_RELAY_CHECK, new=MagicMock(return_value="relay-check")):
+        response = client.get("/api/v1/health/browser/doctor")
 
     assert response.status_code == 200
     data = response.json()
@@ -61,7 +66,7 @@ def test_browser_doctor_injects_real_server_port(
     mock_run_doctor.assert_called_once_with(  # type: ignore[attr-defined]
         include_launch_test=True,
         browser_proxy="",
-        extension_relay_base_url=f"http://127.0.0.1:{settings.port}",
+        extra_checks={"extension_relay": "relay-check"},
     )
 
 
@@ -73,18 +78,41 @@ def test_browser_doctor_honors_launch_test_flag(
     client: TestClient,
 ) -> None:
     """``launch_test=false`` must be forwarded to disable the browser launch test."""
-    from app.config.settings import settings
-
     mock_run_doctor.return_value = _fake_report()  # type: ignore[attr-defined]
 
-    response = client.get("/api/v1/health/browser/doctor?launch_test=false")
+    with patch(_RELAY_CHECK, new=MagicMock(return_value="relay-check")):
+        response = client.get("/api/v1/health/browser/doctor?launch_test=false")
 
     assert response.status_code == 200
-    mock_run_doctor.assert_called_once_with(  # type: ignore[attr-defined]
-        include_launch_test=False,
-        browser_proxy="",
-        extension_relay_base_url=f"http://127.0.0.1:{settings.port}",
+    assert mock_run_doctor.call_args.kwargs["include_launch_test"] is False  # type: ignore[attr-defined]
+
+
+@patch("app.lifecycle.browser.resolve_browser_proxy_pool", return_value=None)
+@patch(
+    "myrm_agent_harness.toolkits.browser.doctor.checks.check_orphan_processes",
+    return_value=DoctorCheckResult(name="orphan_processes", status=CheckStatus.OK, message="clean"),
+)
+def test_browser_doctor_report_contains_the_extension_relay_row(
+    _mock_orphans: object,
+    _mock_proxy: object,
+    client: TestClient,
+) -> None:
+    """Through the real orchestrator the relay row lands in ``checks`` and is counted by ``summary``."""
+    relay = DoctorCheckResult(
+        name="extension_relay",
+        status=CheckStatus.WARNING,
+        message="not connected",
+        details={"optional": True},
     )
+
+    with patch(_RELAY_CHECK, new=AsyncMock(return_value=relay)):
+        response = client.get("/api/v1/health/browser/doctor?launch_test=false")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["checks"]["extension_relay"]["status"] == "warning"
+    assert data["checks"]["extension_relay"]["details"] == {"optional": True}
+    assert f"/{len(data['checks'])} checks passed" in data["summary"]
 
 
 @patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes")
@@ -177,6 +205,23 @@ def test_cleanup_browser_orphans_when_none_found(
     assert "reclaimed_bytes" in data
 
 
+@patch(
+    "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+    side_effect=RuntimeError("scan exploded"),
+)
+def test_cleanup_browser_orphans_logs_the_root_cause_before_failing(
+    _mock_find: object,
+    client: TestClient,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The 500 detail stays generic for the client, so the real cause must reach the server log."""
+    with caplog.at_level(logging.ERROR, logger="app.api.health.browser"):
+        response = client.delete("/api/v1/health/browser/orphans?confirm=true")
+
+    assert response.status_code == 500
+    assert any(record.exc_info is not None and "scan exploded" in str(record.exc_info[1]) for record in caplog.records)
+
+
 @patch("myrm_agent_harness.toolkits.browser.cleanup_stale_automation_sandboxes")
 @patch("myrm_agent_harness.toolkits.browser.cleanup_orphan_processes")
 @patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes")
@@ -218,11 +263,13 @@ def test_browser_health_returns_pool_status(
 ) -> None:
     """GET /browser must surface the pool health dict verbatim."""
     mock_pool = MagicMock()
-    mock_pool.health.return_value = {
-        "status": "healthy",
-        "active": 2,
-        "total": 4,
-    }
+    mock_pool.health = AsyncMock(
+        return_value={
+            "status": "healthy",
+            "active": 2,
+            "total": 4,
+        }
+    )
     mock_pool_get.return_value = mock_pool  # type: ignore[attr-defined]
 
     response = client.get("/api/v1/health/browser")
@@ -232,29 +279,13 @@ def test_browser_health_returns_pool_status(
 
 
 @patch("app.config.browser.get_configured_browser_pool")
-def test_browser_health_returns_string_status(
-    mock_pool_get: object,
-    client: TestClient,
-) -> None:
-    """GET /browser must wrap a string health result into a status key."""
-    mock_pool = MagicMock()
-    mock_pool.health.return_value = "degraded"
-    mock_pool_get.return_value = mock_pool  # type: ignore[attr-defined]
-
-    response = client.get("/api/v1/health/browser")
-
-    assert response.status_code == 200
-    assert response.json() == {"status": "degraded"}
-
-
-@patch("app.config.browser.get_configured_browser_pool")
 def test_browser_health_degrades_on_exception(
     mock_pool_get: object,
     client: TestClient,
 ) -> None:
     """GET /browser must degrade to unhealthy when pool.health raises."""
     mock_pool = MagicMock()
-    mock_pool.health.side_effect = RuntimeError("pool exploded")
+    mock_pool.health = AsyncMock(side_effect=RuntimeError("pool exploded"))
     mock_pool_get.return_value = mock_pool  # type: ignore[attr-defined]
 
     response = client.get("/api/v1/health/browser")

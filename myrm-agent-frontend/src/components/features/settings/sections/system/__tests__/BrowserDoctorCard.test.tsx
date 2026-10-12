@@ -393,6 +393,49 @@ describe('BrowserDoctorCard presentation', () => {
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
+  it('lists the checks directly in the card instead of inside a second scroll area', async () => {
+    serveReport(failedLaunchReport());
+
+    const { container } = render(<BrowserDoctorCard />);
+
+    await screen.findByText('summaryNeedsAttention');
+    expect(container.querySelector('[class*="overflow-y-auto"]')).toBeNull();
+  });
+
+  it('announces a failed diagnosis to assistive technology', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ detail: 'Doctor backend exploded' }, false)));
+
+    render(<BrowserDoctorCard />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Doctor backend exploded');
+  });
+
+  it('announces the cleanup result in a polite live region that exists before the result arrives', async () => {
+    let doctorCalls = 0;
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('/browser/doctor')) {
+        doctorCalls += 1;
+        return Promise.resolve(jsonResponse(doctorReport(doctorCalls === 1 ? 'warning' : 'ok')));
+      }
+      return Promise.resolve(jsonResponse({ killed: 2, dry_run: false }));
+    });
+
+    render(<BrowserDoctorCard />);
+
+    await screen.findByText('cleanupOrphans');
+    const liveRegion = screen.getByRole('status');
+    expect(liveRegion).toBeEmptyDOMElement();
+
+    await userEvent.click(screen.getByText('cleanupOrphans'));
+    const dialog = await screen.findByRole('alertdialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'cleanupOrphans' }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('cleaned');
+    });
+    expect(screen.getByRole('status')).toBe(liveRegion);
+  });
+
   it('does not report a healthy stack when a real warning exists even if the backend verdict is healthy', async () => {
     serveReport({
       summary: '1/2 checks passed, 1 warnings',

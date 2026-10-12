@@ -13,6 +13,7 @@
 [INPUT]
 - app.config.browser::get_configured_browser_pool (POS: 浏览器池配置)
 - myrm_agent_harness.toolkits.browser::run_doctor (POS: 浏览器诊断)
+- app.services.extension.relay_check::check_extension_relay (POS: 扩展 CDP relay 诊断，作为 run_doctor 的额外检查)
 - myrm_agent_harness.toolkits.browser::cleanup_orphan_processes / cleanup_stale_automation_sandboxes (POS: 浏览器孤儿进程与沙箱清理)
 - app.lifecycle.browser::resolve_browser_proxy_pool (POS: 代理池解析)
 
@@ -24,9 +25,12 @@ Server business layer. 浏览器运行时健康检查与诊断的 HTTP 端点集
 """
 
 import asyncio
+import logging
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
@@ -41,13 +45,8 @@ async def browser_health() -> dict[str, object]:
     from app.config.browser import get_configured_browser_pool
 
     try:
-        pool = get_configured_browser_pool()
-        health_status = pool.health()
-        if asyncio.iscoroutine(health_status):
-            health_status = await health_status
-        if isinstance(health_status, dict):
-            return {str(k): v for k, v in health_status.items()}
-        return {"status": str(health_status)}
+        health_status = await get_configured_browser_pool().health()
+        return {str(k): v for k, v in health_status.items()}
     except Exception as exc:
         return {
             "status": "unhealthy",
@@ -70,8 +69,8 @@ async def browser_doctor(
     """
     from myrm_agent_harness.toolkits.browser import run_doctor
 
-    from app.config.settings import settings
     from app.lifecycle.browser import resolve_browser_proxy_pool
+    from app.services.extension.relay_check import check_extension_relay
 
     proxy_pool = await resolve_browser_proxy_pool()
     browser_proxy = ",".join(proxy_pool.urls) if proxy_pool else ""
@@ -79,7 +78,7 @@ async def browser_doctor(
     report = await run_doctor(
         include_launch_test=launch_test,
         browser_proxy=browser_proxy,
-        extension_relay_base_url=f"http://127.0.0.1:{settings.port}",
+        extra_checks={"extension_relay": check_extension_relay()},
     )
 
     return {
@@ -147,9 +146,7 @@ async def cleanup_browser_orphans(
         orphan_pids = [int(o["pid"]) for o in orphans]
 
         if orphan_pids:
-            proc_result = await asyncio.to_thread(
-                cleanup_orphan_processes, orphan_pids, force=confirm
-            )
+            proc_result = await asyncio.to_thread(cleanup_orphan_processes, orphan_pids, force=confirm)
         else:
             proc_result = {
                 "killed": 0,
@@ -157,11 +154,7 @@ async def cleanup_browser_orphans(
                 "failed": [],
             }
 
-        effective_max_age = (
-            max_age_hours
-            if max_age_hours is not None
-            else (0.0 if confirm else 24.0)
-        )
+        effective_max_age = max_age_hours if max_age_hours is not None else (0.0 if confirm else 24.0)
         sandbox_result = await asyncio.to_thread(
             cleanup_stale_automation_sandboxes,
             max_age_hours=effective_max_age,
@@ -171,9 +164,7 @@ async def cleanup_browser_orphans(
         killed = int(proc_result.get("killed", 0))
         sandboxes_pruned = int(sandbox_result.get("pruned", 0))
         reclaimed_bytes = int(sandbox_result.get("reclaimed_bytes", 0))
-        failed_items = list(proc_result.get("failed", [])) + list(
-            sandbox_result.get("failed", [])
-        )
+        failed_items = list(proc_result.get("failed", [])) + list(sandbox_result.get("failed", []))
 
         reclaimed_mb = round(reclaimed_bytes / (1024 * 1024), 1)
         if confirm:
@@ -181,14 +172,8 @@ async def cleanup_browser_orphans(
             if killed > 0:
                 msg_parts.append(f"Killed {killed} process(es)")
             if sandboxes_pruned > 0:
-                msg_parts.append(
-                    f"pruned {sandboxes_pruned} sandbox(es) ({reclaimed_mb} MB reclaimed)"
-                )
-            msg = (
-                ", ".join(msg_parts)
-                if msg_parts
-                else "No orphan processes or stale sandboxes needed cleanup"
-            )
+                msg_parts.append(f"pruned {sandboxes_pruned} sandbox(es) ({reclaimed_mb} MB reclaimed)")
+            msg = ", ".join(msg_parts) if msg_parts else "No orphan processes or stale sandboxes needed cleanup"
         else:
             candidates_count = sandbox_result.get("candidates_inspected", 0)
             msg = f"Dry-run: {len(orphan_pids)} process(es) and {candidates_count} sandbox candidate(s)"
@@ -203,6 +188,8 @@ async def cleanup_browser_orphans(
             "failed": failed_items,
         }
     except Exception as exc:
+        # The client only gets a generic detail; the cause must land in the server log.
+        logger.exception("Failed to process orphan automation resources")
         raise HTTPException(status_code=500, detail="Failed to process orphans") from exc
 
 
@@ -259,7 +246,7 @@ async def test_cloud_browser_connection() -> dict[str, object]:
             start = _time.perf_counter()
             async with asyncio.timeout(10):
                 async with aiohttp.ClientSession() as session:
-                    async with session.ws_connect(endpoint, timeout=8):
+                    async with session.ws_connect(endpoint, timeout=aiohttp.ClientWSTimeout(ws_close=8)):
                         latency_ms = round((_time.perf_counter() - start) * 1000)
                         return {
                             "status": "connected",

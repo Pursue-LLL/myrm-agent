@@ -251,7 +251,11 @@ const BrowserDoctorCard = memo(() => {
           <Switch id="browser-doctor-launch-test" checked={launchTest} onCheckedChange={setLaunchTest} />
         </div>
 
-        {error && <p className={cn('text-sm', TEXT_ERROR)}>{error}</p>}
+        {error && (
+          <p role="alert" className={cn('text-sm', TEXT_ERROR)}>
+            {error}
+          </p>
+        )}
 
         {report && view && !error && (
           <>
@@ -294,7 +298,7 @@ const BrowserDoctorCard = memo(() => {
                   )}
                 </button>
               </div>
-              <div className="max-h-96 space-y-2 overflow-y-auto">
+              <div className="space-y-2">
                 {view.rows.map(({ name, check, tone, hint }) => (
                   <div key={name} className="rounded-lg border border-border/60 bg-background/40 p-3 text-xs">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -331,11 +335,14 @@ const BrowserDoctorCard = memo(() => {
                         </Button>
                       </div>
                     )}
-                    {name === 'orphan_processes' && cleanupMessage && (
-                      <p className={cn('mt-1', cleanupHasFailures ? TEXT_ATTENTION : TEXT_OK)}>{cleanupMessage}</p>
-                    )}
-                    {name === 'orphan_processes' && cleanupError && (
-                      <p className={cn('mt-1', TEXT_ERROR)}>{cleanupError}</p>
+                    {name === 'orphan_processes' && (
+                      // The region is always mounted so screen readers announce text that is added later.
+                      <output className="block">
+                        {cleanupMessage && (
+                          <p className={cn('mt-1', cleanupHasFailures ? TEXT_ATTENTION : TEXT_OK)}>{cleanupMessage}</p>
+                        )}
+                        {cleanupError && <p className={cn('mt-1', TEXT_ERROR)}>{cleanupError}</p>}
+                      </output>
                     )}
                   </div>
                 ))}

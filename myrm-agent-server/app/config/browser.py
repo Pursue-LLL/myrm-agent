@@ -13,6 +13,7 @@
 import dataclasses
 import logging
 import os
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.browser.pool.config import (
     _DEFAULT_CDP_ENDPOINT,
@@ -21,6 +22,9 @@ from myrm_agent_harness.toolkits.browser.pool.config import (
 )
 
 from .deploy_mode import is_local_mode
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.browser.pool import GlobalBrowserPool
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +134,7 @@ def get_browser_launch_options() -> dict[str, object]:
     return options
 
 
-def get_configured_browser_pool():
+def get_configured_browser_pool() -> "GlobalBrowserPool":
     """Return GlobalBrowserPool singleton initialized with deploy-mode config."""
     from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
 

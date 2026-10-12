@@ -2,10 +2,10 @@
   "settings": {
     "browserDoctor": {
       "title": "브라우저 진단",
-      "description": "브라우저 자동화 의존성, 시작 준비 상태를 확인하고 수정 제안을 받습니다",
+      "description": "브라우저 기능이 준비되었는지 확인하고 문제 해결 방법을 확인합니다",
       "runCheck": "진단 실행",
       "running": "검사 실행 중…",
-      "healthy": "브라우저 스택 정상",
+      "healthy": "브라우저가 정상 작동 중입니다",
       "unhealthy": "문제가 감지되었습니다",
       "recommendations": "권장 사항",
       "checks": "검사 항목",

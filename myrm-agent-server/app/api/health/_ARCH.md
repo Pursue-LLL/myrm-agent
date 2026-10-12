@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
-| `browser.py` | 模块 | 浏览器运行时健康端点：`/browser` 健康、`/browser/doctor` 诊断（真实端口注入 relay 探测）、`/browser/orphans` GET/DELETE（统一 automation 扫描 + confirm 安全门 + 联动沙箱清理与空间释放透出 + failed 透传）、云/代理连通性测试 | ✅ |
+| `browser.py` | 模块 | 浏览器运行时健康端点：`/browser` 健康、`/browser/doctor` 诊断（把 server 自有的 `extension_relay` 检查作为 `run_doctor` 的 `extra_checks` 传入，relay 行计入报告与 summary）、`/browser/orphans` GET/DELETE（统一 automation 扫描 + confirm 安全门 + 联动沙箱清理与空间释放透出 + failed 透传；失败时先 `logger.exception` 记录根因再返回通用 500）、云/代理连通性测试 | ✅ |
 | `diagnostic.py` | 模块 | Returns the current hardened diagnostic state of the agent engine. | ✅ |
 | `memory.py` | 模块 | Memory diagnostics API. | ✅ |
 | `liveness.py` | 模块 | Agent 全局存活状态 SSOT 端点（`GET /api/v1/health/liveness`），聚合 Agent 活跃会话、渠道健康、内存压力、`pendingOutboundCount`、`gatewayRuntime` 零载荷 vitals；gateway 异常时 `state=degraded`；`metrics_enabled` 时刷新 Prometheus `myrm_gateway_*` gauges | ✅ |
