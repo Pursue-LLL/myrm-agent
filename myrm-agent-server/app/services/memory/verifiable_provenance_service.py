@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Optional
 
 from myrm_agent_harness.toolkits.memory.verifiable_provenance import (
-    FailClosedSecurityException,
     TenantSandboxContext,
     VerifiableProvenanceManager,
 )

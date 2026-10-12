@@ -18,9 +18,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind
 
 from app.api.memory.utils import get_memory_manager
+from app.core.memory.adapters.conflict_callback import get_memory_conflict_policy
 from app.database.connection import get_session
 from app.database.models import PendingMemory
-from app.core.memory.adapters.conflict_callback import get_memory_conflict_policy
 from app.schemas.memory.crud import (
     MemoryConflictPolicy,
     PendingMemoriesResponse,

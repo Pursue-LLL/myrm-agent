@@ -70,9 +70,6 @@ from app.api.memory.conclusion_evidence_router import (
 from app.api.memory.context_fabric_router import (
     router as context_fabric_router,
 )
-from app.api.memory.context_fabric_router import (
-    router as context_fabric_router,
-)
 from app.api.memory.conversation_lineage_defense_router import (
     router as conversation_lineage_defense_router,
 )
@@ -345,11 +342,11 @@ from app.api.memory.vector_dim_guard_router import (
 from app.api.memory.vector_preflight_router import (
     router as memory_vector_preflight_router,
 )
-from app.api.memory.zk_vault_watermark_router import (
-    router as zk_vault_watermark_router,
-)
 from app.api.memory.verifiable_provenance_router import (
     router as verifiable_provenance_router,
+)
+from app.api.memory.zk_vault_watermark_router import (
+    router as zk_vault_watermark_router,
 )
 
 logger = logging.getLogger(__name__)
