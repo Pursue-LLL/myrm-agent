@@ -8,8 +8,9 @@ let mockMcpConfigs: MCPServiceConfig[] = [];
 let mockSystemInstructions = '';
 let mockAgentDescription = '';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
+vi.mock('next-intl', () => {
+  // Stable reference: a fresh translator per render re-triggers effects keyed on `t`.
+  const t = (key: string) => {
     const translations: Record<string, string> = {
       title: 'Session Baseline Context Footprint',
       subtitle: 'Pre-flight context token allocation before conversation turns',
@@ -27,8 +28,9 @@ vi.mock('next-intl', () => ({
       close: 'Close',
     };
     return translations[key] ?? key;
-  },
-}));
+  };
+  return { useTranslations: () => t };
+});
 
 vi.mock('@/store/useConfigStore', () => ({
   default: (selector: (state: unknown) => unknown) =>

@@ -6,8 +6,9 @@ import type { ReferenceSuggestion } from '@/services/chat';
 
 const mockChatId = 'test-session-123';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
+vi.mock('next-intl', () => {
+  // Stable reference: a fresh translator per render re-triggers effects keyed on `t`.
+  const t = (key: string) => {
     const translations: Record<string, string> = {
       title: 'Context Reference (@)',
       specialReferencesHint: 'Special References',
@@ -20,8 +21,9 @@ vi.mock('next-intl', () => ({
       dismiss: 'Dismiss',
     };
     return translations[key] ?? key;
-  },
-}));
+  };
+  return { useTranslations: () => t };
+});
 
 vi.mock('@/store/useChatStore', () => ({
   default: (selector: (state: { chatId: string }) => unknown) => selector({ chatId: mockChatId }),

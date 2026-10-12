@@ -156,7 +156,9 @@ export default function ModelPickerPopover({
   const { restricted, loadPolicy, isModelAllowed } = useOrgModelPolicyStore();
   useOrgModelPolicySync();
 
-  const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels]);
+  // `getEnabledModels` is a stable store action, so `providers` must drive recomputation when config loads after mount.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- providers is the data source read through the stable action
+  const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels, providers]);
 
   useEffect(() => {
     if (open) {

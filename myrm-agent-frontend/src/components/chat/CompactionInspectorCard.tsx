@@ -86,7 +86,7 @@ export const CompactionInspectorCard: React.FC<CompactionInspectorCardProps> = (
             type="button"
             data-testid="toggle-expand-btn"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-primary hover:underline font-medium text-[11px] focus:outline-none"
+            className="text-primary hover:underline font-medium text-[11px] rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {isExpanded ? '收起详情 ▲' : '查看详情 ▼'}
           </button>

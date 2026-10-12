@@ -25,14 +25,14 @@ _BRIDGE_READY_JS = """(() => ({
 
 _CHECK_DOCK_JS = """(() => {
   const bodyText = document.body.innerText || '';
-  const hasPill = bodyText.includes('并行任务空间') || bodyText.includes('Parallel Task Spaces');
+  const hasPill = bodyText.includes('任务浏览器沙箱') || bodyText.includes('Parallel Browser Spaces');
   return { ready: hasPill };
 })()"""
 
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="READ",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
     private_reason="exclusive_backend",
 )
