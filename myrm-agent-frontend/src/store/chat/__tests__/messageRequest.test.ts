@@ -13,6 +13,7 @@ import {
   type ChatActionsMethods,
   type ChatActionsState,
 } from '@/store/chat/messageRequest';
+import { inSessionMentionDeduplicator } from '../inSessionMentionDeduplicator';
 import useConfigStore from '@/store/useConfigStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useChatStore from '@/store/useChatStore';
@@ -1318,5 +1319,55 @@ describe('messageRequest - mention reference lifetime contract', () => {
     expect(requestBody).toMatchObject({
       auto_moa_reasoning: true,
     });
+  });
+
+  it('deduplicates in-session file mentions by marking fresh files and omitting content on subsequent turns', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValue(new Response('', { status: 200 }));
+
+    const testChatId = 'chat-dedup-test';
+    inSessionMentionDeduplicator.clearSession(testChatId);
+
+    const fileRef: MentionReference = {
+      type: 'workspace_file',
+      label: '@src/config.ts',
+      path: 'src/config.ts',
+      source: 'workspace',
+      size: 100,
+      content: 'export const CONFIG = 42;',
+    };
+
+    const state = {
+      ...baseState,
+      chatId: testChatId,
+      mentionReferences: [fileRef],
+    };
+
+    // First turn: fresh file, content is retained and file is registered into deduplicator
+    await createMessageRequest('首轮提问 @src/config.ts', 'msg-turn-1', state, null);
+
+    const [body1] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(body1.mention_references).toEqual([
+      expect.objectContaining({
+        type: 'workspace_file',
+        path: 'src/config.ts',
+        content: 'export const CONFIG = 42;',
+      }),
+    ]);
+    expect(inSessionMentionDeduplicator.isPathInjected(testChatId, 'src/config.ts')).toBe(true);
+
+    // Second turn: same file mentioned again in the same session. Full text content is omitted to prevent context bloat
+    createAISearchStreamMock.mockClear();
+    await createMessageRequest('次轮提问再次 @src/config.ts', 'msg-turn-2', state, null);
+
+    const [body2] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(body2.mention_references).toEqual([
+      expect.objectContaining({
+        type: 'workspace_file',
+        path: 'src/config.ts',
+      }),
+    ]);
+    expect((body2.mention_references as Array<{ content?: string }>)[0]?.content).toBeUndefined();
   });
 });

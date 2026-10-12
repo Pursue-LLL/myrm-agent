@@ -8,8 +8,7 @@
 [OUTPUT]
 - drive_chat_turn(): slash-pick the skill chip, optionally attach a file, type the request, press send
 - TextAttachment: a small text file picked through the composer's real file input
-- wait_for_approval_card() / click_approve(): the tool-approval card of a HITL-parked run
-- describe_page() / describe_unanswered_resume(): failure text for a turn the page sent or an approval it resumed
+- describe_page(): failure text for a turn the page sent: its requests, the stream events it saw, its open approvals
 - TRANSCRIPT_CHIP_JS: the sent message renders the skill as a chip, not as the raw ``[use skill]`` text
 
 [POS]
@@ -36,7 +35,10 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 from tests.support.chrome_skill_hooks_live_e2e import SkillChat
-from tests.support.chrome_skill_hooks_observe import backend_log_since, wait_user_message_persisted
+from tests.support.chrome_skill_hooks_observe import backend_log_offset, backend_log_since, wait_user_message_persisted
+
+# A busy host can take a while to store the picked file; the pill stops spinning once the upload answered.
+_ATTACHMENT_UPLOAD_TIMEOUT_SEC = 150.0
 
 
 @dataclass(frozen=True)
@@ -172,11 +174,22 @@ _CLICK_SEND_JS = """(() => {
       try {
         const response = await original.apply(window, args);
         record.status = response.status;
+        if (/agent-stream/.test(record.url) && response.body) {
+          // The first chunk of a stream says whether it was accepted or answered with a terminal error envelope.
+          response.clone().body.getReader().read()
+            .then(({ value }) => { record.firstChunk = new TextDecoder().decode(value ?? new Uint8Array()).slice(0, 240); })
+            .catch(() => {});
+        }
         return response;
       } catch (error) {
         record.error = String(error).slice(0, 160);
         throw error;
       }
+    };
+    const consoleError = console.error;
+    console.error = (...logged) => {
+      trace.push({ console: logged.map((part) => String(part)).join(' ').slice(0, 200) });
+      consoleError.apply(console, logged);
     };
     window.addEventListener('unhandledrejection', (event) => trace.push({ rejection: String(event.reason).slice(0, 200) }));
     window.addEventListener('error', (event) => trace.push({ error: String(event.message).slice(0, 200) }));
@@ -212,24 +225,6 @@ TRANSCRIPT_CHIP_JS = """(() => {
   const bubble = document.querySelector('[data-message-id]');
   const text = (bubble?.textContent || '').trim();
   return { ready: Boolean(chips) && Boolean(text), hasRawUsePrefix: /\\[use\\s/i.test(text), text };
-})()"""
-
-_APPROVAL_VISIBLE_JS = """(() => {
-  const snap = window.__MYRM_E2E_CHAT__?.toolApprovalSnapshot?.() ?? {};
-  const queueLen = Number(snap.queueLen ?? 0);
-  const buttons = Array.from(document.querySelectorAll('button'));
-  const hasApprove = buttons.some((btn) => /Approve|批准/.test((btn.textContent || '').trim()));
-  const text = document.body?.innerText || '';
-  return { ready: hasApprove && queueLen > 0, queueLen, hasApprove, sample: text.slice(0, 600) };
-})()"""
-
-_CLICK_APPROVE_JS = """(() => {
-  const buttons = Array.from(document.querySelectorAll('button'));
-  const approve = buttons.find((btn) => /Approve|批准/.test((btn.textContent || '').trim()));
-  if (!approve) return { ok: false, err: 'approve-button-not-found' };
-  approve.scrollIntoView({ block: 'center' });
-  approve.click();
-  return { ok: true, label: (approve.textContent || '').trim() };
 })()"""
 
 
@@ -283,9 +278,18 @@ def drive_chat_turn(
 
         if attachment is not None:
             spec = {"name": attachment.name, "text": attachment.text}
+            log_offset = backend_log_offset(get_e2e_api_url())
             attached_file = client.evaluate(page, _call(_ATTACH_TEXT_FILE_JS, spec), timeout_sec=15.0)
             assert isinstance(attached_file, dict) and attached_file.get("ok") is True, attached_file
-            wait_for_state(client, page, _call(_ATTACHMENT_READY_JS, attachment.name), timeout_sec=60.0)
+            try:
+                wait_for_state(
+                    client, page, _call(_ATTACHMENT_READY_JS, attachment.name), timeout_sec=_ATTACHMENT_UPLOAD_TIMEOUT_SEC
+                )
+            except AssertionError as failure:
+                pytest.fail(
+                    f"{failure}\n{describe_page(client, page)}\n"
+                    f"--- backend log since the file was picked ---\n{backend_log_since(get_e2e_api_url(), log_offset)}"
+                )
 
         # Type the request and press the real send button: the composer, not a test shortcut, builds the wire.
         client.evaluate(page, _USE_AGENT_MODE_JS, timeout_sec=15.0)
@@ -317,33 +321,3 @@ def describe_page(client: ChromeMcpClient, page: McpPage) -> str:
     """What the page itself believes about the turn it sent: requests it made, stream events it saw, open approvals."""
     state = client.evaluate(page, _SEND_DIAGNOSTICS_JS, timeout_sec=15.0)
     return f"browser state: {json.dumps(state, ensure_ascii=False)}"
-
-
-def describe_unanswered_resume(
-    failure: BaseException,
-    client: ChromeMcpClient,
-    page: McpPage,
-    probe: SkillChat,
-    *,
-    log_offset: int,
-) -> str:
-    """Failure text for an approved run that never answered: the hooks' files, the page's view, the server's log."""
-    session = probe.out / "session_payload.json"
-    session_text = session.read_text(encoding="utf-8")[:300] if session.exists() else None
-    return (
-        f"{failure}\n"
-        f"hook files after approve: {sorted(path.name for path in probe.out.iterdir())}; session payload: {session_text}\n"
-        f"{describe_page(client, page)}\n"
-        f"--- backend log since approve ---\n{backend_log_since(get_e2e_api_url(), log_offset)}"
-    )
-
-
-def wait_for_approval_card(client: ChromeMcpClient, page: McpPage, *, timeout_sec: float = 240.0) -> dict[str, object]:
-    """Block until the tool-approval card is on screen (the run is parked at its HITL interrupt)."""
-    return wait_for_state(client, page, _APPROVAL_VISIBLE_JS, timeout_sec=timeout_sec)
-
-
-def click_approve(client: ChromeMcpClient, page: McpPage) -> None:
-    """Press Approve on the tool-approval card, as the user would."""
-    clicked = client.evaluate(page, _CLICK_APPROVE_JS, timeout_sec=15.0)
-    assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked

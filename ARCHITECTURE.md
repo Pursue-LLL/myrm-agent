@@ -11,7 +11,7 @@
 | 仓库 | 路径（monorepo） | 许可 | 职责 |
 |------|------------------|------|------|
 | **myrm-agent** | `myrm-agent/` | MIT 开源 | 单机业务 server、Web UI、Tauri 桌面 |
-| **myrm-agent-harness** | `myrm-agent-harness/` | 闭源 | Agent 执行引擎（类 LangChain）；PyPI 分发 |
+| **myrm-agent-harness** | `myrm-agent-harness/` | MIT 开源 | Agent 执行引擎（类 LangChain）；PyPI 分发 |
 | **myrm-control-plane** | `myrm-control-plane/` | 闭源 | SaaS/企业：调度**每用户独立沙箱 + Volume**（非传统多租户 DB） |
 | **myrm-agent-brand** | `myrm-agent-brand/` | 闭源 | 官网 `myrm-website/`、文档 `myrm-docs/` |
 

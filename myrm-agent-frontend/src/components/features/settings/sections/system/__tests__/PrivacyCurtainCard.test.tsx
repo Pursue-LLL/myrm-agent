@@ -47,7 +47,17 @@ describe('PrivacyCurtainCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     invokeMock.mockReset();
-    invokeMock.mockResolvedValue(false);
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'screen_lock_platform_support') {
+        return Promise.resolve({
+          curtain_supported: true,
+          curtain_capture_excluded_on_desktop: true,
+          curtain_capture_exclusion_ready: true,
+          platform: 'macos',
+        });
+      }
+      return Promise.resolve(false);
+    });
     eventMocks.listen.mockReset();
     eventMocks.unlisten.mockReset();
     eventMocks.listen.mockResolvedValue(eventMocks.unlisten);
@@ -113,10 +123,23 @@ describe('PrivacyCurtainCard', () => {
 
   it('engages the curtain and reports success', async () => {
     useTauriMock.mockReturnValue({ isTauri: true, invoke: invokeMock });
-    invokeMock.mockResolvedValue(false);
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'show_privacy_curtain') {
+        return Promise.resolve(undefined);
+      }
+      if (cmd === 'screen_lock_platform_support') {
+        return Promise.resolve({
+          curtain_supported: true,
+          curtain_capture_excluded_on_desktop: true,
+          curtain_capture_exclusion_ready: true,
+          platform: 'macos',
+        });
+      }
+      return Promise.resolve(false);
+    });
 
     render(<PrivacyCurtainCard enabled onToggle={vi.fn()} />);
-    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('privacy_curtain_active'));
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('screen_lock_platform_support'));
 
     fireEvent.click(screen.getByText('engage'));
 
@@ -141,12 +164,23 @@ describe('PrivacyCurtainCard', () => {
 
   it('reports an error when engaging fails', async () => {
     useTauriMock.mockReturnValue({ isTauri: true, invoke: invokeMock });
-    invokeMock.mockImplementation((cmd: string) =>
-      cmd === 'show_privacy_curtain' ? Promise.reject(new Error('boom')) : Promise.resolve(false),
-    );
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'show_privacy_curtain') {
+        return Promise.reject(new Error('boom'));
+      }
+      if (cmd === 'screen_lock_platform_support') {
+        return Promise.resolve({
+          curtain_supported: true,
+          curtain_capture_excluded_on_desktop: true,
+          curtain_capture_exclusion_ready: true,
+          platform: 'macos',
+        });
+      }
+      return Promise.resolve(false);
+    });
 
     render(<PrivacyCurtainCard enabled onToggle={vi.fn()} />);
-    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('privacy_curtain_active'));
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('screen_lock_platform_support'));
 
     fireEvent.click(screen.getByText('engage'));
 

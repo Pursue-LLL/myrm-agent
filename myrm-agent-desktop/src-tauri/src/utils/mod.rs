@@ -16,3 +16,4 @@ pub mod quarantine;
 pub mod screen_credential;
 pub mod screen_lock;
 pub mod updater_safety;
+pub mod window_capture_exclusion;

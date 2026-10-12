@@ -70,5 +70,5 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 - OpenAPI 服务 `auth` 整棵子树（`_openapi_services_sig`）：auth 仅运行时鉴权、不塑形 build 输出（工具名/描述来自 spec + selected_endpoints），含 auth.type 变化均不 bust
 - 每 run 状态：kanban_current_task_id、quote、force_skill_manage、timezone、reasoning_display_mode
 - 每 turn 刷新：privacy_enabled 等 10 个隐私字段 + enable_plan_confirm（stream_pipeline 每 turn 重应用）
-- 环境级固定：client_surface；全局静态：event_log_backend、tail_budget_ratio
+- 全局静态：event_log_backend、tail_budget_ratio
 - 前端已发送但 converter 未接入（死字段）：pre_compact_enabled / pre_compact_budget_tokens

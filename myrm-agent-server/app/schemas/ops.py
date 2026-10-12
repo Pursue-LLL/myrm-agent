@@ -85,8 +85,17 @@ class OpsMemoryInfo(BaseModel):
     health_status: Literal["healthy", "degraded", "critical", "unknown"]
     storage_mode: str
     event_count: int = 0
-    failed_event_count: int = 0
-    queue_backlog: int = 0
+    failed_event_count: int = Field(
+        default=0,
+        description=(
+            "Count of memory_operation_events with ledger status error "
+            "(auto-extract failures, retrieval trace errors, etc.)."
+        ),
+    )
+    queue_backlog: int = Field(
+        default=0,
+        description="Pending memory_extract_retries rows (status=pending).",
+    )
 
 
 class OpsDoctorSummaryInfo(BaseModel):

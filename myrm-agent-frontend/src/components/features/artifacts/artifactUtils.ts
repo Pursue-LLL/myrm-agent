@@ -36,7 +36,6 @@ const ARTIFACT_ICON_MAP: Record<ArtifactType, React.ElementType> = {
   presentation: Presentation01Icon,
   word_document: Doc02Icon,
   binary: File02Icon,
-  interactive_ui: File01Icon,
   architecture: GitBranchIcon,
 };
 

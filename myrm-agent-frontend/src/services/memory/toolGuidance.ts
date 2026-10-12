@@ -42,11 +42,11 @@ export interface PinGuidanceResponse {
 }
 
 export async function getToolGuidance(): Promise<ToolGuidanceListResponse> {
-  return apiRequest<ToolGuidanceListResponse>('/api/v1/memory/tool-guidance');
+  return apiRequest<ToolGuidanceListResponse>('/memory/tool-guidance');
 }
 
 export async function pinToolGuidance(ruleId: string, isPinned: boolean): Promise<PinGuidanceResponse> {
-  return apiRequest<PinGuidanceResponse>('/api/v1/memory/tool-guidance/pin', {
+  return apiRequest<PinGuidanceResponse>('/memory/tool-guidance/pin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rule_id: ruleId, is_pinned: isPinned }),
@@ -54,7 +54,7 @@ export async function pinToolGuidance(ruleId: string, isPinned: boolean): Promis
 }
 
 export async function deleteToolGuidance(ruleId: string): Promise<{ status: string; rule_id: string }> {
-  return apiRequest<{ status: string; rule_id: string }>(`/api/v1/memory/tool-guidance/${ruleId}`, {
+  return apiRequest<{ status: string; rule_id: string }>(`/memory/tool-guidance/${ruleId}`, {
     method: 'DELETE',
   });
 }

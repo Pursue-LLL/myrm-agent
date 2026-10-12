@@ -9,7 +9,9 @@ import {
   resolveVisualApprovalContextForRequest,
   type InspectorViewSnapshot,
 } from '@/lib/approval/visualApprovalContext';
+import { useVisualApprovalOsOverlaySurface } from '@/lib/approval/visualApprovalOsOverlaySurface';
 import { formatSnapshotAgeSeconds } from '@/lib/approval/visualApprovalRenderState';
+import { isTauriRuntime } from '@/lib/deploy-mode';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import VisualApprovalHighlight from './VisualApprovalHighlight';
 import SingleApprovalCard from '../SingleApprovalCard';
@@ -33,6 +35,9 @@ export default function VisualApprovalArtifactCard({
   isLoading,
 }: VisualApprovalArtifactCardProps) {
   const t = useTranslations('toolApproval');
+  const { degraded: osHighlightDegraded } = useVisualApprovalOsOverlaySurface();
+  const showOsHighlightHint =
+    isTauriRuntime() && request.toolName.startsWith('desktop_') && osHighlightDegraded;
 
   const visualContext = useMemo(
     () => resolveVisualApprovalContextForRequest(request, desktopViewData, browserViewData),
@@ -66,6 +71,12 @@ export default function VisualApprovalArtifactCard({
 
       <div className="space-y-3 px-4 py-3">
         <p className="text-xs text-muted-foreground">{t('visualApprovalArtifactDescription')}</p>
+
+        {showOsHighlightHint ? (
+          <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+            {t('visualApprovalOsHighlightUnavailable')}
+          </p>
+        ) : null}
 
         <VisualApprovalHighlight visualContext={visualContext} maxHeight={360} />
 

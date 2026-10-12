@@ -55,13 +55,15 @@ def _safe_ids(items: list[dict[str, str]], *, limit: int = 3) -> list[str]:
     return output
 
 
-def _snapshot_id(memory_ctx: MemoryContextPayload, learned_ctx: LearnedMemoryPayload) -> str:
-    digest_input = {
-        "memory_ctx": memory_ctx,
-        "learned_ctx": learned_ctx,
-    }
-    raw = json.dumps(digest_input, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+def _snapshot_id(memory_ctx: MemoryContextPayload) -> str:
+    """Digest for execution snapshot — matches middleware inject (stable memory_ctx only)."""
+    raw = json.dumps({"memory_ctx": memory_ctx}, ensure_ascii=False, sort_keys=True, default=str).encode(
+        "utf-8"
+    )
     return hashlib.blake2s(raw, digest_size=10).hexdigest()
+
+
+_EMPTY_LEARNED_CTX: LearnedMemoryPayload = {"learned_rules": [], "learned_preferences": []}
 
 
 async def _resolve_proactive_knowledge_pack(
@@ -163,6 +165,7 @@ def _build_preview(
             "correction_count": correction_count,
             "preference_ids": _safe_ids(learned_prefs),
             "rule_ids": _safe_ids(learned_rules),
+            "injected_in_turn_prefix": False,
         },
     }
     if proactive_pack is not None:
@@ -239,7 +242,7 @@ async def build_memory_brief_snapshot(
     if proactive_pack is not None:
         memory_payload["proactive_knowledge_pack"] = proactive_pack
 
-    snapshot_id = _snapshot_id(memory_payload, learned_payload)
+    snapshot_id = _snapshot_id(memory_payload)
     preview = _build_preview(
         snapshot_id=snapshot_id,
         namespaces=list(binding.namespaces),
@@ -250,7 +253,7 @@ async def build_memory_brief_snapshot(
     snapshot: MemoryBriefSnapshot = {
         "snapshot_id": snapshot_id,
         "memory_ctx": memory_payload,
-        "learned_ctx": learned_payload,
+        "learned_ctx": dict(_EMPTY_LEARNED_CTX),
         "proactive_knowledge_pack": proactive_pack,
     }
     return preview, snapshot

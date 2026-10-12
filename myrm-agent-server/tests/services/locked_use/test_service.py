@@ -22,7 +22,11 @@ import pytest
 from myrm_agent_harness.api.security import ScreenLockState, hid_idle_seconds
 
 from app.services.locked_use import service
-from app.services.locked_use.service import PRESENCE_IDLE_THRESHOLD_SECONDS, MacScreenUnlocker
+from app.services.locked_use.service import (
+    PRESENCE_IDLE_THRESHOLD_SECONDS,
+    MacScreenUnlocker,
+    UnlockAttemptOutcome,
+)
 from tests.support.curtain_watcher import set_hid_idle
 
 
@@ -50,6 +54,21 @@ class TestIsLocked:
         with patch("app.services.locked_use.service.get_default_screen_detector", return_value=detector):
             assert MacScreenUnlocker.is_locked() is expected
         detector.get_state.assert_called_once_with(force_refresh=True)
+
+    @pytest.mark.parametrize(
+        ("state", "expected"),
+        [
+            (ScreenLockState.UNLOCKED, True),
+            (ScreenLockState.LOCKED, False),
+            (ScreenLockState.UNKNOWN, False),
+            (ScreenLockState.SLEEPING, False),
+        ],
+    )
+    def test_verifiably_unlocked_only_when_probe_says_so(self, state: ScreenLockState, expected: bool) -> None:
+        detector = MagicMock()
+        detector.get_state.return_value = state
+        with patch("app.services.locked_use.service.get_default_screen_detector", return_value=detector):
+            assert MacScreenUnlocker.is_verifiably_unlocked() is expected
 
     @pytest.mark.skipif(sys.platform != "darwin", reason="native Quartz probe is macOS-only")
     def test_live_probe_is_native_and_fast(self) -> None:
@@ -87,6 +106,7 @@ class TestUserPresence:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("idle", [None, 2.0])
     @patch.object(MacScreenUnlocker, "get_password")
+    @patch.object(MacScreenUnlocker, "is_verifiably_unlocked", return_value=False)
     @patch.object(MacScreenUnlocker, "is_locked", return_value=True)
     @patch("subprocess.Popen")
     @patch("subprocess.run")
@@ -95,20 +115,25 @@ class TestUserPresence:
         mock_run: MagicMock,
         mock_popen: MagicMock,
         mock_is_locked: MagicMock,
+        _mock_verified: MagicMock,
         mock_get_password: MagicMock,
         idle: float | None,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """人在机前：不键入、不唤醒显示器，连钥匙串里的密码都不读。"""
         set_hid_idle(monkeypatch, idle)
-        assert await MacScreenUnlocker.unlock() is False
+        assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.DEFERRED_USER_PRESENT
         mock_get_password.assert_not_called()
         mock_popen.assert_not_called()
         mock_run.assert_not_called()
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
-    @patch.object(MacScreenUnlocker, "is_locked", side_effect=[True, False])
+    @patch.object(
+        MacScreenUnlocker,
+        "lock_state",
+        side_effect=[ScreenLockState.LOCKED, ScreenLockState.LOCKED, ScreenLockState.UNLOCKED],
+    )
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_unlock_resumes_once_idle_threshold_is_reached(
@@ -122,27 +147,35 @@ class TestUserPresence:
         """阳性对照：与上例同一局面，仅空闲时长满阈值即照常键入（证明上例的拒绝出自在场门禁）。"""
         mock_run.return_value = subprocess.CompletedProcess([], returncode=0)
         set_hid_idle(monkeypatch, PRESENCE_IDLE_THRESHOLD_SECONDS)
-        assert await MacScreenUnlocker.unlock() is True
+        assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.SUCCESS
         mock_run.assert_called_once()
 
 
 class TestMacScreenUnlocker:
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
-    @patch.object(MacScreenUnlocker, "is_locked", side_effect=[True, False])  # 入口仍锁定 → 键入后已解锁
+    @patch.object(
+        MacScreenUnlocker,
+        "lock_state",
+        side_effect=[ScreenLockState.LOCKED, ScreenLockState.LOCKED, ScreenLockState.UNLOCKED],
+    )
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_unlock_success(
         self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock
     ) -> None:
         mock_run.return_value = subprocess.CompletedProcess([], returncode=0)
-        assert await MacScreenUnlocker.unlock() is True
+        assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.SUCCESS
         assert mock_popen.called
         assert mock_run.called
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
-    @patch.object(MacScreenUnlocker, "is_locked", side_effect=[True, False])
+    @patch.object(
+        MacScreenUnlocker,
+        "lock_state",
+        side_effect=[ScreenLockState.LOCKED, ScreenLockState.LOCKED, ScreenLockState.UNLOCKED],
+    )
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_unlock_feeds_password_over_stdin_not_argv(
@@ -158,7 +191,11 @@ class TestMacScreenUnlocker:
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
-    @patch.object(MacScreenUnlocker, "is_locked", side_effect=[True, False])
+    @patch.object(
+        MacScreenUnlocker,
+        "lock_state",
+        side_effect=[ScreenLockState.LOCKED, ScreenLockState.LOCKED, ScreenLockState.UNLOCKED],
+    )
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_wake_keypress_inserts_no_character(
@@ -181,14 +218,14 @@ class TestMacScreenUnlocker:
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password")
-    @patch.object(MacScreenUnlocker, "is_locked", return_value=False)
+    @patch.object(MacScreenUnlocker, "is_verifiably_unlocked", return_value=True)
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_unlock_skips_typing_when_already_unlocked(
-        self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock
+        self, mock_run: MagicMock, mock_popen: MagicMock, mock_verified: MagicMock, mock_get_password: MagicMock
     ) -> None:
         """守卫内复探：屏幕已被别处解锁时绝不再键入密码（否则落进前台应用）。"""
-        assert await MacScreenUnlocker.unlock() is True
+        assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.ALREADY_UNLOCKED
         mock_get_password.assert_not_called()
         mock_popen.assert_not_called()
         mock_run.assert_not_called()
@@ -200,59 +237,121 @@ class TestMacScreenUnlocker:
         state = {"locked": True}
         typed: list[bool] = []
 
-        async def _type_password() -> bool:
+        async def _type_password() -> UnlockAttemptOutcome:
             typed.append(True)
             await asyncio.sleep(0)  # 让出事件循环，给另一方抢入的机会
             state["locked"] = False
-            return True
+            return UnlockAttemptOutcome.SUCCESS
 
         monkeypatch.setattr(MacScreenUnlocker, "is_locked", staticmethod(lambda: state["locked"]))
+        monkeypatch.setattr(
+            MacScreenUnlocker,
+            "is_verifiably_unlocked",
+            staticmethod(lambda: not state["locked"]),
+        )
         monkeypatch.setattr(MacScreenUnlocker, "_type_password", staticmethod(_type_password))
 
         results = await asyncio.gather(MacScreenUnlocker.unlock(), MacScreenUnlocker.unlock())
 
-        assert list(results) == [True, True]
+        assert all(outcome.lease_ready() for outcome in results)
         assert len(typed) == 1
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
+    @patch.object(MacScreenUnlocker, "user_present", return_value=False)
+    @patch.object(MacScreenUnlocker, "is_verifiably_unlocked", return_value=False)
     @patch.object(MacScreenUnlocker, "is_locked", return_value=True)
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_unlock_command_failure_reports_false(
-        self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock
+        self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock, *_: MagicMock
     ) -> None:
         """osascript 非零退出：立即判定失败，不再等二次探测。"""
         mock_run.return_value = subprocess.CompletedProcess([], returncode=1)
-        assert await MacScreenUnlocker.unlock() is False
+        assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.OSASCRIPT_FAILED
 
     @pytest.mark.asyncio
+    @patch.object(MacScreenUnlocker, "is_verifiably_unlocked", return_value=False)
     @patch.object(MacScreenUnlocker, "is_locked", return_value=True)
     @patch.object(MacScreenUnlocker, "get_password", return_value=None)
-    async def test_unlock_no_password(self, mock_get_password: MagicMock, mock_is_locked: MagicMock) -> None:
-        assert await MacScreenUnlocker.unlock() is False
+    async def test_unlock_no_password(self, mock_get_password: MagicMock, mock_is_locked: MagicMock, *_: MagicMock) -> None:
+        assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.NO_PASSWORD
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
-    @patch.object(MacScreenUnlocker, "is_locked", return_value=True)  # 键入后仍锁定（密码错误）
+    @patch.object(
+        MacScreenUnlocker,
+        "lock_state",
+        side_effect=[
+            ScreenLockState.LOCKED,
+            ScreenLockState.LOCKED,
+            ScreenLockState.LOCKED,
+            ScreenLockState.LOCKED,
+        ],
+    )
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_unlock_failure(
-        self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock
+        self, mock_run: MagicMock, mock_popen: MagicMock, mock_lock_state: MagicMock, mock_get_password: MagicMock
     ) -> None:
         mock_run.return_value = subprocess.CompletedProcess([], returncode=0)
-        assert await MacScreenUnlocker.unlock() is False
+        assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.STILL_LOCKED
+
+    @pytest.mark.asyncio
+    @patch("subprocess.run")
+    @patch("subprocess.Popen")
+    @patch.object(MacScreenUnlocker, "lock_state", return_value=ScreenLockState.UNKNOWN)
+    @patch.object(MacScreenUnlocker, "is_locked", return_value=False)
+    @patch.object(MacScreenUnlocker, "is_verifiably_unlocked", return_value=False)
+    @patch.object(MacScreenUnlocker, "get_password")
+    async def test_unlock_unknown_at_entry_does_not_claim_success(
+        self,
+        mock_get_password: MagicMock,
+        _mock_verified: MagicMock,
+        _mock_is_locked: MagicMock,
+        _mock_lock_state: MagicMock,
+        mock_popen: MagicMock,
+        mock_run: MagicMock,
+    ) -> None:
+        """入口 UNKNOWN：不得返回 True，也不得键入密码。"""
+        assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.SKIPPED_AMBIGUOUS_LOCK_STATE
+        mock_get_password.assert_not_called()
+        mock_popen.assert_not_called()
+        mock_run.assert_not_called()
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
+    @patch.object(
+        MacScreenUnlocker,
+        "lock_state",
+        side_effect=[
+            ScreenLockState.LOCKED,
+            ScreenLockState.LOCKED,
+            ScreenLockState.UNKNOWN,
+            ScreenLockState.UNKNOWN,
+        ],
+    )
+    @patch("subprocess.Popen")
+    @patch("subprocess.run")
+    async def test_unlock_unknown_after_typing_counts_as_failure(
+        self, mock_run: MagicMock, mock_popen: MagicMock, mock_lock_state: MagicMock, mock_get_password: MagicMock
+    ) -> None:
+        """osascript 成功但探针仍 UNKNOWN：不得当作已解锁（fail-closed）。"""
+        mock_run.return_value = subprocess.CompletedProcess([], returncode=0)
+        assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.UNVERIFIED_SESSION
+
+    @pytest.mark.asyncio
+    @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
+    @patch.object(MacScreenUnlocker, "user_present", return_value=False)
+    @patch.object(MacScreenUnlocker, "is_verifiably_unlocked", return_value=False)
     @patch.object(MacScreenUnlocker, "is_locked", return_value=True)
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_unlock_exception(
-        self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock
+        self, mock_run: MagicMock, mock_popen: MagicMock, mock_is_locked: MagicMock, mock_get_password: MagicMock, *_: MagicMock
     ) -> None:
         mock_run.side_effect = OSError("osascript unavailable")
-        assert await MacScreenUnlocker.unlock() is False
+        assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.OSASCRIPT_LAUNCH_FAILED
 
     @pytest.mark.asyncio
     async def test_blocking_subprocess_runs_off_the_event_loop(self) -> None:
@@ -272,11 +371,15 @@ class TestMacScreenUnlocker:
         try:
             with (
                 patch.object(MacScreenUnlocker, "get_password", return_value="pw"),
-                patch.object(MacScreenUnlocker, "is_locked", side_effect=[True, False]),
+                patch.object(
+                    MacScreenUnlocker,
+                    "lock_state",
+                    side_effect=[ScreenLockState.LOCKED, ScreenLockState.LOCKED, ScreenLockState.UNLOCKED],
+                ),
                 patch("subprocess.Popen"),
                 patch("subprocess.run", side_effect=_slow_run),
             ):
-                assert await MacScreenUnlocker.unlock() is True
+                assert await MacScreenUnlocker.unlock() is UnlockAttemptOutcome.SUCCESS
         finally:
             ticker.cancel()
         # 若 subprocess.run 在循环线程里阻塞，ticker 几乎得不到调度，相邻 tick 间隔也会 ≥ 0.3 秒。

@@ -204,6 +204,10 @@ export interface UsageSummary {
   total_output_tokens: number;
   total_tokens: number;
   avg_tokens_per_run: number;
+  estimated_hours_saved?: number;
+  roi_multiple?: number;
+  estimated_value_saved_cents?: number;
+  estimated_cost_cents?: number;
 }
 
 export interface UsageByDay {
@@ -219,6 +223,7 @@ export interface UsageByJob {
   job_name: string;
   total_tokens: number;
   runs: number;
+  hours_saved?: number;
 }
 
 export interface UsageByModel {

@@ -271,6 +271,8 @@ class DesktopControlGate:
                 task_id=effective_task_id or None,
             )
             if allowed:
+                if effective_task_id:
+                    self._envelope_manager.record_last_operation(effective_task_id, operation)
                 asyncio.create_task(self._envelope_manager.emit_progress(effective_task_id or None))
                 return ForegroundPermissionResult(
                     granted=True,
@@ -297,7 +299,7 @@ class DesktopControlGate:
             # Unattended runs (e.g. cron) have no human to answer the approval
             # card: deny immediately instead of burning the full approval timeout.
             logger.warning(
-                "Desktop approval fast-denied (unattended, app=%r op=%r)",
+                "Desktop approval fast-denied (unattended, app=%r op=%r code=DESKTOP_APPROVAL_UNATTENDED_DENIED)",
                 app_name,
                 operation,
             )

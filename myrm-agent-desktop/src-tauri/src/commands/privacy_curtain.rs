@@ -98,25 +98,8 @@ pub(crate) fn close_curtain_windows(app: &AppHandle) {
     audit_presentation("overlay_mode", presentation::leave_overlay_mode(app));
 }
 
-/// Windows：将帷幕窗从系统截图/投屏通道排除（WDA_EXCLUDEFROMCAPTURE）。
-/// Win10 <2004 无此常量效果，SetWindowDisplayAffinity 返回失败 → 调用方降级。
-#[cfg(target_os = "windows")]
 fn apply_capture_exclusion(window: &tauri::WebviewWindow) -> Result<(), String> {
-    use windows_sys::Win32::UI::WindowsAndMessaging::SetWindowDisplayAffinity;
-    const WDA_EXCLUDEFROMCAPTURE: u32 = 0x0000_0011;
-    let hwnd = window.hwnd().map_err(|e| e.to_string())?;
-    let ok = unsafe { SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE) };
-    if ok == 0 {
-        return Err(
-            "SetWindowDisplayAffinity failed: Windows build below 2004 cannot exclude curtain from capture".to_string(),
-        );
-    }
-    Ok(())
-}
-
-#[cfg(not(target_os = "windows"))]
-fn apply_capture_exclusion(_window: &tauri::WebviewWindow) -> Result<(), String> {
-    Ok(())
+    crate::utils::window_capture_exclusion::apply_capture_exclusion(window)
 }
 
 /// 建一扇覆盖单个显示器的帷幕窗。label 带代号：新旧两代窗口在重建期间并存，

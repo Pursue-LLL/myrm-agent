@@ -14,8 +14,9 @@ import {
 } from '@/services/agent';
 import { toast } from '@/hooks/shared/useToast';
 import AgentReadinessList from './AgentReadinessList';
+import { AgentSettingsPreviewGate } from './AgentSettingsPreviewGate';
 
-type Step = 'template' | 'readiness' | 'verify' | 'done';
+type Step = 'template' | 'preview' | 'readiness' | 'verify' | 'done';
 
 export function AgentSetupWizard({
   open,
@@ -29,6 +30,7 @@ export function AgentSetupWizard({
   const t = useTranslations('Agent.setupWizard');
   const [step, setStep] = useState<Step>('template');
   const [templates, setTemplates] = useState<TemplateListItem[] | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateListItem | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [agentId, setAgentId] = useState<string | null>(null);
   const [agentName, setAgentName] = useState('');
@@ -96,6 +98,7 @@ export function AgentSetupWizard({
       finishedRef.current = false;
     } else {
       setStep('template');
+      setSelectedTemplate(null);
       setAgentId(null);
       setAgentName('');
       resetTransient();
@@ -142,6 +145,7 @@ export function AgentSetupWizard({
     onDone();
     onOpenChange(false);
     setStep('template');
+    setSelectedTemplate(null);
     setAgentId(null);
     setAgentName('');
     resetTransient();
@@ -180,7 +184,10 @@ export function AgentSetupWizard({
                   variant="outline"
                   className="justify-start h-auto py-3"
                   disabled={creating}
-                  onClick={() => handleInstantiate(tpl.id, tpl.name)}
+                  onClick={() => {
+                    setSelectedTemplate(tpl);
+                    setStep('preview');
+                  }}
                 >
                   <div className="text-left">
                     <div className="font-medium">{tpl.name}</div>
@@ -189,6 +196,17 @@ export function AgentSetupWizard({
                 </Button>
               ))
             )}
+          </div>
+        )}
+
+        {step === 'preview' && selectedTemplate && (
+          <div className="py-2">
+            <AgentSettingsPreviewGate
+              template={selectedTemplate}
+              onConfirm={() => handleInstantiate(selectedTemplate.id, selectedTemplate.name)}
+              onBack={() => setStep('template')}
+              isCreating={creating}
+            />
           </div>
         )}
 
@@ -232,31 +250,33 @@ export function AgentSetupWizard({
           </div>
         )}
 
-        <DialogFooter className="gap-2">
-          {(step === 'template' || step === 'readiness') && (
-            <Button variant="ghost" onClick={handleSkip}>
-              {t('actions.skip', { fallback: 'Skip' })}
-            </Button>
-          )}
-          {step === 'readiness' && (
-            <>
-              {isBlocked && (
-                <p className="text-xs text-destructive self-center mr-auto">
-                  {t('readiness.blockedHint', {
-                    fallback: 'Resolve blocked items first, or adjust the configuration.',
-                  })}
-                </p>
-              )}
-              <Button variant="outline" disabled={checking || isBlocked} onClick={() => setStep('verify')}>
-                {t('actions.continue', { fallback: 'Continue' })}
+        {step !== 'preview' && (
+          <DialogFooter className="gap-2">
+            {(step === 'template' || step === 'readiness') && (
+              <Button variant="ghost" onClick={handleSkip}>
+                {t('actions.skip', { fallback: 'Skip' })}
               </Button>
-            </>
-          )}
-          {step === 'verify' && (
-            <Button onClick={() => setStep('done')}>{t('actions.finish', { fallback: 'Finish' })}</Button>
-          )}
-          {step === 'done' && <Button onClick={handleFinish}>{t('actions.close', { fallback: 'Close' })}</Button>}
-        </DialogFooter>
+            )}
+            {step === 'readiness' && (
+              <>
+                {isBlocked && (
+                  <p className="text-xs text-destructive self-center mr-auto">
+                    {t('readiness.blockedHint', {
+                      fallback: 'Resolve blocked items first, or adjust the configuration.',
+                    })}
+                  </p>
+                )}
+                <Button variant="outline" disabled={checking || isBlocked} onClick={() => setStep('verify')}>
+                  {t('actions.continue', { fallback: 'Continue' })}
+                </Button>
+              </>
+            )}
+            {step === 'verify' && (
+              <Button onClick={() => setStep('done')}>{t('actions.finish', { fallback: 'Finish' })}</Button>
+            )}
+            {step === 'done' && <Button onClick={handleFinish}>{t('actions.close', { fallback: 'Close' })}</Button>}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

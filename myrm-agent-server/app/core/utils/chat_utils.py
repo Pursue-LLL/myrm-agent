@@ -139,7 +139,7 @@ def _expand_agent_history(content: str) -> list[BaseMessage]:
         for tc in tool_calls_data:
             tc_name = str(tc.get("name", "unknown"))
             if tc_name == "send_user_message_async":
-                # Non-blocking async messages do NOT participate in LLM context (0 token tax, 100% prompt cache lock)
+                # Non-blocking async messages do NOT participate in LLM context (0 token tax, prefix layout unchanged)
                 continue
 
             tc_id = f"hist_{uuid4().hex[:8]}"

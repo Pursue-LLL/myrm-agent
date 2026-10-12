@@ -63,6 +63,7 @@ async def test_sources_endpoint(test_app: FastAPI) -> None:
         assert "openclaw" in sources
         assert "hermes" in sources
         assert "chatgpt_export" in sources
+        assert "memos" in sources
         assert "markdown_tree" in sources
 
 
@@ -154,3 +155,53 @@ async def test_import_file_with_sliding_window_chunks(test_app: FastAPI) -> None
             assert rep["total_admitted"] >= 1
             assert rep["total_chunks_generated"] >= 1
             assert rep["latency_ms"] > 0.0
+
+
+@pytest.mark.asyncio
+async def test_preview_endpoint(test_app: FastAPI) -> None:
+    """Verify /preview parses raw content and returns categorized facts without mutating state."""
+    async with AsyncClient(
+        transport=ASGITransport(app=test_app), base_url="http://test"
+    ) as client:
+        payload = {
+            "source_type": "openclaw",
+            "raw_content": '[{"id": "prev1", "content": "用户偏好明亮主题", "category": "user"}]',
+            "source_label": "preview_input.json",
+        }
+        resp = await client.post("/api/memory/migration-wizard/preview", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["total_extracted"] == 1
+        unit = data["units"][0]
+        assert unit["source_type"] == "openclaw"
+        assert unit["normalized_text"] == "用户偏好明亮主题"
+        assert unit["layer"] == "profile"
+        assert unit["content_hash"] != ""
+
+
+@pytest.mark.asyncio
+async def test_import_memos_graph_payload(test_app: FastAPI) -> None:
+    """Verify /import accepts MemOS graph JSON format with entities and triples."""
+    memos_json = (
+        '{"nodes": [{"id": "n1", "name": "Python", "description": "主力语言", "type": "skill"}],'
+        '"triples": [{"id": "t1", "subject": "User", "predicate": "codes_in", "object": "Python"}]}'
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=test_app), base_url="http://test"
+    ) as client:
+        payload = {
+            "source_type": "memos",
+            "raw_content": memos_json,
+            "source_label": "memos_export.json",
+        }
+        resp = await client.post("/api/memory/migration-wizard/import", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["success"] is True
+        rep = data["report"]
+        assert rep["source_type"] == "memos"
+        assert rep["total_admitted"] == 2
+        assert rep["total_chunks_generated"] == 2
+

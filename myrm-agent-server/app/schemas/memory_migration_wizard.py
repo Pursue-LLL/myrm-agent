@@ -24,9 +24,38 @@ MigrationSourceTypeDTO = Literal[
     "hermes",
     "chatgpt_export",
     "claude_project",
+    "memos",
     "markdown_tree",
     "generic_json",
 ]
+
+
+class ExtractedMemoryUnitDTO(BaseModel):
+    """Normalized memory fact preview unit."""
+
+    source_type: MigrationSourceTypeDTO = Field(description="Origin platform ecosystem")
+    source_id: str = Field(description="Unique entry or pointer identifier")
+    normalized_text: str = Field(description="Normalized memory text content")
+    layer: str = Field(description="Assigned cognitive layer: profile, semantic, procedural, episodic")
+    tags: list[str] = Field(default_factory=list, description="Extracted category or topic tags")
+    content_hash: str = Field(description="Deterministic SHA-256 fingerprint")
+
+
+class MigrationPreviewRequestDTO(BaseModel):
+    """Payload to preview memory fact normalization before committing import."""
+
+    source_type: MigrationSourceTypeDTO = Field(description="Source ecosystem parser format")
+    file_path: str | None = Field(default=None, description="Optional local file path to preview")
+    raw_content: str | None = Field(default=None, description="Optional in-memory raw payload text")
+    source_label: str = Field(default="preview_buffer", description="Human-readable audit label")
+
+
+class MigrationPreviewResponseDTO(BaseModel):
+    """Preview normalization outcome."""
+
+    total_extracted: int = Field(ge=0, description="Count of memory facts extracted")
+    units: list[ExtractedMemoryUnitDTO] = Field(description="Extracted normalized memory items")
+
 
 
 class DetectedCandidateDTO(BaseModel):

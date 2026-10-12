@@ -40,16 +40,18 @@ from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
-    open_mcp_page,
+    reload_mcp_page,
     wait_for_state,
+)
+from tests.support.chrome_skill_hooks_approval import (
+    approve_cards_until_reply,
+    describe_unanswered_resume,
+    wait_for_approval_card,
 )
 from tests.support.chrome_skill_hooks_composer import (
     TRANSCRIPT_CHIP_JS,
     TextAttachment,
-    click_approve,
-    describe_unanswered_resume,
     drive_chat_turn,
-    wait_for_approval_card,
 )
 from tests.support.chrome_skill_hooks_live_e2e import (
     BASH_TOOL,
@@ -96,23 +98,26 @@ def test_slash_invoked_skill_hooks_govern_a_live_turn(tmp_path: Path, e2e_resour
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     probe = setup_skill_chat(tmp_path, e2e_resource_ledger, "hookprobe", audit_hooks)
+    chat_url = f"{ui_url.rstrip('/')}{probe.ui_path}"
+
+    def reload_and_read_transcript(client: ChromeMcpClient, page: McpPage) -> None:
+        wait_assistant_reply_ending_with(probe.chat_id, api_url, DONE_TOKEN, timeout_sec=240.0)
+        # A fresh load of the chat route renders the stored transcript: it shows the skill as a chip,
+        # never the raw wire prefix.
+        reload_mcp_page(client, page, timeout_ms=120_000, target_url=chat_url)
+        dismiss_blocking_modals(client, page, recover_url=chat_url)
+        state = wait_for_state(client, page, TRANSCRIPT_CHIP_JS, timeout_sec=90.0, page_url=chat_url)
+        assert state.get("hasRawUsePrefix") is False, state
 
     drive_chat_turn(
         ui_url,
         probe,
         f"Run exactly this command with the bash tool: echo {COMMAND_OUTPUT} . "
         f"After it finishes, reply with exactly: {DONE_TOKEN}",
+        while_open=reload_and_read_transcript,
     )
 
-    wait_assistant_reply_ending_with(probe.chat_id, api_url, DONE_TOKEN, timeout_sec=240.0)
     assert_audit_turn_governed(probe, api_url)
-
-    # The user-facing transcript shows the skill as a chip, not the raw wire prefix.
-    chat_url = f"{ui_url.rstrip('/')}{probe.ui_path}"
-    with open_mcp_page(chat_url, timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page, recover_url=chat_url)
-        state = wait_for_state(client, page, TRANSCRIPT_CHIP_JS, timeout_sec=90.0, page_url=chat_url)
-        assert state.get("hasRawUsePrefix") is False, state
 
 
 @pytest.mark.chrome_e2e(
@@ -178,17 +183,19 @@ def test_approved_tool_call_runs_the_skills_hooks_in_the_resumed_run(
         parked["session"] = read_json(out / "session_payload.json", api_url=api_url)
         parked["pre_tool_payload_exists"] = (out / "pre_tool_payload.json").exists()
         log_offset = backend_log_offset(api_url)
-        click_approve(client, page)
-        # Keep the page open until the resumed run has streamed its answer.
+        # Keep the page open until the resumed run has streamed its answer; a retried command parks behind a new card.
         try:
-            parked["reply"] = wait_assistant_reply_ending_with(probe.chat_id, api_url, DONE_TOKEN, timeout_sec=240.0)
+            parked["reply"] = approve_cards_until_reply(client, page, probe, DONE_TOKEN, timeout_sec=240.0)
         except pytest.fail.Exception as failure:
             pytest.fail(describe_unanswered_resume(failure, client, page, probe, log_offset=log_offset))
 
+    # A command chained with ``;`` is refused by the executor after the user approved it, so the model would retry
+    # it behind a second card: the request names a single plain command to keep the turn at one approval.
     drive_chat_turn(
         ui_url,
         probe,
-        f"Run exactly this command with the bash tool: curl -sS {_APPROVAL_PROBE_URL} . "
+        f"Run exactly this one plain command with the bash tool, with no ';', '&&', pipe or redirect: "
+        f"curl -sS {_APPROVAL_PROBE_URL} . Run no other command. "
         f"After it finishes, whatever its result, reply with exactly: {DONE_TOKEN}",
         while_open=approve_then_wait_for_reply,
     )

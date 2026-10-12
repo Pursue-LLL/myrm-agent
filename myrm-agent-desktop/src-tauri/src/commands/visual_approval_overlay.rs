@@ -184,18 +184,13 @@ pub(crate) fn is_overlay_label(label: &str) -> bool {
     label.starts_with(WINDOW_LABEL_PREFIX)
 }
 
-fn screen_mode_monitor_dimension_mismatch(
+fn overlay_monitor_dimension_mismatch(
     payload: &VisualApprovalOverlayPayload,
     monitor_screen_w: f64,
     monitor_screen_h: f64,
 ) -> bool {
-    payload.coordinate_mode == "screen"
-        && !monitor_dimensions_compatible(
-            payload.screen_width,
-            payload.screen_height,
-            monitor_screen_w,
-            monitor_screen_h,
-        )
+    let (expected_w, expected_h) = monitor_match_dimensions(payload);
+    !monitor_dimensions_compatible(expected_w, expected_h, monitor_screen_w, monitor_screen_h)
 }
 
 /// 在匹配的显示器上建一扇点击穿透的高亮窗口，返回其 label。
@@ -215,13 +210,15 @@ fn open_overlay_window(
     let pos_x = position.x as f64 / scale_factor;
     let pos_y = position.y as f64 / scale_factor;
 
-    if screen_mode_monitor_dimension_mismatch(payload, screen_w, screen_h) {
+    if overlay_monitor_dimension_mismatch(payload, screen_w, screen_h) {
+        let (expected_w, expected_h) = monitor_match_dimensions(payload);
         eprintln!(
-            "[visual-approval-overlay] screen dimension mismatch (expected {}x{}, monitor {}x{}); OS overlay suppressed",
-            payload.screen_width,
-            payload.screen_height,
+            "[visual-approval-overlay] monitor dimension mismatch (expected {}x{}, monitor {}x{}, mode={}); OS overlay suppressed",
+            expected_w,
+            expected_h,
             screen_w,
-            screen_h
+            screen_h,
+            payload.coordinate_mode
         );
         return Ok((OpenOverlayOutcome::DegradedScreenDimensionMismatch, String::new()));
     }
@@ -250,6 +247,11 @@ fn open_overlay_window(
     window
         .set_ignore_cursor_events(true)
         .map_err(|error| error.to_string())?;
+
+    // 截图通道排除（Win WDA）；不进 pointer 排除集，否则会误拦 agent 点击。
+    if let Err(reason) = crate::utils::window_capture_exclusion::apply_capture_exclusion(&window) {
+        eprintln!("[visual-approval-overlay] capture exclusion failed: {reason}");
+    }
 
     Ok((OpenOverlayOutcome::Shown, label))
 }
@@ -332,7 +334,7 @@ pub fn hide_visual_approval_overlay(app: AppHandle) -> Result<(), String> {
 mod tests {
     use super::{
         is_overlay_label, monitor_dimensions_compatible, monitor_match_score, next_window_label,
-        resolve_overlay_box, scaled_box, screen_mode_monitor_dimension_mismatch,
+        resolve_overlay_box, scaled_box, overlay_monitor_dimension_mismatch,
         VisualApprovalOverlayPayload,
     };
 
@@ -453,7 +455,26 @@ mod tests {
             label: None,
         };
 
-        assert!(screen_mode_monitor_dimension_mismatch(&payload, 2560.0, 1440.0));
-        assert!(!screen_mode_monitor_dimension_mismatch(&payload, 1440.0, 900.0));
+        assert!(overlay_monitor_dimension_mismatch(&payload, 2560.0, 1440.0));
+        assert!(!overlay_monitor_dimension_mismatch(&payload, 1440.0, 900.0));
+    }
+
+    #[test]
+    fn image_mode_mismatch_triggers_degrade_without_window() {
+        let payload = VisualApprovalOverlayPayload {
+            x: 10.0,
+            y: 20.0,
+            width: 30.0,
+            height: 40.0,
+            viewport_width: 1280.0,
+            viewport_height: 800.0,
+            coordinate_mode: "image".to_string(),
+            screen_width: 1440.0,
+            screen_height: 900.0,
+            label: None,
+        };
+
+        assert!(overlay_monitor_dimension_mismatch(&payload, 2560.0, 1440.0));
+        assert!(!overlay_monitor_dimension_mismatch(&payload, 1280.0, 800.0));
     }
 }

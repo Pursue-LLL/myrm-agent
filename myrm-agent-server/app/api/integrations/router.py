@@ -21,6 +21,7 @@ from app.api.integrations import (
     mobile_adb,
     oauth,
     provider_oauth,
+    retained_context_router,
     retrieval,
     search,
     web_fetch,
@@ -56,4 +57,9 @@ router.include_router(
     provider_oauth.router,
     prefix="/provider-oauth",
     tags=["integrations-provider-oauth"],
+)
+router.include_router(
+    retained_context_router.router,
+    prefix="/retained-context",
+    tags=["integrations-retained-context"],
 )

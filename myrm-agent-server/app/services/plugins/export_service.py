@@ -27,17 +27,25 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 
 from myrm_agent_harness.agent.plugins import build_plugin_bundle
-from myrm_agent_harness.agent.skills.security.content_sanitizer import Redaction
 
 from app.core.skills.packaging.redaction import redact_files
 from app.core.skills.packaging.redaction import review_digest as compute_review_digest
 
+from ._export_batch import build_multi_export_plan, export_multi_expert, preview_multi_expert_export
 from ._export_closure import build_export_plan
 from ._export_connector import secret_names_of
-from ._export_models import ExportError, ExportErrorCode, ExportPlan, Omit, OmittedItem, OmittedKind
+from ._export_models import (
+    ExportedPackage,
+    ExportError,
+    ExportErrorCode,
+    ExportPlan,
+    ExportPreview,
+    Omit,
+    OmittedItem,
+    OmittedKind,
+)
 from ._export_render import PACKAGE_VERSION, corpus_of, spec_of
 
 __all__ = [
@@ -49,28 +57,15 @@ __all__ = [
     "Omit",
     "OmittedItem",
     "OmittedKind",
+    "build_multi_export_plan",
     "export_expert",
+    "export_multi_expert",
     "preview_expert_export",
+    "preview_multi_expert_export",
     "secret_names_of",
 ]
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class ExportPreview:
-    plan: ExportPlan
-    version: str
-    redactions: dict[str, list[Redaction]]  # findings per reviewed path (indices are what a decision refers to)
-    review_digest: str  # fingerprint of the reviewed texts; decisions are only valid for them
-    package_bytes: int | None  # size of the package a dry run produced
-    build_error: str | None  # why the dry run failed (the export would fail the same way)
-
-
-@dataclass(frozen=True)
-class ExportedPackage:
-    zip_content: bytes
-    filename: str
 
 
 async def preview_expert_export(agent_id: str) -> ExportPreview:

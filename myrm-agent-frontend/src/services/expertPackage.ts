@@ -176,3 +176,62 @@ export async function downloadExpertPackage(
   const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
   return { blob: await response.blob(), filename: filenameMatch ? filenameMatch[1] : null };
 }
+
+export interface BatchExportPreviewRequest {
+  agentIds: string[];
+  bundleName?: string;
+}
+
+export interface BatchExportRequest {
+  agentIds: string[];
+  bundleName?: string;
+  applyRedactions: boolean;
+  ignoredRedactions: Record<string, number[]>;
+  reviewDigest?: string;
+}
+
+export async function previewMultiExpertExport(
+  request: BatchExportPreviewRequest,
+): Promise<ExpertExportPreview> {
+  return apiRequest<ExpertExportPreview>(`${EXPORT_API_PREFIX}/batch/preview`, {
+    method: 'POST',
+    body: JSON.stringify({
+      agent_ids: request.agentIds,
+      bundle_name: request.bundleName,
+    }),
+    silent: true,
+    timeout: 120_000,
+  });
+}
+
+export async function downloadMultiExpertPackage(
+  request: BatchExportRequest,
+): Promise<{ blob: Blob; filename: string | null }> {
+  const response = await fetchWithTimeout(
+    `${EXPORT_API_PREFIX}/batch`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
+      },
+      body: JSON.stringify({
+        agent_ids: request.agentIds,
+        bundle_name: request.bundleName,
+        apply_redactions: request.applyRedactions,
+        ignored_redactions: request.ignoredRedactions,
+        review_digest: request.reviewDigest,
+      }),
+    },
+    120_000,
+  );
+
+  if (!response.ok) {
+    throw await toExpertExportError(response);
+  }
+
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
+  return { blob: await response.blob(), filename: filenameMatch ? filenameMatch[1] : null };
+}
+

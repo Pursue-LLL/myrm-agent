@@ -3,7 +3,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 
-const stableT = (key: string) => {
+const stableT = (key: string): string => {
   const map: Record<string, string> = {
     switchToTable: 'Switch to table view',
     switchToCard: 'Switch to card view',
@@ -39,7 +39,7 @@ const renderWithProviders = (ui: React.ReactElement) => {
   );
 };
 
-const makeTable = (cols: number, rows: number = 2, useColspan = false) => (
+const makeTable = (cols: number, rows: number = 2, useColspan = false): React.ReactElement => (
   <>
     <thead>
       <tr>
@@ -67,37 +67,60 @@ const makeTable = (cols: number, rows: number = 2, useColspan = false) => (
 );
 
 describe('ResponsiveTable', () => {
-  it('renders a basic table with wrapper', () => {
+  beforeEach(() => {
+    HTMLDialogElement.prototype.showModal = function mockShowModal() {
+      this.open = true;
+    };
+    HTMLDialogElement.prototype.close = function mockClose() {
+      this.open = false;
+    };
+  });
+
+  afterEach(() => {
+    delete (HTMLDialogElement.prototype as Partial<HTMLDialogElement>).showModal;
+    delete (HTMLDialogElement.prototype as Partial<HTMLDialogElement>).close;
+  });
+
+  it('renders a basic table with wrapper and host DOM structure', () => {
     const { container } = renderWithProviders(<ResponsiveTable>{makeTable(3)}</ResponsiveTable>);
     expect(container.querySelector('.responsive-table-wrapper')).toBeTruthy();
     expect(container.querySelector('.responsive-table')).toBeTruthy();
     expect(container.querySelector('.not-prose')).toBeTruthy();
   });
 
-  it('does NOT show toggle for tables with fewer than 4 columns', () => {
+  it('does NOT show toolbar for tables with fewer than 4 columns', () => {
     renderWithProviders(<ResponsiveTable>{makeTable(3)}</ResponsiveTable>);
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('shows toggle for tables with >= 4 columns', () => {
-    renderWithProviders(<ResponsiveTable>{makeTable(5)}</ResponsiveTable>);
-    const btn = screen.getByRole('button');
-    expect(btn).toBeTruthy();
-    expect(btn.textContent).toContain('Table');
+  it('shows toolbar for tables with >= 4 columns with standard SVG icons and zero emoji', () => {
+    const { container } = renderWithProviders(<ResponsiveTable>{makeTable(5)}</ResponsiveTable>);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.length).toBeGreaterThanOrEqual(2);
+
+    const toggleBtn = buttons[0];
+    expect(toggleBtn).toBeTruthy();
+    expect(toggleBtn.textContent).toContain('Table');
+
+    // Verify SVG icon exists and no legacy native unicode block emojis exist
+    expect(toggleBtn.querySelector('svg')).toBeTruthy();
+    expect(container.textContent).not.toContain('▦');
+    expect(container.textContent).not.toContain('▤');
   });
 
-  it('toggles between card and table view', () => {
+  it('toggles between card and table view correctly', () => {
     const { container } = renderWithProviders(<ResponsiveTable>{makeTable(5)}</ResponsiveTable>);
 
     expect(container.querySelector('.responsive-table-cards')).toBeTruthy();
 
-    const btn = screen.getByRole('button');
-    fireEvent.click(btn);
+    const buttons = screen.getAllByRole('button');
+    const toggleBtn = buttons[0];
+    fireEvent.click(toggleBtn);
 
     expect(container.querySelector('.responsive-table-cards')).toBeNull();
-    expect(btn.textContent).toContain('Card');
+    expect(toggleBtn.textContent).toContain('Card');
 
-    fireEvent.click(btn);
+    fireEvent.click(toggleBtn);
     expect(container.querySelector('.responsive-table-cards')).toBeTruthy();
   });
 
@@ -106,8 +129,8 @@ describe('ResponsiveTable', () => {
 
     const tds = container.querySelectorAll('tbody td');
     expect(tds.length).toBeGreaterThan(0);
-    expect(tds[0].getAttribute('data-label')).toBe('H1');
-    expect(tds[1].getAttribute('data-label')).toBe('H2');
+    expect(tds[0]?.getAttribute('data-label')).toBe('H1');
+    expect(tds[1]?.getAttribute('data-label')).toBe('H2');
   });
 
   it('disables card view when colspan is present', () => {
@@ -115,9 +138,34 @@ describe('ResponsiveTable', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('disables card view when isStreaming is true', () => {
-    renderWithProviders(<ResponsiveTable isStreaming>{makeTable(5)}</ResponsiveTable>);
+  it('disables card view when isStreaming is true and sets data-streaming attribute', () => {
+    const { container } = renderWithProviders(<ResponsiveTable isStreaming>{makeTable(5)}</ResponsiveTable>);
     expect(screen.queryByRole('button')).toBeNull();
+    const wrapper = container.querySelector('.responsive-table-wrapper');
+    expect(wrapper?.getAttribute('data-streaming')).toBe('true');
+  });
+
+  it('opens and closes wide table lightbox dialog', () => {
+    renderWithProviders(<ResponsiveTable>{makeTable(6)}</ResponsiveTable>);
+
+    // Lightbox closed initially
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // Click expand button
+    const expandBtn = screen.getByRole('button', { name: '展开全景表格' });
+    fireEvent.click(expandBtn);
+
+    // Dialog visible
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeTruthy();
+    expect(screen.getByText('全景表格视图')).toBeTruthy();
+    expect(screen.getByText('6 列')).toBeTruthy();
+
+    // Close via close button
+    const closeBtn = screen.getByRole('button', { name: '关闭预览' });
+    fireEvent.click(closeBtn);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('handles table with no thead gracefully', () => {

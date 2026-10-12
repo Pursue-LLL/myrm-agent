@@ -29,6 +29,7 @@ from app.services.agent.memory_brief_telemetry import (
 )
 from app.services.agent.stream_session._memory_status_helpers import (
     build_memory_brief_status_payload,
+    enrich_memory_brief_status_with_session_ephemeral_deltas,
     observe_memory_brief_status_payload,
 )
 from app.services.agent.stream_session.lanes.wiki_knowledge_lane import (
@@ -191,6 +192,10 @@ def _inject_message_end_memory_insights(
 
     try:
         status_payload = build_memory_brief_status_payload(brief_status, injection)
+        status_payload = enrich_memory_brief_status_with_session_ephemeral_deltas(
+            status_payload,
+            session.request.chat_id,
+        )
     except Exception as e:
         logger.warning("Failed to build memory brief status payload in stream_loop: %s", e)
         return

@@ -88,7 +88,6 @@ class GeneralAgent(ToolSetupMixin):
         embedding_config: "EmbeddingConfig | None" = None,
         reranker_config: "RerankerConfig | None" = None,
         enable_structured_clarify: bool = False,
-        client_surface: str | None = None,
         enable_web_search: bool = True,
         enable_web_fetch: bool = True,
         benchmark_blocked_hostnames: tuple[str, ...] = (),
@@ -207,7 +206,6 @@ class GeneralAgent(ToolSetupMixin):
         self.embedding_config = embedding_config
         self.reranker_config = reranker_config
         self.enable_structured_clarify = enable_structured_clarify
-        self.client_surface = client_surface
         self.enable_web_search = enable_web_search
         self.enable_web_fetch = enable_web_fetch
         # Benchmark-only web content policy (hosts/queries) installed by the

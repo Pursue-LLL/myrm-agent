@@ -41,7 +41,7 @@ def _wave_is_open(state_dir: Path) -> bool:
 
 def _real_user_home() -> Path:
     home = os.environ.get("HOME", "").strip()
-    if home and "/.cursor2" not in home and "/.cursor-3" not in home:
+    if home and "/.cursor-3" not in home:
         return Path(home).expanduser().resolve()
     try:
         import pwd
@@ -69,10 +69,10 @@ def _state_dir_candidates() -> tuple[Path, ...]:
         # redirects HOME to ~/.cursor-3, so a caller that exports `$HOME/.local/state/
         # myrm-dev` hands us a shadow path that no daemon listens on — while
         # `resolve_wave_paths` only drops such paths when *_state_dir is *unset*
-        # (`_is_cursor2_shadow` guard). Keeping it first here made the client dial a
+        # (`_is_sandbox_home_shadow` guard). Keeping it first here made the client dial a
         # non-existent socket and report `FileNotFoundError` / `STACK_FAIL`, with the
         # live supervisor sitting in the real home the whole time.
-        if _is_cursor2_shadow(path):
+        if _is_sandbox_home_shadow(path):
             continue
         key = str(path)
         if key in seen:
@@ -87,15 +87,15 @@ def _state_dir_candidates() -> tuple[Path, ...]:
     return tuple(ordered)
 
 
-def _is_cursor2_shadow(path: Path) -> bool:
+def _is_sandbox_home_shadow(path: Path) -> bool:
     """True when path is inside a Cursor-sandbox redirected HOME shadow dir.
 
-    Cursor redirects HOME to ~/.cursor2 so default-inferred state dirs land under
+    Cursor redirects HOME to ~/.cursor-3 so default-inferred state dirs land under
     the shadow; the real wave lives under the real user's home. Such paths must
     keep participating in the open-wave scan (R287). Everything else that was
     explicitly set (isolated runtime state dirs, real-home shared dir) is SSOT.
     """
-    return any(part.lower() in ("cursor2", ".cursor2", ".cursor-3", "cursor-3") for part in path.parts)
+    return any(part.lower() in (".cursor-3", "cursor-3") for part in path.parts)
 
 
 def resolve_wave_paths() -> WavePaths:
@@ -105,7 +105,7 @@ def resolve_wave_paths() -> WavePaths:
     explicit = os.environ.get("MYRM_WAVE_STATE_DIR", "").strip()
     if not explicit:
         explicit = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
-    if explicit and _is_cursor2_shadow(Path(explicit).expanduser().resolve()):
+    if explicit and _is_sandbox_home_shadow(Path(explicit).expanduser().resolve()):
         explicit = ""
     if explicit:
         # Explicitly set WAVE/DEV state dir is the caller's SSOT (isolated runtimes

@@ -37,12 +37,8 @@ def isolated_service() -> SsoRedirectService:
 def client(isolated_service: SsoRedirectService) -> TestClient:
     """Fixture providing test client mounting sso_redirect_router."""
     test_app = FastAPI(title="SSO Redirect Test App")
-    test_app.dependency_overrides[get_sso_redirect_service] = (
-        lambda: isolated_service
-    )
-    test_app.include_router(
-        sso_redirect_router, prefix="/api/v1/security"
-    )
+    test_app.dependency_overrides[get_sso_redirect_service] = lambda: isolated_service
+    test_app.include_router(sso_redirect_router, prefix="/api/v1/security")
     return TestClient(test_app, raise_server_exceptions=False)
 
 
@@ -98,25 +94,33 @@ def test_build_sso_redirect_url_endpoint(client: TestClient) -> None:
 
 def test_evaluate_probe_endpoint(client: TestClient) -> None:
     # 1. First failure -> degraded
-    r1 = client.post("/api/v1/security/sso-redirect/evaluate-probe", json={"is_success": False})
+    r1 = client.post(
+        "/api/v1/security/sso-redirect/evaluate-probe", json={"is_success": False}
+    )
     assert r1.status_code == 200
     d1 = r1.json()
     assert d1["new_state"] == "degraded"
     assert d1["consecutive_failures"] == 1
 
     # 2. Second failure -> still degraded
-    r2 = client.post("/api/v1/security/sso-redirect/evaluate-probe", json={"is_success": False})
+    r2 = client.post(
+        "/api/v1/security/sso-redirect/evaluate-probe", json={"is_success": False}
+    )
     assert r2.status_code == 200
     assert r2.json()["new_state"] == "degraded"
 
     # 3. Third failure -> offline
-    r3 = client.post("/api/v1/security/sso-redirect/evaluate-probe", json={"is_success": False})
+    r3 = client.post(
+        "/api/v1/security/sso-redirect/evaluate-probe", json={"is_success": False}
+    )
     assert r3.status_code == 200
     assert r3.json()["new_state"] == "offline"
     assert r3.json()["recommended_action"] == "switch_to_offline_fallback"
 
     # 4. Immediate recovery on success
-    r4 = client.post("/api/v1/security/sso-redirect/evaluate-probe", json={"is_success": True})
+    r4 = client.post(
+        "/api/v1/security/sso-redirect/evaluate-probe", json={"is_success": True}
+    )
     assert r4.status_code == 200
     assert r4.json()["new_state"] == "online"
     assert r4.json()["consecutive_failures"] == 0

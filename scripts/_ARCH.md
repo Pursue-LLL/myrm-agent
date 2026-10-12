@@ -21,7 +21,7 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 
 ## Harness 代码生成（无 OSS 目录）
 
-`generate_litellm_routing.py` 等生成器在闭源 `myrm-agent-harness` 维护者工具链运行；产物提交路径：`myrm-agent-frontend/src/store/config/litellmRouting.generated.ts`。勿在 OSS 复制生成器。
+`generate_litellm_routing.py` 等生成器在 `myrm-agent-harness` 维护者工具链运行；产物提交路径：`myrm-agent-frontend/src/store/config/litellmRouting.generated.ts`。勿在 OSS 复制生成器。
 
 ## 中国大陆网络自适应
 

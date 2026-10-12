@@ -4,7 +4,20 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MemoryBriefStatus } from '@/store/chat/types';
 import MemoryInsightPanel from '../MemoryInsightPanel';
 
-const stableT = (key: string) => key;
+const SESSION_OVERRIDE_COPY: Record<string, string> = {
+  sessionOverridePill: 'Updated in this chat',
+  sessionOverrideTitle: 'Preference updates this chat',
+  sessionOverrideDescription:
+    'You changed something earlier in this conversation. This reply follows those updates.',
+};
+
+const stableT = (key: string, values?: { count?: number }) => {
+  if (key === 'sessionOverrideMobile') {
+    const count = values?.count ?? 0;
+    return `${count} update(s) from this chat are reflected here`;
+  }
+  return SESSION_OVERRIDE_COPY[key] ?? key;
+};
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -31,5 +44,16 @@ describe('MemoryInsightPanel mobile explanation', () => {
     const sources = screen.getAllByText('briefStatusSourceRuntimeFallback');
     expect(sources.length).toBeGreaterThanOrEqual(1);
     expect(sources.some((node) => node.closest('[class*="md:hidden"]') !== null)).toBe(true);
+  });
+
+  it('renders session override pill when ephemeral delta count is positive', () => {
+    const status: MemoryBriefStatus = {
+      state: 'ready',
+      session_ephemeral_delta_count: 2,
+    };
+    render(<MemoryInsightPanel memoryBriefStatus={status} isLast />);
+
+    expect(screen.getByText('Updated in this chat')).toBeInTheDocument();
+    expect(screen.getByText('2 update(s) from this chat are reflected here')).toBeInTheDocument();
   });
 });

@@ -30,7 +30,9 @@ from app.services.plugins.export_service import (
     Omit,
     OmittedKind,
     export_expert,
+    export_multi_expert,
     preview_expert_export,
+    preview_multi_expert_export,
     secret_names_of,
 )
 
@@ -112,10 +114,34 @@ class ExportRequest(BaseModel):
     review_digest: str | None = Field(default=None, description="From the preview; required when findings are kept")
 
 
+class BatchExportPreviewRequest(BaseModel):
+    agent_ids: list[str] = Field(min_length=1, description="List of expert IDs to bundle together")
+    bundle_name: str | None = Field(default=None, description="Optional bundle package name")
+
+
+class BatchExportRequest(BaseModel):
+    agent_ids: list[str] = Field(min_length=1, description="List of expert IDs to bundle together")
+    apply_redactions: bool = False
+    ignored_redactions: dict[str, list[int]] | None = Field(
+        default=None, description="Review path -> indices of findings the user chose to keep"
+    )
+    review_digest: str | None = Field(default=None, description="From the preview; required when findings are kept")
+    bundle_name: str | None = Field(default=None, description="Optional bundle package name")
+
+
 @router.post("/preview", response_model=ExportPreviewResponse)
 async def preview_export(request: ExportPreviewRequest) -> ExportPreviewResponse:
     try:
         preview = await preview_expert_export(request.agent_id)
+    except ExportError as exc:
+        raise _http_error(exc) from exc
+    return _preview_response(preview)
+
+
+@router.post("/batch/preview", response_model=ExportPreviewResponse)
+async def preview_batch_export(request: BatchExportPreviewRequest) -> ExportPreviewResponse:
+    try:
+        preview = await preview_multi_expert_export(request.agent_ids, request.bundle_name)
     except ExportError as exc:
         raise _http_error(exc) from exc
     return _preview_response(preview)
@@ -129,6 +155,25 @@ async def export_plugin(request: ExportRequest) -> Response:
             apply_redactions=request.apply_redactions,
             ignored_redactions=request.ignored_redactions,
             review_digest=request.review_digest,
+        )
+    except ExportError as exc:
+        raise _http_error(exc) from exc
+    return Response(
+        content=package.zip_content,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{package.filename}"'},
+    )
+
+
+@router.post("/batch")
+async def export_batch_plugin(request: BatchExportRequest) -> Response:
+    try:
+        package = await export_multi_expert(
+            request.agent_ids,
+            apply_redactions=request.apply_redactions,
+            ignored_redactions=request.ignored_redactions,
+            review_digest=request.review_digest,
+            bundle_name=request.bundle_name,
         )
     except ExportError as exc:
         raise _http_error(exc) from exc

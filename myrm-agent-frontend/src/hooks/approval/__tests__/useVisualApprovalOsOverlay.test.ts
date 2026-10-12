@@ -5,21 +5,28 @@ import { useVisualApprovalOsOverlay } from '@/hooks/approval/useVisualApprovalOs
 import type { InspectorViewSnapshot } from '@/lib/approval/visualApprovalContext';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
-const showMock = vi.fn().mockResolvedValue(undefined);
+const showMock = vi.fn().mockResolvedValue({ shown: true, degraded: false });
 const hideMock = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/lib/deploy-mode', () => ({
   isTauriRuntime: () => true,
 }));
 
-vi.mock('@/lib/approval/visualApprovalOsOverlay', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/approval/visualApprovalOsOverlay')>();
+vi.mock('@/lib/approval/visualApprovalOsOverlay', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/approval/visualApprovalOsOverlay')>(
+    '@/lib/approval/visualApprovalOsOverlay',
+  );
   return {
     ...actual,
     showVisualApprovalOsOverlay: (...args: unknown[]) => showMock(...args),
     hideVisualApprovalOsOverlay: (...args: unknown[]) => hideMock(...args),
   };
 });
+
+vi.mock('@/lib/approval/visualApprovalOsOverlaySurface', () => ({
+  resetVisualApprovalOsOverlaySurface: vi.fn(),
+  setVisualApprovalOsOverlaySurface: vi.fn(),
+}));
 
 const desktopRequest: ToolApprovalRequest = {
   requestId: 'req-desktop',
@@ -98,7 +105,24 @@ describe('useVisualApprovalOsOverlay', () => {
     });
   });
 
-  it('hides overlay on cleanup', async () => {
+  it('does not hide overlay when snapshot deps update while target stays ready', async () => {
+    const { rerender } = renderHook(
+      ({ loading }) =>
+        useVisualApprovalOsOverlay([desktopRequest], viewData, null, loading, false, false),
+      { initialProps: { loading: false } },
+    );
+
+    await waitFor(() => expect(showMock).toHaveBeenCalled());
+    hideMock.mockClear();
+    showMock.mockClear();
+
+    rerender({ loading: true });
+
+    await waitFor(() => expect(showMock).toHaveBeenCalled());
+    expect(hideMock).not.toHaveBeenCalled();
+  });
+
+  it('hides overlay on unmount', async () => {
     const { unmount } = renderHook(() =>
       useVisualApprovalOsOverlay([desktopRequest], viewData, null, false, false, false),
     );

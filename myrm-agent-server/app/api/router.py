@@ -51,6 +51,7 @@ from app.api.context.router import router as context_bundle_router
 from app.api.credentials.router import router as credentials_router
 from app.api.cron.routes import router as cron_router
 from app.api.datasets import router as datasets_router
+from app.api.dev_ports import router as dev_ports_router
 from app.api.eval.router import router as eval_router
 from app.api.extension import router as extension_router
 from app.api.extension import ws_router as extension_ws_router
@@ -78,6 +79,7 @@ from app.api.notifications.router import router as notifications_router
 from app.api.ops.router import router as ops_router
 from app.api.plugins import export_router as plugins_export_router
 from app.api.plugins import import_router as plugins_import_router
+from app.api.presentation import router as presentation_router
 from app.api.progression import router as progression_router
 from app.api.projects import router as project_router
 from app.api.projects.dependency_expansion import (
@@ -98,6 +100,8 @@ from app.api.security.tainted_egress import router as tainted_egress_router
 from app.api.security.vault import router as vault_router
 from app.api.security.vault_credentials import router as vault_credentials_router
 from app.api.security.workspace_trust import router as workspace_trust_router
+from app.api.self_evolution import router as self_evolution_router
+from app.api.session_map import router as session_map_router
 from app.api.skill_optimization import router as skill_optimization_router
 from app.api.skill_optimization import ws_router as skill_optimization_ws_router
 from app.api.skills import router as skills_router
@@ -107,12 +111,14 @@ from app.api.skills.growth import router as skill_growth_router
 from app.api.skills.migrations import router as migrations_router
 from app.api.skills.quality import router as skill_quality_router
 from app.api.skills.ws_evolution import router as evolution_ws_router
+from app.api.spreadsheet import router as spreadsheet_router
 from app.api.ssh_vault.router import router as ssh_vault_router
 from app.api.statistics import build_statistics_router
 from app.api.stt.router import router as stt_router
 from app.api.stt.ws_stream import router as stt_ws_router
 from app.api.system.router import router as system_router
 from app.api.system.shutdown import router as system_shutdown_router
+from app.api.system_assistant import router as system_assistant_router
 from app.api.tasks.router import router as tasks_router
 from app.api.theme.router import router as theme_router
 from app.api.tts.router import router as tts_router
@@ -123,6 +129,7 @@ from app.api.web_push.router import router as web_push_router
 from app.api.webhook.routes import router as lifecycle_webhook_router
 from app.api.widget_storage import router as widget_storage_router
 from app.api.wiki import router as wiki_router
+from app.api.workbench import workbench_router
 from app.api.workflow_templates import router as workflow_templates_router
 from app.api.workspace.router import router as workspace_router
 from app.config.deploy_mode import is_local_mode
@@ -214,6 +221,13 @@ api_router.include_router(commerce_spending_router)
 
 api_router.include_router(datasets_router, prefix="/datasets", tags=["datasets"])
 api_router.include_router(lifecycle_webhook_router, tags=["lifecycle-webhooks"])
+api_router.include_router(self_evolution_router, prefix="/self-evolution", tags=["self-evolution"])
+api_router.include_router(system_assistant_router, prefix="/system-assistant", tags=["system-assistant"])
+api_router.include_router(dev_ports_router, prefix="/dev-ports", tags=["dev-ports"])
+api_router.include_router(presentation_router, prefix="/presentation", tags=["presentation"])
+api_router.include_router(spreadsheet_router, prefix="/spreadsheet", tags=["spreadsheet"])
+api_router.include_router(session_map_router, prefix="/session-map", tags=["session-map"])
+api_router.include_router(workbench_router, prefix="/workbench", tags=["workbench"])
 
 # Channels - webhook routes are dynamically registered via init_channel_routes() in main.py
 

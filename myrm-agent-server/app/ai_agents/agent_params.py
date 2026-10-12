@@ -126,7 +126,6 @@ class GeneralAgentParams(BaseAgentParams):
     embedding_config: EmbeddingConfig | None = None
     reranker_config: RerankerConfig | None = None
     enable_structured_clarify: bool = False
-    client_surface: str | None = None
     enable_browser: bool = False
     browser_source: str | None = None
     dialog_policy: str | None = None

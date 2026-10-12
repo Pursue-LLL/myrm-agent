@@ -30,6 +30,7 @@ from myrm_agent_harness.toolkits.a2a.types import (
     JsonRpcResponse,
 )
 
+from app.api.a2a.vdc_router import router as vdc_router
 from app.database.dto import (
     A2APeerCreate,
     A2APeerProbeRequest,
@@ -44,6 +45,7 @@ from app.services.a2a.service import get_a2a_server_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+router.include_router(vdc_router)
 _card_generator = AgentCardGenerator()
 
 

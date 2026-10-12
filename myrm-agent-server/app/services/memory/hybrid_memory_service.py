@@ -1,6 +1,14 @@
-# [POS]: app/services/memory/hybrid_memory_service.py
-# [INPUT]: SQLite database path, memory payloads, search queries
-# [OUTPUT]: HybridMemoryService facade managing dual-drive hybrid memory and graceful degradation
+"""HybridMemoryService facade managing dual-drive hybrid memory, circuit breaking, and graceful degradation.
+
+[POS]
+app/services/memory/hybrid_memory_service.py
+
+[INPUT]
+- SQLite database path, memory payloads, search queries, adaptive RRF configurations
+
+[OUTPUT]
+- HybridMemoryService facade managing dual-drive hybrid memory, circuit breaking, and graceful degradation
+"""
 
 from __future__ import annotations
 
@@ -8,6 +16,7 @@ import logging
 from pathlib import Path
 
 from myrm_agent_harness.toolkits.memory import (
+    AdaptiveRrfConfig,
     DenseVectorProvider,
     DualDriveHybridMemoryEngine,
     HybridEngineStats,
@@ -22,7 +31,7 @@ logger = logging.getLogger(__name__)
 class HybridMemoryService:
     """Service facade coordinating local SQLite FTS5 persistence, offline synonym expansion,
 
-    and dual-drive RRF hybrid search with graceful degradation.
+    embedding circuit breaker resilience, and adaptive multi-factor RRF hybrid search.
     """
 
     def __init__(
@@ -57,18 +66,32 @@ class HybridMemoryService:
         query: str,
         limit: int = 10,
         enable_vector: bool = True,
+        override_rrf_config: AdaptiveRrfConfig | None = None,
     ) -> tuple[list[HybridSearchResult], RetrievalMode]:
-        """Perform dual-drive lexical/vector search with RRF fusion or graceful degradation."""
+        """Perform dual-drive lexical/vector search with adaptive RRF fusion or graceful degradation."""
         return self._engine.search(
             query=query,
             limit=limit,
             enable_vector=enable_vector,
+            override_rrf_config=override_rrf_config,
         )
 
     def register_synonyms(self, primary_term: str, synonyms: list[str]) -> int:
         """Register a synonym cluster and return total synonyms for the term."""
         self._engine.synonym_expander.register_synonyms(primary_term, synonyms)
         return len(self._engine.synonym_expander.get_synonyms(primary_term))
+
+    def trip_circuit_breaker(self, reason: str = "manual") -> tuple[str, int]:
+        """Force trip the embedding circuit breaker for disaster testing."""
+        self._engine.trip_circuit_breaker(reason=reason)
+        stats = self._engine.circuit_breaker.get_stats()
+        return stats.state.value, stats.tripped_count
+
+    def reset_circuit_breaker(self) -> str:
+        """Force reset the embedding circuit breaker to normal CLOSED state."""
+        self._engine.reset_circuit_breaker()
+        stats = self._engine.circuit_breaker.get_stats()
+        return stats.state.value
 
     def get_stats(self) -> HybridEngineStats:
         """Produce telemetry snapshot."""

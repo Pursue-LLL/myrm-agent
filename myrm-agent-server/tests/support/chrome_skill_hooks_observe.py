@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - wait_user_message_persisted() / wait_assistant_reply_ending_with() / transcript_text(): the chat as stored
+- stored_messages() / reply_ending_with(): a non-blocking look at the stored chat, for waits that also have to act
 - backend_log_offset() / backend_log_since(): what the private backend logged from a given moment on
 - read_json() / wait_for_file() / assert_no_hook_raised(): the hooks' side effects and the backend log
 - assert_audit_turn_governed(): the evidence a bash turn under ``audit_hooks`` must have left
@@ -133,20 +134,31 @@ def _describe_messages(messages: list[dict[str, object]]) -> str:
     return "\n".join(lines)
 
 
+def stored_messages(chat_id: str, api_url: str) -> list[dict[str, object]]:
+    try:
+        messages = fetch_chat_messages(chat_id, api_url=api_url)
+    except OSError:
+        return []
+    return [m for m in messages if isinstance(m, dict)]
+
+
+def reply_ending_with(messages: list[dict[str, object]], token: str) -> str | None:
+    for message in reversed(messages):
+        content = message.get("content") or message.get("message") or ""
+        if message.get("role") == "assistant" and isinstance(content, str) and _ends_with_token(content, token):
+            return content
+    return None
+
+
 def wait_assistant_reply_ending_with(chat_id: str, api_url: str, token: str, *, timeout_sec: float) -> str:
     deadline = time.monotonic() + timeout_sec
     last_messages: list[dict[str, object]] = []
     while time.monotonic() < deadline:
-        try:
-            messages = fetch_chat_messages(chat_id, api_url=api_url)
-        except OSError:
-            messages = []
-        last_messages = [m for m in messages if isinstance(m, dict)]
-        for message in reversed(last_messages):
-            content = message.get("content") or message.get("message") or ""
-            if message.get("role") == "assistant" and isinstance(content, str) and _ends_with_token(content, token):
-                print(f"E2E_ASSISTANT_REPLY[{chat_id}]: {content[:400]}", flush=True)
-                return content
+        last_messages = stored_messages(chat_id, api_url)
+        reply = reply_ending_with(last_messages, token)
+        if reply is not None:
+            print(f"E2E_ASSISTANT_REPLY[{chat_id}]: {reply[:400]}", flush=True)
+            return reply
         time.sleep(2.0)
     pytest.fail(
         f"assistant reply ending with {token!r} not received within {timeout_sec}s; "

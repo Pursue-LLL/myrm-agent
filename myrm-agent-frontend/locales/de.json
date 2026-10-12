@@ -279,7 +279,8 @@
       "loopStatusActive": "Aktive Schleife läuft (Intervall: {interval}, Durchläufe: {ticks})",
       "loopStatusInactive": "Keine aktive Schleife in dieser Konversation",
       "loopTargetReached": "Sitzungsschleife hat Zielbedingung erreicht und wurde beendet",
-      "export": "Sitzung exportieren oder Markdown kopieren (unterstützt HTML/MD/JSON/ZIP)"
+      "export": "Sitzung exportieren oder Markdown kopieren (unterstützt HTML/MD/JSON/ZIP)",
+      "context": "Basis-Kontextverbrauch (System-Prompt, Persona, MCPs, Regeln) prüfen und inaktive MCPs umschalten"
     }
   },
   "copilot": {
@@ -1878,7 +1879,7 @@
       "formatHint": "Unterstützt Claude Code-, Codex CLI- und Hermes Agent-Formate",
       "clickToChange": "Klicken zum Ändern der Datei",
       "pastePlaceholder": "JSON- oder JSONL-Transkriptereignisse hier einfügen (z. B. aus ~/.claude/projects/ oder ~/.hermes/sessions/)...",
-      "featuresSummary": "Entfernt automatisch redundante CoT-Gedankenketten & veraltete Systemprompts, klappt Terminal-Logs ein und bewahrt 100 % des Prompt-Cache-Präfixes.",
+      "featuresSummary": "Entfernt automatisch redundante CoT-Gedankenketten & veraltete Systemprompts, klappt Terminal-Logs ein und bewahrt ein stabiles Prompt-Cache-Präfix-Layout.",
       "startImport": "Importieren & Fortsetzen",
       "processing": "Bereinigung & Speicherung...",
       "invalidFileType": "Bitte laden Sie eine Transkriptdatei im Format .json oder .jsonl hoch",
@@ -2268,7 +2269,17 @@
         "pinsLoading": "Loading pins…",
         "pinsLoadError": "Angeheftete Dateien konnten nicht geladen werden",
         "pinsRetry": "Erneut versuchen"
-      }
+      },
+      "copiedReasoning": "Denkprozess kopiert",
+      "copyReasoning": "Denkprozess kopieren",
+      "deltaNegative": "{tokens} Tokens gegenüber der letzten Runde (komprimiert)",
+      "deltaPositive": "+{tokens} Tokens gegenüber der letzten Runde",
+      "deltaZero": "Wie in der letzten Runde",
+      "growthTrend": "Wachstumsverlauf (letzte 12 Runden)",
+      "weatherClear": "Klar (<25 %)",
+      "weatherCloudy": "Wolkig (25–75 %)",
+      "weatherCritical": "Bald komprimiert (≥90 %)",
+      "weatherWarning": "Warnung (75–90 %)"
     },
     "compact": {
       "badge": "Komprimiert",
@@ -2337,7 +2348,9 @@
       "specialReferencesHint": "Try: @staged / @diff / @codebase / @folder:path / @url:link / @chat:title / file:10-20",
       "removeReference": "{label} entfernen",
       "agentsCategory": "Agenten",
-      "contextCategory": "Kontext"
+      "contextCategory": "Kontext",
+      "alreadyInContext": "Im Kontext",
+      "dedupNotice": "Datei ist bereits im Kontext; doppelter Inhalt wird übersprungen"
     },
     "conversationRecall": {
       "hintTitle": "Frühere Gespräche fortsetzen",
@@ -3305,6 +3318,23 @@
       "fallbackPrefilledBadge": "Eingefügt",
       "questionClarification": "Klarstellung",
       "directReplyPlaceholder": "Antwort oder Klarstellung eingeben..."
+    },
+    "contextFootprint": {
+      "close": "Schließen",
+      "disabled": "Deaktiviert",
+      "enabled": "Aktiviert",
+      "mcpSwitcherDesc": "Nicht benötigte MCP-Server deaktivieren, damit jede Runde schlank bleibt",
+      "mcpSwitcherTitle": "MCP-Schnellschalter",
+      "mcpTools": "MCP-Tool-Schemas",
+      "noMcpServers": "Keine eingebundenen MCP-Server",
+      "persona": "Agent-Persona und Anweisungen",
+      "skillsTools": "Skills und integrierte Tools",
+      "subtitle": "Basis-Token-Verbrauch vor Gesprächsbeginn und Tool-Verwaltung",
+      "systemPrompt": "System-Prompt",
+      "title": "Anfänglicher Kontextverbrauch",
+      "toolsCount": "{count} Tools",
+      "totalBaseline": "Basisverbrauch gesamt",
+      "workspaceRules": "Workspace- und globale Regeln"
     }
   },
   "mode": {
@@ -4022,7 +4052,18 @@
       "globLabel": "Dateisuche",
       "grepLabel": "Inhaltssuche",
       "path": "Pfad",
-      "filePattern": "Dateien"
+      "filePattern": "Dateien",
+      "cacheHitTitle": "Cache-Snapshot-Treffer",
+      "forceRefresh": "Neu laden erzwingen",
+      "forceRefreshing": "Cache wird umgangen...",
+      "hoursAgo": "vor {count} Std.",
+      "justNow": "gerade eben",
+      "minutesAgo": "vor {count} Min.",
+      "savedTokens": "{count} Tokens gespart",
+      "scenarioArchive": "Archiv",
+      "scenarioRealtime": "Echtzeit",
+      "scenarioStandard": "Normalbetrieb",
+      "secondsAgo": "vor {count} Sek."
     },
     "context_compaction_active": "Kontext komprimieren",
     "context_compaction_timeout": "Komprimierung abgelaufen, Fallback wird verwendet",
@@ -4180,6 +4221,8 @@
     "importance": "Bedeutung",
     "lastAccessed": "Letzter Zugriff",
     "accessCount": "Zugriffsanzahl",
+    "usedTimes": "{count}-mal verwendet",
+    "lastUsedAt": "Zuletzt verwendet: {time}",
     "createdAt": "Erstellt",
     "updatedAt": "Aktualisiert",
     "loginRequired": "Melden Sie sich an, um Erinnerungen anzuzeigen",
@@ -4244,10 +4287,8 @@
       "merged": "Zusammengeführt",
       "replaced": "Ersetzt",
       "supplemented": "Ergänzt",
-      "vetoGuardrail": "Laufzeit-Sicherheitsleitplanke",
-      "vetoPattern": "Gesteuertes Muster",
-      "remediation": "Behebungshinweis",
-      "scope": "Geltungsbereich"
+      "reasoning": "Grund",
+      "application": "Anwendung"
     },
     "typeDesc": {
       "profile": "Schlüsselwert-Benutzerattribute (Name, Sprache, Beruf)",
@@ -4464,6 +4505,8 @@
     "enabled": "Aktiviert",
     "disabled": "Deaktiviert",
     "locked": "Vor automatischen Änderungen geschützt",
+    "exactFact": "Exakte Angabe",
+    "exactFactHint": "Enthält exakte Kennungen und wird unverändert beibehalten",
     "protectRule": "Diese Regel schützen",
     "releaseProtection": "Schutz aufheben",
     "protectRuleSuccess": "Regel geschützt",
@@ -4709,6 +4752,99 @@
       "cachedTokens": "Zwischengespeicherte Token",
       "completionTokens": "Abschlusstoken",
       "cacheFriendly": "Cache-freundlich",
+      "promptCache": {
+        "card": {
+          "title": "Sitzungs-Memory-Updates",
+          "badge": "Live-Chat",
+          "description": "Präferenz-Updates in derselben Unterhaltung prüfen, ohne stabile Systemanweisungen zu ändern.",
+          "sessionInputLabel": "Chat-Sitzung",
+          "sessionPlaceholder": "Sitzung wählen…",
+          "tabLive": "Aktive Updates ({count})",
+          "tabPreview": "Layout-Vorschau"
+        },
+        "consolidation": {
+          "prefixLayout": "Prefix-Layout",
+          "layoutStable": "Stabil",
+          "chatRingHint": "Cache-Trefferquote im Chat-Kontextring ansehen",
+          "systemPrefixFrozen": "Systemprefix in dieser Runde unverändert",
+          "prefixLayoutActive": "Prefix-Layout aktiv",
+          "avoidedTokens": "Vermiedene Tokens",
+          "estimatedSavings": "Nur wenn der Anbieter es meldet",
+          "perceptionLatency": "Recency-Overlay",
+          "notMeasured": "Hier nicht gemessen",
+          "inFlightDeltas": "Laufende Sitzungs-Deltas",
+          "simulateInjection": "Injection simulieren",
+          "augmentedHumanPreview": "Nutzer-Nachrichten-Ende (Vorschau)"
+        },
+        "baseContext": {
+          "bannerTitle": "Stabiler Systemprefix, dynamische Erinnerung in Nutzernachrichten",
+          "bannerBody": "Zusammenfassungen und Profilkarten werden selten aktualisiert und an die letzte Nutzernachricht angehängt—der Agent-Systemprompt bleibt stabil.",
+          "archTitle": "Warum das Layout zählt",
+          "legacyTitle": "Erinnerung im Systemprompt",
+          "legacyBody": "Änderungen am Systemprefix pro Runde zerstören oft Prefix-Cache-Ersparnisse.",
+          "myrmTitle": "Myrm-Zweischicht-Layout",
+          "myrmBody": "Der Systemprompt bleibt statisch; Snapshots hängen am Nutzernachrichten-Ende. Trefferquote im Chat-Kontextring—keine Garantie hier."
+        },
+        "twoLayerStudio": {
+          "ariaLabel": "Zweischicht-Kontext-Labor",
+          "labOnlyBanner": "Nur Laborvorschau—dieses Layout wird nicht in Live-Chats eingefügt. Gemessene Cache-Trefferquote im Chat-Kontextring.",
+          "sessionInputLabel": "Vorschau-Sitzungs-ID",
+          "sessionPlaceholder": "Sitzungs-ID eingeben…",
+          "title": "Zweischicht-Kontext-Labor",
+          "itemBadge": "Item 112",
+          "layoutBadge": "Layout-Vorschau",
+          "description": "Layer-1-Snapshots am Nutzernachrichten-Ende; Layer 2 löst Gedächtniskonflikte im Takt.",
+          "tabsAria": "Labor-Ansichten",
+          "tabBaseAria": "Basislayout anzeigen",
+          "tabDialecticAria": "Dialektik-Konsole",
+          "tabKnobsAria": "Takt-Steuerung",
+          "tabBase": "Layer 1 Basislayout",
+          "tabDialectic": "Layer 2 Dialektik ({count})",
+          "tabKnobs": "Takt-Steuerung",
+          "emptyBase": "Noch kein Basis-Snapshot",
+          "refreshSuccess": "Basis-Snapshot vom Server neu erstellt",
+          "refreshFailed": "Neuerstellung fehlgeschlagen—Sitzungs-ID prüfen",
+          "reconcileSuccess": "Dialektik Pass {depth}: {count} Konflikt(e) gelöst",
+          "reconcileFallback": "Beispiel-Ausgabe wird angezeigt",
+          "reconcileOffline": "Offline—Beispiel-Ausgabe",
+          "resetSuccess": "Sitzungs-Takt zurückgesetzt",
+          "resetLocal": "Reset lokal angewendet",
+          "configApplied": "Takt-Einstellungen aktualisiert"
+        },
+        "twoLayerCadence": {
+          "panelTitle": "Takt- und Tiefensteuerung",
+          "resetDefaults": "Empfohlene Standardwerte",
+          "layer1IntervalLabel": "Layer-1-Basis-Refresh-Intervall",
+          "layer1IntervalHint": "Häufigkeit für Zusammenfassungen und Peer-Karten. Längere Intervalle stabilisieren das Systemprefix; Messwerte im Chat-Kontextring.",
+          "layer2IntervalLabel": "Layer-2-Dialektik-Patrouille",
+          "layer2IntervalHint": "Intervall für Konfliktscans zwischen Historie und aktuellem Turn.",
+          "depthLabel": "Dialektik-Pass-Tiefe",
+          "depthHint": "Mehr Pässe = präziser, höhere Compute-Kosten.",
+          "reasoningLabel": "Reasoning-Stufe",
+          "reasoningHint": "Fast / Standard / Deep.",
+          "reasoningFast": "fast",
+          "reasoningStandard": "standard",
+          "reasoningDeep": "deep",
+          "passButton": "Pass {depth}",
+          "savedBanner": "Takt-Einstellungen übernommen",
+          "applyAria": "Takt-Einstellungen anwenden",
+          "applyLabel": "Einstellungen anwenden"
+        },
+        "twoLayerHud": {
+          "prefixLayoutLabel": "Systemprefix-Layout",
+          "layoutStable": "Stabil",
+          "chatRingSub": "Trefferquote im Chat",
+          "layer1CadenceLabel": "Layer-1-Basis-Kontext-Takt",
+          "everyNTurns": "Alle {count} Runden",
+          "lowFreqSnapshot": "Seltene Snapshots",
+          "layer2CadenceLabel": "Layer-2-Dialektik-Takt",
+          "conflictPatrol": "Konflikt-Patrouille",
+          "dialecticDepthLabel": "Dialektik-Tiefe / Compute",
+          "passDepthLevel": "Pass {depth} · {level}",
+          "refreshTelemetryAria": "Telemetrie aktualisieren",
+          "resetCadenceAria": "Sitzungs-Takt zurücksetzen"
+        }
+      },
       "replayTitle": "Sitzungswiedergabe-Overlay",
       "replayEmpty": "Es ist noch kein Replay-Overlay verfügbar",
       "replayMeta": "{events} events · {influences} influences",
@@ -5725,7 +5861,12 @@
       "autoResolveSoon": "Automatische Auflösung steht kurz bevor",
       "autoResolveInHours": "Automatische Auflösung in {hours} Std. (alte Erinnerung bleibt)",
       "autoResolveInMinutes": "Wird in {minutes} Min. automatisch aufgelöst (altes behalten)",
-      "autoResolveInDays": "Automatische Auflösung in {days} Tagen (alte Erinnerung bleibt)"
+      "autoResolveInDays": "Automatische Auflösung in {days} Tagen (alte Erinnerung bleibt)",
+      "lowRiskPolicyHint": "Wenn Sie nichts auswählen, bleibt bei Konflikten mit geringerer Wichtigkeit nach etwa {hours} Stunden automatisch die bisherige Erinnerung erhalten.",
+      "chatBannerTitle": "{count, plural, one {Ein Speicherkonflikt wartet auf Ihre Prüfung} other {# Speicherkonflikte warten auf Ihre Prüfung}}",
+      "chatBannerAction": "In den Speichereinstellungen prüfen",
+      "chatBannerDismiss": "In dieser Chat-Sitzung ausblenden",
+      "fetchRefreshFailed": "Der Konfliktstatus konnte nicht aktualisiert werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
     },
     "exportMarkdown": "Als Markdown exportieren (Obsidian-kompatibel)",
     "confidenceHigh": "Hohe Zuverlässigkeit",
@@ -6310,6 +6451,29 @@
       "resolve": "Als gelöst markieren",
       "revisionOutside": "Auch unmarkierte Zeilen geändert: {lines}",
       "revisionLocal": "Änderung blieb im markierten Bereich."
+    },
+    "hub": {
+      "associatedAgent": "Zugehöriger Agent",
+      "download": "Herunterladen",
+      "emptyDesc": "Ergebnisse und Dateien aus Agent-Gesprächen erscheinen hier automatisch",
+      "emptyTitle": "Keine Artefakte gefunden",
+      "exportZip": "Als ZIP-Paket exportieren",
+      "lastUpdated": "Zuletzt aktualisiert",
+      "navToSession": "Zum Ursprungschat",
+      "originSession": "Ursprungschat",
+      "searchPlaceholder": "Artefakte nach Titel, Beschreibung oder Endung suchen...",
+      "selectedCount": "{count} ausgewählt",
+      "subtitle": "Zentrales Artefakt-Archiv über alle Sitzungen mit bidirektionaler Herkunft zum jeweiligen Chat",
+      "tabAll": "Alle Artefakte",
+      "tabCode": "Code-Skripte",
+      "tabData": "Datentabellen",
+      "tabDocument": "Dokumente",
+      "tabLink": "Extrahierte Links",
+      "tabMedia": "Medien und Grafiken",
+      "tabOther": "Sonstiges",
+      "timelineTitle": "Versionsverlauf",
+      "title": "Artefakt-Herkunftszentrale",
+      "versionsCount": "{count} Versionen"
     }
   },
   "MessageSources": {
@@ -9122,6 +9286,14 @@
     "visualApprovalAttentionTitle": "Visuelle Freigabe ausstehend",
     "visualApprovalAttentionView": "Freigabe anzeigen",
     "visualApprovalAttentionMultiple": "{count} visuelle Aktionen warten auf Freigabe",
+    "humanAttentionTitle": "Aktion erforderlich",
+    "humanAttentionView": "Zum Element",
+    "humanAttentionMultiple": "{count} Elemente warten auf Sie",
+    "humanAttentionEscHint": "Esc stoppt laufende Desktop-Automatisierung sofort.",
+    "humanAttentionKindClarify": "Klärung",
+    "humanAttentionKindDesktopControl": "Desktop-Freigabe",
+    "humanAttentionKindVisual": "Visuelle Prüfung",
+    "humanAttentionKindTool": "Tool-Freigabe",
     "handoverTitle": "Warten auf Sie",
     "handoverDone": "Erledigt",
     "handoverDialogTitle": "Warten auf Sie",
@@ -9261,7 +9433,8 @@
       "confidence": "Konfidenz",
       "content": "Patch-Inhalt"
     },
-    "visualContextAlt": "Screenshot der Aktion, die auf Genehmigung wartet"
+    "visualContextAlt": "Screenshot der Aktion, die auf Genehmigung wartet",
+    "visualApprovalOsHighlightUnavailable": "Die Hervorhebung auf dem Bildschirm ist für dieses Display nicht verfügbar. Bestätigen Sie das Ziel anhand des roten Rahmens in dieser Karte."
   },
   "notifications": {
     "pairingPending": "Neue Kopplungsanfrage von {sender} am {channel}",
@@ -10333,55 +10506,68 @@
       "title": "Lern- und Evolutionsstream",
       "description": "Einheitlicher chronologischer Stream von Fakten-, Präferenz- und prozeduralen Erinnerungen sowie Skill-Evolutionsaufzeichnungen mit Inline-Verwaltung.",
       "filterAll": "Alle Streams",
-      "filterMemories": "Nur Erinnerungen",
-      "filterSkills": "Nur Skills",
       "filterFact": "Fakten",
       "filterPreference": "Präferenzen",
       "filterProcedural": "Abläufe",
       "filterEpisodic": "Episodisch",
       "filterEvolution": "Skill-Evolution",
       "filterDraft": "Skill-Entwurf",
-      "days7": "Letzte 7 Tage",
-      "days30": "Letzte 30 Tage",
-      "days90": "Letzte 90 Tage",
       "editMemory": "Erinnerung bearbeiten",
       "archiveSkill": "Skill archivieren",
       "unarchiveSkill": "Skill wiederherstellen",
       "deleteMemory": "Erinnerung löschen",
-      "deleteConfirm": "Möchten Sie dieses Erinnerungselement wirklich dauerhaft löschen?",
-      "archiveConfirm": "Möchten Sie diesen Skill archivieren? Er wird nicht mehr vom Modell-Tool-Routing aufgerufen.",
-      "unarchiveConfirm": "Möchten Sie diesen Skill wiederherstellen und aktivieren?",
+      "deleteConfirm": "Sie wird in den Erinnerungs-Papierkorb verschoben und kann dort oder über „Rückgängig“ wiederhergestellt werden.",
+      "archiveConfirm": "Der KI-Agent verwendet diese Fähigkeit dann nicht mehr. Eine Wiederherstellung ist jederzeit möglich.",
+      "unarchiveConfirm": "Die Fähigkeit wird wieder aktiviert.",
       "contentLabel": "Kerninhalt / Regel",
       "reasoningLabel": "Begründung und Kontext",
       "importanceLabel": "Wichtigkeitsstufe",
-      "userLockedBadge": "Manuell kalibriert (Gesperrt)",
+      "userProtectedBadge": "Vor automatischen Änderungen geschützt",
       "agentOrigin": "KI-Agent: {agent}",
-      "confidenceLabel": "Konfidenz",
       "saveChanges": "Änderungen speichern",
       "cancel": "Abbrechen",
-      "loading": "Lernzeitleiste wird geladen...",
       "loadMore": "Weitere Knoten laden",
-      "noMore": "Alle Knoten geladen",
       "empty": {
         "title": "Noch keine Lernaktivitäten",
         "description": "Wenn der Agent in Unterhaltungen Fakten lernt, Präferenzen speichert oder Skills aufbaut, werden diese hier chronologisch angezeigt."
       },
       "stats": {
-        "totalNodes": "Insgesamt {count} Lernknoten",
-        "userEditedCount": "{count} manuell kalibriert"
+        "totalNodes": "Insgesamt {count} Lernknoten"
       },
       "toast": {
         "updateSuccess": "Erinnerung erfolgreich aktualisiert",
-        "deleteSuccess": "Erinnerung gelöscht",
+        "deleteSuccess": "Erinnerung in den Papierkorb verschoben",
         "archiveSuccess": "Skill archiviert",
         "unarchiveSuccess": "Skill wiederhergestellt und aktiviert",
-        "actionFailed": "Aktion fehlgeschlagen: {error}"
+        "actionFailed": "Aktion fehlgeschlagen: {error}",
+        "undo": "Rückgängig",
+        "undoFailed": "Rückgängig fehlgeschlagen",
+        "deletePermanentSuccess": "Erinnerung gelöscht"
       },
       "error": {
         "title": "Lernverlauf konnte nicht geladen werden",
         "description": "Verlauf konnte nicht geladen werden. Bitte Verbindung prüfen und erneut versuchen.",
         "retry": "Wiederholen"
-      }
+      },
+      "deleteConfirmTitle": "Diese Erinnerung löschen?",
+      "archiveConfirmTitle": "Diese Fähigkeit archivieren?",
+      "unarchiveConfirmTitle": "Diese Fähigkeit wiederherstellen?",
+      "confirm": "Bestätigen",
+      "viewInGraph": "Im Wissensgraphen anzeigen",
+      "viewSourceChat": "Ursprüngliche Unterhaltung öffnen",
+      "contextLabel": "Kontext",
+      "importanceValue": "{value}/10",
+      "pinnedHint": "Angeheftete Fähigkeiten können nicht archiviert werden. Bitte zuerst lösen.",
+      "skillStatus": {
+        "PENDING_REVIEW": "Prüfung ausstehend",
+        "AUTO_APPLIED": "Automatisch angewendet",
+        "FAILED_SCAN": "Scan fehlgeschlagen",
+        "BLOCKED_LOCKED": "Durch Sperre blockiert",
+        "APPROVED": "Genehmigt",
+        "REJECTED": "Abgelehnt",
+        "APPLY_FAILED": "Anwendung fehlgeschlagen"
+      },
+      "deleteConfirmPermanent": "Diese Erinnerung wird endgültig entfernt und kann nicht wiederhergestellt werden."
     },
     "learningLoop": {
       "title": "5-Ringe-Closed-Loop-Lernstatus",
@@ -12606,6 +12792,15 @@
     "stopping": "Wird gestoppt…",
     "curtainActive": "Arbeitsplatz-Bildschirm geschützt"
   },
+  "mobileShell": {},
+  "designerEye": {},
+  "systemAssistant": {},
+  "workspaceLayout": {},
+  "devPorts": {},
+  "toolPicker": {},
+  "presentation": {},
+  "vibrancy": {},
+  "spreadsheet": {},
   "whatsNew": {
     "title": "Neuigkeiten in v{version}",
     "description": "Das hat sich in dieser Version geändert.",
@@ -12663,7 +12858,11 @@
     "lifecycleRetryExtract": "Extraktion wiederholen",
     "lifecycleRetrying": "Wird wiederholt…",
     "lifecycleRetryFailed": "Wiederholung fehlgeschlagen — bitte später erneut versuchen",
-    "lifecycleRetryAlreadyInFlight": "Extraktions-Wiederholung läuft bereits"
+    "lifecycleRetryAlreadyInFlight": "Extraktions-Wiederholung läuft bereits",
+    "sessionOverridePill": "In diesem Chat aktualisiert",
+    "sessionOverrideTitle": "Aktualisierungen in diesem Chat",
+    "sessionOverrideDescription": "Wenn Sie in diesem Gespräch etwas korrigiert haben, folgt diese Antwort diesen Änderungen.",
+    "sessionOverrideMobile": "{count} Aktualisierung(en) aus diesem Chat sind in dieser Antwort berücksichtigt"
   },
   "memoryRecallDegraded": {
     "title": "Semantischer Rückruf nicht verfügbar",
@@ -12904,6 +13103,162 @@
       "empty": "Keine Detailnachweise für diese Stufe"
     }
   },
+  "executionPhaseStepper": {
+    "badge": "Abgeschlossen",
+    "waitingApproval": "Wartet auf Genehmigung",
+    "collapseTelemetry": "Telemetrie einklappen",
+    "expandTelemetry": "Telemetrie ausklappen",
+    "currentNode": "Knoten #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "Planung"
+      },
+      "executing": {
+        "title": "Ausführung"
+      },
+      "verifying": {
+        "title": "Verifizierung"
+      }
+    },
+    "lanes": {
+      "agent": "Agenten-Kern",
+      "user": "Benutzer",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "Fähigkeiten",
+      "sandbox": "Sicherheits-Sandbox"
+    }
+  },
+  "continualOverlay": {
+    "activeTitle": "Aktives Overlay",
+    "remainingTurns": "{count, plural, =1 {1 Runde verbleibend} other {# Runden verbleibend}}",
+    "rollbackTooltip": "Dieses Sitzungs-Overlay zurücksetzen",
+    "rollback": "Zurücksetzen",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "howItWorks": "Funktionsweise",
+    "howItWorksDesc": "Overlays bieten eine unterbrechungsfreie Fehlerbehebung, sind für ein festgelegtes Rundenbudget aktiv und werden danach nahtlos deaktiviert.",
+    "allActiveOverlays": "Alle aktiven Overlays ({count})"
+  },
+  "taskSpaces": {
+    "title": "Parallele Browser-Arbeitsbereiche",
+    "badgeRunning": "Aktiv",
+    "badgeIdle": "Bereit",
+    "badgeTakeover": "Manuelle Übernahme",
+    "takeoverBtn": "Übernehmen",
+    "releaseTakeoverBtn": "An Agent übergeben",
+    "closeSpaceBtn": "Bereich schließen",
+    "activePages": "{count} aktive Tabs",
+    "emptyState": "Keine aktiven parallelen Browser-Bereiche",
+    "snapshotPreview": "Live-Bereichs-Snapshot",
+    "takeoverHint": "Sie haben die manuelle Kontrolle. Nach Abschluss an den Agenten übergeben.",
+    "snapshotAlt": "Snapshot des Aufgabenbereichs"
+  },
+  "modelPlaybook": {
+    "title": "Modell-Orchestrierungs-Leitfaden",
+    "subtitle": "Architekturleitfaden für Multi-Modell-Delegation, dynamisches Routing und Kosteneffizienz.",
+    "brainHands": {
+      "title": "Spezialisierung von Gehirn vs. Händen",
+      "tag": "Entkoppelte Rollen",
+      "description": "Kombinieren Sie ein schweres Planungsmodell mit einem schnellen Modell für Werkzeugaufrufe.",
+      "brainTip": "Gehirn: Claude 3.5 Sonnet, DeepSeek-R1 für Architektur und logische Planung.",
+      "handsTip": "Hände: MiniMax, GPT-4o-mini für schnelle Werkzeugausführung und Schema-Treue."
+    },
+    "routingMoa": {
+      "title": "Routing vs. Mixture-of-Agents (MoA)",
+      "tag": "Orthogonale Skalierung",
+      "description": "Dynamisches Routing wählt das beste Modell; MoA aggregiert Vorhersagen mehrerer Modelle.",
+      "routingTip": "Routing: Modellauswahl basierend auf Spezialisierung (Code, Mathe, Text).",
+      "moaTip": "MoA: Parallele Ausführung und Konsensbildung für wichtige Entscheidungen.",
+      "routingActive": "Aktiv",
+      "routingInactive": "Inaktiv"
+    },
+    "cheapEyes": {
+      "title": "Multimodale visuelle Hilfsmittel",
+      "tag": "Kostenoptimierung",
+      "description": "Nutzen Sie spezialisierte Bildmodelle ohne zusätzlichen Rechenaufwand für das Hauptmodell.",
+      "tip": "Lagern Sie Bildprüfungen an dedizierte Modelle aus, um den Hauptchat schlank zu halten."
+    },
+    "honestQuota": {
+      "title": "Transparente Quoten & Token-Ökonomie",
+      "tag": "TCO-Kontrolle",
+      "description": "Überwachen Sie Token-Verbrauch und Cache-Trefferquoten über alle Anbieter in Echtzeit.",
+      "tip": "Identifizieren Sie Kostenengpässe und optimieren Sie Prompt-Präfixe für maximales Caching."
+    },
+    "actions": {
+      "routingEnabledSuccess": "Intelligentes Routing erfolgreich aktiviert!",
+      "configureSlots": "Modell-Slots konfigurieren",
+      "enabled": "Aktiviert",
+      "enableSmartRouting": "Intelligentes Routing aktivieren",
+      "configureVision": "Vision-Modell konfigurieren",
+      "viewSubscriptions": "Abonnements anzeigen",
+      "close": "Schließen"
+    },
+    "cardTitle": "Modell-Orchestrierungs-Playbook",
+    "cardBadge": "Playbook",
+    "cardSubtitle": "Meistern Sie Brain & Hands-Dispatch, 3-Stufen-Routing und MoA-Konsens für maximale Effizienz.",
+    "viewFullPlaybook": "Playbook ansehen",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "miniBrainHandsTitle": "Aufteilung von Brain & Hands",
+    "miniBrainHandsDesc": "Leistungsstarker Planer + schneller Werkzeug-Executor.",
+    "miniDynamicRoutingTitle": "3-Stufiges Adaptives Routing",
+    "miniDynamicRoutingDesc": "Automatische Umschaltung zwischen Simple-, Standard- und Reasoning-Stufen.",
+    "miniMoaTitle": "MoA-Konsens-Overlay",
+    "miniMoaDesc": "Multi-Modell-Debatte zur Überwindung von Modellgrenzen.",
+    "headerBadge": "Modell-Orchestrierungs-Strategie",
+    "dialogTitle": "Praxishandbuch für Modell-Orchestrierung & empfohlene Rezepte",
+    "dialogSubtitle": "Tiefes Verständnis von Gehirn- & Hand-Aufteilung, dynamischem Routing, MoA-Konsens und Token-Ökonomie",
+    "brainHandsTitle": "1. Spezialisierte Gehirn- & Hand-Aufteilung (Brain vs. Hands)",
+    "brainHandsBadge": "Tempo & Kostenersparnis",
+    "brainHandsDesc": "Entkoppelt übergeordnete Planung und häufige Tool-Aufrufe, um teure Planungsmodelle nicht für einfache Ausführungen zu verschwenden.",
+    "brainLabel": "Gehirn (Planer)",
+    "brainExample": "Claude 3.7 Sonnet, DeepSeek-R1",
+    "handsLabel": "Hand (Ausführer)",
+    "handsExample": "DeepSeek-V3, Qwen 2.5, GPT-4o-mini",
+    "dynamicRoutingTitle": "2. Adaptives 3-Stufen-Routing (3-Tier Adaptive Routing)",
+    "dynamicRoutingBadge": "Vollautomatische Zuweisung",
+    "dynamicRoutingDesc": "Erkennt Aufgabenabsicht und Komplexität automatisch und passt Spezifikationen in Millisekunden an.",
+    "tierSimpleTitle": "Einfache Stufe (Simple Tier)",
+    "tierSimpleDesc": "Smalltalk und schnelle Abfragen, antwortet in Millisekunden und spart ~65% Rechenkosten.",
+    "tierStandardTitle": "Standard-Stufe (Standard Tier)",
+    "tierStandardDesc": "Feature-Entwicklung, Refactoring, Multi-Datei-Suche und alltägliche Aufgaben.",
+    "tierReasoningTitle": "Schlussfolgerungs-Stufe (Reasoning Tier)",
+    "tierReasoningDesc": "Mathematische Beweise, langfristige Kausalketten und Systemarchitektur.",
+    "moaTitle": "3. Multi-Modell-Konsensschicht (Mixture-of-Agents)",
+    "moaBadge": "Präzisionssprung",
+    "moaDesc": "Mehrere Modelle generieren parallel Kandidaten, deren Konsens gebündelt wird, um Halluzinationen zu eliminieren.",
+    "orthogonalTipTitle": "Orthogonale Beziehung zwischen Routing und MoA",
+    "orthogonalTipDesc": "Routing senkt Kosten horizontal, MoA steigert Genauigkeit vertikal – beide ergänzen sich nahtlos.",
+    "specialistsTitle": "4. Dedizierte Spezialisten-Slots (Specialist Slots)",
+    "specialistsDesc": "Unabhängige Zuweisung für visuelle Hilfen, Langtexte und Programmierung.",
+    "footerNote": "Sie können diese Modellstrategien jederzeit in den Einstellungen anpassen.",
+    "closeBtn": "Schließen",
+    "configureBtn": "In Einstellungen konfigurieren"
+  },
+  "security": {
+    "taintedEgress": {
+      "title": "Sensible Datenübertragung abgefangen",
+      "description": "Eine ausgehende Netzwerkanfrage mit sensiblen Zugangsdaten wurde abgefangen.",
+      "destinationHost": "Ziel-Host",
+      "dataType": "Sensibler Datentyp",
+      "detectedPattern": "Erkanntes Muster",
+      "trustSession": "Diesem Ziel in dieser Sitzung immer vertrauen (verhindert weitere Abfragen)",
+      "approve": "Verbindung erlauben",
+      "reject": "Blockieren & Verweigern"
+    }
+  },
+  "ttsAudio": {
+    "generatedSpeech": "Generierte Sprache",
+    "playbackFailed": "Audio-Wiedergabe fehlgeschlagen — die Datei ist möglicherweise abgelaufen."
+  },
+  "intentDispatcher": {
+    "invalidLink": "Ungültiger externer Link oder ungültige Parameter",
+    "oauthSuccess": "Autorisierung erfolgreich",
+    "oauthFailed": "Autorisierungsprüfung fehlgeschlagen, bitte erneut versuchen",
+    "cloudProfileName": "Cloud-Sandbox"
+  },
+  "sessionMap": {},
   "settings": {
     "providerBalance": {
       "statusHealthy": "Ausreichend",
@@ -12923,7 +13278,7 @@
       "layer1Badge": "Immer an",
       "layer2Title": "Bildschirm entsperren",
       "layer2DescSupported": "Bei aktivem Privatsphäre-Vorhang (unten) wird ein gesperrter Bildschirm vorübergehend entsperrt, wenn der Agent den Computer bedienen muss, und nach der Aufgabe wieder gesperrt",
-      "layer2DescUnsupported": "Die automatische Entsperrung wird auf der aktuellen Plattform ({platform}) nicht unterstützt.",
+      "layer2DescUnsupported": "Automatisches Entsperren ist nur unter macOS verfügbar (aktuelle Plattform: {platform})",
       "passwordSaved": "Passwort im System-Schlüsselbund gespeichert",
       "deletePassword": "Gespeichertes Passwort löschen",
       "inputPlaceholder": "System-Anmeldepasswort eingeben",
@@ -12984,7 +13339,50 @@
       "trustedAppsRetry": "Erneut versuchen",
       "trustedAppsRevoke": "Widerrufen",
       "trustedAppsRevokeSuccess": "Vertrauenswürdige App entfernt",
-      "trustedAppsRevokeFailed": "Widerrufen der vertrauenswürdigen App fehlgeschlagen"
+      "trustedAppsRevokeFailed": "Widerrufen der vertrauenswürdigen App fehlgeschlagen",
+      "lockedUseDoctorLabel": "Abwesenheitsmodus & Privatsphäre-Vorhang",
+      "lockedUseDoctorDesc": "Desktop-Shell-Abstimmung für unbeaufsichtigte Aufgaben und Privatsphäre am Arbeitsplatz",
+      "lockedUseDoctorPass": "Bereit",
+      "lockedUseDoctorWarn": "Achtung",
+      "lockedUseDoctorFail": "Blockiert",
+      "lockedUseDoctorUnavailable": "Unbekannt",
+      "lockedUseDoctorDetailNotMac": "Abwesenheitsmodus und Privatsphäre-Vorhang erfordern die Myrm-Desktop-App unter macOS.",
+      "lockedUseDoctorDetailBridgeMissing": "Starten Sie die Myrm-Desktop-App auf diesem Mac, damit der Abwesenheitsmodus mit der Shell koordinieren kann.",
+      "lockedUseDoctorDetailShellUnavailable": "Starten Sie die Myrm-Desktop-App neu und prüfen Sie Abwesenheitsmodus und Vorhang in den Einstellungen.",
+      "lockedUseDoctorDetailGeneric": "Abwesenheitsmodus oder Vorhang ist nicht bereit. Öffnen Sie die Systemeinstellungen oder starten Sie die Desktop-App neu.",
+      "screenLockGuardLabel": "Bildschirmsperr-Gate",
+      "screenLockGuardDesc": "Automatisierung pausiert, solange der Bildschirm gesperrt ist",
+      "screenLockGuardLocked": "Gesperrt",
+      "screenLockGuardUnlocked": "Entsperrt",
+      "lockedUseDoctorDetailAwayOff": "Desktop-Shell ist bereit. Aktivieren Sie oben Locked Use für unbeaufsichtigte Läufe — der Agent entsperrt hinter dem Vorhang.",
+      "lockedUseDoctorGoToSettings": "Unbeaufsichtigte Einstellungen öffnen",
+      "lockedUseDoctorBadgeLoading": "Prüfe…",
+      "lockedUseDoctorBadgeNotMac": "macOS-Desktop-App",
+      "lockedUseDoctorBadgeAwayOn": "Abwesenheitsmodus an",
+      "lockedUseDoctorBadgeBridgeReady": "Shell verbunden",
+      "setupGuideTitle": "Schnellstart (Desktop-App)",
+      "setupGuideStep1": "Oben Eingabesteuerung und Bildschirmaufnahme erlauben, dann „Mit Bildschirmaufnahme prüfen“.",
+      "setupGuideStep2": "Locked Use nur aktivieren, wenn Aufgaben bei gesperrtem Bildschirm laufen sollen.",
+      "setupGuideStep3": "In der Agentenkonfiguration Desktop-Steuerung aktivieren und die erste App-Freigabe im Chat abschließen.",
+      "setupGuideStep4": "Während ein Lauf aktiv ist, Esc drücken, um Desktop-Automatisierung sofort zu stoppen."
+    },
+    "mobileAdb": {
+      "title": "Mobiles drahtloses ADB-Debugging",
+      "description": "Verbinden Sie echte Android-Geräte für Automatisierung, UI-Baum-Extraktion und geräteübergreifende Workflows",
+      "activeDevices": "Verbundene Geräte",
+      "noDevicesFound": "Keine verbundenen Android-Geräte gefunden",
+      "pairPrompt": "Aktivieren Sie Drahtloses Debugging in den Entwickleroptionen Ihres Telefons und geben Sie den Kopplungscode ein",
+      "wirelessPairing": "Drahtloses Debugging-Pairing (Android 11+)",
+      "pairingCodePlaceholder": "6-stelliger Kopplungscode (z. B. 123456)",
+      "pairButton": "Gerät koppeln",
+      "directConnect": "Direktverbindung (Gekoppeltes Gerät)",
+      "connectButton": "Verbinden",
+      "refresh": "Geräteliste aktualisieren",
+      "fillAllFields": "Bitte füllen Sie alle erforderlichen Host-, Port- und Kopplungsfelder aus",
+      "pairSuccess": "Drahtloses Gerät erfolgreich gekoppelt!",
+      "pairFailed": "Kopplung fehlgeschlagen. Überprüfen Sie Host-IP, Port und Kopplungscode",
+      "connectSuccess": "Gerät erfolgreich verbunden!",
+      "connectFailed": "Verbindung fehlgeschlagen. Stellen Sie sicher, dass drahtloses Debugging im selben WLAN aktiv ist"
     },
     "rate_limits": {
       "title": "Rate-Limit-Überwachung",
@@ -13253,6 +13651,46 @@
           "updated": "Befehl erfolgreich aktualisiert"
         }
       }
+    },
+    "a2aPeers": {
+      "title": "A2A-Protokoll & Vertrauenswürdige Remote-Knoten",
+      "description": "Knotenbeschreibung (Optional)",
+      "registryTitle": "Verzeichnis vertrauenswürdiger Remote-Knoten",
+      "addPeer": "A2A-Knoten hinzufügen",
+      "newPeer": "Neuen Remote-A2A-Knoten registrieren",
+      "editPeer": "A2A-Knoten bearbeiten",
+      "peerName": "Knotenname",
+      "peerNamePlaceholder": "z. B. Hermes Deep Researcher / OpenClaw Code Reviewer",
+      "baseUrl": "A2A-Basis-URL",
+      "baseUrlPlaceholder": "https://agent.example.com",
+      "descriptionPlaceholder": "Kurzbeschreibung der Fachgebiete oder Fähigkeiten des Remote-Agenten",
+      "authType": "Authentifizierungsart",
+      "authBearer": "Bearer-Token",
+      "authApiKey": "API-Schlüssel (X-API-Key)",
+      "authNone": "Keine Authentifizierung (Öffentlich)",
+      "authToken": "Authentifizierungstoken",
+      "authTokenPlaceholder": "Zugriffstoken für Remote-A2A-RPC eingeben",
+      "authTokenKeepPlaceholder": "Leer lassen, um das aktuelle Token beizubehalten",
+      "savePeer": "Knoten speichern",
+      "saveChanges": "Änderungen speichern",
+      "saving": "Speichern...",
+      "cancel": "Abbrechen",
+      "probe": "Verbindungstest (Probe)",
+      "probing": "Teste Verbindung...",
+      "probeSuccess": "Probe erfolgreich: {latency}ms, AgentCard aufgelöst",
+      "probeFailed": "Probe fehlgeschlagen: {error}",
+      "ssrfBlocked": "SSRF blockiert: Zieladresse gehört zu einem eingeschränkten privaten Netzwerk",
+      "noPeers": "Keine A2A-Knoten registriert",
+      "noPeersDesc": "Registrieren Sie Remote-A2A-Knoten, um Aufgaben nahtlos an Drittanbieter-Agenten über A2A-Orchestrierung zu delegieren.",
+      "deleteConfirm": "Möchten Sie diesen A2A-Knoten wirklich löschen?",
+      "cardPreview": "AgentCard-Metadaten",
+      "cardSkills": "Unterstützte Skills",
+      "cardProvider": "Anbieter",
+      "statusOk": "In Ordnung",
+      "statusError": "Fehler",
+      "statusUnreachable": "Nicht erreichbar",
+      "statusSsrf": "Sicherheitsblockade",
+      "hasToken": "Anmeldeinformationen hinterlegt"
     },
     "lifecycleWebhook": {
       "title": "Lebenszyklus-Outbound-Webhooks",
@@ -13723,6 +14161,19 @@
         "rightsExportFailed": "Export fehlgeschlagen — erneut in Speicher-Einstellungen versuchen",
         "rightsManageMemory": "Speicher & Löschung verwalten",
         "actionManage": "Verwalten"
+      },
+      "leastPrivilege": {
+        "title": "Least Privilege & Sandbox-Schutz",
+        "description": "Standard-Least-Privilege-Grenzen und physische Sandbox-Isolation — ohne destruktive Vollzugriffsmuster.",
+        "stanceHeader": "Standard-Least-Privilege-Haltung",
+        "activeBadge": "Geschützt",
+        "stanceSummary": "Befehle und Änderungen erfordern explizite Freigabe oder laufen in der physischen Sandbox.",
+        "manageTrustBtn": "Vertrauenswürdige Ordner",
+        "viewMatrixBtn": "Fähigkeitsmatrix",
+        "myrmWayTitle": "Myrm-Freigabe- & Sandbox-Strategie",
+        "myrmWayDesc": "Einheitlicher Freigabe-Flow und Interrupt-Statusautomat. Hochrisiko wird durch Sandbox-Firewalls gestoppt, Routine bleibt flüssig.",
+        "antiPatternTitle": "Warum „Vollzugriff“ abgelehnt wird",
+        "antiPatternDesc": "Vollzugriff stellt lokale Dateien und Host-Anmeldedaten offener Exfiltration aus. Klare Grenzen ohne Umgehungsschleifen."
       },
       "modeAllow": "Erlauben",
       "modeAsk": "Genehmigung erforderlich",
@@ -18095,7 +18546,20 @@
         "webui": "WebUI"
       },
       "unattendedDesktop": {
-        "title": "Unbeaufsichtigter Desktop"
+        "title": "Unbeaufsichtigter Desktop",
+        "guideTitle": "Computer-Nutzung bei Abwesenheit · Schnelleinrichtung",
+        "guideIntro": "Nutzen Sie die Desktop-App, wenn Sie den Bildschirm sperren und weggehen, der Agent aber weiterarbeiten soll. Der reine Browser-Modus bietet nur Freigaben im Chat, aber nicht die folgenden Schutzfunktionen.",
+        "stepCurtainTitle": "Sichtschutz-Vorhang",
+        "stepCurtainBody": "Verdeckt Ihre Bildschirme, sodass Personen in der Nähe nicht sehen, was der Agent tut. Unten aktivieren.",
+        "stepCurtainAction": "Zum Vorhang",
+        "stepLockedUseTitle": "Nutzung bei gesperrtem Bildschirm (optional)",
+        "stepLockedUseBody": "Der Agent kann GUI-Aufgaben auch bei gesperrtem Bildschirm abschließen. Erfordert den Vorhang; auf dem Mac optional ein im Schlüsselbund gespeichertes Anmeldepasswort.",
+        "stepLockedUseAction": "Zur Nutzung bei gesperrtem Bildschirm",
+        "stepApprovalTitle": "Visuelle Freigaben",
+        "stepApprovalBody": "Riskante Klicks werden im Chat mit einem roten Rahmen im Screenshot bestätigt. In der Mac-Desktop-App erscheint, wenn das System es zulässt, derselbe Rahmen zusätzlich auf dem echten Bildschirm.",
+        "statusOn": "An",
+        "statusOff": "Aus",
+        "statusOptional": "Wahlweise"
       },
       "copied": "Kopiert",
       "saved": "Erfolgreich gespeichert",
@@ -19639,6 +20103,19 @@
       }
     },
     "systemHealth": {
+      "opsSnapshot": {
+        "title": "Laufzeit-Snapshot",
+        "description": "Live-Status dieser Assistenten-Instanz—Auslastung, Speicherdruck und Kanäle.",
+        "refresh": "Aktualisieren",
+        "loading": "Snapshot wird geladen…",
+        "unreachable": "Snapshot nicht ladbar: {error}",
+        "uptime": "Betriebszeit",
+        "liveness": "Agent-Status",
+        "activeSessions": "Aktive Sitzungen",
+        "memoryPressure": "Speicherdruck",
+        "memorySubsystem": "Speicher-Subsystem",
+        "doctorStatus": "Diagnose"
+      },
       "doctor": {
         "title": "Systemgesundheitsdiagnose",
         "description": "Echtzeit-Gesundheitstelemetrie von Serverkomponenten und Framework-Schicht",
@@ -20012,64 +20489,6 @@
       "chipSubtitle": "Meistern Sie die Aufteilung zwischen Brain und Hands sowie intelligente Routing-Rezepte",
       "chipAction": "Playbook ansehen"
     },
-    "a2aPeers": {
-      "title": "A2A-Protokoll & Vertrauenswürdige Remote-Knoten",
-      "description": "Knotenbeschreibung (Optional)",
-      "registryTitle": "Verzeichnis vertrauenswürdiger Remote-Knoten",
-      "addPeer": "A2A-Knoten hinzufügen",
-      "newPeer": "Neuen Remote-A2A-Knoten registrieren",
-      "editPeer": "A2A-Knoten bearbeiten",
-      "peerName": "Knotenname",
-      "peerNamePlaceholder": "z. B. Hermes Deep Researcher / OpenClaw Code Reviewer",
-      "baseUrl": "A2A-Basis-URL",
-      "baseUrlPlaceholder": "https://agent.example.com",
-      "descriptionPlaceholder": "Kurzbeschreibung der Fachgebiete oder Fähigkeiten des Remote-Agenten",
-      "authType": "Authentifizierungsart",
-      "authBearer": "Bearer-Token",
-      "authApiKey": "API-Schlüssel (X-API-Key)",
-      "authNone": "Keine Authentifizierung (Öffentlich)",
-      "authToken": "Authentifizierungstoken",
-      "authTokenPlaceholder": "Zugriffstoken für Remote-A2A-RPC eingeben",
-      "authTokenKeepPlaceholder": "Leer lassen, um das aktuelle Token beizubehalten",
-      "savePeer": "Knoten speichern",
-      "saveChanges": "Änderungen speichern",
-      "saving": "Speichern...",
-      "cancel": "Abbrechen",
-      "probe": "Verbindungstest (Probe)",
-      "probing": "Teste Verbindung...",
-      "probeSuccess": "Probe erfolgreich: {latency}ms, AgentCard aufgelöst",
-      "probeFailed": "Probe fehlgeschlagen: {error}",
-      "ssrfBlocked": "SSRF blockiert: Zieladresse gehört zu einem eingeschränkten privaten Netzwerk",
-      "noPeers": "Keine A2A-Knoten registriert",
-      "noPeersDesc": "Registrieren Sie Remote-A2A-Knoten, um Aufgaben nahtlos an Drittanbieter-Agenten über A2A-Orchestrierung zu delegieren.",
-      "deleteConfirm": "Möchten Sie diesen A2A-Knoten wirklich löschen?",
-      "cardPreview": "AgentCard-Metadaten",
-      "cardSkills": "Unterstützte Skills",
-      "cardProvider": "Anbieter",
-      "statusOk": "In Ordnung",
-      "statusError": "Fehler",
-      "statusUnreachable": "Nicht erreichbar",
-      "statusSsrf": "Sicherheitsblockade",
-      "hasToken": "Anmeldeinformationen hinterlegt"
-    },
-    "mobileAdb": {
-      "title": "Mobiles drahtloses ADB-Debugging",
-      "description": "Verbinden Sie echte Android-Geräte für Automatisierung, UI-Baum-Extraktion und geräteübergreifende Workflows",
-      "activeDevices": "Verbundene Geräte",
-      "noDevicesFound": "Keine verbundenen Android-Geräte gefunden",
-      "pairPrompt": "Aktivieren Sie Drahtloses Debugging in den Entwickleroptionen Ihres Telefons und geben Sie den Kopplungscode ein",
-      "wirelessPairing": "Drahtloses Debugging-Pairing (Android 11+)",
-      "pairingCodePlaceholder": "6-stelliger Kopplungscode (z. B. 123456)",
-      "pairButton": "Gerät koppeln",
-      "directConnect": "Direktverbindung (Gekoppeltes Gerät)",
-      "connectButton": "Verbinden",
-      "refresh": "Geräteliste aktualisieren",
-      "fillAllFields": "Bitte füllen Sie alle erforderlichen Host-, Port- und Kopplungsfelder aus",
-      "pairSuccess": "Drahtloses Gerät erfolgreich gekoppelt!",
-      "pairFailed": "Kopplung fehlgeschlagen. Überprüfen Sie Host-IP, Port und Kopplungscode",
-      "connectSuccess": "Gerät erfolgreich verbunden!",
-      "connectFailed": "Verbindung fehlgeschlagen. Stellen Sie sicher, dass drahtloses Debugging im selben WLAN aktiv ist"
-    },
     "sshVault": {
       "title": "SSH-Host- & SFTP-Tresor",
       "source": "Konfigurationsquelle",
@@ -20100,160 +20519,5 @@
       "tierStaging": "Staging-Umgebung",
       "tierDev": "Entwicklung"
     }
-  },
-  "continualOverlay": {
-    "activeTitle": "Aktives Overlay",
-    "remainingTurns": "{count, plural, =1 {1 Runde verbleibend} other {# Runden verbleibend}}",
-    "rollbackTooltip": "Dieses Sitzungs-Overlay zurücksetzen",
-    "rollback": "Zurücksetzen",
-    "collapse": "Einklappen",
-    "expand": "Ausklappen",
-    "howItWorks": "Funktionsweise",
-    "howItWorksDesc": "Overlays bieten eine unterbrechungsfreie Fehlerbehebung, sind für ein festgelegtes Rundenbudget aktiv und werden danach nahtlos deaktiviert.",
-    "allActiveOverlays": "Alle aktiven Overlays ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "Abgeschlossen",
-    "waitingApproval": "Wartet auf Genehmigung",
-    "collapseTelemetry": "Telemetrie einklappen",
-    "expandTelemetry": "Telemetrie ausklappen",
-    "currentNode": "Knoten #{nodeId}",
-    "phases": {
-      "planning": {
-        "title": "Planung"
-      },
-      "executing": {
-        "title": "Ausführung"
-      },
-      "verifying": {
-        "title": "Verifizierung"
-      }
-    },
-    "lanes": {
-      "agent": "Agenten-Kern",
-      "user": "Benutzer",
-      "llm": "LLM",
-      "mcp": "MCP",
-      "skills": "Fähigkeiten",
-      "sandbox": "Sicherheits-Sandbox"
-    }
-  },
-  "taskSpaces": {
-    "title": "Parallele Browser-Arbeitsbereiche",
-    "badgeRunning": "Aktiv",
-    "badgeIdle": "Bereit",
-    "badgeTakeover": "Manuelle Übernahme",
-    "takeoverBtn": "Übernehmen",
-    "releaseTakeoverBtn": "An Agent übergeben",
-    "closeSpaceBtn": "Bereich schließen",
-    "activePages": "{count} aktive Tabs",
-    "emptyState": "Keine aktiven parallelen Browser-Bereiche",
-    "snapshotPreview": "Live-Bereichs-Snapshot",
-    "takeoverHint": "Sie haben die manuelle Kontrolle. Nach Abschluss an den Agenten übergeben.",
-    "snapshotAlt": "Snapshot des Aufgabenbereichs"
-  },
-  "modelPlaybook": {
-    "title": "Modell-Orchestrierungs-Leitfaden",
-    "subtitle": "Architekturleitfaden für Multi-Modell-Delegation, dynamisches Routing und Kosteneffizienz.",
-    "brainHands": {
-      "title": "Spezialisierung von Gehirn vs. Händen",
-      "tag": "Entkoppelte Rollen",
-      "description": "Kombinieren Sie ein schweres Planungsmodell mit einem schnellen Modell für Werkzeugaufrufe.",
-      "brainTip": "Gehirn: Claude 3.5 Sonnet, DeepSeek-R1 für Architektur und logische Planung.",
-      "handsTip": "Hände: MiniMax, GPT-4o-mini für schnelle Werkzeugausführung und Schema-Treue."
-    },
-    "routingMoa": {
-      "title": "Routing vs. Mixture-of-Agents (MoA)",
-      "tag": "Orthogonale Skalierung",
-      "description": "Dynamisches Routing wählt das beste Modell; MoA aggregiert Vorhersagen mehrerer Modelle.",
-      "routingTip": "Routing: Modellauswahl basierend auf Spezialisierung (Code, Mathe, Text).",
-      "moaTip": "MoA: Parallele Ausführung und Konsensbildung für wichtige Entscheidungen.",
-      "routingActive": "Aktiv",
-      "routingInactive": "Inaktiv"
-    },
-    "cheapEyes": {
-      "title": "Multimodale visuelle Hilfsmittel",
-      "tag": "Kostenoptimierung",
-      "description": "Nutzen Sie spezialisierte Bildmodelle ohne zusätzlichen Rechenaufwand für das Hauptmodell.",
-      "tip": "Lagern Sie Bildprüfungen an dedizierte Modelle aus, um den Hauptchat schlank zu halten."
-    },
-    "honestQuota": {
-      "title": "Transparente Quoten & Token-Ökonomie",
-      "tag": "TCO-Kontrolle",
-      "description": "Überwachen Sie Token-Verbrauch und Cache-Trefferquoten über alle Anbieter in Echtzeit.",
-      "tip": "Identifizieren Sie Kostenengpässe und optimieren Sie Prompt-Präfixe für maximales Caching."
-    },
-    "actions": {
-      "routingEnabledSuccess": "Intelligentes Routing erfolgreich aktiviert!",
-      "configureSlots": "Modell-Slots konfigurieren",
-      "enabled": "Aktiviert",
-      "enableSmartRouting": "Intelligentes Routing aktivieren",
-      "configureVision": "Vision-Modell konfigurieren",
-      "viewSubscriptions": "Abonnements anzeigen",
-      "close": "Schließen"
-    },
-    "cardTitle": "Modell-Orchestrierungs-Playbook",
-    "cardBadge": "Playbook",
-    "cardSubtitle": "Meistern Sie Brain & Hands-Dispatch, 3-Stufen-Routing und MoA-Konsens für maximale Effizienz.",
-    "viewFullPlaybook": "Playbook ansehen",
-    "collapse": "Einklappen",
-    "expand": "Ausklappen",
-    "miniBrainHandsTitle": "Aufteilung von Brain & Hands",
-    "miniBrainHandsDesc": "Leistungsstarker Planer + schneller Werkzeug-Executor.",
-    "miniDynamicRoutingTitle": "3-Stufiges Adaptives Routing",
-    "miniDynamicRoutingDesc": "Automatische Umschaltung zwischen Simple-, Standard- und Reasoning-Stufen.",
-    "miniMoaTitle": "MoA-Konsens-Overlay",
-    "miniMoaDesc": "Multi-Modell-Debatte zur Überwindung von Modellgrenzen.",
-    "headerBadge": "Modell-Orchestrierungs-Strategie",
-    "dialogTitle": "Praxishandbuch für Modell-Orchestrierung & empfohlene Rezepte",
-    "dialogSubtitle": "Tiefes Verständnis von Gehirn- & Hand-Aufteilung, dynamischem Routing, MoA-Konsens und Token-Ökonomie",
-    "brainHandsTitle": "1. Spezialisierte Gehirn- & Hand-Aufteilung (Brain vs. Hands)",
-    "brainHandsBadge": "Tempo & Kostenersparnis",
-    "brainHandsDesc": "Entkoppelt übergeordnete Planung und häufige Tool-Aufrufe, um teure Planungsmodelle nicht für einfache Ausführungen zu verschwenden.",
-    "brainLabel": "Gehirn (Planer)",
-    "brainExample": "Claude 3.7 Sonnet, DeepSeek-R1",
-    "handsLabel": "Hand (Ausführer)",
-    "handsExample": "DeepSeek-V3, Qwen 2.5, GPT-4o-mini",
-    "dynamicRoutingTitle": "2. Adaptives 3-Stufen-Routing (3-Tier Adaptive Routing)",
-    "dynamicRoutingBadge": "Vollautomatische Zuweisung",
-    "dynamicRoutingDesc": "Erkennt Aufgabenabsicht und Komplexität automatisch und passt Spezifikationen in Millisekunden an.",
-    "tierSimpleTitle": "Einfache Stufe (Simple Tier)",
-    "tierSimpleDesc": "Smalltalk und schnelle Abfragen, antwortet in Millisekunden und spart ~65% Rechenkosten.",
-    "tierStandardTitle": "Standard-Stufe (Standard Tier)",
-    "tierStandardDesc": "Feature-Entwicklung, Refactoring, Multi-Datei-Suche und alltägliche Aufgaben.",
-    "tierReasoningTitle": "Schlussfolgerungs-Stufe (Reasoning Tier)",
-    "tierReasoningDesc": "Mathematische Beweise, langfristige Kausalketten und Systemarchitektur.",
-    "moaTitle": "3. Multi-Modell-Konsensschicht (Mixture-of-Agents)",
-    "moaBadge": "Präzisionssprung",
-    "moaDesc": "Mehrere Modelle generieren parallel Kandidaten, deren Konsens gebündelt wird, um Halluzinationen zu eliminieren.",
-    "orthogonalTipTitle": "Orthogonale Beziehung zwischen Routing und MoA",
-    "orthogonalTipDesc": "Routing senkt Kosten horizontal, MoA steigert Genauigkeit vertikal – beide ergänzen sich nahtlos.",
-    "specialistsTitle": "4. Dedizierte Spezialisten-Slots (Specialist Slots)",
-    "specialistsDesc": "Unabhängige Zuweisung für visuelle Hilfen, Langtexte und Programmierung.",
-    "footerNote": "Sie können diese Modellstrategien jederzeit in den Einstellungen anpassen.",
-    "closeBtn": "Schließen",
-    "configureBtn": "In Einstellungen konfigurieren"
-  },
-  "security": {
-    "taintedEgress": {
-      "title": "Sensible Datenübertragung abgefangen",
-      "description": "Eine ausgehende Netzwerkanfrage mit sensiblen Zugangsdaten wurde abgefangen.",
-      "destinationHost": "Ziel-Host",
-      "dataType": "Sensibler Datentyp",
-      "detectedPattern": "Erkanntes Muster",
-      "trustSession": "Diesem Ziel in dieser Sitzung immer vertrauen (verhindert weitere Abfragen)",
-      "approve": "Verbindung erlauben",
-      "reject": "Blockieren & Verweigern"
-    }
-  },
-  "ttsAudio": {
-    "generatedSpeech": "Generierte Sprache",
-    "playbackFailed": "Audio-Wiedergabe fehlgeschlagen — die Datei ist möglicherweise abgelaufen."
-  },
-  "intentDispatcher": {
-    "invalidLink": "Ungültiger externer Link oder ungültige Parameter",
-    "oauthSuccess": "Autorisierung erfolgreich",
-    "oauthFailed": "Autorisierungsprüfung fehlgeschlagen, bitte erneut versuchen",
-    "cloudProfileName": "Cloud-Sandbox"
   }
 }

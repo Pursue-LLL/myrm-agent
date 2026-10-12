@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.api.files.artifact_api import router as artifact_router
+from app.api.files.provenance_api import router as provenance_router
 from app.database.connection import get_db
 from app.database.models import Base
 
@@ -28,6 +29,7 @@ async def db_session() -> AsyncSession:
 @pytest.fixture
 def client(db_session: AsyncSession) -> TestClient:
     test_app = FastAPI()
+    test_app.include_router(provenance_router, prefix="/api/v1/files/artifacts")
     test_app.include_router(artifact_router, prefix="/api/v1/files/artifacts")
 
     async def override_get_db():

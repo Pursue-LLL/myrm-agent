@@ -10,4 +10,12 @@ src/services/config/adapters/index.ts
 src/lib/humanize/index.ts
 src/lib/intent-dispatcher/index.ts
 src/lib/desktop-bridge/index.ts
+src/lib/utils/agent-config/index.ts
+src/lib/utils/chat-export/index.ts
+src/lib/utils/device/index.ts
+src/lib/utils/error-handling/index.ts
+src/lib/utils/locale/index.ts
+src/lib/utils/mcp-config/index.ts
+src/lib/utils/media/index.ts
+src/lib/utils/subagent/index.ts
 src/theme-engine/index.ts

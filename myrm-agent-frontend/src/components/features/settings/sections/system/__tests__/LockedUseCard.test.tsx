@@ -22,8 +22,9 @@ const mocks = vi.hoisted(() => ({
   useTauri: vi.fn(),
 }));
 
+const stableT = (key: string) => key;
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/lib/utils/toast', () => ({

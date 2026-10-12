@@ -32,6 +32,16 @@ import { VaultUnlockModal } from '@/components/features/app-shell/VaultUnlockMod
 import { ApprovalDrawer } from '@/components/approval/ApprovalDrawer';
 import DeepLinkListener from '@/components/features/app-shell/deep-link-listener';
 import DeferredAppInitializers from '@/components/features/app-shell/deferred-app-initializers';
+import { DesignerEyeOverlay } from '@/components/features/designer-eye';
+import { SystemAssistantTrigger } from '@/components/features/system-assistant';
+import { WorkspaceLayoutBar } from '@/components/features/workspace-layout';
+import { DevPortsBar, DevPortSplitPreviewer } from '@/components/features/dev-ports';
+import { ToolPickerTrigger } from '@/components/features/tool-picker';
+import { PresentationTrigger } from '@/components/features/presentation';
+import { LiquidVibrancyStatusHub } from '@/components/features/vibrancy';
+import { InteractiveSpreadsheetViewer } from '@/components/features/spreadsheet';
+import { SessionMapTrigger } from '@/components/features/session-map';
+import { WorkbenchToggleTrigger, MultiTabWorkbench } from '@/components/features/workbench';
 
 interface LocalizedProvidersProps {
   children: ReactNode;
@@ -60,6 +70,18 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
                 <ApprovalDrawer />
                 <DeferredAppInitializers />
                 <PageLayout>{children}</PageLayout>
+                <DesignerEyeOverlay />
+                <SystemAssistantTrigger />
+                <WorkspaceLayoutBar />
+                <DevPortsBar />
+                <DevPortSplitPreviewer />
+                <ToolPickerTrigger />
+                <PresentationTrigger />
+                <LiquidVibrancyStatusHub />
+                <InteractiveSpreadsheetViewer />
+                <SessionMapTrigger />
+                <WorkbenchToggleTrigger />
+                <MultiTabWorkbench />
                 <Toaster position="top-right" expand={true} richColors />
               </ClientIntlProvider>
             </TooltipProvider>

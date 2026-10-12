@@ -85,6 +85,10 @@ describe('AgentSetupWizard', () => {
     mockGetAgentReadiness.mockResolvedValue(report('blocked'));
     await openWizard();
     await user.click(screen.getByText('tpl-t1'));
+    // Enters preview gate first
+    expect(screen.getByTestId('agent-settings-preview-gate')).toBeInTheDocument();
+    await user.click(screen.getByTestId('confirm-instantiate-agent-btn'));
+
     await waitFor(() => expect(screen.getByText('Agent.setupWizard.actions.continue')).toBeInTheDocument());
     expect(screen.getByText('Agent.setupWizard.actions.continue').closest('button')).toBeDisabled();
     expect(screen.getByText('Agent.setupWizard.readiness.blockedHint')).toBeInTheDocument();
@@ -96,6 +100,10 @@ describe('AgentSetupWizard', () => {
     mockGetAgentReadiness.mockResolvedValue(report('warning'));
     const { onDone } = await openWizard();
     await user.click(screen.getByText('tpl-t1'));
+    // Enters preview gate first
+    expect(screen.getByTestId('agent-settings-preview-gate')).toBeInTheDocument();
+    await user.click(screen.getByTestId('confirm-instantiate-agent-btn'));
+
     const cont = await screen.findByText('Agent.setupWizard.actions.continue');
     expect(cont.closest('button')).not.toBeDisabled();
     await user.click(cont);
@@ -103,6 +111,18 @@ describe('AgentSetupWizard', () => {
     await user.click(screen.getByText('Agent.setupWizard.actions.close'));
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(window.localStorage.getItem('myrm-agent-setup-wizard-draft')).toBeNull();
+  });
+
+  it('allows navigating back from settings preview gate to template selection', async () => {
+    const user = userEvent.setup();
+    await openWizard();
+    await user.click(screen.getByText('tpl-t1'));
+    expect(screen.getByTestId('agent-settings-preview-gate')).toBeInTheDocument();
+
+    await user.click(screen.getByText('Agent.settingsPreview.backToTemplates'));
+    expect(screen.queryByTestId('agent-settings-preview-gate')).not.toBeInTheDocument();
+    expect(screen.getByText('tpl-t1')).toBeInTheDocument();
+    expect(mockInstantiateTemplate).not.toHaveBeenCalled();
   });
 
   it('skip closes without creating', async () => {

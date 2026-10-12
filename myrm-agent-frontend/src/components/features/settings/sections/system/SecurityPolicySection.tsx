@@ -30,6 +30,7 @@ import AllowlistSection from './AllowlistSection';
 import TrustedFoldersSection from './TrustedFoldersSection';
 import NLPolicyGenerator from './NLPolicyGenerator';
 import SecurityProfileSelector from './SecurityProfileSelector';
+import { SandboxLeastPrivilegeCard } from './SandboxLeastPrivilegeCard';
 import SecurityPrivacyPanel from './SecurityPrivacyPanel';
 import { DataFlowDisclosurePanel } from './DataFlowDisclosurePanel';
 import { DualTrackAuditDashboard } from './DualTrackAuditDashboard';
@@ -55,6 +56,8 @@ const SecurityPolicySection = memo(() => {
       >
         <SecurityProfileSelector onProfileSelect={policy.handleProfileSelect} />
       </SettingsSection>
+
+      <SandboxLeastPrivilegeCard />
 
       {policy.managedPolicyActive && (
         <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
@@ -157,19 +160,21 @@ const SecurityPolicySection = memo(() => {
         </div>
       </SettingsSection>
 
-      <SettingsSection
-        title={t('capabilityMatrix.title', { default: 'Capability Surface Matrix (Always / Ask / Deny)' })}
-        description={t('capabilityMatrix.desc', {
-          default:
-            'Fine-grained tri-state posture governing knowledge bases, outbound network, candidate artifacts, remote tools, and workspace filesystem.',
-        })}
-      >
-        <CapabilitySurfaceMatrixGrid
-          matrix={policy.capabilityMatrix}
-          onChange={policy.handleCapabilityChange}
-          onApplyPreset={policy.handleCapabilityPresetApply}
-        />
-      </SettingsSection>
+      <div id="capability-matrix-section">
+        <SettingsSection
+          title={t('capabilityMatrix.title', { default: 'Capability Surface Matrix (Always / Ask / Deny)' })}
+          description={t('capabilityMatrix.desc', {
+            default:
+              'Fine-grained tri-state posture governing knowledge bases, outbound network, candidate artifacts, remote tools, and workspace filesystem.',
+          })}
+        >
+          <CapabilitySurfaceMatrixGrid
+            matrix={policy.capabilityMatrix}
+            onChange={policy.handleCapabilityChange}
+            onApplyPreset={policy.handleCapabilityPresetApply}
+          />
+        </SettingsSection>
+      </div>
 
       <CustomRulesListEditor
         rules={policy.rules}
@@ -381,7 +386,9 @@ const SecurityPolicySection = memo(() => {
 
       <AllowlistSection />
 
-      <TrustedFoldersSection />
+      <div id="trusted-folders-section">
+        <TrustedFoldersSection />
+      </div>
     </div>
   );
 });

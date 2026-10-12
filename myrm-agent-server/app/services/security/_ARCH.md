@@ -20,3 +20,8 @@
 | `workspace_trust_store.py` | 核心 | UserConfig 持久化 workspace trust registry；启动时注入 harness `WorkspaceTrustLookup` | ✅ |
 | `tenant_guardrail.py` | 核心 | SaaS tenant guardrail hook（预留；subagent 消费由 WU budget 门禁） | ✅ |
 | `scan_run_comparison.py` | 核心 | `ScanRunComparisonService`：漏洞扫描运行历史、跨版本差量状态机（New/Persisting/Resolved/Regressed）比对与 Executive 报告生成 | ✅ |
+| `dir_trust_gate_service.py` | 核心 | `DirTrustGateService`：目录信任门评估、授权与撤销服务 | ✅ |
+| `admin_auth_surface_service.py` | 核心 | `AdminAuthSurfaceService`：统一认证面配置治理、防死锁校验与本地持久化服务 | ✅ |
+| `asr_privacy_tradeoff_service.py` | 核心 | `AsrPrivacyTradeoffService`：ASR 录音生命周期与说话人声纹代价评估服务 | ✅ |
+| `on_demand_masking_service.py` | 核心 | `OnDemandMaskingService`：按需凭据解析、冲突检测与多编码脱敏服务 | ✅ |
+| `commerce_dispute_escrow_service.py` | 核心 | `CommerceDisputeEscrowService`：商贸托管仲裁与交易熔断服务 | ✅ |

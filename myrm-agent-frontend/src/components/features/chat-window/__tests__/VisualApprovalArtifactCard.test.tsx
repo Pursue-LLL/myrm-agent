@@ -20,6 +20,16 @@ vi.mock('@/components/features/chat-window/SingleApprovalCard', () => ({
   default: () => <div data-testid="single-approval-card-stub" />,
 }));
 
+vi.mock('@/lib/deploy-mode', () => ({
+  isTauriRuntime: () => true,
+}));
+
+const overlaySurfaceMock = vi.hoisted(() => ({ degraded: false }));
+
+vi.mock('@/lib/approval/visualApprovalOsOverlaySurface', () => ({
+  useVisualApprovalOsOverlaySurface: () => ({ degraded: overlaySurfaceMock.degraded }),
+}));
+
 const viewData: InspectorViewSnapshot = {
   screenshotBase64: 'abc123',
   mimeType: 'image/jpeg',
@@ -77,5 +87,27 @@ describe('VisualApprovalArtifactCard', () => {
     expect(screen.getByTestId('visual-approval-highlight')).toBeInTheDocument();
     expect(screen.getByTestId('single-approval-card-stub')).toBeInTheDocument();
     expect(screen.getByText('toolApproval.visualApprovalArtifactTitle')).toBeInTheDocument();
+  });
+
+  it('shows ToC hint when native OS highlight is degraded for desktop approvals', () => {
+    overlaySurfaceMock.degraded = true;
+    const desktopRequest: ToolApprovalRequest = {
+      ...request,
+      toolName: 'desktop_click',
+      toolInput: { ref: 'e1' },
+    };
+
+    render(
+      <VisualApprovalArtifactCard
+        request={desktopRequest}
+        desktopViewData={viewData}
+        browserViewData={null}
+        onResolve={async () => {}}
+        isLoading={false}
+      />,
+    );
+
+    expect(screen.getByText('toolApproval.visualApprovalOsHighlightUnavailable')).toBeInTheDocument();
+    overlaySurfaceMock.degraded = false;
   });
 });

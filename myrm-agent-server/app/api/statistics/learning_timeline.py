@@ -1,17 +1,19 @@
 """[INPUT]
 - myrm_agent_harness.toolkits.memory::MemoryManager (POS: Harness 记忆底座管理器)
 - app.services.memory.manager_deps::get_crud_memory_manager (POS: 记忆管理器依赖注入)
-- app.core.skills.store.service::skills_service (POS: 技能存储管理服务)
+- app.services.memory.operations.crud.item_mutations::update_memory_item, delete_memory_item (POS: 记忆单条变更唯一实现)
+- app.core.skills.curator.service::set_skill_archived, describe_skill_lifecycle (POS: 技能生命周期归档唯一入口)
 - app.services.skills.growth.audit_queries::list_skill_growth_timeline (POS: 技能成长审计查询)
 
 [OUTPUT]
 - get_learning_timeline: 聚合全域记忆与技能成长时序流
-- update_timeline_memory: 行内更新记忆并锁定用户校准
-- archive_timeline_skill: 行内归档/启用技能
-- delete_timeline_memory: 行内删除记忆
+- update_timeline_memory_item: 行内更新记忆并锁定用户校准
+- delete_timeline_memory_item: 行内删除记忆（软删除，可由回收站恢复）
+- archive_timeline_skill_item: 行内归档/恢复技能
 
 [POS]
-统一学习时间线 API。汇聚 Agent 记忆沉淀与技能演化生命周期事件，提供游标分页与行内即时治理能力。
+统一学习时间线 API。汇聚 Agent 记忆沉淀与技能演化生命周期事件，提供稳定游标分页与行内即时治理能力。
+变更语义全部委托给记忆中心 / 技能策展的同一实现，本模块只负责时间线聚合与协议适配。
 """
 
 from __future__ import annotations
@@ -21,29 +23,33 @@ import logging
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.toolkits.memory import (
-    MemoryManager,
-    MemoryOperationKind,
-    MemoryType,
-)
+from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 from pydantic import BaseModel, Field
 
-from app.core.skills.store.service import skills_service
-from app.core.utils.errors import internal_error, not_found_error
+from app.core.skills.curator.service import (
+    SkillNotFoundError,
+    SkillPinnedError,
+    describe_skill_lifecycle,
+    set_skill_archived,
+)
+from app.core.utils.errors import conflict_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
+from app.schemas.memory.crud import UpdateMemoryRequest
 from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
-from app.services.memory.operations.crud._common import _record_memory_event
-from app.services.memory.operations.presentation import (
-    memory_to_item,
-    parse_memory_type,
-)
+from app.services.memory.operations.crud.item_mutations import delete_memory_item, update_memory_item
+from app.services.memory.operations.presentation import parse_memory_type
 from app.services.skills.growth.audit_queries import list_skill_growth_timeline
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# Upper bound of rows pulled per source before merging. Filters (agent, time window,
+# cursor) run on the full pulled set so pagination and total_count stay consistent.
+_SOURCE_FETCH_CAP = 500
+_CURSOR_SEPARATOR = "|"
 
 
 class TimelineNodeKind(StrEnum):
@@ -55,6 +61,15 @@ class TimelineNodeKind(StrEnum):
     SKILL_DRAFT = "skill_draft"
 
 
+_MEMORY_TYPES_BY_KIND: dict[TimelineNodeKind, MemoryType] = {
+    TimelineNodeKind.FACT_MEMORY: MemoryType.SEMANTIC,
+    TimelineNodeKind.PREFERENCE_MEMORY: MemoryType.SEMANTIC,
+    TimelineNodeKind.PROCEDURAL_MEMORY: MemoryType.PROCEDURAL,
+    TimelineNodeKind.EPISODIC_MEMORY: MemoryType.EPISODIC,
+}
+_SKILL_KINDS = frozenset({TimelineNodeKind.SKILL_EVOLUTION, TimelineNodeKind.SKILL_DRAFT})
+
+
 class LearningTimelineItem(BaseModel):
     id: str
     kind: TimelineNodeKind
@@ -64,7 +79,7 @@ class LearningTimelineItem(BaseModel):
     agent_id: str | None = None
     confidence: float = 1.0
     importance: float = 0.5
-    is_user_edited: bool = False
+    is_user_protected: bool = False
     source_chat_id: str | None = None
     status: str = "active"
     metadata: dict[str, str | int | float | bool] = Field(default_factory=dict)
@@ -77,18 +92,162 @@ class LearningTimelineResponse(BaseModel):
     next_cursor: str | None = None
 
 
-class TimelineMemoryUpdateRequest(BaseModel):
-    content: str | None = None
-    importance: float | None = Field(default=None, ge=0.0, le=1.0)
-    reasoning: str | None = None
-    application: str | None = None
-    tags: list[str] | None = None
-
-
 class TimelineSkillArchiveResponse(BaseModel):
-    skill_id: str
+    skill_name: str
     is_active: bool
     message: str
+
+
+def _parse_kind_filter(raw: str | None) -> set[TimelineNodeKind] | None:
+    if not raw:
+        return None
+    try:
+        return {TimelineNodeKind(part.strip()) for part in raw.split(",") if part.strip()}
+    except ValueError as exc:
+        raise validation_error(f"Invalid kind_filter: {raw}") from exc
+
+
+def _parse_cursor(raw: str | None) -> tuple[datetime, str] | None:
+    """Cursor is ``<iso timestamp>|<item id>``; the id breaks ties between equal timestamps."""
+    if not raw:
+        return None
+    timestamp, separator, item_id = raw.rpartition(_CURSOR_SEPARATOR)
+    try:
+        if not separator or not item_id:
+            raise ValueError(raw)
+        return _as_utc(datetime.fromisoformat(timestamp)), item_id
+    except ValueError as exc:
+        raise validation_error("Invalid cursor") from exc
+
+
+def _as_utc(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+
+def _score_of(mem: object, field: str, default: float) -> float:
+    """Read a 0-1 score; only a missing field falls back, so a real 0.0 is kept."""
+    value = getattr(mem, field, None)
+    return float(value) if isinstance(value, (int, float)) else default
+
+
+def _is_user_protected(mem: object) -> bool:
+    """Vector memories persist the user's protection as ``pinned``, procedural rules as ``is_user_locked``."""
+    return bool(getattr(mem, "pinned", False) or getattr(mem, "is_user_locked", False))
+
+
+def _memory_item(mem: object, mem_type: MemoryType, created_at: datetime) -> LearningTimelineItem:
+    """Project a harness memory onto a timeline node; ``metadata.memory_type`` is the mutation key."""
+    kind = TimelineNodeKind.FACT_MEMORY
+    title = "Factual Knowledge"
+    content = getattr(mem, "content", "")
+    metadata_extra: dict[str, str] = {}
+
+    if mem_type == MemoryType.SEMANTIC and getattr(mem, "preference_type", None):
+        kind = TimelineNodeKind.PREFERENCE_MEMORY
+        title = "User Preference"
+    elif mem_type == MemoryType.PROCEDURAL:
+        kind = TimelineNodeKind.PROCEDURAL_MEMORY
+        title = str(getattr(mem, "trigger", ""))[:60]
+        content = content or str(getattr(mem, "action", ""))
+        metadata_extra["reasoning"] = str(getattr(mem, "reasoning", "") or "")
+    elif mem_type == MemoryType.EPISODIC:
+        kind = TimelineNodeKind.EPISODIC_MEMORY
+        title = "Episodic Digest"
+
+    return LearningTimelineItem(
+        id=str(getattr(mem, "id", "")),
+        kind=kind,
+        title=title,
+        content=content,
+        created_at=created_at.isoformat(),
+        agent_id=getattr(getattr(mem, "scope", None), "agent_id", None),
+        confidence=_score_of(mem, "confidence", 1.0),
+        importance=_score_of(mem, "importance", 0.5),
+        is_user_protected=_is_user_protected(mem),
+        source_chat_id=getattr(mem, "source_chat_id", None),
+        status=str(getattr(mem, "status", "active")),
+        metadata={
+            "memory_type": mem_type.value,
+            "tags": ",".join(getattr(mem, "tags", []) or []),
+            **metadata_extra,
+        },
+    )
+
+
+async def _collect_memory_nodes(
+    manager: MemoryManager,
+    memory_types: tuple[MemoryType, ...],
+    agent_id: str | None,
+) -> list[tuple[datetime, LearningTimelineItem]]:
+    results = await asyncio.gather(
+        *(
+            manager.list_memories(
+                mem_type,
+                limit=_SOURCE_FETCH_CAP,
+                include_archived=False,
+                sort_by="created_at",
+                sort_order="desc",
+            )
+            for mem_type in memory_types
+        ),
+        return_exceptions=True,
+    )
+
+    nodes: list[tuple[datetime, LearningTimelineItem]] = []
+    for mem_type, memories in zip(memory_types, results, strict=True):
+        if isinstance(memories, BaseException):
+            logger.warning("Failed to list memories for %s: %s", mem_type, memories)
+            continue
+        for mem in memories:
+            raw_created = getattr(mem, "created_at", None) or getattr(mem, "timestamp", None)
+            if not isinstance(raw_created, datetime):
+                continue
+            scope_agent = getattr(getattr(mem, "scope", None), "agent_id", None)
+            if agent_id and scope_agent and scope_agent != agent_id:
+                continue
+            created_at = _as_utc(raw_created)
+            nodes.append((created_at, _memory_item(mem, mem_type, created_at)))
+    return nodes
+
+
+async def _collect_skill_nodes(days: int) -> list[tuple[datetime, LearningTimelineItem]]:
+    try:
+        events = await list_skill_growth_timeline(limit=_SOURCE_FETCH_CAP, days=days)
+    except Exception as exc:
+        logger.warning("Failed to fetch skill evolution timeline: %s", exc)
+        return []
+
+    lifecycle_by_skill = {name: describe_skill_lifecycle(name) for name in {evt.skill_name for evt in events if evt.skill_name}}
+
+    nodes: list[tuple[datetime, LearningTimelineItem]] = []
+    for evt in events:
+        created_at = _as_utc(evt.created_at)
+        kind = TimelineNodeKind.SKILL_DRAFT if evt.source.value == "draft" else TimelineNodeKind.SKILL_EVOLUTION
+        lifecycle = lifecycle_by_skill.get(evt.skill_name)
+        nodes.append(
+            (
+                created_at,
+                LearningTimelineItem(
+                    id=evt.case_id,
+                    kind=kind,
+                    title=evt.skill_name,
+                    content=evt.change_summary,
+                    created_at=created_at.isoformat(),
+                    importance=0.8,
+                    status=evt.status.value,
+                    metadata={
+                        "skill_name": evt.skill_name,
+                        "skill_id": evt.skill_id or "",
+                        "growth_type": evt.growth_type,
+                        "source": evt.source.value,
+                        "manageable": lifecycle is not None,
+                        "archived": bool(lifecycle and lifecycle[0]),
+                        "pinned": bool(lifecycle and lifecycle[1]),
+                    },
+                ),
+            )
+        )
+    return nodes
 
 
 @router.get("/learning-timeline")
@@ -97,246 +256,95 @@ async def get_learning_timeline(
     agent_id: str | None = Query(None, description="Filter by agent ID (or None for global)"),
     kind_filter: str | None = Query(None, description="Filter by node kind (comma separated)"),
     limit: int = Query(50, ge=1, le=100, description="Items per page limit"),
-    cursor: str | None = Query(None, description="Timestamp cursor for pagination"),
+    cursor: str | None = Query(None, description="Opaque cursor returned by the previous page"),
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> JSONResponse:
     """Fetch the unified learning timeline combining memory records and skill evolution events."""
-    try:
-        cutoff_dt = datetime.now(UTC) - timedelta(days=days)
-        cursor_dt = datetime.fromisoformat(cursor) if cursor else None
+    allowed_kinds = _parse_kind_filter(kind_filter)
+    cursor_key = _parse_cursor(cursor)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
 
-        allowed_kinds = set(kind_filter.split(",")) if kind_filter else None
+    memory_types = ALL_MEMORY_TYPES
+    want_skills = True
+    if allowed_kinds:
+        memory_types = tuple(dict.fromkeys(_MEMORY_TYPES_BY_KIND[k] for k in allowed_kinds if k in _MEMORY_TYPES_BY_KIND))
+        want_skills = bool(allowed_kinds & _SKILL_KINDS)
 
-        items: list[LearningTimelineItem] = []
+    sources = []
+    if memory_types:
+        sources.append(_collect_memory_nodes(manager, memory_types, agent_id))
+    if want_skills:
+        sources.append(_collect_skill_nodes(days))
 
-        # 1. Fetch memories
-        target_memory_types = ALL_MEMORY_TYPES
-        if allowed_kinds:
-            # Map requested kind filters to specific memory types if only specific kinds are needed
-            types_to_query = set()
-            if "fact_memory" in allowed_kinds or "preference_memory" in allowed_kinds:
-                types_to_query.add(MemoryType.SEMANTIC)
-            if "procedural_memory" in allowed_kinds:
-                types_to_query.add(MemoryType.PROCEDURAL)
-            if "episodic_memory" in allowed_kinds:
-                types_to_query.add(MemoryType.EPISODIC)
-            if types_to_query:
-                target_memory_types = tuple(types_to_query)
+    nodes = [node for source in await asyncio.gather(*sources) for node in source]
+    nodes = [
+        (created_at, item)
+        for created_at, item in nodes
+        if created_at >= cutoff
+        and (not allowed_kinds or item.kind in allowed_kinds)
+        and (cursor_key is None or (created_at, item.id) < cursor_key)
+    ]
+    nodes.sort(key=lambda node: (node[0], node[1].id), reverse=True)
 
-        memory_tasks = []
-        for mem_type in target_memory_types:
-            memory_tasks.append(
-                manager.list_memories(
-                    mem_type,
-                    limit=limit * 2,
-                    include_archived=False,
-                    sort_by="created_at",
-                    sort_order="desc",
-                )
-            )
+    page = nodes[:limit]
+    has_more = len(nodes) > limit
+    next_cursor = f"{page[-1][1].created_at}{_CURSOR_SEPARATOR}{page[-1][1].id}" if has_more else None
 
-        memory_results = await asyncio.gather(*memory_tasks, return_exceptions=True)
-
-        for mem_type, mem_list in zip(target_memory_types, memory_results, strict=False):
-            if isinstance(mem_list, Exception):
-                logger.warning("Failed to list memories for %s: %s", mem_type, mem_list)
-                continue
-
-            for mem in mem_list:
-                created_at = getattr(mem, "created_at", None) or getattr(mem, "timestamp", None)
-                if not isinstance(created_at, datetime):
-                    continue
-                if created_at.tzinfo is None:
-                    created_at = created_at.replace(tzinfo=UTC)
-
-                if created_at < cutoff_dt:
-                    continue
-                if cursor_dt and created_at >= cursor_dt:
-                    continue
-
-                mem_scope_agent = getattr(getattr(mem, "scope", None), "agent_id", None)
-                if agent_id and mem_scope_agent and mem_scope_agent != agent_id:
-                    continue
-
-                kind = TimelineNodeKind.FACT_MEMORY
-                title = f"{mem_type.value.capitalize()} Memory"
-                content_text = getattr(mem, "content", "")
-
-                if mem_type == MemoryType.SEMANTIC:
-                    if getattr(mem, "preference_type", None):
-                        kind = TimelineNodeKind.PREFERENCE_MEMORY
-                        title = "User Preference"
-                    else:
-                        kind = TimelineNodeKind.FACT_MEMORY
-                        title = "Factual Knowledge"
-                elif mem_type == MemoryType.PROCEDURAL:
-                    kind = TimelineNodeKind.PROCEDURAL_MEMORY
-                    trigger = getattr(mem, "trigger", "")
-                    action = getattr(mem, "action", "")
-                    title = f"Behavior Rule: {trigger[:30]}"
-                    content_text = f"Trigger: {trigger}\nAction: {action}"
-                elif mem_type == MemoryType.EPISODIC:
-                    kind = TimelineNodeKind.EPISODIC_MEMORY
-                    title = "Episodic Digest"
-
-                if allowed_kinds and kind.value not in allowed_kinds:
-                    continue
-
-                is_user_locked = bool(getattr(mem, "is_user_locked", False))
-
-                items.append(
-                    LearningTimelineItem(
-                        id=str(mem.id),
-                        kind=kind,
-                        title=title,
-                        content=content_text,
-                        created_at=created_at.isoformat(),
-                        agent_id=mem_scope_agent,
-                        confidence=float(getattr(mem, "confidence", 1.0) or 1.0),
-                        importance=float(getattr(mem, "importance", 0.5) or 0.5),
-                        is_user_edited=is_user_locked,
-                        source_chat_id=getattr(mem, "source_chat_id", None),
-                        status=getattr(mem, "status", "active"),
-                        metadata={
-                            "memory_type": mem_type.value,
-                            "tags": ",".join(getattr(mem, "tags", []) or []),
-                        },
-                    )
-                )
-
-        # 2. Fetch skill evolution events
-        try:
-            timeline_events = await list_skill_growth_timeline(limit=limit * 2, days=days)
-            for evt in timeline_events:
-                evt_created = evt.created_at
-                if evt_created.tzinfo is None:
-                    evt_created = evt_created.replace(tzinfo=UTC)
-
-                if evt_created < cutoff_dt:
-                    continue
-                if cursor_dt and evt_created >= cursor_dt:
-                    continue
-
-                kind = TimelineNodeKind.SKILL_DRAFT if evt.source.value == "draft" else TimelineNodeKind.SKILL_EVOLUTION
-                if allowed_kinds and kind.value not in allowed_kinds:
-                    continue
-
-                items.append(
-                    LearningTimelineItem(
-                        id=evt.case_id,
-                        kind=kind,
-                        title=f"Skill: {evt.skill_name}",
-                        content=evt.change_summary or f"Evolution {evt.growth_type} ({evt.status.value})",
-                        created_at=evt_created.isoformat(),
-                        agent_id=None,
-                        confidence=1.0,
-                        importance=0.8,
-                        status=evt.status.value,
-                        metadata={
-                            "skill_name": evt.skill_name,
-                            "skill_id": evt.skill_id or "",
-                            "growth_type": evt.growth_type,
-                            "source": evt.source.value,
-                        },
-                    )
-                )
-        except Exception as exc:
-            logger.warning("Failed to fetch skill evolution timeline: %s", exc)
-
-        # 3. Sort all items descending by timestamp
-        items.sort(key=lambda x: x.created_at, reverse=True)
-
-        total_count = len(items)
-        has_more = total_count > limit
-        paginated_items = items[:limit]
-        next_cursor = paginated_items[-1].created_at if has_more and paginated_items else None
-
-        response_payload = LearningTimelineResponse(
-            items=paginated_items,
-            total_count=total_count,
+    return success_response(
+        data=LearningTimelineResponse(
+            items=[item for _, item in page],
+            total_count=len(nodes),
             has_more=has_more,
             next_cursor=next_cursor,
-        )
-        return success_response(data=response_payload.model_dump())
-    except Exception as e:
-        raise internal_error(operation="Get learning timeline", exception=e) from e
+        ).model_dump()
+    )
 
 
 @router.put("/learning-timeline/memory/{memory_type}/{memory_id}")
 async def update_timeline_memory_item(
     memory_type: str,
     memory_id: str,
-    body: TimelineMemoryUpdateRequest,
+    body: UpdateMemoryRequest,
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> JSONResponse:
-    """Inline edit a memory node in the learning timeline, applying user lock."""
-    mem_type = parse_memory_type(memory_type)
-    try:
-        updated = await manager.update_memory(
-            memory_id,
-            content=body.content,
-            importance=body.importance,
-            reasoning=body.reasoning,
-            application=body.application,
-            tags=body.tags,
-            is_user_locked=True,
-        )
-        await _record_memory_event(
-            kind=MemoryOperationKind.WRITE,
-            summary="Timeline memory updated and locked manually.",
-            memory_id=memory_id,
-            memory_type=mem_type.value,
-        )
-        item = memory_to_item(updated, mem_type)
-        return success_response(data=item.model_dump())
-    except Exception as e:
-        raise not_found_error(f"Memory {memory_id}") from e
+    """Inline edit a memory node. The edit is an explicit user lock: procedural rules are locked, other memories pinned."""
+    item = await update_memory_item(
+        manager,
+        parse_memory_type(memory_type),
+        memory_id,
+        body.model_copy(update={"is_user_locked": True}),
+    )
+    return success_response(data=item.model_dump())
 
 
 @router.delete("/learning-timeline/memory/{memory_id}")
 async def delete_timeline_memory_item(
     memory_id: str,
-    memory_type: str = Query(..., description="Memory type"),
+    memory_type: str = Query(..., description="Memory type from the node's metadata.memory_type"),
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> JSONResponse:
-    """Inline delete a memory node from the learning timeline."""
-    mem_type = parse_memory_type(memory_type)
-    try:
-        deleted = await manager.delete_memory(mem_type, memory_id)
-        if not deleted:
-            raise not_found_error(f"Memory {memory_id}")
-        await _record_memory_event(
-            kind=MemoryOperationKind.FORGET,
-            summary="Timeline memory deleted manually.",
-            memory_id=memory_id,
-            memory_type=mem_type.value,
-        )
-        return success_response(data={"deleted": True, "memory_id": memory_id})
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise
-        raise not_found_error(f"Memory {memory_id}") from e
+    """Inline delete a memory node; recoverable memories are archived exactly like the memory center."""
+    deleted = await delete_memory_item(manager, parse_memory_type(memory_type), memory_id)
+    return success_response(data=deleted)
 
 
-@router.post("/learning-timeline/skill/{skill_id}/archive")
+@router.post("/learning-timeline/skill/{skill_name}/archive")
 async def archive_timeline_skill_item(
-    skill_id: str,
-    active: bool = Query(False, description="Set active status (False for archive)"),
+    skill_name: str,
+    active: bool = Query(False, description="True restores the skill, False archives it"),
 ) -> JSONResponse:
-    """Inline archive or toggle active status of a skill node."""
+    """Inline archive or restore a skill through the curator lifecycle (pinned skills are refused)."""
     try:
-        updated = await skills_service.update_skill(skill_id, is_active=active)
-        if not updated:
-            raise not_found_error(f"Skill {skill_id}")
-        status_msg = "Skill enabled" if active else "Skill archived"
-        return success_response(
-            data=TimelineSkillArchiveResponse(
-                skill_id=skill_id,
-                is_active=bool(updated.is_active),
-                message=status_msg,
-            ).model_dump()
-        )
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise
-        raise not_found_error(f"Skill {skill_id}") from e
+        set_skill_archived(skill_name, archived=not active)
+    except SkillNotFoundError as exc:
+        raise not_found_error(f"Skill {skill_name}") from exc
+    except SkillPinnedError as exc:
+        raise conflict_error(f"Skill '{skill_name}' is pinned; unpin it before archiving") from exc
+
+    return success_response(
+        data=TimelineSkillArchiveResponse(
+            skill_name=skill_name,
+            is_active=active,
+            message="Skill restored" if active else "Skill archived",
+        ).model_dump()
+    )

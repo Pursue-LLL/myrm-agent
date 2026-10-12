@@ -17,7 +17,7 @@
 | `assessment_import_value.py` | 模块 | 评估导入后价值锚点 API：`value-summary` 端点，优先按 `import_id`，兼容回退 `project_id + artifact_version_id` 关联导入台账与任务/里程碑状态，输出导入后任务完成率、里程碑完成率、激活率。 | ✅ |
 | `expert_summon.py` | 模块 | 专家召唤漏斗观测 API：写入 `surface_viewed/search_used/summon_attempted/summon_succeeded/summon_failed/route_applied/route_apply_failed/first_message_sent/dropped_report` 事件；聚合召唤成功率、路由应用率、首条发送转化率、use_case 触发率、搜索辅助率、失败原因分布，并做 90 天 retention 清理。 | ✅ |
 | `growth_dashboard.py` | 模块 | Growth Dashboard API — aggregated view of agent growth metrics, cost/savings summary, per-skill usage efficiency trends, and 7-day compounding skill health with actionable governance recommendations. | ✅ |
-| `learning_timeline.py` | 模块 | Unified Learning Timeline API — chronologically aggregates memory records and skill evolution events with cursor pagination and inline mutation (edit/delete/archive). | ✅ |
+| `learning_timeline.py` | 模块 | Unified Learning Timeline API — chronologically aggregates memory records and skill evolution events with stable `<timestamp>|<id>` cursor pagination and inline governance that delegates to the memory-center mutation service (soft delete, lock semantics) and the curator lifecycle (skill archive, pinned guard). | ✅ |
 | `learning_loop.py` | 模块 | Five-Ring Closed Learning Loop Status API — aggregates reflection, distillation, advancement (improvement gate), consolidation, and profiling metrics for continuous self-evolution observability. | ✅ |
 | `rate_limits.py` | 模块 | API endpoints for fetching real-time rate limit statistics | ✅ |
 | `router.py` | 路由 | Base statistics routes: usage, daily, sessions, activity, tool-stability, badges（含 activeGoals 计数；pendingApprovals = goal 审批 + kanban IN_REVIEW 待审任务）. | ✅ |

@@ -6,6 +6,7 @@
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `useMediaQuery.ts`                                 | 响应式断点                                                                                                     |
 | `useResizableSidebar.ts`                           | 可拖拽侧栏                                                                                                     |
+| `useDividerSelfLimiting.ts`                         | 弹性布局 Divider 测量协商自限 Hook（3 次迭代自限 + 像素级几何收敛阻尼，杜绝 React #185 无限递归崩溃）           |
 | `useScrollLock.ts` / `useScrollPositionRestore.ts` | 滚动锁与 AutoScrollFollowPersistenceMirror 滚动跟随持久化镜像总线（L1内存+L2存储双模镜像，支持原生与虚拟滚动） |
 | `useVisibilityThrottling.ts`                       | 页面 hidden 时节流                                                                                             |
 | `useDragDrop.ts`                                   | 拖拽                                                                                                           |

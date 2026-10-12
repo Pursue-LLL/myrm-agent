@@ -11,13 +11,13 @@ import pytest
 from app.api.statistics.learning_timeline import (
     LearningTimelineItem,
     LearningTimelineResponse,
-    TimelineMemoryUpdateRequest,
     TimelineNodeKind,
     archive_timeline_skill_item,
     delete_timeline_memory_item,
     get_learning_timeline,
     update_timeline_memory_item,
 )
+from app.schemas.memory.crud import UpdateMemoryRequest
 from app.services.skills.growth.audit_queries import SkillGrowthTimelineEventRead
 from app.services.skills.growth.case_types import SkillGrowthCaseSource, SkillGrowthCaseStatus
 
@@ -35,14 +35,14 @@ class TestLearningTimelineSchemas:
             agent_id="agent-coder",
             confidence=0.95,
             importance=8.0,
-            is_user_edited=True,
+            is_user_protected=True,
             status="active",
             metadata={"source": "user_correction"},
         )
         assert item.id == "mem-1"
         assert item.kind == TimelineNodeKind.FACT_MEMORY
         assert item.importance == 8.0
-        assert item.is_user_edited is True
+        assert item.is_user_protected is True
 
     def test_response_schema(self):
         resp = LearningTimelineResponse(
@@ -55,7 +55,7 @@ class TestLearningTimelineSchemas:
         assert resp.has_more is False
 
     def test_update_request_schema(self):
-        req = TimelineMemoryUpdateRequest(
+        req = UpdateMemoryRequest(
             content="Updated rule",
             importance=0.9,
             reasoning="Manual override by user",
@@ -129,10 +129,10 @@ class TestLearningTimelineEndpoints:
         mock_manager.update_memory.return_value = mock_mem
 
         with patch(
-            "app.api.statistics.learning_timeline._record_memory_event",
+            "app.services.memory.operations.crud.item_mutations._record_memory_event",
             new_callable=AsyncMock,
         ):
-            req = TimelineMemoryUpdateRequest(
+            req = UpdateMemoryRequest(
                 content="Updated rule",
                 importance=0.9,
                 reasoning="Context",
@@ -150,7 +150,7 @@ class TestLearningTimelineEndpoints:
         mock_manager.delete_memory.return_value = True
 
         with patch(
-            "app.api.statistics.learning_timeline._record_memory_event",
+            "app.services.memory.operations.crud.item_mutations._record_memory_event",
             new_callable=AsyncMock,
         ):
             resp = await delete_timeline_memory_item(
@@ -161,18 +161,7 @@ class TestLearningTimelineEndpoints:
             assert resp.status_code == 200
 
     async def test_archive_timeline_skill_item_success(self):
-        mock_skill = SimpleNamespace(
-            id="skill-1",
-            name="test-skill",
-            is_active=False,
-        )
-        with patch(
-            "app.api.statistics.learning_timeline.skills_service.update_skill",
-            new_callable=AsyncMock,
-        ) as mock_update:
-            mock_update.return_value = mock_skill
-            resp = await archive_timeline_skill_item(
-                skill_id="skill-1",
-                active=False,
-            )
+        with patch("app.api.statistics.learning_timeline.set_skill_archived") as mock_archive:
+            resp = await archive_timeline_skill_item(skill_name="test-skill", active=False)
             assert resp.status_code == 200
+            mock_archive.assert_called_once_with("test-skill", archived=True)

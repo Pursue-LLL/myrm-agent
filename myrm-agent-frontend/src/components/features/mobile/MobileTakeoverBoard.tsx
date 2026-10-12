@@ -288,10 +288,10 @@ export default function MobileTakeoverBoard({ chatId }: { chatId: string }) {
       </div>
 
       {lightboxSrc ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
-          role="dialog"
+        <dialog
+          open
           aria-modal="true"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 border-none m-0 max-w-none max-h-none w-full h-full"
         >
           <button
             type="button"
@@ -306,7 +306,7 @@ export default function MobileTakeoverBoard({ chatId }: { chatId: string }) {
             className="relative z-10 max-h-full max-w-full rounded-lg object-contain"
             draggable={false}
           />
-        </div>
+        </dialog>
       ) : null}
     </main>
   );

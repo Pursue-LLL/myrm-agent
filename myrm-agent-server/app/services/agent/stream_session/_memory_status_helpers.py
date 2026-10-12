@@ -8,6 +8,7 @@
 [OUTPUT]
 - get_memory_brief_status_contract: normalized brief enum contract for frontend parity checks
 - build_memory_brief_status_payload: normalized payload for SSE/persistence (`skipped` includes source)
+- enrich_memory_brief_status_with_session_ephemeral_deltas: optional `session_ephemeral_delta_count` for GUI
 
 [POS]
 Single-source shape validation for `memory_brief_status` assembly, reused by
@@ -159,6 +160,36 @@ def build_memory_brief_status_payload(
     if injection is not None:
         payload["injection"] = injection
     return payload
+
+
+def enrich_memory_brief_status_with_session_ephemeral_deltas(
+    payload: dict[str, object] | None,
+    chat_id: str | None,
+) -> dict[str, object] | None:
+    """Attach active in-flight session override count for GUI parity (no prompt mutation)."""
+    if payload is None:
+        return None
+    normalized = (chat_id or "").strip()
+    if not normalized:
+        return payload
+    try:
+        from myrm_agent_harness.toolkits.memory.ephemeral_delta import (
+            get_shared_ephemeral_delta_store,
+        )
+
+        active_count = len(get_shared_ephemeral_delta_store().get_active_deltas(normalized))
+    except Exception as exc:
+        logger.warning(
+            "Failed to read ephemeral session deltas for chat %s: %s",
+            normalized,
+            exc,
+        )
+        return payload
+    if active_count <= 0:
+        return payload
+    enriched = dict(payload)
+    enriched["session_ephemeral_delta_count"] = active_count
+    return enriched
 
 
 def observe_memory_brief_status_payload(*, phase: str, payload: dict[str, object]) -> None:

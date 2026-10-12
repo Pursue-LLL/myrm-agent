@@ -35,7 +35,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextvars import ContextVar, Token
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -88,10 +88,7 @@ async def _require_embedding_config() -> EmbeddingConfig:
     if _embedding_cfg is None:
         from app.services.agent.platform_config import require_platform_embedding_config
 
-        # Upstream annotates the WebUI retrieval payload as object; the
-        # embedding slot is always an EmbeddingConfig when present (it raises
-        # otherwise), so narrow it at this single boundary.
-        _embedding_cfg = cast(EmbeddingConfig, await require_platform_embedding_config())
+        _embedding_cfg = await require_platform_embedding_config()
     return _embedding_cfg
 
 

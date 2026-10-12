@@ -79,7 +79,7 @@ class TestLearningTimelineIntegration:
         app.dependency_overrides[get_crud_memory_manager] = lambda: mock_manager
 
         with patch(
-            "app.api.statistics.learning_timeline._record_memory_event",
+            "app.services.memory.operations.crud.item_mutations._record_memory_event",
             new_callable=AsyncMock,
         ):
             resp = await client.put(
@@ -101,7 +101,7 @@ class TestLearningTimelineIntegration:
         app.dependency_overrides[get_crud_memory_manager] = lambda: mock_manager
 
         with patch(
-            "app.api.statistics.learning_timeline._record_memory_event",
+            "app.services.memory.operations.crud.item_mutations._record_memory_event",
             new_callable=AsyncMock,
         ):
             resp = await client.delete("/api/v1/statistics/learning-timeline/memory/mem-1?memory_type=semantic")
@@ -111,22 +111,14 @@ class TestLearningTimelineIntegration:
             assert data["data"]["deleted"] is True
 
     async def test_archive_learning_timeline_skill_endpoint(self, app, client):
-        mock_skill = SimpleNamespace(
-            id="skill-1",
-            name="test-skill",
-            is_active=False,
-        )
-        with patch(
-            "app.api.statistics.learning_timeline.skills_service.update_skill",
-            new_callable=AsyncMock,
-            return_value=mock_skill,
-        ):
-            resp = await client.post("/api/v1/statistics/learning-timeline/skill/skill-1/archive?active=false")
+        with patch("app.api.statistics.learning_timeline.set_skill_archived") as mock_archive:
+            resp = await client.post("/api/v1/statistics/learning-timeline/skill/test-skill/archive?active=false")
             assert resp.status_code == 200
             data = resp.json()
             assert data["code"] == 0
             assert data["data"]["is_active"] is False
-            assert "Skill archived" in data["data"]["message"]
+            assert data["data"]["skill_name"] == "test-skill"
+            mock_archive.assert_called_once_with("test-skill", archived=True)
 
     async def test_filter_by_kind_and_pagination(self, app, client):
         mock_manager = AsyncMock()

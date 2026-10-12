@@ -64,23 +64,19 @@ export const ModelOrchestrationPlaybookChip = memo(function ModelOrchestrationPl
     <>
       <div
         data-testid="model-orchestration-playbook-chip"
-        role="button"
-        tabIndex={0}
-        onClick={handleOpen}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleOpen();
-          }
-        }}
         className={cn(
-          'group relative w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl cursor-pointer select-none',
+          'group relative w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl select-none',
           'bg-gradient-to-r from-purple-500/5 via-indigo-500/5 to-sky-500/5 dark:from-purple-950/20 dark:via-indigo-950/20 dark:to-sky-950/20',
           'border border-purple-500/20 dark:border-purple-500/15 hover:border-purple-500/35 dark:hover:border-purple-500/30',
           'shadow-xs hover:shadow-sm transition-all duration-200',
           className,
         )}
       >
+        <button
+          type="button"
+          onClick={handleOpen}
+          className="flex flex-1 items-center gap-3 min-w-0 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+        >
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0 group-hover:scale-105 transition-transform">
             <Brain className="w-4 h-4" />
@@ -98,21 +94,20 @@ export const ModelOrchestrationPlaybookChip = memo(function ModelOrchestrationPl
             <span className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">{t('chipSubtitle')}</span>
           </div>
         </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="hidden sm:inline-flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors">
+          <span className="hidden sm:inline-flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors shrink-0">
             {t('chipAction')}
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </span>
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 transition-colors"
-            aria-label={t('dismiss')}
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDismiss}
+          className="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          aria-label={t('dismiss')}
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       <ModelOrchestrationPlaybookDialog open={dialogOpen} onOpenChange={setDialogOpen} />

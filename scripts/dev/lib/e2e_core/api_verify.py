@@ -177,7 +177,7 @@ def shared_api_base() -> str:
 
 def _real_user_home() -> Path:
     """Resolve the real login user home, bypassing sandboxed HOME (e.g.
-    Cursor's ~/.cursor2) so dev state stays on the user's real data dir."""
+    Cursor's ~/.cursor-3) so dev state stays on the user's real data dir."""
     try:
         return Path(pwd.getpwuid(os.getuid()).pw_dir)
     except (KeyError, OSError):

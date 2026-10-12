@@ -293,7 +293,7 @@ _start_backend_bg() {
   export SQLITE_BUSY_TIMEOUT_MS="${SQLITE_BUSY_TIMEOUT_MS:-15000}"
   export MYRM_STACK_EPOCH_FILE="${MYRM_STACK_EPOCH_FILE:-${state_dir}/stack-epoch.json}"
   # Child backend must run under the real user home: sandboxed HOME (e.g.
-  # ~/.cursor2) would split harness data into ~/.cursor2/.myrm, desyncing
+  # ~/.cursor-3) would split harness data into ~/.cursor-3/.myrm, desyncing
   # memory/cron/task state from the rest of the stack.
   export_spawn_home
 

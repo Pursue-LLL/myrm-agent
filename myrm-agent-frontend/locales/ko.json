@@ -279,7 +279,8 @@
       "loopStatusActive": "현재 루프 실행 중 (간격: {interval}, 실행 횟수: {ticks}회)",
       "loopStatusInactive": "이 대화에 실행 중인 루프가 없습니다",
       "loopTargetReached": "세션 루프가 종료 조건을 달성하여 완료되었습니다",
-      "export": "대화 내보내기 또는 Markdown 복사 (HTML/MD/JSON/ZIP 지원)"
+      "export": "대화 내보내기 또는 Markdown 복사 (HTML/MD/JSON/ZIP 지원)",
+      "context": "기준 컨텍스트 토큰 점유량(시스템 프롬프트, 페르소나, MCP, 규칙)을 확인하고 유휴 MCP를 전환합니다"
     }
   },
   "copilot": {
@@ -1878,7 +1879,7 @@
       "formatHint": "Claude Code, Codex CLI 및 Hermes Agent 대화 형식 지원",
       "clickToChange": "클릭하여 파일 다시 선택",
       "pastePlaceholder": "외부 트랜스크립트 JSON 또는 JSONL 이벤트 스트림을 여기에 붙여넣으세요 (예: ~/.claude/projects/ 또는 ~/.hermes/sessions/)...",
-      "featuresSummary": "불필요한 CoT 생각 체인 및 만료된 시스템 프롬프트를 자동으로 제거하고, 터미널 로그를 접으며, 프롬프트 캐시(Prompt Cache) 접두사를 100% 보존합니다.",
+      "featuresSummary": "불필요한 CoT 생각 체인 및 만료된 시스템 프롬프트를 자동으로 제거하고, 터미널 로그를 접으며, 프롬프트 캐시(Prompt Cache) 접두사의 안정적인 레이아웃을 유지합니다.",
       "startImport": "가져오기 및 대화 이어가기",
       "processing": "정제 및 저장 중...",
       "invalidFileType": ".json 또는 .jsonl 형식의 대화 트랜스크립트 파일을 업로드해 주세요",
@@ -2270,7 +2271,17 @@
         "pinsLoading": "고정 파일 로드 중…",
         "pinsLoadError": "고정 파일을 로드할 수 없습니다",
         "pinsRetry": "다시 시도"
-      }
+      },
+      "copiedReasoning": "사고 과정을 복사했습니다",
+      "copyReasoning": "사고 과정 복사",
+      "deltaNegative": "이전 턴 대비 {tokens} 토큰 (압축됨)",
+      "deltaPositive": "이전 턴 대비 +{tokens} 토큰",
+      "deltaZero": "이전 턴과 동일",
+      "growthTrend": "증가 추이 (최근 12턴)",
+      "weatherClear": "여유 (25% 미만)",
+      "weatherCloudy": "보통 (25~75%)",
+      "weatherCritical": "곧 압축 (90% 이상)",
+      "weatherWarning": "주의 (75~90%)"
     },
     "compact": {
       "badge": "압축됨",
@@ -2339,7 +2350,9 @@
       "specialReferencesHint": "@staged (스테이징) / @diff (작업 디렉터리) / @codebase (개요) / @folder:path (폴더) / @url:link (웹페이지) / @chat:title (이전 대화) / file:10-20 (줄 범위) 사용 가능",
       "removeReference": "{label} 제거",
       "agentsCategory": "에이전트",
-      "contextCategory": "컨텍스트"
+      "contextCategory": "컨텍스트",
+      "alreadyInContext": "컨텍스트에 포함됨",
+      "dedupNotice": "이미 컨텍스트에 있는 파일이라 중복 내용은 건너뜁니다"
     },
     "conversationRecall": {
       "hintTitle": "과거 대화 계속하기",
@@ -3305,6 +3318,23 @@
       "fallbackPrefilledBadge": "입력됨",
       "questionClarification": "질문 명확화",
       "directReplyPlaceholder": "답변 또는 설명 입력..."
+    },
+    "contextFootprint": {
+      "close": "닫기",
+      "disabled": "비활성화됨",
+      "enabled": "활성화됨",
+      "mcpSwitcherDesc": "관련 없는 MCP 서버를 꺼서 매 턴 요청을 가볍게 유지하세요",
+      "mcpSwitcherTitle": "유휴 MCP 전환기",
+      "mcpTools": "MCP 도구 스키마",
+      "noMcpServers": "마운트된 MCP 서버가 없습니다",
+      "persona": "에이전트 페르소나 및 지침",
+      "skillsTools": "스킬 및 내장 도구",
+      "subtitle": "대화 시작 전에 미리 로드되는 기준 토큰 사용량과 도구 관리",
+      "systemPrompt": "시스템 프롬프트",
+      "title": "초기 컨텍스트 점유량",
+      "toolsCount": "도구 {count}개",
+      "totalBaseline": "기준 점유량 합계",
+      "workspaceRules": "작업 공간 및 전역 규칙"
     }
   },
   "mode": {
@@ -4022,7 +4052,18 @@
       "globLabel": "파일 검색",
       "grepLabel": "콘텐츠 검색",
       "path": "경로",
-      "filePattern": "파일"
+      "filePattern": "파일",
+      "cacheHitTitle": "캐시 스냅샷 적중",
+      "forceRefresh": "강제 새로 고침",
+      "forceRefreshing": "캐시를 우회하는 중...",
+      "hoursAgo": "{count}시간 전",
+      "justNow": "방금",
+      "minutesAgo": "{count}분 전",
+      "savedTokens": "{count} 토큰 절약",
+      "scenarioArchive": "아카이브",
+      "scenarioRealtime": "실시간",
+      "scenarioStandard": "표준",
+      "secondsAgo": "{count}초 전"
     },
     "context_compaction_active": "컨텍스트 압축 중",
     "context_compaction_timeout": "압축 시간 초과, 폴백 사용 중",
@@ -4139,6 +4180,8 @@
     "importance": "중요도",
     "lastAccessed": "마지막 접근",
     "accessCount": "접근 횟수",
+    "usedTimes": "{count}회 사용됨",
+    "lastUsedAt": "마지막 사용: {time}",
     "createdAt": "생성일",
     "updatedAt": "수정일",
     "loginRequired": "메모리를 보려면 로그인하세요",
@@ -4203,10 +4246,8 @@
       "merged": "병합",
       "replaced": "대체",
       "supplemented": "보완",
-      "vetoGuardrail": "런타임 실행 가드레일",
-      "vetoPattern": "제어 패턴",
-      "remediation": "해결 지침",
-      "scope": "범위"
+      "reasoning": "이유",
+      "application": "적용 방법"
     },
     "typeDesc": {
       "profile": "키-값 사용자 속성 (이름, 언어, 직업)",
@@ -4422,6 +4463,8 @@
     },
     "disabled": "비활성화됨",
     "locked": "자동 수정으로부터 보호됨",
+    "exactFact": "정확한 사실",
+    "exactFactHint": "정확한 식별자를 포함하며 원문 그대로 보존됩니다",
     "protectRule": "이 규칙 보호",
     "releaseProtection": "보호 해제",
     "protectRuleSuccess": "규칙을 보호했습니다",
@@ -4665,6 +4708,99 @@
       "cachedTokens": "캐시된 토큰",
       "completionTokens": "완료 토큰",
       "cacheFriendly": "캐시 친화적",
+      "promptCache": {
+        "card": {
+          "title": "세션 메모리 업데이트",
+          "badge": "라이브 채팅",
+          "description": "에이전트의 안정적인 지시를 바꾸지 않고 같은 채팅의 선호 업데이트를 확인합니다.",
+          "sessionInputLabel": "채팅 세션",
+          "sessionPlaceholder": "세션 선택…",
+          "tabLive": "진행 중 업데이트 ({count})",
+          "tabPreview": "레이아웃 미리보기"
+        },
+        "consolidation": {
+          "prefixLayout": "접두사 레이아웃",
+          "layoutStable": "안정",
+          "chatRingHint": "캐시 적중률은 채팅 컨텍스트 링에서 확인",
+          "systemPrefixFrozen": "이번 턴에 시스템 접두사 변경 없음",
+          "prefixLayoutActive": "접두사 레이아웃 활성",
+          "avoidedTokens": "절약된 토큰",
+          "estimatedSavings": "제공자가 보고할 때만 표시",
+          "perceptionLatency": "최신성 오버레이",
+          "notMeasured": "여기서는 측정하지 않음",
+          "inFlightDeltas": "진행 중인 세션 델타",
+          "simulateInjection": "주입 시뮬레이션",
+          "augmentedHumanPreview": "사용자 메시지 끝 (미리보기)"
+        },
+        "baseContext": {
+          "bannerTitle": "안정적인 시스템 프롬프트, 동적 기억은 사용자 메시지 끝에",
+          "bannerBody": "요약과 프로필 카드는 낮은 빈도로 갱신되어 마지막 사용자 메시지에 붙습니다—에이전트 시스템 프롬프트는 안정적으로 유지됩니다.",
+          "archTitle": "레이아웃이 중요한 이유",
+          "legacyTitle": "시스템 프롬프트에 기억 넣기",
+          "legacyBody": "매 턴 시스템 접두사를 바꾸면 긴 대화에서 접두사 캐시 이득이 사라지기 쉽습니다.",
+          "myrmTitle": "Myrm 2계층 레이아웃",
+          "myrmBody": "시스템 프롬프트는 정적; 스냅샷은 사용자 메시지 끝에 붙습니다. 적중률은 채팅 링에서—여기서 보장하지 않습니다."
+        },
+        "twoLayerStudio": {
+          "ariaLabel": "이중 레이어 컨텍스트 랩",
+          "labOnlyBanner": "랩 미리보기 전용—이 레이아웃은 라이브 채팅에 주입되지 않습니다. 적중률은 채팅 컨텍스트 링에서 확인.",
+          "sessionInputLabel": "미리보기 세션 ID",
+          "sessionPlaceholder": "세션 ID 입력…",
+          "title": "이중 레이어 컨텍스트 랩",
+          "itemBadge": "Item 112",
+          "layoutBadge": "레이아웃 미리보기",
+          "description": "Layer 1 스냅샷은 사용자 메시지 끝; Layer 2는 주기적으로 기억 충돌을 해소.",
+          "tabsAria": "랩 보기",
+          "tabBaseAria": "기본 레이아웃",
+          "tabDialecticAria": "변증법 콘솔",
+          "tabKnobsAria": "주기 제어",
+          "tabBase": "Layer 1 기본 레이아웃",
+          "tabDialectic": "Layer 2 변증법 ({count})",
+          "tabKnobs": "주기 제어",
+          "emptyBase": "기본 스냅샷 없음",
+          "refreshSuccess": "서버에서 기본 스냅샷을 재생성했습니다",
+          "refreshFailed": "재생성 실패—세션 ID 확인",
+          "reconcileSuccess": "변증법 Pass {depth}: {count}건 충돌 해소",
+          "reconcileFallback": "샘플 출력 표시 중",
+          "reconcileOffline": "오프라인—샘플 출력",
+          "resetSuccess": "세션 주기를 재설정했습니다",
+          "resetLocal": "로컬에서 재설정 적용",
+          "configApplied": "주기 설정을 업데이트했습니다"
+        },
+        "twoLayerCadence": {
+          "panelTitle": "주기 및 깊이 제어",
+          "resetDefaults": "권장 기본값으로 재설정",
+          "layer1IntervalLabel": "Layer 1 기본 컨텍스트 갱신 간격",
+          "layer1IntervalHint": "요약·Peer 카드 재컴파일 주기. 길수록 시스템 접두사가 안정적; 적중률은 채팅 링에서 확인.",
+          "layer2IntervalLabel": "Layer 2 변증법 순찰 간격",
+          "layer2IntervalHint": "히스토리와 현재 턴 충돌 스캔 주기.",
+          "depthLabel": "변증법 패스 깊이",
+          "depthHint": "패스가 많을수록 정밀하지만 연산 비용 증가.",
+          "reasoningLabel": "추론 수준",
+          "reasoningHint": "Fast / Standard / Deep.",
+          "reasoningFast": "fast",
+          "reasoningStandard": "standard",
+          "reasoningDeep": "deep",
+          "passButton": "Pass {depth}",
+          "savedBanner": "주기 설정이 적용되었습니다",
+          "applyAria": "주기 설정 적용",
+          "applyLabel": "설정 적용"
+        },
+        "twoLayerHud": {
+          "prefixLayoutLabel": "시스템 접두사 레이아웃",
+          "layoutStable": "안정",
+          "chatRingSub": "적중률은 채팅에서",
+          "layer1CadenceLabel": "Layer 1 기본 컨텍스트 주기",
+          "everyNTurns": "{count}턴마다",
+          "lowFreqSnapshot": "저빈도 스냅샷",
+          "layer2CadenceLabel": "Layer 2 변증법 주기",
+          "conflictPatrol": "충돌 순찰",
+          "dialecticDepthLabel": "변증법 깊이 / 연산",
+          "passDepthLevel": "Pass {depth} · {level}",
+          "refreshTelemetryAria": "원격 측정 새로고침",
+          "resetCadenceAria": "세션 주기 재설정"
+        }
+      },
       "replayTitle": "세션 리플레이 오버레이",
       "replayEmpty": "사용 가능한 리플레이 오버레이가 아직 없습니다",
       "replayMeta": "{events}개 이벤트 · 영향 {influences}개",
@@ -5683,7 +5819,12 @@
       "autoResolveSoon": "곧 자동 해결",
       "autoResolveInHours": "{hours}시간 후 이전 메모리 자동 유지",
       "autoResolveInMinutes": "{minutes}분 후 자동으로 이전 기억을 유지합니다",
-      "autoResolveInDays": "{days}일 후 이전 메모리 자동 유지"
+      "autoResolveInDays": "{days}일 후 이전 메모리 자동 유지",
+      "lowRiskPolicyHint": "선택하지 않으면 중요도가 낮은 충돌은 약 {hours}시간 후 이전 메모리가 자동으로 유지됩니다.",
+      "chatBannerTitle": "{count, plural, other {메모리 충돌 #건의 확인이 필요합니다}}",
+      "chatBannerAction": "메모리 설정에서 확인하기",
+      "chatBannerDismiss": "이 채팅 세션에서는 다시 표시하지 않기",
+      "fetchRefreshFailed": "충돌 상태를 새로 고치지 못했습니다. 연결을 확인한 후 다시 시도해 주세요."
     },
     "exportMarkdown": "Markdown으로 내보내기 (Obsidian 호환)",
     "enabled": "사용",
@@ -6310,6 +6451,29 @@
       "resolve": "해결됨으로 표시",
       "revisionOutside": "표시되지 않은 줄도 바뀌었습니다: {lines}",
       "revisionLocal": "표시된 범위 안에서 수정되었습니다."
+    },
+    "hub": {
+      "associatedAgent": "에이전트",
+      "download": "다운로드",
+      "emptyDesc": "에이전트와의 대화에서 생성된 산출물과 파일이 이곳에 자동으로 쌓입니다",
+      "emptyTitle": "산출물이 없습니다",
+      "exportZip": "ZIP 번들로 내보내기",
+      "lastUpdated": "마지막 업데이트",
+      "navToSession": "원본 대화로 이동",
+      "originSession": "원본 대화",
+      "searchPlaceholder": "제목, 설명 또는 확장자로 산출물 검색...",
+      "selectedCount": "{count}개 선택됨",
+      "subtitle": "대화 전반의 산출물을 한곳에서 관리하며, 생성된 대화로 양방향 추적이 가능합니다",
+      "tabAll": "전체 산출물",
+      "tabCode": "코드 스크립트",
+      "tabData": "데이터 표",
+      "tabDocument": "문서",
+      "tabLink": "추출된 링크",
+      "tabMedia": "미디어 및 시각 자료",
+      "tabOther": "기타",
+      "timelineTitle": "버전 이력 타임라인",
+      "title": "산출물 출처 추적 허브",
+      "versionsCount": "{count}개 버전"
     }
   },
   "MessageSources": {
@@ -9122,6 +9286,14 @@
     "visualApprovalAttentionTitle": "시각적 승인 대기",
     "visualApprovalAttentionView": "승인 보기",
     "visualApprovalAttentionMultiple": "시각적 작업 {count}건 승인 대기",
+    "humanAttentionTitle": "조치 필요",
+    "humanAttentionView": "항목으로 이동",
+    "humanAttentionMultiple": "입력 대기 {count}건",
+    "humanAttentionEscHint": "에이전트 실행 중 Esc 키로 데스크톱 자동화를 즉시 중지할 수 있습니다.",
+    "humanAttentionKindClarify": "명확화",
+    "humanAttentionKindDesktopControl": "데스크톱 승인",
+    "humanAttentionKindVisual": "시각 검토",
+    "humanAttentionKindTool": "도구 승인",
     "handoverTitle": "사용자 대기 중",
     "handoverDone": "완료",
     "handoverDialogTitle": "사용자 대기 중",
@@ -9261,7 +9433,8 @@
       "confidence": "신뢰도",
       "content": "패치 내용"
     },
-    "visualContextAlt": "승인 대기 중인 작업 대상 스크린샷"
+    "visualContextAlt": "승인 대기 중인 작업 대상 스크린샷",
+    "visualApprovalOsHighlightUnavailable": "이 디스플레이에서는 실제 화면 강조 표시를 사용할 수 없습니다. 이 카드의 빨간 박스로 대상을 확인하세요."
   },
   "notifications": {
     "pairingPending": "{channel}에서 {sender}의 새 페어링 요청",
@@ -10333,55 +10506,68 @@
       "title": "학습 및 진화 스트림",
       "description": "사실, 선호도, 절차적 기억 및 스킬 진화 기록을 연대순으로 통합하여 인라인 수정 및 거버넌스를 제공합니다.",
       "filterAll": "모든 스트림",
-      "filterMemories": "기억만",
-      "filterSkills": "스킬만",
       "filterFact": "사실 기억",
       "filterPreference": "선호도 기억",
       "filterProcedural": "절차적 경험",
       "filterEpisodic": "에피소드",
       "filterEvolution": "스킬 진화",
       "filterDraft": "스킬 초안",
-      "days7": "최근 7일",
-      "days30": "최근 30일",
-      "days90": "최근 90일",
       "editMemory": "기억 편집",
       "archiveSkill": "스킬 아카이브",
       "unarchiveSkill": "스킬 복원",
       "deleteMemory": "기억 삭제",
-      "deleteConfirm": "이 기억 항목을 영구적으로 삭제하시겠습니까?",
-      "archiveConfirm": "이 스킬을 아카이브하시겠습니까? 모델의 도구 라우팅에서 더 이상 호출되지 않습니다.",
-      "unarchiveConfirm": "이 스킬을 복원하여 다시 활성화하시겠습니까?",
+      "deleteConfirm": "메모리는 휴지통으로 이동하며, 휴지통 또는 '실행 취소'로 복원할 수 있습니다.",
+      "archiveConfirm": "보관하면 에이전트가 이 스킬을 더 이상 사용하지 않습니다. 언제든 복원할 수 있습니다.",
+      "unarchiveConfirm": "스킬이 다시 활성화됩니다.",
       "contentLabel": "핵심 내용 / 규칙",
       "reasoningLabel": "추론 배경 및 맥락",
       "importanceLabel": "중요도 레벨",
-      "userLockedBadge": "수동 교정됨 (잠금 보호)",
+      "userProtectedBadge": "자동 변경으로부터 보호됨",
       "agentOrigin": "에이전트: {agent}",
-      "confidenceLabel": "신뢰도",
       "saveChanges": "변경사항 저장",
       "cancel": "취소",
-      "loading": "학습 타임라인을 불러오는 중...",
       "loadMore": "더 많은 노드 불러오기",
-      "noMore": "모든 노드를 불러왔습니다",
       "empty": {
         "title": "아직 학습 기록이 없습니다",
         "description": "에이전트가 대화에서 사실을 학습하거나 선호도를 기록하거나 스킬을 축적하면 여기에 시계열로 표시되어 관리할 수 있습니다."
       },
       "stats": {
-        "totalNodes": "총 {count}개의 학습 노드",
-        "userEditedCount": "{count}개 수동 교정"
+        "totalNodes": "총 {count}개의 학습 노드"
       },
       "toast": {
         "updateSuccess": "기억이 성공적으로 업데이트되었습니다",
-        "deleteSuccess": "기억이 삭제되었습니다",
+        "deleteSuccess": "메모리를 휴지통으로 이동했습니다",
         "archiveSuccess": "스킬이 아카이브되었습니다",
         "unarchiveSuccess": "스킬이 복원되어 활성화되었습니다",
-        "actionFailed": "작업 실패: {error}"
+        "actionFailed": "작업 실패: {error}",
+        "undo": "실행 취소",
+        "undoFailed": "실행 취소 실패",
+        "deletePermanentSuccess": "메모리를 삭제했습니다"
       },
       "error": {
         "title": "학습 타임라인 로드 실패",
         "description": "학습 타임라인 데이터를 가져오지 못했습니다. 네트워크 연결을 확인하고 다시 시도하세요.",
         "retry": "다시 시도"
-      }
+      },
+      "deleteConfirmTitle": "이 메모리를 삭제할까요?",
+      "archiveConfirmTitle": "이 스킬을 보관할까요?",
+      "unarchiveConfirmTitle": "이 스킬을 복원할까요?",
+      "confirm": "확인",
+      "viewInGraph": "지식 그래프에서 보기",
+      "viewSourceChat": "원본 대화 열기",
+      "contextLabel": "배경",
+      "importanceValue": "{value}/10",
+      "pinnedHint": "고정된 스킬은 보관할 수 없습니다. 먼저 고정을 해제하세요.",
+      "skillStatus": {
+        "PENDING_REVIEW": "검토 대기",
+        "AUTO_APPLIED": "자동 적용됨",
+        "FAILED_SCAN": "스캔 실패",
+        "BLOCKED_LOCKED": "잠금으로 차단됨",
+        "APPROVED": "승인됨",
+        "REJECTED": "거부됨",
+        "APPLY_FAILED": "적용 실패"
+      },
+      "deleteConfirmPermanent": "이 메모리는 영구 삭제되며 복원할 수 없습니다."
     },
     "learningLoop": {
       "title": "5개 링 닫힌 루프 학습 상태 센터",
@@ -12606,6 +12792,15 @@
     "stopping": "중지 중…",
     "curtainActive": "워크스테이션 화면 보호 중"
   },
+  "mobileShell": {},
+  "designerEye": {},
+  "systemAssistant": {},
+  "workspaceLayout": {},
+  "devPorts": {},
+  "toolPicker": {},
+  "presentation": {},
+  "vibrancy": {},
+  "spreadsheet": {},
   "whatsNew": {
     "title": "v{version} 새로운 기능",
     "description": "이번 릴리스의 변경 사항입니다.",
@@ -12663,7 +12858,11 @@
     "lifecycleRetryExtract": "추출 재시도",
     "lifecycleRetrying": "재시도 중…",
     "lifecycleRetryFailed": "재시도에 실패했습니다. 잠시 후 다시 시도해 주세요",
-    "lifecycleRetryAlreadyInFlight": "추출 재시도가 이미 진행 중입니다"
+    "lifecycleRetryAlreadyInFlight": "추출 재시도가 이미 진행 중입니다",
+    "sessionOverridePill": "이 대화에서 업데이트됨",
+    "sessionOverrideTitle": "이 대화의 선호 업데이트",
+    "sessionOverrideDescription": "이 대화 중에 선호나 사실을 바로잡았다면, 이 답변은 그 변경을 반영합니다.",
+    "sessionOverrideMobile": "이 답변에 이 대화의 {count}건 업데이트가 반영되었습니다"
   },
   "memoryRecallDegraded": {
     "title": "시맨틱 회상 사용 불가",
@@ -12904,6 +13103,162 @@
       "empty": "이 단계의 세부 증거가 없습니다"
     }
   },
+  "executionPhaseStepper": {
+    "badge": "완료됨",
+    "waitingApproval": "승인 대기 중",
+    "collapseTelemetry": "원격 측정 접기",
+    "expandTelemetry": "원격 측정 펼치기",
+    "currentNode": "노드 #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "계획 수립"
+      },
+      "executing": {
+        "title": "도구 실행"
+      },
+      "verifying": {
+        "title": "결과 검증"
+      }
+    },
+    "lanes": {
+      "agent": "에이전트 코어",
+      "user": "사용자",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "스킬",
+      "sandbox": "샌드박스"
+    }
+  },
+  "continualOverlay": {
+    "activeTitle": "활성 오버레이",
+    "remainingTurns": "{count, plural, =1 {1턴 남음} other {#턴 남음}}",
+    "rollbackTooltip": "이 세션 오버레이 롤백",
+    "rollback": "롤백",
+    "collapse": "접기",
+    "expand": "펼치기",
+    "howItWorks": "작동 원리",
+    "howItWorksDesc": "오버레이는 제로 리셋 장애 복구를 제공하며 지정된 턴 예산 내에서 자동으로 적용되고 만료 후 정상적으로 종료됩니다.",
+    "allActiveOverlays": "모든 활성 오버레이 ({count})"
+  },
+  "taskSpaces": {
+    "title": "병렬 브라우저 작업 공간",
+    "badgeRunning": "실행 중",
+    "badgeIdle": "대기 중",
+    "badgeTakeover": "수동 개입 중",
+    "takeoverBtn": "개입하기",
+    "releaseTakeoverBtn": "에이전트 반환",
+    "closeSpaceBtn": "공간 닫기",
+    "activePages": "활성 탭 {count}개",
+    "emptyState": "활성 병렬 브라우저 공간이 없습니다",
+    "snapshotPreview": "실시간 공간 스냅샷",
+    "takeoverHint": "현재 수동 개입 상태입니다. 완료 후 에이전트에 반환하세요.",
+    "snapshotAlt": "작업 공간 스냅샷"
+  },
+  "modelPlaybook": {
+    "title": "모델 오케스트레이션 가이드",
+    "subtitle": "멀티 모델 분업, 동적 라우팅 및 비용 최적화를 위한 아키텍처 안내서.",
+    "brainHands": {
+      "title": "두뇌와 손 전문화 분업",
+      "tag": "역할 분리",
+      "description": "고성능 추론 계획 모델과 신속하고 저렴한 도구 호출 모델을 분리하여 조합합니다.",
+      "brainTip": "두뇌: Claude 3.5 Sonnet, DeepSeek-R1을 활용한 고난도 설계 및 추론.",
+      "handsTip": "손: MiniMax, GPT-4o-mini를 통한 고속 도구 호출 및 구조화된 실행."
+    },
+    "routingMoa": {
+      "title": "라우팅 vs MoA",
+      "tag": "상호 보완",
+      "description": "작업별 최적 모델을 선택하는 동적 라우팅과 다중 모델 결과를 통합하는 MoA.",
+      "routingTip": "라우팅: 작업 특성(코딩, 수학, 번역)에 따라 최적 모델 전환.",
+      "moaTip": "MoA: 병렬 샘플링 및 합의 통합을 통한 최고 수준의 결과 도출.",
+      "routingActive": "활성",
+      "routingInactive": "비활성"
+    },
+    "cheapEyes": {
+      "title": "멀티모달 시각 보조 (Cheap Eyes)",
+      "tag": "비용 최적화",
+      "description": "전용 시각 모델을 활용하여 핵심 모델의 오버헤드 없이 이미지를 신속하게 분석합니다.",
+      "tip": "이미지 및 화면 분석을 전용 모델에 위임하여 주 대화 비용을 절감."
+    },
+    "honestQuota": {
+      "title": "투명한 할당량 및 토큰 경제학",
+      "tag": "TCO 통제",
+      "description": "프로바이더 전반의 토큰 소비 및 캐시 적중률을 실시간으로 추적합니다.",
+      "tip": "비용 병목을 식별하고 프롬프트 접두사를 최적화하여 캐시 절감 효과를 극대화."
+    },
+    "actions": {
+      "routingEnabledSuccess": "스마트 라우팅이 성공적으로 활성화되었습니다!",
+      "configureSlots": "모델 슬롯 설정",
+      "enabled": "활성화됨",
+      "enableSmartRouting": "스마트 라우팅 활성화",
+      "configureVision": "시각 모델 설정",
+      "viewSubscriptions": "구독 요금제 확인",
+      "close": "닫기"
+    },
+    "cardTitle": "모델 오케스트레이션 플레이북",
+    "cardBadge": "플레이북",
+    "cardSubtitle": "Brain & Hands 분업, 3계층 적응형 라우팅 및 MoA 합의를 마스터하여 효율성을 극대화합니다.",
+    "viewFullPlaybook": "플레이북 보기",
+    "collapse": "접기",
+    "expand": "펼치기",
+    "miniBrainHandsTitle": "Brain & Hands 분업",
+    "miniBrainHandsDesc": "고성능 추론 플래너 + 신속한 도구 실행기.",
+    "miniDynamicRoutingTitle": "3계층 적응형 라우팅",
+    "miniDynamicRoutingDesc": "심플 / 표준 / 추론 계층 간 자동 전환.",
+    "miniMoaTitle": "MoA 합의 오버레이",
+    "miniMoaDesc": "다중 모델 교차 검증으로 단일 모델 한계 극복.",
+    "headerBadge": "모델 오케스트레이션 전략",
+    "dialogTitle": "모델 오케스트레이션 실전 핸드북 및 최적 아키텍처 레시피",
+    "dialogSubtitle": "두뇌와 손 분업, 동적 라우팅, MoA 복합 합의 및 종단 간 토큰 경제학 심층 이해",
+    "brainHandsTitle": "1. 두뇌와 손 전문화 협업 분업 (Brain vs. Hands)",
+    "brainHandsBadge": "속도 및 비용 최적화",
+    "brainHandsDesc": "전체 계획과 빈번한 도구 호출을 분리하여 고비용 두뇌 모델이 단순 실행에 낭비되는 것을 방지합니다.",
+    "brainLabel": "두뇌 (플래너)",
+    "brainExample": "Claude 3.7 Sonnet, DeepSeek-R1",
+    "handsLabel": "손 (실행기)",
+    "handsExample": "DeepSeek-V3, Qwen 2.5, GPT-4o-mini",
+    "dynamicRoutingTitle": "2. 3단계 적응형 동적 라우팅 (3-Tier Adaptive Routing)",
+    "dynamicRoutingBadge": "자동 분류",
+    "dynamicRoutingDesc": "사용자 요청 의도와 복잡도를 자동 감지하여 밀리초 단위로 컴퓨팅 사양을 유연하게 조정합니다.",
+    "tierSimpleTitle": "단순 계층 (Simple Tier)",
+    "tierSimpleDesc": "일상 대화 및 빠른 검색을 처리하며 밀리초 내 응답과 함께 약 65% 비용 절감.",
+    "tierStandardTitle": "표준 계층 (Standard Tier)",
+    "tierStandardDesc": "기능 개발, 리팩터링, 다중 파일 분석 및 일상적인 복합 업무.",
+    "tierReasoningTitle": "심층 추론 계층 (Reasoning Tier)",
+    "tierReasoningDesc": "엄격한 수학적 증명, 장기 인과 추론 및 아키텍처 설계 등 고난도 시나리오.",
+    "moaTitle": "3. 다중 모델 혼합 합의 계층 (Mixture-of-Agents)",
+    "moaBadge": "정확도 대폭 향상",
+    "moaDesc": "다중 모델이 독립적으로 후보를 생성하고 평가 위원회가 합의를 도출하여 단일 모델 환각을 제거합니다.",
+    "orthogonalTipTitle": "동적 라우팅과 MoA의 직교 관계",
+    "orthogonalTipDesc": "라우팅은 수평적 비용 절감, MoA는 수직적 난이도 극복을 담당하며 상호 보완적으로 작동합니다.",
+    "specialistsTitle": "4. 전문 도메인 모델 슬롯 (Specialist Slots)",
+    "specialistsDesc": "멀티모달 시각 보조, 장문 분석 및 코딩 전용 모델을 독립적으로 할당 가능.",
+    "footerNote": "설정 센터에서 언제든지 모델 연동 정책을 전환하거나 미세 조정할 수 있습니다.",
+    "closeBtn": "닫기",
+    "configureBtn": "설정 센터에서 구성"
+  },
+  "security": {
+    "taintedEgress": {
+      "title": "민감 데이터 외부 유출 차단",
+      "description": "민감한 자격 증명이 포함된 외부 전송 요청이 감지되어 차단되었습니다.",
+      "destinationHost": "대상 호스트",
+      "dataType": "민감 데이터 유형",
+      "detectedPattern": "감지된 패턴",
+      "trustSession": "이 세션 동안 이 대상 호스트를 항상 신뢰（이후 팝업 방지）",
+      "approve": "전송 허용",
+      "reject": "차단 및 거부"
+    }
+  },
+  "ttsAudio": {
+    "generatedSpeech": "생성된 음성",
+    "playbackFailed": "오디오 재생 실패——파일이 만료되었을 수 있습니다."
+  },
+  "intentDispatcher": {
+    "invalidLink": "잘못된 외부 링크 또는 매개변수입니다",
+    "oauthSuccess": "인증에 성공했습니다",
+    "oauthFailed": "인증 확인에 실패했습니다. 다시 시도해 주세요",
+    "cloudProfileName": "클라우드 샌드박스"
+  },
+  "sessionMap": {},
   "settings": {
     "providerBalance": {
       "statusHealthy": "충분함",
@@ -12984,7 +13339,50 @@
       "trustedAppsRetry": "재시도",
       "trustedAppsRevoke": "해지",
       "trustedAppsRevokeSuccess": "신뢰 앱이 제거되었습니다",
-      "trustedAppsRevokeFailed": "신뢰 앱 해지 실패"
+      "trustedAppsRevokeFailed": "신뢰 앱 해지 실패",
+      "lockedUseDoctorLabel": "자리 비움 모드 및 프라이버시 커튼",
+      "lockedUseDoctorDesc": "무인 작업과 데스크 프라이버시에 필요한 데스크톱 셸 연동 상태",
+      "lockedUseDoctorPass": "준비됨",
+      "lockedUseDoctorWarn": "확인 필요",
+      "lockedUseDoctorFail": "사용 불가",
+      "lockedUseDoctorUnavailable": "미확인",
+      "lockedUseDoctorDetailNotMac": "자리 비움 모드와 프라이버시 커튼은 macOS의 Myrm 데스크톱 앱에서 이용하세요.",
+      "lockedUseDoctorDetailBridgeMissing": "자리 비움 모드가 셸과 연동되도록 이 Mac에서 Myrm 데스크톱 앱을 실행하세요.",
+      "lockedUseDoctorDetailShellUnavailable": "Myrm 데스크톱 앱을 재시작한 뒤 설정에서 자리 비움 모드와 프라이버시 커튼을 확인하세요.",
+      "lockedUseDoctorDetailGeneric": "자리 비움 모드 또는 프라이버시 커튼이 준비되지 않았습니다. 시스템 설정을 열거나 데스크톱 앱을 재시작하세요.",
+      "screenLockGuardLabel": "화면 잠금 게이트",
+      "screenLockGuardDesc": "화면이 잠겨 있는 동안 자동화를 일시 중지합니다",
+      "screenLockGuardLocked": "잠김",
+      "screenLockGuardUnlocked": "잠금 해제",
+      "lockedUseDoctorDetailAwayOff": "데스크톱 셸이 준비되었습니다. 무인 실행 시 위에서 Locked Use를 켜세요. 에이전트는 커튼 뒤에서 잠금을 해제합니다.",
+      "lockedUseDoctorGoToSettings": "무인 설정 열기",
+      "lockedUseDoctorBadgeLoading": "확인 중…",
+      "lockedUseDoctorBadgeNotMac": "macOS 데스크톱 앱",
+      "lockedUseDoctorBadgeAwayOn": "자리 비움 모드 켜짐",
+      "lockedUseDoctorBadgeBridgeReady": "셸 연결됨",
+      "setupGuideTitle": "빠른 설정(데스크톱 앱)",
+      "setupGuideStep1": "위에서 입력 제어 및 화면 캡처 권한을 허용한 뒤 「화면 캡처 포함 재확인」을 누르세요.",
+      "setupGuideStep2": "화면 잠금 상태에서 작업하려면 설정 → Locked Use에서만 자리 비움 모드를 켜세요.",
+      "setupGuideStep3": "에이전트 설정에서 데스크톱 제어를 켜고 채팅에서 첫 앱 승인을 완료하세요.",
+      "setupGuideStep4": "실행 중 Esc 키를 누르면 데스크톱 자동화가 즉시 중지됩니다."
+    },
+    "mobileAdb": {
+      "title": "모바일 무선 ADB 디버깅",
+      "description": "실제 Android 디바이스를 연결하여 자동화 작업, UI 트리 추출 및 크로스 디바이스 워크플로우를 수행합니다",
+      "activeDevices": "연결된 디바이스",
+      "noDevicesFound": "연결된 Android 디바이스가 없습니다",
+      "pairPrompt": "스마트폰 개발자 옵션에서 무선 디버깅을 활성화한 후 페어링 코드를 입력하세요",
+      "wirelessPairing": "무선 디버깅 페어링 (Android 11+)",
+      "pairingCodePlaceholder": "6자리 페어링 코드 (예: 123456)",
+      "pairButton": "디바이스 페어링",
+      "directConnect": "직접 연결 (페어링된 디바이스)",
+      "connectButton": "연결",
+      "refresh": "디바이스 새로고침",
+      "fillAllFields": "호스트, 포트, 페어링 코드의 모든 필수 항목을 입력하세요",
+      "pairSuccess": "무선 디바이스 페어링 성공!",
+      "pairFailed": "페어링 실패. 호스트 IP, 포트 및 페어링 코드를 확인하세요",
+      "connectSuccess": "디바이스가 성공적으로 연결되었습니다!",
+      "connectFailed": "연결에 실패했습니다. 동일한 Wi-Fi에서 무선 디버깅이 활성화되어 있는지 확인하세요"
     },
     "rate_limits": {
       "title": "속도 제한 모니터",
@@ -13253,6 +13651,46 @@
           "updated": "명령이 성공적으로 업데이트되었습니다"
         }
       }
+    },
+    "a2aPeers": {
+      "title": "A2A 프로토콜 및 신뢰할 수 있는 원격 노드",
+      "description": "노드 설명 (선택 사항)",
+      "registryTitle": "신뢰할 수 있는 원격 노드 레지스트리",
+      "addPeer": "A2A 노드 추가",
+      "newPeer": "새 원격 A2A 노드 등록",
+      "editPeer": "A2A 노드 편집",
+      "peerName": "노드 이름",
+      "peerNamePlaceholder": "예: Hermes Deep Researcher / OpenClaw Code Reviewer",
+      "baseUrl": "A2A 서비스 기본 URL",
+      "baseUrlPlaceholder": "https://agent.example.com",
+      "descriptionPlaceholder": "원격 노드가 전문으로 하는 작업이나 도메인 기능 요약",
+      "authType": "인증 유형",
+      "authBearer": "Bearer 토큰",
+      "authApiKey": "API 키 인증 (X-API-Key)",
+      "authNone": "인증 없음 (공개)",
+      "authToken": "인증 토큰",
+      "authTokenPlaceholder": "원격 A2A RPC 호출용 액세스 토큰 입력",
+      "authTokenKeepPlaceholder": "현재 저장된 토큰을 유지하려면 비워 두세요",
+      "savePeer": "노드 저장",
+      "saveChanges": "변경사항 저장",
+      "saving": "저장 중...",
+      "cancel": "취소",
+      "probe": "연결 프로브",
+      "probing": "프로브 중...",
+      "probeSuccess": "프로브 성공: {latency}ms, AgentCard 파싱 완료",
+      "probeFailed": "프로브 실패: {error}",
+      "ssrfBlocked": "SSRF 보안 차단: 대상 주소가 제한된 내부 사설 네트워크에 속합니다",
+      "noPeers": "등록된 A2A 노드가 없습니다",
+      "noPeersDesc": "원격 A2A 노드를 등록하면 에이전트 기능에서 A2A 원격 오케스트레이션을 활성화하여 타사 에이전트에 작업을 원활하게 위임할 수 있습니다.",
+      "deleteConfirm": "이 A2A 노드를 삭제하시겠습니까?",
+      "cardPreview": "AgentCard 메타데이터",
+      "cardSkills": "지원 스킬",
+      "cardProvider": "제공자",
+      "statusOk": "정상",
+      "statusError": "오류",
+      "statusUnreachable": "연결 불가",
+      "statusSsrf": "보안 차단됨",
+      "hasToken": "자격 증명 설정됨"
     },
     "lifecycleWebhook": {
       "title": "수명 주기 아웃바운드 웹훅",
@@ -13723,6 +14161,19 @@
         "rightsExportFailed": "내보내기 실패 — 메모리 설정에서 다시 시도하세요",
         "rightsManageMemory": "메모리 및 삭제 관리",
         "actionManage": "설정 관리"
+      },
+      "leastPrivilege": {
+        "title": "최소 권한 및 샌드박스 보호",
+        "description": "기본 최소 권한 경계와 물리 샌드박스 격리 — 파괴적인 전체 액세스 패턴을 피합니다.",
+        "stanceHeader": "기본 최소 권한 자세",
+        "activeBadge": "보호됨",
+        "stanceSummary": "명령과 변경에는 명시적 승인 또는 물리 샌드박스 내 실행이 필요합니다.",
+        "manageTrustBtn": "신뢰 폴더",
+        "viewMatrixBtn": "능력 매트릭스",
+        "myrmWayTitle": "Myrm 승인 및 샌드박스 전략",
+        "myrmWayDesc": "통합 승인 흐름과 인터럽트 상태 머신. 고위험 작업은 샌드박스 방화벽으로 차단하고 일상 작업은 원활하게 유지합니다.",
+        "antiPatternTitle": "「전체 액세스」를 거부하는 이유",
+        "antiPatternDesc": "전체 액세스는 로컬 파일과 호스트 자격 증명을 임의 유출에 노출합니다. 우회 루프 없이 명확한 경계를 유지합니다."
       },
       "modeAllow": "허용",
       "modeAsk": "승인 필요",
@@ -18095,7 +18546,20 @@
         "webui": "WebUI"
       },
       "unattendedDesktop": {
-        "title": "무인 데스크톱"
+        "title": "무인 데스크톱",
+        "guideTitle": "자리 비움 중 컴퓨터 사용 · 빠른 설정",
+        "guideIntro": "화면을 잠그고 자리를 비운 뒤에도 Agent가 이 컴퓨터를 조작하게 하려면 데스크톱 앱을 사용하세요. 브라우저 전용 모드는 채팅 내 승인만 지원하며 아래 보호 기능은 포함되지 않습니다.",
+        "stepCurtainTitle": "사생활 보호 커튼",
+        "stepCurtainBody": "모든 디스플레이를 가려 주변 사람이 Agent의 작업을 볼 수 없게 합니다. 아래에서 켜 주세요.",
+        "stepCurtainAction": "커튼 설정으로 이동",
+        "stepLockedUseTitle": "잠금 상태 사용(선택)",
+        "stepLockedUseBody": "화면이 잠긴 상태에서도 Agent가 GUI 작업을 계속할 수 있습니다. 커튼이 필요하며, Mac에서는 로그인 비밀번호를 키체인에 저장할 수도 있습니다(선택).",
+        "stepLockedUseAction": "잠금 상태 사용 설정으로 이동",
+        "stepApprovalTitle": "시각적 승인",
+        "stepApprovalBody": "위험도가 높은 클릭은 스크린샷의 빨간 박스와 함께 채팅에서 확인합니다. Mac 데스크톱 앱에서는 시스템이 허용하면 실제 화면에도 동일한 강조 표시가 나타납니다.",
+        "statusOn": "켜짐",
+        "statusOff": "꺼짐",
+        "statusOptional": "선택"
       },
       "copied": "복사됨",
       "saved": "성공적으로 저장되었습니다",
@@ -19639,6 +20103,19 @@
       }
     },
     "systemHealth": {
+      "opsSnapshot": {
+        "title": "런타임 스냅샷",
+        "description": "이 어시스턴트 인스턴스의 실시간 상태—부하, 메모리 압력, 채널.",
+        "refresh": "새로고침",
+        "loading": "스냅샷 로딩 중…",
+        "unreachable": "스냅샷을 불러올 수 없음: {error}",
+        "uptime": "가동 시간",
+        "liveness": "에이전트 상태",
+        "activeSessions": "활성 세션",
+        "memoryPressure": "메모리 압력",
+        "memorySubsystem": "메모리 하위 시스템",
+        "doctorStatus": "진단"
+      },
       "doctor": {
         "title": "시스템 건강 진단",
         "description": "서버 구성 요소 및 프레임워크 계층의 실시간 건강 텔레메트리",
@@ -20012,64 +20489,6 @@
       "chipSubtitle": "Brain과 Hands 분업 및 스마트 라우팅 레시피 마스터",
       "chipAction": "플레이북 보기"
     },
-    "a2aPeers": {
-      "title": "A2A 프로토콜 및 신뢰할 수 있는 원격 노드",
-      "description": "노드 설명 (선택 사항)",
-      "registryTitle": "신뢰할 수 있는 원격 노드 레지스트리",
-      "addPeer": "A2A 노드 추가",
-      "newPeer": "새 원격 A2A 노드 등록",
-      "editPeer": "A2A 노드 편집",
-      "peerName": "노드 이름",
-      "peerNamePlaceholder": "예: Hermes Deep Researcher / OpenClaw Code Reviewer",
-      "baseUrl": "A2A 서비스 기본 URL",
-      "baseUrlPlaceholder": "https://agent.example.com",
-      "descriptionPlaceholder": "원격 노드가 전문으로 하는 작업이나 도메인 기능 요약",
-      "authType": "인증 유형",
-      "authBearer": "Bearer 토큰",
-      "authApiKey": "API 키 인증 (X-API-Key)",
-      "authNone": "인증 없음 (공개)",
-      "authToken": "인증 토큰",
-      "authTokenPlaceholder": "원격 A2A RPC 호출용 액세스 토큰 입력",
-      "authTokenKeepPlaceholder": "현재 저장된 토큰을 유지하려면 비워 두세요",
-      "savePeer": "노드 저장",
-      "saveChanges": "변경사항 저장",
-      "saving": "저장 중...",
-      "cancel": "취소",
-      "probe": "연결 프로브",
-      "probing": "프로브 중...",
-      "probeSuccess": "프로브 성공: {latency}ms, AgentCard 파싱 완료",
-      "probeFailed": "프로브 실패: {error}",
-      "ssrfBlocked": "SSRF 보안 차단: 대상 주소가 제한된 내부 사설 네트워크에 속합니다",
-      "noPeers": "등록된 A2A 노드가 없습니다",
-      "noPeersDesc": "원격 A2A 노드를 등록하면 에이전트 기능에서 A2A 원격 오케스트레이션을 활성화하여 타사 에이전트에 작업을 원활하게 위임할 수 있습니다.",
-      "deleteConfirm": "이 A2A 노드를 삭제하시겠습니까?",
-      "cardPreview": "AgentCard 메타데이터",
-      "cardSkills": "지원 스킬",
-      "cardProvider": "제공자",
-      "statusOk": "정상",
-      "statusError": "오류",
-      "statusUnreachable": "연결 불가",
-      "statusSsrf": "보안 차단됨",
-      "hasToken": "자격 증명 설정됨"
-    },
-    "mobileAdb": {
-      "title": "모바일 무선 ADB 디버깅",
-      "description": "실제 Android 디바이스를 연결하여 자동화 작업, UI 트리 추출 및 크로스 디바이스 워크플로우를 수행합니다",
-      "activeDevices": "연결된 디바이스",
-      "noDevicesFound": "연결된 Android 디바이스가 없습니다",
-      "pairPrompt": "스마트폰 개발자 옵션에서 무선 디버깅을 활성화한 후 페어링 코드를 입력하세요",
-      "wirelessPairing": "무선 디버깅 페어링 (Android 11+)",
-      "pairingCodePlaceholder": "6자리 페어링 코드 (예: 123456)",
-      "pairButton": "디바이스 페어링",
-      "directConnect": "직접 연결 (페어링된 디바이스)",
-      "connectButton": "연결",
-      "refresh": "디바이스 새로고침",
-      "fillAllFields": "호스트, 포트, 페어링 코드의 모든 필수 항목을 입력하세요",
-      "pairSuccess": "무선 디바이스 페어링 성공!",
-      "pairFailed": "페어링 실패. 호스트 IP, 포트 및 페어링 코드를 확인하세요",
-      "connectSuccess": "디바이스가 성공적으로 연결되었습니다!",
-      "connectFailed": "연결에 실패했습니다. 동일한 Wi-Fi에서 무선 디버깅이 활성화되어 있는지 확인하세요"
-    },
     "sshVault": {
       "title": "SSH 호스트 및 SFTP 자격 증명 관리",
       "source": "구성 소스",
@@ -20100,160 +20519,5 @@
       "tierStaging": "스테이징",
       "tierDev": "개발 환경"
     }
-  },
-  "continualOverlay": {
-    "activeTitle": "활성 오버레이",
-    "remainingTurns": "{count, plural, =1 {1턴 남음} other {#턴 남음}}",
-    "rollbackTooltip": "이 세션 오버레이 롤백",
-    "rollback": "롤백",
-    "collapse": "접기",
-    "expand": "펼치기",
-    "howItWorks": "작동 원리",
-    "howItWorksDesc": "오버레이는 제로 리셋 장애 복구를 제공하며 지정된 턴 예산 내에서 자동으로 적용되고 만료 후 정상적으로 종료됩니다.",
-    "allActiveOverlays": "모든 활성 오버레이 ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "완료됨",
-    "waitingApproval": "승인 대기 중",
-    "collapseTelemetry": "원격 측정 접기",
-    "expandTelemetry": "원격 측정 펼치기",
-    "currentNode": "노드 #{nodeId}",
-    "phases": {
-      "planning": {
-        "title": "계획 수립"
-      },
-      "executing": {
-        "title": "도구 실행"
-      },
-      "verifying": {
-        "title": "결과 검증"
-      }
-    },
-    "lanes": {
-      "agent": "에이전트 코어",
-      "user": "사용자",
-      "llm": "LLM",
-      "mcp": "MCP",
-      "skills": "스킬",
-      "sandbox": "샌드박스"
-    }
-  },
-  "taskSpaces": {
-    "title": "병렬 브라우저 작업 공간",
-    "badgeRunning": "실행 중",
-    "badgeIdle": "대기 중",
-    "badgeTakeover": "수동 개입 중",
-    "takeoverBtn": "개입하기",
-    "releaseTakeoverBtn": "에이전트 반환",
-    "closeSpaceBtn": "공간 닫기",
-    "activePages": "활성 탭 {count}개",
-    "emptyState": "활성 병렬 브라우저 공간이 없습니다",
-    "snapshotPreview": "실시간 공간 스냅샷",
-    "takeoverHint": "현재 수동 개입 상태입니다. 완료 후 에이전트에 반환하세요.",
-    "snapshotAlt": "작업 공간 스냅샷"
-  },
-  "modelPlaybook": {
-    "title": "모델 오케스트레이션 가이드",
-    "subtitle": "멀티 모델 분업, 동적 라우팅 및 비용 최적화를 위한 아키텍처 안내서.",
-    "brainHands": {
-      "title": "두뇌와 손 전문화 분업",
-      "tag": "역할 분리",
-      "description": "고성능 추론 계획 모델과 신속하고 저렴한 도구 호출 모델을 분리하여 조합합니다.",
-      "brainTip": "두뇌: Claude 3.5 Sonnet, DeepSeek-R1을 활용한 고난도 설계 및 추론.",
-      "handsTip": "손: MiniMax, GPT-4o-mini를 통한 고속 도구 호출 및 구조화된 실행."
-    },
-    "routingMoa": {
-      "title": "라우팅 vs MoA",
-      "tag": "상호 보완",
-      "description": "작업별 최적 모델을 선택하는 동적 라우팅과 다중 모델 결과를 통합하는 MoA.",
-      "routingTip": "라우팅: 작업 특성(코딩, 수학, 번역)에 따라 최적 모델 전환.",
-      "moaTip": "MoA: 병렬 샘플링 및 합의 통합을 통한 최고 수준의 결과 도출.",
-      "routingActive": "활성",
-      "routingInactive": "비활성"
-    },
-    "cheapEyes": {
-      "title": "멀티모달 시각 보조 (Cheap Eyes)",
-      "tag": "비용 최적화",
-      "description": "전용 시각 모델을 활용하여 핵심 모델의 오버헤드 없이 이미지를 신속하게 분석합니다.",
-      "tip": "이미지 및 화면 분석을 전용 모델에 위임하여 주 대화 비용을 절감."
-    },
-    "honestQuota": {
-      "title": "투명한 할당량 및 토큰 경제학",
-      "tag": "TCO 통제",
-      "description": "프로바이더 전반의 토큰 소비 및 캐시 적중률을 실시간으로 추적합니다.",
-      "tip": "비용 병목을 식별하고 프롬프트 접두사를 최적화하여 캐시 절감 효과를 극대화."
-    },
-    "actions": {
-      "routingEnabledSuccess": "스마트 라우팅이 성공적으로 활성화되었습니다!",
-      "configureSlots": "모델 슬롯 설정",
-      "enabled": "활성화됨",
-      "enableSmartRouting": "스마트 라우팅 활성화",
-      "configureVision": "시각 모델 설정",
-      "viewSubscriptions": "구독 요금제 확인",
-      "close": "닫기"
-    },
-    "cardTitle": "모델 오케스트레이션 플레이북",
-    "cardBadge": "플레이북",
-    "cardSubtitle": "Brain & Hands 분업, 3계층 적응형 라우팅 및 MoA 합의를 마스터하여 효율성을 극대화합니다.",
-    "viewFullPlaybook": "플레이북 보기",
-    "collapse": "접기",
-    "expand": "펼치기",
-    "miniBrainHandsTitle": "Brain & Hands 분업",
-    "miniBrainHandsDesc": "고성능 추론 플래너 + 신속한 도구 실행기.",
-    "miniDynamicRoutingTitle": "3계층 적응형 라우팅",
-    "miniDynamicRoutingDesc": "심플 / 표준 / 추론 계층 간 자동 전환.",
-    "miniMoaTitle": "MoA 합의 오버레이",
-    "miniMoaDesc": "다중 모델 교차 검증으로 단일 모델 한계 극복.",
-    "headerBadge": "모델 오케스트레이션 전략",
-    "dialogTitle": "모델 오케스트레이션 실전 핸드북 및 최적 아키텍처 레시피",
-    "dialogSubtitle": "두뇌와 손 분업, 동적 라우팅, MoA 복합 합의 및 종단 간 토큰 경제학 심층 이해",
-    "brainHandsTitle": "1. 두뇌와 손 전문화 협업 분업 (Brain vs. Hands)",
-    "brainHandsBadge": "속도 및 비용 최적화",
-    "brainHandsDesc": "전체 계획과 빈번한 도구 호출을 분리하여 고비용 두뇌 모델이 단순 실행에 낭비되는 것을 방지합니다.",
-    "brainLabel": "두뇌 (플래너)",
-    "brainExample": "Claude 3.7 Sonnet, DeepSeek-R1",
-    "handsLabel": "손 (실행기)",
-    "handsExample": "DeepSeek-V3, Qwen 2.5, GPT-4o-mini",
-    "dynamicRoutingTitle": "2. 3단계 적응형 동적 라우팅 (3-Tier Adaptive Routing)",
-    "dynamicRoutingBadge": "자동 분류",
-    "dynamicRoutingDesc": "사용자 요청 의도와 복잡도를 자동 감지하여 밀리초 단위로 컴퓨팅 사양을 유연하게 조정합니다.",
-    "tierSimpleTitle": "단순 계층 (Simple Tier)",
-    "tierSimpleDesc": "일상 대화 및 빠른 검색을 처리하며 밀리초 내 응답과 함께 약 65% 비용 절감.",
-    "tierStandardTitle": "표준 계층 (Standard Tier)",
-    "tierStandardDesc": "기능 개발, 리팩터링, 다중 파일 분석 및 일상적인 복합 업무.",
-    "tierReasoningTitle": "심층 추론 계층 (Reasoning Tier)",
-    "tierReasoningDesc": "엄격한 수학적 증명, 장기 인과 추론 및 아키텍처 설계 등 고난도 시나리오.",
-    "moaTitle": "3. 다중 모델 혼합 합의 계층 (Mixture-of-Agents)",
-    "moaBadge": "정확도 대폭 향상",
-    "moaDesc": "다중 모델이 독립적으로 후보를 생성하고 평가 위원회가 합의를 도출하여 단일 모델 환각을 제거합니다.",
-    "orthogonalTipTitle": "동적 라우팅과 MoA의 직교 관계",
-    "orthogonalTipDesc": "라우팅은 수평적 비용 절감, MoA는 수직적 난이도 극복을 담당하며 상호 보완적으로 작동합니다.",
-    "specialistsTitle": "4. 전문 도메인 모델 슬롯 (Specialist Slots)",
-    "specialistsDesc": "멀티모달 시각 보조, 장문 분석 및 코딩 전용 모델을 독립적으로 할당 가능.",
-    "footerNote": "설정 센터에서 언제든지 모델 연동 정책을 전환하거나 미세 조정할 수 있습니다.",
-    "closeBtn": "닫기",
-    "configureBtn": "설정 센터에서 구성"
-  },
-  "security": {
-    "taintedEgress": {
-      "title": "민감 데이터 외부 유출 차단",
-      "description": "민감한 자격 증명이 포함된 외부 전송 요청이 감지되어 차단되었습니다.",
-      "destinationHost": "대상 호스트",
-      "dataType": "민감 데이터 유형",
-      "detectedPattern": "감지된 패턴",
-      "trustSession": "이 세션 동안 이 대상 호스트를 항상 신뢰（이후 팝업 방지）",
-      "approve": "전송 허용",
-      "reject": "차단 및 거부"
-    }
-  },
-  "ttsAudio": {
-    "generatedSpeech": "생성된 음성",
-    "playbackFailed": "오디오 재생 실패——파일이 만료되었을 수 있습니다."
-  },
-  "intentDispatcher": {
-    "invalidLink": "잘못된 외부 링크 또는 매개변수입니다",
-    "oauthSuccess": "인증에 성공했습니다",
-    "oauthFailed": "인증 확인에 실패했습니다. 다시 시도해 주세요",
-    "cloudProfileName": "클라우드 샌드박스"
   }
 }

@@ -17,6 +17,7 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
 import type { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
+import { isMemoryLabsEnabled } from '@/lib/memory/memoryLabs';
 import type {
   ConsolidationLastSummary,
   MemoryCommandCenterResponse,
@@ -227,11 +228,13 @@ export const UnderstandSection = ({
   t,
   onResolveConflict,
   actionId,
+  defaultChatId,
 }: {
   snapshot: MemoryCommandCenterResponse;
   t: MemoryTranslation;
   onResolveConflict?: (conflictId: string, action: 'keep_new' | 'keep_old' | 'coexist') => Promise<void>;
   actionId?: string | null;
+  defaultChatId?: string | null;
 }) => (
   <div className="space-y-4">
     {/* Stateful Long-Horizon Memory Economics Profiler (Omri et al. 2026) */}
@@ -316,7 +319,7 @@ export const UnderstandSection = ({
     <ConversationLineageDefenseCard />
 
     {/* Prompt-Cache Preserving Ephemeral Delta Memory Suite Card (Item 98 P0) */}
-    <PromptCachePreservingDeltaCard />
+    <PromptCachePreservingDeltaCard defaultChatId={defaultChatId} />
 
     {/* Deterministic Rule Cascade & 5D Pre-Filter Suite Card (Item 99 P0) */}
     <DeterministicRuleCascadeCard />
@@ -342,8 +345,7 @@ export const UnderstandSection = ({
     {/* Peer-Centric Social Cognition Entity Graph & Agent Persona Card Studio Card (Item 110 P0) */}
     <PeerCognitionStudioCard />
 
-    {/* Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation Studio Card (Item 112 P1) */}
-    <TwoLayerDialecticStudioCard />
+    {isMemoryLabsEnabled() ? <TwoLayerDialecticStudioCard /> : null}
 
     {/* Budget Greedy Marginal Value Recall Packing Studio Card (Item 122 P2) */}
     <BudgetGreedyPackingStudioCard />

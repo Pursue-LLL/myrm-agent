@@ -594,5 +594,18 @@ export function buildBuiltinActions(): SlashAction[] {
         return { success: true, newInputValue: '' };
       },
     },
+    {
+      id: 'builtin:context',
+      name: 'context',
+      description: 'commands.builtin.context',
+      aliases: ['footprint', 'ctx'],
+      type: 'action',
+      execute: async () => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('myrm:open-context-inspector'));
+        }
+        return { success: true, newInputValue: '' };
+      },
+    },
   ];
 }

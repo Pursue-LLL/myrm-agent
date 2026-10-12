@@ -42,6 +42,7 @@ const AGENTS: AgentListItem[] = [
     name: 'Custom Agent 1',
     description: 'First custom agent',
     is_built_in: false,
+    subagent_ids: ['sub-a', 'sub-b'],
     created_at: '1000',
     updated_at: '1000',
   },
@@ -111,6 +112,7 @@ describe('BulkExportDialog', () => {
     render(<BulkExportDialog open={true} onOpenChange={vi.fn()} agents={AGENTS} />);
 
     expect(screen.getByText('Custom Agent 1')).toBeDefined();
+    expect(screen.getByText('含 2 个子智能体')).toBeDefined();
     expect(screen.getByText('Custom Agent 2')).toBeDefined();
     expect(screen.queryByText('Builtin Lead')).toBeNull();
     expect(screen.getByText('已选 2 / 2')).toBeDefined();
@@ -162,6 +164,7 @@ describe('BulkExportDialog', () => {
 
     await waitFor(() => {
       expect(screen.getByText('actions.export')).toBeDefined();
+      expect(screen.getByText(/迁移指引：导出的 ZIP 压缩包内置迁移自省清单/)).toBeDefined();
     });
 
     // 点击导出
@@ -176,7 +179,12 @@ describe('BulkExportDialog', () => {
         reviewDigest: 'digest-bulk-123',
       });
       expect(triggerDownloadMock).toHaveBeenCalledWith(fakeBlob, 'multi-agents-bundle_v1.0.0.zip');
-      expect(toastMock).toHaveBeenCalledWith({ title: 'exportSuccess' });
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'exportSuccess',
+          description: expect.stringContaining('设置 → 智能体 → 导入'),
+        }),
+      );
       expect(onOpenChange).toHaveBeenCalledWith(false);
     });
   });

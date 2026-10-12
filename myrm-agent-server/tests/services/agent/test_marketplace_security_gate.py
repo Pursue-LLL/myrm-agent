@@ -17,6 +17,7 @@ from myrm_agent_harness.core.security.types import (
     CAPABILITY_SURFACE_PERMISSIONS,
     DEFAULT_RULESET,
     PermissionAction,
+    SecurityConfig,
 )
 
 from app.services.agent.marketplace.security_gate import restrict_external_security_overrides
@@ -49,7 +50,7 @@ def _all_permissions() -> list[str]:
     return sorted(names)
 
 
-def _decisions(config: object) -> dict[str, int]:
+def _decisions(config: SecurityConfig) -> dict[str, int]:
     """Severity of every (permission, sample input) pair under ``config``."""
     results: dict[str, int] = {}
     for permission in _all_permissions():
@@ -57,7 +58,7 @@ def _decisions(config: object) -> dict[str, int]:
             action, _ = evaluate_tool_call(
                 permission,
                 tool_input,
-                config,  # type: ignore[arg-type]
+                config,
                 workspace_root="/tmp/ws",
                 tool_name="mcp__demo__send" if permission == "mcp_invoke" else None,
             )

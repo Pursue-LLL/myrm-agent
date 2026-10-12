@@ -1,1 +1,0 @@
-"""Durable revision service package."""

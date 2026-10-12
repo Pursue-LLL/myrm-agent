@@ -11,6 +11,9 @@
 - get_stats_collector: Shared SkillStatsCollector singleton
 - get_curator_config / update_curator_config: Config CRUD with disk persistence
 - resolve_skill_path: Skill name to filesystem path resolver
+- apply_skill_archived / set_skill_archived: Archive/restore a skill's lifecycle (single write path for user-initiated archive)
+- describe_skill_lifecycle: Read a skill's archive/pinned state for UI surfaces
+- SkillNotFoundError / SkillPinnedError: Domain errors raised by set_skill_archived
 - run_curator_sweep: Execute a curator sweep over all local skills
 - get_curator_history: Read past sweep run records
 - start_curator_background_task / stop_curator_background_task: Background loop lifecycle
@@ -126,7 +129,13 @@ def update_curator_config(updates: dict[str, object]) -> CuratorConfig:
 
 
 def resolve_skill_path(skill_name: str) -> Path | None:
-    """Resolve a skill name to its directory path across all configured paths."""
+    """Resolve a skill name to its directory path across all configured paths.
+
+    Names that are not a single plain path segment never resolve, so a request can not
+    address a directory outside the skill roots.
+    """
+    if skill_name in ("", ".", "..") or "/" in skill_name or "\\" in skill_name:
+        return None
     for p in DEFAULT_LOCAL_SKILL_PATHS:
         expanded = Path(p).expanduser()
         candidate = expanded / skill_name
@@ -335,6 +344,45 @@ async def get_skill_diagnostics() -> dict[str, object]:
 
     diagnosis = evaluate_skill_health_findings(all_skills, config)
     return diagnosis.to_dict()
+
+
+class SkillNotFoundError(LookupError):
+    """Raised when a skill name cannot be resolved to a local skill directory."""
+
+
+class SkillPinnedError(RuntimeError):
+    """Raised when archiving a pinned skill (the user must unpin it first)."""
+
+
+def describe_skill_lifecycle(skill_name: str) -> tuple[bool, bool] | None:
+    """Return ``(archived, pinned)`` for a local skill, or ``None`` when it is not a manageable local skill."""
+    skill_path = resolve_skill_path(skill_name)
+    if skill_path is None:
+        return None
+    stats = get_stats_collector().get_stats(skill_path)
+    return stats.lifecycle_status == SkillLifecycleStatus.ARCHIVED, bool(stats.pinned)
+
+
+def apply_skill_archived(collector: SkillStatsCollector, skill_path: Path, *, archived: bool) -> SkillLifecycleStatus:
+    """Write the archive/restore lifecycle state, refusing to archive a pinned skill.
+
+    Single write path for user-initiated archive/restore so every surface (curator API,
+    learning timeline) honours the same pinned guard and writes the state the skill loader reads.
+    """
+    if archived and collector.get_stats(skill_path).pinned:
+        raise SkillPinnedError(skill_path.name)
+
+    status = SkillLifecycleStatus.ARCHIVED if archived else SkillLifecycleStatus.ACTIVE
+    collector.update_lifecycle_status(skill_path, status)
+    return status
+
+
+def set_skill_archived(skill_name: str, *, archived: bool) -> SkillLifecycleStatus:
+    """Resolve ``skill_name`` to a local skill and archive/restore it."""
+    skill_path = resolve_skill_path(skill_name)
+    if skill_path is None:
+        raise SkillNotFoundError(skill_name)
+    return apply_skill_archived(get_stats_collector(), skill_path, archived=archived)
 
 
 async def remediate_skill_finding(skill_name: str, action: str) -> dict[str, object]:

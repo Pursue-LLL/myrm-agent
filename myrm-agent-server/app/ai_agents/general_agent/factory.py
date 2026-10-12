@@ -53,8 +53,10 @@ async def build_general_agent(
     from myrm_agent_harness.api import create_skill_agent
 
     from app.ai_agents.agent_middlewares import (
+        ephemeral_delta_middleware,
         memory_context_middleware,
         project_roadmap_middleware,
+        two_layer_context_middleware,
         user_instructions_middleware,
         widget_capability_middleware,
     )
@@ -418,6 +420,29 @@ async def build_general_agent(
     elif agent_wrapper.memory_decay_profile == "fast":
         time_decay_half_life_days = 7.0
 
+    context_pipeline_middleware = create_context_pipeline_middleware(
+        llm=agent_wrapper._lite_llm,
+        summarizer_llm=agent_wrapper._lite_llm,
+        tail_budget_ratio=agent_wrapper.tail_budget_ratio,
+        on_summary_persist=make_summary_persist_with_wiki_archive(
+            enable_wiki=agent_wrapper.enable_wiki,
+            wiki_archive_llm=(agent_wrapper._lite_llm if agent_wrapper.enable_wiki else None),
+        ),
+        on_compress_offload=compress_offload_cb,
+        on_compress_eviction=compress_eviction_cb,
+        on_context_snapshot=context_snapshot_cb,
+        on_pre_compact=pre_compact_cb,
+        archive_checkpoint_store=archive_checkpoint_store,
+        on_archive_checkpoint=archive_checkpoint_notifier,
+        session_notes_llm=agent_wrapper._lite_llm,
+        on_notes_persist=make_notes_persist(effective_chat_id),
+        on_notes_load=make_notes_load(effective_chat_id),
+        budget_pressure_fn=_get_budget_pressure_fn(),
+        time_decay_half_life_days=time_decay_half_life_days,
+        cache_ttl_prune_config=resolve_cache_ttl_prune_policy(agent_wrapper.model_cfg.model).config,
+        file_content_reader=read_uploaded_media_file_content,
+    )
+
     middlewares_list = [
         RateLimitMiddleware(warning_threshold_pct=0.8, debounce_seconds=300.0),
         PlanConfirmMiddleware(),
@@ -428,28 +453,7 @@ async def build_general_agent(
         widget_capability_middleware,
         citation_rules_middleware,
         tool_selection_middleware,
-        create_context_pipeline_middleware(
-            llm=agent_wrapper._lite_llm,
-            summarizer_llm=agent_wrapper._lite_llm,
-            tail_budget_ratio=agent_wrapper.tail_budget_ratio,
-            on_summary_persist=make_summary_persist_with_wiki_archive(
-                enable_wiki=agent_wrapper.enable_wiki,
-                wiki_archive_llm=(agent_wrapper._lite_llm if agent_wrapper.enable_wiki else None),
-            ),
-            on_compress_offload=compress_offload_cb,
-            on_compress_eviction=compress_eviction_cb,
-            on_context_snapshot=context_snapshot_cb,
-            on_pre_compact=pre_compact_cb,
-            archive_checkpoint_store=archive_checkpoint_store,
-            on_archive_checkpoint=archive_checkpoint_notifier,
-            session_notes_llm=agent_wrapper._lite_llm,
-            on_notes_persist=make_notes_persist(effective_chat_id),
-            on_notes_load=make_notes_load(effective_chat_id),
-            budget_pressure_fn=_get_budget_pressure_fn(),
-            time_decay_half_life_days=time_decay_half_life_days,
-            cache_ttl_prune_config=resolve_cache_ttl_prune_policy(agent_wrapper.model_cfg.model).config,
-            file_content_reader=read_uploaded_media_file_content,
-        ),
+        context_pipeline_middleware,
     ]
 
     from app.services.agent.stream_session.moa_overlay_setup import (
@@ -478,6 +482,14 @@ async def build_general_agent(
 
     if workspace_root:
         middlewares_list.append(FilesystemFileSearchMiddleware(root_path=workspace_root))
+
+    # Human-tail memory blocks run after context pipeline so compression cannot strip them.
+    middlewares_list.extend(
+        [
+            ephemeral_delta_middleware,
+            two_layer_context_middleware,
+        ]
+    )
 
     middlewares = cast(list[AgentMiddleware], middlewares_list)
 

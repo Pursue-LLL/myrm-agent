@@ -31,6 +31,8 @@ import { getSessionAnalytics } from '@/services/statistics';
 import { compactChat, getContextPins, setContextPins } from '@/services/chat';
 import type { ContextHealth, HealthStatus } from '@/services/contextHealth';
 import type { ContextBudget } from '@/store/chat/types';
+import TurnGrowthSparkline from './TurnGrowthSparkline';
+import { useContextWatermarkMetrics, type ContextWatermarkMetrics } from './useContextWatermarkMetrics';
 
 const STATUS_DOT_COLORS: Record<HealthStatus, string> = {
   inactive: 'bg-muted-foreground/40',
@@ -249,6 +251,7 @@ interface MiniPanelContentProps {
   chatId: string | null;
   usagePercent: number;
   contextBudget: ContextBudget | null;
+  watermarkMetrics?: ContextWatermarkMetrics;
   onNavigateDetails: () => void;
   onRefreshHealth: () => void;
 }
@@ -259,6 +262,7 @@ function MiniPanelContent({
   chatId,
   usagePercent,
   contextBudget,
+  watermarkMetrics,
   onNavigateDetails,
   onRefreshHealth,
 }: MiniPanelContentProps) {
@@ -419,6 +423,9 @@ function MiniPanelContent({
     <div data-testid="context-usage-panel" className="flex flex-col gap-2.5 p-3 min-w-[220px]">
       {contextBudget && hasContextBreakdown(contextBudget) ? (
         <ContextBreakdown budget={contextBudget} className="pb-2 border-b border-border/40" />
+      ) : null}
+      {watermarkMetrics && watermarkMetrics.historyTurnTokens.length > 0 ? (
+        <TurnGrowthSparkline metrics={watermarkMetrics} width={220} height={36} />
       ) : null}
       {health ? (
         <>
@@ -602,6 +609,7 @@ export default function ContextUsageIndicator() {
   const chatId = useChatStore(useShallow((state) => state.chatId ?? null));
   const compactionRefreshNonce = useChatStore((state) => state.compactionRefreshNonce);
   const setActiveSessionAnalyticsId = useChatStore((state) => state.setActiveSessionAnalyticsId);
+  const watermarkMetrics = useContextWatermarkMetrics(messages);
 
   const contextBudget = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -722,6 +730,7 @@ export default function ContextUsageIndicator() {
       chatId={chatId}
       usagePercent={percentage}
       contextBudget={contextBudget}
+      watermarkMetrics={watermarkMetrics}
       onNavigateDetails={handleNavigateDetails}
       onRefreshHealth={fetchHealth}
     />
@@ -737,6 +746,9 @@ export default function ContextUsageIndicator() {
       </div>
       {contextBudget && hasContextBreakdown(contextBudget) ? (
         <ContextBreakdown budget={contextBudget} className="pt-1 border-t border-border/40" />
+      ) : null}
+      {watermarkMetrics.historyTurnTokens.length > 0 ? (
+        <TurnGrowthSparkline metrics={watermarkMetrics} width={200} height={32} className="mt-1" />
       ) : null}
       {warningText && (
         <div className={`mt-1 pt-1.5 border-t border-border/50 text-[11px] leading-relaxed ${textColor}`}>

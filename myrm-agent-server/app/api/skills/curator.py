@@ -17,6 +17,8 @@ from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollect
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 from pydantic import BaseModel
 
+from app.core.skills.curator.service import SkillPinnedError, apply_skill_archived
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/curator")
 
@@ -125,7 +127,7 @@ async def update_skill_lifecycle(
             pinned=False,
         )
     elif action == "restore":
-        collector.update_lifecycle_status(skill_path, SkillLifecycleStatus.ACTIVE)
+        apply_skill_archived(collector, skill_path, archived=False)
         return LifecycleActionResponse(
             skill_name=skill_name,
             action="restore",
@@ -133,12 +135,13 @@ async def update_skill_lifecycle(
             pinned=stats.pinned,
         )
     elif action == "archive":
-        if stats.pinned:
+        try:
+            apply_skill_archived(collector, skill_path, archived=True)
+        except SkillPinnedError as exc:
             raise HTTPException(
                 status_code=409,
                 detail=f"Skill '{skill_name}' is pinned — unpin it first before archiving",
-            )
-        collector.update_lifecycle_status(skill_path, SkillLifecycleStatus.ARCHIVED)
+            ) from exc
         return LifecycleActionResponse(
             skill_name=skill_name,
             action="archive",

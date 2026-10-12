@@ -1,0 +1,23 @@
+# Categorized Tool Picker With Pinning And Instant Filter
+
+## 架构定位
+
+工具与技能分类抽屉、常用置顶与拼音即时搜索选择器（Categorized Tool Picker With Pinning And Instant Filter · Item 15）为解决全栈 Agent 在安装大量内置能力、自定义 Skills 与 MCP 协议服务时工具列表过长翻不到底的交互痛点。提供「多级分类标签页」、「常用工具一键 Pin 置顶」、「最近使用队列维护」与「拼音/首字母即时模糊搜索」，大幅缩短高频工具调度摩擦。
+
+## 模块清单
+
+| 文件 | 职责 | 行数/规范 |
+|---|---|---|
+| `ToolCategoryTabs.tsx` | 分类标签栏组件：全部、系统与电脑控制、网络与浏览器、代码与数据、文档与表格分类点选与数量徽标 | `< 120` 行，零 `any`，Tailwind 响应式 |
+| `ToolPickerCard.tsx` | 单个工具卡片组件：展示工具名、分类/来源 Badge（Builtin/Skill/MCP）、描述、Pin 置顶切换与启用开关 | `< 150` 行，零原生 emoji |
+| `CategorizedToolPickerDrawer.tsx` | 语义化 `<dialog>` 原生模态抽屉：组合即时搜索栏、分类标签、常用置顶、最近使用与工具网格 | `< 280` 行，零 `any` |
+| `ToolPickerTrigger.tsx` | 常驻 HUD 触发胶囊：展示 Tools 图标与快捷键 `⌘⇧T`，点击或按快捷键唤起抽屉，消除 Dead Feature Path | `< 120` 行，无缝接入全站 HUD |
+| `index.ts` | 门面导出文件：统一导出选择器抽屉、触发胶囊与子卡片 | 统一入口 |
+| `_ARCH.md` | 本模块架构说明与文件职责索引 | 遵循架构规范 |
+
+## 核心特性
+
+1. **多级分类抽屉**：清晰划分 System, Browser, Code, Docs 等功能分组；
+2. **常用置顶与最近使用**：支持一键 Pin 置顶至顶部首屏，自动维护最近使用的 5 项工具（LocalStorage 持久化）；
+3. **拼音/首字母即时过滤**：内置全拼、简拼与英文关键词即时模糊搜索；
+4. **一键启用与调度**：支持单个工具启用/停用状态切换与直接选定。

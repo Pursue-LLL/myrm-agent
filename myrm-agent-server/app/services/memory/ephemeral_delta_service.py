@@ -4,7 +4,7 @@
 app/services/memory/ephemeral_delta_service.py
 
 [INPUT]
-- Harness ephemeral_delta engine, Server schemas
+- Harness toolkits.memory.ephemeral_delta (SSOT store + tail injector)
 
 [OUTPUT]
 - Domain service managing session delta lifecycle, preview injection, and batch reconciliation
@@ -18,10 +18,11 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from myrm_agent_harness.toolkits.memory import (
-    DeltaCategory,
-    EphemeralDeltaRegistry,
+from myrm_agent_harness.toolkits.memory.ephemeral_delta import (
+    DeltaActionKind,
+    EphemeralDeltaItem,
     HumanTailDeltaInjector,
+    get_shared_ephemeral_delta_store,
 )
 
 from app.schemas.ephemeral_delta import (
@@ -35,119 +36,78 @@ from app.schemas.ephemeral_delta import (
 )
 
 
+def _action_kind(action: str) -> DeltaActionKind:
+    normalized = (action or "").strip().lower()
+    if normalized == "retract":
+        return DeltaActionKind.RETRACT
+    if normalized in {"add_fact", "add"}:
+        return DeltaActionKind.ADD_FACT
+    return DeltaActionKind.OVERRIDE
+
+
+def _item_to_dto(session_id: str, item: EphemeralDeltaItem) -> EphemeralDeltaItemDTO:
+    return EphemeralDeltaItemDTO(
+        delta_id=item.delta_id,
+        session_id=session_id,
+        target_key=item.target_key,
+        content=item.content,
+        action=item.action.value,
+        turn_index=item.turn_index,
+        source=item.source,
+        confidence=item.confidence,
+        created_at=datetime.now(UTC),
+        is_reconciled=False,
+    )
+
+
 class EphemeralDeltaService:
     """Service managing turn-scoped transient deltas and prompt cache integrity."""
 
     def __init__(self) -> None:
-        self._lock = threading.Lock()
-        # session_id -> list of active deltas
-        self._session_deltas: dict[str, list[EphemeralDeltaItemDTO]] = {}
-        # session_id -> reconciled boolean
-        self._reconciled_status: dict[str, bool] = {}
-        # Underlying Harness components for injection
-        self._harness_registry = EphemeralDeltaRegistry()
-        self._harness_injector = HumanTailDeltaInjector(self._harness_registry)
-        self._seed_default_demo_deltas()
+        from app.services.memory.ephemeral_delta_volume import (
+            ensure_default_volume_ephemeral_persistence,
+        )
 
-    def _seed_default_demo_deltas(self) -> None:
-        demo_session = "session_demo_cache_01"
-        self._session_deltas[demo_session] = [
-            EphemeralDeltaItemDTO(
-                delta_id=f"delta_{uuid4().hex[:10]}",
-                session_id=demo_session,
-                target_key="user_nickname",
-                content="老张",
-                action="override",
-                turn_index=2,
-                source="user_explicit",
-                confidence=1.0,
-                created_at=datetime.now(UTC),
-                is_reconciled=False,
-            ),
-            EphemeralDeltaItemDTO(
-                delta_id=f"delta_{uuid4().hex[:10]}",
-                session_id=demo_session,
-                target_key="test_port",
-                content="8082",
-                action="override",
-                turn_index=3,
-                source="user_explicit",
-                confidence=1.0,
-                created_at=datetime.now(UTC),
-                is_reconciled=False,
-            ),
-        ]
-        self._reconciled_status[demo_session] = False
+        ensure_default_volume_ephemeral_persistence()
+        self._lock = threading.Lock()
+        self._store = get_shared_ephemeral_delta_store()
+        self._injector = HumanTailDeltaInjector()
 
     def record_delta(self, payload: RecordDeltaRequestDTO) -> EphemeralDeltaItemDTO:
-        item = EphemeralDeltaItemDTO(
+        item = EphemeralDeltaItem(
             delta_id=f"delta_{uuid4().hex[:10]}",
-            session_id=payload.session_id,
             target_key=payload.target_key.strip(),
             content=payload.content.strip(),
-            action=payload.action,
+            action=_action_kind(payload.action),
             turn_index=payload.turn_index,
             source=payload.source,
             confidence=payload.confidence,
-            created_at=datetime.now(UTC),
-            is_reconciled=False,
         )
-
         with self._lock:
-            existing = self._session_deltas.get(payload.session_id, [])
-            # LWW (Last-Write-Wins) deduplication on the same target_key
-            filtered = [d for d in existing if d.target_key.lower() != item.target_key.lower()]
-            filtered.append(item)
-            self._session_deltas[payload.session_id] = filtered
-            self._reconciled_status[payload.session_id] = False
-
-        # Synchronize into harness registry for tail injection
-        cat = (
-            DeltaCategory.PREFERENCE
-            if payload.action == "override"
-            else DeltaCategory.CONSTRAINT
-        )
-        self._harness_registry.record_delta(
-            session_id=payload.session_id,
-            key=item.target_key,
-            value=item.content,
-            category=cat,
-            turn_index=item.turn_index,
-        )
-
-        return item
+            self._store.record_delta(payload.session_id, item)
+        return _item_to_dto(payload.session_id, item)
 
     def get_active_deltas(self, session_id: str) -> list[EphemeralDeltaItemDTO]:
-        with self._lock:
-            return list(self._session_deltas.get(session_id, []))
+        active = self._store.get_active_deltas(session_id)
+        return [_item_to_dto(session_id, item) for item in active]
 
     def get_snapshot(self, session_id: str) -> SessionDeltaSnapshotDTO:
-        with self._lock:
-            deltas = list(self._session_deltas.get(session_id, []))
-            is_reconciled = self._reconciled_status.get(session_id, False)
-
+        snapshot = self._store.get_snapshot(session_id)
         return SessionDeltaSnapshotDTO(
             session_id=session_id,
-            active_deltas=deltas,
-            is_reconciled=is_reconciled,
-            reconciled_at=datetime.now(UTC) if is_reconciled else None,
+            active_deltas=[_item_to_dto(session_id, item) for item in snapshot.deltas],
+            is_reconciled=snapshot.is_reconciled,
+            reconciled_at=datetime.now(UTC) if snapshot.is_reconciled else None,
         )
 
     def reconcile_session(self, session_id: str) -> ReconcileSessionResponseDTO:
         with self._lock:
-            deltas = self._session_deltas.get(session_id, [])
-            self._reconciled_status[session_id] = True
-            persisted_keys = [d.target_key for d in deltas]
-            count = len(deltas)
-
-        self._harness_registry.mark_consolidated(session_id)
+            active = self._store.get_active_deltas(session_id)
 
         return ReconcileSessionResponseDTO(
             session_id=session_id,
-            reconciled_count=count,
-            overridden_count=0,
-            persisted_keys=persisted_keys,
-            is_success=True,
+            active_delta_count=len(active),
+            injection_still_active=len(active) > 0,
         )
 
     def preview_injection(
@@ -157,7 +117,8 @@ class EphemeralDeltaService:
         for prompt in payload.human_messages:
             messages.append(HumanMessage(content=prompt))
 
-        processed, metrics = self._harness_injector.inject_deltas(messages, payload.session_id)
+        deltas = self._store.get_active_deltas(payload.session_id)
+        processed = self._injector.inject_deltas(messages, deltas)
 
         augmented_human = ""
         for msg in reversed(processed):
@@ -165,16 +126,17 @@ class EphemeralDeltaService:
                 augmented_human = str(msg.content)
                 break
 
-        tail_snippet = self._harness_registry.format_human_tail_tag(payload.session_id)
+        tail_snippet = self._injector.format_deltas_block(deltas)
         active = self.get_active_deltas(payload.session_id)
+        sys_hash = hashlib.sha256(payload.raw_system_prompt.encode("utf-8")).hexdigest()
 
         dto_metrics = PromptCacheMetricsDTO(
-            system_prompt_frozen=metrics.system_prompt_frozen,
-            system_prompt_byte_hash=metrics.system_prompt_byte_hash,
-            kv_cache_hit_ratio=metrics.kv_cache_hit_ratio,
+            system_prompt_frozen=True,
+            system_prompt_byte_hash=sys_hash,
+            kv_cache_hit_ratio=None,
             in_flight_deltas_count=len(active),
-            recency_perception_delay_ms=metrics.recency_perception_delay_ms,
-            avoided_recomputation_tokens=metrics.avoided_recomputation_tokens,
+            recency_perception_delay_ms=None,
+            avoided_recomputation_tokens=None,
         )
 
         return PreviewDeltaInjectionResponseDTO(
@@ -188,15 +150,13 @@ class EphemeralDeltaService:
 
     def get_metrics(self, session_id: str) -> PromptCacheMetricsDTO:
         active = self.get_active_deltas(session_id)
-        system_sample = "You are Myrm Agent. System Profile: Senior Fullstack Architect."
-        sys_hash = hashlib.sha256(system_sample.encode("utf-8")).hexdigest()
         return PromptCacheMetricsDTO(
             system_prompt_frozen=True,
-            system_prompt_byte_hash=sys_hash,
-            kv_cache_hit_ratio=1.0,
+            system_prompt_byte_hash=None,
+            kv_cache_hit_ratio=None,
             in_flight_deltas_count=len(active),
-            recency_perception_delay_ms=0.12,
-            avoided_recomputation_tokens=max(120, len(active) * 240),
+            recency_perception_delay_ms=None,
+            avoided_recomputation_tokens=None,
         )
 
 

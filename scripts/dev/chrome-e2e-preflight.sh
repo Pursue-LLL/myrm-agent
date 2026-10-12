@@ -78,7 +78,7 @@ export MYRM_DEV_STACK="${AGENT_ROOT}/scripts/dev/dev-stack.sh"
 MONOREPO_ROOT="${MYRM_MONOREPO_ROOT:-$(cd "${AGENT_ROOT}/.." && pwd)}"
 # shellcheck source=lib/dev_state_paths.sh
 source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
-# Sandboxed HOME (e.g. Cursor's ~/.cursor2) would split mux state, warm shells and
+# Sandboxed HOME (e.g. Cursor's ~/.cursor-3) would split mux state, warm shells and
 # harness data across two homes. Run the whole preflight under the real user home so
 # every $HOME-derived path (cdmcp-mux state, frontend caches) stays on one SSOT dir.
 export_spawn_home

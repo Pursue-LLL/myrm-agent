@@ -15,8 +15,8 @@ Server 层技能打包 Facade：调用 PyPI `myrm-agent-harness` 的 `SkillPacke
 
 | 文件 | 地位 | 职责| I/O/P |
 |------|------|------|-------|
-| `__init__.py` | ✅ 核心 | `SkillPackagingService` 服务暴露，包装 Harness 打包能力（支持 Agent Plugins 1.0.0 与 Raw Skill 格式导出），集成脱敏引擎与 eval_cases/version 同步 | — |
+| `__init__.py` | ✅ 核心 | `SkillPackagingService` 服务暴露，包装 Harness 打包能力（`ExportFormat` 限定 Agent Plugins 1.0.0 与 Raw Skill 两种导出格式），集成脱敏引擎与 eval_cases/version 同步 | — |
 | `_helpers.py` | 辅助 | `_load_evolution_record` / `_sync_skill_md_version` 内部辅助函数 | — |
 | `collect.py` | 核心 | `collect_skill_files` — 技能可导出文件树采集（排除安装簿记 `origin.json`/`receipt.json`/存储元数据/`evals.json`，同步 SKILL.md 版本） | — |
 | `redaction.py` | 核心 | `redact_files` / `review_digest` — 纯函数脱敏通道（二进制不解码、不改写；扫描在线程池执行）与预览文件树摘要 | — |
-| `_models.py` | 类型 | `PackageResult`（含 `review_digest` / `error_code`）/ `UnpackResult` 打包/解包结果数据类，`SKILL_CHANGED_SINCE_PREVIEW` 错误码 | — |
+| `_models.py` | 类型 | `PackageResult`（含 `review_digest` / `error_code`）/ `UnpackResult` 打包/解包结果数据类，`SKILL_CHANGED_SINCE_PREVIEW` 错误码，`ExportFormat` 导出格式字面量 | — |

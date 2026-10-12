@@ -87,11 +87,14 @@ myrm_agent_harness.agent.meta_tools.spawn_subagent.delegation_pause_gate
 myrm_agent_harness.agent.middlewares
 myrm_agent_harness.agent.middlewares.approval.batch_processor
 myrm_agent_harness.agent.middlewares.approval.scheduler
+myrm_agent_harness.agent.middlewares.approval.tiered_risk_evaluator
 myrm_agent_harness.agent.middlewares.completion
 myrm_agent_harness.agent.middlewares.guardrails
 myrm_agent_harness.agent.middlewares.guardrails.core
+myrm_agent_harness.agent.middlewares.memory_context.ephemeral_delta_middleware
 myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware
 myrm_agent_harness.agent.middlewares.memory_context.snapshot_freshness
+myrm_agent_harness.agent.middlewares.memory_context.two_layer_context_middleware
 myrm_agent_harness.agent.middlewares.moa_advisor_middleware
 myrm_agent_harness.agent.orchestration.steering
 myrm_agent_harness.agent.parallel.config
@@ -202,6 +205,7 @@ myrm_agent_harness.agent.tool_management
 myrm_agent_harness.agent.tool_management.action_space
 myrm_agent_harness.agent.tool_management.types
 myrm_agent_harness.agent.types
+myrm_agent_harness.agent.ui
 myrm_agent_harness.agent.workspace_rules
 myrm_agent_harness.agent.workspace_rules.scanner
 myrm_agent_harness.api
@@ -524,6 +528,7 @@ myrm_agent_harness.toolkits.code_execution.security.client_secret_scanner
 myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer
 myrm_agent_harness.toolkits.code_execution.tool_discovery
 myrm_agent_harness.toolkits.code_execution.utils.log_distiller
+myrm_agent_harness.toolkits.code_execution.utils.port_sniffer
 myrm_agent_harness.toolkits.code_execution.utils.workspace_path
 myrm_agent_harness.toolkits.code_execution.workspace.registry
 myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind
@@ -622,7 +627,6 @@ myrm_agent_harness.toolkits.memory.codegraph
 myrm_agent_harness.toolkits.memory.compaction
 myrm_agent_harness.toolkits.memory.conclusion_attribution
 myrm_agent_harness.toolkits.memory.config
-myrm_agent_harness.toolkits.memory.conflict_arbitration
 myrm_agent_harness.toolkits.memory.context_fabric
 myrm_agent_harness.toolkits.memory.conversation_search.types
 myrm_agent_harness.toolkits.memory.cross_agent.arbitrator
@@ -635,6 +639,9 @@ myrm_agent_harness.toolkits.memory.dialectic
 myrm_agent_harness.toolkits.memory.domain_isolation
 myrm_agent_harness.toolkits.memory.drift_defense
 myrm_agent_harness.toolkits.memory.dual_track_extraction
+myrm_agent_harness.toolkits.memory.ephemeral_delta
+myrm_agent_harness.toolkits.memory.ephemeral_delta.notify
+myrm_agent_harness.toolkits.memory.ephemeral_delta.shared_store
 myrm_agent_harness.toolkits.memory.evolution
 myrm_agent_harness.toolkits.memory.experience_flywheel
 myrm_agent_harness.toolkits.memory.graph
@@ -698,7 +705,7 @@ myrm_agent_harness.toolkits.memory.universal_mcp_bridge
 myrm_agent_harness.toolkits.memory.unload_guard
 myrm_agent_harness.toolkits.memory.vector_dim_guard
 myrm_agent_harness.toolkits.memory.vector_preflight
-myrm_agent_harness.toolkits.memory.zk_vault_watermark
+myrm_agent_harness.toolkits.memory.verifiable_provenance
 myrm_agent_harness.toolkits.mobile_adb
 myrm_agent_harness.toolkits.mobile_adb.session
 myrm_agent_harness.toolkits.openapi_bridge

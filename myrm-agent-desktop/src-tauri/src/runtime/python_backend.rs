@@ -12,8 +12,8 @@
 //! [POS]
 //! Desktop 模式 Python 后端生命周期。dev 走 venv `run.py`；release 走 bundled sidecar 二进制，
 //! 启动后最多 30s 轮询 `/health`；超时则终止子进程并返回 `Err`。
-//! 向 sidecar 注入帷幕状态桥路径 `MYRM_CURTAIN_STATE_FILE` 与壳进程身份 `MYRM_SHELL_PID`
-//! （server 凭后者判定帷幕是否仍有主，契约名由 server 侧 `curtain_bridge` 测试钉死）。
+//! 向 sidecar 注入帷幕状态桥 `MYRM_CURTAIN_STATE_FILE`、离席 runtime 桥 `MYRM_DESKTOP_RUNTIME_FILE`、
+//! 壳进程身份 `MYRM_SHELL_PID` 与 spawn-time `MYRM_LOCKED_USE_ENABLED`（server 运行时以 runtime 文件为准）。
 
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
@@ -198,6 +198,12 @@ pub async fn start_backend_with_config(
         cmd.env_remove(var);
     }
 
+    let locked_use_enabled = app
+        .try_state::<ConfigManager>()
+        .map(|manager| manager.load().locked_use_enabled)
+        .unwrap_or(false);
+    crate::commands::desktop_runtime_state::sync_locked_use_enabled(&app, locked_use_enabled)?;
+
     cmd.env("DEPLOY_MODE", "local")
         .env("PORT", config.port.to_string())
         .env("HOST", &config.host);
@@ -208,6 +214,10 @@ pub async fn start_backend_with_config(
             "MYRM_CURTAIN_STATE_FILE",
             data_dir.join(crate::commands::privacy_curtain_state::CURTAIN_STATE_FILE),
         );
+        cmd.env(
+            crate::commands::desktop_runtime_state::DESKTOP_RUNTIME_FILE_ENV,
+            data_dir.join(crate::commands::desktop_runtime_state::RUNTIME_STATE_FILE),
+        );
     }
 
     // 壳进程身份：server 凭此判定帷幕是否仍有主。release 的 sidecar 是 PyInstaller
@@ -215,12 +225,10 @@ pub async fn start_backend_with_config(
     cmd.env("MYRM_SHELL_PID", std::process::id().to_string());
 
     // Locked Use 能力开关传递（server 侧代解锁授权判定，与帷幕开关注册同源）。
-    if let Some(manager) = app.try_state::<ConfigManager>() {
-        cmd.env(
-            "MYRM_LOCKED_USE_ENABLED",
-            manager.load().locked_use_enabled.to_string(),
-        );
-    }
+    cmd.env(
+        "MYRM_LOCKED_USE_ENABLED",
+        locked_use_enabled.to_string(),
+    );
 
     if let Some(ref data_dir) = config.custom_data_dir {
         cmd.env("MYRM_DATA_DIR", data_dir);

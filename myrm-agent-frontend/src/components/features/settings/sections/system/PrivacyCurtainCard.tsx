@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { useTauri } from '@/hooks/tauri/useTauri';
 import Toggle from '@/components/features/settings/common/Toggle';
+import { MYRM_PRIVACY_CURTAIN_SETTINGS_ANCHOR } from '@/lib/desktop/desktopSettingsAnchors';
 
 interface PrivacyCurtainCardProps {
   enabled: boolean;
@@ -24,13 +25,29 @@ const PrivacyCurtainCard = memo<PrivacyCurtainCardProps>(({ enabled, onToggle })
   const t = useTranslations('settings.privacyCurtain');
   const { isTauri, invoke } = useTauri();
   const [isActive, setIsActive] = useState(false);
+  const [platformSupport, setPlatformSupport] = useState<{
+    curtain_supported: boolean;
+    curtain_capture_excluded_on_desktop: boolean;
+    curtain_capture_exclusion_ready: boolean;
+    platform: string;
+  } | null>(null);
 
   const refreshActive = useCallback(async () => {
     if (!isTauri || !invoke) {
       return;
     }
     try {
-      setIsActive(await invoke<boolean>('privacy_curtain_active'));
+      const [active, support] = await Promise.all([
+        invoke<boolean>('privacy_curtain_active'),
+        invoke<{
+          curtain_supported: boolean;
+          curtain_capture_excluded_on_desktop: boolean;
+          curtain_capture_exclusion_ready: boolean;
+          platform: string;
+        }>('screen_lock_platform_support'),
+      ]);
+      setIsActive(active);
+      setPlatformSupport(support);
     } catch {
       // 状态回显失败不打断设置页
     }
@@ -39,6 +56,10 @@ const PrivacyCurtainCard = memo<PrivacyCurtainCardProps>(({ enabled, onToggle })
   useEffect(() => {
     void refreshActive();
   }, [refreshActive]);
+
+  const curtainSupported = platformSupport?.curtain_supported === true;
+  const captureExclusionReady = platformSupport?.curtain_capture_exclusion_ready === true;
+  const curtainUsable = curtainSupported && captureExclusionReady;
 
   // 自动拉起/回锁收起由壳侧 watcher 触发，设置页开着时靠事件回显而不是只在挂载读一次。
   useEffect(() => {
@@ -98,7 +119,7 @@ const PrivacyCurtainCard = memo<PrivacyCurtainCardProps>(({ enabled, onToggle })
   }
 
   return (
-    <section className="space-y-6">
+    <section id={MYRM_PRIVACY_CURTAIN_SETTINGS_ANCHOR} className="space-y-6 scroll-mt-24">
       <div className="flex items-center gap-3 px-2">
         <MonitorX className="w-5 h-5 text-muted-foreground" />
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
@@ -106,6 +127,16 @@ const PrivacyCurtainCard = memo<PrivacyCurtainCardProps>(({ enabled, onToggle })
 
       <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden">
         <div className="p-5 space-y-4">
+          {!curtainSupported && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+              {t('platformUnsupported', { platform: platformSupport?.platform ?? 'unknown' })}
+            </p>
+          )}
+          {curtainSupported && !captureExclusionReady && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+              {t('captureExclusionUnavailable')}
+            </p>
+          )}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className={cn('p-2 rounded-lg', enabled ? 'bg-indigo-500/10' : 'bg-muted/50')}>
@@ -116,7 +147,12 @@ const PrivacyCurtainCard = memo<PrivacyCurtainCardProps>(({ enabled, onToggle })
                 <p className="text-xs text-muted-foreground">{t('autoDesc')}</p>
               </div>
             </div>
-            <Toggle checked={enabled} onChange={() => onToggle(!enabled)} ariaLabel={t('autoTitle')} />
+            <Toggle
+              checked={enabled}
+              onChange={() => onToggle(!enabled)}
+              disabled={!curtainUsable}
+              ariaLabel={t('autoTitle')}
+            />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 pl-12">
@@ -131,8 +167,14 @@ const PrivacyCurtainCard = memo<PrivacyCurtainCardProps>(({ enabled, onToggle })
               </span>
             </div>
             <button
+              disabled={!curtainUsable && !isActive}
               onClick={() => (isActive ? void handleRelease() : void handleEngage())}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              className={cn(
+                'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                !curtainUsable && !isActive
+                  ? 'bg-muted/30 text-muted-foreground cursor-not-allowed'
+                  : 'bg-muted/50 hover:bg-muted',
+              )}
             >
               {isActive ? t('release') : t('engage')}
             </button>

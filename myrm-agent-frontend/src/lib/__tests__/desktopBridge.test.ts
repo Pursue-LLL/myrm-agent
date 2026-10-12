@@ -9,12 +9,23 @@ import { desktopBridge, useDesktopBridge } from '../desktopBridge';
 import * as tauriModule from '@/lib/tauri';
 
 describe('desktopBridge', () => {
+  const originalWindow = globalThis.window;
+
   beforeEach(() => {
     vi.restoreAllMocks();
+    if (typeof globalThis.window === 'undefined') {
+      vi.stubGlobal('window', {
+        open: vi.fn(() => null),
+      });
+    }
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    if (originalWindow === undefined) {
+      // @ts-expect-error vitest jsdom cleanup
+      delete globalThis.window;
+    }
   });
 
   it('delegates isDesktop to isTauriEnvironment', () => {

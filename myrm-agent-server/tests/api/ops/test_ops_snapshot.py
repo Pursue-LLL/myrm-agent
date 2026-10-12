@@ -11,6 +11,9 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+from unittest.mock import patch
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -90,6 +93,55 @@ async def test_get_ops_snapshot_api_endpoint() -> None:
         parsed = OpsAggregatedSnapshot.model_validate(data)
         assert parsed.system.app_name is not None
         assert parsed.liveness.state in ("idle", "busy", "degraded", "draining")
+
+
+@pytest.mark.asyncio
+async def test_collect_memory_info_counts_error_ledger_rows() -> None:
+    """Memory ops block must query server ledger with ERROR status (not harness FAILED)."""
+    scalar_calls = 0
+
+    class _FakeSession:
+        async def scalar(self, _stmt: object) -> int:
+            nonlocal scalar_calls
+            scalar_calls += 1
+            if scalar_calls == 1:
+                return 12
+            if scalar_calls == 2:
+                return 3
+            return 2
+
+    @asynccontextmanager
+    async def _fake_get_session():
+        yield _FakeSession()
+
+    with patch(
+        "app.services.ops.snapshot_service.get_session",
+        _fake_get_session,
+    ):
+        info = await OpsAggregatedSnapshotService._collect_memory_info()
+
+    assert info.event_count == 12
+    assert info.failed_event_count == 3
+    assert info.queue_backlog == 2
+    assert info.health_status == "degraded"
+    assert scalar_calls == 3
+
+
+@pytest.mark.asyncio
+async def test_collect_memory_info_probe_failure_is_critical() -> None:
+    @asynccontextmanager
+    async def _broken_get_session():
+        raise RuntimeError("db unavailable")
+        yield  # pragma: no cover
+
+    with patch(
+        "app.services.ops.snapshot_service.get_session",
+        _broken_get_session,
+    ):
+        info = await OpsAggregatedSnapshotService._collect_memory_info()
+
+    assert info.health_status == "critical"
+    assert info.event_count == 0
 
 
 @pytest.mark.asyncio

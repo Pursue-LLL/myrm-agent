@@ -10,6 +10,7 @@
 //! Tauri invoke 命令层模块根；叶子清单见 `_ARCH.md` 与各子目录 _ARCH。
 
 pub mod config;
+pub mod desktop_runtime_state;
 pub mod data_migration;
 pub mod pet_surface;
 pub mod privacy_curtain;
@@ -22,3 +23,4 @@ pub mod screen_lock;
 pub mod session_window;
 pub mod visual_approval_overlay;
 pub mod visual_approval_overlay_page;
+pub mod desktop_vibrancy;

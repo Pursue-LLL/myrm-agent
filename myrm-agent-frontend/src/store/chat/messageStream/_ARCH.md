@@ -23,6 +23,7 @@
 | `streamHelpers.ts`           | 辅助 | 来源合并、澄清表单 unwrap（`resolveClarificationFormFromEventData`）、Goal 归一化、`getUserFriendlyError`（`concurrency_limit` kind 的 i18n 兜底文案，供 `diagnostic_result` 缺失时呈现） | ✅    |
 | `fileDiffMerge.ts`           | 辅助 | FILE_DIFF 路径匹配与 diff 择优合并                                                                                                                                                        | ✅    |
 | `textSanitize.ts`            | 辅助 | 流式文本控制字符剥离                                                                                                                                                                      | ✅    |
+| `streamWatchdog.ts`          | 核心 | 客户端流式完成状态机看门狗，静默与 EOF 兜底自愈，杜绝回复完成后 UI 假死卡在生成中                                                                                                          | ✅    |
 
 ## 依赖
 

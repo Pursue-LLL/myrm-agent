@@ -11,6 +11,7 @@
 | `VisualApprovalUnavailableCard.tsx`                                | snapshot 失败降级 + 重试                                                                    |
 | `VisualApprovalHighlight.tsx`                                      | 红框 overlay 高亮                                                                           |
 | `VisualApprovalAttentionBar.tsx`                                   | 滚动区外 pending 可达条                                                                     |
+| `HumanAttentionBar.tsx`                                            | 聚合 clarify / desktop gate / tool·visual 审批的统一条（多类型时）                          |
 | `VisualApprovalOsOverlaySync.tsx`                                  | Tauri OS overlay 生命周期同步（scoped browser + desktop viewData）                          |
 | `BrowserSessionView.tsx` / `ShellCommandDisplay.tsx`               | 浏览器/命令上下文                                                                           |
 | `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI（Edit 含 pattern 预览与时效阶梯配置）                                           |

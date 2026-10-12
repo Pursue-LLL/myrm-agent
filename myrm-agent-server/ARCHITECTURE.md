@@ -178,7 +178,7 @@
 
 ### 0.09 Harness 集成契约（Integration Contract）
 
-Server 与闭源 `myrm-agent-harness` 的分层边界：
+Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 
 - **Glue 层（强制）**：会话 ContextVar、记忆提取、后台 bash 注册表、权限失效、task intent 等集成胶水 **必须** 经 `myrm_agent_harness.api.hooks` 与 `myrm_agent_harness.api.skills` 导入；**禁止** `from myrm_agent_harness.*._*`。门禁：`tests/architecture/test_server_harness_imports.py::test_no_server_harness_private_module_imports`。
 - **工厂与 DTO**：Agent 创建与流式类型经 `myrm_agent_harness.api`（factory / types / config / protocols）。

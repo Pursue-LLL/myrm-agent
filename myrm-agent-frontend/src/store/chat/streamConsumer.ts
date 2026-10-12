@@ -35,6 +35,7 @@ import { consumePendingChatWikiQuerySuccess } from '@/services/wiki/evidenceQuer
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
+import { createStreamWatchdog } from './messageStream/streamWatchdog';
 
 function finalizeMigrationBoundProjectHandoff(chatId: string | undefined): void {
   const boundProjectId = consumeMigrationBoundProjectId();
@@ -513,6 +514,20 @@ export async function consumeStream(
     scheduleAutoSave: actions.scheduleAutoSave,
   };
 
+  const watchdog = createStreamWatchdog({
+    getState: () => ({
+      loading: state.loading,
+      messages: state.messages,
+    }),
+    actions: {
+      setLoading: actions.setLoading,
+      clearActiveStream: actions.clearActiveStream,
+      setMessageAppeared: actions.setMessageAppeared,
+      _processSuggestions: actions._processSuggestions,
+      scheduleAutoSave: actions.scheduleAutoSave,
+    },
+  });
+
   try {
     while (true) {
       if (Date.now() - lastDataTime > DATA_TIMEOUT) {
@@ -536,6 +551,7 @@ export async function consumeStream(
       const { value, done } = readResult;
 
       if (done) {
+        watchdog.onReaderDone();
         break;
       }
 
@@ -596,6 +612,22 @@ export async function consumeStream(
               if (isAgentBusySseEvent(event as { type: string } & Record<string, unknown>)) {
                 throw new AgentBusyError('Agent is busy processing another request for this session.');
               }
+              watchdog.feed(event.type);
+              if (
+                event.type === 'message_end' ||
+                event.type === 'agent_cancelled' ||
+                event.type === 'error' ||
+                event.type === 'risk_blocked'
+              ) {
+                watchdog.markTerminalReceived();
+              } else if (
+                ('usage' in event && Boolean(event.usage)) ||
+                ('token_economics' in event && Boolean(event.token_economics)) ||
+                event.type === 'token_economics'
+              ) {
+                watchdog.notifyUsageReceived();
+              }
+
               try {
                 options?.onBusinessEvent?.(event);
               } catch (eventError) {
@@ -645,6 +677,7 @@ export async function consumeStream(
       }
     }
   } finally {
+    watchdog.dispose();
     if (stoppedEarly) {
       try {
         await reader.cancel();

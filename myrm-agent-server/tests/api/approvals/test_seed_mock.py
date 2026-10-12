@@ -8,7 +8,7 @@ class TestApprovalsSeedMock:
 
     def test_seed_mock_http_endpoint(self, client: TestClient) -> None:
         with (
-            patch("app.config.deploy_mode.is_local_mode", return_value=True),
+            patch("app.api.approvals.test_routes.is_local_mode", return_value=True),
             patch(
                 "app.services.chat.chat_service.ChatService.create_or_update_chat",
                 new_callable=AsyncMock,
@@ -32,6 +32,6 @@ class TestApprovalsSeedMock:
         assert approval_id in ids
 
     def test_seed_mock_hidden_outside_local_mode(self, client: TestClient) -> None:
-        with patch("app.config.deploy_mode.is_local_mode", return_value=False):
+        with patch("app.api.approvals.test_routes.is_local_mode", return_value=False):
             resp = client.post("/api/v1/approvals/test/seed-mock")
         assert resp.status_code == 404

@@ -14,6 +14,7 @@ import { useTabBadge } from '@/hooks/shell/useTabBadge';
 import { useDesktopWakeRecovery } from '@/hooks/tauri/useDesktopWakeRecovery';
 import { useConnectionsChangedReload } from '@/hooks/tauri/useConnectionsChangedReload';
 import { useGlobalShortcuts } from '@/hooks/shell/useGlobalShortcuts';
+import { useComputerUseEscapeAbort } from '@/hooks/shell/useComputerUseEscapeAbort';
 import { useVisibilityThrottling } from '@/hooks/ui/useVisibilityThrottling';
 import { useTrafficLightInsets } from '@/hooks/ui/useTrafficLightInsets';
 import { useTrayEvents } from '@/hooks/tauri/useTrayEvents';
@@ -88,6 +89,7 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
   useTrayEvents();
   useCurtainTexts();
   useGlobalShortcuts();
+  useComputerUseEscapeAbort();
   useWuBalanceWatcher();
   const { crashLoopActive, errorMessage: crashError, dismiss: dismissCrashLoop } = useCrashLoopGuard();
 

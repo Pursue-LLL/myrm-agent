@@ -41,6 +41,7 @@ from app.schemas.responses import create_success_response
 from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _SORT_KEYS, _record_memory_event
+from app.services.memory.operations.crud.item_mutations import delete_memory_item, update_memory_item
 from app.services.memory.operations.presentation import memory_to_item, parse_memory_type
 
 logger = logging.getLogger(__name__)
@@ -248,44 +249,7 @@ async def update_memory(
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> MemoryItem:
     """Update an existing memory's content, importance, reasoning or application."""
-    mem_type = parse_memory_type(memory_type)
-
-    if mem_type == MemoryType.PROFILE:
-        raise HTTPException(
-            status_code=400,
-            detail="Profile attributes cannot be updated via this endpoint. Use POST to set new values.",
-        )
-
-    try:
-        # An explicit ``is_user_locked`` from the client expresses the user's own
-        # protection intent and wins. Otherwise editing a rule's content implies
-        # the user endorses it, so it stays protected by default.
-        lock_on_edit = mem_type == MemoryType.PROCEDURAL and body.content is not None
-        if body.is_user_locked is not None:
-            resolved_lock: bool | None = body.is_user_locked
-        else:
-            resolved_lock = True if lock_on_edit else None
-        updated = await manager.update_memory(
-            memory_id,
-            content=body.content,
-            importance=body.importance,
-            reasoning=body.reasoning,
-            application=body.application,
-            tags=body.tags,
-            is_user_locked=resolved_lock,
-            is_exact_fact=body.is_exact_fact,
-        )
-        await _record_memory_event(
-            kind=MemoryOperationKind.WRITE,
-            summary="Memory updated manually.",
-            memory_id=memory_id,
-            memory_type=mem_type.value,
-        )
-        return memory_to_item(updated, mem_type)
-    except MemoryError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as e:
-        raise HTTPException(status_code=404, detail="Memory not found") from e
+    return await update_memory_item(manager, parse_memory_type(memory_type), memory_id, body)
 
 
 async def correct_memory(
@@ -352,54 +316,8 @@ async def delete_memory_by_id(
     - permanent=True: performs a hard delete (cascading vector index, embedding cache, and claim graph).
     For Profile/Procedural memories: performs a hard delete.
     """
-    from myrm_agent_harness.toolkits.memory.types import MemoryStatus
-
-    mem_type = parse_memory_type(memory_type)
-
-    if mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
-        if permanent:
-            coll = manager.config.semantic_collection if mem_type == MemoryType.SEMANTIC else manager.config.episodic_collection
-            deleted = await manager.delete_memory(coll, [memory_id])
-            if deleted == 0:
-                raise HTTPException(status_code=404, detail="Memory not found or could not be permanently deleted")
-            await _record_memory_event(
-                kind=MemoryOperationKind.FORGET,
-                summary="Memory permanently deleted (purged).",
-                memory_id=memory_id,
-                memory_type=mem_type.value,
-                metadata={"permanent": True},
-            )
-            return create_success_response(data={"deleted": True, "memory_id": memory_id, "permanent": True})
-
-        try:
-            await manager.update_memory(memory_id, status=MemoryStatus.ARCHIVED)
-        except Exception as e:
-            raise HTTPException(status_code=404, detail="Memory not found or could not be archived") from e
-        await _record_memory_event(
-            kind=MemoryOperationKind.FORGET,
-            summary="Memory soft-deleted (archived with 7-day TTL).",
-            memory_id=memory_id,
-            memory_type=mem_type.value,
-            metadata={"soft_delete": True},
-        )
-        return create_success_response(data={"deleted": True, "memory_id": memory_id, "soft_delete": True})
-
-    success = False
-    if mem_type == MemoryType.PROFILE:
-        success = await manager.delete_profile(memory_id)
-    elif mem_type == MemoryType.PROCEDURAL:
-        success = await manager.delete_rule(memory_id)
-
-    if not success:
-        raise HTTPException(status_code=404, detail="Memory not found or could not be deleted")
-
-    await _record_memory_event(
-        kind=MemoryOperationKind.FORGET,
-        summary="Memory deleted permanently.",
-        memory_id=memory_id,
-        memory_type=mem_type.value,
-    )
-    return create_success_response(data={"deleted": True, "memory_id": memory_id})
+    deleted = await delete_memory_item(manager, parse_memory_type(memory_type), memory_id, permanent=permanent)
+    return create_success_response(data=deleted)
 
 
 async def search_memories(

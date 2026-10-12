@@ -822,7 +822,7 @@ export interface LearningTimelineItem {
   agent_id: string | null;
   confidence: number;
   importance: number;
-  is_user_edited: boolean;
+  is_user_protected: boolean;
   source_chat_id: string | null;
   status: string;
   metadata: Record<string, string | number | boolean>;
@@ -844,7 +844,7 @@ export interface TimelineMemoryUpdateRequest {
 }
 
 export interface TimelineSkillArchiveResponse {
-  skill_id: string;
+  skill_name: string;
   is_active: boolean;
   message: string;
 }
@@ -893,8 +893,8 @@ export async function updateTimelineMemory(
 export async function deleteTimelineMemory(
   memoryId: string,
   memoryType: string,
-): Promise<{ deleted: boolean; memory_id: string }> {
-  return apiRequest<{ deleted: boolean; memory_id: string }>(
+): Promise<{ deleted: boolean; memory_id: string; soft_delete?: boolean }> {
+  return apiRequest<{ deleted: boolean; memory_id: string; soft_delete?: boolean }>(
     `/statistics/learning-timeline/memory/${encodeURIComponent(memoryId)}?memory_type=${encodeURIComponent(memoryType)}`,
     {
       method: 'DELETE',
@@ -902,9 +902,9 @@ export async function deleteTimelineMemory(
   );
 }
 
-export async function archiveTimelineSkill(skillId: string, active = false): Promise<TimelineSkillArchiveResponse> {
+export async function archiveTimelineSkill(skillName: string, active = false): Promise<TimelineSkillArchiveResponse> {
   return apiRequest<TimelineSkillArchiveResponse>(
-    `/statistics/learning-timeline/skill/${encodeURIComponent(skillId)}/archive?active=${active}`,
+    `/statistics/learning-timeline/skill/${encodeURIComponent(skillName)}/archive?active=${active}`,
     {
       method: 'POST',
     },

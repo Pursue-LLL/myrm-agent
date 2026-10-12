@@ -122,6 +122,10 @@ def memory_to_item(memory: AnyMemory | ProfileEntry, memory_type: MemoryType) ->
     elif isinstance(memory, EpisodicMemory):
         base["tags"] = getattr(memory, "tags", []) or []
 
+    # Semantic/episodic memories persist the user's protection as ``pinned``; rules use ``is_user_locked``.
+    if getattr(memory, "pinned", False):
+        base["is_user_locked"] = True
+
     merge_count = getattr(memory, "merge_count", 0)
     if merge_count:
         base["merge_count"] = merge_count

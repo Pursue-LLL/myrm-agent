@@ -1,0 +1,23 @@
+{
+  "title": "操作安全与风险预审门禁",
+  "tierRead": "只读操作 (安全放行)",
+  "tierWrite": "普通写入 (预演可用)",
+  "tierHighRisk": "高危破坏性操作 (强制人机审核)",
+  "targetEntity": "目标对象",
+  "riskReasons": "风险告警与潜在影响",
+  "paramSummary": "参数结构摘要",
+  "modifiedParams": "修改执行参数",
+  "dryRunPreview": "Dry-Run 预演预览",
+  "simulating": "正在执行无副作用预演...",
+  "simulatedSuccess": "预演成功：未发生持久性修改",
+  "affectedTarget": "预估影响目标",
+  "predictedChanges": "预估影响路径",
+  "confirmAction": "授权并继续执行",
+  "modifyAction": "修改参数并重发",
+  "cancelAction": "终止并打回操作",
+  "submitting": "正在提交授权...",
+  "rejectReasonPlaceholder": "可选：输入拒绝理由...",
+  "jsonEditError": "参数 JSON 格式不合法",
+  "readBadge": "只读已放行",
+  "tokenLabel": "单次授权令牌"
+}

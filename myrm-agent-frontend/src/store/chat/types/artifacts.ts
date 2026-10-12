@@ -23,7 +23,6 @@ export type ArtifactType =
   | 'presentation'
   | 'word_document'
   | 'binary'
-  | 'interactive_ui'
   | 'architecture';
 
 // 工件版本数据

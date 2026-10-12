@@ -1,7 +1,7 @@
 """通用Agent的工具约束中间件
 
 实现分层约束策略：
-- 工具列表 100% 静态（保护 Prompt Cache）
+- 工具列表按层稳定排序（保护 Prompt Cache 前缀）
 - 通过 tool_choice 参数实现硬约束（L2 约束）
 - 配合 Prompt 层 tool description 的软约束（L1 约束）
 

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Brain, Search, Database } from 'lucide-react';
+import { Brain, Search, Database, PenLine } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { MemoryBriefData, MemoryBriefStatus } from '@/store/chat/types';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/primitives/hover-card';
@@ -126,6 +126,8 @@ export default function MemoryInsightPanel({
   });
 
   const showWriteExtractTimeline = isLast && hasVisibleLifecycle(phases, { writeExtractOnly: true });
+  const sessionOverrideCount = memoryBriefStatus?.session_ephemeral_delta_count ?? 0;
+  const hasSessionOverrides = sessionOverrideCount > 0;
 
   if (
     !showWriteExtractTimeline &&
@@ -133,6 +135,7 @@ export default function MemoryInsightPanel({
     !memoryBrief &&
     memoryBriefStatus?.state !== 'skipped' &&
     !memoryBudget &&
+    !hasSessionOverrides &&
     (!citations || citations.length === 0)
   ) {
     return null;
@@ -149,6 +152,9 @@ export default function MemoryInsightPanel({
 
   return (
     <div className={cn('flex flex-col gap-2 mt-2', className)}>
+      {isLast && phases.write.status === 'success' && (
+        <p className="text-[11px] leading-relaxed text-muted-foreground">{t('sessionMemoryUpdatedHint')}</p>
+      )}
       {showWriteExtractTimeline && (
         <MemoryLifecycleTimeline
           phases={phases}
@@ -209,6 +215,30 @@ export default function MemoryInsightPanel({
           </>
         )}
 
+        {hasSessionOverrides && (
+          <>
+            <HoverCard openDelay={200}>
+              <HoverCardTrigger asChild>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full bg-secondary/80 text-secondary-foreground border border-border/70 cursor-help transition-colors hover:bg-secondary">
+                  <PenLine size={12} className="shrink-0 text-primary" />
+                  <span>{t('sessionOverridePill')}</span>
+                </div>
+              </HoverCardTrigger>
+              <HoverCardContent align="start" className="w-72 max-w-[calc(100vw-2rem)] p-3 z-50">
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-foreground">{t('sessionOverrideTitle')}</div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    {t('sessionOverrideDescription')}
+                  </p>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+            <p className="w-full pl-1 text-[11px] leading-relaxed text-muted-foreground md:hidden">
+              {t('sessionOverrideMobile', { count: sessionOverrideCount })}
+            </p>
+          </>
+        )}
+
         {/* Memory Brief Pill */}
         {memoryBrief && (
           <HoverCard openDelay={200}>
@@ -255,11 +285,17 @@ export default function MemoryInsightPanel({
                         </div>
                       )}
                     <div className="text-[11px] text-muted-foreground leading-relaxed">
-                      {t('briefLearnedSummary', {
-                        preferences: memoryBrief.learned.preference_count,
-                        rules: memoryBrief.learned.rule_count,
-                        corrections: memoryBrief.learned.correction_count,
-                      })}
+                      {memoryBrief.learned.injected_in_turn_prefix === true
+                        ? t('briefLearnedInPrefix', {
+                            preferences: memoryBrief.learned.preference_count,
+                            rules: memoryBrief.learned.rule_count,
+                            corrections: memoryBrief.learned.correction_count,
+                          })
+                        : t('briefLearnedSummary', {
+                            preferences: memoryBrief.learned.preference_count,
+                            rules: memoryBrief.learned.rule_count,
+                            corrections: memoryBrief.learned.correction_count,
+                          })}
                     </div>
                     {(memoryBrief.learned.preference_ids.length > 0 || memoryBrief.learned.rule_ids.length > 0) && (
                       <div className="flex flex-wrap gap-1.5 mt-1">

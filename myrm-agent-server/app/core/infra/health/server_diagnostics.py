@@ -38,6 +38,7 @@ from app.core.infra.health.agent_diagnostics import (
     OllamaModelContextDiagnostic,
 )
 from app.core.infra.health.anthropic_policy_diagnostic import AnthropicSubscriptionPolicyDiagnostic
+from app.core.infra.health.desktop_locked_use_diagnostic import DesktopLockedUseDiagnostic
 from app.core.infra.health.session_diagnostics import OrphanSessionDiagnostic
 from app.core.infra.health.skill_diagnostics import (
     SkillHoardingHealthDiagnostic,
@@ -49,6 +50,7 @@ __all__ = [
     "AgentPromptCacheAlignmentDiagnostic",
     "AgentStepBudgetDiagnostic",
     "AnthropicSubscriptionPolicyDiagnostic",
+    "DesktopLockedUseDiagnostic",
     "DLQDiagnostic",
     "ExecutionCacheDiagnostic",
     "OllamaModelContextDiagnostic",
@@ -215,6 +217,7 @@ class ServerDiagnosticsManager:
 
     def __init__(self) -> None:
         self._probes: list[DiagnosticProtocol] = [
+            DesktopLockedUseDiagnostic(),
             DLQDiagnostic(),
             ExecutionCacheDiagnostic(),
             AgentColdStartDiagnostic(),

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { useTauri } from '@/hooks/tauri/useTauri';
 import Toggle from '@/components/features/settings/common/Toggle';
+import { MYRM_LOCKED_USE_SETTINGS_ANCHOR } from '@/lib/desktop/desktopSettingsAnchors';
 
 interface LockedUseCardProps {
   enabled: boolean;
@@ -96,7 +97,7 @@ const LockedUseCard = memo<LockedUseCardProps>(({ enabled, onToggle }) => {
   const supportsUnlock = platformSupport?.unlock ?? false;
 
   return (
-    <section className="space-y-6">
+    <section id={MYRM_LOCKED_USE_SETTINGS_ANCHOR} className="space-y-6 scroll-mt-24">
       <div className="flex items-center gap-3 px-2">
         <Monitor className="w-5 h-5 text-muted-foreground" />
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Awaitable, Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -66,24 +67,25 @@ class _Env:
         assert data.skill_ids is not None
         self.updates.append((agent_id, list(data.skill_ids)))
 
-    def patches(self) -> list[object]:
-        return [
+    @contextmanager
+    def applied(
+        self,
+        *,
+        list_skills: AsyncMock | None = None,
+        update_agent: Callable[[str, AgentUpdate], Awaitable[None]] | None = None,
+    ) -> Iterator[None]:
+        installed = AsyncMock(return_value=[SimpleNamespace(id=skill_id) for skill_id in self._installed])
+        with (
             patch("app.core.skills.store.evolution_store.get_evolution_skill_store", return_value=self.store),
-            patch(
-                "app.core.skills.store.service.skills_service.list_skills",
-                AsyncMock(return_value=[SimpleNamespace(id=skill_id) for skill_id in self._installed]),
-            ),
+            patch("app.core.skills.store.service.skills_service.list_skills", list_skills or installed),
             patch("app.services.agent.agent_service.AgentService.get_agent_list", self.get_agent_list),
-            patch("app.services.agent.agent_service.AgentService.update_agent", self.update_agent),
-        ]
+            patch("app.services.agent.agent_service.AgentService.update_agent", update_agent or self.update_agent),
+        ):
+            yield
 
 
 async def _sweep(env: _Env) -> orphan_cleanup.OrphanCleanupReport:
-    from contextlib import ExitStack
-
-    with ExitStack() as stack:
-        for active in env.patches():
-            stack.enter_context(active)  # type: ignore[arg-type]
+    with env.applied():
         return await sweep_orphan_plugin_skill_records()
 
 
@@ -179,16 +181,9 @@ async def test_every_page_of_experts_is_visited(store: SkillStore, backup_dir: P
 async def test_nothing_is_deleted_when_the_catalog_cannot_be_read(store: SkillStore, backup_dir: Path) -> None:
     await store.save_skills_batch([_ghost("ghost-1")])
     env = _Env(store, installed=[], experts=[])
-    patches = env.patches()
-    patches[1] = patch("app.core.skills.store.service.skills_service.list_skills", AsyncMock(side_effect=RuntimeError("down")))
 
-    from contextlib import ExitStack
-
-    with ExitStack() as stack:
-        for active in patches:
-            stack.enter_context(active)  # type: ignore[arg-type]
-        with pytest.raises(RuntimeError, match="down"):
-            await sweep_orphan_plugin_skill_records()
+    with env.applied(list_skills=AsyncMock(side_effect=RuntimeError("down"))), pytest.raises(RuntimeError, match="down"):
+        await sweep_orphan_plugin_skill_records()
 
     assert [record.skill_id for record in store.get_active_skills()] == ["ghost-1"]
     assert not (backup_dir / "orphan_plugin_skill_records.jsonl").exists()
@@ -202,16 +197,9 @@ async def test_a_failed_expert_update_does_not_stop_the_sweep(store: SkillStore,
     async def flaky_update(agent_id: str, data: AgentUpdate) -> None:
         if agent_id == "bad":
             raise ValueError("built-in experts are read-only")
-        await _Env.update_agent(env, agent_id, data)
+        await env.update_agent(agent_id, data)
 
-    patches = env.patches()
-    patches[3] = patch("app.services.agent.agent_service.AgentService.update_agent", flaky_update)
-
-    from contextlib import ExitStack
-
-    with ExitStack() as stack:
-        for active in patches:
-            stack.enter_context(active)  # type: ignore[arg-type]
+    with env.applied(update_agent=flaky_update):
         report = await sweep_orphan_plugin_skill_records()
 
     assert env.updates == [("good", [])]

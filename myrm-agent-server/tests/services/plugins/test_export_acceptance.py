@@ -98,7 +98,9 @@ class TestOfficialStandard:
         jsonschema.validate(manifest, plugin_schema)
         jsonschema.validate(json.loads(entries["lead/mcp.json"]), _schema("mcp.schema.json"))
         # Everything Myrm adds lives under its own extension namespace, never as a top-level field.
-        assert set(manifest) <= set(plugin_schema["properties"])  # type: ignore[arg-type]
+        schema_properties = plugin_schema["properties"]
+        assert isinstance(schema_properties, dict)
+        assert set(manifest) <= set(schema_properties)
         assert set(manifest["extensions"]) == {"ai.myrm"}
 
     @pytest.mark.asyncio

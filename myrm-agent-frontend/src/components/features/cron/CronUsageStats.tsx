@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Coins } from 'lucide-react';
+import { Coins, Timer, TrendingUp } from 'lucide-react';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/primitives/table';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -92,8 +92,32 @@ export default function CronUsageStats() {
     <div className="space-y-4 p-1">
       <PeriodSelector period={period} labels={periodLabel} onChange={setPeriod} />
 
-      <div className="rounded-lg border bg-card p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+      <div className="rounded-lg border bg-gradient-to-br from-primary/5 via-card to-card p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3 border-border/60">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Timer className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                <span>自动化生产力收益</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  ROI {summary.roi_multiple ?? 0}x
+                </span>
+              </h3>
+              <p className="text-xs text-muted-foreground">基于自动化任务基线工时与实际执行量量化</p>
+            </div>
+          </div>
+          <div className="text-left sm:text-right">
+            <div className="text-xs text-muted-foreground">累计节省工时</div>
+            <div className="text-xl font-bold tabular-nums text-primary">
+              {summary.estimated_hours_saved ?? 0} <span className="text-xs font-normal text-muted-foreground">小时</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm pt-1">
           <Metric label={t('statTotalRuns')} value={String(summary.total_runs)} />
           <Metric label={t('statSuccessRate')} value={`${successRate}%`} />
           <Metric
@@ -101,7 +125,11 @@ export default function CronUsageStats() {
             value={formatTokens(summary.total_tokens)}
             sub={`${t('statInput')} ${formatTokens(summary.total_input_tokens)} / ${t('statOutput')} ${formatTokens(summary.total_output_tokens)}`}
           />
-          <Metric label={t('statAvgTokens')} value={formatTokens(summary.avg_tokens_per_run)} sub={t('statPerRun')} />
+          <Metric
+            label="预估生产力价值"
+            value={`$${(((summary.estimated_value_saved_cents ?? 0) / 100)).toFixed(1)}`}
+            sub={`Token成本 $${(((summary.estimated_cost_cents ?? 0) / 100)).toFixed(2)}`}
+          />
         </div>
       </div>
 
@@ -114,6 +142,7 @@ export default function CronUsageStats() {
                 <TableHead className="text-right">{t('columnRuns')}</TableHead>
                 <TableHead className="text-right">Tokens</TableHead>
                 <TableHead className="text-right">{t('columnPct')}</TableHead>
+                <TableHead className="text-right">预估省时</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -124,6 +153,9 @@ export default function CronUsageStats() {
                   <TableCell className="text-right tabular-nums">{formatTokens(row.total_tokens)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {pct(row.total_tokens, summary.total_tokens)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-primary font-medium">
+                    {row.hours_saved ?? 0}h
                   </TableCell>
                 </TableRow>
               ))}

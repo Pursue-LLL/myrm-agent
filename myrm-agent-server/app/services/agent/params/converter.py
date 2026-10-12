@@ -1264,7 +1264,6 @@ async def convert_to_general_agent_params(
         search_depth=search_depth,
         notify_targets=(resolved.notify_targets if resolved and not is_fast_search else ()),
         tool_gateway_config=tool_gateway_config,
-        client_surface=request.client_surface,
         force_skill_manage=_is_learn_skill_authoring_query(final_query),
         a2a_enabled=bool(resolved.a2a_enabled) if resolved else False,
         a2a_trusted_peer_ids=list(resolved.a2a_trusted_peer_ids) if resolved else [],

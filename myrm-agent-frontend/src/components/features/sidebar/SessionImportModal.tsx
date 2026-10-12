@@ -334,7 +334,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                 <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                 <span>
                   {t('chat.import.featuresSummary') ||
-                    'Auto-scrubs credentials, folds verbose tool stdout, and preserves 100% prompt cache prefix.'}
+                    'Auto-scrubs credentials, folds verbose tool stdout, and preserves stable prompt-cache prefix layout.'}
                 </span>
               </div>
 

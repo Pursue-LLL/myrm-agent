@@ -47,8 +47,16 @@ vi.mock('../handlerDeps', () => ({
 import { completionEvents } from '../completionEvents';
 import type { StreamCtx } from '../../streamContext';
 
+type TestMessage = Record<string, unknown> & {
+  memoryBriefStatus?: {
+    state?: string;
+    session_ephemeral_delta_count?: number;
+    [key: string]: unknown;
+  };
+};
+
 type TestState = {
-  messages: Array<Record<string, unknown>>;
+  messages: TestMessage[];
   messageAppeared: boolean;
   loading: boolean;
 };
@@ -105,6 +113,28 @@ describe('completionEvents memory brief status', () => {
       source: 'preflight',
       injection: { state: 'applied', source: 'fallback' },
     });
+  });
+
+  it('persists session_ephemeral_delta_count on memory brief status', async () => {
+    const state: TestState = {
+      messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() }],
+      messageAppeared: false,
+      loading: true,
+    };
+    const ctx = makeCtx(state);
+    ctx.data = {
+      ...ctx.data,
+      memory_brief_status: {
+        state: 'ready',
+        session_ephemeral_delta_count: 3,
+      },
+    } as never;
+
+    await completionEvents(ctx);
+    vi.runAllTimers();
+    await vi.dynamicImportSettled();
+
+    expect(state.messages[0]?.memoryBriefStatus?.session_ephemeral_delta_count).toBe(3);
   });
 
   it('creates assistant placeholder when memory_brief_status arrives before assistant message', async () => {

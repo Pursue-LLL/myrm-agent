@@ -20,7 +20,8 @@ Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm
 | `_agent_plan.py` | 规划 | 专家绑定计划（纯函数）：逐专家显式绑定 + 入口专家隐式兜底、隐式团队、子专家先于主专家的创建顺序、环边剔除、未解析引用清单 | ✅ |
 | `_agent_persist.py` | 持久化 | `persist_imported_agents`：按计划写入专家；同名策略（`install` 建副本 "X (imported[ n])"、`replace` 原位更新用户自有专家并自动快照、内置专家永不替换）；失败回滚本次新建的专家；逐专家结果与 `ComponentFailure` | ✅ |
 | `template_workspace.py` | 物料 | 模板物料存储格式 SSOT：`encode_template_files`（容量护栏，跳过而非截断）、`decode_template_files`、`materialize_template_workspace_files`（新会话 JIT 释放，防路径穿越、不覆盖已有文件） | ✅ |
-| `export_service.py` | 门面 | 专家导出编排：`preview_expert_export`（依赖闭包 → 单次脱敏扫描 → 试构建，返回发现项、`review_digest`、包大小或构建失败原因）、`export_expert`（发现项必须被脱敏或被作者显式保留；保留决策须带匹配的 digest；经框架 `build_plugin_bundle` 构建并回读校验）；re-export 契约类型 | ✅ |
+| `export_service.py` | 门面 | 专家导出编排：`preview_expert_export`（依赖闭包 → 单次脱敏扫描 → 试构建，返回发现项、`review_digest`、包大小或构建失败原因）、`export_expert`（发现项必须被脱敏或被作者显式保留；保留决策须带匹配的 digest；经框架 `build_plugin_bundle` 构建并回读校验）；re-export 契约类型与批量导出接口 | ✅ |
+| `_export_batch.py` | 编排 | 多专家批量联合导出：`build_multi_export_plan`、`preview_multi_expert_export`、`export_multi_expert`；聚合多个自定义专家的联合依赖闭包、全局去重（Skills/Connectors/Templates）、统一脱敏并生成标准合辑包 | ✅ |
 | `_export_closure.py` | 收集 | `build_export_plan`：以入口专家为根的依赖闭包（子专家环安全、去重、上限 25；自有技能随文件、预置技能按名引用；连接器仅声明；入口专家物料）；一切不随包带出的内容记入 `omitted`（结构化原因码，由 UI 本地化） | ✅ |
 | `_export_connector.py` | 投影 | `connector_from_config`：已存连接器 → 可移植声明（env 值与 headers 字面值只留密钥名 / `{{secret:KEY}}` 占位；指向本机路径、依赖其它包携带文件、声明内含凭据、传输不受支持的连接器整体不随包）与 `secret_names_of` | ✅ |
 | `_export_render.py` | 渲染 | `corpus_of`（收件人可读的全部文本 → 单一评审语料）与 `spec_of`（评审后的语料 → `PluginBundleSpec`，所见即所发）；纯函数 | ✅ |

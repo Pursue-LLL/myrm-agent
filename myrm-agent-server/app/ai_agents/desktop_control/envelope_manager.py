@@ -43,6 +43,14 @@ class DesktopEnvelopeManager:
         self._active_envelope: IntentEnvelopeSpec | None = None
         self._envelopes_by_task: dict[str, IntentEnvelopeSpec] = {}
         self._last_active_by_task: dict[str, float] = {}
+        self._last_operation_by_task: dict[str, str] = {}
+
+    def record_last_operation(self, task_id: str, operation: str) -> None:
+        """Remember the latest envelope action for UI progress (non-authoritative)."""
+        op = operation.strip()
+        if not task_id or not op:
+            return
+        self._last_operation_by_task[task_id] = op[:160]
 
     @property
     def active_envelope(self) -> IntentEnvelopeSpec | None:
@@ -200,17 +208,21 @@ class DesktopEnvelopeManager:
         if not sink:
             return
 
+        last_operation = self._last_operation_by_task.get(envelope.task_id)
+        payload: dict[str, object] = {
+            "event_name": "desktop_envelope_progress",
+            "task_id": envelope.task_id,
+            "used_actions": envelope.used_actions,
+            "max_actions": envelope.max_actions,
+            "remaining_budget": envelope.remaining_budget(),
+            "can_extend": envelope.max_actions < _MAX_LEASE_HARD_LIMIT,
+            "hard_limit": _MAX_LEASE_HARD_LIMIT,
+        }
+        if last_operation:
+            payload["last_operation"] = last_operation
         await sink.emit(
             {
                 "type": AgentEventType.DESKTOP_ENVELOPE_PROGRESS,
-                "data": {
-                    "event_name": "desktop_envelope_progress",
-                    "task_id": envelope.task_id,
-                    "used_actions": envelope.used_actions,
-                    "max_actions": envelope.max_actions,
-                    "remaining_budget": envelope.remaining_budget(),
-                    "can_extend": envelope.max_actions < _MAX_LEASE_HARD_LIMIT,
-                    "hard_limit": _MAX_LEASE_HARD_LIMIT,
-                },
+                "data": payload,
             }
         )

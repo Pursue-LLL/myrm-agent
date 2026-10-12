@@ -36,14 +36,18 @@ from myrm_agent_harness.toolkits.memory import (
     MigrationRunReport,
     MigrationSourceType,
     MultiPlatformMigrationEngine,
+    MultiPlatformParserMatrix,
 )
 
 from app.schemas.memory_migration_wizard import (
     DetectedCandidateDTO,
+    ExtractedMemoryUnitDTO,
     MigrationDetectRequestDTO,
     MigrationDetectResponseDTO,
     MigrationImportRequestDTO,
     MigrationImportResponseDTO,
+    MigrationPreviewRequestDTO,
+    MigrationPreviewResponseDTO,
     MigrationRunReportDTO,
     MigrationSourcesListResponseDTO,
 )
@@ -56,9 +60,11 @@ class MigrationWizardService:
         self,
         scanner: CompetitorAssetScanner | None = None,
         engine: MultiPlatformMigrationEngine | None = None,
+        parser_matrix: MultiPlatformParserMatrix | None = None,
     ) -> None:
         self._scanner = scanner or CompetitorAssetScanner()
         self._engine = engine or MultiPlatformMigrationEngine()
+        self._parser_matrix = parser_matrix or MultiPlatformParserMatrix()
 
     def get_supported_sources(self) -> MigrationSourcesListResponseDTO:
         """Return the list of all supported external ecosystem format identifiers."""
@@ -68,9 +74,42 @@ class MigrationWizardService:
                 "hermes",
                 "chatgpt_export",
                 "claude_project",
+                "memos",
                 "markdown_tree",
                 "generic_json",
             ]
+        )
+
+    def preview_memory(
+        self, request: MigrationPreviewRequestDTO
+    ) -> MigrationPreviewResponseDTO:
+        """Parse external memory artifact and return normalized facts preview without committing."""
+        source_type = MigrationSourceType(request.source_type)
+        if request.file_path:
+            units = self._parser_matrix.parse_file(source_type, Path(request.file_path))
+        elif request.raw_content is not None:
+            units = self._parser_matrix.parse_payload(
+                source_type=source_type,
+                raw_content=request.raw_content,
+                source_id=request.source_label,
+            )
+        else:
+            raise ValueError("Either file_path or raw_content must be provided for preview")
+
+        unit_dtos = [
+            ExtractedMemoryUnitDTO(
+                source_type=u.source_type.value,  # type: ignore[arg-type]
+                source_id=u.source_id,
+                normalized_text=u.normalized_text,
+                layer=u.layer,
+                tags=u.tags,
+                content_hash=u.content_hash,
+            )
+            for u in units
+        ]
+        return MigrationPreviewResponseDTO(
+            total_extracted=len(unit_dtos),
+            units=unit_dtos,
         )
 
     def detect_assets(self, request: MigrationDetectRequestDTO) -> MigrationDetectResponseDTO:

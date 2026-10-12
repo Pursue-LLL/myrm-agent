@@ -21,8 +21,7 @@ from pathlib import Path
 from e2e_core.cursor_mcp_isolation import AGENT_CDP_PORT, E2E_CDP_PORT
 
 CANONICAL_AGENT_HINT = (
-    f"ChromeAgent :{AGENT_CDP_PORT} "
-    "(./myrm doctor --mcp-isolation --strict-live)"
+    f"ChromeAgent :{AGENT_CDP_PORT} " "(./myrm doctor --mcp-isolation --strict-live)"
 )
 
 FORBIDDEN_AGENT_RECOMMEND_PATTERNS: tuple[str, ...] = (
@@ -192,7 +191,9 @@ def validate_cross_file_contract(root: Path | None = None) -> list[str]:
                         f"{target.label}:{target.path}:{line_no}: recommends forbidden "
                         f"Agent pattern {pattern!r}: {line.strip()}"
                     )
-            if target.label == "chrome-e2e-preflight" and _line_requires_agent_hint(line):
+            if target.label == "chrome-e2e-preflight" and _line_requires_agent_hint(
+                line
+            ):
                 violations.append(
                     f"{target.label}:{target.path}:{line_no}: Agent MCP hint missing "
                     f":{AGENT_CDP_PORT}/ChromeAgent: {line.strip()}"

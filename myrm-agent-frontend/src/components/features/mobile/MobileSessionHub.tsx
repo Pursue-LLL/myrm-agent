@@ -1,15 +1,26 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - remoteAccessService (sessions, spawn-options, pairing token)
+ * - useMobileViewportAdapter & MobileShellStatusBar (native shell perception)
+ * - MobileHostControlRoster & MobilePwaInstallGuide (parity pack controls)
+ *
+ * [OUTPUT]
+ * - MobileSessionHub: Complete native mobile shell parity control hub (< 370 lines)
+ *
+ * [POS]
+ * Mobile PWA thin-client primary landing hub with dual-zone sessions, quick capture, and shell perception.
+ */
+
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   IconActivity,
   IconArrowRight,
   IconCheckCircle,
-  IconChevronUp,
   IconClock,
-  IconPlus,
   IconUsers,
   IconX,
   IconShieldCheck,
@@ -17,7 +28,6 @@ import {
 import { scheduleMobilePairRefresh, storeMobilePairToken } from '@/lib/mobileRemote';
 import { useE2EEStatus } from '@/lib/e2ee/useE2EEStatus';
 import E2EESecurityPanel from '@/components/features/e2ee/E2EESecurityPanel';
-import { isImeComposing } from '@/lib/utils/imeUtils';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { cancelActiveChatAgent } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
@@ -25,6 +35,13 @@ import type { ActiveSession, RecentSession, CurtainStatus } from '@/services/age
 import { remoteAccessService } from '@/services/remoteAccess';
 import type { SpawnOptionAgent, SpawnOptionProject } from '@/services/remoteAccess';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
+import MobileQuickCaptureDrawer from './MobileQuickCaptureDrawer';
+import { MobileQuickCaptureFab } from './MobileQuickCaptureFab';
+import { useMobileViewportAdapter } from './useMobileViewportAdapter';
+import { MobileShellStatusBar } from './MobileShellStatusBar';
+import { MobileHostControlRoster } from './MobileHostControlRoster';
+import { MobilePwaInstallGuide } from './MobilePwaInstallGuide';
+import { MobileTaskSpawnForm } from './MobileTaskSpawnForm';
 
 const AUTOSTART_SESSION_KEY = 'myrm_mobile_autostart_message';
 
@@ -38,6 +55,10 @@ export default function MobileSessionHub() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pairToken = searchParams.get('pair') ?? undefined;
+
+  const { isStandalone } = useMobileViewportAdapter();
+  const e2ee = useE2EEStatus();
+
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
   const [slots, setSlots] = useState<{ max: number; available: number } | null>(null);
@@ -46,9 +67,7 @@ export default function MobileSessionHub() {
   const [error, setError] = useState<string | null>(null);
   const [openingChatId, setOpeningChatId] = useState<string | null>(null);
   const [stoppingChatId, setStoppingChatId] = useState<string | null>(null);
-  const e2ee = useE2EEStatus();
 
-  const [formOpen, setFormOpen] = useState(false);
   const [agents, setAgents] = useState<SpawnOptionAgent[]>([]);
   const [projects, setProjects] = useState<SpawnOptionProject[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState('');
@@ -56,7 +75,7 @@ export default function MobileSessionHub() {
   const [taskMessage, setTaskMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [optionsLoaded, setOptionsLoaded] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [captureDrawerOpen, setCaptureDrawerOpen] = useState(false);
 
   const slotsFull = slots !== null && slots.available <= 0;
 
@@ -107,14 +126,13 @@ export default function MobileSessionHub() {
     }
   }, [optionsLoaded, t]);
 
-  const handleToggleForm = useCallback(() => {
-    const nextOpen = !formOpen;
-    setFormOpen(nextOpen);
-    if (nextOpen) {
+  const handleConvertToTask = useCallback(
+    (content: string) => {
+      setTaskMessage(content);
       void loadSpawnOptions();
-      requestAnimationFrame(() => textareaRef.current?.focus());
-    }
-  }, [formOpen, loadSpawnOptions]);
+    },
+    [loadSpawnOptions],
+  );
 
   const handleSubmit = useCallback(async () => {
     const text = taskMessage.trim();
@@ -132,7 +150,6 @@ export default function MobileSessionHub() {
       storeMobilePairToken(result.token);
       sessionStorage.setItem(AUTOSTART_SESSION_KEY, text);
       setTaskMessage('');
-      setFormOpen(false);
       router.push(result.mobilePath);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('spawnFailed'));
@@ -179,7 +196,15 @@ export default function MobileSessionHub() {
 
   return (
     <main className="min-h-dvh bg-gradient-to-b from-background via-background to-muted/30 text-foreground">
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-5 px-4 py-8 sm:px-6">
+      <MobileShellStatusBar
+        isConnecting={loading}
+        hasError={Boolean(error)}
+        onRetry={() => void loadSessions()}
+        hostName="Myrm Host"
+        isStandalone={isStandalone}
+      />
+
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-5 px-4 pt-12 pb-24 sm:px-6">
         <header className="space-y-2">
           <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/80 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
             <IconActivity className="h-3.5 w-3.5 text-primary" />
@@ -199,6 +224,13 @@ export default function MobileSessionHub() {
           ) : null}
           <E2EESecurityPanel {...e2ee} />
         </header>
+
+        <MobileHostControlRoster
+          agents={agents}
+          activeSessions={sessions}
+          selectedAgentId={selectedAgentId}
+          onSelectAgent={(id) => setSelectedAgentId(id)}
+        />
 
         {loading && sessions.length === 0 && recentSessions.length === 0 ? (
           <div className="rounded-2xl border border-border/70 bg-card/70 px-4 py-8 text-center text-sm text-muted-foreground backdrop-blur">
@@ -335,103 +367,31 @@ export default function MobileSessionHub() {
           </>
         ) : null}
 
-        <section className="space-y-3">
-          <button
-            type="button"
-            onClick={handleToggleForm}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
-          >
-            {formOpen ? (
-              <>
-                <IconChevronUp className="h-4 w-4" />
-                {t('newTaskCollapse')}
-              </>
-            ) : (
-              <>
-                <IconPlus className="h-4 w-4" />
-                {t('newTask')}
-              </>
-            )}
-          </button>
-
-          {formOpen && (
-            <div className="space-y-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur animate-in slide-in-from-top-2 duration-200">
-              {slotsFull ? (
-                <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-relaxed text-destructive">
-                  {t('slotsFull')}
-                </p>
-              ) : null}
-
-              <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">{t('selectAgent')}</span>
-                <select
-                  value={selectedAgentId}
-                  onChange={(e) => setSelectedAgentId(e.target.value)}
-                  aria-label={t('selectAgent')}
-                  className="block w-full rounded-xl border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
-                >
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {getBuiltinAgentName(a.id, a.name, locale)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {projects.length > 0 && (
-                <label className="block space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">{t('selectProject')}</span>
-                  <select
-                    value={selectedProjectId}
-                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                    aria-label={t('selectProject')}
-                    className="block w-full rounded-xl border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
-                  >
-                    <option value="">{t('noProject')}</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-
-              <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">{t('taskDescription')}</span>
-                <textarea
-                  ref={textareaRef}
-                  value={taskMessage}
-                  onChange={(e) => setTaskMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (isImeComposing(e)) {
-                      return;
-                    }
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      void handleSubmit();
-                    }
-                  }}
-                  placeholder={t('taskPlaceholder')}
-                  rows={3}
-                  className="block w-full resize-none rounded-xl border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
-                />
-              </label>
-
-              <button
-                type="button"
-                onClick={() => void handleSubmit()}
-                disabled={submitting || !taskMessage.trim() || !selectedAgentId || slotsFull}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {submitting ? t('submitting') : t('submit')}
-              </button>
-            </div>
-          )}
-        </section>
+        <MobileTaskSpawnForm
+          agents={agents}
+          projects={projects}
+          slotsFull={slotsFull}
+          submitting={submitting}
+          selectedAgentId={selectedAgentId}
+          onSelectAgent={(id) => setSelectedAgentId(id)}
+          selectedProjectId={selectedProjectId}
+          onSelectProject={(id) => setSelectedProjectId(id)}
+          taskMessage={taskMessage}
+          onTaskMessageChange={(msg) => setTaskMessage(msg)}
+          onSubmit={handleSubmit}
+          onOpenOptions={() => void loadSpawnOptions()}
+        />
 
         <p className="text-center text-[11px] text-muted-foreground">{t('footer')}</p>
       </div>
+
+      <MobileQuickCaptureFab onClick={() => setCaptureDrawerOpen(true)} />
+      <MobileQuickCaptureDrawer
+        open={captureDrawerOpen}
+        onClose={() => setCaptureDrawerOpen(false)}
+        onConvertToTask={handleConvertToTask}
+      />
+      <MobilePwaInstallGuide />
     </main>
   );
 }

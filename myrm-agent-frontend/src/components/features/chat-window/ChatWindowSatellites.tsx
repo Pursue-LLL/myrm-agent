@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import DesktopControlApprovalOverlay from '@/components/features/desktop-inspector/DesktopControlApprovalOverlay';
 import SubagentDashboard from './subagent/SubagentDashboard';
@@ -124,6 +125,10 @@ const PreferenceRadarToggle = dynamic(
   { ssr: false },
 );
 
+const ContextFootprintInspector = dynamic(() => import('./ContextFootprintInspector'), {
+  ssr: false,
+});
+
 interface ChatWindowSatellitesProps {
   chatId?: string;
   onInspectorInstruction: (instruction: string, refId: string | null) => void;
@@ -135,6 +140,16 @@ export default function ChatWindowSatellites({
   onInspectorInstruction,
   onDesktopInspectorInstruction,
 }: ChatWindowSatellitesProps) {
+  const [isContextInspectorOpen, setIsContextInspectorOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpen = () => setIsContextInspectorOpen(true);
+    window.addEventListener('myrm:open-context-inspector', handleOpen);
+    return () => {
+      window.removeEventListener('myrm:open-context-inspector', handleOpen);
+    };
+  }, []);
+
   const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
   const recoveryDialogOpen = useChatStore((s) => s.recoveryDialogOpen);
   const recoveryAgentId = useChatStore((s) => s.recoveryAgentId);
@@ -196,6 +211,10 @@ export default function ChatWindowSatellites({
         </>
       ) : null}
       {chatId ? <ContinualOverlayWatcher chatId={chatId} /> : null}
+      <ContextFootprintInspector
+        open={isContextInspectorOpen}
+        onClose={() => setIsContextInspectorOpen(false)}
+      />
     </>
   );
 }

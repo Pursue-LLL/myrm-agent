@@ -72,100 +72,12 @@ import SessionRecordingCard from './SessionRecordingCard';
 import VisualApprovalInlineSection from '@/components/features/chat-window/approval/VisualApprovalInlineSection';
 import { CouncilResultCard } from '@/components/features/chat-window/CouncilResultCard';
 import { AsyncAgentMessageCard } from '@/components/features/chat-window/AsyncAgentMessageCard';
-import { ChevronDown, ChevronRight, BrainCircuit } from 'lucide-react';
 import { MessageToc } from './MessageToc';
 import { McpAppSection } from './McpAppSection';
 import { DeliverableTierBadge } from './DeliverableTierBadge';
 import { ModelSpecialtyChip } from './ModelSpecialtyChip';
 import type { ReasoningDisplayMode } from '@/services/config/types';
-
-const ReasoningBlock = ({
-  message,
-  isLast,
-  loading,
-  isExpanded,
-  onToggle,
-  displayMode,
-}: {
-  message: Message;
-  isLast: boolean;
-  loading: boolean;
-  isExpanded: boolean;
-  onToggle: () => void;
-  displayMode: ReasoningDisplayMode;
-}) => {
-  const t = useTranslations('chat');
-  const isThinking = isLast && loading && !message.content;
-  const [elapsedSec, setElapsedSec] = useState(0);
-  const forceExpanded = displayMode === 'inline';
-  const showExpanded = forceExpanded || isExpanded;
-
-  useEffect(() => {
-    if (!isThinking || !message.reasoningStartedAt) {
-      setElapsedSec(0);
-      return;
-    }
-    const startedAt = message.reasoningStartedAt;
-    setElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
-    const timer = setInterval(() => {
-      setElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [isThinking, message.reasoningStartedAt]);
-
-  const durationSec = message.reasoningDurationMs ? Math.round(message.reasoningDurationMs / 1000) : null;
-
-  const label = isThinking
-    ? t('reasoningThinking', { seconds: elapsedSec })
-    : durationSec
-      ? t('reasoningCompleted', { seconds: durationSec })
-      : t('reasoningTitle');
-
-  return (
-    <div className="mb-4 border border-border/50 rounded-lg overflow-hidden bg-muted/20">
-      {displayMode === 'inline' ? (
-        <div className="w-full flex items-center px-4 py-2 text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <BrainCircuit className="w-4 h-4" />
-            <span className="font-medium">{label}</span>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={onToggle}
-          className="w-full flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors text-sm"
-        >
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <BrainCircuit className="w-4 h-4" />
-            <span className="font-medium">{label}</span>
-          </div>
-          {isExpanded ? (
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          )}
-        </button>
-      )}
-      {showExpanded && (
-        <div className="px-4 py-3 border-t border-border/50 text-sm text-muted-foreground bg-muted/10">
-          <MarkdownContent
-            content={message.reasoning ?? ''}
-            sources={[]}
-            messageId={`${message.messageId}-reasoning`}
-            isStreaming={isThinking}
-          />
-          {isThinking && (
-            <span className="inline-flex items-center ml-1.5 gap-0.5 align-middle" aria-label="Loading">
-              <span className="w-1 h-1 rounded-full bg-muted-foreground/50 animate-[pulse_1s_ease-in-out_infinite]" />
-              <span className="w-1 h-1 rounded-full bg-muted-foreground/50 animate-[pulse_1s_ease-in-out_0.2s_infinite]" />
-              <span className="w-1 h-1 rounded-full bg-muted-foreground/50 animate-[pulse_1s_ease-in-out_0.4s_infinite]" />
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+import ReasoningProcessAccordion from './ReasoningProcessAccordion';
 
 const MessageBox = ({
   message,
@@ -702,7 +614,7 @@ const MessageBox = ({
 
             {/* Reasoning display */}
             {message.reasoning && reasoningDisplayMode !== 'off' && (
-              <ReasoningBlock
+              <ReasoningProcessAccordion
                 message={message}
                 isLast={isLast}
                 loading={loading}

@@ -435,6 +435,10 @@ class UsageSummary(BaseModel):
     total_output_tokens: int
     total_tokens: int
     avg_tokens_per_run: int
+    estimated_hours_saved: float = 0.0
+    roi_multiple: float = 0.0
+    estimated_value_saved_cents: float = 0.0
+    estimated_cost_cents: float = 0.0
 
 
 class UsageByDay(BaseModel):
@@ -450,6 +454,7 @@ class UsageByJob(BaseModel):
     job_name: str
     total_tokens: int
     runs: int
+    hours_saved: float = 0.0
 
 
 class UsageByModel(BaseModel):

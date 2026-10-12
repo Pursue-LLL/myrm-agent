@@ -179,7 +179,7 @@ Never accumulate thousands of raw table records in conversation memory.
 2. **Concise Conversation Feedback**:
    - Return only compact metadata to the LLM turn:
      `[Page 3 Extracted: 25 rows appended to cache. Cumulative total: 75 rows. Sentinel verified.]`
-   - This keeps the conversation context lean and guarantees **100% Prompt Cache hit rates**.
+   - This keeps the conversation context lean and preserves a **stable prompt-cache prefix layout** (hit rate is provider-measured, not guaranteed).
 3. **Crash Recovery**:
    - If page 9 fails or encounters a network timeout, pages 1-8 are already safely persisted on disk.
 

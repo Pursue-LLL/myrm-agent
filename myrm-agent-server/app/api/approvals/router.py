@@ -1,32 +1,57 @@
-"""
-[INPUT]
+"""[INPUT]
 - app.services.approvals.registry::ApprovalRegistry (POS: 统一的拦截审批注册与唤醒中枢)
+- app.services.approvals.docket_service::DocketService (POS: 法律案卷包归档服务)
 - myrm_agent_harness.agent.types::Command (POS: LangGraph Resume 原语)
+- myrm_agent_harness.agent.security.jit_gate::JITDualVerificationGate (POS: 执行期防掉包与现势策略双重动态断言网关)
+- myrm_agent_harness.api.security::rollback_workspace_snapshot (POS: 快照回滚底层核心)
 
 [OUTPUT]
-- /api/v1/approvals: 审批接口（resolve 支持 comment、allow_always 透传）
+- /api/v1/approvals: 审批决策接口、法律案卷导出接口与快照回滚接口
 
 [POS]
-提供统一的审批决策接口。处理挂起任务的 approve/deny，恢复底层 agent 执行。
+提供统一的审批决策接口。处理挂起任务的 approve/deny，在恢复底层 agent 执行瞬间前置执行 JIT 物理资产防篡改校验，并固化法律审计案卷。
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any
+from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, status
-from myrm_agent_harness.api.security import (
-    rollback_workspace_snapshot,
+from myrm_agent_harness.agent.file_snapshot.restore_inbox import push_restore_notification
+from myrm_agent_harness.agent.security.jit_gate import (
+    AssetContentFingerprint,
+    AssetTamperedDuringApprovalError,
+    AssetType,
+    JITDualVerificationGate,
+    PolicyTightenedAtJITError,
 )
+from myrm_agent_harness.api.security import rollback_workspace_snapshot
 from pydantic import BaseModel
 
+from app.api.approvals.batch import router as batch_router
 from app.api.approvals.credentials import router as credentials_router
+from app.api.approvals.docket import router as docket_router
+from app.api.approvals.financial import router as financial_router
+from app.api.approvals.side_effect import router as side_effect_router
+from app.api.approvals.test_routes import router as test_routes_router
+from app.api.approvals.tiered_risk import router as tiered_risk_router
 from app.database.models.approval import ApprovalRecord
+from app.services.approvals.audit_ledger import get_audit_ledger
+from app.services.approvals.docket_service import DocketService
 from app.services.approvals.registry import ApprovalRegistry
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 router.include_router(credentials_router)
+router.include_router(test_routes_router)
+router.include_router(batch_router)
+router.include_router(docket_router)
+router.include_router(financial_router)
+router.include_router(side_effect_router)
+router.include_router(tiered_risk_router)
 
 
 async def _handle_outbound_draft_resolution(record: ApprovalRecord, decision: str) -> None:
@@ -56,18 +81,11 @@ class AllowAlwaysValue(BaseModel):
 
 class ResolveApprovalRequest(BaseModel):
     decision: str  # "approve" | "deny" | "reject" (frontend alias)
-    edited_payload: dict[str, Any] | None = None
+    edited_payload: dict[str, object] | None = None
     comment: str | None = None
     allow_always: bool | str | AllowAlwaysValue | None = None
     ttl_seconds: int | float | None = None
     ephemeral_credential_handles: list[str] | None = None
-
-
-class BatchResolveApprovalRequest(BaseModel):
-    approval_ids: list[str]
-    decision: str  # "approve" | "deny"
-    confirm_high_risk: bool = False
-    safe_only: bool = False
 
 
 class ApprovalRecordResponse(BaseModel):
@@ -75,20 +93,20 @@ class ApprovalRecordResponse(BaseModel):
     action_type: str
     reason: str | None
     severity: str
-    payload: dict[str, Any]
+    payload: dict[str, object]
     status: str
     created_at: str
     chat_id: str | None
     expires_at: str | None
 
     @classmethod
-    def from_orm(cls, record: Any) -> "ApprovalRecordResponse":
+    def from_orm(cls, record: ApprovalRecord) -> ApprovalRecordResponse:
         return cls(
             id=record.id,
             action_type=record.action_type,
             reason=record.reason,
             severity=record.severity,
-            payload=record.payload,
+            payload=record.payload or {},
             status=record.status,
             created_at=record.created_at.isoformat() if record.created_at else "",
             chat_id=record.chat_id,
@@ -120,6 +138,10 @@ class RevokeGrantRequest(BaseModel):
     tool_args_hash: str | None = None
     command_pattern: str | None = None
     agent_id: str | None = None
+
+
+class RollbackSnapshotRequest(BaseModel):
+    workspace_path: str | None = None
 
 
 @router.get("/grants", response_model=ActiveGrantListResponse)
@@ -181,9 +203,66 @@ async def resolve_approval(
     approval_id: str,
     req: ResolveApprovalRequest,
 ) -> ApprovalRecordResponse:
-    """Resolve an approval and resume the agent (if applicable)."""
-
+    """Resolve an approval and resume the agent (if applicable), enforcing JIT dual assertions."""
     normalized_decision = "approve" if req.decision == "approve" else "deny"
+
+    # Fetch pending record to assert physical integrity before committing state transition
+    existing_record = await ApprovalRegistry.get_approval(approval_id)
+    if not existing_record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
+
+    # JIT Dual Verification Gate Assertion: Prevent TOCTOU asset tampering before approval resolution
+    if normalized_decision == "approve" and isinstance(existing_record.payload, dict):
+        fingerprint_data = existing_record.payload.get("content_fingerprint")
+        if isinstance(fingerprint_data, dict):
+            try:
+                fingerprint = AssetContentFingerprint.from_dict(fingerprint_data)
+                target_path = Path(fingerprint.asset_identifier) if fingerprint.asset_type == AssetType.FILE else None
+                JITDualVerificationGate.assert_jit_dual_verification(
+                    fingerprint=fingerprint,
+                    target_path=target_path,
+                    is_policy_allowed=True,
+                )
+            except AssetTamperedDuringApprovalError as exc:
+                logger.warning(
+                    "[JIT_GATE] TOCTOU asset tampering detected for approval %s: %s",
+                    approval_id,
+                    exc,
+                )
+                await ApprovalRegistry.resolve_approval(
+                    approval_id=approval_id,
+                    decision="deny",
+                    edited_payload={"tampered_error": str(exc)},
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "error": "ASSET_TAMPERED_DURING_APPROVAL",
+                        "message": str(exc),
+                        "asset_identifier": exc.asset_identifier,
+                        "expected_sha256": exc.expected_sha256,
+                        "current_sha256": exc.current_sha256,
+                    },
+                ) from exc
+            except PolicyTightenedAtJITError as exc:
+                logger.warning(
+                    "[JIT_GATE] Policy tightened assertion failed for approval %s: %s",
+                    approval_id,
+                    exc,
+                )
+                await ApprovalRegistry.resolve_approval(
+                    approval_id=approval_id,
+                    decision="deny",
+                    edited_payload={"policy_error": str(exc)},
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "error": "POLICY_TIGHTENED_AT_JIT",
+                        "message": str(exc),
+                        "action_identifier": exc.action_identifier,
+                    },
+                ) from exc
 
     record = await ApprovalRegistry.resolve_approval(
         approval_id=approval_id,
@@ -194,11 +273,16 @@ async def resolve_approval(
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
 
+    # If approved, seal immutable legal audit docket for non-repudiation compliance
+    if normalized_decision == "approve":
+        try:
+            await DocketService.create_docket_for_approval(record)
+        except Exception as exc:
+            logger.warning("[APPROVAL_ROUTER] Failed to seal legal audit docket for %s: %s", approval_id, exc)
+
     if normalized_decision == "deny" and req.ephemeral_credential_handles:
         try:
-            from myrm_agent_harness.api import (
-                get_ephemeral_credential_store,
-            )
+            from myrm_agent_harness.api import get_ephemeral_credential_store
 
             store = get_ephemeral_credential_store()
             session_id = record.chat_id or "default"
@@ -221,9 +305,7 @@ async def resolve_approval(
         return ApprovalRecordResponse.from_orm(record)
 
     if record.action_type == "mcp_elicitation":
-        from app.services.agent.backends.mcp_elicitation_handler import (
-            resolve_pending_elicitation,
-        )
+        from app.services.agent.backends.mcp_elicitation_handler import resolve_pending_elicitation
 
         resolved = resolve_pending_elicitation(approval_id, normalized_decision)
         if not resolved:
@@ -233,7 +315,7 @@ async def resolve_approval(
             )
         return ApprovalRecordResponse.from_orm(record)
 
-    # If it's a LangGraph interrupt, we must resume the agent!
+    # If it's a LangGraph interrupt, resume the agent
     if record.thread_id:
         try:
             logger.info(
@@ -250,8 +332,9 @@ async def resolve_approval(
 
             payload = record.payload or {}
             review_configs = payload.get("reviewConfigs", [])
-            is_destructive = payload.get("irreversibleDestructive") is True or any(
-                isinstance(cfg, dict) and cfg.get("irreversibleDestructive") is True for cfg in review_configs
+            is_destructive = payload.get("irreversibleDestructive") is True or (
+                isinstance(review_configs, list)
+                and any(isinstance(cfg, dict) and cfg.get("irreversibleDestructive") is True for cfg in review_configs)
             )
             effective_allow_always = None if is_destructive else req.allow_always
             if is_destructive and req.allow_always:
@@ -292,296 +375,17 @@ async def resolve_approval(
     return ApprovalRecordResponse.from_orm(record)
 
 
-@router.post("/batch-resolve")
-async def batch_resolve_approvals(
-    req: BatchResolveApprovalRequest,
-) -> ApprovalListResponse:
-    """Batch resolve multiple approvals and resume the agents with dual-insurance high-risk protection."""
-    from myrm_agent_harness.agent.security.batch_risk import (
-        BatchApprovalItem,
-        classify_batch_approval_risk,
-    )
-
-    if not req.approval_ids:
-        return ApprovalListResponse(approvals=[])
-
-    normalized_decision = "approve" if req.decision == "approve" else "deny"
-
-    # Pre-fetch records to evaluate batch risk
-    pending_records: list[ApprovalRecord] = []
-    for approval_id in req.approval_ids:
-        record = await ApprovalRegistry.get_approval(approval_id)
-        if record and record.status == "PENDING":
-            pending_records.append(record)
-
-    if not pending_records:
-        return ApprovalListResponse(approvals=[])
-
-    # Convert to BatchApprovalItem contract
-    batch_items = [
-        BatchApprovalItem(
-            item_id=r.id,
-            action_type=r.action_type,
-            tool_name=(
-                r.payload.get("tool_calls", [{}])[0].get("name", r.action_type)
-                if isinstance(r.payload.get("tool_calls"), list) and r.payload.get("tool_calls")
-                else r.action_type
-            ),
-            severity=r.severity,
-            reason=r.reason,
-            payload=r.payload or {},
-        )
-        for r in pending_records
-    ]
-
-    risk_report = classify_batch_approval_risk(batch_items)
-
-    # If approving and batch contains high risk actions, enforce dual insurance
-    if normalized_decision == "approve" and risk_report.has_high_risk:
-        if not req.confirm_high_risk and not req.safe_only:
-            # Block batch approval and return 409 Conflict with structured risk detail
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "error": "BATCH_HIGH_RISK_CONFIRMATION_REQUIRED",
-                    "message": "Batch contains high-risk actions. Explicit confirmation or safe-only resolution is required.",
-                    "has_high_risk": True,
-                    "high_risk_count": risk_report.high_risk_count,
-                    "safe_count": risk_report.safe_count,
-                    "high_risk_items": [
-                        {
-                            "item_id": item.item_id,
-                            "action_type": item.action_type,
-                            "tool_name": item.tool_name,
-                            "risk_level": item.risk_level.value,
-                            "risk_reason": item.risk_reason,
-                        }
-                        for item in risk_report.high_risk_items
-                    ],
-                    "safe_item_ids": list(risk_report.safe_item_ids),
-                },
-            )
-
-    # Determine which target approval IDs to resolve
-    if normalized_decision == "approve" and req.safe_only:
-        if risk_report.safe_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "error": "NO_SAFE_ITEMS_TO_APPROVE",
-                    "message": "All items in the batch are high-risk. Cannot resolve safe-only batch without explicit confirmation.",
-                    "has_high_risk": True,
-                    "high_risk_count": risk_report.high_risk_count,
-                    "safe_count": 0,
-                    "high_risk_items": [
-                        {
-                            "item_id": item.item_id,
-                            "action_type": item.action_type,
-                            "tool_name": item.tool_name,
-                            "risk_level": item.risk_level.value,
-                            "risk_reason": item.risk_reason,
-                        }
-                        for item in risk_report.high_risk_items
-                    ],
-                    "safe_item_ids": [],
-                },
-            )
-        target_ids = list(risk_report.safe_item_ids)
-    else:
-        target_ids = req.approval_ids
-
-    resolved_records = []
-
-    for approval_id in target_ids:
-        try:
-            record = await ApprovalRegistry.resolve_approval(
-                approval_id=approval_id,
-                decision=normalized_decision,
-            )
-            if not record:
-                continue
-
-            resolved_records.append(record)
-
-            if record.action_type == "knowledge_patch":
-                await _handle_knowledge_patch_resolution(record, normalized_decision)
-
-            if record.thread_id:
-                try:
-                    from app.services.event.app_event_bus import (
-                        AppEvent,
-                        AppEventType,
-                        get_event_bus,
-                    )
-
-                    bus = get_event_bus()
-                    bus.publish(
-                        AppEvent(
-                            event_type=AppEventType.APPROVAL_RESOLVED,
-                            data={
-                                "action": "resume_agent",
-                                "approval_id": record.id,
-                                "thread_id": record.thread_id,
-                                "chat_id": record.chat_id,
-                                "agent_id": record.agent_id,
-                                "decision": normalized_decision,
-                                "edited_payload": None,
-                            },
-                        )
-                    )
-                except Exception as e:
-                    logger.error("Failed to resume agent for %s: %s", record.id, e)
-
-            if record.chat_id:
-                from app.services.agent.streaming_support.multiplexer import (
-                    WorkspaceMultiplexer,
-                )
-
-                WorkspaceMultiplexer.get().publish_session_status(record.chat_id, "idle", "")
-        except Exception as e:
-            logger.error("Failed to batch resolve approval %s: %s", approval_id, e)
-
-    return ApprovalListResponse(approvals=[ApprovalRecordResponse.from_orm(r) for r in resolved_records])
-
-
-@router.post("/test/seed-mock", include_in_schema=False)
-async def seed_test_mock_push_approval() -> dict[str, str]:
-    """Local dev/test only: seed a chat + inline pending approval for push deeplink E2E."""
-    from uuid import uuid4
-
-    from app.config.deploy_mode import is_local_mode
-    from app.database.dto import ChatCreate
-    from app.services.chat.chat_service import ChatService
-
-    if not is_local_mode():
-        raise HTTPException(status_code=404, detail="Not found")
-
-    chat_id = f"e2epush{uuid4().hex[:8]}"
-    await ChatService.create_or_update_chat(
-        ChatCreate(chat_id=chat_id, title="Push deeplink E2E", messages=[]),
-    )
-    record = await ApprovalRegistry.create_approval(
-        agent_id="e2e-push-deeplink",
-        action_type="delete_file",
-        payload={"path": "/tmp/e2e-push-deeplink"},
-        reason="Chrome E2E push approval deeplink",
-        chat_id=chat_id,
-        thread_id=f"e2e-thread-{uuid4().hex[:8]}",
-    )
-    push_url = f"/{chat_id}?approval={record.id}"
-    return {
-        "chat_id": chat_id,
-        "approval_id": record.id,
-        "push_url": push_url,
-        "ui_url": push_url,
-    }
-
-
-@router.post("/test/seed-hardened-mock", include_in_schema=False)
-async def seed_test_hardened_mock_approval(
-    variant: str = "socially_irreversible",
-) -> dict[str, str]:
-    """Local dev/test only: seed an approval with autoModeSuspended or sociallyIrreversible reviewConfigs."""
-    from uuid import uuid4
-
-    from app.config.deploy_mode import is_local_mode
-    from app.database.dto import ChatCreate
-    from app.services.chat.chat_service import ChatService
-
-    if not is_local_mode():
-        raise HTTPException(status_code=404, detail="Not found")
-
-    chat_id = f"e2ehardened{uuid4().hex[:8]}"
-    await ChatService.create_or_update_chat(
-        ChatCreate(chat_id=chat_id, title=f"Hardened AutoMode E2E {variant}", messages=[]),
-    )
-
-    if variant == "auto_mode_suspended":
-        payload = {
-            "tool_calls": [{"name": "shell_exec", "args": {"command": "cat /tmp/secret"}}],
-            "reviewConfigs": [
-                {
-                    "autoModeSuspended": "consecutive",
-                    "hideAllowAlways": True,
-                    "smartDenied": True,
-                }
-            ],
-        }
-        reason = "Auto mode suspended after 3 consecutive denials"
-    else:
-        payload = {
-            "tool_calls": [{"name": "shell_exec", "args": {"command": "git push origin main"}}],
-            "reviewConfigs": [
-                {
-                    "sociallyIrreversible": True,
-                    "hideAllowAlways": True,
-                }
-            ],
-        }
-        reason = "Socially irreversible action requires explicit approval"
-
-    record = await ApprovalRegistry.create_approval(
-        agent_id="e2e-hardened-automode",
-        action_type="subagent_approval",
-        payload=payload,
-        reason=reason,
-        chat_id=chat_id,
-        thread_id=f"e2e-thread-{uuid4().hex[:8]}",
-    )
-    push_url = f"/{chat_id}?approval={record.id}"
-    return {
-        "chat_id": chat_id,
-        "approval_id": record.id,
-        "push_url": push_url,
-        "ui_url": push_url,
-    }
-
-
-@router.post("/test/cleanup-hardened-mock", include_in_schema=False)
-async def cleanup_test_hardened_mock_approval(
-    approval_id: str | None = None,
-) -> dict[str, object]:
-    """Local dev/test only: clean up e2ehardened mock approvals under READ access scope."""
-    from app.config.deploy_mode import is_local_mode
-
-    if not is_local_mode():
-        raise HTTPException(status_code=404, detail="Not found")
-
-    cleaned_ids: list[str] = []
-    if approval_id:
-        record = await ApprovalRegistry.get_approval(approval_id)
-        if record and (str(record.chat_id or "").startswith("e2ehardened") or record.agent_id == "e2e-hardened-automode"):
-            await ApprovalRegistry.resolve_approval(approval_id, "reject")
-            cleaned_ids.append(approval_id)
-    else:
-        approvals = await ApprovalRegistry.list_approvals(limit=100)
-        for item in approvals:
-            if str(item.chat_id or "").startswith("e2ehardened") or item.agent_id == "e2e-hardened-automode":
-                await ApprovalRegistry.resolve_approval(item.id, "reject")
-                cleaned_ids.append(item.id)
-
-    return {"ok": True, "cleaned_count": len(cleaned_ids), "cleaned_ids": cleaned_ids}
-
-
-class RollbackSnapshotRequest(BaseModel):
-    workspace_path: str | None = None
-
-
 @router.post("/{approval_id}/rollback")
 async def rollback_approval_snapshot(
     approval_id: str,
     req: RollbackSnapshotRequest | None = None,
 ) -> dict[str, object]:
     """Rollback the workspace state to the pre-destructive snapshot captured for this approval."""
-    from pathlib import Path
-
     record = await ApprovalRegistry.get_approval(approval_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
 
     if record.created_at:
-        from datetime import datetime, timezone
-
         now = datetime.now(timezone.utc)
         record_time = record.created_at
         if record_time.tzinfo is None:
@@ -603,7 +407,7 @@ async def rollback_approval_snapshot(
                     snapshot_id = cfg["snapshotId"]
                     break
 
-    if not snapshot_id:
+    if not snapshot_id or not isinstance(snapshot_id, str):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No workspace snapshot ID associated with this approval",
@@ -617,10 +421,32 @@ async def rollback_approval_snapshot(
             detail="Failed to rollback workspace snapshot",
         )
 
+    # 1. Inform Agent via restore_inbox to align context and prevent hallucinations
+    try:
+        push_restore_notification(snapshot_id=snapshot_id, files_restored=1)
+    except Exception as exc:
+        logger.warning("Failed to push restore notification to restore_inbox: %s", exc)
+
+    # 2. Record tamper-evident audit receipt in the legal ledger
+    receipt_id: str | None = None
+    try:
+        ledger = get_audit_ledger()
+        receipt = await ledger.record_action(
+            action_type="WORKSPACE_PHYSICAL_ROLLBACK",
+            action_command=f"rollback_snapshot:{snapshot_id}",
+            target_assets=[str(wpath)],
+            operator_id=record.agent_id or "user",
+            snapshot_ref=snapshot_id,
+            metadata={"approval_id": approval_id},
+        )
+        receipt_id = receipt.receipt_id
+    except Exception as exc:
+        logger.warning("Failed to record audit receipt for rollback %s: %s", approval_id, exc)
+
     return {
         "ok": True,
         "approval_id": approval_id,
         "snapshot_id": snapshot_id,
+        "receipt_id": receipt_id,
         "message": "Workspace successfully rolled back to pre-destructive state",
     }
-

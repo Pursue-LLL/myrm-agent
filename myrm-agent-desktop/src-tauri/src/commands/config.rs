@@ -8,7 +8,7 @@
 //!
 //! [OUTPUT]
 //! - `load_system_config`: 加载系统运行时配置
-//! - `save_system_config`: 保存系统配置并按需更新快捷键与自启
+//! - `save_system_config`: 保存系统配置；先写 `desktop_runtime.json` 离席桥，配置落盘失败则回滚 runtime
 //! - `migrate_data_dir`: 迁移数据存储根目录并重启后端服务
 //!
 //! [POS]
@@ -38,7 +38,19 @@ pub async fn save_system_config(
     use tauri_plugin_autostart::ManagerExt;
 
     let should_enable = config.auto_launch_at_login;
-    config_manager.save(&config)?;
+    let previous = config_manager.load();
+    crate::commands::desktop_runtime_state::sync_locked_use_enabled(
+        &app,
+        config.locked_use_enabled,
+    )
+    .map_err(|e| format!("Failed to sync away-mode runtime bridge: {e}"))?;
+    if let Err(save_err) = config_manager.save(&config) {
+        let _ = crate::commands::desktop_runtime_state::sync_locked_use_enabled(
+            &app,
+            previous.locked_use_enabled,
+        );
+        return Err(save_err);
+    }
 
     if let Ok(currently_enabled) = app.autolaunch().is_enabled() {
         if should_enable && !currently_enabled {
@@ -59,8 +71,20 @@ pub async fn reset_system_config(
     app: tauri::AppHandle,
     config_manager: State<'_, ConfigManager>,
 ) -> Result<SystemConfig, String> {
+    let previous = config_manager.load();
     config_manager.reset()?;
     let config = config_manager.load();
+    if let Err(sync_err) = crate::commands::desktop_runtime_state::sync_locked_use_enabled(
+        &app,
+        config.locked_use_enabled,
+    ) {
+        let _ = config_manager.save(&previous);
+        let _ = crate::commands::desktop_runtime_state::sync_locked_use_enabled(
+            &app,
+            previous.locked_use_enabled,
+        );
+        return Err(format!("Failed to sync away-mode runtime bridge: {sync_err}"));
+    }
 
     use tauri_plugin_autostart::ManagerExt;
     if let Ok(currently_enabled) = app.autolaunch().is_enabled() {

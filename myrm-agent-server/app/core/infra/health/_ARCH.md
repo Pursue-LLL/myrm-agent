@@ -21,6 +21,7 @@ Diagnostic aggregation for `/health/doctor` lives here:
 | anthropic_policy_diagnostic.py | Core | Anthropic subscription policy and fallback escape diagnostic probe. | ✅ |
 | contracts.py | Core | Diagnostic protocol re-exports from harness observability. | ✅ |
 | skill_diagnostics.py | Core | Skill ecosystem diagnostic probe (SkillHoardingHealthDiagnostic skill hoarding & wrong-but-frequent low-quality audit). | ✅ |
+| desktop_locked_use_diagnostic.py | Core | Locked Use / Privacy Curtain bridge + desktop shell liveness probe for `/health/doctor`. Tests: `tests/core/infra/health/test_desktop_locked_use_diagnostic.py`. | ✅ |
 | server_diagnostics.py | Core | Server business diagnostic probes (DLQ & Durable Outbound Redelivery, ExecutionCache & Process RSS) and probe runner manager. Tests: `tests/core/infra/health/test_server_diagnostics_execution_cache.py`. | ✅ |
 | trace_security_diagnostic.py | Core | Probes OpenTelemetry trace exporter posture ensuring zero unauthorized egress and local-only isolation. | ✅ |
 | session_diagnostics.py | Core | OrphanSessionDiagnostic 孤儿空壳会话（缺少 Assistant 回复的遗留空会话）健康诊断探针与清理审计。 | ✅ |

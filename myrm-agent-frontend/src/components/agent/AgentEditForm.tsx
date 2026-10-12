@@ -243,11 +243,10 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-4">
             <div className="flex flex-col items-center gap-4 mb-6">
-              <div
-                className="relative group cursor-pointer"
+              <button
+                type="button"
+                className="relative group cursor-pointer border-none bg-transparent p-0 m-0 text-left"
                 onClick={handleAvatarClick}
-                role="button"
-                tabIndex={0}
                 onKeyDown={activateOnKey}
                 aria-label={t('avatar.hint', { fallback: 'Select an icon or click above to upload' })}
               >
@@ -265,7 +264,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                   )}
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-              </div>
+              </button>
               <div className="flex flex-wrap justify-center gap-1.5 max-w-[280px]">
                 {Object.keys(AGENT_ICON_REGISTRY).map((iconId) => (
                   <button

@@ -339,20 +339,18 @@ from app.api.memory.vector_dim_guard_router import (
 from app.api.memory.vector_preflight_router import (
     router as memory_vector_preflight_router,
 )
-from app.api.memory.verifiable_provenance_router import (
-    router as verifiable_provenance_router,
-)
-from app.api.memory.zk_vault_watermark_router import (
-    router as zk_vault_watermark_router,
-)
+from app.config.deploy_mode import is_local_mode
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-router.include_router(command_center.router, tags=["memory-command-center"])
-router.include_router(command_center_consolidation.router, tags=["memory-command-center"])
-router.include_router(command_center_diagnostics.router, tags=["memory-command-center"])
+if settings.memory_labs_enabled:
+    router.include_router(command_center.router, tags=["memory-command-center"])
+    router.include_router(command_center_consolidation.router, tags=["memory-command-center"])
+    router.include_router(command_center_diagnostics.router, tags=["memory-command-center"])
+
 router.include_router(pending.router, tags=["memory-pending"])
 router.include_router(conflicts.router, tags=["memory-conflicts"])
 router.include_router(shared_context_health.router, tags=["memory-shared-contexts"])
@@ -403,8 +401,9 @@ router.include_router(kg_screening_router, tags=["memory-kg-screening"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
-router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
-router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
+if is_local_mode():
+    router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
+    router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
 router.include_router(dream_diary.router, tags=["memory-dream-diary"])
 router.include_router(dream_diary.unlearn_router, tags=["memory-surgical-unlearn"])
 router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
@@ -689,13 +688,3 @@ router.include_router(
     staleness_consolidation_router,
     tags=["memory-staleness-consolidation"],
 )
-router.include_router(
-    zk_vault_watermark_router,
-    tags=["memory-zk-vault"],
-)
-router.include_router(
-    verifiable_provenance_router,
-    tags=["memory-verifiable-provenance"],
-)
-
-

@@ -20,6 +20,9 @@
  * target every session belongs to, and the execution-context replay for late joiners of a
  * shared session (context-replay.mjs), because it already sees every base-session event.
  *
+ * `describeSession` resolves a session to "<owned|base> <type> <current url>" for the
+ * slow-request log (request-watch.mjs).
+ *
  * The router does no I/O: the proxy injects delivery and detach callbacks, which keeps
  * every routing rule unit-testable without Chrome.
  */

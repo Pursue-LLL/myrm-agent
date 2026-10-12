@@ -1400,3 +1400,98 @@ html[data-myrm-theme-dual-accent='true'] ::selection {
     font-size: 0.75rem;
   }
 }
+
+/* ==========================================================================
+   Desktop Acrylic Glassmorphism & Liquid Vibrancy Token Suite (Item 17)
+   ========================================================================== */
+
+/* 深度磨砂玻璃主面板：支持系统底层透光与色彩饱和度增强 */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36), inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+}
+
+:root:not(.dark) .glass-panel {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.12), inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+}
+
+/* 柔和半透明磨砂次级卡片 */
+.glass-subtle {
+  background: rgba(30, 41, 59, 0.45);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+:root:not(.dark) .glass-subtle {
+  background: rgba(248, 250, 252, 0.65);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* 悬浮 HUD 状态栏专属毛玻璃胶囊（带 Spring 物理弹性） */
+.glass-floating-bar {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.glass-floating-bar:hover {
+  border-color: rgba(96, 165, 250, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(59, 130, 246, 0.2);
+}
+
+/* 1px 细腻晶透高光边框 */
+.glass-border-highlight {
+  position: relative;
+}
+
+.glass-border-highlight::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  pointer-events: none;
+}
+
+/* Liquid 悬浮微交互：带有弹性阻尼与微发光扩散 */
+.liquid-interactive {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease-out, background 0.25s ease-out;
+}
+
+.liquid-interactive:hover {
+  transform: scale(1.02);
+}
+
+.liquid-interactive:active {
+  transform: scale(0.98);
+}
+
+@keyframes liquid-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px -3px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px 2px rgba(99, 102, 241, 0.5);
+  }
+}
+
+.animate-liquid-glow {
+  animation: liquid-glow 3s infinite ease-in-out;
+}
+

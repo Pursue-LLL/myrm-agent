@@ -169,6 +169,12 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `runs/` | Read-only Unified Runs Hub — aggregates `core/cron/`, `services/kanban/`, shell background tasks (see `api/runs/_ARCH.md`) |
 | `internal/` | Control Plane internal bridge (SaaS) |
 | `client_logs/` | ingest only — no business service |
+| `dev_ports/` | harness `toolkits/code_execution/utils/port_sniffer` (listening-port discovery, process control, preview tunnels) |
+| `presentation/` · `spreadsheet/` | in-module generators (`python-pptx` slides, styled Excel export) — no service layer |
+| `self_evolution/` | in-module component locate / recover pipeline for UI self-evolution tickets |
+| `session_map/` | direct DB aggregation over chat and project models |
+| `system_assistant/` | in-module natural-language system control routes |
+| `workbench/` | in-module workspace file tree, command and plugin routes |
 
 ### `services/` only — no matching `api/<same-name>/`
 
@@ -193,6 +199,7 @@ Called from other HTTP trees or lifecycle hooks:
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
 | `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
 | `loop/` | Session-scoped loop scheduling with turn arbiter (`api/chats/{chat_id}/loop`) |
+| `ui_interaction/` | Reverse UI handshake between harness `ExtensionUIContext` and clients (`api/chats/chat/ui_interaction.py`) |
 
 **Rule of thumb:** add HTTP in `api/`; add orchestration in `services/`; add reusable primitives in `core/`; never duplicate harness execution logic in server.
 

@@ -1,4 +1,16 @@
-"""Service layer for On-Demand Credential Materialization and Multi-Encoding Masking."""
+"""Service layer for On-Demand Credential Materialization and Multi-Encoding Masking.
+
+[INPUT]
+- myrm_agent_harness.core.security.on_demand_masking::OnDemandCredentialResolver (POS: Resolves requested credentials on demand)
+- myrm_agent_harness.core.security.on_demand_masking::MultiEncodingSecretMasker (POS: Redaction engine for multi-format secrets)
+- app.schemas.on_demand_masking::MaskTextRequest (POS: Schema for masking requests)
+
+[OUTPUT]
+- OnDemandMaskingService: Provides on-demand materialization and output masking for commands.
+
+[POS]
+Service layer providing execution environment isolation and output redaction for FastAPI routers.
+"""
 
 from __future__ import annotations
 

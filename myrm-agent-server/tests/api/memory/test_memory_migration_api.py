@@ -168,5 +168,5 @@ def test_ingest_competitor_assets_api(
     assert data["success"] is True
     assert data["imported_memories_count"] == 1
     assert data["imported_rules_count"] == 1
-    assert (ingest_target / "wiki_memory_data" / "note.md").exists()
+    assert (ingest_target / "memories" / "note.md").exists()
     assert (ingest_target / "rules" / "hermes_config.yaml").exists()

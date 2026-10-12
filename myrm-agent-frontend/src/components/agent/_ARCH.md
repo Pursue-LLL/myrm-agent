@@ -16,10 +16,12 @@
 | `CommandBindingsEditor.tsx`  | 辅助 | Agent 斜杠命令绑定列表编辑                                                                                                                                                                                                                       | ✅    |
 | `GovernancePanel.tsx`        | 辅助 | 责任单元治理面板（孤儿/重叠展示 + 孤儿直删；仅 needs_attention 时渲染）                                                                                                                                                                          | ✅    |
 | `GovernanceMergeWizard.tsx`  | 辅助 | 合并向导（来源/目标双选 + dry-run 明细 + typed确认 + 成功后Undo；成功后锁定选项防错位）                                                                                                                                                          | ✅    |
-| `AgentSetupWizard.tsx`       | 辅助 | 新手向导（模板选择 + 就绪检查 + 试用对话 + 完成；复用模板/就绪 API 与 AgentEditForm；toC 文案经 `Agent.setupWizard` i18n）                                                                                                                       | ✅    |
+| `AgentSetupWizard.tsx`       | 辅助 | 新手向导（模板选择 → 设置预览门控 → 就绪检查 → 试用对话 → 完成；集成 `AgentSettingsPreviewGate` 消除盲盒创建；toC 文案经 `Agent.setupWizard` i18n） | ✅    |
+| `AgentSettingsPreviewGate.tsx` | 核心 | 智能体创建前全量设置预览门控面板（5 维核心配置矩阵：Built-in Tools, Skills Pack, MCP Connectors, Memory Engine, Deploy Mode & Sandbox Bounds；Pre-flight 状态徽标与确认创建门控） | ✅    |
 | `DualLayerMemoryCard.tsx`    | 核心 | 用户画像与智能体工作笔记双层结构化看板（Dual-Layer Memory HUD，USER ≤ 1375c 与 MEMORY ≤ 2200c 容量水位指示器与垃圾过滤器探针）                                                                                                                   | ✅    |
 | `AgentReadinessList.tsx`     | 辅助 | 就绪度逐项列表（文案来自 `useReadinessText`），`withLinks` 时为未就绪项提供设置深链；新手向导与插件导入结果页共用                                                                                                                                | ✅    |
 | `useReadinessText.ts`        | 辅助 | 就绪度发现的本地化措辞 SSOT：按后端稳定 `code` + `names/count` 取 `Agent.readiness.reasons.*`；后端英文 `reason`/`next_action` 仅作诊断、从不展示；未知 `code` 回退按等级的通用句、未知维度回退「其他」，长名单只列前 3 项；列表与输入框徽标共用 | ✅    |
+| `__tests__/AgentSettingsPreviewGate.test.tsx` | 核心 | 预览门控单测：覆盖 5 维设置矩阵完整渲染、空配置回退文案、团队徽章、返回导航与确认创建按钮回调及禁用状态 | ✅    |
 
 ## 消费方（示例）
 

@@ -47,7 +47,7 @@ from app.services.locked_use.curtain_bridge import (
     MAX_UNLOCK_ATTEMPTS,
     CurtainBridgeState,
     clear_pending_auto_unlock,
-    locked_use_enabled_from_env,
+    locked_use_enabled,
     mark_pending_auto_unlock,
     read_curtain_state,
 )
@@ -183,7 +183,7 @@ async def _acquire_lease() -> None:
     global _unlock_failures, _lease_held
     async with _lease_guard:
         state = read_curtain_state()
-        if state is None or not state.active or not locked_use_enabled_from_env():
+        if state is None or not state.active or not locked_use_enabled():
             return
         if _lease_held:
             # 持租约期间屏幕又被锁上（自动锁屏，或主人离场前手动锁定）：旧租约已无对象。
@@ -201,25 +201,36 @@ async def _acquire_lease() -> None:
         if not mark_pending_auto_unlock():
             return
         try:
-            unlocked = await MacScreenUnlocker.unlock()
+            outcome = await MacScreenUnlocker.unlock()
         except Exception:
             # 键入尚未发生的失败：必须立即交还租约位，否则帷幕会滞留遮蔽。
             # 取消（BaseException）不在此列：已派出的键入可能已解锁屏幕，租约位保持置位由下一进程接管。
             clear_pending_auto_unlock()
             raise
-        if unlocked:
+        if outcome.lease_ready():
             _unlock_failures = 0
             _lease_held = True
-            logger.info("[Audit] curtain: unattended unlock granted (screen locked under an active curtain)")
+            logger.info(
+                "[Audit] curtain: unattended unlock granted (outcome=%s)",
+                outcome.value,
+            )
             return
 
         # 解锁失败必须立即交还租约，否则帷幕会滞留遮蔽。
         clear_pending_auto_unlock()
         _unlock_failures += 1
+        from app.services.locked_use.user_messages import (
+            locked_use_error_code,
+            locked_use_error_message,
+        )
+
         logger.error(
-            "[Audit] curtain: unattended unlock attempt failed (%d/%d)",
+            "[Audit] curtain: unattended unlock attempt failed outcome=%s code=%s (%d/%d) %s",
+            outcome.value,
+            locked_use_error_code(outcome),
             _unlock_failures,
             MAX_UNLOCK_ATTEMPTS,
+            locked_use_error_message(outcome),
         )
 
 
@@ -247,7 +258,7 @@ async def _watch_loop() -> None:
                 _lease_held = False
             elif _lease_held:
                 await _tick_lease_held(state)
-            elif not MacScreenUnlocker.is_locked():
+            elif MacScreenUnlocker.is_verifiably_unlocked():
                 # 用户亲自解锁 = 在场证明，重置重试计数。
                 _unlock_failures = 0
         except Exception as error:  # noqa: BLE001 — watcher 必须永不退出

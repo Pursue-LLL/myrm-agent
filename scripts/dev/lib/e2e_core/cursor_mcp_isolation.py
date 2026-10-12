@@ -155,7 +155,7 @@ class DoctorReport:
 
 
 def _real_home() -> Path:
-    override = os.environ.get("CURSOR2_ORIGINAL_HOME", "").strip()
+    override = os.environ.get("MYRM_REAL_HOME", "").strip()
     if override:
         return Path(override).expanduser()
     return Path.home()
@@ -165,7 +165,6 @@ def known_cursor_mcp_paths() -> list[Path]:
     home = _real_home()
     return [
         home / ".cursor" / "mcp.json",
-        home / ".cursor2" / ".cursor" / "mcp.json",
         home / ".cursor-3.1.15" / "mcp.json",
     ]
 

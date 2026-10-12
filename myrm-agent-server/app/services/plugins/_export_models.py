@@ -23,12 +23,15 @@ from enum import StrEnum
 from typing import Literal
 
 from myrm_agent_harness.agent.plugins.models import PluginAgent, PluginMcpServer
+from myrm_agent_harness.agent.skills.security.content_sanitizer import Redaction
 
 __all__ = [
     "ExpertDraft",
     "ExportError",
     "ExportErrorCode",
     "ExportPlan",
+    "ExportPreview",
+    "ExportedPackage",
     "ExportedSkill",
     "Omit",
     "OmittedItem",
@@ -120,3 +123,19 @@ class ExportPlan:
     @property
     def entry(self) -> PluginAgent:
         return self.experts[0].agent
+
+
+@dataclass(frozen=True)
+class ExportPreview:
+    plan: ExportPlan
+    version: str
+    redactions: dict[str, list[Redaction]]  # findings per reviewed path (indices are what a decision refers to)
+    review_digest: str  # fingerprint of the reviewed texts; decisions are only valid for them
+    package_bytes: int | None  # size of the package a dry run produced
+    build_error: str | None  # why the dry run failed (the export would fail the same way)
+
+
+@dataclass(frozen=True)
+class ExportedPackage:
+    zip_content: bytes
+    filename: str

@@ -2,115 +2,47 @@
 
 /**
  * [INPUT]
- * - @/services/statistics::getLearningTimeline, updateTimelineMemory, deleteTimelineMemory, archiveTimelineSkill (POS: 学习时间线与治理数据接口)
- * - @/components/primitives/button::Button, @/components/primitives/card::Card (POS: 基础 UI 原语)
+ * - @/services/statistics::getLearningTimeline (POS: 学习时间线数据接口)
+ * - @/store/useAgentStore (POS: 智能体列表，把节点的 agent_id 解析为展示名称)
+ * - ./TimelineNodeCard::TimelineNodeCard (POS: 单个节点展示与行内编辑)
+ * - ./useTimelineGovernance::useTimelineGovernance (POS: 行内治理动作：乐观更新、回滚、撤销)
+ * - ./learningTimelineMeta (POS: 节点元数据与状态读取)
  *
  * [OUTPUT]
- * - LearningTimeline: 记忆与技能统一学习成长时间线面板，支持按类型过滤、时间跨度选择、就地行内编辑/删除/归档。
+ * - LearningTimeline: 记忆与技能统一学习成长时间线面板，支持按类型过滤、时间跨度选择，
+ *   以及带确认、乐观更新、失败回滚与撤销的行内治理（编辑/删除/归档）。
  *
  * [POS]
  * 成长与进化模块组件。在 /journey 页面提供直观的时序成长足迹展示与即时治理界面。
  */
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Brain,
-  Sparkles,
-  Zap,
-  BookOpen,
-  Calendar,
-  Layers,
-  Edit3,
-  Trash2,
-  Archive,
-  Lock,
-  ChevronDown,
-  ExternalLink,
-  Check,
-  X,
-  AlertCircle,
-  Clock,
-  RotateCcw,
-} from 'lucide-react';
+import { AlertCircle, Brain, ChevronDown, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
-import { Card, CardContent } from '@/components/primitives/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/primitives/alert-dialog';
 import { EmptyState } from '@/components/primitives/empty-state';
 import { TimelineSkeleton } from '@/components/primitives/skeleton-templates';
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  getLearningTimeline,
-  updateTimelineMemory,
-  deleteTimelineMemory,
-  archiveTimelineSkill,
-  type LearningTimelineItem,
-  type TimelineNodeKind,
-} from '@/services/statistics';
 import { showApiError } from '@/lib/api';
+import { getLearningTimeline, type LearningTimelineItem } from '@/services/statistics';
+import useAgentStore from '@/store/useAgentStore';
+import { TimelineNodeCard } from './TimelineNodeCard';
+import { useTimelineGovernance } from './useTimelineGovernance';
+import { FILTER_TABS, RECOVERABLE_MEMORY_TYPES, memoryTypeOf } from './learningTimelineMeta';
 
-const KIND_META: Record<
-  TimelineNodeKind,
-  {
-    icon: typeof Brain;
-    color: string;
-    bgColor: string;
-    borderColor: string;
-    labelKey: string;
-  }
-> = {
-  fact_memory: {
-    icon: BookOpen,
-    color: 'text-sky-500',
-    bgColor: 'bg-sky-500/10',
-    borderColor: 'border-sky-500/30',
-    labelKey: 'filterFact',
-  },
-  preference_memory: {
-    icon: Sparkles,
-    color: 'text-violet-500',
-    bgColor: 'bg-violet-500/10',
-    borderColor: 'border-violet-500/30',
-    labelKey: 'filterPreference',
-  },
-  procedural_memory: {
-    icon: Layers,
-    color: 'text-amber-500',
-    bgColor: 'bg-amber-500/10',
-    borderColor: 'border-amber-500/30',
-    labelKey: 'filterProcedural',
-  },
-  episodic_memory: {
-    icon: Calendar,
-    color: 'text-emerald-500',
-    bgColor: 'bg-emerald-500/10',
-    borderColor: 'border-emerald-500/30',
-    labelKey: 'filterEpisodic',
-  },
-  skill_evolution: {
-    icon: Zap,
-    color: 'text-cyan-500',
-    bgColor: 'bg-cyan-500/10',
-    borderColor: 'border-cyan-500/30',
-    labelKey: 'filterEvolution',
-  },
-  skill_draft: {
-    icon: Clock,
-    color: 'text-rose-500',
-    bgColor: 'bg-rose-500/10',
-    borderColor: 'border-rose-500/30',
-    labelKey: 'filterDraft',
-  },
-};
+const PAGE_SIZE = 20;
 
-const FILTER_TABS: Array<{ id: string; labelKey: string }> = [
-  { id: 'all', labelKey: 'filterAll' },
-  { id: 'fact_memory', labelKey: 'filterFact' },
-  { id: 'preference_memory', labelKey: 'filterPreference' },
-  { id: 'procedural_memory', labelKey: 'filterProcedural' },
-  { id: 'episodic_memory', labelKey: 'filterEpisodic' },
-  { id: 'skill_evolution', labelKey: 'filterEvolution' },
-  { id: 'skill_draft', labelKey: 'filterDraft' },
-];
+type PendingAction = { type: 'delete' | 'archive' | 'restore'; item: LearningTimelineItem };
 
 interface LearningTimelineProps {
   onSelectMemoryForGraph?: (memoryId: string) => void;
@@ -120,186 +52,138 @@ interface LearningTimelineProps {
 export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryForGraph, className }) => {
   const t = useTranslations('growthDashboard.learningTimeline');
   const [items, setItems] = useState<LearningTimelineItem[]>([]);
-  const [totalCount, setTotalCount] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [loadError, setLoadError] = useState<boolean>(false);
-  const [selectedKind, setSelectedKind] = useState<string>('all');
-  const [days, setDays] = useState<number>(30);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState<boolean>(false);
-  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [selectedKind, setSelectedKind] = useState('all');
+  const [days, setDays] = useState(30);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pending, setPending] = useState<PendingAction | null>(null);
+  const { saveEdit, archiveSkill, deleteMemory } = useTimelineGovernance({ setItems, setTotalCount });
+  const agents = useAgentStore((s) => s.agents);
+  const fetchAgents = useAgentStore((s) => s.fetchAgents);
+  const agentNames = useMemo(() => new Map(agents.map((agent) => [agent.id, agent.name])), [agents]);
 
-  // Edit modal / inline edit state
-  const [editingItem, setEditingItem] = useState<LearningTimelineItem | null>(null);
-  const [editContent, setEditContent] = useState<string>('');
-  const [editImportance, setEditImportance] = useState<number>(5);
-  const [editReasoning, setEditReasoning] = useState<string>('');
-  const [submitting, setSubmitting] = useState<boolean>(false);
+  const nextCursorRef = useRef<string | null>(null);
+  /** Only the newest request may write state, so a slow response never overwrites a newer filter. */
+  const requestSeqRef = useRef(0);
 
-  const fetchTimeline = useCallback(
-    async (reset = true) => {
+  const loadPage = useCallback(
+    async (reset: boolean) => {
+      const seq = ++requestSeqRef.current;
+      if (reset) {
+        setLoading(true);
+        setLoadError(false);
+        setLoadingMore(false);
+      } else {
+        setLoadingMore(true);
+      }
       try {
-        if (reset) {
-          setLoading(true);
-          setLoadError(false);
-        } else {
-          setLoadingMore(true);
-        }
         const resp = await getLearningTimeline({
           days,
           kind_filter: selectedKind === 'all' ? undefined : selectedKind,
-          limit: 20,
-          cursor: reset ? undefined : (nextCursor ?? undefined),
+          limit: PAGE_SIZE,
+          cursor: reset ? undefined : (nextCursorRef.current ?? undefined),
         });
-
-        if (reset) {
-          setItems(resp.items);
-        } else {
-          setItems((prev) => [...prev, ...resp.items]);
+        if (seq !== requestSeqRef.current) {
+          return;
         }
+        setItems((prev) => {
+          if (reset) {
+            return resp.items;
+          }
+          const known = new Set(prev.map((it) => it.id));
+          return [...prev, ...resp.items.filter((it) => !known.has(it.id))];
+        });
         setTotalCount(resp.total_count);
         setHasMore(resp.has_more);
-        setNextCursor(resp.next_cursor);
+        nextCursorRef.current = resp.next_cursor;
       } catch (err) {
+        if (seq !== requestSeqRef.current) {
+          return;
+        }
         showApiError(err);
         if (reset) {
           setLoadError(true);
           setItems([]);
           setTotalCount(0);
           setHasMore(false);
-          setNextCursor(null);
+          nextCursorRef.current = null;
         }
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        if (seq === requestSeqRef.current) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
     },
-    [days, selectedKind, nextCursor],
+    [days, selectedKind],
   );
 
   useEffect(() => {
-    void fetchTimeline(true);
-  }, [days, selectedKind]); // eslint-disable-line react-hooks/exhaustive-deps
+    void loadPage(true);
+  }, [loadPage]);
 
-  const handleStartEdit = (item: LearningTimelineItem) => {
-    setEditingItem(item);
-    setEditContent(item.content);
-    setEditImportance(Math.round(item.importance <= 1 ? item.importance * 10 : item.importance));
-    setEditReasoning(typeof item.metadata?.reasoning === 'string' ? item.metadata.reasoning : '');
-  };
+  useEffect(() => {
+    void fetchAgents();
+  }, [fetchAgents]);
 
-  const handleCancelEdit = () => {
-    setEditingItem(null);
-    setEditContent('');
-    setEditReasoning('');
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingItem) {
+  const confirmPending = () => {
+    if (!pending) {
       return;
     }
-    try {
-      setSubmitting(true);
-      const memoryType = editingItem.kind.replace('_memory', '');
-      await updateTimelineMemory(memoryType, editingItem.id, {
-        content: editContent,
-        importance: editImportance / 10,
-        reasoning: editReasoning || undefined,
-      });
-
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === editingItem.id
-            ? {
-                ...it,
-                content: editContent,
-                importance: editImportance / 10,
-                is_user_edited: true,
-                metadata: { ...it.metadata, reasoning: editReasoning },
-              }
-            : it,
-        ),
-      );
-      handleCancelEdit();
-    } catch (err) {
-      showApiError(err);
-    } finally {
-      setSubmitting(false);
+    const { type, item } = pending;
+    setPending(null);
+    if (type === 'delete') {
+      void deleteMemory(item);
+    } else {
+      void archiveSkill(item, type === 'archive');
     }
   };
 
-  const handleDeleteMemory = async (item: LearningTimelineItem) => {
-    if (!window.confirm(t('deleteConfirm'))) {
-      return;
-    }
-    try {
-      const memoryType = item.kind.replace('_memory', '');
-      await deleteTimelineMemory(item.id, memoryType);
-      setItems((prev) => prev.filter((it) => it.id !== item.id));
-      setTotalCount((prev) => Math.max(0, prev - 1));
-    } catch (err) {
-      showApiError(err);
-    }
-  };
+  const requestSkillToggle = useCallback(
+    (item: LearningTimelineItem) =>
+      setPending({ type: item.metadata?.archived === true ? 'restore' : 'archive', item }),
+    [],
+  );
+  const requestDelete = useCallback((item: LearningTimelineItem) => setPending({ type: 'delete', item }), []);
 
-  const handleToggleSkillArchive = async (item: LearningTimelineItem, active: boolean) => {
-    const confirmMsg = active ? t('unarchiveConfirm') : t('archiveConfirm');
-    if (!window.confirm(confirmMsg)) {
-      return;
-    }
-    try {
-      const skillId = (item.metadata?.skill_id as string) || item.id;
-      await archiveTimelineSkill(skillId, active);
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === item.id
-            ? {
-                ...it,
-                status: active ? 'active' : 'archived',
-                metadata: { ...it.metadata, is_active: active },
-              }
-            : it,
-        ),
-      );
-    } catch (err) {
-      showApiError(err);
-    }
-  };
-
-  const userEditedCount = items.filter((i) => i.is_user_edited).length;
+  const dialogCopy =
+    pending?.type === 'delete'
+      ? {
+          title: t('deleteConfirmTitle'),
+          description: RECOVERABLE_MEMORY_TYPES.has(memoryTypeOf(pending.item))
+            ? t('deleteConfirm')
+            : t('deleteConfirmPermanent'),
+        }
+      : pending?.type === 'restore'
+        ? { title: t('unarchiveConfirmTitle'), description: t('unarchiveConfirm') }
+        : { title: t('archiveConfirmTitle'), description: t('archiveConfirm') };
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Header filter controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-1.5">
-          {FILTER_TABS.map((tab) => {
-            const isSelected = selectedKind === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setSelectedKind(tab.id)}
-                className={cn(
-                  'rounded-lg px-2.5 py-1 text-xs font-medium transition-colors',
-                  isSelected
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                {t(tab.labelKey)}
-              </button>
-            );
-          })}
+          {FILTER_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setSelectedKind(tab.id)}
+              className={cn(
+                'rounded-lg px-2.5 py-1 text-xs font-medium transition-colors',
+                selectedKind === tab.id
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+            >
+              {t(tab.labelKey)}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="hidden md:inline-block font-mono">{t('stats.totalNodes', { count: totalCount })}</span>
-          {userEditedCount > 0 && (
-            <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-500 border border-violet-500/20">
-              {t('stats.userEditedCount', { count: userEditedCount })}
-            </span>
-          )}
+          <span className="hidden tabular-nums md:inline-block">{t('stats.totalNodes', { count: totalCount })}</span>
           <div className="flex rounded-md border border-border/60 bg-muted/40 p-0.5">
             {[7, 30, 90].map((d) => (
               <button
@@ -318,265 +202,61 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
         </div>
       </div>
 
-      {/* Loading state */}
       {loading && <TimelineSkeleton count={4} className="my-2" />}
 
-      {/* Load error */}
       {!loading && loadError && (
         <EmptyState
           variant="error"
           icon={AlertCircle}
           title={t('error.title')}
           description={t('error.description')}
-          className="min-h-[260px] my-4"
+          className="my-4 min-h-[260px]"
           action={
-            <Button variant="outline" size="sm" onClick={() => void fetchTimeline(true)}>
-              <RotateCcw className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={() => void loadPage(true)}>
+              <RotateCcw className="mr-2 h-4 w-4" />
               {t('error.retry')}
             </Button>
           }
         />
       )}
 
-      {/* Empty state */}
       {!loading && !loadError && items.length === 0 && (
         <EmptyState
           variant="dashed"
           icon={Brain}
           title={t('empty.title')}
           description={t('empty.description')}
-          className="min-h-[260px] my-4"
+          className="my-4 min-h-[260px]"
         />
       )}
 
-      {/* Timeline Stream */}
       {!loading && !loadError && items.length > 0 && (
-        <div className="relative pl-6 space-y-4 before:absolute before:bottom-2 before:left-2.5 before:top-2 before:w-[2px] before:bg-border/60">
-          {items.map((item) => {
-            const meta = KIND_META[item.kind] ?? KIND_META.fact_memory;
-            const Icon = meta.icon;
-            const isEditing = editingItem?.id === item.id;
-            const isSkill = item.kind === 'skill_evolution' || item.kind === 'skill_draft';
-            const isArchived = item.status === 'archived' || item.metadata?.is_active === false;
+        <div className="relative space-y-4 pl-6 before:absolute before:bottom-2 before:left-2.5 before:top-2 before:w-[2px] before:bg-border/60">
+          {items.map((item) => (
+            <TimelineNodeCard
+              key={item.id}
+              item={item}
+              agentName={item.agent_id ? agentNames.get(item.agent_id) : undefined}
+              onSaveEdit={saveEdit}
+              onRequestDelete={requestDelete}
+              onRequestSkillToggle={requestSkillToggle}
+              onSelectMemoryForGraph={onSelectMemoryForGraph}
+            />
+          ))}
 
-            return (
-              <div key={item.id} className="relative group">
-                {/* Node marker point */}
-                <div
-                  className={cn(
-                    'absolute -left-6 top-3 flex h-5 w-5 items-center justify-center rounded-full border bg-background shadow-xs transition-transform group-hover:scale-110',
-                    meta.borderColor,
-                  )}
-                >
-                  <Icon className={cn('h-2.5 w-2.5', meta.color)} />
-                </div>
-
-                {/* Node Card */}
-                <Card
-                  className={cn(
-                    'transition-all duration-200 hover:border-border/90 hover:shadow-xs',
-                    item.is_user_edited && 'border-violet-500/30 bg-violet-500/[0.02]',
-                    isArchived && 'opacity-60 border-dashed',
-                  )}
-                >
-                  <CardContent className="p-4">
-                    {/* Top Row: Meta Badge & Controls */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium',
-                            meta.bgColor,
-                            meta.color,
-                          )}
-                        >
-                          <Icon className="h-3 w-3" />
-                          {t(meta.labelKey)}
-                        </span>
-
-                        {item.is_user_edited && (
-                          <span className="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[11px] font-medium text-violet-500">
-                            <Lock className="h-2.5 w-2.5" />
-                            {t('userLockedBadge')}
-                          </span>
-                        )}
-
-                        {item.agent_id && (
-                          <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted-foreground font-mono">
-                            {t('agentOrigin', { agent: item.agent_id })}
-                          </span>
-                        )}
-
-                        {item.importance > 0 && (
-                          <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                            ★ {item.importance}/10
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <span className="text-[11px] text-muted-foreground/80 font-mono">
-                          {new Date(item.created_at).toLocaleString()}
-                        </span>
-
-                        {/* Inline Governance Action Buttons */}
-                        {!isEditing && (
-                          <div className="flex items-center gap-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                            {!isSkill ? (
-                              <>
-                                {onSelectMemoryForGraph && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => onSelectMemoryForGraph(item.id)}
-                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                                    title="View in Knowledge Graph"
-                                  >
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleStartEdit(item)}
-                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                                  title={t('editMemory')}
-                                >
-                                  <Edit3 className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteMemory(item)}
-                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                  title={t('deleteMemory')}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleToggleSkillArchive(item, isArchived)}
-                                className={cn(
-                                  'h-7 px-2 text-xs font-normal',
-                                  isArchived
-                                    ? 'text-emerald-500 hover:text-emerald-600'
-                                    : 'text-muted-foreground hover:text-amber-500',
-                                )}
-                                title={isArchived ? t('unarchiveSkill') : t('archiveSkill')}
-                              >
-                                {isArchived ? (
-                                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                                ) : (
-                                  <Archive className="h-3.5 w-3.5 mr-1" />
-                                )}
-                                {isArchived ? t('unarchiveSkill') : t('archiveSkill')}
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Content Section: View Mode vs Edit Mode */}
-                    {isEditing ? (
-                      <div className="mt-3 space-y-3 rounded-lg border border-border/80 bg-muted/20 p-3">
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-foreground">{t('contentLabel')}</label>
-                          <textarea
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            rows={3}
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-foreground">{t('reasoningLabel')}</label>
-                          <textarea
-                            value={editReasoning}
-                            onChange={(e) => setEditReasoning(e.target.value)}
-                            rows={2}
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between pt-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{t('importanceLabel')}</span>
-                            <input
-                              type="range"
-                              min={1}
-                              max={10}
-                              value={editImportance}
-                              onChange={(e) => setEditImportance(Number(e.target.value))}
-                              className="h-1.5 w-24 cursor-pointer accent-primary"
-                            />
-                            <span className="text-xs font-semibold text-foreground">{editImportance}</span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleCancelEdit}
-                              disabled={submitting}
-                              className="h-7 px-2.5 text-xs"
-                            >
-                              <X className="h-3.5 w-3.5 mr-1" />
-                              {t('cancel')}
-                            </Button>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={handleSaveEdit}
-                              disabled={submitting || !editContent.trim()}
-                              className="h-7 px-2.5 text-xs"
-                            >
-                              <Check className="h-3.5 w-3.5 mr-1" />
-                              {t('saveChanges')}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mt-2 space-y-1.5">
-                        <h4 className="text-sm font-semibold text-foreground">{item.title}</h4>
-                        <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                          {item.content}
-                        </p>
-
-                        {/* Extra metadata fields */}
-                        {typeof item.metadata?.reasoning === 'string' && item.metadata.reasoning.length > 0 && (
-                          <div className="mt-2 rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground border border-border/40">
-                            <span className="font-semibold text-foreground/80">Context: </span>
-                            {item.metadata.reasoning}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            );
-          })}
-
-          {/* Load More Button */}
           {hasMore && (
             <div className="pt-2 text-center">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => fetchTimeline(false)}
+                onClick={() => void loadPage(false)}
                 disabled={loadingMore}
                 className="text-xs"
               >
                 {loadingMore ? (
-                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                  <div className="mr-2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 ) : (
-                  <ChevronDown className="h-3.5 w-3.5 mr-1" />
+                  <ChevronDown className="mr-1 h-3.5 w-3.5" />
                 )}
                 {t('loadMore')}
               </Button>
@@ -584,6 +264,26 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
           )}
         </div>
       )}
+
+      <AlertDialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{dialogCopy.title}</AlertDialogTitle>
+            <AlertDialogDescription>{dialogCopy.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmPending}
+              className={cn(
+                pending?.type === 'delete' && 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+              )}
+            >
+              {t('confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 });

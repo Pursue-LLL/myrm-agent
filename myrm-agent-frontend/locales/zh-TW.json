@@ -279,7 +279,8 @@
       "loopStatusActive": "當前循環執行中（週期：{interval}，已執行 {ticks} 輪）",
       "loopStatusInactive": "當前對話暫無執行中的循環任務",
       "loopTargetReached": "會話循環已達成終止條件並自動完成",
-      "export": "匯出對話或複製 Markdown（支援 HTML/MD/JSON/ZIP）"
+      "export": "匯出對話或複製 Markdown（支援 HTML/MD/JSON/ZIP）",
+      "context": "透視目前會話底層上下文底噪（System Prompt、Persona、MCP、規則）並快速管理閒置 MCP"
     }
   },
   "copilot": {
@@ -1897,7 +1898,7 @@
       "formatHint": "已支援 Claude Code、Codex CLI 及 Hermes Agent 對話格式",
       "clickToChange": "點擊重新選擇",
       "pastePlaceholder": "在此貼上外部轉錄 JSON 或 JSONL 事件流（例如來自 ~/.claude/projects/ 或 ~/.hermes/sessions/）...",
-      "featuresSummary": "自動剔除冗餘思考鏈與失效系統提示詞，折疊終端海量日誌，100% 保持前綴提示詞快取 (Prompt Cache)。",
+      "featuresSummary": "自動剔除冗餘思考鏈與失效系統提示詞，折疊終端海量日誌，保持前綴提示詞快取 (Prompt Cache) 的穩定布局。",
       "startImport": "匯入並無縫續聊",
       "processing": "正在純淨化並寫入資料庫...",
       "invalidFileType": "請上傳 .json 或 .jsonl 格式的對話轉錄本檔案",
@@ -2461,7 +2462,17 @@
         "pinsLoadError": "固定檔案載入失敗",
         "pinsRetry": "重試",
         "archiveRestoreHint": "較大的工具輸出會儲存在 .context/…/evicted/ 下，Agent 可通過 file_read 讀回。需要時可點「壓縮上下文」摘要較早消息。"
-      }
+      },
+      "copiedReasoning": "已複製思考過程",
+      "copyReasoning": "複製思考過程",
+      "deltaNegative": "較上輪 {tokens} tokens (已壓縮)",
+      "deltaPositive": "較上輪 +{tokens} tokens",
+      "deltaZero": "與上輪持平",
+      "growthTrend": "近12輪增長軌跡",
+      "weatherClear": "清朗 (<25%)",
+      "weatherCloudy": "多雲 (25–75%)",
+      "weatherCritical": "即將壓縮 (≥90%)",
+      "weatherWarning": "預警 (75–90%)"
     },
     "compactedSummary": {
       "foldLabel": "上下文已壓縮 — 檢視歸檔",
@@ -2561,7 +2572,9 @@
       "specialReferencesHint": "試試特殊引用：@staged 暫存區 / @diff 工作區 / @codebase 概覽 / @folder:路徑 目錄 / @url:連結 網頁 / @chat:標題 歷史會話 / file:10-20 行範圍",
       "removeReference": "移除 {label}",
       "agentsCategory": "智慧體",
-      "contextCategory": "上下文"
+      "contextCategory": "上下文",
+      "alreadyInContext": "已在上下文",
+      "dedupNotice": "該檔案已在上下文中，將跳過重複內容直讀"
     },
     "conversationRecall": {
       "hintTitle": "接著聊以前的會話",
@@ -3305,6 +3318,23 @@
       "fallbackPrefilledBadge": "已填入輸入框",
       "questionClarification": "問題澄清",
       "directReplyPlaceholder": "輸入回答或澄清說明..."
+    },
+    "contextFootprint": {
+      "close": "關閉",
+      "disabled": "已關閉",
+      "enabled": "已啟用",
+      "mcpSwitcherDesc": "關閉本次任務無關的 MCP 服務，可大幅降低每輪請求的底噪 Token",
+      "mcpSwitcherTitle": "MCP 快速裁決器",
+      "mcpTools": "MCP 工具定義 Schema",
+      "noMcpServers": "暫無已掛載的 MCP 服務",
+      "persona": "Agent 角色與設定",
+      "skillsTools": "業務技能與內建工具",
+      "subtitle": "會話開始前底層預載入的基線 Token 佔用與工具治理",
+      "systemPrompt": "System 基礎提示詞",
+      "title": "初始上下文底噪透視",
+      "toolsCount": "{count} 個工具",
+      "totalBaseline": "初始基線底噪總計",
+      "workspaceRules": "工作區與全域規則"
     }
   },
   "mode": {
@@ -3787,7 +3817,18 @@
       "globLabel": "檔案搜尋",
       "grepLabel": "內容搜尋",
       "path": "路徑",
-      "filePattern": "檔案"
+      "filePattern": "檔案",
+      "cacheHitTitle": "命中快取快照",
+      "forceRefresh": "強制連網重新抓取",
+      "forceRefreshing": "正在穿透重新整理...",
+      "hoursAgo": "{count}小時前",
+      "justNow": "剛剛",
+      "minutesAgo": "{count}分鐘前",
+      "savedTokens": "已為您節省 {count} tokens",
+      "scenarioArchive": "靜態歸檔",
+      "scenarioRealtime": "即時動態",
+      "scenarioStandard": "標準業務",
+      "secondsAgo": "{count}秒前"
     },
     "folding": {
       "showMore": "展開中間 {count} 個已完成步驟",
@@ -4158,6 +4199,8 @@
     "enabled": "已啟用",
     "disabled": "已禁用",
     "locked": "已鎖定，不受自動修改影響",
+    "exactFact": "精確事實",
+    "exactFactHint": "包含精確識別碼，將原樣保留",
     "protectRule": "保護這條規則",
     "releaseProtection": "取消保護",
     "protectRuleSuccess": "規則已保護",
@@ -4246,7 +4289,12 @@
       "autoResolveSoon": "即將自動解決",
       "autoResolveInHours": "{hours} 小時後自動保留舊記憶",
       "autoResolveInMinutes": "{minutes} 分鐘後自動保留舊記憶",
-      "autoResolveInDays": "{days} 天後自動保留舊記憶"
+      "autoResolveInDays": "{days} 天後自動保留舊記憶",
+      "lowRiskPolicyHint": "若您未手動選擇，重要度較低的衝突將在約 {hours} 小時後自動保留原有記憶。",
+      "chatBannerTitle": "{count, plural, one {有 1 則記憶衝突待您確認} other {有 # 則記憶衝突待您確認}}",
+      "chatBannerAction": "前往記憶設定處理",
+      "chatBannerDismiss": "本次對話中不再顯示",
+      "fetchRefreshFailed": "無法重新整理衝突狀態，請檢查網路後重試。"
     },
     "batchApproveSuccess": "批次確認成功",
     "batchApproveSuccessDesc": "已成功確認 {count} 條記憶",
@@ -4285,6 +4333,8 @@
     "importance": "重要性",
     "lastAccessed": "最近訪問",
     "accessCount": "訪問次數",
+    "usedTimes": "已使用 {count} 次",
+    "lastUsedAt": "最近使用：{time}",
     "createdAt": "建立時間",
     "updatedAt": "更新時間",
     "loginRequired": "登入後檢視記憶",
@@ -4478,6 +4528,99 @@
       "cachedTokens": "快取 Token",
       "completionTokens": "輸出 Token",
       "cacheFriendly": "快取友好",
+      "promptCache": {
+        "card": {
+          "title": "會話記憶更新",
+          "badge": "即時聊天",
+          "description": "查看同一会话内的偏好更正，而不改动 Agent 稳定的系统指令。",
+          "sessionInputLabel": "聊天會話",
+          "sessionPlaceholder": "選擇或輸入會話…",
+          "tabLive": "進行中的更新 ({count})",
+          "tabPreview": "布局預覽"
+        },
+        "consolidation": {
+          "prefixLayout": "前綴布局",
+          "layoutStable": "穩定",
+          "chatRingHint": "快取命中率請查看聊天視窗的上下文環",
+          "systemPrefixFrozen": "本輪未改動系統前綴",
+          "prefixLayoutActive": "前綴布局已啟用",
+          "avoidedTokens": "避免重複計算的 token",
+          "estimatedSavings": "僅在提供商回報時顯示",
+          "perceptionLatency": "新近性覆蓋層",
+          "notMeasured": "此處不測量",
+          "inFlightDeltas": "進行中的會話增量",
+          "simulateInjection": "模擬注入",
+          "augmentedHumanPreview": "最終使用者訊息尾部（預覽）"
+        },
+        "baseContext": {
+          "bannerTitle": "系統提示詞保持穩定，動態記憶掛在使用者訊息末尾",
+          "bannerBody": "會話摘要與畫像卡低頻刷新，並附加在最終使用者訊息尾部，避免改動智能體系統提示詞，以利於提供商前綴快取。",
+          "archTitle": "布局為何重要",
+          "legacyTitle": "把記憶塞進系統提示詞",
+          "legacyBody": "每輪變更系統前綴會導致雜湊變化，長對話中前綴快取收益往往消失。",
+          "myrmTitle": "Myrm 兩層布局",
+          "myrmBody": "系統提示詞保持靜態；基礎快照追加在使用者訊息尾部。命中率請在聊天上下文環查看，此處不承諾固定比例。"
+        },
+        "twoLayerStudio": {
+          "ariaLabel": "雙層上下文實驗室",
+          "labOnlyBanner": "僅實驗室預覽—此布局不會注入即時聊天。命中率請看聊天上下文環。",
+          "sessionInputLabel": "預覽會話 ID",
+          "sessionPlaceholder": "輸入會話 ID…",
+          "title": "雙層上下文實驗室",
+          "itemBadge": "Item 112",
+          "layoutBadge": "布局預覽",
+          "description": "Layer 1 快照在 user 訊息尾；Layer 2 按節奏消解記憶衝突。",
+          "tabsAria": "實驗室視圖",
+          "tabBaseAria": "基礎布局",
+          "tabDialecticAria": "辯證控制台",
+          "tabKnobsAria": "節奏控制",
+          "tabBase": "Layer 1 基礎布局",
+          "tabDialectic": "Layer 2 辯證 ({count})",
+          "tabKnobs": "節奏控制",
+          "emptyBase": "尚無基礎快照",
+          "refreshSuccess": "已從伺服器重建基礎快照",
+          "refreshFailed": "重建失敗—請檢查會話 ID",
+          "reconcileSuccess": "辯證 Pass {depth}：已消解 {count} 條衝突",
+          "reconcileFallback": "顯示示例輸出",
+          "reconcileOffline": "離線—顯示示例輸出",
+          "resetSuccess": "已重置會話節奏",
+          "resetLocal": "已在本地套用重置",
+          "configApplied": "已更新節奏設定"
+        },
+        "twoLayerCadence": {
+          "panelTitle": "節奏與深度控制",
+          "resetDefaults": "恢復推薦預設值",
+          "layer1IntervalLabel": "Layer 1 基礎上下文刷新間隔",
+          "layer1IntervalHint": "控制長程摘要與畫像卡重編譯頻率。間隔越長，系統前綴越穩定；快取收益請在聊天上下文環查看實測值。",
+          "layer2IntervalLabel": "Layer 2 辯證矛盾巡檢間隔",
+          "layer2IntervalHint": "控制何時掃描歷史記憶與當前指令的衝突。",
+          "depthLabel": "辯證推理多遍深度",
+          "depthHint": "Pass 越多越精準，算力消耗越高。",
+          "reasoningLabel": "模型算力等級",
+          "reasoningHint": "Fast / Standard / Deep。",
+          "reasoningFast": "fast",
+          "reasoningStandard": "standard",
+          "reasoningDeep": "deep",
+          "passButton": "Pass {depth}",
+          "savedBanner": "節奏設定已套用",
+          "applyAria": "套用節奏設定",
+          "applyLabel": "套用並儲存設定"
+        },
+        "twoLayerHud": {
+          "prefixLayoutLabel": "系統前綴布局",
+          "layoutStable": "穩定",
+          "chatRingSub": "命中率見聊天環",
+          "layer1CadenceLabel": "Layer 1 基礎上下文 Cadence",
+          "everyNTurns": "每 {count} 輪",
+          "lowFreqSnapshot": "低頻快照",
+          "layer2CadenceLabel": "Layer 2 辯證檢查 Cadence",
+          "conflictPatrol": "衝突巡檢",
+          "dialecticDepthLabel": "辯證深度 / 算力",
+          "passDepthLevel": "Pass {depth} · {level}",
+          "refreshTelemetryAria": "重新整理遙測",
+          "resetCadenceAria": "重置會話 Cadence 計數器"
+        }
+      },
       "replayTitle": "會話回放覆蓋層",
       "replayEmpty": "暫無可用的回放覆蓋層",
       "replayMeta": "{events} 個事件 · {influences} 次影響",
@@ -5052,10 +5195,8 @@
       "merged": "合併",
       "replaced": "替換",
       "supplemented": "補充",
-      "vetoGuardrail": "執行階段門禁",
-      "vetoPattern": "受控模式",
-      "remediation": "自我修復建議",
-      "scope": "範圍"
+      "reasoning": "原因",
+      "application": "應用方式"
     },
     "typeDesc": {
       "profile": "使用者屬性鍵值對（名字、語言、職業）",
@@ -6310,6 +6451,29 @@
       "resolve": "標為已解決",
       "revisionOutside": "本次修訂還動了未標記行：{lines}",
       "revisionLocal": "本次修訂未超出標記範圍。"
+    },
+    "hub": {
+      "associatedAgent": "智慧體",
+      "download": "下載產物",
+      "emptyDesc": "在與智慧體對話中產生的交付物與檔案將自動沉澱於此處",
+      "emptyTitle": "暫無產物資產",
+      "exportZip": "一鍵打包匯出 ZIP",
+      "lastUpdated": "最後更新於",
+      "navToSession": "直達來源會話",
+      "originSession": "來源會話",
+      "searchPlaceholder": "依產物名稱、描述或副檔名搜尋...",
+      "selectedCount": "已選擇 {count} 項產物",
+      "subtitle": "集中檢索與管理各會話產生的文件、程式碼、資料表格與交付物，支援雙向來源溯源",
+      "tabAll": "全部產物",
+      "tabCode": "程式碼腳本",
+      "tabData": "資料表格",
+      "tabDocument": "文件資料",
+      "tabLink": "擷取連結",
+      "tabMedia": "多媒體圖表",
+      "tabOther": "其他",
+      "timelineTitle": "產物版本溯源歷史",
+      "title": "全景產物溯源大盤",
+      "versionsCount": "{count} 個歷史版本"
     }
   },
   "MessageSources": {
@@ -9130,6 +9294,14 @@
     "visualApprovalAttentionTitle": "待視覺審批",
     "visualApprovalAttentionView": "檢視審批",
     "visualApprovalAttentionMultiple": "{count} 項視覺化操作待審批",
+    "humanAttentionTitle": "需要你處理",
+    "humanAttentionView": "前往處理",
+    "humanAttentionMultiple": "{count} 項待你確認",
+    "humanAttentionEscHint": "智能體執行中按 Esc 可立即停止桌面自動化。",
+    "humanAttentionKindClarify": "澄清問題",
+    "humanAttentionKindDesktopControl": "桌面審批",
+    "humanAttentionKindVisual": "視覺確認",
+    "humanAttentionKindTool": "工具審批",
     "outboundDraftTitle": "渠道訊息草稿稽核",
     "outboundDraftDescription": "AI 生成了以下回復，請稽核後決定傳送或丟棄。",
     "outboundDraftOriginal": "使用者原始訊息",
@@ -9261,7 +9433,8 @@
     },
     "clarificationRequired": "需要錯誤釐清",
     "fixParameters": "修正參數（JSON）",
-    "visualContextAlt": "待審批操作的目標截圖"
+    "visualContextAlt": "待審批操作的目標截圖",
+    "visualApprovalOsHighlightUnavailable": "目前無法在真實螢幕上顯示高亮，請以本卡片中的紅框確認目標位置。"
   },
   "notifications": {
     "title": "系統通知",
@@ -10368,55 +10541,68 @@
       "title": "記憶與技能學習時間線",
       "description": "統一按時間軸彙聚事實、偏好、經驗流程記憶與技能演化流，提供行內修改與治理能力。",
       "filterAll": "全部流",
-      "filterMemories": "僅記憶",
-      "filterSkills": "僅技能",
       "filterFact": "事實記憶",
       "filterPreference": "偏好記憶",
       "filterProcedural": "流程經驗",
       "filterEpisodic": "情景片段",
       "filterEvolution": "技能進化",
       "filterDraft": "技能草稿",
-      "days7": "近 7 天",
-      "days30": "近 30 天",
-      "days90": "近 90 天",
       "editMemory": "編輯記憶",
       "archiveSkill": "歸檔技能",
       "unarchiveSkill": "恢復技能",
       "deleteMemory": "刪除記憶",
-      "deleteConfirm": "確定要永久刪除該條記憶嗎？",
-      "archiveConfirm": "確定歸檔該技能？歸檔後模型工具路由將不再呼叫此技能。",
-      "unarchiveConfirm": "確定恢復並重新啟用該技能？",
+      "deleteConfirm": "記憶將移入記憶回收桶，可在回收桶或透過「復原」還原。",
+      "archiveConfirm": "封存後智慧體將不再使用此技能，可隨時還原。",
+      "unarchiveConfirm": "技能將重新啟用。",
       "contentLabel": "核心內容 / 規則",
       "reasoningLabel": "推演背景與上下文",
       "importanceLabel": "重要度等級",
-      "userLockedBadge": "使用者人工校準 (鎖定免覆蓋)",
+      "userProtectedBadge": "不會被自動修改",
       "agentOrigin": "智慧體: {agent}",
-      "confidenceLabel": "置信度",
       "saveChanges": "儲存修改",
       "cancel": "取消",
-      "loading": "正在載入學習時間線...",
       "loadMore": "載入更多節點",
-      "noMore": "已載入全部節點",
       "empty": {
         "title": "暫無學習成長足跡",
         "description": "當智慧體在對話中習得事實、記錄偏好或自動沉澱技能時，會按時間序列在此清晰展現並支援人工治理。"
       },
       "stats": {
-        "totalNodes": "共 {count} 個學習節點",
-        "userEditedCount": "{count} 條人工校準"
+        "totalNodes": "共 {count} 個學習節點"
       },
       "toast": {
         "updateSuccess": "記憶更新成功",
-        "deleteSuccess": "記憶已刪除",
+        "deleteSuccess": "記憶已移入回收桶",
         "archiveSuccess": "技能已歸檔",
         "unarchiveSuccess": "技能已恢復啟用",
-        "actionFailed": "操作失敗: {error}"
+        "actionFailed": "操作失敗: {error}",
+        "undo": "復原",
+        "undoFailed": "復原失敗",
+        "deletePermanentSuccess": "記憶已刪除"
       },
       "error": {
         "title": "載入學習時間軸失敗",
         "description": "無法獲取學習時間軸資料，請檢查網路連線後重試。",
         "retry": "重試"
-      }
+      },
+      "deleteConfirmTitle": "刪除這則記憶？",
+      "archiveConfirmTitle": "封存該技能？",
+      "unarchiveConfirmTitle": "還原該技能？",
+      "confirm": "確認",
+      "viewInGraph": "在知識圖譜中檢視",
+      "viewSourceChat": "查看來源對話",
+      "contextLabel": "背景",
+      "importanceValue": "{value}/10",
+      "pinnedHint": "已釘選的技能無法封存，請先取消釘選。",
+      "skillStatus": {
+        "PENDING_REVIEW": "待審核",
+        "AUTO_APPLIED": "已自動套用",
+        "FAILED_SCAN": "掃描未通過",
+        "BLOCKED_LOCKED": "已被鎖定攔截",
+        "APPROVED": "已核准",
+        "REJECTED": "已拒絕",
+        "APPLY_FAILED": "套用失敗"
+      },
+      "deleteConfirmPermanent": "該則記憶將被永久刪除，無法還原。"
     },
     "learningLoop": {
       "title": "閉環學習五環狀態中心",
@@ -12606,6 +12792,15 @@
     "stopping": "正在停止…",
     "curtainActive": "工位螢幕已防窺保護"
   },
+  "mobileShell": {},
+  "designerEye": {},
+  "systemAssistant": {},
+  "workspaceLayout": {},
+  "devPorts": {},
+  "toolPicker": {},
+  "presentation": {},
+  "vibrancy": {},
+  "spreadsheet": {},
   "whatsNew": {
     "title": "v{version} 新功能",
     "description": "以下是本次更新的內容。",
@@ -12663,7 +12858,11 @@
     "lifecycleRetryExtract": "重試提取",
     "lifecycleRetrying": "重試中…",
     "lifecycleRetryFailed": "重試失敗，請稍後再試",
-    "lifecycleRetryAlreadyInFlight": "記憶提取重試已在進行中"
+    "lifecycleRetryAlreadyInFlight": "記憶提取重試已在進行中",
+    "sessionOverridePill": "本對話已更新",
+    "sessionOverrideTitle": "本對話的偏好更新",
+    "sessionOverrideDescription": "您在本對話中更正過偏好或事實，本則回覆已依這些更新理解。",
+    "sessionOverrideMobile": "本則回覆反映本對話的 {count} 項更新"
   },
   "memoryRecallDegraded": {
     "title": "語義召回不可用",
@@ -12904,6 +13103,162 @@
       "empty": "暫無該階段的詳細證據"
     }
   },
+  "executionPhaseStepper": {
+    "badge": "執行完畢",
+    "waitingApproval": "等待審批",
+    "collapseTelemetry": "折疊遙測",
+    "expandTelemetry": "展開遙測",
+    "currentNode": "節點 #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "意圖規劃"
+      },
+      "executing": {
+        "title": "工具執行"
+      },
+      "verifying": {
+        "title": "交付驗證"
+      }
+    },
+    "lanes": {
+      "agent": "Agent 核心",
+      "user": "使用者互動",
+      "llm": "LLM 推理",
+      "mcp": "MCP 工具",
+      "skills": "業務技能",
+      "sandbox": "沙箱執行"
+    }
+  },
+  "continualOverlay": {
+    "activeTitle": "活躍對話覆蓋層",
+    "remainingTurns": "{count, plural, =1 {剩餘 1 輪} other {剩餘 # 輪}}",
+    "rollbackTooltip": "回滾此對話覆蓋層",
+    "rollback": "回滾",
+    "collapse": "收起",
+    "expand": "展開",
+    "howItWorks": "運行機制",
+    "howItWorksDesc": "對話覆蓋層提供零重置故障恢復，在指定輪次預算內自動生效並在到期後平滑撤出。",
+    "allActiveOverlays": "全部活躍覆蓋層 ({count})"
+  },
+  "taskSpaces": {
+    "title": "並行瀏覽器任務空間",
+    "badgeRunning": "執行中",
+    "badgeIdle": "閒置待命",
+    "badgeTakeover": "人工接管中",
+    "takeoverBtn": "接管",
+    "releaseTakeoverBtn": "交還智慧體",
+    "closeSpaceBtn": "關閉空間",
+    "activePages": "{count} 個作用中分頁",
+    "emptyState": "目前暫無作用中的並行瀏覽器空間",
+    "snapshotPreview": "即時空間快照",
+    "takeoverHint": "目前處於人工接管狀態，完成後請點擊交還智慧體繼續自動化。",
+    "snapshotAlt": "任務空間快照"
+  },
+  "modelPlaybook": {
+    "title": "模型編排戰略手冊",
+    "subtitle": "多模型協同分工、動態路由與成本優化的架構指南。",
+    "brainHands": {
+      "title": "大腦與手腦專業化分工",
+      "tag": "角色解耦",
+      "description": "將高推理複雜任務規劃與輕量高頻的工具調用模型精細搭配。",
+      "brainTip": "大腦：Claude 3.5 Sonnet、DeepSeek-R1 負責全局架構與複雜決策。",
+      "handsTip": "手腦：MiniMax、GPT-4o-mini 負責高速工具調用與結構化輸出。"
+    },
+    "routingMoa": {
+      "title": "模型路由 vs 多智能體混合 (MoA)",
+      "tag": "正交維度",
+      "description": "動態路由根據任務類型選擇最佳模型；MoA 通過多模型協同輸出放大決策質量。",
+      "routingTip": "路由：根據任務特徵（編程、數學、創意）動態選定最優模型。",
+      "moaTip": "MoA：多模型並行產出與聚合共識，適用於關鍵重大決策。",
+      "routingActive": "生效中",
+      "routingInactive": "未啟用"
+    },
+    "cheapEyes": {
+      "title": "多模態視覺輔助 (廉價之眼)",
+      "tag": "成本優化",
+      "description": "使用輕量高性價比視覺模型解析多模態輸入，避免消耗昂貴核心推理模型。",
+      "tip": "將圖像檢查與螢幕視覺交給專用模型，保持對話核心鏈路輕盈高效。"
+    },
+    "honestQuota": {
+      "title": "真實配額與 Token 經濟學",
+      "tag": "成本治理",
+      "description": "即時監控各服務商的真實 Token 消耗與快取命中率，杜絕隱性浪費。",
+      "tip": "分析長鏈路調用瓶頸，優化 Prompt 前置以最大化快取利用率。"
+    },
+    "actions": {
+      "routingEnabledSuccess": "智能模型路由已成功啟用！",
+      "configureSlots": "配置模型槽位",
+      "enabled": "已啟用",
+      "enableSmartRouting": "啟用智能路由",
+      "configureVision": "配置視覺模型",
+      "viewSubscriptions": "查看訂閱方案",
+      "close": "關閉"
+    },
+    "cardTitle": "模型編排手冊",
+    "cardBadge": "心法指南",
+    "cardSubtitle": "掌握大腦與肢體分工、三層自適應路由與 MoA 共識，最大化執行效率。",
+    "viewFullPlaybook": "查看完整手冊",
+    "collapse": "收起",
+    "expand": "展開",
+    "miniBrainHandsTitle": "大腦與肢體分工",
+    "miniBrainHandsDesc": "高智商規劃器 + 快速工具執行器。",
+    "miniDynamicRoutingTitle": "三層自適應路由",
+    "miniDynamicRoutingDesc": "自動在輕量、標準、深度推理層之間無縫切換。",
+    "miniMoaTitle": "MoA 共識增強",
+    "miniMoaDesc": "多模型交叉辯論與聚合，打破單模型能力天花板。",
+    "headerBadge": "模型編排戰略",
+    "dialogTitle": "模型編排實戰手冊與最佳架構配方",
+    "dialogSubtitle": "深入理解手腦分工、動態路由、MoA 混合共識與端到端 Token 經濟學",
+    "brainHandsTitle": "1. 手腦專業化協同分工 (Brain vs. Hands)",
+    "brainHandsBadge": "速度與成本雙優",
+    "brainHandsDesc": "將全局規劃、架構設計與高頻工具調用解耦，避免用昂貴主腦處理簡單執行。",
+    "brainLabel": "大腦 (規劃器)",
+    "brainExample": "Claude 3.7 Sonnet、DeepSeek-R1",
+    "handsLabel": "手腦 (執行器)",
+    "handsExample": "DeepSeek-V3、Qwen 2.5、GPT-4o-mini",
+    "dynamicRoutingTitle": "2. 三層自適應動態路由 (3-Tier Adaptive Routing)",
+    "dynamicRoutingBadge": "全自動分流",
+    "dynamicRoutingDesc": "自動識別用戶請求意圖與複雜度，毫秒級自適應升降級算力規格。",
+    "tierSimpleTitle": "輕量檔位 (Simple Tier)",
+    "tierSimpleDesc": "閒聊打招呼、輕量問答與快速查表，毫秒級響應並節省 ~65% 開銷。",
+    "tierStandardTitle": "標準檔位 (Standard Tier)",
+    "tierStandardDesc": "功能開發、重構、多文件分析與日常複雜辦公任務。",
+    "tierReasoningTitle": "深度推理檔位 (Reasoning Tier)",
+    "tierReasoningDesc": "涉及嚴格數學證明、長程因果推演與架構設計等高難度場景。",
+    "moaTitle": "3. 多模型混合共識層 (Mixture-of-Agents)",
+    "moaBadge": "準確率飛躍",
+    "moaDesc": "多模型獨立生成候選並由評議委員會聚合共識，徹底粉碎單點幻覺。",
+    "orthogonalTipTitle": "動態路由與 MoA 的正交關係",
+    "orthogonalTipDesc": "路由面向橫向任務降本，MoA 面向縱向難度提質，二者可無縫疊加生效。",
+    "specialistsTitle": "4. 專用領域模型槽位 (Specialist Slots)",
+    "specialistsDesc": "獨立分配多模態視覺廉價之眼、長文本專用模型與編程專項模型。",
+    "footerNote": "您可在設定中心隨時切換或微調以上模型配置策略。",
+    "closeBtn": "關閉",
+    "configureBtn": "前往設定中心配置"
+  },
+  "security": {
+    "taintedEgress": {
+      "title": "敏感資料出網攔截",
+      "description": "偵測到包含敏感憑證的出網請求試圖連接外部主機。",
+      "destinationHost": "目標主機",
+      "dataType": "敏感資料類型",
+      "detectedPattern": "命中模式",
+      "trustSession": "在本次工作階段中始終信任該目標（消除後續彈窗）",
+      "approve": "允許出網",
+      "reject": "阻斷攔截"
+    }
+  },
+  "ttsAudio": {
+    "generatedSpeech": "已生成語音",
+    "playbackFailed": "音訊播放失敗——檔案可能已過期。"
+  },
+  "intentDispatcher": {
+    "invalidLink": "無效的外部連結或參數錯誤",
+    "oauthSuccess": "授權成功",
+    "oauthFailed": "授權驗證失敗，請重試",
+    "cloudProfileName": "雲端沙箱"
+  },
+  "sessionMap": {},
   "settings": {
     "providerBalance": {
       "statusHealthy": "額度充足",
@@ -12984,7 +13339,50 @@
       "trustedAppsRetry": "重試",
       "trustedAppsRevoke": "撤銷",
       "trustedAppsRevokeSuccess": "已撤銷信任",
-      "trustedAppsRevokeFailed": "撤銷失敗"
+      "trustedAppsRevokeFailed": "撤銷失敗",
+      "lockedUseDoctorLabel": "離席模式與防窺帷幕",
+      "lockedUseDoctorDesc": "無人值守任務與工位隱私所需的桌面殼協同狀態",
+      "lockedUseDoctorPass": "就緒",
+      "lockedUseDoctorWarn": "需注意",
+      "lockedUseDoctorFail": "不可用",
+      "lockedUseDoctorUnavailable": "未檢測",
+      "lockedUseDoctorDetailNotMac": "離席模式與防窺帷幕需在 macOS 上使用 Myrm 桌面用戶端。",
+      "lockedUseDoctorDetailBridgeMissing": "請在本機啟動 Myrm 桌面用戶端，以便離席模式與桌面殼協同。",
+      "lockedUseDoctorDetailShellUnavailable": "請重啟 Myrm 桌面用戶端，並在設定中檢查離席模式與防窺帷幕。",
+      "lockedUseDoctorDetailGeneric": "離席模式或防窺帷幕尚未就緒，請開啟系統設定或重啟桌面用戶端。",
+      "screenLockGuardLabel": "鎖屏閘門",
+      "screenLockGuardDesc": "螢幕鎖定時將暫停自動化操作",
+      "screenLockGuardLocked": "已鎖定",
+      "screenLockGuardUnlocked": "未鎖定",
+      "lockedUseDoctorDetailAwayOff": "桌面殼已就緒。需要無人值守時在上方開啟 Locked Use，Agent 會在帷幕下代解鎖。",
+      "lockedUseDoctorGoToSettings": "開啟無人值守設定",
+      "lockedUseDoctorBadgeLoading": "檢測中…",
+      "lockedUseDoctorBadgeNotMac": "需 macOS 桌面用戶端",
+      "lockedUseDoctorBadgeAwayOn": "離席模式已開啟",
+      "lockedUseDoctorBadgeBridgeReady": "殼已連線",
+      "setupGuideTitle": "快速上手（桌面用戶端）",
+      "setupGuideStep1": "在上方授予「輸入控制」與「螢幕擷取」，並點擊「含螢幕擷取的重新檢測」。",
+      "setupGuideStep2": "若需在鎖屏/離席時執行任務，再到「設定 → 鎖定使用」開啟離席模式。",
+      "setupGuideStep3": "在智能體設定中啟用「桌面控制」，並在對話中完成首次應用審批。",
+      "setupGuideStep4": "任務執行中可在任意位置按 Esc，立即停止桌面自動化。"
+    },
+    "mobileAdb": {
+      "title": "行動裝置無線除錯 (ADB)",
+      "description": "連線 Android 實體裝置執行自動化操作、UI 樹解析與跨端協同任務",
+      "activeDevices": "目前已連線裝置",
+      "noDevicesFound": "暫無已連線的 Android 裝置",
+      "pairPrompt": "請在手機開發人員選項中開啟「無線除錯」，輸入配對碼或連接埠進行連線",
+      "wirelessPairing": "無線除錯配對 (Android 11+)",
+      "pairingCodePlaceholder": "6位配對碼 (例如: 123456)",
+      "pairButton": "開始配對",
+      "directConnect": "直接連線 (已配對裝置)",
+      "connectButton": "建立連線",
+      "refresh": "重新整理裝置清單",
+      "fillAllFields": "請填寫完整的主機、連接埠和配對資訊",
+      "pairSuccess": "無線裝置配對成功！",
+      "pairFailed": "無線配對失敗，請檢查 IP、連接埠與配對碼",
+      "connectSuccess": "裝置連線成功！",
+      "connectFailed": "連線失敗，請確認裝置是否在同一區域網路並已開啟無線除錯"
     },
     "rate_limits": {
       "title": "速率限制監控",
@@ -13253,6 +13651,46 @@
           "updated": "命令更新成功"
         }
       }
+    },
+    "a2aPeers": {
+      "title": "A2A 協定與遠端受信任節點",
+      "description": "節點描述 (選填)",
+      "registryTitle": "受信任遠端節點名冊",
+      "addPeer": "新增 A2A 節點",
+      "newPeer": "註冊新的遠端 A2A 節點",
+      "editPeer": "編輯 A2A 節點",
+      "peerName": "節點名稱",
+      "peerNamePlaceholder": "例如：Hermes Deep Researcher / OpenClaw Code Reviewer",
+      "baseUrl": "A2A 服務根 URL",
+      "baseUrlPlaceholder": "https://agent.example.com",
+      "descriptionPlaceholder": "簡述遠端節點擅長的任務或能力領域",
+      "authType": "認證方式",
+      "authBearer": "Bearer 權杖",
+      "authApiKey": "API 金鑰認證 (X-API-Key)",
+      "authNone": "無認證 (公網開放)",
+      "authToken": "認證金鑰",
+      "authTokenPlaceholder": "輸入用於呼叫遠端 A2A RPC 的存取金鑰",
+      "authTokenKeepPlaceholder": "留空則保留目前已儲存的金鑰",
+      "savePeer": "儲存節點",
+      "saveChanges": "儲存修改",
+      "saving": "儲存中...",
+      "cancel": "取消",
+      "probe": "探活檢測",
+      "probing": "探活中...",
+      "probeSuccess": "探活成功：{latency}ms，已解析 AgentCard",
+      "probeFailed": "探活失敗：{error}",
+      "ssrfBlocked": "SSRF 安全攔截：目標位址屬於受限內部網路",
+      "noPeers": "尚無註冊的 A2A 節點",
+      "noPeersDesc": "註冊遠端 A2A 節點後，您可以在智慧體能力中開啟 A2A 遠端編排，無縫委派複雜子任務至第三方 Agent 執行。",
+      "deleteConfirm": "確定要刪除此 A2A 節點嗎？",
+      "cardPreview": "AgentCard 中繼資料",
+      "cardSkills": "支援技能",
+      "cardProvider": "服務提供方",
+      "statusOk": "正常",
+      "statusError": "異常",
+      "statusUnreachable": "無法連線",
+      "statusSsrf": "安全阻斷",
+      "hasToken": "已設定憑證"
     },
     "lifecycleWebhook": {
       "title": "生命週期出站 Webhook",
@@ -13723,6 +14161,19 @@
         "rightsExportFailed": "匯出失敗 — 請嘗試在記憶設定中匯出",
         "rightsManageMemory": "管理記憶與刪除",
         "actionManage": "配置管理"
+      },
+      "leastPrivilege": {
+        "title": "最小權限與沙箱防護",
+        "description": "預設最小權限邊界與物理沙箱隔離，避免破壞性「完全存取」模式。",
+        "stanceHeader": "預設最小權限姿態",
+        "activeBadge": "已防護",
+        "stanceSummary": "命令與變更需明確審批，或在物理沙箱內執行。",
+        "manageTrustBtn": "信任資料夾",
+        "viewMatrixBtn": "能力矩陣",
+        "myrmWayTitle": "Myrm 審批與沙箱策略",
+        "myrmWayDesc": "統一審批流與中斷狀態機。高風險操作由沙箱防火牆攔截，日常任務保持順暢。",
+        "antiPatternTitle": "為何拒絕「完全存取」",
+        "antiPatternDesc": "完全存取會讓本機檔案與主機憑證面臨任意外傳風險。我們在清晰邊界內工作，無需繞圈規避。"
       },
       "profile": {
         "title": "安全配置集",
@@ -18095,7 +18546,20 @@
         "webui": "WebUI"
       },
       "unattendedDesktop": {
-        "title": "無人值守桌面"
+        "title": "無人值守桌面",
+        "guideTitle": "離席使用電腦・快速設定",
+        "guideIntro": "鎖定螢幕離開後仍要讓 Agent 操作本機時，請使用桌面用戶端。純瀏覽器模式僅支援聊天內審批，不含下列保護。",
+        "stepCurtainTitle": "工位防窺帷幕",
+        "stepCurtainBody": "蓋住所有顯示器，旁人看不到 Agent 在做什麼。請在下方開啟。",
+        "stepCurtainAction": "前往帷幕設定",
+        "stepLockedUseTitle": "離席解鎖（可選）",
+        "stepLockedUseBody": "鎖定螢幕後 Agent 仍可繼續 GUI 任務。需搭配帷幕；Mac 上可選擇將登入密碼存放於鑰匙圈。",
+        "stepLockedUseAction": "前往離席解鎖",
+        "stepApprovalTitle": "視覺化審批",
+        "stepApprovalBody": "高風險點擊仍在聊天中確認，並附帶截圖紅框；在 Mac 桌面端，系統允許時還會在真實螢幕上同步高亮。",
+        "statusOn": "已開啟",
+        "statusOff": "未開啟",
+        "statusOptional": "可選"
       },
       "copied": "已複製",
       "saved": "儲存成功",
@@ -19639,6 +20103,19 @@
       }
     },
     "systemHealth": {
+      "opsSnapshot": {
+        "title": "執行期快照",
+        "description": "本助手實例的即時狀態—負載、記憶體壓力與通道。",
+        "refresh": "重新整理",
+        "loading": "正在載入快照…",
+        "unreachable": "無法載入快照：{error}",
+        "uptime": "運行時間",
+        "liveness": "Agent 狀態",
+        "activeSessions": "活躍會話",
+        "memoryPressure": "記憶體壓力",
+        "memorySubsystem": "記憶子系統",
+        "doctorStatus": "診斷"
+      },
       "doctor": {
         "title": "系統健康診斷",
         "description": "服務元件與框架層的實時健康遙測",
@@ -20012,64 +20489,6 @@
       "chipSubtitle": "掌握大腦與肢體分工及智能路由最佳實踐",
       "chipAction": "查看手冊"
     },
-    "a2aPeers": {
-      "title": "A2A 協定與遠端受信任節點",
-      "description": "節點描述 (選填)",
-      "registryTitle": "受信任遠端節點名冊",
-      "addPeer": "新增 A2A 節點",
-      "newPeer": "註冊新的遠端 A2A 節點",
-      "editPeer": "編輯 A2A 節點",
-      "peerName": "節點名稱",
-      "peerNamePlaceholder": "例如：Hermes Deep Researcher / OpenClaw Code Reviewer",
-      "baseUrl": "A2A 服務根 URL",
-      "baseUrlPlaceholder": "https://agent.example.com",
-      "descriptionPlaceholder": "簡述遠端節點擅長的任務或能力領域",
-      "authType": "認證方式",
-      "authBearer": "Bearer 權杖",
-      "authApiKey": "API 金鑰認證 (X-API-Key)",
-      "authNone": "無認證 (公網開放)",
-      "authToken": "認證金鑰",
-      "authTokenPlaceholder": "輸入用於呼叫遠端 A2A RPC 的存取金鑰",
-      "authTokenKeepPlaceholder": "留空則保留目前已儲存的金鑰",
-      "savePeer": "儲存節點",
-      "saveChanges": "儲存修改",
-      "saving": "儲存中...",
-      "cancel": "取消",
-      "probe": "探活檢測",
-      "probing": "探活中...",
-      "probeSuccess": "探活成功：{latency}ms，已解析 AgentCard",
-      "probeFailed": "探活失敗：{error}",
-      "ssrfBlocked": "SSRF 安全攔截：目標位址屬於受限內部網路",
-      "noPeers": "尚無註冊的 A2A 節點",
-      "noPeersDesc": "註冊遠端 A2A 節點後，您可以在智慧體能力中開啟 A2A 遠端編排，無縫委派複雜子任務至第三方 Agent 執行。",
-      "deleteConfirm": "確定要刪除此 A2A 節點嗎？",
-      "cardPreview": "AgentCard 中繼資料",
-      "cardSkills": "支援技能",
-      "cardProvider": "服務提供方",
-      "statusOk": "正常",
-      "statusError": "異常",
-      "statusUnreachable": "無法連線",
-      "statusSsrf": "安全阻斷",
-      "hasToken": "已設定憑證"
-    },
-    "mobileAdb": {
-      "title": "行動裝置無線除錯 (ADB)",
-      "description": "連線 Android 實體裝置執行自動化操作、UI 樹解析與跨端協同任務",
-      "activeDevices": "目前已連線裝置",
-      "noDevicesFound": "暫無已連線的 Android 裝置",
-      "pairPrompt": "請在手機開發人員選項中開啟「無線除錯」，輸入配對碼或連接埠進行連線",
-      "wirelessPairing": "無線除錯配對 (Android 11+)",
-      "pairingCodePlaceholder": "6位配對碼 (例如: 123456)",
-      "pairButton": "開始配對",
-      "directConnect": "直接連線 (已配對裝置)",
-      "connectButton": "建立連線",
-      "refresh": "重新整理裝置清單",
-      "fillAllFields": "請填寫完整的主機、連接埠和配對資訊",
-      "pairSuccess": "無線裝置配對成功！",
-      "pairFailed": "無線配對失敗，請檢查 IP、連接埠與配對碼",
-      "connectSuccess": "裝置連線成功！",
-      "connectFailed": "連線失敗，請確認裝置是否在同一區域網路並已開啟無線除錯"
-    },
     "sshVault": {
       "title": "SSH 主機與 SFTP 憑證管理",
       "source": "設定來源",
@@ -20100,160 +20519,5 @@
       "tierStaging": "預發環境",
       "tierDev": "開發環境"
     }
-  },
-  "continualOverlay": {
-    "activeTitle": "活躍對話覆蓋層",
-    "remainingTurns": "{count, plural, =1 {剩餘 1 輪} other {剩餘 # 輪}}",
-    "rollbackTooltip": "回滾此對話覆蓋層",
-    "rollback": "回滾",
-    "collapse": "收起",
-    "expand": "展開",
-    "howItWorks": "運行機制",
-    "howItWorksDesc": "對話覆蓋層提供零重置故障恢復，在指定輪次預算內自動生效並在到期後平滑撤出。",
-    "allActiveOverlays": "全部活躍覆蓋層 ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "執行完畢",
-    "waitingApproval": "等待審批",
-    "collapseTelemetry": "折疊遙測",
-    "expandTelemetry": "展開遙測",
-    "currentNode": "節點 #{nodeId}",
-    "phases": {
-      "planning": {
-        "title": "意圖規劃"
-      },
-      "executing": {
-        "title": "工具執行"
-      },
-      "verifying": {
-        "title": "交付驗證"
-      }
-    },
-    "lanes": {
-      "agent": "Agent 核心",
-      "user": "使用者互動",
-      "llm": "LLM 推理",
-      "mcp": "MCP 工具",
-      "skills": "業務技能",
-      "sandbox": "沙箱執行"
-    }
-  },
-  "taskSpaces": {
-    "title": "並行瀏覽器任務空間",
-    "badgeRunning": "執行中",
-    "badgeIdle": "閒置待命",
-    "badgeTakeover": "人工接管中",
-    "takeoverBtn": "接管",
-    "releaseTakeoverBtn": "交還智慧體",
-    "closeSpaceBtn": "關閉空間",
-    "activePages": "{count} 個作用中分頁",
-    "emptyState": "目前暫無作用中的並行瀏覽器空間",
-    "snapshotPreview": "即時空間快照",
-    "takeoverHint": "目前處於人工接管狀態，完成後請點擊交還智慧體繼續自動化。",
-    "snapshotAlt": "任務空間快照"
-  },
-  "modelPlaybook": {
-    "title": "模型編排戰略手冊",
-    "subtitle": "多模型協同分工、動態路由與成本優化的架構指南。",
-    "brainHands": {
-      "title": "大腦與手腦專業化分工",
-      "tag": "角色解耦",
-      "description": "將高推理複雜任務規劃與輕量高頻的工具調用模型精細搭配。",
-      "brainTip": "大腦：Claude 3.5 Sonnet、DeepSeek-R1 負責全局架構與複雜決策。",
-      "handsTip": "手腦：MiniMax、GPT-4o-mini 負責高速工具調用與結構化輸出。"
-    },
-    "routingMoa": {
-      "title": "模型路由 vs 多智能體混合 (MoA)",
-      "tag": "正交維度",
-      "description": "動態路由根據任務類型選擇最佳模型；MoA 通過多模型協同輸出放大決策質量。",
-      "routingTip": "路由：根據任務特徵（編程、數學、創意）動態選定最優模型。",
-      "moaTip": "MoA：多模型並行產出與聚合共識，適用於關鍵重大決策。",
-      "routingActive": "生效中",
-      "routingInactive": "未啟用"
-    },
-    "cheapEyes": {
-      "title": "多模態視覺輔助 (廉價之眼)",
-      "tag": "成本優化",
-      "description": "使用輕量高性價比視覺模型解析多模態輸入，避免消耗昂貴核心推理模型。",
-      "tip": "將圖像檢查與螢幕視覺交給專用模型，保持對話核心鏈路輕盈高效。"
-    },
-    "honestQuota": {
-      "title": "真實配額與 Token 經濟學",
-      "tag": "成本治理",
-      "description": "即時監控各服務商的真實 Token 消耗與快取命中率，杜絕隱性浪費。",
-      "tip": "分析長鏈路調用瓶頸，優化 Prompt 前置以最大化快取利用率。"
-    },
-    "actions": {
-      "routingEnabledSuccess": "智能模型路由已成功啟用！",
-      "configureSlots": "配置模型槽位",
-      "enabled": "已啟用",
-      "enableSmartRouting": "啟用智能路由",
-      "configureVision": "配置視覺模型",
-      "viewSubscriptions": "查看訂閱方案",
-      "close": "關閉"
-    },
-    "cardTitle": "模型編排手冊",
-    "cardBadge": "心法指南",
-    "cardSubtitle": "掌握大腦與肢體分工、三層自適應路由與 MoA 共識，最大化執行效率。",
-    "viewFullPlaybook": "查看完整手冊",
-    "collapse": "收起",
-    "expand": "展開",
-    "miniBrainHandsTitle": "大腦與肢體分工",
-    "miniBrainHandsDesc": "高智商規劃器 + 快速工具執行器。",
-    "miniDynamicRoutingTitle": "三層自適應路由",
-    "miniDynamicRoutingDesc": "自動在輕量、標準、深度推理層之間無縫切換。",
-    "miniMoaTitle": "MoA 共識增強",
-    "miniMoaDesc": "多模型交叉辯論與聚合，打破單模型能力天花板。",
-    "headerBadge": "模型編排戰略",
-    "dialogTitle": "模型編排實戰手冊與最佳架構配方",
-    "dialogSubtitle": "深入理解手腦分工、動態路由、MoA 混合共識與端到端 Token 經濟學",
-    "brainHandsTitle": "1. 手腦專業化協同分工 (Brain vs. Hands)",
-    "brainHandsBadge": "速度與成本雙優",
-    "brainHandsDesc": "將全局規劃、架構設計與高頻工具調用解耦，避免用昂貴主腦處理簡單執行。",
-    "brainLabel": "大腦 (規劃器)",
-    "brainExample": "Claude 3.7 Sonnet、DeepSeek-R1",
-    "handsLabel": "手腦 (執行器)",
-    "handsExample": "DeepSeek-V3、Qwen 2.5、GPT-4o-mini",
-    "dynamicRoutingTitle": "2. 三層自適應動態路由 (3-Tier Adaptive Routing)",
-    "dynamicRoutingBadge": "全自動分流",
-    "dynamicRoutingDesc": "自動識別用戶請求意圖與複雜度，毫秒級自適應升降級算力規格。",
-    "tierSimpleTitle": "輕量檔位 (Simple Tier)",
-    "tierSimpleDesc": "閒聊打招呼、輕量問答與快速查表，毫秒級響應並節省 ~65% 開銷。",
-    "tierStandardTitle": "標準檔位 (Standard Tier)",
-    "tierStandardDesc": "功能開發、重構、多文件分析與日常複雜辦公任務。",
-    "tierReasoningTitle": "深度推理檔位 (Reasoning Tier)",
-    "tierReasoningDesc": "涉及嚴格數學證明、長程因果推演與架構設計等高難度場景。",
-    "moaTitle": "3. 多模型混合共識層 (Mixture-of-Agents)",
-    "moaBadge": "準確率飛躍",
-    "moaDesc": "多模型獨立生成候選並由評議委員會聚合共識，徹底粉碎單點幻覺。",
-    "orthogonalTipTitle": "動態路由與 MoA 的正交關係",
-    "orthogonalTipDesc": "路由面向橫向任務降本，MoA 面向縱向難度提質，二者可無縫疊加生效。",
-    "specialistsTitle": "4. 專用領域模型槽位 (Specialist Slots)",
-    "specialistsDesc": "獨立分配多模態視覺廉價之眼、長文本專用模型與編程專項模型。",
-    "footerNote": "您可在設定中心隨時切換或微調以上模型配置策略。",
-    "closeBtn": "關閉",
-    "configureBtn": "前往設定中心配置"
-  },
-  "security": {
-    "taintedEgress": {
-      "title": "敏感資料出網攔截",
-      "description": "偵測到包含敏感憑證的出網請求試圖連接外部主機。",
-      "destinationHost": "目標主機",
-      "dataType": "敏感資料類型",
-      "detectedPattern": "命中模式",
-      "trustSession": "在本次工作階段中始終信任該目標（消除後續彈窗）",
-      "approve": "允許出網",
-      "reject": "阻斷攔截"
-    }
-  },
-  "ttsAudio": {
-    "generatedSpeech": "已生成語音",
-    "playbackFailed": "音訊播放失敗——檔案可能已過期。"
-  },
-  "intentDispatcher": {
-    "invalidLink": "無效的外部連結或參數錯誤",
-    "oauthSuccess": "授權成功",
-    "oauthFailed": "授權驗證失敗，請重試",
-    "cloudProfileName": "雲端沙箱"
   }
 }

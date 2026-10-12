@@ -438,6 +438,11 @@ class CustomAgentFactory:
 
                 embedding_cfg = await self._resolve_embedding_config()
                 if embedding_cfg is not None:
+                    from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
+                        get_platform_dedup_llm,
+                    )
+
+                    dedup_llm = await get_platform_dedup_llm() or llm
                     memory_manager = await create_memory_manager(
                         resolve_context_binding(
                             namespaces=None,
@@ -449,6 +454,7 @@ class CustomAgentFactory:
                             memory_policy=getattr(profile, "memory_policy", None),
                         ),
                         embedding_config=embedding_cfg,
+                        dedup_llm=dedup_llm,
                     )
             except Exception as e:
                 logger.warning(

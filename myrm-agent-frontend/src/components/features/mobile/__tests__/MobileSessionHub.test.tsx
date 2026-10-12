@@ -28,11 +28,17 @@ vi.mock('@/components/features/icons/PremiumIcons', () => ({
   IconArrowRight: () => null,
   IconCheckCircle: () => null,
   IconChevronUp: () => null,
+  IconChevronRight: () => null,
   IconClock: () => null,
   IconPlus: () => null,
   IconUsers: () => null,
   IconX: () => null,
   IconShieldCheck: () => null,
+  IconLoader: () => null,
+  IconAlertTriangle: () => null,
+  IconCheck: () => null,
+  IconZap: () => null,
+  IconSparkles: () => null,
 }));
 
 vi.mock('@/lib/mobileRemote', () => ({
@@ -305,5 +311,46 @@ describe('MobileSessionHub stop from running card', () => {
     expect(mockShowI18nToast).toHaveBeenCalledWith('agent.mobileCommand.stopTaskFailed', undefined, {
       type: 'warning',
     });
+  });
+});
+
+describe('MobileSessionHub quick capture FAB and drawer integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRemoteAccess.getMobileSessions.mockResolvedValue({
+      activeSessions: [],
+      recentSessions: [],
+      maxConcurrent: 3,
+      availableSlots: 3,
+    });
+    mockRemoteAccess.getSpawnOptions.mockResolvedValue({
+      agents: [{ id: 'agent-a', name: 'Agent A', avatar: null }],
+      projects: [],
+      defaultAgentId: 'agent-a',
+    });
+  });
+
+  it('renders quick capture FAB and toggles capture drawer', async () => {
+    render(<MobileSessionHub />);
+    await act(async () => {});
+
+    expect(screen.queryByTestId('mobile-quick-capture-drawer')).not.toBeInTheDocument();
+
+    const fab = screen.getByTestId('mobile-quick-capture-fab');
+    expect(fab).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(fab);
+    });
+
+    expect(screen.getByTestId('mobile-quick-capture-drawer')).toBeInTheDocument();
+
+    // Tap backdrop or close button to dismiss
+    const closeButtons = screen.getAllByLabelText('close');
+    await act(async () => {
+      fireEvent.click(closeButtons[0]);
+    });
+
+    expect(screen.queryByTestId('mobile-quick-capture-drawer')).not.toBeInTheDocument();
   });
 });

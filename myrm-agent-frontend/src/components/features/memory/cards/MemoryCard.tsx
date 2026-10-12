@@ -17,16 +17,14 @@ import {
   BookOpen,
   Clock,
   Lock,
-  ShieldCheck,
   ShieldAlert,
-  Sparkles,
-  AlertCircle,
+  Tag,
 } from 'lucide-react';
-import { Tag } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { PendingMemory, Memory, MemoryType } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
 import { EvidenceBadge } from './EvidenceBadge';
+import { MemoryCardBadges } from './MemoryCardBadges';
 import { MemoryProceduralDetails } from './MemoryProceduralDetails';
 import PendingTargetHint from './PendingTargetHint';
 
@@ -107,6 +105,7 @@ const MemoryCard = memo<MemoryCardProps>(
     })();
 
     return (
+      // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- keyboard path is the content button below; the card-level click is a pointer convenience
       <div
         data-testid="memory-card"
         className={cn(
@@ -161,78 +160,7 @@ const MemoryCard = memo<MemoryCardProps>(
             <div className="flex items-center gap-2.5 flex-wrap">
               <MemoryTypeIcon type={memoryType} size={18} showBackground showTooltip />
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{displayLabel}</span>
-              {isDisabled && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                  {t('disabled')}
-                </span>
-              )}
-              {confirmed?.is_user_locked && <Lock size={12} className="text-amber-500" aria-label={t('locked')} />}
-              {confirmed?.is_exact_fact && (
-                <span
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
-                  title={
-                    confirmed.exact_identifiers && confirmed.exact_identifiers.length > 0
-                      ? `精确事实 hard-lock: ${confirmed.exact_identifiers.join(', ')}`
-                      : '精确事实 hard-lock'
-                  }
-                >
-                  <Lock size={10} className="text-blue-500" />
-                  <span>精确事实</span>
-                </span>
-              )}
-              {isPending &&
-                'confidence' in memory &&
-                memory.confidence !== undefined &&
-                memory.confidence !== null &&
-                (() => {
-                  const percent = Math.round(memory.confidence * 100);
-                  if (percent >= 85) {
-                    return (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        <ShieldCheck size={10} />
-                        <span>{percent}%</span>
-                      </span>
-                    );
-                  }
-                  if (percent >= 60) {
-                    return (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                        <Sparkles size={10} />
-                        <span>{percent}%</span>
-                      </span>
-                    );
-                  }
-                  return (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border/50">
-                      <AlertCircle size={10} />
-                      <span>{percent}%</span>
-                    </span>
-                  );
-                })()}
-              {confirmed?.is_veto && (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
-                  title="行为禁令 — 系统将严格执行此限制，避免触发违规操作"
-                >
-                  <ShieldAlert size={10} />
-                  <span>行为禁令</span>
-                </span>
-              )}
-              {confirmed?.is_user_locked && (
-                <span
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                  title="用户已锁定保护"
-                >
-                  <Lock size={10} />
-                  <span>锁定</span>
-                </span>
-              )}
-              {isPending && 'kind' in memory && memory.kind && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
-                  <Tag size={9} />
-                  <span>{memory.kind}</span>
-                </span>
-              )}
+              <MemoryCardBadges memory={memory} confirmed={confirmed} isPending={isPending} />
             </div>
 
             <div className="flex items-center gap-1">
@@ -365,14 +293,12 @@ const MemoryCard = memo<MemoryCardProps>(
             <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
               <div className="flex items-center gap-1">
                 <BookOpen size={12} className="opacity-70" />
-                <span>
-                  Used <span className="font-medium text-foreground">{confirmed.access_count}</span> times
-                </span>
+                <span>{t('usedTimes', { count: confirmed.access_count })}</span>
               </div>
               {confirmed.last_accessed_at && (
                 <div className="flex items-center gap-1 opacity-70">
                   <Clock size={12} />
-                  <span>Last: {formatDate(confirmed.last_accessed_at)}</span>
+                  <span>{t('lastUsedAt', { time: formatDate(confirmed.last_accessed_at) })}</span>
                 </div>
               )}
             </div>

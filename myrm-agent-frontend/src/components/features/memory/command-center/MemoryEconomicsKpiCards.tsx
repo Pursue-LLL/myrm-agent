@@ -23,6 +23,10 @@ interface MemoryEconomicsKpiCardsProps {
 }
 
 export const MemoryEconomicsKpiCards: React.FC<MemoryEconomicsKpiCardsProps> = ({ cost, savings, parasiticCount }) => {
+  const hasPromptTelemetry = (cost?.prompt_tokens ?? 0) > 0;
+  const cachePreservationPct = hasPromptTelemetry
+    ? Math.round((cost?.cache_preservation_score ?? 0) * 100)
+    : null;
   const retrievalMs = cost?.retrieval_ms ?? 0;
   const constructionMs = cost?.construction_ms ?? 0;
   const injectionMs = cost?.injection_overhead_ms ?? 0;
@@ -98,12 +102,16 @@ export const MemoryEconomicsKpiCards: React.FC<MemoryEconomicsKpiCardsProps> = (
         </div>
         <div className="flex items-baseline gap-1.5">
           <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            {Math.round((cost?.cache_preservation_score ?? 1) * 100)}%
+            {cachePreservationPct === null ? '—' : `${cachePreservationPct}%`}
           </span>
           <span className="text-xs text-muted-foreground">保持率</span>
         </div>
         <div className="text-[11px] text-muted-foreground/80">
-          {cost?.cache_friendly ? '前缀对齐良好，命中最大化' : '提示词前缀需进一步对齐'}
+          {cachePreservationPct === null
+            ? '无会话 token 遥测；命中率请见聊天上下文环'
+            : cost?.cache_friendly
+              ? '基于 cached/prompt 比值（提供商 usage）'
+              : '提示词前缀需进一步对齐'}
         </div>
       </div>
 

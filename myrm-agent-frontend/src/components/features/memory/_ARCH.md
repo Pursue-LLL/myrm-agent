@@ -25,19 +25,19 @@
 
 ### cards/
 
-| 文件                           | 地位 | 职责                                                                                                        | I/O/P |
-| ------------------------------ | ---- | ----------------------------------------------------------------------------------------------------------- | ----- |
-| `MemoryCard.tsx`               | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单；procedural 规则 TTL 显示，用户锁定隐藏过期天数；集成 EvidenceBadge） | ✅    |
-| `MemoryScopeHierarchyCard.tsx` | 组件 | 记忆作用域层级图谱卡片（Task/Conversation/Agent/Global 四级统一生命周期与隔离可视化）                       | ✅    |
-| `MemoryScopePicker.tsx`        | 组件 | 记忆作用域级别选择器（创建/编辑记忆时直观选择作用域范围与描述提示）                                         | ✅    |
-| `ConflictCard.tsx`             | 组件 | 冲突记忆卡                                                                                                  | ✅    |
-| `MemoryDetailSheet.tsx`        | 组件 | 记忆详情 Sheet（全文/metadata/来源/演变历史时间线与纠正链）                                                 | ✅    |
-| `MemoryTypeIcon.tsx`           | 辅助 | 记忆类型 → 图标映射                                                                                         | ✅    |
-| `MemoryStats.tsx`              | 组件 | 记忆数量/类型统计摘要                                                                                       | ✅    |
-| `EvidenceBadge.tsx`            | 组件 | 证据链胶囊徽章（原话引文摘要、侧边抽屉呼出与纠偏加锁联动）                                                  | ✅    |
-| `RepoEvidenceCard.tsx`         | 组件 | 仓库历史证据卡片（Git 分支状态、未提交更改提示、最新 Commit 历史摘要与文件数量）                            | ✅    |
-| `PreferenceStabilityCard.tsx`  | 组件 | 偏好稳定性卡                                                                                                | ✅    |
-| `TasteSummaryCard.tsx`         | 组件 | 口味摘要卡                                                                                                  | ✅    |
+| 文件                           | 地位 | 职责                                                                                                                                                                                         | I/O/P |
+| ------------------------------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `MemoryCard.tsx`               | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单；procedural 规则 TTL 显示，用户锁定隐藏过期天数；受保护记忆（`is_user_locked`，规则锁定/语义情景固定）统一显示锁图标与本地化提示；集成 EvidenceBadge） | ✅    |
+| `MemoryScopeHierarchyCard.tsx` | 组件 | 记忆作用域层级图谱卡片（Task/Conversation/Agent/Global 四级统一生命周期与隔离可视化）                                                                                                        | ✅    |
+| `MemoryScopePicker.tsx`        | 组件 | 记忆作用域级别选择器（创建/编辑记忆时直观选择作用域范围与描述提示）                                                                                                                          | ✅    |
+| `ConflictCard.tsx`             | 组件 | 冲突记忆卡                                                                                                                                                                                   | ✅    |
+| `MemoryDetailSheet.tsx`        | 组件 | 记忆详情 Sheet（全文/metadata/来源/演变历史时间线与纠正链）                                                                                                                                  | ✅    |
+| `MemoryTypeIcon.tsx`           | 辅助 | 记忆类型 → 图标映射                                                                                                                                                                          | ✅    |
+| `MemoryStats.tsx`              | 组件 | 记忆数量/类型统计摘要                                                                                                                                                                        | ✅    |
+| `EvidenceBadge.tsx`            | 组件 | 证据链胶囊徽章（原话引文摘要、侧边抽屉呼出与纠偏加锁联动）                                                                                                                                   | ✅    |
+| `RepoEvidenceCard.tsx`         | 组件 | 仓库历史证据卡片（Git 分支状态、未提交更改提示、最新 Commit 历史摘要与文件数量）                                                                                                             | ✅    |
+| `PreferenceStabilityCard.tsx`  | 组件 | 偏好稳定性卡                                                                                                                                                                                 | ✅    |
+| `TasteSummaryCard.tsx`         | 组件 | 口味摘要卡                                                                                                                                                                                   | ✅    |
 
 ### drawers/
 
@@ -167,6 +167,8 @@
 | `pending/__tests__/PendingMemoryBadge.test.tsx`     | 待审批记忆计数徽章测试                                                       | ✅    |
 | `pending/__tests__/PendingMemoryDialog.test.tsx`    | 待审批记忆审批弹窗交互测试                                                   | ✅    |
 | `__tests__/MemoryDomainMeshPanel.test.tsx`          | 三域认知网格主看板渲染、下钻追溯与迁移弹窗触发测试                           | ✅    |
+| `__tests__/PromptCacheConsolidationView.test.tsx`   | 缓存归档 HUD：无遥测时不展示伪造命中率                                       | ✅    |
+| `__tests__/PromptCachePreservingDeltaCard.test.tsx` | 瞬态增量双轨卡片：预览注入与会话 reconcile 交互                              | ✅    |
 
 ## 依赖
 

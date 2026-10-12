@@ -1,14 +1,26 @@
-"""Skills API request/response schemas."""
+"""Skills API request/response schemas.
 
-import logging
+[INPUT]
+- myrm_agent_harness.agent.skills.security.content_sanitizer::Redaction, SecretKind (POS: one redaction finding and its closed kind codes.)
+- app.core.skills.models::Skill (POS: skill domain model rendered by skill_to_response.)
+
+[OUTPUT]
+- Skill, usage/config, local-path and security-scan DTOs shared by the skills routers.
+- RedactionResponse, redaction_responses: per-file findings in the review-dialog diff shape
+  (skill export preview and expert export preview share it).
+- PackagePreviewResponse, UploadSkillResponse, SkillPackageInfoResponse: packaging endpoint payloads.
+
+[POS]
+API-layer wire models for the skills routers; no business logic beyond redaction_responses and
+the skill_to_response forwarding wrapper.
+"""
+
 from collections.abc import Mapping, Sequence
 
 from myrm_agent_harness.agent.skills.security.content_sanitizer import Redaction, SecretKind
 from pydantic import BaseModel
 
 from app.core.skills.models import Skill
-
-logger = logging.getLogger(__name__)
 
 
 class SkillRequiresResponse(BaseModel):

@@ -26,8 +26,8 @@ jobs:
       run:
         working-directory: myrm-agent-frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: oven-sh/setup-bun@ec67ec93a744265007323ee824c0d1645e317bb7 # v2.0.1
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Lockfile policy (bun SSOT, no package-lock.json)

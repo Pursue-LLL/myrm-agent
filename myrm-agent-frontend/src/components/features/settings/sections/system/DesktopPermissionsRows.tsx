@@ -8,6 +8,7 @@
  * - PermissionRow: OS 权限基础开关行
  * - CaptureProbeRow: 屏幕捕获探针验证行
  * - ScreenLockRow: 物理锁屏与休眠硬阻断安全门禁状态行
+ * - LockedUseDoctorRow: 离席模式 / 防窥帷幕与桌面壳协调状态（/health/doctor DesktopLockedUse）
  * - DeeplinkItem: 深度跳转及命令复制辅助条
  *
  * [POS]
@@ -115,7 +116,9 @@ export const ScreenLockRow = memo<{
   description: string;
   isLocked: boolean;
   isLoading: boolean;
-}>(({ label, description, isLocked, isLoading }) => (
+  statusLockedLabel: string;
+  statusUnlockedLabel: string;
+}>(({ label, description, isLocked, isLoading, statusLockedLabel, statusUnlockedLabel }) => (
   <div className="px-5 py-4 flex items-center justify-between">
     <div className="flex items-center gap-3 flex-1 min-w-0">
       <div
@@ -139,12 +142,75 @@ export const ScreenLockRow = memo<{
             : 'bg-emerald-500/10 text-emerald-500',
       )}
     >
-      {isLoading ? '...' : isLocked ? 'Locked (Blocked)' : 'Unlocked (Active)'}
+      {isLoading ? '...' : isLocked ? statusLockedLabel : statusUnlockedLabel}
     </span>
   </div>
 ));
 
 ScreenLockRow.displayName = 'ScreenLockRow';
+
+export const LockedUseDoctorRow = memo<{
+  label: string;
+  description: string;
+  detail?: string | null;
+  tone: 'loading' | 'pass' | 'pass_bridge' | 'warn' | 'fail' | 'unavailable';
+  statusBadgeLabel: string;
+  fixActionLabel?: string;
+  onFixAction?: () => void;
+}>(
+  ({ label, description, detail, tone, statusBadgeLabel, fixActionLabel, onFixAction }) => {
+    const badge = tone === 'loading' ? '...' : statusBadgeLabel;
+
+    return (
+      <div className="px-5 py-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div
+            className={cn(
+              'w-2 h-2 rounded-full shrink-0',
+              tone === 'loading' && 'bg-muted-foreground animate-pulse',
+              tone === 'pass' && 'bg-emerald-500',
+              tone === 'pass_bridge' && 'bg-sky-500',
+              tone === 'warn' && 'bg-amber-500',
+              tone === 'fail' && 'bg-rose-500',
+              tone === 'unavailable' && 'bg-muted-foreground',
+            )}
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">{label}</p>
+            <p className="text-xs text-muted-foreground">{description}</p>
+            {detail ? <p className="text-xs text-muted-foreground/90 mt-1 leading-snug">{detail}</p> : null}
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <span
+            className={cn(
+              'text-xs font-medium px-2.5 py-1 rounded-full',
+              tone === 'loading' && 'bg-muted text-muted-foreground',
+              tone === 'pass' && 'bg-emerald-500/10 text-emerald-500',
+              tone === 'pass_bridge' && 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
+              tone === 'warn' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+              tone === 'fail' && 'bg-rose-500/10 text-rose-500',
+              tone === 'unavailable' && 'bg-muted text-muted-foreground',
+            )}
+          >
+            {badge}
+          </span>
+          {fixActionLabel && onFixAction ? (
+            <button
+              type="button"
+              onClick={onFixAction}
+              className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              {fixActionLabel}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  },
+);
+
+LockedUseDoctorRow.displayName = 'LockedUseDoctorRow';
 
 export const DeeplinkItem = memo<{
   label: string;

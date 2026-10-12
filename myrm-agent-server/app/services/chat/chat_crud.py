@@ -706,6 +706,14 @@ def _clear_session_working_memory(chat_id: str) -> None:
         ConsolidationService.clear_session_working_state(chat_id)
     except Exception as exc:
         logger.warning("Failed to clear session working state (chat=%s): %s", chat_id, exc)
+    try:
+        from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (
+            clear_ephemeral_deltas_for_session,
+        )
+
+        clear_ephemeral_deltas_for_session(chat_id)
+    except Exception as exc:
+        logger.warning("Failed to clear ephemeral session deltas (chat=%s): %s", chat_id, exc)
 
 
 async def _cascade_delete_memories(chat_id: str) -> None:

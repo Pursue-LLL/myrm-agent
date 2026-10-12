@@ -20,6 +20,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
 | `support/export_world.py` | 辅助 | 专家导出测试的假安装：`ExportWorld`（专家、技能目录与文件、连接器）+ `installed()` 上下文把导出闭包指向它；`SKILL_MD` 最小合法技能；`services/plugins` 与 `api/plugins` 导出测试共用 |
+| `support/redaction_review_e2e.py` | 辅助 | 导出脱敏复核 Chrome E2E 的浏览器侧：`ReviewFlow`（对话框标题、进入方式、成功提示措辞）+ `run_review_flow`（zh 与 en 各读一遍发现项的本地化句子且无原始代码、`kinds.` 键名与另一语言句子，再点“导出脱敏版”走真实下载并以对话框关闭为判据，结束恢复 `NEXT_LOCALE`）；专家导出与单技能导出两个 E2E 共用 |
+| `e2e/test_expert_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：`/settings/agents` 带密钥与本机路径的智能体，预览 API 返回 `api_token`/`absolute_path` 代码，导出对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框 |
+| `e2e/test_skill_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：经 `.zip` 上传装一个带密钥与本机路径的技能，`/settings/skills` 已安装列表搜索 → 详情抽屉 → 导出，对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框；结束卸载该技能 |
 | `e2e/test_telemetry_posture_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Developer 设置页面 OpenTelemetry Posture 遥测态势卡片、协议/端点/特性渲染与刷新端到端测试 |
 | `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试 |
 | `api/memory/test_evidence_playback_api.py` | 单元 | 记忆证据链溯源、上下文切片回放与凭据脱敏 API 集成测试 |
@@ -61,7 +64,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
 | `e2e/test_skill_hooks_live_chrome_e2e.py` | 模块 | 技能 command hooks 治理真实 WebUI 对话回合 Chrome LIVE E2E（PRIVATE+LIVE，六场景各自独立 `file::test` 运行以守 600s BODY 墙钟：斜杠面板选技能 chip 发送 → `[use skill]` 线上消息 → 真实模型调 bash → SessionStart/PreToolUse/PostToolUse/SessionEnd 钩子写出可观测文件；被命令门禁拒绝的第三方钩子不运行；`fail_closed` 钩子拦下工具调用；HITL 审批卡批准后恢复回合重新激活钩子；带附件（content blocks）与超长消息落盘引用两种载体仍调用技能；不带技能的后续消息不复活钩子） |
 | `support/chrome_skill_hooks_live_e2e.py` | 辅助 | 技能钩子 LIVE E2E 的后端装配：经产品 API 采纳带 `hooks:` 的本地技能，`setup_skill_chat` / `SkillChat`（providers + 持有该技能的智能体 + 空聊天），`audit_hooks()` / `fail_closed_hooks()` 生成写可观测文件的 SKILL.md `hooks:` 块 |
-| `support/chrome_skill_hooks_composer.py` | 辅助 | 技能钩子 Chrome E2E 的浏览器侧：真实 composer 里斜杠选技能 chip、可选经真实 file input 挂附件、输入并点真实发送键，HITL 审批卡等待与点击批准，转录区 chip 渲染探针 |
+| `support/chrome_skill_hooks_composer.py` | 辅助 | 技能钩子 Chrome E2E 的浏览器侧：真实 composer 里斜杠选技能 chip、可选经真实 file input 挂附件、输入并点真实发送键，页面对已发送回合的自述（`describe_page`），转录区 chip 渲染探针 |
+| `support/chrome_skill_hooks_approval.py` | 辅助 | 技能钩子 Chrome E2E 的 HITL 审批卡：等待审批卡出现、点真实 Approve 键，`approve_cards_until_reply` 逐张批准直到回复落库（模型重试被执行器拒绝的命令会再停一张卡），`describe_unanswered_resume` 给出批准后无回复的失败现场 |
 | `support/chrome_skill_hooks_observe.py` | 辅助 | 技能钩子回合留下的证据：等用户消息/助手回复落库、读取钩子写出的文件与后端日志，`assert_no_hook_raised` / `assert_audit_turn_governed` |
 | `api/agent/test_sse_heartbeat_filter.py` | 模块 | agent 测试客户端（同步 `TestClient` 与异步 `httpx.AsyncClient`）对行解析器隐藏 SSE keep-alive 帧（帧由真实 `ResilientStreamBuffer` 产出，格式变更在此报红，避免 `data: null` 解析洞在流测试里重开） |
 | `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
@@ -183,6 +187,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_mention_reference_stream_chrome_e2e.py` | 模块 | Chrome LIVE E2E（PRIVATE+LIVE×3，真实 LLM + `window.fetch` 拦截 `/agents/agent-stream` 请求体，无 mock）：保留 `@chat:` 引用 → payload 含 prior_chat；删除 token 后僵尸引用被过滤；粘贴 `@wiki:Concept` → payload 含 wiki_concept + `concept_name`（对应 `messageRequest.ts` `isReferenceTokenAlive` + `extractInlineMentionReferences` 修复） |
 | `api/agent/test_timestamp_integration.py` | 模块 | Web 消息 timestamp/sent_at 持久化 + `ensure_chat_and_append_user_message` 幂等（同 id+content 复用 / 不同 content 换 id）；内存 SQLite |
 | `api/agent/test_shpoib_hitl_attach_replay.py` | 模块 | SHPOIB HITL attach replay 集成（subscribe / multiplexed attach / hitl-probe / CORP；无 Chrome/LLM） |
+| `api/agent/test_hitl_approval_resume_e2e.py` | 模块 | HITL 审批闸与续跑真实模型 E2E（`@pytest.mark.e2e`）：回环 HTTP 探针证明停靠在审批卡期间 `curl` 未执行、用户批准续跑后已执行；同一聊天连续 3 个停靠回合，断言续跑无 rejected/error 且回复完成 |
 | `api/security/test_allowlist_api.py` | 模块 | Allowlist REST list/delete + pattern 粒度 round-trip |
 | `integration/test_kanban_attach_handler_integration.py` | 模块 | SQLite attach handler + orchestrator unblock tool invoke |
 | `integration/test_project_workspace_bind_file_write_integration.py` | 模块 | Project bind → `convert_to_general_agent_params.declared_allowed_roots` → `file_write_tool` 磁盘断言（无 LLM） |

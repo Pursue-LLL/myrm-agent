@@ -7,6 +7,8 @@
  * - @/lib/desktop/permissionDeepLink (POS: 桌面权限引导深链 SSOT)
  * - @/lib/desktop/desktopPermissionsStatus (POS: permissions API FE 契约)
  * - ./DesktopPermissionsRows (POS: 桌面权限卡片子组件视图行)
+ * - @/lib/desktop/desktopLockedUseDoctor (POS: DesktopLockedUse doctor 解析)
+ * - @/services/runtime-health::getRuntimeDoctor (POS: /health/doctor)
  *
  * [OUTPUT]
  * - DesktopPermissionsCard: 桌面自动化就绪检测卡片；OS 授权 + 功能捕获探针三态 + 始终信任应用列表
@@ -24,7 +26,19 @@ import { toast } from '@/lib/utils/toast';
 import { showsLocalIntegrationTabs } from '@/lib/deploy-mode';
 import { openPermissionDeepLink } from '@/lib/desktop/permissionDeepLink';
 import { desktopPermissionsPath, type DesktopPermissionsStatus } from '@/lib/desktop/desktopPermissionsStatus';
-import { PermissionRow, CaptureProbeRow, ScreenLockRow, DeeplinkItem } from './DesktopPermissionsRows';
+import {
+  findDesktopLockedUseReport,
+  lockedUseDoctorNeedsSettingsLink,
+  resolveLockedUseDoctorBadgeKey,
+  resolveLockedUseDoctorDetailKey,
+  resolveLockedUseDoctorVisualTone,
+} from '@/lib/desktop/desktopLockedUseDoctor';
+import {
+  MYRM_LOCKED_USE_SETTINGS_ANCHOR,
+  scrollToDesktopSettingsAnchor,
+} from '@/lib/desktop/desktopSettingsAnchors';
+import { getRuntimeDoctor, type DoctorResponse } from '@/services/runtime-health';
+import { PermissionRow, CaptureProbeRow, ScreenLockRow, LockedUseDoctorRow, DeeplinkItem } from './DesktopPermissionsRows';
 
 type HeaderTone = 'verified' | 'unverified' | 'capture_failed' | 'missing';
 
@@ -44,10 +58,25 @@ const DesktopPermissionsCardLocal = memo(() => {
   const [revokingKey, setRevokingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [trustError, setTrustError] = useState<string | null>(null);
+  const [doctor, setDoctor] = useState<DoctorResponse | null>(null);
+  const [isDoctorLoading, setIsDoctorLoading] = useState(true);
+
+  const fetchDoctor = useCallback(async () => {
+    setIsDoctorLoading(true);
+    try {
+      const data = await getRuntimeDoctor();
+      setDoctor(data);
+    } catch {
+      setDoctor(null);
+    } finally {
+      setIsDoctorLoading(false);
+    }
+  }, []);
 
   const fetchPermissions = useCallback(async (probeCapture = false) => {
     setIsLoading(true);
     setError(null);
+    void fetchDoctor();
     try {
       const data = await apiRequest<DesktopPermissionsStatus>(desktopPermissionsPath(probeCapture), {
         silent: true,
@@ -58,7 +87,7 @@ const DesktopPermissionsCardLocal = memo(() => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fetchDoctor]);
 
   const fetchTrustedApps = useCallback(async () => {
     setIsTrustLoading(true);
@@ -112,6 +141,10 @@ const DesktopPermissionsCardLocal = memo(() => {
     openPermissionDeepLink(url);
   }, []);
 
+  const handleLockedUseFixLink = useCallback(() => {
+    scrollToDesktopSettingsAnchor(MYRM_LOCKED_USE_SETTINGS_ANCHOR);
+  }, []);
+
   if (error) {
     return (
       <section className="space-y-6">
@@ -149,6 +182,13 @@ const DesktopPermissionsCardLocal = memo(() => {
     Boolean(status) &&
     Object.keys(status?.settings_deeplinks ?? {}).length > 0 &&
     (status?.all_granted !== true || status?.screen_recording_capturable === false);
+
+  const lockedUseReport = findDesktopLockedUseReport(doctor);
+  const lockedUseDetailKey = resolveLockedUseDoctorDetailKey(lockedUseReport);
+  const lockedUseDetail = lockedUseDetailKey ? t(lockedUseDetailKey) : null;
+  const lockedUseTone = resolveLockedUseDoctorVisualTone(lockedUseReport, isDoctorLoading);
+  const lockedUseBadgeKey = resolveLockedUseDoctorBadgeKey(lockedUseReport, isDoctorLoading);
+  const lockedUseShowFixLink = lockedUseDoctorNeedsSettingsLink(lockedUseReport);
 
   return (
     <section className="space-y-6">
@@ -211,6 +251,16 @@ const DesktopPermissionsCardLocal = memo(() => {
           </button>
         </div>
 
+        <div className="p-5 space-y-3 bg-muted/20">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('setupGuideTitle')}</p>
+          <ol className="list-decimal list-inside space-y-2 text-xs text-muted-foreground leading-relaxed">
+            <li>{t('setupGuideStep1')}</li>
+            <li>{t('setupGuideStep2')}</li>
+            <li>{t('setupGuideStep3')}</li>
+            <li>{t('setupGuideStep4')}</li>
+          </ol>
+        </div>
+
         {/* Accessibility check */}
         <PermissionRow
           label={t('accessibility')}
@@ -245,12 +295,24 @@ const DesktopPermissionsCardLocal = memo(() => {
         {/* Physical Screen Lock & Sleep Interruption Gate */}
         {status?.screen_locked !== undefined && (
           <ScreenLockRow
-            label="Lock Screen Guardian"
-            description="Physical sleep & lock-screen gate halts automated inputs immediately"
+            label={t('screenLockGuardLabel')}
+            description={t('screenLockGuardDesc')}
             isLocked={status.screen_locked}
             isLoading={isLoading}
+            statusLockedLabel={t('screenLockGuardLocked')}
+            statusUnlockedLabel={t('screenLockGuardUnlocked')}
           />
         )}
+
+        <LockedUseDoctorRow
+          label={t('lockedUseDoctorLabel')}
+          description={t('lockedUseDoctorDesc')}
+          detail={lockedUseDetail}
+          tone={lockedUseTone}
+          statusBadgeLabel={t(lockedUseBadgeKey)}
+          fixActionLabel={lockedUseShowFixLink ? t('lockedUseDoctorGoToSettings') : undefined}
+          onFixAction={lockedUseShowFixLink ? handleLockedUseFixLink : undefined}
+        />
 
         {/* Deeplinks / repair hints */}
         {showFixHints && (

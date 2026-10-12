@@ -85,7 +85,10 @@ class TestGetPending:
         resp = client.get("/api/v1/memory/pending", headers=auth_headers)
 
         assert resp.status_code == 200
-        assert resp.json() == {"items": [], "total": 0}
+        data = resp.json()
+        assert data["items"] == []
+        assert data["total"] == 0
+        assert data["policy"]["low_risk_auto_resolve_hours"] == 72
 
 
 class TestApprovePending:

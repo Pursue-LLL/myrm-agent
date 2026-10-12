@@ -6,6 +6,7 @@
 [OUTPUT]
 - PackageResult: 技能打包结果（zip 内容、脱敏预览、回归门禁计数、预览摘要）
 - SKILL_CHANGED_SINCE_PREVIEW: 预览后技能被修改的错误码
+- ExportFormat: 导出归档规范（Agent Plugins 1.0.0 / 单技能 Raw Skill）
 - UnpackResult: 技能解包注册结果（skill_id、还原 eval_cases 数）
 
 [POS]
@@ -13,8 +14,12 @@ skills/packaging 门面的结果数据类；无业务逻辑，仅承载数据。
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from myrm_agent_harness.agent.skills.security.content_sanitizer import Redaction
+
+# Agent Plugins 1.0.0 archive, or a bare single-skill archive
+ExportFormat = Literal["agent_plugin", "raw_skill"]
 
 # PackageResult.error_code: redaction decisions were made for a different file tree than the one exported
 SKILL_CHANGED_SINCE_PREVIEW = "skill_changed_since_preview"

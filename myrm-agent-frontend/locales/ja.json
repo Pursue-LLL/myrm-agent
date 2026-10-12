@@ -279,7 +279,8 @@
       "loopStatusActive": "現在のループ実行中 (間隔: {interval}、実行回数: {ticks} 回)",
       "loopStatusInactive": "この会話で実行中のループはありません",
       "loopTargetReached": "セッションループが終了条件を達成し完了しました",
-      "export": "セッションのエクスポートまたは Markdown のコピー (HTML/MD/JSON/ZIP 対応)"
+      "export": "セッションのエクスポートまたは Markdown のコピー (HTML/MD/JSON/ZIP 対応)",
+      "context": "ベースラインのコンテキストトークン使用量（システムプロンプト、ペルソナ、MCP、ルール）を確認し、アイドル MCP を切り替えます"
     }
   },
   "copilot": {
@@ -1889,7 +1890,7 @@
       "formatHint": "Claude Code、Codex CLI、Hermes Agentのセッション形式に対応",
       "clickToChange": "ファイル再選択",
       "pastePlaceholder": "外部転記のJSON/JSONLイベントをここに貼り付けてください（例: ~/.claude/projects/ または ~/.hermes/sessions/）...",
-      "featuresSummary": "余計な思考チェーンや無効なシステムプロンプトを除去し、出力を要約、100% プロンプトキャッシュを維持します。",
+      "featuresSummary": "余計な思考チェーンや無効なシステムプロンプトを除去し、出力を要約し、プロンプトキャッシュの安定したプレフィックス配置を維持します。",
       "startImport": "インポートして再開",
       "processing": "クリーンアップおよび保存中...",
       "invalidFileType": ".json または .jsonl 形式のファイルをアップロードしてください",
@@ -2473,7 +2474,17 @@
         "pinsLoading": "ピン留めを読み込み中…",
         "pinsLoadError": "ピン留めファイルを読み込めませんでした",
         "pinsRetry": "再試行"
-      }
+      },
+      "copiedReasoning": "思考過程をコピーしました",
+      "copyReasoning": "思考過程をコピー",
+      "deltaNegative": "前のターンより {tokens} トークン（圧縮済み）",
+      "deltaPositive": "前のターンより +{tokens} トークン",
+      "deltaZero": "前のターンと同じ",
+      "growthTrend": "増加の推移（直近12ターン）",
+      "weatherClear": "余裕あり（25%未満）",
+      "weatherCloudy": "やや使用中（25〜75%）",
+      "weatherCritical": "まもなく圧縮（90%以上）",
+      "weatherWarning": "注意（75〜90%）"
     },
     "dragDrop": {
       "title": "拖放ファイルまでここ",
@@ -2548,7 +2559,9 @@
       "specialReferencesHint": "例: @staged / @diff / @codebase / @folder:path / @url:link / @chat:title / file:10-20",
       "removeReference": "{label} を削除",
       "agentsCategory": "エージェント",
-      "contextCategory": "コンテキスト"
+      "contextCategory": "コンテキスト",
+      "alreadyInContext": "コンテキスト内",
+      "dedupNotice": "このファイルは既にコンテキストにあるため、重複する内容は省略されます"
     },
     "conversationRecall": {
       "hintTitle": "過去の会話を続ける",
@@ -3305,6 +3318,23 @@
       "fallbackPrefilledBadge": "入力済み",
       "questionClarification": "明確化の質問",
       "directReplyPlaceholder": "回答または補足を記入..."
+    },
+    "contextFootprint": {
+      "close": "閉じる",
+      "disabled": "無効",
+      "enabled": "有効",
+      "mcpSwitcherDesc": "不要な MCP サーバーを無効にして、毎ターンのリクエストを軽量に保ちます",
+      "mcpSwitcherTitle": "アイドル MCP スイッチャー",
+      "mcpTools": "MCP ツールスキーマ",
+      "noMcpServers": "マウント済みの MCP サーバーはありません",
+      "persona": "エージェントのペルソナと指示",
+      "skillsTools": "スキルと組み込みツール",
+      "subtitle": "会話開始前に事前読み込みされるベースライントークン使用量とツール管理",
+      "systemPrompt": "システムプロンプト",
+      "title": "初期コンテキストフットプリント",
+      "toolsCount": "{count} 個のツール",
+      "totalBaseline": "ベースライン合計",
+      "workspaceRules": "ワークスペースとグローバルルール"
     }
   },
   "mode": {
@@ -3787,7 +3817,18 @@
       "globLabel": "ファイル検索",
       "grepLabel": "内容検索",
       "path": "パス",
-      "filePattern": "ファイル"
+      "filePattern": "ファイル",
+      "cacheHitTitle": "キャッシュスナップショットにヒット",
+      "forceRefresh": "強制的に再取得",
+      "forceRefreshing": "キャッシュを回避中...",
+      "hoursAgo": "{count}時間前",
+      "justNow": "たった今",
+      "minutesAgo": "{count}分前",
+      "savedTokens": "{count} トークンを節約しました",
+      "scenarioArchive": "アーカイブ",
+      "scenarioRealtime": "リアルタイム",
+      "scenarioStandard": "標準",
+      "secondsAgo": "{count}秒前"
     },
     "folding": {
       "showMore": "中間の {count} 件の完了ステップを展開",
@@ -4117,6 +4158,8 @@
     "enabled": "有効",
     "disabled": "無効",
     "locked": "自動変更からロック済み",
+    "exactFact": "正確な事実",
+    "exactFactHint": "正確な識別子を含み、そのまま保持されます",
     "protectRule": "このルールを保護",
     "releaseProtection": "保護を解除",
     "protectRuleSuccess": "ルールを保護しました",
@@ -4205,7 +4248,12 @@
       "autoResolveSoon": "まもなく自動解決",
       "autoResolveInHours": "{hours} 時間後に旧メモリを自動保持",
       "autoResolveInMinutes": "{minutes} 分後に自動で旧記憶を保持します",
-      "autoResolveInDays": "{days} 日後に旧メモリを自動保持"
+      "autoResolveInDays": "{days} 日後に旧メモリを自動保持",
+      "lowRiskPolicyHint": "選択しない場合、重要度の低い競合は約 {hours} 時間後に以前のメモリが自動的に保持されます。",
+      "chatBannerTitle": "{count, plural, other {# 件のメモリ競合の確認が必要です}}",
+      "chatBannerAction": "メモリ設定で確認する",
+      "chatBannerDismiss": "このチャットセッションでは再表示しない",
+      "fetchRefreshFailed": "競合の状態を更新できませんでした。接続を確認して、もう一度お試しください。"
     },
     "batchApproveSuccess": "一括で承認しました",
     "batchApproveSuccessDesc": "{count} 件のメモリを承認しました",
@@ -4241,6 +4289,8 @@
     "importance": "重要性",
     "lastAccessed": "最近アクセス",
     "accessCount": "アクセス回数",
+    "usedTimes": "{count} 回使用",
+    "lastUsedAt": "最終使用：{time}",
     "createdAt": "作成時間",
     "updatedAt": "更新日時",
     "loginRequired": "メモリを表示するにはログインが必要です",
@@ -4434,7 +4484,100 @@
       "cachedTokens": "キャッシュ Token",
       "completionTokens": "出力 Token",
       "cacheFriendly": "キャッシュ友好",
-      "replayTitle": "セッションリプレイオーバーレイ",
+      "promptCache": {
+        "card": {
+          "title": "セッション記憶の更新",
+          "badge": "ライブチャット",
+          "description": "同一会话内の偏好更新を、エージェントの安定した指示を変えずに確認。",
+          "sessionInputLabel": "チャットセッション",
+          "sessionPlaceholder": "セッションを選択…",
+          "tabLive": "進行中の更新 ({count})",
+          "tabPreview": "レイアウトプレビュー"
+        },
+        "consolidation": {
+          "prefixLayout": "プレフィックス配置",
+          "layoutStable": "安定",
+          "chatRingHint": "キャッシュ命中率はチャットのコンテキストリングで確認",
+          "systemPrefixFrozen": "このターンでシステムプレフィックスは未変更",
+          "prefixLayoutActive": "プレフィックス配置が有効",
+          "avoidedTokens": "回避されたトークン",
+          "estimatedSavings": "プロバイダーが報告した場合のみ表示",
+          "perceptionLatency": "最新性オーバーレイ",
+          "notMeasured": "ここでは測定しません",
+          "inFlightDeltas": "進行中のセッション差分",
+          "simulateInjection": "注入をシミュレート",
+          "augmentedHumanPreview": "ユーザーメッセージ末尾（プレビュー）"
+        },
+        "baseContext": {
+          "bannerTitle": "安定したシステムプロンプト、動的記憶はユーザーメッセージ末尾へ",
+          "bannerBody": "要約とプロフィールカードは低頻度で更新し、最終ユーザーメッセージに付加—エージェントのシステムプロンプトは安定したまま。",
+          "archTitle": "レイアウトが重要な理由",
+          "legacyTitle": "システムプロンプト内に記憶を入れる",
+          "legacyBody": "毎ターンシステムプレフィックスを変えると、長い会話でプレフィックスキャッシュの効果が失われやすい。",
+          "myrmTitle": "Myrm 二層レイアウト",
+          "myrmBody": "システムプロンプトは静的；スナップショットはユーザーメッセージ末尾。命中率はチャットリングで—ここでは保証しません。"
+        },
+        "twoLayerStudio": {
+          "ariaLabel": "二層コンテキストラボ",
+          "labOnlyBanner": "ラボプレビューのみ—このレイアウトはライブチャットに注入されません。ヒット率はチャットのコンテキストリングで確認。",
+          "sessionInputLabel": "プレビューセッション ID",
+          "sessionPlaceholder": "セッション ID を入力…",
+          "title": "二層コンテキストラボ",
+          "itemBadge": "Item 112",
+          "layoutBadge": "レイアウトプレビュー",
+          "description": "Layer 1 スナップショットはユーザーメッセージ末尾；Layer 2 は周期で記憶の矛盾を解消。",
+          "tabsAria": "ラボビュー",
+          "tabBaseAria": "ベースレイアウト",
+          "tabDialecticAria": "弁証法コンソール",
+          "tabKnobsAria": "周期コントロール",
+          "tabBase": "Layer 1 ベースレイアウト",
+          "tabDialectic": "Layer 2 弁証法 ({count})",
+          "tabKnobs": "周期コントロール",
+          "emptyBase": "ベーススナップショットなし",
+          "refreshSuccess": "サーバーでベーススナップショットを再生成しました",
+          "refreshFailed": "再生成に失敗—セッション ID を確認",
+          "reconcileSuccess": "弁証法 Pass {depth}: {count} 件の矛盾を解消",
+          "reconcileFallback": "サンプル出力を表示中",
+          "reconcileOffline": "オフライン—サンプル出力",
+          "resetSuccess": "セッション周期をリセットしました",
+          "resetLocal": "ローカルでリセット適用",
+          "configApplied": "周期設定を更新しました"
+        },
+        "twoLayerCadence": {
+          "panelTitle": "周期と深度コントロール",
+          "resetDefaults": "推奨デフォルトに戻す",
+          "layer1IntervalLabel": "Layer 1 ベース更新間隔",
+          "layer1IntervalHint": "要約と Peer カードの再生成間隔。長いほどシステムプレフィックスは安定。命中率はチャットリングで確認。",
+          "layer2IntervalLabel": "Layer 2 矛盾パトロール間隔",
+          "layer2IntervalHint": "履歴と現在ターンの矛盾スキャン間隔。",
+          "depthLabel": "弁証法パス深度",
+          "depthHint": "パスが増えるほど精度は上がるがコストも増加。",
+          "reasoningLabel": "推論レベル",
+          "reasoningHint": "Fast / Standard / Deep。",
+          "reasoningFast": "fast",
+          "reasoningStandard": "standard",
+          "reasoningDeep": "deep",
+          "passButton": "Pass {depth}",
+          "savedBanner": "周期設定を適用しました",
+          "applyAria": "周期設定を適用",
+          "applyLabel": "設定を適用"
+        },
+        "twoLayerHud": {
+          "prefixLayoutLabel": "システムプレフィックス配置",
+          "layoutStable": "安定",
+          "chatRingSub": "命中率はチャットで",
+          "layer1CadenceLabel": "Layer 1 ベースコンテキスト周期",
+          "everyNTurns": "{count} ターンごと",
+          "lowFreqSnapshot": "低頻度スナップショット",
+          "layer2CadenceLabel": "Layer 2 弁証法周期",
+          "conflictPatrol": "矛盾パトロール",
+          "dialecticDepthLabel": "弁証法深度 / 算力",
+          "passDepthLevel": "Pass {depth} · {level}",
+          "refreshTelemetryAria": "テレメトリを更新",
+          "resetCadenceAria": "セッション周期をリセット"
+        }
+      },
+      "replayTitle": "セッションリプレイオーレイ",
       "replayEmpty": "利用可能なリプレイオーバーレイはまだありません",
       "replayMeta": "{events} 個イベント · {influences} 回の影響",
       "timelineTitle": "最近のメモリアクティビティ",
@@ -5008,10 +5151,8 @@
       "merged": "マージ",
       "replaced": "置換",
       "supplemented": "補足",
-      "vetoGuardrail": "実行時ガードレール",
-      "vetoPattern": "制御対象パターン",
-      "remediation": "修復ガイダンス",
-      "scope": "適用範囲"
+      "reasoning": "理由",
+      "application": "適用方法"
     },
     "typeDesc": {
       "profile": "ユーザー属性のキー・バリュー（名前、言語、職業）",
@@ -6310,6 +6451,29 @@
       "resolve": "解決済みにする",
       "revisionOutside": "マーク外の行も変更されています：{lines}",
       "revisionLocal": "マーク範囲内で修正されました。"
+    },
+    "hub": {
+      "associatedAgent": "エージェント",
+      "download": "ダウンロード",
+      "emptyDesc": "エージェントとの会話で生成された成果物とファイルがここに自動的に蓄積されます",
+      "emptyTitle": "成果物が見つかりません",
+      "exportZip": "ZIPバンドルとしてエクスポート",
+      "lastUpdated": "最終更新",
+      "navToSession": "元の会話へ移動",
+      "originSession": "元の会話",
+      "searchPlaceholder": "タイトル・説明・拡張子で成果物を検索...",
+      "selectedCount": "{count} 件選択中",
+      "subtitle": "会話をまたいだ成果物リポジトリ。生成元の会話へ双方向に追跡できます",
+      "tabAll": "すべての成果物",
+      "tabCode": "コードスクリプト",
+      "tabData": "データテーブル",
+      "tabDocument": "ドキュメント",
+      "tabLink": "抽出リンク",
+      "tabMedia": "メディアと図表",
+      "tabOther": "その他",
+      "timelineTitle": "バージョン履歴タイムライン",
+      "title": "成果物トレーサビリティハブ",
+      "versionsCount": "{count} バージョン"
     }
   },
   "MessageSources": {
@@ -9122,6 +9286,14 @@
     "visualApprovalAttentionTitle": "ビジュアル承認待ち",
     "visualApprovalAttentionView": "承認を表示",
     "visualApprovalAttentionMultiple": "ビジュアル操作 {count} 件が承認待ち",
+    "humanAttentionTitle": "対応が必要です",
+    "humanAttentionView": "項目へ移動",
+    "humanAttentionMultiple": "{count} 件の入力待ち",
+    "humanAttentionEscHint": "エージェント実行中は Esc でデスクトップ自動化をすぐ停止できます。",
+    "humanAttentionKindClarify": "確認質問",
+    "humanAttentionKindDesktopControl": "デスクトップ承認",
+    "humanAttentionKindVisual": "ビジュアル確認",
+    "humanAttentionKindTool": "ツール承認",
     "handoverTitle": "お待ちください",
     "handoverDone": "完了",
     "handoverDialogTitle": "お待ちください",
@@ -9261,7 +9433,8 @@
       "confidence": "信頼度",
       "content": "パッチ内容"
     },
-    "visualContextAlt": "承認待ちの操作の対象スクリーンショット"
+    "visualContextAlt": "承認待ちの操作の対象スクリーンショット",
+    "visualApprovalOsHighlightUnavailable": "このディスプレイでは実画面の強調表示を利用できません。このカード内の赤枠で対象を確認してください。"
   },
   "notifications": {
     "title": "システム通知",
@@ -10368,35 +10541,27 @@
       "title": "学習と進化ストリーム",
       "description": "事実、嗜好、手順記憶とスキルの進化記録を時系列で集約し、インライン編集と管理を提供します。",
       "filterAll": "すべてのストリーム",
-      "filterMemories": "記憶のみ",
-      "filterSkills": "スキルのみ",
       "filterFact": "事実記憶",
       "filterPreference": "嗜好記憶",
       "filterProcedural": "手順経験",
       "filterEpisodic": "エピソード",
       "filterEvolution": "スキル進化",
       "filterDraft": "スキル下書き",
-      "days7": "過去7日間",
-      "days30": "過去30日間",
-      "days90": "過去90日間",
       "editMemory": "記憶を編集",
       "archiveSkill": "スキルをアーカイブ",
       "unarchiveSkill": "スキルを復元",
       "deleteMemory": "記憶を削除",
-      "deleteConfirm": "この記憶アイテムを完全に削除してもよろしいですか？",
-      "archiveConfirm": "このスキルをアーカイブしますか？モデルのツールルーティングから呼び出されなくなります。",
-      "unarchiveConfirm": "このスキルを復元して再有効化しますか？",
+      "deleteConfirm": "メモリはゴミ箱に移動され、ゴミ箱または「元に戻す」から復元できます。",
+      "archiveConfirm": "アーカイブすると、エージェントはこのスキルを使わなくなります。いつでも復元できます。",
+      "unarchiveConfirm": "スキルが再び有効になります。",
       "contentLabel": "コア内容 / ルール",
       "reasoningLabel": "推論の背景とコンテキスト",
       "importanceLabel": "重要度レベル",
-      "userLockedBadge": "手動校正済み (ロック保護)",
+      "userProtectedBadge": "自動変更から保護",
       "agentOrigin": "エージェント: {agent}",
-      "confidenceLabel": "信頼度",
       "saveChanges": "変更を保存",
       "cancel": "キャンセル",
-      "loading": "学習タイムラインを読み込み中...",
       "loadMore": "さらにノードを読み込む",
-      "noMore": "すべてのノードを読み込みました",
       "empty": {
         "title": "学習の足跡はまだありません",
         "description": "エージェントが対話で事実を学習したり嗜好を記録したりスキルを蓄積すると、ここに時系列で表示され管理できます。"
@@ -10407,16 +10572,37 @@
         "retry": "再試行"
       },
       "stats": {
-        "totalNodes": "合計 {count} 個の学習ノード",
-        "userEditedCount": "{count} 件の手動校正"
+        "totalNodes": "合計 {count} 個の学習ノード"
       },
       "toast": {
         "updateSuccess": "記憶を正常に更新しました",
-        "deleteSuccess": "記憶を削除しました",
+        "deleteSuccess": "メモリをゴミ箱に移動しました",
         "archiveSuccess": "スキルをアーカイブしました",
         "unarchiveSuccess": "スキルを復元して有効化しました",
-        "actionFailed": "操作に失敗しました: {error}"
-      }
+        "actionFailed": "操作に失敗しました: {error}",
+        "undo": "元に戻す",
+        "undoFailed": "元に戻せませんでした",
+        "deletePermanentSuccess": "メモリを削除しました"
+      },
+      "deleteConfirmTitle": "このメモリを削除しますか？",
+      "archiveConfirmTitle": "このスキルをアーカイブしますか？",
+      "unarchiveConfirmTitle": "このスキルを復元しますか？",
+      "confirm": "確認",
+      "viewInGraph": "ナレッジグラフで表示",
+      "viewSourceChat": "元の会話を開く",
+      "contextLabel": "背景",
+      "importanceValue": "{value}/10",
+      "pinnedHint": "ピン留めされたスキルはアーカイブできません。先にピンを外してください。",
+      "skillStatus": {
+        "PENDING_REVIEW": "レビュー待ち",
+        "AUTO_APPLIED": "自動適用済み",
+        "FAILED_SCAN": "スキャン失敗",
+        "BLOCKED_LOCKED": "ロックによりブロック",
+        "APPROVED": "承認済み",
+        "REJECTED": "却下",
+        "APPLY_FAILED": "適用に失敗しました"
+      },
+      "deleteConfirmPermanent": "このメモリは完全に削除され、元に戻せません。"
     },
     "learningLoop": {
       "title": "5環閉ループ学習ステータスセンター",
@@ -12606,6 +12792,15 @@
     "stopping": "停止中…",
     "curtainActive": "ワークステーション画面を保護中"
   },
+  "mobileShell": {},
+  "designerEye": {},
+  "systemAssistant": {},
+  "workspaceLayout": {},
+  "devPorts": {},
+  "toolPicker": {},
+  "presentation": {},
+  "vibrancy": {},
+  "spreadsheet": {},
   "whatsNew": {
     "title": "v{version} の新機能",
     "description": "このリリースの変更点です。",
@@ -12663,7 +12858,11 @@
     "lifecycleRetryExtract": "抽出を再試行",
     "lifecycleRetrying": "再試行中…",
     "lifecycleRetryFailed": "再試行に失敗しました。しばらくしてからお試しください",
-    "lifecycleRetryAlreadyInFlight": "抽出の再試行はすでに実行中です"
+    "lifecycleRetryAlreadyInFlight": "抽出の再試行はすでに実行中です",
+    "sessionOverridePill": "このチャットで更新あり",
+    "sessionOverrideTitle": "このチャットでの設定の更新",
+    "sessionOverrideDescription": "この会話の途中で設定や事実を訂正した場合、この返信はその更新を反映します。",
+    "sessionOverrideMobile": "この返信には、このチャットの {count} 件の更新が反映されています"
   },
   "memoryRecallDegraded": {
     "title": "意味記憶を利用できません",
@@ -12904,6 +13103,162 @@
       "empty": "この段階の詳細証拠はありません"
     }
   },
+  "executionPhaseStepper": {
+    "badge": "完了",
+    "waitingApproval": "承認待ち",
+    "collapseTelemetry": "テレメトリを折りたたむ",
+    "expandTelemetry": "テレメトリを展開",
+    "currentNode": "ノード #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "計画"
+      },
+      "executing": {
+        "title": "実行"
+      },
+      "verifying": {
+        "title": "検証"
+      }
+    },
+    "lanes": {
+      "agent": "エージェントコア",
+      "user": "ユーザー",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "スキル",
+      "sandbox": "サンドボックス"
+    }
+  },
+  "continualOverlay": {
+    "activeTitle": "アクティブなオーバーレイ",
+    "remainingTurns": "{count, plural, =1 {残り 1 ターン} other {残り # ターン}}",
+    "rollbackTooltip": "このセッションオーバーレイをロールバック",
+    "rollback": "ロールバック",
+    "collapse": "折りたたむ",
+    "expand": "展開",
+    "howItWorks": "仕組み",
+    "howItWorksDesc": "オーバーレイはゼロリセットの障害回復を提供し、指定されたターン予算内で自動的に有効になり、期限切れ後はスムーズに終了します。",
+    "allActiveOverlays": "すべてのアクティブオーバーレイ ({count})"
+  },
+  "taskSpaces": {
+    "title": "並列ブラウザタスク空間",
+    "badgeRunning": "実行中",
+    "badgeIdle": "待機中",
+    "badgeTakeover": "手動介入中",
+    "takeoverBtn": "引き継ぐ",
+    "releaseTakeoverBtn": "AIに返却",
+    "closeSpaceBtn": "空間を閉じる",
+    "activePages": "{count} 個のアクティブタブ",
+    "emptyState": "アクティブな並列ブラウザ空間はありません",
+    "snapshotPreview": "リアルタイム空間スナップショット",
+    "takeoverHint": "現在手動介入モードです。完了したらAIに返却してください。",
+    "snapshotAlt": "タスクスペースのスナップショット"
+  },
+  "modelPlaybook": {
+    "title": "モデルオーケストレーション方針",
+    "subtitle": "マルチモデル分業、動的ルーティング、コスト最適化のアーキテクチャガイド。",
+    "brainHands": {
+      "title": "頭脳と手足の役割分担",
+      "tag": "役割の分離",
+      "description": "高度な推論を行う計画モデルと、高速かつ安価なツール実行モデルを組み合わせます。",
+      "brainTip": "頭脳：Claude 3.5 Sonnet、DeepSeek-R1 によるアーキテクチャと推論。",
+      "handsTip": "手足：MiniMax、GPT-4o-mini による迅速なツール呼び出し。"
+    },
+    "routingMoa": {
+      "title": "ルーティング vs MoA",
+      "tag": "直交スケーリング",
+      "description": "動的ルーティングで最適モデルを選定し、MoAで複数出力を合意形成します。",
+      "routingTip": "ルーティング：タスクの特性に応じてモデルを動的に切り替え。",
+      "moaTip": "MoA：複数モデルの並行推論と合意集約で意思決定を強化。",
+      "routingActive": "有効",
+      "routingInactive": "無効"
+    },
+    "cheapEyes": {
+      "title": "マルチモーダル視覚補助",
+      "tag": "コスト最適化",
+      "description": "特化した視覚モデルで画像解析を行い、推論コストを大幅に削減します。",
+      "tip": "画像の確認を専用モデルに任せ、メインチャットを軽量に維持。"
+    },
+    "honestQuota": {
+      "title": "透明なクォータとトークン経済",
+      "tag": "TCO管理",
+      "description": "プロバイダー全体のトークン消費とキャッシュ命中率をリアルタイム監視。",
+      "tip": "コストのボトルネックを特定し、キャッシュ効率を最大化。"
+    },
+    "actions": {
+      "routingEnabledSuccess": "スマートルーティングが有効になりました！",
+      "configureSlots": "スロットを設定",
+      "enabled": "有効",
+      "enableSmartRouting": "スマートルーティングを有効化",
+      "configureVision": "視覚モデルを設定",
+      "viewSubscriptions": "サブスクリプションを表示",
+      "close": "閉じる"
+    },
+    "cardTitle": "モデルオーケストレーションプレイブック",
+    "cardBadge": "プレイブック",
+    "cardSubtitle": "Brain & Handsの役割分担、3層適応型ルーティング、MoA合意形成を活用して効率を最大化。",
+    "viewFullPlaybook": "プレイブックを表示",
+    "collapse": "折りたたむ",
+    "expand": "展開",
+    "miniBrainHandsTitle": "Brain & Hands 分担",
+    "miniBrainHandsDesc": "高推論プランナー ＋ 高速ツール実行ワーカー。",
+    "miniDynamicRoutingTitle": "3層適応型ルーティング",
+    "miniDynamicRoutingDesc": "シンプル・標準・推論層を自動シームレス切り替え。",
+    "miniMoaTitle": "MoA 合意形成オーバーレイ",
+    "miniMoaDesc": "複数モデルのクロス検証で単一モデルの限界を突破。",
+    "headerBadge": "モデルオーケストレーション方針",
+    "dialogTitle": "モデルオーケストレーション実践ハンドブック＆推奨レシピ",
+    "dialogSubtitle": "頭脳と手足の分業、動的ルーティング、MoA合意形成、エンドツーエンドのトークン経済学を深く理解する",
+    "brainHandsTitle": "1. 頭脳と手足の専門分業 (Brain vs. Hands)",
+    "brainHandsBadge": "速度・コスト両立",
+    "brainHandsDesc": "全体計画と高頻度のツール呼び出しを分離し、高コストな頭脳モデルを安価な処理に浪費するのを防ぎます。",
+    "brainLabel": "頭脳 (プランナー)",
+    "brainExample": "Claude 3.7 Sonnet、DeepSeek-R1",
+    "handsLabel": "手足 (エグゼキューター)",
+    "handsExample": "DeepSeek-V3、Qwen 2.5、GPT-4o-mini",
+    "dynamicRoutingTitle": "2. 3層適応型動的ルーティング (3-Tier Adaptive Routing)",
+    "dynamicRoutingBadge": "自動振り分け",
+    "dynamicRoutingDesc": "リクエストの意図と複雑さを自動識別し、ミリ秒単位でコンピューティング仕様を最適化します。",
+    "tierSimpleTitle": "シンプル層 (Simple Tier)",
+    "tierSimpleDesc": "日常会話や簡単な検索など、ミリ秒で応答し約65%の計算コストを削減。",
+    "tierStandardTitle": "標準層 (Standard Tier)",
+    "tierStandardDesc": "機能開発、リファクタリング、複数ファイル検索などの日常的な複合タスク。",
+    "tierReasoningTitle": "深層推論層 (Reasoning Tier)",
+    "tierReasoningDesc": "厳密な数学的証明、長期的因果推論、システムアーキテクチャ設計などの難関タスク。",
+    "moaTitle": "3. 複数モデル混合合意層 (Mixture-of-Agents)",
+    "moaBadge": "精度の大幅向上",
+    "moaDesc": "複数モデルが並行して回答候補を生成し、合議委員会が集約して単一モデルの幻覚を粉砕します。",
+    "orthogonalTipTitle": "動的ルーティングと MoA の直交関係",
+    "orthogonalTipDesc": "ルーティングは横方向のコスト低減、MoA は縦方向の難易度突破を担い、両者は相互に補完します。",
+    "specialistsTitle": "4. 専門ドメインモデル枠 (Specialist Slots)",
+    "specialistsDesc": "マルチモーダル視覚補助、長文解析、プログラミング専用モデルを個別に割り当て可能。",
+    "footerNote": "設定センターからいつでもモデル連携ポリシーを調整・微調整できます。",
+    "closeBtn": "閉じる",
+    "configureBtn": "設定センターで構成"
+  },
+  "security": {
+    "taintedEgress": {
+      "title": "機密データ送信の傍受",
+      "description": "機密認証情報を含む送信リクエストが外部ホストへの接続を試行したため傍受されました。",
+      "destinationHost": "宛先ホスト",
+      "dataType": "機密データ種別",
+      "detectedPattern": "検出パターン",
+      "trustSession": "このセッション中はこの宛先を常に信頼する（今後のプロンプトを防止）",
+      "approve": "送信を許可",
+      "reject": "ブロックして拒否"
+    }
+  },
+  "ttsAudio": {
+    "generatedSpeech": "生成された音声",
+    "playbackFailed": "音声再生に失敗しました——ファイルの期限が切れた可能性があります。"
+  },
+  "intentDispatcher": {
+    "invalidLink": "無効な外部リンクまたはパラメータです",
+    "oauthSuccess": "認証に成功しました",
+    "oauthFailed": "認証の検証に失敗しました。もう一度お試しください",
+    "cloudProfileName": "クラウドサンドボックス"
+  },
+  "sessionMap": {},
   "settings": {
     "providerBalance": {
       "statusHealthy": "残高十分",
@@ -12984,7 +13339,50 @@
       "trustedAppsRetry": "再試行",
       "trustedAppsRevoke": "元に戻す",
       "trustedAppsRevokeSuccess": "信頼済みアプリを削除しました",
-      "trustedAppsRevokeFailed": "信頼済みアプリの取り消しに失敗しました"
+      "trustedAppsRevokeFailed": "信頼済みアプリの取り消しに失敗しました",
+      "lockedUseDoctorLabel": "離席モードとプライバシーカーテン",
+      "lockedUseDoctorDesc": "無人タスクとデスク上のプライバシーに必要なデスクトップシェル連携の状態",
+      "lockedUseDoctorPass": "準備完了",
+      "lockedUseDoctorWarn": "要確認",
+      "lockedUseDoctorFail": "利用不可",
+      "lockedUseDoctorUnavailable": "未検出",
+      "lockedUseDoctorDetailNotMac": "離席モードとプライバシーカーテンは macOS の Myrm デスクトップアプリでご利用ください。",
+      "lockedUseDoctorDetailBridgeMissing": "離席モードがシェルと連携できるよう、この Mac で Myrm デスクトップアプリを起動してください。",
+      "lockedUseDoctorDetailShellUnavailable": "Myrm デスクトップアプリを再起動し、設定で離席モードとプライバシーカーテンを確認してください。",
+      "lockedUseDoctorDetailGeneric": "離席モードまたはプライバシーカーテンが未準備です。システム設定を開くかデスクトップアプリを再起動してください。",
+      "screenLockGuardLabel": "画面ロックゲート",
+      "screenLockGuardDesc": "画面がロックされている間は自動化を一時停止します",
+      "screenLockGuardLocked": "ロック中",
+      "screenLockGuardUnlocked": "ロック解除",
+      "lockedUseDoctorDetailAwayOff": "デスクトップシェルは準備完了です。無人運転時は上で Locked Use をオンにしてください。エージェントはカーテン下でロックを解除します。",
+      "lockedUseDoctorGoToSettings": "無人運転の設定を開く",
+      "lockedUseDoctorBadgeLoading": "確認中…",
+      "lockedUseDoctorBadgeNotMac": "macOS デスクトップアプリ",
+      "lockedUseDoctorBadgeAwayOn": "離席モード ON",
+      "lockedUseDoctorBadgeBridgeReady": "シェル接続済み",
+      "setupGuideTitle": "クイックセットアップ（デスクトップアプリ）",
+      "setupGuideStep1": "上で入力制御と画面キャプチャを許可し、「画面キャプチャを含む再チェック」をタップしてください。",
+      "setupGuideStep2": "画面ロック中にタスクを実行する場合のみ、設定 → Locked Use で離席モードを有効にしてください。",
+      "setupGuideStep3": "エージェント設定でデスクトップ制御を有効にし、チャットで初回のアプリ承認を完了してください。",
+      "setupGuideStep4": "実行中は Esc を押すとデスクトップ自動化をすぐ停止できます。"
+    },
+    "mobileAdb": {
+      "title": "モバイルワイヤレスADBデバッグ",
+      "description": "実機Android端末を接続し、自動化操作・UIツリー解析・クロスデバイスワークフローを実行します",
+      "activeDevices": "接続中のデバイス",
+      "noDevicesFound": "接続されたAndroidデバイスが見つかりません",
+      "pairPrompt": "スマートフォンの開発者オプションで「ワイヤレスデバッグ」を有効にし、ペアリングコードを入力してください",
+      "wirelessPairing": "ワイヤレスデバッグペアリング (Android 11+)",
+      "pairingCodePlaceholder": "6桁のペアリングコード (例: 123456)",
+      "pairButton": "デバイスをペアリング",
+      "directConnect": "直接接続 (ペアリング済み端末)",
+      "connectButton": "接続",
+      "refresh": "デバイス一覧を更新",
+      "fillAllFields": "ホスト、ポート、ペアリングコードのすべての必須項目を入力してください",
+      "pairSuccess": "ワイヤレスデバイスのペアリングに成功しました！",
+      "pairFailed": "ペアリングに失敗しました。ホストIP、ポート、ペアリングコードを確認してください",
+      "connectSuccess": "デバイスに接続しました！",
+      "connectFailed": "接続に失敗しました。同一Wi-Fiでワイヤレスデバッグが有効か確認してください"
     },
     "rate_limits": {
       "title": "レート制限モニタリング",
@@ -13253,6 +13651,46 @@
           "updated": "コマンドを更新しました"
         }
       }
+    },
+    "a2aPeers": {
+      "title": "A2A プロトコルと信頼されたリモートノード",
+      "description": "ノードの説明（任意）",
+      "registryTitle": "信頼されたリモートノード名簿",
+      "addPeer": "A2A ノードを追加",
+      "newPeer": "新しいリモート A2A ノードを登録",
+      "editPeer": "A2A ノードを編集",
+      "peerName": "ノード名",
+      "peerNamePlaceholder": "例: Hermes Deep Researcher / OpenClaw Code Reviewer",
+      "baseUrl": "A2A サービスベース URL",
+      "baseUrlPlaceholder": "https://agent.example.com",
+      "descriptionPlaceholder": "リモートエージェントが得意とするタスクや機能ドメインの概要",
+      "authType": "認証方式",
+      "authBearer": "Bearer トークン",
+      "authApiKey": "API キー認証 (X-API-Key)",
+      "authNone": "認証なし（パブリック公開）",
+      "authToken": "認証トークン",
+      "authTokenPlaceholder": "リモート A2A RPC を呼び出すためのアクセストークンを入力",
+      "authTokenKeepPlaceholder": "現在保存されているトークンを保持する場合は空のままにします",
+      "savePeer": "ノードを保存",
+      "saveChanges": "変更を保存",
+      "saving": "保存中...",
+      "cancel": "キャンセル",
+      "probe": "疎通テスト",
+      "probing": "テスト中...",
+      "probeSuccess": "プローブ成功: {latency}ms、AgentCard を解決しました",
+      "probeFailed": "プローブ失敗: {error}",
+      "ssrfBlocked": "SSRF セキュリティブロック: 宛先アドレスは制限されたプライベートネットワークです",
+      "noPeers": "登録された A2A ノードはありません",
+      "noPeersDesc": "リモート A2A ノードを登録すると、エージェント機能で A2A リモートオーケストレーションを有効にして、サードパーティのエージェントにタスクを委任できます。",
+      "deleteConfirm": "この A2A ノードを削除してもよろしいですか？",
+      "cardPreview": "AgentCard メタデータ",
+      "cardSkills": "対応スキル",
+      "cardProvider": "プロバイダー",
+      "statusOk": "正常",
+      "statusError": "エラー",
+      "statusUnreachable": "接続不可",
+      "statusSsrf": "セキュリティ遮断",
+      "hasToken": "認証情報設定済み"
     },
     "lifecycleWebhook": {
       "title": "ライフサイクル送信 Webhook",
@@ -13723,6 +14161,19 @@
         "rightsExportFailed": "エクスポートに失敗 — メモリ設定から再試行してください",
         "rightsManageMemory": "メモリと削除を管理",
         "actionManage": "設定管理"
+      },
+      "leastPrivilege": {
+        "title": "最小権限とサンドボックス保護",
+        "description": "デフォルトの最小権限境界と物理サンドボックス分離 — 破壊的なフルアクセスを避けます。",
+        "stanceHeader": "デフォルト最小権限姿勢",
+        "activeBadge": "保護中",
+        "stanceSummary": "コマンドと変更には明示的な承認、または物理サンドボックス内での実行が必要です。",
+        "manageTrustBtn": "信頼フォルダ",
+        "viewMatrixBtn": "能力マトリクス",
+        "myrmWayTitle": "Myrm 承認とサンドボックス戦略",
+        "myrmWayDesc": "統一承認フローと中断ステートマシン。高リスク操作はサンドボックスで遮断し、日常作業はスムーズに。",
+        "antiPatternTitle": "「フルアクセス」を拒否する理由",
+        "antiPatternDesc": "フルアクセスはローカルファイルとホスト認証情報を任意の持ち出しに晒します。回避ループなしで明確な境界を保ちます。"
       },
       "profile": {
         "title": "セキュリティ設定集",
@@ -18095,7 +18546,20 @@
         "webui": "WebUI"
       },
       "unattendedDesktop": {
-        "title": "無人デスクトップ"
+        "title": "無人デスクトップ",
+        "guideTitle": "離席中のパソコン操作・クイック設定",
+        "guideIntro": "画面をロックして席を離れた後も Agent にこのパソコンを操作させたい場合は、デスクトップアプリをご利用ください。ブラウザのみのモードではチャット内承認のみとなり、以下の保護は含まれません。",
+        "stepCurtainTitle": "のぞき見防止カーテン",
+        "stepCurtainBody": "すべてのディスプレイを覆い、周囲の人に Agent の操作が見えないようにします。下で有効にしてください。",
+        "stepCurtainAction": "カーテン設定へ",
+        "stepLockedUseTitle": "ロック中の利用（任意）",
+        "stepLockedUseBody": "画面ロック中でも Agent が GUI タスクを続行できます。カーテンが必要です。Mac ではログインパスワードをキーチェーンに保存することもできます（任意）。",
+        "stepLockedUseAction": "ロック中の利用設定へ",
+        "stepApprovalTitle": "視覚的な承認",
+        "stepApprovalBody": "リスクの高いクリックは、スクリーンショットの赤枠付きでチャット内で確認します。Mac デスクトップ版では、システムが許可する場合、実画面にも同じ強調表示が出ます。",
+        "statusOn": "オン",
+        "statusOff": "オフ",
+        "statusOptional": "任意"
       },
       "copied": "コピーしました",
       "saved": "保存しました",
@@ -19639,6 +20103,19 @@
       }
     },
     "systemHealth": {
+      "opsSnapshot": {
+        "title": "ランタイムスナップショット",
+        "description": "このアシスタントインスタンスの稼働状況—負荷、メモリ圧力、チャネル。",
+        "refresh": "更新",
+        "loading": "スナップショット読み込み中…",
+        "unreachable": "スナップショットを読み込めません: {error}",
+        "uptime": "稼働時間",
+        "liveness": "エージェント状態",
+        "activeSessions": "アクティブセッション",
+        "memoryPressure": "メモリ圧力",
+        "memorySubsystem": "メモリサブシステム",
+        "doctorStatus": "診断"
+      },
       "doctor": {
         "title": "システムヘルス診断",
         "description": "サーバーコンポーネントとフレームワーク層のリアルタイムヘルステレメトリ",
@@ -20012,64 +20489,6 @@
       "chipSubtitle": "Brain vs Handsの役割分担とスマートルーティングのベストプラクティス",
       "chipAction": "プレイブックを表示"
     },
-    "a2aPeers": {
-      "title": "A2A プロトコルと信頼されたリモートノード",
-      "description": "ノードの説明（任意）",
-      "registryTitle": "信頼されたリモートノード名簿",
-      "addPeer": "A2A ノードを追加",
-      "newPeer": "新しいリモート A2A ノードを登録",
-      "editPeer": "A2A ノードを編集",
-      "peerName": "ノード名",
-      "peerNamePlaceholder": "例: Hermes Deep Researcher / OpenClaw Code Reviewer",
-      "baseUrl": "A2A サービスベース URL",
-      "baseUrlPlaceholder": "https://agent.example.com",
-      "descriptionPlaceholder": "リモートエージェントが得意とするタスクや機能ドメインの概要",
-      "authType": "認証方式",
-      "authBearer": "Bearer トークン",
-      "authApiKey": "API キー認証 (X-API-Key)",
-      "authNone": "認証なし（パブリック公開）",
-      "authToken": "認証トークン",
-      "authTokenPlaceholder": "リモート A2A RPC を呼び出すためのアクセストークンを入力",
-      "authTokenKeepPlaceholder": "現在保存されているトークンを保持する場合は空のままにします",
-      "savePeer": "ノードを保存",
-      "saveChanges": "変更を保存",
-      "saving": "保存中...",
-      "cancel": "キャンセル",
-      "probe": "疎通テスト",
-      "probing": "テスト中...",
-      "probeSuccess": "プローブ成功: {latency}ms、AgentCard を解決しました",
-      "probeFailed": "プローブ失敗: {error}",
-      "ssrfBlocked": "SSRF セキュリティブロック: 宛先アドレスは制限されたプライベートネットワークです",
-      "noPeers": "登録された A2A ノードはありません",
-      "noPeersDesc": "リモート A2A ノードを登録すると、エージェント機能で A2A リモートオーケストレーションを有効にして、サードパーティのエージェントにタスクを委任できます。",
-      "deleteConfirm": "この A2A ノードを削除してもよろしいですか？",
-      "cardPreview": "AgentCard メタデータ",
-      "cardSkills": "対応スキル",
-      "cardProvider": "プロバイダー",
-      "statusOk": "正常",
-      "statusError": "エラー",
-      "statusUnreachable": "接続不可",
-      "statusSsrf": "セキュリティ遮断",
-      "hasToken": "認証情報設定済み"
-    },
-    "mobileAdb": {
-      "title": "モバイルワイヤレスADBデバッグ",
-      "description": "実機Android端末を接続し、自動化操作・UIツリー解析・クロスデバイスワークフローを実行します",
-      "activeDevices": "接続中のデバイス",
-      "noDevicesFound": "接続されたAndroidデバイスが見つかりません",
-      "pairPrompt": "スマートフォンの開発者オプションで「ワイヤレスデバッグ」を有効にし、ペアリングコードを入力してください",
-      "wirelessPairing": "ワイヤレスデバッグペアリング (Android 11+)",
-      "pairingCodePlaceholder": "6桁のペアリングコード (例: 123456)",
-      "pairButton": "デバイスをペアリング",
-      "directConnect": "直接接続 (ペアリング済み端末)",
-      "connectButton": "接続",
-      "refresh": "デバイス一覧を更新",
-      "fillAllFields": "ホスト、ポート、ペアリングコードのすべての必須項目を入力してください",
-      "pairSuccess": "ワイヤレスデバイスのペアリングに成功しました！",
-      "pairFailed": "ペアリングに失敗しました。ホストIP、ポート、ペアリングコードを確認してください",
-      "connectSuccess": "デバイスに接続しました！",
-      "connectFailed": "接続に失敗しました。同一Wi-Fiでワイヤレスデバッグが有効か確認してください"
-    },
     "sshVault": {
       "title": "SSHホスト & SFTP認証情報管理",
       "source": "設定ソース",
@@ -20100,160 +20519,5 @@
       "tierStaging": "ステージング",
       "tierDev": "開発環境"
     }
-  },
-  "continualOverlay": {
-    "activeTitle": "アクティブなオーバーレイ",
-    "remainingTurns": "{count, plural, =1 {残り 1 ターン} other {残り # ターン}}",
-    "rollbackTooltip": "このセッションオーバーレイをロールバック",
-    "rollback": "ロールバック",
-    "collapse": "折りたたむ",
-    "expand": "展開",
-    "howItWorks": "仕組み",
-    "howItWorksDesc": "オーバーレイはゼロリセットの障害回復を提供し、指定されたターン予算内で自動的に有効になり、期限切れ後はスムーズに終了します。",
-    "allActiveOverlays": "すべてのアクティブオーバーレイ ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "完了",
-    "waitingApproval": "承認待ち",
-    "collapseTelemetry": "テレメトリを折りたたむ",
-    "expandTelemetry": "テレメトリを展開",
-    "currentNode": "ノード #{nodeId}",
-    "phases": {
-      "planning": {
-        "title": "計画"
-      },
-      "executing": {
-        "title": "実行"
-      },
-      "verifying": {
-        "title": "検証"
-      }
-    },
-    "lanes": {
-      "agent": "エージェントコア",
-      "user": "ユーザー",
-      "llm": "LLM",
-      "mcp": "MCP",
-      "skills": "スキル",
-      "sandbox": "サンドボックス"
-    }
-  },
-  "taskSpaces": {
-    "title": "並列ブラウザタスク空間",
-    "badgeRunning": "実行中",
-    "badgeIdle": "待機中",
-    "badgeTakeover": "手動介入中",
-    "takeoverBtn": "引き継ぐ",
-    "releaseTakeoverBtn": "AIに返却",
-    "closeSpaceBtn": "空間を閉じる",
-    "activePages": "{count} 個のアクティブタブ",
-    "emptyState": "アクティブな並列ブラウザ空間はありません",
-    "snapshotPreview": "リアルタイム空間スナップショット",
-    "takeoverHint": "現在手動介入モードです。完了したらAIに返却してください。",
-    "snapshotAlt": "タスクスペースのスナップショット"
-  },
-  "modelPlaybook": {
-    "title": "モデルオーケストレーション方針",
-    "subtitle": "マルチモデル分業、動的ルーティング、コスト最適化のアーキテクチャガイド。",
-    "brainHands": {
-      "title": "頭脳と手足の役割分担",
-      "tag": "役割の分離",
-      "description": "高度な推論を行う計画モデルと、高速かつ安価なツール実行モデルを組み合わせます。",
-      "brainTip": "頭脳：Claude 3.5 Sonnet、DeepSeek-R1 によるアーキテクチャと推論。",
-      "handsTip": "手足：MiniMax、GPT-4o-mini による迅速なツール呼び出し。"
-    },
-    "routingMoa": {
-      "title": "ルーティング vs MoA",
-      "tag": "直交スケーリング",
-      "description": "動的ルーティングで最適モデルを選定し、MoAで複数出力を合意形成します。",
-      "routingTip": "ルーティング：タスクの特性に応じてモデルを動的に切り替え。",
-      "moaTip": "MoA：複数モデルの並行推論と合意集約で意思決定を強化。",
-      "routingActive": "有効",
-      "routingInactive": "無効"
-    },
-    "cheapEyes": {
-      "title": "マルチモーダル視覚補助",
-      "tag": "コスト最適化",
-      "description": "特化した視覚モデルで画像解析を行い、推論コストを大幅に削減します。",
-      "tip": "画像の確認を専用モデルに任せ、メインチャットを軽量に維持。"
-    },
-    "honestQuota": {
-      "title": "透明なクォータとトークン経済",
-      "tag": "TCO管理",
-      "description": "プロバイダー全体のトークン消費とキャッシュ命中率をリアルタイム監視。",
-      "tip": "コストのボトルネックを特定し、キャッシュ効率を最大化。"
-    },
-    "actions": {
-      "routingEnabledSuccess": "スマートルーティングが有効になりました！",
-      "configureSlots": "スロットを設定",
-      "enabled": "有効",
-      "enableSmartRouting": "スマートルーティングを有効化",
-      "configureVision": "視覚モデルを設定",
-      "viewSubscriptions": "サブスクリプションを表示",
-      "close": "閉じる"
-    },
-    "cardTitle": "モデルオーケストレーションプレイブック",
-    "cardBadge": "プレイブック",
-    "cardSubtitle": "Brain & Handsの役割分担、3層適応型ルーティング、MoA合意形成を活用して効率を最大化。",
-    "viewFullPlaybook": "プレイブックを表示",
-    "collapse": "折りたたむ",
-    "expand": "展開",
-    "miniBrainHandsTitle": "Brain & Hands 分担",
-    "miniBrainHandsDesc": "高推論プランナー ＋ 高速ツール実行ワーカー。",
-    "miniDynamicRoutingTitle": "3層適応型ルーティング",
-    "miniDynamicRoutingDesc": "シンプル・標準・推論層を自動シームレス切り替え。",
-    "miniMoaTitle": "MoA 合意形成オーバーレイ",
-    "miniMoaDesc": "複数モデルのクロス検証で単一モデルの限界を突破。",
-    "headerBadge": "モデルオーケストレーション方針",
-    "dialogTitle": "モデルオーケストレーション実践ハンドブック＆推奨レシピ",
-    "dialogSubtitle": "頭脳と手足の分業、動的ルーティング、MoA合意形成、エンドツーエンドのトークン経済学を深く理解する",
-    "brainHandsTitle": "1. 頭脳と手足の専門分業 (Brain vs. Hands)",
-    "brainHandsBadge": "速度・コスト両立",
-    "brainHandsDesc": "全体計画と高頻度のツール呼び出しを分離し、高コストな頭脳モデルを安価な処理に浪費するのを防ぎます。",
-    "brainLabel": "頭脳 (プランナー)",
-    "brainExample": "Claude 3.7 Sonnet、DeepSeek-R1",
-    "handsLabel": "手足 (エグゼキューター)",
-    "handsExample": "DeepSeek-V3、Qwen 2.5、GPT-4o-mini",
-    "dynamicRoutingTitle": "2. 3層適応型動的ルーティング (3-Tier Adaptive Routing)",
-    "dynamicRoutingBadge": "自動振り分け",
-    "dynamicRoutingDesc": "リクエストの意図と複雑さを自動識別し、ミリ秒単位でコンピューティング仕様を最適化します。",
-    "tierSimpleTitle": "シンプル層 (Simple Tier)",
-    "tierSimpleDesc": "日常会話や簡単な検索など、ミリ秒で応答し約65%の計算コストを削減。",
-    "tierStandardTitle": "標準層 (Standard Tier)",
-    "tierStandardDesc": "機能開発、リファクタリング、複数ファイル検索などの日常的な複合タスク。",
-    "tierReasoningTitle": "深層推論層 (Reasoning Tier)",
-    "tierReasoningDesc": "厳密な数学的証明、長期的因果推論、システムアーキテクチャ設計などの難関タスク。",
-    "moaTitle": "3. 複数モデル混合合意層 (Mixture-of-Agents)",
-    "moaBadge": "精度の大幅向上",
-    "moaDesc": "複数モデルが並行して回答候補を生成し、合議委員会が集約して単一モデルの幻覚を粉砕します。",
-    "orthogonalTipTitle": "動的ルーティングと MoA の直交関係",
-    "orthogonalTipDesc": "ルーティングは横方向のコスト低減、MoA は縦方向の難易度突破を担い、両者は相互に補完します。",
-    "specialistsTitle": "4. 専門ドメインモデル枠 (Specialist Slots)",
-    "specialistsDesc": "マルチモーダル視覚補助、長文解析、プログラミング専用モデルを個別に割り当て可能。",
-    "footerNote": "設定センターからいつでもモデル連携ポリシーを調整・微調整できます。",
-    "closeBtn": "閉じる",
-    "configureBtn": "設定センターで構成"
-  },
-  "security": {
-    "taintedEgress": {
-      "title": "機密データ送信の傍受",
-      "description": "機密認証情報を含む送信リクエストが外部ホストへの接続を試行したため傍受されました。",
-      "destinationHost": "宛先ホスト",
-      "dataType": "機密データ種別",
-      "detectedPattern": "検出パターン",
-      "trustSession": "このセッション中はこの宛先を常に信頼する（今後のプロンプトを防止）",
-      "approve": "送信を許可",
-      "reject": "ブロックして拒否"
-    }
-  },
-  "ttsAudio": {
-    "generatedSpeech": "生成された音声",
-    "playbackFailed": "音声再生に失敗しました——ファイルの期限が切れた可能性があります。"
-  },
-  "intentDispatcher": {
-    "invalidLink": "無効な外部リンクまたはパラメータです",
-    "oauthSuccess": "認証に成功しました",
-    "oauthFailed": "認証の検証に失敗しました。もう一度お試しください",
-    "cloudProfileName": "クラウドサンドボックス"
   }
 }

@@ -135,7 +135,7 @@ class MemoryCommandCostProfile(BaseModel):
     injection_overhead_ms: float = 0.0
     effective_cited_tokens: int = 0
     background_construction_tokens: int = 0
-    cache_preservation_score: float = 1.0
+    cache_preservation_score: float = 0.0
     roi_percentage: float = 0.0
     roi_grade: str = "healthy"
     parasitic_memory_count: int = 0

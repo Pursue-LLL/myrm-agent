@@ -30,6 +30,7 @@ from app.services.agent.memory_brief_telemetry import (
 from app.services.agent.steering import SteeringRegistry
 from app.services.agent.stream_session._memory_status_helpers import (
     build_memory_brief_status_payload,
+    enrich_memory_brief_status_with_session_ephemeral_deltas,
     observe_memory_brief_status_payload,
 )
 from app.services.agent.stream_session.migration_readiness_anchor import (
@@ -497,6 +498,10 @@ async def finalize_agent_stream_session(
         if citations and manager and hasattr(manager, "record_citations"):
             asyncio.create_task(manager.record_citations(citations))
         status_payload = build_memory_brief_status_payload(brief_status, injection)
+        status_payload = enrich_memory_brief_status_with_session_ephemeral_deltas(
+            status_payload,
+            session.request.chat_id,
+        )
         if status_payload is not None:
             extra_data["memoryBriefStatus"] = status_payload
             observe_memory_brief_status_payload(phase="persist", payload=status_payload)

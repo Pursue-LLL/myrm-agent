@@ -52,6 +52,7 @@ def _session(*, use_workflow: bool = False, workflow_template_id: str | None = N
         research_model_cfg=None,
         collector=StreamContentCollector(chat_id="chat-dw-route"),
         goal_provider=None,
+        pending_session_draft=None,
     )
 
 

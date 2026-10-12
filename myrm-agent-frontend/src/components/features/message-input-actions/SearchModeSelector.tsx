@@ -86,7 +86,7 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div role="radiogroup" className="group relative isolate flex h-fit focus:outline-none" tabIndex={0}>
+      <div role="radiogroup" className="group relative isolate flex h-fit">
         <div className="absolute inset-0 bg-black/[0.04] dark:bg-white/[0.06] rounded-[10px] transition-colors duration-300" />
 
         <div className="p-0.5 flex shrink-0 items-center">
@@ -102,7 +102,7 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
                     aria-checked={isActive}
                     aria-label={t(`${mode.key}Title`)}
                     onClick={() => handleModeChange(mode.key)}
-                    className="group/segmented-control relative focus:outline-none"
+                    className="group/segmented-control relative rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                   >
                     {isActive && (
                       <div className="pointer-events-none absolute inset-0 z-0 block bg-white dark:bg-black dark:bg-gradient-to-b dark:from-primary/20 dark:to-primary/20 border border-primary dark:border-primary/30 rounded-lg shadow-[0_1px_3px_0] shadow-primary/30 dark:shadow-primary/5 transition-all duration-300" />

@@ -1,6 +1,6 @@
 """Real login user home resolution for dev tooling.
 
-Bypasses sandboxed HOME (e.g. Cursor's ~/.cursor2) so that dev state, logs,
+Bypasses sandboxed HOME (e.g. Cursor's ~/.cursor-3) so that dev state, logs,
 and harness data always land on the real user's data directory instead of
 splitting across sandboxed and real homes.
 """

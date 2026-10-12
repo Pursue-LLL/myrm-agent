@@ -97,6 +97,10 @@ export interface SearchToolItem {
   pattern: string;
   search_path?: string;
   file_pattern?: string;
+  cached?: boolean;
+  cache_age_seconds?: number;
+  saved_tokens?: number;
+  scenario?: 'realtime' | 'standard' | 'archive';
 }
 
 export const isSearchToolItems = (items: unknown): items is SearchToolItem[] => {

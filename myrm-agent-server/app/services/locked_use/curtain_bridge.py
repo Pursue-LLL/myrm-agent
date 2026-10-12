@@ -1,7 +1,7 @@
 """帷幕状态桥 — server 与 Tauri 共享的 curtain_state.json 读写。
 
 [INPUT]
-- MYRM_CURTAIN_STATE_FILE / MYRM_SHELL_PID 环境变量（Tauri python_backend 注入；POS: 桌面端文件桥路径与壳进程身份）
+- MYRM_CURTAIN_STATE_FILE / MYRM_DESKTOP_RUNTIME_FILE / MYRM_SHELL_PID 环境变量（Tauri python_backend 注入；POS: 桌面端文件桥路径与壳进程身份）
 - Tauri commands::privacy_curtain_state（POS: 帷幕状态桥，curtain_state.json 的 Tauri 侧唯一读写入口）
 
 [OUTPUT]
@@ -47,6 +47,9 @@ EXCLUDED_CAPTURE_TITLES: tuple[str, ...] = ("Privacy Curtain",)
 # release 的 sidecar 是 PyInstaller --onefile：getppid 指向引导进程而非壳，必须显式注入。
 SHELL_PID_ENV = "MYRM_SHELL_PID"
 
+# 与 Tauri desktop_runtime_state 的跨进程契约（勿单侧改名）。
+DESKTOP_RUNTIME_FILE_ENV = "MYRM_DESKTOP_RUNTIME_FILE"
+
 # 静默期：帷幕上最近物理输入后 N 秒内不代解锁（防反复触碰驱动的解锁死循环）。
 QUIET_PERIOD_SECONDS = 300.0
 # 代解锁密码错误重试上限（超限暂停编排；用户亲自解锁自然恢复）。
@@ -54,11 +57,55 @@ MAX_UNLOCK_ATTEMPTS = 3
 
 
 def locked_use_enabled_from_env() -> bool:
-    """Tauri SystemConfig 的 locked_use_enabled 经 MYRM_LOCKED_USE_ENABLED 注入。
+    """Spawn-time fallback：Tauri 在 Sidecar 启动时注入 MYRM_LOCKED_USE_ENABLED。
 
     非桌面端部署（未注入）恒 False：代解锁仅存在于 Tauri 桌面端授权场景。
     """
     return os.environ.get("MYRM_LOCKED_USE_ENABLED", "").strip().lower() in ("1", "true", "yes")
+
+
+def _parse_locked_use_bool(value: object) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ("1", "true", "yes"):
+            return True
+        if normalized in ("0", "false", "no", ""):
+            return False
+    return None
+
+
+def _locked_use_enabled_from_runtime_file() -> bool | None:
+    """读取 desktop_runtime.json；路径未注入时返回 None（非桌面 Sidecar）。"""
+    path_raw = os.environ.get(DESKTOP_RUNTIME_FILE_ENV, "").strip()
+    if not path_raw:
+        return None
+    path = Path(path_raw)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Desktop runtime bridge read failed: %s", exc)
+        return False
+    if not isinstance(raw, dict):
+        return False
+    for key in ("lockedUseEnabled", "locked_use_enabled"):
+        if key in raw:
+            parsed = _parse_locked_use_bool(raw[key])
+            if parsed is not None:
+                return parsed
+    return False
+
+
+def locked_use_enabled() -> bool:
+    """离席授权 SSOT：runtime 文件优先，spawn env 兜底。
+
+    保存设置后 Tauri 写盘即可生效，无需重启 Sidecar。
+    """
+    runtime = _locked_use_enabled_from_runtime_file()
+    if runtime is not None:
+        return runtime
+    return locked_use_enabled_from_env()
 
 
 @dataclass(frozen=True)

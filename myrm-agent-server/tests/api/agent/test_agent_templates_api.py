@@ -19,6 +19,12 @@ def test_list_templates(client: TestClient):
         assert "id" in first
         assert "name" in first
         assert "agent_type" in first
+        assert "settings_preview" in first
+        preview = first["settings_preview"]
+        assert isinstance(preview.get("enabled_builtin_tools"), list)
+        assert isinstance(preview.get("skill_ids"), list)
+        assert "memory_preset" in preview
+        assert "deploy_mode" in preview
 
 
 def test_instantiate_template_not_found(client: TestClient):

@@ -79,10 +79,11 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "browser_domain_skills",
         "browser_sessions",
         "client_logs",
-        "credentials",
         "commerce",
+        "credentials",
         "datasets",
         "dev_gate",
+        "dev_ports",
         "eval",
         "goals",
         "health",
@@ -92,13 +93,19 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "mem0_compat",
         "notifications",
         "openai_compat",
+        "presentation",
         "runs",
+        "self_evolution",
+        "session_map",
+        "spreadsheet",
         "stt",
+        "system_assistant",
         "tasks",
         "tts",
         "voice",
         "web_push",
         "widget_storage",
+        "workbench",
     }
 )
 
@@ -136,6 +143,7 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "rules",
         "ssh_bridge",
         "trajectory",
+        "ui_interaction",
         "web_fetch",
     }
 )

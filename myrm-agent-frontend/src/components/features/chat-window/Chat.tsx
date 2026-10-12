@@ -17,7 +17,7 @@
  *   - 支持虚拟滚动（ENABLE_VIRTUAL_SCROLL 开关）
  *   - 消息列表渲染
  *   - ScrollToBottomButton（滚动到底部 + 新消息提示）
- *   - VisualApprovalAttentionBar（输入框上方 pending 条）
+ *   - HumanAttentionBar（输入框上方统一 HITL 条）
  *   - 输入框
  *   - 智能体配置面板
  *   - 长对话导航（PC dot 导航 + 移动端 Sheet）
@@ -54,9 +54,10 @@ import { GoalControlPlane } from './goals/GoalControlPlane';
 import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { TurnTimelineRail, MobileTurnOutlineSheet } from './TurnTimelineRail';
+import { useComposerFastFocus } from './outline';
 import { ListTree } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import VisualApprovalAttentionBar from './approval/VisualApprovalAttentionBar';
+import HumanAttentionBar from './approval/HumanAttentionBar';
 import VisualApprovalOsOverlaySync from './approval/VisualApprovalOsOverlaySync';
 import { useRewindStore } from '@/store/chat/useRewindStore';
 import { RewindDialog } from './RewindDialog';
@@ -123,6 +124,9 @@ const Chat = ({
 
   const rewindTarget = useRewindStore((s) => s.target);
   const closeRewind = useRewindStore((s) => s.closeRewind);
+
+  // 全局 Mod+K / Cmd+K / Ctrl+K / Mod+Shift+C 快速聚焦 Composer
+  useComposerFastFocus({ enabled: true });
 
   // Streaming hot path: the manual subscription (DefaultLane wakeup) is the
   // only messages source. `messages` must NOT be selected via useShallow:
@@ -377,7 +381,7 @@ const Chat = ({
       >
         <div className="mx-auto max-w-6xl w-full px-4 space-y-4" style={{ width: 'var(--message-input-width, 820px)' }}>
           <VisualApprovalOsOverlaySync />
-          <VisualApprovalAttentionBar messages={messages} onJumpToMessage={handleJumpToMessage} />
+          <HumanAttentionBar messages={messages} onJumpToMessage={handleJumpToMessage} />
           <div className="flex items-end gap-2">
             <CompanionWidget />
             <div className="flex-1 min-w-0">

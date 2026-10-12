@@ -33,6 +33,8 @@ from app.core.types import ModelConfig
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+    from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +152,7 @@ def webui_model_preflight_warning() -> str | None:
     return None
 
 
-async def load_platform_retrieval_configs() -> tuple[object | None, object | None]:
+async def load_platform_retrieval_configs() -> tuple[EmbeddingConfig | None, RerankerConfig | None]:
     """Embedding and reranker configs from WebUI retrieval settings."""
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.channel_bridge.config_parsers import extract_retrieval_models
@@ -160,7 +162,7 @@ async def load_platform_retrieval_configs() -> tuple[object | None, object | Non
     return extract_retrieval_models(retrieval)
 
 
-async def require_platform_embedding_config() -> object:
+async def require_platform_embedding_config() -> EmbeddingConfig:
     """Embedding config from WebUI; raises if not configured."""
     embedding_cfg, _ = await load_platform_retrieval_configs()
     if embedding_cfg is None:
@@ -179,7 +181,7 @@ async def require_platform_embedding_config() -> object:
     return embedding_cfg
 
 
-async def verify_platform_embedding_ready() -> object:
+async def verify_platform_embedding_ready() -> EmbeddingConfig:
     """Embedding config from WebUI; raises if missing or unreachable.
 
     Structural check from ``require_platform_embedding_config`` plus a real
@@ -190,15 +192,10 @@ async def verify_platform_embedding_ready() -> object:
     readiness check is only used by heavy eval entry points, never by the
     shared ``require_platform_embedding_config`` callers.
     """
-    from typing import cast
-
-    from myrm_agent_harness.toolkits.retriever.embedding.factory import (
-        EmbeddingConfig,
-        get_embedding_service,
-    )
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import get_embedding_service
 
     embedding_cfg = await require_platform_embedding_config()
-    service = get_embedding_service(cast(EmbeddingConfig, embedding_cfg))
+    service = get_embedding_service(embedding_cfg)
     try:
         await service.embed("embedding readiness probe")
     except Exception as exc:

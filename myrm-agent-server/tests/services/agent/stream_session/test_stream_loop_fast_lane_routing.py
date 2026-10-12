@@ -46,6 +46,7 @@ def _session(*, enable_web_search: bool) -> SimpleNamespace:
         research_model_cfg=None,
         collector=StreamContentCollector(chat_id=None),
         goal_provider=None,
+        pending_session_draft=None,
     )
 
 

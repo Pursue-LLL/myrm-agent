@@ -1,6 +1,20 @@
 """Packaging - 技能打包/解包
 
 Server 层 Facade：技能的 ZIP 打包、验证、解包注册与导出脱敏，底层由 myrm_agent_harness 实现。
+
+[INPUT]
+- myrm_agent_harness.agent.skills.packaging::SkillPacker, SkillUnpacker, validate_skill_zip
+  (POS: 框架层 ZIP 打包、校验与 Agent Plugins 1.0.0 布局。)
+- .collect::collect_skill_files (POS: 收集技能已存储的全部文件。)
+- .redaction::redact_files, review_digest (POS: 导出脱敏与文件树摘要。)
+- ..store.service::skills_service (POS: 技能目录。)
+
+[OUTPUT]
+- SkillPackagingService / skill_packaging_service: 打包（预览或 ZIP）、校验、解包注册。
+- PackageResult, UnpackResult, ExportFormat, SKILL_CHANGED_SINCE_PREVIEW 与框架层校验常量。
+
+[POS]
+框架层打包能力的 Server 门面：导出脱敏、保留命中项时的预览摘要校验、eval 快照同步、解包注册。
 """
 
 import asyncio
@@ -39,7 +53,7 @@ from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
 
 from ..store.service import SkillsService, skills_service
 from ._helpers import _load_evolution_record
-from ._models import SKILL_CHANGED_SINCE_PREVIEW, PackageResult, UnpackResult
+from ._models import SKILL_CHANGED_SINCE_PREVIEW, ExportFormat, PackageResult, UnpackResult
 from .collect import collect_skill_files
 from .redaction import redact_files
 from .redaction import review_digest as compute_review_digest
@@ -65,7 +79,7 @@ class SkillPackagingService:
         preview_only: bool = False,
         apply_redactions: bool = False,
         ignored_redactions: dict[str, list[int]] | None = None,
-        export_format: str = "agent_plugin",
+        export_format: ExportFormat = "agent_plugin",
         review_digest: str | None = None,
     ) -> PackageResult:
         """从 Server 的 SkillsService 获取并打包已注册的技能
@@ -206,7 +220,7 @@ class SkillPackagingService:
                 success=False,
                 zip_content=None,
                 filename=None,
-                error=f"未找到会话 {chat_id} 的工作空间",
+                error=f"Workspace not found for chat {chat_id}",
             )
 
         sandbox_path = Path(workspace_svc.get_workspace_absolute_path(workspace))
@@ -326,6 +340,7 @@ skill_packaging_service = SkillPackagingService()
 
 __all__ = [
     "SKILL_CHANGED_SINCE_PREVIEW",
+    "ExportFormat",
     "SkillPackagingService",
     "skill_packaging_service",
     "SkillPacker",

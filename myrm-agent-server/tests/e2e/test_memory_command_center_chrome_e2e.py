@@ -12,6 +12,11 @@ Covers the real-user flow on the settings memory page:
 
 The embedding-backed golden recall benchmark runs against the real dev stack;
 no critical path is mocked.
+
+Every test is declared PRIVATE because it drives the Memory Command Center against
+the workspace backend (diagnostics actions plus the governance and economics
+panels). A SHARED declaration would route it through the on-demand epoch-pin seed
+whenever the deployed shared epoch has drifted, and skip when that seed times out.
 """
 
 from __future__ import annotations
@@ -96,32 +101,38 @@ _TREND_SECTION_READY_JS = """(() => {
 })()"""
 
 
-@contextmanager
-def _memory_doctor_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
-    api_url = get_e2e_api_url()
-    # Pre-seed one benchmarked run so the trend section deterministically shows
-    # after the UI-triggered run below (it needs at least two runs).
+def _seed_benchmarked_run() -> None:
+    """Pre-seed one benchmarked run: the trend section needs at least two runs to show."""
     seeded = http_json(
         "POST",
-        f"{api_url}/api/v1/memory/command-center/diagnostics/actions",
+        f"{get_e2e_api_url()}/api/v1/memory/command-center/diagnostics/actions",
         body={"action": "run_diagnostics"},
         timeout_sec=300.0,
     )
     assert isinstance(seeded, dict), seeded
     assert seeded.get("run", {}).get("probes"), seeded
 
+
+@contextmanager
+def _memory_center_page() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     warm_ui_route("/settings/memory")
     with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
         yield client, page
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_memory_doctor_panel_run_and_latency_trend_chrome_e2e() -> None:
     """Real user flow: open doctor panel, run diagnostics, verify latency trend."""
-    with _memory_doctor_panel() as (client, page):
+    _seed_benchmarked_run()
+    with _memory_center_page() as (client, page):
         opened = wait_for_state(client, page, _OPEN_VERIFY_TAB_JS, timeout_sec=60.0)
         assert opened.get("clicked") is True, opened
 
@@ -180,12 +191,17 @@ _CLICK_REFRESH_TOOL_GUIDANCE_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_memory_tool_guidance_panel_chrome_e2e() -> None:
     """Real user flow: open memory command center, switch to Act tab, verify Tool Guidance panel renders & refresh works."""
-    with _memory_doctor_panel() as (client, page):
+    with _memory_center_page() as (client, page):
         opened = wait_for_state(client, page, _OPEN_ACT_TAB_JS, timeout_sec=60.0)
         assert opened.get("clicked") is True, opened
 
@@ -234,12 +250,17 @@ _CLICK_REFRESH_ECONOMICS_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_memory_economics_panel_chrome_e2e() -> None:
     """Real user flow: open memory command center, switch to Understand tab, verify Memory Economics panel renders & refresh works."""
-    with _memory_doctor_panel() as (client, page):
+    with _memory_center_page() as (client, page):
         opened = wait_for_state(client, page, _OPEN_UNDERSTAND_TAB_JS, timeout_sec=60.0)
         assert opened.get("clicked") is True, opened
 
@@ -248,6 +269,3 @@ def test_memory_economics_panel_chrome_e2e() -> None:
 
         refreshed = wait_for_state(client, page, _CLICK_REFRESH_ECONOMICS_JS, timeout_sec=30.0)
         assert refreshed.get("clicked") is True, refreshed
-
-
-

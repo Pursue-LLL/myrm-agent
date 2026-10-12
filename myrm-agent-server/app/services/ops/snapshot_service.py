@@ -348,21 +348,29 @@ class OpsAggregatedSnapshotService:
             pass
 
         try:
-            from myrm_agent_harness.toolkits.memory import MemoryOperationEventModel
-            from myrm_agent_harness.toolkits.memory.types import MemoryOperationStatus
+            from myrm_agent_harness.toolkits.memory import MemoryOperationStatus
+
+            from app.database.models.memory import MemoryExtractRetryModel, MemoryOperationEventModel
 
             async with get_session() as db:
                 event_cnt = await db.scalar(select(func.count(MemoryOperationEventModel.id)))
                 event_count = event_cnt or 0
-                failed_cnt = await db.scalar(
+                error_cnt = await db.scalar(
                     select(func.count(MemoryOperationEventModel.id)).where(
-                        MemoryOperationEventModel.status == MemoryOperationStatus.FAILED.value
+                        MemoryOperationEventModel.status == MemoryOperationStatus.ERROR.value
                     )
                 )
-                failed_event_count = failed_cnt or 0
+                failed_event_count = error_cnt or 0
+                backlog_cnt = await db.scalar(
+                    select(func.count(MemoryExtractRetryModel.chat_id)).where(
+                        MemoryExtractRetryModel.status == "pending"
+                    )
+                )
+                queue_backlog = backlog_cnt or 0
                 health_status = "healthy" if failed_event_count == 0 else "degraded"
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Ops snapshot memory ledger probe failed: %s", exc)
+            health_status = "critical"
 
         return OpsMemoryInfo(
             health_status=health_status,

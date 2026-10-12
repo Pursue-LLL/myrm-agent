@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDividerSelfLimiting } from './useDividerSelfLimiting';
 
 const STORAGE_KEY = 'myrm-sidebar-width';
 const DEFAULT_WIDTH = 280;
@@ -28,15 +29,31 @@ export function useResizableSidebar(options?: UseResizableSidebarOptions): UseRe
   const onCollapseRef = useRef(options?.onCollapse);
   onCollapseRef.current = options?.onCollapse;
 
+  const { negotiate, resetNegotiation, notifyViewportResize } = useDividerSelfLimiting(DEFAULT_WIDTH, {
+    minDimension: MIN_WIDTH,
+    maxDimension: MAX_WIDTH,
+  });
+
+  useEffect(() => {
+    const handleWindowResize = () => {
+      notifyViewportResize(window.innerWidth);
+    };
+    window.addEventListener('resize', handleWindowResize, { passive: true });
+    return () => {
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, [notifyViewportResize]);
+
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = Number(stored);
       if (parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) {
         setWidth(parsed);
+        resetNegotiation(parsed);
       }
     }
-  }, []);
+  }, [resetNegotiation]);
 
   const persistWidth = useCallback((w: number) => {
     localStorage.setItem(STORAGE_KEY, String(w));
@@ -49,12 +66,13 @@ export function useResizableSidebar(options?: UseResizableSidebarOptions): UseRe
 
       startXRef.current = e.clientX;
       startWidthRef.current = width;
+      resetNegotiation(width);
       setIsDragging(true);
 
       document.body.style.userSelect = 'none';
       document.body.style.cursor = 'col-resize';
     },
-    [width],
+    [width, resetNegotiation],
   );
 
   useEffect(() => {
@@ -70,8 +88,8 @@ export function useResizableSidebar(options?: UseResizableSidebarOptions): UseRe
       rafRef.current = requestAnimationFrame(() => {
         const delta = e.clientX - startXRef.current;
         const rawWidth = startWidthRef.current + delta;
-        const clampedWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, rawWidth));
-        setWidth(clampedWidth);
+        const negotiated = negotiate(rawWidth, window.innerWidth - 80);
+        setWidth(negotiated.dimension);
       });
     };
 
@@ -92,9 +110,9 @@ export function useResizableSidebar(options?: UseResizableSidebarOptions): UseRe
         onCollapseRef.current?.();
         setWidth(startWidthRef.current);
       } else {
-        const finalWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, rawWidth));
-        setWidth(finalWidth);
-        persistWidth(finalWidth);
+        const negotiated = negotiate(rawWidth, window.innerWidth - 80);
+        setWidth(negotiated.dimension);
+        persistWidth(negotiated.dimension);
       }
     };
 
@@ -108,7 +126,7 @@ export function useResizableSidebar(options?: UseResizableSidebarOptions): UseRe
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [isDragging, persistWidth]);
+  }, [isDragging, persistWidth, negotiate]);
 
   const handleDoubleClick = useCallback(() => {
     setWidth(DEFAULT_WIDTH);

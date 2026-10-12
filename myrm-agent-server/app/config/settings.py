@@ -645,6 +645,13 @@ class AppSettings(BaseSettings):
     # --- [O] Browser session warmup ---
     browser_auto_warmup: bool = False  # BROWSER_AUTO_WARMUP
 
+    # --- [O] Memory Command Center + experimental memory HTTP surface ---
+    memory_labs_enabled: bool = Field(
+        default=False,
+        validation_alias="MYRM_MEMORY_LABS",
+        description="[O] Mount /memory/command-center* routes and other lab-only memory APIs",
+    )
+
     # --- [O] Browser extension bridge ---
     extension_auth_token: SecretStr = SecretStr("")  # EXTENSION_AUTH_TOKEN
 

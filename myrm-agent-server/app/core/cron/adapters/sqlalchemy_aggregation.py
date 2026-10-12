@@ -23,6 +23,10 @@ class _SummaryDict(TypedDict):
     total_output_tokens: int
     total_tokens: int
     avg_tokens_per_run: int
+    estimated_hours_saved: float
+    roi_multiple: float
+    estimated_value_saved_cents: float
+    estimated_cost_cents: float
 
 
 class _ByDayDict(TypedDict):
@@ -38,6 +42,7 @@ class _ByJobDict(TypedDict):
     job_name: str
     total_tokens: int
     runs: int
+    hours_saved: float
 
 
 class _ByModelDict(TypedDict):
@@ -79,13 +84,29 @@ async def aggregate_usage(
         )
         row = (await session.execute(summary_stmt)).one()
         total_runs = row.total_runs or 0
+        success_runs = int(row.success_runs or 0)
+        total_tokens = int(row.total_tokens or 0)
+        estimated_hours_saved = round(success_runs * (10.0 / 60.0), 1)
+        estimated_value_cents = round(success_runs * 500.0, 2)
+        estimated_cost_cents = round(total_tokens * 0.0002, 2)
+        if success_runs == 0:
+            roi_multiple = 0.0
+        elif estimated_cost_cents <= 0.0:
+            roi_multiple = round(success_runs * 10.0, 1)
+        else:
+            roi_multiple = round(estimated_value_cents / estimated_cost_cents, 1)
+
         summary: _SummaryDict = {
             "total_runs": int(total_runs),
-            "success_runs": int(row.success_runs or 0),
+            "success_runs": success_runs,
             "total_input_tokens": int(row.input_tokens),
             "total_output_tokens": int(row.output_tokens),
-            "total_tokens": int(row.total_tokens),
-            "avg_tokens_per_run": int(row.total_tokens) // int(total_runs) if int(total_runs) > 0 else 0,
+            "total_tokens": total_tokens,
+            "avg_tokens_per_run": total_tokens // int(total_runs) if int(total_runs) > 0 else 0,
+            "estimated_hours_saved": estimated_hours_saved,
+            "roi_multiple": roi_multiple,
+            "estimated_value_saved_cents": estimated_value_cents,
+            "estimated_cost_cents": estimated_cost_cents,
         }
 
         by_day_stmt = (
@@ -141,6 +162,7 @@ async def aggregate_usage(
                 "job_name": job_names.get(r.job_id, ""),
                 "total_tokens": int(r.total_tokens),
                 "runs": int(r.runs),
+                "hours_saved": round(int(r.runs) * (10.0 / 60.0), 1),
             }
             for r in by_job_rows
         ]

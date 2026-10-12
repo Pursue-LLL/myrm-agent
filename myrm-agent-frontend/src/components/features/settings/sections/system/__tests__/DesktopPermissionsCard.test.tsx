@@ -38,6 +38,12 @@ vi.mock('@/lib/desktop/permissionDeepLink', () => ({
   openPermissionDeepLink: (...args: unknown[]) => mockOpenPermissionDeepLink(...args),
 }));
 
+const mockGetRuntimeDoctor = vi.fn();
+
+vi.mock('@/services/runtime-health', () => ({
+  getRuntimeDoctor: () => mockGetRuntimeDoctor(),
+}));
+
 import DesktopPermissionsCard from '../DesktopPermissionsCard';
 
 const ACCESSIBILITY_DEEPLINK = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
@@ -58,7 +64,21 @@ const CAPTURE_READY_PERMISSIONS = {
   capture_ready: true,
 };
 
+const DEFAULT_DOCTOR = {
+  server: [
+    {
+      component_name: 'DesktopLockedUse',
+      status: 'pass',
+      message: 'Locked Use / Privacy Curtain bridge is reachable.',
+      detail: 'Curtain bridge at curtain_state.json; shell alive=true.',
+    },
+  ],
+  harness: [],
+  repair_actions: [],
+};
+
 function mockDesktopApis(options?: { permissions?: unknown; trust?: unknown; trustReject?: boolean }) {
+  mockGetRuntimeDoctor.mockResolvedValue(DEFAULT_DOCTOR);
   mockApiRequest.mockImplementation((url: string, init?: { method?: string }) => {
     if (typeof url === 'string' && url.startsWith('/webui/desktop/permissions')) {
       if (options?.permissions instanceof Error) {
@@ -83,6 +103,7 @@ describe('DesktopPermissionsCard', () => {
   beforeEach(() => {
     mockApiRequest.mockReset();
     mockOpenPermissionDeepLink.mockReset();
+    mockGetRuntimeDoctor.mockReset();
   });
 
   afterEach(() => {
@@ -233,5 +254,53 @@ describe('DesktopPermissionsCard', () => {
       expect(screen.getByText('trustedAppsLoadFailed')).toBeInTheDocument();
     });
     expect(screen.queryByText('trustedAppsEmpty')).not.toBeInTheDocument();
+  });
+
+  it('shows DesktopLockedUse doctor fail with localized detail', async () => {
+    mockDesktopApis();
+    mockGetRuntimeDoctor.mockResolvedValue({
+      server: [
+        {
+          component_name: 'DesktopLockedUse',
+          status: 'fail',
+          code: 'ERR_DESKTOP_SHELL_UNAVAILABLE',
+          message: 'internal',
+        },
+      ],
+      harness: [],
+      repair_actions: [],
+    });
+
+    render(<DesktopPermissionsCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('lockedUseDoctorFail')).toBeInTheDocument();
+    });
+    expect(screen.getByText('lockedUseDoctorDetailShellUnavailable')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'lockedUseDoctorGoToSettings' })).toBeInTheDocument();
+  });
+
+  it('shows bridge-ready badge when away mode is off but doctor passes', async () => {
+    mockDesktopApis();
+    mockGetRuntimeDoctor.mockResolvedValue({
+      server: [
+        {
+          component_name: 'DesktopLockedUse',
+          status: 'pass',
+          code: 'OK_DESKTOP_LOCKED_USE_READY',
+          message: 'ok',
+          meta_data: { locked_use_enabled: false },
+        },
+      ],
+      harness: [],
+      repair_actions: [],
+    });
+
+    render(<DesktopPermissionsCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('lockedUseDoctorBadgeBridgeReady')).toBeInTheDocument();
+    });
+    expect(screen.getByText('lockedUseDoctorDetailAwayOff')).toBeInTheDocument();
   });
 });

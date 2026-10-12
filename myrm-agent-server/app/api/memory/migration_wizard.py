@@ -31,6 +31,8 @@ from app.schemas.memory_migration_wizard import (
     MigrationDetectResponseDTO,
     MigrationImportRequestDTO,
     MigrationImportResponseDTO,
+    MigrationPreviewRequestDTO,
+    MigrationPreviewResponseDTO,
     MigrationSourcesListResponseDTO,
 )
 from app.services.memory.migration_wizard import (
@@ -90,4 +92,29 @@ async def import_memory_asset(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Migration failed: {e}",
+        ) from e
+
+
+@router.post(
+    "/preview",
+    response_model=MigrationPreviewResponseDTO,
+    summary="Preview normalized cognitive memory units before importing",
+    status_code=status.HTTP_200_OK,
+)
+async def preview_memory_asset(
+    payload: MigrationPreviewRequestDTO,
+    service: MigrationWizardService = Depends(get_migration_wizard_service),
+) -> MigrationPreviewResponseDTO:
+    """Parse external memory artifact and return normalized facts without modifying state."""
+    try:
+        return service.preview_memory(payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Preview failed: {e}",
         ) from e

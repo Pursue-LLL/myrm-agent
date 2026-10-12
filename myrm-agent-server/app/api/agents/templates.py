@@ -54,6 +54,18 @@ class TeamMemberBrief(BaseModel):
     description: str | None = None
 
 
+class TemplateSettingsPreview(BaseModel):
+    enabled_builtin_tools: list[str] = []
+    skill_ids: list[str] = []
+    prebuilt_skill_ids: list[str] = []
+    mcp_ids: list[str] = []
+    memory_preset: str = "dual_layer"
+    deploy_mode: str = "sandbox"
+    sandbox_bound_note: str | None = None
+    prompt_mode: str = "full"
+    personality_style: str = "professional"
+
+
 class TemplateListItem(BaseModel):
     id: str
     name: str
@@ -67,6 +79,7 @@ class TemplateListItem(BaseModel):
     moa_overlay: dict[str, Any] | None = None
     members: list[TeamMemberBrief] | None = None
     use_cases: list[str] | None = None
+    settings_preview: TemplateSettingsPreview | None = None
 
 
 @router.get("/templates", response_model=StandardSuccessResponse)
@@ -147,6 +160,18 @@ async def list_templates(request: Request) -> JSONResponse:
                         if raw_suggestions:
                             use_cases = [resolve_i18n(sp, accept_lang) for sp in raw_suggestions]
 
+                    settings_preview = TemplateSettingsPreview(
+                        enabled_builtin_tools=list(data.get("enabled_builtin_tools") or []),
+                        skill_ids=list(data.get("skill_ids") or []),
+                        prebuilt_skill_ids=list(data.get("prebuilt_skill_ids") or []),
+                        mcp_ids=list(data.get("mcp_ids") or []),
+                        memory_preset=str(data.get("memory_preset") or "dual_layer"),
+                        deploy_mode=str(data.get("deploy_mode") or "sandbox"),
+                        sandbox_bound_note=str(data.get("sandbox_bound_note")) if data.get("sandbox_bound_note") else None,
+                        prompt_mode=str(data.get("prompt_mode") or "full"),
+                        personality_style=str(data.get("personality_style") or "professional"),
+                    )
+
                     templates.append(
                         TemplateListItem(
                             id=template_id,
@@ -163,6 +188,7 @@ async def list_templates(request: Request) -> JSONResponse:
                             moa_overlay=data.get("moa_overlay"),
                             members=members,
                             use_cases=use_cases,
+                            settings_preview=settings_preview,
                         ).model_dump(exclude_none=True)
                     )
             except Exception as e:

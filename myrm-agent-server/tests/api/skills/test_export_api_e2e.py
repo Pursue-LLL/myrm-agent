@@ -184,3 +184,10 @@ sk-proj-1234567890abcdef1234567890abcdef12345678
             evals_json = json.loads(zf.read("sensitive-analyzer/skills/sensitive-analyzer/evals.json").decode("utf-8"))
             assert "should_be_stripped" not in json.dumps(evals_json)
             assert "sk-proj-1234567890abcdef1234567890abcdef12345678" not in json.dumps(evals_json)
+
+
+def test_api_export_rejects_unknown_format(client: TestClient) -> None:
+    """A mistyped format is a client error, not a silent Agent Plugins archive."""
+    response = client.post("/api/v1/skills/any-skill/export", json={"export_format": "raw"})
+
+    assert response.status_code == 422

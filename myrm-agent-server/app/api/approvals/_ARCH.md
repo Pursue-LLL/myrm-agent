@@ -9,9 +9,11 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
-| `router.py` | 路由 | `GET /approvals`、`POST /{id}/resolve`、`POST /batch-resolve`、`POST /test/seed-mock`（local E2E） | ✅ |
+| `router.py` | 路由 | 统一审批入口：`GET /approvals`、`POST /{id}/resolve`、挂载 `test_routes` / `batch` / `docket` / `credentials` 子路由 | ✅ |
 | `credentials.py` | 路由 | `POST /{approval_id}/credentials` 瞬态敏感凭证内存暂存与 handle 签发 | ✅ |
+| `test_routes.py` | 路由 | local/test-only 调试与 E2E 辅助端点：`POST /test/seed-mock`、`/test/seed-hardened-mock`、`/test/cleanup-hardened-mock`（`is_local_mode()` 守卫，非 local 返回 404） | ✅ |
 | `knowledge_patch.py` | 辅助 | 知识补丁审批通过后的 Wiki/Procedural 规则写入处理 | ✅ |
+| `tiered_risk.py` | 路由 | 三级风险自适应判定、单次授权 Token 校验与 Dry-run 预演端点 | ✅ |
 
 ## 路由（前缀 `/api/v1/approvals`）
 
@@ -21,7 +23,10 @@
 | POST | `/{id}/credentials` | 内存暂存一次性执行凭据，返回 handle_id 引用，无密文落地与回显 |
 | POST | `/{approval_id}/resolve` | 单条决策：`decision`（`approve`/`deny`/`reject`→`deny`）、`edited_payload`、`comment`、`allow_always`（bool 或 `{tool,args,pattern,duration,ttl_seconds}`）；有 `thread_id` 时发布 `APPROVAL_RESOLVED` |
 | POST | `/batch-resolve` | 批量 `approval_ids` + `decision`；逐条 resolve 并对有 `thread_id` 项发事件 |
-| POST | `/test/seed-mock` | local/test only：创建 chat + inline pending approval，返回 `push_url`（Chrome push deeplink E2E） |
+| POST | `/tiered-risk/evaluate` | 三级风险自适应判决（READ/WRITE/HIGH_RISK），挂起高危操作并颁发 confirmation_token |
+| POST | `/tiered-risk/confirm` | 校验单次 confirmation_token 并放行或打回高危工具执行（支持参数修改） |
+| POST | `/tiered-risk/dry-run` | 工具参数 Dry-run 模拟预览，返回预演影响分析与变更预测 |
+| POST | `/test/seed-mock` | local/test only（`test_routes.py`）：创建 chat + inline pending approval，返回 `push_url`（Chrome push deeplink E2E） |
 
 ## 契约要点
 

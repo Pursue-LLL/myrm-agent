@@ -52,6 +52,9 @@ import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 import Chat from './Chat';
+import { DualModeContainer } from '../work-layout';
+import { ExtensionUIModal } from '../extension-ui';
+import { useExtensionUIStore } from '@/store/useExtensionUIStore';
 import ExecutionTraceTimeline from '@/components/features/settings/sections/system/ExecutionTraceTimeline';
 import { MessageSquare, Activity } from 'lucide-react';
 
@@ -154,6 +157,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         setRouteHydrationEpoch((epoch) => epoch + 1);
       }
     });
+  }, [id]);
+
+  useEffect(() => {
+    useExtensionUIStore.getState().setChatId(id || null);
   }, [id]);
 
   useEffect(() => {
@@ -667,7 +674,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                       <MessageListSkeleton />
                     </div>
                   ) : null}
-                  <div
+                  <DualModeContainer
                     className="flex h-full min-h-0"
                     key={`${id ?? 'home'}-${routeHydrationEpoch}-${storeMessageCount}-${chatRouteHydrated ? 'hydrated' : 'pending'}`}
                   >
@@ -678,7 +685,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                         chatMessagesForRender.length > chatMessages.length ? chatMessagesForRender : undefined
                       }
                     />
-                  </div>
+                  </DualModeContainer>
                 </>
               ) : (
                 <div className="h-full overflow-y-auto p-4 bg-background">
@@ -713,6 +720,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
           />
         ) : null}
         <LifeStatusCapsule currentSessionId={id || null} />
+        <ExtensionUIModal />
       </>
     );
   }
@@ -743,6 +751,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       />
       {isGoalsEnabled ? <GoalStatusCard /> : null}
       <LifeStatusCapsule currentSessionId={id || null} />
+      <ExtensionUIModal />
     </>
   );
 };

@@ -1,6 +1,18 @@
-"""Skill packaging and upload endpoints
+"""Skill packaging and upload endpoints.
 
-Endpoints for downloading skills as ZIP and uploading skill packages.
+[INPUT]
+- app.core.skills.packaging::skill_packaging_service, SKILL_CHANGED_SINCE_PREVIEW, ExportFormat
+  (POS: skill ZIP packaging with redaction preview, validation, unpack and register.)
+- app.api.skills.schemas::PackagePreviewResponse, SkillPackageInfoResponse, UploadSkillResponse,
+  redaction_responses (POS: wire models.)
+
+[OUTPUT]
+- router: GET /{skill_id}/preview (redaction preview + review digest), POST /{skill_id}/export
+  (ZIP; 409 skill_changed_since_preview when kept findings no longer match the files),
+  POST /upload, POST /validate, POST /workspace/package.
+
+[POS]
+API-layer skill package download and upload; thin delegation to the packaging service.
 """
 
 import logging
@@ -15,11 +27,18 @@ from app.api.skills.schemas import (
     UploadSkillResponse,
     redaction_responses,
 )
-from app.core.skills.packaging import SKILL_CHANGED_SINCE_PREVIEW, skill_packaging_service
+from app.core.skills.packaging import SKILL_CHANGED_SINCE_PREVIEW, ExportFormat, skill_packaging_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _read_skill_archive(file: UploadFile) -> bytes:
+    """Read an uploaded ``.zip`` or ``.skill`` package (a ``.skill`` file is a ZIP)."""
+    if not file.filename or not file.filename.endswith((".zip", ".skill")):
+        raise HTTPException(status_code=400, detail="Please upload .zip or .skill file")
+    return await file.read()
 
 
 @router.get("/{skill_id}/preview", response_model=PackagePreviewResponse)
@@ -50,9 +69,11 @@ async def preview_skill_package(
 
 
 class ExportSkillRequest(BaseModel):
+    """Export options: which findings to redact, which to keep, and the archive format."""
+
     apply_redactions: bool = False
     ignored_redactions: dict[str, list[int]] | None = None
-    export_format: str = "agent_plugin"  # "agent_plugin" | "raw_skill"
+    export_format: ExportFormat = "agent_plugin"
     review_digest: str | None = None  # from the preview; required when ignored_redactions keeps findings
 
 
@@ -105,17 +126,11 @@ async def upload_skill(
     Args:
         file: Skill package file (supports .zip or .skill format)
         force: Whether to force overwrite skill with same name
-        user_id: User ID (from auth header)
 
     Returns:
         Upload result
     """
-    # Validate file type (supports .zip and .skill formats, .skill is essentially ZIP)
-    if not file.filename or not (file.filename.endswith(".zip") or file.filename.endswith(".skill")):
-        raise HTTPException(status_code=400, detail="Please upload .zip or .skill file")
-
-    # Read content
-    content = await file.read()
+    content = await _read_skill_archive(file)
 
     # Unpack and register
     result = await skill_packaging_service.unpack_and_register(
@@ -146,12 +161,7 @@ async def validate_skill_zip(
     Returns:
         Skill package information
     """
-    # Validate file type (supports .zip and .skill formats, .skill is essentially ZIP)
-    if not file.filename or not (file.filename.endswith(".zip") or file.filename.endswith(".skill")):
-        raise HTTPException(status_code=400, detail="Please upload .zip or .skill file")
-
-    # Read content
-    content = await file.read()
+    content = await _read_skill_archive(file)
 
     # Validate
     info = await skill_packaging_service.validate_skill_zip(content)
@@ -181,7 +191,6 @@ async def package_workspace_directory(
         chat_id: Chat ID
         directory: Directory path to package
         container_id: Container ID (Docker mode)
-        user_id: User ID
 
     Returns:
         ZIP file

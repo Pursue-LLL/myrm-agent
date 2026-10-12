@@ -116,7 +116,6 @@ class AgentFactory:
             embedding_config=params.embedding_config,
             reranker_config=params.reranker_config,
             enable_structured_clarify=params.enable_structured_clarify,
-            client_surface=params.client_surface,
             enable_web_search=params.enable_web_search,
             enable_web_fetch=params.enable_web_fetch,
             benchmark_blocked_hostnames=params.benchmark_blocked_hostnames,

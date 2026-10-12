@@ -197,7 +197,7 @@ class MemoryEconomicsService:
         cache_score = (
             round(total_cached_tokens / max(total_prompt_tokens, 1), 2)
             if total_prompt_tokens > 0
-            else 1.0
+            else 0.0
         )
         roi_grade = classify_roi_grade(roi_pct)
 

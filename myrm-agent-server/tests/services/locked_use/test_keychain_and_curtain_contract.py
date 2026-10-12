@@ -4,7 +4,8 @@
 - app.services.locked_use.service.MacScreenUnlocker（POS: server 侧锁屏原语）
 - app.services.locked_use.curtain_bridge（POS: 状态桥）
 - myrm-agent-desktop/src-tauri/src/{utils/screen_credential.rs, commands/privacy_curtain.rs,
-  commands/privacy_curtain_state.rs, runtime/python_backend.rs}（POS: Tauri 侧锁屏/帷幕实现与壳进程身份注入，源码字符串契约提取目标）
+  commands/privacy_curtain_state.rs, commands/desktop_runtime_state.rs, runtime/python_backend.rs}
+  （POS: Tauri 侧锁屏/帷幕/runtime 桥与壳进程身份注入，源码字符串契约提取目标）
 
 [OUTPUT]
 - Keychain service/account、帷幕窗 title、curtain_state 字段、壳 PID 环境变量四契约对齐断言
@@ -25,8 +26,10 @@ from pathlib import Path
 import pytest
 
 from app.services.locked_use.curtain_bridge import (
+    DESKTOP_RUNTIME_FILE_ENV,
     EXCLUDED_CAPTURE_TITLES,
     SHELL_PID_ENV,
+    locked_use_enabled,
     mark_pending_auto_unlock,
     read_curtain_state,
 )
@@ -76,6 +79,30 @@ def test_shell_pid_env_contract_aligned() -> None:
     match = re.search(r'\.env\(\s*"(MYRM_SHELL_PID)"\s*,\s*std::process::id\(\)', rust)
     assert match is not None, "Tauri python_backend must inject the shell PID via std::process::id()"
     assert match.group(1) == SHELL_PID_ENV
+
+
+def test_desktop_runtime_file_env_contract_aligned() -> None:
+    """离席 runtime 桥：Tauri 注入的环境变量名必须与 server 读取的一致。"""
+    rust = _tauri_source("src/commands/desktop_runtime_state.rs")
+    match = re.search(
+        r'pub const DESKTOP_RUNTIME_FILE_ENV:\s*&str\s*=\s*"([^"]+)"',
+        rust,
+    )
+    assert match is not None, "Tauri DESKTOP_RUNTIME_FILE_ENV constant not found"
+    assert match.group(1) == DESKTOP_RUNTIME_FILE_ENV
+
+    backend = _tauri_source("src/runtime/python_backend.rs")
+    assert "desktop_runtime_state::DESKTOP_RUNTIME_FILE_ENV" in backend
+    assert "desktop_runtime_state::RUNTIME_STATE_FILE" in backend
+
+
+def test_desktop_runtime_json_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rust camelCase runtime JSON 与 server locked_use_enabled() 对齐。"""
+    runtime_file = tmp_path / "desktop_runtime.json"
+    runtime_file.write_text(json.dumps({"lockedUseEnabled": True}), encoding="utf-8")
+    monkeypatch.setenv(DESKTOP_RUNTIME_FILE_ENV, str(runtime_file))
+    monkeypatch.setenv("MYRM_LOCKED_USE_ENABLED", "false")
+    assert locked_use_enabled() is True
 
 
 def test_curtain_state_fields_contract_aligned() -> None:

@@ -19,6 +19,7 @@ from app.api.files import (
     local_actions,
     organize,
     pdf_extract,
+    provenance_api,
     revert,
     storage,
     suggest,
@@ -33,6 +34,7 @@ router = APIRouter()
 
 router.include_router(upload.router, tags=["files-upload"])
 router.include_router(vault_api.router, prefix="/vault", tags=["files-vault"])
+router.include_router(provenance_api.router, prefix="/artifacts", tags=["files-artifact-provenance"])
 router.include_router(artifact_api.router, prefix="/artifacts", tags=["files-artifacts"])
 router.include_router(bundle_api.router, prefix="/artifacts", tags=["files-deliverable-bundles"])
 router.include_router(hosting_api.router, prefix="/artifacts", tags=["files-hosting"])

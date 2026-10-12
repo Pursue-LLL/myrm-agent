@@ -10,6 +10,7 @@
  * Active chat state manager. Acts as the CPU register in the OS Context Switching Architecture, exclusively serving the currently visible tab.
  */
 
+import { enableMapSet } from 'immer';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { ChatState, Message, DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
@@ -37,6 +38,9 @@ import {
   resolveHydratedMoaPresetId,
   writeStoredMoaPresetId,
 } from '@/store/chat/moaPresetStorage';
+
+// `environmentAlerts` is a Set inside immer state; immer drafts a Set only once the MapSet plugin is enabled.
+enableMapSet();
 
 /**
  * Keep history pagination idempotent when a page overlaps with a prior request.
@@ -871,12 +875,12 @@ const useChatStore = create<ChatState>()(
           scheduleAutoSave: get().scheduleAutoSave,
           setInputMessage: (message: string) => set({ inputMessage: message }),
         };
+        // Lazy: history loading reads this store, so a static import would form an import cycle.
+        const { loadMessages } = await import('./chat/messageManagement');
         await loadMessages(chatId, actions);
       },
 
       loadOlderMessages: async () => {
-        // Lazy: history loading reads this store, so a static import would form an import cycle.
-        const { loadMessages } = await import('./chat/messageManagement');
         const actions = {
           setMessages: (updater: (state: ChatState) => void) => set(updater),
           setLoading: (loading: boolean) => set({ loading }),
@@ -893,11 +897,11 @@ const useChatStore = create<ChatState>()(
           scheduleAutoSave: get().scheduleAutoSave,
           setInputMessage: (message: string) => set({ inputMessage: message }),
         };
+        const { loadOlderMessages } = await import('./chat/messageManagement');
         await loadOlderMessages(actions);
       },
 
       // 调度自动保存（防抖）
-        const { loadOlderMessages } = await import('./chat/messageManagement');
       scheduleAutoSave: () => {
         const { _autoSaveTimer } = get();
 

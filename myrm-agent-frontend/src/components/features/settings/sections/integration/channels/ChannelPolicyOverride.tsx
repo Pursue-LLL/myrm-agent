@@ -133,9 +133,8 @@ export function ChannelPolicyOverride({
       )}
 
       {effectiveGroup !== 'disabled' && (
-        <div
+        <section
           className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 space-y-2 hover:shadow-md transition-shadow"
-          role="region"
           aria-label="Current Group Trigger Configuration"
         >
           <div className="flex items-start justify-between gap-2">
@@ -164,7 +163,7 @@ export function ChannelPolicyOverride({
               ` (${globalGroupTrigger.prefixes.join(', ')})`}
           </p>
           <p className="text-xs text-blue-700/70 dark:text-blue-300/70">{t('followsGlobalConfig')}</p>
-        </div>
+        </section>
       )}
 
       {showPairings && (

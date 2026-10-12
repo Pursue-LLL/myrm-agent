@@ -65,6 +65,7 @@ import ShareRulesDialog from '@/components/features/memory/dialogs/ShareRulesDia
 import WorkingStateCard from './WorkingStateCard';
 import MemoryScopeHierarchyCard from '@/components/features/memory/cards/MemoryScopeHierarchyCard';
 import { MemoryDomainMeshPanel } from '@/components/features/memory/mesh';
+import { isMemoryLabsEnabled } from '@/lib/memory/memoryLabs';
 
 const MEMORY_TYPES: (MemoryType | null)[] = [
   null,
@@ -651,7 +652,7 @@ const MemorySection = memo(() => {
         <>
           <WorkingStateCard />
           <MemoryScopeHierarchyCard />
-          <MemoryCommandCenter />
+          {isMemoryLabsEnabled() ? <MemoryCommandCenter /> : null}
           <MemoryDomainMeshPanel />
           <MemoryStats />
           <TasteSummaryCard />

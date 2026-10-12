@@ -674,7 +674,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 binding,
                 self.embedding_config,
                 approval_required=self.memory_require_confirmation,
-                dedup_llm=self._lite_llm,
+                dedup_llm=None,
                 time_decay_half_life_days=time_decay_half_life_days,
                 reranker_config=self.reranker_config if self.enable_advanced_retrieval else None,
                 on_conflict=on_conflict,

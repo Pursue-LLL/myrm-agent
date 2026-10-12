@@ -34,6 +34,8 @@ export interface MemoryBriefData {
     correction_count: number;
     preference_ids: string[];
     rule_ids: string[];
+    /** Stable prefix injection skips learned facts; retrieval uses memory_search_tool. */
+    injected_in_turn_prefix?: boolean;
   };
 }
 
@@ -42,6 +44,8 @@ export interface MemoryBriefStatus {
   reason?: 'timeout' | 'error';
   source?: 'preflight' | 'runtime_fallback';
   injection?: MemoryBriefInjectionStatus;
+  /** Active same-chat preference overrides applied on the user-message tail (server SSOT). */
+  session_ephemeral_delta_count?: number;
 }
 
 export interface MemoryBriefInjectionStatus {

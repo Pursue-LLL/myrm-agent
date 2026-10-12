@@ -120,12 +120,12 @@ export default function ReasoningProcessAccordion({
           )}
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={onToggle}
-          className="w-full flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors text-sm"
-        >
-          <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="w-full flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors text-sm">
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex-1 flex items-center gap-2 text-muted-foreground text-left"
+          >
             <BrainCircuit className={`w-4 h-4 ${isThinking ? 'text-primary animate-pulse' : ''}`} />
             <span className="font-medium">{label}</span>
             {reasoningTokens > 0 && (
@@ -133,31 +133,32 @@ export default function ReasoningProcessAccordion({
                 (~{reasoningTokens} tokens)
               </span>
             )}
-          </div>
+          </button>
           <div className="flex items-center gap-1.5 text-muted-foreground">
             {message.reasoning && (
-              <span
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 onClick={handleCopy}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    void handleCopy(e as unknown as React.MouseEvent);
-                  }
-                }}
                 title={copied ? tContext('copiedReasoning') : tContext('copyReasoning')}
                 className="p-1 hover:text-foreground rounded transition-colors"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-              </span>
+              </button>
             )}
-            {isExpanded ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            )}
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label={isExpanded ? 'Collapse' : 'Expand'}
+              className="p-1 hover:text-foreground rounded transition-colors"
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              )}
+            </button>
           </div>
-        </button>
+        </div>
       )}
 
       {showExpanded && (

@@ -15,12 +15,15 @@ import BrowserProxyCard from './BrowserProxyCard';
 import CaptchaSolverCard from './CaptchaSolverCard';
 import CloudBrowserCard from './CloudBrowserCard';
 import { AccessCard } from './AccessCard';
+import DesktopShellFeaturesNotice from './DesktopShellFeaturesNotice';
 import LockedUseCard from './LockedUseCard';
 import PrivacyCurtainCard from './PrivacyCurtainCard';
+import UnattendedDesktopGuideCard from './UnattendedDesktopGuideCard';
 import SystemConfigCard from './SystemConfigCard';
 import DesktopPermissionsCard from './DesktopPermissionsCard';
 import MemoryMonitorCard from '../knowledge/MemoryMonitorCard';
 import { DoctorDashboard } from '../../../health/DoctorDashboard';
+import RuntimeOpsSnapshotCard from './RuntimeOpsSnapshotCard';
 import { fetchWebuiProtection, updateWebuiProtection } from '@/services/webui-auth';
 import ServerConnectionCard from './ServerConnectionCard';
 import StorageCard from './StorageCard';
@@ -268,7 +271,21 @@ const SystemSection = memo(() => {
         onDataDirChange={(dir) => handleChange('customDataDir', dir)}
       />
 
-      {/* Locked Use (Computer Use + Screen Lock) */}
+      <DesktopShellFeaturesNotice />
+
+      <section className="space-y-6">
+        <div className="flex items-center gap-3 px-2">
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">
+            {t('unattendedDesktop.title')}
+          </h2>
+        </div>
+
+        <UnattendedDesktopGuideCard
+          privacyCurtainEnabled={localConfig.privacyCurtainEnabled}
+          lockedUseEnabled={localConfig.lockedUseEnabled}
+        />
+
+      {/* Locked Use (Computer Use + Screen Lock) — Tauri macOS desktop shell */}
       <LockedUseCard
         enabled={localConfig.lockedUseEnabled}
         onToggle={(v) => handleChange('lockedUseEnabled', v)}
@@ -282,6 +299,7 @@ const SystemSection = memo(() => {
 
       {/* Desktop Permissions Diagnostic */}
       <DesktopPermissionsCard />
+      </section>
 
       {/* Browser Pool */}
       <BrowserPoolCard />
@@ -308,6 +326,8 @@ const SystemSection = memo(() => {
 
       {/* Autonomous Commerce Budget & Spending Ledger */}
       <AgentCommerceBudgetSection />
+
+      <RuntimeOpsSnapshotCard />
 
       {/* System Doctor */}
       <DoctorDashboard />

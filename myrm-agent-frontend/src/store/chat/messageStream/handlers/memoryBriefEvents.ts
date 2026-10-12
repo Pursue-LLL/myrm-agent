@@ -43,6 +43,12 @@ function normalizeMemoryBrief(raw: unknown): MemoryBriefData | null {
       correction_count: typeof learnedRaw.correction_count === 'number' ? learnedRaw.correction_count : 0,
       preference_ids: _asStringArray(learnedRaw.preference_ids),
       rule_ids: _asStringArray(learnedRaw.rule_ids),
+      injected_in_turn_prefix:
+        typeof learnedRaw.injected_in_turn_prefix === 'boolean'
+          ? learnedRaw.injected_in_turn_prefix
+          : typeof (learnedRaw as { injectedInTurnPrefix?: unknown }).injectedInTurnPrefix === 'boolean'
+            ? ((learnedRaw as { injectedInTurnPrefix: boolean }).injectedInTurnPrefix as boolean)
+            : undefined,
     },
   };
 }

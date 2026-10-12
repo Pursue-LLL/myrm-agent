@@ -155,6 +155,7 @@ export interface AgentListItem {
   prompt_mode?: string;
   skill_ids?: string[];
   mcp_ids?: string[];
+  subagent_ids?: string[];
   enabled_builtin_tools?: string[] | null;
   model_selection?: AgentModelSelection | null;
   created_at: string;
@@ -852,6 +853,18 @@ export interface TeamMemberBrief {
   description?: string;
 }
 
+export interface TemplateSettingsPreview {
+  enabled_builtin_tools: string[];
+  skill_ids: string[];
+  prebuilt_skill_ids: string[];
+  mcp_ids: string[];
+  memory_preset: string;
+  deploy_mode: string;
+  sandbox_bound_note?: string | null;
+  prompt_mode: string;
+  personality_style: string;
+}
+
 export interface TemplateListItem {
   id: string;
   name: string;
@@ -863,6 +876,7 @@ export interface TemplateListItem {
   cost_reduction_ratio?: number;
   members?: TeamMemberBrief[];
   use_cases?: string[];
+  settings_preview?: TemplateSettingsPreview;
 }
 
 export async function getTemplates(): Promise<TemplateListItem[]> {

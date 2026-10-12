@@ -13,7 +13,14 @@ vi.mock('@/lib/api', () => ({
   ApiError: ApiErrorStub,
 }));
 
-import { downloadExpertPackage, ExpertExportError, expertExportErrorCode, previewExpertExport } from '../expertPackage';
+import {
+  downloadExpertPackage,
+  downloadMultiExpertPackage,
+  ExpertExportError,
+  expertExportErrorCode,
+  previewExpertExport,
+  previewMultiExpertExport,
+} from '../expertPackage';
 
 function response(init: { ok: boolean; body?: string; blob?: Blob; disposition?: string }): Response {
   return {
@@ -150,3 +157,57 @@ describe('expertExportErrorCode', () => {
     expect(expertExportErrorCode('plain string')).toBeNull();
   });
 });
+
+describe('previewMultiExpertExport', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('sends agent IDs and bundle name for batch export preview', async () => {
+    apiRequestMock.mockResolvedValue({ plugin_name: 'custom-bundle', experts: [] });
+
+    await expect(
+      previewMultiExpertExport({ agentIds: ['agent-1', 'agent-2'], bundleName: 'my-bundle' }),
+    ).resolves.toEqual({ plugin_name: 'custom-bundle', experts: [] });
+
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      '/plugins/export/batch/preview',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ agent_ids: ['agent-1', 'agent-2'], bundle_name: 'my-bundle' }),
+        silent: true,
+        timeout: 120_000,
+      }),
+    );
+  });
+});
+
+describe('downloadMultiExpertPackage', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('sends batch export request and returns blob and filename', async () => {
+    const blob = new Blob(['zip-multi']);
+    fetchWithTimeoutMock.mockResolvedValue(
+      response({ ok: true, blob, disposition: 'attachment; filename="my-bundle-1.0.0.zip"' }),
+    );
+
+    const result = await downloadMultiExpertPackage({
+      agentIds: ['agent-1', 'agent-2'],
+      bundleName: 'my-bundle',
+      applyRedactions: true,
+      ignoredRedactions: {},
+      reviewDigest: 'digest-xyz',
+    });
+
+    expect(result).toEqual({ blob, filename: 'my-bundle-1.0.0.zip' });
+    const [path, init] = fetchWithTimeoutMock.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe('/plugins/export/batch');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({
+      agent_ids: ['agent-1', 'agent-2'],
+      bundle_name: 'my-bundle',
+      apply_redactions: true,
+      ignored_redactions: {},
+      review_digest: 'digest-xyz',
+    });
+  });
+});
+

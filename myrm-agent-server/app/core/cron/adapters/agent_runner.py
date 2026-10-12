@@ -834,6 +834,27 @@ class AgentJobRunner:
 
             agent = AgentFactory.create_general_agent(params)
             agent.approval_session_key = f"cron:{job.id}"
+
+            has_explicit_mutations = bool(
+                job.required_capabilities
+                and any(
+                    cap in job.required_capabilities
+                    for cap in ("shell_exec", "file_write", "git_push", "send_email")
+                )
+            )
+            is_research_or_unattended = getattr(job, "is_research", False) or not has_explicit_mutations
+            if is_research_or_unattended:
+                from myrm_agent_harness.core.security.readonly_research_sandbox import (
+                    ResearchModeEnum,
+                    get_readonly_research_sandbox_facade,
+                )
+
+                get_readonly_research_sandbox_facade().grant_research_lease(
+                    session_id=agent.approval_session_key,
+                    research_mode=ResearchModeEnum.AUTONOMOUS_RESEARCH,
+                    ttl_seconds=float(job.timeout_seconds or 300) + 60.0,
+                )
+
             timeout = job.timeout_seconds or 300
             run_started_at = time.monotonic()
             model_name: str | None = getattr(agent.model_cfg, "model", None)
@@ -933,6 +954,16 @@ class AgentJobRunner:
                         agent_id=params.agent_id,
                         extra_context=runtime_context,
                     )
+                    try:
+                        from myrm_agent_harness.core.security.readonly_research_sandbox import (
+                            get_readonly_research_sandbox_facade,
+                        )
+
+                        ro_facade = get_readonly_research_sandbox_facade()
+                        ro_facade.revoke_lease(agent.approval_session_key)
+                        ro_facade.purge_ephemeral_overlay(agent.approval_session_key)
+                    except Exception as ro_err:
+                        logger.debug("Read-only research lease cleanup ignored: %s", ro_err)
 
                 await _finalize_heartbeat_follow_up_delivery(job, result)
 

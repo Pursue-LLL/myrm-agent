@@ -114,7 +114,7 @@ class SessionMigrationService:
 
         Strict Prompt Cache Affinity:
         - Never injects dynamic timestamps or random nonces into historical messages.
-        - Preserves turn text purity so resumption turns achieve 100% prompt cache hits.
+        - Preserves turn text purity to keep the static prefix layout stable on resume (hit rate is provider-measured, not guaranteed).
         """
         created_ids: list[str] = []
         errors: list[str] = []

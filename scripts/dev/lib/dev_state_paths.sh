@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Dev stack pid/log path SSOT. State under MYRM_DEV_STATE_DIR
 # (default: real user home, mirroring wave_orchestrator/paths.py `_real_user_home()`
-# which bypasses sandboxed HOME such as ~/.cursor2 injected by the Cursor runtime).
+# which bypasses sandboxed HOME such as ~/.cursor-3 injected by the Cursor runtime).
 set -euo pipefail
 
 # Resolve the real login user home, bypassing sandboxed HOME (e.g. Cursor's
-# ~/.cursor2). Used for the dev state dir and for spawning stack processes so
+# ~/.cursor-3). Used for the dev state dir and for spawning stack processes so
 # that harness data (Path.home()/.myrm) stays on the user's real data dir.
 real_user_home() {
   local real_home
@@ -22,7 +22,7 @@ except (KeyError, OSError):
 }
 
 # Export HOME/MYRM_DATA_DIR for stack child processes (backend/frontend).
-# Prevents sandboxed HOME from leaking harness data into e.g. ~/.cursor2/.myrm.
+# Prevents sandboxed HOME from leaking harness data into e.g. ~/.cursor-3/.myrm.
 export_spawn_home() {
   export HOME="$(real_user_home)"
   # Isolated SHPOIB runtimes pre-set MYRM_DATA_DIR to per-runtime dataDir; do not clobber.

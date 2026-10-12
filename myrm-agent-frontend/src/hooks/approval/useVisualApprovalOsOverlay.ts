@@ -17,7 +17,14 @@ import { useEffect } from 'react';
 
 import type { InspectorViewSnapshot } from '@/lib/approval/visualApprovalContext';
 import { resolveDesktopOverlayTarget } from '@/lib/approval/resolveDesktopOverlayTarget';
-import { hideVisualApprovalOsOverlay, showVisualApprovalOsOverlay } from '@/lib/approval/visualApprovalOsOverlay';
+import {
+  hideVisualApprovalOsOverlay,
+  showVisualApprovalOsOverlay,
+} from '@/lib/approval/visualApprovalOsOverlay';
+import {
+  resetVisualApprovalOsOverlaySurface,
+  setVisualApprovalOsOverlaySurface,
+} from '@/lib/approval/visualApprovalOsOverlaySurface';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
@@ -48,14 +55,34 @@ export function useVisualApprovalOsOverlay(
     });
 
     if (!target) {
+      resetVisualApprovalOsOverlaySurface();
       void hideVisualApprovalOsOverlay().catch((error) => logOverlayError('hide', error));
       return;
     }
 
-    void showVisualApprovalOsOverlay(target.payload).catch((error) => logOverlayError('show', error));
+    void showVisualApprovalOsOverlay(target.payload)
+      .then((result) => {
+        if (!result) {
+          resetVisualApprovalOsOverlaySurface();
+          return;
+        }
+        const degraded = result.degraded || !result.shown;
+        setVisualApprovalOsOverlaySurface({ degraded });
+      })
+      .catch((error) => {
+        setVisualApprovalOsOverlaySurface({ degraded: true });
+        logOverlayError('show', error);
+      });
+  }, [inlineRequests, desktopViewData, browserViewData, desktopLoading, browserLoading, snapshotFetchFailed]);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) {
+      return;
+    }
 
     return () => {
+      resetVisualApprovalOsOverlaySurface();
       void hideVisualApprovalOsOverlay().catch((error) => logOverlayError('hide', error));
     };
-  }, [inlineRequests, desktopViewData, browserViewData, desktopLoading, browserLoading, snapshotFetchFailed]);
+  }, []);
 }

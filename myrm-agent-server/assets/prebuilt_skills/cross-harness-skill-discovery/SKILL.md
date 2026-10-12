@@ -29,7 +29,7 @@ Instead of forcing developers to manually rewrite or copy `SKILL.md` bundles bet
 ```
 [Stage 1: Multi-Root Filesystem Probing (多源标准根目录探测)]
   - Probe standard user directory paths:
-    ├── `~/.cursor/skills/` & `~/.cursor2/.cursor/skills/`
+    ├── `~/.cursor/skills/`
     ├── `~/.claude/skills/`
     ├── `~/.openclaw/skills/`
     └── `~/.windsurf/skills/`
@@ -66,8 +66,8 @@ Instead of forcing developers to manually rewrite or copy `SKILL.md` bundles bet
 
 | 命名空间技能 ID | 原生宿主环境 | 物理源路径 | 状态 |
 |---|---|---|---|
-| `cursor:automate` | Cursor | `~/.cursor2/.cursor/skills-cursor/automate/SKILL.md` | ✅ 挂载成功 |
-| `cursor:canvas` | Cursor | `~/.cursor2/.cursor/skills-cursor/canvas/SKILL.md` | ✅ 挂载成功 |
+| `cursor:automate` | Cursor | `~/.cursor/skills-cursor/automate/SKILL.md` | ✅ 挂载成功 |
+| `cursor:canvas` | Cursor | `~/.cursor/skills-cursor/canvas/SKILL.md` | ✅ 挂载成功 |
 | `claude:durable-objects`| Claude | `~/.claude/skills/durable-objects/SKILL.md` | ✅ 挂载成功 |
 | `openclaw:healthcheck` | OpenClaw | `~/.openclaw/skills/healthcheck/SKILL.md` | ✅ 挂载成功 |
 

@@ -70,7 +70,7 @@ def _isolated_registry_root() -> Path:
 
 
 def _real_user_home() -> Path:
-    """Real login home — Cursor sandboxes HOME (~/.cursor2), splitting state."""
+    """Real login home — Cursor sandboxes HOME (~/.cursor-3), splitting state."""
     try:
         import pwd
 

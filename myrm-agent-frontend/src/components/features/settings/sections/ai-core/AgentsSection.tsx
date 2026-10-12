@@ -8,6 +8,7 @@ import {
   IconArrowRight,
   IconChat,
   IconCopy,
+  IconDownload,
   IconEdit,
   IconEye,
   IconPlus,
@@ -41,6 +42,7 @@ import AgentEditPanel from './AgentEditPanel';
 import { isLocalMode } from '@/lib/deploy-mode';
 import CloneAgentDialog from './CloneAgentDialog';
 import PluginImportDialog from '@/components/features/plugins/PluginImportDialog';
+import BulkExportDialog from '@/components/features/plugins/BulkExportDialog';
 import { activateOnKey } from '@/lib/utils/a11y';
 
 // 预设头像颜色方案
@@ -84,6 +86,7 @@ export default function AgentsSection() {
   const [agentToClone, setAgentToClone] = useState<AgentListItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [bulkExportDialogOpen, setBulkExportDialogOpen] = useState(false);
 
   // 过滤后的智能体列表
   const filteredAgents = useMemo(() => {
@@ -223,6 +226,15 @@ export default function AgentsSection() {
             </div>
           )}
           <div className="flex items-center gap-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setBulkExportDialogOpen(true)}
+              title="批量导出智能体资产包"
+            >
+              <IconDownload className="w-[18px] h-[18px]" />
+              <span className="hidden sm:inline">批量导出</span>
+            </Button>
             <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
               <IconUpload className="w-[18px] h-[18px]" />
               <span className="hidden sm:inline">{t('agent.importAction')}</span>
@@ -455,6 +467,7 @@ export default function AgentsSection() {
         onCloned={(cloned) => router.push(`/settings/agents?agentId=${cloned.id}`)}
       />
       <PluginImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} onImportComplete={loadAgentList} />
+      <BulkExportDialog open={bulkExportDialogOpen} onOpenChange={setBulkExportDialogOpen} agents={agents} />
     </SettingsSection>
   );
 }

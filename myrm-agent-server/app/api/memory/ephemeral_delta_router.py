@@ -1,6 +1,14 @@
-# [POS]: app/api/memory/ephemeral_delta_router.py
-# [INPUT]: app.schemas.ephemeral_delta, app.services.memory.ephemeral_delta_service
-# [OUTPUT]: router (FastAPI APIRouter for ephemeral delta memory operations)
+"""router (FastAPI APIRouter for ephemeral delta memory operations).
+
+[POS]
+app/api/memory/ephemeral_delta_router.py
+
+[INPUT]
+- app.schemas.ephemeral_delta, app.services.memory.ephemeral_delta_service
+
+[OUTPUT]
+- router (FastAPI APIRouter for ephemeral delta memory operations)
+"""
 
 from __future__ import annotations
 
@@ -12,6 +20,9 @@ from fastapi import APIRouter, Depends, Path
 from app.schemas.ephemeral_delta import (
     EphemeralDeltaBufferSnapshotDTO,
     EphemeralDeltaItemDTO,
+    PreviewDeltaInjectionRequestDTO,
+    PreviewDeltaInjectionResponseDTO,
+    PromptCacheMetricsDTO,
     ReconcileSessionResponse,
     RecordEphemeralDeltaRequest,
 )
@@ -67,11 +78,37 @@ async def get_snapshot(
 @router.post(
     "/reconcile/{session_id}",
     response_model=ReconcileSessionResponse,
-    summary="Reconcile session deltas into durable storage",
+    summary="Report active session tail deltas (durable writes use memory store on turns)",
 )
 async def reconcile_session(
     session_id: Annotated[str, Path(description="Target session identifier")],
     service: Annotated[EphemeralDeltaService, Depends(get_ephemeral_delta_service)],
 ) -> ReconcileSessionResponse:
-    """Flush and collapse transient session deltas into permanent storage."""
-    return await service.reconcile_session(session_id)
+    """Return active delta count; tail injection continues until the chat buffer is cleared."""
+    return service.reconcile_session(session_id)
+
+
+@router.post(
+    "/preview",
+    response_model=PreviewDeltaInjectionResponseDTO,
+    summary="Preview prompt cache preserving delta injection",
+)
+async def preview_delta_injection(
+    request: PreviewDeltaInjectionRequestDTO,
+    service: Annotated[EphemeralDeltaService, Depends(get_ephemeral_delta_service)],
+) -> PreviewDeltaInjectionResponseDTO:
+    """Simulate frozen prefix preservation and HumanMessage tail XML delta injection."""
+    return service.preview_injection(request)
+
+
+@router.get(
+    "/metrics/{session_id}",
+    response_model=PromptCacheMetricsDTO,
+    summary="Get prompt cache telemetry metrics for session",
+)
+async def get_cache_metrics(
+    session_id: Annotated[str, Path(description="Target session identifier")],
+    service: Annotated[EphemeralDeltaService, Depends(get_ephemeral_delta_service)],
+) -> PromptCacheMetricsDTO:
+    """Layout diagnostics only (delta count; no provider cache hit ratio)."""
+    return service.get_metrics(session_id)

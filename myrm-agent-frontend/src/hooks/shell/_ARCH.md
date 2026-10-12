@@ -8,6 +8,7 @@
 | `useTabBadge.ts`        | document.title 状态前缀                                     |
 | `useNavBadges.ts`       | NavBar badge（cron/approvals/notifications）                |
 | `useGlobalShortcuts.ts` | Cmd+N/B/1-9 等全局快捷键                                    |
+| `useComputerUseEscapeAbort.ts` | Esc 中止进行中的 Computer Use turn（capture 阶段）   |
 | `useCrashLoopGuard.ts`  | 崩溃循环检测与恢复对话框                                    |
 | `useIntentMessages.ts`  | 深链/OAuth 回调 toast 与默认档案名的本地化文案（memo 稳定） |
 

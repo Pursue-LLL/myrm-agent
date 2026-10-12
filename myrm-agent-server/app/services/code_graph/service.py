@@ -34,7 +34,6 @@ class CodeGraphService:
         "dist",
         "build",
         ".cursor",
-        ".cursor2",
         "temp-docs",
     }
 

@@ -59,3 +59,4 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 - 新域优先新增 `useFooStore.ts` 或 `foo/` 子目录；聊天类型见 `chat/types/`（`types.ts` 仅 barrel）。
 - 桶导出政策见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」表。
 - SaaS 专用状态须与 `resolveCpBaseUrl()` / sandbox 构建标志显式分支，避免污染本地单机路径。
+- 经 `immer` 中间件的 store 若状态含 `Set`/`Map`（`useChatStore.environmentAlerts`、`useMemoryStore.selectedPendingIds`），该 store 模块加载时必须调用 `enableMapSet()`；immer 未启用该插件时，一旦 draft 到 Set/Map 就会抛错。

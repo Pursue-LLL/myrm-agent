@@ -457,6 +457,13 @@ async def execute_agent_turn_after_reserve(
         logger.warning("Failed to load user locale for extra_context: %s", exc)
 
     if request.resume_value is None:
+        if request.chat_id:
+            from app.services.memory.ephemeral_delta_hydration import (
+                ensure_chat_ephemeral_deltas_hydrated,
+            )
+
+            ensure_chat_ephemeral_deltas_hydrated(request.chat_id)
+
         from app.services.agent.execution_cache.prewarm.coordinator import (
             get_turn_prewarm_coordinator,
         )

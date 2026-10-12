@@ -28,9 +28,11 @@ import pytest
 
 from app.services.locked_use import unattended
 from app.services.locked_use.curtain_bridge import (
+    DESKTOP_RUNTIME_FILE_ENV,
     SHELL_PID_ENV,
     clear_pending_auto_unlock,
     curtain_status_payload,
+    locked_use_enabled,
     locked_use_enabled_from_env,
     mark_pending_auto_unlock,
     read_curtain_state,
@@ -66,6 +68,35 @@ def test_locked_use_enabled_env_falsy_values(monkeypatch: pytest.MonkeyPatch) ->
         assert locked_use_enabled_from_env() is False
     monkeypatch.delenv("MYRM_LOCKED_USE_ENABLED", raising=False)
     assert locked_use_enabled_from_env() is False
+
+
+def test_locked_use_enabled_runtime_file_overrides_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """保存设置后 runtime 文件优先于 spawn-time env。"""
+    runtime_file = tmp_path / "desktop_runtime.json"
+    runtime_file.write_text('{"lockedUseEnabled": true}', encoding="utf-8")
+    monkeypatch.setenv(DESKTOP_RUNTIME_FILE_ENV, str(runtime_file))
+    monkeypatch.setenv("MYRM_LOCKED_USE_ENABLED", "false")
+    assert locked_use_enabled() is True
+
+
+def test_locked_use_enabled_runtime_file_false_overrides_env_truthy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runtime_file = tmp_path / "desktop_runtime.json"
+    runtime_file.write_text('{"lockedUseEnabled": false}', encoding="utf-8")
+    monkeypatch.setenv(DESKTOP_RUNTIME_FILE_ENV, str(runtime_file))
+    monkeypatch.setenv("MYRM_LOCKED_USE_ENABLED", "true")
+    assert locked_use_enabled() is False
+
+
+def test_locked_use_enabled_falls_back_to_env_without_runtime_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(DESKTOP_RUNTIME_FILE_ENV, raising=False)
+    monkeypatch.setenv("MYRM_LOCKED_USE_ENABLED", "true")
+    assert locked_use_enabled() is True
 
 
 def test_read_state_corrupt_json_degrades_to_none(
