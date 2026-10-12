@@ -14,6 +14,7 @@ type SkillsCardTranslator = (
   key:
     | 'card.integrationOAuth.googleWorkspace.unavailable'
     | 'card.integrationOAuth.googleWorkspace.connectInSettings'
+    | 'card.integrationOAuth.connectionRequired.unavailable'
     | 'card.integrationOAuth.xLiveSearch.unavailable'
     | 'card.integrationOAuth.xLiveSearch.connectInSettings'
     | 'card.integrationOAuth.envSkill.unavailable'
@@ -44,15 +45,17 @@ export function isXurlBinUnavailable(skill: Skill): boolean {
   return skill.id === XURL_SKILL_ID && !skill.available;
 }
 
+/** An unavailable skill that waits on an account or connector, which can only be connected in settings. */
+function isIntegrationConnectionMissing(skill: Skill): boolean {
+  const hasRequiredAccounts = (skill.required_oauth_issuers?.length ?? 0) > 0;
+  const hasRequiredConnectors = (skill.required_mcp_server_ids?.length ?? 0) > 0;
+  return !skill.available && (hasRequiredAccounts || hasRequiredConnectors);
+}
+
 export function hasIntegrationSettingsLink(skill: Skill): boolean {
-  if (
-    ((skill.required_oauth_issuers && skill.required_oauth_issuers.length > 0) ||
-      (skill.required_mcp_server_ids && skill.required_mcp_server_ids.length > 0)) &&
-    !skill.available
-  ) {
-    return true;
-  }
-  return isGoogleWorkspaceOAuthUnavailable(skill) || isXLiveSearchUnavailable(skill);
+  return (
+    isIntegrationConnectionMissing(skill) || isGoogleWorkspaceOAuthUnavailable(skill) || isXLiveSearchUnavailable(skill)
+  );
 }
 
 export function getIntegrationSkillSettingsPath(skill: Skill): string {
@@ -88,12 +91,8 @@ export function getIntegrationSkillSettingsLinkLabel(skill: Skill, t: SkillsCard
 }
 
 export function getSkillUnavailableDisplayMessage(skill: Skill, t: SkillsCardTranslator): string {
-  if (
-    ((skill.required_oauth_issuers && skill.required_oauth_issuers.length > 0) ||
-      (skill.required_mcp_server_ids && skill.required_mcp_server_ids.length > 0)) &&
-    !skill.available
-  ) {
-    return skill.unavailable_reason || t('card.integrationOAuth.googleWorkspace.unavailable');
+  if (isIntegrationConnectionMissing(skill)) {
+    return t('card.integrationOAuth.connectionRequired.unavailable');
   }
   if (isGoogleWorkspaceOAuthUnavailable(skill)) {
     return t('card.integrationOAuth.googleWorkspace.unavailable');

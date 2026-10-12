@@ -17144,6 +17144,9 @@
             "unavailable": "이 스킬에 필요한 API 키가 구성되지 않았습니다",
             "configureInSettings": "키 구성"
           },
+          "connectionRequired": {
+            "unavailable": "설정에서 이 스킬에 필요한 계정 또는 커넥터를 연결하세요"
+          },
           "xurl": {
             "unavailable": "xurl CLI를 설치하고 서버 PATH에 추가하세요"
           }

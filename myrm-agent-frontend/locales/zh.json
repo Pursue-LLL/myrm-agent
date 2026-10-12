@@ -17144,6 +17144,9 @@
             "unavailable": "该技能所需的 API Key 尚未配置",
             "configureInSettings": "配置密钥"
           },
+          "connectionRequired": {
+            "unavailable": "请先在设置中连接该技能所需的账号或连接器"
+          },
           "xurl": {
             "unavailable": "请安装 xurl CLI 并确保其在服务器 PATH 中可用"
           }

@@ -17144,6 +17144,9 @@
             "unavailable": "Erforderlicher API-Schlüssel ist für diese Fähigkeit nicht konfiguriert",
             "configureInSettings": "Schlüssel konfigurieren"
           },
+          "connectionRequired": {
+            "unavailable": "In den Einstellungen die Konten oder Connectors verbinden, die dieser Skill benötigt"
+          },
           "xurl": {
             "unavailable": "Installieren Sie die xurl-CLI und stellen Sie sicher, dass sie im Server-PATH liegt"
           }

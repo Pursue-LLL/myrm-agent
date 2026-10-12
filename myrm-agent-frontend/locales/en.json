@@ -17144,6 +17144,9 @@
             "unavailable": "Required API key is not configured for this skill",
             "configureInSettings": "Configure Keys"
           },
+          "connectionRequired": {
+            "unavailable": "Connect the accounts or connectors this skill needs in Settings"
+          },
           "xurl": {
             "unavailable": "Install the xurl CLI and ensure it is on the server PATH"
           }

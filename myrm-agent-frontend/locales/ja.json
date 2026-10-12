@@ -17144,6 +17144,9 @@
             "unavailable": "このスキルに必要な API キーが設定されていません",
             "configureInSettings": "キーを設定"
           },
+          "connectionRequired": {
+            "unavailable": "設定で、このスキルに必要なアカウントまたはコネクタを接続してください"
+          },
           "xurl": {
             "unavailable": "xurl CLI をインストールし、サーバーの PATH 上にあることを確認してください"
           }

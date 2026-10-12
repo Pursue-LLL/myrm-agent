@@ -86,7 +86,9 @@ describe('integrationOAuthDisplay generic multi-connector paths', () => {
 
     expect(hasIntegrationSettingsLink(skill)).toBe(true);
     expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_GOOGLE_OAUTH_PATH);
-    expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toContain('google_workspace');
+    expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe(
+      'card.integrationOAuth.connectionRequired.unavailable',
+    );
   });
 
   it('routes to agents loadout when required_mcp_server_ids is missing', () => {
@@ -124,6 +126,30 @@ describe('integrationOAuthDisplay generic multi-connector paths', () => {
 
     expect(hasIntegrationSettingsLink(skill)).toBe(true);
     expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_AGENTS_LOADOUT_PATH);
+    expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe(
+      'card.integrationOAuth.connectionRequired.unavailable',
+    );
+  });
+
+  it('never shows the server-provided English reason for a missing account or connector', () => {
+    const skill = buildSkill({
+      available: false,
+      unavailable_reason: 'Connect google_workspace in Settings → Integrations → Credentials',
+      required_oauth_issuers: ['google_workspace'],
+      required_mcp_server_ids: ['notion'],
+    });
+
+    expect(getSkillUnavailableDisplayMessage(skill, (key: string) => `translated:${key}`)).toBe(
+      'translated:card.integrationOAuth.connectionRequired.unavailable',
+    );
+  });
+
+  it('keeps the dedicated Google Workspace message when the skill declares no required accounts', () => {
+    const skill = buildSkill({ id: 'google-workspace', available: false, unavailable_reason: 'raw reason' });
+
+    expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe(
+      'card.integrationOAuth.googleWorkspace.unavailable',
+    );
   });
 });
 
