@@ -214,7 +214,7 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
     intent = "E2E review note: verify this paragraph"
     chat_id = ""
     try:
-        warm_ui_route("/", timeout_sec=45.0)
+        warm_ui_route("/")
         with open_mcp_page(f"{ui_url}/", request_timeout_sec=300.0) as (client, page):
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
             seeded = _seed_deliverable_fixture(api_url)

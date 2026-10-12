@@ -251,7 +251,7 @@ def test_moa_overlay_risk_triggered_webui_chat_dom_flow_e2e() -> None:
     assert isinstance(chat_resp, dict) and chat_resp.get("success") is True, f"Create chat failed: {chat_resp}"
 
     chat_path = f"/{chat_id}"
-    warm_ui_route(chat_path, timeout_sec=45.0)
+    warm_ui_route(chat_path)
 
     try:
         with open_mcp_page(f"{ui_url}{chat_path}", timeout_ms=120_000) as (client, page):

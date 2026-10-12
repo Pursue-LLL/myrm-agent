@@ -207,7 +207,7 @@ def test_a2a_chat_live_delegation_chrome_e2e(
     ), f"Create chat failed: {chat_resp}"
 
     chat_path = f"/{chat_id}"
-    warm_ui_route(chat_path, timeout_sec=45.0)
+    warm_ui_route(chat_path)
 
     try:
         # 4. Open WebUI chat in Chrome browser

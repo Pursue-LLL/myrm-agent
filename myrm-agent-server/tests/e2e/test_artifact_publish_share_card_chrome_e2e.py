@@ -136,7 +136,7 @@ def test_artifact_publish_encrypted_flow_and_share_card_chrome_e2e() -> None:
     prepare_e2e_ui_session(api_url)
 
     # 1. Warm UI route
-    warm_ui_route("/", timeout_sec=45.0)
+    warm_ui_route("/")
 
     # 2. Open real Chrome page via Chrome MCP
     with open_mcp_page(ui_url, request_timeout_sec=300.0) as (client, page):

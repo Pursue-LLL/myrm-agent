@@ -117,7 +117,7 @@ def test_deliverable_workspace_link_opens_portal() -> None:
     chat_id = str(seeded["chat_id"])
     deliverable_path = str(seeded["deliverable_path"])
 
-    warm_ui_route("/", timeout_sec=45.0)
+    warm_ui_route("/")
     chat_url = f"{ui_url}/{chat_id}"
     with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)

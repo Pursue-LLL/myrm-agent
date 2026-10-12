@@ -101,7 +101,7 @@ def test_deliverable_bundle_board_renders_and_filters() -> None:
     seeded = _seed_deliverable_bundle_fixture(api_url)
     chat_id = str(seeded["chat_id"])
 
-    warm_ui_route("/", timeout_sec=45.0)
+    warm_ui_route("/")
     chat_url = f"{ui_url}/{chat_id}"
 
     with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):

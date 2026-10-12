@@ -370,7 +370,7 @@ def test_chat_share_lifecycle_via_ui() -> None:
     chat_id = seeded["chat_id"]
     chat_url = f"{ui_url}{seeded['ui_path']}"
 
-    warm_ui_route("/", timeout_sec=45.0)
+    warm_ui_route("/")
     with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=chat_url)
@@ -471,7 +471,7 @@ def test_chat_share_password_protected_via_ui() -> None:
     chat_id = seeded["chat_id"]
     chat_url = f"{ui_url}{seeded['ui_path']}"
 
-    warm_ui_route("/", timeout_sec=45.0)
+    warm_ui_route("/")
     with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=chat_url)

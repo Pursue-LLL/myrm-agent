@@ -139,7 +139,7 @@ def test_web_search_inline_citations_render_chrome_e2e() -> None:
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
 
-    warm_ui_route("/", timeout_sec=45.0)
+    warm_ui_route("/")
     chat_url = f"{ui_url}/{_CHAT_ID}"
     with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
