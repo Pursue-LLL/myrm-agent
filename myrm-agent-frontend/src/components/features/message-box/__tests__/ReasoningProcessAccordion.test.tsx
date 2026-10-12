@@ -150,4 +150,79 @@ describe('ReasoningProcessAccordion', () => {
 
     expect(writeTextMock).toHaveBeenCalledWith('First let us consider the axioms of algebra...');
   });
+
+  it('renders step telemetry and triggers onStopThinking callback', async () => {
+    const onStopThinking = vi.fn().mockResolvedValue(undefined);
+    const liveMessageWithSteps = createMockMessage({
+      content: '',
+      chatId: 'chat-456',
+      reasoning: 'Analyzing query structure...',
+      thinkingItems: ['Analyze query', 'Retrieve schemas'],
+      reasoningStartedAt: Date.now() - 3000,
+    });
+
+    render(
+      <ReasoningProcessAccordion
+        message={liveMessageWithSteps}
+        isLast={true}
+        loading={true}
+        isExpanded={false}
+        onToggle={vi.fn()}
+        displayMode="collapsed"
+        onStopThinking={onStopThinking}
+      />,
+    );
+
+    expect(screen.getByText(/步骤 2/)).toBeDefined();
+
+    const stopBtn = screen.getByTestId('stop-thinking-button');
+    expect(stopBtn).toBeDefined();
+
+    await act(async () => {
+      fireEvent.click(stopBtn);
+    });
+
+    expect(onStopThinking).toHaveBeenCalledWith('chat-456');
+  });
+
+  it('falls back to default API fetch when onStopThinking is not passed', async () => {
+    const globalFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
+    vi.stubGlobal('fetch', globalFetch);
+
+    const liveMessage = createMockMessage({
+      content: '',
+      chatId: 'chat-789',
+      reasoning: 'Synthesizing...',
+      reasoningStartedAt: Date.now() - 2000,
+    });
+
+    render(
+      <ReasoningProcessAccordion
+        message={liveMessage}
+        isLast={true}
+        loading={true}
+        isExpanded={false}
+        onToggle={vi.fn()}
+        displayMode="collapsed"
+      />,
+    );
+
+    const stopBtn = screen.getByTestId('stop-thinking-button');
+    await act(async () => {
+      fireEvent.click(stopBtn);
+    });
+
+    expect(globalFetch).toHaveBeenCalledWith(
+      '/api/v1/chats/chat-789/stop-thinking',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+
+    vi.unstubAllGlobals();
+  });
 });
+

@@ -91,14 +91,13 @@ async def resolve_skill_env_map(
     if not skill_backend or not skill_env_vars:
         return skill_env_vars
 
+    from app.core.skills.store.user_config import lookup_skill_env
+
     try:
         all_skills = await skill_backend.list_skills()
         valid_map: dict[str, dict[str, str]] = {}
         for skill in all_skills:
-            if skill.name in skill_env_vars:
-                configured = skill_env_vars[skill.name]
-            else:
-                configured = skill_env_vars.get(skill.storage_skill_id)
+            configured = lookup_skill_env(skill_env_vars, skill.name, skill.storage_skill_id)
             if configured is not None:
                 valid_map[skill.name] = configured
         return valid_map

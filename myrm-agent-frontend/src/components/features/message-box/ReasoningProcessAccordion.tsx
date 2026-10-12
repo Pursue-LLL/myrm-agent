@@ -17,7 +17,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { BrainCircuit, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
+import { BrainCircuit, ChevronDown, ChevronRight, Copy, Check, Square, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Message } from '@/store/useChatStore';
 import type { ReasoningDisplayMode } from '@/services/config/types';
@@ -31,6 +31,7 @@ export interface ReasoningProcessAccordionProps {
   onToggle: () => void;
   displayMode: ReasoningDisplayMode;
   className?: string;
+  onStopThinking?: (chatId: string) => Promise<void> | void;
 }
 
 export default function ReasoningProcessAccordion({
@@ -41,11 +42,13 @@ export default function ReasoningProcessAccordion({
   onToggle,
   displayMode,
   className = '',
+  onStopThinking,
 }: ReasoningProcessAccordionProps) {
   const t = useTranslations('chat');
   const tContext = useTranslations('chat.contextUsage');
   const [elapsedSec, setElapsedSec] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
 
   const isThinking = isLast && loading && !message.content;
   const forceExpanded = displayMode === 'inline';
@@ -81,16 +84,68 @@ export default function ReasoningProcessAccordion({
     [message.reasoning],
   );
 
+  const handleStopThinking = useCallback(
+    async (event: React.MouseEvent) => {
+      event.stopPropagation();
+      if (isStopping || !message.chatId) return;
+      setIsStopping(true);
+      try {
+        if (onStopThinking) {
+          await onStopThinking(message.chatId);
+        } else {
+          await fetch(`/api/v1/chats/${message.chatId}/stop-thinking`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reason: 'user_interrupted',
+              force_immediate_answer: true,
+            }),
+          });
+        }
+      } catch (err) {
+        // Fallback or log failure
+        console.error('Failed to trigger stop-thinking:', err);
+      } finally {
+        setIsStopping(false);
+      }
+    },
+    [isStopping, message.chatId, onStopThinking],
+  );
+
   const durationSec = message.reasoningDurationMs ? Math.round(message.reasoningDurationMs / 1000) : null;
 
+  const stepCount = message.thinkingItems?.length ?? 0;
+  const stepLabel = stepCount > 0 ? ` · 步骤 ${stepCount}` : '';
+
   const label = isThinking
-    ? t('reasoningThinking', { seconds: elapsedSec })
+    ? `${t('reasoningThinking', { seconds: elapsedSec })}${stepLabel}`
     : durationSec
-      ? t('reasoningCompleted', { seconds: durationSec })
+      ? `${t('reasoningCompleted', { seconds: durationSec })}${stepLabel}`
       : t('reasoningTitle');
 
   // Rough estimation: ~4 chars per token for reasoning footprint
   const reasoningTokens = message.reasoning ? Math.round(message.reasoning.length / 4) : 0;
+
+  const renderStopThinkingButton = () => {
+    if (!isThinking) return null;
+    return (
+      <button
+        type="button"
+        data-testid="stop-thinking-button"
+        onClick={handleStopThinking}
+        disabled={isStopping}
+        title="提前收敛思维流，促使模型直接作答"
+        className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+      >
+        {isStopping ? (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        ) : (
+          <Square className="w-2.5 h-2.5 fill-current" />
+        )}
+        <span>{isStopping ? '收敛中...' : '停止思考'}</span>
+      </button>
+    );
+  };
 
   return (
     <div
@@ -108,16 +163,19 @@ export default function ReasoningProcessAccordion({
               </span>
             )}
           </div>
-          {message.reasoning && (
-            <button
-              type="button"
-              onClick={handleCopy}
-              title={copied ? tContext('copiedReasoning') : tContext('copyReasoning')}
-              className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {renderStopThinkingButton()}
+            {message.reasoning && (
+              <button
+                type="button"
+                onClick={handleCopy}
+                title={copied ? tContext('copiedReasoning') : tContext('copyReasoning')}
+                className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className="w-full flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors text-sm">
@@ -135,6 +193,7 @@ export default function ReasoningProcessAccordion({
             )}
           </button>
           <div className="flex items-center gap-1.5 text-muted-foreground">
+            {renderStopThinkingButton()}
             {message.reasoning && (
               <button
                 type="button"

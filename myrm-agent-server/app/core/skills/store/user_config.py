@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
@@ -28,6 +29,22 @@ _DEFAULT_ENABLED_PREBUILT_SKILLS: tuple[str, ...] = (
     "office-document",
     "pdf-generator",
 )
+
+
+def lookup_skill_env(
+    skill_env_vars: Mapping[str, dict[str, str]],
+    skill_name: str,
+    storage_skill_id: str | None,
+) -> dict[str, str] | None:
+    """Env saved for a skill: keyed by its display name first, then by its storage skill id.
+
+    Shared by the availability verdict and runtime env injection so both always see the same values.
+    """
+    if skill_name in skill_env_vars:
+        return skill_env_vars[skill_name]
+    if storage_skill_id is None:
+        return None
+    return skill_env_vars.get(storage_skill_id)
 
 
 class UserSkillConfigManager:
