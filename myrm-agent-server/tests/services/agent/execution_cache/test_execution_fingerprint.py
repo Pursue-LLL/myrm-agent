@@ -500,7 +500,7 @@ def test_execution_fingerprint_changes_when_skill_market_toggles() -> None:
 
 
 def test_execution_fingerprint_changes_when_skill_manage_toggles() -> None:
-    """Skill management tool is mounted at build time (factory:772-775),
+    """Skill management tool is mounted at build time,
     so toggling the tool must bust the POOLED cache."""
     wrapper = _base_wrapper()
     off_fp = compute_execution_fingerprint(wrapper)
@@ -509,14 +509,33 @@ def test_execution_fingerprint_changes_when_skill_manage_toggles() -> None:
     assert off_fp != on_fp
 
 
+def test_execution_fingerprint_changes_when_learn_forces_skill_manage() -> None:
+    """/learn mounts skill_manage_tool for one run through force_skill_manage;
+    an agent cached without the tool must not be reused for that run."""
+    wrapper = _base_wrapper()
+    normal_fp = compute_execution_fingerprint(wrapper)
+    wrapper.force_skill_manage = True
+    learn_fp = compute_execution_fingerprint(wrapper)
+    assert normal_fp != learn_fp
+
+
+def test_execution_fingerprint_shares_one_unit_for_enabled_and_forced_skill_manage() -> None:
+    """Both triggers build the identical tool set, so they resolve to the same cached unit."""
+    enabled = _base_wrapper()
+    enabled.enable_skill_manage = True
+    forced = _base_wrapper()
+    forced.force_skill_manage = True
+    assert compute_execution_fingerprint(enabled) == compute_execution_fingerprint(forced)
+
+
 def test_execution_fingerprint_changes_when_memory_confirmation_toggles() -> None:
     """Memory write approval is solidified into the memory tool (tool_setup:902),
     so the confirmation switch must bust the POOLED cache."""
     wrapper = _base_wrapper()
-    off_fp = compute_execution_fingerprint(wrapper)
-    wrapper.memory_require_confirmation = True
     on_fp = compute_execution_fingerprint(wrapper)
-    assert off_fp != on_fp
+    wrapper.memory_require_confirmation = False
+    off_fp = compute_execution_fingerprint(wrapper)
+    assert on_fp != off_fp
 
 
 def test_execution_fingerprint_changes_when_memory_policy_changes() -> None:

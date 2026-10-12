@@ -58,7 +58,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | web_fetch | enable_advanced_retrieval / reranker_config / embedding_config / fetch_raw_webpage |
 | browser | auto_restore_domains / browser_source / dialog_policy |
 | 媒体生成（image/video/tts） | image/video/tts params（model/fallback/size/quality/voice；api_key 排除） |
-| skill_market / skill_manage | enable_skill_market / enable_skill_manage |
+| skill_market / skill_manage | enable_skill_market / skill_manage_mounted（`enable_skill_manage` 或 `/learn` 的 `force_skill_manage` 折叠；与 factory 挂载判定同源） |
 | memory 写入 | memory_require_confirmation / enable_memory_auto_extraction / memory_extraction_preset |
 | kanban | kanban_tool_mode / kanban_default_board_id |
 | external_agents | external_agents（name/command/args/authMode 固化；api_key 剔除） |
@@ -68,7 +68,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 - 凭据：api_key/api_keys/apiKeys/_oauthToken/_oauthBaseUrl/localApiKey/bearer_token/password/client_secret（`_model_sig` / `_credential_free_json`）
 - 传输头：model_kwargs 内 `extra_headers` 整棵子树（`_TRANSPORT_HEADER_KEYS`）：resolve 期注入的 X-Sandbox-Id/X-Telemetry-Token/Authorization 仅运行时鉴权，轮换不 bust
 - OpenAPI 服务 `auth` 整棵子树（`_openapi_services_sig`）：auth 仅运行时鉴权、不塑形 build 输出（工具名/描述来自 spec + selected_endpoints），含 auth.type 变化均不 bust
-- 每 run 状态：kanban_current_task_id、quote、force_skill_manage、timezone、reasoning_display_mode
+- 每 run 状态：kanban_current_task_id、quote、timezone、reasoning_display_mode（`force_skill_manage` 不在此列：它决定工具是否被 build，已折叠进 `skill_manage_mounted`）
 - 每 turn 刷新：privacy_enabled 等 10 个隐私字段 + enable_plan_confirm（stream_pipeline 每 turn 重应用）
 - 全局静态：event_log_backend、tail_budget_ratio
 - 前端已发送但 converter 未接入（死字段）：pre_compact_enabled / pre_compact_budget_tokens

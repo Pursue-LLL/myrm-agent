@@ -146,6 +146,18 @@ class ToolSetupMixin(ExternalAgentsMixin):
         unattended_mode: bool
         channel_name: str
         prompt_mode: str
+        enable_skill_manage: bool
+        force_skill_manage: bool
+
+    @property
+    def skill_manage_mounted(self) -> bool:
+        """Whether skill_manage_tool is built into this agent.
+
+        ``/learn`` forces the mount for a single run. Both triggers resolve here so
+        the factory mount and the execution fingerprint can never disagree about
+        whether a cached agent carries the tool.
+        """
+        return self.enable_skill_manage or self.force_skill_manage
 
     def _setup_skill_market_tool(self, tools: list[object], market_backend: object) -> None:
         """Turn1 mount skill_market_tool via server product layer (not get_meta_tools)."""
@@ -177,7 +189,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         from myrm_agent_harness.agent.meta_tools.skills.manage import (
             create_skill_manage_tool,
         )
-        from myrm_agent_harness.backends.skills.scanning_write_backend import (
+        from myrm_agent_harness.backends.skills.scanning.scanning_write_backend import (
             ScanningSkillWriteBackend,
         )
 

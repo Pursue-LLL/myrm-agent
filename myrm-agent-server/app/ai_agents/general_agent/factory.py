@@ -20,10 +20,10 @@ if TYPE_CHECKING:
 
     from myrm_agent_harness.agent.extensions.protocols import AgentExtension
     from myrm_agent_harness.api import SkillAgent, WorkingMemorySnapshot
+    from myrm_agent_harness.toolkits.mcp.config import MCPConfig
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
     from app.ai_agents.general_agent.agent import GeneralAgent
-    from app.services.agent.params.models import MCPConfig
 
 logger = logging.getLogger(__name__)
 
@@ -785,13 +785,10 @@ async def build_general_agent(
     )
 
     mount_skill_market = getattr(agent_wrapper, "enable_skill_market", False)
-    mount_skill_manage = getattr(agent_wrapper, "enable_skill_manage", False) or getattr(
-        agent_wrapper, "force_skill_manage", False
-    )
 
     if mount_skill_market:
         agent_wrapper._setup_skill_market_tool(tools, market_service)
-    if mount_skill_manage:
+    if agent_wrapper.skill_manage_mounted:
         agent_wrapper._setup_skill_manage_tool(
             tools,
             skill_creation_service,

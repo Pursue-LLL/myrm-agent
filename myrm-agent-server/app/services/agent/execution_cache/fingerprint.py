@@ -13,8 +13,10 @@ execution_cache 指纹层。将影响 build_general_agent 输出的模型/技能
 credential_pool_strategy——前者固化进 LLM 实例、后者固化进 CredentialPool，均 build
 期不可逆），结构化配置（媒体生成/搜索服务/嵌入重排/provider 池/OpenAPI 服务/隐私路由）
 经 _credential_free_json 剔除 api_key/api_keys/apiKeys/_oauthToken/localApiKey 等凭据后
-进哈希。排除每 run 状态（kanban_current_task_id、quote、force_skill_manage）与全局静态
-配置（event_log_backend、tail_budget_ratio）——前者会使缓存永不命中，后者不构成差异源。
+进哈希。skill_manage_tool 是否挂载（enable_skill_manage 或 /learn 的 force_skill_manage）
+以 skill_manage_mounted 折叠后进哈希：挂载是 build 期决策，缓存单元必须与之一致。排除
+每 run 状态（kanban_current_task_id、quote）与全局静态配置（event_log_backend、
+tail_budget_ratio）——前者会使缓存永不命中，后者不构成差异源。
 """
 
 from __future__ import annotations
@@ -240,7 +242,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "enable_external_cli": agent_wrapper.enable_external_cli,
         "enable_structured_clarify": agent_wrapper.enable_structured_clarify,
         "enable_skill_market": agent_wrapper.enable_skill_market,
-        "enable_skill_manage": agent_wrapper.enable_skill_manage,
+        "skill_manage_mounted": agent_wrapper.skill_manage_mounted,
         "unattended_mode": agent_wrapper.unattended_mode,
         "declared_capabilities": list(agent_wrapper.declared_capabilities),
         "declared_allowed_roots": list(agent_wrapper.declared_allowed_roots),
