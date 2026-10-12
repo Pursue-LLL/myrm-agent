@@ -2200,7 +2200,7 @@
       "routingReasonSpecialtyLongDoc": "Richtlinie für lange Dokumentenanalyse angewendet",
       "routingReasonComplaintUp": "Aufgrund von Feedback auf leistungsstärkeres Modell eskaliert",
       "routingReasonMomentum": "Kontextuelle Tiefe vorheriger Runden übernommen",
-      "routingReasonLlmJudge": "Aufgabenkomplexität von einem leichten Klassifikationsmodell beurteilt",
+      "routingReasonLlmJudge": "Aufgabenkomplexität automatisch bewertet",
       "routingReasonJudgeUnavailable": "Komplexitätsprüfung nicht verfügbar; Standardmodell verwendet",
       "routingReasonDefaultStandard": "Kein besonderes Muster erkannt; Standardmodell verwendet",
       "modelBreakdown": "Modellaufschlüsselung",

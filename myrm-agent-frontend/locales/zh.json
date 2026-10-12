@@ -2430,7 +2430,7 @@
       "routingReasonSpecialtyLongDoc": "匹配长文档与海量上下文解析策略",
       "routingReasonComplaintUp": "响应用户更强模型重试，已自动升档算力",
       "routingReasonMomentum": "继承前序会话深度分析上下文",
-      "routingReasonLlmJudge": "由轻量判别模型评估任务复杂度",
+      "routingReasonLlmJudge": "已自动评估任务复杂度",
       "routingReasonJudgeUnavailable": "复杂度评估暂不可用，已使用标准模型",
       "routingReasonDefaultStandard": "未识别到特殊任务特征，使用标准模型",
       "routingSimpleTooltip": "任务属于日常问答/简单对话，已自动分派至高吞吐轻量模型以大幅节省算力与响应耗时。",

@@ -2374,7 +2374,7 @@
       "routingReasonSpecialtyLongDoc": "長文ドキュメント・深層コンテキスト解析に合致",
       "routingReasonComplaintUp": "再試行リクエストに基づき上位モデルへ自動昇格",
       "routingReasonMomentum": "以前のターンの深層コンテキストを継承",
-      "routingReasonLlmJudge": "軽量な判定モデルがタスクの複雑さを評価",
+      "routingReasonLlmJudge": "タスクの複雑さを自動で評価",
       "routingReasonJudgeUnavailable": "複雑さの評価を利用できないため、標準モデルを使用",
       "routingReasonDefaultStandard": "特別なパターンが検出されなかったため、標準モデルを使用",
       "privacyLevel": "プライバシー",
