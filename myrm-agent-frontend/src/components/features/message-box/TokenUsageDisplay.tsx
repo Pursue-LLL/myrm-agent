@@ -12,6 +12,7 @@ import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import useConfigStore from '@/store/useConfigStore';
 import { isLocalMode } from '@/lib/deploy-mode';
+import { resolveRoutingReasonKey, type RoutingTierValue } from '@/lib/chat/routingReason';
 import { getSessionAnalytics, type SessionAnalytics } from '@/services/statistics';
 import useChatStore from '@/store/useChatStore';
 
@@ -128,7 +129,7 @@ interface TokenUsageDisplayProps {
   cacheBreakReason?: string;
   cacheSuggestedActions?: string;
   modelName?: string;
-  routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex' | 'code' | 'long_doc';
+  routingTier?: RoutingTierValue;
   routingReason?: string;
   modelTier?: 'weak' | 'medium';
   privacyLevel?: SensitivityLevel;
@@ -168,37 +169,6 @@ function formatCost(cost: number): string {
 function formatModelName(model: string): string {
   const parts = model.split('/');
   return parts[parts.length - 1];
-}
-
-function formatRoutingReason(reason: string, t: (key: string) => string): string {
-  if (!reason) {
-    return '';
-  }
-  if (reason.includes('simple_indicator') || reason === 'judge:simple') {
-    return t('routingReasonSimpleIndicator');
-  }
-  if (reason.includes('keyword(reasoning)') || reason.includes('reasoning_keyword') || reason === 'judge:reasoning') {
-    return t('routingReasonKeywordReasoning');
-  }
-  if (reason.includes('keyword(standard)') || reason === 'judge:standard') {
-    return t('routingReasonKeywordStandard');
-  }
-  if (reason.includes('code')) {
-    return t('routingReasonSpecialtyCode');
-  }
-  if (reason.includes('long_doc')) {
-    return t('routingReasonSpecialtyLongDoc');
-  }
-  if (reason.includes('complaint_up')) {
-    return t('routingReasonComplaintUp');
-  }
-  if (reason.includes('momentum')) {
-    return t('routingReasonMomentum');
-  }
-  return reason
-    .replace(/^(rule:|judge:)/, '')
-    .replace(/[_()]/g, ' ')
-    .trim();
 }
 
 const BUDGET_COLORS = {
@@ -284,6 +254,7 @@ export default function TokenUsageDisplay({
 }: TokenUsageDisplayProps) {
   const t = useTranslations('chat.tokenUsage');
   const enableCostEstimation = useConfigStore((state) => state.enableCostEstimation);
+  const routingReasonKey = routingTier && routingReason ? resolveRoutingReasonKey(routingReason, routingTier) : null;
 
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [sessionAnalytics, setSessionAnalytics] = useState<SessionAnalytics | null>(null);
@@ -594,10 +565,10 @@ export default function TokenUsageDisplay({
                               : 'routingStandardTooltip',
                     )}
                   </p>
-                  {routingReason && (
+                  {routingReasonKey && (
                     <div className="mt-1.5 pt-1.5 border-t border-border/40 text-[10px] text-foreground/80 break-words flex items-center gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-primary/60 shrink-0" />
-                      <span>{formatRoutingReason(routingReason, t)}</span>
+                      <span>{t(routingReasonKey)}</span>
                     </div>
                   )}
                 </div>
@@ -689,10 +660,10 @@ export default function TokenUsageDisplay({
                                       : 'routingStandardTooltip',
                             )}
                           </p>
-                          {routingReason && (
+                          {routingReasonKey && (
                             <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground flex items-center gap-1.5">
                               <span className="w-1 h-1 rounded-full bg-primary/60 shrink-0" />
-                              <span>{formatRoutingReason(routingReason, t)}</span>
+                              <span>{t(routingReasonKey)}</span>
                             </div>
                           )}
                         </TooltipContent>

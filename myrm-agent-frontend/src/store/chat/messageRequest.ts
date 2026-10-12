@@ -434,6 +434,7 @@ export const getFallbackLiteModelSelection = (): ModelSelection | null => {
 /**
  * Auto-select a model from enabled providers by input cost.
  * `cheapest=true` picks lowest cost; `cheapest=false` picks highest cost.
+ * Models known to lack function calling are skipped: a routed turn drives the full tool loop.
  * Returns null when fewer than 2 distinct-cost models exist (routing would be pointless).
  */
 const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
@@ -449,6 +450,9 @@ const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
     }
     for (const model of provider.enabledModels || []) {
       const info = customModelInfo[`${provider.id}/${model}`];
+      if (info?.supports_function_calling === false) {
+        continue;
+      }
       if (info?.input_cost_per_million !== null && info?.input_cost_per_million !== undefined) {
         candidates.push({ providerId: provider.id, model, cost: info.input_cost_per_million });
       }
@@ -939,9 +943,7 @@ export const createMessageRequest = async (
       );
 
       // Register newly injected files in session deduplicator
-      const freshPaths = fresh
-        .map((r) => r.path ?? r.label.replace(/^@/, ''))
-        .filter((p): p is string => Boolean(p));
+      const freshPaths = fresh.map((r) => r.path ?? r.label.replace(/^@/, '')).filter((p): p is string => Boolean(p));
       if (freshPaths.length > 0 && effectiveChatId) {
         inSessionMentionDeduplicator.markInjected(effectiveChatId, freshPaths);
       }

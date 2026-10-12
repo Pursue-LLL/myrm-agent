@@ -181,15 +181,35 @@ describe('TokenUsageDisplay', () => {
 
   it('displays routing reason in tooltip content when routingReason is provided', () => {
     render(
-      <TokenUsageDisplay
-        usage={makeUsage()}
-        modelName="test"
-        routingTier="reasoning"
-        routingReason="rule:keyword(reasoning)"
-      />,
+      <TokenUsageDisplay usage={makeUsage()} modelName="test" routingTier="reasoning" routingReason="rule_based" />,
     );
     expect(screen.getByText('routingReasonTitle')).toBeInTheDocument();
     expect(screen.getAllByText('routingReasonKeywordReasoning').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows the specialty policy for a specialty slot hit', () => {
+    render(
+      <TokenUsageDisplay
+        usage={makeUsage()}
+        modelName="test"
+        routingTier="code"
+        routingReason="specialty_slot_hit(code:code_fence_block)"
+      />,
+    );
+    expect(screen.getAllByText('routingReasonSpecialtyCode').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('hides the reason row instead of exposing an unrecognized router reason', () => {
+    render(
+      <TokenUsageDisplay
+        usage={makeUsage()}
+        modelName="test"
+        routingTier="standard"
+        routingReason="some_future_router_internal(x)"
+      />,
+    );
+    expect(screen.getByText('routingReasonTitle')).toBeInTheDocument();
+    expect(screen.queryByText(/some_future_router_internal|some future router internal/)).not.toBeInTheDocument();
   });
 
   // --- 模型兼容层 ---
