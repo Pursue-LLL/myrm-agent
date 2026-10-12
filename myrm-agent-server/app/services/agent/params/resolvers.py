@@ -40,7 +40,6 @@ async def _resolve_model_config(
 
     providers = providers_dict.get("providers") if isinstance(providers_dict, dict) else []
     logger.info(f"Resolving model config for {selection.provider_id}")
-    logger.info(f"Providers dict: {providers_dict}")
 
     if not isinstance(providers, list) and isinstance(providers, dict):
         # Handle case where providers is a dict (like our injected minimax config)

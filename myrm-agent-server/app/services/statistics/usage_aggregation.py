@@ -203,15 +203,19 @@ class TierAccumulator:
 def compute_estimated_savings(
     tier_accs: dict[str, TierAccumulator],
 ) -> dict[str, object] | None:
-    """Estimate cost savings from routing vs. using the standard model for all queries."""
+    """Estimate cost savings from routing vs. using the standard model for all queries.
+
+    The counterfactual re-prices every routed token at the standard tier's blended per-token cost. Pricing by call count
+    instead would bill each short light-tier turn as an average standard turn and overstate the savings.
+    """
     standard = tier_accs.get("standard")
-    if not standard or standard.calls < _MIN_STANDARD_CALLS_FOR_SAVINGS:
+    if not standard or standard.calls < _MIN_STANDARD_CALLS_FOR_SAVINGS or standard.total_tokens <= 0:
         return None
 
-    avg_cost_per_call = standard.cost_usd / standard.calls
-    total_routed_calls = sum(acc.calls for acc in tier_accs.values())
+    standard_cost_per_token = standard.cost_usd / standard.total_tokens
+    total_routed_tokens = sum(acc.total_tokens for acc in tier_accs.values())
     actual_total_cost = sum(acc.cost_usd for acc in tier_accs.values())
-    hypothetical_cost = total_routed_calls * avg_cost_per_call
+    hypothetical_cost = total_routed_tokens * standard_cost_per_token
     savings = hypothetical_cost - actual_total_cost
     if savings <= 0:
         return None

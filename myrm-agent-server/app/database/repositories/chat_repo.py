@@ -492,10 +492,12 @@ class ChatRepository:
 
     @staticmethod
     async def get_recent_routing_tiers(db: AsyncSession, chat_id: str, limit: int = 5) -> list[str]:
-        """Fetch routing tiers from recent assistant messages for momentum calculation.
+        """Fetch the recorded routing values of recent assistant messages for momentum calculation.
 
-        Returns tier strings (e.g. ["STANDARD", "REASONING"]) in chronological order.
-        Only returns tiers that were actually recorded (skips messages without routing data).
+        Returns raw `routingTier` strings in chronological order. The column holds either a complexity tier
+        (e.g. "standard", "reasoning") or a specialty slot hit (e.g. "code", "long_doc"); callers partition them
+        with `services.agent.params.routing_memory.split_recent_routing`.
+        Only returns values that were actually recorded (skips messages without routing data).
         """
         result = await db.execute(
             select(Message.extra_data)

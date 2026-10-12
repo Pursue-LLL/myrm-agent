@@ -45,6 +45,7 @@ from .mention import (
 )
 from .models import AgentRequest
 from .resolvers import _resolve_model_config
+from .routing_memory import RecentRouting, load_recent_routing, resolve_turn_routing
 from .upload_sync import (
     inject_uploaded_files_into_query,
     sync_uploaded_files_to_workspace,
@@ -233,7 +234,36 @@ async def convert_to_general_agent_params(
     routing_tier: str | None = None
     routing_specialty: str | None = None
     routing_reason: str | None = None
-    if bool(request.code_model_selection or request.long_doc_model_selection):
+
+    # A resume continues the interrupted turn: reuse its routing outcome instead of re-routing an empty query.
+    pinned_routing = (
+        await resolve_turn_routing(
+            request,
+            resolve=_resolve_model_config,
+            providers_dict=providers_dict,
+            model_cfg=model_cfg,
+            fallback_model_cfg=fallback_model_cfg,
+        )
+        if request.resume_value is not None
+        else None
+    )
+    if pinned_routing is not None:
+        model_cfg = pinned_routing.model_cfg
+        fallback_model_cfg = pinned_routing.fallback_model_cfg
+        routing_tier = pinned_routing.tier
+        routing_specialty = pinned_routing.specialty
+        routing_reason = pinned_routing.reason
+
+    recent_routing = RecentRouting()
+    if pinned_routing is None and (
+        request.code_model_selection
+        or request.long_doc_model_selection
+        or request.light_model_selection
+        or request.reasoning_model_selection
+    ):
+        recent_routing = await load_recent_routing(request.chat_id)
+
+    if pinned_routing is None and bool(request.code_model_selection or request.long_doc_model_selection):
         try:
             from myrm_agent_harness.api import (
                 TaskSpecialty,
@@ -286,6 +316,7 @@ async def convert_to_general_agent_params(
                 specialty_model_slots=specialty_slots if specialty_slots else None,
                 specialty_fallback_slots=(specialty_fallback_slots if specialty_fallback_slots else None),
                 default_fallback_cfg=fallback_model_cfg,
+                recent_specialties=recent_routing.specialties or None,
             )
 
             if "specialty_slot_hit" in specialty_result.reason:
@@ -304,7 +335,7 @@ async def convert_to_general_agent_params(
         except Exception:
             logger.warning("Specialty routing failed, using default model", exc_info=True)
 
-    if routing_tier is None and (request.light_model_selection or request.reasoning_model_selection):
+    if pinned_routing is None and routing_tier is None and (request.light_model_selection or request.reasoning_model_selection):
         try:
             from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
                 route_task,
@@ -357,18 +388,7 @@ async def convert_to_general_agent_params(
                 RoutingTier,
             )
 
-            recent_routing_tiers = None
-            if request.chat_id:
-                try:
-                    from app.database.connection import get_session
-                    from app.database.repositories.chat_repo import ChatRepository
-
-                    async with get_session() as db:
-                        tier_strings = await ChatRepository.get_recent_routing_tiers(db, request.chat_id)
-                    if tier_strings:
-                        recent_routing_tiers = [RoutingTier(t) for t in tier_strings]
-                except Exception as exc:
-                    logger.debug("Failed to fetch recent routing tiers: %s", exc)
+            recent_routing_tiers = recent_routing.tiers or None
 
             complaint_min_tier: RoutingTier | None = None
             is_complaint_up = bool(
@@ -411,7 +431,7 @@ async def convert_to_general_agent_params(
 
                 record_misroute(recent_routing_tiers[-1])
 
-            logger.warning(
+            logger.info(
                 "Smart routing: tier=%s model=%s reason=%s",
                 routing_result.tier.value,
                 model_cfg.model,

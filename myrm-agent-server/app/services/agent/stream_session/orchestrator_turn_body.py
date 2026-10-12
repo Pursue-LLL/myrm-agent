@@ -41,6 +41,7 @@ from app.services.agent.params import (
     _resolve_model_config,
     convert_to_general_agent_params,
 )
+from app.services.agent.params.routing_memory import remember_turn_routing
 from app.services.agent.steering import SteeringRegistry
 from app.services.agent.stream_session import chat_history_bootstrap
 from app.services.agent.stream_session.migration_bound_project import (
@@ -329,6 +330,12 @@ async def execute_agent_turn_after_reserve(
                 request,
                 chat_history,
                 http_request=http_request,
+            )
+            remember_turn_routing(
+                request,
+                tier=routing_tier,
+                specialty=routing_specialty,
+                reason=routing_reason,
             )
     except ArchiveRestoreRequestError as exc:
         await record_terminal_failure("archive_restore_invalid")
