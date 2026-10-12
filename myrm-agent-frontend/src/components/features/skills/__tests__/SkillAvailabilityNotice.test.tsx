@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import SkillAvailabilityNotice from '../SkillAvailabilityNotice';
 import SkillCard from '../SkillCard';
+import { TooltipProvider } from '@/components/primitives/tooltip';
 import type { Skill, SkillRequires } from '@/store/skill/types';
 
 const translate = (key: string): string => key;
@@ -117,5 +118,19 @@ describe('SkillCard availability action', () => {
 
     expect(onViewDetails).toHaveBeenCalledTimes(1);
     expect(onViewDetails).toHaveBeenCalledWith(skill);
+  });
+});
+
+describe('SkillCard quarantine badge', () => {
+  it('labels a quarantined skill through translations instead of hard-coded English', () => {
+    const skill = buildSkill({ is_active: false, available: true });
+    render(
+      <TooltipProvider>
+        <SkillCard skill={skill} isEnabled={false} onViewDetails={vi.fn()} />
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByText('card.quarantined')).toBeTruthy();
+    expect(screen.queryByText('Quarantined')).toBeNull();
   });
 });

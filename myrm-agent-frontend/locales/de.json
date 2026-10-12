@@ -16777,6 +16777,8 @@
         "updatedAt": "Aktualisiert",
         "idleWarning": "Seit 30+ Tagen ungenutzt, erwägen Sie Einfrieren oder Archivierung",
         "archivedReason": "Wegen längerer Inaktivität archiviert",
+        "quarantined": "Isoliert",
+        "quarantinedReason": "Dieser Skill wurde wegen aufeinanderfolgender Fehler isoliert und wird vom Agenten nicht geladen.",
         "usageStats": "{count} Mal angerufen",
         "neverUsed": "Nie verwendet",
         "tokenCostTooltip": "Kontextkosten: ~{count} Token pro Konversation",

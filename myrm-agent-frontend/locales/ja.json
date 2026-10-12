@@ -16798,6 +16798,8 @@
         "updatedAt": "更新日時",
         "idleWarning": "30 日以上未使用です。フリーズまたはアーカイブを検討してください",
         "archivedReason": "長期未使用のためアーカイブ済み",
+        "quarantined": "隔離中",
+        "quarantinedReason": "このスキルは連続してエラーが発生したため隔離されており、エージェントは読み込みません。",
         "usageStats": "{count} 回呼び出されました",
         "neverUsed": "未使用",
         "tokenCostTooltip": "コンテキストコスト：会話ごとに約 {count} tokens",

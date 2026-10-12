@@ -16777,6 +16777,8 @@
         "updatedAt": "수정일",
         "idleWarning": "30일 이상 사용되지 않음. 동결 또는 보관을 고려하세요",
         "archivedReason": "장기 미사용으로 보관됨",
+        "quarantined": "격리됨",
+        "quarantinedReason": "이 스킬은 연속 오류로 격리되어 에이전트가 불러오지 않습니다.",
         "usageStats": "{count}회 호출됨",
         "neverUsed": "사용된 적 없음",
         "tokenCostTooltip": "컨텍스트 비용: 대화당 약 {count} 토큰",

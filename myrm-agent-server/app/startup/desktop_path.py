@@ -3,6 +3,7 @@
 [INPUT]
 - os.environ::MYRM_SHELL_PID (POS: injected only by the Tauri shell; gates the whole module)
 - the user's login shell (POS: source of the PATH their terminal would have)
+- myrm_agent_harness.toolkits.code_execution.tool_discovery::COMMON_TOOL_DIRS (POS: the directories CLI discovery searches)
 
 [OUTPUT]
 - hydrate_desktop_path: merge the login-shell PATH and common tool directories into os.environ["PATH"]
@@ -12,6 +13,8 @@ A GUI-launched macOS app inherits launchd's minimal PATH (/usr/bin:/bin:/usr/sbi
 installed with Homebrew, nvm or cargo are invisible to the agent's bash tool and to skill `requires.bins`
 checks. The desktop sidecar recovers the PATH once at startup, the same way terminal-integrated editors do.
 Only PATH is touched; credentials and other variables are never imported from the shell.
+The fallback directories are the very ones CLI discovery searches, so the `<cli_tools>` prompt section never lists
+a tool the shell cannot run, even when the login-shell probe fails.
 """
 
 from __future__ import annotations
@@ -24,7 +27,8 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Iterable
-from pathlib import Path
+
+from myrm_agent_harness.toolkits.code_execution.tool_discovery import COMMON_TOOL_DIRS
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +37,6 @@ SHELL_PID_ENV = "MYRM_SHELL_PID"
 _PROBE_TIMEOUT_SECONDS = 5.0
 _START_MARKER = "__MYRM_PATH_START__"
 _END_MARKER = "__MYRM_PATH_END__"
-# Fill-in directories for users whose shell rc files do not export them; appended last so they only fill gaps.
-_SEED_DIRS = ("/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin", "~/.local/bin", "~/.cargo/bin")
 
 
 def _spawned_by_desktop_shell() -> bool:
@@ -108,8 +110,8 @@ def _probe_login_shell_path() -> list[str]:
 
 
 def _existing_seed_dirs() -> list[str]:
-    expanded = (str(Path(seed).expanduser()) for seed in _SEED_DIRS)
-    return [seed for seed in expanded if os.path.isdir(seed)]
+    """Fill-in directories for users whose shell rc files do not export them; merged last so they only fill gaps."""
+    return [directory for directory in COMMON_TOOL_DIRS if os.path.isdir(directory)]
 
 
 def _merge_entries(*groups: Iterable[str]) -> list[str]:

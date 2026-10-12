@@ -16,6 +16,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.toolkits.code_execution import tool_discovery
 
 from app.startup import desktop_path
 
@@ -57,7 +58,7 @@ def fake_shell(tmp_path: Path, record_dir: Path, monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("FAKE_PROBE_PATH", "/opt/fake/bin:/usr/bin")
     monkeypatch.setenv("FAKE_MODE", "plain")
     monkeypatch.setenv("PATH", "/usr/bin:/bin")
-    monkeypatch.setattr(desktop_path, "_SEED_DIRS", ())
+    monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", ())
     yield script
     child = record_dir / "child"
     if child.exists():
@@ -172,12 +173,16 @@ class TestMergeAndSeeds:
 
         assert merged == ["/a", "/b", "/c", "/d"]
 
-    def test_seed_dirs_expand_home_and_skip_missing_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        (tmp_path / ".cargo" / "bin").mkdir(parents=True)
-        monkeypatch.setenv("HOME", str(tmp_path))
-        monkeypatch.setattr(desktop_path, "_SEED_DIRS", ("~/.cargo/bin", "~/.local/bin"))
+    def test_seed_dirs_skip_missing_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        present = tmp_path / ".cargo" / "bin"
+        present.mkdir(parents=True)
+        monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(present), str(tmp_path / ".local" / "bin")))
 
-        assert desktop_path._existing_seed_dirs() == [str(tmp_path / ".cargo" / "bin")]
+        assert desktop_path._existing_seed_dirs() == [str(present)]
+
+    def test_seed_dirs_are_the_list_cli_discovery_searches(self) -> None:
+        """One list for both: the prompt's CLI inventory and the shell's PATH must not drift apart."""
+        assert desktop_path.COMMON_TOOL_DIRS is tool_discovery.COMMON_TOOL_DIRS
 
 
 class TestHydrate:
@@ -186,7 +191,7 @@ class TestHydrate:
     ) -> None:
         seed = tmp_path / "seed"
         seed.mkdir()
-        monkeypatch.setattr(desktop_path, "_SEED_DIRS", (str(seed), str(tmp_path / "missing")))
+        monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(seed), str(tmp_path / "missing")))
 
         added = desktop_path.hydrate_desktop_path()
 
@@ -203,7 +208,7 @@ class TestHydrate:
     def test_failed_probe_still_adds_seeds(self, fake_shell: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         seed = tmp_path / "seed"
         seed.mkdir()
-        monkeypatch.setattr(desktop_path, "_SEED_DIRS", (str(seed),))
+        monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(seed),))
         monkeypatch.setattr(desktop_path, "_probe_login_shell_path", lambda: [])
 
         assert desktop_path.hydrate_desktop_path() == [str(seed)]
@@ -214,7 +219,7 @@ class TestHydrate:
     ) -> None:
         seed = tmp_path / "seed"
         seed.mkdir()
-        monkeypatch.setattr(desktop_path, "_SEED_DIRS", (str(seed),))
+        monkeypatch.setattr(desktop_path, "COMMON_TOOL_DIRS", (str(seed),))
         monkeypatch.setattr(desktop_path, "_resolve_login_shell", lambda _account_shell: None)
 
         assert desktop_path.hydrate_desktop_path() == [str(seed)]

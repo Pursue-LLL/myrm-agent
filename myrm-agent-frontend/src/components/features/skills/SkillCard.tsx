@@ -212,12 +212,10 @@ const SkillCard = memo(
                         variant="outline"
                         className="text-xs px-1.5 py-0 border-destructive text-destructive cursor-help"
                       >
-                        Quarantined
+                        {t('card.quarantined')}
                       </Badge>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      This skill has been quarantined due to consecutive errors. It will not be loaded by the agent.
-                    </TooltipContent>
+                    <TooltipContent>{t('card.quarantinedReason')}</TooltipContent>
                   </Tooltip>
                 )}
                 {skill.has_upstream_update && (

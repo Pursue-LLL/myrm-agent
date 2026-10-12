@@ -16798,6 +16798,8 @@
         "updatedAt": "更新時間",
         "idleWarning": "近30天未被任何智慧體呼叫，建議凍結或歸檔",
         "archivedReason": "因長期不活躍而歸檔",
+        "quarantined": "已隔離",
+        "quarantinedReason": "此技能因連續出錯已被隔離，智慧體不會載入它。",
         "usageStats": "已呼叫 {count} 次",
         "neverUsed": "從未呼叫",
         "tokenCostTooltip": "上下文開銷：每次對話約 {count} tokens",
