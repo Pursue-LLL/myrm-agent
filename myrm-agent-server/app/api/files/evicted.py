@@ -118,19 +118,10 @@ async def _resolve_evicted_path(chat_id: str, filename: str) -> str:
 
 
 def _get_workspace_root() -> str | None:
-    """Get the workspace root from harness runtime or environment."""
+    """Get the workspace root from the environment or the local default."""
     workspace = os.environ.get("MYRM_WORKSPACE_ROOT")
     if workspace and os.path.isdir(workspace):
         return workspace
-
-    try:
-        from myrm_agent_harness.toolkits.code_execution.workspace.registry import (
-            get_active_workspace_path,
-        )
-
-        return get_active_workspace_path()
-    except Exception:
-        pass
 
     if is_local_mode():
         home = os.path.expanduser("~")

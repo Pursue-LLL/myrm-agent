@@ -2,7 +2,7 @@
 [INPUT]
 - .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
 [OUTPUT]
-- Full skill content apply + rollback (file system + SkillStore + agent fork bindings)
+- Full skill content apply (file system + SkillStore + agent fork bindings) and rollback (file system + SkillStore)
 [POS]
 Evolution 全量内容更新落盘与回滚（含 Copy-on-Write fork）。
 """
@@ -25,8 +25,6 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillLineage,
     SkillRecord,
 )
-
-from app.database.dto import AgentUpdate
 
 from .types import EvolutionApprovalPayload
 
@@ -184,15 +182,8 @@ async def rollback_content_update(payload: EvolutionApprovalPayload, store: Skil
     skill_path = Path(payload.skill_path)
 
     if payload.evolution_type == EvolutionType.DERIVED.value or not payload.original_content:
-        fork_skill = store.get_skill(payload.skill_id)
-        owner_id = None
-        parent_id = None
-        if fork_skill:
-            if fork_skill.environment and "scope_agent_id" in fork_skill.environment.custom_tags:
-                owner_id = fork_skill.environment.custom_tags["scope_agent_id"]
-            if fork_skill.lineage:
-                parent_id = fork_skill.lineage.parent_id
-
+        # A fork's lineage points at the fork itself, so the skill id its agent was bound to before the
+        # fork is not recoverable here: only the fork's files and record are removed, bindings stay as they are.
         if skill_path.exists():
             if skill_path.name == "SKILL.md":
                 if skill_path.parent.name not in ["workspace", "skills", ""]:
@@ -208,41 +199,6 @@ async def rollback_content_update(payload: EvolutionApprovalPayload, store: Skil
             await store.delete_skill(payload.skill_id)
         except Exception as exc:
             logger.warning("Failed to delete skill from DB during rollback: %s", exc)
-
-        if owner_id and parent_id:
-            try:
-                from app.services.agent.agent_service import agent_service
-
-                agent = await agent_service.get_agent(owner_id)
-                if agent:
-                    mounted_ids = agent.mounted_skill_ids or []
-                    skill_ids = agent.skill_ids or []
-                    update_needed = False
-
-                    if payload.skill_id in skill_ids:
-                        skill_ids = [x for x in skill_ids if x != payload.skill_id]
-
-                        parent_skill = store.get_skill(parent_id)
-                        parent_owner_id = None
-                        if parent_skill and parent_skill.environment and "scope_agent_id" in parent_skill.environment.custom_tags:
-                            parent_owner_id = parent_skill.environment.custom_tags["scope_agent_id"]
-
-                        if parent_owner_id and parent_owner_id != owner_id:
-                            if parent_id not in mounted_ids:
-                                mounted_ids.append(parent_id)
-                        else:
-                            if parent_id not in skill_ids:
-                                skill_ids.append(parent_id)
-
-                        update_needed = True
-
-                    if update_needed:
-                        await agent_service.update_agent(
-                            owner_id,
-                            AgentUpdate(mounted_skill_ids=mounted_ids, skill_ids=skill_ids),
-                        )
-            except Exception as exc:
-                logger.error("Failed to restore parent mount during rollback: %s", exc)
     else:
         fd, temp_path = tempfile.mkstemp(dir=skill_path.parent, prefix="skill_rollback_")
         try:

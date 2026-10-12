@@ -24,7 +24,7 @@ def app() -> FastAPI:
 
     # Initialize in-memory dependencies
     skill_store = SkillStore()
-    execution_provider = ServerSkillExecutionProvider(skill_store=skill_store)
+    execution_provider = ServerSkillExecutionProvider()
     metrics_provider = EvolutionMetricsProvider(skill_store)
     quality_calculator = SkillQualityCalculator(
         token_baseline=1000,

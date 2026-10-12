@@ -1,22 +1,19 @@
 """Skill Execution Provider Implementation
 
-Server层实现SkillExecutionProvider协议，提供skill执行数据。
+Server层实现SkillExecutionProvider协议：执行特定版本的Skill（影子测试使用）。
+执行样本与元数据的来源尚未接入，对应方法如实返回空结果。
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.skills.optimization.types import SkillExecutionSample
+    from myrm_agent_harness.agent.skills.optimization import SkillExecutionSample
     from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 logger = logging.getLogger(__name__)
-
-
-class _SkillStorePort(Protocol):
-    async def get_skill(self, skill_id: str) -> object | None: ...
 
 
 class ServerSkillExecutionProvider:
@@ -24,14 +21,6 @@ class ServerSkillExecutionProvider:
 
     从event_log或metrics系统查询skill执行数据。
     """
-
-    def __init__(self, skill_store: object | None = None) -> None:
-        """初始化
-
-        Args:
-            skill_store: SkillStore实例（可选，用于获取skill metadata）
-        """
-        self.skill_store = skill_store
 
     async def get_skill_executions(
         self,
@@ -83,30 +72,16 @@ class ServerSkillExecutionProvider:
     async def get_skill_metadata(self, skill_id: str) -> SkillMetadata | None:
         """获取skill元数据
 
+        元数据来源与执行样本一样尚未接入，当前如实返回None。
+
         Args:
             skill_id: Skill ID
 
         Returns:
             SkillMetadata对象，如果skill不存在则返回None
         """
-        try:
-            from myrm_agent_harness.agent.skills.evolution import get_skill_store
-            from myrm_agent_harness.backends.skills.types import SkillMetadata as _SkillMetadata
-
-            raw_store = self.skill_store if self.skill_store is not None else get_skill_store()
-            store = cast(_SkillStorePort, raw_store)
-            skill_obj = await store.get_skill(skill_id)
-            if skill_obj is None:
-                return None
-            raw_meta = getattr(skill_obj, "metadata", None)
-            if raw_meta is None:
-                return None
-            if isinstance(raw_meta, _SkillMetadata):
-                return raw_meta
-            return None
-        except Exception as e:
-            logger.error(f"Failed to get skill metadata for {skill_id}: {e}")
-            return None
+        logger.debug(f"Skill metadata source is not wired: {skill_id}")
+        return None
 
     async def execute_skill_version(
         self,

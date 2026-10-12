@@ -18,7 +18,7 @@ async def create_optimization_scheduler() -> OptimizationScheduler | None:
     """创建OptimizationScheduler实例
 
     集成所有依赖：
-    - SkillStore (for skill metadata)
+    - SkillStore (for evolution metrics)
     - ServerSkillExecutionProvider (for execution data)
     - QualityCalculator (for quality scoring)
     - SkillOptimizer (for LLM-driven optimization)
@@ -45,7 +45,7 @@ async def create_optimization_scheduler() -> OptimizationScheduler | None:
 
         skill_store = SkillStore()
 
-        execution_provider = ServerSkillExecutionProvider(skill_store=skill_store)
+        execution_provider = ServerSkillExecutionProvider()
 
         metrics_provider = EvolutionMetricsProvider(skill_store)
 

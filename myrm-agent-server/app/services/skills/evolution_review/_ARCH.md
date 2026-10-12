@@ -13,7 +13,7 @@ Evolution 审核子域。以 `ApprovalRecord` 为唯一事实源，提供类型�
 | `queries.py` | 核心 | 创建与只读查询（list/count 委托 persistence SQL） | ✅ |
 | `actions.py` | 核心 | 审批 / 拒绝 / 修订 / 回滚 | ✅ |
 | `disk.py` | 核心 | 落盘编排（description / shadow / approval 成功路径） | ✅ |
-| `disk_content.py` | 核心 | 全量内容 apply + rollback（含 fork） | ✅ |
+| `disk_content.py` | 核心 | 全量内容 apply（含 Copy-on-Write fork 及其 Agent 绑定改写）+ rollback（fork/衍生技能删除文件与记录、编辑类还原原内容；不改动 Agent 绑定） | ✅ |
 
 ## 设计原则
 

@@ -1,10 +1,11 @@
-"""Unit tests for IntegrationMemoryService tree removal (vector + graph cleanup)."""
+"""Unit tests for IntegrationMemoryService: tree removal (vector + graph cleanup) and post-sync summarisation."""
 
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from myrm_agent_harness.toolkits.memory.integration.types import IntegrationSyncResult
 
 from app.services.memory.imports.integration_memory import IntegrationMemoryService
 
@@ -128,14 +129,56 @@ class TestRemoveTree:
         mock_tree_manager.remove_tree.assert_called_once_with("tree-resilient")
 
 
-class TestAutoSeedKnowledge:
-    """Tests for _auto_seed_knowledge method."""
+class TestPostSyncSummarisation:
+    """A sync only refreshes the tree summary; it never writes memories on its own."""
+
+    @pytest.fixture
+    def summariser(self, service):
+        service._summariser.summarise_tree = AsyncMock()
+        return service._summariser
 
     @pytest.mark.asyncio
-    async def test_empty_new_items_returns_early(self, service):
-        """If new_items is empty, should return early."""
-        from myrm_agent_harness.toolkits.memory.integration.types import IntegrationSyncResult
+    async def test_provider_sync_that_changed_the_tree_summarises_it(self, service, summariser):
+        synced = IntegrationSyncResult(tree_id="t1", provider="slack", created=2, new_items=[{"text": "hello"}])
+        service._fetcher.sync_provider = AsyncMock(return_value=synced)
 
-        result = IntegrationSyncResult(tree_id="t1", provider="slack", new_items=[])
-        await service._auto_seed_knowledge(result)
-        # Should not raise or do anything
+        result = await service.sync_provider("slack", account_key="work", max_items=50)
+
+        assert result is synced
+        service._fetcher.sync_provider.assert_awaited_once_with("slack", account_key="work", max_items=50)
+        summariser.summarise_tree.assert_awaited_once_with("t1")
+
+    @pytest.mark.asyncio
+    async def test_provider_sync_without_changes_skips_summarisation(self, service, summariser):
+        service._fetcher.sync_provider = AsyncMock(return_value=IntegrationSyncResult(tree_id="t1", provider="slack"))
+
+        await service.sync_provider("slack")
+
+        summariser.summarise_tree.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_sync_all_summarises_only_the_trees_that_changed(self, service, summariser):
+        changed = IntegrationSyncResult(tree_id="t-changed", provider="github", updated=1)
+        unchanged = IntegrationSyncResult(tree_id="t-unchanged", provider="notion", skipped=4)
+        service._fetcher.sync = AsyncMock(return_value=[changed, unchanged])
+
+        results = await service.sync_all(max_items=10)
+
+        assert results == [changed, unchanged]
+        summariser.summarise_tree.assert_awaited_once_with("t-changed")
+
+    @pytest.mark.asyncio
+    async def test_summarisation_failure_does_not_fail_the_sync(self, service, summariser):
+        summariser.summarise_tree.side_effect = RuntimeError("llm unavailable")
+        synced = IntegrationSyncResult(tree_id="t1", provider="slack", created=1)
+        service._fetcher.sync_provider = AsyncMock(return_value=synced)
+
+        assert await service.sync_provider("slack") is synced
+
+    @pytest.mark.asyncio
+    async def test_service_without_a_summariser_still_syncs(self, service):
+        service._summariser = None
+        synced = IntegrationSyncResult(tree_id="t1", provider="slack", created=3)
+        service._fetcher.sync_provider = AsyncMock(return_value=synced)
+
+        assert await service.sync_provider("slack") is synced

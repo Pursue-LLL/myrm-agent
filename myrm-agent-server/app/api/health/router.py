@@ -27,7 +27,6 @@ import os
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
 
-from app.api.health.benchmark import router as benchmark_router
 from app.api.health.browser import router as browser_router
 from app.api.health.diagnostic import router as diagnostic_router
 from app.api.health.liveness import router as liveness_router
@@ -45,7 +44,6 @@ from app.services.repair.actions import RepairActionId, build_repair_actions
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
-router.include_router(benchmark_router)
 router.include_router(browser_router)
 router.include_router(diagnostic_router)
 router.include_router(liveness_router)

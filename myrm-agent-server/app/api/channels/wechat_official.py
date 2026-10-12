@@ -230,17 +230,6 @@ def _get_workspace_root() -> str | None:
     if workspace and os.path.isdir(workspace):
         return workspace
 
-    try:
-        from myrm_agent_harness.toolkits.code_execution.workspace.registry import (
-            get_active_workspace_path,
-        )
-
-        active = get_active_workspace_path()
-        if active and os.path.isdir(active):
-            return active
-    except Exception:
-        pass
-
     if is_local_mode():
         default_workspace = os.path.join(os.path.expanduser("~"), ".myrm", "workspace")
         if os.path.isdir(default_workspace):

@@ -2,14 +2,13 @@
 
 ## 架构概述
 
-健康检查、就绪探针与性能基准 HTTP 层。上级文档：[../_ARCH.md](../_ARCH.md)。
+健康检查与就绪探针 HTTP 层。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
-| `benchmark.py` | 模块 | Provides asynchronous performance benchmark execution and SSE streaming | ✅ |
 | `browser.py` | 模块 | 浏览器运行时健康端点：`/browser` 健康、`/browser/doctor` 诊断（真实端口注入 relay 探测）、`/browser/orphans` GET/DELETE（统一 automation 扫描 + confirm 安全门 + 联动沙箱清理与空间释放透出 + failed 透传）、云/代理连通性测试 | ✅ |
 | `diagnostic.py` | 模块 | Returns the current hardened diagnostic state of the agent engine. | ✅ |
 | `memory.py` | 模块 | Memory diagnostics API. | ✅ |

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
@@ -44,9 +44,19 @@ from .batch_import_schemas import (
     ImportPreviewSkillItem,
 )
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.skills.optimization.security import SkillSecurityValidator
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/batch-import", tags=["skills-batch-import"])
+
+
+def _new_security_validator() -> SkillSecurityValidator:
+    from myrm_agent_harness.agent.skills.optimization.config import SecurityConfig
+    from myrm_agent_harness.agent.skills.optimization.security import SkillSecurityValidator
+
+    return SkillSecurityValidator(config=SecurityConfig())
 
 
 @router.post("/preview", response_model=ImportPreviewResponse)
@@ -95,18 +105,7 @@ async def preview_batch_import(
 
     staging_manager = SkillStagingManager(store.db_path.parent)
 
-    try:
-        from app.api.skills.optimization.config import SecurityConfig
-        from app.api.skills.optimization.security import SkillSecurityValidator
-
-        validator = SkillSecurityValidator(config=SecurityConfig())
-    except ImportError:
-        from myrm_agent_harness.agent.skills.optimization.config import SecurityConfig
-        from myrm_agent_harness.agent.skills.optimization.security import (
-            SkillSecurityValidator,
-        )
-
-        validator = SkillSecurityValidator(config=SecurityConfig())
+    validator = _new_security_validator()
 
     if hasattr(store, "list_skills"):
         existing_skills = store.list_skills()
@@ -186,19 +185,7 @@ async def confirm_batch_import(
         raise HTTPException(status_code=400, detail=payload) from e
 
     # 引入安全扫描器
-    try:
-        from app.api.skills.optimization.config import SecurityConfig
-        from app.api.skills.optimization.security import SkillSecurityValidator
-
-        validator = SkillSecurityValidator(config=SecurityConfig())
-    except ImportError:
-        # Fallback to harness if imported there
-        from myrm_agent_harness.agent.skills.optimization.config import SecurityConfig
-        from myrm_agent_harness.agent.skills.optimization.security import (
-            SkillSecurityValidator,
-        )
-
-        validator = SkillSecurityValidator(config=SecurityConfig())
+    validator = _new_security_validator()
 
     try:
         imported_count, skipped_count, restored_eval_cases = await execute_batch_import_confirm(

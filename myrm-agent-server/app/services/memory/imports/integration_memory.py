@@ -15,7 +15,6 @@ graph store, LLM calls).  Provides a clean facade for API endpoints.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Callable, Coroutine
 
@@ -84,7 +83,6 @@ class IntegrationMemoryService:
                 tree_manager=self._tree_manager,
                 summarise_fn=summarise_fn,
             )
-        self._bg_tasks: set[asyncio.Task] = set()
 
     def register_provider(self, provider: IntegrationProvider) -> None:
         self._fetcher.register_provider(provider)
@@ -99,18 +97,7 @@ class IntegrationMemoryService:
     async def sync_all(self, *, max_items: int = 200) -> list[IntegrationSyncResult]:
         results = await self._fetcher.sync(max_items_per_provider=max_items)
         for result in results:
-            if result.created > 0 or result.updated > 0:
-                # 1. Summarise integration tree
-                if self._summariser:
-                    try:
-                        await self._summariser.summarise_tree(result.tree_id)
-                    except Exception as exc:
-                        logger.warning("Post-sync summarisation failed for tree %s: %s", result.tree_id, exc)
-
-                # 2. Automated Knowledge Seeding via Extractor (No-Op Default)
-                task = asyncio.create_task(self._auto_seed_knowledge(result))
-                self._bg_tasks.add(task)
-                task.add_done_callback(self._bg_tasks.discard)
+            await self._summarise_synced_tree(result)
         return results
 
     async def sync_provider(
@@ -121,101 +108,17 @@ class IntegrationMemoryService:
         max_items: int = 200,
     ) -> IntegrationSyncResult:
         result = await self._fetcher.sync_provider(provider_id, account_key=account_key, max_items=max_items)
-        if result.created > 0 or result.updated > 0:
-            # 1. Summarise integration tree
-            if self._summariser:
-                try:
-                    await self._summariser.summarise_tree(result.tree_id)
-                except Exception as exc:
-                    logger.warning("Post-sync summarisation failed for tree %s: %s", result.tree_id, exc)
-
-            # 2. Automated Knowledge Seeding via Extractor (No-Op Default)
-            task = asyncio.create_task(self._auto_seed_knowledge(result))
-            self._bg_tasks.add(task)
-            task.add_done_callback(self._bg_tasks.discard)
+        await self._summarise_synced_tree(result)
         return result
 
-    async def _auto_seed_knowledge(self, result: IntegrationSyncResult) -> None:
-        """Automated knowledge seeding from freshly fetched integration data.
-
-        Passes up to 200 new items through the MemoryExtractor using the
-        No-Op Default mechanism to automatically extract high-value profile traits.
-        """
-        if not getattr(result, "new_items", None):
+    async def _summarise_synced_tree(self, result: IntegrationSyncResult) -> None:
+        """Refresh the tree summary after a sync that changed it; a summarisation failure never fails the sync."""
+        if self._summariser is None or (result.created == 0 and result.updated == 0):
             return
-
         try:
-            from myrm_agent_harness.api.hooks import (
-                create_extraction_llm_func,
-                persist_extracted_memories,
-            )
-            from myrm_agent_harness.toolkits.memory.strategies.extractor import ExtractionConfig, MemoryExtractor
-
-            from app.core.memory.adapters.setup import get_or_create_memory_manager
-            from app.services.agent.llm_access import get_optional_llm_for_user
-
-            # Using the system's default LLM config
-            llm = await get_optional_llm_for_user()
-            if getattr(llm, "_llm_type", None) == "dummy":
-                logger.debug("Skipping auto seed: LLM not configured")
-                return
-
-            memory_manager = await get_or_create_memory_manager()
-            llm_func = create_extraction_llm_func(llm)
-
-            # Use max 200 items to save tokens
-            items_to_process = result.new_items[:200]
-
-            formatted_chunks = []
-            current_chars = 0
-            # A safe token limit equivalent character count (e.g. roughly ~10k-15k tokens)
-            max_chars = 50000
-
-            for item in items_to_process:
-                src_type = item.get("type", "Document").strip() or "Document"
-                title = item.get("title", "").strip()
-                text = item.get("text", "").strip()
-
-                header = f"[{src_type}"
-                if title:
-                    header += f": {title}"
-                header += "]"
-
-                chunk = f"{header}\\n{text}"
-                chunk_len = len(chunk)
-
-                if current_chars + chunk_len > max_chars:
-                    if current_chars == 0:
-                        # If the very first item is too large, truncate it to fit
-                        formatted_chunks.append(chunk[:max_chars] + "...[TRUNCATED]")
-                    else:
-                        # Stop accumulating to stay within limit
-                        break
-                else:
-                    formatted_chunks.append(chunk)
-                    current_chars += chunk_len
-
-            content = "\\n\\n---\\n\\n".join(formatted_chunks)
-
-            # Create a synthetic message list acting as the user providing structured context
-            messages = [{"role": "user", "content": f"Here is my recent data from {result.provider}:\\n\\n{content}"}]
-
-            # Use default extractor configuration (which includes No-Op Default)
-            config = ExtractionConfig()
-            extractor = MemoryExtractor(config=config, llm_func=llm_func)
-
-            extraction_result = await extractor.extract(messages)
-
-            if extraction_result.memories:
-                stored = await persist_extracted_memories(extraction_result.memories, memory_manager, source_chat_id=None)
-                logger.info(
-                    "Automated Knowledge Seeding: Extracted %d memories from provider '%s' (stored %d)",
-                    len(extraction_result.memories),
-                    result.provider,
-                    stored,
-                )
+            await self._summariser.summarise_tree(result.tree_id)
         except Exception as exc:
-            logger.warning("Automated Knowledge Seeding failed for provider '%s': %s", result.provider, exc)
+            logger.warning("Post-sync summarisation failed for tree %s: %s", result.tree_id, exc)
 
     def list_trees(self, *, provider: str = "") -> list[IntegrationTree]:
         return self._tree_manager.list_trees(provider=provider)

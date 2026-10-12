@@ -350,46 +350,33 @@ async def test_read_evicted_path_traversal_returns_403(tmp_path: Path, monkeypat
     assert resp.status_code == 403
 
 
-def test_get_workspace_root_from_registry(monkeypatch: pytest.MonkeyPatch) -> None:
-    import sys
-    from types import ModuleType
-
+def test_get_workspace_root_prefers_env_variable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from app.api.files import evicted as evicted_module
 
-    monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
-    registry_mod = ModuleType("myrm_agent_harness.toolkits.code_execution.workspace.registry")
-    registry_mod.get_active_workspace_path = lambda: "/registry/workspace"
-    monkeypatch.setitem(
-        sys.modules,
-        "myrm_agent_harness.toolkits.code_execution.workspace.registry",
-        registry_mod,
-    )
-    monkeypatch.setattr(evicted_module, "is_local_mode", lambda: False)
+    monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
 
-    assert evicted_module._get_workspace_root() == "/registry/workspace"
+    assert evicted_module._get_workspace_root() == str(tmp_path)
 
 
 def test_get_workspace_root_local_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import sys
-    from types import ModuleType
-
     from app.api.files import evicted as evicted_module
 
     monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
     default_ws = tmp_path / ".myrm" / "workspace"
     default_ws.mkdir(parents=True)
-
-    registry_mod = ModuleType("myrm_agent_harness.toolkits.code_execution.workspace.registry")
-    registry_mod.get_active_workspace_path = lambda: (_ for _ in ()).throw(RuntimeError("no registry"))
-    monkeypatch.setitem(
-        sys.modules,
-        "myrm_agent_harness.toolkits.code_execution.workspace.registry",
-        registry_mod,
-    )
     monkeypatch.setattr(evicted_module.os.path, "expanduser", lambda _p: str(tmp_path))
     monkeypatch.setattr(evicted_module, "is_local_mode", lambda: True)
 
     assert evicted_module._get_workspace_root() == str(default_ws)
+
+
+def test_get_workspace_root_is_none_when_nothing_is_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.api.files import evicted as evicted_module
+
+    monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
+    monkeypatch.setattr(evicted_module, "is_local_mode", lambda: False)
+
+    assert evicted_module._get_workspace_root() is None
 
 
 @pytest.mark.asyncio

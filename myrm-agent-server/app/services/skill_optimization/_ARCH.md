@@ -16,7 +16,7 @@ Agent 技能自动优化服务。包含观测（A/B 测试 + 影子执行）、�
 | `ab_test_manager.py` | 中枢控制器 | 托管队列 + 统一数据流 + 采样率决策 + Auto-Promote | ✅ |
 | `shadow_tester.py` | 验证引擎 | 隔离沙箱中静默执行候选版本并比对结果 | ✅ |
 | `semantic_comparator.py` | 语义判官 | 继承 Harness 层 StructuredComparator，按需调用 LLM 语义判定 | ✅ |
-| `execution_provider.py` | 执行适配器 | 桥接 Harness 层的执行能力 | ✅ |
+| `execution_provider.py` | 执行适配器 | 实现 Harness 的 `SkillExecutionProvider`：`execute_skill_version` 供影子测试执行指定版本；执行样本与元数据来源尚未接入，对应方法返回空结果 | ✅ |
 | `llm_optimizer.py` | 进化大脑 | 调用 LLM 根据性能反馈重新生成提示词 | ✅ |
 | `baseline_syncer.py` | 状态同步 | 确保内存与数据库中的 Master 版本一致 | ✅ |
 | `rollback_service.py` | 安全回滚 | Batch 快照创建与回滚编排（`create_batch_snapshot` / `rollback_batch`） | ✅ |

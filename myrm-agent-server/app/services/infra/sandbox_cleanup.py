@@ -2,7 +2,7 @@
 
 Cleans up workspace resources when a user deletes a chat:
 1. Local workspace directory (via WorkspaceService)
-2. Container session directory (via ContainerManager)
+2. Oversized temporary objects in the ArtifactVault
 """
 
 import logging
@@ -28,19 +28,10 @@ class WorkspaceCleanupService:
         Returns:
             Cleanup result dict with per-resource status.
         """
-        results: dict[str, bool] = {
-            "storage_workspace": False,
-            "container_session": False,
-            "artifact_vault": False,
+        return {
+            "storage_workspace": await WorkspaceCleanupService._cleanup_storage_workspace(chat_id),
+            "artifact_vault": await WorkspaceCleanupService._cleanup_artifact_vault(chat_id),
         }
-
-        results["storage_workspace"] = await WorkspaceCleanupService._cleanup_storage_workspace(chat_id)
-
-        results["container_session"] = await WorkspaceCleanupService._cleanup_container_session(chat_id)
-
-        results["artifact_vault"] = await WorkspaceCleanupService._cleanup_artifact_vault(chat_id)
-
-        return results
 
     @staticmethod
     async def _cleanup_artifact_vault(chat_id: str) -> bool:
@@ -91,35 +82,6 @@ class WorkspaceCleanupService:
 
         except Exception as e:
             logger.error("Failed to cleanup storage workspace (chat=%s): %s", chat_id, e)
-            return False
-
-    @staticmethod
-    async def _cleanup_container_session(chat_id: str) -> bool:
-        """Clean up container session directory."""
-        try:
-            from myrm_agent_harness.toolkits.code_execution.container.manager import (
-                get_container_id_for_session,
-                get_container_manager,
-            )
-
-            manager = get_container_manager()
-
-            session_id = f"chat_{chat_id}"
-            container_id = await get_container_id_for_session(manager, session_id)
-            if not container_id:
-                logger.debug("No container session to cleanup (session=%s)", session_id)
-                return True
-
-            await manager.release_container(container_id, session_id)
-            logger.info(
-                "Cleaned container session (session=%s, container=%s)",
-                session_id,
-                container_id[:12],
-            )
-            return True
-
-        except Exception as e:
-            logger.error("Failed to cleanup container session (chat=%s): %s", chat_id, e)
             return False
 
 

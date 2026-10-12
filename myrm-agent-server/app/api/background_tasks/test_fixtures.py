@@ -179,16 +179,6 @@ def _resolve_evicted_workspace_root(workspace: Path) -> Path:
         candidate = Path(workspace_env).expanduser()
         if candidate.is_dir():
             return candidate
-    try:
-        from myrm_agent_harness.toolkits.code_execution.workspace.registry import (
-            get_active_workspace_path,
-        )
-
-        active = get_active_workspace_path()
-        if active:
-            return Path(active)
-    except Exception:
-        pass
     if is_local_mode():
         default = Path.home() / ".myrm" / "workspace"
         if default.is_dir():

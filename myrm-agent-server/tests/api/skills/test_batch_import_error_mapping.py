@@ -1,6 +1,5 @@
-import sys
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -94,32 +93,11 @@ def _make_imported_skill_with_evals(
     )
 
 
-def _install_fake_app_optimization_modules(monkeypatch, *, passed: bool, issues: list[str] | None = None) -> None:
-    issues_list = issues or []
-
-    config_module = ModuleType("app.api.skills.optimization.config")
-    security_module = ModuleType("app.api.skills.optimization.security")
-
-    class SecurityConfig:  # noqa: D401
-        """Test double for SecurityConfig."""
-
-    class SkillSecurityValidator:
-        def __init__(self, config: SecurityConfig) -> None:
-            self._config = config
-
-        def validate_skill(self, _content: str) -> SimpleNamespace:
-            return SimpleNamespace(passed=passed, issues=issues_list)
-
-    config_module.SecurityConfig = SecurityConfig
-    security_module.SkillSecurityValidator = SkillSecurityValidator
-
-    monkeypatch.setitem(
-        sys.modules,
-        "app.api.skills.optimization",
-        ModuleType("app.api.skills.optimization"),
+def _pass_security_scan(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent.skills.optimization.security.SkillSecurityValidator.validate_skill",
+        lambda *args, **kwargs: SimpleNamespace(passed=True, issues=[]),
     )
-    monkeypatch.setitem(sys.modules, "app.api.skills.optimization.config", config_module)
-    monkeypatch.setitem(sys.modules, "app.api.skills.optimization.security", security_module)
 
 
 def test_resolve_batch_import_error_message_for_archive_security_error() -> None:
@@ -289,12 +267,12 @@ def test_preview_batch_import_returns_empty_response_when_no_skills(
     }
 
 
-def test_preview_batch_import_uses_server_optimization_modules_when_available(monkeypatch, tmp_path: Path) -> None:
+def test_preview_batch_import_reports_no_security_issues_for_a_passing_skill(monkeypatch, tmp_path: Path) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
 
-    _install_fake_app_optimization_modules(monkeypatch, passed=True, issues=[])
+    _pass_security_scan(monkeypatch)
     fake_store = _FakeSkillStore(tmp_path)
     monkeypatch.setattr("app.api.skills.batch_import.batch_import._get_skill_store", lambda: fake_store)
     monkeypatch.setattr(
@@ -557,12 +535,12 @@ def test_confirm_batch_import_accumulates_restored_eval_cases_and_keeps_first_va
     assert saved_by_name["eval-b"].eval_cases == [{"message": "case-b1"}]
 
 
-def test_confirm_batch_import_replace_and_rename_use_server_validator(monkeypatch, tmp_path: Path) -> None:
+def test_confirm_batch_import_replace_and_rename_import_both_skills(monkeypatch, tmp_path: Path) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/v1/skills")
     client = TestClient(app)
 
-    _install_fake_app_optimization_modules(monkeypatch, passed=True, issues=[])
+    _pass_security_scan(monkeypatch)
     fake_store = _FakeSkillStore(tmp_path)
     monkeypatch.setattr("app.api.skills.batch_import.batch_import._get_skill_store", lambda: fake_store)
 
