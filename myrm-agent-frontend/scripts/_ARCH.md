@@ -42,9 +42,9 @@
 | `build-sw-src.mjs` | esbuild 打包 `src/app/sw.ts` → `.serwist/sw-inject-src.js`（inject-manifest 入口，解析 lib import） |
 | `scan-home-i18n-shell.mjs` | home-route `settings.*` 引用须在 SSR shell（CI via verify-i18n） |
 | `verify-shell-i18n-runtime.mjs` | 运行时 SSR HTML / deferred API 校验（dev；shell 清单从 locale-manifest 解析） |
-| `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev.ts` / `build` / `build:tauri` / `prestart` / `pretest` 前置） |
+| `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev.ts` / `build` / `build:tauri` / `prestart` / `pretest` 前置）；原子写（同目录 rename，内容未变则跳过）+ 事后清理陈旧文件，不清空目录，并发读者（dev server / vitest）不会读到缺失或半写文件 |
 | `sync_i18n.py` | 从 en（SSOT）补全其余 5 种语言缺失键（本地维护） |
-| `dev.ts` | locale split + Next dev 入口（`dev` / `dev:lan` / `dev:clean`；pause gate；`node --require next-dev-gate.cjs`；lock 健康跳过；Next 启动前先 `strip_isolated_tsconfig.py` 清除上一条 lane 写入共享 `next-env.d.ts` 的 dist import，实现 lane 级单写者） |
+| `dev.ts` | locale split（启动时 + `fs.watch` 监听 `locales/*.json` 防抖重生成，避免长驻 dev server 的 namespaces 陈旧导致 ENOENT/hydration 超时）+ Next dev 入口（`dev` / `dev:lan` / `dev:clean`；pause gate；`node --require next-dev-gate.cjs`；lock 健康跳过；Next 启动前先 `strip_isolated_tsconfig.py` 清除上一条 lane 写入共享 `next-env.d.ts` 的 dist import，实现 lane 级单写者） |
 | `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定 |
 | `frontend-dev-pause-gate.ts` | TS pause gate SSOT（probe / enforce / reclaim）；`dev.ts` + `next.config.ts` |
 | `next-dev-gate.cjs` | Node/Bun preload gate；SSOT 仍 `frontend_dev_pause.py`；**并在 Next 载入前把 `next-env.d.ts` 固定到本 lane 的 `MYRM_NEXT_DIST_DIR`** —— Next 无条件重写该文件且不读 tsconfig（无 `extends` 逃生门），若不预置，lane B 会读到 lane A 残留的 `.next-isolated-<A>/dev/types` 死路径直至自身改写。幂等、保留未知标记行，`:3000` 主 lane 字节级不变 |

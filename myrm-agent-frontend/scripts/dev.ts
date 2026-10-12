@@ -42,6 +42,24 @@ function ensureLocaleNamespaces(): void {
   }
 }
 
+/** Keep generated namespaces in sync while locale JSON is edited during a long-lived dev session. */
+function watchLocaleSources(): void {
+  const localesDir = path.join(__dirname, '..', 'locales');
+  let timer: NodeJS.Timeout | undefined;
+  const resplit = (): void => {
+    spawn(process.execPath, [SPLIT_LOCALE_SCRIPT], { cwd: path.join(__dirname, '..'), stdio: 'ignore' });
+  };
+  // persistent:false — the watcher must never keep an attach-and-exit dev.ts alive.
+  fs.watch(localesDir, { persistent: false }, (_event, filename) => {
+    if (!filename || !filename.endsWith('.json')) {
+      return;
+    }
+    clearTimeout(timer);
+    timer = setTimeout(resplit, 500);
+    timer.unref();
+  });
+}
+
 function ensureDevEnvLocal(): void {
   const apiPort = process.env.API_PORT?.trim() || '8080';
   const apiLine = `API_PORT=${apiPort}`;
@@ -71,6 +89,7 @@ const nextDistDir = process.env.MYRM_NEXT_DIST_DIR?.trim() || '.next';
 const STALE_ISOLATED_NEXT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 ensureLocaleNamespaces();
+watchLocaleSources();
 ensureDevEnvLocal();
 
 function pruneStaleIsolatedNextDirs(): void {
