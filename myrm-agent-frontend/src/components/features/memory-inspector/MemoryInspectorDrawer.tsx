@@ -94,11 +94,11 @@ export const MemoryInspectorDrawer: React.FC<MemoryInspectorDrawerProps> = ({
   const beliefCount = memories.filter((m) => m.epistemic_tier === 'belief').length;
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-modal="true"
       aria-label="记忆透视与认识论治理抽屉"
-      className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end animate-in fade-in duration-200 border-none m-0 p-0 w-full h-full max-w-none max-h-none"
     >
       <aside
         aria-label="记忆透视与治理侧边抽屉"
@@ -277,6 +277,6 @@ export const MemoryInspectorDrawer: React.FC<MemoryInspectorDrawerProps> = ({
           )}
         </div>
       </aside>
-    </div>
+    </dialog>
   );
 };
