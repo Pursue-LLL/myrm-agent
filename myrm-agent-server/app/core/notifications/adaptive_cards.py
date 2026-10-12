@@ -5,17 +5,21 @@ Markdown content, indicator headers, and interactive ActionButtons/QuickReplies.
 
 [INPUT]
 - app.services.event.app_event_bus::AppEvent, AppEventType
+- app.core.notifications.approval_card::build_approval_card (POS: approval text and decision buttons per channel)
 - app.channels.types.components::ActionButton, ButtonStyle, QuickReply, ComponentRow
 - app.channels.types.messages::OutboundMessage
 
 [OUTPUT]
 - FormattedNotification: dataclass with content, components, quick_replies, metadata
-- format_notification(event: AppEvent) -> FormattedNotification | None
+- LOCALIZED_EVENT_TYPES: events whose card text is written in the owner's language
+- format_notification(event, *, channel, locale) -> FormattedNotification | None
 - format_legacy_text(event: AppEvent) -> str | None
 
 [POS]
 Event-to-card transformation layer. Converts backend AppEvents into structured
 interactive notification cards with buttons and deep links for IM and push channels.
+Cards are formatted per target channel: a button is only offered where its click can
+reach the approval handler, and approval cards are written in the owner's language.
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ from app.channels.types.components import (
     ComponentRow,
     QuickReply,
 )
+from app.core.notifications.approval_card import build_approval_card
 from app.services.event.app_event_bus import AppEvent, AppEventType
 
 logger = logging.getLogger(__name__)
@@ -44,6 +49,10 @@ class FormattedNotification:
     quick_replies: tuple[QuickReply, ...] = ()
     metadata: dict[str, object] = field(default_factory=dict)
 
+
+# The dispatcher resolves the owner's language only for these events: every other card is English text and
+# the lookup would add a database read to each of the (many) events that never need it.
+LOCALIZED_EVENT_TYPES: frozenset[AppEventType] = frozenset({AppEventType.APPROVAL_REQUIRED})
 
 _EVENT_TEMPLATES: dict[AppEventType, str] = {
     AppEventType.PAIRING_PENDING: (
@@ -132,36 +141,12 @@ def _format_kanban_text(data: dict[str, Any]) -> str | None:
     return None
 
 
-def _format_approval_required(data: dict[str, Any]) -> FormattedNotification | None:
-    approval_id = str(data.get("approval_id", ""))
-    action_type = str(data.get("action_type", "action"))
-    severity = str(data.get("severity", "medium"))
-    description = str(data.get("description", ""))
-
-    title = f"⚠️ **Approval Required: {action_type}**"
-    severity_note = f"Severity: `{severity}`"
-    content = f"{title}\n{severity_note}"
-    if description:
-        content += f"\n\n> {description}"
-
-    components: tuple[ComponentRow, ...] = ()
-    if approval_id:
-        approve_btn = ActionButton(
-            label="Approve",
-            action_id=f"approval:approve:{approval_id}",
-            style=ButtonStyle.PRIMARY,
-        )
-        reject_btn = ActionButton(
-            label="Reject",
-            action_id=f"approval:reject:{approval_id}",
-            style=ButtonStyle.DANGER,
-        )
-        components = ((approve_btn, reject_btn),)
-
+def _format_approval_required(data: dict[str, Any], channel: str | None, locale: str | None) -> FormattedNotification:
+    content, components = build_approval_card(data, channel, locale)
     return FormattedNotification(
         content=content,
         components=components,
-        metadata={"approval_id": approval_id, "severity": severity},
+        metadata={"approval_id": str(data.get("approval_id", "")), "severity": str(data.get("severity", "medium"))},
     )
 
 
@@ -274,13 +259,19 @@ def _format_background_task_done(data: dict[str, Any]) -> FormattedNotification 
     )
 
 
-def format_notification(event: AppEvent) -> FormattedNotification | None:
-    """Transform an AppEvent into a rich FormattedNotification.
+def format_notification(
+    event: AppEvent,
+    *,
+    channel: str | None = None,
+    locale: str | None = None,
+) -> FormattedNotification | None:
+    """Transform an AppEvent into a rich FormattedNotification for one target ``channel``.
 
+    ``locale`` is the owner's language; only the events in ``LOCALIZED_EVENT_TYPES`` use it.
     Returns None for events that should not trigger IM push notifications.
     """
     if event.event_type == AppEventType.APPROVAL_REQUIRED:
-        return _format_approval_required(event.data)
+        return _format_approval_required(event.data, channel, locale)
     elif event.event_type == AppEventType.PAIRING_PENDING:
         return _format_pairing_pending(event.data)
     elif event.event_type == AppEventType.GOAL_TERMINAL:

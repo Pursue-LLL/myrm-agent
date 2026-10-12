@@ -9,7 +9,9 @@ ChannelGateway.
 - app.services.event.app_event_bus::ServerEventBus, AppEvent, AppEventType
 - core.channel_bridge::channel_gateway (ChannelGateway singleton)
 - database.connection::get_session / database.models::UserConfigModel
-- app.core.notifications.adaptive_cards::format_notification, format_legacy_text, FormattedNotification
+- app.core.notifications.adaptive_cards::format_notification, format_legacy_text, FormattedNotification,
+  LOCALIZED_EVENT_TYPES
+- core.channel_bridge.locale_provider::resolve_user_locale (POS: the owner's language preference)
 
 [OUTPUT]
 - NotificationDispatcher: start()/stop() lifecycle, integrates with setup.py
@@ -17,6 +19,7 @@ ChannelGateway.
 [POS]
 Decoupled notification layer. Does NOT modify pairing_store, SSE endpoint,
 or ServerEventBus — only adds a new subscriber alongside the existing SSE consumer.
+Each target gets a card formatted for its own channel (a button is only offered where a click works).
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ from dataclasses import dataclass
 from app.channels.types import OutboundMessage
 from app.channels.types.components import ComponentRow, QuickReply
 from app.core.notifications.adaptive_cards import (
+    LOCALIZED_EVENT_TYPES,
     FormattedNotification,
     format_legacy_text,
     format_notification,
@@ -93,10 +97,11 @@ class NotificationDispatcher:
                     continue
                 if event.data.get("suppress_im_notification") is True:
                     continue
-                formatted = format_notification(event)
-                if not formatted:
-                    continue
+                locale = await _owner_locale(event)
                 for target in targets:
+                    formatted = format_notification(event, channel=target.channel, locale=locale)
+                    if not formatted:
+                        continue
                     await _publish(
                         target,
                         formatted.content,
@@ -146,6 +151,16 @@ async def _load_notification_targets() -> list[NotificationTarget]:
     except Exception as exc:
         logger.warning("Failed to load notification targets: %s", exc)
         return []
+
+
+async def _owner_locale(event: AppEvent) -> str | None:
+    """The owner's language for events whose card is localized; ``None`` skips the lookup for all others."""
+    if event.event_type not in LOCALIZED_EVENT_TYPES:
+        return None
+    # Imported here because channel_bridge imports this module while it is being set up.
+    from app.core.channel_bridge.locale_provider import resolve_user_locale
+
+    return await resolve_user_locale()
 
 
 def _format_message(event: AppEvent) -> str | None:

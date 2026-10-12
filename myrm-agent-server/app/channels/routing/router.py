@@ -14,6 +14,7 @@ and voice STT/TTS via voice_handler module.
 - channels.routing.command_registry::CommandRegistry, ResolvedCommand (POS: central O(1) command lookup)
 - channels.routing.commands::parse_approval_command, handle_* (POS: slash command argument parsing and handling)
 - channels.routing.policy_resolver::PolicyResolver (POS: DM/group policy resolution + identity resolution)
+- channels.routing.policy_resolver_support::is_admin_sender (POS: the owner check behind admin-only commands)
 - channels.routing.session_gate::SessionGate (POS: message debounce and concurrency control)
 - channels.routing.context_buffer::GroupContextBuffer (POS: group chat context accumulation buffer)
 - channels.routing.message_effects::MessageEffects (POS: typing/reaction/placeholder side effects)
@@ -74,8 +75,6 @@ import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from app.channels.routing.router_host import (
         PersonalityProvider,
     )
@@ -172,6 +171,7 @@ from app.channels.routing.graceful_degradation import (
 )
 from app.channels.routing.message_effects import MessageEffects
 from app.channels.routing.policy_resolver import PolicyResolver
+from app.channels.routing.policy_resolver_support import is_admin_sender
 from app.channels.routing.retry_policy import (
     RetryConfig as RouterRetryConfig,
 )
@@ -268,7 +268,6 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         learn_handler: LearnCommandHandler | None = None,
         status_provider: StatusProvider | None = None,
         extra_commands: tuple[CommandDef, ...] = (),
-        admin_checker: Callable[[InboundMessage], bool] | None = None,
         locale_provider: LocaleProvider | None = None,
         approval_co_approvers: frozenset[str] | None = None,
     ) -> None:
@@ -321,7 +320,6 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         self._personality_provider = personality_provider
         self._running = False
         self._stream_metrics = StreamMetrics()
-        self._admin_checker = admin_checker
         self._locale_provider = locale_provider
         self._delegation_coordinator = DelegationCoordinator()
         self._delegation_guard = DelegationIngressGuard()
@@ -840,16 +838,17 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         meta["locale"] = locale
         return dataclasses.replace(msg, metadata=meta)
 
-    def _check_admin_permission(self, msg: InboundMessage) -> bool:
-        """Check if the sender has admin permission for restricted commands.
+    async def _check_admin_permission(self, msg: InboundMessage) -> bool:
+        """Whether the sender is the sandbox owner, which ``requires_admin`` commands and held-reply decisions need.
 
-        Uses the admin_checker callback if provided; defaults to allowing all.
-        In DMs the sender is always the owner. In groups, the server layer
-        determines admin status via the callback.
+        A DM sender is not automatically the owner: an open DM policy admits any account. Fails closed, because
+        this runs on the consume loop, where a store error must neither raise nor grant access.
         """
-        if self._admin_checker is None:
-            return True
-        return self._admin_checker(msg)
+        try:
+            return await is_admin_sender(self._resolver.pairing, msg)
+        except Exception:
+            logger.warning("Admin check failed for %s/%s, denying", msg.channel, msg.sender_id, exc_info=True)
+            return False
 
     async def _dispatch_resolved(
         self,
@@ -860,7 +859,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         cmd = resolved.command_def
         action = cmd.action
 
-        if cmd.requires_admin and not self._check_admin_permission(msg):
+        if cmd.requires_admin and not await self._check_admin_permission(msg):
             chat_id = msg.chat_id or msg.sender_id
             reply = OutboundMessage(
                 channel=msg.channel,

@@ -21,7 +21,7 @@ def test_approval_required_adaptive_card() -> None:
             "description": "Drop table users in prod",
         },
     )
-    res = format_notification(event)
+    res = format_notification(event, channel="telegram")
     assert res is not None
     assert isinstance(res, FormattedNotification)
     assert "Approval Required: delete_database" in res.content
@@ -39,8 +39,8 @@ def test_approval_required_adaptive_card() -> None:
     assert approve_btn.style == ButtonStyle.PRIMARY
 
     assert isinstance(reject_btn, ActionButton)
-    assert reject_btn.label == "Reject"
-    assert reject_btn.action_id == "approval:reject:appr_123"
+    assert reject_btn.label == "Deny"
+    assert reject_btn.action_id == "approval:deny:appr_123"
     assert reject_btn.style == ButtonStyle.DANGER
 
 

@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from app.channels.protocols.status import StatusProvider
     from app.channels.protocols.topic import TopicManager
     from app.channels.protocols.turn_management import RetryHandler, UndoHandler
+    from app.channels.routing.commands import ApprovalDecision
     from app.channels.routing.graceful_degradation import (
         GracefulDegradationController,
     )
@@ -73,9 +74,11 @@ if TYPE_CHECKING:
 class RouterStreamHost(Protocol):
     """Structural contract for `RouterStreamMixin` (execute_stream consumption, throttled edits)."""
 
+    _EMOJI_APPROVAL_HINT: str
     _executor: AgentExecutor
     _bus: MessageBus
     _fx: MessageEffects
+    _active_tasks: dict[str, _ActiveTask]
     _approval_msg_ids: dict[str, str]
     _stream_coordinator: StreamCoordinator
     _progress_estimator: ProgressEstimator
@@ -83,6 +86,19 @@ class RouterStreamHost(Protocol):
     _degradation_controller: GracefulDegradationController
     _session_rate_limiter: SessionRateLimiter
     _retry_policy: RetryPolicy
+
+    async def _mark_deferred_placeholder_activity(self, state_key: str) -> None: ...
+
+    def _resolve_live_placeholder_id(self, state_key: str) -> str | None: ...
+
+    async def _resolve_mobile_status_deep_link(self, chat_id: str) -> str | None: ...
+
+    async def _reassurance_loop(
+        self,
+        msg: InboundMessage,
+        chat_id: str,
+        state: dict[str, float | int | str],
+    ) -> None: ...
 
     async def _send_interactive_progress(
         self,
@@ -143,6 +159,37 @@ class RouterCommandsHost(Protocol):
     _learn_handler: LearnCommandHandler | None
     _status_provider: StatusProvider | None
 
+    async def _abort_session_task(
+        self,
+        state_key: str,
+        reason: str,
+        placeholder_text: str | None = None,
+    ) -> bool: ...
+
+    async def _check_admin_permission(self, msg: InboundMessage) -> bool: ...
+
+    async def _resolve_outbound_draft(self, record: object, decision: str) -> None: ...
+
+    @staticmethod
+    def _build_decision_entry(
+        decision: ApprovalDecision,
+        channel: str,
+        *,
+        batch: bool = False,
+        reason: str | None = None,
+    ) -> dict[str, object]: ...
+
+    @staticmethod
+    def _status_for_single_decision(
+        msg: InboundMessage,
+        decision: ApprovalDecision,
+        *,
+        reason: str = "",
+    ) -> str: ...
+
+    @staticmethod
+    def _status_for_batch_decision(msg: InboundMessage, decisions: list[ApprovalDecision]) -> str: ...
+
 
 class RouterExecutionHost(Protocol):
     """Structural contract for `RouterExecutionMixin` (prepare, effects, stream, deliver, cleanup)."""
@@ -168,6 +215,7 @@ class RouterExecutionHost(Protocol):
         cancel_token: CancellationToken | None = None,
         steering_token: SteeringToken | None = None,
         topic_context: TopicContext | None = None,
+        hold_reply: bool = False,
     ) -> tuple[OutboundMessage | None, float]: ...
 
     def _resolve_live_placeholder_id(self, state_key: str) -> str | None: ...

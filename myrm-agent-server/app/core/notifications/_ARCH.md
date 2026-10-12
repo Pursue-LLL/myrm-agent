@@ -19,7 +19,8 @@ and pushes human-readable notifications to user-configured IM channels
     ServerEventBus (fan-out)
      ↓               ↓                       ↓
   SSE (Web)    NotificationDispatcher (IM)    WebPushDispatcher (Web Push)
-                      ↓ _format_message()          ↓ pywebpush + VAPID
+                      ↓ format_notification()      ↓ pywebpush + VAPID
+                        (per target channel)
                ChannelGateway.publish()       Push Service (FCM/APNS/Mozilla)
                       ↓                            ↓
                WhatsApp / Telegram / ...     Browser Service Worker → OS notification
@@ -51,8 +52,18 @@ are silently skipped — they are high-frequency or internal and not suitable fo
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | `__init__.py` | Facade | Module public facade — exports NotificationDispatcher, FormattedNotification, format_notification | ✅ |
-| `dispatcher.py` | Core | `NotificationDispatcher` — subscribes to ServerEventBus, formats messages, sends to all configured targets via Gateway | ✅ |
-| `adaptive_cards.py` | Core | `AdaptiveCardFormatter` — transforms AppEvents into rich OutboundMessage payloads with ActionButtons and indicator headers | ✅ |
+| `dispatcher.py` | Core | `NotificationDispatcher` — subscribes to ServerEventBus, formats one card per configured target (channel-aware; the owner's language is resolved once per event, only for `LOCALIZED_EVENT_TYPES`) and sends it via Gateway | ✅ |
+| `adaptive_cards.py` | Core | `format_notification(event, *, channel, locale)` — transforms AppEvents into rich OutboundMessage payloads with ActionButtons and indicator headers; `_EVENT_TEMPLATES` holds the plain-text templates; `LOCALIZED_EVENT_TYPES` lists the events whose card is localized | ✅ |
+| `approval_card.py` | Core | `build_approval_card` — `APPROVAL_REQUIRED` card text and buttons per target channel; shows a held reply (`outbound_draft`) with the incoming message, the draft and the expiry outcome; Approve/Deny buttons only for `APPROVAL_CLICK_CHANNELS` | ✅ |
+
+## Approval Cards
+
+`APPROVAL_REQUIRED` is the one event with a localized, channel-aware card:
+
+- **Language** — copy comes from the channel catalog (`app/channels/i18n`, keys `approval_*`) in the owner's language.
+- **Buttons** — Approve/Deny are attached only for `APPROVAL_CLICK_CHANNELS` (Telegram, the only provider whose click reaches the router's approval handler). Every other channel gets a localized "open the app" hint instead of buttons that would do nothing.
+- **Held reply content** — an `outbound_draft` card quotes the incoming message and the drafted reply (truncated) and lists attachment file names, so the owner can decide in chat. URLs are never shown because they may embed an access token.
+- **Who may press** — decided by the router, not here: held replies accept only the owner (`routing/_ARCH.md`, *Owner Check*).
 
 ## Configuration
 
@@ -76,5 +87,5 @@ Notification targets are stored in `personalSettings.notificationDeliveries` (ar
 
 New event types only need:
 1. Add to `AppEventType` enum in `event_bus.py`
-2. Add template to `_EVENT_TEMPLATES` in `dispatcher.py`
+2. Add template to `_EVENT_TEMPLATES` in `adaptive_cards.py`
 3. (Optional) Add to `_PUSH_TEMPLATES` in `core/web_push/dispatcher.py` and map click URL in `core/web_push/push_deep_links.py`

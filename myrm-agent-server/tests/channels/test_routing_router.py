@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.channels.protocols.pairing import PairingRole, PairingStatus
 from app.channels.routing.router import AgentRouter
 from app.channels.types import InboundMessage
 
@@ -659,8 +661,6 @@ class TestHandleMerged:
         router = _make_router(bus=bus)
         router._prepare_execution_context = AsyncMock(return_value=None)
 
-        import dataclasses
-
         msg = _msg(channel="test_channel")
         msg = dataclasses.replace(msg, channel_capabilities=ChannelCapabilities(media=True))
 
@@ -674,24 +674,57 @@ class TestHandleMerged:
 # ── Admin permission ──────────────────────────────────────────────────
 
 
+def _pairing_of(detail: tuple[PairingStatus, PairingRole, int | None] | None) -> MagicMock:
+    pairing = MagicMock()
+    pairing.get_pairing_detail = AsyncMock(return_value=detail)
+    return pairing
+
+
 class TestAdminPermission:
-    def test_no_checker_allows_all(self) -> None:
-        router = _make_router()
-        msg = _msg()
-        assert router._check_admin_permission(msg) is True
+    """``requires_admin`` commands belong to the sandbox owner: an ACTIVE ADMIN pairing or a control-plane message."""
 
-    def test_checker_returns_true(self) -> None:
-        checker = MagicMock(return_value=True)
-        router = _make_router(admin_checker=checker)
-        msg = _msg()
-        assert router._check_admin_permission(msg) is True
-        checker.assert_called_once_with(msg)
+    @pytest.mark.asyncio
+    async def test_active_admin_pairing_is_the_owner(self) -> None:
+        router = _make_router(pairing=_pairing_of((PairingStatus.ACTIVE, PairingRole.ADMIN, None)))
 
-    def test_checker_returns_false(self) -> None:
-        checker = MagicMock(return_value=False)
-        router = _make_router(admin_checker=checker)
-        msg = _msg()
-        assert router._check_admin_permission(msg) is False
+        assert await router._check_admin_permission(_msg()) is True
+
+    @pytest.mark.asyncio
+    async def test_control_plane_message_is_the_owner_without_a_pairing_lookup(self) -> None:
+        pairing = _pairing_of(None)
+        router = _make_router(pairing=pairing)
+        msg = dataclasses.replace(_msg(), metadata={"trusted_inbound": "control_plane"})
+
+        assert await router._check_admin_permission(msg) is True
+        pairing.get_pairing_detail.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "detail",
+        [
+            (PairingStatus.ACTIVE, PairingRole.MEMBER, None),
+            (PairingStatus.PENDING, PairingRole.ADMIN, None),
+            (PairingStatus.BLOCKED, PairingRole.ADMIN, None),
+            None,
+        ],
+        ids=["active-member", "pending-admin", "blocked-admin", "unpaired"],
+    )
+    @pytest.mark.parametrize("is_group", [False, True], ids=["dm", "group"])
+    async def test_anyone_else_is_not_the_owner(
+        self, detail: tuple[PairingStatus, PairingRole, int | None] | None, is_group: bool
+    ) -> None:
+        router = _make_router(pairing=_pairing_of(detail))
+        msg = dataclasses.replace(_msg(), is_group=is_group)
+
+        assert await router._check_admin_permission(msg) is False
+
+    @pytest.mark.asyncio
+    async def test_a_pairing_store_error_denies_instead_of_raising(self) -> None:
+        pairing = MagicMock()
+        pairing.get_pairing_detail = AsyncMock(side_effect=RuntimeError("db down"))
+        router = _make_router(pairing=pairing)
+
+        assert await router._check_admin_permission(_msg()) is False
 
     @pytest.mark.asyncio
     async def test_admin_denied_sends_permission_message(self) -> None:
@@ -699,8 +732,7 @@ class TestAdminPermission:
         from app.channels.routing.command_registry import ResolvedCommand
 
         bus = _make_bus()
-        checker = MagicMock(return_value=False)
-        router = _make_router(bus=bus, admin_checker=checker)
+        router = _make_router(bus=bus, pairing=_pairing_of((PairingStatus.ACTIVE, PairingRole.MEMBER, None)))
 
         cmd = CommandDef(
             name="yolo",
@@ -725,8 +757,7 @@ class TestAdminPermission:
         from app.channels.routing.command_registry import ResolvedCommand
 
         bus = _make_bus()
-        checker = MagicMock(return_value=True)
-        router = _make_router(bus=bus, admin_checker=checker)
+        router = _make_router(bus=bus, pairing=_pairing_of((PairingStatus.ACTIVE, PairingRole.ADMIN, None)))
 
         cmd = CommandDef(
             name="yolo",

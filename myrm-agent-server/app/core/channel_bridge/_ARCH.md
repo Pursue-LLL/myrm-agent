@@ -141,7 +141,7 @@ def resolve_session_key(..., thread_sharing_mode: str = "isolated"):
 `reply_mode` 是 `TopicContext` 的配置项，控制 Agent 对 Channel 消息的回复是否需要人工审核：
 
 - **`auto`（默认）**：Agent 生成的回复直接发送，无需审核。
-- **`draft_review`**：Agent 回复被整条（含附件、按钮）拦截为 `ApprovalRecord`（`action_type="outbound_draft"`），用户在 WebUI Approval Drawer 或 Channel ActionButton 审核后方可发送；审批无法创建时回复不发送（fail-closed）。
+- **`draft_review`**：Agent 回复被整条（含附件、按钮）拦截为 `ApprovalRecord`（`action_type="outbound_draft"`），owner 在 WebUI Approval Drawer 或 IM 通知卡片审核后方可发送；审批无法创建时回复不发送（fail-closed）。生成期间回复正文不会流式编辑进对话（`TopicContext.holds_reply_for_review` → `hold_reply`，审批恢复后的续跑同样适用），对话方在审核通过前只会看到进度提示。IM 内审核仅 owner 可操作：通知卡片（`core/notifications/approval_card.py`）展示来信与草稿正文，Telegram 提供批准/拒绝按钮，其他渠道提示打开应用审核。
 
 ### 超时策略
 
@@ -160,8 +160,8 @@ Agent 生成回复 → _deliver_agent_result
               _create_outbound_draft
                     ↓
               ApprovalRecord(action_type="outbound_draft")
-                    ↓ SSE + Channel ActionButton
-              用户审核 (WebUI Drawer / IM Button)
+                    ↓ SSE + owner IM 通知卡片
+              owner 审核 (WebUI Drawer / Telegram 按钮)
                     ↓
               approve → publish_outbound → 发送（附件随行）
               deny    → 丢弃并释放临时附件

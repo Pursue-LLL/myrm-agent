@@ -97,7 +97,7 @@ if TYPE_CHECKING:
     from app.channels.routing.router_models import (
         ReactionPolicy,
     )
-    from app.channels.types import InboundMessage, VoiceConfig
+    from app.channels.types import VoiceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +217,6 @@ class ChannelGateway:
         learn_handler: LearnCommandHandler | None = None,
         status_provider: StatusProvider | None = None,
         locale_provider: LocaleProvider | None = None,
-        admin_checker: Callable[[InboundMessage], bool] | None = None,
     ) -> None:
         """Enable bidirectional communication with AgentRouter.
 
@@ -257,7 +256,6 @@ class ChannelGateway:
             learn_handler=learn_handler,
             status_provider=status_provider,
             locale_provider=locale_provider,
-            admin_checker=admin_checker,
         )
         logger.debug("ChannelGateway: bidirectional mode enabled")
 

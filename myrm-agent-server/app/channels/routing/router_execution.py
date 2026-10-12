@@ -35,7 +35,6 @@ from app.channels.types import (
     InboundMessage,
     OutboundMessage,
     ReactionLevel,
-    ReplyMode,
     TopicContext,
 )
 from app.channels.types.notification import with_final_notify
@@ -263,7 +262,7 @@ class RouterExecutionMixin:
             result = await maybe_tts(result, inbound_had_voice, self._voice)
             result = with_final_notify(result)
 
-            if topic_ctx and topic_ctx.reply_mode == ReplyMode.DRAFT_REVIEW:
+            if topic_ctx is not None and topic_ctx.holds_reply_for_review:
                 try:
                     await self._create_outbound_draft(result, msg, chat_id, topic_ctx)
                 except Exception:
@@ -429,6 +428,8 @@ class RouterExecutionMixin:
                 cancel_token=cancel_token,
                 steering_token=steering_token,
                 topic_context=ctx.topic_ctx if not is_resume else None,
+                # Independent of ``is_resume``: a resumed turn streams the same held reply.
+                hold_reply=ctx.topic_ctx is not None and ctx.topic_ctx.holds_reply_for_review,
             )
             deferred = scratch.deferred_placeholder if isinstance(scratch.deferred_placeholder, DeferredPlaceholder) else None
             delivered = await self._deliver_agent_result(

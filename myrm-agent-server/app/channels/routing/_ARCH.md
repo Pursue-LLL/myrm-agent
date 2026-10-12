@@ -50,14 +50,19 @@ exact payload `myrm-agent-harness.apply_approval_decisions` expects:
 
 ## ActionButton Callback Approval
 
-`ApprovalRegistry.create_approval()` pushes `ActionButton`s (✅ Approve / ❌ Deny)
-to IM channels when `chat.source != "web"`. Each channel encodes the
-`action_id` (`approval:{approve|deny}:{record_id}`) into its native callback
-format (Telegram `act:...`, Slack `block_actions`, Discord `custom_id`, etc.).
+Approval requests reach IM chats as `ActionButton`s whose `action_id` is
+`approval:{approve|deny}:{record_id}`. Two senders produce them:
 
-When the user clicks a button, the channel's inbound parser strips the
-transport prefix and delivers `InboundMessage(content="approval:approve:{id}",
-metadata={"callback_prefix": "act", "origin_message_id": ...})`.
+- `ApprovalRegistry.create_approval()` posts an approval block into the chat the
+  request belongs to (`chat.source != "web"`).
+- The notification dispatcher's owner card (`core/notifications/approval_card.py`)
+  attaches buttons only for `APPROVAL_CLICK_CHANNELS` (Telegram). Other channels
+  get a localized "open the app" hint instead of buttons nobody could answer.
+
+Telegram's inbound parser is the only one that turns a click into
+`InboundMessage(content="approval:approve:{id}", metadata={"callback_prefix": "act",
+"origin_message_id": ...})`. No other provider sets `callback_prefix`, so clicks
+on other channels never reach the guard below.
 
 `_consume_loop` in `router.py` intercepts this **before** `parse_approval_command`
 (which only handles text/emoji input) with a dedicated guard:
@@ -70,19 +75,51 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
 `_handle_action_button_approval` in `commands/router_commands_approval.py` then:
 
 1. **Parses** action (`approve`/`deny`) and `approval_id` from content.
-2. **Authorises** — in group chats, only the original requester or a
-   co-approver may resolve (same policy as reaction approval).
+2. **Authorises**:
+   - a held reply (`action_type == "outbound_draft"`) may only be decided by the
+     owner (`_check_admin_permission`, see *Owner Check*); anyone else gets the
+     localized `approval_requires_admin` reply and the record stays pending;
+   - every other approval keeps the group rule: in group chats only the original
+     requester or a co-approver may resolve (same policy as reaction approval),
+     DMs skip it.
 3. **Resolves** via `ApprovalRegistry.resolve_approval()` — only PENDING
    records are updated; already-resolved approvals return `None` and the
    handler exits (prevents status flip on duplicate button clicks).
-4. **Edits** the original IM message to show `✅ Approved by @user` and
-   prevent further confusion from stale buttons.
+4. **Edits** the original IM message to the localized status line
+   (`approval_resolved_approved` / `approval_resolved_denied`, e.g. "Approved by
+   @user") so stale buttons stop inviting clicks.
 5. **Routes by type** — if `record.action_type == "outbound_draft"`, calls
    `_resolve_outbound_draft` to send or discard the held channel message
    (no LangGraph resume needed). Otherwise, **resumes** the interrupted
    LangGraph agent via `SessionGate.submit()` with a `resume_value`
    payload, or publishes `APPROVAL_RESOLVED` event if no active task
    exists in the router (e.g. WebUI concurrent resolve).
+
+## Owner Check
+
+`is_admin_sender(pairing, msg)` (policy_resolver_support.py) is the single rule
+for "is this the sandbox owner": a control-plane-forwarded message
+(`metadata["trusted_inbound"] == "control_plane"`) or a sender whose active
+pairing role is ADMIN. A DM sender is not automatically the owner — an open DM
+policy admits any account.
+
+`AgentRouter._check_admin_permission` wraps it and fails closed (a lookup error
+denies, because the consume loop has no per-message guard). It gates:
+
+- commands declared `requires_admin` (`/yolo`, `/bind`), in DMs and groups alike;
+- decisions on held replies (button path above).
+
+Commands are dispatched before `PolicyResolver`, so the check sees the raw
+`msg.sender_id`.
+
+## Held Replies (`reply_mode=draft_review`)
+
+`TopicContext.holds_reply_for_review` is the single predicate for every stage
+that could expose a reply before a human approved it. While it holds,
+`_consume_executor_stream(hold_reply=True)` never edits streamed text into the
+placeholder (progress updates still show) — resumed turns included, which is why
+the flag is separate from `topic_context` — and `_deliver_agent_result` turns the
+final reply into an `outbound_draft` approval instead of sending it.
 
 ## `/new` Session Boundary Cleanup
 
@@ -172,7 +209,7 @@ Pinned by `tests/channels/routing/test_bot_loop_guard.py`,
 | message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply, busy ack). `edit_placeholder` prepares the reply like any outbound (downgrade + risk gate), edits text only and sends attachments as a files-only follow-up through the bus. send_quota_exceeded_reply 提供配额超限多语言提醒。 | [OK] |
 | placeholder_strategy.py | Core | Adaptive placeholder defer (180ms) and short-circuit for fast replies; eager materialize on stream activity. | [OK] |
 | policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. 支持群聊发言人特权解耦 (Group Ingress Sender-Scoped RBAC & Confused Deputy Mitigation)，仲裁 Admin (沙箱所有者特权) / Member (每日配额与受限栅栏) / Guest (元工具特权剥离)。放行 /status, /quota, /help 只读自查诊断命令。Bot-authored 入口防护：群触发与 DM 路径均经 BotLoopGuard 限流，bot 消息不进入观察上下文缓冲。 | [OK] |
-| policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker + 群聊发言人身份仲裁与诊断命令判定 (resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support)。触发判定第 0 层为 bot 发送者门控：bot 消息仅显式 mention 可触发，防告警/互刷烧 LLM；失控循环由 BotLoopGuard 兜底。 | [OK] |
+| policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker + 群聊发言人身份仲裁与诊断命令判定 (resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support)，以及沙箱所有者的唯一判定规则 `is_admin_sender`（控制面转发或 ADMIN 配对）。触发判定第 0 层为 bot 发送者门控：bot 消息仅显式 mention 可触发，防告警/互刷烧 LLM；失控循环由 BotLoopGuard 兜底。 | [OK] |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
 | router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, checks active task `busy_input_mode` (steer/redirect auto-dispatch), applies inbound risk gate (symmetric with outbound risk gate in bus.py), dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | [OK] |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
@@ -180,7 +217,7 @@ Pinned by `tests/channels/routing/test_bot_loop_guard.py`,
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | [OK] |
 | router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"``; ``routing_enclave_key`` builds 4-tuple enclave ``tenant_id:channel:peer_id:agent_profile_id`` for multi-tenant and multi-agent context isolation. | [OK] |
 | router_models.py | Core | Data models referenced by AgentRouter in router.py and commands/ (_ActiveTask with steering_token, `requester_id` for reaction approval auth, `locale` for stuck watchdog i18n, ReactionPolicy, etc.) | — |
-| router_stream.py | Core | RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance; includes edit-in-place heartbeat loop for long-task silence detection (sends once, then edits the same message with elapsed time). | — |
+| router_stream.py | Core | RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance; includes edit-in-place heartbeat loop for long-task silence detection (sends once, then edits the same message with elapsed time). `hold_reply` keeps streamed reply text out of the chat while a human still has to approve it. | — |
 | router_stream_scrubber.py | Core | Stream content and progress scrubbing utilities: filters `<think>` tags and normalizes raw tool executions into user-friendly Stage descriptions. | [OK] |
 | router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | [OK] |
 | channel_data_plane.py | Core | ChannelDataPlaneService: 渠道入站脱敏持久化、上下文拉取（排除 agent 自产回复与 bot/告警噪音行）、知识提取自适应打标（paired_member 与 guest 统一隔离防长期记忆投毒）与自产回复追溯。 | [OK] |

@@ -28,6 +28,8 @@ from .commands import ApprovalDecision, DenyWithReason
 
 logger = logging.getLogger("app.channels.routing.router")
 
+_OUTBOUND_DRAFT = "outbound_draft"
+
 
 class RouterCommandsApprovalMixin:
     """Mixin: /stop, reaction/button approval, and decision resume payloads."""
@@ -236,8 +238,10 @@ class RouterCommandsApprovalMixin:
 
         Steps:
           1. Parse action ("approve" / "deny") and approval_id from content.
-          2. Authorise the clicker — only the task's original requester (or a
-             co-approver) may resolve; bystanders in group chats get a toast.
+          2. Authorise the clicker. A held channel reply (``outbound_draft``)
+             is decided by the owner alone; for any other approval, group
+             bystanders are ignored unless they are the task's requester or a
+             co-approver.
           3. Resolve via ``ApprovalRegistry`` (only PENDING records; already-
              resolved approvals return ``None`` and the handler exits).
           4. Edit the original IM message to show the outcome and prevent
@@ -258,10 +262,29 @@ class RouterCommandsApprovalMixin:
 
         chat_id = msg.chat_id or msg.sender_id
         session_key = routing_session_key(msg.channel, chat_id)
-
-        # --- Authorisation (group bystander protection) ---
         active = self._active_tasks.get(session_key)
-        if active and msg.is_group:
+
+        from app.services.approvals.registry import ApprovalRegistry
+
+        # --- Authorisation ---
+        pending = await ApprovalRegistry.get_approval(approval_id)
+        if pending is not None and pending.action_type == _OUTBOUND_DRAFT:
+            # No agent task of this chat waits on a held reply, so the requester rule below cannot apply, and
+            # everyone who can see the card (any group member, any DM sender) would otherwise get to decide.
+            if not await self._check_admin_permission(msg):
+                logger.info("Held reply decision refused: sender=%s channel=%s", msg.sender_id, msg.channel)
+                await self._bus.publish_outbound(
+                    OutboundMessage(
+                        channel=msg.channel,
+                        recipient_id=chat_id,
+                        content=get_text(msg, "approval_requires_admin"),
+                        user_id=msg.user_id or "",
+                        thread_id=msg.thread_id,
+                    )
+                )
+                return
+        elif active and msg.is_group:
+            # Group bystander protection.
             actor = msg.sender_id or ""
             requester = active.requester_id or ""
             if actor and requester and actor != requester and actor not in self._approval_co_approvers:
@@ -274,8 +297,6 @@ class RouterCommandsApprovalMixin:
                 return
 
         # --- Resolve in DB ---
-        from app.services.approvals.registry import ApprovalRegistry
-
         record = await ApprovalRegistry.resolve_approval(
             approval_id=approval_id,
             decision=action_raw,
@@ -296,18 +317,17 @@ class RouterCommandsApprovalMixin:
         # --- Edit original IM message to show result ---
         origin_message_id = msg.metadata.get("origin_message_id")
         if origin_message_id and chat_id:
-            status_icon = "✅" if action_raw == "approve" else "🚫"
             sender_display = msg.metadata.get("username") or msg.sender_id or ""
-            status_text = f"{status_icon} {action_raw.title()}d by {sender_display}"
+            outcome_key = "approval_resolved_approved" if action_raw == "approve" else "approval_resolved_denied"
             await self._bus.edit_channel_message(
                 msg.channel,
                 chat_id,
                 str(origin_message_id),
-                status_text,
+                get_text(msg, outcome_key, user=sender_display),
             )
 
         # --- Outbound draft: send or discard the held message ---
-        if record.action_type == "outbound_draft":
+        if record.action_type == _OUTBOUND_DRAFT:
             await self._resolve_outbound_draft(record, action_raw)
             return
 

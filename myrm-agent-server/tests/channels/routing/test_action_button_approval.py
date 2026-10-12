@@ -8,7 +8,7 @@ SQLite in-memory database; only SSE event bus is mocked.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
@@ -112,6 +112,8 @@ class _Host(RouterCommandsMixin):
     _approval_co_approvers: frozenset[str] = field(default_factory=frozenset)
     _bus: MagicMock = field(default_factory=MagicMock)
     _gate: MagicMock = field(default_factory=MagicMock)
+    # The router decides who the owner is; each test states whether the clicker passes that check.
+    _check_admin_permission: AsyncMock = field(default_factory=lambda: AsyncMock(return_value=True))
 
 
 def _host(**overrides: Any) -> _Host:  # noqa: ANN401
@@ -131,10 +133,13 @@ def _action_msg(
     chat_id: str = "chat-1",
     is_group: bool = False,
     origin_message_id: str | None = "orig-123",
+    locale: str | None = None,
 ) -> InboundMessage:
     metadata: dict[str, object] = {}
     if origin_message_id:
         metadata["origin_message_id"] = origin_message_id
+    if locale:
+        metadata["locale"] = locale
     metadata["username"] = sender_id
     return InboundMessage(
         channel=channel,
@@ -146,7 +151,7 @@ def _action_msg(
     )
 
 
-async def _seed(record_id: str = "appr-001", status: str = "PENDING") -> str:
+async def _seed(record_id: str = "appr-001", status: str = "PENDING", action_type: str = "shell_command") -> str:
     async with _test_session() as db:
         existing = await db.get(ApprovalRecord, record_id)
         if existing:
@@ -158,7 +163,7 @@ async def _seed(record_id: str = "appr-001", status: str = "PENDING") -> str:
                 agent_id="agent-1",
                 chat_id="chat-1",
                 thread_id="thread-1",
-                action_type="shell_command",
+                action_type=action_type,
                 reason="test",
                 severity="warning",
                 payload={"cmd": "ls"},
@@ -167,6 +172,13 @@ async def _seed(record_id: str = "appr-001", status: str = "PENDING") -> str:
         )
         await db.commit()
     return record_id
+
+
+async def _status_of(record_id: str) -> str:
+    async with _test_session() as db:
+        record = await db.get(ApprovalRecord, record_id)
+        assert record is not None
+        return record.status
 
 
 class TestActionButtonParsing:
@@ -344,6 +356,24 @@ class TestActionButtonMessageEditing:
         host._bus.edit_channel_message.assert_not_awaited()
         host._gate.submit.assert_called_once()
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("action", "locale", "expected"),
+        [
+            ("approve", None, "✅ Approved by alice"),
+            ("deny", None, "🚫 Denied by alice"),
+            ("approve", "zh-CN", "✅ 已由 alice 批准"),
+            ("deny", "zh-CN", "🚫 已由 alice 拒绝"),
+        ],
+    )
+    async def test_status_line_reads_naturally_in_the_clickers_language(self, action, locale, expected):
+        host = _host()
+        host._active_tasks[routing_session_key("telegram", "chat-1")] = _make_active_task("alice")
+        record_id = await _seed(f"appr-status-{action}-{locale}")
+        await host._handle_action_button_approval(_action_msg(f"approval:{action}:{record_id}", locale=locale))
+
+        assert host._bus.edit_channel_message.call_args[0][3] == expected
+
 
 class TestActionButtonSSEFallback:
     @pytest.mark.asyncio
@@ -364,3 +394,105 @@ class TestActionButtonSSEFallback:
         event = mock_bus.publish.call_args[0][0]
         assert event.data["approval_id"] == "appr-sse-1"
         assert event.data["decision"] == "approve"
+
+
+class TestHeldReplyAuthorisation:
+    """A held channel reply (``outbound_draft``) is decided by the owner alone."""
+
+    @pytest.fixture(autouse=True)
+    def send_draft(self) -> Iterator[AsyncMock]:
+        with patch("app.services.approvals.registry.send_outbound_draft_payload", new_callable=AsyncMock) as sent:
+            yield sent
+
+    @pytest.mark.asyncio
+    async def test_the_owner_approves_and_the_reply_is_sent(self, send_draft):
+        host = _host()
+        await _seed("appr-draft-1", action_type="outbound_draft")
+
+        await host._handle_action_button_approval(_action_msg("approval:approve:appr-draft-1", sender_id="owner"))
+
+        send_draft.assert_awaited_once()
+        assert await _status_of("appr-draft-1") == "APPROVED"
+        host._gate.submit.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_the_owner_denies_and_nothing_is_sent(self, send_draft):
+        host = _host()
+        await _seed("appr-draft-2", action_type="outbound_draft")
+
+        await host._handle_action_button_approval(_action_msg("approval:deny:appr-draft-2", sender_id="owner"))
+
+        send_draft.assert_not_awaited()
+        assert await _status_of("appr-draft-2") == "REJECTED"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("is_group", [False, True], ids=["dm", "group"])
+    async def test_anyone_else_is_refused_and_told_where_to_decide(self, send_draft, is_group):
+        host = _host()
+        host._check_admin_permission.return_value = False
+        await _seed(f"appr-draft-3-{is_group}", action_type="outbound_draft")
+
+        await host._handle_action_button_approval(
+            _action_msg(f"approval:approve:appr-draft-3-{is_group}", sender_id="bystander", is_group=is_group)
+        )
+
+        send_draft.assert_not_awaited()
+        assert await _status_of(f"appr-draft-3-{is_group}") == "PENDING", "the owner can still decide"
+        host._bus.edit_channel_message.assert_not_awaited()
+        host._bus.publish_outbound.assert_awaited_once()
+        reply = host._bus.publish_outbound.call_args[0][0]
+        assert (reply.channel, reply.recipient_id) == ("telegram", "chat-1")
+        assert "Only an admin can decide" in reply.content
+
+    @pytest.mark.asyncio
+    async def test_running_the_chats_task_grants_nothing_over_a_held_reply(self, send_draft):
+        host = _host()
+        host._check_admin_permission.return_value = False
+        host._active_tasks[routing_session_key("telegram", "chat-1")] = _make_active_task("bob")
+        await _seed("appr-draft-4", action_type="outbound_draft")
+
+        await host._handle_action_button_approval(_action_msg("approval:approve:appr-draft-4", sender_id="bob", is_group=True))
+
+        send_draft.assert_not_awaited()
+        assert await _status_of("appr-draft-4") == "PENDING"
+
+    @pytest.mark.asyncio
+    async def test_the_owner_is_not_blocked_by_someone_elses_running_task(self, send_draft):
+        host = _host()
+        host._active_tasks[routing_session_key("telegram", "chat-1")] = _make_active_task("alice")
+        await _seed("appr-draft-5", action_type="outbound_draft")
+
+        await host._handle_action_button_approval(_action_msg("approval:approve:appr-draft-5", sender_id="owner", is_group=True))
+
+        send_draft.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_tool_approvals_do_not_ask_for_the_owner_check(self):
+        host = _host()
+        host._check_admin_permission.return_value = False
+        host._active_tasks[routing_session_key("telegram", "chat-1")] = _make_active_task("alice")
+        await _seed("appr-tool-1")
+
+        await host._handle_action_button_approval(_action_msg("approval:approve:appr-tool-1"))
+
+        host._gate.submit.assert_called_once()
+        host._check_admin_permission.assert_not_awaited()
+
+
+class TestNotificationCardContract:
+    @pytest.mark.asyncio
+    async def test_every_button_of_the_owner_card_is_understood_by_the_handler(self):
+        """The card the owner receives and the handler that reads its clicks must agree on the action ids."""
+        from app.core.notifications.approval_card import build_approval_card
+
+        decided = set()
+        for index in range(2):
+            record_id = f"appr-card-{index}"
+            await _seed(record_id, action_type="outbound_draft")
+            _, components = build_approval_card({"approval_id": record_id, "action_type": "outbound_draft"}, "telegram", "en")
+
+            with patch("app.services.approvals.registry.send_outbound_draft_payload", new_callable=AsyncMock):
+                await _host()._handle_action_button_approval(_action_msg(components[0][index].action_id))
+            decided.add(await _status_of(record_id))
+
+        assert decided == {"APPROVED", "REJECTED"}

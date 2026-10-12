@@ -270,6 +270,13 @@ Discord / Signal / Feishu / iMessage / **Mattermost** / **Matrix**）会把
 绑定下游用户身份后，把 `allowAlways` 透传给 harness，触发
 `add_to_allowlist_if_needed` 完成永久允许。
 
+**审批按钮（ActionButton）**：审批请求以 `approval:{approve|deny}:{record_id}` 按钮发往 IM。
+目前只有 Telegram 入站解析器会把点击转成 `callback_prefix="act"` 的消息并交给
+`_handle_action_button_approval`，其他渠道的按钮点击不会进入该处理器，因此 owner 通知卡片
+只在 Telegram 附带按钮，其余渠道提示打开应用审核。被拦截的回复（`outbound_draft`）只有 owner
+（控制面转发或 ADMIN 配对）可批准/拒绝，详见 `routing/_ARCH.md` 的 *ActionButton Callback Approval*
+与 *Owner Check*。
+
 ---
 
 ## 4. 渠道绑定机制

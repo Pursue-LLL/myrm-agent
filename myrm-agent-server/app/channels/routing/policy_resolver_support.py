@@ -8,6 +8,7 @@
 - GroupFollowUpTracker: active group thread tracker for mention-exempt follow-up
 - query_dm_policy, query_group_policy, query_group_trigger, query_enabled_groups, check_guest_mention_allowed: Policy provider query delegates
 - resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support: Group RBAC arbitration, diagnostic bypass check, and trigger evaluation helpers
+- is_admin_sender: the one owner rule, shared by admin-only commands and the decision on a held channel reply
 
 [POS]
 Extracted helpers for PolicyResolver to keep the resolver module under line budget.
@@ -20,6 +21,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Callable
 
+from app.channels.protocols.pairing import PairingRole, PairingStatus
 from app.channels.types import METADATA_GUEST_TURN_KEY
 
 if TYPE_CHECKING:
@@ -236,6 +238,18 @@ async def check_sender_daily_quota(
     if usage_count >= daily_quota:
         return True, daily_quota, usage_count
     return False, daily_quota, usage_count
+
+
+async def is_admin_sender(pairing: PairingStore, msg: InboundMessage) -> bool:
+    """Whether ``msg`` comes from the sandbox owner.
+
+    The owner is whoever the control plane forwarded (it has already resolved the identity), or a sender
+    with an ACTIVE ADMIN pairing, the same pairing ``PairingStore.resolve`` maps to the owner's identity.
+    """
+    if msg.metadata.get("trusted_inbound") == "control_plane":
+        return True
+    detail = await pairing.get_pairing_detail(msg.channel, msg.sender_id)
+    return detail is not None and detail[0] == PairingStatus.ACTIVE and detail[1] == PairingRole.ADMIN
 
 
 def is_exempt_diagnostic_command(content: str) -> bool:

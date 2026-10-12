@@ -97,3 +97,12 @@ class TopicContext:
     identity_revoked: bool = False
     completion_receipts: bool = True
     stall_nudge: bool = False
+
+    @property
+    def holds_reply_for_review(self) -> bool:
+        """Whether the agent's reply must reach a human reviewer before anyone else sees it.
+
+        Single source for every stage that could expose the reply (live streaming edits, final
+        delivery), so a held reply cannot leak through a stage that forgot to ask.
+        """
+        return self.reply_mode == ReplyMode.DRAFT_REVIEW

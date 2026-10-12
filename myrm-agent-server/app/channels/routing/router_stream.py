@@ -70,6 +70,7 @@ class RouterStreamMixin:
         cancel_token: CancellationToken | None = None,
         steering_token: SteeringToken | None = None,
         topic_context: TopicContext | None = None,
+        hold_reply: bool = False,
     ) -> tuple[OutboundMessage | None, float]:
         """Consume execute_stream with unified StreamCoordinator and production-grade protections.
 
@@ -79,6 +80,10 @@ class RouterStreamMixin:
         - BlockChunker: intelligent chunking with code fence protection
         - GracefulDegradation: smoothly reduces update frequency on failures
         - SessionRateLimiter: prevents single session from flooding updates
+
+        ``hold_reply`` marks a reply that a human must approve before the chat sees it: its
+        text is never edited into the placeholder while it is generated (progress updates
+        still show). It is a separate flag because resumed turns pass no ``topic_context``.
 
         Returns (result, last_progress_at) so the caller can enforce
         a minimum gap before the final edit.
@@ -143,7 +148,7 @@ class RouterStreamMixin:
 
                 elif isinstance(event, StreamingText):
                     await self._mark_deferred_placeholder_activity(stream_state_key)
-                    if should_fallback_to_new_message:
+                    if hold_reply or should_fallback_to_new_message:
                         continue
 
                     cleaned_text, is_thinking = scrub_thinking_content(event.text)
