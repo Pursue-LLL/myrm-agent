@@ -10,6 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 类型包导出 | — |
 | `messages.py` | 核心 | 跨渠道消息数据结构（MediaType: IMAGE/DOCUMENT/AUDIO/VIDEO/CONTACT, MediaAttachment（`ephemeral`=临时文件由消息总线在送达终态后删除）, guess_media_type, RenderStyle 等；`OutboundMessage.to_dict/from_dict` 为持久化线格式，每个嵌套 dataclass 都带 `__type__` 标签） | ✅ |
+| `outbound_wire.py` | 核心 | `OutboundMessage` 线格式的 TypedDict 声明（`OutboundWire` 及嵌套 `ComponentWire`/`MediaWire` 等），让 `from_dict` 在类型层面可校验；字段集与 dataclass 的一致性由 `tests/channels/types/test_outbound_wire_shapes.py` 守卫 | ✅ |
 | `topics.py` | 核心 | 话题路由类型（TopicContext、ReplyMode、DraftTimeoutAction、IdentityScopeMode） | ✅ |
 | `streaming.py` | 核心 | Agent 执行流事件（ProgressUpdate、StreamingText、FissionTopologyNode/Update） | ✅ |
 | `voice.py` | 核心 | 语音 STT/TTS 配置与结果（VoiceConfig、TTSMode、STTResult） | ✅ |

@@ -9,6 +9,7 @@ on the AgentRouter instance, enabling static type checking without circular impo
 - app.channels.protocols.agent::AgentExecutor (POS: Agent execution protocol for Channel inbound messages. Framework AgentRouter delegates inbound messages to business-layer Agents via this protocol. execute_stream returns AsyncGenerator yielding ProgressUpdate (progress) and OutboundMessage (final result). External cancellation (e.g. user /stop command)。)
 - app.channels.protocols.compact::CompactHandler (POS: Business-layer handler protocol for the /compact slash command. Framework parses user_id and invokes handler; business layer implements DB, Chat service, and compact logic.)
 - app.channels.protocols.topic::TopicManager (POS: Topic Supports two binding granularities Telegram forum topics)
+- app.channels.routing.placeholder_strategy::DeferredPlaceholder (POS: adaptive placeholder timing, deferred for fast short replies)
 - app.channels.protocols.turn_management::RetryHandler, UndoHandler (POS: Business-layer handler protocol for /retry and /undo slash commands. Symmetric design with CompactHandler: framework parses user_id, business layer handles DB operations.)
 - utils.runtime.cancellation::CancellationToken (POS: Agent  ContextVar  BaseAgent)
 
@@ -45,6 +46,7 @@ if TYPE_CHECKING:
         GracefulDegradationController,
     )
     from app.channels.routing.message_effects import MessageEffects
+    from app.channels.routing.placeholder_strategy import DeferredPlaceholder
     from app.channels.routing.policy_resolver import PolicyResolver
     from app.channels.routing.retry_policy import RetryPolicy
     from app.channels.routing.router_models import (
@@ -169,3 +171,60 @@ class RouterExecutionHost(Protocol):
     ) -> tuple[OutboundMessage | None, float]: ...
 
     def _resolve_live_placeholder_id(self, state_key: str) -> str | None: ...
+
+    async def _resolve_topic(self, msg: InboundMessage) -> TopicContext | None: ...
+
+    async def _setup_message_effects(
+        self,
+        msg: InboundMessage,
+        state_key: str,
+        chat_id: str,
+        message_id: str | None,
+        is_resume: bool,
+    ) -> DeferredPlaceholder | None: ...
+
+    async def _deliver_agent_result(
+        self,
+        result: OutboundMessage | None,
+        deferred: DeferredPlaceholder | None,
+        msg: InboundMessage,
+        chat_id: str,
+        last_progress_at: float,
+        inbound_had_voice: bool,
+        topic_ctx: TopicContext | None = None,
+    ) -> bool: ...
+
+    async def _create_outbound_draft(
+        self,
+        result: OutboundMessage,
+        original_msg: InboundMessage,
+        chat_id: str,
+        topic_ctx: TopicContext,
+    ) -> None: ...
+
+    async def _cleanup_effects(
+        self,
+        state_key: str,
+        chat_id: str,
+        channel: str,
+        message_id: str | None,
+        placeholder_id: str | None,
+    ) -> None: ...
+
+    def _register_cleanup(
+        self,
+        key: str,
+        channel: str,
+        chat_id: str,
+        message_id: object,
+        placeholder_id: str | None = None,
+        *,
+        msg: InboundMessage | None = None,
+    ) -> None: ...
+
+    async def _attach_web_handoff(
+        self,
+        result: OutboundMessage,
+        chat_id: str,
+        msg: InboundMessage,
+    ) -> OutboundMessage: ...

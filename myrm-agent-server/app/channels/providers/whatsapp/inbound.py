@@ -281,7 +281,7 @@ class WhatsAppInboundMixin(BaseChannel):
         push_name = event.get("pushName")
 
         timestamp = event.get("timestamp")
-        sent_at = float(timestamp) if timestamp is not None else time.time()
+        sent_at = float(timestamp) if isinstance(timestamp, (int, float, str)) else time.time()
 
         reply_to = None
         quoted_msg = event.get("quotedMessage")

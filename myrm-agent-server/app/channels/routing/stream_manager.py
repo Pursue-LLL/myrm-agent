@@ -9,6 +9,7 @@ Provides:
 
 [INPUT]
 - app.channels.types::StreamingText (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- app.channels.routing.graceful_degradation::GracefulDegradationController (POS: smooth quality adaptation, never blocks updates)
 
 [OUTPUT]
 - BlockChunker: Text chunker with code fence protection
@@ -30,6 +31,8 @@ import re
 import time
 from dataclasses import dataclass
 from typing import NamedTuple
+
+from app.channels.routing.graceful_degradation import GracefulDegradationController
 
 logger = logging.getLogger("myrm.channels.stream_manager")
 
@@ -442,7 +445,7 @@ class StreamCoordinator:
         chunker: BlockChunker,
         editor: IncrementalEditor,
         throttler: AdaptiveThrottler,
-        degradation_controller: object,  # Type: GracefulDegradationController
+        degradation_controller: GracefulDegradationController,
         session_ttl_seconds: float = 3600.0,
     ) -> None:
         self._chunker = chunker

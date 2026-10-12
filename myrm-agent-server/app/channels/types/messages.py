@@ -1,7 +1,8 @@
 """Core message types: inbound, outbound, media and rendering.
 
 [INPUT]
-- channels.types.components::ComponentRow, QuickReply, ToolStep (POS: UI component types)
+- channels.types.components::ActionButton, ButtonStyle, ComponentRow, QuickReply, SelectMenu, SelectOption, ToolStep (POS: UI component types)
+- channels.types.outbound_wire::OutboundWire, MediaWire, ComponentWire (POS: typed wire shapes of OutboundMessage, read by type checkers only)
 
 [OUTPUT]
 - InboundMessage, OutboundMessage: inbound/outbound messages
@@ -16,12 +17,18 @@ events and voice configuration live in sibling modules. Zero I/O, pure data.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, is_dataclass, replace
 from enum import IntEnum, StrEnum
 from pathlib import PurePath
+from typing import TYPE_CHECKING, cast
 
-from .components import ComponentRow, QuickReply, ToolStep
+from .components import ActionButton, ButtonStyle, ComponentRow, QuickReply, SelectMenu, SelectOption, ToolStep
 from .status import ChannelCapabilities
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
+    from .outbound_wire import ComponentWire, MediaWire, OutboundWire
 
 
 class MessagePriority(IntEnum):
@@ -272,13 +279,15 @@ class OutboundMessage:
         Every nested dataclass carries a ``__type__`` tag (``dataclasses.asdict`` would flatten them into
         untagged dicts), which is what lets ``from_dict`` tell buttons from select menus.
         """
-        import dataclasses
+
+        def _tagged(obj: DataclassInstance) -> dict[str, object]:
+            wire = {f.name: _serialize(getattr(obj, f.name)) for f in fields(obj)}
+            wire["__type__"] = type(obj).__name__
+            return wire
 
         def _serialize(obj: object) -> object:
-            if dataclasses.is_dataclass(obj):
-                d = {f.name: _serialize(getattr(obj, f.name)) for f in dataclasses.fields(obj)}
-                d["__type__"] = obj.__class__.__name__
-                return d
+            if is_dataclass(obj) and not isinstance(obj, type):
+                return _tagged(obj)
             elif isinstance(obj, (list, tuple)):
                 return [_serialize(i) for i in obj]
             elif isinstance(obj, dict):
@@ -287,21 +296,14 @@ class OutboundMessage:
                 return obj.value
             return obj
 
-        return _serialize(self)
+        return _tagged(self)
 
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> OutboundMessage:
-        """Deserialize the message from a dictionary."""
-        from .components import (
-            ActionButton,
-            ButtonStyle,
-            QuickReply,
-            SelectMenu,
-            SelectOption,
-            ToolStep,
-        )
+        """Deserialize the message from the dictionary ``to_dict`` produced."""
+        wire = cast("OutboundWire", data)
 
-        def _deserialize_media(m_data: dict[str, object]) -> MediaAttachment:
+        def _deserialize_media(m_data: MediaWire) -> MediaAttachment:
             return MediaAttachment(
                 media_type=MediaType(m_data["media_type"]),
                 url=m_data.get("url"),
@@ -312,9 +314,7 @@ class OutboundMessage:
                 ephemeral=bool(m_data.get("ephemeral", False)),
             )
 
-        def _deserialize_component(
-            c_data: dict[str, object],
-        ) -> ActionButton | SelectMenu:
+        def _deserialize_component(c_data: ComponentWire) -> ActionButton | SelectMenu:
             ctype = c_data.get("__type__")
             if ctype == "ActionButton":
                 return ActionButton(
@@ -336,37 +336,43 @@ class OutboundMessage:
                 )
             raise ValueError(f"Unknown component type: {ctype}")
 
-        media = tuple(_deserialize_media(m) for m in data.get("media", []))
+        media = tuple(_deserialize_media(m) for m in wire.get("media", []))
         tool_steps = tuple(
-            ToolStep(name=t.get("name", ""), label=t.get("label", ""), detail=t.get("detail")) for t in data.get("tool_steps", [])
+            ToolStep(name=t.get("name", ""), label=t.get("label", ""), detail=t.get("detail")) for t in wire.get("tool_steps", [])
         )
-
-        components = []
-        for row_data in data.get("components", []):
-            row = tuple(_deserialize_component(c) for c in row_data)
-            components.append(row)
-
+        components = tuple(tuple(_deserialize_component(c) for c in row) for row in wire.get("components", []))
         quick_replies = tuple(
-            QuickReply(label=q["label"], text=q["text"], required=q.get("required", False)) for q in data.get("quick_replies", [])
+            QuickReply(label=q["label"], text=q["text"], required=q.get("required", False)) for q in wire.get("quick_replies", [])
         )
 
-        corr_data = data.get("correlation_context")
-        correlation_context = CorrelationContext(**{k: v for k, v in corr_data.items() if k != "__type__"}) if corr_data else None
+        corr_data = wire.get("correlation_context")
+        correlation_context = (
+            CorrelationContext(
+                channel=corr_data["channel"],
+                chat_id=corr_data.get("chat_id"),
+                thread_id=corr_data.get("thread_id"),
+                user_id=corr_data.get("user_id"),
+                trace_id=corr_data.get("trace_id"),
+                locale=corr_data.get("locale"),
+            )
+            if corr_data
+            else None
+        )
 
         return cls(
-            channel=data["channel"],
-            recipient_id=data["recipient_id"],
-            content=data["content"],
-            user_id=data["user_id"],
-            metadata=data.get("metadata"),
+            channel=wire["channel"],
+            recipient_id=wire["recipient_id"],
+            content=wire["content"],
+            user_id=wire["user_id"],
+            metadata=wire.get("metadata"),
             media=media,
-            reply_to_id=data.get("reply_to_id"),
-            thread_id=data.get("thread_id"),
-            reasoning=data.get("reasoning"),
+            reply_to_id=wire.get("reply_to_id"),
+            thread_id=wire.get("thread_id"),
+            reasoning=wire.get("reasoning"),
             tool_steps=tool_steps,
-            components=tuple(components),
+            components=components,
             quick_replies=quick_replies,
-            priority=MessagePriority(data.get("priority", MessagePriority.NORMAL.value)),
+            priority=MessagePriority(wire.get("priority", MessagePriority.NORMAL.value)),
             correlation_context=correlation_context,
         )
 

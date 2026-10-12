@@ -30,9 +30,9 @@ class ChannelStatusResponse(BaseModel):
     name: str
     status: str
     connected: bool = False
-    channel_type: str = Field("", alias="channelType")
-    instance_id: str = Field("", alias="instanceId")
-    display_name: str = Field("", alias="displayName")
+    channel_type: str = Field(default="", alias="channelType")
+    instance_id: str = Field(default="", alias="instanceId")
+    display_name: str = Field(default="", alias="displayName")
     last_inbound_at: float | None = None
     last_outbound_at: float | None = None
     last_active_at: float | None = None

@@ -526,7 +526,7 @@ class TestReapStuckTasks:
 
     @pytest.mark.asyncio
     async def test_empty_locale_fallback_no_metadata(self) -> None:
-        """Empty locale produces synthetic msg with metadata=None (i18n falls back to English)."""
+        """Empty locale produces a synthetic msg with empty metadata (i18n falls back to English)."""
         from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
         from app.channels.routing.router_models import _ActiveTask
 
@@ -554,7 +554,7 @@ class TestReapStuckTasks:
         await router._reap_stuck_tasks(time.monotonic())
 
         call_msg = router._gate.on_task_complete.call_args[0][0]
-        assert call_msg.metadata is None
+        assert call_msg.metadata == {}
 
     @pytest.mark.asyncio
     async def test_typing_error_does_not_block_gate_release(self) -> None:

@@ -521,7 +521,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 sender_id="",
                 content="",
                 chat_id=entry.chat_id,
-                metadata={"locale": entry.locale} if entry.locale else None,
+                metadata={"locale": entry.locale} if entry.locale else {},
             )
 
             try:
