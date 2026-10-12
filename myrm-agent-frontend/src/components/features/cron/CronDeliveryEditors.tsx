@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, Webhook, MessageSquare, BellOff, Send, Activity } from 'lucide-react';
 import { WebhookGuide } from './WebhookGuide';
@@ -43,6 +43,10 @@ export const IM_CHANNELS: Record<string, { label: string; hint: string }> = {
 };
 
 const NON_IM_CHANNELS = new Set(['chat', 'webhook', 'none', 'web']);
+
+/** Every channel except the built-in ones delivers to a recipient the user has to name. */
+export const needsDeliveryTarget = (ch: string) => !NON_IM_CHANNELS.has(ch);
+
 export const toApiChannel = (ch: string) => (ch === 'none' ? 'silent' : ch);
 export const fromApiChannel = (ch: string) => (ch === 'silent' ? 'none' : ch);
 
@@ -65,6 +69,17 @@ function useConnectedChannels() {
   return channels;
 }
 
+type CronTranslator = ReturnType<typeof useTranslations<'cron'>>;
+
+/** Hint for the recipient input; a channel without a sample id gets no example clause. */
+function deliveryTargetPlaceholder(ch: string, t: CronTranslator): string {
+  if (ch === 'whatsapp') {
+    return t('imTargetPlaceholderPhone');
+  }
+  const example = IM_CHANNELS[ch]?.hint;
+  return example ? t('imTargetPlaceholderRequired', { example }) : '';
+}
+
 const TOGGLE_ITEM_CLASS =
   'gap-1 text-xs h-7 px-2.5 rounded-full border border-border bg-muted/50 data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary/40';
 
@@ -74,7 +89,7 @@ function ChannelToggleGroup(p: {
   disabled: boolean;
   builtinChannels: readonly string[];
   connectedChannels: string[];
-  t: ReturnType<typeof useTranslations<'cron'>>;
+  t: CronTranslator;
 }) {
   const { value, onValueChange, disabled, builtinChannels, connectedChannels, t } = p;
   return (
@@ -117,7 +132,7 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
-  const isImChannel = useMemo(() => !(['chat', 'webhook', 'none'] as string[]).includes(localChannel), [localChannel]);
+  const isImChannel = needsDeliveryTarget(localChannel);
 
   useEffect(() => {
     setLocalChannel(serverChannel);
@@ -130,7 +145,7 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
       return;
     }
     setLocalChannel(ch);
-    if (ch === 'webhook' || ch in IM_CHANNELS) {
+    if (ch === 'webhook' || needsDeliveryTarget(ch)) {
       return;
     }
     setSaving(true);
@@ -267,13 +282,7 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
         <div className="flex items-center gap-2">
           <Send className="h-3 w-3 text-muted-foreground shrink-0" />
           <Input
-            placeholder={
-              localChannel === 'whatsapp'
-                ? t('imTargetPlaceholderPhone')
-                : t('imTargetPlaceholderRequired', {
-                    example: IM_CHANNELS[localChannel]?.hint ?? '',
-                  })
-            }
+            placeholder={deliveryTargetPlaceholder(localChannel, t)}
             value={imTarget}
             onChange={(e) => setImTarget(e.target.value)}
             className="h-7 text-xs flex-1"
@@ -306,7 +315,7 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
-  const isImChannel = useMemo(() => !(['chat', 'webhook'] as string[]).includes(channel), [channel]);
+  const isImChannel = needsDeliveryTarget(channel);
 
   useEffect(() => {
     setEnabled(!!job.failure_delivery);
@@ -452,13 +461,7 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
             <div className="flex items-center gap-2">
               <Send className="h-3 w-3 text-muted-foreground shrink-0" />
               <Input
-                placeholder={
-                  channel === 'whatsapp'
-                    ? t('imTargetPlaceholderPhone')
-                    : t('imTargetPlaceholderRequired', {
-                        example: IM_CHANNELS[channel]?.hint ?? '',
-                      })
-                }
+                placeholder={deliveryTargetPlaceholder(channel, t)}
                 value={imTarget}
                 onChange={(e) => setImTarget(e.target.value)}
                 className="h-7 text-xs flex-1"

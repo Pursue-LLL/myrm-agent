@@ -13,7 +13,7 @@ import useCronStore from '@/store/useCronStore';
 import useConfigStore from '@/store/useConfigStore';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { buildBlueprintCreatePayload, humanizeSchedule, type CronBlueprint } from './cron-blueprints';
-import { IM_CHANNELS, toApiChannel } from './CronDeliveryEditors';
+import { IM_CHANNELS, needsDeliveryTarget, toApiChannel } from './CronDeliveryEditors';
 import CronDeployModeNotice from './CronDeployModeNotice';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
@@ -189,7 +189,7 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          {deliveryChannel in IM_CHANNELS && (
+          {needsDeliveryTarget(deliveryChannel) && (
             <div className="flex items-center gap-2">
               <Send className="h-3 w-3 text-muted-foreground shrink-0" />
               <Input

@@ -40,7 +40,7 @@ import {
   formatMonthlyExecutions,
   getFrequencyRiskLevel,
 } from '@/lib/utils/cronEstimate';
-import { IM_CHANNELS, toApiChannel } from './CronDeliveryEditors';
+import { IM_CHANNELS, needsDeliveryTarget, toApiChannel } from './CronDeliveryEditors';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import BlueprintCatalog from './BlueprintCatalog';
@@ -630,7 +630,7 @@ export default function CronJobCreateDialog({
                         </ToggleGroupItem>
                       ))}
                     </ToggleGroup>
-                    {deliveryChannel in IM_CHANNELS && (
+                    {needsDeliveryTarget(deliveryChannel) && (
                       <div className="flex items-center gap-2">
                         <Send className="h-3 w-3 text-muted-foreground shrink-0" />
                         <Input
