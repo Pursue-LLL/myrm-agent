@@ -5,6 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from app.api.security.admin_auth_surface_router import (
+    router as admin_auth_surface_router,
+)
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.core.security.admin_auth_surface import (
@@ -15,9 +18,6 @@ from myrm_agent_harness.core.security.admin_auth_surface import (
     OAuthProviderType,
 )
 
-from app.api.security.admin_auth_surface_router import (
-    router as admin_auth_surface_router,
-)
 from app.services.security.admin_auth_surface_service import (
     AdminAuthSurfaceService,
     get_admin_auth_surface_service,
