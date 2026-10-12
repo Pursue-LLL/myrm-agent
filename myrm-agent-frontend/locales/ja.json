@@ -11406,6 +11406,31 @@
     "ephemeralRegistryNotice": "長時間タスクはメモリ内のみに保存され、サーバー再起動またはサンドボックス再作成で失われます。",
     "durableRegistryNotice": "長時間タスクの履歴は保存されています。サービス再起動で中断されたタスクは「中断済み」と表示されます。",
     "processingCapsule": "バックグラウンドタスク処理中…",
+    "idleStatus": {
+      "error": "バックグラウンドタスクを完了できませんでした",
+      "cognitive_consolidation": {
+        "working": "記憶を整理しています…",
+        "completed": "記憶を整理しました"
+      },
+      "cognitive_derivation": {
+        "working": "好みを学習しています…",
+        "completed": "好みを更新しました",
+        "notification": "好みを更新しました"
+      },
+      "cognitive_subsumption": {
+        "working": "似た記憶をまとめています…",
+        "completed": "似た記憶をまとめました",
+        "notification": "似た記憶を {count} 件まとめました"
+      },
+      "session_evidence_extraction": {
+        "working": "この会話を振り返っています…",
+        "completed": "会話の振り返りが完了しました"
+      },
+      "context_compaction": {
+        "working": "会話のコンテキストを整理しています…",
+        "completed": "会話のコンテキストを整理しました"
+      }
+    },
     "viewFullLog": "完全なログを表示",
     "orphanedHint": "このジョブはサーバー再起動時に中断されました。必要であればコマンドを再実行してください。",
     "trayTooltipIdle": "Myrm Agent - アイドル",

@@ -18728,6 +18728,31 @@
     "ephemeralRegistryNotice": "Long-running tasks are in-memory only and are lost when the server restarts or the sandbox is recreated.",
     "durableRegistryNotice": "Long-running task history is saved. Tasks interrupted by a restart show as Interrupted.",
     "processingCapsule": "Processing background tasks…",
+    "idleStatus": {
+      "error": "A background task didn't finish",
+      "cognitive_consolidation": {
+        "working": "Organizing your memories…",
+        "completed": "Memories organized"
+      },
+      "cognitive_derivation": {
+        "working": "Learning your preferences…",
+        "completed": "Preferences updated",
+        "notification": "Your preferences were updated"
+      },
+      "cognitive_subsumption": {
+        "working": "Tidying up similar memories…",
+        "completed": "Memories tidied up",
+        "notification": "{count, plural, one {Merged # similar memory} other {Merged # similar memories}}"
+      },
+      "session_evidence_extraction": {
+        "working": "Reviewing this conversation…",
+        "completed": "Conversation reviewed"
+      },
+      "context_compaction": {
+        "working": "Tidying up conversation context…",
+        "completed": "Conversation context tidied up"
+      }
+    },
     "viewFullLog": "View full log",
     "orphanedHint": "This job was interrupted when the service restarted. Run the command again if needed.",
     "trayTooltipIdle": "Myrm Agent - Idle",

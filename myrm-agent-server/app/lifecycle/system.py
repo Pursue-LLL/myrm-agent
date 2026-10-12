@@ -291,15 +291,14 @@ async def start_idle_task_listeners() -> None:
                         "status": event.status,
                         "task_name": event.task_name,
                         "progress_pct": event.progress_pct,
-                        "message": event.message,
                         "data": event.data,
                     },
                 )
             )
 
-            # If task completed successfully, save to offline inbox
+            # A completed session-evidence task may carry a CAPTURED skill proposal; it surfaces to the
+            # user through the growth lifecycle, so idle completions themselves never raise a notification.
             if event.status == "completed":
-                # Route CAPTURED skill proposals through unified growth lifecycle
                 if (
                     event.task_name == "session_evidence_extraction"
                     and event.data
@@ -340,35 +339,6 @@ async def start_idle_task_listeners() -> None:
                             )
                         except Exception as e:
                             logger.error("Failed to process CAPTURED skill proposal: %s", e, exc_info=True)
-
-                from app.database.connection import get_session
-                from app.database.models.notification import SystemNotification
-
-                try:
-                    async with get_session() as session:
-                        notification = SystemNotification(
-                            title=f"后台任务已完成: {event.task_name or '未知任务'}",
-                            message=event.message or "任务成功执行完毕",
-                            type="success",
-                            source="idle_daemon",
-                            meta_data=event.data or {},
-                        )
-                        session.add(notification)
-                        await session.commit()
-
-                        server_bus.publish(
-                            AppEvent(
-                                event_type=AppEventType.SYSTEM_NOTIFICATION,
-                                data={
-                                    "title": notification.title,
-                                    "message": notification.message,
-                                    "type": notification.type,
-                                    "meta_data": notification.meta_data,
-                                },
-                            )
-                        )
-                except Exception as ex:
-                    logger.error(f"Failed to save system notification for idle task: {ex}")
 
         harness_bus.subscribe(IdleTaskProgressEvent, _forward_idle_event)
         logger.info("Idle task listeners successfully started")

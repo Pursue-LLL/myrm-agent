@@ -5,17 +5,39 @@ import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IconCheckCircle, IconX } from '@/components/features/icons/PremiumIcons';
 
+type IdleStatus = 'working' | 'completed' | 'notification' | 'error' | 'idle';
+
 interface IdleStatusData {
   session_id: string;
-  status: 'working' | 'completed' | 'error' | 'idle';
+  status: IdleStatus;
   task_name?: string;
-  message?: string;
   progress_pct?: number;
+  data?: { count?: number };
 }
+
+/** Statuses each idle task has a localized label for (`backgroundTasks.idleStatus.<task>.<status>`). */
+const IDLE_TASK_LABELS: Record<string, readonly IdleStatus[]> = {
+  cognitive_consolidation: ['working', 'completed'],
+  cognitive_derivation: ['working', 'completed', 'notification'],
+  cognitive_subsumption: ['working', 'completed', 'notification'],
+  session_evidence_extraction: ['working', 'completed'],
+  context_compaction: ['working', 'completed'],
+};
 
 export function LifeStatusCapsule({ currentSessionId }: { currentSessionId: string | null }) {
   const tBackgroundTasks = useTranslations('backgroundTasks');
   const [statusData, setStatusData] = useState<IdleStatusData | null>(null);
+
+  const resolveLabel = (data: IdleStatusData): string => {
+    if (data.status === 'error') {
+      return tBackgroundTasks('idleStatus.error');
+    }
+    const supported = data.task_name ? IDLE_TASK_LABELS[data.task_name] : undefined;
+    if (data.task_name && supported?.includes(data.status)) {
+      return tBackgroundTasks(`idleStatus.${data.task_name}.${data.status}`, { count: data.data?.count ?? 0 });
+    }
+    return tBackgroundTasks('processingCapsule');
+  };
 
   useEffect(() => {
     const handleIdleStatus = (e: CustomEvent<IdleStatusData>) => {
@@ -56,7 +78,7 @@ export function LifeStatusCapsule({ currentSessionId }: { currentSessionId: stri
             <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
           </span>
         )}
-        {statusData.status === 'completed' && (
+        {(statusData.status === 'completed' || statusData.status === 'notification') && (
           <span className="text-green-500">
             <IconCheckCircle />
           </span>
@@ -68,7 +90,7 @@ export function LifeStatusCapsule({ currentSessionId }: { currentSessionId: stri
         )}
 
         <span className="font-medium text-foreground/90">
-          {statusData.message || tBackgroundTasks('processingCapsule')}
+          {resolveLabel(statusData)}
         </span>
 
         {typeof statusData.progress_pct === 'number' && (

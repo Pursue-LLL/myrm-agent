@@ -18707,6 +18707,31 @@
     "ephemeralRegistryNotice": "耗时任务仅保存在内存中，服务重启或沙箱重建后会丢失。",
     "durableRegistryNotice": "耗时任务历史已保存。因服务重启中断的任务会显示为「已中断」。",
     "processingCapsule": "后台任务处理中…",
+    "idleStatus": {
+      "error": "后台任务未能完成",
+      "cognitive_consolidation": {
+        "working": "正在整理记忆…",
+        "completed": "记忆已整理"
+      },
+      "cognitive_derivation": {
+        "working": "正在学习你的偏好…",
+        "completed": "偏好已更新",
+        "notification": "你的偏好已更新"
+      },
+      "cognitive_subsumption": {
+        "working": "正在合并相似记忆…",
+        "completed": "相似记忆已合并",
+        "notification": "已合并 {count} 条相似记忆"
+      },
+      "session_evidence_extraction": {
+        "working": "正在回顾本次对话…",
+        "completed": "对话回顾完成"
+      },
+      "context_compaction": {
+        "working": "正在精简对话上下文…",
+        "completed": "对话上下文已精简"
+      }
+    },
     "viewFullLog": "查看完整日志",
     "orphanedHint": "该任务在服务重启时被中断。如需继续，请重新运行命令。",
     "trayTooltipIdle": "Myrm Agent - 空闲",

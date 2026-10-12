@@ -11407,6 +11407,31 @@
     "ephemeralRegistryNotice": "장기 실행 작업은 메모리에만 저장되며 서버가 재시작되거나 샌드박스가 다시 생성되면 손실됩니다.",
     "durableRegistryNotice": "장기 실행 작업 기록이 저장됩니다. 재시작으로 중단된 작업은 \"중단됨\"으로 표시됩니다.",
     "processingCapsule": "백그라운드 작업 처리 중…",
+    "idleStatus": {
+      "error": "백그라운드 작업을 완료하지 못했습니다",
+      "cognitive_consolidation": {
+        "working": "기억을 정리하는 중…",
+        "completed": "기억 정리 완료"
+      },
+      "cognitive_derivation": {
+        "working": "선호도를 학습하는 중…",
+        "completed": "선호도 업데이트 완료",
+        "notification": "선호도가 업데이트되었습니다"
+      },
+      "cognitive_subsumption": {
+        "working": "비슷한 기억을 병합하는 중…",
+        "completed": "비슷한 기억 병합 완료",
+        "notification": "비슷한 기억 {count}개를 병합했습니다"
+      },
+      "session_evidence_extraction": {
+        "working": "이 대화를 되돌아보는 중…",
+        "completed": "대화 검토 완료"
+      },
+      "context_compaction": {
+        "working": "대화 컨텍스트를 정리하는 중…",
+        "completed": "대화 컨텍스트 정리 완료"
+      }
+    },
     "orphanedHint": "이 작업은 서비스 재시작 시 중단되었습니다. 필요한 경우 명령을 다시 실행하세요.",
     "trayTooltipIdle": "Myrm Agent - 대기 중",
     "trayTooltipBusy": "Myrm Agent - 실행 중…",

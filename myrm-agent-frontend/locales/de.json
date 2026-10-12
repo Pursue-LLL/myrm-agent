@@ -11407,6 +11407,31 @@
     "ephemeralRegistryNotice": "Lang laufende Aufgaben befinden sich nur im Arbeitsspeicher und gehen verloren, wenn der Server neu gestartet oder die Sandbox neu erstellt wird.",
     "durableRegistryNotice": "Der Verlauf lang laufender Aufgaben wird gespeichert. Durch einen Neustart unterbrochene Aufgaben werden als Unterbrochen angezeigt.",
     "processingCapsule": "Processing background tasks…",
+    "idleStatus": {
+      "error": "Eine Hintergrundaufgabe wurde nicht abgeschlossen",
+      "cognitive_consolidation": {
+        "working": "Erinnerungen werden geordnet…",
+        "completed": "Erinnerungen geordnet"
+      },
+      "cognitive_derivation": {
+        "working": "Ihre Vorlieben werden gelernt…",
+        "completed": "Vorlieben aktualisiert",
+        "notification": "Ihre Vorlieben wurden aktualisiert"
+      },
+      "cognitive_subsumption": {
+        "working": "Ähnliche Erinnerungen werden zusammengeführt…",
+        "completed": "Ähnliche Erinnerungen zusammengeführt",
+        "notification": "{count, plural, one {# ähnliche Erinnerung zusammengeführt} other {# ähnliche Erinnerungen zusammengeführt}}"
+      },
+      "session_evidence_extraction": {
+        "working": "Diese Unterhaltung wird ausgewertet…",
+        "completed": "Unterhaltung ausgewertet"
+      },
+      "context_compaction": {
+        "working": "Unterhaltungskontext wird aufgeräumt…",
+        "completed": "Unterhaltungskontext aufgeräumt"
+      }
+    },
     "orphanedHint": "Dieser Job wurde beim Neustart des Dienstes unterbrochen. Führen Sie den Befehl bei Bedarf erneut aus.",
     "trayTooltipIdle": "Myrm Agent – ​​Inaktiv",
     "trayTooltipBusy": "Myrm Agent - Running…",
