@@ -36,7 +36,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `../command_registry_macro.in` | ✅ 核心 | Tauri 命令注册单一清单（build allowlist / app handler / security tests 共用） | ✅ |
 | `app/` | ✅ 核心 | Tauri Builder、插件、setup、快捷键、托盘、优雅停机 | — |
 | `runtime/` | ✅ 核心 | Sidecar 运行时（见下表） | ✅ |
-| `ipc_security/` | ✅ 核心 | IPC sender gate（main/session 来源校验）、命令风险分级（reject/drop）、高敏操作短时票据 + 原生确认（多语言文案 + 主窗口 parent 绑定，防主窗注入静默执行），并内置确认执行自动化回归（通过/取消/超时/回传失败）与 `ipc-sensitive-confirmation` 运行时审计事件；`capability.rs` 把同一份 gate 推导成 Tauri ACL 能力（产品页 Local + 精确来源 Remote 两份），`acl_tests.rs` 用真实 ACL 清单在进程内证明两道闸门一致 | ✅ |
+| `ipc_security/` | ✅ 核心 | IPC sender gate（main/session 来源校验）、命令风险分级（reject/drop）、高敏操作短时票据 + 原生确认（多语言文案 + 主窗口 parent 绑定，防主窗注入静默执行），并内置确认执行自动化回归（通过/取消/超时/回传失败）与 `ipc-sensitive-confirmation` 运行时审计事件；`capability.rs` 把同一份 gate 推导成 Tauri ACL 能力（每个窗口面一份 capability，同时覆盖 Local 与精确来源 Remote），`acl_tests.rs` 用真实 ACL 清单在进程内证明两道闸门一致 | ✅ |
 | `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC；dev 用 venv，release 校验 sidecar 非空；冷启动最多 30s `/health` 轮询 | ✅ |
 | `runtime/process_registry/` | ✅ 核心 | 桌面受管进程注册表与生命周期中心（多 Sidecar 全局登记、退出码捕获） | ✅ |
 | `runtime/watchdog.rs` | ✅ 核心 | 后端 Sidecar 健康监控与崩溃自动恢复（30s 周期检查、指数退避重启、循环崩溃保护） | ✅ |
