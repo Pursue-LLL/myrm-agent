@@ -277,7 +277,8 @@ export class SessionRouter {
     /** What a session is attached to, for logs: "<owned|base> <target type> <url>"; null when unknown. */
     describeSession(sessionId) {
         const owned = this.owned.get(sessionId);
-        const info = owned ? this.knownTargets.get(owned.targetId) : this.knownSessions.get(sessionId)?.targetInfo;
+        // knownTargets follows navigation (targetInfoChanged); a base session's own targetInfo is its attach-time snapshot.
+        const info = this.knownTargets.get(this.targetOfSession(sessionId)) ?? this.knownSessions.get(sessionId)?.targetInfo;
         if (!info) return null;
         return `${owned ? 'owned' : 'base'} ${info.type} ${(info.url || 'about:blank').slice(0, 60)}`;
     }

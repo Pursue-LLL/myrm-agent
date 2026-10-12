@@ -295,3 +295,10 @@ test('describeSession names what a base, an owned and an unknown session are att
     assert.equal(ctx.router.describeSession('OWN1'), 'owned page https://x.com/a/status/1');
     assert.equal(ctx.router.describeSession('NOPE'), null);
 });
+
+test('describeSession follows a base session\'s page through navigation instead of its attach-time url', () => {
+    const ctx = setup();
+    ctx.router.onChromeEvent({ method: 'Target.attachedToTarget', params: { sessionId: 'BASE1', targetInfo: { targetId: 'T9', type: 'page', url: 'about:blank' }, waitingForDebugger: false } });
+    ctx.router.onChromeEvent({ method: 'Target.targetInfoChanged', params: { targetInfo: { targetId: 'T9', type: 'page', url: 'https://x.com/a/status/9' } } });
+    assert.equal(ctx.router.describeSession('BASE1'), 'base page https://x.com/a/status/9');
+});
