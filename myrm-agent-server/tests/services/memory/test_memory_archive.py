@@ -273,6 +273,26 @@ async def test_archive_restore_dry_run_returns_hash_and_blocks_secret(db_session
 
 
 @pytest.mark.asyncio
+async def test_archive_restore_dry_run_ignores_long_paths_and_identifiers(db_session: AsyncSession) -> None:
+    """Routine long tokens in a backup must not surface as security findings in the restore preview."""
+    payload = _restore_payload(
+        {
+            "memory": {
+                "semantic": [
+                    {"content": "Project lives in /Users/dev/projects/AI/open-perplexity/server.", "metadata": {}},
+                    {"content": "Restore uses MemoryArchiveRestoreSecurityFindingPlannerFactory.", "metadata": {}},
+                ]
+            }
+        }
+    )
+
+    preview = await MemoryArchiveRestoreService(db_session).dry_run_restore(payload)
+
+    assert preview.plan.security_findings == []
+    assert preview.plan.blocked_items == 0
+
+
+@pytest.mark.asyncio
 async def test_archive_restore_confirm_rejects_changed_review_hash(db_session: AsyncSession) -> None:
     service = MemoryArchiveRestoreService(db_session)
     manager = _RestoreMemoryManager()
@@ -428,4 +448,3 @@ def test_memory_archive_dry_run_flags_tampered_cube_envelope() -> None:
 
     result = MemoryArchiveService.dry_run_archive(payload)
     assert any(code.startswith("tampered_cube_hash:") and "tamper-check-1" in code for code in result.warning_codes)
-
