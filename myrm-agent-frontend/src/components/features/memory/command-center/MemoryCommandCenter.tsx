@@ -19,6 +19,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
+import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
 import { getProjects, type Project } from '@/services/projects';
 import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
@@ -61,6 +62,8 @@ import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import MemoryHealthDashboard from '../insights/MemoryHealthDashboard';
 import { canDeepLinkMigrationSource, registerMigrationSourceManifest } from '@/services/migrationDiscovery';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
+import { ShieldCheck } from 'lucide-react';
+import { MemoryResidencyDrawer } from '../drawers/MemoryResidencyDrawer';
 import { MemoryRecallBoundaryPanel } from './MemoryRecallBoundaryPanel';
 import { isPendingTargetChanged } from '@/services/memory/pendingTargetChanged';
 
@@ -96,10 +99,12 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   const [rollbackResult, setRollbackResult] = useState<MemoryImportRollbackResponse | null>(null);
   const [rollbackDialogOpen, setRollbackDialogOpen] = useState(false);
   const [connectWizardOpen, setConnectWizardOpen] = useState(false);
+  const [residencyDrawerOpen, setResidencyDrawerOpen] = useState(false);
   const [liveStream, setLiveStream] = useState<MemoryCommandTimelineEvent[]>([]);
   const [replaySessionId, setReplaySessionId] = useState<string | null>(null);
   const [healthExpanded, setHealthExpanded] = useState(false);
   const [consolidationSummary, setConsolidationSummary] = useState<ConsolidationLastSummary | null>(null);
+  const activeChatId = useChatStore((state) => state.chatId);
 
   const urlProjectId = searchParams.get('project') ?? null;
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId);
@@ -555,6 +560,15 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
           />
           <button
             type="button"
+            onClick={() => setResidencyDrawerOpen(true)}
+            className="w-full rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-60 sm:w-auto flex items-center justify-center gap-1.5"
+            title="查看物理卷隔离与驻留证明"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>{t('commandCenter.residencyProof', { fallback: '隔离与驻留' })}</span>
+          </button>
+          <button
+            type="button"
             onClick={loadSnapshot}
             disabled={loading}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60 sm:w-auto"
@@ -602,7 +616,13 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
         <ObserveSection snapshot={snapshot} liveStream={liveStream} t={t} onEventClick={openReplayForEvent} />
       )}
       {activeSection === 'understand' && (
-        <UnderstandSection snapshot={snapshot} t={t} onResolveConflict={resolveConflict} actionId={actionId} />
+        <UnderstandSection
+          snapshot={snapshot}
+          t={t}
+          onResolveConflict={resolveConflict}
+          actionId={actionId}
+          defaultChatId={activeChatId}
+        />
       )}
       {activeSection === 'act' && (
         <ActSection
@@ -656,6 +676,10 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
         onToggleSection={archiveRestore.toggleSection}
         onConfirm={archiveRestore.confirm}
         onRollback={archiveRestore.rollback}
+      />
+      <MemoryResidencyDrawer
+        isOpen={residencyDrawerOpen}
+        onClose={() => setResidencyDrawerOpen(false)}
       />
     </section>
   );
