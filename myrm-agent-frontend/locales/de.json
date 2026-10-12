@@ -8519,7 +8519,7 @@
     "smsTestFailed": "Die Twilio-SMS-Verbindung ist fehlgeschlagen",
     "smsCredentialsRequired": "Bitte geben Sie die Konto-SID, das Authentifizierungs-Token und die Telefonnummer ein",
     "githubTitle": "GitHub",
-    "githubDesc": "Verbinden Sie ein GitHub-Token, damit der Agent seine Antworten als Kommentare zu Ihren Issues und Pull Requests posten kann.",
+    "githubDesc": "Verbinden Sie ein GitHub-Token, damit der Agent Ergebnisse als Kommentare zu den von Ihnen gewählten Issues und Pull Requests posten kann. Er postet nur und reagiert nicht auf Aktivitäten auf GitHub.",
     "githubPersonalAccessToken": "Personal Access Token",
     "githubPatHint": "Token mit repo-Berechtigung. Wird verwendet, um Kommentare zu Issues/PRs zu posten.",
     "githubSave": "Speichern",

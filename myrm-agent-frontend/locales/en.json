@@ -8533,7 +8533,7 @@
     "smsTestFailed": "Twilio SMS connection failed",
     "smsCredentialsRequired": "Please fill in Account SID, Auth Token and Phone Number",
     "githubTitle": "GitHub",
-    "githubDesc": "Connect a GitHub token so the agent can post its replies as comments on your issues and pull requests.",
+    "githubDesc": "Connect a GitHub token so the agent can post results as comments on the issues and pull requests you choose. It only posts and never reacts to activity on GitHub.",
     "githubPersonalAccessToken": "Personal Access Token",
     "githubPatHint": "Token with repo scope. Used to post comments on issues/PRs.",
     "githubSave": "Save",

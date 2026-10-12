@@ -8531,7 +8531,7 @@
     "smsTestFailed": "Twilio SMS 連線失敗",
     "smsCredentialsRequired": "請先填寫 Account SID、Auth Token 和電話號碼",
     "githubTitle": "GitHub",
-    "githubDesc": "連接 GitHub 令牌後，智慧體即可把回覆作為評論發佈到你的 Issue 和 PR 上。",
+    "githubDesc": "連接 GitHub 令牌後，智慧體即可把結果作為評論發佈到你指定的 Issue 和 PR 上。僅發佈評論，不會回應 GitHub 上的任何動態。",
     "githubPersonalAccessToken": "個人訪問令牌",
     "githubPatHint": "需要 repo 許可權的令牌，用於在 Issue/PR 上發表評論。",
     "githubSave": "儲存",

@@ -8531,7 +8531,7 @@
     "smsTestFailed": "Twilio SMS への接続に失敗しました",
     "smsCredentialsRequired": "Account SID、Auth Token、電話番号を先に入力してください",
     "githubTitle": "GitHub",
-    "githubDesc": "GitHub トークンを接続すると、エージェントが返信を Issue や Pull Request へのコメントとして投稿できます。",
+    "githubDesc": "GitHub トークンを接続すると、エージェントが結果を、指定した Issue や Pull Request にコメントとして投稿できます。投稿のみで、GitHub 上の動きには反応しません。",
     "githubPersonalAccessToken": "個人アクセストークン",
     "githubPatHint": "repo スコープを持つトークン。Issue/PR にコメントを投稿するために使用します。",
     "githubSave": "保存",

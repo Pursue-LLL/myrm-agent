@@ -8533,7 +8533,7 @@
     "smsTestFailed": "Twilio SMS 连接失败",
     "smsCredentialsRequired": "请先填写 Account SID、Auth Token 和电话号码",
     "githubTitle": "GitHub",
-    "githubDesc": "连接 GitHub 令牌后，智能体即可把回复作为评论发布到你的 Issue 和 PR 上。",
+    "githubDesc": "连接 GitHub 令牌后，智能体即可把结果作为评论发布到你指定的 Issue 和 PR 上。仅发布评论，不会响应 GitHub 上的任何动态。",
     "githubPersonalAccessToken": "个人访问令牌",
     "githubPatHint": "需要 repo 权限的令牌，用于在 Issue/PR 上发表评论。",
     "githubSave": "保存",
