@@ -45,17 +45,20 @@ export function isXurlBinUnavailable(skill: Skill): boolean {
   return skill.id === XURL_SKILL_ID && !skill.available;
 }
 
-/** An unavailable skill that waits on an account or connector, which can only be connected in settings. */
-function isIntegrationConnectionMissing(skill: Skill): boolean {
+/** An unavailable skill that declares an account or connector it depends on, which is connected in settings. */
+function isWaitingOnConnection(skill: Skill): boolean {
   const hasRequiredAccounts = (skill.required_oauth_issuers?.length ?? 0) > 0;
   const hasRequiredConnectors = (skill.required_mcp_server_ids?.length ?? 0) > 0;
   return !skill.available && (hasRequiredAccounts || hasRequiredConnectors);
 }
 
+function declaresRuntimeRequirement(skill: Skill): boolean {
+  const { bins, env, config } = skill.requires;
+  return bins.length + env.length + config.length > 0;
+}
+
 export function hasIntegrationSettingsLink(skill: Skill): boolean {
-  return (
-    isIntegrationConnectionMissing(skill) || isGoogleWorkspaceOAuthUnavailable(skill) || isXLiveSearchUnavailable(skill)
-  );
+  return isWaitingOnConnection(skill) || isGoogleWorkspaceOAuthUnavailable(skill) || isXLiveSearchUnavailable(skill);
 }
 
 export function getIntegrationSkillSettingsPath(skill: Skill): string {
@@ -91,8 +94,12 @@ export function getIntegrationSkillSettingsLinkLabel(skill: Skill, t: SkillsCard
 }
 
 export function getSkillUnavailableDisplayMessage(skill: Skill, t: SkillsCardTranslator): string {
-  if (isIntegrationConnectionMissing(skill)) {
-    return t('card.integrationOAuth.connectionRequired.unavailable');
+  if (isWaitingOnConnection(skill)) {
+    // The fixed instruction is only true when a connection is the sole possible blocker; otherwise the
+    // server reason names the actual cause.
+    return declaresRuntimeRequirement(skill)
+      ? skill.unavailable_reason || t('card.unavailable')
+      : t('card.integrationOAuth.connectionRequired.unavailable');
   }
   if (isGoogleWorkspaceOAuthUnavailable(skill)) {
     return t('card.integrationOAuth.googleWorkspace.unavailable');

@@ -144,6 +144,26 @@ describe('integrationOAuthDisplay generic multi-connector paths', () => {
     );
   });
 
+  it('shows the server reason when a bin, env or config requirement can also be what blocks the skill', () => {
+    const missingBin = buildSkill({
+      available: false,
+      unavailable_reason: 'Missing: BIN: gh',
+      requires: { bins: ['gh'], env: [], config: [] },
+      required_oauth_issuers: ['github'],
+    });
+    const missingKey = buildSkill({
+      available: false,
+      unavailable_reason: 'Missing: ENV: GH_TOKEN',
+      requires: { bins: [], env: ['GH_TOKEN'], config: [] },
+      required_mcp_server_ids: ['github'],
+    });
+
+    expect(getSkillUnavailableDisplayMessage(missingBin, mockTranslator)).toBe('Missing: BIN: gh');
+    expect(getSkillUnavailableDisplayMessage(missingKey, mockTranslator)).toBe('Missing: ENV: GH_TOKEN');
+    expect(hasIntegrationSettingsLink(missingBin)).toBe(true);
+    expect(hasIntegrationSettingsLink(missingKey)).toBe(true);
+  });
+
   it('keeps the dedicated Google Workspace message when the skill declares no required accounts', () => {
     const skill = buildSkill({ id: 'google-workspace', available: false, unavailable_reason: 'raw reason' });
 
