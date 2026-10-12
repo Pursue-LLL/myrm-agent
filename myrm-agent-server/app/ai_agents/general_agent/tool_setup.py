@@ -177,7 +177,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
         from myrm_agent_harness.agent.meta_tools.skills.manage import (
             create_skill_manage_tool,
         )
-        from myrm_agent_harness.agent.skills.runtime.loader import skill_md_loader
         from myrm_agent_harness.backends.skills.scanning_write_backend import (
             ScanningSkillWriteBackend,
         )
@@ -192,7 +191,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
         scanning_backend = ScanningSkillWriteBackend(
             inner=write_backend,
-            loader=skill_md_loader,
             llm_auditor=llm_auditor_instance,
         )
         tools.append(
