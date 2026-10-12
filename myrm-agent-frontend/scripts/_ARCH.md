@@ -12,7 +12,7 @@
 | `check_typescript_strict.py` | `tsc --noEmit` strict 错误数门禁（`ci/typescript_strict_baseline.txt`；`tsconfig.json` `strict: true`） |
 | `check_file_line_budget.py` | 单文件 400 行**本地自查工具**（非 CI 阻断；超限台账 `ci/file_line_budget_baseline.txt`，`--write-baseline` 维护）。强制阻断已移除：行数只影响可读性，不影响运行正确性，接入 CI 会把「文档/风格」与「真 bug」混在同一道红灯里 |
 | `check_barrel_exports.py` | 跨域 `index.ts` 桶导出白名单门禁 |
-| `check_module_resolution.py` | 导入说明符解析门禁：按 bundler 同款「扩展名替换 + index 规则」解析 `from` / `import()` / `require()` / 相对与别名路径，命中磁盘不存在即失败。填补 `tsc` 盲区——Node `require` 签名是 `(id: string) => any`，删除被 `require('./x')` 引用的模块不会报错，只在运行时 500（如 `file-service/sandbox.ts` 被误删导致全站 500）；bare 包名与测试替身 `vi.mock`/`jest.mock` 跳过 |
+| `check_module_resolution.py` | 导入说明符解析门禁：按 bundler 同款「扩展名替换 + index 规则」解析 `from` / `import()` / `require()` / 相对与别名路径，命中磁盘不存在即失败。填补 `tsc` 盲区——Node `require` 签名是 `(id: string) => any`，删除被 `require('./x')` 引用的模块不会报错，只在运行时 500（如 `file-service/sandbox.ts` 被误删导致全站 500）；bare 包名与测试替身 `vi.mock`/`jest.mock` 跳过；`#locales/namespaces/*` 别名目标是 gitignored 生成物，须在 `i18n:split` 之后运行（CI 步骤顺序保证） |
 | CI lockfile policy | `frontend-build.yml` 断言无 `package-lock.json`（bun.lock 为 SSOT） |
 | `ci/fractal_docs_baseline.txt` | 递归扫描豁免目录（当前无条目） |
 | `ci/file_line_budget_baseline.txt` | 400 行自查的存量超限台账（仅本地自查读取，非 CI 阻断） |
@@ -42,7 +42,7 @@
 | `build-sw-src.mjs` | esbuild 打包 `src/app/sw.ts` → `.serwist/sw-inject-src.js`（inject-manifest 入口，解析 lib import） |
 | `scan-home-i18n-shell.mjs` | home-route `settings.*` 引用须在 SSR shell（CI via verify-i18n） |
 | `verify-shell-i18n-runtime.mjs` | 运行时 SSR HTML / deferred API 校验（dev；shell 清单从 locale-manifest 解析） |
-| `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev.ts` / `build` / `build:tauri` / `prestart` / `pretest` 前置）；原子写（同目录 rename，内容未变则跳过）+ 事后清理陈旧文件，不清空目录，并发读者（dev server / vitest）不会读到缺失或半写文件 |
+| `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev.ts` / `build` / `build:tauri` / `prestart` / `pretest` / CI `frontend-build.yml` 前置）；原子写（同目录 rename，内容未变则跳过）+ 事后清理陈旧文件，不清空目录，并发读者（dev server / vitest）不会读到缺失或半写文件 |
 | `sync_i18n.py` | 从 en（SSOT）补全其余 5 种语言缺失键（本地维护） |
 | `dev.ts` | locale split（启动时 + `fs.watch` 监听 `locales/*.json` 防抖重生成，避免长驻 dev server 的 namespaces 陈旧导致 ENOENT/hydration 超时）+ Next dev 入口（`dev` / `dev:lan` / `dev:clean`；pause gate；`node --require next-dev-gate.cjs`；lock 健康跳过；Next 启动前先 `strip_isolated_tsconfig.py` 清除上一条 lane 写入共享 `next-env.d.ts` 的 dist import，实现 lane 级单写者） |
 | `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定 |
@@ -63,6 +63,7 @@
 ## 约束
 
 - 新 CI 门禁脚本放本目录并在本 `_ARCH.md` 与根 `_ARCH.md` CI 节登记
+- `frontend-build.yml` 的门禁步骤互相独立（`if: ${{ !cancelled() }}`），一次运行列出全部红灯；新增门禁沿用该写法，依赖 `locales/namespaces/` 生成物的门禁须排在 `bun run i18n:split` 步骤之后，依赖构建产物的门禁（如 `verify-sw-push.mjs`）以 `steps.build.conclusion == 'success'` 为条件
 - baseline 文件仅通过 `--write-baseline` 更新，禁止手改豁免逻辑
 - `ci/barrel_whitelist.txt` 跨域 barrel 条目须与根 `_ARCH.md` 桶表同步，手改后跑 `check_barrel_exports.py` 验证
 - 删除模块前跑 `check_module_resolution.py`：`tsc` 不校验 `require()` 目标，静态图谱扫不到的目标仍可能被动态加载器引用

@@ -14,11 +14,11 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 | `turbopack.root` | monorepo 根（`myrm-agent/`） | dev/build 解析跨包 JSON |
 | `outputFileTracingRoot` | monorepo 根 | standalone/Tauri 打包 trace |
 | Docker build | [Dockerfile](Dockerfile) | builder 布局 `/app/frontend` + `/app/shared`（context = `myrm-agent/` 根） |
-| CI | `frontend-build.yml` | `shared/**` 变更触发 oxlint + strict TS + fractal docs + barrel policy + module resolution + verify:i18n + remap vitest + `bun run build` + verify-sw-push |
+| CI | `frontend-build.yml` | `myrm-agent-frontend/**` / `shared/**` 变更触发：先 `bun run i18n:split` 生成 gitignored 的 `locales/namespaces/`，其后 oxlint + strict TS + fractal docs + barrel policy + module resolution + verify:i18n + remap vitest + `bun run build` + verify-sw-push 互相独立执行（单个红灯不掩盖其余，一次运行列出全部失败门禁） |
 
 ## 脚本
 
-详见 [scripts/_ARCH.md](scripts/_ARCH.md)。CI 核心：`oxlint`（errors 阻断 / warnings 不阻断，配置 `.oxlintrc.json` + `.oxlintignore`）、`check_fractal_docs.py`、`check_typescript_strict.py`、`check_barrel_exports.py`、`check_module_resolution.py`、`verify-i18n.mjs`、`verify-sw-push.mjs`（`bun run build` 后）。
+详见 [scripts/_ARCH.md](scripts/_ARCH.md)。CI 核心：`oxlint`（errors 阻断 / warnings 不阻断，配置 `.oxlintrc.json` + `.oxlintignore`）、`check_fractal_docs.py`、`check_typescript_strict.py`、`check_barrel_exports.py`、`check_module_resolution.py`、`verify-i18n.mjs`、`verify-sw-push.mjs`（仅在 `bun run build` 成功后）。tsc 与 `check_module_resolution.py` 依赖 `locales/namespaces/` 生成物，CI 与 `dev` / `pretest` 一样先跑 `i18n:split`。
 
 ## PWA / Service Worker（Web 部署）
 
