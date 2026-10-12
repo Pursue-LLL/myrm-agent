@@ -231,6 +231,30 @@ def _restore_chat_id_var() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _reset_ptc_safety_registry() -> Iterator[None]:
+    """Isolate the dynamic MCP safety registry between all tests.
+
+    Connecting an MCP server registers per-skill and per-tool safety metadata in process-wide
+    registries. Left behind, they make the compliance audit report a ghost skill and let an unrelated
+    tool with the same name resolve to another server's read-only annotations, which skips approval.
+    """
+    from myrm_agent_harness.core.security.tool_registry.registry import (
+        _PTC_LOCK,
+        _PTC_SAFETY_METADATA,
+        _PTC_TOOL_FLAT_INDEX,
+    )
+
+    def clear() -> None:
+        with _PTC_LOCK:
+            _PTC_SAFETY_METADATA.clear()
+            _PTC_TOOL_FLAT_INDEX.clear()
+
+    clear()
+    yield
+    clear()
+
+
+@pytest.fixture(autouse=True)
 async def _reset_global_browser_pool_singleton(request: pytest.FixtureRequest) -> AsyncIterator[None]:
     """Shut down GlobalBrowserPool singleton after browser-related tests.
 

@@ -12,7 +12,7 @@
 | **症状** | `from myrm_agent_harness.toolkits.browser import BrowserSession` 之后 `'patchright' in sys.modules` 为真；启动基准 `benchmarks/bench_startup_performance.py::test_lazy_loading_patchright` 在 CI 里失败 |
 | **关联产品** | myrm-agent-harness `toolkits/browser/wait/_impl.py`、`toolkits/browser/utils/timeout.py` |
 | **根因** | `wait/_impl.py` 顶层 `from patchright.async_api import TimeoutError as PlaywrightTimeoutError`，并在模块级拼出 `_TIMEOUT_ERRORS` 元组；`session` 包的导入链会经过这个模块，其余 patchright 类型都只用于注解，只有这一处是运行时导入 |
-| **修复** | `utils/timeout.py` 新增带缓存的 `timeout_error_types()`，在第一次进入 `except` 子句求值时才导入 patchright，未安装时退化为内置 `TimeoutError`；`is_timeout_error` 复用它；`wait/_impl.py` 删除顶层导入与 `_TIMEOUT_ERRORS`，所有 `except` 改用 `timeout_error_types()` |
+| **修复** | `toolkits/browser/utils/timeout.py` 新增带缓存的 `timeout_error_types()`，在第一次进入 `except` 子句求值时才导入 patchright，未安装时退化为内置 `TimeoutError`；`is_timeout_error` 复用它；`toolkits/browser/wait/_impl.py` 删除顶层导入与 `_TIMEOUT_ERRORS`，所有 `except` 改用 `timeout_error_types()` |
 | **反复次数** | 第 1 次发现 |
 | **踩坑** | 本机对 `import BrowserSession` 做了前后各 9 次计时（修复前 min 583ms / median 659ms，修复后 min 544ms / median 646ms），差异在噪声内，因此**不声称启动提速**，只恢复「导入不加载驱动」的约定；`test_import_browser`（<250ms）与 `test_import_web_search`（<300ms）两个阈值本机仍超，未在此处理 |
 | **回归** | `tests/toolkits/browser/test_timeout_utils.py`（两类超时都被识别、无 patchright 时退化、新开子进程断言导入后 `patchright` 不在 `sys.modules`） |

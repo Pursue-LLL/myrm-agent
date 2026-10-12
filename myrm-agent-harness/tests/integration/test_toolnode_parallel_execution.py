@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import tempfile
 import time
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -26,11 +27,27 @@ from myrm_agent_harness.agent.security.tool_registry import (
     SafetyMetadata,
 )
 
-TOOL_SAFETY_METADATA["real_file_read"] = SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
-TOOL_SAFETY_METADATA["real_grep"] = SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
-TOOL_SAFETY_METADATA["real_glob"] = SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
-TOOL_SAFETY_METADATA["real_file_write"] = SafetyMetadata(is_destructive=True)
-TOOL_SAFETY_METADATA["real_bash"] = SafetyMetadata(is_destructive=True)
+_TEST_TOOL_SAFETY: dict[str, SafetyMetadata] = {
+    "real_file_read": SafetyMetadata(is_read_only=True, is_concurrent_safe=True),
+    "real_grep": SafetyMetadata(is_read_only=True, is_concurrent_safe=True),
+    "real_glob": SafetyMetadata(is_read_only=True, is_concurrent_safe=True),
+    "real_file_write": SafetyMetadata(is_destructive=True),
+    "real_bash": SafetyMetadata(is_destructive=True),
+}
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _register_test_tool_safety() -> Iterator[None]:
+    """Expose these tools' safety metadata only while this module runs.
+
+    Writing them into the process-wide map at import time would leave them visible to every other
+    test of the worker, and the registry audit would report them as ghost tools.
+    """
+    with pytest.MonkeyPatch.context() as patcher:
+        for name, metadata in _TEST_TOOL_SAFETY.items():
+            patcher.setitem(TOOL_SAFETY_METADATA, name, metadata)
+        yield
+
 
 _log: list[tuple[str, str, float]] = []
 
