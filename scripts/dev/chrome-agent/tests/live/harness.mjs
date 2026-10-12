@@ -90,14 +90,19 @@ export class SandboxProxy {
         return list.filter((t) => t.type === 'page').map((t) => ({ id: t.id, url: t.url }));
     }
 
-    /** Make Chrome hold exactly `count` about:blank pages (closes extras, opens missing). */
+    /**
+     * Make Chrome hold exactly `count` about:blank pages. New pages are opened before the old
+     * ones are closed so the browser never has zero tabs (closing all first intermittently left
+     * it with none under load).
+     */
     async resetPages(count = 3) {
         const cdpClient = await this.cdp();
-        for (const page of await this.chromePages()) {
-            await cdpClient.send('Target.closeTarget', { targetId: page.id });
-        }
+        const stale = await this.chromePages();
         for (let i = 0; i < count; i++) {
             await cdpClient.send('Target.createTarget', { url: 'about:blank' });
+        }
+        for (const page of stale) {
+            await cdpClient.send('Target.closeTarget', { targetId: page.id });
         }
         cdpClient.close();
         await sleep(800);
