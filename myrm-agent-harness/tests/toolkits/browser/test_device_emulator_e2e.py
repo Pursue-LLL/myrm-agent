@@ -75,6 +75,9 @@ async def test_emulate_desktop_restores_viewport(
     ua = await page.evaluate("navigator.userAgent")
     assert "iPhone" not in ua
 
+    # The renderer applies the cleared metrics override asynchronously, so the first read after the
+    # CDP call can still see the emulated width.
+    await page.wait_for_function("() => innerWidth >= 1000", polling=50, timeout=10_000)
     dims = await page.evaluate(
         "() => ({ width: innerWidth, dpr: devicePixelRatio, maxTouchPoints: navigator.maxTouchPoints })"
     )
