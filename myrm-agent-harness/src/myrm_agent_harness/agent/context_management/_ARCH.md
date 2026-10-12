@@ -103,6 +103,7 @@ Detailed design: [CONTEXT_MANAGEMENT_SYSTEM.md](CONTEXT_MANAGEMENT_SYSTEM.md)
 | local_prefill_guard/ | Local LLM long-context prefill latency guard, predictive TTFT estimator, and adaptive pruning scheduler suite (Item 317). See [local_prefill_guard/_ARCH.md](local_prefill_guard/_ARCH.md). |
 | loyalty/ | Manages user-centric loyalty layers and cross-model test-time RL alignment. See [loyalty/_ARCH.md](loyalty/_ARCH.md). |
 | mention_hydration/ | Engine for GUI-first @-mention zero-turn context hydration. See [mention_hydration/_ARCH.md](mention_hydration/_ARCH.md). |
+| meta_session_orchestration/ | Cascading meta-session dispatching, Chat-Cowork dual-track memory fusion, and sub-session crash isolation (Item 332). See [meta_session_orchestration/_ARCH.md](meta_session_orchestration/_ARCH.md). |
 | message_tree/ | Manages in-place branching, sibling version switching, and path resolution. See [message_tree/_ARCH.md](message_tree/_ARCH.md). |
 | micro_compaction/ | Core implementation of Micro-Compaction and Amortized Turn Context Reclamation Engine. See [micro_compaction/_ARCH.md](micro_compaction/_ARCH.md). |
 | midflight_steering/ | Core engine for Mid-Flight Steering and Interactive Execution Intervention. See [midflight_steering/_ARCH.md](midflight_steering/_ARCH.md). |
@@ -123,6 +124,7 @@ Detailed design: [CONTEXT_MANAGEMENT_SYSTEM.md](CONTEXT_MANAGEMENT_SYSTEM.md)
 | pinning/ | Guarantees zero-pruning preservation of pinned contexts and constructs inspector cards. See [pinning/_ARCH.md](pinning/_ARCH.md). |
 | pipeline/ | Ordered context processors for filtering, active per-step tool-result pruning, cache-TTL pruning, pre-compaction recall, compression, session notes, summarization, post-compaction refetch guard, normalization, and explicit cache markers. Filter and Compress consume compression_intent via retention_helpers. |
 | portable_export/ | Builder engine for assembling, redacting, and cryptographically signing portable context bundles. See [portable_export/_ARCH.md](portable_export/_ARCH.md). |
+| post_compaction_loop_guard/ | Post-compaction tool loop guard, boundary ledger extractor, and repeated tool execution circuit-breaker suite (Item 331). See [post_compaction_loop_guard/_ARCH.md](post_compaction_loop_guard/_ARCH.md). |
 | prefix_caching_ledger/ | Prefix caching aligned context layout and hidden reasoning token ledger suite (Item 308). See [prefix_caching_ledger/_ARCH.md](prefix_caching_ledger/_ARCH.md). |
 | privacy_mode/ | 核心引擎实现：会话级隐私模式：卸除全部工具硬门禁与擅自调用拦截。 See [privacy_mode/_ARCH.md](privacy_mode/_ARCH.md). |
 | proactive_recall/ | Core engine for Context Gap Auto Probe and Intent-Driven Proactive Recall Gate (Item 210). See [proactive_recall/_ARCH.md](proactive_recall/_ARCH.md). |
@@ -132,6 +134,7 @@ Detailed design: [CONTEXT_MANAGEMENT_SYSTEM.md](CONTEXT_MANAGEMENT_SYSTEM.md)
 | project_state/ | 面向长期项目的动态事实状态账本与上下文投影流水线套件。 See [project_state/_ARCH.md](project_state/_ARCH.md). |
 | prompt_anchoring/ | Gateway orchestrating dual-layer system prompt assembly and tail redirection. See [prompt_anchoring/_ARCH.md](prompt_anchoring/_ARCH.md). |
 | prompt_cache_clock/ | Core engine for Tiered Prompt Cache and Hour Clock Governor Suite (Item 222). See [prompt_cache_clock/_ARCH.md](prompt_cache_clock/_ARCH.md). |
+| prompt_cache_roll_forward/ | Prompt Cache Dynamic Roll-Forward and Headless 3D Sandbox Suite (Item 330). See [prompt_cache_roll_forward/_ARCH.md](prompt_cache_roll_forward/_ARCH.md). |
 | reasoning_collapse/ | Engine for collapsing deep reasoning thought streams and aligning prompt cache. See [reasoning_collapse/_ARCH.md](reasoning_collapse/_ARCH.md). |
 | response_verbosity/ | Tri-tier response verbosity control and dynamic density tuner suite (Item 311). See [response_verbosity/_ARCH.md](response_verbosity/_ARCH.md). |
 | resumed_usage_meter/ | Core calculator isolating incremental run token usage from legacy historical context. See [resumed_usage_meter/_ARCH.md](resumed_usage_meter/_ARCH.md). |
@@ -182,12 +185,15 @@ Detailed design: [CONTEXT_MANAGEMENT_SYSTEM.md](CONTEXT_MANAGEMENT_SYSTEM.md)
 | topic_drift_fork/ | Session Fork Manager coordinating auto-renaming, carryover summary extraction, and clean session forking. See [topic_drift_fork/_ARCH.md](topic_drift_fork/_ARCH.md). |
 | tracking/ | Observation and tracking: artifact tracking, task metrics, archive refetch cost, restore-block events, and archive read budgets. |
 | transcript_enforcer/ | Hard gate enforcing append-only invariant on conversation message transcripts. See [transcript_enforcer/_ARCH.md](transcript_enforcer/_ARCH.md). |
+| transcript_resilience/ | Two-tier transcript offloading, single-flight token refresh mutex, delayed slot allocation, and dynamic CLI vault credential engine (Item 333). See [transcript_resilience/_ARCH.md](transcript_resilience/_ARCH.md). |
 | transparent_gauge/ | Calculation engine for context window 5-segment budget breakdown and watermark detection. See [transparent_gauge/_ARCH.md](transparent_gauge/_ARCH.md). |
 | tri_fate_compaction/ | Turn-level tri-fate compaction and decoupled digest synthesizer suite (Item 309). See [tri_fate_compaction/_ARCH.md](tri_fate_compaction/_ARCH.md). |
 | turn_truncation/ | Core engine for In-Flight Turn State Truncation and Prefix Cache Stability Gate. See [turn_truncation/_ARCH.md](turn_truncation/_ARCH.md). |
 | two_stage_pipeline/ | Phase 2: Protocol conversion transpiling high-level logical context to provider-specific payloads. See [two_stage_pipeline/_ARCH.md](two_stage_pipeline/_ARCH.md). |
 | two_stage_search_extract/ | Two-stage ranked snippet triage and selective deep web extract suite (Item 327). See [two_stage_search_extract/_ARCH.md](two_stage_search_extract/_ARCH.md). |
 | visual_pruner/ | Core engine for Visual Frame Context Pruning and Latency Squeezing. See [visual_pruner/_ARCH.md](visual_pruner/_ARCH.md). |
+| voice_bypass/ | Deterministic Tier-0 local voice command bypass router and tiered intent dispatch suite (Item 326). See [voice_bypass/_ARCH.md](voice_bypass/_ARCH.md). |
+| voice_visual/ | Voice visual intent heuristic detector and screenshot context awareness suite (Item 303). See [voice_visual/_ARCH.md](voice_visual/_ARCH.md). |
 | working_memory/ | Local Working Memory Block: low-overhead in-memory workbench for goals, subtasks, traps, and turn-tail prompt cache-safe rendering. |
 | workspace_branch_stash/ | Engine managing lightweight shadow stash capture and checkout restoration in workspace sandbox. See [workspace_branch_stash/_ARCH.md](workspace_branch_stash/_ARCH.md). |
 | workspace_guard/ | 显式工作区探索守卫与自主扫盘抑制核心引擎。 See [workspace_guard/_ARCH.md](workspace_guard/_ARCH.md). |

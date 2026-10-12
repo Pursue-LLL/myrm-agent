@@ -247,15 +247,120 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.agent.context_management",
         "CacheWarmthGauge",
     ),
+    "PromptCacheDynamicRollForwardAndHeadless3DSandboxSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "PromptCacheDynamicRollForwardAndHeadless3DSandboxSuite",
+    ),
+    "DynamicRollForwardEngine": (
+        "myrm_agent_harness.agent.context_management",
+        "DynamicRollForwardEngine",
+    ),
+    "PostCompactionToolLoopGuardSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "PostCompactionToolLoopGuardSuite",
+    ),
+    "MetaSessionOrchestrationAndChatCoworkDualTrackFusionSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "MetaSessionOrchestrationAndChatCoworkDualTrackFusionSuite",
+    ),
+    "HierarchicalMetaSessionOrchestrator": (
+        "myrm_agent_harness.agent.context_management",
+        "HierarchicalMetaSessionOrchestrator",
+    ),
+    "TieredTranscriptOffloadingAndSessionLifecycleResilienceSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "TieredTranscriptOffloadingAndSessionLifecycleResilienceSuite",
+    ),
+    "WorkWithChatUnifiedWorkspaceDeckAndMultiModelCostArbitrageSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "WorkWithChatUnifiedWorkspaceDeckAndMultiModelCostArbitrageSuite",
+    ),
+    "ProjectBoundSessionLauncherSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "ProjectBoundSessionLauncherSuite",
+    ),
+    "UserProfilePromptLayeredAuthoringGuideAndNarrativeStylePresetSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "UserProfilePromptLayeredAuthoringGuideAndNarrativeStylePresetSuite",
+    ),
+    "CorruptSessionStorageGracefulDegradationAndAutoHealingSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "CorruptSessionStorageGracefulDegradationAndAutoHealingSuite",
+    ),
+    "MultiSessionParallelWorkspaceAndRootDiscoverySuite": (
+        "myrm_agent_harness.agent.context_management",
+        "MultiSessionParallelWorkspaceAndRootDiscoverySuite",
+    ),
+    "TerminalMissingSilentEndServerReconcileSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "TerminalMissingSilentEndServerReconcileSuite",
+    ),
+    "PromptCacheLookbackPositionAlignedPruneFloorSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "PromptCacheLookbackPositionAlignedPruneFloorSuite",
+    ),
+    "SummaryCallOverflowTailClipRetrySuite": (
+        "myrm_agent_harness.agent.context_management",
+        "SummaryCallOverflowTailClipRetrySuite",
+    ),
+    "StructuredTestReportPayloadCompressorSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "StructuredTestReportPayloadCompressorSuite",
+    ),
+    "InvalidGeneratedTitleRecoverySuite": (
+        "myrm_agent_harness.agent.context_management",
+        "InvalidGeneratedTitleRecoverySuite",
+    ),
+    "AccountWideIdleChatAutoArchivePolicySuite": (
+        "myrm_agent_harness.agent.context_management",
+        "AccountWideIdleChatAutoArchivePolicySuite",
+    ),
+    "CompactBeforeSendTokenChipSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "CompactBeforeSendTokenChipSuite",
+    ),
+    "SandboxZeroCopyBranchLabSuite": (
+        "myrm_agent_harness.agent.file_snapshot",
+        "SandboxZeroCopyBranchLabSuite",
+    ),
+    "VoiceCommandLocalBypassAndTieredIntentRoutingSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "VoiceCommandLocalBypassAndTieredIntentRoutingSuite",
+    ),
+    "VoiceScreenshotContextAwarenessSuite": (
+        "myrm_agent_harness.agent.context_management",
+        "VoiceScreenshotContextAwarenessSuite",
+    ),
 }
 
 __all__ = [
+    "AccountWideIdleChatAutoArchivePolicySuite",
+    "CompactBeforeSendTokenChipSuite",
+    "SandboxZeroCopyBranchLabSuite",
+    "VoiceCommandLocalBypassAndTieredIntentRoutingSuite",
+    "VoiceScreenshotContextAwarenessSuite",
     "ArtifactContinuityGateway",
     "BilateralSovereigntyArchiveHub",
     "CanonicalAgentWorkspaceScaffoldingAndZeroFrictionHandoverSuite",
     "CanonicalScaffoldingSuite",
     "CacheWarmthGauge",
     "ContextCacheWarmthGaugeAndHeartbeatKeepAliveSuite",
+    "DynamicRollForwardEngine",
+    "PromptCacheDynamicRollForwardAndHeadless3DSandboxSuite",
+    "PostCompactionToolLoopGuardSuite",
+    "HierarchicalMetaSessionOrchestrator",
+    "MetaSessionOrchestrationAndChatCoworkDualTrackFusionSuite",
+    "TieredTranscriptOffloadingAndSessionLifecycleResilienceSuite",
+    "WorkWithChatUnifiedWorkspaceDeckAndMultiModelCostArbitrageSuite",
+    "ProjectBoundSessionLauncherSuite",
+    "UserProfilePromptLayeredAuthoringGuideAndNarrativeStylePresetSuite",
+    "CorruptSessionStorageGracefulDegradationAndAutoHealingSuite",
+    "MultiSessionParallelWorkspaceAndRootDiscoverySuite",
+    "TerminalMissingSilentEndServerReconcileSuite",
+    "PromptCacheLookbackPositionAlignedPruneFloorSuite",
+    "SummaryCallOverflowTailClipRetrySuite",
+    "StructuredTestReportPayloadCompressorSuite",
+    "InvalidGeneratedTitleRecoverySuite",
     "CrossHarnessContextStateASTAndLosslessRehydrationSuite",
     "CrossHarnessSuite",
     "CrossPlatformTranscriptNormalizer",
