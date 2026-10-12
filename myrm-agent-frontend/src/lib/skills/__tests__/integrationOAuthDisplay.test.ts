@@ -29,6 +29,7 @@ function buildSkill(overrides: Partial<Skill>): Skill {
     is_active: true,
     requires: { bins: [], env: [], config: [] },
     available: true,
+    unavailable_reason: null,
     trust: 'installed',
     author: null,
     homepage: null,
