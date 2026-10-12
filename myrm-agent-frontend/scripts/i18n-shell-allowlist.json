@@ -196,7 +196,10 @@
     "xxx:yyy",
     "your@email.com",
     "your@icloud.com",
-    "{wu} WU"
+    "{wu} WU",
+    "Layout",
+    "Desktop (1200px)",
+    "Tablet (768px)"
   ],
   "allowedSameKeys": [
     "settings.rate_limits.requests_per_minute",
