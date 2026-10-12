@@ -1,11 +1,12 @@
 // Live-regression harness: an isolated proxy + real Chrome (temp profile, random port)
 // and real chrome-devtools-mcp processes. Never touches the production :9410.
-import { execFileSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { recordProxyPid, removeSandbox, retireSocketDir, waitUntilGone } from './sandbox-cleanup.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const AGENT_DIR = path.resolve(HERE, '../..');
@@ -51,7 +52,6 @@ export class SandboxProxy {
     constructor(proxyDir = AGENT_DIR, env = {}) {
         this.proxyDir = proxyDir;
         this.env = { CHROME_AGENT_MIN_IDLE_TABS: '0', ...env };
-        this.retiredSocketDirs = [];
     }
 
     async start() {
@@ -67,14 +67,15 @@ export class SandboxProxy {
         // An operator's interrupt (130) is not a failure worth a log; any other non-zero exit is.
         process.once('exit', (code) => this.stop({ keepLog: code !== 0 && code !== 130 }));
         for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => process.exit(130));
+        this.#spawnReaper();
         await this.#ready();
     }
 
     /** Restarts the proxy and its Chrome on the same port and profile, as a service restart would. */
     async restart() {
-        this.retiredSocketDirs.push(this.#socketDir());
+        retireSocketDir(this.profile);
         process.kill(this.proc.pid, 'SIGTERM');
-        this.#waitUntilGone();
+        waitUntilGone(this.profile);
         this.#spawn('a');
         await this.#ready();
     }
@@ -89,6 +90,25 @@ export class SandboxProxy {
             '--initial-url', 'about:blank',
         ], { stdio: ['ignore', log, log], detached: true, env: { ...process.env, ...this.env } });
         fs.closeSync(log);
+        recordProxyPid(this.profile, this.proc.pid);
+    }
+
+    /**
+     * stop() cannot run when this process is SIGKILLed. A watchdog in its own process group then
+     * tears the sandbox down; it gets the profile through the environment because the teardown's
+     * `pgrep -f <profile>` would otherwise match the watchdog itself.
+     */
+    #spawnReaper() {
+        spawn(process.execPath, [path.join(HERE, 'reaper.mjs')], {
+            stdio: 'ignore',
+            detached: true,
+            env: {
+                ...process.env,
+                LIVE_REAPER_PROFILE: this.profile,
+                LIVE_REAPER_RUNNER: String(process.pid),
+                LIVE_REAPER_STARTED: String(this.startedAt),
+            },
+        }).unref();
     }
 
     async #ready() {
@@ -119,102 +139,13 @@ export class SandboxProxy {
     }
 
     /**
-     * SIGTERM the proxy (its shutdown handler also terminates Chrome), then delete everything the
-     * run left in the temp dir, retrying while Chrome is still flushing its profile. A failed run
+     * Stop the proxy and Chrome, then delete everything the run left in the temp dir. A failed run
      * passes keepLog to leave proxy.log behind for diagnosis. Idempotent.
      */
     stop({ keepLog = false } = {}) {
         if (this.stopped || !this.proc) return;
         this.stopped = true;
-        const rm = (target) => fs.rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
-        const socketDirs = [...this.retiredSocketDirs, this.#socketDir()].filter(Boolean);
-        try { process.kill(this.proc.pid, 'SIGTERM'); } catch { /* already gone */ }
-        this.#waitUntilGone();
-        this.#sweepChromeTempLeftovers();
-        try {
-            for (const dir of socketDirs) rm(dir);
-            if (keepLog) {
-                rm(path.join(this.profile, 'chrome'));
-                rm(path.join(this.profile, 'chrome-headless.sh'));
-            } else {
-                rm(this.profile);
-            }
-        } catch (err) {
-            console.error(`could not remove ${this.profile}: ${err.message}`);
-        }
-    }
-
-    /**
-     * Chrome keeps its singleton socket in a com.google.Chrome.* dir beside the profile. Read it
-     * while Chrome runs: on exit Chrome removes the link and leaves the dir behind.
-     */
-    #socketDir() {
-        try {
-            const dir = path.dirname(fs.readlinkSync(path.join(this.profile, 'chrome', 'SingletonSocket')));
-            const inTmp = fs.realpathSync(path.dirname(dir)) === fs.realpathSync(os.tmpdir());
-            return inTmp && path.basename(dir).startsWith('com.google.Chrome.') ? dir : null;
-        } catch {
-            return null;
-        }
-    }
-
-    /**
-     * A Chrome killed during its first-launch component install leaves the downloaded CRX
-     * (.com.google.Chrome.*), its unpack dir (scoped_dir*: a CRX, maybe CRX_INSTALL) or the
-     * updater download dir (com.google.Chrome.chrome_chrome_url_fetcher_.*) in the temp dir. Only
-     * such leftovers that appeared after this sandbox started and no process holds open are removed.
-     */
-    #sweepChromeTempLeftovers() {
-        const tmp = os.tmpdir();
-        const isCrx = (file) => {
-            const fd = fs.openSync(file, 'r');
-            try {
-                const magic = Buffer.alloc(4);
-                fs.readSync(fd, magic, 0, 4, 0);
-                return magic.toString() === 'Cr24';
-            } finally {
-                fs.closeSync(fd);
-            }
-        };
-        // A download another Chrome is still writing holds its file open.
-        const inUse = (entry, stat) => {
-            try {
-                return execFileSync('lsof', ['-t', ...(stat.isDirectory() ? ['+D'] : []), entry], { stdio: ['ignore', 'pipe', 'ignore'] }).length > 0;
-            } catch {
-                return false;
-            }
-        };
-        const isLeftover = (name, entry, stat) => {
-            if (/^\.com\.google\.Chrome\.[A-Za-z0-9]{6}$/.test(name)) return stat.isFile() && isCrx(entry);
-            if (name.startsWith('com.google.Chrome.chrome_chrome_url_fetcher_.')) return stat.isDirectory();
-            if (!name.startsWith('scoped_dir') || !stat.isDirectory()) return false;
-            const inside = fs.readdirSync(entry);
-            return inside.some((f) => f.startsWith('.com.google.Chrome.'))
-                && inside.every((f) => f === 'CRX_INSTALL' || f.startsWith('.com.google.Chrome.'));
-        };
-        for (const name of fs.readdirSync(tmp)) {
-            const entry = path.join(tmp, name);
-            try {
-                const stat = fs.statSync(entry);
-                if (stat.mtimeMs >= this.startedAt && isLeftover(name, entry, stat) && !inUse(entry, stat)) {
-                    fs.rmSync(entry, { recursive: true, force: true });
-                }
-            } catch { /* vanished or unreadable: not ours to clean */ }
-        }
-    }
-
-    /** Blocks until no process runs from this run's unique profile path; SIGKILLs stragglers after 8 s. */
-    #waitUntilGone() {
-        const running = () => {
-            try { return execFileSync('pgrep', ['-f', '--', this.profile]).length > 0; } catch { return false; }
-        };
-        for (let waited = 0; running(); waited += 200) {
-            if (waited >= 8000) {
-                try { execFileSync('pkill', ['-9', '-f', '--', this.profile]); } catch { /* none left */ }
-                return;
-            }
-            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 200);
-        }
+        removeSandbox({ profile: this.profile, startedAt: this.startedAt, keepLog });
     }
 
     async chromePages() {
