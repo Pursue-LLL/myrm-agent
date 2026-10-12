@@ -11,10 +11,12 @@
  * rest; a hidden tab's renderer is starved under load (CDP calls time out for tens of
  * seconds and heavy pages such as x.com never finish rendering), and the sessions never
  * bring their tab to the front. A tab that shares its window with other tabs is therefore
- * not idle; once enough solo-window idle tabs exist, blank shared-window tabs are closed.
+ * not idle. The pool never creates such a tab, so a blank shared-window tab was opened by
+ * someone else (a client with an explicit `newWindow:false`, a popup) and may be in use
+ * right now: it is closed only after it has stayed blank and unleased for `abandonGraceMs`.
  *
  * The only other tabs closed here are those whose session disconnected without releasing
- * them (tab-lease `abandoned`), after `abandonGraceMs`, so leaked tabs cannot eat the cap.
+ * them (tab-lease `abandoned`), after the same grace, so leaked tabs cannot eat the cap.
  * Any other non-idle tab may belong to a running task or to the user.
  */
 
@@ -30,8 +32,10 @@ export class IdlePool {
      * @param {number} hooks.maxPages  hard cap on page targets
      * @param {(graceMs: number) => string[]} hooks.takeAbandoned  tabs left behind for at least graceMs
      * @param {number} hooks.abandonGraceMs
+     * @param {() => number} [hooks.now]
      */
-    constructor({ cdpRequest, isLeased, log, minIdle, maxPages, takeAbandoned, abandonGraceMs }) {
+    constructor({ cdpRequest, isLeased, log, minIdle, maxPages, takeAbandoned, abandonGraceMs, now = Date.now }) {
+        this.now = now;
         this.cdpRequest = cdpRequest;
         this.isLeased = isLeased;
         this.log = log;
@@ -42,6 +46,8 @@ export class IdlePool {
         this.running = false;
         /** targetId → id of the window holding it (a tab never changes window) */
         this.windowIds = new Map();
+        /** targetId → when it was first seen as a blank, unleased tab in a shared window, while it stays one */
+        this.sharedBlankSince = new Map();
         /** Pages beyond the first in their window (hidden tabs) at the last reconcile; null before the first. */
         this.sharedWindowPages = null;
     }
@@ -68,10 +74,9 @@ export class IdlePool {
             const shared = blank.filter((t) => !idle.includes(t));
             const needed = Math.max(0, this.minIdle - idle.length);
             let room = this.maxPages - pages.length;
-            // Hidden shared-window blanks go once replaced, or at once when they block the replacement.
-            const evict = needed === 0 ? shared : shared.slice(0, Math.max(0, needed - room));
-            await this.#closeTabs(evict, 'shared-window blank tab');
-            room += evict.length;
+            const unused = this.#unusedSharedBlanks(shared);
+            await this.#closeTabs(unused, 'unused shared-window blank tab');
+            room += unused.length;
             const missing = Math.min(needed, room);
             for (let i = 0; i < missing; i++) {
                 const created = await this.cdpRequest('Target.createTarget', { url: BLANK, newWindow: true, background: true });
@@ -105,6 +110,15 @@ export class IdlePool {
             population.set(windowId, (population.get(windowId) ?? 0) + 1);
         }
         return { windowOf, population };
+    }
+
+    /** Shared-window blank tabs that have been blank and unleased for the whole grace period. */
+    #unusedSharedBlanks(shared) {
+        const t = this.now();
+        const current = new Set(shared.map((tab) => tab.targetId));
+        for (const id of this.sharedBlankSince.keys()) if (!current.has(id)) this.sharedBlankSince.delete(id);
+        for (const id of current) if (!this.sharedBlankSince.has(id)) this.sharedBlankSince.set(id, t);
+        return shared.filter((tab) => t - this.sharedBlankSince.get(tab.targetId) >= this.abandonGraceMs);
     }
 
     async #closeTabs(tabs, what) {

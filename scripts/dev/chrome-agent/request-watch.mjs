@@ -23,8 +23,10 @@ export class RequestWatch {
      * @param {() => number} [hooks.now]
      * @param {() => number[]} [hooks.loadavg]
      * @param {number} [hooks.cpus]
+     * @param {() => number | null} [hooks.chromeAgeMs]  how long the current Chrome has been up, null when it is not running
      */
-    constructor({ pendingRequests, log, slowMs = SLOW_MS, now = Date.now, loadavg = os.loadavg, cpus = os.availableParallelism() }) {
+    constructor({ pendingRequests, log, slowMs = SLOW_MS, now = Date.now, loadavg = os.loadavg, cpus = os.availableParallelism(), chromeAgeMs = () => null }) {
+        this.chromeAgeMs = chromeAgeMs;
         this.pendingRequests = pendingRequests;
         this.log = log;
         this.slowMs = slowMs;
@@ -48,8 +50,10 @@ export class RequestWatch {
             this.flagged.set(proxyId, info);
             this.slowCount++;
             const session = req.sessionId ? ` sess=${req.sessionId.slice(0, 8)}` : '';
+            const age = this.chromeAgeMs();
+            const chrome = age === null ? '' : `, chrome up ${Math.round(age / 60_000)}m`;
             this.log(`slow request ${info.label} ${info.method}${session} unanswered for ${this.#seconds(t - req.createdAt)}s `
-                + `(load ${this.loadavg()[0].toFixed(0)} on ${this.cpus} cpus, ${this.pendingRequests.size} pending)`);
+                + `(load ${this.loadavg()[0].toFixed(0)} on ${this.cpus} cpus, ${this.pendingRequests.size} pending${chrome})`);
         }
         for (const [proxyId, info] of this.flagged) {
             if (this.pendingRequests.get(proxyId)?.createdAt === info.createdAt) continue;
@@ -69,8 +73,8 @@ export class RequestWatch {
 }
 
 /** Create the watch and sweep it while the proxy runs. */
-export function startRequestWatch({ pendingRequests, log }) {
-    const watch = new RequestWatch({ pendingRequests, log });
+export function startRequestWatch({ pendingRequests, log, chromeAgeMs }) {
+    const watch = new RequestWatch({ pendingRequests, log, chromeAgeMs });
     setInterval(() => watch.sweep(), TICK_MS).unref();
     return watch;
 }

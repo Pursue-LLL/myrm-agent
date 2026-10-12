@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { IdlePool } from '../idle-pool.mjs';
 
 const page = (targetId, url = 'about:blank') => ({ targetId, type: 'page', url });
+const GRACE_MS = 600_000;
 
 // `windows` maps targetId → window id; a tab not listed has a window of its own.
 function setup({ pages, minIdle = 3, maxPages = 6, leased = new Set(), abandoned = [], windows = {} }) {
@@ -23,13 +24,15 @@ function setup({ pages, minIdle = 3, maxPages = 6, leased = new Set(), abandoned
         return { result: { targetId: 'x' } };
     };
     const graceCalls = [];
+    const clock = { ms: 0 };
     const pool = new IdlePool({
         cdpRequest, isLeased: (id) => leased.has(id), log: (l) => logs.push(l), minIdle, maxPages,
-        takeAbandoned: (grace) => { graceCalls.push(grace); return abandoned; }, abandonGraceMs: 600_000,
+        takeAbandoned: (grace) => { graceCalls.push(grace); return abandoned; }, abandonGraceMs: GRACE_MS,
+        now: () => clock.ms,
     });
     const created = () => calls.filter((c) => c.method === 'Target.createTarget');
     const closed = () => calls.filter((c) => c.method === 'Target.closeTarget').map((c) => c.params.targetId);
-    return { pool, calls, logs, created, closed, graceCalls, state };
+    return { pool, calls, logs, created, closed, graceCalls, state, clock };
 }
 
 test('a fresh Chrome with one tab is topped up to the floor, each tab in a window of its own, in the background', async () => {
@@ -123,7 +126,7 @@ test('an abandoned tab is closed and replaced, other busy tabs are left alone', 
     });
     await pool.reconcile();
     assert.deepEqual(closed(), ['LEAK']);
-    assert.deepEqual(graceCalls, [600_000]);
+    assert.deepEqual(graceCalls, [GRACE_MS]);
     assert.equal(created().length, 1);
 });
 
@@ -152,11 +155,17 @@ test('blank tabs sharing one window are hidden tabs and do not count as idle', a
     assert.equal(created().length, 3);
 });
 
-test('shared-window blank tabs are kept until solo-window idle tabs have replaced them, then closed', async () => {
-    const { pool, closed, created, state } = setup({ pages: [page('A'), page('B'), page('C')], windows: { A: 1, B: 1, C: 1 } });
+test('a blank tab in a shared window is left alone until it has been unused for the whole grace period', async () => {
+    const { pool, closed, created, state, clock } = setup({ pages: [page('A'), page('B'), page('C')], windows: { A: 1, B: 1, C: 1 } });
     await pool.reconcile();
-    assert.deepEqual(closed(), []);
     assert.equal(created().length, 3);
+    // A client may have created and attached such a tab a moment ago (BUG-DG-2026-10-12-010).
+    for (const ms of [0, 5, 250, 2000, GRACE_MS - 1]) {
+        clock.ms = ms;
+        await pool.reconcile();
+        assert.deepEqual(closed(), [], `kept at +${ms} ms`);
+    }
+    clock.ms = GRACE_MS;
     await pool.reconcile();
     assert.deepEqual(closed().sort(), ['A', 'B', 'C']);
     assert.equal(state.pages.length, 3);
@@ -164,26 +173,51 @@ test('shared-window blank tabs are kept until solo-window idle tabs have replace
     assert.equal(created().length, 3);
 });
 
+test('a shared-window tab that was used in between does not keep its old blank time', async () => {
+    const { pool, closed, state, clock } = setup({ pages: [page('A'), page('B')], windows: { A: 1, B: 1 }, minIdle: 1, maxPages: 12 });
+    const setUrl = (id, url) => { state.pages = state.pages.map((t) => (t.targetId === id ? { ...t, url } : t)); };
+    await pool.reconcile();
+    clock.ms = GRACE_MS - 1000;
+    setUrl('A', 'https://x.com/a');
+    await pool.reconcile();
+    setUrl('A', 'about:blank');
+    clock.ms = GRACE_MS - 500;
+    await pool.reconcile();
+    clock.ms = GRACE_MS + 100;
+    await pool.reconcile();
+    assert.deepEqual(closed(), ['B'], 'B was blank throughout; A started over when it went blank again');
+    // With B gone A is alone in its window: a usable idle tab, no longer a shared one.
+    clock.ms = GRACE_MS * 2;
+    await pool.reconcile();
+    assert.deepEqual(closed(), ['B']);
+});
+
 test('a loaded tab in a shared window is never closed, a leased blank one neither', async () => {
-    const { pool, closed } = setup({
+    const { pool, closed, clock } = setup({
         pages: [page('A', 'https://x.com/a'), page('B'), page('L'), page('S1'), page('S2'), page('S3')],
         windows: { A: 1, B: 1, L: 1 },
         leased: new Set(['L']),
         maxPages: 12,
     });
     await pool.reconcile();
+    clock.ms = GRACE_MS * 10;
+    await pool.reconcile();
     assert.deepEqual(closed(), ['B']);
 });
 
-test('shared-window blanks that fill the cap are closed to make room for solo-window tabs', async () => {
-    const { pool, closed, created } = setup({
+test('shared-window blanks that fill the cap block the pool until their grace is over, then make room', async () => {
+    const { pool, closed, created, clock } = setup({
         pages: ['A', 'B', 'C', 'D'].map((id) => page(id)),
         windows: { A: 1, B: 1, C: 1, D: 1 },
         minIdle: 3,
         maxPages: 4,
     });
     await pool.reconcile();
-    assert.deepEqual(closed(), ['A', 'B', 'C']);
+    assert.deepEqual(closed(), []);
+    assert.equal(created().length, 0);
+    clock.ms = GRACE_MS;
+    await pool.reconcile();
+    assert.deepEqual(closed(), ['A', 'B', 'C', 'D']);
     assert.equal(created().length, 3);
 });
 

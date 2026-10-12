@@ -112,11 +112,11 @@ let chromeWritable = null;     // fd 3: parent → Chrome
 let chromeReadable = null;     // fd 4: Chrome → parent
 let chromeBuffer = Buffer.alloc(0);
 let restartTimer = null;
+let chromeLaunchedAt = 0;
 
 function launchChrome() {
     if (chromeProcess) return;
     log(`Launching Chrome (--user-data-dir=${USER_DATA_DIR})`);
-
     resetProfileCrashFlags(USER_DATA_DIR);
     const chromeArgs = buildChromeLaunchArgs({
         userDataDir: USER_DATA_DIR,
@@ -127,14 +127,13 @@ function launchChrome() {
     chromeProcess = spawn(CHROME_PATH, chromeArgs, {
         stdio: ['ignore', 'ignore', 'inherit', 'pipe', 'pipe'],
     });
-
     chromeWritable = chromeProcess.stdio[3];
     chromeReadable = chromeProcess.stdio[4];
 
     chromeReadable.on('data', handleChromeData);
     chromeReadable.on('error', (err) => logError('Chrome read error:', err.message));
 
-    const launchedAt = Date.now();
+    const launchedAt = chromeLaunchedAt = Date.now();
     chromeProcess.on('exit', (code, signal) => {
         const lifetime = Date.now() - launchedAt;
         logError(`Chrome exited (code=${code}, signal=${signal}, lived ${lifetime}ms)`);
@@ -348,7 +347,7 @@ function proxyStatus() {
 }
 
 const idlePool = startIdlePool({ cdpRequest, log, chromeUp: () => Boolean(chromeWritable), lease: router.tabLease });
-const requestWatch = startRequestWatch({ pendingRequests, log });
+const requestWatch = startRequestWatch({ pendingRequests, log, chromeAgeMs: () => (chromeProcess ? Date.now() - chromeLaunchedAt : null) });
 const server = createHttpServer({
     port: PROXY_PORT,
     chromeUp: () => Boolean(chromeWritable),

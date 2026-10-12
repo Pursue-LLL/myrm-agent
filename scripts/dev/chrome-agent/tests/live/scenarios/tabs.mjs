@@ -128,32 +128,46 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         pooled.stop();
     },
 
-    // Blank tabs that share one window (what an older pool, or a restored profile, leaves behind)
-    // are hidden tabs: the pool must replace them with tabs in windows of their own.
+    // A tab a client explicitly opens in a shared window (newWindow:false, a popup) may be in use
+    // right now, so the pool must not close it for a while (BUG-DG-2026-10-12-010: it used to close
+    // such tabs within milliseconds). Once such a tab has stayed blank and unleased for the grace
+    // period it is a leftover: it is closed and the pool keeps one idle tab per window.
     async sharedWindowBlanksAreReplaced() {
+        const graceMs = 14000;
         const pooled = new SandboxProxy(option('--proxy-dir', undefined), {
-            CHROME_AGENT_MIN_IDLE_TABS: '3', CHROME_AGENT_MAX_PAGES: '8',
+            CHROME_AGENT_MIN_IDLE_TABS: '3', CHROME_AGENT_MAX_PAGES: '8', CHROME_AGENT_ABANDON_GRACE_MS: String(graceMs),
         });
         await pooled.start();
         const cdpClient = await pooled.cdp();
         await sleep(3000);
-        for (let i = 0; i < 3; i++) await cdpClient.send('Target.createTarget', { url: 'about:blank', newWindow: false });
-        const windowsOfBlanks = async () => {
-            const ids = [];
-            for (const page of (await pooled.chromePages()).filter((p) => p.url === 'about:blank')) {
-                const { result } = await cdpClient.send('Browser.getWindowForTarget', { targetId: page.id });
-                ids.push(result?.windowId);
-            }
-            return ids;
-        };
-        let ids = [];
-        for (let waited = 0; waited < 12000; waited += 500) {
-            ids = await windowsOfBlanks();
-            if (ids.length === 3 && new Set(ids).size === 3) break;
-            await sleep(500);
+        const sharedIds = [];
+        for (let i = 0; i < 3; i++) {
+            const { result } = await cdpClient.send('Target.createTarget', { url: 'about:blank', newWindow: false });
+            sharedIds.push(result.targetId);
         }
-        await check('sharedWindowBlanksAreReplaced: idle tabs end up one per window, shared ones closed',
-            ids.length === 3 && new Set(ids).size === 3, `blanks=${ids.length} windows=${new Set(ids).size}`);
+        const attached = await cdpClient.send('Target.attachToTarget', { targetId: sharedIds[0], flatten: true });
+        // Long enough for the previous rule to have closed it (two pool ticks), well inside the grace.
+        await sleep(6500);
+        const probe = await Promise.race([
+            cdpClient.send('Runtime.evaluate', { expression: 'location.href', returnByValue: true }, attached.result?.sessionId),
+            sleep(5000).then(() => undefined),
+        ]);
+        await check('sharedWindowBlanksAreReplaced: a client-created shared-window tab is still usable 6.5s after attach',
+            probe?.result?.result?.value === 'about:blank', JSON.stringify(probe?.error ?? probe?.result?.result ?? 'no answer'));
+        const survivors = async () => (await pooled.chromePages()).filter((p) => sharedIds.includes(p.id)).length;
+        let gone = false;
+        for (let waited = 0; waited < 30000 && !gone; waited += 1000) {
+            gone = (await survivors()) === 0;
+            if (!gone) await sleep(1000);
+        }
+        await check('sharedWindowBlanksAreReplaced: unused shared-window blanks are closed once the grace period is over', gone, `left=${await survivors()}`);
+        const windows = new Set();
+        const blanks = (await pooled.chromePages()).filter((p) => p.url === 'about:blank');
+        for (const page of blanks) {
+            const { result } = await cdpClient.send('Browser.getWindowForTarget', { targetId: page.id });
+            windows.add(result?.windowId);
+        }
+        await check('sharedWindowBlanksAreReplaced: the idle tabs that remain have a window each', blanks.length >= 3 && windows.size === blanks.length, `blanks=${blanks.length} windows=${windows.size}`);
         cdpClient.close();
         pooled.stop();
     },
@@ -236,7 +250,7 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         await sleep(14500);
         const status = await (await fetch(`${proxy.base}/proxy/status`)).json();
         const logged = fs.readFileSync(proxy.logPath, 'utf8').split('\n').filter((l) => /slow request .* Runtime\.evaluate/.test(l));
-        await check('slowRequestLog: an unanswered request is logged once with load', logged.length === 1 && /load \d+ on \d+ cpus/.test(logged[0]), logged.join(' | ').slice(0, 200));
+        await check('slowRequestLog: an unanswered request is logged once with load', logged.length === 1 && /load \d+ on \d+ cpus, \d+ pending, chrome up \d+m/.test(logged[0]), logged.join(' | ').slice(0, 200));
         await check('slowRequestLog: /proxy/status reports slowRequests, loadavg1 and cpus', status.slowRequests >= 1 && typeof status.loadavg1 === 'number' && status.cpus > 0, JSON.stringify({ s: status.slowRequests, l: status.loadavg1, c: status.cpus }));
         cdpClient.close();
     },

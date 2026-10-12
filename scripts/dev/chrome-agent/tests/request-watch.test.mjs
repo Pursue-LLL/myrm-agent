@@ -39,6 +39,17 @@ test('a request unanswered past the threshold is logged once with method, connec
     assert.equal(watch.stats().slowRequests, 1);
 });
 
+test('the log says how long Chrome has been up, so a stall can be told from an aged browser', () => {
+    const pendingRequests = new Map([[1, { client: { label: 'c2' }, method: 'Runtime.enable', createdAt: 0 }]]);
+    const logs = [];
+    const watch = new RequestWatch({
+        pendingRequests, log: (l) => logs.push(l), slowMs: 10_000, now: () => 12_000, loadavg: () => [36, 30, 20], cpus: 12,
+        chromeAgeMs: () => 7.7 * 60_000,
+    });
+    watch.sweep();
+    assert.match(logs[0], /\(load 36 on 12 cpus, 1 pending, chrome up 8m\)/);
+});
+
 test('when the request leaves the pending set the log says how long it was seen pending', () => {
     const { watch, logs, clock, add, pendingRequests } = setup();
     add(1);
