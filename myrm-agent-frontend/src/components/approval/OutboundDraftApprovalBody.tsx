@@ -32,13 +32,13 @@ export function OutboundDraftApprovalBody({ payload }: { payload?: ApprovalPaylo
       {originalContent && (
         <div className="rounded-lg border bg-muted/30 p-3">
           <div className="text-xs font-medium text-muted-foreground mb-1.5">{t('outboundDraftOriginal')}</div>
-          <p className="text-sm text-foreground whitespace-pre-wrap">{originalContent}</p>
+          <p className="text-sm text-foreground whitespace-pre-wrap break-words">{originalContent}</p>
         </div>
       )}
 
       <div className="rounded-lg border bg-background p-3">
         <div className="text-xs font-medium text-muted-foreground mb-1.5">{t('outboundDraftReply')}</div>
-        <p className="text-sm text-foreground whitespace-pre-wrap">{draftContent}</p>
+        <p className="text-sm text-foreground whitespace-pre-wrap break-words">{draftContent}</p>
         {attachments.length > 0 && (
           <ul className="mt-3 flex flex-wrap gap-2">
             {attachments.map((attachment, index) => {
