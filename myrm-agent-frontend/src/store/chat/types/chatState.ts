@@ -292,7 +292,8 @@ export interface ChatState {
   // 聊天功能
   /**
    * Resolves `true` once the request was dispatched (including turns that later fail visibly or are aborted)
-   * and `false` when it was rejected locally before anything was shown or sent (guards, validation).
+   * and `false` when it was refused before the turn started: rejected locally before anything was shown or sent
+   * (guards, validation) or by the server with a non-retryable HTTP error (the failure is already shown).
    * Rejects with `AgentBusyError` when the server is still running another turn.
    */
   sendMessage: (

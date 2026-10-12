@@ -2,11 +2,14 @@
  * Send-lifecycle contract the message queue relies on:
  * - `sendMessage` reports whether the request was dispatched,
  * - a busy refusal retracts the optimistic user bubble (the caller requeues the message),
+ * - a server refusal (non-retryable HTTP error) reports the turn as not dispatched so the caller keeps the message,
+ *   while a failure after the server took the turn still counts as dispatched,
  * - a queued message sends its own attachments and leaves the composer's live attachments alone.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fetchWithTimeout } from '@/lib/api';
 import { createAISearchStream } from '@/services/chat';
-import { setGlobalTranslator } from '@/services/i18nToastService';
+import { setGlobalTranslator, showI18nToast } from '@/services/i18nToastService';
 import { sendMessage, type ChatActionsMethods, type ChatActionsState } from '@/store/chat/messageRequest';
 import { resolveRequestState, retractUserBubble } from '@/store/chat/sendLifecycle';
 import { AgentBusyError } from '@/store/chat/streamConsumer';
@@ -22,6 +25,12 @@ vi.mock('@/services/chat', () => ({
 vi.mock('@/services/i18nToastService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/i18nToastService')>();
   return { ...actual, showI18nToast: vi.fn() };
+});
+
+// Spied pass-through: only the re-attach request of the interrupted-stream case is answered by the test.
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>();
+  return { ...actual, fetchWithTimeout: vi.fn(actual.fetchWithTimeout) };
 });
 
 // The E2E-only attach probe polls the health endpoint; it has no place in a unit test.
@@ -42,6 +51,24 @@ function makeFile(id: string): ChatFile {
 
 function userBubble(messageId: string, role: Message['role'] = 'user'): Message {
   return { content: 'hello', messageId, chatId: CHAT_ID, role, createdAt: new Date() } as Message;
+}
+
+/** A reply that delivers a keepalive and then drops, which makes the client re-attach to the running turn. */
+function droppedStream(): Response {
+  let delivered = false;
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (delivered) {
+          controller.error(new TypeError('network error'));
+          return;
+        }
+        delivered = true;
+        controller.enqueue(new TextEncoder().encode('event: heartbeat\ndata: null\n\n'));
+      },
+    }),
+    { headers: { 'Content-Type': 'text/event-stream' } },
+  );
 }
 
 describe('sendLifecycle helpers', () => {
@@ -96,6 +123,7 @@ describe('sendMessage queue semantics', () => {
       setSelectedModels: vi.fn(),
       setHasUserSelectedModel: vi.fn(),
       clearCurrentSessionMessageId: vi.fn(),
+      clearPendingWorkflowTemplate: vi.fn(),
       _processSuggestions: vi.fn(),
       scheduleAutoSave: vi.fn(),
       setInputMessage: vi.fn(),
@@ -124,6 +152,7 @@ describe('sendMessage queue semantics', () => {
     window.__MYRM_E2E_DIRECT_SSE__ = true;
     setGlobalTranslator((key: string) => key);
     useToolApprovalStore.getState().clearAll();
+    vi.mocked(showI18nToast).mockClear();
     pushedBubbleFiles.length = 0;
 
     useProviderStore.setState({
@@ -198,6 +227,31 @@ describe('sendMessage queue semantics', () => {
     await expect(send()).resolves.toBe(true);
 
     expect(createAISearchStream).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([400, 401, 403, 404, 413, 422, 500])(
+    'resolves false and leaves no ghost bubble when the server refuses the turn with HTTP %i',
+    async (status) => {
+      vi.mocked(createAISearchStream).mockResolvedValue(
+        new Response(JSON.stringify({ detail: 'refused' }), { status }),
+      );
+
+      await expect(send()).resolves.toBe(false);
+
+      expect(createAISearchStream).toHaveBeenCalledTimes(1);
+      expect(store.messages).toHaveLength(0);
+      expect(showI18nToast).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('resolves true when the server took the turn and only the re-attach after a dropped stream is refused', async () => {
+    vi.mocked(createAISearchStream).mockResolvedValue(droppedStream());
+    vi.mocked(fetchWithTimeout).mockResolvedValueOnce(new Response('denied', { status: 500 }));
+
+    await expect(send()).resolves.toBe(true);
+
+    expect(createAISearchStream).toHaveBeenCalledTimes(1);
+    expect(fetchWithTimeout).toHaveBeenCalledWith(`/agents/chat/${CHAT_ID}/attach`, expect.anything(), 0);
   });
 
   it('clears the live attachments after a direct send', async () => {
