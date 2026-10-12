@@ -3,7 +3,7 @@
 [INPUT]
 - app.lifecycle.cognitive_clock::(get_clock_coordinator, execute_t2_idle_maintenance)
 - app.lifecycle.memory_guardian_ops::(create_guardian_memory_manager, auto_resolve_expired_conflicts,
-  purge_expired_archives, harvest_session_blind_spots, sync_external_harness_transcripts)
+  purge_expired_archives, harvest_session_blind_spots, sync_external_harness_transcripts, run_sqlite_backup)
 - app.services.memory.ledger.guardian_policy::(MemoryGuardianPolicy, load_memory_guardian_policy,
   resolve_guardian_intervals, is_within_quiet_window, seconds_until_quiet_window_open, current_local_hour)
 - app.services.memory.ledger.guardian_events::(HEALTH_THRESHOLD, record_maintenance_event,
@@ -36,6 +36,7 @@ from app.lifecycle.memory_guardian_ops import (
     create_guardian_memory_manager,
     harvest_session_blind_spots,
     purge_expired_archives,
+    run_sqlite_backup,
     sync_external_harness_transcripts,
 )
 from app.services.memory.ledger.guardian_events import (
@@ -146,18 +147,6 @@ async def _record_guard_unavailable(*, reason: str, guard: str, policy: MemoryGu
     await record_guard_unavailable_event(reason=reason, guard=guard, policy=policy)
 
 
-async def _run_sqlite_backup() -> None:
-    """Trigger SQLite backup if configured."""
-    try:
-        from app.database.operations.backup import get_sqlite_backup_manager
-
-        mgr = get_sqlite_backup_manager()
-        if mgr:
-            await mgr.create_backup(label="memory_guardian")
-    except Exception as exc:
-        logger.warning("Memory guardian: backup failed: %s", exc)
-
-
 async def _run_guardian_cycle(
     *,
     force: bool = False,
@@ -260,16 +249,13 @@ async def _run_guardian_cycle(
         await sync_external_harness_transcripts()
         await record_maintenance_event(report=report, forced=effective_force, policy=active_policy)
 
-        if report.health is not None:
-            await record_health_snapshot(
-                health=report.health,
-                source="memory_guardian",
-                policy=active_policy,
-            )
+        await record_health_snapshot(
+            report,
+            policy=active_policy,
+            guardian_running=get_clock_coordinator().is_running(),
+        )
 
-        backup_res = _run_sqlite_backup()
-        if asyncio.iscoroutine(backup_res):
-            await backup_res
+        await run_sqlite_backup()
         return report, None
     except Exception as exc:
         if adaptive_scheduler and ticket:
@@ -293,9 +279,7 @@ async def run_memory_guardian_once(
     if skipped_reason:
         response["skipped_reason"] = skipped_reason
     if report and report.health:
-        response["health"] = (
-            report.health.to_dict() if hasattr(report.health, "to_dict") else report.health
-        )
+        response["health"] = report.health.to_dict() if hasattr(report.health, "to_dict") else report.health
     return response
 
 

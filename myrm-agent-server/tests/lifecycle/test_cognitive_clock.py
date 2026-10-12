@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -12,10 +14,12 @@ from myrm_agent_harness.runtime.cognitive_clock.signals import (
     PauseRequestedError,
     get_global_pause_signal,
 )
-from myrm_agent_harness.toolkits.memory.health import MaintenanceReport
+from myrm_agent_harness.toolkits.memory.health import HealthScore, MaintenanceReport
 
+from app.lifecycle.cognitive_clock import executors
 from app.lifecycle.cognitive_clock.activity_sensor import UserActivitySensor
 from app.lifecycle.cognitive_clock.coordinator import CognitiveClockCoordinator
+from app.lifecycle.cognitive_clock.executors import execute_t2_idle_maintenance, execute_t3_epoch_discovery
 from app.lifecycle.cognitive_clock.wakeup_guard import WakeupSmoothingGuard
 from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
 
@@ -109,9 +113,7 @@ async def test_coordinator_t2_runs_when_clean() -> None:
         "app.lifecycle.cognitive_clock.coordinator.execute_t2_idle_maintenance",
         new=AsyncMock(return_value=(fake_report, None)),
     ):
-        report, skip_reason = await coordinator.trigger_t2_cycle(
-            force=True, policy=MemoryGuardianPolicy()
-        )
+        report, skip_reason = await coordinator.trigger_t2_cycle(force=True, policy=MemoryGuardianPolicy())
         assert report is fake_report
         assert skip_reason is None
         assert coordinator._last_run_t2 is not None
@@ -165,3 +167,128 @@ async def test_coordinator_main_loop_fast_retry_on_suppression() -> None:
     assert sleep_calls[0] == 900.0
     assert sleep_calls[1] == 900.0
 
+
+@pytest.mark.asyncio
+async def test_t3_executor_reaches_the_real_pattern_discovery_cycle() -> None:
+    build_llm = AsyncMock(return_value=None)
+
+    with patch("app.lifecycle.pattern_discovery_trigger._build_platform_llm", new=build_llm):
+        await execute_t3_epoch_discovery()
+
+    build_llm.assert_awaited_once()
+
+
+async def _run_one_scheduler_pass(
+    coordinator: CognitiveClockCoordinator,
+    t2_outcome: tuple[MaintenanceReport | None, str | None],
+) -> AsyncMock:
+    """Drive one pass of the scheduler loop with a stubbed T2 outcome and return the T3 stub."""
+    sleeps = 0
+
+    async def stop_after_the_pass(_seconds: float) -> None:
+        nonlocal sleeps
+        sleeps += 1
+        if sleeps >= 2:  # 1st sleep = initial delay, 2nd = the sleep that ends the pass
+            raise asyncio.CancelledError()
+
+    t3 = AsyncMock()
+    with (
+        patch("asyncio.sleep", side_effect=stop_after_the_pass),
+        patch.object(coordinator, "trigger_t2_cycle", new=AsyncMock(return_value=t2_outcome)),
+        patch("app.lifecycle.cognitive_clock.coordinator.execute_t3_epoch_discovery", new=t3),
+    ):
+        await coordinator._main_loop()
+    return t3
+
+
+@pytest.mark.asyncio
+async def test_weekly_discovery_runs_when_due_and_t2_was_admitted() -> None:
+    coordinator = CognitiveClockCoordinator()
+
+    t3 = await _run_one_scheduler_pass(coordinator, (MaintenanceReport(skipped=False), None))
+
+    t3.assert_awaited_once()
+    assert coordinator._last_run_t3 > 0.0
+
+
+@pytest.mark.asyncio
+async def test_weekly_discovery_waits_while_the_budget_blocks_background_work() -> None:
+    coordinator = CognitiveClockCoordinator()
+
+    t3 = await _run_one_scheduler_pass(coordinator, (None, "budget_blocked"))
+
+    t3.assert_not_awaited()
+    assert coordinator._last_run_t3 == 0.0
+
+
+@pytest.mark.asyncio
+async def test_weekly_discovery_is_not_repeated_before_the_week_is_up() -> None:
+    coordinator = CognitiveClockCoordinator()
+    coordinator._last_run_t3 = time.time()
+
+    t3 = await _run_one_scheduler_pass(coordinator, (MaintenanceReport(skipped=False), None))
+
+    t3.assert_not_awaited()
+
+
+# --- T2 maintenance pipeline: leaf steps are autospecced so a wrong call signature fails the cycle ---
+
+_T2_STEP_RESULTS: dict[str, object] = {
+    "purge_expired_archives": 2,
+    "auto_resolve_expired_conflicts": 1,
+    "harvest_session_blind_spots": 0,
+    "sync_external_harness_transcripts": 0,
+    "record_purge_audit": None,
+    "record_conflict_auto_resolve_event": None,
+    "record_maintenance_event": None,
+    "record_health_snapshot": None,
+    "run_sqlite_backup": None,
+}
+
+
+@contextmanager
+def _patched_t2_steps(report: MaintenanceReport) -> Iterator[dict[str, AsyncMock]]:
+    """Replace every T2 step with a signature-enforcing stub and yield them by name."""
+    manager = AsyncMock()
+    manager.run_maintenance_cycle.return_value = report
+    results = {"create_guardian_memory_manager": manager, **_T2_STEP_RESULTS}
+    with ExitStack() as stack:
+        yield {
+            name: stack.enter_context(patch.object(executors, name, autospec=True, return_value=value))
+            for name, value in results.items()
+        }
+
+
+def _healthy_report() -> MaintenanceReport:
+    health = HealthScore(total=90, dimensions={}, suggestions=[], has_graph=False, sample_size=10)
+    return MaintenanceReport(skipped=False, health=health)
+
+
+@pytest.mark.asyncio
+async def test_t2_pipeline_runs_every_step_and_hands_back_the_report() -> None:
+    report = _healthy_report()
+    policy = MemoryGuardianPolicy()
+
+    with _patched_t2_steps(report) as steps:
+        outcome, error = await execute_t2_idle_maintenance(force=True, policy=policy)
+
+    assert error is None
+    assert outcome is report
+    steps["record_purge_audit"].assert_awaited_once_with(purged_count=2, policy=policy)
+    steps["record_conflict_auto_resolve_event"].assert_awaited_once_with(resolved_count=1, policy=policy)
+    steps["record_maintenance_event"].assert_awaited_once_with(report=report, forced=True, policy=policy)
+    steps["record_health_snapshot"].assert_awaited_once_with(report, policy=policy, guardian_running=True)
+    steps["run_sqlite_backup"].assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_t2_pipeline_stops_after_a_skipped_maintenance_cycle() -> None:
+    report = MaintenanceReport(skipped=True, skip_reason="not_enough_memories")
+
+    with _patched_t2_steps(report) as steps:
+        outcome, reason = await execute_t2_idle_maintenance(force=False, policy=MemoryGuardianPolicy())
+
+    assert outcome is report
+    assert reason == "not_enough_memories"
+    for name in _T2_STEP_RESULTS:
+        steps[name].assert_not_awaited()

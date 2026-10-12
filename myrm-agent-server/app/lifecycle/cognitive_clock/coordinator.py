@@ -174,9 +174,7 @@ class CognitiveClockCoordinator:
             try:
                 scheduler = get_maintenance_scheduler()
                 if scheduler:
-                    ticket_or_denial = await scheduler.request_capacity(
-                        task_type=MaintenanceTaskType.MEMORY_MAINTENANCE
-                    )
+                    ticket_or_denial = await scheduler.request_capacity(task_type=MaintenanceTaskType.MEMORY_MAINTENANCE)
                     if isinstance(ticket_or_denial, CapacityDenial):
                         return self._record_skip("capacity_denied")
                     ticket = ticket_or_denial
@@ -206,6 +204,18 @@ class CognitiveClockCoordinator:
                 scheduler.report_outcome(ticket.task_type, success=False)
             raise exc
 
+    async def _run_t3_if_due(self, *, t2_report: Optional[MaintenanceReport]) -> None:
+        """Run the weekly T3 discovery when it is due.
+
+        T3 spends LLM budget in the background, so it only rides on ticks where T2 got
+        through every safety gate (budget included); a blocked tick leaves the week open.
+        """
+        now = time.time()
+        if t2_report is None or (now - self._last_run_t3) < _PATTERN_DISCOVERY_INTERVAL_HOURS * 3600:
+            return
+        await execute_t3_epoch_discovery()
+        self._last_run_t3 = now
+
     async def _main_loop(self) -> None:
         """Periodic loop advancing T2 and T3 clock cadences."""
         try:
@@ -213,11 +223,7 @@ class CognitiveClockCoordinator:
             while True:
                 policy = await load_memory_guardian_policy()
                 intervals = resolve_guardian_intervals(policy)
-                interval_hours = (
-                    intervals.unhealthy_hours
-                    if self._consecutive_unhealthy > 0
-                    else intervals.healthy_hours
-                )
+                interval_hours = intervals.unhealthy_hours if self._consecutive_unhealthy > 0 else intervals.healthy_hours
                 self._next_run_t2 = time.time() + interval_hours * 3600
 
                 report, skip_reason = await self.trigger_t2_cycle(force=False, policy=policy)
@@ -235,11 +241,7 @@ class CognitiveClockCoordinator:
                     await asyncio.sleep(sleep_seconds)
                     continue
 
-                # Check T3 Weekly Discovery
-                now = time.time()
-                if (now - self._last_run_t3) >= _PATTERN_DISCOVERY_INTERVAL_HOURS * 3600:
-                    await execute_t3_epoch_discovery()
-                    self._last_run_t3 = now
+                await self._run_t3_if_due(t2_report=report)
 
                 await asyncio.sleep(interval_hours * 3600)
         except asyncio.CancelledError:

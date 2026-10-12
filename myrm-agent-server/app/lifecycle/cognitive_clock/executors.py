@@ -2,16 +2,15 @@
 
 [INPUT]
 - app.lifecycle.memory_guardian_ops::(create_guardian_memory_manager, auto_resolve_expired_conflicts,
-  purge_expired_archives, harvest_session_blind_spots, sync_external_harness_transcripts)
-- app.database.operations.backup::get_sqlite_backup_manager
+  purge_expired_archives, harvest_session_blind_spots, sync_external_harness_transcripts, run_sqlite_backup)
 - app.services.memory.ledger.guardian_events::(record_maintenance_event, record_purge_audit,
   record_conflict_auto_resolve_event, record_health_snapshot)
-- myrm_agent_harness.toolkits.memory.strategies.pattern_discovery::PatternDiscoveryEngine
+- app.lifecycle.pattern_discovery_trigger::run_pattern_discovery_cycle
 
 [OUTPUT]
 - execute_t1_session_debounce: Debounced post-turn/session evidence consolidation.
 - execute_t2_idle_maintenance: Comprehensive macro-idle maintenance pipeline.
-- execute_t3_epoch_discovery: Weekly macro pattern discovery & skill synthesis.
+- execute_t3_epoch_discovery: Weekly cross-session pattern discovery.
 
 [POS]
 Server lifecycle tier. Encapsulates concrete memory maintenance routines
@@ -30,8 +29,10 @@ from app.lifecycle.memory_guardian_ops import (
     create_guardian_memory_manager,
     harvest_session_blind_spots,
     purge_expired_archives,
+    run_sqlite_backup,
     sync_external_harness_transcripts,
 )
+from app.lifecycle.pattern_discovery_trigger import run_pattern_discovery_cycle
 from app.services.memory.ledger.guardian_events import (
     record_conflict_auto_resolve_event,
     record_health_snapshot,
@@ -41,19 +42,6 @@ from app.services.memory.ledger.guardian_events import (
 from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
 
 logger = logging.getLogger(__name__)
-
-
-async def _run_sqlite_backup() -> None:
-    """Execute SQLite hot backup if SQLite database backend is configured."""
-    try:
-        from app.database.operations.backup import get_sqlite_backup_manager
-
-        mgr = get_sqlite_backup_manager()
-        if mgr:
-            snapshot = await mgr.create_backup(label="cognitive_clock")
-            logger.info("Cognitive clock: backup created (%s, %.1f KB)", snapshot.backup_path, snapshot.size_bytes / 1024)
-    except Exception as exc:
-        logger.warning("Cognitive clock: backup failed: %s", exc)
 
 
 async def execute_t1_session_debounce(session_id: str) -> bool:
@@ -102,16 +90,11 @@ async def execute_t2_idle_maintenance(
         # 5. Ledger audit event
         await record_maintenance_event(report=report, forced=force, policy=active_policy)
 
-        # 6. Health snapshot
-        if report.health is not None:
-            await record_health_snapshot(
-                health=report.health,
-                source="cognitive_clock_t2",
-                policy=active_policy,
-            )
+        # 6. Health snapshot for the Command Center (the executor does not know the next-run countdown)
+        await record_health_snapshot(report, policy=active_policy, guardian_running=True)
 
         # 7. Hot SQLite backup
-        await _run_sqlite_backup()
+        await run_sqlite_backup()
 
         return report, None
     except Exception as exc:
@@ -119,15 +102,10 @@ async def execute_t2_idle_maintenance(
         return None, str(exc)
 
 
-async def execute_t3_epoch_discovery() -> dict[str, object]:
-    """T3 Epoch-Macro tick: trigger weekly cross-session pattern discovery."""
-    logger.info("CognitiveClock T3: starting weekly pattern discovery cycle")
-    try:
-        from app.lifecycle.pattern_discovery_trigger import pattern_discovery_cycle
+async def execute_t3_epoch_discovery() -> None:
+    """T3 Epoch-Macro tick: trigger weekly cross-session pattern discovery.
 
-        result = await pattern_discovery_cycle()
-        logger.info("CognitiveClock T3: pattern discovery completed: %s", result)
-        return result
-    except Exception as exc:
-        logger.warning("CognitiveClock T3: pattern discovery failed: %s", exc)
-        return {"status": "error", "error": str(exc)}
+    The cycle records its own outcome and never raises, so the tick needs no extra guard.
+    """
+    logger.info("CognitiveClock T3: starting weekly pattern discovery cycle")
+    await run_pattern_discovery_cycle()

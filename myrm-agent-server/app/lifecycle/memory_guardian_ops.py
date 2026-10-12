@@ -3,12 +3,14 @@
 [INPUT]
 - myrm_agent_harness.toolkits.memory::MemoryManager
 - app.database.models::PendingMemory
+- app.database.operations.backup::get_sqlite_backup_manager (POS: 业务层 SQLite 备份工厂)
 - app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆管理器工厂)
 
 [OUTPUT]
 - create_guardian_memory_manager: guardian 上下文 MemoryManager 工厂
 - auto_resolve_expired_conflicts: keep_old resolve for expired low-risk conflicts
 - purge_expired_archives: delegate archived-memory retention reclamation to the harness
+- run_sqlite_backup: hot-backup the application SQLite database at the end of a maintenance cycle
 - harvest_session_blind_spots: harvest missed queries & negative signals into knowledge patch approvals
 - sync_external_harness_transcripts: 增量扫描并同步外部 Agent 会话记录到会话召回索引
 
@@ -19,6 +21,7 @@ Guardian 维护子任务与工厂。纯数据/对象操作，不依赖调度状�
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
@@ -26,6 +29,25 @@ from pathlib import Path
 from myrm_agent_harness.toolkits.memory import MemoryManager
 
 logger = logging.getLogger(__name__)
+
+
+async def run_sqlite_backup() -> None:
+    """Hot-backup the application SQLite database when it is file-backed.
+
+    The page copy is blocking I/O, so it runs off the event loop. A failed backup is logged
+    and never fails the maintenance cycle that triggered it.
+    """
+    from app.database.operations.backup import get_sqlite_backup_manager
+
+    try:
+        manager = get_sqlite_backup_manager()
+        if manager is None:
+            return
+        record = await asyncio.to_thread(manager.create_backup)
+    except Exception as exc:
+        logger.warning("Memory guardian: SQLite backup failed: %s", exc)
+        return
+    logger.info("Memory guardian: SQLite backup %s created (%.1f KB)", record.file_name, record.size_bytes / 1024)
 
 
 async def create_guardian_memory_manager() -> MemoryManager:
@@ -102,7 +124,9 @@ async def auto_resolve_expired_conflicts() -> int:
         )
         result = await db.execute(stmt)
         await db.commit()
-        return result.rowcount  # type: ignore[return-value]
+        # DML results carry rowcount at runtime; the async Result stub does not declare it.
+        rowcount = getattr(result, "rowcount", None)
+        return max(rowcount, 0) if isinstance(rowcount, int) else 0
 
 
 async def purge_expired_archives(manager: MemoryManager) -> int:

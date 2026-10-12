@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
 
@@ -91,25 +91,28 @@ class TestManualMemoryGuardianTrigger:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         report = _make_report(forgotten=3, merged=1)
+        policy = MemoryGuardianPolicy()
         manager = AsyncMock()
         manager.run_maintenance_cycle.return_value = report
+        # Autospecced so a call that does not match the real signature fails the cycle instead of passing silently.
+        record_health_snapshot = create_autospec(memory_guardian.record_health_snapshot)
+        run_sqlite_backup = create_autospec(memory_guardian.run_sqlite_backup)
 
         monkeypatch.setattr(memory_guardian, "create_guardian_memory_manager", AsyncMock(return_value=manager))
         monkeypatch.setattr(memory_guardian, "record_maintenance_event", AsyncMock())
-        monkeypatch.setattr(memory_guardian, "record_health_snapshot", AsyncMock())
+        monkeypatch.setattr(memory_guardian, "record_health_snapshot", record_health_snapshot)
         monkeypatch.setattr(memory_guardian, "purge_expired_archives", AsyncMock(return_value=0))
         monkeypatch.setattr(memory_guardian, "record_purge_audit", AsyncMock())
         monkeypatch.setattr(memory_guardian, "auto_resolve_expired_conflicts", AsyncMock(return_value=0))
-        monkeypatch.setattr(memory_guardian, "_run_sqlite_backup", lambda: None)
+        monkeypatch.setattr(memory_guardian, "run_sqlite_backup", run_sqlite_backup)
 
-        cycle_report, skipped_reason = await memory_guardian._run_guardian_cycle(
-            force=True,
-            policy=MemoryGuardianPolicy(),
-        )
+        cycle_report, skipped_reason = await memory_guardian._run_guardian_cycle(force=True, policy=policy)
 
         assert skipped_reason is None
         assert cycle_report is report
         manager.run_maintenance_cycle.assert_awaited_once_with(force=True)
+        record_health_snapshot.assert_awaited_once_with(report, policy=policy, guardian_running=False)
+        run_sqlite_backup.assert_awaited_once_with()
 
     @pytest.mark.asyncio
     async def test_run_guardian_cycle_safe_respects_quiet_window(
