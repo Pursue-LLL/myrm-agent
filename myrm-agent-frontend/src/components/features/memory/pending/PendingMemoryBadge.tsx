@@ -23,6 +23,7 @@ const PendingMemoryBadge = memo<PendingMemoryBadgeProps>(({ onClick, className, 
 
   return (
     <button
+      data-testid="pending-memory-badge"
       onClick={onClick}
       className={cn(
         'relative inline-flex items-center justify-center',
