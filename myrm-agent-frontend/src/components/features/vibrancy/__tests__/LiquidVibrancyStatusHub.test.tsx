@@ -3,13 +3,15 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LiquidVibrancyStatusHub } from '../LiquidVibrancyStatusHub';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, options?: { platform?: string }) => {
+const stableT = (key: string, options?: { platform?: string }) => {
     if (key === 'platformTag' && options?.platform) {
       return `${options.platform} Native Vibrancy`;
     }
     return key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 describe('LiquidVibrancyStatusHub component', () => {

@@ -4,8 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkbenchToggleTrigger } from '../WorkbenchToggleTrigger';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 describe('WorkbenchToggleTrigger component', () => {

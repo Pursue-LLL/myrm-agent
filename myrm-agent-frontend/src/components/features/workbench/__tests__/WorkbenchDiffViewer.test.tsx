@@ -5,8 +5,10 @@ import { WorkbenchDiffViewer } from '../tabs/WorkbenchDiffViewer';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 import type { FileDiffResponse } from '@/services/workbench';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 const mockCustomDiff: FileDiffResponse = {

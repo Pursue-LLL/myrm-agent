@@ -5,8 +5,10 @@ import { PresentationGeneratorModal } from '../PresentationGeneratorModal';
 import * as presentationService from '@/services/presentation';
 import type { PresentationArtifactResponse } from '@/services/presentation';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 describe('PresentationGeneratorModal component', () => {

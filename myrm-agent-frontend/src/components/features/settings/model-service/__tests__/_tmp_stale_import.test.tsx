@@ -4,7 +4,9 @@ import { describe, it, expect, vi } from 'vitest';
 type Result = { models: { id: string; name: string }[]; apiError?: string; source: 'api' };
 const pending: { providerId: string; resolve: (r: Result) => void }[] = [];
 
-vi.mock('next-intl', () => ({ useTranslations: () => (k: string) => k }));
+const stableT = (k: string) => k;
+
+vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
 vi.mock('@/services/models-dev', () => ({
   getModelsForProvider: (providerId: string) =>
     new Promise<Result>((resolve) => pending.push({ providerId, resolve })),

@@ -4,8 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileTaskSpawnForm } from '../MobileTaskSpawnForm';
 import type { SpawnOptionAgent, SpawnOptionProject } from '@/services/remoteAccess';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
   useLocale: () => 'zh',
 }));
 

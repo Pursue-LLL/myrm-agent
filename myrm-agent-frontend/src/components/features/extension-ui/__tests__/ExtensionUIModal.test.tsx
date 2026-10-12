@@ -5,8 +5,7 @@ import { ExtensionUIModal } from '../ExtensionUIModal';
 import { useExtensionUIStore } from '@/store/useExtensionUIStore';
 import type { UIRequestItem } from '../extensionUITypes';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+const stableT = (key: string, params?: Record<string, unknown>) => {
     if (key === 'queuePending' && params?.count) {
       return `${params.count} more pending`;
     }
@@ -20,7 +19,10 @@ vi.mock('next-intl', () => ({
       inputPlaceholder: 'Enter value...',
     };
     return translations[key] ?? key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 describe('ExtensionUIModal component', () => {

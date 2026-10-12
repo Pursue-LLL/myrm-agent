@@ -4,8 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionContextJumpModal } from '../SessionContextJumpModal';
 import type { SessionNode, ProjectCluster } from '@/services/sessionMap';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/components/features/icons/PremiumIcons', () => ({

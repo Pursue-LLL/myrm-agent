@@ -4,13 +4,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { ReadOnlyTimeMachineDrawer } from '../ReadOnlyTimeMachineDrawer';
 import type { CompactedMessageSnapshot } from '../compactionTypes';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
+const stableT = (key: string, values?: Record<string, unknown>) => {
     if (values && 'count' in values) {
       return `${key}:${String(values.count)}`;
     }
     return key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 const mockMessages: CompactedMessageSnapshot[] = [

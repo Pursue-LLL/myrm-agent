@@ -5,8 +5,10 @@ import { DevPortsBar } from '../DevPortsBar';
 import type { DevPortInfo } from '@/services/devPorts';
 import * as devPortsService from '@/services/devPorts';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/components/features/icons/PremiumIcons', () => ({

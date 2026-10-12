@@ -5,8 +5,10 @@ import { WorkbenchTerminal } from '../tabs/WorkbenchTerminal';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 import * as workbenchService from '@/services/workbench';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/services/workbench', () => ({

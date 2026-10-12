@@ -4,13 +4,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { PresentationSlidePreviewViewer } from '../PresentationSlidePreviewViewer';
 import type { PresentationArtifactResponse } from '@/services/presentation';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, options?: { current?: number; total?: number }) => {
+const stableT = (key: string, options?: { current?: number; total?: number }) => {
     if (key === 'slideCounter' && options) {
       return `Slide ${options.current} of ${options.total}`;
     }
     return key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 describe('PresentationSlidePreviewViewer component', () => {

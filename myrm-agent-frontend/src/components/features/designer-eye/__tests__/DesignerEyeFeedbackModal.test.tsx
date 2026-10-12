@@ -4,8 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DesignerEyeFeedbackModal } from '../DesignerEyeFeedbackModal';
 import * as selfEvolutionService from '@/services/selfEvolution';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/components/features/icons/PremiumIcons', () => ({

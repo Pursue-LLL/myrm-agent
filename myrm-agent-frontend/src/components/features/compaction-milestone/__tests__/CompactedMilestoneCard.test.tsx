@@ -4,8 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CompactedMilestoneCard } from '../CompactedMilestoneCard';
 import type { CompactionEntry } from '../compactionTypes';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
+const stableT = (key: string, values?: Record<string, unknown>) => {
     if (values && 'count' in values && 'tokens' in values) {
       return `${key}:${String(values.count)}:${String(values.tokens)}`;
     }
@@ -13,7 +12,10 @@ vi.mock('next-intl', () => ({
       return `${key}:${String(values.count)}`;
     }
     return key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 const mockEntry: CompactionEntry = {

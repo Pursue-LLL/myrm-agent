@@ -4,13 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkbenchPluginCenter } from '../tabs/WorkbenchPluginCenter';
 import * as workbenchService from '@/services/workbench';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
+const stableT = (key: string, values?: Record<string, unknown>) => {
     if (values && 'id' in values) {
       return `${key}:${String(values.id)}`;
     }
     return key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/services/workbench', () => ({

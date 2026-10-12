@@ -4,13 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConversationOutline } from '../ConversationOutline';
 import type { OutlineTurnItem } from '../outlineTypes';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+const stableT = (key: string, params?: Record<string, unknown>) => {
     if (params?.index !== undefined) {
       return `${key}:${params.index}`;
     }
     return key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 describe('ConversationOutline component', () => {

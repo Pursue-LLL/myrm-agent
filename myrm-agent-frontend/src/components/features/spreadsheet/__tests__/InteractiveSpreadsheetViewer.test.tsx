@@ -5,13 +5,15 @@ import { InteractiveSpreadsheetViewer } from '../InteractiveSpreadsheetViewer';
 import type { SpreadsheetColumn, SpreadsheetRow } from '@/services/spreadsheet';
 import * as spreadsheetService from '@/services/spreadsheet';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+const stableT = (key: string, params?: Record<string, unknown>) => {
     if (params?.count !== undefined) {
       return `${key}:${params.count}`;
     }
     return key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/components/features/icons/PremiumIcons', () => ({

@@ -5,13 +5,15 @@ import { WorkbenchFileExplorer } from '../tabs/WorkbenchFileExplorer';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 import * as workbenchService from '@/services/workbench';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
+const stableT = (key: string, values?: Record<string, unknown>) => {
     if (values && 'id' in values) {
       return `${key}:${String(values.id)}`;
     }
     return key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/services/workbench', () => ({

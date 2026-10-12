@@ -5,8 +5,7 @@ import { MobileHostControlRoster } from '../MobileHostControlRoster';
 import type { SpawnOptionAgent } from '@/services/remoteAccess';
 import type { ActiveSession } from '@/services/agent';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+const stableT = (key: string, params?: Record<string, unknown>) => {
     if (params && 'count' in params) {
       return `${key}:${String(params.count)}`;
     }
@@ -14,7 +13,10 @@ vi.mock('next-intl', () => ({
       return `${key}:${String(params.time)}`;
     }
     return key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
   useLocale: () => 'zh',
 }));
 

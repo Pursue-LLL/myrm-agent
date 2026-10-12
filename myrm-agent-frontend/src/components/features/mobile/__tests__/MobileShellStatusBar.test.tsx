@@ -3,13 +3,15 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileShellStatusBar } from '../MobileShellStatusBar';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+const stableT = (key: string, params?: Record<string, unknown>) => {
     if (params && 'hostName' in params) {
       return `${key}:${String(params.hostName)}`;
     }
     return key;
-  },
+  };
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 describe('MobileShellStatusBar', () => {

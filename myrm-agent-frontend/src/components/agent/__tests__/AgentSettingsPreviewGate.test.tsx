@@ -5,8 +5,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TemplateListItem } from '@/services/agent';
 import { AgentSettingsPreviewGate } from '../AgentSettingsPreviewGate';
 
+const stableT = (key: string, values?: { fallback?: string }) => values?.fallback ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: { fallback?: string }) => values?.fallback ?? key,
+  useTranslations: () => stableT,
   useLocale: () => 'en',
 }));
 
