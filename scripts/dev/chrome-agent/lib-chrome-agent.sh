@@ -126,7 +126,10 @@ chrome_agent_lock_acquire() {
 }
 
 chrome_agent_lock_release() {
-  rmdir "$(chrome_agent_lock_dir)" 2>/dev/null || true
+  local lock_dir
+  lock_dir="$(chrome_agent_lock_dir)"
+  rm -f "${lock_dir}/pid"
+  rmdir "${lock_dir}" 2>/dev/null || true
 }
 
 # --- bundle sync ---------------------------------------------------------------

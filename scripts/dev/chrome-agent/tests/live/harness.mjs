@@ -1,6 +1,6 @@
 // Live-regression harness: an isolated proxy + real Chrome (temp profile, random port)
 // and real chrome-devtools-mcp processes. Never touches the production :9410.
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -67,6 +67,12 @@ export class SandboxProxy {
             '--user-data-dir', path.join(this.profile, 'chrome'),
             '--initial-url', 'about:blank',
         ], { stdio: ['ignore', log, log], detached: true, env: { ...process.env, ...this.env } });
+        fs.closeSync(log);
+        // The proxy is detached, so a crashed or interrupted test run would orphan it with Chrome
+        // and the profile; every way out of this process must pass through stop().
+        // An operator's interrupt (130) is not a failure worth a log; any other non-zero exit is.
+        process.once('exit', (code) => this.stop({ keepLog: code !== 0 && code !== 130 }));
+        for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => process.exit(130));
         for (let i = 0; i < 60; i++) {
             await sleep(500);
             try {
@@ -93,13 +99,50 @@ export class SandboxProxy {
         return (await fetch(`${this.base}/proxy/status`)).json();
     }
 
-    log() {
-        return fs.readFileSync(this.logPath, 'utf8');
+    /**
+     * SIGTERM the proxy (its shutdown handler also terminates Chrome), then delete everything the
+     * run left in the temp dir, retrying while Chrome is still flushing its profile. A failed run
+     * passes keepLog to leave proxy.log behind for diagnosis. Idempotent.
+     */
+    stop({ keepLog = false } = {}) {
+        if (this.stopped || !this.proc) return;
+        this.stopped = true;
+        const rm = (target) => fs.rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+        // Chrome keeps its singleton socket in a com.google.Chrome.* dir beside the profile; read the
+        // link before Chrome exits, because it removes the link and leaves the dir behind.
+        let socketDir = null;
+        try {
+            const dir = path.dirname(fs.readlinkSync(path.join(this.profile, 'chrome', 'SingletonSocket')));
+            if (path.basename(dir).startsWith('com.google.Chrome.')
+                && fs.realpathSync(path.dirname(dir)) === fs.realpathSync(os.tmpdir())) socketDir = dir;
+        } catch { /* Chrome never created the socket */ }
+        try { process.kill(this.proc.pid, 'SIGTERM'); } catch { /* already gone */ }
+        this.#waitUntilGone();
+        try {
+            if (socketDir) rm(socketDir);
+            if (keepLog) {
+                rm(path.join(this.profile, 'chrome'));
+                rm(path.join(this.profile, 'chrome-headless.sh'));
+            } else {
+                rm(this.profile);
+            }
+        } catch (err) {
+            console.error(`could not remove ${this.profile}: ${err.message}`);
+        }
     }
 
-    /** SIGTERM the proxy; its shutdown handler also terminates Chrome. */
-    stop() {
-        try { process.kill(this.proc.pid, 'SIGTERM'); } catch { /* already gone */ }
+    /** Blocks until no process runs from this run's unique profile path; SIGKILLs stragglers after 8 s. */
+    #waitUntilGone() {
+        const running = () => {
+            try { return execFileSync('pgrep', ['-f', '--', this.profile]).length > 0; } catch { return false; }
+        };
+        for (let waited = 0; running(); waited += 200) {
+            if (waited >= 8000) {
+                try { execFileSync('pkill', ['-9', '-f', '--', this.profile]); } catch { /* none left */ }
+                return;
+            }
+            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 200);
+        }
     }
 
     async chromePages() {

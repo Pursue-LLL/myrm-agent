@@ -49,5 +49,5 @@ for (const name of selected) {
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
 if (failed.length) console.log(`FAILED:\n${failed.map((r) => `  - ${r.label} ${r.detail}`).join('\n')}`);
-proxy.stop();
+proxy.stop({ keepLog: failed.length > 0 });
 process.exit(failed.length ? 1 : 0);

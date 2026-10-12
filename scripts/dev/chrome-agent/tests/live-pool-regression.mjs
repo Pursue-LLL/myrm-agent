@@ -72,5 +72,5 @@ fresh.close();
 
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
-proxy.stop();
+proxy.stop({ keepLog: failed.length > 0 });
 process.exit(failed.length ? 1 : 0);
