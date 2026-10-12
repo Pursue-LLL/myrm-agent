@@ -115,7 +115,7 @@ _SKILL_TOOLS_LINE = (
 
 #: SKILL.md handed to the consuming agent. Written for best-model comprehension
 #: with low-token redundancy; every capability mentioned matches the real MCP
-#: tool signatures (see memory/agent_surface/mcp_server.py).
+#: tool signatures (see memory/agent_surface/mcp_server/).
 _SKILL_MARKDOWN = """---
 name: myrm-memory
 description: Persistent long-term memory that survives across sessions. Use it to recall what the user previously said, did, or preferred before answering; to store durable facts, preferences, and rules as you learn them; and to correct outdated memories. Relevant whenever continuity matters — the user refers to earlier work, states a lasting preference, or asks a question that accumulated context could answer.
