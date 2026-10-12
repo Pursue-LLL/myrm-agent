@@ -55,36 +55,6 @@ from app.api.memory.business_template_router import (
 from app.api.memory.cjk_iteration_router import (
     router as cjk_iteration_router,
 )
-from app.api.memory.safe_forget_router import (
-    router as safe_forget_router,
-)
-from app.api.memory.transcript_projection_router import (
-    router as transcript_projection_router,
-)
-from app.api.memory.vector_dim_guard_router import (
-    router as vector_dim_guard_router,
-)
-from app.api.memory.project_dongle_router import (
-    router as project_dongle_router,
-)
-from app.api.memory.context_fabric_router import (
-    router as context_fabric_router,
-)
-from app.api.memory.experience_flywheel_router import (
-    router as experience_flywheel_router,
-)
-from app.api.memory.person_card_router import (
-    router as person_card_router,
-)
-from app.api.memory.domain_isolation_router import (
-    router as domain_isolation_router,
-)
-from app.api.memory.snapshot_freshness_router import (
-    router as snapshot_freshness_router,
-)
-from app.api.memory.staleness_consolidation_router import (
-    router as staleness_consolidation_router,
-)
 from app.api.memory.client_partition import (
     router as memory_client_partition_router,
 )
@@ -103,6 +73,9 @@ from app.api.memory.conclusion_evidence_router import (
 )
 from app.api.memory.conflict_router import (
     router as memory_conflict_router,
+)
+from app.api.memory.context_fabric_router import (
+    router as context_fabric_router,
 )
 from app.api.memory.conversation_lineage_defense_router import (
     router as conversation_lineage_defense_router,
@@ -131,6 +104,9 @@ from app.api.memory.disk_reconciliation_router import (
 from app.api.memory.document_attachment_router import (
     router as document_attachment_router,
 )
+from app.api.memory.domain_isolation_router import (
+    router as domain_isolation_router,
+)
 from app.api.memory.dream_cognitive_router import (
     router as dream_cognitive_router,
 )
@@ -140,14 +116,14 @@ from app.api.memory.drift_router import (
 from app.api.memory.dual_track_router import (
     router as memory_dual_track_router,
 )
-from app.api.memory.durable_revision_router import (
-    router as durable_revision_router,
-)
 from app.api.memory.ephemeral_delta_router import (
     router as ephemeral_delta_router,
 )
 from app.api.memory.experience_compounding_router import (
     router as experience_compounding_router,
+)
+from app.api.memory.experience_flywheel_router import (
+    router as experience_flywheel_router,
 )
 from app.api.memory.experience_gene_router import (
     router as experience_gene_router,
@@ -157,9 +133,6 @@ from app.api.memory.experience_injection_router import (
 )
 from app.api.memory.experience_observability_router import (
     router as experience_observability_router,
-)
-from app.api.memory.fact_supersession_router import (
-    router as fact_supersession_router,
 )
 from app.api.memory.failure_search_router import (
     router as failure_search_router,
@@ -198,9 +171,6 @@ from app.api.memory.job_compounding_router import (
 )
 from app.api.memory.kg_screening_router import (
     router as kg_screening_router,
-)
-from app.api.memory.lifecycle_hotness_router import (
-    router as lifecycle_hotness_router,
 )
 from app.api.memory.lineage_search_router import (
     router as lineage_search_router,
@@ -278,6 +248,9 @@ from app.api.memory.peer_cognition_router import (
 from app.api.memory.peer_gateway_router import (
     router as peer_gateway_router,
 )
+from app.api.memory.person_card_router import (
+    router as person_card_router,
+)
 from app.api.memory.persona_router import (
     router as memory_persona_router,
 )
@@ -297,6 +270,9 @@ from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.progressive_sidecar_router import (
     router as progressive_sidecar_router,
 )
+from app.api.memory.project_dongle_router import (
+    router as project_dongle_router,
+)
 from app.api.memory.provenance_batch import (
     router as memory_provenance_batch_router,
 )
@@ -315,6 +291,9 @@ from app.api.memory.revocable_provenance_router import (
 from app.api.memory.rule_cascade_router import (
     router as rule_cascade_router,
 )
+from app.api.memory.safe_forget_router import (
+    router as safe_forget_router,
+)
 from app.api.memory.score_honesty_router import (
     router as score_honesty_router,
 )
@@ -324,17 +303,20 @@ from app.api.memory.screen_observation_safety_router import (
 from app.api.memory.self_verification_router import (
     router as memory_self_verification_router,
 )
-from app.api.memory.session_commit_router import (
-    router as session_commit_router,
-)
 from app.api.memory.shared_bus import (
     router as memory_shared_bus_router,
 )
 from app.api.memory.skill_triad_router import (
     router as skill_triad_router,
 )
+from app.api.memory.snapshot_freshness_router import (
+    router as snapshot_freshness_router,
+)
 from app.api.memory.space_guard import (
     router as space_guard_router,
+)
+from app.api.memory.staleness_consolidation_router import (
+    router as staleness_consolidation_router,
 )
 from app.api.memory.subagent_isolation import (
     router as memory_subagent_isolation_router,
@@ -352,6 +334,9 @@ from app.api.memory.thinking_sanitizer_router import (
 from app.api.memory.tiered_consensus_router import (
     router as tiered_consensus_router,
 )
+from app.api.memory.transcript_projection_router import (
+    router as transcript_projection_router,
+)
 from app.api.memory.two_layer_dialectic_router import (
     router as two_layer_dialectic_router,
 )
@@ -361,8 +346,14 @@ from app.api.memory.universal_mcp_router import (
 from app.api.memory.unload_router import (
     router as memory_unload_router,
 )
+from app.api.memory.vector_dim_guard_router import (
+    router as vector_dim_guard_router,
+)
 from app.api.memory.vector_preflight_router import (
     router as memory_vector_preflight_router,
+)
+from app.api.memory.zk_vault_watermark_router import (
+    router as zk_vault_watermark_router,
 )
 
 logger = logging.getLogger(__name__)
@@ -519,20 +510,12 @@ router.include_router(
     tags=["memory-markdown-curator"],
 )
 router.include_router(
-    fact_supersession_router,
-    tags=["memory-fact-supersession"],
-)
-router.include_router(
     procedure_experience_router,
     tags=["memory-procedure-experience"],
 )
 router.include_router(
     experience_injection_router,
     tags=["memory-experience-injection"],
-)
-router.include_router(
-    session_commit_router,
-    tags=["memory-session-commit"],
 )
 router.include_router(
     business_template_router,
@@ -607,10 +590,6 @@ router.include_router(
     tags=["memory-directory-dominance"],
 )
 router.include_router(
-    lifecycle_hotness_router,
-    tags=["memory-lifecycle-hotness"],
-)
-router.include_router(
     queuefs_router,
     tags=["memory-queuefs"],
 )
@@ -653,10 +632,6 @@ router.include_router(
 router.include_router(
     experience_compounding_router,
     tags=["memory-compounding"],
-)
-router.include_router(
-    durable_revision_router,
-    tags=["memory-durable-revision"],
 )
 router.include_router(
     document_attachment_router,
@@ -733,6 +708,10 @@ router.include_router(
 router.include_router(
     staleness_consolidation_router,
     tags=["memory-staleness-consolidation"],
+)
+router.include_router(
+    zk_vault_watermark_router,
+    tags=["memory-zk-vault"],
 )
 
 

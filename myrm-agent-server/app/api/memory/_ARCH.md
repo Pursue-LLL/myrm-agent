@@ -16,5 +16,7 @@
 | `utils.py` | 模块 | Memory API utilities — re-exports shared service-layer helpers for route modules. | ✅ |
 | `snapshot_freshness_router.py` | 路由 | Item 157 快照滞后感知记忆新鲜度与查盘指示路由（`/snapshot-freshness`） | ✅ |
 | `staleness_consolidation_router.py` | 路由 | Item 158 自动记忆陈旧衰减探测与盘点重塑路由（`/staleness-consolidation`） | ✅ |
+| `zk_vault_watermark_router.py` | 路由 | Item 159 零知识记忆保险箱与防克隆水印路由（`/zk-vault`） | ✅ |
+
 
 
