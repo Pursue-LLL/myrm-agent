@@ -122,7 +122,7 @@ class WhatsAppInboundMixin(BaseChannel):
     def _handle_connection_event(self, event: dict[str, object]) -> None:
         """Handle connection status changes from the bridge."""
         status = event.get("status", "")
-        logger.warning("WhatsAppChannel: connection event received: status=%s, event=%s", status, event)
+        logger.debug("WhatsAppChannel: connection event received: status=%s, event=%s", status, event)
         if status == "open":
             self._qr_code = None
             jid_val = event.get("selfJid")

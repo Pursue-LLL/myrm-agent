@@ -131,6 +131,16 @@ class TestWhatsAppBridgeEvents:
         assert ch._qr_code is None
 
     @pytest.mark.asyncio
+    async def test_connection_open_raises_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        ch = _make_channel()
+        event = {"type": "connection", "status": "open", "selfJid": "123@s.whatsapp.net", "selfLid": "456@lid"}
+
+        with caplog.at_level(logging.DEBUG):
+            await ch._handle_bridge_event(json.dumps(event))
+
+        assert [record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING] == []
+
+    @pytest.mark.asyncio
     async def test_connection_logged_out(self) -> None:
         ch = _make_channel()
         await ch._handle_bridge_event(json.dumps({"type": "connection", "status": "logged_out"}))
