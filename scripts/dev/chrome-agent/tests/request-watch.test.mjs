@@ -118,3 +118,45 @@ test('stats report the slow count, load and cpu count for /proxy/status', () => 
     watch.sweep();
     assert.deepEqual(watch.stats(), { slowRequests: 2, slowRequestsOnUnknownSession: 2, loadavg1: 97.4, cpus: 12 });
 });
+
+test('the first stall of a burst logs one renderer snapshot; the next burst waits out the cooldown', async () => {
+    const { pendingRequests, logs, clock, add } = setup();
+    let snapshots = 0;
+    const watch = new RequestWatch({
+        pendingRequests, log: (l) => logs.push(l), slowMs: 10_000, now: () => clock.t, loadavg: () => [97.4, 80, 60], cpus: 12,
+        stallSnapshot: async () => `renderers: ${++snapshots}`,
+    });
+    add(1); add(2);
+    clock.t += 12_000;
+    watch.sweep();
+    await Promise.resolve();
+    assert.equal(snapshots, 1);
+    assert.equal(logs.filter((l) => l.startsWith('stall snapshot')).length, 1);
+    assert.equal(logs.find((l) => l.startsWith('stall snapshot')), 'stall snapshot renderers: 1');
+
+    add(3);
+    clock.t += 12_000;
+    watch.sweep();
+    await Promise.resolve();
+    assert.equal(snapshots, 1, 'inside the 30 s cooldown');
+
+    add(4);
+    clock.t += 30_000;
+    watch.sweep();
+    await Promise.resolve();
+    assert.equal(snapshots, 2);
+});
+
+test('a failing or empty snapshot adds no line and does not break the sweep', async () => {
+    const { pendingRequests, logs, clock, add } = setup();
+    const watch = new RequestWatch({
+        pendingRequests, log: (l) => logs.push(l), slowMs: 10_000, now: () => clock.t, loadavg: () => [1, 1, 1], cpus: 12,
+        stallSnapshot: () => Promise.reject(new Error('ps failed')),
+    });
+    add(1);
+    clock.t += 12_000;
+    watch.sweep();
+    await Promise.resolve();
+    assert.equal(logs.length, 1);
+    assert.match(logs[0], /^slow request/);
+});

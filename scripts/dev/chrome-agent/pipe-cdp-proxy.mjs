@@ -33,6 +33,7 @@ import { buildChromeLaunchArgs, resetProfileCrashFlags } from './chrome-launch.m
 import { createHttpServer } from './http-endpoints.mjs';
 import { startIdlePool } from './idle-pool.mjs';
 import { startRequestWatch } from './request-watch.mjs';
+import { snapshotRenderers } from './process-snapshot.mjs';
 import { SessionRouter, isAttachMethod, short } from './session-router.mjs';
 
 const args = process.argv.slice(2);
@@ -347,7 +348,7 @@ function proxyStatus() {
 }
 
 const idlePool = startIdlePool({ cdpRequest, log, chromeUp: () => Boolean(chromeWritable), lease: router.tabLease });
-const requestWatch = startRequestWatch({ pendingRequests, log, chromeAgeMs: () => (chromeProcess ? Date.now() - chromeLaunchedAt : null), describeSession: (id) => router.describeSession(id) });
+const requestWatch = startRequestWatch({ pendingRequests, log, chromeAgeMs: () => (chromeProcess ? Date.now() - chromeLaunchedAt : null), describeSession: (id) => router.describeSession(id), stallSnapshot: () => snapshotRenderers(chromeProcess?.pid) });
 const server = createHttpServer({
     port: PROXY_PORT,
     chromeUp: () => Boolean(chromeWritable),
