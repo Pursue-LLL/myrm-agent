@@ -383,6 +383,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         wait_sec = min(wait_sec, 120.0)
     poll_sec = float(os.environ.get("MYRM_CHROME_E2E_SHARED_UI_POLL_SEC", "2"))
+    attempt_cap_sec = float(os.environ.get("MYRM_CHROME_E2E_WARM_ATTEMPT_SEC", "45"))
     deadline = time.monotonic() + wait_sec
     last_error: BaseException | None = None
     heal_interval = 30.0
@@ -431,7 +432,9 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
         request = urllib.request.Request(  # noqa: S310 - loopback only
             url, method="GET"
         )
-        per_attempt = max(3.0, min(10.0, deadline - time.monotonic()))
+        # A cold Next dev compile of "/" routinely exceeds 10s on a loaded host; a shorter
+        # per-attempt timeout abandons every request before the compile can finish.
+        per_attempt = max(3.0, min(attempt_cap_sec, deadline - time.monotonic()))
 
         def _do_get() -> int:
             with urllib.request.urlopen(  # noqa: S310
@@ -2620,6 +2623,23 @@ def _bridge_failure_diagnostics(client: ChromeMcpClient, page: McpPage) -> dict[
         return {"diagnosticsError": f"{type(exc).__name__}: {str(exc)[:160]}"}
 
 
+def _log_bridge_wait_state(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    polls: int,
+    reload_passes: int,
+    last: dict[str, object],
+) -> None:
+    """Emit bridge-wait state to stderr so a hung loop killed by the outer wall stays diagnosable."""
+    print(
+        f"E2E_BRIDGE_WAIT: polls={polls} reload_passes={reload_passes} probe={last} "
+        f"diagnostics={_bridge_failure_diagnostics(client, page)}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 _ATTACH_CLIENT_WARMUP_URLS: set[str] = set()
 _ATTACH_FRONTEND_HEAL_TRIGGERED = False
 
@@ -2787,6 +2807,8 @@ def wait_for_react_e2e_bridge(
         last = _coerce_evaluate_result(raw)
         if last.get("ready") is True:
             return last
+        if polls in {1, 4, 8}:
+            _log_bridge_wait_state(client, page, polls=polls, reload_passes=reload_passes, last=last)
         body_length = last.get("bodyLength")
         href = str(last.get("href", ""))
         if (
@@ -2810,6 +2832,7 @@ def wait_for_react_e2e_bridge(
             and isinstance(target_url, str)
             and reload_passes < max_reload_passes
         ):
+            _log_bridge_wait_state(client, page, polls=polls, reload_passes=reload_passes, last=last)
             reload_passes += 1
             reload_mcp_page(client, page, target_url=target_url, timeout_ms=120_000)
             try:
