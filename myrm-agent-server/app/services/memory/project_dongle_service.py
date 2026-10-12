@@ -14,6 +14,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from myrm_agent_harness.toolkits.memory.project_dongle import (
+    DongleBlock,
+    DongleBlockType,
+    ProjectContextDongleManager,
+)
+
 from app.schemas.project_dongle import (
     DongleArchivePointerDTO,
     DongleBlockDTO,
@@ -21,11 +27,6 @@ from app.schemas.project_dongle import (
     DongleInitResponseDTO,
     DongleStateDTO,
     DongleSyncResponseDTO,
-)
-from myrm_agent_harness.toolkits.memory.project_dongle import (
-    DongleBlock,
-    DongleBlockType,
-    ProjectContextDongleManager,
 )
 
 

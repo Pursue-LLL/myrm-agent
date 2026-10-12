@@ -22,14 +22,18 @@ from uuid import uuid4
 
 from sqlalchemy import (
     String as SQLString,
+)
+from sqlalchemy import (
     and_,
-    cast as sql_cast,
     delete,
     desc,
     func,
     or_,
     select,
     update,
+)
+from sqlalchemy import (
+    cast as sql_cast,
 )
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession

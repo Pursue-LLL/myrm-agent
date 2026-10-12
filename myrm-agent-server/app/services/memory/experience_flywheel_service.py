@@ -12,6 +12,15 @@
 
 from __future__ import annotations
 
+from myrm_agent_harness.toolkits.memory.experience_flywheel import (
+    BugExperienceAndADRExtractor,
+    CausalFlywheelStore,
+    EngineeringExperience,
+    ExperienceKind,
+    MinefieldPreSniffingGuard,
+)
+from myrm_agent_harness.toolkits.memory.project_dongle import ProjectContextDongleManager
+
 from app.schemas.experience_flywheel import (
     EngineeringExperienceDTO,
     ExtractExperienceResponseDTO,
@@ -21,14 +30,6 @@ from app.schemas.experience_flywheel import (
     SniffMinefieldRequestDTO,
     SniffMinefieldResponseDTO,
 )
-from myrm_agent_harness.toolkits.memory.experience_flywheel import (
-    BugExperienceAndADRExtractor,
-    CausalFlywheelStore,
-    EngineeringExperience,
-    ExperienceKind,
-    MinefieldPreSniffingGuard,
-)
-from myrm_agent_harness.toolkits.memory.project_dongle import ProjectContextDongleManager
 
 
 class ExperienceFlywheelService:
