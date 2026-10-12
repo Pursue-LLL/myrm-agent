@@ -2580,6 +2580,46 @@ _REACT_E2E_BRIDGE_PROBE_JS = """(() => ({
   href: location.href,
 }))()"""
 
+# Installed on the first bridge poll so a blank page that never hydrates still
+# reports the uncaught errors / rejected promises it raised (no CDP console API here).
+_BRIDGE_DIAG_HOOK_JS = """(() => {
+  if (window.__MYRM_DIAG_ERRORS__) return true;
+  const sink = (window.__MYRM_DIAG_ERRORS__ = []);
+  const push = (kind, msg) => { if (sink.length < 8) sink.push(`${kind}: ${String(msg).slice(0, 240)}`); };
+  window.addEventListener('error', (e) => push('error', e.message || e.filename));
+  window.addEventListener('unhandledrejection', (e) => push('rejection', e.reason?.message || e.reason));
+  return true;
+})()"""
+
+_BRIDGE_DIAG_SNAPSHOT_JS = """(() => {
+  const scripts = performance.getEntriesByType('resource').filter((e) => /\\.js(\\?|$)/.test(e.name));
+  const nav = performance.getEntriesByType('navigation')[0];
+  return {
+    readyState: document.readyState,
+    scriptsLoaded: scripts.filter((e) => e.responseEnd > 0).length,
+    scriptsPending: scripts.filter((e) => e.responseEnd === 0).length,
+    slowestScripts: scripts
+      .slice().sort((a, b) => b.duration - a.duration).slice(0, 3)
+      .map((e) => `${Math.round(e.duration)}ms ${e.name.split('/').slice(-2).join('/').slice(0, 80)}`),
+    navTtfbMs: nav ? Math.round(nav.responseStart) : null,
+    navDomContentLoadedMs: nav ? Math.round(nav.domContentLoadedEventEnd) : null,
+    rscChunks: Array.isArray(self.__next_f) ? self.__next_f.length : null,
+    bodyChildren: document.body?.children.length ?? null,
+    nextErrorOverlay: Boolean(document.querySelector('nextjs-portal, [data-nextjs-dialog]')),
+    bodyHead: (document.body?.innerHTML || '').slice(0, 200),
+    pageErrors: window.__MYRM_DIAG_ERRORS__ || null,
+  };
+})()"""
+
+
+def _bridge_failure_diagnostics(client: ChromeMcpClient, page: McpPage) -> dict[str, object]:
+    """Best-effort page snapshot attached to the bridge-timeout error; never raises."""
+    try:
+        return _coerce_evaluate_result(client.evaluate(page, _BRIDGE_DIAG_SNAPSHOT_JS, timeout_sec=10.0))
+    except Exception as exc:  # noqa: BLE001 - diagnostics must not mask the original timeout
+        return {"diagnosticsError": f"{type(exc).__name__}: {str(exc)[:160]}"}
+
+
 _ATTACH_CLIENT_WARMUP_URLS: set[str] = set()
 _ATTACH_FRONTEND_HEAL_TRIGGERED = False
 
@@ -2726,12 +2766,19 @@ def wait_for_react_e2e_bridge(
     last: dict[str, object] = {}
     polls = 0
     reload_passes = 0
+    hooked_reload_passes = -1
     max_reload_passes = 3
     ui_home = f"{get_e2e_ui_url().rstrip('/')}/"
 
     while time.monotonic() < deadline:
         polls += 1
         touch_wall_progress(current_node="wait_for_react_e2e_bridge")
+        if polls == 1 or reload_passes != hooked_reload_passes:
+            hooked_reload_passes = reload_passes
+            try:
+                client.evaluate(page, _BRIDGE_DIAG_HOOK_JS, timeout_sec=5.0)
+            except Exception:  # noqa: BLE001 - hook is diagnostics only
+                pass
         raw = client.evaluate(
             page,
             _REACT_E2E_BRIDGE_PROBE_JS,
@@ -2827,7 +2874,7 @@ def wait_for_react_e2e_bridge(
             continue
         time.sleep(0.5)
 
-    raise AssertionError(f"React E2E bridge did not become ready: {last}")
+    raise AssertionError(f"React E2E bridge did not become ready: {last} diagnostics={_bridge_failure_diagnostics(client, page)}")
 
 
 def _resolve_probe_pathname(last: dict[str, object]) -> str:

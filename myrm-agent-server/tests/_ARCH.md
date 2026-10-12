@@ -23,6 +23,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/redaction_review_e2e.py` | 辅助 | 导出脱敏复核 Chrome E2E 的浏览器侧：`ReviewFlow`（对话框标题、进入方式、成功提示措辞）+ `run_review_flow`（zh 与 en 各读一遍发现项的本地化句子且无原始代码、`kinds.` 键名与另一语言句子，再点“导出脱敏版”走真实下载并以对话框关闭为判据，结束恢复 `NEXT_LOCALE`）；专家导出与单技能导出两个 E2E 共用 |
 | `e2e/test_expert_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：`/settings/agents` 带密钥与本机路径的智能体，预览 API 返回 `api_token`/`absolute_path` 代码，导出对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框 |
 | `e2e/test_skill_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：经 `.zip` 上传装一个带密钥与本机路径的技能，`/settings/skills` 已安装列表搜索 → 详情抽屉 → 导出，对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框；结束卸载该技能 |
+| `support/test_chrome_bridge_diagnostics.py` | 单元 | `wait_for_react_e2e_bridge` 超时诊断：快照辅助返回页面 readyState/脚本加载/未捕获错误，自身异常不覆盖原始超时，超时信息携带 `diagnostics=` 以区分「未 hydrate」与「脚本未加载完」 |
 | `e2e/test_telemetry_posture_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Developer 设置页面 OpenTelemetry Posture 遥测态势卡片、协议/端点/特性渲染与刷新端到端测试 |
 | `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试 |
 | `api/memory/test_evidence_playback_api.py` | 单元 | 记忆证据链溯源、上下文切片回放与凭据脱敏 API 集成测试 |
