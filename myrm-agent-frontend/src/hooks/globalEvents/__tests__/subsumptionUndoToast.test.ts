@@ -37,7 +37,7 @@ describe('showSubsumptionUndoToast', () => {
 
   it.each([
     ['other status', { ...NOTIFICATION, status: 'completed' }],
-    ['other task', { ...NOTIFICATION, task_name: 'cognitive_derivation' }],
+    ['other task', { ...NOTIFICATION, task_name: 'cognitive_consolidation' }],
     ['zero count', { ...NOTIFICATION, data: { count: 0, subsumed_ids: ['m1'] } }],
     ['missing ids', { ...NOTIFICATION, data: { count: 2 } }],
   ])('ignores %s', (_label, data) => {

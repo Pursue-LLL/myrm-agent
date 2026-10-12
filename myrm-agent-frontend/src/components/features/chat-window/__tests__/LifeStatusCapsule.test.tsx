@@ -60,13 +60,7 @@ describe('LifeStatusCapsule', () => {
 
   it('falls back when a task has no label for the emitted status', () => {
     render(<LifeStatusCapsule currentSessionId="s1" />);
-    emitIdleStatus({ status: 'notification', task_name: 'cognitive_derivation' });
-    expect(screen.getByText('processingCapsule')).toBeTruthy();
-  });
-
-  it('falls back when a task has no label for the emitted status', () => {
-    render(<LifeStatusCapsule currentSessionId="s1" />);
-    emitIdleStatus({ status: 'notification', task_name: 'cognitive_derivation' });
+    emitIdleStatus({ status: 'notification', task_name: 'cognitive_consolidation' });
     expect(screen.getByText('processingCapsule')).toBeTruthy();
   });
 

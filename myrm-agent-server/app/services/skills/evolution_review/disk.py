@@ -66,6 +66,7 @@ def get_skill_store() -> SkillStore:
 
 async def enqueue_cognitive_subsumption(payload: EvolutionApprovalPayload) -> None:
     from myrm_agent_harness.agent.background_worker.registry import (
+        GLOBAL_SESSION_ID,
         get_idle_task_registry,
     )
 
@@ -73,7 +74,7 @@ async def enqueue_cognitive_subsumption(payload: EvolutionApprovalPayload) -> No
 
     registry = get_idle_task_registry(workspace_root=settings.database.state_dir)
     await registry.enqueue(
-        session_id="global",
+        session_id=GLOBAL_SESSION_ID,
         task_type="cognitive_subsumption",
         payload={
             "new_knowledge": payload.evolved_content,

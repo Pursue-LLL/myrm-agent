@@ -2,6 +2,8 @@
 
 [INPUT]
 - myrm_agent_harness.agent.background_worker.idle_tasks::register_context_compaction_handler (POS: Default callbacks and tasks for the idle worker.)
+- myrm_agent_harness.agent.background_worker.session_evidence_task::register_skill_store_provider (POS: DI entry for the SkillStore used by session evidence extraction.)
+- app.core.skills.store.evolution_store::get_evolution_skill_store (POS: skills.db 上的进程级单例 SkillStore。)
 - app.services.chat.compact_service::compact_chat (POS: Lossless context compaction service.)
 
 [OUTPUT]
@@ -10,12 +12,15 @@
 
 [POS]
 Server-side idle task handlers. Provides concrete business implementations
-for harness-level idle background tasks (context compaction).
+for harness-level idle background tasks (context compaction, session evidence extraction store).
 """
 
 import logging
 
 from myrm_agent_harness.agent.background_worker.idle_tasks import register_context_compaction_handler
+from myrm_agent_harness.agent.background_worker.session_evidence_task import register_skill_store_provider
+
+from app.core.skills.store.evolution_store import get_evolution_skill_store
 
 logger = logging.getLogger(__name__)
 
@@ -44,4 +49,5 @@ async def context_compact_impl(chat_id: str, session_id: str) -> dict[str, objec
 def register_all_idle_handlers() -> None:
     """Register all server-level idle task handlers."""
     register_context_compaction_handler(context_compact_impl)
+    register_skill_store_provider(get_evolution_skill_store)
     logger.info("Registered server-level idle task handlers")

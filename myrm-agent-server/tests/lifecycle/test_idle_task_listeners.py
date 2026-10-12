@@ -38,7 +38,7 @@ async def test_forwards_structural_idle_status_without_localized_text() -> None:
         IdleTaskProgressEvent(
             session_id="s1",
             status="working",
-            task_name="cognitive_derivation",
+            task_name="cognitive_consolidation",
             progress_pct=40,
             data={"count": 2},
         )
@@ -50,7 +50,7 @@ async def test_forwards_structural_idle_status_without_localized_text() -> None:
     assert forwarded.data == {
         "session_id": "s1",
         "status": "working",
-        "task_name": "cognitive_derivation",
+        "task_name": "cognitive_consolidation",
         "progress_pct": 40,
         "data": {"count": 2},
     }

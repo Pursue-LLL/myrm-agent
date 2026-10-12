@@ -72,9 +72,14 @@ class TestRegisterAllIdleHandlers:
     """Tests for handler registration."""
 
     def test_registers_handlers(self) -> None:
-        with patch("app.core.infra.idle_handlers.register_context_compaction_handler") as mock_register:
+        with (
+            patch("app.core.infra.idle_handlers.register_context_compaction_handler") as mock_register,
+            patch("app.core.infra.idle_handlers.register_skill_store_provider") as mock_store_register,
+        ):
             from app.core.infra.idle_handlers import context_compact_impl, register_all_idle_handlers
+            from app.core.skills.store.evolution_store import get_evolution_skill_store
 
             register_all_idle_handlers()
 
             mock_register.assert_called_once_with(context_compact_impl)
+            mock_store_register.assert_called_once_with(get_evolution_skill_store)
