@@ -116,7 +116,6 @@ async def test_evolution_integration_basic(temp_db, mock_llm):
     evolution = EvolutionIntegration(
         db_path=temp_db,
         llm=mock_llm,
-        enable_embedding_cache=True,
         enable_background_queue=False,  # Immediate execution for testing
     )
 
@@ -181,7 +180,6 @@ async def test_evolution_one_line_enablement(temp_db, mock_llm):
     evolution = enable_skill_evolution(
         db_path=temp_db,
         llm=mock_llm,
-        enable_embedding_cache=False,
         enable_background_queue=False,
     )
 

@@ -128,7 +128,6 @@ async def test_evolution_tool_calling_integration(temp_workspace, evolution_llm)
     evolution = EvolutionIntegration(
         db_path=db_path,
         llm=evolution_llm,
-        enable_embedding_cache=False,
         enable_background_queue=False,
         enable_tool_calling=True,  # Enable Scheme E tool calling
         tool_config=EvolutionToolConfig(
