@@ -17005,7 +17005,7 @@
         "idleWarning": "Unused for 30+ days, consider freezing or archiving",
         "archivedReason": "Archived due to prolonged inactivity",
         "quarantined": "Quarantined",
-        "quarantinedReason": "This skill has been quarantined due to consecutive errors. It will not be loaded by the agent.",
+        "quarantinedReason": "This skill was quarantined after it ran into errors, so the agent will not load it.",
         "usageStats": "Called {count} times",
         "neverUsed": "Never used",
         "tokenCostTooltip": "Context cost: ~{count} tokens per conversation",
