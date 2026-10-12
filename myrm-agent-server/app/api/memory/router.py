@@ -204,9 +204,6 @@ from app.api.memory.multimodal_memory_router import (
 from app.api.memory.noise_free_memory_router import (
     router as noise_free_memory_router,
 )
-from app.api.memory.openclaw_router import (
-    router as memory_openclaw_router,
-)
 from app.api.memory.operations import (
     archive_restore,
     backup,
@@ -390,7 +387,6 @@ router.include_router(memory_mcp_router, tags=["memory-mcp-interop"])
 router.include_router(memory_drift_router, tags=["memory-drift-defense"])
 router.include_router(memory_unload_router, tags=["memory-unload-guard"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
-router.include_router(memory_openclaw_router, tags=["memory-openclaw-adapter"])
 router.include_router(memory_dual_track_router, tags=["memory-dual-track"])
 router.include_router(memory_universal_mcp_router, tags=["memory-universal-mcp"])
 router.include_router(memory_vector_preflight_router, tags=["memory-vector-preflight"])
