@@ -193,10 +193,13 @@ async def _build_catalog_preview(
     )
     from myrm_agent_harness.backends.skills.types import SkillMetadata
 
+    from app.core.skills.gates.requirements_availability import apply_requirements_availability_to_catalog
     from app.core.skills.store.service import skills_service
     from app.core.skills.utils import normalize_skill_name
 
     stored_skills = await skills_service.get_skills_by_ids(skill_ids=skill_ids)
+    # The agent runtime counts a skill once its keys are saved in settings; the preview must use the same verdict.
+    await apply_requirements_availability_to_catalog(stored_skills)
     metadata_list: list[SkillMetadata] = []
     for skill in stored_skills:
         try:

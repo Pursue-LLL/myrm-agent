@@ -126,7 +126,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING |
 | 映射 | `INTEGRATION_SKILL_ISSUERS`（OAuth）、x-live-search provider gate（`resolve_xai_search_config`）；所有声明了 `requires`（bins / env / config）的 skill 由 `requirements_availability.py` 统一重算，无需逐 skill 登记 |
 | Bash 注入 | `SessionCredentialAssembler` → `user_credentials_ctx`（Web / Channel / Cron / channel approval resume）→ harness bash env；详见 harness `SECURITY_DESIGN.md` §3.2.3 |
-| GUI | Settings OAuth 卡 + Skills Catalog 黄标；x-live-search → `/settings/models`；保存 xAI provider 时 auto-enable skill |
+| GUI | Settings OAuth 卡 + Skills Catalog 黄标；x-live-search → `/settings/models`；保存 xAI provider 时 auto-enable skill；仅依赖 env 密钥且不可用的技能卡片提供就地「配置密钥」按钮，打开详情侧栏（密钥在侧栏内填写，保存后可用性按 `skill_env_vars` 重算） |
 | Write tier | `POST /oauth/start` `{tier: write}` 增量 consent；`write_enabled` on status API |
 | Fail-closed | DB enrich 异常时 integration skill 标记 unavailable |
 | Bin gate scope | `requires.bins` 使用 server 进程 `PATH`（与 harness `check_requirements` 一致）；桌面端 PATH 由 sidecar 启动时补全；sandbox 内 CLI 可用性以运行时 bash 错误为准 |

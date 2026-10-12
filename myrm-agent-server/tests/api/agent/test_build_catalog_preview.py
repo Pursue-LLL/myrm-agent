@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
+from myrm_agent_harness.backends.skills.types import SkillRequires
 from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.api.agents.agent_extras import _build_catalog_preview
@@ -91,3 +92,46 @@ async def test_build_catalog_preview_skips_invalid_skill_name(
     assert preview["inline_count"] == 1
     assert preview["hidden_count"] == 0
     assert preview["search_mounted"] is False
+
+
+@pytest.mark.asyncio
+async def test_build_catalog_preview_counts_skill_whose_keys_are_saved_in_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    keyed = _skill("keyed-id", "keyed_skill")
+    keyed.requires = SkillRequires(env=["PREVIEW_PROBE_KEY"])
+    keyed.available = False
+    monkeypatch.delenv("PREVIEW_PROBE_KEY", raising=False)
+    monkeypatch.setattr(
+        "app.core.skills.store.service.skills_service.get_skills_by_ids",
+        AsyncMock(return_value=[keyed]),
+    )
+    monkeypatch.setattr(
+        "app.core.skills.gates.requirements_availability._load_skill_env_vars",
+        AsyncMock(return_value={"keyed-id": {"PREVIEW_PROBE_KEY": "secret"}}),
+    )
+
+    preview = await _build_catalog_preview([keyed.id], {keyed.id: {"is_core": True}})
+
+    assert preview["inline_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_build_catalog_preview_omits_skill_whose_keys_are_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    keyless = _skill("keyless-id", "keyless_skill")
+    keyless.requires = SkillRequires(env=["PREVIEW_PROBE_KEY"])
+    monkeypatch.delenv("PREVIEW_PROBE_KEY", raising=False)
+    monkeypatch.setattr(
+        "app.core.skills.store.service.skills_service.get_skills_by_ids",
+        AsyncMock(return_value=[keyless]),
+    )
+    monkeypatch.setattr(
+        "app.core.skills.gates.requirements_availability._load_skill_env_vars",
+        AsyncMock(return_value={}),
+    )
+
+    preview = await _build_catalog_preview([keyless.id], {keyless.id: {"is_core": True}})
+
+    assert preview["inline_count"] == 0

@@ -11,6 +11,7 @@ import pwd
 import signal
 import stat
 import time
+import types
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -86,7 +87,7 @@ class TestGating:
 
     def test_never_runs_on_windows(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("MYRM_SHELL_PID", "1")
-        monkeypatch.setattr(desktop_path.sys, "platform", "win32")
+        monkeypatch.setattr(desktop_path, "sys", types.SimpleNamespace(platform="win32"))
 
         assert desktop_path._spawned_by_desktop_shell() is False
 
