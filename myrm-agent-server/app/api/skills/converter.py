@@ -27,6 +27,16 @@ from .schemas import (
 logger = logging.getLogger(__name__)
 
 
+def _stat_int(stats: dict[str, object], key: str) -> int:
+    value = stats.get(key, 0)
+    return int(value) if isinstance(value, (int, float, str)) else 0
+
+
+def _stat_float(stats: dict[str, object], key: str) -> float:
+    value = stats.get(key, 0.0)
+    return float(value) if isinstance(value, (int, float, str)) else 0.0
+
+
 def _lookup_evolution_data(
     skill_name: str,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]], bool, list[dict[str, object]]]:
@@ -77,12 +87,12 @@ def skill_to_response(skill: Skill) -> SkillResponse:
     usage = SkillUsageStatsResponse()
     if skill.usage_stats:
         usage = SkillUsageStatsResponse(
-            call_count=int(skill.usage_stats.get("call_count", 0)),
-            success_count=int(skill.usage_stats.get("success_count", 0)),
-            failure_count=int(skill.usage_stats.get("failure_count", 0)),
+            call_count=_stat_int(skill.usage_stats, "call_count"),
+            success_count=_stat_int(skill.usage_stats, "success_count"),
+            failure_count=_stat_int(skill.usage_stats, "failure_count"),
             last_used_at=(str(skill.usage_stats["last_used_at"]) if skill.usage_stats.get("last_used_at") else None),
-            success_rate=float(skill.usage_stats.get("success_rate", 0.0)),
-            avg_duration_ms=float(skill.usage_stats.get("avg_duration_ms", 0.0)),
+            success_rate=_stat_float(skill.usage_stats, "success_rate"),
+            avg_duration_ms=_stat_float(skill.usage_stats, "avg_duration_ms"),
             lifecycle_status=str(skill.usage_stats.get("lifecycle_status", "active")),
             pinned=bool(skill.usage_stats.get("pinned", False)),
         )
