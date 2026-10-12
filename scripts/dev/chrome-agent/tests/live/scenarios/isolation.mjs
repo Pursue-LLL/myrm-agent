@@ -132,4 +132,30 @@ export const isolationScenarios = ({ proxy, check, expectConsistent, bareAttach,
         }
         for (const mcp of live.values()) mcp.stop();
     },
+
+    // A resident MCP outlives a proxy (and Chrome) restart: its next list_pages must return the
+    // new page set (restarted Chrome plus pages opened afterwards) and every listed page must take
+    // a script, without restarting the MCP.
+    async restartHeal() {
+        const b = proxy.mcp('B'); await b.start();
+        const d = proxy.mcp('D'); await d.start();
+        await b.pages(); await d.pages();
+        await proxy.restart();
+        await sleep(2000);
+        await proxy.resetPages(3);
+        const f = proxy.mcp('F'); await f.start();
+        const truth = (await proxy.chromePages()).length;
+        for (const [name, mcp] of [['resident B', b], ['resident D', d], ['fresh F', f]]) {
+            const rows = await mcp.pages();
+            let usable = 0;
+            for (const { id, url } of rows) {
+                const sel = await mcp.tool('select_page', { pageId: id });
+                const ev = await mcp.tool('evaluate_script', { pageId: id, function: '() => location.href' });
+                if (!sel.isError && !ev.isError && ev.text.includes(url)) usable++;
+            }
+            await check(`restartHeal: ${name} lists and scripts every page after the proxy restarted`,
+                rows.length === truth && usable === truth, `chrome=${truth} listed=${rows.length} usable=${usable}`);
+        }
+        b.stop(); d.stop(); f.stop();
+    },
 });

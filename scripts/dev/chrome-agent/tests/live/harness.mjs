@@ -51,6 +51,7 @@ export class SandboxProxy {
     constructor(proxyDir = AGENT_DIR, env = {}) {
         this.proxyDir = proxyDir;
         this.env = { CHROME_AGENT_MIN_IDLE_TABS: '0', ...env };
+        this.retiredSocketDirs = [];
     }
 
     async start() {
@@ -59,7 +60,27 @@ export class SandboxProxy {
         this.base = `http://127.0.0.1:${this.port}`;
         this.profile = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-agent-live-'));
         this.logPath = path.join(this.profile, 'proxy.log');
-        const log = fs.openSync(this.logPath, 'w');
+        this.startedAt = Date.now();
+        this.#spawn('w');
+        // The proxy is detached, so a crashed or interrupted test run would orphan it with Chrome
+        // and the profile; every way out of this process must pass through stop().
+        // An operator's interrupt (130) is not a failure worth a log; any other non-zero exit is.
+        process.once('exit', (code) => this.stop({ keepLog: code !== 0 && code !== 130 }));
+        for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => process.exit(130));
+        await this.#ready();
+    }
+
+    /** Restarts the proxy and its Chrome on the same port and profile, as a service restart would. */
+    async restart() {
+        this.retiredSocketDirs.push(this.#socketDir());
+        process.kill(this.proc.pid, 'SIGTERM');
+        this.#waitUntilGone();
+        this.#spawn('a');
+        await this.#ready();
+    }
+
+    #spawn(logFlag) {
+        const log = fs.openSync(this.logPath, logFlag);
         this.proc = spawn(process.execPath, [
             path.join(this.proxyDir, 'pipe-cdp-proxy.mjs'),
             '--port', String(this.port),
@@ -68,11 +89,9 @@ export class SandboxProxy {
             '--initial-url', 'about:blank',
         ], { stdio: ['ignore', log, log], detached: true, env: { ...process.env, ...this.env } });
         fs.closeSync(log);
-        // The proxy is detached, so a crashed or interrupted test run would orphan it with Chrome
-        // and the profile; every way out of this process must pass through stop().
-        // An operator's interrupt (130) is not a failure worth a log; any other non-zero exit is.
-        process.once('exit', (code) => this.stop({ keepLog: code !== 0 && code !== 130 }));
-        for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => process.exit(130));
+    }
+
+    async #ready() {
         for (let i = 0; i < 60; i++) {
             await sleep(500);
             try {
@@ -108,18 +127,12 @@ export class SandboxProxy {
         if (this.stopped || !this.proc) return;
         this.stopped = true;
         const rm = (target) => fs.rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
-        // Chrome keeps its singleton socket in a com.google.Chrome.* dir beside the profile; read the
-        // link before Chrome exits, because it removes the link and leaves the dir behind.
-        let socketDir = null;
-        try {
-            const dir = path.dirname(fs.readlinkSync(path.join(this.profile, 'chrome', 'SingletonSocket')));
-            if (path.basename(dir).startsWith('com.google.Chrome.')
-                && fs.realpathSync(path.dirname(dir)) === fs.realpathSync(os.tmpdir())) socketDir = dir;
-        } catch { /* Chrome never created the socket */ }
+        const socketDirs = [...this.retiredSocketDirs, this.#socketDir()].filter(Boolean);
         try { process.kill(this.proc.pid, 'SIGTERM'); } catch { /* already gone */ }
         this.#waitUntilGone();
+        this.#sweepChromeTempLeftovers();
         try {
-            if (socketDir) rm(socketDir);
+            for (const dir of socketDirs) rm(dir);
             if (keepLog) {
                 rm(path.join(this.profile, 'chrome'));
                 rm(path.join(this.profile, 'chrome-headless.sh'));
@@ -128,6 +141,65 @@ export class SandboxProxy {
             }
         } catch (err) {
             console.error(`could not remove ${this.profile}: ${err.message}`);
+        }
+    }
+
+    /**
+     * Chrome keeps its singleton socket in a com.google.Chrome.* dir beside the profile. Read it
+     * while Chrome runs: on exit Chrome removes the link and leaves the dir behind.
+     */
+    #socketDir() {
+        try {
+            const dir = path.dirname(fs.readlinkSync(path.join(this.profile, 'chrome', 'SingletonSocket')));
+            const inTmp = fs.realpathSync(path.dirname(dir)) === fs.realpathSync(os.tmpdir());
+            return inTmp && path.basename(dir).startsWith('com.google.Chrome.') ? dir : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * A Chrome killed during its first-launch component install leaves the downloaded CRX
+     * (.com.google.Chrome.*), its unpack dir (scoped_dir*: a CRX, maybe CRX_INSTALL) or the
+     * updater download dir (com.google.Chrome.chrome_chrome_url_fetcher_.*) in the temp dir. Only
+     * such leftovers that appeared after this sandbox started and no process holds open are removed.
+     */
+    #sweepChromeTempLeftovers() {
+        const tmp = os.tmpdir();
+        const isCrx = (file) => {
+            const fd = fs.openSync(file, 'r');
+            try {
+                const magic = Buffer.alloc(4);
+                fs.readSync(fd, magic, 0, 4, 0);
+                return magic.toString() === 'Cr24';
+            } finally {
+                fs.closeSync(fd);
+            }
+        };
+        // A download another Chrome is still writing holds its file open.
+        const inUse = (entry, stat) => {
+            try {
+                return execFileSync('lsof', ['-t', ...(stat.isDirectory() ? ['+D'] : []), entry], { stdio: ['ignore', 'pipe', 'ignore'] }).length > 0;
+            } catch {
+                return false;
+            }
+        };
+        const isLeftover = (name, entry, stat) => {
+            if (/^\.com\.google\.Chrome\.[A-Za-z0-9]{6}$/.test(name)) return stat.isFile() && isCrx(entry);
+            if (name.startsWith('com.google.Chrome.chrome_chrome_url_fetcher_.')) return stat.isDirectory();
+            if (!name.startsWith('scoped_dir') || !stat.isDirectory()) return false;
+            const inside = fs.readdirSync(entry);
+            return inside.some((f) => f.startsWith('.com.google.Chrome.'))
+                && inside.every((f) => f === 'CRX_INSTALL' || f.startsWith('.com.google.Chrome.'));
+        };
+        for (const name of fs.readdirSync(tmp)) {
+            const entry = path.join(tmp, name);
+            try {
+                const stat = fs.statSync(entry);
+                if (stat.mtimeMs >= this.startedAt && isLeftover(name, entry, stat) && !inUse(entry, stat)) {
+                    fs.rmSync(entry, { recursive: true, force: true });
+                }
+            } catch { /* vanished or unreadable: not ours to clean */ }
         }
     }
 
