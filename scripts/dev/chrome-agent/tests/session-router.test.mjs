@@ -54,6 +54,28 @@ test('base sessions are cached, broadcast and replayed to late clients', () => {
     assert.ok(ctx.delivered.every((d) => d.to === late));
 });
 
+test('child sessions of a base session are replayed under their parent session', () => {
+    const ctx = setup();
+    ctx.router.onChromeEvent(attached('PAGE', 'T1'));
+    ctx.router.onChromeEvent(attached('FRAME', 'T2', { sessionId: 'PAGE' }));
+    ctx.delivered.length = 0;
+    ctx.router.replayAutoAttach(ctx.client(9));
+    assert.deepEqual(
+        ctx.delivered.map((d) => [d.msg.params.sessionId, d.msg.sessionId]),
+        [['PAGE', undefined], ['FRAME', 'PAGE']],
+    );
+});
+
+test('descendants of a detached base session are no longer replayed', () => {
+    const ctx = setup();
+    ctx.router.onChromeEvent(attached('PAGE', 'T1'));
+    ctx.router.onChromeEvent(attached('FRAME', 'T2', { sessionId: 'PAGE' }));
+    ctx.router.onChromeEvent(attached('GRANDCHILD', 'T3', { sessionId: 'FRAME' }));
+    ctx.router.onChromeEvent(attached('OTHER', 'T4'));
+    ctx.router.onChromeEvent(detachedEvt('PAGE'));
+    assert.deepEqual([...ctx.router.knownSessions.keys()], ['OTHER']);
+});
+
 for (const eventFirst of [true, false]) {
     test(`owned session reaches only its owner and is never cached (${eventFirst ? 'event' : 'response'} first)`, () => {
         const ctx = setup();

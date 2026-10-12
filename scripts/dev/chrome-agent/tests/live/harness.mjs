@@ -147,22 +147,31 @@ export class SandboxProxy {
         return { send, close: () => ws.close() };
     }
 
-    /** Passive CDP listener that records every Target.attached/detached event it receives. */
+    /**
+     * Passive CDP listener that records every Target.attached/detached event it receives.
+     * It enables browser-level auto-attach so it is told about every shared session up front:
+     * an event whose session has no `type` therefore belongs to a session nobody announced to it.
+     */
     async listener() {
         const version = await (await fetch(`${this.base}/json/version`)).json();
         const ws = new WebSocket(version.webSocketDebuggerUrl);
         await new Promise((resolve) => ws.addEventListener('open', resolve, { once: true }));
         const events = [];
         const typeOf = new Map();
-        ws.addEventListener('message', (e) => {
-            const msg = JSON.parse(e.data);
-            if (msg.method === 'Target.attachedToTarget') typeOf.set(msg.params.sessionId, msg.params.targetInfo?.type);
-            if (msg.method === 'Target.attachedToTarget' || msg.method === 'Target.detachedFromTarget') {
-                // `type` is the target type announced when this session attached ('other' = Chrome-internal
-                // targets that come and go on their own); undefined = a session this listener never saw.
-                events.push({ method: msg.method, sessionId: msg.params.sessionId, type: typeOf.get(msg.params.sessionId), at: Date.now() });
-            }
+        const autoAttached = new Promise((resolve) => {
+            ws.addEventListener('message', (e) => {
+                const msg = JSON.parse(e.data);
+                if (msg.id === 1) resolve();
+                if (msg.method === 'Target.attachedToTarget') typeOf.set(msg.params.sessionId, msg.params.targetInfo?.type);
+                if (msg.method === 'Target.attachedToTarget' || msg.method === 'Target.detachedFromTarget') {
+                    // `type` is the target type announced when this session attached ('other' = Chrome-internal
+                    // targets that come and go on their own); undefined = a session never announced to this listener.
+                    events.push({ method: msg.method, sessionId: msg.params.sessionId, type: typeOf.get(msg.params.sessionId), at: Date.now() });
+                }
+            });
         });
+        ws.send(JSON.stringify({ id: 1, method: 'Target.setAutoAttach', params: { autoAttach: true, waitForDebuggerOnStart: false, flatten: true } }));
+        await autoAttached;
         return { events, close: () => ws.close() };
     }
 
