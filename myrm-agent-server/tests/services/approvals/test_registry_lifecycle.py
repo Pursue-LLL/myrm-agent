@@ -5,9 +5,12 @@ resolution and pending-count guard — the registry capabilities exercised
 by the event-branching refactor (Optimization B).
 """
 
+import dataclasses
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -19,12 +22,16 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.channels.types import ActionButton, MediaAttachment, MediaType, OutboundMessage
 from app.database.models.approval import ApprovalRecord
 from app.database.models.base import Base
 from app.services.approvals.registry import (
     ApprovalRegistry,
     send_outbound_draft_payload,
 )
+from tests.channels.core.outbound_testkit import make_ephemeral_doc
+
+_HANDOFF_BUTTON = ActionButton(label="Continue in browser", action_id="web:continue_chat", url="https://example.test/chat/abc")
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -163,70 +170,147 @@ class TestCleanupExpiredApprovals:
         send_mock.assert_awaited_once()
 
 
+def _held_reply(*media: MediaAttachment, content: str = "hello") -> OutboundMessage:
+    return OutboundMessage(
+        channel="telegram",
+        recipient_id="peer-1",
+        content=content,
+        user_id="owner-1",
+        media=media,
+        components=((_HANDOFF_BUTTON,),),
+        reply_to_id="m-1",
+        thread_id="th-1",
+        metadata={"locale": "zh"},
+    )
+
+
+def _draft_payload(reply: OutboundMessage, *, draft_content: str | None = None, **extra: object) -> dict[str, object]:
+    """Payload as the router stores it: the text stays editable, the rest of the reply is frozen."""
+    return {"draft_content": reply.content if draft_content is None else draft_content, "outbound": reply.to_dict(), **extra}
+
+
 class TestSendOutboundDraftPayload:
     @pytest.mark.asyncio
-    async def test_empty_content_skipped(self) -> None:
-        sent = await send_outbound_draft_payload({"draft_content": "  "}, "agent-1", "rec-1")
+    async def test_blank_draft_without_attachments_is_skipped(self) -> None:
+        gateway = AsyncMock()
+        with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway):
+            sent = await send_outbound_draft_payload(_draft_payload(_held_reply(), draft_content="  "), "agent-1", "rec-1")
+
         assert sent is False
+        gateway.publish.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_sends_media_and_content(self) -> None:
+    async def test_sends_the_held_reply_with_the_reviewed_text(self, tmp_path: Path) -> None:
+        report = MediaAttachment(media_type=MediaType.DOCUMENT, path=str(tmp_path / "report.pdf"), filename="report.pdf")
+        reply = _held_reply(report)
         gateway = AsyncMock()
         with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway):
             sent = await send_outbound_draft_payload(
-                {
-                    "draft_content": "hello",
-                    "channel": "telegram",
-                    "recipient_id": "peer-1",
-                    "draft_media": [{"url": "https://x/a.png", "type": "image"}],
-                },
-                "agent-1",
-                "rec-2",
+                _draft_payload(reply, draft_content="edited by reviewer"), "agent-1", "rec-2"
             )
 
         assert sent is True
         gateway.publish.assert_awaited_once()
-        msg = gateway.publish.await_args.args[0]
-        assert msg.content == "hello"
-        assert msg.channel == "telegram"
-        assert msg.recipient_id == "peer-1"
+        assert gateway.publish.await_args.args[0] == dataclasses.replace(reply, content="edited by reviewer")
 
     @pytest.mark.asyncio
-    async def test_invalid_media_type_falls_back_to_document(self) -> None:
-        from app.channels.types.messages import MediaType
-
+    async def test_attachment_only_draft_is_sent(self, tmp_path: Path) -> None:
+        reply = _held_reply(MediaAttachment(media_type=MediaType.DOCUMENT, path=str(tmp_path / "a.pdf")), content="")
         gateway = AsyncMock()
         with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway):
-            sent = await send_outbound_draft_payload(
-                {
-                    "draft_content": "hello",
-                    "draft_media": [{"url": "https://x/b.bin", "type": "not-a-real-type"}],
-                },
-                "agent-1",
-                "rec-3",
-            )
+            sent = await send_outbound_draft_payload(_draft_payload(reply), "agent-1", "rec-3")
 
         assert sent is True
-        msg = gateway.publish.await_args.args[0]
-        assert msg.media is not None
-        assert msg.media[0].media_type == MediaType.DOCUMENT
+        assert gateway.publish.await_args.args[0] == reply
 
     @pytest.mark.asyncio
-    async def test_non_dict_media_item_ignored(self) -> None:
+    async def test_payload_without_a_snapshot_is_not_sent(self, caplog: pytest.LogCaptureFixture) -> None:
+        pre_snapshot = {
+            "draft_content": "hello",
+            "channel": "telegram",
+            "recipient_id": "peer-1",
+            "draft_media": [{"url": "https://x/a.png", "type": "image"}],
+        }
         gateway = AsyncMock()
-        with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway):
+        with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway), caplog.at_level(logging.WARNING):
+            sent = await send_outbound_draft_payload(pre_snapshot, "agent-1", "rec-4")
+
+        assert sent is False
+        gateway.publish.assert_not_awaited()
+        assert any(r.levelno == logging.WARNING and "rec-4" in r.getMessage() for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_undecodable_snapshot_is_not_sent(self, caplog: pytest.LogCaptureFixture) -> None:
+        gateway = AsyncMock()
+        with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway), caplog.at_level(logging.WARNING):
             sent = await send_outbound_draft_payload(
-                {
-                    "draft_content": "hello",
-                    "draft_media": ["raw-string", {"url": ""}, None],
-                },
-                "agent-1",
-                "rec-4",
+                {"draft_content": "hello", "outbound": {"channel": "telegram"}}, "agent-1", "rec-5"
             )
 
-        assert sent is True
-        msg = gateway.publish.await_args.args[0]
-        assert msg.media is None
+        assert sent is False
+        gateway.publish.assert_not_awaited()
+        assert any("rec-5" in r.getMessage() for r in caplog.records)
+
+
+class TestOutboundDraftRelease:
+    """A draft that will never be sent must not leave its temp attachments behind."""
+
+    @staticmethod
+    async def _seed_draft(
+        record_id: str, shot: MediaAttachment, *, timeout_action: str = "auto_reject", **kwargs: object
+    ) -> None:
+        payload = _draft_payload(_held_reply(shot), draft_timeout_action=timeout_action)
+        await _seed(record_id, action_type="outbound_draft", thread_id=None, payload=payload, **kwargs)  # type: ignore[arg-type]
+
+    @pytest.mark.asyncio
+    async def test_rejected_draft_deletes_its_temp_attachments(self) -> None:
+        shot = make_ephemeral_doc("shot.png")
+        await self._seed_draft("od-reject", shot)
+
+        record = await ApprovalRegistry.resolve_approval("od-reject", "deny")
+
+        assert record is not None and record.status == "REJECTED"
+        assert not Path(shot.path).exists()
+
+    @pytest.mark.asyncio
+    async def test_approved_draft_keeps_its_temp_attachments_for_the_send(self) -> None:
+        shot = make_ephemeral_doc("shot.png")
+        await self._seed_draft("od-approve", shot)
+
+        await ApprovalRegistry.resolve_approval("od-approve", "approve")
+
+        try:
+            assert Path(shot.path).exists()
+        finally:
+            Path(shot.path).unlink(missing_ok=True)
+
+    @pytest.mark.asyncio
+    async def test_expired_draft_deletes_its_temp_attachments(self) -> None:
+        shot = make_ephemeral_doc("shot.png")
+        await self._seed_draft("od-expire", shot, expires_at=datetime.now(timezone.utc) - timedelta(minutes=5))
+
+        with patch("app.services.approvals.registry.get_event_bus", return_value=MagicMock()):
+            assert await ApprovalRegistry.cleanup_expired_approvals() == 1
+
+        assert not Path(shot.path).exists()
+
+    @pytest.mark.asyncio
+    async def test_auto_sent_expired_draft_keeps_its_temp_attachments(self) -> None:
+        shot = make_ephemeral_doc("shot.png")
+        await self._seed_draft(
+            "od-auto-send", shot, timeout_action="auto_send", expires_at=datetime.now(timezone.utc) - timedelta(minutes=5)
+        )
+
+        with (
+            patch("app.services.approvals.registry.get_event_bus", return_value=MagicMock()),
+            patch("app.services.approvals.registry.send_outbound_draft_payload", new=AsyncMock(return_value=True)),
+        ):
+            assert await ApprovalRegistry.cleanup_expired_approvals() == 1
+
+        try:
+            assert Path(shot.path).exists()
+        finally:
+            Path(shot.path).unlink(missing_ok=True)
 
 
 class TestResolveBrowserTakeover:

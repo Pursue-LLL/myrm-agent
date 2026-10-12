@@ -141,7 +141,7 @@ def resolve_session_key(..., thread_sharing_mode: str = "isolated"):
 `reply_mode` 是 `TopicContext` 的配置项，控制 Agent 对 Channel 消息的回复是否需要人工审核：
 
 - **`auto`（默认）**：Agent 生成的回复直接发送，无需审核。
-- **`draft_review`**：Agent 回复被拦截为 `ApprovalRecord`（`action_type="outbound_draft"`），用户在 WebUI Approval Drawer 或 Channel ActionButton 审核后方可发送。
+- **`draft_review`**：Agent 回复被整条（含附件、按钮）拦截为 `ApprovalRecord`（`action_type="outbound_draft"`），用户在 WebUI Approval Drawer 或 Channel ActionButton 审核后方可发送；审批无法创建时回复不发送（fail-closed）。
 
 ### 超时策略
 
@@ -163,8 +163,8 @@ Agent 生成回复 → _deliver_agent_result
                     ↓ SSE + Channel ActionButton
               用户审核 (WebUI Drawer / IM Button)
                     ↓
-              approve → publish_outbound → 发送
-              deny    → 丢弃
+              approve → publish_outbound → 发送（附件随行）
+              deny    → 丢弃并释放临时附件
               timeout → draft_timeout_action 决策
 ```
 

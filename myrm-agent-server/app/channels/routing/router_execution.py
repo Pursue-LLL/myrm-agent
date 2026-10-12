@@ -244,7 +244,8 @@ class RouterExecutionMixin:
         """Deliver agent result: TTS processing, edit placeholder or send new message.
 
         When ``topic_ctx.reply_mode`` is ``draft_review``, the outbound message
-        is held as an ApprovalRecord instead of being sent immediately.
+        is held as an ApprovalRecord instead of being sent immediately; a reply
+        that cannot be held is withheld, never sent unreviewed.
 
         Returns True when the result was actually sent to the channel.
         """
@@ -266,13 +267,12 @@ class RouterExecutionMixin:
                 try:
                     await self._create_outbound_draft(result, msg, chat_id, topic_ctx)
                 except Exception:
-                    logger.exception("Failed to create outbound draft, falling back to direct send")
+                    # Fail closed: draft review promises that no reply is sent before a human approved it.
+                    logger.exception("Failed to hold the reply for review, withholding it")
+                    discard_ephemeral_media(result.media)
                     if placeholder_id:
-                        await self._fx.wait_for_edit_gap(last_progress_at, _MIN_PROGRESS_INTERVAL)
-                        await self._fx.edit_placeholder(msg.channel, chat_id, placeholder_id, result)
-                    else:
-                        await self._bus.publish_outbound(result)
-                    return True
+                        await self._fx.cleanup_placeholder(msg.channel, chat_id, placeholder_id, "\u200b")
+                    return False
                 if placeholder_id:
                     await self._fx.cleanup_placeholder(
                         msg.channel,
@@ -326,13 +326,8 @@ class RouterExecutionMixin:
 
         payload: dict[str, object] = {
             "draft_content": result.content,
-            "draft_media": [
-                {
-                    "url": m.url,
-                    "type": m.type.value if hasattr(m.type, "value") else str(m.type),
-                }
-                for m in (result.media or ())
-            ],
+            # Everything but the text (which the reviewer may edit): attachments, buttons and routing stay as produced.
+            "outbound": dataclasses.replace(result, content="").to_dict(),
             "channel": result.channel,
             "recipient_id": result.recipient_id,
             "original_sender_id": original_msg.sender_id,

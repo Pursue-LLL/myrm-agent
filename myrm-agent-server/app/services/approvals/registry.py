@@ -7,14 +7,17 @@
 [OUTPUT]
 - ApprovalRegistry: 统一的拦截审批注册与唤醒中枢
 - list_pending_growth: PENDING 背景成长草稿查询（去重/上限 SSOT）
-- send_outbound_draft_payload: Outbound draft 消息重建与发送（WebUI/Channel/TTL 共享）
+- send_outbound_draft_payload: Outbound draft 整条回复重建与发送（WebUI/Channel/TTL 共享）
+- discard_outbound_draft_payload: 被拒绝/过期不发送的 outbound draft 释放其临时附件
 
 [POS]
 统一审批流调度器。负责将各种拦截节点落库并推送 SSE 事件，接收 resolve 指令。
 """
 
+import dataclasses
 import logging
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import and_, func, or_, select
@@ -23,6 +26,9 @@ from app.database.connection import get_session
 from app.database.models.approval import ApprovalRecord
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 from app.services.skills.growth.constants import GROWTH_ACTION_TYPES, is_background_growth_approval
+
+if TYPE_CHECKING:
+    from app.channels.types import OutboundMessage
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +58,7 @@ class ApprovalRegistry:
                 return 0
 
             outbound_auto_send_records: list[ApprovalRecord] = []
+            outbound_unsent_records: list[ApprovalRecord] = []
 
             for record in expired_records:
                 record.resolved_at = datetime.now(timezone.utc)
@@ -65,6 +72,7 @@ class ApprovalRegistry:
                         continue
                     record.status = "TIMEOUT"
                     record.reason = (record.reason or "") + "\n\n[Auto-Rejected: TTL Expired]"
+                    outbound_unsent_records.append(record)
                     continue
 
                 record.status = "TIMEOUT"
@@ -98,6 +106,9 @@ class ApprovalRegistry:
                 await cls._send_outbound_draft(record)
             except Exception as e:
                 logger.error("Failed to auto-send expired outbound draft %s: %s", record.id, e)
+
+        for record in outbound_unsent_records:
+            discard_outbound_draft_payload(record.payload or {}, record.id)
 
         return len(expired_records)
 
@@ -262,6 +273,9 @@ class ApprovalRegistry:
 
             await db.commit()
             await db.refresh(record)
+            if record.status == "REJECTED" and record.action_type == "outbound_draft":
+                # Here rather than in each resolver (WebUI, IM button, batch), so a rejected draft always frees its files.
+                discard_outbound_draft_payload(record.payload or {}, record.id)
             await cls._sync_copilot_pending(record.chat_id)
             return record
 
@@ -385,48 +399,53 @@ class ApprovalRegistry:
         return resolved_count
 
 
+def _decode_held_reply(payload: dict[str, object], record_id: str) -> "OutboundMessage | None":
+    """Rebuild the reply a draft holds (its text lives in ``draft_content``); None without a readable snapshot."""
+    from app.channels.types import OutboundMessage
+
+    snapshot = payload.get("outbound")
+    if not isinstance(snapshot, dict):
+        return None
+    try:
+        return OutboundMessage.from_dict(snapshot)
+    except Exception:
+        logger.warning("Outbound draft %s has an unreadable message snapshot", record_id[:12], exc_info=True)
+        return None
+
+
 async def send_outbound_draft_payload(
     payload: dict[str, object],
     agent_id: str | None,
     record_id: str,
 ) -> bool:
-    """Reconstruct and publish an outbound message from a draft approval payload.
+    """Publish the reply a draft approval holds, carrying the (possibly edited) reviewed text.
 
-    Shared by WebUI resolve, Channel ActionButton, and TTL auto-send.
-    Returns True if the message was sent, False if skipped (empty content).
+    Shared by WebUI resolve, Channel ActionButton, and TTL auto-send. The reply goes out exactly as the agent
+    produced it (attachments, buttons, thread); ``agent_id`` only stands in for an unknown owner.
+    Returns True if the message was sent, False if skipped (no readable snapshot, or nothing to send).
     """
-    from app.channels.types.messages import (
-        MediaAttachment,
-        MediaType,
-        MessagePriority,
-        OutboundMessage,
-    )
     from app.core.channel_bridge import get_channel_gateway
 
+    held = _decode_held_reply(payload, record_id)
+    if held is None:
+        logger.warning("Outbound draft %s send skipped: no readable message snapshot", record_id[:12])
+        return False
+
     content = str(payload.get("draft_content", ""))
-    if not content.strip():
+    if not content.strip() and not held.media:
         logger.warning("Outbound draft %s send skipped: empty content", record_id[:12])
         return False
 
-    media: list[MediaAttachment] = []
-    for item in payload.get("draft_media", ()) or ():
-        if isinstance(item, dict) and item.get("url"):
-            raw_type = str(item.get("type", "document"))
-            try:
-                mt = MediaType(raw_type)
-            except ValueError:
-                mt = MediaType.DOCUMENT
-            media.append(MediaAttachment(url=str(item["url"]), media_type=mt))
-
-    outbound = OutboundMessage(
-        channel=str(payload.get("channel", "")),
-        recipient_id=str(payload.get("recipient_id", "")),
-        user_id=agent_id or "system",
-        content=content,
-        media=media or None,
-        priority=MessagePriority.NORMAL,
-    )
-    gw = get_channel_gateway()
-    await gw.publish(outbound)
+    outbound = dataclasses.replace(held, content=content, user_id=held.user_id or agent_id or "system")
+    await get_channel_gateway().publish(outbound)
     logger.info("Outbound draft %s sent", record_id[:12])
     return True
+
+
+def discard_outbound_draft_payload(payload: dict[str, object], record_id: str) -> None:
+    """Release the temp attachments of a draft that will never be sent (rejected or expired)."""
+    from app.channels.core.outbound_media import discard_ephemeral_media
+
+    held = _decode_held_reply(payload, record_id)
+    if held is not None:
+        discard_ephemeral_media(held.media)

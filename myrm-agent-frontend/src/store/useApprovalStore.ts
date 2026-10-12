@@ -15,6 +15,14 @@ export interface PlanItem {
   status?: string;
 }
 
+/** An attachment of a held channel reply (`outbound_draft`), as the server stored it. */
+export interface OutboundDraftAttachment {
+  media_type: string;
+  filename?: string | null;
+  path?: string | null;
+  url?: string | null;
+}
+
 export interface ApprovalPayloadData {
   content?: string;
   patch_content?: string;
@@ -63,6 +71,8 @@ export interface ApprovalPayloadData {
   tournament?: boolean;
   tasks?: Array<{ agent_type: string; objective: string }>;
   draft_content?: string;
+  /** Held channel reply (outbound_draft): everything but the editable text. */
+  outbound?: { media?: OutboundDraftAttachment[] };
   channel?: string;
   recipient_id?: string;
   topic_id?: string;
