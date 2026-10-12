@@ -2,13 +2,13 @@
 [INPUT]
 - myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system. Provides EvolutionIntegration singleton with 15-Call Sliding Window trigger, execution ledger recording, and background queue orchestration.)
 - app.services.agent.confidence_approval_flow::ConfidenceApprovalFlow (POS: 基于置信度+客观风控信号的智能审批流。高分且低风险静默自动合并，任何风控红灯即降级人工 Diff Review。)
-- app.services.skills.ws_hub::broadcast_message, broadcast_proposal (POS: 技能 WebSocket 广播中心。)
+- app.services.skills.ws_hub::broadcast_message, broadcast_proposal (POS: Evolution 提案 WebSocket 中枢：服务层维护按 user_key 分组的连接池，向前端广播 NEW_EVOLUTION_PROPOSAL 消息。)
 [OUTPUT]
 - handle_new_proposal: 将后台进化队列产出的提案交给审批流落地，并按结果向前端推送。
 - init_evolution_runtime: 启动期构建全局 EvolutionIntegration（进化模型、筛选器、后台队列）。
 - shutdown_evolution_runtime: 停止本模块启动的后台进化队列。
 [POS]
-技能进化运行时装配。只负责把 Harness 的后台进化队列接到业务审批流与 WebSocket，不做任何失败率扫描或自动修复判定。
+技能进化运行时装配。把 Harness 的后台进化队列接到业务审批流与 WebSocket 推送。
 """
 
 from __future__ import annotations
