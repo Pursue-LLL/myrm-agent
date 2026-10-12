@@ -356,6 +356,7 @@ deliverable_oversized_note = { $filename }（{ $size }）超出渠道附件大�
 deliverable_compressed_note = { $filename }（{ $size }）超出渠道大小限制，已发送压缩版本。
 attachment_stripped_note = 附件发送失败，仅发送了文字内容。
 attachment_omitted_note = 未发送附件：{ $name }（当前聊天不支持附件）
+attachment_withheld_note = 出于安全考虑未发送附件：{ $name }（疑似密钥或凭据文件）
 attachment_failed_note = 以下附件未能送达：{ $names }
 goal_completed =
     ✅ 目标已完成："{ $objective }"

@@ -356,6 +356,7 @@ deliverable_oversized_note = { $filename } ({ $size }) exceeds the channel attac
 deliverable_compressed_note = { $filename } ({ $size }) exceeded the channel size limit — a compressed version was sent.
 attachment_stripped_note = The attachment couldn't be sent, so only the text was delivered.
 attachment_omitted_note = Attachment not sent: { $name } (not supported in this chat)
+attachment_withheld_note = Attachment not sent for security: { $name } (looks like a key or credentials file)
 attachment_failed_note = These attachments couldn't be delivered: { $names }
 goal_completed =
     ✅ Goal completed: "{ $objective }"

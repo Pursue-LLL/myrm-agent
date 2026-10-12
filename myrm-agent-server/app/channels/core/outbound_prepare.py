@@ -1,6 +1,7 @@
 """Outbound message preparation: correlation lineage, capability downgrade, risk gate and delivery verdicts.
 
 [INPUT]
+- channels.core.outbound_attachment_guard::withhold_sensitive_attachments (POS: key/credential attachment guard)
 - channels.i18n::channel_t, get_locale_from_metadata (POS: channel-scoped localized text)
 - channels.types::OutboundMessage, ChannelCapabilities, CorrelationContext, MediaType (POS: channel message value types)
 - services.risk.detection::get_detection_service (POS: stateful risk detection engine with compiled regex cache)
@@ -8,7 +9,7 @@
 [OUTPUT]
 - set_correlation_context / get_correlation_context: implicit routing lineage across async tasks
 - apply_correlation_context: corrects drifted routes from the active lineage
-- prepare_outbound: capability downgrade + risk gate, the one preparation step shared by every outbound path
+- prepare_outbound: sensitive-attachment guard + capability downgrade + risk gate, the one preparation step shared by every outbound path
 - downgrade_components: interactive component and media downgrade (appends text fallback when channel lacks support)
 - apply_outbound_risk_gate: content safety detection before send (reuses RiskDetectionService)
 - delivery_unconfirmed: whether a ``send()`` result proves delivery on the channel's declared contract
@@ -30,6 +31,7 @@ import dataclasses
 import logging
 import uuid
 
+from app.channels.core.outbound_attachment_guard import withhold_sensitive_attachments
 from app.channels.i18n import channel_t, get_locale_from_metadata
 from app.channels.types import (
     ActionButton,
@@ -138,8 +140,13 @@ async def _record_outbound_risk_hits(matches: tuple[object, ...], msg: OutboundM
 
 
 def prepare_outbound(msg: OutboundMessage, capabilities: ChannelCapabilities, *, channel_name: str) -> OutboundMessage:
-    """Make ``msg`` safe and sendable for a route: capability downgrade, then the content risk gate."""
-    return apply_outbound_risk_gate(downgrade_components(msg, capabilities, channel_name=channel_name))
+    """Make ``msg`` safe and sendable for a route.
+
+    Order matters: key material is withheld first so the recipient is told the real reason (not "unsupported"),
+    then components and media are downgraded to the route's capabilities, then the content risk gate runs.
+    """
+    guarded = withhold_sensitive_attachments(msg)
+    return apply_outbound_risk_gate(downgrade_components(guarded, capabilities, channel_name=channel_name))
 
 
 def downgrade_components(msg: OutboundMessage, capabilities: ChannelCapabilities, *, channel_name: str) -> OutboundMessage:

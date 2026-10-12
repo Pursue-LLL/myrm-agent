@@ -362,6 +362,7 @@ deliverable_oversized_note = { $filename }（{ $size }）がチャンネルの�
 deliverable_compressed_note = { $filename }（{ $size }）がチャンネルのサイズ制限を超えたため、圧縮版を送信しました。
 attachment_stripped_note = 添付ファイルを送信できなかったため、テキストのみ送信しました。
 attachment_omitted_note = 添付ファイルは送信されませんでした：{ $name }（このチャットは添付ファイルに対応していません）
+attachment_withheld_note = セキュリティ上の理由で添付ファイルを送信しませんでした：{ $name }（鍵や認証情報のファイルと思われます）
 attachment_failed_note = 次の添付ファイルを送信できませんでした：{ $names }
 bang_command_unsupported = ℹ️ セキュリティとサンドボックス保護のため、MyrmはIMチャンネルからのリモート「!」シェルコマンドの実行をサポートしていません。WebUI/デスクトップコンソールをご利用いただくか、自然言語でお問い合わせください。
 quota_header = [ クォータと使用状況 ]

@@ -403,7 +403,7 @@ Agent/Cron/通知 → OutboundMessage
 MessageBus 出站管线（队列 publish_outbound 与直发 send_now 共用同一套路由、准备与结算）
     ├── DurableOutboundGate.save (IM 渠道，web/chat 跳过)
     ├── 路由解析 (云托管 CP egress 优先，仅纯文本；否则本地渠道；DISABLED/STOPPED/未注册 → 队列保留 obligation，send_now 直接抛错)
-    ├── prepare_outbound(msg, 路由能力) = downgrade_components (组件/媒体降级) → 出站风险门
+    ├── prepare_outbound(msg, 路由能力) = withhold_sensitive_attachments (密钥/凭据附件拦截) → downgrade_components (组件/媒体降级) → 出站风险门
     ├── [仅队列分发] 内容门：死链仅注释，不拦截
     └── Channel.send()  (send_with_retry 指数退避，partial delivery 不重试)
         ├── render(msg, render_style) → chunks
@@ -430,6 +430,8 @@ MessageBus 出站管线（队列 publish_outbound 与直发 send_now 共用同�
 **出站媒体 SSRF 防护**：`MediaAttachment.url` 可能来自 Agent 生成内容（受 prompt injection 影响），
 所有出站媒体下载通过 `channels.media.MediaDownloader` 执行（内置 `SSRFValidator`），
 集成 `core.security.guards.ssrf.async_validate_url_for_ssrf`（scheme 白名单 + hostname 黑名单 + DNS 解析 + IP 网络黑名单）。
+
+**出站敏感附件闸**：附件来源（交付物扫描、工具产物、Agent 回复）都不检查文件是什么，IM 聊天又没有确认环节，所以 `prepare_outbound` 的第一步 `withhold_sensitive_attachments`（`core/outbound_attachment_guard.py`）拒发密钥/凭据类本地文件：复用 harness `is_sensitive_file`（大小写不敏感、fail-closed），同时检查符号链接目标；`.key` 仅在文件是 ZIP（Keynote）时放行；系统生成的 `ephemeral` 临时文件与 URL 附件不检查。被拦附件从消息中移除，正文追加本地化说明（`attachment_withheld_note`，四语），WARNING 日志只记录文件名。它是安全带而非分类器：按文件名匹配，改名后的密钥会漏过；`config.json`、`*.db` 等误伤按 fail-closed 接受。闸在能力降级之前，收件人看到的是真实原因而非"不支持附件"。
 
 ### 6.3 流式输出
 

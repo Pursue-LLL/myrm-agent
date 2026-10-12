@@ -362,6 +362,7 @@ deliverable_oversized_note = { $filename }（{ $size }）超出管道附件大�
 deliverable_compressed_note = { $filename }（{ $size }）超出管道大小限制，已傳送壓縮版本。
 attachment_stripped_note = 附件傳送失敗，僅傳送了文字內容。
 attachment_omitted_note = 未傳送附件：{ $name }（目前聊天不支援附件）
+attachment_withheld_note = 基於安全考量未傳送附件：{ $name }（疑似金鑰或憑證檔案）
 attachment_failed_note = 以下附件未能送達：{ $names }
 bang_command_unsupported = ℹ️ 出於安全隔離與沙盒保護，Myrm 不支援在 IM 渠道直接執行 `!shell` 遠端命令。如需執行腳本或管理工作區，請在 WebUI 或桌面端控制台中操作，或直接使用自然語言向我提問。
 quota_header = [ 配額與使用狀態 ]
