@@ -1,5 +1,20 @@
 'use client';
 
+/**
+ * Browser diagnostics card: runs the doctor, shows a plain-language summary and cleans orphaned automation leftovers.
+ *
+ * [INPUT]
+ * - `GET /api/v1/health/browser/doctor` (optional launch test) and `DELETE /api/v1/health/browser/orphans?confirm=true`
+ * - ./browserDoctorView::buildDoctorView/statusLabelKey (POS: tone, localized hint and counts of a report)
+ *
+ * [OUTPUT]
+ * - default export BrowserDoctorCard: settings card for the browser stack health
+ *
+ * [POS]
+ * 系统设置页的浏览器栈诊断入口：头条与徽标只呈现「需关注项」，英文 message/fix 收进可展开的技术详情；
+ * 孤儿进程与过期沙箱经二次确认后清理。
+ */
+
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
@@ -48,11 +63,16 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+// Light/dark pairs keep status text at WCAG AA contrast on both card backgrounds.
+const TEXT_OK = 'text-emerald-700 dark:text-emerald-400';
+const TEXT_ATTENTION = 'text-amber-700 dark:text-amber-400';
+const TEXT_ERROR = 'text-red-600 dark:text-red-400';
+
 const TONE_COLOR: Record<DoctorTone, string> = {
-  ok: 'text-emerald-500',
+  ok: TEXT_OK,
   optional: 'text-muted-foreground',
-  attention: 'text-amber-500',
-  error: 'text-red-500',
+  attention: TEXT_ATTENTION,
+  error: TEXT_ERROR,
 };
 
 const KNOWN_CHECK_NAMES = [
@@ -231,7 +251,7 @@ const BrowserDoctorCard = memo(() => {
           <Switch id="browser-doctor-launch-test" checked={launchTest} onCheckedChange={setLaunchTest} />
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className={cn('text-sm', TEXT_ERROR)}>{error}</p>}
 
         {report && view && !error && (
           <>
@@ -249,7 +269,8 @@ const BrowserDoctorCard = memo(() => {
               <span
                 className={cn(
                   'inline-flex w-fit rounded-full px-2.5 py-0.5 text-xs font-bold uppercase',
-                  view.healthy ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500',
+                  view.healthy ? 'bg-emerald-500/10' : 'bg-amber-500/10',
+                  view.healthy ? TEXT_OK : TEXT_ATTENTION,
                 )}
               >
                 {view.healthy ? t('healthy') : t('unhealthy')}
@@ -311,11 +332,11 @@ const BrowserDoctorCard = memo(() => {
                       </div>
                     )}
                     {name === 'orphan_processes' && cleanupMessage && (
-                      <p className={cn('mt-1', cleanupHasFailures ? 'text-amber-400/90' : 'text-emerald-400/90')}>
-                        {cleanupMessage}
-                      </p>
+                      <p className={cn('mt-1', cleanupHasFailures ? TEXT_ATTENTION : TEXT_OK)}>{cleanupMessage}</p>
                     )}
-                    {name === 'orphan_processes' && cleanupError && <p className="mt-1 text-red-400">{cleanupError}</p>}
+                    {name === 'orphan_processes' && cleanupError && (
+                      <p className={cn('mt-1', TEXT_ERROR)}>{cleanupError}</p>
+                    )}
                   </div>
                 ))}
               </div>
