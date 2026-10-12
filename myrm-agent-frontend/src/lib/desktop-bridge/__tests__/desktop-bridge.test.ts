@@ -91,23 +91,26 @@ describe('Desktop Bridge Protocol', () => {
         expect(shellOpen).toHaveBeenCalledWith('https://example.com/docs');
       });
 
-      it('falls back to the browser when the shell plugin rejects the url', async () => {
+      it('reports a refused open instead of retrying through window.open', async () => {
         vi.spyOn(tauriModule, 'isTauriEnvironment').mockReturnValue(true);
-        vi.spyOn(console, 'warn').mockImplementation(() => {});
-        shellOpen.mockRejectedValue(new Error('url not allowed'));
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const refusal = new Error('url not allowed');
+        shellOpen.mockRejectedValue(refusal);
         const windowOpen = vi.spyOn(window, 'open').mockImplementation(() => null);
 
-        await expect(bridge.shell.openExternalUrl('ftp://example.com/readme')).resolves.toBe(true);
-        expect(windowOpen).toHaveBeenCalledWith('ftp://example.com/readme', '_blank', 'noopener,noreferrer');
+        await expect(bridge.shell.openExternalUrl('ftp://example.com/readme')).resolves.toBe(false);
+        expect(shellOpen).toHaveBeenCalledTimes(1);
+        expect(windowOpen).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalledWith('Failed to open external URL via shell plugin:', refusal);
       });
 
-      it('skips the shell plugin outside the desktop runtime', async () => {
+      it('does nothing outside the desktop runtime', async () => {
         vi.spyOn(tauriModule, 'isTauriEnvironment').mockReturnValue(false);
         const windowOpen = vi.spyOn(window, 'open').mockImplementation(() => null);
 
-        await expect(bridge.shell.openExternalUrl('https://example.com')).resolves.toBe(true);
+        await expect(bridge.shell.openExternalUrl('https://example.com')).resolves.toBe(false);
         expect(shellOpen).not.toHaveBeenCalled();
-        expect(windowOpen).toHaveBeenCalledTimes(1);
+        expect(windowOpen).not.toHaveBeenCalled();
       });
     });
   });

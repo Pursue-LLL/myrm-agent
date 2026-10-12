@@ -3,6 +3,7 @@
 import React, { memo, useMemo, useRef, useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils/classnameUtils';
+import { isValidExternalUrl } from '@/lib/utils/urlUtils';
 import { useTranslations } from 'next-intl';
 import { IMAGE_LAZY_LOAD_MARGIN } from '@/lib/constants/artifact';
 import { buildWidgetSrcdoc, subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
@@ -131,7 +132,12 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
         }
 
         if (e.data.type === 'widget-navigate' && typeof e.data.url === 'string') {
-          window.open(e.data.url, '_blank', 'noopener,noreferrer');
+          // The widget is untrusted content: only http(s) may leave the app (same rule as McpAppViewer).
+          if (isValidExternalUrl(e.data.url)) {
+            window.open(e.data.url, '_blank', 'noopener,noreferrer');
+          } else {
+            console.warn('[HtmlPreview] Blocked unsafe external link navigation attempt:', e.data.url);
+          }
         }
 
         if (e.data.type === 'widget-element-pick' && onElementPick) {
@@ -274,6 +280,7 @@ export const ImagePreview: React.FC<{
         </div>
       )}
 
+      {/* oxlint-disable-next-line next/no-img-element -- src is assigned lazily from arbitrary artifact URLs (blob, data, backend), which next/image cannot optimize */}
       <img
         ref={imgRef}
         alt={filename}

@@ -1,11 +1,11 @@
 /**
- * [INPUT]: @/lib/desktopBridge::desktopBridge, useDesktopBridge
- * [OUTPUT]: Unit tests for desktopBridge and useDesktopBridge
+ * [INPUT]: @/lib/desktopBridge::desktopBridge
+ * [OUTPUT]: Unit tests for desktopBridge
  * [POS]: 前端桌面桥接门面单元测试，覆盖 isDesktop, isMacOS, openExternal, clipboard, getAppVersion 等。
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { desktopBridge, useDesktopBridge } from '../desktopBridge';
+import { desktopBridge } from '../desktopBridge';
 import * as tauriModule from '@/lib/tauri';
 
 describe('desktopBridge', () => {
@@ -68,9 +68,5 @@ describe('desktopBridge', () => {
     const success = await desktopBridge.writeClipboard('test text');
     expect(success).toBe(true);
     expect(writeTextSpy).toHaveBeenCalledWith('test text');
-  });
-
-  it('useDesktopBridge hook returns desktopBridge instance', () => {
-    expect(useDesktopBridge()).toBe(desktopBridge);
   });
 });

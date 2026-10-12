@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import type { CatalogEntry } from './catalog-types';
@@ -83,7 +83,15 @@ function makeCatalogEntry(overrides?: Partial<CatalogEntry>): CatalogEntry {
 }
 
 describe('IntegrationConnectDialog', () => {
+  const originalLocation = window.location;
+  const locationAssign = vi.fn();
+
   beforeEach(() => {
+    locationAssign.mockReset();
+    Object.defineProperty(window, 'location', {
+      value: { ...originalLocation, assign: locationAssign },
+      writable: true,
+    });
     mockApiRequest.mockReset();
     mockSetMCPConfigs.mockReset();
     mockGateMcpEnable.mockReset();
@@ -99,10 +107,15 @@ describe('IntegrationConnectDialog', () => {
     });
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+    Object.defineProperty(window, 'location', { value: originalLocation, writable: true });
+  });
+
   it('blocks local-only entries in sandbox without probe url', async () => {
     const entry = makeCatalogEntry();
     const onClose = vi.fn();
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null); // noopener windows always return null
     render(<IntegrationConnectDialog entry={entry} locale="en" onClose={onClose} onConnected={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'connect' }));
@@ -120,7 +133,7 @@ describe('IntegrationConnectDialog', () => {
       '_blank',
       'noopener,noreferrer',
     );
-    openSpy.mockRestore();
+    expect(locationAssign).not.toHaveBeenCalled();
   });
 
   it('blocks connect when probe response carries shouldBlockConnect=true', async () => {
@@ -272,7 +285,7 @@ describe('IntegrationConnectDialog', () => {
       },
     });
     const onClose = vi.fn();
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null); // noopener windows always return null
     mockIsSandbox.mockReturnValue(false);
     mockApiRequest.mockResolvedValueOnce({
       status: 'cloud_not_supported',
@@ -295,9 +308,9 @@ describe('IntegrationConnectDialog', () => {
       '_blank',
       'noopener,noreferrer',
     );
+    expect(locationAssign).not.toHaveBeenCalled();
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
     expect(mockSetMCPConfigs).not.toHaveBeenCalled();
-    openSpy.mockRestore();
   });
 
   it('shows localized TLS probe message for tls_verification_failed reasonCode', async () => {

@@ -7,7 +7,6 @@
  * - desktopBridge: 统一桌面原生桥接门面（兼容平滑迁移）
  * - type DesktopBridgeInterface: 桌面桥接强类型接口
  * - type FileFilterOption, DirectoryPickerOptions, FilePickerOptions, NotificationOptions
- * - useDesktopBridge: React Hook 便捷访问
  *
  * [POS]
  * 桌面与 Web 统一桥接门面层。收敛所有桌面端原生系统能力调用，
@@ -178,7 +177,3 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
 }
 
 export const desktopBridge: DesktopBridgeInterface = new DesktopBridgeImpl();
-
-export function useDesktopBridge(): DesktopBridgeInterface {
-  return desktopBridge;
-}

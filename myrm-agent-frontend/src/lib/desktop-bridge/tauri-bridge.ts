@@ -78,24 +78,23 @@ class TauriTrayBridge implements ITrayBridge {
 }
 
 class TauriShellBridge implements IShellBridge {
+  /**
+   * Single channel: a refused open is reported to the caller instead of being retried through window.open.
+   * The external link policy routes window.open back into this method, so a fallback would loop forever
+   * while the plugin keeps refusing, and it would also report the dead window.open as a success.
+   */
   async openExternalUrl(url: string): Promise<boolean> {
-    if (!url) {
+    if (!url || !isTauriEnvironment()) {
       return false;
     }
-    if (isTauriEnvironment()) {
-      try {
-        const { open } = await import('@tauri-apps/plugin-shell');
-        await open(url);
-        return true;
-      } catch (e) {
-        console.warn('Failed to open external URL via shell plugin:', e);
-      }
-    }
-    if (typeof window !== 'undefined') {
-      window.open(url, '_blank', 'noopener,noreferrer');
+    try {
+      const { open } = await import('@tauri-apps/plugin-shell');
+      await open(url);
       return true;
+    } catch (e) {
+      console.warn('Failed to open external URL via shell plugin:', e);
+      return false;
     }
-    return false;
   }
 
   async openFileDialog(options?: NativeOpenFileDialogOptions): Promise<string | string[] | null> {
