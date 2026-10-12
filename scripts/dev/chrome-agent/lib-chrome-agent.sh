@@ -191,6 +191,16 @@ chrome_agent_health() {
   chrome_agent_proxy_status
 }
 
+# Tabs sharing a window are hidden: macOS runs their renderers in the background and, under
+# host load, they starve (CDP calls time out). Prints the count, "unknown" when the proxy is
+# down or the idle pool has not measured yet.
+chrome_agent_shared_window_pages() {
+  local port="${MYRM_CHROME_AGENT_PORT:-${CHROME_AGENT_DEFAULT_PORT}}"
+  curl -sf --max-time 3 "http://127.0.0.1:${port}/proxy/status" 2>/dev/null \
+    | python3 -c 'import json,sys; v=json.load(sys.stdin).get("sharedWindowPages"); print("unknown" if v is None else v)' 2>/dev/null \
+    || echo unknown
+}
+
 # --- LaunchAgent control -------------------------------------------------------
 chrome_agent_write_plist() {
   local plist node_bin launcher log_file data_dir port initial_url

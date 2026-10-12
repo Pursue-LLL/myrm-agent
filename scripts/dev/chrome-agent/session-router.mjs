@@ -40,6 +40,22 @@ const ATTRIBUTED_METHODS = new Set([
 
 export const isAttachMethod = (method) => ATTACH_METHODS.has(method);
 
+/**
+ * Give a client-created tab its own window unless the client chose explicitly.
+ *
+ * Tabs sharing a window are hidden except the front one, and macOS runs the hidden tabs'
+ * renderers at background priority (PRI 4): under host load they starve and every CDP call
+ * on them times out. puppeteer/chrome-devtools-mcp `newPage()` never sets `newWindow`, so
+ * without this a `new_page` lands in an existing window. Mutates `msg` in place; returns
+ * true when it injected the flag. Applied on the forward path of `classifyClientRequest`.
+ */
+export function ensureOwnWindow(msg) {
+    if (msg.method !== 'Target.createTarget') return false;
+    if (msg.params?.newWindow !== undefined) return false;
+    msg.params = { ...msg.params, newWindow: true };
+    return true;
+}
+
 export class SessionRouter {
     /**
      * @param {object} hooks
@@ -75,6 +91,7 @@ export class SessionRouter {
         }
         const sessionId = msg.params?.sessionId;
         if (msg.method !== 'Target.detachFromTarget' || !sessionId) {
+            ensureOwnWindow(msg);
             return { action: 'forward', acquiredLease: acquired };
         }
         if (this.owned.get(sessionId)?.owner === client) {

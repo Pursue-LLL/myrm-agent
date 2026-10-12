@@ -42,6 +42,13 @@ export class IdlePool {
         this.running = false;
         /** targetId → id of the window holding it (a tab never changes window) */
         this.windowIds = new Map();
+        /** Pages beyond the first in their window (hidden tabs) at the last reconcile; null before the first. */
+        this.sharedWindowPages = null;
+    }
+
+    /** Merged into /proxy/status. */
+    stats() {
+        return { sharedWindowPages: this.sharedWindowPages };
     }
 
     /** Top the pool up if needed. Safe to call at any time; overlapping calls are dropped. */
@@ -54,6 +61,7 @@ export class IdlePool {
             let pages = result.targetInfos.filter((t) => t.type === 'page');
             pages = await this.#closeAbandoned(pages);
             const { windowOf, population } = await this.#windowPopulation(pages);
+            this.sharedWindowPages = pages.length - population.size;
             // An empty url is a tab Chrome has just created and not yet reported as blank.
             const blank = pages.filter((t) => (t.url === BLANK || t.url === '') && !this.isLeased(t.targetId));
             const idle = blank.filter((t) => population.get(windowOf.get(t.targetId)) === 1);

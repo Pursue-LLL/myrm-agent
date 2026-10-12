@@ -353,7 +353,7 @@ const server = createHttpServer({
     port: PROXY_PORT,
     chromeUp: () => Boolean(chromeWritable),
     cdpRequest,
-    status: () => ({ ...proxyStatus(), ...requestWatch.stats() }),
+    status: () => ({ ...proxyStatus(), ...requestWatch.stats(), ...idlePool.stats() }),
     isForbiddenUrl: isForbiddenE2eUrl,
     forbiddenUrlMessage: E2E_URL_REJECT_MESSAGE,
 });

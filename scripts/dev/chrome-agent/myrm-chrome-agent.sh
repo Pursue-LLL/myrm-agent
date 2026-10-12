@@ -24,7 +24,7 @@ ok() {
 }
 
 cmd_status() {
-  local base sha installed current loaded health plist
+  local base sha installed current loaded health plist shared
   base="$(chrome_agent_install_base)"
   sha="$(chrome_agent_source_sha 2>/dev/null || echo 'unknown')"
   installed="$(chrome_agent_installed_sha)"
@@ -34,6 +34,11 @@ cmd_status() {
   echo "CHROME_AGENT_STATUS: install_base=${base}"
   echo "CHROME_AGENT_STATUS: source_sha=${sha} installed_sha=${installed} current=${current}"
   echo "CHROME_AGENT_STATUS: launchagent=${loaded} health=${health}"
+  shared="$(chrome_agent_shared_window_pages)"
+  echo "CHROME_AGENT_STATUS: shared_window_pages=${shared}"
+  if [[ "${shared}" =~ ^[0-9]+$ && "${shared}" -gt 0 ]]; then
+    echo "CHROME_AGENT_WARN: ${shared} tab(s) share a window with another tab (hidden, starved under load) — restart the service to rebuild the tab set" >&2
+  fi
   plist="$(chrome_agent_plist_path)"
   if [[ -f "${plist}" ]]; then
     echo "CHROME_AGENT_STATUS: plist=${plist}"

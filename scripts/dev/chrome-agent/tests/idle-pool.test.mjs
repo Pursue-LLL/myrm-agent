@@ -208,3 +208,19 @@ test('a tab keeps its window id, so Chrome is asked once per tab', async () => {
     await pool.reconcile();
     assert.equal(calls.filter((c) => c.method === 'Browser.getWindowForTarget').length, 3);
 });
+
+test('sharedWindowPages counts the hidden tabs: pages beyond the first in their window', async () => {
+    const { pool } = setup({
+        pages: [page('A'), page('B'), page('C'), page('D', 'https://x.com/d')],
+        windows: { A: 1, B: 1, C: 1, D: 2 },
+    });
+    assert.equal(pool.sharedWindowPages, null);
+    await pool.reconcile();
+    assert.equal(pool.sharedWindowPages, 2);
+});
+
+test('sharedWindowPages is 0 when every tab has a window of its own', async () => {
+    const { pool } = setup({ pages: [page('A'), page('B'), page('C')] });
+    await pool.reconcile();
+    assert.equal(pool.sharedWindowPages, 0);
+});

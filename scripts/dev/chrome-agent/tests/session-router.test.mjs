@@ -2,7 +2,7 @@
 // Run: node --test scripts/dev/chrome-agent/tests/
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SessionRouter } from '../session-router.mjs';
+import { SessionRouter, ensureOwnWindow } from '../session-router.mjs';
 
 const ATTACHED = 'Target.attachedToTarget';
 const DETACHED = 'Target.detachedFromTarget';
@@ -251,4 +251,37 @@ test('logRequest attributes navigations and tab closes to the connection', () =>
         'c3 Page.navigate target=T1AAAAAA url=https://x.com/a',
         'c3 Target.closeTarget target=T9BBBBBB',
     ]);
+});
+
+test('ensureOwnWindow: a createTarget without newWindow gets its own window', () => {
+    const msg = { id: 1, method: 'Target.createTarget', params: { url: 'about:blank', browserContextId: 'ctx' } };
+    assert.equal(ensureOwnWindow(msg), true);
+    assert.deepEqual(msg.params, { url: 'about:blank', browserContextId: 'ctx', newWindow: true });
+});
+
+test('ensureOwnWindow: tolerates a createTarget without params', () => {
+    const msg = { id: 1, method: 'Target.createTarget' };
+    assert.equal(ensureOwnWindow(msg), true);
+    assert.deepEqual(msg.params, { newWindow: true });
+});
+
+test('ensureOwnWindow: an explicit newWindow choice is kept', () => {
+    for (const newWindow of [true, false]) {
+        const msg = { id: 1, method: 'Target.createTarget', params: { url: 'about:blank', newWindow } };
+        assert.equal(ensureOwnWindow(msg), false);
+        assert.equal(msg.params.newWindow, newWindow);
+    }
+});
+
+test('ensureOwnWindow: other methods are untouched', () => {
+    const msg = { id: 1, method: 'Page.navigate', params: { url: 'https://example.com' } };
+    assert.equal(ensureOwnWindow(msg), false);
+    assert.deepEqual(msg.params, { url: 'https://example.com' });
+});
+
+test('classifyClientRequest forwards a client createTarget with a window of its own', () => {
+    const { router, client } = setup();
+    const msg = { id: 1, method: 'Target.createTarget', params: { url: 'about:blank' } };
+    assert.equal(router.classifyClientRequest(client(1), msg).action, 'forward');
+    assert.equal(msg.params.newWindow, true);
 });

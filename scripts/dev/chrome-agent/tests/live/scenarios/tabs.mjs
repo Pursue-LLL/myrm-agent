@@ -137,7 +137,7 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         await pooled.start();
         const cdpClient = await pooled.cdp();
         await sleep(3000);
-        for (let i = 0; i < 3; i++) await cdpClient.send('Target.createTarget', { url: 'about:blank' });
+        for (let i = 0; i < 3; i++) await cdpClient.send('Target.createTarget', { url: 'about:blank', newWindow: false });
         const windowsOfBlanks = async () => {
             const ids = [];
             for (const page of (await pooled.chromePages()).filter((p) => p.url === 'about:blank')) {
@@ -156,6 +156,27 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
             ids.length === 3 && new Set(ids).size === 3, `blanks=${ids.length} windows=${new Set(ids).size}`);
         cdpClient.close();
         pooled.stop();
+    },
+
+    // A tab a client opens (MCP new_page never asks for a window) must not land in a window that
+    // already holds tabs: that makes it a hidden tab. The proxy gives it a window of its own.
+    async clientTabsGetOwnWindow() {
+        const mcp = proxy.mcp('W');
+        await mcp.start();
+        const cdpClient = await proxy.cdp();
+        await mcp.tool('new_page', { url: 'about:blank' });
+        await mcp.tool('new_page', { url: 'about:blank' });
+        await cdpClient.send('Target.createTarget', { url: 'about:blank' });
+        const pages = await proxy.chromePages();
+        const windows = new Set();
+        for (const page of pages) {
+            const { result } = await cdpClient.send('Browser.getWindowForTarget', { targetId: page.id });
+            windows.add(result?.windowId);
+        }
+        await check('clientTabsGetOwnWindow: every tab, including client-created ones, has its own window',
+            pages.length >= 4 && windows.size === pages.length, `tabs=${pages.length} windows=${windows.size}`);
+        cdpClient.close();
+        mcp.stop();
     },
 
     // Sessions use their tab without bringing it to the front. Every claimed tab must still be a
@@ -179,6 +200,8 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
             return evaluated?.result?.result?.value ?? 'no answer';
         }));
         await check('claimedTabsAreVisible: 3 concurrently claimed pool tabs are all visible', idle.length === 3 && states.every((v) => v === 'visible'), states.join(','));
+        const { sharedWindowPages } = await (await fetch(`${pooled.base}/proxy/status`)).json();
+        await check('claimedTabsAreVisible: /proxy/status reports no hidden shared-window tab', sharedWindowPages === 0, `sharedWindowPages=${sharedWindowPages}`);
         pooled.stop();
     },
 
