@@ -330,9 +330,6 @@ from app.api.memory.transcript_projection_router import (
 from app.api.memory.two_layer_dialectic_router import (
     router as two_layer_dialectic_router,
 )
-from app.api.memory.universal_mcp_router import (
-    router as memory_universal_mcp_router,
-)
 from app.api.memory.unload_router import (
     router as memory_unload_router,
 )
@@ -386,7 +383,6 @@ router.include_router(memory_drift_router, tags=["memory-drift-defense"])
 router.include_router(memory_unload_router, tags=["memory-unload-guard"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
 router.include_router(memory_dual_track_router, tags=["memory-dual-track"])
-router.include_router(memory_universal_mcp_router, tags=["memory-universal-mcp"])
 router.include_router(memory_vector_preflight_router, tags=["memory-vector-preflight"])
 router.include_router(memory_self_verification_router, tags=["memory-self-verification"])
 router.include_router(memory_crystallization_router, tags=["memory-crystallization"])
