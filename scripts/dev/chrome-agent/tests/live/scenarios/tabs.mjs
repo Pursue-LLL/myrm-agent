@@ -1,4 +1,5 @@
 // Tab ownership: concurrent claim of one tab, lease lifecycle, idle-tab pool.
+import fs from 'node:fs';
 import { SandboxProxy, sleep } from '../harness.mjs';
 
 export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
@@ -155,5 +156,45 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
             ids.length === 3 && new Set(ids).size === 3, `blanks=${ids.length} windows=${new Set(ids).size}`);
         cdpClient.close();
         pooled.stop();
+    },
+
+    // Sessions use their tab without bringing it to the front. Every claimed tab must still be a
+    // visible one: a hidden tab's renderer is starved under load (CDP calls hang, pages never render).
+    async claimedTabsAreVisible() {
+        const pooled = new SandboxProxy(option('--proxy-dir', undefined), {
+            CHROME_AGENT_MIN_IDLE_TABS: '3', CHROME_AGENT_MAX_PAGES: '8',
+        });
+        await pooled.start();
+        await sleep(4000);
+        const idle = (await pooled.chromePages()).filter((p) => p.url === 'about:blank').slice(0, 3);
+        const states = await Promise.all(idle.map(async (page, i) => {
+            const cdpClient = await pooled.cdp();
+            const { result } = await cdpClient.send('Target.attachToTarget', { targetId: page.id, flatten: true });
+            await cdpClient.send('Page.navigate', { url: `data:text/html,visible-${i}` }, result.sessionId);
+            const evaluated = await Promise.race([
+                cdpClient.send('Runtime.evaluate', { expression: 'document.visibilityState', returnByValue: true }, result.sessionId),
+                sleep(8000).then(() => undefined),
+            ]);
+            cdpClient.close();
+            return evaluated?.result?.result?.value ?? 'no answer';
+        }));
+        await check('claimedTabsAreVisible: 3 concurrently claimed pool tabs are all visible', idle.length === 3 && states.every((v) => v === 'visible'), states.join(','));
+        pooled.stop();
+    },
+
+    // A request Chrome leaves unanswered is logged while it is pending, with the host load, so a
+    // "hung page" is attributable on the spot; /proxy/status exposes the count.
+    async slowRequestLog() {
+        const cdpClient = await proxy.cdp();
+        const { result: created } = await cdpClient.send('Target.createTarget', { url: 'about:blank' });
+        const { result } = await cdpClient.send('Target.attachToTarget', { targetId: created.targetId, flatten: true });
+        // Never resolves, so Chrome never answers.
+        void cdpClient.send('Runtime.evaluate', { expression: 'new Promise(() => {})', awaitPromise: true }, result.sessionId);
+        await sleep(14500);
+        const status = await (await fetch(`${proxy.base}/proxy/status`)).json();
+        const logged = fs.readFileSync(proxy.logPath, 'utf8').split('\n').filter((l) => /slow request .* Runtime\.evaluate/.test(l));
+        await check('slowRequestLog: an unanswered request is logged once with load', logged.length === 1 && /load \d+ on \d+ cpus/.test(logged[0]), logged.join(' | ').slice(0, 200));
+        await check('slowRequestLog: /proxy/status reports slowRequests, loadavg1 and cpus', status.slowRequests >= 1 && typeof status.loadavg1 === 'number' && status.cpus > 0, JSON.stringify({ s: status.slowRequests, l: status.loadavg1, c: status.cpus }));
+        cdpClient.close();
     },
 });

@@ -32,6 +32,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { buildChromeLaunchArgs, resetProfileCrashFlags } from './chrome-launch.mjs';
 import { createHttpServer } from './http-endpoints.mjs';
 import { startIdlePool } from './idle-pool.mjs';
+import { startRequestWatch } from './request-watch.mjs';
 import { SessionRouter, isAttachMethod, short } from './session-router.mjs';
 
 const args = process.argv.slice(2);
@@ -198,7 +199,7 @@ function sendToChrome(msg) {
 
 let globalIdCounter = 1;
 let clientCounter = 0;
-const pendingRequests = new Map();   // proxyId → { clientWs, client, originalId, method, createdAt }
+const pendingRequests = new Map();   // proxyId → { clientWs, client, originalId, method, sessionId, createdAt }
 const clients = new Map();           // ws → { id, label, ws, closed, proxyIds, connectedAt, discoveryEnabled, autoAttachEnabled }
 
 function safeSend(ws, data) {
@@ -346,14 +347,13 @@ function proxyStatus() {
     };
 }
 
-const idlePool = startIdlePool({
-    cdpRequest, log, chromeUp: () => Boolean(chromeWritable), lease: router.tabLease,
-});
+const idlePool = startIdlePool({ cdpRequest, log, chromeUp: () => Boolean(chromeWritable), lease: router.tabLease });
+const requestWatch = startRequestWatch({ pendingRequests, log });
 const server = createHttpServer({
     port: PROXY_PORT,
     chromeUp: () => Boolean(chromeWritable),
     cdpRequest,
-    status: proxyStatus,
+    status: () => ({ ...proxyStatus(), ...requestWatch.stats() }),
     isForbiddenUrl: isForbiddenE2eUrl,
     forbiddenUrlMessage: E2E_URL_REJECT_MESSAGE,
 });
@@ -443,7 +443,7 @@ wss.on('connection', (clientWs) => {
                 clientWs,
                 client,
                 originalId: msg.id,
-                method: msg.method,
+                method: msg.method, sessionId: msg.sessionId,
                 createdAt: Date.now(),
             });
             client.proxyIds.add(proxyId);
