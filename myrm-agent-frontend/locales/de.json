@@ -11611,10 +11611,6 @@
         "completed": "Ähnliche Erinnerungen zusammengeführt",
         "notification": "{count, plural, one {# ähnliche Erinnerung zusammengeführt} other {# ähnliche Erinnerungen zusammengeführt}}"
       },
-      "session_evidence_extraction": {
-        "working": "Diese Unterhaltung wird ausgewertet…",
-        "completed": "Unterhaltung ausgewertet"
-      },
       "context_compaction": {
         "working": "Unterhaltungskontext wird aufgeräumt…",
         "completed": "Unterhaltungskontext aufgeräumt"

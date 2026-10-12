@@ -19,7 +19,6 @@ interface IdleStatusData {
 const IDLE_TASK_LABELS: ReadonlyMap<string, readonly IdleStatus[]> = new Map([
   ['cognitive_consolidation', ['working', 'completed']],
   ['cognitive_subsumption', ['working', 'completed', 'notification']],
-  ['session_evidence_extraction', ['working', 'completed']],
   ['context_compaction', ['working', 'completed']],
 ]);
 

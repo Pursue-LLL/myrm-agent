@@ -296,50 +296,6 @@ async def start_idle_task_listeners() -> None:
                 )
             )
 
-            # A completed session-evidence task may carry a CAPTURED skill proposal; it surfaces to the
-            # user through the growth lifecycle, so idle completions themselves never raise a notification.
-            if event.status == "completed":
-                if (
-                    event.task_name == "session_evidence_extraction"
-                    and event.data
-                    and "proposal" in event.data
-                    and event.data["proposal"]
-                ):
-                    proposal = event.data["proposal"]
-                    recommended_form = proposal.get("recommended_form", "skill")
-                    if recommended_form == "skip":
-                        logger.debug(
-                            "CAPTURED proposal '%s' skipped (form=skip)",
-                            proposal.get("skill_id"),
-                        )
-                    else:
-                        from app.services.skills.growth.lifecycle import process_skill_review_result
-
-                        _form_type_map = {"skill": "skill_draft", "cron_job": "cron_suggestion"}
-                        growth_type = _form_type_map.get(recommended_form, "skill_draft")
-
-                        try:
-                            payload: dict = {
-                                "type": growth_type,
-                                "has_value": True,
-                                "skill_name": proposal.get("skill_id"),
-                                "skill_description": proposal.get("reasoning"),
-                                "content": proposal.get("proposed_content"),
-                                "score": proposal.get("score"),
-                                "agent_id": proposal.get("agent_id", "default"),
-                                "chat_id": proposal.get("chat_id"),
-                            }
-                            if proposal.get("form_metadata"):
-                                payload["form_metadata"] = proposal["form_metadata"]
-                            await process_skill_review_result(payload)
-                            logger.info(
-                                "CAPTURED skill proposal '%s' routed through growth lifecycle (form=%s)",
-                                proposal.get("skill_id"),
-                                recommended_form,
-                            )
-                        except Exception as e:
-                            logger.error("Failed to process CAPTURED skill proposal: %s", e, exc_info=True)
-
         harness_bus.subscribe(IdleTaskProgressEvent, _forward_idle_event)
         logger.info("Idle task listeners successfully started")
     except Exception as e:

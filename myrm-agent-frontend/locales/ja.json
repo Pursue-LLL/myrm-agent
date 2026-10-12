@@ -11611,10 +11611,6 @@
         "completed": "似た記憶をまとめました",
         "notification": "似た記憶を {count} 件まとめました"
       },
-      "session_evidence_extraction": {
-        "working": "この会話を振り返っています…",
-        "completed": "会話の振り返りが完了しました"
-      },
       "context_compaction": {
         "working": "会話のコンテキストを整理しています…",
         "completed": "会話のコンテキストを整理しました"

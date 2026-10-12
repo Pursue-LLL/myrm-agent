@@ -11611,10 +11611,6 @@
         "completed": "相似记忆已合并",
         "notification": "已合并 {count} 条相似记忆"
       },
-      "session_evidence_extraction": {
-        "working": "正在回顾本次对话…",
-        "completed": "对话回顾完成"
-      },
       "context_compaction": {
         "working": "正在精简对话上下文…",
         "completed": "对话上下文已精简"

@@ -11611,10 +11611,6 @@
         "completed": "Memories tidied up",
         "notification": "{count, plural, one {Merged # similar memory} other {Merged # similar memories}}"
       },
-      "session_evidence_extraction": {
-        "working": "Reviewing this conversation…",
-        "completed": "Conversation reviewed"
-      },
       "context_compaction": {
         "working": "Tidying up conversation context…",
         "completed": "Conversation context tidied up"

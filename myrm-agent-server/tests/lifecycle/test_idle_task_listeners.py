@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from myrm_agent_harness.runtime.events.idle_events import IdleTaskProgressEvent
@@ -75,64 +75,3 @@ async def test_completed_idle_task_does_not_create_notification() -> None:
     mock_get_session.assert_not_called()
     published_types = [call.args[0].event_type for call in server_bus.publish.call_args_list]
     assert published_types == [AppEventType.IDLE_STATUS]
-
-
-@pytest.mark.asyncio
-async def test_completed_session_evidence_routes_captured_proposal_to_growth_lifecycle() -> None:
-    forwarder, server_bus = await _start_forwarder()
-    proposal = {
-        "skill_id": "error_handling_v1",
-        "reasoning": "Learned from repeated failures",
-        "proposed_content": "# Skill",
-        "score": 0.85,
-        "agent_id": "agent_1",
-        "chat_id": "chat_42",
-    }
-
-    with patch(
-        "app.services.skills.growth.lifecycle.process_skill_review_result",
-        new_callable=AsyncMock,
-    ) as mock_process:
-        await forwarder(
-            IdleTaskProgressEvent(
-                session_id="s1",
-                status="completed",
-                task_name="session_evidence_extraction",
-                progress_pct=100,
-                data={"proposal": proposal},
-            )
-        )
-
-    mock_process.assert_awaited_once_with(
-        {
-            "type": "skill_draft",
-            "has_value": True,
-            "skill_name": "error_handling_v1",
-            "skill_description": "Learned from repeated failures",
-            "content": "# Skill",
-            "score": 0.85,
-            "agent_id": "agent_1",
-            "chat_id": "chat_42",
-        }
-    )
-    assert [call.args[0].event_type for call in server_bus.publish.call_args_list] == [AppEventType.IDLE_STATUS]
-
-
-@pytest.mark.asyncio
-async def test_captured_proposal_with_skip_form_is_not_routed() -> None:
-    forwarder, _ = await _start_forwarder()
-
-    with patch(
-        "app.services.skills.growth.lifecycle.process_skill_review_result",
-        new_callable=AsyncMock,
-    ) as mock_process:
-        await forwarder(
-            IdleTaskProgressEvent(
-                session_id="s1",
-                status="completed",
-                task_name="session_evidence_extraction",
-                data={"proposal": {"skill_id": "x", "recommended_form": "skip"}},
-            )
-        )
-
-    mock_process.assert_not_awaited()

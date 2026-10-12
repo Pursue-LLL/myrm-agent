@@ -11611,10 +11611,6 @@
         "completed": "비슷한 기억 병합 완료",
         "notification": "비슷한 기억 {count}개를 병합했습니다"
       },
-      "session_evidence_extraction": {
-        "working": "이 대화를 되돌아보는 중…",
-        "completed": "대화 검토 완료"
-      },
       "context_compaction": {
         "working": "대화 컨텍스트를 정리하는 중…",
         "completed": "대화 컨텍스트 정리 완료"
