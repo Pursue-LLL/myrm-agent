@@ -191,19 +191,6 @@ def _navigate_alive(client: object, page: object, url: str, *, attempts: int = 4
     raise AssertionError(f"page body stayed blank after {attempts} navigations to {url}")
 
 
-_BOUND_API_BASE_JS = "(() => window.__MYRM_E2E_API_BASE__ || null)()"
-_SHARED_API_BASE = "http://127.0.0.1:8080"
-
-
-def _resolve_page_api_base(client: object, page: object) -> str:
-    """Backend the page talks to: the injected E2E base, else the shared one behind the Next proxy.
-
-    A chat seeded on any other backend is invisible to the browser ("Chat session not found").
-    """
-    bound = client.evaluate(page, _BOUND_API_BASE_JS, timeout_sec=15.0)
-    return bound.rstrip("/") if isinstance(bound, str) and bound else _SHARED_API_BASE
-
-
 def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
     seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-deliverable-link-fixture")
     assert isinstance(seeded, dict)
@@ -211,26 +198,26 @@ def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
     """Annotation toggle -> panel -> add comment -> persisted across reload."""
     ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(get_e2e_api_url())
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
 
     intent = "E2E review note: verify this paragraph"
     chat_id = ""
-    page_api_url = _SHARED_API_BASE
     try:
         warm_ui_route("/", timeout_sec=45.0)
         with open_mcp_page(f"{ui_url}/", request_timeout_sec=300.0) as (client, page):
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-            page_api_url = _resolve_page_api_base(client, page)
-            seeded = _seed_deliverable_fixture(page_api_url)
+            seeded = _seed_deliverable_fixture(api_url)
             chat_id = str(seeded.get("chat_id") or "")
             assert chat_id.startswith("e2edeliv"), seeded
             chat_url = f"{ui_url}/{chat_id}"
@@ -318,6 +305,6 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
         # Best-effort cleanup of the fixture chat on the backend it was seeded into.
         if chat_id:
             try:
-                http_json("DELETE", f"{page_api_url}/api/v1/chats/{chat_id}")
+                http_json("DELETE", f"{api_url}/api/v1/chats/{chat_id}")
             except Exception:
                 pass
