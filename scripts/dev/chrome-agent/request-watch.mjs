@@ -38,6 +38,8 @@ export class RequestWatch {
         /** proxyId → what was logged for it and when it was last seen pending, until it leaves the map */
         this.flagged = new Map();
         this.slowCount = 0;
+        /** slow requests whose session the router no longer knows: Chrome drops commands for a detached session */
+        this.unknownSessionCount = 0;
     }
 
     sweep() {
@@ -52,7 +54,9 @@ export class RequestWatch {
             this.flagged.set(proxyId, info);
             this.slowCount++;
             const target = req.sessionId ? this.describeSession(req.sessionId) : null;
-            const session = req.sessionId ? ` sess=${req.sessionId.slice(0, 8)}${target ? ` [${target}]` : ''}` : '';
+            const unknown = Boolean(req.sessionId) && !target;
+            if (unknown) this.unknownSessionCount++;
+            const session = req.sessionId ? ` sess=${req.sessionId.slice(0, 8)} [${target ?? 'session unknown to the proxy'}]` : '';
             const age = this.chromeAgeMs();
             const chrome = age === null ? '' : `, chrome up ${Math.round(age / 60_000)}m`;
             this.log(`slow request ${info.label} ${info.method}${session} unanswered for ${this.#seconds(t - req.createdAt)}s `
@@ -67,7 +71,7 @@ export class RequestWatch {
     }
 
     stats() {
-        return { slowRequests: this.slowCount, loadavg1: Number(this.loadavg()[0].toFixed(1)), cpus: this.cpus };
+        return { slowRequests: this.slowCount, slowRequestsOnUnknownSession: this.unknownSessionCount, loadavg1: Number(this.loadavg()[0].toFixed(1)), cpus: this.cpus };
     }
 
     #seconds(ms) {

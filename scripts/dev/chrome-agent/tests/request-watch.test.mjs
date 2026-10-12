@@ -35,7 +35,7 @@ test('a request unanswered past the threshold is logged once with method, connec
     watch.sweep();
     watch.sweep();
     assert.equal(logs.length, 1);
-    assert.match(logs[0], /slow request c7 Runtime\.evaluate sess=ABCDEF12 unanswered for 12s \(load 97 on 12 cpus, 1 pending\)/);
+    assert.match(logs[0], /slow request c7 Runtime\.evaluate sess=ABCDEF12 \[session unknown to the proxy\] unanswered for 12s \(load 97 on 12 cpus, 1 pending\)/);
     assert.equal(watch.stats().slowRequests, 1);
 });
 
@@ -58,6 +58,19 @@ test('the log names what the stalled session is attached to', () => {
         describeSession: (id) => (id === 'ABCDEF1234' ? 'base iframe https://platform.x.com/embed' : null),
     }).sweep();
     assert.match(logs[0], /sess=ABCDEF12 \[base iframe https:\/\/platform\.x\.com\/embed\] unanswered for 12s/);
+});
+
+test('slow requests on a session the proxy no longer knows are counted apart from those on live sessions', () => {
+    const pendingRequests = new Map([
+        [1, { client: { label: 'c2' }, method: 'Runtime.enable', sessionId: 'GONE000011', createdAt: 0 }],
+        [2, { client: { label: 'c2' }, method: 'Runtime.evaluate', sessionId: 'LIVE000022', createdAt: 0 }],
+    ]);
+    const watch = new RequestWatch({
+        pendingRequests, log() {}, slowMs: 10_000, now: () => 12_000, loadavg: () => [1, 1, 1], cpus: 12,
+        describeSession: (id) => (id === 'LIVE000022' ? 'owned page https://x.com/a' : null),
+    });
+    watch.sweep();
+    assert.deepEqual([watch.stats().slowRequests, watch.stats().slowRequestsOnUnknownSession], [2, 1]);
 });
 
 test('when the request leaves the pending set the log says how long it was seen pending', () => {
@@ -103,5 +116,5 @@ test('stats report the slow count, load and cpu count for /proxy/status', () => 
     add(2, { method: 'Page.reload' });
     clock.t += 15_000;
     watch.sweep();
-    assert.deepEqual(watch.stats(), { slowRequests: 2, loadavg1: 97.4, cpus: 12 });
+    assert.deepEqual(watch.stats(), { slowRequests: 2, slowRequestsOnUnknownSession: 2, loadavg1: 97.4, cpus: 12 });
 });
