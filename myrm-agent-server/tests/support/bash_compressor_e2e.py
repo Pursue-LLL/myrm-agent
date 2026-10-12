@@ -30,9 +30,9 @@ _DEFAULT_BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8080").rs
 
 
 def _ensure_scripts_dev_importable() -> None:
-    """Put both dev-script roots on sys.path so isolated_runtime imports resolve."""
+    """Put the product and monorepo dev-script roots on sys.path so isolated_runtime imports resolve."""
     root = Path(__file__).resolve().parents[3]
-    for dev_dir in (root / "scripts" / "dev", root / "myrm-agent" / "scripts" / "dev"):
+    for dev_dir in (root / "scripts" / "dev", root.parent / "scripts" / "dev"):
         dev_str = str(dev_dir)
         if dev_str not in sys.path:
             sys.path.insert(0, dev_str)
