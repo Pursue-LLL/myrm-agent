@@ -96,9 +96,7 @@ export async function fetchArtifactProvenance(
   return response.json() as Promise<ArtifactProvenanceListResponse>;
 }
 
-export async function fetchArtifactProvenanceDetail(
-  artifactId: string,
-): Promise<ArtifactProvenanceDetailResponse> {
+export async function fetchArtifactProvenanceDetail(artifactId: string): Promise<ArtifactProvenanceDetailResponse> {
   const response = await fetch(getApiUrl(`/files/artifacts/provenance/${artifactId}`));
   if (!response.ok) {
     throw new Error(`Failed to fetch artifact provenance detail: ${response.statusText}`);
