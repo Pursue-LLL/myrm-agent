@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from app.schemas.integration_trust import (
-    DisconnectIntegrationRequest,
-)
 from app.services.security.integration_trust_service import (
     IntegrationTrustService,
 )
@@ -46,28 +43,3 @@ def test_get_revoke_config(sample_service: IntegrationTrustService) -> None:
     assert cfg.supports_remote_revoke is True
     assert cfg.revocation_endpoint == "https://oauth2.googleapis.com/revoke"
     assert cfg.manual_revoke_url == "https://myaccount.google.com/permissions"
-
-
-def test_disconnect_provider_with_purge(sample_service: IntegrationTrustService) -> None:
-    req = DisconnectIntegrationRequest(
-        provider_id="google_workspace",
-        purge_synced_data=True,
-    )
-    res = sample_service.disconnect_provider(req)
-    assert res.success is True
-    assert res.receipt.provider_id == "google_workspace"
-    assert res.receipt.cleared_memory_trees >= 0
-    assert res.receipt.revocation_status == "REVOKED_REMOTE"
-    assert res.receipt.timestamp != ""
-
-
-def test_disconnect_provider_without_purge(sample_service: IntegrationTrustService) -> None:
-    req = DisconnectIntegrationRequest(
-        provider_id="google_workspace",
-        purge_synced_data=False,
-    )
-    res = sample_service.disconnect_provider(req)
-    assert res.success is True
-    assert res.receipt.cleared_memory_trees == 0
-    assert res.receipt.cleared_documents == 0
-    assert res.receipt.revocation_status == "REVOKED_REMOTE"

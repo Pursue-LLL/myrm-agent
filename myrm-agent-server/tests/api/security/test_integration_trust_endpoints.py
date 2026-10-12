@@ -46,18 +46,3 @@ def test_get_revoke_config_endpoint(client: TestClient) -> None:
     assert data["provider_id"] == "google_workspace"
     assert data["supports_remote_revoke"] is True
     assert "oauth2.googleapis.com" in data["revocation_endpoint"]
-
-
-def test_disconnect_integration_endpoint(client: TestClient) -> None:
-    payload = {
-        "provider_id": "google_workspace",
-        "purge_synced_data": True,
-    }
-    resp = client.post("/api/v1/security/integration-trust/disconnect", json=payload)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["success"] is True
-    receipt = data["receipt"]
-    assert receipt["provider_id"] == "google_workspace"
-    assert receipt["revocation_status"] == "REVOKED_REMOTE"
-    assert receipt["cleared_memory_trees"] >= 0

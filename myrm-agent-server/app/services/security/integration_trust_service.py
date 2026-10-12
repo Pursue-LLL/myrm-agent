@@ -1,36 +1,29 @@
-"""Integration Egress Trust Lifecycle Service.
+"""Integration Egress Trust Service.
 
 [INPUT]
-- DisconnectIntegrationRequest.
+- myrm_agent_harness.core.security.integration_trust::IntegrationLifecycleEngine
+  (POS: disclosure registry and provider revocation configs)
 
 [OUTPUT]
-- PreConnectDisclosureDto, DisconnectIntegrationResponse, ProviderRevokeConfigDto.
+- PreConnectDisclosureDto, ProviderRevokeConfigDto.
 
 [POS]
-- Server security service. Wraps harness IntegrationLifecycleEngine to enforce
-  pre-connect disclosure cards, atomic purge-on-disconnect, and account-level OAuth token revocation.
+- Server security service. Wraps the harness IntegrationLifecycleEngine registries to
+  serve pre-connect disclosure cards and provider token revocation configs.
 """
 
 from __future__ import annotations
 
-import logging
-
 from myrm_agent_harness.core.security.integration_trust import (
-    DisconnectPurgeReceipt,
     IntegrationLifecycleEngine,
     PreConnectDisclosure,
     ProviderRevokeConfig,
 )
 
 from app.schemas.integration_trust import (
-    DisconnectIntegrationRequest,
-    DisconnectIntegrationResponse,
-    DisconnectPurgeReceiptDto,
     PreConnectDisclosureDto,
     ProviderRevokeConfigDto,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _to_dto_disclosure(domain: PreConnectDisclosure) -> PreConnectDisclosureDto:
@@ -45,18 +38,6 @@ def _to_dto_disclosure(domain: PreConnectDisclosure) -> PreConnectDisclosureDto:
     )
 
 
-def _to_dto_receipt(domain: DisconnectPurgeReceipt) -> DisconnectPurgeReceiptDto:
-    return DisconnectPurgeReceiptDto(
-        provider_id=domain.provider_id,
-        cleared_memory_trees=domain.cleared_memory_trees,
-        cleared_documents=domain.cleared_documents,
-        revocation_status=domain.revocation_status.value,
-        revocation_receipt=domain.revocation_receipt,
-        manual_revoke_url=domain.manual_revoke_url,
-        timestamp=domain.timestamp,
-    )
-
-
 def _to_dto_revoke_config(domain: ProviderRevokeConfig) -> ProviderRevokeConfigDto:
     return ProviderRevokeConfigDto(
         provider_id=domain.provider_id,
@@ -67,7 +48,7 @@ def _to_dto_revoke_config(domain: ProviderRevokeConfig) -> ProviderRevokeConfigD
 
 
 class IntegrationTrustService:
-    """Service governing pre-connect transparency, atomic memory purification, and revocation."""
+    """Service exposing pre-connect transparency cards and provider revocation configs."""
 
     def __init__(self) -> None:
         self._engine = IntegrationLifecycleEngine()
@@ -86,36 +67,6 @@ class IntegrationTrustService:
         """Retrieve token revocation configuration for a provider."""
         cfg = self._engine.get_revoke_config(provider_id)
         return _to_dto_revoke_config(cfg) if cfg else None
-
-    def disconnect_provider(
-        self, req: DisconnectIntegrationRequest
-    ) -> DisconnectIntegrationResponse:
-        """Execute atomic disconnect path: purge synced memory trees & documents, revoke OAuth token."""
-        # Cleanly purge memory trees for provider
-        def purge_callback(pid: str) -> tuple[int, int]:
-            try:
-                # Attempt to integrate with existing memory import module if available
-                from app.services.memory.imports.integration_memory import (
-                    remove_trees_by_provider,
-                )
-
-                trees_removed = remove_trees_by_provider(pid)
-                return (trees_removed, trees_removed * 5)
-            except (ImportError, Exception) as exc:
-                logger.debug("Memory tree purge hook fallback for '%s': %s", pid, exc)
-                # Fallback clean simulation: 1 tree, 5 documents cleared
-                return (1, 5)
-
-        receipt = self._engine.execute_atomic_disconnect(
-            provider_id=req.provider_id,
-            purge_data_fn=purge_callback if req.purge_synced_data else None,
-            purge_synced_data=req.purge_synced_data,
-        )
-
-        return DisconnectIntegrationResponse(
-            receipt=_to_dto_receipt(receipt),
-            success=True,
-        )
 
 
 _service_instance: IntegrationTrustService | None = None

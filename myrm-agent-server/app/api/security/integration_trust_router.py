@@ -1,11 +1,10 @@
-"""API router for Integration Egress Trust Lifecycle.
+"""API router for Integration Egress Trust disclosures.
 
 [INPUT]
-- DisconnectIntegrationRequest.
+- IntegrationTrustService: pre-connect disclosure cards and provider revocation configs.
 
 [OUTPUT]
-- Endpoints for querying pre-connect disclosure cards, executing atomic disconnect
-  with purge-on-disconnect guarantees, and retrieving provider revocation configs.
+- Read-only endpoints for pre-connect disclosure cards and provider revocation configs.
 
 [POS]
 - Server API. Mounted under /api/v1/security/integration-trust.
@@ -18,8 +17,6 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 
 from app.schemas.integration_trust import (
-    DisconnectIntegrationRequest,
-    DisconnectIntegrationResponse,
     PreConnectDisclosureDto,
     ProviderRevokeConfigDto,
 )
@@ -63,12 +60,3 @@ def get_provider_revoke_config(provider_id: str) -> ProviderRevokeConfigDto:
             detail=f"Revocation configuration for provider '{provider_id}' not found.",
         )
     return cfg
-
-
-@router.post("/disconnect", response_model=DisconnectIntegrationResponse)
-def disconnect_integration(
-    req: DisconnectIntegrationRequest,
-) -> DisconnectIntegrationResponse:
-    """Execute atomic disconnect: purge synced memory trees & documents, revoke OAuth token."""
-    service = get_integration_trust_service()
-    return service.disconnect_provider(req)
