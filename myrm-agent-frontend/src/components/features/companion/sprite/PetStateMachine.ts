@@ -73,7 +73,6 @@ export function stepKeyToPetEvent(stepKey: string): PetEvent | null {
     case 'context_truncation':
     case 'context_pruned':
     case 'memory_archived':
-    case 'correction_learned':
       return { state: PetState.REVIEWING, mode: 'transient', ttlMs: 2000 };
 
     case 'model_failover':

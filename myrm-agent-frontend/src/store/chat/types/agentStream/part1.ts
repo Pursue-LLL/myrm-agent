@@ -92,7 +92,6 @@ export const AgentEventType = {
   BROWSER_TAKEOVER_COMPLETED: 'browser_takeover_completed',
   SESSION_RECORDING: 'session_recording',
   RISK_BLOCKED: 'risk_blocked',
-  CORRECTION_LEARNED: 'correction_learned',
   VERIFICATION_VERDICT: 'verification_verdict',
   COUNCIL_PHASE: 'council_phase',
   CAPABILITY_GAP: 'capability_gap',
@@ -403,14 +402,6 @@ export interface UIUpdateStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.UI_UPDATE;
   subtype: string;
   data: unknown;
-}
-
-export interface CorrectionLearnedStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.CORRECTION_LEARNED;
-  summaries?: string[];
-  data?: {
-    summaries?: string[];
-  };
 }
 
 export interface ToolEvictedRefStreamEvent extends BaseAgentEvent {

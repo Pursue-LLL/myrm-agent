@@ -34,7 +34,6 @@ vi.mock('../handlerDeps', () => ({
     TOOL_APPROVAL_REQUEST: 'tool_approval_request',
     APPROVAL_PROCESSED: 'approval_processed',
     TOOLS_SNAPSHOT: 'tools_snapshot',
-    CORRECTION_LEARNED: 'correction_learned',
   },
   findAssistantMessageIndex: vi.fn(() => 0),
   useChatStore: {

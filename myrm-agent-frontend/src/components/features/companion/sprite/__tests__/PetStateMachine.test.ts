@@ -176,11 +176,6 @@ describe('stepKeyToPetEvent', () => {
     expect(event).toEqual({ state: PetState.REVIEWING, mode: 'sticky' });
   });
 
-  it('maps correction_learned to REVIEWING transient', () => {
-    const event = stepKeyToPetEvent('correction_learned');
-    expect(event).toEqual({ state: PetState.REVIEWING, mode: 'transient', ttlMs: 2000 });
-  });
-
   it('does not map approval_waiting (store-driven waiting)', () => {
     expect(stepKeyToPetEvent('approval_waiting')).toBeNull();
     expect(stepKeyToPetEvent('approval_released')).toBeNull();

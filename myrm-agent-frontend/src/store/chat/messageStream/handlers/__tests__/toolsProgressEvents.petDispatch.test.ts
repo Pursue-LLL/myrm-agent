@@ -19,7 +19,6 @@ vi.mock('./handlerDeps', () => {
     TOOL_APPROVAL_REQUEST: 'tool_approval_request',
     APPROVAL_PROCESSED: 'approval_processed',
     TOOLS_SNAPSHOT: 'tools_snapshot',
-    CORRECTION_LEARNED: 'correction_learned',
   } as const;
 
   return {
@@ -133,13 +132,6 @@ describe('toolsProgressEvents pet-status-event dispatches', () => {
     const ctx = makeCtx('approval_processed', {});
     await toolsProgressEvents(ctx);
     expect(dispatchedEvents).toHaveLength(0);
-  });
-
-  it('CORRECTION_LEARNED dispatches correction_learned for sprite bridge', async () => {
-    const ctx = makeCtx('correction_learned', { summaries: ['Fixed tone'] });
-    await toolsProgressEvents(ctx);
-    expect(dispatchedEvents).toHaveLength(1);
-    expect(dispatchedEvents[0].detail).toEqual({ step_key: 'correction_learned' });
   });
 
   it('returns done StreamTurn for HITL event types', async () => {
