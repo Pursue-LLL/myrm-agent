@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
 from app.core.channel_bridge.executor_helpers.approval import (
+    _timeout_decision,
     notify_channel_timeout_result,
     schedule_channel_approval_timeout,
 )
@@ -81,6 +84,22 @@ def test_schedule_channel_approval_timeout_registers_scheduler() -> None:
     assert call_kwargs["timeout_seconds"] == 120.0
     assert call_kwargs["behavior"] == "deny"
     assert callable(call_kwargs["resume_callback"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("behavior", "expected"), [("allow", "approve"), ("deny", "reject")])
+async def test_timeout_decision_reads_the_resume_value_the_scheduler_builds(behavior: str, expected: str) -> None:
+    received: list[dict[str, object]] = []
+    fired = asyncio.Event()
+
+    async def capture(resume_value: dict[str, object]) -> None:
+        received.append(resume_value)
+        fired.set()
+
+    ApprovalTimeoutScheduler().schedule("telegram:peer", 0.01, behavior, capture)
+    await asyncio.wait_for(fired.wait(), timeout=2)
+
+    assert _timeout_decision(received[0]) == expected
 
 
 def test_build_chat_history_with_metadata_adds_timestamp_for_human() -> None:

@@ -30,6 +30,11 @@ from .history import (
 logger = logging.getLogger(__name__)
 
 
+def _timeout_decision(resume_value: dict[str, object]) -> str:
+    """Return ``approve`` or ``reject``: the decision the timeout scheduler applied."""
+    return "approve" if resume_value.get("decision") == "approve" else "reject"
+
+
 def schedule_channel_approval_timeout(
     channel: str,
     peer: str,
@@ -105,12 +110,10 @@ def schedule_channel_approval_timeout(
             if content.strip():
                 await persist_assistant_message(chat_id, content)
 
-            decisions = resume_value.get("decisions")
-            decision = decisions[0].get("type", "reject") if isinstance(decisions, list) and decisions else "reject"
             await notify_channel_timeout_result(
                 channel,
                 peer,
-                decision,
+                _timeout_decision(resume_value),
                 content.strip() or None,
                 user_id=user_id,
             )
