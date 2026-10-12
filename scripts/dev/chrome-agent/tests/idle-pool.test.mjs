@@ -6,13 +6,15 @@ import { IdlePool } from '../idle-pool.mjs';
 
 const page = (targetId, url = 'about:blank') => ({ targetId, type: 'page', url });
 
-function setup({ pages, minIdle = 3, maxPages = 6, leased = new Set(), abandoned = [] }) {
+// `windows` maps targetId → window id; a tab not listed has a window of its own.
+function setup({ pages, minIdle = 3, maxPages = 6, leased = new Set(), abandoned = [], windows = {} }) {
     const calls = [];
     const logs = [];
     const state = { pages };
     const cdpRequest = async (method, params) => {
         calls.push({ method, params });
         if (method === 'Target.getTargets') return { result: { targetInfos: state.pages } };
+        if (method === 'Browser.getWindowForTarget') return { result: { windowId: windows[params.targetId] ?? `own-${params.targetId}` } };
         if (method === 'Target.closeTarget') {
             state.pages = state.pages.filter((t) => t.targetId !== params.targetId);
             return { result: { success: true } };
@@ -30,11 +32,11 @@ function setup({ pages, minIdle = 3, maxPages = 6, leased = new Set(), abandoned
     return { pool, calls, logs, created, closed, graceCalls, state };
 }
 
-test('a fresh Chrome with one tab is topped up to the floor, in the background', async () => {
+test('a fresh Chrome with one tab is topped up to the floor, each tab in a window of its own, in the background', async () => {
     const { pool, created } = setup({ pages: [page('A')] });
     await pool.reconcile();
     assert.equal(created().length, 2);
-    assert.deepEqual(created()[0].params, { url: 'about:blank', background: true });
+    assert.deepEqual(created()[0].params, { url: 'about:blank', newWindow: true, background: true });
 });
 
 test('leased and loaded tabs do not count as idle', async () => {
@@ -139,4 +141,70 @@ test('abandoned tabs are not reclaimed when the pool is disabled', async () => {
     const { pool, closed } = setup({ pages: [page('A', 'https://x.com/a')], minIdle: 0, abandoned: ['A'] });
     await pool.reconcile();
     assert.deepEqual(closed(), []);
+});
+
+test('blank tabs sharing one window are hidden tabs and do not count as idle', async () => {
+    const { pool, created } = setup({
+        pages: [page('A'), page('B'), page('C')],
+        windows: { A: 1, B: 1, C: 1 },
+    });
+    await pool.reconcile();
+    assert.equal(created().length, 3);
+});
+
+test('shared-window blank tabs are kept until solo-window idle tabs have replaced them, then closed', async () => {
+    const { pool, closed, created, state } = setup({ pages: [page('A'), page('B'), page('C')], windows: { A: 1, B: 1, C: 1 } });
+    await pool.reconcile();
+    assert.deepEqual(closed(), []);
+    assert.equal(created().length, 3);
+    await pool.reconcile();
+    assert.deepEqual(closed().sort(), ['A', 'B', 'C']);
+    assert.equal(state.pages.length, 3);
+    await pool.reconcile();
+    assert.equal(created().length, 3);
+});
+
+test('a loaded tab in a shared window is never closed, a leased blank one neither', async () => {
+    const { pool, closed } = setup({
+        pages: [page('A', 'https://x.com/a'), page('B'), page('L'), page('S1'), page('S2'), page('S3')],
+        windows: { A: 1, B: 1, L: 1 },
+        leased: new Set(['L']),
+        maxPages: 12,
+    });
+    await pool.reconcile();
+    assert.deepEqual(closed(), ['B']);
+});
+
+test('shared-window blanks that fill the cap are closed to make room for solo-window tabs', async () => {
+    const { pool, closed, created } = setup({
+        pages: ['A', 'B', 'C', 'D'].map((id) => page(id)),
+        windows: { A: 1, B: 1, C: 1, D: 1 },
+        minIdle: 3,
+        maxPages: 4,
+    });
+    await pool.reconcile();
+    assert.deepEqual(closed(), ['A', 'B', 'C']);
+    assert.equal(created().length, 3);
+});
+
+test('a tab whose window cannot be resolved is treated as alone in its window', async () => {
+    const calls = [];
+    const pool = new IdlePool({
+        cdpRequest: async (method, params) => {
+            calls.push(method);
+            if (method === 'Target.getTargets') return { result: { targetInfos: [page('A'), page('B'), page('C')] } };
+            return { error: { message: 'not supported' } };
+        },
+        isLeased: () => false, log() {}, minIdle: 3, maxPages: 6, takeAbandoned: () => [], abandonGraceMs: 1,
+    });
+    await pool.reconcile();
+    assert.equal(calls.filter((m) => m === 'Target.createTarget').length, 0);
+    assert.equal(calls.filter((m) => m === 'Target.closeTarget').length, 0);
+});
+
+test('a tab keeps its window id, so Chrome is asked once per tab', async () => {
+    const { pool, calls } = setup({ pages: [page('A'), page('B'), page('C')] });
+    await pool.reconcile();
+    await pool.reconcile();
+    assert.equal(calls.filter((c) => c.method === 'Browser.getWindowForTarget').length, 3);
 });

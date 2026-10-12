@@ -93,6 +93,16 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         };
         await check('idlePool: a fresh Chrome is topped up from 1 tab to 3 idle tabs', await waitFor(async () => (await blanks()) === 3), `blank=${await blanks()}`);
 
+        const windowCheck = await pooled.cdp();
+        const windowIds = new Set();
+        for (const page of await pooled.chromePages()) {
+            const { result } = await windowCheck.send('Browser.getWindowForTarget', { targetId: page.id });
+            windowIds.add(result?.windowId);
+        }
+        windowCheck.close();
+        // One window per tab: Chrome hides every tab of a window but one, and a hidden tab's renderer starves.
+        await check('idlePool: every idle tab has a window of its own', windowIds.size === 3 && !windowIds.has(undefined), `windows=${windowIds.size}`);
+
         const holders = [];
         // A tab another session has just navigated can still be listed as about:blank for a few ms;
         // the proxy refuses it (TAB_LEASED) and the session picks the next idle tab, as the prompt says.
@@ -114,6 +124,36 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         await sleep(3000);
         await check('idlePool: total tabs never exceed the cap', (await total()) <= 5, `total=${await total()}`);
         for (const holder of holders) holder.close();
+        pooled.stop();
+    },
+
+    // Blank tabs that share one window (what an older pool, or a restored profile, leaves behind)
+    // are hidden tabs: the pool must replace them with tabs in windows of their own.
+    async sharedWindowBlanksAreReplaced() {
+        const pooled = new SandboxProxy(option('--proxy-dir', undefined), {
+            CHROME_AGENT_MIN_IDLE_TABS: '3', CHROME_AGENT_MAX_PAGES: '8',
+        });
+        await pooled.start();
+        const cdpClient = await pooled.cdp();
+        await sleep(3000);
+        for (let i = 0; i < 3; i++) await cdpClient.send('Target.createTarget', { url: 'about:blank' });
+        const windowsOfBlanks = async () => {
+            const ids = [];
+            for (const page of (await pooled.chromePages()).filter((p) => p.url === 'about:blank')) {
+                const { result } = await cdpClient.send('Browser.getWindowForTarget', { targetId: page.id });
+                ids.push(result?.windowId);
+            }
+            return ids;
+        };
+        let ids = [];
+        for (let waited = 0; waited < 12000; waited += 500) {
+            ids = await windowsOfBlanks();
+            if (ids.length === 3 && new Set(ids).size === 3) break;
+            await sleep(500);
+        }
+        await check('sharedWindowBlanksAreReplaced: idle tabs end up one per window, shared ones closed',
+            ids.length === 3 && new Set(ids).size === 3, `blanks=${ids.length} windows=${new Set(ids).size}`);
+        cdpClient.close();
         pooled.stop();
     },
 });

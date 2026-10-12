@@ -5,9 +5,16 @@
  * at once equals the number of idle tabs. Nothing else maintains that number: a fresh or
  * restarted Chrome starts with a single tab, and every claimed tab removes one from the
  * pool. The proxy therefore tops the pool up (in the background, no focus change) whenever
- * fewer than `minIdle` idle tabs remain, up to `maxPages` tabs in total. Tabs are never
- * closed here, with one exception: a tab whose session disconnected without releasing it
- * (tab-lease `abandoned`) is closed after `abandonGraceMs`, so leaked tabs cannot eat the cap.
+ * fewer than `minIdle` idle tabs remain, up to `maxPages` tabs in total.
+ *
+ * Every pooled tab gets a window of its own. A window shows one tab and Chrome hides the
+ * rest; a hidden tab's renderer is starved under load (CDP calls time out for tens of
+ * seconds and heavy pages such as x.com never finish rendering), and the sessions never
+ * bring their tab to the front. A tab that shares its window with other tabs is therefore
+ * not idle; once enough solo-window idle tabs exist, blank shared-window tabs are closed.
+ *
+ * The only other tabs closed here are those whose session disconnected without releasing
+ * them (tab-lease `abandoned`), after `abandonGraceMs`, so leaked tabs cannot eat the cap.
  * Any other non-idle tab may belong to a running task or to the user.
  */
 
@@ -33,6 +40,8 @@ export class IdlePool {
         this.takeAbandoned = takeAbandoned;
         this.abandonGraceMs = abandonGraceMs;
         this.running = false;
+        /** targetId → id of the window holding it (a tab never changes window) */
+        this.windowIds = new Map();
     }
 
     /** Top the pool up if needed. Safe to call at any time; overlapping calls are dropped. */
@@ -44,15 +53,24 @@ export class IdlePool {
             if (error || !result?.targetInfos) return;
             let pages = result.targetInfos.filter((t) => t.type === 'page');
             pages = await this.#closeAbandoned(pages);
+            const { windowOf, population } = await this.#windowPopulation(pages);
             // An empty url is a tab Chrome has just created and not yet reported as blank.
-            const idle = pages.filter((t) => (t.url === BLANK || t.url === '') && !this.isLeased(t.targetId)).length;
-            const missing = Math.min(this.minIdle - idle, this.maxPages - pages.length);
+            const blank = pages.filter((t) => (t.url === BLANK || t.url === '') && !this.isLeased(t.targetId));
+            const idle = blank.filter((t) => population.get(windowOf.get(t.targetId)) === 1);
+            const shared = blank.filter((t) => !idle.includes(t));
+            const needed = Math.max(0, this.minIdle - idle.length);
+            let room = this.maxPages - pages.length;
+            // Hidden shared-window blanks go once replaced, or at once when they block the replacement.
+            const evict = needed === 0 ? shared : shared.slice(0, Math.max(0, needed - room));
+            await this.#closeTabs(evict, 'shared-window blank tab');
+            room += evict.length;
+            const missing = Math.min(needed, room);
             for (let i = 0; i < missing; i++) {
-                const created = await this.cdpRequest('Target.createTarget', { url: BLANK, background: true });
+                const created = await this.cdpRequest('Target.createTarget', { url: BLANK, newWindow: true, background: true });
                 if (created.error) throw new Error(created.error.message);
             }
             if (missing > 0) {
-                this.log(`idle pool: ${idle} idle of ${pages.length} tabs, opened ${missing} (floor ${this.minIdle}, cap ${this.maxPages})`);
+                this.log(`idle pool: ${idle.length} idle of ${pages.length} tabs, opened ${missing} (floor ${this.minIdle}, cap ${this.maxPages})`);
             }
         } catch (err) {
             // Chrome restarting or briefly unresponsive; the next tick retries.
@@ -62,16 +80,39 @@ export class IdlePool {
         }
     }
 
+    /** Window of every page and page count per window; a tab whose window cannot be resolved counts as alone in it. */
+    async #windowPopulation(pages) {
+        const live = new Set(pages.map((t) => t.targetId));
+        for (const id of this.windowIds.keys()) if (!live.has(id)) this.windowIds.delete(id);
+        const windowOf = new Map();
+        const population = new Map();
+        for (const tab of pages) {
+            let windowId = this.windowIds.get(tab.targetId);
+            if (windowId === undefined) {
+                const { result } = await this.cdpRequest('Browser.getWindowForTarget', { targetId: tab.targetId });
+                if (result?.windowId !== undefined) this.windowIds.set(tab.targetId, result.windowId);
+                windowId = result?.windowId ?? `unresolved:${tab.targetId}`;
+            }
+            windowOf.set(tab.targetId, windowId);
+            population.set(windowId, (population.get(windowId) ?? 0) + 1);
+        }
+        return { windowOf, population };
+    }
+
+    async #closeTabs(tabs, what) {
+        for (const tab of tabs) {
+            const closed = await this.cdpRequest('Target.closeTarget', { targetId: tab.targetId });
+            if (closed.error) throw new Error(closed.error.message);
+            this.log(`idle pool: closed ${what} ${tab.targetId.slice(0, 8)} (${tab.url.slice(0, 80)})`);
+        }
+    }
+
     /** Close tabs whose lessee left them on a page; returns the pages that remain. */
     async #closeAbandoned(pages) {
         const expired = new Set(this.takeAbandoned(this.abandonGraceMs));
         // Re-check against Chrome's current view: the tab may have been released or claimed since.
         const doomed = pages.filter((t) => expired.has(t.targetId) && t.url !== BLANK && !this.isLeased(t.targetId));
-        for (const tab of doomed) {
-            const closed = await this.cdpRequest('Target.closeTarget', { targetId: tab.targetId });
-            if (closed.error) throw new Error(closed.error.message);
-            this.log(`idle pool: closed abandoned tab ${tab.targetId.slice(0, 8)} (${tab.url.slice(0, 80)})`);
-        }
+        await this.#closeTabs(doomed, 'abandoned tab');
         return pages.filter((t) => !doomed.includes(t));
     }
 }
