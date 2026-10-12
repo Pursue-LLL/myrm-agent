@@ -112,7 +112,7 @@ def _flow(name: str) -> ReviewFlow:
     (el) => `${{(el.textContent || '').trim()}}:${{el.getAttribute('aria-selected')}}`,
   );
   const placeholders = Array.from(document.querySelectorAll('input')).map((i) => i.placeholder);
-  return {{ ready: !!input, locale: {json.dumps(locale)}, lang: document.documentElement.lang, cookie: document.cookie, tabs, placeholders }};
+  return {{ ready: !!input, locale: {json.dumps(locale)}, lang: document.documentElement?.lang ?? '', cookie: document.cookie, tabs, placeholders }};
 }})()"""
 
     # One step toward the dialog per poll: filter the list, open the skill's sheet, press its Export.

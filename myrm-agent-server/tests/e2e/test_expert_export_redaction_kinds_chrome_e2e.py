@@ -17,6 +17,7 @@ import uuid
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
     http_json,
@@ -95,6 +96,8 @@ def test_expert_export_review_renders_localized_finding_kinds() -> None:
         assert [API_TOKEN[0]] in kinds and [ABSOLUTE_PATH[0]] in kinds, kinds
 
         warm_ui_route("/settings")
+        # Cold dev-server compile of the agents route can outlast the page-open hydration budget.
+        warm_ui_route("/settings/agents", timeout_sec=_warm_ui_parallel_wait_sec(180.0))
         with open_settings_subroute(f"/settings/agents?agentId={agent_id}", timeout_ms=120_000) as (client, page):
             client.evaluate(page, DISMISS_MIGRATION_JS, timeout_sec=15.0)
             dismiss_blocking_modals(client, page)
