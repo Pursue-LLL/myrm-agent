@@ -1561,7 +1561,7 @@
       "quickCommandInputLabel": "モバイル指揮バー入力",
       "steerPlaceholder": "エージェントを誘導...",
       "send": "送信",
-      "commandNotAccepted": "エージェントがこの指示を受け付けられませんでした。入力欄に戻したので、もう一度送信できます。",
+      "commandNotAccepted": "エージェントがこの指示を受け付けられませんでした。もう一度送信してください。",
       "verifications": "検収条件",
       "livePreview": "ライブプレビュー",
       "browser": "ブラウザ",

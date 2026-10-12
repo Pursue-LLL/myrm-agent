@@ -8791,7 +8791,7 @@
       "quickCommandInputLabel": "Mobile command input",
       "steerPlaceholder": "Redirect the agent...",
       "send": "Send",
-      "commandNotAccepted": "The agent couldn't take that command. It's back in the input box so you can send it again.",
+      "commandNotAccepted": "The agent couldn't take that command. Please send it again.",
       "verifications": "Acceptance Criteria",
       "livePreview": "Live Preview",
       "browser": "Browser",

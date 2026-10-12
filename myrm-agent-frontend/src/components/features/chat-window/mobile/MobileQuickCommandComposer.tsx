@@ -42,7 +42,7 @@ export interface MobileQuickCommandComposerProps {
   /** 运行中：提交语义为 steer 纠偏，空闲时为新指令。 */
   loading: boolean;
   messages: { content: string; role: string }[];
-  /** Resolves whether the agent took the command; a refused command goes back into the input. */
+  /** 解析为 Agent 是否接收了该指令；被拒的指令会放回输入框。 */
   onSubmit: (text: string) => Promise<boolean>;
   onOpenAdvisor: (question: string) => void;
 }
