@@ -173,7 +173,7 @@ export const ConversationOutline = memo<ConversationOutlineProps>(({
               aria-label={t('jumpToTurn', { index: item.turnIndex })}
               onClick={() => onJumpToTurn(item)}
               onMouseEnter={(e) => handleMouseEnterTick(item.turnIndex, e)}
-              className={`group relative flex items-center justify-end rounded-full transition-all duration-150 ease-out focus:outline-hidden ${
+              className={`group relative flex items-center justify-end rounded-full transition-all duration-150 ease-out focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary ${
                 isCurrent
                   ? 'bg-primary ring-2 ring-primary/40'
                   : item.isInFlight

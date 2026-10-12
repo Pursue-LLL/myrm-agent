@@ -97,6 +97,7 @@ export const PresentationGeneratorModal: React.FC<PresentationGeneratorModalProp
   return (
     <dialog
       ref={dialogRef}
+      tabIndex={-1}
       onCancel={onClose}
       aria-labelledby="presentation-modal-title"
       className="p-0 bg-transparent backdrop:bg-black/60 backdrop:backdrop-blur-sm max-w-5xl w-full m-auto rounded-2xl shadow-2xl overflow-hidden focus:outline-none"
@@ -249,7 +250,7 @@ export const PresentationGeneratorModal: React.FC<PresentationGeneratorModalProp
                     aria-label={t('illustrationsLabel')}
                     aria-checked={enableIllustrations}
                     onClick={() => setEnableIllustrations(!enableIllustrations)}
-                    className={`w-11 h-6 rounded-full transition-colors relative focus:outline-none ${
+                    className={`w-11 h-6 rounded-full transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       enableIllustrations ? 'bg-blue-600' : 'bg-slate-700'
                     }`}
                   >

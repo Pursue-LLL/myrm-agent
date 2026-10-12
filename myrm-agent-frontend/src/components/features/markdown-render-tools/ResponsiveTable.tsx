@@ -290,6 +290,7 @@ const ResponsiveTable = React.memo(({ children, isStreaming }: ResponsiveTablePr
       {isLightboxOpen && (
         <dialog
           ref={dialogRef}
+          tabIndex={-1}
           aria-label="全景表格预览"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm m-0 w-full h-full max-w-none max-h-none border-none outline-none"
           onKeyDown={(e) => {

@@ -55,7 +55,7 @@ export const ToolPickerCard: React.FC<ToolPickerCardProps> = ({
           <button
             type="button"
             onClick={() => onSelect?.(tool)}
-            className="flex items-center gap-2 min-w-0 text-left flex-1 focus:outline-none cursor-pointer"
+            className="flex items-center gap-2 min-w-0 text-left flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset cursor-pointer"
           >
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
               {tool.displayName}

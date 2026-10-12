@@ -109,7 +109,7 @@ export const LiquidVibrancyStatusHub: React.FC = () => {
               aria-label={t('quickToggleAriaLabel')}
               aria-checked={isBlurActive}
               onClick={toggleVibrancy}
-              className={`w-10 h-5.5 rounded-full transition-colors relative focus:outline-none ${
+              className={`w-10 h-5.5 rounded-full transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 isBlurActive ? 'bg-blue-600' : 'bg-slate-700'
               }`}
             >
