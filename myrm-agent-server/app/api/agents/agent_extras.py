@@ -23,7 +23,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import desc, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security.master_key import VaultLockedError
@@ -155,7 +155,7 @@ async def get_agent_statistics(
         total_messages = messages_result.scalar_one()
 
         last_chat_result = await db.execute(
-            select(Chat.updated_at).where(Chat.agent_id == agent_id).order_by(desc(Chat.updated_at)).limit(1)
+            select(Chat.updated_at).where(Chat.agent_id == agent_id).order_by(Chat.updated_at.desc()).limit(1)
         )
         last_used_at = last_chat_result.scalar_one_or_none()
 
@@ -176,14 +176,14 @@ async def get_agent_statistics(
 
 class ActionSpaceEvalRequest(BaseModel):
     skill_ids: list[str]
-    skill_configs: dict[str, dict] = {}
+    skill_configs: dict[str, dict[str, object]] = {}
     mcp_servers: list[str]
     enabled_builtin_tools: RequiredBuiltinTools
 
 
 async def _build_catalog_preview(
     skill_ids: list[str],
-    skill_configs: dict[str, dict],
+    skill_configs: dict[str, dict[str, object]],
 ) -> dict[str, int | bool]:
     """Turn1 bound-skill catalog preview — harness SSOT for inline/hidden/search gate."""
     from myrm_agent_harness.agent.skills.runtime.catalog_display import (
@@ -194,8 +194,8 @@ async def _build_catalog_preview(
     from myrm_agent_harness.backends.skills.types import SkillMetadata
 
     from app.core.skills.gates.requirements_availability import apply_requirements_availability_to_catalog
+    from app.core.skills.runtime_metadata import skill_to_runtime_metadata
     from app.core.skills.store.service import skills_service
-    from app.core.skills.utils import normalize_skill_name
 
     stored_skills = await skills_service.get_skills_by_ids(skill_ids=skill_ids)
     # The agent runtime counts a skill once its keys are saved in settings; the preview must use the same verdict.
@@ -203,22 +203,13 @@ async def _build_catalog_preview(
     metadata_list: list[SkillMetadata] = []
     for skill in stored_skills:
         try:
-            name = normalize_skill_name(skill.name)
+            meta = skill_to_runtime_metadata(skill)
         except ValueError:
             logger.warning("Skipping skill with invalid name for catalog preview: %s", skill.name)
             continue
-        metadata_list.append(
-            SkillMetadata(
-                name=name,
-                description=skill.description or "",
-                storage_skill_id=skill.id,
-                storage_path=skill.storage_path,
-                token_cost=skill.token_cost,
-                always=skill.always,
-                model_invocable=skill.model_invocable,
-                available=skill.available,
-            )
-        )
+        meta.available = skill.available
+        meta.unavailable_reason = skill.unavailable_reason
+        metadata_list.append(meta)
 
     configs = skill_configs or None
     resolution = resolve_catalog_display_skills(metadata_list, skill_configs=configs)

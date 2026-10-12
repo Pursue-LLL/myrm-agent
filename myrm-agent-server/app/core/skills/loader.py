@@ -274,8 +274,8 @@ async def _load_user_skill_backend(
 ) -> _UserSkillBackend | None:
     """加载用户技能后端（内部）"""
     from app.core.skills.models import SkillType
+    from app.core.skills.runtime_metadata import skill_to_runtime_metadata
     from app.core.skills.store.service import skills_service
-    from app.core.skills.utils import normalize_skill_name
 
     try:
         skills = await skills_service.get_skills_by_ids(skill_ids=skill_ids)
@@ -286,19 +286,9 @@ async def _load_user_skill_backend(
         metadata_list: list[SkillMetadata] = []
         for skill in skills:
             try:
-                name = normalize_skill_name(skill.name)
+                metadata_list.append(skill_to_runtime_metadata(skill))
             except ValueError as e:
                 logger.warning(f"Skipping skill with invalid name '{skill.name}': {e}")
-                continue
-            metadata_list.append(
-                SkillMetadata(
-                    name=name,
-                    description=skill.description,
-                    storage_skill_id=skill.id,
-                    storage_path=skill.storage_path,
-                    token_cost=skill.token_cost,
-                )
-            )
 
         if not metadata_list:
             return None
