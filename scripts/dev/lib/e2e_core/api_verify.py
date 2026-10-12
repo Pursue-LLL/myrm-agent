@@ -74,7 +74,7 @@ def browser_isolation_payload() -> dict[str, object]:
         "agentMcp": {
             "port": CHROME_AGENT_MCP_PORT,
             "profile": "ChromeAgent",
-            "allowedTasks": ["提取网址"],
+            "allowedTasks": ["提取热帖"],
             "forbiddenDuringE2e": "chrome-devtools MCP",
         },
         "e2eHarness": {

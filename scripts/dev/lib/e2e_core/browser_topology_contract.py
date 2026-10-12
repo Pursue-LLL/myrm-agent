@@ -59,7 +59,7 @@ _AGENT_HINT_MARKERS: tuple[str, ...] = (
 
 _PROFILE_OPTION_IDS: tuple[str, ...] = (
     "测啥了",
-    "提取网址",
+    "提取热帖",
 )
 
 
