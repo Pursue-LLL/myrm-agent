@@ -78,6 +78,8 @@ jobs:
       - name: Install Patchright Chromium
         run: uv run --no-sync patchright install --with-deps chromium
 
+      # A hung real-browser test dumps all thread stacks at 100 s (faulthandler) and the thread-based
+      # per-test timeout aborts the run at 120 s, so a hang costs two minutes instead of the job timeout.
       - name: Run browser integration tests
         run: >-
           uv run --no-sync pytest -n0 -v --tb=short tests/
