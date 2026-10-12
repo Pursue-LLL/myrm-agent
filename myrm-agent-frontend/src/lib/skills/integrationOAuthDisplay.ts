@@ -2,8 +2,6 @@ import type { Skill } from '@/store/skill/types';
 
 export const GOOGLE_WORKSPACE_SKILL_ID = 'google-workspace';
 export const X_LIVE_SEARCH_SKILL_ID = 'x-live-search';
-export const NOTION_WORKSPACE_SKILL_ID = 'notion-workspace';
-export const LINEAR_PROJECT_SKILL_ID = 'linear-project';
 export const XURL_SKILL_ID = 'xurl';
 
 export const SETTINGS_GOOGLE_OAUTH_PATH = '/settings/credentials';
@@ -32,8 +30,13 @@ export function isXLiveSearchUnavailable(skill: Skill): boolean {
   return skill.id === X_LIVE_SEARCH_SKILL_ID && !skill.available;
 }
 
+/**
+ * A skill whose only declared requirement is env keys (e.g. an API key) and is unavailable can only be
+ * unblocked by saving those keys. Mixed bins/config requirements fall back to the server-provided reason.
+ */
 export function isEnvGatedSkillUnavailable(skill: Skill): boolean {
-  return (skill.id === NOTION_WORKSPACE_SKILL_ID || skill.id === LINEAR_PROJECT_SKILL_ID) && !skill.available;
+  const { bins, env, config } = skill.requires;
+  return !skill.available && env.length > 0 && bins.length === 0 && config.length === 0;
 }
 
 export function isXurlBinUnavailable(skill: Skill): boolean {

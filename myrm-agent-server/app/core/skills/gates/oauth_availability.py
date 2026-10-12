@@ -177,9 +177,7 @@ async def apply_integration_oauth_to_metadata(
                     issuer_status_cache[req_issuer] = await is_oauth_issuer_connected(db, req_issuer)
                 if not issuer_status_cache[req_issuer]:
                     meta.available = False
-                    meta.unavailable_reason = (
-                        f"Connect {req_issuer} in Settings → Integrations → Credentials (required by skill)"
-                    )
+                    meta.unavailable_reason = f"Connect {req_issuer} in Settings → Integrations → Credentials (required by skill)"
                     break
 
 

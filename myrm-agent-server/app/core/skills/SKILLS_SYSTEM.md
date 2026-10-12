@@ -124,13 +124,13 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | 判定 | `is_oauth_issuer_connected(db, issuer)` |
 | Catalog | `apply_integration_oauth_availability` — `GET /skills/`、`GET /skills/{id}`、`GET /skills/available` |
 | Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING |
-| 映射 | `INTEGRATION_SKILL_ISSUERS`（OAuth）、`INTEGRATION_SKILL_ENV_VARS`（Notion/Linear API key、imap-smtp-email `EMAIL_IMAP_HOST`）、`INTEGRATION_SKILL_BINS`（xurl CLI）、x-live-search provider gate（`resolve_xai_search_config`） |
+| 映射 | `INTEGRATION_SKILL_ISSUERS`（OAuth）、x-live-search provider gate（`resolve_xai_search_config`）；所有声明了 `requires`（bins / env / config）的 skill 由 `requirements_availability.py` 统一重算，无需逐 skill 登记 |
 | Bash 注入 | `SessionCredentialAssembler` → `user_credentials_ctx`（Web / Channel / Cron / channel approval resume）→ harness bash env；详见 harness `SECURITY_DESIGN.md` §3.2.3 |
 | GUI | Settings OAuth 卡 + Skills Catalog 黄标；x-live-search → `/settings/models`；保存 xAI provider 时 auto-enable skill |
 | Write tier | `POST /oauth/start` `{tier: write}` 增量 consent；`write_enabled` on status API |
 | Fail-closed | DB enrich 异常时 integration skill 标记 unavailable |
-| Bin gate scope | `INTEGRATION_SKILL_BINS` 使用 server 进程 `PATH`（与 harness `check_requirements` 一致）；sandbox 内 CLI 可用性以运行时 bash 错误为准 |
-| Env gate scope | `INTEGRATION_SKILL_ENV_VARS` 读取进程 env + `UserSkillConfig.skill_env_vars`（优于 harness 仅读 os.environ） |
+| Bin gate scope | `requires.bins` 使用 server 进程 `PATH`（与 harness `check_requirements` 一致）；桌面端 PATH 由 sidecar 启动时补全；sandbox 内 CLI 可用性以运行时 bash 错误为准 |
+| Env gate scope | `requires.env` 的每个变量须存在于进程 env 或该 skill 的 `UserSkillConfig.skill_env_vars`（非空白）——与 `resolve_skill_env_map` 运行时注入使用同一份 `lookup_skill_env`，保证「可用」与「真能拿到」一致；harness `evaluate_requires(requires, extra_env)` 为纯函数 |
 
 ### 3.8 Skill 权限管理链路
 

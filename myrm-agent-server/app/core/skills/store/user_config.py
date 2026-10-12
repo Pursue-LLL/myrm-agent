@@ -107,9 +107,7 @@ class UserSkillConfigManager:
 
         if not config_exists:
             # 只保留当前确实存在的默认技能，避免上游改名/移除后留下死链 id。
-            config.enabled_prebuilt_ids = [
-                sid for sid in _DEFAULT_ENABLED_PREBUILT_SKILLS if sid in valid_ids
-            ]
+            config.enabled_prebuilt_ids = [sid for sid in _DEFAULT_ENABLED_PREBUILT_SKILLS if sid in valid_ids]
             changed = True
 
         if changed:

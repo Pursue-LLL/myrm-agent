@@ -89,9 +89,7 @@ async def test_blank_saved_value_does_not_count(storage: LocalStorageBackend) ->
     assert skills["notion-workspace"].available is False
 
 
-async def test_process_environment_alone_still_satisfies(
-    storage: LocalStorageBackend, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_process_environment_alone_still_satisfies(storage: LocalStorageBackend, monkeypatch: pytest.MonkeyPatch) -> None:
     backend = _install(storage, "notion-workspace")
     monkeypatch.setenv(NOTION_KEY, "secret_from_process_env")
 

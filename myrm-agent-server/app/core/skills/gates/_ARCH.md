@@ -12,7 +12,8 @@
 | 文件 | 职责 |
 |------|------|
 | `__init__.py` | 子域聚合出口：导出各 gate 公共 API。 |
-| `oauth_availability.py` | Integration 凭证 gate：`IntegrationOAuthSkillBackend` 包装，`apply_integration_oauth_availability`/`enrich_skill_metadata_integration_oauth` 使 Google Workspace / Notion / Linear / xAI 等在 OAuth 未连接时 Catalog 与 Agent preload 一致降级。 |
+| `oauth_availability.py` | Integration 凭证 gate：`IntegrationOAuthSkillBackend` 包装，`apply_integration_oauth_availability`/`enrich_skill_metadata_integration_oauth` 使 Google Workspace / xAI 等在 OAuth / provider 未连接时 Catalog 与 Agent preload 一致降级；先调用 `requirements_availability` 重算 `requires`。 |
+| `requirements_availability.py` | `requires`（bins / env / config）可用性重算：以 `os.environ ∪ UserSkillConfig.skill_env_vars` 调用 harness `evaluate_requires`，覆盖 Catalog（`apply_requirements_availability_to_catalog`）与 Agent runtime（`apply_requirements_availability_to_metadata`）；配置读取失败降级为仅进程 env。 |
 | `x_live_search_skill_enable.py` | xAI provider 保存后 auto-enable prebuilt skill：`maybe_enable_x_live_search_skill`。 |
 | `disabled_skill_roots.py` | 未启用技能 storage 根注入 runtime：`collect_disabled_skill_roots`。 |
 | `dependency_guard.py` | 技能依赖影响面查询：`get_dependents_map`/`get_dependents_for_skill`（pending 审核 / disable / uninstall 校验）。 |
