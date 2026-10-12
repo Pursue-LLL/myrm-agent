@@ -63,11 +63,16 @@ class SkillEvolutionMonitorService:
         if self._task is not None:
             return
 
+        engine = self._integration.engine
+        if engine is None:
+            logger.warning("SkillEvolutionMonitorService not started: evolution engine unavailable (no LLM)")
+            return
+
         # Initialize the Harness monitor
         self._monitor = MetricMonitor(
             store=self._integration.store,
-            engine=self._integration.engine,
-            llm_client=(self._integration.engine._llm if hasattr(self._integration.engine, "_llm") else None),
+            engine=engine,
+            llm_client=getattr(engine, "_llm", None),
             scan_interval=5,
             on_evolution_complete=self._on_new_proposal,
         )
@@ -139,15 +144,9 @@ async def init_evolution_monitor_service() -> None:
             asyncio.create_task(svc._on_new_proposal(p))
 
     if not evolution:
-        from myrm_agent_harness.toolkits.retriever.embedding.factory import (
-            get_embedding_service,
-        )
-
         from app.config.settings import settings as _settings
-        from app.core.retriever.vector.defaults import create_default_vector_store
         from app.services.agent.platform_config import (
             load_platform_evolution_model_config,
-            require_platform_embedding_config,
         )
 
         db_path = Path(_settings.database.state_dir).expanduser() / "skills.db"
@@ -163,28 +162,14 @@ async def init_evolution_monitor_service() -> None:
 
         llm = await llm_manager.get_llm_from_config(evolution_model)
 
-        try:
-            embedding_cfg = await require_platform_embedding_config()
-        except Exception as exc:
-            logger.warning(
-                "SkillEvolutionMonitorService disabled: WebUI embedding not configured (%s)",
-                exc,
-            )
-            return
-
         from app.core.channel_bridge.config_loader import load_user_configs
 
         user_configs = await load_user_configs()
         search_service_cfg = user_configs.search_cfg if user_configs.search_is_user_configured else None
 
-        vector_store = await create_default_vector_store()
-        embedding = get_embedding_service(embedding_cfg)
-
         from myrm_agent_harness.agent.skills.evolution.pipeline.screener import (
             EvolutionScreener,
         )
-
-        screener = EvolutionScreener(store=None, cheap_llm=llm, cooldown_seconds=3600)
 
         evolution = EvolutionIntegration(
             db_path=db_path,
@@ -192,17 +177,15 @@ async def init_evolution_monitor_service() -> None:
             enable_background_queue=True,
             enable_tde=True,
             enable_tool_calling=True,
-            vector_store=vector_store,
-            embedding=embedding,
-            screener=screener,
             search_service_cfg=search_service_cfg,
         )
-
-        # Fix screener store reference
-        evolution.screener._store = evolution.store
-
-        # Sync vector store on startup
-        await evolution.store.sync_vectors()
+        # The screener reads skill history from the integration's own store.
+        evolution.screener = EvolutionScreener(
+            store=evolution.store,
+            cheap_llm=llm,
+            cooldown_seconds=3600,
+            evolution_strategy=evolution.evolution_strategy,
+        )
 
         # Start the background queue to process evolutions
         await evolution.start_background_queue(on_proposal_callback=_on_proposal_callback)
