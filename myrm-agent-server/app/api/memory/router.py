@@ -121,9 +121,6 @@ from app.api.memory.experience_flywheel_router import (
 from app.api.memory.experience_gene_router import (
     router as experience_gene_router,
 )
-from app.api.memory.experience_injection_router import (
-    router as experience_injection_router,
-)
 from app.api.memory.experience_observability_router import (
     router as experience_observability_router,
 )
@@ -499,10 +496,6 @@ router.include_router(
 router.include_router(
     procedure_experience_router,
     tags=["memory-procedure-experience"],
-)
-router.include_router(
-    experience_injection_router,
-    tags=["memory-experience-injection"],
 )
 router.include_router(
     business_template_router,

@@ -74,7 +74,6 @@ import { DeterministicRuleCascadeCard } from './DeterministicRuleCascadeCard';
 import { TemporalRelationalBacktrackingCard } from './TemporalRelationalBacktrackingCard';
 import { MemoryCuratorStudioCard } from './MemoryCuratorStudioCard';
 import { ProcedureExperienceRetrievalCard } from './ProcedureExperienceRetrievalCard';
-import { ExperienceInjectionStudioCard } from './ExperienceInjectionStudioCard';
 import { BusinessScenarioTemplatesCard } from './BusinessScenarioTemplatesCard';
 import { ExperienceObservabilityStudioCard } from './ExperienceObservabilityStudioCard';
 import { FailureSessionRetrievalStudioCard } from './FailureSessionRetrievalStudioCard';
@@ -330,9 +329,6 @@ export const UnderstandSection = ({
 
     {/* Procedure-Shaped Experience Protocol & Fixed-Count Dual-Node Retrieval Card (Item 104 P0) */}
     <ProcedureExperienceRetrievalCard />
-
-    {/* Skill Load, Subagent Spawn & Pre-Write Experience Injection Studio Card (Item 105 P0) */}
-    <ExperienceInjectionStudioCard />
 
     {/* Business Scenario Experience Templates & Escalation Gate Card (Item 107 P0) */}
     <BusinessScenarioTemplatesCard />
