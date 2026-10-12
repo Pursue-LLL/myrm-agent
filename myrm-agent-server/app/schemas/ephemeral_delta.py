@@ -1,6 +1,14 @@
-# [POS]: app/schemas/ephemeral_delta.py
-# [INPUT]: pydantic BaseModel, Field, ConfigDict, typing literals
-# [OUTPUT]: DTOs for prompt cache preserving ephemeral delta memory suite
+"""DTOs for prompt cache preserving ephemeral delta memory suite.
+
+[POS]
+app/schemas/ephemeral_delta.py
+
+[INPUT]
+- pydantic BaseModel, Field, ConfigDict, typing literals
+
+[OUTPUT]
+- DTOs for prompt cache preserving ephemeral delta memory suite
+"""
 
 from __future__ import annotations
 
@@ -56,28 +64,26 @@ class SessionDeltaSnapshotDTO(BaseModel):
 
 
 class ReconcileSessionResponseDTO(BaseModel):
-    """Result of reconciling ephemeral deltas into durable storage."""
+    """Read-only session delta status (durable memory writes use the memory store on agent turns)."""
 
     model_config = ConfigDict(extra="forbid")
 
     session_id: str
-    reconciled_count: int
-    overridden_count: int = 0
-    persisted_keys: list[str] = Field(default_factory=list)
-    is_success: bool = True
+    active_delta_count: int = Field(ge=0)
+    injection_still_active: bool = True
 
 
 class PromptCacheMetricsDTO(BaseModel):
-    """Integrity telemetry proving prefix preservation and sub-millisecond recency."""
+    """Layout diagnostics for ephemeral deltas (provider cache hits use chat health / trace SSOT)."""
 
     model_config = ConfigDict(extra="forbid")
 
     system_prompt_frozen: bool
-    system_prompt_byte_hash: str
-    kv_cache_hit_ratio: float = Field(ge=0.0, le=1.0)
+    system_prompt_byte_hash: str | None = None
     in_flight_deltas_count: int = Field(ge=0)
-    recency_perception_delay_ms: float = Field(ge=0.0)
-    avoided_recomputation_tokens: int = Field(ge=0)
+    recency_perception_delay_ms: float | None = Field(default=None, ge=0.0)
+    kv_cache_hit_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    avoided_recomputation_tokens: int | None = Field(default=None, ge=0)
 
 
 class PreviewDeltaInjectionRequestDTO(BaseModel):
@@ -106,3 +112,9 @@ class PreviewDeltaInjectionResponseDTO(BaseModel):
     tail_tag_snippet: str
     active_deltas: list[EphemeralDeltaItemDTO] = Field(default_factory=list)
     metrics: PromptCacheMetricsDTO
+
+
+# Backwards compatibility and alternative naming aliases
+RecordEphemeralDeltaRequest = RecordDeltaRequestDTO
+EphemeralDeltaBufferSnapshotDTO = SessionDeltaSnapshotDTO
+ReconcileSessionResponse = ReconcileSessionResponseDTO

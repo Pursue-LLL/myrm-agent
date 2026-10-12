@@ -5,7 +5,7 @@ myrm_agent_harness.toolkits.memory.setup::create_local_memory_manager (POS: 开�
 
 [OUTPUT]
 resolve_context_binding: 统一解析业务侧上下文绑定合同
-create_memory_manager: 业务层记忆管理器工厂
+create_memory_manager: 业务层记忆管理器工厂（dedup_llm=None 时使用平台 lite 单例；默认注入 on_conflict）
 create_memory_tools_for_user: 业务层记忆工具工厂
 create_conflict_callback: 冲突持久化回调工厂（importance>=0.9 写时分级：high_risk 不设 auto_resolve_at 永不静默保旧，低风险 72h 自动保留旧记忆；同源冲突去重）
 shutdown_cached_memory_managers: 释放进程级记忆管理器缓存（联动清理 harness 嵌入式 Qdrant 单例）
@@ -79,6 +79,25 @@ def _memory_policy_signature(
     )
 
 
+def _dedup_llm_cache_token(dedup_llm: object | None) -> tuple[str, object]:
+    """Stable cache token for dedup LLM (avoid splitting cache per object id)."""
+    if dedup_llm is None:
+        return ("platform_default",)
+    model_id = getattr(dedup_llm, "model_name", None) or getattr(dedup_llm, "model", None)
+    if isinstance(model_id, str) and model_id.strip():
+        return ("model", model_id.strip())
+    return ("object", id(dedup_llm))
+
+
+def _consolidation_llm_cache_token(consolidation_llm: object | None) -> tuple[str, object]:
+    if consolidation_llm is None:
+        return ("none",)
+    model_id = getattr(consolidation_llm, "model_name", None) or getattr(consolidation_llm, "model", None)
+    if isinstance(model_id, str) and model_id.strip():
+        return ("model", model_id.strip())
+    return ("object", id(consolidation_llm))
+
+
 def _manager_cache_key(
     *,
     base_path: Path,
@@ -109,8 +128,8 @@ def _manager_cache_key(
         reranker_config.model if reranker_config else None,
         reranker_config.api_key if reranker_config else None,
         reranker_config.api_base if reranker_config else None,
-        id(dedup_llm) if dedup_llm is not None else None,
-        id(consolidation_llm) if consolidation_llm is not None else None,
+        _dedup_llm_cache_token(dedup_llm),
+        _consolidation_llm_cache_token(consolidation_llm),
         tuple(namespaces or ()),
         agent_id,
         channel_id,
@@ -148,6 +167,12 @@ async def create_memory_manager(
     from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
 
     from app.config.settings import settings
+    from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
+        get_platform_dedup_llm,
+    )
+
+    if on_conflict is None:
+        on_conflict = create_conflict_callback(agent_id=binding.agent_id)
 
     facade = ContextBundleFacade.from_state_dir(
         settings.database.state_dir,
@@ -189,6 +214,10 @@ async def create_memory_manager(
                 return cached
             _memory_manager_cache.pop(cache_key, None)
 
+        effective_dedup_llm = dedup_llm
+        if effective_dedup_llm is None:
+            effective_dedup_llm = await get_platform_dedup_llm()
+
         from app.core.retriever.vector.defaults import create_default_vector_store
 
         # Isolated base_path (eval mode) → let harness embed vector store under
@@ -201,7 +230,7 @@ async def create_memory_manager(
             embedding_config=embedding_config,
             user_id="sandbox_user",
             approval_required=approval_required,
-            dedup_llm=dedup_llm,
+            dedup_llm=effective_dedup_llm,
             consolidation_llm=consolidation_llm,
             namespaces=binding.namespaces,
             agent_id=binding.agent_id,
@@ -220,7 +249,7 @@ async def create_memory_manager(
         _memory_manager_cache[cache_key] = manager
 
     enabled = manager.get_enabled_types()
-    dedup_status = "smart" if dedup_llm else "simple"
+    dedup_status = "smart" if effective_dedup_llm else "simple"
     logger.warning(
         f"MemoryManager created: path={base_path}, types={[t.value for t in enabled]}, "
         f"approval={approval_required}, dedup={dedup_status}"

@@ -17,6 +17,7 @@ Per-turn privacy_routing is not replayed (requires live AgentRequest).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -119,6 +120,65 @@ async def _resolve_lite_model_cfg(
     except ValueError:
         logger.warning("Failed to resolve lite model for chat extraction, proceeding without it")
         return None
+
+
+async def resolve_platform_dedup_llm() -> "BaseChatModel | None":
+    """Platform lite model for memory SmartDeduplicator when caller passes no dedup_llm."""
+    from app.ai_agents.general_agent.llm_factory import create_agent_llms
+    from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.channel_bridge.model_resolver import enrich_model_context_window, resolve_model_config
+
+    configs = await load_user_configs()
+    providers_dict = configs.providers_dict if configs else None
+    if not providers_dict:
+        return None
+
+    lite_model_cfg = await _resolve_lite_model_cfg(providers_dict)
+    if lite_model_cfg is None:
+        return None
+
+    model_cfg = enrich_model_context_window(resolve_model_config(providers_dict), providers_dict)
+    lite_model_cfg = enrich_model_context_window(lite_model_cfg, providers_dict)
+    _, lite_llm, _, _, _ = await create_agent_llms(
+        model_cfg,
+        lite_model_cfg,
+        None,
+        None,
+    )
+    return lite_llm
+
+
+_platform_dedup_llm: "BaseChatModel | None" = None
+_platform_dedup_llm_resolved: bool = False
+_platform_dedup_llm_lock = asyncio.Lock()
+
+
+async def get_platform_dedup_llm() -> "BaseChatModel | None":
+    """Process-wide singleton platform lite LLM for memory dedup (stable manager cache keys)."""
+    global _platform_dedup_llm, _platform_dedup_llm_resolved
+
+    if _platform_dedup_llm_resolved:
+        return _platform_dedup_llm
+
+    async with _platform_dedup_llm_lock:
+        if _platform_dedup_llm_resolved:
+            return _platform_dedup_llm
+        _platform_dedup_llm = await resolve_platform_dedup_llm()
+        _platform_dedup_llm_resolved = True
+        return _platform_dedup_llm
+
+
+def invalidate_platform_dedup_llm_cache() -> None:
+    """Clear the process-wide platform dedup LLM singleton (e.g. after lite model config change)."""
+    global _platform_dedup_llm, _platform_dedup_llm_resolved
+
+    _platform_dedup_llm = None
+    _platform_dedup_llm_resolved = False
+
+
+def reset_platform_dedup_llm_for_test() -> None:
+    """Test-only alias for invalidate_platform_dedup_llm_cache."""
+    invalidate_platform_dedup_llm_cache()
 
 
 async def resolve_chat_extraction_llm(
