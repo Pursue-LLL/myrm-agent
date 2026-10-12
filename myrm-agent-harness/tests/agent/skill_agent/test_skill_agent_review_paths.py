@@ -112,6 +112,20 @@ class TestReviewTaskInputs:
         ]
 
     @pytest.mark.asyncio
+    async def test_supplied_history_list_is_not_mutated(self) -> None:
+        history = list(_HISTORY)
+        host = _Host()
+
+        with (
+            patch(_PRUNER, return_value="skeleton"),
+            patch(_REVIEWER, new_callable=AsyncMock, return_value=None),
+        ):
+            await host._trigger_background_skill_review("query", history, ["reply"])
+            await _drain_background_tasks()
+
+        assert history == _HISTORY
+
+    @pytest.mark.asyncio
     async def test_skill_catalog_is_passed_to_the_reviewer(self) -> None:
         skill = MagicMock()
         skill.name = "debugging"
