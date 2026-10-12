@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/lib/workflow/workflowTemplateBundle::{buildWorkflowTemplateBundle, parseWorkflowTemplateBundle, downloadWorkflowTemplateBundle} (POS: Client-side v1 JSON bundle for workflow template backup and import)
+ * - @/services/workflowTemplates::{fetchWorkflowTemplateDetail, upsertWorkflowTemplate} (POS: Workflow template REST client)
+ *
+ * [OUTPUT]
+ * - useWorkflowTemplateTransfer: Export download, Import file validation with overwrite confirmation, and upsert state for the template library.
+ *
+ * [POS]
+ * Export/Import orchestration for the Settings workflow template library; keeps the library section presentational.
+ */
+
 import { useCallback, useRef, useState, type ChangeEvent } from 'react';
 import { useTranslations } from 'next-intl';
 
