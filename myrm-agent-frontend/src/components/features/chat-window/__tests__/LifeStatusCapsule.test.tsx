@@ -11,7 +11,11 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('framer-motion', () => ({
-  motion: { div: ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={className}>{children}</div> },
+  motion: {
+    output: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+      <output className={className}>{children}</output>
+    ),
+  },
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -52,6 +56,12 @@ describe('LifeStatusCapsule', () => {
     emitIdleStatus({ status: 'working', task_name: 'future_task', message: 'raw backend text' });
     expect(screen.getByText('processingCapsule')).toBeTruthy();
     expect(screen.queryByText('raw backend text')).toBeNull();
+  });
+
+  it('treats prototype property names as unknown tasks', () => {
+    render(<LifeStatusCapsule currentSessionId="s1" />);
+    emitIdleStatus({ status: 'working', task_name: 'constructor' });
+    expect(screen.getByText('processingCapsule')).toBeTruthy();
   });
 
   it('hides when the session goes idle', () => {

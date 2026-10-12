@@ -16,13 +16,13 @@ interface IdleStatusData {
 }
 
 /** Statuses each idle task has a localized label for (`backgroundTasks.idleStatus.<task>.<status>`). */
-const IDLE_TASK_LABELS: Record<string, readonly IdleStatus[]> = {
-  cognitive_consolidation: ['working', 'completed'],
-  cognitive_derivation: ['working', 'completed', 'notification'],
-  cognitive_subsumption: ['working', 'completed', 'notification'],
-  session_evidence_extraction: ['working', 'completed'],
-  context_compaction: ['working', 'completed'],
-};
+const IDLE_TASK_LABELS: ReadonlyMap<string, readonly IdleStatus[]> = new Map([
+  ['cognitive_consolidation', ['working', 'completed']],
+  ['cognitive_derivation', ['working', 'completed', 'notification']],
+  ['cognitive_subsumption', ['working', 'completed', 'notification']],
+  ['session_evidence_extraction', ['working', 'completed']],
+  ['context_compaction', ['working', 'completed']],
+]);
 
 export function LifeStatusCapsule({ currentSessionId }: { currentSessionId: string | null }) {
   const tBackgroundTasks = useTranslations('backgroundTasks');
@@ -32,7 +32,7 @@ export function LifeStatusCapsule({ currentSessionId }: { currentSessionId: stri
     if (data.status === 'error') {
       return tBackgroundTasks('idleStatus.error');
     }
-    const supported = data.task_name ? IDLE_TASK_LABELS[data.task_name] : undefined;
+    const supported = data.task_name ? IDLE_TASK_LABELS.get(data.task_name) : undefined;
     if (data.task_name && supported?.includes(data.status)) {
       return tBackgroundTasks(`idleStatus.${data.task_name}.${data.status}`, { count: data.data?.count ?? 0 });
     }
@@ -65,12 +65,13 @@ export function LifeStatusCapsule({ currentSessionId }: { currentSessionId: stri
 
   return (
     <AnimatePresence>
-      <motion.div
+      <motion.output
         initial={{ opacity: 0, y: 10, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.95 }}
         transition={{ duration: 0.3 }}
-        className="fixed bottom-24 right-8 z-50 flex items-center gap-3 rounded-full border border-primary/20 bg-background/80 px-4 py-2 text-sm shadow-lg backdrop-blur-md dark:bg-muted/80"
+        aria-live="polite"
+        className="fixed bottom-24 right-8 z-50 flex max-w-[calc(100vw-4rem)] items-center gap-3 rounded-full border border-primary/20 bg-background/80 px-4 py-2 text-sm shadow-lg backdrop-blur-md dark:bg-muted/80"
       >
         {statusData.status === 'working' && (
           <span className="relative flex h-3 w-3">
@@ -89,14 +90,12 @@ export function LifeStatusCapsule({ currentSessionId }: { currentSessionId: stri
           </span>
         )}
 
-        <span className="font-medium text-foreground/90">
-          {resolveLabel(statusData)}
-        </span>
+        <span className="min-w-0 truncate font-medium text-foreground/90">{resolveLabel(statusData)}</span>
 
         {typeof statusData.progress_pct === 'number' && (
           <span className="text-xs text-muted-foreground">{statusData.progress_pct}%</span>
         )}
-      </motion.div>
+      </motion.output>
     </AnimatePresence>
   );
 }
