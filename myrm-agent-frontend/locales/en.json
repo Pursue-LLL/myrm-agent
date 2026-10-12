@@ -4123,6 +4123,59 @@
     }
   },
   "memory": {
+    "mesh": {
+      "panel": {
+        "title": "Three-Domain Memory Mesh",
+        "badge": "Multi-Domain Sync",
+        "description": "Intelligently organizes preferences, persona, and task experiences for instant recall.",
+        "migrate": "Migrate from Hermes",
+        "refresh": "Refresh",
+        "retry": "Retry",
+        "loadFailed": "Failed to load domain mesh overview"
+      },
+      "domains": {
+        "user": {
+          "title": "User Domain",
+          "subtitle": "Profile, Preferences & Events"
+        },
+        "assistant": {
+          "title": "Assistant Domain",
+          "subtitle": "Identity, Persona & Soul"
+        },
+        "task": {
+          "title": "Task Domain",
+          "subtitle": "Experiences, SOPs & Traps"
+        }
+      },
+      "card": {
+        "highlights": "Highlights & Insights",
+        "empty": "No memories indexed in this domain yet.",
+        "untitled": "Untitled Memory"
+      },
+      "drillDown": {
+        "eyebrow": "Memory Details & Traceability",
+        "loading": "Loading memory details...",
+        "notFound": "Memory Not Found",
+        "summary": "Key Summary",
+        "fullContent": "Full Content",
+        "copy": "Copy",
+        "copied": "Copied",
+        "unavailable": "Unable to load details for this memory."
+      },
+      "migration": {
+        "eyebrow": "Zero-Friction Migration",
+        "title": "Import from Hermes or OpenViking",
+        "description": "Paste raw Markdown (with optional frontmatter) or JSON exported from Hermes or other agents. Items will be automatically categorized into preferences and workflows while preserving all historical notes.",
+        "chooseFile": "Choose File",
+        "cancel": "Cancel",
+        "importing": "Importing...",
+        "start": "Start Lossless Import",
+        "doneTitle": "Migration Completed",
+        "doneDescription": "Successfully imported {success} memories ({failed} failed).",
+        "failedTitle": "Migration Failed",
+        "failedDescription": "An error occurred during migration."
+      }
+    },
     "title": "Memory Management",
     "description": "Manage memories AI learned from conversations",
     "scopeHierarchy": {

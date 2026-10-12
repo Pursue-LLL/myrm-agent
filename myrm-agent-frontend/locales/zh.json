@@ -4123,6 +4123,59 @@
     }
   },
   "memory": {
+    "mesh": {
+      "panel": {
+        "title": "三域记忆网格",
+        "badge": "多域同步",
+        "description": "智能整理偏好、人设与任务经验，随时快速回忆。",
+        "migrate": "从 Hermes 迁移",
+        "refresh": "刷新",
+        "retry": "重试",
+        "loadFailed": "加载记忆域概览失败"
+      },
+      "domains": {
+        "user": {
+          "title": "用户域",
+          "subtitle": "资料、偏好与事件"
+        },
+        "assistant": {
+          "title": "助手域",
+          "subtitle": "身份、人设与灵魂"
+        },
+        "task": {
+          "title": "任务域",
+          "subtitle": "经验、SOP 与避坑"
+        }
+      },
+      "card": {
+        "highlights": "亮点与洞察",
+        "empty": "该域暂无已索引的记忆。",
+        "untitled": "未命名记忆"
+      },
+      "drillDown": {
+        "eyebrow": "记忆详情与溯源",
+        "loading": "正在加载记忆详情...",
+        "notFound": "未找到该记忆",
+        "summary": "核心摘要",
+        "fullContent": "完整内容",
+        "copy": "复制",
+        "copied": "已复制",
+        "unavailable": "无法加载该记忆的详情。"
+      },
+      "migration": {
+        "eyebrow": "零摩擦迁移",
+        "title": "从 Hermes 或 OpenViking 导入",
+        "description": "粘贴从 Hermes 或其他智能体导出的原始 Markdown（可含 frontmatter）或 JSON。条目将自动归类为偏好与工作流，并完整保留所有历史笔记。",
+        "chooseFile": "选择文件",
+        "cancel": "取消",
+        "importing": "导入中...",
+        "start": "开始无损导入",
+        "doneTitle": "迁移完成",
+        "doneDescription": "已成功导入 {success} 条记忆（{failed} 条失败）。",
+        "failedTitle": "迁移失败",
+        "failedDescription": "迁移过程中出现错误。"
+      }
+    },
     "title": "记忆管理",
     "description": "管理 AI 从对话中学习到的记忆",
     "scopeHierarchy": {

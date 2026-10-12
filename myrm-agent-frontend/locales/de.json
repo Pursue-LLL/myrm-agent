@@ -4123,6 +4123,59 @@
     }
   },
   "memory": {
+    "mesh": {
+      "panel": {
+        "title": "Drei-Domänen-Speichernetz",
+        "badge": "Multi-Domänen-Sync",
+        "description": "Ordnet Präferenzen, Persona und Aufgabenerfahrungen intelligent, damit sie sofort abrufbar sind.",
+        "migrate": "Von Hermes migrieren",
+        "refresh": "Aktualisieren",
+        "retry": "Erneut versuchen",
+        "loadFailed": "Die Übersicht des Domänennetzes konnte nicht geladen werden"
+      },
+      "domains": {
+        "user": {
+          "title": "Benutzerdomäne",
+          "subtitle": "Profil, Präferenzen & Ereignisse"
+        },
+        "assistant": {
+          "title": "Assistentendomäne",
+          "subtitle": "Identität, Persona & Seele"
+        },
+        "task": {
+          "title": "Aufgabendomäne",
+          "subtitle": "Erfahrungen, SOPs & Fallstricke"
+        }
+      },
+      "card": {
+        "highlights": "Highlights & Erkenntnisse",
+        "empty": "In dieser Domäne sind noch keine Erinnerungen indexiert.",
+        "untitled": "Unbenannte Erinnerung"
+      },
+      "drillDown": {
+        "eyebrow": "Erinnerungsdetails & Nachvollziehbarkeit",
+        "loading": "Erinnerungsdetails werden geladen...",
+        "notFound": "Erinnerung nicht gefunden",
+        "summary": "Kernzusammenfassung",
+        "fullContent": "Vollständiger Inhalt",
+        "copy": "Kopieren",
+        "copied": "Kopiert",
+        "unavailable": "Die Details dieser Erinnerung konnten nicht geladen werden."
+      },
+      "migration": {
+        "eyebrow": "Reibungslose Migration",
+        "title": "Aus Hermes oder OpenViking importieren",
+        "description": "Fügen Sie rohes Markdown (optional mit Frontmatter) oder JSON ein, das aus Hermes oder anderen Agenten exportiert wurde. Die Einträge werden automatisch nach Präferenzen und Workflows kategorisiert, alle bisherigen Notizen bleiben erhalten.",
+        "chooseFile": "Datei auswählen",
+        "cancel": "Abbrechen",
+        "importing": "Import läuft...",
+        "start": "Verlustfreien Import starten",
+        "doneTitle": "Migration abgeschlossen",
+        "doneDescription": "{success} Erinnerungen erfolgreich importiert ({failed} fehlgeschlagen).",
+        "failedTitle": "Migration fehlgeschlagen",
+        "failedDescription": "Bei der Migration ist ein Fehler aufgetreten."
+      }
+    },
     "title": "Speicherverwaltung",
     "description": "Verwalten Sie Erinnerungen, die die KI aus Gesprächen gelernt hat",
     "scopeHierarchy": {

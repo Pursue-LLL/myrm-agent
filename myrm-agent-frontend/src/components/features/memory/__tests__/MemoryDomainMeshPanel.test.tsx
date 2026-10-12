@@ -1,8 +1,15 @@
 /** @vitest-environment jsdom */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryDomainMeshPanel } from '../mesh/MemoryDomainMeshPanel';
 import * as domainMeshService from '@/services/memory/domainMesh';
+import { toast } from '@/hooks/shared/useToast';
+import en from '../../../../../locales/en.json';
+import zh from '../../../../../locales/zh.json';
+
+// The global setup stubs next-intl with an identity translator; this suite asserts the real locale copy.
+vi.mock('next-intl', async (importOriginal) => importOriginal<typeof import('next-intl')>());
 
 vi.mock('@/services/memory/domainMesh', () => ({
   getDomainMeshOverview: vi.fn(),
@@ -13,6 +20,15 @@ vi.mock('@/services/memory/domainMesh', () => ({
 vi.mock('@/hooks/shared/useToast', () => ({
   toast: vi.fn(),
 }));
+
+const LOCALE_MESSAGES = { en, zh } as const;
+
+const renderPanel = (locale: keyof typeof LOCALE_MESSAGES = 'en') =>
+  render(
+    <NextIntlClientProvider locale={locale} messages={{ memory: { mesh: LOCALE_MESSAGES[locale].memory.mesh } }}>
+      <MemoryDomainMeshPanel />
+    </NextIntlClientProvider>,
+  );
 
 const mockOverview: domainMeshService.DomainMeshOverviewResponse = {
   total_memories: 3,
@@ -70,7 +86,7 @@ describe('MemoryDomainMeshPanel', () => {
   });
 
   it('renders three domain cards and their highlights', async () => {
-    render(<MemoryDomainMeshPanel />);
+    renderPanel();
 
     expect(screen.getByText('Three-Domain Memory Mesh')).toBeInTheDocument();
     expect(screen.getByText('Multi-Domain Sync')).toBeInTheDocument();
@@ -84,6 +100,52 @@ describe('MemoryDomainMeshPanel', () => {
     expect(screen.getByText('Dark mode user preference')).toBeInTheDocument();
     expect(screen.getByText('Calm assistant persona')).toBeInTheDocument();
     expect(screen.getByText('Avoid destructive git reset')).toBeInTheDocument();
+  });
+
+  it('renders the copy of the active locale', async () => {
+    renderPanel('zh');
+
+    expect(screen.getByText(zh.memory.mesh.panel.title)).toBeInTheDocument();
+    expect(screen.getByText(zh.memory.mesh.panel.badge)).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText(zh.memory.mesh.domains.user.title)).toBeInTheDocument();
+      expect(screen.getByText(zh.memory.mesh.domains.assistant.title)).toBeInTheDocument();
+      expect(screen.getByText(zh.memory.mesh.domains.task.title)).toBeInTheDocument();
+    });
+    expect(screen.getAllByText(zh.memory.mesh.card.highlights)).toHaveLength(3);
+    expect(screen.queryByText('Three-Domain Memory Mesh')).not.toBeInTheDocument();
+  });
+
+  it('falls back to a localized label for untitled and empty domains', async () => {
+    vi.mocked(domainMeshService.getDomainMeshOverview).mockResolvedValue({
+      ...mockOverview,
+      user: { ...mockOverview.user, highlights: [{ ...mockOverview.user.highlights[0], l0: '' }] },
+      assistant: { ...mockOverview.assistant, total_count: 0, highlights: [] },
+      task: { ...mockOverview.task, total_count: 0, highlights: [] },
+    });
+
+    renderPanel();
+
+    expect(await screen.findByText('Untitled Memory')).toBeInTheDocument();
+    expect(screen.getAllByText('No memories indexed in this domain yet.')).toHaveLength(2);
+  });
+
+  it('shows a localized notice instead of the raw error when the overview fails to load, and retries', async () => {
+    vi.mocked(domainMeshService.getDomainMeshOverview).mockRejectedValueOnce(new Error('HTTP 500: upstream exploded'));
+
+    renderPanel();
+
+    expect(await screen.findByText('Failed to load domain mesh overview')).toBeInTheDocument();
+    expect(screen.queryByText(/upstream exploded/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Failed to load domain mesh overview')).not.toBeInTheDocument();
+    });
+    expect(domainMeshService.getDomainMeshOverview).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText('Dark mode user preference')).toBeInTheDocument();
   });
 
   it('opens drill-down dialog when a highlight card is clicked', async () => {
@@ -100,7 +162,7 @@ describe('MemoryDomainMeshPanel', () => {
       metadata: {},
     });
 
-    render(<MemoryDomainMeshPanel />);
+    renderPanel();
 
     await waitFor(() => {
       expect(screen.getByText('Dark mode user preference')).toBeInTheDocument();
@@ -114,8 +176,20 @@ describe('MemoryDomainMeshPanel', () => {
     });
   });
 
+  it('shows a not-found state without exposing the memory id when the drill-down cannot be loaded', async () => {
+    vi.mocked(domainMeshService.getMemoryDrillDown).mockRejectedValue(new Error('404'));
+
+    renderPanel();
+
+    fireEvent.click(await screen.findByText('Dark mode user preference'));
+
+    expect(await screen.findByText('Memory Not Found')).toBeInTheDocument();
+    expect(screen.getByText('Unable to load details for this memory.')).toBeInTheDocument();
+    expect(screen.queryByText(/user-1/)).not.toBeInTheDocument();
+  });
+
   it('opens migration modal when Migrate from Hermes is clicked', async () => {
-    render(<MemoryDomainMeshPanel />);
+    renderPanel();
 
     await waitFor(() => {
       expect(screen.getByText('User Domain')).toBeInTheDocument();
@@ -127,6 +201,62 @@ describe('MemoryDomainMeshPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('Import from Hermes or OpenViking')).toBeInTheDocument();
       expect(screen.getByText('Start Lossless Import')).toBeInTheDocument();
+    });
+  });
+
+  describe('Hermes migration', () => {
+    const openMigrationWith = async (content: string) => {
+      renderPanel();
+      fireEvent.click(await screen.findByText('Migrate from Hermes'));
+      fireEvent.change(await screen.findByRole('textbox'), { target: { value: content } });
+    };
+
+    it('keeps the import action disabled until there is content to import', async () => {
+      renderPanel();
+      fireEvent.click(await screen.findByText('Migrate from Hermes'));
+
+      const start = (await screen.findByText('Start Lossless Import')).closest('button');
+      expect(start).toBeDisabled();
+
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: '# note' } });
+      expect(start).toBeEnabled();
+    });
+
+    it('reports the imported and failed counts and refreshes the overview after a successful import', async () => {
+      vi.mocked(domainMeshService.migrateFromHermes).mockResolvedValue({
+        success_count: 2,
+        fail_count: 1,
+        message: 'done',
+      });
+
+      await openMigrationWith('# note');
+      fireEvent.click(screen.getByText('Start Lossless Import'));
+
+      await waitFor(() => {
+        expect(toast).toHaveBeenCalledWith({
+          title: 'Migration Completed',
+          description: 'Successfully imported 2 memories (1 failed).',
+        });
+      });
+      expect(domainMeshService.migrateFromHermes).toHaveBeenCalledWith({ content: '# note', format: 'markdown' });
+      await waitFor(() => {
+        expect(domainMeshService.getDomainMeshOverview).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('never surfaces the raw failure message when the import fails', async () => {
+      vi.mocked(domainMeshService.migrateFromHermes).mockRejectedValue(new Error('HTTP 500: upstream exploded'));
+
+      await openMigrationWith('# note');
+      fireEvent.click(screen.getByText('Start Lossless Import'));
+
+      await waitFor(() => {
+        expect(toast).toHaveBeenCalledWith({
+          title: 'Migration Failed',
+          description: 'An error occurred during migration.',
+          variant: 'destructive',
+        });
+      });
     });
   });
 
@@ -145,7 +275,7 @@ describe('MemoryDomainMeshPanel', () => {
       metadata: {},
     });
 
-    render(<MemoryDomainMeshPanel />);
+    renderPanel();
 
     await waitFor(() => {
       expect(screen.getByText('Avoid destructive git reset')).toBeInTheDocument();

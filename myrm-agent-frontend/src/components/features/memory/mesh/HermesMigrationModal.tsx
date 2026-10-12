@@ -4,7 +4,9 @@
  * [INPUT]
  * @/services/memory/domainMesh::migrateFromHermes
  * @/components/primitives/dialog::Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
- * lucide-react::UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2
+ * @/hooks/shared/useToast::toast
+ * next-intl::useTranslations (memory.mesh.migration)
+ * lucide-react::UploadCloud, FileText, Loader2
  *
  * [OUTPUT]
  * HermesMigrationModal: Modal allowing users to migrate memory exports from Hermes or OpenViking formats.
@@ -14,7 +16,8 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { UploadCloud, FileText, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
 import { toast } from '@/hooks/shared/useToast';
 import { migrateFromHermes } from '@/services/memory/domainMesh';
@@ -26,6 +29,7 @@ interface HermesMigrationModalProps {
 }
 
 export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({ open, onOpenChange, onSuccess }) => {
+  const t = useTranslations('memory.mesh.migration');
   const [content, setContent] = useState('');
   const [format, setFormat] = useState<'markdown' | 'json'>('markdown');
   const [loading, setLoading] = useState(false);
@@ -50,30 +54,22 @@ export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({ open
     reader.readAsText(file);
   };
 
+  // The submit button stays disabled while the content is blank, so no empty payload reaches this handler.
   const handleSubmit = async () => {
-    if (!content.trim()) {
-      toast({
-        title: 'Empty Content',
-        description: 'Please paste or upload your memory export content first.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setLoading(true);
     try {
       const result = await migrateFromHermes({ content, format });
       toast({
-        title: 'Migration Completed',
-        description: `Successfully imported ${result.success_count} memories (${result.fail_count} failed).`,
+        title: t('doneTitle'),
+        description: t('doneDescription', { success: result.success_count, failed: result.fail_count }),
       });
       onSuccess();
       onOpenChange(false);
       setContent('');
-    } catch (err) {
+    } catch {
       toast({
-        title: 'Migration Failed',
-        description: err instanceof Error ? err.message : 'An error occurred during migration.',
+        title: t('failedTitle'),
+        description: t('failedDescription'),
         variant: 'destructive',
       });
     } finally {
@@ -87,13 +83,10 @@ export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({ open
         <DialogHeader>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
             <UploadCloud className="h-4 w-4" />
-            Zero-Friction Migration
+            {t('eyebrow')}
           </div>
-          <DialogTitle className="text-base font-semibold leading-snug">Import from Hermes or OpenViking</DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Paste raw Markdown (with optional frontmatter) or JSON exported from Hermes or other agents. Items will be
-            automatically categorized into preferences and workflows while preserving all historical notes.
-          </DialogDescription>
+          <DialogTitle className="text-base font-semibold leading-snug">{t('title')}</DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground">{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto pt-2 text-xs">
@@ -130,7 +123,7 @@ export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({ open
               className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-accent transition-colors"
             >
               <FileText className="h-3.5 w-3.5" />
-              <span>Choose File</span>
+              <span>{t('chooseFile')}</span>
             </button>
             <input
               ref={fileInputRef}
@@ -165,7 +158,7 @@ export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({ open
             onClick={() => onOpenChange(false)}
             className="rounded-lg border border-border/80 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             type="button"
@@ -176,12 +169,12 @@ export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({ open
             {loading ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>Importing...</span>
+                <span>{t('importing')}</span>
               </>
             ) : (
               <>
                 <UploadCloud className="h-3.5 w-3.5" />
-                <span>Start Lossless Import</span>
+                <span>{t('start')}</span>
               </>
             )}
           </button>

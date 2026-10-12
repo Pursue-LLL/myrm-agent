@@ -4,7 +4,9 @@
  * [INPUT]
  * @/services/memory/domainMesh::getMemoryDrillDown, DrillDownResponse
  * @/components/primitives/dialog::Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
- * lucide-react::Layers, Copy, Check, Calendar, Tag, ShieldCheck, Loader2
+ * next-intl::useTranslations (memory.mesh.drillDown)
+ * lucide-react::Layers, Copy, Check, Calendar, Tag, Loader2
+ * @phosphor-icons/react::Path
  *
  * [OUTPUT]
  * MemoryDrillDownDialog: Modal displaying progressive L0/L1/L2 drill-down details and verbatim evidence.
@@ -14,7 +16,9 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Layers, Copy, Check, Calendar, Tag, Loader2, Sparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { Layers, Copy, Check, Calendar, Tag, Loader2 } from 'lucide-react';
+import { Path } from '@phosphor-icons/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
 import { getMemoryDrillDown, type DrillDownResponse } from '@/services/memory/domainMesh';
 
@@ -25,6 +29,7 @@ interface MemoryDrillDownDialogProps {
 }
 
 export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({ memoryId, open, onOpenChange }) => {
+  const t = useTranslations('memory.mesh.drillDown');
   const [detail, setDetail] = useState<DrillDownResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -73,11 +78,11 @@ export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({ me
       <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-            <Sparkles className="h-3.5 w-3.5" />
-            Memory Details & Traceability
+            <Path className="h-3.5 w-3.5" />
+            {t('eyebrow')}
           </div>
           <DialogTitle className="text-base font-semibold leading-snug">
-            {detail?.l0 || (loading ? 'Loading memory details...' : 'Memory Not Found')}
+            {detail?.l0 || (loading ? t('loading') : t('notFound'))}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground flex flex-wrap items-center gap-2 pt-1">
             {detail && (
@@ -111,7 +116,7 @@ export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({ me
             {detail.l1 && (
               <div className="rounded-lg border border-border/60 bg-accent/20 p-3">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                  Key Summary
+                  {t('summary')}
                 </div>
                 <p className="text-foreground/90 leading-relaxed">{detail.l1}</p>
               </div>
@@ -121,7 +126,7 @@ export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({ me
             <div className="flex flex-1 flex-col rounded-lg border border-border/80 bg-muted/30 p-3">
               <div className="flex items-center justify-between pb-2 border-b border-border/40">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Full Content
+                  {t('fullContent')}
                 </span>
                 <button
                   type="button"
@@ -131,12 +136,12 @@ export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({ me
                   {copied ? (
                     <>
                       <Check className="h-3 w-3 text-emerald-500" />
-                      <span>Copied</span>
+                      <span>{t('copied')}</span>
                     </>
                   ) : (
                     <>
                       <Copy className="h-3 w-3" />
-                      <span>Copy</span>
+                      <span>{t('copy')}</span>
                     </>
                   )}
                 </button>
@@ -147,9 +152,7 @@ export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({ me
             </div>
           </div>
         ) : (
-          <div className="p-8 text-center text-xs text-muted-foreground">
-            Unable to load details for memory ID {memoryId}.
-          </div>
+          <div className="p-8 text-center text-xs text-muted-foreground">{t('unavailable')}</div>
         )}
       </DialogContent>
     </Dialog>

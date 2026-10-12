@@ -3,7 +3,8 @@
 /**
  * [INPUT]
  * @/services/memory/domainMesh::DomainBucketOverview, ProgressiveHighlight
- * lucide-react::User, Bot, CheckSquare, Sparkles, ChevronRight, Layers
+ * next-intl::useTranslations (memory.mesh.card)
+ * lucide-react::User, Bot, CheckSquare, ChevronRight, Layers
  *
  * [OUTPUT]
  * DomainMeshCard: Visual card rendering a single memory domain (User, Assistant, Task)
@@ -14,6 +15,7 @@
  */
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { User, Bot, CheckSquare, ChevronRight, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { DomainBucketOverview, ProgressiveHighlight } from '@/services/memory/domainMesh';
@@ -59,6 +61,7 @@ export const DomainMeshCard: React.FC<DomainMeshCardProps> = ({
   onSelectHighlight,
   className,
 }) => {
+  const t = useTranslations('memory.mesh.card');
   const accent = DOMAIN_ACCENTS[domain] || DOMAIN_ACCENTS.user;
   const icon = DOMAIN_ICONS[domain] || <Layers className="h-4 w-4 text-muted-foreground" />;
 
@@ -114,12 +117,12 @@ export const DomainMeshCard: React.FC<DomainMeshCardProps> = ({
       {/* Highlights List */}
       <div className="mt-4 flex flex-1 flex-col gap-2">
         <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
-          Highlights & Insights
+          {t('highlights')}
         </div>
 
         {highlights.length === 0 ? (
           <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/60 p-4 text-center text-xs text-muted-foreground">
-            No memories indexed in this domain yet.
+            {t('empty')}
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
@@ -132,7 +135,7 @@ export const DomainMeshCard: React.FC<DomainMeshCardProps> = ({
               >
                 <div className="flex items-center justify-between gap-1">
                   <span className="line-clamp-1 text-xs font-medium text-foreground group-hover/item:text-primary">
-                    {h.l0 || 'Untitled Memory'}
+                    {h.l0 || t('untitled')}
                   </span>
                   <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform group-hover/item:translate-x-0.5 group-hover/item:text-foreground" />
                 </div>

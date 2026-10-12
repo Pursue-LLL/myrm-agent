@@ -4123,6 +4123,59 @@
     }
   },
   "memory": {
+    "mesh": {
+      "panel": {
+        "title": "3ドメイン・メモリメッシュ",
+        "badge": "マルチドメイン同期",
+        "description": "好み・ペルソナ・タスク経験を自動で整理し、すぐに呼び出せるようにします。",
+        "migrate": "Hermes から移行",
+        "refresh": "更新",
+        "retry": "再試行",
+        "loadFailed": "ドメインメッシュの概要を読み込めませんでした"
+      },
+      "domains": {
+        "user": {
+          "title": "ユーザードメイン",
+          "subtitle": "プロフィール、好み、イベント"
+        },
+        "assistant": {
+          "title": "アシスタントドメイン",
+          "subtitle": "アイデンティティ、ペルソナ、ソウル"
+        },
+        "task": {
+          "title": "タスクドメイン",
+          "subtitle": "経験、SOP、落とし穴"
+        }
+      },
+      "card": {
+        "highlights": "ハイライトとインサイト",
+        "empty": "このドメインにはインデックス済みのメモリがまだありません。",
+        "untitled": "無題のメモリ"
+      },
+      "drillDown": {
+        "eyebrow": "メモリの詳細とトレーサビリティ",
+        "loading": "メモリの詳細を読み込み中...",
+        "notFound": "メモリが見つかりません",
+        "summary": "要点サマリー",
+        "fullContent": "全文",
+        "copy": "コピー",
+        "copied": "コピーしました",
+        "unavailable": "このメモリの詳細を読み込めません。"
+      },
+      "migration": {
+        "eyebrow": "ゼロフリクション移行",
+        "title": "Hermes または OpenViking からインポート",
+        "description": "Hermes などのエージェントからエクスポートした Markdown（フロントマター付きも可）または JSON を貼り付けてください。項目は好みとワークフローに自動で分類され、過去のメモはすべて保持されます。",
+        "chooseFile": "ファイルを選択",
+        "cancel": "キャンセル",
+        "importing": "インポート中...",
+        "start": "ロスレスインポートを開始",
+        "doneTitle": "移行が完了しました",
+        "doneDescription": "{success} 件のメモリをインポートしました（失敗: {failed} 件）。",
+        "failedTitle": "移行に失敗しました",
+        "failedDescription": "移行中にエラーが発生しました。"
+      }
+    },
     "title": "メモリ管理",
     "description": "会話から AI が学習したメモリを管理",
     "scopeHierarchy": {
