@@ -294,6 +294,7 @@ export interface ChatState {
    * Resolves `true` once the request was dispatched (including turns that later fail visibly or are aborted)
    * and `false` when it was refused before the turn started: rejected locally before anything was shown or sent
    * (guards, validation) or by the server with a non-retryable HTTP error (the failure is already shown).
+   * A refused resume (`resumeValue` given) rejects instead, because its callers roll their card back on failure.
    * Rejects with `AgentBusyError` when the server is still running another turn.
    */
   sendMessage: (

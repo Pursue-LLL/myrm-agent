@@ -1513,7 +1513,9 @@ export default function E2EChatBridge() {
         if (!pending?.messageId) {
           throw new Error('e2e-no-active-clarification');
         }
-        void state.sendMessage('', pending.messageId, undefined, {});
+        void state.sendMessage('', pending.messageId, undefined, {}).catch((error: unknown) => {
+          console.error('[E2E_CLARIFICATION_SKIP] sendMessage failed', error);
+        });
         return { messageId: pending.messageId };
       },
       setBrowserSource: (source: string) => {
@@ -1643,7 +1645,8 @@ export default function E2EChatBridge() {
       releaseActiveStreamForApiResume: () => {
         const chatState = useChatStore.getState();
         const paneId = useWorkspaceStore.getState().panes.find((pane) => pane.chatId === chatState.chatId)?.id;
-        const paneAbort = paneId !== null && paneId !== undefined ? useWorkspaceStore.getState().getPaneAbortController(paneId) : null;
+        const paneAbort =
+          paneId !== null && paneId !== undefined ? useWorkspaceStore.getState().getPaneAbortController(paneId) : null;
         const controller = paneAbort ?? chatState.abortController;
         let released = false;
         if (controller && !controller.signal.aborted) {

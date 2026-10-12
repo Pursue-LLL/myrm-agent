@@ -1,0 +1,84 @@
+/**
+ * A refused resume must neither mark the directory card answered nor show the folder as granted.
+ *
+ * Real scenario: the user presses grant after the session expired. The resume request is refused, so the server never
+ * received the grant; the optimistic access-root refresh would still list the folder as accessible and the card would
+ * read as handled while the agent stays blocked. Runs the real card against the real store, replacing only the
+ * request pipeline and the access-root refresh.
+ */
+import React from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { toast } from 'sonner';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
+import useChatStore from '@/store/useChatStore';
+
+import DirectoryApprovalInput from '../DirectoryApprovalInput';
+
+const pipeline = vi.hoisted(() => ({ sendMessage: vi.fn<() => Promise<boolean>>() }));
+
+vi.mock('@/store/chat/messageRequest', () => pipeline);
+
+vi.mock('sonner', () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
+}));
+
+vi.mock('@/lib/tauri', () => ({
+  isTauriEnvironment: () => false,
+}));
+
+vi.mock('@/lib/sessionAccessRefresh', () => ({
+  refreshSessionAccessRoots: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../DirectoryBrowsePopover', () => ({
+  default: () => null,
+  rememberDirectoryGrantPath: vi.fn(),
+}));
+
+const onAnswered = vi.fn();
+
+function grantDirectory(): void {
+  render(
+    <DirectoryApprovalInput
+      messageId="msg-1"
+      answered={false}
+      request={{ path: '/data/reports', writable: true }}
+      onAnswered={onAnswered}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'grant' }));
+}
+
+beforeEach(() => {
+  pipeline.sendMessage.mockReset();
+  onAnswered.mockClear();
+  vi.mocked(toast.error).mockClear();
+  vi.mocked(refreshSessionAccessRoots).mockClear();
+  useChatStore.setState({ chatId: 'chat-1' });
+});
+
+describe('DirectoryApprovalInput resume', () => {
+  it('reports the failure and records no grant when the resume is refused', async () => {
+    pipeline.sendMessage.mockResolvedValue(false);
+
+    grantDirectory();
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('submitFailed'));
+    expect(refreshSessionAccessRoots).not.toHaveBeenCalled();
+    expect(onAnswered).not.toHaveBeenCalled();
+  });
+
+  it('records the grant and marks the card answered once the resume is dispatched', async () => {
+    pipeline.sendMessage.mockResolvedValue(true);
+
+    grantDirectory();
+
+    await waitFor(() => expect(onAnswered).toHaveBeenCalledTimes(1));
+    expect(refreshSessionAccessRoots).toHaveBeenCalledWith('chat-1', {
+      optimistic: { path: '/data/reports', writable: true, source: 'hitl_grant' },
+    });
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+});

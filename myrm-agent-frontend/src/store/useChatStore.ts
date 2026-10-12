@@ -961,7 +961,7 @@ const useChatStore = create<ChatState>()(
         set({ isConfigPanelExpanded: false, environmentAlerts: new Set<string>() });
         // Lazy: the request pipeline reads this store, so a static import would form an import cycle.
         const { sendMessage: sendChatMessage } = await import('./chat/messageRequest');
-        return sendChatMessage(
+        const dispatched = await sendChatMessage(
           input,
           messageId,
           state,
@@ -999,6 +999,12 @@ const useChatStore = create<ChatState>()(
           turnCapabilityTelemetry,
           queuedAttachments,
         );
+        // A resume has no typed input to hand back and its callers roll the card back from a catch block, like
+        // every other resume route; resolving `false` would let them mark an unanswered card as answered.
+        if (!dispatched && resumeValue !== undefined) {
+          throw new Error('Resume request was refused before the turn started');
+        }
+        return dispatched;
       },
 
       recoverHitlStream: async (chatId: string) => {
