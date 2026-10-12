@@ -486,7 +486,8 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         existing_skill_id = original.skill_id
         original.lineage.version = 3
         original.evolution_locked = True
-        original.metrics.record_applied(success=True)
+        original.metrics.applied_count = 1
+        original.metrics.success_count = 1
         original.verification_steps.append({"step": "run", "expected": "ok"})
         store._save_skill_sync(original)  # noqa: SLF001 - harness 同步落盘入口，避免引入 event loop
     finally:
