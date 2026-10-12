@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
-import { resolveDualChannelAction, type DualChannelKeyEvent } from '../messageInputKeyRouter';
+import type { BusyInputMode } from '@/store/chat/types';
+import de from '../../../../locales/de.json';
+import en from '../../../../locales/en.json';
+import ja from '../../../../locales/ja.json';
+import ko from '../../../../locales/ko.json';
+import zh from '../../../../locales/zh.json';
+import zhTW from '../../../../locales/zh-TW.json';
+import {
+  resolveBusyPlaceholderKey,
+  resolveBusySubmitMode,
+  resolveDualChannelAction,
+  type DualChannelKeyEvent,
+} from '../messageInputKeyRouter';
 
 function createMockKeyEvent(overrides: Partial<DualChannelKeyEvent> = {}): DualChannelKeyEvent {
   return {
@@ -173,5 +185,44 @@ describe('resolveDualChannelAction (Dual-Channel Steering vs Queue Router)', () 
       expect(action).toBe('none');
       expect(event.preventDefault).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('resolveBusySubmitMode', () => {
+  it.each<[boolean, BusyInputMode | undefined, BusyInputMode]>([
+    [false, undefined, 'redirect'],
+    [false, 'redirect', 'redirect'],
+    [false, 'steer', 'steer'],
+    [false, 'queue', 'queue'],
+    [true, undefined, 'queue'],
+    [true, 'redirect', 'queue'],
+    [true, 'steer', 'queue'],
+  ])('带附件=%s、配置=%s 时落点为 %s（redirect/steer 只带文本，附件一律排队）', (hasFiles, configured, expected) => {
+    expect(resolveBusySubmitMode(hasFiles, configured)).toBe(expected);
+  });
+});
+
+describe('resolveBusyPlaceholderKey', () => {
+  const MODES: BusyInputMode[] = ['redirect', 'steer', 'queue'];
+  const LOCALES = { en, zh, 'zh-TW': zhTW, ja, ko, de };
+
+  function lookup(messages: unknown, path: string): unknown {
+    return path
+      .split('.')
+      .reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], messages);
+  }
+
+  it('紧凑输入框与全屏编辑器各有一套文案键', () => {
+    expect(resolveBusyPlaceholderKey('redirect', false)).toBe('queue.busyPlaceholder.redirect');
+    expect(resolveBusyPlaceholderKey('steer', true)).toBe('queue.busyPlaceholderExpanded.steer');
+  });
+
+  it.each(Object.entries(LOCALES))('%s：每种落点在两种编辑器下都有互不相同的非空文案', (_locale, bundle) => {
+    for (const expanded of [false, true]) {
+      const copies = MODES.map((mode) => lookup(bundle.chat, resolveBusyPlaceholderKey(mode, expanded)));
+      copies.forEach((copy) => expect(copy).toEqual(expect.any(String)));
+      expect(copies.every((copy) => (copy as string).length > 0)).toBe(true);
+      expect(new Set(copies).size).toBe(MODES.length);
+    }
   });
 });

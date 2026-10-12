@@ -6794,6 +6794,19 @@
       }
     },
     "systemHealth": {
+      "opsSnapshot": {
+        "title": "Runtime snapshot",
+        "description": "Live status of this assistant instance—load, memory pressure, and channels.",
+        "refresh": "Refresh",
+        "loading": "Loading snapshot…",
+        "unreachable": "Could not load snapshot: {error}",
+        "uptime": "Uptime",
+        "liveness": "Agent status",
+        "activeSessions": "Active sessions",
+        "memoryPressure": "Memory pressure",
+        "memorySubsystem": "Memory subsystem",
+        "doctorStatus": "Diagnostics"
+      },
       "doctor": {
         "title": "System Health Diagnostics",
         "description": "Real-time health telemetry from server components and framework layer",
@@ -8778,6 +8791,7 @@
       "quickCommandInputLabel": "Mobile command input",
       "steerPlaceholder": "Redirect the agent...",
       "send": "Send",
+      "commandNotAccepted": "The agent couldn't take that command. Please send it again.",
       "verifications": "Acceptance Criteria",
       "livePreview": "Live Preview",
       "browser": "Browser",
@@ -9793,12 +9807,20 @@
       "added_with_position": "Message queued (#{position}) — will send after current task completes",
       "sendLater": "Queue for later",
       "sendLaterTooltip": "Don't interrupt — send after the current task finishes (⌥↵ Alt+Enter)",
-      "placeholder": "Agent busy... Enter to steer · ⌥+Enter to queue follow-up",
+      "busyPlaceholder": {
+        "redirect": "Agent busy... Enter to redirect now · ⌥+Enter to queue follow-up",
+        "steer": "Agent busy... Enter to send guidance · ⌥+Enter to queue follow-up",
+        "queue": "Agent busy... Enter to queue follow-up"
+      },
       "edit": "Edit message",
       "saveEdit": "Save",
       "cancelEdit": "Cancel",
       "stuck": "Queued messages couldn't be sent yet and are on hold.",
-      "placeholderExpanded": "Agent busy... Ctrl/⌘+Enter to steer · ⌥+Enter to queue follow-up",
+      "busyPlaceholderExpanded": {
+        "redirect": "Agent busy... Ctrl/⌘+Enter to redirect now · ⌥+Enter to queue follow-up",
+        "steer": "Agent busy... Ctrl/⌘+Enter to send guidance · ⌥+Enter to queue follow-up",
+        "queue": "Agent busy... Ctrl/⌘+Enter to queue follow-up"
+      },
       "pausedStopped": "Queue paused because you stopped the reply.",
       "resume": "Resume",
       "retry": "Retry",
@@ -11340,6 +11362,8 @@
     },
     "disabled": "Disabled",
     "locked": "Protected from auto-modification",
+    "exactFact": "Exact fact",
+    "exactFactHint": "Contains exact identifiers and is kept verbatim",
     "protectRule": "Protect this rule",
     "releaseProtection": "Remove protection",
     "protectRuleSuccess": "Rule protected",
@@ -11428,7 +11452,12 @@
       "autoResolveSoon": "Auto-resolving soon",
       "autoResolveInHours": "Auto-resolves in {hours} hours (keeps old)",
       "autoResolveInMinutes": "Auto-resolves in {minutes} min (keeps old)",
-      "autoResolveInDays": "Auto-resolves in {days} days (keeps old)"
+      "autoResolveInDays": "Auto-resolves in {days} days (keeps old)",
+      "lowRiskPolicyHint": "If you do not choose, lower-importance conflicts automatically keep the previous memory after about {hours} hours.",
+      "chatBannerTitle": "{count, plural, one {One memory conflict needs your review} other {# memory conflicts need your review}}",
+      "chatBannerAction": "Review in Memory settings",
+      "chatBannerDismiss": "Dismiss for this chat session",
+      "fetchRefreshFailed": "Could not refresh conflict status. Check your connection and try again."
     },
     "batchApproveSuccess": "Batch approval successful",
     "batchApproveSuccessDesc": "Successfully approved {count} memories",
@@ -11662,6 +11691,99 @@
       "cachedTokens": "Cached tokens",
       "completionTokens": "Completion tokens",
       "cacheFriendly": "Cache friendly",
+      "promptCache": {
+        "card": {
+          "title": "Session memory updates",
+          "badge": "Live chat",
+          "description": "Inspect same-chat preference updates without changing the agent stable instructions.",
+          "sessionInputLabel": "Chat session",
+          "sessionPlaceholder": "Select a chat…",
+          "tabLive": "Active updates ({count})",
+          "tabPreview": "Layout preview"
+        },
+        "consolidation": {
+          "prefixLayout": "Prefix layout",
+          "layoutStable": "Stable",
+          "chatRingHint": "See the chat context ring for cache hit rate",
+          "systemPrefixFrozen": "System prefix unchanged this turn",
+          "prefixLayoutActive": "Prefix layout active",
+          "avoidedTokens": "Avoided tokens",
+          "estimatedSavings": "Shown only when the provider reports it",
+          "perceptionLatency": "Recency overlay",
+          "notMeasured": "Not measured here",
+          "inFlightDeltas": "In-flight session deltas",
+          "simulateInjection": "Simulate Injection",
+          "augmentedHumanPreview": "Final user message tail (preview)"
+        },
+        "baseContext": {
+          "bannerTitle": "Stable system prefix, dynamic memory on user messages",
+          "bannerBody": "Session summaries and profile cards refresh on a low cadence and attach to the final user message—keeping the agent system prompt stable for provider prefix cache.",
+          "archTitle": "Why layout matters",
+          "legacyTitle": "Memory inside the system prompt",
+          "legacyBody": "Putting changing memory in the system prefix changes the hash every turn and often removes prefix-cache savings on long chats.",
+          "myrmTitle": "Myrm two-layer layout",
+          "myrmBody": "The system prompt stays static; base snapshots append to the user message tail. Check cache hit rate in the chat context ring—not a guaranteed percentage here."
+        },
+        "twoLayerStudio": {
+          "ariaLabel": "Two-layer context lab",
+          "labOnlyBanner": "Lab preview only—this layout is not injected into live chat turns. Measured cache hit rate appears in the chat context ring.",
+          "sessionInputLabel": "Preview session ID",
+          "sessionPlaceholder": "Enter a session id…",
+          "title": "Two-layer context lab",
+          "itemBadge": "Item 112",
+          "layoutBadge": "Layout preview",
+          "description": "Layer 1 base snapshots attach to the user message tail; Layer 2 resolves memory conflicts on a cadence.",
+          "tabsAria": "Two-layer lab views",
+          "tabBaseAria": "Show base context layout",
+          "tabDialecticAria": "Show dialectic console",
+          "tabKnobsAria": "Show cadence controls",
+          "tabBase": "Layer 1 base layout",
+          "tabDialectic": "Layer 2 dialectic ({count})",
+          "tabKnobs": "Cadence controls",
+          "emptyBase": "No base context snapshot yet",
+          "refreshSuccess": "Base snapshot recompiled from the server",
+          "refreshFailed": "Could not recompile—check the session id and try again",
+          "reconcileSuccess": "Dialectic pass {depth}: resolved {count} conflict(s)",
+          "reconcileFallback": "Showing sample reconciliation output",
+          "reconcileOffline": "Offline—showing sample reconciliation output",
+          "resetSuccess": "Session cadence counters reset",
+          "resetLocal": "Reset applied locally",
+          "configApplied": "Cadence settings updated"
+        },
+        "twoLayerCadence": {
+          "panelTitle": "Cadence and depth controls",
+          "resetDefaults": "Reset to recommended defaults",
+          "layer1IntervalLabel": "Layer 1 base context refresh interval",
+          "layer1IntervalHint": "How often session summaries and peer cards recompile. Longer intervals keep the system prefix stable; measured cache savings appear in the chat context ring.",
+          "layer2IntervalLabel": "Layer 2 dialectic patrol interval",
+          "layer2IntervalHint": "How often to scan for conflicts between history and the current turn. High-risk clashes may trigger earlier.",
+          "depthLabel": "Dialectic pass depth",
+          "depthHint": "Pass 1: diff review; Pass 2: synthesize boundaries; Pass 3: consensus. More passes cost more compute.",
+          "reasoningLabel": "Reasoning level",
+          "reasoningHint": "Fast: heuristic; Standard: balanced; Deep: maximum reconciliation depth.",
+          "reasoningFast": "fast",
+          "reasoningStandard": "standard",
+          "reasoningDeep": "deep",
+          "passButton": "Pass {depth}",
+          "savedBanner": "Cadence settings applied",
+          "applyAria": "Apply cadence settings",
+          "applyLabel": "Apply settings"
+        },
+        "twoLayerHud": {
+          "prefixLayoutLabel": "System prefix layout",
+          "layoutStable": "Stable",
+          "chatRingSub": "Hit rate in chat",
+          "layer1CadenceLabel": "Layer 1 base context cadence",
+          "everyNTurns": "Every {count} turns",
+          "lowFreqSnapshot": "Low-frequency snapshot",
+          "layer2CadenceLabel": "Layer 2 dialectic cadence",
+          "conflictPatrol": "Conflict patrol",
+          "dialecticDepthLabel": "Dialectic depth / compute",
+          "passDepthLevel": "Pass {depth} · {level}",
+          "refreshTelemetryAria": "Refresh telemetry",
+          "resetCadenceAria": "Reset session cadence counters"
+        }
+      },
       "replayTitle": "Session Replay Overlay",
       "replayEmpty": "No replay overlay is available yet",
       "replayMeta": "{events} events · {influences} influences",
@@ -12233,11 +12355,7 @@
       "mergeCount": "Merged {count} times",
       "merged": "Merged",
       "replaced": "Replaced",
-      "supplemented": "Supplemented",
-      "vetoGuardrail": "Runtime Execution Guardrail",
-      "vetoPattern": "Controlled Pattern",
-      "remediation": "Remediation Advice",
-      "scope": "Scope"
+      "supplemented": "Supplemented"
     },
     "typeDesc": {
       "profile": "Key-value user attributes (name, language, occupation)",
@@ -17189,6 +17307,27 @@
         "skip": "Skip"
       }
     },
+    "settingsPreview": {
+      "teamType": "Team",
+      "individualType": "Individual",
+      "gateHint": "Review core capabilities and runtime boundaries before creating. No hidden surprises.",
+      "builtinToolsTitle": "Built-in Tools",
+      "defaultBuiltinToolsInherited": "Standard workspace primitives inherited",
+      "skillsTitle": "Skills Pack",
+      "noSkillsAttached": "No extra skills pre-mounted",
+      "mcpTitle": "MCP Connectors",
+      "noMcpBound": "Zero external MCP protocol bindings",
+      "memoryTitle": "Memory Engine",
+      "memoryDescription": "Dual-Layer HUD: Persona profile + workspace notes with quota protection.",
+      "deployBoundaryTitle": "Deploy Mode & Sandbox Boundary",
+      "sandboxNoteDefault": "Isolated sandbox execution: high-risk system commands are shielded within container workspace.",
+      "promptMode": "Prompt Mode",
+      "personality": "Tone",
+      "preflightReady": "Pre-flight verified",
+      "backToTemplates": "Back",
+      "creating": "Creating…",
+      "confirmAndCreate": "Confirm & Create Agent"
+    },
     "delete": {
       "title": "Delete Agent",
       "confirm": "Are you sure you want to delete this agent? This action cannot be undone.",
@@ -19827,7 +19966,11 @@
     "lifecycleRetryExtract": "Retry extraction",
     "lifecycleRetrying": "Retrying…",
     "lifecycleRetryFailed": "Retry failed — try again later",
-    "lifecycleRetryAlreadyInFlight": "Extraction retry already in progress"
+    "lifecycleRetryAlreadyInFlight": "Extraction retry already in progress",
+    "sessionOverridePill": "Updated in this chat",
+    "sessionOverrideTitle": "Preference updates this chat",
+    "sessionOverrideDescription": "You changed something earlier in this conversation. This reply follows those updates.",
+    "sessionOverrideMobile": "{count} update(s) from this chat are reflected here"
   },
   "memoryRecallDegraded": {
     "title": "Semantic recall unavailable",

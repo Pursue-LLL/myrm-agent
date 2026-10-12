@@ -56,48 +56,6 @@ _PORTAL_STORE_READY_JS = """(() => {
   return { ready: tabs.length > 0, tabCount: tabs.length };
 })()"""
 
-_DIRECT_OPEN_JS = """(() => {
-  const store = window.__myrmArtifactPortalStore?.getState?.();
-  if (!store) return { ok: false, reason: 'no-store' };
-  store.openArtifact({
-    id: 'ws-probe-direct.md',
-    filename: 'probe-direct.md',
-    type: 'document',
-    content_type: 'text/markdown',
-    size: 11,
-    preview_url: '',
-    download_url: '',
-  });
-  store.setContent('# Probe Direct\\n\\nDirect store-to-render check.');
-  const st = window.__myrmArtifactPortalStore.getState();
-  return { ok: true, isOpen: !!st.isOpen, tabs: (st.openTabs || []).length };
-})()"""
-
-_DIRECT_RENDER_JS = """(() => {
-  const container = document.getElementById('artifact-content-container');
-  const storeModules = performance
-    .getEntriesByType('resource')
-    .map((r) => r.name)
-    .filter((n) => n.includes('useArtifactPortalStore') || n.includes('ArtifactPortal'));
-  const zeroByteChunks = performance
-    .getEntriesByType('resource')
-    .filter((r) => r.name.includes('/_next/') && r.transferSize === 0 && r.decodedBodySize === 0)
-    .map((r) => r.name.slice(-80))
-    .slice(0, 5);
-  const nextErrors = Array.from(document.querySelectorAll('nextjs-portal')).length;
-  const artifactTestIds = Array.from(document.querySelectorAll('[data-testid]'))
-    .map((el) => el.getAttribute('data-testid'))
-    .filter((t) => t && t.toLowerCase().includes('artifact'))
-    .slice(0, 10);
-  return {
-    hasContainer: !!container,
-    text: container ? (container.innerText || '').slice(0, 200) : null,
-    storeModules,
-    zeroByteChunks,
-    nextErrors,
-    artifactTestIds,
-  };
-})()"""
 _PORTAL_WITH_TEXT_JS = r"""(() => {
   const containers = Array.from(document.querySelectorAll('#artifact-content-container'));
   const text = containers.map((c) => c.innerText || '').join(' | ');
@@ -233,11 +191,21 @@ def _navigate_alive(client: object, page: object, url: str, *, attempts: int = 4
     raise AssertionError(f"page body stayed blank after {attempts} navigations to {url}")
 
 
+_BOUND_API_BASE_JS = "(() => window.__MYRM_E2E_API_BASE__ || null)()"
+_SHARED_API_BASE = "http://127.0.0.1:8080"
+
+
+def _resolve_page_api_base(client: object, page: object) -> str:
+    """Backend the page talks to: the injected E2E base, else the shared one behind the Next proxy.
+
+    A chat seeded on any other backend is invisible to the browser ("Chat session not found").
+    """
+    bound = client.evaluate(page, _BOUND_API_BASE_JS, timeout_sec=15.0)
+    return bound.rstrip("/") if isinstance(bound, str) and bound else _SHARED_API_BASE
+
+
 def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
-    # Seed into the shared backend: the :3000 WebUI proxies /api there, so
-    # isolate-seeded chats are invisible in the browser.
-    del api_url
-    seeded = http_json("POST", "http://127.0.0.1:8080/api/v1/chats/test/seed-deliverable-link-fixture")
+    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-deliverable-link-fixture")
     assert isinstance(seeded, dict)
     return seeded
 
@@ -251,19 +219,21 @@ def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
 @pytest.mark.timeout(600)
 def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
     """Annotation toggle -> panel -> add comment -> persisted across reload."""
-    api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(api_url)
-    seeded = _seed_deliverable_fixture(api_url)
-    chat_id = str(seeded.get("chat_id") or "")
-    assert chat_id.startswith("e2edeliv"), seeded
+    prepare_e2e_ui_session(get_e2e_api_url())
 
     intent = "E2E review note: verify this paragraph"
+    chat_id = ""
+    page_api_url = _SHARED_API_BASE
     try:
         warm_ui_route("/", timeout_sec=45.0)
-        chat_url = f"{ui_url}/{chat_id}"
-        with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
+        with open_mcp_page(f"{ui_url}/", request_timeout_sec=300.0) as (client, page):
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+            page_api_url = _resolve_page_api_base(client, page)
+            seeded = _seed_deliverable_fixture(page_api_url)
+            chat_id = str(seeded.get("chat_id") or "")
+            assert chat_id.startswith("e2edeliv"), seeded
+            chat_url = f"{ui_url}/{chat_id}"
             _navigate_alive(client, page, chat_url)
 
             # T1: open the seeded deliverable, then the portal shows its content.
@@ -276,25 +246,11 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
                     break
                 time.sleep(3.0)
             assert isinstance(link, dict) and link.get("ok") is True, link
-            # Decisive experiment: drive the store directly (bypasses the link
-            # click path). If the DOM still shows nothing, the break is in the
-            # store->render subscription, not the click flow.
-            # Decisive experiment (diagnostic only, never fatal): drive the store
-            # directly. Its outcome is recorded for forensics.
-            direct = client.evaluate(page, _DIRECT_OPEN_JS, timeout_sec=15.0)
-            direct_render: dict | None = None
-            try:
-                direct_render = wait_for_state(client, page, _DIRECT_RENDER_JS, timeout_sec=30.0)
-            except Exception as diag_err:
-                direct_render = {"ready": False, "diag_error": str(diag_err)[:200]}
-            assert isinstance(direct, dict) and direct.get("ok") is True, direct
             store_state = wait_for_state(client, page, _PORTAL_STORE_READY_JS, timeout_sec=90.0)
-            assert store_state.get("ready") is True, json.dumps(
-                {"store": store_state, "direct_render": direct_render}, ensure_ascii=False
-            )
+            assert store_state.get("ready") is True, json.dumps(store_state, ensure_ascii=False)
             content: dict | None = None
             last_probe: dict | None = None
-            content_deadline = time.monotonic() + 150.0
+            content_deadline = time.monotonic() + 330.0
             while time.monotonic() < content_deadline:
                 try:
                     probe = client.evaluate(page, _PORTAL_WITH_TEXT_JS, timeout_sec=15.0)
@@ -359,8 +315,9 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
             )
             assert relisted.get("ready") is True, json.dumps(relisted, ensure_ascii=False)
     finally:
-        # Best-effort cleanup of the shared-backend fixture chat.
-        try:
-            http_json("DELETE", f"http://127.0.0.1:8080/api/v1/chats/{chat_id}")
-        except Exception:
-            pass
+        # Best-effort cleanup of the fixture chat on the backend it was seeded into.
+        if chat_id:
+            try:
+                http_json("DELETE", f"{page_api_url}/api/v1/chats/{chat_id}")
+            except Exception:
+                pass

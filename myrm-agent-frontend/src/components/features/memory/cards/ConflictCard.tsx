@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { AlertTriangle, ArrowRight, Check, GitMerge, RotateCcw, Trash2, Clock, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { PendingMemory, ConflictResolution } from '@/store/memory';
+import { useMemoryStore } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
 
 interface ConflictCardProps {
@@ -42,6 +43,7 @@ const formatTimeRemaining = (autoResolveAt: string, t: ReturnType<typeof useTran
 
 const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }) => {
   const t = useTranslations('memory');
+  const conflictAutoResolveHours = useMemoryStore((s) => s.conflictAutoResolveHours);
   const [resolving, setResolving] = useState(false);
   const [showMergeEditor, setShowMergeEditor] = useState(false);
   const [mergedContent, setMergedContent] = useState((conflict.extra_data?.merge_suggestion as string) || '');
@@ -127,6 +129,15 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
             )
           )}
         </div>
+        {!isHighRisk ? (
+          <p className="w-full px-4 pb-1 text-[11px] leading-relaxed text-muted-foreground">
+            {t('conflict.lowRiskPolicyHint', {
+              hours: conflictAutoResolveHours,
+              defaultMessage:
+                'If you do not choose, lower-importance conflicts automatically keep the previous memory after about {hours} hours.',
+            })}
+          </p>
+        ) : null}
       </div>
 
       {/* Conflict body: old vs new */}

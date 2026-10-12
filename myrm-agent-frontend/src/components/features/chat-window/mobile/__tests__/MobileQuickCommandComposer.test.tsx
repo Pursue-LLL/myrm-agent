@@ -48,11 +48,12 @@ function type(value: string): void {
 }
 
 describe('MobileQuickCommandComposer', () => {
-  const onSubmit = vi.fn();
+  const onSubmit = vi.fn<(text: string) => Promise<boolean>>();
   const onOpenAdvisor = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    onSubmit.mockResolvedValue(true);
     localStorage.clear();
     clearPromptHistory(CHAT_ID);
     speechOnTranscript.current = null;
@@ -76,6 +77,69 @@ describe('MobileQuickCommandComposer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'send' }));
 
     expect(onSubmit).toHaveBeenCalledWith('检查一下沙箱');
+    expect(getInput().value).toBe('');
+  });
+
+  it('puts a refused command back into the input so it can be sent again', async () => {
+    onSubmit.mockResolvedValueOnce(false);
+    renderComposer();
+    type('检查一下沙箱');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'send' }));
+    });
+
+    expect(onSubmit).toHaveBeenCalledWith('检查一下沙箱');
+    expect(getInput().value).toBe('检查一下沙箱');
+  });
+
+  /** The next command stays pending until the test decides whether the agent took it. */
+  const holdNextCommand = (): { settle: (accepted: boolean) => void } => {
+    let settle: (accepted: boolean) => void = () => undefined;
+    onSubmit.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          settle = resolve;
+        }),
+    );
+    return { settle: (accepted) => settle(accepted) };
+  };
+
+  it('keeps what the user typed in the meantime instead of restoring a refused command', async () => {
+    const pending = holdNextCommand();
+    renderComposer();
+    type('第一条指令');
+    fireEvent.click(screen.getByRole('button', { name: 'send' }));
+    type('紧接着写的新内容');
+
+    await act(async () => {
+      pending.settle(false);
+    });
+
+    expect(getInput().value).toBe('紧接着写的新内容');
+  });
+
+  it('does not restore a refused command into another chat after the user switched away', async () => {
+    const pending = holdNextCommand();
+    const { rerender } = renderComposer();
+    type('属于会话 A 的指令');
+    fireEvent.click(screen.getByRole('button', { name: 'send' }));
+
+    await act(async () => {
+      rerender(
+        <MobileQuickCommandComposer
+          chatId="composer-chat-other"
+          loading={false}
+          messages={[]}
+          onSubmit={onSubmit}
+          onOpenAdvisor={onOpenAdvisor}
+        />,
+      );
+    });
+    await act(async () => {
+      pending.settle(false);
+    });
+
     expect(getInput().value).toBe('');
   });
 

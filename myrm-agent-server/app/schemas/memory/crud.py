@@ -113,6 +113,10 @@ class PendingMemoryItem(BaseModel):
     conflict_importance: float | None = None
     conflict_auto_resolve_at: datetime | None = None
 
+    resolution_action: str | None = None
+    target_memory_id: str | None = None
+    target_content: str | None = None
+
     confidence: float | None = None
     importance: float | None = None
     kind: str | None = None
@@ -121,11 +125,18 @@ class PendingMemoryItem(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class MemoryConflictPolicy(BaseModel):
+    """Server-side conflict resolution policy (SSOT for GUI copy)."""
+
+    low_risk_auto_resolve_hours: int
+
+
 class PendingMemoriesResponse(BaseModel):
     """Response for pending memories endpoint"""
 
     items: list[PendingMemoryItem]
     total: int
+    policy: MemoryConflictPolicy | None = None
 
 
 class ApproveMemoryRequest(BaseModel):
@@ -198,9 +209,10 @@ class UpdateMemoryRequest(BaseModel):
     is_user_locked: bool | None = Field(
         None,
         description=(
-            "Procedural rules only. True protects the rule: the agent cannot delete "
-            "or rewrite it. False releases that protection so the agent can manage it "
-            "again. Omit to keep the current state."
+            "Procedural, semantic and episodic memories. True protects the memory: "
+            "automated forgetting, merging and rewriting skip it. False releases a "
+            "procedural rule so the agent can manage it again. Editing a procedural "
+            "rule's content implies True. Omit to keep the current state."
         ),
     )
 

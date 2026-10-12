@@ -105,9 +105,14 @@ def test_model_picker_shows_policy_restricted_models_as_disabled() -> None:
             # give the async policy fetch a moment to land before asserting.
             _sync_org_model_policy(api_base, patterns=[_NON_MATCHING_PATTERN])
             reload_mcp_page(client, page, target_url=f"{ui_base}/", timeout_ms=60_000)
-            time.sleep(2)
             state = wait_for_state(client, page, _MODEL_PICKER_POLICY_STATE_JS, timeout_sec=120.0)
             assert state.get("ready") is True, f"Model picker not ready: {state}"
+            # The picker lists models before the policy fetch resolves; poll until the
+            # restriction lands instead of asserting on the first populated snapshot.
+            deadline = time.monotonic() + 30.0
+            while not state.get("disabledModels") and time.monotonic() < deadline:
+                time.sleep(1.0)
+                state = wait_for_state(client, page, _MODEL_PICKER_POLICY_STATE_JS, timeout_sec=30.0)
             assert len(state.get("disabledModels", [])) > 0, "Restricted policy must grey out non-matching models"
             assert len(state.get("enabledModels", [])) == 0, "Non-matching policy must block every model"
     finally:

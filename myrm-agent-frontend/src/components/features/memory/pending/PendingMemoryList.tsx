@@ -31,6 +31,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
     rejectMemory,
     fetchPendingMemories,
     conflicts,
+    conflictsError,
     fetchConflicts,
     resolveConflict,
   } = useMemoryStore();
@@ -171,8 +172,28 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
 
   const hasConflicts = conflicts.length > 0;
 
+  const conflictsRefreshFailed = conflictsError ? (
+    <div className="mb-4 flex flex-col items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-center">
+      <p className="text-sm text-destructive">
+        {t('conflict.fetchRefreshFailed', {
+          defaultMessage: 'Could not refresh conflict status. Check your connection and try again.',
+        })}
+      </p>
+      <button
+        type="button"
+        onClick={() => void fetchConflicts()}
+        className="text-sm font-medium text-primary hover:underline"
+      >
+        {t('retry')}
+      </button>
+    </div>
+  ) : null;
+
   // 空状态 (no pending and no conflicts)
   if (pendingMemories.length === 0 && !hasConflicts) {
+    if (conflictsError) {
+      return <div className={cn('py-6', className)}>{conflictsRefreshFailed}</div>;
+    }
     return (
       <div className={cn('flex flex-col items-center justify-center py-16', className)}>
         <div className="relative">
@@ -189,6 +210,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
 
   return (
     <div className={cn('space-y-4', className)}>
+      {conflictsRefreshFailed}
       {/* 批量操作栏 */}
       {showBatchActions && (
         <div className="flex items-center justify-between px-1">

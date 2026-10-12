@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatActionsMethods, ChatActionsState } from '../messageRequest';
 import type { Message } from '@/store/chat/types';
-import { AgentBusyError, FatalNetworkError, consumeStream, executeStreamWithRetry } from '../streamConsumer';
+import {
+  AgentBusyError,
+  FatalNetworkError,
+  RequestRefusedError,
+  consumeStream,
+  executeStreamWithRetry,
+} from '../streamConsumer';
 
 const mockParseSseEnvelope = vi.hoisted(() => vi.fn());
 const mockHandleMessageStream = vi.hoisted(() => vi.fn());
@@ -296,7 +302,7 @@ describe('streamConsumer resilience paths', () => {
     expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
   });
 
-  it('throws FatalNetworkError for non-retryable HTTP status', async () => {
+  it('throws RequestRefusedError (a FatalNetworkError) for non-retryable HTTP status', async () => {
     const state = createBaseState();
     const actions = createActions(state);
     const abortController = new AbortController();
@@ -304,10 +310,22 @@ describe('streamConsumer resilience paths', () => {
       new Response(JSON.stringify({ detail: 'unauthorized' }), { status: 401 }),
     );
 
-    await expect(
-      executeStreamWithRetry('hello', 'msg-2', state, actions, null, abortController, false, ''),
-    ).rejects.toBeInstanceOf(FatalNetworkError);
+    const failure = await executeStreamWithRetry(
+      'hello',
+      'msg-2',
+      state,
+      actions,
+      null,
+      abortController,
+      false,
+      '',
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
 
+    expect(failure).toBeInstanceOf(RequestRefusedError);
+    expect(failure).toBeInstanceOf(FatalNetworkError);
     expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
   });
 

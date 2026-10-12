@@ -44,6 +44,7 @@ import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
 import PendingMemoryBadge from '@/components/features/memory/pending/PendingMemoryBadge';
 import PendingMemoryDialog from '@/components/features/memory/pending/PendingMemoryDialog';
+import MemoryConflictChatBanner from '@/components/features/memory/pending/MemoryConflictChatBanner';
 import { useMemoryStore } from '@/store/memory';
 import { fetchPendingApprovals } from '@/hooks/approval/usePendingApprovalsRecovery';
 import useApprovalStore from '@/store/useApprovalStore';
@@ -554,14 +555,19 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   );
 
   const pendingMemories = useMemoryStore((s) => s.pendingMemories);
+  const conflictCount = useMemoryStore((s) => s.conflictCount);
   const openConfirmDialog = useMemoryStore((s) => s.openConfirmDialog);
   usePendingMemoryToast();
 
   const handlePendingMemoryClick = useCallback(() => {
+    if (conflictCount > 0) {
+      router.push('/settings/memory?tab=pending');
+      return;
+    }
     if (pendingMemories.length > 0) {
       openConfirmDialog(pendingMemories[0]);
     }
-  }, [pendingMemories, openConfirmDialog]);
+  }, [conflictCount, pendingMemories, openConfirmDialog, router]);
 
   if (notFound) {
     return <NextError statusCode={404} />;
@@ -635,6 +641,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
               dismissStorageKey={id ? `memory-recall-degraded:${id}` : undefined}
               className="mx-1 mb-1"
             />
+            {activeTab === 'chat' ? (
+              <MemoryConflictChatBanner chatId={id} className="px-4 shrink-0 max-w-3xl mx-auto w-full" />
+            ) : null}
 
             {/* 五合同交付生命周期进度面板 */}
             {id && activeTab === 'chat' && (

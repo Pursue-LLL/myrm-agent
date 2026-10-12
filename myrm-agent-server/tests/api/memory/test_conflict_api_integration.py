@@ -114,6 +114,7 @@ class TestGetConflicts:
         assert item["conflict_old_memory_id"] == "old-mem-1"
         assert item["conflict_old_content"] == "Python is best"
         assert item["content"] == "Rust is better"
+        assert data["policy"]["low_risk_auto_resolve_hours"] == 72
 
     def test_returns_empty_when_no_conflicts(
         self,
@@ -137,6 +138,7 @@ class TestGetConflicts:
         data = resp.json()
         assert data["total"] == 0
         assert data["items"] == []
+        assert data["policy"]["low_risk_auto_resolve_hours"] == 72
 
 
 class TestResolveConflict:

@@ -1561,6 +1561,7 @@
       "quickCommandInputLabel": "モバイル指揮バー入力",
       "steerPlaceholder": "エージェントを誘導...",
       "send": "送信",
+      "commandNotAccepted": "エージェントがこの指示を受け付けられませんでした。もう一度送信してください。",
       "verifications": "検収条件",
       "livePreview": "ライブプレビュー",
       "browser": "ブラウザ",
@@ -2514,12 +2515,20 @@
       "added_with_position": "メッセージをキューに追加しました（#{position}）— 現在のタスク完了後に送信されます",
       "sendLater": "後で送信",
       "sendLaterTooltip": "中断しない — 現在のタスク完了後に自動送信",
-      "placeholder": "次のタスクを入力（キューに追加、中断しません）...",
+      "busyPlaceholder": {
+        "redirect": "実行中... Enter で今すぐリダイレクト · ⌥+Enter でキューに追加",
+        "steer": "実行中... Enter でガイダンスを送信 · ⌥+Enter でキューに追加",
+        "queue": "実行中... Enter でキューに追加"
+      },
       "edit": "メッセージを編集",
       "saveEdit": "保存",
       "cancelEdit": "キャンセル",
       "stuck": "キューのメッセージをまだ送信できないため、一時停止しています。",
-      "placeholderExpanded": "実行中... Ctrl/⌘+Enter でガイダンス · ⌥+Enter でキューに追加",
+      "busyPlaceholderExpanded": {
+        "redirect": "実行中... Ctrl/⌘+Enter で今すぐリダイレクト · ⌥+Enter でキューに追加",
+        "steer": "実行中... Ctrl/⌘+Enter でガイダンスを送信 · ⌥+Enter でキューに追加",
+        "queue": "実行中... Ctrl/⌘+Enter でキューに追加"
+      },
       "pausedStopped": "応答を停止したため、キューを一時停止しました。",
       "resume": "再開",
       "retry": "再試行",

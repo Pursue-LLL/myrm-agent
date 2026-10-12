@@ -298,7 +298,7 @@ describe('useQueueDrain', () => {
     });
   });
 
-  describe('when the request is refused locally', () => {
+  describe('when the request is refused before the turn starts', () => {
     it('keeps the message, pauses the queue and does not retry on its own', async () => {
       mocks.sendMessage.mockResolvedValue(false);
       renderHook(() => useQueueDrain(CHAT));

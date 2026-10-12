@@ -154,6 +154,12 @@ export class AgentBusyError extends Error {
   }
 }
 
+/**
+ * The agent-stream POST was answered with a non-retryable HTTP error: the server never took the turn.
+ * Failures after the turn started (for example a refused re-attach) stay plain `FatalNetworkError`s.
+ */
+export class RequestRefusedError extends FatalNetworkError {}
+
 /** Backend agent-stream busy uses HTTP 200 + SSE error (status_code 409 in payload). */
 export function isAgentBusySseEvent(event: { type: string } & Record<string, unknown>): boolean {
   if (!event || event.type !== 'error') {
@@ -300,7 +306,7 @@ export async function executeStreamWithRetry(
         const errorText = await res.text();
         const structuredError = parseStructuredHttpErrorPayload(errorText);
         if (!isRetryableHttpStatus(res.status)) {
-          throw new FatalNetworkError(
+          throw new RequestRefusedError(
             structuredError.detail || errorText || `Request failed with status ${res.status}`,
             {
               status: res.status,

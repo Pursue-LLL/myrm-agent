@@ -629,6 +629,8 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents ADD COLUMN responsibility_scope TEXT",
     "ALTER TABLE agents ADD COLUMN owner_label VARCHAR(100)",
     "ALTER TABLE agents ADD COLUMN acceptance_criteria JSON",
+    # Session tags (ChatModel.tags): new DBs get the column from create_all; existing DBs need it appended.
+    "ALTER TABLE chats ADD COLUMN tags JSON NOT NULL DEFAULT '[]'",
 ]
 
 # 创建索引的SQL语句列表

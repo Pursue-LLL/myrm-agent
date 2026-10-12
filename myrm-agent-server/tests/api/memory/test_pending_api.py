@@ -75,6 +75,7 @@ class TestGetPending:
         data = resp.json()
         assert data["total"] == 1
         assert data["items"][0]["id"] == "p-1"
+        assert data["policy"]["low_risk_auto_resolve_hours"] == 72
 
     def test_empty_when_approval_disabled(
         self, client: TestClient, auth_headers: dict[str, str], override_memory_manager

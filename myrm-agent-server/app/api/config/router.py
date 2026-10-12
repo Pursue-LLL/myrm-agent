@@ -1044,6 +1044,11 @@ async def set_config(
                 await maybe_enable_x_live_search_skill(providers_value)
             except Exception as exc:
                 logger.warning("x-live-search skill auto-enable skipped: %s", exc)
+            from app.core.channel_bridge.config_cache import (
+                await_memory_manager_config_invalidation,
+            )
+
+            await await_memory_manager_config_invalidation()
         if config_key == "channels":
             from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
             from app.core.channel_bridge.setup import refresh_reaction_policy
@@ -1140,6 +1145,11 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
                 await maybe_enable_x_live_search_skill(providers_value)
             except Exception as exc:
                 logger.warning("x-live-search skill auto-enable skipped on rollback: %s", exc)
+            from app.core.channel_bridge.config_cache import (
+                await_memory_manager_config_invalidation,
+            )
+
+            await await_memory_manager_config_invalidation()
         if config_key == "searchServices":
             invalidate_search_health_cache()
 
