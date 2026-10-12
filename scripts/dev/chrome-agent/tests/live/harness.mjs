@@ -43,9 +43,14 @@ function chromePath() {
 }
 
 export class SandboxProxy {
-    /** @param {string} proxyDir directory containing pipe-cdp-proxy.mjs and node_modules/ws */
-    constructor(proxyDir = AGENT_DIR) {
+    /**
+     * @param {string} proxyDir directory containing pipe-cdp-proxy.mjs and node_modules/ws
+     * @param {Record<string, string>} env extra proxy environment; the idle-tab pool is off unless
+     *   CHROME_AGENT_MIN_IDLE_TABS is set, so scenarios that count tabs stay deterministic
+     */
+    constructor(proxyDir = AGENT_DIR, env = {}) {
         this.proxyDir = proxyDir;
+        this.env = { CHROME_AGENT_MIN_IDLE_TABS: '0', ...env };
     }
 
     async start() {
@@ -61,7 +66,7 @@ export class SandboxProxy {
             '--chrome-path', this.#headlessChrome(),
             '--user-data-dir', path.join(this.profile, 'chrome'),
             '--initial-url', 'about:blank',
-        ], { stdio: ['ignore', log, log], detached: true });
+        ], { stdio: ['ignore', log, log], detached: true, env: { ...process.env, ...this.env } });
         for (let i = 0; i < 60; i++) {
             await sleep(500);
             try {

@@ -31,6 +31,7 @@ import { spawn } from 'child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import { buildChromeLaunchArgs, resetProfileCrashFlags } from './chrome-launch.mjs';
 import { createHttpServer } from './http-endpoints.mjs';
+import { startIdlePool } from './idle-pool.mjs';
 import { SessionRouter, isAttachMethod, short } from './session-router.mjs';
 
 const args = process.argv.slice(2);
@@ -345,6 +346,9 @@ function proxyStatus() {
     };
 }
 
+const idlePool = startIdlePool({
+    cdpRequest, log, chromeUp: () => Boolean(chromeWritable), isLeased: (id) => router.tabLease.leases.has(id),
+});
 const server = createHttpServer({
     port: PROXY_PORT,
     chromeUp: () => Boolean(chromeWritable),
@@ -444,6 +448,7 @@ wss.on('connection', (clientWs) => {
             });
             client.proxyIds.add(proxyId);
             router.trackForwardedRequest(client, msg, proxyId, decision);
+            if (decision.acquiredLease) idlePool.reconcile();
             msg.id = proxyId;
         }
 

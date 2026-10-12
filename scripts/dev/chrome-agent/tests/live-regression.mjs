@@ -266,6 +266,45 @@ const scenarios = {
         b.stop();
     },
 
+    // The proxy keeps a floor of idle tabs: a fresh Chrome has one tab, every claim consumes one,
+    // and sessions may not open tabs themselves. Runs on its own proxy with the pool enabled.
+    async idlePool() {
+        const pooled = new SandboxProxy(option('--proxy-dir', undefined), {
+            CHROME_AGENT_MIN_IDLE_TABS: '3', CHROME_AGENT_MAX_PAGES: '5',
+        });
+        await pooled.start();
+        const blanks = async () => (await pooled.chromePages()).filter((p) => p.url === 'about:blank').length;
+        const total = async () => (await pooled.chromePages()).length;
+        const waitFor = async (predicate, ms = 9000) => {
+            for (let waited = 0; waited < ms; waited += 500) {
+                if (await predicate()) return true;
+                await sleep(500);
+            }
+            return false;
+        };
+        await check('idlePool: a fresh Chrome is topped up from 1 tab to 3 idle tabs', await waitFor(async () => (await blanks()) === 3), `blank=${await blanks()}`);
+
+        const holders = [];
+        const claim = async () => {
+            const cdpClient = await pooled.cdp();
+            const page = (await pooled.chromePages()).find((p) => p.url === 'about:blank');
+            if (!page) { cdpClient.close(); return false; }
+            const { result } = await cdpClient.send('Target.attachToTarget', { targetId: page.id, flatten: true });
+            const nav = await cdpClient.send('Page.navigate', { url: `data:text/html,held-${holders.length}` }, result.sessionId);
+            if (nav.error) { cdpClient.close(); return false; }
+            holders.push(cdpClient);
+            return true;
+        };
+        for (let i = 0; i < 3; i++) await claim();
+        await check('idlePool: after 3 claims the pool is replenished within the cap', await waitFor(async () => (await blanks()) >= 2), `blank=${await blanks()} total=${await total()}`);
+        await check('idlePool: a 4th concurrent session still finds an idle tab', await claim());
+        for (let i = 0; i < 4; i++) await claim();
+        await sleep(3000);
+        await check('idlePool: total tabs never exceed the cap', (await total()) <= 5, `total=${await total()}`);
+        for (const holder of holders) holder.close();
+        pooled.stop();
+    },
+
     // Randomized start/stop/attach churn with 4 MCPs.
     async churn() {
         let seed = 1234567;
