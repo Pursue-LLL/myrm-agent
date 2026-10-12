@@ -34,7 +34,7 @@ def test_model_pricing_default_list() -> None:
     assert len(models) > 0
 
     # 验证主流模型字段结构
-    for model_name, info in models.items():
+    for info in models.values():
         assert "model" in info
         assert "input_cost_per_mtoken" in info
         assert "output_cost_per_mtoken" in info

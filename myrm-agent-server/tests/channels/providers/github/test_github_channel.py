@@ -33,9 +33,9 @@ class TestGitHubCredentials:
         assert channels["github"]._token == "ghp_stored"
 
     @pytest.mark.asyncio
-    async def test_a_webhook_secret_stored_by_an_older_version_is_ignored(self) -> None:
+    async def test_a_stored_webhook_secret_is_ignored(self) -> None:
         async def source(_config_key: str) -> dict[str, object]:
-            return {"personalAccessToken": "ghp_stored", "webhookSecret": "left-over"}
+            return {"personalAccessToken": "ghp_stored", "webhookSecret": "stored-secret"}
 
         channels = await create_channels(source, names=frozenset({"github"}))
 

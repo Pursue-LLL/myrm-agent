@@ -56,6 +56,7 @@ import { DualModeContainer } from '../work-layout';
 import { ExtensionUIModal } from '../extension-ui';
 import { TieredRiskGateContainer } from '../risk-approval';
 import { MemoryInspectorContainer } from '../memory-inspector';
+import { TaskHudOverlay } from '../task-hud';
 import { useExtensionUIStore } from '@/store/useExtensionUIStore';
 import ExecutionTraceTimeline from '@/components/features/settings/sections/system/ExecutionTraceTimeline';
 import { MessageSquare, Activity } from 'lucide-react';
@@ -725,6 +726,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         <ExtensionUIModal />
         <TieredRiskGateContainer />
         <MemoryInspectorContainer />
+        <TaskHudOverlay />
       </>
     );
   }
@@ -758,6 +760,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <ExtensionUIModal />
       <TieredRiskGateContainer />
       <MemoryInspectorContainer />
+      <TaskHudOverlay />
     </>
   );
 };

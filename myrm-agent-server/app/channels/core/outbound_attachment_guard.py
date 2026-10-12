@@ -1,7 +1,7 @@
 """Outbound attachment guard: credential and key files never leave the machine through an IM channel.
 
 [INPUT]
-- myrm_agent_harness.core.security.path::is_sensitive_file (POS: case-insensitive, fail-closed sensitive file name rules)
+- myrm_agent_harness.core.security.path::is_sensitive_file (POS: protected-path policy, credential and secret file names)
 - channels.i18n::channel_t, get_locale_from_metadata (POS: localized withheld notice)
 - channels.types::MediaAttachment, OutboundMessage (POS: outbound payload)
 
@@ -9,10 +9,9 @@
 - withhold_sensitive_attachments: drop key/credential attachments and name them in the message text
 
 [POS]
-Attachments reach the bus from producers that never look at what a file is (the deliverable scanner, tool
-artifacts, agent replies) and an IM chat has no confirmation step, so the last hop before the provider
-refuses anything that looks like key material. It is a seatbelt, not a classifier: it matches names, so a
-secret renamed to something harmless still passes.
+Last hop before the provider for attachments whose producers (deliverable scanner, tool artifacts, agent
+replies) never look at what a file is, in a chat that has no confirmation step. A seatbelt, not a classifier:
+it matches names, so a secret renamed to something harmless still passes.
 """
 
 from __future__ import annotations

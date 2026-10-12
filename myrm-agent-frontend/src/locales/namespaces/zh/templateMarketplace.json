@@ -1,0 +1,44 @@
+{
+  "title": "智能体应用模板中心",
+  "subtitle": "20+ 行业高频场景开箱即用 Persona 资产包，零提示词秒级一键克隆实例化",
+  "searchPlaceholder": "搜索模板名称、技能、用例场景或行业领域...",
+  "categories": {
+    "all": "全部领域",
+    "engineering": "研发架构",
+    "office": "企业办公",
+    "commerce": "电商运营",
+    "team": "多智能体小队",
+    "general": "通用助手"
+  },
+  "stats": {
+    "total": "个就绪应用",
+    "filtered": "个匹配模板"
+  },
+  "card": {
+    "individual": "独立单兵",
+    "team": "协同小队",
+    "builtinTools": "个内置工具",
+    "skills": "项专业技能",
+    "paretoSavings": "成本节省",
+    "useCases": "高频场景",
+    "cloneAction": "一键克隆"
+  },
+  "workbench": {
+    "title": "零提示词瞬时实例化工作台",
+    "description": "无需编写任何 Prompt，系统已预置最佳人设、工具链与沙箱环境",
+    "nameLabel": "智能体自定义名称（可选）",
+    "namePlaceholder": "留空则使用默认预置名称",
+    "presetCapabilities": "预置核心能力",
+    "wikiBlueprint": "专属沙箱 Wiki 结构推荐",
+    "teamMembers": "小队成员编制",
+    "cancel": "取消",
+    "cloneConfirm": "立即一键克隆",
+    "cloning": "正在沙箱中初始化智能体...",
+    "success": "智能体实例化成功！已就绪",
+    "error": "实例化失败，请重试"
+  },
+  "empty": {
+    "title": "未找到匹配的模板",
+    "description": "尝试调整搜索关键词或选择其他行业分类"
+  }
+}

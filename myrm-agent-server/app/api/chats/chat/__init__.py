@@ -21,6 +21,7 @@ from .replay import router as replay_router
 from .rewind import router as rewind_router
 from .sandbox import router as sandbox_router
 from .share import router as share_router
+from .task_hud import router as task_hud_router
 from .title import router as title_router
 from .trajectory import router as trajectory_router
 from .trash import router as trash_router
@@ -54,6 +55,7 @@ router.include_router(trajectory_router)
 router.include_router(replay_router)
 router.include_router(export_pack_router)
 router.include_router(ui_interaction_router)
+router.include_router(task_hud_router)
 router.include_router(zdr_router)
 
 __all__ = ["router"]

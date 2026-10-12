@@ -1,0 +1,15 @@
+{
+  "title": "会话任务执行状态 HUD",
+  "activeStep": "当前步骤",
+  "overallProgress": "总体进度",
+  "noActiveTasks": "暂无进行中步骤",
+  "expandChecklist": "展开任务清单",
+  "collapseChecklist": "收起清单",
+  "antiCompactionProtected": "受保护不可压缩",
+  "completedCount": "已完成 {{completed}} / {{total}}",
+  "statusPending": "等待中",
+  "statusInProgress": "执行中",
+  "statusCompleted": "已完成",
+  "statusFailed": "失败",
+  "hudAriaLabel": "抗压缩会话任务执行状态悬浮看板"
+}

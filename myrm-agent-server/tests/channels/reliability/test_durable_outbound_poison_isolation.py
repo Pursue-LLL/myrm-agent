@@ -58,8 +58,8 @@ def _record(delivery_id: str, content: dict[str, object], phase: str = "pending"
     return QueuedDelivery(id=delivery_id, channel="feishu", recipient="user_1", content=content, enqueued_at=1.0, phase=phase)
 
 
-def _legacy_wire(msg: OutboundMessage) -> dict[str, object]:
-    """Shape an older build persisted: only the top-level object carried ``__type__``."""
+def _untagged_wire(msg: OutboundMessage) -> dict[str, object]:
+    """Wire form whose nested components carry no ``__type__`` tag, so ``from_dict`` cannot rebuild the button."""
     wire = msg.to_dict()
     for row in wire["components"]:  # type: ignore[attr-defined]
         for component in row:
@@ -83,7 +83,7 @@ async def test_undecodable_record_is_dropped_without_blocking_healthy_records(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     gate = DurableOutboundGate(tmp_path)
-    await save_delivery(_record("feishu_user_1_poison", _legacy_wire(_message("poison", with_button=True))), base_dir=tmp_path)
+    await save_delivery(_record("feishu_user_1_poison", _untagged_wire(_message("poison", with_button=True))), base_dir=tmp_path)
     await save_delivery(_record("feishu_user_1_healthy", _message("healthy").to_dict()), base_dir=tmp_path)
     publisher = _RecordingPublisher()
 

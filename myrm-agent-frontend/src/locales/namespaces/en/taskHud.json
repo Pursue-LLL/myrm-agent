@@ -1,0 +1,15 @@
+{
+  "title": "Session Task HUD",
+  "activeStep": "Current Step",
+  "overallProgress": "Overall Progress",
+  "noActiveTasks": "No active tasks in progress",
+  "expandChecklist": "Expand Task Checklist",
+  "collapseChecklist": "Collapse Checklist",
+  "antiCompactionProtected": "Protected / Compaction-Immune",
+  "completedCount": "Completed {{completed}} / {{total}}",
+  "statusPending": "Pending",
+  "statusInProgress": "In Progress",
+  "statusCompleted": "Completed",
+  "statusFailed": "Failed",
+  "hudAriaLabel": "Anti-compaction session task execution HUD overlay"
+}

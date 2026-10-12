@@ -731,8 +731,8 @@ registry.register_all(app)
 | Method | 描述 | 使用场景 | Helper |
 |--------|------|---------|--------|
 | `QR_CODE` | 二维码扫描 | WeChat、企微个人号、WhatsApp | `QRCodeLoginHelper`（WhatsApp 的 QR 由 Baileys 桥接事件推送，自行驱动，见 `providers/whatsapp/login.py`） |
-| `OAUTH2` | OAuth2授权码流程 | Google Chat、Slack、GitHub | `OAuth2LoginHelper` |
-| `API_TOKEN` | API Token输入 | Telegram Bot、Discord Bot | 手动实现 |
+| `OAUTH2` | OAuth2授权码流程 | Google Chat、Slack | `OAuth2LoginHelper` |
+| `API_TOKEN` | API Token输入 | Telegram Bot、Discord Bot、GitHub（个人访问令牌） | 手动实现 |
 | `PASSWORD` | 用户名密码 | SMTP、IMAP、内部系统 | 手动实现 |
 | `SSO` | Single Sign-On | 企业集成 | 手动实现 |
 

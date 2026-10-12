@@ -83,6 +83,7 @@
 | `compounding_playbook/` | ✅ 辅助 | Settings「复利闭环」checklist 聚合服务（memory/skills/cron/verify 就绪状态） | [_ARCH.md](compounding_playbook/_ARCH.md) |
 | `code_graph/` | ✅ 核心 | 代码调用图谱分析与 AST 符号导航服务（8大确定性工具 + 增量 reingest） | [_ARCH.md](code_graph/_ARCH.md) |
 | `rules/` | ✅ 核心 | 流式防护规则服务（TTSR 生产级高危命令与凭证防泄露默认规则库） | [_ARCH.md](rules/_ARCH.md) |
+| `templates/` | ✅ 核心 | 预置智能体应用模板中心与零提示词一键实例化引擎（20+ 行业 Persona 资产包 + 专属 Wiki 蓝图） | [_ARCH.md](templates/_ARCH.md) |
 ---
 
 ## 依赖关系

@@ -28,6 +28,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from filelock import FileLock, Timeout
 from pydantic import BaseModel, Field, ValidationError
 
+from app.api.config.pricing import pricing_router
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.core.channel_bridge.config_parsers import invalidate_search_health_cache
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
@@ -987,8 +988,6 @@ async def probe_local_models_endpoint() -> dict[str, object]:
         "recommended_searxng_url": (str(searxng_hit.get("base_url")) if searxng_hit else get_default_searxng_api_base()),
     }
 
-
-from app.api.config.pricing import pricing_router
 
 router.include_router(pricing_router)
 

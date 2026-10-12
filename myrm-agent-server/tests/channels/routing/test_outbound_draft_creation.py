@@ -89,7 +89,7 @@ async def _deliver(mixin: RouterExecutionMixin, result: OutboundMessage, *, plac
 async def test_draft_holds_the_whole_reply_and_sends_nothing(
     router: tuple[RouterExecutionMixin, AsyncMock, AsyncMock], tmp_path: Path
 ) -> None:
-    """A reply with a screenshot, a file and the browser button used to leak straight to the channel."""
+    """A reply with a screenshot, a file and the browser button is held whole as one draft; nothing reaches the channel."""
     mixin, _fx, bus = router
     shot = make_ephemeral_doc("shot.png")
     reply = _reply(tmp_path, shot)

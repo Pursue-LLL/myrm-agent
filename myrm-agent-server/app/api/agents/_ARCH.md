@@ -22,6 +22,7 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `subagents.py` | 模块 | Subagent REST：list / cancel-all / steer / cancel；registry merge via harness session_tree。 | ✅ |
 | `suggestions.py` | 模块 | Generate follow-up question suggestions using the filter model. | ✅ |
 | `fleet_overview.py` | 模块 | Agent Fleet Overview — 按 agent_id 聚合月度 Token/Cost、Cron 数、待审批数（goal 审批 + kanban IN_REVIEW 按 agent 分组）、实时运行状态的 KPI 端点，供 /agents 页面 Fleet 视图使用。零新表，纯读聚合。 | ✅ |
+| `fleet_telemetry.py` | 路由 | 分布式机队六态健康遥测与配额诊断 API 端点：提供 `POST /fleet/diagnose`（五级渐进自省探针排障）与 `GET /fleet/health-summary`（六态分布概览）。 | ✅ |
 | `templates.py` | 模块 | Agent template catalog and factory. | ✅ |
 | `profile_audit.py` | 模块 | Agent Profile security audit: POST /{agent_id}/audit — deterministic risk scoring via harness profile_audit engine. | ✅ |
 | `readiness.py` | 模块 | Per-agent readiness dry-run: GET /{agent_id}/readiness + POST /{agent_id}/readiness/invalidate — 6-dimension config readiness check. | ✅ |
