@@ -48,6 +48,7 @@ from app.api.compounding_playbook import router as compounding_playbook_router
 from app.api.config.artifact_mappings import router as artifact_mappings_router
 from app.api.config.router import router as config_router
 from app.api.connect.router import router as connect_router
+from app.api.context.omni_reference import router as omni_reference_router
 from app.api.context.router import router as context_bundle_router
 from app.api.credentials.router import router as credentials_router
 from app.api.cron.routes import router as cron_router
@@ -208,6 +209,7 @@ api_router.include_router(batch_directory_router, tags=["batch-directories"])
 api_router.include_router(credentials_router, prefix="/credentials", tags=["credentials"])
 api_router.include_router(memory_router, prefix="/memory", tags=["memory"])
 api_router.include_router(context_bundle_router, tags=["context-bundle"])
+api_router.include_router(omni_reference_router, prefix="/context", tags=["omni-reference"])
 api_router.include_router(wiki_router, prefix="/wiki", tags=["wiki"])
 api_router.include_router(faq_router, prefix="/faq", tags=["faq"])
 api_router.include_router(widget_storage_router, tags=["widget-storage"])
