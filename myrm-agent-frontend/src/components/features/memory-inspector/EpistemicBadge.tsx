@@ -53,8 +53,7 @@ export const EpistemicBadge: React.FC<EpistemicBadgeProps> = ({
   }
 
   return (
-    <div
-      role="status"
+    <output
       aria-label={`${tierConfig.label} 置信度 ${scorePercent}%`}
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${tierConfig.color} shadow-xs ${className}`}
     >
@@ -63,6 +62,6 @@ export const EpistemicBadge: React.FC<EpistemicBadgeProps> = ({
       <span className="text-[10px] font-mono opacity-80 pl-0.5 border-l border-current/20">
         {scorePercent}%
       </span>
-    </div>
+    </output>
   );
 };

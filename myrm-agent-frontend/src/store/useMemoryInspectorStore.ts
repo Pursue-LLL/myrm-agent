@@ -52,7 +52,9 @@ export const useMemoryInspectorStore = create<MemoryInspectorState>((set, get) =
     // Atomically upgrade epistemic tier in memory list
     set((state) => ({
       memories: state.memories.map((m) => {
-        if (m.id !== memoryId) return m;
+        if (m.id !== memoryId) {
+          return m;
+        }
         const newScore = targetTier === 'assertion' ? 1.0 : 0.85;
         const newProvenance = [...m.provenance_chain, `operator_promoted_to_${targetTier}`];
         return {
@@ -69,7 +71,9 @@ export const useMemoryInspectorStore = create<MemoryInspectorState>((set, get) =
     // Atomically update text content in-place
     set((state) => ({
       memories: state.memories.map((m) => {
-        if (m.id !== memoryId) return m;
+        if (m.id !== memoryId) {
+          return m;
+        }
         const newProvenance = [...m.provenance_chain, 'operator_in_place_corrected'];
         return {
           ...m,
