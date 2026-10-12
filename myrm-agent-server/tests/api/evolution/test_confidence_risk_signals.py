@@ -3,19 +3,32 @@
 Covers:
 - diff change ratio signal (large rewrites trigger red flag)
 - historical effective rate signal (low-quality skills need human oversight)
+- the execution ledger fed by real tool-call outcomes drives that signal end to end
 - CAPTURED type edge case (empty original_content)
 - risk_signals field in ApprovalResult
 - combined conditions (LLM signals + risk signals)
 """
 
+import asyncio
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from myrm_agent_harness.agent.middlewares.tooling._skill_failure_tracking import track_skill_execution
+from myrm_agent_harness.agent.skill_agent.context import add_loaded_skill, reset_loaded_skills
 from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionProposal,
     EvolutionType,
+    SkillLineage,
     SkillMetrics,
+    SkillRecord,
 )
+from myrm_agent_harness.agent.skills.evolution.infra.integration import (
+    EvolutionIntegration,
+    set_global_evolution_integration,
+)
+from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 from app.services.agent.confidence_approval_flow import (
     ConfidenceApprovalFlow,
@@ -110,6 +123,59 @@ class TestEvaluateRiskSignals:
         assert any("diff_range" in s for s in signals)
         assert any("low_effective_rate" in s for s in signals)
         assert len(signals) == 2
+
+
+@pytest.mark.parametrize(
+    ("outcomes", "expected_signals"),
+    [
+        pytest.param([True] * 4 + [False] * 6, ["low_effective_rate:40%(10runs)"], id="four_ok_six_failed"),
+        pytest.param([True] * 9 + [False], [], id="mostly_succeeding"),
+        pytest.param([False] * 2, [], id="too_few_runs"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_tool_call_outcomes_feed_the_low_effective_rate_signal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    outcomes: list[bool],
+    expected_signals: list[str],
+) -> None:
+    """Real tool-call outcomes of the only loaded skill reach the approval flow's rate signal."""
+    monkeypatch.setattr("myrm_agent_harness.runtime.events.get_event_bus", lambda: SimpleNamespace(publish=lambda _event: None))
+    evolution = EvolutionIntegration(db_path=tmp_path / "skills.db")
+    await evolution.store.save_skill(
+        SkillRecord(
+            skill_id="skill-1",
+            name="checkout_skill",
+            description="Complete checkout workflow.",
+            content="steps",
+            path="skills/checkout_skill/SKILL.md",
+            lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED),
+        )
+    )
+    set_global_evolution_integration(evolution)
+    reset_loaded_skills()
+    add_loaded_skill(SkillMetadata(name="checkout_skill", description="Complete checkout workflow.", storage_skill_id="skill-1"))
+    try:
+        for index, success in enumerate(outcomes):
+            track_skill_execution(
+                "browser_interact_tool",
+                tool_call_id=f"call-{index}",
+                tool_args={},
+                success=success,
+                error_message="" if success else "Timeout: selector #pay was not found",
+            )
+        await asyncio.gather(*(task for task in asyncio.all_tasks() if task is not asyncio.current_task()))
+
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(
+            _make_proposal(skill_id="skill-1"), evolution.store.get_skill("skill-1")
+        )
+    finally:
+        reset_loaded_skills()
+        set_global_evolution_integration(None)
+        await evolution.close()
+
+    assert signals == expected_signals
 
 
 @pytest.mark.asyncio
