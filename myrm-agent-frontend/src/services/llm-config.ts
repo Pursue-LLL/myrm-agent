@@ -52,54 +52,6 @@ export interface ModelInfoResponse {
 // 重新导出类型，便于其他模块使用
 export type { ValidationResult, SearchServiceConfig, MCPServiceConfig };
 
-// LiteLLM 提供商模型映射（硬编码，作为后备方案）
-const PROVIDER_MODELS: Record<string, string[]> = {
-  openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo', 'o1', 'o1-mini', 'o1-preview', 'o3-mini'],
-  anthropic: [
-    'claude-3-5-sonnet-20241022',
-    'claude-3-5-haiku-20241022',
-    'claude-3-opus-20240229',
-    'claude-3-sonnet-20240229',
-    'claude-3-haiku-20240307',
-  ],
-  gemini: ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
-  deepseek: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4-pro', 'deepseek-v4-flash'],
-  openrouter: [
-    'openai/gpt-4o',
-    'anthropic/claude-3.5-sonnet',
-    'google/gemini-pro',
-    'meta-llama/llama-3.1-405b-instruct',
-  ],
-  opencode_go: [
-    'muse-spark-1.3-contributor',
-    'muse-spark-1.2-contributor',
-    'deepseek-v4-flash',
-    'minimax-m3',
-    'glm-5.2',
-    'kimi-k3',
-  ],
-};
-
-/**
- * 获取提供商的可用模型列表
- * 尝试从 LiteLLM API 获取，失败则使用硬编码列表
- */
-export const fetchProviderModels = async (providerId: string): Promise<string[]> => {
-  try {
-    // 尝试从后端获取模型列表
-    const response = await apiRequest<{ models: string[] }>(`/integrations/llm/models/${providerId}`, {
-      method: 'GET',
-    });
-    if (response.models && response.models.length > 0) {
-      return response.models;
-    }
-  } catch {
-    // API 失败，使用硬编码列表
-  }
-
-  return PROVIDER_MODELS[providerId] || [];
-};
-
 /**
  * 验证 LLM 配置（提供商级别）
  */

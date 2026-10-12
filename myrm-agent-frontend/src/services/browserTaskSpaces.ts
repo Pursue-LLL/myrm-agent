@@ -28,7 +28,7 @@ export interface TaskSpaceSnapshot {
 
 export async function fetchTaskSpaces(): Promise<TaskSpaceInfo[]> {
   try {
-    return await apiRequest<TaskSpaceInfo[]>('/api/v1/browser/spaces', {
+    return await apiRequest<TaskSpaceInfo[]>('/browser/spaces', {
       method: 'GET',
     });
   } catch {
@@ -41,7 +41,7 @@ export async function createTaskSpace(params: {
   name?: string;
   chatId?: string;
 }): Promise<TaskSpaceInfo> {
-  return await apiRequest<TaskSpaceInfo>('/api/v1/browser/spaces', {
+  return await apiRequest<TaskSpaceInfo>('/browser/spaces', {
     method: 'POST',
     body: JSON.stringify({
       space_id: params.spaceId,
@@ -53,7 +53,7 @@ export async function createTaskSpace(params: {
 
 export async function closeTaskSpace(spaceId: string): Promise<boolean> {
   try {
-    await apiRequest<{ success: boolean }>(`/api/v1/browser/spaces/${encodeURIComponent(spaceId)}`, {
+    await apiRequest<{ success: boolean }>(`/browser/spaces/${encodeURIComponent(spaceId)}`, {
       method: 'DELETE',
     });
     return true;
@@ -63,7 +63,7 @@ export async function closeTaskSpace(spaceId: string): Promise<boolean> {
 }
 
 export async function toggleTaskSpaceTakeover(spaceId: string, enabled: boolean): Promise<TaskSpaceInfo> {
-  return await apiRequest<TaskSpaceInfo>(`/api/v1/browser/spaces/${encodeURIComponent(spaceId)}/takeover`, {
+  return await apiRequest<TaskSpaceInfo>(`/browser/spaces/${encodeURIComponent(spaceId)}/takeover`, {
     method: 'POST',
     body: JSON.stringify({ enabled }),
   });
@@ -71,7 +71,7 @@ export async function toggleTaskSpaceTakeover(spaceId: string, enabled: boolean)
 
 export async function fetchTaskSpaceSnapshot(spaceId: string): Promise<TaskSpaceSnapshot | null> {
   try {
-    return await apiRequest<TaskSpaceSnapshot>(`/api/v1/browser/spaces/${encodeURIComponent(spaceId)}/snapshot`, {
+    return await apiRequest<TaskSpaceSnapshot>(`/browser/spaces/${encodeURIComponent(spaceId)}/snapshot`, {
       method: 'GET',
     });
   } catch {

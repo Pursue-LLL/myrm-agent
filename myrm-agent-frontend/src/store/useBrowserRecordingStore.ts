@@ -80,7 +80,7 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.close();
     }
-    const wsUrl = getWsUrl('/api/v1/browser/ws/recording');
+    const wsUrl = getWsUrl('/browser/ws/recording');
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -191,7 +191,7 @@ const useBrowserRecordingStore = create<BrowserRecordingState>((set, get) => ({
         step_count: number;
         credential_placeholders: string[];
         skill_content: string;
-      }>('/api/v1/browser/recording/generate-skill', {
+      }>('/browser/recording/generate-skill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
