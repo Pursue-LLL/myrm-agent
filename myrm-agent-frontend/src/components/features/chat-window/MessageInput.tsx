@@ -25,6 +25,7 @@ import ContextUsageIndicator from '../message-box/ContextUsageIndicator';
 import LivenessIndicator from './LivenessIndicator';
 import ReadinessBadge from '../message-input-actions/ReadinessBadge';
 import BudgetBadge from './BudgetBadge';
+import { RealTimeCostAndCacheHud } from './RealTimeCostAndCacheHud';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
 import SessionSpendSurface from '@/components/billing/SessionSpendSurface';
 import EnvironmentShield from '../message-input-actions/EnvironmentShield';
@@ -654,6 +655,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                       <div className="hidden sm:flex items-center gap-1">
                         <EnvironmentShield />
                         <BudgetBadge />
+                        <RealTimeCostAndCacheHud />
                       </div>
                     </div>
                     {/* 附件按钮在所有设备上都显示在右侧 */}

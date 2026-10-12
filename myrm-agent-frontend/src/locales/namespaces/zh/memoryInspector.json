@@ -1,0 +1,23 @@
+{
+  "title": "记忆透视镜与认识论可信度治理",
+  "citationCount": "引用 {{count}} 条记忆",
+  "emptyCitations": "当前会话暂未检索到外部长期记忆引用",
+  "epistemicAssertion": "确定断言",
+  "epistemicObservation": "环境观察",
+  "epistemicBelief": "自主信念",
+  "confidenceLabel": "置信度",
+  "similarityLabel": "语义相关度",
+  "hitCountLabel": "历史召回频次",
+  "sourceSessionLabel": "源会话",
+  "provenanceTitle": "证据溯源链",
+  "actionPromote": "升格为客观断言",
+  "actionEdit": "就地纠偏记忆",
+  "actionForget": "物理彻底遗忘",
+  "promoting": "正在升格...",
+  "saving": "正在保存...",
+  "forgetting": "正在删除...",
+  "editPlaceholder": "输入纠偏后的记忆文本...",
+  "confirmForget": "确定彻底物理遗忘此条记忆吗？此操作不可逆。",
+  "drawerAriaLabel": "记忆透视与治理侧边抽屉",
+  "close": "关闭透视抽屉"
+}

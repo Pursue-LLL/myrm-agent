@@ -988,6 +988,11 @@ async def probe_local_models_endpoint() -> dict[str, object]:
     }
 
 
+from app.api.config.pricing import pricing_router
+
+router.include_router(pricing_router)
+
+
 @router.get("/{config_key}", response_model=ConfigRecord)
 async def get_config(
     config_key: ConfigKey,

@@ -20,6 +20,9 @@ export type TokenUsage = {
   cache_write_tokens?: number;
   reasoning_tokens?: number;
   citation_tokens?: number;
+  cache_hit_rate?: number;
+  net_savings_usd?: number;
+  has_effective_cache?: boolean;
 };
 
 // Token 经济学快照

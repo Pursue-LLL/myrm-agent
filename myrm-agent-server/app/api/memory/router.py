@@ -183,6 +183,9 @@ from app.api.memory.mem_cube_router import (
 from app.api.memory.memory_feedback_router import (
     router as memory_feedback_router,
 )
+from app.api.memory.memory_inspector_router import (
+    router as memory_inspector_router,
+)
 from app.api.memory.memory_lineage_router import (
     router as memory_lineage_router,
 )
@@ -687,4 +690,8 @@ router.include_router(
 router.include_router(
     staleness_consolidation_router,
     tags=["memory-staleness-consolidation"],
+)
+router.include_router(
+    memory_inspector_router,
+    tags=["memory-inspector"],
 )

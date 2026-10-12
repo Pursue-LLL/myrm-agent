@@ -33,6 +33,14 @@ const MODE_ICON_MAP = {
   easy_minimal: IconSparkles,
 } as const;
 
+// Layout mode values are snake_case while message keys are camelCase.
+const MODE_SHORT_LABEL_KEY = {
+  copilot: 'copilotShortLabel',
+  multi_agent: 'multiAgentShortLabel',
+  remote_compute: 'remoteComputeShortLabel',
+  easy_minimal: 'easyMinimalShortLabel',
+} as const;
+
 export function WorkspaceLayoutBar() {
   const t = useTranslations('workspaceLayout');
   const { layoutMode } = useWorkspaceLayoutMode();
@@ -76,7 +84,7 @@ export function WorkspaceLayoutBar() {
             <ActiveIcon className="w-3 h-3" />
           </div>
           <span className="font-semibold text-[11px]">
-            {t(`${layoutMode}ShortLabel` as `copilotShortLabel`)}
+            {t(MODE_SHORT_LABEL_KEY[layoutMode])}
           </span>
           <kbd className="hidden lg:inline-block px-1 py-0.2 text-[9px] font-mono rounded bg-background/60 border border-border/40 text-muted-foreground">
             {t('shortcutHint')}

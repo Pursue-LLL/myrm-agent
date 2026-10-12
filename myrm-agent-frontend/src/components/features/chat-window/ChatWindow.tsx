@@ -54,6 +54,8 @@ import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } fro
 import Chat from './Chat';
 import { DualModeContainer } from '../work-layout';
 import { ExtensionUIModal } from '../extension-ui';
+import { TieredRiskGateContainer } from '../risk-approval';
+import { MemoryInspectorContainer } from '../memory-inspector';
 import { useExtensionUIStore } from '@/store/useExtensionUIStore';
 import ExecutionTraceTimeline from '@/components/features/settings/sections/system/ExecutionTraceTimeline';
 import { MessageSquare, Activity } from 'lucide-react';
@@ -721,6 +723,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         ) : null}
         <LifeStatusCapsule currentSessionId={id || null} />
         <ExtensionUIModal />
+        <TieredRiskGateContainer />
+        <MemoryInspectorContainer />
       </>
     );
   }
@@ -752,6 +756,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       {isGoalsEnabled ? <GoalStatusCard /> : null}
       <LifeStatusCapsule currentSessionId={id || null} />
       <ExtensionUIModal />
+      <TieredRiskGateContainer />
+      <MemoryInspectorContainer />
     </>
   );
 };
