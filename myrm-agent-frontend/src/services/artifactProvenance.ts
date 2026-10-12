@@ -89,7 +89,7 @@ export async function fetchArtifactProvenance(
   }
 
   const queryStr = params.toString() ? `?${params.toString()}` : '';
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/provenance${queryStr}`));
+  const response = await fetch(getApiUrl(`/files/artifacts/provenance${queryStr}`));
   if (!response.ok) {
     throw new Error(`Failed to fetch artifact provenance: ${response.statusText}`);
   }
@@ -99,7 +99,7 @@ export async function fetchArtifactProvenance(
 export async function fetchArtifactProvenanceDetail(
   artifactId: string,
 ): Promise<ArtifactProvenanceDetailResponse> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/provenance/${artifactId}`));
+  const response = await fetch(getApiUrl(`/files/artifacts/provenance/${artifactId}`));
   if (!response.ok) {
     throw new Error(`Failed to fetch artifact provenance detail: ${response.statusText}`);
   }
