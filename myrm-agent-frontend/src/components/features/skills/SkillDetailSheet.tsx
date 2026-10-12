@@ -23,6 +23,7 @@ import { getCategoryIcon, getCategoryColor } from './skillCategories';
 import { SecurityScanSection } from './SkillDetailHelpers';
 import SkillExportDialog from './SkillExportDialog';
 import { useSkillDetailSheet } from './useSkillDetailSheet';
+import { useLiveSkill } from './useLiveSkill';
 import { SkillDetailSheetContent } from './SkillDetailSheetContent';
 
 interface SkillDetailSheetProps {
@@ -39,7 +40,7 @@ interface SkillDetailSheetProps {
 
 const SkillDetailSheet = memo(
   ({
-    skill,
+    skill: skillSnapshot,
     open,
     isEnabled,
     showDeleteButton = false,
@@ -50,9 +51,10 @@ const SkillDetailSheet = memo(
     onLifecycleAction,
   }: SkillDetailSheetProps) => {
     const t = useTranslations('settings.skills');
+    const skill = useLiveSkill(skillSnapshot);
 
     const sheet = useSkillDetailSheet({
-      skill,
+      skill: skillSnapshot,
       open,
       isEnabled,
       onOpenChange,

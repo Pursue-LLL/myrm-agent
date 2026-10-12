@@ -32,7 +32,8 @@ export function isXLiveSearchUnavailable(skill: Skill): boolean {
 
 /**
  * A skill whose only declared requirement is env keys (e.g. an API key) and is unavailable can only be
- * unblocked by saving those keys. Mixed bins/config requirements fall back to the server-provided reason.
+ * unblocked by saving those keys, which is done in the skill detail sheet itself — so this is an in-place
+ * action, not a settings link. Mixed bins/config requirements fall back to the server-provided reason.
  */
 export function isEnvGatedSkillUnavailable(skill: Skill): boolean {
   const { bins, env, config } = skill.requires;
@@ -51,9 +52,7 @@ export function hasIntegrationSettingsLink(skill: Skill): boolean {
   ) {
     return true;
   }
-  return (
-    isGoogleWorkspaceOAuthUnavailable(skill) || isXLiveSearchUnavailable(skill) || isEnvGatedSkillUnavailable(skill)
-  );
+  return isGoogleWorkspaceOAuthUnavailable(skill) || isXLiveSearchUnavailable(skill);
 }
 
 export function getIntegrationSkillSettingsPath(skill: Skill): string {

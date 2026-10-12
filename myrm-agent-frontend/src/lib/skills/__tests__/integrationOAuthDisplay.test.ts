@@ -11,7 +11,6 @@ import {
   isEnvGatedSkillUnavailable,
   SETTINGS_GOOGLE_OAUTH_PATH,
   SETTINGS_AGENTS_LOADOUT_PATH,
-  SETTINGS_SKILLS_PATH,
 } from '../integrationOAuthDisplay';
 import type { Skill, SkillRequires } from '@/store/skill/types';
 
@@ -137,15 +136,11 @@ describe('integrationOAuthDisplay env-gated skills', () => {
   const unavailable = (requires: SkillRequires, id = 'imap-smtp-email'): Skill =>
     buildSkill({ id, available: false, unavailable_reason: 'Missing: ENV: X', requires });
 
-  it('treats any skill that only requires env keys as configurable in settings', () => {
+  it('treats any skill that only requires env keys as an in-place key action, not a settings link', () => {
     const skill = unavailable({ bins: [], env: ['EMAIL_IMAP_HOST', 'EMAIL_IMAP_USER'], config: [] });
 
     expect(isEnvGatedSkillUnavailable(skill)).toBe(true);
-    expect(hasIntegrationSettingsLink(skill)).toBe(true);
-    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_SKILLS_PATH);
-    expect(getIntegrationSkillSettingsLinkLabel(skill, mockTranslator)).toBe(
-      'card.integrationOAuth.envSkill.configureInSettings',
-    );
+    expect(hasIntegrationSettingsLink(skill)).toBe(false);
     expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe('card.integrationOAuth.envSkill.unavailable');
   });
 

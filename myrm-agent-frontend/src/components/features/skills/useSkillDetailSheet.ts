@@ -9,8 +9,19 @@ import {
   toggleEvolutionLock,
   revealSkill,
 } from '@/services/skill';
+import { useSkillStore } from '@/store/skill';
 import type { Skill } from '@/store/skill/types';
 import type { SkillSectionTranslator } from './SkillDetailHelpers';
+
+/** Saved keys change a skill's availability on the server; pull the new verdict into the list that holds it. */
+function refreshSkillAvailability(skillId: string): void {
+  const { marketSkills, fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
+  if (marketSkills.some((candidate) => candidate.id === skillId)) {
+    void fetchMarketSkills(true);
+  } else {
+    void fetchLocalSkills();
+  }
+}
 
 interface UseSkillDetailSheetParams {
   skill: Skill | null;
@@ -140,6 +151,7 @@ export function useSkillDetailSheet({
       await updateSkillEnvVars(skill.id, envVars);
       setEnvVarsDirty(false);
       toast({ title: t('card.keysSaved') });
+      refreshSkillAvailability(skill.id);
     } catch {
       toast({ title: t('card.keysSaveFailed'), variant: 'destructive' });
     } finally {

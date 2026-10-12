@@ -7,7 +7,6 @@ import {
   Trash2,
   Info,
   FolderOpen,
-  AlertTriangle,
   ShieldCheck,
   ShieldAlert,
   ShieldX,
@@ -36,13 +35,7 @@ import {
 } from '@/components/primitives/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import type { Skill, SecurityScanSummary, SkillLifecycleAction } from '@/store/skill/types';
-import Link from 'next/link';
-import {
-  getSkillUnavailableDisplayMessage,
-  getIntegrationSkillSettingsLinkLabel,
-  getIntegrationSkillSettingsPath,
-  hasIntegrationSettingsLink,
-} from '@/lib/skills/integrationOAuthDisplay';
+import SkillAvailabilityNotice from './SkillAvailabilityNotice';
 
 function getSecurityBadgeProps(security: SecurityScanSummary): {
   icon: React.ElementType;
@@ -295,23 +288,7 @@ const SkillCard = memo(
                   </span>
                 </div>
               )}
-              {!skill.available && (skill.unavailable_reason || hasIntegrationSettingsLink(skill)) && (
-                <div className="flex flex-col gap-1 mt-1 text-xs text-amber-600 dark:text-amber-400 sm:flex-row sm:items-center sm:gap-2">
-                  <div className="flex items-center gap-1 min-w-0">
-                    <AlertTriangle size={12} className="shrink-0" />
-                    <span className="truncate">{getSkillUnavailableDisplayMessage(skill, t)}</span>
-                  </div>
-                  {hasIntegrationSettingsLink(skill) && (
-                    <Link
-                      href={getIntegrationSkillSettingsPath(skill)}
-                      className="shrink-0 text-xs font-medium underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-300"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {getIntegrationSkillSettingsLinkLabel(skill, t)}
-                    </Link>
-                  )}
-                </div>
-              )}
+              <SkillAvailabilityNotice skill={skill} onConfigureKeys={onViewDetails ? handleViewDetails : undefined} />
               {skill.required_permissions && skill.required_permissions.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {skill.required_permissions.map((perm) => (
