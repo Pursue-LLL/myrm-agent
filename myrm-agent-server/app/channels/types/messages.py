@@ -267,12 +267,16 @@ class OutboundMessage:
     correlation_context: CorrelationContext | None = None
 
     def to_dict(self) -> dict[str, object]:
-        """Serialize the message to a JSON-compatible dictionary."""
+        """Serialize the message to a JSON-compatible dictionary.
+
+        Every nested dataclass carries a ``__type__`` tag (``dataclasses.asdict`` would flatten them into
+        untagged dicts), which is what lets ``from_dict`` tell buttons from select menus.
+        """
         import dataclasses
 
         def _serialize(obj: object) -> object:
             if dataclasses.is_dataclass(obj):
-                d = {k: _serialize(v) for k, v in dataclasses.asdict(obj).items()}
+                d = {f.name: _serialize(getattr(obj, f.name)) for f in dataclasses.fields(obj)}
                 d["__type__"] = obj.__class__.__name__
                 return d
             elif isinstance(obj, (list, tuple)):
@@ -321,7 +325,10 @@ class OutboundMessage:
                     url=c_data.get("url", ""),
                 )
             elif ctype == "SelectMenu":
-                options = tuple(SelectOption(**o) for o in c_data.get("options", []))
+                options = tuple(
+                    SelectOption(label=o["label"], value=o["value"], description=o.get("description", ""))
+                    for o in c_data.get("options", [])
+                )
                 return SelectMenu(
                     action_id=c_data["action_id"],
                     placeholder=c_data["placeholder"],

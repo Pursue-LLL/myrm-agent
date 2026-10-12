@@ -187,7 +187,16 @@ class DurableOutboundGate:
                 await ack_delivery(delivery.id, base_dir=self._base_dir)
                 continue
 
-            msg = self._delivery_to_outbound(delivery)
+            try:
+                msg = self._delivery_to_outbound(delivery)
+            except Exception:
+                # A record that cannot be decoded can never become deliverable, and raising here would abort
+                # every startup/enable recovery (and with it the gateway start) for all the healthy records.
+                logger.error(
+                    "Dropping undecodable durable outbound record %s (channel=%s)", delivery.id, delivery.channel, exc_info=True
+                )
+                await ack_delivery(delivery.id, base_dir=self._base_dir)
+                continue
             await save_delivery(
                 replace(delivery, phase="pending"),
                 base_dir=self._base_dir,
