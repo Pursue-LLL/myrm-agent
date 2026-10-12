@@ -355,6 +355,9 @@ from app.api.memory.vector_preflight_router import (
 from app.api.memory.zk_vault_watermark_router import (
     router as zk_vault_watermark_router,
 )
+from app.api.memory.verifiable_provenance_router import (
+    router as verifiable_provenance_router,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -712,6 +715,10 @@ router.include_router(
 router.include_router(
     zk_vault_watermark_router,
     tags=["memory-zk-vault"],
+)
+router.include_router(
+    verifiable_provenance_router,
+    tags=["memory-verifiable-provenance"],
 )
 
 
