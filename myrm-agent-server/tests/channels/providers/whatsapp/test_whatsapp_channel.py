@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -406,6 +407,37 @@ class TestWhatsAppInbound:
         assert len(emitted) == 1
         assert emitted[0].sender_id == "999@s.whatsapp.net"
         assert emitted[0].chat_id == "999@s.whatsapp.net"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "conversation",
+        [
+            {"from": "999@s.whatsapp.net"},
+            {"from": "group@g.us", "participant": "999@s.whatsapp.net", "isGroup": True},
+            {"from": "8615546316576@s.whatsapp.net", "fromMe": True},
+        ],
+        ids=["dm", "group", "self-chat"],
+    )
+    async def test_default_level_logs_carry_neither_message_nor_sender(
+        self, conversation: dict[str, object], caplog: pytest.LogCaptureFixture
+    ) -> None:
+        ch = _make_channel()
+        ch._emit_inbound = AsyncMock()  # type: ignore[assignment]
+        event: dict[str, object] = {
+            "type": "message",
+            "text": "my card is 4111 1111 1111 1111",
+            "id": "msg_private",
+            "pushName": "Alice Example",
+            **conversation,
+        }
+
+        with caplog.at_level(logging.DEBUG):
+            await ch._handle_inbound(event)
+
+        ch._emit_inbound.assert_awaited_once()
+        loud = "\n".join(record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING)
+        for private in ("4111", "Alice Example", "999@s.whatsapp.net", "8615546316576"):
+            assert private not in loud
 
 
 # ------------------------------------------------------------------

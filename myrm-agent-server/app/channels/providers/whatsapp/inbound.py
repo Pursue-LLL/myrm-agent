@@ -181,8 +181,6 @@ class WhatsAppInboundMixin(BaseChannel):
 
     async def _handle_inbound(self, event: dict[str, object]) -> None:
         """Convert a bridge message event to InboundMessage and emit."""
-        logger.warning("WhatsAppChannel: RAW EVENT = %s", json.dumps(event, indent=2, ensure_ascii=False))
-
         text = str(event.get("text", "")).strip()
         from_jid = str(event.get("from", ""))
         audio_info = event.get("audio")
@@ -216,7 +214,7 @@ class WhatsAppInboundMixin(BaseChannel):
             )
             mentioned = check_mentioned(event, self._self_jid, self._lid_to_pn)
             content_preview = text[:80] if text else ("[document]" if document_info else "[voice]")
-            logger.warning(
+            logger.debug(
                 "WhatsAppChannel: group inbound from %s (mentioned=%s): %s",
                 sender_id,
                 mentioned,
@@ -228,7 +226,7 @@ class WhatsAppInboundMixin(BaseChannel):
             sender_id = _strip_device_suffix(self._self_jid) if self._self_jid else from_jid
             mentioned = False
             content_preview = text[:80] if text else ("[document]" if document_info else "[voice]")
-            logger.warning("WhatsAppChannel: self-chat inbound: %s", content_preview)
+            logger.debug("WhatsAppChannel: self-chat inbound: %s", content_preview)
         else:
             raw_sender = str(event.get("participant") or from_jid)
             sender_id = _prefer_pn_jid(
@@ -237,7 +235,7 @@ class WhatsAppInboundMixin(BaseChannel):
             )
             mentioned = False
             content_preview = text[:80] if text else ("[document]" if document_info else "[voice]")
-            logger.warning("WhatsAppChannel: inbound from %s: %s", sender_id, content_preview)
+            logger.debug("WhatsAppChannel: inbound from %s: %s", sender_id, content_preview)
 
         chat_id = _prefer_pn_jid(from_jid, event.get("fromAlt") or self._lid_to_pn.get(from_jid))
 
