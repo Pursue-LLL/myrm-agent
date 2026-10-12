@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast as appToast } from '@/lib/utils/toast';
-import { fetchWithTimeout } from '@/lib/api';
 import { getNotificationStreamUrl } from '@/lib/deploy-mode';
 import { normalizeApprovalPayload } from '@/store/useApprovalStore';
 import useConfigStore from '@/store/useConfigStore';
@@ -15,6 +14,7 @@ import { mutate as mutateSwr } from 'swr';
 import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationToasts';
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
+import { showSubsumptionUndoToast } from '@/hooks/globalEvents/subsumptionUndoToast';
 import {
   notifyBackgroundTasksChangedForShellJobFinish,
   notifyBackgroundTasksChangedForVoiceJobFinish,
@@ -55,6 +55,7 @@ const PASSTHROUGH_EVENTS: ReadonlySet<string> = new Set([
 export function useGlobalEvents(): void {
   const router = useRouter();
   const t = useTranslations('notifications');
+  const tIdle = useTranslations('backgroundTasks.idleStatus');
   const enabled = useConfigStore((s) => s.enableWebNotifications);
   const sourceRef = useRef<EventSource | null>(null);
   const isLeaderRef = useRef(false);
@@ -299,6 +300,7 @@ export function useGlobalEvents(): void {
             detail: payload.data,
           }),
         );
+        showSubsumptionUndoToast(payload.data, { t, tIdle, pushToast });
       } else if (payload.type === 'run_digest_updated') {
         const data = asRecord(payload.data);
         const chatId = typeof data.chat_id === 'string' ? data.chat_id : '';
@@ -312,30 +314,6 @@ export function useGlobalEvents(): void {
         const title = String(payload.data.title ?? '系统通知');
         const message = String(payload.data.message ?? '');
         const meta = asRecord(payload.data.meta_data);
-        const metaCount = typeof meta.count === 'number' ? meta.count : 0;
-        const subsumedIds = Array.isArray(meta.subsumed_ids) ? meta.subsumed_ids : [];
-
-        let cancelObj = undefined;
-        if (meta.type === 'cognitive_consolidation' && metaCount > 0 && subsumedIds.length > 0) {
-          cancelObj = {
-            label: t('undoConsolidation') || 'Undo (撤销)',
-            onClick: async () => {
-              try {
-                const res = await fetchWithTimeout('/memory/undo-consolidation', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ subsumed_ids: subsumedIds }),
-                });
-                if (!res.ok) {
-                  throw new Error('Undo failed');
-                }
-                pushToast.success(t('undoConsolidationSuccess') || '已恢复被降维擦除的记忆');
-              } catch {
-                pushToast.error(t('undoConsolidationFailed') || '恢复记忆失败，请稍后重试');
-              }
-            },
-          };
-        }
 
         // Dispatch a custom event so specific components (like ChatWindow) can handle it
         window.dispatchEvent(new CustomEvent('system-notification', { detail: payload }));
@@ -365,7 +343,6 @@ export function useGlobalEvents(): void {
             description: message,
             duration: 10_000,
             dismissible: true,
-            cancel: cancelObj,
           });
         }
       } else if (payload.type === 'memory_operation') {
@@ -773,5 +750,5 @@ export function useGlobalEvents(): void {
       Object.values(debouncedRefetches.current).forEach(clearTimeout);
       debouncedRefetches.current = {};
     };
-  }, [router, t, enabled]);
+  }, [router, t, tIdle, enabled]);
 }

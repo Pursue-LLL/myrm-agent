@@ -7,6 +7,7 @@
 | `useGlobalEvents.ts`          | SSE 订阅、审批/预算/后台任务/`managed_policy_updated`/`run_digest_updated`/`skill_pool_updated` 等全局事件编排；`voice_background_task_done` 时 dispatch `voice-bg-done` 供语音播报 |
 | `memoryOperationToasts.ts`    | 记忆 CRUD toast；`implicit_feedback_personal` 事件刷新待审批队列（提示由聊天页 `usePendingMemoryToast` 负责）                                                                       |
 | `locatorHealedToast.tsx`      | 浏览器 locator 自愈通知                                                                                                                                                             |
+| `subsumptionUndoToast.ts`     | 空闲知识降维软删除后的撤销 toast（`idle_status` 的 `cognitive_subsumption` notification 携带可恢复 id，调用 `/memory/undo-consolidation`）                                          |
 | `messageDeadLetteredToast.ts` | 消息死信告警                                                                                                                                                                        |
 
 Hook 层允许的 JSX 例外（toast 渲染）。消费者：`global-events-initializer.tsx`、workspace-browser。
