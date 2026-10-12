@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 
 import { scheduleMobilePairRefresh } from '@/lib/mobileRemote';
+import { toast } from '@/lib/utils/toast';
 import { useE2EEStatus } from '@/lib/e2ee/useE2EEStatus';
 import E2EESecurityPanel from '@/components/features/e2ee/E2EESecurityPanel';
 import { Button } from '@/components/primitives/button';
@@ -144,14 +145,20 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   }, [lightboxSrc]);
 
   const handleSubmitCommand = useCallback(
-    (text: string) => {
-      if (loading) {
-        steerMessage(text);
-      } else {
-        sendMessage(text);
+    async (text: string): Promise<boolean> => {
+      let accepted = false;
+      try {
+        accepted = await (loading ? steerMessage(text) : sendMessage(text));
+      } catch (error) {
+        // sendMessage rejects while the server still runs another turn; to the user that is a refused command too.
+        console.warn('Mobile command was not accepted:', error);
       }
+      if (!accepted) {
+        toast.error(t('commandNotAccepted'));
+      }
+      return accepted;
     },
-    [loading, sendMessage, steerMessage],
+    [loading, sendMessage, steerMessage, t],
   );
 
   const handleOpenAdvisor = useCallback((question: string) => {

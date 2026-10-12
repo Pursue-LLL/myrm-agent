@@ -1547,6 +1547,7 @@
       "quickCommandInputLabel": "Mobile Befehlseingabe",
       "steerPlaceholder": "Den Agenten umleiten...",
       "send": "Senden",
+      "commandNotAccepted": "Der Agent konnte diesen Befehl nicht annehmen. Der Text steht wieder im Eingabefeld und kann erneut gesendet werden.",
       "verifications": "Akzeptanzkriterien",
       "livePreview": "Live-Vorschau",
       "browser": "Webbrowser",

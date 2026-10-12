@@ -9,7 +9,7 @@
  * - extractKeyterms (POS: 领域热词，提升口述专有名词识别率)
  *
  * [OUTPUT]
- * - MobileQuickCommandComposer: 移动端指挥条输入区（辅助工具栏 + 多行输入 + 语音 + 发送）
+ * - MobileQuickCommandComposer: 移动端指挥条输入区（辅助工具栏 + 多行输入 + 语音 + 发送；被拒绝的指令回填输入框）
  *
  * [POS]
  * 移动端指挥中心的输入面。职责边界严格限定为「接收与确认用户意图」：
@@ -42,7 +42,8 @@ export interface MobileQuickCommandComposerProps {
   /** 运行中：提交语义为 steer 纠偏，空闲时为新指令。 */
   loading: boolean;
   messages: { content: string; role: string }[];
-  onSubmit: (text: string) => void;
+  /** Resolves whether the agent took the command; a refused command goes back into the input. */
+  onSubmit: (text: string) => Promise<boolean>;
   onOpenAdvisor: (question: string) => void;
 }
 
@@ -85,8 +86,14 @@ export function MobileQuickCommandComposer({
     exitHistoryBrowsing();
   }, [chatId, initialDraft, exitHistoryBrowsing]);
 
+  // 指令被拒后的回填只属于发出它的会话：等待期间切走会话时不得写进别的会话输入框。
+  const chatIdRef = useRef(chatId);
+  useEffect(() => {
+    chatIdRef.current = chatId;
+  }, [chatId]);
+
   const commit = useCallback(
-    (text: string) => {
+    async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) {
         return;
@@ -103,9 +110,13 @@ export function MobileQuickCommandComposer({
       clearDraft();
       setDraft('');
       exitHistoryBrowsing();
-      onSubmit(trimmed);
+      const accepted = await onSubmit(trimmed);
+      // 被拒的指令放回输入框供重发；用户已开始写新内容时不覆盖。
+      if (!accepted && chatIdRef.current === chatId) {
+        setDraft((prev) => (prev.trim() ? prev : trimmed));
+      }
     },
-    [clearDraft, exitHistoryBrowsing, onOpenAdvisor, onSubmit, pushHistory],
+    [chatId, clearDraft, exitHistoryBrowsing, onOpenAdvisor, onSubmit, pushHistory],
   );
 
   /**
@@ -201,7 +212,7 @@ export function MobileQuickCommandComposer({
         <Button
           size="icon"
           className="h-10 w-10 shrink-0 rounded-xl"
-          onClick={() => commit(value)}
+          onClick={() => void commit(value)}
           disabled={!value.trim()}
           aria-label={t('send')}
         >

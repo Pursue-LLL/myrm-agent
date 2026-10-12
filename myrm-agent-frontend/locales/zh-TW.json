@@ -1578,6 +1578,7 @@
       "quickCommandInputLabel": "行動端指揮列輸入框",
       "steerPlaceholder": "傳送糾偏指令...",
       "send": "傳送",
+      "commandNotAccepted": "Agent 暫時無法接收這則指令，內容已放回輸入框，可重新傳送。",
       "verifications": "驗收條件",
       "livePreview": "實時預覽",
       "browser": "瀏覽器",
