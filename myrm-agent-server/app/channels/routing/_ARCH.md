@@ -104,8 +104,12 @@ send the confirmation reply.
 
 ## Stuck Task Watchdog
 
-`_janitor_loop` (60s interval) calls `_reap_stuck_tasks` to detect IM agent
-tasks exceeding `_STUCK_TASK_TIMEOUT` (600s). For each stuck task:
+`_janitor_loop` runs `_janitor_sweep` every `_JANITOR_INTERVAL` (60s). A sweep
+evicts expired callbacks, streaming sessions and stale session state, then
+calls `_reap_stuck_tasks` to detect IM agent tasks exceeding
+`_STUCK_TASK_TIMEOUT` (600s). The janitor is the only evictor of that state, so
+a sweep that raises is logged at ERROR and retried on the next cycle instead of
+ending the loop. For each stuck task:
 
 1. **Cancel** — `cancel_token.cancel()` + `task.cancel()`.
 2. **Resource cleanup** — stop typing indicators, clean up placeholder message

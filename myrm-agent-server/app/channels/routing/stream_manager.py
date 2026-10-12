@@ -396,11 +396,7 @@ class ProgressEstimator:
             self._sessions.pop(key, None)
 
         if expired:
-            logger.info(
-                "progress_sessions_cleaned",
-                count=len(expired),
-                ttl_seconds=self._session_ttl,
-            )
+            logger.info("progress_sessions_cleaned count=%d ttl_seconds=%s", len(expired), self._session_ttl)
 
         return len(expired)
 
@@ -546,10 +542,6 @@ class StreamCoordinator:
             self._session_timestamps.pop(key, None)
 
         if expired:
-            logger.info(
-                "streaming_sessions_cleaned",
-                count=len(expired),
-                ttl_seconds=self._session_ttl,
-            )
+            logger.info("streaming_sessions_cleaned count=%d ttl_seconds=%s", len(expired), self._session_ttl)
 
         return len(expired)

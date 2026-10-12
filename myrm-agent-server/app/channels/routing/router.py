@@ -182,6 +182,7 @@ from app.channels.routing.router_constants import (
     _CLEANUP_TTL,
     _DEDUP_MAX_SIZE,
     _DEDUP_TTL,
+    _JANITOR_INTERVAL,
     _MAX_CONCURRENT_AGENTS,
     _STUCK_TASK_TIMEOUT,
 )
@@ -423,30 +424,38 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
     async def _janitor_loop(self) -> None:
         while True:
-            await asyncio.sleep(60)
-            now = time.monotonic()
-            expired_keys = [key for key, entry in self._cleanups.items() if now - entry.created_at > _CLEANUP_TTL]
-            for key in expired_keys:
-                entry = self._cleanups.pop(key, None)
-                if entry:
-                    try:
-                        await entry.cleanup()
-                    except Exception as e:
-                        logger.warning("[JANITOR] Cleanup failed for %s: %s", key, e)
-            if expired_keys:
-                logger.info("[JANITOR] Cleaned up %d expired callbacks", len(expired_keys))
+            await asyncio.sleep(_JANITOR_INTERVAL)
+            try:
+                await self._janitor_sweep()
+            except Exception:
+                # The janitor is the only evictor of expired callbacks, streaming sessions and
+                # stuck tasks, so one failed sweep must not end it.
+                logger.exception("[JANITOR] Sweep failed, retrying next cycle")
 
-            coordinator_cleaned = self._stream_coordinator.cleanup_expired_sessions()
-            estimator_cleaned = self._progress_estimator.cleanup_expired_sessions()
-            if coordinator_cleaned > 0 or estimator_cleaned > 0:
-                logger.info(
-                    "[JANITOR] Streaming TTL cleanup: coordinator=%d, estimator=%d",
-                    coordinator_cleaned,
-                    estimator_cleaned,
-                )
+    async def _janitor_sweep(self) -> None:
+        now = time.monotonic()
+        expired_keys = [key for key, entry in self._cleanups.items() if now - entry.created_at > _CLEANUP_TTL]
+        for key in expired_keys:
+            entry = self._cleanups.pop(key, None)
+            if entry:
+                try:
+                    await entry.cleanup()
+                except Exception as e:
+                    logger.warning("[JANITOR] Cleanup failed for %s: %s", key, e)
+        if expired_keys:
+            logger.info("[JANITOR] Cleaned up %d expired callbacks", len(expired_keys))
 
-            self._cleanup_stale_session_state(now)
-            await self._reap_stuck_tasks(now)
+        coordinator_cleaned = self._stream_coordinator.cleanup_expired_sessions()
+        estimator_cleaned = self._progress_estimator.cleanup_expired_sessions()
+        if coordinator_cleaned > 0 or estimator_cleaned > 0:
+            logger.info(
+                "[JANITOR] Streaming TTL cleanup: coordinator=%d, estimator=%d",
+                coordinator_cleaned,
+                estimator_cleaned,
+            )
+
+        self._cleanup_stale_session_state(now)
+        await self._reap_stuck_tasks(now)
 
     def _cleanup_stale_session_state(self, now_monotonic: float) -> None:
         """Evict stale entries from _new_session_peers, _session_yolo, _session_personality."""
