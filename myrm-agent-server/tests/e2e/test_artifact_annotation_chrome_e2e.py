@@ -233,11 +233,21 @@ def _navigate_alive(client: object, page: object, url: str, *, attempts: int = 4
     raise AssertionError(f"page body stayed blank after {attempts} navigations to {url}")
 
 
+_BOUND_API_BASE_JS = "(() => window.__MYRM_E2E_API_BASE__ || null)()"
+_SHARED_API_BASE = "http://127.0.0.1:8080"
+
+
+def _resolve_page_api_base(client: object, page: object) -> str:
+    """Backend the page talks to: the injected E2E base, else the shared one behind the Next proxy.
+
+    A chat seeded on any other backend is invisible to the browser ("Chat session not found").
+    """
+    bound = client.evaluate(page, _BOUND_API_BASE_JS, timeout_sec=15.0)
+    return bound.rstrip("/") if isinstance(bound, str) and bound else _SHARED_API_BASE
+
+
 def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
-    # Seed into the shared backend: the :3000 WebUI proxies /api there, so
-    # isolate-seeded chats are invisible in the browser.
-    del api_url
-    seeded = http_json("POST", "http://127.0.0.1:8080/api/v1/chats/test/seed-deliverable-link-fixture")
+    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-deliverable-link-fixture")
     assert isinstance(seeded, dict)
     return seeded
 
@@ -251,19 +261,21 @@ def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
 @pytest.mark.timeout(600)
 def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
     """Annotation toggle -> panel -> add comment -> persisted across reload."""
-    api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(api_url)
-    seeded = _seed_deliverable_fixture(api_url)
-    chat_id = str(seeded.get("chat_id") or "")
-    assert chat_id.startswith("e2edeliv"), seeded
+    prepare_e2e_ui_session(get_e2e_api_url())
 
     intent = "E2E review note: verify this paragraph"
+    chat_id = ""
+    page_api_url = _SHARED_API_BASE
     try:
         warm_ui_route("/", timeout_sec=45.0)
-        chat_url = f"{ui_url}/{chat_id}"
-        with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
+        with open_mcp_page(f"{ui_url}/", request_timeout_sec=300.0) as (client, page):
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+            page_api_url = _resolve_page_api_base(client, page)
+            seeded = _seed_deliverable_fixture(page_api_url)
+            chat_id = str(seeded.get("chat_id") or "")
+            assert chat_id.startswith("e2edeliv"), seeded
+            chat_url = f"{ui_url}/{chat_id}"
             _navigate_alive(client, page, chat_url)
 
             # T1: open the seeded deliverable, then the portal shows its content.
@@ -359,8 +371,9 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
             )
             assert relisted.get("ready") is True, json.dumps(relisted, ensure_ascii=False)
     finally:
-        # Best-effort cleanup of the shared-backend fixture chat.
-        try:
-            http_json("DELETE", f"http://127.0.0.1:8080/api/v1/chats/{chat_id}")
-        except Exception:
-            pass
+        # Best-effort cleanup of the fixture chat on the backend it was seeded into.
+        if chat_id:
+            try:
+                http_json("DELETE", f"{page_api_url}/api/v1/chats/{chat_id}")
+            except Exception:
+                pass
