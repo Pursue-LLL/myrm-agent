@@ -53,10 +53,24 @@ export interface EvidenceDrawerProps {
   t: (key: string, values?: Record<string, string | number>) => string;
 }
 
+const TOOL_EXIT_CODE_PATTERN = /\bexit=(-?\d+)\s*$/;
+const TOOL_FAILURE_KEYWORD_PATTERN = /failed|error/i;
+
 /**
- * Normalize text to tokens for resilient fuzzy quote highlighting.
+ * Tool turns are stored as `Tool[name] cmd=... exit=N` followed by the output. The exit code in the
+ * header is authoritative; keywords in the output are only consulted when no exit code was recorded.
  */
-function highlightFuzzyQuote(content: string, quote?: string | null) {
+function isToolTurnFailed(content: string): boolean {
+  const header = content.split('\n', 1)[0] ?? '';
+  const exitCode = TOOL_EXIT_CODE_PATTERN.exec(header)?.[1];
+  return exitCode !== undefined ? Number(exitCode) !== 0 : TOOL_FAILURE_KEYWORD_PATTERN.test(content);
+}
+
+/**
+ * Highlights the quote inside the target turn (case-insensitive). When the quote is not found
+ * verbatim (punctuation or whitespace differ), the quote is shown beneath the turn instead.
+ */
+function highlightFuzzyQuote(content: string, quote: string | null | undefined, t: EvidenceDrawerProps['t']) {
   if (!quote || !quote.trim()) {
     return <span>{content}</span>;
   }
@@ -84,7 +98,7 @@ function highlightFuzzyQuote(content: string, quote?: string | null) {
     <span>
       {content}
       <span className="mt-1 block text-[11px] text-amber-600 dark:text-amber-400 font-mono">
-        [Quote match]: "{cleanQuote}"
+        {t('commandCenter.evidence.quoteMatch', { quote: cleanQuote })}
       </span>
     </span>
   );
@@ -106,7 +120,7 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
 }: EvidenceDrawerProps) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<MemoryEvidencePlaybackResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [isCorrecting, setIsCorrecting] = useState(false);
   const [correctionText, setCorrectionText] = useState(quoteSnippet || '');
   const [actionLoading, setActionLoading] = useState(false);
@@ -123,14 +137,14 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
   useEffect(() => {
     if (!isOpen) {
       setData(null);
-      setError(null);
+      setLoadFailed(false);
       setIsCorrecting(false);
       return;
     }
 
     let isMounted = true;
     setLoading(true);
-    setError(null);
+    setLoadFailed(false);
 
     getEvidencePlayback({
       source_id: sourceId,
@@ -145,9 +159,9 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
           setData(res);
         }
       })
-      .catch((err) => {
+      .catch(() => {
         if (isMounted) {
-          setError(String(err));
+          setLoadFailed(true);
         }
       })
       .finally(() => {
@@ -232,9 +246,9 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
             </div>
           )}
 
-          {error && (
+          {loadFailed && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
-              {error}
+              {t('commandCenter.evidence.loadFailed')}
             </div>
           )}
 
@@ -279,11 +293,7 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
                     const isCopied = copiedTurnId === turn.message_id;
 
                     if (isTool) {
-                      const hasFailure =
-                        turn.content.toLowerCase().includes('failed') ||
-                        turn.content.toLowerCase().includes('error') ||
-                        turn.content.includes('exit=1') ||
-                        turn.content.includes('exit=2');
+                      const hasFailure = isToolTurnFailed(turn.content);
                       return (
                         <div
                           key={turn.message_id}
@@ -297,10 +307,10 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
                           <div className="flex items-center justify-between pb-1.5 border-b border-border/30 text-[11px] text-muted-foreground font-sans">
                             <span className="flex items-center gap-1.5 font-medium text-foreground">
                               <Terminal className="h-3.5 w-3.5 text-amber-500" />
-                              <span>{turn.sender_name || 'Tool Execution'}</span>
+                              <span>{turn.sender_name || t('commandCenter.evidence.toolExecution')}</span>
                               {hasFailure && (
                                 <span className="rounded-full bg-rose-500/15 px-1.5 py-0.2 text-[10px] text-rose-600 dark:text-rose-400 font-semibold">
-                                  Error / Non-Zero Exit
+                                  {t('commandCenter.evidence.toolFailed')}
                                 </span>
                               )}
                             </span>
@@ -315,7 +325,7 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
                                 type="button"
                                 onClick={() => handleCopySnippet(turn.message_id, turn.content)}
                                 className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                                title="Copy tool output"
+                                title={t('commandCenter.evidence.copyToolOutput')}
                               >
                                 {isCopied ? (
                                   <Check className="h-3 w-3 text-emerald-500" />
@@ -349,7 +359,8 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
                             ) : (
                               <User className="h-3.5 w-3.5 text-blue-500" />
                             )}
-                            {turn.sender_name || (isAssistant ? 'Assistant' : 'User')}
+                            {turn.sender_name ||
+                              t(isAssistant ? 'commandCenter.evidence.roleAssistant' : 'commandCenter.evidence.roleUser')}
                           </span>
                           <span>
                             {new Date(turn.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -357,7 +368,7 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
                         </div>
                         <div className="pt-2 text-foreground/90 leading-relaxed break-words whitespace-pre-wrap">
                           {turn.is_target
-                            ? highlightFuzzyQuote(turn.content, data.quote_snippet || quoteSnippet)
+                            ? highlightFuzzyQuote(turn.content, data.quote_snippet || quoteSnippet, t)
                             : turn.content}
                         </div>
                       </div>

@@ -161,7 +161,9 @@ class ConversationRecallRepository:
         sent_at: datetime,
     ) -> None:
         """Persist salient verbatim tool execution evidence into recall index before compaction."""
-        cmd_part = f" cmd={command}" if command else ""
+        # The header must stay on one line: readers locate `exit=N` on the first line of the segment.
+        single_line_command = " ".join(command.split())
+        cmd_part = f" cmd={single_line_command}" if single_line_command else ""
         exit_part = f" exit={exit_code}" if exit_code is not None else ""
         header = f"Tool[{tool_name}]{cmd_part}{exit_part}"
         segment_text = f"{header}\n{snippet}"

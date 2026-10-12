@@ -3,9 +3,8 @@
 /**
  * [INPUT]
  * @/services/memory/commandCenter::getMemoryCommandCenter (POS: Frontend Personal Brain Command Center client)
- * @/services/memory/archive::dryRunRollbackMemoryImport, exportMemoryArchive (POS: Frontend Memory Archive and import API client)
  * @/services/projects::getProjects (POS: 项目管理 API 服务层)
- * @/services/memory/pendingTargetChanged::isPendingTargetChanged (POS: 待审建议所针对的记忆已变化时给出本地化「已过期」提示)
+ * ../hooks/useMemoryCommandCenterActions::useMemoryCommandCenterActions (POS: 治理、Doctor、导入回滚、归档导出等写操作及其提示)
  *
  * [OUTPUT]
  * MemoryCommandCenter: Personal Brain Command Center container with health dashboard, governance, diagnostics, archive export, rollback preview orchestration, SSE-backed live memory stream, and project-scoped memory filtering.
@@ -17,7 +16,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
@@ -30,47 +29,33 @@ import {
   mergeLiveStreamEvents,
   resolveReplaySessionId,
 } from '@/components/features/memory/replay/memoryLiveStream';
-import {
-  dryRunRollbackMemoryImport,
-  exportMemoryArchive,
-  rollbackMemoryImport,
-  type MemoryArchiveSection,
-  type MemoryImportRollbackPreviewResponse,
-  type MemoryImportRollbackResponse,
-} from '@/services/memory/archive';
 import { ActSection, ObserveSection, UnderstandSection, VerifySection } from './MemoryCommandCenterPanels';
-import { type DoctorExecutableAction } from './MemoryCommandCenterDoctorPanel';
 import {
   getMemoryCommandCenter,
   getConsolidationLastSummary,
   getMemoryDiagnosticHistory,
-  rollbackConsolidation,
-  runMemoryCommandAction,
-  runMemoryDiagnosticRepair,
   type ConsolidationLastSummary,
   type MemoryCommandCenterResponse,
   type MemoryCommandDiagnosticHistoryItem,
   type MemoryCommandDiagnosticRun,
-  type MemoryCommandGovernanceItem,
   type MemoryCommandTimelineEvent,
 } from '@/services/memory/commandCenter';
 import { MemoryArchiveRestoreDialog } from '../dialogs/MemoryArchiveRestoreDialog';
 import { CommandCenterSkeleton, MetricTile, RollbackPreviewDialog, StatusPill } from './MemoryCommandCenterChrome';
 import { useMemoryArchiveRestoreActions } from '../hooks/useMemoryArchiveRestoreActions';
 import { useMemoryDemoSeed } from '../hooks/useMemoryDemoSeed';
+import { useMemoryCommandCenterActions } from '../hooks/useMemoryCommandCenterActions';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import MemoryHealthDashboard from '../insights/MemoryHealthDashboard';
-import { canDeepLinkMigrationSource, registerMigrationSourceManifest } from '@/services/migrationDiscovery';
+import { registerMigrationSourceManifest } from '@/services/migrationDiscovery';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { MemoryRecallBoundaryPanel } from './MemoryRecallBoundaryPanel';
-import { isPendingTargetChanged } from '@/services/memory/pendingTargetChanged';
 
 const SECTIONS = ['observe', 'understand', 'act', 'verify', 'boundary'] as const;
 const HEALTH_STATUSES = ['healthy', 'degraded', 'critical', 'unknown'] as const;
 
 type Section = (typeof SECTIONS)[number];
 type HealthStatus = (typeof HEALTH_STATUSES)[number];
-type DoctorAction = DoctorExecutableAction;
 
 const formatTime = (value: string): string =>
   new Intl.DateTimeFormat(undefined, {
@@ -84,7 +69,6 @@ const isHealthStatus = (value: string): value is HealthStatus => HEALTH_STATUSES
 
 const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   const t = useTranslations('memory');
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [snapshot, setSnapshot] = useState<MemoryCommandCenterResponse | null>(null);
   const [activeSection, setActiveSection] = useState<Section>('observe');
@@ -93,9 +77,6 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   const [error, setError] = useState<string | null>(null);
   const [diagnosticRun, setDiagnosticRun] = useState<MemoryCommandDiagnosticRun | null>(null);
   const [diagnosticHistory, setDiagnosticHistory] = useState<MemoryCommandDiagnosticHistoryItem[]>([]);
-  const [rollbackPreview, setRollbackPreview] = useState<MemoryImportRollbackPreviewResponse | null>(null);
-  const [rollbackResult, setRollbackResult] = useState<MemoryImportRollbackResponse | null>(null);
-  const [rollbackDialogOpen, setRollbackDialogOpen] = useState(false);
   const [connectWizardOpen, setConnectWizardOpen] = useState(false);
   const [liveStream, setLiveStream] = useState<MemoryCommandTimelineEvent[]>([]);
   const [replaySessionId, setReplaySessionId] = useState<string | null>(null);
@@ -212,198 +193,21 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
     [t],
   );
 
-  const runAction = useCallback(
-    async (item: MemoryCommandGovernanceItem, action: 'approve' | 'reject') => {
-      setActionId(`${item.target_kind}:${item.id}:${action}`);
-      try {
-        await runMemoryCommandAction({
-          target_kind: item.target_kind,
-          target_id: item.id,
-          action,
-          memory_type: item.title,
-        });
-        toast({ title: t('commandCenter.actionSuccess') });
-        await loadSnapshot();
-      } catch (err) {
-        const stale = isPendingTargetChanged(err);
-        toast({
-          title: stale ? t('targetChangedTitle') : t('commandCenter.actionFailed'),
-          description: stale ? t('targetChangedDesc') : err instanceof Error ? err.message : t('unknownError'),
-          variant: stale ? 'default' : 'destructive',
-        });
-      } finally {
-        setActionId(null);
-      }
-    },
-    [loadSnapshot, t],
-  );
-
-  const resolveConflict = useCallback(
-    async (conflictId: string, action: 'keep_new' | 'keep_old' | 'coexist') => {
-      setActionId(`conflict:${conflictId}:${action}`);
-      try {
-        await runMemoryCommandAction({
-          target_kind: 'conflict_pair',
-          target_id: conflictId,
-          action,
-        });
-        toast({ title: t('commandCenter.actionSuccess') });
-        await loadSnapshot();
-      } catch (err) {
-        toast({
-          title: t('commandCenter.actionFailed'),
-          description: err instanceof Error ? err.message : t('unknownError'),
-          variant: 'destructive',
-        });
-      } finally {
-        setActionId(null);
-      }
-    },
-    [loadSnapshot, t],
-  );
-
-  const runDoctorAction = useCallback(
-    async (action: DoctorAction) => {
-      setActiveSection('verify');
-      setActionId(`diagnostics:${action}`);
-      try {
-        const result = await runMemoryDiagnosticRepair({ plan_id: action, mode: 'execute' });
-        if (result.run) {
-          setDiagnosticRun(result.run);
-        }
-        toast({
-          title:
-            result.result.status === 'completed'
-              ? t('commandCenter.diagnosticCompleted')
-              : t('commandCenter.diagnosticCompletedWithFindings'),
-          description: result.result.message,
-        });
-        await loadSnapshot();
-      } catch (err) {
-        toast({
-          title: t('commandCenter.actionFailed'),
-          description: err instanceof Error ? err.message : t('unknownError'),
-          variant: 'destructive',
-        });
-      } finally {
-        setActionId(null);
-      }
-    },
-    [loadSnapshot, t],
-  );
-
-  const previewRollbackImport = useCallback(
-    async (importBatchId: string) => {
-      setActionId(`migration:rollback-preview:${importBatchId}`);
-      try {
-        setRollbackPreview(await dryRunRollbackMemoryImport(importBatchId));
-        setRollbackResult(null);
-        setRollbackDialogOpen(true);
-      } catch (err) {
-        toast({
-          title: t('commandCenter.actionFailed'),
-          description: err instanceof Error ? err.message : t('unknownError'),
-          variant: 'destructive',
-        });
-      } finally {
-        setActionId(null);
-      }
-    },
-    [t],
-  );
-
-  const confirmRollbackImport = useCallback(async () => {
-    if (!rollbackPreview) {
-      return;
-    }
-    const importBatchId = rollbackPreview.import_batch_id;
-    setActionId(`migration:rollback:${importBatchId}`);
-    try {
-      const result = await rollbackMemoryImport(importBatchId);
-      setRollbackResult(result);
-      toast({
-        title: t('commandCenter.rollbackSuccess'),
-        description: t('commandCenter.rollbackSuccessDesc', {
-          count: result.total_rolled_back,
-          missing: result.missing_items,
-          failed: result.failed_items,
-        }),
-      });
-      await loadSnapshot();
-    } catch (err) {
-      toast({
-        title: t('commandCenter.actionFailed'),
-        description: err instanceof Error ? err.message : t('unknownError'),
-        variant: 'destructive',
-      });
-    } finally {
-      setActionId(null);
-    }
-  }, [loadSnapshot, rollbackPreview, t]);
-
-  const openMigrationWizard = useCallback(
-    (source: string) => {
-      const normalizedSource = source.trim().toLowerCase();
-      const sourceQuery = canDeepLinkMigrationSource(normalizedSource)
-        ? `&source=${encodeURIComponent(normalizedSource)}`
-        : '';
-      router.push(`/settings/memory?sub=migration${sourceQuery}`);
-    },
-    [router],
-  );
-
-  const handleConsolidationRollback = useCallback(async () => {
-    setActionId('consolidation:rollback');
-    try {
-      const result = await rollbackConsolidation();
-      toast({
-        title: t('commandCenter.consolidationRollbackSuccess'),
-        description: t('commandCenter.consolidationRollbackSuccessDesc', {
-          count: result.rolled_back,
-          conflicts: result.skipped_conflict,
-        }),
-      });
-      await loadSnapshot();
-    } catch (err) {
-      toast({
-        title: t('commandCenter.actionFailed'),
-        description: err instanceof Error ? err.message : t('unknownError'),
-        variant: 'destructive',
-      });
-    } finally {
-      setActionId(null);
-    }
-  }, [loadSnapshot, t]);
-
-  const exportArchive = useCallback(async () => {
-    setActionId('archive:export');
-    try {
-      const { archive } = await exportMemoryArchive();
-      const payload = JSON.stringify(archive, null, 2);
-      const blob = new Blob([payload], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `myrm-memory-archive-${archive.manifest.created_at.replaceAll(':', '-')}.json`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      toast({
-        title: t('commandCenter.archiveExportSuccess'),
-        description: t('commandCenter.archiveExportSuccessDesc', {
-          count: totalArchiveItems(archive.manifest.sections),
-          sections: archive.manifest.sections.length,
-        }),
-      });
-    } catch (err) {
-      toast({
-        title: t('commandCenter.actionFailed'),
-        description: err instanceof Error ? err.message : t('unknownError'),
-        variant: 'destructive',
-      });
-    } finally {
-      setActionId(null);
-    }
-  }, [t]);
+  const showVerifySection = useCallback(() => setActiveSection('verify'), []);
+  const {
+    runAction,
+    resolveConflict,
+    runDoctorAction,
+    previewRollbackImport,
+    confirmRollbackImport,
+    openMigrationWizard,
+    handleConsolidationRollback,
+    exportArchive,
+    rollbackPreview,
+    rollbackResult,
+    rollbackDialogOpen,
+    setRollbackDialogOpen,
+  } = useMemoryCommandCenterActions({ loadSnapshot, setActionId, showVerifySection, setDiagnosticRun });
 
   const generatedAt = useMemo(() => (snapshot ? formatTime(snapshot.generated_at) : ''), [snapshot]);
 
@@ -670,8 +474,5 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
 });
 
 MemoryCommandCenter.displayName = 'MemoryCommandCenter';
-
-const totalArchiveItems = (sections: MemoryArchiveSection[]): number =>
-  sections.reduce((total, section) => total + section.item_count, 0);
 
 export default MemoryCommandCenter;

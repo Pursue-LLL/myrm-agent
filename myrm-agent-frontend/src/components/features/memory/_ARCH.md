@@ -80,6 +80,7 @@
 | ----------------------------------- | ---- | ---------------------- | ----- |
 | `useMemoryArchiveRestoreActions.ts` | 辅助 | 记忆归档恢复动作 hooks | ✅    |
 | `useMemoryDemoSeed.ts`              | 辅助 | Demo 种子数据 hooks    | ✅    |
+| `useMemoryCommandCenterActions.ts`  | 核心 | 命令中心写操作 hooks   | ✅    |
 
 ### insights/
 

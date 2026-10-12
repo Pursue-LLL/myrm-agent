@@ -108,8 +108,58 @@ describe('EvidenceBadge and EvidenceDrawer Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('bash')).toBeInTheDocument();
-      expect(screen.getByText('Error / Non-Zero Exit')).toBeInTheDocument();
+      expect(screen.getByText('commandCenter.evidence.toolFailed')).toBeInTheDocument();
       expect(screen.getByText(/pytest tests\/failed\.py/)).toBeInTheDocument();
     });
+  });
+
+  it.each([
+    ['Tool[bash] cmd=pytest exit=0\n0 errors, 0 failed', false],
+    ['Tool[bash] cmd=make exit=137\nKilled', true],
+    ['Tool[bash]\nTraceback: connection error', true],
+  ])('classifies tool output %j as failure=%s', async (content, expectedFailure) => {
+    vi.spyOn(commandCenterService, 'getEvidencePlayback').mockResolvedValue({
+      ...mockPlayback,
+      turns: [
+        {
+          message_id: 'tool-msg-2',
+          role: 'tool',
+          sender_name: 'bash',
+          content,
+          sent_at: '2026-09-04T12:05:00Z',
+          is_target: false,
+        },
+      ],
+    });
+
+    render(<EvidenceDrawer isOpen={true} onClose={vi.fn()} sourceId="chat-alpha" t={stableT} />);
+
+    await screen.findByText('bash');
+    const badge = screen.queryByText('commandCenter.evidence.toolFailed');
+    expect(badge !== null).toBe(expectedFailure);
+  });
+
+  it('shows the translated quote-match line when the quote is not found verbatim', async () => {
+    vi.spyOn(commandCenterService, 'getEvidencePlayback').mockResolvedValue({
+      ...mockPlayback,
+      quote_snippet: 'Use pnpm!!',
+    });
+
+    render(<EvidenceDrawer isOpen={true} onClose={vi.fn()} sourceId="chat-alpha" t={stableT} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('commandCenter.evidence.quoteMatch')).toBeInTheDocument();
+    });
+  });
+
+  it('shows a localized message instead of the raw exception when loading fails', async () => {
+    vi.spyOn(commandCenterService, 'getEvidencePlayback').mockRejectedValue(new Error('ECONNRESET 10.0.0.5'));
+
+    render(<EvidenceDrawer isOpen={true} onClose={vi.fn()} sourceId="chat-alpha" t={stableT} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('commandCenter.evidence.loadFailed')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/ECONNRESET/)).not.toBeInTheDocument();
   });
 });
