@@ -37,3 +37,13 @@ def test_bridge_timeout_message_carries_page_diagnostics(monkeypatch: pytest.Mon
 
     with pytest.raises(AssertionError, match=r"diagnostics=\{'scriptsPending': 3\}"):
         support.wait_for_react_e2e_bridge(client, MagicMock(), timeout_sec=0.0)
+
+
+def test_bridge_wait_state_is_emitted_to_stderr(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr(support, "_bridge_failure_diagnostics", lambda *_: {"scriptsPending": 7})
+
+    support._log_bridge_wait_state(MagicMock(), MagicMock(), polls=4, reload_passes=1, last={"bodyLength": 0})
+
+    err = capsys.readouterr().err
+    assert "E2E_BRIDGE_WAIT: polls=4 reload_passes=1" in err
+    assert "'scriptsPending': 7" in err
