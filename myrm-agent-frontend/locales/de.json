@@ -3069,6 +3069,11 @@
     "subagent": {
       "viewResults": "Ergebnisse anzeigen"
     },
+    "inspector": {
+      "browserElementPrompt": "Ich habe das Seitenelement [ref={refId}] ausgewählt: {instruction}",
+      "desktopElementPrompt": "Ich habe das Desktop-Element [@{refId}] ausgewählt: {instruction}",
+      "defaultInstruction": "Bitte führe eine Aktion für dieses Element aus"
+    },
     "environmentAlert": {
       "title": "Umgebungseinschränkungen",
       "network_blocked": "Netzwerkzugriff blockiert",

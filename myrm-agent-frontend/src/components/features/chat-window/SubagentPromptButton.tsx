@@ -36,7 +36,7 @@ const SubagentPromptButton = () => {
   const handleClick = async () => {
     setSubagentPromptVisible(false);
     clearSubagentPromptTimer();
-    await sendMessage('查看结果');
+    await sendMessage(t('subagent.viewResults'));
   };
 
   if (!subagentPromptVisible) {

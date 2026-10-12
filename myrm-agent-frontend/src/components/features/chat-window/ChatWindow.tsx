@@ -132,6 +132,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const commonT = useTranslations('common');
   const sessionAnalyticsT = useTranslations('settings.sessionAnalytics');
   const snapshotT = useTranslations('chat.snapshot');
+  const inspectorT = useTranslations('chat.inspector');
   const agentIdFromUrl = searchParams.get('agent_id') ?? searchParams.get('agentId');
   const restoreArgFromUrl = searchParams.get('restore_arg');
   const approvalIdFromUrl = searchParams.get('approval');
@@ -547,21 +548,27 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const handleInspectorInstruction = useCallback(
     (instruction: string, refId: string | null) => {
       const formattedInstruction = refId
-        ? `[Browser Inspector] 我选中了页面元素 [ref=${refId}]，${instruction || '请对此元素执行操作'}`
+        ? `[Browser Inspector] ${inspectorT('browserElementPrompt', {
+            refId,
+            instruction: instruction || inspectorT('defaultInstruction'),
+          })}`
         : `[Browser Inspector] ${instruction}`;
       sendMessage(formattedInstruction);
     },
-    [sendMessage],
+    [inspectorT, sendMessage],
   );
 
   const handleDesktopInspectorInstruction = useCallback(
     (instruction: string, refId: string | null) => {
       const formattedInstruction = refId
-        ? `[Desktop Inspector] 我选中了桌面元素 [@${refId}]，${instruction || '请对此元素执行操作'}`
+        ? `[Desktop Inspector] ${inspectorT('desktopElementPrompt', {
+            refId,
+            instruction: instruction || inspectorT('defaultInstruction'),
+          })}`
         : `[Desktop Inspector] ${instruction}`;
       sendMessage(formattedInstruction);
     },
-    [sendMessage],
+    [inspectorT, sendMessage],
   );
 
   const pendingMemories = useMemoryStore((s) => s.pendingMemories);

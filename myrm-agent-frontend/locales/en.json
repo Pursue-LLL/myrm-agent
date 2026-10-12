@@ -3069,6 +3069,11 @@
     "subagent": {
       "viewResults": "View Results"
     },
+    "inspector": {
+      "browserElementPrompt": "I selected the page element [ref={refId}]: {instruction}",
+      "desktopElementPrompt": "I selected the desktop element [@{refId}]: {instruction}",
+      "defaultInstruction": "Please act on this element"
+    },
     "environmentAlert": {
       "title": "Environment Constraints",
       "network_blocked": "Network access blocked",

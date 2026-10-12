@@ -3069,6 +3069,11 @@
     "subagent": {
       "viewResults": "결과 보기"
     },
+    "inspector": {
+      "browserElementPrompt": "페이지 요소 [ref={refId}]를 선택했습니다. {instruction}",
+      "desktopElementPrompt": "데스크톱 요소 [@{refId}]를 선택했습니다. {instruction}",
+      "defaultInstruction": "이 요소에서 작업을 수행해 주세요"
+    },
     "environmentAlert": {
       "title": "환경 제약",
       "network_blocked": "네트워크 접근이 차단됨",

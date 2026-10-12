@@ -3069,6 +3069,11 @@
     "subagent": {
       "viewResults": "表示結果"
     },
+    "inspector": {
+      "browserElementPrompt": "ページ要素 [ref={refId}] を選択しました。{instruction}",
+      "desktopElementPrompt": "デスクトップ要素 [@{refId}] を選択しました。{instruction}",
+      "defaultInstruction": "この要素を操作してください"
+    },
     "environmentAlert": {
       "title": "環境制約",
       "network_blocked": "ネットワークアクセスがブロックされました",

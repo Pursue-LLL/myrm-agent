@@ -3069,6 +3069,11 @@
     "subagent": {
       "viewResults": "查看结果"
     },
+    "inspector": {
+      "browserElementPrompt": "我选中了页面元素 [ref={refId}]，{instruction}",
+      "desktopElementPrompt": "我选中了桌面元素 [@{refId}]，{instruction}",
+      "defaultInstruction": "请对此元素执行操作"
+    },
     "environmentAlert": {
       "title": "环境约束",
       "network_blocked": "网络访问被阻断",
