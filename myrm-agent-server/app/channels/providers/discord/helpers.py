@@ -8,6 +8,8 @@
 - build_discord_components: 将 Myrm ComponentConvert为 discord.ui.View
 - build_discord_embed: 将 Myrm 消息ContentConvert为 discord.Embed
 - DiscordMedia / build_discord_media: split media attachments into uploads, unfurled links and unsendable ones
+- is_forum_channel / derive_thread_name: forum-channel detection and thread titles from message text
+- reply_reference: native reply target (message id plus channel id) for an outbound reply
 
 [POS]
 Pure-function helpers for the Discord channel. Converts framework message objects to Discord native objects.
@@ -18,7 +20,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeGuard
 
 import discord
 
@@ -56,7 +58,7 @@ def build_discord_components(msg: OutboundMessage) -> discord.ui.View | None:
             if isinstance(item, ActionButton):
                 if item.url:
                     # Link button (no custom_id allowed)
-                    btn = discord.ui.Button(
+                    btn: discord.ui.Button[discord.ui.View] = discord.ui.Button(
                         style=discord.ButtonStyle.link,
                         label=item.label,
                         url=item.url,
@@ -76,7 +78,7 @@ def build_discord_components(msg: OutboundMessage) -> discord.ui.View | None:
                 options = [
                     discord.SelectOption(label=opt.label, value=opt.value, description=opt.description) for opt in item.options
                 ]
-                select = discord.ui.Select(
+                select: discord.ui.Select[discord.ui.View] = discord.ui.Select(
                     custom_id=f"sel:{item.action_id}",
                     placeholder=item.placeholder,
                     options=options,
@@ -158,3 +160,47 @@ def build_discord_media(media: Sequence[MediaAttachment]) -> DiscordMedia:
         else:
             failed.append(m.display_name)
     return DiscordMedia(files, links, failed)
+
+
+def is_forum_channel(channel: discord.abc.Messageable | None) -> TypeGuard[discord.ForumChannel]:
+    """Check whether *channel* is a Discord Forum channel (type 15).
+
+    Uses a dual check (isinstance + raw type value) for compatibility
+    across discord.py versions where ForumChannel may not exist.
+    """
+    if channel is None:
+        return False
+    forum_cls = getattr(discord, "ForumChannel", None)
+    if forum_cls and isinstance(channel, forum_cls):
+        return True
+    channel_type = getattr(channel, "type", None)
+    if channel_type is not None:
+        type_value = getattr(channel_type, "value", channel_type)
+        if type_value == 15:
+            return True
+    return False
+
+
+def derive_thread_name(content: str) -> str:
+    """Extract a thread title from message content (first non-empty line, max 100 chars)."""
+    for line in content.split("\n"):
+        cleaned = line.strip().lstrip("#").strip()
+        if cleaned:
+            return cleaned[:100]
+    return "New Post"
+
+
+def reply_reference(channel: discord.abc.Messageable, reply_to_id: str) -> discord.MessageReference | None:
+    """Native Discord reply target for ``reply_to_id`` inside ``channel``.
+
+    Discord needs the channel id next to the message id. ``None`` means the id cannot be addressed
+    (not a snowflake, or a channel without an id), so the message goes out as a plain post.
+    """
+    channel_id = getattr(channel, "id", None)
+    if not isinstance(channel_id, int):
+        return None
+    try:
+        message_id = int(reply_to_id)
+    except ValueError:
+        return None
+    return discord.MessageReference(message_id=message_id, channel_id=channel_id, fail_if_not_exists=False)

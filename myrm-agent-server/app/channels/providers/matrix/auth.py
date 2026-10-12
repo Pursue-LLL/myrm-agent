@@ -22,8 +22,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.channels.core.exceptions import ChannelAuthError
+
+if TYPE_CHECKING:
+    import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +42,7 @@ def get_store_dir() -> Path:
     return base / _CRYPTO_STORE_DIR_NAME
 
 
-def create_aiohttp_session(proxy: str = "") -> object:
+def create_aiohttp_session(proxy: str = "") -> aiohttp.ClientSession:
     """Create an aiohttp.ClientSession with optional proxy configuration."""
     import aiohttp
 

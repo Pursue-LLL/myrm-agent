@@ -18271,7 +18271,6 @@
         "remove": "삭제",
         "profileNamePlaceholder": "이름(예: 홈 서버)",
         "offlineHint": "이 PC가 꺼져 있어도 예약 작업은 원격 서버에서 계속 실행됩니다.",
-        "cloudProfileName": "클라우드 샌드박스",
         "cloudTitle": "클라우드 호스팅",
         "cloudDesc": "클라우드 계정으로 로그인한 뒤 호스팅된 샌드박스를 찾습니다. 주소를 붙여넣을 필요가 없습니다.",
         "checkProviders": "로그인 방법 확인",
@@ -20226,6 +20225,7 @@
   "intentDispatcher": {
     "invalidLink": "잘못된 외부 링크 또는 매개변수입니다",
     "oauthSuccess": "인증에 성공했습니다",
-    "oauthFailed": "인증 확인에 실패했습니다. 다시 시도해 주세요"
+    "oauthFailed": "인증 확인에 실패했습니다. 다시 시도해 주세요",
+    "cloudProfileName": "클라우드 샌드박스"
   }
 }

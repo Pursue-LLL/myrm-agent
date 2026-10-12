@@ -39,6 +39,8 @@ function isValidServerUrl(raw: string): boolean {
 
 const ServerConnectionCard = memo(() => {
   const t = useTranslations('settings.system.serverConnection');
+  // The cloud profile name is shared with the deep-link dispatcher, which renders before the settings sections load.
+  const tIntent = useTranslations('intentDispatcher');
 
   const currentConfig = getRemoteGatewayConfig();
   const [isRemote, setIsRemote] = useState(currentConfig !== null);
@@ -229,7 +231,7 @@ const ServerConnectionCard = memo(() => {
       void commitSwitch(
         cpBase,
         () => {
-          const profile = ensureCloudProfile(t('cloudProfileName'), cpBase);
+          const profile = ensureCloudProfile(tIntent('cloudProfileName'), cpBase);
           if (!profile) {
             toast.error(t('duplicateProfile'));
             setSwitchingKey(null);
@@ -246,7 +248,7 @@ const ServerConnectionCard = memo(() => {
         }
       });
     },
-    [t, refresh, commitSwitch],
+    [t, tIntent, refresh, commitSwitch],
   );
 
   if (!isTauriRuntime()) {

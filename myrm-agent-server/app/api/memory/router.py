@@ -40,6 +40,9 @@ from app.api.memory.auto_memory_consolidation_router import (
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
+from app.api.memory.bitemporal_tms_router import (
+    router as bitemporal_tms_router,
+)
 from app.api.memory.budget_curator import (
     router as memory_budget_curator_router,
 )
@@ -70,9 +73,6 @@ from app.api.memory.conclusion_evidence_router import (
 )
 from app.api.memory.conflict_router import (
     router as memory_conflict_router,
-)
-from app.api.memory.context_hooks_router import (
-    router as context_hooks_router,
 )
 from app.api.memory.conversation_lineage_defense_router import (
     router as conversation_lineage_defense_router,
@@ -168,9 +168,6 @@ from app.api.memory.job_compounding_router import (
 )
 from app.api.memory.kg_screening_router import (
     router as kg_screening_router,
-)
-from app.api.memory.life_milestones_router import (
-    router as life_milestones_router,
 )
 from app.api.memory.lifecycle_hotness_router import (
     router as lifecycle_hotness_router,
@@ -302,6 +299,9 @@ from app.api.memory.session_commit_router import (
 )
 from app.api.memory.shared_bus import (
     router as memory_shared_bus_router,
+)
+from app.api.memory.skill_triad_router import (
+    router as skill_triad_router,
 )
 from app.api.memory.space_guard import (
     router as space_guard_router,
@@ -625,14 +625,6 @@ router.include_router(
     tags=["memory-compounding"],
 )
 router.include_router(
-    life_milestones_router,
-    tags=["memory-life-milestones"],
-)
-router.include_router(
-    context_hooks_router,
-    tags=["memory-context-hooks"],
-)
-router.include_router(
     durable_revision_router,
     tags=["memory-durable-revision"],
 )
@@ -664,3 +656,13 @@ router.include_router(
     cjk_iteration_router,
     tags=["memory-cjk-iteration"],
 )
+router.include_router(
+    skill_triad_router,
+    tags=["memory-skill-triad"],
+)
+router.include_router(
+    bitemporal_tms_router,
+    tags=["memory-bitemporal-tms"],
+)
+
+

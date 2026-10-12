@@ -43,6 +43,15 @@ BACKEND_IDENTITY="${MYRM_BACKEND_IDENTITY_FILE:-${STATE_DIR}/backend-process.jso
 FRONTEND_PID="${MYRM_FRONTEND_PID_FILE:-${STATE_DIR}/frontend.pid}"
 FRONTEND_LOG="${MYRM_FRONTEND_LOG_FILE:-${STATE_DIR}/frontend.log}"
 export STATE_DIR PORT="${BACKEND_PORT}" MYRM_BACKEND_PORT="${BACKEND_PORT}" MYRM_DEV_STATE_DIR="${STATE_DIR}"
+# Private backend-only pools reuse the shared UI (:3000) while owning a private backend
+# port. The UI bakes its /api/v1 upstream at spawn time, so any frontend (re)start from
+# such a pool must keep pointing at the shared backend — never at the pool's private one.
+if [[ "${FRONTEND_PORT}" == "3000" ]] \
+  && [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]]; then
+  FRONTEND_API_PORT="${MYRM_SHARED_BACKEND_PORT:-8080}"
+else
+  FRONTEND_API_PORT="${BACKEND_PORT}"
+fi
 export MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}"
 export E2E_UI_BASE="${APP_URL}" E2E_API_BASE="${API_BASE}"
 export MYRM_BACKEND_PID_FILE="${BACKEND_PID}" MYRM_BACKEND_LOG_FILE="${BACKEND_LOG}"
@@ -373,10 +382,10 @@ _frontend_binding_matches() {
   local bound
   bound="$(_frontend_bound_api_port)" || return 0
   [[ -z "${bound}" ]] && return 0
-  if [[ "${bound}" == "${BACKEND_PORT}" ]]; then
+  if [[ "${bound}" == "${FRONTEND_API_PORT}" ]]; then
     return 0
   fi
-  echo "STACK_REBIND: frontend :${FRONTEND_PORT} bound to api=:${bound} but this ensure targets :${BACKEND_PORT} — restarting frontend" >&2
+  echo "STACK_REBIND: frontend :${FRONTEND_PORT} bound to api=:${bound} but this ensure targets :${FRONTEND_API_PORT} — restarting frontend" >&2
   return 1
 }
 
@@ -504,15 +513,15 @@ _launch_frontend_supervisor() {
   if [[ "${use_clean}" == "1" ]]; then
     echo "STACK_START: frontend with --clean (.next purge)" >&2
     if ((${#webpack_args[@]} > 0)); then
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean "${webpack_args[@]}"
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean "${webpack_args[@]}"
     else
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean
     fi
   else
     if ((${#webpack_args[@]} > 0)); then
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" "${webpack_args[@]}"
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" "${webpack_args[@]}"
     else
-      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}"
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}"
     fi
   fi
   echo $! >"${FRONTEND_PID}"

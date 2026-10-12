@@ -1,6 +1,7 @@
 """DingTalk inbound: webhook callbacks, Stream API WebSocket session and media download-code resolution.
 
 [INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
 - channels.providers.dingtalk.api::DingTalkApiClient (POS: OpenAPI client)
 - channels.providers.dingtalk.helpers::parse_callback, verify_signature (POS: pure callback helpers)
 - channels.types::InboundMessage, MediaAttachment (POS: channel message value types)
@@ -20,6 +21,7 @@ import dataclasses
 import json
 import logging
 
+from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.types import (
     InboundMessage,
@@ -38,7 +40,7 @@ logger = logging.getLogger(__name__)
 _GROUP_CACHE_MAX = 500
 
 
-class DingTalkInboundMixin:
+class DingTalkInboundMixin(BaseChannel):
     """DingTalk inbound handling for ``DingTalkChannel``.
 
     Requires the host class to provide the attributes below plus ``_emit_inbound`` / ``_build_inbound``

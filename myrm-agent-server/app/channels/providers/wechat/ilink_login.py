@@ -1,6 +1,7 @@
 """WeChat iLink QR code login (AsyncLoginProtocol).
 
 [INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
 - channels.helpers::QRCodeLoginHelper (POS: QR code login state machine)
 - channels.providers._ilink.client::ILinkClient (POS: iLink Bot protocol HTTP client)
 - channels.protocols::LoginEvent, LoginMethod (POS: async login protocol types)
@@ -18,6 +19,7 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 
+from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelAuthError
 from app.channels.helpers import QRCodeLoginHelper
 from app.channels.protocols import LoginEvent, LoginMethod
@@ -28,7 +30,7 @@ from app.channels.types import ChannelStatus
 logger = logging.getLogger(__name__)
 
 
-class WeChatILinkLoginMixin:
+class WeChatILinkLoginMixin(BaseChannel):
     """WeChat iLink QR code login for ``WeChatILinkChannel``.
 
     Requires the host class to provide the attributes below plus ``name``, ``_status`` and ``start`` from ``BaseChannel``.
@@ -37,7 +39,8 @@ class WeChatILinkLoginMixin:
     _client: ILinkClient
     _login_helper: QRCodeLoginHelper | None
 
-    async def start_login(
+    # BaseChannel declares start_login as a coroutine; AsyncLoginProtocol implementations are async generators.
+    async def start_login(  # type: ignore[override]
         self,
         method: object,
         *,

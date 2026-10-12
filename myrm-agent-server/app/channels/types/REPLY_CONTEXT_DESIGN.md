@@ -75,7 +75,7 @@ InboundMessage(
 
 ## Channel Implementations
 
-### 1. WeCom (`wecom/aibot_channel.py`)
+### 1. WeCom (`wecom/aibot_inbound.py`)
 
 **Mapping**: `body["quote"]` → `ReplyContext`
 
@@ -180,7 +180,7 @@ async def _fetch_reply_context(parent_id: str) -> ReplyContext | None:
 
 ---
 
-### 4. Discord (`discord/channel.py`)
+### 4. Discord (`discord/inbound.py`)
 
 **Mapping**: `message.reference.resolved` → `ReplyContext`
 
@@ -223,11 +223,11 @@ def _parse_reply_context(self, message: discord.Message) -> tuple[ReplyContext |
 - Reuses `_extract_media()` for consistent attachment parsing
 - Returns `reply_to_id` alongside context for outbound reply reference
 - `_resolve_mentioned()` treats reply-to-bot as implicit mention (Telegram parity, human senders only — bots must use explicit @mention, see routing/_ARCH.md "Bot-Authored Ingress Guard")
-- Outbound: `fail_if_not_exists=False` for resilient reply chains
+- Outbound: `reply_reference()` builds `MessageReference(message_id, channel_id, fail_if_not_exists=False)` for resilient reply chains (Discord rejects a reference without `channel_id`)
 
 ---
 
-### 5. Slack (`slack/channel.py`)
+### 5. Slack (`slack/context.py`)
 
 **Mapping**: `thread_ts` → API fetch → `ReplyContext`
 

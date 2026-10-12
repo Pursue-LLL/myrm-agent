@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_db_session
 from app.channels.protocols import LoginMethod, LoginStatus
+from app.channels.providers.whatsapp.channel import WhatsAppChannel
 from app.channels.types import ChannelStatus, StartMode
 from tests.support.minimal_app import build_minimal_app
 
@@ -211,6 +212,33 @@ class TestSSEStream:
         assert "data: " in body
         # orjson serializes without spaces
         assert '"qr_code_base64":"ABC123"' in body
+
+
+class TestSSEStreamWithRealChannel:
+    """The stream route against a real WhatsAppChannel: a mocked start_login cannot catch protocol drift."""
+
+    def test_connected_whatsapp_streams_success(self, client, tmp_path):
+        ch = WhatsAppChannel(auth_dir=str(tmp_path))
+        ch._connected.set()
+        ch._status = ChannelStatus.RUNNING
+
+        with patch("app.api.channels.login.channel_gateway") as gw:
+            gw.bus.channels.get.return_value = ch
+            resp = client.post(
+                "/api/v1/channels/whatsapp/login/start",
+                json={"method": "qr_code"},
+                headers={"Authorization": "Bearer test"},
+            )
+            assert resp.status_code == 200
+            resp = client.get(
+                f"/api/v1/channels/login/{resp.json()['session_id']}/stream",
+                headers={"Authorization": "Bearer test"},
+            )
+            body = resp.text
+
+        assert "event: login_state" in body
+        assert '"status":"success"' in body
+        assert '"status":"failed"' not in body
 
 
 class TestCancelLogin:

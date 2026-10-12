@@ -35,6 +35,7 @@ if str(_LIB) not in sys.path:
 from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
     config_write_mutex,
+    dump_backend_log_on_failure,
     fetch_chat_messages,
     fetch_config_value,
     get_e2e_api_url,
@@ -435,10 +436,11 @@ async def test_image_upload_stream_assistant_replies(
                 timeout_ms=120_000,
             )
             try:
-                chat_id = await _run_image_flow(
-                    McpChatSession(page_session.client, page_session.page),
-                    api_url=api_url,
-                )
+                with dump_backend_log_on_failure(api_url):
+                    chat_id = await _run_image_flow(
+                        McpChatSession(page_session.client, page_session.page),
+                        api_url=api_url,
+                    )
                 e2e_resource_ledger.register("chat", chat_id)
             finally:
                 await page_session.aclose()
@@ -482,11 +484,12 @@ async def test_image_upload_stream_empty_prompt_fallback(
                 timeout_ms=120_000,
             )
             try:
-                chat_id = await _run_image_flow(
-                    McpChatSession(page_session.client, page_session.page),
-                    api_url=api_url,
-                    prompt="",
-                )
+                with dump_backend_log_on_failure(api_url):
+                    chat_id = await _run_image_flow(
+                        McpChatSession(page_session.client, page_session.page),
+                        api_url=api_url,
+                        prompt="",
+                    )
                 e2e_resource_ledger.register("chat", chat_id)
             finally:
                 await page_session.aclose()

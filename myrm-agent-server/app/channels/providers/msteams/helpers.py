@@ -13,8 +13,8 @@ quote context extraction, message key encoding, and Adaptive Card building.
 - build_adaptive_card_activity
 
 [POS]
-Stateless helpers extracted from MSTeamsChannel to keep channel.py focused
-on the Channel lifecycle and I/O.
+Stateless helpers for MSTeamsChannel; channel.py stays focused on the Channel
+lifecycle and I/O.
 """
 
 from __future__ import annotations

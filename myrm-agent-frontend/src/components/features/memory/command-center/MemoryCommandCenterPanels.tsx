@@ -99,6 +99,8 @@ import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
 import { CodebaseDiffInspectionCard } from './CodebaseDiffInspectionCard';
 import { InodeIdentityInspectionCard } from './InodeIdentityInspectionCard';
 import { CjkIterationInspectionCard } from './CjkIterationInspectionCard';
+import { MemorySkillTriadInspectionCard } from './MemorySkillTriadInspectionCard';
+import { BitemporalTmsInspectionCard } from './BitemporalTmsInspectionCard';
 
 
 
@@ -403,6 +405,14 @@ export const UnderstandSection = ({
 
     {/* CJK Ideographic Iteration Mark ('々') Disambiguation & Recall Inspection Card (Item 146 P1) */}
     <CjkIterationInspectionCard />
+
+    {/* Memory Skill Triad & Physical Scope Isolation Inspection Card (Item 147 P1) */}
+    <MemorySkillTriadInspectionCard />
+
+    {/* Temporal Truth Maintenance & Bitemporal Filter Inspection Card (Item 148 P1) */}
+    <BitemporalTmsInspectionCard />
+
+
 
 
 

@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - wait_user_message_persisted() / wait_assistant_reply_ending_with() / transcript_text(): the chat as stored
+- backend_log_offset() / backend_log_since(): what the private backend logged from a given moment on
 - read_json() / wait_for_file() / assert_no_hook_raised(): the hooks' side effects and the backend log
 - assert_audit_turn_governed(): the evidence a bash turn under ``audit_hooks`` must have left
 
@@ -30,7 +31,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat.support import backend_log_path, fetch_chat_messages  # noqa: E402
+from cdp_chat.support import backend_log_path, fetch_chat_messages, snapshot_backend_log_offset  # noqa: E402
 
 from tests.support.chrome_skill_hooks_live_e2e import BASH_TOOL, COMMAND_OUTPUT, SkillChat  # noqa: E402
 
@@ -114,6 +115,24 @@ def _ends_with_token(content: str, token: str) -> bool:
     return content.strip().rstrip("*`_.! ").endswith(token)
 
 
+def _describe_messages(messages: list[dict[str, object]]) -> str:
+    """One line per stored message: who spoke, what was said, which tool steps it recorded, and its flags."""
+    lines: list[str] = []
+    for message in messages:
+        raw_metadata = message.get("metadata")
+        metadata: dict[str, object] = raw_metadata if isinstance(raw_metadata, dict) else {}
+        steps = metadata.get("progressSteps")
+        step_keys = [str(step.get("step_key")) for step in steps if isinstance(step, dict)] if isinstance(steps, list) else []
+        flags = {
+            key: value for key, value in metadata.items() if isinstance(value, str | int | float | bool) and len(str(value)) < 120
+        }
+        content = _message_text(message.get("content") or message.get("message") or "")
+        lines.append(
+            f"  {message.get('role')}: content={content[:300]!r} steps={step_keys} flags={flags} keys={sorted(metadata)}"
+        )
+    return "\n".join(lines)
+
+
 def wait_assistant_reply_ending_with(chat_id: str, api_url: str, token: str, *, timeout_sec: float) -> str:
     deadline = time.monotonic() + timeout_sec
     last_messages: list[dict[str, object]] = []
@@ -131,7 +150,7 @@ def wait_assistant_reply_ending_with(chat_id: str, api_url: str, token: str, *, 
         time.sleep(2.0)
     pytest.fail(
         f"assistant reply ending with {token!r} not received within {timeout_sec}s; "
-        f"messages={json.dumps(last_messages, ensure_ascii=False)[:1200]}"
+        f"{len(last_messages)} stored messages:\n{_describe_messages(last_messages)}"
     )
 
 
@@ -161,6 +180,22 @@ def backend_log_excerpt(api_url: str, *, limit: int = 150) -> str:
     narration = [line[:400] for line in lines if any(f"🚀 {source}" in line for source in _LOG_SOURCES)]
     errors = [line[:400] for line in lines if " - ERROR - " in line]
     return "\n".join([*narration[-limit:], *errors[-10:]])
+
+
+def backend_log_offset(api_url: str) -> int:
+    """Size of the private backend's log right now; ``backend_log_since`` reads what was written after it."""
+    return int(snapshot_backend_log_offset(api_url))
+
+
+def backend_log_since(api_url: str, offset: int, *, limit: int = 200) -> str:
+    """The newest ``limit`` log lines the private backend wrote after ``offset``: what it did meanwhile."""
+    path = backend_log_path(api_url)
+    if not path.is_file():
+        return f"(backend log not found: {path})"
+    with path.open("rb") as handle:
+        handle.seek(offset)
+        lines = handle.read().decode("utf-8", errors="replace").splitlines()
+    return "\n".join(line[:300] for line in lines[-limit:])
 
 
 def _assert_hook_wrote(path: Path, *, api_url: str) -> None:

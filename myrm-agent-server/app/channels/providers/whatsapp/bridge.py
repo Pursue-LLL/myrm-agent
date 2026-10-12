@@ -12,7 +12,7 @@ operations without bloating the main channel module.
 
 [POS]
 Bridge process management. WhatsAppChannel inherits spawn/read/write/kill via Mixin;
-channel.py focuses on business logic (event dispatch, messaging).
+channel.py and inbound.py focus on business logic (messaging, event dispatch).
 """
 
 from __future__ import annotations

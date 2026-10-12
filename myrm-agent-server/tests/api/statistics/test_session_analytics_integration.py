@@ -185,7 +185,6 @@ async def test_session_trace_endpoint_kanban_without_chat(tmp_path, monkeypatch)
                     "errors": 0,
                     "approvals": 0,
                     "compactions": 0,
-                    "failovers": 0,
                     "security_decisions": 0,
                     "duration_ms": 5000,
                 }
@@ -244,7 +243,6 @@ async def test_session_trace_endpoint_kanban_colon_session_id(tmp_path, monkeypa
                     "errors": 0,
                     "approvals": 0,
                     "compactions": 0,
-                    "failovers": 0,
                     "security_decisions": 0,
                     "duration_ms": 5000,
                 }

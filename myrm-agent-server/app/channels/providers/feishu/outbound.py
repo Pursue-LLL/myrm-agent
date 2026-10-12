@@ -1,6 +1,7 @@
 """Feishu outbound: message send (text / post / card), media upload, CardKit streaming and reactions.
 
 [INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
 - channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with aggregated failure)
 - channels.core.exceptions::ChannelSendError, RateLimitError (POS: delivery failure classification)
 - channels.providers.feishu.cards (POS: card / post content builders)
@@ -26,6 +27,7 @@ from datetime import UTC, datetime
 from functools import partial
 
 from app.channels.core.attachment_delivery import deliver_attachments
+from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelSendError, RateLimitError
 from app.channels.rendering.renderer import render
 from app.channels.types import (
@@ -55,7 +57,7 @@ _TABLE_RE = re.compile(
 )
 
 
-class FeishuOutboundMixin:
+class FeishuOutboundMixin(BaseChannel):
     """Feishu outbound message delivery for ``FeishuChannel``.
 
     Requires the host class to provide the attributes below.
@@ -247,7 +249,7 @@ class FeishuOutboundMixin:
             sources=self._extract_sources(msg),
             success=cron.success if cron else None,
             timestamp=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
-            cost_metadata=cost_meta,
+            cost_metadata=cost_meta if isinstance(cost_meta, dict) else None,
         )
         actions = build_card_actions(msg.quick_replies, msg.components)
         if actions:
@@ -262,7 +264,7 @@ class FeishuOutboundMixin:
             return []
         sources = msg.metadata.get("sources")
         if isinstance(sources, list):
-            return sources  # type: ignore[return-value]
+            return sources
         return []
 
     async def _send_media(

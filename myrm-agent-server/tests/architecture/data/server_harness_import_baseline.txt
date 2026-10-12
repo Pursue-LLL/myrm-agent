@@ -482,6 +482,8 @@ myrm_agent_harness.toolkits.memory.agent_surface.mcp
 myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
 myrm_agent_harness.toolkits.memory.auto_recall
 myrm_agent_harness.toolkits.memory.backup
+myrm_agent_harness.toolkits.memory.bitemporal_truth_maintenance.facade
+myrm_agent_harness.toolkits.memory.bitemporal_truth_maintenance.models
 myrm_agent_harness.toolkits.memory.budget_curator
 myrm_agent_harness.toolkits.memory.cjk_iteration_mark.facade
 myrm_agent_harness.toolkits.memory.cjk_iteration_mark.models
@@ -540,6 +542,8 @@ myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.self_verification
 myrm_agent_harness.toolkits.memory.session_post_process
 myrm_agent_harness.toolkits.memory.shared_bus
+myrm_agent_harness.toolkits.memory.skill_triad.facade
+myrm_agent_harness.toolkits.memory.skill_triad.models
 myrm_agent_harness.toolkits.memory.sovereign_migration
 myrm_agent_harness.toolkits.memory.strategies.blind_spot
 myrm_agent_harness.toolkits.memory.strategies.consolidation

@@ -1,6 +1,7 @@
 """WeChat iLink inbound: long-polling loop and ILinkMessage to InboundMessage conversion.
 
 [INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstract base class; supplies the host members the mixin calls)
 - channels.providers._ilink.client::ILinkClient (POS: iLink Bot protocol HTTP client)
 - channels.providers._ilink.media::process_inbound_item (POS: inbound media processing)
 - channels.providers._ilink.types::ILinkMessage, MessageType (POS: iLink protocol data types)
@@ -19,6 +20,7 @@ import asyncio
 import logging
 from pathlib import Path
 
+from app.channels.core.base import BaseChannel
 from app.channels.core.exceptions import ChannelAuthError
 from app.channels.providers._ilink.client import ILinkClient
 from app.channels.providers._ilink.media import process_inbound_item
@@ -32,7 +34,7 @@ _INITIAL_BACKOFF = 2.0
 _MAX_BACKOFF = 30.0
 
 
-class WeChatILinkInboundMixin:
+class WeChatILinkInboundMixin(BaseChannel):
     """WeChat iLink inbound long-polling for ``WeChatILinkChannel``.
 
     Requires the host class to provide the attributes below plus ``health``, ``_status``, ``_set_connected``,

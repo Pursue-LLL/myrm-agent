@@ -68,7 +68,7 @@ class ILinkClient:
         self._creds = credentials
         self._base_url = credentials.base_url if credentials else DEFAULT_BASE_URL
         self._wechat_uin = self._generate_wechat_uin()
-        self._qr_code_cache: str | None = None
+        self._qr_code_cache: str | dict[str, str] | None = None
         self._http = http_client or httpx.AsyncClient()
         self._owns_http = http_client is None
 
@@ -85,7 +85,7 @@ class ILinkClient:
         return self._http
 
     @property
-    def qr_code_cache(self) -> str | None:
+    def qr_code_cache(self) -> str | dict[str, str] | None:
         return self._qr_code_cache
 
     async def close(self) -> None:
