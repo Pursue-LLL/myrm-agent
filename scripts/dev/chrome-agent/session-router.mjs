@@ -17,13 +17,15 @@
  * the moment that client attached, detached, or exited.
  *
  * The router also owns the idle-tab lease (tab-lease.mjs), because it already knows which
- * target every session belongs to.
+ * target every session belongs to, and the execution-context replay for late joiners of a
+ * shared session (context-replay.mjs), because it already sees every base-session event.
  *
  * The router does no I/O: the proxy injects delivery and detach callbacks, which keeps
  * every routing rule unit-testable without Chrome.
  */
 
 import { TabLease, LEASE_REJECT_CODE } from './tab-lease.mjs';
+import { ContextReplay } from './context-replay.mjs';
 
 const ATTACHED = 'Target.attachedToTarget';
 const DETACHED = 'Target.detachedFromTarget';
@@ -60,6 +62,7 @@ export class SessionRouter {
         this.tabLease = new TabLease({ urlOf: (targetId) => this.knownTargets.get(targetId)?.url, log });
         /** proxyId → { targetId, client } for forwarded navigations that acquired a tab lease */
         this.pendingLease = new Map();
+        this.contextReplay = new ContextReplay();
     }
 
     // ── client → Chrome ─────────────────────────────────────────────
@@ -93,6 +96,8 @@ export class SessionRouter {
 
     /** Record a request that is about to be forwarded under `proxyId` (`decision` is classifyClientRequest's). */
     trackForwardedRequest(client, msg, proxyId, decision) {
+        // Owned sessions are private (fresh Chrome state); only shared sessions need replay.
+        if (!this.owned.has(msg.sessionId)) this.contextReplay.track(proxyId, client, msg);
         if (decision?.acquiredLease) {
             this.pendingLease.set(proxyId, { targetId: decision.acquiredLease, client });
         }
@@ -108,6 +113,10 @@ export class SessionRouter {
 
     /** Call before the response is delivered, so the attach event reaches the owner first. */
     onChromeResponse(proxyId, msg) {
+        const replay = this.contextReplay.settle(proxyId, msg);
+        if (replay) {
+            for (const event of replay.events) this.deliver(event, replay.client);
+        }
         const lease = this.pendingLease.get(proxyId);
         if (lease) {
             this.pendingLease.delete(proxyId);
@@ -125,6 +134,7 @@ export class SessionRouter {
 
     /** A forwarded attach request will never get a response (timeout / Chrome exit). */
     onRequestAbandoned(proxyId) {
+        this.contextReplay.abandon(proxyId);
         this.pendingLease.delete(proxyId);
         if (this.pendingAttach.delete(proxyId)) {
             this.#releaseUnclaimedHeld();
@@ -176,6 +186,7 @@ export class SessionRouter {
 
     /** Orphan the client's private sessions and detach them in Chrome (no broadcast to others). */
     onClientClosed(client) {
+        this.contextReplay.dropClient(client);
         this.tabLease.onClientClosed(client);
         for (const [proxyId, lease] of this.pendingLease) {
             if (lease.client === client) this.pendingLease.delete(proxyId);
@@ -202,6 +213,7 @@ export class SessionRouter {
         this.pendingAttach.clear();
         this.pendingLease.clear();
         this.tabLease.reset();
+        this.contextReplay.reset();
         this.held = [];
         this.knownTargets.clear();
         this.knownSessions.clear();
@@ -302,7 +314,9 @@ export class SessionRouter {
         this.deliver(msg, 'all');
     }
 
-    #cacheBase({ method, params }) {
+    #cacheBase(msg) {
+        const { method, params } = msg;
+        this.contextReplay.observe(msg);
         if (method === 'Target.targetCreated' || method === 'Target.targetInfoChanged') {
             if (params?.targetInfo) this.knownTargets.set(params.targetInfo.targetId, params.targetInfo);
         } else if (method === 'Target.targetDestroyed') {
@@ -318,6 +332,7 @@ export class SessionRouter {
             if (params.targetInfo) this.knownTargets.set(params.targetInfo.targetId, params.targetInfo);
         } else if (method === DETACHED && params?.sessionId) {
             this.knownSessions.delete(params.sessionId);
+            this.contextReplay.forget(params.sessionId);
         }
     }
 

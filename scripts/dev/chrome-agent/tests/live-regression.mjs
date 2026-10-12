@@ -137,6 +137,46 @@ const scenarios = {
         client.close(); b.stop(); d.stop();
     },
 
+    // Chrome announces execution contexts only to the first Runtime.enable on a shared
+    // session; a client that joins later (second MCP, or a restarted one) must still be
+    // able to evaluate on pages it has not navigated itself.
+    async lateJoiner() {
+        const evaluates = async (mcp, label, expected) => {
+            const pages = await mcp.pages();
+            const seen = [];
+            for (const { id } of pages) {
+                await mcp.tool('select_page', { pageId: id });
+                const r = await mcp.tool('evaluate_script', { pageId: id, function: '() => document.title' });
+                seen.push(r.isError ? 'ERR' : r.text.includes(expected(id)) ? 'ok' : 'WRONG');
+            }
+            await check(`lateJoiner: ${label} evaluates on every page`, pages.length > 0 && seen.every((x) => x === 'ok'), seen.join(','));
+        };
+        const b = proxy.mcp('B'); await b.start();
+        const [first, second] = await b.pages();
+        await b.tool('select_page', { pageId: first.id });
+        await b.tool('navigate_page', { pageId: first.id, type: 'url', url: 'data:text/html,<title>navigated</title>' });
+        const expected = (id) => (id === first.id ? 'navigated' : '');
+        const d = proxy.mcp('D'); await d.start();
+        await evaluates(d, 'second client joining a live one', expected);
+        for (const name of ['take_snapshot', 'take_screenshot']) {
+            const r = await d.tool(name, { pageId: first.id });
+            await check(`lateJoiner: second client ${name} works`, !r.isError, r.isError ? r.text.slice(0, 100) : '');
+        }
+        // The first page stays B's (tab lease); D navigates another one.
+        await d.tool('select_page', { pageId: second.id });
+        await d.tool('navigate_page', { pageId: second.id, type: 'url', url: 'data:text/html,<title>again</title>' });
+        const afterNav = await b.tool('evaluate_script', { pageId: second.id, function: '() => document.title' });
+        await check('lateJoiner: first client sees the second client\'s navigation', afterNav.text.includes('again'), afterNav.text.slice(0, 80));
+        b.stop(); await sleep(1500);
+        const f = proxy.mcp('F'); await f.start();
+        const titles = (id) => (id === first.id ? 'navigated' : id === second.id ? 'again' : '');
+        await evaluates(f, 'restarted client after the first one exited', titles);
+        d.stop(); f.stop(); await sleep(1500);
+        const g = proxy.mcp('G'); await g.start();
+        await evaluates(g, 'client restarted while nobody else is connected', titles);
+        g.stop();
+    },
+
     // A client may not detach a session it does not own; its own detach still works.
     async detachGuard() {
         const [owner, other] = [await proxy.cdp(), await proxy.cdp()];
