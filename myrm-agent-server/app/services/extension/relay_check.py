@@ -1,7 +1,6 @@
 """Browser Doctor check for the browser extension CDP relay.
 
-Reads the live extension bridge in-process, the same state ``GET /extension/setup-hints`` reports,
-so the check never has to probe its own server over HTTP.
+Reads the live extension bridge in-process: the same state ``GET /extension/setup-hints`` reports.
 
 [INPUT]
 - app.services.extension.bridge::get_extension_bridge (POS: connection, access policy and relay state)
@@ -14,7 +13,7 @@ so the check never has to probe its own server over HTTP.
 [POS]
 Server business layer. Adapter between the extension bridge and the harness Doctor report. The relay
 belongs to this server, so the doctor endpoint passes the check to ``run_doctor`` as an extra check
-instead of the framework knowing this server's routes.
+and the framework needs no knowledge of this server's routes.
 """
 
 from __future__ import annotations

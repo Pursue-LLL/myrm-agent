@@ -175,8 +175,7 @@ async def cleanup_browser_orphans(
                 msg_parts.append(f"pruned {sandboxes_pruned} sandbox(es) ({reclaimed_mb} MB reclaimed)")
             msg = ", ".join(msg_parts) if msg_parts else "No orphan processes or stale sandboxes needed cleanup"
         else:
-            candidates_count = sandbox_result.get("candidates_inspected", 0)
-            msg = f"Dry-run: {len(orphan_pids)} process(es) and {candidates_count} sandbox candidate(s)"
+            msg = f"Dry-run: {len(orphan_pids)} process(es) and {sandboxes_pruned} sandbox(es) would be cleaned"
 
         return {
             "killed": killed,

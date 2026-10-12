@@ -19303,12 +19303,12 @@
       "statusError": "Error",
       "statusMissing": "Missing",
       "checkNames": {
-        "patchright": "Browser engine",
-        "camoufox": "Stealth engine",
+        "patchright": "Browser Engine",
+        "camoufox": "Stealth Engine",
         "memory": "System Memory",
         "disk": "Disk Space",
         "proxy": "Proxy",
-        "orphan_processes": "Leftover processes & caches",
+        "orphan_processes": "Leftover Processes & Caches",
         "browser_launch": "Launch Test",
         "extension_relay": "Browser Extension"
       },

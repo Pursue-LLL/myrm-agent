@@ -61,9 +61,9 @@ _BROWSER_DOCTOR_CARD_JS = """(() => {
 
 _BROWSER_DOCTOR_REPORT_JS = """(() => {
   const text = document.body?.innerText || '';
-  const hasEngineRow = /Stealth engine|隐身引擎/.test(text);
+  const hasEngineRow = /Stealth Engine|隐身引擎/.test(text);
   const hasBadge = /Browser is working|浏览器运行正常|Issues detected|发现问题/.test(text);
-  const hasOrphanCheck = /Leftover processes & caches|残留进程与缓存/.test(text);
+  const hasOrphanCheck = /Leftover Processes & Caches|残留进程与缓存/.test(text);
   return {
     ready: hasEngineRow && hasBadge && hasOrphanCheck,
     hasEngineRow,
