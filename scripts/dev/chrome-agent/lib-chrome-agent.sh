@@ -130,14 +130,14 @@ chrome_agent_lock_release() {
 }
 
 # --- bundle sync ---------------------------------------------------------------
-# A bundle is complete only when the proxy and every local module it imports exist
-# and `ws` loads.
+# A bundle is complete only when the proxy exists, every local module imported by any
+# bundled module exists (the router imports further modules), and `ws` loads.
 chrome_agent_bundle_valid() {
   local version_dir="$1" node_bin module
   [[ -f "${version_dir}/pipe-cdp-proxy.mjs" ]] || return 1
   while IFS= read -r module; do
     [[ -f "${version_dir}/${module}" ]] || return 1
-  done < <(grep -ohE "from '\./[^']+\.mjs'" "${version_dir}/pipe-cdp-proxy.mjs" | sed -E "s#from '\./([^']+)'#\1#")
+  done < <(grep -ohE "from '\./[^']+\.mjs'" "${version_dir}"/*.mjs | sed -E "s#from '\./([^']+)'#\1#" | sort -u)
   [[ -x "${version_dir}/chrome-arm64-launcher.sh" ]] || return 1
   node_bin="${MYRM_NODE_BIN:-$(command -v node || true)}"
   [[ -n "${node_bin}" && -x "${node_bin}" ]] || return 1
