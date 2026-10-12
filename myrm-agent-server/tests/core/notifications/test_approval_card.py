@@ -147,7 +147,7 @@ class TestDecisionButtons:
         assert (deny.label, deny.action_id, deny.style) == ("Deny", "approval:deny:appr_123", ButtonStyle.DANGER)
 
     @pytest.mark.parametrize("channel", ["slack", "discord", "feishu", "whatsapp", "teams", "wecom", None])
-    def test_channels_whose_clicks_are_not_handled_get_a_pointer_instead_of_dead_buttons(self, channel: str | None) -> None:
+    def test_channels_whose_clicks_are_not_handled_get_a_pointer_to_the_app(self, channel: str | None) -> None:
         content, components = build_approval_card(_draft(), channel, "en")
 
         assert components == ()
