@@ -254,6 +254,25 @@ def _reset_ptc_safety_registry() -> Iterator[None]:
     clear()
 
 
+def _unregister_security_reviewer_if_loaded() -> None:
+    module = sys.modules.get("myrm_agent_harness.agent.middlewares.approval._batch_review")
+    if module is not None:
+        module.register_security_reviewer(None)
+
+
+@pytest.fixture(autouse=True)
+def _reset_security_reviewer() -> Iterator[None]:
+    """Unregister the auto-mode security reviewer between all tests.
+
+    ``register_security_reviewer`` stores the reviewer in a process-wide slot, and auto mode is on by
+    default. A reviewer left behind by one test approves ASK decisions of every later test of the
+    worker, including writes to protected instruction files that must stay pending.
+    """
+    _unregister_security_reviewer_if_loaded()
+    yield
+    _unregister_security_reviewer_if_loaded()
+
+
 @pytest.fixture(autouse=True)
 async def _reset_global_browser_pool_singleton(request: pytest.FixtureRequest) -> AsyncIterator[None]:
     """Shut down GlobalBrowserPool singleton after browser-related tests.
