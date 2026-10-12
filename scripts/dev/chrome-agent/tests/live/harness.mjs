@@ -58,7 +58,7 @@ export class SandboxProxy {
         this.proc = spawn(process.execPath, [
             path.join(this.proxyDir, 'pipe-cdp-proxy.mjs'),
             '--port', String(this.port),
-            '--chrome-path', chromePath(),
+            '--chrome-path', this.#headlessChrome(),
             '--user-data-dir', path.join(this.profile, 'chrome'),
             '--initial-url', 'about:blank',
         ], { stdio: ['ignore', log, log], detached: true });
@@ -70,6 +70,18 @@ export class SandboxProxy {
             } catch { /* proxy not listening yet */ }
         }
         throw new Error(`sandbox proxy did not become ready; see ${this.logPath}`);
+    }
+
+    /**
+     * Wrapper that adds --headless=new: a windowed Chrome started by tests activates the app and
+     * steals the user's keyboard focus on macOS even when its window is positioned off-screen.
+     * Set LIVE_HEADED=1 to watch a run.
+     */
+    #headlessChrome() {
+        if (process.env.LIVE_HEADED === '1') return chromePath();
+        const wrapper = path.join(this.profile, 'chrome-headless.sh');
+        fs.writeFileSync(wrapper, `#!/bin/sh\nexec "${chromePath()}" "$@" --headless=new\n`, { mode: 0o755 });
+        return wrapper;
     }
 
     async status() {

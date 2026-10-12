@@ -336,6 +336,7 @@ function proxyStatus() {
         knownSessions: router.knownSessions.size,
         pendingRequests: pendingRequests.size,
         ownedSessions: router.owned.size,
+        leasedTabs: router.tabLease.leases.size,
         connections: [...clients.values()].map((c) => ({
             id: c.label,
             connectedAt: new Date(c.connectedAt).toISOString(),
@@ -424,7 +425,7 @@ wss.on('connection', (clientWs) => {
 
         const decision = router.classifyClientRequest(client, msg);
         if (decision.action === 'reply') {
-            if (msg.id !== undefined) safeSend(clientWs, { id: msg.id, result: decision.result });
+            if (msg.id !== undefined) safeSend(clientWs, { id: msg.id, result: decision.result, error: decision.error });
             return;
         }
 
@@ -442,7 +443,7 @@ wss.on('connection', (clientWs) => {
                 createdAt: Date.now(),
             });
             client.proxyIds.add(proxyId);
-            router.trackForwardedRequest(client, msg, proxyId);
+            router.trackForwardedRequest(client, msg, proxyId, decision);
             msg.id = proxyId;
         }
 

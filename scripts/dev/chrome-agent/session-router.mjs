@@ -16,9 +16,14 @@
  * client's private sessions therefore made every other client lose all its pages
  * the moment that client attached, detached, or exited.
  *
+ * The router also owns the idle-tab lease (tab-lease.mjs), because it already knows which
+ * target every session belongs to.
+ *
  * The router does no I/O: the proxy injects delivery and detach callbacks, which keeps
  * every routing rule unit-testable without Chrome.
  */
+
+import { TabLease, LEASE_REJECT_CODE } from './tab-lease.mjs';
 
 const ATTACHED = 'Target.attachedToTarget';
 const DETACHED = 'Target.detachedFromTarget';
@@ -52,15 +57,22 @@ export class SessionRouter {
         this.held = [];
         this.knownTargets = new Map();
         this.knownSessions = new Map();
+        this.tabLease = new TabLease({ urlOf: (targetId) => this.knownTargets.get(targetId)?.url, log });
+        /** proxyId → { targetId, client } for forwarded navigations that acquired a tab lease */
+        this.pendingLease = new Map();
     }
 
     // ── client → Chrome ─────────────────────────────────────────────
 
     /** Decide whether a client request is forwarded to Chrome or answered locally. */
     classifyClientRequest(client, msg) {
+        const { rejected, acquired } = this.tabLease.guard(client, this.targetOfSession(msg.sessionId), msg);
+        if (rejected) {
+            return { action: 'reply', error: { code: LEASE_REJECT_CODE, message: rejected } };
+        }
         const sessionId = msg.params?.sessionId;
         if (msg.method !== 'Target.detachFromTarget' || !sessionId) {
-            return { action: 'forward' };
+            return { action: 'forward', acquiredLease: acquired };
         }
         if (this.owned.get(sessionId)?.owner === client) {
             return { action: 'forward' };
@@ -79,8 +91,11 @@ export class SessionRouter {
         this.log(`${client.label} ${msg.method} target=${short(target)}${url}`);
     }
 
-    /** Record an attach request that is about to be forwarded under `proxyId`. */
-    trackForwardedRequest(client, msg, proxyId) {
+    /** Record a request that is about to be forwarded under `proxyId` (`decision` is classifyClientRequest's). */
+    trackForwardedRequest(client, msg, proxyId, decision) {
+        if (decision?.acquiredLease) {
+            this.pendingLease.set(proxyId, { targetId: decision.acquiredLease, client });
+        }
         if (!ATTACH_METHODS.has(msg.method)) return;
         this.pendingAttach.set(proxyId, {
             client,
@@ -93,6 +108,11 @@ export class SessionRouter {
 
     /** Call before the response is delivered, so the attach event reaches the owner first. */
     onChromeResponse(proxyId, msg) {
+        const lease = this.pendingLease.get(proxyId);
+        if (lease) {
+            this.pendingLease.delete(proxyId);
+            if (msg.error) this.tabLease.revoke(lease.targetId, lease.client);
+        }
         const pending = this.pendingAttach.get(proxyId);
         if (!pending) return;
         this.pendingAttach.delete(proxyId);
@@ -105,6 +125,7 @@ export class SessionRouter {
 
     /** A forwarded attach request will never get a response (timeout / Chrome exit). */
     onRequestAbandoned(proxyId) {
+        this.pendingLease.delete(proxyId);
         if (this.pendingAttach.delete(proxyId)) {
             this.#releaseUnclaimedHeld();
         }
@@ -155,6 +176,10 @@ export class SessionRouter {
 
     /** Orphan the client's private sessions and detach them in Chrome (no broadcast to others). */
     onClientClosed(client) {
+        this.tabLease.onClientClosed(client);
+        for (const [proxyId, lease] of this.pendingLease) {
+            if (lease.client === client) this.pendingLease.delete(proxyId);
+        }
         const now = Date.now();
         const detached = [];
         for (const [sessionId, entry] of this.owned) {
@@ -175,6 +200,8 @@ export class SessionRouter {
     reset() {
         this.owned.clear();
         this.pendingAttach.clear();
+        this.pendingLease.clear();
+        this.tabLease.reset();
         this.held = [];
         this.knownTargets.clear();
         this.knownSessions.clear();
@@ -279,7 +306,10 @@ export class SessionRouter {
         if (method === 'Target.targetCreated' || method === 'Target.targetInfoChanged') {
             if (params?.targetInfo) this.knownTargets.set(params.targetInfo.targetId, params.targetInfo);
         } else if (method === 'Target.targetDestroyed') {
-            if (params?.targetId) this.knownTargets.delete(params.targetId);
+            if (params?.targetId) {
+                this.knownTargets.delete(params.targetId);
+                this.tabLease.forget(params.targetId);
+            }
         } else if (method === ATTACHED && params?.sessionId) {
             this.knownSessions.set(params.sessionId, {
                 targetInfo: params.targetInfo,
