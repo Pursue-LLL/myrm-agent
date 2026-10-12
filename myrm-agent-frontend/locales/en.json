@@ -11353,6 +11353,8 @@
     },
     "disabled": "Disabled",
     "locked": "Protected from auto-modification",
+    "exactFact": "Exact fact",
+    "exactFactHint": "Contains exact identifiers and is kept verbatim",
     "protectRule": "Protect this rule",
     "releaseProtection": "Remove protection",
     "protectRuleSuccess": "Rule protected",
@@ -11445,7 +11447,8 @@
       "lowRiskPolicyHint": "If you do not choose, lower-importance conflicts automatically keep the previous memory after about {hours} hours.",
       "chatBannerTitle": "{count, plural, one {One memory conflict needs your review} other {# memory conflicts need your review}}",
       "chatBannerAction": "Review in Memory settings",
-      "chatBannerDismiss": "Dismiss for this chat session"
+      "chatBannerDismiss": "Dismiss for this chat session",
+      "fetchRefreshFailed": "Could not refresh conflict status. Check your connection and try again."
     },
     "batchApproveSuccess": "Batch approval successful",
     "batchApproveSuccessDesc": "Successfully approved {count} memories",
@@ -11738,10 +11741,38 @@
           "resetLocal": "Reset applied locally",
           "configApplied": "Cadence settings updated"
         },
+        "twoLayerCadence": {
+          "panelTitle": "Cadence and depth controls",
+          "resetDefaults": "Reset to recommended defaults",
+          "layer1IntervalLabel": "Layer 1 base context refresh interval",
+          "layer1IntervalHint": "How often session summaries and peer cards recompile. Longer intervals keep the system prefix stable; measured cache savings appear in the chat context ring.",
+          "layer2IntervalLabel": "Layer 2 dialectic patrol interval",
+          "layer2IntervalHint": "How often to scan for conflicts between history and the current turn. High-risk clashes may trigger earlier.",
+          "depthLabel": "Dialectic pass depth",
+          "depthHint": "Pass 1: diff review; Pass 2: synthesize boundaries; Pass 3: consensus. More passes cost more compute.",
+          "reasoningLabel": "Reasoning level",
+          "reasoningHint": "Fast: heuristic; Standard: balanced; Deep: maximum reconciliation depth.",
+          "reasoningFast": "fast",
+          "reasoningStandard": "standard",
+          "reasoningDeep": "deep",
+          "passButton": "Pass {depth}",
+          "savedBanner": "Cadence settings applied",
+          "applyAria": "Apply cadence settings",
+          "applyLabel": "Apply settings"
+        },
         "twoLayerHud": {
           "prefixLayoutLabel": "System prefix layout",
           "layoutStable": "Stable",
-          "chatRingSub": "Hit rate in chat"
+          "chatRingSub": "Hit rate in chat",
+          "layer1CadenceLabel": "Layer 1 base context cadence",
+          "everyNTurns": "Every {count} turns",
+          "lowFreqSnapshot": "Low-frequency snapshot",
+          "layer2CadenceLabel": "Layer 2 dialectic cadence",
+          "conflictPatrol": "Conflict patrol",
+          "dialecticDepthLabel": "Dialectic depth / compute",
+          "passDepthLevel": "Pass {depth} · {level}",
+          "refreshTelemetryAria": "Refresh telemetry",
+          "resetCadenceAria": "Reset session cadence counters"
         }
       },
       "replayTitle": "Session Replay Overlay",
@@ -12315,11 +12346,7 @@
       "mergeCount": "Merged {count} times",
       "merged": "Merged",
       "replaced": "Replaced",
-      "supplemented": "Supplemented",
-      "vetoGuardrail": "Runtime Execution Guardrail",
-      "vetoPattern": "Controlled Pattern",
-      "remediation": "Remediation Advice",
-      "scope": "Scope"
+      "supplemented": "Supplemented"
     },
     "typeDesc": {
       "profile": "Key-value user attributes (name, language, occupation)",
@@ -17271,6 +17298,27 @@
         "skip": "Skip"
       }
     },
+    "settingsPreview": {
+      "teamType": "Team",
+      "individualType": "Individual",
+      "gateHint": "Review core capabilities and runtime boundaries before creating. No hidden surprises.",
+      "builtinToolsTitle": "Built-in Tools",
+      "defaultBuiltinToolsInherited": "Standard workspace primitives inherited",
+      "skillsTitle": "Skills Pack",
+      "noSkillsAttached": "No extra skills pre-mounted",
+      "mcpTitle": "MCP Connectors",
+      "noMcpBound": "Zero external MCP protocol bindings",
+      "memoryTitle": "Memory Engine",
+      "memoryDescription": "Dual-Layer HUD: Persona profile + workspace notes with quota protection.",
+      "deployBoundaryTitle": "Deploy Mode & Sandbox Boundary",
+      "sandboxNoteDefault": "Isolated sandbox execution: high-risk system commands are shielded within container workspace.",
+      "promptMode": "Prompt Mode",
+      "personality": "Tone",
+      "preflightReady": "Pre-flight verified",
+      "backToTemplates": "Back",
+      "creating": "Creating…",
+      "confirmAndCreate": "Confirm & Create Agent"
+    },
     "delete": {
       "title": "Delete Agent",
       "confirm": "Are you sure you want to delete this agent? This action cannot be undone.",
@@ -19909,7 +19957,11 @@
     "lifecycleRetryExtract": "Retry extraction",
     "lifecycleRetrying": "Retrying…",
     "lifecycleRetryFailed": "Retry failed — try again later",
-    "lifecycleRetryAlreadyInFlight": "Extraction retry already in progress"
+    "lifecycleRetryAlreadyInFlight": "Extraction retry already in progress",
+    "sessionOverridePill": "Updated in this chat",
+    "sessionOverrideTitle": "Preference updates this chat",
+    "sessionOverrideDescription": "You changed something earlier in this conversation. This reply follows those updates.",
+    "sessionOverrideMobile": "{count} update(s) from this chat are reflected here"
   },
   "memoryRecallDegraded": {
     "title": "Semantic recall unavailable",

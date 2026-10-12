@@ -11354,6 +11354,8 @@
     "enabled": "已启用",
     "disabled": "已禁用",
     "locked": "已锁定，不受自动修改影响",
+    "exactFact": "精确事实",
+    "exactFactHint": "包含精确标识符，将原样保留",
     "protectRule": "保护这条规则",
     "releaseProtection": "取消保护",
     "protectRuleSuccess": "规则已保护",
@@ -11446,7 +11448,8 @@
       "lowRiskPolicyHint": "若您未手动选择，较低重要度的冲突将在约 {hours} 小时后自动保留原有记忆。",
       "chatBannerTitle": "{count, plural, one {有 1 条记忆冲突待您确认} other {有 # 条记忆冲突待您确认}}",
       "chatBannerAction": "前往记忆设置处理",
-      "chatBannerDismiss": "本会话内不再显示"
+      "chatBannerDismiss": "本会话内不再显示",
+      "fetchRefreshFailed": "无法刷新冲突状态，请检查网络后重试。"
     },
     "batchApproveSuccess": "批量确认成功",
     "batchApproveSuccessDesc": "已成功确认 {count} 条记忆",
@@ -11739,10 +11742,38 @@
           "resetLocal": "已在本地应用重置",
           "configApplied": "已更新节奏设置"
         },
+        "twoLayerCadence": {
+          "panelTitle": "节奏与深度控制",
+          "resetDefaults": "恢复推荐默认值",
+          "layer1IntervalLabel": "Layer 1 基础上下文刷新间隔",
+          "layer1IntervalHint": "控制长程摘要与画像卡的重编译频率。间隔越长，系统前缀越稳定；缓存收益请在聊天上下文环查看实测值。",
+          "layer2IntervalLabel": "Layer 2 辩证矛盾巡检间隔",
+          "layer2IntervalHint": "控制何时扫描历史记忆与当前指令的冲突；高危互斥可能提前触发。",
+          "depthLabel": "辩证推理多遍深度",
+          "depthHint": "Pass 1：审查差异；Pass 2：综合边界；Pass 3：共识定案。遍数越高，算力消耗越大。",
+          "reasoningLabel": "模型算力等级",
+          "reasoningHint": "Fast：启发式；Standard：均衡；Deep：更深推理。",
+          "reasoningFast": "fast",
+          "reasoningStandard": "standard",
+          "reasoningDeep": "deep",
+          "passButton": "Pass {depth}",
+          "savedBanner": "节奏设置已应用",
+          "applyAria": "应用节奏设置",
+          "applyLabel": "应用并保存设置"
+        },
         "twoLayerHud": {
           "prefixLayoutLabel": "系统前缀布局",
           "layoutStable": "稳定",
-          "chatRingSub": "命中率见聊天环"
+          "chatRingSub": "命中率见聊天环",
+          "layer1CadenceLabel": "Layer 1 基础上下文 Cadence",
+          "everyNTurns": "每 {count} 轮",
+          "lowFreqSnapshot": "低频快照",
+          "layer2CadenceLabel": "Layer 2 辩证检查 Cadence",
+          "conflictPatrol": "冲突巡检",
+          "dialecticDepthLabel": "辩证深度 / 算力",
+          "passDepthLevel": "Pass {depth} · {level}",
+          "refreshTelemetryAria": "刷新遥测数据",
+          "resetCadenceAria": "重置会话 Cadence 计数器"
         }
       },
       "replayTitle": "会话回放覆盖层",
@@ -12316,11 +12347,7 @@
       "mergeCount": "已合并 {count} 次",
       "merged": "合并",
       "replaced": "替换",
-      "supplemented": "补充",
-      "vetoGuardrail": "运行时执行门禁",
-      "vetoPattern": "受控模式",
-      "remediation": "自愈建议",
-      "scope": "范围"
+      "supplemented": "补充"
     },
     "typeDesc": {
       "profile": "用户属性键值对（名字、语言、职业）",
@@ -19909,7 +19936,11 @@
     "lifecycleRetryExtract": "重试提取",
     "lifecycleRetrying": "重试中…",
     "lifecycleRetryFailed": "重试失败，请稍后再试",
-    "lifecycleRetryAlreadyInFlight": "记忆提取重试已在进行中"
+    "lifecycleRetryAlreadyInFlight": "记忆提取重试已在进行中",
+    "sessionOverridePill": "本会话已更新",
+    "sessionOverrideTitle": "本会话的偏好更新",
+    "sessionOverrideDescription": "您在本对话中更正过偏好或事实，本条回复已按这些更新理解。",
+    "sessionOverrideMobile": "本条回复体现了本会话的 {count} 项更新"
   },
   "memoryRecallDegraded": {
     "title": "语义召回不可用",

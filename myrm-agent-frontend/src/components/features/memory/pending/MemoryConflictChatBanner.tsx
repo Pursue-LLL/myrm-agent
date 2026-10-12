@@ -28,6 +28,7 @@ const MemoryConflictChatBanner = memo<MemoryConflictChatBannerProps>(({ chatId, 
   const t = useTranslations('memory');
   const conflictCount = useMemoryStore((s) => s.conflictCount);
   const conflictAutoResolveHours = useMemoryStore((s) => s.conflictAutoResolveHours);
+  const conflictsError = useMemoryStore((s) => s.conflictsError);
   const fetchConflicts = useMemoryStore((s) => s.fetchConflicts);
   const [dismissed, setDismissed] = useState(false);
 
@@ -51,8 +52,38 @@ const MemoryConflictChatBanner = memo<MemoryConflictChatBannerProps>(({ chatId, 
     }
   }, [dismissKey]);
 
-  if (dismissed || conflictCount <= 0) {
+  if (dismissed) {
     return null;
+  }
+
+  if (conflictCount <= 0) {
+    if (!conflictsError) {
+      return null;
+    }
+    return (
+      <div
+        className={cn(
+          'mx-auto mb-2 flex max-w-3xl w-full items-center justify-between gap-3 rounded-xl border border-destructive/30',
+          'bg-destructive/5 px-3 py-2 text-xs max-sm:mx-2 max-sm:max-w-none',
+          className,
+        )}
+        role="status"
+        data-testid="memory-conflict-chat-banner-error"
+      >
+        <p className="text-muted-foreground leading-snug">
+          {t('conflict.fetchRefreshFailed', {
+            defaultMessage: 'Could not refresh conflict status. Check your connection and try again.',
+          })}
+        </p>
+        <button
+          type="button"
+          onClick={() => void fetchConflicts()}
+          className="shrink-0 font-medium text-primary hover:underline"
+        >
+          {t('retry')}
+        </button>
+      </div>
+    );
   }
 
   return (
