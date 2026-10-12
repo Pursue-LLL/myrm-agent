@@ -2,6 +2,38 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-12-002 · 会话结束的技能复盘把本轮问答原地追加进调用方传入的聊天历史列表
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-09 |
+| **修复时间** | 2026-10-12 |
+| **症状** | 同一个历史列表被多次传给 `_trigger_background_skill_review` 后，列表里累积出重复的本轮 `query`/`reply`；CI 里同一个 worker 先跑了前面的用例，后面的用例拿到的历史比自己构造的多出若干条消息 |
+| **关联产品** | myrm-agent-harness `agent/skill_agent/review.py` |
+| **根因** | `convert_chat_history_simple` 对已经是 `BaseMessage` 列表的输入原样返回同一个列表对象（`utils/chat_utils.py` 的 `return history`）；复盘在拿不到图状态时对这个列表执行 `messages.append(...)` 补入本轮问答，等于改写了调用方的历史 |
+| **修复** | 复盘处先复制再追加，不改变 `convert_chat_history_simple` 的返回约定 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 由 CI 失败与代码路径确认；运行中的智能体里调用方是否持有并复用同一个列表、由此造成多大影响，没有端到端复现。该用例单独运行时通过，只在同一进程里多个用例共用模块级 `_HISTORY` 时暴露 |
+| **回归** | `tests/agent/skill_agent/test_skill_agent_review_paths.py::TestReviewTaskInputs::test_supplied_history_list_is_not_mutated` |
+| **代码位置** | `agent/skill_agent/review.py::SkillAgentReviewMixin._trigger_background_skill_review` |
+
+### BUG-HARNESS-2026-10-12-001 · 本地模式下浏览器上下文的请求过滤器仍按公网规则拦截回环地址：`allow_private_networks=True` 只对导航前检查生效
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-09 |
+| **修复时间** | 2026-10-12 |
+| **症状** | 会话以 `allow_private_networks=True` 创建（本地模式），导航前的 SSRF 检查放行了 `127.0.0.1` 之类的地址，但页面请求仍被中止（`blockedbyclient`），本机服务页面打不开。CI 的 Browser integration 任务在这个根因上有 10 个用例失败 |
+| **关联产品** | myrm-agent-harness `toolkits/browser/session/browser_session.py`、`pool/context_factory.py`、`domain_filter/__init__.py` |
+| **根因** | 浏览器池默认的资源拦截配置让每个上下文都装上请求过滤器；过滤器按跳数复核私有地址与云元数据地址，但 `install_http_filter` 的 `allow_private_networks` 从未被传入：会话只把该标志交给导航器，没有写进上下文参数，`ContextFactory` 与 `install_domain_filter` 也没有对应形参 |
+| **修复** | 会话在本地模式下把 `allow_private_networks` 写入上下文参数；`ContextFactory` 把它当作过滤器专用键（不传给 `browser.new_context()`）并转交给 `install_domain_filter` 与资源拦截两条安装路径；`install_domain_filter` 新增同名形参并转给 `install_http_filter`。默认值保持 `False`，云元数据与广告域名的拦截不受影响 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 本地沙箱里没有可用的 Chromium，无法在本机复现 10 个集成用例；根因由 CI 日志与代码路径确认，修复后的 CI 结果见 PR #1。默认值与云端行为由单元用例覆盖，没有对真实站点做回归 |
+| **回归** | `tests/toolkits/browser/test_private_network_route_filter.py`（默认拦截回环、本地模式放行、广告域名仍被拦截、`ContextFactory` 转发且不传给 `new_context`、会话写入上下文参数） |
+| **代码位置** | `toolkits/browser/session/browser_session.py::BrowserSession.__init__`、`toolkits/browser/pool/context_factory.py::ContextFactory.create_context`、`toolkits/browser/domain_filter/__init__.py::install_domain_filter` |
+
 ### BUG-HARNESS-2026-10-09-002 · `browser_navigate` 只给正文脱敏，来源里的最终 URL 仍是原文：OAuth 回调的 `code` 可随工具结果进入模型上下文和引用列表
 
 | 字段 | 内容 |
