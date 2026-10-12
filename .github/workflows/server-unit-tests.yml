@@ -35,5 +35,8 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
 
+      - name: Install promtool
+        run: bash scripts/ci/install_promtool.sh
+
       - name: Run default pytest suite
         run: bash scripts/ci/run_default_tests.sh

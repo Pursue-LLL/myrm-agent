@@ -7,6 +7,7 @@ CI 门禁脚本与 baseline 数据。由 GitHub Actions 与 `run_architecture_ga
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `check_profile_capability_escalation.py` | 核心 | AST 静态审计内置安全配置与 Agent 模板，阻断 PR 越权与提权放宽 |
+| `install_promtool.sh` | 核心 | 安装固定版本（含 sha256 校验）的 `promtool` 到 `/usr/local/bin`；架构门禁与默认 pytest 两个 workflow 共用，因为 Prometheus 规则测试在 CI 缺少 promtool 时直接失败 |
 | `lib_harness_deps.sh` | 核心 | 共享依赖安装：解析同仓的 `myrm-agent-harness/` 目录并 `uv sync --frozen --group dev`（harness 由 `uv.lock` 作为 editable path source 提供） |
 | `run_architecture_gates.sh` | 核心 | 串联 fractal docs、md-refs 反引号引用校验（`validate_arch_inventory.py --md-refs`，使用仓库内 harness 脚本）、profile capability 门禁、ruff lint、`promtool check rules`、architecture pytest |
 | `run_default_tests.sh` | 核心 | ruff lint + 默认 pytest 套件（`-m 'not e2e and not performance' -n0`；CI `server-unit-tests.yml`） |
