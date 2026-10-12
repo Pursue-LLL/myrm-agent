@@ -176,7 +176,6 @@ app/core/skills/loader.py
 app/core/skills/models.py
 app/core/skills/packaging/__init__.py
 app/core/skills/providers/local.py
-app/core/skills/state_reader.py
 app/core/skills/storage_adapters.py
 app/core/skills/store/reader.py
 app/core/skills/store/service.py
