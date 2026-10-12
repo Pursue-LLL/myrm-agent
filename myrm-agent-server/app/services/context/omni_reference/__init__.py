@@ -11,8 +11,8 @@ Facade for app.services.context.omni_reference.
 """
 
 from app.services.context.omni_reference.service import (
-    OmniReferenceResolverService,
     OmniEntityBrief,
+    OmniReferenceResolverService,
     ResolvedSliceResult,
 )
 

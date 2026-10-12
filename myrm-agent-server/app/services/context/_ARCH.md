@@ -19,3 +19,4 @@ agentic grep/glob via FilesystemFileSearchMiddleware; no vector index service.
 |------|------|
 | `context_assembly.py` | Single facade+binding assembly for agent factory and chat manual retry |
 | `context_bundle_service.py` | Health probes, migration |
+| `omni_reference/` | 5-dimensional omni-@ references resolution & slice expansion service |
