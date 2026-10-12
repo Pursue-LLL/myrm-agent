@@ -20,7 +20,6 @@ from typing import Callable, Sequence
 
 from myrm_agent_harness.agent.context_management import (
     AccountWideIdleChatAutoArchivePolicySuite,
-    ArchiveEligibilityVerdict,
     ArchiveEvaluationResult,
     ArchiveSweepSummary,
     AutoArchivePolicyConfig,

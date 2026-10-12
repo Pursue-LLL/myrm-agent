@@ -13,7 +13,6 @@
 
 from typing import List
 
-import pytest
 from myrm_agent_harness.agent.context_management import (
     ArchiveEligibilityVerdict,
     ArchiveExemptionReason,
