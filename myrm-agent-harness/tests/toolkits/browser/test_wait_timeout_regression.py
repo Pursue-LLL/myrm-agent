@@ -14,12 +14,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 from patchright.async_api import TimeoutError as PlaywrightTimeoutError
 
+from myrm_agent_harness.toolkits.browser.utils.timeout import timeout_error_types
 from myrm_agent_harness.toolkits.browser.wait import (
     WaitStrategy,
     wait_for_page_ready,
 )
 from myrm_agent_harness.toolkits.browser.wait._impl import (
-    _TIMEOUT_ERRORS,
     wait_dom_stable_only,
     wait_networkidle_only,
     wait_spa_stable,
@@ -27,9 +27,9 @@ from myrm_agent_harness.toolkits.browser.wait._impl import (
 
 
 def test_timeout_errors_tuple_covers_both_types() -> None:
-    """_TIMEOUT_ERRORS must recognize builtins and Patchright timeouts."""
-    assert TimeoutError in _TIMEOUT_ERRORS
-    assert PlaywrightTimeoutError in _TIMEOUT_ERRORS
+    """The wait handlers must recognize builtins and Patchright timeouts."""
+    assert TimeoutError in timeout_error_types()
+    assert PlaywrightTimeoutError in timeout_error_types()
 
 
 async def test_spa_stable_evaluate_receives_no_timeout_kwarg() -> None:
