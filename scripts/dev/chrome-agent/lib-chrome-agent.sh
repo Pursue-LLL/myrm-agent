@@ -12,7 +12,7 @@ set -euo pipefail
 CHROME_AGENT_LABEL="com.myrm.chrome-agent"
 CHROME_AGENT_DEFAULT_PORT="9410"
 
-# Resolve the real login home (bypasses sandboxed HOME such as Cursor's ~/.cursor2).
+# Resolve the real login home (bypasses sandboxed HOME such as Cursor's ~/.cursor-3).
 real_user_home() {
   local real_home
   real_home="$(python3 -c '
@@ -76,7 +76,7 @@ chrome_agent_source_sha() {
     printf '%s' "${sha}"
     return 0
   fi
-  shasum -a 1 "${bundle_dir}"/pipe-cdp-proxy.mjs "${bundle_dir}"/chrome-arm64-launcher.sh \
+  shasum -a 1 "${bundle_dir}"/*.mjs "${bundle_dir}"/chrome-arm64-launcher.sh \
     "${bundle_dir}"/package.json "${bundle_dir}"/package-lock.json 2>/dev/null \
     | awk '{ printf "%s", $1 }' | cut -c1-12
 }
@@ -130,10 +130,14 @@ chrome_agent_lock_release() {
 }
 
 # --- bundle sync ---------------------------------------------------------------
-# A bundle is complete only when the proxy file exists and `ws` loads.
+# A bundle is complete only when the proxy and every local module it imports exist
+# and `ws` loads.
 chrome_agent_bundle_valid() {
-  local version_dir="$1" node_bin
+  local version_dir="$1" node_bin module
   [[ -f "${version_dir}/pipe-cdp-proxy.mjs" ]] || return 1
+  while IFS= read -r module; do
+    [[ -f "${version_dir}/${module}" ]] || return 1
+  done < <(grep -ohE "from '\./[^']+\.mjs'" "${version_dir}/pipe-cdp-proxy.mjs" | sed -E "s#from '\./([^']+)'#\1#")
   [[ -x "${version_dir}/chrome-arm64-launcher.sh" ]] || return 1
   node_bin="${MYRM_NODE_BIN:-$(command -v node || true)}"
   [[ -n "${node_bin}" && -x "${node_bin}" ]] || return 1
@@ -152,7 +156,7 @@ chrome_agent_sync_bundle() {
   bundle_dir="$(chrome_agent_repo_bundle_dir)"
   version_dir="$(chrome_agent_versions_dir)/${sha}"
   mkdir -p "${version_dir}"
-  cp -p "${bundle_dir}"/pipe-cdp-proxy.mjs "${bundle_dir}"/chrome-arm64-launcher.sh \
+  cp -p "${bundle_dir}"/*.mjs "${bundle_dir}"/chrome-arm64-launcher.sh \
     "${bundle_dir}"/package.json "${bundle_dir}"/package-lock.json "${version_dir}/"
   chmod +x "${version_dir}/chrome-arm64-launcher.sh"
   if [[ ! -d "${version_dir}/node_modules/ws" ]]; then
