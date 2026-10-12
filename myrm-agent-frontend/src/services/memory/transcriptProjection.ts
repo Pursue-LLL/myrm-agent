@@ -65,7 +65,7 @@ export interface BootstrapSessionResponseDTO {
 export async function appendTranscriptEntries(
   entries: TranscriptEntryDTO[]
 ): Promise<{ appended_count: number }> {
-  return apiRequest<{ appended_count: number }>('/api/v1/memory/transcript-projection/append', {
+  return apiRequest<{ appended_count: number }>('/memory/transcript-projection/append', {
     method: 'POST',
     body: JSON.stringify(entries),
     headers: {
@@ -80,7 +80,7 @@ export async function appendTranscriptEntries(
 export async function ingestLiveMessages(
   messages: SessionMessageDTO[]
 ): Promise<{ ingested_count: number }> {
-  return apiRequest<{ ingested_count: number }>('/api/v1/memory/transcript-projection/ingest', {
+  return apiRequest<{ ingested_count: number }>('/memory/transcript-projection/ingest', {
     method: 'POST',
     body: JSON.stringify(messages),
     headers: {
@@ -95,7 +95,7 @@ export async function ingestLiveMessages(
 export async function bootstrapSessionProjection(
   request: BootstrapSessionRequestDTO
 ): Promise<BootstrapSessionResponseDTO> {
-  return apiRequest<BootstrapSessionResponseDTO>('/api/v1/memory/transcript-projection/bootstrap', {
+  return apiRequest<BootstrapSessionResponseDTO>('/memory/transcript-projection/bootstrap', {
     method: 'POST',
     body: JSON.stringify(request),
     headers: {
@@ -111,7 +111,7 @@ export async function getSessionProjectedMessages(
   sessionId: string
 ): Promise<SessionMessageDTO[]> {
   return apiRequest<SessionMessageDTO[]>(
-    `/api/v1/memory/transcript-projection/${encodeURIComponent(sessionId)}/messages`,
+    `/memory/transcript-projection/${encodeURIComponent(sessionId)}/messages`,
     {
       method: 'GET',
     }
@@ -125,7 +125,7 @@ export async function getSessionTranscriptEntries(
   sessionId: string
 ): Promise<TranscriptEntryDTO[]> {
   return apiRequest<TranscriptEntryDTO[]>(
-    `/api/v1/memory/transcript-projection/${encodeURIComponent(sessionId)}/entries`,
+    `/memory/transcript-projection/${encodeURIComponent(sessionId)}/entries`,
     {
       method: 'GET',
     }

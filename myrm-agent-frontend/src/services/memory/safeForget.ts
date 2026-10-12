@@ -63,7 +63,7 @@ export async function probeMemoryParents(
     allow_global: String(allowGlobal),
   });
   return apiRequest<ParentProbeResponseDTO>(
-    `/api/v1/memory/episodic-forget/probe?${query.toString()}`,
+    `/memory/episodic-forget/probe?${query.toString()}`,
     {
       method: 'POST',
     }
@@ -76,7 +76,7 @@ export async function probeMemoryParents(
 export async function executeSafeForget(
   request: SafeForgetRequestDTO
 ): Promise<SafeForgetResponseDTO> {
-  return apiRequest<SafeForgetResponseDTO>('/api/v1/memory/episodic-forget/execute', {
+  return apiRequest<SafeForgetResponseDTO>('/memory/episodic-forget/execute', {
     method: 'POST',
     body: JSON.stringify(request),
     headers: {
@@ -89,7 +89,7 @@ export async function executeSafeForget(
  * Retrieve recorded after-commit invalidation audit events.
  */
 export async function getSafeForgetAuditEvents(): Promise<SafeForgetAuditEventDTO[]> {
-  return apiRequest<SafeForgetAuditEventDTO[]>('/api/v1/memory/episodic-forget/audit', {
+  return apiRequest<SafeForgetAuditEventDTO[]>('/memory/episodic-forget/audit', {
     method: 'GET',
   });
 }

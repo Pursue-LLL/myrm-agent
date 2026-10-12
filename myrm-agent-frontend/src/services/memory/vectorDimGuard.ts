@@ -65,7 +65,7 @@ export interface RebuildTaskStatusResponseDTO {
 export async function inspectCollectionDim(
   request: DimGuardInspectRequestDTO
 ): Promise<DimGuardInspectResponseDTO> {
-  return apiRequest<DimGuardInspectResponseDTO>('/api/v1/memory/vector-dim-guard/inspect', {
+  return apiRequest<DimGuardInspectResponseDTO>('/memory/vector-dim-guard/inspect', {
     method: 'POST',
     body: JSON.stringify(request),
     headers: {
@@ -80,7 +80,7 @@ export async function inspectCollectionDim(
 export async function startVectorRebuild(
   request: StartRebuildRequestDTO
 ): Promise<RebuildTaskStatusResponseDTO> {
-  return apiRequest<RebuildTaskStatusResponseDTO>('/api/v1/memory/vector-dim-guard/rebuild/start', {
+  return apiRequest<RebuildTaskStatusResponseDTO>('/memory/vector-dim-guard/rebuild/start', {
     method: 'POST',
     body: JSON.stringify(request),
     headers: {
@@ -96,7 +96,7 @@ export async function getRebuildTaskStatus(
   taskId: string
 ): Promise<RebuildTaskStatusResponseDTO> {
   return apiRequest<RebuildTaskStatusResponseDTO>(
-    `/api/v1/memory/vector-dim-guard/rebuild/${encodeURIComponent(taskId)}/status`,
+    `/memory/vector-dim-guard/rebuild/${encodeURIComponent(taskId)}/status`,
     {
       method: 'GET',
     }
@@ -108,7 +108,7 @@ export async function getRebuildTaskStatus(
  */
 export async function getActiveRebuildTask(): Promise<{ active_task_id: string | null }> {
   return apiRequest<{ active_task_id: string | null }>(
-    '/api/v1/memory/vector-dim-guard/rebuild/active',
+    '/memory/vector-dim-guard/rebuild/active',
     {
       method: 'GET',
     }
