@@ -1,7 +1,8 @@
-"""The WhatsApp bridge must not write inbound message content to stderr.
+"""The WhatsApp bridge must not write message content or account identities to its output streams.
 
-The host logs every bridge stderr line (INFO, or ERROR when the line mentions "error"), so a
-console dump of an inbound message ends up in the server log files.
+The host logs every bridge stderr line (INFO, or ERROR when the line mentions "error"), and stdout carries the
+JSON event protocol, so a console call that interpolates a value either leaks it into the server log or
+corrupts the stream. Only fixed text is allowed.
 """
 
 from __future__ import annotations
@@ -10,18 +11,34 @@ import re
 
 from app.channels.providers.whatsapp.helpers import _BRIDGE_SCRIPT
 
-_UPSERT_HANDLER = re.compile(r"""sock\.ev\.on\(\s*["']messages\.upsert["']""")
-_NEXT_HANDLER = re.compile(r"sock\.ev\.on\(")
+_CONSOLE_CALL = re.compile(r"console\.\w+\(|process\.stderr\.write\(")
+_FIXED_TEXT_CALL = re.compile(r"""(?:console\.\w+|process\.stderr\.write)\(\s*(["'])[^"'`$\\]*\1\s*\)\s*;""")
 
 
-def _upsert_handler_source() -> str:
-    source = _BRIDGE_SCRIPT.read_text(encoding="utf-8")
-    start = _UPSERT_HANDLER.search(source)
-    assert start, "messages.upsert handler not found in the bridge script"
-    end = _NEXT_HANDLER.search(source, start.end())
-    return source[start.start() : end.start() if end else len(source)]
+def _calls_with_dynamic_arguments(source: str) -> list[str]:
+    return [line.strip() for line in source.splitlines() if _CONSOLE_CALL.search(line) and not _FIXED_TEXT_CALL.search(line)]
 
 
-def test_inbound_message_handler_never_writes_to_the_console() -> None:
-    offenders = [line.strip() for line in _upsert_handler_source().splitlines() if "console." in line]
-    assert offenders == []
+def test_detector_flags_values_and_template_strings() -> None:
+    sample = "\n".join(
+        [
+            "console.error('Connection OPEN', selfJid);",
+            "console.error(`message: ${text}`);",
+            "process.stderr.write(JSON.stringify(event));",
+            "console.error('Connection open');",
+        ]
+    )
+
+    assert _calls_with_dynamic_arguments(sample) == [
+        "console.error('Connection OPEN', selfJid);",
+        "console.error(`message: ${text}`);",
+        "process.stderr.write(JSON.stringify(event));",
+    ]
+
+
+def test_bridge_script_writes_only_fixed_text_to_the_console() -> None:
+    assert _calls_with_dynamic_arguments(_BRIDGE_SCRIPT.read_text(encoding="utf-8")) == []
+
+
+def test_baileys_logger_stays_silent() -> None:
+    assert 'pino({ level: "silent" })' in _BRIDGE_SCRIPT.read_text(encoding="utf-8")

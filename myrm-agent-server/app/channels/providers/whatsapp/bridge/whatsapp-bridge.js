@@ -295,7 +295,7 @@ async function connectWhatsApp() {
       if (connection === "open") {
         selfJid = sock?.user?.id || null;
         const selfLid = sock?.user?.lid || null;
-        console.error('[WhatsApp Bridge] Connection OPEN! selfJid:', selfJid, 'selfLid:', selfLid);
+        console.error('[WhatsApp Bridge] Connection OPEN');
         if (selfJid && selfLid) {
           const pnJid = `${selfJid.split(":")[0]}@s.whatsapp.net`;
           cacheLidPn(selfLid, pnJid);
