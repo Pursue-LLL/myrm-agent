@@ -31,15 +31,17 @@ router = APIRouter(tags=["system-port-inspector"])
 
 # 系统关键守护进程保护集合
 PROTECTED_PIDS: frozenset[int] = frozenset({0, 1})
-PROTECTED_PROCESS_NAMES: frozenset[str] = frozenset({
-    "launchd",
-    "systemd",
-    "init",
-    "kernel_task",
-    "kthreadd",
-    "loginwindow",
-    "syslogd",
-})
+PROTECTED_PROCESS_NAMES: frozenset[str] = frozenset(
+    {
+        "launchd",
+        "systemd",
+        "init",
+        "kernel_task",
+        "kthreadd",
+        "loginwindow",
+        "syslogd",
+    }
+)
 
 
 class PortProcessInfo(BaseModel):
@@ -247,11 +249,11 @@ async def process_lineage_endpoint(
     """回溯进程完整的派生链，例如 launchd -> zsh -> node -> worker，查明谁拉起了高耗任务。"""
     try:
         psutil.Process(pid)
-    except psutil.NoSuchProcess:
+    except psutil.NoSuchProcess as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Process with PID {pid} not found.",
-        )
+        ) from exc
     return get_process_lineage(pid)
 
 
@@ -267,11 +269,11 @@ async def kill_process_endpoint(
     """终止进程。内置受保护进程防火墙，禁止误杀系统守护进程及服务自身。"""
     try:
         proc = psutil.Process(pid)
-    except psutil.NoSuchProcess:
+    except psutil.NoSuchProcess as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Process with PID {pid} does not exist.",
-        )
+        ) from exc
 
     # 严格安全白名单过滤
     if _is_process_protected(proc):
@@ -295,11 +297,11 @@ async def kill_process_endpoint(
             signal_sent=sig_name,
             message=f"已成功向进程 {pid} 发送 {sig_name} 终止信号。",
         )
-    except psutil.AccessDenied:
+    except psutil.AccessDenied as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Permission denied to send signal to PID {pid}.",
-        )
+        ) from exc
     except psutil.NoSuchProcess:
         return ProcessKillResponse(
             success=True,
