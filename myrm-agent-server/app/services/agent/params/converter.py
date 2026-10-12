@@ -936,7 +936,7 @@ async def convert_to_general_agent_params(
                     memory_shared_context_ids.append(kb_id)
 
         if memory_shared_context_ids:
-            from app.database import get_session
+            from app.database.connection import get_session
 
             async with get_session() as session:
                 memory_shared_context_names = await SharedContextService(session).get_context_names(memory_shared_context_ids)

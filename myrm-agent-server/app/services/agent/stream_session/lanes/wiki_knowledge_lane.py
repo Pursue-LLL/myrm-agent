@@ -54,7 +54,7 @@ async def create_wiki_knowledge_lane_stream(
         context_name_map: dict[str, str] = dict(getattr(params, "memory_shared_context_names", None) or {})
         if not context_name_map and params.memory_shared_context_ids:
             try:
-                from app.database import get_session
+                from app.database.connection import get_session
                 from app.services.memory.shared_context.shared_context import (
                     SharedContextService,
                 )

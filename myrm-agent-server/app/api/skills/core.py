@@ -170,7 +170,8 @@ async def reveal_skill(skill_id: str) -> dict[str, str]:
     """
     from pathlib import Path
 
-    from app.api.files.local_actions import _reveal_in_file_manager, _validate_local_mode
+    from app.api.files.local_actions import _validate_local_mode
+    from app.services.files.reveal_utils import reveal_path_in_file_manager
 
     _validate_local_mode()
 
@@ -185,5 +186,5 @@ async def reveal_skill(skill_id: str) -> dict[str, str]:
     if not path.exists():
         raise HTTPException(status_code=404, detail="Skill directory does not exist on disk")
 
-    _reveal_in_file_manager(path)
+    reveal_path_in_file_manager(path)
     return {"status": "ok", "path": str(path)}

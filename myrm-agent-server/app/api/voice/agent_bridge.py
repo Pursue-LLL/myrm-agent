@@ -698,8 +698,10 @@ def _ensure_model_rebuild() -> None:
     global _model_rebuilt  # noqa: PLW0603
     if _model_rebuilt:
         return
-    from myrm_agent_harness.toolkits.memory.config import (
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import (
         EmbeddingConfig,
+    )
+    from myrm_agent_harness.toolkits.retriever.reranker.factory import (
         RerankerConfig,
     )
 

@@ -634,7 +634,6 @@ class TestBuildAgentParamsWebFetchGate:
         mock_configs.personal_settings_dict = {}
 
         with (
-            patch("app.api.voice.agent_bridge._ensure_model_rebuild"),
             patch(
                 "app.core.channel_bridge.config_loader.load_user_configs",
                 new_callable=AsyncMock,
@@ -700,7 +699,6 @@ class TestBuildAgentParamsWebFetchGate:
         mock_configs.personal_settings_dict = {}
 
         with (
-            patch("app.api.voice.agent_bridge._ensure_model_rebuild"),
             patch(
                 "app.core.channel_bridge.config_loader.load_user_configs",
                 new_callable=AsyncMock,
