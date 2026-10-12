@@ -21,7 +21,7 @@
 | `models.py` | 核心 | Skill、UserSkillConfig、SkillType 等数据模型 | — |
 | `loader.py` | 核心 | 技能后端工厂，组装 SkillBackend。支持 `allowed_prebuilt_ids` 白名单过滤 prebuilt 技能（Action Space Opt-In）：`/prebuilt/` 路由是 `_EnabledPrebuiltBackend`，只列出并只读取已启用的 prebuilt（内容委托给完整 prebuilt 后端）。`/user/` 路由是 `_UserSkillBackend`：元数据经 `runtime_metadata.skill_to_runtime_metadata` 适配，按运行时名称与 `storage_skill_id` 双键定位，LOCAL 技能直接读取其磁盘目录（SKILL.md / 资源，路径受 `safe_join_path` 约束），其余技能经 StorageProvider 读取。 | ✅ |
 | `runtime_metadata.py` | 核心 | Catalog `Skill` → 运行时 `SkillMetadata` 的唯一适配器（`Skill.from_metadata` 的反向）：`/user/` 路由与 Turn1 预览共用；携带 requires / trust / allowed_tools / always / 调用开关 / env·OAuth 注入等运行时字段，availability 不复制、由运行时 gate 重算；仅存在于 SKILL.md 的字段（hooks、条件激活工具列表、contract、模型路由）不在 Catalog 记录内 | ✅ |
-| `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理；快照 `requires` 取自实际留存的 SKILL.md（用户改过则以用户副本为准），不重写的旧快照仅补丁 `requires` 字段 | ✅ |
+| `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理；快照 `requires` 取自实际留存的 SKILL.md（用户改过则以用户副本为准），未重写的快照仅补丁 `requires` 字段；在线编辑 SKILL.md 后于下次同步对齐 | ✅ |
 | `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`）。边界见 [SKILLS_SYSTEM.md §3.5](SKILLS_SYSTEM.md) | ✅ |
 | `storage_adapters.py` | 核心 | SnapshotStore/ABTestStore 协议适配器 | ✅ |
 | `utils.py` | 核心 | 技能名称标准化（normalize_skill_name） | — |

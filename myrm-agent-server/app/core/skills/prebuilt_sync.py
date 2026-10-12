@@ -3,6 +3,7 @@
 [INPUT]
 myrm_agent_harness.api.skills::parse_skill_frontmatter (POS: SKILL.md frontmatter parser)
 myrm_agent_harness.api.skills::compute_content_hash (POS: SHA-256 content hashing)
+myrm_agent_harness.backends.skills.types::SkillRequires (POS: framework runtime requirement declaration)
 myrm_agent_harness.toolkits.storage.base::StorageProvider (POS: unified storage abstraction)
 
 [OUTPUT]
@@ -16,6 +17,9 @@ Protects user-modified prebuilt skills from silent overwrite during upgrades:
 - If user modified content (current_hash != origin_hash), skip overwrite and mark
   has_upstream_update=True so the frontend can show an "update available" badge.
 - If user hasn't modified, silently apply upstream updates.
+After each sync the snapshot's ``requires`` matches the SKILL.md that stays in storage (the user's copy
+when it differs from the seed), so the Skills page gates what the runtime gates. Editing SKILL.md
+through the files API refreshes it at the next sync.
 Also handles stale entry cleanup for removed bundled skills.
 """
 
@@ -139,10 +143,10 @@ async def _patch_snapshot_requires(
     snapshot: dict[str, object] | None,
     requires: SkillRequires,
 ) -> None:
-    """Align a snapshot the sync is not otherwise rewriting with the SKILL.md kept in storage.
+    """Align the ``requires`` of a snapshot the sync is not rewriting with the SKILL.md kept in storage.
 
-    Snapshots written before ``requires`` was recorded hold an empty value, which would keep the
-    Skills page from gating skills that the runtime already gates.
+    The Skills page gates on the snapshot while the runtime gates on the stored SKILL.md, so both
+    must declare the same requirements.
     """
     if snapshot is None or snapshot.get("requires") == requires.to_dict():
         return
