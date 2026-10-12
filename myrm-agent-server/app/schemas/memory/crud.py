@@ -129,7 +129,6 @@ class MemoryConflictPolicy(BaseModel):
     """Server-side conflict resolution policy (SSOT for GUI copy)."""
 
     low_risk_auto_resolve_hours: int
-    high_risk_importance_threshold: float
 
 
 class PendingMemoriesResponse(BaseModel):

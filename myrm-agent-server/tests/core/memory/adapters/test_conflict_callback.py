@@ -448,3 +448,11 @@ class TestCreateConflictCallback:
         assert result == ConflictResolution.PENDING
         mock_db.add.assert_not_called()
         mock_db.commit.assert_not_called()
+
+
+class TestGetMemoryConflictPolicy:
+    def test_exposes_auto_resolve_hours_only(self) -> None:
+        from app.core.memory.adapters.conflict_callback import get_memory_conflict_policy
+
+        policy = get_memory_conflict_policy()
+        assert policy == {"low_risk_auto_resolve_hours": 72}

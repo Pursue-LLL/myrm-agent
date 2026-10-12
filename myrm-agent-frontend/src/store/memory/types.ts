@@ -57,6 +57,7 @@ export interface MemoryState {
   conflicts: PendingMemory[];
   conflictCount: number;
   conflictsLoading: boolean;
+  conflictsError: string | null;
   conflictAutoResolveHours: number;
 
   // 回收站

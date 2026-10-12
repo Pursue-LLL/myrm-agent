@@ -5,6 +5,7 @@ myrm_agent_harness.toolkits.memory.types::ConflictResolution (POS: 冲突决议�
 myrm_agent_harness.toolkits.memory.strategies.consolidation::ConflictCallback, ConflictContext (POS: 记忆整合冲突上下文)
 
 [OUTPUT]
+get_memory_conflict_policy: GUI 可读的冲突自动解决策略 SSOT
 create_conflict_callback: 冲突持久化回调工厂
 
 [POS]
@@ -43,7 +44,6 @@ def get_memory_conflict_policy() -> dict[str, float | int]:
     """SSOT for conflict auto-resolve policy exposed to the GUI."""
     return {
         "low_risk_auto_resolve_hours": _CONFLICT_AUTO_RESOLVE_HOURS,
-        "high_risk_importance_threshold": _HIGH_RISK_IMPORTANCE,
     }
 
 

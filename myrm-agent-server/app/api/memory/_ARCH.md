@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Memory API module | ✅ |
-| `router.py` | 路由 | Memory API router（含 `/follow-ups` 子路由、`/archive/restore` 归档恢复路由组） | ✅ |
+| `router.py` | 路由 | Memory API 聚合路由（产线：`operations/pending`、`operations/conflicts` 等）。`conflict_router`（语义仲裁 `/conflict/*`）及 `ltra` / `zero_hallucination` / `world_model` / `cognitive_box` 仅由对应 `tests/api/memory/test_*` 直连挂载，不进入默认聚合面 | ✅ |
 | `test_seed.py` | 路由 | 本地测试专用 fixture（仅 local mode）：Chrome E2E seed 演变历史/纠正链记忆（预填向量绕过失效凭据）；`/test/seed-pending-proposal` 经 `submit_pending` 排队 CORRECT/DELETE 待审批提案（embedding 由调用方配置） | ✅ |
 | `follow_ups/` | 路由 | Proactive follow-up list / dismiss / snooze | [_ARCH.md](follow_ups/_ARCH.md) |
 | `shared_context_schemas.py` | 模块 | 共享上下文 API Schema 层。集中定义 Shared Context 产品接口的数据契约。 | ✅ |

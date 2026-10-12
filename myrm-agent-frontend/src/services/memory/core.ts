@@ -107,7 +107,6 @@ export interface MemoryPaginationInfo {
 
 export interface MemoryConflictPolicy {
   low_risk_auto_resolve_hours: number;
-  high_risk_importance_threshold: number;
 }
 
 export interface PendingMemoryListResponse {

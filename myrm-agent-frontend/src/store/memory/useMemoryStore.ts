@@ -58,6 +58,7 @@ const initialState = {
   conflicts: [] as PendingMemory[],
   conflictCount: 0,
   conflictsLoading: false,
+  conflictsError: null as string | null,
   conflictAutoResolveHours: 72,
   archivedMemories: [],
   archivedLoading: false,
@@ -383,20 +384,33 @@ const useMemoryStore = create<MemoryState>()(
     // ==================== 冲突 ====================
 
     fetchConflicts: async () => {
-      set({ conflictsLoading: true });
-      try {
-        const response = await apiGetConflicts();
-        set({
-          conflicts: response.items,
-          conflictCount: response.total,
-          conflictsLoading: false,
-          ...(response.policy?.low_risk_auto_resolve_hours != null
-            ? { conflictAutoResolveHours: response.policy.low_risk_auto_resolve_hours }
-            : {}),
-        });
-      } catch {
-        set({ conflictsLoading: false });
+      set({ conflictsLoading: true, conflictsError: null });
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const response = await apiGetConflicts();
+          set({
+            conflicts: response.items,
+            conflictCount: response.total,
+            conflictsLoading: false,
+            conflictsError: null,
+            ...(response.policy?.low_risk_auto_resolve_hours != null
+              ? { conflictAutoResolveHours: response.policy.low_risk_auto_resolve_hours }
+              : {}),
+          });
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt === 0) {
+            await new Promise((resolve) => {
+              setTimeout(resolve, 400);
+            });
+          }
+        }
       }
+      const message =
+        lastError instanceof Error ? lastError.message : 'Failed to fetch conflicts';
+      set({ conflictsLoading: false, conflictsError: message });
     },
 
     resolveConflict: async (id: string, resolution: ConflictResolution, mergedContent?: string) => {

@@ -10,14 +10,12 @@ from fastapi import APIRouter
 from app.api.memory import (
     batch_learn,
     capacity_hitl,
-    cognitive_box,
     context_ingestion,
     cvfs,
     decisions,
     decontamination,
     dream_diary,
     external_bridge,
-    ltra,
     migration,
     onboarding,
     proactive_care,
@@ -25,8 +23,6 @@ from app.api.memory import (
     sqlite_vec,
     tombstone,
     tool_backup,
-    world_model,
-    zero_hallucination,
 )
 from app.api.memory.activity_compactor_router import (
     router as activity_compactor_router,
@@ -70,9 +66,6 @@ from app.api.memory.conclusion_attribution_router import (
 )
 from app.api.memory.conclusion_evidence_router import (
     router as conclusion_evidence_router,
-)
-from app.api.memory.conflict_router import (
-    router as memory_conflict_router,
 )
 from app.api.memory.context_fabric_router import (
     router as context_fabric_router,
@@ -397,7 +390,6 @@ router.include_router(memory_mcp_router, tags=["memory-mcp-interop"])
 router.include_router(memory_drift_router, tags=["memory-drift-defense"])
 router.include_router(memory_unload_router, tags=["memory-unload-guard"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
-router.include_router(memory_conflict_router, tags=["memory-conflict-arbitration"])
 router.include_router(memory_openclaw_router, tags=["memory-openclaw-adapter"])
 router.include_router(memory_dual_track_router, tags=["memory-dual-track"])
 router.include_router(memory_universal_mcp_router, tags=["memory-universal-mcp"])
@@ -422,11 +414,8 @@ router.include_router(migration_readiness_fixture_router, tags=["memory-test-fix
 router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
 router.include_router(dream_diary.router, tags=["memory-dream-diary"])
 router.include_router(dream_diary.unlearn_router, tags=["memory-surgical-unlearn"])
-router.include_router(ltra.router, tags=["memory-ltra-cognitive"])
 router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
 router.include_router(external_bridge.router, tags=["memory-external-skill-bridge"])
-router.include_router(zero_hallucination.router, tags=["memory-zero-hallucination-diagnostics"])
-router.include_router(world_model.router, tags=["memory-world-model"])
 router.include_router(sqlite_vec.router, tags=["memory-sqlite-vec"])
 router.include_router(decisions.router, tags=["memory-engineering-decisions"])
 router.include_router(repair.router, tags=["memory-repair"])
@@ -434,7 +423,6 @@ router.include_router(tool_backup.router, tags=["memory-tool-backup"])
 router.include_router(context_ingestion.router, tags=["memory-context-ingestion"])
 router.include_router(decontamination.router, tags=["memory-decontamination"])
 router.include_router(cvfs.router, tags=["memory-cvfs"])
-router.include_router(cognitive_box.router, tags=["memory-cognitive-box"])
 router.include_router(proactive_care.router, tags=["memory-proactive-care"])
 router.include_router(capacity_hitl.router, tags=["memory-capacity-hitl"])
 router.include_router(migration.router, tags=["memory-migration"])
