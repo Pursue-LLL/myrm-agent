@@ -38,7 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
-import * as LucideIcons from 'lucide-react';
+import { findLucideIcon } from '@/components/agent/lucide-icon-resolver';
 import { useAgentGallery } from '@/hooks/agent/useAgentGallery';
 import { buildAgentConfig } from '@/lib/utils/agent-config';
 import type { PresetAgent } from '@/types/presetAgent';
@@ -245,9 +245,7 @@ const AgentIndicator = () => {
     }
 
     if (agentConfig?.presetIcon) {
-      const IconComponent = (
-        LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; className?: string }>>
-      )[agentConfig.presetIcon];
+      const IconComponent = findLucideIcon(agentConfig.presetIcon);
       if (IconComponent) {
         return (
           <div
@@ -336,10 +334,7 @@ const AgentIndicator = () => {
             </DropdownMenuLabel>
             {presetAgents.map((preset) => {
               const isSelected = currentAgentId === preset.id;
-              const IconComp =
-                (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[
-                  preset.icon
-                ] || BotIcon;
+              const IconComp = findLucideIcon(preset.icon) ?? BotIcon;
 
               return (
                 <DropdownMenuItem

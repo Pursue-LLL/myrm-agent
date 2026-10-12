@@ -14,7 +14,9 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import * as LucideIcons from 'lucide-react';
+import { resolveLucideIcon } from './lucide-icon-resolver';
+
+export { resolveLucideIcon };
 
 interface AgentIconDef {
   svg: React.ReactNode;
@@ -352,19 +354,6 @@ export function AgentIcon({ iconId, size = 'md', className }: AgentIconProps) {
       {def.svg}
     </div>
   );
-}
-
-/**
- * Resolve a kebab-case lucide icon name to its React component.
- * Returns the matched icon or LucideIcons.Bot as fallback.
- */
-export function resolveLucideIcon(iconName: string): React.ComponentType<{ size?: number; className?: string }> {
-  const componentName = iconName
-    .split('-')
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join('');
-  const iconMap = LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; className?: string }>>;
-  return iconMap[componentName] || LucideIcons.Bot;
 }
 
 export function LucideAgentIcon({
