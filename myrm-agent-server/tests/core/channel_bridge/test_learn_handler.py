@@ -100,10 +100,12 @@ class TestBuildLearnPrompt:
         prompt = _build_learn_prompt("https://example.com")
         assert "[/learn]" in prompt
 
-    def test_url_uses_web_search_tool(self) -> None:
+    def test_url_is_read_with_web_fetch_tool(self) -> None:
+        """The URL hint names the tool that is always mounted for known URLs, not the opt-in search tool."""
         prompt = _build_learn_prompt("https://docs.stripe.com/webhooks")
-        assert "web_search_tool" in prompt
-        assert "INPUT TYPE: url" in prompt
+        gather_hint = prompt.split("INPUT TYPE: url\n", 1)[1].split("\n\nINSTRUCTIONS:", 1)[0]
+        assert "`web_fetch_tool`" in gather_hint
+        assert "web_search_tool" not in gather_hint
 
     def test_path_uses_file_read_tool(self) -> None:
         prompt = _build_learn_prompt("./scripts/deploy.sh")
@@ -263,7 +265,7 @@ class TestChannelLearnCommandHandler:
     async def test_with_url(self, handler: ChannelLearnCommandHandler) -> None:
         result = await handler(_make_msg(), "https://docs.example.com/api")
         assert result is not None
-        assert "web_search_tool" in result.content
+        assert "INPUT TYPE: url" in result.content
         assert "[/learn]" in result.content
 
     @pytest.mark.asyncio
@@ -338,7 +340,7 @@ class TestChannelLearnCommandHandler:
         result = await handler(_make_msg(), url)
         assert result is not None
         assert url in result.content
-        assert "web_search_tool" in result.content
+        assert "INPUT TYPE: url" in result.content
 
     @pytest.mark.asyncio
     async def test_original_message_content_replaced(self, handler: ChannelLearnCommandHandler) -> None:

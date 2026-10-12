@@ -231,8 +231,8 @@ def _build_learn_prompt(user_args: str) -> str:
 
     if input_type == "url":
         gather_hint = (
-            "The user provided a URL. Use `web_search_tool` or browser tools "
-            "to fetch and read the page content. Extract the key procedures, "
+            "The user provided a URL. Read the page with `web_fetch_tool` (use browser tools "
+            "only when the page needs interaction). Extract the key procedures, "
             "commands, and configuration from the documentation. For large documentation "
             "corpora, inspect the index first and process sections incrementally in step 2b."
         )

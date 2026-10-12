@@ -150,7 +150,7 @@ class TestLearnCommandDispatch:
         assert host._gate.submit.call_count == 1
         submitted = host.submitted_messages[0]
         assert "[/learn]" in submitted.content
-        assert "web_search_tool" in submitted.content
+        assert "INPUT TYPE: url" in submitted.content
         assert "https://docs.stripe.com/webhooks" in submitted.content
 
     @pytest.mark.asyncio
