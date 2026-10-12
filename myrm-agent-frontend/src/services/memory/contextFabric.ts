@@ -94,14 +94,14 @@ export interface InsightSinkResponseDTO {
 export async function registerProject(
   entry: ProjectRegistryEntryDTO,
 ): Promise<ProjectRegistryEntryDTO> {
-  return apiRequest<ProjectRegistryEntryDTO>('/api/memory/context-fabric/projects', {
+  return apiRequest<ProjectRegistryEntryDTO>('/memory/context-fabric/projects', {
     method: 'POST',
     body: JSON.stringify(entry),
   });
 }
 
 export async function listProjects(): Promise<ProjectRegistryEntryDTO[]> {
-  return apiRequest<ProjectRegistryEntryDTO[]>('/api/memory/context-fabric/projects', {
+  return apiRequest<ProjectRegistryEntryDTO[]>('/memory/context-fabric/projects', {
     method: 'GET',
   });
 }
@@ -109,7 +109,7 @@ export async function listProjects(): Promise<ProjectRegistryEntryDTO[]> {
 export async function extractContextEntities(
   payload: ExtractEntitiesRequestDTO,
 ): Promise<ExtractEntitiesResponseDTO> {
-  return apiRequest<ExtractEntitiesResponseDTO>('/api/memory/context-fabric/extract', {
+  return apiRequest<ExtractEntitiesResponseDTO>('/memory/context-fabric/extract', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -118,7 +118,7 @@ export async function extractContextEntities(
 export async function linkTextToProjects(
   payload: LinkEntitiesRequestDTO,
 ): Promise<LinkEntitiesResponseDTO> {
-  return apiRequest<LinkEntitiesResponseDTO>('/api/memory/context-fabric/link', {
+  return apiRequest<LinkEntitiesResponseDTO>('/memory/context-fabric/link', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -127,7 +127,7 @@ export async function linkTextToProjects(
 export async function sinkProjectInsight(
   payload: InsightSinkRequestDTO,
 ): Promise<InsightSinkResponseDTO> {
-  return apiRequest<InsightSinkResponseDTO>('/api/memory/context-fabric/sink', {
+  return apiRequest<InsightSinkResponseDTO>('/memory/context-fabric/sink', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

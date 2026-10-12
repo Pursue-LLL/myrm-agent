@@ -99,7 +99,7 @@ export const bitemporalTmsApi = {
   /** Record external ground truth fact with bitemporal intervals */
   async recordFact(request: RecordFactRequest): Promise<EvidenceRecordDTO> {
     return apiClient.post<EvidenceRecordDTO>(
-      '/api/memory/bitemporal-tms/facts',
+      '/memory/bitemporal-tms/facts',
       request
     );
   },
@@ -107,7 +107,7 @@ export const bitemporalTmsApi = {
   /** Derive reasoned inference with justification links to premises */
   async deriveInference(request: DeriveInferenceRequest): Promise<EvidenceRecordDTO> {
     return apiClient.post<EvidenceRecordDTO>(
-      '/api/memory/bitemporal-tms/inferences',
+      '/memory/bitemporal-tms/inferences',
       request
     );
   },
@@ -115,7 +115,7 @@ export const bitemporalTmsApi = {
   /** Non-destructively retract an evidence record, invalidating active support */
   async retractRecord(request: RetractRecordRequest): Promise<RetractRecordResponse> {
     return apiClient.post<RetractRecordResponse>(
-      '/api/memory/bitemporal-tms/retract',
+      '/memory/bitemporal-tms/retract',
       request
     );
   },
@@ -123,7 +123,7 @@ export const bitemporalTmsApi = {
   /** Query active records at target bitemporal coordinates */
   async queryActive(request: TemporalQueryRequest): Promise<TemporalQueryResponse> {
     return apiClient.post<TemporalQueryResponse>(
-      '/api/memory/bitemporal-tms/query',
+      '/memory/bitemporal-tms/query',
       request
     );
   },
@@ -131,7 +131,7 @@ export const bitemporalTmsApi = {
   /** Project partitioned snapshot of active vs invalidated entities */
   async projectSnapshot(request: SnapshotRequest): Promise<SnapshotResponse> {
     return apiClient.post<SnapshotResponse>(
-      '/api/memory/bitemporal-tms/snapshot',
+      '/memory/bitemporal-tms/snapshot',
       request
     );
   },
@@ -139,7 +139,7 @@ export const bitemporalTmsApi = {
   /** Retrieve health status of bitemporal TMS subsystem */
   async getHealth(): Promise<BitemporalTmsHealthResponse> {
     return apiClient.get<BitemporalTmsHealthResponse>(
-      '/api/memory/bitemporal-tms/health'
+      '/memory/bitemporal-tms/health'
     );
   },
 };

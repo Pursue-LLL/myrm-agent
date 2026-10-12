@@ -86,7 +86,7 @@ export const scoreHonestyService = {
     request: EvaluateCandidatesRequest
   ): Promise<EvaluateCandidatesResponse> {
     return apiClient.post<EvaluateCandidatesResponse>(
-      '/api/memory/score-honesty/evaluate',
+      '/memory/score-honesty/evaluate',
       request
     );
   },
@@ -98,7 +98,7 @@ export const scoreHonestyService = {
     request: EvaluateCandidatesRequest
   ): Promise<FilterCandidatesResponse> {
     return apiClient.post<FilterCandidatesResponse>(
-      '/api/memory/score-honesty/filter',
+      '/memory/score-honesty/filter',
       request
     );
   },
@@ -107,7 +107,7 @@ export const scoreHonestyService = {
    * Fetch aggregate diagnostics and divergence statistics.
    */
   async getStats(): Promise<ScoreHonestyStatsDTO> {
-    return apiClient.get<ScoreHonestyStatsDTO>('/api/memory/score-honesty/stats');
+    return apiClient.get<ScoreHonestyStatsDTO>('/memory/score-honesty/stats');
   },
 
   /**
@@ -115,7 +115,7 @@ export const scoreHonestyService = {
    */
   async checkHealth(): Promise<{ status: string; service: string }> {
     return apiClient.get<{ status: string; service: string }>(
-      '/api/memory/score-honesty/health'
+      '/memory/score-honesty/health'
     );
   },
 };

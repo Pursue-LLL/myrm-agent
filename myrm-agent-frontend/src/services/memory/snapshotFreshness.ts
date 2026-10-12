@@ -78,7 +78,7 @@ export interface ResetSessionResponse {
 export async function initSessionSnapshot(
   req: InitSnapshotRequest
 ): Promise<MemorySnapshotDigestDTO> {
-  return apiRequest<MemorySnapshotDigestDTO>('/api/memory/snapshot-freshness/init', {
+  return apiRequest<MemorySnapshotDigestDTO>('/memory/snapshot-freshness/init', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -87,7 +87,7 @@ export async function initSessionSnapshot(
 export async function recordSessionWrite(
   req: RecordWriteRequest
 ): Promise<SnapshotFreshnessStateDTO> {
-  return apiRequest<SnapshotFreshnessStateDTO>('/api/memory/snapshot-freshness/record-write', {
+  return apiRequest<SnapshotFreshnessStateDTO>('/memory/snapshot-freshness/record-write', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -97,7 +97,7 @@ export async function getSnapshotFreshnessState(
   sessionId: string
 ): Promise<SnapshotFreshnessStateDTO> {
   return apiRequest<SnapshotFreshnessStateDTO>(
-    `/api/memory/snapshot-freshness/status/${encodeURIComponent(sessionId)}`,
+    `/memory/snapshot-freshness/status/${encodeURIComponent(sessionId)}`,
     { method: 'GET' }
   );
 }
@@ -106,7 +106,7 @@ export async function getDiskReadHint(
   sessionId: string
 ): Promise<DirectDiskReadHintDTO> {
   return apiRequest<DirectDiskReadHintDTO>(
-    `/api/memory/snapshot-freshness/hint/${encodeURIComponent(sessionId)}`,
+    `/memory/snapshot-freshness/hint/${encodeURIComponent(sessionId)}`,
     { method: 'GET' }
   );
 }
@@ -115,7 +115,7 @@ export async function getDeltaPatch(
   sessionId: string
 ): Promise<DeltaPatchBlockDTO> {
   return apiRequest<DeltaPatchBlockDTO>(
-    `/api/memory/snapshot-freshness/delta-patch/${encodeURIComponent(sessionId)}`,
+    `/memory/snapshot-freshness/delta-patch/${encodeURIComponent(sessionId)}`,
     { method: 'GET' }
   );
 }
@@ -124,7 +124,7 @@ export async function resetSessionFreshness(
   sessionId: string
 ): Promise<ResetSessionResponse> {
   return apiRequest<ResetSessionResponse>(
-    `/api/memory/snapshot-freshness/reset/${encodeURIComponent(sessionId)}`,
+    `/memory/snapshot-freshness/reset/${encodeURIComponent(sessionId)}`,
     { method: 'POST' }
   );
 }

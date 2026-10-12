@@ -75,7 +75,7 @@ export interface SniffMinefieldResponseDTO {
 export async function extractExperiences(
   payload: ExtractExperienceRequestDTO,
 ): Promise<ExtractExperienceResponseDTO> {
-  return apiRequest<ExtractExperienceResponseDTO>('/api/memory/experience-flywheel/extract', {
+  return apiRequest<ExtractExperienceResponseDTO>('/memory/experience-flywheel/extract', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -84,7 +84,7 @@ export async function extractExperiences(
 export async function ingestExperience(
   payload: IngestExperienceRequestDTO,
 ): Promise<IngestExperienceResponseDTO> {
-  return apiRequest<IngestExperienceResponseDTO>('/api/memory/experience-flywheel/ingest', {
+  return apiRequest<IngestExperienceResponseDTO>('/memory/experience-flywheel/ingest', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -94,7 +94,7 @@ export async function listExperiences(
   kind?: string,
 ): Promise<EngineeringExperienceDTO[]> {
   const query = kind ? `?kind=${encodeURIComponent(kind)}` : '';
-  return apiRequest<EngineeringExperienceDTO[]>(`/api/memory/experience-flywheel/list${query}`, {
+  return apiRequest<EngineeringExperienceDTO[]>(`/memory/experience-flywheel/list${query}`, {
     method: 'GET',
   });
 }
@@ -102,7 +102,7 @@ export async function listExperiences(
 export async function sniffMinefield(
   payload: SniffMinefieldRequestDTO,
 ): Promise<SniffMinefieldResponseDTO> {
-  return apiRequest<SniffMinefieldResponseDTO>('/api/memory/experience-flywheel/sniff', {
+  return apiRequest<SniffMinefieldResponseDTO>('/memory/experience-flywheel/sniff', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

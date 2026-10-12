@@ -73,7 +73,7 @@ export interface DongleContextPromptResponseDTO {
 export async function initProjectDongle(
   payload: DongleInitRequestDTO,
 ): Promise<DongleInitResponseDTO> {
-  return apiRequest<DongleInitResponseDTO>('/api/memory/dongle/init', {
+  return apiRequest<DongleInitResponseDTO>('/memory/dongle/init', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -83,7 +83,7 @@ export async function getDongleState(
   workspaceDir: string,
 ): Promise<DongleStateDTO> {
   const query = new URLSearchParams({ workspace_dir: workspaceDir });
-  return apiRequest<DongleStateDTO>(`/api/memory/dongle/state?${query.toString()}`, {
+  return apiRequest<DongleStateDTO>(`/memory/dongle/state?${query.toString()}`, {
     method: 'GET',
   });
 }
@@ -92,7 +92,7 @@ export async function getDonglePromptContext(
   workspaceDir: string,
 ): Promise<DongleContextPromptResponseDTO> {
   const query = new URLSearchParams({ workspace_dir: workspaceDir });
-  return apiRequest<DongleContextPromptResponseDTO>(`/api/memory/dongle/prompt?${query.toString()}`, {
+  return apiRequest<DongleContextPromptResponseDTO>(`/memory/dongle/prompt?${query.toString()}`, {
     method: 'GET',
   });
 }
@@ -100,7 +100,7 @@ export async function getDonglePromptContext(
 export async function syncDongleBlocks(
   payload: DongleSyncRequestDTO,
 ): Promise<DongleSyncResponseDTO> {
-  return apiRequest<DongleSyncResponseDTO>('/api/memory/dongle/sync', {
+  return apiRequest<DongleSyncResponseDTO>('/memory/dongle/sync', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

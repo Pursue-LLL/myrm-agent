@@ -26,7 +26,7 @@ def clean_provider() -> None:
 def test_app() -> FastAPI:
     """Create test FastAPI application hosting the attribution router."""
     api_app = FastAPI()
-    api_app.include_router(attribution_router)
+    api_app.include_router(attribution_router, prefix="/memory")
     return api_app
 
 
@@ -38,7 +38,7 @@ async def test_create_and_list_conclusions(test_app: FastAPI) -> None:
     ) as client:
         # 1. Create explicit fact
         resp = await client.post(
-            "/api/memory/attribution/conclusions",
+            "/memory/attribution/conclusions",
             json={
                 "peer_id": "alice",
                 "content": "Alice prefers FastAPI for asynchronous backend microservices.",
@@ -53,7 +53,7 @@ async def test_create_and_list_conclusions(test_app: FastAPI) -> None:
         assert data["conclusion"]["level"] == "explicit"
 
         # 2. List conclusions
-        list_resp = await client.get("/api/memory/attribution/conclusions?peer_id=alice")
+        list_resp = await client.get("/memory/attribution/conclusions?peer_id=alice")
         assert list_resp.status_code == 200
         list_data = list_resp.json()
         assert list_data["total"] == 1
@@ -67,7 +67,7 @@ async def test_query_conclusions(test_app: FastAPI) -> None:
         transport=ASGITransport(app=test_app), base_url="http://test"
     ) as client:
         await client.post(
-            "/api/memory/attribution/conclusions",
+            "/memory/attribution/conclusions",
             json={
                 "peer_id": "bob",
                 "content": "Bob uses Docker and Podman for local container sandboxing.",
@@ -75,7 +75,7 @@ async def test_query_conclusions(test_app: FastAPI) -> None:
             },
         )
         await client.post(
-            "/api/memory/attribution/conclusions",
+            "/memory/attribution/conclusions",
             json={
                 "peer_id": "bob",
                 "content": "Bob prefers React 19 and Vite for frontend bundling.",
@@ -84,7 +84,7 @@ async def test_query_conclusions(test_app: FastAPI) -> None:
         )
 
         query_resp = await client.post(
-            "/api/memory/attribution/query",
+            "/memory/attribution/query",
             json={"query": "Docker container", "peer_id": "bob"},
         )
         assert query_resp.status_code == 200
@@ -102,7 +102,7 @@ async def test_tree_downward_and_upward_endpoints(test_app: FastAPI) -> None:
         # Create Root
         r1 = (
             await client.post(
-                "/api/memory/attribution/conclusions",
+                "/memory/attribution/conclusions",
                 json={"peer_id": "u", "content": "Root fact 1", "level": "explicit"},
             )
         ).json()["conclusion"]["id"]
@@ -110,7 +110,7 @@ async def test_tree_downward_and_upward_endpoints(test_app: FastAPI) -> None:
         # Create Derived
         d1 = (
             await client.post(
-                "/api/memory/attribution/conclusions",
+                "/memory/attribution/conclusions",
                 json={
                     "peer_id": "u",
                     "content": "Derived rule 1",
@@ -121,14 +121,14 @@ async def test_tree_downward_and_upward_endpoints(test_app: FastAPI) -> None:
         ).json()["conclusion"]["id"]
 
         # Downward from d1
-        down_resp = await client.get(f"/api/memory/attribution/tree/downward/{d1}")
+        down_resp = await client.get(f"/memory/attribution/tree/downward/{d1}")
         assert down_resp.status_code == 200
         down_data = down_resp.json()
         assert down_data["direction"] == "downward"
         assert len(down_data["nodes"]) == 2
 
         # Upward from r1
-        up_resp = await client.get(f"/api/memory/attribution/tree/upward/{r1}")
+        up_resp = await client.get(f"/memory/attribution/tree/upward/{r1}")
         assert up_resp.status_code == 200
         up_data = up_resp.json()
         assert up_data["direction"] == "upward"
@@ -143,13 +143,13 @@ async def test_ripple_impact_endpoint(test_app: FastAPI) -> None:
     ) as client:
         r1 = (
             await client.post(
-                "/api/memory/attribution/conclusions",
+                "/memory/attribution/conclusions",
                 json={"peer_id": "u", "content": "Foundational premise"},
             )
         ).json()["conclusion"]["id"]
 
         await client.post(
-            "/api/memory/attribution/conclusions",
+            "/memory/attribution/conclusions",
             json={
                 "peer_id": "u",
                 "content": "Dependent rule 1",
@@ -158,7 +158,7 @@ async def test_ripple_impact_endpoint(test_app: FastAPI) -> None:
             },
         )
 
-        impact_resp = await client.get(f"/api/memory/attribution/impact/{r1}")
+        impact_resp = await client.get(f"/memory/attribution/impact/{r1}")
         assert impact_resp.status_code == 200
         impact_data = impact_resp.json()
         assert impact_data["target_conclusion_id"] == r1
@@ -173,7 +173,7 @@ async def test_chat_with_evidence_endpoint(test_app: FastAPI) -> None:
         transport=ASGITransport(app=test_app), base_url="http://test"
     ) as client:
         await client.post(
-            "/api/memory/attribution/conclusions",
+            "/memory/attribution/conclusions",
             json={
                 "peer_id": "alice",
                 "content": "Alice always specifies exact semver for python packages.",
@@ -183,7 +183,7 @@ async def test_chat_with_evidence_endpoint(test_app: FastAPI) -> None:
 
         # 1. With evidence
         chat_resp = await client.post(
-            "/api/memory/attribution/chat",
+            "/memory/attribution/chat",
             json={
                 "query": "How should I pin python versions?",
                 "peer_id": "alice",
@@ -200,7 +200,7 @@ async def test_chat_with_evidence_endpoint(test_app: FastAPI) -> None:
 
         # 2. Without evidence
         chat_no_ev = await client.post(
-            "/api/memory/attribution/chat",
+            "/memory/attribution/chat",
             json={
                 "query": "How should I pin python versions?",
                 "peer_id": "alice",
@@ -219,19 +219,19 @@ async def test_delete_and_stats_endpoints(test_app: FastAPI) -> None:
     ) as client:
         c1 = (
             await client.post(
-                "/api/memory/attribution/conclusions",
+                "/memory/attribution/conclusions",
                 json={"peer_id": "charlie", "content": "Charlie note 1"},
             )
         ).json()["conclusion"]["id"]
 
         # Check stats
-        stats_resp = await client.get("/api/memory/attribution/stats?peer_id=charlie")
+        stats_resp = await client.get("/memory/attribution/stats?peer_id=charlie")
         assert stats_resp.status_code == 200
         stats = stats_resp.json()
         assert stats["total_conclusions"] == 1
         assert stats["explicit_count"] == 1
 
         # Delete
-        del_resp = await client.delete(f"/api/memory/attribution/conclusions/{c1}")
+        del_resp = await client.delete(f"/memory/attribution/conclusions/{c1}")
         assert del_resp.status_code == 200
         assert c1 in del_resp.json()["deleted_ids"]

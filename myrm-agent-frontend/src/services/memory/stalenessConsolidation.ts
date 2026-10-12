@@ -101,7 +101,7 @@ export interface ArchiveMemoriesRequest {
 export async function registerMemory(
   req: RegisterMemoryRequest
 ): Promise<MemoryItemProfileDTO> {
-  return apiRequest<MemoryItemProfileDTO>('/api/memory/staleness-consolidation/memories', {
+  return apiRequest<MemoryItemProfileDTO>('/memory/staleness-consolidation/memories', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -111,8 +111,8 @@ export async function listMemories(
   status?: MemoryStatus
 ): Promise<MemoryItemProfileDTO[]> {
   const url = status
-    ? `/api/memory/staleness-consolidation/memories?status=${encodeURIComponent(status)}`
-    : '/api/memory/staleness-consolidation/memories';
+    ? `/memory/staleness-consolidation/memories?status=${encodeURIComponent(status)}`
+    : '/memory/staleness-consolidation/memories';
   return apiRequest<MemoryItemProfileDTO[]>(url, { method: 'GET' });
 }
 
@@ -120,7 +120,7 @@ export async function getMemory(
   memoryId: string
 ): Promise<MemoryItemProfileDTO> {
   return apiRequest<MemoryItemProfileDTO>(
-    `/api/memory/staleness-consolidation/memories/${encodeURIComponent(memoryId)}`,
+    `/memory/staleness-consolidation/memories/${encodeURIComponent(memoryId)}`,
     { method: 'GET' }
   );
 }
@@ -128,7 +128,7 @@ export async function getMemory(
 export async function touchMemoryRecall(
   req: TouchRecallRequest
 ): Promise<MemoryItemProfileDTO> {
-  return apiRequest<MemoryItemProfileDTO>('/api/memory/staleness-consolidation/touch-recall', {
+  return apiRequest<MemoryItemProfileDTO>('/memory/staleness-consolidation/touch-recall', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -137,7 +137,7 @@ export async function touchMemoryRecall(
 export async function runMemoryAudit(
   req: RunAuditRequest
 ): Promise<MemoryAuditReportDTO> {
-  return apiRequest<MemoryAuditReportDTO>('/api/memory/staleness-consolidation/audit', {
+  return apiRequest<MemoryAuditReportDTO>('/memory/staleness-consolidation/audit', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -146,7 +146,7 @@ export async function runMemoryAudit(
 export async function applyConsolidation(
   req: ApplyConsolidationRequest
 ): Promise<MemoryItemProfileDTO> {
-  return apiRequest<MemoryItemProfileDTO>('/api/memory/staleness-consolidation/consolidate', {
+  return apiRequest<MemoryItemProfileDTO>('/memory/staleness-consolidation/consolidate', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -155,7 +155,7 @@ export async function applyConsolidation(
 export async function archiveMemories(
   req: ArchiveMemoriesRequest
 ): Promise<string[]> {
-  return apiRequest<string[]>('/api/memory/staleness-consolidation/archive', {
+  return apiRequest<string[]>('/memory/staleness-consolidation/archive', {
     method: 'POST',
     body: JSON.stringify(req),
   });

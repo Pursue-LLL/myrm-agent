@@ -62,7 +62,7 @@ export const cjkIterationApi = {
   /** Disambiguate CJK iteration marks into normalized text and 3D token matrix */
   async disambiguate(request: DisambiguateCjkRequest): Promise<DisambiguateCjkResponse> {
     return apiClient.post<DisambiguateCjkResponse>(
-      '/api/memory/cjk-iteration/disambiguate',
+      '/memory/cjk-iteration/disambiguate',
       request
     );
   },
@@ -70,7 +70,7 @@ export const cjkIterationApi = {
   /** Calculate bidirectional recall match score between query and target memory */
   async match(request: MatchCjkRecallRequest): Promise<MatchCjkRecallResponse> {
     return apiClient.post<MatchCjkRecallResponse>(
-      '/api/memory/cjk-iteration/match',
+      '/memory/cjk-iteration/match',
       request
     );
   },
@@ -78,7 +78,7 @@ export const cjkIterationApi = {
   /** Retrieve health status of CJK iteration mark subsystem */
   async getHealth(): Promise<CjkIterationHealthResponse> {
     return apiClient.get<CjkIterationHealthResponse>(
-      '/api/memory/cjk-iteration/health'
+      '/memory/cjk-iteration/health'
     );
   },
 };

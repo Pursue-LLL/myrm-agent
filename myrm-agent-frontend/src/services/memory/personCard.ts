@@ -142,18 +142,18 @@ export async function listPersonCards(params?: {
   if (params?.agent_id) queryParams.set('agent_id', params.agent_id);
 
   const qs = queryParams.toString();
-  const url = qs ? `/api/memory/person-card?${qs}` : '/api/memory/person-card';
+  const url = qs ? `/memory/person-card?${qs}` : '/memory/person-card';
   return apiRequest<PersonCardDTO[]>(url, { method: 'GET' });
 }
 
 export async function getPersonCard(personId: string): Promise<PersonCardDTO> {
-  return apiRequest<PersonCardDTO>(`/api/memory/person-card/${encodeURIComponent(personId)}`, {
+  return apiRequest<PersonCardDTO>(`/memory/person-card/${encodeURIComponent(personId)}`, {
     method: 'GET',
   });
 }
 
 export async function createPersonCard(req: CreatePersonCardRequest): Promise<PersonCardDTO> {
-  return apiRequest<PersonCardDTO>('/api/memory/person-card', {
+  return apiRequest<PersonCardDTO>('/memory/person-card', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -163,14 +163,14 @@ export async function updatePersonCard(
   personId: string,
   req: UpdatePersonCardRequest
 ): Promise<PersonCardDTO> {
-  return apiRequest<PersonCardDTO>(`/api/memory/person-card/${encodeURIComponent(personId)}`, {
+  return apiRequest<PersonCardDTO>(`/memory/person-card/${encodeURIComponent(personId)}`, {
     method: 'PUT',
     body: JSON.stringify(req),
   });
 }
 
 export async function deletePersonCard(personId: string): Promise<void> {
-  return apiRequest<void>(`/api/memory/person-card/${encodeURIComponent(personId)}`, {
+  return apiRequest<void>(`/memory/person-card/${encodeURIComponent(personId)}`, {
     method: 'DELETE',
   });
 }
@@ -179,7 +179,7 @@ export async function mergePersonCards(
   sourcePersonId: string,
   targetPersonId: string
 ): Promise<PersonCardDTO> {
-  return apiRequest<PersonCardDTO>('/api/memory/person-card/merge', {
+  return apiRequest<PersonCardDTO>('/memory/person-card/merge', {
     method: 'POST',
     body: JSON.stringify({
       source_person_id: sourcePersonId,
@@ -191,7 +191,7 @@ export async function mergePersonCards(
 export async function preActionCheck(
   req: PreActionCheckRequestDTO
 ): Promise<PreActionCheckResponseDTO> {
-  return apiRequest<PreActionCheckResponseDTO>('/api/memory/person-card/pre-action-check', {
+  return apiRequest<PreActionCheckResponseDTO>('/memory/person-card/pre-action-check', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -199,7 +199,7 @@ export async function preActionCheck(
 
 export async function refreshPersonDecay(weakThreshold = 0.3): Promise<Record<string, number>> {
   return apiRequest<Record<string, number>>(
-    `/api/memory/person-card/refresh-decay?weak_threshold=${weakThreshold}`,
+    `/memory/person-card/refresh-decay?weak_threshold=${weakThreshold}`,
     {
       method: 'POST',
     }

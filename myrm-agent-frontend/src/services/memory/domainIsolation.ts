@@ -93,15 +93,15 @@ export interface EgressDecisionDTO {
 
 export async function listConnectorBindings(domain?: DataDomain): Promise<ConnectorDomainBindingDTO[]> {
   const url = domain
-    ? `/api/memory/domain-isolation/bindings?domain=${encodeURIComponent(domain)}`
-    : '/api/memory/domain-isolation/bindings';
+    ? `/memory/domain-isolation/bindings?domain=${encodeURIComponent(domain)}`
+    : '/memory/domain-isolation/bindings';
   return apiRequest<ConnectorDomainBindingDTO[]>(url, { method: 'GET' });
 }
 
 export async function setConnectorBinding(
   req: SetConnectorDomainRequest
 ): Promise<ConnectorDomainBindingDTO> {
-  return apiRequest<ConnectorDomainBindingDTO>('/api/memory/domain-isolation/bindings', {
+  return apiRequest<ConnectorDomainBindingDTO>('/memory/domain-isolation/bindings', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -111,27 +111,27 @@ export async function getConnectorBinding(
   connectorId: string
 ): Promise<ConnectorDomainBindingDTO> {
   return apiRequest<ConnectorDomainBindingDTO>(
-    `/api/memory/domain-isolation/bindings/${encodeURIComponent(connectorId)}`,
+    `/memory/domain-isolation/bindings/${encodeURIComponent(connectorId)}`,
     { method: 'GET' }
   );
 }
 
 export async function deleteConnectorBinding(connectorId: string): Promise<void> {
   return apiRequest<void>(
-    `/api/memory/domain-isolation/bindings/${encodeURIComponent(connectorId)}`,
+    `/memory/domain-isolation/bindings/${encodeURIComponent(connectorId)}`,
     { method: 'DELETE' }
   );
 }
 
 export async function listDomainGrants(): Promise<DomainGrantConfigDTO[]> {
-  return apiRequest<DomainGrantConfigDTO[]>('/api/memory/domain-isolation/grants', {
+  return apiRequest<DomainGrantConfigDTO[]>('/memory/domain-isolation/grants', {
     method: 'GET',
   });
 }
 
 export async function getDomainGrant(domain: DataDomain): Promise<DomainGrantConfigDTO> {
   return apiRequest<DomainGrantConfigDTO>(
-    `/api/memory/domain-isolation/grants/${encodeURIComponent(domain)}`,
+    `/memory/domain-isolation/grants/${encodeURIComponent(domain)}`,
     { method: 'GET' }
   );
 }
@@ -141,7 +141,7 @@ export async function updateDomainGrant(
   req: UpdateDomainGrantRequest
 ): Promise<DomainGrantConfigDTO> {
   return apiRequest<DomainGrantConfigDTO>(
-    `/api/memory/domain-isolation/grants/${encodeURIComponent(domain)}`,
+    `/memory/domain-isolation/grants/${encodeURIComponent(domain)}`,
     {
       method: 'PUT',
       body: JSON.stringify(req),
@@ -152,7 +152,7 @@ export async function updateDomainGrant(
 export async function validateDomainRecall(
   req: ValidateRecallRequest
 ): Promise<ValidateRecallResponse> {
-  return apiRequest<ValidateRecallResponse>('/api/memory/domain-isolation/validate-recall', {
+  return apiRequest<ValidateRecallResponse>('/memory/domain-isolation/validate-recall', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -161,7 +161,7 @@ export async function validateDomainRecall(
 export async function validateDomainWrite(
   req: ValidateWriteRequest
 ): Promise<ValidateWriteResponse> {
-  return apiRequest<ValidateWriteResponse>('/api/memory/domain-isolation/validate-write', {
+  return apiRequest<ValidateWriteResponse>('/memory/domain-isolation/validate-write', {
     method: 'POST',
     body: JSON.stringify(req),
   });
@@ -170,7 +170,7 @@ export async function validateDomainWrite(
 export async function evaluateChannelEgress(
   req: EvaluateEgressRequest
 ): Promise<EgressDecisionDTO> {
-  return apiRequest<EgressDecisionDTO>('/api/memory/domain-isolation/evaluate-egress', {
+  return apiRequest<EgressDecisionDTO>('/memory/domain-isolation/evaluate-egress', {
     method: 'POST',
     body: JSON.stringify(req),
   });
