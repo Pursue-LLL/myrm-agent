@@ -14,6 +14,9 @@
 from __future__ import annotations
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
 from app.api.security.sso_redirect_router import (
     get_sso_redirect_service,
 )
@@ -22,8 +25,6 @@ from app.api.security.sso_redirect_router import (
 )
 from app.schemas.sso_redirect import UrlPathCategoryDto
 from app.services.security.sso_redirect_service import SsoRedirectService
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 
 @pytest.fixture(scope="function")

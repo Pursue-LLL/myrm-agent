@@ -23,6 +23,7 @@ import asyncio
 import logging
 import re
 import subprocess
+from enum import StrEnum
 
 from myrm_agent_harness.api.security import ScreenLockState, get_default_screen_detector, hid_idle_seconds
 
@@ -59,6 +60,24 @@ PRESENCE_IDLE_THRESHOLD_SECONDS = 15.0
 _KEYCHAIN_PASSWORD_LINE = re.compile(r'^password: (?:0x(?P<hex>[0-9A-Fa-f]+)|"(?P<text>.*)")', re.MULTILINE)
 
 
+class UnlockAttemptOutcome(StrEnum):
+    """Result of one :meth:`MacScreenUnlocker.unlock` attempt (observable, fail-closed)."""
+
+    SUCCESS = "success"
+    ALREADY_UNLOCKED = "already_unlocked"
+    DEFERRED_USER_PRESENT = "deferred_user_present"
+    SKIPPED_AMBIGUOUS_LOCK_STATE = "skipped_ambiguous_lock_state"
+    NO_PASSWORD = "no_password"
+    OSASCRIPT_LAUNCH_FAILED = "osascript_launch_failed"
+    OSASCRIPT_FAILED = "osascript_failed"
+    STILL_LOCKED = "still_locked"
+    UNVERIFIED_SESSION = "unverified_session"
+
+    def lease_ready(self) -> bool:
+        """True when the session is verifiably unlocked and an unlock lease may be held."""
+        return self in (UnlockAttemptOutcome.SUCCESS, UnlockAttemptOutcome.ALREADY_UNLOCKED)
+
+
 def _parse_keychain_password(security_stderr: str) -> str | None:
     """Decode the password line of ``security find-generic-password -g`` output."""
     match = _KEYCHAIN_PASSWORD_LINE.search(security_stderr)
@@ -80,6 +99,11 @@ class MacScreenUnlocker:
     KEYCHAIN_ACCOUNT = "login-password"
 
     @classmethod
+    def lock_state(cls) -> ScreenLockState:
+        """Current session lock probe result (native in-process on macOS)."""
+        return get_default_screen_detector().get_state(force_refresh=True)
+
+    @classmethod
     def is_locked(cls) -> bool:
         """True only for a definitely locked session (native in-process probe).
 
@@ -87,7 +111,12 @@ class MacScreenUnlocker:
         both count as "not locked", so callers leave the screen alone instead of
         typing a password blindly.
         """
-        return get_default_screen_detector().get_state(force_refresh=True) is ScreenLockState.LOCKED
+        return cls.lock_state() is ScreenLockState.LOCKED
+
+    @classmethod
+    def is_verifiably_unlocked(cls) -> bool:
+        """True only when the probe reports an unlocked interactive session."""
+        return cls.lock_state() is ScreenLockState.UNLOCKED
 
     @classmethod
     def user_present(cls) -> bool:
@@ -116,24 +145,34 @@ class MacScreenUnlocker:
         return _parse_keychain_password(result.stderr.decode("utf-8", errors="replace")) or None
 
     @classmethod
-    async def unlock(cls) -> bool:
-        """Unlock the screen; True when the screen is unlocked afterwards.
+    async def unlock(cls) -> UnlockAttemptOutcome:
+        """Attempt unlock; outcome is observable for audit logs and lease decisions.
 
         Callers are serialized and the lock state is re-probed under the guard:
         whoever waited finds the screen already unlocked and types nothing. Presence
         is re-probed there too: the caller's own check is stale by the time the
         guard is held, and a person who reached for the machine is never typed over.
+
+        UNKNOWN and SLEEPING are not treated as success: callers must not take an
+        unlock lease when the session is not verifiably unlocked.
         """
         async with _unlock_guard:
+            if cls.is_verifiably_unlocked():
+                return UnlockAttemptOutcome.ALREADY_UNLOCKED
             if not cls.is_locked():
-                return True
+                state = cls.lock_state()
+                logger.warning(
+                    "Unlock skipped: lock probe is not definitively locked or unlocked (state=%s)",
+                    state.value,
+                )
+                return UnlockAttemptOutcome.SKIPPED_AMBIGUOUS_LOCK_STATE
             if cls.user_present():
                 logger.info("Unlock deferred: a user is at the machine")
-                return False
+                return UnlockAttemptOutcome.DEFERRED_USER_PRESENT
             return await cls._type_password()
 
     @classmethod
-    async def _type_password(cls) -> bool:
+    async def _type_password(cls) -> UnlockAttemptOutcome:
         """Type the Keychain password into the login window.
 
         The password never leaves this process through argv or logs: the
@@ -150,7 +189,7 @@ class MacScreenUnlocker:
         password = await asyncio.to_thread(cls.get_password)
         if not password:
             logger.warning("Screen is locked but no password found in Keychain")
-            return False
+            return UnlockAttemptOutcome.NO_PASSWORD
 
         # Wake display
         subprocess.Popen(["caffeinate", "-u", "-t", "2"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -177,17 +216,24 @@ class MacScreenUnlocker:
             )
         except OSError:
             logger.error("Failed to unlock screen: osascript could not be launched")
-            return False
+            return UnlockAttemptOutcome.OSASCRIPT_LAUNCH_FAILED
 
         if result.returncode != 0:
             logger.error("Failed to unlock screen: osascript exited with code %d", result.returncode)
-            return False
+            return UnlockAttemptOutcome.OSASCRIPT_FAILED
 
         await asyncio.sleep(_UNLOCK_SETTLE_DELAY_SECONDS)
-        if cls.is_locked():
+        if cls.is_verifiably_unlocked():
+            return UnlockAttemptOutcome.SUCCESS
+        state = cls.lock_state()
+        if state is ScreenLockState.LOCKED:
             logger.error("Screen still locked after unlock attempt (wrong password?)")
-            return False
-        return True
+            return UnlockAttemptOutcome.STILL_LOCKED
+        logger.error(
+            "Unlock attempt finished without a verifiable unlocked session (state=%s)",
+            state.value,
+        )
+        return UnlockAttemptOutcome.UNVERIFIED_SESSION
 
     @classmethod
     def relock(cls) -> bool:
