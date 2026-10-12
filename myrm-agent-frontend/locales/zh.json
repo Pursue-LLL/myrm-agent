@@ -640,6 +640,18 @@
     "systemPromptDesc": "自定义指令，指导智能体的行为和回答风格",
     "capabilities": "能力配置",
     "capabilitiesDesc": "配置智能体可以使用的工具和资源",
+    "advancedEngineParams": "高级引擎参数",
+    "advancedEngineParamsDesc": "配置内部引擎限制和拓扑开关",
+    "engineParam": {
+      "defaultValue": "默认: {value}",
+      "defaultNone": "默认: 无",
+      "enableReplan": "启用重规划",
+      "enableReplanDesc": "允许智能体自动纠正工具调用错误",
+      "contextCompression": "上下文压缩",
+      "contextCompressionDesc": "自动压缩过长的上下文历史",
+      "parallelToolCalls": "并行工具调用",
+      "parallelToolCallsDesc": "允许同时调用多个工具"
+    },
     "configured": "已配置",
     "configure": "配置",
     "save": "保存",
@@ -712,10 +724,6 @@
     "builtInReadonly": "内置智能体（只读）",
     "view": "查看",
     "modelBinding": "选择模型",
-    "onlyOwnerCanViewPrompt": "只有智能体所有者才能查看系统提示词",
-    "failedToLoadPrompt": "加载系统提示词失败，请重试",
-    "loadFailed": "加载智能体失败",
-    "systemPromptLoaded": "系统提示词已加载",
     "modelBindingDesc": "为此智能体绑定专用模型",
     "continuity": {
       "title": "资产连续性保障与底层模型适配",
@@ -754,18 +762,6 @@
     "routingSelectModel": "选择模型...",
     "maxIterations": "最大迭代次数",
     "maxIterationsDesc": "Agent 单次对话中工具调用的最大轮数（留空使用默认值 100）",
-    "advancedEngineParams": "高级引擎参数",
-    "advancedEngineParamsDesc": "配置内部引擎限制和拓扑开关",
-    "engineParam": {
-      "defaultValue": "默认: {value}",
-      "defaultNone": "默认: 无",
-      "enableReplan": "启用重规划",
-      "enableReplanDesc": "允许智能体自动纠正工具调用错误",
-      "contextCompression": "上下文压缩",
-      "contextCompressionDesc": "自动压缩过长的上下文历史",
-      "parallelToolCalls": "并行工具调用",
-      "parallelToolCallsDesc": "允许同时调用多个工具"
-    },
     "modelParams": "模型参数",
     "modelParamsDesc": "为此智能体配置独立的模型调用参数",
     "temperature": "温度",
@@ -815,9 +811,9 @@
     "moaOverlayPrivacyOff": "关闭",
     "moaOverlayPrivacyDisplay": "仅展示脱敏",
     "moaOverlayPrivacyFull": "完整脱敏（展示 + 注入）",
+    "moaOverlayNoModels": "未选择参考模型 — 叠加层将被跳过（不会回退主模型）",
     "moaOverlayAutoReasoningTitle": "推理层级自动激活",
     "moaOverlayAutoReasoningDesc": "当智能路由判定当前任务为深度推理（REASONING）层级时自动启用 MoA 顾问团协作；常规任务保持单模型极速执行。",
-    "moaOverlayNoModels": "未选择参考模型 — 叠加层将被跳过（不会回退主模型）",
     "consensusPrivacy": "参考模型隐私过滤",
     "consensusAggTemp": "聚合模型温度",
     "consensusMinSuccessful": "最少成功数",
@@ -974,6 +970,10 @@
       }
     },
     "useDefaultModel": "选择模型...",
+    "onlyOwnerCanViewPrompt": "只有智能体所有者才能查看系统提示词",
+    "failedToLoadPrompt": "加载系统提示词失败，请重试",
+    "loadFailed": "加载智能体失败",
+    "systemPromptLoaded": "系统提示词已加载",
     "loginRequired": "需要登录",
     "loginRequiredDesc": "登录后即可创建和管理智能体",
     "cancel": "取消",
@@ -1335,6 +1335,27 @@
         "connectInfo": "在主 Chrome 打开 chrome://inspect/#remote-debugging 并开启远程调试（一次性）。Myrm 自动发现 CDP 端口——请勿再启动第二个隔离 Chrome 实例。",
         "remoteWarning": "需要先在设置中配置云端浏览器凭据。Agent 将使用远程浏览器实例。"
       },
+      "mcpTools": {
+        "toolFilter": "工具筛选",
+        "loading": "加载工具中...",
+        "noTools": "暂无工具",
+        "selectAll": "全选",
+        "readOnly": "只读（安全）",
+        "writable": "可写",
+        "destructive": "破坏性（谨慎）",
+        "dangerDisabled": "已默认禁用 {count} 个高危工具",
+        "loadFailed": "加载工具失败",
+        "retry": "重试"
+      },
+      "saveDialog": {
+        "title": "保存智能体",
+        "name": "智能体名称",
+        "namePlaceholder": "输入智能体名称",
+        "description": "描述",
+        "descriptionPlaceholder": "描述智能体的用途（可选）",
+        "cancel": "取消",
+        "save": "保存"
+      },
       "dialogPolicy": {
         "label": "弹窗处理",
         "description": "选择智能体如何处理浏览器弹窗（提示框、确认框等）。",
@@ -1360,27 +1381,6 @@
           "always": "始终录制",
           "alwaysDesc": "录制每一次浏览器会话。"
         }
-      },
-      "mcpTools": {
-        "toolFilter": "工具筛选",
-        "loading": "加载工具中...",
-        "noTools": "暂无工具",
-        "selectAll": "全选",
-        "readOnly": "只读（安全）",
-        "writable": "可写",
-        "destructive": "破坏性（谨慎）",
-        "dangerDisabled": "已默认禁用 {count} 个高危工具",
-        "loadFailed": "加载工具失败",
-        "retry": "重试"
-      },
-      "saveDialog": {
-        "title": "保存智能体",
-        "name": "智能体名称",
-        "namePlaceholder": "输入智能体名称",
-        "description": "描述",
-        "descriptionPlaceholder": "描述智能体的用途（可选）",
-        "cancel": "取消",
-        "save": "保存"
       },
       "aiAssist": "AI 辅助",
       "aiPromptPlaceholder": "描述你想要做出的系统提示词修改…",
@@ -2238,6 +2238,7 @@
     "readingWebpage": "正在阅读网页",
     "searchingWeb": "正在搜索网络",
     "thinking": "思考中",
+    "reasoningModelDisabledWithImage": "启用视觉增强后，图片需由视觉模型处理",
     "newChatPlaceholder": "输入消息开始对话",
     "newChatDescription": "开始一段新的对话，探索任何话题",
     "uploadFile": "上传文件",
@@ -2533,10 +2534,18 @@
         "pinsLoading": "加载中…",
         "pinsLoadError": "固定文件加载失败",
         "pinsRetry": "重试"
-      }
+      },
+      "copyReasoning": "复制思考过程",
+      "deltaPositive": "较上轮 +{tokens} tokens",
+      "copiedReasoning": "已复制思考过程",
+      "deltaNegative": "较上轮 {tokens} tokens (已压缩)",
+      "deltaZero": "与上轮持平",
+      "growthTrend": "近12轮增长轨迹"
     },
     "compactedSummary": {
       "foldLabel": "上下文已压缩 — 查看归档",
+      "branchSnapshotArchived": "快照归档：{path}",
+      "branchContextDistilled": "已在此分叉节点提炼记忆上下文与工作台状态",
       "title": "压缩记忆摘要",
       "edit": "编辑摘要",
       "cancel": "取消",
@@ -2637,7 +2646,9 @@
       "specialReferencesHint": "试试特殊引用：@staged 暂存区 / @diff 工作区 / @codebase 概览 / @folder:路径 目录 / @url:链接 网页 / @chat:标题 历史会话 / file:10-20 行范围",
       "removeReference": "移除 {label}",
       "agentsCategory": "智能体",
-      "contextCategory": "上下文"
+      "contextCategory": "上下文",
+      "dedupNotice": "该文件已在上下文中，将跳过重复内容直读",
+      "alreadyInContext": "已在上下文"
     },
     "conversationRecall": {
       "hintTitle": "接着聊以前的会话",
@@ -3135,7 +3146,6 @@
       "dismiss": "稍后再看",
       "hermesBadge": "Hermes 迁民健康标准"
     },
-    "reasoningModelDisabledWithImage": "启用视觉增强后，图片需由视觉模型处理",
     "retry": "重试",
     "archiveRestore": {
       "invalidTitle": "归档恢复失败",
@@ -3303,6 +3313,22 @@
       "fallbackPrefilledBadge": "已填入输入框",
       "questionClarification": "问题澄清",
       "directReplyPlaceholder": "输入回答或澄清说明..."
+    },
+    "contextFootprint": {
+      "mcpSwitcherDesc": "关闭本次任务无关的 MCP 服务，可大幅降低每轮请求的底噪 Token",
+      "mcpTools": "MCP 工具定义 Schema",
+      "close": "关闭",
+      "workspaceRules": "工作区与全局规则",
+      "persona": "Agent 角色与设定",
+      "systemPrompt": "System 基础提示词",
+      "noMcpServers": "暂无已挂载的 MCP 服务",
+      "enabled": "已启用",
+      "mcpSwitcherTitle": "MCP 快速裁决器",
+      "title": "初始上下文底噪透视",
+      "subtitle": "会话开始前底层预加载的基线 Token 占用与工具治理",
+      "skillsTools": "业务技能与内置工具",
+      "disabled": "已关闭",
+      "totalBaseline": "初始基线底噪总计"
     }
   },
   "mode": {
@@ -3785,7 +3811,18 @@
       "globLabel": "文件搜索",
       "grepLabel": "内容搜索",
       "path": "路径",
-      "filePattern": "文件"
+      "filePattern": "文件",
+      "justNow": "刚刚",
+      "scenarioStandard": "标准业务",
+      "savedTokens": "已为您节省 {count} tokens",
+      "forceRefresh": "强制联网重新抓取",
+      "minutesAgo": "{count}分钟前",
+      "cacheHitTitle": "命中缓存快照",
+      "secondsAgo": "{count}秒前",
+      "scenarioArchive": "静态归档",
+      "scenarioRealtime": "实时动态",
+      "hoursAgo": "{count}小时前",
+      "forceRefreshing": "正在穿透刷新..."
     },
     "folding": {
       "showMore": "展开中间 {count} 个步骤",
@@ -4153,7 +4190,6 @@
       "claim": "已验证",
       "task_digest": "任务摘要"
     },
-    "enabled": "已启用",
     "disabled": "已禁用",
     "locked": "已锁定，不受自动修改影响",
     "exactFact": "精确事实",
@@ -4382,6 +4418,7 @@
       "spacesEmpty": "暂无生效中的记忆空间",
       "bindingCount": "{count} 个绑定",
       "liveStreamTitle": "实时记忆流",
+      "liveStreamHint": "SSE 实时推送",
       "layerGuide": {
         "title": "分层对应关系",
         "workingSet": "工作集",
@@ -4397,7 +4434,6 @@
         "rawEvidenceTypes": "对话历史",
         "rawEvidenceHint": "摘要背后可追溯的原始记录"
       },
-      "liveStreamHint": "SSE 实时推送",
       "recallBurstSummary": "{count} 个检索步骤 · {summary}",
       "preCompactLiveDescription": "压缩前召回已注入 {count} 条记忆",
       "archiveCheckpointLiveDescription": "已为 {tool} 保存归档摘要（{path}）",
@@ -4526,7 +4562,7 @@
           "sessionInputLabel": "预览会话 ID",
           "sessionPlaceholder": "输入会话 ID…",
           "title": "双层上下文实验室",
-          "itemBadge": "Item 112",
+          "itemBadge": "第 112 项",
           "layoutBadge": "布局预览",
           "description": "Layer 1 快照在 user 消息尾；Layer 2 按节奏消解记忆冲突。",
           "tabsAria": "实验室视图",
@@ -4557,10 +4593,10 @@
           "depthHint": "Pass 1：审查差异；Pass 2：综合边界；Pass 3：共识定案。遍数越高，算力消耗越大。",
           "reasoningLabel": "模型算力等级",
           "reasoningHint": "Fast：启发式；Standard：均衡；Deep：更深推理。",
-          "reasoningFast": "fast",
-          "reasoningStandard": "standard",
-          "reasoningDeep": "deep",
-          "passButton": "Pass {depth}",
+          "reasoningFast": "快速",
+          "reasoningStandard": "标准",
+          "reasoningDeep": "深度",
+          "passButton": "第 {depth} 遍",
           "savedBanner": "节奏设置已应用",
           "applyAria": "应用节奏设置",
           "applyLabel": "应用并保存设置"
@@ -5096,7 +5132,14 @@
         "cancel": "取消",
         "saveAndLock": "保存并锁定保护",
         "markFalsePositive": "标记误判并废弃",
-        "correctAndLock": "纠正此事实"
+        "correctAndLock": "纠正此事实",
+        "quoteMatch": "引用匹配：{quote}",
+        "toolExecution": "工具执行",
+        "toolFailed": "错误 / 非零退出",
+        "copyToolOutput": "复制工具输出",
+        "roleAssistant": "助手",
+        "roleUser": "用户",
+        "loadFailed": "无法加载证据，请稍后重试。"
       },
       "repoEvidence": {
         "title": "代码仓库历史证据",
@@ -5506,13 +5549,13 @@
       "loadFailed": "加载待审核迁移失败",
       "refresh": "刷新",
       "skillCount": "{count} 个技能待审核",
+      "bindTargetAgent": "批准后，技能将绑定到智能体：{name}",
       "approve": "批准",
       "reject": "拒绝",
       "approveSuccess": "迁移已批准",
       "approveFailed": "批准失败",
       "rejectSuccess": "迁移已拒绝",
-      "rejectFailed": "拒绝失败",
-      "bindTargetAgent": "批准后，技能将绑定到智能体：{name}"
+      "rejectFailed": "拒绝失败"
     },
     "archiveRestore": {
       "title": "恢复记忆归档",
@@ -5826,6 +5869,7 @@
       "openGuideHint": "查看 7 种记忆类型的含义与示例",
       "gotIt": "知道了"
     },
+    "enabled": "已启用",
     "confidenceHigh": "高置信度",
     "confidenceMedium": "中置信度",
     "confidenceLow": "待核验",
@@ -6408,6 +6452,17 @@
       "resolve": "标为已解决",
       "revisionOutside": "本次修订还动了未标记行：{lines}",
       "revisionLocal": "本次修订未超出标记范围。"
+    },
+    "hub": {
+      "originSession": "来源会话",
+      "subtitle": "集中检索与管理各会话产生的文档、代码、数据表格与交付物，支持双向来源溯源",
+      "searchPlaceholder": "按产物名称、描述或扩展名搜索...",
+      "navToSession": "直达来源会话",
+      "emptyTitle": "暂无产物资产",
+      "title": "全景产物溯源大盘",
+      "download": "下载产物",
+      "exportZip": "一键打包导出 ZIP",
+      "emptyDesc": "在与智能体对话中生成的交付物与文件将自动沉淀在此处"
     }
   },
   "MessageSources": {
@@ -8971,12 +9026,12 @@
   "stt": {
     "startRecording": "语音输入",
     "stopRecording": "停止录音",
-    "transcribing": "正在转录...",
-    "error": "语音识别失败",
-    "notConfigured": "请先在设置 > 语音中配置 STT",
     "holdToTalk": "按住说话",
     "releaseToStop": "松开停止",
-    "tooShort": "录音时间过短"
+    "transcribing": "正在转录...",
+    "tooShort": "录音时间过短",
+    "error": "语音识别失败",
+    "notConfigured": "请先在设置 > 语音中配置 STT"
   },
   "camera": {
     "startCamera": "打开摄像头",
@@ -9145,6 +9200,10 @@
     "deployApprovalTitle": "Artifact 部署确认",
     "deployApprovalArtifact": "工件",
     "deployApprovalHint": "批准后将通过 Vercel 发布该 artifact，产生公网可访问 URL。",
+    "outboundDraftTitle": "渠道消息草稿审核",
+    "outboundDraftDescription": "AI 生成了以下回复，请审核后决定发送或丢弃。",
+    "outboundDraftOriginal": "用户原始消息",
+    "outboundDraftReply": "AI 生成的回复草稿",
     "skillGrowthPending": "技能成长待审",
     "saveSkill": {
       "approve": "添加到我的技能",
@@ -9230,10 +9289,6 @@
     "visualApprovalAttentionTitle": "待视觉审批",
     "visualApprovalAttentionView": "查看审批",
     "visualApprovalAttentionMultiple": "{count} 项可视化操作待审批",
-    "outboundDraftTitle": "渠道消息草稿审核",
-    "outboundDraftDescription": "AI 生成了以下回复，请审核后决定发送或丢弃。",
-    "outboundDraftOriginal": "用户原始消息",
-    "outboundDraftReply": "AI 生成的回复草稿",
     "handoverTitle": "等待您操作",
     "handoverDone": "已完成",
     "handoverDialogTitle": "等待您操作",
@@ -9359,7 +9414,16 @@
     },
     "clarificationRequired": "需要错误澄清",
     "fixParameters": "修复参数（JSON）",
-    "visualContextAlt": "待审批操作的目标截图"
+    "visualContextAlt": "待审批操作的目标截图",
+    "humanAttentionEscHint": "智能体运行中按 Esc 可立即停止桌面自动化。",
+    "humanAttentionKindVisual": "视觉确认",
+    "humanAttentionKindDesktopControl": "桌面审批",
+    "visualApprovalOsHighlightUnavailable": "当前无法在真屏上显示高亮，请以本卡片中的红框为准确认目标位置。",
+    "humanAttentionKindTool": "工具审批",
+    "humanAttentionTitle": "需要你处理",
+    "humanAttentionView": "前往处理",
+    "humanAttentionMultiple": "{count} 项待你确认",
+    "humanAttentionKindClarify": "澄清问题"
   },
   "notifications": {
     "title": "系统通知",
@@ -9965,7 +10029,8 @@
     },
     "create": {
       "button": "创建智能体",
-      "title": "创建智能体"
+      "title": "创建智能体",
+      "success": "已从模板成功创建智能体！"
     },
     "edit": {
       "title": "编辑智能体"
@@ -10098,6 +10163,27 @@
         "close": "关闭",
         "skip": "跳过"
       }
+    },
+    "settingsPreview": {
+      "teamType": "团队",
+      "individualType": "个人",
+      "gateHint": "创建前请先确认核心能力与运行边界，没有任何隐藏行为。",
+      "builtinToolsTitle": "内置工具",
+      "defaultBuiltinToolsInherited": "继承标准工作区基础能力",
+      "skillsTitle": "技能包",
+      "noSkillsAttached": "未预挂载额外技能",
+      "mcpTitle": "MCP 连接器",
+      "noMcpBound": "没有绑定外部 MCP 协议",
+      "memoryTitle": "记忆引擎",
+      "memoryDescription": "双层 HUD：人设档案 + 带配额保护的工作区笔记。",
+      "deployBoundaryTitle": "部署模式与沙箱边界",
+      "sandboxNoteDefault": "隔离沙箱执行：高风险系统命令被限制在容器工作区内。",
+      "promptMode": "提示词模式",
+      "personality": "语气",
+      "preflightReady": "预检已通过",
+      "backToTemplates": "返回",
+      "creating": "创建中…",
+      "confirmAndCreate": "确认并创建智能体"
     },
     "delete": {
       "title": "删除智能体",
@@ -10513,8 +10599,22 @@
         "deleteSuccess": "记忆已删除",
         "archiveSuccess": "技能已归档",
         "unarchiveSuccess": "技能已恢复启用",
-        "actionFailed": "操作失败: {error}"
-      }
+        "actionFailed": "操作失败: {error}",
+        "deletePermanentSuccess": "记忆已删除",
+        "undo": "撤销",
+        "undoFailed": "撤销失败"
+      },
+      "contextLabel": "背景",
+      "unarchiveConfirmTitle": "恢复该技能？",
+      "userProtectedBadge": "不会被自动修改",
+      "deleteConfirmTitle": "删除这条记忆？",
+      "confirm": "确认",
+      "deleteConfirmPermanent": "该条记忆将被永久删除，无法恢复。",
+      "importanceValue": "{value}/10",
+      "viewSourceChat": "查看来源对话",
+      "pinnedHint": "已固定的技能无法归档，请先取消固定。",
+      "viewInGraph": "在知识图谱中查看",
+      "archiveConfirmTitle": "归档该技能？"
     },
     "learningLoop": {
       "title": "闭环学习五环状态中心",
@@ -10747,12 +10847,12 @@
     "delegationPauseNetworkError": "网络错误：暂停委派失败",
     "delegationResumeNetworkError": "网络错误：恢复委派失败",
     "fetchFailed": "获取子任务失败",
-    "teammateMessagesTitle": "队友私信",
-    "teammateInbound": "来自 {from}",
-    "teammateOutbound": "发往 {to}",
     "swarmFissionGroup": "并行裂变批次",
     "swarmFissionProgress": "{completed}/{total} 路并行任务",
     "swarmFissionPartialProgress": "{completed}/{total} 成功，{failed} 路失败",
+    "teammateMessagesTitle": "队友私信",
+    "teammateInbound": "来自 {from}",
+    "teammateOutbound": "发往 {to}",
     "streamMore": "更多",
     "streamCollapse": "收起",
     "sortSpawn": "顺序",
@@ -11065,9 +11165,9 @@
       "limitHits": "命中上限",
       "blocked": "拦截",
       "limitHitTitle": "该用例因触达配置的运行预算（如最大工具调用数）而提前结束，答案可能不完整",
-      "matrixDetail": "用例 × 配置矩阵",
       "blockedTitle": "本次运行中，搜索查询或 URL 被评测去污染守卫拦截",
       "toolCallsTitle": "该用例轨迹中记录的工具调用次数",
+      "matrixDetail": "用例 × 配置矩阵",
       "case": "用例",
       "legend": {
         "stable": "稳定",
@@ -11504,10 +11604,6 @@
       "cognitive_consolidation": {
         "working": "正在整理记忆…",
         "completed": "记忆已整理"
-      },
-      "cognitive_derivation": {
-        "working": "正在学习你的偏好…",
-        "completed": "偏好已更新"
       },
       "cognitive_subsumption": {
         "working": "正在合并相似记忆…",
@@ -12795,19 +12891,19 @@
     "doneAction": "完成",
     "copilotTitle": "代码副驾模式",
     "copilotDesc": "强化大屏代码 Diff/AST 树、逐行审查与终端执行日志，专为全栈编程设计",
-    "copilotBadge": "Code Review",
+    "copilotBadge": "代码评审",
     "copilotShortLabel": "代码副驾",
     "multiAgentTitle": "多 Agent 矩阵模式",
     "multiAgentDesc": "多列网格分屏并排展示多个并发 Agent 任务卡、思考状态与工件产出",
-    "multiAgentBadge": "Multi-Agent Cluster",
+    "multiAgentBadge": "多智能体集群",
     "multiAgentShortLabel": "Agent 矩阵",
     "remoteComputeTitle": "云端算力监控模式",
     "remoteComputeDesc": "侧重远端 GPU/工作站负载、网络数据流与沙箱遥测，适合高强度运算",
-    "remoteComputeBadge": "Remote Offload",
+    "remoteComputeBadge": "远程卸载",
     "remoteComputeShortLabel": "算力监控",
     "easyMinimalTitle": "精简日常模式",
     "easyMinimalDesc": "单栏居中大输入框，隐藏所有繁复配置面板，纯粹面向日常问答与轻量任务",
-    "easyMinimalBadge": "Minimal Focus",
+    "easyMinimalBadge": "极简专注",
     "easyMinimalShortLabel": "精简日常"
   },
   "devPorts": {
@@ -13004,7 +13100,9 @@
     "sessionOverridePill": "本会话已更新",
     "sessionOverrideTitle": "本会话的偏好更新",
     "sessionOverrideDescription": "您在本对话中更正过偏好或事实，本条回复已按这些更新理解。",
-    "sessionOverrideMobile": "本条回复体现了本会话的 {count} 项更新"
+    "sessionOverrideMobile": "本条回复体现了本会话的 {count} 项更新",
+    "sessionMemoryUpdatedHint": "偏好已保存，将在本会话的后续回复中生效。",
+    "briefLearnedInPrefix": "本回复的记忆前缀已包含学习上下文：{preferences} 条偏好，{rules} 条规则，{corrections} 条纠偏项。"
   },
   "memoryRecallDegraded": {
     "title": "语义召回不可用",
@@ -13263,11 +13361,11 @@
       }
     },
     "lanes": {
-      "user": "用户交互通道",
       "agent": "智能体核心",
+      "user": "用户交互通道",
       "llm": "LLM 推理",
-      "skills": "技能引擎",
       "mcp": "MCP 连接器",
+      "skills": "技能引擎",
       "sandbox": "沙箱运行时"
     }
   },
@@ -13284,21 +13382,58 @@
   },
   "taskSpaces": {
     "title": "任务浏览器沙箱",
-    "badgeTakeover": "人工接管中",
     "badgeRunning": "运行中",
+    "badgeIdle": "空闲待命",
+    "badgeTakeover": "人工接管中",
+    "takeoverBtn": "人工接管",
+    "releaseTakeoverBtn": "交回智能体",
     "closeSpaceBtn": "关闭该任务沙箱",
     "activePages": "{count} 个活跃页面",
-    "releaseTakeoverBtn": "交回智能体",
-    "takeoverBtn": "人工接管",
-    "snapshotPreview": "实时快照预览",
     "emptyState": "暂无快照数据",
-    "badgeIdle": "空闲待命",
+    "snapshotPreview": "实时快照预览",
     "takeoverHint": "当前处于人工接管状态，完成后请点击交还智能体继续自动化。",
     "snapshotAlt": "任务空间快照"
   },
   "modelPlaybook": {
     "title": "模型编排战略手册",
     "subtitle": "多模型协同分工、动态路由与成本优化的架构指南。",
+    "brainHands": {
+      "title": "大脑与手脑专业化分工",
+      "tag": "角色解耦",
+      "description": "将高推理复杂任务规划与轻量高频的工具调用模型精细搭配。",
+      "brainTip": "大脑：Claude 3.5 Sonnet、DeepSeek-R1 负责全局架构与复杂决策。",
+      "handsTip": "手脑：MiniMax、GPT-4o-mini 负责高速工具调用与结构化输出。"
+    },
+    "routingMoa": {
+      "title": "模型路由 vs 多智能体混合 (MoA)",
+      "tag": "正交维度",
+      "description": "动态路由根据任务类型选择最佳模型；MoA 通过多模型协同输出放大决策质量。",
+      "routingTip": "路由：根据任务特征（编程、数学、创意）动态选定最优模型。",
+      "moaTip": "MoA：多模型并行产出与聚合共识，适用于关键重大决策。",
+      "routingActive": "生效中",
+      "routingInactive": "未启用"
+    },
+    "cheapEyes": {
+      "title": "多模态视觉辅助 (廉价之眼)",
+      "tag": "成本优化",
+      "description": "使用轻量高性价比视觉模型解析多模态输入，避免消耗昂贵核心推理模型。",
+      "tip": "将图像检查与屏幕视觉交给专用模型，保持对话核心链路轻盈高效。"
+    },
+    "honestQuota": {
+      "title": "真实配额与 Token 经济学",
+      "tag": "成本治理",
+      "description": "实时监控各服务商的真实 Token 消耗与缓存命中率，杜绝隐性浪费。",
+      "tip": "分析长链路调用瓶颈，优化 Prompt 前缀以最大化缓存利用率。"
+    },
+    "actions": {
+      "routingEnabledSuccess": "智能模型路由已成功启用！",
+      "configureSlots": "配置模型槽位",
+      "enabled": "已启用",
+      "enableSmartRouting": "启用智能路由",
+      "configureVision": "配置视觉模型",
+      "viewSubscriptions": "查看订阅方案",
+      "close": "关闭"
+    },
     "cardTitle": "模型编排手册",
     "cardBadge": "心法指南",
     "cardSubtitle": "掌握大脑与肢体分工、三层自适应路由与 MoA 共识，最大化执行效率。",
@@ -13339,44 +13474,7 @@
     "specialistsDesc": "独立分配多模态视觉廉价之眼、长文本专用模型与编程专项模型。",
     "footerNote": "您可在设置中心随时切换或微调以上模型配置策略。",
     "closeBtn": "关闭",
-    "configureBtn": "前往设置中心配置",
-    "brainHands": {
-      "title": "大脑与手脑专业化分工",
-      "tag": "角色解耦",
-      "description": "将高推理复杂任务规划与轻量高频的工具调用模型精细搭配。",
-      "brainTip": "大脑：Claude 3.5 Sonnet、DeepSeek-R1 负责全局架构与复杂决策。",
-      "handsTip": "手脑：MiniMax、GPT-4o-mini 负责高速工具调用与结构化输出。"
-    },
-    "routingMoa": {
-      "title": "模型路由 vs 多智能体混合 (MoA)",
-      "tag": "正交维度",
-      "description": "动态路由根据任务类型选择最佳模型；MoA 通过多模型协同输出放大决策质量。",
-      "routingTip": "路由：根据任务特征（编程、数学、创意）动态选定最优模型。",
-      "moaTip": "MoA：多模型并行产出与聚合共识，适用于关键重大决策。",
-      "routingActive": "生效中",
-      "routingInactive": "未启用"
-    },
-    "cheapEyes": {
-      "title": "多模态视觉辅助 (廉价之眼)",
-      "tag": "成本优化",
-      "description": "使用轻量高性价比视觉模型解析多模态输入，避免消耗昂贵核心推理模型。",
-      "tip": "将图像检查与屏幕视觉交给专用模型，保持对话核心链路轻盈高效。"
-    },
-    "honestQuota": {
-      "title": "真实配额与 Token 经济学",
-      "tag": "成本治理",
-      "description": "实时监控各服务商的真实 Token 消耗与缓存命中率，杜绝隐性浪费。",
-      "tip": "分析长链路调用瓶颈，优化 Prompt 前缀以最大化缓存利用率。"
-    },
-    "actions": {
-      "routingEnabledSuccess": "智能模型路由已成功启用！",
-      "configureSlots": "配置模型槽位",
-      "enabled": "已启用",
-      "enableSmartRouting": "启用智能路由",
-      "configureVision": "配置视觉模型",
-      "viewSubscriptions": "查看订阅方案",
-      "close": "关闭"
-    }
+    "configureBtn": "前往设置中心配置"
   },
   "security": {
     "taintedEgress": {
@@ -13526,7 +13624,9 @@
       "toastEngaged": "帷幕已拉起（手动）",
       "toastReleased": "帷幕已收起",
       "toastFailed": "帷幕操作失败: {error}",
-      "lockedUseHint": "无人值守时建议同时开启上方的 Locked Use：Agent 需要操作屏幕时，会在帷幕遮蔽下自动解锁；有人在电脑前或刚碰过帷幕时不会解锁。"
+      "lockedUseHint": "无人值守时建议同时开启上方的 Locked Use：Agent 需要操作屏幕时，会在帷幕遮蔽下自动解锁；有人在电脑前或刚碰过帷幕时不会解锁。",
+      "platformUnsupported": "当前平台（{platform}）不支持工位防窥帷幕，请在 macOS 或 Windows 上使用 Myrm 桌面客户端。",
+      "captureExclusionUnavailable": "本机无法从屏幕捕获中排除帷幕（Windows 需 2004 及以上版本）。已禁用拉起帷幕，避免自动化截图误以为已防窥。"
     },
     "desktopPermissions": {
       "title": "桌面自动化就绪检测",
@@ -13560,7 +13660,19 @@
       "trustedAppsRetry": "重试",
       "trustedAppsRevoke": "撤销",
       "trustedAppsRevokeSuccess": "已撤销信任",
-      "trustedAppsRevokeFailed": "撤销失败"
+      "trustedAppsRevokeFailed": "撤销失败",
+      "setupGuideStep2": "若需在锁屏/离席时运行任务，再到「设置 → 锁定使用」开启离席模式。",
+      "lockedUseDoctorDesc": "无人值守任务与工位隐私所需的桌面壳协同状态",
+      "lockedUseDoctorLabel": "离席模式与防窥帷幕",
+      "screenLockGuardUnlocked": "未锁定",
+      "lockedUseDoctorGoToSettings": "打开无人值守设置",
+      "screenLockGuardLabel": "锁屏保护",
+      "setupGuideStep4": "任务运行中可在任意位置按 Esc，立即停止桌面自动化。",
+      "screenLockGuardDesc": "屏幕锁定时将暂停自动化操作",
+      "setupGuideTitle": "快速上手（桌面客户端）",
+      "setupGuideStep1": "在上方授予「输入控制」与「屏幕捕获」，并点击「含屏幕捕获的重新检测」。",
+      "screenLockGuardLocked": "已锁定",
+      "setupGuideStep3": "在智能体配置中启用「桌面控制」，并在对话中完成首次应用审批。"
     },
     "mobileAdb": {
       "title": "移动设备无线调试 (ADB)",
@@ -13714,7 +13826,6 @@
       "sovereignty": {
         "title": "数据主权与中立平台优势",
         "subtitle": "打破专有闭源生态绑定。无需担心供应商锁定，一切资产透明可控、随取随走。",
-        "exportTakeout": "一键全量资产 Takeout 导出",
         "exportConfig": "导出工作区配置",
         "exportMemory": "备份记忆资产",
         "points": {
@@ -14868,6 +14979,19 @@
       "permissionTypes": {
         "spawn_subagent": "内部子智能体",
         "invoke_external_agent": "外部 CLI 智能体"
+      },
+      "leastPrivilege": {
+        "antiPatternTitle": "为何拒绝「完全访问」",
+        "stanceHeader": "默认最小权限姿态",
+        "myrmWayDesc": "统一审批流与中断状态机。高风险操作由沙箱防火墙拦截，日常任务保持顺畅。",
+        "antiPatternDesc": "完全访问会让本地文件与主机凭据面临任意外传风险。我们在清晰边界内工作，无需绕圈规避。",
+        "myrmWayTitle": "Myrm 审批与沙箱策略",
+        "stanceSummary": "命令与变更需明确审批，或在物理沙箱内执行。",
+        "activeBadge": "已防护",
+        "viewMatrixBtn": "能力矩阵",
+        "title": "最小权限与沙箱防护",
+        "description": "默认最小权限边界与物理沙箱隔离，避免破坏性「完全访问」模式。",
+        "manageTrustBtn": "信任文件夹"
       }
     },
     "dualTrackAudit": {
@@ -17146,8 +17270,8 @@
       },
       "detail": {
         "title": "技能详情",
-        "noDescription": "暂无描述",
         "close": "关闭",
+        "noDescription": "暂无描述",
         "enable": "启用技能",
         "disable": "禁用技能",
         "delete": "删除技能",
@@ -17187,10 +17311,6 @@
         "evolutionUnlocked": "进化已解锁",
         "evolutionUnlockedDesc": "已允许 Agent 自动进化「{name}」",
         "evolutionLockFailed": "更新锁定状态失败",
-        "evalCases": "回归测试用例",
-        "knownPitfalls": "已知陷阱",
-        "pitfallTrigger": "触发条件",
-        "tokenCost": "上下文开销：每次对话约 {count} tokens",
         "pathInvalid": "路径无效或已删除",
         "storagePath": "存储路径",
         "installedFrom": "安装来源",
@@ -17203,6 +17323,10 @@
         "revealInManager": "显示",
         "cleanupInvalid": "清理",
         "revealFailed": "显示路径失败",
+        "evalCases": "回归测试用例",
+        "knownPitfalls": "已知陷阱",
+        "pitfallTrigger": "触发条件",
+        "tokenCost": "上下文开销：每次对话约 {count} tokens",
         "export": "导出",
         "previewTab": "预览",
         "sourceTab": "源码",
@@ -17666,18 +17790,18 @@
           "foundSkills": "发现 {count} 个技能",
           "pathCopied": "已复制路径至剪贴板"
         },
-        "discoveredSkillsBadge": "{count} 个技能",
         "copyPath": "复制路径",
+        "discoveredSkillsBadge": "{count} 个技能",
         "pathNotFoundBadge": "路径不存在",
         "emptySkillsBadge": "0 个技能",
         "error": {
           "invalidPath": "路径格式无效",
           "pathFormat": "路径必须是绝对路径或以 ~ 开头",
+          "pathTraversal": "路径中不允许包含 \"..\" 跨目录遍历",
           "addFailed": "添加路径失败",
           "removeFailed": "移除路径失败",
           "scanFailed": "扫描失败",
-          "previewFailed": "探测本地路径失败",
-          "pathTraversal": "路径中不允许包含 \"..\" 跨目录遍历"
+          "previewFailed": "探测本地路径失败"
         },
         "previewDialog": {
           "title": "本地技能路径预检与采纳",
@@ -18792,19 +18916,19 @@
         "storageSelectDir": "选择新的数据存储目录",
         "storageLocalWebuiHint": "当前为 WebUI 独立服务模式，如需变更存储根目录，请在启动时配置 MYRM_DATA_DIR 环境变量并重启服务。",
         "storageSandboxHint": "当前为云端沙箱托管模式，数据由独立沙箱持久化存储卷（Persistent Volume）安全托管。",
-        "storageOptimizeTitle": "会话数据库智能优化",
         "storageOptimize": "优化瘦身",
         "storageOptimizing": "正在优化...",
+        "storageOptimizeTitle": "会话数据库智能优化",
         "storageOptimizeDesc": "整理对话与搜索存储空间，回收历史碎片并压缩日志，无损保留所有会话记录。",
         "storageOptimizePreflightLoading": "正在检测磁盘余量与运行状态...",
         "storageOptimizeBreakdownMain": "主数据存储",
         "storageOptimizeBreakdownWal": "近期活动日志",
         "storageOptimizeBreakdownShm": "快速索引缓存",
-        "storageOptimizeActiveJobsWarning": "检测到后台任务正在执行，请等待其完成后再优化以保障并发安全",
         "storageOptimizeModeDeep": "深度彻底瘦身 (推荐)",
         "storageOptimizeModeDeepDesc": "彻底整理对话历史并最大程度回收磁盘空间。需要一定的临时磁盘可用空间。",
         "storageOptimizeModeLight": "轻量快速优化",
         "storageOptimizeModeLightDesc": "快速整理搜索索引并归档近期日志。零额外磁盘缓冲要求。",
+        "storageOptimizeActiveJobsWarning": "检测到后台任务正在执行，请等待其完成后再优化以保障并发安全",
         "storageOptimizeSuccess": "数据库优化完成！成功释放 {reclaimed} ({percentage}%)",
         "storageOptimizeNoReclaim": "数据库已处于最佳紧凑状态，无需额外释放",
         "storageOptimizeFailed": "数据库优化失败",
@@ -18853,7 +18977,7 @@
         "rollbackFailed": "恢复上次可用连接未完成，请稍后重试。",
         "activeSessionsDialog": {
           "title": "存在活跃会话",
-          "description": "当前连接上有 {count} 个会话正在生成。切换连接可能会中断它们；已保存的会话记录仍会保留。",
+          "description": "当前连接上有 {count, plural, other {# 个会话}}正在生成。切换连接可能会中断{count, plural, one {它} other {它们}}；已保存的会话记录仍会保留。",
           "confirm": "仍然继续",
           "cancel": "取消"
         }
@@ -19043,12 +19167,28 @@
         "backupAuto": "安装前自动备份",
         "backupNow": "立即备份",
         "backupFailed": "备份失败。",
-        "restoreDone": "已恢复。",
-        "restartRequired": "请重启应用以生效。",
+        "restoreDone": "已安排恢复。",
+        "restartRequired": "将在下次启动时应用。",
         "snapshotEmpty": "暂无快照。",
         "snapshotRestore": "恢复",
         "snapshotDelete": "删除",
         "backupManualGuide": "快照在数据目录的 snapshots 文件夹（默认 ~/.myrm）。重装后可手动拷回 data.db 与 checkpoints.db 恢复——详见文档。"
+      },
+      "unattendedDesktop": {
+        "guideIntro": "锁屏离开后仍要让 Agent 操作本机时，请使用桌面客户端。纯浏览器模式仅支持聊天内审批，不含下列保护。",
+        "stepCurtainAction": "前往帷幕设置",
+        "stepLockedUseAction": "前往离席解锁",
+        "stepApprovalTitle": "可视化审批",
+        "stepLockedUseBody": "锁屏后 Agent 仍可继续 GUI 任务。需配合帷幕；Mac 上可选择在钥匙串保存登录密码。",
+        "statusOff": "未开启",
+        "stepCurtainTitle": "工位防窥帷幕",
+        "stepLockedUseTitle": "离席解锁（可选）",
+        "stepCurtainBody": "盖住所有显示器，旁人看不到 Agent 在做什么。请在下方开启。",
+        "title": "无人值守桌面",
+        "stepApprovalBody": "高风险点击仍在聊天里确认，并带截图红框；在 Mac 桌面端，系统允许时还会在真屏上同步高亮。",
+        "guideTitle": "离席用电脑 · 快速设置",
+        "statusOn": "已开启",
+        "statusOptional": "可选"
       }
     },
     "push": {
@@ -20642,8 +20782,8 @@
       "snapshotSuccessDesc": "当前持久化状态与核心数据已打包为只读快照。",
       "snapshotFailedTitle": "快照创建失败",
       "restore": "回滚",
-      "restoreSuccessTitle": "回滚成功",
-      "restoreSuccessDesc": "状态数据库已安全回滚至指定快照点。",
+      "restoreSuccessTitle": "已安排恢复",
+      "restoreSuccessDesc": "快照将在应用下次启动时恢复，在此之前当前数据保持不变。",
       "restoreFailedTitle": "回滚失败",
       "deleteSuccessTitle": "快照已删除",
       "deleteSuccessDesc": "已移除选定的历史快照。",
@@ -20687,6 +20827,14 @@
       "tierProd": "生产环境",
       "tierStaging": "预发环境",
       "tierDev": "开发环境"
+    },
+    "desktopShellFeatures": {
+      "bulletOsHighlight": "屏幕审批高亮 — 在真实显示器上对点击目标显示红框（macOS 与 Windows）",
+      "title": "桌面壳能力",
+      "bulletLockedUse": "Locked Use — 仅 macOS：在防窥帷幕下、经授权为无人任务临时解锁并回锁",
+      "headline": "工位级保护需安装 Myrm 桌面客户端",
+      "body": "当前为浏览器模式。计算机使用仍可在应用内审批。Locked Use 自动解锁需 macOS 桌面客户端；工位防窥帷幕与屏幕审批高亮在 macOS 与 Windows 桌面客户端可用。",
+      "bulletCurtain": "工位防窥帷幕 — 全屏遮蔽，旁人无法看到 Agent 操作（macOS 与 Windows）"
     }
   },
   "workLayout": {
@@ -20730,6 +20878,7 @@
   "compaction": {
     "capsuleTitle": "阶段记忆结晶",
     "capsuleSubtitle": "已压缩 {count} 条历史 · 节约 {tokens} Token",
+    "capsuleSubtitleTokensOnly": "节约 {tokens} Token",
     "expandSummary": "展开结构化摘要",
     "collapseSummary": "收起结构化摘要",
     "goalTitle": "阶段目标与背景",
@@ -20770,5 +20919,213 @@
     "inputPlaceholder": "请输入...",
     "submitting": "正在提交...",
     "queuePending": "还有 {count} 个待处理交互"
+  },
+  "instanceArchive": {
+    "title": "备份与恢复",
+    "subtitle": "把本应用里的一切——会话、智能体、技能、记忆和设置——迁移到另一台设备，或留一份安全的副本。",
+    "unsupported": "当前部署方式暂不支持备份与恢复。",
+    "export": {
+      "title": "创建备份",
+      "description": "将会话、智能体、技能、记忆和设置打包成一个文件，可在任意设备上恢复。",
+      "includeKeys": "包含我的模型密钥和连接",
+      "includeKeysHint": "使用只有你知道的口令加密封存。",
+      "keysNotIncluded": "模型密钥、连接和已保存的机密不会写入文件，恢复后需要重新填写。",
+      "passphrase": "口令",
+      "passphraseRepeat": "再次输入口令",
+      "passphraseHint": "至少 8 个字符。忘记口令后，备份中的密钥将无法找回。",
+      "passphraseMismatch": "两次输入的口令不一致。",
+      "start": "创建备份",
+      "running": "正在打包数据…",
+      "progress": "已处理 {done} / {total} 项",
+      "ready": "备份已就绪 · {size}",
+      "saving": "正在保存… {size}",
+      "save": "保存到此设备",
+      "saved": "备份已保存",
+      "keepSafe": "请妥善保管此文件，任何拿到它的人都能读取你的会话。",
+      "keysSealed": "你的密钥已用口令加密封存。",
+      "notIncluded": "不在此文件中，恢复后需要重新填写：",
+      "done": "完成",
+      "discard": "丢弃"
+    },
+    "import": {
+      "title": "从备份恢复",
+      "description": "选择一个备份文件，在任何内容被更改之前，你会先看到其中包含什么。",
+      "choose": "选择备份文件",
+      "uploading": "正在上传 {file}…",
+      "verifying": "正在检查备份…",
+      "passphraseTitle": "此备份包含受保护的密钥",
+      "passphraseDescription": "输入创建备份时设置的口令，或者不带密钥直接恢复。",
+      "passphrase": "口令",
+      "unlock": "解锁",
+      "skipKeys": "不带密钥恢复",
+      "cancel": "取消",
+      "confirm": "恢复此备份",
+      "queued": "备份已检查完毕，重启后即可完成恢复。"
+    },
+    "report": {
+      "verified": "备份已验证，目前还没有改动任何内容。",
+      "counts": {
+        "chats": "会话",
+        "messages": "消息",
+        "agents": "智能体",
+        "skills": "技能",
+        "wiki_pages": "知识库页面",
+        "cron_jobs": "定时任务"
+      },
+      "replaceWarning": "恢复会用此备份的内容替换本应用当前的内容，恢复后你可以撤销。",
+      "pausedJobs": "{count} 个定时任务已暂停，需要你手动重新开启。",
+      "missingPaths": "你的数据引用了 {count} 个在此设备上不存在的文件夹或文件。",
+      "identityDropped": "此备份来自另一个账号，因此不会带入与账号绑定的设置。",
+      "keysCarried": "受保护的模型密钥和连接也会一并恢复。",
+      "reentryTitle": "需要你重新填写：",
+      "executableTitle": "此备份会在你的设备上运行内容",
+      "executable": {
+        "scheduled_commands": "{count} 个会执行命令的定时任务",
+        "mcp_stdio_servers": "{count} 个会启动程序的连接",
+        "skill_scripts": "{count} 个包含脚本的技能"
+      },
+      "trust": "我信任此备份，允许它在此设备上运行以上内容。"
+    },
+    "groups": {
+      "modelKeys": "模型服务商密钥",
+      "mcpConnections": "工具服务连接",
+      "savedSecrets": "已保存的密码和机密",
+      "connectedAccounts": "已连接的账号和渠道"
+    },
+    "restart": {
+      "title": "重启后完成",
+      "desktop": "恢复将在应用重启时生效，只需几秒钟。",
+      "sandbox": "恢复将在你的工作空间重启时生效，只需几秒钟。",
+      "manual": "请退出应用并重新启动，恢复才会生效。",
+      "failed": "无法自动重启，请手动重启。",
+      "now": "立即重启",
+      "restarting": "正在重启…"
+    },
+    "rollback": {
+      "title": "撤销上次恢复",
+      "description": "把所有内容还原到上次恢复之前的样子。",
+      "action": "撤销恢复"
+    },
+    "outcome": {
+      "restoredImport": "备份已恢复",
+      "restoredPoint": "快照已恢复",
+      "restoredRollback": "恢复已撤销",
+      "restoredDescription": "所有内容都已恢复为备份时的样子。",
+      "rollbackDescription": "所有内容都已回到恢复之前的样子。",
+      "failedTitle": "恢复未能完成",
+      "failedDescription": "原因如下：",
+      "reentryTitle": "请重新填写以下内容来完成设置：",
+      "open": "打开",
+      "undo": "撤销恢复",
+      "done": "完成"
+    },
+    "errors": {
+      "generic": "出了点问题，请重试。",
+      "acknowledgement_required": "请先确认你信任此备份。",
+      "corrupt": "此备份文件已损坏或不完整。",
+      "export_busy": "已有一个备份正在创建，请等待它完成。",
+      "export_failed": "创建备份失败，请重试。",
+      "insufficient_space": "磁盘剩余空间不足，无法完成此操作。",
+      "invalid_archive": "这不是有效的备份文件。",
+      "invalid_chunk": "上传中断了，请重新开始。",
+      "invalid_geometry": "上传中断了，请重新开始。",
+      "newer_schema": "此备份由更新版本的应用创建，请先更新应用再试。",
+      "no_main_db": "此备份中没有应用数据。",
+      "not_instance_db": "此备份中没有可恢复的应用数据。",
+      "not_staged": "此备份尚未检查，请重新选择。",
+      "not_uploading": "上传中断了，请重新开始。",
+      "nothing_to_undo": "没有可撤销的内容。",
+      "operation_pending": "已有另一个恢复在等待重启，请先重启再试。",
+      "passphrase_required": "此备份包含受保护的密钥，请输入口令后继续。",
+      "restore_failed": "恢复未能应用，你之前的数据已原样还原。",
+      "restore_point_corrupt": "此恢复点已损坏，无法使用。",
+      "restore_point_incomplete": "此恢复点缺少文件，无法使用。",
+      "rollback_incomplete": "恢复未能完成，且部分数据无法还原。请用备份文件恢复。",
+      "secrets_unavailable": "当前部署方式不支持在备份中包含密钥。",
+      "stage_failed": "无法检查此备份，请重试。",
+      "unknown_export": "此备份已不可用，请重新创建。",
+      "unknown_restore_point": "此恢复点已不存在。",
+      "unknown_session": "上传中断了，请重新开始。",
+      "unsupported_layout": "此备份由不兼容的应用版本创建。",
+      "upload_incomplete": "上传中断了，请重新开始。",
+      "wrong_passphrase": "口令不正确。"
+    }
+  },
+  "questionNav": {
+    "prevQuestionAria": "跳转到上一个问题",
+    "prevQuestionTitle": "上一个问题",
+    "alreadyAtFirst": "已是会话中首个问题",
+    "openOutlineAria": "打开多轮提问大纲抽屉",
+    "openOutlineTooltip": "多轮提问索引大纲",
+    "openOutlineDesc": "快速展开全会话提问目录与直达锚点",
+    "nextQuestionAria": "跳转到下一个问题",
+    "nextQuestionTitle": "下一个问题",
+    "alreadyAtLast": "已是会话中最新问题",
+    "outlineDrawerTitle": "多轮提问索引大纲",
+    "outlineDrawerSubtitle": "共 {count} 轮用户发问",
+    "closeDrawer": "关闭抽屉",
+    "noQuestionsYet": "暂无用户提问记录",
+    "roundLabel": "第 {num} 轮问答"
+  },
+  "canvasSecurity": {
+    "pendingEgressBadge": "待审核出网请求 ({count})",
+    "sandboxedIsolatedBadge": "沙箱隔离运行中",
+    "auditCount": "{count} 条安全审计",
+    "egressPromptTitle": "画布正在尝试发起外部网络连接",
+    "blockEgress": "拒绝并阻断",
+    "allowOnce": "允许本次",
+    "alwaysAllowDomain": "总是信任此域名"
+  },
+  "mobile": {
+    "quickCapture": {
+      "onlineReady": "网络已连接 (实时同步就绪)",
+      "untitled": "未命名笔记",
+      "title": "极速倾倒抽屉",
+      "voiceNote": "语音转写",
+      "recording": "录音中...",
+      "noStagedItems": "暂无暂存笔记",
+      "speechUnsupported": "当前浏览器暂不支持 Web Speech 语音转写",
+      "stagedVaultItems": "暂存箱待同步项",
+      "offlineMode": "离线模式 (暂存至本地 IndexedDB)",
+      "contentPlaceholder": "随手记下灵感、任务、会议要点或录音转写...",
+      "e2eeShielded": "AES-256 E2EE 加密保护",
+      "syncNow": "立即同步",
+      "close": "关闭",
+      "titlePlaceholder": "标题 (可选)",
+      "saveToVault": "保存到暂存箱",
+      "savedNotice": "已加密保存至本地暂存箱",
+      "convertToTask": "转为任务"
+    }
+  },
+  "templateMarketplace": {
+    "title": "智能体模板市场",
+    "subtitle": "一键启动预设了工具与技能的现成智能体",
+    "stats": {
+      "total": "个模板"
+    },
+    "searchPlaceholder": "按名称或描述搜索模板...",
+    "empty": {
+      "title": "没有匹配的模板",
+      "description": "换个关键词，或清空搜索以查看全部模板。"
+    },
+    "card": {
+      "team": "团队",
+      "individual": "个体",
+      "builtinTools": "个内置工具",
+      "skills": "个技能",
+      "cloneAction": "使用模板"
+    },
+    "workbench": {
+      "title": "从模板克隆智能体",
+      "description": "确认预设能力后，创建你自己的副本",
+      "cancel": "取消",
+      "nameLabel": "智能体名称",
+      "presetCapabilities": "预设能力",
+      "wikiBlueprint": "知识 Wiki 蓝图",
+      "teamMembers": "团队成员",
+      "success": "智能体已创建",
+      "cloning": "正在创建智能体...",
+      "cloneConfirm": "创建智能体"
+    }
   }
 }

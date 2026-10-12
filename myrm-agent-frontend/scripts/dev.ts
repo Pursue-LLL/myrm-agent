@@ -11,7 +11,7 @@
  * [POS]
  * Frontend dev entry (`bun run dev` / `dev:lan` / `dev:clean`). Respects shared pause stamp; supervises Next child.
  */
-import { type ChildProcess, spawn, spawnSync } from 'child_process';
+import { type ChildProcess, execFile, spawn, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import {
@@ -47,7 +47,7 @@ function watchLocaleSources(): void {
   const localesDir = path.join(__dirname, '..', 'locales');
   let timer: NodeJS.Timeout | undefined;
   const resplit = (): void => {
-    spawn(process.execPath, [SPLIT_LOCALE_SCRIPT], { cwd: path.join(__dirname, '..'), stdio: 'ignore' });
+    execFile(process.execPath, [SPLIT_LOCALE_SCRIPT], { cwd: path.join(__dirname, '..') }, () => undefined);
   };
   // persistent:false — the watcher must never keep an attach-and-exit dev.ts alive.
   fs.watch(localesDir, { persistent: false }, (_event, filename) => {

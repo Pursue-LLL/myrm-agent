@@ -2534,10 +2534,18 @@
         "pinsLoading": "Loading pins…",
         "pinsLoadError": "Could not load pinned files",
         "pinsRetry": "Retry"
-      }
+      },
+      "copyReasoning": "Copy thinking",
+      "deltaPositive": "+{tokens} tokens vs last turn",
+      "copiedReasoning": "Thinking copied",
+      "deltaNegative": "{tokens} tokens vs last turn (compacted)",
+      "deltaZero": "Same as last turn",
+      "growthTrend": "Growth trend (last 12 turns)"
     },
     "compactedSummary": {
       "foldLabel": "Context compressed — view archive",
+      "branchSnapshotArchived": "Snapshot archived: {path}",
+      "branchContextDistilled": "Memory context and workbench state distilled at this fork point",
       "title": "Compressed memory summary",
       "edit": "Edit summary",
       "cancel": "Cancel",
@@ -2638,7 +2646,9 @@
       "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @codebase (overview) / @folder:path (directory) / @url:link (webpage) / @chat:title (prior chat) / file:10-20 (line range)",
       "removeReference": "Remove {label}",
       "agentsCategory": "Agents",
-      "contextCategory": "Context"
+      "contextCategory": "Context",
+      "dedupNotice": "File already in context; duplicate content skipped",
+      "alreadyInContext": "In context"
     },
     "conversationRecall": {
       "hintTitle": "Continue past conversations",
@@ -3303,6 +3313,22 @@
       "fallbackPrefilledBadge": "Prefilled",
       "questionClarification": "Clarification",
       "directReplyPlaceholder": "Enter answer or clarification..."
+    },
+    "contextFootprint": {
+      "mcpSwitcherDesc": "Disable irrelevant MCP servers to keep every turn lightweight",
+      "mcpTools": "MCP Tool Schemas",
+      "close": "Close",
+      "workspaceRules": "Workspace & Global Rules",
+      "persona": "Agent Persona & Instructions",
+      "systemPrompt": "System Prompt",
+      "noMcpServers": "No mounted MCP servers",
+      "enabled": "Enabled",
+      "mcpSwitcherTitle": "Idle MCP Switcher",
+      "title": "Initial Context Footprint",
+      "subtitle": "Pre-conversation baseline token overhead and tool governance",
+      "skillsTools": "Skills & Built-in Tools",
+      "disabled": "Disabled",
+      "totalBaseline": "Total Baseline Footprint"
     }
   },
   "mode": {
@@ -3785,7 +3811,18 @@
       "globLabel": "File search",
       "grepLabel": "Content search",
       "path": "Path",
-      "filePattern": "Files"
+      "filePattern": "Files",
+      "justNow": "just now",
+      "scenarioStandard": "Standard",
+      "savedTokens": "Saved {count} tokens",
+      "forceRefresh": "Force Refresh",
+      "minutesAgo": "{count}m ago",
+      "cacheHitTitle": "Cache Snapshot Hit",
+      "secondsAgo": "{count}s ago",
+      "scenarioArchive": "Archive",
+      "scenarioRealtime": "Realtime",
+      "hoursAgo": "{count}h ago",
+      "forceRefreshing": "Bypassing cache..."
     },
     "folding": {
       "showMore": "Expand {count} intermediate steps",
@@ -5095,7 +5132,14 @@
         "cancel": "Cancel",
         "saveAndLock": "Save & Lock Fact",
         "markFalsePositive": "Mark False Positive",
-        "correctAndLock": "Correct Fact"
+        "correctAndLock": "Correct Fact",
+        "quoteMatch": "Quote match: {quote}",
+        "toolExecution": "Tool execution",
+        "toolFailed": "Error / non-zero exit",
+        "copyToolOutput": "Copy tool output",
+        "roleAssistant": "Assistant",
+        "roleUser": "User",
+        "loadFailed": "Couldn't load the evidence. Please try again."
       },
       "repoEvidence": {
         "title": "Repository History Evidence",
@@ -6408,6 +6452,17 @@
       "resolve": "Mark resolved",
       "revisionOutside": "Revision also touched unmarked lines: {lines}",
       "revisionLocal": "Revision stayed inside the marked areas."
+    },
+    "hub": {
+      "originSession": "Origin Chat",
+      "subtitle": "Centralized cross-session assets repository with bidirectional provenance to originating chats",
+      "searchPlaceholder": "Search artifacts by title, description or extension...",
+      "navToSession": "Go to Source Chat",
+      "emptyTitle": "No artifacts found",
+      "title": "Artifacts Provenance Hub",
+      "download": "Download",
+      "exportZip": "Export as ZIP Bundle",
+      "emptyDesc": "Deliverables and files generated during agent conversations will automatically appear here"
     }
   },
   "MessageSources": {
@@ -9359,7 +9414,16 @@
     },
     "clarificationRequired": "Error Clarification Required",
     "fixParameters": "Fix Parameters (JSON)",
-    "visualContextAlt": "Screenshot of the action awaiting approval"
+    "visualContextAlt": "Screenshot of the action awaiting approval",
+    "humanAttentionEscHint": "Press Esc to stop desktop automation while the agent is running.",
+    "humanAttentionKindVisual": "Visual review",
+    "humanAttentionKindDesktopControl": "Desktop approval",
+    "visualApprovalOsHighlightUnavailable": "The on-screen highlight is unavailable for this display. Use the red box in this card to confirm the target.",
+    "humanAttentionKindTool": "Tool approval",
+    "humanAttentionTitle": "Action needed",
+    "humanAttentionView": "Go to item",
+    "humanAttentionMultiple": "{count} items need your input",
+    "humanAttentionKindClarify": "Clarification"
   },
   "notifications": {
     "title": "System Notifications",
@@ -9965,7 +10029,8 @@
     },
     "create": {
       "button": "Create Agent",
-      "title": "Create Agent"
+      "title": "Create Agent",
+      "success": "Agent created successfully from template!"
     },
     "edit": {
       "title": "Edit Agent"
@@ -10534,8 +10599,22 @@
         "deleteSuccess": "Memory deleted",
         "archiveSuccess": "Skill archived successfully",
         "unarchiveSuccess": "Skill restored successfully",
-        "actionFailed": "Action failed: {error}"
-      }
+        "actionFailed": "Action failed: {error}",
+        "deletePermanentSuccess": "Memory deleted",
+        "undo": "Undo",
+        "undoFailed": "Undo failed"
+      },
+      "contextLabel": "Context",
+      "unarchiveConfirmTitle": "Restore this skill?",
+      "userProtectedBadge": "Protected from auto-changes",
+      "deleteConfirmTitle": "Delete this memory?",
+      "confirm": "Confirm",
+      "deleteConfirmPermanent": "This rule will be removed permanently and cannot be restored.",
+      "importanceValue": "{value}/10",
+      "viewSourceChat": "Open source conversation",
+      "pinnedHint": "Pinned skills cannot be archived. Unpin it first.",
+      "viewInGraph": "View in knowledge graph",
+      "archiveConfirmTitle": "Archive this skill?"
     },
     "learningLoop": {
       "title": "Five-Ring Closed Learning Loop Status",
@@ -11525,10 +11604,6 @@
       "cognitive_consolidation": {
         "working": "Organizing your memories…",
         "completed": "Memories organized"
-      },
-      "cognitive_derivation": {
-        "working": "Learning your preferences…",
-        "completed": "Preferences updated"
       },
       "cognitive_subsumption": {
         "working": "Tidying up similar memories…",
@@ -13025,7 +13100,9 @@
     "sessionOverridePill": "Updated in this chat",
     "sessionOverrideTitle": "Preference updates this chat",
     "sessionOverrideDescription": "You changed something earlier in this conversation. This reply follows those updates.",
-    "sessionOverrideMobile": "{count} update(s) from this chat are reflected here"
+    "sessionOverrideMobile": "{count} update(s) from this chat are reflected here",
+    "sessionMemoryUpdatedHint": "Your preferences were saved and will apply to the next replies in this chat.",
+    "briefLearnedInPrefix": "Learned context was included in this reply's memory prefix: {preferences} preferences, {rules} rules, {corrections} correction items."
   },
   "memoryRecallDegraded": {
     "title": "Semantic recall unavailable",
@@ -13547,7 +13624,9 @@
       "toastEngaged": "Curtain engaged (manual)",
       "toastReleased": "Curtain released",
       "toastFailed": "Curtain operation failed: {error}",
-      "lockedUseHint": "For unattended runs, also turn on Locked Use above: when the agent needs the screen, it unlocks it behind the curtain. It will not unlock while someone is at the computer or has just touched the curtain."
+      "lockedUseHint": "For unattended runs, also turn on Locked Use above: when the agent needs the screen, it unlocks it behind the curtain. It will not unlock while someone is at the computer or has just touched the curtain.",
+      "platformUnsupported": "Privacy Curtain is not available on this platform ({platform}). Use the Myrm desktop app on macOS or Windows.",
+      "captureExclusionUnavailable": "This PC cannot hide the curtain from screen capture (Windows 10 version 2004 or later required). Engaging the curtain is disabled so automated screenshots stay honest."
     },
     "desktopPermissions": {
       "title": "Desktop Automation Readiness",
@@ -13581,7 +13660,19 @@
       "trustedAppsRetry": "Retry",
       "trustedAppsRevoke": "Revoke",
       "trustedAppsRevokeSuccess": "Removed trusted app",
-      "trustedAppsRevokeFailed": "Failed to revoke trusted app"
+      "trustedAppsRevokeFailed": "Failed to revoke trusted app",
+      "setupGuideStep2": "In Settings → Locked Use, enable away mode only if you need tasks while the display is locked.",
+      "lockedUseDoctorDesc": "Desktop shell coordination for unattended tasks and on-desk privacy",
+      "lockedUseDoctorLabel": "Away mode & privacy curtain",
+      "screenLockGuardUnlocked": "Unlocked",
+      "lockedUseDoctorGoToSettings": "Open unattended settings",
+      "screenLockGuardLabel": "Screen lock gate",
+      "setupGuideStep4": "During a run, press Esc anywhere to stop desktop automation immediately.",
+      "screenLockGuardDesc": "Automation pauses while the display is locked",
+      "setupGuideTitle": "Quick setup (desktop app)",
+      "setupGuideStep1": "Grant Input Control and Screen Capture above, then tap Recheck including screen capture.",
+      "screenLockGuardLocked": "Locked",
+      "setupGuideStep3": "In your agent config, turn on Desktop Control and complete the first app approval in chat."
     },
     "mobileAdb": {
       "title": "Mobile Wireless ADB Debugging",
@@ -13735,7 +13826,6 @@
       "sovereignty": {
         "title": "Data Sovereignty & Neutral Platform Advantage",
         "subtitle": "Break free from proprietary closed ecosystems. Zero vendor lock-in, all assets transparent and portable.",
-        "exportTakeout": "Full Asset Takeout Archive",
         "exportConfig": "Export Workspace Config",
         "exportMemory": "Backup Memories",
         "points": {
@@ -14889,6 +14979,19 @@
       "permissionTypes": {
         "spawn_subagent": "Internal sub-agent",
         "invoke_external_agent": "External CLI agent"
+      },
+      "leastPrivilege": {
+        "antiPatternTitle": "Why \"full access\" is rejected",
+        "stanceHeader": "Default least-privilege posture",
+        "myrmWayDesc": "Unified approval flow and interrupt state machine. High-risk operations are blocked by sandbox firewalls; routine work stays smooth.",
+        "antiPatternDesc": "Granting full access exposes local files and host credentials to arbitrary exfiltration. We keep clear boundaries without awkward bypass loops.",
+        "myrmWayTitle": "Myrm approval & sandbox strategy",
+        "stanceSummary": "Commands and mutations need explicit approval or run inside the physical sandbox.",
+        "activeBadge": "Protected",
+        "viewMatrixBtn": "Capability matrix",
+        "title": "Least privilege & sandbox guard",
+        "description": "Default least-privilege boundaries and physical sandbox isolation — avoiding destructive full-access patterns.",
+        "manageTrustBtn": "Trusted folders"
       }
     },
     "dualTrackAudit": {
@@ -18874,7 +18977,7 @@
         "rollbackFailed": "Couldn't restore the last working connection. Please try again shortly.",
         "activeSessionsDialog": {
           "title": "Active sessions detected",
-          "description": "{count, plural, one {# session is} other {# sessions are}} still generating on the current connection. Switching may interrupt {count, plural, one {it} other {them}}; saved session history is kept.",
+          "description": "{count, plural, one {# session is} other {# sessions are}} still generating on the current connection. Switching may interrupt {count, plural, one {that session} other {those sessions}}; saved session history is kept.",
           "confirm": "Continue anyway",
           "cancel": "Cancel"
         }
@@ -19064,12 +19167,28 @@
         "backupAuto": "Auto-backup before install",
         "backupNow": "Back up now",
         "backupFailed": "Backup failed.",
-        "restoreDone": "Restored. ",
-        "restartRequired": "Please restart the app to apply it.",
+        "restoreDone": "Restore scheduled. ",
+        "restartRequired": "It will be applied on the next start.",
         "snapshotEmpty": "No snapshots yet.",
         "snapshotRestore": "Restore",
         "snapshotDelete": "Delete",
         "backupManualGuide": "Snapshots live in the snapshots folder of your data directory (~/.myrm by default). After reinstalling, copy data.db and checkpoints.db back to recover manually — see docs."
+      },
+      "unattendedDesktop": {
+        "guideIntro": "Use the desktop app when you lock the screen and step away. Browser-only mode keeps in-chat approvals but not these protections.",
+        "stepCurtainAction": "Go to curtain",
+        "stepLockedUseAction": "Go to locked use",
+        "stepApprovalTitle": "Visual approvals",
+        "stepLockedUseBody": "Lets the agent finish GUI tasks while the screen is locked. Requires the curtain and, on Mac, an optional login password stored in Keychain.",
+        "statusOff": "Off",
+        "stepCurtainTitle": "Privacy curtain",
+        "stepLockedUseTitle": "Locked use (optional)",
+        "stepCurtainBody": "Covers your displays so people nearby cannot see the agent. Turn it on below.",
+        "title": "Unattended desktop",
+        "stepApprovalBody": "Risky clicks stay in chat with a screenshot highlight. On Mac, a matching on-screen frame appears when the display layout matches.",
+        "guideTitle": "Set up unattended computer use",
+        "statusOn": "On",
+        "statusOptional": "Optional"
       }
     },
     "push": {
@@ -20663,8 +20782,8 @@
       "snapshotSuccessDesc": "Current persistent state has been archived as an immutable snapshot.",
       "snapshotFailedTitle": "Snapshot Failed",
       "restore": "Restore",
-      "restoreSuccessTitle": "Restoration Complete",
-      "restoreSuccessDesc": "State database restored successfully to the selected snapshot.",
+      "restoreSuccessTitle": "Restore scheduled",
+      "restoreSuccessDesc": "The snapshot will be restored the next time the app starts. Your current data stays untouched until then.",
       "restoreFailedTitle": "Restoration Failed",
       "deleteSuccessTitle": "Snapshot Deleted",
       "deleteSuccessDesc": "Selected historical snapshot removed.",
@@ -20708,6 +20827,14 @@
       "tierProd": "Production",
       "tierStaging": "Staging",
       "tierDev": "Development"
+    },
+    "desktopShellFeatures": {
+      "bulletOsHighlight": "On-screen approval highlight — red frame on the real display at the click target (macOS and Windows)",
+      "title": "Desktop shell features",
+      "bulletLockedUse": "Locked Use — macOS only: opt-in unlock behind the privacy curtain for unattended tasks",
+      "headline": "Install the Myrm desktop app for workstation protection",
+      "body": "You are in browser mode. Computer Use still works with in-app approvals. Locked Use auto-unlock needs the desktop app on macOS; Privacy Curtain and on-screen approval highlights work on macOS and Windows with the desktop app.",
+      "bulletCurtain": "Privacy Curtain — full-screen shield so bystanders cannot see the agent (macOS and Windows)"
     }
   },
   "workLayout": {
@@ -20751,6 +20878,7 @@
   "compaction": {
     "capsuleTitle": "Milestone Crystallization",
     "capsuleSubtitle": "Compacted {count} messages · Saved {tokens} tokens",
+    "capsuleSubtitleTokensOnly": "Saved {tokens} tokens",
     "expandSummary": "Expand Structured Summary",
     "collapseSummary": "Collapse Summary",
     "goalTitle": "Phase Goal & Background",
@@ -20791,5 +20919,213 @@
     "inputPlaceholder": "Enter value...",
     "submitting": "Submitting...",
     "queuePending": "{count} more pending interactions"
+  },
+  "instanceArchive": {
+    "title": "Backup and restore",
+    "subtitle": "Move everything in this app — chats, agents, skills, memory and settings — to another device, or keep a safe copy.",
+    "unsupported": "Backup and restore isn't available in this deployment.",
+    "export": {
+      "title": "Create a backup",
+      "description": "Packs your chats, agents, skills, memory and settings into one file you can restore on any device.",
+      "includeKeys": "Include my model keys and connections",
+      "includeKeysHint": "Sealed with a passphrase that only you know.",
+      "keysNotIncluded": "Model keys, connections and saved secrets stay out of the file. You'll enter them again after restoring.",
+      "passphrase": "Passphrase",
+      "passphraseRepeat": "Repeat passphrase",
+      "passphraseHint": "At least 8 characters. If you forget it, the keys in this backup can't be recovered.",
+      "passphraseMismatch": "The two passphrases don't match.",
+      "start": "Create backup",
+      "running": "Packing your data…",
+      "progress": "{done} of {total} items",
+      "ready": "Backup ready · {size}",
+      "saving": "Saving… {size}",
+      "save": "Save to this device",
+      "saved": "Backup saved",
+      "keepSafe": "Keep this file somewhere safe. Anyone who has it can read your chats.",
+      "keysSealed": "Your keys are sealed with your passphrase.",
+      "notIncluded": "Not in this file. You'll enter these again after restoring:",
+      "done": "Done",
+      "discard": "Discard"
+    },
+    "import": {
+      "title": "Restore from a backup",
+      "description": "Pick a backup file. You'll see what it contains before anything changes.",
+      "choose": "Choose backup file",
+      "uploading": "Uploading {file}…",
+      "verifying": "Checking the backup…",
+      "passphraseTitle": "This backup contains protected keys",
+      "passphraseDescription": "Enter the passphrase you chose when you created it, or restore without the keys.",
+      "passphrase": "Passphrase",
+      "unlock": "Unlock",
+      "skipKeys": "Restore without keys",
+      "cancel": "Cancel",
+      "confirm": "Restore this backup",
+      "queued": "Backup checked and ready. Restart to finish restoring."
+    },
+    "report": {
+      "verified": "Backup verified. Nothing has been changed yet.",
+      "counts": {
+        "chats": "Chats",
+        "messages": "Messages",
+        "agents": "Agents",
+        "skills": "Skills",
+        "wiki_pages": "Wiki pages",
+        "cron_jobs": "Scheduled tasks"
+      },
+      "replaceWarning": "Restoring replaces what is in this app now with the contents of this backup. You can undo it afterwards.",
+      "pausedJobs": "{count, plural, one {# scheduled task is paused until you turn it back on.} other {# scheduled tasks are paused until you turn them back on.}}",
+      "missingPaths": "{count, plural, one {# folder or file referenced by your data doesn't exist on this device.} other {# folders or files referenced by your data don't exist on this device.}}",
+      "identityDropped": "This backup came from a different account, so account-specific settings are left out.",
+      "keysCarried": "Your protected model keys and connections will be restored too.",
+      "reentryTitle": "You'll need to enter these again:",
+      "executableTitle": "This backup can run things on your device",
+      "executable": {
+        "scheduled_commands": "{count, plural, one {# scheduled task that runs a command} other {# scheduled tasks that run commands}}",
+        "mcp_stdio_servers": "{count, plural, one {# connection that starts a program} other {# connections that start programs}}",
+        "skill_scripts": "{count, plural, one {# skill that includes scripts} other {# skills that include scripts}}"
+      },
+      "trust": "I trust this backup and allow it to run these on this device."
+    },
+    "groups": {
+      "modelKeys": "Model provider keys",
+      "mcpConnections": "Tool server connections",
+      "savedSecrets": "Saved passwords and secrets",
+      "connectedAccounts": "Connected accounts and channels"
+    },
+    "restart": {
+      "title": "Restart to finish",
+      "desktop": "The restore is applied while the app restarts. This takes a few seconds.",
+      "sandbox": "The restore is applied while your workspace restarts. This takes a few seconds.",
+      "manual": "Quit the app and start it again to apply the restore.",
+      "failed": "Couldn't restart automatically. Please restart it yourself.",
+      "now": "Restart now",
+      "restarting": "Restarting…"
+    },
+    "rollback": {
+      "title": "Undo the last restore",
+      "description": "Put everything back the way it was before the last restore.",
+      "action": "Undo restore"
+    },
+    "outcome": {
+      "restoredImport": "Backup restored",
+      "restoredPoint": "Snapshot restored",
+      "restoredRollback": "Restore undone",
+      "restoredDescription": "Everything is back the way it was in the backup.",
+      "rollbackDescription": "Everything is back the way it was before the restore.",
+      "failedTitle": "The restore didn't finish",
+      "failedDescription": "Here's what happened:",
+      "reentryTitle": "Enter these again to finish setting up:",
+      "open": "Open",
+      "undo": "Undo restore",
+      "done": "Done"
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "acknowledgement_required": "Please confirm that you trust this backup first.",
+      "corrupt": "This backup file is damaged or incomplete.",
+      "export_busy": "A backup is already being created. Please wait for it to finish.",
+      "export_failed": "Creating the backup failed. Please try again.",
+      "insufficient_space": "There isn't enough free disk space for this.",
+      "invalid_archive": "This isn't a valid backup file.",
+      "invalid_chunk": "The upload was interrupted. Please start it again.",
+      "invalid_geometry": "The upload was interrupted. Please start it again.",
+      "newer_schema": "This backup was made by a newer version of the app. Update the app and try again.",
+      "no_main_db": "This backup doesn't contain your app data.",
+      "not_instance_db": "This backup doesn't hold app data that can be restored.",
+      "not_staged": "This backup hasn't been checked yet. Please select it again.",
+      "not_uploading": "The upload was interrupted. Please start it again.",
+      "nothing_to_undo": "There's nothing to undo.",
+      "operation_pending": "Another restore is already waiting for a restart. Restart first, then try again.",
+      "passphrase_required": "This backup contains protected keys. Enter its passphrase to continue.",
+      "restore_failed": "The restore couldn't be applied, and your previous data was put back.",
+      "restore_point_corrupt": "This restore point is damaged and can't be used.",
+      "restore_point_incomplete": "This restore point is missing files and can't be used.",
+      "rollback_incomplete": "The restore didn't finish and some data couldn't be put back. Restore from a backup file to recover.",
+      "secrets_unavailable": "Keys can't be included in a backup in this deployment.",
+      "stage_failed": "We couldn't check this backup. Please try again.",
+      "unknown_export": "This backup is no longer available. Please create it again.",
+      "unknown_restore_point": "This restore point no longer exists.",
+      "unknown_session": "The upload was interrupted. Please start it again.",
+      "unsupported_layout": "This backup was made by an incompatible version of the app.",
+      "upload_incomplete": "The upload was interrupted. Please start it again.",
+      "wrong_passphrase": "That passphrase is incorrect."
+    }
+  },
+  "questionNav": {
+    "prevQuestionAria": "Jump to previous question",
+    "prevQuestionTitle": "Previous Question",
+    "alreadyAtFirst": "Already at the first question",
+    "openOutlineAria": "Open question outline drawer",
+    "openOutlineTooltip": "Question Outline Index",
+    "openOutlineDesc": "Browse all session questions and jump directly",
+    "nextQuestionAria": "Jump to next question",
+    "nextQuestionTitle": "Next Question",
+    "alreadyAtLast": "Already at the latest question",
+    "outlineDrawerTitle": "Prompt Outline Index",
+    "outlineDrawerSubtitle": "{count} user questions in total",
+    "closeDrawer": "Close drawer",
+    "noQuestionsYet": "No user questions yet",
+    "roundLabel": "Round {num}"
+  },
+  "canvasSecurity": {
+    "pendingEgressBadge": "Pending Egress ({count})",
+    "sandboxedIsolatedBadge": "Sandboxed & Isolated",
+    "auditCount": "{count} Audit Logs",
+    "egressPromptTitle": "Canvas requests external network connection",
+    "blockEgress": "Block",
+    "allowOnce": "Allow Once",
+    "alwaysAllowDomain": "Always Allow Domain"
+  },
+  "mobile": {
+    "quickCapture": {
+      "onlineReady": "Online (Sync Ready)",
+      "untitled": "Untitled Note",
+      "title": "Quick Capture Drawer",
+      "voiceNote": "Voice Dictation",
+      "recording": "Recording...",
+      "noStagedItems": "No staged notes",
+      "speechUnsupported": "Web Speech API is not supported in current browser",
+      "stagedVaultItems": "Staged Vault Items",
+      "offlineMode": "Offline Mode (Staged to IndexedDB)",
+      "contentPlaceholder": "Jot down ideas, tasks, meeting notes or voice transcripts...",
+      "e2eeShielded": "AES-256 E2EE Protected",
+      "syncNow": "Sync Now",
+      "close": "Close",
+      "titlePlaceholder": "Title (optional)",
+      "saveToVault": "Save to Vault",
+      "savedNotice": "Encrypted & saved to local vault",
+      "convertToTask": "Convert to Task"
+    }
+  },
+  "templateMarketplace": {
+    "title": "Agent Template Marketplace",
+    "subtitle": "Spin up a ready-made agent with preset tools and skills in one click",
+    "stats": {
+      "total": "templates"
+    },
+    "searchPlaceholder": "Search templates by name or description...",
+    "empty": {
+      "title": "No matching templates",
+      "description": "Try a different keyword or clear the search to see all templates."
+    },
+    "card": {
+      "team": "Team",
+      "individual": "Individual",
+      "builtinTools": "built-in tools",
+      "skills": "skills",
+      "cloneAction": "Use Template"
+    },
+    "workbench": {
+      "title": "Clone Agent from Template",
+      "description": "Review the preset capabilities, then create your own copy",
+      "cancel": "Cancel",
+      "nameLabel": "Agent name",
+      "presetCapabilities": "Preset capabilities",
+      "wikiBlueprint": "Knowledge wiki blueprint",
+      "teamMembers": "Team members",
+      "success": "Agent created",
+      "cloning": "Creating agent...",
+      "cloneConfirm": "Create Agent"
+    }
   }
 }

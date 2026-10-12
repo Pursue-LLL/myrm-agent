@@ -180,7 +180,7 @@ def _wait_active_ephemeral_deltas(api_url: str, chat_id: str, *, timeout_sec: fl
     private_reason="exclusive_backend",
 )
 @pytest.mark.integration
-@pytest.mark.timeout(720)
+@pytest.mark.timeout(600)
 def test_ephemeral_session_override_pill_after_memory_write_live() -> None:
     """Memory tool write in one chat must surface the session-override pill in WebUI."""
     api_url = get_e2e_api_url()
