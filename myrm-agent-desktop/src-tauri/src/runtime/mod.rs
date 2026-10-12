@@ -7,6 +7,7 @@
 //! - PythonBackend / NextJSFrontend 进程状态与 IPC 命令
 //! - 全局快捷键处理（Appshot 截屏、Voice PTT、Inline Input、窗口 toggle）
 //! - SetupTokenState / get_setup_token
+//! - ProductOrigin：产品页来源（IPC capability 与须落到产品路由的窗口共用）
 //! - Inline Input: handle_inline_input_shortcut / paste_back / INLINE_INPUT_SHORTCUT_STR
 //! - `.myrmtheme` open-file bridge via theme_package_open (emit theme-package-open)
 //!
@@ -18,6 +19,7 @@ mod inline_input;
 pub mod nextjs_frontend;
 pub mod port;
 pub mod process_registry;
+mod product_origin;
 pub mod python_backend;
 pub mod python_backend_stop;
 pub mod remote_follow;
@@ -37,6 +39,7 @@ pub use inline_input::{handle_inline_input_shortcut, paste_back, INLINE_INPUT_SH
 pub use nextjs_frontend::{start_frontend, stop_frontend, NextJSFrontend};
 #[allow(unused_imports)]
 pub use process_registry::{ManagedProcessEntry, ProcessRegistry, ProcessRole, ProcessStatus};
+pub use product_origin::ProductOrigin;
 pub use python_backend::{start_backend_with_config, stop_backend, PythonBackend};
 pub use python_backend_stop::graceful_stop_backend;
 pub use remote_follow::is_remote_follow_deferred;

@@ -6,7 +6,7 @@
 - Tauri 插件链（shell / updater / global-shortcut 等）
 
 [OUTPUT]
-- Tauri IPC 命令面（含统一 sender gate + 高敏操作意图票据 + 原生确认）、Sidecar 生命周期、系统 API 封装
+- Tauri IPC 命令面（含统一 sender gate + 高敏操作意图票据 + 原生确认，以及由同一份 gate 推导的产品页 ACL 能力）、Sidecar 生命周期、系统 API 封装
 
 [POS]
 src-tauri/src/ Rust 源码根。入口 main.rs → app::run()。
@@ -36,7 +36,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `../command_registry_macro.in` | ✅ 核心 | Tauri 命令注册单一清单（build allowlist / app handler / security tests 共用） | ✅ |
 | `app/` | ✅ 核心 | Tauri Builder、插件、setup、快捷键、托盘、优雅停机 | — |
 | `runtime/` | ✅ 核心 | Sidecar 运行时（见下表） | ✅ |
-| `ipc_security/` | ✅ 核心 | IPC sender gate（main/session 来源校验）、命令风险分级（reject/drop）、高敏操作短时票据 + 原生确认（多语言文案 + 主窗口 parent 绑定，防主窗注入静默执行），并内置确认执行自动化回归（通过/取消/超时/回传失败）与 `ipc-sensitive-confirmation` 运行时审计事件 | ✅ |
+| `ipc_security/` | ✅ 核心 | IPC sender gate（main/session 来源校验）、命令风险分级（reject/drop）、高敏操作短时票据 + 原生确认（多语言文案 + 主窗口 parent 绑定，防主窗注入静默执行），并内置确认执行自动化回归（通过/取消/超时/回传失败）与 `ipc-sensitive-confirmation` 运行时审计事件；`capability.rs` 把同一份 gate 推导成 Tauri ACL 能力（产品页 Local + 精确来源 Remote 两份），`acl_tests.rs` 用真实 ACL 清单在进程内证明两道闸门一致 | ✅ |
 | `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC；dev 用 venv，release 校验 sidecar 非空；冷启动最多 30s `/health` 轮询 | ✅ |
 | `runtime/process_registry/` | ✅ 核心 | 桌面受管进程注册表与生命周期中心（多 Sidecar 全局登记、退出码捕获） | ✅ |
 | `runtime/watchdog.rs` | ✅ 核心 | 后端 Sidecar 健康监控与崩溃自动恢复（30s 周期检查、指数退避重启、循环崩溃保护） | ✅ |
@@ -44,6 +44,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `runtime/appshot/` | ✅ 核心 | 全局快捷键：Appshot 截屏、Voice PTT、窗口 toggle（见 `runtime/appshot/_ARCH.md`） | ✅ |
 | `runtime/setup_token.rs` | ✅ 核心 | WebUI Remote Setup Token 状态与 IPC | ✅ |
 | `runtime/port.rs` | ✅ 工具 | 端口占用检测 | ✅ |
+| `runtime/product_origin.rs` | ✅ 核心 | 产品页来源（发布版 `http://127.0.0.1:<webui_port>`，开发版取 `build.devUrl`；启动期固定）：给 ACL 的 Remote 能力提供精确来源串，并构造子窗口页面地址（路径段与查询值一律编码） | ✅ |
 | `config.rs` | ✅ 核心 | 配置管理（`SystemConfig`, `BackendConfig`, `FrontendConfig`），端口管理，含 `appshot_shortcut`、`voice_ptt_shortcut` 和 `appshot_excluded_apps` 隐私黑名单字段 | ✅ |
 | `commands/` | ✅ 核心 | Tauri IPC 命令（config、overlay、recovery）→ 叶子清单见 [commands/_ARCH.md](commands/_ARCH.md) | — |
 | `utils/` | ✅ 工具 | 系统工具封装 → 见 [utils/_ARCH.md](utils/_ARCH.md) | — |
@@ -68,10 +69,10 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 
 ### 外部依赖
 - `tauri`：桌面应用框架
-- `tauri-plugin-shell`：进程管理
-- `tauri-plugin-dialog`：系统对话框（保存/打开）；capability `default` 经 `dialog:default` 仅授予 `main` 窗口的 Local 页（无 `remote`）
-- `tauri-plugin-fs`：文件读写；capability `default` 仅授予 `fs:allow-write-file`（scope `**`）给 `main` 窗口的 Local 页（无 `remote`）
-- `tauri-plugin-updater`：自动更新（检查/下载/安装，前端 JS API 驱动）
+- `tauri-plugin-shell`：产品页只获 `shell:allow-open` 打开外链（含 `x-apple.systempreferences:` / `ms-settings:` 系统设置深链与 `cursor://` / `vscode://` 「在 IDE 中打开」唤起链接，后者只放行裸协议），可打开的协议由 `tauri.conf.json#plugins.shell.open` 限定；不授 execute / spawn / kill / stdin-write（Sidecar 全由 Rust 侧管理）
+- `tauri-plugin-dialog`：系统对话框（保存/打开/消息）；`main` 与 `session-*` 的产品页获 `dialog:allow-open` / `allow-save` / `allow-message`
+- `tauri-plugin-fs`：仅授 `fs:allow-read-file` / `fs:allow-write-file` 且不配静态 scope——可访问路径只来自用户在对话框里的选择与拖放（插件运行期加入 scope）；`tauri.conf.json` 不得有 `plugins.fs`（插件拒绝未知键，发布版启动即 panic）
+- `tauri-plugin-updater`：自动更新（检查/下载/安装，前端 JS API 驱动；产品页获 `updater:allow-check` / `allow-download` / `allow-install`）
 - `tauri-plugin-window-state`：窗口位置/尺寸跨重启持久化（三平台）
 - `tokio`：异步运行时
 - `serde`：序列化/反序列化
@@ -92,6 +93,8 @@ Tauri 主进程 (Rust)
 ```
 
 Release 模式 WebView 先加载 `frontend-shell/`（`withGlobalTauri: true`），IPC 读取 `webui_port` 后轮询 Next 就绪并跳转。
+
+该跳转只服务主窗口首屏：会话窗与宠物浮层不经壳页，直接以 `ProductOrigin`（`http://127.0.0.1:<webui_port>`）构造的完整地址开窗（`WebviewUrl::External`）——`WebviewUrl::App` 在发布版会回落到壳页，其跳转只回产品根路径，路径与查询全被丢弃。产品页（含这些子窗口）在发布版属 Remote 来源，Tauri ACL 对它的授权由启动期注册的 capability 给出（见 [ipc_security/_ARCH.md](ipc_security/_ARCH.md)）。
 
 ---
 

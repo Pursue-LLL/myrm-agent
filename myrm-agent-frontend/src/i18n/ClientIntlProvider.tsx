@@ -36,11 +36,11 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-async function fetchDeferredMessages(): Promise<Partial<Messages>> {
+async function fetchDeferredMessages(locale: Locale): Promise<Partial<Messages>> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), DEFERRED_FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch('/api/i18n/deferred', {
+    const response = await fetch(`/api/i18n/deferred?lang=${encodeURIComponent(locale)}`, {
       credentials: 'same-origin',
       signal: controller.signal,
     });
@@ -84,7 +84,7 @@ export default function ClientIntlProvider({ locale, shellMessages, children }: 
         }
 
         try {
-          const loaded = await fetchDeferredMessages();
+          const loaded = await fetchDeferredMessages(locale);
           if (!cancelled) {
             setMessages(mergeMessages(shellMessages, loaded));
             setDeferredLocaleReady(true);

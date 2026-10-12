@@ -112,7 +112,7 @@ export interface AttributionMetricsResponse {
 export const conclusionAttributionApi = {
   /** Create an attributed conclusion */
   createConclusion: async (payload: CreateConclusionRequest): Promise<CreateConclusionResponse> => {
-    return apiClient.post('/api/memory/attribution/conclusions', payload);
+    return apiClient.post('/memory/attribution/conclusions', payload);
   },
 
   /** List conclusions with pagination and filters */
@@ -124,7 +124,7 @@ export const conclusionAttributionApi = {
     page?: number;
     size?: number;
   }): Promise<ListConclusionsResponse> => {
-    return apiClient.get('/api/memory/attribution/conclusions', { params });
+    return apiClient.get('/memory/attribution/conclusions', { params });
   },
 
   /** Query conclusions via keyword/semantic match */
@@ -134,26 +134,26 @@ export const conclusionAttributionApi = {
     level?: string;
     top_k?: number;
   }): Promise<{ items: AttributedConclusionDTO[]; total: number }> => {
-    return apiClient.post('/api/memory/attribution/query', payload);
+    return apiClient.post('/memory/attribution/query', payload);
   },
 
   /** Walk downwards from conclusion to explicit premises */
   walkDownwardTree: async (conclusionId: string, maxDepth = 15): Promise<TraverseTreeResponse> => {
-    return apiClient.get(`/api/memory/attribution/tree/downward/${conclusionId}`, {
+    return apiClient.get(`/memory/attribution/tree/downward/${conclusionId}`, {
       params: { max_depth: maxDepth },
     });
   },
 
   /** Walk upwards from premise to derived conclusions */
   walkUpwardTree: async (premiseId: string, maxDepth = 15): Promise<TraverseTreeResponse> => {
-    return apiClient.get(`/api/memory/attribution/tree/upward/${premiseId}`, {
+    return apiClient.get(`/memory/attribution/tree/upward/${premiseId}`, {
       params: { max_depth: maxDepth },
     });
   },
 
   /** Evaluate ripple effects of modifying or deleting a premise */
   getRippleImpact: async (conclusionId: string): Promise<RippleImpactResponse> => {
-    return apiClient.get(`/api/memory/attribution/impact/${conclusionId}`);
+    return apiClient.get(`/memory/attribution/impact/${conclusionId}`);
   },
 
   /** Delete a conclusion */
@@ -161,19 +161,19 @@ export const conclusionAttributionApi = {
     conclusionId: string,
     cascade = false,
   ): Promise<{ deleted_ids: string[]; cascade: boolean; status: string }> => {
-    return apiClient.delete(`/api/memory/attribution/conclusions/${conclusionId}`, {
+    return apiClient.delete(`/memory/attribution/conclusions/${conclusionId}`, {
       params: { cascade },
     });
   },
 
   /** Ask a question and obtain transparent ChatEvidence */
   chatWithEvidence: async (payload: ChatWithEvidenceRequest): Promise<ChatWithEvidenceResponse> => {
-    return apiClient.post('/api/memory/attribution/chat', payload);
+    return apiClient.post('/memory/attribution/chat', payload);
   },
 
   /** Get telemetry metrics */
   getStats: async (peerId?: string): Promise<AttributionMetricsResponse> => {
-    return apiClient.get('/api/memory/attribution/stats', {
+    return apiClient.get('/memory/attribution/stats', {
       params: peerId ? { peer_id: peerId } : undefined,
     });
   },

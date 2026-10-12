@@ -21,7 +21,6 @@ import type {
   IWindowBridge,
   NativeNotificationPayload,
   NativeOpenFileDialogOptions,
-  TrayStatusPayload,
   WindowMetrics,
 } from './types';
 
@@ -34,51 +33,15 @@ class WebFallbackWindowBridge implements IWindowBridge {
       dragRegionEnabled: false,
     };
   }
-
-  async minimize(): Promise<void> {
-    // No-op in browser
-  }
-
-  async maximize(): Promise<void> {
-    // No-op in browser
-  }
-
-  async toggleMaximize(): Promise<void> {
-    // No-op in browser
-  }
-
-  async close(): Promise<void> {
-    // No-op in browser
-  }
-
-  async isMaximized(): Promise<boolean> {
-    return false;
-  }
-
-  async startDragging(): Promise<void> {
-    // No-op in browser
-  }
 }
 
 class WebFallbackTrayBridge implements ITrayBridge {
-  async updateStatus(_status: TrayStatusPayload): Promise<void> {
-    // No-op in browser
-  }
-
   onTrayEvent(_handler: (event: { type: string; payload?: unknown }) => void): () => void {
     return () => {};
   }
 }
 
 class WebFallbackShellBridge implements IShellBridge {
-  async openLocalFolder(_path: string): Promise<boolean> {
-    return false;
-  }
-
-  async showInFileManager(_path: string): Promise<boolean> {
-    return false;
-  }
-
   async openExternalUrl(url: string): Promise<boolean> {
     if (typeof window !== 'undefined' && url) {
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -95,10 +58,6 @@ class WebFallbackShellBridge implements IShellBridge {
 class WebFallbackAppshotBridge implements IAppshotBridge {
   listenAppshot(_handler: (payload: { path: string; mimeType: string }) => void): () => void {
     return () => {};
-  }
-
-  async captureScreen(): Promise<{ base64: string; mimeType: string } | null> {
-    return null;
   }
 }
 

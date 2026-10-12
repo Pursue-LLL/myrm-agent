@@ -55,6 +55,36 @@ from app.api.memory.business_template_router import (
 from app.api.memory.cjk_iteration_router import (
     router as cjk_iteration_router,
 )
+from app.api.memory.safe_forget_router import (
+    router as safe_forget_router,
+)
+from app.api.memory.transcript_projection_router import (
+    router as transcript_projection_router,
+)
+from app.api.memory.vector_dim_guard_router import (
+    router as vector_dim_guard_router,
+)
+from app.api.memory.project_dongle_router import (
+    router as project_dongle_router,
+)
+from app.api.memory.context_fabric_router import (
+    router as context_fabric_router,
+)
+from app.api.memory.experience_flywheel_router import (
+    router as experience_flywheel_router,
+)
+from app.api.memory.person_card_router import (
+    router as person_card_router,
+)
+from app.api.memory.domain_isolation_router import (
+    router as domain_isolation_router,
+)
+from app.api.memory.snapshot_freshness_router import (
+    router as snapshot_freshness_router,
+)
+from app.api.memory.staleness_consolidation_router import (
+    router as staleness_consolidation_router,
+)
 from app.api.memory.client_partition import (
     router as memory_client_partition_router,
 )
@@ -663,6 +693,46 @@ router.include_router(
 router.include_router(
     bitemporal_tms_router,
     tags=["memory-bitemporal-tms"],
+)
+router.include_router(
+    safe_forget_router,
+    tags=["memory-safe-forget"],
+)
+router.include_router(
+    transcript_projection_router,
+    tags=["memory-transcript-projection"],
+)
+router.include_router(
+    vector_dim_guard_router,
+    tags=["memory-vector-dim-guard"],
+)
+router.include_router(
+    project_dongle_router,
+    tags=["memory-project-dongle"],
+)
+router.include_router(
+    context_fabric_router,
+    tags=["memory-context-fabric"],
+)
+router.include_router(
+    experience_flywheel_router,
+    tags=["memory-experience-flywheel"],
+)
+router.include_router(
+    person_card_router,
+    tags=["memory-person-card"],
+)
+router.include_router(
+    domain_isolation_router,
+    tags=["memory-domain-isolation"],
+)
+router.include_router(
+    snapshot_freshness_router,
+    tags=["memory-snapshot-freshness"],
+)
+router.include_router(
+    staleness_consolidation_router,
+    tags=["memory-staleness-consolidation"],
 )
 
 

@@ -80,6 +80,9 @@ class Chat(Base):
     # Incognito mode: hide from sidebar, do not persist to memory
     is_incognito: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
 
+    # Session Tags: Multi-dimensional hierarchical or custom categorical tags
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, server_default="[]")
+
     # Usage Analytics Summary (Updated by Server on session end/sync)
     total_calls: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

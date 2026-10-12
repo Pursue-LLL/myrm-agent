@@ -2,7 +2,8 @@
 // Used by:
 // - build.rs (AppManifest command allowlist)
 // - src/app/mod.rs (generate_handler registration)
-// - src/ipc_security/tests.rs (policy coverage assertion)
+// - src/ipc_security/capability.rs (ACL grants derived per window kind; also backs the policy
+//   coverage assertions in src/ipc_security/tests.rs)
 macro_rules! tauri_command_registry {
     ($consumer:ident) => {
         $consumer! {
@@ -23,7 +24,6 @@ macro_rules! tauri_command_registry {
             ("get_remote_follow", crate::runtime::remote_follow::get_remote_follow),
             ("switch_remote_follow", crate::runtime::remote_follow::switch_remote_follow),
             ("get_updater_safety", crate::runtime::update_safety::get_updater_safety),
-            ("stop_frontend", crate::runtime::nextjs_frontend::stop_frontend),
             ("screen_lock_store_password", crate::commands::screen_lock::screen_lock_store_password),
             ("screen_lock_has_password", crate::commands::screen_lock::screen_lock_has_password),
             ("screen_lock_delete_password", crate::commands::screen_lock::screen_lock_delete_password),

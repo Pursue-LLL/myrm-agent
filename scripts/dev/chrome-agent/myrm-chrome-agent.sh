@@ -56,11 +56,11 @@ cmd_install() {
     ok "installed sha=${sha} port=${MYRM_CHROME_AGENT_PORT:-${CHROME_AGENT_DEFAULT_PORT}}"
     return 0
   fi
-  # Rollback: restore previous symlink target when one existed.
+  # Rollback: `previous` is the absolute target path returned by chrome_agent_switch_current.
   if [[ -n "${previous:-}" ]]; then
-    ln -sfn "$(chrome_agent_versions_dir)/${previous}" "$(chrome_agent_current_link)"
+    ln -sfn "${previous}" "$(chrome_agent_current_link)"
     chrome_agent_launchagent_start
-    chrome_agent_wait_health && ok "rolled back to sha=${previous}" || true
+    chrome_agent_wait_health && ok "rolled back to sha=${previous##*/}" || true
   fi
   fail "health check failed after install — see $(chrome_agent_log_file)"
 }

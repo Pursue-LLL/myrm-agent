@@ -1,17 +1,18 @@
 /**
  * [INPUT]
  * - types.ts: IDesktopBridge and sub-bridge interfaces
- * - @/lib/tauri: invokeTauriCommand, isTauriEnvironment
+ * - @/lib/tauri: isTauriEnvironment
+ * - @tauri-apps/plugin-shell / plugin-dialog / plugin-notification: official plugins, dynamically imported
  * - ./platform-detection: detectDesktopPlatform, getDesktopWindowControlsState
  *
  * [OUTPUT]
- * - TauriDesktopBridge: Native IPC bridge implementation for Tauri desktop application
+ * - TauriDesktopBridge: Native bridge implementation for Tauri desktop application
  *
  * [POS]
- * Desktop bridge Tauri implementation. Connects typed frontend calls to Tauri Rust IPC.
+ * Desktop bridge Tauri implementation. Connects typed frontend calls to official Tauri plugins and the global event bridge.
  */
 
-import { invokeTauriCommand, isTauriEnvironment } from '@/lib/tauri';
+import { isTauriEnvironment } from '@/lib/tauri';
 import { detectDesktopPlatform, getDesktopWindowControlsState } from './platform-detection';
 import type {
   DesktopBridgeCapabilities,
@@ -25,7 +26,6 @@ import type {
   IWindowBridge,
   NativeNotificationPayload,
   NativeOpenFileDialogOptions,
-  TrayStatusPayload,
   WindowMetrics,
 } from './types';
 
@@ -47,92 +47,9 @@ class TauriWindowBridge implements IWindowBridge {
       dragRegionEnabled: true,
     };
   }
-
-  async minimize(): Promise<void> {
-    if (!isTauriEnvironment()) {
-      return;
-    }
-    try {
-      await invokeTauriCommand('minimize_window');
-    } catch (e) {
-      console.warn('Failed to minimize window:', e);
-    }
-  }
-
-  async maximize(): Promise<void> {
-    if (!isTauriEnvironment()) {
-      return;
-    }
-    try {
-      await invokeTauriCommand('maximize_window');
-    } catch (e) {
-      console.warn('Failed to maximize window:', e);
-    }
-  }
-
-  async toggleMaximize(): Promise<void> {
-    if (!isTauriEnvironment()) {
-      return;
-    }
-    try {
-      await invokeTauriCommand('toggle_maximize_window');
-    } catch (e) {
-      console.warn('Failed to toggle maximize window:', e);
-    }
-  }
-
-  async close(): Promise<void> {
-    if (!isTauriEnvironment()) {
-      return;
-    }
-    try {
-      await invokeTauriCommand('close_window');
-    } catch (e) {
-      console.warn('Failed to close window:', e);
-    }
-  }
-
-  async isMaximized(): Promise<boolean> {
-    if (!isTauriEnvironment()) {
-      return false;
-    }
-    try {
-      return await invokeTauriCommand<boolean>('is_window_maximized');
-    } catch {
-      return false;
-    }
-  }
-
-  async startDragging(): Promise<void> {
-    if (!isTauriEnvironment()) {
-      return;
-    }
-    try {
-      await invokeTauriCommand('start_dragging');
-    } catch (e) {
-      console.warn('Failed to start dragging:', e);
-    }
-  }
 }
 
 class TauriTrayBridge implements ITrayBridge {
-  async updateStatus(status: TrayStatusPayload): Promise<void> {
-    if (!isTauriEnvironment()) {
-      return;
-    }
-    try {
-      await invokeTauriCommand('update_tray_status', {
-        liveness: status.liveness,
-        activeTasksCount: status.activeTasksCount,
-        tokens: status.usageSummary?.tokens ?? 0,
-        costUsd: status.usageSummary?.costUsd ?? 0,
-        tooltipText: status.tooltipText,
-      });
-    } catch (e) {
-      console.warn('Failed to update tray status:', e);
-    }
-  }
-
   onTrayEvent(handler: (event: { type: string; payload?: unknown }) => void): () => void {
     if (!isTauriEnvironment() || typeof window === 'undefined' || !window.__TAURI__?.event) {
       return () => {};
@@ -161,50 +78,24 @@ class TauriTrayBridge implements ITrayBridge {
 }
 
 class TauriShellBridge implements IShellBridge {
-  async openLocalFolder(path: string): Promise<boolean> {
-    if (!isTauriEnvironment() || !path) {
-      return false;
-    }
-    try {
-      return await invokeTauriCommand<boolean>('open_folder', { path });
-    } catch (e) {
-      console.warn('Failed to open folder:', e);
-      return false;
-    }
-  }
-
-  async showInFileManager(path: string): Promise<boolean> {
-    if (!isTauriEnvironment() || !path) {
-      return false;
-    }
-    try {
-      return await invokeTauriCommand<boolean>('show_in_file_manager', { path });
-    } catch (e) {
-      console.warn('Failed to show in file manager:', e);
-      return false;
-    }
-  }
-
   async openExternalUrl(url: string): Promise<boolean> {
     if (!url) {
       return false;
     }
-    if (!isTauriEnvironment()) {
-      if (typeof window !== 'undefined') {
-        window.open(url, '_blank', 'noopener,noreferrer');
+    if (isTauriEnvironment()) {
+      try {
+        const { open } = await import('@tauri-apps/plugin-shell');
+        await open(url);
         return true;
+      } catch (e) {
+        console.warn('Failed to open external URL via shell plugin:', e);
       }
-      return false;
     }
-    try {
-      return await invokeTauriCommand<boolean>('open_external_url', { url });
-    } catch {
-      if (typeof window !== 'undefined') {
-        window.open(url, '_blank', 'noopener,noreferrer');
-        return true;
-      }
-      return false;
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return true;
     }
+    return false;
   }
 
   async openFileDialog(options?: NativeOpenFileDialogOptions): Promise<string | string[] | null> {
@@ -252,22 +143,6 @@ class TauriAppshotBridge implements IAppshotBridge {
         unlisten();
       }
     };
-  }
-
-  async captureScreen(): Promise<{ base64: string; mimeType: string } | null> {
-    if (!isTauriEnvironment()) {
-      return null;
-    }
-    try {
-      const base64 = await invokeTauriCommand<string>('capture_screen');
-      if (!base64) {
-        return null;
-      }
-      return { base64, mimeType: 'image/png' };
-    } catch (e) {
-      console.warn('Failed to capture screen:', e);
-      return null;
-    }
   }
 }
 

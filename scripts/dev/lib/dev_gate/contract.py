@@ -384,6 +384,18 @@ E2E_ATTACH_UI_HEAL_TIMEOUT_CAP_SEC: Final[int] = 600
 E2E_ATTACH_UI_HEAL_ENSURE_SUBPROCESS_CAP_SEC: Final[int] = 420
 STACK_FRONTEND_ENSURE_WAIT_SEC: Final[int] = 180
 STACK_FRONTEND_ATTACH_HEAL_ENSURE_WAIT_SEC: Final[int] = 360
+# Frontend restart admission (frontend_lifecycle): a running Next dev server is killed only on
+# proof of a stall, never because a probe was slow. Thresholds derive from the measured cold
+# compile above so no budget can drift below what a healthy compile needs.
+FRONTEND_COLD_COMPILE_MAX_SEC: Final[int] = 282
+# Continuous non-200 for three coldest compiles means the server is wedged even if it burns CPU.
+FRONTEND_RESTART_EPISODE_CAP_SEC: Final[int] = 3 * FRONTEND_COLD_COMPILE_MAX_SEC
+# A process tree whose CPU time and log stay flat this long is stalled, not compiling.
+FRONTEND_RESTART_STALL_SEC: Final[int] = 90
+# A server younger than this is still booting; refuse to kill it.
+FRONTEND_RESTART_MIN_AGE_SEC: Final[int] = 60
+# One admission call may observe a progressing compile this long before refusing the restart.
+FRONTEND_RESTART_GATE_WAIT_SEC: Final[int] = FRONTEND_COLD_COMPILE_MAX_SEC
 # Solo ADMIT attach: readiness + dev_servers + chrome_cdp + attach_health exceed 180s under cold UI.
 READY_CHROME_ATTACH_WALL_SOLO_SEC: Final[int] = SHARED_ATTACH_RECOVERY_WAIT_SEC
 # Parallel ADMIT attach: must cover one full frontend heal cycle (R123/R161).

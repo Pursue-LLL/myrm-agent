@@ -8,6 +8,8 @@
 | ----------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | `useChatTurnPrewarm.ts`       | 核心 | 空会话挂载 + 输入框聚焦 + 切 Agent 时的首轮 turn 预热触发/取消（幂等，模块级 inflight map 去重；`autoOnMount` 卸载不取消以保住 EmptyChat→Chat 首次发送的预热） | ✅    |
 | `usePriorChatComposerDrop.ts` | 核心 | 侧栏会话拖拽到 Composer 的 cite 投递（`prior_chat` MIME 载荷解码、同会话拒绝、`addMentionReference` 注入 + 输入框聚焦）                                        | ✅    |
+| `useContextPinning.ts`        | 核心 | 上下文零裁切 Pin 钉住状态管理 Hook。管理消息/决策/文件的 Pin/Unpin 切换与锁定持久化。                                             | ✅    |
+| `useChatTagFilter.ts`         | 核心 | 会话多维度层级标签管理与即时过滤聚合 Hook (Item 156)。支持标签增删、大小写归一化、并集(any)与交集(all)检索。                    | ✅    |
 
 ## 依赖
 

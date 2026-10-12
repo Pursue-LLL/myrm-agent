@@ -417,14 +417,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
       return;
     }
     try {
-      if (isTauriRuntime()) {
-        const { open } = await import('@tauri-apps/plugin-shell');
-        const path = artifact.file_path;
-        const parentDir = path.substring(0, path.lastIndexOf('/')) || path.substring(0, path.lastIndexOf('\\'));
-        await open(parentDir);
-      } else {
-        await apiRequest(`/files/${artifact.id}/reveal`, { method: 'POST' });
-      }
+      await apiRequest(`/files/${artifact.id}/reveal`, { method: 'POST' });
     } catch {
       toast.error(t('errors.serverError'));
     }
@@ -435,12 +428,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
       return;
     }
     try {
-      if (isTauriRuntime()) {
-        const { open } = await import('@tauri-apps/plugin-shell');
-        await open(artifact.file_path);
-      } else {
-        await apiRequest(`/files/${artifact.id}/open`, { method: 'POST' });
-      }
+      await apiRequest(`/files/${artifact.id}/open`, { method: 'POST' });
     } catch {
       toast.error(t('errors.serverError'));
     }
@@ -882,7 +870,9 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               .filter((pub) => pub.publication_status === 'READY' && pub.publication_url)
               .map((pub) => {
                 const url = pub.publication_url;
-                if (!url) return null;
+                if (!url) {
+                  return null;
+                }
                 return (
                 <button
                   key={pub.id}

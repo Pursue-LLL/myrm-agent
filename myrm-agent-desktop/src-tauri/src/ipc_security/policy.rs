@@ -1,9 +1,9 @@
 use serde::Serialize;
 use tauri::ipc::Invoke;
 
-const MAIN_WEBVIEW_LABEL: &str = "main";
-const SESSION_WEBVIEW_PREFIX: &str = "session-";
-const PET_SURFACE_WEBVIEW_LABEL: &str = "pet-surface";
+pub(super) const MAIN_WEBVIEW_LABEL: &str = "main";
+pub(super) const SESSION_WEBVIEW_PREFIX: &str = "session-";
+pub(super) const PET_SURFACE_WEBVIEW_LABEL: &str = "pet-surface";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandRisk {
@@ -75,7 +75,6 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "start_backend"
             | "stop_backend"
             | "switch_remote_follow"
-            | "stop_frontend"
             | "force_appshot_capture"
             | "migrate_data_dir"
             | "export_local_sqlite"
@@ -127,7 +126,6 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "start_backend"
             | "stop_backend"
             | "switch_remote_follow"
-            | "stop_frontend"
             | "open_session_window"
             | "force_appshot_capture"
             | "migrate_data_dir"

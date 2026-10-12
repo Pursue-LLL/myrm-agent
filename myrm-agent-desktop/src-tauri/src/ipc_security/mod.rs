@@ -7,16 +7,19 @@
 //! [OUTPUT]
 //! - `authorize_invoke`: unified invoke sender validation
 //! - `handle_denied_invoke`: consistent reject/drop + audit behavior
+//! - `register_product_capabilities`: Tauri ACL capabilities of the product windows, derived from the same policy
 //! - `issue_sensitive_action_ticket` / `consume_sensitive_ticket`: short-lived intent proof
 //! - `ipc-sensitive-confirmation` runtime audit events for sensitive confirmation outcomes
 //!
 //! [POS]
 //! Desktop IPC security boundary.
 
+mod capability;
 mod confirmation;
 mod policy;
 mod ticket_store;
 
+pub use capability::register_product_capabilities;
 pub use confirmation::require_sensitive_action_confirmation;
 pub use policy::{authorize_invoke, handle_denied_invoke};
 pub use ticket_store::{consume_sensitive_ticket, issue_sensitive_ticket, SensitiveAction};
@@ -36,5 +39,7 @@ pub fn issue_sensitive_action_ticket(
     issue_sensitive_ticket(parsed_action)
 }
 
+#[cfg(test)]
+mod acl_tests;
 #[cfg(test)]
 mod tests;

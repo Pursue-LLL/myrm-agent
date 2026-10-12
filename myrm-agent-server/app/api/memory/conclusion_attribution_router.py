@@ -36,7 +36,7 @@ from app.services.memory.conclusion_attribution.provider import (
     ConclusionAttributionProvider,
 )
 
-router = APIRouter(prefix="/api/memory/attribution", tags=["Conclusion Attribution"])
+router = APIRouter(prefix="/attribution", tags=["Conclusion Attribution"])
 
 
 def _get_provider() -> ConclusionAttributionProvider:

@@ -148,7 +148,6 @@ pub async fn start_frontend(
     Ok("Frontend started successfully".to_string())
 }
 
-#[tauri::command]
 pub fn stop_frontend(
     app: AppHandle,
     frontend: State<'_, NextJSFrontend>,

@@ -107,10 +107,8 @@
         ]
       }
     },
-    "fs": {
-      "scope": [
-        "$HOME/**"
-      ]
+    "shell": {
+      "open": "(?:(?:https?://|mailto:|tel:)\\w\\S*|x-apple\\.systempreferences:[\\w.:?=&%-]+|ms-settings:[\\w.:?=&%-]+|(?:cursor|vscode)://)"
     },
     "updater": {
       "endpoints": [

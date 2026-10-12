@@ -9,7 +9,7 @@
 //!
 //! [OUTPUT]
 //! - HighlightBox: 窗口内的高亮框几何
-//! - SCHEME / url / response: 自定义协议名、带高亮参数的入口 URL、协议响应（app/mod.rs 注册协议，visual_approval_overlay.rs 建窗）
+//! - SCHEME / url / response: 自定义协议名、带高亮参数的入口 URL、协议响应（app/chain.rs 注册协议，visual_approval_overlay.rs 建窗）
 //!
 //! [POS]
 //! 审批高亮"显示什么"的唯一来源；几何换算、窗口生命周期与 IPC 命令在 `visual_approval_overlay.rs`。
@@ -18,7 +18,7 @@ use tauri::http::{Request, Response};
 
 use crate::utils::protocol_page::{html_escape, html_response, page_url};
 
-/// 自定义协议名；`app/mod.rs` 注册协议与本模块 `url` 共用同一常量。
+/// 自定义协议名；`app/chain.rs` 注册协议与本模块 `url` 共用同一常量。
 pub(crate) const SCHEME: &str = "myrm-overlay";
 
 /// 参数缺失或非法时的占位页：完全透明，不画任何东西。

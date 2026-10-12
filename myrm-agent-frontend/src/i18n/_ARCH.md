@@ -16,7 +16,7 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 | `merge-messages.ts`                     | 浅合并 shell + deferred messages（settings 深合并）                                               |
 | `__tests__/locale-shell.test.ts`        | shell/deferred 分割与 merge 单测                                                                  |
 | `__tests__/ClientIntlProvider.test.tsx` | deferred fetch retry / fail-closed 单测                                                           |
-| `ClientIntlProvider.tsx`                | mount 后 fetch `/api/i18n/deferred` 并 merge messages；失败 fail-closed + 指数 retry              |
+| `ClientIntlProvider.tsx`                | mount 后 fetch `/api/i18n/deferred?lang=`（按语言分 HTTP 缓存键）并 merge messages；失败 fail-closed + 指数 retry              |
 | `deferred-locale-context.tsx`           | Settings 路由等待 deferred settings 加载后再渲染                                                  |
 | `index.ts`                              | `getLocale` / `setLocale`（cookie 读写）                                                          |
 | `LocalizedProviders.tsx`                | 根 i18n + 全局 initializer 树（Suspense 内）                                                      |

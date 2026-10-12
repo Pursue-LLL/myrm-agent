@@ -50,12 +50,6 @@ export function ObsidianVaultActions({
   const handleReveal = useCallback(async () => {
     setIsRevealing(true);
     try {
-      if (isTauriRuntime() && wikiPath) {
-        const { open } = await import('@tauri-apps/plugin-shell');
-        await open(wikiPath);
-        toast.success(t('revealSuccess'));
-        return;
-      }
       await wikiService.revealWikiVault(agentScopeId);
       toast.success(t('revealSuccess'));
     } catch (error) {
@@ -64,7 +58,7 @@ export function ObsidianVaultActions({
     } finally {
       setIsRevealing(false);
     }
-  }, [agentScopeId, t, wikiPath]);
+  }, [agentScopeId, t]);
 
   const handleOpenObsidian = useCallback(async () => {
     setIsOpeningObsidian(true);

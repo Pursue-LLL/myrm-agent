@@ -9,7 +9,7 @@
  * validateChatModelConfig: Block send when default model / provider is incomplete.
  * resolveEffectiveAgentId: Resolve the agent identity used for chat memory bindings.
  * createMessageRequest: Assemble the agent chat request payload and stream it.
- * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for missing chat, kanban board guard, processing lock); resolves whether the request was dispatched, a busy refusal retracts the optimistic bubble, queued messages send their own attachments.
+ * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally or by the server with a non-retryable HTTP error), a busy refusal retracts the optimistic bubble, queued messages send their own attachments.
  * createSmartUpdater: Route state updates to active store or background snapshot.
  * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn.
  *
@@ -47,6 +47,7 @@ import {
   executeStreamWithRetry,
   AgentBusyError,
   FatalNetworkError,
+  RequestRefusedError,
   consumeStream,
 } from './streamConsumer';
 import { resolveRequestState, retractUserBubble } from './sendLifecycle';
@@ -57,11 +58,12 @@ import { isRetryableHttpStatus } from '@/lib/utils/networkResilience';
 import { buildMultimodalQuery } from './multimodalBuilder';
 import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } from '@/lib/kanban/kanbanChatBoard';
 import { createAISearchStream, type StreamRequestBody } from '@/services/chat';
+import { inSessionMentionDeduplicator } from './inSessionMentionDeduplicator';
 import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
-import { isTauriRuntime, resolveE2eApiBase } from '@/lib/deploy-mode';
+import { resolveE2eApiBase } from '@/lib/deploy-mode';
 import {
   generateCompanion,
   getEnhancedPersonality,
@@ -747,7 +749,6 @@ export const createMessageRequest = async (
     chat_id: chatId,
     action_mode: actionMode,
     multiplexed: shouldUseMultiplexedAgentStream(),
-    client_surface: isTauriRuntime() ? 'tauri' : 'web',
     ...(actionMode === 'fast' && searchDepth && { search_depth: searchDepth }),
     ...(useWorkflowLane && { use_workflow: true }),
     ...(pendingWorkflowTemplateId && { workflow_template_id: pendingWorkflowTemplateId }),
@@ -928,20 +929,47 @@ export const createMessageRequest = async (
       );
       const agentReferences = references.filter((r) => r.type === 'agent');
 
+      // Partition fresh vs redundant files in current session
+      const effectiveChatId = state.chatId ?? '';
+      const { fresh, redundant } = inSessionMentionDeduplicator.partitionMentions(effectiveChatId, fileReferences);
+      const redundantPaths = new Set(
+        redundant
+          .map((r) => inSessionMentionDeduplicator.normalizePath(r.path ?? r.label.replace(/^@/, '')))
+          .filter(Boolean),
+      );
+
+      // Register newly injected files in session deduplicator
+      const freshPaths = fresh
+        .map((r) => r.path ?? r.label.replace(/^@/, ''))
+        .filter((p): p is string => Boolean(p));
+      if (freshPaths.length > 0 && effectiveChatId) {
+        inSessionMentionDeduplicator.markInjected(effectiveChatId, freshPaths);
+      }
+
       const payload: Pick<StreamRequestBody, 'mention_references' | 'mentioned_agent_ids'> = {};
       if (fileReferences.length > 0) {
-        payload.mention_references = fileReferences.map((reference) => ({
-          type: reference.type,
-          path: reference.path,
-          file_id: reference.fileId,
-          url: reference.url,
-          label: reference.label,
-          start_line: reference.startLine,
-          end_line: reference.endLine,
-          ...(reference.conceptName ? { concept_name: reference.conceptName } : {}),
-          ...(reference.range ? { range: reference.range } : {}),
-          ...(reference.content ? { content: truncateSelectionContent(reference.content) } : {}),
-        }));
+        payload.mention_references = fileReferences.map((reference) => {
+          const normPath = inSessionMentionDeduplicator.normalizePath(
+            reference.path ?? reference.label.replace(/^@/, ''),
+          );
+          const isRedundantInSession = redundantPaths.has(normPath);
+          const shouldOmitContent = isRedundantInSession && Boolean(reference.content);
+
+          return {
+            type: reference.type,
+            path: reference.path,
+            file_id: reference.fileId,
+            url: reference.url,
+            label: reference.label,
+            start_line: reference.startLine,
+            end_line: reference.endLine,
+            ...(reference.conceptName ? { concept_name: reference.conceptName } : {}),
+            ...(reference.range ? { range: reference.range } : {}),
+            ...(reference.content && !shouldOmitContent
+              ? { content: truncateSelectionContent(reference.content) }
+              : {}),
+          };
+        });
       }
       if (agentReferences.length > 0) {
         payload.mentioned_agent_ids = agentReferences
@@ -1234,6 +1262,10 @@ export const sendMessage = async (
             innerState.messages.pop();
           }
         });
+        // The server never took the turn: report it undispatched so a queued message is kept for the user.
+        if (error instanceof RequestRefusedError) {
+          dispatched = false;
+        }
       }
 
       showI18nToast('chat.messageFailed.title', undefined, {

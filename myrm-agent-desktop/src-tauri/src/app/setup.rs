@@ -10,10 +10,10 @@ use tauri_plugin_global_shortcut::GlobalShortcutExt;
 use super::{lifecycle, menu, tray};
 use crate::config::{BackendConfig, ConfigManager, FrontendConfig};
 use crate::runtime::{
-    start_backend_with_config, start_frontend, NextJSFrontend, PythonBackend, SetupTokenState,
-    APPSHOT_SHORTCUT_STR, INLINE_INPUT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
+    start_backend_with_config, start_frontend, NextJSFrontend, ProductOrigin, PythonBackend,
+    SetupTokenState, APPSHOT_SHORTCUT_STR, INLINE_INPUT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
 };
-use crate::{commands, runtime, utils};
+use crate::{commands, ipc_security, runtime, utils};
 
 pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Initializing MyrmAgent...");
@@ -46,6 +46,14 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 
     let system_config = config_manager.load();
     println!("📋 Loaded config: {:?}", system_config);
+
+    // 产品页（发布版为 Next 回环页，Remote 来源）的 IPC 授权与须落到产品路由的窗口共用同一来源，
+    // 且须在任一产品页发起 IPC 之前就绪。
+    let frontend_config = FrontendConfig::from_system_config(&system_config);
+    let product_origin =
+        ProductOrigin::resolve(app.config().build.dev_url.as_ref(), frontend_config.port);
+    ipc_security::register_product_capabilities(app, &product_origin)?;
+    app.manage(product_origin);
 
     register_shortcut_from_config(app, &system_config.global_shortcut, "Global", None)?;
     register_shortcut_from_config(
@@ -153,7 +161,6 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         println!("🌐 Starting Next.js Server...");
         tokio::time::sleep(Duration::from_millis(1000)).await;
 
-        let frontend_config = FrontendConfig::from_system_config(&system_config_clone);
         let frontend_state = app_handle.state::<NextJSFrontend>();
 
         match start_frontend(app_handle.clone(), frontend_state, frontend_config).await {

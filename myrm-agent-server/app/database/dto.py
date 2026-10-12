@@ -99,6 +99,7 @@ class ChatDTO(BaseModel):
     project_id: str | None = None
     is_pinned: bool = False
     pin_order: int = 0
+    tags: list[str] = Field(default_factory=list)
     total_calls: int = 0
     total_tokens: int = 0
     total_usd: float = 0.0
@@ -239,6 +240,7 @@ class ChatListItem(BaseModel):
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     deletedAt: datetime | None = Field(None, description="Soft-delete timestamp (trash)")
+    tags: list[str] = Field(default_factory=list, description="会话多维度层级标签列表")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -263,6 +265,7 @@ class ChatDetail(BaseModel):
     total_calls: int = Field(0, description="Session total model calls")
     total_tokens: int = Field(0, description="Session total tokens")
     total_usd: float = Field(0.0, description="Session total USD cost")
+    tags: list[str] = Field(default_factory=list, description="会话多维度层级标签列表")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 

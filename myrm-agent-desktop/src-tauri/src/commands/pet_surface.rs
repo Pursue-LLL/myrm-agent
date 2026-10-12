@@ -2,12 +2,21 @@
 //! Loads `/pet-overlay` and receives live state via Tauri events from the main window.
 
 use tauri::{
-    AppHandle, LogicalPosition, LogicalSize, Manager, Position, Size, WebviewUrl,
+    AppHandle, LogicalPosition, LogicalSize, Manager, Position, Size, State, Url, WebviewUrl,
     WebviewWindowBuilder,
 };
 
+use crate::runtime::ProductOrigin;
+
 const PET_SURFACE_LABEL: &str = "pet-surface";
 const MAIN_WEBVIEW_LABEL: &str = "main";
+const PET_OVERLAY_ROUTE: &str = "pet-overlay";
+
+/// 浮层页面地址：产品页来源上的 `/pet-overlay`。发布版的 `WebviewUrl::App` 会回落到壳页
+/// （其后跳转只回产品根路径），必须给出完整来源。
+fn pet_overlay_url(origin: &ProductOrigin) -> Url {
+    origin.page_url(&[PET_OVERLAY_ROUTE], &[])
+}
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -19,7 +28,11 @@ pub struct PetSurfaceBoundsPayload {
 }
 
 #[tauri::command]
-pub fn show_pet_surface(app: AppHandle, payload: PetSurfaceBoundsPayload) -> Result<(), String> {
+pub fn show_pet_surface(
+    app: AppHandle,
+    origin: State<'_, ProductOrigin>,
+    payload: PetSurfaceBoundsPayload,
+) -> Result<(), String> {
     let width = payload.width.max(64.0);
     let height = payload.height.max(64.0);
 
@@ -39,7 +52,7 @@ pub fn show_pet_surface(app: AppHandle, payload: PetSurfaceBoundsPayload) -> Res
     let _window = WebviewWindowBuilder::new(
         &app,
         PET_SURFACE_LABEL,
-        WebviewUrl::App("/pet-overlay".into()),
+        WebviewUrl::External(pet_overlay_url(&origin)),
     )
     .title("Pet")
     .transparent(true)
@@ -112,4 +125,16 @@ pub fn pet_surface_toggle_main_window(app: AppHandle) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pet_overlay_url;
+    use crate::runtime::ProductOrigin;
+
+    #[test]
+    fn pet_overlay_lives_on_the_product_origin() {
+        let url = pet_overlay_url(&ProductOrigin::new(4123));
+        assert_eq!(url.as_str(), "http://127.0.0.1:4123/pet-overlay");
+    }
 }

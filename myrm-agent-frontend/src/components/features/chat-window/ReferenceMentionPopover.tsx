@@ -18,6 +18,8 @@ import { Popover, PopoverContent, PopoverAnchor } from '@/components/primitives/
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { ReferenceSuggestion } from '@/services/chat';
+import useChatStore from '@/store/useChatStore';
+import { inSessionMentionDeduplicator } from '@/store/chat/inSessionMentionDeduplicator';
 
 interface ReferenceMentionPopoverProps {
   open: boolean;
@@ -93,6 +95,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
   anchorEl,
 }) => {
   const t = useTranslations('chat.fileMention');
+  const chatId = useChatStore((s) => s.chatId);
   const listRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -191,6 +194,17 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                   !isPriorChat &&
                   (!prevFile || prevFile.source === 'agent' || prevFile.reference_type === 'prior_chat');
 
+                const rawPath = file.relative_path ?? (file.label.startsWith('@') ? file.label.slice(1) : file.label);
+                const isFileLike =
+                  file.reference_type === 'workspace_file' ||
+                  file.source === 'workspace';
+                const isAlreadyInContext = Boolean(
+                  chatId &&
+                    rawPath &&
+                    isFileLike &&
+                    inSessionMentionDeduplicator.isPathInjected(chatId, rawPath),
+                );
+
                 return (
                   <React.Fragment key={`${file.reference_type}:${file.relative_path ?? file.file_id ?? file.label}`}>
                     {isFirstAgent && (
@@ -261,6 +275,15 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                         </div>
                         <div className="text-xs text-muted-foreground/70 truncate">{subtitle}</div>
                       </div>
+                      {isAlreadyInContext && (
+                        <span
+                          data-testid="mention-already-in-context"
+                          className="px-1.5 py-0.5 text-[10px] rounded font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0"
+                          title={t('dedupNotice')}
+                        >
+                          {t('alreadyInContext')}
+                        </span>
+                      )}
                       {file.size !== null && (
                         <span className="text-[10px] text-muted-foreground/50 shrink-0">{formatSize(file.size)}</span>
                       )}

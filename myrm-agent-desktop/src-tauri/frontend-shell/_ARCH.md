@@ -25,3 +25,4 @@ Release 模式 WebView 占位页：`tauri.conf.json#build.frontendDist` 指向�
 
 - 静态单文件，无构建步骤；Launch Contract 由 `scripts/ci/verify-launch-contract.sh` 静态校验
 - Next standalone 资源由 `tauri.conf.json#bundle.resources` 打入 `frontend/`
+- 只服务主窗口首屏：跳转目标固定为产品根路径，路径与查询不会保留。会话窗与宠物浮层不经此页，直接以 `runtime/product_origin.rs` 构造的完整地址开窗

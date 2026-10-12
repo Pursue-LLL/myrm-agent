@@ -98,7 +98,7 @@ async def _resolve_artifact_path(file_id: str) -> Path:
     return resolved
 
 
-@router.post("/files/{file_id}/reveal", tags=["files-local-actions"])
+@router.post("/{file_id}/reveal", tags=["files-local-actions"])
 async def reveal_file(file_id: str) -> dict[str, str]:
     """Reveal a file in the system file manager (Finder/Explorer).
 
@@ -110,7 +110,7 @@ async def reveal_file(file_id: str) -> dict[str, str]:
     return {"status": "ok", "path": str(path)}
 
 
-@router.post("/files/{file_id}/open", tags=["files-local-actions"])
+@router.post("/{file_id}/open", tags=["files-local-actions"])
 async def open_file(file_id: str) -> dict[str, str]:
     """Open a file with the system's default application.
 
@@ -205,7 +205,7 @@ async def _resolve_chat_artifacts_path(
 
 
 @router.post(
-    "/files/chats/{chat_id}/reveal",
+    "/chats/{chat_id}/reveal",
     response_model=ChatArtifactsRevealResponse,
     tags=["files-local-actions"],
 )

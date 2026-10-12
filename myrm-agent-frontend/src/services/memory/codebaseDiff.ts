@@ -77,7 +77,7 @@ export const codebaseDiffService = {
    */
   async evaluateDiff(request: EvaluateDiffRequest): Promise<EvaluateDiffResponse> {
     return apiClient.post<EvaluateDiffResponse>(
-      '/api/memory/codebase-diff/evaluate',
+      '/memory/codebase-diff/evaluate',
       request
     );
   },
@@ -87,7 +87,7 @@ export const codebaseDiffService = {
    */
   async parseNumstat(request: ParseNumstatRequest): Promise<ParseNumstatResponse> {
     return apiClient.post<ParseNumstatResponse>(
-      '/api/memory/codebase-diff/parse-numstat',
+      '/memory/codebase-diff/parse-numstat',
       request
     );
   },
@@ -97,7 +97,7 @@ export const codebaseDiffService = {
    */
   async checkHealth(): Promise<{ status: string; service: string }> {
     return apiClient.get<{ status: string; service: string }>(
-      '/api/memory/codebase-diff/health'
+      '/memory/codebase-diff/health'
     );
   },
 };

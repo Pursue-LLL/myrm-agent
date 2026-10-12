@@ -48,8 +48,10 @@ class _ChatCrudMixin(_ChatServiceBase):
         project_id: str | None = None,
         unassigned: bool = False,
         keyword: str | None = None,
+        tags: list[str] | None = None,
+        match_mode: str = "any",
     ) -> tuple[list[ChatDTO], int]:
-        """获取聊天列表（支持分页、来源、项目和关键词过滤）"""
+        """获取聊天列表（支持分页、来源、项目、关键词及多维度标签过滤）"""
         offset = (page - 1) * page_size
         async with UnitOfWork() as uow:
             return await _ChatServiceBase._cr(uow).get_chats_paginated(
@@ -59,7 +61,17 @@ class _ChatCrudMixin(_ChatServiceBase):
                 project_id=project_id,
                 unassigned=unassigned,
                 keyword=keyword,
+                tags=tags,
+                match_mode=match_mode,
             )
+
+    @staticmethod
+    async def update_chat_tags(chat_id: str, tags: list[str]) -> list[str]:
+        """更新会话关联的多维度层级标签列表"""
+        async with UnitOfWork() as uow:
+            updated_tags = await _ChatServiceBase._cr(uow).update_chat_tags(chat_id, tags)
+            await uow.commit()
+            return updated_tags
 
     @staticmethod
     async def get_chat_by_id(chat_id: str) -> ChatDTO | None:

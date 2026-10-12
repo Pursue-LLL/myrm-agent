@@ -12,7 +12,7 @@ export interface VaultObjectMeta {
 }
 
 export const getVaultMeta = async (objId: string): Promise<VaultObjectMeta> => {
-  return apiRequest<VaultObjectMeta>(`/vault/${objId}/meta`, {
+  return apiRequest<VaultObjectMeta>(`/files/vault/${objId}/meta`, {
     method: 'GET',
   });
 };

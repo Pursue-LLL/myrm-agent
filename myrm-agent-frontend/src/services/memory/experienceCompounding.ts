@@ -94,7 +94,7 @@ export const experienceCompoundingService = {
    */
   async addItem(request: AddExperienceItemRequest): Promise<CompoundedExperienceItemDTO> {
     return apiClient.post<CompoundedExperienceItemDTO>(
-      '/api/memory/compounding/item',
+      '/memory/compounding/item',
       request
     );
   },
@@ -106,7 +106,7 @@ export const experienceCompoundingService = {
     request: ReinforceExperienceRequest
   ): Promise<{ status: string; item_id: string; new_weight: number }> {
     return apiClient.post<{ status: string; item_id: string; new_weight: number }>(
-      '/api/memory/compounding/reinforce',
+      '/memory/compounding/reinforce',
       request
     );
   },
@@ -118,7 +118,7 @@ export const experienceCompoundingService = {
     request: PenalizeExperienceItemRequest
   ): Promise<PenalizeExperienceItemResponse> {
     return apiClient.post<PenalizeExperienceItemResponse>(
-      '/api/memory/compounding/penalize',
+      '/memory/compounding/penalize',
       request
     );
   },
@@ -128,7 +128,7 @@ export const experienceCompoundingService = {
    */
   async condense(): Promise<CondensationResponseDTO> {
     return apiClient.post<CondensationResponseDTO>(
-      '/api/memory/compounding/condense'
+      '/memory/compounding/condense'
     );
   },
 
@@ -137,7 +137,7 @@ export const experienceCompoundingService = {
    */
   async decondense(request: DecondenseRuleRequest): Promise<CompoundedExperienceItemDTO[]> {
     return apiClient.post<CompoundedExperienceItemDTO[]>(
-      '/api/memory/compounding/decondense',
+      '/memory/compounding/decondense',
       request
     );
   },
@@ -147,7 +147,7 @@ export const experienceCompoundingService = {
    */
   async anneal(): Promise<AnnealingResponseDTO> {
     return apiClient.post<AnnealingResponseDTO>(
-      '/api/memory/compounding/anneal'
+      '/memory/compounding/anneal'
     );
   },
 
@@ -156,7 +156,7 @@ export const experienceCompoundingService = {
    */
   async listRules(): Promise<GoldenRuleDTO[]> {
     return apiClient.get<GoldenRuleDTO[]>(
-      '/api/memory/compounding/rules'
+      '/memory/compounding/rules'
     );
   },
 
@@ -165,7 +165,7 @@ export const experienceCompoundingService = {
    */
   async listActive(): Promise<CompoundedExperienceItemDTO[]> {
     return apiClient.get<CompoundedExperienceItemDTO[]>(
-      '/api/memory/compounding/active'
+      '/memory/compounding/active'
     );
   },
 
@@ -174,7 +174,7 @@ export const experienceCompoundingService = {
    */
   async getStats(): Promise<ExperienceCompoundingStatsResponse> {
     return apiClient.get<ExperienceCompoundingStatsResponse>(
-      '/api/memory/compounding/stats'
+      '/memory/compounding/stats'
     );
   },
 };

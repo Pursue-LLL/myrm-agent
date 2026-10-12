@@ -1,11 +1,12 @@
 /**
  * [INPUT]
- * - window.__TAURI__ (POS: Tauri 运行时桥接)
+ * - window.__TAURI__ (POS: withGlobalTauri 全局桥，用于环境探测与事件监听)
+ * - @tauri-apps/api/core::invoke (POS: Tauri v2 命令通道，动态 import 避免 SSR 求值)
  * - process.env.NEXT_PUBLIC_API_URL (POS: 桌面端后端地址配置)
  *
  * [OUTPUT]
  * - isTauriEnvironment: 判断是否运行在 Tauri 环境。
- * - invokeTauriCommand / listenTauriEvent / emitTauriEvent: Tauri 原生桥接。
+ * - invokeTauriCommand / listenTauriEvent: Tauri 原生桥接。
  * - getBackendBaseUrl: 返回安全的桌面端后端地址。
  *
  * [POS]
@@ -18,13 +19,11 @@
  * 以及调用 Tauri 的原生 API。
  */
 
-// Tauri API 类型定义
+// Tauri API 类型定义（v2 全局桥的命令入口位于 `core` 命名空间，故仅声明事件监听面）
 interface TauriWindow {
   __TAURI__?: {
-    invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
     event: {
       listen: (event: string, handler: (event: { payload: unknown }) => void) => Promise<() => void>;
-      emit: (event: string, payload?: unknown) => Promise<void>;
     };
   };
 }
@@ -78,13 +77,14 @@ function requireTauriApi(): NonNullable<TauriWindow['__TAURI__']> {
 }
 
 /**
- * 调用 Tauri 命令
+ * 调用 Tauri 命令（经官方包的 v2 命令通道，授权由 Rust 侧 capability 决定）
  */
 export async function invokeTauriCommand<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   // 环境守卫置于 try 外：与守卫错误直抛语义保持一致，不进入 catch 日志分支
-  const tauri = requireTauriApi();
+  requireTauriApi();
   try {
-    return await tauri.invoke<T>(command, args);
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<T>(command, args);
   } catch (error) {
     console.error(`Failed to invoke Tauri command: ${command}`, error);
     throw error;
@@ -124,13 +124,6 @@ export async function listenTauriEvent(event: string, handler: (payload: unknown
   return await requireTauriApi().event.listen(event, (e) => {
     handler(e);
   });
-}
-
-/**
- * 发送 Tauri 事件
- */
-export async function emitTauriEvent(event: string, payload?: unknown): Promise<void> {
-  await requireTauriApi().event.emit(event, payload);
 }
 
 /**
