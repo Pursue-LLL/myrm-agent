@@ -52,7 +52,7 @@ async def test_resolve_chat_extraction_llm_uses_create_agent_llms() -> None:
     chat_dto = MagicMock()
     chat_dto.agent_id = "agent-abc"
 
-    create_llms = AsyncMock(return_value=(main_llm, lite_llm, None, None))
+    create_llms = AsyncMock(return_value=(main_llm, lite_llm, None, None, None))
 
     with (
         patch(

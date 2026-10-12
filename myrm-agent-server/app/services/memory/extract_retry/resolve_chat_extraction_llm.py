@@ -151,7 +151,7 @@ async def resolve_chat_extraction_llm(
     if lite_model_cfg is not None:
         lite_model_cfg = enrich_model_context_window(lite_model_cfg, providers_dict)
 
-    llm, lite_llm, _, _ = await create_agent_llms(
+    llm, lite_llm, _, _, _ = await create_agent_llms(
         model_cfg,
         lite_model_cfg,
         None,
