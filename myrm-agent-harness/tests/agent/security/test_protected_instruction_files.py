@@ -231,7 +231,7 @@ class TestBatchProcessorAllowlistAndExemptionGuards:
             }
         ]
 
-        _approved, _denied, pending = await evaluate_tool_batch(
+        approved, denied, pending = await evaluate_tool_batch(
             tool_calls=tool_calls,
             config=config,
             is_cron=False,
@@ -240,7 +240,7 @@ class TestBatchProcessorAllowlistAndExemptionGuards:
             args_hashes={},
         )
 
-        assert len(pending) == 1
+        assert len(pending) == 1, f"expected one pending approval; approved={approved!r} denied={denied!r}"
         _idx, _call, _perm_type, _reason, extra_ctx = pending[0]
         assert extra_ctx is not None
         assert extra_ctx.get("protected_instruction") is True

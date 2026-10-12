@@ -129,6 +129,13 @@ class TestMacOSProbe:
 
 
 class TestProbeFailureReporting:
+    @pytest.fixture(autouse=True)
+    def _interactive_macos_session(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """CI exports CI=1 (and Xvfb sets DISPLAY), which makes the detector report a headless UNLOCKED before probing."""
+        for name in ("CI", "MYRM_HEADLESS", "DISPLAY"):
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(sys, "platform", "darwin")
+
     def test_nil_session_dictionary_reports_unknown(self) -> None:
         detector = ScreenDetector()
         with patch.object(detector, "_probe_macos", return_value=ScreenLockState.UNKNOWN):

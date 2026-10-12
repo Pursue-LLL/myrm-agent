@@ -18,7 +18,15 @@ def backend():
 
 @pytest.mark.asyncio
 async def test_screenshot(backend):
-    with patch("asyncio.create_subprocess_exec") as mock_exec:
+    # Fullscreen capture always tries the Quartz window-exclusion path first (the snapshot-only
+    # exclusion titles are never empty); stub it so the test needs neither Quartz nor a window server.
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.computer_use.backends.macos._capture_screen_excluding_titles",
+            return_value=None,
+        ),
+        patch("asyncio.create_subprocess_exec") as mock_exec,
+    ):
         mock_proc = AsyncMock()
         mock_proc.communicate.return_value = (b"", b"")
         mock_proc.returncode = 0
@@ -120,9 +128,7 @@ def test_screen_context(backend):
 
 @pytest.mark.asyncio
 async def test_window_text(backend):
-    with patch(
-        "asyncio.to_thread", return_value=MagicMock(success=True, window_title="Title")
-    ):
+    with patch("asyncio.to_thread", return_value=MagicMock(success=True, window_title="Title")):
         res = await backend.window_text()
         assert res.success is True
         assert res.window_title == "Title"
