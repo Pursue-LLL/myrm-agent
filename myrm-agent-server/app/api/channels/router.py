@@ -9,7 +9,6 @@
 
 [OUTPUT]
 - router: Channel 状态/切换/install-dependencies（含 registered）/Pairings/群组管理端点
-- github_webhook_url: GET /github/webhook-url（Ingress 优先、request base 回退）
 - _channel_config_key: 频道名到 UserConfig key 的映射（被其他子模块引用）
 
 [POS]
@@ -21,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from nanoid import generate as nanoid
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +32,6 @@ from app.api.channels.schemas import (
     ChannelToggleRequest,
     ChannelToggleResponse,
     EnabledGroupsUpdate,
-    GithubWebhookUrlResponse,
     GroupInfoResponse,
     PairingCreate,
     PairingResponse,
@@ -96,23 +94,6 @@ def channel_credentials_key(channel_name: str) -> str:
 
 
 # ── Status & Toggle ──────────────────────────────────────────
-
-
-@router.get("/github/webhook-url", response_model=GithubWebhookUrlResponse)
-async def github_webhook_url(request: Request) -> GithubWebhookUrlResponse:
-    """Return the GitHub webhook URL to configure in a GitHub repository.
-
-    Prefers the configured public Ingress base URL; falls back to the
-    request's own base URL (localhost / LAN) when no Ingress is set.
-    """
-    from app.core.infra.ingress import get_public_ingress_base_url
-
-    ingress = (await get_public_ingress_base_url()).strip().rstrip("/")
-    base = ingress or str(request.base_url).rstrip("/")
-    return GithubWebhookUrlResponse(
-        webhookUrl=f"{base}/api/channels/github/webhook",
-        public=bool(ingress),
-    )
 
 
 def _issues_to_response(issues: list[ChannelIssue]) -> list[ChannelIssueResponse]:
@@ -314,9 +295,7 @@ async def list_pairings(
 
     pairings: list[PairingResponse] = []
     for r in rows:
-        today_usage = await ChannelMessageRepository.get_daily_trigger_count(
-            db, r.channel, r.sender_id
-        )
+        today_usage = await ChannelMessageRepository.get_daily_trigger_count(db, r.channel, r.sender_id)
         pairings.append(
             PairingResponse(
                 id=r.id,
@@ -352,14 +331,14 @@ async def create_pairing(
     ).scalar_one_or_none()
 
     if existing:
-        today_usage = await ChannelMessageRepository.get_daily_trigger_count(
-            db, existing.channel, existing.sender_id
-        )
+        today_usage = await ChannelMessageRepository.get_daily_trigger_count(db, existing.channel, existing.sender_id)
         return PairingResponse(
             id=existing.id,
             channel=existing.channel,
             sender_id=existing.sender_id,
-            user_id="sandbox" if getattr(existing, "role", "member") == "admin" else f"paired_member_{existing.channel}_{existing.sender_id}",
+            user_id="sandbox"
+            if getattr(existing, "role", "member") == "admin"
+            else f"paired_member_{existing.channel}_{existing.sender_id}",
             status=existing.status,
             display_name=existing.display_name,
             role=getattr(existing, "role", "member") or "member",
@@ -381,9 +360,7 @@ async def create_pairing(
     await db.commit()
     await db.refresh(row)
 
-    today_usage = await ChannelMessageRepository.get_daily_trigger_count(
-        db, row.channel, row.sender_id
-    )
+    today_usage = await ChannelMessageRepository.get_daily_trigger_count(db, row.channel, row.sender_id)
     return PairingResponse(
         id=row.id,
         channel=row.channel,
@@ -443,9 +420,7 @@ async def update_pairing_status(
     if was_pending and body.status == "active":
         await _notify_pairing_approved(row.channel, row.sender_id)
 
-    today_usage = await ChannelMessageRepository.get_daily_trigger_count(
-        db, row.channel, row.sender_id
-    )
+    today_usage = await ChannelMessageRepository.get_daily_trigger_count(db, row.channel, row.sender_id)
     return PairingResponse(
         id=row.id,
         channel=row.channel,

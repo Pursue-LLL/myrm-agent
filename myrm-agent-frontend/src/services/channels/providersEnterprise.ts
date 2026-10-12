@@ -1,4 +1,3 @@
-import { apiRequest } from '@/lib/api';
 import { createChannelCredentialService, type ChannelTestResult } from './core';
 
 // ==================== OneBot ====================
@@ -119,12 +118,6 @@ export async function testSMSConnection(
 
 export interface GitHubCredentials {
   personalAccessToken: string;
-  webhookSecret: string;
-}
-
-export interface GitHubWebhookUrlInfo {
-  webhookUrl: string;
-  public: boolean;
 }
 
 const githubService = createChannelCredentialService<GitHubCredentials>(
@@ -135,9 +128,6 @@ export const getGitHubCredentials = githubService.get;
 export const saveGitHubCredentials = githubService.save;
 export async function testGitHubConnection(personalAccessToken: string): Promise<ChannelTestResult> {
   return githubService.test({ personalAccessToken });
-}
-export async function getGitHubWebhookUrl(): Promise<GitHubWebhookUrlInfo> {
-  return apiRequest('/channels/manage/github/webhook-url');
 }
 
 // ==================== Signal ====================

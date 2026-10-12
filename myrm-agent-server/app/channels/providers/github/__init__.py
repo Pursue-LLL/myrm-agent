@@ -1,4 +1,4 @@
-"""GitHub channel provider — webhook inbound + comment outbound."""
+"""GitHub channel provider — outbound issue/PR comments."""
 
 from app.channels.providers.github.channel import GitHubChannel
 

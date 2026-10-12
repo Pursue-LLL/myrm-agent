@@ -1,37 +1,21 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconCheck,
-  IconCopy,
-  IconEye,
-  IconEyeOff,
-  IconLoader,
-  IconWifi,
-} from '@/components/features/icons/PremiumIcons';
+import { IconEye, IconEyeOff, IconLoader, IconWifi } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import type { GitHubCredentials } from '@/services/channels';
-import {
-  getGitHubCredentials,
-  getGitHubWebhookUrl,
-  saveGitHubCredentials,
-  testGitHubConnection,
-} from '@/services/channels';
-import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { getGitHubCredentials, saveGitHubCredentials, testGitHubConnection } from '@/services/channels';
 import { ConnectionBadge } from './ConnectionBadge';
 import { useChannelConfig } from './useChannelConfig';
 
-const EMPTY_CREDS: GitHubCredentials = { personalAccessToken: '', webhookSecret: '' };
+const EMPTY_CREDS: GitHubCredentials = { personalAccessToken: '' };
 
 export function GitHubConfigCard() {
   const t = useTranslations('channels');
   const [showToken, setShowToken] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState('');
-  const [webhookPublic, setWebhookPublic] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const { creds, dirty, loading, saving, testing, connStatus, statusLabel, handleChange, handleSave, handleTest } =
     useChannelConfig<GitHubCredentials>({
@@ -42,36 +26,6 @@ export function GitHubConfigCard() {
       testConnection: (c) => testGitHubConnection(c.personalAccessToken),
       i18nPrefix: 'github',
     });
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const info = await getGitHubWebhookUrl();
-        if (cancelled) {
-          return;
-        }
-        setWebhookUrl(info.webhookUrl);
-        setWebhookPublic(info.public);
-      } catch {
-        if (!cancelled) {
-          setWebhookUrl('');
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const handleCopy = useCallback(async () => {
-    if (!webhookUrl) {
-      return;
-    }
-    await writeToClipboard(webhookUrl);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
-  }, [webhookUrl]);
 
   if (loading) {
     return (
@@ -106,43 +60,6 @@ export function GitHubConfigCard() {
         </div>
         <p className="text-xs text-muted-foreground">{t('githubPatHint')}</p>
       </div>
-
-      <div className="space-y-2 max-w-md">
-        <Label htmlFor="github-webhook-secret">{t('githubWebhookSecret')}</Label>
-        <Input
-          id="github-webhook-secret"
-          type="password"
-          placeholder="••••••••"
-          value={creds.webhookSecret}
-          onChange={(e) => handleChange('webhookSecret', e.target.value)}
-        />
-        <p className="text-xs text-muted-foreground">{t('githubWebhookSecretHint')}</p>
-      </div>
-
-      {webhookUrl && (
-        <div className="space-y-2 max-w-md">
-          <Label htmlFor="github-webhook-url">{t('githubWebhookUrl')}</Label>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <code
-              id="github-webhook-url"
-              className="flex-1 break-all rounded-md bg-background/80 px-2 py-1.5 text-xs text-muted-foreground border border-border/60"
-            >
-              {webhookUrl}
-            </code>
-            <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={handleCopy}>
-              {copied ? (
-                <IconCheck className="mr-1.5 h-3.5 w-3.5 text-green-500" />
-              ) : (
-                <IconCopy className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              {copied ? t('cpUrlCopied') : t('cpUrlCopy')}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {webhookPublic ? t('githubWebhookUrlHintPublic') : t('githubWebhookUrlHintLocal')}
-          </p>
-        </div>
-      )}
 
       <div className="flex items-center gap-3 pt-2">
         <Button onClick={handleSave} disabled={saving || !dirty} size="sm">

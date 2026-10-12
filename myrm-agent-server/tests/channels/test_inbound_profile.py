@@ -93,6 +93,15 @@ def test_matrix_configured_is_outbound() -> None:
     assert resolve_channel_ingress_mode("matrix", {"homeserverUrl": "https://m.example.com"}) == "outbound"
 
 
+def test_github_configured_is_outbound() -> None:
+    # GitHub only posts comments through its REST API; it receives nothing and never needs public Ingress.
+    assert resolve_channel_ingress_mode("github", {"personalAccessToken": "ghp_x"}) == "outbound"
+
+
+def test_github_without_a_token_is_unconfigured() -> None:
+    assert resolve_channel_ingress_mode("github", {"webhookSecret": "left-over"}) is None
+
+
 def test_unknown_channel_returns_none() -> None:
     assert resolve_channel_ingress_mode("unknown_channel", {"anything": "x"}) is None
 

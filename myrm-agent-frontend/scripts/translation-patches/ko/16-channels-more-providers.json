@@ -48,7 +48,6 @@
     "smsCredentialsRequired": "먼저 Account SID, Auth Token, 전화번호를 입력하세요",
     "githubTitle": "GitHub",
     "githubPersonalAccessToken": "개인 액세스 토큰",
-    "githubWebhookSecret": "웹훅 시크릿",
     "signalTitle": "Signal",
     "signalDesc": "Signal 메시징 채널을 활성화하려면 Signal 자격 증명을 구성하세요.",
     "signalApiUrl": "API URL",

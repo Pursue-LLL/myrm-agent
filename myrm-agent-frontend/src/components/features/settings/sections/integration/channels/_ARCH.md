@@ -43,6 +43,7 @@
 - `__tests__/FeishuCredentialsEditDialog.test.tsx` — 编辑凭据弹窗（脱敏回显、留空保留、校验）
 - `__tests__/FeishuQrRegisterDialog.test.tsx` — QR 注册弹窗（扫描/超时/手动回退）
 - `__tests__/PairingItem.test.tsx` — 配对卡片项（所有者/协作成员角色切换 Badge、行内 Daily Quota 编辑与保存交互断言）
+- `__tests__/GitHubConfigCard.test.tsx` — GitHub 卡片仅出站：只要求访问令牌一个输入，不出现 Webhook 密钥/地址
 
 ## Reaction 配置链路
 

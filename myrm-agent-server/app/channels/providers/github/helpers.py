@@ -1,48 +1,23 @@
-"""GitHub helpers — signature verification and API client.
+"""GitHub helpers — REST API client.
 
 [INPUT]
 - channels.core.exceptions::ChannelSendError (POS: Channel exception hierarchy for precise retry and error handling.)
 
 [OUTPUT]
-- verify_github_signature: X-Hub-Signature-256 HMAC verification
 - post_issue_comment: Post a comment to a GitHub issue/PR via REST API; raises ChannelSendError when GitHub does not accept it
 
 [POS]
-Pure-function signature verification and minimal GitHub REST API client
-for outbound comment delivery.
+Minimal GitHub REST API client for outbound comment delivery.
 """
 
 from __future__ import annotations
-
-import hashlib
-import hmac
-import logging
 
 import httpx
 
 from app.channels.core.exceptions import ChannelSendError
 
-logger = logging.getLogger(__name__)
-
 _API_BASE = "https://api.github.com"
 _TIMEOUT = 15.0
-
-
-def verify_github_signature(payload: bytes, signature_header: str, secret: str) -> bool:
-    """Verify GitHub webhook signature using X-Hub-Signature-256.
-
-    GitHub sends: sha256=<hex-digest>
-    We compute HMAC-SHA256(secret, body) and compare.
-    """
-    if not signature_header.startswith("sha256="):
-        return False
-    expected = signature_header[7:]
-    computed = hmac.HMAC(
-        secret.encode("utf-8"),
-        payload,
-        hashlib.sha256,
-    ).hexdigest()
-    return hmac.compare_digest(computed, expected)
 
 
 async def post_issue_comment(

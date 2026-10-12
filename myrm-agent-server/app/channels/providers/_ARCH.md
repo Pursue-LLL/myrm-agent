@@ -22,7 +22,7 @@
 | `discord/` | 包 | Discord channel via Gateway WebSocket + REST. Inbound / outbound / voice-control mixins around `channel.py`; `voice/` holds the voice subsystem. See `discord/_ARCH.md`. | ✅ |
 | `email/` | 包 | Email channel (IMAP inbound + SMTP outbound). Attachment/forwarded-mail parsing, HTML-to-Markdown cleaning, thread tracking. See `email/_ARCH.md`. | ✅ |
 | `feishu/` | 包 | Feishu/Lark channel with dual transport (webhook / WebSocket). Inbound and outbound mixins, interactive cards, document comment handling, SDK wrappers. See `feishu/_ARCH.md`. | ✅ |
-| `github/` | 包 | GitHub webhook channel. Inbound Issue/PR/Push/Review events via X-Hub-Signature-256 verified webhooks; outbound comments via REST API. See `github/_ARCH.md`. | ✅ |
+| `github/` | 包 | GitHub channel, outbound only: posts messages as issue/PR comments via REST API (personal access token). Receives nothing from GitHub. See `github/_ARCH.md`. | ✅ |
 | `googlechat/` | 包 | Google Chat channel — Webhook inbound + Chat API v1 outbound. See `googlechat/_ARCH.md`. | ✅ |
 | `imessage/` | 包 | iMessage channel via BlueBubbles API. Quoted replies, Tapback reactions, typing indicator, webhook auto-registration, read receipts, structured diagnostics. Submodules: channel.py, helpers.py, parser.py, webhook.py. | ✅ |
 | `irc.py` | 模块 | IRC channel implementation. Raw asyncio TCP connection, supports SSL/TLS, NickServ authentication, nick collision auto-recovery, control character filtering, ou | ✅ |

@@ -61,7 +61,7 @@ CHANNEL_INBOUND_SPECS: dict[str, ChannelInboundSpec] = {
     "qq": ChannelInboundSpec(InboundMode.OUTBOUND, "qqCredentials", "appId"),
     "onebot": ChannelInboundSpec(InboundMode.INBOUND, "onebotCredentials", "host"),
     "voice": ChannelInboundSpec(InboundMode.INBOUND, "twilioCredentials", "accountSid"),
-    "github": ChannelInboundSpec(InboundMode.INBOUND, "githubCredentials", "webhookSecret"),
+    "github": ChannelInboundSpec(InboundMode.OUTBOUND, "githubCredentials", "personalAccessToken"),
 }
 
 

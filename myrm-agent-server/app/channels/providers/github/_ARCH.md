@@ -2,13 +2,12 @@
 
 ## 架构概述
 
-GitHub Webhook Channel Provider。接收 GitHub 仓库事件（Issue/PR/Push/Review），验签后触发绑定的 Agent。上级文档：[../_ARCH.md](../_ARCH.md)。
+GitHub Channel Provider，仅出站：把消息作为 Issue / PR 评论发出（收件人格式 `owner/repo#number`，经 REST API，个人访问令牌鉴权）。不接收 GitHub 的任何事件，因此无需公网 Ingress（`protocols/inbound_profile.py` 中为 `OUTBOUND`）。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | GitHub channel provider package. | ✅ |
-| `channel.py` | 模块 | GitHubChannel: webhook inbound + REST API comment outbound. Outbound `send()` uses `render()` multi-chunk per issue comment (Item 46). | ✅ |
-| `event_parser.py` | 模块 | GitHub webhook event parser. Transforms raw payloads into structured GitHubEventContext and human-readable markdown for Agent comprehension. | ✅ |
-| `helpers.py` | 模块 | Pure-function helpers: X-Hub-Signature-256 verification and GitHub REST API comment posting. | ✅ |
+| `channel.py` | 模块 | GitHubChannel: outbound-only. `send()` uses `render()` multi-chunk per issue comment; the only credential is the personal access token (the base-class `from_credentials` builds the channel from it). | ✅ |
+| `helpers.py` | 模块 | Minimal GitHub REST API client: `post_issue_comment` raises `ChannelSendError` unless GitHub accepted the comment. | ✅ |

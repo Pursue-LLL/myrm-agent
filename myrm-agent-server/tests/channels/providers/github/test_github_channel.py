@@ -1,4 +1,4 @@
-"""GitHubChannel outbound tests — render multi-chunk comment delivery."""
+"""GitHubChannel tests — outbound-only comment delivery and credential wiring."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 from app.channels.core.exceptions import ChannelSendError
+from app.channels.core.factory import create_channels
 from app.channels.providers.github.channel import GitHubChannel
 from app.channels.providers.github.helpers import post_issue_comment
 from app.channels.rendering.renderer import render
@@ -18,6 +19,50 @@ def _make_channel() -> GitHubChannel:
     ch = GitHubChannel()
     ch._token = "ghp_test"
     return ch
+
+
+class TestGitHubCredentials:
+    @pytest.mark.asyncio
+    async def test_factory_hands_the_stored_token_to_the_channel(self) -> None:
+        # The factory passes the resolved credentials as one dict; the token must come out as a string.
+        async def source(_config_key: str) -> dict[str, object]:
+            return {"personalAccessToken": "ghp_stored"}
+
+        channels = await create_channels(source, names=frozenset({"github"}))
+
+        assert channels["github"]._token == "ghp_stored"
+
+    @pytest.mark.asyncio
+    async def test_a_webhook_secret_stored_by_an_older_version_is_ignored(self) -> None:
+        async def source(_config_key: str) -> dict[str, object]:
+            return {"personalAccessToken": "ghp_stored", "webhookSecret": "left-over"}
+
+        channels = await create_channels(source, names=frozenset({"github"}))
+
+        assert channels["github"]._token == "ghp_stored"
+
+    def test_the_token_is_the_only_credential(self) -> None:
+        spec = GitHubChannel.credential_spec
+
+        assert spec is not None
+        assert [name for name, _ in spec.fields] == ["personal_access_token"]
+
+
+class TestGitHubReceivesNothing:
+    def test_registers_no_http_routes(self) -> None:
+        registrar = MagicMock()
+
+        GitHubChannel().register_routes(registrar)
+
+        registrar.add_route.assert_not_called()
+
+    def test_a_configured_channel_has_no_issues(self) -> None:
+        assert _make_channel().collect_issues() == []
+
+    def test_a_missing_token_is_the_only_issue(self) -> None:
+        issues = GitHubChannel().collect_issues()
+
+        assert [issue.fix for issue in issues] == ["Set personalAccessToken in GitHub channel credentials"]
 
 
 class TestGitHubSend:
