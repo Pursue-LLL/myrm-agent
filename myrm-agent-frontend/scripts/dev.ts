@@ -244,7 +244,9 @@ function nativeSwcPackage(): string | null {
     'linux-x64': '@next/swc-linux-x64-gnu',
   };
   const pkg = map[platform];
-  if (!pkg) return null;
+  if (!pkg) {
+    return null;
+  }
   const pkgDir = path.join(process.cwd(), 'node_modules', pkg);
   return fs.existsSync(pkgDir) ? pkg : null;
 }
