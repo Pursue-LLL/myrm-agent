@@ -2608,7 +2608,12 @@ _BRIDGE_DIAG_SNAPSHOT_JS = """(() => {
     navDomContentLoadedMs: nav ? Math.round(nav.domContentLoadedEventEnd) : null,
     rscChunks: Array.isArray(self.__next_f) ? self.__next_f.length : null,
     bodyChildren: document.body?.children.length ?? null,
-    nextErrorOverlay: Boolean(document.querySelector('nextjs-portal, [data-nextjs-dialog]')),
+    nextErrorDialog: (() => {
+      const portal = document.querySelector('nextjs-portal');
+      const dialog = document.querySelector('[data-nextjs-dialog]')
+        || portal?.shadowRoot?.querySelector('[data-nextjs-dialog]');
+      return dialog ? (dialog.textContent || '').slice(0, 300) : null;
+    })(),
     bodyHead: (document.body?.innerHTML || '').slice(0, 200),
     pageErrors: window.__MYRM_DIAG_ERRORS__ || null,
   };
