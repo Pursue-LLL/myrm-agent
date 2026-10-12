@@ -12,6 +12,14 @@
 
 from __future__ import annotations
 
+from myrm_agent_harness.agent.middlewares.memory_context.snapshot_freshness import (
+    DeltaPatchBlock,
+    DirectDiskReadHint,
+    MemorySnapshotDigest,
+    SnapshotFreshnessState,
+    SnapshotFreshnessTracker,
+)
+
 from app.schemas.snapshot_freshness import (
     DeltaPatchBlockDTO,
     DirectDiskReadHintDTO,
@@ -20,13 +28,6 @@ from app.schemas.snapshot_freshness import (
     RecordWriteRequest,
     SessionWriteDeltaDTO,
     SnapshotFreshnessStateDTO,
-)
-from myrm_agent_harness.agent.middlewares.memory_context.snapshot_freshness import (
-    DeltaPatchBlock,
-    DirectDiskReadHint,
-    MemorySnapshotDigest,
-    SnapshotFreshnessState,
-    SnapshotFreshnessTracker,
 )
 
 

@@ -12,6 +12,12 @@
 
 from __future__ import annotations
 
+from myrm_agent_harness.toolkits.memory.staleness_consolidation import (
+    AutoMemoryStalenessAndConsolidationAuditSuite,
+    MemoryAuditReport,
+    MemoryItemProfile,
+)
+
 from app.schemas.staleness_consolidation import (
     ApplyConsolidationRequest,
     ArchiveMemoriesRequest,
@@ -23,13 +29,6 @@ from app.schemas.staleness_consolidation import (
     RepoAssertionCheckResultDTO,
     RunAuditRequest,
     TouchRecallRequest,
-)
-from myrm_agent_harness.toolkits.memory.staleness_consolidation import (
-    AutoMemoryStalenessAndConsolidationAuditSuite,
-    ConsolidationProposal,
-    MemoryAuditReport,
-    MemoryItemProfile,
-    RepoAssertionCheckResult,
 )
 
 

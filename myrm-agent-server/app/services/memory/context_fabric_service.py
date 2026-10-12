@@ -12,18 +12,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from app.schemas.context_fabric import (
-    EntityMatchResultDTO,
-    ExtractEntitiesResponseDTO,
-    InsightCandidateDTO,
-    InsightSinkRequestDTO,
-    InsightSinkResponseDTO,
-    LinkEntitiesResponseDTO,
-    ProjectRegistryEntryDTO,
-    WorkContextEntityDTO,
-)
 from myrm_agent_harness.toolkits.memory.context_fabric import (
     ContextFabricExtractor,
     InsightCandidate,
@@ -34,6 +22,17 @@ from myrm_agent_harness.toolkits.memory.context_fabric import (
 from myrm_agent_harness.toolkits.memory.project_dongle import (
     DongleBlockType,
     ProjectContextDongleManager,
+)
+
+from app.schemas.context_fabric import (
+    EntityMatchResultDTO,
+    ExtractEntitiesResponseDTO,
+    InsightCandidateDTO,
+    InsightSinkRequestDTO,
+    InsightSinkResponseDTO,
+    LinkEntitiesResponseDTO,
+    ProjectRegistryEntryDTO,
+    WorkContextEntityDTO,
 )
 
 
