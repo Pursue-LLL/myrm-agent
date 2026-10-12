@@ -9,6 +9,8 @@ Provides in-memory cache for user configs with 30s TTL.
 - _get_cached: retrieve cached configs if valid
 - _set_cached: store configs with timestamp
 - invalidate_user_configs_cache: force invalidation after updates
+- schedule_memory_manager_config_invalidation: sync invalidation (dedup cache only; prefer await_memory_manager_config_invalidation)
+- await_memory_manager_config_invalidation: await MemoryManager shutdown after providers config changes
 
 [POS]
 Business-layer config caching. Simple dict + timestamp implementation.
@@ -16,8 +18,12 @@ Business-layer config caching. Simple dict + timestamp implementation.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import time
 from typing import TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from app.core.channel_bridge.config_loader import UserConfigs
@@ -50,6 +56,38 @@ def _evict_expired() -> None:
         del _config_cache[k]
 
 
+def _invalidate_platform_dedup_llm_cache_sync() -> None:
+    try:
+        from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
+            invalidate_platform_dedup_llm_cache,
+        )
+
+        invalidate_platform_dedup_llm_cache()
+    except Exception:
+        logger.warning("Failed to invalidate platform dedup LLM cache (non-fatal)", exc_info=True)
+
+
+async def await_memory_manager_config_invalidation() -> None:
+    """Evict MemoryManager cache when provider/lite model config may have changed."""
+    _invalidate_platform_dedup_llm_cache_sync()
+    from app.core.memory.adapters.setup import shutdown_cached_memory_managers
+
+    await shutdown_cached_memory_managers()
+
+
+def schedule_memory_manager_config_invalidation() -> None:
+    """Best-effort async invalidation when no event loop caller can await."""
+    _invalidate_platform_dedup_llm_cache_sync()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+
+    from app.core.memory.adapters.setup import shutdown_cached_memory_managers
+
+    loop.create_task(shutdown_cached_memory_managers())
+
+
 def invalidate_user_configs_cache() -> None:
     """Invalidate cached configs for a user after config update/delete.
 
@@ -72,6 +110,8 @@ def invalidate_user_configs_cache() -> None:
 
 __all__ = [
     "invalidate_user_configs_cache",
+    "await_memory_manager_config_invalidation",
+    "schedule_memory_manager_config_invalidation",
     "_get_cached",
     "_set_cached",
 ]

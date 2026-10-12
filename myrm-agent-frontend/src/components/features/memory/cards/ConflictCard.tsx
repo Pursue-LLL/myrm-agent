@@ -127,6 +127,14 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
             )
           )}
         </div>
+        {!isHighRisk ? (
+          <p className="w-full px-4 pb-1 text-[11px] leading-relaxed text-muted-foreground">
+            {t('conflict.lowRiskPolicyHint', {
+              defaultMessage:
+                'If you do not choose, lower-importance conflicts automatically keep the previous memory after about 72 hours.',
+            })}
+          </p>
+        ) : null}
       </div>
 
       {/* Conflict body: old vs new */}
