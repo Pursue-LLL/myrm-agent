@@ -12,7 +12,7 @@
 
 [POS]
 Server-side idle task handlers. Provides concrete business implementations
-for harness-level idle background tasks (context compaction, session evidence extraction store).
+for harness-level idle background tasks: context compaction and the SkillStore used by session evidence extraction.
 """
 
 import logging
