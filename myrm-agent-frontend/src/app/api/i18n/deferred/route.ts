@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - ?lang= query (POS: cache-key discriminator chosen by the client)
+ * - ?lang= and ?v= query (POS: cache-key discriminators chosen by the client)
  * - getLocale (POS: cookie locale fallback)
  * - loadDeferredMessages (POS: server-only namespace loader)
  *
@@ -28,9 +28,10 @@ export async function GET(request: NextRequest) {
   const locale = isLocale(requested) ? requested : ((await getLocale()) as Locale);
   const messages = await loadDeferredMessages(locale);
 
-  return NextResponse.json(messages, {
-    headers: {
-      'Cache-Control': 'private, max-age=3600, stale-while-revalidate=86400',
-    },
-  });
+  // The URL carries a content version (`v`), so production may cache long; dev edits locale files live.
+  const cacheControl =
+    process.env.NODE_ENV === 'development'
+      ? 'no-store'
+      : 'private, max-age=3600, stale-while-revalidate=86400';
+  return NextResponse.json(messages, { headers: { 'Cache-Control': cacheControl } });
 }

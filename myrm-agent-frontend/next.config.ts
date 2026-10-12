@@ -1,5 +1,6 @@
 // Dev-only: enforce shared pause stamp before other config side effects.
 import { enforceFrontendDevNotPaused } from './scripts/frontend-dev-pause-gate';
+import { computeLocaleContentVersion } from './scripts/locale-content-version';
 
 if (process.env.NODE_ENV === 'development') {
   enforceFrontendDevNotPaused({ context: 'next dev (next.config load)' });
@@ -66,6 +67,10 @@ const monorepoRoot = path.join(frontendRoot, '..');
 const sharedRoot = path.join(monorepoRoot, 'shared');
 
 const nextConfig: NextConfig = {
+  env: {
+    // Cache key for /api/i18n/deferred so a long browser cache is dropped when translations change.
+    NEXT_PUBLIC_LOCALE_VERSION: computeLocaleContentVersion(path.join(frontendRoot, 'locales')),
+  },
   distDir: process.env.MYRM_NEXT_DIST_DIR?.trim() || '.next',
   // Next.js 16.3: explicit cache model + per-route shell prefetch (sidebar chat links, settings tabs).
   // NOTE(LSSS debug): cacheComponents/partialPrefetching temporarily disabled to isolate hydration hang.

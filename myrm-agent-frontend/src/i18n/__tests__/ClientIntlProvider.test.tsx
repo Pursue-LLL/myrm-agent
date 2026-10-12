@@ -62,7 +62,7 @@ describe('ClientIntlProvider deferred locale', () => {
     });
   });
 
-  it('keys the deferred request by locale so the HTTP cache cannot replay another language', async () => {
+  it('keys the deferred request by locale and content version so the HTTP cache cannot replay another language', async () => {
     const fetchMock = vi.fn(async (_url?: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       json: async () => ({}),
@@ -78,7 +78,10 @@ describe('ClientIntlProvider deferred locale', () => {
     await waitFor(() => {
       expect(screen.getByTestId('deferred-ready')).toHaveTextContent('yes');
     });
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/i18n/deferred?lang=zh-TW');
+    const requested = new URL(String(fetchMock.mock.calls[0]?.[0]), 'http://localhost');
+    expect(requested.pathname).toBe('/api/i18n/deferred');
+    expect(requested.searchParams.get('lang')).toBe('zh-TW');
+    expect(requested.searchParams.get('v')).toBeTruthy();
   });
 
   it('degrades to shell messages when deferred fetch fails after retries', async () => {

@@ -23,6 +23,7 @@ import { getDefaultTimezone } from '@/i18n/timezone';
 const DEFERRED_FETCH_MAX_ATTEMPTS = 3;
 const DEFERRED_FETCH_RETRY_BASE_MS = 400;
 const DEFERRED_FETCH_TIMEOUT_MS = 8_000;
+const LOCALE_CONTENT_VERSION = process.env.NEXT_PUBLIC_LOCALE_VERSION ?? 'dev';
 
 interface ClientIntlProviderProps {
   locale: Locale;
@@ -40,7 +41,8 @@ async function fetchDeferredMessages(locale: Locale): Promise<Partial<Messages>>
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), DEFERRED_FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(`/api/i18n/deferred?lang=${encodeURIComponent(locale)}`, {
+    const query = new URLSearchParams({ lang: locale, v: LOCALE_CONTENT_VERSION });
+    const response = await fetch(`/api/i18n/deferred?${query.toString()}`, {
       credentials: 'same-origin',
       signal: controller.signal,
     });
