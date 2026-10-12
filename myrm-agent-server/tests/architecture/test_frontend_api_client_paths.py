@@ -22,9 +22,7 @@ from fastapi import FastAPI
 _FRONTEND_SRC = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "src"
 _API_PREFIX = "/api/v1"
 _WEBUI_PREFIX = "/webui"
-_SKIP_WITHOUT_FRONTEND = pytest.mark.skipif(
-    not _FRONTEND_SRC.is_dir(), reason="frontend sources are not part of this checkout"
-)
+_SKIP_WITHOUT_FRONTEND = pytest.mark.skipif(not _FRONTEND_SRC.is_dir(), reason="frontend sources are not part of this checkout")
 
 # Client calls whose server route does not exist yet; each entry must disappear once the route lands.
 _KNOWN_MISSING_ROUTES = frozenset(
@@ -52,9 +50,7 @@ _VERBS = frozenset({"get", "post", "put", "delete", "patch"})
 
 def _normalize(raw_path: str) -> str:
     """Collapse path parameters to `{}` and drop query-string templates."""
-    without_query = _TEMPLATE_RE.sub(
-        lambda m: "" if m.group("expr").strip() in _QUERY_EXPRESSIONS else m.group(0), raw_path
-    )
+    without_query = _TEMPLATE_RE.sub(lambda m: "" if m.group("expr").strip() in _QUERY_EXPRESSIONS else m.group(0), raw_path)
     return _TEMPLATE_RE.sub("{}", without_query).rstrip("/")
 
 
@@ -81,11 +77,13 @@ def _client_calls() -> list[tuple[str, str, str]]:
 
 
 def _route_table() -> list[tuple[list[str], set[str]]]:
+    from app.api.internal.org_policy_sync.org_model_policy_sync import frontend_router as org_policy_router
     from app.api.router import api_router
     from app.api.webui.router import router as webui_router
 
     app = FastAPI()
     app.include_router(api_router, prefix=_API_PREFIX)
+    app.include_router(org_policy_router, prefix=_API_PREFIX)
     app.include_router(webui_router)
     table: list[tuple[list[str], set[str]]] = []
     for path, operations in app.openapi()["paths"].items():
@@ -127,7 +125,5 @@ def test_frontend_clients_target_existing_routes(route_table: list[tuple[list[st
 
 @_SKIP_WITHOUT_FRONTEND
 def test_known_missing_routes_are_still_missing(route_table: list[tuple[list[str], set[str]]]) -> None:
-    resolved = sorted(
-        f"{method} {path}" for method, path in _KNOWN_MISSING_ROUTES if _served(route_table, method, path)
-    )
+    resolved = sorted(f"{method} {path}" for method, path in _KNOWN_MISSING_ROUTES if _served(route_table, method, path))
     assert not resolved, f"route now exists, remove from _KNOWN_MISSING_ROUTES: {resolved}"
