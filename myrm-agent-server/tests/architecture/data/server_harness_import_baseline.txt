@@ -18,6 +18,7 @@ myrm_agent_harness.agent.context_guard
 myrm_agent_harness.agent.context_guard.spillover_engine
 myrm_agent_harness.agent.context_guard.sweeper
 myrm_agent_harness.agent.context_guard.types
+myrm_agent_harness.agent.context_management
 myrm_agent_harness.agent.context_management.archive_checkpoint
 myrm_agent_harness.agent.context_management.archive_checkpoint.store
 myrm_agent_harness.agent.context_management.archive_checkpoint.summary_service
@@ -90,6 +91,7 @@ myrm_agent_harness.agent.middlewares.completion
 myrm_agent_harness.agent.middlewares.guardrails
 myrm_agent_harness.agent.middlewares.guardrails.core
 myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware
+myrm_agent_harness.agent.middlewares.memory_context.snapshot_freshness
 myrm_agent_harness.agent.middlewares.moa_advisor_middleware
 myrm_agent_harness.agent.orchestration.steering
 myrm_agent_harness.agent.parallel.config
@@ -621,6 +623,7 @@ myrm_agent_harness.toolkits.memory.compaction
 myrm_agent_harness.toolkits.memory.conclusion_attribution
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conflict_arbitration
+myrm_agent_harness.toolkits.memory.context_fabric
 myrm_agent_harness.toolkits.memory.conversation_search.types
 myrm_agent_harness.toolkits.memory.cross_agent.arbitrator
 myrm_agent_harness.toolkits.memory.cross_agent.integrity
@@ -629,9 +632,11 @@ myrm_agent_harness.toolkits.memory.cross_agent.types
 myrm_agent_harness.toolkits.memory.crystallization
 myrm_agent_harness.toolkits.memory.decay
 myrm_agent_harness.toolkits.memory.dialectic
+myrm_agent_harness.toolkits.memory.domain_isolation
 myrm_agent_harness.toolkits.memory.drift_defense
 myrm_agent_harness.toolkits.memory.dual_track_extraction
 myrm_agent_harness.toolkits.memory.evolution
+myrm_agent_harness.toolkits.memory.experience_flywheel
 myrm_agent_harness.toolkits.memory.graph
 myrm_agent_harness.toolkits.memory.graph.age_store
 myrm_agent_harness.toolkits.memory.graph.base
@@ -654,16 +659,19 @@ myrm_agent_harness.toolkits.memory.memory_search_policy
 myrm_agent_harness.toolkits.memory.metrics
 myrm_agent_harness.toolkits.memory.openclaw_adapter
 myrm_agent_harness.toolkits.memory.override_stack
+myrm_agent_harness.toolkits.memory.person_card
 myrm_agent_harness.toolkits.memory.persona_router
 myrm_agent_harness.toolkits.memory.privacy_gate
 myrm_agent_harness.toolkits.memory.proactive
 myrm_agent_harness.toolkits.memory.proactive.types
 myrm_agent_harness.toolkits.memory.profile_notes
+myrm_agent_harness.toolkits.memory.project_dongle
 myrm_agent_harness.toolkits.memory.protocols.embedding
 myrm_agent_harness.toolkits.memory.protocols.relational
 myrm_agent_harness.toolkits.memory.protocols.vector
 myrm_agent_harness.toolkits.memory.provenance_batch
 myrm_agent_harness.toolkits.memory.relational.sqlite_store
+myrm_agent_harness.toolkits.memory.safe_episodic_forget
 myrm_agent_harness.toolkits.memory.score_honesty
 myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.self_verification
@@ -672,6 +680,7 @@ myrm_agent_harness.toolkits.memory.shared_bus
 myrm_agent_harness.toolkits.memory.skill_triad.facade
 myrm_agent_harness.toolkits.memory.skill_triad.models
 myrm_agent_harness.toolkits.memory.sovereign_migration
+myrm_agent_harness.toolkits.memory.staleness_consolidation
 myrm_agent_harness.toolkits.memory.strategies.blind_spot
 myrm_agent_harness.toolkits.memory.strategies.consolidation
 myrm_agent_harness.toolkits.memory.strategies.consolidation_rollback
@@ -683,10 +692,13 @@ myrm_agent_harness.toolkits.memory.strategies.implicit_feedback
 myrm_agent_harness.toolkits.memory.strategies.pattern_discovery
 myrm_agent_harness.toolkits.memory.strategies.preference_stability
 myrm_agent_harness.toolkits.memory.strategies.subsumption
+myrm_agent_harness.toolkits.memory.transcript_projection
 myrm_agent_harness.toolkits.memory.types
 myrm_agent_harness.toolkits.memory.universal_mcp_bridge
 myrm_agent_harness.toolkits.memory.unload_guard
+myrm_agent_harness.toolkits.memory.vector_dim_guard
 myrm_agent_harness.toolkits.memory.vector_preflight
+myrm_agent_harness.toolkits.memory.zk_vault_watermark
 myrm_agent_harness.toolkits.mobile_adb
 myrm_agent_harness.toolkits.mobile_adb.session
 myrm_agent_harness.toolkits.openapi_bridge
