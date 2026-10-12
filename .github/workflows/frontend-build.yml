@@ -59,10 +59,7 @@ jobs:
       - name: Vitest (shared provider remap contract)
         if: ${{ !cancelled() }}
         run: bunx vitest run src/store/config/__tests__/providerIdentityMigration.test.ts
-      - name: Next.js build (module graph)
-        id: build
+      # `build` ends with scripts/verify-sw-push.mjs, so the Web Push handler check runs here.
+      - name: Production build (module graph, Serwist SW inject, Web Push handler check)
         if: ${{ !cancelled() }}
         run: bun run build
-      - name: Service worker Web Push handlers
-        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
-        run: node scripts/verify-sw-push.mjs

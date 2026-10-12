@@ -38,7 +38,7 @@
 | `i18n-glossary.json` | Native QA 术语表 SSOT（de Sie-Form + ko 敬语约束 + ja です・ます体约束与禁止模式 + zh-TW 繁體约束；`forbidden` 由 `verify-i18n.mjs` 强制执行（支持 `/正则/` 模式），ja 用于拦截中文乱码残留（词汇级中文独有词，含纯同形词——每个字形合法但组合为日语不存在的词，如 文件/窗口/屏幕/信息/提交/刷新/小伙伴/演示文稿/跟随/摸回数/搞定 + 中文介词残留如 按名前/按ユーザー/以アクセス/移動端/検査器/必須はい/に対する象 + 语序乱码 + 中文式组合残留如 終ログイン/首ページ/使用 Google ログイン/終サンドボックス/最ビジーツール/首字/にあなた啦/見る見る + 宾语+动词+失敗 中文动宾句残留如 リセットコンテナ環境/承認下書き/キャンセルピン留め/テンプレート適用失敗 + 简体独有词 + 动词+空格+名词 动宾按钮残留如 選択 MCP/作成 APIキー/エクスポート CSV/クリア OAuth/承認 + 中文式短标签拟声/语气词残留如 好！/完！/嘭！/啦！ + 中文「X完」后缀残留（正则 `/X完(?!了)/` 拦截，如 クエリ完/コンパイル完/スキャン完/準備完）+ 動詞+名詞 动宾按钮语序残留（如 確認削除/開く設定/閉じるパネル/追加ルール/選択ゴール/入力スキル名前，名词复合词如 検索サービス/実行モード 不受影响）+ Shadow）、zh-TW 用于拦截豁免字形字的简体词残留与两岸差异词（标准/云端/用于/基于/里面/关于/屏幕/信息/窗口/兼容/搜索/界面/支持/保存/刷新/文件夾/拖拽/退出登入/全屏/插件 等 41 词）；de/ko rules 声明汉字纯净约束、zh-TW rules 声明简体字形纯净约束） |
 | `i18n-shell-allowlist.json` | 翻译壳检测豁免清单：真正不可翻译的值（品牌/凭据字段名/占位示例/纯格式模板如 `PID {pid}`、`{wu} WU`、`TLS / mTLS`、`sk-...`）与键路径 |
 | `translation-patches/` | 各语言内容补齐补丁目录（`<locale>/batch-NN.json` 等嵌套 JSON 补丁，供 `i18n-patch-apply.mjs` 深度合并；应用前以 `i18n-dump-remaining.mjs` 导出剩余壳清单） |
-| `verify-sw-push.mjs` | `public/sw.js` 须含 Web Push handler、URL 消毒、`resolvePushClientFocusAction`、`.navigate(`（`build:sw-inject` + Serwist inject-manifest + CI） |
+| `verify-sw-push.mjs` | `public/sw.js` 须含 Web Push handler、URL 消毒、`resolvePushClientFocusAction`、`.navigate(`（`bun run build` 末段执行，位于 `build:sw-inject` 与 Serwist inject-manifest 之后） |
 | `build-sw-src.mjs` | esbuild 打包 `src/app/sw.ts` → `.serwist/sw-inject-src.js`（inject-manifest 入口，解析 lib import） |
 | `scan-home-i18n-shell.mjs` | home-route `settings.*` 引用须在 SSR shell（CI via verify-i18n） |
 | `verify-shell-i18n-runtime.mjs` | 运行时 SSR HTML / deferred API 校验（dev；shell 清单从 locale-manifest 解析） |
@@ -63,7 +63,7 @@
 ## 约束
 
 - 新 CI 门禁脚本放本目录并在本 `_ARCH.md` 与根 `_ARCH.md` CI 节登记
-- `frontend-build.yml` 的门禁步骤互相独立（`if: ${{ !cancelled() }}`），一次运行列出全部红灯；新增门禁沿用该写法，依赖 `locales/namespaces/` 生成物的门禁须排在 `bun run i18n:split` 步骤之后，依赖构建产物的门禁（如 `verify-sw-push.mjs`）以 `steps.build.conclusion == 'success'` 为条件
+- `frontend-build.yml` 的门禁步骤互相独立（`if: ${{ !cancelled() }}`），一次运行列出全部红灯；新增门禁沿用该写法，依赖 `locales/namespaces/` 生成物的门禁须排在 `bun run i18n:split` 步骤之后；`verify-sw-push.mjs` 随 `bun run build` 执行，不单列步骤
 - baseline 文件仅通过 `--write-baseline` 更新，禁止手改豁免逻辑
 - `ci/barrel_whitelist.txt` 跨域 barrel 条目须与根 `_ARCH.md` 桶表同步，手改后跑 `check_barrel_exports.py` 验证
 - 删除模块前跑 `check_module_resolution.py`：`tsc` 不校验 `require()` 目标，静态图谱扫不到的目标仍可能被动态加载器引用
