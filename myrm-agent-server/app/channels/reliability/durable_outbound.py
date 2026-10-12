@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import sys
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -33,6 +34,7 @@ from myrm_agent_harness.infra.delivery.storage import (
     ack_delivery,
     generate_delivery_id,
     load_pending_deliveries,
+    move_to_failed,
     save_delivery,
 )
 
@@ -45,6 +47,10 @@ METADATA_DELIVERY_ID = "_durable_delivery_id"
 METADATA_RECOVERED = "_durable_recovered"
 
 _SKIP_CHANNELS = frozenset({"web", "chat", "silent"})
+
+# A record that cannot be read is out of retries by definition; no dead-letter queue setting may reach this budget.
+_NO_RETRIES_LEFT = sys.maxsize
+_UNREADABLE_RECORD_ERROR = "The stored message could not be read"
 
 
 class OutboundPublisher(Protocol):
@@ -192,10 +198,18 @@ class DurableOutboundGate:
             except Exception:
                 # A record that cannot be decoded can never become deliverable, and raising here would abort
                 # every startup/enable recovery (and with it the gateway start) for all the healthy records.
+                # It moves to the dead-letter directory instead of being deleted: it may be the only copy of a
+                # reply someone is waiting for, and the dead-letter queue reports it once as permanently failed.
                 logger.error(
-                    "Dropping undecodable durable outbound record %s (channel=%s)", delivery.id, delivery.channel, exc_info=True
+                    "Quarantining undecodable durable outbound record %s (channel=%s)",
+                    delivery.id,
+                    delivery.channel,
+                    exc_info=True,
                 )
-                await ack_delivery(delivery.id, base_dir=self._base_dir)
+                await move_to_failed(
+                    replace(delivery, retry_count=_NO_RETRIES_LEFT, last_error=_UNREADABLE_RECORD_ERROR),
+                    base_dir=self._base_dir,
+                )
                 continue
             await save_delivery(
                 replace(delivery, phase="pending"),

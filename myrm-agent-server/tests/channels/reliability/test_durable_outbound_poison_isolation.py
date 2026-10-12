@@ -1,7 +1,8 @@
-"""Durable outbox recovery: a record that cannot be decoded is dropped, never blocks the others.
+"""Durable outbox recovery: a record that cannot be decoded is quarantined, never blocks the others.
 
 Recovery runs inside ``MessageBus.start()`` (hence gateway startup) and on every channel enable, so a single
-undecodable record that raised there would keep the whole gateway from starting on every restart.
+undecodable record that raised there would keep the whole gateway from starting on every restart. The record
+itself is kept in the dead-letter directory: it may be the only copy of a reply someone is waiting for.
 """
 
 from __future__ import annotations
@@ -9,9 +10,16 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
-from myrm_agent_harness.infra.delivery.storage import QueuedDelivery, load_pending_deliveries, save_delivery
+from myrm_agent_harness.infra.delivery.dead_letter import DeadLetterQueue
+from myrm_agent_harness.infra.delivery.storage import (
+    QueuedDelivery,
+    load_failed_deliveries,
+    load_pending_deliveries,
+    save_delivery,
+)
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.bus import MessageBus
@@ -79,11 +87,12 @@ async def test_message_with_button_is_recovered_after_restart(tmp_path: Path, ph
     assert "answer" in publisher.published[0].content
 
 
-async def test_undecodable_record_is_dropped_without_blocking_healthy_records(
+async def test_undecodable_record_is_quarantined_without_blocking_healthy_records(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     gate = DurableOutboundGate(tmp_path)
-    await save_delivery(_record("feishu_user_1_poison", _untagged_wire(_message("poison", with_button=True))), base_dir=tmp_path)
+    poison = _untagged_wire(_message("poison", with_button=True))
+    await save_delivery(_record("feishu_user_1_poison", poison), base_dir=tmp_path)
     await save_delivery(_record("feishu_user_1_healthy", _message("healthy").to_dict()), base_dir=tmp_path)
     publisher = _RecordingPublisher()
 
@@ -94,6 +103,26 @@ async def test_undecodable_record_is_dropped_without_blocking_healthy_records(
     assert [m.content for m in publisher.published] == ["healthy"]
     assert [d.id for d in await load_pending_deliveries(base_dir=tmp_path)] == ["feishu_user_1_healthy"]
     assert any("feishu_user_1_poison" in r.getMessage() for r in caplog.records if r.levelno == logging.ERROR)
+
+    (kept,) = await load_failed_deliveries(base_dir=tmp_path)
+    assert (kept.id, kept.content) == ("feishu_user_1_poison", poison), "the stored message is preserved untouched"
+    assert kept.failed_at is not None
+    assert kept.last_error == "The stored message could not be read"
+
+
+async def test_quarantined_record_is_reported_once_as_permanently_failed_and_never_resent(tmp_path: Path) -> None:
+    await save_delivery(_record("feishu_user_1_poison", {"channel": "feishu"}), base_dir=tmp_path)
+    await DurableOutboundGate(tmp_path).recover_into_bus(_RecordingPublisher())
+    resent = AsyncMock()
+    reported = AsyncMock()
+    dlq = DeadLetterQueue(enqueue_fn=resent, base_dir=tmp_path, on_permanent_failure=reported)
+
+    await dlq._process_failed_messages()
+    await dlq._process_failed_messages()
+
+    resent.assert_not_awaited()
+    reported.assert_awaited_once()
+    assert reported.call_args.args[0].id == "feishu_user_1_poison"
 
 
 async def test_gateway_start_survives_undecodable_record_and_delivers_the_rest(tmp_path: Path) -> None:
