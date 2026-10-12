@@ -274,6 +274,14 @@ export class SessionRouter {
             ?? this.knownSessions.get(sessionId)?.targetInfo?.targetId;
     }
 
+    /** What a session is attached to, for logs: "<owned|base> <target type> <url>"; null when unknown. */
+    describeSession(sessionId) {
+        const owned = this.owned.get(sessionId);
+        const info = owned ? this.knownTargets.get(owned.targetId) : this.knownSessions.get(sessionId)?.targetInfo;
+        if (!info) return null;
+        return `${owned ? 'owned' : 'base'} ${info.type} ${(info.url || 'about:blank').slice(0, 60)}`;
+    }
+
     ownedCountOf(client) {
         let count = 0;
         for (const entry of this.owned.values()) {

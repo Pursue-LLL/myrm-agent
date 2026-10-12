@@ -285,3 +285,13 @@ test('classifyClientRequest forwards a client createTarget with a window of its 
     assert.equal(router.classifyClientRequest(client(1), msg).action, 'forward');
     assert.equal(msg.params.newWindow, true);
 });
+
+test('describeSession names what a base, an owned and an unknown session are attached to', () => {
+    const ctx = setup();
+    ctx.router.onChromeEvent({ method: 'Target.attachedToTarget', params: { sessionId: 'FRAME', targetInfo: { targetId: 'T2', type: 'iframe', url: 'https://platform.x.com/embed' }, waitingForDebugger: false } });
+    assert.equal(ctx.router.describeSession('FRAME'), 'base iframe https://platform.x.com/embed');
+    attach(ctx, ctx.client(1), 1, 'T1', 'OWN1');
+    ctx.router.onChromeEvent({ method: 'Target.targetInfoChanged', params: { targetInfo: { targetId: 'T1', type: 'page', url: 'https://x.com/a/status/1' } } });
+    assert.equal(ctx.router.describeSession('OWN1'), 'owned page https://x.com/a/status/1');
+    assert.equal(ctx.router.describeSession('NOPE'), null);
+});

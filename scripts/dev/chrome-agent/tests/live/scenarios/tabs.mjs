@@ -250,7 +250,7 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         await sleep(14500);
         const status = await (await fetch(`${proxy.base}/proxy/status`)).json();
         const logged = fs.readFileSync(proxy.logPath, 'utf8').split('\n').filter((l) => /slow request .* Runtime\.evaluate/.test(l));
-        await check('slowRequestLog: an unanswered request is logged once with load', logged.length === 1 && /load \d+ on \d+ cpus, \d+ pending, chrome up \d+m/.test(logged[0]), logged.join(' | ').slice(0, 200));
+        await check('slowRequestLog: an unanswered request is logged once with load', logged.length === 1 && /sess=\w{8} \[owned page [^\]]*\] unanswered/.test(logged[0]) && /load \d+ on \d+ cpus, \d+ pending, chrome up \d+m/.test(logged[0]), logged.join(' | ').slice(0, 200));
         await check('slowRequestLog: /proxy/status reports slowRequests, loadavg1 and cpus', status.slowRequests >= 1 && typeof status.loadavg1 === 'number' && status.cpus > 0, JSON.stringify({ s: status.slowRequests, l: status.loadavg1, c: status.cpus }));
         cdpClient.close();
     },

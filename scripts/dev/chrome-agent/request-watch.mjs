@@ -24,9 +24,11 @@ export class RequestWatch {
      * @param {() => number[]} [hooks.loadavg]
      * @param {number} [hooks.cpus]
      * @param {() => number | null} [hooks.chromeAgeMs]  how long the current Chrome has been up, null when it is not running
+     * @param {(sessionId: string) => string | null} [hooks.describeSession]  what a session is attached to (page, iframe, worker …)
      */
-    constructor({ pendingRequests, log, slowMs = SLOW_MS, now = Date.now, loadavg = os.loadavg, cpus = os.availableParallelism(), chromeAgeMs = () => null }) {
+    constructor({ pendingRequests, log, slowMs = SLOW_MS, now = Date.now, loadavg = os.loadavg, cpus = os.availableParallelism(), chromeAgeMs = () => null, describeSession = () => null }) {
         this.chromeAgeMs = chromeAgeMs;
+        this.describeSession = describeSession;
         this.pendingRequests = pendingRequests;
         this.log = log;
         this.slowMs = slowMs;
@@ -49,7 +51,8 @@ export class RequestWatch {
             const info = { label: req.client.label, method: req.method, createdAt: req.createdAt, lastSeen: t };
             this.flagged.set(proxyId, info);
             this.slowCount++;
-            const session = req.sessionId ? ` sess=${req.sessionId.slice(0, 8)}` : '';
+            const target = req.sessionId ? this.describeSession(req.sessionId) : null;
+            const session = req.sessionId ? ` sess=${req.sessionId.slice(0, 8)}${target ? ` [${target}]` : ''}` : '';
             const age = this.chromeAgeMs();
             const chrome = age === null ? '' : `, chrome up ${Math.round(age / 60_000)}m`;
             this.log(`slow request ${info.label} ${info.method}${session} unanswered for ${this.#seconds(t - req.createdAt)}s `
@@ -73,8 +76,8 @@ export class RequestWatch {
 }
 
 /** Create the watch and sweep it while the proxy runs. */
-export function startRequestWatch({ pendingRequests, log, chromeAgeMs }) {
-    const watch = new RequestWatch({ pendingRequests, log, chromeAgeMs });
+export function startRequestWatch({ pendingRequests, log, chromeAgeMs, describeSession }) {
+    const watch = new RequestWatch({ pendingRequests, log, chromeAgeMs, describeSession });
     setInterval(() => watch.sweep(), TICK_MS).unref();
     return watch;
 }
