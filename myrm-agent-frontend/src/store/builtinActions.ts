@@ -320,6 +320,10 @@ export function buildBuiltinActions(): SlashAction[] {
           if (result.reason === 'empty') {
             return { success: true, newInputValue: '/learn' };
           }
+          if (result.reason === 'refused') {
+            // The send already told the user why; leaving newInputValue unset keeps the typed command for a retry.
+            return { success: false, error: 'Learn refused' };
+          }
           showI18nToast('chat.extractToSkill.error', undefined, { type: 'error' });
           return { success: false, error: 'Learn failed' };
         }

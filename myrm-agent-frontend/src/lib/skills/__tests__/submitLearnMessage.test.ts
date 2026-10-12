@@ -38,7 +38,7 @@ describe('submitLearnMessage', () => {
     vi.clearAllMocks();
     chatState.chatId = null;
     chatState.loading = false;
-    mockSendMessage.mockResolvedValue(undefined);
+    mockSendMessage.mockResolvedValue(true);
     mockInitializeChat.mockImplementation(() => {
       chatState.chatId = 'new-chat-abc';
     });
@@ -55,5 +55,14 @@ describe('submitLearnMessage', () => {
       message: '/learn URL: https://example.com',
       chatId: 'new-chat-abc',
     });
+  });
+
+  it('reports a refused send instead of claiming the learn run started', async () => {
+    chatState.chatId = 'chat-1';
+    mockSendMessage.mockResolvedValue(false);
+
+    const result = await submitLearnMessage({ input: '/learn URL: https://example.com' });
+
+    expect(result).toEqual({ ok: false, reason: 'refused' });
   });
 });

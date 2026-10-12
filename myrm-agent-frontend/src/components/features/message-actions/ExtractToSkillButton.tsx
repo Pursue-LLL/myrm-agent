@@ -38,7 +38,12 @@ export default function ExtractToSkillButton({ message }: { message: Message }) 
     setState('sending');
     try {
       const learnInput = `/learn ${t('extractToSkill.learnContext')}\n\n${message.content}`;
-      await useChatStore.getState().sendMessage(learnInput);
+      const dispatched = await useChatStore.getState().sendMessage(learnInput);
+      if (!dispatched) {
+        // The send already told the user why; keep the button usable for a retry.
+        setState('idle');
+        return;
+      }
       setState('sent');
       toast.info(t('extractToSkill.started'));
     } catch {

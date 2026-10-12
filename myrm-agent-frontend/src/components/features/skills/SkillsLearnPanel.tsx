@@ -95,6 +95,7 @@ const SkillsLearnPanel = memo(({ className }: SkillsLearnPanelProps) => {
       } else if (result.reason === 'error') {
         toast.error(tChat('extractToSkill.error'));
       }
+      // 'refused' needs no toast: the send already told the user why, and the fields stay filled for a retry.
     } finally {
       setIsSubmitting(false);
     }

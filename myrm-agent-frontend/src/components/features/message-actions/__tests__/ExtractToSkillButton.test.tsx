@@ -47,7 +47,7 @@ describe('ExtractToSkillButton', () => {
       loading: false,
       sendMessage: mockSendMessage,
     });
-    mockSendMessage.mockResolvedValue(undefined);
+    mockSendMessage.mockResolvedValue(true);
   });
 
   it('renders nothing for empty message content', () => {
@@ -112,11 +112,27 @@ describe('ExtractToSkillButton', () => {
     expect(screen.getByRole('button')).not.toBeDisabled();
   });
 
+  it('returns to idle without announcing a start when the send is refused', async () => {
+    mockSendMessage.mockResolvedValue(false);
+    const user = userEvent.setup();
+    render(<ExtractToSkillButton message={makeMessage()} />);
+
+    await user.click(screen.getByRole('button'));
+    await waitFor(() => {
+      expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button')).not.toBeDisabled();
+    });
+    expect(mockToast.info).not.toHaveBeenCalled();
+    expect(screen.queryByText('extractToSkill.sent')).not.toBeInTheDocument();
+  });
+
   it('prevents double-click sending', async () => {
-    let resolve: (() => void) | undefined;
+    let resolve: ((dispatched: boolean) => void) | undefined;
     mockSendMessage.mockImplementation(
       () =>
-        new Promise<void>((r) => {
+        new Promise<boolean>((r) => {
           resolve = r;
         }),
     );
@@ -127,7 +143,7 @@ describe('ExtractToSkillButton', () => {
     await user.click(screen.getByRole('button'));
 
     expectDefined(resolve, 'resolve');
-    resolve();
+    resolve(true);
     await waitFor(() => {
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
     });
@@ -176,10 +192,10 @@ describe('ExtractToSkillButton', () => {
   });
 
   it('shows loading spinner during sending state', async () => {
-    let resolve: (() => void) | undefined;
+    let resolve: ((dispatched: boolean) => void) | undefined;
     mockSendMessage.mockImplementation(
       () =>
-        new Promise<void>((r) => {
+        new Promise<boolean>((r) => {
           resolve = r;
         }),
     );
@@ -191,7 +207,7 @@ describe('ExtractToSkillButton', () => {
     expect(spinner).toBeInTheDocument();
 
     expectDefined(resolve, 'resolve');
-    resolve();
+    resolve(true);
     await waitFor(() => {
       expect(mockToast.info).toHaveBeenCalledWith('extractToSkill.started');
     });

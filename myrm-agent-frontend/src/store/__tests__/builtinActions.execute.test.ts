@@ -175,7 +175,7 @@ describe('builtin action execute functions', () => {
 
   describe('/learn', () => {
     it('sends /learn message and shows started toast', async () => {
-      const sendMessageMock = vi.fn().mockResolvedValue(undefined);
+      const sendMessageMock = vi.fn().mockResolvedValue(true);
       const { default: useChatStore } = await import('@/store/useChatStore');
       const originalGetState = useChatStore.getState;
       (useChatStore as unknown as { getState: Mock }).getState = vi.fn(() => ({
@@ -198,7 +198,7 @@ describe('builtin action execute functions', () => {
     });
 
     it('bootstraps chat when no active chat and sends learn message', async () => {
-      const sendMessageMock = vi.fn().mockResolvedValue(undefined);
+      const sendMessageMock = vi.fn().mockResolvedValue(true);
       const initializeChatMock = vi.fn();
       const { default: useChatStore } = await import('@/store/useChatStore');
       const originalGetState = useChatStore.getState;
@@ -229,6 +229,29 @@ describe('builtin action execute functions', () => {
       expect(result).toEqual({ success: true, newInputValue: '' });
 
       (useChatStore as { getState: typeof originalGetState }).getState = originalGetState;
+    });
+
+    it('keeps the typed command and announces no start when the send is refused', async () => {
+      const sendMessageMock = vi.fn().mockResolvedValue(false);
+      const { default: useChatStore } = await import('@/store/useChatStore');
+      const originalGetState = useChatStore.getState;
+      (useChatStore as unknown as { getState: Mock }).getState = vi.fn(() => ({
+        chatId: 'test-chat-123',
+        loading: false,
+        sendMessage: sendMessageMock,
+      }));
+
+      try {
+        const learnAction = actions.find((a) => a.name === 'learn');
+        expectDefined(learnAction, "Action 'learn'");
+        const result = await learnAction.execute('/learn https://docs.example.com/api');
+
+        expect(sendMessageMock).toHaveBeenCalledWith('/learn https://docs.example.com/api');
+        expect(showI18nToastMock).not.toHaveBeenCalled();
+        expect(result).toEqual({ success: false, error: 'Learn refused' });
+      } finally {
+        (useChatStore as { getState: typeof originalGetState }).getState = originalGetState;
+      }
     });
   });
 

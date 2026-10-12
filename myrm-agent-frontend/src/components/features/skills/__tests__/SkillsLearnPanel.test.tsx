@@ -48,7 +48,7 @@ describe('SkillsLearnPanel', () => {
       loading: false,
       sendMessage: mockSendMessage,
     });
-    mockSendMessage.mockResolvedValue(undefined);
+    mockSendMessage.mockResolvedValue(true);
   });
 
   it('submits composed /learn and navigates to chat', async () => {
@@ -64,6 +64,26 @@ describe('SkillsLearnPanel', () => {
     });
     expect(mockToast.info).toHaveBeenCalledWith('chat.extractToSkill.started');
     expect(mockPush).toHaveBeenCalledWith('/chat-1');
+  });
+
+  it('keeps the typed source and stays on the page when the send is refused', async () => {
+    mockSendMessage.mockResolvedValue(false);
+    const user = userEvent.setup();
+    render(<SkillsLearnPanel />);
+
+    await user.click(screen.getByRole('button', { name: 'settings.skills.learn.panelTitle' }));
+    await user.type(screen.getByLabelText('settings.skills.learn.urlLabel'), 'https://docs.example.com/api');
+    await user.click(screen.getByRole('button', { name: 'settings.skills.learn.submit' }));
+
+    await waitFor(() => {
+      expect(mockSendMessage).toHaveBeenCalledWith('/learn URL: https://docs.example.com/api');
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'settings.skills.learn.submit' })).toBeEnabled();
+    });
+    expect(mockToast.info).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('settings.skills.learn.urlLabel')).toHaveValue('https://docs.example.com/api');
   });
 
   it('bootstraps a chat when none is active before submitting', async () => {

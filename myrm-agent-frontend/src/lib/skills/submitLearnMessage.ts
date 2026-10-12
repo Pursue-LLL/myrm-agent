@@ -5,6 +5,7 @@
  *
  * [OUTPUT]
  * submitLearnMessage: Ensures a chat session exists, then sends raw `/learn` via sendMessage.
+ * A send refused before its turn started is reported as `refused` so callers keep the user's input.
  *
  * [POS]
  * Shared learn submission helper for Settings SkillsLearnPanel and slash builtin /learn.
@@ -12,7 +13,7 @@
 
 import { buildLearnSlashMessageFromInput } from './composeLearnSlashMessage';
 
-export type SubmitLearnFailureReason = 'no_chat' | 'busy' | 'empty' | 'error';
+export type SubmitLearnFailureReason = 'no_chat' | 'busy' | 'empty' | 'refused' | 'error';
 
 export interface SubmitLearnMessageOptions {
   /** Full slash input (`/learn …`) or bare learn args. */
@@ -46,7 +47,10 @@ export async function submitLearnMessage(
   const message = buildLearnSlashMessageFromInput(trimmedInput);
 
   try {
-    await sendMessage(message);
+    // A refused send has already told the user why; reporting success would clear their input and claim a start.
+    if (!(await sendMessage(message))) {
+      return { ok: false, reason: 'refused' };
+    }
     return { ok: true, message, chatId };
   } catch {
     return { ok: false, reason: 'error' };
