@@ -9806,12 +9806,20 @@
       "added_with_position": "Message queued (#{position}) — will send after current task completes",
       "sendLater": "Queue for later",
       "sendLaterTooltip": "Don't interrupt — send after the current task finishes (⌥↵ Alt+Enter)",
-      "placeholder": "Agent busy... Enter to steer · ⌥+Enter to queue follow-up",
+      "busyPlaceholder": {
+        "redirect": "Agent busy... Enter to redirect now · ⌥+Enter to queue follow-up",
+        "steer": "Agent busy... Enter to send guidance · ⌥+Enter to queue follow-up",
+        "queue": "Agent busy... Enter to queue follow-up"
+      },
       "edit": "Edit message",
       "saveEdit": "Save",
       "cancelEdit": "Cancel",
       "stuck": "Queued messages couldn't be sent yet and are on hold.",
-      "placeholderExpanded": "Agent busy... Ctrl/⌘+Enter to steer · ⌥+Enter to queue follow-up",
+      "busyPlaceholderExpanded": {
+        "redirect": "Agent busy... Ctrl/⌘+Enter to redirect now · ⌥+Enter to queue follow-up",
+        "steer": "Agent busy... Ctrl/⌘+Enter to send guidance · ⌥+Enter to queue follow-up",
+        "queue": "Agent busy... Ctrl/⌘+Enter to queue follow-up"
+      },
       "pausedStopped": "Queue paused because you stopped the reply.",
       "resume": "Resume",
       "retry": "Retry",

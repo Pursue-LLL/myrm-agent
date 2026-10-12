@@ -9805,12 +9805,20 @@
       "added_with_position": "消息已排队（第 {position} 条）— 当前任务完成后自动发送",
       "sendLater": "排队稍后发送",
       "sendLaterTooltip": "不打断当前任务 — 任务完成后自动发送 (⌥↵ Alt+Enter)",
-      "placeholder": "正在执行... Enter 引导纠偏 · ⌥+Enter 排队跟进",
+      "busyPlaceholder": {
+        "redirect": "正在执行... Enter 立即纠偏 · ⌥+Enter 排队跟进",
+        "steer": "正在执行... Enter 发送引导 · ⌥+Enter 排队跟进",
+        "queue": "正在执行... Enter 排队跟进"
+      },
       "edit": "编辑消息",
       "saveEdit": "保存",
       "cancelEdit": "取消",
       "stuck": "排队消息暂时无法发送，已暂停。",
-      "placeholderExpanded": "正在执行... Ctrl/⌘+Enter 引导纠偏 · ⌥+Enter 排队跟进",
+      "busyPlaceholderExpanded": {
+        "redirect": "正在执行... Ctrl/⌘+Enter 立即纠偏 · ⌥+Enter 排队跟进",
+        "steer": "正在执行... Ctrl/⌘+Enter 发送引导 · ⌥+Enter 排队跟进",
+        "queue": "正在执行... Ctrl/⌘+Enter 排队跟进"
+      },
       "pausedStopped": "你已停止回复，队列已暂停。",
       "resume": "继续发送",
       "retry": "重试",

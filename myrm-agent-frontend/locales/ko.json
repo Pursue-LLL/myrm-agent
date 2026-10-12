@@ -2305,12 +2305,20 @@
       "added_with_position": "메시지가 대기열에 추가됨 (#{position}) — 현재 작업 완료 후 전송됩니다",
       "sendLater": "나중에 보내기",
       "sendLaterTooltip": "중단하지 않음 — 현재 작업 완료 후 자동 전송",
-      "placeholder": "다음 작업 입력 (대기열에 추가, 중단하지 않음)...",
+      "busyPlaceholder": {
+        "redirect": "실행 중... Enter로 지금 리디렉션 · ⌥+Enter로 대기열에 추가",
+        "steer": "실행 중... Enter로 안내 전송 · ⌥+Enter로 대기열에 추가",
+        "queue": "실행 중... Enter로 대기열에 추가"
+      },
       "edit": "메시지 편집",
       "saveEdit": "저장",
       "cancelEdit": "취소",
       "stuck": "대기열 메시지를 아직 전송하지 못해 일시 중지되었습니다.",
-      "placeholderExpanded": "실행 중... Ctrl/⌘+Enter로 안내 · ⌥+Enter로 대기열에 추가",
+      "busyPlaceholderExpanded": {
+        "redirect": "실행 중... Ctrl/⌘+Enter로 지금 리디렉션 · ⌥+Enter로 대기열에 추가",
+        "steer": "실행 중... Ctrl/⌘+Enter로 안내 전송 · ⌥+Enter로 대기열에 추가",
+        "queue": "실행 중... Ctrl/⌘+Enter로 대기열에 추가"
+      },
       "pausedStopped": "응답을 중지하여 대기열이 일시 중지되었습니다.",
       "resume": "다시 시작",
       "retry": "다시 시도",

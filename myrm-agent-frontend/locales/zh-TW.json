@@ -2526,12 +2526,20 @@
       "added": "訊息已排隊 — 當前任務完成後自動傳送",
       "sendLater": "排隊稍後傳送",
       "sendLaterTooltip": "不打斷當前任務 — 任務完成後自動傳送",
-      "placeholder": "輸入下個任務（排隊等待，不會打斷）...",
+      "busyPlaceholder": {
+        "redirect": "正在執行... Enter 立即糾偏 · ⌥+Enter 排隊跟進",
+        "steer": "正在執行... Enter 傳送引導 · ⌥+Enter 排隊跟進",
+        "queue": "正在執行... Enter 排隊跟進"
+      },
       "edit": "編輯訊息",
       "saveEdit": "儲存",
       "cancelEdit": "取消",
       "stuck": "排隊訊息暫時無法傳送，已暫停。",
-      "placeholderExpanded": "正在執行... Ctrl/⌘+Enter 引導糾偏 · ⌥+Enter 排隊跟進",
+      "busyPlaceholderExpanded": {
+        "redirect": "正在執行... Ctrl/⌘+Enter 立即糾偏 · ⌥+Enter 排隊跟進",
+        "steer": "正在執行... Ctrl/⌘+Enter 傳送引導 · ⌥+Enter 排隊跟進",
+        "queue": "正在執行... Ctrl/⌘+Enter 排隊跟進"
+      },
       "pausedStopped": "你已停止回覆，佇列已暫停。",
       "resume": "繼續傳送",
       "retry": "重試",

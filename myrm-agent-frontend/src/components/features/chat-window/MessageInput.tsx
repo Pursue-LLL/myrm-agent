@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - @/hooks/message-input/useMessageInput::useMessageInput (POS: 聊天输入状态与提交编排)
- * - @/hooks/message-input/messageInputKeyRouter::resolveDualChannelAction (POS: 聊天输入框双通道键盘交互路由核心)
+ * - @/hooks/message-input/messageInputKeyRouter::{resolveDualChannelAction, resolveBusySubmitMode, resolveBusyPlaceholderKey} (POS: 聊天输入框双通道键盘交互路由核心)
  * - @/store/useChatStore::useChatStore (POS: 聊天状态总线)
  * - ./LivenessIndicator::LivenessIndicator (POS: 聊天输入区 Agent 状态指示灯)
  *
@@ -48,7 +48,11 @@ import { QueuedMessagesList } from './QueuedMessagesList';
 import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
 import { useTranslations } from 'next-intl';
 import { useMessageInput } from '@/hooks/message-input/useMessageInput';
-import { resolveDualChannelAction } from '@/hooks/message-input/messageInputKeyRouter';
+import {
+  resolveBusyPlaceholderKey,
+  resolveBusySubmitMode,
+  resolveDualChannelAction,
+} from '@/hooks/message-input/messageInputKeyRouter';
 import { useDragDrop } from '@/hooks/ui/useDragDrop';
 import { reportUserActivity } from '@/services/memory';
 
@@ -202,6 +206,12 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
   const showBtwDisambiguation = React.useMemo(
     () => loading && /^\/(?:btw|bg)\b/i.test(inputMessage.trim()),
     [loading, inputMessage],
+  );
+
+  // The busy hint names what Enter actually does, which depends on the agent's busy-input setting and attachments.
+  const busyPlaceholderKey = resolveBusyPlaceholderKey(
+    resolveBusySubmitMode(files.length > 0, agentConfig?.busyInputMode),
+    isExpanded,
   );
 
   const { pendingExplicitSkillActivation, setPendingExplicitSkillActivation } = useChatStore(
@@ -573,7 +583,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                     inputHistory.ghostText
                       ? inputHistory.ghostText
                       : loading
-                        ? chatT(isExpanded ? 'queue.placeholderExpanded' : 'queue.placeholder')
+                        ? chatT(busyPlaceholderKey)
                         : chatT(isExpanded ? 'input.expandedPlaceholder' : 'input.placeholder')
                   }
                 />

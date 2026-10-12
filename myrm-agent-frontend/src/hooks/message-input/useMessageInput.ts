@@ -5,6 +5,7 @@
  * - @/hooks/message-input/useInputFileUpload::useInputFileUpload (POS: 聊天输入文件上传 Hook)
  * - @/hooks/message-input/useMessageQueue::useMessageQueue (POS: 排队消息的 React 视图层)
  * - @/hooks/message-input/useQueueDrain::useQueueDrain (POS: 排队消息发送循环)
+ * - @/hooks/message-input/messageInputKeyRouter::resolveBusySubmitMode (POS: 聊天输入框双通道键盘交互路由核心)
  * - @/hooks/message-input/turnCapabilityTelemetry::useTurnCapabilityTelemetry (POS: 单轮能力覆写埋点编排)
  * - @/hooks/message-input/useMessageInputWikiEvidenceCore::recordChatWikiQueryAttempt (POS: Chat 输入链路的 Wiki 证据复问口径核心)
  * - @/hooks/message-input/useMessageInputWikiEvidenceCore::queuePendingChatWikiQuerySuccess (POS: steer success 延迟确认注册)
@@ -30,6 +31,7 @@ import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { useMessageQueue } from './useMessageQueue';
 import { useQueueDrain } from './useQueueDrain';
+import { resolveBusySubmitMode } from './messageInputKeyRouter';
 import { useInputFileUpload } from './useInputFileUpload';
 import { resolveArchiveRestoreActionsForMessage } from '@/store/chat/archiveRestoreActions';
 import { recordChatWikiQueryAttempt, queuePendingChatWikiQuerySuccess } from './useMessageInputWikiEvidenceCore';
@@ -438,9 +440,7 @@ export const useMessageInput = () => {
     }
 
     if (loading) {
-      // Redirect and steer carry text only, so a message with attachments waits in the queue instead of dropping them.
-      const mode = useChatStore.getState().files.length > 0 ? 'queue' : (agentConfig?.busyInputMode ?? 'redirect');
-      switch (mode) {
+      switch (resolveBusySubmitMode(useChatStore.getState().files.length > 0, agentConfig?.busyInputMode)) {
         case 'redirect':
           await handleRedirectSubmit();
           break;
