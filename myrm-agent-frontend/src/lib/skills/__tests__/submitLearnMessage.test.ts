@@ -57,7 +57,7 @@ describe('submitLearnMessage', () => {
     });
   });
 
-  it('reports a refused send instead of claiming the learn run started', async () => {
+  it('reports a refused send without claiming the learn run started', async () => {
     chatState.chatId = 'chat-1';
     mockSendMessage.mockResolvedValue(false);
 

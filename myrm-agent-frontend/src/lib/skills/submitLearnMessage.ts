@@ -48,7 +48,8 @@ export async function submitLearnMessage(
 
   try {
     // A refused send has already told the user why; reporting success would clear their input and claim a start.
-    if (!(await sendMessage(message))) {
+    const dispatched = await sendMessage(message);
+    if (!dispatched) {
       return { ok: false, reason: 'refused' };
     }
     return { ok: true, message, chatId };
