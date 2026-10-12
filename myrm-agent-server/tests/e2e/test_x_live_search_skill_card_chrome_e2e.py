@@ -100,11 +100,10 @@ def test_chrome_ui_x_live_search_skill_card_matches_registry() -> None:
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
 
-    # Live registry contract first: the skill is active, at version 1.1.0.
+    # Live registry contract first: the skill is listed at version 1.1.0.
     _ensure_skill_enabled()
     entry = _fetch_registry_entry()
     assert entry, f"{_SKILL_ID} missing from registry after enable"
-    assert entry.get("is_active") is True, json.dumps(entry, ensure_ascii=False)
     assert entry.get("version") == "1.1.0", json.dumps(entry, ensure_ascii=False)
     registry_available = bool(entry.get("available"))
     unavailable_reason = str(entry.get("unavailable_reason") or "")

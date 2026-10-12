@@ -71,12 +71,11 @@ async def _count_agent_skills(agent_id: str | None, db: AsyncSession | None) -> 
         return 0
 
 
-async def _count_active_skills() -> int:
+async def _count_skills() -> int:
     try:
         from app.core.skills.store.service import skills_service
 
-        skills = await skills_service.list_skills()
-        return sum(1 for skill in skills if skill.is_active)
+        return len(await skills_service.list_skills())
     except Exception as exc:
         logger.warning("Compounding status: skills list failed: %s", exc)
         return 0
@@ -103,7 +102,7 @@ async def build_compounding_status(
     memory_count = await _count_memory_baseline(memory_manager)
     skill_count = await _count_agent_skills(agent_id, db)
     if skill_count == 0:
-        skill_count = await _count_active_skills()
+        skill_count = await _count_skills()
 
     cron_count, verify_count = await _count_cron_jobs(cron_manager)
 

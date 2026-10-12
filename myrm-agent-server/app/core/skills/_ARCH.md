@@ -22,7 +22,6 @@
 | `loader.py` | 核心 | 技能后端工厂，组装 SkillBackend。支持 `allowed_prebuilt_ids` 白名单过滤 prebuilt 技能（Action Space Opt-In）：`/prebuilt/` 路由是 `_EnabledPrebuiltBackend`，只列出并只读取已启用的 prebuilt（内容委托给完整 prebuilt 后端）。`/user/` 路由是 `_UserSkillBackend`：按运行时名称与 `storage_skill_id` 双键定位，LOCAL 技能直接读取其磁盘目录（SKILL.md / 资源，路径受 `safe_join_path` 约束），其余技能经 StorageProvider 读取。 | ✅ |
 | `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理 | ✅ |
 | `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`）。边界见 [SKILLS_SYSTEM.md §3.5](SKILLS_SYSTEM.md) | ✅ |
-| `state_reader.py` | 核心 | SkillStateReader 实现（SQLite 隔离状态查询，默认复用进化存储单例） | ✅ |
 | `storage_adapters.py` | 核心 | SnapshotStore/ABTestStore 协议适配器 | ✅ |
 | `utils.py` | 核心 | 技能名称标准化（normalize_skill_name） | — |
 | `store/__init__.py` | 子域 | 存储层聚合出口：CRUD 服务 + 用户配置 + 转发 harness sanitizer（`myrm_agent_harness.agent.skills.market.sanitizer`） | — |

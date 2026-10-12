@@ -97,7 +97,6 @@ def skill_to_response(skill: Skill) -> SkillResponse:
         category=skill.category,
         icon_url=skill.icon_url,
         tags=skill.tags,
-        is_active=skill.is_active,
         token_cost=skill.token_cost,
         requires=SkillRequiresResponse(
             bins=skill.requires.bins,

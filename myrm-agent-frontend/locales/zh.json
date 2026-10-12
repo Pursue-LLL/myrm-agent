@@ -17107,8 +17107,6 @@
         "updatedAt": "更新时间",
         "idleWarning": "近30天未被任何智能体调用，建议冻结或归档",
         "archivedReason": "因长期不活跃而归档",
-        "quarantined": "已隔离",
-        "quarantinedReason": "该技能运行出错后已被隔离，智能体不会加载它。",
         "usageStats": "已调用 {count} 次",
         "neverUsed": "从未调用",
         "tokenCostTooltip": "上下文开销：每次对话约 {count} tokens",

@@ -170,23 +170,6 @@ class SkillsService:
             except Exception:
                 pass
 
-        if skill:
-            # Merge runtime is_active status from SQLite
-            try:
-                from app.core.skills.store.evolution_store import (
-                    get_evolution_skill_store,
-                )
-
-                db_record = get_evolution_skill_store().get_skill(skill.id)
-                if db_record is not None:
-                    skill.is_active = db_record.is_active
-            except Exception as e:
-                logger.error(
-                    "Failed to merge is_active status from SQLite for %s: %s",
-                    skill.id,
-                    e,
-                )
-
         return skill
 
     async def list_skills(
@@ -220,18 +203,6 @@ class SkillsService:
                     skill.user_trusted = True
                     if skill.trust != "trusted":
                         skill.trust = "trusted"
-
-        # Merge runtime is_active status from SQLite
-        try:
-            from app.core.skills.store.evolution_store import get_evolution_skill_store
-
-            store = get_evolution_skill_store()
-            for skill in skills:
-                db_record = store.get_skill(skill.id)
-                if db_record is not None:
-                    skill.is_active = db_record.is_active
-        except Exception as e:
-            logger.error("Failed to merge is_active status from SQLite: %s", e)
 
         return reader.sort_skills(skills, sort_by, order)
 
@@ -290,7 +261,6 @@ class SkillsService:
         description: str | None = None,
         category: str | None = None,
         tags: list[str] | None = None,
-        is_active: bool | None = None,
         version: str | None = None,
     ) -> Skill | None:
         """更新技能元数据"""
@@ -310,7 +280,6 @@ class SkillsService:
             description=description if description is not None else skill.description,
             category=category if category is not None else skill.category,
             tags=tags if tags is not None else skill.tags,
-            is_active=is_active if is_active is not None else skill.is_active,
             version=version if version is not None else skill.version,
             updated_at=datetime.utcnow(),
         )

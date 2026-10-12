@@ -39,7 +39,7 @@ async def test_build_compounding_status_counts() -> None:
     cron_manager.list_jobs = AsyncMock(return_value=[_sample_job(with_acceptance=True)])
 
     with patch(
-        "app.services.compounding_playbook.status_service._count_active_skills",
+        "app.services.compounding_playbook.status_service._count_skills",
         new_callable=AsyncMock,
         return_value=0,
     ):

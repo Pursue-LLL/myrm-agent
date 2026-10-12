@@ -14,14 +14,12 @@ describe('SkillsSectionPanel', () => {
       id: 'skill-1',
       name: 'code_runner',
       description: 'Run python code',
-      is_active: true,
       agent_id: 'test-agent',
     } as unknown as Skill,
     {
       id: 'skill-2',
       name: 'pdf_extractor',
       description: 'Extract PDF text',
-      is_active: true,
       agent_id: 'test-agent',
     } as unknown as Skill,
   ];

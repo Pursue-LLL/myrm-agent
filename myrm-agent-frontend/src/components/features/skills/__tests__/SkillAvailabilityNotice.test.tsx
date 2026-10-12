@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import SkillAvailabilityNotice from '../SkillAvailabilityNotice';
 import SkillCard from '../SkillCard';
-import { TooltipProvider } from '@/components/primitives/tooltip';
 import type { Skill, SkillRequires } from '@/store/skill/types';
 
 const translate = (key: string): string => key;
@@ -32,7 +31,6 @@ function buildSkill(overrides: Partial<Skill>): Skill {
     category: 'office',
     icon_url: null,
     tags: [],
-    is_active: true,
     requires: { bins: [], env: ['EMAIL_IMAP_HOST'], config: [] },
     available: false,
     unavailable_reason: 'Missing: ENV: EMAIL_IMAP_HOST',
@@ -118,19 +116,5 @@ describe('SkillCard availability action', () => {
 
     expect(onViewDetails).toHaveBeenCalledTimes(1);
     expect(onViewDetails).toHaveBeenCalledWith(skill);
-  });
-});
-
-describe('SkillCard quarantine badge', () => {
-  it('renders the quarantine badge text from translations', () => {
-    const skill = buildSkill({ is_active: false, available: true });
-    render(
-      <TooltipProvider>
-        <SkillCard skill={skill} isEnabled={false} onViewDetails={vi.fn()} />
-      </TooltipProvider>,
-    );
-
-    expect(screen.getByText('card.quarantined')).toBeTruthy();
-    expect(screen.queryByText('Quarantined')).toBeNull();
   });
 });

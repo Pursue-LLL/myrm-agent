@@ -15,7 +15,6 @@ from myrm_agent_harness.backends.skills import (
     CompositeSkillBackend,
     InMemorySkillBackend,
     LocalSkillBackend,
-    QuarantineAwareSkillBackend,
     StorageSkillBackend,
     VersionAwareSkillBackend,
 )
@@ -205,15 +204,9 @@ async def create_skill_backend(
     else:
         final_backend = CompositeSkillBackend(routes=routes, default=prebuilt_backend)
 
-    # Quarantine awareness: runtime state filtering via SkillStateReader protocol
-    from app.core.skills.state_reader import SQLiteSkillStateReader
-
-    state_reader = SQLiteSkillStateReader()
-    quarantine_backend = QuarantineAwareSkillBackend(base_backend=final_backend, state_reader=state_reader)
-
     from app.core.skills.gates.oauth_availability import wrap_integration_oauth_backend
 
-    runtime_backend: SkillBackend = quarantine_backend
+    runtime_backend: SkillBackend = final_backend
 
     # Version awareness: A/B testing and snapshot routing via storage protocols
     try:
@@ -226,7 +219,7 @@ async def create_skill_backend(
         db_storage = SQLAlchemyStorage(session)
 
         runtime_backend = VersionAwareSkillBackend(
-            base_backend=quarantine_backend,
+            base_backend=final_backend,
             snapshot_store=SnapshotStoreAdapter(db_storage),
             ab_test_store=ABTestStoreAdapter(db_storage),
         )

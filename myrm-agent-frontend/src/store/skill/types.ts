@@ -77,7 +77,6 @@ export interface Skill {
   category: SkillCategory | string | null;
   icon_url: string | null;
   tags: string[];
-  is_active: boolean;
   token_cost?: number | null;
 
   requires: SkillRequires;

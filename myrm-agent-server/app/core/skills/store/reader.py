@@ -36,9 +36,7 @@ async def list_prebuilt_skills(storage: StorageProvider) -> list[Skill]:
             if file_path.endswith(SKILL_METADATA_FILE):
                 try:
                     content = await storage.read_text(file_path)
-                    skill = Skill.from_dict(json.loads(content))
-                    if skill.is_active:
-                        skills.append(skill)
+                    skills.append(Skill.from_dict(json.loads(content)))
                 except Exception as e:
                     logger.warning(f"Failed to load skill from {file_path}: {e}")
     except Exception:
@@ -216,7 +214,7 @@ async def download_skill_to_workspace(
                 snapshot_path = workspace_root / ".skills_snapshot.sqlite"
                 skill_md_path = Path(target_path) / "SKILL.md"
 
-                def _do_upsert():
+                def _do_upsert() -> None:
                     snapshot = SQLiteSkillSnapshot(snapshot_path)
                     snapshot.upsert_from_path(skill_md_path, workspace_root=workspace_root)
 

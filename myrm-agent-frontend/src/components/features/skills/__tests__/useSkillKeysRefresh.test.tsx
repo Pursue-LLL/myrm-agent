@@ -37,7 +37,6 @@ function buildSkill(overrides: Partial<Skill>): Skill {
     category: 'office',
     icon_url: null,
     tags: [],
-    is_active: true,
     requires: { bins: [], env: ['NOTION_API_KEY'], config: [] },
     available: false,
     unavailable_reason: 'Missing: ENV: NOTION_API_KEY',

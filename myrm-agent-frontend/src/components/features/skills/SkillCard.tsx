@@ -136,7 +136,6 @@ const SkillCard = memo(
     const isPinned = skill.usage_stats?.pinned ?? false;
     const isStale = lifecycleStatus === 'stale';
     const isArchived = lifecycleStatus === 'archived';
-    const isQuarantined = skill.is_active === false;
 
     const handleLifecycleAction = useCallback(
       (action: SkillLifecycleAction) => {
@@ -154,11 +153,10 @@ const SkillCard = memo(
         className={cn(
           'group relative rounded-xl border bg-card p-4 transition-all duration-200',
           'hover:shadow-md hover:border-primary/30 cursor-pointer',
-          isEnabled && !isStale && !isArchived && !isQuarantined && 'border-primary/50 bg-primary/5',
+          isEnabled && !isStale && !isArchived && 'border-primary/50 bg-primary/5',
           !skill.available && isEnabled && 'border-amber-400/50 bg-amber-50/50 dark:bg-amber-950/20',
           isStale && 'opacity-70 border-dashed border-amber-400/50',
           isArchived && 'opacity-50 border-dashed border-muted-foreground/30',
-          isQuarantined && 'opacity-60 border-destructive/50 bg-destructive/5',
         )}
         onClick={handleViewDetails}
         role="presentation"
@@ -203,19 +201,6 @@ const SkillCard = memo(
                         ? t('card.staleReason', { date: new Date(skill.usage_stats.last_used_at).toLocaleDateString() })
                         : t('card.staleReasonNeverUsed')}
                     </TooltipContent>
-                  </Tooltip>
-                )}
-                {isQuarantined && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge
-                        variant="outline"
-                        className="text-xs px-1.5 py-0 border-destructive text-destructive cursor-help"
-                      >
-                        {t('card.quarantined')}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('card.quarantinedReason')}</TooltipContent>
                   </Tooltip>
                 )}
                 {skill.has_upstream_update && (

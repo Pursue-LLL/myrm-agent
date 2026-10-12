@@ -33,7 +33,6 @@ class Skill:
     category: str | None = None
     icon_url: str | None = None
     tags: list[str] = field(default_factory=list)
-    is_active: bool = True
     token_cost: int | None = None
 
     # Dependency and availability
@@ -54,8 +53,13 @@ class Skill:
     # Env injection
     primary_env: str | None = None
     oauth_issuer: str | None = None
+    """Primary OAuth issuer key for runtime credential injection."""
+
     required_oauth_issuers: list[str] = field(default_factory=list)
+    """Multiple OAuth issuer keys required by this skill (from SKILL.md frontmatter)."""
+
     required_mcp_server_ids: list[str] = field(default_factory=list)
+    """Multiple MCP server identifiers required by this skill for preflight checks."""
 
     # DLP Protection
     allowed_domains: list[str] | None = None
@@ -78,15 +82,6 @@ class Skill:
     Mirror of ``SkillMetadata.required_permissions`` as plain strings —
     the business layer does not depend on the framework's enum type.
     """
-
-    oauth_issuer: str | None = None
-    """Primary OAuth issuer key for runtime credential injection."""
-
-    required_oauth_issuers: list[str] = field(default_factory=list)
-    """Multiple OAuth issuer keys required by this skill (from SKILL.md frontmatter)."""
-
-    required_mcp_server_ids: list[str] = field(default_factory=list)
-    """Multiple MCP server identifiers required by this skill for preflight checks."""
 
     config_schema: dict[str, object] | None = None
     """JSON Schema for skill configuration UI (from SKILL.md frontmatter)."""
@@ -118,7 +113,6 @@ class Skill:
             "category": self.category,
             "icon_url": self.icon_url,
             "tags": self.tags,
-            "is_active": self.is_active,
             "token_cost": self.token_cost,
             "requires": self.requires.to_dict(),
             "available": self.available,
@@ -179,7 +173,6 @@ class Skill:
             version=meta.version or "1.0.0",
             category=category,
             tags=tags,
-            is_active=True,
             token_cost=meta.token_cost,
             requires=meta.requires or SkillRequires(),
             available=meta.available,
@@ -225,9 +218,8 @@ class Skill:
             category=_opt_str(data.get("category")),
             icon_url=_opt_str(data.get("icon_url")),
             tags=_str_list(data.get("tags")),
-            is_active=bool(data.get("is_active", True)),
-            token_cost=(int(data.get("token_cost")) if data.get("token_cost") is not None else None),
-            requires=SkillRequires.from_dict(data.get("requires")),
+            token_cost=_opt_int(data.get("token_cost")),
+            requires=SkillRequires.from_dict(_opt_dict(data.get("requires"))),
             available=bool(data.get("available", True)),
             unavailable_reason=_opt_str(data.get("unavailable_reason")),
             trust=str(data.get("trust", "installed")),
@@ -246,20 +238,24 @@ class Skill:
             required_permissions=_str_list(data.get("required_permissions")),
             required_oauth_issuers=_str_list(data.get("required_oauth_issuers")),
             required_mcp_server_ids=_str_list(data.get("required_mcp_server_ids")),
-            config_schema=(data.get("config_schema") if isinstance(data.get("config_schema"), dict) else None),
-            usage_stats=_coerce_usage_stats(data.get("usage_stats")),
+            config_schema=_opt_dict(data.get("config_schema")),
+            usage_stats=_opt_dict(data.get("usage_stats")),
             origin_hash=_opt_str(data.get("origin_hash")),
             has_upstream_update=bool(data.get("has_upstream_update", False)),
-            installed_from=_coerce_usage_stats(data.get("installed_from")),
+            installed_from=_opt_dict(data.get("installed_from")),
             created_at=_parse_datetime(data.get("created_at")),
             updated_at=_parse_datetime(data.get("updated_at")),
         )
 
 
-def _coerce_usage_stats(raw: object) -> dict[str, object] | None:
+def _opt_dict(raw: object) -> dict[str, object] | None:
     if not isinstance(raw, dict):
         return None
     return {str(k): v for k, v in raw.items()}
+
+
+def _opt_int(val: object) -> int | None:
+    return int(val) if isinstance(val, (int, float, str)) else None
 
 
 def _opt_str(val: object) -> str | None:

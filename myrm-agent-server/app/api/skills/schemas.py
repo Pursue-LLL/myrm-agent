@@ -75,7 +75,6 @@ class SkillResponse(BaseModel):
     category: str | None = None
     icon_url: str | None = None
     tags: list[str] = []
-    is_active: bool = True
     token_cost: int | None = None
 
     requires: SkillRequiresResponse = SkillRequiresResponse()

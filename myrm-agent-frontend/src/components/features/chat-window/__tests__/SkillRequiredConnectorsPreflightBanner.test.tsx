@@ -56,7 +56,6 @@ describe('SkillRequiredConnectorsPreflightBanner', () => {
           category: 'office',
           icon_url: null,
           tags: [],
-          is_active: true,
           requires: { bins: [], env: [], config: [] },
           available: false, // unavailable triggers preflight warning
           unavailable_reason: 'Missing OAuth',
@@ -107,7 +106,6 @@ describe('SkillRequiredConnectorsPreflightBanner', () => {
           category: 'office',
           icon_url: null,
           tags: [],
-          is_active: true,
           requires: { bins: [], env: [], config: [] },
           available: true, // available -> no missing OAuth
           unavailable_reason: null,
