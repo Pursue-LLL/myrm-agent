@@ -79,9 +79,9 @@ class TauriTrayBridge implements ITrayBridge {
 
 class TauriShellBridge implements IShellBridge {
   /**
-   * Single channel: a refused open is reported to the caller instead of being retried through window.open.
-   * The external link policy routes window.open back into this method, so a fallback would loop forever
-   * while the plugin keeps refusing, and it would also report the dead window.open as a success.
+   * Single channel: resolves false when the shell plugin refuses or fails to open the URL, and never retries through
+   * window.open. The external link policy routes window.open back into this method, so a fallback would loop while
+   * the plugin keeps refusing and would report the silently dropped window.open as a success.
    */
   async openExternalUrl(url: string): Promise<boolean> {
     if (!url || !isTauriEnvironment()) {

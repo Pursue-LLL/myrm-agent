@@ -1,15 +1,14 @@
 /**
  * [INPUT]
- * - DOM Window contract only (any Window-shaped object, which keeps the policy unit-testable)
+ * - win: Window-shaped host object, injected so the policy stays unit-testable
+ * - openExternal: injected opener honoring the IShellBridge.openExternalUrl contract (POS: 外链通道；被拒绝时 resolve false，不 reject)
  *
  * [OUTPUT]
- * - installExternalLinkPolicy: routes window.open new-window requests for http(s) URLs to the system browser, returns an uninstall function
+ * - installExternalLinkPolicy: patches win.open so new-window requests for http(s) URLs reach the system browser; returns the uninstall function
  *
  * [POS]
- * The desktop shell (wry) opens no window for window.open and drops the request silently; the shell's own
- * interceptor only handles <a target="_blank"> clicks. This policy rewrites exactly the calls that cannot work
- * there: a new-window target (omitted, empty or _blank) with an http(s) URL. Everything else (_self/_parent/_top,
- * named targets, other schemes, no URL) goes to the native implementation unchanged.
+ * Desktop shell link routing policy. The shell (wry) drops window.open silently and its own interceptor only handles
+ * <a target="_blank"> clicks, so this policy routes exactly the calls that cannot work there.
  */
 
 type OpenExternal = (url: string) => Promise<boolean>;
@@ -32,6 +31,10 @@ function resolveWebUrl(url: string | URL | undefined, base: string): string | nu
   }
 }
 
+/**
+ * Routes a new-window target (omitted, empty or _blank) with an http(s) URL to `openExternal`. Everything else
+ * (_self/_parent/_top, named targets, other schemes, no URL) goes to the native implementation unchanged.
+ */
 export function installExternalLinkPolicy(win: Window, openExternal: OpenExternal): () => void {
   const nativeOpen = win.open;
 

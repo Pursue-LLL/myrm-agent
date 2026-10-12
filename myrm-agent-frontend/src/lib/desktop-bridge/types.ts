@@ -65,6 +65,10 @@ export interface ITrayBridge {
 }
 
 export interface IShellBridge {
+  /**
+   * Hands a URL to the system browser. Resolves true once the request has been issued, false when the URL is empty
+   * or the runtime refuses or cannot issue it.
+   */
   openExternalUrl(url: string): Promise<boolean>;
   openFileDialog(options?: NativeOpenFileDialogOptions): Promise<string | string[] | null>;
 }

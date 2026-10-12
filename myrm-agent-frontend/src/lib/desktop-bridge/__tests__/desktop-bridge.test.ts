@@ -91,7 +91,7 @@ describe('Desktop Bridge Protocol', () => {
         expect(shellOpen).toHaveBeenCalledWith('https://example.com/docs');
       });
 
-      it('reports a refused open instead of retrying through window.open', async () => {
+      it('reports a refused open as false without retrying through window.open', async () => {
         vi.spyOn(tauriModule, 'isTauriEnvironment').mockReturnValue(true);
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const refusal = new Error('url not allowed');

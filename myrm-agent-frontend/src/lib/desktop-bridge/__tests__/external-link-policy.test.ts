@@ -192,7 +192,7 @@ describe('external link policy on top of the Tauri shell bridge', () => {
   });
 
   it('makes exactly one plugin attempt per window.open while the plugin keeps refusing', async () => {
-    // Refusals stop after a bound so a regression fails the assertion instead of hanging the runner.
+    // A re-entrant fallback is cut off after a bound, so it fails the assertion instead of hanging the runner.
     const REFUSAL_BOUND = 50;
     let attempts = 0;
     shellOpen.mockImplementation(async () => {
