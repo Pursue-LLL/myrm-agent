@@ -2,21 +2,34 @@
 
 [INPUT]
 app.services.memory.backup.backup_remote::RemoteBackupStrategy (POS: 本服务远程备份策略)
-app.services.memory.backup.backup::VolumeBackupStrategy (POS: 本服务本地备份策略)
-app.services.memory.backup.backup_remote_utils::create_backup_for_remote/restore_remote_backup (POS: 本服务远程桥接)
+app.services.memory.backup.snapshot::capture_snapshot/apply_snapshot/encode_snapshot/decode_snapshot (POS: 本服务备份快照契约)
 
-Manages periodic automatic backup to configured remote storage (WebDAV/S3).
-Integrates with the existing APScheduler lifecycle and VolumeBackupStrategy.
+Runs one remote backup cycle (capture snapshot, upload, rotate) and remote restores for
+WebDAV/S3. The APScheduler job in app.lifecycle.schedulers drives the periodic cycle; the
+snapshot format is shared with the local volume backups.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import platform
 import socket
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from myrm_agent_harness.toolkits.memory import MemoryManager
+
+from app.services.memory.backup.snapshot import (
+    MemorySnapshot,
+    SnapshotError,
+    apply_snapshot,
+    capture_snapshot,
+    decode_snapshot,
+    encode_snapshot,
+)
 
 if TYPE_CHECKING:
     from app.services.memory.backup.backup_remote import (
@@ -30,6 +43,9 @@ _auto_backup_running = False
 _MAX_UPLOAD_RETRIES = 3
 _RETRY_BASE_DELAY_S = 2.0
 
+# The remote name is only a selector on the storage provider; the download always lands under this fixed local name.
+_DOWNLOAD_FILE_NAME = "backup.json.gz"
+
 
 async def _upload_with_retry(
     strategy: "RemoteBackupStrategy",
@@ -37,8 +53,6 @@ async def _upload_with_retry(
     remote_name: str,
 ) -> bool:
     """Upload with exponential backoff retry (max 3 attempts)."""
-    import asyncio
-
     for attempt in range(1, _MAX_UPLOAD_RETRIES + 1):
         try:
             ok = await strategy.upload(local_path, remote_name)
@@ -71,16 +85,16 @@ async def _upload_with_retry(
 
 
 async def run_remote_backup(
+    manager: MemoryManager,
     strategy: RemoteBackupStrategy,
-    backup_root: Path | None = None,
     device_name: str = "",
     max_backups: int = 10,
 ) -> dict[str, object]:
     """Execute a single remote backup cycle.
 
     Steps:
-    1. Create local backup via VolumeBackupStrategy
-    2. Compress and upload to remote
+    1. Capture a complete memory snapshot (fails instead of uploading a partial one)
+    2. Compress and upload it to the remote
     3. Rotate old backups beyond max_backups (per device)
 
     Returns:
@@ -94,32 +108,17 @@ async def run_remote_backup(
     start = datetime.now(UTC)
 
     try:
-        from app.services.memory.backup.backup import VolumeBackupStrategy as LocalStrategy
-
-        local_strategy = LocalStrategy(backup_root=backup_root)
+        snapshot = await capture_snapshot(manager)
 
         hostname = device_name or socket.gethostname() or "unknown"
         device_type = platform.system().lower() or "unknown"
         timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         backup_filename = f"myrm.{timestamp}.{hostname}.{device_type}.json.gz"
 
-        from app.services.memory.backup.backup_remote_utils import (
-            create_exportable_backup,
-        )
-
-        local_backup_path = await create_exportable_backup(local_strategy, backup_filename)
-
-        if local_backup_path is None:
-            return {
-                "success": False,
-                "error": "Failed to create local backup for remote upload",
-                "duration_ms": _elapsed_ms(start),
-            }
-
-        file_size = local_backup_path.stat().st_size if local_backup_path.exists() else 0
-
-        upload_ok = await _upload_with_retry(strategy, local_backup_path, backup_filename)
-        local_backup_path.unlink(missing_ok=True)
+        with tempfile.TemporaryDirectory(prefix="myrm_remote_backup_") as temp_dir:
+            local_path = Path(temp_dir) / _DOWNLOAD_FILE_NAME
+            file_size = await asyncio.to_thread(_write_snapshot_file, local_path, snapshot)
+            upload_ok = await _upload_with_retry(strategy, local_path, backup_filename)
 
         if not upload_ok:
             return {
@@ -137,6 +136,9 @@ async def run_remote_backup(
             "size_bytes": file_size,
             "duration_ms": _elapsed_ms(start),
         }
+    except SnapshotError as e:
+        logger.warning("Remote backup aborted: %s", e)
+        return {"success": False, "error": str(e), "duration_ms": _elapsed_ms(start)}
     except Exception as e:
         logger.exception("Remote backup failed: %s", e)
         return {
@@ -149,50 +151,40 @@ async def run_remote_backup(
 
 
 async def restore_from_remote(
+    manager: MemoryManager,
     strategy: RemoteBackupStrategy,
     file_name: str,
-    backup_root: Path | None = None,
 ) -> dict[str, object]:
-    """Download and restore a remote backup.
+    """Download a remote backup and merge it into the current memories.
 
-    Steps:
-    1. Download from remote to temp location
-    2. Restore via VolumeBackupStrategy
+    Restoring is non-destructive: entries the store already holds are skipped, nothing is
+    deleted, so a restore on a fresh device equals a full restore.
 
     Returns:
         Result dict with success, restored_count, duration_ms
     """
-    import tempfile
-
     start = datetime.now(UTC)
 
     try:
-        temp_dir = Path(tempfile.mkdtemp(prefix="myrm_restore_"))
-        local_path = temp_dir / file_name
+        with tempfile.TemporaryDirectory(prefix="myrm_restore_") as temp_dir:
+            local_path = Path(temp_dir) / _DOWNLOAD_FILE_NAME
+            if not await strategy.download(file_name, local_path):
+                return {
+                    "success": False,
+                    "error": f"Failed to download {file_name} from remote",
+                    "duration_ms": _elapsed_ms(start),
+                }
+            snapshot = await asyncio.to_thread(_read_snapshot_file, local_path)
 
-        download_ok = await strategy.download(file_name, local_path)
-        if not download_ok:
-            return {
-                "success": False,
-                "error": f"Failed to download {file_name} from remote",
-                "duration_ms": _elapsed_ms(start),
-            }
-
-        from app.services.memory.backup.backup_remote_utils import (
-            restore_from_exportable_backup,
-        )
-
-        result = await restore_from_exportable_backup(local_path, backup_root)
-
-        local_path.unlink(missing_ok=True)
-        temp_dir.rmdir()
-
+        counts = await apply_snapshot(manager, snapshot, replace=False)
         return {
-            "success": result.get("success", False),
-            "restored_count": result.get("restored_count", 0),
+            "success": True,
+            "restored_count": sum(counts.values()),
             "duration_ms": _elapsed_ms(start),
-            "error": result.get("error"),
         }
+    except SnapshotError as e:
+        logger.warning("Remote restore rejected: %s", e)
+        return {"success": False, "error": str(e), "duration_ms": _elapsed_ms(start)}
     except Exception as e:
         logger.exception("Remote restore failed: %s", e)
         return {
@@ -223,6 +215,14 @@ async def _rotate_backups(
             logger.info("Rotated old backup: %s", f.file_name)
     except Exception as e:
         logger.warning("Backup rotation failed: %s", e)
+
+
+def _write_snapshot_file(path: Path, snapshot: MemorySnapshot) -> int:
+    return path.write_bytes(encode_snapshot(snapshot))
+
+
+def _read_snapshot_file(path: Path) -> MemorySnapshot:
+    return decode_snapshot(path.read_bytes())
 
 
 def _elapsed_ms(start: datetime) -> float:

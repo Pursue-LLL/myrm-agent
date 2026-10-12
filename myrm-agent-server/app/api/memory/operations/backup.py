@@ -1,15 +1,20 @@
 """Memory backup and restore endpoints.
 
-Provides API endpoints for creating, listing, restoring, and deleting memory backups.
-Uses VolumeBackupStrategy for sandbox persistent storage.
+Creates, lists, restores and deletes complete snapshots of the user's memories (profile,
+rules, semantic, episodic) on the sandbox persistent volume. Creating and restoring need a
+manager that stores directly (``get_crud_memory_manager``): restored memories must not
+land in the approval queue. Listing and deleting only touch the volume.
 """
 
+import asyncio
 import logging
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from myrm_agent_harness.toolkits.memory import MemoryManager
+from myrm_agent_harness.toolkits.memory.backup import BackupMetadata
 
-from app.api.memory.utils import get_memory_manager
+from app.api.memory.utils import get_crud_memory_manager
 from app.schemas.memory.crud import (
     BackupMetadataResponse,
     CreateBackupRequest,
@@ -18,166 +23,119 @@ from app.schemas.memory.crud import (
     RestoreBackupRequest,
     RestoreBackupResponse,
 )
-from app.services.memory.backup.backup import VolumeBackupStrategy
+from app.services.memory.backup.service import MemoryBackupService
+from app.services.memory.backup.snapshot import SnapshotError
+from app.services.memory.backup.volume_store import BackupNotFoundError, VolumeBackupStore
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/backup")
 
 
+def get_backup_store() -> VolumeBackupStore:
+    return VolumeBackupStore()
+
+
+def _to_response(metadata: BackupMetadata) -> BackupMetadataResponse:
+    return BackupMetadataResponse(
+        backup_id=metadata.backup_id,
+        created_at=metadata.created_at,
+        memory_count=metadata.memory_count,
+        size_bytes=metadata.size_bytes,
+        collections=metadata.collections,
+        description=metadata.description,
+    )
+
+
+def _elapsed_ms(start: float) -> float:
+    return (time.perf_counter() - start) * 1000
+
+
 @router.post("/create", response_model=CreateBackupResponse)
 async def create_backup(
     request: CreateBackupRequest,
-    memory_manager: MemoryManager = Depends(get_memory_manager),
+    manager: MemoryManager = Depends(get_crud_memory_manager),
+    store: VolumeBackupStore = Depends(get_backup_store),
 ) -> CreateBackupResponse:
-    """Create a complete memory backup.
+    """Snapshot every memory onto the persistent volume.
 
-    Backs up all memories (semantic, episodic, conversation) and
-    relational data (profiles, rules) to sandbox persistent volume.
-
-    Returns:
-        Backup creation result with metadata
+    Reports ``success=false`` rather than saving a backup that misses memories.
     """
+    start = time.perf_counter()
     try:
-        strategy = VolumeBackupStrategy()
-        result = await memory_manager.create_backup(
-            strategy=strategy,
-            description=request.description,
-        )
-
-        if result.success and result.metadata:
-            return CreateBackupResponse(
-                success=True,
-                backup_id=result.metadata.backup_id,
-                duration_ms=result.duration_ms,
-                error=None,
-                metadata=BackupMetadataResponse(
-                    backup_id=result.metadata.backup_id,
-                    created_at=result.metadata.created_at,
-                    memory_count=result.metadata.memory_count,
-                    size_bytes=result.metadata.size_bytes,
-                    collections=result.metadata.collections,
-                    description=result.metadata.description,
-                ),
-            )
-        else:
-            return CreateBackupResponse(
-                success=False,
-                backup_id=None,
-                duration_ms=result.duration_ms,
-                error=result.error or "Unknown error",
-                metadata=None,
-            )
-    except Exception as e:
-        logger.exception("Backup creation failed: %s", e)
+        metadata = await MemoryBackupService(manager, store).create(request.description)
+    except SnapshotError as exc:
+        return CreateBackupResponse(success=False, duration_ms=_elapsed_ms(start), error=str(exc))
+    except Exception as exc:
+        logger.exception("Backup creation failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Backup creation failed",
-        ) from e
+        ) from exc
+    return CreateBackupResponse(
+        success=True,
+        backup_id=metadata.backup_id,
+        duration_ms=_elapsed_ms(start),
+        metadata=_to_response(metadata),
+    )
 
 
 @router.get("/list", response_model=ListBackupsResponse)
-async def list_backups(
-    memory_manager: MemoryManager = Depends(get_memory_manager),
-) -> ListBackupsResponse:
-    """List all backups for the current user.
-
-    Returns:
-        List of backup metadata sorted by creation date (newest first)
-    """
+async def list_backups(store: VolumeBackupStore = Depends(get_backup_store)) -> ListBackupsResponse:
+    """List the backups on the volume, newest first."""
     try:
-        strategy = VolumeBackupStrategy()
-        backups = await memory_manager.list_backups(strategy=strategy)
-
-        return ListBackupsResponse(
-            backups=[
-                BackupMetadataResponse(
-                    backup_id=b.backup_id,
-                    created_at=b.created_at,
-                    memory_count=b.memory_count,
-                    size_bytes=b.size_bytes,
-                    collections=b.collections,
-                    description=b.description,
-                )
-                for b in backups
-            ],
-            total=len(backups),
-        )
-    except Exception as e:
-        logger.exception("Failed to list backups: %s", e)
+        backups = await asyncio.to_thread(store.list_backups)
+    except Exception as exc:
+        logger.exception("Failed to list backups: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to list backups",
-        ) from e
+        ) from exc
+    return ListBackupsResponse(backups=[_to_response(b) for b in backups], total=len(backups))
 
 
 @router.post("/restore", response_model=RestoreBackupResponse)
 async def restore_backup(
     request: RestoreBackupRequest,
-    memory_manager: MemoryManager = Depends(get_memory_manager),
+    manager: MemoryManager = Depends(get_crud_memory_manager),
+    store: VolumeBackupStore = Depends(get_backup_store),
 ) -> RestoreBackupResponse:
     """Restore memories from a backup.
 
-    Args:
-        request: Restore request with backup_id and overwrite flag
-
-    Returns:
-        Restore operation result
+    ``overwrite=false`` merges the backup into the current memories, skipping what is
+    already there. ``overwrite=true`` first saves the current memories as a new backup,
+    then replaces them with the backup's.
     """
+    start = time.perf_counter()
     try:
-        strategy = VolumeBackupStrategy()
-        result = await memory_manager.restore_backup(
-            backup_id=request.backup_id,
-            strategy=strategy,
-            overwrite=request.overwrite,
-        )
-
-        return RestoreBackupResponse(
-            success=result.success,
-            restored_count=result.restored_count,
-            duration_ms=result.duration_ms,
-            error=result.error,
-        )
-    except Exception as e:
-        logger.exception("Backup restoration failed: %s", e)
+        restored = await MemoryBackupService(manager, store).restore(request.backup_id, overwrite=request.overwrite)
+    except BackupNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except SnapshotError as exc:
+        return RestoreBackupResponse(success=False, restored_count=0, duration_ms=_elapsed_ms(start), error=str(exc))
+    except Exception as exc:
+        logger.exception("Backup restoration failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Backup restoration failed",
-        ) from e
+        ) from exc
+    return RestoreBackupResponse(success=True, restored_count=restored, duration_ms=_elapsed_ms(start))
 
 
 @router.delete("/{backup_id}", response_model=dict[str, bool])
 async def delete_backup(
     backup_id: str,
-    memory_manager: MemoryManager = Depends(get_memory_manager),
+    store: VolumeBackupStore = Depends(get_backup_store),
 ) -> dict[str, bool]:
-    """Delete a backup.
-
-    Args:
-        backup_id: Backup identifier to delete
-
-    Returns:
-        Success status
-    """
+    """Delete a backup from the volume."""
     try:
-        strategy = VolumeBackupStrategy()
-        success = await memory_manager.delete_backup(
-            backup_id=backup_id,
-            strategy=strategy,
-        )
-
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Backup not found: {backup_id}",
-            )
-
-        return {"success": True}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Backup deletion failed: %s", e)
+        deleted = await asyncio.to_thread(store.delete, backup_id)
+    except Exception as exc:
+        logger.exception("Backup deletion failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Backup deletion failed",
-        ) from e
+        ) from exc
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Backup not found: {backup_id}")
+    return {"success": True}

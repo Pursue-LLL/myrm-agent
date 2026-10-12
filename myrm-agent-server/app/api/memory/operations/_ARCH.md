@@ -10,8 +10,8 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Memory operations submodule。聚合门面 re-export 全部顶层模块（archive_restore/backup/backup_remote/command_center/conflicts/crud/guardian/pending/reindex/working_state）+ 4 个 `shared_context_*` 子模块，供 memory router 单一入口导入 | ✅ |
 | `archive_restore.py` | 模块 | 记忆归档恢复 API 操作层。只编排请求/响应和错误映射，恢复语义由服务层负责。 | ✅ |
-| `backup.py` | 模块 | Memory backup and restore endpoints. | ✅ |
-| `backup_remote.py` | 模块 | Remote backup API endpoints. | ✅ |
+| `backup.py` | 模块 | 本地备份 API：`/backup/create`、`/list`、`/restore`、`DELETE /{id}`。创建/恢复使用直接写入的 CRUD 管理器（恢复内容不得进入审批队列），列表/删除只碰持久卷；未知备份 404，快照不完整或备份损坏以 `success=false` + 可展示的原因返回 | ✅ |
+| `backup_remote.py` | 模块 | 远程备份 API（WebDAV/S3 连接检测、立即备份、列表、合并恢复、删除）；备份/恢复同样使用直接写入的 CRUD 管理器 | ✅ |
 | `command_center.py` | 模块 | 记忆指挥中心 API 操作层。将单用户/单沙箱记忆运行快照暴露给设置页 UI，含 Claim/Evidence 知识图谱（支持 namespace 过滤），`GET /command-center` 支持可选 `project_id` 查询参数将快照聚焦到单个项目的 SharedContext 记忆空间；`GET /command-center/recall-boundary` 返回任务级审查优先召回边界与候选/生效分区快照。 | ✅ |
 | `command_center_actions.py` | 模块 | 记忆指挥中心动作执行实现层。处理 GUI 治理动作（审批、拒绝、修正、Pin/Unpin、遗忘）；待审批记忆的批准/拒绝经审批队列统一审批入口（`services/memory/operations/pending_review.py`），编辑在审阅弹窗的 `edited_content` 完成。纪律默认一键恢复 `restore_disciplined_defaults` 归 Memory Doctor 修复执行器，不在本动作域。 | ✅ |
 | `command_center_consolidation.py` | 模块 | 记忆合并回滚 API 操作层。将 Harness 层的 consolidation_rollback 逻辑暴露给设置页 UI。 | ✅ |

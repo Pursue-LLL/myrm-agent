@@ -849,6 +849,7 @@ async def _remote_backup_auto_sync_job() -> None:
         if not provider:
             return
 
+        from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
         from app.services.memory.backup.backup_remote import (
             S3BackupConfig,
             S3BackupStrategy,
@@ -888,6 +889,7 @@ async def _remote_backup_auto_sync_job() -> None:
             return
 
         result = await run_remote_backup(
+            manager=await create_guardian_memory_manager(),
             strategy=strategy,
             device_name=device_name,
             max_backups=max_backups,

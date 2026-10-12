@@ -9,7 +9,7 @@
 | 目录 | 职责 |
 |------|------|
 | `behavioral/` | 零模型成本确定性行为特征测量服务（滑动窗口事件收集、双轨作息直方图与协作者聚合、Profile 记忆沉淀）。见 `behavioral/_ARCH.md` |
-| `backup/` | 记忆数据备份与恢复服务；WebDAV/S3 远程备份 upload/download/list/delete 抽象、自动同步调度与远程恢复。见 `backup/_ARCH.md` |
+| `backup/` | 完整可移植记忆快照（捕获/回放均核对数量，不完整即失败）、沙箱持久卷备份库与本地备份/恢复服务（覆盖式恢复先留底）；WebDAV/S3 远程备份 upload/download/list/delete 抽象、自动同步调度与远程合并恢复。见 `backup/_ARCH.md` |
 | `archive/` | 单用户 Memory Archive 服务（聚合普通记忆/Shared Context/会话/回放/审计账本，内容脱敏与结构校验）；恢复服务（dry-run、hash 强校验、安全预检、journaled safe-merge、回滚账本、profile 并发保护）。见 `archive/_ARCH.md` |
 | `command_center/` | 个人大脑指挥中心聚合服务（单用户/单沙箱可观测快照、trace run 聚合、`vector_persistence` 揭示）与洞察服务（影响证据、瀑布流、eval checks、迁移来源聚合等）。见 `command_center/_ARCH.md` |
 | `diagnostics/` | Memory Diagnostics 服务与静态检查构建器、probe 结果归一化、质量治理、黄金召回基准、修复计划/执行器、SLO 汇总。见 `diagnostics/_ARCH.md` |

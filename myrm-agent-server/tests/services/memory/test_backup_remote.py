@@ -2,9 +2,9 @@
 
 Tests core backup remote modules:
 - backup_remote.py: Strategy, config dataclasses, XML parsing
-- backup_remote_scheduler.py: run_remote_backup, _upload_with_retry, _rotate_backups
-- backup_remote_utils.py: create_exportable_backup, restore_from_exportable_backup
+- backup_remote_scheduler.py: _upload_with_retry, _rotate_backups, the run/restore guards
 - API endpoints: check-connection, trigger, list, restore, delete
+(the snapshot round trip lives in tests/services/memory/backup/)
 """
 
 from __future__ import annotations
@@ -14,76 +14,24 @@ import json
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.support.in_memory_remote_backup import InMemoryBackupStrategy
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="memory")
+from app.api.memory.utils import get_crud_memory_manager
 from app.services.memory.backup.backup_remote import (
     RemoteBackupFile,
-    RemoteBackupStrategy,
     S3BackupConfig,
     WebDAVBackupConfig,
     _parse_webdav_multistatus,
 )
 
 client = TestClient(app)
-
-
-# ============================================================================
-# Fixtures: In-memory strategy for real integration testing
-# ============================================================================
-
-
-class InMemoryBackupStrategy(RemoteBackupStrategy):
-    """Real in-memory backup strategy for testing without external services."""
-
-    def __init__(self, *, fail_upload: bool = False, fail_count: int = 0) -> None:
-        self._storage: dict[str, bytes] = {}
-        self._fail_upload = fail_upload
-        self._fail_count = fail_count
-        self._upload_attempts = 0
-
-    async def upload(self, local_path: Path, remote_name: str) -> bool:
-        self._upload_attempts += 1
-        if self._fail_upload:
-            return False
-        if self._fail_count > 0 and self._upload_attempts <= self._fail_count:
-            return False
-        self._storage[remote_name] = local_path.read_bytes()
-        return True
-
-    async def download(self, remote_name: str, local_path: Path) -> bool:
-        if remote_name not in self._storage:
-            return False
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        local_path.write_bytes(self._storage[remote_name])
-        return True
-
-    async def list_files(self) -> list[RemoteBackupFile]:
-        results = []
-        for name, data in self._storage.items():
-            results.append(
-                RemoteBackupFile(
-                    file_name=name,
-                    modified_time=datetime.now(UTC),
-                    size_bytes=len(data),
-                )
-            )
-        results.sort(key=lambda f: f.file_name, reverse=True)
-        return results
-
-    async def delete(self, remote_name: str) -> bool:
-        if remote_name in self._storage:
-            del self._storage[remote_name]
-            return True
-        return False
-
-    async def check_connection(self) -> bool:
-        return True
 
 
 # ============================================================================
@@ -263,7 +211,7 @@ class TestRunRemoteBackup:
         sched._auto_backup_running = True
 
         strategy = InMemoryBackupStrategy()
-        result = await sched.run_remote_backup(strategy=strategy, device_name="test")
+        result = await sched.run_remote_backup(manager=MagicMock(), strategy=strategy, device_name="test")
         assert result["success"] is False
         assert "already in progress" in str(result.get("error", "")).lower()
 
@@ -317,6 +265,7 @@ class TestRestoreFromRemote:
 
         strategy = InMemoryBackupStrategy()
         result = await restore_from_remote(
+            manager=MagicMock(),
             strategy=strategy,
             file_name="nonexistent.json.gz",
         )
@@ -333,6 +282,7 @@ class TestRestoreFromRemote:
         strategy._storage["old_backup.json.gz"] = compressed
 
         result = await restore_from_remote(
+            manager=MagicMock(),
             strategy=strategy,
             file_name="old_backup.json.gz",
         )
@@ -348,8 +298,12 @@ class TestRestoreFromRemote:
 class TestRemoteBackupAPI:
     @pytest.fixture(autouse=True)
     def _bypass_auth(self):
-        with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):
-            yield
+        app.dependency_overrides[get_crud_memory_manager] = lambda: MagicMock()
+        try:
+            with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):
+                yield
+        finally:
+            app.dependency_overrides.pop(get_crud_memory_manager, None)
 
     def test_check_connection_missing_config(self):
         response = client.post(
@@ -434,40 +388,3 @@ class TestRemoteBackupAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["connected"] is False
-
-
-# ============================================================================
-# Tests: Exportable Backup Format
-# ============================================================================
-
-
-class TestExportableBackupFormat:
-    def test_gzip_compression_roundtrip(self):
-        """Verify gzip compress/decompress preserves data integrity."""
-        original = {
-            "version": 2,
-            "created_at": datetime.now(UTC).isoformat(),
-            "collections": {"memory_semantic": [{"id": str(i), "text": f"memory content {i}" * 20} for i in range(50)]},
-        }
-        json_bytes = json.dumps(original, ensure_ascii=False).encode("utf-8")
-        compressed = gzip.compress(json_bytes, compresslevel=6)
-        decompressed = gzip.decompress(compressed)
-        restored = json.loads(decompressed.decode("utf-8"))
-
-        assert restored == original
-        assert len(compressed) < len(json_bytes)
-
-    def test_backup_filename_format(self):
-        """Verify backup filename convention."""
-        import platform
-        import socket
-
-        hostname = socket.gethostname() or "unknown"
-        device_type = platform.system().lower() or "unknown"
-        timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
-        filename = f"myrm.{timestamp}.{hostname}.{device_type}.json.gz"
-
-        assert filename.startswith("myrm.")
-        assert filename.endswith(".json.gz")
-        parts = filename.split(".")
-        assert len(parts) >= 5

@@ -4,16 +4,21 @@ Provides REST endpoints for managing remote backup sync:
 - Check connection
 - Trigger manual backup
 - List remote backups
-- Restore from remote backup
+- Restore from remote backup (merges into the current memories, never deletes)
 - Configure auto-sync via Omni-Config (backupSync key)
+
+Backing up and restoring need a manager that stores directly (``get_crud_memory_manager``):
+restored memories must not land in the approval queue.
 """
 
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from myrm_agent_harness.toolkits.memory import MemoryManager
 from pydantic import BaseModel, Field
 
+from app.api.memory.utils import get_crud_memory_manager
 from app.services.memory.backup.backup_remote import (
     S3BackupConfig,
     S3BackupStrategy,
@@ -144,13 +149,17 @@ async def check_connection(request: ConnectionCheckRequest) -> ConnectionCheckRe
 
 
 @router.post("/trigger", response_model=RemoteBackupResponse)
-async def trigger_backup(request: RemoteBackupRequest) -> RemoteBackupResponse:
+async def trigger_backup(
+    request: RemoteBackupRequest,
+    manager: MemoryManager = Depends(get_crud_memory_manager),
+) -> RemoteBackupResponse:
     """Trigger a manual remote backup."""
     import platform
 
     try:
         strategy = _build_strategy(request.provider, request.webdav, request.s3)
         result = await run_remote_backup(
+            manager=manager,
             strategy=strategy,
             device_name=request.device_name or platform.node(),
             max_backups=request.max_backups,
@@ -200,11 +209,15 @@ async def list_remote_backups(request: RemoteBackupListRequest) -> RemoteBackupL
 
 
 @router.post("/restore", response_model=RemoteBackupResponse)
-async def restore_remote_backup(request: RemoteRestoreRequest) -> RemoteBackupResponse:
-    """Download and restore a backup from remote storage."""
+async def restore_remote_backup(
+    request: RemoteRestoreRequest,
+    manager: MemoryManager = Depends(get_crud_memory_manager),
+) -> RemoteBackupResponse:
+    """Download a backup from remote storage and merge it into the current memories."""
     try:
         strategy = _build_strategy(request.provider, request.webdav, request.s3)
         result = await restore_from_remote(
+            manager=manager,
             strategy=strategy,
             file_name=request.file_name,
         )

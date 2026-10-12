@@ -1,104 +1,168 @@
-"""Smoke tests for memory backup HTTP routes (auth + JSON shape).
+"""HTTP flow of the memory backup routes on a real memory manager.
 
-Covers:
-- GET /memory/backup/list — empty list
-- POST /memory/backup/create — success path (manager mocked)
-- POST /memory/backup/restore — success path (manager mocked)
-- DELETE /memory/backup/{id} — success path (manager mocked)
+[INPUT]
+app.api.memory.operations.backup::router
+app.services.memory.backup (service, snapshot, volume store)
 
-Uses dependency overrides only (no external services).
+[OUTPUT]
+create -> list -> restore -> delete through HTTP, and the response shapes the settings panel
+relies on when a backup is missing or cannot be completed.
+
+[POS]
+Route-level contract of the backup panel. Routing, service and persistence are the real ones;
+only the embedder (offline) and the volume root (a temporary directory) are redirected.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.memory.backup import BackupMetadata, BackupResult, RestoreResult
+from httpx import ASGITransport, AsyncClient
+from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
+from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores
 
+from app.api.memory.operations.backup import get_backup_store
 from app.api.memory.router import router as memory_router
-from app.api.memory.utils import get_crud_memory_manager, get_memory_manager
+from app.api.memory.utils import get_crud_memory_manager
+from app.services.memory.backup.service import PRE_RESTORE_DESCRIPTION
+from app.services.memory.backup.volume_store import VolumeBackupStore
+from tests.support.offline_memory import offline_memory_manager
+
+pytestmark = pytest.mark.integration
 
 
-def _build_client(
-    *,
-    mock_full: MagicMock,
-) -> TestClient:
-    app = FastAPI()
-    app.include_router(memory_router, prefix="/memory")
-
-    async def mock_uid() -> str:
-        return "test-user-smoke"
-
-    mock_crud = MagicMock()
-
-    async def dep_crud() -> MagicMock:
-        return mock_crud
-
-    async def dep_full() -> MagicMock:
-        return mock_full
-
-    app.dependency_overrides[get_crud_memory_manager] = dep_crud
-    app.dependency_overrides[get_memory_manager] = dep_full
-
-    return TestClient(app)
+@dataclass(frozen=True)
+class BackupApi:
+    client: AsyncClient
+    manager: MemoryManager
+    store: VolumeBackupStore
+    root: Path
 
 
 @pytest.fixture
-def memory_test_client() -> TestClient:
-    mock_full = MagicMock()
-    mock_full.list_backups = AsyncMock(return_value=[])
-    return _build_client(mock_full=mock_full)
+async def backup_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[BackupApi]:
+    await clear_embedded_stores()
+    root = tmp_path / "backups"
+    store = VolumeBackupStore(root)
+    app = FastAPI()
+    app.include_router(memory_router, prefix="/memory")
+    app.dependency_overrides[get_backup_store] = lambda: store
+    async with offline_memory_manager(tmp_path / "memory", monkeypatch) as manager:
+        app.dependency_overrides[get_crud_memory_manager] = lambda: manager
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            yield BackupApi(client=client, manager=manager, store=store, root=root)
+    await clear_embedded_stores()
 
 
-def test_backup_list_returns_empty_array(memory_test_client: TestClient) -> None:
-    response = memory_test_client.get("/memory/backup/list")
+async def _knowledge(manager: MemoryManager) -> list[str]:
+    return sorted(m.content for m in await manager.list_memories(MemoryType.SEMANTIC, limit=100))
+
+
+async def test_a_backup_can_be_created_listed_restored_and_deleted(backup_api: BackupApi) -> None:
+    client, manager = backup_api.client, backup_api.manager
+    await manager.add_knowledge("Kept in the backup.")
+    await manager.add_rule("deploying", "run smoke tests first")
+
+    created = await client.post("/memory/backup/create", json={"description": "nightly"})
+
+    assert created.status_code == 200
+    created_body = created.json()
+    assert created_body["success"] is True
+    assert created_body["error"] is None
+    assert created_body["metadata"]["memory_count"] == 2
+    assert created_body["metadata"]["description"] == "nightly"
+    backup_id = created_body["backup_id"]
+    assert created_body["metadata"]["backup_id"] == backup_id
+
+    listed = (await client.get("/memory/backup/list")).json()
+    assert listed["total"] == 1
+    assert [b["backup_id"] for b in listed["backups"]] == [backup_id]
+
+    await manager.add_knowledge("Added after the backup.")
+    restored = await client.post("/memory/backup/restore", json={"backup_id": backup_id, "overwrite": True})
+
+    assert restored.status_code == 200
+    assert restored.json()["success"] is True
+    assert restored.json()["restored_count"] == 2
+    assert await _knowledge(manager) == ["Kept in the backup."]
+
+    backups = (await client.get("/memory/backup/list")).json()["backups"]
+    assert sorted(b["description"] or "" for b in backups) == sorted(["nightly", PRE_RESTORE_DESCRIPTION])
+
+    deleted = await client.delete(f"/memory/backup/{backup_id}")
+
+    assert deleted.status_code == 200
+    assert deleted.json() == {"success": True}
+    remaining = (await client.get("/memory/backup/list")).json()
+    assert [b["description"] for b in remaining["backups"]] == [PRE_RESTORE_DESCRIPTION]
+
+
+async def test_restore_without_overwrite_merges_into_what_is_already_there(backup_api: BackupApi) -> None:
+    client, manager = backup_api.client, backup_api.manager
+    await manager.add_knowledge("Kept in the backup.")
+    backup_id = (await client.post("/memory/backup/create", json={})).json()["backup_id"]
+    await manager.add_knowledge("Added after the backup.")
+
+    restored = await client.post("/memory/backup/restore", json={"backup_id": backup_id, "overwrite": False})
+
+    assert restored.json()["success"] is True
+    assert await _knowledge(manager) == ["Added after the backup.", "Kept in the backup."]
+    assert (await client.get("/memory/backup/list")).json()["total"] == 1
+
+
+async def test_unknown_or_malformed_backup_ids_are_404_and_cost_nothing(backup_api: BackupApi) -> None:
+    client, manager = backup_api.client, backup_api.manager
+    await manager.add_knowledge("Must survive.")
+
+    for backup_id in ("memory_20200101_000000_deadbeef", "../outside", "/etc"):
+        response = await client.post("/memory/backup/restore", json={"backup_id": backup_id, "overwrite": True})
+        assert response.status_code == 404, backup_id
+
+    assert (await client.delete("/memory/backup/memory_20200101_000000_deadbeef")).status_code == 404
+    assert await _knowledge(manager) == ["Must survive."]
+    assert backup_api.store.list_backups() == []
+
+
+async def test_an_incomplete_snapshot_is_reported_and_nothing_is_saved(
+    backup_api: BackupApi, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, manager = backup_api.client, backup_api.manager
+    await manager.add_knowledge("Would be lost.")
+    real_export = manager.export_all
+
+    async def export_without_semantic() -> dict[str, list[dict[str, object]]]:
+        exported = await real_export()
+        exported.pop("semantic")
+        return exported
+
+    monkeypatch.setattr(manager, "export_all", export_without_semantic)
+
+    response = await client.post("/memory/backup/create", json={})
+
     assert response.status_code == 200
-    data = response.json()
-    assert data["backups"] == []
-    assert data["total"] == 0
+    body = response.json()
+    assert body["success"] is False
+    assert body["backup_id"] is None
+    assert "incomplete" in body["error"]
+    assert backup_api.store.list_backups() == []
 
 
-def test_backup_create_restore_delete_json_shape() -> None:
-    meta = BackupMetadata(
-        backup_id="bk_smoke_1",
-        created_at=datetime.now(UTC),
-        memory_count=3,
-        size_bytes=120,
-        collections=["semantic_default"],
-        description="smoke",
-    )
-    mock_full = MagicMock()
-    mock_full.list_backups = AsyncMock(return_value=[])
-    mock_full.create_backup = AsyncMock(
-        return_value=BackupResult(success=True, metadata=meta, duration_ms=1.5, error=None),
-    )
-    mock_full.restore_backup = AsyncMock(
-        return_value=RestoreResult(success=True, restored_count=3, duration_ms=2.0, error=None),
-    )
-    mock_full.delete_backup = AsyncMock(return_value=True)
+async def test_a_corrupt_backup_file_fails_the_restore_without_touching_memories(backup_api: BackupApi) -> None:
+    client, manager = backup_api.client, backup_api.manager
+    await manager.add_knowledge("Must survive.")
+    backup_id = (await client.post("/memory/backup/create", json={})).json()["backup_id"]
+    (backup_api.root / backup_id / "snapshot.json.gz").write_bytes(b"not gzip at all")
 
-    client = _build_client(mock_full=mock_full)
+    response = await client.post("/memory/backup/restore", json={"backup_id": backup_id, "overwrite": True})
 
-    create_res = client.post("/memory/backup/create", json={"description": "smoke"})
-    assert create_res.status_code == 200
-    cj = create_res.json()
-    assert cj["success"] is True
-    assert cj["backup_id"] == "bk_smoke_1"
-    assert cj["metadata"]["memory_count"] == 3
-
-    restore_res = client.post(
-        "/memory/backup/restore",
-        json={"backup_id": "bk_smoke_1", "overwrite": False},
-    )
-    assert restore_res.status_code == 200
-    rj = restore_res.json()
-    assert rj["success"] is True
-    assert rj["restored_count"] == 3
-
-    delete_res = client.delete("/memory/backup/bk_smoke_1")
-    assert delete_res.status_code == 200
-    assert delete_res.json()["success"] is True
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["restored_count"] == 0
+    assert "corrupt" in body["error"]
+    assert await _knowledge(manager) == ["Must survive."]
+    assert [b.backup_id for b in backup_api.store.list_backups()] == [backup_id]
