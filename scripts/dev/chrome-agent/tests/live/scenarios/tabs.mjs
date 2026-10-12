@@ -179,6 +179,26 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         mcp.stop();
     },
 
+    // With the idle pool running, a tab a session opens with new_page must survive: it has a window
+    // of its own, so the pool neither counts it as hidden nor closes it (BUG-DG-2026-10-12-010).
+    async clientNewPageSurvivesPool() {
+        const pooled = new SandboxProxy(option('--proxy-dir', undefined), {
+            CHROME_AGENT_MIN_IDLE_TABS: '3', CHROME_AGENT_MAX_PAGES: '8',
+        });
+        await pooled.start();
+        await sleep(3000);
+        const mcp = pooled.mcp('N');
+        await mcp.start();
+        const created = await mcp.tool('new_page', { url: 'about:blank' });
+        const pageId = Number(created.text.match(/^(\d+): \S+ \[selected\]/m)?.[1]);
+        await sleep(5000);
+        const probe = await mcp.tool('evaluate_script', { pageId, function: '() => location.href' });
+        await check('clientNewPageSurvivesPool: the tab is still usable 5s after new_page, with the pool running',
+            !created.isError && !probe.isError && probe.text.includes('about:blank'), `${created.text.slice(0, 80)} | ${probe.text.slice(0, 120)}`);
+        mcp.stop();
+        pooled.stop();
+    },
+
     // Sessions use their tab without bringing it to the front. Every claimed tab must still be a
     // visible one: a hidden tab's renderer is starved under load (CDP calls hang, pages never render).
     async claimedTabsAreVisible() {
