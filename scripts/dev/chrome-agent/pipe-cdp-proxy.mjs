@@ -22,9 +22,9 @@
  *     other clients never see their attach/detach, cannot detach them, and the proxy
  *     detaches them when the owner disconnects.
  *
- * Observability: every connection has an id (`c1`, `c2`, …); connects, disconnects,
- * private session attach/detach, blocked detaches and navigations/tab closes are
- * logged with timestamps and that id, so a lost page can be attributed after the fact.
+ * Observability: every connection has an id (`c1`, `c2`, …); connects, disconnects, private session
+ * attach/detach, blocked detaches, navigations/tab closes and requests Chrome leaves unanswered for 10 s
+ * (request-watch.mjs) are logged with timestamps and that id, so a lost or hung page can be attributed.
  */
 
 import { spawn } from 'child_process';
