@@ -262,6 +262,18 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/test_evolution_trigger_guard.py` | 模块 | `trigger_skill_evolution` 守卫单测（同 chat 在飞任务去重、普通对话 tool_steps<3 门槛跳过、DW `conversation_text` 绕过门槛） |
 | `services/agent/test_evolution_engine_task.py` | 模块 | `_run_evolution_task` 后台任务执行路径单测（短历史跳过、历史拼接、DW 文本跳过 DB、无 proposal 早退、approval+broadcast 全链、异常兜底日志） |
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
+| `support/offline_memory.py` | 辅助 | 离线真实记忆管理器：真实内嵌 Qdrant + SQLite，仅把 embedding 换成确定性哈希向量（无需凭据与网络），并把 Qdrant 重试退避归零；`offline_memory_manager(base_path, monkeypatch)`，用例之间须 `clear_embedded_stores()` |
+| `support/in_memory_remote_backup.py` | 辅助 | 内存版 `RemoteBackupStrategy`（字典存储 + 可编排的上传失败次数），远程备份测试共用 |
+| `services/memory/backup/` | 模块 | 备份域真实存储测试（关键路径无 mock）：`test_snapshot.py`（覆盖往返、合并不重复、导出被截断即失败、审批队列管理器被拒、回放短缺上报、坏文件解码）· `test_volume_store.py`（保存/列表/加载/删除、备份 id 穿越拒绝、半成品不留、坏元数据跳过）· `test_service.py`（覆盖恢复先留底、失败指向留底备份、坏备份不动记忆）· `test_remote_round_trip.py`（远程备份→新设备恢复且可重复、远程恢复不删记忆、不完整不上传、穿越文件名与临时目录清理） |
+| `services/memory/test_backup_remote.py` | 模块 | 远程备份策略与调度：配置/WebDAV XML 解析、`_upload_with_retry`、`_rotate_backups`、运行互斥、下载失败与版本不符的恢复拒绝、远程备份路由（配置缺失与可达性） |
+| `api/memory/test_memory_backup_smoke.py` | 集成 | 备份 HTTP 全流程（真实路由 + 服务 + 卷存储 + 离线记忆管理器）：创建→列表→覆盖恢复（含自动留底）→删除；合并恢复；未知/畸形 id 404 且不动记忆；快照不完整与备份损坏的 `success=false` 响应形状 |
+| `lifecycle/test_cognitive_clock.py` | 模块 | 认知时钟调度：T2 维护流水线每一步按真实签名调用（签名约束桩，健康快照与 SQLite 备份不再被宽松桩掩盖）、T3 仅随 T2 放行的 tick 且满一周才运行 |
+| `lifecycle/test_memory_guardian_sqlite_backup.py` | 模块 | 维护周期末尾的 SQLite 热备份：对真实数据库落盘并校验、非文件库安静跳过、页拷贝脱离事件循环、失败只记 WARNING 不使周期失败 |
+| `ai_agents/general_agent/test_skill_tool_mount.py` | 模块 | `skill_manage` / `skill_market` 经 ToolSetupMixin 真实挂载：启用或 `/learn` 强制挂载的判定、挂载后的工具经真实创建服务落盘并在写入前拦截危险内容、factory 只经 tool_setup 挂载 |
+| `api/skills/test_skill_reveal_api.py` | 模块 | `POST /skills/{id}/reveal`：打开真实技能目录、非本地模式拒绝、未知技能/无本地存储/目录缺失的错误映射 |
+| `services/agent/test_shared_context_name_resolution.py` | 模块 | 共享上下文显示名经真实 `SharedContextService` 与数据库往返抵达 agent params 与 wiki lane（会话导入出错会被兜底静默吞掉，故不 mock） |
+| `services/skill_optimization/test_execution_provider.py` | 模块 | `ServerSkillExecutionProvider`：未接入的数据源返回空结果而非报错，元数据查询不记 ERROR |
+| `services/skills/test_evolution_review_rollback.py` | 模块 | 演化评审回滚：fork 回滚移除其文件与记录且无错误，编辑回滚还原原始内容 |
 
 ---
 
