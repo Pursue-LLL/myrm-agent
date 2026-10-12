@@ -55,6 +55,20 @@ _run_md_refs() {
     --root "${SERVER_ROOT}" --md-refs
 }
 
+_run_import_resolvability() {
+  local harness_root py
+  if ! harness_root="$(myrm_ci_resolve_harness_root)"; then
+    echo "CI import-resolvability: harness source unavailable (PyPI mode); skipping import resolvability check"
+    return 0
+  fi
+  py="${SERVER_ROOT}/.venv/bin/python"
+  [[ -x "${py}" ]] || py="python3"
+  "${py}" "${harness_root}/scripts/check_import_resolvability.py" \
+    --package "myrm_agent_harness=${harness_root}/src/myrm_agent_harness" \
+    --package "app=${SERVER_ROOT}/app" \
+    --scan app
+}
+
 _run_ruff() {
   if [[ -x "${SERVER_ROOT}/.venv/bin/ruff" ]]; then
     "${SERVER_ROOT}/.venv/bin/ruff" check .
@@ -91,6 +105,7 @@ _run_prometheus_rules_semantic_check() {
 myrm_ci_install_server_deps --reuse-venv
 _run_fractal_docs
 _run_md_refs
+_run_import_resolvability
 _run_profile_capability_gate
 _run_dependency_vuln_gate
 _run_ruff
