@@ -6,17 +6,15 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.memory.verifiable_provenance_router import (
     get_provenance_service,
+)
+from app.api.memory.verifiable_provenance_router import (
     router as verifiable_provenance_router,
 )
-from app.services.memory.verifiable_provenance_service import VerifiableProvenanceService
 
 app = FastAPI()
 app.include_router(verifiable_provenance_router)
