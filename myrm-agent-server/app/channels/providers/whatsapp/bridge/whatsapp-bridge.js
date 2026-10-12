@@ -342,11 +342,7 @@ async function connectWhatsApp() {
     for (const msg of messages) {
       try {
         const unwrapped = unwrapFutureProof(msg.message);
-        
-        console.error('[WhatsApp Bridge] === Message Debug ===');
-        console.error('[WhatsApp Bridge] Raw message keys:', Object.keys(unwrapped || {}));
-        console.error('[WhatsApp Bridge] Full unwrapped:', JSON.stringify(unwrapped, null, 2));
-        
+
         const text =
           unwrapped?.conversation ||
           unwrapped?.extendedTextMessage?.text ||
@@ -358,12 +354,7 @@ async function connectWhatsApp() {
         const audioMsg = unwrapped?.audioMessage || null;
         const documentMsg = unwrapped?.documentMessage || null;
         const hasContent = text || audioMsg || documentMsg;
-        
-        console.error('[WhatsApp Bridge] Extracted text:', text);
-        console.error('[WhatsApp Bridge] Has audio:', !!audioMsg);
-        console.error('[WhatsApp Bridge] Has content:', hasContent);
-        console.error('[WhatsApp Bridge] === End Debug ===');
-        
+
         if (!hasContent) continue;
 
         const remoteJid = msg.key.remoteJid || "";
@@ -383,15 +374,6 @@ async function connectWhatsApp() {
 
         const ctxInfo = unwrapped?.extendedTextMessage?.contextInfo || null;
         const mentionedJids = ctxInfo?.mentionedJid || [];
-
-        if (isGroup) {
-          console.error('[WhatsApp Bridge DEBUG] ===================');
-          console.error('[WhatsApp Bridge] Message text:', text);
-          console.error('[WhatsApp Bridge] selfJid:', selfJid);
-          console.error('[WhatsApp Bridge] mentionedJids:', mentionedJids);
-          console.error('[WhatsApp Bridge] contextInfo:', JSON.stringify(ctxInfo, null, 2));
-          console.error('[WhatsApp Bridge DEBUG] ===================');
-        }
 
         const replyToBot = isGroup && isReplyToBot(ctxInfo);
 
@@ -454,7 +436,6 @@ async function connectWhatsApp() {
           pendingMediaMessages.set(msg.key.id, msg);
         }
 
-        console.error('[WhatsApp Bridge] Sending payload:', JSON.stringify(payload, null, 2));
         emit(payload);
       } catch (err) {
         emit({ type: "error", message: `messages.upsert handler: ${err.message}` });

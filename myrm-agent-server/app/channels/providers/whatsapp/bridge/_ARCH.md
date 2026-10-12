@@ -12,3 +12,7 @@ WhatsApp Baileys Node.js bridge 子进程。通过 stdin/stdout JSON Lines 与 P
 | `package.json` | 数据 | npm 依赖声明（Baileys + pino） | — |
 | `package-lock.json` | 数据 | npm 依赖锁定文件 | — |
 | `node_modules/` | 运行时 | 本地 `npm ci` 产物（gitignore）；勿提交、勿手改；分形门禁不遍历此目录 |
+
+## stderr 约束
+
+Python 宿主逐行记录 bridge 的 stderr（含 `error` / `exception` 的行升为 ERROR 级），所以 `messages.upsert` 处理器不得向 console 输出消息内容：消息只经 `emit()` 走 stdout 交给宿主。该约束由 `tests/channels/providers/whatsapp/test_bridge_privacy.py` 守卫。
