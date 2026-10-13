@@ -40,6 +40,8 @@ interface MessageActionBarProps {
   messageIndex: number;
   loading: boolean;
   isLast: boolean;
+  /** Retry and undo act on the latest turn only, so only that turn's answer offers them. */
+  isLastTurnAnswer: boolean;
   chatId?: string;
   enableEvalLab: boolean;
   markdownRef: RefObject<HTMLDivElement | null>;
@@ -53,6 +55,7 @@ export default function MessageActionBar({
   messageIndex,
   loading,
   isLast,
+  isLastTurnAnswer,
   chatId,
   enableEvalLab,
   markdownRef,
@@ -87,8 +90,8 @@ export default function MessageActionBar({
             <AlertTriangle className="w-4 h-4" />
           </button>
         )}
-        {!isStreaming && <RegenerateMenu onRegenerate={onRegenerate} />}
-        {!isStreaming && <Undo onUndo={onUndo} />}
+        {!isStreaming && isLastTurnAnswer && <RegenerateMenu onRegenerate={onRegenerate} />}
+        {!isStreaming && isLastTurnAnswer && <Undo onUndo={onUndo} />}
         {!isStreaming && effectiveChatId && message.siblingGroupId && (message.siblingCount ?? 0) > 1 && (
           <SiblingNav
             chatId={effectiveChatId}

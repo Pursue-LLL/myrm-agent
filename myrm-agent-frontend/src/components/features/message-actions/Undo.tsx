@@ -13,6 +13,7 @@ const Undo = ({ onUndo }: UndoProps) => {
       onClick={onUndo}
       className="p-2 text-black/70 dark:text-white/70 rounded-xl hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white"
       title={t('undo')}
+      data-testid="message-undo-button"
     >
       <Undo2 size={18} />
     </button>

@@ -32,6 +32,7 @@ import type { McpAppView, ProgressItem, Source, ToolImageOutput } from '@/store/
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { mergeMessageSources } from '@/store/chat/messageStream/streamHelpers';
 import { stripDatetimeTag } from '@/lib/utils/messageUtils';
+import { findLastTurnAnswerId } from '@/lib/chat/lastTurnAnswer';
 import { removeWaitingForTurnStep } from '@/store/chat/messageUtils';
 import { regenerateLastTurn, undoLastTurn, cancelAgentRequest } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
@@ -99,6 +100,11 @@ const MessageBox = ({
   const messages = useChatStore((state) => state.messages);
   const composerPendingClarification = useMemo(() => findActivePendingClarification(messages), [messages]);
   const composerPendingDirectoryRequest = useMemo(() => findActivePendingDirectoryRequest(messages), [messages]);
+  // Retry and undo act on the latest turn only, so only that turn's answer offers them.
+  const isLastTurnAnswer = useMemo(
+    () => message.role === 'assistant' && findLastTurnAnswerId(messages) === message.messageId,
+    [messages, message.role, message.messageId],
+  );
   const hideInlineClarification = composerPendingClarification?.messageId === message.messageId;
   const hideInlineDirectoryRequest = composerPendingDirectoryRequest?.messageId === message.messageId;
   const chatId = useChatStore((state) => (typeof state.chatId === 'string' ? state.chatId : undefined));
@@ -774,6 +780,7 @@ const MessageBox = ({
               messageIndex={messageIndex}
               loading={loading}
               isLast={isLast}
+              isLastTurnAnswer={isLastTurnAnswer}
               chatId={chatId}
               enableEvalLab={enableEvalLab}
               markdownRef={markdownRef}

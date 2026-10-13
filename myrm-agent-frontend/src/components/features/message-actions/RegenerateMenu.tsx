@@ -87,6 +87,7 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
           disabled={loading}
           className="p-2 text-black/70 dark:text-white/70 hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white disabled:opacity-50"
           title={t('regenerate')}
+          data-testid="message-regenerate-button"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
         </button>

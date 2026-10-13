@@ -5,7 +5,8 @@
  * @/components/features/message-box/memoryLifecyclePhases::resolveMessageCreatedAtMs (POS: message timestamp)
  *
  * [OUTPUT]
- * parseMessages: Normalize persisted API messages into store Message objects (metadata, TTSR, cited memory refs).
+ * parseMessages: Normalize persisted API messages into store Message objects (metadata, TTSR, cited memory refs,
+ *   system notice marker).
  *
  * [POS]
  * Pure hydration helpers for chat history; no store access.
@@ -15,6 +16,9 @@ import type { Message } from '@/store/chat/types';
 import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
 import { normalizeHydratedDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { resolveMessageCreatedAtMs } from '@/components/features/message-box/memoryLifecyclePhases';
+
+/** Metadata keys the server sets on assistant rows it appends itself (its `SYSTEM_NOTICE_EXTRA_KEYS`). */
+const SYSTEM_NOTICE_METADATA_KEYS = ['background_job', 'voice_background_task'] as const;
 
 export function parseMessages(raw: Message[]): Message[] {
   return raw.map((msg) => {
@@ -42,6 +46,10 @@ export function parseMessages(raw: Message[]): Message[] {
     const persistedRequestMessageId = metadata.request_message_id;
     if (typeof persistedRequestMessageId === 'string' && persistedRequestMessageId.length > 0) {
       parsed.requestMessageId = persistedRequestMessageId;
+    }
+
+    if (SYSTEM_NOTICE_METADATA_KEYS.some((key) => metadata[key] === true)) {
+      parsed.isSystemNotice = true;
     }
 
     if (parsed.clarification) {

@@ -90,6 +90,8 @@ export type Message = {
   role: 'user' | 'assistant' | 'system' | 'custom_message';
   /** True while the assistant message is still streaming. */
   loading?: boolean;
+  /** True for an assistant row the server appended on its own (background / voice task finished), not an answer to the turn. */
+  isSystemNotice?: boolean;
   isCompactedSummaryView?: boolean;
   suggestions?: string[];
   sources?: Source[]; // 外部引用来源
