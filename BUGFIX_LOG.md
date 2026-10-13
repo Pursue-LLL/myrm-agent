@@ -1065,13 +1065,14 @@ except Exception:
 
 1. `consumeStream`：在中止信号上登记监听，触发时取消 reader（唤醒挂起的读取）；循环顶部、读取失败的 `catch`（在包成 `StreamInterruptedError` 之前）、读取返回之后（在判断 `done` 之前，免得把停止当作流自然结束而走 `onReaderDone` 自愈）各做一次 `throwIfAborted()`，一律以真正的 `AbortError` 结束；监听器在 `finally` 里摘除；
 2. 新增 `abortableDelay(ms, signal)`（`networkResilience.ts`；`backend-health-probe.ts` 原来的私有 `sleep` 改用它）：到期 resolve，中止则立即以中止原因 reject，进入时已中止则不启动计时器，计时器与监听器在任何结局后都清理；请求重试退避与 attach 退避改用它，原来「醒来再检查中止」的两处判断随之删除；
-3. `sendMessage` 的 catch 本就忽略 `AbortError`（`messageRequest.ts:1166`），被停止的回合因此安静结束：没有失败提示、没有失败标记。
+3. `sendMessage` 的 catch 本就忽略 `AbortError`（`error instanceof Error && error.name !== 'AbortError'` 分支），被停止的回合因此安静结束：没有失败提示、没有失败标记。页面卸载时 `requestManager.cancelAllRequests` 会以字符串原因中止同一个回合控制器（`requestManager.ts`、`services/chat.ts` 的 `createAISearchStream` 注册），该分支同样不处理非 `Error` 值，所以也是静默的。
 
 ### 验证
 
 1. 红灯先行：把 `networkResilience.ts`、`consumeStream.ts`、`streamConsumer.ts` 还原为修复前（HEAD）源码运行同一批测试，27 例中 13 例红、14 例绿（运行后三个文件逐字节还原）。红的 13 例是：`networkResilience.test.ts` 的 `abortableDelay` 4 例；`streamConsumer.test.ts` 的 7 个停止用例（已停止的回合不开始读取、挂起的读取立即结束且不留下看门狗自愈、读取因停止失败时报告为停止而非断流、监听器随消费结束摘除、不对停止后的流重新 attach、请求重试退避可中止、attach 退避可中止）；`messageRequest.turnOwnership.test.ts` 的 2 例管线用例（停止后等待重试的回合安静结束；停止后的多路复用回合不会留下看门狗去结束下一轮，用真实多路复用桥与真实 store）。修复后全部变绿；
 2. 变异检查（A0 基线 13 例通过、0 失败；逐个应用 10 个变异，每次运行后恢复并核对文件哈希）：`abortableDelay` 进入时已中止却不提前拒绝 → 1 红；中止时不清计时器 → 3 红；到期后不摘监听器 → 1 红；中止时不取消 reader → 2 红；读取返回后不检查中止 → 1 红；读取失败的 `catch` 里不检查中止 → 2 红；循环顶部不检查中止 → 1 红；`consumeStream` 的监听器不在 `finally` 摘除 → 1 红；请求重试退避不响应停止 → 2 红；attach 退避不响应停止 → 1 红。其中「读取返回后不检查中止」只被单元用例捕获，管线用例捕获不到（该变异下过期自愈发生在停止当下、下一轮开始之前），由单元用例钉住；
-3. 相关 22 个测试文件 253 个用例全绿；oxlint、prettier、窄范围与全量 `tsc --noEmit` 对本修复涉及的文件无问题（全量 `tsc` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误）。
+3. 相关 22 个测试文件 253 个用例全绿；oxlint、prettier、窄范围与全量 `tsc --noEmit` 对本修复涉及的文件无问题（全量 `tsc` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误）；
+4. `backend-health-probe.ts` 的私有 `sleep` 本就可中止，改用 `abortableDelay` 只是去重，行为不变，所以不存在红灯用例；`lib/__tests__/backend-health.test.ts` 为此新增 2 个特征化用例（轮询间隔等待期间中止立即返回 false，`waitForTauriRuntime` 与 `waitForBackendReady` 各 1），在修复前的源码上同样通过。把 `abortableDelay` 改成忽略中止信号的变异让这 2 例变红、其余 13 例通过，运行后文件逐字节还原；该文件现 15 例全绿。
 
 ### 踩坑经验
 

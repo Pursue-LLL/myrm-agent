@@ -4,7 +4,7 @@
  * ./streamErrors (POS: busy / refused / interrupted 错误分类)
  * ./messageRequest::createMessageRequest (POS: agent-stream POST)
  * ./multiplexChunkBridge::createMultiplexReadableStream (POS: workspace multiplex 桥)
- * @/lib/utils/networkResilience::abortableDelay (POS: 可被 Stop 中止的退避等待)
+ * @/lib/utils/networkResilience::abortableDelay (POS: 网络韧性策略层，统一重试与 fail-fast 决策)
  *
  * [OUTPUT]
  * executeStreamWithRetry: 网络重试、AgentBusyError fail-fast、multiplex 分流、中断后 attach 恢复；两类退避等待均可被用户 Stop 立即中止（AbortError 直接抛出）；turn 成功后 finalizeAgentStreamTurn
@@ -210,7 +210,7 @@ export async function executeStreamWithRetry(
     if (attempt > 0 && lastError) {
       const delay = retryDelay(attempt - 1);
       console.warn(`Stream request retry ${attempt}/${RETRY_MAX_ATTEMPTS} after ${delay}ms: ${lastError.message}`);
-      // A stop ends the wait with an AbortError, so the turn ends quietly instead of failing after the delay.
+      // A stop ends the wait with an AbortError, so the turn ends quietly.
       await abortableDelay(delay, abortController.signal);
     }
 
