@@ -14553,7 +14553,34 @@
         "actionPseudonymize": "Pseudonymisieren",
         "actionRedact": "Automatisch maskieren",
         "actionBlock": "Blockieren",
-        "pseudonymizeHint": "Der Pseudonymisierungsmodus ersetzt PII vor dem Senden an die Cloud durch typisierte semantische Platzhalter. Die KI behält das volle semantische Verständnis, während die Originalwerte lokal wiederhergestellt werden. Null Datenschutzverlust, null Qualitätsverlust.",
+        "pseudonymizeHint": "Die Pseudonymisierung ersetzt sensible Inhalte vor dem Senden durch Platzhalter: Das Modell sieht nur die Platzhalter, nie den echten Inhalt, und Platzhalter in der Antwort werden lokal wieder in den Originaltext zurückgesetzt. Das Modell erkennt, wofür ein Platzhalter steht, kann aber nicht über den Inhalt selbst antworten.",
+        "consequence": {
+          "warn": "Der Originaltext wird unverändert an das Modell gesendet; es wird nur eine Warnung protokolliert.",
+          "pseudonymize": "Wird mit Platzhaltern gesendet; in der Antwort, die Sie sehen, steht wieder das Original.",
+          "redact": "Wird maskiert gesendet; das Modell sieht das Original nie und es lässt sich nicht wiederherstellen.",
+          "block": "Eine Nachricht von Ihnen mit solchen Inhalten wird gestoppt und nicht gesendet; Inhalte wie Tool-Ergebnisse werden maskiert weiterverwendet."
+        },
+        "coverage": {
+          "title": "Schutzumfang",
+          "covered": "Abgedeckt: Ihre Nachrichten an das Modell, was Tools und Webseiten zurückgeben, was im Gedächtnis gespeichert wird, sowie Modellaufrufe im Hintergrund wie Titel, Vorschläge und Zusammenfassungen.",
+          "notCovered": "Nicht abgedeckt: Bilder und Audio selbst; Funktionen ohne Chat-Modell wie Bild- und Videogenerierung, Vorlesen und Text-Embeddings.",
+          "matching": "Erkannt wird nur der Text selbst: Kürzel, Pinyin oder Tippfehler können durchrutschen. Prüfen Sie es oben mit „Ausprobieren“."
+        },
+        "tester": {
+          "title": "Ausprobieren",
+          "description": "Geben Sie einen Satz ein und sehen Sie, was das Modell mit Ihren aktuellen Einstellungen erhält.",
+          "placeholder": "z. B. Fasse zusammen, warum Projekt Phönix das Budget überschritten hat",
+          "checking": "Wird geprüft",
+          "levelNone": "Nichts Sensibles gefunden; der Text wird unverändert gesendet.",
+          "levelS2": "Als sensibel erkannt",
+          "levelS3": "Als vertraulich erkannt",
+          "action": "Behandlung: {action}",
+          "modelSees": "Das Modell erhält",
+          "blocked": "Diese Nachricht würde gestoppt und nicht an das Modell gesendet.",
+          "unchanged": "Ihre Einstellung warnt nur, daher wird der Originaltext gesendet.",
+          "deepScanNote": "„Ausprobieren“ enthält keinen Deep Scan.",
+          "failed": "Im Moment nicht möglich. Bitte später erneut versuchen."
+        },
         "deepScanLabel": "Tiefenscan (LLM-erweitert)",
         "deepScanDesc": "Verwendet LLM, um nicht strukturierte PII (Krankengeschichte, Familienbeziehungen, Arbeitsplatz usw.) zu erkennen, die Regex-Muster nicht erfassen. Kann die Latenz erhöhen.",
         "routing": {
@@ -14599,11 +14626,7 @@
           "toolsS3Label": "S3-Sensible Tools",
           "toolsS3Desc": "Tool-Aufrufe, die den S3-Schutz auslösen sollen.",
           "invalidRegex": "Ungültiges Regex-Muster",
-          "keywordTooShort": "Schlüsselwort muss mindestens 2 Zeichen lang sein",
-          "testMatch": "Treffer testen",
-          "testMatchPlaceholder": "Geben Sie Text ein, um ihn anhand Ihrer Regeln zu testen ...",
-          "testMatchResult": "Matched: {level} — {patterns}",
-          "testMatchNoResult": "Keine benutzerdefinierten Regeln stimmten überein"
+          "keywordTooShort": "Schlüsselwort muss mindestens 2 Zeichen lang sein"
         }
       },
       "domainAllowlist": {

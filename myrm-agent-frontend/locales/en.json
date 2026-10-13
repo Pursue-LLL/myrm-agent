@@ -15207,7 +15207,34 @@
         "actionPseudonymize": "Pseudonymize",
         "actionRedact": "Auto Redact",
         "actionBlock": "Block",
-        "pseudonymizeHint": "Pseudonymize mode replaces PII with typed semantic placeholders before sending to the cloud. The AI retains full semantic understanding while original values are restored locally. Zero privacy leakage, zero quality loss.",
+        "pseudonymizeHint": "Pseudonymize swaps sensitive content for placeholders before sending: the model sees only the placeholders, never the real content, and placeholders in its reply are restored to the original text locally. The model can tell what kind of thing a placeholder stands for, but it cannot answer about the content itself.",
+        "consequence": {
+          "warn": "The original text is sent to the model as it is; only a warning is logged.",
+          "pseudonymize": "Sent with placeholders instead; the reply shown to you has the originals restored.",
+          "redact": "Masked before sending; the model never sees the original and it cannot be restored.",
+          "block": "A message you send with this kind of content is stopped and not sent; content such as tool results is masked before use."
+        },
+        "coverage": {
+          "title": "What is protected",
+          "covered": "Covered: the messages you send to the model, what tools and web pages return, what is saved to memory, and background model calls such as titles, suggestions and summaries.",
+          "notCovered": "Not covered: images and audio themselves; features that do not go through the chat model, such as image and video generation, reading replies aloud and text embeddings.",
+          "matching": "Detection looks at the text itself: a nickname, pinyin or typo may slip through. Use Try it above to check."
+        },
+        "tester": {
+          "title": "Try it",
+          "description": "Type a sentence to see what the model would receive with your current settings.",
+          "placeholder": "e.g. Summarize why Project Phoenix went over budget",
+          "checking": "Checking",
+          "levelNone": "Nothing sensitive found; the text is sent as it is.",
+          "levelS2": "Recognized as sensitive",
+          "levelS3": "Recognized as confidential",
+          "action": "Action: {action}",
+          "modelSees": "The model receives",
+          "blocked": "This message would be stopped and not sent to the model.",
+          "unchanged": "Your setting only warns, so the original text is sent.",
+          "deepScanNote": "Try it does not include deep scan.",
+          "failed": "Unable to try it right now. Please try again later."
+        },
         "deepScanLabel": "Deep Scan (LLM-enhanced)",
         "deepScanDesc": "Use LLM to detect non-structured PII (medical history, family relations, workplace, etc.) that regex patterns cannot catch. May increase latency.",
         "routing": {
@@ -15253,11 +15280,7 @@
           "toolsS3Label": "S3 Sensitive Tools",
           "toolsS3Desc": "Tool calls that should trigger S3 protection.",
           "invalidRegex": "Invalid regex pattern",
-          "keywordTooShort": "Keyword must be at least 2 characters",
-          "testMatch": "Test Match",
-          "testMatchPlaceholder": "Enter text to test against your rules...",
-          "testMatchResult": "Matched: {level} — {patterns}",
-          "testMatchNoResult": "No custom rules matched"
+          "keywordTooShort": "Keyword must be at least 2 characters"
         }
       },
       "domainAllowlist": {

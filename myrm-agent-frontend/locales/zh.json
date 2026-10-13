@@ -15207,7 +15207,34 @@
         "actionPseudonymize": "伪匿名化",
         "actionRedact": "自动脱敏",
         "actionBlock": "拦截",
-        "pseudonymizeHint": "伪匿名化模式将个人信息替换为带语义标签的占位符后再发送至云端。AI 保留完整的语义理解能力，原始值在本地还原后呈现给用户。零隐私泄露，零质量损失。",
+        "pseudonymizeHint": "伪匿名化会把敏感内容替换成占位符再发送：模型只看到占位符，看不到真实内容，回复里的占位符会在本地还原成原文。模型能分辨占位符的类型，但无法就内容本身作答。",
+        "consequence": {
+          "warn": "原文会原样发送给模型，只记录一条提醒。",
+          "pseudonymize": "替换成占位符后再发送，回复显示给你时还原成原文。",
+          "redact": "打码后再发送，模型看不到原文，之后也无法还原。",
+          "block": "你发出的消息含这类内容时会被拦截，不会发送；工具返回的内容等则打码后再使用。"
+        },
+        "coverage": {
+          "title": "保护范围",
+          "covered": "已覆盖：你发给模型的消息、工具和网页返回的内容、写入记忆的内容，以及标题、建议、摘要等后台模型调用。",
+          "notCovered": "未覆盖：图片和音频本身；图像与视频生成、语音朗读、文本向量化等不经过对话模型的功能。",
+          "matching": "识别只看文字本身：简称、拼音、错别字等换一种写法的内容可能不会命中，可用上方的“试一试”确认。"
+        },
+        "tester": {
+          "title": "试一试",
+          "description": "输入一句话，看看按当前设置，模型会收到什么。",
+          "placeholder": "例如：帮我总结凤凰计划的预算超支原因",
+          "checking": "检查中",
+          "levelNone": "没有发现敏感内容，原文照常发送。",
+          "levelS2": "识别为敏感信息",
+          "levelS3": "识别为机密信息",
+          "action": "处理方式：{action}",
+          "modelSees": "模型会收到",
+          "blocked": "这条消息会被拦截，不会发送给模型。",
+          "unchanged": "当前设置只提醒，原文会原样发送。",
+          "deepScanNote": "试一试不包含深度扫描。",
+          "failed": "暂时无法试用，请稍后再试。"
+        },
         "deepScanLabel": "深度扫描（LLM 增强）",
         "deepScanDesc": "使用 LLM 检测正则无法捕获的非结构化隐私信息（如病史、家庭关系、工作单位等）。可能增加延迟。",
         "routing": {
@@ -15253,11 +15280,7 @@
           "toolsS3Label": "S3 敏感工具",
           "toolsS3Desc": "触发 S3 保护的工具调用。",
           "invalidRegex": "无效的正则表达式",
-          "keywordTooShort": "关键词至少需要 2 个字符",
-          "testMatch": "测试匹配",
-          "testMatchPlaceholder": "输入文本测试自定义规则...",
-          "testMatchResult": "匹配：{level} — {patterns}",
-          "testMatchNoResult": "未匹配任何自定义规则"
+          "keywordTooShort": "关键词至少需要 2 个字符"
         }
       },
       "domainAllowlist": {

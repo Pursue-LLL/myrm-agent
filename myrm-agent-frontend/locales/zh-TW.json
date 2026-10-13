@@ -14553,7 +14553,34 @@
         "actionPseudonymize": "偽匿名化",
         "actionRedact": "自動脫敏",
         "actionBlock": "攔截",
-        "pseudonymizeHint": "偽匿名化模式將個人資訊替換為帶語義標籤的佔位符後再傳送至雲端。AI 保留完整的語義理解能力，原始值在本地還原後呈現給使用者。零隱私洩露，零質量損失。",
+        "pseudonymizeHint": "偽匿名化會把敏感內容替換成佔位符再傳送：模型只看到佔位符，看不到真實內容，回覆裡的佔位符會在本機還原成原文。模型能分辨佔位符的類型，但無法就內容本身作答。",
+        "consequence": {
+          "warn": "原文會原樣傳送給模型，只記錄一則提醒。",
+          "pseudonymize": "替換成佔位符後再傳送，回覆顯示給你時還原成原文。",
+          "redact": "遮罩後再傳送，模型看不到原文，之後也無法還原。",
+          "block": "你送出的訊息含這類內容時會被攔截，不會傳送；工具回傳的內容等則遮罩後再使用。"
+        },
+        "coverage": {
+          "title": "保護範圍",
+          "covered": "已涵蓋：你傳給模型的訊息、工具與網頁回傳的內容、寫入記憶的內容，以及標題、建議、摘要等背景模型呼叫。",
+          "notCovered": "未涵蓋：圖片與音訊本身；圖像與影片生成、語音朗讀、文字向量化等不經過對話模型的功能。",
+          "matching": "辨識只看文字本身：簡稱、拼音、錯別字等換一種寫法的內容可能不會命中，可用上方的「試一試」確認。"
+        },
+        "tester": {
+          "title": "試一試",
+          "description": "輸入一句話，看看依目前設定，模型會收到什麼。",
+          "placeholder": "例如：幫我總結鳳凰計畫的預算超支原因",
+          "checking": "檢查中",
+          "levelNone": "沒有發現敏感內容，原文照常傳送。",
+          "levelS2": "辨識為敏感資訊",
+          "levelS3": "辨識為機密資訊",
+          "action": "處理方式：{action}",
+          "modelSees": "模型會收到",
+          "blocked": "這則訊息會被攔截，不會傳送給模型。",
+          "unchanged": "目前設定只提醒，原文會原樣傳送。",
+          "deepScanNote": "試一試不包含深度掃描。",
+          "failed": "暫時無法試用，請稍後再試。"
+        },
         "deepScanLabel": "深度掃描（LLM 增強）",
         "deepScanDesc": "使用 LLM 檢測正則無法捕獲的非結構化隱私資訊（如病史、家庭關係、工作單位等）。可能增加延遲。",
         "routing": {
@@ -14599,11 +14626,7 @@
           "toolsS3Label": "S3 敏感工具",
           "toolsS3Desc": "觸發 S3 保護的工具呼叫。",
           "invalidRegex": "無效的正規表示式",
-          "keywordTooShort": "關鍵詞至少需要 2 個字元",
-          "testMatch": "測試匹配",
-          "testMatchPlaceholder": "輸入文字測試自定義規則...",
-          "testMatchResult": "匹配：{level} — {patterns}",
-          "testMatchNoResult": "未匹配任何自定義規則"
+          "keywordTooShort": "關鍵詞至少需要 2 個字元"
         }
       },
       "domainAllowlist": {

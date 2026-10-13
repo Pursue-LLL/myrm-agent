@@ -1,10 +1,10 @@
 /**
  * [INPUT]
  *   useConfigStore (POS: 全局配置状态管理)
- *   lucide-react icons
+ *   PremiumIcons
  *   shadcn UI primitives
  * [OUTPUT]
- *   AdvancedPiiConfig: 高级 PII 自定义规则配置面板（关键词/正则/敏感工具 + 测试匹配）
+ *   AdvancedPiiConfig: 高级 PII 自定义规则配置面板（关键词/正则/敏感工具）
  * [POS]
  *   PII 隐私策略的高级自定义配置 UI，允许用户自定义 S2/S3 关键词、正则模式和敏感工具列表
  */
@@ -12,13 +12,7 @@
 
 import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconFlask,
-  IconPlus,
-  IconChevronDown,
-  IconChevronRight,
-  IconX,
-} from '@/components/features/icons/PremiumIcons';
+import { IconPlus, IconChevronDown, IconChevronRight, IconX } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { toast } from '@/lib/utils/toast';
@@ -192,8 +186,6 @@ const AdvancedPiiConfig = memo(() => {
   const [newKeywordS3, setNewKeywordS3] = useState('');
   const [newPatternS2, setNewPatternS2] = useState('');
   const [newPatternS3, setNewPatternS3] = useState('');
-  const [testMatchText, setTestMatchText] = useState('');
-  const [testMatchResult, setTestMatchResult] = useState<string | null>(null);
 
   const isValidRegex = useCallback((pattern: string): boolean => {
     try {
@@ -298,57 +290,6 @@ const AdvancedPiiConfig = memo(() => {
     [privacySensitiveToolsS2, privacySensitiveToolsS3, setPrivacySensitiveToolsS2, setPrivacySensitiveToolsS3],
   );
 
-  const runTestMatch = useCallback(() => {
-    if (!testMatchText.trim()) {
-      return;
-    }
-    const text = testMatchText.trim();
-    const matches: string[] = [];
-
-    for (const kw of privacyCustomKeywordsS3) {
-      if (text.toLowerCase().includes(kw.toLowerCase())) {
-        matches.push(`S3:keyword:${kw}`);
-      }
-    }
-    for (const pat of privacyCustomPatternsS3) {
-      try {
-        if (new RegExp(pat, 'i').test(text)) {
-          matches.push(`S3:pattern:${pat}`);
-        }
-      } catch {
-        /* skip invalid */
-      }
-    }
-    for (const kw of privacyCustomKeywordsS2) {
-      if (text.toLowerCase().includes(kw.toLowerCase())) {
-        matches.push(`S2:keyword:${kw}`);
-      }
-    }
-    for (const pat of privacyCustomPatternsS2) {
-      try {
-        if (new RegExp(pat, 'i').test(text)) {
-          matches.push(`S2:pattern:${pat}`);
-        }
-      } catch {
-        /* skip invalid */
-      }
-    }
-
-    if (matches.length > 0) {
-      const level = matches[0].startsWith('S3') ? 'S3' : 'S2';
-      setTestMatchResult(t('privacy.advanced.testMatchResult', { level, patterns: matches.join(', ') }));
-    } else {
-      setTestMatchResult(t('privacy.advanced.testMatchNoResult'));
-    }
-  }, [
-    testMatchText,
-    privacyCustomKeywordsS2,
-    privacyCustomKeywordsS3,
-    privacyCustomPatternsS2,
-    privacyCustomPatternsS3,
-    t,
-  ]);
-
   return (
     <div className="border-t border-border/50 pt-3">
       <button
@@ -430,36 +371,6 @@ const AdvancedPiiConfig = memo(() => {
             onToggle={(tool) => toggleTool('s3', tool)}
             levelColor="red"
           />
-
-          {/* Test Match */}
-          <div className="border-t border-border/30 pt-3">
-            <div className="flex items-center gap-2 mb-2">
-              <IconFlask className="h-3.5 w-3.5 text-primary" />
-              <span className="text-sm font-medium text-foreground">{t('privacy.advanced.testMatch')}</span>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={testMatchText}
-                onChange={(e) => {
-                  setTestMatchText(e.target.value);
-                  setTestMatchResult(null);
-                }}
-                placeholder={t('privacy.advanced.testMatchPlaceholder')}
-                className="text-sm flex-1"
-                onKeyDown={(e) => e.key === 'Enter' && runTestMatch()}
-              />
-              <Button variant="outline" size="sm" onClick={runTestMatch}>
-                {t('privacy.advanced.testMatch')}
-              </Button>
-            </div>
-            {testMatchResult && (
-              <p
-                className={`text-xs mt-1.5 ${testMatchResult.includes('S3') ? 'text-red-500' : testMatchResult.includes('S2') ? 'text-amber-500' : 'text-muted-foreground'}`}
-              >
-                {testMatchResult}
-              </p>
-            )}
-          </div>
         </div>
       )}
     </div>
