@@ -198,7 +198,7 @@ async def test_usage_recorder_to_curator_via_api_client(
     )
 
     update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
-    collector = get_stats_collector()
+    get_stats_collector()  # wires the production collector into the run recorder
     begin_skill_run_usage()
     record_skill_selection(
         SkillMetadata(
@@ -215,7 +215,6 @@ async def test_usage_recorder_to_curator_via_api_client(
     # Age last_used_at on disk so sweep marks stale (recorder just wrote fresh timestamp)
     stats["last_used_at"] = old_date.isoformat()
     (skill_dir / ".stats.json").write_text(json.dumps(stats), encoding="utf-8")
-    collector._pending_updates.clear()  # noqa: SLF001 — force reload from disk
 
     from fastapi import FastAPI
 

@@ -492,7 +492,6 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         skill_dir = store.db_path.parent / "skills" / existing_skill_id
         collector = SkillStatsCollector(skill_dir.parent)
         collector.record_use(skill_dir, success=True)
-        collector.flush()
     finally:
         reset_evolution_skill_store()
 
