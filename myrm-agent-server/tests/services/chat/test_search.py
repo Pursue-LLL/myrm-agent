@@ -10,7 +10,6 @@ Covers:
 from datetime import datetime, timezone
 
 import pytest
-from search_support import seed_chat_and_messages
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +17,7 @@ from app.database.models import Chat, Message
 from app.database.repositories.conversation_recall import ConversationRecallRepository
 from app.services.chat.chat_helpers import _sanitize_snippet
 from app.services.chat.chat_service import ChatService
+from tests.services.chat.search_support import seed_chat_and_messages
 
 # ─────────────────────────────────────────────
 # 1. Unit tests for _sanitize_snippet

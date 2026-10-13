@@ -1,3 +1,11 @@
+"""In-memory database fixtures for suites that persist chats or search messages.
+
+``db_session`` is a schema-complete SQLite database with ``UnitOfWork`` bound to it; ``fts_db`` adds the
+``messages_fts`` trigram table, its sync triggers and the conversation-recall schema. Registered globally through
+``pytest_plugins`` in ``tests/conftest.py``. They are plugin modules, not conftests: a conftest that is also a
+plugin is registered twice, and pytest then aborts any run that targets its directory.
+"""
+
 import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine

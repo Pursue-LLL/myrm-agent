@@ -7,7 +7,6 @@ from myrm_agent_harness.toolkits.memory.conversation_search import (
     ConversationSearchRequest,
 )
 from pydantic import ValidationError
-from search_support import seed_chat_and_messages
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +16,7 @@ from app.services.chat.conversation_recall_index_service import (
     ConversationRecallIndexService,
 )
 from app.services.chat.conversation_search_service import ConversationSearchService
+from tests.services.chat.search_support import seed_chat_and_messages
 
 
 class TestConversationSearchService:

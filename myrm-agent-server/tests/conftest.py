@@ -19,13 +19,14 @@ _HARNESS_SRC = _SERVER_ROOT.parent.parent / "myrm-agent-harness" / "src"
 if _HARNESS_SRC.exists() and str(_HARNESS_SRC) not in sys.path:
     sys.path.insert(0, str(_HARNESS_SRC))
 
-# Re-exported shared fixtures from sub-tree conftests. pytest 9 requires
-# pytest_plugins at the top-level conftest only; the referenced modules define
-# explicit-request fixtures (db_session/fts_db) and an artifact-upsert autouse
-# mock that is inert for tests that never touch the artifact pipeline.
+# Shared fixtures re-exported to every suite. pytest 9 requires pytest_plugins at the
+# top-level conftest only; the referenced modules define explicit-request fixtures
+# (db_session/fts_db) and an artifact-upsert autouse mock that is inert for tests that
+# never touch the artifact pipeline. The first two are plain support modules: a conftest
+# that is also listed here is registered twice, and a run targeting its directory aborts.
 pytest_plugins = (
-    "tests.services.chat.conftest",
-    "tests.core.artifacts.conftest",
+    "tests.support.chat_db_fixtures",
+    "tests.support.artifact_upsert_fixture",
     "tests.api.agent.conftest",
 )
 

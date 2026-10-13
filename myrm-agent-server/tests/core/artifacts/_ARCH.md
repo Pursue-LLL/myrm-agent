@@ -12,7 +12,6 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `conftest.py` | 辅助 | autouse mock `upsert_processor_artifact`（SSOT；api/artifacts 经 pytest_plugins 复用） |
 | `test_artifact_file_id_chain.py` | 核心 | `upsert_processor_artifact` → `ensure_artifact_for_deploy` → `POST /{file_id}/publish` 全链路 |
 | `test_listener.py` | 核心 | `resolve_sandbox_file_path` 与 artifact 事件持久化 |
 | `test_processor_oversized_shareable.py` | 核心 | Local reference-only persist、sandboxes 路径、processor→deliverable 集成 |

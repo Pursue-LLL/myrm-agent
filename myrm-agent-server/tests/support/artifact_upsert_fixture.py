@@ -1,4 +1,9 @@
-"""Shared fixtures for artifact processor tests."""
+"""Autouse mock of the artifact upsert, shared by the artifact processor and artifact API tests.
+
+Registered globally through ``pytest_plugins`` in ``tests/conftest.py``; it is inert for tests that never reach the
+artifact pipeline. A plugin module, not a conftest: a conftest that is also a plugin is registered twice, and pytest
+then aborts any run that targets its directory.
+"""
 
 from __future__ import annotations
 
