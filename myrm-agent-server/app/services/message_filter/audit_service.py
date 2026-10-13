@@ -42,8 +42,8 @@ class AuditService:
         """Record a filter event to the audit log.
 
         Args:
-            filter_type: Name of the filter (e.g., "SystemRoleFilter", "PIIRedactionFilter")
-            action: Action taken (e.g., "MESSAGE_FILTERED", "PII_REDACTED", "CREDENTIAL_LEAK_BLOCKED")
+            filter_type: Name of the filter (e.g., "SystemRoleFilter")
+            action: Action taken (e.g., "MESSAGE_FILTERED")
             reason: Human-readable reason for the action
             metadata: Additional context (e.g., {"role": "system", "message_id": "123"})
 

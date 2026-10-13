@@ -42,7 +42,6 @@ class ConfigVersionService:
 
         config_snapshot = {
             "enabled": config.enabled,
-            "pii_mode": config.pii_mode,
             "whitelist_api_keys": config.whitelist_api_keys,
             "audit_enabled": config.audit_enabled,
         }
@@ -111,7 +110,6 @@ class ConfigVersionService:
             self._db.add(current_config)
 
         current_config.enabled = history_entry.config["enabled"]
-        current_config.pii_mode = history_entry.config["pii_mode"]
         current_config.whitelist_api_keys = history_entry.config["whitelist_api_keys"]
         current_config.audit_enabled = history_entry.config["audit_enabled"]
         current_config.updated_by = updated_by

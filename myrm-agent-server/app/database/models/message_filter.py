@@ -19,7 +19,6 @@ class MessageFilterConfig(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    pii_mode: Mapped[str] = mapped_column(String(50), nullable=False, default="redact")
     whitelist_api_keys: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     audit_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

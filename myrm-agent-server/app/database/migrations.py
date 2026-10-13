@@ -631,6 +631,8 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents ADD COLUMN acceptance_criteria JSON",
     # Session tags (ChatModel.tags): new DBs get the column from create_all; existing DBs need it appended.
     "ALTER TABLE chats ADD COLUMN tags JSON NOT NULL DEFAULT '[]'",
+    # message_filter_config.pii_mode was never read by any filter; its NOT NULL column would reject inserts of the slimmer ORM row.
+    "ALTER TABLE message_filter_config DROP COLUMN pii_mode",
 ]
 
 # 创建索引的SQL语句列表

@@ -21,7 +21,6 @@ class FilterConfigSchema(BaseModel):
     """Message filter configuration schema."""
 
     enabled: bool = Field(True, description="Whether filtering is enabled")
-    pii_mode: str = Field("redact", description="PII detection mode: off | redact | block")
     whitelist_api_keys: list[str] = Field(default_factory=list, description="API keys that bypass filtering")
     audit_enabled: bool = Field(True, description="Whether to log filtering events")
 
@@ -54,7 +53,6 @@ async def get_config(db: Annotated[AsyncSession, Depends(get_db)]) -> FilterConf
         return FilterConfigResponse(
             id=config.id,
             enabled=config.enabled,
-            pii_mode=config.pii_mode,
             whitelist_api_keys=config.whitelist_api_keys,
             audit_enabled=config.audit_enabled,
             updated_by=config.updated_by,
@@ -90,7 +88,6 @@ async def update_config(
             db.add(config)
 
         config.enabled = config_data.enabled
-        config.pii_mode = config_data.pii_mode
         config.whitelist_api_keys = config_data.whitelist_api_keys
         config.audit_enabled = config_data.audit_enabled
         config.updated_by = updated_by
@@ -105,7 +102,6 @@ async def update_config(
         return FilterConfigResponse(
             id=config.id,
             enabled=config.enabled,
-            pii_mode=config.pii_mode,
             whitelist_api_keys=config.whitelist_api_keys,
             audit_enabled=config.audit_enabled,
             updated_by=config.updated_by,
