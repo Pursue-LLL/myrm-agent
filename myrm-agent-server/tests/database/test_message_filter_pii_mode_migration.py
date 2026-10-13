@@ -14,7 +14,7 @@ from app.database.models import Base, MessageFilterConfig
 
 _DROP_PII_MODE = "ALTER TABLE message_filter_config DROP COLUMN pii_mode"
 
-# The table as a database created before the column was removed holds it: NOT NULL, no server default.
+# Legacy table layout: carries `pii_mode` (NOT NULL, no server default), which the ORM model does not define.
 _LEGACY_TABLE = """
 CREATE TABLE message_filter_config (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
