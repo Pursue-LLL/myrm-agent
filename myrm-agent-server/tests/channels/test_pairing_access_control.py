@@ -127,6 +127,74 @@ class TestSqlPairingStore:
         assert await store.get_pairing_detail(ch, sender_id) is None
 
 
+class TestLidAutoBindKeepsRole:
+    """A WhatsApp LID mapped to a paired phone number is the same person, so it keeps that pairing's role."""
+
+    @staticmethod
+    def _lid_channel(lid: str, phone: str) -> MagicMock:
+        channel = MagicMock()
+        channel._lid_to_pn = {lid: phone}
+        return channel
+
+    @pytest.mark.asyncio
+    async def test_owner_lid_stays_owner_after_auto_bind(self) -> None:
+        from app.channels.routing.policy_resolver_support import is_admin_sender, resolve_lid_fallback_helper
+
+        store = SqlPairingStore()
+        suffix = uuid.uuid4().hex[:8]
+        phone, lid = f"8613{suffix}", f"{suffix}@lid"
+        await store.bind("whatsapp", phone, role=PairingRole.ADMIN, status=PairingStatus.ACTIVE)
+        lid_msg = InboundMessage(channel="whatsapp", sender_id=lid, chat_id=lid, content="/yolo")
+        channel = self._lid_channel(lid, phone)
+
+        try:
+            assert await resolve_lid_fallback_helper(store, lambda _name: channel, lid_msg) == "sandbox"
+
+            assert await store.get_pairing_detail("whatsapp", lid) == (PairingStatus.ACTIVE, PairingRole.ADMIN, None)
+            assert await store.resolve("whatsapp", lid) == "sandbox"
+            assert await is_admin_sender(store, lid_msg) is True
+        finally:
+            await store.unbind("whatsapp", phone)
+            await store.unbind("whatsapp", lid)
+
+    @pytest.mark.asyncio
+    async def test_member_lid_keeps_member_role_and_quota(self) -> None:
+        from app.channels.routing.policy_resolver_support import is_admin_sender, resolve_lid_fallback_helper
+
+        store = SqlPairingStore()
+        suffix = uuid.uuid4().hex[:8]
+        phone, lid = f"8613{suffix}", f"{suffix}@lid"
+        await store.bind("whatsapp", phone, role=PairingRole.MEMBER, status=PairingStatus.ACTIVE, daily_quota=9)
+        lid_msg = InboundMessage(channel="whatsapp", sender_id=lid, chat_id=lid, content="hi")
+        channel = self._lid_channel(lid, phone)
+
+        try:
+            await resolve_lid_fallback_helper(store, lambda _name: channel, lid_msg)
+
+            assert await store.get_pairing_detail("whatsapp", lid) == (PairingStatus.ACTIVE, PairingRole.MEMBER, 9)
+            assert await is_admin_sender(store, lid_msg) is False
+        finally:
+            await store.unbind("whatsapp", phone)
+            await store.unbind("whatsapp", lid)
+
+    @pytest.mark.asyncio
+    async def test_lid_of_pending_phone_number_is_not_bound(self) -> None:
+        from app.channels.routing.policy_resolver_support import resolve_lid_fallback_helper
+
+        store = SqlPairingStore()
+        suffix = uuid.uuid4().hex[:8]
+        phone, lid = f"8613{suffix}", f"{suffix}@lid"
+        await store.bind("whatsapp", phone, role=PairingRole.ADMIN, status=PairingStatus.PENDING)
+        lid_msg = InboundMessage(channel="whatsapp", sender_id=lid, chat_id=lid, content="hi")
+        channel = self._lid_channel(lid, phone)
+
+        try:
+            assert await resolve_lid_fallback_helper(store, lambda _name: channel, lid_msg) is None
+            assert await store.get_pairing_detail("whatsapp", lid) is None
+        finally:
+            await store.unbind("whatsapp", phone)
+
+
 class TestPolicyResolverAccessControlAndQuota:
     """Test suite for DM Policy resolution with role privileges and daily quotas."""
 

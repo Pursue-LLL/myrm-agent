@@ -9,6 +9,7 @@
 - GroupFollowUpTracker: active group thread tracker for mention-exempt follow-up
 - query_dm_policy, query_group_policy, query_group_trigger, query_enabled_groups, check_guest_mention_allowed: Policy provider query delegates
 - resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support: Group RBAC arbitration, diagnostic bypass check, and trigger evaluation helpers
+- resolve_lid_fallback_helper: binds a WhatsApp LID to its verified phone-number pairing, inheriting that pairing's role
 - is_admin_sender: the one owner rule, shared by admin-only commands and the decision on a held channel reply
 
 [POS]
@@ -160,46 +161,42 @@ async def check_guest_mention_allowed(policy_provider: ChannelPolicyProvider | N
 
 async def resolve_lid_fallback_helper(
     pairing: PairingStore,
-    policy_provider: ChannelPolicyProvider | None,
     channel_lookup: Callable[[str], object | None],
     msg: InboundMessage,
-    *,
-    allow_default_fallback: bool = False,
 ) -> str | None:
-    """Resolve a WhatsApp LID sender via verified LID→PN mapping."""
+    """Resolve a WhatsApp LID sender via the verified LID→PN mapping.
+
+    The LID is bound with the phone-number pairing's own status, role and quota: it is the same person, so a
+    sender that reaches the bot as its owner through a LID stays the owner instead of being demoted to a member.
+    """
     ch = channel_lookup(msg.channel)
     lid_cache: dict[str, str] = getattr(ch, "_lid_to_pn", {})
-    if lid_cache:
-        pn = lid_cache.get(msg.sender_id)
-        if pn:
-            user_id = await pairing.resolve(msg.channel, pn)
-            if user_id:
-                await pairing.bind(
-                    msg.channel,
-                    msg.sender_id,
-                    user_id,
-                    display_name=msg.sender_name,
-                )
-                logger.warning(
-                    "PolicyResolver: LID auto-bound via mapping %s → %s",
-                    msg.sender_id,
-                    pn,
-                )
-                return user_id
-
-    if not allow_default_fallback or not policy_provider:
-        return None
-    default_uid = await policy_provider.get_default_user_id()
-    if not default_uid:
+    pn = lid_cache.get(msg.sender_id)
+    if not pn:
         return None
 
-    await pairing.bind(msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name)
-    logger.warning(
-        "PolicyResolver: LID auto-bound to default user %s → %s",
+    user_id = await pairing.resolve(msg.channel, pn)
+    detail = await pairing.get_pairing_detail(msg.channel, pn)
+    if not user_id or detail is None:
+        return None
+
+    status, role, daily_quota = detail
+    await pairing.bind(
+        msg.channel,
         msg.sender_id,
-        default_uid,
+        user_id,
+        status=status,
+        display_name=msg.sender_name,
+        role=role,
+        daily_quota=daily_quota,
     )
-    return default_uid
+    logger.warning(
+        "PolicyResolver: LID auto-bound via mapping %s → %s (role=%s)",
+        msg.sender_id,
+        pn,
+        role.value,
+    )
+    return user_id
 
 
 async def check_sender_daily_quota(

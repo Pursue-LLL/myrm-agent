@@ -227,9 +227,7 @@ class PolicyResolver:
         if policy == DmPolicy.OPEN:
             user_id = await self._pairing.resolve(msg.channel, msg.sender_id)
             if not user_id and msg.sender_id.endswith("@lid"):
-                user_id = await self._resolve_lid_fallback(
-                    msg, allow_default_fallback=False
-                )
+                user_id = await self._resolve_lid_fallback(msg)
             if not user_id:
                 # Security Gate: Prevent silent privilege escalation to default_user_id (e.g. sandbox/admin).
                 guest_uid = f"guest_{msg.channel}_{msg.sender_id}"
@@ -321,9 +319,7 @@ class PolicyResolver:
             return user_id
 
         if msg.sender_id.endswith("@lid"):
-            user_id = await self._resolve_lid_fallback(
-                msg, allow_default_fallback=False
-            )
+            user_id = await self._resolve_lid_fallback(msg)
             if user_id:
                 return user_id
 
@@ -339,20 +335,9 @@ class PolicyResolver:
         )
         return None
 
-    async def _resolve_lid_fallback(
-        self,
-        msg: InboundMessage,
-        *,
-        allow_default_fallback: bool = False,
-    ) -> str | None:
+    async def _resolve_lid_fallback(self, msg: InboundMessage) -> str | None:
         """Resolve a WhatsApp LID sender via verified LID→PN mapping."""
-        return await resolve_lid_fallback_helper(
-            self._pairing,
-            self._policy,
-            self._get_channel,
-            msg,
-            allow_default_fallback=allow_default_fallback,
-        )
+        return await resolve_lid_fallback_helper(self._pairing, self._get_channel, msg)
 
     async def _resolve_with_pairing(self, msg: InboundMessage) -> str | None:
         """Pairing mode: auto-create PENDING for unknown senders."""
@@ -361,9 +346,7 @@ class PolicyResolver:
             return user_id
 
         if msg.sender_id.endswith("@lid"):
-            user_id = await self._resolve_lid_fallback(
-                msg, allow_default_fallback=False
-            )
+            user_id = await self._resolve_lid_fallback(msg)
             if user_id:
                 return user_id
 
