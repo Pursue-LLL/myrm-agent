@@ -12,6 +12,11 @@
  * says when it left the pending set. The first stall of a burst also logs a snapshot of
  * Chrome's renderer processes (priority, CPU share). `stats()` feeds `/proxy/status`
  * (slow requests, those on unknown sessions, load, cpus).
+ *
+ * A `Runtime.evaluate` / `callFunctionOn` sent with `awaitPromise` is answered only when the page's script
+ * finishes (a scroll-and-collect loop runs for tens of seconds by design), so being unanswered says nothing
+ * about Chrome. Those are logged as `script wait` and counted apart: they neither count as slow requests nor
+ * trigger the renderer snapshot.
  */
 import os from 'node:os';
 
@@ -49,6 +54,8 @@ export class RequestWatch {
         this.slowCount = 0;
         /** slow requests whose session the router no longer knows: Chrome drops commands for a detached session */
         this.unknownSessionCount = 0;
+        /** requests that were waiting on a page script (`awaitPromise`), not on Chrome */
+        this.scriptWaitCount = 0;
     }
 
     sweep() {
@@ -60,8 +67,14 @@ export class RequestWatch {
             const known = this.flagged.get(proxyId);
             if (known) known.lastSeen = t;
             if (known || t - req.createdAt < this.slowMs) continue;
-            const info = { label: req.client.label, method: req.method, createdAt: req.createdAt, lastSeen: t };
+            const scriptWait = Boolean(req.awaitsScript);
+            const info = { label: req.client.label, method: req.method, createdAt: req.createdAt, lastSeen: t, kind: scriptWait ? 'script wait' : 'slow request' };
             this.flagged.set(proxyId, info);
+            if (scriptWait) {
+                this.scriptWaitCount++;
+                this.log(`script wait ${info.label} ${info.method} (awaitPromise) still running after ${this.#seconds(t - req.createdAt)}s`);
+                continue;
+            }
             this.slowCount++;
             newStall = true;
             const target = req.sessionId ? this.describeSession(req.sessionId) : null;
@@ -80,13 +93,13 @@ export class RequestWatch {
         for (const [proxyId, info] of this.flagged) {
             if (this.pendingRequests.get(proxyId)?.createdAt === info.createdAt) continue;
             this.flagged.delete(proxyId);
-            this.log(`slow request ${info.label} ${info.method} left the pending set after at least ${this.#seconds(info.lastSeen - info.createdAt)}s `
+            this.log(`${info.kind} ${info.label} ${info.method} left the pending set after at least ${this.#seconds(info.lastSeen - info.createdAt)}s `
                 + '(answered, or timed out by the 60 s reaper)');
         }
     }
 
     stats() {
-        return { slowRequests: this.slowCount, slowRequestsOnUnknownSession: this.unknownSessionCount, loadavg1: Number(this.loadavg()[0].toFixed(1)), cpus: this.cpus };
+        return { slowRequests: this.slowCount, slowRequestsOnUnknownSession: this.unknownSessionCount, scriptWaits: this.scriptWaitCount, loadavg1: Number(this.loadavg()[0].toFixed(1)), cpus: this.cpus };
     }
 
     #seconds(ms) {
