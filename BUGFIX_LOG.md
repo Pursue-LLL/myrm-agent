@@ -894,7 +894,7 @@ except Exception:
 
 1. 新增 `settingsRoutes.ts` 作路由单一真源：`SETTINGS_TABS`（48 个）、`SETTINGS_TAB_REDIRECTS`（18 个别名）、`TAURI_ONLY_TABS`、`isSettingsTab`、`getSettingsTabRedirectPath`；`page.tsx`、`SettingsLayout.tsx`、`SettingsMenu.tsx` / 脏状态 store / `useDirtyGuard.ts`（只取类型）与 `verify-i18n.mjs`（读取清单）全部改读它；别名统一由服务端页面 `redirect()` 消化，`SettingsLayout` 里的客户端 `router.replace` 副本删除；`SECTION_COMPONENTS` 对 `SettingsTab` 穷尽，新增 id 漏写组件会编译报错；`SettingsLayout.tsx` 由 469 行降到 391 行；
 2. 死链改正：`/settings/browser` → `/settings/extensionBridge`，`/settings/knowledge…` → `/settings/wiki…`（含服务端两个 runner 的文案），`/settings/extensions` → `/settings/mcp`（随 toast 抽出为 `reauthToasts.ts`），预置技能两处 → `/settings/mcp`；删除两个 `config_url`；
-3. OAuth 落点：前端 `getOAuthIssuerSettingsPath(issuer)`（`provider_*` → `/settings/models`，其余 → `/settings/credentials`）由 toast、前置检查横幅与数据流面板共用；服务端 `push_deep_links._oauth_reauth_path` 按同一规则镜像（Web Push 不能 import 前端，两侧各由测试钉死）；
+3. OAuth 落点：前端 `getOAuthIssuerSettingsPath(issuer)`（`provider_*` → `/settings/models`，其余 → `/settings/credentials`）由 toast、前置检查横幅与数据流面板共用；服务端 `push_deep_links._oauth_reauth_path` 按同一规则镜像（Web Push 不能 import 前端，两侧各由测试钉死）；提示条里的账户名由 `formatOAuthIssuerLabel` 转成可读写法（`google_workspace` → `Google Workspace`，与数据流面板同一个函数），不再展示原始 issuer id，也不转发后端写给开发者的英文 `reason`；
 4. 守门：服务端 `tests/architecture/test_settings_deep_links.py` 扫描前端源码、`app/**/*.py` 与 `assets/**` 里所有 `/settings/<id>` 字面量，要求落在 `SETTINGS_TABS` ∪ `SETTINGS_TAB_REDIRECTS` 内（跳过测试源码与含 `prefix=` 的 FastAPI 路由行）；
 5. 补齐六语言 `metadata.settingsTabs.{workbench,shares,a2aPeers}` 与 `settings.menu["brand-studio"]`。
 
@@ -945,7 +945,7 @@ except Exception:
 2. 引导页：删除 `connectedIds`，行状态与「继续」按钮由 store 派生（此前已连接的服务直接显示已连接并可继续；已停用的不计为已连接）；
 3. 对话框：删除探测失败、`exists`、闸门前三处提前的 `setConnecting(false)`，统一由 `finally` 复位，按钮在安全扫描全程保持忙碌；
 4. `catalog-locale.ts`：`toCatalogLocale`（所有中文变体 → `zh`，其余 → `en`）与 `useCatalogLocale()`（跟随 next-intl 当前语言）；对话框与 `AuthSection` 的 `locale` 收窄为 `CatalogLocale`；
-5. 分类标签改走 i18n（`settings.integrationCatalog.categories.*`，9 个键 × 六语言，`t.has` 判定，未收录的分类回退为原 id），新增 `disabled` / `manage` / `openWebsite`，删除不再使用的 `boot.onboarding.toolsConnect.connected`（引导页改用目录的同一状态标签，繁中措辞随之统一为“已連線”）；官网外链在可悬停设备上悬停或键盘聚焦时显现、触屏常显，并补上带服务名的 `aria-label`；去掉卡片 className 里空的 `hover:` 残留。
+5. 分类标签改走 i18n（`settings.integrationCatalog.categories.*`，9 个键 × 六语言，`t.has` 判定，未收录的分类回退为原 id；这组键是动态读取，`verify-i18n` 看不到，由服务端架构测试 `test_catalog_category_locales.py` 按目录接口返回的分类逐语言钉住，删键与置空两种变异均被抓出），新增 `disabled` / `manage` / `openWebsite`，删除不再使用的 `boot.onboarding.toolsConnect.connected`（引导页改用目录的同一状态标签，繁中措辞随之统一为“已連線”）；官网外链在可悬停设备上悬停或键盘聚焦时显现、触屏常显，并补上带服务名的 `aria-label`；去掉卡片 className 里空的 `hover:` 残留。
 
 ### 验证
 
@@ -960,5 +960,44 @@ except Exception:
 3. 目录内容只有中英两份：所有中文变体读中文、其余读英文，要在一个函数里归一，不要把原始 `lang` 字符串传给下游做严格比较；
 4. 悬停才显现的控件要用 `[@media(hover:hover)]` 限定，触屏默认可见，并补可访问名称；
 5. 局限：没有真实浏览器里的视觉验收（触屏常显、深浅主题、手机宽度只有类名与组件测试）；连接身份按 `mcpConfig.name` 判断，用户在 MCP 页以别的名字手动添加的同一服务不会被识别为已连接。
+
+---
+
+## BUG-AGENT-2026-10-13-004: 开发者中心的「导入导出」页内标签与侧栏子项点击后弹回「开发者」标签
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-13 |
+| 修复日期 | 2026-10-13 |
+| 严重程度 | P3（设置 → 开发者里点「导入导出」，页面立即回到「开发者」标签；该标签只能经驼峰写法的深链打开） |
+| 影响范围 | `DeveloperCenterSection.tsx`、`settingsRoutes.ts` |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-13-002`（同一批次：设置页路由） |
+
+### 现象
+
+1. 页内标签 `value="importexport"`（`DeveloperCenterSection.tsx:93`）与侧栏子菜单项 `{ id: 'importexport' }`（`SettingsMenu.tsx:139`）都会把 `?sub=importexport` 写进地址栏（`defaultSubTabResolver` 原样输出标签值）；
+2. 页面按地址栏重新选标签时只认 `sub === 'importExport'`（驼峰，HEAD `DeveloperCenterSection.tsx:32`），小写写法落进 `else` 分支被当作「开发者」标签，页面随即弹回；
+3. 只有别名 `/settings/importExport`（重定向表写成 `sub=importExport`）与 `WorkbenchRetentionSection.tsx:249` 的驼峰链接能打开该标签。
+
+### 根因
+
+同一个子视图有两种拼写：标签值与侧栏 id 是 `importexport`，别名、深链与页面入口写 `importExport`；解析 `sub` 的 effect 只认其中一种，其余值一律回落到默认标签，没有任何地方核对“标签自己写进 URL 的值能被读回”。路由单一真源（`-002`）收拢别名表时，这一条沿用了驼峰写法，其余 14 条带 `sub` 的别名都用侧栏子视图 id。
+
+### 修复
+
+1. `DeveloperCenterSection` 的 `sub` 解析同时接受标签值 `importexport` 与别名写法 `importExport`（与同一函数里 `experimental` / `experimentalFeatures`、`usage` / `usageStatistics` 的处理一致）；
+2. `settingsRoutes.ts` 的 `importExport` 别名改指向 `?sub=importexport`，与其余别名一样使用侧栏子视图 id；驼峰链接仍能打开该标签。
+
+### 验证
+
+1. 新增 `DeveloperCenterSection.test.tsx`（9 例）：对 5 个页内标签逐个做“标签写进 URL 的 `sub`（真实的 `defaultSubTabResolver`）→ 渲染后选中同一标签”的往返断言，另有 3 个别名写法与 1 个未知值回落；修复前 `importexport` 一例红（`Unable to find an element by: [data-testid="importexport"]`），其余 8 例绿，修复后 9 例全绿；`settingsRoutes.test.ts` 补一条断言钉住别名重定向目标；
+2. 其余 6 个中心页（模型、技能、工具质量、记忆、通信、系统）按源码逐个比对“页内标签值 → 写进 URL 的 `sub` → 解析分支”，未发现同类不一致。
+
+### 踩坑经验
+
+1. 标签状态与 URL 双向同步时，要有“自己写出的值能被自己读回”的往返测试；只测“读 URL”，或把写 URL 的 Hook 整个 mock 掉再断言，抓不到读写两端的拼写分歧；
+2. 同一个标识有多种拼写时，规范写法（标签值）要能被解析，别名写法只作为外部入口；
+3. 局限：往返断言只覆盖 `DeveloperCenterSection`，其余 6 个中心页是源码比对；没有在真实浏览器里点过。
 
 ---

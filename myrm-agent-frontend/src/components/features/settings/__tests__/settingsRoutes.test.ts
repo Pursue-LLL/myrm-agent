@@ -42,6 +42,8 @@ describe('settingsRoutes', () => {
   it('builds the canonical redirect path with and without a sub view', () => {
     expect(getSettingsTabRedirectPath('defaultModel')).toBe('/settings/models?sub=default');
     expect(getSettingsTabRedirectPath('memory-cloud-backup')).toBe('/settings/memory?sub=cloud-backup');
+    // 与侧栏子菜单 / 页内标签使用同一个 sub id（全小写），不是别名的驼峰写法。
+    expect(getSettingsTabRedirectPath('importExport')).toBe('/settings/developer?sub=importexport');
     expect(getSettingsTabRedirectPath('persona')).toBe('/settings/personalization');
     expect(getSettingsTabRedirectPath('eval')).toBe('/settings/developer');
   });

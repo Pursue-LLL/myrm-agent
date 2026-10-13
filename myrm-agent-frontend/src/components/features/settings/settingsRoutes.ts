@@ -90,7 +90,7 @@ export const SETTINGS_TAB_REDIRECTS: Readonly<Record<string, SettingsTabRedirect
   experimentalFeatures: { parent: 'developer', sub: 'experimental' },
   usageStatistics: { parent: 'developer', sub: 'usage' },
   companion: { parent: 'developer', sub: 'companion' },
-  importExport: { parent: 'developer', sub: 'importExport' },
+  importExport: { parent: 'developer', sub: 'importexport' },
   eval: { parent: 'developer' },
   about: { parent: 'system', sub: 'about' },
 };

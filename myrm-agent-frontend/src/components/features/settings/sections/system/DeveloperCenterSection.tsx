@@ -29,7 +29,7 @@ const DeveloperCenterSection = memo(() => {
       setActiveTab('usage');
     } else if (sub === 'companion') {
       setActiveTab('companion');
-    } else if (sub === 'importExport') {
+    } else if (sub === 'importexport' || sub === 'importExport') {
       setActiveTab('importexport');
     } else {
       setActiveTab('devtools');

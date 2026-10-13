@@ -28,6 +28,8 @@ _SKIP_WITHOUT_FRONTEND = pytest.mark.skipif(not _LOCALES.is_dir(), reason="front
 @_SKIP_WITHOUT_FRONTEND
 @pytest.mark.parametrize("locale_file", sorted(_LOCALES.glob("*.json")), ids=lambda p: p.stem)
 def test_every_catalog_category_has_a_display_name(locale_file: Path) -> None:
+    categories = CatalogRegistry().get_categories()
+    assert categories, "the catalog registry returned no categories, so this check would pass without checking anything"
     names = json.loads(locale_file.read_text(encoding="utf-8"))["settings"]["integrationCatalog"]["categories"]
-    unnamed = [category for category in CatalogRegistry().get_categories() if not names.get(category, "").strip()]
+    unnamed = [category for category in categories if not names.get(category, "").strip()]
     assert unnamed == []
