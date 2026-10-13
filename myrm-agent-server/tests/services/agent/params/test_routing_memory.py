@@ -12,6 +12,7 @@ from app.core.types import ModelConfig
 from app.services.agent.params import routing_memory
 from app.services.agent.params.models import AgentRequest, ModelSelection
 from app.services.agent.params.routing_memory import (
+    complaint_floor,
     remember_turn_routing,
     resolve_turn_routing,
     split_recent_routing,
@@ -271,3 +272,71 @@ class TestSlotMapping:
         selection, _ = routing_memory._slot_selections(_request(), tier.value, None)
 
         assert (selection.model if selection else None) == _TIER_SLOT_MODEL[tier]
+
+
+def _cfg(model: str, **overrides: object) -> ModelConfig:
+    return ModelConfig(model=model, api_key=f"sk-{model}", **overrides)
+
+
+class TestComplaintFloor:
+    """A retry climbs to the first rung that runs a different effective model config than the previous answer."""
+
+    _MAIN = _cfg("gpt-4o")
+    _LIGHT = _cfg("gpt-4o-mini")
+    _REASONING = _cfg("deepseek-reasoner")
+
+    def test_distinct_rungs_climb_one_tier_per_retry(self) -> None:
+        rungs = {"standard": self._MAIN, "light": self._LIGHT, "reasoning": self._REASONING}
+
+        assert complaint_floor(RoutingTier.SIMPLE, **rungs) == (RoutingTier.STANDARD, True)
+        assert complaint_floor(RoutingTier.STANDARD, **rungs) == (RoutingTier.REASONING, True)
+
+    def test_top_rung_has_nothing_to_climb_to(self) -> None:
+        floor = complaint_floor(RoutingTier.REASONING, standard=self._MAIN, light=self._LIGHT, reasoning=self._REASONING)
+
+        assert floor == (RoutingTier.REASONING, False)
+
+    def test_no_history_starts_at_the_standard_tier(self) -> None:
+        floor = complaint_floor(None, standard=self._MAIN, light=self._LIGHT, reasoning=self._REASONING)
+
+        assert floor == (RoutingTier.STANDARD, True)
+
+    def test_unset_light_slot_is_skipped(self) -> None:
+        floor = complaint_floor(RoutingTier.SIMPLE, standard=self._MAIN, light=None, reasoning=self._REASONING)
+
+        assert floor == (RoutingTier.REASONING, True)
+
+    def test_light_slot_equal_to_the_main_model_is_skipped(self) -> None:
+        floor = complaint_floor(RoutingTier.SIMPLE, standard=self._MAIN, light=_cfg("gpt-4o"), reasoning=self._REASONING)
+
+        assert floor == (RoutingTier.REASONING, True)
+
+    def test_reasoning_slot_equal_to_the_main_model_holds_the_floor(self) -> None:
+        floor = complaint_floor(RoutingTier.STANDARD, standard=self._MAIN, light=self._LIGHT, reasoning=_cfg("gpt-4o"))
+
+        assert floor == (RoutingTier.STANDARD, False)
+
+    def test_unset_reasoning_slot_holds_the_floor(self) -> None:
+        floor = complaint_floor(RoutingTier.STANDARD, standard=self._MAIN, light=self._LIGHT, reasoning=None)
+
+        assert floor == (RoutingTier.STANDARD, False)
+
+    @pytest.mark.parametrize(
+        "override",
+        [{"reasoning_effort": "high"}, {"model_kwargs": {"thinking": {"budget_tokens": 8000}}}, {"temperature": 0.2}],
+    )
+    def test_same_model_with_a_different_answer_config_is_a_distinct_rung(self, override: dict[str, object]) -> None:
+        floor = complaint_floor(
+            RoutingTier.STANDARD, standard=self._MAIN, light=self._LIGHT, reasoning=_cfg("gpt-4o", **override)
+        )
+
+        assert floor == (RoutingTier.REASONING, True)
+
+    def test_credentials_and_context_window_do_not_make_a_rung_distinct(self) -> None:
+        main = _cfg("gpt-4o", max_context_tokens=8000)
+        reasoning = ModelConfig(model="gpt-4o", api_key="sk-another-key", supports_vision=True)
+
+        assert complaint_floor(RoutingTier.STANDARD, standard=main, light=self._LIGHT, reasoning=reasoning) == (
+            RoutingTier.STANDARD,
+            False,
+        )

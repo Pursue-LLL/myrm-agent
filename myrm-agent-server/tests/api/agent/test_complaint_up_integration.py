@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -22,7 +23,7 @@ from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
 )
 
 from app.core.types import ModelConfig
-from app.services.agent.params.models import AgentRequest
+from app.services.agent.params.models import AgentRequest, ModelSelection
 from tests.api.agent.utils import get_model_selection
 
 _DUMMY_KEY = "sk-test-routing"
@@ -43,6 +44,17 @@ def _make_routing_result(tier: RoutingTier = RoutingTier.STANDARD) -> RoutingRes
         fallback_model_cfg=None,
         reason="test",
     )
+
+
+async def _resolve_without_provider_keys(selection: ModelSelection, providers: dict[str, object] | None) -> ModelConfig:
+    return ModelConfig(model=selection.model, api_key=_DUMMY_KEY)
+
+
+@pytest.fixture(autouse=True)
+def _resolvable_slots() -> Iterator[None]:
+    """Slot models resolve to distinct configs, so the retry ladder has different rungs to climb to."""
+    with patch("app.services.agent.params.converter._resolve_model_config", new=_resolve_without_provider_keys):
+        yield
 
 
 @pytest.fixture

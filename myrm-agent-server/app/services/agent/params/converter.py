@@ -46,7 +46,7 @@ from .mention import (
 )
 from .models import AgentRequest
 from .resolvers import _resolve_model_config
-from .routing_memory import RecentRouting, load_recent_routing, resolve_turn_routing
+from .routing_memory import RecentRouting, complaint_floor, load_recent_routing, resolve_turn_routing
 from .upload_sync import (
     inject_uploaded_files_into_query,
     sync_uploaded_files_to_workspace,
@@ -389,15 +389,15 @@ async def convert_to_general_agent_params(
             recent_routing_tiers = recent_routing.tiers or None
 
             complaint_min_tier: RoutingTier | None = None
-            is_complaint_up = bool(request.sibling_group_id and not request.regenerate_instruction)
-            if is_complaint_up and recent_routing_tiers:
-                _tier_next = {
-                    RoutingTier.SIMPLE: RoutingTier.STANDARD,
-                    RoutingTier.STANDARD: RoutingTier.REASONING,
-                }
-                complaint_min_tier = _tier_next.get(recent_routing_tiers[-1], RoutingTier.REASONING)
-            elif is_complaint_up:
-                complaint_min_tier = RoutingTier.STANDARD
+            retry_cannot_climb = False
+            if request.sibling_group_id and not request.regenerate_instruction:
+                complaint_min_tier, climbs = complaint_floor(
+                    recent_routing_tiers[-1] if recent_routing_tiers else None,
+                    standard=model_cfg,
+                    light=light_model_cfg,
+                    reasoning=reasoning_model_cfg,
+                )
+                retry_cannot_climb = not climbs
 
             route_started = time.perf_counter()
             routing_result = await route_task(
@@ -416,6 +416,9 @@ async def convert_to_general_agent_params(
             if request.action_mode == "deep_research" and routing_result.tier is RoutingTier.SIMPLE:
                 # The report is the deliverable of a research run and research topics are short by nature, so the
                 # planner/report model stays on the default model (research sub-agents use the light slot separately).
+                # The persisted tier is the one that ran, so the next turn's momentum and a retry start from it.
+                routing_tier = RoutingTier.STANDARD.value
+                routing_reason = "default_standard"
                 logger.info("Smart routing: deep research ignores tier=simple routing_ms=%.1f", routing_ms)
             else:
                 model_cfg = routing_result.model_cfg
@@ -423,6 +426,9 @@ async def convert_to_general_agent_params(
                     fallback_model_cfg = routing_result.fallback_model_cfg
                 routing_tier = routing_result.tier.value
                 routing_reason = routing_result.reason
+                if retry_cannot_climb and routing_reason.startswith("min_tier_escalation("):
+                    # The floor had no different model to move to, so the row must not claim an upgrade.
+                    routing_reason = "retry_floor_held"
                 logger.info(
                     "Smart routing: tier=%s model=%s reason=%s routing_ms=%.1f",
                     routing_result.tier.value,

@@ -1,8 +1,9 @@
 """Smart Routing in deep research: the planner/report model never drops to the light tier.
 
 The report is the deliverable of a research run and research topics are short by nature (``Compare React vs Vue 2025``
-scores SIMPLE on rules alone), so a SIMPLE verdict must not hand the main model over to the light slot. Upgrades to the
-reasoning tier still apply, and the same query in every other mode keeps routing to the light model.
+scores SIMPLE on rules alone), so a SIMPLE verdict must not hand the main model over to the light slot. The run is
+recorded as the standard tier it ran on, which is the baseline a retry climbs from. Upgrades to the reasoning tier
+still apply, and the same query in every other mode keeps routing to the light model.
 """
 
 from __future__ import annotations
@@ -29,19 +30,19 @@ async def _fake_resolve(selection: ModelSelection, providers: dict[str, object] 
 
 
 @asynccontextmanager
-async def _converter_env() -> AsyncIterator[None]:
+async def _converter_env(history: list[str] | None = None) -> AsyncIterator[None]:
     with (
         patch("app.services.agent.params.converter._resolve_model_config", new=_fake_resolve),
         patch(
             "app.database.repositories.chat_repo.ChatRepository.get_recent_routing_tiers",
             new_callable=AsyncMock,
-            return_value=[],
+            return_value=history or [],
         ),
     ):
         yield
 
 
-def _turn(query: str, action_mode: str) -> AgentRequest:
+def _turn(query: str, action_mode: str, sibling_group_id: str | None = None) -> AgentRequest:
     return AgentRequest(
         message_id="msg-deep-research",
         chat_id="chat-deep-research",
@@ -52,6 +53,7 @@ def _turn(query: str, action_mode: str) -> AgentRequest:
         light_model_selection=_LIGHT,
         fallback_light_model_selection=_LIGHT_FALLBACK,
         reasoning_model_selection=_REASONING,
+        sibling_group_id=sibling_group_id,
     )
 
 
@@ -61,14 +63,14 @@ async def _convert(request: AgentRequest):
 
 
 class TestDeepResearchIgnoresTheSimpleVerdict:
-    async def test_short_topic_keeps_the_default_model_and_its_fallback(self) -> None:
+    async def test_short_topic_keeps_the_default_model_and_records_the_standard_tier(self) -> None:
         async with _converter_env():
             params, tier, reason = await _convert(_turn(_SHORT_TOPIC, "deep_research"))
 
         assert params.model_cfg.model == "gpt-4o"
         assert params.fallback_model_cfg is not None
         assert params.fallback_model_cfg.model == "gpt-4o-fallback"
-        assert (tier, reason) == (None, None)
+        assert (tier, reason) == ("standard", "default_standard")
 
     async def test_same_query_in_agent_mode_still_routes_to_the_light_model(self) -> None:
         async with _converter_env():
@@ -85,3 +87,15 @@ class TestDeepResearchIgnoresTheSimpleVerdict:
 
         assert params.model_cfg.model == "deepseek-reasoner"
         assert tier == "reasoning"
+
+    async def test_retry_of_the_recorded_run_climbs_to_the_reasoning_model(self) -> None:
+        async with _converter_env():
+            _, first_tier, _ = await _convert(_turn(_SHORT_TOPIC, "deep_research"))
+        assert first_tier == "standard"
+
+        async with _converter_env([first_tier]):
+            params, tier, reason = await _convert(_turn(_SHORT_TOPIC, "deep_research", sibling_group_id="sibling-1"))
+
+        assert params.model_cfg.model == "deepseek-reasoner"
+        assert tier == "reasoning"
+        assert reason is not None and reason.startswith("min_tier_escalation(")
