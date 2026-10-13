@@ -113,15 +113,29 @@ async def test_better_evidenced_skills_rank_first(skills_root: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_uses_outside_the_week_are_not_counted(skills_root: Path) -> None:
+async def test_skill_without_a_run_this_week_is_not_on_the_panel(skills_root: Path) -> None:
+    """Uses older than the window say nothing about this week's health; the active neighbour stays."""
     _write_stats(skills_root, "old", [True, True], days_ago=20)
+    _write_stats(skills_root, "active", [True] * 5)
 
-    (item,) = await fetch_skill_health()
+    assert [item.skill_name for item in await fetch_skill_health()] == ["active"]
 
-    assert item.call_count_7d == 0
-    assert item.call_count_total == 2
-    assert item.success_rate_7d is None
-    assert item.status == "STALE"
+
+@pytest.mark.asyncio
+async def test_never_used_archived_and_pinned_idle_skills_are_not_reported_stale(skills_root: Path) -> None:
+    """The curator owns dormancy: the panel neither flags a fresh install nor a pinned or archived skill."""
+    long_ago = datetime.now(UTC) - timedelta(days=60)
+    ledgers = {
+        "fresh-install": SkillUsageStats(created_at=datetime.now(UTC) - timedelta(days=12)),
+        "pinned-idle": SkillUsageStats(call_count=3, success_count=3, last_used_at=long_ago, pinned=True),
+        "archived": SkillUsageStats(call_count=3, success_count=3, last_used_at=long_ago, lifecycle_status="archived"),
+    }
+    for name, stats in ledgers.items():
+        (skills_root / name).mkdir()
+        (skills_root / name / ".stats.json").write_text(json.dumps(stats.to_dict()))
+    _write_stats(skills_root, "active", [True, None])
+
+    assert [item.skill_name for item in await fetch_skill_health()] == ["active"]
 
 
 @pytest.mark.asyncio
@@ -149,11 +163,7 @@ async def test_legacy_counters_of_a_long_idle_skill_are_not_reported_as_this_wee
         json.dumps({"call_count": 3, "success_count": 3, "last_used_at": long_ago.isoformat()})
     )
 
-    (item,) = await fetch_skill_health()
-
-    assert item.call_count_7d == 0
-    assert item.call_count_total == 3
-    assert item.status == "STALE"
+    assert await fetch_skill_health() == []
 
 
 @pytest.mark.asyncio

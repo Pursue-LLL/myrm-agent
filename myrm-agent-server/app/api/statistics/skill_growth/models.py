@@ -48,7 +48,7 @@ class SkillTrendSeries(BaseModel):
 
 
 class SkillHealthItem(BaseModel):
-    """7-day skill health evaluated by harness SkillHealthEvaluator."""
+    """7-day health of a skill that ran in the window, evaluated by harness SkillHealthEvaluator."""
 
     skill_name: str
     health_score: float
@@ -61,5 +61,4 @@ class SkillHealthItem(BaseModel):
     """Observed outcomes needed before the success rate and a quality status are shown."""
     success_rate_7d: float | None
     """Share of the week's observed outcomes that succeeded; None until ``min_observed_count`` were observed."""
-    last_used_at: str | None = None
     actionable_recommendation: str | None = None

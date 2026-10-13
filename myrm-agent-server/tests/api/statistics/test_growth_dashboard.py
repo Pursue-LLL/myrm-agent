@@ -121,7 +121,6 @@ class TestGrowthDashboardSchemas:
             observed_count_7d=29,
             min_observed_count=5,
             success_rate_7d=0.967,
-            last_used_at="2026-09-08T01:00:00Z",
             actionable_recommendation="🌟 Star asset with zero friction.",
         )
         assert item.skill_name == "search_web"
@@ -836,7 +835,6 @@ async def test_growth_dashboard_endpoint_end_to_end_integration() -> None:
         observed_count_7d=14,
         min_observed_count=5,
         success_rate_7d=0.95,
-        last_used_at="2026-09-08T00:00:00Z",
         actionable_recommendation="🌟 Star asset in active rotation.",
     )
 

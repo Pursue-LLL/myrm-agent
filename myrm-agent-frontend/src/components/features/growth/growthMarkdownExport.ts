@@ -45,7 +45,11 @@ export function buildGrowthMarkdown(data: GrowthDashboardData, labels: GrowthMar
     );
   }
 
-  const rankedSkills = [...skill_health].sort((a, b) => b.health_score - a.health_score).slice(0, 10);
+  // An unproven skill's score only measures how little evidence exists, so it takes no part in the ranking.
+  const rankedSkills = skill_health
+    .filter((skill) => skill.status !== 'UNPROVEN')
+    .sort((a, b) => b.health_score - a.health_score)
+    .slice(0, 10);
 
   if (rankedSkills.length > 0) {
     lines.push('', `## ${labels.skillHealth}`);

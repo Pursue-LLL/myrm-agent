@@ -10695,14 +10695,14 @@
     "skillHealth": {
       "title": "Skill Health (7D)",
       "description": "Compounding health scores from recent skill usage.",
-      "empty": "No skill usage recorded yet.",
+      "empty": "No skills ran in the last 7 days.",
       "calls7d": "{count} calls (7D)",
       "callsTotal": "{count} total",
       "successRate": "{rate}% success",
       "filterAll": "All",
       "filterAttention": "Needs Attention",
       "filterHealthy": "Healthy & Stars",
-      "noAttentionNeeded": "No at-risk or stale skills requiring governance.",
+      "noAttentionNeeded": "No at-risk skills right now.",
       "recommendationPrefix": "Recommendation:",
       "manageSkill": "Manage",
       "showMore": "Show all ({count})",
@@ -10710,13 +10710,11 @@
       "recStar": "Star asset. Nearly every run with a clear result succeeded.",
       "recAtRisk": "At-risk asset. Many runs with a clear result failed; review the prompt and parameters.",
       "recHealthy": "Healthy asset in active rotation.",
-      "recStale": "Inactive asset. Review for obsolescence or add usage examples.",
-      "recUnproven": "Too early to judge: {observed} of {required} runs have a clear result so far.",
+      "recUnproven": "Not enough runs with a clear result yet: {observed} of {required}. A run has a clear result only when it used tools with this skill alone.",
       "status": {
         "STAR": "Star",
         "HEALTHY": "Healthy",
         "AT_RISK": "At Risk",
-        "STALE": "Stale",
         "UNPROVEN": "Unproven"
       }
     },

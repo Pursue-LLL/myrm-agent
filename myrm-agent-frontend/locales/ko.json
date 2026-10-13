@@ -10616,14 +10616,14 @@
     "skillHealth": {
       "title": "스킬 건전성 (7일)",
       "description": "최근 스킬 사용에 따른 복리 건전성 점수입니다.",
-      "empty": "아직 스킬 사용 기록이 없습니다.",
+      "empty": "최근 7일 동안 실행된 스킬이 없습니다.",
       "calls7d": "7일간 {count}회 호출",
       "callsTotal": "누적 {count}회",
       "successRate": "성공률 {rate}%",
       "filterAll": "전체",
       "filterAttention": "조치 필요",
       "filterHealthy": "건강 및 스타",
-      "noAttentionNeeded": "현재 조치가 필요한 위험 또는 미사용 스킬이 없습니다.",
+      "noAttentionNeeded": "현재 조치가 필요한 위험 스킬이 없습니다.",
       "recommendationPrefix": "조치 권장:",
       "manageSkill": "관리로 이동",
       "showMore": "전체 보기 ({count})",
@@ -10631,13 +10631,11 @@
       "recStar": "스타 자산. 결과가 명확한 실행은 거의 모두 성공했습니다.",
       "recAtRisk": "위험 자산. 결과가 명확한 실행 중 실패가 많습니다. 프롬프트와 매개변수를 확인하세요.",
       "recHealthy": "건강하게 활성 로테이션 중인 자산.",
-      "recStale": "미사용 자산. 노후화 여부를 검토하거나 사용 예시를 추가하세요.",
-      "recUnproven": "아직 판단하기 이릅니다. 결과가 명확한 실행이 현재 {observed}/{required}회입니다.",
+      "recUnproven": "결과가 명확한 실행이 아직 부족합니다 (현재 {observed}/{required}회). 이 스킬만 사용해 도구를 호출한 실행만 결과가 명확해집니다.",
       "status": {
         "STAR": "별표",
         "HEALTHY": "건강",
         "AT_RISK": "위험",
-        "STALE": "미사용",
         "UNPROVEN": "검증 대기"
       }
     },

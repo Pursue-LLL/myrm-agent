@@ -10616,14 +10616,14 @@
     "skillHealth": {
       "title": "Skill-Integrität (7 Tage)",
       "description": "Zusammengesetzte Integritätswerte basierend auf der jüngsten Nutzung.",
-      "empty": "Noch keine Skill-Nutzung aufgezeichnet.",
+      "empty": "In den letzten 7 Tagen wurde kein Skill ausgeführt.",
       "calls7d": "{count} Aufrufe (7T)",
       "callsTotal": "{count} Aufrufe gesamt",
       "successRate": "{rate}% Erfolgsrate",
       "filterAll": "Alle",
       "filterAttention": "Handlungsbedarf",
       "filterHealthy": "Gesund & Favoriten",
-      "noAttentionNeeded": "Aktuell keine gefährdeten oder inaktiven Skills mit Handlungsbedarf.",
+      "noAttentionNeeded": "Aktuell keine gefährdeten Skills mit Handlungsbedarf.",
       "recommendationPrefix": "Handlungsempfehlung:",
       "manageSkill": "Verwalten",
       "showMore": "Alle anzeigen ({count})",
@@ -10631,13 +10631,11 @@
       "recStar": "Spitzen-Asset. Nahezu jeder Lauf mit eindeutigem Ergebnis war erfolgreich.",
       "recAtRisk": "Risikoreiches Asset. Viele Läufe mit eindeutigem Ergebnis sind fehlgeschlagen; Prompt und Parameter überprüfen.",
       "recHealthy": "Gesundes Asset in aktiver Nutzung.",
-      "recStale": "Inaktives Asset. Auf Relevanz prüfen oder Beispiele ergänzen.",
-      "recUnproven": "Noch zu früh für ein Urteil: {observed} von {required} Läufen haben bisher ein eindeutiges Ergebnis.",
+      "recUnproven": "Noch zu wenige Läufe mit eindeutigem Ergebnis: {observed} von {required}. Ein Lauf hat nur dann ein eindeutiges Ergebnis, wenn er mit diesem Skill allein Werkzeuge genutzt hat.",
       "status": {
         "STAR": "Favorit",
         "HEALTHY": "Gesund",
         "AT_RISK": "Gefährdet",
-        "STALE": "Inaktiv",
         "UNPROVEN": "Ungeprüft"
       }
     },

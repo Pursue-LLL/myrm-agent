@@ -7,26 +7,24 @@ import type { SkillHealthItem } from '@/services/statistics';
 const translationMap: Record<string, string> = {
   title: 'Skill Health (7D)',
   description: 'Compounding health scores from recent skill usage.',
-  empty: 'No skill usage recorded yet.',
+  empty: 'No skills ran in the last 7 days.',
   calls7d: '{count} calls (7D)',
   callsTotal: '{count} total',
   successRate: '{rate}% success',
   filterAll: 'All',
   filterAttention: 'Needs Attention',
   filterHealthy: 'Healthy & Stars',
-  noAttentionNeeded: 'No at-risk or stale skills requiring governance.',
+  noAttentionNeeded: 'No at-risk skills right now.',
   recommendationPrefix: 'Recommendation:',
   manageSkill: 'Manage',
   'status.STAR': 'Star',
   'status.HEALTHY': 'Healthy',
   'status.AT_RISK': 'At Risk',
-  'status.STALE': 'Stale',
   'status.UNPROVEN': 'Unproven',
   recStar: 'Star asset in active rotation.',
   recAtRisk: 'High failure rate detected. Review prompt parameters.',
   recHealthy: 'Healthy asset in active rotation.',
-  recStale: 'Skill has not been invoked. Consider deprecating.',
-  recUnproven: 'Too early to judge: {observed} of {required} runs have a clear result so far.',
+  recUnproven: 'Not enough runs with a clear result yet: {observed} of {required}.',
   showMore: 'Show all ({count})',
   showLess: 'Show less',
 };
@@ -56,7 +54,6 @@ describe('SkillHealthPanel', () => {
       observed_count_7d: 20,
       min_observed_count: 5,
       success_rate_7d: 1.0,
-      last_used_at: '2026-09-08T00:00:00Z',
       actionable_recommendation: 'Star asset in active rotation.',
     },
     {
@@ -68,26 +65,24 @@ describe('SkillHealthPanel', () => {
       observed_count_7d: 11,
       min_observed_count: 5,
       success_rate_7d: 0.45,
-      last_used_at: '2026-09-08T01:00:00Z',
       actionable_recommendation: 'High failure rate detected. Review prompt parameters.',
     },
     {
-      skill_name: 'dormant_script',
-      health_score: 0.0,
-      status: 'STALE',
-      call_count_7d: 0,
-      call_count_total: 0,
-      observed_count_7d: 0,
+      skill_name: 'steady_tool',
+      health_score: 80.0,
+      status: 'HEALTHY',
+      call_count_7d: 9,
+      call_count_total: 9,
+      observed_count_7d: 9,
       min_observed_count: 5,
-      success_rate_7d: null,
-      last_used_at: null,
-      actionable_recommendation: 'Skill has not been invoked. Consider deprecating.',
+      success_rate_7d: 0.8,
+      actionable_recommendation: 'Healthy asset in active rotation.',
     },
   ];
 
   it('renders empty message when no skills provided', () => {
     render(<SkillHealthPanel items={[]} />);
-    expect(screen.getByText('No skill usage recorded yet.')).toBeInTheDocument();
+    expect(screen.getByText('No skills ran in the last 7 days.')).toBeInTheDocument();
   });
 
   it('renders all skills by default with tabs and recommendations', () => {
@@ -96,15 +91,15 @@ describe('SkillHealthPanel', () => {
     // Verify all 3 skills are displayed
     expect(screen.getByText('super_search')).toBeInTheDocument();
     expect(screen.getByText('flaky_plugin')).toBeInTheDocument();
-    expect(screen.getByText('dormant_script')).toBeInTheDocument();
+    expect(screen.getByText('steady_tool')).toBeInTheDocument();
 
     // Verify recommendations
     expect(screen.getByText('Star asset in active rotation.')).toBeInTheDocument();
     expect(screen.getByText('High failure rate detected. Review prompt parameters.')).toBeInTheDocument();
-    expect(screen.getByText('Skill has not been invoked. Consider deprecating.')).toBeInTheDocument();
+    expect(screen.getByText('Healthy asset in active rotation.')).toBeInTheDocument();
 
-    // Verify attention counter badge is 2 (flaky_plugin + dormant_script)
-    expect(screen.getByText('2')).toBeInTheDocument();
+    // Only the at-risk skill needs attention
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
   it('shows the success rate only for skills whose run outcomes were observed', () => {
@@ -112,8 +107,7 @@ describe('SkillHealthPanel', () => {
 
     expect(screen.getByText(/20 calls \(7D\) · 80 total · 100% success/)).toBeInTheDocument();
     expect(screen.getByText(/12 calls \(7D\) · 12 total · 45% success/)).toBeInTheDocument();
-    expect(screen.getByText('0 calls (7D) · 0 total')).toBeInTheDocument();
-    expect(screen.queryByText(/(?<!\d)0% success/)).not.toBeInTheDocument();
+    expect(screen.getByText(/9 calls \(7D\) · 9 total · 80% success/)).toBeInTheDocument();
   });
 
   it('explains how many observed outcomes an unproven skill still needs and hides its rate', () => {
@@ -126,15 +120,15 @@ describe('SkillHealthPanel', () => {
       observed_count_7d: 1,
       min_observed_count: 5,
       success_rate_7d: null,
-      last_used_at: '2026-09-08T00:00:00Z',
       actionable_recommendation: 'Too few observed outcomes to judge quality yet (1 of 5 needed).',
     };
 
     render(<SkillHealthPanel items={[unproven]} />);
 
     expect(screen.getByText('Unproven')).toBeInTheDocument();
-    expect(screen.getByText('Too early to judge: 1 of 5 runs have a clear result so far.')).toBeInTheDocument();
+    expect(screen.getByText('Not enough runs with a clear result yet: 1 of 5.')).toBeInTheDocument();
     expect(screen.getByText('2 calls (7D) · 2 total')).toBeInTheDocument();
+    expect(screen.queryByText(/% success/)).not.toBeInTheDocument();
     expect(screen.getByText('–')).toBeInTheDocument();
     expect(screen.queryByText('20')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Needs Attention/i }));
@@ -162,12 +156,18 @@ describe('SkillHealthPanel', () => {
     const attentionTab = screen.getByRole('button', { name: /Needs Attention/i });
     fireEvent.click(attentionTab);
 
-    // Attention items visible
+    // Only the at-risk item is visible
     expect(screen.getByText('flaky_plugin')).toBeInTheDocument();
-    expect(screen.getByText('dormant_script')).toBeInTheDocument();
-
-    // Healthy/Star item hidden
     expect(screen.queryByText('super_search')).not.toBeInTheDocument();
+    expect(screen.queryByText('steady_tool')).not.toBeInTheDocument();
+  });
+
+  it('says so when no skill is at risk', () => {
+    render(<SkillHealthPanel items={[mockItems[0]]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Needs Attention/i }));
+
+    expect(screen.getByText('No at-risk skills right now.')).toBeInTheDocument();
   });
 
   it('filters to only healthy items when Healthy tab clicked', () => {
@@ -176,12 +176,12 @@ describe('SkillHealthPanel', () => {
     const healthyTab = screen.getByRole('button', { name: /Healthy & Stars/i });
     fireEvent.click(healthyTab);
 
-    // Healthy/Star item visible
+    // Healthy and star items visible
     expect(screen.getByText('super_search')).toBeInTheDocument();
+    expect(screen.getByText('steady_tool')).toBeInTheDocument();
 
-    // Attention items hidden
+    // The at-risk item is hidden
     expect(screen.queryByText('flaky_plugin')).not.toBeInTheDocument();
-    expect(screen.queryByText('dormant_script')).not.toBeInTheDocument();
   });
 
   it('supports expanding and collapsing when item count exceeds 8', () => {
@@ -194,7 +194,6 @@ describe('SkillHealthPanel', () => {
       observed_count_7d: 10,
       min_observed_count: 5,
       success_rate_7d: 0.9,
-      last_used_at: '2026-09-08T00:00:00Z',
       actionable_recommendation: 'Healthy asset in active rotation.',
     }));
 

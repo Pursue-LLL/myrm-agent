@@ -10616,14 +10616,14 @@
     "skillHealth": {
       "title": "スキル健全性 (7日間)",
       "description": "最近のスキル使用状況に基づく複利健全性スコア。",
-      "empty": "スキルの使用履歴はまだありません。",
+      "empty": "過去 7 日間に実行されたスキルはありません。",
       "calls7d": "7日間 {count} 回呼び出し",
       "callsTotal": "累計 {count} 回",
       "successRate": "成功率 {rate}%",
       "filterAll": "すべて",
       "filterAttention": "対応が必要",
       "filterHealthy": "健全・スター",
-      "noAttentionNeeded": "現在対応が必要な休眠またはリスクスキルはありません。",
+      "noAttentionNeeded": "現在対応が必要なリスクスキルはありません。",
       "recommendationPrefix": "対応推奨:",
       "manageSkill": "管理へ",
       "showMore": "すべて表示 ({count})",
@@ -10631,13 +10631,11 @@
       "recStar": "スターアセット。結果が明確な実行のほぼすべてが成功しています",
       "recAtRisk": "リスクのあるアセット。結果が明確な実行の失敗が多いため、プロンプトとパラメータを確認してください",
       "recHealthy": "健全に稼働しているアセット、アクティブにローテーション中",
-      "recStale": "非アクティブなアセット。陳腐化を確認するか、使用例を追加してください",
-      "recUnproven": "まだ判断できません。結果が明確な実行は現在 {observed}/{required} 回です",
+      "recUnproven": "結果が明確な実行がまだ足りません（現在 {observed}/{required} 回）。このスキルだけでツールを使った実行のみ、結果が明確になります。",
       "status": {
         "STAR": "スター",
         "HEALTHY": "健全",
         "AT_RISK": "リスクあり",
-        "STALE": "休眠",
         "UNPROVEN": "未検証"
       }
     },

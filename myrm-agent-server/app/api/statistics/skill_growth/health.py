@@ -6,11 +6,13 @@
 - app.api.statistics.skill_growth.ledger::iter_skill_ledgers (POS: usage ledger read path)
 
 [OUTPUT]
-- fetch_skill_health: Health score, status and evidence for every local skill, best first
+- fetch_skill_health: Health score, status and evidence for every local skill that ran in the window, best first
 
 [POS]
 Health panel data of the growth dashboard. Only observed outcomes weigh on a skill; a rate or quality
-status needs as many outcomes as the curator requires before it acts on one.
+status needs as many outcomes as the curator requires before it acts on one. A skill with no run in the
+window has no health to report: dormancy and archiving belong to the curator's lifecycle, which the
+skill library already shows.
 """
 
 from __future__ import annotations
@@ -69,16 +71,17 @@ async def fetch_skill_health() -> list[SkillHealthItem]:
                 succ_7d = stats.success_count
                 fail_7d = stats.failure_count
 
+            if calls_7d == 0:
+                continue
+
             evaluated = SkillHealthEvaluator.evaluate(
                 SkillCompoundingMetrics(
                     skill_id=skill_dir.name,
                     invocations=calls_7d,
                     successful_invocations=succ_7d,
                     failed_invocations=fail_7d,
-                    last_invoked_at=latest_dt,
                 ),
                 min_observed=min_observed,
-                reference_time=now,
             )
             observed_7d = succ_7d + fail_7d
 
@@ -92,7 +95,6 @@ async def fetch_skill_health() -> list[SkillHealthItem]:
                     observed_count_7d=observed_7d,
                     min_observed_count=min_observed,
                     success_rate_7d=evaluated.success_rate if observed_7d >= min_observed else None,
-                    last_used_at=latest_dt.isoformat() if latest_dt else None,
                     actionable_recommendation=evaluated.actionable_recommendation,
                 )
             )

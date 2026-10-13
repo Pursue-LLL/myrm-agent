@@ -9,6 +9,7 @@
  *
  * [POS]
  * 成长进化中心技能健康度组件。解决盲目过滤与死特性问题，直观呈现 Harness 纯规则健康分与治理处置建议。
+ * 只展示近 7 天有运行的技能；沉睡与归档由技能库（SkillCard）的 Curator 生命周期徽章呈现。
  */
 'use client';
 
@@ -25,15 +26,16 @@ const STATUS_VARIANT: Record<string, string> = {
   HEALTHY: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
   AT_RISK: 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
   UNPROVEN: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
-  STALE: 'bg-muted text-muted-foreground border-border',
 };
+
+/** Badge style of a status this build does not know. */
+const NEUTRAL_VARIANT = 'bg-muted text-muted-foreground border-border';
 
 const RECOMMENDATION_KEY: Record<string, string> = {
   STAR: 'recStar',
   HEALTHY: 'recHealthy',
   AT_RISK: 'recAtRisk',
   UNPROVEN: 'recUnproven',
-  STALE: 'recStale',
 };
 
 function getStatusIcon(status: string) {
@@ -46,7 +48,6 @@ function getStatusIcon(status: string) {
       return <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />;
     case 'UNPROVEN':
       return <CircleDashed className="h-3.5 w-3.5 text-sky-500 shrink-0" />;
-    case 'STALE':
     default:
       return <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
   }
@@ -67,7 +68,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
     return <p className="text-sm text-muted-foreground py-2">{t('empty')}</p>;
   }
 
-  const attentionItems = items.filter((item) => item.status === 'AT_RISK' || item.status === 'STALE');
+  const attentionItems = items.filter((item) => item.status === 'AT_RISK');
   const healthyItems = items.filter((item) => item.status === 'STAR' || item.status === 'HEALTHY');
 
   const filteredItems = activeTab === 'attention' ? attentionItems : activeTab === 'healthy' ? healthyItems : items;
@@ -128,7 +129,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
       ) : (
         <div className="space-y-2.5">
           {displayItems.map((item) => {
-            const isAttention = item.status === 'AT_RISK' || item.status === 'STALE';
+            const isAttention = item.status === 'AT_RISK';
             return (
               <div
                 key={item.skill_name}
@@ -164,7 +165,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                       variant="outline"
                       className={cn(
                         'text-xs flex items-center gap-1',
-                        STATUS_VARIANT[item.status] ?? STATUS_VARIANT.STALE,
+                        STATUS_VARIANT[item.status] ?? NEUTRAL_VARIANT,
                       )}
                     >
                       {item.status in STATUS_VARIANT ? t(`status.${item.status}`) : item.status}

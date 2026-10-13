@@ -273,6 +273,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/test_evolution_trigger_guard.py` | 模块 | `trigger_skill_evolution` 守卫单测（同 chat 在飞任务去重、普通对话 tool_steps<3 门槛跳过、DW `conversation_text` 绕过门槛） |
 | `services/agent/test_evolution_engine_task.py` | 模块 | `_run_evolution_task` 后台任务执行路径单测（短历史跳过、历史拼接、DW 文本跳过 DB、无 proposal 早退、approval+broadcast 全链、异常兜底日志） |
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
+| `e2e/test_skill_health_chrome_e2e.py` | 模块 | /journey 技能健康度面板 Chrome E2E（SHARED+READ×2：`window.fetch` 页内替换 growth-dashboard 的 `skill_health`，零后端污染）。T1 三种结论（明星/风险/待验证）渲染：风险行显示成功率，待验证行只显示「–」与「已观测/所需」且无成功率，页面无 `STALE`；切到「待治理」仅剩风险行、切到「健康与明星」仅剩明星行。T2 空列表 → 一句话空态且无筛选按钮。服务端结论由 `tests/api/statistics/skill_growth` 覆盖；`pin_direct_blank_heal` 防 wait_for_state 把 /journey heal 回家 |
 | `support/offline_memory.py` | 辅助 | 离线真实记忆管理器：真实内嵌 Qdrant + SQLite，仅把 embedding 换成确定性哈希向量（无需凭据与网络），并把 Qdrant 重试退避归零；`offline_memory_manager(base_path, monkeypatch)`，用例之间须 `clear_embedded_stores()` |
 | `support/in_memory_remote_backup.py` | 辅助 | 内存版 `RemoteBackupStrategy`（字典存储 + 可编排的上传失败次数），远程备份测试共用 |
 | `services/memory/backup/` | 模块 | 备份域真实存储测试（关键路径无 mock）：`test_snapshot.py`（覆盖往返、合并不重复、导出被截断即失败、审批队列管理器被拒、回放短缺上报、坏文件解码）· `test_volume_store.py`（保存/列表/加载/删除、备份 id 穿越拒绝、半成品不留、坏元数据跳过）· `test_service.py`（覆盖恢复先留底、失败指向留底备份、坏备份不动记忆）· `test_remote_round_trip.py`（远程备份→新设备恢复且可重复、远程恢复不删记忆、不完整不上传、穿越文件名与临时目录清理） |

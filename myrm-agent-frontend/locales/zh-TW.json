@@ -10616,14 +10616,14 @@
     "skillHealth": {
       "title": "技能健康度（7天）",
       "description": "基於近期技能調用的複利健康評分。",
-      "empty": "暫無技能調用記錄。",
+      "empty": "近 7 天沒有技能運行。",
       "calls7d": "7天 {count} 次調用",
       "callsTotal": "累計 {count} 次",
       "successRate": "成功率 {rate}%",
       "filterAll": "全部",
       "filterAttention": "待治理",
       "filterHealthy": "健康與標星",
-      "noAttentionNeeded": "當前暫無需要治理的風險或沉睡技能",
+      "noAttentionNeeded": "當前暫無需要治理的風險技能",
       "recommendationPrefix": "治理建議:",
       "manageSkill": "去管理",
       "showMore": "展開全部 ({count})",
@@ -10631,13 +10631,11 @@
       "recStar": "明星資產：有明確結果的調用幾乎都成功",
       "recAtRisk": "風險資產：有明確結果的調用失敗較多，建議檢查 Prompt 與參數",
       "recHealthy": "健康運行資產，處於活躍輪轉中",
-      "recStale": "長期閒置資產，建議排查是否過時或補齊使用示例",
-      "recUnproven": "暫時無法評判：有明確結果的調用目前 {observed}/{required} 次",
+      "recUnproven": "有明確結果的運行還不夠：目前 {observed}/{required} 次。只有單獨使用該技能並調用過工具的運行才有明確結果。",
       "status": {
         "STAR": "標星",
         "HEALTHY": "健康",
         "AT_RISK": "風險",
-        "STALE": "沉睡",
         "UNPROVEN": "待驗證"
       }
     },

@@ -630,7 +630,6 @@ export interface SkillHealthItem {
   min_observed_count: number;
   /** null until min_observed_count outcomes were observed. */
   success_rate_7d: number | null;
-  last_used_at: string | null;
   actionable_recommendation?: string | null;
 }
 
