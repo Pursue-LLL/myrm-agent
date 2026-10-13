@@ -10,6 +10,7 @@
  * - E2EChatBridge: localhost dev-only `window.__MYRM_E2E_CHAT__` for CDP Chrome E2E
  * - pinLiteModelForE2e: bind agent chat to defaultModelConfig.liteModel (API E2E parity)
  * - pinBasicModelForE2e: bind desktop E2E to defaultModelConfig.baseModel (mimo SSOT)
+ * - releaseAgentModelPinForE2e: clear the agent's pinned model so the turn is smart-routed like a default user's
  * - isE2eProviderSendReady / waitE2eProviderSendReady: getModelSelection SSOT (lite or base)
  *
  * [POS]
@@ -17,7 +18,7 @@
  */
 import { useLayoutEffect } from 'react';
 import { flushSync } from 'react-dom';
-import { getModelSelection, getLightModelSelection } from '@/store/chat/messageRequest';
+import { getModelSelection, getRoutingModelSelections } from '@/store/chat/messageRequest';
 import { AgentBusyError, executeStreamWithRetry } from '@/store/chat/streamConsumer';
 import useChatStore from '@/store/useChatStore';
 import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
@@ -824,7 +825,7 @@ export default function E2EChatBridge() {
         const { isInitialized, providers, defaultModelConfig } = useProviderStore.getState();
         const { actionMode, agentConfig, chatId, currentSessionMessageId } = useChatStore.getState();
         const selection = getModelSelection(actionMode, agentConfig);
-        const lightSelection = getLightModelSelection(agentConfig);
+        const lightSelection = getRoutingModelSelections(actionMode, agentConfig).light;
         return {
           isInitialized,
           actionMode,
@@ -1504,6 +1505,12 @@ export default function E2EChatBridge() {
           });
         });
         return selection;
+      },
+      releaseAgentModelPinForE2e: () => {
+        // A pinned agent opts out of smart routing; routing E2E drops the pin after binding providers.
+        flushSync(() => {
+          useChatStore.getState().updateAgentConfig({ modelSelection: null });
+        });
       },
       skipActiveClarificationForE2e: () => {
         const state = useChatStore.getState();

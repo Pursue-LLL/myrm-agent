@@ -21,7 +21,7 @@ import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 import useChatStore from '@/store/useChatStore';
 import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
-import { isSmartRoutingActive } from '@/lib/model-binding';
+import { resolveSmartRouting } from '@/lib/model-routing';
 import { Sparkles } from 'lucide-react';
 
 const EmptyChat = React.memo(() => {
@@ -37,11 +37,17 @@ const EmptyChat = React.memo(() => {
     })),
   );
 
-  const defaultModelConfig = useProviderStore((s) => s.defaultModelConfig);
+  const { defaultModelConfig, providers, customModelInfo } = useProviderStore(
+    useShallow((s) => ({
+      defaultModelConfig: s.defaultModelConfig,
+      providers: s.providers,
+      customModelInfo: s.customModelInfo,
+    })),
+  );
 
   const isSmartRouting = useMemo(
-    () => isSmartRoutingActive(actionMode, agentConfig, defaultModelConfig),
-    [actionMode, agentConfig, defaultModelConfig],
+    () => resolveSmartRouting(actionMode, agentConfig, defaultModelConfig, providers, customModelInfo).active,
+    [actionMode, agentConfig, defaultModelConfig, providers, customModelInfo],
   );
 
   const title = t('researchBegins');

@@ -24,7 +24,6 @@ import {
   resolveActiveModelSelection,
   resolveActiveFallbackSelection,
   resolveModelPickerTriggerDisplay,
-  isSmartRoutingConfigured,
 } from '@/lib/model-binding';
 import {
   listMoaPresetOptions,
@@ -58,6 +57,7 @@ const BaseModelSelector = () => {
 
   const {
     providers,
+    customModelInfo,
     defaultModelConfig,
     getEnabledModels,
     setBaseModel,
@@ -68,6 +68,7 @@ const BaseModelSelector = () => {
   } = useProviderStore(
     useShallow((state) => ({
       providers: state.providers,
+      customModelInfo: state.customModelInfo,
       defaultModelConfig: state.defaultModelConfig,
       getEnabledModels: state.getEnabledModels,
       setBaseModel: state.setBaseModel,
@@ -140,13 +141,16 @@ const BaseModelSelector = () => {
   );
 
   const triggerDisplay = useMemo(
-    () => resolveModelPickerTriggerDisplay(actionMode, agentConfig, defaultModelConfig, providers, activeMoaPresetId),
-    [actionMode, agentConfig, defaultModelConfig, providers, activeMoaPresetId],
-  );
-
-  const isRoutingConfigured = useMemo(
-    () => isSmartRoutingConfigured(agentConfig, defaultModelConfig),
-    [agentConfig, defaultModelConfig],
+    () =>
+      resolveModelPickerTriggerDisplay(
+        actionMode,
+        agentConfig,
+        defaultModelConfig,
+        providers,
+        customModelInfo,
+        activeMoaPresetId,
+      ),
+    [actionMode, agentConfig, defaultModelConfig, providers, customModelInfo, activeMoaPresetId],
   );
 
   const handleSelectSmartRouting = useCallback(() => {
@@ -289,7 +293,7 @@ const BaseModelSelector = () => {
         moaPresets={moaPresets}
         activeMoaPresetId={activeMoaPresetId}
         onSelectMoaPreset={showMoaPresets ? setActiveMoaPresetId : undefined}
-        isSmartRoutingAvailable={isRoutingConfigured}
+        isSmartRoutingAvailable={triggerDisplay.canSelectSmartRouting}
         isSmartRoutingActive={triggerDisplay.isSmartRouting}
         onSelectSmartRouting={handleSelectSmartRouting}
         estimatedTokens={estimatedTokens}

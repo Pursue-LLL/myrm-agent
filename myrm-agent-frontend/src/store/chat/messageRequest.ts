@@ -2,10 +2,12 @@
  * [INPUT]
  * @/services/chat::createAISearchStream (POS: Chat streaming API client)
  * @/lib/model-binding::resolveActiveModelConfig (POS: Frontend model selection resolver)
+ * @/lib/model-routing::resolveSmartRouting (POS: Single decision point for smart routing activation and slots)
  * @/store/useConfigStore::useConfigStore (POS: Chat configuration state store)
  *
  * [OUTPUT]
  * getModelSelection: Resolve the active model for chat requests.
+ * getRoutingModelSelections: Resolve the light / reasoning routing slots a request carries (empty when smart routing does not apply).
  * validateChatModelConfig: Block send when default model / provider is incomplete.
  * resolveEffectiveAgentId: Resolve the agent identity used for chat memory bindings.
  * createMessageRequest: Assemble the agent chat request payload and stream it.
@@ -62,6 +64,7 @@ import { createAISearchStream, type StreamRequestBody } from '@/services/chat';
 import { inSessionMentionDeduplicator } from './inSessionMentionDeduplicator';
 import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
+import { resolveSmartRouting } from '@/lib/model-routing';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
@@ -419,129 +422,39 @@ export const getFallbackLiteModelSelection = (): ModelSelection | null => {
   return resolveSelectionToModelSelection(defaultModelConfig?.liteModel?.fallback);
 };
 
+export interface RoutingModelSelections {
+  light: ModelSelection | null;
+  fallbackLight: ModelSelection | null;
+  reasoning: ModelSelection | null;
+  fallbackReasoning: ModelSelection | null;
+}
+
+const NO_ROUTING_SELECTIONS: RoutingModelSelections = {
+  light: null,
+  fallbackLight: null,
+  reasoning: null,
+  fallbackReasoning: null,
+};
+
 /**
- * Auto-select a model from enabled providers by input cost.
- * `cheapest=true` picks lowest cost; `cheapest=false` picks highest cost.
- * Models known to lack function calling are skipped: a routed turn drives the full tool loop.
- * Returns null when fewer than 2 distinct-cost models exist (routing would be pointless).
+ * Light / reasoning slots sent with the request. Empty unless smart routing applies to this turn, so the
+ * server never routes a turn that the UI presents as un-routed (see `resolveSmartRouting`).
  */
-const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
-  const { providers, customModelInfo } = useProviderStore.getState();
-  const candidates: Array<{ providerId: string; model: string; cost: number }> = [];
-
-  for (const provider of providers) {
-    if (!provider.isEnabled) {
-      continue;
-    }
-    if (!hasUsableProviderAuth(provider)) {
-      continue;
-    }
-    for (const model of provider.enabledModels || []) {
-      const info = customModelInfo[`${provider.id}/${model}`];
-      if (info?.supports_function_calling === false) {
-        continue;
-      }
-      if (info?.input_cost_per_million !== null && info?.input_cost_per_million !== undefined) {
-        candidates.push({ providerId: provider.id, model, cost: info.input_cost_per_million });
-      }
-    }
+export const getRoutingModelSelections = (
+  actionMode: ActionMode,
+  agentConfig: AgentConfig | null,
+): RoutingModelSelections => {
+  const { providers, customModelInfo, defaultModelConfig } = useProviderStore.getState();
+  const routing = resolveSmartRouting(actionMode, agentConfig, defaultModelConfig, providers, customModelInfo);
+  if (!routing.active) {
+    return NO_ROUTING_SELECTIONS;
   }
-
-  if (candidates.length < 2) {
-    return null;
-  }
-
-  candidates.sort((a, b) => (cheapest ? a.cost - b.cost : b.cost - a.cost));
-  const pick = candidates[0];
-  return resolveSelectionToModelSelection({ providerId: pick.providerId, model: pick.model });
-};
-
-export const getLightModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
-  const agentRouting = agentConfig?.routingConfig;
-  if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {
-      return null;
-    }
-    if (agentRouting.lightModel?.primary) {
-      const slotKwargs = agentRouting.lightModel.modelKwargs ?? {};
-      return resolveSelectionToModelSelection(agentRouting.lightModel.primary, slotKwargs);
-    }
-  }
-  const { defaultModelConfig } = useProviderStore.getState();
-  const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {
-    return null;
-  }
-  if (routing?.lightModel?.primary) {
-    const slotKwargs = routing.lightModel.modelKwargs ?? {};
-    return resolveSelectionToModelSelection(routing.lightModel.primary, slotKwargs);
-  }
-  return autoSelectModelByCost(true);
-};
-
-export const getFallbackLightModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
-  const agentRouting = agentConfig?.routingConfig;
-  if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {
-      return null;
-    }
-    if (agentRouting.lightModel?.fallback) {
-      return resolveSelectionToModelSelection(agentRouting.lightModel.fallback);
-    }
-  }
-  const { defaultModelConfig } = useProviderStore.getState();
-  const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {
-    return null;
-  }
-  if (routing?.lightModel?.fallback) {
-    return resolveSelectionToModelSelection(routing.lightModel.fallback);
-  }
-  return null;
-};
-
-export const getReasoningModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
-  const agentRouting = agentConfig?.routingConfig;
-  if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {
-      return null;
-    }
-    if (agentRouting.reasoningModel?.primary) {
-      const slotKwargs = agentRouting.reasoningModel.modelKwargs ?? {};
-      return resolveSelectionToModelSelection(agentRouting.reasoningModel.primary, slotKwargs);
-    }
-  }
-  const { defaultModelConfig } = useProviderStore.getState();
-  const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {
-    return null;
-  }
-  if (routing?.reasoningModel?.primary) {
-    const slotKwargs = routing.reasoningModel.modelKwargs ?? {};
-    return resolveSelectionToModelSelection(routing.reasoningModel.primary, slotKwargs);
-  }
-  return autoSelectModelByCost(false);
-};
-
-export const getFallbackReasoningModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
-  const agentRouting = agentConfig?.routingConfig;
-  if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {
-      return null;
-    }
-    if (agentRouting.reasoningModel?.fallback) {
-      return resolveSelectionToModelSelection(agentRouting.reasoningModel.fallback);
-    }
-  }
-  const { defaultModelConfig } = useProviderStore.getState();
-  const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {
-    return null;
-  }
-  if (routing?.reasoningModel?.fallback) {
-    return resolveSelectionToModelSelection(routing.reasoningModel.fallback);
-  }
-  return null;
+  return {
+    light: resolveSelectionToModelSelection(routing.light.primary, routing.light.modelKwargs),
+    fallbackLight: resolveSelectionToModelSelection(routing.light.fallback),
+    reasoning: resolveSelectionToModelSelection(routing.reasoning.primary, routing.reasoning.modelKwargs),
+    fallbackReasoning: resolveSelectionToModelSelection(routing.reasoning.fallback),
+  };
 };
 
 export const getVisionFallbackModelSelection = (): ModelSelection | null => {
@@ -705,10 +618,12 @@ export const createMessageRequest = async (
   const fallbackModelSelection = getFallbackModelSelection(actionMode, agentConfig);
   const safetyFallbackModelSelection = getSafetyFallbackModelSelection(actionMode, agentConfig);
   const fallbackLiteModelSelection = getFallbackLiteModelSelection();
-  const lightModelSelection = getLightModelSelection(agentConfig);
-  const fallbackLightModelSelection = getFallbackLightModelSelection(agentConfig);
-  const reasoningModelSelection = getReasoningModelSelection(agentConfig);
-  const fallbackReasoningModelSelection = getFallbackReasoningModelSelection(agentConfig);
+  const {
+    light: lightModelSelection,
+    fallbackLight: fallbackLightModelSelection,
+    reasoning: reasoningModelSelection,
+    fallbackReasoning: fallbackReasoningModelSelection,
+  } = getRoutingModelSelections(actionMode, agentConfig);
   const visionFallbackModelSelection = getVisionFallbackModelSelection();
   const codeModelSelection = getCodeModelSelection();
   const fallbackCodeModelSelection = getFallbackCodeModelSelection();

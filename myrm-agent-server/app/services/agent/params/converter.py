@@ -17,6 +17,7 @@ web search; deep search uses web_fetch + sufficiency, not browser eager bind.
 from __future__ import annotations
 
 import logging
+import time
 from typing import cast
 
 from fastapi import Request
@@ -388,10 +389,7 @@ async def convert_to_general_agent_params(
             recent_routing_tiers = recent_routing.tiers or None
 
             complaint_min_tier: RoutingTier | None = None
-            is_complaint_up = bool(
-                request.sibling_group_id
-                and (not request.regenerate_instruction or request.regenerate_instruction == "__complaint_up__")
-            )
+            is_complaint_up = bool(request.sibling_group_id and not request.regenerate_instruction)
             if is_complaint_up and recent_routing_tiers:
                 _tier_next = {
                     RoutingTier.SIMPLE: RoutingTier.STANDARD,
@@ -401,6 +399,7 @@ async def convert_to_general_agent_params(
             elif is_complaint_up:
                 complaint_min_tier = RoutingTier.STANDARD
 
+            route_started = time.perf_counter()
             routing_result = await route_task(
                 query=request.query,
                 standard_model_cfg=model_cfg,
@@ -413,6 +412,7 @@ async def convert_to_general_agent_params(
                 recent_tiers=recent_routing_tiers,
                 min_tier=complaint_min_tier,
             )
+            routing_ms = (time.perf_counter() - route_started) * 1000
             model_cfg = routing_result.model_cfg
             if routing_result.fallback_model_cfg is not None:
                 fallback_model_cfg = routing_result.fallback_model_cfg
@@ -429,10 +429,11 @@ async def convert_to_general_agent_params(
                 record_misroute(recent_routing_tiers[-1])
 
             logger.info(
-                "Smart routing: tier=%s model=%s reason=%s",
+                "Smart routing: tier=%s model=%s reason=%s routing_ms=%.1f",
                 routing_result.tier.value,
                 model_cfg.model,
                 routing_result.reason,
+                routing_ms,
             )
         except Exception:
             logger.warning("Smart routing failed, using default model", exc_info=True)
@@ -663,10 +664,6 @@ async def convert_to_general_agent_params(
     from app.platform_utils.sandbox.tool_gateway import merge_tool_gateway_config
 
     tool_gateway_config = merge_tool_gateway_config(tool_gateway_config if isinstance(tool_gateway_config, dict) else None)
-
-    if request.regenerate_instruction and request.regenerate_instruction != "__complaint_up__":
-        regen_suffix = f"\n\n[Regeneration guidance: {request.regenerate_instruction}]"
-        user_instructions = f"{user_instructions}{regen_suffix}" if user_instructions else regen_suffix.strip()
 
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
@@ -1155,6 +1152,10 @@ async def convert_to_general_agent_params(
             resolve_builtin_tool_flags(enabled_builtin_tools),
         )
         prompt_mode = resolved.prompt_mode if resolved else "full"
+
+    if request.regenerate_instruction:
+        regen_suffix = f"\n\n[Regeneration guidance: {request.regenerate_instruction}]"
+        user_instructions = f"{user_instructions}{regen_suffix}" if user_instructions else regen_suffix.strip()
 
     params = GeneralAgentParams(
         message_id=request.message_id,

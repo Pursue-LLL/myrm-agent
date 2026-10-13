@@ -3,13 +3,16 @@
 Verifies that when a user clicks Regenerate (sibling_group_id present, no
 regenerate_instruction), the converter correctly computes complaint_min_tier
 and passes it to route_task.  Also verifies that regenerate-with-instruction
-does NOT trigger escalation.
+does NOT trigger escalation, is forwarded as guidance, and that every routing
+decision logs its latency.
 
 Mocks route_task to capture the min_tier argument without hitting a real LLM.
 """
 
 from __future__ import annotations
 
+import logging
+import re
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -83,12 +86,13 @@ class TestComplaintUpEscalation:
                 convert_to_general_agent_params,
             )
 
-            _, routing_tier, *rest = await convert_to_general_agent_params(request, [])
+            params, routing_tier, *rest = await convert_to_general_agent_params(request, [])
 
         assert mock_route.call_count == 1
         call_kwargs = mock_route.call_args
         assert call_kwargs.kwargs.get("min_tier") == RoutingTier.STANDARD
         mock_misroute.assert_called_once_with(RoutingTier.SIMPLE)
+        assert "Regeneration guidance" not in (params.user_instructions or "")
 
     @pytest.mark.asyncio
     async def test_complaint_up_escalates_standard_to_reasoning(self, base_request: dict[str, object]) -> None:
@@ -185,8 +189,10 @@ class TestComplaintUpEscalation:
         assert call_kwargs.kwargs.get("min_tier") == RoutingTier.STANDARD
 
     @pytest.mark.asyncio
-    async def test_regenerate_with_instruction_no_escalation(self, base_request: dict[str, object]) -> None:
-        """sibling_group_id + WITH instruction → no complaint-up, min_tier stays None."""
+    @pytest.mark.parametrize("action_mode", ["fast", "agent"])
+    async def test_regenerate_with_instruction_no_escalation(self, base_request: dict[str, object], action_mode: str) -> None:
+        """sibling_group_id + WITH instruction → no escalation; the instruction reaches the prompt in every mode."""
+        base_request["action_mode"] = action_mode
         base_request["sibling_group_id"] = "sg-test-4"
         base_request["regenerate_instruction"] = "Use a more formal tone"
         request = AgentRequest(**base_request)
@@ -208,18 +214,21 @@ class TestComplaintUpEscalation:
                 convert_to_general_agent_params,
             )
 
-            await convert_to_general_agent_params(request, [])
+            params, *_ = await convert_to_general_agent_params(request, [])
 
         call_kwargs = mock_route.call_args
         assert call_kwargs.kwargs.get("min_tier") is None
+        assert "[Regeneration guidance: Use a more formal tone]" in (params.user_instructions or "")
+
+
+class TestSmartRoutingLog:
+    """Every routing decision is logged with its own latency."""
 
     @pytest.mark.asyncio
-    async def test_regenerate_with_explicit_complaint_up_instruction(self, base_request: dict[str, object]) -> None:
-        """sibling_group_id + regenerate_instruction='__complaint_up__' triggers complaint-up escalation."""
-        base_request["sibling_group_id"] = "sg-test-5"
-        base_request["regenerate_instruction"] = "__complaint_up__"
+    async def test_decision_log_carries_routing_latency(
+        self, base_request: dict[str, object], caplog: pytest.LogCaptureFixture
+    ) -> None:
         request = AgentRequest(**base_request)
-
         mock_route = AsyncMock(return_value=_make_routing_result(RoutingTier.STANDARD))
 
         with (
@@ -230,19 +239,16 @@ class TestComplaintUpEscalation:
             patch(
                 "app.database.repositories.chat_repo.ChatRepository.get_recent_routing_tiers",
                 new_callable=AsyncMock,
-                return_value=["simple"],
+                return_value=[],
             ),
-            patch(
-                "myrm_agent_harness.toolkits.llms.routing.complexity_router.record_misroute",
-            ) as mock_misroute,
+            caplog.at_level(logging.INFO, logger="app.services.agent.params.converter"),
         ):
             from app.services.agent.params.converter import (
                 convert_to_general_agent_params,
             )
 
-            params, routing_tier, *rest = await convert_to_general_agent_params(request, [])
+            await convert_to_general_agent_params(request, [])
 
-        call_kwargs = mock_route.call_args
-        assert call_kwargs.kwargs.get("min_tier") == RoutingTier.STANDARD
-        mock_misroute.assert_called_once_with(RoutingTier.SIMPLE)
-        assert "__complaint_up__" not in (params.user_instructions or "")
+        decisions = [record.getMessage() for record in caplog.records if record.getMessage().startswith("Smart routing:")]
+        assert len(decisions) == 1
+        assert re.search(r"tier=standard model=gpt-4o reason=test routing_ms=\d+\.\d$", decisions[0])

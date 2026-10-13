@@ -52,12 +52,15 @@ DEBUG_PROMPT = (
     "for +: 'int' and 'str'，问题出现在数据处理管线的第三行，我需要定位根因并修复它。"
 )
 
-_PIN_BASIC_PRIMARY_JS = """(async () => {
+# Pinning binds agent mode and refreshes the seeded provider config; releasing the pin
+# afterwards leaves the turn routed like a default user's (a pinned agent opts out of routing).
+_BIND_ROUTED_BASIC_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.pinBasicModelForE2e) {
-    return { ok: false, err: 'no pinBasicModelForE2e' };
+  if (!bridge?.pinBasicModelForE2e || !bridge.releaseAgentModelPinForE2e) {
+    return { ok: false, err: 'no pinBasicModelForE2e/releaseAgentModelPinForE2e' };
   }
   const sel = await bridge.pinBasicModelForE2e();
+  bridge.releaseAgentModelPinForE2e();
   return { ok: true, selection: sel };
 })()"""
 
@@ -641,7 +644,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
                 )
 
                 pin_raw = await chat.evaluate(
-                    _PIN_BASIC_PRIMARY_JS,
+                    _BIND_ROUTED_BASIC_JS,
                     intent=EvaluateIntent.AGENT_SUBMIT,
                 )
                 pin_state = pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
@@ -681,7 +684,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
                     heartbeat_once()
 
                 await chat.evaluate(
-                    _PIN_BASIC_PRIMARY_JS,
+                    _BIND_ROUTED_BASIC_JS,
                     intent=EvaluateIntent.AGENT_SUBMIT,
                 )
                 await chat.send_message(
