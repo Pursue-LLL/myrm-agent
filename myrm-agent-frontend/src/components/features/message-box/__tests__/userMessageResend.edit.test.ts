@@ -51,6 +51,8 @@ const edited = bubble('user', 'r-2', 'summarize the report', { files: [REPORT_PD
 
 const edit = (message: Message, newContent: string) => resendEditedUserMessage(CHAT_ID, message, newContent);
 
+const heldCuts: Array<() => void> = [];
+
 /** Holds the server's answer to the next cut, so a test can change the world before it arrives. */
 function holdNextCut(): () => void {
   let finishCut: () => void = () => {};
@@ -59,6 +61,7 @@ function holdNextCut(): () => void {
       finishCut = () => resolve(CUT_DONE);
     }),
   );
+  heldCuts.push(() => finishCut());
   return () => finishCut();
 }
 
@@ -85,7 +88,11 @@ beforeEach(() => {
   vi.mocked(truncateAfterMessage).mockResolvedValue(CUT_DONE);
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // A failed assertion must not leave an edit waiting on the server: it would hold the one-edit-at-a-time guard
+  // against every test after it.
+  heldCuts.splice(0).forEach((finishCut) => finishCut());
+  await new Promise((resolve) => setTimeout(resolve, 0));
   vi.restoreAllMocks();
 });
 
@@ -110,7 +117,7 @@ describe('resendEditedUserMessage', () => {
     expect(sentRequest().content).toBe('[use writer_skill] [instruction: formal tone] draft the memo for finance');
   });
 
-  it('hands the edited text, not the original, and the composer attachments it took back when the agent did not take it', async () => {
+  it('returns the edited text and the composer files it took to the composer when the agent refuses', async () => {
     useChatStore.setState({ files: [STAGED_PNG] });
     sendMessage.mockImplementation(async () => {
       // A request that settles without a turn clears the composer attachments it took.
