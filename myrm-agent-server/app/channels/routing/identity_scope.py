@@ -27,6 +27,7 @@ every inbound turn with zero prompt-cache impact.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 
 from myrm_agent_harness.agent.security.team_identity import (
@@ -43,6 +44,9 @@ from app.channels.types import METADATA_GUEST_TURN_KEY, IdentityScopeMode, Inbou
 from app.core.memory.adapters.policy import compartment_memory_policy
 
 _UNTRUSTED_USER_ID_PREFIXES = ("guest_", "paired_member_")
+# Readable prefix kept when an id needs a digest; leaves room for "-" + digest inside the namespace id limit.
+_DIGESTED_ID_PREFIX_LEN = 48
+_ID_DIGEST_LEN = 12
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,9 +63,18 @@ def _baseline_identity_id(channel: str) -> str:
 
 
 def default_identity_id(channel: str, chat_id: str, thread_id: str | None) -> str:
-    """Derive a stable identity id for a binding (rename-safe)."""
-    suffix = thread_id or "channel"
-    return sanitize_identity_id(f"{channel}-{chat_id}-{suffix}")
+    """Derive a stable identity id for a chat (rename-safe).
+
+    Ids made of namespace-safe characters stay readable. Anything sanitising would alter (case,
+    non-ASCII, symbols) or truncate carries a digest of the raw value, so two distinct chats never
+    resolve to one compartment.
+    """
+    raw = f"{channel}-{chat_id}-{thread_id or 'channel'}"
+    identity_id = sanitize_identity_id(raw)
+    if identity_id == raw:
+        return identity_id
+    digest = hashlib.sha256(raw.encode()).hexdigest()[:_ID_DIGEST_LEN]
+    return f"{identity_id[:_DIGESTED_ID_PREFIX_LEN]}-{digest}"
 
 
 def resolve_team_identity(
@@ -148,7 +161,10 @@ def resolve_turn_memory_scope(
 
 
 def _chat_compartment_namespace(msg: InboundMessage) -> str:
-    """Stable compartment of an unbound chat. The session key rotates with resets; this id does not."""
+    """Stable compartment of an unbound chat. The session key rotates with resets; this id does not.
+
+    A DM compartment belongs to the sender, so threads inside the DM do not split it.
+    """
     if msg.is_group:
         return memory_namespace_for(default_identity_id(msg.channel, msg.chat_id or msg.sender_id, msg.thread_id))
-    return memory_namespace_for(default_identity_id(f"{msg.channel}-dm", msg.sender_id, msg.thread_id))
+    return memory_namespace_for(default_identity_id(f"{msg.channel}-dm", msg.sender_id, None))

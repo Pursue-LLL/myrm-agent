@@ -4,6 +4,7 @@
 types (POS: preamble 数据结构)
 app.ai_agents.agents::AgentFactory (POS: GeneralAgent 工厂)
 app.services.agent.session_credential_assembler (POS: 会话凭证装配)
+app.channels.routing.identity_scope::TurnMemoryScope (POS: 渠道 turn 记忆 compartment 解析)
 
 [OUTPUT]
 build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）。

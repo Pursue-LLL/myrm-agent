@@ -3,6 +3,7 @@
 [INPUT]
 preamble 子模块 types / session / agent / instructions (POS: preamble 编排）
 app.core.channel_bridge.config_loader (POS: UserConfig 加载)
+app.channels.routing.identity_scope::resolve_turn_memory_scope (POS: 渠道 turn 记忆 compartment 解析)
 
 [OUTPUT]
 prepare_channel_execution(): 预算/会话/Agent 创建前置；返回 PrepareChannelExecutionResult（prep 或 pre_events 早退）。

@@ -22,7 +22,12 @@ from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingCon
 
 from app.channels.routing.identity_scope import resolve_team_identity, resolve_turn_memory_scope
 from app.channels.types import InboundMessage
-from app.core.memory.adapters.setup import _memory_manager_cache, create_memory_manager, resolve_context_binding
+from app.core.memory.adapters.setup import (
+    _memory_manager_cache,
+    create_memory_manager,
+    resolve_context_binding,
+    shutdown_cached_memory_managers,
+)
 
 _EMBEDDING_DIM = 1536
 _CONFIG = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
@@ -50,13 +55,12 @@ async def _fake_aembedding(**kwargs: object) -> SimpleNamespace:
 
 @pytest.fixture(autouse=True)
 async def _isolated_memory_runtime(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[None]:
-    from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores
-
     monkeypatch.setattr(litellm, "aembedding", _fake_aembedding)
     _memory_manager_cache.clear()
     yield
-    _memory_manager_cache.clear()
-    await clear_embedded_stores()
+    # Open sqlite connections keep non-daemon threads alive, so a failing test would otherwise
+    # leave the pytest process hanging at exit.
+    await shutdown_cached_memory_managers()
 
 
 def _channel_msg(*, is_group: bool, sender_id: str = "u1", chat_id: str | None = None) -> InboundMessage:
@@ -148,6 +152,19 @@ async def test_group_compartment_survives_session_reset_but_not_other_chats(tmp_
 
     assert await _contents(next_day, "ShadyCorp products")
     assert await _contents(other_group, "ShadyCorp products") == []
+
+
+async def test_groups_with_non_ascii_chat_ids_stay_isolated(tmp_path: Path) -> None:
+    first = await _channel_turn_manager(
+        tmp_path, _channel_msg(is_group=True, chat_id="张三群"), conversation_id="chat-a", untrusted=False
+    )
+    second = await _channel_turn_manager(
+        tmp_path, _channel_msg(is_group=True, chat_id="李四群"), conversation_id="chat-b", untrusted=False
+    )
+    await first.add_knowledge(_TEAM_FACT, importance=0.9)
+
+    assert await _contents(first, "ShadyCorp products")
+    assert await _contents(second, "ShadyCorp products") == []
 
 
 async def test_compartment_turn_disables_background_extraction(tmp_path: Path) -> None:

@@ -1,5 +1,5 @@
 """
-[INPUT] channels.types::InboundMessage, ContextEntry, models.channel_message::ChannelMessageModel, logging_filter::redact_sensitive
+[INPUT] channels.types::InboundMessage, ContextEntry, models.channel_message::ChannelMessageModel, logging_filter::redact_sensitive, routing.identity_scope::is_untrusted_sender (POS: 访客 / 配对成员判定)
 [OUTPUT] ChannelDataPlaneService: 渠道数据平面核心服务
 [POS] 渠道消息数据平面（Channel Data Plane）。负责入站消息脱敏、确定性抗噪打标、持久化明细落盘、自产回复追溯与上下文提取。
 """

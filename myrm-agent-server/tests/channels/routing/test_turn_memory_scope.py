@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from myrm_agent_harness.toolkits.memory.config import (
     AgentMemoryPolicy,
     MemoryScopeLevel,
@@ -144,6 +145,40 @@ def test_dm_and_group_compartments_never_collide_for_equal_ids() -> None:
     dm = _scope(_msg(is_group=False, sender_id="42"), untrusted=True)
 
     assert group.extra_namespaces != dm.extra_namespaces
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [
+        ("张三", "李四"),
+        ("Alice", "alice"),
+        ("+86138", "86138"),
+        ("x" * 70 + "a", "x" * 70 + "b"),
+    ],
+    ids=["non-ascii", "case-only", "stripped-symbol", "truncated-tail"],
+)
+def test_ids_that_sanitise_alike_never_share_a_compartment(first: str, second: str) -> None:
+    dm = [_scope(_msg(is_group=False, sender_id=sender), untrusted=True) for sender in (first, second)]
+    group = [_scope(_msg(is_group=True, chat_id=chat)) for chat in (first, second)]
+
+    assert dm[0].extra_namespaces != dm[1].extra_namespaces
+    assert group[0].extra_namespaces != group[1].extra_namespaces
+
+
+def test_compartment_id_is_stable_and_namespace_sized() -> None:
+    msg = _msg(is_group=True, chat_id="x" * 200)
+
+    namespace = _scope(msg).extra_namespaces[0]
+
+    assert namespace == _scope(msg).extra_namespaces[0]
+    assert len(namespace.removeprefix("ident:")) <= 64
+
+
+def test_untrusted_dm_compartment_ignores_the_thread() -> None:
+    plain = _scope(_msg(is_group=False), untrusted=True)
+    threaded = _scope(_msg(is_group=False, thread_id="t1"), untrusted=True)
+
+    assert plain.extra_namespaces == threaded.extra_namespaces
 
 
 def test_compartment_policy_overrides_profile_policy() -> None:

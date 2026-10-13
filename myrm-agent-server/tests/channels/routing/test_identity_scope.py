@@ -50,7 +50,21 @@ def test_parse_bind_legacy_forms_unchanged() -> None:
 
 def test_default_identity_id_stable_and_safe() -> None:
     assert default_identity_id("feishu", "chat9", None) == "feishu-chat9-channel"
-    assert default_identity_id("feishu", "chat 9!", "t/1") == "feishu-chat9-t1"
+    assert default_identity_id("feishu", "chat9", "t1") == "feishu-chat9-t1"
+
+    lossy = default_identity_id("feishu", "chat 9!", "t/1")
+    assert lossy.startswith("feishu-chat9-t1-")
+    assert lossy == default_identity_id("feishu", "chat 9!", "t/1")
+
+
+def test_default_identity_id_keeps_distinct_chats_apart() -> None:
+    ids = {
+        default_identity_id("feishu", chat_id, None)
+        for chat_id in ("张三", "李四", "Chat9", "chat9", "chat 9", "chat-9", "x" * 80 + "a", "x" * 80 + "b")
+    }
+
+    assert len(ids) == 8
+    assert all(len(identity_id) <= 64 for identity_id in ids)
 
 
 def test_resolve_group_shared_identity() -> None:

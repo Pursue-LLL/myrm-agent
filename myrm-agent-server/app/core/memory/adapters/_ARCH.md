@@ -22,7 +22,7 @@ ContextBundle 卷布局由 `myrm_agent_harness.toolkits.context_bundle` 定义�
 | `setup.py` | ✅ 核心 | 解析 `ResolvedContextBinding` 并创建/缓存 `MemoryManager`；`create_memory_tools_for_user` 支持 `description_locale`；装配 `create_conflict_callback`；`evict_cached_memory_manager` 联动释放隔离卷的 harness 嵌入式 Qdrant 单例 | ✅ |
 | `conflict_callback.py` | ✅ 核心 | `get_memory_conflict_policy`（GUI 文案 SSOT：`low_risk_auto_resolve_hours`）；`create_conflict_callback` 将 consolidation 矛盾写入 PendingMemory（importance≥0.9 不设 auto_resolve_at；低风险 72h deadline；同源 old_memory_id 去重；ledger SSE 非致命） | ✅ |
 | `cascade.py` | ✅ 核心 | Cascade-deletion MemoryManager 单例：支持按 `source_chat_id` 与 `project_id`（`purge_project_memories` 专属命名空间双重级联清理）销毁记忆数据 | ✅ |
-| `policy.py` | ✅ 核心 | AgentProfile `memory_policy` 与 namespace 派生：策略分支保留调用方显式 namespace（`ident:<id>`）与共享上下文；`compartment_memory_policy()` 把渠道群聊 / 访客 / 配对成员 turn 收窄为「仅会话 + 显式 compartment」读域、`INHERIT` 写链、关闭 L3 抽取，owner 的 `global` / `agent:<id>` 不再被绑定 | ✅ |
+| `policy.py` | ✅ 核心 | AgentProfile `memory_policy` 与 namespace 派生：策略分支保留调用方显式 namespace（`ident:<id>`）与共享上下文；`compartment_memory_policy()` 把渠道群聊 / 访客 / 配对成员 turn 收窄为「仅会话 + 显式 compartment」读域、`INHERIT` 写链、关闭 L3 抽取，owner 的 `global` / `agent:<id>` 不在这些 turn 的绑定内 | ✅ |
 | `types.py` | ✅ 核心 | `ResolvedContextBinding` — Server 到 Harness 的上下文运行时合同 | ✅ |
 
 ---
