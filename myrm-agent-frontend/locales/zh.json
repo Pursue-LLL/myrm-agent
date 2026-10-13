@@ -10727,6 +10727,7 @@
       "title": "闭环学习五环状态中心",
       "subtitle": "全域自进化闭环拓扑与健康可观测看板",
       "healthScore": "闭环健康度",
+      "refresh": "刷新",
       "optimal": "极佳运转",
       "warning": "需要关注",
       "degraded": "存在退化",

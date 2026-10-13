@@ -10659,6 +10659,7 @@
       "title": "閉環學習五環狀態中心",
       "subtitle": "全域自進化閉環拓撲與健康可觀測看板",
       "healthScore": "閉環健康度",
+      "refresh": "重新整理",
       "optimal": "極佳運轉",
       "warning": "需要關注",
       "degraded": "存在退化",

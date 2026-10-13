@@ -10659,6 +10659,7 @@
       "title": "5-Ringe-Closed-Loop-Lernstatus",
       "subtitle": "Domänenübergreifende kontinuierliche Selbsteentwicklungstopologie und Integritätsbeobachtbarkeit",
       "healthScore": "Loop-Integritätswert",
+      "refresh": "Aktualisieren",
       "optimal": "Optimaler Betrieb",
       "warning": "Handlungsbedarf",
       "degraded": "Beeinträchtigt",

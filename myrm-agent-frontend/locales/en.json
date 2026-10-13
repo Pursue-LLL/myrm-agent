@@ -10727,6 +10727,7 @@
       "title": "Five-Ring Closed Learning Loop Status",
       "subtitle": "Cross-domain continuous self-evolution topology and health observability",
       "healthScore": "Loop Health Score",
+      "refresh": "Refresh",
       "optimal": "Optimal Operation",
       "warning": "Attention Needed",
       "degraded": "Degraded",

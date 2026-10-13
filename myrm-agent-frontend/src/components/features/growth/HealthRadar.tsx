@@ -57,15 +57,9 @@ export default function HealthRadar({ dimensions, score }: HealthRadarProps) {
     <div className="relative">
       <ResponsiveContainer width="100%" height={220}>
         <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="70%">
-          <PolarGrid stroke="hsl(var(--border))" />
-          <PolarAngleAxis dataKey="label" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
-          <Radar
-            dataKey="value"
-            stroke="hsl(var(--primary))"
-            fill="hsl(var(--primary))"
-            fillOpacity={0.2}
-            strokeWidth={2}
-          />
+          <PolarGrid stroke="var(--border)" />
+          <PolarAngleAxis dataKey="label" tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
+          <Radar dataKey="value" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.2} strokeWidth={2} />
         </RadarChart>
       </ResponsiveContainer>
 

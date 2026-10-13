@@ -10659,6 +10659,7 @@
       "title": "5개 링 닫힌 루프 학습 상태 센터",
       "subtitle": "도메인 간 지속적 자가 진화 토폴로지 및 상태 관측 대시보드",
       "healthScore": "루프 상태 점수",
+      "refresh": "새로고침",
       "optimal": "최적 작동",
       "warning": "주의 필요",
       "degraded": "성능 저하",
