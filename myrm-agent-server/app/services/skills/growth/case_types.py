@@ -23,7 +23,6 @@ from ..evolution_reviews import RuntimeFailureEvidence
 class SkillGrowthCaseSource(StrEnum):
     DRAFT = "draft"
     EVOLUTION = "evolution"
-    CONTINUAL = "continual"
 
 
 class SkillGrowthCaseStatus(StrEnum):

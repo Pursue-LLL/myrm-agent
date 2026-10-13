@@ -16,7 +16,7 @@ import { approveSkillDraft, rejectSkillDraft } from './core';
 export type SkillGrowthStatus =
   'PENDING_REVIEW' | 'AUTO_APPLIED' | 'FAILED_SCAN' | 'BLOCKED_LOCKED' | 'APPROVED' | 'REJECTED' | 'APPLY_FAILED';
 
-export type SkillGrowthSource = 'draft' | 'evolution' | 'continual';
+export type SkillGrowthSource = 'draft' | 'evolution';
 
 export interface RuntimeFailureEvidence {
   source: string;

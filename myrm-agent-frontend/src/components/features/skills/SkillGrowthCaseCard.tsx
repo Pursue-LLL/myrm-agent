@@ -106,13 +106,11 @@ export default function SkillGrowthCaseCard({
   const statusStyle = STATUS_STYLES[item.status];
   const statusLabel = t(`status.${item.status}` as Parameters<typeof t>[0]);
   const sourceLabel =
-    item.source === 'continual'
-      ? t('source.continualRecovery')
-      : item.source === 'evolution'
-        ? t('source.manualEvolution')
-        : item.growthType === 'semantic_memory'
-          ? t('source.memoryExtraction')
-          : t('source.backgroundReview');
+    item.source === 'evolution'
+      ? t('source.manualEvolution')
+      : item.growthType === 'semantic_memory'
+        ? t('source.memoryExtraction')
+        : t('source.backgroundReview');
   const createdAt = useMemo(() => new Date(item.createdAt).toLocaleString(), [item.createdAt]);
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
   const approveLabel = item.status === 'APPLY_FAILED' ? t('actions.retryApply') : t('actions.approve');
@@ -222,14 +220,7 @@ export default function SkillGrowthCaseCard({
             <Badge variant={statusStyle.tone} className={cn('text-[11px]', statusStyle.badge)}>
               {statusLabel}
             </Badge>
-            <Badge
-              variant={item.source === 'continual' ? 'outline' : 'secondary'}
-              className={cn(
-                'text-[11px]',
-                item.source === 'continual' &&
-                  'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:border-violet-500/40 dark:text-violet-300 font-medium',
-              )}
-            >
+            <Badge variant="secondary" className="text-[11px]">
               {sourceLabel}
             </Badge>
             {item.growthType !== 'semantic_memory' && (

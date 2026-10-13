@@ -18,7 +18,6 @@ const TRANSLATIONS: Record<string, string> = {
   'settings.skills.growth.source.manualEvolution': 'Manual Evolution',
   'settings.skills.growth.source.memoryExtraction': 'Memory Extraction',
   'settings.skills.growth.source.backgroundReview': 'Background Review',
-  'settings.skills.growth.source.continualRecovery': 'Continual Recovery',
 };
 
 const stableT = (key: string): string => {
@@ -98,18 +97,6 @@ describe('SkillGrowthCaseCard A2 source label', () => {
       />,
     );
     expect(screen.getByText('Manual Evolution')).toBeInTheDocument();
-  });
-
-  it('continual source renders "Continual Recovery" label', () => {
-    render(
-      <SkillGrowthCaseCard
-        item={makeItem({ source: 'continual' })}
-        isProcessing={false}
-        onApprove={noop}
-        onReject={noop}
-      />,
-    );
-    expect(screen.getByText('Continual Recovery')).toBeInTheDocument();
   });
 
   it('semantic_memory growthType renders "Memory Extraction" label without growthType badge', () => {

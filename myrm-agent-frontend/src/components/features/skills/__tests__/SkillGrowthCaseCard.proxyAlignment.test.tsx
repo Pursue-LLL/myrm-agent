@@ -15,7 +15,6 @@ const TRANSLATIONS: Record<string, string> = {
   'settings.skills.growth.source.manualEvolution': 'Manual Evolution',
   'settings.skills.growth.source.memoryExtraction': 'Memory Extraction',
   'settings.skills.growth.source.backgroundReview': 'Background Review',
-  'settings.skills.growth.source.continualRecovery': 'Continual Recovery',
   'settings.skills.growth.proxyAlignment.driftBadge': 'Goodhart Drift Risk',
   'settings.skills.growth.proxyAlignment.driftTooltip': 'Goodhart drift detected',
   'settings.skills.growth.proxyAlignment.alignedBadge': 'Metrics Aligned',

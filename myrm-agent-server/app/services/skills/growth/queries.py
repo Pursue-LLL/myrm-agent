@@ -113,11 +113,9 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
     verification_proof: dict[str, object] | None = dict(raw_proof) if isinstance(raw_proof, dict) else None
     target_layer = _text(payload.get("target_layer")) or "prompt"
     target_pathology = _text(payload.get("target_pathology")) or "unhandled_exception"
-    is_continual = record.action_type == "continual_overlay" or payload.get("source") == "continual"
-    source = SkillGrowthCaseSource.CONTINUAL if is_continual else SkillGrowthCaseSource.DRAFT
     return SkillGrowthCaseDetailRead(
         id=f"draft:{record.id}",
-        source=source,
+        source=SkillGrowthCaseSource.DRAFT,
         status=_approval_growth_status(record),
         skill_name=draft_name,
         skill_id=None,

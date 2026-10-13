@@ -17473,7 +17473,6 @@
         },
         "source": {
           "backgroundReview": "백그라운드 검토",
-          "continualRecovery": "지속적 자가 복구",
           "manualEvolution": "수동 진화",
           "memoryExtraction": "메모리 추출"
         },
