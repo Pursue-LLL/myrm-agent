@@ -1,7 +1,7 @@
 """Skill backend factory (business layer).
 
 [INPUT]
-myrm_agent_harness.api::SkillBackend (POS: unified interface for loading skills from multiple sources)
+myrm_agent_harness.api.protocols::SkillBackend (POS: public protocol definitions for framework extension points)
 myrm_agent_harness.backends.skills::CompositeSkillBackend (POS: route-prefixed composition of skill backends)
 myrm_agent_harness.backends.skills::InMemorySkillBackend (POS: in-memory skill metadata without persistence)
 myrm_agent_harness.backends.skills::LocalSkillBackend (POS: skills loaded from local paths per the Claude Skills spec)
@@ -34,7 +34,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-from myrm_agent_harness.api import SkillBackend
+from myrm_agent_harness.api.protocols import SkillBackend
 from myrm_agent_harness.backends.skills import (
     CompositeSkillBackend,
     InMemorySkillBackend,
@@ -287,7 +287,7 @@ def _load_workspace_skill_backend(
     if len(valid_backends) == 1:
         return valid_backends[0]
 
-    routes = {f"/src_{i}/": b for i, b in enumerate(valid_backends)}
+    routes: dict[str, SkillBackend] = {f"/src_{i}/": b for i, b in enumerate(valid_backends)}
     return CompositeSkillBackend(routes=routes, default=valid_backends[0])
 
 
