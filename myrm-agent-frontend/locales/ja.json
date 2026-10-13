@@ -10810,6 +10810,7 @@
       "rollbackFailed": "スキルのロールバックに失敗しました。",
       "verdicts": {
         "confirmed": "確認済み",
+      "truncated": "このスキルは実行回数が多く、保持されているのは直近の実行のみです。選択した期間のそれ以前の実行はグラフに表示されません。",
         "regression": "リグレッション",
         "refuted": "未達成",
         "inconclusive": "判定不能"

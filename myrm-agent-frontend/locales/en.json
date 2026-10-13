@@ -10810,6 +10810,7 @@
     "dailyJournal": {
       "today": "Today",
       "sessions": "Sessions",
+      "truncated": "This skill ran more often than its history keeps, so earlier runs in this range are not shown.",
       "tokens": "Tokens",
       "cost": "Cost",
       "toolCalls": "Tool Calls",

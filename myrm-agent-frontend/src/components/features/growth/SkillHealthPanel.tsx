@@ -144,7 +144,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                       <p className="text-sm font-medium truncate">{item.skill_name}</p>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {t('calls7d', { count: item.call_count_7d })}
+                      {t('calls7d', { count: item.truncated ? `${item.call_count_7d}+` : item.call_count_7d })}
                       {' · '}
                       {t('callsTotal', { count: item.call_count_total })}
                       {item.success_rate_7d !== null && (

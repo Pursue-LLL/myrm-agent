@@ -637,6 +637,8 @@ export interface GrowthDashboardData {
   snapshot: GrowthSnapshot;
   activity_heatmap: ActivityDay[];
   weekly_summary: WeeklySummary;
+  /** True when the skill's kept history starts inside the requested range, so its earlier runs are missing. */
+  truncated: boolean;
   skill_events: SkillEvolutionEvent[];
   cost_summary: CostSummary | null;
   skill_trends: SkillTrendSeries[];
@@ -651,6 +653,8 @@ export async function getGrowthDashboard(days = 84): Promise<GrowthDashboardData
 export interface ModelSessionItem {
   chatId: string;
   title: string;
+  /** True when the skill ran more often than its history keeps, so call_count_7d is a lower bound. */
+  truncated: boolean;
   actionMode: string;
   createdAt: string | null;
   calls: number;

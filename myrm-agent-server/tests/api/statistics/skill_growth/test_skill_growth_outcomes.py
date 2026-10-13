@@ -16,6 +16,8 @@ from myrm_agent_harness.backends.skills.types import SkillUsageStats
 
 from app.api.statistics.skill_growth import SkillTrendSeries, fetch_skill_health, fetch_skill_trends
 
+_ALL_TIME_DAYS = 36500  # a window wide enough that only the day bucketing of fixed timestamps is under test
+
 
 @pytest.fixture
 def skills_root(tmp_path: Path) -> Iterator[Path]:
@@ -195,7 +197,7 @@ async def test_trend_points_count_uses_and_leave_unobserved_days_without_a_rate(
     _write_stats(skills_root, "observed", [True, False, None])
     _write_stats(skills_root, "advisory", [None, None])
 
-    series = {s.skill_name: s for s in await fetch_skill_trends()}
+    series = {s.skill_name: s for s in await fetch_skill_trends(7)}
 
     (observed_point,) = series["observed"].data_points
     assert observed_point.call_count == 3
@@ -238,14 +240,14 @@ async def test_trend_day_is_the_viewers_calendar_day(
     """07:30 in Shanghai is 23:30 UTC the evening before; the chart must show the day the user lived it."""
     _write_history(skills_root, "morning-run", [(timestamp, True)])
 
-    assert _dates(await fetch_skill_trends(timezone), "morning-run") == [expected_day]
+    assert _dates(await fetch_skill_trends(_ALL_TIME_DAYS, timezone), "morning-run") == [expected_day]
 
 
 @pytest.mark.asyncio
 async def test_trend_days_default_to_utc(skills_root: Path) -> None:
     _write_history(skills_root, "morning-run", [("2026-10-12T23:30:00+00:00", True)])
 
-    assert _dates(await fetch_skill_trends(), "morning-run") == ["2026-10-12"]
+    assert _dates(await fetch_skill_trends(_ALL_TIME_DAYS), "morning-run") == ["2026-10-12"]
 
 
 @pytest.mark.asyncio
@@ -255,7 +257,7 @@ async def test_trend_series_list_the_busiest_skill_first(skills_root: Path) -> N
     for name, runs in {"quiet": 1, "busy": 5, "alpha-tie": 3, "beta-tie": 3}.items():
         _write_history(skills_root, name, [(when, True)] * runs)
 
-    assert [series.skill_name for series in await fetch_skill_trends()] == ["busy", "alpha-tie", "beta-tie", "quiet"]
+    assert [series.skill_name for series in await fetch_skill_trends(7)] == ["busy", "alpha-tie", "beta-tie", "quiet"]
 
 
 @pytest.mark.asyncio
@@ -267,7 +269,7 @@ async def test_unreadable_timestamp_skips_only_that_record(skills_root: Path) ->
     )
     _write_history(skills_root, "neighbour", [("2026-10-12T08:00:00+00:00", True)])
 
-    series = {s.skill_name: s for s in await fetch_skill_trends()}
+    series = {s.skill_name: s for s in await fetch_skill_trends(_ALL_TIME_DAYS)}
 
     (point,) = series["hand-edited"].data_points
     assert (point.date, point.call_count, point.observed_count) == ("2026-10-12", 2, 2)
@@ -278,7 +280,7 @@ async def test_unreadable_timestamp_skips_only_that_record(skills_root: Path) ->
 async def test_skill_whose_records_are_all_unreadable_has_no_trend(skills_root: Path) -> None:
     _write_history(skills_root, "garbled", [("never", True)])
 
-    assert await fetch_skill_trends() == []
+    assert await fetch_skill_trends(_ALL_TIME_DAYS) == []
 
 
 @pytest.mark.asyncio
@@ -289,6 +291,55 @@ async def test_reading_the_panels_never_creates_a_ledger_in_a_directory_without_
     foreign.mkdir()
 
     assert [item.skill_name for item in await fetch_skill_health()] == ["used"]
-    assert [series.skill_name for series in await fetch_skill_trends()] == ["used"]
+    assert [series.skill_name for series in await fetch_skill_trends(7)] == ["used"]
 
     assert list(foreign.iterdir()) == []
+
+
+def _write_runs(root: Path, name: str, moments: list[datetime]) -> None:
+    """Persist a ledger with one successful run at each moment, as the collector would keep them."""
+    _write_history(root, name, [(moment.isoformat(), True) for moment in sorted(moments)])
+
+
+@pytest.mark.asyncio
+async def test_trend_window_follows_the_requested_range(skills_root: Path) -> None:
+    """The dashboard's 7/30/90-day selector decides how far back a skill's trend reaches."""
+    now = datetime.now(UTC)
+    _write_runs(skills_root, "steady", [now - timedelta(days=days) for days in (2, 10, 40)])
+    _write_runs(skills_root, "dormant", [now - timedelta(days=60)])
+
+    def _runs_by_skill(series_list: list[SkillTrendSeries]) -> dict[str, int]:
+        return {s.skill_name: sum(p.call_count for p in s.data_points) for s in series_list}
+
+    assert _runs_by_skill(await fetch_skill_trends(7)) == {"steady": 1}
+    assert _runs_by_skill(await fetch_skill_trends(30)) == {"steady": 2}
+    assert _runs_by_skill(await fetch_skill_trends(90)) == {"steady": 3, "dormant": 1}
+
+
+@pytest.mark.asyncio
+async def test_trend_flags_only_the_skills_whose_history_no_longer_reaches_the_window_start(skills_root: Path) -> None:
+    """Three runs a day for 100 days overflow the 200 kept runs: 90 days is incomplete, 30 days still is whole."""
+    now = datetime.now(UTC)
+    heavy = [now - timedelta(days=day, hours=hours) for day in range(100) for hours in (0, 6, 12)]
+    _write_runs(skills_root, "heavy", heavy)
+    _write_runs(skills_root, "light", [now - timedelta(days=day) for day in range(0, 100, 10)])
+
+    def _truncated(series_list: list[SkillTrendSeries]) -> dict[str, bool]:
+        return {s.skill_name: s.truncated for s in series_list}
+
+    assert _truncated(await fetch_skill_trends(90)) == {"heavy": True, "light": False}
+    assert _truncated(await fetch_skill_trends(30)) == {"heavy": False, "light": False}
+    assert _truncated(await fetch_skill_trends(7)) == {"heavy": False, "light": False}
+
+
+@pytest.mark.asyncio
+async def test_health_run_count_reads_as_a_lower_bound_once_the_ledger_dropped_runs(skills_root: Path) -> None:
+    """A skill run twice an hour made 336 runs this week; only the latest 200 are kept, and the panel says so."""
+    now = datetime.now(UTC)
+    _write_runs(skills_root, "hourly-job", [now - timedelta(minutes=30 * step) for step in range(336)])
+    _write_stats(skills_root, "occasional", [True, None])
+
+    items = {item.skill_name: item for item in await fetch_skill_health()}
+
+    assert (items["hourly-job"].call_count_7d, items["hourly-job"].truncated) == (200, True)
+    assert (items["occasional"].call_count_7d, items["occasional"].truncated) == (2, False)

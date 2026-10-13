@@ -54,6 +54,7 @@ describe('SkillHealthPanel', () => {
       observed_count_7d: 20,
       min_observed_count: 5,
       success_rate_7d: 1.0,
+      truncated: false,
       actionable_recommendation: 'Star asset in active rotation.',
     },
     {
@@ -65,6 +66,7 @@ describe('SkillHealthPanel', () => {
       observed_count_7d: 11,
       min_observed_count: 5,
       success_rate_7d: 0.45,
+      truncated: false,
       actionable_recommendation: 'High failure rate detected. Review prompt parameters.',
     },
     {
@@ -76,6 +78,7 @@ describe('SkillHealthPanel', () => {
       observed_count_7d: 9,
       min_observed_count: 5,
       success_rate_7d: 0.8,
+      truncated: false,
       actionable_recommendation: 'Healthy asset in active rotation.',
     },
   ];
@@ -119,6 +122,14 @@ describe('SkillHealthPanel', () => {
     expect(screen.getByText(/9 calls \(7D\) · 9 total · 80% success/)).toBeInTheDocument();
   });
 
+  it('reads the weekly run count as a lower bound for a skill whose history was cut', () => {
+    const hourlyJob: SkillHealthItem = { ...mockItems[0], call_count_7d: 200, call_count_total: 336, truncated: true };
+
+    render(<SkillHealthPanel items={[hourlyJob]} />);
+
+    expect(screen.getByText(/200\+ calls \(7D\) · 336 total/)).toBeInTheDocument();
+  });
+
   it('explains how many observed outcomes an unproven skill still needs and hides its rate', () => {
     const unproven: SkillHealthItem = {
       skill_name: 'fresh_skill',
@@ -129,6 +140,7 @@ describe('SkillHealthPanel', () => {
       observed_count_7d: 1,
       min_observed_count: 5,
       success_rate_7d: null,
+      truncated: false,
       actionable_recommendation: 'Too few observed outcomes to judge quality yet (1 of 5 needed).',
     };
 
@@ -203,6 +215,7 @@ describe('SkillHealthPanel', () => {
       observed_count_7d: 10,
       min_observed_count: 5,
       success_rate_7d: 0.9,
+      truncated: false,
       actionable_recommendation: 'Healthy asset in active rotation.',
     }));
 

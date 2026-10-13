@@ -426,7 +426,7 @@ async def get_growth_dashboard(
             _fetch_weekly_summary(db),
             fetch_skill_evolution_data(),
             _fetch_cost_summary(db, days),
-            fetch_skill_trends(),
+            fetch_skill_trends(days),
             fetch_skill_health(),
             _fetch_memory_citations_7d(db),
         )

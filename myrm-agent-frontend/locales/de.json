@@ -10810,6 +10810,7 @@
       "rollbackFailed": "Fehler beim Rollback der Skill-Evolution.",
       "verdicts": {
         "confirmed": "Bestätigt",
+      "truncated": "Dieser Skill läuft so oft, dass nur die letzten Läufe gespeichert werden. Frühere Läufe in diesem Zeitraum fehlen im Diagramm.",
         "regression": "Rückschritt",
         "refuted": "Widerlegt",
         "inconclusive": "Uneindeutig"

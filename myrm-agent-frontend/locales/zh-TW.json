@@ -10810,6 +10810,7 @@
       "rollbackFailed": "回滾技能演進失敗。",
       "verdicts": {
         "confirmed": "已確認",
+      "truncated": "該技能運行較頻繁，只保留了最近一批運行記錄，所選範圍內更早的運行未在圖中顯示。",
         "regression": "退化",
         "refuted": "未達預期",
         "inconclusive": "待確定"

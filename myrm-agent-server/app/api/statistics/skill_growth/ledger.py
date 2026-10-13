@@ -7,12 +7,15 @@
 [OUTPUT]
 - iter_skill_ledgers: Yields every local skill directory that has a usage ledger, with its usage stats
 - as_utc / parse_record_time: Read a ledger timestamp as an aware UTC moment; one unreadable record yields None
+- dated_outcomes: A ledger's usage records placed in time as (moment, observed outcome), oldest first
+- window_is_clipped: Whether runs of a window may be missing because the ledger's rolling history dropped them
 
 [POS]
 Single read path of the trend and health panels onto the curator's ``.stats.json`` ledger. The roots include
 folders owned by other tools, so a directory without a ledger is skipped: the collector would create one on read,
 and a directory nobody has run has nothing to report. Ledgers edited or imported by hand may carry naive or
-unparseable timestamps, so both panels place a record in time through the same tolerant reader.
+unparseable timestamps, so both panels place a record in time through the same tolerant reader. A ledger keeps only
+its latest runs, so both panels ask the same question of it: did the window outgrow what was kept.
 """
 
 from __future__ import annotations
@@ -37,6 +40,20 @@ def parse_record_time(raw: str) -> datetime | None:
         return as_utc(datetime.fromisoformat(raw))
     except (TypeError, ValueError):
         return None
+
+
+def dated_outcomes(stats: SkillUsageStats) -> list[tuple[datetime, bool | None]]:
+    """Each usage record with a readable timestamp as ``(moment, observed outcome)``, oldest first."""
+    dated = [
+        (moment, record.success) for record in stats.usage_history if (moment := parse_record_time(record.timestamp)) is not None
+    ]
+    dated.sort(key=lambda pair: pair[0])
+    return dated
+
+
+def window_is_clipped(stats: SkillUsageStats, dated: list[tuple[datetime, bool | None]], since: datetime) -> bool:
+    """Whether runs after ``since`` may be missing: a full history that already starts inside the window dropped some."""
+    return stats.history_is_full and bool(dated) and dated[0][0] > since
 
 
 def iter_skill_ledgers() -> Iterator[tuple[Path, SkillUsageStats]]:

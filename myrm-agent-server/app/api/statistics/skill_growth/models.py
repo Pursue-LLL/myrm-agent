@@ -46,6 +46,8 @@ class SkillTrendSeries(BaseModel):
 
     skill_name: str
     data_points: list[SkillTrendPoint]
+    truncated: bool = False
+    """True when the skill's kept history starts inside the requested range, so its earlier runs are missing."""
 
 
 class SkillHealthItem(BaseModel):
@@ -62,4 +64,6 @@ class SkillHealthItem(BaseModel):
     """Observed outcomes needed before the success rate and a quality status are shown."""
     success_rate_7d: float | None
     """Share of the week's observed outcomes that succeeded; None until ``min_observed_count`` were observed."""
+    truncated: bool = False
+    """True when the skill's kept history starts inside the week, so ``call_count_7d`` is a lower bound."""
     actionable_recommendation: str | None = None

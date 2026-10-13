@@ -10810,6 +10810,7 @@
       "rollbackFailed": "스킬 롤백에 실패했습니다.",
       "verdicts": {
         "confirmed": "확인됨",
+      "truncated": "이 스킬은 실행이 잦아 최근 실행 기록만 보관됩니다. 선택한 기간의 이전 실행은 차트에 표시되지 않습니다.",
         "regression": "성능 저하",
         "refuted": "미달성",
         "inconclusive": "판정 불가"

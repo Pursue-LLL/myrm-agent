@@ -39,6 +39,7 @@ const skill = (skill_name: string, status: string, health_score: number): SkillH
   observed_count_7d: 6,
   min_observed_count: 5,
   success_rate_7d: null,
+  truncated: false,
 });
 
 const dashboard = (skill_health: SkillHealthItem[]): GrowthDashboardData => ({
@@ -91,6 +92,14 @@ describe('buildGrowthMarkdown skill ranking', () => {
 
     expect(markdown).toContain('flaky|30|<at_risk>|6');
     expect(markdown).not.toContain('AT_RISK');
+  });
+
+  it('reads the run count of a skill whose history was cut as a lower bound', () => {
+    const cut: SkillHealthItem = { ...skill('hourly-job', 'HEALTHY', 90), call_count_7d: 200, truncated: true };
+
+    const markdown = buildGrowthMarkdown(dashboard([cut]), labels);
+
+    expect(markdown).toContain('hourly-job|90|<healthy>|200+');
   });
 
   it('omits the skill section when no skill has a verdict yet', () => {

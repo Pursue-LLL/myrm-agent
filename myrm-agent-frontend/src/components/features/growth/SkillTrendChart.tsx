@@ -114,6 +114,10 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
           );
         })}
       </div>
+
+      {activeTrend?.truncated && (
+        <p className="text-xs leading-relaxed text-muted-foreground">{t('skillTrends.truncated')}</p>
+      )}
     </div>
   );
 });

@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.observability::(SkillCompoundingMetrics, SkillHealthEvaluator) (POS: pure-rule health evaluator)
 - app.core.skills.curator.service::get_curator_config (POS: the observed-outcome minimum the curator itself acts on)
-- app.api.statistics.skill_growth.ledger::iter_skill_ledgers (POS: usage ledger read path)
+- app.api.statistics.skill_growth.ledger::(iter_skill_ledgers, dated_outcomes, window_is_clipped) (POS: usage ledger read path)
 
 [OUTPUT]
 - fetch_skill_health: Health score, status and evidence for every local skill that ran in the window, best first
@@ -12,7 +12,8 @@
 Health panel data of the growth dashboard. Only observed outcomes weigh on a skill; a rate or quality
 status needs as many outcomes as the curator requires before it acts on one. A skill with no run in the
 window has no health to report: dormancy and archiving belong to the curator's lifecycle, which the
-skill library already shows.
+skill library already shows. A skill that ran more often than its ledger keeps is flagged ``truncated``,
+so its run count reads as a lower bound.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from datetime import UTC, datetime, timedelta
 
 from myrm_agent_harness.observability import SkillCompoundingMetrics, SkillHealthEvaluator
 
-from app.api.statistics.skill_growth.ledger import as_utc, iter_skill_ledgers, parse_record_time
+from app.api.statistics.skill_growth.ledger import as_utc, dated_outcomes, iter_skill_ledgers, window_is_clipped
 from app.api.statistics.skill_growth.models import SkillHealthItem
 
 logger = logging.getLogger(__name__)
@@ -39,21 +40,11 @@ async def fetch_skill_health() -> list[SkillHealthItem]:
         items: list[SkillHealthItem] = []
 
         for skill_dir, stats in iter_skill_ledgers():
-            calls_7d = 0
-            succ_7d = 0
-            fail_7d = 0
-
-            for rec in stats.usage_history:
-                rec_dt = parse_record_time(rec.timestamp)
-                if rec_dt is None:
-                    continue
-
-                if rec_dt >= week_ago:
-                    calls_7d += 1
-                    if rec.success is True:
-                        succ_7d += 1
-                    elif rec.success is False:
-                        fail_7d += 1
+            dated = dated_outcomes(stats)
+            in_week = [success for moment, success in dated if moment >= week_ago]
+            calls_7d = len(in_week)
+            succ_7d = in_week.count(True)
+            fail_7d = in_week.count(False)
 
             # Counters without a history can only be placed in time by ``last_used_at``.
             if not stats.usage_history and stats.call_count > 0 and stats.last_used_at and as_utc(stats.last_used_at) >= week_ago:
@@ -85,6 +76,7 @@ async def fetch_skill_health() -> list[SkillHealthItem]:
                     observed_count_7d=observed_7d,
                     min_observed_count=min_observed,
                     success_rate_7d=evaluated.success_rate if observed_7d >= min_observed else None,
+                    truncated=window_is_clipped(stats, dated, week_ago),
                     actionable_recommendation=evaluated.actionable_recommendation,
                 )
             )

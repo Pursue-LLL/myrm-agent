@@ -28,7 +28,7 @@ export interface GrowthMarkdownLabels {
   skillHealth: string;
   /** Localized verdict of a health status. */
   skillStatus: (status: string) => string;
-  skillRow: (name: string, score: number, statusLabel: string, calls7d: number) => string;
+  skillRow: (name: string, score: number, statusLabel: string, calls7d: number | string) => string;
   generatedAt: string;
 }
 
@@ -91,9 +91,8 @@ export function buildGrowthMarkdown(data: GrowthDashboardData, labels: GrowthMar
   if (rankedSkills.length > 0) {
     lines.push('', `## ${labels.skillHealth}`);
     for (const skill of rankedSkills) {
-      lines.push(
-        labels.skillRow(skill.skill_name, skill.health_score, labels.skillStatus(skill.status), skill.call_count_7d),
-      );
+      const calls7d = skill.truncated ? `${skill.call_count_7d}+` : skill.call_count_7d;
+      lines.push(labels.skillRow(skill.skill_name, skill.health_score, labels.skillStatus(skill.status), calls7d));
     }
   }
 

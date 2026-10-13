@@ -10810,6 +10810,7 @@
     "dailyJournal": {
       "today": "今天",
       "sessions": "会话数",
+      "truncated": "该技能运行较频繁，只保留了最近一批运行记录，所选范围内更早的运行未在图中显示。",
       "tokens": "Token",
       "cost": "费用",
       "toolCalls": "工具调用",
