@@ -16,6 +16,7 @@ import {
   IconArchive,
 } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
+import { matchesSkillSearch } from '@/lib/utils/skillUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -232,13 +233,7 @@ const SkillsSection = memo(({ initialSearch }: SkillsSectionProps) => {
     }
 
     if (installedSearch.trim()) {
-      const q = installedSearch.toLowerCase();
-      skills = skills.filter(
-        (s) =>
-          s.name.toLowerCase().includes(q) ||
-          s.description.toLowerCase().includes(q) ||
-          s.tags.some((tag) => tag.toLowerCase().includes(q)),
-      );
+      skills = skills.filter((s) => matchesSkillSearch(s, installedSearch));
     }
 
     // Sort by usage stats (last_used_at DESC, then call_count DESC, then updated_at DESC)

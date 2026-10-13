@@ -13,7 +13,7 @@
 - `titleUtils.ts`：会话标题消歧与序号自增 — `parseTitleIndex` 与 `disambiguateChatTitle` 纯函数，确保自动生成和重命名标题时保持全局列表唯一可辨（如自动追加 `(2)`、`(3)`）。
 - `timeUtils.ts`：挂钟时间工具 — `formatDuration` 紧凑运行时长（42s/8m 30s，对齐后端 `_format_duration`）、`getCurrentTimestamp` unix 秒、`formatMessageTimestamp` 消息时间戳（label 行内四档：今日/昨日/同年/跨年，`Intl.DateTimeFormat` 六语言原生 + hourCycle h23（24 小时制）；title hover 完整时间走 locale 原生小时制（en 12h / zh 24h）；模块级 formatter 缓存，实测 18.7 倍于逐次 toLocaleString）。
 - `pathValidation.ts`：全平台路径规范、工作区校验与展示截断 — 支持 POSIX、Windows 盘符、Windows UNC 共享路径识别与反斜杠/正斜杠归一化，提供 `validateWorkspacePath` 进行 ~ 波浪号路径解析与非法控制字符防护，以及 `formatPathForDisplay` 智能居中省略截断。
-- `skillUtils.ts`：Skill 多语言描述容灾守卫 — `resolveSkillDescription` 统一去除空串与空白，并在缺失时回退默认国际化文案，杜绝卡片与详情页空白。
+- `skillUtils.ts`：Skill 多语言描述容灾守卫与搜索命中规则 — `resolveSkillDescription` 统一去除空串与空白，并在缺失时回退默认国际化文案，杜绝卡片与详情页空白；`matchesSkillSearch` 是已安装技能列表搜索的唯一命中规则（名称、描述、标签、目录名），健康度面板「管理」链接带的是目录名，靠它也能命中声明名不同的技能。
 - `typeUtils.ts`：安全字典与类型守卫 — `isRecord`、`asRecord` 与 `safeGet`，彻底防止服务端 dict-like 异常或嵌套层级缺失导致的 WebUI 运行时白屏与崩溃。
 - `encodingUtils.ts`：UTF-8 安全 Base64 编解码引擎 — `safeBase64DecodeUtf8` 与 `safeBase64EncodeUtf8` 纯函数，基于原生 `TextDecoder('utf-8')` / `TextEncoder` 还原多字节 Unicode 字节流，杜绝原生 `atob` 导致的中文、日韩文与 Emoji 数据乱码崩溃，具备优雅容错降级保护。
 - `urlUtils.ts`：URL 协议安全性与外部跳转校验工具 — 提供 `isValidExternalUrl` 严格协议白名单校验（仅放行 `http:` 与 `https:`），阻断 `javascript:`、`data:` 与桌面本地伪协议，防御工件与应用外链 XSS 及客户端沙箱逃逸。
