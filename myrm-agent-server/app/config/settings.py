@@ -479,9 +479,6 @@ class ControlPlaneSettings(BaseSettings):
     )
     tenant_id: str = Field(default="default-tenant", validation_alias="TENANT_ID")
     sandbox_id: str = Field(default="", validation_alias="SANDBOX_ID")
-    telemetry_push_interval: int = Field(
-        default=3600, validation_alias="TELEMETRY_PUSH_INTERVAL"
-    )
     baseline_sync_interval: int = Field(
         default=86400, validation_alias="BASELINE_SYNC_INTERVAL"
     )

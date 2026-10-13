@@ -28,7 +28,6 @@ Agent 技能自动优化服务。包含观测（A/B 测试 + 影子执行）、�
 | `bootstrap.py` | 核心 | 单例注册 + `get_skill_optimization_storage()`（API/services 共用） | ✅ |
 | `runtime.py` | 核心 | 进程级 `ABTestManager` 启动/关闭；HTTP `get_ab_test_manager` 与 lifecycle 共用 | ✅ |
 | `reporter.py` | 报告 | 优化报告生成 | ✅ |
-| `telemetry_pusher.py` | 遥测 | 遥测数据推送 | ✅ |
 | `time_estimator.py` | 估算器 | 优化时间估算 | ✅ |
 | `federated_extractor.py` | 提取器 | 联邦学习数据提取 | ✅ |
 

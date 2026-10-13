@@ -7,7 +7,6 @@
 - ContextCompactionSnapshot: content-blind control-plane context compaction telemetry payload schema.
 - MemoryBriefStatusTelemetryEnvelope: aggregated memory brief status telemetry payload schema.
 - MemoryGuardianGuardTelemetryEnvelope: aggregated guardian guard-unavailable telemetry payload schema.
-- TelemetryPushPayload: skill quality telemetry push payload schema.
 
 [POS]
 Server/control-plane API schema boundary. Normalizes shared Pydantic DTOs for telemetry exchange.
@@ -16,24 +15,6 @@ Server/control-plane API schema boundary. Normalizes shared Pydantic DTOs for te
 from collections.abc import Mapping
 
 from pydantic import BaseModel, Field, field_validator
-
-
-class SkillQualityTelemetry(BaseModel):
-    """Telemetry data for a single skill's quality metrics."""
-
-    skill_id: str
-    overall_score: float
-    success_rate: float
-    execution_time: float
-    call_frequency: float
-
-
-class TelemetryPushPayload(BaseModel):
-    """Payload for pushing skill telemetry to the control plane."""
-
-    tenant_id: str
-    timestamp: str
-    skills: list[SkillQualityTelemetry]
 
 
 class ContextCompressionEventSnapshot(BaseModel):

@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Settings「AI Tools」分组：MCP、技能与工具质量仪表盘 Section。
+Settings「AI Tools」分组：MCP、技能库与工具稳定性 Section。
 
 ## 文件清单
 
@@ -16,11 +16,6 @@ Settings「AI Tools」分组：MCP、技能与工具质量仪表盘 Section。
 | `WorkflowTemplateArgsDialog.tsx`     | Run 前 `{placeholder}` 参数表单（Library Run + Cron 创建复用）                              |
 | `WorkflowTemplateLibrarySection.tsx` | DW 命名模板库列表、Run、Export/Import（`lib/workflow/useWorkflowTemplateTransfer`）、Delete |
 | `ToolStabilitySection.tsx`           | 工具稳定性统计                                                                              |
-| `ToolQualitySection.tsx`             | 工具质量概览                                                                                |
-| `SkillQualitySection.tsx`            | 技能质量详情                                                                                |
-| `GlobalSkillQualityDashboard.tsx`    | 全局技能质量仪表盘                                                                          |
-| `SkillQualityTrendChart.tsx`         | 质量趋势图                                                                                  |
-| `QualityDistributionChart.tsx`       | 质量分布图                                                                                  |
 
 ## 依赖
 

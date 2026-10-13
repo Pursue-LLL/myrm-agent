@@ -87,8 +87,6 @@ vi.mock('../sections/knowledge/RemoteBackupSection', () => ({ default: () => nul
 vi.mock('../sections/knowledge/MigrationWizardSection', () => ({ default: () => null }));
 vi.mock('../sections/knowledge/FollowUpsPanel', () => ({ default: () => null }));
 vi.mock('../sections/knowledge/MigrationPendingReviewSection', () => ({ default: () => null }));
-vi.mock('../sections/ai-tools/SkillQualitySection', () => ({ default: () => null }));
-vi.mock('../sections/ai-tools/ToolStabilitySection', () => ({ default: () => null }));
 vi.mock('../sections/ai-tools/SkillsSection', () => ({ default: () => null }));
 vi.mock('../sections/ai-tools/CompoundingChecklistSection', () => ({ default: () => null }));
 vi.mock('../sections/ai-tools/WorkflowTemplateLibrarySection', () => ({ default: () => null }));
@@ -99,7 +97,6 @@ vi.mock('../sections/ai-core/ModelOrchestrationPlaybookCard', () => ({ default: 
 import DeveloperCenterSection from '../sections/system/DeveloperCenterSection';
 import SystemCenterSection from '../sections/system/SystemCenterSection';
 import MemoryCenterSection from '../sections/knowledge/MemoryCenterSection';
-import ToolQualitySection from '../sections/ai-tools/ToolQualitySection';
 import UnifiedSkillsSection from '../sections/ai-tools/UnifiedSkillsSection';
 import ModelSettingsSection from '../sections/ai-core/ModelSettingsSection';
 
@@ -152,15 +149,6 @@ const CENTERS: CenterCase[] = [
     ],
   },
   {
-    center: 'tool quality',
-    element: () => <ToolQualitySection />,
-    moved: [
-      [null, 'settings.toolQualityCenter.tabDescriptions.quality'],
-      ['stability', 'settings.toolQualityCenter.tabDescriptions.stability'],
-    ],
-    existing: [],
-  },
-  {
     center: 'skills',
     element: () => <UnifiedSkillsSection />,
     moved: [
@@ -203,8 +191,8 @@ afterEach(() => {
 });
 
 describe('center page header subtitles', () => {
-  it('covers the 17 formerly hard-coded subtitles', () => {
-    expect(MOVED_PATHS).toHaveLength(17);
+  it('covers the 15 formerly hard-coded subtitles', () => {
+    expect(MOVED_PATHS).toHaveLength(15);
   });
 
   describe.each(LOCALES)('%s catalog', (locale) => {

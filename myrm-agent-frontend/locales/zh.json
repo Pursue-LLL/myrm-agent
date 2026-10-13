@@ -3682,10 +3682,6 @@
         "title": "关于 MyrmAgent",
         "description": "查看关于应用的信息"
       },
-      "skillQuality": {
-        "title": "技能质量",
-        "description": "技能质量监控与管理"
-      },
       "evolutionRejection": {
         "title": "技能成长审计",
         "description": "查看技能成长链路中的拒绝、锁定和安全失败等负向结果。"
@@ -3693,10 +3689,6 @@
       "toolStability": {
         "title": "工具稳定性",
         "description": "监控和管理工具执行的稳定性与可靠性"
-      },
-      "toolQuality": {
-        "title": "执行质量",
-        "description": "监控和分析技能和工具的执行质量与稳定性"
       },
       "memory": {
         "title": "记忆管理中心",
@@ -14397,9 +14389,7 @@
       "mcp": "MCP",
       "skills": "技能管理",
       "compoundingPlaybook": "复利闭环",
-      "skillQuality": "技能质量",
       "toolStability": "工具稳定性",
-      "toolQuality": "运行质量",
       "evolutionPending": "技能成长",
       "evolutionRejection": "技能成长审计",
       "eval": "能力评估",
@@ -16741,48 +16731,6 @@
         "filterActive": "运行中",
         "filterExecuting": "执行中"
       }
-    },
-    "skillAggregation": {
-      "title": "Skill 质量聚合",
-      "description": "多维度 Skill 质量分析与聚合仪表盘",
-      "loading": "加载中...",
-      "error": "错误",
-      "errorFetchingMetrics": "获取指标失败",
-      "connected": "已连接",
-      "disconnected": "未连接",
-      "last7Days": "最近 7 天",
-      "last30Days": "最近 30 天",
-      "last90Days": "最近 90 天",
-      "exportCSV": "导出 CSV",
-      "exportJSON": "导出 JSON",
-      "exportSuccess": "导出成功",
-      "exportSuccessDescription": "数据已成功导出",
-      "exportFailed": "导出失败",
-      "exportFailedDescription": "导出数据失败",
-      "avgQuality": "平均质量",
-      "median": "中位数",
-      "totalSkills": "总 Skill 数",
-      "executions": "执行次数",
-      "optimizationRate": "优化率",
-      "topSkills": "最佳 Skills",
-      "bottomSkills": "最差 Skills",
-      "qualityDistribution": "质量分布",
-      "worstSkills": "最差表现 Skills",
-      "excellent": "优秀 (≥80%)",
-      "good": "良好 (50-80%)",
-      "poor": "较差 (<50%)",
-      "noData": "数据不足",
-      "noDataHint": "质量分数会在技能参与真实对话后才会出现，不会展示占位默认值。",
-      "refresh": "刷新",
-      "skillTrend": "技能趋势",
-      "globalTrend": "全局质量趋势",
-      "qualityScore": "质量分数",
-      "successRate": "成功率",
-      "tokenEfficiency": "Token效率",
-      "dataPoints": "数据点数",
-      "totalExecutions": "总执行次数",
-      "timeRange": "时间范围",
-      "errorFetchingTrends": "获取趋势数据失败"
     },
     "wiki": {
       "title": "LLM-Wiki 知识库",
@@ -21600,12 +21548,6 @@
       "tabDescriptions": {
         "settings": "管理本地端口、远程服务访问及系统进程状态",
         "about": "查看当前系统版本、开发团队信息及应用更新日志"
-      }
-    },
-    "toolQualityCenter": {
-      "tabDescriptions": {
-        "quality": "查看全局技能执行质量分析与多维性能监控指标",
-        "stability": "监控技能与外部工具的调用成功率、耗时及运行状态"
       }
     },
     "modelCenter": {

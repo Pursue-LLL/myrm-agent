@@ -95,7 +95,7 @@ const ModelSettingsSection = dynamic(() => import('./sections/ai-core/ModelSetti
 const UnifiedSkillsSection = dynamic(() => import('./sections/ai-tools/UnifiedSkillsSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const ToolQualitySection = dynamic(() => import('./sections/ai-tools/ToolQualitySection'), {
+const ToolStabilitySection = dynamic(() => import('./sections/ai-tools/ToolStabilitySection'), {
   loading: () => <SettingsSkeleton />,
 });
 const MemoryCenterSection = dynamic(() => import('./sections/knowledge/MemoryCenterSection'), {
@@ -144,9 +144,7 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   search: SearchSection,
   mcp: MCPSection,
   skills: UnifiedSkillsSection,
-  skillQuality: ToolQualitySection,
-  toolStability: ToolQualitySection,
-  toolQuality: ToolQualitySection,
+  toolStability: ToolStabilitySection,
   evolutionPending: UnifiedSkillsSection,
   evolutionRejection: UnifiedSkillsSection,
   credentials: CredentialsSection,

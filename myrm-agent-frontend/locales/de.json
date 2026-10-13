@@ -3614,10 +3614,6 @@
         "title": "Über MyrmAgent",
         "description": "Informationen über die Anwendung anzeigen"
       },
-      "skillQuality": {
-        "title": "Fähigkeitsqualität",
-        "description": "Fähigkeitsqualitätsüberwachung und -verwaltung"
-      },
       "evolutionRejection": {
         "title": "Evolution-Ablehnungsprotokoll",
         "description": "Zeigt von der LLM-Bestätigung abgelehnte Evolutionsanfragen und erklärt, warum das System nicht reagiert hat."
@@ -3625,10 +3621,6 @@
       "toolStability": {
         "title": "Tool-Stabilität",
         "description": "Überwachung und Verwaltung der Tool-Ausführungsstabilität und -zuverlässigkeit"
-      },
-      "toolQuality": {
-        "title": "Ausführungsqualität",
-        "description": "Ausführungsqualität und Stabilität von Fähigkeiten und Tools überwachen und analysieren"
       },
       "memory": {
         "title": "Speicherverwaltungszentrum",
@@ -13743,9 +13735,7 @@
       "mcp": "MCP",
       "skills": "Fähigkeiten",
       "compoundingPlaybook": "Compounding-Loop",
-      "skillQuality": "Fähigkeitsqualität",
       "toolStability": "Werkzeugstabilität",
-      "toolQuality": "Ausführungsqualität",
       "evolutionPending": "Ausstehende Evolution",
       "evolutionRejection": "Evolution Ablehnungsprotokoll",
       "eval": "Auswertung",
@@ -16087,47 +16077,6 @@
         "filterActive": "Aktiv",
         "filterExecuting": "Ausführend"
       }
-    },
-    "skillAggregation": {
-      "title": "Fähigkeitsqualitäts-Aggregation",
-      "description": "Mehrdimensionale Analyse- und Aggregations-Dashboard für Fähigkeitsqualität",
-      "loading": "Laden...",
-      "error": "Fehler",
-      "errorFetchingMetrics": "Abrufen der Metriken fehlgeschlagen",
-      "connected": "Verbunden",
-      "disconnected": "Getrennt",
-      "last7Days": "Letzte 7 Tage",
-      "last30Days": "Letzte 30 Tage",
-      "last90Days": "Letzte 90 Tage",
-      "exportCSV": "CSV exportieren",
-      "exportJSON": "JSON exportieren",
-      "exportSuccess": "Export erfolgreich",
-      "exportSuccessDescription": "Daten erfolgreich exportiert",
-      "exportFailed": "Export fehlgeschlagen",
-      "exportFailedDescription": "Export der Daten fehlgeschlagen",
-      "avgQuality": "Durchschn. Qualität",
-      "median": "Mittlere",
-      "totalSkills": "Gesamtfähigkeiten",
-      "executions": "Ausführungen",
-      "optimizationRate": "Optimierungsrate",
-      "topSkills": "Top-Fähigkeiten",
-      "bottomSkills": "Untere Fähigkeiten",
-      "qualityDistribution": "Qualitätsverteilung",
-      "worstSkills": "Am schlechtesten abschneidende Fähigkeiten",
-      "excellent": "Excellent (≥80%)",
-      "good": "Gut (50-80%)",
-      "poor": "Schlecht (<50 %)",
-      "noData": "Keine Daten",
-      "refresh": "Aktualisieren",
-      "skillTrend": "Fähigkeitstrend",
-      "globalTrend": "Globaler Qualitätstrend",
-      "qualityScore": "Qualitätswert",
-      "successRate": "Erfolgsquote",
-      "tokenEfficiency": "Token-Effizienz",
-      "dataPoints": "Datenpunkte",
-      "totalExecutions": "Gesamtausführungen",
-      "timeRange": "Zeitraum",
-      "errorFetchingTrends": "Abrufen der Trenddaten fehlgeschlagen"
     },
     "wiki": {
       "title": "LLM-Wiki-Wissensbasis",
@@ -20922,12 +20871,6 @@
       "tabDescriptions": {
         "settings": "Ports, Netzwerkzugriff und System-Laufzeit verwalten",
         "about": "Systemversion, Änderungsprotokolle und Teaminformationen einsehen"
-      }
-    },
-    "toolQualityCenter": {
-      "tabDescriptions": {
-        "quality": "Auswertungen zu Ausführungsqualität und Leistung der Fähigkeiten",
-        "stability": "Stabilität, Fehlerquoten und Laufzeiten der Tools verfolgen"
       }
     },
     "modelCenter": {

@@ -20,7 +20,6 @@
 | `batch_task_repo.py` | 核心 | 批量任务 CRUD | ✅ |
 | `snapshot_repo.py` | 核心 | skill_versions 表 CRUD（由 `skill_version_sync` 双写接入） | ✅ |
 | `audit_log_repo.py` | 核心 | 审计日志 CRUD | ✅ |
-| `heavy_analytics_repo.py` | 核心 | 重度分析（OLAP） | ✅ |
 | `sqlalchemy_storage.py` | 核心 | 框架适配器，实现 `SkillOptimizationStorage` Protocol | ✅ |
 
 ---

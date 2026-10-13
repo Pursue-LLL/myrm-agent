@@ -2,8 +2,7 @@
 
 Validates:
 1. Evolution history API returns quality_delta for approved evolutions
-2. Trend API returns evolution_events
-3. SkillHistoryPanel renders the "Before: XX%" badge in real Chrome
+2. SkillHistoryPanel renders the "Before: XX%" badge in real Chrome
 """
 
 from __future__ import annotations
@@ -98,13 +97,7 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
         assert "before_score" in sample_delta, "quality_delta should contain before_score"
         assert isinstance(sample_delta["before_score"], (int, float)), "before_score should be numeric"
 
-    # Step 4: Verify the trends API includes evolution_events
-    trends = http_json("GET", f"{api_url}/api/v1/skill-quality/trends/global?time_range_days=90")
-    assert isinstance(trends, dict), "Trends API returned unexpected type"
-    assert "evolution_events" in trends, "Trends response should contain evolution_events field"
-    assert isinstance(trends["evolution_events"], list), "evolution_events should be a list"
-
-    # Step 5: Navigate to the Skills tab in real Chrome
+    # Step 4: Navigate to the Skills tab in real Chrome
     # The SkillHistoryPanel renders under Settings > Skills > Installed tab
     # and requires user session (isLoggedIn=true)
     with open_settings_subroute("/settings/skills", timeout_ms=30_000) as (client, page):
@@ -133,7 +126,7 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
                 timeout_sec=5.0,
             )
             # If the page loaded but panel isn't visible, it's a user-session/auth issue
-            # API verification (steps 1-4) already proves the backend feature works
+            # API verification (steps 1-3) already proves the backend feature works
             assert isinstance(snapshot, dict)
             assert snapshot.get("hasSkillsTab") is True
             return
@@ -148,37 +141,3 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
             )
         # Confirm the panel renders without crashing
         assert state.get("recordCount", 0) >= 0, "Panel should render even with no records"
-
-
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
-@pytest.mark.integration
-@pytest.mark.timeout(120)
-def test_evolution_events_in_trend_chart_api() -> None:
-    """E2E: Trend API returns well-formed evolution_events for chart annotation."""
-    api_url = get_e2e_api_url()
-
-    # Test global trends endpoint
-    global_trends = http_json("GET", f"{api_url}/api/v1/skill-quality/trends/global?time_range_days=30")
-    assert isinstance(global_trends, dict)
-    assert "data_points" in global_trends
-    assert "evolution_events" in global_trends
-    assert isinstance(global_trends["evolution_events"], list)
-
-    # Each evolution event should have the expected fields
-    for event in global_trends["evolution_events"]:
-        assert "date" in event, "evolution event must have 'date'"
-        assert "skill_name" in event, "evolution event must have 'skill_name' (global)"
-        # before_score is optional (may be None for pre-R17 data)
-
-    # Test per-skill trends endpoint (even if no data, should not 500)
-    skill_trends = http_json(
-        "GET",
-        f"{api_url}/api/v1/skill-quality/trends/skill/e2e-delta-test-skill%3A%3Acontent_summarizer?time_range_days=30",
-    )
-    assert isinstance(skill_trends, dict)
-    assert "evolution_events" in skill_trends
-    assert isinstance(skill_trends["evolution_events"], list)
-
-    for event in skill_trends["evolution_events"]:
-        assert "date" in event, "per-skill evolution event must have 'date'"
-        # before_score is optional (may be None for older records)

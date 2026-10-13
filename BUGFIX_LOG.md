@@ -1319,3 +1319,52 @@ except Exception:
 4. 局限：没有在完整 Next 应用里跑过（需要后端数据）；技能质量用的是模拟接口数据，其中没有「Token 效率」一条线，琥珀色那一处只验证了回退值能解析（`oklch(0.666 0.179 58.318)`）；只在 Chrome 中量过，Safari / Tauri WebView 未实测；自定义主题下的对比度未计算；`HEAD` 上 `bun run lint` 原本就停在 `verify:stable-mocks`（已修，见修复 8）；当前工作区里他人未提交的 31 个测试仍会触发同一门禁，另有他人未提交的 9 个文件触发键盘焦点硬门禁，`bun run lint` 在这个工作区里到不了新门禁，新门禁可用 `bun run verify:theme-colors` 单独运行；`SkillQualityTrendChart` 里的时间范围显示 `{N}d` 仍是写死的缩写；`globals.css` 里还有若干无引用的遗留哈希类（`.input-size-default--_K_0f`、`.text-ellipsis--D6tEl`、`.search-input--oNVDM`、`.monica-input` 等），不属于本次问题，未动。
 
 ---
+
+## BUG-AGENT-2026-10-14-003: 「技能质量」仪表盘整条链路没有数据来源，页面形同虚设；`enable_auto_optimization` 配置项从未被读取
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（死代码 + 误导性开关，无数据损坏） |
+| 影响范围 | 前端 `settings/sections/ai-tools/`（5 个组件）、`settingsRoutes.ts` / `SettingsMenu.tsx` / `SettingsLayout.tsx`、六种语言 locale；服务端 `app/api/skills/quality.py`、`app/api/skill_optimization/routes/dashboard.py`、`app/services/skill_optimization/{telemetry_pusher,bootstrap}.py`、`app/adapters/skill_optimization/`、`app/schemas/control_plane.py`、`app/config/settings.py`；plane `telemetry/multi_tenant/`；harness `optimization/{config,scheduler_monitoring_mixin}.py` |
+| 出现次数 | 1 |
+| 关联 roadmap | 无 |
+
+### 现象
+
+1. 设置 → AI 工具里的「技能质量」「工具质量中心」页面读取 `/skill-quality/*` 与 `/skill-optimization/{dashboard,quality,quality-history,global-metrics,aggregate-by-skill}`，默认部署下没有任何数据写入这些接口背后的存储；
+2. 服务端 `TelemetryPusher` 与 plane 的 `MultiTenantAggregator` 都没有被启动 / 实例化，plane 的 `/telemetry/skill-quality` 只有 `logger.debug`；
+3. harness 的 `OptimizationConfig.enable_auto_optimization` 没有任何读取点，设为 `False` 也照样每小时评估并自动入队优化；`enable_user_feedback` 同样无人读取。
+
+### 根因
+
+1. 质量快照的写入方 `save_quality_snapshot` 在生产代码里没有调用者；每小时的 `_evaluate_all_skills` 算出分数后直接丢弃，`OptimizationScheduler` 也拿不到存储句柄；默认存储是 `memory`（`settings.py:636-640`）；综合分在生产中是 `0.35 + 0.3*成功率 + 0.2*时间效率`，五个维度里三个是常量；
+2. 前端导出按钮调用的路由在服务端不存在；每技能的成功率 / 次数趋势在成长仪表盘（`fetch_skill_trends`，`/journey`）里已有，且来自账本，是活数据；
+3. 配置项当年随调度器一起写入，没有接线，也没有测试覆盖，所以一直没人发现。
+
+### 修复
+
+1. 前端：删除 `ToolQualitySection`、`SkillQualitySection`、`GlobalSkillQualityDashboard`、`SkillQualityTrendChart`、`QualityDistributionChart` 及趋势图测试，去掉 `skillQuality` / `toolQuality` 标签、重定向与子菜单（`toolStability` 直接指向 `ToolStabilitySection`），六种语言各删 6 个无引用键；
+2. 服务端：删除 `quality.py`（6 个路由）、`dashboard.py`（5 个路由）、无消费者的 `sql_data_source.py` / `heavy_analytics_repo.py`、`telemetry_pusher.py`、`SkillQualityTelemetry` / `TelemetryPushPayload`、`TELEMETRY_PUSH_INTERVAL`、聚合器注册与依赖、没有任何发送方的 `SKILL_QUALITY_UPDATED` 事件（前端透传白名单同步删除），以及对应测试与 `_ARCH.md` 行；
+3. plane：删除从未实例化、无测试的 `telemetry/multi_tenant/`（479 行）及其再导出；
+4. harness：`_evaluate_all_skills` 在 `enable_auto_optimization=False` 时直接返回（只管定时评估，手动 / 批量触发不受影响；默认 `True`，行为不变），新增 2 例单测；删除从未读取的 `enable_user_feedback`；更正 `optimization/__init__.py`、`protocols.py` 里已不存在的业务层适配器与前端区块的描述；
+5. 文档：`myrm-docs` 的 `skill-evolution.mdx` 去掉两行并把「6 面板」改为「4 面板」（en / zh / ko），`error-recovery.mdx` 删除「质量告警 Webhook」一条（`AlertIntegration` 只在 harness 导出，服务端没有任何接线与配置，产品并不具备该能力）。
+
+保留不动：harness 的分析模块（`aggregation_*`、`anomaly_detector`、`predictive_analyzer`，公开 API 且各有测试）、存储协议实现与 `skill_quality_history` 表、成长仪表盘、plane 的 `/telemetry/skill-quality` 与 `/baselines/*` 占位路由。
+
+### 验证
+
+1. 前端：`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx` 一处；`oxlint` 对改动的 4 个文件无告警；`vitest` 设置目录 136 个文件 1039 例中 2 例失败（`centerSubtitles` 的德语目录里两处仍是英文，与本次无关）；`verify-i18n` 与 `verify:theme-colors` 通过；`verify:stable-mocks` / `verify:a11y` / `verify:orphans` 的失败项都在他人文件里，没有一项落在本次改动或被本次删除所孤立的模块上；
+2. 服务端：把 `api_router` 挂到空 `FastAPI` 后取 OpenAPI 路径共 2560 条，已不含 `/skill-quality/*` 与上述 5 个 dashboard 路径，其余 `/skill-optimization/*` 保留；受影响目录 pytest 2152 通过、9 失败，9 例都是架构门禁，原因是他人未提交的目录与导入（api/services 同名域 `git`、`machines`、`runs`、`workflow`；`services/workflow` 缺 `__init__.py`；`/memory/simulate-recall` 无前端调用；harness 深导入基线新增 75 条），过期基线条目为 0，即本次删除没有留下陈旧基线；
+3. harness：`tests/agent/skills/optimization` 168 例通过（含新增 2 例），`ruff` 无告警；
+4. plane：架构与单元测试中与遥测 / 导入相关的 220 例通过；
+5. 全仓对已删符号与路由的 `rg` 只剩 `BUGFIX_LOG.md` 里的历史记录与 harness 公开框架 API 本身。
+
+### 踩坑经验
+
+1. 页面存在不等于有数据：先查谁写入，再决定要不要给它做界面；这条链路从写入端到展示端都没接上，却在四个仓里各留了一段；
+2. 配置项必须有读取点：没有读取点的开关比没有开关更糟，用户会以为关掉了；
+3. 局限：没有核对线上数据库里 `skill_quality_history` 表的实际行数，也不知道外部部署是否设置过存储相关环境变量；未在 Tauri / 移动端实测；未跑 `next build`；旧的 `/settings/toolQuality` 深链现在的落点没有实测。
+
+---

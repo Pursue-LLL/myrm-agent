@@ -78,7 +78,7 @@ const menuItems: MenuItem[] = [
   // 技能与插件
   { id: 'skills', icon: Wand2, labelKey: 'skills', group: 'ai-tools' },
   { id: 'mcp', icon: Plug, labelKey: 'mcp', group: 'ai-tools' },
-  { id: 'toolQuality', icon: Activity, labelKey: 'toolQuality', group: 'ai-tools' },
+  { id: 'toolStability', icon: Activity, labelKey: 'toolStability', group: 'ai-tools' },
 
   // 知识与数据
   { id: 'wiki', icon: BookOpen, labelKey: 'wiki', group: 'knowledge' },
@@ -117,10 +117,6 @@ const subMenuItems: Partial<Record<SettingsTab, SubMenuItem[]>> = {
     { id: 'compounding', labelKey: 'compoundingPlaybook' },
     { id: 'pending', labelKey: 'evolutionPending' },
     { id: 'rejections', labelKey: 'evolutionRejection' },
-  ],
-  toolQuality: [
-    { id: 'quality', labelKey: 'skillQuality' },
-    { id: 'stability', labelKey: 'toolStability' },
   ],
   memory: [
     { id: 'team-hub', labelKey: 'memory-team-hub' },

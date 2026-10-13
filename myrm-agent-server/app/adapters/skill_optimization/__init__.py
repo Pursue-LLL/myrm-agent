@@ -9,7 +9,6 @@ from .batch_task_repo import BatchTaskRepository
 from .optimization_repo import OptimizationRepository
 from .quality_repo import QualityRepository
 from .snapshot_repo import SnapshotRepository
-from .sql_data_source import SQLSkillQualityDataSource
 from .sqlalchemy_storage import SQLAlchemyStorage
 
 __all__ = [
@@ -17,7 +16,6 @@ __all__ = [
     "ABTestRepository",
     "QualityRepository",
     "SQLAlchemyStorage",
-    "SQLSkillQualityDataSource",
     "BatchTaskRepository",
     "SnapshotRepository",
     "AuditLogRepository",

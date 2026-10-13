@@ -3682,10 +3682,6 @@
         "title": "About MyrmAgent",
         "description": "View information about the application"
       },
-      "skillQuality": {
-        "title": "Skill Quality",
-        "description": "Skill quality monitoring and management"
-      },
       "evolutionRejection": {
         "title": "Skill Growth Audit",
         "description": "Inspect rejected, locked, and security-failed growth outcomes."
@@ -3693,10 +3689,6 @@
       "toolStability": {
         "title": "Tool Stability",
         "description": "Monitor and manage tool execution stability and reliability"
-      },
-      "toolQuality": {
-        "title": "Execution Quality",
-        "description": "Monitor and analyze the execution quality and stability of skills and tools"
       },
       "memory": {
         "title": "Memory Management Center",
@@ -14397,9 +14389,7 @@
       "mcp": "MCP",
       "skills": "Skills",
       "compoundingPlaybook": "Compounding Loop",
-      "skillQuality": "Skill Quality",
       "toolStability": "Tool Stability",
-      "toolQuality": "Execution Quality",
       "evolutionPending": "Skill Growth",
       "evolutionRejection": "Skill Growth Audit",
       "eval": "Evaluation",
@@ -16741,48 +16731,6 @@
         "filterActive": "Active",
         "filterExecuting": "Executing"
       }
-    },
-    "skillAggregation": {
-      "title": "Skill Quality Aggregation",
-      "description": "Multi-dimensional Skill Quality Analysis & Aggregation Dashboard",
-      "loading": "Loading...",
-      "error": "Error",
-      "errorFetchingMetrics": "Failed to fetch metrics",
-      "connected": "Connected",
-      "disconnected": "Disconnected",
-      "last7Days": "Last 7 Days",
-      "last30Days": "Last 30 Days",
-      "last90Days": "Last 90 Days",
-      "exportCSV": "Export CSV",
-      "exportJSON": "Export JSON",
-      "exportSuccess": "Export Successful",
-      "exportSuccessDescription": "Data exported successfully",
-      "exportFailed": "Export Failed",
-      "exportFailedDescription": "Failed to export data",
-      "avgQuality": "Avg Quality",
-      "median": "Median",
-      "totalSkills": "Total Skills",
-      "executions": "Executions",
-      "optimizationRate": "Optimization Rate",
-      "topSkills": "Top Skills",
-      "bottomSkills": "Bottom Skills",
-      "qualityDistribution": "Quality Distribution",
-      "worstSkills": "Worst Performing Skills",
-      "excellent": "Excellent (≥80%)",
-      "good": "Good (50-80%)",
-      "poor": "Poor (<50%)",
-      "noData": "Insufficient data",
-      "noDataHint": "Quality scores appear after skills run in real conversations—not placeholder defaults.",
-      "refresh": "Refresh",
-      "skillTrend": "Skill Trend",
-      "globalTrend": "Global Quality Trend",
-      "qualityScore": "Quality Score",
-      "successRate": "Success Rate",
-      "tokenEfficiency": "Token Efficiency",
-      "dataPoints": "Data Points",
-      "totalExecutions": "Total Executions",
-      "timeRange": "Time Range",
-      "errorFetchingTrends": "Failed to fetch trend data"
     },
     "wiki": {
       "title": "LLM-Wiki Knowledge Base",
@@ -21600,12 +21548,6 @@
       "tabDescriptions": {
         "settings": "Manage ports, network access, and system runtime",
         "about": "Inspect system version, changelogs, and team details"
-      }
-    },
-    "toolQualityCenter": {
-      "tabDescriptions": {
-        "quality": "Performance and execution quality analytics",
-        "stability": "Tool stability, error rates, and duration tracking"
       }
     },
     "modelCenter": {

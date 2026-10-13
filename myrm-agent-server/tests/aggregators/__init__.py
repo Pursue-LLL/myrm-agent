@@ -1,1 +1,0 @@
-"""Aggregators integration tests"""

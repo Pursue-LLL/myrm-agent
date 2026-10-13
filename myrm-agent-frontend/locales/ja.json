@@ -3614,10 +3614,6 @@
         "title": "について MyrmAgent",
         "description": "アプリケーションに関する情報を表示します"
       },
-      "skillQuality": {
-        "title": "スキル品質",
-        "description": "スキル品質の監視と管理"
-      },
       "evolutionRejection": {
         "title": "進化拒否ログ",
         "description": "LLM確認段階で拒否された進化リクエストを表示し、システムがなぜ動かなかったのかを説明します。"
@@ -3625,10 +3621,6 @@
       "toolStability": {
         "title": "ツール安定性",
         "description": "ツール実行の安定性と信頼性を監視・管理"
-      },
-      "toolQuality": {
-        "title": "実行品質",
-        "description": "スキルとツールの実行品質と安定性を監視・分析します"
       },
       "memory": {
         "title": "メモリ管理センター",
@@ -13743,9 +13735,7 @@
       "mcp": "MCP",
       "skills": "スキル管理",
       "compoundingPlaybook": "複利ループ",
-      "skillQuality": "スキル品質",
       "toolStability": "ツール安定性",
-      "toolQuality": "実行品質",
       "evolutionPending": "スキル成長",
       "evolutionRejection": "進化拒絶ログ",
       "eval": "評価",
@@ -16087,47 +16077,6 @@
         "filterActive": "実行中",
         "filterExecuting": "実行中"
       }
-    },
-    "skillAggregation": {
-      "title": "スキル品質集約",
-      "description": "多次元のスキル品質分析と集約ダッシュボード",
-      "loading": "読み込み中...",
-      "error": "エラー",
-      "errorFetchingMetrics": "メトリクスの取得に失敗しました",
-      "connected": "接続済み",
-      "disconnected": "未接続",
-      "last7Days": "最近 7 日",
-      "last30Days": "最近 30 日",
-      "last90Days": "最近 90 日",
-      "exportCSV": "CSV をエクスポート",
-      "exportJSON": "JSON をエクスポート",
-      "exportSuccess": "エクスポートしました",
-      "exportSuccessDescription": "データをエクスポートしました",
-      "exportFailed": "エクスポートに失敗しました",
-      "exportFailedDescription": "データのエクスポートに失敗",
-      "avgQuality": "平均品質",
-      "median": "中央値",
-      "totalSkills": "全 Skill 数",
-      "executions": "実行回数",
-      "optimizationRate": "最適化率",
-      "topSkills": "ベスト Skills",
-      "bottomSkills": "ワースト Skills",
-      "qualityDistribution": "品質分布",
-      "worstSkills": "パフォーマンス最下位のスキル",
-      "excellent": "優秀 (≥80%)",
-      "good": "良好 (50-80%)",
-      "poor": "不良 (<50%)",
-      "noData": "データなし",
-      "refresh": "更新",
-      "skillTrend": "スキルトレンド",
-      "globalTrend": "全体品質トレンド",
-      "qualityScore": "品質スコア",
-      "successRate": "成功率",
-      "tokenEfficiency": "Token効率",
-      "dataPoints": "データポイント数",
-      "totalExecutions": "総実行回数",
-      "timeRange": "時間範囲",
-      "errorFetchingTrends": "トレンドデータの取得に失敗しました"
     },
     "wiki": {
       "title": "LLM-Wiki ナレッジベース",
@@ -20922,12 +20871,6 @@
       "tabDescriptions": {
         "settings": "ローカルポート、リモートサービスへのアクセス、システムプロセスの状態を管理",
         "about": "現在のバージョン、開発チーム情報、アップデート履歴の確認"
-      }
-    },
-    "toolQualityCenter": {
-      "tabDescriptions": {
-        "quality": "スキル実行品質の全体分析と多角的なパフォーマンス指標の確認",
-        "stability": "スキルと外部ツールの呼び出し成功率、所要時間、稼働状況を監視"
       }
     },
     "modelCenter": {

@@ -28,7 +28,6 @@
 | `packaging.py` | 模块 | Skill packaging and upload endpoints；预览返回文件树摘要 `review_digest`，导出携带“忽略脱敏”决定时回传校验，技能预览后被改动则 409 `skill_changed_since_preview`；`export_format` 仅接受 `agent_plugin` / `raw_skill`，其余值 422 | ✅ |
 | `permissions.py` | 模块 | Skill Permission Management API | ✅ |
 | `prebuilt.py` | 模块 | Prebuilt skill admin and update management API. | ✅ |
-| `quality.py` | 模块 | Skill Quality Aggregation API | ✅ |
 | `rescan/`（子包） | 模块 | 供应链重扫与公告治理域：`rescan.py`（`POST /rescan`、`GET /rescan/report`、公告 ack/unack）+ `rescan_schemas.py`（请求/响应模型）；`__init__.py` 为聚合门面。清单见 [`rescan/_ARCH.md`](rescan/_ARCH.md) | ✅ |
 | `router.py` | 路由 | Skills API router — aggregates all skill-related endpoints. | ✅ |
 | `schemas.py` | 模块 | Skills API request/response schemas；`redaction_responses` 把逐文件脱敏发现映射成审阅对话框的 diff 形状（技能预览与专家导出预览共用）；每条发现带 `kinds`（`SecretKind` 稳定码，由前端按用户语言渲染） | ✅ |

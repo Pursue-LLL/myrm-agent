@@ -88,7 +88,6 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "vault_proxy": _RouterMount("app.api.files.vault_proxy", prefix="/files", tags=("files",)),
     "skills": _RouterMount("app.api.skills", prefix="/skills", tags=("skills",)),
     "skill_growth": _RouterMount("app.api.skills.growth", tags=("skill-growth",)),
-    "skill_quality": _RouterMount("app.api.skills.quality", tags=("skill-quality",)),
     "evolution": _RouterMount("app.api.skills.evolution", tags=("evolution",)),
     "evolution_ws": _RouterMount("app.api.skills.ws_evolution", prefix="/ws", tags=("evolution",)),
     "experience_ledger": _RouterMount("app.api.skills.experience_ledger", tags=("experience-ledger",)),
@@ -240,7 +239,6 @@ PRESETS: dict[str, tuple[str, ...]] = {
     "skills_api": (
         "skills",
         "skill_growth",
-        "skill_quality",
         "evolution",
         "experience_ledger",
         "migrations",
@@ -261,7 +259,6 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "chats",
         "files",
         "skills",
-        "skill_quality",
     ),
     "migrations_api": (
         "migrations",
@@ -426,8 +423,6 @@ def preset_for_test_path(relative_path: str) -> str | None:
         return "statistics"
     if path.startswith("tests/integration/test_activity_patterns"):
         return "statistics"
-    if path.startswith("tests/integration/test_skill_quality"):
-        return "skills_api"
     return None
 
 

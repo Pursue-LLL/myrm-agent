@@ -53,7 +53,6 @@ class AppEventType(StrEnum):
     SKILL_AB_TEST_UPDATED = "skill_ab_test_updated"
     BUDGET_UPDATED = "budget_updated"
     CHANNEL_STATUS_UPDATED = "channel_status_updated"
-    SKILL_QUALITY_UPDATED = "skill_quality_updated"
     KANBAN_TASK_UPDATED = "kanban_task_updated"
     BACKGROUND_TASK_DONE = "background_task_done"
     UX_WARNING_TRUNCATED = "ux_warning_truncated"

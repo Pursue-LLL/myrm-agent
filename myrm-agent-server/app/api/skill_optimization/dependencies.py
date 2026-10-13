@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 
 from fastapi import HTTPException
-from myrm_agent_harness.agent.skills.optimization import EventEmitter, InMemoryAggregator
+from myrm_agent_harness.agent.skills.optimization import EventEmitter
 from myrm_agent_harness.agent.skills.optimization.protocols import SkillExecutionProvider
 from myrm_agent_harness.agent.skills.optimization.scheduler import OptimizationScheduler
 
@@ -49,17 +49,6 @@ def get_event_emitter() -> EventEmitter:
     return EventEmitter()
 
 
-def get_aggregator() -> InMemoryAggregator:
-    """Return SkillQualityAggregator instance."""
-    from app.services.skill_optimization.bootstrap import get_registered_aggregator
-
-    aggregator = get_registered_aggregator()
-    if aggregator is not None:
-        return aggregator
-    storage = get_storage()
-    return InMemoryAggregator(storage)
-
-
 def get_ab_test_manager() -> ABTestManager:
     """Return ABTestManager instance (lazy init)."""
     global _ab_test_manager_instance
@@ -79,7 +68,6 @@ def init_skill_optimization_services(
     scheduler: object,
     storage: object,
     event_emitter: object,
-    aggregator: object | None = None,
 ) -> None:
     """Initialize skill optimization service instances."""
     from app.services.skill_optimization.bootstrap import init_skill_optimization_services as _init
@@ -88,5 +76,4 @@ def init_skill_optimization_services(
         scheduler=scheduler,
         storage=storage,
         event_emitter=event_emitter,
-        aggregator=aggregator,
     )

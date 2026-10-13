@@ -43,7 +43,6 @@ const PASSTHROUGH_EVENTS: ReadonlySet<string> = new Set([
   'skill_ab_test_updated',
   'budget_updated',
   'channel_status_updated',
-  'skill_quality_updated',
   'skill_pool_updated',
   'goal:branch_switched',
 ]);

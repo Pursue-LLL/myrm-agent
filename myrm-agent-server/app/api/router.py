@@ -109,7 +109,6 @@ from app.api.skills.evolution import router as evolution_router
 from app.api.skills.experience_ledger import router as experience_ledger_router
 from app.api.skills.growth import router as skill_growth_router
 from app.api.skills.migrations import router as migrations_router
-from app.api.skills.quality import router as skill_quality_router
 from app.api.skills.ws_evolution import router as evolution_ws_router
 from app.api.spreadsheet import router as spreadsheet_router
 from app.api.ssh_vault.router import router as ssh_vault_router
@@ -193,7 +192,6 @@ api_router.include_router(browser_recording_router, prefix="/browser", tags=["br
 api_router.include_router(browser_sessions_router, prefix="/browser", tags=["browser-sessions"])
 api_router.include_router(browser_spaces_router, prefix="/browser", tags=["browser-spaces"])
 api_router.include_router(skill_growth_router, tags=["skill-growth"])
-api_router.include_router(skill_quality_router, tags=["skill-quality"])
 api_router.include_router(evolution_router, tags=["evolution"])
 api_router.include_router(evolution_ws_router, prefix="/ws", tags=["evolution"])
 api_router.include_router(experience_ledger_router, tags=["experience-ledger"])
