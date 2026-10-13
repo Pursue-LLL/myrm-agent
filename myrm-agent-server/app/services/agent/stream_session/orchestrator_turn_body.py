@@ -5,10 +5,11 @@
 - app.services.agent.stream_session.pre_reply_compact_sse (POS: idle compact SSE)
 - app.services.agent.stream_session.stream_pump::pump_to_buffer (POS: SSE pump)
 - app.services.agent.params.routing_memory::remember_turn_routing (POS: per-chat routing memory reused when a HITL turn resumes)
+- myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle of the turn, registered at turn entry)
 
 [OUTPUT]
 - launch_early_buffered_stream: return StreamingResponse immediately after reserve
-- execute_agent_turn_after_reserve: compact → persist → agent session → pump (background)
+- execute_agent_turn_after_reserve: register cancel token → persist → pre-reply compact → agent session → pump (background)
 
 [POS]
 E1 early-stream path: clients subscribe while pre-reply compact and orchestrator setup run.
@@ -77,6 +78,10 @@ async def _fail_buffered_turn(
     message_id: str | None,
     detail: str,
 ) -> None:
+    # A turn that fails during setup never reaches stream finalize, which is
+    # where a normally finished turn unregisters its cancel token.
+    if message_id:
+        CancellationRegistry.unregister(message_id)
     await buffer.append(error_sse(detail, message_id))  # type: ignore[attr-defined]
     await buffer.end_stream()  # type: ignore[attr-defined]
 
@@ -185,7 +190,11 @@ async def execute_agent_turn_after_reserve(
     buffer: object,
     record_terminal_failure: Callable[[TurnCapabilityFailureReason], Awaitable[None]],
 ) -> None:
-    """Run compact → persist → session build → pump after HTTP stream is already open."""
+    """Run persist → pre-reply compact → session build → pump after the HTTP response is already accepted."""
+    # Registered before the first await so a Stop that lands during setup finds this turn.
+    cancel_token = CancellationToken(request_id=request.message_id)
+    CancellationRegistry.register(cancel_token)
+
     # Commit the user row before any optional profile/model-window/compact work.
     # The multiplexed HTTP response is already accepted at this point; API
     # observers must see the turn even when stale-context setup is slow.
@@ -396,9 +405,6 @@ async def execute_agent_turn_after_reserve(
             "Search service not configured. Fast search requires a configured search service.",
         )
         return
-
-    cancel_token = CancellationToken(request_id=request.message_id)
-    CancellationRegistry.register(cancel_token)
 
     steering_token = SteeringToken() if request.chat_id else None
     if steering_token and request.chat_id:
