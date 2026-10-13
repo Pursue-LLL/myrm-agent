@@ -42,6 +42,7 @@
 | `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |
 | `curator/__init__.py` | 子域 | 技能生命周期治理域聚合出口 | — |
 | `curator/service.py` | 核心 | Curator 业务服务 — sweep/配置/历史/后台任务编排；`get_stats_collector()` 注入 harness `usage_recorder` | ✅ |
+| `curator/bound_skills.py` | 核心 | 找出被 Agent 档案 / 未完成 cron 任务绑定的技能，作为 `protected_names` 交给 Curator（sweep 与合并均豁免） | ✅ |
 | `curator/consolidation.py` | 核心 | 技能合并（umbrella merge）集成 — preview/execute/agent refs 重写，共享 sweep 锁 | ✅ |
 | `effective_skill_ids.py` | 核心 | 解析 Agent 显式 allowlist（所见即所得标准：空名单装配 0 技能；规范化 legacy local ID） | ✅ |
 | `discovery/` | 子域 | 技能发现聚合出口：`adopt`（显式 allowlist 时 install 自动 append）、`mount`（安装/更新后 catalog enable）、`autoupdate`（上游版本检测） | ✅ |
