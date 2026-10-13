@@ -1,8 +1,9 @@
-"""Sandbox gate coverage for the browser-recording skill generation endpoint.
+"""Local-skills gate coverage for the browser-recording skill generation endpoint.
 
 ``POST /browser/recording/generate-skill`` writes the generated skill to the
-local skill store (~/.myrm/skills), which the agent can never load in sandbox
-mode — the endpoint must fail closed with 403 before doing any work.
+local skill store (~/.myrm/skills), which the agent cannot load when local
+skills are switched off (``MYRM_ALLOW_LOCAL_SKILLS=0``) — the endpoint must
+fail closed with 403 before doing any work.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ def recording_client() -> TestClient:
 
 
 def test_generate_skill_blocked_in_sandbox(recording_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Generate-skill must fail closed with 403 in sandbox before any session lookup."""
+    """Generate-skill must fail closed with 403 when local skills are off, before any session lookup."""
     from app.config.deploy_mode import get_deploy_mode
     from app.platform_utils.deployment_capabilities import (
         _reset_capabilities_cache_for_testing,
@@ -32,6 +33,7 @@ def test_generate_skill_blocked_in_sandbox(recording_client: TestClient, monkeyp
     get_deploy_mode.cache_clear()
     _reset_capabilities_cache_for_testing()
     monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+    monkeypatch.setenv("MYRM_ALLOW_LOCAL_SKILLS", "0")
     get_deploy_mode.cache_clear()
     _reset_capabilities_cache_for_testing()
 
@@ -43,6 +45,7 @@ def test_generate_skill_blocked_in_sandbox(recording_client: TestClient, monkeyp
     assert resp.status_code == 403
 
     monkeypatch.delenv("DEPLOY_MODE", raising=False)
+    monkeypatch.delenv("MYRM_ALLOW_LOCAL_SKILLS", raising=False)
     get_deploy_mode.cache_clear()
     _reset_capabilities_cache_for_testing()
 
