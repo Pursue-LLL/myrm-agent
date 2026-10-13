@@ -10508,6 +10508,17 @@
       "retentionHealth": "記憶質量",
       "coherence": "一致性"
     },
+    "growthTypes": {
+      "skill_draft": "新技能",
+      "skill_patch": "技能更新",
+      "semantic_memory": "記憶",
+      "fix": "技能修復",
+      "derived": "技能最佳化",
+      "captured": "沉澱技能",
+      "slice_extraction": "任務提煉",
+      "optimize_description": "描述最佳化",
+      "other": "其他"
+    },
     "skillEvents": {
       "title": "技能成長時間線",
       "empty": "暫無成長事件",

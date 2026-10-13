@@ -10508,6 +10508,17 @@
       "retentionHealth": "品質",
       "coherence": "一貫性"
     },
+    "growthTypes": {
+      "skill_draft": "新しいスキル",
+      "skill_patch": "スキルの更新",
+      "semantic_memory": "記憶",
+      "fix": "スキルの修正",
+      "derived": "スキルの改善",
+      "captured": "抽出したスキル",
+      "slice_extraction": "タスクからの抽出",
+      "optimize_description": "説明の改善",
+      "other": "その他"
+    },
     "skillEvents": {
       "title": "スキル成長タイムライン",
       "empty": "成長イベントはまだありません",

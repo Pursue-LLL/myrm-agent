@@ -10508,6 +10508,17 @@
       "retentionHealth": "Qualität",
       "coherence": "Kohärenz"
     },
+    "growthTypes": {
+      "skill_draft": "Neue Fähigkeit",
+      "skill_patch": "Fähigkeits-Update",
+      "semantic_memory": "Speicher",
+      "fix": "Fähigkeits-Korrektur",
+      "derived": "Fähigkeits-Verfeinerung",
+      "captured": "Erfasste Fähigkeit",
+      "slice_extraction": "Aus Aufgabe extrahiert",
+      "optimize_description": "Beschreibungsoptimierung",
+      "other": "Sonstiges"
+    },
     "skillEvents": {
       "title": "Zeitleiste für das Kompetenzwachstum",
       "empty": "Noch keine Wachstumsereignisse",

@@ -26,6 +26,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
+import { useGrowthTypeLabel } from '@/components/features/growth/useGrowthTypeLabel';
 import { TextDiffViewer } from '@/lib/diff/TextDiffViewer';
 import { useTheme } from 'next-themes';
 import { Badge } from '@/components/primitives/badge';
@@ -89,6 +90,7 @@ export default function SkillGrowthCaseCard({
   onCreateCron,
 }: SkillGrowthCaseCardProps) {
   const t = useTranslations('settings.skills.growth');
+  const growthTypeLabel = useGrowthTypeLabel();
   const { theme } = useTheme();
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -225,7 +227,7 @@ export default function SkillGrowthCaseCard({
             </Badge>
             {item.growthType !== 'semantic_memory' && (
               <Badge variant="outline" className="text-[11px]">
-                {item.growthType}
+                {growthTypeLabel(item.growthType)}
               </Badge>
             )}
             {item.impactedDependents.length > 0 && (

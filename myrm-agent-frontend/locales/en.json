@@ -10576,6 +10576,17 @@
       "retentionHealth": "Quality",
       "coherence": "Coherence"
     },
+    "growthTypes": {
+      "skill_draft": "New skill",
+      "skill_patch": "Skill update",
+      "semantic_memory": "Memory",
+      "fix": "Skill fix",
+      "derived": "Skill refinement",
+      "captured": "Captured skill",
+      "slice_extraction": "Extracted from a task",
+      "optimize_description": "Description refinement",
+      "other": "Other"
+    },
     "skillEvents": {
       "title": "Skill Growth Timeline",
       "empty": "No growth events yet",

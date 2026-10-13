@@ -10508,6 +10508,17 @@
       "retentionHealth": "품질",
       "coherence": "일관성"
     },
+    "growthTypes": {
+      "skill_draft": "새 스킬",
+      "skill_patch": "스킬 업데이트",
+      "semantic_memory": "메모리",
+      "fix": "스킬 수정",
+      "derived": "스킬 개선",
+      "captured": "추출한 스킬",
+      "slice_extraction": "작업에서 추출",
+      "optimize_description": "설명 개선",
+      "other": "기타"
+    },
     "skillEvents": {
       "title": "스킬 성장 타임라인",
       "empty": "아직 성장 이벤트가 없습니다",

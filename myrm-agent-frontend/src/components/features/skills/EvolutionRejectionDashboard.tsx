@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Activity, AlertTriangle, Clock, Loader2, RefreshCw, ShieldX, TrendingDown } from 'lucide-react';
+import { useGrowthTypeLabel } from '@/components/features/growth/useGrowthTypeLabel';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
@@ -67,6 +68,7 @@ const STATUS_TONE: Record<
 
 export function EvolutionRejectionDashboard() {
   const t = useTranslations('settingsTabs.evolutionRejection');
+  const growthTypeLabel = useGrowthTypeLabel();
   const locale = useLocale();
   const text = useCallback((value: string) => selectLocalizedText(value, locale), [locale]);
 
@@ -299,7 +301,7 @@ export function EvolutionRejectionDashboard() {
                         </div>
                       </TableCell>
                       <TableCell>{renderStatusBadge(entry.status)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{entry.growthType}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{growthTypeLabel(entry.growthType)}</TableCell>
                       <TableCell className="max-w-[400px] text-sm text-muted-foreground">
                         <div className="space-y-2">
                           {(() => {
