@@ -37,7 +37,7 @@ import { apiRequest } from '@/lib/api';
 import { listConnectorStatus, type ConnectorStatus } from '@/services/connect';
 import { listOAuthCredentials, type OAuthCredentialItem } from '@/services/integrations/oauthCredentials';
 import { listChannelStatuses, type ChannelStatus } from '@/services/channels/manage';
-import { getOAuthIssuerSettingsPath } from '@/lib/skills/integrationOAuthDisplay';
+import { formatOAuthIssuerLabel, getOAuthIssuerSettingsPath } from '@/lib/skills/integrationOAuthDisplay';
 import { resolveProviderDataUsage } from './providerDataUsageCatalog';
 import {
   buildChannelEgressSnapshot,
@@ -55,14 +55,6 @@ export interface DataFlowDisclosurePanelProps {
 
 function isHostedDeployMode(frontendSandbox: boolean, backendDeployMode: string | null): boolean {
   return frontendSandbox || backendDeployMode === 'sandbox';
-}
-
-function formatOAuthLabel(issuer: string): string {
-  return issuer
-    .split(/[-_]/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 }
 
 export const DataFlowDisclosurePanel = memo(
@@ -328,7 +320,7 @@ export const DataFlowDisclosurePanel = memo(
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-semibold text-foreground">
-                      {formatOAuthLabel(integration.issuer)}
+                      {formatOAuthIssuerLabel(integration.issuer)}
                     </span>
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
                       {t('integrationOAuthCategory')}

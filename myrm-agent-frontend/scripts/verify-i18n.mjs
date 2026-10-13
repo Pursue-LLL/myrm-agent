@@ -48,7 +48,7 @@ function readSettingsTabs() {
   return [...blockMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
 }
 
-const VALID_TABS = readSettingsTabs();
+const SETTINGS_TABS = readSettingsTabs();
 
 // 支持的语言（必须与 src/i18n/config.ts locales 一致）
 const LANGUAGES = ['zh', 'en', 'ja', 'ko', 'de', 'zh-TW'];
@@ -216,7 +216,7 @@ verifyShellDeferredNamespaceGate();
 
 console.log('\n');
 
-// 验证1: metadata.settingsTabs 必须包含所有 VALID_TABS
+// 验证1: metadata.settingsTabs 必须包含所有 SETTINGS_TABS
 console.log('📋 验证 metadata.settingsTabs 完整性...');
 for (const lang of LANGUAGES) {
   const data = translations[lang];
@@ -225,7 +225,7 @@ for (const lang of LANGUAGES) {
   const settingsTabs = data.metadata?.settingsTabs || {};
   const missingTabs = [];
 
-  for (const tab of VALID_TABS) {
+  for (const tab of SETTINGS_TABS) {
     const tabData = settingsTabs[tab];
     if (!tabData) {
       missingTabs.push(`${tab} (完全缺失)`);
@@ -246,7 +246,7 @@ for (const lang of LANGUAGES) {
   }
 }
 
-// 验证2: settings.menu 必须包含所有 VALID_TABS
+// 验证2: settings.menu 必须包含所有 SETTINGS_TABS
 console.log('\n📋 验证 settings.menu 完整性...');
 for (const lang of LANGUAGES) {
   const data = translations[lang];
@@ -255,7 +255,7 @@ for (const lang of LANGUAGES) {
   const settingsMenu = data.settings?.menu || {};
   const missingMenuItems = [];
 
-  for (const tab of VALID_TABS) {
+  for (const tab of SETTINGS_TABS) {
     if (!settingsMenu[tab]) {
       missingMenuItems.push(tab);
     }

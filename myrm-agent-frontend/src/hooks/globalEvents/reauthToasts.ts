@@ -1,6 +1,12 @@
-import { getOAuthIssuerSettingsPath } from '@/lib/skills/integrationOAuthDisplay';
+/**
+ * [INPUT] '@/lib/skills/integrationOAuthDisplay'::getOAuthIssuerSettingsPath / formatOAuthIssuerLabel (POS: OAuth 账号的设置页落点与展示名)
+ * [OUTPUT] showMcpAuthRequiredToast / showOAuthReauthRequiredToast: 展示「需要重新授权」提示条，操作按钮直达负责该连接的设置页;
+ *          ReauthToastDeps: 提示条所需的翻译、路由、toast 与跨标签页通知能力
+ * [POS] 全局事件的重新授权提示条。把 MCP / OAuth 授权失效事件变成可点击的 toast，落点与服务端推送深链一致。
+ */
+import { formatOAuthIssuerLabel, getOAuthIssuerSettingsPath } from '@/lib/skills/integrationOAuthDisplay';
 
-export type ReauthToastTranslator = (key: string, values?: Record<string, string>) => string;
+type ReauthToastTranslator = (key: string, values?: Record<string, string>) => string;
 
 interface ReauthToastOptions {
   id: string;
@@ -48,11 +54,10 @@ export function showMcpAuthRequiredToast(data: Record<string, unknown>, deps: Re
 /** An OAuth account expired; the action opens the settings page that owns that account. */
 export function showOAuthReauthRequiredToast(data: Record<string, unknown>, deps: ReauthToastDeps): void {
   const issuer = String(data.issuer ?? 'OAuth');
-  const reason = String(data.reason ?? '');
   showReauthToast(
     deps,
     `oauth-reauth-${issuer}`,
-    deps.t('oauthReauthRequired', { issuer, reason }),
+    deps.t('oauthReauthRequired', { issuer: formatOAuthIssuerLabel(issuer) }),
     getOAuthIssuerSettingsPath(issuer),
   );
 }

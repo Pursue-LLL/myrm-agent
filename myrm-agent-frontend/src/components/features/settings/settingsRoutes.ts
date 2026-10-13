@@ -1,14 +1,16 @@
 /**
- * 设置页路由单一信息源：`/settings/[tab]` 的合法 id、历史别名重定向、仅桌面端 Tab。
- *
- * 服务端页面 `app/settings/[tab]/page.tsx`、`SettingsLayout`、`SettingsMenu`、
- * `scripts/verify-i18n.mjs` 与后端深链架构测试共同读取本文件；新增或下线设置 Tab 只改这里
- * （其余登记点见 `sections/integration/_ARCH.md`）。
+ * [INPUT] 无外部业务模块依赖（纯常量与纯函数，可被 Node 脚本与后端架构测试按文本直接读取）
+ * [OUTPUT] SETTINGS_TABS / SettingsTab: 全部可寻址的设置 Tab id; TAURI_ONLY_TABS: 仅桌面端展示的 Tab;
+ *          SETTINGS_TAB_REDIRECTS / getSettingsTabRedirectPath: 别名路由到父级 Tab 的重定向表与解析; isSettingsTab: Tab id 类型守卫
+ * [POS] 设置页路由单一信息源。服务端页面 `app/settings/[tab]/page.tsx`、`SettingsLayout`、`SettingsMenu`、
+ *       `scripts/verify-i18n.mjs` 与后端深链架构测试共同读取；新增或下线设置 Tab 只改这里
+ *       （其余登记点见 `sections/integration/_ARCH.md`）。
  */
 
 /**
- * 全部已知 Tab id。别名 id（见 `SETTINGS_TAB_REDIRECTS`）同样在列：
- * 侧栏子视图以 `settings.menu.<id>` 作标签，`SettingsLayout` 的 Section 映射表也按此穷尽。
+ * 全部可寻址的 Tab id。别名 id 中作为侧栏子菜单标签键（`SettingsMenu` 的 `labelKey`）的同样在列：
+ * `settings.menu.<id>` 与页面标题由 `verify-i18n` 核对，`SettingsLayout` 的 Section 映射表也按此穷尽；
+ * 仅作重定向入口的别名（`persona`、`toolCapabilities`、`eval`）不在此列。
  */
 export const SETTINGS_TABS = [
   'account',
@@ -66,12 +68,12 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number];
 /** 仅桌面端（Tauri）展示；其他部署形态访问时回落到默认 Tab。 */
 export const TAURI_ONLY_TABS: readonly SettingsTab[] = ['channels', 'channelRouting', 'voice'];
 
-export interface SettingsTabRedirect {
+interface SettingsTabRedirect {
   parent: SettingsTab;
   sub?: string;
 }
 
-/** 已并入父级 Section 的历史扁平路由 → 父级 Tab（可带 `?sub=` 子视图）。 */
+/** 别名路由 → 父级 Tab（可带 `?sub=` 子视图）：这些页面是父级 Section 的子视图，访问时由服务端页面重定向。 */
 export const SETTINGS_TAB_REDIRECTS: Readonly<Record<string, SettingsTabRedirect>> = {
   persona: { parent: 'personalization' },
   toolCapabilities: { parent: 'models' },

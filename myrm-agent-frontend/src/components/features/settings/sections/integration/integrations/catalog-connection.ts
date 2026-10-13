@@ -1,5 +1,13 @@
 'use client';
 
+/**
+ * [INPUT] '@/store/useConfigStore'::useConfigStore (POS: 配置 Store，持有用户已保存的 MCP 服务)
+ * [INPUT] './catalog-types'::CatalogEntry (POS: 集成目录条目的数据结构)
+ * [OUTPUT] CatalogConnectionState: 目录服务的连接状态（可连接 / 已连接 / 已停用）;
+ *          resolveCatalogConnectionState: 由条目模板与已保存 MCP 服务推导连接状态的纯函数;
+ *          useCatalogConnectionState: 订阅 Store，返回按条目取连接状态的函数
+ * [POS] 集成目录的连接状态判定。目录卡片与引导页共用这一口径，与连接对话框的重复守卫保持一致。
+ */
 import { useCallback } from 'react';
 import useConfigStore from '@/store/useConfigStore';
 import type { MCPServiceConfig } from '@/store/config/types';

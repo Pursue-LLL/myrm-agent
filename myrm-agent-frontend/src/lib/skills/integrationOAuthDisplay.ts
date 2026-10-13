@@ -18,6 +18,15 @@ export function getOAuthIssuerSettingsPath(issuer: string): string {
   return issuer.startsWith(PROVIDER_OAUTH_ISSUER_PREFIX) ? SETTINGS_PROVIDERS_PATH : SETTINGS_CREDENTIALS_PATH;
 }
 
+/** Reader-facing name of an OAuth account: `google_workspace` -> `Google Workspace`. */
+export function formatOAuthIssuerLabel(issuer: string): string {
+  return issuer
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 type SkillsCardTranslator = (
   key:
     | 'card.integrationOAuth.googleWorkspace.unavailable'

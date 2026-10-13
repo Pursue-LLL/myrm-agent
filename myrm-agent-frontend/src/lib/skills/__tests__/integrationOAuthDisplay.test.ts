@@ -7,6 +7,7 @@ import {
   hasIntegrationSettingsLink,
   getIntegrationSkillSettingsPath,
   getIntegrationSkillSettingsLinkLabel,
+  formatOAuthIssuerLabel,
   getOAuthIssuerSettingsPath,
   getSkillUnavailableDisplayMessage,
   isEnvGatedSkillUnavailable,
@@ -169,6 +170,18 @@ describe('integrationOAuthDisplay generic multi-connector paths', () => {
     expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe(
       'card.integrationOAuth.googleWorkspace.unavailable',
     );
+  });
+});
+
+describe('formatOAuthIssuerLabel', () => {
+  it('turns issuer ids into capitalised words', () => {
+    expect(formatOAuthIssuerLabel('google_workspace')).toBe('Google Workspace');
+    expect(formatOAuthIssuerLabel('x-live-search')).toBe('X Live Search');
+  });
+
+  it('keeps already-cased ids and ignores empty segments', () => {
+    expect(formatOAuthIssuerLabel('OAuth')).toBe('OAuth');
+    expect(formatOAuthIssuerLabel('__github__')).toBe('Github');
   });
 });
 

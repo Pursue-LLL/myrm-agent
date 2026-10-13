@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * [INPUT] './catalog-connection'::CatalogConnectionState (POS: 集成目录的连接状态判定)
+ * [INPUT] './catalog-icons'::IconCheck (POS: 集成目录的内联图标)
+ * [OUTPUT] CatalogConnectionStatus: 目录服务「已连接 / 已停用」状态标签
+ * [POS] 集成目录的连接状态标签。目录卡片与引导页的工具选择共用，保证两处呈现一致。
+ */
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';

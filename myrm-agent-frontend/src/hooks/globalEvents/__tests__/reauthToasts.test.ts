@@ -59,13 +59,13 @@ describe('showMcpAuthRequiredToast', () => {
 });
 
 describe('showOAuthReauthRequiredToast', () => {
-  it('opens Credentials for an OAuth account issuer', () => {
+  it('names the account for people while keying the toast by the raw issuer, and never shows the backend reason', () => {
     const { deps, warning, dismiss, push, notifyIfLeader } = buildDeps();
 
     showOAuthReauthRequiredToast({ issuer: 'google_workspace', reason: 'refresh token revoked' }, deps);
 
     expect(warning).toHaveBeenCalledWith(
-      'oauthReauthRequired:{"issuer":"google_workspace","reason":"refresh token revoked"}',
+      'oauthReauthRequired:{"issuer":"Google Workspace"}',
       expect.objectContaining({ id: 'oauth-reauth-google_workspace', duration: 30_000, dismissible: true }),
     );
     expect(notifyIfLeader).toHaveBeenCalledOnce();
@@ -84,13 +84,13 @@ describe('showOAuthReauthRequiredToast', () => {
     expect(push).toHaveBeenCalledWith('/settings/models');
   });
 
-  it('falls back to a generic issuer and an empty reason', () => {
+  it('falls back to a generic account name', () => {
     const { deps, warning } = buildDeps();
 
     showOAuthReauthRequiredToast({}, deps);
 
     expect(warning).toHaveBeenCalledWith(
-      'oauthReauthRequired:{"issuer":"OAuth","reason":""}',
+      'oauthReauthRequired:{"issuer":"OAuth"}',
       expect.objectContaining({ id: 'oauth-reauth-OAuth' }),
     );
   });

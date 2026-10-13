@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { apiRequest } from '@/lib/api';
+import { cn } from '@/lib/utils/classnameUtils';
 import { CatalogConnectionStatus } from '@/components/features/settings/sections/integration/integrations/CatalogConnectionStatus';
 import { IntegrationConnectDialog } from '@/components/features/settings/sections/integration/integrations/IntegrationConnectDialog';
 import { useCatalogConnectionState } from '@/components/features/settings/sections/integration/integrations/catalog-connection';
@@ -93,7 +94,10 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
             <button
               key={entry.id}
               type="button"
-              className="flex items-center gap-4 p-4 rounded-xl border bg-card hover:bg-accent/50 transition-colors text-left w-full"
+              className={cn(
+                'flex items-center gap-4 p-4 rounded-xl border bg-card transition-colors text-left w-full',
+                connectionState === 'available' && 'hover:bg-accent/50',
+              )}
               onClick={() => setConnectEntry(entry)}
               disabled={connectionState !== 'available'}
             >

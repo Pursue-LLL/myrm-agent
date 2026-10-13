@@ -220,7 +220,7 @@ const IntegrationCard = memo<IntegrationCardProps>(({ entry, connectionState, ge
           <CatalogConnectionStatus state={connectionState} />
           <Link
             href="/settings/mcp"
-            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors"
+            className="text-muted-foreground hover:text-foreground inline-flex h-8 items-center gap-1 px-2.5 text-xs font-medium transition-colors"
           >
             {t('manage')}
             <IconArrowRight className="h-3 w-3" />
