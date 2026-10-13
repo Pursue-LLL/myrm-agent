@@ -52,12 +52,12 @@ async def test_import_file_and_idempotency_api(tmp_path: Path) -> None:
     app = FastAPI()
     app.include_router(router, prefix="/api/memory")
 
-    hermes_file = tmp_path / "hermes_memories.json"
-    hermes_data = [
-        {"id": "h-101", "memory": "User writes Python with strict typing", "category": "coding"},
-        {"id": "h-102", "memory": "Prefers pytest over unittest", "category": "testing"},
-    ]
-    hermes_file.write_text(json.dumps(hermes_data), encoding="utf-8")
+    # Hermes memories are markdown bullet lists (.hermes/memories/*.md), one fact per bullet.
+    hermes_file = tmp_path / "hermes_memories.md"
+    hermes_file.write_text(
+        "# Coding\n- User writes Python with strict typing\n- Prefers pytest over unittest\n",
+        encoding="utf-8",
+    )
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

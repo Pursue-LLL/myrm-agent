@@ -118,6 +118,10 @@ os.environ["MYRM_DATA_DIR"] = _temp_workspace
 # permanent-delete tests), producing "database is locked" flakes.
 os.environ.setdefault("SQLITE_BUSY_TIMEOUT_MS", "15000")
 
+# /memory/command-center* routers are mounted at import time only when this flag is on;
+# the API suites under tests/api/memory exercise them, so default it on before app import.
+os.environ.setdefault("MYRM_MEMORY_LABS", "1")
+
 
 def _cleanup_temp_workspace() -> None:
     try:
