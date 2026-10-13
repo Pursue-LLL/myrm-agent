@@ -9,8 +9,9 @@
  * once with its method, connection, the target its session is attached to (page, iframe,
  * worker and its current url; "session unknown to the proxy" when the router no longer
  * knows it), the host's load average and how long Chrome has been up, and a later line
- * says when it left the pending set. The first stall of a burst also logs a snapshot of
- * Chrome's renderer processes (priority, CPU share). `stats()` feeds `/proxy/status`
+ * says when it left the pending set. The first stall of a burst also logs `stall page` lines
+ * (a read-only probe of the stalled pages) and a snapshot of Chrome's renderer processes
+ * (priority, cores used), both produced by the `stallSnapshot` hook. `stats()` feeds `/proxy/status`
  * (slow requests, those on unknown sessions, load, cpus).
  *
  * A `Runtime.evaluate` / `callFunctionOn` sent with `awaitPromise` is answered only when the page's script

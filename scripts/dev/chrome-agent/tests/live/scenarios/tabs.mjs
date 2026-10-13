@@ -240,8 +240,9 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
     },
 
     // A request Chrome leaves unanswered is logged while it is pending, with the host load, so a
-    // "hung page" is attributable on the spot, with the renderers' priority and CPU share at that moment;
-    // /proxy/status exposes the count.
+    // "hung page" is attributable on the spot: the renderers' priority, CPU share and core share over a
+    // 2 s window at that moment, and what the stalled page answers to a trivial probe; /proxy/status
+    // exposes the count.
     async slowRequestLog() {
         const cdpClient = await proxy.cdp();
         const { result: created } = await cdpClient.send('Target.createTarget', { url: 'about:blank' });
@@ -249,14 +250,38 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         // A synchronous endless loop hangs the renderer, so Chrome never answers (an awaitPromise request would
         // be a script wait, not a stall: see scriptWaitIsNotAStall).
         void cdpClient.send('Runtime.evaluate', { expression: 'while (true) {}' }, result.sessionId);
-        await sleep(14500);
+        await sleep(19000);
         const status = await (await fetch(`${proxy.base}/proxy/status`)).json();
-        const logged = fs.readFileSync(proxy.logPath, 'utf8').split('\n').filter((l) => /slow request .* Runtime\.evaluate/.test(l));
+        const lines = fs.readFileSync(proxy.logPath, 'utf8').split('\n');
+        const logged = lines.filter((l) => /slow request .* Runtime\.evaluate/.test(l));
         await check('slowRequestLog: an unanswered request is logged once with load', logged.length === 1 && /sess=\w{8} \[owned page [^\]]*\] unanswered/.test(logged[0]) && /load \d+ on \d+ cpus, \d+ pending, chrome up \d+m/.test(logged[0]), logged.join(' | ').slice(0, 200));
-        const snapshot = fs.readFileSync(proxy.logPath, 'utf8').split('\n').filter((l) => /stall snapshot renderers: \d+\(id\d+\) pri -?\d+ [\d.]+%cpu/.test(l));
+        const snapshot = lines.filter((l) => /stall snapshot renderers: \d+\(id\d+\) pri -?\d+ [\d.]+%cpu/.test(l));
         await check('slowRequestLog: the stall also logs the renderer processes (priority, cpu share) once', snapshot.length === 1, snapshot.join(' | ').slice(0, 220));
+        // The spinning renderer runs flat out while the idle ones use none: the busiest core share must be clearly above idle.
+        const shares = [...(snapshot[0] ?? '').matchAll(/ (\d+\.\d\d)core/g)].map((m) => Number(m[1]));
+        await check('slowRequestLog: the snapshot gives each renderer a core share and the spinning one stands out', shares.length >= 1 && Math.max(...shares) > 0.05, snapshot.join(' | ').slice(0, 400));
+        const probed = lines.filter((l) => /stall page \w{8} \[about:blank\] a trivial evaluate got no answer within 3000ms$/.test(l));
+        await check('slowRequestLog: the stalled page is probed once and the probe stays unanswered', probed.length === 1, lines.filter((l) => l.includes('stall page')).join(' | ').slice(0, 300));
         await check('slowRequestLog: /proxy/status reports slowRequests, loadavg1 and cpus', status.slowRequests >= 1 && typeof status.loadavg1 === 'number' && status.cpus > 0, JSON.stringify({ s: status.slowRequests, l: status.loadavg1, c: status.cpus }));
         cdpClient.close();
+    },
+
+    // A page that is only slow (its main thread is blocked for 12 s, then free) answers the stall probe once it
+    // is free: the log must say so, with the page's readiness and navigation timing, not report a hang.
+    async stallProbeReadsASlowPage() {
+        // Forensics run once per 30 s burst: a proxy of its own keeps this scenario independent of the stall slowRequestLog caused.
+        const watched = new SandboxProxy(option('--proxy-dir', undefined));
+        await watched.start();
+        const cdpClient = await watched.cdp();
+        const { result: created } = await cdpClient.send('Target.createTarget', { url: 'about:blank' });
+        const { result } = await cdpClient.send('Target.attachToTarget', { targetId: created.targetId, flatten: true });
+        await cdpClient.send('Runtime.evaluate', { expression: 'const t = Date.now(); while (Date.now() - t < 12000) {} 1' }, result.sessionId);
+        await sleep(3500);
+        const lines = fs.readFileSync(watched.logPath, 'utf8').split('\n').filter((l) => l.includes('stall page'));
+        await check('stallProbeReadsASlowPage: the probe is answered once the page is free, with readiness and navigation timing',
+            lines.length === 1 && /stall page \w{8} \[about:blank\] a trivial evaluate was answered in \d+ms: ready=complete visibility=visible navigation ttfb\/dcl\/load=[\d/a-z]+ms$/.test(lines[0]), lines.join(' | ').slice(0, 300));
+        cdpClient.close();
+        watched.stop();
     },
 
     // A request that waits for a page script (awaitPromise) is unanswered by design for as long as the script runs:
@@ -301,7 +326,9 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         const evaluate = (page, expression, extra = {}) => reply(cdpClient.send('Runtime.evaluate', { expression, returnByValue: true, ...extra }, page.sessionId));
         const spin = evaluate(hung, 'while(true){}');
         const stuck = evaluate(waiting, 'new Promise(() => {})', { awaitPromise: true });
-        await sleep(7000);
+        // The guard reaps `spin` at 6 s, probes for 4 s and confirms for 3 s, so the page closes at about 13-14 s.
+        // A request sent at 10 s is still pending then and would only be reaped at 16 s: PAGE_HUNG can come only from the close.
+        await sleep(10000);
         // Sent while the guard is still probing: it must fail at once when the page is closed, not wait for the reaper.
         const follow = evaluate(hung, '1');
         const listed = async (page) => (await guarded.chromePages()).some((p) => p.id === page.targetId);

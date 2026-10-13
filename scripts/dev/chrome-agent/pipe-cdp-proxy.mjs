@@ -36,8 +36,8 @@ import { startHangGuard } from './hang-guard.mjs';
 import { createHttpServer } from './http-endpoints.mjs';
 import { startIdlePool } from './idle-pool.mjs';
 import { startRequestWatch } from './request-watch.mjs';
-import { snapshotRenderers } from './process-snapshot.mjs';
 import { SessionRouter, isAttachMethod, short } from './session-router.mjs';
+import { createProxyStallForensics } from './stall-probe.mjs';
 
 const args = process.argv.slice(2);
 const getArg = (name, def) => {
@@ -335,7 +335,8 @@ function proxyStatus() {
 
 const idlePool = startIdlePool({ cdpRequest, log, chromeUp: () => Boolean(chromeWritable), lease: router.tabLease });
 const chromeAgeMs = () => (chromeProcess ? Date.now() - chromeLaunchedAt : null);
-const requestWatch = startRequestWatch({ pendingRequests, log, chromeAgeMs, describeSession: (id) => router.describeSession(id), stallSnapshot: () => snapshotRenderers(chromeProcess?.pid) });
+const stallForensics = createProxyStallForensics({ pendingRequests, router, cdpRequest, log, chromePid: () => chromeProcess?.pid });
+const requestWatch = startRequestWatch({ pendingRequests, log, chromeAgeMs, describeSession: (id) => router.describeSession(id), stallSnapshot: stallForensics });
 const hangGuard = startHangGuard({ pendingRequests, router, safeSend, cdpRequest, log, chromeAgeMs });
 const server = createHttpServer({
     port: PROXY_PORT,
