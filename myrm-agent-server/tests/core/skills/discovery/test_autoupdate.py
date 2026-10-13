@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 from app.core.skills.discovery.autoupdate import (
@@ -124,17 +125,39 @@ async def test_update_detected_via_version_compare() -> None:
 
 @pytest.mark.asyncio
 async def test_update_skill_delegates_to_quarantine_install() -> None:
-    """update_skill must forward to market_service.install."""
-    info = SkillUpdateInfo("a", "1.0.0", "1.1.0", "github", "id-a", True)
+    """update_skill must forward to market_install_with_replace_snapshot."""
+    from app.core.skills.models import Skill, SkillType
 
-    with patch(
-        "app.core.skills.marketplace.market_service.market_service.install",
-        new=AsyncMock(return_value=MagicMock()),
-    ) as mock_install:
+    info = SkillUpdateInfo("a", "1.0.0", "1.1.0", "github", "id-a", True)
+    installed = Skill(
+        id="id-a",
+        type=SkillType.LOCAL,
+        name="a",
+        description="",
+        storage_path="/tmp/a",
+    )
+    install_result = SkillInstallResult(success=True, skill_id="id-a", skill_name="a")
+
+    with (
+        patch(
+            "app.core.skills.store.service.skills_service.get_skill",
+            new=AsyncMock(return_value=installed),
+        ),
+        patch(
+            "app.core.skills.discovery.replace_install.market_install_with_replace_snapshot",
+            new=AsyncMock(return_value=(install_result, None, False)),
+        ) as mock_replace,
+    ):
         checker = SkillAutoUpdateChecker()
         await checker.update_skill(info, "user-1")
 
-    mock_install.assert_awaited_once_with(skill_id="id-a", source="github", allow_downgrade=False)
+    mock_replace.assert_awaited_once_with(
+        "id-a",
+        "github",
+        skill_name="a",
+        allow_downgrade=False,
+        batch_kind="market-replace",
+    )
 
 
 def test_get_update_checker_singleton() -> None:

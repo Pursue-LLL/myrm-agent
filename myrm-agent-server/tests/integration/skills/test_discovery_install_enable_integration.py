@@ -220,11 +220,24 @@ async def test_update_api_enables_catalog_after_reinstall(
     (skill_dir / "SKILL.md").write_text("---\nname: update-skill\ndescription: u\n---\n")
     catalog_id = local_skill_id_from_path(skill_dir)
 
+    from app.core.skills.models import Skill, SkillType
+
+    installed = Skill(
+        id=catalog_id,
+        type=SkillType.LOCAL,
+        name="update-skill",
+        description="u",
+        storage_path=str(skill_dir),
+    )
+
     with (
-        patch.object(
-            market_service._base,
-            "install",
-            new=AsyncMock(return_value=_local_install_result(skill_dir)),
+        patch(
+            "app.core.skills.store.service.skills_service.get_skill",
+            new=AsyncMock(return_value=installed),
+        ),
+        patch(
+            "app.core.skills.discovery.replace_install.market_install_with_replace_snapshot",
+            new=AsyncMock(return_value=(_local_install_result(skill_dir), None, False)),
         ),
         patch(
             "app.core.skills.marketplace.market_service.market_service.ensure_clawhub_registry",
@@ -236,7 +249,7 @@ async def test_update_api_enables_catalog_after_reinstall(
             "/api/v1/skills/discovery/update",
             json={
                 "skill_name": "update-skill",
-                "skill_id": "update-skill",
+                "skill_id": catalog_id,
                 "source": "clawhub",
             },
         )
