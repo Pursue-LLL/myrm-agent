@@ -119,7 +119,7 @@ def test_failed_tool_turn_schedules_only_supported_idle_tasks() -> None:
     deadline = time.time() + IDLE_CHAIN_TIMEOUT_S
     while time.time() < deadline:
         rows = _idle_rows(data_dir, since=started, session_id=f"chat_{chat_id}")
-        if rows and all(status in ("completed", "failed") for _, status in rows):
+        if rows and all(status in ("completed", "error") for _, status in rows):
             break
         time.sleep(5)
 
