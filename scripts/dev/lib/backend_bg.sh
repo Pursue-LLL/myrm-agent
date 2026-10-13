@@ -14,6 +14,8 @@ set -euo pipefail
 
 # shellcheck source=dev_state_paths.sh
 source "${BASH_SOURCE[0]%/*}/dev_state_paths.sh"
+# shellcheck source=stack_stage.sh
+source "${BASH_SOURCE[0]%/*}/stack_stage.sh"
 
 _require_harness_editable_for_monorepo() {
   local server_dir="$1"
@@ -297,7 +299,9 @@ _start_backend_bg() {
   # memory/cron/task state from the rest of the stack.
   export_spawn_home
 
+  _stack_stage guard_begin
   _require_harness_editable_for_monorepo "${server_dir}"
+  _stack_stage spawn_begin
 
   cd "${server_dir}"
   export SKIP_HEALTH_CHECK="${SKIP_HEALTH_CHECK:-true}"
@@ -343,6 +347,7 @@ os.execv(sys.argv[1], sys.argv[1:])
     listener_pid="$(lsof -nP -iTCP:"${backend_port}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
     if curl -sf "${health_url}" >/dev/null 2>&1; then
       if [[ "${listener_pid}" == "${new_pid}" ]]; then
+        _stack_stage backend_listening
         local stack_epoch_lib
         stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
         if [[ -f "${stack_epoch_lib}" ]]; then
@@ -354,6 +359,7 @@ os.execv(sys.argv[1], sys.argv[1:])
               clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
           fi
         fi
+        _stack_stage epoch_bumped
         return 0
       fi
       if [[ -n "${listener_pid}" ]]; then

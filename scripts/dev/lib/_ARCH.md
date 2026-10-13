@@ -32,6 +32,7 @@
 | `wave-lease-owner.sh` | Unix | stable lease ownership 共享辅助（E2E helper 脚本共用） |
 | `dev_paths.py` | Unix | 产品 dev-gate 模块共享路径 bootstrap |
 | `backend_bg.sh` | Unix | 后台启动 `myrm-agent-server`（:8080）；pid/log 写入 `dev_state_paths`；source drift 时 **leases>0 defer reload + record-pending**（R31-G），leases=0 才 TERM reload；**R61** health-aware self-healing：identity mismatch 时回收 state files；health probe 失败 + leases=0 时 kill+restart，leases>0 时 defer kill；health probe 分支提前 source `stack-epoch.sh`（**R61-A** 修复 `_wave_active_lease_count` 未定义）+ `2>/dev/null \|\| echo 0` 防御 |
+| `stack_stage.sh` | Unix | `_stack_stage <阶段>`：仅当 `MYRM_STACK_STAGE_TRACE=1` 时向 stderr 输出 `STACK_STAGE: <阶段> wall=<epoch秒>`；`dev-stack.sh` 与 `backend_bg.sh` source，`dev.sh` 经 `backend_bg.sh` 间接获得；其余调用方无输出 |
 | `stack-epoch.sh` | Unix | Backend `stack_epoch` bump/read for parallel Agent drift detection |
 | `../runtime-drift.sh` | Unix | `./myrm runtime-drift --expect <id>` 入口；exit 2 = `RUNTIME_DRIFT` |
 
