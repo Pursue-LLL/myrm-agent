@@ -74,6 +74,21 @@ describe('useExternalLinkConfirmStore', () => {
     expect(snapshot()).toMatchObject({ open: true, link: SECOND });
   });
 
+  it('prompts again when the clock stepped back after a refusal, then re-arms the quiet period', () => {
+    const { request, decline } = useExternalLinkConfirmStore.getState();
+    request(FIRST);
+    decline();
+
+    vi.setSystemTime(Date.now() - 60_000);
+    request(SECOND);
+    expect(snapshot()).toMatchObject({ open: true, link: SECOND });
+
+    decline();
+    vi.advanceTimersByTime(DECLINE_QUIET_PERIOD_MS - 1);
+    request(FIRST);
+    expect(snapshot()).toMatchObject({ open: false, link: SECOND });
+  });
+
   it('ignores a refusal when no prompt is open, so approval followed by the close callback stays clean', () => {
     const { request, approve, decline } = useExternalLinkConfirmStore.getState();
     request(FIRST);

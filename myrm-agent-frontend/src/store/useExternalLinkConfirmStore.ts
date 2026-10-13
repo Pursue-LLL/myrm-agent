@@ -33,7 +33,10 @@ export const useExternalLinkConfirmStore = create<ExternalLinkConfirmState>((set
 
   request: (link) => {
     const { open, declinedAt } = get();
-    if (open || Date.now() - declinedAt < DECLINE_QUIET_PERIOD_MS) {
+    // A negative age means the wall clock stepped back after the refusal; treating it as quiet would
+    // swallow every request until the clock catches up, so only a non-negative age counts.
+    const sinceDecline = Date.now() - declinedAt;
+    if (open || (sinceDecline >= 0 && sinceDecline < DECLINE_QUIET_PERIOD_MS)) {
       return;
     }
     set({ open: true, link });
