@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import ast
 import inspect
+from collections.abc import Callable, Coroutine
 
 from app.server import lifespan
 
 
-def _awaited_names(function: object) -> set[str]:
-    tree = ast.parse(inspect.getsource(function).lstrip())  # type: ignore[arg-type]
+def _awaited_names(function: Callable[[], Coroutine[object, object, None]]) -> set[str]:
+    tree = ast.parse(inspect.getsource(function).lstrip())
     return {
         node.value.func.id
         for node in ast.walk(tree)

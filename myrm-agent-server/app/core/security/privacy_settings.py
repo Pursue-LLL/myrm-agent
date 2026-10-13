@@ -12,10 +12,9 @@
 - privacy_policy_from_settings: the PrivacyPolicy the persisted settings describe, None while protection is off
 
 [POS]
-Business-layer reader of the persisted personal settings for privacy protection. The web chat carries the settings in
-every request; a run started by the server (IM channel, cron, voice, goal, wakeup) has no request and reads the same
-switch, actions and custom rules here, and a client that sends none of them (OpenAI-compatible endpoint, API caller)
-is protected by them as well. Local-model routing stays request-only.
+Business-layer reader of the persisted personal settings for privacy protection: the switch, actions, custom rules and
+deep-scan choice, for runs the server starts itself and for requests that carry only some of them. Local-model routing
+stays request-only.
 """
 
 from __future__ import annotations

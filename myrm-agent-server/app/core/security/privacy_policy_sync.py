@@ -1,9 +1,9 @@
 """Publishes the persisted privacy settings to the harness as the process-wide privacy policy.
 
 [INPUT]
-- app.core.security.privacy_settings::privacy_policy_from_settings (POS: the PrivacyPolicy the persisted settings describe)
-- app.services.config.service::config_service (POS: persisted user configuration)
-- myrm_agent_harness.api.security::set_process_privacy_policy (POS: policy for model calls outside any agent run)
+- app.core.security.privacy_settings::privacy_policy_from_settings (POS: Business-layer reader of the persisted personal settings for privacy protection: the switch, actions, custom rules and deep-scan choice, for runs the server starts itself and for requests that carry only some of them. Local-model routing stays request-only.)
+- app.services.config.service::config_service (POS: 管理用户配置的存储和同步，支持版本控制（乐观锁）和批量同步)
+- myrm_agent_harness.api.security::set_process_privacy_policy (POS: Wire-level half of the privacy layer: the guardrail middleware covers the agent loop, this guard covers every other ChatLiteLLM call.)
 
 [OUTPUT]
 - sync_privacy_policy: publish the policy a personalSettings value describes (None clears it)
