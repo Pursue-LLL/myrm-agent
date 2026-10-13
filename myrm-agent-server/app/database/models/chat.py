@@ -57,7 +57,7 @@ class Chat(Base):
     session_notes_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Store JIT ephemeral subagents for session resume and crash recovery
-    ephemeral_subagents: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    ephemeral_subagents: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
 
     # Persisted loaded skill names for session skill contract (survives compaction / history trim)
     session_loaded_skill_names: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
@@ -66,7 +66,7 @@ class Chat(Base):
     workspace_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     # HITL-granted extra directory roots for this chat session
-    session_access_roots: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+    session_access_roots: Mapped[list[dict[str, object]] | None] = mapped_column(JSON, nullable=True)
 
     # Original repo root when sandbox (git worktree) is active
     sandbox_base_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
@@ -145,7 +145,7 @@ class Message(Base):
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=False)
     sent_timezone: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    extra_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    extra_data: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
 
     sibling_group_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
@@ -195,7 +195,7 @@ class OfflineDurableTask(Base):
         index=True,
     )
     action_mode: Mapped[str] = mapped_column(String(50), nullable=False)
-    serialized_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    serialized_params: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -219,7 +219,7 @@ class InterruptedTurnMarker(Base):
     user_message_id: Mapped[str] = mapped_column(String(255), nullable=False)
     action_mode: Mapped[str] = mapped_column(String(50), nullable=False, default="fast")
     agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    serialized_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    serialized_params: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     pending_steering_messages: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

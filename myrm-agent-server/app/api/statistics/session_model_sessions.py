@@ -89,7 +89,8 @@ async def get_model_sessions(
             if isinstance(cost_raw, (int, float)):
                 agg["costUsd"] = float(agg["costUsd"]) + float(cost_raw)
 
-            if created_at and (agg["last_used_at"] is None or created_at > agg["last_used_at"]):
+            last_used_at = agg["last_used_at"]
+            if created_at and (not isinstance(last_used_at, datetime) or created_at > last_used_at):
                 agg["last_used_at"] = created_at
 
         if not session_aggregates:

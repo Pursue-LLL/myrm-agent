@@ -59,29 +59,35 @@ def _format_finish_message(result: BackgroundJobFinishResult, locale: str) -> st
     exit_code_str = str(result.exit_code) if result.exit_code is not None else "null"
 
     if result.status == "exited" and (result.exit_code or 0) == 0:
-        return channel_t(
-            locale,
-            "bash_bg_finish_success",
-            pid=str(result.pid),
-            command=cmd_preview,
+        return str(
+            channel_t(
+                locale,
+                "bash_bg_finish_success",
+                pid=str(result.pid),
+                command=cmd_preview,
+            )
         )
     if result.error_category:
-        return channel_t(
+        return str(
+            channel_t(
+                locale,
+                "bash_bg_finish_with_error",
+                error_category=result.error_category,
+                pid=str(result.pid),
+                status=result.status,
+                exit_code=exit_code_str,
+                command=cmd_preview,
+            )
+        )
+    return str(
+        channel_t(
             locale,
-            "bash_bg_finish_with_error",
-            error_category=result.error_category,
-            pid=str(result.pid),
+            "bash_bg_finish_generic",
             status=result.status,
+            pid=str(result.pid),
             exit_code=exit_code_str,
             command=cmd_preview,
         )
-    return channel_t(
-        locale,
-        "bash_bg_finish_generic",
-        status=result.status,
-        pid=str(result.pid),
-        exit_code=exit_code_str,
-        command=cmd_preview,
     )
 
 
