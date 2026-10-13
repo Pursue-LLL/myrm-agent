@@ -55,6 +55,7 @@
 
 - `../streamContext.ts` — `StreamCtx`、`done()`
 - `../types.ts`、`../streamHelpers.ts`、`../fileDiffMerge.ts`
+- `../skillManageBatchLink.ts` — `toolLifecycleEvents` 的 `tool_end` 携带 `skill_mutation_batch_id` 时，把批次 id 关联到 skill_manage 步骤
 - `@/store/*` — 门户、审批、配置等（经 `handlerDeps.ts`）
 
 ## 约束

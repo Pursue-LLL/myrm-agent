@@ -54,6 +54,7 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
     string_keyed_dict,
     string_keyed_dicts,
 )
+from app.services.skills.mutation_batch_stream import link_batch_to_step
 
 _SSE_DATA_PREFIX = "data: "
 _MAX_REASONING_CHARS = 24_000
@@ -693,13 +694,13 @@ class StreamContentCollector:
                         step["stdout"] = f"{prev}{data}" if isinstance(prev, str) else data
                         break
         elif event_type == "tool_evicted_ref":
-            payload = _parse_evicted_ref_payload(data, event)
-            if payload is not None:
-                matched = _find_step_for_evicted(self._progress_steps, payload)
+            evicted_payload = _parse_evicted_ref_payload(data, event)
+            if evicted_payload is not None:
+                matched = _find_step_for_evicted(self._progress_steps, evicted_payload)
                 if matched is not None:
-                    _attach_evicted_to_step(matched, payload)
+                    _attach_evicted_to_step(matched, evicted_payload)
                 else:
-                    self._pending_evicted.append(payload)
+                    self._pending_evicted.append(evicted_payload)
         elif event_type == "tool_end":
             cited = event.get("cited_memory_ids")
             is_memory_recall = is_memory_citation_tool(event.get("tool_name"))
@@ -736,6 +737,7 @@ class StreamContentCollector:
             self._session_recording = string_keyed_dict(data)
         elif event_type == "clarification_required":
             clarification = collect_clarification_required(event)
+            link_batch_to_step(self._progress_steps, event)
             if clarification is not None:
                 self._clarification = clarification
         elif event_type == "directory_request_required":

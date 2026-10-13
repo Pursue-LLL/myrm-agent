@@ -23,7 +23,8 @@
 | `ws_hub.py` | 核心 | Evolution WebSocket 连接池与广播（`broadcast_proposal` / `broadcast_message`） | ✅ |
 | `write_orchestrator.py` | 核心 | SKILL.md 写入 SSOT：DB 版本 persist 与磁盘 `sync_disk` 同序；meta-tool 失败时 `restore_skill_md_from_active_version` | ✅ |
 | `package_revision_service.py` | 核心 | PackageRevision 持久化与 fail-closed 恢复 | ✅ |
-| `mutation_batch_hook.py` | 核心 | skill_manage 批次提交后 batch_snapshots 单事务写入（fail-closed） | ✅ |
+| `mutation_batch_hook.py` | 核心 | skill_manage 批次提交后 batch_snapshots 单事务写入（fail-closed）；落库提交后经工具进度通道向流广播批次 id（广播失败只记 WARNING，不影响已提交批次） | ✅ |
+| `mutation_batch_stream.py` | 核心 | 批次提交事件契约：hook 产出 `tool_end` 事件（`skill_manage_tool` + `skill_mutation_batch_id`），`stream_collector`（及前端 `skillManageBatchLink.ts`）把批次 id 关联到仍在等待批次的最新 skill_manage 步骤（harness 只流式输出调用参数、不含工具结果，步骤本身读不到批次 id；并发多个 skill_manage 调用时按“最新未关联步骤”配对） | ✅ |
 | `skill_manage_batch_parse.py` | 核心 | 解析 `myrm_skill_batch:` JSON 与 legacy batch_id 文本，供 stream_collector | ✅ |
 | `mutation_batch_service.py` | 核心 | 批次回滚 + 成功后 consume 快照 + compensation / batch_already_consumed | ✅ |
 

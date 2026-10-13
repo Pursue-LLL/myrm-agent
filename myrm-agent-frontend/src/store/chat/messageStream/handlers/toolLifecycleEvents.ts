@@ -5,6 +5,7 @@
 
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
+import { linkSkillManageBatch } from '../skillManageBatchLink';
 import * as H from './handlerDeps';
 
 export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -41,6 +42,10 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
     const message = state.messages[messageIndex];
     const steps = message.progressSteps;
+
+    if (steps && typeof data.skill_mutation_batch_id === 'string') {
+      linkSkillManageBatch(steps, data.skill_mutation_batch_id);
+    }
 
     let kanbanSoftError: string | undefined;
     if (data.tool_name === 'kanban_add_task' && data.result) {

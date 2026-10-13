@@ -6,7 +6,7 @@
 
 - **入口**：`handleMessageStream.ts`（dispatcher：mascot 副作用 + 顺序调用 `handlers/*`）
 - **切片**：[`handlers/`](handlers/_ARCH.md) 按事件域拆分（companion / tools / completion 等）
-- **纯函数**：`streamHelpers.ts`、`fileDiffMerge.ts`、`textSanitize.ts`
+- **纯函数**：`streamHelpers.ts`、`fileDiffMerge.ts`、`textSanitize.ts`、`skillManageBatchLink.ts`
 - **上下文**：`streamContext.ts`（`StreamCtx`、`done()`）
 
 ## 文件清单
@@ -23,6 +23,7 @@
 | `streamHelpers.ts`           | 辅助 | 来源合并、澄清表单 unwrap（`resolveClarificationFormFromEventData`）、Goal 归一化、`getUserFriendlyError`（`concurrency_limit` kind 的 i18n 兜底文案，供 `diagnostic_result` 缺失时呈现） | ✅    |
 | `fileDiffMerge.ts`           | 辅助 | FILE_DIFF 路径匹配与 diff 择优合并                                                                                                                                                        | ✅    |
 | `textSanitize.ts`            | 辅助 | 流式文本控制字符剥离                                                                                                                                                                      | ✅    |
+| `skillManageBatchLink.ts`    | 辅助 | skill_manage 批次提交（服务端 `tool_end` 事件携带 `skill_mutation_batch_id`）关联到仍在等待批次的最新 skill_manage 步骤，使撤销入口在回合进行中即出现；与服务端 `mutation_batch_stream.link_batch_to_step` 同一配对规则 | ✅    |
 | `streamWatchdog.ts`          | 核心 | 客户端流式完成状态机看门狗，静默与 EOF 兜底自愈，杜绝回复完成后 UI 假死卡在生成中                                                                                                          | ✅    |
 
 ## 依赖

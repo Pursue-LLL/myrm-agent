@@ -131,6 +131,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/skills/test_permission_service.py` | 模块 | 技能权限 service 单测：async/sync checker、per-session 缓存命中/未命中、缓存清理、DB 脏值跳过（覆盖率 100%） |
 | `services/skills/test_permission_gate_integration.py` | 模块 | 技能权限 gate 装配链路集成（真实 checker + SkillBoundaryProvider + GuardrailMiddleware；授权/拒绝/无技能/MCP 绕过/网络工具） |
 | `services/skills/test_permission_gate_real_db_integration.py` | 模块 | 技能权限 gate 真实 DB 全链路集成（无 mock）：grant 行写入 SQLite → 缓存读取 → gate 决策；revoke 清缓存实时失效；脏值跳过 |
+| `services/skills/test_mutation_batch_stream.py` | 模块 | 批次提交事件契约：事件形状、关联到最新未关联批次的 skill_manage 步骤（连续批次各归其步、命名空间工具名、失败/他工具步骤跳过、无步骤时不建步骤、id 小写化、畸形 id 与他工具事件忽略） |
+| `services/skills/test_mutation_batch_hook_announce.py` | 模块 | `ServerSkillManageBatchHook` 提交后才广播批次 id（顺序 commit→emit）、快照未解析时不广播、进度通道抛错不影响已提交批次（记 WARNING）、无通道时照常提交 |
 | `integration/skills/` | 模块 | 技能管道集成测试目录：prebuilt 同步契约（`test_prebuilt_skills_e2e.py`——含 `test_tdd_skill_v120_contract_guard` 断言 TDD v1.2.0 契约字段/正文标题/边界护栏措辞/references 段落 + batch import/curator/discovery 等 7 文件） + `test_skill_rescan_supply_chain_integration.py`（供应链重扫全链路集成：真实磁盘包提取、OSV缓存/已知通告、AdvisoryAck 确认治理、自动隔离下架与事件总线广播） |
 | `api/chats/test_citation_seed_fixture.py` | 模块 | citation fixture seed HTTP 单测（local-only，`/chats/test/seed-citation-fixture`） |
 | `api/chats/test_deliverable_seed_fixture.py` | 模块 | deliverable link fixture seed HTTP 单测（`/chats/test/seed-deliverable-link-fixture`） |
@@ -188,6 +190,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_workspace_rich_media_preview_chrome_e2e.py` | 模块 | Chrome READ×1 SHPOIB：seed rich-media fixture → workspace Files tab → png 图片加载 / pdf react-pdf canvas / zip unsupported 兜底下载 / txt 文本渲染 |
 | `frontend/workspace-browser` 单测 | 模块 | RichMediaFilePreview 分发 12 例（kind 覆盖/大小写/unsupported/编辑按钮禁用）+ WorkspaceFilePreview is_text 降级 2 例（未知二进制→unsupported 不 fetch / 未知文本→文本渲染） |
 | `api/agent/test_stream_collector_file_mutation.py` | 模块 | StreamContentCollector `file_mutation_failed` / `workspace_merge_failed` → `extra_data.fileMutationFailures` / `workspaceMergeFailures` |
+| `api/agent/test_stream_collector_skill_batch.py` | 模块 | StreamContentCollector 收到 `tool_end`(`skill_mutation_batch_id`) → 关联到对应调用的 skill_manage 步骤（后一次调用不覆盖前一次、批次事件不新建步骤、`extra_data.progressSteps` 落库携带批次 id） |
 | `api/agent/test_agent_stream_retry_contract_e2e.py` | 模块 | agent-stream 重试契约：执行中同 `chat_id+message_id+content` 重试 → user turn 幂等 + SSE `AgentBusyError`(409)；mock Agent 挂起 active session；**early claim** 后须等 user persist 再 retry |
 | `api/agent/test_agent_stream_concurrency_limit_e2e.py` | 模块 | agent-stream 并发上限契约：gateway 排队超时 `AgentQueueTimeout` → 结构化 SSE `error_kind=concurrency_limit`（`diagnostic_result` 含 reason/占用者/i18n 文案/resolution_steps）；holder 直接挂起 gateway 占槽位，waiter 走真实 HTTP 全链路 |
 | `api/agent/test_reconnect_integration.py` | 模块 | ASGI Last-Event-ID 重连 + early busy 第二 turn 不双写 user row（mock agent） |
