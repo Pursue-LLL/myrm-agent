@@ -107,7 +107,6 @@ describe('sendLifecycle helpers', () => {
   it('isHeldByOtherTurn is true for the live controller of another turn only', () => {
     const own = new AbortController();
     expect(isHeldByOtherTurn(new AbortController(), own)).toBe(true);
-    expect(isHeldByOtherTurn(new AbortController(), null)).toBe(true);
     expect(isHeldByOtherTurn(own, own)).toBe(false);
   });
 

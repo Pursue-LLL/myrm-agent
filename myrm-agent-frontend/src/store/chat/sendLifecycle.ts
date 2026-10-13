@@ -47,7 +47,7 @@ export function resolveRequestState<S extends RequestStateSlice>(
  * over), and resetting then would leave the running turn without a Stop button. A pane snapshot is a JSON clone,
  * so a handle read from it is a plain object rather than a live controller and counts as held by nobody.
  */
-export function isHeldByOtherTurn(held: unknown, own: AbortController | null): boolean {
+export function isHeldByOtherTurn(held: unknown, own: AbortController): boolean {
   return held instanceof AbortController && held !== own;
 }
 

@@ -844,15 +844,16 @@ except Exception:
 ### 修复
 
 1. `sendLifecycle.isHeldByOtherTurn(held, own)`：共享 Stop 句柄是另一轮的存活 `AbortController` 才算被别轮持有；`null`、缺失，以及面板快照（JSON 克隆）里的普通对象句柄都算无人持有，后台面板里失败的回合仍然释放快照；
-2. `sendMessage` 与 `attachToChat` 的 `finally` 以本轮安装的控制器为身份：被别轮持有时，不动 `loading`、Stop 句柄、请求 id、附件和面板句柄；`scheduleAutoSave` 与处理锁释放照常；删除空转的守卫；
+2. `sendMessage` 与 `attachToChat` 的 `finally` 以本轮自己的 `AbortController`（在 `try` 之前创建，登记为共享 Stop 句柄）为身份：被别轮持有时，不动 `loading`、Stop 句柄、请求 id、附件和面板句柄；`scheduleAutoSave` 与处理锁释放照常；删除空转的守卫；
 3. 顺带把 `shouldUseMultiplexedAgentStream` 的两份相同拷贝收敛为 `streamConsumer.ts` 的一个导出（请求体与消费端必须同一答案；行为与请求体不变，属于维护性清理，不是用户可见修复）。
 
 ### 验证
 
-1. 新增 `messageRequest.turnOwnership.test.ts` 6 个用例（真实 `useChatStore` / `useWorkspaceStore` 与真实请求管线，只替换网络与对账接口）和 `messageRequest.queueSemantics.test.ts` 的 2 个纯函数用例；修复前 4 个管线用例红且原因是 `loading` 被清成 false（晚对账有/无面板各 1、停止后退避结束 1、attach 1），当前回合释放与后台面板快照 2 个用例修复前后都绿；
-2. 变异检查（逐个应用后恢复，文件哈希与基线一致）：总是释放 → 5 红；缺失句柄当别轮 → 2 红；面板句柄不受守卫 → 1 红；别轮收尾仍清附件 → 2 红；别轮收尾仍清请求 id → 2 红；attach 守卫去掉 → 1 红；本轮不记录自己的控制器 → 1 红；
-3. `src/store/chat`、`hooks/message-input`、`lib/approval` 与 2 个 store 用例共 840 个用例通过；唯一失败的文件 `messageInputKeyRouter.test.ts` 是因为他人正在改的 `locales/de.json` 当前不是合法 JSON（`de.json:21424`），与本修复无关；
-4. oxlint 0 条；全量 `tsc` 被同一个 `de.json` 语法错误挡住，改用只含改动文件及其依赖的临时 tsconfig 通过。
+1. 新增 `messageRequest.turnOwnership.test.ts` 6 个用例（真实 `useChatStore` / `useWorkspaceStore` 与真实请求管线，只替换网络与对账接口）、`messageRequest.queueSemantics.test.ts` 的 2 个纯函数用例和 `streamConsumer.transport.test.ts` 3 个用例（固定请求体与消费端共用的 multiplex 判定）；修复前 4 个管线用例红且原因是 `loading` 被清成 false（晚对账有/无面板各 1、停止后退避结束 1、attach 1），当前回合释放与后台面板快照 2 个用例修复前后都绿；
+2. 变异检查（逐个应用后恢复，文件哈希与基线一致）：总是释放 → 5 红；缺失句柄当别轮 → 2 红；面板句柄不受守卫 → 1 红；别轮收尾仍清附件 → 2 红；别轮收尾仍清请求 id → 2 红；attach 守卫去掉 → 1 红；multiplex 判定恒为 true → 1 红（仅直连标记用例）；无 window 时不走 multiplex → 1 红（仅无 window 用例）；
+3. 把 `finally` 里的两处判定分别改成恒为 false（等价于无条件释放），`turnOwnership` 用例各自变红：`sendMessage` 处 3 红、attach 处 1 红；附件列表复位不受守卫 → 2 红（仅晚对账用例），去掉复位 → 1 红（仅当前回合释放用例）；每次恢复后哈希与基线一致；
+4. `src/store/chat` 84 个文件 567 个用例，以及 `store/__tests__`、`hooks/message-input`、`lib/approval` 与 2 个 resumeRefusal 组件用例 61 个文件 510 个用例，全部通过；
+5. oxlint 0 条（用带 `debugger` 的草稿文件做过正向对照，确认静默即无告警）；全量 `tsc --noEmit` 只剩他人未跟踪文件 `kanban/__tests__/KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误，本修复涉及的文件无错误。
 
 ### 踩坑经验
 

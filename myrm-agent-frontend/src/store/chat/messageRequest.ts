@@ -1121,8 +1121,8 @@ export const sendMessage = async (
 
   let pushedUserBubble = false;
   let dispatched = false;
-  // The abort handle this turn installed; whoever holds it owns the shared turn state until the turn ends.
-  let turnController: AbortController | null = null;
+  // The abort handle identifies this turn: whoever holds it owns the shared turn state until the turn ends.
+  const abortController = new AbortController();
 
   try {
     // 搜索服务检查：
@@ -1149,10 +1149,7 @@ export const sendMessage = async (
       actions.setIsWorkflowMode(false);
     }
 
-    // 创建 AbortController 并设置 loading 状态
-    const abortController = new AbortController();
-    turnController = abortController;
-
+    // 登记 AbortController 并设置 loading 状态
     // Save the abort controller to the workspace store for the current pane
     if (state.chatId) {
       const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
@@ -1279,11 +1276,11 @@ export const sendMessage = async (
   } finally {
     const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
     // This turn can end after the next one took over (it was still reconciling with the server, or its retry wait
-    // had not run out yet): the turn state then belongs to the newer turn and stays untouched.
-    let supersededByNewerTurn = false;
+    // had not run out yet): the turn state then belongs to that turn and stays untouched.
+    let heldByOtherTurn = false;
     smartSetMessages((innerState) => {
-      supersededByNewerTurn = isHeldByOtherTurn(innerState.abortController, turnController);
-      if (supersededByNewerTurn) {
+      heldByOtherTurn = isHeldByOtherTurn(innerState.abortController, abortController);
+      if (heldByOtherTurn) {
         return;
       }
       innerState.loading = false;
@@ -1296,7 +1293,7 @@ export const sendMessage = async (
       }
     });
 
-    if (!supersededByNewerTurn) {
+    if (!heldByOtherTurn) {
       if (state.chatId) {
         const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
         if (paneId) {
@@ -1580,16 +1577,16 @@ export const attachToChat = async (
     return false;
   } finally {
     // The attach can end after a newer turn took over (it was still reconciling with the server): that turn owns the state.
-    let supersededByNewerTurn = false;
+    let heldByOtherTurn = false;
     smartActions.setMessages((draft) => {
-      supersededByNewerTurn = isHeldByOtherTurn(draft.abortController, abortController);
-      if (supersededByNewerTurn) {
+      heldByOtherTurn = isHeldByOtherTurn(draft.abortController, abortController);
+      if (heldByOtherTurn) {
         return;
       }
       draft.loading = false;
       draft.abortController = null;
     });
-    if (paneId && !supersededByNewerTurn) {
+    if (paneId && !heldByOtherTurn) {
       useWorkspaceStore.getState().setPaneAbortController(paneId, null);
     }
   }

@@ -1,6 +1,6 @@
 /**
- * Which turn may release the shared turn state (loading flag, abort handle, request id, composer attachments),
- * through the real chat store and request pipeline (only the network is replaced).
+ * Which turn may release the shared turn state (loading flag, abort handle, request id, composer attachments and
+ * their hidden attach list), through the real chat store and request pipeline (only the network is replaced).
  *
  * A turn ends after its stream did: it reconciles the transcript with the server first, and a request that waited
  * to retry gives up only when that wait is over. The next turn can start inside that gap, and the ended turn must
@@ -9,7 +9,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithTimeout } from '@/lib/api';
 import { cancelActiveChatAgent, cancelAgentRequest, createAISearchStream } from '@/services/chat';
-import { setGlobalTranslator } from '@/services/i18nToastService';
 import { attachToChat, type ChatActionsMethods } from '@/store/chat/messageRequest';
 import type { File as ChatFile } from '@/store/chat/types';
 import { getInitialDefaultModelConfig } from '@/store/config/providerTypes';
@@ -46,15 +45,6 @@ vi.mock('@/services/i18nToastService', async (importOriginal) => {
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>();
   return { ...actual, fetchWithTimeout: vi.fn(actual.fetchWithTimeout) };
-});
-
-// The E2E-only attach probe polls the health endpoint; it has no place in a unit test.
-vi.mock('@/store/chat/streamConsumer', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/store/chat/streamConsumer')>();
-  return {
-    ...actual,
-    tryE2eAttachForPendingApproval: vi.fn(async () => ({ attached: false, queueLen: 0, attempt: 0 })),
-  };
 });
 
 const CHAT_ID = 'chat-turn-ownership';
@@ -151,7 +141,6 @@ function answerRequests(first: () => Promise<Response>) {
 }
 
 function resetWorld(withPane: boolean) {
-  setGlobalTranslator((key: string) => key);
   useToolApprovalStore.getState().clearAll();
   vi.mocked(cancelActiveChatAgent).mockClear();
   vi.mocked(cancelAgentRequest).mockClear();
@@ -233,8 +222,9 @@ describe('turn ownership of the shared turn state', () => {
 
       const secondTurn = send('second question');
       await eventually(() => expect(requests).toHaveLength(2));
-      // The composer already holds an attachment for the message after this one.
-      useChatStore.setState({ files: [makeFile('next')] });
+      // The composer already holds an attachment for the message after this one, and hides its attach list while
+      // the message it sent is running.
+      useChatStore.setState({ files: [makeFile('next')], hideAttachList: true });
 
       releaseReconcile();
       await firstTurn;
@@ -243,6 +233,7 @@ describe('turn ownership of the shared turn state', () => {
       expect(store().abortController).toBe(requests[1]);
       expect(store().currentSessionMessageId).not.toBeNull();
       expect(store().files.map((file) => file.id)).toEqual(['next']);
+      expect(store().hideAttachList).toBe(true);
       if (withPane) {
         expect(paneHandle()).toBe(requests[1]);
       }
@@ -313,7 +304,8 @@ describe('turn ownership of the shared turn state', () => {
 
   it('releases everything the turn owns when it is still the current one', async () => {
     resetWorld(false);
-    useChatStore.setState({ files: [makeFile('sent')] });
+    // The composer hides its attach list while the message it sent is running.
+    useChatStore.setState({ files: [makeFile('sent')], hideAttachList: true });
     const only = endingStream();
     answerRequests(async () => only.response);
 
