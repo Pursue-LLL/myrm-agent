@@ -30,7 +30,7 @@ export function CronTriggerWebhookDisplay({ path, secret }: { path?: string | nu
   const [showSecret, setShowSecret] = useState(false);
   const [showCurl, setShowCurl] = useState(false);
 
-  const { url: webhookUrl, loading } = useIngressUrl(`/api/v1/cron/triggers/webhook/${path || ''}`);
+  const { url: webhookUrl, loading } = useIngressUrl(`/api/v1/cron/trigger/webhook/${path || ''}`);
   const isLocalhost = webhookUrl.includes('localhost') || webhookUrl.includes('127.0.0.1');
 
   const copyToClipboard = useCallback((text: string) => {

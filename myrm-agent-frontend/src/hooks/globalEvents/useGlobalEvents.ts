@@ -260,7 +260,7 @@ export function useGlobalEvents(): void {
             return;
           }
           try {
-            const res = await fetch(`/api/v1/evolution/history/${evolutionId}/rollback`, { method: 'POST' });
+            const res = await fetch(`/api/v1/evolution/${evolutionId}/rollback`, { method: 'POST' });
             if (!res.ok) {
               throw new Error('Rollback failed');
             }
