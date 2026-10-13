@@ -15,7 +15,7 @@
 实现SkillOptimizationStorage Protocol，桥接框架层Protocol和业务层SQLAlchemy Repositories。
 支持两种session管理模式：
 1. 固定session（API场景，FastAPI依赖注入，生命周期由调用方管理）
-2. session_factory（长生命周期组件如scheduler，每次操作创建独立session）
+2. session_factory（长生命周期组件如 ABTestManager，每次操作创建独立session）
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ class SQLAlchemyStorage:
     实现SkillOptimizationStorage Protocol，使用SQLAlchemy repositories作为后端。
     支持两种 session 管理模式：
     - 固定session：API请求级，生命周期由调用方管理
-    - session_factory：scheduler等长生命周期组件，每次操作创建独立session
+    - session_factory：ABTestManager 等长生命周期组件，每次操作创建独立session
     """
 
     def __init__(

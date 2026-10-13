@@ -60,7 +60,7 @@ class SQLAlchemyStorage(SkillOptimizationStorage):
 
     支持两种session管理模式：
     - 固定session（API请求级，FastAPI依赖注入）
-    - session_factory（scheduler等长生命周期组件）
+    - session_factory（ABTestManager 等长生命周期组件）
     """
 
     def __init__(self, session=None, session_factory=None): ...
