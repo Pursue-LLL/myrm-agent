@@ -25,7 +25,7 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
-from cdp_chat.support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
+from cdp_chat.support import fetch_chat_messages, get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
 from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
 
@@ -37,6 +37,16 @@ E2E_PROMPT = "只回复 OK"
 SUPPORTED_IDLE_TASKS = frozenset({"cognitive_consolidation", "context_compaction", "cognitive_subsumption"})
 # Foreground pause window (120s) + one deferred-retry interval (60s) + the idle delay, with headroom.
 IDLE_CHAIN_TIMEOUT_S = 330.0
+
+
+def _assistant_reply(chat_id: str, api_base: str) -> str:
+    """Text of the model's answer as persisted by the backend (proves the real LLM call returned)."""
+    for message in reversed(fetch_chat_messages(chat_id, api_url=api_base)):
+        if isinstance(message, dict) and message.get("role") == "assistant":
+            content = message.get("content")
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+    return ""
 
 
 def _idle_rows(data_dir: Path, since: float, session_id: str) -> list[tuple[str, str]]:
@@ -105,6 +115,10 @@ async def test_chrome_ui_turn_idle_chain_completes(e2e_resource_ledger: E2EResou
     started = time.time()
     chat_id, api_base = await _run_turn_in_browser()
     e2e_resource_ledger.register("chat", chat_id)
+
+    reply = _assistant_reply(chat_id, api_base)
+    assert reply, f"the model returned no persisted assistant answer for chat {chat_id} on {api_base}"
+    print(f"E2E_ASSISTANT_REPLY: chat={chat_id} reply={reply[:200]!r}")
 
     data_dir = _backend_runtime_data_dir(api_base)
     assert data_dir is not None, "the chrome E2E backend must be an isolated runtime to read its idle queue"
