@@ -392,7 +392,7 @@ async def convert_to_general_agent_params(
             retry_climbs = True
             if request.sibling_group_id and not request.regenerate_instruction:
                 complaint_min_tier, retry_climbs = complaint_floor(
-                    recent_routing_tiers[-1] if recent_routing_tiers else None,
+                    recent_routing.last_tier,
                     standard=model_cfg,
                     light=light_model_cfg,
                     reasoning=reasoning_model_cfg,
@@ -412,13 +412,13 @@ async def convert_to_general_agent_params(
                 min_tier=complaint_min_tier,
             )
             routing_ms = (time.perf_counter() - route_started) * 1000
-            if request.action_mode == "deep_research" and routing_result.tier is RoutingTier.SIMPLE:
-                # The report is the deliverable of a research run and research topics are short by nature, so the
-                # planner/report model stays on the default model (research sub-agents use the light slot separately).
-                # The persisted tier is the one that ran, so the next turn's momentum and a retry start from it;
-                # no routing reason is recorded because the router's verdict was not applied.
-                routing_tier = RoutingTier.STANDARD.value
-                logger.info("Smart routing: deep research ignores tier=simple routing_ms=%.1f", routing_ms)
+            if request.action_mode == "deep_research" and routing_result.tier is not RoutingTier.REASONING:
+                # The report is the deliverable of a research run and research topics are short by nature, so only a
+                # reasoning verdict changes the planner/report model (research sub-agents use the light slot
+                # separately). Routing did not select this run's model, so no tier is recorded: a retry then climbs
+                # from the main model, and the token mass of the light-model sub-agents stays out of the standard
+                # tier whose per-token price the savings estimate uses.
+                logger.info("Smart routing: deep research ignores tier=%s routing_ms=%.1f", routing_result.tier.value, routing_ms)
             else:
                 model_cfg = routing_result.model_cfg
                 if routing_result.fallback_model_cfg is not None:

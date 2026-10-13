@@ -169,8 +169,8 @@ async def test_get_recent_routing_tiers_empty_chat(setup_test_database):
 
 
 @pytest.mark.asyncio
-async def test_get_recent_routing_tiers_skips_null_extra_data(setup_test_database):
-    """Messages without extra_data are skipped."""
+async def test_get_recent_routing_tiers_skips_null_extra_data_and_reports_unrouted_as_none(setup_test_database):
+    """Messages without extra_data are skipped; answers that carry extra_data but no tier are reported as None."""
     from app.database.connection import get_session
     from app.database.models import Chat, Message
     from app.database.repositories.chat_repo import ChatRepository
@@ -226,4 +226,37 @@ async def test_get_recent_routing_tiers_skips_null_extra_data(setup_test_databas
     async with get_session() as db:
         tiers = await ChatRepository.get_recent_routing_tiers(db, chat_id)
 
-    assert tiers == ["reasoning"]
+    assert tiers == ["reasoning", None]
+
+
+@pytest.mark.asyncio
+async def test_get_recent_routing_tiers_window_counts_unrouted_answers(setup_test_database):
+    """The window is the latest answers, routed or not: an old routed turn must not leak past unrouted ones."""
+    from app.database.connection import get_session
+    from app.database.models import Chat, Message
+    from app.database.repositories.chat_repo import ChatRepository
+
+    chat_id = str(uuid.uuid4())
+    extras: list[dict[str, str]] = [{"routingTier": "reasoning"}] + [{"modelName": "m"}] * 5
+
+    async with get_session() as db:
+        db.add(Chat(id=chat_id, title="Test", created_at=datetime.now(timezone.utc)))
+        for index, extra in enumerate(extras):
+            db.add(
+                Message(
+                    id=str(uuid.uuid4()),
+                    chat_id=chat_id,
+                    role="assistant",
+                    content=f"answer {index}",
+                    sent_at=datetime.now(timezone.utc),
+                    sent_timezone="UTC",
+                    created_at=datetime.now(timezone.utc),
+                    extra_data=extra,
+                )
+            )
+        await db.commit()
+
+    async with get_session() as db:
+        tiers = await ChatRepository.get_recent_routing_tiers(db, chat_id, limit=5)
+
+    assert tiers == [None] * 5

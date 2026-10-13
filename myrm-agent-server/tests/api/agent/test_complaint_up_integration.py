@@ -160,8 +160,8 @@ class TestComplaintUpEscalation:
         assert call_kwargs.kwargs.get("min_tier") == RoutingTier.REASONING
 
     @pytest.mark.asyncio
-    async def test_complaint_up_no_history_defaults_standard(self, base_request: dict[str, object]) -> None:
-        """sibling_group_id + no instruction + no history → min_tier STANDARD (safe default)."""
+    async def test_complaint_up_unrecorded_answer_climbs_from_the_main_model(self, base_request: dict[str, object]) -> None:
+        """sibling_group_id + no instruction + no recorded tier → the answer ran the main model, so min_tier REASONING."""
         base_request["sibling_group_id"] = "sg-test-3"
         request = AgentRequest(**base_request)
 
@@ -185,7 +185,7 @@ class TestComplaintUpEscalation:
             await convert_to_general_agent_params(request, [])
 
         call_kwargs = mock_route.call_args
-        assert call_kwargs.kwargs.get("min_tier") == RoutingTier.STANDARD
+        assert call_kwargs.kwargs.get("min_tier") == RoutingTier.REASONING
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("action_mode", ["fast", "agent"])

@@ -491,13 +491,13 @@ class ChatRepository:
         return [SiblingDetail(id=row.id, is_active=row.is_active, created_at=row.created_at) for row in result.all()]
 
     @staticmethod
-    async def get_recent_routing_tiers(db: AsyncSession, chat_id: str, limit: int = 5) -> list[str]:
-        """Fetch the recorded routing values of recent assistant messages for momentum calculation.
+    async def get_recent_routing_tiers(db: AsyncSession, chat_id: str, limit: int = 5) -> list[str | None]:
+        """Fetch the recorded routing values of the latest assistant messages for momentum and retry baselines.
 
-        Returns raw `routingTier` strings in chronological order. The column holds either a complexity tier
-        (e.g. "standard", "reasoning") or a specialty slot hit (e.g. "code", "long_doc"); callers partition them
-        with `services.agent.params.routing_memory.split_recent_routing`.
-        Only returns values that were actually recorded (skips messages without routing data).
+        Returns one raw `routingTier` entry per message in chronological order, None for an answer that carries no
+        routing record (fast mode, pinned model). The column holds either a complexity tier (e.g. "standard",
+        "reasoning") or a specialty slot hit (e.g. "code", "long_doc"); callers partition them with
+        `services.agent.params.routing_memory.split_recent_routing`. Messages without `extra_data` are skipped.
         """
         result = await db.execute(
             select(Message.extra_data)
@@ -510,12 +510,11 @@ class ChatRepository:
             .limit(limit)
         )
         rows = result.scalars().all()
-        tiers: list[str] = []
+        tiers: list[str | None] = []
         for extra in reversed(rows):
             if isinstance(extra, dict):
                 tier = extra.get("routingTier")
-                if isinstance(tier, str):
-                    tiers.append(tier)
+                tiers.append(tier if isinstance(tier, str) else None)
         return tiers
 
     # ── Pinned Threads ──────────────────────────────────────────────

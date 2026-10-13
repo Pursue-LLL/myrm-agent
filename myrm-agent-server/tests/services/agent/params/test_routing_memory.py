@@ -110,6 +110,22 @@ class TestSplitRecentRouting:
 
         assert recent.tiers == []
         assert recent.specialties == []
+        assert recent.last_tier is None
+
+    def test_unrouted_answers_do_not_feed_the_momentum(self) -> None:
+        recent = split_recent_routing(["standard", None, "simple", None])
+
+        assert recent.tiers == [RoutingTier.STANDARD, RoutingTier.SIMPLE]
+        assert recent.specialties == []
+
+    def test_last_tier_is_the_complexity_tier_of_the_latest_answer(self) -> None:
+        assert split_recent_routing(["simple", "standard"]).last_tier is RoutingTier.STANDARD
+        assert split_recent_routing(["standard", "reasoning"]).last_tier is RoutingTier.REASONING
+
+    @pytest.mark.parametrize("latest", [None, "code", "long_doc", "bogus"])
+    def test_last_tier_is_none_when_the_latest_answer_has_no_complexity_tier(self, latest: str | None) -> None:
+        """An earlier routed turn must not stand in for the answer that is being retried."""
+        assert split_recent_routing(["simple", "standard", latest]).last_tier is None
 
 
 class TestResolveTurnRouting:
@@ -299,10 +315,16 @@ class TestComplaintFloor:
 
         assert floor == (RoutingTier.REASONING, False)
 
-    def test_no_history_starts_at_the_standard_tier(self) -> None:
+    def test_answer_without_a_complexity_tier_is_treated_as_the_main_model(self) -> None:
         floor = complaint_floor(None, standard=self._MAIN, light=self._LIGHT, reasoning=self._REASONING)
 
-        assert floor == (RoutingTier.STANDARD, True)
+        assert floor == (RoutingTier.REASONING, True)
+
+    def test_main_model_answer_with_nothing_stronger_holds_the_floor(self) -> None:
+        unset = complaint_floor(None, standard=self._MAIN, light=self._LIGHT, reasoning=None)
+        same = complaint_floor(None, standard=self._MAIN, light=self._LIGHT, reasoning=_cfg("gpt-4o"))
+
+        assert unset == same == (RoutingTier.STANDARD, False)
 
     def test_unset_light_slot_is_skipped(self) -> None:
         floor = complaint_floor(RoutingTier.SIMPLE, standard=self._MAIN, light=None, reasoning=self._REASONING)

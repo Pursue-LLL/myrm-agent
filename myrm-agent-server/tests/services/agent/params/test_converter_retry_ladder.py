@@ -28,7 +28,7 @@ async def _fake_resolve(selection: ModelSelection, providers: dict[str, object] 
 
 
 @asynccontextmanager
-async def _converter_env(history: list[str]) -> AsyncIterator[None]:
+async def _converter_env(history: list[str | None]) -> AsyncIterator[None]:
     with (
         patch("app.services.agent.params.converter._resolve_model_config", new=_fake_resolve),
         patch(
@@ -68,7 +68,7 @@ def _turn(
     )
 
 
-async def _convert(request: AgentRequest, history: list[str]):
+async def _convert(request: AgentRequest, history: list[str | None]):
     async with _converter_env(history):
         params, tier, _specialty, reason, _warnings, _archive = await convert_to_general_agent_params(request, [])
     return params, tier, reason
@@ -128,6 +128,36 @@ class TestRetryWithoutAStrongerRung:
 
         assert params.model_cfg.model == "deepseek-reasoner"
         assert tier == "reasoning"
+        assert reason == "retry_floor_held"
+
+
+class TestRetryOfAnAnswerWithoutAComplexityTier:
+    """Fast mode, a pinned model and unescalated deep research record no tier: that answer ran the main model."""
+
+    async def test_unrouted_answer_climbs_from_the_main_model_not_from_an_older_routed_turn(self) -> None:
+        turn = _turn(_GREETING, main="gpt-4o", light="gpt-4o-mini", reasoning="deepseek-reasoner", retry=True)
+
+        params, tier, reason = await _convert(turn, ["simple", None])
+
+        assert params.model_cfg.model == "deepseek-reasoner"
+        assert tier == "reasoning"
+        assert reason is not None and reason.startswith("min_tier_escalation(")
+
+    async def test_chat_without_any_routed_turn_climbs_from_the_main_model(self) -> None:
+        turn = _turn(_GREETING, main="gpt-4o", light="gpt-4o-mini", reasoning="deepseek-reasoner", retry=True)
+
+        params, tier, _ = await _convert(turn, [])
+
+        assert params.model_cfg.model == "deepseek-reasoner"
+        assert tier == "reasoning"
+
+    async def test_unrouted_answer_with_no_stronger_model_holds_and_does_not_claim_an_upgrade(self) -> None:
+        turn = _turn(_GREETING, main="gpt-4o", light="gpt-4o-mini", reasoning="gpt-4o", retry=True)
+
+        params, tier, reason = await _convert(turn, ["simple", "simple", None])
+
+        assert params.model_cfg.model == "gpt-4o"
+        assert tier == "standard"
         assert reason == "retry_floor_held"
 
 
