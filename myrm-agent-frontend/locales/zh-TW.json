@@ -11867,7 +11867,6 @@
       "toolsConnect": {
         "pageTitle": "連接你的日常工具",
         "pageDescription": "讓助手直接訪問你每天使用的服務，隨時可在設置中添加更多。",
-        "connected": "已連接",
         "connectButton": "連接",
         "moreHint": "30+ 集成服務可在 設置 → 集成 中配置",
         "continueButton": "繼續",
@@ -14177,6 +14176,20 @@
         "probeRecommendedActionSwitchMode": "關閉並切換模式",
         "probeRecommendedActionRetryProbe": "重新檢測並連接",
         "learnMore": "了解更多"
+      },
+      "disabled": "已停用",
+      "manage": "管理",
+      "openWebsite": "開啟 {name} 官網",
+      "categories": {
+        "productivity": "效率工具",
+        "development": "開發工具",
+        "communication": "通訊協作",
+        "data_storage": "資料儲存",
+        "browser": "瀏覽器",
+        "web_search": "網頁搜尋",
+        "docs": "文件",
+        "design": "設計",
+        "api": "API 工具"
       }
     },
     "integrationMemory": {

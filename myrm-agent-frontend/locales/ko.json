@@ -11867,7 +11867,6 @@
       "toolsConnect": {
         "pageTitle": "일상적인 도구 연결",
         "pageDescription": "어시스턴트가 매일 사용하는 서비스에 접근하도록 하세요. 나중에 설정에서 언제든 추가할 수 있습니다.",
-        "connected": "연결됨",
         "connectButton": "연결",
         "moreHint": "설정 → 통합에서 30개 이상의 연동 사용 가능",
         "continueButton": "계속",
@@ -14177,6 +14176,20 @@
         "probeRecommendedActionSwitchMode": "닫고 모드 전환",
         "probeRecommendedActionRetryProbe": "재시도 및 연결",
         "learnMore": "자세히 보기"
+      },
+      "disabled": "비활성화됨",
+      "manage": "관리",
+      "openWebsite": "{name} 웹사이트 열기",
+      "categories": {
+        "productivity": "생산성",
+        "development": "개발",
+        "communication": "커뮤니케이션",
+        "data_storage": "데이터 및 스토리지",
+        "browser": "브라우저",
+        "web_search": "웹 및 검색",
+        "docs": "문서",
+        "design": "디자인",
+        "api": "API 도구"
       }
     },
     "integrationMemory": {

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import {
+  GATE_ALLOWED,
   makeEntry,
   makeStoredConfig,
   mockApiRequest,
@@ -26,10 +27,11 @@ vi.mock(
 );
 vi.mock('@/lib/deploy-mode', async () => (await import('./connectDialogTestKit')).deployModeMock);
 
+import type { CatalogLocale } from '../../catalog-locale';
 import type { CatalogEntry } from '../../catalog-types';
 import { IntegrationConnectDialog } from '../../IntegrationConnectDialog';
 
-function renderDialog(entry: CatalogEntry, locale = 'en') {
+function renderDialog(entry: CatalogEntry, locale: CatalogLocale = 'en') {
   const onClose = vi.fn();
   const onConnected = vi.fn();
   render(<IntegrationConnectDialog entry={entry} locale={locale} onClose={onClose} onConnected={onConnected} />);
@@ -264,10 +266,31 @@ describe('IntegrationConnectDialog credential flows', () => {
       expect(mockSetMCPConfigs).not.toHaveBeenCalled();
       expect(screen.queryByTestId('scan-ack')).not.toBeInTheDocument();
     });
+
+    it('keeps the connect button busy until the scan settles so a second click cannot start another run', async () => {
+      let finishScan: (result: typeof GATE_ALLOWED) => void = () => undefined;
+      mockGateMcpEnable.mockReturnValueOnce(
+        new Promise<typeof GATE_ALLOWED>((resolve) => {
+          finishScan = resolve;
+        }),
+      );
+      renderDialog(noAuthEntry());
+
+      clickConnect();
+
+      const busyButton = await screen.findByRole('button', { name: 'connecting' });
+      expect(busyButton).toBeDisabled();
+      fireEvent.click(busyButton);
+      expect(mockGateMcpEnable).toHaveBeenCalledTimes(1);
+
+      finishScan(GATE_ALLOWED);
+
+      await waitFor(() => expect(mockSetMCPConfigs).toHaveBeenCalledTimes(1));
+    });
   });
 
   describe('dialog content', () => {
-    it.each([
+    it.each<[CatalogLocale, string, string, string]>([
       ['en', 'Guide EN', 'Help EN', 'Service'],
       ['zh', '中文指引', '中文帮助', '服务'],
     ])('renders the %s guide, help text and credential link', (locale, guide, help, description) => {

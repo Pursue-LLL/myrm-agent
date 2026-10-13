@@ -11867,7 +11867,6 @@
       "toolsConnect": {
         "pageTitle": "Verbinden Sie Ihre Alltagswerkzeuge",
         "pageDescription": "Lassen Sie Ihren Assistenten auf die Dienste zugreifen, die Sie täglich nutzen. Sie können später jederzeit in den Einstellungen weitere hinzufügen.",
-        "connected": "Verbunden",
         "connectButton": "Verbinden",
         "moreHint": "30+ integrations available in Settings → Integrations",
         "continueButton": "Weitermachen",
@@ -14177,6 +14176,20 @@
         "probeRecommendedActionSwitchMode": "Schließen und Modus wechseln",
         "probeRecommendedActionRetryProbe": "Erneut versuchen und verbinden",
         "learnMore": "Mehr erfahren"
+      },
+      "disabled": "Deaktiviert",
+      "manage": "Verwalten",
+      "openWebsite": "Website von {name} öffnen",
+      "categories": {
+        "productivity": "Produktivität",
+        "development": "Entwicklung",
+        "communication": "Kommunikation",
+        "data_storage": "Daten & Speicher",
+        "browser": "Webbrowser",
+        "web_search": "Web & Suche",
+        "docs": "Dokumentation",
+        "design": "Gestaltung",
+        "api": "API-Tools"
       }
     },
     "integrationMemory": {

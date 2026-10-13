@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { apiRequest } from '@/lib/api';
+import { CatalogConnectionStatus } from '@/components/features/settings/sections/integration/integrations/CatalogConnectionStatus';
 import { IntegrationConnectDialog } from '@/components/features/settings/sections/integration/integrations/IntegrationConnectDialog';
+import { useCatalogConnectionState } from '@/components/features/settings/sections/integration/integrations/catalog-connection';
+import { useCatalogLocale } from '@/components/features/settings/sections/integration/integrations/catalog-locale';
 import { SERVICE_ICONS } from '@/components/features/settings/sections/integration/integrations/service-icons';
 import type {
   CatalogEntry,
@@ -21,10 +24,11 @@ interface ToolsConnectOnboardingStepProps {
 
 export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: ToolsConnectOnboardingStepProps) {
   const t = useTranslations('boot.onboarding.toolsConnect');
+  const locale = useCatalogLocale();
+  const resolveConnectionState = useCatalogConnectionState();
   const [entries, setEntries] = useState<CatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectEntry, setConnectEntry] = useState<CatalogEntry | null>(null);
-  const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let mounted = true;
@@ -60,13 +64,6 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const locale = useMemo(() => (typeof document !== 'undefined' ? document.documentElement.lang : 'en') || 'en', []);
-
-  const handleConnected = useCallback((entryId: string) => {
-    setConnectedIds((prev) => new Set(prev).add(entryId));
-    setConnectEntry(null);
-  }, []);
-
   if (loading) {
     return (
       <div className="space-y-4">
@@ -81,21 +78,24 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
     return null;
   }
 
+  const hasConnectedEntry = entries.some((entry) => resolveConnectionState(entry) === 'connected');
+
   return (
     <div className="space-y-6">
       <div className="grid gap-3">
         {entries.map((entry) => {
           const IconComponent = SERVICE_ICONS[entry.icon];
-          const isConnected = connectedIds.has(entry.id);
-          const descText = locale.startsWith('zh') ? entry.descriptionZh : entry.description;
+          const connectionState = resolveConnectionState(entry);
+          const name = locale === 'zh' && entry.nameZh ? entry.nameZh : entry.name;
+          const descText = locale === 'zh' ? entry.descriptionZh : entry.description;
 
           return (
             <button
               key={entry.id}
               type="button"
               className="flex items-center gap-4 p-4 rounded-xl border bg-card hover:bg-accent/50 transition-colors text-left w-full"
-              onClick={() => !isConnected && setConnectEntry(entry)}
-              disabled={isConnected}
+              onClick={() => setConnectEntry(entry)}
+              disabled={connectionState !== 'available'}
             >
               <div className="rounded-lg bg-muted p-2.5 shrink-0">
                 {IconComponent ? (
@@ -105,21 +105,14 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-foreground">
-                  {locale.startsWith('zh') ? entry.nameZh : entry.name}
-                </div>
+                <div className="text-sm font-medium text-foreground">{name}</div>
                 {descText && <div className="text-xs text-muted-foreground mt-0.5 truncate">{descText}</div>}
               </div>
               <div className="shrink-0">
-                {isConnected ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    {t('connected')}
-                  </span>
-                ) : (
+                {connectionState === 'available' ? (
                   <span className="text-xs font-medium text-primary">{t('connectButton')}</span>
+                ) : (
+                  <CatalogConnectionStatus state={connectionState} />
                 )}
               </div>
             </button>
@@ -130,7 +123,7 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
       <p className="text-xs text-muted-foreground text-center">{t('moreHint')}</p>
 
       <div className="flex flex-col items-center gap-3 pt-2">
-        {connectedIds.size > 0 && (
+        {hasConnectedEntry && (
           <Button size="lg" className="w-full sm:w-auto min-w-[220px]" onClick={onComplete}>
             {t('continueButton')}
           </Button>
@@ -145,7 +138,7 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
           entry={connectEntry}
           locale={locale}
           onClose={() => setConnectEntry(null)}
-          onConnected={() => handleConnected(connectEntry.id)}
+          onConnected={() => setConnectEntry(null)}
         />
       )}
     </div>

@@ -11946,7 +11946,6 @@
       "toolsConnect": {
         "pageTitle": "连接你的日常工具",
         "pageDescription": "让助手直接访问你每天使用的服务，随时可在设置中添加更多。",
-        "connected": "已连接",
         "connectButton": "连接",
         "moreHint": "30+ 集成服务可在 设置 → 集成 中配置",
         "continueButton": "继续",
@@ -14842,6 +14841,20 @@
         "probeRecommendedActionSwitchMode": "关闭并切换模式",
         "probeRecommendedActionRetryProbe": "重新检测并连接",
         "learnMore": "了解更多"
+      },
+      "disabled": "已停用",
+      "manage": "管理",
+      "openWebsite": "打开 {name} 官网",
+      "categories": {
+        "productivity": "效率工具",
+        "development": "开发工具",
+        "communication": "通信协作",
+        "data_storage": "数据存储",
+        "browser": "浏览器",
+        "web_search": "网页搜索",
+        "docs": "文档",
+        "design": "设计",
+        "api": "API 工具"
       }
     },
     "integrationMemory": {

@@ -11867,7 +11867,6 @@
       "toolsConnect": {
         "pageTitle": "日常のツールを接続",
         "pageDescription": "毎日使うサービスにアシスタントがアクセスできるようにします。設定から後でいつでも追加できます。",
-        "connected": "接続済み",
         "connectButton": "接続",
         "moreHint": "設定 → 統合 に30以上の統合があります",
         "continueButton": "続行",
@@ -14177,6 +14176,20 @@
         "probeRecommendedActionSwitchMode": "閉じてモードを切り替え",
         "probeRecommendedActionRetryProbe": "再試行して接続",
         "learnMore": "詳しく見る"
+      },
+      "disabled": "無効",
+      "manage": "管理",
+      "openWebsite": "{name} の公式サイトを開く",
+      "categories": {
+        "productivity": "生産性",
+        "development": "開発",
+        "communication": "コミュニケーション",
+        "data_storage": "データとストレージ",
+        "browser": "ブラウザ",
+        "web_search": "ウェブと検索",
+        "docs": "ドキュメント",
+        "design": "デザイン",
+        "api": "API ツール"
       }
     },
     "integrationMemory": {

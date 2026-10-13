@@ -11946,7 +11946,6 @@
       "toolsConnect": {
         "pageTitle": "Connect your everyday tools",
         "pageDescription": "Let your assistant access the services you use daily. You can always add more later in Settings.",
-        "connected": "Connected",
         "connectButton": "Connect",
         "moreHint": "30+ integrations available in Settings → Integrations",
         "continueButton": "Continue",
@@ -14842,6 +14841,20 @@
         "probeRecommendedActionSwitchMode": "Close and switch mode",
         "probeRecommendedActionRetryProbe": "Retry and connect",
         "learnMore": "Learn more"
+      },
+      "disabled": "Disabled",
+      "manage": "Manage",
+      "openWebsite": "Open {name} website",
+      "categories": {
+        "productivity": "Productivity",
+        "development": "Development",
+        "communication": "Communication",
+        "data_storage": "Data & Storage",
+        "browser": "Browser",
+        "web_search": "Web & Search",
+        "docs": "Documentation",
+        "design": "Design",
+        "api": "API Tools"
       }
     },
     "integrationMemory": {

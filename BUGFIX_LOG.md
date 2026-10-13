@@ -915,3 +915,50 @@ except Exception:
 5. 局限：服务端 `provider_` 前缀规则与前端各有一份（两侧测试分别钉死，不是同一份代码）；没有对真实 Web Push 载荷做端到端点击，移动端 PWA 的推送点击落点未实测。
 
 ---
+
+## BUG-AGENT-2026-10-13-003: 集成目录不反映已连接状态，连接对话框在安全扫描期间可重复触发
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-13 |
+| 修复日期 | 2026-10-13 |
+| 严重程度 | P3（已连接的服务仍引导“连接”，到保存时才被拦下；安全扫描期间按钮可重复点击；触屏看不到官网入口；繁体中文用户在引导页看到中文、点开对话框却是英文） |
+| 影响范围 | `IntegrationCatalogSection.tsx`、`IntegrationConnectDialog.tsx`、`connect-dialog/AuthSection.tsx`、`ToolsConnectOnboardingStep.tsx`、`catalog-connection.ts` / `catalog-locale.ts` / `CatalogConnectionStatus.tsx`（新增）、`catalog-icons.tsx`、`locales/*.json` |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-13-002`（同一批次：设置页路由与重新授权落点） |
+
+### 现象
+
+1. 设置 → 集成目录里已保存（或已停用）的服务仍显示「连接」，点开填完凭证才被 `alreadyConnected` 拒绝（对话框以 `mcpConfig.name` 与已保存的 MCP 服务比对）；
+2. 首次引导的「连接工具」步骤只在组件内存一份本次会话的 `connectedIds`（HEAD `ToolsConnectOnboardingStep.tsx:27`）：此前已连接的服务仍显示「连接」，「继续」按钮只看本次是否点连成功过（`:133`）；
+3. 连接对话框在调用安全扫描前先 `setConnecting(false)`（HEAD `IntegrationConnectDialog.tsx:152-153`）：按钮在扫描期间既不显示「连接中」，也可以再次点击并启动第二轮扫描；
+4. 官网外链图标是 `opacity-0 group-hover:opacity-100`（HEAD `IntegrationCatalogSection.tsx:220`）：触屏没有 hover，图标始终不可见，也没有可访问名称；
+5. 目录语言由三处各自判断：目录区读 `document.documentElement.lang`（HEAD `IntegrationCatalogSection.tsx:75`），引导页把原始 `lang`（如 `zh-TW`）原样传给对话框（`ToolsConnectOnboardingStep.tsx:63,146`），对话框以 `locale === 'zh'` 严格比较（`IntegrationConnectDialog.tsx:47`），所以繁体中文用户在引导页看到中文卡片，点开后的说明是英文；分类标签只有中、英两张写死的表（`IntegrationCatalogSection.tsx:19,135`）。
+
+### 根因
+
+目录条目与“是否已保存”之间没有共享的判定：状态只存在于引导页本次会话的局部 state 与对话框提交时刻的重复校验里；`setConnecting(false)` 写在异步安全闸门之前，而 `try/finally` 本来已经兜底复位；语言判定在三处各写一份，且类型是裸 `string`。
+
+### 修复
+
+1. `catalog-connection.ts`：`resolveCatalogConnectionState(entry, mcpConfigs)` 以 `mcpConfig.name` 对照已保存的 MCP 服务（与对话框的重复守卫同一身份），得出 `available` / `connected` / `disabled`（`enabled === false` 为已停用），`useCatalogConnectionState()` 订阅配置 store；目录卡片与引导页共用。已连接 / 已停用的卡片以 `CatalogConnectionStatus` 状态标签加「管理」链接（→ `/settings/mcp`）取代「连接」按钮；保存成功后卡片即时转为已连接，不再重新拉取目录（目录是静态的，状态由 store 派生）；
+2. 引导页：删除 `connectedIds`，行状态与「继续」按钮由 store 派生（此前已连接的服务直接显示已连接并可继续；已停用的不计为已连接）；
+3. 对话框：删除探测失败、`exists`、闸门前三处提前的 `setConnecting(false)`，统一由 `finally` 复位，按钮在安全扫描全程保持忙碌；
+4. `catalog-locale.ts`：`toCatalogLocale`（所有中文变体 → `zh`，其余 → `en`）与 `useCatalogLocale()`（跟随 next-intl 当前语言）；对话框与 `AuthSection` 的 `locale` 收窄为 `CatalogLocale`；
+5. 分类标签改走 i18n（`settings.integrationCatalog.categories.*`，9 个键 × 六语言，`t.has` 判定，未收录的分类回退为原 id），新增 `disabled` / `manage` / `openWebsite`，删除不再使用的 `boot.onboarding.toolsConnect.connected`（引导页改用目录的同一状态标签，繁中措辞随之统一为“已連線”）；官网外链在可悬停设备上悬停或键盘聚焦时显现、触屏常显，并补上带服务名的 `aria-label`；去掉卡片 className 里空的 `hover:` 残留。
+
+### 验证
+
+1. 6 个测试文件 48 例通过（`catalog-locale` 8、`catalog-connection` 5、`CatalogConnectionStatus` 2、`IntegrationCatalogSection` 10、`ToolsConnectOnboardingStep` 9、`ConnectDialogCredentialFlows` 14，JSON 报告）；新增用例“扫描未结束时连接按钮保持忙碌，第二次点击不会再启动一轮”让 `mockGateMcpEnable` 返回挂起的 Promise，断言按钮名为 `connecting` 且 disabled、二次点击不再调用闸门、放行后 `setMCPConfigs` 恰好一次；把 `setConnecting(false)` 放回闸门之前的变异使该用例变红，还原后变绿；
+2. 与路由那批合计 11 个文件 99 例全过；`src/components/features/settings`、`onboarding`、`hooks/globalEvents`、`hooks/ui`、`lib/skills`、`components/layout` 与横幅测试共 168 个文件 1006 例全过（exit 0）；
+3. oxlint 0 条；`verify-i18n` 通过；全量 `tsc --noEmit` 只剩他人未跟踪测试文件 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误；`verify-i18n-references` 的失败项来自他人未提交的功能，不含本批文件与键。
+
+### 踩坑经验
+
+1. “是否已连接”应从唯一数据源派生（已保存的 MCP 配置 store），不要在各处各存一份“本次会话点过”的布尔；
+2. 已有 `try/finally` 兜底复位的异步流程里再手写提前复位，会让“忙碌”窗口在最长的一步（安全扫描）里消失；React 会把同步段里的 `true → false` 合并掉，界面从未显示过“连接中”，测试必须让异步步骤挂起才能复现；
+3. 目录内容只有中英两份：所有中文变体读中文、其余读英文，要在一个函数里归一，不要把原始 `lang` 字符串传给下游做严格比较；
+4. 悬停才显现的控件要用 `[@media(hover:hover)]` 限定，触屏默认可见，并补可访问名称；
+5. 局限：没有真实浏览器里的视觉验收（触屏常显、深浅主题、手机宽度只有类名与组件测试）；连接身份按 `mcpConfig.name` 判断，用户在 MCP 页以别的名字手动添加的同一服务不会被识别为已连接。
+
+---

@@ -13,7 +13,7 @@
 | `useCatalogSecurityGate.ts` | 启用前安全闸门、高风险确认挂起态、通过后落库（继承目录条目的 `hostSerial` / `keepaliveInterval`；服务已存在则不重复写入）                                                                       |
 | `ProbeDiagnostics.tsx`      | 探测失败态的本地化诊断与推荐动作（重试探测 / 切换到本地模式），无状态                                                                                                                           |
 | `AuthSection.tsx`           | 按认证方式渲染认证区：免认证说明 / 单字段与多字段凭证输入，无状态                                                                                                                               |
-| `__tests__/`                | 对话框流程特征化测试（API Key、探测、安全闸门）、闸门落库去重单测 `useCatalogSecurityGate.test.tsx` 与共享测试替身 `connectDialogTestKit.tsx`                                                   |
+| `__tests__/`                | 对话框流程特征化测试（API Key、探测、安全闸门含扫描期间按钮忙碌）、闸门落库去重单测 `useCatalogSecurityGate.test.tsx` 与共享测试替身 `connectDialogTestKit.tsx`                                                   |
 
 ## 依赖
 
