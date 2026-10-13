@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 if TYPE_CHECKING:
-    from app.services.agent.params.models import GeneralAgentParams
+    from app.ai_agents.agent_params import GeneralAgentParams
 
 
 def _build_chat_history(

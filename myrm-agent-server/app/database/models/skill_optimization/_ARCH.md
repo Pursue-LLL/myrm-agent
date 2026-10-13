@@ -17,3 +17,4 @@
 | `shadow_sample.py` | 模块 | Shadow Test Sample Model | ✅ |
 | `skill_quality_history.py` | 模块 | Skill Quality History Model | ✅ |
 | `skill_version.py` | 模块 | 定义skill_versions表的ORM模型，用于记录skill的每个版本，支持版本回滚。 | ✅ |
+| `skill_package_revision.py` | 模块 | 技能包修订快照（SKILL.md + 资源文件 blob） | ✅ |

@@ -1,4 +1,14 @@
-"""Server hook: persist skill_manage batch snapshots for later rollback."""
+"""
+[INPUT]
+- myrm_agent_harness.agent.meta_tools.skills.manage.batch_runner (POS: skill_manage 批次快照类型 SkillBatchSnapshot)
+- app.services.skill_optimization.bootstrap (POS: 存储会话获取)
+- app.services.skill_optimization.rollback_service (POS: batch_snapshots 写入)
+- app.services.skills.write_orchestrator (POS: skill 名称解析为 skill_id)
+[OUTPUT]
+- ServerSkillManageBatchHook (harness 批次钩子的服务端实现：单事务写入 batch_kind=skill_mutation 快照)
+[POS]
+skill_manage 批次提交后的快照落库钩子：任一 skill 无法解析则整批回滚并抛错（fail-closed）。
+"""
 
 from __future__ import annotations
 
@@ -28,9 +38,7 @@ class ServerSkillManageBatchHook:
                 for snap in snapshots.values():
                     skill_id = await resolve_skill_id_by_name(snap.skill_name)
                     if not skill_id:
-                        raise RuntimeError(
-                            f"Cannot persist batch snapshot: unresolved skill name {snap.skill_name!r}."
-                        )
+                        raise RuntimeError(f"Cannot persist batch snapshot: unresolved skill name {snap.skill_name!r}.")
                     metadata: dict[str, object] = {
                         "batch_kind": "skill_mutation",
                         "resource_files": snap.resources,

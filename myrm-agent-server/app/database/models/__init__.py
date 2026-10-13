@@ -81,6 +81,7 @@ from .skill_optimization import (
     BatchSnapshot,
     OptimizationRecord,
     ShadowSampleModel,
+    SkillPackageRevision,
     SkillQualityHistory,
     SkillVersionModel,
 )
@@ -183,6 +184,7 @@ __all__ = [
     "SkillVersionModel",
     "BatchOptimizationTask",
     "BatchSnapshot",
+    "SkillPackageRevision",
     "BatchAuditLog",
     # Artifact
     "Artifact",

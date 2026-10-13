@@ -69,6 +69,7 @@ CATALOG_ONLY_FIELDS = frozenset(
         "origin_hash",
         "has_upstream_update",
         "installed_from",
+        "last_replace_batch_id",
         "created_at",
         "updated_at",
     }

@@ -141,6 +141,17 @@ def _load_skill_from_dir(
         except Exception as e:
             logger.debug("Failed to load origin.json for '%s': %s", skill_dir.name, e)
 
+    last_replace_batch_id: str | None = None
+    replace_state_file = skill_dir / ".replace_state.json"
+    if replace_state_file.exists():
+        try:
+            replace_state = json.loads(replace_state_file.read_text(encoding="utf-8"))
+            raw_batch = replace_state.get("last_replace_batch_id") if isinstance(replace_state, dict) else None
+            if isinstance(raw_batch, str) and raw_batch.strip():
+                last_replace_batch_id = raw_batch.strip()
+        except Exception as e:
+            logger.debug("Failed to load .replace_state.json for '%s': %s", skill_dir.name, e)
+
     skill_id = compute_local_skill_id(skill_dir)
 
     category = frontmatter.category
@@ -153,7 +164,7 @@ def _load_skill_from_dir(
         created_at = datetime.utcnow()
         updated_at = datetime.utcnow()
 
-    return Skill.from_metadata(
+    skill = Skill.from_metadata(
         meta,
         skill_id=skill_id,
         skill_type=skill_type,
@@ -162,6 +173,11 @@ def _load_skill_from_dir(
         created_at=created_at,
         updated_at=updated_at,
     )
+    if last_replace_batch_id:
+        from dataclasses import replace
+
+        return replace(skill, last_replace_batch_id=last_replace_batch_id)
+    return skill
 
 
 class LocalSkillsProvider:

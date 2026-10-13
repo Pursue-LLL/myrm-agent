@@ -9,6 +9,7 @@ from .batch_snapshot import BatchSnapshot
 from .batch_task import BatchOptimizationTask
 from .optimization_record import OptimizationRecord
 from .shadow_sample import ShadowSampleModel
+from .skill_package_revision import SkillPackageRevision
 from .skill_quality_history import SkillQualityHistory
 from .skill_version import SkillVersionModel
 
@@ -20,5 +21,6 @@ __all__ = [
     "SkillVersionModel",
     "BatchOptimizationTask",
     "BatchSnapshot",
+    "SkillPackageRevision",
     "BatchAuditLog",
 ]

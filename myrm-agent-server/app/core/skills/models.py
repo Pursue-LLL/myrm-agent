@@ -99,6 +99,9 @@ class Skill:
     installed_from: dict[str, object] | None = None
     """Provenance tracking for installed skills (e.g. source, origin_url, version, installed_at)."""
 
+    last_replace_batch_id: str | None = None
+    """Rollback batch id of the most recent replace of this skill."""
+
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -138,6 +141,7 @@ class Skill:
             "origin_hash": self.origin_hash,
             "has_upstream_update": self.has_upstream_update,
             "installed_from": self.installed_from,
+            "last_replace_batch_id": self.last_replace_batch_id,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
@@ -196,6 +200,7 @@ class Skill:
             required_permissions=[getattr(p, "value", str(p)) for p in getattr(meta, "required_permissions", [])],
             usage_stats=(meta.usage_stats.to_dict() if hasattr(meta, "usage_stats") and meta.usage_stats else None),
             installed_from=installed_from,
+            last_replace_batch_id=None,
             created_at=created_at or now,
             updated_at=updated_at or now,
         )
@@ -243,6 +248,7 @@ class Skill:
             origin_hash=_opt_str(data.get("origin_hash")),
             has_upstream_update=bool(data.get("has_upstream_update", False)),
             installed_from=_opt_dict(data.get("installed_from")),
+            last_replace_batch_id=_opt_str(data.get("last_replace_batch_id")),
             created_at=_parse_datetime(data.get("created_at")),
             updated_at=_parse_datetime(data.get("updated_at")),
         )

@@ -23,7 +23,7 @@ from app.channels.types import TopicContext
 
 if TYPE_CHECKING:
     from app.database.dto import ChatDTO
-    from app.services.chat.chat_service import ChannelHistoryEntry
+    from app.services.chat.chat_helpers import ChannelHistoryEntry
 
 logger = logging.getLogger(__name__)
 
