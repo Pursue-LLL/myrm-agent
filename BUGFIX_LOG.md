@@ -1180,7 +1180,7 @@ except Exception:
 | 严重程度 | P2（看板数字低于真实值且没有任何提示） |
 | 影响范围 | `myrm-agent-server/app/api/statistics/skill_growth/{ledger,trends,health,models}.py`, `myrm-agent-frontend/src/components/features/growth/{SkillTrendChart,SkillHealthPanel,growthMarkdownExport}` |
 | 出现次数 | 1（用例复现，未取得线上遥测） |
-| 关联 | `BUG-AGENT-2026-10-13-008`；提交 `4894f5c2c`、`ad38e1be5`、`efdef9e72`，harness 提交 `481cf2816`、`877ba95f5` |
+| 关联 | `BUG-AGENT-2026-10-13-008`、`BUG-AGENT-2026-10-14-001`；提交 `4894f5c2c`、`ad38e1be5`、`efdef9e72` |
 
 ### 现象
 
@@ -1208,7 +1208,7 @@ except Exception:
 
 ---
 
-## BUG-AGENT-2026-10-13-010: 技能趋势图一根柱子都不画且横向溢出；健康雷达无轮廓无网格黑填充；五环中心刷新按钮写死中文
+## BUG-AGENT-2026-10-14-001: 技能趋势图一根柱子都不画且横向溢出；健康雷达无描边、黑填充；五环中心刷新按钮写死中文
 
 | 属性 | 值 |
 |------|------|
@@ -1221,14 +1221,14 @@ except Exception:
 
 ### 现象
 
-1. 技能趋势图（`/journey` 的「技能趋势」页签）一根柱子都不画：30 个日列、行高 128px，30 根柱的计算高度全是 0px；视口 500px 时该行还横向溢出（`scrollWidth` 大于 `clientWidth`）；
-2. 0% 与无数据都被画成 2% 的短桩，分不出「全部失败」与「没有观测」；悬停数值与 `title` 在触屏上不起作用；
-3. 概览页的记忆健康雷达没有轮廓、没有网格，填充是黑色；
+1. 成长看板（`/journey`）的技能趋势图一根柱子都不画：同一份 30 天数据在真实 Chrome 里量，行高 128px，30 根柱的高度全是 0px；视口 500px 时该行 `scrollWidth` 921、`clientWidth` 442，横向溢出；
+2. 代码里 0% 与无数据都按 2% 的短桩画，分不出「全部失败」与「没有观测」；当日值只在鼠标悬停（`group-hover` 与 `title`）时可见，触屏读不到；
+3. 概览页的记忆健康雷达没有描边，填充是黑色；
 4. 五环中心的「刷新」写死中文，英文界面也显示；五个环卡片是 `div role="button"`，触发 oxlint 的 `jsx-a11y/prefer-tag-over-role`。
 
 ### 根因
 
-1. 柱子写成 `height: N%`，百分比相对一个没有高度的 flex 列容器解析，得 0；每列还各带一个悬停数值与一个日期标签，把行撑宽。这种写法自 `6010b682c`（2026-07-13）起如此，jsdom 没有版面，单测看不到；
+1. 柱子写成 `height: N%`，百分比相对一个没有高度的 flex 列容器解析，得 0；每列还各带一个悬停数值与一个日期标签，30 列的最小宽度之和（921px）超过容器（442px）。这种写法自 `6010b682c`（2026-07-13）起如此，jsdom 没有版面，单测看不到；
 2. 雷达颜色写成 `hsl(var(--primary))`，而主题变量里存的是完整颜色（`globals.css` 的 `--primary: #6799a0`，运行时由 `theme-engine/compiler.ts` 写入同类值），包进 `hsl()` 即无效值：描边 `none`、填充黑；
 3. 「刷新」是写死的中文；卡片是带键盘处理的 `div`，不是 `button`。
 
@@ -1240,8 +1240,9 @@ except Exception:
 
 ### 验证
 
-1. 真实组件在 Chrome 渲染（经 bun 打包真实的 `lazy-recharts`、`next-intl` 与编译后的 `globals.css`；500、800、1280px，浅色与深色）：30 天含 4 个无数据日 → 26 根柱全部可见，最小 3px、最大 94px；90 天 77 根；SVG 宽度等于容器宽度、无溢出；横轴抽稀为 7–8 个刻度；悬停读出当日值与已观测次数，无数据日读出破折号；切到次数后全为蓝柱；失败日 5 根为红、其余为绿；
-2. 雷达：描边 `rgb(103, 153, 160)`、网格 `rgb(236, 234, 228)`；修复前同样写法量得描边 `none`、填充 `rgb(0, 0, 0)`、网格 `none`；
+1. 真实组件在 Chrome 渲染（经 bun 打包真实的 `lazy-recharts`、`next-intl` 与编译后的 `globals.css`；500、800、1280px，浅色与深色）：30 天含 4 个无数据日 → 26 根柱全部可见，最小 3px、最大 94px；90 天 77 根；SVG 宽 442px 等于容器宽度，区块 `scrollWidth` 等于 `clientWidth`（476），无溢出；30 天横轴抽稀为 7 个刻度；悬停读出当日值与已观测次数，无数据日读出破折号；切到次数后（10 日有运行的序列）为 10 根蓝柱；失败日 5 根为红、其余 21 根为绿；
+   同一份 30 天数据交给修复前的组件（取自 `HEAD`）：30 根柱高度全为 0px，行 `scrollWidth` 921、`clientWidth` 442；
+2. 雷达：描边 `rgb(103, 153, 160)`、网格 `rgb(236, 234, 228)`；修复前量得描边 `none`、填充 `rgb(0, 0, 0)`；
 3. 五环卡片：改前（`div`）与改后（`button`）在 500、800、1280px 下盒子与文字位置逐项一致；Enter 与空格都能把看板切到对应页签；
 4. 新增 23 例测试：`skillTrendSeries.test.ts` 9、`SkillTrendChart.test.tsx` 11、`HealthRadar.test.tsx` 1、`LearningLoopFiveRingHub.test.tsx` 2。9 个变异（失败色挂错值、次数 0 画成柱、不补空日、逐行 `fill` 丢失、成功率纵轴交给数据、提示对无观测日显示次数、雷达改回 `hsl()`、环卡片跳错页签、刷新改回写死）全部被测试杀死，运行后文件按哈希核对还原；
 5. `oxlint` 对 growth 目录无输出，`prettier --check` 对触及的代码文件通过，`verify-i18n.mjs` 六语言通过，全量 `tsc --noEmit` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误。
