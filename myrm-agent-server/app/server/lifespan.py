@@ -434,6 +434,15 @@ async def _phase_1a_sequential() -> None:
     except Exception as e:
         logger.debug("[Startup] TLS config from DB skipped: %s", e)
 
+    # Privacy protection must cover model calls that have no agent run (titles, summaries, memory extraction)
+    # from the first request, so the saved policy is published before any of them can happen.
+    try:
+        from app.core.security.privacy_policy_sync import apply_privacy_policy_from_db
+
+        await apply_privacy_policy_from_db()
+    except Exception as e:
+        logger.error("[Startup] Privacy policy from saved settings failed to apply: %s", e)
+
     # Register Control Plane URL to Harness SSRF dynamic blocklist
     try:
         from urllib.parse import urlparse

@@ -24,6 +24,7 @@ from fastapi import Request
 
 from app.ai_agents import GeneralAgentParams
 from app.core.channel_bridge.config_parsers import verify_search_service_available
+from app.core.security.privacy_settings import resolve_privacy_params
 from app.core.types import ChatHistoryReq, MCPServerConfig, ModelConfig
 from app.services.agent.moa_preset_resolver import (
     apply_moa_preset_activation,
@@ -37,7 +38,7 @@ from .archive_restore import (
     inject_archive_restore_actions_into_query,
     prevalidate_archive_restore_actions,
 )
-from .helpers import _extract_code_execution_network
+from .helpers import _extract_code_execution_network, _requested_privacy_params
 from .media import _extract_media_generation_params
 from .mention import (
     _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE,
@@ -946,13 +947,7 @@ async def convert_to_general_agent_params(
     if request.privacy_routing is not None:
         privacy_routing_obj = {str(k): v for k, v in request.privacy_routing.items()}
 
-    privacy_deep_scan = request.privacy_deep_scan
-    if privacy_deep_scan is None and isinstance(ps_dict, dict):
-        raw = ps_dict.get("privacyDeepScan")
-        if isinstance(raw, bool):
-            privacy_deep_scan = raw
-    if privacy_deep_scan is None:
-        privacy_deep_scan = False
+    privacy_params = resolve_privacy_params(ps_dict, _requested_privacy_params(request))
 
     final_query = request.query
     mention_warnings: list[str] = []
@@ -1238,17 +1233,8 @@ async def convert_to_general_agent_params(
         image_generation=image_gen_params if not is_fast_search else None,
         video_generation=video_gen_params if not is_fast_search else None,
         tts=tts_params if not is_fast_search else None,
-        privacy_enabled=request.privacy_enabled,
-        privacy_s2_action=request.privacy_s2_action,
-        privacy_s3_action=request.privacy_s3_action,
         privacy_routing_raw=privacy_routing_obj,
-        privacy_custom_keywords_s2=request.privacy_custom_keywords_s2 or [],
-        privacy_custom_keywords_s3=request.privacy_custom_keywords_s3 or [],
-        privacy_custom_patterns_s2=request.privacy_custom_patterns_s2 or [],
-        privacy_custom_patterns_s3=request.privacy_custom_patterns_s3 or [],
-        privacy_sensitive_tools_s2=request.privacy_sensitive_tools_s2 or [],
-        privacy_sensitive_tools_s3=request.privacy_sensitive_tools_s3 or [],
-        privacy_deep_scan=privacy_deep_scan,
+        **privacy_params,
         code_execution_allow_network=code_exec_allow_network,
         event_log_dir=get_settings().database.event_log_dir,
         event_log_max_jsonl_line_bytes=get_settings().event_log_max_jsonl_line_bytes,

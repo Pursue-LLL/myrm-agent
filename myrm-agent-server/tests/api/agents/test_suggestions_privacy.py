@@ -1,31 +1,36 @@
-"""The follow-up suggestion call masks PII when the persisted privacy switch is on."""
+"""The follow-up suggestion call is covered by the persisted privacy settings."""
 
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage
+from myrm_agent_harness.agent.middlewares.security.outbound_privacy_guard import set_process_privacy_policy
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.outbound_guard import set_outbound_message_guard
 
 from app.api.agents.suggestions import SuggestionsRequest, get_suggestions
+from app.core.security.privacy_policy_sync import sync_privacy_policy
+from tests.support.privacy_wire import wire_llm
 
 _PHONE = "13812345678"
 _PASSWORD = "Sup3rSecret99"
 
 
-class _CapturingLLM:
-    def __init__(self) -> None:
-        self.prompts: list[str] = []
-
-    async def ainvoke(self, prompt: str) -> AIMessage:
-        self.prompts.append(prompt)
-        return AIMessage(content='["a", "b", "c"]')
+@pytest.fixture(autouse=True)
+def _clean_process_policy() -> Iterator[None]:
+    set_process_privacy_policy(None)
+    set_outbound_message_guard(None)
+    yield
+    set_process_privacy_policy(None)
+    set_outbound_message_guard(None)
 
 
 async def _suggest(personal_settings: dict[str, object]) -> str:
-    llm = _CapturingLLM()
+    sync_privacy_policy(personal_settings)
+    llm, sent = wire_llm('["a", "b", "c"]')
     configs = SimpleNamespace(
         providers_dict={"providers": []},
         model_cfg=None,
@@ -40,7 +45,7 @@ async def _suggest(personal_settings: dict[str, object]) -> str:
         response = await get_suggestions.__wrapped__(request=request, http_request=MagicMock())
 
     assert json.loads(response.body)["data"]["suggestions"] == ["a", "b", "c"]
-    return llm.prompts[0]
+    return "\n".join(sent)
 
 
 @pytest.mark.asyncio

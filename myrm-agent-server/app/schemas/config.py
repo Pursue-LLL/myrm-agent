@@ -219,6 +219,20 @@ class PersonalSettingsConfigValue(BaseModel):
         default=None,
         description="启用 LLM 深度 PII 扫描（非结构化 PII 检测与假名化）",
     )
+    privacyCustomKeywordsS2: list[str] | None = _personal_settings_field(
+        "security", default=None, description="隐私 S2 自定义关键词"
+    )
+    privacyCustomKeywordsS3: list[str] | None = _personal_settings_field(
+        "security", default=None, description="隐私 S3 自定义关键词"
+    )
+    privacyCustomPatternsS2: list[str] | None = _personal_settings_field(
+        "security", default=None, description="隐私 S2 自定义正则"
+    )
+    privacyCustomPatternsS3: list[str] | None = _personal_settings_field(
+        "security", default=None, description="隐私 S3 自定义正则"
+    )
+    privacySensitiveToolsS2: list[str] | None = _personal_settings_field("security", default=None, description="隐私 S2 敏感工具")
+    privacySensitiveToolsS3: list[str] | None = _personal_settings_field("security", default=None, description="隐私 S3 敏感工具")
     codeExecutionAllowNetwork: bool = _personal_settings_field(
         "preferences",
         default=True,

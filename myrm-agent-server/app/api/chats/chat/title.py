@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security.privacy_settings import privacy_enabled
 from app.core.utils.errors import internal_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
@@ -90,7 +89,6 @@ async def generate_chat_title(
             title_data.messages,
             title_model=title_model,
             fallback_title_model=fallback_title_model,
-            mask_pii=privacy_enabled(configs.personal_settings_dict),
         )
         return success_response(data={"title": title})
     except Exception as e:

@@ -48,6 +48,18 @@ def _config_values_equal(a: dict[str, object], b: dict[str, object]) -> bool:
     return json.dumps(a, sort_keys=True, default=str) == json.dumps(b, sort_keys=True, default=str)
 
 
+def _apply_runtime_effects(config_key: str, value: dict[str, object] | None) -> None:
+    """Make a saved (or, with None, removed) setting that governs the whole process take effect at once.
+
+    Every write path (WebUI save, batch sync, rollback, internal writers) ends in ``set`` or ``delete``, so hooking
+    here leaves no path that saves privacy settings without enforcing them.
+    """
+    if config_key == "personalSettings":
+        from app.core.security.privacy_policy_sync import sync_privacy_policy
+
+        sync_privacy_policy(value)
+
+
 def _increment_version(current: str) -> str:
     now = int(datetime.now().timestamp() * 1000)
     parts = current.split("_")
@@ -293,6 +305,7 @@ class ConfigService:
                 await session.refresh(existing)
 
                 logger.warning("Updated config '%s', version=%s", config_key, existing.version)
+                _apply_runtime_effects(config_key, value)
                 return _build_config_record(existing, value)
             else:
                 new_version = _create_initial_version()
@@ -321,6 +334,7 @@ class ConfigService:
                 await session.refresh(new_config)
 
                 logger.warning("Created config '%s', version=%s", config_key, new_version)
+                _apply_runtime_effects(config_key, value)
                 return _build_config_record(new_config, value)
 
     async def delete(self, config_key: str) -> bool:
@@ -334,6 +348,7 @@ class ConfigService:
                 deleted = (result.rowcount or 0) > 0
             if deleted:
                 logger.warning("Deleted config '%s'", config_key)
+                _apply_runtime_effects(config_key, None)
 
             return deleted
 

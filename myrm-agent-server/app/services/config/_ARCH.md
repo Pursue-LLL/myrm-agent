@@ -33,6 +33,7 @@
 - `set_config()`：写入配置（自动加密敏感字段）
 - `get_config()` / `get_all_configs()`：读取配置（自动解密）
 - `sync_configs()`：批量同步（含版本冲突检测；内容相同则幂等接受）
+- `_apply_runtime_effects()`：提交后让配置的运行时副作用生效（`personalSettings` → 重新发布 harness 进程级隐私策略；`set` / `delete` / `sync` 共用写入口，因此 PUT、`/config/sync`、回滚都覆盖）
 - `_encrypt_if_sensitive()`：写入前条件加密（含双重加密防护）
 - `_decrypt_if_needed()`：读取后解密（含旧 key fallback 迁移 + 双重加密修复）
 
