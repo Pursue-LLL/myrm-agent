@@ -37,17 +37,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, '..');
 
-// 有效的tabs列表（必须与 app/settings/[tab]/page.tsx 中的 VALID_TABS 保持一致）
-const VALID_TABS = [
-  'account', 'preferences', 'theme-studio', 'personalization', 'agents', 'security',
-  'riskRules', 'models', 'defaultModel', 'search', 'mcp', 'skills',
-  'skillQuality', 'toolStability', 'toolQuality', 'evolutionPending', 'evolutionRejection', 'eval',
-  'credentials', 'wiki', 'memory', 'cron', 'kanban', 'checkpoint',
-  'channels', 'channelRouting', 'voice', 'openaiApi', 'integrationCatalog', 'integrationMemory',
-  'extensionBridge', 'connect', 'hosting', 'workspaceRules', 'developer', 'importExport',
-  'companion', 'usageStatistics', 'experimentalFeatures', 'memory-backup', 'memory-cloud-backup',
-  'memory-migration', 'enterprise', 'system', 'about',
-];
+// 设置 Tab 清单直接读取路由 SSOT，避免再维护一份手抄副本。
+function readSettingsTabs() {
+  const routesPath = resolve(rootDir, 'src/components/features/settings/settingsRoutes.ts');
+  const source = readFileSync(routesPath, 'utf-8');
+  const blockMatch = source.match(/SETTINGS_TABS\s*=\s*\[([\s\S]*?)\]\s*as\s*const/);
+  if (!blockMatch) {
+    throw new Error('Could not parse SETTINGS_TABS from settingsRoutes.ts');
+  }
+  return [...blockMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
+}
+
+const VALID_TABS = readSettingsTabs();
 
 // 支持的语言（必须与 src/i18n/config.ts locales 一致）
 const LANGUAGES = ['zh', 'en', 'ja', 'ko', 'de', 'zh-TW'];

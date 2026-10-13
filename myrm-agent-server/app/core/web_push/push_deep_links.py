@@ -23,7 +23,11 @@ from app.services.event.app_event_bus import AppEvent, AppEventType
 _DEFAULT_URL = "/"
 _SETTINGS_SYSTEM = "/settings/system"
 _SETTINGS_CHANNELS = "/settings/channels"
-_SETTINGS_INTEGRATIONS = "/settings/integrationCatalog"
+_SETTINGS_CREDENTIALS = "/settings/credentials"
+_SETTINGS_PROVIDERS = "/settings/models"
+# LLM-provider OAuth issuers (`provider_openai`, ...) are connected on the Models page; every other
+# issuer is an OAuth account managed under Credentials (mirrors getOAuthIssuerSettingsPath in the WebUI).
+_PROVIDER_ISSUER_PREFIX = "provider_"
 
 
 def _chat_path(chat_id: str) -> str | None:
@@ -53,6 +57,13 @@ def _approval_id(data: dict[str, object]) -> str:
     if isinstance(value, str) and value.strip():
         return value.strip()
     return ""
+
+
+def _oauth_reauth_path(data: dict[str, object]) -> str:
+    issuer = data.get("issuer")
+    if isinstance(issuer, str) and issuer.startswith(_PROVIDER_ISSUER_PREFIX):
+        return _SETTINGS_PROVIDERS
+    return _SETTINGS_CREDENTIALS
 
 
 def resolve_push_url(event: AppEvent) -> str:
@@ -101,6 +112,6 @@ def resolve_push_url(event: AppEvent) -> str:
         return _SETTINGS_CHANNELS
 
     if event_type == AppEventType.OAUTH_REAUTH_REQUIRED:
-        return _SETTINGS_INTEGRATIONS
+        return _oauth_reauth_path(data)
 
     return _DEFAULT_URL

@@ -14,6 +14,7 @@ import { mutate as mutateSwr } from 'swr';
 import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationToasts';
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
+import { showMcpAuthRequiredToast, showOAuthReauthRequiredToast } from '@/hooks/globalEvents/reauthToasts';
 import { showSubsumptionUndoToast } from '@/hooks/globalEvents/subsumptionUndoToast';
 import {
   notifyBackgroundTasksChangedForShellJobFinish,
@@ -353,38 +354,9 @@ export function useGlobalEvents(): void {
         showLocatorHealedToast(payload.data);
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
       } else if (payload.type === 'mcp_auth_required') {
-        const serverName = String(payload.data.server_name ?? 'MCP');
-        const toastId = `mcp-auth-${serverName}`;
-        pushToast.warning(t('mcpAuthRequired', { server: serverName }), {
-          id: toastId,
-          duration: 30_000,
-          dismissible: true,
-          action: {
-            label: t('reauthorize'),
-            onClick: () => {
-              pushToast.dismiss(toastId);
-              router.push('/settings/extensions');
-            },
-          },
-        });
-        notifyIfLeader(t('mcpAuthRequired', { server: serverName }));
+        showMcpAuthRequiredToast(payload.data, { t, router, toast: pushToast, notifyIfLeader });
       } else if (payload.type === 'oauth_reauth_required') {
-        const issuer = String(payload.data.issuer ?? 'OAuth');
-        const reason = String(payload.data.reason ?? '');
-        const toastId = `oauth-reauth-${issuer}`;
-        pushToast.warning(t('oauthReauthRequired', { issuer, reason }), {
-          id: toastId,
-          duration: 30_000,
-          dismissible: true,
-          action: {
-            label: t('reauthorize'),
-            onClick: () => {
-              pushToast.dismiss(toastId);
-              router.push('/settings/integrationCatalog');
-            },
-          },
-        });
-        notifyIfLeader(t('oauthReauthRequired', { issuer, reason }));
+        showOAuthReauthRequiredToast(payload.data, { t, router, toast: pushToast, notifyIfLeader });
       } else if (PASSTHROUGH_EVENTS.has(payload.type)) {
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
       } else if (payload.type === 'workspace_file_changed') {

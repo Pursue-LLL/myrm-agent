@@ -3658,6 +3658,18 @@
       "brand-studio": {
         "title": "品牌風格",
         "description": "定義你的品牌形象——配色、字體、語氣與規則。你的 AI 會在為你建立的所有內容中遵循它。"
+      },
+      "workbench": {
+        "title": "我的工作臺",
+        "description": "彙整工作空間累積的記憶、知識庫、技能、規則與排程任務等核心資產"
+      },
+      "shares": {
+        "title": "分享連結",
+        "description": "管理唯讀 Artifact 分享連結。撤銷連結可立即阻斷公網訪問。"
+      },
+      "a2aPeers": {
+        "title": "A2A 遠端節點",
+        "description": "註冊並管理支援 A2A 協定的可信遠端智慧體"
       }
     }
   },
@@ -13870,7 +13882,8 @@
         "knowledge": "知識與資料",
         "integration": "通訊與整合",
         "system": "系統與安全"
-      }
+      },
+      "brand-studio": "品牌風格"
     },
     "workbench": {
       "badge": "資產留存 & 平台中立",

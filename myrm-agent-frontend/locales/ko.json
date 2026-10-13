@@ -3658,6 +3658,18 @@
       "brand-studio": {
         "title": "브랜드 스타일",
         "description": "브랜드 정체성(색상, 글꼴, 톤, 규칙)을 정의하세요. AI가 생성하는 모든 콘텐츠에 이를 적용합니다."
+      },
+      "workbench": {
+        "title": "내 워크벤치",
+        "description": "워크스페이스에 축적된 메모리, 지식 베이스, 스킬, 규칙, 예약 작업 등 핵심 자산을 한눈에 확인합니다"
+      },
+      "shares": {
+        "title": "공유 링크",
+        "description": "읽기 전용 Artifact 공유 링크를 관리합니다. 링크를 해지하면 즉시 공개 액세스가 차단됩니다."
+      },
+      "a2aPeers": {
+        "title": "A2A 원격 피어",
+        "description": "A2A 프로토콜을 지원하는 신뢰할 수 있는 원격 에이전트를 등록하고 관리합니다"
       }
     }
   },
@@ -13870,7 +13882,8 @@
         "knowledge": "지식 및 데이터",
         "integration": "통신 및 통합",
         "system": "보안 및 시스템"
-      }
+      },
+      "brand-studio": "브랜드 스타일"
     },
     "workbench": {
       "badge": "개인 작업 공간 및 데이터 주권",

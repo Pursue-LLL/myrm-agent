@@ -7,9 +7,11 @@ import {
   hasIntegrationSettingsLink,
   getIntegrationSkillSettingsPath,
   getIntegrationSkillSettingsLinkLabel,
+  getOAuthIssuerSettingsPath,
   getSkillUnavailableDisplayMessage,
   isEnvGatedSkillUnavailable,
-  SETTINGS_GOOGLE_OAUTH_PATH,
+  SETTINGS_CREDENTIALS_PATH,
+  SETTINGS_PROVIDERS_PATH,
   SETTINGS_AGENTS_LOADOUT_PATH,
 } from '../integrationOAuthDisplay';
 import type { Skill, SkillRequires } from '@/store/skill/types';
@@ -83,7 +85,7 @@ describe('integrationOAuthDisplay generic multi-connector paths', () => {
     };
 
     expect(hasIntegrationSettingsLink(skill)).toBe(true);
-    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_GOOGLE_OAUTH_PATH);
+    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_CREDENTIALS_PATH);
     expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe(
       'card.integrationOAuth.connectionRequired.unavailable',
     );
@@ -167,6 +169,36 @@ describe('integrationOAuthDisplay generic multi-connector paths', () => {
     expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe(
       'card.integrationOAuth.googleWorkspace.unavailable',
     );
+  });
+});
+
+describe('getOAuthIssuerSettingsPath', () => {
+  it('sends LLM-provider OAuth issuers to the Models page', () => {
+    for (const issuer of ['provider_openai', 'provider_anthropic', 'provider_copilot', 'provider_xai']) {
+      expect(getOAuthIssuerSettingsPath(issuer)).toBe(SETTINGS_PROVIDERS_PATH);
+    }
+  });
+
+  it('sends account OAuth issuers to the Credentials page', () => {
+    for (const issuer of ['google_workspace', 'xai', 'github']) {
+      expect(getOAuthIssuerSettingsPath(issuer)).toBe(SETTINGS_CREDENTIALS_PATH);
+    }
+  });
+
+  it('routes an unavailable skill by the first account it requires', () => {
+    const providerSkill = buildSkill({
+      available: false,
+      unavailable_reason: 'Missing account',
+      required_oauth_issuers: ['provider_openai', 'google_workspace'],
+    });
+    const accountSkill = buildSkill({
+      available: false,
+      unavailable_reason: 'Missing account',
+      required_oauth_issuers: ['google_workspace', 'provider_openai'],
+    });
+
+    expect(getIntegrationSkillSettingsPath(providerSkill)).toBe(SETTINGS_PROVIDERS_PATH);
+    expect(getIntegrationSkillSettingsPath(accountSkill)).toBe(SETTINGS_CREDENTIALS_PATH);
   });
 });
 

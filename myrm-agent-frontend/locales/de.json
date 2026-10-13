@@ -3658,6 +3658,18 @@
       "brand-studio": {
         "title": "Markenstil",
         "description": "Definiere die Markenidentität – Farben, Schrift, Ton und Regeln. Die KI wendet sie auf alles an, was sie erstellt."
+      },
+      "workbench": {
+        "title": "Meine Werkbank",
+        "description": "Überblick über Erinnerungen, Wissensbasis, Skills, Regeln und geplante Aufgaben in Ihrem Workspace"
+      },
+      "shares": {
+        "title": "Freigabelinks",
+        "description": "Verwalten Sie schreibgeschützte Artifact-Freigabelinks. Widerrufen Sie einen Link, um den öffentlichen Zugriff sofort zu blockieren."
+      },
+      "a2aPeers": {
+        "title": "A2A-Remote-Peers",
+        "description": "Vertrauenswürdige Remote-Agenten mit A2A-Protokoll registrieren und verwalten"
       }
     }
   },
@@ -13870,7 +13882,8 @@
         "knowledge": "Wissen & Daten",
         "integration": "Kommunikation & Integration",
         "system": "Sicherheit & System"
-      }
+      },
+      "brand-studio": "Markenstil"
     },
     "workbench": {
       "badge": "Persönlicher Arbeitsbereich & Datensouveränität",

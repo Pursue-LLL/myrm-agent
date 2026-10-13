@@ -34,4 +34,4 @@ def test_mcp_expiry_watchdog_asset_structure() -> None:
     # Check contracts and thresholds
     assert "CRITICAL" in body
     assert "WARN_REFRESHABLE" in body
-    assert "/settings/integrations" in body
+    assert "(/settings/mcp)" in body

@@ -38,6 +38,7 @@ import {
   Network,
 } from 'lucide-react';
 import { AiNetworkIcon } from 'hugeicons-react';
+import type { SettingsTab } from './settingsRoutes';
 
 export type SettingsGroup = 'personal' | 'ai-core' | 'ai-tools' | 'knowledge' | 'integration' | 'system';
 
@@ -49,56 +50,6 @@ const groupConfig: Record<SettingsGroup, { labelKey: string; order: number }> = 
   integration: { labelKey: 'group.integration', order: 5 },
   system: { labelKey: 'group.system', order: 6 },
 };
-
-export type SettingsTab =
-  | 'account'
-  | 'workbench'
-  | 'preferences'
-  | 'theme-studio'
-  | 'personalization'
-  | 'agents'
-  | 'security'
-  | 'riskRules'
-  | 'shares'
-  | 'models'
-  | 'defaultModel'
-  | 'search'
-  | 'mcp'
-  | 'skills'
-  | 'skillQuality'
-  | 'toolStability'
-  | 'toolQuality'
-  | 'evolutionPending'
-  | 'evolutionRejection'
-  | 'credentials'
-  | 'wiki'
-  | 'openaiApi'
-  | 'hosting'
-  | 'developer'
-  | 'importExport'
-  | 'cron'
-  | 'kanban'
-  | 'checkpoint'
-  | 'channels'
-  | 'channelRouting'
-  | 'voice'
-  | 'companion'
-  | 'usageStatistics'
-  | 'experimentalFeatures'
-  | 'memory'
-  | 'brand-studio'
-  | 'memory-backup'
-  | 'memory-cloud-backup'
-  | 'memory-migration'
-  | 'integrationCatalog'
-  | 'integrationMemory'
-  | 'extensionBridge'
-  | 'connect'
-  | 'a2aPeers'
-  | 'workspaceRules'
-  | 'enterprise'
-  | 'system'
-  | 'about';
 
 interface MenuItem {
   id: SettingsTab;

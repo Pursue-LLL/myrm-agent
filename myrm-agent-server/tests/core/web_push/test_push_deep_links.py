@@ -126,12 +126,23 @@ class TestResolvePushUrl:
         )
         assert resolve_push_url(event) == "/settings/channels"
 
-    def test_oauth_reauth_routes_to_integration_catalog(self) -> None:
+    def test_oauth_account_reauth_routes_to_credentials(self) -> None:
         event = AppEvent(
             event_type=AppEventType.OAUTH_REAUTH_REQUIRED,
-            data={"issuer": "google", "reason": "expired"},
+            data={"issuer": "google_workspace", "reason": "expired"},
         )
-        assert resolve_push_url(event) == "/settings/integrationCatalog"
+        assert resolve_push_url(event) == "/settings/credentials"
+
+    def test_oauth_provider_reauth_routes_to_models(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.OAUTH_REAUTH_REQUIRED,
+            data={"issuer": "provider_openai", "reason": "expired"},
+        )
+        assert resolve_push_url(event) == "/settings/models"
+
+    def test_oauth_reauth_without_issuer_routes_to_credentials(self) -> None:
+        event = AppEvent(event_type=AppEventType.OAUTH_REAUTH_REQUIRED, data={"reason": "expired"})
+        assert resolve_push_url(event) == "/settings/credentials"
 
     def test_missing_chat_id_falls_back_to_home(self) -> None:
         event = AppEvent(

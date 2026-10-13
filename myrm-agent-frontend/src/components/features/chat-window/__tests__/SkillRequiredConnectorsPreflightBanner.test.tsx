@@ -6,10 +6,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-  }),
+  useRouter: () => ({ push }),
 }));
 
 const stableT = (key: string) => {
@@ -27,11 +27,13 @@ vi.mock('next-intl', () => ({
 
 import useChatStore from '@/store/useChatStore';
 import { useSkillStore } from '@/store/skill';
+import type { Skill } from '@/store/skill/types';
 import useConfigStore from '@/store/useConfigStore';
 import { SkillRequiredConnectorsPreflightBanner } from '../context-strip/SkillRequiredConnectorsPreflightBanner';
 
 describe('SkillRequiredConnectorsPreflightBanner', () => {
   beforeEach(() => {
+    push.mockClear();
     useChatStore.setState({
       agentConfig: {
         agentId: 'default',
@@ -141,5 +143,48 @@ describe('SkillRequiredConnectorsPreflightBanner', () => {
     const narrowBtn = screen.getByText('Narrow Scope');
     fireEvent.click(narrowBtn);
     expect(handleOpen).toHaveBeenCalledTimes(1);
+  });
+
+  describe('connect action target', () => {
+    function requireSkill(overrides: Partial<Skill>) {
+      const [skill] = useSkillStore.getState().marketSkills;
+      useSkillStore.setState({ marketSkills: [{ ...skill, ...overrides }] });
+    }
+
+    it('opens Credentials for an account issuer', () => {
+      requireSkill({ required_oauth_issuers: ['google_workspace'] });
+      render(<SkillRequiredConnectorsPreflightBanner />);
+
+      fireEvent.click(screen.getByText('Connect Now'));
+
+      expect(push).toHaveBeenCalledWith('/settings/credentials');
+    });
+
+    it('opens the Models page for an LLM-provider issuer', () => {
+      requireSkill({ required_oauth_issuers: ['provider_openai'] });
+      render(<SkillRequiredConnectorsPreflightBanner />);
+
+      fireEvent.click(screen.getByText('Connect Now'));
+
+      expect(push).toHaveBeenCalledWith('/settings/models');
+    });
+
+    it('opens the first missing issuer owner when several accounts are missing', () => {
+      requireSkill({ required_oauth_issuers: ['provider_anthropic', 'google_workspace'] });
+      render(<SkillRequiredConnectorsPreflightBanner />);
+
+      fireEvent.click(screen.getByText('Connect Now'));
+
+      expect(push).toHaveBeenCalledWith('/settings/models');
+    });
+
+    it('opens Skills when only MCP connectors are missing', () => {
+      requireSkill({ required_oauth_issuers: [], required_mcp_server_ids: ['notion'] });
+      render(<SkillRequiredConnectorsPreflightBanner />);
+
+      fireEvent.click(screen.getByText('Connect Now'));
+
+      expect(push).toHaveBeenCalledWith('/settings/skills');
+    });
   });
 });

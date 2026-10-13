@@ -3726,6 +3726,18 @@
       "brand-studio": {
         "title": "Brand Style",
         "description": "Define your brand identity — colors, font, tone, and rules. Your AI applies it to everything it creates."
+      },
+      "workbench": {
+        "title": "My Workbench",
+        "description": "Overview of the memories, knowledge base, skills, rules, and scheduled tasks in your workspace"
+      },
+      "shares": {
+        "title": "Share Links",
+        "description": "Manage read-only artifact share links. Revoke a link to immediately block public access."
+      },
+      "a2aPeers": {
+        "title": "A2A Remote Peers",
+        "description": "Register and manage trusted remote agents that speak the A2A protocol"
       }
     }
   },
@@ -14535,7 +14547,8 @@
         "knowledge": "Knowledge & Data",
         "integration": "Communications & Integrations",
         "system": "Security & System"
-      }
+      },
+      "brand-studio": "Brand Style"
     },
     "workbench": {
       "badge": "Asset Retention & Platform Neutrality",

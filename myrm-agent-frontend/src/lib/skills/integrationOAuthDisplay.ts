@@ -4,11 +4,19 @@ export const GOOGLE_WORKSPACE_SKILL_ID = 'google-workspace';
 export const X_LIVE_SEARCH_SKILL_ID = 'x-live-search';
 export const XURL_SKILL_ID = 'xurl';
 
-export const SETTINGS_GOOGLE_OAUTH_PATH = '/settings/credentials';
+export const SETTINGS_CREDENTIALS_PATH = '/settings/credentials';
 export const SETTINGS_PROVIDERS_PATH = '/settings/models';
 export const SETTINGS_DEFAULT_MODEL_PATH = '/settings/defaultModel';
 export const SETTINGS_AGENTS_LOADOUT_PATH = '/settings/agents#loadout';
 export const SETTINGS_SKILLS_PATH = '/settings/skills';
+
+/** LLM-provider OAuth issuers (`provider_openai`, `provider_anthropic`, ...) are connected on the Models page. */
+const PROVIDER_OAUTH_ISSUER_PREFIX = 'provider_';
+
+/** Settings page that owns the OAuth connection behind an issuer id. */
+export function getOAuthIssuerSettingsPath(issuer: string): string {
+  return issuer.startsWith(PROVIDER_OAUTH_ISSUER_PREFIX) ? SETTINGS_PROVIDERS_PATH : SETTINGS_CREDENTIALS_PATH;
+}
 
 type SkillsCardTranslator = (
   key:
@@ -66,10 +74,10 @@ export function getIntegrationSkillSettingsPath(skill: Skill): string {
     return SETTINGS_AGENTS_LOADOUT_PATH;
   }
   if (skill.required_oauth_issuers && skill.required_oauth_issuers.length > 0 && !skill.available) {
-    return SETTINGS_GOOGLE_OAUTH_PATH;
+    return getOAuthIssuerSettingsPath(skill.required_oauth_issuers[0]);
   }
   if (isGoogleWorkspaceOAuthUnavailable(skill)) {
-    return SETTINGS_GOOGLE_OAUTH_PATH;
+    return SETTINGS_CREDENTIALS_PATH;
   }
   if (isXLiveSearchUnavailable(skill)) {
     return SETTINGS_PROVIDERS_PATH;

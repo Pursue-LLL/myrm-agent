@@ -278,6 +278,23 @@ describe('DataFlowDisclosurePanel', () => {
     });
   });
 
+  it('links each connected oauth integration to the page that owns its connection', async () => {
+    mockListOAuthCredentials.mockResolvedValue([
+      { issuer: 'google_workspace', user_id: 'U1', scope: 'drive', expires_at: null, connected: true },
+      { issuer: 'provider_openai', user_id: 'U2', scope: 'chat', expires_at: null, connected: true },
+    ]);
+
+    render(<DataFlowDisclosurePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Google Workspace')).toBeDefined();
+    });
+    const hrefs = screen.getAllByText('actionManage').map((node) => node.closest('a')?.getAttribute('href'));
+    expect(hrefs).toContain('/settings/credentials');
+    expect(hrefs).toContain('/settings/models');
+    expect(hrefs).not.toContain('/settings/integrationCatalog');
+  });
+
   it('shows sync egress immediately while integrations are still loading', async () => {
     mockListConnectorStatus.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve([]), 50)));
     mockListOAuthCredentials.mockResolvedValue([]);

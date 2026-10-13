@@ -24,7 +24,7 @@ import useChatStore from '@/store/useChatStore';
 import { useSkillStore } from '@/store/skill';
 import useConfigStore from '@/store/useConfigStore';
 import { useShallow } from 'zustand/react/shallow';
-import { SETTINGS_GOOGLE_OAUTH_PATH, SETTINGS_SKILLS_PATH } from '@/lib/skills/integrationOAuthDisplay';
+import { getOAuthIssuerSettingsPath, SETTINGS_SKILLS_PATH } from '@/lib/skills/integrationOAuthDisplay';
 
 export interface SkillRequiredConnectorsPreflightBannerProps {
   className?: string;
@@ -121,11 +121,8 @@ export function SkillRequiredConnectorsPreflightBanner({
   }
 
   const handleGoToSettings = () => {
-    if (preflightResult.missingIssuers.some((i) => i.issuer.toLowerCase().includes('google'))) {
-      router.push(SETTINGS_GOOGLE_OAUTH_PATH);
-    } else {
-      router.push(SETTINGS_SKILLS_PATH);
-    }
+    const [firstMissingIssuer] = preflightResult.missingIssuers;
+    router.push(firstMissingIssuer ? getOAuthIssuerSettingsPath(firstMissingIssuer.issuer) : SETTINGS_SKILLS_PATH);
   };
 
   return (

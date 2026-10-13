@@ -6,7 +6,6 @@ export interface ConfigError {
   error_type: string;
   messages?: { en: string; zh: string };
   resolution_steps?: string[];
-  config_url?: string;
 }
 
 /**
@@ -32,7 +31,6 @@ export function useConfigErrorDetector() {
           error_type: errorType,
           messages: metadata.messages as { en: string; zh: string } | undefined,
           resolution_steps: metadata.resolution_steps as string[] | undefined,
-          config_url: (metadata.config_url as string) || '/settings/models',
         });
       }
     }

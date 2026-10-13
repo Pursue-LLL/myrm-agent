@@ -863,3 +863,55 @@ except Exception:
 4. 局限：没有线上遥测，云端对账耗时与命中频率未测；本机 30 次对账耗时 41–458 ms（中位 57 ms，p90 126 ms），按此推算约 7% 的排队出队会撞上晚收尾（推算，不是实测命中率）；真实浏览器里的分栏窗格组合、`streamConsumer.ts` 中 attach 嵌套（`allowWhileLoading`）只做了代码推演，没有端到端复现。
 
 ---
+
+## BUG-AGENT-2026-10-13-002: 设置页深链没有单一真源，提示 / 推送 / 技能资产里的“去设置”落到 404 或错误页面
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-13 |
+| 修复日期 | 2026-10-13 |
+| 严重程度 | P2（用户按提示去重新授权或查看治理结果时落到 404 页面或无关页面；功能本身未受损） |
+| 影响范围 | 前端 `settingsRoutes.ts`（新增）、`app/settings/[tab]/page.tsx`、`SettingsLayout.tsx`、`SettingsMenu.tsx`、`useSettingsDirtyStore.ts`、`useDirtyGuard.ts`、`scripts/verify-i18n.mjs`、`NavBar.tsx`、`ExtensionDisconnectedBanner.tsx`、`DailyReviewCard.tsx`、`SkillRequiredConnectorsPreflightBanner.tsx`、`DataFlowDisclosurePanel.tsx`、`integrationOAuthDisplay.ts`、`hooks/globalEvents/useGlobalEvents.ts` 与 `reauthToasts.ts`（新增）、`useConfigErrorDetector.ts`、`locales/*.json`；服务端 `app/core/web_push/push_deep_links.py`、`app/services/wiki/maintain/runner.py`、`app/services/wiki/daily_review/runner.py`、`app/core/channel_bridge/agent_executor/execute_errors.py`、预置技能 `mcp-expiry-watchdog` 与 `mcp-proactive-reauth-watchdog` |
+| 出现次数 | 2（同类根因见 `BUG-AGENT-2026-07-27-001`：Tab 多处登记遗漏） |
+| 关联 roadmap | `topic_19_cross_device_mobile_remote_and_physical_companion_roadmap`（dev-shell 内部 roadmap，未归档进本仓） |
+
+### 现象
+
+1. 直接访问或刷新 `/settings/workbench`、`/settings/shares` 走 `notFound()`：两个 Tab 已在 `SettingsLayout` 的 `BASE_TABS` 与 `SettingsMenu` 登记（HEAD `SettingsLayout.tsx:132,139`、`SettingsMenu.tsx:116,149`），`page.tsx` 的 `VALID_TABS` 却没有它们；
+2. 站内与服务端写死的入口指向不存在的路由；运行中的 dev server 上 `/settings/browser`、`/settings/knowledge`、`/settings/extensions` 的响应体均含 `NEXT_HTTP_ERROR_FALLBACK;404`：导航栏与 `ExtensionDisconnectedBanner` 的扩展入口（`/settings/browser`）、`DailyReviewCard` 的待审编辑入口与每日回顾 / 知识库治理 cron 文案里的链接（`/settings/knowledge…`）、MCP 授权过期 toast 的操作按钮（`/settings/extensions`）；
+3. 预置技能 `mcp-expiry-watchdog`、`mcp-proactive-reauth-watchdog` 让模型把用户指向 `/settings/integrations?focus=google-workspace` 与 `/settings/integrations?reauth=google`，这个路由同样不存在；
+4. OAuth 过期（`OAUTH_REAUTH_REQUIRED`）的 Web Push 与站内 toast 都落到「连接新服务」的目录页 `/settings/integrationCatalog`，数据流披露面板里每个已连接的 OAuth 账号也链到它；前置检查横幅按 `issuer.includes('google')` 在 Credentials 与 Skills 之间二选一；模型提供商的 OAuth（issuer 以 `provider_` 开头）本应去 Models；
+5. 六个语言文件都缺 `metadata.settingsTabs.{workbench,shares,a2aPeers}` 与 `settings.menu["brand-studio"]`（逐文件脚本核对 HEAD），修复前实测 `/settings/a2aPeers` 的页面标题是原始 key（其余三个未逐一实测）；
+6. `execute_errors.py` 的 `config_url: "/settings/model-service"`（路由不存在）与 `useConfigErrorDetector.ts` 的 `config_url` 是无人读取的死字段（全仓 `config_url` 检索无消费方）。
+
+### 根因
+
+1. Tab 清单在 4 个文件里手抄了 6 份：`page.tsx` 的 `VALID_TABS` 与 `DEPRECATED_TAB_MAP`、`SettingsLayout.tsx` 的 `BASE_TABS` 与另一份 `DEPRECATED_TAB_MAP`、`SettingsMenu.tsx` 的 `SettingsTab` 联合类型、`verify-i18n.mjs` 的 `VALID_TABS`；新增一处不会被其余感知，两份别名表也已彼此漂移（`page.tsx` 缺 `memory-cloud-backup` / `memory-migration`，`SettingsLayout.tsx` 缺 `persona` / `toolCapabilities`）；
+2. 跨层写死的 `/settings/<tab>` 字面量（前端组件、服务端推送与 cron 文案、预置技能资产）不在任何校验范围内：`verify-i18n` 只查文案键，没有测试核对“字面量指向的 Tab 存在”；`BUG-AGENT-2026-07-27-001` 当时只补了遗漏的条目，没有消除多处登记；
+3. OAuth 落点把「连接新服务的目录」当成了「管理既有授权的页面」，并用 issuer 子串匹配代替显式映射。
+
+### 修复
+
+1. 新增 `settingsRoutes.ts` 作路由单一真源：`SETTINGS_TABS`（48 个）、`SETTINGS_TAB_REDIRECTS`（18 个别名）、`TAURI_ONLY_TABS`、`isSettingsTab`、`getSettingsTabRedirectPath`；`page.tsx`、`SettingsLayout.tsx`、`SettingsMenu.tsx` / 脏状态 store / `useDirtyGuard.ts`（只取类型）与 `verify-i18n.mjs`（读取清单）全部改读它；别名统一由服务端页面 `redirect()` 消化，`SettingsLayout` 里的客户端 `router.replace` 副本删除；`SECTION_COMPONENTS` 对 `SettingsTab` 穷尽，新增 id 漏写组件会编译报错；`SettingsLayout.tsx` 由 469 行降到 391 行；
+2. 死链改正：`/settings/browser` → `/settings/extensionBridge`，`/settings/knowledge…` → `/settings/wiki…`（含服务端两个 runner 的文案），`/settings/extensions` → `/settings/mcp`（随 toast 抽出为 `reauthToasts.ts`），预置技能两处 → `/settings/mcp`；删除两个 `config_url`；
+3. OAuth 落点：前端 `getOAuthIssuerSettingsPath(issuer)`（`provider_*` → `/settings/models`，其余 → `/settings/credentials`）由 toast、前置检查横幅与数据流面板共用；服务端 `push_deep_links._oauth_reauth_path` 按同一规则镜像（Web Push 不能 import 前端，两侧各由测试钉死）；
+4. 守门：服务端 `tests/architecture/test_settings_deep_links.py` 扫描前端源码、`app/**/*.py` 与 `assets/**` 里所有 `/settings/<id>` 字面量，要求落在 `SETTINGS_TABS` ∪ `SETTINGS_TAB_REDIRECTS` 内（跳过测试源码与含 `prefix=` 的 FastAPI 路由行）；
+5. 补齐六语言 `metadata.settingsTabs.{workbench,shares,a2aPeers}` 与 `settings.menu["brand-studio"]`。
+
+### 验证
+
+1. 前端 5 个相关测试文件 51 例通过（`settingsRoutes` 7、`reauthToasts` 6、`integrationOAuthDisplay` 13、`SkillRequiredConnectorsPreflightBanner` 7、`DataFlowDisclosurePanel` 18），与目录连接状态那批合计 11 个文件 99 例全过（JSON 报告）；`src/components/features/settings`、`onboarding`、`hooks/globalEvents`、`hooks/ui`、`lib/skills`、`components/layout` 与横幅测试共 168 个文件 1006 例全过（exit 0）；
+2. 服务端 `test_settings_deep_links.py`、3 个预置技能钉死测试、`tests/core/web_push`、两个 wiki 测试文件共 98 例通过；
+3. 变异检查：在前端 `src`、服务端 `app`、`assets` 各放一个探针文件，分别写 `/settings/browser`、`/settings/knowledge?wikiTab=pendingEdits`、`/settings/integrations?reauth=google`，守门测试变红并逐条报出文件与行号（`1 failed, 1 passed`），删除探针后恢复全绿；路由单测与 OAuth 落点测试没有逐个做变异；
+4. 运行中的 dev server 只读 GET：`/settings/workbench`、`/settings/shares` 返回 200；别名 `/settings/persona` 的响应体含指向 `/settings/personalization` 的 `<meta http-equiv="refresh">`；`a2aPeers`、`shares`、`workbench`、`brand-studio` 的页面标题均为译文；该 dev server 读取被 git 忽略的 `locales/namespaces/`，需先 `bun run i18n:split` 重新生成才能读到新键；
+5. oxlint 0 条（用带 `debugger` 的探针文件做过正向对照）；`verify-i18n` 通过；全量 `tsc --noEmit` 只剩他人未跟踪测试文件 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误。
+
+### 踩坑经验
+
+1. 路由 id 只能有一份清单，类型、校验脚本与别名表都从它派生；手抄副本迟早漂移，这次两份别名表已经不一致；
+2. 跨层写死的字面量要有机器守门，前端、服务端与提示词资产用同一份路由真源核对，否则写错一个 id 只能等用户点到 404；
+3. 落点要按用户意图选页面（管理既有授权 ≠ 连接新服务），issuer → 页面用显式映射，不要用子串匹配；
+4. Next 在 `Suspense` 内的 `redirect()` 返回 200 加 `<meta http-equiv="refresh">`，不是 3xx，探针要读响应体，只看状态码与 `Location` 会误判成“没有重定向”；
+5. 局限：服务端 `provider_` 前缀规则与前端各有一份（两侧测试分别钉死，不是同一份代码）；没有对真实 Web Push 载荷做端到端点击，移动端 PWA 的推送点击落点未实测。
+
+---

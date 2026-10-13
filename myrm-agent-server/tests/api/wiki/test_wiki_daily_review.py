@@ -138,9 +138,7 @@ async def test_daily_review_compound_job_llm_summary_links_pending_panel() -> No
         with patch("app.services.wiki.vault.service.resolve_wiki_vault_path", return_value=vault_root):
             review_dir = vault_root / "raw" / DAILY_REVIEW_RAW_DIR
             review_dir.mkdir(parents=True, exist_ok=True)
-            (review_dir / "llm-branch-review.md").write_text(
-                "---\nsource: daily-review\n---\nprogress notes", encoding="utf-8"
-            )
+            (review_dir / "llm-branch-review.md").write_text("---\nsource: daily-review\n---\nprogress notes", encoding="utf-8")
             result = await run_wiki_daily_review_compound_job(llm=FakeListChatModel(responses=[]))
     finally:
         reset_wiki_archiver_cache_for_tests()
@@ -148,7 +146,7 @@ async def test_daily_review_compound_job_llm_summary_links_pending_panel() -> No
     assert result.recent_review_files == 1
     assert result.window_drafts == 0
     assert "0 draft(s) produced (none)" in result.summary_text
-    assert "wikiTab=pendingEdits" in result.summary_text
+    assert "/settings/wiki?wikiTab=pendingEdits" in result.summary_text
     # Cron output renders as plain text in every surface; markdown link syntax
     # would leak raw "[text](url)" noise into run history and push feeds.
     assert "](" not in result.summary_text
@@ -231,7 +229,4 @@ async def test_archiver_compiler_uses_four_dimension_prompt() -> None:
     from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id="default")
-    assert (
-        archiver._compiler._compile_config.extract_concepts_prompt_template
-        == FOUR_DIMENSION_EXTRACT_PROMPT
-    )
+    assert archiver._compiler._compile_config.extract_concepts_prompt_template == FOUR_DIMENSION_EXTRACT_PROMPT
