@@ -9,9 +9,9 @@
  * validateChatModelConfig: Block send when default model / provider is incomplete.
  * resolveEffectiveAgentId: Resolve the agent identity used for chat memory bindings.
  * createMessageRequest: Assemble the agent chat request payload and stream it.
- * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally, by the server with a non-retryable HTTP error, or because the workspace stream was not ready before the first request; an ordinary send tells the user why, a resume with `resumeValue` does not and its store wrapper throws instead), a server busy refusal retracts the optimistic bubble, queued messages send their own attachments.
+ * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally, by the server with a non-retryable HTTP error, or because the workspace stream was not ready before the first request; an ordinary send tells the user why, a resume with `resumeValue` does not and its store wrapper throws instead), a server busy refusal retracts the optimistic bubble, queued messages send their own attachments, a turn that ends after a newer one took over leaves the turn state (loading, Stop handle, request id, attachments) to the newer one.
  * createSmartUpdater: Route state updates to active store or background snapshot.
- * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn.
+ * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn; ending never resets the turn state of a newer turn.
  *
  * [POS]
  * Chat message request assembly layer. It prepares payloads and acts as the MMU (Memory Management Unit) routing stream updates to the correct store.
@@ -49,8 +49,9 @@ import {
   FatalNetworkError,
   RequestRefusedError,
   consumeStream,
+  shouldUseMultiplexedAgentStream,
 } from './streamConsumer';
-import { resolveRequestState, retractUserBubble, sendFailureToast } from './sendLifecycle';
+import { isHeldByOtherTurn, resolveRequestState, retractUserBubble, sendFailureToast } from './sendLifecycle';
 import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
 import useToolApprovalStore from '../useToolApprovalStore';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -78,19 +79,6 @@ import { normalizeMCPServiceConfigs } from '@/lib/utils/mcp-config';
 import { consumeMigrationReadinessAnchorForAgent, peekMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
-
-function shouldUseMultiplexedAgentStream(): boolean {
-  if (typeof window === 'undefined') {
-    return true;
-  }
-  if (window.__MYRM_E2E_DIRECT_SSE__) {
-    return false;
-  }
-  if (resolveE2eApiBase()) {
-    return true;
-  }
-  return true;
-}
 
 function resolveKanbanProjectScope(migrationBoundProjectId: string | null | undefined): string | null {
   const migrationScope = migrationBoundProjectId?.trim();
@@ -1133,6 +1121,8 @@ export const sendMessage = async (
 
   let pushedUserBubble = false;
   let dispatched = false;
+  // The abort handle this turn installed; whoever holds it owns the shared turn state until the turn ends.
+  let turnController: AbortController | null = null;
 
   try {
     // 搜索服务检查：
@@ -1161,6 +1151,7 @@ export const sendMessage = async (
 
     // 创建 AbortController 并设置 loading 状态
     const abortController = new AbortController();
+    turnController = abortController;
 
     // Save the abort controller to the workspace store for the current pane
     if (state.chatId) {
@@ -1287,7 +1278,14 @@ export const sendMessage = async (
     }
   } finally {
     const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
+    // This turn can end after the next one took over (it was still reconciling with the server, or its retry wait
+    // had not run out yet): the turn state then belongs to the newer turn and stays untouched.
+    let supersededByNewerTurn = false;
     smartSetMessages((innerState) => {
+      supersededByNewerTurn = isHeldByOtherTurn(innerState.abortController, turnController);
+      if (supersededByNewerTurn) {
+        return;
+      }
       innerState.loading = false;
       innerState.abortController = null;
       innerState.currentSessionMessageId = null;
@@ -1298,19 +1296,14 @@ export const sendMessage = async (
       }
     });
 
-    if (state.chatId) {
-      const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
-      if (paneId) {
-        useWorkspaceStore.getState().setPaneAbortController(paneId, null);
+    if (!supersededByNewerTurn) {
+      if (state.chatId) {
+        const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
+        if (paneId) {
+          useWorkspaceStore.getState().setPaneAbortController(paneId, null);
+        }
       }
-    }
-
-    actions.setHideAttachList(false);
-    // A terminal transport can finish after the user has already started the
-    // next turn.  Only clear the request id that this invocation owns; an
-    // unconditional clear would detach the next turn from its stream.
-    if (useChatStore.getState().currentSessionMessageId === requestMessageId) {
-      actions.clearCurrentSessionMessageId();
+      actions.setHideAttachList(false);
     }
     actions.scheduleAutoSave();
 
@@ -1586,11 +1579,17 @@ export const attachToChat = async (
     }
     return false;
   } finally {
+    // The attach can end after a newer turn took over (it was still reconciling with the server): that turn owns the state.
+    let supersededByNewerTurn = false;
     smartActions.setMessages((draft) => {
+      supersededByNewerTurn = isHeldByOtherTurn(draft.abortController, abortController);
+      if (supersededByNewerTurn) {
+        return;
+      }
       draft.loading = false;
       draft.abortController = null;
     });
-    if (paneId) {
+    if (paneId && !supersededByNewerTurn) {
       useWorkspaceStore.getState().setPaneAbortController(paneId, null);
     }
   }

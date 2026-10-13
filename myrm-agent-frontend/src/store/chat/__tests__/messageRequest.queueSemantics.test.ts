@@ -13,7 +13,7 @@ import { fetchWithTimeout } from '@/lib/api';
 import { createAISearchStream } from '@/services/chat';
 import { setGlobalTranslator, showI18nToast } from '@/services/i18nToastService';
 import { sendMessage, type ChatActionsMethods, type ChatActionsState } from '@/store/chat/messageRequest';
-import { resolveRequestState, retractUserBubble } from '@/store/chat/sendLifecycle';
+import { isHeldByOtherTurn, resolveRequestState, retractUserBubble } from '@/store/chat/sendLifecycle';
 import { AgentBusyError } from '@/store/chat/streamConsumer';
 import type { ChatState, File as ChatFile, Message } from '@/store/chat/types';
 import { getInitialDefaultModelConfig } from '@/store/config/providerTypes';
@@ -102,6 +102,21 @@ describe('sendLifecycle helpers', () => {
     expect(resolved.files).toEqual(queued.files);
     expect(resolved.cameraFrames).toEqual([]);
     expect(state.files.map((f) => f.id)).toEqual(['live']);
+  });
+
+  it('isHeldByOtherTurn is true for the live controller of another turn only', () => {
+    const own = new AbortController();
+    expect(isHeldByOtherTurn(new AbortController(), own)).toBe(true);
+    expect(isHeldByOtherTurn(new AbortController(), null)).toBe(true);
+    expect(isHeldByOtherTurn(own, own)).toBe(false);
+  });
+
+  it('isHeldByOtherTurn treats a missing, cleared or serialized handle as held by nobody', () => {
+    const own = new AbortController();
+    expect(isHeldByOtherTurn(null, own)).toBe(false);
+    expect(isHeldByOtherTurn(undefined, own)).toBe(false);
+    // A pane snapshot is a JSON clone, so its handle is a plain object rather than a live controller.
+    expect(isHeldByOtherTurn(JSON.parse(JSON.stringify(new AbortController())), own)).toBe(false);
   });
 });
 

@@ -6,11 +6,13 @@
  * - resolveRequestState: per-request view of the chat state (agent override + queued attachments).
  * - retractUserBubble: state updater that removes the optimistic user bubble of a request the server refused.
  * - sendFailureToast: toast options reporting a failed turn without exposing raw error texts.
+ * - isHeldByOtherTurn: whether a newer turn holds the shared abort handle, so an ended turn must not release the shared turn state.
  *
  * [POS]
  * Pure helpers of the send lifecycle. Kept apart from messageRequest.ts so the queue-drain semantics
- * (a queued message sends its own attachments, a busy rejection leaves no ghost bubble) and the wording policy
- * for failed turns stay unit-testable.
+ * (a queued message sends its own attachments, a busy rejection leaves no ghost bubble), the turn ownership rule
+ * (an ended turn never resets the state of the turn that replaced it) and the wording policy for failed turns
+ * stay unit-testable.
  */
 import type { AgentConfig, ChatState, File, QueuedAttachments } from '@/store/chat/types';
 
@@ -37,6 +39,16 @@ export function resolveRequestState<S extends RequestStateSlice>(
     ...(agentConfigOverride !== undefined && { agentConfig: agentConfigOverride }),
     ...(queuedAttachments && { files: queuedAttachments.files, cameraFrames: [] }),
   };
+}
+
+/**
+ * Whether a newer turn holds the shared abort handle. Only the owner of the handle may release the turn state it
+ * guards: a turn can end after the next one took over (it still reconciles with the server, or its retry wait is
+ * over), and resetting then would leave the running turn without a Stop button. A pane snapshot is a JSON clone,
+ * so a handle read from it is a plain object rather than a live controller and counts as held by nobody.
+ */
+export function isHeldByOtherTurn(held: unknown, own: AbortController | null): boolean {
+  return held instanceof AbortController && held !== own;
 }
 
 /**

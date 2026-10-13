@@ -7,6 +7,7 @@
  *
  * [OUTPUT]
  * executeStreamWithRetry / consumeStream: SSE 消费、网络重试、AgentBusyError fail-fast、multiplex 分流；turn 成功后 finalizeAgentStreamTurn
+ * shouldUseMultiplexedAgentStream: 本轮 chunk 走 workspace multiplex 还是 POST 响应体（请求体 multiplexed 字段与消费端共用此判定）
  *
  * [POS]
  * Chat agent-stream 前端消费 SSOT。busy 检测：HTTP 409 或 SSE error_type=AgentBusyError；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；multiplex 下 early-terminal SSE 直读 POST。
@@ -44,18 +45,13 @@ function finalizeMigrationBoundProjectHandoff(chatId: string | undefined): void 
   }
 }
 
-function shouldUseMultiplexedAgentStream(): boolean {
-  if (typeof window === 'undefined') {
-    return true;
-  }
-  if (window.__MYRM_E2E_DIRECT_SSE__) {
-    return false;
-  }
-  // Private-backend Chrome E2E tees agent-stream chunks on /workspace/stream when multiplex is active.
-  if (resolveE2eApiBase()) {
-    return true;
-  }
-  return true;
+/**
+ * Whether this turn's chunks arrive over the workspace multiplex stream instead of the POST response body.
+ * The request body (`multiplexed`) and the consumer must read the same answer. Private-backend Chrome E2E tees
+ * agent-stream chunks on /workspace/stream, so it keeps multiplex on and only the direct-SSE flag opts out.
+ */
+export function shouldUseMultiplexedAgentStream(): boolean {
+  return typeof window === 'undefined' || !window.__MYRM_E2E_DIRECT_SSE__;
 }
 
 async function drainResponseBodyInBackground(res: Response): Promise<void> {

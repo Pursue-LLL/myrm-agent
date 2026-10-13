@@ -819,3 +819,46 @@ except Exception:
 3. 12 秒与 60 秒是按设置页 15 秒中止与客户端默认 30 秒超时取的设计值，没有时延分布数据；服务端依赖已发布的 harness 版本，`/check-reachability` 的真实截止时间要等 harness 升版后生效。
 
 ---
+
+## BUG-AGENT-2026-10-13-001: 上一轮晚于下一轮收尾，清掉新一轮的运行状态（停止按钮消失或失效）
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-13 |
+| 修复日期 | 2026-10-13 |
+| 严重程度 | P2（新一轮仍在运行，界面却显示空闲：停止按钮消失或点击无效，服务端继续跑到结束，手动重发被服务端以忙碌拒绝） |
+| 影响范围 | `myrm-agent-frontend/src/store/chat/messageRequest.ts`（`sendMessage` / `attachToChat` 的 `finally`）, `sendLifecycle.ts`, `streamConsumer.ts` |
+| 出现次数 | 1（真实 store + 真实请求管线复现，未取得线上遥测） |
+| 关联 roadmap | `topic_09_frontend_ux_roadmap`（dev-shell 内部 roadmap，未归档进本仓） |
+
+### 现象
+
+1. 一轮的流结束后，`MESSAGE_END` 的 50 ms 定时器已让界面回到空闲，但这一轮还在 `finalizeAgentStreamTurn` 里向服务端对账；这段时间内用户或排队出队（界面空闲 300 ms 后发送）发出的下一轮，会在对账返回后被上一轮的 `finally` 清掉 `loading`、Stop 句柄、请求 id、输入框附件和面板句柄；
+2. 下一轮其实还在跑：停止按钮消失或点击无效（`stopMessage` 找不到句柄），服务端继续跑到结束，再次发送会被服务端以忙碌拒绝；
+3. 另外两条同构路径：停止了一个正在退避重试的请求并发出新一轮，旧轮的退避等待不响应停止，等待结束放弃时清掉新一轮；`attachToChat` 重连收尾的对账同样晚于下一轮。
+
+### 根因
+
+回合没有「归属」：`finally` 无条件复位共享状态，而这些状态同一时刻只能属于一轮。上一轮的收尾发生在它的流之后（对账、退避等待结束、attach 对账），下一轮可能已经接管。`sendMessage` 里原有的 `currentSessionMessageId === requestMessageId` 守卫排在同一个 `finally` 的无条件清空之后，对当前活动的 store 不起作用，`attachToChat` 回合又没有请求 id。
+
+### 修复
+
+1. `sendLifecycle.isHeldByOtherTurn(held, own)`：共享 Stop 句柄是另一轮的存活 `AbortController` 才算被别轮持有；`null`、缺失，以及面板快照（JSON 克隆）里的普通对象句柄都算无人持有，后台面板里失败的回合仍然释放快照；
+2. `sendMessage` 与 `attachToChat` 的 `finally` 以本轮安装的控制器为身份：被别轮持有时，不动 `loading`、Stop 句柄、请求 id、附件和面板句柄；`scheduleAutoSave` 与处理锁释放照常；删除空转的守卫；
+3. 顺带把 `shouldUseMultiplexedAgentStream` 的两份相同拷贝收敛为 `streamConsumer.ts` 的一个导出（请求体与消费端必须同一答案；行为与请求体不变，属于维护性清理，不是用户可见修复）。
+
+### 验证
+
+1. 新增 `messageRequest.turnOwnership.test.ts` 6 个用例（真实 `useChatStore` / `useWorkspaceStore` 与真实请求管线，只替换网络与对账接口）和 `messageRequest.queueSemantics.test.ts` 的 2 个纯函数用例；修复前 4 个管线用例红且原因是 `loading` 被清成 false（晚对账有/无面板各 1、停止后退避结束 1、attach 1），当前回合释放与后台面板快照 2 个用例修复前后都绿；
+2. 变异检查（逐个应用后恢复，文件哈希与基线一致）：总是释放 → 5 红；缺失句柄当别轮 → 2 红；面板句柄不受守卫 → 1 红；别轮收尾仍清附件 → 2 红；别轮收尾仍清请求 id → 2 红；attach 守卫去掉 → 1 红；本轮不记录自己的控制器 → 1 红；
+3. `src/store/chat`、`hooks/message-input`、`lib/approval` 与 2 个 store 用例共 840 个用例通过；唯一失败的文件 `messageInputKeyRouter.test.ts` 是因为他人正在改的 `locales/de.json` 当前不是合法 JSON（`de.json:21424`），与本修复无关；
+4. oxlint 0 条；全量 `tsc` 被同一个 `de.json` 语法错误挡住，改用只含改动文件及其依赖的临时 tsconfig 通过。
+
+### 踩坑经验
+
+1. 共享的回合状态只能由持有者释放，`finally` 里的复位必须带身份判断；身份不能用请求 id（attach 回合没有 id，`clearActiveStream` 也会清掉 id），要用 Stop 实际使用的控制器句柄；
+2. 面板快照是 JSON 克隆，克隆出的句柄是普通对象：严格相等会把「无人持有」当成「别轮持有」，后台面板里的回合就永远释放不了，必须用 `instanceof AbortController`；
+3. 这类竞态要用真实 store 和真实请求管线复现，mock 掉 `setMessages` 看不到「别轮的状态被清掉」；
+4. 局限：没有线上遥测，云端对账耗时与命中频率未测；本机 30 次对账耗时 41–458 ms（中位 57 ms，p90 126 ms），按此推算约 7% 的排队出队会撞上晚收尾（推算，不是实测命中率）；真实浏览器里的分栏窗格组合、`streamConsumer.ts` 中 attach 嵌套（`allowWhileLoading`）只做了代码推演，没有端到端复现。
+
+---
