@@ -20,6 +20,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
+| `support/chat_db_fixtures.py` | 辅助 | 内存库夹具插件（经根 `conftest.py` 的 `pytest_plugins` 全局注册，不是 conftest：既是 conftest 又列在 `pytest_plugins` 会被注册两次，指向其目录的运行直接中止）：`db_session`（建全部表并把 `get_session_factory` 绑到它）、`fts_db`（再建 `messages_fts` trigram 虚拟表、三个同步触发器与会话回忆表）；聊天持久化与搜索类测试显式请求 |
+| `support/artifact_upsert_fixture.py` | 辅助 | 制品 upsert 自动 mock 插件（autouse，`pytest_plugins` 全局注册）：把 `app.core.artifacts.listener.upsert_processor_artifact` 换成 `AsyncMock`；`core/artifacts` 与 `api/artifacts` 测试共用，对不碰制品管线的测试无副作用 |
 | `support/export_world.py` | 辅助 | 专家导出测试的假安装：`ExportWorld`（专家、技能目录与文件、连接器）+ `installed()` 上下文把导出闭包指向它；`SKILL_MD` 最小合法技能；`services/plugins` 与 `api/plugins` 导出测试共用 |
 | `support/redaction_review_e2e.py` | 辅助 | 导出脱敏复核 Chrome E2E 的浏览器侧：`ReviewFlow`（对话框标题、进入方式、成功提示措辞）+ `run_review_flow`（zh 与 en 各读一遍发现项的本地化句子且无原始代码、`kinds.` 键名与另一语言句子，再点“导出脱敏版”走真实下载并以对话框关闭为判据，结束恢复 `NEXT_LOCALE`）；专家导出、批量导出与单技能导出三个 E2E 共用（`advance_js` 让打开在选择步骤的向导前进到复核步骤） |
 | `e2e/test_expert_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：`/settings/agents` 带密钥与本机路径的智能体，预览 API 返回 `api_token`/`absolute_path` 代码，导出对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框 |
