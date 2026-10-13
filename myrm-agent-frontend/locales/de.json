@@ -3692,8 +3692,8 @@
       "retry": "Erneut versuchen",
       "insights": {
         "title": "Graph-Einblicke",
-        "description": "Structural signals from your wiki graph — gaps, surprising links, and topic clusters.",
-        "loading": "Loading insights…",
+        "description": "Strukturelle Signale aus Ihrem Wiki-Graphen – Lücken, überraschende Verknüpfungen und Themencluster.",
+        "loading": "Einblicke werden geladen…",
         "error": "Graph-Einblicke konnten nicht geladen werden.",
         "retry": "Erneut versuchen",
         "gapsTitle": "Wissenslücken ({count})",
@@ -3701,12 +3701,12 @@
         "communitiesTitle": "Themencluster ({count})",
         "emptyGaps": "Keine Wissenslücken erkannt.",
         "emptyConnections": "Noch keine unerwarteten Verbindungen.",
-        "emptyCommunities": "No clusters yet — add more concepts to the vault.",
+        "emptyCommunities": "Noch keine Cluster – fügen Sie dem Vault weitere Konzepte hinzu.",
         "isolated": "Isolierter Knoten",
         "bridge": "Brücke",
         "locate": "Fokus",
         "cohesion": "Kohäsion",
-        "members": "Konzepte"
+        "communitySize": "{count, plural, one {# Konzept} other {# Konzepte}}"
       },
       "deselectAll": "Alle umschalten",
       "legend": "Knotentypen",

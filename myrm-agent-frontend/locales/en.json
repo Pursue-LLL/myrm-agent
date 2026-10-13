@@ -3774,7 +3774,7 @@
         "bridge": "Bridge",
         "locate": "Focus",
         "cohesion": "Cohesion",
-        "members": "members"
+        "communitySize": "{count, plural, one {# concept} other {# concepts}}"
       },
       "deselectAll": "Toggle All",
       "legend": "Node Types",

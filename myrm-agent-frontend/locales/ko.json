@@ -3706,7 +3706,7 @@
         "bridge": "브리지 연결",
         "locate": "초점",
         "cohesion": "응집도",
-        "members": "개 개념"
+        "communitySize": "{count, plural, other {# 개 개념}}"
       },
       "deselectAll": "모두 토글",
       "legend": "노드 유형",

@@ -3774,7 +3774,7 @@
         "bridge": "桥接纽带",
         "locate": "定位",
         "cohesion": "内聚度",
-        "members": "个概念"
+        "communitySize": "{count, plural, other {# 个概念}}"
       },
       "deselectAll": "切换全部",
       "legend": "节点类型",

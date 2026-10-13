@@ -3706,7 +3706,7 @@
         "bridge": "橋接紐帶",
         "locate": "定位",
         "cohesion": "內聚度",
-        "members": "個概念"
+        "communitySize": "{count, plural, other {# 個概念}}"
       },
       "deselectAll": "切換全部",
       "legend": "節點類型",

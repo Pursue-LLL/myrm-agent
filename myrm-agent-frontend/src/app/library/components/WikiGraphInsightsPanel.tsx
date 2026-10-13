@@ -11,7 +11,40 @@ import {
   type WikiUnexpectedConnectionItem,
   type WikiCommunityItem,
 } from '@/services/wikiService';
-import { activateOnKey } from '@/lib/utils/a11y';
+import { cn } from '@/lib/utils/classnameUtils';
+
+/** Hub plus the members shown as chips under it. */
+const MAX_VISIBLE_MEMBERS = 5;
+
+interface NodeLinkProps {
+  nodeId: string;
+  onSelect?: (nodeId: string) => void;
+  className?: string;
+}
+
+/** Page name that focuses the page in the graph when a handler is provided. */
+function NodeLink({ nodeId, onSelect, className }: NodeLinkProps) {
+  if (!onSelect) {
+    return (
+      <span className={className} title={nodeId}>
+        {nodeId}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      title={nodeId}
+      onClick={() => onSelect(nodeId)}
+      className={cn(
+        'cursor-pointer text-left transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        className,
+      )}
+    >
+      {nodeId}
+    </button>
+  );
+}
 
 interface WikiGraphInsightsPanelProps {
   agentId?: string | null;
@@ -137,29 +170,18 @@ export default function WikiGraphInsightsPanel({ agentId, onSelectNode }: WikiGr
                       className="flex items-center justify-between gap-2 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 transition-colors hover:bg-muted/60"
                     >
                       <div className="min-w-0 flex-1 truncate text-xs">
-                        <span
-                          className="cursor-pointer font-medium text-foreground hover:underline"
-                          onClick={() => onSelectNode?.(item.source)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={activateOnKey}
-                        >
-                          {item.source}
-                        </span>
+                        <NodeLink
+                          nodeId={item.source}
+                          onSelect={onSelectNode}
+                          className="font-medium text-foreground"
+                        />
                         <span className="mx-1 text-muted-foreground">↔</span>
-                        <span
-                          className="cursor-pointer font-medium text-foreground hover:underline"
-                          onClick={() => onSelectNode?.(item.target)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={activateOnKey}
-                        >
-                          {item.target}
-                        </span>
+                        <NodeLink
+                          nodeId={item.target}
+                          onSelect={onSelectNode}
+                          className="font-medium text-foreground"
+                        />
                       </div>
-                      <span className="shrink-0 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                        w={item.weight}
-                      </span>
                     </li>
                   ))}
               </ul>
@@ -176,38 +198,42 @@ export default function WikiGraphInsightsPanel({ agentId, onSelectNode }: WikiGr
               <p className="text-xs text-muted-foreground">{t('emptyCommunities')}</p>
             ) : (
               <ul className="space-y-1.5">
-                {insights.communities.slice(0, 5).map((item: WikiCommunityItem, index: number) => (
-                  <li
-                    key={`community-${index}`}
-                    className="space-y-1 rounded-lg border border-border/40 bg-muted/30 p-2 text-xs"
-                  >
-                    <div className="flex items-center justify-between text-muted-foreground">
-                      <span className="font-medium text-foreground">
-                        Cluster #{item.id} ({item.size} {t('members')})
-                      </span>
-                      <span className="text-[10px]">
-                        {t('cohesion')}: {Math.round(item.cohesion * 100)}%
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {item.members.slice(0, 4).map((member, mIdx) => (
-                        <span
-                          key={mIdx}
-                          onClick={() => onSelectNode?.(member)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={activateOnKey}
-                          className="cursor-pointer rounded bg-background/80 px-1.5 py-0.5 text-[10px] text-foreground transition-colors hover:bg-primary/20"
-                        >
-                          {member}
+                {insights.communities.slice(0, 5).map((item: WikiCommunityItem) => {
+                  // Members arrive hub-first: the best-connected page names the cluster.
+                  const [hub, ...others] = item.members.slice(0, MAX_VISIBLE_MEMBERS);
+                  const hiddenCount = item.size - 1 - others.length;
+                  const cohesionPercent = Math.round(item.cohesion * 100);
+                  return (
+                    <li
+                      key={`community-${item.id}`}
+                      className="space-y-1.5 rounded-lg border border-border/40 bg-muted/30 p-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <NodeLink
+                          nodeId={hub}
+                          onSelect={onSelectNode}
+                          className="min-w-0 truncate font-medium text-foreground"
+                        />
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          {t('communitySize', { count: item.size })} · {t('cohesion')} {cohesionPercent}%
                         </span>
-                      ))}
-                      {item.members.length > 4 ? (
-                        <span className="text-[10px] text-muted-foreground">+{item.members.length - 4}</span>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {others.map((member) => (
+                          <NodeLink
+                            key={member}
+                            nodeId={member}
+                            onSelect={onSelectNode}
+                            className="max-w-full truncate rounded bg-background/80 px-1.5 py-0.5 text-[10px] text-foreground"
+                          />
+                        ))}
+                        {hiddenCount > 0 ? (
+                          <span className="text-[10px] text-muted-foreground">+{hiddenCount}</span>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
