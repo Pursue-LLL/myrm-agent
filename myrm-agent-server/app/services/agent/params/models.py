@@ -54,7 +54,7 @@ class AgentConfigRequest(BaseModel):
     """Agent configuration from frontend (replaces DB-only agent profile)."""
 
     skill_ids: list[str] = []
-    skill_configs: dict[str, dict] | None = None
+    skill_configs: dict[str, dict[str, object]] | None = None
     enabled_builtin_tools: RequiredBuiltinTools = Field(
         default_factory=lambda: list(DEFAULT_ENABLED_BUILTIN_TOOLS),
     )

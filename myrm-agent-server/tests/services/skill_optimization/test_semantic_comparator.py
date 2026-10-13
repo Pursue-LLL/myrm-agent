@@ -153,6 +153,7 @@ def _judge_prompt_sent(baseline: dict[str, object], candidate: dict[str, object]
     completion = AsyncMock(return_value=reply)
     with patch("litellm.acompletion", completion):
         asyncio.run(SemanticComparator(model="test-model")._llm_semantic_judge(baseline, candidate))
+    assert completion.await_args is not None
     return str(completion.await_args.kwargs["messages"][0]["content"])
 
 

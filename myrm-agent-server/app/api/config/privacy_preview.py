@@ -17,12 +17,10 @@ stored or logged.
 
 from __future__ import annotations
 
-from typing import Annotated
-
 from fastapi import APIRouter
 from myrm_agent_harness.agent.security.types import PIIAction, SensitivityLevel
 from myrm_agent_harness.api.security import preview_privacy_policy
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field
 
 from app.core.security.privacy_settings import (
     PrivacyAgentParams,
@@ -33,25 +31,21 @@ from app.core.security.privacy_settings import (
 privacy_preview_router = APIRouter(tags=["privacy"])
 
 _MAX_TEXT_CHARS = 4000
-_MAX_RULES_PER_LIST = 200
-_MAX_RULE_CHARS = 500
-
-RuleList = Annotated[
-    list[Annotated[str, StringConstraints(max_length=_MAX_RULE_CHARS)]],
-    Field(default_factory=list, max_length=_MAX_RULES_PER_LIST),
-]
 
 
 class PrivacyPreviewRequest(BaseModel):
-    """A sentence to try and the rules to try it against; an action left out takes the product default."""
+    """A sentence to try and the rules to try it against; an action left out takes the product default.
+
+    The rule lists are not capped: a chat turn accepts every rule the settings hold, so the preview must too.
+    """
 
     text: str = Field(min_length=1, max_length=_MAX_TEXT_CHARS)
     privacy_s2_action: PIIAction | None = None
     privacy_s3_action: PIIAction | None = None
-    privacy_custom_keywords_s2: RuleList
-    privacy_custom_keywords_s3: RuleList
-    privacy_custom_patterns_s2: RuleList
-    privacy_custom_patterns_s3: RuleList
+    privacy_custom_keywords_s2: list[str] = Field(default_factory=list)
+    privacy_custom_keywords_s3: list[str] = Field(default_factory=list)
+    privacy_custom_patterns_s2: list[str] = Field(default_factory=list)
+    privacy_custom_patterns_s3: list[str] = Field(default_factory=list)
 
     def privacy_params(self) -> PrivacyAgentParams:
         params: PrivacyAgentParams = {

@@ -15,7 +15,8 @@ _SENTENCE = "帮我总结凤凰计划Q3预算超支原因，发给李总"
 def _preview(**fields: object) -> dict[str, object]:
     response = client.post(_URL, json={"text": _SENTENCE, **fields})
     assert response.status_code == 200, response.text
-    return response.json()
+    body: dict[str, object] = response.json()
+    return body
 
 
 def test_an_s3_keyword_is_masked_with_the_default_action() -> None:
@@ -73,7 +74,9 @@ def test_an_empty_or_oversized_text_is_rejected() -> None:
     assert client.post(_URL, json={"text": "a" * 4001}).status_code == 422
 
 
-def test_an_oversized_rule_is_rejected() -> None:
-    response = client.post(_URL, json={"text": _SENTENCE, "privacy_custom_patterns_s3": ["a" * 501]})
+def test_as_many_rules_as_a_chat_turn_accepts_are_applied() -> None:
+    keywords = [f"codename{n}" for n in range(300)] + ["凤凰计划"]
+    data = _preview(privacy_custom_keywords_s3=keywords, privacy_custom_patterns_s3=["x" * 600])
 
-    assert response.status_code == 422
+    assert data["level"] == "s3"
+    assert "凤凰计划" not in str(data["model_sees"])
