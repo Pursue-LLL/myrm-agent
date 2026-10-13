@@ -1,3 +1,18 @@
+"""Chat turn HTTP routes: regenerate, sibling switching and edit-resend truncation.
+
+[INPUT]
+- app.services.chat.chat_service::ChatService (POS: chat business facade)
+- app.services.chat.session_continuity_service::ContinuitySyncError (POS: DB-to-checkpoint continuity failure)
+
+[OUTPUT]
+- router: POST /{chat_id}/regenerate, POST /{chat_id}/switch-sibling, GET /{chat_id}/siblings/{sibling_group_id},
+  POST /{chat_id}/truncate-after
+
+[POS]
+Turn-level mutation endpoints of the chat API. Going back to an earlier message is `rewind.py`; IM retry and undo
+call the service layer directly.
+"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException

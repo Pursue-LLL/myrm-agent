@@ -12,6 +12,7 @@ Split from session_analytics.py to satisfy file line budget.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -66,7 +67,7 @@ async def get_model_sessions(
         result = await db.execute(stmt)
         rows = result.all()
 
-        session_aggregates: dict[str, _SessionUsage] = {}
+        session_aggregates: defaultdict[str, _SessionUsage] = defaultdict(_SessionUsage)
         for chat_id, extra_data, created_at in rows:
             if not isinstance(extra_data, dict):
                 continue
@@ -81,7 +82,7 @@ async def get_model_sessions(
             if not isinstance(model_data, dict):
                 continue
 
-            agg = session_aggregates.setdefault(chat_id, _SessionUsage())
+            agg = session_aggregates[chat_id]
             agg.calls += 1
             agg.input_tokens += int(model_data.get("prompt_tokens") or 0)
             agg.output_tokens += int(model_data.get("completion_tokens") or 0)
