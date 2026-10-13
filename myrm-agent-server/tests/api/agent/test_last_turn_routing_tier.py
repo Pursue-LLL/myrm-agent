@@ -1,7 +1,8 @@
-"""The complexity tier a retry climbs from: the answer turn being replaced, read from the real message table.
+"""What a retry replaces, read from the real message table: the answers of the latest user turn.
 
-A turn can end with rows the system appended on its own (background-job notices, auto-continue), and those carry no
-`routingTier`. The retried answer's tier must still be found, an older turn's tier must never stand in for it, and the
+A turn can end with rows the system appended on its own. Background-job and voice-task notices are not answers: they
+carry no `routingTier`, a retry must leave them active and out of the version group, and the version count must not
+include them. The retried answer's tier must still be found, an older turn's tier must never stand in for it, and the
 rows read must be exactly the rows a retry deactivates.
 """
 
@@ -18,6 +19,7 @@ from sqlalchemy import select
 from app.core.types import ModelConfig
 from app.database import connection
 from app.database.models import Chat, Message
+from app.database.models.chat import BACKGROUND_JOB_NOTICE_KEY, VOICE_BACKGROUND_TASK_NOTICE_KEY
 from app.database.repositories.chat_repo import ChatRepository
 from app.services.agent.params.routing_memory import complaint_floor, load_retry_baseline
 
@@ -41,7 +43,8 @@ def _answer(tier: str | None = None, *, is_active: bool = True) -> _Row:
     return _Row("assistant", {"routingTier": tier} if tier else {"modelName": "m"}, is_active)
 
 
-_BACKGROUND_NOTICE = _Row("assistant", {"background_job": True})
+_BACKGROUND_NOTICE = _Row("assistant", {BACKGROUND_JOB_NOTICE_KEY: True})
+_VOICE_NOTICE = _Row("assistant", {VOICE_BACKGROUND_TASK_NOTICE_KEY: True})
 _NO_EXTRA_DATA = _Row("assistant", None)
 
 
@@ -80,7 +83,11 @@ class TestLastTurnRoutingTier:
 
         assert await _last_turn_tier(chat_id) == "standard"
 
-    @pytest.mark.parametrize("trailing", [_BACKGROUND_NOTICE, _NO_EXTRA_DATA], ids=["background-notice", "no-extra-data"])
+    @pytest.mark.parametrize(
+        "trailing",
+        [_BACKGROUND_NOTICE, _VOICE_NOTICE, _NO_EXTRA_DATA],
+        ids=["background-notice", "voice-notice", "no-extra-data"],
+    )
     async def test_rows_the_system_appended_after_the_answer_do_not_hide_its_tier(self, trailing: _Row) -> None:
         chat_id = await _seed_chat([_user(), _answer("reasoning"), trailing])
 
@@ -120,6 +127,25 @@ class TestLastTurnRoutingTier:
         assert await _last_turn_tier("nonexistent-chat-id") is None
 
 
+async def _retry(chat_id: str) -> str:
+    """Deactivate the latest turn's answers exactly as a regenerate does; returns the version group id."""
+    async with connection.get_session() as db:
+        last_user = await ChatRepository.get_last_user_message(db, chat_id)
+        assert last_user is not None
+        _, group_id = await ChatRepository.deactivate_last_assistant_siblings(db, chat_id, last_user)
+        await db.commit()
+    return group_id
+
+
+async def _row_states(chat_id: str) -> dict[str, tuple[bool, str | None]]:
+    """message id -> (is_active, sibling_group_id)."""
+    async with connection.get_session() as db:
+        rows = (
+            await db.execute(select(Message.id, Message.is_active, Message.sibling_group_id).where(Message.chat_id == chat_id))
+        ).all()
+    return {row.id: (row.is_active, row.sibling_group_id) for row in rows}
+
+
 class TestSameRowsAsTheRetry:
     async def test_reads_exactly_the_rows_a_retry_deactivates_when_timestamps_tie(self) -> None:
         """Order within one timestamp is by id: the first answer belongs to the previous turn, the rest to the latest."""
@@ -128,17 +154,74 @@ class TestSameRowsAsTheRetry:
             same_timestamp=True,
         )
 
-        async with connection.get_session() as db:
-            last_user = await ChatRepository.get_last_user_message(db, chat_id)
-            assert last_user is not None
-            await ChatRepository.deactivate_last_assistant_siblings(db, chat_id, last_user)
-            await db.commit()
+        await _retry(chat_id)
 
-        async with connection.get_session() as db:
-            rows = (await db.execute(select(Message.id, Message.is_active).where(Message.chat_id == chat_id))).all()
-
-        assert {row.id for row in rows if not row.is_active} == {f"{chat_id}-m002", f"{chat_id}-m003"}
+        states = await _row_states(chat_id)
+        assert {row_id for row_id, (is_active, _) in states.items() if not is_active} == {f"{chat_id}-m002"}
         assert await _last_turn_tier(chat_id) == "simple"
+
+
+class TestRetryLeavesSystemNoticesAlone:
+    @pytest.mark.parametrize("notice", [_BACKGROUND_NOTICE, _VOICE_NOTICE], ids=["background-notice", "voice-notice"])
+    async def test_a_notice_stays_active_and_outside_the_version_group(self, notice: _Row) -> None:
+        chat_id = await _seed_chat([_user(), _answer("simple"), notice])
+
+        group_id = await _retry(chat_id)
+
+        states = await _row_states(chat_id)
+        assert states[f"{chat_id}-m001"] == (False, group_id)
+        assert states[f"{chat_id}-m002"] == (True, None)
+
+    async def test_the_version_count_covers_answers_only(self) -> None:
+        chat_id = await _seed_chat([_user(), _answer("simple"), _BACKGROUND_NOTICE])
+        group_id = await _retry(chat_id)
+
+        async with connection.get_session() as db:
+            db.add(
+                Message(
+                    id=f"{chat_id}-m003",
+                    chat_id=chat_id,
+                    role="assistant",
+                    content="regenerated",
+                    sent_at=_BASE_TIME + timedelta(seconds=3),
+                    sent_timezone="UTC",
+                    created_at=_BASE_TIME + timedelta(seconds=3),
+                    extra_data={"routingTier": "reasoning"},
+                    sibling_group_id=group_id,
+                )
+            )
+            await db.commit()
+            history = await ChatRepository.get_recent_messages(db, chat_id)
+            versions = await ChatRepository.get_sibling_info(db, group_id)
+
+        regenerated = history[-1]
+        assert regenerated.id == f"{chat_id}-m003"
+        assert (regenerated.sibling_count, regenerated.sibling_index) == (2, 2)
+        assert [version["id"] for version in versions] == [f"{chat_id}-m001", f"{chat_id}-m003"]
+
+    async def test_the_history_handed_to_the_agent_keeps_the_notice_after_the_user_turn(self) -> None:
+        chat_id = await _seed_chat([_user(), _answer("simple"), _BACKGROUND_NOTICE])
+        await _retry(chat_id)
+
+        async with connection.get_session() as db:
+            history = await ChatRepository.get_recent_messages(db, chat_id)
+
+        assert [message.id for message in history] == [f"{chat_id}-m000", f"{chat_id}-m002"]
+
+    async def test_a_turn_holding_only_a_notice_has_nothing_to_deactivate(self) -> None:
+        chat_id = await _seed_chat([_user(), _VOICE_NOTICE])
+
+        group_id = await _retry(chat_id)
+
+        assert group_id
+        assert (await _row_states(chat_id))[f"{chat_id}-m001"] == (True, None)
+
+    async def test_only_a_true_marker_exempts_a_row(self) -> None:
+        chat_id = await _seed_chat([_user(), _Row("assistant", {BACKGROUND_JOB_NOTICE_KEY: False})])
+
+        group_id = await _retry(chat_id)
+
+        assert (await _row_states(chat_id))[f"{chat_id}-m001"] == (False, group_id)
 
 
 class TestRetryBaseline:

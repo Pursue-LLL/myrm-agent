@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.api.hooks::BackgroundJobFinishResult (POS: harness finish payload)
 - app.services.chat.chat_service::ChatService (POS: message persistence)
+- app.database.models.chat::BACKGROUND_JOB_NOTICE_KEY (POS: system-notice marker on the persisted message)
 - app.services.event.app_event_bus (POS: SSE bus)
 - app.services.agent.goals.goal_wait_background_resume::maybe_resume_goal_after_background_job (POS: WAIT exit + headless resume)
 
@@ -23,6 +24,7 @@ from myrm_agent_harness.api.hooks import BackgroundJobFinishResult
 from myrm_agent_harness.utils.locale import normalize_locale, resolve_locale
 
 from app.channels.i18n.engine import channel_t
+from app.database.models.chat import BACKGROUND_JOB_NOTICE_KEY
 from app.services.chat.chat_service import ChatService
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
@@ -148,7 +150,7 @@ class ServerBackgroundJobFinishHandler:
                 sent_timezone="UTC",
                 message_id=message_id,
                 extra_data={
-                    "background_job": True,
+                    BACKGROUND_JOB_NOTICE_KEY: True,
                     "job_id": result.job_id,
                     "pid": result.pid,
                     "status": result.status,

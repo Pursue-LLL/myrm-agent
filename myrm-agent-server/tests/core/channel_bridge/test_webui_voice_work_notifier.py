@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.core.channel_bridge.persistent_background import BACKGROUND_SOURCE_VOICE
+from app.database.models.chat import VOICE_BACKGROUND_TASK_NOTICE_KEY
 from app.services.event.app_event_bus import ServerEventBus
 
 
@@ -117,7 +118,7 @@ class TestWebuiVoiceWorkNotifier:
         kwargs = append_message.call_args.kwargs
         assert kwargs["chat_id"] == "web-chat-1"
         assert kwargs["message_id"] == "voice_bg_done_task-v1"
-        assert kwargs["extra_data"]["voice_background_task"] is True
+        assert kwargs["extra_data"][VOICE_BACKGROUND_TASK_NOTICE_KEY] is True
 
         publish.assert_called_once()
         meta = publish.call_args[0][0].data["meta_data"]

@@ -1,6 +1,6 @@
 """
 [INPUT] models.base::Base (POS: ORM 模型基类)
-[OUTPUT] Chat: 聊天会话, Message: 消息, ConversationFork: 对话分支
+[OUTPUT] Chat: 聊天会话, Message: 消息, ConversationFork: 对话分支, SYSTEM_NOTICE_EXTRA_KEYS: 系统通知行的 extra_data 标记键
 [POS] 会话与消息域模型。管理聊天会话、消息记录和对话分支。
 """
 
@@ -22,6 +22,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
+
+# `extra_data` keys that mark an assistant row as a system notice (the server appended it; the model did not answer
+# with it). A notice is never a version of a turn's answer, so retry and version counting leave it alone.
+BACKGROUND_JOB_NOTICE_KEY = "background_job"
+VOICE_BACKGROUND_TASK_NOTICE_KEY = "voice_background_task"
+SYSTEM_NOTICE_EXTRA_KEYS: tuple[str, ...] = (BACKGROUND_JOB_NOTICE_KEY, VOICE_BACKGROUND_TASK_NOTICE_KEY)
 
 
 class Chat(Base):

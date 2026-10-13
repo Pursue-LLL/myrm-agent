@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.api.hooks import BackgroundJobFinishResult
 
+from app.database.models.chat import BACKGROUND_JOB_NOTICE_KEY
 from app.services.agent.background_job.background_job_finish_handler import (
     ServerBackgroundJobFinishHandler,
     _command_preview,
@@ -81,6 +82,7 @@ async def test_handler_appends_message_and_publishes_event() -> None:
     mock_append.assert_awaited_once()
     assert mock_append.await_args.kwargs["chat_id"] == "chat-abc"
     assert mock_append.await_args.kwargs["role"] == "assistant"
+    assert mock_append.await_args.kwargs["extra_data"][BACKGROUND_JOB_NOTICE_KEY] is True
     mock_bus.publish.assert_called_once()
     published = mock_bus.publish.call_args[0][0]
     assert published.data["meta_data"]["kind"] == "background_job_finish"

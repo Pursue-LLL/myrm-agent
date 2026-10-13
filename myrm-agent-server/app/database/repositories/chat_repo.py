@@ -2,6 +2,7 @@
 
 [INPUT]
 app.database.models::Chat, Message (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
+app.database.models.chat::SYSTEM_NOTICE_EXTRA_KEYS (POS: 系统通知行的 extra_data 标记键，重试与版本计数不把这些行当作回答)
 app.database.repositories.chat_message_search_repo::ChatMessageSearchRepository (POS: 聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略)
 
 [OUTPUT]
@@ -43,6 +44,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.database.dto import ChatDTO, MessageDTO
 from app.database.models import Chat, Message
+from app.database.models.chat import SYSTEM_NOTICE_EXTRA_KEYS
 from app.database.repositories.chat_message_search_repo import ChatMessageSearchRepository, MessageFtsSearchRow
 
 logger = logging.getLogger(__name__)
@@ -64,12 +66,18 @@ _DTO_COMPUTED_FIELDS: set[str] = {"sibling_count", "sibling_index"}
 
 
 def _answers_of_turn(chat_id: str, last_user: MessageDTO) -> ColumnElement[bool]:
-    """Assistant messages of the turn *last_user* opened: every one ordered after it, active or not."""
+    """Answers of the turn *last_user* opened: every assistant message ordered after it, active or not.
+
+    System notices (`SYSTEM_NOTICE_EXTRA_KEYS` set to true) are appended by the server rather than generated for the
+    turn, so they are neither retried nor counted as versions of its answer. SQLite's `json_extract` yields 1 for a
+    JSON true and NULL for an absent key or a NULL column, so `IS NOT 1` keeps every row that is not a notice.
+    """
     return and_(
         Message.chat_id == chat_id,
         Message.role == "assistant",
         (Message.created_at > last_user.created_at)
         | ((Message.created_at == last_user.created_at) & (Message.id > last_user.id)),
+        *(func.json_extract(Message.extra_data, f"$.{key}").is_not(1) for key in SYSTEM_NOTICE_EXTRA_KEYS),
     )
 
 
@@ -526,9 +534,9 @@ class ChatRepository:
     async def get_last_turn_routing_tier(db: AsyncSession, chat_id: str) -> str | None:
         """Raw `routingTier` of the newest answer of the latest user turn that recorded one, None when none did.
 
-        The turn is what a retry replaces, so answers it already deactivated still count. Rows the system appended
-        on its own (background-job notices, auto-continue) carry no tier and are skipped rather than read as an
-        unrouted answer; an earlier turn's tier never stands in for a turn that recorded none.
+        The turn is what a retry replaces, so answers it already deactivated still count. System notices are not
+        answers and rows the system appended on its own (auto-continue) carry no tier: both are skipped rather than
+        read as an unrouted answer; an earlier turn's tier never stands in for a turn that recorded none.
         """
         last_user = await ChatRepository.get_last_user_message(db, chat_id)
         if last_user is None:
