@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import re
+from uuid import uuid4
 
 import pytest
 
@@ -45,10 +46,13 @@ from tests.support.chrome_mcp_e2e import (
 from tests.support.retrieval_embedding import configured_retrieval_embedding
 
 _MEMORY_API = "/api/v1/memory"
-_CORRECT_TARGET = "E2E review seed - user works at ByteDance"
-_CORRECT_PROPOSAL = "E2E review seed - user now works at Google"
-_DELETE_TARGET = "E2E review seed - user lives in Berlin"
-_DELETE_PROPOSAL = "E2E review seed - user no longer lives in Berlin"
+# A per-run tag keeps seeded texts unique: the queue refuses an identical proposal, so a
+# rerun against a runtime that still holds an earlier run's pending cards would otherwise 409.
+_RUN_TAG = uuid4().hex[:8]
+_CORRECT_TARGET = f"E2E review seed {_RUN_TAG} - user works at ByteDance"
+_CORRECT_PROPOSAL = f"E2E review seed {_RUN_TAG} - user now works at Google"
+_DELETE_TARGET = f"E2E review seed {_RUN_TAG} - user lives in Berlin"
+_DELETE_PROPOSAL = f"E2E review seed {_RUN_TAG} - user no longer lives in Berlin"
 _WILL_CORRECT = re.compile(r"Corrects an existing memory|将纠正已有记忆")
 _STALE_NOTICE = re.compile(r"This suggestion is out of date|这条建议已过期")
 _WILL_DELETE = re.compile(r"Moves an existing memory to the trash|将已有记忆移入回收站")
@@ -232,9 +236,9 @@ def test_memory_pending_proposal_review_chrome_e2e() -> None:
         assert not {correct_pending_id, delete_pending_id} & _pending_ids(api_url)
 
 
-_STALE_TARGET = "E2E stale seed - user works at ByteDance"
-_STALE_PROPOSAL = "E2E stale seed - user now works at Google"
-_STALE_EDIT = "E2E stale seed - user works at Meta"
+_STALE_TARGET = f"E2E stale seed {_RUN_TAG} - user works at ByteDance"
+_STALE_PROPOSAL = f"E2E stale seed {_RUN_TAG} - user now works at Google"
+_STALE_EDIT = f"E2E stale seed {_RUN_TAG} - user works at Meta"
 
 
 def _stale_refusal_probe_js() -> str:

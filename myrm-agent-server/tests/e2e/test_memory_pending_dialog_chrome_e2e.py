@@ -87,7 +87,16 @@ def _type_into_dialog_js(text: str) -> str:
 }})()"""
 
 
-_DIALOG_CLOSED_JS = f"(() => {{ {_DIALOG_JS} return {{ ready: !dialog }}; }})()"
+def _dialog_left_proposal_js(proposal: str) -> str:
+    """Ready once the dialog no longer shows ``proposal``.
+
+    Resolving a suggestion advances the dialog to the next queued one, so with other pending
+    suggestions in the runtime the dialog legitimately stays open on a different suggestion.
+    """
+    return f"""(() => {{
+  {_DIALOG_JS}
+  return {{ ready: !dialog || !(dialog.textContent || '').includes({json.dumps(proposal)}) }};
+}})()"""
 
 
 def _open_review_dialog(client: ChromeMcpClient, page: McpPage, proposal: str) -> None:
@@ -151,7 +160,7 @@ def test_memory_pending_dialog_edit_then_accept_chrome_e2e() -> None:
             typed = wait_for_state(client, page, _type_into_dialog_js(edited_text), timeout_sec=30.0)
             assert typed.get("ready") is True, typed
             _press(client, page, _SAVE_AND_ACCEPT)
-            closed = wait_for_state(client, page, _DIALOG_CLOSED_JS, timeout_sec=60.0)
+            closed = wait_for_state(client, page, _dialog_left_proposal_js(proposal_text), timeout_sec=60.0)
             assert closed.get("ready") is True, closed
 
         memories = _semantic_memories(api_url)
@@ -188,7 +197,7 @@ def test_memory_pending_dialog_reject_keeps_target_chrome_e2e() -> None:
             _attach(client, page, chat_url, chat_id)
             _open_review_dialog(client, page, proposal_text)
             _press(client, page, _REJECT)
-            closed = wait_for_state(client, page, _DIALOG_CLOSED_JS, timeout_sec=60.0)
+            closed = wait_for_state(client, page, _dialog_left_proposal_js(proposal_text), timeout_sec=60.0)
             assert closed.get("ready") is True, closed
 
         memories = _semantic_memories(api_url)

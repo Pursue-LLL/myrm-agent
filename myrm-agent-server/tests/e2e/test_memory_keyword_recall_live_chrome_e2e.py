@@ -2,7 +2,7 @@
 
 Real business task flow for the persistent BM25 sparse recall path
 (`toolkits/memory/_internal/bm25_sparse_index.py` + qdrant sparse mixin):
-a distinctive fact (project codename + package manager) is written in one
+a distinctive fact (service name + package manager) is written in one
 chat, then a keyword-only question is asked in a *second* chat with zero
 shared conversation context. The final reply must surface both exact
 keywords — they can only arrive through the memory system's keyword
@@ -44,10 +44,11 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
 )
 from tests.support.e2e_provider_seed import seed_live_e2e_providers  # noqa: E402
 
-# Distinctive keywords: latin tokens only the memory recall path can surface —
+# Distinctive keywords (avoid "代号"/codename wording: the built-in risk rule
+# project_codename_keywords blocks such prompts before the agent runs): latin tokens only the memory recall path can surface —
 # a context-free chat has zero conversation state to fabricate "Kestrel-77" from.
-_WRITE_PROMPT = "请记住:我的内部项目代号是 Kestrel-77,部署时只用 uv 管理依赖,不用 pip。"
-_RECALL_PROMPT = "我的内部项目代号是什么?我部署时用什么包管理器?"
+_WRITE_PROMPT = "请记住:我的服务名叫 Kestrel-77,部署时只用 uv 管理依赖,不用 pip。"
+_RECALL_PROMPT = "我的服务名叫什么?我部署时用什么包管理器?"
 
 
 def _send_turn_js(prompt: str) -> str:
@@ -161,7 +162,7 @@ def _open_chat_and_send(
             timeout_sec=90.0,
         )
         assert isinstance(sent, dict) and sent.get("ok") is True, (
-            f"send turn failed for chat {chat_id}: {json.dumps(sent, ensure_ascii=False)[:600]}"
+            f"send turn failed for chat {chat_id}: {json.dumps(sent, ensure_ascii=False)[:4000]}"
         )
         return sent
 
@@ -263,9 +264,9 @@ def test_memory_keyword_recall_cross_chat_live() -> None:
 
     text = str(reply.get("content") or reply.get("message") or "")
     lowered = text.lower()
-    # The codename only exists in the memory persisted from chat one; a
+    # The service name only exists in the memory persisted from chat one; a
     # context-free chat can only surface it through keyword recall.
-    assert "kestrel" in lowered, f"codename keyword missing from recall reply: {text[:400]}"
+    assert "kestrel" in lowered, f"service-name keyword missing from recall reply: {text[:400]}"
     assert "uv" in lowered, f"package-manager keyword missing from recall reply: {text[:400]}"
 
 
