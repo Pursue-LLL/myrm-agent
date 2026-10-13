@@ -168,8 +168,6 @@ class RouterCommandsHost(Protocol):
 
     async def _check_admin_permission(self, msg: InboundMessage) -> bool: ...
 
-    async def _resolve_outbound_draft(self, record: object, decision: str) -> None: ...
-
     @staticmethod
     def _build_decision_entry(
         decision: ApprovalDecision,
@@ -248,6 +246,7 @@ class RouterExecutionHost(Protocol):
         original_msg: InboundMessage,
         chat_id: str,
         topic_ctx: TopicContext,
+        placeholder_id: str | None,
     ) -> None: ...
 
     async def _cleanup_effects(

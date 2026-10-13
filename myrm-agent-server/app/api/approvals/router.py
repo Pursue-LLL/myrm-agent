@@ -54,16 +54,6 @@ router.include_router(side_effect_router)
 router.include_router(tiered_risk_router)
 
 
-async def _handle_outbound_draft_resolution(record: ApprovalRecord, decision: str) -> None:
-    """Send or discard a held outbound draft message based on the approval decision."""
-    if decision == "approve":
-        from app.services.approvals.registry import send_outbound_draft_payload
-
-        await send_outbound_draft_payload(record.payload or {}, record.agent_id, record.id)
-    else:
-        logger.info("Outbound draft %s rejected, message discarded", record.id)
-
-
 async def _handle_knowledge_patch_resolution(record: ApprovalRecord, decision: str) -> None:
     """Delegate approved knowledge patch resolution to knowledge_patch module."""
     from app.api.approvals.knowledge_patch import handle_knowledge_patch_resolution
@@ -297,7 +287,7 @@ async def resolve_approval(
             logger.warning("[APPROVAL_ROUTER] Failed to wipe handles on denial: %s", e)
 
     if record.action_type == "outbound_draft":
-        await _handle_outbound_draft_resolution(record, normalized_decision)
+        # Resolving it already sent or released the held reply, and no agent run waits on it.
         return ApprovalRecordResponse.from_orm(record)
 
     if record.action_type == "knowledge_patch":

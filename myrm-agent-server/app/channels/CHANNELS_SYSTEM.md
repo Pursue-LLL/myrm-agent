@@ -273,9 +273,12 @@ Discord / Signal / Feishu / iMessage / **Mattermost** / **Matrix**）会把
 **审批按钮（ActionButton）**：审批请求以 `approval:{approve|deny}:{record_id}` 按钮发往 IM。
 目前只有 Telegram 入站解析器会把点击转成 `callback_prefix="act"` 的消息并交给
 `_handle_action_button_approval`，其他渠道的按钮点击不会进入该处理器，因此 owner 通知卡片
-只在 Telegram 附带按钮，其余渠道提示打开应用审核。被拦截的回复（`outbound_draft`）只有 owner
+只在 Telegram 附带按钮，其余渠道提示打开应用审核；被拦截的回复还会附上 `/draft approve <code>` /
+`/draft reject <code>`（`<code>` 为审批 ID 前 8 位，命令接受 6 位及以上），owner 可直接在聊天里决定。
+被拦截的回复（`outbound_draft`）只有 owner
 （控制面转发或 ADMIN 配对）可批准/拒绝，详见 `routing/_ARCH.md` 的 *ActionButton Callback Approval*
-与 *Owner Check*。
+与 *Owner Check*。无论由 WebUI、IM 按钮、批量审批还是 TTL 到期定案，发送或释放、关闭对话方会话里的
+“待审核”占位消息、发不出去时告知 owner，都由 `services/approvals/outbound_draft.py` 统一收尾。
 
 ---
 

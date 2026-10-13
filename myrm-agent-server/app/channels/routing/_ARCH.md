@@ -83,14 +83,15 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
      requester or a co-approver may resolve (same policy as reaction approval),
      DMs skip it.
 3. **Resolves** via `ApprovalRegistry.resolve_approval()` — only PENDING
-   records are updated; already-resolved approvals return `None` and the
-   handler exits (prevents status flip on duplicate button clicks).
+   records are updated; for an already-resolved approval (duplicate click, TTL
+   sweep) the card is edited to the localized `approval_already_resolved` line
+   and the handler exits (prevents status flip on duplicate button clicks).
 4. **Edits** the original IM message to the localized status line
    (`approval_resolved_approved` / `approval_resolved_denied`, e.g. "Approved by
    @user") so stale buttons stop inviting clicks.
-5. **Routes by type** — if `record.action_type == "outbound_draft"`, calls
-   `_resolve_outbound_draft` to send or discard the held channel message
-   (no LangGraph resume needed). Otherwise, **resumes** the interrupted
+5. **Routes by type** — a held reply (`action_type == "outbound_draft"`) ends at
+   step 4: `resolve_approval` has already sent or released it (see *Held Replies*),
+   and no LangGraph resume is needed. Otherwise, **resumes** the interrupted
    LangGraph agent via `SessionGate.submit()` with a `resume_value`
    payload, or publishes `APPROVAL_RESOLVED` event if no active task
    exists in the router (e.g. WebUI concurrent resolve).
@@ -106,11 +107,21 @@ policy admits any account.
 `AgentRouter._check_admin_permission` wraps it and fails closed (a lookup error
 denies, because the consume loop has no per-message guard). It gates:
 
-- commands declared `requires_admin` (`/yolo`, `/bind`), in DMs and groups alike;
-- decisions on held replies (button path above).
+- built-in system commands (`CommandDef.owner_only`), in DMs and groups alike.
+  Commands are dispatched before `PolicyResolver`, before any identity or fence
+  exists, and they act on the owner's sandbox (memory, kanban, topic bindings,
+  background runs), so a system command is owner-only unless it opts in with
+  `any_sender=True`. The opt-in set is the commands confined to the sender's own
+  conversation that cost at most one turn: `/stop /new /compact /retry /undo
+  /personality /steer /queue /status /quota /help`. Skill and agent commands are
+  never owner-only: they go through the per-turn pipeline, which resolves identity
+  and applies the untrusted-ingress fence. `/help` lists only what the sender may run;
+- mobile task delegation and in-flight steering of a delegated run: both execute
+  outside the per-turn pipeline, so anyone else's message continues as an ordinary
+  turn;
+- decisions on held replies: the button path above, and `/draft` (an owner-only system command).
 
-Commands are dispatched before `PolicyResolver`, so the check sees the raw
-`msg.sender_id`.
+The check sees the raw `msg.sender_id`.
 
 ## Held Replies (`reply_mode=draft_review`)
 
@@ -120,6 +131,22 @@ that could expose a reply before a human approved it. While it holds,
 placeholder (progress updates still show) — resumed turns included, which is why
 the flag is separate from `topic_context` — and `_deliver_agent_result` turns the
 final reply into an `outbound_draft` approval; nothing is sent until the owner approves it.
+
+The sender is left with the placeholder edited to `draft_review_pending`; its id is stored
+in the draft (`payload.placeholder_id`). Whoever decides on the draft — WebUI, the button
+path above, batch approve or the TTL sweeper — goes through `ApprovalRegistry`, which calls
+`services/approvals/outbound_draft.py::finalize_outbound_draft`: it sends the approved
+reply or releases the rejected/expired one, closes that placeholder (the same edit-then-delete
+cleanup the router uses, `MessageEffects.cleanup_placeholder`), and tells the owner when an
+approved reply could not go out. The router itself never sends or releases a held reply.
+
+Where the owner's review request carries no buttons (every channel but Telegram), it ends with the commands
+that decide it from chat: `/draft approve <code>` and `/draft reject <code>`
+(`commands/router_commands_draft.py`). The code is the first 8 characters of the approval id
+(`outbound_draft.draft_code`); a command accepts 6 or more hex characters.
+`ApprovalRegistry.find_pending_outbound_drafts` resolves it among pending held replies only, so a draft code
+can never decide any other approval, and a code that fits two replies decides neither. The decision then goes
+through the same `resolve_approval` funnel as every other door.
 
 ## `/new` Session Boundary Cleanup
 
@@ -201,9 +228,9 @@ Pinned by `tests/channels/routing/test_bot_loop_guard.py`,
 |------|------|-------------|-------|
 | __init__.py | Package | Inbound message processing pipeline: routing, commands, policy, sessions. | — |
 | bot_loop_guard.py | Core | BotLoopGuard: per-conversation sliding-window budget for bot-authored triggers (20 events/300s → 600s cooldown). Caps bot-to-bot reply loops that survive the explicit-mention gate; human messages never counted. | [OK] |
-| command_defs.py | Core | CommandDef data model, CommandAction/CommandKind enums, built-in SYSTEM_COMMANDS tuple (stop, new, compact, retry, undo, yolo, personality, bind, unbind, topic, goal, steer, queue, background, kanban, memory, learn, memo, review-week, handoff, status, quota, help). | — |
-| command_registry.py | Core | CommandRegistry: central O(1) lookup for slash commands. Validates names and prevents system command overwriting. | — |
-| commands/（子包） | Core | 命令域子包：`commands.py`（参数解析 + 高层 handler）、`router_commands.py`（聚合 `RouterCommandsMixin`）、`router_commands_approval.py`（`/stop`、reaction/button approval）、`router_commands_session.py`（`/new`、`/compact`、`/retry`、`/undo`、topic）、`router_commands_modes.py`（`/yolo`、`/personality`、`/steer`、`/queue`）、`router_commands_goals.py`（`/goal`、`/subgoal`、`/background`、`/handoff`）、`router_commands_memory.py`（`/status`、`/kanban`、`/learn`、`/memory`）、`router_commands_quota.py`（`/quota` 直出诊断与进度倒计时）。`commands/__init__.py` 为聚合门面 | [OK] |
+| command_defs.py | Core | CommandDef data model (`any_sender` opt-in + `owner_only` property: system commands are owner-only unless confined to the sender's own conversation), CommandAction/CommandKind enums, built-in SYSTEM_COMMANDS tuple (stop, new, compact, retry, undo, yolo, personality, bind, unbind, topic, draft, goal, subgoal, steer, queue, background, btw, handoff, kanban, memory, learn, memo, review-week, design-image, status, quota, help). | — |
+| command_registry.py | Core | CommandRegistry: central O(1) lookup for slash commands. Validates names and prevents system command overwriting. `help_lines(owner=…)` leaves owner-only commands out for other senders. | — |
+| commands/（子包） | Core | 命令域子包：`commands.py`（参数解析 + 高层 handler）、`router_commands.py`（聚合 `RouterCommandsMixin`）、`router_commands_approval.py`（`/stop`、reaction/button approval）、`router_commands_session.py`（`/new`、`/compact`、`/retry`、`/undo`、topic）、`router_commands_modes.py`（`/yolo`、`/personality`、`/steer`、`/queue`）、`router_commands_goals.py`（`/goal`、`/subgoal`、`/background`、`/handoff`）、`router_commands_memory.py`（`/status`、`/kanban`、`/learn`、`/memory`）、`router_commands_draft.py`（`/draft`：在聊天里批准或拒绝被扣留的回复）、`router_commands_quota.py`（`/quota` 直出诊断与进度倒计时）。`commands/__init__.py` 为聚合门面 | [OK] |
 | context_buffer.py | Core | GroupContextBuffer: 结合持久化数据平面异步拉取与内存兜底的上下文缓冲。 | [OK] |
 | graceful_degradation.py | Core | Graceful degradation controller for smooth quality adaptation. | [OK] |
 | message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply, busy ack). `edit_placeholder` prepares the reply like any outbound (downgrade + risk gate), edits text only and sends attachments as a files-only follow-up through the bus. send_quota_exceeded_reply 提供配额超限多语言提醒。 | [OK] |

@@ -687,10 +687,12 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     asyncio.create_task(self._bus.publish_outbound(reply))
                     continue
 
-            # Check for Mobile-to-Desktop Asynchronous Task Delegation
+            # Mobile-to-Desktop Asynchronous Task Delegation. A delegated run and its in-flight steering skip the
+            # per-turn identity pipeline (no DM policy, no untrusted-ingress fence), so only the owner may use them;
+            # anyone else's message continues as an ordinary turn below.
             if msg.content and isinstance(msg.content, str):
                 is_delegated, confidence, clean_prompt = is_delegation_intent(msg.content)
-                if is_delegated and confidence >= 0.85:
+                if is_delegated and confidence >= 0.85 and await self._check_admin_permission(msg):
                     if not clean_prompt:
                         reply = OutboundMessage(
                             channel=msg.channel,
@@ -714,6 +716,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 and isinstance(msg.content, str)
                 and not msg.content.startswith("/")
                 and not self._active_tasks.get(session_key)
+                and await self._check_admin_permission(msg)
             ):
                 injected = self._delegation_coordinator.inject_steering(active_del.task_id, msg.content.strip(), user_id)
                 if injected:
@@ -839,7 +842,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         return dataclasses.replace(msg, metadata=meta)
 
     async def _check_admin_permission(self, msg: InboundMessage) -> bool:
-        """Whether the sender is the sandbox owner, which ``requires_admin`` commands and held-reply decisions need.
+        """Whether the sender is the sandbox owner, which owner-only commands, delegation and held-reply decisions need.
 
         A DM sender is not automatically the owner: an open DM policy admits any account. Fails closed, because
         this runs on the consume loop, where a store error must neither raise nor grant access.
@@ -859,7 +862,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         cmd = resolved.command_def
         action = cmd.action
 
-        if cmd.requires_admin and not await self._check_admin_permission(msg):
+        if cmd.owner_only and not await self._check_admin_permission(msg):
             chat_id = msg.chat_id or msg.sender_id
             reply = OutboundMessage(
                 channel=msg.channel,
@@ -938,6 +941,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             action_name = action.value
             topic_cmd = parse_topic_args(action_name, raw_args)
             asyncio.create_task(self._handle_topic_command(msg, topic_cmd))
+            return True
+
+        if action == CommandAction.DRAFT:
+            asyncio.create_task(self._handle_draft_command(msg, raw_args))
             return True
 
         if action == CommandAction.GOAL:
@@ -1068,7 +1075,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         """Handle /help command: show available commands."""
         chat_id = msg.chat_id or msg.sender_id
         locale = resolve_message_locale(msg)
-        lines = self._registry.help_lines(locale)
+        lines = self._registry.help_lines(locale, owner=await self._check_admin_permission(msg))
         content = get_text(msg, "help_header") + "\n" + "\n".join(lines)
         reply = OutboundMessage(
             channel=msg.channel,

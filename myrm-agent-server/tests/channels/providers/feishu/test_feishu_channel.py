@@ -456,7 +456,6 @@ class TestCapabilities:
         assert ch.capabilities.buttons is True
         assert ch.capabilities.quick_replies is True
         assert ch.capabilities.select_menus is True
-        assert ch.capabilities.interactive_callback is True
 
     def test_typing_indicator_disabled(self) -> None:
         ch = _make_channel()

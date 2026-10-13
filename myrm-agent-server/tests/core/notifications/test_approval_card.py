@@ -165,6 +165,52 @@ class TestDecisionButtons:
         assert components == ()
 
 
+class TestDecisionCommands:
+    """Where a card has no buttons, a held reply can still be decided by typing."""
+
+    def test_a_held_reply_names_the_commands_that_decide_it(self) -> None:
+        content, components = build_approval_card(_draft(), "whatsapp", "en")
+
+        assert components == ()
+        assert ("To decide here, send `/draft approve appr_123` to send it or `/draft reject appr_123` to discard it.") in content
+        assert content.endswith("Open the Myrm AI app to review and decide.")
+
+    def test_the_code_is_a_short_prefix_never_the_whole_approval_id(self) -> None:
+        data = {**_draft(), "approval_id": "3f9a1c2e5b7d4a6f8c0e1b2d3a4f5e6d"}
+
+        content, _ = build_approval_card(data, "feishu", "en")
+
+        assert "`/draft approve 3f9a1c2e`" in content
+        assert "`/draft reject 3f9a1c2e`" in content
+        assert "5b7d4a6f" not in content
+
+    def test_commands_are_written_in_the_owners_language(self) -> None:
+        content, _ = build_approval_card(_draft(), "whatsapp", "zh-CN")
+
+        assert "想在这里直接处理：发送 `/draft approve appr_123` 批准并发送，或 `/draft reject appr_123` 丢弃。" in content
+
+    def test_a_channel_with_buttons_needs_no_commands(self) -> None:
+        content, components = build_approval_card(_draft(), "telegram", "en")
+
+        assert "/draft" not in content
+        assert len(_buttons(components)) == 2
+
+    def test_a_card_without_an_approval_id_offers_no_commands(self) -> None:
+        data = _draft()
+        data["approval_id"] = ""
+
+        content, _ = build_approval_card(data, "whatsapp", "en")
+
+        assert "/draft" not in content
+
+    def test_other_approvals_never_offer_the_draft_commands(self) -> None:
+        data = {"approval_id": "appr_9", "action_type": "delete_database", "severity": "critical"}
+
+        content, _ = build_approval_card(data, "whatsapp", "en")
+
+        assert "/draft" not in content
+
+
 class TestGenericApprovalCard:
     DATA: dict[str, object] = {
         "approval_id": "appr_9",

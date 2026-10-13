@@ -55,7 +55,6 @@ class ChatChannel(_ChatChannelBase):
         buttons=True,
         quick_replies=True,
         select_menus=True,
-        interactive_callback=True,
         edit=True,
         delete=True,
         reactions=True,

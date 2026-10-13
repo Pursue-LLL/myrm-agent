@@ -220,7 +220,6 @@ class ChannelCapabilities:
     - ``buttons``: native ActionButton rendering (Telegram InlineKeyboard, etc.)
     - ``quick_replies``: native QuickReply rendering (WhatsApp quick-replies, etc.)
     - ``select_menus``: native SelectMenu rendering (Discord StringSelect, etc.)
-    - ``interactive_callback``: channel supports callback events from button clicks
 
     Mutation flags (used by Router to decide streaming strategy):
     - ``edit``: channel implements edit_message
@@ -245,7 +244,6 @@ class ChannelCapabilities:
     buttons: bool = False
     quick_replies: bool = False
     select_menus: bool = False
-    interactive_callback: bool = False
     threads: bool = False
     edit: bool = False
     delete: bool = False

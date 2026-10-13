@@ -26,7 +26,8 @@ from app.channels.types import (
     ReplyMode,
     TopicContext,
 )
-from app.services.approvals.registry import ApprovalRegistry, send_outbound_draft_payload
+from app.services.approvals.outbound_draft import send_outbound_draft_payload
+from app.services.approvals.registry import ApprovalRegistry
 from tests.channels.core.outbound_testkit import make_ephemeral_doc
 
 _HANDOFF_BUTTON = ActionButton(label="Continue in browser", action_id="web:continue_chat", url="https://example.test/chat/abc")
@@ -108,6 +109,22 @@ async def test_draft_holds_the_whole_reply_and_sends_nothing(
     assert held.components == ((_HANDOFF_BUTTON,),)
     assert (held.thread_id, held.reply_to_id, held.user_id) == ("th-7", "m1", "owner-1")
     Path(shot.path).unlink(missing_ok=True)
+
+
+@pytest.mark.parametrize("placeholder_id", ["ph_9", None])
+async def test_the_held_reply_remembers_the_message_the_sender_is_waiting_on(
+    router: tuple[RouterExecutionMixin, AsyncMock, AsyncMock], tmp_path: Path, placeholder_id: str | None
+) -> None:
+    """Whoever decides on the draft later has to close that message, so it travels with the draft."""
+    mixin, fx, _bus = router
+
+    with patch.object(ApprovalRegistry, "create_approval", new=AsyncMock()) as create:
+        await _deliver(mixin, _reply(tmp_path), placeholder_id=placeholder_id)
+
+    payload = create.await_args.kwargs["payload"]
+    assert payload["placeholder_id"] == placeholder_id
+    assert json.loads(json.dumps(payload))["placeholder_id"] == placeholder_id, "must survive the approval record's JSON column"
+    assert fx.cleanup_placeholder.await_count == (1 if placeholder_id else 0)
 
 
 async def test_approved_draft_is_sent_exactly_as_the_agent_wrote_it(

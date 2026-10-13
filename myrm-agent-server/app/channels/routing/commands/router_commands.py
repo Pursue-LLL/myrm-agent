@@ -1,4 +1,4 @@
-"""Inbound control commands: /stop, approvals, /new, /compact, /retry, /undo, /goal, /steer, /queue, /memory, /learn, topic commands.
+"""Inbound control commands: /stop, approvals, /new, /compact, /retry, /undo, /goal, /steer, /queue, /memory, /draft, /learn, topic commands.
 
 [INPUT]
 - channels.routing.router_commands_approval::RouterCommandsApprovalMixin
@@ -6,6 +6,7 @@
 - channels.routing.router_commands_modes::RouterCommandsModesMixin
 - channels.routing.router_commands_goals::RouterCommandsGoalsMixin
 - channels.routing.router_commands_memory::RouterCommandsMemoryMixin
+- channels.routing.router_commands_draft::RouterCommandsDraftMixin
 
 [OUTPUT]
 - RouterCommandsMixin: composed mixin providing all slash command handler methods for AgentRouter
@@ -19,6 +20,7 @@ router_keys.routing_session_key. Logger name is consistent with the router packa
 from __future__ import annotations
 
 from .router_commands_approval import RouterCommandsApprovalMixin
+from .router_commands_draft import RouterCommandsDraftMixin
 from .router_commands_goals import RouterCommandsGoalsMixin
 from .router_commands_memory import RouterCommandsMemoryMixin
 from .router_commands_modes import RouterCommandsModesMixin
@@ -32,6 +34,7 @@ class RouterCommandsMixin(
     RouterCommandsModesMixin,
     RouterCommandsGoalsMixin,
     RouterCommandsMemoryMixin,
+    RouterCommandsDraftMixin,
     RouterCommandsQuotaMixin,
 ):
     """Mixin: task cancellation and slash-command handlers from the consume loop."""

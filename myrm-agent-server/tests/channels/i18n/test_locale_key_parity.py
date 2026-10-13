@@ -243,6 +243,7 @@ _RENDER_SAMPLES: dict[str, str | int] = {
     "bound_at": "2026-08-09",
     "bound_label": "bound",
     "cmd": "status",
+    "code": "3f9a1c2e",
     "command": "ls -la",
     "constraint": "no rm",
     "count": 3,

@@ -54,7 +54,7 @@ are silently skipped — they are high-frequency or internal and not suitable fo
 | `__init__.py` | Facade | Module public facade — exports NotificationDispatcher, FormattedNotification, format_notification | ✅ |
 | `dispatcher.py` | Core | `NotificationDispatcher` — subscribes to ServerEventBus, formats one card per configured target (channel-aware; the owner's language is resolved once per event, only for `LOCALIZED_EVENT_TYPES`) and sends it via Gateway | ✅ |
 | `adaptive_cards.py` | Core | `format_notification(event, *, channel, locale)` — transforms AppEvents into rich OutboundMessage payloads with ActionButtons and indicator headers; `_EVENT_TEMPLATES` holds the plain-text templates; `LOCALIZED_EVENT_TYPES` lists the events whose card is localized | ✅ |
-| `approval_card.py` | Core | `build_approval_card` — `APPROVAL_REQUIRED` card text and buttons per target channel; shows a held reply (`outbound_draft`) with the incoming message, the draft and the expiry outcome; Approve/Deny buttons only for `APPROVAL_CLICK_CHANNELS` | ✅ |
+| `approval_card.py` | Core | `build_approval_card` — `APPROVAL_REQUIRED` card text and buttons per target channel; shows a held reply (`outbound_draft`) with the incoming message, the draft and the expiry outcome; Approve/Deny buttons only for `APPROVAL_CLICK_CHANNELS`, the `/draft` commands for a held reply everywhere else | ✅ |
 
 ## Approval Cards
 
@@ -63,7 +63,8 @@ are silently skipped — they are high-frequency or internal and not suitable fo
 - **Language** — copy comes from the channel catalog (`app/channels/i18n`, keys `approval_*`) in the owner's language.
 - **Buttons** — Approve/Deny are attached only for `APPROVAL_CLICK_CHANNELS` (Telegram, the only provider whose click reaches the router's approval handler). Every other channel gets a localized "open the app" hint, because a click there never reaches the approval handler.
 - **Held reply content** — an `outbound_draft` card quotes the incoming message and the drafted reply (truncated) and lists attachment file names, so the owner can decide in chat. URLs are never shown because they may embed an access token.
-- **Who may press** — decided by the router, not here: held replies accept only the owner (`routing/_ARCH.md`, *Owner Check*).
+- **Deciding by typing** — where there are no buttons, a held reply's card also names the commands that decide it, `/draft approve <code>` and `/draft reject <code>`; `<code>` is `outbound_draft.draft_code(approval_id)`, the first 8 characters of the approval id (`routing/_ARCH.md`, *Held Replies*).
+- **Who may press or type** — decided by the router, not here: held replies accept only the owner (`routing/_ARCH.md`, *Owner Check*).
 
 ## Configuration
 

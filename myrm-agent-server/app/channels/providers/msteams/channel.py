@@ -80,7 +80,6 @@ class MSTeamsChannel(MSTeamsInboundMixin, BaseChannel):
         delete=True,
         reactions=True,
         typing_indicator=True,
-        interactive_callback=True,
         max_text_length=_MAX_TEXT_LENGTH,
     )
     render_style = RenderStyle(

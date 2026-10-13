@@ -12,6 +12,7 @@ IM 渠道斜杠命令解析与执行域：统一命令解析入口与各功能�
 | `commands.py` | 模块 | 命令解析与斜杠命令执行统一入口 | [OK] |
 | `router_commands.py` | 模块 | 基础命令路由与调度 | [OK] |
 | `router_commands_approval.py` | 模块 | 审批相关命令（approve/reject 等） | [OK] |
+| `router_commands_draft.py` | 模块 | 在聊天里决定被扣留的回复（`/draft approve` 或 `/draft reject` 加短码，含纯函数 `parse_draft_args`）；仅 owner 可用，经 `ApprovalRegistry.resolve_approval` 与 WebUI/按钮同一收口 | [OK] |
 | `router_commands_goals.py` | 模块 | 目标（goal）相关命令 | [OK] |
 | `router_commands_memory.py` | 模块 | 会话状态诊断（/status）、看板与长期记忆交互（/kanban, /learn, /memory；待审批列表对纠正/遗忘提案附目标记忆摘要；目标已变化的提案以用户语言提示并保持待审，`approve all` 逐条审批并汇报未通过数量） | [OK] |
 | `router_commands_modes.py` | 模块 | 模式切换命令 | [OK] |

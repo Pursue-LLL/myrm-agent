@@ -375,6 +375,47 @@ class TestActionButtonMessageEditing:
         assert host._bus.edit_channel_message.call_args[0][3] == expected
 
 
+class TestStaleClick:
+    """A card whose request is already settled says so instead of staying clickable."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("locale", "expected"),
+        [(None, "This request has already been handled."), ("zh-CN", "这个请求已经处理过了。")],
+    )
+    async def test_the_card_is_edited_to_say_it_was_handled(self, locale, expected):
+        host = _host()
+        record_id = await _seed(f"appr-stale-{locale}", status="APPROVED")
+
+        await host._handle_action_button_approval(
+            _action_msg(f"approval:approve:{record_id}", origin_message_id="orig-5", locale=locale)
+        )
+
+        host._gate.submit.assert_not_called()
+        host._bus.edit_channel_message.assert_awaited_once_with("telegram", "chat-1", "orig-5", expected)
+
+    @pytest.mark.asyncio
+    async def test_nothing_is_edited_when_the_click_carries_no_card(self):
+        host = _host()
+        record_id = await _seed("appr-stale-nocard", status="REJECTED")
+
+        await host._handle_action_button_approval(_action_msg(f"approval:approve:{record_id}", origin_message_id=None))
+
+        host._bus.edit_channel_message.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_late_click_cannot_send_an_expired_held_reply(self):
+        host = _host()
+        record_id = await _seed("appr-stale-draft", status="TIMEOUT", action_type="outbound_draft")
+
+        with patch("app.services.approvals.outbound_draft.send_outbound_draft_payload", new_callable=AsyncMock) as sent:
+            await host._handle_action_button_approval(_action_msg(f"approval:approve:{record_id}", sender_id="owner"))
+
+        sent.assert_not_awaited()
+        host._bus.edit_channel_message.assert_awaited_once()
+        assert "already been handled" in host._bus.edit_channel_message.call_args[0][3]
+
+
 class TestActionButtonSSEFallback:
     @pytest.mark.asyncio
     async def test_no_active_task_publishes_sse_event(self):
@@ -401,7 +442,7 @@ class TestHeldReplyAuthorisation:
 
     @pytest.fixture(autouse=True)
     def send_draft(self) -> Iterator[AsyncMock]:
-        with patch("app.services.approvals.registry.send_outbound_draft_payload", new_callable=AsyncMock) as sent:
+        with patch("app.services.approvals.outbound_draft.send_outbound_draft_payload", new_callable=AsyncMock) as sent:
             yield sent
 
     @pytest.mark.asyncio
@@ -491,7 +532,7 @@ class TestNotificationCardContract:
             await _seed(record_id, action_type="outbound_draft")
             _, components = build_approval_card({"approval_id": record_id, "action_type": "outbound_draft"}, "telegram", "en")
 
-            with patch("app.services.approvals.registry.send_outbound_draft_payload", new_callable=AsyncMock):
+            with patch("app.services.approvals.outbound_draft.send_outbound_draft_payload", new_callable=AsyncMock):
                 await _host()._handle_action_button_approval(_action_msg(components[0][index].action_id))
             decided.add(await _status_of(record_id))
 
