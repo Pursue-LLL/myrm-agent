@@ -13,10 +13,8 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.security.inbound_quarantine_router import router as inbound_quarantine_router
-from app.api.security.workspace_scoper_router import router as workspace_scoper_router
 
 _SECURITY_SUBROUTERS: tuple[APIRouter, ...] = (
-    workspace_scoper_router,
     inbound_quarantine_router,
 )
 

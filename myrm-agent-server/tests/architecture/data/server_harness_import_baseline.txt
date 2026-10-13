@@ -257,7 +257,6 @@ myrm_agent_harness.core.security.path
 myrm_agent_harness.core.security.readonly_research_sandbox
 myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.core.security.types
-myrm_agent_harness.core.security.workspace_scoper
 myrm_agent_harness.eval
 myrm_agent_harness.eval.builder
 myrm_agent_harness.eval.manifest_prediction
