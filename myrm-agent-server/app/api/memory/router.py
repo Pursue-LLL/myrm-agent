@@ -67,9 +67,6 @@ from app.api.memory.conclusion_attribution_router import (
 from app.api.memory.conclusion_evidence_router import (
     router as conclusion_evidence_router,
 )
-from app.api.memory.context_fabric_router import (
-    router as context_fabric_router,
-)
 from app.api.memory.conversation_lineage_defense_router import (
     router as conversation_lineage_defense_router,
 )
@@ -97,9 +94,6 @@ from app.api.memory.disk_reconciliation_router import (
 from app.api.memory.document_attachment_router import (
     router as document_attachment_router,
 )
-from app.api.memory.domain_isolation_router import (
-    router as domain_isolation_router,
-)
 from app.api.memory.dream_cognitive_router import (
     router as dream_cognitive_router,
 )
@@ -114,9 +108,6 @@ from app.api.memory.ephemeral_delta_router import (
 )
 from app.api.memory.experience_compounding_router import (
     router as experience_compounding_router,
-)
-from app.api.memory.experience_flywheel_router import (
-    router as experience_flywheel_router,
 )
 from app.api.memory.experience_gene_router import (
     router as experience_gene_router,
@@ -238,9 +229,6 @@ from app.api.memory.peer_cognition_router import (
 from app.api.memory.peer_gateway_router import (
     router as peer_gateway_router,
 )
-from app.api.memory.person_card_router import (
-    router as person_card_router,
-)
 from app.api.memory.persona_router import (
     router as memory_persona_router,
 )
@@ -260,9 +248,6 @@ from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.progressive_sidecar_router import (
     router as progressive_sidecar_router,
 )
-from app.api.memory.project_dongle_router import (
-    router as project_dongle_router,
-)
 from app.api.memory.provenance_batch import (
     router as memory_provenance_batch_router,
 )
@@ -281,9 +266,6 @@ from app.api.memory.revocable_provenance_router import (
 from app.api.memory.rule_cascade_router import (
     router as rule_cascade_router,
 )
-from app.api.memory.safe_forget_router import (
-    router as safe_forget_router,
-)
 from app.api.memory.score_honesty_router import (
     router as score_honesty_router,
 )
@@ -299,14 +281,8 @@ from app.api.memory.shared_bus import (
 from app.api.memory.skill_triad_router import (
     router as skill_triad_router,
 )
-from app.api.memory.snapshot_freshness_router import (
-    router as snapshot_freshness_router,
-)
 from app.api.memory.space_guard import (
     router as space_guard_router,
-)
-from app.api.memory.staleness_consolidation_router import (
-    router as staleness_consolidation_router,
 )
 from app.api.memory.subagent_isolation import (
     router as memory_subagent_isolation_router,
@@ -324,17 +300,11 @@ from app.api.memory.thinking_sanitizer_router import (
 from app.api.memory.tiered_consensus_router import (
     router as tiered_consensus_router,
 )
-from app.api.memory.transcript_projection_router import (
-    router as transcript_projection_router,
-)
 from app.api.memory.two_layer_dialectic_router import (
     router as two_layer_dialectic_router,
 )
 from app.api.memory.unload_router import (
     router as memory_unload_router,
-)
-from app.api.memory.vector_dim_guard_router import (
-    router as vector_dim_guard_router,
 )
 from app.api.memory.vector_preflight_router import (
     router as memory_vector_preflight_router,
@@ -646,46 +616,6 @@ router.include_router(
 router.include_router(
     bitemporal_tms_router,
     tags=["memory-bitemporal-tms"],
-)
-router.include_router(
-    safe_forget_router,
-    tags=["memory-safe-forget"],
-)
-router.include_router(
-    transcript_projection_router,
-    tags=["memory-transcript-projection"],
-)
-router.include_router(
-    vector_dim_guard_router,
-    tags=["memory-vector-dim-guard"],
-)
-router.include_router(
-    project_dongle_router,
-    tags=["memory-project-dongle"],
-)
-router.include_router(
-    context_fabric_router,
-    tags=["memory-context-fabric"],
-)
-router.include_router(
-    experience_flywheel_router,
-    tags=["memory-experience-flywheel"],
-)
-router.include_router(
-    person_card_router,
-    tags=["memory-person-card"],
-)
-router.include_router(
-    domain_isolation_router,
-    tags=["memory-domain-isolation"],
-)
-router.include_router(
-    snapshot_freshness_router,
-    tags=["memory-snapshot-freshness"],
-)
-router.include_router(
-    staleness_consolidation_router,
-    tags=["memory-staleness-consolidation"],
 )
 router.include_router(
     memory_inspector_router,
