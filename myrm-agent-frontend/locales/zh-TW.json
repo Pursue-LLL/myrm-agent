@@ -13104,22 +13104,6 @@
     "speakerNotes": "演講者備註",
     "noSpeakerNotes": "暫無備註"
   },
-  "vibrancy": {
-    "triggerAriaLabel": "桌面原生毛玻璃與流體微動效設定",
-    "triggerTooltip": "按 ⌥⌘V 或點選調節桌面原生毛玻璃與流體微動效",
-    "panelTitle": "原生材質與微互動調諧",
-    "platformTag": "{platform} 原生材質",
-    "quickToggleAriaLabel": "快速切換毛玻璃開關",
-    "styleLabel": "視窗磨砂與透明材質風格",
-    "styleMica": "Win11 雲母 (Mica)",
-    "styleAcrylic": "亞克力磨砂 (Acrylic)",
-    "styleVibrantDark": "macOS 暗黑毛玻璃",
-    "styleUltraThin": "超透晶體 (Ultra Thin)",
-    "styleDisabled": "實色不透明 (已關閉)",
-    "statusDisabled": "實色",
-    "intensityLabel": "模糊深度與飽和度",
-    "platformHint": "在 macOS / Windows 11 下啟用系統原生半透明材質透射；Web 端自適應平滑降級。"
-  },
   "spreadsheet": {
     "viewerTitle": "出版級高顏值電子表格看板",
     "themeNavy": "商務深藍",

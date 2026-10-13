@@ -13172,22 +13172,6 @@
     "speakerNotes": "Speaker Notes",
     "noSpeakerNotes": "No notes for this slide"
   },
-  "vibrancy": {
-    "triggerAriaLabel": "Desktop acrylic glassmorphism & liquid vibrancy settings",
-    "triggerTooltip": "Press ⌥⌘V or click to tune desktop acrylic vibrancy and liquid effects",
-    "panelTitle": "Native Vibrancy & Liquid Tuner",
-    "platformTag": "{platform} Native Vibrancy",
-    "quickToggleAriaLabel": "Toggle vibrancy blur on or off",
-    "styleLabel": "Window Glass & Surface Style",
-    "styleMica": "Win11 Mica",
-    "styleAcrylic": "Acrylic Glass",
-    "styleVibrantDark": "macOS Vibrant Dark",
-    "styleUltraThin": "Ultra Thin Crystal",
-    "styleDisabled": "Opaque (Disabled)",
-    "statusDisabled": "Opaque",
-    "intensityLabel": "Blur Depth & Saturation",
-    "platformHint": "Activates hardware-accelerated translucent surface on macOS & Windows 11; graceful CSS fallback on Web."
-  },
   "spreadsheet": {
     "viewerTitle": "Publication-Grade Styled Spreadsheet Hub",
     "themeNavy": "Business Navy",

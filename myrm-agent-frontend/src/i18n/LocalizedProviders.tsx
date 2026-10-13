@@ -40,7 +40,6 @@ import { WorkspaceLayoutBar } from '@/components/features/workspace-layout';
 import { DevPortsBar, DevPortSplitPreviewer } from '@/components/features/dev-ports';
 import { ToolPickerTrigger } from '@/components/features/tool-picker';
 import { PresentationTrigger } from '@/components/features/presentation';
-import { LiquidVibrancyStatusHub } from '@/components/features/vibrancy';
 import { InteractiveSpreadsheetViewer } from '@/components/features/spreadsheet';
 import { SessionMapTrigger } from '@/components/features/session-map';
 import { WorkbenchToggleTrigger, MultiTabWorkbench } from '@/components/features/workbench';
@@ -81,7 +80,6 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
                 <DevPortSplitPreviewer />
                 <ToolPickerTrigger />
                 <PresentationTrigger />
-                <LiquidVibrancyStatusHub />
                 <InteractiveSpreadsheetViewer />
                 <SessionMapTrigger />
                 <WorkbenchToggleTrigger />

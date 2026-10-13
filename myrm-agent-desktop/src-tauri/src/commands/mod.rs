@@ -23,4 +23,3 @@ pub mod screen_lock;
 pub mod session_window;
 pub mod visual_approval_overlay;
 pub mod visual_approval_overlay_page;
-pub mod desktop_vibrancy;

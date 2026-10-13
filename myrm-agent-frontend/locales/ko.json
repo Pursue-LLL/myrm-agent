@@ -13104,22 +13104,6 @@
     "speakerNotes": "발표자 노트",
     "noSpeakerNotes": "이 슬라이드에는 노트가 없습니다"
   },
-  "vibrancy": {
-    "triggerAriaLabel": "데스크톱 아크릴 유리 효과 및 리퀴드 바이브런시 설정",
-    "triggerTooltip": "⌥⌘V를 누르거나 클릭하면 데스크톱 아크릴 효과와 리퀴드 효과를 조정합니다",
-    "panelTitle": "네이티브 바이브런시 및 리퀴드 튜너",
-    "platformTag": "{platform} 네이티브 바이브런시",
-    "quickToggleAriaLabel": "바이브런시 흐림 효과 켜기/끄기",
-    "styleLabel": "창 유리 및 표면 스타일",
-    "styleMica": "Win11 Mica",
-    "styleAcrylic": "아크릴 유리",
-    "styleVibrantDark": "macOS 바이브런트 다크",
-    "styleUltraThin": "울트라 씬 크리스털",
-    "styleDisabled": "불투명(사용 안 함)",
-    "statusDisabled": "불투명",
-    "intensityLabel": "흐림 깊이 및 채도",
-    "platformHint": "macOS와 Windows 11에서 하드웨어 가속 반투명 표면을 활성화하며, 웹에서는 CSS로 자연스럽게 대체됩니다."
-  },
   "spreadsheet": {
     "viewerTitle": "출판 품질 스타일 스프레드시트 허브",
     "themeNavy": "비즈니스 네이비",

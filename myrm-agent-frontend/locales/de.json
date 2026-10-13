@@ -13104,22 +13104,6 @@
     "speakerNotes": "Sprechernotizen",
     "noSpeakerNotes": "Keine Notizen für diese Folie"
   },
-  "vibrancy": {
-    "triggerAriaLabel": "Acrylglas- und Liquid-Vibrancy-Einstellungen für den Desktop",
-    "triggerTooltip": "Drücken Sie ⌥⌘V oder klicken Sie, um Desktop-Acryleffekte und Liquid-Effekte einzustellen",
-    "panelTitle": "Native Vibrancy und Liquid-Tuner",
-    "platformTag": "Native {platform}-Vibrancy",
-    "quickToggleAriaLabel": "Vibrancy-Unschärfe ein- oder ausschalten",
-    "styleLabel": "Fensterglas und Oberflächenstil",
-    "styleMica": "Win11 Mica",
-    "styleAcrylic": "Acrylglas",
-    "styleVibrantDark": "macOS Dunkel (Vibrant)",
-    "styleUltraThin": "Ultradünner Kristall",
-    "styleDisabled": "Undurchsichtig (deaktiviert)",
-    "statusDisabled": "Undurchsichtig",
-    "intensityLabel": "Unschärfetiefe und Sättigung",
-    "platformHint": "Aktiviert hardwarebeschleunigte transluzente Oberflächen unter macOS und Windows 11; im Web greift ein CSS-Fallback."
-  },
   "spreadsheet": {
     "viewerTitle": "Tabellen-Hub im Publikationsstil",
     "themeNavy": "Business-Marineblau",

@@ -13104,22 +13104,6 @@
     "speakerNotes": "スピーカーノート",
     "noSpeakerNotes": "このスライドにノートはありません"
   },
-  "vibrancy": {
-    "triggerAriaLabel": "デスクトップのアクリル・ガラス質感と液体バイブランシーの設定",
-    "triggerTooltip": "⌥⌘V を押すかクリックすると、デスクトップのアクリル効果と液体効果を調整します",
-    "panelTitle": "ネイティブバイブランシー＆リキッドチューナー",
-    "platformTag": "{platform} ネイティブバイブランシー",
-    "quickToggleAriaLabel": "バイブランシーのぼかしを切り替え",
-    "styleLabel": "ウィンドウのガラスと表面スタイル",
-    "styleMica": "Win11 Mica",
-    "styleAcrylic": "アクリルガラス",
-    "styleVibrantDark": "macOS バイブラントダーク",
-    "styleUltraThin": "ウルトラシンクリスタル",
-    "styleDisabled": "不透明（無効）",
-    "statusDisabled": "不透明",
-    "intensityLabel": "ぼかしの深さと彩度",
-    "platformHint": "macOS と Windows 11 でハードウェアアクセラレーションによる半透明サーフェスを有効にします。Web では CSS に自然にフォールバックします。"
-  },
   "spreadsheet": {
     "viewerTitle": "出版品質スタイル付きスプレッドシートハブ",
     "themeNavy": "ビジネスネイビー",
