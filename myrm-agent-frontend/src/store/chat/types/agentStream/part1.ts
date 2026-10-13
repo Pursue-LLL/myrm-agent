@@ -195,6 +195,7 @@ export interface TasksStepsStreamEvent extends BaseAgentEvent {
   partial_success?: boolean;
   duration_ms?: number;
   metadata?: Record<string, unknown>;
+  skill_mutation_batch_id?: string;
 }
 
 export interface ToolHeartbeatStreamEvent extends BaseAgentEvent {

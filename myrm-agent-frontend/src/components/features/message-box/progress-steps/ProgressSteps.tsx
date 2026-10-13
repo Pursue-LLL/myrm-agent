@@ -60,6 +60,9 @@ import {
 import { buildTree, TreeNode } from './treeUtils';
 import { ArchiveRestoreStepAction } from './ArchiveRestoreStepAction';
 import { ArchiveRestoreResultChip } from './ArchiveRestoreResultChip';
+import { SkillManageBatchRollbackAction } from './SkillManageBatchRollbackAction';
+import { extractSkillManageBatchId } from './skillManageBatch';
+import { EXPAND_PROGRESS_STEPS_EVENT, type ExpandProgressStepsDetail } from '@/lib/chat/progressStepsUi';
 
 interface ProgressStepsProps {
   messageId: string;
@@ -76,6 +79,18 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useScrollbarStyles();
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<ExpandProgressStepsDetail>;
+      const targetId = custom.detail?.messageId?.trim();
+      if (targetId && targetId === messageId) {
+        setIsExpanded(true);
+      }
+    };
+    window.addEventListener(EXPAND_PROGRESS_STEPS_EVENT, handler);
+    return () => window.removeEventListener(EXPAND_PROGRESS_STEPS_EVENT, handler);
+  }, [messageId]);
 
   useEffect(() => {
     if (scrollContainerRef.current && isExpanded && loading) {
@@ -453,6 +468,10 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                 <ArchiveRestoreStepAction actions={step.archive_restore_actions} block={step.archive_restore_block} />
               )}
               {step.archive_restore_result && <ArchiveRestoreResultChip result={step.archive_restore_result} />}
+              {(() => {
+                const skillBatchId = extractSkillManageBatchId(step);
+                return skillBatchId ? <SkillManageBatchRollbackAction batchId={skillBatchId} /> : null;
+              })()}
 
               {step.dropped_manifest && step.dropped_manifest.length > 0 && (
                 <div className="mt-2 p-2.5 rounded-lg border bg-muted/40 border-border/60">
@@ -511,6 +530,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
   return (
     <>
       <div
+        data-message-id={messageId}
         data-testid="progress-steps-toggle"
         data-expanded={isExpanded ? 'true' : 'false'}
         className="flex items-center justify-between mt-6 cursor-pointer group hover:opacity-90 transition-opacity duration-200"

@@ -4151,7 +4151,20 @@
       "copyRaw": "Roh-JSON kopieren",
       "copied": "Kopiert",
       "close": "Schließen"
-    }
+    },
+    "skillManageRollbackDescription": "Dieser Schritt hat einen oder mehrere Skills geändert. Sie können den gesamten Batch rückgängig machen.",
+    "skillManageRollbackConfirmTitle": "Skill-Änderungen rückgängig machen?",
+    "skillManageRollbackConfirmDescription": "Stellt jeden Skill in diesem Batch auf den Stand vor der Agent-Bearbeitung zurück. Von hier aus nicht erneut rückgängig.",
+    "skillManageRollbackConfirmAction": "Vorherigen Inhalt wiederherstellen",
+    "skillManageRollbackButton": "Skill-Änderungen rückgängig",
+    "skillManageRollbackSubmitting": "Wird wiederhergestellt…",
+    "skillManageRollbackDone": "Änderungen zurückgesetzt",
+    "skillManageRollbackSuccess": "{count} Skill(s) auf den vorherigen Inhalt zurückgesetzt.",
+    "skillManageRollbackFailed": "Skill-Änderungen konnten nicht rückgängig gemacht werden. Erneut versuchen oder in den Skill-Einstellungen eine Version zurücksetzen.",
+    "skillManageRollbackCompensationFailed": "Rückgängig konnte nicht sicher abgeschlossen werden. Einstellungen → Skills → Verlauf prüfen und ggf. manuell zurücksetzen.",
+    "skillManageRollbackAlreadyConsumed": "Dieser Batch wurde bereits rückgängig gemacht oder der Link ist abgelaufen. Nutzen Sie Skill-Einstellungen → Verlauf für ältere Versionen.",
+    "skillManageUndoHintBody": "Der Assistent hat in dieser Antwort Skills aktualisiert. Öffnen Sie unten die Aufgabenschritte, um die Änderungen rückgängig zu machen.",
+    "skillManageUndoHintAction": "Aufgabenschritte öffnen"
   },
   "memory": {
     "mesh": {
@@ -13926,6 +13939,7 @@
         "subtitle": "Ihr KI-Arbeitsbereich läuft unabhängig auf offenen Standards mit vollständigen Exportfunktionen.",
         "exportConfig": "Vollständige Konfiguration exportieren",
         "exportMemory": "Erinnerungen exportieren",
+        "exportTakeout": "Alle meine Daten exportieren",
         "points": {
           "decouplingTitle": "Entkoppelte Architektur",
           "decouplingDesc": "Die Trennung von Modellberechnung und Fachwissen gewährleistet reibungslose Upgrades.",

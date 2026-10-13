@@ -4048,6 +4048,8 @@
     "skillManageRollbackFailed": "无法撤销此次技能修改，请重试或在技能设置中回滚版本。",
     "skillManageRollbackCompensationFailed": "撤销未能安全完成。请打开 设置 → 技能 → 历史 核对版本，必要时手动回滚。",
     "skillManageRollbackAlreadyConsumed": "该批次已撤销或链接已失效。若仍需更早版本，请前往「设置 → 技能 → 历史」。",
+    "skillManageUndoHintBody": "助手在本条回复中修改了技能。展开下方「任务步骤」可撤销这些修改并恢复之前的内容。",
+    "skillManageUndoHintAction": "打开任务步骤",
     "archiveRestoreResultSummary": "已恢复 {lines} 行，{tokens} tokens。",
     "archiveRestoreResultRange": "范围：{range}",
     "archiveRestoreResultTokens": "恢复 token：{tokens}",
@@ -14591,6 +14593,7 @@
         "subtitle": "打破专有闭源生态绑定。无需担心供应商锁定，一切资产透明可控、随取随走。",
         "exportConfig": "导出工作区配置",
         "exportMemory": "备份记忆资产",
+        "exportTakeout": "导出全部个人数据",
         "points": {
           "decouplingTitle": "模型与资产解耦",
           "decouplingDesc": "随时无缝热切换 Claude、DeepSeek、GPT、Gemini 等任意大模型，历史资产与技能 100% 保持连续可用。",

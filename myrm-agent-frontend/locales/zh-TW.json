@@ -4151,7 +4151,20 @@
       "copyRaw": "複製原始 JSON",
       "copied": "已複製",
       "close": "關閉"
-    }
+    },
+    "skillManageRollbackDescription": "此步驟修改了一個或多個技能。可撤銷整批修改並恢復修改前的內容。",
+    "skillManageRollbackConfirmTitle": "撤銷技能修改？",
+    "skillManageRollbackConfirmDescription": "將把本批次涉及的所有技能恢復為 Agent 修改前的內容。此處無法再次撤銷該操作。",
+    "skillManageRollbackConfirmAction": "恢復修改前內容",
+    "skillManageRollbackButton": "撤銷技能修改",
+    "skillManageRollbackSubmitting": "正在恢復…",
+    "skillManageRollbackDone": "已撤銷修改",
+    "skillManageRollbackSuccess": "已將 {count} 個技能恢復為修改前的內容。",
+    "skillManageRollbackFailed": "無法撤銷此次技能修改，請重試或在技能設置中回滾版本。",
+    "skillManageRollbackCompensationFailed": "撤銷未能安全完成。請打開 設置 → 技能 → 歷史 核對版本，必要時手動回滾。",
+    "skillManageRollbackAlreadyConsumed": "該批次已撤銷或鏈接已失效。若仍需更早版本，請前往「設置 → 技能 → 歷史」。",
+    "skillManageUndoHintBody": "助手在本條回覆中修改了技能。展開下方「任務步驟」可撤銷這些修改並恢復之前的內容。",
+    "skillManageUndoHintAction": "打開任務步驟"
   },
   "memory": {
     "mesh": {
@@ -13926,6 +13939,7 @@
         "subtitle": "打破專有閉源生態綁定。無需擔心供應商鎖定，一切資產透明可控、隨取隨走。",
         "exportConfig": "匯出工作區配置",
         "exportMemory": "備份記憶資產",
+        "exportTakeout": "匯出全部個人資料",
         "points": {
           "decouplingTitle": "模型與資產解耦",
           "decouplingDesc": "隨時無縫熱切換 Claude、DeepSeek、GPT、Gemini 等任意大模型，歷史資產與技能 100% 保持連續可用。",

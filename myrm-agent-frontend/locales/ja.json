@@ -4151,7 +4151,20 @@
       "copyRaw": "生 JSON をコピー",
       "copied": "コピー完了",
       "close": "閉じる"
-    }
+    },
+    "skillManageRollbackDescription": "このステップで 1 つ以上のスキルが変更されました。一括で元に戻せます。",
+    "skillManageRollbackConfirmTitle": "スキル変更を元に戻しますか？",
+    "skillManageRollbackConfirmDescription": "このバッチ内のすべてのスキルを、エージェントが編集する前の内容に戻します。ここから再度元に戻すことはできません。",
+    "skillManageRollbackConfirmAction": "変更前の内容に戻す",
+    "skillManageRollbackButton": "スキル変更を元に戻す",
+    "skillManageRollbackSubmitting": "復元中…",
+    "skillManageRollbackDone": "変更を元に戻しました",
+    "skillManageRollbackSuccess": "{count} 件のスキルを変更前の内容に戻しました。",
+    "skillManageRollbackFailed": "スキル変更を元に戻せませんでした。再試行するか、スキル設定でバージョンをロールバックしてください。",
+    "skillManageRollbackCompensationFailed": "安全に元に戻せませんでした。設定 → スキル → 履歴でバージョンを確認し、必要なら手動でロールバックしてください。",
+    "skillManageRollbackAlreadyConsumed": "このバッチはすでに元に戻されたか、リンクの有効期限が切れています。古いバージョンが必要な場合はスキル設定 → 履歴をご利用ください。",
+    "skillManageUndoHintBody": "この返信でアシスタントがスキルを更新しました。下のタスクステップから編集を元に戻せます。",
+    "skillManageUndoHintAction": "タスクステップを開く"
   },
   "memory": {
     "mesh": {
@@ -13926,6 +13939,7 @@
         "subtitle": "独自のクローズドエコシステムによる拘束を打破。ベンダーロックインの心配がなく、すべての資産が透過的でポータブルです。",
         "exportConfig": "ワークスペース設定をエクスポート",
         "exportMemory": "メモリ資産をバックアップ",
+        "exportTakeout": "すべてのデータをエクスポート",
         "points": {
           "decouplingTitle": "モデルと資産の疎結合",
           "decouplingDesc": "Claude、DeepSeek、GPT、Gemini など任意の大規模モデルへいつでもシームレスに切り替え可能。過去の資産やスキルは 100% 維持されます。",

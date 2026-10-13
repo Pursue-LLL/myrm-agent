@@ -121,6 +121,7 @@ export function SkillManageBatchRollbackAction({ batchId }: SkillManageBatchRoll
             <AlertDialogCancel disabled={submitting}>{tSkills('upload.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={submitting}
+              data-testid="skill-manage-rollback-confirm"
               onClick={(event) => {
                 event.preventDefault();
                 void handleRollback();

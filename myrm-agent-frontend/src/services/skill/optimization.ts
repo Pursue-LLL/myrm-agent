@@ -3,7 +3,7 @@
  * @/lib/api::apiRequest (POS: frontend API request helper)
  *
  * [OUTPUT]
- * 质量历史/洞察/推荐/版本对比/回滚/Shadow A/B API 与 `/batch-optimization/tasks/{id}/cancel`、`rollback` 封装。
+ * 质量历史/洞察/推荐/版本对比/回滚/Shadow A/B API、skill_manage 批次撤销 `/mutations/{id}/rollback` 与 `/batch-optimization/tasks/{id}/cancel`、`rollback` 封装。
  *
  * [POS]
  * 技能优化客户端。`/skill-optimization/*` REST 契约。
@@ -96,6 +96,20 @@ export async function startShadowAbTest(
       baseline_version: baselineVersion,
       candidate_content: candidateContent,
     }),
+  });
+}
+
+export async function rollbackSkillMutationBatch(batchId: string): Promise<{
+  batch_id: string;
+  skills_restored: number;
+  status: string;
+}> {
+  return apiRequest<{
+    batch_id: string;
+    skills_restored: number;
+    status: string;
+  }>(`${PREFIX}/mutations/${encodeURIComponent(batchId)}/rollback`, {
+    method: 'POST',
   });
 }
 

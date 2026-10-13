@@ -35,6 +35,8 @@ import { stripDatetimeTag } from '@/lib/utils/messageUtils';
 import { removeWaitingForTurnStep } from '@/store/chat/messageUtils';
 import { regenerateLastTurn, undoLastTurn, cancelAgentRequest } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
+import { messageHasSkillManageUndo } from './progress-steps/skillManageBatch';
+import { SkillManageUndoHintCard } from './SkillManageUndoHintCard';
 import { EvidenceStageHUD } from '@/components/features/chat-window/EvidenceStageHUD';
 import { ExecutionPhaseStepper } from '@/components/features/chat-window/ExecutionPhaseStepper';
 import ConsensusThinkingPanel from './ConsensusThinkingPanel';
@@ -493,6 +495,9 @@ const MessageBox = ({
                 <>
                   <EvidenceStageHUD steps={resolvedProgressSteps} loading={loading} />
                   <ProgressSteps messageId={message.messageId} steps={resolvedProgressSteps} loading={loading} />
+                  {messageHasSkillManageUndo(resolvedProgressSteps) && !(loading && isLast) ? (
+                    <SkillManageUndoHintCard messageId={message.messageId} />
+                  ) : null}
                 </>
               )}
             </div>

@@ -4048,6 +4048,8 @@
     "skillManageRollbackFailed": "Could not undo those skill changes. Try again or roll back a version in Skill settings.",
     "skillManageRollbackCompensationFailed": "Undo could not finish safely. Open Settings → Skills → History and verify versions, then roll back manually if needed.",
     "skillManageRollbackAlreadyConsumed": "This batch was already undone or the rollback link expired. Use Skill settings → History if you still need an older version.",
+    "skillManageUndoHintBody": "The assistant updated one or more skills in this reply. Open Task Steps below to undo those edits and restore the previous content.",
+    "skillManageUndoHintAction": "Open Task Steps",
     "archiveRestoreResultSummary": "Restored {lines} line(s), {tokens} tokens.",
     "archiveRestoreResultRange": "Range: {range}",
     "archiveRestoreResultTokens": "Restored tokens: {tokens}",
@@ -14591,6 +14593,7 @@
         "subtitle": "Break free from proprietary closed ecosystems. Zero vendor lock-in, all assets transparent and portable.",
         "exportConfig": "Export Workspace Config",
         "exportMemory": "Backup Memories",
+        "exportTakeout": "Export All My Data",
         "points": {
           "decouplingTitle": "Model & Asset Decoupling",
           "decouplingDesc": "Hot-swap between Claude, DeepSeek, GPT, Gemini freely while 100% of your assets and skills remain intact.",
