@@ -4,14 +4,21 @@
  * Real scenarios: the connection drops while sending a message with a PDF attached and the user clicks Retry; the
  * user edits a question after a minute and the request is refused. The retry must carry the PDF the bubble shows
  * (not whatever the user staged for the next message), and a request the agent does not take must hand the text
- * back to the composer instead of losing it together with the replaced bubble.
+ * back to the composer instead of losing it together with the replaced bubble. When the user has already started
+ * the next message, the composer stays as it is and the text stays reachable through the input history.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { addInputHistory } from '@/hooks/message-input/useInputHistory';
 import { truncateAfterMessage } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
 import type { ChatState, File as ChatFile, Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 import { resendEditedUserMessage, retryFailedUserMessage } from '../userMessageResend';
+
+vi.mock('@/hooks/message-input/useInputHistory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/message-input/useInputHistory')>();
+  return { ...actual, addInputHistory: vi.fn() };
+});
 
 vi.mock('@/services/chat', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/chat')>();
@@ -69,6 +76,7 @@ beforeEach(() => {
   vi.mocked(truncateAfterMessage).mockReset();
   vi.mocked(truncateAfterMessage).mockResolvedValue({} as Awaited<ReturnType<typeof truncateAfterMessage>>);
   vi.mocked(showI18nToast).mockReset();
+  vi.mocked(addInputHistory).mockReset();
   vi.spyOn(console, 'error').mockImplementation(() => {});
   useChatStore.setState({
     chatId: CHAT_ID,
@@ -76,6 +84,8 @@ beforeEach(() => {
     inputMessage: '',
     files: [],
     pendingExplicitSkillActivation: null,
+    incognitoMode: false,
+    agentConfig: null,
     sendMessage,
   });
 });
@@ -147,6 +157,53 @@ describe('retryFailedUserMessage', () => {
     expect(composer()).toEqual({ inputMessage: 'another idea', files: [], pendingExplicitSkillActivation: null });
   });
 
+  describe('when the composer cannot take the text back', () => {
+    const userMovedOn = async () => {
+      useChatStore.setState({ inputMessage: 'another idea' });
+      return false;
+    };
+
+    it('keeps the text in the input history of the current agent, as a direct send does', async () => {
+      useChatStore.setState({ agentConfig: { agentId: 'agent-7' } as NonNullable<ChatState['agentConfig']> });
+      sendMessage.mockImplementation(userMovedOn);
+
+      await retryFailedUserMessage(failedBubble);
+
+      expect(addInputHistory).toHaveBeenCalledTimes(1);
+      expect(addInputHistory).toHaveBeenCalledWith('summarize the report', 'agent-7');
+    });
+
+    it('records nothing in an incognito chat, which never persists what the user typed', async () => {
+      useChatStore.setState({ incognitoMode: true });
+      sendMessage.mockImplementation(userMovedOn);
+
+      await retryFailedUserMessage(failedBubble);
+
+      expect(addInputHistory).not.toHaveBeenCalled();
+    });
+
+    it('records nothing when the text went back to the composer', async () => {
+      sendMessage.mockResolvedValue(false);
+
+      await retryFailedUserMessage(failedBubble);
+
+      expect(composer().inputMessage).toBe('summarize the report');
+      expect(addInputHistory).not.toHaveBeenCalled();
+    });
+
+    it('gives nothing back once another chat is open, whose agent and incognito state differ', async () => {
+      sendMessage.mockImplementation(async () => {
+        useChatStore.setState({ chatId: 'chat-other' });
+        return false;
+      });
+
+      await retryFailedUserMessage(failedBubble);
+
+      expect(composer().inputMessage).toBe('');
+      expect(addInputHistory).not.toHaveBeenCalled();
+    });
+  });
+
   it('restores the text and explains that the agent is busy when the server still runs another turn', async () => {
     sendMessage.mockRejectedValue(busyError());
 
@@ -215,5 +272,19 @@ describe('resendEditedUserMessage', () => {
       files: [STAGED_PNG],
       pendingExplicitSkillActivation: null,
     });
+  });
+
+  it('keeps the edited text, without its skill wrapper, in the input history when the composer moved on', async () => {
+    sendMessage.mockImplementation(async () => {
+      useChatStore.setState({ inputMessage: 'another idea' });
+      return false;
+    });
+    const edited = bubble('user', 'r-2', '[use writer_skill] [instruction: formal tone] draft the memo');
+
+    await resendEditedUserMessage(CHAT_ID, edited, 2, 'draft the memo for finance');
+
+    expect(composer().inputMessage).toBe('another idea');
+    expect(addInputHistory).toHaveBeenCalledTimes(1);
+    expect(addInputHistory).toHaveBeenCalledWith('draft the memo for finance', undefined);
   });
 });

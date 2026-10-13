@@ -3,6 +3,7 @@
  * - @/store/useChatStore::useChatStore (POS: Chat state store and message state façade)
  * - @/services/chat::truncateAfterMessage (POS: Chat HTTP API)
  * - @/lib/utils/messageUtils (POS: Message text helpers, explicit skill activation wire format)
+ * - @/hooks/message-input/useInputHistory::addInputHistory (POS: Per-agent input history the composer recalls with ArrowUp)
  *
  * [OUTPUT]
  * - retryFailedUserMessage: resend a user bubble whose delivery failed, with the attachments it carried.
@@ -10,9 +11,12 @@
  *
  * [POS]
  * Resend flows of a user bubble. The old bubble is replaced before the new request exists, so a request the agent
- * does not take would take the user's text with it; the text and attachments return to the composer instead.
- * A retry carries the attachments its bubble shows; an edit sends like a normal message, with the composer's own.
+ * does not take would take the user's text with it; the text and attachments return to the composer instead. A
+ * composer the user already started stays as it is, and the text goes to the input history like that of a refused
+ * direct send. A retry carries the attachments its bubble shows; an edit sends like a normal message, with the
+ * composer's own.
  */
+import { addInputHistory } from '@/hooks/message-input/useInputHistory';
 import {
   buildExplicitSkillWireMessage,
   parseExplicitSkillActivation,
@@ -27,19 +31,26 @@ import useChatStore from '@/store/useChatStore';
 /** Give an undelivered request back to the composer, unless the user already started something else there. */
 function restoreComposer(chatId: string | undefined, content: string, files: ChatFile[]): void {
   const live = useChatStore.getState();
+  // Another chat is open now: its composer, agent and incognito state are not those of this request.
+  if (live.chatId !== chatId) {
+    return;
+  }
+  const text = stripUserMessageDisplayText(content);
   const composerInUse =
-    live.chatId !== chatId ||
-    live.inputMessage.trim() !== '' ||
-    live.files.length > 0 ||
-    live.pendingExplicitSkillActivation !== null;
+    live.inputMessage.trim() !== '' || live.files.length > 0 || live.pendingExplicitSkillActivation !== null;
   if (composerInUse) {
+    // The text stays reachable through the input history, as that of a refused direct send does. An incognito chat
+    // persists nothing the user typed.
+    if (!live.incognitoMode) {
+      addInputHistory(text, live.agentConfig?.agentId);
+    }
     return;
   }
   const activation = parseExplicitSkillActivation(content);
   live.setPendingExplicitSkillActivation(
     activation && { skillNames: activation.skillNames, instruction: activation.instruction },
   );
-  live.setInputMessage(stripUserMessageDisplayText(content));
+  live.setInputMessage(text);
   live.setFiles(files);
 }
 

@@ -58,8 +58,8 @@
 | `SessionRecordingCard.tsx` | 组件 | 会话录制视频回放卡片（HTML5 video player） | ✅ |
 | `McpAppSection.tsx` | 组件 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | ✅ |
 | `UserMessage.tsx` | 核心 | 用户消息气泡：附件预览、编辑重发、Rewind、Fork；移动端动作常显 | ✅ |
-| `userMessageResend.ts` | 辅助 | 用户气泡重发流程（`MessageBox` 的失败重试与编辑重发委托于此）：失败重试携带气泡自身附件（空列表使输入框已暂存的文件不被带入），编辑重发与普通发送一样使用输入框当前附件；请求未被 agent 接收（被拒 / busy / 轮次前失败）时把文本、所带附件与技能 chip 还原到输入框，输入框已被用户使用则不覆盖 | ✅ |
-| `__tests__/userMessageResend.test.ts` | 测试 | 失败重试携带自身附件且不继承输入框文件、编辑重发先截断历史再按普通发送、未送达时还原文本/附件/技能 chip、busy 与意外失败提示 | ✅ |
+| `userMessageResend.ts` | 辅助 | 用户气泡重发流程（`MessageBox` 的失败重试与编辑重发委托于此）：失败重试携带气泡自身附件（空列表使输入框已暂存的文件不被带入），编辑重发与普通发送一样使用输入框当前附件；请求未被 agent 接收（被拒 / busy / 轮次前失败）时把文本、所带附件与技能 chip 还原到输入框；输入框已被用户使用则不覆盖，文本改记入输入历史（隐身会话不记录，已切换到其他聊天则不处理） | ✅ |
+| `__tests__/userMessageResend.test.ts` | 测试 | 失败重试携带自身附件且不继承输入框文件、编辑重发先截断历史再按普通发送、未送达时还原文本/附件/技能 chip、输入框被占用时改记入输入历史（隐身与切换聊天不记录）、busy 与意外失败提示 | ✅ |
 | `TtsrInterventionBadge.tsx` | 组件 | 时间旅行流规则（TTSR）介入微徽章：流光琥珀色微胶囊、动态防御（Active Defense）标签、自动纠偏指示、可折叠安全指引、同规则聚合折叠（`groupTtsrInterventions`）与时序时间线，WAI-ARIA status 支持 | ✅ |
 | `__tests__/TtsrInterventionBadge.test.tsx` | 测试 | TTSR 介入徽章渲染、展开指引、`groupTtsrInterventions` 纯函数与多轮时序时间线及 WAI-ARIA 单测 | ✅ |
 | `useContextWatermarkMetrics.ts` | 辅助 | 上下文水位与轮级 Token 序列推导 Hook/纯函数：提取近 12 轮用量切片、较上轮增量 delta、双主题 4 档分级语义色阶（<25% 清朗 / 25-75% 多云 / 75-90% 预警 / ≥90% 即将压缩） | ✅ |
