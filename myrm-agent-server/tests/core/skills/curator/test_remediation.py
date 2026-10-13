@@ -39,7 +39,7 @@ def _write_skill(root: Path, name: str, *, pinned: bool = False) -> Path:
         "created_at": used_at,
         "lifecycle_status": "active",
         "pinned": pinned,
-        "usage_history": [{"timestamp": used_at, "success": False, "duration_ms": 0.0}],
+        "usage_history": [{"timestamp": used_at, "success": False}],
     }
     (skill_dir / ".stats.json").write_text(json.dumps(ledger), encoding="utf-8")
     return skill_dir

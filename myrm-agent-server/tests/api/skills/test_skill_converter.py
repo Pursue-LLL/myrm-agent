@@ -33,7 +33,6 @@ def test_usage_stats_are_mapped_with_numeric_coercion() -> None:
                 "success_count": 5,
                 "failure_count": 2.0,
                 "success_rate": "0.5",
-                "avg_duration_ms": 12,
                 "lifecycle_status": "stale",
                 "pinned": True,
             }
@@ -41,7 +40,7 @@ def test_usage_stats_are_mapped_with_numeric_coercion() -> None:
     )
     stats = response.usage_stats
     assert (stats.call_count, stats.success_count, stats.failure_count) == (7, 5, 2)
-    assert (stats.success_rate, stats.avg_duration_ms) == (0.5, 12.0)
+    assert stats.success_rate == 0.5
     assert (stats.lifecycle_status, stats.pinned) == ("stale", True)
 
 

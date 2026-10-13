@@ -122,7 +122,6 @@ def _build_stats_json(hermes_usage: dict[str, object]) -> dict[str, object] | No
         "success_count": 0,
         "failure_count": 0,
         "last_used_at": last_used_at if isinstance(last_used_at, str) else None,
-        "total_duration_ms": 0.0,
         "lifecycle_status": lifecycle_status,
         "pinned": pinned,
         "merged_into": None,

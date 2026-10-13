@@ -118,7 +118,6 @@ class SkillTrendPoint(BaseModel):
     date: str
     success_rate: float | None
     """Share of the day's runs with an observed outcome that succeeded; None when none was observed."""
-    avg_duration_ms: float
     call_count: int
 
 
@@ -347,13 +346,12 @@ async def _fetch_skill_evolution_data() -> _SkillEvolutionSnapshot:
 
 
 class _DayBucket:
-    __slots__ = ("total", "successes", "failures", "durations")
+    __slots__ = ("total", "successes", "failures")
 
     def __init__(self) -> None:
         self.total = 0
         self.successes = 0
         self.failures = 0
-        self.durations: list[float] = []
 
 
 async def _fetch_skill_trends() -> list[SkillTrendSeries]:
@@ -387,18 +385,15 @@ async def _fetch_skill_trends() -> list[SkillTrendSeries]:
                         bucket.successes += 1
                     elif record.success is False:
                         bucket.failures += 1
-                    bucket.durations.append(record.duration_ms)
 
                 data_points = []
                 for date_key in sorted(daily.keys()):
                     bucket = daily[date_key]
-                    avg_dur = sum(bucket.durations) / len(bucket.durations) if bucket.durations else 0.0
                     observed = bucket.successes + bucket.failures
                     data_points.append(
                         SkillTrendPoint(
                             date=date_key,
                             success_rate=(bucket.successes / observed if observed > 0 else None),
-                            avg_duration_ms=round(avg_dur, 1),
                             call_count=bucket.total,
                         )
                     )

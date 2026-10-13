@@ -91,7 +91,6 @@ def skill_to_response(skill: Skill) -> SkillResponse:
             failure_count=_stat_int(skill.usage_stats, "failure_count"),
             last_used_at=(str(skill.usage_stats["last_used_at"]) if skill.usage_stats.get("last_used_at") else None),
             success_rate=_stat_float(skill.usage_stats, "success_rate"),
-            avg_duration_ms=_stat_float(skill.usage_stats, "avg_duration_ms"),
             lifecycle_status=str(skill.usage_stats.get("lifecycle_status", "active")),
             pinned=bool(skill.usage_stats.get("pinned", False)),
         )

@@ -33,7 +33,7 @@ def _write_stats(root: Path, name: str, outcomes: list[bool | None], *, days_ago
     when = datetime.now(UTC) - timedelta(days=days_ago)
     stats = SkillUsageStats(call_count=len(outcomes), last_used_at=when, created_at=when)
     for outcome in outcomes:
-        stats.append_usage(when.isoformat(), outcome, 0.0)
+        stats.append_usage(when.isoformat(), outcome)
         stats.success_count += outcome is True
         stats.failure_count += outcome is False
     (skill_dir / ".stats.json").write_text(json.dumps(stats.to_dict()))
