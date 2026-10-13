@@ -135,11 +135,4 @@ class TestSmartRoutingMediaRealPipeline:
             )
 
             _, routing_tier, *rest = await convert_to_general_agent_params(request, [])
-        # complaint-up 会对上一档 SIMPLE 记一次真实 misroute（O6 只跳过 REASONING），
-        # 测试后清理全局 penalty 以免污染后续 SIMPLE 判定。
-        from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
-            get_penalty_tracker,
-        )
-
-        get_penalty_tracker()._flags.pop("simple", None)
         assert routing_tier == RoutingTier.STANDARD.value

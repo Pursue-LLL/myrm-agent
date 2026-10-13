@@ -413,28 +413,23 @@ async def convert_to_general_agent_params(
                 min_tier=complaint_min_tier,
             )
             routing_ms = (time.perf_counter() - route_started) * 1000
-            model_cfg = routing_result.model_cfg
-            if routing_result.fallback_model_cfg is not None:
-                fallback_model_cfg = routing_result.fallback_model_cfg
-            routing_tier = routing_result.tier.value
-            routing_reason = routing_result.reason
-
-            # 最高档 REASONING 无更高档可升：complaint-up 只是重新生成，并非
-            # 档位选择错误。记录惩罚会削弱未来同类任务的档位选择（越用越笨），故跳过。
-            if is_complaint_up and recent_routing_tiers and recent_routing_tiers[-1] is not RoutingTier.REASONING:
-                from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
-                    record_misroute,
+            if request.action_mode == "deep_research" and routing_result.tier is RoutingTier.SIMPLE:
+                # The report is the deliverable of a research run and research topics are short by nature, so the
+                # planner/report model stays on the default model (research sub-agents use the light slot separately).
+                logger.info("Smart routing: deep research ignores tier=simple routing_ms=%.1f", routing_ms)
+            else:
+                model_cfg = routing_result.model_cfg
+                if routing_result.fallback_model_cfg is not None:
+                    fallback_model_cfg = routing_result.fallback_model_cfg
+                routing_tier = routing_result.tier.value
+                routing_reason = routing_result.reason
+                logger.info(
+                    "Smart routing: tier=%s model=%s reason=%s routing_ms=%.1f",
+                    routing_result.tier.value,
+                    model_cfg.model,
+                    routing_result.reason,
+                    routing_ms,
                 )
-
-                record_misroute(recent_routing_tiers[-1])
-
-            logger.info(
-                "Smart routing: tier=%s model=%s reason=%s routing_ms=%.1f",
-                routing_result.tier.value,
-                model_cfg.model,
-                routing_result.reason,
-                routing_ms,
-            )
         except Exception:
             logger.warning("Smart routing failed, using default model", exc_info=True)
 
