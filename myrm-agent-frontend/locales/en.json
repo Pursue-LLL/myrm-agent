@@ -15209,7 +15209,7 @@
         "actionBlock": "Block",
         "pseudonymizeHint": "Pseudonymize swaps sensitive content for placeholders before sending: the model sees only the placeholders, never the real content, and placeholders in its reply are restored to the original text locally. The model can tell what kind of thing a placeholder stands for, but it cannot answer about the content itself.",
         "consequence": {
-          "warn": "The original text is sent to the model as it is; only a warning is logged.",
+          "warn": "Nothing is hidden: the original text is sent to the model as it is.",
           "pseudonymize": "Sent with placeholders instead; the reply shown to you has the originals restored.",
           "redact": "Masked before sending; the model never sees the original and it cannot be restored.",
           "block": "A message you send with this kind of content is stopped and not sent; content such as tool results is masked before use."
@@ -15217,7 +15217,7 @@
         "coverage": {
           "title": "What is protected",
           "covered": "Covered: the messages you send to the model, what tools and web pages return, what is saved to memory, and background model calls such as titles, suggestions and summaries.",
-          "notCovered": "Not covered: images and audio themselves; features that do not go through the chat model, such as image and video generation, reading replies aloud and text embeddings.",
+          "notCovered": "Not covered: images and audio themselves; features that do not go through the chat model, such as image and video generation, reading replies aloud and the search index used to find memory and saved documents.",
           "matching": "Detection looks at the text itself: a nickname, pinyin or typo may slip through. Use Try it above to check."
         },
         "tester": {

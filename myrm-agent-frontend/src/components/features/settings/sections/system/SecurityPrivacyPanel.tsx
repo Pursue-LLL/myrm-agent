@@ -115,7 +115,7 @@ const SecurityPrivacyPanel = memo(() => {
             />
 
             {(privacyS2Action === 'pseudonymize' || privacyS3Action === 'pseudonymize') && (
-              <div className="flex items-start gap-2 p-2.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
                 <IconRefresh className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">{t('privacy.pseudonymizeHint')}</p>
               </div>
@@ -252,7 +252,7 @@ const SecurityPrivacyPanel = memo(() => {
 
                 {!privacyRouting?.localModel &&
                   (privacyRouting?.s2Strategy === 'local' || privacyRouting?.s3Strategy === 'local') && (
-                    <div className="flex items-start gap-2 p-2.5 rounded-full bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+                    <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
                       <IconAlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
                       <p className="text-xs text-amber-700 dark:text-amber-400">
                         {t('privacy.routing.noLocalModelWarning')}

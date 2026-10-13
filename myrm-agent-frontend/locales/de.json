@@ -14555,7 +14555,7 @@
         "actionBlock": "Blockieren",
         "pseudonymizeHint": "Die Pseudonymisierung ersetzt sensible Inhalte vor dem Senden durch Platzhalter: Das Modell sieht nur die Platzhalter, nie den echten Inhalt, und Platzhalter in der Antwort werden lokal wieder in den Originaltext zurückgesetzt. Das Modell erkennt, wofür ein Platzhalter steht, kann aber nicht über den Inhalt selbst antworten.",
         "consequence": {
-          "warn": "Der Originaltext wird unverändert an das Modell gesendet; es wird nur eine Warnung protokolliert.",
+          "warn": "Nichts wird verborgen: Der Originaltext wird unverändert an das Modell gesendet.",
           "pseudonymize": "Wird mit Platzhaltern gesendet; in der Antwort, die Sie sehen, steht wieder das Original.",
           "redact": "Wird maskiert gesendet; das Modell sieht das Original nie und es lässt sich nicht wiederherstellen.",
           "block": "Eine Nachricht von Ihnen mit solchen Inhalten wird gestoppt und nicht gesendet; Inhalte wie Tool-Ergebnisse werden maskiert weiterverwendet."
@@ -14563,7 +14563,7 @@
         "coverage": {
           "title": "Schutzumfang",
           "covered": "Abgedeckt: Ihre Nachrichten an das Modell, was Tools und Webseiten zurückgeben, was im Gedächtnis gespeichert wird, sowie Modellaufrufe im Hintergrund wie Titel, Vorschläge und Zusammenfassungen.",
-          "notCovered": "Nicht abgedeckt: Bilder und Audio selbst; Funktionen ohne Chat-Modell wie Bild- und Videogenerierung, Vorlesen und Text-Embeddings.",
+          "notCovered": "Nicht abgedeckt: Bilder und Audio selbst; Funktionen ohne Chat-Modell wie Bild- und Videogenerierung, Vorlesen und der Suchindex, mit dem Erinnerungen und gespeicherte Dokumente gefunden werden.",
           "matching": "Erkannt wird nur der Text selbst: Kürzel, Pinyin oder Tippfehler können durchrutschen. Prüfen Sie es oben mit „Ausprobieren“."
         },
         "tester": {

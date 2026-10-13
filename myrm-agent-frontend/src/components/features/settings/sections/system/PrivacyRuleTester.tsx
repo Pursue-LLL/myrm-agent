@@ -9,7 +9,7 @@
  *   PrivacyRuleTester: 隐私规则"试一试"卡片，输入一句话，展示按当前设置模型会收到什么
  * [POS]
  *   隐私保护设置面板的规则试验台。判定交给后端 `POST /config/privacy-preview`（与对话回合同一套检测与处理），
- *   前端只负责展示，不再自己匹配，避免试验结果与实际行为不一致
+ *   前端只负责展示、不做本地匹配，试验结果因此与实际行为一致
  */
 
 import { memo, useEffect, useState } from 'react';
