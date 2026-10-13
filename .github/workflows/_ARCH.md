@@ -8,7 +8,7 @@ GitHub Actions 工作流定义。关键流水线包括 server 架构守门（`se
 
 - OSS `main` 分支 `uv.lock` 须 PyPI registry pin harness（见 `tests/architecture/test_uv_lock_harness_registry.py`）
 - 架构测试标记 `@pytest.mark.architecture`
-- 第三方 action 一律钉 40 位 commit SHA 并在行尾注释版本；SHA 必须由 `git ls-remote --tags <仓库> refs/tags/<tag> refs/tags/<tag>^{}` 解出，禁止手写或凭记忆填写（解析不到的 SHA 会让 job 在 `Set up job` 阶段直接失败）
+- 第三方 action 一律钉 40 位 commit SHA 并在行尾注释对应的 tag（`dtolnay/rust-toolchain` 钉 `stable` 分支头，注释 `stable`）；SHA 必须由 `git ls-remote --tags <仓库> refs/tags/<tag> refs/tags/<tag>^{}` 解出（`stable` 用 `git ls-remote <仓库> refs/heads/stable`），禁止手写或凭记忆填写（解析不到的 SHA 会让 job 在 `Set up job` 阶段直接失败）
 
 ## 依赖
 
