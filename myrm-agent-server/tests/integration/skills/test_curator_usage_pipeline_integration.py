@@ -233,3 +233,46 @@ async def test_usage_recorder_to_curator_via_api_client(
 
     persisted = json.loads((skill_dir / ".stats.json").read_text())
     assert persisted["lifecycle_status"] == SkillLifecycleStatus.STALE
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_spares_skill_bound_by_a_cron_job(curator_workspace: Path) -> None:
+    """A skill a scheduled job depends on stays active while an equally idle unbound one goes stale."""
+    from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
+    from sqlalchemy import delete
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+    from app.database.connection import get_session
+    from app.database.models import CronJobModel
+
+    old = (datetime.now(UTC) - timedelta(days=60)).isoformat()
+    idle_stats = {"call_count": 3, "success_count": 3, "last_used_at": old, "created_at": old, "lifecycle_status": "active"}
+    bound_dir = _write_skill(curator_workspace, "bound-by-cron", stats=idle_stats)
+    free_dir = _write_skill(curator_workspace, "unbound-idle", stats=idle_stats)
+
+    job_id = "curator-bound-job"
+    async with get_session() as session:
+        session.add(
+            CronJobModel(
+                id=job_id,
+                name=job_id,
+                job_type="agent",
+                schedule={"kind": "cron", "expr": "0 8 * * *"},
+                status="active",
+                skill_ids=[local_skill_id_from_path(bound_dir)],
+            )
+        )
+        await session.commit()
+
+    try:
+        update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
+        result = await run_curator_sweep(force=True, trigger="manual")
+    finally:
+        async with get_session() as session:
+            await session.execute(delete(CronJobModel).where(CronJobModel.id == job_id))
+            await session.commit()
+
+    assert result.skipped_protected == 1
+    assert json.loads((bound_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.ACTIVE
+    assert json.loads((free_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.STALE

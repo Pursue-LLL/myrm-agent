@@ -72,8 +72,8 @@ class TestRewriteAgentSkillRefs:
 
         mock_profile = MagicMock()
         mock_profile.skills = ["git_commit", "other_skill", "git_push"]
-        mock_profile.agent_id = "agent-1"
-        mock_profile.name = "TestAgent"
+        mock_profile.id = "agent-1"
+        mock_profile.display_name = "TestAgent"
 
         mock_session = AsyncMock()
         mock_session.commit = AsyncMock()
@@ -130,8 +130,8 @@ class TestRewriteAgentSkillRefs:
 
         mock_profile = MagicMock()
         mock_profile.skills = ["deploy_docker", "deploy_k8s", "unrelated"]
-        mock_profile.agent_id = "agent-2"
-        mock_profile.name = "Agent2"
+        mock_profile.id = "agent-2"
+        mock_profile.display_name = "Agent2"
 
         mock_session = AsyncMock()
         mock_session.commit = AsyncMock()
@@ -209,8 +209,8 @@ class TestRewriteAgentSkillRefs:
 
         mock_profile = MagicMock()
         mock_profile.skills = ["unrelated_a", "unrelated_b"]
-        mock_profile.agent_id = "agent-3"
-        mock_profile.name = "Agent3"
+        mock_profile.id = "agent-3"
+        mock_profile.display_name = "Agent3"
 
         mock_session = AsyncMock()
         mock_session.commit = AsyncMock()
@@ -308,3 +308,34 @@ class TestConsolidationPreview:
 
         assert not plan.is_empty
         assert plan.actions[0].target_skill == "target"
+
+
+class TestConsolidationSparesBoundSkills:
+    """Preview and execute hand the skills bound by agents / cron jobs to the curator as protected."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("dry_run", [True, False])
+    async def test_run_async_receives_protected_names(self, dry_run: bool) -> None:
+        mock_curator_instance = MagicMock()
+        mock_curator_instance.run_async = AsyncMock(return_value=(MagicMock(), ConsolidationReport()))
+
+        with (
+            patch(
+                "app.core.skills.curator.consolidation._get_consolidation_deps",
+                AsyncMock(return_value=(MagicMock(), MagicMock(), MagicMock())),
+            ),
+            patch(
+                "app.core.skills.curator.consolidation._load_all_skills",
+                AsyncMock(return_value=[MagicMock()]),
+            ),
+            patch(
+                "app.core.skills.curator.consolidation.bound_skill_names",
+                AsyncMock(return_value=frozenset({"bound"})),
+            ),
+            patch("myrm_agent_harness.agent.skills.curator.SkillCurator", return_value=mock_curator_instance),
+        ):
+            from app.core.skills.curator.consolidation import run_consolidation_execute, run_consolidation_preview
+
+            await (run_consolidation_preview() if dry_run else run_consolidation_execute())
+
+        assert mock_curator_instance.run_async.call_args.kwargs["protected_names"] == frozenset({"bound"})

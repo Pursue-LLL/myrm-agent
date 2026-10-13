@@ -6,6 +6,7 @@
 - myrm_agent_harness.backends.skills.stats_collector::SkillStatsCollector (POS: Usage stats collector)
 - myrm_agent_harness.backends.skills.local::LocalSkillBackend (POS: Local skill backend)
 - app.core.skills.models::DEFAULT_LOCAL_SKILL_PATHS (POS: Skill models and paths)
+- app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles / cron jobs)
 
 [OUTPUT]
 - get_stats_collector: Shared SkillStatsCollector singleton
@@ -14,7 +15,7 @@
 - apply_skill_archived / set_skill_archived: Archive/restore a skill's lifecycle (single write path for user-initiated archive)
 - describe_skill_lifecycle: Read a skill's archive/pinned state for UI surfaces
 - SkillNotFoundError / SkillPinnedError: Domain errors raised by set_skill_archived
-- run_curator_sweep: Execute a curator sweep over all local skills
+- run_curator_sweep: Execute a curator sweep over all local skills (skills bound by agents / cron jobs are exempt)
 - get_curator_history: Read past sweep run records
 - start_curator_background_task / stop_curator_background_task: Background loop lifecycle
 
@@ -40,6 +41,7 @@ from myrm_agent_harness.backends.skills.forgetting_strategy import (
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 
+from app.core.skills.curator.bound_skills import bound_skill_names
 from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
 logger = logging.getLogger(__name__)
@@ -48,6 +50,7 @@ _CURATOR_STATE_FILENAME = "curator_state.json"
 _CURATOR_CONFIG_FILENAME = "curator_config.json"
 _CURATOR_HISTORY_FILENAME = "curator_history.jsonl"
 _HISTORY_MAX_ENTRIES = 30
+_REMEDIATION_ACTIONS = frozenset({"unpin_and_archive", "archive", "reset_stats"})
 
 _stats_collector: SkillStatsCollector | None = None
 _curator_config: CuratorConfig | None = None
@@ -172,8 +175,10 @@ async def run_curator_sweep(*, force: bool = False, trigger: Literal["manual", "
         if not all_skills:
             return CuratorRunResult()
 
+        protected_names = await bound_skill_names(all_skills)
+
         t0 = time.monotonic()
-        result = curator.run(all_skills, force=force)
+        result = curator.run(all_skills, force=force, protected_names=protected_names)
         duration_ms = round((time.monotonic() - t0) * 1000)
 
         _save_last_run_time()
@@ -390,38 +395,33 @@ async def remediate_skill_finding(skill_name: str, action: str) -> dict[str, obj
 
     Supported actions:
     - 'unpin_and_archive': Unpin the skill and transition lifecycle status to ARCHIVED.
-    - 'archive': Transition lifecycle status to ARCHIVED.
-    - 'reset_stats': Reset usage counters (call_count, success_count, failure_count) to 0.
+    - 'archive': Transition lifecycle status to ARCHIVED (refused while the skill is pinned).
+    - 'reset_stats': Discard the usage counters and history so the success rate starts a fresh window.
     """
+    if action not in _REMEDIATION_ACTIONS:
+        return {"success": False, "error": f"Unsupported remediation action: {action}"}
+
     skill_dir = resolve_skill_path(skill_name)
-    if not skill_dir:
+    if skill_dir is None:
         return {"success": False, "error": f"Skill '{skill_name}' directory not found"}
 
     collector = get_stats_collector()
-    stats = collector.get_stats(skill_name)
-    if stats is None:
-        stats = collector.get_or_create(skill_name)
-
-    if action == "unpin_and_archive":
-        stats.pinned = False
-        stats.lifecycle_status = SkillLifecycleStatus.ARCHIVED
-        collector.save_stats(skill_name, stats)
-    elif action == "archive":
-        stats.lifecycle_status = SkillLifecycleStatus.ARCHIVED
-        collector.save_stats(skill_name, stats)
-    elif action == "reset_stats":
-        stats.call_count = 0
-        stats.success_count = 0
-        stats.failure_count = 0
-        collector.save_stats(skill_name, stats)
+    if action == "reset_stats":
+        collector.reset_usage(skill_dir)
     else:
-        return {"success": False, "error": f"Unsupported remediation action: {action}"}
+        if action == "unpin_and_archive":
+            collector.set_pinned(skill_dir, pinned=False)
+        try:
+            apply_skill_archived(collector, skill_dir, archived=True)
+        except SkillPinnedError:
+            return {"success": False, "error": f"Skill '{skill_name}' is pinned; unpin it first"}
 
+    stats = collector.get_stats(skill_dir)
     return {
         "success": True,
         "skill_name": skill_name,
         "action": action,
-        "new_status": stats.lifecycle_status.value,
+        "new_status": SkillLifecycleStatus(stats.lifecycle_status).value,
         "pinned": stats.pinned,
         "call_count": stats.call_count,
     }

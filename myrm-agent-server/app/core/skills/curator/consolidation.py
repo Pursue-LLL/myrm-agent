@@ -4,6 +4,7 @@
 - myrm_agent_harness.agent.skills.curator::SkillCurator (POS: Stateless curator engine)
 - myrm_agent_harness.agent.skills.curator.consolidation::ConsolidationPlan/ConsolidationReport (POS: Plan/report types)
 - app.core.skills.curator.service::_get_sweep_lock, get_curator_config, get_stats_collector (POS: Shared curator state)
+- app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles / cron jobs)
 - app.core.skills.creation.service::skill_creation_service (POS: SkillWriteBackend)
 - app.database.connection::get_session (POS: Agent profile refs rewrite)
 
@@ -25,6 +26,7 @@ from typing import TYPE_CHECKING
 
 from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
+from .bound_skills import bound_skill_names
 from .service import _get_sweep_lock, get_curator_config, get_stats_collector
 
 if TYPE_CHECKING:
@@ -114,8 +116,14 @@ async def run_consolidation_preview() -> ConsolidationPlan:
         if not all_skills:
             return ConsolidationPlan()
 
-        _, plan = await curator.run_async(all_skills, force=True, consolidation_dry_run=True)
-        if plan is None:
+        protected_names = await bound_skill_names(all_skills)
+        _, plan = await curator.run_async(
+            all_skills,
+            force=True,
+            consolidation_dry_run=True,
+            protected_names=protected_names,
+        )
+        if not isinstance(plan, ConsolidationPlan):
             return ConsolidationPlan()
 
         return plan
@@ -153,7 +161,13 @@ async def run_consolidation_execute() -> dict[str, int | str]:
                 "agent_refs_updated": 0,
             }
 
-        _, result = await curator.run_async(all_skills, force=True, consolidation_dry_run=False)
+        protected_names = await bound_skill_names(all_skills)
+        _, result = await curator.run_async(
+            all_skills,
+            force=True,
+            consolidation_dry_run=False,
+            protected_names=protected_names,
+        )
 
         if result is None or not isinstance(result, ConsolidationReport):
             return {
@@ -229,11 +243,11 @@ async def _rewrite_agent_skill_refs(report: ConsolidationReport) -> int:
                         new_skill_ids.append(sid)
 
                 if changed:
-                    await AgentRepository.update_profile(db, profile.agent_id, {"skills": new_skill_ids})
+                    await AgentRepository.update_profile(db, profile.id, {"skills": new_skill_ids})
                     updated_count += 1
                     logger.info(
                         "Updated agent '%s' skill refs: replaced merged skills",
-                        profile.name,
+                        profile.display_name or profile.id,
                     )
 
             await db.commit()
