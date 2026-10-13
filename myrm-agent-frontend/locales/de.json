@@ -10768,7 +10768,6 @@
       "empty": "Noch keine Skill-Nutzungsdaten. Trends werden angezeigt, sobald Skills verwendet werden.",
       "metric": {
         "success_rate": "Erfolgsrate",
-        "avg_duration_ms": "Durchschn. Dauer",
         "call_count": "Nutzungsanzahl"
       }
     },

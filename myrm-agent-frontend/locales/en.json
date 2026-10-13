@@ -10847,7 +10847,6 @@
       "empty": "No skill usage data yet. Skills will show trends after they are used.",
       "metric": {
         "success_rate": "Success Rate",
-        "avg_duration_ms": "Avg Duration",
         "call_count": "Usage Count"
       }
     },

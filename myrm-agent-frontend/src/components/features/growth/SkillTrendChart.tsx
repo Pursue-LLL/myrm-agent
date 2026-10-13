@@ -2,15 +2,14 @@
 
 import { memo, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { SkillTrendSeries } from '@/services/statistics';
 
-type MetricKey = 'success_rate' | 'avg_duration_ms' | 'call_count';
+type MetricKey = 'success_rate' | 'call_count';
 
 const METRIC_CONFIG: Record<MetricKey, { icon: typeof TrendingUp; colorClass: string; barColor: string }> = {
   success_rate: { icon: CheckCircle2, colorClass: 'text-emerald-500', barColor: 'var(--color-emerald-500, #10b981)' },
-  avg_duration_ms: { icon: Clock, colorClass: 'text-amber-500', barColor: 'var(--color-amber-500, #f59e0b)' },
   call_count: { icon: TrendingUp, colorClass: 'text-blue-500', barColor: 'var(--color-blue-500, #3b82f6)' },
 };
 
@@ -124,8 +123,6 @@ function formatMetricValue(metric: MetricKey, value: number | null): string {
   switch (metric) {
     case 'success_rate':
       return `${(value * 100).toFixed(0)}%`;
-    case 'avg_duration_ms':
-      return value >= 1000 ? `${(value / 1000).toFixed(1)}s` : `${value.toFixed(0)}ms`;
     case 'call_count':
       return String(value);
   }

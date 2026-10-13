@@ -608,7 +608,6 @@ export interface SkillTrendPoint {
   date: string;
   /** null when no run of the day had an observable outcome. */
   success_rate: number | null;
-  avg_duration_ms: number;
   call_count: number;
 }
 

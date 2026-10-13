@@ -135,9 +135,7 @@ export interface Skill {
     success_count: number;
     failure_count: number;
     last_used_at: string | null;
-    total_duration_ms: number;
     success_rate: number;
-    avg_duration_ms: number;
     lifecycle_status: SkillLifecycleStatus;
     pinned: boolean;
   } | null;
