@@ -38,8 +38,9 @@ class UserActivitySensor:
         """Record an active interaction event from the user."""
         self._last_active_time = time.time()
         self._last_session_id = session_id
-        # Immediately signal harness background tasks to yield at transaction boundary
-        self._pause_signal.request_pause(f"{reason}:{session_id or 'anonymous'}")
+        # Immediately signal harness background tasks to yield at transaction boundary; the pause lapses
+        # with the backoff window so idle work resumes even if nothing polls ``is_user_active`` again.
+        self._pause_signal.request_pause(f"{reason}:{session_id or 'anonymous'}", ttl_seconds=self._backoff_window_seconds)
         logger.debug(
             "UserActivitySensor: activity recorded for session %s (reason: %s)",
             session_id,

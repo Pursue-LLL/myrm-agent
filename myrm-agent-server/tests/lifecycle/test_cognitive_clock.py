@@ -56,6 +56,21 @@ def test_user_activity_sensor_triggers_pause() -> None:
     assert get_global_pause_signal().is_pause_requested is False
 
 
+def test_recorded_activity_pause_lapses_with_the_window_without_polling_the_sensor() -> None:
+    signal = get_global_pause_signal()
+    signal.clear()
+    sensor = UserActivitySensor(backoff_window_seconds=0.2)
+    try:
+        sensor.record_activity(session_id="sess", reason="user_input")
+        assert signal.is_pause_requested is True
+
+        time.sleep(0.25)
+        # Nothing called ``is_user_active``: idle work must still be released by the pause TTL alone.
+        assert signal.is_pause_requested is False
+    finally:
+        signal.clear()
+
+
 @pytest.mark.asyncio
 async def test_coordinator_t2_suppressed_on_user_active() -> None:
     coordinator = CognitiveClockCoordinator()
