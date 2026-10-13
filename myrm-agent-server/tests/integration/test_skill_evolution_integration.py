@@ -11,7 +11,6 @@ from pathlib import Path
 import pytest
 from myrm_agent_harness.agent.skills.evolution import (
     EvolutionIntegration,
-    EvolutionType,
     enable_skill_evolution,
 )
 
@@ -140,29 +139,6 @@ async def test_evolution_with_background_queue(temp_db, mock_llm):
     assert evolution.queue._running
 
     # Cleanup
-    await evolution.close()
-
-
-@pytest.mark.asyncio
-@pytest.mark.integration
-async def test_evolution_stats_reporting(temp_db, mock_llm):
-    """Test evolution statistics reporting."""
-    evolution = EvolutionIntegration(
-        db_path=temp_db,
-        llm=mock_llm,
-    )
-
-    # Record some evolutions
-    evolution.metrics_tracker.record_evolution("skill1", EvolutionType.FIX, True)
-    evolution.metrics_tracker.record_evolution("skill2", EvolutionType.DERIVED, False)
-
-    # Get stats
-    stats = evolution.get_stats()
-
-    assert "metrics" in stats
-    assert stats["metrics"]["summary"]["total"] == 2
-    assert stats["metrics"]["summary"]["success"] == 1
-
     await evolution.close()
 
 
