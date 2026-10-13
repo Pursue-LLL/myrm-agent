@@ -9,7 +9,8 @@
  *
  * [POS]
  * 根布局级模态，与 ExternalLinkInitializer 同级 eager 挂载；只会被桌面端触发（见 @/lib/untrusted-link）。
- * 地址放在只读文本框里：长地址可滚动、可键盘浏览、可复制核对，而不会把弹窗撑出屏幕。
+ * 地址放在只读文本框里：长地址可滚动、可键盘浏览、可复制核对，而不会把弹窗撑出屏幕；
+ * 来源名称不含断点时（如下划线串）允许在任意位置折行，同样不会撑出弹窗。
  */
 'use client';
 
@@ -57,7 +58,7 @@ export default function ExternalLinkConfirmDialog() {
             <IconExternalLink className="h-5 w-5" />
           </div>
           <AlertDialogTitle>{t('title')}</AlertDialogTitle>
-          <AlertDialogDescription>
+          <AlertDialogDescription className="break-words">
             {link.source ? t('descriptionNamed', { source: link.source }) : t('descriptionAnonymous')}
           </AlertDialogDescription>
         </AlertDialogHeader>

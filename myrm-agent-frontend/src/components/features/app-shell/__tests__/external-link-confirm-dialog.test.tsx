@@ -61,6 +61,16 @@ describe('ExternalLinkConfirmDialog', () => {
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('This content wants to open the address below.');
   });
 
+  it('lets an app name without break points wrap instead of stretching the dialog', async () => {
+    render(<ExternalLinkConfirmDialog />);
+    const source = 'internal_knowledge_base_search_service_'.repeat(3);
+
+    requestLink('https://example.com/', source);
+
+    const description = await screen.findByText((content) => content.startsWith(source));
+    expect(description).toHaveClass('break-words');
+  });
+
   it('puts the initial focus on the safe choice', async () => {
     render(<ExternalLinkConfirmDialog />);
 

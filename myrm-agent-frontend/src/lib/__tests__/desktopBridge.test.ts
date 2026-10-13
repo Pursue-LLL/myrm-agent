@@ -4,30 +4,15 @@
  * [POS]: 前端桌面桥接门面单元测试，覆盖 isDesktop, isMacOS, isWindows, openExternal, openDirectoryPicker。
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { desktopBridge } from '../desktopBridge';
 import { desktopBridge as coreDesktopBridge } from '@/lib/desktop-bridge';
 import * as platformModule from '@/lib/desktop-bridge/platform-detection';
 import * as tauriModule from '@/lib/tauri';
 
 describe('desktopBridge', () => {
-  const originalWindow = globalThis.window;
-
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    if (typeof globalThis.window === 'undefined') {
-      vi.stubGlobal('window', {
-        open: vi.fn(() => null),
-      });
-    }
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
-    if (originalWindow === undefined) {
-      // @ts-expect-error vitest jsdom cleanup
-      delete globalThis.window;
-    }
   });
 
   it('delegates isDesktop to isTauriEnvironment', () => {

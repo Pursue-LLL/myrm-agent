@@ -48,7 +48,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     const helpText = locale === 'zh' && entry.helpTextZh ? entry.helpTextZh : entry.helpText;
     const connectGuide =
       locale === 'zh' && entry.postConnectGuideZh ? entry.postConnectGuideZh : entry.postConnectGuide;
-    const mcpConfig = entry.mcpConfig as Record<string, unknown> | null;
+    const { mcpConfig } = entry;
     const probeUrl = resolveProbeUrl(mcpConfig);
     const deploymentScope = entry.deploymentScope ?? (mcpConfig?.deploymentScope as string | undefined) ?? null;
     const isLocalTauriOnlyEntry = deploymentScope === 'local_tauri_only';

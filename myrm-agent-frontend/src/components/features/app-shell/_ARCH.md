@@ -57,17 +57,17 @@
 
 ## 测试
 
-| 路径                                                | 职责                                                                                                                                                                              |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `__tests__/SystemStatusBanner.test.tsx`             | Banner 展示/隐藏、recovered toast、dismiss、i18n key 绑定                                                                                                                         |
-| `__tests__/SystemStatusBanner.locales.test.ts`      | 六语言 `notifications.database*` keys 完整性                                                                                                                                      |
-| `__tests__/crash-recovery-dialog.test.tsx`          | 容灾对话框高敏导出链路：先签发票据再执行导出，目录选择取消不签发票据，拒绝/取消场景错误可见                                                                                       |
-| `__tests__/flow-pad-inline-mode.test.tsx`           | Inline 路由切换、请求级中断隔离、专家模板召唤与场景预填回归；被拒发送结束生成态并保留输入                                                                                         |
-| `__tests__/search-dialog.cite.test.tsx`             | Cmd+K cite：跨会话 prior_chat chip · 同会话 citeSameChat toast                                                                                                                    |
-| `__tests__/external-link-initializer.test.tsx`      | 外链策略 Tauri 内安装与卸载还原、StrictMode 仅保留一份策略、非 Tauri 环境不改动 `window.open`                                                                                     |
-| `__tests__/external-link-confirm-dialog.test.tsx`   | 外链确认弹窗：未请求不渲染、来源名与完整地址（只读）展示、无来源时的匿名文案、取消默认聚焦、确认才打开且不触发静默期、取消与 Esc 记为拒绝、点击遮罩不关闭（文案取自真实 en.json） |
-| `__tests__/model-picker-popover.preflight.test.tsx` | 模型切换压缩预检及本地自有端点 $0/M 边际成本徽标与回退逻辑                                                                                                                        |
-| `__tests__/`                                        | 其他 colocated 单测：BootScreen、LocalBackendUnavailableBanner、CronSchedulerHealthBanner、FlowPad、PWA 等壳层组件                                                                |
+| 路径                                                | 职责                                                                                                                                                                                                  |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `__tests__/SystemStatusBanner.test.tsx`             | Banner 展示/隐藏、recovered toast、dismiss、i18n key 绑定                                                                                                                                             |
+| `__tests__/SystemStatusBanner.locales.test.ts`      | 六语言 `notifications.database*` keys 完整性                                                                                                                                                          |
+| `__tests__/crash-recovery-dialog.test.tsx`          | 容灾对话框高敏导出链路：先签发票据再执行导出，目录选择取消不签发票据，拒绝/取消场景错误可见                                                                                                           |
+| `__tests__/flow-pad-inline-mode.test.tsx`           | Inline 路由切换、请求级中断隔离、专家模板召唤与场景预填回归；被拒发送结束生成态并保留输入                                                                                                             |
+| `__tests__/search-dialog.cite.test.tsx`             | Cmd+K cite：跨会话 prior_chat chip · 同会话 citeSameChat toast                                                                                                                                        |
+| `__tests__/external-link-initializer.test.tsx`      | 外链策略 Tauri 内安装与卸载还原、StrictMode 仅保留一份策略、非 Tauri 环境不改动 `window.open`                                                                                                         |
+| `__tests__/external-link-confirm-dialog.test.tsx`   | 外链确认弹窗：未请求不渲染、来源名与完整地址（只读）展示、无来源时的匿名文案、无断点来源名可折行、取消默认聚焦、确认才打开且不触发静默期、取消与 Esc 记为拒绝、点击遮罩不关闭（文案取自真实 en.json） |
+| `__tests__/model-picker-popover.preflight.test.tsx` | 模型切换压缩预检及本地自有端点 $0/M 边际成本徽标与回退逻辑                                                                                                                                            |
+| `__tests__/`                                        | 其他 colocated 单测：BootScreen、LocalBackendUnavailableBanner、CronSchedulerHealthBanner、FlowPad、PWA 等壳层组件                                                                                    |
 
 ## 依赖
 
