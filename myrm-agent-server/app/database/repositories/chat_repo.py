@@ -15,6 +15,7 @@ SiblingDetail: Sibling branch query DTO.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TypedDict, cast
@@ -26,7 +27,6 @@ from sqlalchemy import (
 from sqlalchemy import (
     and_,
     delete,
-    desc,
     func,
     or_,
     select,
@@ -116,7 +116,7 @@ class ChatRepository:
         query_stmt = (
             select(Chat)
             .where(*where_clause)
-            .order_by(desc(Chat.is_pinned), Chat.pin_order.asc(), desc(Chat.updated_at))
+            .order_by(Chat.is_pinned.desc(), Chat.pin_order.asc(), Chat.updated_at.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -506,10 +506,10 @@ class ChatRepository:
                 Message.role == "assistant",
                 Message.extra_data.isnot(None),
             )
-            .order_by(desc(Message.created_at))
+            .order_by(Message.created_at.desc())
             .limit(limit)
         )
-        rows = result.scalars().all()
+        rows: Sequence[object] = result.scalars().all()
         tiers: list[str | None] = []
         for extra in reversed(rows):
             if isinstance(extra, dict):
@@ -581,7 +581,7 @@ class ChatRepository:
         count_result = await db.execute(select(func.count(Chat.id)).where(where_clause))
         total = count_result.scalar_one()
 
-        result = await db.execute(select(Chat).where(where_clause).order_by(desc(Chat.deleted_at)).offset(offset).limit(limit))
+        result = await db.execute(select(Chat).where(where_clause).order_by(Chat.deleted_at.desc()).offset(offset).limit(limit))
         chats = result.scalars().all()
         return [ChatDTO.model_validate(c) for c in chats], total
 
