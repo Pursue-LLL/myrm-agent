@@ -2,8 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
+import type { MCPServiceConfig } from '@/store/config/types';
 import {
+  GATE_ALLOWED,
   makeStoredConfig,
+  mockGateMcpEnable,
   mockSetMCPConfigs,
   mockToast,
   resetConnectDialogMocks,
@@ -21,20 +24,29 @@ describe('useCatalogSecurityGate', () => {
   beforeEach(resetConnectDialogMocks);
   afterEach(restoreConnectDialogGlobals);
 
-  it('does not store a second copy of a service that was added while the scan was pending', async () => {
+  it('does not store a second copy of a service that was added while the acknowledgement was open', async () => {
+    mockGateMcpEnable.mockResolvedValueOnce({ ...GATE_ALLOWED, needsAcknowledgement: true, allowed: false });
     const onConnected = vi.fn();
-    const { result } = renderHook(() =>
-      useCatalogSecurityGate({
-        entryName: 'Svc',
-        catalogMcpConfig: null,
-        mcpConfigs: [makeStoredConfig('svc')],
-        setMCPConfigs: mockSetMCPConfigs,
-        onConnected,
-      }),
+    const { result, rerender } = renderHook(
+      ({ mcpConfigs }: { mcpConfigs: MCPServiceConfig[] }) =>
+        useCatalogSecurityGate({
+          entryName: 'Svc',
+          catalogMcpConfig: null,
+          mcpConfigs,
+          setMCPConfigs: mockSetMCPConfigs,
+          onConnected,
+        }),
+      { initialProps: { mcpConfigs: [] as MCPServiceConfig[] } },
     );
 
     await act(async () => {
       await result.current.runCatalogSecurityGate(makeStoredConfig('svc'));
+    });
+    expect(result.current.pendingAck).not.toBeNull();
+
+    rerender({ mcpConfigs: [makeStoredConfig('svc')] });
+    await act(async () => {
+      await result.current.confirmAcknowledgement();
     });
 
     expect(mockSetMCPConfigs).not.toHaveBeenCalled();

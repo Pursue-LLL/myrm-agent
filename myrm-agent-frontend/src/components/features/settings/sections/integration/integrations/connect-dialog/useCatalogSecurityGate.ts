@@ -54,7 +54,7 @@ export function useCatalogSecurityGate({
             ? catalogMcpConfig.keepaliveInterval
             : config.keepaliveInterval,
       };
-      // The service may have been added elsewhere while the scan or the acknowledgement was pending.
+      // The service may have been added elsewhere while the acknowledgement dialog was open.
       const exists = mcpConfigs.some((c) => c.name === finalConfig.name);
       if (!exists) {
         setMCPConfigs([...mcpConfigs, finalConfig]);
