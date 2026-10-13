@@ -4153,6 +4153,17 @@
         "empty": "此域尚無已索引的記憶。",
         "untitled": "未命名記憶"
       },
+      "categories": {
+        "profile": "個人資料",
+        "preferences": "偏好",
+        "entities": "實體",
+        "events": "事件",
+        "identity": "身分",
+        "soul": "靈魂",
+        "experiences": "經驗",
+        "trajectories": "軌跡",
+        "traps": "避坑"
+      },
       "drillDown": {
         "eyebrow": "記憶詳情與溯源",
         "loading": "正在載入記憶詳情...",
@@ -4174,7 +4185,8 @@
         "doneTitle": "遷移完成",
         "doneDescription": "已成功匯入 {success} 筆記憶（{failed} 筆失敗）。",
         "failedTitle": "遷移失敗",
-        "failedDescription": "遷移過程中發生錯誤。"
+        "failedDescription": "遷移過程中發生錯誤。",
+        "nothingImported": "沒有可匯入的記憶。請確認內容是 Hermes 或 OpenViking 的匯出檔案後再試一次。"
       }
     },
     "title": "記憶管理",

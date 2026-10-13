@@ -4,7 +4,8 @@
  * [INPUT]
  * @/services/memory/domainMesh::getMemoryDrillDown, DrillDownResponse
  * @/components/primitives/dialog::Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
- * next-intl::useTranslations (memory.mesh.drillDown)
+ * ./useMeshLabels::useMeshLabels
+ * next-intl::useTranslations (memory.mesh.drillDown), useLocale
  * lucide-react::Layers, Copy, Check, Calendar, Tag, Loader2
  * @phosphor-icons/react::Path
  *
@@ -16,11 +17,12 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Layers, Copy, Check, Calendar, Tag, Loader2 } from 'lucide-react';
 import { Path } from '@phosphor-icons/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
 import { getMemoryDrillDown, type DrillDownResponse } from '@/services/memory/domainMesh';
+import { useMeshLabels } from './useMeshLabels';
 
 interface MemoryDrillDownDialogProps {
   memoryId: string | null;
@@ -30,6 +32,8 @@ interface MemoryDrillDownDialogProps {
 
 export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({ memoryId, open, onOpenChange }) => {
   const t = useTranslations('memory.mesh.drillDown');
+  const locale = useLocale();
+  const labels = useMeshLabels();
   const [detail, setDetail] = useState<DrillDownResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -64,11 +68,16 @@ export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({ me
     };
   }, [open, memoryId]);
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!detail?.l2_content) {
       return;
     }
-    navigator.clipboard.writeText(detail.l2_content);
+    try {
+      await navigator.clipboard.writeText(detail.l2_content);
+    } catch {
+      // Clipboard access can be denied (insecure context, permissions); the button then simply stays as "Copy".
+      return;
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -89,16 +98,16 @@ export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({ me
               <>
                 <span className="inline-flex items-center gap-1 rounded bg-accent/60 px-1.5 py-0.5 font-medium capitalize">
                   <Tag className="h-3 w-3" />
-                  {detail.domain} / {detail.category}
+                  {labels.domain(detail.domain)} / {labels.category(detail.category)}
                 </span>
                 <span className="inline-flex items-center gap-1 rounded bg-accent/60 px-1.5 py-0.5">
                   <Layers className="h-3 w-3" />
-                  {detail.memory_type}
+                  {labels.memoryType(detail.memory_type)}
                 </span>
                 {detail.updated_at && (
                   <span className="inline-flex items-center gap-1 text-[11px]">
                     <Calendar className="h-3 w-3" />
-                    {new Date(detail.updated_at).toLocaleString()}
+                    {new Date(detail.updated_at).toLocaleString(locale)}
                   </span>
                 )}
               </>

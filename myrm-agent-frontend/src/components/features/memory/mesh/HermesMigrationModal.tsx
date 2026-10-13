@@ -59,6 +59,11 @@ export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({ open
     setLoading(true);
     try {
       const result = await migrateFromHermes({ content, format });
+      if (result.success_count === 0) {
+        // The API answers 200 even when nothing could be parsed; keep the dialog and the pasted text so the user can fix it.
+        toast({ title: t('failedTitle'), description: t('nothingImported'), variant: 'destructive' });
+        return;
+      }
       toast({
         title: t('doneTitle'),
         description: t('doneDescription', { success: result.success_count, failed: result.fail_count }),

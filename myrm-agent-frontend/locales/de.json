@@ -4153,6 +4153,17 @@
         "empty": "In dieser Domäne sind noch keine Erinnerungen indexiert.",
         "untitled": "Unbenannte Erinnerung"
       },
+      "categories": {
+        "profile": "Profil",
+        "preferences": "Präferenzen",
+        "entities": "Entitäten",
+        "events": "Ereignisse",
+        "identity": "Identität",
+        "soul": "Seele",
+        "experiences": "Erfahrungen",
+        "trajectories": "Verläufe",
+        "traps": "Fallstricke"
+      },
       "drillDown": {
         "eyebrow": "Erinnerungsdetails & Nachvollziehbarkeit",
         "loading": "Erinnerungsdetails werden geladen...",
@@ -4174,7 +4185,8 @@
         "doneTitle": "Migration abgeschlossen",
         "doneDescription": "{success} Erinnerungen erfolgreich importiert ({failed} fehlgeschlagen).",
         "failedTitle": "Migration fehlgeschlagen",
-        "failedDescription": "Bei der Migration ist ein Fehler aufgetreten."
+        "failedDescription": "Bei der Migration ist ein Fehler aufgetreten.",
+        "nothingImported": "Es konnten keine Erinnerungen importiert werden. Prüfen Sie, ob der Text ein Export aus Hermes oder OpenViking ist, und versuchen Sie es erneut."
       }
     },
     "title": "Speicherverwaltung",

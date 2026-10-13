@@ -4153,6 +4153,17 @@
         "empty": "No memories indexed in this domain yet.",
         "untitled": "Untitled Memory"
       },
+      "categories": {
+        "profile": "Profile",
+        "preferences": "Preferences",
+        "entities": "Entities",
+        "events": "Events",
+        "identity": "Identity",
+        "soul": "Soul",
+        "experiences": "Experiences",
+        "trajectories": "Trajectories",
+        "traps": "Traps"
+      },
       "drillDown": {
         "eyebrow": "Memory Details & Traceability",
         "loading": "Loading memory details...",
@@ -4174,7 +4185,8 @@
         "doneTitle": "Migration Completed",
         "doneDescription": "Successfully imported {success} memories ({failed} failed).",
         "failedTitle": "Migration Failed",
-        "failedDescription": "An error occurred during migration."
+        "failedDescription": "An error occurred during migration.",
+        "nothingImported": "No memories could be imported. Check that the text is an export from Hermes or OpenViking and try again."
       }
     },
     "title": "Memory Management",

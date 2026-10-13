@@ -4153,6 +4153,17 @@
         "empty": "このドメインにはインデックス済みのメモリがまだありません。",
         "untitled": "無題のメモリ"
       },
+      "categories": {
+        "profile": "プロフィール",
+        "preferences": "好み",
+        "entities": "エンティティ",
+        "events": "イベント",
+        "identity": "アイデンティティ",
+        "soul": "ソウル",
+        "experiences": "経験",
+        "trajectories": "軌跡",
+        "traps": "落とし穴"
+      },
       "drillDown": {
         "eyebrow": "メモリの詳細とトレーサビリティ",
         "loading": "メモリの詳細を読み込み中...",
@@ -4174,7 +4185,8 @@
         "doneTitle": "移行が完了しました",
         "doneDescription": "{success} 件のメモリをインポートしました（失敗: {failed} 件）。",
         "failedTitle": "移行に失敗しました",
-        "failedDescription": "移行中にエラーが発生しました。"
+        "failedDescription": "移行中にエラーが発生しました。",
+        "nothingImported": "インポートできるメモリがありませんでした。Hermes または OpenViking からエクスポートした内容か確認して、もう一度お試しください。"
       }
     },
     "title": "メモリ管理",

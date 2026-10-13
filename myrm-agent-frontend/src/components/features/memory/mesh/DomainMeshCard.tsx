@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * @/services/memory/domainMesh::DomainBucketOverview, ProgressiveHighlight
+ * ./useMeshLabels::useMeshLabels
  * next-intl::useTranslations (memory.mesh.card)
  * lucide-react::User, Bot, CheckSquare, ChevronRight, Layers
  *
@@ -19,6 +20,7 @@ import { useTranslations } from 'next-intl';
 import { User, Bot, CheckSquare, ChevronRight, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { DomainBucketOverview, ProgressiveHighlight } from '@/services/memory/domainMesh';
+import { useMeshLabels } from './useMeshLabels';
 
 interface DomainMeshCardProps {
   domain: 'user' | 'assistant' | 'task';
@@ -62,6 +64,7 @@ export const DomainMeshCard: React.FC<DomainMeshCardProps> = ({
   className,
 }) => {
   const t = useTranslations('memory.mesh.card');
+  const labels = useMeshLabels();
   const accent = DOMAIN_ACCENTS[domain] || DOMAIN_ACCENTS.user;
   const icon = DOMAIN_ICONS[domain] || <Layers className="h-4 w-4 text-muted-foreground" />;
 
@@ -107,7 +110,7 @@ export const DomainMeshCard: React.FC<DomainMeshCardProps> = ({
               key={cat}
               className="inline-flex items-center gap-1 rounded-md bg-accent/40 px-1.5 py-0.5 text-[11px] font-medium text-foreground/80 border border-border/40"
             >
-              <span className="capitalize">{cat}</span>
+              <span className="capitalize">{labels.category(cat)}</span>
               <span className="text-muted-foreground/70 tabular-nums">({count})</span>
             </span>
           ))}
@@ -141,7 +144,7 @@ export const DomainMeshCard: React.FC<DomainMeshCardProps> = ({
                 </div>
                 {h.l1 && <p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{h.l1}</p>}
                 <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
-                  <span className="rounded bg-accent/60 px-1 py-0.2 capitalize">{h.category}</span>
+                  <span className="rounded bg-accent/60 px-1 py-0.2 capitalize">{labels.category(h.category)}</span>
                 </div>
               </button>
             ))}

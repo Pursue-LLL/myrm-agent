@@ -4153,6 +4153,17 @@
         "empty": "이 도메인에는 아직 인덱싱된 메모리가 없습니다.",
         "untitled": "제목 없는 메모리"
       },
+      "categories": {
+        "profile": "프로필",
+        "preferences": "선호도",
+        "entities": "엔티티",
+        "events": "이벤트",
+        "identity": "정체성",
+        "soul": "소울",
+        "experiences": "경험",
+        "trajectories": "궤적",
+        "traps": "함정"
+      },
       "drillDown": {
         "eyebrow": "메모리 상세 및 추적성",
         "loading": "메모리 상세 정보를 불러오는 중...",
@@ -4174,7 +4185,8 @@
         "doneTitle": "마이그레이션 완료",
         "doneDescription": "메모리 {success}개를 가져왔습니다(실패 {failed}개).",
         "failedTitle": "마이그레이션 실패",
-        "failedDescription": "마이그레이션 중 오류가 발생했습니다."
+        "failedDescription": "마이그레이션 중 오류가 발생했습니다.",
+        "nothingImported": "가져올 수 있는 메모리가 없습니다. Hermes 또는 OpenViking에서 내보낸 내용인지 확인한 후 다시 시도해 주세요."
       }
     },
     "title": "메모리 관리",

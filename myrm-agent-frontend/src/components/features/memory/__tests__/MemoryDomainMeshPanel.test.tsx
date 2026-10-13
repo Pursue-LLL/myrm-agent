@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryDomainMeshPanel } from '../mesh/MemoryDomainMeshPanel';
 import * as domainMeshService from '@/services/memory/domainMesh';
 import { toast } from '@/hooks/shared/useToast';
@@ -23,12 +23,27 @@ vi.mock('@/hooks/shared/useToast', () => ({
 
 const LOCALE_MESSAGES = { en, zh } as const;
 
-const renderPanel = (locale: keyof typeof LOCALE_MESSAGES = 'en') =>
-  render(
-    <NextIntlClientProvider locale={locale} messages={{ memory: { mesh: LOCALE_MESSAGES[locale].memory.mesh } }}>
+const renderPanel = (locale: keyof typeof LOCALE_MESSAGES = 'en') => {
+  const { mesh, types } = LOCALE_MESSAGES[locale].memory;
+  return render(
+    <NextIntlClientProvider locale={locale} messages={{ memory: { mesh, types } }}>
       <MemoryDomainMeshPanel />
     </NextIntlClientProvider>,
   );
+};
+
+const preferenceDrillDown: domainMeshService.DrillDownResponse = {
+  id: 'user-1',
+  domain: 'user',
+  category: 'preferences',
+  memory_type: 'semantic',
+  l0: 'Dark mode user preference',
+  l1: 'User prefers dark theme with high contrast',
+  l2_content: 'Full verbatim text of the dark mode preference item.',
+  created_at: '2026-09-18T00:00:00Z',
+  updated_at: '2026-09-18T00:00:00Z',
+  metadata: {},
+};
 
 const mockOverview: domainMeshService.DomainMeshOverviewResponse = {
   total_memories: 3,
@@ -149,18 +164,7 @@ describe('MemoryDomainMeshPanel', () => {
   });
 
   it('opens drill-down dialog when a highlight card is clicked', async () => {
-    vi.mocked(domainMeshService.getMemoryDrillDown).mockResolvedValue({
-      id: 'user-1',
-      domain: 'user',
-      category: 'preferences',
-      memory_type: 'semantic',
-      l0: 'Dark mode user preference',
-      l1: 'User prefers dark theme with high contrast',
-      l2_content: 'Full verbatim text of the dark mode preference item.',
-      created_at: '2026-09-18T00:00:00Z',
-      updated_at: '2026-09-18T00:00:00Z',
-      metadata: {},
-    });
+    vi.mocked(domainMeshService.getMemoryDrillDown).mockResolvedValue(preferenceDrillDown);
 
     renderPanel();
 
@@ -173,6 +177,72 @@ describe('MemoryDomainMeshPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('Memory Details & Traceability')).toBeInTheDocument();
       expect(screen.getByText('Full verbatim text of the dark mode preference item.')).toBeInTheDocument();
+    });
+  });
+
+  describe('identifiers returned by the API', () => {
+    it('are shown by their names in the active locale on the cards and in the drill-down', async () => {
+      vi.mocked(domainMeshService.getMemoryDrillDown).mockResolvedValue(preferenceDrillDown);
+      const { mesh, types } = zh.memory;
+
+      renderPanel('zh');
+
+      expect(await screen.findAllByText(mesh.categories.preferences)).toHaveLength(2);
+      expect(screen.getAllByText(mesh.categories.soul)).toHaveLength(2);
+      expect(screen.getAllByText(mesh.categories.traps)).toHaveLength(2);
+      expect(screen.queryByText('preferences')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('Dark mode user preference'));
+
+      expect(
+        await screen.findByText(`${mesh.domains.user.title} / ${mesh.categories.preferences}`),
+      ).toBeInTheDocument();
+      expect(screen.getByText(types.semantic)).toBeInTheDocument();
+      expect(screen.getByText(new Date(preferenceDrillDown.updated_at).toLocaleString('zh'))).toBeInTheDocument();
+    });
+
+    it('are shown as-is when this build has no name for them', async () => {
+      vi.mocked(domainMeshService.getDomainMeshOverview).mockResolvedValue({
+        ...mockOverview,
+        user: { ...mockOverview.user, category_counts: { recipes: 2 } },
+      });
+
+      renderPanel();
+
+      expect(await screen.findByText('recipes')).toBeInTheDocument();
+    });
+  });
+
+  describe('copying the full content', () => {
+    const openDrillDown = async (writeText: (text: string) => Promise<void>) => {
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      vi.mocked(domainMeshService.getMemoryDrillDown).mockResolvedValue(preferenceDrillDown);
+      renderPanel();
+      fireEvent.click(await screen.findByText('Dark mode user preference'));
+      return screen.findByRole('button', { name: 'Copy' });
+    };
+
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, 'clipboard');
+    });
+
+    it('confirms the copy once the clipboard accepted the text', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+
+      fireEvent.click(await openDrillDown(writeText));
+
+      expect(await screen.findByText('Copied')).toBeInTheDocument();
+      expect(writeText).toHaveBeenCalledWith(preferenceDrillDown.l2_content);
+    });
+
+    it('does not claim success when the clipboard refuses the text', async () => {
+      const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+
+      fireEvent.click(await openDrillDown(writeText));
+
+      await waitFor(() => expect(writeText).toHaveBeenCalled());
+      expect(screen.queryByText('Copied')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
     });
   });
 
@@ -242,6 +312,28 @@ describe('MemoryDomainMeshPanel', () => {
       await waitFor(() => {
         expect(domainMeshService.getDomainMeshOverview).toHaveBeenCalledTimes(2);
       });
+    });
+
+    it('keeps the dialog and the pasted text when nothing could be imported', async () => {
+      vi.mocked(domainMeshService.migrateFromHermes).mockResolvedValue({
+        success_count: 0,
+        fail_count: 1,
+        message: 'Migration completed: 0 imported, 1 failed.',
+      });
+
+      await openMigrationWith('not an export');
+      fireEvent.click(screen.getByText('Start Lossless Import'));
+
+      await waitFor(() => {
+        expect(toast).toHaveBeenCalledWith({
+          title: 'Migration Failed',
+          description: en.memory.mesh.migration.nothingImported,
+          variant: 'destructive',
+        });
+      });
+      expect(screen.getByRole('textbox')).toHaveValue('not an export');
+      expect(screen.getByText('Import from Hermes or OpenViking')).toBeInTheDocument();
+      expect(domainMeshService.getDomainMeshOverview).toHaveBeenCalledTimes(1);
     });
 
     it('never surfaces the raw failure message when the import fails', async () => {

@@ -4153,6 +4153,17 @@
         "empty": "该域暂无已索引的记忆。",
         "untitled": "未命名记忆"
       },
+      "categories": {
+        "profile": "资料",
+        "preferences": "偏好",
+        "entities": "实体",
+        "events": "事件",
+        "identity": "身份",
+        "soul": "灵魂",
+        "experiences": "经验",
+        "trajectories": "轨迹",
+        "traps": "避坑"
+      },
       "drillDown": {
         "eyebrow": "记忆详情与溯源",
         "loading": "正在加载记忆详情...",
@@ -4174,7 +4185,8 @@
         "doneTitle": "迁移完成",
         "doneDescription": "已成功导入 {success} 条记忆（{failed} 条失败）。",
         "failedTitle": "迁移失败",
-        "failedDescription": "迁移过程中出现错误。"
+        "failedDescription": "迁移过程中出现错误。",
+        "nothingImported": "没有可导入的记忆。请确认内容是 Hermes 或 OpenViking 的导出文件后重试。"
       }
     },
     "title": "记忆管理",
