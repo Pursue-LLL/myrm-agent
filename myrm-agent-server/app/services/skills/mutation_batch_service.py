@@ -260,6 +260,13 @@ async def rollback_skill_mutation_batch(session: AsyncSession, batch_id: str) ->
 
     bump_skill_config_version()
     await session.execute(delete(BatchSnapshot).where(BatchSnapshot.batch_id == batch_id))
-    restored = len(applied_ids)
+    from app.core.skills.replace.state import clear_last_replace_batch_id
+
+    for sid in applied_ids:
+        try:
+            await clear_last_replace_batch_id(sid)
+        except Exception as exc:
+            logger.warning("Failed to clear replace batch pointer for %s: %s", sid, exc)
+    restored = len(set(applied_ids))
     logger.info("Rolled back %s batch %s (%s skills)", batch_kind or "snapshot", batch_id, restored)
     return restored
