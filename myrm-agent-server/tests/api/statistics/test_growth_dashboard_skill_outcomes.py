@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from myrm_agent_harness.backends.skills.forgetting_strategy import CuratorConfig
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillUsageStats
 
@@ -21,6 +22,7 @@ def skills_root(tmp_path: Path) -> Iterator[Path]:
     root.mkdir()
     with (
         patch("app.core.skills.curator.service.get_stats_collector", return_value=SkillStatsCollector(root)),
+        patch("app.core.skills.curator.service.get_curator_config", return_value=CuratorConfig()),
         patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", [str(root)]),
     ):
         yield root
@@ -53,22 +55,33 @@ async def test_skill_without_observed_outcomes_is_active_not_failing(skills_root
 
 @pytest.mark.asyncio
 async def test_success_rate_counts_only_observed_outcomes(skills_root: Path) -> None:
-    _write_stats(skills_root, "mixed", [True, True, False, None])
+    _write_stats(skills_root, "mixed", [True, True, True, True, False, False, None])
 
     (item,) = await _fetch_skill_health()
 
-    assert item.call_count_7d == 4
+    assert item.call_count_7d == 7
     assert item.success_rate_7d == pytest.approx(2 / 3, abs=1e-3)
 
 
 @pytest.mark.asyncio
+async def test_success_rate_stays_hidden_until_enough_outcomes_are_observed(skills_root: Path) -> None:
+    """A perfect rate over two runs is not evidence, so the panel reports the uses without a verdict."""
+    _write_stats(skills_root, "fresh", [True, True])
+
+    (item,) = await _fetch_skill_health()
+
+    assert item.call_count_7d == 2
+    assert item.success_rate_7d is None
+
+
+@pytest.mark.asyncio
 async def test_observed_failures_lower_the_health_status(skills_root: Path) -> None:
-    _write_stats(skills_root, "broken", [False, False, False, True])
+    _write_stats(skills_root, "broken", [False, False, False, False, True])
 
     (item,) = await _fetch_skill_health()
 
     assert item.status == "AT_RISK"
-    assert item.success_rate_7d == pytest.approx(0.25, abs=1e-3)
+    assert item.success_rate_7d == pytest.approx(0.2, abs=1e-3)
 
 
 @pytest.mark.asyncio

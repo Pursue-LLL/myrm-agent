@@ -137,7 +137,7 @@ class SkillHealthItem(BaseModel):
     call_count_7d: int
     call_count_total: int
     success_rate_7d: float | None
-    """Share of the week's runs with an observed outcome that succeeded; None when none was observed."""
+    """Share of the week's observed outcomes that succeeded; None until the curator's minimum number of outcomes was observed."""
     last_used_at: str | None = None
     actionable_recommendation: str | None = None
     adoption_rate: float | None = None
@@ -440,12 +440,13 @@ async def _fetch_skill_health() -> list[SkillHealthItem]:
     try:
         from myrm_agent_harness.api import SkillCompoundingMetrics, SkillHealthEvaluator
 
-        from app.core.skills.curator.service import get_stats_collector
+        from app.core.skills.curator.service import get_curator_config, get_stats_collector
         from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
         now = datetime.now(UTC)
         week_ago = now - timedelta(days=7)
         collector = get_stats_collector()
+        min_observed = max(1, get_curator_config().min_call_count_for_quality_check)
         items: list[SkillHealthItem] = []
 
         for skill_root in DEFAULT_LOCAL_SKILL_PATHS:
@@ -507,7 +508,8 @@ async def _fetch_skill_health() -> list[SkillHealthItem]:
                 )
                 evaluated = SkillHealthEvaluator.evaluate(metrics, reference_time=now)
                 observed_7d = succ_7d + fail_7d
-                sr_7d = (succ_7d / observed_7d) if observed_7d > 0 else None
+                # Fewer outcomes than the curator needs before it acts on a rate carry no verdict worth showing.
+                sr_7d = (succ_7d / observed_7d) if observed_7d >= min_observed else None
 
                 items.append(
                     SkillHealthItem(
