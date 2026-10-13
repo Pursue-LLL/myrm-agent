@@ -32,7 +32,7 @@
     "react/no-direct-mutation-state": "error",
     "react/no-children-prop": "warn",
     "react/no-danger-with-children": "error",
-    "react/no-unknown-property": "warn",
+    "react/no-unknown-property": ["warn", { "ignore": ["jsx"] }],
     "react/require-render-return": "error",
     "react/self-closing-comp": "warn",
     "react-hooks/rules-of-hooks": "error",
