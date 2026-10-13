@@ -27,6 +27,7 @@ import {
 import { cn } from '@/lib/utils/classnameUtils';
 import { ApiError } from '@/lib/api';
 import { rollbackSkillMutationBatch } from '@/services/skill/optimization';
+import { notifySkillContentChanged } from '@/lib/skills/skillContentSync';
 import { useSkillStore } from '@/store/skill';
 
 type SkillManageBatchRollbackActionProps = {
@@ -52,6 +53,7 @@ export function SkillManageBatchRollbackAction({ batchId }: SkillManageBatchRoll
       setDone(true);
       setConfirmOpen(false);
       await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
+      notifySkillContentChanged();
       const { toast } = await import('@/lib/utils/toast');
       toast.success(
         t('skillManageRollbackSuccess', {
@@ -89,6 +91,7 @@ export function SkillManageBatchRollbackAction({ batchId }: SkillManageBatchRoll
         <p className="leading-relaxed text-foreground/85">{t('skillManageRollbackDescription')}</p>
         <button
           type="button"
+          data-testid="skill-manage-rollback-button"
           disabled={submitting || done}
           onClick={(event) => {
             event.stopPropagation();
