@@ -9,7 +9,7 @@
 
 [POS]
 Server pytest-only teardown helper. Invoked from tests/conftest.py atexit.
-Complements harness toolkits.browser.doctor global orphan cleanup.
+Complements the harness stamp-based toolkits.browser.doctor orphan check (this helper reaps by process tree instead).
 """
 
 from __future__ import annotations

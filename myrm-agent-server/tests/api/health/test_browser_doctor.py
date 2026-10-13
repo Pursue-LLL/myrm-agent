@@ -176,6 +176,24 @@ def test_cleanup_browser_orphans_dry_run_announces_only_what_would_be_pruned(
     assert data["message"] == "Dry-run: 0 process(es) and 1 sandbox(es) would be cleaned"
 
 
+@pytest.mark.parametrize("confirm", [False, True])
+@patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes", return_value=[])
+def test_cleanup_browser_orphans_judge_sandboxes_by_the_harness_default_age(
+    _mock_find: object,
+    client: TestClient,
+    confirm: bool,
+) -> None:
+    """Preview and prune must use the same sandbox age threshold, so the preview matches what is pruned."""
+    with patch(
+        "myrm_agent_harness.toolkits.browser.cleanup_stale_automation_sandboxes",
+        return_value={"pruned": 0, "reclaimed_bytes": 0, "failed": []},
+    ) as mock_sandboxes:
+        response = client.delete(f"/api/v1/health/browser/orphans?confirm={str(confirm).lower()}")
+
+    assert response.status_code == 200
+    mock_sandboxes.assert_called_once_with(dry_run=not confirm)
+
+
 @patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes")
 def test_cleanup_browser_orphans_with_confirm_forces_kill(
     mock_find: object,
@@ -295,16 +313,19 @@ def test_browser_health_returns_pool_status(
 def test_browser_health_degrades_on_exception(
     mock_pool_get: object,
     client: TestClient,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """GET /browser must degrade to unhealthy when pool.health raises."""
     mock_pool = MagicMock()
     mock_pool.health = AsyncMock(side_effect=RuntimeError("pool exploded"))
     mock_pool_get.return_value = mock_pool  # type: ignore[attr-defined]
 
-    response = client.get("/api/v1/health/browser")
+    with caplog.at_level(logging.WARNING, logger="app.api.health.browser"):
+        response = client.get("/api/v1/health/browser")
 
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "unhealthy"
     assert "pool exploded" in data["error"]
     assert "Failed to get browser pool health" in data["message"]
+    assert any(record.exc_info is not None and "pool exploded" in str(record.exc_info[1]) for record in caplog.records)

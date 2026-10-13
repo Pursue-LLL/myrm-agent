@@ -45,7 +45,7 @@ class BrowserHealthChecker(HealthChecker):
     """Health checker for browser and driver automation pool.
 
     Checks for:
-    - Orphan browser (Chromium) and driver (Node.js) processes (no living Python parent)
+    - Orphan browser (Chromium) and driver (Node.js) processes left behind by a Myrm process that has exited
 
     Recovery actions:
     - Terminate orphan automation processes via Harness doctor engine

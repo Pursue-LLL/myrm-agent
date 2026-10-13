@@ -372,7 +372,7 @@ const BrowserDoctorCard = memo(() => {
           <AlertDialogHeader>
             <AlertDialogTitle>{t('confirmCleanupTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('confirmCleanupDescription', { count: Math.max(orphanCount, staleSandboxes) })}
+              {t('confirmCleanupDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

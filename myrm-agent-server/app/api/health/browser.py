@@ -48,6 +48,7 @@ async def browser_health() -> dict[str, object]:
         health_status = await get_configured_browser_pool().health()
         return {str(k): v for k, v in health_status.items()}
     except Exception as exc:
+        logger.warning("Failed to get browser pool health", exc_info=True)
         return {
             "status": "unhealthy",
             "error": str(exc),
@@ -118,19 +119,15 @@ async def list_browser_orphans() -> dict[str, object]:
 @router.delete("/browser/orphans")
 async def cleanup_browser_orphans(
     confirm: bool = Query(False, description="Must be True to actually kill processes"),
-    max_age_hours: float | None = Query(
-        None,
-        description="Minimum age in hours for sandbox cleanup (defaults to 0.0 on confirm=True, 24.0 on dry-run probe)",
-    ),
 ) -> dict[str, object]:
-    """Clean up orphan automation browser processes.
+    """Clean up orphan automation browser processes and stale automation sandboxes.
 
     Safety mechanism: requires confirm=true to actually kill processes.
-    Otherwise returns dry-run results only.
+    Otherwise returns dry-run results only. The dry run and the real cleanup
+    judge sandboxes by the same age threshold, so the preview matches what is pruned.
 
     Args:
         confirm: Must be True to execute cleanup (safety confirmation)
-        max_age_hours: Minimum age in hours for sandbox cleanup
 
     Returns:
         Cleanup result with dry_run flag, killed count, and failed list
@@ -154,12 +151,7 @@ async def cleanup_browser_orphans(
                 "failed": [],
             }
 
-        effective_max_age = max_age_hours if max_age_hours is not None else (0.0 if confirm else 24.0)
-        sandbox_result = await asyncio.to_thread(
-            cleanup_stale_automation_sandboxes,
-            max_age_hours=effective_max_age,
-            dry_run=not confirm,
-        )
+        sandbox_result = await asyncio.to_thread(cleanup_stale_automation_sandboxes, dry_run=not confirm)
 
         killed = int(proc_result.get("killed", 0))
         sandboxes_pruned = int(sandbox_result.get("pruned", 0))
