@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Memory API module | ✅ |
-| `router.py` | 路由 | Memory API 聚合路由。产线冲突 SSOT：`operations/conflicts` + `operations/pending`（consolidation → `conflict_callback` → PendingMemory）。`/memory/command-center*` 仅在 `MYRM_MEMORY_LABS=1` 时挂载；Chrome E2E seed 路由仅在 `is_local_mode()` 时挂载。`/memory/**` 每个路由都必须有前端调用或登记的外部消费者，由 `tests/architecture/test_memory_route_callers.py` 守卫；新增路由先接前端或登记，不预埋无调用方的实验路由 | ✅ |
+| `router.py` | 路由 | Memory API 聚合路由。产线冲突 SSOT：`operations/conflicts` + `operations/pending`（consolidation → `conflict_callback` → PendingMemory）。`/memory/command-center*` 仅在 `MYRM_MEMORY_LABS=1` 时挂载；Chrome E2E seed 路由仅在 `is_local_mode()` 时挂载。所有 API 路由都必须有前端调用或登记的外部消费者，由 `tests/architecture/test_api_route_consumers.py` 守卫；新增路由先接前端或登记，不预埋无调用方的实验路由 | ✅ |
 | `test_seed.py` | 路由 | 本地测试专用 fixture（仅 local mode）：Chrome E2E seed 演变历史/纠正链记忆（预填向量绕过失效凭据）；`/test/seed-pending-proposal` 经 `submit_pending` 排队 CORRECT/DELETE 待审批提案（embedding 由调用方配置） | ✅ |
 | `follow_ups/` | 路由 | Proactive follow-up list / dismiss / snooze | [_ARCH.md](follow_ups/_ARCH.md) |
 | `shared_context_schemas.py` | 模块 | 共享上下文 API Schema 层。集中定义 Shared Context 产品接口的数据契约。 | ✅ |
