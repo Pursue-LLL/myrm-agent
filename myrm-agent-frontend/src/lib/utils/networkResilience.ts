@@ -7,6 +7,7 @@
  * isRetryableWebSocketClose: Determines if a WebSocket close code is retryable.
  * FatalNetworkError: Custom error class for non-retryable network failures.
  * isArchiveRestoreActionInvalidError: Identifies typed archive restore validation failures.
+ * abortableDelay: Backoff wait that a stop (AbortSignal) ends at once instead of after the full delay.
  *
  * [POS]
  * Unified Network Resilience Policy Layer. Centralizes retry and fail-fast logic for
@@ -49,6 +50,29 @@ export function isRetryableHttpStatus(status: number): boolean {
  */
 export function isRetryableWebSocketClose(code: number): boolean {
   return [1001, 1006, 1012, 1013, 1014].includes(code);
+}
+
+/**
+ * 可中止的等待（重试退避用）：到期后 resolve；signal 中止时立即以其中止原因（默认 AbortError）reject，
+ * 若进入时已中止则不启动计时器。计时器与监听器在任一结局后都会清理，不会残留在长生命周期的 signal 上。
+ * 用户 Stop 因此不必等完一轮退避才结束回合。
+ */
+export function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+  });
 }
 
 export const ARCHIVE_RESTORE_ACTION_INVALID = 'archive_restore_action_invalid';

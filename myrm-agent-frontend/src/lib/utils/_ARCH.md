@@ -41,7 +41,7 @@
 - `hardwareSimulator.ts`：硬件阶梯估算 — HardwareRungInfo 阶梯信息与 64k 上下文 KV Cache 内存估算。
 - `messageUtils.ts`：消息处理工具 — 时间戳标签剥离、ui_action JSON 块剥离、用户消息展示清理、explicit skill wire（`[use s1,s2]`）解析与构建、skill chip 展示名、markdown 纯化、浏览器时区获取。
 - `modelFormatUtils.ts`：数值紧凑格式化 — token 数量 K/M 紧凑展示。
-- `networkResilience.ts`：网络韧性策略层 — HTTP 状态码瞬时错误可重试判定、WebSocket close code 可重试判定、`FatalNetworkError` 不可重试错误类、归档恢复校验失效识别，统一重试与 fail-fast 决策。
+- `networkResilience.ts`：网络韧性策略层 — HTTP 状态码瞬时错误可重试判定、WebSocket close code 可重试判定、`FatalNetworkError` 不可重试错误类、归档恢复校验失效识别、可中止退避等待 `abortableDelay`（Stop 立即结束等待，计时器与监听不残留），统一重试与 fail-fast 决策。
 - `reactCodeProcessor.ts`：React 代码检测 — `isValidReactCode` 有效性判定（React import/JSX/export 三要素）与工件预览依赖处理。
 - `reactUtils.ts`：React children 工具 — `getChildrenAsText` children prop 纯文本转换。
 - `requestManager.ts`：全局请求管理 — 流式 AI 搜索请求注册、跟踪与取消（AbortController 集合管理）。

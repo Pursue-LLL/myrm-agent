@@ -43,9 +43,10 @@ export function resolveRequestState<S extends RequestStateSlice>(
 
 /**
  * Whether a newer turn holds the shared abort handle. Only the owner of the handle may release the turn state it
- * guards: a turn can end after the next one took over (it still reconciles with the server, or its retry wait is
- * over), and resetting then would leave the running turn without a Stop button. A pane snapshot is a JSON clone,
- * so a handle read from it is a plain object rather than a live controller and counts as held by nobody.
+ * guards: a turn can end after the next one took over (it still reconciles with the server, or a stop reached it
+ * while it waited for the workspace stream), and resetting then would leave the running turn without a Stop button.
+ * A pane snapshot is a JSON clone, so a handle read from it is a plain object rather than a live controller and
+ * counts as held by nobody.
  */
 export function isHeldByOtherTurn(held: unknown, own: AbortController): boolean {
   return held instanceof AbortController && held !== own;

@@ -2,13 +2,16 @@
  * Which turn may release the shared turn state (loading flag, abort handle, request id, composer attachments and
  * their hidden attach list), through the real chat store and request pipeline (only the network is replaced).
  *
- * A turn ends after its stream did: it reconciles the transcript with the server first, and a request that waited
- * to retry gives up only when that wait is over. The next turn can start inside that gap, and the ended turn must
- * then leave the shared state alone: resetting it would leave the running turn without a Stop button.
+ * A turn ends after its stream did: it reconciles the transcript with the server first. The next turn can start
+ * inside that gap, and the ended turn must then leave the shared state alone: resetting it would leave the running
+ * turn without a Stop button. A stopped turn ends at once wherever it waits (for a stream event, before a retry), so
+ * nothing of it can reach into the next turn later.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithTimeout } from '@/lib/api';
 import { cancelActiveChatAgent, cancelAgentRequest, createAISearchStream } from '@/services/chat';
+import { connectionManager } from '@/services/ConnectionManager';
+import { showI18nToast } from '@/services/i18nToastService';
 import { attachToChat, type ChatActionsMethods } from '@/store/chat/messageRequest';
 import type { File as ChatFile } from '@/store/chat/types';
 import { getInitialDefaultModelConfig } from '@/store/config/providerTypes';
@@ -245,30 +248,73 @@ describe('turn ownership of the shared turn state', () => {
     });
   });
 
-  it('keeps the next turn running when a stopped turn gives up waiting to retry after it started', async () => {
+  it('ends a stopped turn that waits to retry without reporting a send failure', async () => {
     resetWorld(false);
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.mocked(showI18nToast).mockClear();
     answerRequests(async () => {
       throw new TypeError('Failed to fetch');
     });
 
-    const firstTurn = send('first question');
+    const turn = send('only question');
     await eventually(() => expect(requests).toHaveLength(1));
-    // The failed request waits to retry; the user stops it and sends again.
     store().stopMessage();
-    const secondTurn = send('second question');
-    await eventually(() => expect(requests).toHaveLength(2));
+    let turnEnded = false;
+    void turn.then(() => {
+      turnEnded = true;
+    });
 
-    // The first wait is at most 2.4 s; turn 1 gives up when it is over.
+    await vi.advanceTimersByTimeAsync(100);
+    expect(turnEnded).toBe(true);
+    // The wait would have run out by now and failed the request the user already stopped.
     await vi.advanceTimersByTimeAsync(3_000);
-    await firstTurn;
+    expect(vi.mocked(showI18nToast).mock.calls.map(([key]) => key)).not.toContain('chat.messageFailed.title');
+    expect(store().messages.some((message) => message.sendFailed)).toBe(false);
+    expect(requests).toHaveLength(1);
+  });
 
+  it('leaves no stream watchdog of a stopped multiplexed turn to end the next turn', async () => {
+    resetWorld(false);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    delete window.__MYRM_E2E_DIRECT_SSE__;
+    const bridges = new Map<string, (chunk: string) => void>();
+    vi.spyOn(connectionManager, 'registerMultiplexHandler').mockImplementation((id, handler) => {
+      bridges.set(id, handler);
+      return () => {
+        if (bridges.get(id) === handler) {
+          bridges.delete(id);
+        }
+      };
+    });
+    vi.spyOn(connectionManager, 'waitUntilReady').mockResolvedValue({ ok: true });
+    vi.mocked(createAISearchStream).mockImplementation(async (_body: unknown, request?: AbortController) => {
+      requests.push(request as AbortController);
+      return new Response(JSON.stringify({ status: 'accepted' }), { headers: { 'Content-Type': 'application/json' } });
+    });
+    const frame = (id: string, type: string, data: unknown) =>
+      `data: ${JSON.stringify({ type, messageId: id, data })}\n\n`;
+
+    const firstTurn = store().sendMessage('first question');
+    await eventually(() => expect(bridges.size).toBe(1));
+    const [firstId] = [...bridges.keys()];
+    // The first answer events arm the 3.5 s silence watchdog of turn 1.
+    bridges.get(firstId)?.(frame(firstId, 'routing_decision', { tier: 'simple' }));
+    bridges.get(firstId)?.(frame(firstId, 'message', 'partial answer'));
+    await eventually(() => expect(store().messages.at(-1)?.role).toBe('assistant'));
+
+    store().stopMessage();
+    const secondTurn = store().sendMessage('second question');
+    await eventually(() => expect(requests).toHaveLength(2));
+    await eventually(() => expect(bridges.size).toBe(1));
+
+    // Turn 2 is waiting for its first event: a watchdog left behind by turn 1 would end it in this time.
+    await vi.advanceTimersByTimeAsync(5_000);
     expect(store().loading).toBe(true);
     expect(store().abortController).toBe(requests[1]);
 
     store().stopMessage();
     await eventually(() => expect(requests[1].signal.aborted).toBe(true));
-    await secondTurn;
+    await Promise.all([firstTurn, secondTurn]);
   });
 
   it('keeps a re-attached turn from ending the next turn when its reconcile outlives that turn', async () => {

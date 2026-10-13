@@ -1187,8 +1187,8 @@ export const sendMessage = async (
     }
   } finally {
     const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
-    // This turn can end after the next one took over (it was still reconciling with the server, or its retry wait
-    // had not run out yet): the turn state then belongs to that turn and stays untouched.
+    // This turn can end after the next one took over (it was still reconciling with the server, or a stop reached it
+    // while it waited for the workspace stream): the turn state then belongs to that turn and stays untouched.
     let heldByOtherTurn = false;
     smartSetMessages((innerState) => {
       heldByOtherTurn = isHeldByOtherTurn(innerState.abortController, abortController);

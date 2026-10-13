@@ -849,7 +849,7 @@ except Exception:
 
 ### 验证
 
-1. 新增 `messageRequest.turnOwnership.test.ts` 6 个用例（真实 `useChatStore` / `useWorkspaceStore` 与真实请求管线，只替换网络与对账接口）、`messageRequest.queueSemantics.test.ts` 的 2 个纯函数用例和 `streamConsumer.transport.test.ts` 3 个用例（固定请求体与消费端共用的 multiplex 判定）；修复前 4 个管线用例红且原因是 `loading` 被清成 false（晚对账有/无面板各 1、停止后退避结束 1、attach 1），当前回合释放与后台面板快照 2 个用例修复前后都绿；
+1. 新增 `messageRequest.turnOwnership.test.ts` 6 个用例（真实 `useChatStore` / `useWorkspaceStore` 与真实请求管线，只替换网络与对账接口）、`messageRequest.queueSemantics.test.ts` 的 2 个纯函数用例和 `streamConsumer.transport.test.ts` 3 个用例（固定请求体与消费端共用的 multiplex 判定）；修复前 4 个管线用例红且原因是 `loading` 被清成 false（晚对账有/无面板各 1、停止后退避结束 1、attach 1），当前回合释放与后台面板快照 2 个用例修复前后都绿（`BUG-AGENT-2026-10-13-006` 之后，「停止后退避结束」一例改写为停止立即安静结束的用例，并新增一个多路复用管线用例，该文件现为 7 个用例）；
 2. 变异检查（逐个应用后恢复，文件哈希与基线一致）：总是释放 → 5 红；缺失句柄当别轮 → 2 红；面板句柄不受守卫 → 1 红；别轮收尾仍清附件 → 2 红；别轮收尾仍清请求 id → 2 红；attach 守卫去掉 → 1 红；multiplex 判定恒为 true → 1 红（仅直连标记用例）；无 window 时不走 multiplex → 1 红（仅无 window 用例）；
 3. 把 `finally` 里的两处判定分别改成恒为 false（等价于无条件释放），`turnOwnership` 用例各自变红：`sendMessage` 处 3 红、attach 处 1 红；附件列表复位不受守卫 → 2 红（仅晚对账用例），去掉复位 → 1 红（仅当前回合释放用例）；每次恢复后哈希与基线一致；
 4. `src/store/chat` 84 个文件 567 个用例，以及 `store/__tests__`、`hooks/message-input`、`lib/approval` 与 2 个 resumeRefusal 组件用例 61 个文件 510 个用例，全部通过；
@@ -999,5 +999,85 @@ except Exception:
 1. 标签状态与 URL 双向同步时，要有“自己写出的值能被自己读回”的往返测试；只测“读 URL”，或把写 URL 的 Hook 整个 mock 掉再断言，抓不到读写两端的拼写分歧；
 2. 同一个标识有多种拼写时，规范写法（标签值）要能被解析，别名写法只作为外部入口；
 3. 局限：往返断言只覆盖 `DeveloperCenterSection`，其余 6 个中心页是源码比对；没有在真实浏览器里点过。
+
+---
+
+## BUG-AGENT-2026-10-13-005: 系统唤醒后，仍在运行的一轮被界面显示为空闲（停止按钮消失）
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-13 |
+| 修复日期 | 2026-10-13 |
+| 严重程度 | P2（运行中的一轮在唤醒后界面显示空闲：停止按钮随 `loading` 消失，服务端继续跑到结束，用户无法从界面终止） |
+| 影响范围 | `myrm-agent-frontend/src/services/desktopWakeRecovery.ts` |
+| 出现次数 | 1（单测与真实 chat store 复现，未取得线上遥测） |
+| 关联 | `BUG-AGENT-2026-10-13-001`（同一批次：回合归属）、`BUG-AGENT-2026-10-13-006` |
+
+### 现象
+
+1. 桌面端系统唤醒（Tauri `app:system-wake`）、浏览器标签页隐藏 10 秒以上后回到前台、浏览器 `online` 事件，都会让唤醒处理器进入 `ready` 阶段；
+2. 处理器对任何处于 loading 的当前聊天先 `loadMessages`，再在 `finally` 里无条件 `setLoading(false)`；
+3. 那一轮若仍在流式运行（store 持有它的 `abortController`），界面立刻显示空闲：停止按钮随 `loading` 消失，服务端继续运行。
+
+### 根因
+
+处理器把所有 loading 都当作「唤醒后残留的假死转圈」，没有区分两种来源：没有轮次句柄的残留 loading，与持有 `abortController` 的真实进行中轮次。后者的收尾归它自己的流管理（终止事件、静默看门狗、Stop），唤醒处理器无权抢先释放。
+
+### 修复
+
+`handleWakePhaseTransition` 只对「loading 且没有 `abortController`」的聊天重新同步消息，`loading` 由 `loadMessages` 自行结束；持有句柄的轮次不碰；删除 `finally` 里的无条件 `setLoading(false)`。历史列表刷新与后台任务通知不变。
+
+### 验证
+
+1. `desktopWakeRecovery.test.ts` 现 14 个用例。用 `git show 66e2a9f6f~1` 还原修复前源码运行同一测试：4 例红、10 例绿，运行后文件逐字节还原。红的 4 例是：无句柄的残留 loading 被重新同步且历史与后台任务照常刷新、持有句柄的轮次既不重新同步也不被释放、重新同步抛错时仍继续刷新历史与后台任务、真实 `useChatStore` 下运行中的轮次不受唤醒影响且 Stop 仍能到达它；修复后 14 例全绿；
+2. 相关 22 个测试文件 253 个用例全绿（含本文件）；oxlint、prettier、窄范围与全量 `tsc --noEmit` 对本修复涉及的文件无问题（全量 `tsc` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误）。
+
+### 踩坑经验
+
+1. 「loading」不是单一来源：自愈逻辑要先问这个状态归谁，持有轮次句柄的状态只能由持有者结算；
+2. 局限：唤醒后若那一轮的流其实已经断了，界面要等该轮的静默看门狗（最后一个事件之后 3.5 秒）才自愈；一轮若至今没有收到过任何事件，看门狗尚未武装，唤醒不再替它结束 loading，需要用户点停止（按代码阅读，未在真实休眠唤醒里复现）；没有真机休眠唤醒验证。
+
+---
+
+## BUG-AGENT-2026-10-13-006: 点击停止后，工作区流上挂起的读取不会结束，数秒后看门狗清掉下一轮的运行状态；退避等待不响应停止
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-13 |
+| 修复日期 | 2026-10-13 |
+| 严重程度 | P2（停止后立刻发送下一条消息，数秒后下一轮的 `loading` 与 Stop 句柄被上一轮的看门狗清掉：停止按钮消失，服务端继续跑到结束；停止一个正在退避重试的请求，要等睡完整段退避才结束该轮） |
+| 影响范围 | `myrm-agent-frontend/src/store/chat/consumeStream.ts`、`streamConsumer.ts`、`src/lib/utils/networkResilience.ts`（新增 `abortableDelay`）、`src/lib/backend-health-probe.ts`（改用 `abortableDelay`） |
+| 出现次数 | 1（真实多路复用桥 + 真实 store 管线复现，未取得线上遥测） |
+| 关联 | `BUG-AGENT-2026-10-13-001`（回合归属：本条补上其未覆盖的「停止后挂起的读取」）、`BUG-AGENT-2026-10-13-005` |
+
+### 现象
+
+1. 生产默认的传输是工作区多路复用 SSE（`shouldUseMultiplexedAgentStream` 只在直连 E2E 标记下为假）。用户点停止后，桥只摘掉自己的分发处理器（`multiplexChunkBridge.ts:40-50`），合成的 `ReadableStream` 既不关闭也不报错（只有收到终止块后才在 50 ms 后关闭，`:73-83`），`consumeStream` 里挂起的 `reader.read()` 永远不返回；
+2. 该轮的静默看门狗（最后一个事件之后 3.5 秒，`streamWatchdog.ts:53`）随后触发自愈，写 `setLoading(false)` 与 `clearActiveStream`；若用户停止后已发出下一轮，被清掉的是下一轮的 `loading` 与 Stop 句柄；
+3. 请求重试退避（2 秒起、×1.5、最多 10 次）与断流后的 attach 重连退避是不可中止的睡眠：停止要等睡完才结束该轮；请求重试的睡眠醒来后抛出上一次的网络错误而不是 `AbortError`，用户主动停止被当成网络失败处理。
+
+### 根因
+
+1. 取消只做了一半：停止信号只让桥摘掉分发处理器，没有任何东西去唤醒已挂起的 `reader.read()`；读循环此后只能靠静默看门狗兜底，而看门狗收尾写的是共享的回合状态，它不属于已被停止的那一轮；
+2. 退避睡眠不接收中止信号，醒来后的 `if (aborted) throw lastError` 抛的是网络错误而不是中止，停止的语义被改写成失败。
+
+### 修复
+
+1. `consumeStream`：在中止信号上登记监听，触发时取消 reader（唤醒挂起的读取）；循环顶部、读取失败的 `catch`（在包成 `StreamInterruptedError` 之前）、读取返回之后（在判断 `done` 之前，免得把停止当作流自然结束而走 `onReaderDone` 自愈）各做一次 `throwIfAborted()`，一律以真正的 `AbortError` 结束；监听器在 `finally` 里摘除；
+2. 新增 `abortableDelay(ms, signal)`（`networkResilience.ts`；`backend-health-probe.ts` 原来的私有 `sleep` 改用它）：到期 resolve，中止则立即以中止原因 reject，进入时已中止则不启动计时器，计时器与监听器在任何结局后都清理；请求重试退避与 attach 退避改用它，原来「醒来再检查中止」的两处判断随之删除；
+3. `sendMessage` 的 catch 本就忽略 `AbortError`（`messageRequest.ts:1166`），被停止的回合因此安静结束：没有失败提示、没有失败标记。
+
+### 验证
+
+1. 红灯先行：把 `networkResilience.ts`、`consumeStream.ts`、`streamConsumer.ts` 还原为修复前（HEAD）源码运行同一批测试，27 例中 13 例红、14 例绿（运行后三个文件逐字节还原）。红的 13 例是：`networkResilience.test.ts` 的 `abortableDelay` 4 例；`streamConsumer.test.ts` 的 7 个停止用例（已停止的回合不开始读取、挂起的读取立即结束且不留下看门狗自愈、读取因停止失败时报告为停止而非断流、监听器随消费结束摘除、不对停止后的流重新 attach、请求重试退避可中止、attach 退避可中止）；`messageRequest.turnOwnership.test.ts` 的 2 例管线用例（停止后等待重试的回合安静结束；停止后的多路复用回合不会留下看门狗去结束下一轮，用真实多路复用桥与真实 store）。修复后全部变绿；
+2. 变异检查（A0 基线 13 例通过、0 失败；逐个应用 10 个变异，每次运行后恢复并核对文件哈希）：`abortableDelay` 进入时已中止却不提前拒绝 → 1 红；中止时不清计时器 → 3 红；到期后不摘监听器 → 1 红；中止时不取消 reader → 2 红；读取返回后不检查中止 → 1 红；读取失败的 `catch` 里不检查中止 → 2 红；循环顶部不检查中止 → 1 红；`consumeStream` 的监听器不在 `finally` 摘除 → 1 红；请求重试退避不响应停止 → 2 红；attach 退避不响应停止 → 1 红。其中「读取返回后不检查中止」只被单元用例捕获，管线用例捕获不到（该变异下过期自愈发生在停止当下、下一轮开始之前），由单元用例钉住；
+3. 相关 22 个测试文件 253 个用例全绿；oxlint、prettier、窄范围与全量 `tsc --noEmit` 对本修复涉及的文件无问题（全量 `tsc` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误）。
+
+### 踩坑经验
+
+1. 「摘掉监听」不等于「结束读取」：把 `ReadableStream` 交给消费循环的桥，停止时必须有人唤醒挂起的 `read()`（`reader.cancel()`），否则读循环只能靠看门狗兜底，而兜底写的是共享状态；
+2. 取消 reader 会让挂起的 `read()` 以「正常结束」返回，读取返回后必须先 `throwIfAborted()` 再看 `done`，否则停止被当作流自然结束而触发自愈；
+3. 等待助手里要先登记中止监听再创建计时器：测试里同步触发回调的 `setTimeout` 替身会在登记之前就执行回调；
+4. 局限：`waitUntilReady(30_000)`（`streamConsumer.ts`，`ConnectionManager.waitUntilReady` 只收超时、不收中止信号）仍不可中止，停止发生在等待工作区流就绪期间时，要等它返回（最长 30 秒）该轮才结束；行为变化：停止一个正在退避重试的请求，不再迟到地给气泡打失败标记并弹提示，而是安静结束，与首包之前停止的终态一致（该消息留在转录里、没有重试按钮）；没有真实浏览器验证，没有线上遥测。
 
 ---

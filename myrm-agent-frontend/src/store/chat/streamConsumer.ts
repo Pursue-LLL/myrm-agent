@@ -4,9 +4,10 @@
  * ./streamErrors (POS: busy / refused / interrupted 错误分类)
  * ./messageRequest::createMessageRequest (POS: agent-stream POST)
  * ./multiplexChunkBridge::createMultiplexReadableStream (POS: workspace multiplex 桥)
+ * @/lib/utils/networkResilience::abortableDelay (POS: 可被 Stop 中止的退避等待)
  *
  * [OUTPUT]
- * executeStreamWithRetry: 网络重试、AgentBusyError fail-fast、multiplex 分流、中断后 attach 恢复；turn 成功后 finalizeAgentStreamTurn
+ * executeStreamWithRetry: 网络重试、AgentBusyError fail-fast、multiplex 分流、中断后 attach 恢复；两类退避等待均可被用户 Stop 立即中止（AbortError 直接抛出）；turn 成功后 finalizeAgentStreamTurn
  * shouldUseMultiplexedAgentStream: 本轮 chunk 走 workspace multiplex 还是 POST 响应体（请求体 multiplexed 字段与消费端共用此判定）
  *
  * [POS]
@@ -21,7 +22,7 @@ import {
   type TurnCapabilityTerminalTelemetry,
   ModelSelection,
 } from './types';
-import { isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkResilience';
+import { abortableDelay, isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkResilience';
 import { createMultiplexReadableStream } from './multiplexChunkBridge';
 import { connectionManager } from '@/services/ConnectionManager';
 import { resolveChatWikiEvidenceContext } from '@/services/wiki/evidenceContextCore';
@@ -209,11 +210,8 @@ export async function executeStreamWithRetry(
     if (attempt > 0 && lastError) {
       const delay = retryDelay(attempt - 1);
       console.warn(`Stream request retry ${attempt}/${RETRY_MAX_ATTEMPTS} after ${delay}ms: ${lastError.message}`);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-
-      if (abortController.signal.aborted) {
-        throw lastError;
-      }
+      // A stop ends the wait with an AbortError, so the turn ends quietly instead of failing after the delay.
+      await abortableDelay(delay, abortController.signal);
     }
 
     try {
@@ -349,10 +347,7 @@ export async function executeStreamWithRetry(
             if (attachAttempt > 0) {
               const delay = retryDelay(attachAttempt - 1);
               console.warn(`Attach retry ${attachAttempt}/${RETRY_MAX_ATTEMPTS} after ${delay}ms`);
-              await new Promise((resolve) => setTimeout(resolve, delay));
-              if (abortController.signal.aborted) {
-                throw error;
-              }
+              await abortableDelay(delay, abortController.signal);
             }
             try {
               const attached = await attachToChat(state.chatId, actions, useChatStore.getState, {
