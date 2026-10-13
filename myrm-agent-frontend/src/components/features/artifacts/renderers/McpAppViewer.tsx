@@ -97,7 +97,7 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
       '*',
     );
 
-    // Send structuredContent as a tool result event (ext-apps ontoolresult)
+    // Send structuredContent as a tool result event
     if (view.structuredContent) {
       iframe.contentWindow.postMessage({ type: 'toolresult', content: view.structuredContent }, '*');
     }
