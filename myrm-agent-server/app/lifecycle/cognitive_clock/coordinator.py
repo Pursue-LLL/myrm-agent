@@ -56,6 +56,7 @@ class CognitiveClockCoordinator:
 
     def __init__(self) -> None:
         self._loop_task: Optional[asyncio.Task[None]] = None
+        self._heartbeat_task: Optional[asyncio.Task[None]] = None
         self._last_run_t2: Optional[float] = None
         self._next_run_t2: Optional[float] = None
         self._last_run_t3: float = 0.0
@@ -73,17 +74,23 @@ class CognitiveClockCoordinator:
         if self.is_running():
             return
         self._loop_task = asyncio.create_task(self._main_loop(), name="cognitive_clock_loop")
+        if self._heartbeat_task is None or self._heartbeat_task.done():
+            self._heartbeat_task = asyncio.create_task(
+                self._wakeup_guard.run_heartbeat(), name="cognitive_clock_wakeup_heartbeat"
+            )
         logger.info("CognitiveClockCoordinator started")
 
     async def stop(self) -> None:
-        """Stop background coordinator loop gracefully."""
-        if self._loop_task and not self._loop_task.done():
-            self._loop_task.cancel()
-            try:
-                await self._loop_task
-            except asyncio.CancelledError:
-                pass
+        """Stop the background coordinator loop and its wakeup heartbeat gracefully."""
+        for task in (self._loop_task, self._heartbeat_task):
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
         self._loop_task = None
+        self._heartbeat_task = None
         logger.info("CognitiveClockCoordinator stopped")
 
     async def get_status(self, policy: Optional[MemoryGuardianPolicy] = None) -> dict[str, object]:

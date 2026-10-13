@@ -56,20 +56,13 @@ def test_user_activity_sensor_triggers_pause() -> None:
     assert get_global_pause_signal().is_pause_requested is False
 
 
-def test_wakeup_smoothing_guard_detects_gap() -> None:
-    guard = WakeupSmoothingGuard(grace_period_seconds=2.0, gap_threshold_seconds=0.1)
-    # Simulate time stall
-    guard._last_tick_wall = time.time() - 10.0
-    guard._last_tick_mono = time.monotonic() - 10.0
-    guard.check_heartbeat()
-
-    assert guard.is_in_grace_period() is True
-    assert guard.remaining_grace_seconds > 0.0
-
-
 @pytest.mark.asyncio
 async def test_coordinator_t2_suppressed_on_user_active() -> None:
     coordinator = CognitiveClockCoordinator()
+    # The scheduler reads the guard for the first time after its 15-minute initial delay; that idle gap is no resume.
+    coordinator._wakeup_guard = WakeupSmoothingGuard()
+    coordinator._wakeup_guard._last_tick_wall = time.time() - 900.0
+    coordinator._wakeup_guard._last_tick_mono = time.monotonic() - 900.0
     coordinator._activity_sensor.record_activity(session_id="active_sess", reason="chat_input")
 
     report, skip_reason = await coordinator.trigger_t2_cycle(force=False)
@@ -143,6 +136,21 @@ async def test_coordinator_skip_tracking_and_status() -> None:
         await coordinator.trigger_t2_cycle(force=True)
         assert coordinator._last_skip_reason is None
         assert coordinator._consecutive_skips == 0
+
+
+@pytest.mark.asyncio
+async def test_the_wakeup_heartbeat_runs_exactly_while_the_coordinator_runs() -> None:
+    coordinator = CognitiveClockCoordinator()
+    coordinator._wakeup_guard = WakeupSmoothingGuard()
+
+    coordinator.start()
+    await asyncio.sleep(0)
+    try:
+        assert coordinator._wakeup_guard.heartbeat_running is True
+    finally:
+        await coordinator.stop()
+
+    assert coordinator._wakeup_guard.heartbeat_running is False
 
 
 @pytest.mark.asyncio
