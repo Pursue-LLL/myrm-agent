@@ -8,6 +8,15 @@
 #   status  — JSON-ish health snapshot
 set -euo pipefail
 
+# Opt-in wall-clock markers on stderr. The E2E runtime sets MYRM_STACK_STAGE_TRACE=1 on the
+# private-backend ensure call to learn where its startup time goes; other callers see nothing.
+_stack_stage() {
+  if [[ "${MYRM_STACK_STAGE_TRACE:-}" == "1" ]]; then
+    echo "STACK_STAGE: $1 wall=$(date +%s)" >&2
+  fi
+}
+_stack_stage enter
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=../lib/resolve_agent_root.sh
@@ -21,6 +30,7 @@ source "${SCRIPT_DIR}/lib/stack-epoch.sh"
 # shellcheck source=lib/dev_state_paths.sh
 source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
 resolve_agent_paths "${REPO_ROOT}"
+_stack_stage libs_loaded
 
 STATE_DIR="$(dev_state_dir)"
 BACKEND_PORT="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
@@ -776,7 +786,9 @@ _ensure_backend() {
     echo "STACK_FAIL: backend start failed" >&2
     return 1
   fi
+  _stack_stage backend_spawned
   if _wait_backend_health "${MYRM_BACKEND_ENSURING_HEALTH_SEC:-60}"; then
+    _stack_stage backend_healthy
     echo "STACK_OK: backend → ${API_BASE}"
     return 0
   fi
@@ -1121,6 +1133,7 @@ cmd_backend_only_ensure() {
     exit 1
   fi
   trap '_release_dir_lock "${_lock_dir}"' EXIT
+  _stack_stage lock_acquired
 
   if ! _ensure_backend; then
     echo "STACK_FAIL: private backend start failed" >&2
@@ -1145,11 +1158,13 @@ cmd_backend_only_ensure() {
       fi
     fi
     echo "STACK_OK: private backend already healthy → ${API_BASE}"
+    _stack_stage ensure_done
     echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
     exit 0
   fi
 
   if _wait_backend_health "${MYRM_BACKEND_ENSURING_HEALTH_SEC:-60}"; then
+    _stack_stage ensure_done
     echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
     exit 0
   fi
