@@ -4,7 +4,7 @@ description: >-
   Automated diagnostic and migration engine for deprecated plugin/skill syntax, Breaking Changes,
   and legacy configuration structures. Inspired by openclaw doctor --fix and modern linter-fixers,
   it inspects manifests, yaml configs, and SKILL.md files, detects deprecated keys (e.g. tools vs
-  allowed-tools, on_agent_init vs on_session_start, legacy env arrays), generates deterministic AST/YAML
+  allowed-tools, on_agent_init vs hooks.SessionStart, legacy env arrays), generates deterministic AST/YAML
   diffs, and performs safe, atomic migrations with automatic backup and rollback guarantees.
 version: 1.0.0
 category: developer-tools
@@ -98,7 +98,7 @@ and executing non-destructive, atomic migrations with guaranteed rollbacks.
 |---|---|---|---|
 | `plugin.yaml` / `manifest.json` | `SKILL.md` (YAML Frontmatter) | Consolidate manifest fields into Markdown header block | **CRITICAL** |
 | `tools: "bash, file_read"` | `allowed-tools: [bash_code_execute_tool, file_read_tool]` | Split comma string, map to canonical tool names, format as YAML list | **HIGH** |
-| `on_agent_init: run.py` | `hooks: { on_session_start: run.py }` | Map legacy single hook to nested hook event table | **MEDIUM** |
+| `on_agent_init: run.py` | `hooks: { SessionStart: [{ script: run.py }] }` | Map legacy single hook to the hook event table: CamelCase event name, each event holds a list of entries with `script` | **MEDIUM** |
 | `env: [VAR1, VAR2]` | `required_env_vars: [VAR1, VAR2]` | Rename property key, preserve variable names | **MEDIUM** |
 | Missing `contract.steps` | Scaffolded `contract.steps: ["Step 1..."]` | Inject standard contract template satisfying schema gate | **HIGH** |
 
