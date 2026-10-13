@@ -15,6 +15,7 @@ for offline desktop migration and full data sovereignty.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import logging
@@ -44,7 +45,15 @@ class UserTakeoutService:
         include_skills: bool = True,
         include_deliverables: bool = True,
     ) -> bytes:
-        """Assemble all core personal assets into a structured ZIP archive in memory."""
+        """Assemble all core personal assets into a structured ZIP archive in memory, off the event loop."""
+        return await asyncio.to_thread(
+            cls._build_takeout_zip_sync, include_db, include_wiki, include_skills, include_deliverables
+        )
+
+    @classmethod
+    def _build_takeout_zip_sync(
+        cls, include_db: bool, include_wiki: bool, include_skills: bool, include_deliverables: bool
+    ) -> bytes:
         settings = get_settings()
         state_dir = Path(settings.database.state_dir)
         deploy_mode = get_deploy_mode().value
@@ -66,12 +75,11 @@ class UserTakeoutService:
                 db_file = state_dir / "data.db"
                 if db_file.exists():
                     db_bytes = cls._create_sqlite_backup_bytes(db_file)
-                    if db_bytes:
-                        zf.writestr("db/data.db", db_bytes)
-                        manifest["contents"]["db"] = {
-                            "file": "db/data.db",
-                            "size_bytes": len(db_bytes),
-                        }
+                    zf.writestr("db/data.db", db_bytes)
+                    manifest["contents"]["db"] = {
+                        "file": "db/data.db",
+                        "size_bytes": len(db_bytes),
+                    }
 
             # 2. Wiki Knowledge Base (Markdown files)
             if include_wiki:
@@ -110,8 +118,12 @@ class UserTakeoutService:
         return zip_buffer.getvalue()
 
     @classmethod
-    def _create_sqlite_backup_bytes(cls, src_db_path: Path) -> bytes | None:
-        """Create a consistent online SQLite backup without locking or dirty reads."""
+    def _create_sqlite_backup_bytes(cls, src_db_path: Path) -> bytes:
+        """Create a consistent online SQLite backup without locking or dirty reads.
+
+        Raises ``sqlite3.Error`` when the database cannot be backed up: an archive that silently lacks the
+        database would be presented to the user as a complete export.
+        """
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_file:
             tmp_path = Path(tmp_file.name)
 
@@ -125,9 +137,6 @@ class UserTakeoutService:
                 src_conn.close()
 
             return tmp_path.read_bytes()
-        except Exception as exc:
-            logger.error("Failed to create SQLite backup for takeout: %s", exc)
-            return None
         finally:
             if tmp_path.exists():
                 try:

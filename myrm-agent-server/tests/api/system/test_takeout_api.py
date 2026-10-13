@@ -1,6 +1,7 @@
 import io
 import json
 import sqlite3
+import threading
 import zipfile
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -110,3 +111,34 @@ async def test_user_takeout_service_build_zip(tmp_path: Path):
         assert "db" in manifest["contents"]
         assert manifest["contents"]["wiki"]["file_count"] == 1
         assert manifest["contents"]["skills"]["file_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_user_takeout_service_assembles_the_archive_off_the_event_loop():
+    """Compressing a large state dir must not stall every other request the server is handling."""
+    loop_thread = threading.get_ident()
+    worker_threads: list[int] = []
+
+    def fake_build(*_flags: bool) -> bytes:
+        worker_threads.append(threading.get_ident())
+        return b"zip"
+
+    with patch.object(UserTakeoutService, "_build_takeout_zip_sync", side_effect=fake_build):
+        assert await UserTakeoutService.build_takeout_zip() == b"zip"
+
+    assert worker_threads
+    assert worker_threads[0] != loop_thread
+
+
+@pytest.mark.asyncio
+async def test_user_takeout_service_fails_instead_of_omitting_an_unreadable_database(tmp_path: Path):
+    """An export without the database must be an error, never a 200 that looks complete."""
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    (state_dir / "data.db").write_bytes(b"this is not a sqlite database" * 100)
+
+    with patch("app.services.system.takeout_service.get_settings") as mock_settings:
+        mock_settings.return_value.database.state_dir = str(state_dir)
+
+        with pytest.raises(sqlite3.DatabaseError):
+            await UserTakeoutService.build_takeout_zip(include_wiki=False, include_skills=False, include_deliverables=False)
