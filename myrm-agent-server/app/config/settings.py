@@ -461,7 +461,7 @@ class ServiceSettings(BaseSettings):
 
 
 # ---------------------------------------------------------------------------
-# [S] Control plane — env: CONTROL_PLANE_*, TENANT_ID, SANDBOX_ID, TELEMETRY_*
+# [S] Control plane — env: CONTROL_PLANE_*, TENANT_ID, SANDBOX_ID, BASELINE_SYNC_INTERVAL
 # ---------------------------------------------------------------------------
 
 
