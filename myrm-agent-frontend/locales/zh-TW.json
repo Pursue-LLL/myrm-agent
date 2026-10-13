@@ -3700,6 +3700,7 @@
         "isolated": "孤立節點",
         "bridge": "橋接紐帶",
         "locate": "定位",
+        "refresh": "重新整理",
         "cohesion": "內聚度",
         "communitySize": "{count, plural, other {# 個概念}}"
       },

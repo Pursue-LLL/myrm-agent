@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WikiGraphInsightsPanel from '../WikiGraphInsightsPanel';
@@ -77,6 +77,28 @@ describe('WikiGraphInsightsPanel', () => {
     renderPanel('zh');
 
     expect(await screen.findByText('12 个概念 · 内聚度 40%')).toBeInTheDocument();
+  });
+
+  it('labels pages like the graph viewer and still locates them by their key', async () => {
+    const onSelectNode = vi.fn();
+    renderPanel('en', onSelectNode);
+    await screen.findByText('12 concepts · Cohesion 40%');
+
+    expect(screen.queryByText('notes/lone-page')).not.toBeInTheDocument();
+    const gapRow = screen.getByText('notes/lone page').closest('li');
+    if (!gapRow) {
+      throw new Error('knowledge gap row not rendered');
+    }
+    fireEvent.click(within(gapRow).getByRole('button'));
+
+    expect(onSelectNode).toHaveBeenCalledWith('notes/lone-page');
+  });
+
+  it('names the refresh button for assistive technology', async () => {
+    renderPanel('zh');
+    await screen.findByText('12 个概念 · 内聚度 40%');
+
+    expect(screen.getByRole('button', { name: '刷新' })).toBeInTheDocument();
   });
 
   it('locates a page when its name is clicked', async () => {

@@ -3700,6 +3700,7 @@
         "isolated": "고립된 노드",
         "bridge": "브리지 연결",
         "locate": "초점",
+        "refresh": "새로고침",
         "cohesion": "응집도",
         "communitySize": "{count, plural, other {# 개 개념}}"
       },

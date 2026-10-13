@@ -22,26 +22,30 @@ interface NodeLinkProps {
   className?: string;
 }
 
+/** The label the graph viewer draws on a page's node. */
+const pageLabel = (nodeId: string) => nodeId.replace(/-/g, ' ');
+
 /** Page name that focuses the page in the graph when a handler is provided. */
 function NodeLink({ nodeId, onSelect, className }: NodeLinkProps) {
+  const label = pageLabel(nodeId);
   if (!onSelect) {
     return (
-      <span className={className} title={nodeId}>
-        {nodeId}
+      <span className={className} title={label}>
+        {label}
       </span>
     );
   }
   return (
     <button
       type="button"
-      title={nodeId}
+      title={label}
       onClick={() => onSelect(nodeId)}
       className={cn(
         'cursor-pointer text-left transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className,
       )}
     >
-      {nodeId}
+      {label}
     </button>
   );
 }
@@ -83,7 +87,15 @@ export default function WikiGraphInsightsPanel({ agentId, onSelectNode }: WikiGr
     >
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-foreground">{t('title')}</h3>
-        <Button type="button" variant="ghost" size="icon" onClick={() => void loadInsights()} disabled={loading}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => void loadInsights()}
+          disabled={loading}
+          aria-label={t('refresh')}
+          title={t('refresh')}
+        >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
@@ -124,7 +136,7 @@ export default function WikiGraphInsightsPanel({ agentId, onSelectNode }: WikiGr
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="truncate text-xs font-medium text-foreground">{item.node}</span>
+                        <span className="truncate text-xs font-medium text-foreground">{pageLabel(item.node)}</span>
                         <span
                           className={`rounded px-1.5 py-0.2 text-[10px] font-medium ${
                             item.type === 'isolated'

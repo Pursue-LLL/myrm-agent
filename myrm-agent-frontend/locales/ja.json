@@ -3700,6 +3700,7 @@
         "isolated": "孤立ノード",
         "bridge": "ブリッジ",
         "locate": "フォーカス",
+        "refresh": "更新",
         "cohesion": "凝集度",
         "communitySize": "{count, plural, other {# 個の概念}}"
       },

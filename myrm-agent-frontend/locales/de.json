@@ -3700,6 +3700,7 @@
         "isolated": "Isolierter Knoten",
         "bridge": "Brücke",
         "locate": "Fokus",
+        "refresh": "Aktualisieren",
         "cohesion": "Kohäsion",
         "communitySize": "{count, plural, one {# Konzept} other {# Konzepte}}"
       },

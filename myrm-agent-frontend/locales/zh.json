@@ -3768,6 +3768,7 @@
         "isolated": "孤立节点",
         "bridge": "桥接纽带",
         "locate": "定位",
+        "refresh": "刷新",
         "cohesion": "内聚度",
         "communitySize": "{count, plural, other {# 个概念}}"
       },

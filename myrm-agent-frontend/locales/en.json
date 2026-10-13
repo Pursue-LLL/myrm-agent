@@ -3768,6 +3768,7 @@
         "isolated": "Isolated",
         "bridge": "Bridge",
         "locate": "Focus",
+        "refresh": "Refresh",
         "cohesion": "Cohesion",
         "communitySize": "{count, plural, one {# concept} other {# concepts}}"
       },
