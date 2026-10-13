@@ -83,14 +83,14 @@ def _run_turn(client: httpx.Client, backend_url: str, agent_id: str, chat_id: st
     return event_types, "".join(text_parts)
 
 
-def _idle_rows(data_dir: Path, since: float) -> list[tuple[str, str]]:
-    """(task_type, status) rows from every idle_tasks.db written by this run."""
+def _idle_rows(data_dir: Path, since: float, session_id: str) -> list[tuple[str, str]]:
+    """(task_type, status) rows of this run's chat; other chats' rows in a reused runtime are not ours."""
     rows: list[tuple[str, str]] = []
     for db_path in data_dir.rglob("idle_tasks.db"):
         if db_path.stat().st_mtime < since:
             continue
         with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
-            rows.extend(conn.execute("SELECT task_type, status FROM idle_tasks").fetchall())
+            rows.extend(conn.execute("SELECT task_type, status FROM idle_tasks WHERE session_id = ?", (session_id,)).fetchall())
     return rows
 
 
@@ -107,9 +107,10 @@ def test_failed_tool_turn_schedules_only_supported_idle_tasks() -> None:
         pytest.skip(f"{backend_url} is not an isolated runtime; refusing to read a shared backend's data dir")
 
     started = time.time()
+    chat_id = f"e2e-idle-{uuid.uuid4().hex[:10]}"
     with httpx.Client() as client:
         agent_id = _create_agent(client, backend_url)
-        event_types, reply = _run_turn(client, backend_url, agent_id, f"e2e-idle-{uuid.uuid4().hex[:10]}")
+        event_types, reply = _run_turn(client, backend_url, agent_id, chat_id)
 
     assert reply.strip(), f"agent produced no reply; events={event_types[:20]}"
     assert any("tool" in event_type for event_type in event_types), f"no tool event in stream: {event_types[:20]}"
@@ -117,7 +118,7 @@ def test_failed_tool_turn_schedules_only_supported_idle_tasks() -> None:
     rows: list[tuple[str, str]] = []
     deadline = time.time() + IDLE_CHAIN_TIMEOUT_S
     while time.time() < deadline:
-        rows = _idle_rows(data_dir, since=started)
+        rows = _idle_rows(data_dir, since=started, session_id=f"chat_{chat_id}")
         if rows and all(status in ("completed", "failed") for _, status in rows):
             break
         time.sleep(5)
