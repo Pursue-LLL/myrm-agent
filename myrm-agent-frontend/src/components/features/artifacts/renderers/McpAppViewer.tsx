@@ -20,13 +20,13 @@ interface McpAppViewerProps {
 }
 
 /**
- * MCP Apps (ext-apps) viewer — sandboxed iframe host for MCP server UI resources.
+ * MCP App viewer — sandboxed iframe host for MCP server UI resources.
  *
- * Implements the ext-apps host protocol:
+ * Speaks a plain postMessage dialect, not the JSON-RPC `ui/*` bridge of the ext-apps SDK: there is no
+ * `ui/initialize` handshake, so apps built on that SDK receive no host context and their requests are ignored.
  * - Fetches UI content from the MCP server via the backend proxy
- * - Injects host context (theme, locale) via postMessage
- * - Handles app→host messages: notify (toast), openLink, resize
- * - Sends structuredContent from tool results to the embedded app via ontoolresult
+ * - host→app: `hostcontextchanged` (theme, locale) and `toolresult` (structuredContent)
+ * - app→host: `notify` (toast), `openLink` / `widget-navigate` (external link), `resize`
  */
 export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className }) => {
   const t = useTranslations('chat.mcpApp');
