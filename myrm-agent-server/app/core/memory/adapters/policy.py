@@ -6,6 +6,7 @@ myrm_agent_harness.toolkits.memory.config::{AgentMemoryPolicy, MemoryScopeLevel,
 memory_policy_from_dict: Agent memory_policy 反序列化
 memory_policy_to_dict: Agent memory_policy 序列化
 derive_binding_namespaces: Server 运行时 binding 到 Harness namespaces 的派生
+compartment_memory_policy: 把策略收窄到会话舱（读限会话域、关闭后台抽取）
 
 [POS]
 记忆策略适配层。统一 AgentProfile memory_policy 与 Shared Context namespaces 的解析规则。
@@ -14,6 +15,7 @@ derive_binding_namespaces: Server 运行时 binding 到 Harness namespaces 的�
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryScopeLevel, MemoryWritePolicy
 
@@ -138,10 +140,7 @@ def derive_binding_namespaces(
     if clean_project_id:
         project_ns = f"project:{clean_project_id}"
         # Zero-leakage immunity: strip any foreign project namespaces
-        clean_incoming = [
-            ns for ns in (namespaces or [])
-            if not (ns.startswith("project:") and ns != project_ns)
-        ]
+        clean_incoming = [ns for ns in (namespaces or []) if not (ns.startswith("project:") and ns != project_ns)]
         shared_ns = _shared_context_namespaces(shared_context_ids)
 
         if memory_policy is not None:
@@ -162,7 +161,7 @@ def derive_binding_namespaces(
     if memory_policy is not None:
         levels = memory_policy.read_scopes or _SCOPE_ORDER
         scoped = [candidates[level] for level in _SCOPE_ORDER if level in levels and level in candidates]
-        return list(dict.fromkeys([*scoped, *_shared_context_namespaces(shared_context_ids)]))
+        return list(dict.fromkeys([*scoped, *(namespaces or []), *_shared_context_namespaces(shared_context_ids)]))
 
     base_namespaces = list(namespaces or [candidates[MemoryScopeLevel.GLOBAL], candidates[MemoryScopeLevel.AGENT]])
     derived = [candidates[MemoryScopeLevel.GLOBAL], candidates[MemoryScopeLevel.AGENT]]
@@ -173,6 +172,22 @@ def derive_binding_namespaces(
     if resolved_task_id:
         derived.append(candidates[MemoryScopeLevel.TASK])
     return list(dict.fromkeys([*base_namespaces, *derived, *_shared_context_namespaces(shared_context_ids)]))
+
+
+def compartment_memory_policy(base: AgentMemoryPolicy | None) -> AgentMemoryPolicy:
+    """Confine a turn to its own conversation compartment.
+
+    Reads shrink to the conversation scope (the caller adds the compartment namespace through
+    ``namespaces``), writes follow the derived chain, and background LLM extraction stays off so
+    chatter from other senders never reaches long-term memory automatically. Scope identifiers and
+    ``auto_cleanup`` of ``base`` are kept.
+    """
+    return replace(
+        base or AgentMemoryPolicy(),
+        read_scopes=(MemoryScopeLevel.CONVERSATION,),
+        write_policy=MemoryWritePolicy.INHERIT,
+        allow_l3_extraction=False,
+    )
 
 
 def _shared_context_namespaces(shared_context_ids: list[str] | None) -> list[str]:

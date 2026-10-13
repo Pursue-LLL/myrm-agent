@@ -25,6 +25,7 @@ from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfi
 
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
 from app.channels.i18n import get_text, resolve_message_locale
+from app.channels.routing.identity_scope import TurnMemoryScope
 from app.channels.types import InboundMessage, ProgressUpdate
 from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.channel_bridge.config_parsers import verify_search_service_available
@@ -69,7 +70,7 @@ async def build_channel_execution_agent(
     auto_restore_domains: list[str],
     memory_decay_profile: str | None,
     memory_extraction_preset: str | None = None,
-    memory_identity_namespaces: list[str] | None = None,
+    memory_scope: TurnMemoryScope,
     credential_track: str = "personal",
 ) -> ChannelAgentBuildOutcome:
     from app.core.memory.proactive.settings import (
@@ -235,13 +236,13 @@ async def build_channel_execution_agent(
         ),
         memory_require_confirmation=bool(memory_settings.get("memoryRequireConfirmation", True)),
         enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction")),
-        enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
+        enable_conversation_search=resolve_conversation_search_enabled(memory_settings) and not memory_scope.is_compartment,
         security_config_raw=apply_learn_skill_manage_permission_overlay(
             build_security_config(configs.security_config_dict, msg.metadata),
             query=query,
         ),
         agent_security_raw=agent_security_raw,
-        memory_policy=(resolved_profile.memory_policy if resolved_profile else None),
+        memory_policy=memory_scope.policy,
         memory_decay_profile=memory_decay_profile,
         memory_extraction_preset=memory_extraction_preset,
         engine_params=agent_engine_params,
@@ -251,7 +252,7 @@ async def build_channel_execution_agent(
         memory_conversation_id=memory_identity.conversation_id,
         memory_task_id=memory_identity.task_id,
         memory_shared_context_ids=memory_shared_context_ids,
-        memory_extra_namespaces=list(memory_identity_namespaces or []),
+        memory_extra_namespaces=list(memory_scope.extra_namespaces),
         timezone=user_timezone,
         external_agents_config=extract_external_agents(configs.external_agents_dict),
         code_execution_allow_network=_extract_code_exec_network(memory_settings),

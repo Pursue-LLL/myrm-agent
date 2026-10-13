@@ -54,6 +54,7 @@ async def prepare_channel_execution(
     *,
     is_resume: bool,
     topic_context: TopicContext | None,
+    untrusted_sender: bool,
 ) -> PrepareChannelExecutionResult:
     pre_events: list[ProgressUpdate | OutboundMessage] = []
 
@@ -178,10 +179,15 @@ async def prepare_channel_execution(
     if not session_ctx.chat_id:
         return PrepareChannelExecutionResult(pre_events=tuple(pre_events))
 
-    from app.channels.routing.identity_scope import resolve_team_identity
+    from app.channels.routing.identity_scope import resolve_team_identity, resolve_turn_memory_scope
 
     team_identity = resolve_team_identity(topic_context, msg)
-    team_identity_namespaces = [team_identity.memory_namespace] if team_identity.memory_namespace else []
+    memory_scope = resolve_turn_memory_scope(
+        msg,
+        team_identity,
+        untrusted=untrusted_sender,
+        profile_policy=resolved_profile.memory_policy if resolved_profile else None,
+    )
 
     agent_outcome = await build_channel_execution_agent(
         msg,
@@ -209,7 +215,7 @@ async def prepare_channel_execution(
         auto_restore_domains=auto_restore_domains,
         memory_decay_profile=memory_decay_profile,
         memory_extraction_preset=memory_extraction_preset,
-        memory_identity_namespaces=team_identity_namespaces,
+        memory_scope=memory_scope,
         credential_track=team_identity.spec.credential_track.value,
     )
 

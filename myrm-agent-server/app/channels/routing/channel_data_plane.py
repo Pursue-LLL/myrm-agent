@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     )
 
 from app.channels.core.logging_filter import redact_sensitive
+from app.channels.routing.identity_scope import is_untrusted_sender
 from app.channels.types import ContextEntry, InboundMessage
 from app.database.connection import get_session
 from app.database.models.channel_message import ChannelMessageModel
@@ -81,7 +82,7 @@ class ChannelDataPlaneService:
                 return None
 
             # Guest/unpaired identities and non-admin paired members are barred from memory learning
-            is_guest = bool(msg.user_id and (msg.user_id.startswith("guest_") or msg.user_id.startswith("paired_member_")))
+            is_guest = is_untrusted_sender(msg.user_id or "", msg)
             raw_content = str(msg.content or "")
             redacted_content = redact_sensitive(raw_content)
             eligible = is_learning_eligible(redacted_content, msg.sender_name) if (is_authenticated and not is_guest) else False

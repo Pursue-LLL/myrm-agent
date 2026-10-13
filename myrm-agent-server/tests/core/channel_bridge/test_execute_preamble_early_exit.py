@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.ai_agents.agents import GeneralAgentParams
+from app.channels.routing.identity_scope import TurnMemoryScope
 from app.channels.types import InboundMessage, OutboundMessage
 from app.core.channel_bridge.agent_executor.execute_preamble.agent import (
     build_channel_execution_agent,
@@ -16,6 +18,8 @@ from app.core.channel_bridge.agent_executor.execute_preamble.types import (
 )
 from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.types.business import ModelConfig
+
+_OWNER_MEMORY_SCOPE = TurnMemoryScope(policy=None, extra_namespaces=(), is_compartment=False)
 
 
 def _inbound_message(*, resume_value: object | None = None, locale: str = "en") -> InboundMessage:
@@ -78,6 +82,7 @@ def _agent_build_kwargs(
         "enabled_builtin_tools": enabled_builtin_tools,
         "auto_restore_domains": [],
         "memory_decay_profile": None,
+        "memory_scope": _OWNER_MEMORY_SCOPE,
     }
 
 
@@ -189,6 +194,70 @@ async def test_build_agent_passes_message_locale_to_general_agent_params() -> No
 
     assert outcome.result is not None
     assert captured["locale"] == "en"
+
+
+async def _build_params_with_memory_scope(memory_scope: TurnMemoryScope) -> GeneralAgentParams:
+    captured: dict[str, GeneralAgentParams] = {}
+
+    def _capture_create_agent(params: GeneralAgentParams) -> MagicMock:
+        captured["params"] = params
+        return MagicMock()
+
+    kwargs = _agent_build_kwargs(
+        _inbound_message(),
+        is_resume=False,
+        configs=_minimal_user_configs(),
+        enabled_builtin_tools=["code_execution"],
+    )
+    kwargs["memory_scope"] = memory_scope
+    kwargs["memory_settings"] = {"enableMemory": True, "memoryEnableConversationSearch": True}
+
+    with (
+        patch(
+            "app.services.memory.shared_context.shared_context.resolve_shared_context_ids",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "app.core.channel_bridge.agent_executor.execute_preamble.agent.AgentFactory.create_general_agent",
+            side_effect=_capture_create_agent,
+        ),
+        patch(
+            "app.services.agent.session_credential_assembler.assemble_session_credentials",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+    ):
+        outcome = await build_channel_execution_agent(**kwargs)
+
+    assert outcome.result is not None
+    return captured["params"]
+
+
+@pytest.mark.asyncio
+async def test_build_agent_confines_compartment_turn_memory_and_recall() -> None:
+    from app.core.memory.adapters.policy import compartment_memory_policy
+
+    scope = TurnMemoryScope(
+        policy=compartment_memory_policy(None),
+        extra_namespaces=("ident:telegram-chat-1-channel",),
+        is_compartment=True,
+    )
+
+    params = await _build_params_with_memory_scope(scope)
+
+    assert params.memory_policy == scope.policy
+    assert params.memory_extra_namespaces == ["ident:telegram-chat-1-channel"]
+    assert params.enable_conversation_search is False
+
+
+@pytest.mark.asyncio
+async def test_build_agent_keeps_owner_turn_memory_and_recall() -> None:
+    params = await _build_params_with_memory_scope(_OWNER_MEMORY_SCOPE)
+
+    assert params.memory_policy is None
+    assert params.memory_extra_namespaces == []
+    assert params.enable_conversation_search is True
 
 
 def test_channel_agent_build_outcome_rejects_invalid_xor_states() -> None:

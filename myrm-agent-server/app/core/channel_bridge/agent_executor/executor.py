@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.agent (POS: Agent execution engine framework)
 - app.channels.types (POS: Session identity, message types, reset policy definitions)
+- app.channels.routing.identity_scope (POS: Untrusted-sender predicate shared by the ingress fence and memory compartments)
 - app.core.channel_bridge.executor_helpers (POS: Stream accumulation, title generation)
 - app.core.channel_bridge.agent_executor.execute_preamble (POS: Config/session/agent preamble.)
 - app.core.channel_bridge.agent_executor.stream_events (POS: Harness stream event mapping for channel progress updates.)
@@ -35,6 +36,7 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.ai_agents.agents import GeneralAgentParams
+from app.channels.routing.identity_scope import is_untrusted_sender
 from app.channels.types import InboundMessage, OutboundMessage, ProgressUpdate, StreamingText, TopicContext
 from app.core.channel_bridge.executor_helpers import StreamAccumulator, schedule_channel_approval_timeout
 from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
@@ -93,11 +95,7 @@ class ChannelAgentExecutor:
         set_approval_user_id(effective_uid)
 
         # Security Fence: Enforce physical tool stripping for non-admin paired members and guests
-        is_untrusted_ingress = (
-            effective_uid.startswith("paired_member_")
-            or effective_uid.startswith("guest_")
-            or bool(msg.metadata and msg.metadata.get("guest_turn"))
-        )
+        is_untrusted_ingress = is_untrusted_sender(effective_uid, msg)
         if is_untrusted_ingress:
             from myrm_agent_harness.agent.security.guards.taint_tracker import (
                 TaintLabel,
@@ -135,6 +133,7 @@ class ChannelAgentExecutor:
                 msg,
                 is_resume=is_resume,
                 topic_context=topic_context,
+                untrusted_sender=is_untrusted_ingress,
             )
             for pre_event in prep_result.pre_events:
                 yield pre_event

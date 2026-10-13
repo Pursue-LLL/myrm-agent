@@ -137,9 +137,7 @@ class TestPolicyResolverAccessControlAndQuota:
 
         mock_pairing = MagicMock()
         mock_pairing.resolve = AsyncMock(return_value="paired_member_feishu_user123")
-        mock_pairing.get_pairing_detail = AsyncMock(
-            return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 5)
-        )
+        mock_pairing.get_pairing_detail = AsyncMock(return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 5))
         mock_pairing.touch_display_name = AsyncMock()
 
         mock_policy = MagicMock()
@@ -191,9 +189,7 @@ class TestPolicyResolverAccessControlAndQuota:
 
         mock_pairing = MagicMock()
         mock_pairing.resolve = AsyncMock(return_value="sandbox")
-        mock_pairing.get_pairing_detail = AsyncMock(
-            return_value=(PairingStatus.ACTIVE, PairingRole.ADMIN, 5)
-        )
+        mock_pairing.get_pairing_detail = AsyncMock(return_value=(PairingStatus.ACTIVE, PairingRole.ADMIN, 5))
         mock_pairing.touch_display_name = AsyncMock()
 
         mock_policy = MagicMock()
@@ -285,10 +281,12 @@ class TestUntrustedIngressFenceAndDataPlane:
         )
 
         fence_was_active: bool = False
+        prepare_kwargs: dict[str, object] = {}
 
         async def fake_prepare(*args: object, **kwargs: object) -> MagicMock:
             nonlocal fence_was_active
             fence_was_active = is_untrusted_ingress_active()
+            prepare_kwargs.update(kwargs)
             prep_mock = MagicMock()
             prep_mock.pre_events = []
             prep_mock.prep = None
@@ -308,6 +306,8 @@ class TestUntrustedIngressFenceAndDataPlane:
 
         # Fence was strictly activated during execution
         assert fence_was_active is True
+        # The same verdict reaches the memory compartment resolution
+        assert prepare_kwargs["untrusted_sender"] is True
         # Fence was reset in finally block
         assert is_untrusted_ingress_active() is False
 
@@ -328,10 +328,12 @@ class TestUntrustedIngressFenceAndDataPlane:
         )
 
         fence_was_active: bool = False
+        prepare_kwargs: dict[str, object] = {}
 
         async def fake_prepare(*args: object, **kwargs: object) -> MagicMock:
             nonlocal fence_was_active
             fence_was_active = is_untrusted_ingress_active()
+            prepare_kwargs.update(kwargs)
             prep_mock = MagicMock()
             prep_mock.pre_events = []
             prep_mock.prep = None
@@ -351,5 +353,5 @@ class TestUntrustedIngressFenceAndDataPlane:
 
         # Fence was NOT activated for sandbox owner
         assert fence_was_active is False
+        assert prepare_kwargs["untrusted_sender"] is False
         assert is_untrusted_ingress_active() is False
-
