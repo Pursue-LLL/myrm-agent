@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 from myrm_agent_harness.backends.skills.types import (
     SecurityFindingDetail,
@@ -17,6 +18,8 @@ from myrm_agent_harness.backends.skills.types import (
     SkillRequires,
 )
 from myrm_agent_harness.toolkits.storage.types import SkillType as SkillType
+
+from app.config.settings import settings
 
 
 @dataclass
@@ -308,8 +311,21 @@ def _parse_datetime(val: object) -> datetime:
     return datetime.utcnow()
 
 
+# Storage root of skills the agent writes. It follows MYRM_DATA_DIR, so the writer and the catalog agree.
+LOCAL_SKILLS_DIR: Path = Path(settings.database.state_dir) / "skills"
+
+
+def _as_home_relative(path: Path) -> str:
+    """Render ``path`` as ``~/...`` when it sits under the user's home, the form users see and configure."""
+    try:
+        return f"~/{path.relative_to(Path.home()).as_posix()}"
+    except ValueError:
+        return str(path)
+
+
+# The first entry is the primary root: the creation service writes there and the catalog scans it first.
 DEFAULT_LOCAL_SKILL_PATHS: list[str] = [
-    "~/.myrm/skills",
+    _as_home_relative(LOCAL_SKILLS_DIR),
     "~/.cursor/skills",
     "~/.cursor/skills-cursor",
     "~/.claude/skills",
@@ -394,6 +410,7 @@ class UserSkillConfig:
 
 __all__ = [
     "DEFAULT_LOCAL_SKILL_PATHS",
+    "LOCAL_SKILLS_DIR",
     "Skill",
     "SkillType",
     "UserSkillConfig",
