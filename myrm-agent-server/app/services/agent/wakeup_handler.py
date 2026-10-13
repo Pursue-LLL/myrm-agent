@@ -4,6 +4,7 @@
 - app.services.agent.params::AgentRequest / convert_to_general_agent_params (POS: chat config → GeneralAgentParams)
 - app.ai_agents::AgentFactory (POS: instantiate GeneralAgent for headless SSE-equivalent runs)
 - app.core.utils.chat_utils::convert_chat_history (POS: frontend-style chat tuples → LangChain messages)
+- app.core.security.privacy_settings::privacy_agent_params (POS: persisted privacy switch → agent privacy params)
 - ChatService history persistence primitives
 
 [OUTPUT]
@@ -20,6 +21,7 @@ from typing import cast
 
 from myrm_agent_harness.agent.sub_agents.types import SubAgentResult
 
+from app.core.security.privacy_settings import privacy_agent_params
 from app.core.utils.chat_utils import convert_chat_history
 from app.services.chat.chat_service import ChatService
 
@@ -137,7 +139,13 @@ class ServerWakeupHandler:
                 request, normalized_history
             )
 
-            wakeup_payload: dict[str, object] = {"channel_name": "headless_wakeup"}
+            from app.core.channel_bridge.config_loader import load_user_configs
+
+            wakeup_configs = await load_user_configs()
+            wakeup_payload: dict[str, object] = {
+                "channel_name": "headless_wakeup",
+                **privacy_agent_params(wakeup_configs.personal_settings_dict if wakeup_configs else None),
+            }
             if params.memory_channel_id is None:
                 wakeup_payload["memory_channel_id"] = "web_chat"
             params = params.model_copy(update=wakeup_payload)

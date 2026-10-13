@@ -5,6 +5,7 @@
 - core.channel_bridge.config_parsers::extract_lite_model_config (POS: resolve lite/filter model)
 - myrm_agent_harness.toolkits.llms.llm_manager::get_llm_from_config (POS: LangChain LLM construction)
 - core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
+- core.security.privacy_settings::mask_pii_when_enabled (POS: mask PII before text reaches the suggestion LLM)
 - utils.json_parsing::parse_llm_json_list (POS: 容错 JSON 数组解析 SSOT)
 
 [OUTPUT]
@@ -26,6 +27,7 @@ from pydantic.alias_generators import to_camel
 
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
+from app.core.security.privacy_settings import mask_pii_when_enabled
 from app.core.types import ModelConfig
 from app.core.utils.chat_utils import extract_answer_text
 
@@ -79,7 +81,10 @@ async def get_suggestions(
 
         llm = await llm_manager.get_llm_from_config(filter_cfg, streaming=False, api_keys=getattr(filter_cfg, "api_keys", None))
 
-        conversation_text = "\n".join(f"{pair[0]}: {pair[1]}" for pair in request.chat_history[-6:] if len(pair) >= 2)
+        conversation_text = mask_pii_when_enabled(
+            "\n".join(f"{pair[0]}: {pair[1]}" for pair in request.chat_history[-6:] if len(pair) >= 2),
+            configs.personal_settings_dict,
+        )
         prompt = _SUGGESTIONS_PROMPT.format(conversation=conversation_text)
 
         async with asyncio.timeout(15):

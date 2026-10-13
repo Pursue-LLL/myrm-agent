@@ -4,6 +4,7 @@
 - _base::_ChatServiceBase (POS: repository 协议和访问器)
 - conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
 - app.core.channel_bridge.model_resolver::enrich_model_context_window (POS: 模型真实上下文窗口enricher)
+- app.core.security.privacy_settings::mask_pii_when_enabled, privacy_enabled (POS: 隐私保护开启时脱敏摘要输入)
 
 [OUTPUT]
 - _ChatCompactionMixin: compaction summary 更新、后台 drain 调度与执行
@@ -16,14 +17,33 @@ Compaction drain 编排层。提供 compaction summary 字段更新、后台 dra
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
+from app.core.security.privacy_settings import mask_pii_when_enabled, privacy_enabled
 from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
 from .conversation_recall_index_service import ConversationRecallIndexService
 
+if TYPE_CHECKING:
+    from langchain_core.messages import BaseMessage
+
 logger = logging.getLogger(__name__)
+
+
+def _mask_for_summary(messages: list[BaseMessage], personal_settings: Mapping[str, object] | None) -> list[BaseMessage]:
+    """Copies of ``messages`` with PII masked for the summarizer when privacy protection is on.
+
+    The stored messages and the salient-tool archive keep the original text; only what leaves for the LLM is masked.
+    """
+    if not privacy_enabled(personal_settings):
+        return messages
+    return [
+        m.model_copy(update={"content": mask_pii_when_enabled(m.content, personal_settings)}) if isinstance(m.content, str) else m
+        for m in messages
+    ]
 
 
 class _ChatCompactionMixin(_ChatServiceBase):
@@ -82,7 +102,7 @@ class _ChatCompactionMixin(_ChatServiceBase):
 
             from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-            langchain_msgs = []
+            langchain_msgs: list[BaseMessage] = []
             for m in target_msgs:
                 if m.role == "user":
                     langchain_msgs.append(HumanMessage(content=m.content))
@@ -135,13 +155,15 @@ class _ChatCompactionMixin(_ChatServiceBase):
             llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=getattr(model_cfg, "api_keys", None))
 
             context_config = ContextConfig(max_context_tokens=model_cfg.max_context_tokens or 128000)
-            _, summary = await generate_structured_summary(langchain_msgs, llm, chat_id, config=context_config)
+            summary_input = _mask_for_summary(langchain_msgs, configs.personal_settings_dict if configs else None)
+            _, summary = await generate_structured_summary(summary_input, llm, chat_id, config=context_config)
 
             async with UnitOfWork() as uow:
                 # PreCompact Hook: archive salient tool verbatim outputs into recall index before compaction
                 try:
                     from app.services.chat.salient_tool_archive_service import SalientToolArchiveService
 
+                    assert uow.session is not None
                     await SalientToolArchiveService().archive_salient_tools(
                         uow.session,
                         chat_id=chat_id,

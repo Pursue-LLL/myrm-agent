@@ -585,6 +585,7 @@ class KanbanTaskRunner:
             resolve_conversation_search_enabled,
             resolve_memory_enabled,
         )
+        from app.core.security.privacy_settings import privacy_agent_params
         from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
         kanban_agent_security_raw = profile.security_overrides if profile else None
@@ -641,6 +642,7 @@ class KanbanTaskRunner:
             ),
             event_log_dir=get_settings().database.event_log_dir,
             event_log_max_jsonl_line_bytes=get_settings().event_log_max_jsonl_line_bytes,
+            **privacy_agent_params(memory_settings),
         )
 
         from app.services.agent.execution_cache import (

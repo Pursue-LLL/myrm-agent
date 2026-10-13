@@ -13,6 +13,7 @@ sentence-split and piped to TTS in real-time.
 - app.channels.voice.tts::synthesize_stream (POS: streaming TTS)
 - app.services.agent.resolve_enable_web_fetch::resolve_enable_web_fetch (POS: net_fetch capability gate)
 - app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
+- app.core.security.privacy_settings::privacy_agent_params (POS: persisted privacy switch → agent privacy params)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: cancellation primitive)
 
 [OUTPUT]
@@ -471,6 +472,7 @@ class VoiceAgentBridge:
 
         from app.api.voice.voice_memory_context import voice_memory_context_from
         from app.core.agent.tool_description_locale import resolve_agent_params_locale
+        from app.core.security.privacy_settings import privacy_agent_params
         from app.services.agent.profile.profile_resolver import (
             DEFAULT_ENABLED_BUILTIN_TOOLS,
             resolve_builtin_tool_flags,
@@ -524,6 +526,7 @@ class VoiceAgentBridge:
                 channel="voice_bridge",
             ),
             providers_dict=configs.providers_dict,
+            **privacy_agent_params(memory_settings),
         )
 
     # ── Agent stream consumption ──────────────────────────────────────

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
 
 from app.core.utils.chat_utils import extract_answer_text
@@ -34,9 +35,13 @@ def generate_fallback_title(content: str) -> str:
     return title + ("..." if len(clean_title) > 20 else "")
 
 
-async def call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> str:
-    """Call LLM to summarize conversation into a concise title."""
+async def call_llm_for_title(content: str, title_model: "_TitleModelConfig", *, mask_pii: bool = False) -> str:
+    """Call LLM to summarize conversation into a concise title.
+
+    ``mask_pii`` masks PII before the text is cut to the prompt window, so a span straddling the cut never leaks half.
+    """
     from langchain_core.messages import HumanMessage
+    from myrm_agent_harness.api.security import redact_pii
     from myrm_agent_harness.toolkits.llms import llm_manager
 
     from app.core.types import ModelConfig
@@ -56,10 +61,11 @@ async def call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> 
         )
     )
     llm = await llm_manager.get_llm_from_config(cfg, streaming=False)
+    visible = redact_pii(content)[0] if mask_pii else content
     prompt = (
         "Summarize this conversation into a short title (5-15 characters). "
         "Reply strictly in the SAME LANGUAGE as the user input. Output ONLY the title:\n"
-        f"<user_input>\n{content[:200]}\n</user_input>"
+        f"<user_input>\n{visible[:200]}\n</user_input>"
     )
     response = await llm.ainvoke([HumanMessage(content=prompt)])
     raw_answer = extract_answer_text(response)
@@ -78,9 +84,11 @@ async def call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> 
 
 
 async def generate_chat_title(
-    messages: list,
+    messages: Sequence[object],
     title_model: "_TitleModelConfig | None" = None,
     fallback_title_model: "_TitleModelConfig | None" = None,
+    *,
+    mask_pii: bool = False,
 ) -> str:
     """Generate concise title using lightweight model with multi-tier fallback."""
     from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks
@@ -134,8 +142,12 @@ async def generate_chat_title(
         return cast(
             str,
             await resilient_llm_call(
-                primary_fn=lambda: call_llm_for_title(content, title_model),
-                fallback_fn=((lambda: call_llm_for_title(content, fallback_title_model)) if fallback_title_model else None),
+                primary_fn=lambda: call_llm_for_title(content, title_model, mask_pii=mask_pii),
+                fallback_fn=(
+                    (lambda: call_llm_for_title(content, fallback_title_model, mask_pii=mask_pii))
+                    if fallback_title_model
+                    else None
+                ),
             ),
         )
     except Exception as exc:

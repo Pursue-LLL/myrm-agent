@@ -7,6 +7,7 @@
 - agent_executor.deliverable::build_artifact_deep_links (POS: Artifact delivery helpers for ChannelAgentExecutor.)
 - agent_executor.deliverable::append_deliverable_notes, collect_deliverable_paths_from_text, resolve_chat_workspace_root (POS: Channel deliverable attachment mode (Hermes parity). Complements artifact event collection in deliverable.deep_links.collect_channel_artifacts.)
 - app.channels.i18n::channel_t, resolve_message_locale (POS: Channel i18n message catalog and locale resolution)
+- app.core.security.privacy_settings::privacy_enabled (POS: persisted privacy switch for the title LLM call)
 
 [OUTPUT]
 - finalize_channel_stream_reply: persist assistant turn and build OutboundMessage reply (temp files ride along
@@ -40,6 +41,7 @@ from app.core.channel_bridge.executor_helpers import (
     persist_assistant_message,
     suggest_quick_replies,
 )
+from app.core.security.privacy_settings import privacy_enabled
 from app.core.types.business import ModelConfig
 
 from .deliverable import (
@@ -188,6 +190,7 @@ async def finalize_channel_stream_reply(
                 chat_id,
                 msg.content,
                 lite_model_cfg if auto_title else None,
+                mask_pii=privacy_enabled(memory_settings),
             )
         )
 

@@ -156,6 +156,8 @@ async def generate_channel_title(
     chat_id: str,
     first_message: str,
     lite_model_cfg: object | None,
+    *,
+    mask_pii: bool = False,
 ) -> None:
     """Generate an LLM-powered title for a new channel chat (fire-and-forget)."""
     from app.database.connection import get_session
@@ -177,7 +179,7 @@ async def generate_channel_title(
                 )
 
         if title_model:
-            title = await ChatService._call_llm_for_title(first_message[:200], title_model)
+            title = await ChatService._call_llm_for_title(first_message, title_model, mask_pii=mask_pii)
         else:
             title = ChatService._generate_fallback_title(first_message)
 

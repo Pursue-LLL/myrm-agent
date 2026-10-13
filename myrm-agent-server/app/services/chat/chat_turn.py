@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from app.database.repositories.chat_repo import SiblingDetail
@@ -443,9 +444,11 @@ class _ChatTurnMixin(_ChatServiceBase):
 
     @staticmethod
     async def generate_chat_title(
-        messages: list,
+        messages: Sequence[object],
         title_model: "_TitleModelConfig | None" = None,
         fallback_title_model: "_TitleModelConfig | None" = None,
+        *,
+        mask_pii: bool = False,
     ) -> str:
         """Generate concise chat title via dedicated chat_title module."""
         from app.services.chat.chat_title import generate_chat_title as _impl_generate_title
@@ -454,6 +457,7 @@ class _ChatTurnMixin(_ChatServiceBase):
             messages=messages,
             title_model=title_model,
             fallback_title_model=fallback_title_model,
+            mask_pii=mask_pii,
         )
 
     @staticmethod
@@ -463,7 +467,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         return generate_fallback_title(content)
 
     @staticmethod
-    async def _call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> str:
+    async def _call_llm_for_title(content: str, title_model: "_TitleModelConfig", *, mask_pii: bool = False) -> str:
         from app.services.chat.chat_title import call_llm_for_title
 
-        return await call_llm_for_title(content, title_model)
+        return await call_llm_for_title(content, title_model, mask_pii=mask_pii)

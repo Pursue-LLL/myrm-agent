@@ -608,6 +608,7 @@ class AgentJobRunner:
                 enrich_model_context_window,
                 resolve_model_config,
             )
+            from app.core.security.privacy_settings import privacy_agent_params
 
             user_cfgs = await load_user_configs()
 
@@ -830,6 +831,7 @@ class AgentJobRunner:
                     channel="cron",
                 ),
                 notify_targets=(resolved.notify_targets if resolved else ()),
+                **privacy_agent_params(memory_settings),
             )
 
             agent = AgentFactory.create_general_agent(params)

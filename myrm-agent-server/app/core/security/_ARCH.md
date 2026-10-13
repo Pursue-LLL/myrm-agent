@@ -28,6 +28,7 @@ security/
 ├── browser_vault.py     # SessionVault 实例管理（全局 + agent 级隔离）
 ├── llm_reviewer.py      # 动态 LLM 适配器（Transcript Classifier）
 ├── pii_actions.py       # PII action 字符串安全解析（非法/缺失值回退默认，防崩溃）
+├── privacy_settings.py  # 持久化隐私开关 → 无 web 请求入口（渠道/定时/语音/目标/看板/唤醒）的 agent 隐私参数与辅助 LLM 脱敏
 ├── integration_write_patterns.py # 业务层 shell 命令分析集成写模式（委托框架层注册）
 ├── auth/                # 认证原语子包（identity、public paths、session helpers）
 └── share/               # 分享链接安全子包（HMAC 签名、隐私头、失效页、解锁 cookie、密码门）
@@ -51,6 +52,7 @@ security/
 | `browser_vault.py` | SessionVault 实例管理：全局单例（非 agent 场景）+ 按 agent_id 物理隔离的 agent vault |
 | `llm_reviewer.py` | 动态 Transcript Classifier 适配器，运行时获取用户 LLM 实例 |
 | `pii_actions.py` | 持久化 PII action 字符串安全解析：缺失/非法值回退默认枚举，杜绝非法配置导致 agent 初始化或记忆提取崩溃（retry 与 security extension 共用） |
+| `privacy_settings.py` | 读取持久化个人设置里的隐私开关（privacyEnabled / S2 / S3 / deep scan）：`privacy_agent_params` 供所有服务端自建的 `GeneralAgentParams`（渠道、定时、语音×2、目标、看板、唤醒），`mask_pii_when_enabled` 供标题/建议/离线压缩这类绕过守卫的辅助 LLM 调用；web 对话的设置随请求而来，不走此处。自定义关键词/正则/本地路由仅随请求，非 web 入口拿不到 |
 | `auth/`（子包） | 认证原语子包，含 `control_plane_guard.py`（CP 鉴权、内部端点 Origin/Host 门禁、Fail-Closed 本地回环检查）等 |
 | `share/`（子包） | 分享链接安全子域，含 5 个模块：`share_hmac.py`（HMAC-SHA256 签名层 + token_fingerprint）、`share_headers.py`（隐私头常量）、`share_status_page.py`（失效页/JSON 404 分流）、`share_unlock.py`（解锁 cookie 机制）、`share_password_page.py`（密码门页面）。`share/__init__.py` 为聚合门面，统一 re-export。 |
 | `integration_write_patterns.py` | 业务层 shell 命令分析的集成写模式：委托框架层 `register_integration_write_patterns` 注册 |

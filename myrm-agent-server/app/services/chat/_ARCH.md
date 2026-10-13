@@ -29,8 +29,8 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_memory_events.py` | ✅ 辅助 | 将 assistant 消息的 `citedMemoryRefs` / `memoryRetrievalTraces` 投影为记忆操作账本事件（`record_memory_influence_event`），消息持久化的有界 best-effort 副作用 | ✅ |
 | `chat_history.py` | ✅ 核心 | `_ChatHistoryMixin`: Web/Channel 历史加载（含 compaction summary 注入）、FTS5 搜索 | ✅ |
 | `chat_turn.py` | [Pass] 核心 | `_ChatTurnMixin`: 重试/撤销/截断/rewind/重新生成、兄弟消息切换；rewind 支持 `scope=conversation/both`（both 联动文件 revert + 快照清理 + 异常自愈补偿 `_restore_pre_rewind_snapshot`，revert 前先取体系 B `PRE_ROLLBACK` 工作区快照作为可撤销保护点；conversation-only 联动孤儿快照清理）；分支突变后 checkpoint sync + `Chat.total_*` 用量重算 + `_sync_todos_for_active_branch` 物理工作区进度文件原子对齐 | [Pass] |
-| `chat_title.py` | ✅ 核心 | 独立聊天标题生成服务：支持轻量模型自动总结、多级容灾降级调用与智能 Snippet 后备提取 | ✅ |
-| `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要（跟随真实模型窗口） | ✅ |
+| `chat_title.py` | ✅ 核心 | 独立聊天标题生成服务：支持轻量模型自动总结、多级容灾降级调用与智能 Snippet 后备提取；隐私开关开启时先脱敏再发给标题模型 | ✅ |
+| `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要（跟随真实模型窗口；隐私开关开启时仅脱敏送给摘要模型的副本，库内消息与召回归档保持原文） | ✅ |
 | `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理）。 | ✅ |
 | `usage_cache.py` | ✅ 辅助 | `ChatUsageCache`: 进程内 TTL 缓存（默认 5s，key=chat_id），携带「最后聚合 assistant 消息 id」，同一会话连续消息落库/连续突变防抖；last_message_id 变化（新消息或 sibling 切换）强制重算 | ✅ |
 | `compact_service.py` | ✅ 核心 | 无损上下文压缩 **facade**（实现见 `compact/` 子包）；导出 `compact_chat` / idle estimate / cooldown / anti-thrash 接线 | ✅ |
