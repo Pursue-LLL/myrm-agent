@@ -28,35 +28,6 @@ class SwitchSiblingRequest(BaseModel):
     target_message_id: str
 
 
-@router.post("/{chat_id}/retry", response_model=StandardSuccessResponse)
-async def retry_last_turn(
-    chat_id: str,
-    db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
-    """Delete the last assistant turn so the original query can be re-sent.
-
-    Returns the original user query and the number of deleted messages.
-    Idempotent: safe to call multiple times.
-    """
-    try:
-        chat = await ChatService.get_chat_metadata(chat_id)
-        if not chat:
-            raise not_found_error("Chat session")
-
-        result = await ChatService.retry_last_turn(chat_id)
-        return success_response(
-            data={
-                "success": result.success,
-                "query": result.query,
-                "deleted_count": result.deleted_count,
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise internal_error(operation="Retry last turn", exception=e) from e
-
-
 @router.post("/{chat_id}/regenerate", response_model=StandardSuccessResponse)
 async def regenerate_last_turn(
     chat_id: str,
@@ -163,30 +134,3 @@ async def truncate_after_message(
         raise internal_error(operation="Truncate after message", exception=exc) from exc
     except Exception as e:
         raise internal_error(operation="Truncate after message", exception=e) from e
-
-
-@router.post("/{chat_id}/undo", response_model=StandardSuccessResponse)
-async def undo_last_turn(
-    chat_id: str,
-    db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
-    """Delete the entire last turn (user message + assistant responses).
-
-    Idempotent: safe to call on an empty chat.
-    """
-    try:
-        chat = await ChatService.get_chat_metadata(chat_id)
-        if not chat:
-            raise not_found_error("Chat session")
-
-        result = await ChatService.undo_last_turn(chat_id)
-        return success_response(
-            data={
-                "success": result.success,
-                "deleted_count": result.deleted_count,
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise internal_error(operation="Undo last turn", exception=e) from e

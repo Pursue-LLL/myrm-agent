@@ -21,7 +21,6 @@
 | `SaveToWikiButton.tsx`     | 组件 | Chat message ids → `POST /wiki/compound`（server DB hydrate Q&A/trust）→ Pending HITL（**agentConfig.agentId scoped**）；无痕模式隐藏；`message_not_found` / `incognito_forbidden` i18n toast；Vitest：`__tests__/SaveToWikiButton.scope.test.tsx` | ✅    |
 | `SiblingNav.tsx`           | 组件 | 同 prompt 多分支 sibling 导航（←/→）                                                                                                                                                                                                               | ✅    |
 | `SourcesButton.tsx`        | 组件 | 独立消息来源 Sheet（web/mcp/knowledge/conversation）；knowledge 含 wiki asset 缩略图；导出 `SourceItem` 供 `MemoryCitationsButton` 复用                                                                                                            | ✅    |
-| `Undo.tsx`                 | 组件 | 撤销上一条 user 发送（编辑重发入口）                                                                                                                                                                                                               | ✅    |
 
 ## 依赖
 

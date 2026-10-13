@@ -1100,20 +1100,6 @@ export const getSiblings = async (chatId: string, siblingGroupId: string): Promi
   return (await apiRequest(`/chats/${chatId}/siblings/${siblingGroupId}`)) as { siblings: SiblingInfo[] };
 };
 
-export interface UndoResult {
-  success: boolean;
-  deleted_count: number;
-}
-
-/**
- * Undo the last turn: delete both user message and assistant responses.
- */
-export const undoLastTurn = async (chatId: string): Promise<UndoResult> => {
-  return (await apiRequest(`/chats/${chatId}/undo`, {
-    method: 'POST',
-  })) as UndoResult;
-};
-
 export interface TruncateResult {
   success: boolean;
   deleted_count: number;

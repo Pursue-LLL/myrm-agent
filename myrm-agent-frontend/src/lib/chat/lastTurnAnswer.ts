@@ -6,9 +6,9 @@
  * - findLastTurnAnswerId: id of the assistant message that answers the latest user turn, or null.
  *
  * [POS]
- * Retry and undo act on the latest turn only (the server replaces / deletes everything from the last user message
- * on), so only that turn's answer may offer them. A system notice is not an answer: it never carries the actions and
- * never hides the answer it follows.
+ * Regenerate acts on the latest turn only (the server replaces the answer of the last user message), so only that
+ * turn's answer may offer it. A system notice is not an answer: it never carries the action and never hides the
+ * answer it follows.
  */
 
 import type { Message } from '@/store/chat/types';

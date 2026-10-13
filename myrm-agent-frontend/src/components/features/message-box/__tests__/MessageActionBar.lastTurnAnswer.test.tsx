@@ -25,13 +25,6 @@ vi.mock('@/components/features/message-actions/RegenerateMenu', () => ({
     </button>
   ),
 }));
-vi.mock('@/components/features/message-actions/Undo', () => ({
-  default: () => (
-    <button type="button" data-testid="undo">
-      undo
-    </button>
-  ),
-}));
 
 vi.mock('@/components/features/message-actions/Copy', () => ({ default: () => null }));
 vi.mock('@/components/features/message-actions/ExportMenu', () => ({ default: () => null }));
@@ -70,30 +63,26 @@ function renderBar(props: { isLastTurnAnswer: boolean; isLast?: boolean; loading
       markdownRef={{ current: null }}
       onCancel={vi.fn()}
       onRegenerate={vi.fn()}
-      onUndo={vi.fn()}
     />,
   );
 }
 
-describe('MessageActionBar retry and undo gating', () => {
-  it('offers retry and undo on the answer of the latest turn', () => {
+describe('MessageActionBar regenerate gating', () => {
+  it('offers regenerate on the answer of the latest turn', () => {
     renderBar({ isLastTurnAnswer: true });
 
     expect(screen.getByTestId('regenerate')).toBeTruthy();
-    expect(screen.getByTestId('undo')).toBeTruthy();
   });
 
-  it('omits them on any other assistant message', () => {
+  it('omits it on any other assistant message', () => {
     renderBar({ isLastTurnAnswer: false, isLast: false });
 
     expect(screen.queryByTestId('regenerate')).toBeNull();
-    expect(screen.queryByTestId('undo')).toBeNull();
   });
 
-  it('omits them while the answer is still streaming', () => {
+  it('omits it while the answer is still streaming', () => {
     renderBar({ isLastTurnAnswer: true, loading: true });
 
     expect(screen.queryByTestId('regenerate')).toBeNull();
-    expect(screen.queryByTestId('undo')).toBeNull();
   });
 });

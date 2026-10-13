@@ -92,7 +92,6 @@ vi.mock('@/components/features/message-box/McpAppSection', () => ({
 }));
 vi.mock('@/services/chat', () => ({
   regenerateLastTurn: vi.fn(),
-  undoLastTurn: vi.fn(),
   cancelAgentRequest: vi.fn(),
   truncateAfterMessage: vi.fn(),
 }));

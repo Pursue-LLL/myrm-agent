@@ -2379,7 +2379,6 @@
     "regenerate_custom": "Custom Instruction...",
     "regenerate_custom_placeholder": "Tell the AI how to respond...",
     "regenerate_submit": "Regenerate",
-    "undo": "Undo",
     "copiedSuccessfully": "Copied successfully",
     "linkDetected": "Do you want to use external resources?",
     "linkDetectedDescription": "Use @ symbol to reference external resources, otherwise it will be treated as plain text. Do you want to add it?",

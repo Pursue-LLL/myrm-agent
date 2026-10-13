@@ -2311,7 +2311,6 @@
     "regenerate_custom": "自定義指令...",
     "regenerate_custom_placeholder": "告訴 AI 如何回答...",
     "regenerate_submit": "重新生成",
-    "undo": "撤銷",
     "copiedSuccessfully": "已複製",
     "linkDetected": "你想使用外部資源嗎？",
     "linkDetectedDescription": "使用@符號來引用外部資源，否則視為普通文字，是否為你新增？",

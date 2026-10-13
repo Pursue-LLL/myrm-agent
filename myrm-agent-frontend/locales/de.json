@@ -2311,7 +2311,6 @@
     "regenerate_custom": "Individuelle Anleitung...",
     "regenerate_custom_placeholder": "Sagen Sie der KI, wie sie reagieren soll ...",
     "regenerate_submit": "Neu generieren",
-    "undo": "Rückgängig",
     "copiedSuccessfully": "Erfolgreich kopiert",
     "linkDetected": "Möchten Sie externe Ressourcen verwenden?",
     "linkDetectedDescription": "Verwenden Sie @, um externe Ressourcen zu referenzieren, sonst wird es als normaler Text behandelt. Möchten Sie es hinzufügen?",

@@ -1,7 +1,7 @@
-"""Chrome E2E: retry and undo are offered on the latest turn's answer only (READ lane, no LLM).
+"""Chrome E2E: regenerate is offered on the latest turn's answer only (READ lane, no LLM).
 
 Real-user flow: a chat holds two answered turns and a background-task notice appended after the second
-answer. Retry and undo act on the latest turn only, so exactly one answer bubble offers them: the second
+answer. Regenerate acts on the latest turn only, so exactly one answer bubble offers it: the second
 answer, not the first answer and not the notice.
 """
 
@@ -33,14 +33,13 @@ _ROWS_JS = """(() => {{
     .map((el) => ({{
       text: el.textContent ?? '',
       regenerate: el.querySelectorAll('[data-testid="message-regenerate-button"]').length,
-      undo: el.querySelectorAll('[data-testid="message-undo-button"]').length,
     }}));
   return {{ ready: rows.length === {expected_rows}, rows }};
 }})()"""
 
 
 def _seed_conversation(api_base: str, tag: str) -> str:
-    chat_id = f"e2eretry_{uuid.uuid4().hex[:8]}"
+    chat_id = f"e2eregen_{uuid.uuid4().hex[:8]}"
     now = datetime.now(UTC).replace(microsecond=0)
 
     def row(index: int, role: str, content: str, metadata: dict[str, object] | None = None) -> dict[str, object]:
@@ -72,7 +71,7 @@ def _seed_conversation(api_base: str, tag: str) -> str:
         f"{api_base}/api/v1/chats/",
         body={
             "chat_id": chat_id,
-            "title": "E2E Last Turn Retry Undo",
+            "title": "E2E Last Turn Regenerate",
             "action_mode": "agent",
             "is_incognito": False,
             "messages": messages,
@@ -95,7 +94,7 @@ def _row_with(rows: list[dict[str, object]], marker: str) -> dict[str, object]:
 )
 @pytest.mark.integration
 @pytest.mark.timeout(300)
-def test_only_the_latest_turn_answer_offers_retry_and_undo() -> None:
+def test_only_the_latest_turn_answer_offers_regenerate() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     tag = uuid.uuid4().hex[:6]
@@ -120,8 +119,7 @@ def test_only_the_latest_turn_answer_offers_retry_and_undo() -> None:
         first_answer = _row_with(rows, f"ANSWER-ONE-{tag}")
         latest_answer = _row_with(rows, f"ANSWER-TWO-{tag}")
         notice = _row_with(rows, f"NOTICE-{tag}")
-        assert (first_answer["regenerate"], first_answer["undo"]) == (0, 0), first_answer
-        assert (latest_answer["regenerate"], latest_answer["undo"]) == (1, 1), latest_answer
-        assert (notice["regenerate"], notice["undo"]) == (0, 0), notice
+        assert first_answer["regenerate"] == 0, first_answer
+        assert latest_answer["regenerate"] == 1, latest_answer
+        assert notice["regenerate"] == 0, notice
         assert sum(int(str(row["regenerate"])) for row in rows) == 1, rows
-        assert sum(int(str(row["undo"])) for row in rows) == 1, rows
