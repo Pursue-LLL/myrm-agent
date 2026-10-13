@@ -5,21 +5,16 @@
  * - @/services/chat::truncateAfterMessage (POS: Chat HTTP API, history truncation)
  * - @/services/i18nToastService::showI18nToast (POS: Translated toasts outside React components)
  * - @/lib/utils/messageUtils (POS: Message text cleanup helpers, explicit skill activation wire format)
- * - @/hooks/message-input/useInputHistory::addInputHistory (POS: Per-agent input history the composer recalls with ArrowUp)
+ * - @/hooks/message-input/useInputHistory::addInputHistory (POS: Per-agent input history recalled with ArrowUp)
  *
  * [OUTPUT]
  * - retryFailedUserMessage: resend a user bubble whose delivery failed, with the attachments it carried.
  * - resendEditedUserMessage: cut the history at an edited user bubble and resend the edited text.
  *
  * [POS]
- * Resend flows of a user bubble. The old bubble is replaced before the new request exists, so a request the agent
- * does not take would take the user's text with it; the text and attachments return to the composer instead. When
- * the composer cannot take them (the user started the next message or opened another chat), the text goes to the
- * input history of the chat it came from, like that of a refused direct send. A retry carries the attachments its
- * bubble shows; an edit sends like a normal message, with the composer's own. An edit replaces the transcript only
- * after the server cut the history: if the cut fails (a chat the server does not store has nothing to cut), the
- * chat is left, a turn starts or the edited bubble disappears meanwhile, the edit is abandoned with a notice and the
- * transcript stays as it was. Only one edit runs at a time.
+ * Resend flows of a user bubble: retry of a failed send and edit-and-resend. A request the agent does not take
+ * returns to the composer (or to the input history of its chat) instead of vanishing with the replaced bubble, and an
+ * edit replaces the transcript only after the server cut the history.
  */
 import { addInputHistory } from '@/hooks/message-input/useInputHistory';
 import { ApiError } from '@/lib/api';
@@ -137,15 +132,17 @@ export function retryFailedUserMessage(message: Message): Promise<void> {
 }
 
 /**
- * Whether an edit is running, from its server cut until its request settled. The editor closes on submit, so the user
- * can submit another edit while the first still waits on the server, and two cuts at different bubbles would race
- * over the same transcript.
+ * The chats with an edit running, from its server cut until its request settled. The editor closes on submit, so the
+ * user can submit another edit while the first still waits on the server, and two cuts at different bubbles would
+ * race over the same transcript. Another chat has a transcript of its own, and the turn of the first may run for
+ * minutes, so only the chat of the running edit is held back.
  */
-let editInFlight = false;
+const chatsWithEditInFlight = new Set<string>();
 
 /**
- * Cut the stored history at `messageId`. Only a chat the server does not store may go without the cut, since it has
- * no turns the edit could land after; any other failure would leave the old turns in the agent's context.
+ * Cut the stored history at `messageId`; resolves whether the edit may go on. It may when the history was cut and
+ * when the server holds nothing to cut at that bubble (a chat it does not store answers 404, a message it does not
+ * hold answers `success: false`). Any other failure would leave the old turns in the agent's context.
  */
 async function cutHistoryAt(chatId: string, messageId: string): Promise<boolean> {
   try {
@@ -175,13 +172,13 @@ export async function resendEditedUserMessage(chatId: string, message: Message, 
   const activation = parseExplicitSkillActivation(message.content);
   const content = activation ? buildExplicitSkillWireMessage(activation, newContent) : newContent;
 
-  if (editInFlight || useChatStore.getState().loading) {
+  if (chatsWithEditInFlight.has(chatId) || useChatStore.getState().loading) {
     restoreComposer(origin, content, []);
     notifySendBlocked('chat.sendBlocked.processingDescription');
     return;
   }
 
-  editInFlight = true;
+  chatsWithEditInFlight.add(chatId);
   try {
     if (!(await cutHistoryAt(chatId, message.messageId))) {
       abandonEdit(origin, content);
@@ -201,6 +198,6 @@ export async function resendEditedUserMessage(chatId: string, message: Message, 
     useChatStore.setState({ messages: live.messages.slice(0, anchor) });
     await resend(origin, content, undefined);
   } finally {
-    editInFlight = false;
+    chatsWithEditInFlight.delete(chatId);
   }
 }

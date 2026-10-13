@@ -49,21 +49,30 @@ const UNTOUCHED_TRANSCRIPT = ['r-1', 'r-1', 'r-2'];
 
 const edited = bubble('user', 'r-2', 'summarize the report', { files: [REPORT_PDF] });
 
+const OTHER_CHAT_ID = 'chat-other';
+const OTHER_CHAT = [bubble('user', 'o-1', 'other question'), bubble('assistant', 'o-1', 'other answer')];
+
 const edit = (message: Message, newContent: string) => resendEditedUserMessage(CHAT_ID, message, newContent);
 
-const heldCuts: Array<() => void> = [];
+const heldRequests: Array<() => void> = [];
 
-/** Holds the server's answer to the next cut, so a test can change the world before it arrives. */
-function holdNextCut(): () => void {
-  let finishCut: () => void = () => {};
-  vi.mocked(truncateAfterMessage).mockReturnValueOnce(
-    new Promise<TruncateResult>((resolve) => {
-      finishCut = () => resolve(CUT_DONE);
+/** Makes the next request answer only when the test says so, so the test can change the world before it does. */
+function hold<T>(answer: T, install: (pending: Promise<T>) => void): () => void {
+  let finish: () => void = () => {};
+  install(
+    new Promise<T>((resolve) => {
+      finish = () => resolve(answer);
     }),
   );
-  heldCuts.push(() => finishCut());
-  return () => finishCut();
+  heldRequests.push(() => finish());
+  return () => finish();
 }
+
+/** The server's answer to the next cut. */
+const holdNextCut = () => hold(CUT_DONE, (cut) => vi.mocked(truncateAfterMessage).mockReturnValueOnce(cut));
+
+/** The end of the next turn, like an agent that is still answering. */
+const holdNextTurn = () => hold(true, (turn) => sendMessage.mockReturnValueOnce(turn));
 
 const expectNotSentNotice = () => {
   expect(showI18nToast).toHaveBeenCalledTimes(1);
@@ -89,9 +98,9 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  // A failed assertion must not leave an edit waiting on the server: it would hold the one-edit-at-a-time guard
-  // against every test after it.
-  heldCuts.splice(0).forEach((finishCut) => finishCut());
+  // A failed assertion must not leave an edit waiting on the server or on its turn: it would hold the one-edit-per-chat
+  // guard against every test after it.
+  heldRequests.splice(0).forEach((finish) => finish());
   await new Promise((resolve) => setTimeout(resolve, 0));
   vi.restoreAllMocks();
 });
@@ -270,13 +279,11 @@ describe('resendEditedUserMessage', () => {
     });
 
     describe('and the user opens another chat', () => {
-      const OTHER_CHAT = [bubble('user', 'o-1', 'other question'), bubble('assistant', 'o-1', 'other answer')];
-
       /** Starts the edit, lets the user open another chat while the cut is in flight, then finishes the cut. */
       const editWhileLeaving = async (otherChat: Partial<ChatState> = {}) => {
         const finishCut = holdNextCut();
         const pending = edit(edited, 'summarize only chapter 3');
-        useChatStore.setState({ chatId: 'chat-other', messages: OTHER_CHAT, ...otherChat });
+        useChatStore.setState({ chatId: OTHER_CHAT_ID, messages: OTHER_CHAT, ...otherChat });
         finishCut();
         await pending;
       };
@@ -314,6 +321,43 @@ describe('resendEditedUserMessage', () => {
 
         expect(addInputHistory).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('when an edit in another chat is still running', () => {
+    /** The user opens another chat and edits its question. */
+    const editInOtherChat = async () => {
+      useChatStore.setState({ chatId: OTHER_CHAT_ID, messages: OTHER_CHAT });
+      await resendEditedUserMessage(OTHER_CHAT_ID, OTHER_CHAT[0], 'other idea');
+    };
+
+    it('takes the edit while the other chat still waits for the server to cut its history', async () => {
+      const finishCut = holdNextCut();
+      const first = edit(edited, 'first idea');
+
+      await editInOtherChat();
+
+      expect(truncateAfterMessage).toHaveBeenLastCalledWith(OTHER_CHAT_ID, 'o-1');
+      expect(sendMessage.mock.lastCall?.[0]).toBe('other idea');
+      expect(showI18nToast).not.toHaveBeenCalled();
+
+      finishCut();
+      await first;
+    });
+
+    it('takes the edit while the turn of the other chat is still running', async () => {
+      const finishTurn = holdNextTurn();
+      const first = edit(edited, 'first idea');
+      await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+
+      await editInOtherChat();
+
+      expect(truncateAfterMessage).toHaveBeenLastCalledWith(OTHER_CHAT_ID, 'o-1');
+      expect(sendMessage.mock.lastCall?.[0]).toBe('other idea');
+      expect(showI18nToast).not.toHaveBeenCalled();
+
+      finishTurn();
+      await first;
     });
   });
 
