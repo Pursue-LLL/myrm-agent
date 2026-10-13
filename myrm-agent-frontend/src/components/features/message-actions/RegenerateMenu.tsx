@@ -8,7 +8,7 @@
  * RegenerateMenu: Dropdown button with regenerate options (Try Again, More Concise, More Detailed, Custom).
  *
  * [POS]
- * Enhanced regenerate action surface. Replaces simple "Retry" with instruction-aware regeneration.
+ * Regenerate action surface: a plain retry plus style presets and a custom instruction.
  */
 
 import { useState, useRef, useEffect } from 'react';

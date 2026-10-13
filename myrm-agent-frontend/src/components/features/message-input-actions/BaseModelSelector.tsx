@@ -16,6 +16,7 @@
 
 import { useMemo, useCallback, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { ArrowsSplit } from '@phosphor-icons/react';
 import { useTranslations } from 'next-intl';
 import useProviderStore from '@/store/useProviderStore';
 import useChatStore from '@/store/useChatStore';
@@ -310,7 +311,13 @@ const BaseModelSelector = () => {
             <div className="absolute inset-0 bg-black/[0.04] dark:bg-white/[0.06] rounded-[10px] transition-colors duration-300" />
             <div className="relative z-10 flex h-8 min-h-8 items-center gap-1.5 px-2.5 py-0.5">
               {triggerDisplay.isSmartRouting ? (
-                <span className="shrink-0 text-emerald-600 dark:text-emerald-400 font-bold text-xs">✨</span>
+                <ArrowsSplit
+                  data-testid="smart-routing-trigger-icon"
+                  size={14}
+                  weight="bold"
+                  aria-hidden="true"
+                  className="shrink-0 text-emerald-600 dark:text-emerald-400"
+                />
               ) : currentSelection && isCurrentSelectionValid ? (
                 <ProviderIcon
                   providerId={currentSelection.providerId}
@@ -329,11 +336,7 @@ const BaseModelSelector = () => {
               {currentSelection && !triggerDisplay.isSmartRouting && (
                 <ProviderBalanceIndicator providerId={currentSelection.providerId} />
               )}
-              {triggerDisplay.isSmartRouting ? (
-                <span className="shrink-0 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                  Auto
-                </span>
-              ) : moaChipLabel ? (
+              {!triggerDisplay.isSmartRouting && moaChipLabel ? (
                 <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
                   {moaChipLabel}
                 </span>

@@ -620,7 +620,6 @@ async def test_smart_routing_tier_surfaced_in_webui(
         # R2: the global providers config is shared by every chrome_e2e session.
         # The whole "seed → verify → run flow" window must hold the per-key
         # mutex so a parallel peer cannot overwrite our routing seed mid-flow.
-        # This replaces the fragile re-seed-before-every-send mitigation.
         # The wait window mirrors the session-queue ceiling so a peer that is
         # mid-flow simply serializes; it never times out under normal parallel
         # load. Timeout is an honest serialization failure (log + fail-fast).

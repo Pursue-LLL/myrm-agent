@@ -1,22 +1,13 @@
 /**
- * Smart routing resolver: the single decision point for "does complexity routing apply to this turn,
- * and which light / reasoning slots does it use".
- *
  * [INPUT]
- * actionMode, AgentConfig (pinned model, routing flag and slots), DefaultModelConfig.routingConfig,
- * enabled providers and per-model cost metadata
+ * @/store/chat/types::ActionMode, AgentConfig (POS: 会话级 Agent 与模式配置类型)
+ * @/store/config/providerTypes::DefaultModelConfig, ProviderConfig, CustomModelInfo, hasUsableProviderAuth (POS: Provider and default-model configuration contract)
  *
  * [OUTPUT]
- * resolveSmartRouting, SmartRouting, RoutingSlotSelection
+ * resolveSmartRouting: Decide whether complexity routing applies to a turn and resolve its light / reasoning slots.
  *
  * [POS]
- * Consumed by the chat request builder, the model picker trigger and the empty-chat badge, so the
- * request sent to the server and what the UI claims can never disagree.
- *
- * Precedence: fast mode never routes > the agent's explicit routing flag (true/false) > an agent that
- * pins a model does not route > the default routing config (routing is on unless it is switched off).
- * Routing additionally needs at least one resolvable slot: a configured slot, or an auto-picked one
- * (cheapest / priciest function-calling model; needs >= 2 priced models).
+ * Single decision point for smart routing activation and slots. Shared by the chat request builder, the model picker and the empty-chat badge so the request sent to the server and what the UI claims cannot disagree.
  */
 
 import type { ActionMode, AgentConfig } from '@/store/chat/types';
@@ -97,11 +88,14 @@ function resolveSlot(
   key: SlotKey,
   agentConfig: AgentConfig | null,
   defaultModelConfig: DefaultModelConfig,
+  providers: ProviderConfig[],
   autoPicked: SingleModelSelection | null,
 ): RoutingSlotSelection {
   const agentSlot: ModelSlot | undefined = agentConfig?.routingConfig?.[key];
   const defaultSlot: ModelSlot | undefined = defaultModelConfig.routingConfig?.[key];
-  const configured = agentSlot?.primary ? agentSlot : defaultSlot?.primary ? defaultSlot : null;
+  const configured = [agentSlot, defaultSlot].find(
+    (slot) => slot?.primary && providers.some((p) => p.id === slot.primary?.providerId),
+  );
 
   return {
     primary: configured?.primary ?? autoPicked,
@@ -110,6 +104,12 @@ function resolveSlot(
   };
 }
 
+/**
+ * Precedence: fast mode never routes > the agent's explicit routing flag (true/false) > an agent that
+ * pins a model does not route > the default routing config (routing is on unless it is switched off).
+ * Routing additionally needs at least one resolvable slot: a configured slot whose provider exists, or an
+ * auto-picked one (cheapest / priciest function-calling model; needs models at two or more distinct prices).
+ */
 export function resolveSmartRouting(
   actionMode: ActionMode,
   agentConfig: AgentConfig | null,
@@ -124,17 +124,19 @@ export function resolveSmartRouting(
   }
 
   const priced = collectPricedModels(providers, customModelInfo);
-  const hasPricePair = priced.length >= 2;
+  const hasPricePair = priced.some((model) => model.cost !== priced[0].cost);
   const light = resolveSlot(
     'lightModel',
     agentConfig,
     defaultModelConfig,
+    providers,
     hasPricePair ? pickByCost(priced, true) : null,
   );
   const reasoning = resolveSlot(
     'reasoningModel',
     agentConfig,
     defaultModelConfig,
+    providers,
     hasPricePair ? pickByCost(priced, false) : null,
   );
   if (!light.primary && !reasoning.primary) {

@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockChatMessages = vi.hoisted(
@@ -54,23 +54,29 @@ vi.mock('@/lib/moaPresetUtils', () => ({
   resolveMoaPresetLabelKey: () => null,
 }));
 
+const mockTriggerDisplay = vi.hoisted(() => ({
+  modelName: 'model-a' as string | null,
+  moaPresetId: null as string | null,
+  isSmartRouting: false,
+  canSelectSmartRouting: false,
+}));
+
 vi.mock('@/lib/model-binding', () => ({
   resolveActiveModelSelection: () => ({ providerId: 'p1', model: 'model-a' }),
   resolveActiveFallbackSelection: () => null,
-  resolveModelPickerTriggerDisplay: () => ({
-    modelName: 'model-a',
-    moaPresetId: null,
-    isSmartRouting: false,
-    canSelectSmartRouting: false,
-  }),
+  resolveModelPickerTriggerDisplay: () => mockTriggerDisplay,
 }));
 
 const mockPopoverProps = vi.hoisted(() => vi.fn());
 vi.mock('@/components/features/app-shell/model-picker-popover', () => ({
   default: (props: Record<string, unknown>) => {
     mockPopoverProps(props);
-    return <div data-testid="popover-mock" />;
+    return <div data-testid="popover-mock">{props.trigger as React.ReactNode}</div>;
   },
+}));
+
+vi.mock('../ProviderBalanceIndicator', () => ({
+  default: () => <span data-testid="balance-indicator" />,
 }));
 
 vi.mock('@/components/features/settings/model-service/ProviderIcon', () => ({
@@ -84,6 +90,12 @@ describe('BaseModelSelector turnCount source', () => {
     mockChatMessages.length = 0;
     mockAgentConfig.engineParams = { compress_start_ratio: 0.4 };
     mockPopoverProps.mockClear();
+    Object.assign(mockTriggerDisplay, {
+      modelName: 'model-a',
+      moaPresetId: null,
+      isSmartRouting: false,
+      canSelectSmartRouting: false,
+    });
   });
 
   it('prefers server turn_count from contextBudget over local counting', () => {
@@ -147,5 +159,30 @@ describe('BaseModelSelector turnCount source', () => {
 
     const lastCall = mockPopoverProps.mock.calls[mockPopoverProps.mock.calls.length - 1][0];
     expect(lastCall.turnCount).toBe(30);
+  });
+
+  it('labels the trigger with the routing title and a vector icon instead of a provider icon', () => {
+    Object.assign(mockTriggerDisplay, { modelName: null, isSmartRouting: true, canSelectSmartRouting: true });
+
+    render(<BaseModelSelector />);
+
+    const trigger = screen.getByTestId('model-picker-trigger');
+    expect(trigger).toHaveTextContent('smartRouting.autoTitle');
+    expect(trigger.textContent).not.toMatch(/\p{Extended_Pictographic}/u);
+    expect(screen.getByTestId('smart-routing-trigger-icon')).toBeInTheDocument();
+    expect(screen.queryByTestId('provider-icon')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('balance-indicator')).not.toBeInTheDocument();
+    const lastCall = mockPopoverProps.mock.calls[mockPopoverProps.mock.calls.length - 1][0];
+    expect(lastCall.isSmartRoutingAvailable).toBe(true);
+    expect(lastCall.isSmartRoutingActive).toBe(true);
+  });
+
+  it('shows the selected model with its provider icon when routing does not drive the turn', () => {
+    render(<BaseModelSelector />);
+
+    const trigger = screen.getByTestId('model-picker-trigger');
+    expect(trigger).toHaveTextContent('model-a');
+    expect(screen.getByTestId('provider-icon')).toBeInTheDocument();
+    expect(trigger).not.toHaveTextContent('smartRouting.autoTitle');
   });
 });

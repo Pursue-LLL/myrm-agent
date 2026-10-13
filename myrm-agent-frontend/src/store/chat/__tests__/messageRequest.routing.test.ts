@@ -100,6 +100,21 @@ describe('request routing slots', () => {
     expect(requestRoutes('agent', null)).toBe(false);
   });
 
+  it('attaches no slots and claims no routing when configured slots point at a removed provider', () => {
+    const gone = { providerId: 'removed', model: 'x' };
+    seedProviders(
+      {
+        enabled: true,
+        lightModel: { primary: gone, fallback: null },
+        reasoningModel: { primary: gone, fallback: null },
+      },
+      { only: modelInfo(1) },
+    );
+
+    expect(requestRoutes('agent', null)).toBe(false);
+    expect(uiClaimsRouting('agent', null)).toBe(false);
+  });
+
   it('keeps the research model slot for deep research even when the agent pins a model', () => {
     seedProviders(null, PRICED);
 

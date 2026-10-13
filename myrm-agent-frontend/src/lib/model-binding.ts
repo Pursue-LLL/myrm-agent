@@ -1,8 +1,16 @@
 /**
- * 模型绑定解析模块
+ * [INPUT]
+ * @/lib/model-routing::resolveSmartRouting (POS: Single decision point for smart routing activation and slots)
+ * @/store/chat/types::ActionMode, AgentConfig (POS: 会话级 Agent 与模式配置类型)
+ * @/store/config/providerTypes::DefaultModelConfig, ProviderConfig, hasUsableProviderAuth (POS: Provider and default-model configuration contract)
  *
- * 根据当前 actionMode 和智能体配置，解析应使用的活动模型。
- * 优先级链：模式/智能体绑定 > 全局默认
+ * [OUTPUT]
+ * resolveActiveModelSelection / resolveActiveModelConfig / resolveActiveFallbackSelection: 按 actionMode 与智能体绑定解析活动模型、完整配置与备用模型。
+ * resolveModelPickerTriggerDisplay: 模型选择器触发器展示（模型名、MoA preset、Smart Routing 态与可选性）。
+ * isModelAvailable: 模型可用性（Provider 启用 + 有可用认证 + 模型在启用列表中）。
+ *
+ * [POS]
+ * 模型绑定解析层：根据 actionMode 与智能体配置解析应使用的模型，优先级链为 模式/智能体绑定 > 全局默认；路由判定委托 model-routing。
  */
 
 import type { ActionMode, AgentConfig } from '@/store/chat/types';

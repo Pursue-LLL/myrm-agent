@@ -156,6 +156,33 @@ describe('resolveSmartRouting — slot resolution', () => {
     expect(routing.reasoning.primary).toBeNull();
   });
 
+  it('does not auto-pick when every priced model costs the same, since price then says nothing about capability', () => {
+    const providers = [provider('acme', ['a', 'b', 'c'])];
+    const info = { 'acme/a': modelInfo(1, true), 'acme/b': modelInfo(1, true), 'acme/c': modelInfo(1, true) };
+
+    const routing = resolve('agent', null, defaults(), providers, info);
+
+    expect(routing.active).toBe(false);
+    expect(routing.light.primary).toBeNull();
+    expect(routing.reasoning.primary).toBeNull();
+  });
+
+  it('ignores a configured slot whose provider no longer exists', () => {
+    const gone = { providerId: 'removed', model: 'x' };
+    const config = routingConfig({
+      lightModel: { primary: gone, fallback: null },
+      reasoningModel: { primary: gone, fallback: null },
+    });
+
+    expect(resolve('agent', null, defaults(config), PRICED_PROVIDERS, {}).active).toBe(false);
+
+    const withPrices = resolve('agent', null, defaults(config));
+    expect(withPrices.active).toBe(true);
+    expect(withPrices.light.primary?.model).toBe('cheap');
+    expect(withPrices.light.modelKwargs).toBeUndefined();
+    expect(withPrices.reasoning.primary?.model).toBe('pricey');
+  });
+
   it('skips models known to lack function calling but keeps unknown ones', () => {
     const providers = [provider('acme', ['no-tools', 'unknown', 'pricey', 'pricey-no-tools'])];
     const info = {

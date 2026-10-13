@@ -48,7 +48,7 @@ describe('RegenerateMenu', () => {
     expect(onRegenerateMock).toHaveBeenCalledWith(instruction);
   });
 
-  it('does not offer a stronger-model retry that duplicates the plain retry', () => {
+  it('keeps a single plain retry instead of a separate stronger-model entry', () => {
     render(<RegenerateMenu onRegenerate={onRegenerateMock} />);
     fireEvent.click(screen.getByLabelText('Regenerate options'));
 
