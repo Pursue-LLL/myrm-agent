@@ -14,16 +14,18 @@ from app.api.statistics.growth_dashboard import (
     CostSummary,
     GrowthDashboardResponse,
     GrowthSnapshot,
-    SkillEvolutionEvent,
-    SkillHealthItem,
     WeeklySummary,
     _ActivitySnapshot,
     _fetch_activity_data,
     _fetch_cost_summary,
     _fetch_memory_snapshot,
-    _fetch_skill_evolution_data,
     _fetch_weekly_summary,
-    _SkillEvolutionSnapshot,
+)
+from app.api.statistics.skill_growth import (
+    SkillEvolutionEvent,
+    SkillEvolutionSnapshot,
+    SkillHealthItem,
+    fetch_skill_evolution_data,
 )
 from app.core.utils.errors import StandardHTTPException
 from app.services.skills.experience_ledger import SkillGrowthLedgerSummary
@@ -109,23 +111,22 @@ class TestGrowthDashboardSchemas:
         assert event.status == "AUTO_APPLIED"
 
     def test_skill_health_item_schema(self):
-        """SkillHealthItem should support actionable_recommendation, adoption_rate, and reuse_breadth."""
+        """SkillHealthItem carries the evidence (observed outcomes and the minimum) behind the verdict."""
         item = SkillHealthItem(
             skill_name="search_web",
             health_score=92.5,
             status="STAR",
             call_count_7d=30,
             call_count_total=120,
+            observed_count_7d=29,
+            min_observed_count=5,
             success_rate_7d=0.967,
             last_used_at="2026-09-08T01:00:00Z",
             actionable_recommendation="🌟 Star asset with zero friction.",
-            adoption_rate=0.92,
-            reuse_breadth=0.65,
         )
         assert item.skill_name == "search_web"
         assert item.actionable_recommendation == "🌟 Star asset with zero friction."
-        assert item.adoption_rate == 0.92
-        assert item.reuse_breadth == 0.65
+        assert (item.observed_count_7d, item.min_observed_count) == (29, 5)
         dumped = item.model_dump()
         assert dumped["actionable_recommendation"] == "🌟 Star asset with zero friction."
 
@@ -216,19 +217,19 @@ async def test_fetch_skill_evolution_data_uses_full_funnel_totals(
         ]
 
     monkeypatch.setattr(
-        "app.api.statistics.growth_dashboard.skills_service.list_skills",
+        "app.api.statistics.skill_growth.evolution.skills_service.list_skills",
         fake_list_skills,
     )
     monkeypatch.setattr(
-        "app.api.statistics.growth_dashboard.summarize_skill_growth_events",
+        "app.api.statistics.skill_growth.evolution.summarize_skill_growth_events",
         fake_summarize,
     )
     monkeypatch.setattr(
-        "app.api.statistics.growth_dashboard.list_skill_growth_timeline",
+        "app.api.statistics.skill_growth.evolution.list_skill_growth_timeline",
         fake_timeline,
     )
 
-    result = await _fetch_skill_evolution_data()
+    result = await fetch_skill_evolution_data()
 
     assert result.total_skills == 2
     assert result.total_evolutions == 6
@@ -509,7 +510,7 @@ async def test_fetch_weekly_summary_no_cron_manager() -> None:
     assert result.previous_cron_executions == 0
 
 
-# ── _fetch_skill_evolution_data exception branch ──────────────────────
+# ── fetch_skill_evolution_data exception branch ──────────────────────
 
 
 @pytest.mark.asyncio
@@ -518,26 +519,26 @@ async def test_fetch_skill_evolution_data_exception(
 ) -> None:
     """When skill services raise, return empty snapshot."""
     monkeypatch.setattr(
-        "app.api.statistics.growth_dashboard.skills_service.list_skills",
+        "app.api.statistics.skill_growth.evolution.skills_service.list_skills",
         AsyncMock(side_effect=RuntimeError("service down")),
     )
 
-    result = await _fetch_skill_evolution_data()
+    result = await fetch_skill_evolution_data()
     assert result.total_skills == 0
     assert result.events == []
 
 
-# ── _SkillEvolutionSnapshot tests ─────────────────────────────────────
+# ── SkillEvolutionSnapshot tests ─────────────────────────────────────
 
 
 class TestSkillEvolutionSnapshot:
     def test_defaults(self):
-        snap = _SkillEvolutionSnapshot()
+        snap = SkillEvolutionSnapshot()
         assert snap.total_skills == 0
         assert snap.events == []
 
     def test_with_data(self):
-        snap = _SkillEvolutionSnapshot(
+        snap = SkillEvolutionSnapshot(
             total_skills=3,
             approved=2,
             events=[
@@ -592,8 +593,8 @@ async def test_get_growth_dashboard_endpoint(monkeypatch: pytest.MonkeyPatch) ->
         ),
     )
     monkeypatch.setattr(
-        "app.api.statistics.growth_dashboard._fetch_skill_evolution_data",
-        AsyncMock(return_value=_SkillEvolutionSnapshot(total_skills=2, total_evolutions=5, approved=3)),
+        "app.api.statistics.growth_dashboard.fetch_skill_evolution_data",
+        AsyncMock(return_value=SkillEvolutionSnapshot(total_skills=2, total_evolutions=5, approved=3)),
     )
     monkeypatch.setattr(
         "app.api.statistics.growth_dashboard._fetch_cost_summary",
@@ -649,8 +650,8 @@ async def test_get_growth_dashboard_endpoint_error(
         AsyncMock(return_value=WeeklySummary()),
     )
     monkeypatch.setattr(
-        "app.api.statistics.growth_dashboard._fetch_skill_evolution_data",
-        AsyncMock(return_value=_SkillEvolutionSnapshot()),
+        "app.api.statistics.growth_dashboard.fetch_skill_evolution_data",
+        AsyncMock(return_value=SkillEvolutionSnapshot()),
     )
     monkeypatch.setattr(
         "app.api.statistics.growth_dashboard._fetch_cost_summary",
@@ -814,50 +815,12 @@ async def test_fetch_cost_summary_tiny_savings_not_filtered() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fetch_skill_health_populates_actionable_recommendations() -> None:
-    """_fetch_skill_health should invoke SkillHealthEvaluator and populate actionable recommendations."""
-    from myrm_agent_harness.backends.skills.types import SkillUsageStats
-
-    from app.api.statistics.growth_dashboard import _fetch_skill_health
-
-    mock_collector = MagicMock()
-    mock_collector.get_stats.return_value = SkillUsageStats(
-        call_count=10, success_count=9, failure_count=1, last_used_at=datetime.now(UTC)
-    )
-
-    with (
-        patch(
-            "app.core.skills.curator.service.get_stats_collector",
-            return_value=mock_collector,
-        ),
-        patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", ["/fake/skills"]),
-        patch("app.api.statistics.growth_dashboard.Path.expanduser") as mock_expand,
-    ):
-        mock_root = MagicMock()
-        mock_root.exists.return_value = True
-
-        mock_skill_dir = MagicMock()
-        mock_skill_dir.name = "web_search"
-        mock_skill_dir.is_dir.return_value = True
-        mock_root.iterdir.return_value = [mock_skill_dir]
-        mock_expand.return_value = mock_root
-
-        items = await _fetch_skill_health()
-
-    assert len(items) == 1
-    assert items[0].skill_name == "web_search"
-    assert items[0].call_count_total == 10
-    assert items[0].actionable_recommendation is not None
-    assert isinstance(items[0].actionable_recommendation, str)
-
-
-@pytest.mark.asyncio
 async def test_growth_dashboard_endpoint_end_to_end_integration() -> None:
     """End-to-end integration: GET /growth-dashboard returns 200 with skill_health populated."""
     from fastapi import FastAPI
     from httpx import ASGITransport, AsyncClient
 
-    from app.api.statistics.growth_dashboard import SkillHealthItem, router
+    from app.api.statistics.growth_dashboard import router
 
     test_app = FastAPI()
     test_app.include_router(router, prefix="/api/v1/statistics")
@@ -870,11 +833,11 @@ async def test_growth_dashboard_endpoint_end_to_end_integration() -> None:
         status="STAR",
         call_count_7d=15,
         call_count_total=50,
+        observed_count_7d=14,
+        min_observed_count=5,
         success_rate_7d=0.95,
         last_used_at="2026-09-08T00:00:00Z",
         actionable_recommendation="🌟 Star asset in active rotation.",
-        adoption_rate=0.9,
-        reuse_breadth=0.8,
     )
 
     with (
@@ -892,13 +855,13 @@ async def test_growth_dashboard_endpoint_end_to_end_integration() -> None:
             return_value=WeeklySummary(),
         ),
         patch(
-            "app.api.statistics.growth_dashboard._fetch_skill_evolution_data",
-            return_value=_SkillEvolutionSnapshot(),
+            "app.api.statistics.growth_dashboard.fetch_skill_evolution_data",
+            return_value=SkillEvolutionSnapshot(),
         ),
         patch("app.api.statistics.growth_dashboard._fetch_cost_summary", return_value=None),
-        patch("app.api.statistics.growth_dashboard._fetch_skill_trends", return_value=[]),
+        patch("app.api.statistics.growth_dashboard.fetch_skill_trends", return_value=[]),
         patch(
-            "app.api.statistics.growth_dashboard._fetch_skill_health",
+            "app.api.statistics.growth_dashboard.fetch_skill_health",
             return_value=[mock_health_item],
         ),
         patch("app.api.statistics.growth_dashboard._fetch_memory_citations_7d", return_value=0),

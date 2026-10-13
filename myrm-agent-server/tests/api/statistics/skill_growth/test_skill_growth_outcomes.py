@@ -13,7 +13,7 @@ from myrm_agent_harness.backends.skills.forgetting_strategy import CuratorConfig
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillUsageStats
 
-from app.api.statistics.growth_dashboard import _fetch_skill_health, _fetch_skill_trends
+from app.api.statistics.skill_growth import fetch_skill_health, fetch_skill_trends
 
 
 @pytest.fixture
@@ -42,57 +42,86 @@ def _write_stats(root: Path, name: str, outcomes: list[bool | None], *, days_ago
 
 
 @pytest.mark.asyncio
-async def test_skill_without_observed_outcomes_is_active_not_failing(skills_root: Path) -> None:
-    """Uses that never ran a tool still count as use, and they carry no success rate."""
+async def test_skill_without_observed_outcomes_is_unproven_not_failing(skills_root: Path) -> None:
+    """Uses that never ran a tool still count as use, and they carry neither a rate nor a verdict."""
     _write_stats(skills_root, "advisory", [None] * 5)
 
-    (item,) = await _fetch_skill_health()
+    (item,) = await fetch_skill_health()
 
     assert item.call_count_7d == 5
+    assert item.observed_count_7d == 0
     assert item.success_rate_7d is None
-    assert item.status != "STALE"
+    assert item.status == "UNPROVEN"
 
 
 @pytest.mark.asyncio
 async def test_success_rate_counts_only_observed_outcomes(skills_root: Path) -> None:
     _write_stats(skills_root, "mixed", [True, True, True, True, False, False, None])
 
-    (item,) = await _fetch_skill_health()
+    (item,) = await fetch_skill_health()
 
     assert item.call_count_7d == 7
+    assert (item.observed_count_7d, item.min_observed_count) == (6, 5)
     assert item.success_rate_7d == pytest.approx(2 / 3, abs=1e-3)
+    assert item.status == "HEALTHY"
+    assert item.actionable_recommendation
 
 
 @pytest.mark.asyncio
-async def test_success_rate_stays_hidden_until_enough_outcomes_are_observed(skills_root: Path) -> None:
-    """A perfect rate over two runs is not evidence, so the panel reports the uses without a verdict."""
+async def test_quality_verdict_waits_for_enough_observed_outcomes(skills_root: Path) -> None:
+    """A perfect rate over two runs is not evidence: no rate, no STAR."""
     _write_stats(skills_root, "fresh", [True, True])
 
-    (item,) = await _fetch_skill_health()
+    (item,) = await fetch_skill_health()
 
     assert item.call_count_7d == 2
+    assert item.observed_count_7d == 2
     assert item.success_rate_7d is None
+    assert item.status == "UNPROVEN"
+
+
+@pytest.mark.asyncio
+async def test_enough_clean_outcomes_earn_star(skills_root: Path) -> None:
+    _write_stats(skills_root, "reliable", [True] * 5)
+
+    (item,) = await fetch_skill_health()
+
+    assert item.status == "STAR"
+    assert item.health_score == 100.0
+    assert item.success_rate_7d == 1.0
 
 
 @pytest.mark.asyncio
 async def test_observed_failures_lower_the_health_status(skills_root: Path) -> None:
     _write_stats(skills_root, "broken", [False, False, False, False, True])
 
-    (item,) = await _fetch_skill_health()
+    (item,) = await fetch_skill_health()
 
     assert item.status == "AT_RISK"
     assert item.success_rate_7d == pytest.approx(0.2, abs=1e-3)
 
 
 @pytest.mark.asyncio
+async def test_better_evidenced_skills_rank_first(skills_root: Path) -> None:
+    _write_stats(skills_root, "one-lucky-run", [True])
+    _write_stats(skills_root, "proven", [True] * 6)
+    _write_stats(skills_root, "failing", [False] * 6)
+
+    names = [item.skill_name for item in await fetch_skill_health()]
+
+    assert names == ["proven", "one-lucky-run", "failing"]
+
+
+@pytest.mark.asyncio
 async def test_uses_outside_the_week_are_not_counted(skills_root: Path) -> None:
     _write_stats(skills_root, "old", [True, True], days_ago=20)
 
-    (item,) = await _fetch_skill_health()
+    (item,) = await fetch_skill_health()
 
     assert item.call_count_7d == 0
     assert item.call_count_total == 2
     assert item.success_rate_7d is None
+    assert item.status == "STALE"
 
 
 @pytest.mark.asyncio
@@ -104,10 +133,11 @@ async def test_skill_reset_from_legacy_counters_keeps_its_use_count(skills_root:
         json.dumps({"call_count": 12, "success_count": 12, "last_used_at": datetime.now(UTC).isoformat()})
     )
 
-    (item,) = await _fetch_skill_health()
+    (item,) = await fetch_skill_health()
 
     assert item.call_count_7d == 12
     assert item.success_rate_7d is None
+    assert item.status == "UNPROVEN"
 
 
 @pytest.mark.asyncio
@@ -115,11 +145,13 @@ async def test_trend_points_count_uses_and_leave_unobserved_days_without_a_rate(
     _write_stats(skills_root, "observed", [True, False, None])
     _write_stats(skills_root, "advisory", [None, None])
 
-    series = {s.skill_name: s for s in await _fetch_skill_trends()}
+    series = {s.skill_name: s for s in await fetch_skill_trends()}
 
     (observed_point,) = series["observed"].data_points
     assert observed_point.call_count == 3
+    assert observed_point.observed_count == 2
     assert observed_point.success_rate == 0.5
     (advisory_point,) = series["advisory"].data_points
     assert advisory_point.call_count == 2
+    assert advisory_point.observed_count == 0
     assert advisory_point.success_rate is None

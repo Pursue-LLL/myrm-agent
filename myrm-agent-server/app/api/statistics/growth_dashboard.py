@@ -1,16 +1,14 @@
 """Growth Dashboard API — aggregated view of agent growth metrics.
 
 [INPUT]
-- myrm_agent_harness.observability.digest.health_evaluator::SkillHealthEvaluator (POS: 纯规则多维技能健康度与复利评估器)
-- myrm_agent_harness.observability.digest.types::SkillCompoundingMetrics (POS: 技能复利度量输入契约)
+- app.api.statistics.skill_growth::(fetch_skill_evolution_data, fetch_skill_trends, fetch_skill_health) (POS: 技能侧看板数据域)
 - app.database.connection::get_db (POS: 异步数据库会话依赖)
 
 [OUTPUT]
-- router: FastAPI 路由，提供 GET /statistics/growth-dashboard 与 GET /statistics/skill-trends
-- SkillHealthItem: 包含 health_score, status 与 actionable_recommendation 的技能健康数据契约
+- router: FastAPI 路由，提供 GET /statistics/growth-dashboard
 
 [POS]
-成长进化中心看板后端聚合 API。零新增存储，纯聚合内存/本地 SQLite 指标，并调用 Harness 规则引擎产出技能治理建议。
+成长进化中心看板后端聚合 API。零新增存储，纯聚合内存/本地 SQLite 指标；技能侧数据（进化、趋势、健康）由 skill_growth 子包提供。
 """
 
 from __future__ import annotations
@@ -28,6 +26,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.statistics.skill_growth import (
+    SkillEvolutionEvent,
+    SkillHealthItem,
+    SkillTrendSeries,
+    fetch_skill_evolution_data,
+    fetch_skill_health,
+    fetch_skill_trends,
+)
 from app.api.statistics.usage_aggregation import (
     DayAccumulator,
     TierAccumulator,
@@ -36,13 +42,10 @@ from app.api.statistics.usage_aggregation import (
     normalize_tier,
 )
 from app.config.settings import settings
-from app.core.skills.store.service import skills_service
 from app.core.utils.errors import internal_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.models import Chat, Message
-from app.services.skills.experience_ledger import summarize_skill_growth_events
-from app.services.skills.growth.audit_queries import list_skill_growth_timeline
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -90,18 +93,6 @@ class WeeklySummary(BaseModel):
     previous_tool_calls: int = 0
 
 
-class SkillEvolutionEvent(BaseModel):
-    """Recent skill evolution log entry."""
-
-    skill_id: str | None = None
-    skill_name: str
-    source: str
-    status: str
-    growth_type: str
-    created_at: str
-    change_summary: str = ""
-
-
 class CostSummary(BaseModel):
     """Aggregated cost/savings for the dashboard time range."""
 
@@ -110,38 +101,6 @@ class CostSummary(BaseModel):
     routing_savings: float = 0.0
     routing_savings_percent: float = 0.0
     total_savings_usd: float = 0.0
-
-
-class SkillTrendPoint(BaseModel):
-    """Single data point in a skill usage trend."""
-
-    date: str
-    success_rate: float | None
-    """Share of the day's runs with an observed outcome that succeeded; None when none was observed."""
-    call_count: int
-
-
-class SkillTrendSeries(BaseModel):
-    """Weekly aggregated usage trend for a single skill."""
-
-    skill_name: str
-    data_points: list[SkillTrendPoint]
-
-
-class SkillHealthItem(BaseModel):
-    """7-day skill compounding health evaluated by harness SkillHealthEvaluator."""
-
-    skill_name: str
-    health_score: float
-    status: str
-    call_count_7d: int
-    call_count_total: int
-    success_rate_7d: float | None
-    """Share of the week's observed outcomes that succeeded; None until the curator's minimum number of outcomes was observed."""
-    last_used_at: str | None = None
-    actionable_recommendation: str | None = None
-    adoption_rate: float | None = None
-    reuse_breadth: float | None = None
 
 
 class GrowthDashboardResponse(BaseModel):
@@ -282,131 +241,6 @@ async def _fetch_activity_data(time_range_days: int) -> _ActivitySnapshot:
         return _ActivitySnapshot()
 
 
-class _SkillEvolutionSnapshot:
-    __slots__ = (
-        "total_skills",
-        "total_evolutions",
-        "approved",
-        "rejected",
-        "pending",
-        "apply_failed",
-        "events",
-    )
-
-    def __init__(
-        self,
-        total_skills: int = 0,
-        total_evolutions: int = 0,
-        approved: int = 0,
-        rejected: int = 0,
-        pending: int = 0,
-        apply_failed: int = 0,
-        events: list[SkillEvolutionEvent] | None = None,
-    ) -> None:
-        self.total_skills = total_skills
-        self.total_evolutions = total_evolutions
-        self.approved = approved
-        self.rejected = rejected
-        self.pending = pending
-        self.apply_failed = apply_failed
-        self.events = events or []
-
-
-async def _fetch_skill_evolution_data() -> _SkillEvolutionSnapshot:
-    """Fetch skill inventory + recent growth timeline from unified services."""
-    try:
-        skills = await skills_service.list_skills()
-        total_skills = len(skills)
-        summary = await summarize_skill_growth_events()
-        timeline = await list_skill_growth_timeline(limit=20)
-        events = [
-            SkillEvolutionEvent(
-                skill_id=item.skill_id,
-                skill_name=item.skill_name,
-                source=item.source.value,
-                status=item.status.value,
-                growth_type=item.growth_type,
-                created_at=item.created_at.isoformat(),
-                change_summary=item.change_summary,
-            )
-            for item in timeline
-        ]
-        return _SkillEvolutionSnapshot(
-            total_skills=total_skills,
-            total_evolutions=summary.total_events,
-            approved=summary.approved,
-            rejected=summary.rejected,
-            pending=summary.pending_events,
-            apply_failed=summary.apply_failed,
-            events=events,
-        )
-    except Exception as e:
-        logger.warning("Failed to fetch skill evolution data: %s", e)
-        return _SkillEvolutionSnapshot()
-
-
-class _DayBucket:
-    __slots__ = ("total", "successes", "failures")
-
-    def __init__(self) -> None:
-        self.total = 0
-        self.successes = 0
-        self.failures = 0
-
-
-async def _fetch_skill_trends() -> list[SkillTrendSeries]:
-    """Aggregate per-skill usage_history into daily trend series."""
-    try:
-        from collections import defaultdict
-
-        from app.core.skills.curator.service import get_stats_collector
-        from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
-
-        collector = get_stats_collector()
-        result: list[SkillTrendSeries] = []
-
-        for skill_root in DEFAULT_LOCAL_SKILL_PATHS:
-            expanded = Path(skill_root).expanduser()
-            if not expanded.exists():
-                continue
-            for skill_dir in expanded.iterdir():
-                if not skill_dir.is_dir() or skill_dir.name.startswith("."):
-                    continue
-                stats = collector.get_stats(skill_dir)
-                if not stats.usage_history:
-                    continue
-
-                daily: dict[str, _DayBucket] = defaultdict(_DayBucket)
-                for record in stats.usage_history:
-                    day_key = record.timestamp[:10]
-                    bucket = daily[day_key]
-                    bucket.total += 1
-                    if record.success is True:
-                        bucket.successes += 1
-                    elif record.success is False:
-                        bucket.failures += 1
-
-                data_points = []
-                for date_key in sorted(daily.keys()):
-                    bucket = daily[date_key]
-                    observed = bucket.successes + bucket.failures
-                    data_points.append(
-                        SkillTrendPoint(
-                            date=date_key,
-                            success_rate=(bucket.successes / observed if observed > 0 else None),
-                            call_count=bucket.total,
-                        )
-                    )
-
-                if data_points:
-                    result.append(SkillTrendSeries(skill_name=skill_dir.name, data_points=data_points))
-
-        return result
-    except Exception as e:
-        logger.warning("Failed to fetch skill trends: %s", e)
-        return []
-
-
 async def _fetch_memory_citations_7d(db: AsyncSession) -> int:
     """Count memory citations persisted on messages within the last 7 days."""
     try:
@@ -433,104 +267,6 @@ async def _fetch_memory_citations_7d(db: AsyncSession) -> int:
     except Exception as e:
         logger.warning("Failed to fetch memory citations: %s", e)
         return 0
-
-
-async def _fetch_skill_health() -> list[SkillHealthItem]:
-    """Evaluate per-skill compounding health for the last 7 days via harness rules."""
-    try:
-        from myrm_agent_harness.api import SkillCompoundingMetrics, SkillHealthEvaluator
-
-        from app.core.skills.curator.service import get_curator_config, get_stats_collector
-        from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
-
-        now = datetime.now(UTC)
-        week_ago = now - timedelta(days=7)
-        collector = get_stats_collector()
-        min_observed = max(1, get_curator_config().min_call_count_for_quality_check)
-        items: list[SkillHealthItem] = []
-
-        for skill_root in DEFAULT_LOCAL_SKILL_PATHS:
-            expanded = Path(skill_root).expanduser()
-            if not expanded.exists():
-                continue
-            for skill_dir in expanded.iterdir():
-                if not skill_dir.is_dir() or skill_dir.name.startswith("."):
-                    continue
-
-                stats = collector.get_stats(skill_dir)
-                total_calls = stats.call_count
-                calls_7d = 0
-                succ_7d = 0
-                fail_7d = 0
-                sessions: set[str] = set()
-                latest_dt: datetime | None = stats.last_used_at
-                usage_history = getattr(stats, "usage_history", []) or []
-
-                for rec in usage_history:
-                    try:
-                        rec_dt = datetime.fromisoformat(rec.timestamp.replace("Z", "+00:00"))
-                    except (TypeError, ValueError):
-                        continue
-
-                    if latest_dt is None or rec_dt > latest_dt:
-                        latest_dt = rec_dt
-
-                    session_key = getattr(rec, "session_id", None)
-                    if isinstance(session_key, str) and session_key:
-                        sessions.add(session_key)
-
-                    if rec_dt >= week_ago:
-                        calls_7d += 1
-                        if rec.success is True:
-                            succ_7d += 1
-                        elif rec.success is False:
-                            fail_7d += 1
-
-                if calls_7d == 0 and total_calls > 0 and not usage_history:
-                    calls_7d = total_calls
-                    succ_7d = stats.success_count
-                    fail_7d = stats.failure_count
-
-                # A run without an observed failure is not evidence against the skill, so only failures weigh on health.
-                unfailed_7d = calls_7d - fail_7d
-                # Conservative adoption estimate: penalize retry/error overhead
-                retry_overhead = fail_7d
-                conservative_adopted = max(0, unfailed_7d - int(retry_overhead * 0.5))
-
-                metrics = SkillCompoundingMetrics(
-                    skill_id=skill_dir.name,
-                    invocations=calls_7d,
-                    successful_invocations=unfailed_7d,
-                    adopted_outputs=conservative_adopted,
-                    retry_count=retry_overhead,
-                    distinct_sessions=(len(sessions) if sessions else (1 if calls_7d > 0 else 0)),
-                    last_invoked_at=latest_dt,
-                )
-                evaluated = SkillHealthEvaluator.evaluate(metrics, reference_time=now)
-                observed_7d = succ_7d + fail_7d
-                # Fewer outcomes than the curator needs before it acts on a rate carry no verdict worth showing.
-                sr_7d = (succ_7d / observed_7d) if observed_7d >= min_observed else None
-
-                items.append(
-                    SkillHealthItem(
-                        skill_name=skill_dir.name,
-                        health_score=evaluated.health_score,
-                        status=evaluated.status.value,
-                        call_count_7d=calls_7d,
-                        call_count_total=total_calls,
-                        success_rate_7d=round(sr_7d, 3) if sr_7d is not None else None,
-                        last_used_at=latest_dt.isoformat() if latest_dt else None,
-                        actionable_recommendation=evaluated.actionable_recommendation,
-                        adoption_rate=round(evaluated.adoption_rate, 3),
-                        reuse_breadth=round(evaluated.reuse_breadth, 3),
-                    )
-                )
-
-        items.sort(key=lambda item: (item.health_score, item.call_count_7d), reverse=True)
-        return items
-    except Exception as e:
-        logger.warning("Failed to fetch skill health: %s", e)
-        return []
 
 
 async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSummary | None:
@@ -688,10 +424,10 @@ async def get_growth_dashboard(
             _fetch_memory_snapshot(),
             _fetch_activity_data(days),
             _fetch_weekly_summary(db),
-            _fetch_skill_evolution_data(),
+            fetch_skill_evolution_data(),
             _fetch_cost_summary(db, days),
-            _fetch_skill_trends(),
-            _fetch_skill_health(),
+            fetch_skill_trends(),
+            fetch_skill_health(),
             _fetch_memory_citations_7d(db),
         )
 
