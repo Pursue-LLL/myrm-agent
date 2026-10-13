@@ -63,8 +63,7 @@ export function SkillManageBatchRollbackAction({ batchId }: SkillManageBatchRoll
       );
     } catch (err) {
       const { toast } = await import('@/lib/utils/toast');
-      const code =
-        err instanceof ApiError && typeof err.data?.code === 'string' ? err.data.code : undefined;
+      const code = err instanceof ApiError && typeof err.data?.code === 'string' ? err.data.code : undefined;
       toast.error(
         code === 'compensation_failed'
           ? t('skillManageRollbackCompensationFailed')

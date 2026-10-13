@@ -99,8 +99,7 @@ class Skill:
     installed_from: dict[str, object] | None = None
     """Provenance tracking for installed skills (e.g. source, origin_url, version, installed_at)."""
 
-    last_replace_batch_id: str | None = None
-    """Rollback batch id of the most recent replace of this skill."""
+    last_replace_batch_id: str | None = None  # Rollback batch id of the latest replace of this skill.
 
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
@@ -200,7 +199,6 @@ class Skill:
             required_permissions=[getattr(p, "value", str(p)) for p in getattr(meta, "required_permissions", [])],
             usage_stats=(meta.usage_stats.to_dict() if hasattr(meta, "usage_stats") and meta.usage_stats else None),
             installed_from=installed_from,
-            last_replace_batch_id=None,
             created_at=created_at or now,
             updated_at=updated_at or now,
         )
