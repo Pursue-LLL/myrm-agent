@@ -42,7 +42,6 @@ from app.schemas.memory.command_center import (
     MemoryCommandGraphResponse,
     MemoryCommandGraphStats,
     MemoryCommandPlaneSummary,
-    MemoryCommandTimelineEvent,
     MemoryEvidencePlaybackResponse,
     MemoryRecallBoundaryData,
     MemoryRepoEvidenceResponse,
@@ -167,18 +166,6 @@ async def get_memory_command_center(
     """
 
     return await MemoryCommandCenterService(db, memory_manager, project_id=project_id or None).build_snapshot()
-
-
-@router.get("/events", response_model=list[MemoryCommandTimelineEvent])
-async def list_memory_command_events(
-    limit: int = 50,
-    db: AsyncSession = Depends(get_db_session),
-    memory_manager: MemoryManager = Depends(get_crud_memory_manager),
-) -> list[MemoryCommandTimelineEvent]:
-    """Return durable memory operation events for live/replay surfaces."""
-
-    snapshot = await MemoryCommandCenterService(db, memory_manager).build_snapshot()
-    return snapshot.live_stream[: min(max(limit, 1), 100)]
 
 
 @router.get("/plane-summary", response_model=MemoryCommandPlaneSummary)

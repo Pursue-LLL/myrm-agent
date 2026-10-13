@@ -10,7 +10,6 @@ from app.schemas.memory.archive import (
     MemoryImportConfirmResponse,
     MemoryImportDryRunResponse,
     MemoryImportReadinessRecheckResponse,
-    MemoryImportResponse,
     MemoryImportRollbackPreviewResponse,
     MemoryImportRollbackResponse,
 )
@@ -48,7 +47,6 @@ router.get("/export/rules-safe")(handlers.export_rules_safe)
 router.get("/export/rules-safe/preview")(handlers.preview_rules_safe)
 router.get("/archive/export", response_model=MemoryArchiveExportResponse)(handlers.export_memory_archive)
 router.post("/archive/dry-run", response_model=MemoryArchiveDryRunResponse)(handlers.dry_run_memory_archive)
-router.post("/import", response_model=MemoryImportResponse)(handlers.import_memories)
 router.post("/import/dry-run", response_model=MemoryImportDryRunResponse)(handlers.dry_run_import_memories)
 router.post("/import/confirm", response_model=MemoryImportConfirmResponse)(handlers.confirm_import_memories)
 router.post("/import/readiness-recheck", response_model=MemoryImportReadinessRecheckResponse)(handlers.recheck_import_readiness)

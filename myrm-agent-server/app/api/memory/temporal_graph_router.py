@@ -112,7 +112,6 @@ async def get_lineage(
     return service.get_lineage(edge_id)
 
 
-@router.get("/facts/search", response_model=list[TemporalFactHitDTO])
 @router.get("/query", response_model=list[TemporalFactHitDTO])
 async def query_facts(
     source_id: str | None = Query(default=None, description="Optional source entity filter"),

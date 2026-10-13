@@ -7,7 +7,6 @@
 - ChecklistStepDTO, BusinessExperienceTemplateDTO, ListTemplatesResponseDTO: template catalogue
 - EscalationEvaluationRequest, EscalationEvaluationResponseDTO: escalation decision payloads (aliased EvaluateEscalationRequest/EvaluateEscalationResponse)
 - RecordValidationRequest, RecordValidationResponseDTO: template validation feedback (response aliased RecordValidationResponse)
-- ExportProcedureMemoryItem, ExportProcedureMemoriesResponseDTO: templates exported as procedure memories
 
 [POS]
 API contracts of business scenario experience templates, shared by its router and service.
@@ -111,31 +110,6 @@ class RecordValidationResponseDTO(BaseModel):
     validated_count: int = Field(..., description="Updated cumulative validation confirmations")
     rejected_count: int = Field(..., description="Updated cumulative rejection counts")
     timestamp: str = Field(..., description="ISO 8601 timestamp of validation event")
-
-
-class ExportProcedureMemoryItem(BaseModel):
-    """Exported standard procedure memory entry."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    entry_id: str = Field(..., description="Unique entry ID")
-    name: str = Field(..., description="Human readable procedure name")
-    retrieval_anchor: str = Field(..., description="Anchor tokens for dual node retrieval")
-    operation_intent: str = Field(..., description="Intent and purpose of the procedure")
-    preconditions: list[str] = Field(default_factory=list, description="Preconditions")
-    immutable_boundary: list[str] = Field(default_factory=list, description="Mandatory boundary rules")
-    procedure_steps: list[str] = Field(default_factory=list, description="Ordered steps")
-    confidence: float = Field(default=1.0, description="Confidence score")
-
-
-class ExportProcedureMemoriesResponseDTO(BaseModel):
-    """Response payload containing exported standard procedure memory items."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    status: str = Field(default="ok")
-    total_count: int = Field(..., description="Total exported procedure items")
-    items: list[ExportProcedureMemoryItem] = Field(default_factory=list)
 
 
 # Aliases for compatibility

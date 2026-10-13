@@ -1,6 +1,6 @@
 """[POS]: tests/api/memory/test_revocable_provenance_api.py
 [INPUT]: Isolated FastAPI test application, AsyncClient, and temporary storage directories.
-[OUTPUT]: Integration tests verifying provenance memory creation, bidirectional lookups, atomic forget, and dream diary recording.
+[OUTPUT]: Integration tests verifying provenance memory creation, lookups, atomic forget, and dream diary recording.
 """
 
 from __future__ import annotations
@@ -37,8 +37,8 @@ def test_app(isolated_service: RevocableProvenanceService) -> FastAPI:
 
 
 @pytest.mark.asyncio
-async def test_provenance_memory_crud_and_bidirectional_lookup_api(test_app: FastAPI) -> None:
-    """Verifies creating memories with provenance and looking them up by memory_id, session_id, and message_id."""
+async def test_provenance_memory_crud_and_session_lookup_api(test_app: FastAPI) -> None:
+    """Verifies creating memories with provenance and looking them up by memory_id and session_id."""
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Save two provenance-qualified memories
@@ -81,20 +81,13 @@ async def test_provenance_memory_crud_and_bidirectional_lookup_api(test_app: Fas
         res_not_found = await client.get("/api/memory/provenance/memories/ghost_id")
         assert res_not_found.status_code == 404
 
-        # 4. Bidirectional lookup by session_id
+        # 4. Lookup by session_id
         res_by_session = await client.get("/api/memory/provenance/memories/session/session_project_x")
         assert res_by_session.status_code == 200
         sess_items = res_by_session.json()
         assert len(sess_items) == 2
         assert sess_items[0]["memory_id"] == "mem_arch_001"
         assert sess_items[1]["memory_id"] == "mem_arch_002"
-
-        # 5. Lookup by message_id
-        res_by_msg = await client.get("/api/memory/provenance/memories/message/msg_turn_7")
-        assert res_by_msg.status_code == 200
-        msg_items = res_by_msg.json()
-        assert len(msg_items) == 1
-        assert msg_items[0]["memory_id"] == "mem_arch_002"
 
 
 @pytest.mark.asyncio

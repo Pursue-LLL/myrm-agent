@@ -167,20 +167,3 @@ async def test_record_validation_feedback(test_app: FastAPI) -> None:
         assert data["template_id"] == "BA-REV-01"
         assert data["is_validated"] is True
         assert data["validated_count"] >= 1
-
-
-@pytest.mark.asyncio
-async def test_export_procedure_memories_endpoint(test_app: FastAPI) -> None:
-    """Verify exporting all templates as standard procedure memory items."""
-    transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.get("/api/v1/memory/business-templates/export-procedure-memories")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "ok"
-        assert data["total_count"] >= 3
-        for item in data["items"]:
-            assert item["entry_id"] != ""
-            assert item["name"] != ""
-            assert len(item["procedure_steps"]) > 0
-            assert item["confidence"] == 1.0

@@ -115,13 +115,6 @@ class ExperienceObservabilityService:
 
         return dtos
 
-    def get_metric(self, entry_id: str) -> ExperienceObservabilityMetricDTO | None:
-        """Get metric details for an individual experience item."""
-        metric = self._tracker.get_metric(entry_id)
-        if metric is None:
-            return None
-        return _metric_to_dto(metric)
-
     def get_trace_evidence(self, session_id: str) -> SessionTraceEvidenceDTO | None:
         """Retrieve originating session evidence trace."""
         trace = self._tracker.get_trace_evidence(session_id)

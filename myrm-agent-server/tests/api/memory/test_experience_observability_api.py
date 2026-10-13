@@ -66,16 +66,7 @@ async def test_list_and_filter_metrics_api(test_app: FastAPI) -> None:
         assert res_mcp.status_code == 200
         items_mcp = res_mcp.json()
         assert any(m["entry_id"] == "proc_db_index_ddl" for m in items_mcp)
-
-        # 3. Single metric lookup
-        res_single = await client.get("/api/memory/experience-observability/metrics/proc_git_push_safe")
-        assert res_single.status_code == 200
-        metric = res_single.json()
-        assert metric["name"] == "SafeGitBranchPushGuard"
-
-        # 4. Single metric not found -> 404
-        res_404 = await client.get("/api/memory/experience-observability/metrics/non_existent_exp")
-        assert res_404.status_code == 404
+        assert next(m for m in items if m["entry_id"] == "proc_git_push_safe")["name"] == "SafeGitBranchPushGuard"
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,4 @@
-"""REST endpoints for SQLite FTS5 CRUD, synonym registration, dual-drive search, and circuit breaker telemetry.
+"""REST endpoints for SQLite FTS5 item CRUD, dual-drive search, engine stats, and circuit breaker control.
 
 [POS]
 app/api/memory/hybrid_memory_router.py
@@ -7,7 +7,7 @@ app/api/memory/hybrid_memory_router.py
 - FastAPI APIRouter, Depends, HTTPException, and hybrid memory DTOs
 
 [OUTPUT]
-- REST endpoints for SQLite FTS5 CRUD, synonym registration, dual-drive search, and circuit breaker telemetry
+- REST endpoints for SQLite FTS5 item CRUD, dual-drive search, engine stats, and circuit breaker control
 """
 
 from __future__ import annotations
@@ -27,8 +27,6 @@ from app.schemas.hybrid_memory import (
     HybridSearchResultDTO,
     InsertHybridItemRequestDTO,
     InsertHybridItemResponseDTO,
-    RegisterSynonymsRequestDTO,
-    RegisterSynonymsResponseDTO,
     ResetCircuitBreakerResponseDTO,
     TripCircuitBreakerRequestDTO,
     TripCircuitBreakerResponseDTO,
@@ -150,20 +148,6 @@ def search_hybrid_memory(
     )
 
 
-@router.post("/synonyms", response_model=RegisterSynonymsResponseDTO)
-def register_synonyms(
-    payload: RegisterSynonymsRequestDTO,
-    service: HybridMemoryService = Depends(get_hybrid_memory_service),
-) -> RegisterSynonymsResponseDTO:
-    """Register or extend an offline synonym cluster."""
-    count = service.register_synonyms(payload.primary_term, payload.synonyms)
-    return RegisterSynonymsResponseDTO(
-        primary_term=payload.primary_term,
-        total_synonyms=count,
-        is_success=True,
-    )
-
-
 @router.get("/stats", response_model=HybridEngineStatsDTO)
 def get_hybrid_engine_stats(
     service: HybridMemoryService = Depends(get_hybrid_memory_service),
@@ -211,19 +195,4 @@ def reset_circuit_breaker(
     return ResetCircuitBreakerResponseDTO(
         is_success=True,
         state=state_str,
-    )
-
-
-@router.get("/circuit-breaker/stats", response_model=CircuitBreakerStatsDTO)
-def get_circuit_breaker_stats(
-    service: HybridMemoryService = Depends(get_hybrid_memory_service),
-) -> CircuitBreakerStatsDTO:
-    """Get focused embedding circuit breaker metrics."""
-    cb = service.get_stats().circuit_breaker
-    return CircuitBreakerStatsDTO(
-        state=cb.state.value,
-        failure_count=cb.failure_count,
-        consecutive_successes=cb.consecutive_successes,
-        last_failure_time=cb.last_failure_time,
-        tripped_count=cb.tripped_count,
     )

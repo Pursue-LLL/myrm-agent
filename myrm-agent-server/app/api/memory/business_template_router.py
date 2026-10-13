@@ -21,7 +21,6 @@ from app.schemas.business_templates import (
     BusinessExperienceTemplateDTO,
     EscalationEvaluationRequest,
     EscalationEvaluationResponseDTO,
-    ExportProcedureMemoriesResponseDTO,
     ListTemplatesResponseDTO,
     RecordValidationRequest,
     RecordValidationResponseDTO,
@@ -48,18 +47,6 @@ async def list_templates(
 ) -> ListTemplatesResponseDTO:
     """Retrieve all business scenario experience templates with optional category filtering and search."""
     return service.list_templates(category_str=category, query=query)
-
-
-@router.get(
-    "/export-procedure-memories",
-    response_model=ExportProcedureMemoriesResponseDTO,
-    summary="Export all templates as standard procedure memory items",
-)
-async def export_procedure_memories(
-    service: Annotated[BusinessTemplateService, Depends(get_business_template_service)],
-) -> ExportProcedureMemoriesResponseDTO:
-    """Export stored templates into standard ProcedureMemoryEntry items for dual-node retrieval."""
-    return service.export_procedure_memories()
 
 
 @router.get(

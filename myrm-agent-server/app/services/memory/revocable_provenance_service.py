@@ -99,13 +99,6 @@ class RevocableProvenanceService:
         mems = self._store.find_by_session(session_id=session_id, include_revoked=include_revoked)
         return [self._memory_to_dto(m) for m in mems]
 
-    def find_by_message(
-        self, message_id: str, include_revoked: bool = False
-    ) -> list[ProvenanceQualifiedMemoryDTO]:
-        """Finds memories originating from a specific message turn."""
-        mems = self._store.find_by_message(message_id=message_id, include_revoked=include_revoked)
-        return [self._memory_to_dto(m) for m in mems]
-
     def forget_memory(self, memory_id: str, request: ForgetMemoryRequestDTO) -> ForgetResultDTO:
         """Atomically revokes a memory, registering a tombstone while leaving raw transcripts intact."""
         result = self._forget_engine.forget(memory_id=memory_id, reason=request.reason)

@@ -8,15 +8,14 @@
 - router: `/memory/working-state` read/write/clear working state & live workbench
 
 [POS]
-- 工作记忆与任务看板传输层。提供实时手边工作台快照、子任务动态流转、避坑项登记与历史任务成果摘要接口。
+- 工作记忆与任务看板传输层。提供跨会话工作状态的读取/写入/清除，以及活跃会话的实时手边工作台快照。
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from myrm_agent_harness.api import LocalWorkingMemoryBlock
 from myrm_agent_harness.toolkits.memory import MemoryManager
 from pydantic import BaseModel, Field
@@ -44,22 +43,6 @@ WORKING_STATE_MAX_LENGTH = 500
 
 class WorkingStateUpdateRequest(BaseModel):
     content: str = Field(max_length=WORKING_STATE_MAX_LENGTH)
-
-
-class SubtaskCreateRequest(BaseModel):
-    title: str = Field(min_length=1, max_length=200)
-    subtask_id: str | None = Field(default=None, max_length=50)
-
-
-class SubtaskUpdateRequest(BaseModel):
-    status: Literal["pending", "in_progress", "completed", "failed", "skipped"]
-    notes: str = Field(default="", max_length=500)
-
-
-class TrapCreateRequest(BaseModel):
-    fingerprint: str = Field(min_length=1, max_length=200)
-    avoidance_rule: str = Field(min_length=1, max_length=500)
-    tool_name: str | None = Field(default=None, max_length=100)
 
 
 @router.get("", response_model=WorkingStateResponse)
@@ -111,53 +94,3 @@ async def clear_working_state(
     await memory_manager.delete_system_profile_attribute(WORKING_STATE_UPDATED_AT_KEY)
     LocalWorkingMemoryBlock.reset()
     return WorkingStateResponse()
-
-
-@router.get("/live")
-async def get_live_workbench(
-    session_id: str | None = Query(None, description="Optional chat session ID for active execution state"),
-) -> dict[str, object]:
-    """Retrieve active coroutine/task live working board."""
-    return ConsolidationService.get_live_working_state(session_id=session_id)
-
-
-@router.post("/subtasks")
-async def add_workbench_subtask(body: SubtaskCreateRequest) -> dict[str, str]:
-    """Add a subtask to the active workbench."""
-    res = ConsolidationService.add_subtask(title=body.title, subtask_id=body.subtask_id)
-    if res is None:
-        raise HTTPException(status_code=400, detail="Active working state not initialized")
-    return res
-
-
-@router.patch("/subtasks/{subtask_id}")
-async def update_workbench_subtask(subtask_id: str, body: SubtaskUpdateRequest) -> dict[str, bool]:
-    """Update progress status of a subtask."""
-    ok = ConsolidationService.update_subtask(
-        subtask_id=subtask_id,
-        status=body.status,
-        notes=body.notes,
-    )
-    if not ok:
-        raise HTTPException(status_code=404, detail=f"Subtask {subtask_id} not found or not active")
-    return {"success": True}
-
-
-@router.post("/traps")
-async def register_workbench_trap(body: TrapCreateRequest) -> dict[str, bool]:
-    """Record an avoidance trap on the active workbench."""
-    ConsolidationService.record_trap(
-        fingerprint=body.fingerprint,
-        avoidance_rule=body.avoidance_rule,
-        tool_name=body.tool_name,
-    )
-    return {"success": True}
-
-
-@router.get("/digests")
-async def list_task_digests(
-    limit: int = Query(default=20, ge=1, le=100),
-    memory_manager: MemoryManager = Depends(get_crud_memory_manager),
-) -> list[dict[str, object]]:
-    """List historical consolidated task digests."""
-    return await ConsolidationService.list_task_digests(memory_manager=memory_manager, limit=limit)

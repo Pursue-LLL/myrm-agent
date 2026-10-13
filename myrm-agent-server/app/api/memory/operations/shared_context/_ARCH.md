@@ -12,7 +12,6 @@
 | `shared_contexts.py` | 核心 | 共享上下文 API 操作层。提供产品层共享记忆空间治理（list/create/get bindings CRUD + event recording），不暴露 team memory 语义。router 前缀 `/shared-contexts` | ✅ |
 | `shared_context_health.py` | 核心 | 共享上下文健康检查 API 操作层。提供 embedding 配置和实时探测状态，避免批准写入时才暴露不可用依赖。router `/shared-contexts/health` | ✅ |
 | `shared_context_history.py` | 核心 | 共享上下文历史证据 API 操作层。提供从会话历史检索证据并生成可审批提案的产品入口。 | ✅ |
-| `shared_context_migration.py` | 核心 | 共享上下文一次性迁移 API：`POST /migrate-legacy-team` 将 team-visible 记忆并入 `shared:legacy-team` namespace。 | ✅ |
 | `shared_context_serializers.py` | 辅助 | 共享上下文 API 序列化辅助层。集中管理 ORM 到响应模型的无副作用转换（binding_to_item / context_to_item / proposal_to_item）。 | ✅ |
 
 ## 模块依赖

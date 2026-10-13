@@ -14,13 +14,11 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
-from typing import cast
 
 from myrm_agent_harness.toolkits.memory import (
     BusinessExperienceTemplate,
     BusinessTemplateEngine,
     EscalationEvaluationContext,
-    ProcedureMemoryEntry,
     TemplateCategory,
 )
 
@@ -29,8 +27,6 @@ from app.schemas.business_templates import (
     ChecklistStepDTO,
     EscalationEvaluationRequest,
     EscalationEvaluationResponseDTO,
-    ExportProcedureMemoriesResponseDTO,
-    ExportProcedureMemoryItem,
     ListTemplatesResponseDTO,
     RecordValidationRequest,
     RecordValidationResponseDTO,
@@ -157,29 +153,6 @@ class BusinessTemplateService:
             validated_count=val_count,
             rejected_count=rej_count,
             timestamp=rec.timestamp,
-        )
-
-    def export_procedure_memories(self) -> ExportProcedureMemoriesResponseDTO:
-        """Export all registered templates as standard procedure memory items."""
-        raw_entries = self._engine.export_as_procedure_memories()
-        entries = cast(list[ProcedureMemoryEntry], raw_entries)
-        items = [
-            ExportProcedureMemoryItem(
-                entry_id=e.entry_id,
-                name=e.name,
-                retrieval_anchor=e.retrieval_anchor,
-                operation_intent=e.operation_intent,
-                preconditions=list(e.preconditions),
-                immutable_boundary=list(e.immutable_boundary),
-                procedure_steps=list(e.procedure_steps),
-                confidence=e.confidence,
-            )
-            for e in entries
-        ]
-        return ExportProcedureMemoriesResponseDTO(
-            status="ok",
-            total_count=len(items),
-            items=items,
         )
 
 

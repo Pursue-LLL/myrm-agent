@@ -64,22 +64,6 @@ async def list_metrics(
 
 
 @router.get(
-    "/metrics/{entry_id}",
-    response_model=ExperienceObservabilityMetricDTO,
-    summary="Get single experience telemetry metric by entry ID",
-)
-async def get_metric(
-    entry_id: str,
-    service: Annotated[ExperienceObservabilityService, Depends(get_experience_observability_service)],
-) -> ExperienceObservabilityMetricDTO:
-    """Retrieve telemetry metrics for an individual experience item."""
-    metric = service.get_metric(entry_id)
-    if metric is None:
-        raise HTTPException(status_code=404, detail=f"Experience metric not found: {entry_id}")
-    return metric
-
-
-@router.get(
     "/traces/{session_id}",
     response_model=SessionTraceEvidenceDTO,
     summary="Retrieve originating session trace evidence for an experience",

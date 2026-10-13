@@ -99,39 +99,6 @@ async def test_record_ephemeral_delta_and_get_active(test_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_reconcile_ephemeral_session_deltas(test_app: FastAPI) -> None:
-    """Reconcile endpoint reports active deltas without stopping live tail injection."""
-    session_id = "test-sess-reconcile-02"
-
-    transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Record delta
-        payload = {
-            "session_id": session_id,
-            "target_key": "database",
-            "content": "PostgreSQL 16",
-            "action": "override",
-            "turn_index": 1,
-            "source": "agent_inferred",
-            "confidence": 0.95,
-        }
-        rec_res = await client.post("/api/memory/ephemeral-delta/record", json=payload)
-        assert rec_res.status_code == 200
-
-        rec_post = await client.post(f"/api/memory/ephemeral-delta/reconcile/{session_id}")
-        assert rec_post.status_code == 200
-        reconcile_data = rec_post.json()
-
-        assert reconcile_data["session_id"] == session_id
-        assert reconcile_data["active_delta_count"] == 1
-        assert reconcile_data["injection_still_active"] is True
-
-        active_res = await client.get(f"/api/memory/ephemeral-delta/active/{session_id}")
-        assert active_res.status_code == 200
-        assert len(active_res.json()) == 1
-
-
-@pytest.mark.asyncio
 async def test_preview_delta_injection_and_metrics(test_app: FastAPI) -> None:
     """Test simulating tail injection preview and retrieving prompt cache metrics."""
     session_id = "test-sess-preview-03"

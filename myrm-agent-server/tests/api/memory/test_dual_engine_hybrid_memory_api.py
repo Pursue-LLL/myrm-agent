@@ -126,9 +126,9 @@ async def test_circuit_breaker_trip_reset_and_stats_api(
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Initial stats should be closed
-        res_stats = await client.get("/api/memory/hybrid/circuit-breaker/stats")
+        res_stats = await client.get("/api/memory/hybrid/stats")
         assert res_stats.status_code == 200
-        stats = res_stats.json()
+        stats = res_stats.json()["circuit_breaker"]
         assert stats["state"] == "closed"
         assert stats["tripped_count"] == 0
 
@@ -144,8 +144,8 @@ async def test_circuit_breaker_trip_reset_and_stats_api(
         assert trip_data["tripped_count"] == 1
 
         # 3. Check stats reflects open
-        res_stats_after = await client.get("/api/memory/hybrid/circuit-breaker/stats")
-        assert res_stats_after.json()["state"] == "open"
+        res_stats_after = await client.get("/api/memory/hybrid/stats")
+        assert res_stats_after.json()["circuit_breaker"]["state"] == "open"
 
         # 4. Insert item and search while open -> should return degraded_fallback
         await client.post(

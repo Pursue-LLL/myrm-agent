@@ -37,7 +37,6 @@ from app.api.memory.operations import (
 from app.api.memory.operations.shared_context import (
     shared_context_health,
     shared_context_history,
-    shared_context_migration,
     shared_contexts,
 )
 
@@ -60,6 +59,5 @@ __all__ = [
     "working_state",
     "shared_context_health",
     "shared_context_history",
-    "shared_context_migration",
     "shared_contexts",
 ]

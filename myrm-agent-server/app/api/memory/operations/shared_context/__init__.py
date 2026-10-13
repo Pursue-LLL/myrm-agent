@@ -1,4 +1,4 @@
-"""Shared-context API domain: CRUD, health, history, migration + serializers.
+"""Shared-context API domain: CRUD, health, history + serializers.
 
 [INPUT]
 - Shared-context write/read payloads from the memory router.
@@ -13,12 +13,11 @@
   - shared_context_health: ``router`` (``/shared-contexts/health``) — memory
     health snapshot
   - shared_context_history: ``router`` — history search + proposal creation
-  - shared_context_migration: ``router`` — legacy team-memory migration
   - shared_context_serializers: model → item/serialization helpers
 
 [POS]
 Server business layer (Memory API). Single shared-context domain: CRUD, health,
-history and migration routers share the serializers and are mounted together by
+history routers share the serializers and are mounted together by
 ``api.memory.router``, so they stay co-located under one facade.
 """
 
@@ -27,9 +26,6 @@ from app.api.memory.operations.shared_context.shared_context_health import (
 )
 from app.api.memory.operations.shared_context.shared_context_history import (
     router as history_router,
-)
-from app.api.memory.operations.shared_context.shared_context_migration import (
-    router as migration_router,
 )
 from app.api.memory.operations.shared_context.shared_context_serializers import (
     binding_to_item,
@@ -43,7 +39,6 @@ __all__ = [
     "context_to_item",
     "health_router",
     "history_router",
-    "migration_router",
     "proposal_to_item",
     "router",
 ]

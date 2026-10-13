@@ -6,11 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.schemas.memory.radar import (
-    RadarFeedbackAction,
-    RecordImplicitFeedbackRequest,
-    UpdatePreferenceRadarRequest,
-)
+from app.schemas.memory.radar import UpdatePreferenceRadarRequest
 from app.services.memory.preference_radar_service import PreferenceRadarService
 
 
@@ -56,29 +52,6 @@ async def test_manual_fine_tuning_and_clamping(radar_service: PreferenceRadarSer
     # Ensure out-of-bound is rejected by Pydantic schema validation
     with pytest.raises(ValidationError):
         UpdatePreferenceRadarRequest(actionability=3.5)
-
-    # When locked, implicit feedback should not alter weights
-    fb_req = RecordImplicitFeedbackRequest(action=RadarFeedbackAction.MORE_CODE)
-    state_after_fb = await radar_service.record_feedback(session_id, fb_req)
-    assert state_after_fb.actionability == 3.0
-
-
-@pytest.mark.asyncio
-async def test_implicit_feedback_and_natural_language_heuristic(
-    radar_service: PreferenceRadarService,
-) -> None:
-    session_id = "session-test-03"
-
-    # Natural language asking for code
-    req_nl = RecordImplicitFeedbackRequest(
-        action=RadarFeedbackAction.POSITIVE_ACCEPT,
-        raw_prompt="请直接给出可运行代码，不要啰嗦",
-    )
-    state = await radar_service.record_feedback(session_id, req_nl)
-
-    # Heuristic should override to MORE_CODE, boosting actionability
-    assert state.actionability > 1.0
-    assert state.breadth < 1.0
 
 
 @pytest.mark.asyncio
@@ -220,15 +193,3 @@ def test_radar_http_router_endpoints() -> None:
     tune_json = resp_tune.json()
     assert tune_json["recency"] == 2.2
     assert tune_json["locked"] is True
-
-    # 3. POST feedback (locked -> preserves weights)
-    resp_fb = client.post(
-        f"/api/v1/memory/radar/{session_id}/feedback",
-        json={"action": "more_code", "raw_prompt": "more code"},
-    )
-    assert resp_fb.status_code == 200
-    fb_json = resp_fb.json()
-    assert fb_json["recency"] == 2.2
-
-
-

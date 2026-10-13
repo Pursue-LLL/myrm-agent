@@ -66,16 +66,6 @@ async def find_by_session(
     return service.find_by_session(session_id=session_id, include_revoked=include_revoked)
 
 
-@router.get("/memories/message/{message_id}", response_model=list[ProvenanceQualifiedMemoryDTO])
-async def find_by_message(
-    message_id: str,
-    include_revoked: bool = Query(default=False, description="Whether to include revoked entries"),
-    service: RevocableProvenanceService = Depends(get_revocable_provenance_service),
-) -> list[ProvenanceQualifiedMemoryDTO]:
-    """Finds memories originating from a specific message turn."""
-    return service.find_by_message(message_id=message_id, include_revoked=include_revoked)
-
-
 @router.delete("/memories/{memory_id}/forget", response_model=ForgetResultDTO)
 async def forget_memory(
     memory_id: str,
