@@ -2,27 +2,41 @@
 
 Seeded deliverable chat -> open ArtifactPortal -> toggle annotation panel ->
 select preview text + intent -> Add -> list shows the comment and localStorage
-persists it -> reload -> comment survives. Zero mocks, isolated namespace,
-no residue (annotations live in the test browser profile only).
+persists it -> reload -> comment survives -> "Send for revision" dispatches the
+review through the real chat path and the live model answers it. No mocks,
+isolated namespace; annotations live in the test browser profile only.
 """
 
 from __future__ import annotations
 
 import json
+import sys
 import time
+from pathlib import Path
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import (
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+
+from cdp_chat.support import (  # noqa: E402
+    fetch_chat_messages,
+    wait_e2e_provider_ready,
+)
+
+from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
     navigate_mcp_page,
     open_mcp_page,
     prepare_e2e_ui_session,
+    wait_for_chat_send_idle,
     wait_for_state,
     warm_ui_route,
 )
+from tests.support.e2e_provider_seed import seed_live_e2e_providers  # noqa: E402
 
 _DISMISS_MIGRATION_JS = """(() => {
   try {
@@ -169,6 +183,39 @@ _LIST_READY_JS = """((args) => {
   return { ready: txt.includes(args.intent), stored: stored.includes(args.intent) };
 })(__ARGS__)"""
 
+_SEND_REVIEW_JS = """(() => {
+  window.__MYRM_E2E_DIRECT_SSE__ = true;
+  // Fast mode needs a search service; revisions are agent turns.
+  window.__MYRM_E2E_CHAT__?.setActionMode?.('agent');
+  const send = Array.from(document.querySelectorAll('section[aria-label="Artifact annotations"] button'))
+    .find((b) => /^(Send for revision|发送审阅|傳送審閱)$/.test((b.textContent || '').trim()));
+  if (!send) return { ok: false, reason: 'no-send' };
+  if (send.disabled) return { ok: false, reason: 'send-disabled' };
+  send.click();
+  return { ok: true };
+})()"""
+
+_SEND_DIAG_JS = """(() => {
+  const toasts = Array.from(document.querySelectorAll('[data-sonner-toast]')).map((el) =>
+    (el.innerText || '').slice(0, 200),
+  );
+  const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null;
+  return { toasts, snap, href: location.href };
+})()"""
+
+_SUBMITTED_READY_JS = """((args) => {
+  const panel = document.querySelector('section[aria-label="Artifact annotations"]');
+  const txt = panel ? (panel.innerText || '') : '';
+  const stored = window.localStorage.getItem('myrm.artifact-annotations.v1') || '';
+  return {
+    ready: /submitted|已送审|已送審/.test(txt) && txt.includes(args.intent),
+    hasPanel: !!panel,
+    panelText: txt.slice(0, 300),
+    storedSubmitted: stored.includes('"status":"submitted"'),
+    portalOpen: !!document.getElementById('artifact-content-container'),
+  };
+})(__ARGS__)"""
+
 
 _BODY_ALIVE_JS = """(() => ({ len: (document.body?.innerText || '').length }))()"""
 
@@ -244,6 +291,34 @@ def _open_deliverable_portal(client: object, page: object) -> dict:
     return content
 
 
+def _message_text(message: dict[str, object]) -> str:
+    content = message.get("content") or message.get("message") or ""
+    return content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
+
+
+def _wait_review_answered(chat_id: str, api_url: str, intent: str, *, known: int, timeout_sec: float = 240.0) -> str:
+    """Wait for the dispatched review (a new user message) and the live model's answer to it."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        messages = fetch_chat_messages(chat_id, api_url=api_url)[known:]
+        sent = next(
+            (i for i, m in enumerate(messages) if m.get("role") == "user" and intent in _message_text(m)),
+            None,
+        )
+        if sent is not None:
+            for m in messages[sent + 1 :]:
+                text = _message_text(m).strip()
+                if m.get("role") == "assistant" and text:
+                    return text
+        time.sleep(2.0)
+    tail = [
+        {"role": m.get("role"), "text": _message_text(m)[:160]} for m in fetch_chat_messages(chat_id, api_url=api_url)[known:]
+    ]
+    pytest.fail(
+        f"review was not answered by the model within {timeout_sec}s for chat {chat_id}: {json.dumps(tail, ensure_ascii=False)}"
+    )
+
+
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -257,6 +332,9 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
     ui_url = get_e2e_ui_url()
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
+    seed_live_e2e_providers(api_url)
+    if not wait_e2e_provider_ready(timeout_sec=90.0):
+        pytest.fail("Provider not ready - run ./myrm ready --chrome")
 
     intent = "E2E review note: verify this paragraph"
     chat_id = ""
@@ -309,6 +387,32 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
                 timeout_sec=30.0,
             )
             assert relisted.get("ready") is True, json.dumps(relisted, ensure_ascii=False)
+
+            # T5: Send for revision -> real chat turn -> live model answers -> comment marked submitted.
+            known = len(fetch_chat_messages(chat_id, api_url=api_url))
+            sent = client.evaluate(page, _SEND_REVIEW_JS, timeout_sec=15.0)
+            assert isinstance(sent, dict) and sent.get("ok") is True, sent
+            time.sleep(5.0)
+            diag = client.evaluate(page, _SEND_DIAG_JS, timeout_sec=15.0)
+            try:
+                answer = _wait_review_answered(chat_id, api_url, intent, known=known, timeout_sec=180.0)
+            except pytest.fail.Exception as exc:
+                raise AssertionError(f"{exc} ui_after_send={json.dumps(diag, ensure_ascii=False)}") from exc
+            assert len(answer) >= 10, answer
+            # sendMessage resolves when the whole turn finishes; only then are comments marked submitted.
+            idle_at = time.monotonic()
+            wait_for_chat_send_idle(client, page, timeout_sec=240.0)
+            try:
+                submitted = wait_for_state(
+                    client,
+                    page,
+                    _SUBMITTED_READY_JS.replace("__ARGS__", json.dumps({"intent": intent})),
+                    timeout_sec=180.0,
+                )
+            except AssertionError as exc:
+                waited = time.monotonic() - idle_at
+                raise AssertionError(f"{exc} answer={answer[:200]!r} waited_sec={waited:.0f}") from exc
+            assert submitted.get("ready") is True, json.dumps(submitted, ensure_ascii=False)
     finally:
         # Best-effort cleanup of the fixture chat on the backend it was seeded into.
         if chat_id:
