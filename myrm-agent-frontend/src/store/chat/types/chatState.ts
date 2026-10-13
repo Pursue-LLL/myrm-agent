@@ -34,7 +34,7 @@ export interface TurnCapabilityTerminalTelemetry {
 }
 
 /**
- * Attachments a queued message carries into its own turn. They replace the live composer
+ * Attachments a queued or retried message carries into its own turn. They replace the live composer
  * attachments for that single request, so files staged for the next message are left untouched.
  */
 export interface QueuedAttachments {

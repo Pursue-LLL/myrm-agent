@@ -11,6 +11,7 @@
  * [POS]
  * Resend flows of a user bubble. The old bubble is replaced before the new request exists, so a request the agent
  * does not take would take the user's text with it; the text and attachments return to the composer instead.
+ * A retry carries the attachments its bubble shows; an edit sends like a normal message, with the composer's own.
  */
 import {
   buildExplicitSkillWireMessage,
@@ -43,22 +44,33 @@ function restoreComposer(chatId: string | undefined, content: string, files: Cha
 }
 
 /**
- * Send `content` with exactly the attachments of the bubble it came from: an empty list keeps files that were
- * staged in the composer meanwhile out of this request. A request the agent does not take (refused, busy, failed
- * before the turn) returns to the composer.
+ * Send `content`. `attachments` are the files this request carries instead of the composer's: an empty list keeps
+ * files staged for the next message out of it, `undefined` lets the request take (and consume) the composer's own
+ * like a normal send. A request the agent does not take (refused, busy, failed before the turn) returns to the
+ * composer together with the files it carried.
  */
-async function resend(content: string, files: ChatFile[]): Promise<void> {
-  const chatId = useChatStore.getState().chatId;
+async function resend(content: string, attachments: ChatFile[] | undefined): Promise<void> {
+  const live = useChatStore.getState();
+  const chatId = live.chatId;
+  const sentFiles = attachments ?? live.files;
   try {
-    const dispatched = await useChatStore
-      .getState()
-      .sendMessage(content, undefined, undefined, undefined, undefined, undefined, undefined, undefined, { files });
+    const dispatched = await live.sendMessage(
+      content,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      attachments && { files: attachments },
+    );
     if (!dispatched) {
       // The store has already told the user why.
-      restoreComposer(chatId, content, files);
+      restoreComposer(chatId, content, sentFiles);
     }
   } catch (error) {
-    restoreComposer(chatId, content, files);
+    restoreComposer(chatId, content, sentFiles);
     if (error instanceof Error && error.name === 'AgentBusyError') {
       showI18nToast('chat.sendBlocked.title', undefined, {
         descriptionKey: 'chat.sendBlocked.busyDescription',
@@ -101,5 +113,5 @@ export async function resendEditedUserMessage(
   useChatStore.setState((state) => ({
     messages: state.messages.slice(0, messageIndex),
   }));
-  await resend(content, message.files ?? []);
+  await resend(content, undefined);
 }

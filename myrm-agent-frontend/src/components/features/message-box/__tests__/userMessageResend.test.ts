@@ -177,7 +177,7 @@ describe('retryFailedUserMessage', () => {
 });
 
 describe('resendEditedUserMessage', () => {
-  it('cuts the history at the edited bubble before it resends the edited text with the bubble attachments', async () => {
+  it('cuts the history at the edited bubble, then sends the edited text like a normal message', async () => {
     const edited = bubble('user', 'r-2', 'summarize the report', { files: [REPORT_PDF] });
 
     await resendEditedUserMessage(CHAT_ID, edited, 2, 'summarize only chapter 3');
@@ -187,10 +187,8 @@ describe('resendEditedUserMessage', () => {
       sendMessage.mock.invocationCallOrder[0],
     );
     expect(transcript()).toEqual(['r-1', 'r-1']);
-    expect(sentRequest()).toEqual({
-      content: 'summarize only chapter 3',
-      attachments: { files: [REPORT_PDF] },
-    });
+    // Like any normal send, the request takes the composer's own attachments, not those of the replaced bubble.
+    expect(sentRequest()).toEqual({ content: 'summarize only chapter 3', attachments: undefined });
   });
 
   it('keeps the explicit skill activation of the original message', async () => {
@@ -201,15 +199,20 @@ describe('resendEditedUserMessage', () => {
     expect(sentRequest().content).toBe('[use writer_skill] [instruction: formal tone] draft the memo for finance');
   });
 
-  it('hands the edited text, not the original, back to the composer when the agent did not take it', async () => {
-    sendMessage.mockResolvedValue(false);
+  it('hands the edited text, not the original, and the composer attachments it took back when the agent did not take it', async () => {
+    useChatStore.setState({ files: [STAGED_PNG] });
+    sendMessage.mockImplementation(async () => {
+      // A request that settles without a turn clears the composer attachments it took.
+      useChatStore.setState({ files: [] });
+      return false;
+    });
     const edited = bubble('user', 'r-2', 'summarize the report', { files: [REPORT_PDF] });
 
     await resendEditedUserMessage(CHAT_ID, edited, 2, 'summarize only chapter 3');
 
     expect(composer()).toEqual({
       inputMessage: 'summarize only chapter 3',
-      files: [REPORT_PDF],
+      files: [STAGED_PNG],
       pendingExplicitSkillActivation: null,
     });
   });
