@@ -60,7 +60,7 @@ from app.services.agent.streaming_support.stream_collector import StreamContentC
 from app.services.chat.compact_service import CompactResult
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry
+    from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry, ResilientStreamBuffer
 
     from app.ai_agents import GeneralAgentParams
     from app.services.agent.params import AgentRequest
@@ -71,17 +71,16 @@ _SEARCH_AGENT_IDS: frozenset[str] = frozenset({"builtin-fast-search", "builtin-d
 
 
 async def fail_buffered_turn(
-    buffer: object,
-    message_id: str | None,
+    buffer: ResilientStreamBuffer,
+    message_id: str,
     detail: str,
 ) -> None:
     """End a turn that failed before its stream started: emit the error SSE and close the buffer."""
     # A turn that fails during setup never reaches stream finalize, which is
     # where a normally finished turn unregisters its cancel token.
-    if message_id:
-        CancellationRegistry.unregister(message_id)
-    await buffer.append(error_sse(detail, message_id))  # type: ignore[attr-defined]
-    await buffer.end_stream()  # type: ignore[attr-defined]
+    CancellationRegistry.unregister(message_id)
+    await buffer.append(error_sse(detail, message_id))
+    await buffer.end_stream()
 
 
 async def execute_agent_turn_after_reserve(
@@ -91,7 +90,7 @@ async def execute_agent_turn_after_reserve(
     text_content: str,
     stream_started_at_monotonic: float,
     registry: GlobalStreamRegistry,
-    buffer: object,
+    buffer: ResilientStreamBuffer,
     record_terminal_failure: Callable[[TurnCapabilityFailureReason], Awaitable[None]],
 ) -> None:
     """Run persist → pre-reply compact → session build → pump after the HTTP response is already accepted."""

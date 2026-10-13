@@ -33,7 +33,7 @@ from app.services.agent.stream_session.turn_capability_terminal import (
 )
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry
+    from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry, ResilientStreamBuffer
 
     from app.services.agent.params import AgentRequest
 
@@ -47,7 +47,7 @@ async def launch_early_buffered_stream(
     text_content: str,
     stream_started_at_monotonic: float,
     registry: GlobalStreamRegistry,
-    buffer: object,
+    buffer: ResilientStreamBuffer,
     session_reservation: ChatSessionReservation,
     record_terminal_failure: Callable[[TurnCapabilityFailureReason], Awaitable[None]],
 ) -> StreamingResponse | JSONResponse:
@@ -128,7 +128,7 @@ async def launch_early_buffered_stream(
             content={"status": "accepted", "message_id": request.message_id},
         )
     return StreamingResponse(
-        content=buffer.subscribe(),  # type: ignore[attr-defined]
+        content=buffer.subscribe(),
         media_type="text/event-stream",
         headers=SSE_RESPONSE_HEADERS,
     )
