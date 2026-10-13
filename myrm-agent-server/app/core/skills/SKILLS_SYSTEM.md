@@ -156,6 +156,19 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | **读在前 (Read-First)** | Agent 激活该技能执行前，优先检索与吸收对应经验库，提前规避已知环境陷阱与反爬/限流/格式问题 |
 | **写在后 (Write-Back)** | Agent 在当前任务中遭遇未知报错并自主解决后，在复盘总结阶段自动将新增避坑知识回写追加至技能包 `EXPERIENCE.md`，实现技能经验的自适应闭环迭代 |
 
+### 3.10 技能生命周期发布验收门（Release gate）
+
+单机产品已内置版本 SSOT、Shadow A/B、晋升回归门与 batch 回滚；发版前至少跑通下列自动化（不必再对标桌面竞品补平行能力）：
+
+| 路径 | 验收要点 | 参考测试 |
+|------|----------|----------|
+| Agent 写 SKILL.md | DB 版本 + 磁盘一致；meta-tool 失败可 `restore_skill_md_from_active_version` | `app/services/skills/write_orchestrator.py`；harness `batch_runner` 集成 |
+| `skill_manage` 批量改 | 变更前 snapshot，失败整批 rollback | harness `tests/backends/test_skill_system_core.py` |
+| Shadow A/B → promote | 候选版本 inactive 落库；晋升走 regression gate | `tests/services/skill_optimization/test_start_shadow_ab_test.py` |
+| 进化审批 → 落盘 | 审批通过后 apply；拒绝/失败 rollback | `tests/integration/test_skill_evolution_integration.py` |
+
+GUI 冒烟（Chrome E2E，按需）：技能详情版本 Tab 回滚、SkillQualityGuardian promote/stop（见 `myrm-agent-frontend/src/components/features/skills/_ARCH.md`）。
+
 ---
 
 ## 四、依赖关系
