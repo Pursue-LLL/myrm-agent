@@ -2,13 +2,14 @@
 
 [INPUT]
 - app.services.agent.params (POS: request conversion)
-- app.services.agent.stream_session.orchestrator_turn_body (POS: E1 early buffered turn execution)
+- app.services.agent.stream_session.orchestrator_turn_launch (POS: E1 accept phase, starts the background turn and answers the client)
+- app.services.agent.stream_session.orchestrator_turn_body (POS: write-ahead interrupted-turn marker written by the turn)
 
 [OUTPUT]
 - run_agent_stream: validation + reserve + early StreamingResponse | JSONResponse
 
 [POS]
-Service-layer stream orchestration entry. Pre-reserve validation stays synchronous; post-reserve turn runs in background via `orchestrator_turn_body` so clients receive live SSE during pre-reply compact.
+Service-layer stream orchestration entry. Pre-reserve validation stays synchronous; post-reserve turn runs in the background (`orchestrator_turn_launch` starts it, `orchestrator_turn_body` is the turn) so clients receive live SSE during pre-reply compact.
 """
 
 from __future__ import annotations
@@ -201,7 +202,7 @@ async def run_agent_stream(
             return agent_busy_streaming_response(request.message_id)
 
         buffer = await registry.get_or_create(request.message_id)
-        from app.services.agent.stream_session.orchestrator_turn_body import (
+        from app.services.agent.stream_session.orchestrator_turn_launch import (
             launch_early_buffered_stream,
         )
 
