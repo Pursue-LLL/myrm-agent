@@ -323,7 +323,6 @@ async def execute_repair_action(action_id: RepairActionId, request: RepairAction
                 message=f"Purge failed: {exc}",
             )
 
-
     if action_id != RepairActionId.CLEANUP_BROWSER_ORPHANS:
         return RepairActionExecuteResult(
             action_id=action_id,
@@ -360,7 +359,7 @@ async def execute_repair_action(action_id: RepairActionId, request: RepairAction
             details={"orphan_pids": orphan_pids},
         )
 
-    result = cleanup_orphan_processes(orphan_pids, force=not request.dry_run)
+    result = await asyncio.to_thread(cleanup_orphan_processes, orphan_pids, force=not request.dry_run)
     killed = int(result.get("killed", 0))
     return RepairActionExecuteResult(
         action_id=action_id,

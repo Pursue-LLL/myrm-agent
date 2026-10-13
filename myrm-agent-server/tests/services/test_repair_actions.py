@@ -314,6 +314,34 @@ async def test_execute_cleanup_browser_confirmed() -> None:
     mock_cleanup.assert_called_once_with([333], force=True)
 
 
+@pytest.mark.asyncio
+async def test_execute_cleanup_browser_runs_the_cleanup_off_the_event_loop() -> None:
+    """The cleanup waits for stubborn processes, so it must not run on the event-loop thread."""
+    import threading
+    from unittest.mock import patch
+
+    cleanup_threads: list[int] = []
+
+    def fake_cleanup(pids: list[int], *, force: bool) -> dict[str, object]:
+        cleanup_threads.append(threading.get_ident())
+        return {"killed": 1, "failed": []}
+
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.browser.find_orphan_automation_processes",
+            return_value=[{"pid": 333}],
+        ),
+        patch("myrm_agent_harness.toolkits.browser.cleanup_orphan_processes", side_effect=fake_cleanup),
+    ):
+        await execute_repair_action(
+            RepairActionId.CLEANUP_BROWSER_ORPHANS,
+            RepairActionExecuteRequest(dry_run=False, confirm=True),
+        )
+
+    assert cleanup_threads
+    assert cleanup_threads[0] != threading.get_ident()
+
+
 # ---------- RepairAction model fields ----------
 
 
@@ -879,4 +907,3 @@ async def test_execute_purge_orphan_sessions_confirmed_failure() -> None:
     assert result.changed is False
     assert result.dry_run is False
     assert "Purge failed: disk I/O error" in result.message
-
