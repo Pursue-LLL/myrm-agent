@@ -17446,7 +17446,7 @@
         "confidence": "Konfidenz {value}%",
         "testPassed": "Validierung bestanden",
         "testFailed": "Validierung fehlgeschlagen",
-        "verifiedBadge": "Verifiziert (Streak: {streak})",
+        "verifiedBadge": "Verifiziert",
         "hollowBlockedBadge": "Hohltest blockiert",
         "targetLayer": "Schicht: {layer}",
         "targetPathology": "Pathologie: {pathology}",

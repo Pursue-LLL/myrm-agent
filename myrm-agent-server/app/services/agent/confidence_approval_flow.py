@@ -1,7 +1,8 @@
 """Confidence-based Approval Flow for Skill Evolution.
 
 [INPUT]
-- myrm_agent_harness.agent.skills.evolution.core.types::EvolutionProposal (POS: 标准化进化提案数据结构)
+- myrm_agent_harness.agent.skills.evolution.core.types::EvolutionProposal, SkillRecord (POS: 标准化进化提案数据结构)
+- app.core.skills.curator.service::get_stats_collector, resolve_skill_path (POS: Curator 使用账本 .stats.json)
 - app.services.skills.evolution_reviews (POS: 统一的 evolution 审核生命周期服务)
 - app.services.skills.evolution_events::publish_skill_evolved_event (POS: SKILL_EVOLVED 前端刷新事件单一出口)
 [OUTPUT]
@@ -17,7 +18,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionProposal
+from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionProposal, SkillRecord
 
 if TYPE_CHECKING:
     from app.services.skills.evolution_reviews import RuntimeFailureEvidence
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 DIFF_CHANGE_THRESHOLD = 0.5
 EFFECTIVE_RATE_THRESHOLD = 0.5
-MIN_APPLIED_FOR_RATE_SIGNAL = 3
+MIN_OBSERVED_FOR_RATE_SIGNAL = 3
 
 
 @dataclass
@@ -58,7 +59,7 @@ class ConfidenceApprovalFlow:
         Auto-merge requires ALL conditions:
         1. score >= threshold AND is_general (existing LLM signals)
         2. diff change ratio <= 50% (prevents silent large-scale rewrites)
-        3. historical effective_rate >= 50% or insufficient data (prevents risky fixes on low-quality skills)
+        3. historical success rate over observed runs >= 50% or insufficient data (prevents risky fixes on low-quality skills)
         """
         from app.core.skills.store.evolution_store import get_evolution_skill_store
         from app.services.skills.evolution_reviews import (
@@ -183,7 +184,7 @@ class ConfidenceApprovalFlow:
     @staticmethod
     def _evaluate_risk_signals(
         proposal: EvolutionProposal,
-        skill_record: object | None,
+        skill_record: SkillRecord | None,
     ) -> list[str]:
         """Evaluate deterministic risk signals. Returns list of triggered signal names."""
         signals: list[str] = []
@@ -196,10 +197,21 @@ class ConfidenceApprovalFlow:
             if change_ratio > DIFF_CHANGE_THRESHOLD:
                 signals.append(f"diff_range:{change_ratio:.0%}")
 
-        # Signal 2: Historical effective rate — low-quality skills need human oversight
-        if skill_record is not None and hasattr(skill_record, "metrics"):
-            metrics = skill_record.metrics
-            if metrics.applied_count >= MIN_APPLIED_FOR_RATE_SIGNAL and metrics.effective_rate < EFFECTIVE_RATE_THRESHOLD:
-                signals.append(f"low_effective_rate:{metrics.effective_rate:.0%}({metrics.applied_count}runs)")
+        # Signal 2: Historical success rate — low-quality skills need human oversight
+        if skill_record is not None and (low_rate := _low_success_rate_signal(skill_record.name)):
+            signals.append(low_rate)
 
         return signals
+
+
+def _low_success_rate_signal(skill_name: str) -> str | None:
+    """Signal text when most observed runs of the skill failed, read from the Curator's usage ledger."""
+    from app.core.skills.curator.service import get_stats_collector, resolve_skill_path
+
+    skill_dir = resolve_skill_path(skill_name)
+    if skill_dir is None:
+        return None
+    stats = get_stats_collector().get_stats(skill_dir)
+    if stats.observed_count < MIN_OBSERVED_FOR_RATE_SIGNAL or stats.success_rate >= EFFECTIVE_RATE_THRESHOLD:
+        return None
+    return f"low_effective_rate:{stats.success_rate:.0%}({stats.observed_count}runs)"

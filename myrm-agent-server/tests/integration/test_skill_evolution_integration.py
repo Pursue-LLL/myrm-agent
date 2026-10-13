@@ -12,8 +12,6 @@ import pytest
 from myrm_agent_harness.agent.skills.evolution import (
     EvolutionIntegration,
     EvolutionType,
-    SkillLineage,
-    SkillRecord,
     enable_skill_evolution,
 )
 
@@ -109,55 +107,6 @@ def mock_llm():
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_evolution_integration_counts_failures_without_quarantine(temp_db, mock_llm):
-    """Recorded failures update the ledger but never deactivate or auto-repair the skill."""
-    # Initialize evolution system
-    evolution = EvolutionIntegration(
-        db_path=temp_db,
-        llm=mock_llm,
-        enable_background_queue=False,  # Immediate execution for testing
-    )
-
-    # Disable Guard for this test (to avoid patch length issues with MockLLM)
-    if evolution.engine:
-        evolution.engine._guard = None
-
-    # Create and save a failing skill
-    failing_skill = SkillRecord(
-        skill_id="test_failing_skill",
-        name="test_failing_skill",
-        description="Test failing skill",
-        content="def f():\n    raise ValueError('bug')\n",
-        path="/skills/test",
-        lineage=SkillLineage(
-            evolution_type=EvolutionType.CAPTURED,
-            version=1,
-        ),
-    )
-
-    await evolution.store.save_skill(failing_skill)
-
-    # Recording failures is counting only: no quarantine, no auto-triggered FIX.
-    for i in range(3):
-        await evolution.record_execution(
-            skill_id="test_failing_skill",
-            success=False,
-            error_message=f"Failure {i + 1}: RuntimeError",
-        )
-
-    skill = evolution.store.get_skill("test_failing_skill")
-    assert skill is not None
-    assert skill.is_active is True
-    assert skill.metrics.applied_count == 3
-    assert skill.metrics.success_count == 0
-    assert skill.metrics.consecutive_failures == 3
-
-    # Cleanup
-    await evolution.close()
-
-
-@pytest.mark.asyncio
-@pytest.mark.integration
 async def test_evolution_one_line_enablement(temp_db, mock_llm):
     """Test one-line evolution enablement."""
     # Verify the convenience function works
@@ -168,7 +117,6 @@ async def test_evolution_one_line_enablement(temp_db, mock_llm):
     )
 
     assert evolution.store is not None
-    assert evolution.tracker is not None
     assert evolution.engine is not None
 
     await evolution.close()
@@ -190,30 +138,6 @@ async def test_evolution_with_background_queue(temp_db, mock_llm):
 
     assert evolution.queue is not None
     assert evolution.queue._running
-
-    # Create failing skill
-    skill = SkillRecord(
-        skill_id="queue_test_skill",
-        name="queue_test_skill",
-        description="Test",
-        content="def test(): pass\n",
-        path="/skills/test",
-        lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED, version=1),
-    )
-    await evolution.store.save_skill(skill)
-
-    # Recording failures only counts; it never enqueues a repair.
-    queue_before = evolution.get_stats()["queue"]
-    for _ in range(3):
-        await evolution.record_execution(
-            skill_id="queue_test_skill",
-            success=False,
-            error_message="Test error",
-        )
-
-    stats = evolution.get_stats()
-    assert stats["queue"] == queue_before
-    assert "metrics" in stats
 
     # Cleanup
     await evolution.close()

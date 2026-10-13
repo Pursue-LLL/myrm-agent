@@ -96,7 +96,6 @@ app/api/security/router.py
 app/api/security/schemas.py
 app/api/security/vault_credentials.py
 app/api/skill_optimization/dependencies.py
-app/api/skill_optimization/metrics_provider.py
 app/api/skill_optimization/router.py
 app/api/skill_optimization/routes/ab_testing.py
 app/api/skill_optimization/routes/dashboard.py
@@ -279,7 +278,6 @@ app/services/skill_optimization/ab_test_manager.py
 app/services/skill_optimization/baseline_syncer.py
 app/services/skill_optimization/execution_provider.py
 app/services/skill_optimization/federated_extractor.py
-app/services/skill_optimization/metrics_provider.py
 app/services/skill_optimization/notification_service.py
 app/services/skill_optimization/reporter.py
 app/services/skill_optimization/rollback_service.py

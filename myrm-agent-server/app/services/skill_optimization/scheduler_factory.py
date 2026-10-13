@@ -18,7 +18,6 @@ async def create_optimization_scheduler() -> OptimizationScheduler | None:
     """创建OptimizationScheduler实例
 
     集成所有依赖：
-    - SkillStore (for evolution metrics)
     - ServerSkillExecutionProvider (for execution data)
     - QualityCalculator (for quality scoring)
     - SkillOptimizer (for LLM-driven optimization)
@@ -28,7 +27,6 @@ async def create_optimization_scheduler() -> OptimizationScheduler | None:
         OptimizationScheduler实例，如果初始化失败则返回None
     """
     try:
-        from myrm_agent_harness.agent.skills.evolution import SkillStore
         from myrm_agent_harness.agent.skills.optimization import (
             OptimizationConfig,
             OptimizationScheduler,
@@ -41,19 +39,10 @@ async def create_optimization_scheduler() -> OptimizationScheduler | None:
 
         from app.services.skill_optimization.bootstrap import init_skill_optimization_services
         from app.services.skill_optimization.execution_provider import ServerSkillExecutionProvider
-        from app.services.skill_optimization.metrics_provider import EvolutionMetricsProvider
-
-        skill_store = SkillStore()
 
         execution_provider = ServerSkillExecutionProvider()
 
-        metrics_provider = EvolutionMetricsProvider(skill_store)
-
-        quality_calculator = SkillQualityCalculator(
-            token_baseline=1000,
-            time_baseline=10.0,
-            metrics_provider=metrics_provider,
-        )
+        quality_calculator = SkillQualityCalculator(token_baseline=1000, time_baseline=10.0)
 
         config = OptimizationConfig()
 
@@ -127,7 +116,6 @@ async def create_optimization_scheduler() -> OptimizationScheduler | None:
             quality_calculator=quality_calculator,
             config=config,
             event_emitter=event_emitter,
-            metrics_provider=metrics_provider,
         )
 
         init_skill_optimization_services(

@@ -17446,7 +17446,7 @@
         "confidence": "신뢰도 {value}%",
         "testPassed": "검증 통과",
         "testFailed": "검증 실패",
-        "verifiedBadge": "인증됨 (Streak: {streak})",
+        "verifiedBadge": "인증됨",
         "hollowBlockedBadge": "빈 테스트 차단됨",
         "targetLayer": "대상 계층: {layer}",
         "targetPathology": "병리 특성: {pathology}",

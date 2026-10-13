@@ -3,7 +3,6 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionProposal,
     EvolutionType,
     SkillLineage,
-    SkillMetrics,
     SkillRecord,
 )
 from sqlalchemy import select
@@ -50,7 +49,6 @@ async def test_confidence_approval_flow_reject_creates_constraint():
         content="x",
         path="x",
         lineage=SkillLineage(evolution_type=EvolutionType.FIX),
-        metrics=SkillMetrics(),
     )
     try:
         await store.save_skill(dummy)

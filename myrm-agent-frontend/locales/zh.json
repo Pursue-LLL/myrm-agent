@@ -17446,7 +17446,7 @@
         "confidence": "置信度 {value}%",
         "testPassed": "验证通过",
         "testFailed": "验证失败",
-        "verifiedBadge": "已认证 (Streak: {streak})",
+        "verifiedBadge": "已认证",
         "hollowBlockedBadge": "空洞测试已拦截",
         "targetLayer": "架构层：{layer}",
         "targetPathology": "病理特征：{pathology}",

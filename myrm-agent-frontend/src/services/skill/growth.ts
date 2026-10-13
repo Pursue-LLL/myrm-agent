@@ -35,7 +35,6 @@ export interface RuntimeFailureEvidence {
 export interface VerificationProofDto {
   is_verified: boolean;
   hollow_detected: boolean;
-  success_streak: number;
   blast_radius?: { files: number; lines: number };
   verification_summary?: string;
   command_results?: Array<{ command?: string; success?: boolean; stdout?: string; stderr?: string }>;

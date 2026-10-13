@@ -272,7 +272,7 @@ export default function SkillGrowthCaseCard({
                 className="text-[11px] border-emerald-500/70 bg-emerald-50/50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 inline-flex items-center gap-1"
               >
                 <ShieldCheck className="h-3 w-3" />
-                {t('verifiedBadge', { streak: item.verificationProof.success_streak || 1 })}
+                {t('verifiedBadge')}
               </Badge>
             )}
             {item.targetLayer && (

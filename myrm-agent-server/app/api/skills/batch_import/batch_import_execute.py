@@ -37,6 +37,8 @@ from myrm_agent_harness.agent.skills.packaging import is_evals_file, parse_evals
 from .batch_import_helpers import _build_batch_import_error_detail
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
     from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
         HermesImportedSkill,
@@ -50,6 +52,8 @@ if TYPE_CHECKING:
     from .batch_import_schemas import ConfirmImportRequest
 
 logger = logging.getLogger(__name__)
+
+_USAGE_LEDGER_FILENAME = ".stats.json"
 
 
 async def execute_batch_import_confirm(
@@ -137,7 +141,7 @@ async def execute_batch_import_confirm(
             path = str(skill_dir / "SKILL.md")
 
             # replace 覆盖场景：继承 DB 中原回归门禁快照与全部演化元数据，
-            # 避免 INSERT OR REPLACE 整行覆盖清空 eval_cases、回退版本号、重置统计/禁用/锁定状态
+            # 避免 INSERT OR REPLACE 整行覆盖清空 eval_cases、回退版本号、重置禁用/锁定状态
             # （与单包导入 force 覆盖语义一致：仅内容/描述/门禁更新，演化元数据保留）
             inherited: SkillRecord | None = None
             inherited_eval_cases: list[dict[str, object]] = []
@@ -161,7 +165,6 @@ async def execute_batch_import_confirm(
                         created_by=inherited.lineage.created_by,
                         created_at=inherited.lineage.created_at,
                     ),
-                    metrics=inherited.metrics,
                     environment=inherited.environment,
                     created_at=inherited.created_at,
                     updated_at=datetime.now(),
@@ -225,6 +228,10 @@ async def execute_batch_import_confirm(
                 with open(target_path, "wb") as f:
                     f.write(file_content)
 
+            # 蓝绿切换会整目录替换：被覆盖技能的使用账本（成功率、固定、生命周期）随旧目录一起带到新目录
+            if inherited is not None:
+                _carry_over_usage_ledger(skill_dir, tmp_dir)
+
             # 记录蓝绿切换任务
             blue_green_tasks.append(
                 {
@@ -280,3 +287,10 @@ async def execute_batch_import_confirm(
         raise e
 
     return imported_count, skipped_count, restored_eval_cases
+
+
+def _carry_over_usage_ledger(skill_dir: Path, tmp_dir: Path) -> None:
+    """Copy the Curator usage ledger of the skill being replaced into its replacement directory."""
+    ledger = skill_dir / _USAGE_LEDGER_FILENAME
+    if ledger.is_file():
+        shutil.copy2(ledger, tmp_dir / _USAGE_LEDGER_FILENAME)

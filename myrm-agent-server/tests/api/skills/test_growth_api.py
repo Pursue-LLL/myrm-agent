@@ -213,7 +213,6 @@ async def test_skill_growth_case_includes_verification_proof(
     proof_data = {
         "is_verified": True,
         "hollow_detected": False,
-        "success_streak": 3,
         "blast_radius": {"files": 1, "lines": 25},
         "verification_summary": "Passed sandbox execution and anti-hollow validation",
     }
@@ -237,7 +236,6 @@ async def test_skill_growth_case_includes_verification_proof(
     assert data["skill_name"] == "verified-proof-draft"
     assert data["verification_proof"] is not None
     assert data["verification_proof"]["is_verified"] is True
-    assert data["verification_proof"]["success_streak"] == 3
     assert data["verification_proof"]["blast_radius"]["lines"] == 25
     assert data["target_layer"] == "prompt"
     assert data["target_pathology"] == "unhandled_exception"

@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from myrm_agent_harness.agent.skills.evolution import SkillStore
 from myrm_agent_harness.agent.skills.optimization.config import OptimizationConfig
 from myrm_agent_harness.agent.skills.optimization.event_emitter import EventEmitter
 from myrm_agent_harness.agent.skills.optimization.in_memory_storage import InMemoryStorage
@@ -13,7 +12,6 @@ from myrm_agent_harness.agent.skills.optimization.scheduler import OptimizationS
 from myrm_agent_harness.agent.skills.optimization.security import SkillSecurityValidator
 
 from app.api.skill_optimization.dependencies import init_skill_optimization_services
-from app.api.skill_optimization.metrics_provider import EvolutionMetricsProvider
 from app.api.skill_optimization.router import router as skill_optimization_router
 from app.services.skill_optimization.execution_provider import ServerSkillExecutionProvider
 
@@ -23,14 +21,8 @@ def app() -> FastAPI:
     app = FastAPI(title="Skill Optimization Test App")
 
     # Initialize in-memory dependencies
-    skill_store = SkillStore()
     execution_provider = ServerSkillExecutionProvider()
-    metrics_provider = EvolutionMetricsProvider(skill_store)
-    quality_calculator = SkillQualityCalculator(
-        token_baseline=1000,
-        time_baseline=10.0,
-        metrics_provider=metrics_provider,
-    )
+    quality_calculator = SkillQualityCalculator(token_baseline=1000, time_baseline=10.0)
     config = OptimizationConfig()
     security_validator = SkillSecurityValidator(config.security)
 
@@ -50,7 +42,6 @@ def app() -> FastAPI:
         quality_calculator=quality_calculator,
         config=config,
         event_emitter=event_emitter,
-        metrics_provider=metrics_provider,
     )
 
     storage = InMemoryStorage()

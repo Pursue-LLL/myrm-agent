@@ -11,7 +11,7 @@ import SkillGrowthCaseCard from '../SkillGrowthCaseCard';
 import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
 
 const TRANSLATIONS: Record<string, string> = {
-  'settings.skills.growth.verifiedBadge': 'Verified (Streak: 3)',
+  'settings.skills.growth.verifiedBadge': 'Verified',
   'settings.skills.growth.hollowBlockedBadge': 'Hollow Test Blocked',
   'settings.skills.growth.verificationProofTitle': 'Verified Capsule Proof',
   'settings.skills.growth.source.backgroundReview': 'Background Review',
@@ -19,9 +19,6 @@ const TRANSLATIONS: Record<string, string> = {
 };
 
 const stableT = (key: string, params?: Record<string, unknown>): string => {
-  if (key === 'verifiedBadge' && params?.streak) {
-    return `Verified (Streak: ${params.streak})`;
-  }
   if (key === 'blastRadius' && params) {
     return `Blast Radius: ${params.files} file(s), ${params.lines} line(s)`;
   }
@@ -90,7 +87,6 @@ describe('SkillGrowthCaseCard Verified Capsule Proof', () => {
       verificationProof: {
         is_verified: true,
         hollow_detected: false,
-        success_streak: 3,
         blast_radius: { files: 1, lines: 18 },
         verification_summary: 'Passed AST check and sandbox tests cleanly',
       },
@@ -106,7 +102,7 @@ describe('SkillGrowthCaseCard Verified Capsule Proof', () => {
       />,
     );
 
-    expect(screen.getByText('Verified (Streak: 3)')).toBeInTheDocument();
+    expect(screen.getByText('Verified')).toBeInTheDocument();
     expect(screen.getByText('Verified Capsule Proof')).toBeInTheDocument();
     expect(screen.getByText('Passed AST check and sandbox tests cleanly')).toBeInTheDocument();
     expect(screen.getByText('Blast Radius: 1 file(s), 18 line(s)')).toBeInTheDocument();
@@ -117,7 +113,6 @@ describe('SkillGrowthCaseCard Verified Capsule Proof', () => {
       verificationProof: {
         is_verified: false,
         hollow_detected: true,
-        success_streak: 0,
         blast_radius: { files: 1, lines: 5 },
         verification_summary: 'Hollow Test Rejected: Trivial assertion detected',
       },

@@ -7,6 +7,7 @@ import zipfile
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.skills.packaging import serialize_eval_cases
+from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 
 from app.api.skills.batch_import import router
 from app.api.skills.evolution.helpers import _get_skill_store
@@ -441,7 +442,7 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
     """replace 覆盖场景：必须继承原技能的演化元数据。
 
     语义：与单包导入 force 覆盖一致——replace 仅更新内容/描述/回归门禁，
-    版本号、禁用/锁定状态、演化统计与验证步骤均保留，不被整行覆盖重置。
+    版本号、禁用/锁定状态、使用账本（.stats.json）与验证步骤均保留，不被整行覆盖重置。
     """
     client = _make_client()
     skill_name = f"preserve-meta-{uuid.uuid4().hex[:8]}"
@@ -475,7 +476,7 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         "restored_eval_cases": 1,
     }
 
-    # Step 2: 模拟技能在演化系统中已积累元数据（v3、锁定、统计）
+    # Step 2: 模拟技能在演化系统中已积累元数据（v3、锁定、使用账本）
     # 注意：此处保持 is_active=True，禁用状态在 preview 通过后再设置（见 Step 3），
     # 因为批量导入冲突检测基于 get_active_skills（[batch_import.py:106]），
     # 禁用技能不会产生冲突，无法走 replace 路径。
@@ -486,10 +487,12 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         existing_skill_id = original.skill_id
         original.lineage.version = 3
         original.evolution_locked = True
-        original.metrics.applied_count = 1
-        original.metrics.success_count = 1
         original.verification_steps.append({"step": "run", "expected": "ok"})
         store._save_skill_sync(original)  # noqa: SLF001 - harness 同步落盘入口，避免引入 event loop
+        skill_dir = store.db_path.parent / "skills" / existing_skill_id
+        collector = SkillStatsCollector(skill_dir.parent)
+        collector.record_use(skill_dir, success=True)
+        collector.flush()
     finally:
         reset_evolution_skill_store()
 
@@ -544,8 +547,8 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         assert replaced.lineage.version == 3
         assert replaced.is_active is False
         assert replaced.evolution_locked is True
-        assert replaced.metrics.applied_count == 1
-        assert replaced.metrics.success_count == 1
+        replaced_stats = SkillStatsCollector(skill_dir.parent).get_stats(skill_dir)
+        assert (replaced_stats.call_count, replaced_stats.success_count) == (1, 1)
         assert replaced.verification_steps == [{"step": "run", "expected": "ok"}]
         assert len(replaced.eval_cases) == 1
         assert replaced.eval_cases[0]["message"] == "sum 1 and 2"

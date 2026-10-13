@@ -26,7 +26,6 @@ Agent 技能自动优化服务。包含观测（A/B 测试 + 影子执行）、�
 | `scheduler.py` | 调度器 | 优化任务调度 | ✅ |
 | `scheduler_factory.py` | 工厂 | 调度器创建工厂 | ✅ |
 | `bootstrap.py` | 核心 | 单例注册 + `get_skill_optimization_storage()`（API/services 共用） | ✅ |
-| `metrics_provider.py` | 核心 | Evolution 漏斗指标提供者（`EvolutionMetricsProvider`） | ✅ |
 | `reporter.py` | 报告 | 优化报告生成 | ✅ |
 | `telemetry_pusher.py` | 遥测 | 遥测数据推送 | ✅ |
 | `time_estimator.py` | 估算器 | 优化时间估算 | ✅ |

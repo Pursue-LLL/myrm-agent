@@ -9,7 +9,6 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionProposal,
     EvolutionType,
     SkillLineage,
-    SkillMetrics,
     SkillRecord,
 )
 from sqlalchemy import delete, select
@@ -128,7 +127,6 @@ async def test_low_confidence_evolution_creates_pending_ledger_event() -> None:
         content="def foo(): return 2",
         path="/tmp/ledger_skill.md",
         lineage=SkillLineage(evolution_type=EvolutionType.FIX, change_summary="Fix with ledger"),
-        metrics=SkillMetrics(),
     )
 
     from datetime import datetime

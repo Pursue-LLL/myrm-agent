@@ -3,16 +3,15 @@
 Covers:
 - diff change ratio signal (large rewrites trigger red flag)
 - historical effective rate signal (low-quality skills need human oversight)
-- the execution ledger fed by real tool-call outcomes drives that signal end to end
+- the usage ledger fed by real tool-call outcomes drives that signal end to end
 - CAPTURED type edge case (empty original_content)
 - risk_signals field in ApprovalResult
 - combined conditions (LLM signals + risk signals)
 """
 
-import asyncio
+from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 import pytest
 from myrm_agent_harness.agent.middlewares.tooling._skill_failure_tracking import track_skill_execution
@@ -21,14 +20,15 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionProposal,
     EvolutionType,
     SkillLineage,
-    SkillMetrics,
     SkillRecord,
 )
-from myrm_agent_harness.agent.skills.evolution.infra.integration import (
-    EvolutionIntegration,
-    set_global_evolution_integration,
-)
 from myrm_agent_harness.backends.skills.types import SkillMetadata
+from myrm_agent_harness.backends.skills.usage_recorder import (
+    begin_skill_run_usage,
+    commit_skill_run_usage,
+    flush_skill_usage_stats,
+    set_stats_collector,
+)
 
 from app.services.agent.confidence_approval_flow import (
     ConfidenceApprovalFlow,
@@ -55,6 +55,66 @@ def _make_proposal(
         is_general=is_general,
         created_at=None,
     )
+
+
+class _SkillLedger:
+    """Runs recorded through the real run-usage pipeline into the Curator's ``.stats.json`` ledger."""
+
+    def __init__(self, skills_root: Path) -> None:
+        self._skills_root = skills_root
+
+    def record_runs(self, skill_name: str, outcomes: list[bool]) -> SkillRecord:
+        """One run per outcome: the only loaded skill executes one tool call that succeeds or fails."""
+        skill_dir = self._skills_root / skill_name
+        skill_dir.mkdir(exist_ok=True)
+        for index, success in enumerate(outcomes):
+            begin_skill_run_usage()
+            reset_loaded_skills()
+            add_loaded_skill(
+                SkillMetadata(
+                    name=skill_name,
+                    description=skill_name,
+                    storage_skill_id=f"{skill_name}-id",
+                    storage_path=str(skill_dir),
+                )
+            )
+            track_skill_execution(
+                "browser_interact_tool",
+                tool_call_id=f"call-{index}",
+                tool_args={},
+                success=success,
+                error_message="" if success else "Timeout: selector #pay was not found",
+            )
+            commit_skill_run_usage()
+        reset_loaded_skills()
+        flush_skill_usage_stats()
+        return SkillRecord(
+            skill_id=f"{skill_name}-id",
+            name=skill_name,
+            description=skill_name,
+            content="steps",
+            path=str(skill_dir / "SKILL.md"),
+            lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED),
+        )
+
+
+@pytest.fixture
+def skill_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[_SkillLedger]:
+    """Isolated skills root with the Curator service singletons pointed at it."""
+    import app.core.skills.curator.service as curator_service
+    import app.core.skills.models as models_mod
+
+    skills_root = tmp_path / "skills"
+    skills_root.mkdir()
+    monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(skills_root)])
+    monkeypatch.setattr(curator_service, "DEFAULT_LOCAL_SKILL_PATHS", [str(skills_root)])
+    monkeypatch.setattr("myrm_agent_harness.runtime.events.get_event_bus", lambda: SimpleNamespace(publish=lambda _event: None))
+    curator_service._stats_collector = None
+    curator_service.get_stats_collector()
+    yield _SkillLedger(skills_root)
+    curator_service._stats_collector = None
+    set_stats_collector(None)
+    reset_loaded_skills()
 
 
 class TestEvaluateRiskSignals:
@@ -89,25 +149,30 @@ class TestEvaluateRiskSignals:
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
         assert not any("diff_range" in s for s in signals)
 
-    def test_low_effective_rate_triggers_signal(self) -> None:
-        proposal = _make_proposal()
-        skill_record = MagicMock()
-        skill_record.metrics = SkillMetrics(total_selections=10, applied_count=5, completed_count=5, success_count=1)
-        signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, skill_record)
+    def test_low_effective_rate_triggers_signal(self, skill_ledger: _SkillLedger) -> None:
+        skill_record = skill_ledger.record_runs("weak_skill", [True] + [False] * 4)
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(_make_proposal(), skill_record)
         assert any("low_effective_rate" in s for s in signals)
 
-    def test_high_effective_rate_no_signal(self) -> None:
-        proposal = _make_proposal()
-        skill_record = MagicMock()
-        skill_record.metrics = SkillMetrics(total_selections=10, applied_count=5, completed_count=5, success_count=4)
-        signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, skill_record)
+    def test_high_effective_rate_no_signal(self, skill_ledger: _SkillLedger) -> None:
+        skill_record = skill_ledger.record_runs("strong_skill", [True] * 4 + [False])
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(_make_proposal(), skill_record)
         assert not any("low_effective_rate" in s for s in signals)
 
-    def test_insufficient_data_skips_rate_signal(self) -> None:
-        proposal = _make_proposal()
-        skill_record = MagicMock()
-        skill_record.metrics = SkillMetrics(total_selections=2, applied_count=2, completed_count=2, success_count=0)
-        signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, skill_record)
+    def test_insufficient_data_skips_rate_signal(self, skill_ledger: _SkillLedger) -> None:
+        skill_record = skill_ledger.record_runs("new_skill", [False, False])
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(_make_proposal(), skill_record)
+        assert not any("low_effective_rate" in s for s in signals)
+
+    def test_skill_without_a_usage_ledger_skips_rate_signal(self, skill_ledger: _SkillLedger) -> None:
+        skill_record = skill_ledger.record_runs("unused_skill", [])
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(_make_proposal(), skill_record)
+        assert not any("low_effective_rate" in s for s in signals)
+
+    def test_skill_missing_from_the_skill_roots_skips_rate_signal(self, skill_ledger: _SkillLedger) -> None:
+        skill_record = skill_ledger.record_runs("moved_skill", [False] * 5)
+        skill_record.name = "not_on_disk"
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(_make_proposal(), skill_record)
         assert not any("low_effective_rate" in s for s in signals)
 
     def test_none_skill_record_no_rate_signal(self) -> None:
@@ -115,10 +180,9 @@ class TestEvaluateRiskSignals:
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
         assert not any("low_effective_rate" in s for s in signals)
 
-    def test_combined_signals(self) -> None:
+    def test_combined_signals(self, skill_ledger: _SkillLedger) -> None:
         proposal = _make_proposal(original="short", proposed="very long " * 100)
-        skill_record = MagicMock()
-        skill_record.metrics = SkillMetrics(total_selections=10, applied_count=5, completed_count=5, success_count=1)
+        skill_record = skill_ledger.record_runs("weak_skill", [True] + [False] * 4)
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, skill_record)
         assert any("diff_range" in s for s in signals)
         assert any("low_effective_rate" in s for s in signals)
@@ -133,47 +197,13 @@ class TestEvaluateRiskSignals:
         pytest.param([False] * 2, [], id="too_few_runs"),
     ],
 )
-@pytest.mark.asyncio
-async def test_tool_call_outcomes_feed_the_low_effective_rate_signal(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    outcomes: list[bool],
-    expected_signals: list[str],
+def test_run_outcomes_feed_the_low_effective_rate_signal(
+    skill_ledger: _SkillLedger, outcomes: list[bool], expected_signals: list[str]
 ) -> None:
-    """Real tool-call outcomes of the only loaded skill reach the approval flow's rate signal."""
-    monkeypatch.setattr("myrm_agent_harness.runtime.events.get_event_bus", lambda: SimpleNamespace(publish=lambda _event: None))
-    evolution = EvolutionIntegration(db_path=tmp_path / "skills.db")
-    await evolution.store.save_skill(
-        SkillRecord(
-            skill_id="skill-1",
-            name="checkout_skill",
-            description="Complete checkout workflow.",
-            content="steps",
-            path="skills/checkout_skill/SKILL.md",
-            lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED),
-        )
-    )
-    set_global_evolution_integration(evolution)
-    reset_loaded_skills()
-    add_loaded_skill(SkillMetadata(name="checkout_skill", description="Complete checkout workflow.", storage_skill_id="skill-1"))
-    try:
-        for index, success in enumerate(outcomes):
-            track_skill_execution(
-                "browser_interact_tool",
-                tool_call_id=f"call-{index}",
-                tool_args={},
-                success=success,
-                error_message="" if success else "Timeout: selector #pay was not found",
-            )
-        await asyncio.gather(*(task for task in asyncio.all_tasks() if task is not asyncio.current_task()))
+    """Real tool-call outcomes of the only loaded skill reach the approval flow's rate signal through the ledger."""
+    skill_record = skill_ledger.record_runs("checkout_skill", outcomes)
 
-        signals = ConfidenceApprovalFlow._evaluate_risk_signals(
-            _make_proposal(skill_id="skill-1"), evolution.store.get_skill("skill-1")
-        )
-    finally:
-        reset_loaded_skills()
-        set_global_evolution_integration(None)
-        await evolution.close()
+    signals = ConfidenceApprovalFlow._evaluate_risk_signals(_make_proposal(skill_id="checkout_skill-id"), skill_record)
 
     assert signals == expected_signals
 
