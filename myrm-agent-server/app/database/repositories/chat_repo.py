@@ -5,7 +5,8 @@ app.database.models::Chat, Message (POS: 会话与消息域模型。管理聊天
 app.database.repositories.chat_message_search_repo::ChatMessageSearchRepository (POS: 聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略)
 
 [OUTPUT]
-ChatRepository: Chat/Message CRUD, FTS5 message search, compaction CAS and sibling branch persistence.
+ChatRepository: Chat/Message CRUD, FTS5 message search, compaction CAS, sibling branch persistence and routing tier
+history reads (momentum window, tier of the latest user turn).
 SiblingDetail: Sibling branch query DTO.
 
 [POS]
@@ -70,6 +71,12 @@ def _answers_of_turn(chat_id: str, last_user: MessageDTO) -> ColumnElement[bool]
         (Message.created_at > last_user.created_at)
         | ((Message.created_at == last_user.created_at) & (Message.id > last_user.id)),
     )
+
+
+def _recorded_routing_tier(extra: object) -> str | None:
+    """The `routingTier` string persisted in a message's `extra_data`, None when it holds none."""
+    tier = extra.get("routingTier") if isinstance(extra, dict) else None
+    return tier if isinstance(tier, str) else None
 
 
 class ChatRepository:
@@ -512,13 +519,8 @@ class ChatRepository:
             .limit(limit)
         )
         rows: Sequence[object] = result.scalars().all()
-        tiers: list[str] = []
-        for extra in reversed(rows):
-            if isinstance(extra, dict):
-                tier = extra.get("routingTier")
-                if isinstance(tier, str):
-                    tiers.append(tier)
-        return tiers
+        recorded = (_recorded_routing_tier(extra) for extra in reversed(rows))
+        return [tier for tier in recorded if tier is not None]
 
     @staticmethod
     async def get_last_turn_routing_tier(db: AsyncSession, chat_id: str) -> str | None:
@@ -537,11 +539,7 @@ class ChatRepository:
             .order_by(Message.created_at.desc(), Message.id.desc())
         )
         rows: Sequence[object] = result.scalars().all()
-        for extra in rows:
-            tier = extra.get("routingTier") if isinstance(extra, dict) else None
-            if isinstance(tier, str):
-                return tier
-        return None
+        return next((tier for tier in map(_recorded_routing_tier, rows) if tier is not None), None)
 
     # ── Pinned Threads ──────────────────────────────────────────────
 
