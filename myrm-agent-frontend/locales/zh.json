@@ -13531,17 +13531,6 @@
       "sandbox": "沙箱运行时"
     }
   },
-  "continualOverlay": {
-    "activeTitle": "自愈防护活跃",
-    "remainingTurns": "{count, plural, =1 {剩余 1 轮} other {剩余 # 轮}}",
-    "rollbackTooltip": "回滚至触发前状态",
-    "rollback": "回滚",
-    "collapse": "收起",
-    "expand": "展开",
-    "howItWorks": "自愈防护运作机制",
-    "howItWorksDesc": "当检测到环境或执行异常时，系统会自动注入自愈层并在后续轮次持续监控，直到状态完全恢复稳定。",
-    "allActiveOverlays": "全部生效中的防护层 ({count})"
-  },
   "taskSpaces": {
     "title": "任务浏览器沙箱",
     "badgeRunning": "运行中",

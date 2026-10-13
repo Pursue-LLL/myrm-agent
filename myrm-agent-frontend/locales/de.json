@@ -13463,17 +13463,6 @@
       "sandbox": "Sicherheits-Sandbox"
     }
   },
-  "continualOverlay": {
-    "activeTitle": "Aktives Overlay",
-    "remainingTurns": "{count, plural, =1 {1 Runde verbleibend} other {# Runden verbleibend}}",
-    "rollbackTooltip": "Dieses Sitzungs-Overlay zurücksetzen",
-    "rollback": "Zurücksetzen",
-    "collapse": "Einklappen",
-    "expand": "Ausklappen",
-    "howItWorks": "Funktionsweise",
-    "howItWorksDesc": "Overlays bieten eine unterbrechungsfreie Fehlerbehebung, sind für ein festgelegtes Rundenbudget aktiv und werden danach nahtlos deaktiviert.",
-    "allActiveOverlays": "Alle aktiven Overlays ({count})"
-  },
   "taskSpaces": {
     "title": "Parallele Browser-Arbeitsbereiche",
     "badgeRunning": "Aktiv",

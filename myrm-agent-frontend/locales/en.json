@@ -13531,17 +13531,6 @@
       "sandbox": "Sandbox"
     }
   },
-  "continualOverlay": {
-    "activeTitle": "Active Overlay",
-    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
-    "rollbackTooltip": "Rollback this session overlay",
-    "rollback": "Rollback",
-    "collapse": "Collapse",
-    "expand": "Expand",
-    "howItWorks": "How It Works",
-    "howItWorksDesc": "Overlays provide zero-reset fault recovery, active for a set turn budget and smoothly retiring afterwards.",
-    "allActiveOverlays": "All Active Overlays ({count})"
-  },
   "taskSpaces": {
     "title": "Parallel Browser Spaces",
     "badgeRunning": "Running",

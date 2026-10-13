@@ -13463,17 +13463,6 @@
       "sandbox": "沙箱執行"
     }
   },
-  "continualOverlay": {
-    "activeTitle": "活躍對話覆蓋層",
-    "remainingTurns": "{count, plural, =1 {剩餘 1 輪} other {剩餘 # 輪}}",
-    "rollbackTooltip": "回滾此對話覆蓋層",
-    "rollback": "回滾",
-    "collapse": "收起",
-    "expand": "展開",
-    "howItWorks": "運行機制",
-    "howItWorksDesc": "對話覆蓋層提供零重置故障恢復，在指定輪次預算內自動生效並在到期後平滑撤出。",
-    "allActiveOverlays": "全部活躍覆蓋層 ({count})"
-  },
   "taskSpaces": {
     "title": "並行瀏覽器任務空間",
     "badgeRunning": "執行中",

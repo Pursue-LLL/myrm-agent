@@ -115,11 +115,6 @@ const PetOverlay = dynamic(() => import('../companion/sprite/PetOverlay'), { ssr
 
 const PetPalette = dynamic(() => import('../companion/PetPalette'), { ssr: false });
 
-const ContinualOverlayWatcher = dynamic(
-  () => import('./ContinualOverlayWatcher').then((m) => ({ default: m.ContinualOverlayWatcher })),
-  { ssr: false },
-);
-
 const PreferenceRadarToggle = dynamic(
   () => import('./PreferenceRadarToggle').then((m) => ({ default: m.PreferenceRadarToggle })),
   { ssr: false },
@@ -210,7 +205,6 @@ export default function ChatWindowSatellites({
           <PetPalette />
         </>
       ) : null}
-      {chatId ? <ContinualOverlayWatcher chatId={chatId} /> : null}
       <ContextFootprintInspector
         open={isContextInspectorOpen}
         onClose={() => setIsContextInspectorOpen(false)}

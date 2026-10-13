@@ -13463,17 +13463,6 @@
       "sandbox": "샌드박스"
     }
   },
-  "continualOverlay": {
-    "activeTitle": "활성 오버레이",
-    "remainingTurns": "{count, plural, =1 {1턴 남음} other {#턴 남음}}",
-    "rollbackTooltip": "이 세션 오버레이 롤백",
-    "rollback": "롤백",
-    "collapse": "접기",
-    "expand": "펼치기",
-    "howItWorks": "작동 원리",
-    "howItWorksDesc": "오버레이는 제로 리셋 장애 복구를 제공하며 지정된 턴 예산 내에서 자동으로 적용되고 만료 후 정상적으로 종료됩니다.",
-    "allActiveOverlays": "모든 활성 오버레이 ({count})"
-  },
   "taskSpaces": {
     "title": "병렬 브라우저 작업 공간",
     "badgeRunning": "실행 중",
