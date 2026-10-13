@@ -1,28 +1,33 @@
 /**
- * Resending a user bubble: retrying a failed send and editing a sent message.
+ * Retrying a user bubble whose send failed.
  *
- * Real scenarios: the connection drops while sending a message with a PDF attached and the user clicks Retry; the
- * user edits a question after a minute and the request is refused. The retry must carry the PDF the bubble shows
- * (not whatever the user staged for the next message), and a request the agent does not take must hand the text
- * back to the composer instead of losing it together with the replaced bubble. When the user has already started
- * the next message, the composer stays as it is and the text stays reachable through the input history.
+ * Real scenario: the connection drops while sending a message with a PDF attached and the user clicks Retry. The
+ * retry must carry the PDF the bubble shows (not whatever the user staged for the next message), and a request the
+ * agent does not take must hand the text back to the composer instead of losing it together with the replaced
+ * bubble. When the user has already started the next message, the composer stays as it is and the text stays
+ * reachable through the input history.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { addInputHistory } from '@/hooks/message-input/useInputHistory';
-import { truncateAfterMessage } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
-import type { ChatState, File as ChatFile, Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
-import { resendEditedUserMessage, retryFailedUserMessage } from '../userMessageResend';
+import { retryFailedUserMessage } from '../userMessageResend';
+import {
+  REPORT_PDF,
+  STAGED_PNG,
+  agentConfig,
+  bubble,
+  composer,
+  failedBubble,
+  resetResendWorld,
+  sendMessage,
+  sentRequest,
+  transcript,
+} from './userMessageResendTestKit';
 
 vi.mock('@/hooks/message-input/useInputHistory', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/hooks/message-input/useInputHistory')>();
   return { ...actual, addInputHistory: vi.fn() };
-});
-
-vi.mock('@/services/chat', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/services/chat')>();
-  return { ...actual, truncateAfterMessage: vi.fn() };
 });
 
 vi.mock('@/services/i18nToastService', async (importOriginal) => {
@@ -30,66 +35,9 @@ vi.mock('@/services/i18nToastService', async (importOriginal) => {
   return { ...actual, showI18nToast: vi.fn() };
 });
 
-const CHAT_ID = 'chat-resend';
-const REPORT_PDF: ChatFile = {
-  id: 'f-report',
-  fileName: 'report.pdf',
-  fileExtension: 'pdf',
-  fileType: 'uploaded',
-  fileUrl: 'https://files.test/f-report',
-};
-const STAGED_PNG: ChatFile = {
-  id: 'f-staged',
-  fileName: 'staged.png',
-  fileExtension: 'png',
-  fileType: 'uploaded',
-  fileUrl: 'https://files.test/f-staged',
-};
-
-function bubble(role: Message['role'], messageId: string, content: string, extra: Partial<Message> = {}): Message {
-  return { messageId, chatId: CHAT_ID, role, content, createdAt: new Date(), ...extra } as Message;
-}
-
-const sendMessage = vi.fn<ChatState['sendMessage']>();
-const SENT_CONTENT = 0;
-const SENT_ATTACHMENTS = 8;
-
-const sentRequest = () => {
-  const call = sendMessage.mock.calls[0];
-  return { content: call[SENT_CONTENT], attachments: call[SENT_ATTACHMENTS] };
-};
-const transcript = () => useChatStore.getState().messages.map((m) => m.messageId);
-const composer = () => {
-  const { inputMessage, files, pendingExplicitSkillActivation } = useChatStore.getState();
-  return { inputMessage, files, pendingExplicitSkillActivation };
-};
 const busyError = () => Object.assign(new Error('Agent is busy'), { name: 'AgentBusyError' });
-const agentConfig = (agentId: string) => ({ agentId }) as NonNullable<ChatState['agentConfig']>;
 
-const failedBubble = bubble('user', 'r-2', 'summarize the report\n<current_datetime>2026-10-13</current_datetime>', {
-  sendFailed: true,
-  files: [REPORT_PDF],
-});
-
-beforeEach(() => {
-  sendMessage.mockReset();
-  sendMessage.mockResolvedValue(true);
-  vi.mocked(truncateAfterMessage).mockReset();
-  vi.mocked(truncateAfterMessage).mockResolvedValue({} as Awaited<ReturnType<typeof truncateAfterMessage>>);
-  vi.mocked(showI18nToast).mockReset();
-  vi.mocked(addInputHistory).mockReset();
-  vi.spyOn(console, 'error').mockImplementation(() => {});
-  useChatStore.setState({
-    chatId: CHAT_ID,
-    messages: [bubble('user', 'r-1', 'hello'), bubble('assistant', 'r-1', 'hi there'), failedBubble],
-    inputMessage: '',
-    files: [],
-    pendingExplicitSkillActivation: null,
-    incognitoMode: false,
-    agentConfig: null,
-    sendMessage,
-  });
-});
+beforeEach(resetResendWorld);
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -245,110 +193,5 @@ describe('retryFailedUserMessage', () => {
     expect(options).toMatchObject({ descriptionKey: 'chat.messageFailed.generic', type: 'error' });
     expect(options).not.toHaveProperty('descriptionValues');
     expect(console.error).toHaveBeenCalledWith(expect.any(String), failure);
-  });
-});
-
-describe('resendEditedUserMessage', () => {
-  it('cuts the history at the edited bubble, then sends the edited text like a normal message', async () => {
-    const edited = bubble('user', 'r-2', 'summarize the report', { files: [REPORT_PDF] });
-
-    await resendEditedUserMessage(CHAT_ID, edited, 2, 'summarize only chapter 3');
-
-    expect(truncateAfterMessage).toHaveBeenCalledWith(CHAT_ID, 'r-2');
-    expect(vi.mocked(truncateAfterMessage).mock.invocationCallOrder[0]).toBeLessThan(
-      sendMessage.mock.invocationCallOrder[0],
-    );
-    expect(transcript()).toEqual(['r-1', 'r-1']);
-    // Like any normal send, the request takes the composer's own attachments, not those of the replaced bubble.
-    expect(sentRequest()).toEqual({ content: 'summarize only chapter 3', attachments: undefined });
-  });
-
-  it('keeps the explicit skill activation of the original message', async () => {
-    const edited = bubble('user', 'r-2', '[use writer_skill] [instruction: formal tone] draft the memo');
-
-    await resendEditedUserMessage(CHAT_ID, edited, 2, 'draft the memo for finance');
-
-    expect(sentRequest().content).toBe('[use writer_skill] [instruction: formal tone] draft the memo for finance');
-  });
-
-  it('hands the edited text, not the original, and the composer attachments it took back when the agent did not take it', async () => {
-    useChatStore.setState({ files: [STAGED_PNG] });
-    sendMessage.mockImplementation(async () => {
-      // A request that settles without a turn clears the composer attachments it took.
-      useChatStore.setState({ files: [] });
-      return false;
-    });
-    const edited = bubble('user', 'r-2', 'summarize the report', { files: [REPORT_PDF] });
-
-    await resendEditedUserMessage(CHAT_ID, edited, 2, 'summarize only chapter 3');
-
-    expect(composer()).toEqual({
-      inputMessage: 'summarize only chapter 3',
-      files: [STAGED_PNG],
-      pendingExplicitSkillActivation: null,
-    });
-  });
-
-  it('keeps the edited text, without its skill wrapper, in the input history when the composer moved on', async () => {
-    sendMessage.mockImplementation(async () => {
-      useChatStore.setState({ inputMessage: 'another idea' });
-      return false;
-    });
-    const edited = bubble('user', 'r-2', '[use writer_skill] [instruction: formal tone] draft the memo');
-
-    await resendEditedUserMessage(CHAT_ID, edited, 2, 'draft the memo for finance');
-
-    expect(composer().inputMessage).toBe('another idea');
-    expect(addInputHistory).toHaveBeenCalledTimes(1);
-    expect(addInputHistory).toHaveBeenCalledWith('draft the memo for finance', undefined);
-  });
-
-  describe('when the user opens another chat while the server cuts the history', () => {
-    const OTHER_CHAT = [bubble('user', 'o-1', 'other question'), bubble('assistant', 'o-1', 'other answer')];
-    const edited = bubble('user', 'r-2', 'summarize the report');
-
-    /** Starts the edit, lets the user open another chat while the cut is in flight, then finishes the cut. */
-    const editWhileLeaving = async (otherChat: Partial<ChatState> = {}) => {
-      let finishCut: () => void = () => {};
-      vi.mocked(truncateAfterMessage).mockReturnValue(
-        new Promise((resolve) => {
-          finishCut = () => resolve({} as Awaited<ReturnType<typeof truncateAfterMessage>>);
-        }),
-      );
-      const pending = resendEditedUserMessage(CHAT_ID, edited, 2, 'summarize only chapter 3');
-      useChatStore.setState({ chatId: 'chat-other', messages: OTHER_CHAT, ...otherChat });
-      finishCut();
-      await pending;
-    };
-
-    it('neither cuts nor sends into that chat and keeps the edited text reachable', async () => {
-      useChatStore.setState({ agentConfig: agentConfig('agent-7') });
-
-      await editWhileLeaving({ agentConfig: agentConfig('agent-9') });
-
-      expect(sendMessage).not.toHaveBeenCalled();
-      expect(transcript()).toEqual(['o-1', 'o-1']);
-      expect(addInputHistory).toHaveBeenCalledTimes(1);
-      expect(addInputHistory).toHaveBeenCalledWith('summarize only chapter 3', 'agent-7');
-    });
-
-    it('tells the user that the edit was not sent', async () => {
-      await editWhileLeaving();
-
-      expect(showI18nToast).toHaveBeenCalledTimes(1);
-      expect(showI18nToast).toHaveBeenCalledWith(
-        'chat.messageFailed.title',
-        undefined,
-        expect.objectContaining({ descriptionKey: 'chat.messageFailed.generic', type: 'error' }),
-      );
-    });
-
-    it('records nothing when the edited chat is incognito', async () => {
-      useChatStore.setState({ incognitoMode: true });
-
-      await editWhileLeaving({ incognitoMode: false });
-
-      expect(addInputHistory).not.toHaveBeenCalled();
-    });
   });
 });

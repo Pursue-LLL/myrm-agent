@@ -2324,7 +2324,7 @@
     "messageFailed": {
       "title": "傳送失敗",
       "description": "訊息傳送失敗: {error}",
-      "networkError": "服務連線中斷，請檢查後端服務狀態後重新整理頁面重試",
+      "networkError": "連線中斷，訊息可能未送達。請檢查網路後重試",
       "generic": "訊息未能傳送，請稍後重試"
     },
     "sendBlocked": {

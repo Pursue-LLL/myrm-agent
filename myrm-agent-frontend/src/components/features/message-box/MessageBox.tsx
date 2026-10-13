@@ -424,7 +424,7 @@ const MessageBox = ({
         return;
       }
       setEditingMessageId(null);
-      void resendEditedUserMessage(chatId, message, messageIndex, newContent);
+      void resendEditedUserMessage(chatId, message, newContent);
     };
 
     const handleCancelEdit = () => setEditingMessageId(null);

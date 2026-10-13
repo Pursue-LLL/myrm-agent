@@ -58,8 +58,10 @@
 | `SessionRecordingCard.tsx` | 组件 | 会话录制视频回放卡片（HTML5 video player） | ✅ |
 | `McpAppSection.tsx` | 组件 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | ✅ |
 | `UserMessage.tsx` | 核心 | 用户消息气泡：附件预览、编辑重发、Rewind、Fork；移动端动作常显 | ✅ |
-| `userMessageResend.ts` | 辅助 | 用户气泡重发流程（`MessageBox` 的失败重试与编辑重发委托于此）：失败重试携带气泡自身附件（空列表使输入框已暂存的文件不被带入），编辑重发与普通发送一样使用输入框当前附件；请求未被 agent 接收（被拒 / busy / 轮次前失败）时把文本、所带附件与技能 chip 还原到输入框；输入框已被用户使用或已切换到其他聊天时不覆盖，文本改记入请求所属聊天的 Agent 输入历史（隐身会话不记录）；编辑重发若在服务端截断期间离开该聊天则放弃发送，文本记入输入历史并提示用户 | ✅ |
-| `__tests__/userMessageResend.test.ts` | 测试 | 失败重试携带自身附件且不继承输入框文件、编辑重发先截断历史再按普通发送、未送达时还原文本/附件/技能 chip、输入框被占用或已切换聊天时按所属聊天的 Agent 与隐身状态记入输入历史、截断期间离开聊天的编辑不发送且提示用户、busy 与意外失败提示 | ✅ |
+| `userMessageResend.ts` | 辅助 | 用户气泡重发流程（`MessageBox` 的失败重试与编辑重发委托于此）：失败重试携带气泡自身附件（空列表使输入框已暂存的文件不被带入），编辑重发与普通发送一样使用输入框当前附件；请求未被 agent 接收（被拒 / busy / 轮次前失败）时把文本、所带附件与技能 chip 还原到输入框；输入框已被用户使用或已切换到其他聊天时不覆盖，文本改记入请求所属聊天的 Agent 输入历史（隐身会话不记录）；编辑重发先让服务端截断历史再替换转录：截断失败（服务端不存在的聊天无可截断，除外）、截断期间离开该聊天 / 已有新一轮开始 / 被编辑的气泡已消失时放弃发送，文本还原到输入框（输入框被占用则记入输入历史）并提示用户，转录保持原样；被编辑的气泡按消息 id 重新定位（加载更早消息后下标已失效）；同一时刻只处理一次编辑，其间再提交的编辑被拒绝并保留文本 | ✅ |
+| `__tests__/userMessageResend.test.ts` | 测试 | 失败重试携带自身附件且不继承输入框文件、未送达时还原文本/附件/技能 chip、输入框被占用或已切换聊天时按所属聊天的 Agent 与隐身状态记入输入历史、busy 与意外失败提示 | ✅ |
+| `__tests__/userMessageResend.edit.test.ts` | 测试 | 编辑重发先截断历史再按普通发送并保留技能激活；截断失败（断网 / 服务端错误）时转录不变、文本还原到输入框，服务端不存在的聊天或消息无可截断则继续发送；截断期间按 id 重新定位气泡、新一轮已开始或气泡已消失则放弃、第二次编辑被拒绝且守卫在发送与放弃后释放、运行中拒绝编辑、离开聊天不发送且文本记入输入历史 | ✅ |
+| `__tests__/userMessageResendTestKit.ts` | 测试 | 重发测试共享夹具：含一轮已答复对话与失败气泡 `r-2` 的聊天、桩 `sendMessage`、转录与输入框读取器、`resetResendWorld` | ✅ |
 | `TtsrInterventionBadge.tsx` | 组件 | 时间旅行流规则（TTSR）介入微徽章：流光琥珀色微胶囊、动态防御（Active Defense）标签、自动纠偏指示、可折叠安全指引、同规则聚合折叠（`groupTtsrInterventions`）与时序时间线，WAI-ARIA status 支持 | ✅ |
 | `__tests__/TtsrInterventionBadge.test.tsx` | 测试 | TTSR 介入徽章渲染、展开指引、`groupTtsrInterventions` 纯函数与多轮时序时间线及 WAI-ARIA 单测 | ✅ |
 | `useContextWatermarkMetrics.ts` | 辅助 | 上下文水位与轮级 Token 序列推导 Hook/纯函数：提取近 12 轮用量切片、较上轮增量 delta、双主题 4 档分级语义色阶（<25% 清朗 / 25-75% 多云 / 75-90% 预警 / ≥90% 即将压缩） | ✅ |

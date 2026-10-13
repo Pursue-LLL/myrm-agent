@@ -214,10 +214,7 @@ export const getChatHistoryLegacy = async (): Promise<ChatItem[]> => {
 /**
  * 更新会话的多维度层级标签 (Item 156)
  */
-export const updateChatTags = async (
-  chatId: string,
-  tags: string[],
-): Promise<{ chatId: string; tags: string[] }> => {
+export const updateChatTags = async (chatId: string, tags: string[]): Promise<{ chatId: string; tags: string[] }> => {
   return apiRequest(`/chats/${chatId}/tags`, {
     method: 'PATCH',
     body: JSON.stringify({ tags }),
@@ -1162,12 +1159,14 @@ export interface RewindResult {
 
 /**
  * Truncate: delete a message and everything after it.
- * Used by edit-resend to sync backend before re-sending the edited message.
+ * Used by edit-resend to sync backend before re-sending the edited message. Silent: the caller decides what the
+ * user is told, so a failure is not also reported by the request layer.
  */
 export const truncateAfterMessage = async (chatId: string, messageId: string): Promise<TruncateResult> => {
   return (await apiRequest(`/chats/${chatId}/truncate-after`, {
     method: 'POST',
     body: JSON.stringify({ message_id: messageId }),
+    silent: true,
   })) as TruncateResult;
 };
 
