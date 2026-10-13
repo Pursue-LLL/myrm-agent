@@ -22,7 +22,7 @@ def skills_root(tmp_path: Path) -> Iterator[Path]:
     root = tmp_path / "skills"
     root.mkdir()
     with (
-        patch("app.core.skills.curator.service.get_stats_collector", return_value=SkillStatsCollector(root)),
+        patch("app.core.skills.curator.service.get_stats_collector", return_value=SkillStatsCollector()),
         patch("app.core.skills.curator.service.get_curator_config", return_value=CuratorConfig()),
         patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", [str(root)]),
     ):

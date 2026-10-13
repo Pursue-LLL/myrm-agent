@@ -120,7 +120,7 @@ class TestUsageSidecarIntegration:
 
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 
-        collector = SkillStatsCollector(workspace_root=skills_dest)
+        collector = SkillStatsCollector()
         code_review_dir = skills_dest / "code-review"
         deploy_helper_dir = skills_dest / "deploy-helper"
 
@@ -279,7 +279,7 @@ class TestUsageSidecarIntegration:
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
         from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-        collector = SkillStatsCollector(workspace_root=skills_dest)
+        collector = SkillStatsCollector()
         stats = collector._load_stats(skills_dest / "production-deploy")
 
         assert stats.call_count == 50
@@ -342,7 +342,7 @@ class TestUsageSidecarIntegration:
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
         from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-        collector = SkillStatsCollector(workspace_root=skills_dest)
+        collector = SkillStatsCollector()
         stats = collector._load_stats(skills_dest / "edge-skill")
 
         assert stats.call_count == 15
@@ -406,7 +406,7 @@ class TestUsageSidecarIntegration:
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
         from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-        collector = SkillStatsCollector(workspace_root=skills_dest)
+        collector = SkillStatsCollector()
         stats = collector._load_stats(skills_dest / "pinned-skill")
 
         assert stats.pinned is True
@@ -472,7 +472,7 @@ class TestUsageSidecarIntegration:
 
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 
-        collector = SkillStatsCollector(workspace_root=skills_dest)
+        collector = SkillStatsCollector()
         stats = collector._load_stats(skills_dest / "heavy-usage")
         assert stats.call_count == 999999
         assert stats.observed_count == 0

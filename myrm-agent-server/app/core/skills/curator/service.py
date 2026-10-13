@@ -73,22 +73,11 @@ def _get_data_dir() -> Path:
     return data_dir
 
 
-def _get_skills_root() -> Path:
-    """Get the primary skills directory."""
-    for p in DEFAULT_LOCAL_SKILL_PATHS:
-        expanded = Path(p).expanduser()
-        if expanded.exists():
-            return expanded
-    default = Path(DEFAULT_LOCAL_SKILL_PATHS[0]).expanduser()
-    default.mkdir(parents=True, exist_ok=True)
-    return default
-
-
 def get_stats_collector() -> SkillStatsCollector:
     """Get or create the shared SkillStatsCollector."""
     global _stats_collector
     if _stats_collector is None:
-        _stats_collector = SkillStatsCollector(_get_skills_root())
+        _stats_collector = SkillStatsCollector()
         from myrm_agent_harness.backends.skills.usage_recorder import (
             set_stats_collector,
         )
