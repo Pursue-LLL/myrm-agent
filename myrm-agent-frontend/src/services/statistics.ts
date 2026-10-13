@@ -606,7 +606,8 @@ export interface CostSummary {
 
 export interface SkillTrendPoint {
   date: string;
-  success_rate: number;
+  /** null when no run of the day had an observable outcome. */
+  success_rate: number | null;
   avg_duration_ms: number;
   call_count: number;
 }
@@ -622,7 +623,8 @@ export interface SkillHealthItem {
   status: string;
   call_count_7d: number;
   call_count_total: number;
-  success_rate_7d: number;
+  /** null when no run of the week had an observable outcome. */
+  success_rate_7d: number | null;
   last_used_at: string | null;
   actionable_recommendation?: string | null;
   adoption_rate?: number | null;

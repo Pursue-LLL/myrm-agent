@@ -116,7 +116,8 @@ class SkillTrendPoint(BaseModel):
     """Single data point in a skill usage trend."""
 
     date: str
-    success_rate: float
+    success_rate: float | None
+    """Share of the day's runs with an observed outcome that succeeded; None when none was observed."""
     avg_duration_ms: float
     call_count: int
 
@@ -136,7 +137,8 @@ class SkillHealthItem(BaseModel):
     status: str
     call_count_7d: int
     call_count_total: int
-    success_rate_7d: float
+    success_rate_7d: float | None
+    """Share of the week's runs with an observed outcome that succeeded; None when none was observed."""
     last_used_at: str | None = None
     actionable_recommendation: str | None = None
     adoption_rate: float | None = None
@@ -345,11 +347,12 @@ async def _fetch_skill_evolution_data() -> _SkillEvolutionSnapshot:
 
 
 class _DayBucket:
-    __slots__ = ("total", "successes", "durations")
+    __slots__ = ("total", "successes", "failures", "durations")
 
     def __init__(self) -> None:
         self.total = 0
         self.successes = 0
+        self.failures = 0
         self.durations: list[float] = []
 
 
@@ -380,18 +383,21 @@ async def _fetch_skill_trends() -> list[SkillTrendSeries]:
                     day_key = record.timestamp[:10]
                     bucket = daily[day_key]
                     bucket.total += 1
-                    if record.success:
+                    if record.success is True:
                         bucket.successes += 1
+                    elif record.success is False:
+                        bucket.failures += 1
                     bucket.durations.append(record.duration_ms)
 
                 data_points = []
                 for date_key in sorted(daily.keys()):
                     bucket = daily[date_key]
                     avg_dur = sum(bucket.durations) / len(bucket.durations) if bucket.durations else 0.0
+                    observed = bucket.successes + bucket.failures
                     data_points.append(
                         SkillTrendPoint(
                             date=date_key,
-                            success_rate=(bucket.successes / bucket.total if bucket.total > 0 else 0.0),
+                            success_rate=(bucket.successes / observed if observed > 0 else None),
                             avg_duration_ms=round(avg_dur, 1),
                             call_count=bucket.total,
                         )
@@ -459,6 +465,7 @@ async def _fetch_skill_health() -> list[SkillHealthItem]:
                 total_calls = stats.call_count
                 calls_7d = 0
                 succ_7d = 0
+                fail_7d = 0
                 sessions: set[str] = set()
                 latest_dt: datetime | None = stats.last_used_at
                 usage_history = getattr(stats, "usage_history", []) or []
@@ -478,28 +485,34 @@ async def _fetch_skill_health() -> list[SkillHealthItem]:
 
                     if rec_dt >= week_ago:
                         calls_7d += 1
-                        if rec.success:
+                        if rec.success is True:
                             succ_7d += 1
+                        elif rec.success is False:
+                            fail_7d += 1
 
                 if calls_7d == 0 and total_calls > 0 and not usage_history:
                     calls_7d = total_calls
                     succ_7d = stats.success_count
+                    fail_7d = stats.failure_count
 
+                # A run without an observed failure is not evidence against the skill, so only failures weigh on health.
+                unfailed_7d = calls_7d - fail_7d
                 # Conservative adoption estimate: penalize retry/error overhead
-                retry_overhead = max(0, calls_7d - succ_7d)
-                conservative_adopted = max(0, succ_7d - int(retry_overhead * 0.5))
+                retry_overhead = fail_7d
+                conservative_adopted = max(0, unfailed_7d - int(retry_overhead * 0.5))
 
                 metrics = SkillCompoundingMetrics(
                     skill_id=skill_dir.name,
                     invocations=calls_7d,
-                    successful_invocations=succ_7d,
+                    successful_invocations=unfailed_7d,
                     adopted_outputs=conservative_adopted,
                     retry_count=retry_overhead,
                     distinct_sessions=(len(sessions) if sessions else (1 if calls_7d > 0 else 0)),
                     last_invoked_at=latest_dt,
                 )
                 evaluated = SkillHealthEvaluator.evaluate(metrics, reference_time=now)
-                sr_7d = (succ_7d / calls_7d) if calls_7d > 0 else 0.0
+                observed_7d = succ_7d + fail_7d
+                sr_7d = (succ_7d / observed_7d) if observed_7d > 0 else None
 
                 items.append(
                     SkillHealthItem(
@@ -508,7 +521,7 @@ async def _fetch_skill_health() -> list[SkillHealthItem]:
                         status=evaluated.status.value,
                         call_count_7d=calls_7d,
                         call_count_total=total_calls,
-                        success_rate_7d=round(sr_7d, 3),
+                        success_rate_7d=round(sr_7d, 3) if sr_7d is not None else None,
                         last_used_at=latest_dt.isoformat() if latest_dt else None,
                         actionable_recommendation=evaluated.actionable_recommendation,
                         adoption_rate=round(evaluated.adoption_rate, 3),

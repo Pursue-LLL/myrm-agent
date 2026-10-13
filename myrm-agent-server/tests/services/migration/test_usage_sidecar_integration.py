@@ -126,7 +126,7 @@ class TestUsageSidecarIntegration:
 
         cr_stats = collector._load_stats(code_review_dir)
         assert cr_stats.call_count == 120
-        assert cr_stats.success_count == 120
+        assert cr_stats.observed_count == 0, "Hermes use counts are uses, not observed run outcomes"
         assert cr_stats.pinned is True
         assert cr_stats.lifecycle_status == "active"
         assert cr_stats.last_used_at is not None
@@ -475,4 +475,4 @@ class TestUsageSidecarIntegration:
         collector = SkillStatsCollector(workspace_root=skills_dest)
         stats = collector._load_stats(skills_dest / "heavy-usage")
         assert stats.call_count == 999999
-        assert stats.success_count == 999999
+        assert stats.observed_count == 0

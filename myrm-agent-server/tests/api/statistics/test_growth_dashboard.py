@@ -127,17 +127,13 @@ class TestGrowthDashboardSchemas:
         assert item.adoption_rate == 0.92
         assert item.reuse_breadth == 0.65
         dumped = item.model_dump()
-        assert (
-            dumped["actionable_recommendation"] == "🌟 Star asset with zero friction."
-        )
+        assert dumped["actionable_recommendation"] == "🌟 Star asset with zero friction."
 
     def test_full_dashboard_response(self):
         resp = GrowthDashboardResponse(
             snapshot=GrowthSnapshot(total_memories=10),
             activity_heatmap=[ActivityDay(date="2026-04-20", count=1)],
-            weekly_summary=WeeklySummary(
-                conversations=5, tool_calls=20, previous_conversations=3
-            ),
+            weekly_summary=WeeklySummary(conversations=5, tool_calls=20, previous_conversations=3),
             skill_events=[],
         )
         dumped = resp.model_dump()
@@ -350,9 +346,7 @@ async def test_fetch_activity_data_exception(monkeypatch: pytest.MonkeyPatch) ->
     def raise_err(b: object) -> object:
         raise RuntimeError("broken")
 
-    monkeypatch.setattr(
-        "app.api.statistics.growth_dashboard.EventLogAnalytics", raise_err
-    )
+    monkeypatch.setattr("app.api.statistics.growth_dashboard.EventLogAnalytics", raise_err)
 
     result = await _fetch_activity_data(84)
     assert result.active_days == 0
@@ -374,9 +368,7 @@ async def test_fetch_memory_snapshot_normal() -> None:
     mock_manager.get_enabled_types.return_value = [FakeType.SEMANTIC, FakeType.EPISODIC]
     mock_manager.count_memories = AsyncMock(side_effect=[100, 12, 50, 5])
     mock_manager.compute_health_score = AsyncMock(
-        return_value=SimpleNamespace(
-            total=90, dimensions={"freshness": 0.9, "coverage": 0.8}
-        )
+        return_value=SimpleNamespace(total=90, dimensions={"freshness": 0.9, "coverage": 0.8})
     )
 
     import sys
@@ -387,29 +379,21 @@ async def test_fetch_memory_snapshot_normal() -> None:
     fake_emb = MagicMock()
     fake_emb.get_embedding_config = MagicMock(return_value=None)
     fake_platform_config = MagicMock()
-    fake_platform_config.require_platform_embedding_config = AsyncMock(
-        return_value=None
-    )
+    fake_platform_config.require_platform_embedding_config = AsyncMock(return_value=None)
 
     original_setup = sys.modules.get("app.core.memory.adapters.setup")
-    original_emb = sys.modules.get(
-        "myrm_agent_harness.toolkits.retriever.embedding.factory"
-    )
+    original_emb = sys.modules.get("myrm_agent_harness.toolkits.retriever.embedding.factory")
     original_platform = sys.modules.get("app.services.agent.platform_config")
     try:
         sys.modules["app.core.memory.adapters.setup"] = fake_setup
-        sys.modules["myrm_agent_harness.toolkits.retriever.embedding.factory"] = (
-            fake_emb
-        )
+        sys.modules["myrm_agent_harness.toolkits.retriever.embedding.factory"] = fake_emb
         sys.modules["app.services.agent.platform_config"] = fake_platform_config
         by_type, health, dims, delta = await _fetch_memory_snapshot()
     finally:
         if original_setup is not None:
             sys.modules["app.core.memory.adapters.setup"] = original_setup
         if original_emb is not None:
-            sys.modules["myrm_agent_harness.toolkits.retriever.embedding.factory"] = (
-                original_emb
-            )
+            sys.modules["myrm_agent_harness.toolkits.retriever.embedding.factory"] = original_emb
         if original_platform is not None:
             sys.modules["app.services.agent.platform_config"] = original_platform
         else:
@@ -433,22 +417,16 @@ async def test_fetch_memory_snapshot_exception() -> None:
     fake_emb.get_embedding_config = MagicMock(return_value=None)
 
     original_setup = sys.modules.get("app.core.memory.adapters.setup")
-    original_emb = sys.modules.get(
-        "myrm_agent_harness.toolkits.retriever.embedding.factory"
-    )
+    original_emb = sys.modules.get("myrm_agent_harness.toolkits.retriever.embedding.factory")
     try:
         sys.modules["app.core.memory.adapters.setup"] = fake_setup
-        sys.modules["myrm_agent_harness.toolkits.retriever.embedding.factory"] = (
-            fake_emb
-        )
+        sys.modules["myrm_agent_harness.toolkits.retriever.embedding.factory"] = fake_emb
         by_type, health, dims, delta = await _fetch_memory_snapshot()
     finally:
         if original_setup is not None:
             sys.modules["app.core.memory.adapters.setup"] = original_setup
         if original_emb is not None:
-            sys.modules["myrm_agent_harness.toolkits.retriever.embedding.factory"] = (
-                original_emb
-            )
+            sys.modules["myrm_agent_harness.toolkits.retriever.embedding.factory"] = original_emb
 
     assert by_type == {}
     assert health == 100
@@ -486,9 +464,7 @@ async def test_fetch_weekly_summary_normal() -> None:
     mock_cron_mgr = AsyncMock()
     mock_cron_mgr.get_execution_history = AsyncMock(return_value=fake_history)
 
-    with patch(
-        "app.core.cron.adapters.setup.get_cron_manager", return_value=mock_cron_mgr
-    ):
+    with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mock_cron_mgr):
         result = await _fetch_weekly_summary(mock_db)
 
     assert result.conversations == 5
@@ -617,11 +593,7 @@ async def test_get_growth_dashboard_endpoint(monkeypatch: pytest.MonkeyPatch) ->
     )
     monkeypatch.setattr(
         "app.api.statistics.growth_dashboard._fetch_skill_evolution_data",
-        AsyncMock(
-            return_value=_SkillEvolutionSnapshot(
-                total_skills=2, total_evolutions=5, approved=3
-            )
-        ),
+        AsyncMock(return_value=_SkillEvolutionSnapshot(total_skills=2, total_evolutions=5, approved=3)),
     )
     monkeypatch.setattr(
         "app.api.statistics.growth_dashboard._fetch_cost_summary",
@@ -844,25 +816,23 @@ async def test_fetch_cost_summary_tiny_savings_not_filtered() -> None:
 @pytest.mark.asyncio
 async def test_fetch_skill_health_populates_actionable_recommendations() -> None:
     """_fetch_skill_health should invoke SkillHealthEvaluator and populate actionable recommendations."""
+    from myrm_agent_harness.backends.skills.types import SkillUsageStats
+
     from app.api.statistics.growth_dashboard import _fetch_skill_health
 
     mock_collector = MagicMock()
-    mock_stats = MagicMock()
-    mock_stats.call_count = 10
-    mock_stats.success_count = 9
-    mock_stats.last_used_at = datetime.now(UTC)
-    mock_stats.usage_history = []
-    mock_collector.get_stats.return_value = mock_stats
+    mock_collector.get_stats.return_value = SkillUsageStats(
+        call_count=10, success_count=9, failure_count=1, last_used_at=datetime.now(UTC)
+    )
 
-    with patch(
-        "app.core.skills.curator.service.get_stats_collector",
-        return_value=mock_collector,
-    ), patch(
-        "app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", ["/fake/skills"]
-    ), patch(
-        "app.api.statistics.growth_dashboard.Path.expanduser"
-    ) as mock_expand:
-
+    with (
+        patch(
+            "app.core.skills.curator.service.get_stats_collector",
+            return_value=mock_collector,
+        ),
+        patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", ["/fake/skills"]),
+        patch("app.api.statistics.growth_dashboard.Path.expanduser") as mock_expand,
+    ):
         mock_root = MagicMock()
         mock_root.exists.return_value = True
 
@@ -907,34 +877,33 @@ async def test_growth_dashboard_endpoint_end_to_end_integration() -> None:
         reuse_breadth=0.8,
     )
 
-    with patch(
-        "app.api.statistics.growth_dashboard.get_db", return_value=mock_db
-    ), patch(
-        "app.api.statistics.growth_dashboard._fetch_memory_snapshot",
-        return_value=({}, 100, {}, 0),
-    ), patch(
-        "app.api.statistics.growth_dashboard._fetch_activity_data",
-        return_value=_ActivitySnapshot(),
-    ), patch(
-        "app.api.statistics.growth_dashboard._fetch_weekly_summary",
-        return_value=WeeklySummary(),
-    ), patch(
-        "app.api.statistics.growth_dashboard._fetch_skill_evolution_data",
-        return_value=_SkillEvolutionSnapshot(),
-    ), patch(
-        "app.api.statistics.growth_dashboard._fetch_cost_summary", return_value=None
-    ), patch(
-        "app.api.statistics.growth_dashboard._fetch_skill_trends", return_value=[]
-    ), patch(
-        "app.api.statistics.growth_dashboard._fetch_skill_health",
-        return_value=[mock_health_item],
-    ), patch(
-        "app.api.statistics.growth_dashboard._fetch_memory_citations_7d", return_value=0
+    with (
+        patch("app.api.statistics.growth_dashboard.get_db", return_value=mock_db),
+        patch(
+            "app.api.statistics.growth_dashboard._fetch_memory_snapshot",
+            return_value=({}, 100, {}, 0),
+        ),
+        patch(
+            "app.api.statistics.growth_dashboard._fetch_activity_data",
+            return_value=_ActivitySnapshot(),
+        ),
+        patch(
+            "app.api.statistics.growth_dashboard._fetch_weekly_summary",
+            return_value=WeeklySummary(),
+        ),
+        patch(
+            "app.api.statistics.growth_dashboard._fetch_skill_evolution_data",
+            return_value=_SkillEvolutionSnapshot(),
+        ),
+        patch("app.api.statistics.growth_dashboard._fetch_cost_summary", return_value=None),
+        patch("app.api.statistics.growth_dashboard._fetch_skill_trends", return_value=[]),
+        patch(
+            "app.api.statistics.growth_dashboard._fetch_skill_health",
+            return_value=[mock_health_item],
+        ),
+        patch("app.api.statistics.growth_dashboard._fetch_memory_citations_7d", return_value=0),
     ):
-
-        async with AsyncClient(
-            transport=ASGITransport(app=test_app), base_url="http://test"
-        ) as ac:
+        async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as ac:
             resp = await ac.get("/api/v1/statistics/growth-dashboard")
 
     assert resp.status_code == 200

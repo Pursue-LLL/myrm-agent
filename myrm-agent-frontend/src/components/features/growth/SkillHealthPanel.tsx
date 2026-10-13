@@ -136,8 +136,12 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                       {t('calls7d', { count: item.call_count_7d })}
                       {' · '}
                       {t('callsTotal', { count: item.call_count_total })}
-                      {' · '}
-                      {t('successRate', { rate: Math.round(item.success_rate_7d * 100) })}
+                      {item.success_rate_7d !== null && (
+                        <>
+                          {' · '}
+                          {t('successRate', { rate: Math.round(item.success_rate_7d * 100) })}
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

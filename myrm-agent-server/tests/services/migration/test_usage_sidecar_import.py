@@ -80,7 +80,7 @@ class TestBuildStatsJson:
 
         assert result is not None
         assert result["call_count"] == 42
-        assert result["success_count"] == 42
+        assert result["success_count"] == 0, "Hermes use counts are uses, not observed run outcomes"
         assert result["failure_count"] == 0
         assert result["last_used_at"] == "2026-06-20T10:00:00Z"
         assert result["created_at"] == "2026-01-15T08:00:00Z"

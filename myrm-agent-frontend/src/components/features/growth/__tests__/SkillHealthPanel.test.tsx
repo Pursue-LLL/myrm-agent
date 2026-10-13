@@ -75,7 +75,7 @@ describe('SkillHealthPanel', () => {
       status: 'STALE',
       call_count_7d: 0,
       call_count_total: 0,
-      success_rate_7d: 0.0,
+      success_rate_7d: null,
       last_used_at: null,
       actionable_recommendation: 'Skill has not been invoked. Consider deprecating.',
       adoption_rate: 0.0,
@@ -103,6 +103,15 @@ describe('SkillHealthPanel', () => {
 
     // Verify attention counter badge is 2 (flaky_plugin + dormant_script)
     expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('shows the success rate only for skills whose run outcomes were observed', () => {
+    render(<SkillHealthPanel items={mockItems} />);
+
+    expect(screen.getByText(/20 calls \(7D\) · 80 total · 100% success/)).toBeInTheDocument();
+    expect(screen.getByText(/12 calls \(7D\) · 12 total · 45% success/)).toBeInTheDocument();
+    expect(screen.getByText('0 calls (7D) · 0 total')).toBeInTheDocument();
+    expect(screen.queryByText(/(?<!\d)0% success/)).not.toBeInTheDocument();
   });
 
   it('filters to only attention items when Needs Attention tab clicked', () => {

@@ -28,7 +28,7 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
 
     Checks:
     1. Active skill count vs configured maximum threshold (preventing tool/skill explosion).
-    2. Wrong-but-frequent skills (call_count >= min_threshold and success_rate < min_rate).
+    2. Wrong-but-frequent skills (observed run outcomes >= min_threshold and success_rate < min_rate).
     3. Exemption/protection status for pinned, evolution_locked, or installed skills.
     """
 
@@ -66,7 +66,10 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
                 if is_active:
                     active_skills.append(skill)
 
-                if stats.call_count >= config.min_call_count_for_quality_check and stats.success_rate < config.min_success_rate:
+                if (
+                    stats.observed_count >= config.min_call_count_for_quality_check
+                    and stats.success_rate < config.min_success_rate
+                ):
                     is_pinned = bool(stats.pinned)
                     is_locked = bool(skill.evolution_locked)
                     is_installed_protected = bool(config.protect_installed_skills and skill.trust == SkillTrust.INSTALLED)
@@ -98,6 +101,7 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
                         {
                             "skill_name": skill.name,
                             "call_count": stats.call_count,
+                            "observed_count": stats.observed_count,
                             "success_count": stats.success_count,
                             "failure_count": stats.failure_count,
                             "success_rate": round(stats.success_rate, 3),

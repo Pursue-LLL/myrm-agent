@@ -68,7 +68,7 @@ def test_skill_usage_stats_recorded_on_invocation(
     # Exercise the collector directly (the unit that records each invocation).
     collector = SkillStatsCollector(temp_workspace)
 
-    collector.record_usage(test_mcp_skill_dir, success=True, duration_ms=150.0)
+    collector.record_use(test_mcp_skill_dir, success=True)
     collector.flush()
 
     # Verify: Stats file should now exist
@@ -79,7 +79,6 @@ def test_skill_usage_stats_recorded_on_invocation(
     assert stats_data["call_count"] == 1
     assert stats_data["success_count"] == 1
     assert stats_data["failure_count"] == 0
-    assert stats_data["total_duration_ms"] == 150.0
     assert stats_data["last_used_at"] is not None
 
     # Verify: SkillUsageStats can be loaded
@@ -87,7 +86,6 @@ def test_skill_usage_stats_recorded_on_invocation(
     assert loaded_stats.call_count == 1
     assert loaded_stats.success_count == 1
     assert loaded_stats.success_rate == 1.0
-    assert loaded_stats.avg_duration_ms == 150.0
 
 
 @pytest.mark.integration
@@ -99,7 +97,7 @@ def test_skill_usage_stats_accumulation(
     collector = SkillStatsCollector(temp_workspace)
 
     # First invocation (success)
-    collector.record_usage(test_mcp_skill_dir, success=True, duration_ms=100.0)
+    collector.record_use(test_mcp_skill_dir, success=True)
     collector.flush()
 
     stats = collector.get_stats(test_mcp_skill_dir)
@@ -107,17 +105,16 @@ def test_skill_usage_stats_accumulation(
     assert stats.success_rate == 1.0
 
     # Second invocation (success)
-    collector.record_usage(test_mcp_skill_dir, success=True, duration_ms=200.0)
+    collector.record_use(test_mcp_skill_dir, success=True)
     collector.flush()
 
     stats = collector.get_stats(test_mcp_skill_dir)
     assert stats.call_count == 2
     assert stats.success_count == 2
     assert stats.success_rate == 1.0
-    assert stats.avg_duration_ms == 150.0  # (100 + 200) / 2
 
     # Third invocation (failure)
-    collector.record_usage(test_mcp_skill_dir, success=False, duration_ms=50.0)
+    collector.record_use(test_mcp_skill_dir, success=False)
     collector.flush()
 
     stats = collector.get_stats(test_mcp_skill_dir)
@@ -125,7 +122,6 @@ def test_skill_usage_stats_accumulation(
     assert stats.success_count == 2
     assert stats.failure_count == 1
     assert stats.success_rate == pytest.approx(0.666, abs=0.01)  # 2/3
-    assert stats.avg_duration_ms == pytest.approx(116.67, abs=0.5)  # (100 + 200 + 50) / 3
 
 
 @pytest.mark.integration
@@ -136,7 +132,7 @@ def test_skill_stats_persistence_across_collectors(
     """Test that skill stats persist across different SkillStatsCollector instances."""
     # First collector: record some usage
     collector1 = SkillStatsCollector(temp_workspace)
-    collector1.record_usage(test_mcp_skill_dir, success=True, duration_ms=100.0)
+    collector1.record_use(test_mcp_skill_dir, success=True)
     collector1.flush()
 
     # Second collector: should load existing stats
@@ -146,7 +142,7 @@ def test_skill_stats_persistence_across_collectors(
     assert stats.success_count == 1
 
     # Add more usage with second collector
-    collector2.record_usage(test_mcp_skill_dir, success=True, duration_ms=200.0)
+    collector2.record_use(test_mcp_skill_dir, success=True)
     collector2.flush()
 
     # Third collector: verify accumulated stats
@@ -154,4 +150,3 @@ def test_skill_stats_persistence_across_collectors(
     stats = collector3.get_stats(test_mcp_skill_dir)
     assert stats.call_count == 2
     assert stats.success_count == 2
-    assert stats.avg_duration_ms == 150.0

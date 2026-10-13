@@ -97,6 +97,7 @@ def _build_stats_json(hermes_usage: dict[str, object]) -> dict[str, object] | No
 
     Mapping: use_count→call_count, last_used_at→last_used_at,
     created_at→created_at, state→lifecycle_status, pinned→pinned.
+    Hermes records no run outcomes, so the success/failure counters stay empty instead of inventing evidence.
     """
     call_count = hermes_usage.get("use_count", 0)
     if not isinstance(call_count, int):
@@ -118,7 +119,7 @@ def _build_stats_json(hermes_usage: dict[str, object]) -> dict[str, object] | No
 
     return {
         "call_count": call_count,
-        "success_count": call_count,
+        "success_count": 0,
         "failure_count": 0,
         "last_used_at": last_used_at if isinstance(last_used_at, str) else None,
         "total_duration_ms": 0.0,

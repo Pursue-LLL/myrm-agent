@@ -13,10 +13,11 @@ from pathlib import Path
 import pytest
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 from myrm_agent_harness.backends.skills.usage_recorder import (
+    begin_skill_run_usage,
+    commit_skill_run_usage,
     flush_skill_usage_stats,
     get_injected_stats_collector,
     record_skill_selection,
-    reset_turn_usage_dedupe,
     set_stats_collector,
 )
 
@@ -39,7 +40,7 @@ def curator_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     curator_service._stats_collector = None
     curator_service._curator_config = None
     set_stats_collector(None)
-    reset_turn_usage_dedupe()
+    begin_skill_run_usage()
 
     yield skills_root
 
@@ -199,15 +200,15 @@ async def test_usage_recorder_to_curator_via_api_client(
 
     update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
     collector = get_stats_collector()
-    reset_turn_usage_dedupe()
+    begin_skill_run_usage()
     record_skill_selection(
         SkillMetadata(
             name="api_pipeline_skill",
             description="API test",
             storage_path=str(skill_dir),
         ),
-        success=True,
     )
+    commit_skill_run_usage()
     flush_skill_usage_stats()
 
     stats = json.loads((skill_dir / ".stats.json").read_text())

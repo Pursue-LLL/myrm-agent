@@ -34,7 +34,7 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
   }
 
   const dataPoints = activeTrend?.data_points ?? [];
-  const maxVal = Math.max(...dataPoints.map((p) => p[metric]), 1);
+  const maxVal = Math.max(...dataPoints.map((p) => p[metric] ?? 0), 1);
 
   return (
     <div className="space-y-4">
@@ -85,7 +85,7 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
       <div className="flex items-end gap-1 h-32">
         {dataPoints.map((point) => {
           const val = point[metric];
-          const height = maxVal > 0 ? (val / maxVal) * 100 : 0;
+          const height = val !== null && maxVal > 0 ? (val / maxVal) * 100 : 0;
           const barColor = METRIC_CONFIG[metric].barColor;
           const label = formatMetricValue(metric, val);
 
@@ -117,7 +117,10 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
 
 SkillTrendChart.displayName = 'SkillTrendChart';
 
-function formatMetricValue(metric: MetricKey, value: number): string {
+function formatMetricValue(metric: MetricKey, value: number | null): string {
+  if (value === null) {
+    return '–';
+  }
   switch (metric) {
     case 'success_rate':
       return `${(value * 100).toFixed(0)}%`;
