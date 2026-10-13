@@ -156,7 +156,10 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-semibold tabular-nums">{Math.round(item.health_score)}</span>
+                    {/* An unproven skill's score only measures how little evidence exists, so it is not shown. */}
+                    <span className="text-sm font-semibold tabular-nums">
+                      {item.status === 'UNPROVEN' ? '–' : Math.round(item.health_score)}
+                    </span>
                     <Badge
                       variant="outline"
                       className={cn(
@@ -164,7 +167,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                         STATUS_VARIANT[item.status] ?? STATUS_VARIANT.STALE,
                       )}
                     >
-                      {t(`status.${item.status}`, { default: item.status })}
+                      {item.status in STATUS_VARIANT ? t(`status.${item.status}`) : item.status}
                     </Badge>
                   </div>
                 </div>
@@ -174,11 +177,12 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                     <div className="text-muted-foreground leading-relaxed flex items-start gap-1.5">
                       <span className="font-medium text-foreground/80 shrink-0">{t('recommendationPrefix')}</span>
                       <span>
-                        {t(RECOMMENDATION_KEY[item.status] ?? 'recHealthy', {
-                          default: item.actionable_recommendation,
-                          observed: item.observed_count_7d,
-                          required: item.min_observed_count,
-                        })}
+                        {item.status in RECOMMENDATION_KEY
+                          ? t(RECOMMENDATION_KEY[item.status], {
+                              observed: item.observed_count_7d,
+                              required: item.min_observed_count,
+                            })
+                          : item.actionable_recommendation}
                       </span>
                     </div>
                     <Link

@@ -135,8 +135,25 @@ describe('SkillHealthPanel', () => {
     expect(screen.getByText('Unproven')).toBeInTheDocument();
     expect(screen.getByText('Too early to judge: 1 of 5 runs have a clear result so far.')).toBeInTheDocument();
     expect(screen.getByText('2 calls (7D) · 2 total')).toBeInTheDocument();
+    expect(screen.getByText('–')).toBeInTheDocument();
+    expect(screen.queryByText('20')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Needs Attention/i }));
     expect(screen.queryByText('fresh_skill')).not.toBeInTheDocument();
+  });
+
+  it('shows the backend wording for a status this build has no copy for instead of a wrong verdict', () => {
+    const future: SkillHealthItem = {
+      ...mockItems[0],
+      skill_name: 'future_skill',
+      status: 'QUARANTINED' as SkillHealthItem['status'],
+      actionable_recommendation: 'Quarantined pending review.',
+    };
+
+    render(<SkillHealthPanel items={[future]} />);
+
+    expect(screen.getByText('QUARANTINED')).toBeInTheDocument();
+    expect(screen.getByText('Quarantined pending review.')).toBeInTheDocument();
+    expect(screen.queryByText('Healthy asset in active rotation.')).not.toBeInTheDocument();
   });
 
   it('filters to only attention items when Needs Attention tab clicked', () => {
