@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.skills.audit import _audit_skill_action
+from app.core.skills.audit import audit_skill_action as _audit_skill_action
 from app.api.skills.schemas import (
     EnableSkillResponse,
     RegistryPresetResponse,

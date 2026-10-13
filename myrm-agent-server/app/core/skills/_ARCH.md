@@ -45,6 +45,7 @@
 | `curator/bound_skills.py` | 核心 | 找出被 Agent 档案 / 未完成 cron 任务绑定的技能，作为 `protected_names` 交给 Curator（sweep 与合并均豁免） | ✅ |
 | `curator/consolidation.py` | 核心 | 技能合并（umbrella merge）集成 — preview/execute/agent refs 重写，共享 sweep 锁 | ✅ |
 | `effective_skill_ids.py` | 核心 | 解析 Agent 显式 allowlist（所见即所得标准：空名单装配 0 技能；规范化 legacy local ID） | ✅ |
+| `audit.py` | 核心 | 技能生命周期结构化审计日志（install/enable/disable 等 SKILL_AUDIT） | ✅ |
 | `discovery/` | 子域 | 技能发现聚合出口：`adopt`、`mount`、`autoupdate`；`agent_market_install`（chat market 安装后 mount/adopt） | ✅ |
 | `marketplace/` | 子域 | 市场聚合出口：`market_service`（GitHub 源分析、自定义源、ClawHub 镜像懒加载）、`clawhub_registry`（镜像 URL 持久化/apply，CLAWHUB_URL SSOT）、`clawhub_probe`（连通性探测）、`custom_source_config`（自定义源持久化） | ✅ |
 | `gates/` | 子域 | 集成 gate 聚合出口：`oauth_availability`（OAuth/xAI/env/CLI bins 凭证 gate）、`x_live_search_skill_enable`（xAI provider 保存后 auto-enable）、`disabled_skill_roots`（未启用技能 storage 根注入 runtime）、`dependency_guard`（依赖影响面查询）、`permission_logger`（权限使用日志） | ✅ |

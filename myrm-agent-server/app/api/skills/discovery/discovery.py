@@ -2,7 +2,7 @@
 
 [INPUT]
 app.api.skills.discovery.discovery_schemas (POS: Request/response Pydantic models)
-app.api.skills.audit::_audit_skill_action (POS: Skill action audit logging)
+app.core.skills.audit::audit_skill_action (POS: Skill action audit logging)
 app.core.skills.marketplace.market_service::SkillMarketService (POS: Skill search/install orchestrator)
 app.core.skills.discovery.mount::maybe_mount_after_install (POS: Post-install user catalog enable)
 app.core.skills.discovery.adopt::complete_discovery_adoption (POS: Explicit allowlist append after install)
@@ -26,7 +26,7 @@ from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketServic
 from myrm_agent_harness.api.skills import SkillInstallResult
 
 from app.api.skills._deploy_capability import require_local_skills_capability
-from app.api.skills.audit import _audit_skill_action
+from app.core.skills.audit import audit_skill_action as _audit_skill_action
 from app.api.skills.discovery.discovery_schemas import (
     CustomSourceListResponse,
     CustomSourceProbeResponse,

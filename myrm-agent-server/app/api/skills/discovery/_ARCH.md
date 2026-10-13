@@ -15,5 +15,5 @@
 ## 依赖
 
 - `app.api.skills._deploy_capability` — 落盘本地技能的沙箱能力门控
-- `app.api.skills.audit::_audit_skill_action` — 技能操作审计
+- `app.core.skills.audit::audit_skill_action` — 技能操作审计
 - `myrm_agent_harness.toolkits...market` / `app.core.skills.marketplace` — 搜索与安装编排

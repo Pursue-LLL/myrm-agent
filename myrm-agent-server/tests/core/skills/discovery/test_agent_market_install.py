@@ -13,6 +13,7 @@ from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResu
 from app.core.skills.discovery.agent_market_install import (
     AgentSessionSkillMarketBackend,
     make_agent_session_install_from_url_fn,
+    wrap_skill_market_backend_for_agent_session,
 )
 from app.core.skills.discovery.market_install_flow import MarketInstallFlowResult
 
@@ -73,3 +74,19 @@ async def test_install_from_url_fn_delegates_to_flow(monkeypatch: pytest.MonkeyP
         agent_id=None,
         mount_to_agent=True,
     )
+
+
+@pytest.mark.asyncio
+async def test_wrapped_backend_delegates_search_and_detail() -> None:
+    inner = SimpleNamespace(
+        search=AsyncMock(return_value=["hit"]),
+        get_detail=AsyncMock(return_value={"id": "x"}),
+        extra_flag=True,
+    )
+    backend = wrap_skill_market_backend_for_agent_session(inner)
+
+    assert await backend.search("q", limit=3) == ["hit"]
+    inner.search.assert_awaited_once_with("q", limit=3)
+    assert await backend.get_detail("sid", "clawhub") == {"id": "x"}
+    inner.get_detail.assert_awaited_once_with("sid", "clawhub")
+    assert backend.extra_flag is True

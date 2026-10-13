@@ -21,6 +21,7 @@ import {
 } from '@/services/backgroundTasksRefresh';
 import { MANAGED_POLICY_UPDATED_EVENT } from '@/lib/managedPolicyEffectiveEvents';
 import { asRecord } from '@/lib/utils/typeUtils';
+import { syncBoundChatAgentConfig } from '@/hooks/globalEvents/syncBoundChatAgentConfig';
 
 interface SSEPayload {
   type: string;
@@ -572,6 +573,7 @@ export function useGlobalEvents(): void {
             clearTimeout(debouncedRefetches.current[agentId]);
           }
           debouncedRefetches.current[agentId] = setTimeout(() => {
+            void syncBoundChatAgentConfig(agentId).catch(() => {});
             import('@/store/useAgentStore')
               .then((mod) => {
                 const store = mod.default.getState();

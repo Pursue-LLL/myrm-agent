@@ -3,16 +3,16 @@
 [INPUT]
 - app.core.skills.marketplace.market_service::market_service (POS: Quarantine install)
 - app.core.skills.discovery.replace_install::market_install_with_replace_snapshot (POS: Pre-replace batch)
-- app.api.skills.audit::_audit_skill_action (POS: Structured install audit log)
+- app.core.skills.audit::audit_skill_action (POS: Structured install audit log)
 - app.core.skills.discovery.mount::maybe_mount_after_install (POS: Catalog enable)
-- app.core.skills.discovery.adopt::complete_discovery_adoption (POS: Explicit allowlist append)
 
 [OUTPUT]
 - MarketInstallFlowResult: Install result plus replace batch and mount metadata
 - run_market_install_flow_by_id / run_market_install_flow_from_url
 
 [POS]
-Single server-side contract for market install: registry, replace snapshot, audit, mount, adopt.
+Single server-side contract for market install: registry, replace snapshot, audit, catalog mount.
+Explicit allowlist append runs in Discover HTTP response builder or chat adapter.
 """
 
 from __future__ import annotations
@@ -80,9 +80,9 @@ async def run_market_install_flow_by_id(
     )
     mount_result = None
     if result.success:
-        from app.api.skills.audit import _audit_skill_action
+        from app.core.skills.audit import audit_skill_action
 
-        _audit_skill_action(
+        audit_skill_action(
             audit_action,
             result.skill_id or audit_skill_id_fallback or skill_id,
             source=audit_source or source,
@@ -121,9 +121,9 @@ async def run_market_install_flow_from_url(
     )
     mount_result = None
     if result.success:
-        from app.api.skills.audit import _audit_skill_action
+        from app.core.skills.audit import audit_skill_action
 
-        _audit_skill_action(
+        audit_skill_action(
             audit_action,
             result.skill_id or url,
             source=audit_source,
