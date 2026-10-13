@@ -18,6 +18,7 @@ from app.services.security.execution_approval_sanitizer_service import (
     ExecutionApprovalSanitizerService,
     get_execution_approval_sanitizer_service,
 )
+from tests.support.fake_secrets import slack_bot_token
 
 
 @pytest.fixture
@@ -63,7 +64,7 @@ def test_endpoint_quick_sanitize(client: TestClient) -> None:
     resp = client.post(
         "/execution-approval-sanitizer/quick-sanitize",
         json={
-            "text": "export SLACK_BOT_TOKEN=xoxb-123456789012-1234567890123-abcdefghijklmnopqrstuvwx",
+            "text": f"export SLACK_BOT_TOKEN={slack_bot_token('123456789012-1234567890123-abcdefghijklmnopqrstuvwx')}",
         },
     )
     assert resp.status_code == 200

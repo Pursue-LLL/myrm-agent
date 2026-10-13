@@ -15,6 +15,7 @@ from app.services.security.local_first_vault_service import (
     LocalFirstVaultService,
     get_local_first_vault_service,
 )
+from tests.support.fake_secrets import stripe_live_key
 
 
 @pytest.fixture
@@ -30,7 +31,7 @@ def test_dlp_sanitize_endpoint(client: TestClient) -> None:
     resp = client.post(
         "/api/v1/security/local-first-vault/dlp/sanitize",
         json={
-            "content": "Staging server 172.20.1.4 and key sk_live_1234567890abcdef12345678. Price: $15,000.00.",
+            "content": f"Staging server 172.20.1.4 and key {stripe_live_key('1234567890abcdef12345678')}. Price: $15,000.00.",
             "enable_price_redaction": True,
         },
     )

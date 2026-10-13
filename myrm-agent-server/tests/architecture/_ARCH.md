@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock` editable harness pin、禁止跟踪 markdown 链到私有开发壳 `temp-docs/`。
+Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock` editable harness pin、禁止跟踪 markdown 链到私有开发壳 `temp-docs/`、禁止测试目录提交完整厂商格式凭据。
 
 ## 文件清单
 
@@ -28,6 +28,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_uv_lock_harness_registry.py` | 主 wheel + 平台 core 均上 PyPI 后，`uv.lock` 须 registry pin（否则 skip，允许 monorepo editable） |
 | `test_no_user_id.py` | 单机 server 禁止多租户 user_id 泄漏 |
 | `test_no_temp_docs_links.py` | 跟踪的 `*.md` 禁止 `temp-docs/` 相对路径（私有开发壳） |
+| `test_no_provider_shaped_secrets_in_tests.py` | server 测试目录禁止出现完整的厂商格式凭据（Stripe 密钥、Slack token），否则 GitHub push protection 会拒绝整个推送；假值统一经 `tests/support/fake_secrets.py` 拼装。含守卫自检：正则必须仍能匹配夹具输出，避免扫描空转 |
 | `test_arch_no_placeholder.py` | 产品树 `_ARCH.md` 禁止「见源码」等占位短语（含 `myrm-agent-extension/`） |
 | `test_server_scripts_arch.py` | `myrm-agent-server/scripts/**` 子树必须有 `_ARCH.md` |
 | `test_sync_arch_guard.py` | `sync_arch_file_tables.py` 不得覆盖已人工维护的 `_ARCH.md`（混合 stub/✅ 或多余章节） |

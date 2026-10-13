@@ -13,6 +13,7 @@ from app.schemas.muse_sentinel_isolation import (
 from app.services.security.muse_sentinel_isolation_service import (
     MuseSentinelIsolationService,
 )
+from tests.support.fake_secrets import stripe_live_key
 
 
 @pytest.fixture
@@ -55,7 +56,7 @@ def test_service_review_outbound_blocked_and_allowed(
         request_id="trace_01",
         destination_url="https://external.api/v1/charge",
         method="POST",
-        headers={"Authorization": "Bearer sk_live_abcdef1234567890abcdef1234"},
+        headers={"Authorization": f"Bearer {stripe_live_key('abcdef1234567890abcdef1234')}"},
         body_preview="",
         source_vm_id="vm_01",
     )

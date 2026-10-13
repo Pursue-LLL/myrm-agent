@@ -15,6 +15,7 @@ from app.schemas.git_leak_shield import (
 from app.services.security.git_leak_shield_service import (
     GitLeakShieldService,
 )
+from tests.support.fake_secrets import stripe_live_key
 
 
 def test_git_leak_shield_service_scan_diff() -> None:
@@ -85,10 +86,11 @@ def test_git_leak_shield_service_check_commit_command() -> None:
 def test_git_leak_shield_service_redact_egress() -> None:
     service = GitLeakShieldService()
 
-    text = "Deploying with Stripe key sk_live_123456789012345678901234 to cluster"
+    secret = stripe_live_key("123456789012345678901234")
+    text = f"Deploying with Stripe key {secret} to cluster"
     redact_res = service.redact_egress_text(RedactTextRequest(text=text))
 
     assert redact_res.redactions_count == 1
     assert "Stripe API Secret Key" in redact_res.detected_types
-    assert "sk_live_123456789012345678901234" not in redact_res.redacted_text
+    assert secret not in redact_res.redacted_text
     assert "****" in redact_res.redacted_text

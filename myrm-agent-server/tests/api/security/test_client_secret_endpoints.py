@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.security.client_secret_router import router as client_secret_router
+from tests.support.fake_secrets import stripe_live_key
 
 
 @pytest.fixture(scope="function")
@@ -22,12 +23,12 @@ def test_scan_client_code_endpoint_leak_and_clean(client: TestClient) -> None:
     # 1. Leaked React component
     leaked_payload = {
         "file_path": "src/components/PaymentModal.tsx",
-        "code": """
-export function PaymentModal() {
-  const stripeKey = "sk_live_123456789012345678901234";
-  return <div>Stripe Checkout</div>;
-}
-""",
+        "code": (
+            "\nexport function PaymentModal() {\n"
+            f'  const stripeKey = "{stripe_live_key("123456789012345678901234")}";\n'
+            "  return <div>Stripe Checkout</div>;\n"
+            "}\n"
+        ),
     }
     resp = client.post("/api/v1/security/client-secrets/scan", json=leaked_payload)
     assert resp.status_code == 200
