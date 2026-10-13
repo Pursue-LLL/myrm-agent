@@ -10628,11 +10628,11 @@
       "manageSkill": "관리로 이동",
       "showMore": "전체 보기 ({count})",
       "showLess": "접기",
-      "recStar": "스타 자산. 관측된 실행 거의 모두 성공했습니다.",
-      "recAtRisk": "위험 자산. 관측된 실행 중 실패가 많습니다. 프롬프트와 매개변수를 확인하세요.",
+      "recStar": "스타 자산. 결과가 명확한 실행은 거의 모두 성공했습니다.",
+      "recAtRisk": "위험 자산. 결과가 명확한 실행 중 실패가 많습니다. 프롬프트와 매개변수를 확인하세요.",
       "recHealthy": "건강하게 활성 로테이션 중인 자산.",
       "recStale": "미사용 자산. 노후화 여부를 검토하거나 사용 예시를 추가하세요.",
-      "recUnproven": "관측된 결과가 부족해 아직 품질을 판단할 수 없습니다 ({observed}/{required}).",
+      "recUnproven": "아직 판단하기 이릅니다. 결과가 명확한 실행이 현재 {observed}/{required}회입니다.",
       "status": {
         "STAR": "별표",
         "HEALTHY": "건강",
@@ -10768,7 +10768,7 @@
       "title": "스킬 사용 트렌드",
       "description": "스킬 성능이 시간에 따라 어떻게 발전하는지 추적합니다.",
       "empty": "아직 스킬 사용 데이터가 없습니다. 스킬이 사용되면 트렌드가 표시됩니다.",
-      "observedRuns": "관측된 실행: {count}",
+      "observedRuns": "결과가 명확한 실행: {count}",
       "metric": {
         "success_rate": "성공률",
         "call_count": "사용 횟수"

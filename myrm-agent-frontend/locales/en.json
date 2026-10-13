@@ -10707,11 +10707,11 @@
       "manageSkill": "Manage",
       "showMore": "Show all ({count})",
       "showLess": "Show less",
-      "recStar": "Star asset. Nearly every observed run succeeded.",
-      "recAtRisk": "At-risk asset. Many observed runs failed; review the prompt and parameters.",
+      "recStar": "Star asset. Nearly every run with a clear result succeeded.",
+      "recAtRisk": "At-risk asset. Many runs with a clear result failed; review the prompt and parameters.",
       "recHealthy": "Healthy asset in active rotation.",
       "recStale": "Inactive asset. Review for obsolescence or add usage examples.",
-      "recUnproven": "Not enough observed outcomes to judge quality yet ({observed} of {required}).",
+      "recUnproven": "Too early to judge: {observed} of {required} runs have a clear result so far.",
       "status": {
         "STAR": "Star",
         "HEALTHY": "Healthy",
@@ -10847,7 +10847,7 @@
       "title": "Skill Usage Trends",
       "description": "Track how your skills' performance evolves over time.",
       "empty": "No skill usage data yet. Skills will show trends after they are used.",
-      "observedRuns": "Observed runs: {count}",
+      "observedRuns": "Runs with a clear result: {count}",
       "metric": {
         "success_rate": "Success Rate",
         "call_count": "Usage Count"

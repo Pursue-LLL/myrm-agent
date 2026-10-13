@@ -26,7 +26,7 @@ const translationMap: Record<string, string> = {
   recAtRisk: 'High failure rate detected. Review prompt parameters.',
   recHealthy: 'Healthy asset in active rotation.',
   recStale: 'Skill has not been invoked. Consider deprecating.',
-  recUnproven: 'Not enough observed outcomes to judge quality yet ({observed} of {required}).',
+  recUnproven: 'Too early to judge: {observed} of {required} runs have a clear result so far.',
   showMore: 'Show all ({count})',
   showLess: 'Show less',
 };
@@ -133,9 +133,8 @@ describe('SkillHealthPanel', () => {
     render(<SkillHealthPanel items={[unproven]} />);
 
     expect(screen.getByText('Unproven')).toBeInTheDocument();
-    expect(screen.getByText('Not enough observed outcomes to judge quality yet (1 of 5).')).toBeInTheDocument();
+    expect(screen.getByText('Too early to judge: 1 of 5 runs have a clear result so far.')).toBeInTheDocument();
     expect(screen.getByText('2 calls (7D) · 2 total')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Needs Attention/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Needs Attention/i }));
     expect(screen.queryByText('fresh_skill')).not.toBeInTheDocument();
   });
