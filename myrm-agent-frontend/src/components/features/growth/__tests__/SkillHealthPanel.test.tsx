@@ -102,6 +102,15 @@ describe('SkillHealthPanel', () => {
     expect(screen.getByText('1')).toBeInTheDocument();
   });
 
+  it('links each skill to the installed skill list, filtered by its name', () => {
+    render(<SkillHealthPanel items={[{ ...mockItems[0], skill_name: 'report & digest/v2' }]} />);
+
+    expect(screen.getByRole('link', { name: /Manage/ })).toHaveAttribute(
+      'href',
+      '/settings/skills?search=report%20%26%20digest%2Fv2',
+    );
+  });
+
   it('shows the success rate only for skills whose run outcomes were observed', () => {
     render(<SkillHealthPanel items={mockItems} />);
 

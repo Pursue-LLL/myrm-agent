@@ -26,7 +26,6 @@ from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.backends.skills.usage_recorder import (
     begin_skill_run_usage,
     commit_skill_run_usage,
-    flush_skill_usage_stats,
     set_stats_collector,
 )
 
@@ -87,7 +86,6 @@ class _SkillLedger:
             )
             commit_skill_run_usage()
         reset_loaded_skills()
-        flush_skill_usage_stats()
         return SkillRecord(
             skill_id=f"{skill_name}-id",
             name=skill_name,

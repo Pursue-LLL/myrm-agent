@@ -6,6 +6,7 @@
 [OUTPUT]
 - test_skill_health_panel_renders_verdicts_and_filters: the panel's rows, filters and unproven wording in a real browser
 - test_skill_health_panel_shows_empty_state_when_no_skill_ran: nothing to rate shows one sentence, not a list
+- test_manage_link_opens_the_installed_list_filtered_by_that_skill: the row's only action lands on the skill itself
 
 [POS]
 UI-lane check of the growth dashboard's health panel. The dashboard response is replaced in the page so
@@ -134,6 +135,28 @@ _PANEL_STATE_JS = r"""(() => {
   };
 })()"""
 
+_OPEN_MANAGE_LINK_JS = r"""(() => {
+  const row = document.querySelector('[data-testid="skill-health-row"][data-skill-name="__NAME__"]');
+  const link = row && row.querySelector('a[href^="/settings/skills"]');
+  if (!link) return false;
+  link.click();
+  return true;
+})()"""
+
+_SKILLS_PAGE_STATE_JS = r"""(() => {
+  const search = Array.from(document.querySelectorAll('input')).find((input) =>
+    /Search installed skills|搜索已安装技能/i.test(input.placeholder || '')
+  );
+  const activeTabs = Array.from(document.querySelectorAll('[role="tab"][data-state="active"]')).map((tab) =>
+    (tab.textContent || '').trim()
+  );
+  return {
+    path: location.pathname,
+    installedTabActive: activeTabs.some((text) => /^(Installed|已安装)/i.test(text)),
+    searchValue: search ? search.value : null,
+  };
+})()"""
+
 _RANGE_LABELS = {7: "7D|7天", 90: "90D|90天"}
 _FILTER_LABELS = {"attention": "Needs Attention|待治理", "healthy": "Healthy & Stars|健康与明星"}
 
@@ -238,3 +261,31 @@ def test_skill_health_panel_shows_empty_state_when_no_skill_ran() -> None:
         assert state.get("ready") is True, state
         assert state["hasFilters"] is False
         assert state["rows"] == []
+
+
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_manage_link_opens_the_installed_list_filtered_by_that_skill() -> None:
+    journey_url = f"{get_e2e_ui_url().rstrip('/')}/journey"
+    at_risk = f"{_NAME_PREFIX}risk"
+    with _journey_with_stub(journey_url) as (client, page):
+        _show(client, page, _SKILL_HEALTH_STUB, days=7)
+        _wait_for_rows(client, page, journey_url, {f"{_NAME_PREFIX}{suffix}" for suffix in ("star", "risk", "new")})
+
+        assert client.evaluate(page, _OPEN_MANAGE_LINK_JS.replace("__NAME__", at_risk)) is True
+
+        state = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const state = {_SKILLS_PAGE_STATE_JS};
+              return {{ ...state, ready: state.searchValue === {json.dumps(at_risk)} }};
+            }})()""",
+            timeout_sec=120.0,
+            page_url=journey_url,
+            pin_direct_blank_heal=True,
+        )
+        assert state.get("ready") is True, state
+        assert state["path"] == "/settings/skills"
+        assert state["installedTabActive"] is True, "the link must not land on the skill market"

@@ -64,7 +64,12 @@ import SettingsSection from '../SettingsSection';
 
 type TabValue = 'discover' | 'installed' | 'permissions';
 
-const SkillsSection = memo(() => {
+interface SkillsSectionProps {
+  /** Opens the installed tab with this search applied (deep link from the skill health panel). */
+  initialSearch?: string;
+}
+
+const SkillsSection = memo(({ initialSearch }: SkillsSectionProps) => {
   const t = useTranslations('settings.skills');
   const tPlugins = useTranslations('settings.plugins.import');
   const tPluginManager = useTranslations('settings.plugins.manager');
@@ -95,9 +100,9 @@ const SkillsSection = memo(() => {
 
   const { unreviewedCount, fetchUnreviewedCount } = useSkillDraftStore();
 
-  const [activeTab, setActiveTab] = useState<TabValue>(() => (isSandbox() ? 'installed' : 'discover'));
+  const [activeTab, setActiveTab] = useState<TabValue>(() => (initialSearch || isSandbox() ? 'installed' : 'discover'));
   const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
-  const [installedSearch, setInstalledSearch] = useState('');
+  const [installedSearch, setInstalledSearch] = useState(initialSearch ?? '');
   const [sourceFilter, setSourceFilter] = useState<SkillSourceFilter>('all');
   const [statusFilter, setStatusFilter] = useState<SkillStatusFilter>('all');
   const [localPathsOpen, setLocalPathsOpen] = useState(false);

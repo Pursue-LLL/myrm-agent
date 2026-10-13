@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import pytest
 from myrm_agent_harness.backends.skills.forgetting_strategy import CuratorConfig
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillUsageStats
 
-from app.api.statistics.skill_growth import fetch_skill_health, fetch_skill_trends
+from app.api.statistics.skill_growth import SkillTrendSeries, fetch_skill_health, fetch_skill_trends
 
 
 @pytest.fixture
@@ -204,6 +205,80 @@ async def test_trend_points_count_uses_and_leave_unobserved_days_without_a_rate(
     assert advisory_point.call_count == 2
     assert advisory_point.observed_count == 0
     assert advisory_point.success_rate is None
+
+
+def _write_history(root: Path, name: str, records: list[tuple[str, bool | None]]) -> None:
+    """Persist a ledger holding exactly the given ``(timestamp, outcome)`` records."""
+    skill_dir = root / name
+    skill_dir.mkdir()
+    stats = SkillUsageStats(call_count=len(records), created_at=datetime.now(UTC))
+    for timestamp, outcome in records:
+        stats.append_usage(timestamp, outcome)
+    (skill_dir / ".stats.json").write_text(json.dumps(stats.to_dict()))
+
+
+def _dates(series_list: list[SkillTrendSeries], name: str) -> list[str]:
+    (series,) = (series for series in series_list if series.skill_name == name)
+    return [point.date for point in series.data_points]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("timestamp", "timezone", "expected_day"),
+    [
+        ("2026-10-12T23:30:00+00:00", UTC, "2026-10-12"),
+        ("2026-10-12T23:30:00+00:00", ZoneInfo("Asia/Shanghai"), "2026-10-13"),
+        ("2026-10-12T05:30:00+00:00", ZoneInfo("America/Los_Angeles"), "2026-10-11"),
+    ],
+    ids=["utc", "ahead-of-utc", "behind-utc"],
+)
+async def test_trend_day_is_the_viewers_calendar_day(
+    skills_root: Path, timestamp: str, timezone: tzinfo, expected_day: str
+) -> None:
+    """07:30 in Shanghai is 23:30 UTC the evening before; the chart must show the day the user lived it."""
+    _write_history(skills_root, "morning-run", [(timestamp, True)])
+
+    assert _dates(await fetch_skill_trends(timezone), "morning-run") == [expected_day]
+
+
+@pytest.mark.asyncio
+async def test_trend_days_default_to_utc(skills_root: Path) -> None:
+    _write_history(skills_root, "morning-run", [("2026-10-12T23:30:00+00:00", True)])
+
+    assert _dates(await fetch_skill_trends(), "morning-run") == ["2026-10-12"]
+
+
+@pytest.mark.asyncio
+async def test_trend_series_list_the_busiest_skill_first(skills_root: Path) -> None:
+    """The chart opens on the first series, so ledger directory order must not decide which skill that is."""
+    when = datetime.now(UTC).isoformat()
+    for name, runs in {"quiet": 1, "busy": 5, "alpha-tie": 3, "beta-tie": 3}.items():
+        _write_history(skills_root, name, [(when, True)] * runs)
+
+    assert [series.skill_name for series in await fetch_skill_trends()] == ["busy", "alpha-tie", "beta-tie", "quiet"]
+
+
+@pytest.mark.asyncio
+async def test_unreadable_timestamp_skips_only_that_record(skills_root: Path) -> None:
+    _write_history(
+        skills_root,
+        "hand-edited",
+        [("not-a-time", True), ("2026-10-12T08:00:00Z", True), ("2026-10-12T09:00:00", False)],
+    )
+    _write_history(skills_root, "neighbour", [("2026-10-12T08:00:00+00:00", True)])
+
+    series = {s.skill_name: s for s in await fetch_skill_trends()}
+
+    (point,) = series["hand-edited"].data_points
+    assert (point.date, point.call_count, point.observed_count) == ("2026-10-12", 2, 2)
+    assert "neighbour" in series
+
+
+@pytest.mark.asyncio
+async def test_skill_whose_records_are_all_unreadable_has_no_trend(skills_root: Path) -> None:
+    _write_history(skills_root, "garbled", [("never", True)])
+
+    assert await fetch_skill_trends() == []
 
 
 @pytest.mark.asyncio

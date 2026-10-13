@@ -22,15 +22,10 @@ from datetime import UTC, datetime, timedelta
 
 from myrm_agent_harness.observability import SkillCompoundingMetrics, SkillHealthEvaluator
 
-from app.api.statistics.skill_growth.ledger import iter_skill_ledgers
+from app.api.statistics.skill_growth.ledger import as_utc, iter_skill_ledgers, parse_record_time
 from app.api.statistics.skill_growth.models import SkillHealthItem
 
 logger = logging.getLogger(__name__)
-
-
-def _as_utc(moment: datetime) -> datetime:
-    """Ledgers that were edited or imported by hand may carry naive timestamps; read them as UTC."""
-    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 async def fetch_skill_health() -> list[SkillHealthItem]:
@@ -49,9 +44,8 @@ async def fetch_skill_health() -> list[SkillHealthItem]:
             fail_7d = 0
 
             for rec in stats.usage_history:
-                try:
-                    rec_dt = _as_utc(datetime.fromisoformat(rec.timestamp.replace("Z", "+00:00")))
-                except (TypeError, ValueError):
+                rec_dt = parse_record_time(rec.timestamp)
+                if rec_dt is None:
                     continue
 
                 if rec_dt >= week_ago:
@@ -62,12 +56,7 @@ async def fetch_skill_health() -> list[SkillHealthItem]:
                         fail_7d += 1
 
             # Counters without a history can only be placed in time by ``last_used_at``.
-            if (
-                not stats.usage_history
-                and stats.call_count > 0
-                and stats.last_used_at
-                and _as_utc(stats.last_used_at) >= week_ago
-            ):
+            if not stats.usage_history and stats.call_count > 0 and stats.last_used_at and as_utc(stats.last_used_at) >= week_ago:
                 calls_7d = stats.call_count
                 succ_7d = stats.success_count
                 fail_7d = stats.failure_count

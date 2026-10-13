@@ -33,6 +33,7 @@ class SkillTrendPoint(BaseModel):
     """Single data point in a skill usage trend."""
 
     date: str
+    """Calendar day (YYYY-MM-DD) in the timezone the dashboard was requested in."""
     success_rate: float | None
     """Share of the day's runs with an observed outcome that succeeded; None when none was observed."""
     observed_count: int
@@ -41,7 +42,7 @@ class SkillTrendPoint(BaseModel):
 
 
 class SkillTrendSeries(BaseModel):
-    """Weekly aggregated usage trend for a single skill."""
+    """Daily usage trend of a single skill."""
 
     skill_name: str
     data_points: list[SkillTrendPoint]

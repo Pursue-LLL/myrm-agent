@@ -15,7 +15,6 @@ from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 from myrm_agent_harness.backends.skills.usage_recorder import (
     begin_skill_run_usage,
     commit_skill_run_usage,
-    flush_skill_usage_stats,
     get_injected_stats_collector,
     record_skill_selection,
     set_stats_collector,
@@ -209,7 +208,6 @@ async def test_usage_recorder_to_curator_via_api_client(
         ),
     )
     commit_skill_run_usage()
-    flush_skill_usage_stats()
 
     stats = json.loads((skill_dir / ".stats.json").read_text())
     assert stats["call_count"] == 1

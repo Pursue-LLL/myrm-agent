@@ -97,7 +97,7 @@ const UnifiedSkillsSection = memo(() => {
         </TabsList>
 
         <TabsContent value="inventory">
-          <SkillsSection />
+          <SkillsSection initialSearch={searchParams.get('search') ?? undefined} />
         </TabsContent>
         <TabsContent value="compounding">
           <CompoundingChecklistSection />
