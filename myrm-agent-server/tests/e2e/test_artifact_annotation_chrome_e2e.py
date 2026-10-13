@@ -197,6 +197,53 @@ def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
+def _open_deliverable_portal(client: object, page: object) -> dict:
+    """Click the seeded deliverable link and wait until the portal renders its text.
+
+    Open tabs are not persisted, so every fresh page load must re-open the portal.
+    """
+    # The message list streams in, so retry the click until it lands.
+    link: dict | None = None
+    deadline = time.monotonic() + 120.0
+    while time.monotonic() < deadline:
+        link = client.evaluate(page, _OPEN_FIRST_DELIVERABLE_JS, timeout_sec=15.0)
+        if isinstance(link, dict) and link.get("ok"):
+            break
+        time.sleep(3.0)
+    assert isinstance(link, dict) and link.get("ok") is True, link
+    store_state = wait_for_state(client, page, _PORTAL_STORE_READY_JS, timeout_sec=90.0)
+    assert store_state.get("ready") is True, json.dumps(store_state, ensure_ascii=False)
+    content: dict | None = None
+    last_probe: dict | None = None
+    content_deadline = time.monotonic() + 330.0
+    while time.monotonic() < content_deadline:
+        try:
+            probe = client.evaluate(page, _PORTAL_WITH_TEXT_JS, timeout_sec=15.0)
+        except Exception:
+            time.sleep(3.0)
+            continue
+        if not isinstance(probe, dict):
+            time.sleep(3.0)
+            continue
+        last_probe = probe
+        if probe.get("ready") is True:
+            content = probe
+            break
+        if probe.get("hasError"):
+            raise AssertionError(f"portal content failed: {json.dumps(probe, ensure_ascii=False)}")
+        if not probe.get("tabCount"):
+            # Portal lost its tab mid-stream; re-enter via the link.
+            retry = client.evaluate(page, _OPEN_FIRST_DELIVERABLE_JS, timeout_sec=15.0)
+            if not (isinstance(retry, dict) and retry.get("ok")):
+                time.sleep(3.0)
+            continue
+        time.sleep(3.0)
+    assert isinstance(content, dict) and content.get("ready") is True, json.dumps(
+        {"content": content, "last_probe": last_probe}, ensure_ascii=False
+    )
+    return content
+
+
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -223,46 +270,8 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
             chat_url = f"{ui_url}/{chat_id}"
             _navigate_alive(client, page, chat_url)
 
-            # T1: open the seeded deliverable, then the portal shows its content.
-            # The message list streams in, so retry the click until it lands.
-            link: dict | None = None
-            deadline = time.monotonic() + 120.0
-            while time.monotonic() < deadline:
-                link = client.evaluate(page, _OPEN_FIRST_DELIVERABLE_JS, timeout_sec=15.0)
-                if isinstance(link, dict) and link.get("ok"):
-                    break
-                time.sleep(3.0)
-            assert isinstance(link, dict) and link.get("ok") is True, link
-            store_state = wait_for_state(client, page, _PORTAL_STORE_READY_JS, timeout_sec=90.0)
-            assert store_state.get("ready") is True, json.dumps(store_state, ensure_ascii=False)
-            content: dict | None = None
-            last_probe: dict | None = None
-            content_deadline = time.monotonic() + 330.0
-            while time.monotonic() < content_deadline:
-                try:
-                    probe = client.evaluate(page, _PORTAL_WITH_TEXT_JS, timeout_sec=15.0)
-                except Exception:
-                    time.sleep(3.0)
-                    continue
-                if not isinstance(probe, dict):
-                    time.sleep(3.0)
-                    continue
-                last_probe = probe
-                if probe.get("ready") is True:
-                    content = probe
-                    break
-                if probe.get("hasError"):
-                    raise AssertionError(f"portal content failed: {json.dumps(probe, ensure_ascii=False)}")
-                if not probe.get("tabCount"):
-                    # Portal lost its tab mid-stream; re-enter via the link.
-                    retry = client.evaluate(page, _OPEN_FIRST_DELIVERABLE_JS, timeout_sec=15.0)
-                    if not (isinstance(retry, dict) and retry.get("ok")):
-                        time.sleep(3.0)
-                    continue
-                time.sleep(3.0)
-            assert isinstance(content, dict) and content.get("ready") is True, json.dumps(
-                {"content": content, "last_probe": last_probe}, ensure_ascii=False
-            )
+            # T1: open the seeded deliverable; the portal shows its content.
+            _open_deliverable_portal(client, page)
 
             # T2: toggle opens the annotation panel.
             opened = client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
@@ -291,8 +300,7 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
 
             # T4: reload -> the comment survives (persistence proof).
             _navigate_alive(client, page, chat_url)
-            content2 = wait_for_state(client, page, _PORTAL_WITH_TEXT_JS, timeout_sec=120.0)
-            assert content2.get("ready") is True, json.dumps(content2, ensure_ascii=False)
+            _open_deliverable_portal(client, page)
             client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
             relisted = wait_for_state(
                 client,
