@@ -214,9 +214,9 @@ async def create_skill_backend(
         from app.core.skills.storage_adapters import ABTestStoreAdapter, SnapshotStoreAdapter
         from app.platform_utils import get_session_factory
 
-        session_factory = get_session_factory()
-        session = session_factory()
-        db_storage = SQLAlchemyStorage(session)
+        # The backend outlives this call and queries the stores on every load, so each query opens
+        # its own session; one held open would pin a pooled connection and serve a stale snapshot.
+        db_storage = SQLAlchemyStorage(session_factory=get_session_factory())
 
         runtime_backend = VersionAwareSkillBackend(
             base_backend=final_backend,
