@@ -163,7 +163,7 @@
     "dontRemindAgain": "Nicht mehr erinnern",
     "messageFailed": {
       "title": "Senden fehlgeschlagen",
-      "networkError": "Verbindung zum Dienst verloren. Prüfen Sie den Backend-Dienst und laden Sie die Seite neu"
+      "networkError": "Verbindung unterbrochen. Ihre Nachricht wurde möglicherweise nicht zugestellt. Bitte prüfen Sie Ihr Netzwerk und versuchen Sie es erneut"
     },
     "sendBlocked": {
       "title": "Senden nicht möglich",
