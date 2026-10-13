@@ -1,9 +1,33 @@
-"""技能加载工厂（业务层）
+"""Skill backend factory (business layer).
 
-封装技能后端的组装逻辑，业务层一行调用即可获取完整的 SkillBackend。
+[INPUT]
+myrm_agent_harness.api::SkillBackend (POS: unified interface for loading skills from multiple sources)
+myrm_agent_harness.backends.skills::CompositeSkillBackend (POS: route-prefixed composition of skill backends)
+myrm_agent_harness.backends.skills::InMemorySkillBackend (POS: in-memory skill metadata without persistence)
+myrm_agent_harness.backends.skills::LocalSkillBackend (POS: skills loaded from local paths per the Claude Skills spec)
+myrm_agent_harness.backends.skills::StorageSkillBackend (POS: skills loaded from any storage backend)
+myrm_agent_harness.backends.skills::VersionAwareSkillBackend (POS: A/B-test and activated-snapshot routing decorator)
+myrm_agent_harness.backends.skills.types::SkillMetadata, SkillTrust (POS: skill system data types)
+myrm_agent_harness.core.security.path::safe_join_path (POS: generic filesystem path safety primitives)
+myrm_agent_harness.toolkits.storage.base::StorageProvider (POS: unified storage abstraction)
+app.core.skills.prebuilt_sync::sync_prebuilt_seeds (POS: prebuilt skill seed synchronizer)
+app.core.skills.runtime_metadata::skill_to_runtime_metadata (POS: catalog skill to agent-runtime metadata adapter)
+app.core.skills.models::SkillType (POS: catalog skill data models)
+app.core.skills.store.service::skills_service (POS: skill CRUD service)
+app.core.skills.gates.oauth_availability::wrap_integration_oauth_backend (POS: keeps skill availability consistent
+    between Catalog and Agent runtime)
+app.core.skills.storage_adapters::SnapshotStoreAdapter, ABTestStoreAdapter (POS: protocol adapters over SQLAlchemyStorage)
+app.adapters.skill_optimization.sqlalchemy_storage::SQLAlchemyStorage (POS: bridges framework protocols and SQLAlchemy
+    repositories, fixed or per-operation sessions)
+app.platform_utils::get_session_factory (POS: platform adapter layer selected by DEPLOY_MODE)
 
-框架层保持通用（只接受 SkillBackend 接口），业务逻辑（权限过滤、路径映射、
-prebuilt/user/workspace 组合）全部在此处理。
+[OUTPUT]
+create_skill_backend: assemble the SkillBackend of one agent from prebuilt, user and workspace skills
+
+[POS]
+Business-layer skill backend factory. The framework layer only accepts the SkillBackend interface; permission
+filtering, path mapping and the prebuilt / user / workspace composition are decided here, then wrapped with
+version routing (snapshot / A/B) and the integration-OAuth availability gate.
 """
 
 import asyncio
