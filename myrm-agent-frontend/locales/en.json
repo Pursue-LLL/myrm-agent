@@ -10777,6 +10777,7 @@
       "description": "Track how your skills' performance evolves over time.",
       "empty": "No skill usage data yet. Skills will show trends after they are used.",
       "observedRuns": "Runs with a clear result: {count}",
+      "truncated": "This skill ran more often than its history keeps, so earlier runs in this range are not shown.",
       "metric": {
         "success_rate": "Success Rate",
         "call_count": "Usage Count"
@@ -10810,7 +10811,6 @@
     "dailyJournal": {
       "today": "Today",
       "sessions": "Sessions",
-      "truncated": "This skill ran more often than its history keeps, so earlier runs in this range are not shown.",
       "tokens": "Tokens",
       "cost": "Cost",
       "toolCalls": "Tool Calls",

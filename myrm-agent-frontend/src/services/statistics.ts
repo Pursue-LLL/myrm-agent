@@ -616,6 +616,8 @@ export interface SkillTrendPoint {
 export interface SkillTrendSeries {
   skill_name: string;
   data_points: SkillTrendPoint[];
+  /** True when the skill's kept history starts inside the requested range, so its earlier runs are missing. */
+  truncated: boolean;
 }
 
 export interface SkillHealthItem {
@@ -630,6 +632,8 @@ export interface SkillHealthItem {
   min_observed_count: number;
   /** null until min_observed_count outcomes were observed. */
   success_rate_7d: number | null;
+  /** True when the skill ran more often than its history keeps, so call_count_7d is a lower bound. */
+  truncated: boolean;
   actionable_recommendation?: string | null;
 }
 
@@ -637,8 +641,6 @@ export interface GrowthDashboardData {
   snapshot: GrowthSnapshot;
   activity_heatmap: ActivityDay[];
   weekly_summary: WeeklySummary;
-  /** True when the skill's kept history starts inside the requested range, so its earlier runs are missing. */
-  truncated: boolean;
   skill_events: SkillEvolutionEvent[];
   cost_summary: CostSummary | null;
   skill_trends: SkillTrendSeries[];
@@ -653,8 +655,6 @@ export async function getGrowthDashboard(days = 84): Promise<GrowthDashboardData
 export interface ModelSessionItem {
   chatId: string;
   title: string;
-  /** True when the skill ran more often than its history keeps, so call_count_7d is a lower bound. */
-  truncated: boolean;
   actionMode: string;
   createdAt: string | null;
   calls: number;

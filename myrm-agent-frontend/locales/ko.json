@@ -10709,6 +10709,7 @@
       "description": "스킬 성능이 시간에 따라 어떻게 발전하는지 추적합니다.",
       "empty": "아직 스킬 사용 데이터가 없습니다. 스킬이 사용되면 트렌드가 표시됩니다.",
       "observedRuns": "결과가 명확한 실행: {count}",
+      "truncated": "이 스킬은 실행이 잦아 최근 실행 기록만 보관됩니다. 선택한 기간의 이전 실행은 차트에 표시되지 않습니다.",
       "metric": {
         "success_rate": "성공률",
         "call_count": "사용 횟수"
@@ -10810,7 +10811,6 @@
       "rollbackFailed": "스킬 롤백에 실패했습니다.",
       "verdicts": {
         "confirmed": "확인됨",
-      "truncated": "이 스킬은 실행이 잦아 최근 실행 기록만 보관됩니다. 선택한 기간의 이전 실행은 차트에 표시되지 않습니다.",
         "regression": "성능 저하",
         "refuted": "미달성",
         "inconclusive": "판정 불가"

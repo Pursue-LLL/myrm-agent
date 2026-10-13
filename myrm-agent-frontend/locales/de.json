@@ -10709,6 +10709,7 @@
       "description": "Verfolgen Sie, wie sich die Leistung Ihrer Skills im Laufe der Zeit entwickelt.",
       "empty": "Noch keine Skill-Nutzungsdaten. Trends werden angezeigt, sobald Skills verwendet werden.",
       "observedRuns": "Läufe mit eindeutigem Ergebnis: {count}",
+      "truncated": "Dieser Skill läuft so oft, dass nur die letzten Läufe gespeichert werden. Frühere Läufe in diesem Zeitraum fehlen im Diagramm.",
       "metric": {
         "success_rate": "Erfolgsrate",
         "call_count": "Nutzungsanzahl"
@@ -10810,7 +10811,6 @@
       "rollbackFailed": "Fehler beim Rollback der Skill-Evolution.",
       "verdicts": {
         "confirmed": "Bestätigt",
-      "truncated": "Dieser Skill läuft so oft, dass nur die letzten Läufe gespeichert werden. Frühere Läufe in diesem Zeitraum fehlen im Diagramm.",
         "regression": "Rückschritt",
         "refuted": "Widerlegt",
         "inconclusive": "Uneindeutig"
