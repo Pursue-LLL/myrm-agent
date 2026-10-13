@@ -16,6 +16,7 @@
 | `mount.py` | 安装/更新后 catalog enable 入口：`maybe_mount_after_install`/`resolve_mount_skill_id`/`DEFAULT_MOUNT_AGENT_ID`，触发 `SKILL_POOL_UPDATED` 广播，返回 `SkillMountResult`。 |
 | `autoupdate.py` | 上游版本检测与更新检查：`get_update_checker`。 |
 | `rescan_service.py` | 已安装技能供应链漏洞与恶意投毒重扫服务：`SkillRescanService` / `rescan_service`，联动 `AdvisoryAckRegistry` 与 `AppEventBus` 广播。 |
+| `agent_market_install.py` | Chat `skill_market_tool` 安装后 parity：`maybe_mount_after_install` + `complete_discovery_adoption`（与 Discover HTTP 一致）。 |
 
 ---
 

@@ -43,7 +43,13 @@ def skills_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 @pytest.fixture
-def skill_manage_tool(skills_dir: Path) -> BaseTool:
+def skill_manage_tool(skills_dir: Path, monkeypatch: pytest.MonkeyPatch) -> BaseTool:
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr(
+        "app.services.skills.mutation_batch_hook.ServerSkillManageBatchHook.on_batch_committed",
+        AsyncMock(),
+    )
     tools: list[object] = []
     _Host(enable_skill_manage=True)._setup_skill_manage_tool(tools, SkillCreationService(base_path=skills_dir), object(), None)
     assert [getattr(tool, "name", None) for tool in tools] == ["skill_manage_tool"]
@@ -51,7 +57,8 @@ def skill_manage_tool(skills_dir: Path) -> BaseTool:
 
 
 async def _run(tool: BaseTool, **arguments: str) -> str:
-    return str(await tool.ainvoke(arguments, config=TOOL_CONFIG))
+    payload = {"operations": [arguments]}
+    return str(await tool.ainvoke(payload, config=TOOL_CONFIG))
 
 
 @pytest.mark.parametrize(

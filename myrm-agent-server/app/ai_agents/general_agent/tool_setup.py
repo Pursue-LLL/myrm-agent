@@ -165,11 +165,19 @@ class ToolSetupMixin(ExternalAgentsMixin):
             create_skill_market_tool,
         )
 
-        install_url_fn = getattr(market_backend, "install_from_url", None)
+        from app.core.skills.discovery.agent_market_install import (
+            make_agent_session_install_from_url_fn,
+            wrap_skill_market_backend_for_agent_session,
+        )
+
+        backend = wrap_skill_market_backend_for_agent_session(market_backend)
+        install_url_fn = None
+        if getattr(market_backend, "install_from_url", None) is not None:
+            install_url_fn = make_agent_session_install_from_url_fn(market_backend)
         uninstall_fn = getattr(market_backend, "uninstall", None)
         tools.append(
             create_skill_market_tool(
-                market_backend,
+                backend,
                 install_from_url_fn=install_url_fn,
                 uninstall_fn=uninstall_fn,
             )
@@ -205,11 +213,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
             inner=write_backend,
             llm_auditor=llm_auditor_instance,
         )
+        from app.services.skills.mutation_batch_hook import ServerSkillManageBatchHook
+
         tools.append(
             create_skill_manage_tool(
                 scanning_backend,
                 skill_backend,
                 similarity_checker,
+                batch_committed_hook=ServerSkillManageBatchHook(),
             )
         )
         logger.info("Loaded skill_manage_tool [Turn1]")
