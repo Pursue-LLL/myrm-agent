@@ -12,6 +12,7 @@
 | `evolution_review/` | 子域 | Evolution 审核：类型 + 持久化 + 查询 + 写操作 + 落盘编排（清单见 [`evolution_review/_ARCH.md`](evolution_review/_ARCH.md)） | — |
 | `nightly_review/` | 子域 | 夜间体检：协作评分 + 不再犯盯梢验收 + 早晨 digest（清单见 [`nightly_review/_ARCH.md`](nightly_review/_ARCH.md)） | — |
 | `growth/` | 子域 | 技能成长：动作 SSOT + case DTO + case 查询 + 账本审计/投影 + 生命周期编排（清单见 [`growth/_ARCH.md`](growth/_ARCH.md)） | — |
+| `solidify/` | 子域 | 交付物固化为全包 Skill：参数最小化提取 + 4合1资产打包 + 外部真机预览（清单见 [`solidify/_ARCH.md`](solidify/_ARCH.md)） | — |
 | `evolution_reviews.py` | 门面 | evolution 审核生命周期门面（re-export `evolution_review/` 公共 API） | ✅ |
 | `experience_ledger.py` | 核心 | 学习资产事件账本（append-only，统一记录 migration/evolution/review/skill_growth 事件，并提供技能成长聚合查询） | ✅ |
 | `draft_notification.py` | 核心 | 技能成长记录持久化 + 安全预检 + 24h 去重 + `ApprovalRecord` rich status 落库 + `SKILL_GROWTH_UPDATED` 事件发布单一出口 + `NEW_SKILL_DRAFT` 事件发布 + ledger 镜像 | ✅ |
@@ -20,6 +21,11 @@
 | `similarity_checker.py` | 核心 | 技能语义去重实现。基于 HybridSkillSearchEngine 检查新技能是否与已有技能功能重复，防止技能熵增 | ✅ |
 | `evolution_events.py` | 辅助 | 技能进化 `SKILL_EVOLVED` 事件发布（services 层单一入口） | ✅ |
 | `ws_hub.py` | 核心 | Evolution WebSocket 连接池与广播（`broadcast_proposal` / `broadcast_message`） | ✅ |
+| `write_orchestrator.py` | 核心 | SKILL.md 写入 SSOT：DB 版本 persist 与磁盘 `sync_disk` 同序；meta-tool 失败时 `restore_skill_md_from_active_version` | ✅ |
+| `package_revision_service.py` | 核心 | PackageRevision 持久化与 fail-closed 恢复 | ✅ |
+| `mutation_batch_hook.py` | 核心 | skill_manage 批次提交后 batch_snapshots 单事务写入（fail-closed） | ✅ |
+| `skill_manage_batch_parse.py` | 核心 | 解析 `myrm_skill_batch:` JSON 与 legacy batch_id 文本，供 stream_collector | ✅ |
+| `mutation_batch_service.py` | 核心 | 批次回滚 + 成功后 consume 快照 + compensation / batch_already_consumed | ✅ |
 
 ## 设计原则
 

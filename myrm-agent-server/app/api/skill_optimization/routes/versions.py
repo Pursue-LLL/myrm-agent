@@ -15,8 +15,22 @@ from app.api.skill_optimization.dependencies import (
     get_storage,
 )
 from app.database.connection import get_db
+from app.services.skills.write_orchestrator import is_neutral_quality_score
 
 router = APIRouter()
+
+
+def _quality_score_payload(score: object | None) -> dict[str, float] | None:
+    if score is None or is_neutral_quality_score(score):
+        return None
+    return {
+        "overall_score": score.overall_score,
+        "success_rate": score.success_rate,
+        "token_efficiency": score.token_efficiency,
+        "execution_time": score.execution_time,
+        "user_satisfaction": score.user_satisfaction,
+        "call_frequency": score.call_frequency,
+    }
 
 
 @router.get("/versions/{skill_id}")
@@ -46,16 +60,7 @@ async def list_skill_versions(
                 "created_by": v.created_by,
                 "is_active": v.is_active,
                 "optimization_id": v.optimization_id,
-                "quality_score": {
-                    "overall_score": v.quality_score.overall_score,
-                    "success_rate": v.quality_score.success_rate,
-                    "token_efficiency": v.quality_score.token_efficiency,
-                    "execution_time": v.quality_score.execution_time,
-                    "user_satisfaction": v.quality_score.user_satisfaction,
-                    "call_frequency": v.quality_score.call_frequency,
-                }
-                if v.quality_score
-                else None,
+                "quality_score": _quality_score_payload(v.quality_score),
                 "metadata": v.metadata,
             }
             for v in versions
@@ -224,3 +229,82 @@ async def rollback_optimization(
         "to_version": target_version,
         "audit_log": audit_log,
     }
+
+
+@router.post("/mutations/{batch_id}/rollback")
+async def rollback_skill_mutation_batch_route(
+    batch_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str | int]:
+    from app.services.skills.mutation_batch_service import (
+        MutationBatchAlreadyConsumedError,
+        MutationBatchCompensationError,
+        MutationBatchRollbackError,
+        rollback_skill_mutation_batch,
+    )
+
+    try:
+        restored = await rollback_skill_mutation_batch(db, batch_id)
+        await db.commit()
+    except MutationBatchAlreadyConsumedError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "batch_already_consumed", "message": str(exc)},
+        ) from exc
+    except MutationBatchCompensationError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "compensation_failed", "message": str(exc)},
+        ) from exc
+    except MutationBatchRollbackError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "rollback_failed", "message": str(exc)},
+        ) from exc
+    return {"batch_id": batch_id, "skills_restored": restored, "status": "rolled_back"}
+
+
+@router.get("/package-revisions/{skill_id}")
+async def list_package_revisions(
+    skill_id: str,
+    db: AsyncSession = Depends(get_db),
+    limit: int = 50,
+) -> dict[str, object]:
+    from app.services.skills.package_revision_service import list_package_revisions as list_rows
+
+    rows = await list_rows(db, skill_id, limit=limit)
+    return {
+        "skill_id": skill_id,
+        "revisions": [
+            {
+                "revision_number": r.revision_number,
+                "revision_id": r.revision_id,
+                "created_by": r.created_by,
+                "resource_paths": r.resource_paths,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.post("/package-revisions/{skill_id}/restore/{revision_number}")
+async def restore_package_revision_route(
+    skill_id: str,
+    revision_number: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str | int]:
+    from app.services.skills.package_revision_service import (
+        PackageRevisionRestoreError,
+        restore_package_revision,
+    )
+
+    try:
+        await restore_package_revision(db, skill_id, revision_number)
+        await db.commit()
+    except PackageRevisionRestoreError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"skill_id": skill_id, "revision_number": revision_number, "status": "restored"}

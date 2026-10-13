@@ -163,7 +163,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | 路径 | 验收要点 | 参考测试 |
 |------|----------|----------|
 | Agent 写 SKILL.md | DB 版本 + 磁盘一致；meta-tool 失败可 `restore_skill_md_from_active_version` | `app/services/skills/write_orchestrator.py`；harness `batch_runner` 集成 |
-| `skill_manage` 批量改 | 变更前 snapshot，失败整批 rollback | harness `tests/backends/test_skill_system_core.py` |
+| `skill_manage` 批量改 | 变更前 snapshot，失败整批 rollback；成功可 GUI Undo（consume batch_snapshots） | harness `tests/backends/test_skill_system_core.py`；server `tests/services/skills/test_mutation_batch_*.py` |
 | Shadow A/B → promote | 候选版本 inactive 落库；晋升走 regression gate | `tests/services/skill_optimization/test_start_shadow_ab_test.py` |
 | 进化审批 → 落盘 | 审批通过后 apply；拒绝/失败 rollback | `tests/integration/test_skill_evolution_integration.py` |
 

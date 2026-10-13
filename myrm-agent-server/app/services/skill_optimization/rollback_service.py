@@ -62,6 +62,25 @@ class RollbackService:
             for r in rows
         ]
 
+    async def insert_mutation_batch_snapshot(
+        self,
+        batch_id: str,
+        skill_id: str,
+        skill_content: str,
+        metadata: dict[str, object],
+        *,
+        commit: bool = True,
+    ) -> None:
+        """Persist a pre-mutation snapshot for skill_manage batches."""
+        await self._insert_batch_snapshot(
+            batch_id=batch_id,
+            skill_id=skill_id,
+            skill_content=skill_content,
+            skill_version=0,
+            metadata=metadata,
+            commit=commit,
+        )
+
     async def _insert_batch_snapshot(
         self,
         batch_id: str,
@@ -69,6 +88,8 @@ class RollbackService:
         skill_content: str,
         skill_version: int,
         metadata: dict[str, object],
+        *,
+        commit: bool = True,
     ) -> None:
         row = BatchSnapshot(
             snapshot_id=str(uuid.uuid4()),
@@ -79,7 +100,8 @@ class RollbackService:
             skill_metadata=metadata,
         )
         self.session.add(row)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
 
     async def _delete_batch_snapshots(self, batch_id: str) -> int:
         result = await self.session.execute(select(BatchSnapshot).where(BatchSnapshot.batch_id == batch_id))
@@ -169,8 +191,8 @@ class RollbackService:
         """
         logger.info(f"Creating snapshots for batch {batch_id}: {len(skill_ids)} skills")
 
-        for skill_id in skill_ids:
-            try:
+        try:
+            for skill_id in skill_ids:
                 content, version, metadata = await skill_reader(skill_id)
                 await self._insert_batch_snapshot(
                     batch_id=batch_id,
@@ -178,11 +200,14 @@ class RollbackService:
                     skill_content=content,
                     skill_version=version,
                     metadata=metadata,
+                    commit=False,
                 )
-            except Exception as e:
-                logger.error(f"Failed to create snapshot for skill {skill_id}: {e}")
-                return False
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Failed to create snapshot for batch {batch_id}: {e}")
+            return False
 
+        await self.session.commit()
         logger.info(f"Successfully created {len(skill_ids)} snapshots for batch {batch_id}")
         return True
 
