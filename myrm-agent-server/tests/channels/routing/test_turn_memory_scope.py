@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from myrm_agent_harness.toolkits.memory.config import (
     AgentMemoryPolicy,
@@ -9,6 +11,7 @@ from myrm_agent_harness.toolkits.memory.config import (
     MemoryWritePolicy,
 )
 
+from app.channels.protocols.pairing import PairingRole, PairingStatus
 from app.channels.routing.identity_scope import (
     TurnMemoryScope,
     is_untrusted_sender,
@@ -16,6 +19,7 @@ from app.channels.routing.identity_scope import (
     resolve_turn_memory_scope,
 )
 from app.channels.types import IdentityScopeMode, InboundMessage, TopicContext
+from app.core.channel_bridge.pairing_store import SqlPairingStore
 
 _PROFILE_POLICY = AgentMemoryPolicy(
     read_scopes=(MemoryScopeLevel.GLOBAL, MemoryScopeLevel.AGENT),
@@ -58,6 +62,21 @@ def test_is_untrusted_sender_recognises_guests_and_paired_members() -> None:
     assert is_untrusted_sender("paired_member_telegram_42", msg)
     assert not is_untrusted_sender("sandbox", msg)
     assert not is_untrusted_sender("", msg)
+
+
+@pytest.mark.asyncio
+async def test_pairing_store_hands_members_an_id_the_fence_recognises() -> None:
+    """Real producer to consumer: the id the pairing store issues is the one the untrusted-sender check matches."""
+    store = SqlPairingStore()
+    channel, member = "telegram", f"mem_{uuid.uuid4().hex[:6]}"
+    await store.bind(channel, member, role=PairingRole.MEMBER, status=PairingStatus.ACTIVE)
+    try:
+        user_id = await store.resolve(channel, member)
+
+        assert user_id is not None
+        assert is_untrusted_sender(user_id, _msg(is_group=False, channel=channel, sender_id=member))
+    finally:
+        await store.unbind(channel, member)
 
 
 def test_is_untrusted_sender_honours_group_guest_turn_metadata() -> None:
