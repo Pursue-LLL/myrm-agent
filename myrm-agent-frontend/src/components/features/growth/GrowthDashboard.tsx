@@ -37,7 +37,7 @@ import PatternDigestPanel from './PatternDigestPanel';
 import SkillEventList from './SkillEventList';
 import SkillTrendChart from './SkillTrendChart';
 import SkillHealthPanel from './SkillHealthPanel';
-import { buildGrowthMarkdown, downloadGrowthMarkdown } from './growthMarkdownExport';
+import { buildGrowthMarkdown, downloadGrowthMarkdown, growthMarkdownLabels } from './growthMarkdownExport';
 
 const MemoryKnowledgeGraph = lazy(() => import('@/components/features/memory/insights/MemoryKnowledgeGraph'));
 
@@ -81,22 +81,7 @@ export default function GrowthDashboard() {
     if (!data) {
       return '';
     }
-    return buildGrowthMarkdown(data, {
-      title: t('export.title'),
-      period: t('weeklySummary.title'),
-      memories: t('snapshot.totalMemories'),
-      memoryCitations: t('export.memoryCitations'),
-      conversations: t('weeklySummary.conversations'),
-      messages: t('weeklySummary.messages'),
-      cronJobs: t('weeklySummary.cronExecutions'),
-      toolCalls: t('weeklySummary.toolCalls'),
-      savings: t('savings.title'),
-      totalCost: t('savings.totalCost'),
-      skillHealth: t('skillHealth.title'),
-      skillRow: (name, score, status, calls7d) =>
-        t('export.skillRow', { name, score: Math.round(score), status, calls7d }),
-      generatedAt: t('export.generatedAt', { date: new Date().toISOString().slice(0, 10) }),
-    });
+    return buildGrowthMarkdown(data, growthMarkdownLabels(t));
   }, [data, t]);
 
   const handleCopyMarkdown = useCallback(async () => {

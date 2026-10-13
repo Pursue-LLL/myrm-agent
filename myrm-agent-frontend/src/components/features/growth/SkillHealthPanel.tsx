@@ -28,9 +28,6 @@ const STATUS_VARIANT: Record<string, string> = {
   UNPROVEN: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
 };
 
-/** Badge style of a status this build does not know. */
-const NEUTRAL_VARIANT = 'bg-muted text-muted-foreground border-border';
-
 const RECOMMENDATION_KEY: Record<string, string> = {
   STAR: 'recStar',
   HEALTHY: 'recHealthy',
@@ -133,6 +130,8 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
             return (
               <div
                 key={item.skill_name}
+                data-testid="skill-health-row"
+                data-skill-name={item.skill_name}
                 className={cn(
                   'rounded-lg border px-3 py-2.5 transition-colors',
                   isAttention ? 'border-border/80 bg-muted/20 dark:bg-muted/10' : 'border-border/60 bg-card',
@@ -161,15 +160,14 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                     <span className="text-sm font-semibold tabular-nums">
                       {item.status === 'UNPROVEN' ? '–' : Math.round(item.health_score)}
                     </span>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'text-xs flex items-center gap-1',
-                        STATUS_VARIANT[item.status] ?? NEUTRAL_VARIANT,
-                      )}
-                    >
-                      {item.status in STATUS_VARIANT ? t(`status.${item.status}`) : item.status}
-                    </Badge>
+                    {item.status in STATUS_VARIANT && (
+                      <Badge
+                        variant="outline"
+                        className={cn('text-xs flex items-center gap-1', STATUS_VARIANT[item.status])}
+                      >
+                        {t(`status.${item.status}`)}
+                      </Badge>
+                    )}
                   </div>
                 </div>
 

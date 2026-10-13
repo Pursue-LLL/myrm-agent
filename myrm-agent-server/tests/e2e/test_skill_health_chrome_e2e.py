@@ -119,12 +119,9 @@ _PANEL_STATE_JS = r"""(() => {
   const bodyText = document.body.innerText || '';
   const buttons = Array.from(document.querySelectorAll('button'));
   const hasButton = (re) => buttons.some((b) => re.test((b.textContent || '').trim()));
-  const rows = Array.from(document.querySelectorAll('p.font-medium'))
-    .filter((p) => (p.textContent || '').trim().startsWith('__PREFIX__'))
-    .map((p) => {
-      const row = p.closest('div.rounded-lg');
-      return { name: (p.textContent || '').trim(), text: row ? row.innerText : '' };
-    });
+  const rows = Array.from(document.querySelectorAll('[data-testid="skill-health-row"]'))
+    .filter((row) => (row.getAttribute('data-skill-name') || '').startsWith('__PREFIX__'))
+    .map((row) => ({ name: row.getAttribute('data-skill-name') || '', text: row.innerText || '' }));
   return {
     rows,
     hasTitle: /Skill Health|技能健康度/i.test(bodyText),
@@ -133,7 +130,7 @@ _PANEL_STATE_JS = r"""(() => {
       hasButton(/^(All|全部)/i) &&
       hasButton(/Needs Attention|待治理/i) &&
       hasButton(/Healthy & Stars|健康与明星/i),
-    hasRawStaleLabel: /\bSTALE\b/.test(bodyText),
+    rawStatusCodes: bodyText.match(/\b(?:STAR|HEALTHY|AT_RISK|UNPROVEN|STALE)\b/g) || [],
   };
 })()"""
 
@@ -202,7 +199,7 @@ def test_skill_health_panel_renders_verdicts_and_filters() -> None:
         _show(client, page, _SKILL_HEALTH_STUB, days=7)
         state = _wait_for_rows(client, page, journey_url, all_rows)
         assert state["hasFilters"] is True
-        assert state["hasRawStaleLabel"] is False
+        assert state["rawStatusCodes"] == [], "verdicts are shown in words, never as status codes"
 
         assert re.search(r"38\s*%", _row_text(state, "risk")), "a rated skill shows its success rate"
         star_text = _row_text(state, "star")

@@ -1,6 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { GrowthDashboardData, SkillHealthItem } from '@/services/statistics';
-import { buildGrowthMarkdown, type GrowthMarkdownLabels } from '../growthMarkdownExport';
+import { buildGrowthMarkdown, growthMarkdownLabels, type GrowthMarkdownLabels } from '../growthMarkdownExport';
+import de from '../../../../../locales/de.json';
+import en from '../../../../../locales/en.json';
+import ja from '../../../../../locales/ja.json';
+import ko from '../../../../../locales/ko.json';
+import zhTW from '../../../../../locales/zh-TW.json';
+import zh from '../../../../../locales/zh.json';
+
+// The global test setup replaces next-intl, so the real formatter is loaded explicitly.
+const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
+
+const locales = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
 
 const labels: GrowthMarkdownLabels = {
   title: 'Journey',
@@ -14,7 +25,8 @@ const labels: GrowthMarkdownLabels = {
   savings: 'Savings',
   totalCost: 'Cost',
   skillHealth: 'Skill health',
-  skillRow: (name, score, status, calls7d) => `${name}|${score}|${status}|${calls7d}`,
+  skillStatus: (status) => `<${status.toLowerCase()}>`,
+  skillRow: (name, score, statusLabel, calls7d) => `${name}|${score}|${statusLabel}|${calls7d}`,
   generatedAt: 'generated',
 };
 
@@ -70,8 +82,15 @@ describe('buildGrowthMarkdown skill ranking', () => {
       labels,
     );
 
-    expect(markdown).toContain('star|100|STAR|6\nsteady|70|HEALTHY|6');
+    expect(markdown).toContain('star|100|<star>|6\nsteady|70|<healthy>|6');
     expect(markdown).not.toContain('too-new');
+  });
+
+  it("writes each verdict in the reader's language instead of the raw status code", () => {
+    const markdown = buildGrowthMarkdown(dashboard([skill('flaky', 'AT_RISK', 30)]), labels);
+
+    expect(markdown).toContain('flaky|30|<at_risk>|6');
+    expect(markdown).not.toContain('AT_RISK');
   });
 
   it('omits the skill section when no skill has a verdict yet', () => {
@@ -86,5 +105,32 @@ describe('buildGrowthMarkdown skill ranking', () => {
     buildGrowthMarkdown(dashboard(items), labels);
 
     expect(items.map((item) => item.skill_name)).toEqual(['low', 'high']);
+  });
+});
+
+describe.each(Object.entries(locales))('growthMarkdownLabels (%s)', (locale, messages) => {
+  const labels = growthMarkdownLabels(
+    createTranslator({ locale, messages, namespace: 'growthDashboard' }) as unknown as Parameters<
+      typeof growthMarkdownLabels
+    >[0],
+  );
+
+  it.each(['STAR', 'HEALTHY', 'AT_RISK'])('words the %s verdict in this language', (status) => {
+    const label = labels.skillStatus(status);
+
+    expect(label).not.toBe(status);
+    expect(label).not.toBe('–');
+  });
+
+  it('writes a verdict this build has no wording for as a dash', () => {
+    expect(labels.skillStatus('QUARANTINED')).toBe('–');
+  });
+
+  it('fills every placeholder of a skill row', () => {
+    const row = labels.skillRow('flaky', 30.4, labels.skillStatus('AT_RISK'), 6);
+
+    expect(row).toContain('`flaky`');
+    expect(row).toContain('30');
+    expect(row).not.toMatch(/\{\w+\}/);
   });
 });

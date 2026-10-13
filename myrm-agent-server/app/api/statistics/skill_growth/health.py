@@ -47,16 +47,12 @@ async def fetch_skill_health() -> list[SkillHealthItem]:
             calls_7d = 0
             succ_7d = 0
             fail_7d = 0
-            latest_dt = _as_utc(stats.last_used_at) if stats.last_used_at else None
 
             for rec in stats.usage_history:
                 try:
                     rec_dt = _as_utc(datetime.fromisoformat(rec.timestamp.replace("Z", "+00:00")))
                 except (TypeError, ValueError):
                     continue
-
-                if latest_dt is None or rec_dt > latest_dt:
-                    latest_dt = rec_dt
 
                 if rec_dt >= week_ago:
                     calls_7d += 1
@@ -66,7 +62,12 @@ async def fetch_skill_health() -> list[SkillHealthItem]:
                         fail_7d += 1
 
             # Counters without a history can only be placed in time by ``last_used_at``.
-            if calls_7d == 0 and stats.call_count > 0 and not stats.usage_history and latest_dt and latest_dt >= week_ago:
+            if (
+                not stats.usage_history
+                and stats.call_count > 0
+                and stats.last_used_at
+                and _as_utc(stats.last_used_at) >= week_ago
+            ):
                 calls_7d = stats.call_count
                 succ_7d = stats.success_count
                 fail_7d = stats.failure_count

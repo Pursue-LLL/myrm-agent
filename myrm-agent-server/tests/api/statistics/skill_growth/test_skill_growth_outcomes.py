@@ -204,3 +204,16 @@ async def test_trend_points_count_uses_and_leave_unobserved_days_without_a_rate(
     assert advisory_point.call_count == 2
     assert advisory_point.observed_count == 0
     assert advisory_point.success_rate is None
+
+
+@pytest.mark.asyncio
+async def test_reading_the_panels_never_creates_a_ledger_in_a_directory_without_one(skills_root: Path) -> None:
+    """The skill roots include folders of other tools; a read-only dashboard must leave them as it found them."""
+    _write_stats(skills_root, "used", [True])
+    foreign = skills_root / "installed-by-another-tool"
+    foreign.mkdir()
+
+    assert [item.skill_name for item in await fetch_skill_health()] == ["used"]
+    assert [series.skill_name for series in await fetch_skill_trends()] == ["used"]
+
+    assert list(foreign.iterdir()) == []

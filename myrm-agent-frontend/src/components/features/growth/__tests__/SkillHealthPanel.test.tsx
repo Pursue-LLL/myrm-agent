@@ -135,7 +135,7 @@ describe('SkillHealthPanel', () => {
     expect(screen.queryByText('fresh_skill')).not.toBeInTheDocument();
   });
 
-  it('shows the backend wording for a status this build has no copy for instead of a wrong verdict', () => {
+  it('shows no status badge for a status this build has no copy for, and never a wrong verdict', () => {
     const future: SkillHealthItem = {
       ...mockItems[0],
       skill_name: 'future_skill',
@@ -145,7 +145,7 @@ describe('SkillHealthPanel', () => {
 
     render(<SkillHealthPanel items={[future]} />);
 
-    expect(screen.getByText('QUARANTINED')).toBeInTheDocument();
+    expect(screen.queryByText('QUARANTINED')).not.toBeInTheDocument();
     expect(screen.getByText('Quarantined pending review.')).toBeInTheDocument();
     expect(screen.queryByText('Healthy asset in active rotation.')).not.toBeInTheDocument();
   });
