@@ -1575,7 +1575,7 @@
       "noStatus": "タスクステータスなし",
       "stopTask": "タスクを停止",
       "stopTaskSuccess": "タスクの停止をリクエストしました",
-      "stopTaskFailed": "ない実行中のタスク",
+      "stopTaskFailed": "停止できる実行中のタスクがありません",
       "pendingApprovals": "待承認操作",
       "approve": "承認",
       "reject": "拒否",
