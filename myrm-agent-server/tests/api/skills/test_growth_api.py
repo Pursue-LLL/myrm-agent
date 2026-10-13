@@ -105,7 +105,6 @@ async def test_skill_growth_cases_combine_drafts_and_approval_backed_evolutions(
     assert detail["security_scan_summary"] == {"score": 100, "trust_recommendation": "trusted", "total_findings": 0}
 
 
-
 @pytest.mark.asyncio
 async def test_skill_growth_stats_counts_all_cases(client: TestClient, setup_database: None) -> None:
     await notify_skill_draft_created(
