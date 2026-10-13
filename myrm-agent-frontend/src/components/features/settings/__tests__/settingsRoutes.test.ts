@@ -46,6 +46,9 @@ describe('settingsRoutes', () => {
     expect(getSettingsTabRedirectPath('importExport')).toBe('/settings/developer?sub=importexport');
     expect(getSettingsTabRedirectPath('persona')).toBe('/settings/personalization');
     expect(getSettingsTabRedirectPath('eval')).toBe('/settings/developer');
+    // 质量页的旧链接落到工具稳定性页，而不是 404。
+    expect(getSettingsTabRedirectPath('toolQuality')).toBe('/settings/toolStability');
+    expect(getSettingsTabRedirectPath('skillQuality')).toBe('/settings/toolStability');
   });
 
   it('returns null for canonical tabs, unknown ids and inherited object keys', () => {

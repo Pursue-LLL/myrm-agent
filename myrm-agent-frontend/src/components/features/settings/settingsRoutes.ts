@@ -71,7 +71,7 @@ interface SettingsTabRedirect {
   sub?: string;
 }
 
-/** 别名路由 → 父级 Tab（可带 `?sub=` 子视图）：这些页面是父级 Section 的子视图，访问时由服务端页面重定向。 */
+/** 别名路由 → 规范 Tab（可带 `?sub=` 子视图）：子视图别名与指向保留页面的旧链接，访问时由服务端页面重定向。 */
 export const SETTINGS_TAB_REDIRECTS: Readonly<Record<string, SettingsTabRedirect>> = {
   persona: { parent: 'personalization' },
   toolCapabilities: { parent: 'models' },
@@ -89,6 +89,8 @@ export const SETTINGS_TAB_REDIRECTS: Readonly<Record<string, SettingsTabRedirect
   importExport: { parent: 'developer', sub: 'importexport' },
   eval: { parent: 'developer' },
   about: { parent: 'system', sub: 'about' },
+  skillQuality: { parent: 'toolStability' },
+  toolQuality: { parent: 'toolStability' },
 };
 
 const SETTINGS_TAB_SET: ReadonlySet<string> = new Set(SETTINGS_TABS);
