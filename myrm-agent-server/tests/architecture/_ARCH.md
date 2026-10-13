@@ -10,6 +10,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 |------|------|
 | `test_sse_event_type_parity.py` | harness `AgentEventType` ⊆ 前端 `knownSseEventTypes` 清单 |
 | `test_harness_api_export_parity.py` | server 引用的 `myrm_agent_harness.api.X` 必须已在该层 `_EXPORTS`/`__all__` 导出（消费侧护栏：harness 内部重构漏导出会让后端启动 `ImportError`）|
+| `test_privacy_entrypoints.py` | 每个构造 `GeneralAgentParams` 的服务端入口（IM、cron、语音、目标、看板）必须展开 `**privacy_agent_params(...)`，wakeup 复制路径必须调用它；否则设置页的隐私开关只覆盖 Web 对话（豁免：Web converter、eval executor）。AST 逐调用点检查，并自带正反例自检 |
 | `test_memory_injection_contract_parity.py` | 前端 `MemoryBriefStatus(source)/MemoryBriefInjectionStatus` union 与 server+harness 状态契约严格同构 |
 | `test_settings_deep_links.py` | 前端源码、server 推送/提示与预置技能资产里写死的 `/settings/<tab>` 深链必须落在前端路由 SSOT `settingsRoutes.ts`（`SETTINGS_TABS` ∪ `SETTINGS_TAB_REDIRECTS`）内，杜绝 404 死链 |
 | `test_memory_brief_prometheus_rules_contract.py` | memory brief 告警规则契约（flush HTTP attempts-based ratio + strict dedup reject ratio/burst 关键片段；直接跑 pytest 时本地无 promtool 可 skip；`scripts/ci/run_architecture_gates.sh` 与 CI 均强制 promtool `check rules`） |

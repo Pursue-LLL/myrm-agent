@@ -27,7 +27,7 @@ async def test_run_migrations_adds_tags_column_to_existing_chats_table(
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            # An upgrading database still carries the retired table that a later migration alters.
+            # An upgrading database still carries the message_filter_config table that a later migration alters.
             await conn.execute(text("CREATE TABLE message_filter_config (id INTEGER PRIMARY KEY, pii_mode VARCHAR(50))"))
             await conn.execute(text("ALTER TABLE chats DROP COLUMN tags"))
         assert "tags" not in await _chat_columns(engine)

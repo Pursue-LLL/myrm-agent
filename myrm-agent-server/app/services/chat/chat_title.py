@@ -3,6 +3,7 @@
 [INPUT]
 - core.utils.chat_utils::extract_answer_text (POS: LLM response content extraction)
 - database.dto::_TitleModelConfig (POS: Title generation model configuration)
+- myrm_agent_harness.api.security::redact_pii (POS: type-aware PII masking, applied when the privacy switch is on)
 
 [OUTPUT]
 - generate_chat_title: Generates concise chat title with resilience fallback

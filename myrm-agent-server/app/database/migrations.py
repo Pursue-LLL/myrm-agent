@@ -635,7 +635,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE message_filter_config DROP COLUMN pii_mode",
     # Manus Scheduled Tasks 2.0: project binding for cron_jobs
     "ALTER TABLE cron_jobs ADD COLUMN project_id VARCHAR(255) REFERENCES projects(id) ON DELETE SET NULL",
-    # Retire the message-filter admin surface: the live filter reads MESSAGE_FILTER_ENABLED / ADMIN_API_KEYS, never these tables.
+    # The message-filter admin tables have no ORM model or reader: the live filter reads MESSAGE_FILTER_ENABLED / ADMIN_API_KEYS.
     "DROP TABLE IF EXISTS message_filter_config",
     "DROP TABLE IF EXISTS message_filter_rules",
     "DROP TABLE IF EXISTS message_filter_audit",

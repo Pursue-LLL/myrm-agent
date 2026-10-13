@@ -1,4 +1,4 @@
-"""The retired message-filter admin tables disappear from existing databases and are never created again."""
+"""Existing databases drop the message-filter admin tables; fresh databases never create them."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from app.database import migrations
 from app.database.models import Base
 
-_RETIRED_TABLES = (
+_ADMIN_TABLES = (
     "message_filter_config",
     "message_filter_rules",
     "message_filter_audit",
@@ -19,8 +19,8 @@ _RETIRED_TABLES = (
 )
 _DROP_PII_MODE = "ALTER TABLE message_filter_config DROP COLUMN pii_mode"
 
-# The layout an upgrading user still has: `message_filter_config` carries the long-gone `pii_mode` column.
-_LEGACY_TABLES = """
+# The layout of an upgrading database: `message_filter_config` still carries the `pii_mode` column.
+_UPGRADING_DB_DDL = """
 CREATE TABLE message_filter_config (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     enabled BOOLEAN NOT NULL,
@@ -42,15 +42,15 @@ async def _tables(engine: AsyncEngine) -> set[str]:
 
 
 @pytest.mark.asyncio
-async def test_an_upgrading_database_loses_the_retired_tables_and_keeps_everything_else(
+async def test_an_upgrading_database_loses_the_admin_tables_and_keeps_everything_else(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'legacy.db'}")
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'upgrading.db'}")
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            for statement in filter(None, (part.strip() for part in _LEGACY_TABLES.split(";"))):
+            for statement in filter(None, (part.strip() for part in _UPGRADING_DB_DDL.split(";"))):
                 await conn.execute(text(statement))
             await conn.execute(
                 text(
@@ -67,12 +67,12 @@ async def test_an_upgrading_database_loses_the_retired_tables_and_keeps_everythi
         # The upgrading user already recorded every migration that preceded the pii_mode drop.
         monkeypatch.setattr(migrations, "MIGRATION_STATEMENTS", full_list[: full_list.index(_DROP_PII_MODE)])
         await migrations.run_migrations(engine)
-        assert set(_RETIRED_TABLES) <= await _tables(engine)
+        assert set(_ADMIN_TABLES) <= await _tables(engine)
 
         monkeypatch.setattr(migrations, "MIGRATION_STATEMENTS", full_list)
         await migrations.run_migrations(engine)
 
-        assert not set(_RETIRED_TABLES) & await _tables(engine)
+        assert not set(_ADMIN_TABLES) & await _tables(engine)
         async with engine.connect() as conn:
             assert (await conn.execute(text("SELECT COUNT(*) FROM user_configs"))).scalar_one() == 1
     finally:
@@ -89,7 +89,7 @@ async def test_a_new_database_never_creates_them_and_migrations_stay_idempotent(
         await migrations.run_migrations(engine)
         await migrations.run_migrations(engine)
 
-        assert not set(_RETIRED_TABLES) & await _tables(engine)
-        assert not set(_RETIRED_TABLES) & set(Base.metadata.tables)
+        assert not set(_ADMIN_TABLES) & await _tables(engine)
+        assert not set(_ADMIN_TABLES) & set(Base.metadata.tables)
     finally:
         await engine.dispose()
