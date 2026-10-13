@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import typing
-from typing import cast
 
 from fastapi import HTTPException
 from myrm_agent_harness.agent.skills.optimization import EventEmitter, InMemoryAggregator
@@ -10,10 +9,6 @@ from myrm_agent_harness.agent.skills.optimization.scheduler import OptimizationS
 
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 from app.services.skill_optimization.ab_test_manager import ABTestManager
-
-_insights_instance = None
-
-_recommender_instance = None
 
 _ab_test_manager_instance: ABTestManager | None = None
 
@@ -34,7 +29,7 @@ def get_scheduler() -> OptimizationScheduler:
         raise HTTPException(
             status_code=503, detail="OptimizationScheduler not initialized. Please start the skill optimization service."
         )
-    return cast(OptimizationScheduler, scheduler)
+    return scheduler
 
 
 def get_storage() -> SQLAlchemyStorage:

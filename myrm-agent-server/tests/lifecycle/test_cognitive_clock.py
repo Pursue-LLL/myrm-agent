@@ -88,9 +88,6 @@ async def test_coordinator_t2_suppressed_on_user_active() -> None:
 @pytest.mark.asyncio
 async def test_coordinator_t2_suppressed_on_wakeup_grace() -> None:
     coordinator = CognitiveClockCoordinator()
-    # Clear activity
-    coordinator._activity_sensor._last_active_time = 0.0
-    coordinator._activity_sensor._pause_signal.clear()
 
     # Simulate wakeup
     coordinator._wakeup_guard._last_wakeup_detected = time.time()
@@ -104,9 +101,6 @@ async def test_coordinator_t2_suppressed_on_wakeup_grace() -> None:
 @pytest.mark.asyncio
 async def test_coordinator_t2_runs_when_clean() -> None:
     coordinator = CognitiveClockCoordinator()
-    coordinator._activity_sensor._last_active_time = 0.0
-    coordinator._activity_sensor._pause_signal.clear()
-    coordinator._wakeup_guard._last_wakeup_detected = 0.0
 
     fake_report = MaintenanceReport(
         skipped=False,

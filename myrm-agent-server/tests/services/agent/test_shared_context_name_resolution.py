@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -57,7 +57,7 @@ async def shared_context(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[Share
 
 
 async def test_converter_resolves_shared_context_names(shared_context: SharedContextModel) -> None:
-    payload: dict[str, Any] = {
+    payload: dict[str, object] = {
         "message_id": "msg-shared-context-names",
         "chat_id": "chat-shared-context-names",
         "query": "Summarize the handbook",
@@ -70,7 +70,7 @@ async def test_converter_resolves_shared_context_names(shared_context: SharedCon
         "app.core.channel_bridge.config_loader.load_user_configs",
         AsyncMock(return_value=_build_mock_user_configs()),
     ):
-        params, *_ = await convert_to_general_agent_params(AgentRequest(**payload), [])
+        params, *_ = await convert_to_general_agent_params(AgentRequest.model_validate(payload), [])
 
     assert params.memory_shared_context_ids == [shared_context.id]
     assert params.memory_shared_context_names == {shared_context.id: CONTEXT_NAME}

@@ -85,7 +85,7 @@ async def test_starting_the_heartbeat_forgets_the_time_before_it_ran() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_stopped_heartbeat_no_longer_reads_idle_gaps_as_stalls() -> None:
+async def test_a_stopped_heartbeat_does_not_read_idle_gaps_as_stalls() -> None:
     guard = WakeupSmoothingGuard()
     heartbeat = asyncio.create_task(guard.run_heartbeat(interval_seconds=0.01))
     await asyncio.sleep(0)

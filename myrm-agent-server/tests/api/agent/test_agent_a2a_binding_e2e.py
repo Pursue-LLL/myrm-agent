@@ -105,7 +105,7 @@ async def test_agent_a2a_tools_mounting_and_security_gate():
     """Test that GeneralAgent mounts A2A tools and enforces peer whitelist security."""
     from datetime import datetime, timezone
     from unittest import mock
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
 
     from app.ai_agents.general_agent.agent import GeneralAgent
     from app.core.types import ModelConfig
@@ -167,7 +167,8 @@ async def test_agent_a2a_tools_mounting_and_security_gate():
             await call_tool.ainvoke({"peer": "peer-forbidden", "prompt": "test"})
 
         # Calling allowed peer should resolve credentials and pass to execute_a2a_call
-        with patch("myrm_agent_harness.toolkits.a2a.tools.execute_a2a_call", new_callable=AsyncMock) as mock_call:
+        # autospec: the tool wiring must call the framework with its real signature.
+        with patch("myrm_agent_harness.toolkits.a2a.tools.execute_a2a_call", autospec=True) as mock_call:
             mock_call.return_value = {"success": True, "answer": "Done"}
             res = await call_tool.ainvoke({"peer": "Allowed Worker", "prompt": "test query"})
             assert res == {"success": True, "answer": "Done"}
@@ -181,7 +182,7 @@ async def test_agent_a2a_tools_mounting_and_security_gate():
 
         # Test a2a_orchestrate tool execution
         orch_tool = next(t for t in tools if getattr(t, "name", "") == "a2a_orchestrate")
-        with patch("myrm_agent_harness.toolkits.a2a.tools.execute_a2a_orchestrate", new_callable=AsyncMock) as mock_orch:
+        with patch("myrm_agent_harness.toolkits.a2a.tools.execute_a2a_orchestrate", autospec=True) as mock_orch:
             from myrm_agent_harness.toolkits.a2a.tools import FanoutMode
 
             mock_orch.return_value = {"success": True, "mode": "best", "total_peers": 1}
