@@ -3,7 +3,7 @@
  * @/lib/api::apiRequest (POS: frontend API request helper)
  *
  * [OUTPUT]
- * 质量历史/洞察/推荐/版本对比/回滚/Shadow A/B API、skill_manage 批次撤销 `/mutations/{id}/rollback` 与 `/batch-optimization/tasks/{id}/cancel`、`rollback` 封装。
+ * 版本列表/对比/回滚、Shadow A/B API、skill_manage 批次撤销 `/mutations/{id}/rollback` 封装。
  *
  * [POS]
  * 技能优化客户端。`/skill-optimization/*` REST 契约。
@@ -110,51 +110,5 @@ export async function rollbackSkillMutationBatch(batchId: string): Promise<{
     status: string;
   }>(`${PREFIX}/mutations/${encodeURIComponent(batchId)}/rollback`, {
     method: 'POST',
-  });
-}
-
-export async function rollbackBatchTask(batchId: string): Promise<{
-  success: boolean;
-  total_skills: number;
-  rolled_back: number;
-  failed: number;
-  error_message: string | null;
-}> {
-  return apiRequest<{
-    success: boolean;
-    total_skills: number;
-    rolled_back: number;
-    failed: number;
-    error_message: string | null;
-  }>(`/batch-optimization/tasks/${encodeURIComponent(batchId)}/rollback`, {
-    method: 'POST',
-  });
-}
-
-export type BatchCancelCleanupStrategy = 'keep' | 'rollback';
-
-export async function cancelBatchTask(
-  batchId: string,
-  cleanupStrategy: BatchCancelCleanupStrategy,
-): Promise<{
-  batch_id: string;
-  status: string;
-  rollback_performed: boolean;
-  total_skills: number;
-  rolled_back: number;
-  failed: number;
-  error_message: string | null;
-}> {
-  return apiRequest<{
-    batch_id: string;
-    status: string;
-    rollback_performed: boolean;
-    total_skills: number;
-    rolled_back: number;
-    failed: number;
-    error_message: string | null;
-  }>(`/batch-optimization/tasks/${encodeURIComponent(batchId)}/cancel`, {
-    method: 'POST',
-    body: JSON.stringify({ cleanup_strategy: cleanupStrategy }),
   });
 }

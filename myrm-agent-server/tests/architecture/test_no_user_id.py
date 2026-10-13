@@ -11,7 +11,6 @@ def test_no_user_id_in_orm_models():
         "user_quota_usage",  # SaaS层表
         "device_sessions",  # SaaS层表
         "user_pool_skill_refs",  # 遗留表
-        "batch_optimization_tasks",  # 遗留表
         "skill_quality_history",  # 遗留表
         "skill_drafts",  # 遗留表
         "failed_messages",  # 遗留表

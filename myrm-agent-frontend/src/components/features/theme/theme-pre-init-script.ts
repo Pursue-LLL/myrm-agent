@@ -16,8 +16,8 @@ try {
   var profileId=pre&&pre.profileId?pre.profileId:'official-default';
   var layoutId=pre&&pre.layoutId?pre.layoutId:'full-bleed';
   var artOn=pre&&pre.artOn?'on':'off';
-  var functionalPrefixes=['/kanban','/settings','/projects','/eval-lab','/brain','/library','/artifacts','/cron','/work','/workspace','/audit','/security','/agents','/canvas','/batch-optimization','/skill-optimization','/journey','/subscription','/pricing','/health','/mobile','/auth','/payment','/growth'];
-  var staticSegments={'agents':1,'audit':1,'artifacts':1,'auth':1,'batch-optimization':1,'brain':1,'canvas':1,'chat':1,'eval-lab':1,'growth':1,'health':1,'journey':1,'library':1,'mobile':1,'payment':1,'pricing':1,'projects':1,'security':1,'settings':1,'skill-optimization':1,'subscription':1,'workspace':1,'kanban':1,'cron':1,'work':1};
+  var functionalPrefixes=['/kanban','/settings','/projects','/eval-lab','/brain','/library','/artifacts','/cron','/work','/workspace','/audit','/security','/agents','/canvas','/journey','/subscription','/pricing','/health','/mobile','/auth','/payment','/growth'];
+  var staticSegments={'agents':1,'audit':1,'artifacts':1,'auth':1,'brain':1,'canvas':1,'chat':1,'eval-lab':1,'growth':1,'health':1,'journey':1,'library':1,'mobile':1,'payment':1,'pricing':1,'projects':1,'security':1,'settings':1,'subscription':1,'workspace':1,'kanban':1,'cron':1,'work':1};
   var path=(location.pathname||'/').split('?')[0];
   if(path.length>1&&path.charAt(path.length-1)==='/'){path=path.slice(0,-1);}
   if(!path){path='/';}

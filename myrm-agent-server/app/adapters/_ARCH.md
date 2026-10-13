@@ -71,12 +71,10 @@ class SQLAlchemyStorage(SkillOptimizationStorage):
 - `ABTestRepository`: A/B 测试数据
 - `QualityRepository`: 质量评分历史
 - `SnapshotRepository`: Skill版本快照 CRUD（支持版本回滚和对比）
-- `BatchTaskRepository`: 批量任务管理
-- `AuditLogRepository`: 审计日志
 
 **ORM 模型**（`app/database/models/skill_optimization/`）：
 - `SkillVersionModel`: Skill版本表（复合主键 skill_id + version）
-- `BatchSnapshot`: 批量优化前技能快照（支持 cancel/rollback）
+- `BatchSnapshot`: 技能修改批次落盘前的内容快照（撤销该批次时恢复）
 
 ---
 

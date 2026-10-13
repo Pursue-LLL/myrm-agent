@@ -4,9 +4,7 @@ SQLAlchemy models for skill optimization system.
 """
 
 from .ab_test_result import ABTestResultModel
-from .batch_audit_log import BatchAuditLog
 from .batch_snapshot import BatchSnapshot
-from .batch_task import BatchOptimizationTask
 from .optimization_record import OptimizationRecord
 from .shadow_sample import ShadowSampleModel
 from .skill_package_revision import SkillPackageRevision
@@ -19,8 +17,6 @@ __all__ = [
     "ShadowSampleModel",
     "SkillQualityHistory",
     "SkillVersionModel",
-    "BatchOptimizationTask",
     "BatchSnapshot",
     "SkillPackageRevision",
-    "BatchAuditLog",
 ]

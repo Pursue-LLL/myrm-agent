@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-Agent 技能自动优化服务。包含观测（A/B 测试 + 影子执行）、决策（LLM 分析 + 语义合并）、分发（基线同步 + 回滚）三阶段。
+技能版本与影子 A/B 服务：候选版本在隔离沙箱中影子执行并比对结果，经上线门控后晋升；版本以 DB 快照与磁盘 SKILL.md 双写同步；技能修改批次的前快照在此落库。
 
 ---
 
@@ -17,19 +17,10 @@ Agent 技能自动优化服务。包含观测（A/B 测试 + 影子执行）、�
 | `shadow_tester.py` | 验证引擎 | 隔离沙箱中静默执行候选版本并比对结果 | ✅ |
 | `semantic_comparator.py` | 语义判官 | 继承 Harness 层 StructuredComparator，按需调用 LLM 语义判定 | ✅ |
 | `execution_provider.py` | 执行适配器 | 实现 Harness 的 `SkillExecutionProvider`：`execute_skill_version` 供影子测试；执行样本经 `EventLogAdapter` 读取 JSONL event_log；元数据经 `SkillsService` | ✅ |
-| `llm_optimizer.py` | 进化大脑 | 调用 LLM 根据性能反馈重新生成提示词 | ✅ |
-| `baseline_syncer.py` | 状态同步 | 确保内存与数据库中的 Master 版本一致 | ✅ |
-| `rollback_service.py` | 安全回滚 | Batch 快照创建与回滚编排；`insert_mutation_batch_snapshot` 支持单事务批量写入 | ✅ |
+| `rollback_service.py` | 快照写入 | `insert_mutation_batch_snapshot` 写入 `batch_snapshots`（恢复由 `services/skills/mutation_batch_service.py` 执行） | ✅ |
 | `skill_version_sync.py` | 双写同步 | DB 快照与磁盘 SKILL.md 原子同步；`start_shadow_ab_test` 供进化 shadow 与 API 共用（返回复合 `test_id`） | ✅ |
-| `semantic_merger.py` | 冲突合并 | 多版本优化时的语义合并工具 | ✅ |
-| `notification_service.py` | 通知中心 | 发送优化成功、A/B 测试分歧等告警 | ✅ |
-| `scheduler.py` | 调度器 | 优化任务调度 | ✅ |
-| `scheduler_factory.py` | 工厂 | 调度器创建工厂 | ✅ |
-| `bootstrap.py` | 核心 | 单例注册 + `get_skill_optimization_storage()`（API/services 共用） | ✅ |
+| `bootstrap.py` | 核心 | `get_skill_optimization_storage()`：绑定当前 session factory 的 `SQLAlchemyStorage`（API/services 共用） | ✅ |
 | `runtime.py` | 核心 | 进程级 `ABTestManager` 启动/关闭；HTTP `get_ab_test_manager` 与 lifecycle 共用 | ✅ |
-| `reporter.py` | 报告 | 优化报告生成 | ✅ |
-| `time_estimator.py` | 估算器 | 优化时间估算 | ✅ |
-| `federated_extractor.py` | 提取器 | 联邦学习数据提取 | ✅ |
 
 ---
 
@@ -41,4 +32,4 @@ Agent 技能自动优化服务。包含观测（A/B 测试 + 影子执行）、�
 
 ## 测试
 
-`tests/services/skill_optimization/test_skill_version_integration.py` 覆盖 `restore_skill_snapshot` 双分支真写盘；`tests/api/batch_optimization/test_cancel_rollback.py` 覆盖 `rollback_batch` 全量/部分失败；HTTP cancel 真链（含 partial 契约）见 `test_cancel_rollback_http_integration.py`（32 passed）。Harness `test_scheduler_batch_cancel.py` 覆盖生产路径 `OptimizationScheduler.cancel_batch_optimization`；`test_batch_executor_cancel_barrier.py` 覆盖 BatchExecutor 屏障。`tests/conftest.py` 自动注入 monorepo harness `PYTHONPATH`（见 `app/api/batch_optimization/_ARCH.md`）。
+`tests/services/skill_optimization/test_skill_version_integration.py` 覆盖 `restore_skill_snapshot` 双分支真写盘；`test_rollback_service.py` 覆盖快照写入与 `get_skill_optimization_storage()` 绑定真实 SQLAlchemy 存储；批次撤销 HTTP 链见 `tests/api/skill_optimization/test_mutation_batch_rollback_http.py`。`tests/conftest.py` 自动注入 monorepo harness `PYTHONPATH`。

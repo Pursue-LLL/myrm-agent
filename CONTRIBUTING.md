@@ -140,7 +140,6 @@ These domains use matching names under both layers:
 | `projects/` | `project/` | Project CRUD and chat assignment |
 | `events/` | `event/` | Agent runtime event persistence |
 | `background_tasks/` | `background/` | Long-running worker jobs (UI panel) |
-| `batch_optimization/` | `skill_optimization/` | Batch skill optimization flows |
 | `credentials/` | `integrations/` (+ `config/`) | OAuth / MCP credential slots |
 | `api_keys/` | `config/` | API key storage and rotation |
 | `system/` · `health/` | `infra/` · `power/` | Ops, shutdown, sleep inhibition |

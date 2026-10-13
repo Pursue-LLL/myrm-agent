@@ -47,8 +47,7 @@
           "rolled_back": "되돌림",
           "rejected": "거부됨"
         },
-        "cancel": "취소",
-        "qualityBefore": "이전"
+        "cancel": "취소"
       },
       "growth": {
         "title": "스킬 성장",

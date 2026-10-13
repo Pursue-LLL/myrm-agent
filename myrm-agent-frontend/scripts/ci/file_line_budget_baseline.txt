@@ -1,8 +1,6 @@
 # src-relative TS/TSX paths over budget (auto-generated)
 src/app/batch-directories/[projectId]/page.tsx
 src/app/batch-directories/page.tsx
-src/app/batch-optimization/[batchId]/page.tsx
-src/app/batch-optimization/page.tsx
 src/app/library/components/MediaGallery.tsx
 src/app/library/components/WikiGraph3D.tsx
 src/app/subscription/page.tsx

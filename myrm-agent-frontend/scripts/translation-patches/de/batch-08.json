@@ -150,7 +150,6 @@
         "rollbackFailed": "Rückgängig machen fehlgeschlagen, bitte erneut versuchen",
         "cancel": "Abbrechen",
         "fetchError": "Abrufen des Fähigkeitsverlaufs fehlgeschlagen",
-        "qualityBefore": "Vorher",
         "status": {
           "approved": "Angewendet",
           "rolled_back": "Zurückgerollt",

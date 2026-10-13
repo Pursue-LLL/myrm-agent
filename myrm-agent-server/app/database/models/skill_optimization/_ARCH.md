@@ -10,9 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Skill Optimization Models | ✅ |
 | `ab_test_result.py` | 模块 | A/B Test Result Model | ✅ |
-| `batch_audit_log.py` | 模块 | Batch Audit Log Model | ✅ |
-| `batch_snapshot.py` | 模块 | Batch Snapshot Model | ✅ |
-| `batch_task.py` | 模块 | Batch Optimization Task Model | ✅ |
+| `batch_snapshot.py` | 模块 | Batch Snapshot Model（技能修改批次撤销快照） | ✅ |
 | `optimization_record.py` | 模块 | Optimization Record Model | ✅ |
 | `shadow_sample.py` | 模块 | Shadow Test Sample Model | ✅ |
 | `skill_quality_history.py` | 模块 | Skill Quality History Model | ✅ |

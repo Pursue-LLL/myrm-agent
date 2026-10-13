@@ -21,7 +21,6 @@ API_SERVICES_ALIASES: dict[str, str] = {
     "projects": "project",
     "events": "event",
     "background_tasks": "background",
-    "batch_optimization": "skill_optimization",
 }
 
 SAME_NAME_DOMAINS: frozenset[str] = frozenset(

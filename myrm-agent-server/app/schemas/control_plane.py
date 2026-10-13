@@ -557,26 +557,6 @@ class MemoryGuardianGuardBatchPayload(BaseModel):
 
 
 # -----------------------------------------------------------------------------
-# Global Baselines
-# -----------------------------------------------------------------------------
-
-
-class SkillBaseline(BaseModel):
-    """Global baseline data for a skill."""
-
-    skill_id: str
-    global_strategy: str
-    confidence_score: float
-    adoption_rate: float
-
-
-class BaselinesResponse(BaseModel):
-    """Response containing global skill baselines."""
-
-    baselines: list[SkillBaseline]
-
-
-# -----------------------------------------------------------------------------
 # Health Metrics
 # -----------------------------------------------------------------------------
 

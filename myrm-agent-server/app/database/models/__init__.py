@@ -70,8 +70,6 @@ from .security import (
 from .skill import ExperienceLedgerEvent, PendingEvolution, PendingMigration
 from .skill_optimization import (
     ABTestResultModel,
-    BatchAuditLog,
-    BatchOptimizationTask,
     BatchSnapshot,
     OptimizationRecord,
     ShadowSampleModel,
@@ -172,10 +170,8 @@ __all__ = [
     "ShadowSampleModel",
     "SkillQualityHistory",
     "SkillVersionModel",
-    "BatchOptimizationTask",
     "BatchSnapshot",
     "SkillPackageRevision",
-    "BatchAuditLog",
     # Artifact
     "Artifact",
     "ArtifactVersion",

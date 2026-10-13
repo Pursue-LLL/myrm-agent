@@ -630,11 +630,6 @@ class AppSettings(BaseSettings):
     sandbox_api_key: SecretStr = SecretStr("")  # SANDBOX_API_KEY
     config_encryption_key: SecretStr = SecretStr("")  # CONFIG_ENCRYPTION_KEY
     internal_service_key: SecretStr = SecretStr("")  # INTERNAL_SERVICE_KEY
-    skill_optimization_storage_type: str = Field(
-        default="memory",
-        validation_alias="SKILL_OPTIMIZATION_STORAGE_TYPE",
-        description="[S] Skill optimization persistence: memory | sqlite",
-    )
 
     # --- [O] Auth CAPTCHA ---
     hcaptcha_secret_key: SecretStr = SecretStr("")  # HCAPTCHA_SECRET_KEY

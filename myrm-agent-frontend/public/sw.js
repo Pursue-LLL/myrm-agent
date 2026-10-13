@@ -3739,7 +3739,6 @@ var RESERVED_APP_SEGMENTS = /* @__PURE__ */ new Set([
   "agents",
   "artifacts",
   "audit",
-  "batch-optimization",
   "brain",
   "chat",
   "eval-lab",
@@ -3754,7 +3753,6 @@ var RESERVED_APP_SEGMENTS = /* @__PURE__ */ new Set([
   "research",
   "security",
   "settings",
-  "skill-optimization",
   "subscription",
   "work",
   "workspace"

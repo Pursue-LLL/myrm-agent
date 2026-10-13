@@ -1,7 +1,5 @@
 app/adapters/skill_optimization/__init__.py
 app/adapters/skill_optimization/ab_test_repo.py
-app/adapters/skill_optimization/audit_log_repo.py
-app/adapters/skill_optimization/batch_task_repo.py
 app/adapters/skill_optimization/optimization_repo.py
 app/adapters/skill_optimization/quality_repo.py
 app/ai_agents/__init__.py
@@ -28,7 +26,6 @@ app/api/agents/general_agent/streaming.py
 app/api/audit/alert_notifier.py
 app/api/audit/anomaly_detector.py
 app/api/audit/bash_router.py
-app/api/batch_optimization/router.py
 app/api/channels/channel_ingress.py
 app/api/chats/chat/__init__.py
 app/api/chats/chat/catchup.py
@@ -87,7 +84,6 @@ app/api/skill_optimization/routes/dashboard.py
 app/api/skill_optimization/routes/optimization.py
 app/api/skill_optimization/routes/system.py
 app/api/skill_optimization/routes/versions.py
-app/api/skill_optimization/ws_batch_progress.py
 app/api/skills/audit.py
 app/api/skills/config.py
 app/api/skills/config_version.py
@@ -141,7 +137,6 @@ app/core/errors/llm_errors.py
 app/core/infra/cors_validator.py
 app/core/infra/frontend_launcher.py
 app/core/infra/limiter.py
-app/core/infra/server_globals.py
 app/core/integrations/catalog/models.py
 app/core/integrations/catalog/registry.py
 app/core/kanban/adapters/sqlalchemy_store.py
@@ -178,9 +173,7 @@ app/database/dto.py
 app/database/factory.py
 app/database/models/skill_optimization/__init__.py
 app/database/models/skill_optimization/ab_test_result.py
-app/database/models/skill_optimization/batch_audit_log.py
 app/database/models/skill_optimization/batch_snapshot.py
-app/database/models/skill_optimization/batch_task.py
 app/database/models/skill_optimization/optimization_record.py
 app/database/models/skill_optimization/shadow_sample.py
 app/database/models/skill_optimization/skill_quality_history.py
@@ -250,16 +243,8 @@ app/services/security/github_supplement.py
 app/services/security/tenant_guardrail.py
 app/services/security/vault_credential_service.py
 app/services/skill_optimization/ab_test_manager.py
-app/services/skill_optimization/baseline_syncer.py
 app/services/skill_optimization/execution_provider.py
-app/services/skill_optimization/federated_extractor.py
-app/services/skill_optimization/notification_service.py
-app/services/skill_optimization/reporter.py
-app/services/skill_optimization/rollback_service.py
-app/services/skill_optimization/scheduler_factory.py
-app/services/skill_optimization/semantic_merger.py
 app/services/skill_optimization/shadow_tester.py
-app/services/skill_optimization/time_estimator.py
 app/services/webui/passwords.py
 app/services/webui/qrcode.py
 app/startup/local_search_bootstrap.py

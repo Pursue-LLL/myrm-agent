@@ -229,8 +229,6 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 针对单机环境（Sandbox/Local）中可能存在的跨进程资源竞争，系统拒绝引入 Redis 等外部锁服务，转而采用 **OS 原生文件锁 (File Locks)** 实现「精钢级」并发安全：
 
 - **跨进程互斥**：使用 `fcntl.flock` 实现内核级文件锁，确保多个 Server 实例或 Cron 进程在访问同一技能文件、SQLite WAL 日志时，具备微秒级的互斥性能且零基础设施开销。
-- **无感适配**：通过 `StandaloneLockProvider` 桥接 `myrm-agent-harness` 锁协议，实现业务逻辑对多进程安全性的透明支持。
-
 ### 0.3 LLM 前缀缓存优化 (LLM Prefix Caching Optimization)
 
 为了极致降低持续进化的 LLM 调用成本（减少 90%+ 成本及延迟）：

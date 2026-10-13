@@ -27,7 +27,6 @@ from app.api.approvals import router as approvals_router
 from app.api.audit.bash_router import router as audit_router
 from app.api.background_tasks.router import router as background_tasks_router
 from app.api.batch_directory import router as batch_directory_router
-from app.api.batch_optimization import router as batch_optimization_router
 from app.api.browser_domain_skills import router as browser_domain_skills_router
 from app.api.browser_recording import router as browser_recording_router
 from app.api.browser_sessions import router as browser_sessions_router
@@ -94,7 +93,6 @@ from app.api.security.workspace_trust import router as workspace_trust_router
 from app.api.self_evolution import router as self_evolution_router
 from app.api.session_map import router as session_map_router
 from app.api.skill_optimization import router as skill_optimization_router
-from app.api.skill_optimization import ws_router as skill_optimization_ws_router
 from app.api.skills import router as skills_router
 from app.api.skills.evolution import router as evolution_router
 from app.api.skills.growth import router as skill_growth_router
@@ -187,7 +185,6 @@ api_router.include_router(migration_discovery_router, tags=["migration"])
 api_router.include_router(migration_upload_router, tags=["migration"])
 api_router.include_router(migrations_router, tags=["migrations"])
 api_router.include_router(skill_optimization_router, tags=["skill-optimization"])
-api_router.include_router(batch_optimization_router, tags=["batch-optimization"])
 api_router.include_router(batch_directory_router, tags=["batch-directories"])
 api_router.include_router(credentials_router, prefix="/credentials", tags=["credentials"])
 api_router.include_router(memory_router, prefix="/memory", tags=["memory"])
@@ -286,11 +283,6 @@ api_router.include_router(ops_router)
 api_router.include_router(checkpoint_router, tags=["checkpoint"])
 api_router.include_router(stt_router, prefix="/stt", tags=["stt"])
 api_router.include_router(stt_ws_router, prefix="/ws/stt", tags=["stt"])
-api_router.include_router(
-    skill_optimization_ws_router,
-    prefix="/ws/skill-optimization",
-    tags=["skill-optimization"],
-)
 api_router.include_router(tts_router, prefix="/tts", tags=["tts"])
 api_router.include_router(voice_ws_router, prefix="/ws/voice", tags=["voice"])
 api_router.include_router(voice_realtime_router, prefix="/voice", tags=["voice"])

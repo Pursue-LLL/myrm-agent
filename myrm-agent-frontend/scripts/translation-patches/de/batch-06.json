@@ -128,32 +128,6 @@
         "diverged": "Abgewichen",
         "baselineLabel": "Basislinie",
         "candidateLabel": "Kandidat"
-      },
-      "batchPage": {
-        "submitConfirmTitle": "Wiederherstellungspunkt erstellen?",
-        "submitConfirmDescription": "Vor der Optimierung wird eine Batch-Snapshot gespeichert. Sie können von der Batch-Detailseite zurücksetzen, falls die Ergebnisse unbefriedigend sind.",
-        "submitConfirmAction": "Batch starten",
-        "submitCancel": "Abbrechen",
-        "rollback": "Batch zurücksetzen",
-        "rollbackCardDescription": "Alle Fähigkeiten in diesem Batch auf ihre Vor-Optimierungs-Snapshots zurücksetzen.",
-        "rollbackConfirmTitle": "Diesen Batch zurücksetzen?",
-        "rollbackConfirmDescription": "Alle Fähigkeiten in diesem Batch werden auf ihre Vor-Optimierungs-Snapshots zurückgesetzt.",
-        "rollbackFailed": "Batch-Zurücksetzen fehlgeschlagen",
-        "cancel": "Batch abbrechen",
-        "cancelConfirmTitle": "Diesen Batch abbrechen?",
-        "cancelConfirmDescription": "Wählen Sie, ob bereits angewendete Optimierungen erhalten bleiben oder alle Fähigkeiten auf ihre Vor-Batch-Snapshots zurückgesetzt werden sollen.",
-        "cancelKeepAction": "Nur abbrechen",
-        "cancelRollbackAction": "Abbrechen und zurücksetzen",
-        "cancelSuccess": "Batch abgebrochen",
-        "cancelFailed": "Abbrechen des Batches fehlgeschlagen",
-        "statusPending": "Ausstehend",
-        "statusRunning": "Läuft",
-        "statusCompleted": "Abgeschlossen",
-        "statusCancelled": "Abgebrochen",
-        "statusFailed": "Fehlgeschlagen",
-        "filterAll": "Alle",
-        "filterActive": "Aktiv",
-        "filterExecuting": "Ausführend"
       }
     },
     "skillAggregation": {

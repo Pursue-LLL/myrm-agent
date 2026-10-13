@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import typing
 
-from fastapi import HTTPException
 from myrm_agent_harness.agent.skills.optimization import EventEmitter
 from myrm_agent_harness.agent.skills.optimization.protocols import SkillExecutionProvider
-from myrm_agent_harness.agent.skills.optimization.scheduler import OptimizationScheduler
 
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 from app.services.skill_optimization.ab_test_manager import ABTestManager
@@ -20,18 +18,6 @@ def _new_server_skill_execution_provider() -> SkillExecutionProvider:
     return ServerSkillExecutionProvider()
 
 
-def get_scheduler() -> OptimizationScheduler:
-    """Return OptimizationScheduler instance."""
-    from app.core.infra.server_globals import get_optimization_scheduler
-
-    scheduler = get_optimization_scheduler()
-    if scheduler is None:
-        raise HTTPException(
-            status_code=503, detail="OptimizationScheduler not initialized. Please start the skill optimization service."
-        )
-    return scheduler
-
-
 def get_storage() -> SQLAlchemyStorage:
     """Return SkillOptimizationStorage instance."""
     from app.services.skill_optimization.bootstrap import get_skill_optimization_storage
@@ -40,12 +26,7 @@ def get_storage() -> SQLAlchemyStorage:
 
 
 def get_event_emitter() -> EventEmitter:
-    """Return EventEmitter instance."""
-    from app.services.skill_optimization.bootstrap import get_registered_event_emitter
-
-    emitter = get_registered_event_emitter()
-    if emitter is not None:
-        return emitter
+    """Return a request-scoped EventEmitter."""
     return EventEmitter()
 
 
@@ -62,18 +43,3 @@ def get_ab_test_manager() -> ABTestManager:
         shadow_tester = ShadowTester(exec_provider, event_emitter, comparator=SemanticComparator())
         _ab_test_manager_instance = ABTestManager(storage, shadow_tester)
     return _ab_test_manager_instance
-
-
-def init_skill_optimization_services(
-    scheduler: object,
-    storage: object,
-    event_emitter: object,
-) -> None:
-    """Initialize skill optimization service instances."""
-    from app.services.skill_optimization.bootstrap import init_skill_optimization_services as _init
-
-    _init(
-        scheduler=scheduler,
-        storage=storage,
-        event_emitter=event_emitter,
-    )

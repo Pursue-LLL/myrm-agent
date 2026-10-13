@@ -4,8 +4,6 @@ Data access layer for skill optimization system.
 """
 
 from .ab_test_repo import ABTestRepository
-from .audit_log_repo import AuditLogRepository
-from .batch_task_repo import BatchTaskRepository
 from .optimization_repo import OptimizationRepository
 from .quality_repo import QualityRepository
 from .snapshot_repo import SnapshotRepository
@@ -16,7 +14,5 @@ __all__ = [
     "ABTestRepository",
     "QualityRepository",
     "SQLAlchemyStorage",
-    "BatchTaskRepository",
     "SnapshotRepository",
-    "AuditLogRepository",
 ]

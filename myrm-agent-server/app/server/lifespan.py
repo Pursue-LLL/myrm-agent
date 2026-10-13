@@ -569,20 +569,6 @@ async def _phase_1b_parallel() -> None:
                 sandboxes_root,
             )
 
-    async def _init_optimization_scheduler_task() -> None:
-        from app.core.infra.server_globals import set_optimization_scheduler
-        from app.services.skill_optimization.scheduler_factory import (
-            create_optimization_scheduler,
-        )
-
-        optimization_scheduler = await create_optimization_scheduler()
-        if optimization_scheduler:
-            set_optimization_scheduler(optimization_scheduler)
-            await optimization_scheduler.start_monitoring()
-            logger.info("[Startup] OptimizationScheduler initialized and worker started successfully")
-        else:
-            logger.warning("[Startup] OptimizationScheduler initialization skipped (dependencies missing)")
-
     async def _init_idle_handlers_task() -> None:
         from app.core.infra.idle_handlers import register_all_idle_handlers
 
@@ -666,7 +652,6 @@ async def _phase_1b_parallel() -> None:
         _init_permission_logger_task(),
         _init_context_cleanup_task(),
         _init_context_guard_sweeper_task(),
-        _init_optimization_scheduler_task(),
         _init_idle_handlers_task(),
         _init_prebuilt_skills(),
         _init_builtin_agents(),
@@ -688,7 +673,6 @@ async def _phase_1b_parallel() -> None:
         "Permission logger",
         "Context cleanup",
         "ContextGuard sweep",
-        "Optimization scheduler",
         "Idle handlers",
         "Prebuilt skills",
         "Built-in agents",
