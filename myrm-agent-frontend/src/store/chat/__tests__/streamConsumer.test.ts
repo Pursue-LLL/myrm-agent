@@ -904,5 +904,45 @@ describe('streamConsumer resilience paths', () => {
         errorSpy.mockRestore();
       }
     });
+
+    it.each([
+      ['gives up', { ok: false, err: 'workspace-stream-ready-timeout' }],
+      ['comes up', { ok: true }],
+    ])(
+      'ends quietly and posts nothing when the stop arrives before the workspace stream %s',
+      async (_outcome, gateResult) => {
+        (window as Window & { __MYRM_E2E_DIRECT_SSE__?: boolean }).__MYRM_E2E_DIRECT_SSE__ = false;
+        const state = createBaseState();
+        const abortController = new AbortController();
+        let settleGate: (result: { ok: boolean; err?: string }) => void = () => undefined;
+        mockWaitUntilReady.mockReturnValue(
+          new Promise((resolve) => {
+            settleGate = resolve;
+          }),
+        );
+
+        const run = observe(
+          executeStreamWithRetry(
+            'hello',
+            'msg-stop-gate',
+            state,
+            createActions(state),
+            null,
+            abortController,
+            false,
+            '',
+          ),
+        );
+        await eventually(() => expect(mockWaitUntilReady).toHaveBeenCalledTimes(1));
+
+        abortController.abort();
+        // The gate cannot be interrupted; its verdict only arrives after the stop.
+        settleGate(gateResult);
+        await eventually(() => expect(run.isSettled()).toBe(true));
+
+        expect(run.error()).toMatchObject({ name: 'AbortError' });
+        expect(mockCreateMessageRequest).not.toHaveBeenCalled();
+      },
+    );
   });
 });

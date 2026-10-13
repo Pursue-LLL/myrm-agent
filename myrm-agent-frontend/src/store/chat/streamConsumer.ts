@@ -7,7 +7,7 @@
  * @/lib/utils/networkResilience::abortableDelay (POS: 网络韧性策略层，统一重试与 fail-fast 决策)
  *
  * [OUTPUT]
- * executeStreamWithRetry: 网络重试、AgentBusyError fail-fast、multiplex 分流、中断后 attach 恢复；两类退避等待均可被用户 Stop 立即中止（AbortError 直接抛出）；turn 成功后 finalizeAgentStreamTurn
+ * executeStreamWithRetry: 网络重试、AgentBusyError fail-fast、multiplex 分流、中断后 attach 恢复；两类退避等待均可被用户 Stop 立即中止（AbortError 直接抛出），Stop 发生在 multiplex 就绪门等待期间时门返回后同样以 AbortError 结束且不构造请求；turn 成功后 finalizeAgentStreamTurn
  * shouldUseMultiplexedAgentStream: 本轮 chunk 走 workspace multiplex 还是 POST 响应体（请求体 multiplexed 字段与消费端共用此判定）
  *
  * [POS]
@@ -222,6 +222,9 @@ export async function executeStreamWithRetry(
 
       if (multiplexBridge) {
         const workspaceReady = await connectionManager.waitUntilReady(30_000);
+        // The gate cannot be interrupted: a stop that arrived while it waited ends the turn here, before any
+        // request is built and without reporting the gate's verdict for a turn nobody is waiting for anymore.
+        abortController.signal.throwIfAborted();
         if (!workspaceReady.ok) {
           const gateError = new Error(
             workspaceReady.err ?? 'Workspace multiplex stream not ready before agent-stream POST',
