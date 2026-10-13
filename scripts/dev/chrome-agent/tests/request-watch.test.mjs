@@ -2,7 +2,7 @@
 // Run: node --test scripts/dev/chrome-agent/tests/request-watch.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RequestWatch } from '../request-watch.mjs';
+import { RequestWatch, describeScript } from '../request-watch.mjs';
 
 function setup() {
     const pendingRequests = new Map();
@@ -177,4 +177,28 @@ test('a request waiting on a page script (awaitPromise) is logged as a script wa
     assert.equal(snapshots, 0);
     assert.equal(watch.stats().slowRequests, 0);
     assert.equal(watch.stats().scriptWaits, 1);
+});
+
+test('a slow request names the head of the script it runs', () => {
+    const { watch, logs, clock, add } = setup();
+    add(1, { script: 'document.querySelectorAll(...)' });
+    clock.t += 10_000;
+    watch.sweep();
+    assert.match(logs[0], /slow request c7 Runtime\.evaluate sess=ABCDEF12 \[session unknown to the proxy\] script "document\.querySelectorAll\(\.\.\.\)" unanswered for 10s/);
+});
+
+test('a request without a script (non-Runtime method) logs no script clause', () => {
+    const { watch, logs, clock, add } = setup();
+    add(1, { method: 'Page.navigate' });
+    clock.t += 10_000;
+    watch.sweep();
+    assert.doesNotMatch(logs[0], /script "/);
+});
+
+test('describeScript keeps a whitespace-collapsed 60-char head of an expression or function declaration', () => {
+    assert.equal(describeScript({ expression: '  a\n\n  b  ' }), 'a b');
+    assert.equal(describeScript({ functionDeclaration: 'function () {\n return 1 }' }), 'function () { return 1 }');
+    assert.equal(describeScript({ expression: 'x'.repeat(61) }), `${'x'.repeat(60)}...`);
+    assert.equal(describeScript({ url: 'https://x.com' }), null);
+    assert.equal(describeScript(undefined), null);
 });

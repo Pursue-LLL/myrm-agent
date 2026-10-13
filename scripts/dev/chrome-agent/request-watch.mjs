@@ -25,6 +25,7 @@ const SLOW_MS = 10_000;
 const TICK_MS = 2000;
 /** One process snapshot per burst of stalls: a stalled Chrome often stalls dozens of requests at once. */
 const SNAPSHOT_COOLDOWN_MS = 30_000;
+const SCRIPT_HEAD_CHARS = 60;
 
 export class RequestWatch {
     /**
@@ -84,7 +85,8 @@ export class RequestWatch {
             const session = req.sessionId ? ` sess=${req.sessionId.slice(0, 8)} [${target ?? 'session unknown to the proxy'}]` : '';
             const age = this.chromeAgeMs();
             const chrome = age === null ? '' : `, chrome up ${Math.round(age / 60_000)}m`;
-            this.log(`slow request ${info.label} ${info.method}${session} unanswered for ${this.#seconds(t - req.createdAt)}s `
+            const script = req.script ? ` script "${req.script}"` : '';
+            this.log(`slow request ${info.label} ${info.method}${session}${script} unanswered for ${this.#seconds(t - req.createdAt)}s `
                 + `(load ${this.loadavg()[0].toFixed(0)} on ${this.cpus} cpus, ${this.pendingRequests.size} pending${chrome})`);
         }
         if (newStall && t - this.lastSnapshotAt >= SNAPSHOT_COOLDOWN_MS) {
@@ -106,6 +108,17 @@ export class RequestWatch {
     #seconds(ms) {
         return Math.round(ms / 1000);
     }
+}
+
+/**
+ * The first characters of the script a Runtime request runs, so a slow-request line names the code that stalled.
+ * Only the head is kept (whitespace collapsed): enough to tell scripts apart without copying page data into the log.
+ */
+export function describeScript(params) {
+    const source = params?.expression ?? params?.functionDeclaration;
+    if (typeof source !== 'string') return null;
+    const head = source.replace(/\s+/g, ' ').trim();
+    return head.length > SCRIPT_HEAD_CHARS ? `${head.slice(0, SCRIPT_HEAD_CHARS)}...` : head;
 }
 
 /** Create the watch and sweep it while the proxy runs. */

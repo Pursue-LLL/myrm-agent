@@ -254,7 +254,7 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         const status = await (await fetch(`${proxy.base}/proxy/status`)).json();
         const lines = fs.readFileSync(proxy.logPath, 'utf8').split('\n');
         const logged = lines.filter((l) => /slow request .* Runtime\.evaluate/.test(l));
-        await check('slowRequestLog: an unanswered request is logged once with load', logged.length === 1 && /sess=\w{8} \[owned page [^\]]*\] unanswered/.test(logged[0]) && /load \d+ on \d+ cpus, \d+ pending, chrome up \d+m/.test(logged[0]), logged.join(' | ').slice(0, 200));
+        await check('slowRequestLog: an unanswered request is logged once with its script head and load', logged.length === 1 && /sess=\w{8} \[owned page [^\]]*\] script "while \(true\) \{\}" unanswered/.test(logged[0]) && /load \d+ on \d+ cpus, \d+ pending, chrome up \d+m/.test(logged[0]), logged.join(' | ').slice(0, 200));
         const snapshot = lines.filter((l) => /stall snapshot renderers: \d+\(id\d+\) pri -?\d+ [\d.]+%cpu/.test(l));
         await check('slowRequestLog: the stall also logs the renderer processes (priority, cpu share) once', snapshot.length === 1, snapshot.join(' | ').slice(0, 220));
         // The spinning renderer runs flat out while the idle ones use none: the busiest core share must be clearly above idle.

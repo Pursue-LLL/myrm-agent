@@ -35,7 +35,7 @@ import { buildChromeLaunchArgs, resetProfileCrashFlags } from './chrome-launch.m
 import { startHangGuard } from './hang-guard.mjs';
 import { createHttpServer } from './http-endpoints.mjs';
 import { startIdlePool } from './idle-pool.mjs';
-import { startRequestWatch } from './request-watch.mjs';
+import { describeScript, startRequestWatch } from './request-watch.mjs';
 import { SessionRouter, isAttachMethod, short } from './session-router.mjs';
 import { createProxyStallForensics } from './stall-probe.mjs';
 
@@ -202,7 +202,7 @@ function sendToChrome(msg) {
 
 let globalIdCounter = 1;
 let clientCounter = 0;
-const pendingRequests = new Map();   // proxyId → { clientWs, client, originalId, method, sessionId, awaitsScript, createdAt }
+const pendingRequests = new Map();   // proxyId → { clientWs, client, originalId, method, sessionId, awaitsScript, script, createdAt }
 const clients = new Map();           // ws → { id, label, ws, closed, proxyIds, connectedAt, discoveryEnabled, autoAttachEnabled }
 
 function safeSend(ws, data) {
@@ -434,6 +434,7 @@ wss.on('connection', (clientWs) => {
                 originalId: msg.id,
                 method: msg.method, sessionId: msg.sessionId,
                 awaitsScript: msg.params?.awaitPromise === true,
+                script: describeScript(msg.params),
                 createdAt: Date.now(),
             });
             client.proxyIds.add(proxyId);
