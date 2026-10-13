@@ -15,7 +15,7 @@ from collections.abc import AsyncGenerator
 import httpx
 import pytest
 from httpx import ASGITransport
-from myrm_agent_harness.toolkits.computer_use.backends.macos import _check_accessibility
+from myrm_agent_harness.toolkits.computer_use.backends.macos_permissions import _check_accessibility
 from myrm_agent_harness.toolkits.computer_use.desktop_session import (
     create_desktop_session,
 )
