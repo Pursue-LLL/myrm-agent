@@ -12,8 +12,8 @@
 - make_agent_session_install_from_url_fn: URL install callback for create_skill_market_tool
 
 [POS]
-Discover ``install-from-url`` runs mount + adoption after install; chat Turn1 market tool did not.
-This module mirrors that behavior using the current chat agent id from context.
+Post-install catalog enable and explicit allowlist adoption for chat ``skill_market_tool`` installs.
+Uses ``get_current_agent_id()`` (Web turn ContextVar; falls back to mount default when unset).
 """
 
 from __future__ import annotations
@@ -71,9 +71,15 @@ class AgentSessionSkillMarketBackend:
         user_id: str | None = None,
     ) -> SkillInstallResult:
         del user_id
+        await self._maybe_ensure_clawhub_registry()
         result = await self._inner.install(skill_id, source)
         await apply_agent_session_post_install(result)
         return result
+
+    async def _maybe_ensure_clawhub_registry(self) -> None:
+        ensure = getattr(self._inner, "ensure_clawhub_registry", None)
+        if callable(ensure):
+            await ensure()
 
     async def get_detail(self, skill_id: str, source: str):  # noqa: ANN201
         return await self._inner.get_detail(skill_id, source)
@@ -91,6 +97,9 @@ def make_agent_session_install_from_url_fn(
 ) -> Callable[[str, str | None], Awaitable[SkillInstallResult]]:
     async def install_from_url(url: str, user_id: str | None) -> SkillInstallResult:
         del user_id
+        ensure = getattr(inner, "ensure_clawhub_registry", None)
+        if callable(ensure):
+            await ensure()
         result = await inner.install_from_url(url)
         await apply_agent_session_post_install(result)
         return result

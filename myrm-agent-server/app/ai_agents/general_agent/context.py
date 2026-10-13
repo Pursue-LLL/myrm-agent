@@ -28,3 +28,7 @@ def set_current_agent_id(agent_id: str) -> contextvars.Token:
 
 def get_current_agent_id() -> Optional[str]:
     return _current_agent_id.get()
+
+
+def reset_current_agent_id(token: contextvars.Token[Optional[str]]) -> None:
+    _current_agent_id.reset(token)

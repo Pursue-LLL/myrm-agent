@@ -96,6 +96,7 @@ async def launch_early_buffered_stream(
 
     async def _background_turn() -> None:
         chat_id_token = None
+        agent_id_token = None
         try:
             # 绑定 harness 侧会话上下文：SnapshotObserver 以
             # get_current_chat_id() 作为快照落盘的 session key（.myrm/snapshots/<session>/<msg>.json），
@@ -108,6 +109,13 @@ async def launch_early_buffered_stream(
                 )
 
                 chat_id_token = set_current_chat_id(request.chat_id)
+            if request.agent_id:
+                from app.ai_agents.general_agent.context import (
+                    reset_current_agent_id,
+                    set_current_agent_id,
+                )
+
+                agent_id_token = set_current_agent_id(request.agent_id)
             await execute_agent_turn_after_reserve(
                 request=request,
                 http_request=http_request,
@@ -133,6 +141,13 @@ async def launch_early_buffered_stream(
             if chat_id_token is not None:
                 try:
                     reset_current_chat_id(chat_id_token)
+                except Exception:  # pragma: no cover - context teardown edge
+                    pass
+            if agent_id_token is not None:
+                try:
+                    from app.ai_agents.general_agent.context import reset_current_agent_id
+
+                    reset_current_agent_id(agent_id_token)
                 except Exception:  # pragma: no cover - context teardown edge
                     pass
             # A reserved chat session that never reached execute_stream (setup

@@ -65,6 +65,23 @@ async def test_apply_agent_session_post_install_skips_on_failed_install(
 
 
 @pytest.mark.asyncio
+async def test_wrapped_backend_install_ensures_clawhub_registry_before_install() -> None:
+    ensure = AsyncMock()
+    inner = SimpleNamespace(
+        install=AsyncMock(
+            return_value=SkillInstallResult(success=True, skill_id="x", skill_name="X"),
+        ),
+        ensure_clawhub_registry=ensure,
+    )
+    backend = AgentSessionSkillMarketBackend(inner)
+
+    await backend.install("skill-a", "clawhub")
+
+    ensure.assert_awaited_once()
+    inner.install.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_wrapped_backend_install_runs_post_install(monkeypatch: pytest.MonkeyPatch) -> None:
     post = AsyncMock()
     monkeypatch.setattr(
