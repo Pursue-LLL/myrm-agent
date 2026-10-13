@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * - zustand::create (POS: 轻量状态管理)
+ *
+ * [OUTPUT]
+ * - useExternalLinkConfirmStore: 外链确认弹窗的状态（待确认链接、上次拒绝时间）与 request / approve / decline 动作
+ * - DECLINE_QUIET_PERIOD_MS: 拒绝后丢弃新请求的静默时长
+ * - PendingExternalLink: 等待用户决定的外链
+ *
+ * [POS]
+ * 桌面端外链确认弹窗的单槽状态，含单飞与拒绝后静默。
+ */
 'use client';
 
 import { create } from 'zustand';

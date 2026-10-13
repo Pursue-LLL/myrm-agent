@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/store/useExternalLinkConfirmStore (POS: 外链确认弹窗的单槽状态，含单飞与拒绝后静默)
+ * - @/store/useExternalLinkConfirmStore (POS: 桌面端外链确认弹窗的单槽状态，含单飞与拒绝后静默)
  * - @/lib/desktop-bridge::desktopBridge (POS: 桌面桥接单例，外链经系统浏览器打开)
  * - @/components/primitives/alert-dialog (POS: 模态确认原语，默认聚焦取消、点击遮罩不关闭)
  *
