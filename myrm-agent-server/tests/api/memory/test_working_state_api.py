@@ -13,6 +13,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
 
 from app.api.dependencies import get_deploy_identity
 from app.api.memory.utils import get_crud_memory_manager
+from app.services.memory.consolidation_service import ConsolidationService
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="memory")
@@ -21,6 +22,14 @@ app = build_minimal_app(preset="memory")
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def isolate_active_sessions_state():
+    """The live endpoint falls back to the latest registered session snapshot, which other suites leave behind."""
+    ConsolidationService._active_sessions_state.clear()
+    yield
+    ConsolidationService._active_sessions_state.clear()
 
 
 @pytest.fixture(autouse=True)
