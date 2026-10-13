@@ -69,7 +69,7 @@ effective_skill_ids  解析 Agent 显式 allowlist（所见即所得标准：空
 local_skill_id (harness)  local::{16hex} path-hash SSOT；install/uninstall/catalog 对齐
 ```
 
-**契约与运维**：Agent 技能装配遵循所见即所得（WYSIWYG）原则，Agent 配置的 `skill_ids` 为空时运行时严格装配 0 个技能（纯指令模式）。内置通用智能体（如 `builtin-general`）默认不加载任何技能（`skill_ids = []`，纯指令零启动基线），用户可在配置中自主启用所需技能。前端提供「全选」与「清空」快捷操作，支持按需一键装配。Discover install 在显式 allowlist 下会自动 append 新安装技能。Chat 会话内 `skill_market_tool` 的 `install` / `install_from_url` 成功后会走同一套 catalog enable + 采纳逻辑（`discovery/agent_market_install.py`；Web 回合在 `orchestrator_turn_body` 绑定 `get_current_agent_id()`，未绑定时与 Discover 缺省 agent 一样走 mount 默认 id）。
+**契约与运维**：Agent 技能装配遵循所见即所得（WYSIWYG）原则，Agent 配置的 `skill_ids` 为空时运行时严格装配 0 个技能（纯指令模式）。内置通用智能体（如 `builtin-general`）默认不加载任何技能（`skill_ids = []`，纯指令零启动基线），用户可在配置中自主启用所需技能。前端提供「全选」与「清空」快捷操作，支持按需一键装配。Discover install 在显式 allowlist 下会自动 append 新安装技能。Chat 与 Discover HTTP 共用 `discovery/market_install_flow.py`（replace 快照、audit、catalog enable、采纳）；Web 回合在 `orchestrator_turn_body` 绑定 `get_current_agent_id()`。
 
 ### 3.3 打包与解包
 
@@ -167,7 +167,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | Shadow A/B → promote | 候选版本 inactive 落库；晋升走 regression gate | `tests/services/skill_optimization/test_start_shadow_ab_test.py` |
 | 进化审批 → 落盘 | 审批通过后 apply；拒绝/失败 rollback | `tests/integration/test_skill_evolution_integration.py` |
 
-GUI 冒烟（Chrome E2E，按需）：技能详情版本 Tab 回滚、SkillQualityGuardian promote/stop（见 `myrm-agent-frontend/src/components/features/skills/_ARCH.md`）。
+GUI 冒烟（Chrome E2E，按需）：技能详情版本 Tab 回滚、SkillQualityGuardian promote/stop（见 `myrm-agent-frontend/src/components/features/skills/_ARCH.md`）；chat `skill_manage` Undo 提示与 Task Steps 展开见 `tests/e2e/test_skill_manage_undo_hint_chrome_e2e.py`（需 `E2E_SKILL_MANAGE_UNDO_CHAT_PATH`）。
 
 ---
 

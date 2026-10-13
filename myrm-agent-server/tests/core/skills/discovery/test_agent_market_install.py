@@ -1,4 +1,4 @@
-"""Chat agent market install post-hooks mirror Discover API."""
+"""Chat agent market install adapter delegates to market_install_flow."""
 
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResu
 
 from app.core.skills.discovery.agent_market_install import (
     AgentSessionSkillMarketBackend,
-    apply_agent_session_post_install,
     make_agent_session_install_from_url_fn,
 )
+from app.core.skills.discovery.market_install_flow import MarketInstallFlowResult
 
 
 @dataclass(frozen=True)
@@ -24,99 +24,52 @@ class _MountStub:
     mount_skill_id: str = "prebuilt::demo"
 
 
+def _flow_result() -> MarketInstallFlowResult:
+    return MarketInstallFlowResult(
+        result=SkillInstallResult(success=True, skill_id="prebuilt::demo", skill_name="Demo"),
+        mount_result=_MountStub(mounted=True),
+    )
+
+
 @pytest.mark.asyncio
-async def test_apply_agent_session_post_install_mounts_and_adopts(monkeypatch: pytest.MonkeyPatch) -> None:
-    mount = AsyncMock(return_value=_MountStub(mounted=True))
+async def test_wrapped_backend_install_delegates_to_flow(monkeypatch: pytest.MonkeyPatch) -> None:
+    flow_fn = AsyncMock(return_value=_flow_result())
     adopt = AsyncMock()
     monkeypatch.setattr(
-        "app.core.skills.discovery.agent_market_install.maybe_mount_after_install",
-        mount,
+        "app.core.skills.discovery.agent_market_install.run_market_install_flow_by_id",
+        flow_fn,
     )
     monkeypatch.setattr(
         "app.core.skills.discovery.agent_market_install.complete_discovery_adoption",
         adopt,
     )
-    monkeypatch.setattr(
-        "app.ai_agents.general_agent.context.get_current_agent_id",
-        lambda: "agent-1",
+    backend = AgentSessionSkillMarketBackend(SimpleNamespace())
+
+    out = await backend.install("skill-a", "clawhub", user_id="u1")
+
+    assert out.skill_id == "prebuilt::demo"
+    flow_fn.assert_awaited_once_with(
+        "skill-a",
+        "clawhub",
+        agent_id=None,
+        mount_to_agent=True,
     )
-
-    result = SkillInstallResult(success=True, skill_id="prebuilt::demo", skill_name="Demo")
-    await apply_agent_session_post_install(result)
-
-    mount.assert_awaited_once()
-    assert mount.await_args.kwargs["mount_to_agent"] is True
-    assert mount.await_args.kwargs["agent_id"] == "agent-1"
     adopt.assert_awaited_once_with("agent-1", "prebuilt::demo")
 
 
 @pytest.mark.asyncio
-async def test_apply_agent_session_post_install_skips_on_failed_install(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mount = AsyncMock()
+async def test_install_from_url_fn_delegates_to_flow(monkeypatch: pytest.MonkeyPatch) -> None:
+    flow_fn = AsyncMock(return_value=_flow_result())
     monkeypatch.setattr(
-        "app.core.skills.discovery.agent_market_install.maybe_mount_after_install",
-        mount,
+        "app.core.skills.discovery.agent_market_install.run_market_install_flow_from_url",
+        flow_fn,
     )
-
-    await apply_agent_session_post_install(SkillInstallResult(success=False, error="nope"))
-    mount.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_wrapped_backend_install_ensures_clawhub_registry_before_install() -> None:
-    ensure = AsyncMock()
-    inner = SimpleNamespace(
-        install=AsyncMock(
-            return_value=SkillInstallResult(success=True, skill_id="x", skill_name="X"),
-        ),
-        ensure_clawhub_registry=ensure,
-    )
-    backend = AgentSessionSkillMarketBackend(inner)
-
-    await backend.install("skill-a", "clawhub")
-
-    ensure.assert_awaited_once()
-    inner.install.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_wrapped_backend_install_runs_post_install(monkeypatch: pytest.MonkeyPatch) -> None:
-    post = AsyncMock()
-    monkeypatch.setattr(
-        "app.core.skills.discovery.agent_market_install.apply_agent_session_post_install",
-        post,
-    )
-    inner = SimpleNamespace(
-        install=AsyncMock(
-            return_value=SkillInstallResult(success=True, skill_id="x", skill_name="X"),
-        ),
-    )
-    backend = AgentSessionSkillMarketBackend(inner)
-
-    out = await backend.install("skill-a", "clawhub", user_id="u1")
-
-    assert out.success is True
-    inner.install.assert_awaited_once_with("skill-a", "clawhub")
-    post.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_install_from_url_fn_runs_post_install(monkeypatch: pytest.MonkeyPatch) -> None:
-    post = AsyncMock()
-    monkeypatch.setattr(
-        "app.core.skills.discovery.agent_market_install.apply_agent_session_post_install",
-        post,
-    )
-    inner = SimpleNamespace(
-        install_from_url=AsyncMock(
-            return_value=SkillInstallResult(success=True, skill_id="y", skill_name="Y"),
-        ),
-    )
-    install_url = make_agent_session_install_from_url_fn(inner)
+    install_url = make_agent_session_install_from_url_fn(object())
 
     await install_url("https://github.com/o/r", None)
 
-    inner.install_from_url.assert_awaited_once_with("https://github.com/o/r")
-    post.assert_awaited_once()
+    flow_fn.assert_awaited_once_with(
+        "https://github.com/o/r",
+        agent_id=None,
+        mount_to_agent=True,
+    )

@@ -77,6 +77,8 @@ def _install_response(
     mount_result: SkillMountResult | None = None,
     allowlist_appended: bool = False,
     allowlist_append_error: str = "",
+    pre_replace_batch_id: str | None = None,
+    snapshot_truncated: bool = False,
 ) -> SkillInstallResponse:
     from app.api.skills.discovery.discovery_schemas import SkillReceiptResponse
 
@@ -128,6 +130,8 @@ def _install_response(
         installed_skills=list(result.installed_skills),
         declared_mcp_servers=list(result.declared_mcp_servers),
         receipt=receipt_resp,
+        pre_replace_batch_id=pre_replace_batch_id,
+        snapshot_truncated=snapshot_truncated,
     )
 
 
@@ -135,6 +139,8 @@ async def _install_response_with_adoption(
     result: SkillInstallResult,
     *,
     mount_result: SkillMountResult | None = None,
+    pre_replace_batch_id: str | None = None,
+    snapshot_truncated: bool = False,
 ) -> SkillInstallResponse:
     allowlist_appended = False
     allowlist_append_error = ""
@@ -151,6 +157,8 @@ async def _install_response_with_adoption(
         mount_result=mount_result,
         allowlist_appended=allowlist_appended,
         allowlist_append_error=allowlist_append_error,
+        pre_replace_batch_id=pre_replace_batch_id,
+        snapshot_truncated=snapshot_truncated,
     )
 
 
@@ -271,21 +279,23 @@ async def install_skill(
 ) -> SkillInstallResponse:
     """Install a skill from external source to local filesystem."""
     require_local_skills_capability()
-    await market_service.ensure_clawhub_registry()
-    result = await market_service.install(
+    from app.core.skills.discovery.market_install_flow import run_market_install_flow_by_id
+
+    flow = await run_market_install_flow_by_id(
         request.skill_id,
         request.source,
         allow_downgrade=request.allow_downgrade,
+        agent_id=request.agent_id,
+        mount_to_agent=request.mount_to_agent,
+        audit_skill_id_fallback=request.skill_id,
+        audit_source=request.source,
     )
-    mount_result = None
-    if result.success:
-        _audit_skill_action("install", result.skill_id or request.skill_id, source=request.source)
-        mount_result = await maybe_mount_after_install(
-            result,
-            agent_id=request.agent_id,
-            mount_to_agent=request.mount_to_agent,
-        )
-    return await _install_response_with_adoption(result, mount_result=mount_result)
+    return await _install_response_with_adoption(
+        flow.result,
+        mount_result=flow.mount_result,
+        pre_replace_batch_id=flow.pre_replace_batch_id,
+        snapshot_truncated=flow.snapshot_truncated,
+    )
 
 
 @router.get("/detail/{source}/{skill_id:path}", response_model=SkillSearchResultResponse | None)
@@ -378,7 +388,12 @@ async def update_skill(
             mount_to_agent=True,
         )
 
-    return await _install_response_with_adoption(result, mount_result=mount_result)
+    return await _install_response_with_adoption(
+        result,
+        mount_result=mount_result,
+        pre_replace_batch_id=checker.last_market_replace_batch_id,
+        snapshot_truncated=checker.last_market_replace_snapshot_truncated,
+    )
 
 
 @router.post("/uninstall", response_model=SkillInstallResponse)
@@ -479,20 +494,20 @@ async def install_skill_from_url(
 ) -> SkillInstallResponse:
     """Install a skill directly from a GitHub URL."""
     require_local_skills_capability()
-    await market_service.ensure_clawhub_registry()
-    result = await market_service.install_from_url(
+    from app.core.skills.discovery.market_install_flow import run_market_install_flow_from_url
+
+    flow = await run_market_install_flow_from_url(
         request.url,
         allow_downgrade=request.allow_downgrade,
+        agent_id=request.agent_id,
+        mount_to_agent=request.mount_to_agent,
     )
-    mount_result = None
-    if result.success:
-        _audit_skill_action("install_from_url", result.skill_id or request.url, source="github")
-        mount_result = await maybe_mount_after_install(
-            result,
-            agent_id=request.agent_id,
-            mount_to_agent=request.mount_to_agent,
-        )
-    return await _install_response_with_adoption(result, mount_result=mount_result)
+    return await _install_response_with_adoption(
+        flow.result,
+        mount_result=flow.mount_result,
+        pre_replace_batch_id=flow.pre_replace_batch_id,
+        snapshot_truncated=flow.snapshot_truncated,
+    )
 
 
 # ---------------------------------------------------------------------------

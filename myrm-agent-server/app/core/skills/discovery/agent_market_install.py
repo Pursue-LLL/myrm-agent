@@ -1,19 +1,15 @@
-"""Post-install hooks for chat agent skill_market_tool (parity with Discover API).
+"""Chat agent skill_market_tool adapter onto unified market install flow.
 
 [INPUT]
-- myrm_agent_harness.backends.skills.market_protocols::SkillInstallResult
-- app.ai_agents.general_agent.context::get_current_agent_id (POS: Active agent in chat turn)
-- app.core.skills.discovery.mount::maybe_mount_after_install
-- app.core.skills.discovery.adopt::complete_discovery_adoption
+- app.core.skills.discovery.market_install_flow::run_market_install_flow_by_id (POS: Unified install)
+- app.core.skills.discovery.market_install_flow::run_market_install_flow_from_url
 
 [OUTPUT]
-- apply_agent_session_post_install: Catalog enable + optional allowlist adoption
-- wrap_skill_market_backend_for_agent_session: Proxy backend with wrapped install
+- wrap_skill_market_backend_for_agent_session: Proxy SkillMarketBackend for chat turns
 - make_agent_session_install_from_url_fn: URL install callback for create_skill_market_tool
 
 [POS]
-Post-install catalog enable and explicit allowlist adoption for chat ``skill_market_tool`` installs.
-Uses ``get_current_agent_id()`` (Web turn ContextVar; falls back to mount default when unset).
+Turn1 skill_market_tool uses the same install contract as Discover HTTP (replace snapshot, audit, mount, adopt).
 """
 
 from __future__ import annotations
@@ -23,24 +19,18 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 
 from app.core.skills.discovery.adopt import complete_discovery_adoption
-from app.core.skills.discovery.mount import maybe_mount_after_install
+from app.core.skills.discovery.market_install_flow import (
+    MarketInstallFlowResult,
+    run_market_install_flow_by_id,
+    run_market_install_flow_from_url,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
 
-async def apply_agent_session_post_install(result: SkillInstallResult) -> None:
-    """Enable installed skill in user catalog and adopt into explicit allowlist when applicable."""
-    if not result.success:
-        return
-
-    from app.ai_agents.general_agent.context import get_current_agent_id
-
-    mount_result = await maybe_mount_after_install(
-        result,
-        agent_id=get_current_agent_id(),
-        mount_to_agent=True,
-    )
+async def _chat_adopt_after_mount(flow: MarketInstallFlowResult) -> None:
+    mount_result = flow.mount_result
     if (
         mount_result is not None
         and mount_result.mounted
@@ -54,7 +44,7 @@ async def apply_agent_session_post_install(result: SkillInstallResult) -> None:
 
 
 class AgentSessionSkillMarketBackend:
-    """Delegates to the business market service and runs Discover-equivalent post-install."""
+    """SkillMarketBackend proxy: chat installs run through market_install_flow."""
 
     __slots__ = ("_inner",)
 
@@ -71,15 +61,14 @@ class AgentSessionSkillMarketBackend:
         user_id: str | None = None,
     ) -> SkillInstallResult:
         del user_id
-        await self._maybe_ensure_clawhub_registry()
-        result = await self._inner.install(skill_id, source)
-        await apply_agent_session_post_install(result)
-        return result
-
-    async def _maybe_ensure_clawhub_registry(self) -> None:
-        ensure = getattr(self._inner, "ensure_clawhub_registry", None)
-        if callable(ensure):
-            await ensure()
+        flow = await run_market_install_flow_by_id(
+            skill_id,
+            source,
+            agent_id=None,
+            mount_to_agent=True,
+        )
+        await _chat_adopt_after_mount(flow)
+        return flow.result
 
     async def get_detail(self, skill_id: str, source: str):  # noqa: ANN201
         return await self._inner.get_detail(skill_id, source)
@@ -95,13 +84,16 @@ def wrap_skill_market_backend_for_agent_session(inner: object) -> AgentSessionSk
 def make_agent_session_install_from_url_fn(
     inner: object,
 ) -> Callable[[str, str | None], Awaitable[SkillInstallResult]]:
+    del inner
+
     async def install_from_url(url: str, user_id: str | None) -> SkillInstallResult:
         del user_id
-        ensure = getattr(inner, "ensure_clawhub_registry", None)
-        if callable(ensure):
-            await ensure()
-        result = await inner.install_from_url(url)
-        await apply_agent_session_post_install(result)
-        return result
+        flow = await run_market_install_flow_from_url(
+            url,
+            agent_id=None,
+            mount_to_agent=True,
+        )
+        await _chat_adopt_after_mount(flow)
+        return flow.result
 
     return install_from_url
