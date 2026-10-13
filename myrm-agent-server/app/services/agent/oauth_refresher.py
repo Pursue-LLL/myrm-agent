@@ -91,11 +91,11 @@ def _resolve_oauth_client_credentials(
         client_secret = settings.google_client_secret.get_secret_value().strip()
         return (client_id or None, client_secret or None)
 
-    client_id = cred_val.get("client_id")
-    client_secret = cred_val.get("client_secret")
+    stored_client_id = cred_val.get("client_id")
+    stored_client_secret = cred_val.get("client_secret")
     return (
-        str(client_id) if client_id else None,
-        str(client_secret) if client_secret else None,
+        str(stored_client_id) if stored_client_id else None,
+        str(stored_client_secret) if stored_client_secret else None,
     )
 
 
