@@ -5,6 +5,7 @@
  * @/store/useChatStore::Message (POS: Chat state store and message state façade)
  * ./MarkdownContent (POS: Markdown answer renderer)
  * ./MessageActionBar (POS: Chat assistant message action surface)
+ * ./userMessageResend (POS: Resend flows of a user bubble, retry of a failed send and edit-and-resend)
  * components/features/task-card/{ImageTaskCard,VideoTaskCard} (POS: Async media task cards)
  *
  * [OUTPUT]

@@ -1,8 +1,9 @@
 /**
  * [INPUT]
- * - @/store/useChatStore::useChatStore (POS: Chat state store and message state façade)
- * - @/services/chat::truncateAfterMessage (POS: Chat HTTP API)
- * - @/lib/utils/messageUtils (POS: Message text helpers, explicit skill activation wire format)
+ * - @/store/useChatStore::useChatStore (POS: Active chat state manager of the visible chat session)
+ * - @/services/chat::truncateAfterMessage (POS: Chat HTTP API, history truncation)
+ * - @/services/i18nToastService::showI18nToast (POS: Translated toasts outside React components)
+ * - @/lib/utils/messageUtils (POS: Message text cleanup helpers, explicit skill activation wire format)
  * - @/hooks/message-input/useInputHistory::addInputHistory (POS: Per-agent input history the composer recalls with ArrowUp)
  *
  * [OUTPUT]
@@ -11,10 +12,11 @@
  *
  * [POS]
  * Resend flows of a user bubble. The old bubble is replaced before the new request exists, so a request the agent
- * does not take would take the user's text with it; the text and attachments return to the composer instead. A
- * composer the user already started stays as it is, and the text goes to the input history like that of a refused
- * direct send. A retry carries the attachments its bubble shows; an edit sends like a normal message, with the
- * composer's own.
+ * does not take would take the user's text with it; the text and attachments return to the composer instead. When
+ * the composer cannot take them (the user started the next message or opened another chat), the text goes to the
+ * input history of the chat it came from, like that of a refused direct send. A retry carries the attachments its
+ * bubble shows; an edit sends like a normal message, with the composer's own, and is dropped with a notice when its
+ * chat is left while the server cuts the history.
  */
 import { addInputHistory } from '@/hooks/message-input/useInputHistory';
 import {
@@ -28,22 +30,47 @@ import { showI18nToast } from '@/services/i18nToastService';
 import type { File as ChatFile, Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 
-/** Give an undelivered request back to the composer, unless the user already started something else there. */
-function restoreComposer(chatId: string | undefined, content: string, files: ChatFile[]): void {
-  const live = useChatStore.getState();
-  // Another chat is open now: its composer, agent and incognito state are not those of this request.
-  if (live.chatId !== chatId) {
-    return;
+/**
+ * The chat a resend belongs to, read before anything awaits: the chat store always holds whichever chat is open,
+ * so by the time a request settles its chat, agent and incognito state may be another one's.
+ */
+interface Origin {
+  chatId: string | undefined;
+  agentId: string | undefined;
+  incognito: boolean;
+}
+
+function readOrigin(): Origin {
+  const { chatId, agentConfig, incognitoMode } = useChatStore.getState();
+  return { chatId, agentId: agentConfig?.agentId, incognito: incognitoMode };
+}
+
+/** Keep text the composer cannot take reachable through the input history. An incognito chat persists none. */
+function keepInInputHistory(origin: Origin, text: string): void {
+  if (!origin.incognito) {
+    addInputHistory(text, origin.agentId);
   }
+}
+
+function notifyNotSent(): void {
+  showI18nToast('chat.messageFailed.title', undefined, {
+    descriptionKey: 'chat.messageFailed.generic',
+    type: 'error',
+    duration: 3000,
+  });
+}
+
+/** Give an undelivered request back to the composer, unless the user already started something else there. */
+function restoreComposer(origin: Origin, content: string, files: ChatFile[]): void {
+  const live = useChatStore.getState();
   const text = stripUserMessageDisplayText(content);
-  const composerInUse =
-    live.inputMessage.trim() !== '' || live.files.length > 0 || live.pendingExplicitSkillActivation !== null;
-  if (composerInUse) {
-    // The text stays reachable through the input history, as that of a refused direct send does. An incognito chat
-    // persists nothing the user typed.
-    if (!live.incognitoMode) {
-      addInputHistory(text, live.agentConfig?.agentId);
-    }
+  const composerFree =
+    live.chatId === origin.chatId &&
+    live.inputMessage.trim() === '' &&
+    live.files.length === 0 &&
+    live.pendingExplicitSkillActivation === null;
+  if (!composerFree) {
+    keepInInputHistory(origin, text);
     return;
   }
   const activation = parseExplicitSkillActivation(content);
@@ -60,9 +87,8 @@ function restoreComposer(chatId: string | undefined, content: string, files: Cha
  * like a normal send. A request the agent does not take (refused, busy, failed before the turn) returns to the
  * composer together with the files it carried.
  */
-async function resend(content: string, attachments: ChatFile[] | undefined): Promise<void> {
+async function resend(origin: Origin, content: string, attachments: ChatFile[] | undefined): Promise<void> {
   const live = useChatStore.getState();
-  const chatId = live.chatId;
   const sentFiles = attachments ?? live.files;
   try {
     const dispatched = await live.sendMessage(
@@ -78,10 +104,10 @@ async function resend(content: string, attachments: ChatFile[] | undefined): Pro
     );
     if (!dispatched) {
       // The store has already told the user why.
-      restoreComposer(chatId, content, sentFiles);
+      restoreComposer(origin, content, sentFiles);
     }
   } catch (error) {
-    restoreComposer(chatId, content, sentFiles);
+    restoreComposer(origin, content, sentFiles);
     if (error instanceof Error && error.name === 'AgentBusyError') {
       showI18nToast('chat.sendBlocked.title', undefined, {
         descriptionKey: 'chat.sendBlocked.busyDescription',
@@ -91,19 +117,16 @@ async function resend(content: string, attachments: ChatFile[] | undefined): Pro
       return;
     }
     console.error('[resend] request failed:', error);
-    showI18nToast('chat.messageFailed.title', undefined, {
-      descriptionKey: 'chat.messageFailed.generic',
-      type: 'error',
-      duration: 3000,
-    });
+    notifyNotSent();
   }
 }
 
 export function retryFailedUserMessage(message: Message): Promise<void> {
+  const origin = readOrigin();
   useChatStore.setState((state) => ({
     messages: state.messages.filter((m) => m.messageId !== message.messageId),
   }));
-  return resend(stripDatetimeTag(message.content), message.files ?? []);
+  return resend(origin, stripDatetimeTag(message.content), message.files ?? []);
 }
 
 export async function resendEditedUserMessage(
@@ -112,6 +135,7 @@ export async function resendEditedUserMessage(
   messageIndex: number,
   newContent: string,
 ): Promise<void> {
+  const origin = readOrigin();
   const activation = parseExplicitSkillActivation(message.content);
   const content = activation ? buildExplicitSkillWireMessage(activation, newContent) : newContent;
 
@@ -121,8 +145,16 @@ export async function resendEditedUserMessage(
     console.error('Truncate failed:', error);
   }
 
+  // The open chat is not the one that was cut: the edit has no transcript to join, and the open chat must neither
+  // lose its messages nor receive this request.
+  if (useChatStore.getState().chatId !== chatId) {
+    keepInInputHistory(origin, newContent);
+    notifyNotSent();
+    return;
+  }
+
   useChatStore.setState((state) => ({
     messages: state.messages.slice(0, messageIndex),
   }));
-  await resend(content, undefined);
+  await resend(origin, content, undefined);
 }

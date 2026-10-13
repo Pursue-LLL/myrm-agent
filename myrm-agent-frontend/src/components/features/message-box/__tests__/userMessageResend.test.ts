@@ -64,6 +64,7 @@ const composer = () => {
   return { inputMessage, files, pendingExplicitSkillActivation };
 };
 const busyError = () => Object.assign(new Error('Agent is busy'), { name: 'AgentBusyError' });
+const agentConfig = (agentId: string) => ({ agentId }) as NonNullable<ChatState['agentConfig']>;
 
 const failedBubble = bubble('user', 'r-2', 'summarize the report\n<current_datetime>2026-10-13</current_datetime>', {
   sendFailed: true,
@@ -164,7 +165,7 @@ describe('retryFailedUserMessage', () => {
     };
 
     it('keeps the text in the input history of the current agent, as a direct send does', async () => {
-      useChatStore.setState({ agentConfig: { agentId: 'agent-7' } as NonNullable<ChatState['agentConfig']> });
+      useChatStore.setState({ agentConfig: agentConfig('agent-7') });
       sendMessage.mockImplementation(userMovedOn);
 
       await retryFailedUserMessage(failedBubble);
@@ -191,15 +192,29 @@ describe('retryFailedUserMessage', () => {
       expect(addInputHistory).not.toHaveBeenCalled();
     });
 
-    it('gives nothing back once another chat is open, whose agent and incognito state differ', async () => {
+    it('leaves the composer of another open chat alone and files the text under the agent it was sent to', async () => {
+      useChatStore.setState({ agentConfig: agentConfig('agent-7') });
       sendMessage.mockImplementation(async () => {
-        useChatStore.setState({ chatId: 'chat-other' });
+        useChatStore.setState({ chatId: 'chat-other', agentConfig: agentConfig('agent-9') });
         return false;
       });
 
       await retryFailedUserMessage(failedBubble);
 
       expect(composer().inputMessage).toBe('');
+      expect(addInputHistory).toHaveBeenCalledTimes(1);
+      expect(addInputHistory).toHaveBeenCalledWith('summarize the report', 'agent-7');
+    });
+
+    it('records nothing for an incognito chat, even when a regular chat is open by then', async () => {
+      useChatStore.setState({ incognitoMode: true });
+      sendMessage.mockImplementation(async () => {
+        useChatStore.setState({ chatId: 'chat-other', incognitoMode: false });
+        return false;
+      });
+
+      await retryFailedUserMessage(failedBubble);
+
       expect(addInputHistory).not.toHaveBeenCalled();
     });
   });
@@ -286,5 +301,54 @@ describe('resendEditedUserMessage', () => {
     expect(composer().inputMessage).toBe('another idea');
     expect(addInputHistory).toHaveBeenCalledTimes(1);
     expect(addInputHistory).toHaveBeenCalledWith('draft the memo for finance', undefined);
+  });
+
+  describe('when the user opens another chat while the server cuts the history', () => {
+    const OTHER_CHAT = [bubble('user', 'o-1', 'other question'), bubble('assistant', 'o-1', 'other answer')];
+    const edited = bubble('user', 'r-2', 'summarize the report');
+
+    /** Starts the edit, lets the user open another chat while the cut is in flight, then finishes the cut. */
+    const editWhileLeaving = async (otherChat: Partial<ChatState> = {}) => {
+      let finishCut: () => void = () => {};
+      vi.mocked(truncateAfterMessage).mockReturnValue(
+        new Promise((resolve) => {
+          finishCut = () => resolve({} as Awaited<ReturnType<typeof truncateAfterMessage>>);
+        }),
+      );
+      const pending = resendEditedUserMessage(CHAT_ID, edited, 2, 'summarize only chapter 3');
+      useChatStore.setState({ chatId: 'chat-other', messages: OTHER_CHAT, ...otherChat });
+      finishCut();
+      await pending;
+    };
+
+    it('neither cuts nor sends into that chat and keeps the edited text reachable', async () => {
+      useChatStore.setState({ agentConfig: agentConfig('agent-7') });
+
+      await editWhileLeaving({ agentConfig: agentConfig('agent-9') });
+
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(transcript()).toEqual(['o-1', 'o-1']);
+      expect(addInputHistory).toHaveBeenCalledTimes(1);
+      expect(addInputHistory).toHaveBeenCalledWith('summarize only chapter 3', 'agent-7');
+    });
+
+    it('tells the user that the edit was not sent', async () => {
+      await editWhileLeaving();
+
+      expect(showI18nToast).toHaveBeenCalledTimes(1);
+      expect(showI18nToast).toHaveBeenCalledWith(
+        'chat.messageFailed.title',
+        undefined,
+        expect.objectContaining({ descriptionKey: 'chat.messageFailed.generic', type: 'error' }),
+      );
+    });
+
+    it('records nothing when the edited chat is incognito', async () => {
+      useChatStore.setState({ incognitoMode: true });
+
+      await editWhileLeaving({ incognitoMode: false });
+
+      expect(addInputHistory).not.toHaveBeenCalled();
+    });
   });
 });

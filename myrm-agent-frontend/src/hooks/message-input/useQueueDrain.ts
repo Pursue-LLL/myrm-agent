@@ -11,8 +11,8 @@
  *
  * [POS]
  * 排队消息的发送循环。单飞（同一时刻只发一条）、编辑中的消息不发、用户 Stop 后暂停、
- * 服务端忙碌按退避重试且次数有限、请求在轮次开始前被拒绝（本地校验未通过，或服务端返回
- * 非忙碌的 HTTP 错误）则不重试；两种情况都转入"卡住"状态等待用户手动重试，绝不丢消息。
+ * 服务端忙碌按退避重试且次数有限、请求在轮次开始前被拒绝（本地校验未通过、服务端返回
+ * 非忙碌的 HTTP 错误，或工作区推送流未就绪）则不重试；两种情况都转入"卡住"状态等待用户手动重试，绝不丢消息。
  */
 
 import { useCallback, useEffect } from 'react';
@@ -63,8 +63,8 @@ export function useQueueDrain(chatId: string | null | undefined): void {
           telemetry.recordSettled('queue_drain', selection, override);
           queues.releaseClaim(targetChatId, message, 'consumed');
         } else {
-          // Refused before the turn started, locally or by the server (the user was already told why):
-          // keep the message and wait for them.
+          // Refused before the turn started, locally, by the server or because the workspace stream was not
+          // ready (the user was already told why): keep the message and wait for them.
           queues.releaseClaim(targetChatId, message, 'blocked');
         }
       } catch (error) {

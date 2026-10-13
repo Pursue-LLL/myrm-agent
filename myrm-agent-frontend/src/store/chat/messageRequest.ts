@@ -9,7 +9,7 @@
  * validateChatModelConfig: Block send when default model / provider is incomplete.
  * resolveEffectiveAgentId: Resolve the agent identity used for chat memory bindings.
  * createMessageRequest: Assemble the agent chat request payload and stream it.
- * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally or by the server with a non-retryable HTTP error, always after telling the user why), a server busy refusal retracts the optimistic bubble, queued messages send their own attachments.
+ * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally, by the server with a non-retryable HTTP error, or because the workspace stream was not ready before the first request; an ordinary send tells the user why, a resume with `resumeValue` does not and its store wrapper throws instead), a server busy refusal retracts the optimistic bubble, queued messages send their own attachments.
  * createSmartUpdater: Route state updates to active store or background snapshot.
  * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn.
  *

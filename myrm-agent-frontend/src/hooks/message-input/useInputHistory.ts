@@ -5,6 +5,7 @@
  *
  * [OUTPUT]
  * - useInputHistory: 提供输入历史回溯、弹窗状态、ghost placeholder 和键盘导航。
+ * - addInputHistory: 把一条文本记入指定 Agent 的输入历史（去重、最多 50 条、忽略空文本与 / 快捷指令），供 Hook 之外的发送路径使用。
  *
  * [POS]
  * 聊天输入历史 Hook。在空输入框按 ArrowUp 时打开历史弹窗，
