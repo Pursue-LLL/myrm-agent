@@ -1,9 +1,23 @@
+/**
+ * [INPUT]
+ * - ./SendFailedNotice::SendFailedNotice (POS: Failed-send line of a user bubble)
+ * - ./QuoteToolbar::QuoteToolbar, useQuoteSelection (POS: Text-selection toolbar of a message)
+ * - @/lib/utils/messageUtils (POS: Message text cleanup helpers, explicit skill activation wire format)
+ * - @/lib/utils/urlUtils::splitTextWithAtLinks (POS: URL helpers, splits message text at @links)
+ *
+ * [OUTPUT]
+ * - UserMessage: one user bubble with attachments, copy, inline edit, rewind, fork and the retry line of a failed send.
+ *
+ * [POS]
+ * Renders one user message of the transcript. Edit submit and retry are handed to the caller through callbacks.
+ */
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Copy, Check, Pencil, FileText, ImageOff, RotateCw, Download } from 'lucide-react';
+import { Copy, Check, Pencil, FileText, ImageOff, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils/classnameUtils';
 import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
 import { SkillActivationChips } from './SkillActivationChips';
+import { SendFailedNotice } from './SendFailedNotice';
 import { splitTextWithAtLinks } from '@/lib/utils/urlUtils';
 import { File as FileType } from '@/store/chat/types';
 import { isImageFile, getDisplayUrl } from '@/lib/utils/fileUtils';
@@ -291,21 +305,17 @@ const UserMessage = React.memo(
                 >
                   {parts.map((part, index) => {
                     if (part.type === 'link') {
+                      const url = part.content.substring(1);
                       return (
-                        <span
+                        <a
                           key={index}
+                          href={url.startsWith('http') ? url : `https://${url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="text-primary hover:text-primary-hover transition-colors cursor-pointer underline decoration-2"
-                          onClick={() => {
-                            const url = part.content.substring(1);
-                            const fullUrl = url.startsWith('http') ? url : `https://${url}`;
-                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
-                          }}
-                          role="link"
-                          tabIndex={0}
-                          onKeyDown={activateOnKey}
                         >
                           {part.content}
-                        </span>
+                        </a>
                       );
                     }
                     return <span key={index}>{part.content}</span>;
@@ -352,18 +362,7 @@ const UserMessage = React.memo(
           </div>
           {!isEditing && <QuoteToolbar state={quoteState} onDismiss={dismissQuote} />}
 
-          {sendFailed && onRetry && !isEditing && (
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-sm text-destructive/80">{t('messageFailed.networkError')}</span>
-              <button
-                onClick={onRetry}
-                className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-              >
-                <RotateCw size={14} />
-                {t('retry')}
-              </button>
-            </div>
-          )}
+          {sendFailed && onRetry && !isEditing && <SendFailedNotice onRetry={onRetry} />}
 
           {files && files.length > 0 && (
             <div className="flex gap-2.5 mt-3 overflow-x-auto scrollbar-hide items-end">

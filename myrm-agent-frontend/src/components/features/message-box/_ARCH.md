@@ -57,7 +57,10 @@
 | `ToolImageGallery.tsx` | 组件 | MCP/工具图像画廊：base64+URL 双模式渲染、Lightbox 预览（箭头导航/键盘翻页/一键下载/计数器/标注编辑） | ✅ |
 | `SessionRecordingCard.tsx` | 组件 | 会话录制视频回放卡片（HTML5 video player） | ✅ |
 | `McpAppSection.tsx` | 组件 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | ✅ |
-| `UserMessage.tsx` | 核心 | 用户消息气泡：附件预览、编辑重发、Rewind、Fork；移动端动作常显 | ✅ |
+| `UserMessage.tsx` | 核心 | 用户消息气泡：附件预览、编辑重发、Rewind、Fork；移动端动作常显；发送失败时气泡下显示 `SendFailedNotice` | ✅ |
+| `__tests__/UserMessage.test.tsx` | 测试 | 失败重试行只在发送失败且非编辑态出现并回调 `onRetry`；`@链接` 渲染为新标签页打开、带 `rel="noopener noreferrer"` 的锚点，裸域名补 `https://`、已带协议的保持原样 | ✅ |
+| `SendFailedNotice.tsx` | 组件 | 发送失败行：连接提示 + 重试按钮；行可换行、按钮保持自身尺寸，因此占满整行的提示不会在窄屏上把按钮标签拆开（中日韩逐字、德语逐词） | ✅ |
+| `__tests__/SendFailedNotice.test.tsx` | 测试 | 重试回调，以及布局约定的两个成因：行可换行（`flex-wrap`）、按钮不收缩不折行（`shrink-0` / `whitespace-nowrap`）；jsdom 不计算布局，故断言类名 | ✅ |
 | `userMessageResend.ts` | 辅助 | 用户气泡重发流程（`MessageBox` 的失败重试与编辑重发委托于此）：失败重试携带气泡自身附件（空列表使输入框已暂存的文件不被带入），编辑重发与普通发送一样使用输入框当前附件；请求未被 agent 接收（被拒 / busy / 轮次前失败）时把文本、所带附件与技能 chip 还原到输入框；输入框已被用户使用或已切换到其他聊天时不覆盖，文本改记入请求所属聊天的 Agent 输入历史（隐身会话不记录）；编辑重发先让服务端截断历史再替换转录：截断失败（服务端不存在的聊天无可截断，除外）、截断期间离开该聊天 / 已有新一轮开始 / 被编辑的气泡已消失时放弃发送，文本还原到输入框（输入框被占用则记入输入历史）并提示用户，转录保持原样；被编辑的气泡按消息 id 重新定位（加载更早消息后下标已失效）；同一聊天同一时刻只处理一次编辑，其间再提交的该聊天编辑被拒绝并保留文本（其他聊天的编辑不受影响） | ✅ |
 | `__tests__/userMessageResend.test.ts` | 测试 | 失败重试携带自身附件且不继承输入框文件、未送达时还原文本/附件/技能 chip、输入框被占用或已切换聊天时按所属聊天的 Agent 与隐身状态记入输入历史、busy 与意外失败提示 | ✅ |
 | `__tests__/userMessageResend.edit.test.ts` | 测试 | 编辑重发先截断历史再按普通发送并保留技能激活；截断失败（断网 / 服务端错误）时转录不变、文本还原到输入框，服务端不存在的聊天或消息无可截断则继续发送；截断期间按 id 重新定位气泡、新一轮已开始或气泡已消失则放弃、同一聊天的第二次编辑被拒绝且守卫在发送与放弃后释放、其他聊天的编辑在截断或轮次进行中照常发送、运行中拒绝编辑、离开聊天不发送且文本记入输入历史 | ✅ |
