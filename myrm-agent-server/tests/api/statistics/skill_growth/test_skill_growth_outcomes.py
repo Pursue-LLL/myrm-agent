@@ -141,6 +141,45 @@ async def test_skill_reset_from_legacy_counters_keeps_its_use_count(skills_root:
 
 
 @pytest.mark.asyncio
+async def test_legacy_counters_of_a_long_idle_skill_are_not_reported_as_this_weeks_uses(skills_root: Path) -> None:
+    skill_dir = skills_root / "legacy-idle"
+    skill_dir.mkdir()
+    long_ago = datetime.now(UTC) - timedelta(days=58)
+    (skill_dir / ".stats.json").write_text(
+        json.dumps({"call_count": 3, "success_count": 3, "last_used_at": long_ago.isoformat()})
+    )
+
+    (item,) = await fetch_skill_health()
+
+    assert item.call_count_7d == 0
+    assert item.call_count_total == 3
+    assert item.status == "STALE"
+
+
+@pytest.mark.asyncio
+async def test_timestamp_without_timezone_does_not_blank_the_panel(skills_root: Path) -> None:
+    _write_stats(skills_root, "healthy-neighbour", [True] * 5)
+    skill_dir = skills_root / "naive-clock"
+    skill_dir.mkdir()
+    naive_now = datetime.now(UTC).replace(tzinfo=None).isoformat()
+    (skill_dir / ".stats.json").write_text(
+        json.dumps(
+            {
+                "call_count": 1,
+                "success_count": 1,
+                "last_used_at": naive_now,
+                "usage_history": [{"timestamp": naive_now, "success": True}],
+            }
+        )
+    )
+
+    items = {item.skill_name: item for item in await fetch_skill_health()}
+
+    assert set(items) == {"healthy-neighbour", "naive-clock"}
+    assert items["naive-clock"].call_count_7d == 1
+
+
+@pytest.mark.asyncio
 async def test_trend_points_count_uses_and_leave_unobserved_days_without_a_rate(skills_root: Path) -> None:
     _write_stats(skills_root, "observed", [True, False, None])
     _write_stats(skills_root, "advisory", [None, None])

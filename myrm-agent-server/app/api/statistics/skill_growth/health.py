@@ -26,6 +26,11 @@ from app.api.statistics.skill_growth.models import SkillHealthItem
 logger = logging.getLogger(__name__)
 
 
+def _as_utc(moment: datetime) -> datetime:
+    """Ledgers that were edited or imported by hand may carry naive timestamps; read them as UTC."""
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
 async def fetch_skill_health() -> list[SkillHealthItem]:
     """Evaluate per-skill health for the last 7 days via harness rules."""
     try:
@@ -40,11 +45,11 @@ async def fetch_skill_health() -> list[SkillHealthItem]:
             calls_7d = 0
             succ_7d = 0
             fail_7d = 0
-            latest_dt: datetime | None = stats.last_used_at
+            latest_dt = _as_utc(stats.last_used_at) if stats.last_used_at else None
 
             for rec in stats.usage_history:
                 try:
-                    rec_dt = datetime.fromisoformat(rec.timestamp.replace("Z", "+00:00"))
+                    rec_dt = _as_utc(datetime.fromisoformat(rec.timestamp.replace("Z", "+00:00")))
                 except (TypeError, ValueError):
                     continue
 
@@ -58,7 +63,8 @@ async def fetch_skill_health() -> list[SkillHealthItem]:
                     elif rec.success is False:
                         fail_7d += 1
 
-            if calls_7d == 0 and stats.call_count > 0 and not stats.usage_history:
+            # Counters without a history can only be placed in time by ``last_used_at``.
+            if calls_7d == 0 and stats.call_count > 0 and not stats.usage_history and latest_dt and latest_dt >= week_ago:
                 calls_7d = stats.call_count
                 succ_7d = stats.success_count
                 fail_7d = stats.failure_count

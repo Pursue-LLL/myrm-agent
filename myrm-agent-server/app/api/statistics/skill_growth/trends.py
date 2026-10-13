@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
 
 from app.api.statistics.skill_growth.ledger import iter_skill_ledgers
 from app.api.statistics.skill_growth.models import SkillTrendPoint, SkillTrendSeries
@@ -22,13 +23,11 @@ from app.api.statistics.skill_growth.models import SkillTrendPoint, SkillTrendSe
 logger = logging.getLogger(__name__)
 
 
+@dataclass(slots=True)
 class _DayBucket:
-    __slots__ = ("total", "successes", "failures")
-
-    def __init__(self) -> None:
-        self.total = 0
-        self.successes = 0
-        self.failures = 0
+    total: int = 0
+    successes: int = 0
+    failures: int = 0
 
 
 async def fetch_skill_trends() -> list[SkillTrendSeries]:

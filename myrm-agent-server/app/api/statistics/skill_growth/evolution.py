@@ -17,6 +17,7 @@ Evolution panel data of the growth dashboard.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 
 from app.api.statistics.skill_growth.models import SkillEvolutionEvent
 from app.core.skills.store.service import skills_service
@@ -26,34 +27,15 @@ from app.services.skills.growth.audit_queries import list_skill_growth_timeline
 logger = logging.getLogger(__name__)
 
 
+@dataclass(slots=True)
 class SkillEvolutionSnapshot:
-    __slots__ = (
-        "total_skills",
-        "total_evolutions",
-        "approved",
-        "rejected",
-        "pending",
-        "apply_failed",
-        "events",
-    )
-
-    def __init__(
-        self,
-        total_skills: int = 0,
-        total_evolutions: int = 0,
-        approved: int = 0,
-        rejected: int = 0,
-        pending: int = 0,
-        apply_failed: int = 0,
-        events: list[SkillEvolutionEvent] | None = None,
-    ) -> None:
-        self.total_skills = total_skills
-        self.total_evolutions = total_evolutions
-        self.approved = approved
-        self.rejected = rejected
-        self.pending = pending
-        self.apply_failed = apply_failed
-        self.events = events or []
+    total_skills: int = 0
+    total_evolutions: int = 0
+    approved: int = 0
+    rejected: int = 0
+    pending: int = 0
+    apply_failed: int = 0
+    events: list[SkillEvolutionEvent] = field(default_factory=list)
 
 
 async def fetch_skill_evolution_data() -> SkillEvolutionSnapshot:
