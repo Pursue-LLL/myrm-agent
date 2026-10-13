@@ -99,9 +99,7 @@ class EphemeralDeltaService:
             reconciled_at=datetime.now(UTC) if snapshot.is_reconciled else None,
         )
 
-    def preview_injection(
-        self, payload: PreviewDeltaInjectionRequestDTO
-    ) -> PreviewDeltaInjectionResponseDTO:
+    def preview_injection(self, payload: PreviewDeltaInjectionRequestDTO) -> PreviewDeltaInjectionResponseDTO:
         messages = [SystemMessage(content=payload.raw_system_prompt)]
         for prompt in payload.human_messages:
             messages.append(HumanMessage(content=prompt))

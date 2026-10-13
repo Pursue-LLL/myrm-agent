@@ -116,4 +116,3 @@ class RecordValidationResponseDTO(BaseModel):
 EvaluateEscalationRequest = EscalationEvaluationRequest
 EvaluateEscalationResponse = EscalationEvaluationResponseDTO
 RecordValidationResponse = RecordValidationResponseDTO
-

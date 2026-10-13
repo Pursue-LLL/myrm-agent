@@ -83,9 +83,7 @@ class ExperienceObservabilityService:
 
         total_recalls = sum(m.recall_count for m in dtos)
         total_injections = sum(m.injection_count for m in dtos)
-        avg_success_rate = (
-            round(sum(m.success_rate for m in dtos) / len(dtos), 3) if dtos else 1.0
-        )
+        avg_success_rate = round(sum(m.success_rate for m in dtos) / len(dtos), 3) if dtos else 1.0
 
         cfg = self.get_plugin_config()
 

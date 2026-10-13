@@ -86,9 +86,7 @@ class ConsolidationService:
 
         local_state = LocalWorkingMemoryBlock.to_dict()
         has_local_content = (
-            bool(local_state.get("subtasks"))
-            or bool(local_state.get("traps"))
-            or bool(local_state.get("scratchpad"))
+            bool(local_state.get("subtasks")) or bool(local_state.get("traps")) or bool(local_state.get("scratchpad"))
         )
         if has_local_content:
             return local_state

@@ -41,9 +41,7 @@ class RevocableProvenanceService:
             self._workspace_dir = Path(workspace_dir)
 
         self._store = ProvenanceMemoryStore(storage_dir=self._workspace_dir / "store")
-        self._forget_engine = RevocableForgetEngine(
-            store=self._store, tombstone_dir=self._workspace_dir / "tombstones"
-        )
+        self._forget_engine = RevocableForgetEngine(store=self._store, tombstone_dir=self._workspace_dir / "tombstones")
         self._diary_recorder = DreamDiaryRecorder(diary_dir=self._workspace_dir / "diaries")
 
     def save_memory(self, request: SaveProvenanceMemoryRequestDTO) -> ProvenanceQualifiedMemoryDTO:
@@ -92,9 +90,7 @@ class RevocableProvenanceService:
         mems = self._store.list_memories(include_revoked=include_revoked)
         return [self._memory_to_dto(m) for m in mems]
 
-    def find_by_session(
-        self, session_id: str, include_revoked: bool = False
-    ) -> list[ProvenanceQualifiedMemoryDTO]:
+    def find_by_session(self, session_id: str, include_revoked: bool = False) -> list[ProvenanceQualifiedMemoryDTO]:
         """Finds all memories derived from a specific source session."""
         mems = self._store.find_by_session(session_id=session_id, include_revoked=include_revoked)
         return [self._memory_to_dto(m) for m in mems]
@@ -124,9 +120,7 @@ class RevocableProvenanceService:
         )
         return self._diary_to_dto(entry)
 
-    def list_dream_diaries(
-        self, agent_id: str | None = None, limit: int = 50
-    ) -> list[DreamDiaryEntryDTO]:
+    def list_dream_diaries(self, agent_id: str | None = None, limit: int = 50) -> list[DreamDiaryEntryDTO]:
         """Lists historical dream diaries for transparent inspection."""
         entries = self._diary_recorder.list_entries(agent_id=agent_id, limit=limit)
         return [self._diary_to_dto(e) for e in entries]

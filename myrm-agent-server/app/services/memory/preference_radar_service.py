@@ -72,6 +72,7 @@ class PreferenceRadarService:
         except Exception as exc:
             logger.warning("Could not create radar storage directory %s: %s, falling back to temp", candidate_dir, exc)
             import tempfile
+
             candidate_dir = Path(tempfile.gettempdir()) / "myrm" / "memories"
             candidate_dir.mkdir(parents=True, exist_ok=True)
 

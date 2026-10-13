@@ -10,7 +10,6 @@ app/api/memory/experience_observability_router.py
 - router (FastAPI APIRouter for Experience Observability and Host Plugin Suite)
 """
 
-
 from __future__ import annotations
 
 import logging
