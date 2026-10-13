@@ -29,6 +29,7 @@ from filelock import FileLock, Timeout
 from pydantic import BaseModel, Field, ValidationError
 
 from app.api.config.pricing import pricing_router
+from app.api.config.privacy_preview import privacy_preview_router
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.core.channel_bridge.config_parsers import invalidate_search_health_cache
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
@@ -990,6 +991,7 @@ async def probe_local_models_endpoint() -> dict[str, object]:
 
 
 router.include_router(pricing_router)
+router.include_router(privacy_preview_router)
 
 
 @router.get("/{config_key}", response_model=ConfigRecord)

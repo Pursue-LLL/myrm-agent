@@ -12,14 +12,17 @@ logger = logging.getLogger(__name__)
 def _requested_privacy_params(request: AgentRequest) -> PrivacyAgentParams:
     """The privacy fields a request itself carries.
 
-    The web chat sends the whole policy while protection is on. A field the client did not send is left out, so
-    the persisted settings fill it in; an explicit off, or an explicit deep-scan choice, is kept as the client's.
+    The web chat sends the whole policy while protection is on. A field the client did not send, the two actions
+    included, is left out, so the persisted settings fill it in; an explicit off, or an explicit deep-scan choice, is
+    kept as the client's.
     """
     params: PrivacyAgentParams = {}
     if request.privacy_enabled:
         params["privacy_enabled"] = True
-        params["privacy_s2_action"] = request.privacy_s2_action
-        params["privacy_s3_action"] = request.privacy_s3_action
+        if request.privacy_s2_action is not None:
+            params["privacy_s2_action"] = request.privacy_s2_action
+        if request.privacy_s3_action is not None:
+            params["privacy_s3_action"] = request.privacy_s3_action
         if request.privacy_custom_keywords_s2 is not None:
             params["privacy_custom_keywords_s2"] = request.privacy_custom_keywords_s2
         if request.privacy_custom_keywords_s3 is not None:

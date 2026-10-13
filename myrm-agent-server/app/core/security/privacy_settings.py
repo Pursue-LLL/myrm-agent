@@ -9,6 +9,7 @@
 - privacy_enabled: whether the persisted settings turn privacy protection on
 - privacy_agent_params: the privacy fields for a run that has no web request
 - resolve_privacy_params: the privacy fields for a run whose request may carry some of them
+- privacy_policy_from_params: the enabled PrivacyPolicy a complete set of privacy fields describes
 - privacy_policy_from_settings: the PrivacyPolicy the persisted settings describe, None while protection is off
 
 [POS]
@@ -84,11 +85,8 @@ def resolve_privacy_params(personal_settings: Mapping[str, object] | None, reque
     return merged if merged["privacy_enabled"] else {"privacy_deep_scan": merged["privacy_deep_scan"]}
 
 
-def privacy_policy_from_settings(personal_settings: Mapping[str, object] | None) -> PrivacyPolicy | None:
-    """The policy the persisted settings describe; None while protection is off."""
-    params = privacy_agent_params(personal_settings)
-    if not params:
-        return None
+def privacy_policy_from_params(params: PrivacyAgentParams) -> PrivacyPolicy:
+    """The enabled policy the privacy fields describe; every field must be present, as ``resolve_privacy_params`` returns them."""
     return PrivacyPolicy(
         enabled=True,
         s2_action=PIIAction(params["privacy_s2_action"]),
@@ -103,10 +101,17 @@ def privacy_policy_from_settings(personal_settings: Mapping[str, object] | None)
     )
 
 
+def privacy_policy_from_settings(personal_settings: Mapping[str, object] | None) -> PrivacyPolicy | None:
+    """The policy the persisted settings describe; None while protection is off."""
+    params = privacy_agent_params(personal_settings)
+    return privacy_policy_from_params(params) if params else None
+
+
 __all__ = [
     "PrivacyAgentParams",
     "privacy_agent_params",
     "privacy_enabled",
+    "privacy_policy_from_params",
     "privacy_policy_from_settings",
     "resolve_privacy_params",
 ]

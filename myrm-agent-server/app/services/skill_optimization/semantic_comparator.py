@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.skills.optimization.result_comparator::StructuredComparator (POS: 结构化比对器)
+- myrm_agent_harness.api.security::sanitize_outbound_text (POS: 按当前隐私策略脱敏单段文本，送出模型前使用)
 - app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
 - utils.json_parsing::parse_llm_json_object (POS: LLM judge JSON 容错解析)
 
@@ -11,6 +12,7 @@
 [POS]
 Server 层的语义比对器，组合 Harness 层 StructuredComparator，仅在本地比对分数
 低于阈值时按需调用 LLM 进行语义判定（实际 LLM 调用率预计 < 10%）。
+判定模型看到的是按当前隐私策略脱敏后的输出：被比对的是真实工具结果，与对话消息一样不能原样送出。
 """
 
 from __future__ import annotations
@@ -22,11 +24,20 @@ from myrm_agent_harness.agent.skills.optimization.result_comparator import (
     ComparisonDetail,
     StructuredComparator,
 )
+from myrm_agent_harness.api.security import sanitize_outbound_text
 from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 
 from app.core.utils.chat_utils import extract_litellm_answer_text
 
 logger = logging.getLogger(__name__)
+
+_JUDGE_VIEW_CHARS = 2000
+
+
+def _judge_view(output: dict[str, object]) -> str:
+    """The output as the judge model may see it: masked under the privacy policy in force, then cut."""
+    return sanitize_outbound_text(json.dumps(output, ensure_ascii=False, default=str))[:_JUDGE_VIEW_CHARS]
+
 
 _SEMANTIC_JUDGE_PROMPT = """You are a result comparator. Compare the BASELINE and CANDIDATE outputs of the same tool/skill call.
 
@@ -123,10 +134,7 @@ class SemanticComparator:
         try:
             import litellm
 
-            b_str = json.dumps(baseline, ensure_ascii=False, default=str)[:2000]
-            c_str = json.dumps(candidate, ensure_ascii=False, default=str)[:2000]
-
-            prompt = _SEMANTIC_JUDGE_PROMPT.format(baseline=b_str, candidate=c_str)
+            prompt = _SEMANTIC_JUDGE_PROMPT.format(baseline=_judge_view(baseline), candidate=_judge_view(candidate))
 
             response = await litellm.acompletion(
                 model=self.model,

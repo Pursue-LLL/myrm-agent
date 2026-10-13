@@ -53,7 +53,7 @@ security/
 | `browser_vault.py` | SessionVault 实例管理：全局单例（非 agent 场景）+ 按 agent_id 物理隔离的 agent vault |
 | `llm_reviewer.py` | 动态 Transcript Classifier 适配器，运行时获取用户 LLM 实例 |
 | `pii_actions.py` | 持久化 PII action 字符串安全解析：缺失/非法值回退默认枚举，杜绝非法配置导致 agent 初始化或记忆提取崩溃（retry 与 security extension 共用） |
-| `privacy_settings.py` | 读取持久化个人设置里的隐私设置（privacyEnabled / S2 / S3 / deep scan / 自定义关键词·正则·敏感工具）：`privacy_agent_params` 供所有服务端自建的 `GeneralAgentParams`（渠道、定时、语音×2、目标、看板、唤醒）；`resolve_privacy_params` 供 web 对话——请求写明的优先，请求没说的跟随已保存设置；`privacy_policy_from_settings` 构造进程级 `PrivacyPolicy`。本地路由（privacy_routing）仍仅随请求 |
+| `privacy_settings.py` | 读取持久化个人设置里的隐私设置（privacyEnabled / S2 / S3 / deep scan / 自定义关键词·正则·敏感工具）：`privacy_agent_params` 供所有服务端自建的 `GeneralAgentParams`（渠道、定时、语音×2、目标、看板、唤醒）；`resolve_privacy_params` 供 web 对话——请求写明的优先，请求没说的跟随已保存设置；`privacy_policy_from_params` 把一组完整的隐私字段构造成 `PrivacyPolicy`（`privacy_policy_from_settings` 用它构造进程级策略，设置页「试一试」预览用它构造草稿策略）。本地路由（privacy_routing）仍仅随请求 |
 | `privacy_policy_sync.py` | `sync_privacy_policy` / `apply_privacy_policy_from_db`：把已保存的设置发布给 harness（`set_process_privacy_policy`），使标题/建议/离线压缩/会议纪要等不经过 agent 主循环的模型调用由 harness 出站闸门统一脱敏。启动时调用一次，`ConfigService` 每次写入 `personalSettings` 后再调用，无需逐调用点脱敏 |
 | `auth/`（子包） | 认证原语子包，含 `control_plane_guard.py`（CP 鉴权、内部端点 Origin/Host 门禁、Fail-Closed 本地回环检查）等 |
 | `share/`（子包） | 分享链接安全子域，含 5 个模块：`share_hmac.py`（HMAC-SHA256 签名层 + token_fingerprint）、`share_headers.py`（隐私头常量）、`share_status_page.py`（失效页/JSON 404 分流）、`share_unlock.py`（解锁 cookie 机制）、`share_password_page.py`（密码门页面）。`share/__init__.py` 为聚合门面，统一 re-export。 |

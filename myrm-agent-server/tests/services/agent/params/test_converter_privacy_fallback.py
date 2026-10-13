@@ -88,7 +88,21 @@ async def test_a_request_can_enable_protection_the_settings_leave_off() -> None:
     params = await _convert(_request(privacy_enabled=True), None)
 
     assert params.privacy_enabled is True
-    assert (params.privacy_s2_action, params.privacy_s3_action) == ("redact", "redact")
+    assert (params.privacy_s2_action, params.privacy_s3_action) == ("warn", "redact")
+
+
+@pytest.mark.asyncio
+async def test_a_request_that_only_enables_protection_keeps_the_persisted_actions() -> None:
+    params = await _convert(_request(privacy_enabled=True), _PERSISTED_ON)
+
+    assert (params.privacy_s2_action, params.privacy_s3_action) == ("warn", "block")
+
+
+@pytest.mark.asyncio
+async def test_a_request_that_names_one_action_leaves_the_other_to_the_settings() -> None:
+    params = await _convert(_request(privacy_enabled=True, privacy_s2_action="pseudonymize"), _PERSISTED_ON)
+
+    assert (params.privacy_s2_action, params.privacy_s3_action) == ("pseudonymize", "block")
 
 
 @pytest.mark.asyncio

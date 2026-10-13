@@ -6,9 +6,15 @@ Covers:
 - LLM not triggered when local_avg < 0.1
 - LLM not triggered when local_avg >= threshold
 - Weight configuration
+- The judge model sees tool results masked under the privacy policy in force
 """
 
+from collections.abc import Iterator
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
+from myrm_agent_harness.agent.security.types import PIIAction, PrivacyPolicy
+from myrm_agent_harness.api.security import set_process_privacy_policy
 from myrm_agent_harness.utils.json_parsing import parse_llm_json_object
 
 from app.services.skill_optimization.semantic_comparator import SemanticComparator
@@ -130,3 +136,34 @@ async def test_parse_llm_json_object_prose_framing() -> None:
     parsed = parse_llm_json_object(raw)
     assert parsed is not None
     assert parsed["score"] == pytest.approx(0.8)
+
+
+@pytest.fixture
+def protect_keyword() -> Iterator[None]:
+    set_process_privacy_policy(PrivacyPolicy(enabled=True, s3_action=PIIAction.REDACT, custom_keywords_s3=("凤凰计划",)))
+    yield
+    set_process_privacy_policy(None)
+
+
+def _judge_prompt_sent(baseline: dict[str, object], candidate: dict[str, object]) -> str:
+    import asyncio
+
+    reply = MagicMock()
+    reply.choices = [MagicMock(message=MagicMock(content='{"score": 0.9, "reasoning": "same"}'))]
+    completion = AsyncMock(return_value=reply)
+    with patch("litellm.acompletion", completion):
+        asyncio.run(SemanticComparator(model="test-model")._llm_semantic_judge(baseline, candidate))
+    return str(completion.await_args.kwargs["messages"][0]["content"])
+
+
+def test_the_judge_model_never_sees_a_protected_term(protect_keyword: None) -> None:
+    prompt = _judge_prompt_sent({"summary": "凤凰计划预算超支"}, {"summary": "凤凰计划超支"})
+
+    assert "凤凰计划" not in prompt
+    assert "[REDACTED]" in prompt
+
+
+def test_the_judge_view_is_unchanged_while_protection_is_off() -> None:
+    prompt = _judge_prompt_sent({"summary": "凤凰计划预算超支"}, {"summary": "凤凰计划超支"})
+
+    assert "凤凰计划预算超支" in prompt
