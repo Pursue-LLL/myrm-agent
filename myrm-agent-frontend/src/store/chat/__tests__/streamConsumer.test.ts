@@ -1,13 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatActionsMethods, ChatActionsState } from '../messageRequest';
 import type { Message } from '@/store/chat/types';
-import {
-  AgentBusyError,
-  FatalNetworkError,
-  RequestRefusedError,
-  consumeStream,
-  executeStreamWithRetry,
-} from '../streamConsumer';
+import { FatalNetworkError } from '@/lib/utils/networkResilience';
+import { consumeStream } from '../consumeStream';
+import { AgentBusyError, RequestRefusedError } from '../streamErrors';
+import { executeStreamWithRetry } from '../streamConsumer';
 
 const mockParseSseEnvelope = vi.hoisted(() => vi.fn());
 const mockHandleMessageStream = vi.hoisted(() => vi.fn());

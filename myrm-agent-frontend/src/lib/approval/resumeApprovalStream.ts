@@ -11,7 +11,7 @@ import {
   getFallbackLiteModelSelection,
 } from '@/store/chat/messageRequest';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
-import { AgentBusyError, isAgentBusySseEvent } from '@/store/chat/streamConsumer';
+import { AgentBusyError, isAgentBusySseEvent } from '@/store/chat/streamErrors';
 
 /**
  * [INPUT] ToolApprovalRequest anchor + resume decisions payload

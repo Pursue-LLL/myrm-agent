@@ -1,22 +1,19 @@
 /**
  * [INPUT]
- * ./schema::parseSseEnvelope (POS: SSE JSON 校验)
- * ./messageStreamHandler::handleMessageStream (POS: SSE 事件 reducer)
+ * ./consumeStream::consumeStream (POS: 单段 SSE 消费循环)
+ * ./streamErrors (POS: busy / refused / interrupted 错误分类)
  * ./messageRequest::createMessageRequest (POS: agent-stream POST)
  * ./multiplexChunkBridge::createMultiplexReadableStream (POS: workspace multiplex 桥)
  *
  * [OUTPUT]
- * executeStreamWithRetry / consumeStream: SSE 消费、网络重试、AgentBusyError fail-fast、multiplex 分流；turn 成功后 finalizeAgentStreamTurn
+ * executeStreamWithRetry: 网络重试、AgentBusyError fail-fast、multiplex 分流、中断后 attach 恢复；turn 成功后 finalizeAgentStreamTurn
  * shouldUseMultiplexedAgentStream: 本轮 chunk 走 workspace multiplex 还是 POST 响应体（请求体 multiplexed 字段与消费端共用此判定）
  *
  * [POS]
- * Chat agent-stream 前端消费 SSOT。busy 检测：HTTP 409 或 SSE error_type=AgentBusyError；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；multiplex 下 early-terminal SSE 直读 POST。
+ * Chat agent-stream 前端回合编排 SSOT。busy 检测：HTTP 409 或 SSE error_type=AgentBusyError；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；multiplex 下 early-terminal SSE 直读 POST。
  */
 import { consumeMigrationBoundProjectId, syncChatSidebarProjectId } from '@/lib/migrationChatHandoff';
 import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspectorControls';
-import { parseSseEnvelope } from './schema';
-import { handleMessageStream, StreamHandlerState, StreamHandlerActions } from './messageStreamHandler';
-import type { TurnMeta } from './messageStream/handleMessageStream';
 import type { ChatActionsState, ChatActionsMethods } from './messageRequest';
 import {
   type AgentStreamEvent,
@@ -24,11 +21,8 @@ import {
   type TurnCapabilityTerminalTelemetry,
   ModelSelection,
 } from './types';
-import { AdaptiveScheduler } from './adaptiveScheduler';
 import { isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkResilience';
-import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
 import { createMultiplexReadableStream } from './multiplexChunkBridge';
-import { recoverPendingApprovals } from '@/hooks/approval/usePendingApprovalsRecovery';
 import { connectionManager } from '@/services/ConnectionManager';
 import { resolveChatWikiEvidenceContext } from '@/services/wiki/evidenceContextCore';
 import { recordWikiQuerySubmitted } from '@/services/wiki/evidenceMetrics';
@@ -36,7 +30,8 @@ import { consumePendingChatWikiQuerySuccess } from '@/services/wiki/evidenceQuer
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
-import { createStreamWatchdog } from './messageStream/streamWatchdog';
+import { consumeStream } from './consumeStream';
+import { AgentBusyError, RequestRefusedError, StreamInterruptedError, isTransientNetworkError } from './streamErrors';
 
 function finalizeMigrationBoundProjectHandoff(chatId: string | undefined): void {
   const boundProjectId = consumeMigrationBoundProjectId();
@@ -72,7 +67,7 @@ async function drainResponseBodyInBackground(res: Response): Promise<void> {
   }
 }
 
-async function tryE2eAttachForPendingApproval(
+export async function tryE2eAttachForPendingApproval(
   state: ChatActionsState,
   actions: ChatActionsMethods,
   _abortController: AbortController,
@@ -133,8 +128,6 @@ async function tryE2eAttachForPendingApproval(
   return { attached: false, queueLen: useToolApprovalStore.getState().queue.length, attempt: 4 };
 }
 
-export { tryE2eAttachForPendingApproval };
-
 const RETRY_INITIAL_DELAY_MS = 2000;
 const RETRY_BACKOFF_FACTOR = 1.5;
 const RETRY_MAX_ATTEMPTS = 10; // Covers a slow backend restart: exponential backoff waits about 3.8 minutes in total.
@@ -142,54 +135,6 @@ const RETRY_MAX_ATTEMPTS = 10; // Covers a slow backend restart: exponential bac
 interface StructuredHttpErrorPayload {
   detail?: string;
   errorCode?: string;
-}
-
-export class AgentBusyError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AgentBusyError';
-  }
-}
-
-/**
- * The agent-stream POST was answered with a non-retryable HTTP error: the server never took the turn.
- * Failures after the turn started (for example a refused re-attach) stay plain `FatalNetworkError`s.
- */
-export class RequestRefusedError extends FatalNetworkError {}
-
-/** Backend agent-stream busy uses HTTP 200 + SSE error (status_code 409 in payload). */
-export function isAgentBusySseEvent(event: { type: string } & Record<string, unknown>): boolean {
-  if (!event || event.type !== 'error') {
-    return false;
-  }
-  if (event.error_type === 'AgentBusyError') {
-    return true;
-  }
-  return event.status_code === 409;
-}
-
-export class StreamInterruptedError extends Error {
-  originalError?: Error;
-  constructor(message: string, originalError?: Error) {
-    super(message);
-    this.name = 'StreamInterruptedError';
-    this.originalError = originalError;
-  }
-}
-
-export { FatalNetworkError }; // Re-export for messageRequest.ts
-
-export function isTransientNetworkError(error: Error): boolean {
-  if (error instanceof FatalNetworkError) {
-    return false;
-  }
-  return (
-    error instanceof TypeError ||
-    error.message.includes('Failed to fetch') ||
-    error.message.includes('NetworkError') ||
-    error.message.includes('ERR_CONNECTION') ||
-    error.message.includes('[TransientHTTP]')
-  );
 }
 
 function retryDelay(attempt: number): number {
@@ -451,253 +396,4 @@ export async function executeStreamWithRetry(
       throw error;
     }
   }
-}
-
-export type ConsumeStreamOptions = {
-  /** Stop once tool approval queue is populated (SHPOIB HITL attach recovery). */
-  untilApprovalQueued?: boolean;
-  /** Wall-clock cap in ms; only used with untilApprovalQueued. */
-  maxWaitMs?: number;
-  /** Called for every validated SSE envelope before reducer handling. */
-  onBusinessEvent?: (event: AgentStreamEvent) => void;
-};
-
-export type ConsumeStreamResult = {
-  added: boolean;
-  recievedMessage: string;
-  queueLen: number;
-  stoppedEarly: boolean;
-};
-
-export async function consumeStream(
-  res: Response,
-  input: string,
-  state: ChatActionsState,
-  actions: ChatActionsMethods,
-  abortController: AbortController,
-  added: boolean,
-  recievedMessage: string,
-  options?: ConsumeStreamOptions,
-): Promise<ConsumeStreamResult> {
-  if (!res.body) {
-    throw new Error('Streaming response body missing');
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let buffer = '';
-  const dataPrefix = 'data: ';
-  let currentSseEvent = '';
-
-  let lastDataTime = Date.now();
-  const DATA_TIMEOUT = 5 * 60 * 1000;
-  let firstDataReceived = false;
-  let stoppedEarly = false;
-  const recoveryDeadline = options?.maxWaitMs !== undefined ? Date.now() + Math.max(0, options.maxWaitMs) : null;
-
-  const scheduler = new AdaptiveScheduler();
-
-  const streamState: StreamHandlerState = {
-    chatId: state.chatId,
-    messages: state.messages,
-    messageAppeared: state.messageAppeared,
-    loading: state.loading,
-    scheduler,
-  };
-
-  let turnMeta: TurnMeta = {};
-  let meta: TurnMeta | undefined;
-
-  const streamActions: StreamHandlerActions = {
-    setMessages: (updater) => {
-      actions.setMessages((state) => updater(state));
-    },
-    setMessageAppeared: actions.setMessageAppeared,
-    setLoading: actions.setLoading,
-    clearActiveStream: actions.clearActiveStream,
-    _processSuggestions: actions._processSuggestions,
-    scheduleAutoSave: actions.scheduleAutoSave,
-  };
-
-  const watchdog = createStreamWatchdog({
-    getState: () => ({
-      loading: state.loading,
-      messages: state.messages,
-    }),
-    actions: {
-      setLoading: actions.setLoading,
-      clearActiveStream: actions.clearActiveStream,
-      setMessageAppeared: actions.setMessageAppeared,
-      _processSuggestions: actions._processSuggestions,
-      scheduleAutoSave: actions.scheduleAutoSave,
-    },
-  });
-
-  try {
-    while (true) {
-      if (Date.now() - lastDataTime > DATA_TIMEOUT) {
-        console.warn('Stream timeout: no data received for 5 minutes');
-        throw new Error('Service response timeout, please try again');
-      }
-
-      if (abortController.signal.aborted) {
-        throw new Error('AbortError');
-      }
-
-      let readResult;
-      try {
-        readResult = await reader.read();
-      } catch (e) {
-        if (firstDataReceived) {
-          throw new StreamInterruptedError('Stream interrupted during reading', e as Error);
-        }
-        throw e;
-      }
-      const { value, done } = readResult;
-
-      if (done) {
-        watchdog.onReaderDone();
-        break;
-      }
-
-      if (!firstDataReceived) {
-        firstDataReceived = true;
-        actions.setInputMessage('');
-      }
-
-      lastDataTime = Date.now();
-      buffer += decoder.decode(value, { stream: true });
-
-      let startIndex = 0;
-      let newlineIndex;
-      while ((newlineIndex = buffer.indexOf('\n', startIndex)) !== -1) {
-        const line = buffer.substring(startIndex, newlineIndex).trim();
-
-        if (line.startsWith('event:')) {
-          currentSseEvent = line.slice('event:'.length).trim();
-          startIndex = newlineIndex + 1;
-          continue;
-        }
-
-        if (line.startsWith(dataPrefix)) {
-          const jsonStr = line.substring(dataPrefix.length).trim();
-          if (currentSseEvent === 'heartbeat') {
-            // ResilientStreamBuffer emits protocol keepalives with a null body.
-            // They must not enter the business-event schema or warning path.
-            currentSseEvent = '';
-            startIndex = newlineIndex + 1;
-            continue;
-          }
-          if (jsonStr && currentSseEvent === 'e2ee_frame') {
-            const session = loadStoredE2EESession();
-            if (session) {
-              try {
-                const plainChunk = decryptSseFrame(session, jsonStr);
-                buffer = plainChunk + buffer.substring(newlineIndex + 1);
-                startIndex = 0;
-                currentSseEvent = '';
-                continue;
-              } catch (err) {
-                console.warn('E2EE SSE decrypt failed:', err);
-                startIndex = newlineIndex + 1;
-                currentSseEvent = '';
-                continue;
-              }
-            }
-          }
-          if (jsonStr) {
-            try {
-              const rawJson = JSON.parse(jsonStr) as unknown;
-              const event = parseSseEnvelope(rawJson);
-              if (!event) {
-                console.warn('Unknown or malformed SSE payload dropped');
-                startIndex = newlineIndex + 1;
-                continue;
-              }
-              if (isAgentBusySseEvent(event as { type: string } & Record<string, unknown>)) {
-                throw new AgentBusyError('Agent is busy processing another request for this session.');
-              }
-              watchdog.feed(event.type);
-              if (
-                event.type === 'message_end' ||
-                event.type === 'agent_cancelled' ||
-                event.type === 'error' ||
-                event.type === 'risk_blocked'
-              ) {
-                watchdog.markTerminalReceived();
-              } else if (
-                ('usage' in event && Boolean(event.usage)) ||
-                ('token_economics' in event && Boolean(event.token_economics))
-              ) {
-                watchdog.notifyUsageReceived();
-              }
-
-              try {
-                options?.onBusinessEvent?.(event);
-              } catch (eventError) {
-                console.warn('onBusinessEvent callback failed:', eventError);
-              }
-              ({ added, recievedMessage, meta } = await handleMessageStream(
-                event,
-                input,
-                undefined,
-                added,
-                recievedMessage,
-                streamState,
-                streamActions,
-                state.files,
-                turnMeta,
-              ));
-              if (meta) {
-                turnMeta = meta;
-              }
-              if (options?.untilApprovalQueued && useToolApprovalStore.getState().queue.length > 0) {
-                stoppedEarly = true;
-                break;
-              }
-            } catch (err) {
-              if (err instanceof AgentBusyError) {
-                throw err;
-              }
-              console.warn('Invalid JSON skipped:', err);
-            }
-          }
-          currentSseEvent = '';
-        } else if (line === '') {
-          currentSseEvent = '';
-        }
-
-        startIndex = newlineIndex + 1;
-      }
-
-      buffer = buffer.substring(startIndex);
-
-      if (stoppedEarly) {
-        break;
-      }
-      if (recoveryDeadline !== null && Date.now() >= recoveryDeadline) {
-        stoppedEarly = true;
-        break;
-      }
-    }
-  } finally {
-    watchdog.dispose();
-    if (stoppedEarly) {
-      try {
-        await reader.cancel();
-      } catch {
-        // ignore cancel errors during recovery detach
-      }
-    }
-    // 确保在流结束或异常中断时清理定时器并立即执行最后一次渲染
-    scheduler.flush();
-    scheduler.cancel();
-    void recoverPendingApprovals();
-  }
-
-  return {
-    added,
-    recievedMessage,
-    queueLen: useToolApprovalStore.getState().queue.length,
-    stoppedEarly,
-  };
 }

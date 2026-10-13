@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AgentBusyError } from '@/store/chat/streamConsumer';
+import { AgentBusyError } from '@/store/chat/streamErrors';
 import type { ToolApprovalRequest } from '@/store/chat/types/toolApproval';
 
 const mockCreateAISearchStream = vi.hoisted(() => vi.fn());

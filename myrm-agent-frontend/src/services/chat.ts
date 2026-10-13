@@ -1272,7 +1272,7 @@ export const resumePlanConfirmStream = async (
     throw new Error(`Plan confirm resume failed: HTTP ${response.status}`);
   }
 
-  const { AgentBusyError, isAgentBusySseEvent } = await import('@/store/chat/streamConsumer');
+  const { AgentBusyError, isAgentBusySseEvent } = await import('@/store/chat/streamErrors');
   const { handleMessageStream } = await import('@/store/chat/messageStreamHandler');
   const { AdaptiveScheduler } = await import('@/store/chat/adaptiveScheduler');
   const reader = response.body?.getReader();

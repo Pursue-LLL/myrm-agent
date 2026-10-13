@@ -19,7 +19,8 @@
 import { useLayoutEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { getModelSelection, getRoutingModelSelections } from '@/store/chat/messageRequest';
-import { AgentBusyError, executeStreamWithRetry } from '@/store/chat/streamConsumer';
+import { AgentBusyError } from '@/store/chat/streamErrors';
+import { executeStreamWithRetry } from '@/store/chat/streamConsumer';
 import useChatStore from '@/store/useChatStore';
 import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
 import useApprovalStore from '@/store/useApprovalStore';

@@ -16,7 +16,7 @@ import { createAISearchStream } from '@/services/chat';
 import { connectionManager } from '@/services/ConnectionManager';
 import { setGlobalTranslator, showI18nToast } from '@/services/i18nToastService';
 import { sendMessage, type ChatActionsMethods, type ChatActionsState } from '@/store/chat/messageRequest';
-import { AgentBusyError } from '@/store/chat/streamConsumer';
+import { AgentBusyError } from '@/store/chat/streamErrors';
 import type { ChatState, File as ChatFile, Message } from '@/store/chat/types';
 import { getInitialDefaultModelConfig } from '@/store/config/providerTypes';
 import useProviderStore from '@/store/useProviderStore';

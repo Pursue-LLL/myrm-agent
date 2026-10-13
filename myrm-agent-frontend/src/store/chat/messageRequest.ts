@@ -44,20 +44,18 @@ import useRetrievalStore from '../useRetrievalStore';
 import useQuoteStore from '../useQuoteStore';
 import { showI18nToast } from '@/services/i18nToastService';
 import { supportsProviderNoAuth } from '@/store/config/providerTypes';
-import {
-  isTransientNetworkError,
-  executeStreamWithRetry,
-  AgentBusyError,
-  FatalNetworkError,
-  RequestRefusedError,
-  consumeStream,
-  shouldUseMultiplexedAgentStream,
-} from './streamConsumer';
+import { executeStreamWithRetry, shouldUseMultiplexedAgentStream } from './streamConsumer';
+import { consumeStream } from './consumeStream';
+import { AgentBusyError, RequestRefusedError, isTransientNetworkError } from './streamErrors';
 import { isHeldByOtherTurn, resolveRequestState, retractUserBubble, sendFailureToast } from './sendLifecycle';
 import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
 import useToolApprovalStore from '../useToolApprovalStore';
 import { useProjectStore } from '@/store/useProjectStore';
-import { isRetryableHttpStatus } from '@/lib/utils/networkResilience';
+import {
+  FatalNetworkError,
+  isArchiveRestoreActionInvalidError,
+  isRetryableHttpStatus,
+} from '@/lib/utils/networkResilience';
 import { buildMultimodalQuery } from './multimodalBuilder';
 import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } from '@/lib/kanban/kanbanChatBoard';
 import { createAISearchStream, type StreamRequestBody } from '@/services/chat';
@@ -76,7 +74,6 @@ import {
 import useCompanionStore from '../useCompanionStore';
 import { fetchWithTimeout } from '@/lib/api';
 import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
-import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { hasUsableProviderAuth, normalizeApiUrl } from '@/store/config/providerTypes';
 import { normalizeMCPServiceConfigs } from '@/lib/utils/mcp-config';
 import { consumeMigrationReadinessAnchorForAgent, peekMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
