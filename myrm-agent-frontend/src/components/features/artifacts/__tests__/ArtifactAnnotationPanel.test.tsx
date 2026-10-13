@@ -108,3 +108,25 @@ describe('ArtifactAnnotationPanel send for revision', () => {
     expect(statusOfAnnotation()).toBe('open');
   });
 });
+
+describe('ArtifactAnnotationPanel with no comments yet', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    useArtifactAnnotationStore.setState({ byArtifact: {} });
+  });
+
+  it('mounts without a render loop when the artifact has no annotations', () => {
+    // A selector that returns a fresh [] on every call makes zustand v5 re-render forever
+    // ("Maximum update depth exceeded"), which the app-level error boundary turns into a remount.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      renderPanel();
+
+      expect(screen.getByRole('region', { name: 'Artifact annotations' })).toBeTruthy();
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+});

@@ -10,6 +10,7 @@ import useChatStore from '@/store/useChatStore';
 import { useArtifactAnnotationStore } from '@/store/useArtifactAnnotationStore';
 import { addComment, listBoards, listTasks, rejectTask, type KanbanTask } from '@/services/kanban';
 import {
+  type ArtifactAnnotation,
   buildAnchor,
   composeReviewMessage,
   relocateAnchor,
@@ -72,6 +73,9 @@ async function resolveOwningTask(chatId: string, artifactId: string): Promise<Ka
   return null;
 }
 
+// Stable empty result: a fresh [] per selector call makes zustand v5 re-render without end.
+const NO_ANNOTATIONS: ArtifactAnnotation[] = [];
+
 export function ArtifactAnnotationPanel({
   artifactId,
   artifactName,
@@ -84,7 +88,7 @@ export function ArtifactAnnotationPanel({
   onSwitchVersion,
 }: ArtifactAnnotationPanelProps) {
   const t = useTranslations('artifacts');
-  const annotations = useArtifactAnnotationStore((s) => s.byArtifact[artifactId] || []);
+  const annotations = useArtifactAnnotationStore((s) => s.byArtifact[artifactId] ?? NO_ANNOTATIONS);
   const addAnnotation = useArtifactAnnotationStore((s) => s.addAnnotation);
   const removeAnnotation = useArtifactAnnotationStore((s) => s.removeAnnotation);
   const markSubmitted = useArtifactAnnotationStore((s) => s.markSubmitted);
