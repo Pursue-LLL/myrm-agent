@@ -15,7 +15,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, ArrowUpRight, CheckCircle2, Clock, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, CheckCircle2, CircleDashed, Clock, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { SkillHealthItem } from '@/services/statistics';
@@ -24,7 +24,16 @@ const STATUS_VARIANT: Record<string, string> = {
   STAR: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
   HEALTHY: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
   AT_RISK: 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
+  UNPROVEN: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
   STALE: 'bg-muted text-muted-foreground border-border',
+};
+
+const RECOMMENDATION_KEY: Record<string, string> = {
+  STAR: 'recStar',
+  HEALTHY: 'recHealthy',
+  AT_RISK: 'recAtRisk',
+  UNPROVEN: 'recUnproven',
+  STALE: 'recStale',
 };
 
 function getStatusIcon(status: string) {
@@ -35,6 +44,8 @@ function getStatusIcon(status: string) {
       return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />;
     case 'AT_RISK':
       return <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />;
+    case 'UNPROVEN':
+      return <CircleDashed className="h-3.5 w-3.5 text-sky-500 shrink-0" />;
     case 'STALE':
     default:
       return <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
@@ -163,13 +174,11 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                     <div className="text-muted-foreground leading-relaxed flex items-start gap-1.5">
                       <span className="font-medium text-foreground/80 shrink-0">{t('recommendationPrefix')}</span>
                       <span>
-                        {item.status === 'STAR'
-                          ? t('recStar', { default: item.actionable_recommendation })
-                          : item.status === 'AT_RISK'
-                            ? t('recAtRisk', { default: item.actionable_recommendation })
-                            : item.status === 'STALE'
-                              ? t('recStale', { default: item.actionable_recommendation })
-                              : t('recHealthy', { default: item.actionable_recommendation })}
+                        {t(RECOMMENDATION_KEY[item.status] ?? 'recHealthy', {
+                          default: item.actionable_recommendation,
+                          observed: item.observed_count_7d,
+                          required: item.min_observed_count,
+                        })}
                       </span>
                     </div>
                     <Link

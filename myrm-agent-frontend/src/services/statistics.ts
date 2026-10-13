@@ -608,6 +608,8 @@ export interface SkillTrendPoint {
   date: string;
   /** null when no run of the day had an observable outcome. */
   success_rate: number | null;
+  /** Runs of the day whose outcome was observed: the evidence behind success_rate. */
+  observed_count: number;
   call_count: number;
 }
 
@@ -622,12 +624,14 @@ export interface SkillHealthItem {
   status: string;
   call_count_7d: number;
   call_count_total: number;
-  /** null when no run of the week had an observable outcome. */
+  /** Runs of the week whose outcome was observed: the evidence behind the status. */
+  observed_count_7d: number;
+  /** Observed outcomes needed before the success rate and a quality status are shown. */
+  min_observed_count: number;
+  /** null until min_observed_count outcomes were observed. */
   success_rate_7d: number | null;
   last_used_at: string | null;
   actionable_recommendation?: string | null;
-  adoption_rate?: number | null;
-  reuse_breadth?: number | null;
 }
 
 export interface GrowthDashboardData {

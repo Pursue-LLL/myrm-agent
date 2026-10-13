@@ -87,12 +87,16 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
           const height = val !== null && maxVal > 0 ? (val / maxVal) * 100 : 0;
           const barColor = METRIC_CONFIG[metric].barColor;
           const label = formatMetricValue(metric, val);
+          const tooltip =
+            metric === 'success_rate' && val !== null
+              ? `${point.date}: ${label} · ${t('skillTrends.observedRuns', { count: point.observed_count })}`
+              : `${point.date}: ${label}`;
 
           return (
             <div
               key={point.date}
               className="flex-1 flex flex-col items-center gap-1 group"
-              title={`${point.date}: ${label}`}
+              title={tooltip}
             >
               <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
                 {label}

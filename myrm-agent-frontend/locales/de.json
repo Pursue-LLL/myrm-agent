@@ -10628,15 +10628,17 @@
       "manageSkill": "Verwalten",
       "showMore": "Alle anzeigen ({count})",
       "showLess": "Weniger anzeigen",
-      "recStar": "Hervorragendes Asset mit hoher Akzeptanz und reibungsloser Nutzung im Team.",
-      "recAtRisk": "Risikoreiches Asset mit hoher Fehlerrate. Prompt und Parameter überprüfen.",
+      "recStar": "Spitzen-Asset. Nahezu jeder beobachtete Lauf war erfolgreich.",
+      "recAtRisk": "Risikoreiches Asset. Viele beobachtete Läufe sind fehlgeschlagen; Prompt und Parameter überprüfen.",
       "recHealthy": "Gesundes Asset in aktiver Nutzung.",
       "recStale": "Inaktives Asset. Auf Relevanz prüfen oder Beispiele ergänzen.",
+      "recUnproven": "Zu wenige beobachtete Ergebnisse, um die Qualität zu beurteilen ({observed} von {required}).",
       "status": {
         "STAR": "Favorit",
         "HEALTHY": "Gesund",
         "AT_RISK": "Gefährdet",
-        "STALE": "Inaktiv"
+        "STALE": "Inaktiv",
+        "UNPROVEN": "Ungeprüft"
       }
     },
     "learningTimeline": {
@@ -10766,6 +10768,7 @@
       "title": "Skill-Nutzungstrends",
       "description": "Verfolgen Sie, wie sich die Leistung Ihrer Skills im Laufe der Zeit entwickelt.",
       "empty": "Noch keine Skill-Nutzungsdaten. Trends werden angezeigt, sobald Skills verwendet werden.",
+      "observedRuns": "Beobachtete Läufe: {count}",
       "metric": {
         "success_rate": "Erfolgsrate",
         "call_count": "Nutzungsanzahl"

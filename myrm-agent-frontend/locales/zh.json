@@ -10707,15 +10707,17 @@
       "manageSkill": "去管理",
       "showMore": "展开全部 ({count})",
       "showLess": "收起",
-      "recStar": "高复利明星资产，团队零摩擦高频复用",
-      "recAtRisk": "高风险资产，检测到失败/重试率较高，建议检查 Prompt 与参数",
+      "recStar": "明星资产：已观测的调用几乎都成功",
+      "recAtRisk": "风险资产：已观测的调用失败较多，建议检查 Prompt 与参数",
       "recHealthy": "健康运行资产，处于活跃轮转中",
       "recStale": "长期闲置资产，建议排查是否过时或补齐使用示例",
+      "recUnproven": "已观测 {observed}/{required} 次结果，样本不足，暂不评判质量",
       "status": {
         "STAR": "明星",
         "HEALTHY": "健康",
         "AT_RISK": "风险",
-        "STALE": "沉睡"
+        "STALE": "沉睡",
+        "UNPROVEN": "待验证"
       }
     },
     "learningTimeline": {
@@ -10845,6 +10847,7 @@
       "title": "技能使用趋势",
       "description": "追踪技能的使用效率如何随时间演进。",
       "empty": "暂无技能使用数据，技能被使用后会自动展示趋势。",
+      "observedRuns": "已观测 {count} 次",
       "metric": {
         "success_rate": "成功率",
         "call_count": "使用次数"
