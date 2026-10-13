@@ -21483,5 +21483,13 @@
     "viewportSwitcherAria": "Graph-Ansicht wechseln",
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern"
+  },
+  "externalLinkConfirm": {
+    "title": "Diesen Link im Browser öffnen?",
+    "descriptionNamed": "{source} möchte die folgende Adresse im Browser öffnen. Fahren Sie nur fort, wenn Sie der Quelle vertrauen.",
+    "descriptionAnonymous": "Dieser Inhalt möchte die folgende Adresse im Browser öffnen. Fahren Sie nur fort, wenn Sie der Quelle vertrauen.",
+    "urlLabel": "Linkadresse",
+    "cancel": "Abbrechen",
+    "open": "Im Browser öffnen"
   }
 }

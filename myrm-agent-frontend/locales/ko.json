@@ -21483,5 +21483,13 @@
     "viewportSwitcherAria": "그래프 뷰포트 전환",
     "zoomIn": "확대",
     "zoomOut": "축소"
+  },
+  "externalLinkConfirm": {
+    "title": "이 링크를 브라우저에서 열까요?",
+    "descriptionNamed": "{source}에서 아래 주소를 브라우저로 열려고 합니다. 신뢰하는 경우에만 계속하세요.",
+    "descriptionAnonymous": "이 콘텐츠에서 아래 주소를 브라우저로 열려고 합니다. 신뢰하는 경우에만 계속하세요.",
+    "urlLabel": "링크 주소",
+    "cancel": "취소",
+    "open": "브라우저에서 열기"
   }
 }

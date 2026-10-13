@@ -31,6 +31,7 @@ import { QuarantineDialog } from '@/components/features/app-shell/QuarantineDial
 import { VaultUnlockModal } from '@/components/features/app-shell/VaultUnlockModal';
 import { ApprovalDrawer } from '@/components/approval/ApprovalDrawer';
 import DeepLinkListener from '@/components/features/app-shell/deep-link-listener';
+import ExternalLinkConfirmDialog from '@/components/features/app-shell/external-link-confirm-dialog';
 import ExternalLinkInitializer from '@/components/features/app-shell/external-link-initializer';
 import DeferredAppInitializers from '@/components/features/app-shell/deferred-app-initializers';
 import { DesignerEyeOverlay } from '@/components/features/designer-eye';
@@ -66,6 +67,7 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
                 <GlobalEventsInitializer />
                 <DeepLinkListener />
                 <ExternalLinkInitializer />
+                <ExternalLinkConfirmDialog />
                 <SystemStatusBanner />
                 <QuarantineDialog />
                 <VaultUnlockModal />

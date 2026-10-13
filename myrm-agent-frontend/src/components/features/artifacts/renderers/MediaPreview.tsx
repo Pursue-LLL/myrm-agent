@@ -3,7 +3,7 @@
 import React, { memo, useMemo, useRef, useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils/classnameUtils';
-import { isValidExternalUrl } from '@/lib/utils/urlUtils';
+import { requestUntrustedLink } from '@/lib/untrusted-link';
 import { useTranslations } from 'next-intl';
 import { IMAGE_LAZY_LOAD_MARGIN } from '@/lib/constants/artifact';
 import { buildWidgetSrcdoc, subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
@@ -132,12 +132,8 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
         }
 
         if (e.data.type === 'widget-navigate' && typeof e.data.url === 'string') {
-          // The widget is untrusted content: only http(s) may leave the app (same rule as McpAppViewer).
-          if (isValidExternalUrl(e.data.url)) {
-            window.open(e.data.url, '_blank', 'noopener,noreferrer');
-          } else {
-            console.warn('[HtmlPreview] Blocked unsafe external link navigation attempt:', e.data.url);
-          }
+          // The widget is untrusted content: the host validates the link and, in the desktop shell, asks the user first.
+          requestUntrustedLink(e.data.url, null);
         }
 
         if (e.data.type === 'widget-element-pick' && onElementPick) {

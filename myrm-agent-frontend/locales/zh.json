@@ -21483,5 +21483,13 @@
     "viewportSwitcherAria": "切换图视口",
     "zoomIn": "放大",
     "zoomOut": "缩小"
+  },
+  "externalLinkConfirm": {
+    "title": "要在浏览器中打开这个链接吗？",
+    "descriptionNamed": "「{source}」想在浏览器中打开下面的地址。只有在你信任它时才继续。",
+    "descriptionAnonymous": "此内容想在浏览器中打开下面的地址。只有在你信任它时才继续。",
+    "urlLabel": "链接地址",
+    "cancel": "取消",
+    "open": "在浏览器中打开"
   }
 }

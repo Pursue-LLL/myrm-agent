@@ -3,7 +3,7 @@
 import React, { memo, useRef, useEffect, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { safeBase64DecodeUtf8 } from '@/lib/utils/encodingUtils';
-import { isValidExternalUrl } from '@/lib/utils/urlUtils';
+import { requestUntrustedLink } from '@/lib/untrusted-link';
 import { subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
 import { fetchWithTimeout } from '@/lib/api';
 import { toast } from 'sonner';
@@ -104,47 +104,48 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
   }, [view.structuredContent]);
 
   // Handle messages from the embedded app
-  const handleMessage = useCallback((e: MessageEvent) => {
-    if (e.source !== iframeRef.current?.contentWindow) {
-      return;
-    }
-    if (!e.data || typeof e.data !== 'object') {
-      return;
-    }
+  const handleMessage = useCallback(
+    (e: MessageEvent) => {
+      if (e.source !== iframeRef.current?.contentWindow) {
+        return;
+      }
+      if (!e.data || typeof e.data !== 'object') {
+        return;
+      }
 
-    const { type } = e.data;
+      const { type } = e.data;
 
-    // app:notify → host toast notification
-    if (type === 'notify' || type === 'app:notify') {
-      const level = e.data.level ?? 'info';
-      const message = typeof e.data.message === 'string' ? e.data.message : '';
-      if (message) {
-        if (level === 'error') {
-          toast.error(message);
-        } else if (level === 'warning') {
-          toast.warning(message);
-        } else {
-          toast.info(message);
+      // app:notify → host toast notification
+      if (type === 'notify' || type === 'app:notify') {
+        const level = e.data.level ?? 'info';
+        const message = typeof e.data.message === 'string' ? e.data.message : '';
+        if (message) {
+          if (level === 'error') {
+            toast.error(message);
+          } else if (level === 'warning') {
+            toast.warning(message);
+          } else {
+            toast.info(message);
+          }
         }
       }
-    }
 
-    // openLink → open external URL in new tab (strictly validates HTTP/HTTPS protocols)
-    if (type === 'openLink' || type === 'app:openLink' || type === 'widget-navigate') {
-      const url = typeof e.data.url === 'string' ? e.data.url : '';
-      if (url && isValidExternalUrl(url)) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      } else if (url) {
-        console.warn('[McpAppViewer] Blocked unsafe external link navigation attempt:', url);
+      // openLink → the app is untrusted content: the host validates the link and, in the desktop shell, asks the user first
+      if (type === 'openLink' || type === 'app:openLink' || type === 'widget-navigate') {
+        const url = typeof e.data.url === 'string' ? e.data.url : '';
+        if (url) {
+          requestUntrustedLink(url, view.serverName);
+        }
       }
-    }
 
-    // resize → auto-height adjustment
-    if (type === 'resize' || type === 'widget-resize') {
-      const h = Math.min(Math.max(Number(e.data.height) || MIN_HEIGHT, MIN_HEIGHT), MAX_HEIGHT);
-      setIframeHeight(h);
-    }
-  }, []);
+      // resize → auto-height adjustment
+      if (type === 'resize' || type === 'widget-resize') {
+        const h = Math.min(Math.max(Number(e.data.height) || MIN_HEIGHT, MIN_HEIGHT), MAX_HEIGHT);
+        setIframeHeight(h);
+      }
+    },
+    [view.serverName],
+  );
 
   useEffect(() => {
     window.addEventListener('message', handleMessage);

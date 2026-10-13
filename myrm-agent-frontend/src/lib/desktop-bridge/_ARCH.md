@@ -4,7 +4,7 @@
 
 Desktop Bridge 标准化原生桥接契约层：定义 `IDesktopBridge` 单一权威抽象契约（SSOT），提供基于官方 Tauri 插件的桌面原生实现（`TauriDesktopBridge`）与纯 Web / Cloud 托管沙箱环境下的安全降级实现（`WebFallbackDesktopBridge`）。契约只收录有后端实现的能力：新增原生能力须先有已注册的 Rust 命令或官方插件授权，再扩展契约，禁止先声明后补。
 
-桌面壳（wry）不为 `window.open` 开窗且静默丢弃请求，壳自带的拦截只处理 `<a target="_blank">` 点击。外链策略（`external-link-policy.ts`）在 JS 层把"新窗口目标（缺省/空/`_blank`）+ http(s) URL"的 `window.open` 路由到桥接的外链通道，其余调用交还原生实现；由 `app-shell/external-link-initializer.tsx` 在 Tauri 环境安装。策略本身不做用户手势或频率限制（壳内没有浏览器的弹窗拦截），不可信来源（如 widget 的 `widget-navigate` 中继）的 URL 校验由调用方负责。外链通道只有 `plugin-shell` 一条：被拒绝时如实返回 `false`，不降级到 `window.open`（策略会把它路由回桥接，形成无界重入）。
+桌面壳（wry）不为 `window.open` 开窗且静默丢弃请求，壳自带的拦截只处理 `<a target="_blank">` 点击。外链策略（`external-link-policy.ts`）在 JS 层把"新窗口目标（缺省/空/`_blank`）+ http(s) URL"的 `window.open` 路由到桥接的外链通道，其余调用交还原生实现；由 `app-shell/external-link-initializer.tsx` 在 Tauri 环境安装。策略本身不做用户手势或频率限制（壳内没有浏览器的弹窗拦截），所以不可信来源（widget 的 `widget-navigate`、MCP App 的 `openLink`）不得直接调用 `window.open`，必须经 `lib/untrusted-link.ts`：校验 http(s) 后由用户在确认弹窗里同意，才进入外链通道。外链通道只有 `plugin-shell` 一条：被拒绝时如实返回 `false`，不降级到 `window.open`（策略会把它路由回桥接，形成无界重入）。
 
 ## 文件清单
 

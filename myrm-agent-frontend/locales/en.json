@@ -21483,5 +21483,13 @@
     "viewportSwitcherAria": "Switch graph viewport",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out"
+  },
+  "externalLinkConfirm": {
+    "title": "Open this link in your browser?",
+    "descriptionNamed": "{source} wants to open the address below. Continue only if you trust it.",
+    "descriptionAnonymous": "This content wants to open the address below. Continue only if you trust it.",
+    "urlLabel": "Link address",
+    "cancel": "Cancel",
+    "open": "Open in browser"
   }
 }

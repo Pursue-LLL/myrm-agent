@@ -21483,5 +21483,13 @@
     "viewportSwitcherAria": "グラフのビューポートを切り替える",
     "zoomIn": "拡大",
     "zoomOut": "縮小"
+  },
+  "externalLinkConfirm": {
+    "title": "このリンクをブラウザで開きますか？",
+    "descriptionNamed": "「{source}」が下のアドレスをブラウザで開こうとしています。信頼できる場合のみ続行してください。",
+    "descriptionAnonymous": "このコンテンツが下のアドレスをブラウザで開こうとしています。信頼できる場合のみ続行してください。",
+    "urlLabel": "リンク先のアドレス",
+    "cancel": "キャンセル",
+    "open": "ブラウザで開く"
   }
 }
