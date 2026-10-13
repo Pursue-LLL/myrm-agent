@@ -25,7 +25,6 @@ app/ai_agents/subagent_catalog.py
 app/ai_agents/subagent_presets.py
 app/api/agents/general_agent/__init__.py
 app/api/agents/general_agent/active_sessions.py
-app/api/agents/general_agent/media_config.py
 app/api/agents/general_agent/streaming.py
 app/api/audit/alert_notifier.py
 app/api/audit/anomaly_detector.py
@@ -80,11 +79,6 @@ app/api/memory/operations/backup_remote.py
 app/api/memory/operations/crud.py
 app/api/memory/router.py
 app/api/memory/utils.py
-app/api/message_filter/audit.py
-app/api/message_filter/config.py
-app/api/message_filter/rules.py
-app/api/message_filter/templates.py
-app/api/message_filter/version.py
 app/api/notifications/schemas.py
 app/api/risk/router.py
 app/api/risk/schemas.py
@@ -259,9 +253,6 @@ app/services/mascot/cleanup_service.py
 app/services/mascot/status_mapper.py
 app/services/memory/operations/crud/_common.py
 app/services/memory/operations/crud_handlers.py
-app/services/message_filter/audit_service.py
-app/services/message_filter/config_manager.py
-app/services/message_filter/config_version_service.py
 app/services/risk/constants.py
 app/services/risk/detection.py
 app/services/risk/rule_service.py

@@ -38,7 +38,6 @@
 | `project.py` | 域模块 | Project（会话项目分组及工作区，含 workspace_path/description/goal_summary/default_agent_id 字段） | ✅ |
 | `milestone.py` | 域模块 | Milestone（项目里程碑，阶段性目标追踪和状态流转） | ✅ |
 | `kanban.py` | 域模块 | KanbanBoardModel, KanbanTaskModel（看板/任务 ORM，含 project_id/milestone_id 关联和 attachment_ids_json） | ✅ |
-| `message_filter.py` | 域模块 | MessageFilterConfig, MessageFilterRule, MessageFilterAudit, MessageFilterConfigHistory | ✅ |
 | `widget_kv.py` | 域模块 | WidgetKVEntry（沙箱 widget iframe KV 持久化存储） | ✅ |
 | `daily_wrap.py` | 域模块 | DailyWrapCache（AI 生成的每日战报缓存） | ✅ |
 | `expert_summon_metric.py` | 域模块 | ExpertSummonMetricEvent（专家召唤漏斗观测事件：曝光/搜索/召唤尝试与结果/路由应用/首条发送/丢样，含 `surface`、`trigger`、`from_search`、`used_use_case` 口径字段） | ✅ |

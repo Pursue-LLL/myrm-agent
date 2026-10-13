@@ -42,7 +42,6 @@
 | `external_agents/` | ✅ 辅助 | 外部 CLI 委托 RuntimePool 按 chat 复用、per-chat turn lock、idle 回收 | [_ARCH.md](external_agents/_ARCH.md) |
 | `risk/` | ✅ 核心 | 风险检测服务（规则引擎、常量、检测逻辑） | [_ARCH.md](risk/_ARCH.md) |
 | `security/` | ✅ 核心 | 安全配置服务（Profile 管理：CRUD、激活、克隆、内置 profile 种子） | [_ARCH.md](security/_ARCH.md) |
-| `message_filter/` | ✅ 核心 | 消息过滤服务（审计、配置管理、版本控制） | [_ARCH.md](message_filter/_ARCH.md) |
 | `features/` | ✅ 核心 | Feature Flags 服务（注册、用户覆盖配置持久化） | [_ARCH.md](features/_ARCH.md) |
 | `progression/` | ✅ 辅助 | 用户能力进度服务（里程碑追踪、等级计算、Feature Gate 联动） | — |
 | `repair/` | ✅ 核心 | 运行时修复动作契约与白名单执行服务 | [_ARCH.md](repair/_ARCH.md) |

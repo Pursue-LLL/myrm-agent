@@ -51,12 +51,6 @@ from .memory import (
     SharedContextModel,
     SharedContextWriteProposalModel,
 )
-from .message_filter import (
-    MessageFilterAudit,
-    MessageFilterConfig,
-    MessageFilterConfigHistory,
-    MessageFilterRule,
-)
 from .milestone import Milestone
 from .notification import SystemNotification
 from .project import Project
@@ -172,10 +166,6 @@ __all__ = [
     # Web Push
     "WebPushSubscription",
     # Message Filter
-    "MessageFilterConfig",
-    "MessageFilterRule",
-    "MessageFilterAudit",
-    "MessageFilterConfigHistory",
     # Skill Optimization
     "OptimizationRecord",
     "ABTestResultModel",

@@ -633,6 +633,13 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE chats ADD COLUMN tags JSON NOT NULL DEFAULT '[]'",
     # message_filter_config.pii_mode has no ORM field: an existing NOT NULL column without a default rejects ORM inserts, so drop it.
     "ALTER TABLE message_filter_config DROP COLUMN pii_mode",
+    # Manus Scheduled Tasks 2.0: project binding for cron_jobs
+    "ALTER TABLE cron_jobs ADD COLUMN project_id VARCHAR(255) REFERENCES projects(id) ON DELETE SET NULL",
+    # Retire the message-filter admin surface: the live filter reads MESSAGE_FILTER_ENABLED / ADMIN_API_KEYS, never these tables.
+    "DROP TABLE IF EXISTS message_filter_config",
+    "DROP TABLE IF EXISTS message_filter_rules",
+    "DROP TABLE IF EXISTS message_filter_audit",
+    "DROP TABLE IF EXISTS message_filter_config_history",
 ]
 
 # 创建索引的SQL语句列表

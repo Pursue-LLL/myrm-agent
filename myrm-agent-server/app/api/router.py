@@ -73,7 +73,6 @@ from app.api.kanban.pipeline_router import pipeline_router as kanban_pipeline_ro
 from app.api.kanban.router import router as kanban_router
 from app.api.media import media_router
 from app.api.memory.router import router as memory_router
-from app.api.message_filter import router as message_filter_router
 from app.api.migration.discovery import router as migration_discovery_router
 from app.api.migration.upload import router as migration_upload_router
 from app.api.mobile.router import router as mobile_router
@@ -302,7 +301,6 @@ api_router.include_router(security_managed_policy_router, tags=["security"])
 api_router.include_router(vault_router, prefix="/security", tags=["security"])
 api_router.include_router(vault_credentials_router, prefix="/security", tags=["security"])
 api_router.include_router(tainted_egress_router, prefix="/security", tags=["security"])
-api_router.include_router(message_filter_router, tags=["message-filter"])
 api_router.include_router(risk_router, prefix="/risk", tags=["risk"])
 api_router.include_router(auth_audit_router, tags=["audit"])
 api_router.include_router(audit_router, tags=["audit"])
