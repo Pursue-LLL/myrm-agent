@@ -13856,7 +13856,7 @@
       },
       "tabDescriptions": {
         "followUps": "Proaktive Folgeaktionen aus Gesprächen anzeigen und verwalten",
-        "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual",
+        "migration": "Hermes, OpenClaw, Claude Code oder Codex scannen – Importvorschau; Fähigkeiten müssen geprüft werden; MCP und Kanäle werden manuell eingerichtet",
         "teamHub": "Gemeinsame Kontexte, Wiki, Fähigkeiten und Speicher – Team-Setup an einem Ort",
         "explorer": "Langzeitspeicher der Agenten durchsuchen und verwalten",
         "backup": "Snapshots und Sicherungen des Speichers erstellen oder wiederherstellen",
@@ -17666,7 +17666,7 @@
       "compounding": {
         "tab": "Compoundierung",
         "title": "Memory · Skill · Cron Loop",
-        "subtitle": "Connect memory, skills, and scheduled tasks into a compounding workflow — the GUI-first MSC playbook.",
+        "subtitle": "Speicher, Fähigkeiten und geplante Aufgaben zu einem kumulativen Workflow verknüpfen – das GUI-first MSC-Playbook.",
         "loading": "Loading checklist…",
         "loadFailed": "Der Compoundierungsstatus konnte nicht geladen werden",
         "refresh": "Aktualisieren",

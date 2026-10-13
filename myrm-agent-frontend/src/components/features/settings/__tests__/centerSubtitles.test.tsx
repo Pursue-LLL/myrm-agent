@@ -106,43 +106,36 @@ type TabSubtitle = [sub: string | null, path: string];
 interface CenterCase {
   center: string;
   element: () => ReactElement;
-  /** Subtitles that used to be hard-coded `中文 / English` strings and now live in the catalogs. */
-  moved: TabSubtitle[];
-  /** Subtitles that were already catalog-backed before the move. */
-  existing: TabSubtitle[];
+  subtitles: TabSubtitle[];
 }
 
 const CENTERS: CenterCase[] = [
   {
     center: 'developer',
     element: () => <DeveloperCenterSection />,
-    moved: [
+    subtitles: [
       [null, 'settings.developerCenter.tabDescriptions.devtools'],
       ['experimental', 'settings.developerCenter.tabDescriptions.experimental'],
       ['usage', 'settings.developerCenter.tabDescriptions.usage'],
       ['companion', 'settings.developerCenter.tabDescriptions.companion'],
       ['importexport', 'settings.developerCenter.tabDescriptions.importExport'],
     ],
-    existing: [],
   },
   {
     center: 'system',
     element: () => <SystemCenterSection />,
-    moved: [
+    subtitles: [
       [null, 'settings.systemCenter.tabDescriptions.settings'],
       ['about', 'settings.systemCenter.tabDescriptions.about'],
     ],
-    existing: [],
   },
   {
     center: 'memory',
     element: () => <MemoryCenterSection />,
-    moved: [
+    subtitles: [
       [null, 'settings.memoryCenter.tabDescriptions.explorer'],
       ['backup', 'settings.memoryCenter.tabDescriptions.backup'],
       ['cloud-backup', 'settings.memoryCenter.tabDescriptions.cloudBackup'],
-    ],
-    existing: [
       ['follow-ups', 'settings.memoryCenter.tabDescriptions.followUps'],
       ['team-hub', 'settings.memoryCenter.tabDescriptions.teamHub'],
       ['migration', 'settings.memoryCenter.tabDescriptions.migration'],
@@ -151,12 +144,10 @@ const CENTERS: CenterCase[] = [
   {
     center: 'skills',
     element: () => <UnifiedSkillsSection />,
-    moved: [
+    subtitles: [
       [null, 'settings.skills.tabSubtitles.inventory'],
       ['pending', 'settings.skills.tabSubtitles.pending'],
       ['rejections', 'settings.skills.tabSubtitles.rejections'],
-    ],
-    existing: [
       ['compounding', 'settings.skills.compounding.subtitle'],
       ['workflowTemplates', 'settings.skills.workflowTemplates.subtitle'],
     ],
@@ -164,17 +155,16 @@ const CENTERS: CenterCase[] = [
   {
     center: 'models',
     element: () => <ModelSettingsSection />,
-    moved: [
+    subtitles: [
       [null, 'settings.modelCenter.tabDescriptions.providers'],
       ['default', 'settings.modelCenter.tabDescriptions.default'],
     ],
-    existing: [],
   },
 ];
 
-const MOVED_PATHS = CENTERS.flatMap((entry) => entry.moved.map(([, path]) => path));
+const SUBTITLE_PATHS = CENTERS.flatMap((entry) => entry.subtitles.map(([, path]) => path));
 const RENDER_CASES = CENTERS.flatMap((entry) =>
-  [...entry.moved, ...entry.existing].map(([sub, path]) => ({
+  entry.subtitles.map(([sub, path]) => ({
     center: entry.center,
     element: entry.element,
     sub,
@@ -191,12 +181,12 @@ afterEach(() => {
 });
 
 describe('center page header subtitles', () => {
-  it('covers the 15 formerly hard-coded subtitles', () => {
-    expect(MOVED_PATHS).toHaveLength(15);
+  it('lists the subtitle of every tab of the five centers', () => {
+    expect(SUBTITLE_PATHS).toHaveLength(20);
   });
 
   describe.each(LOCALES)('%s catalog', (locale) => {
-    it.each(MOVED_PATHS)('has a single-language subtitle at %s', (path) => {
+    it.each(SUBTITLE_PATHS)('has a single-language subtitle at %s', (path) => {
       const text = message(catalogs[locale], path);
 
       expect(text).not.toMatch(CJK_THEN_LATIN_SLASH);
