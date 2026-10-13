@@ -20,6 +20,14 @@
 const WRAPPED_THEME_VAR =
   /(?<![A-Za-z-])(?:hsla?|rgba?)\(\s*var\(\s*--(?!widget-)[\w-]+\s*\)(?=\s*(?:\)|\/|,\s*[\d.]+%?\s*\)))/g;
 
+/**
+ * 本规则的前提：主题变量存的是完整颜色（`#6799a0`、`oklch(...)` 等）。若某天换成 `210 40% 50%` 这样的通道三元组，
+ * 包 `hsl()` 反而是对的，规则就会拦下合法写法——门禁用它校验 `--primary`，前提失效时直接报错而不是误拦。
+ */
+export function isCompleteColorValue(value: string): boolean {
+  return /^(?:#[0-9a-f]{3,8}|(?:oklch|oklab|lch|lab|rgba?|hsla?|color)\()/i.test(value.trim());
+}
+
 export interface WrappedThemeColorSite {
   line: number;
   text: string;

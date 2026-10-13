@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { findWrappedThemeColorSites } from '../theme-color-scan';
+import { findWrappedThemeColorSites, isCompleteColorValue } from '../theme-color-scan';
 
 const texts = (source: string): string[] => findWrappedThemeColorSites(source).map((site) => site.text);
 
@@ -41,5 +41,20 @@ describe('findWrappedThemeColorSites', () => {
   it('exempts the widget bridge variables that carry triplets inside the iframe', () => {
     expect(texts(`border: 2px solid hsl(var(--widget-primary, 217 91% 60%))`)).toEqual([]);
     expect(texts(`background: hsla(var(--widget-primary))`)).toEqual([]);
+  });
+});
+
+describe('isCompleteColorValue', () => {
+  it('accepts complete colours', () => {
+    expect(isCompleteColorValue('#6799a0')).toBe(true);
+    expect(isCompleteColorValue(' #fbfbf8cf ')).toBe(true);
+    expect(isCompleteColorValue('oklch(0.6 0.1 200)')).toBe(true);
+    expect(isCompleteColorValue('hsl(210 40% 50%)')).toBe(true);
+  });
+
+  it('rejects a bare channel triplet, which is the one format where wrapping would be correct', () => {
+    expect(isCompleteColorValue('210 40% 50%')).toBe(false);
+    expect(isCompleteColorValue('103, 153, 160')).toBe(false);
+    expect(isCompleteColorValue('')).toBe(false);
   });
 });

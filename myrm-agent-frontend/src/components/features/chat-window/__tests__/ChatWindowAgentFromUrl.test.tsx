@@ -26,8 +26,10 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/',
 }));
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/services/agent', async (importOriginal) => ({

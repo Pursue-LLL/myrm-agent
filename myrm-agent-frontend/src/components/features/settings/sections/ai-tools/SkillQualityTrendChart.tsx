@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useEffectEvent, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { apiRequest } from '@/lib/api';
@@ -22,6 +22,10 @@ import {
 // against the card in both themes.
 const SUCCESS_COLOR = 'var(--color-emerald-600, #059669)';
 const WARNING_COLOR = 'var(--color-amber-600, #d97706)';
+
+// Axis labels and evolution markers are matched by this string, so both must be formatted by the same function.
+const formatTrendDate = (value: string, locale: string): string =>
+  new Date(value).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 
 interface TrendDataPoint {
   timestamp: string;
@@ -59,6 +63,7 @@ export function SkillQualityTrendChart({
   refreshInterval = 60000,
 }: SkillQualityTrendChartProps) {
   const t = useTranslations('settings.skillAggregation');
+  const locale = useLocale();
   const { toast } = useToast();
 
   const [trendsData, setTrendsData] = useState<TrendsData | null>(null);
@@ -99,7 +104,7 @@ export function SkillQualityTrendChart({
       console.error('Failed to fetch trends:', error);
       toast({
         title: t('error'),
-        description: t('errorFetchingTrends') || 'Failed to fetch trend data',
+        description: t('errorFetchingTrends'),
         variant: 'destructive',
       });
     } finally {
@@ -113,10 +118,7 @@ export function SkillQualityTrendChart({
     }
 
     return trendsData.data_points.map((point) => ({
-      date: new Date(point.timestamp).toLocaleDateString('zh-CN', {
-        month: 'short',
-        day: 'numeric',
-      }),
+      date: formatTrendDate(point.timestamp, locale),
       'Quality Score': (point.avg_quality_score * 100).toFixed(1),
       'Success Rate': (point.avg_success_rate * 100).toFixed(1),
       'Token Efficiency': point.avg_token_efficiency ? (point.avg_token_efficiency * 100).toFixed(1) : undefined,
@@ -125,18 +127,16 @@ export function SkillQualityTrendChart({
   };
 
   const timeRangeOptions = [
-    { label: t('last7Days') || '7天', value: 7 },
-    { label: t('last30Days') || '30天', value: 30 },
-    { label: t('last90Days') || '90天', value: 90 },
+    { label: t('last7Days'), value: 7 },
+    { label: t('last30Days'), value: 30 },
+    { label: t('last90Days'), value: 90 },
   ];
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>
-            {skillId ? `${t('skillTrend') || '技能趋势'}: ${skillId}` : t('globalTrend') || '全局质量趋势'}
-          </CardTitle>
+          <CardTitle>{skillId ? `${t('skillTrend')}: ${skillId}` : t('globalTrend')}</CardTitle>
           <div className="flex gap-2">
             {timeRangeOptions.map((option) => (
               <Button
@@ -149,7 +149,7 @@ export function SkillQualityTrendChart({
               </Button>
             ))}
             <Button variant="outline" size="sm" onClick={fetchTrends}>
-              {t('refresh') || '刷新'}
+              {t('refresh')}
             </Button>
           </div>
         </div>
@@ -157,11 +157,11 @@ export function SkillQualityTrendChart({
       <CardContent>
         {loading ? (
           <div className="flex items-center justify-center h-[400px]">
-            <p className="text-muted-foreground">{t('loading') || '加载中...'}</p>
+            <p className="text-muted-foreground">{t('loading')}</p>
           </div>
         ) : !trendsData?.data_points?.length ? (
           <div className="flex items-center justify-center h-[400px]">
-            <p className="text-muted-foreground">{t('noData') || '暂无数据'}</p>
+            <p className="text-muted-foreground">{t('noData')}</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={400}>
@@ -184,7 +184,7 @@ export function SkillQualityTrendChart({
                 strokeWidth={2}
                 dot={{ r: 4 }}
                 activeDot={{ r: 6 }}
-                name={t('qualityScore') || '质量分数'}
+                name={t('qualityScore')}
               />
               <Line
                 type="monotone"
@@ -192,7 +192,7 @@ export function SkillQualityTrendChart({
                 stroke={SUCCESS_COLOR}
                 strokeWidth={2}
                 dot={{ r: 4 }}
-                name={t('successRate') || '成功率'}
+                name={t('successRate')}
               />
               {skillId && (
                 <Line
@@ -201,18 +201,14 @@ export function SkillQualityTrendChart({
                   stroke={WARNING_COLOR}
                   strokeWidth={2}
                   dot={{ r: 4 }}
-                  name={t('tokenEfficiency') || 'Token效率'}
+                  name={t('tokenEfficiency')}
                 />
               )}
               {trendsData?.evolution_events?.map((event, idx) => {
-                const dateLabel = new Date(event.date).toLocaleDateString('zh-CN', {
-                  month: 'short',
-                  day: 'numeric',
-                });
                 return (
                   <ReferenceLine
                     key={`evo-${idx}`}
-                    x={dateLabel}
+                    x={formatTrendDate(event.date, locale)}
                     stroke="var(--primary)"
                     strokeDasharray="4 2"
                     strokeOpacity={0.6}
@@ -233,11 +229,11 @@ export function SkillQualityTrendChart({
         {trendsData && trendsData.data_points.length > 0 && (
           <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">{t('dataPoints') || '数据点数'}</span>
+              <span className="text-sm text-muted-foreground">{t('dataPoints')}</span>
               <span className="text-2xl font-bold">{trendsData.data_points.length}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">{t('avgQuality') || '平均质量'}</span>
+              <span className="text-sm text-muted-foreground">{t('avgQuality')}</span>
               <span className="text-2xl font-bold">
                 {(
                   trendsData.data_points.reduce((sum, p) => sum + p.avg_quality_score, 0) /
@@ -246,13 +242,13 @@ export function SkillQualityTrendChart({
               </span>
             </div>
             <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">{t('totalExecutions') || '总执行次数'}</span>
+              <span className="text-sm text-muted-foreground">{t('totalExecutions')}</span>
               <span className="text-2xl font-bold">
                 {trendsData.data_points.reduce((sum, p) => sum + p.execution_count, 0)}
               </span>
             </div>
             <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">{t('timeRange') || '时间范围'}</span>
+              <span className="text-sm text-muted-foreground">{t('timeRange')}</span>
               <span className="text-2xl font-bold">{selectedTimeRange}d</span>
             </div>
           </div>

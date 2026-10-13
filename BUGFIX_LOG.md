@@ -1275,13 +1275,15 @@ except Exception:
 2. 设置里的技能质量趋势：折线与参考线不显示（浅色主题只剩坐标轴，深色主题只剩数据点）；
 3. 设置里的小时活动分布：折线无描边，渐变填充是黑色，深色主题下几乎看不到；
 4. 企业用量 / 审计的饼图（`EnterpriseUsageTab.tsx:197`、`EnterpriseAuditTab.tsx:235`）：按同一封装的探针渲染，所有扇区是同一个灰色，而用量页旁边的图例色块是彩色，对不上（这两个页面本身没有渲染，需要后端数据）；
-5. 记忆中心的呼吸光点、高危操作截图的红圈光晕、本机登录输入框的聚焦光环都没有阴影；`<mark>` 高亮没有底色。
+5. 记忆中心的呼吸光点、高危操作截图的红圈光晕、本机登录输入框的聚焦光环都没有阴影；`<mark>` 高亮没有底色；
+6. 设置里的技能质量趋势在英文等非中文界面上，横轴与演化标记的日期仍是「10月1日」这种中文格式；同一组件里还有 16 处 `t('…') || '写死的文案'` 兜底（15 处中文、1 处英文）。
 
 ### 根因
 
 1. 这些位置写的是 `hsl(var(--primary))`、`rgba(var(--primary),0.1)` 之类。主题变量里存的是完整颜色（`globals.css` 的 `--primary: #6799a0`，`theme-engine` 只接受 `#RRGGBB` 并以同样的值写入运行时），包进 `hsl()` 在计算期是无效值：Chrome 中量到内联 SVG 的 `stroke` 为 `none`（并盖掉 class 里的描边）、`stop-color` 为 `rgb(0, 0, 0)`、`box-shadow` 为 `none`、`mark` 背景透明。这是把「变量只存三个通道数」的旧写法抄进了存完整颜色的主题里；
 2. 看板与质量趋势里用的 `--success`、`--warning` 在 `globals.css` 中没有定义，深色主题的 `--destructive` 是 `#801d1d`（太暗），浅色主题的 `--chart-2` 是 `#4add80`（落在卡片底色上对比度约 1.7），直接换成 `var()` 仍不可读；
-3. 饼图的颜色写在 `Cell` 子元素上，而 recharts 按 `type.displayName || type.name` 识别 `Cell`（`Pie` 与 `Bar` 都是），`lazy-recharts` 用 `next/dynamic` 生成的包装组件叫 `LoadableComponent`，于是所有 `Cell` 被忽略：扇区是 `rgb(128, 128, 128)`、柱子是黑色。
+3. 日期用写死的 `'zh-CN'` 格式化，不跟随界面语言；文案兜底是遗留的写死文本，而 `settings.skillAggregation` 下这些键在六种语言里都有，兜底是死代码；
+4. 饼图的颜色写在 `Cell` 子元素上，而 recharts 按 `type.displayName || type.name` 识别 `Cell`（`Pie` 与 `Bar` 都是），`lazy-recharts` 用 `next/dynamic` 生成的包装组件叫 `LoadableComponent`，于是所有 `Cell` 被忽略：扇区是 `rgb(128, 128, 128)`、柱子是黑色。
 
 ### 修复
 
@@ -1290,6 +1292,9 @@ except Exception:
 3. `lazy-recharts` 工厂给每个包装组件设置 `displayName = <recharts 导出名>`，与未包装时一致；
 4. `globals.css` 的 `mark` 两条规则改为 `color-mix`，并删除无任何引用的遗留类 `.input-default-theme--ujGK4`（其 `rgba(var(--primary))` 同属此类）；
 5. 新增门禁 `bun run verify:theme-colors`（已接入 `bun run lint`，即 CI `frontend-build.yml`）：`src/` 下 ts / tsx / css 出现「变量即整个颜色」的 `hsl|hsla|rgb|rgba(var(--x) …)` 即失败，测试文件不扫描；变量作色相通道（`hsl(var(--agent-hue) 58% 48%)`）、`--widget-*`（iframe 内注入三元组，`widget-theme-bridge.ts` 两处）为合法写法，不拦。
+6. 门禁增加前提自检：`globals.css` 的 `--primary` 不是完整颜色（例如改成 `210 40% 50%` 通道三元组）时直接失败，而不是继续拦合法写法；`isCompleteColorValue` 配 2 例单测；
+7. 技能质量趋势的日期改用界面语言（`useLocale()`），数据点与演化标记共用同一个 `formatTrendDate`（图表按这个字符串对位，两处必须一致）；删除 16 处写死兜底；新增组件测试 5 例；
+8. `ChatWindowAgentFromUrl.test.tsx`（`HEAD` 已提交）的 `next-intl` mock 每次渲染新建函数，使 `verify:stable-mocks` 在 `HEAD` 上就失败；`lint` 链用 `&&` 串联，新门禁根本到不了。改为模块级稳定引用。
 
 ### 验证
 
@@ -1302,14 +1307,15 @@ except Exception:
    - 修复前（同一批真实代码取自 `HEAD`）：连线 `stroke: none`、小地图点黑色、质量线与小时折线无描边、渐变 `rgb(0, 0, 0)`、阴影 `none`、`mark` 透明、饼图扇区 `rgb(128, 128, 128)`；
 2. `lazy-recharts` 契约测试 2 例（真实 `PieChart` / `BarChart`，不 mock）：把 `displayName` 那一行删掉后两例都失败（扇区三个 `#808080`、柱子三个 `null`），恢复后通过；
 3. 门禁：对 `HEAD` 上的原文件运行扫描，恰好命中原来的 25 处（看板 9、质量趋势 7、用量分布 3、记忆 1、高危 1、登录 1、`globals.css` 3），`widget-theme-bridge.ts` 为 0；往 `src/` 临时放一个含 `hsl(var(--primary))` 与 Tailwind 任意值 `_hsl(var(--primary)/0.55)` 的文件，门禁退出码 1 并指出行号，删除后退出码 0；单测 6 例；
-4. 对比度按 WCAG 公式算（未在浏览器中量）：emerald-600 在浅 / 深色卡片上 3.63 / 5.25，amber-600 为 3.08 / 约 6.2，red-600 为 4.66 / 4.10，均不低于图形元素要求的 3:1；
-5. `vitest` 触及目录共 83 个文件、615 例通过，记忆中心 3 个文件 14 例通过；`oxlint` 无新增（`HighRiskEvidenceScreenshot` 的 `no-img-element`、`KanbanGraphView` 的 `prefer-tag-over-role` 是原有告警，未动）；`prettier --check` 对本次新增与改动的行通过；全量 `tsc --noEmit` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误。
+4. 对比度按 WCAG 公式算（未在浏览器中量）：emerald-600 在浅 / 深色卡片上 3.63 / 5.25，amber-600 为 3.07 / 6.21，red-600 为 4.66 / 4.10，均不低于图形元素要求的 3:1；
+5. 技能质量趋势组件测试 5 例（设置里首次有测试）：把 `toLocaleDateString(locale, …)` 改回 `'zh-CN'` 后「按界面语言」一例失败（得到 `10月12日` 而非 `Oct 12`），恢复后通过；真实组件在 Chrome 英文界面的横轴为 `Sep 30`、`Oct 1`，不含中文；门禁的前提自检在隔离副本里验证：`--primary` 改成 `210 40% 50%` 时退出码 1、恢复后 0；
+6. `vitest` 触及目录共 109 个文件、822 例通过；`oxlint` 无新增（`HighRiskEvidenceScreenshot` 的 `no-img-element`、`KanbanGraphView` 的 `prefer-tag-over-role` 是原有告警，未动）；`prettier --check` 对本次新增与改动的行通过；全量 `tsc --noEmit` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误。
 
 ### 踩坑经验
 
 1. 主题变量存的是完整颜色，不要包 `hsl()` / `rgb()`：无效值不会报错，只会让整条声明静默落空，jsdom 与单测看不到；
 2. 写静态扫描时别用 `\b` 匹配函数名：Tailwind 任意值里 `_` 就是空格，`8px_hsl(` 中的 `_` 是单词字符，`\b` 不成立，最初的版本因此漏掉三处 Tailwind 写法，是靠对 `HEAD` 原文件的扫描结果与人工清单比对才发现的；
 3. 经 `next/dynamic` 包装的组件要自己带上 `displayName`：图表库按类型名识别数据型子元素，匿名包装会让它们被悄悄忽略；
-4. 局限：没有在完整 Next 应用里跑过（需要后端数据）；技能质量用的是模拟接口数据，其中没有「Token 效率」一条线，琥珀色那一处只验证了回退值能解析（`oklch(0.666 0.179 58.318)`）；只在 Chrome 中量过，Safari / Tauri WebView 未实测；自定义主题下的对比度未计算；当前工作区里他人未提交的测试使 `verify:stable-mocks` 失败，会让 `bun run lint` 在到达新门禁前停下，新门禁可用 `bun run verify:theme-colors` 单独运行；`globals.css` 里还有若干无引用的遗留哈希类（`.input-size-default--_K_0f`、`.text-ellipsis--D6tEl`、`.search-input--oNVDM`、`.monica-input` 等），不属于本次问题，未动。
+4. 局限：没有在完整 Next 应用里跑过（需要后端数据）；技能质量用的是模拟接口数据，其中没有「Token 效率」一条线，琥珀色那一处只验证了回退值能解析（`oklch(0.666 0.179 58.318)`）；只在 Chrome 中量过，Safari / Tauri WebView 未实测；自定义主题下的对比度未计算；`HEAD` 上 `bun run lint` 原本就停在 `verify:stable-mocks`（已修，见修复 8）；当前工作区里他人未提交的 31 个测试仍会触发同一门禁，另有他人未提交的 9 个文件触发键盘焦点硬门禁，`bun run lint` 在这个工作区里到不了新门禁，新门禁可用 `bun run verify:theme-colors` 单独运行；`SkillQualityTrendChart` 里的时间范围显示 `{N}d` 仍是写死的缩写；`globals.css` 里还有若干无引用的遗留哈希类（`.input-size-default--_K_0f`、`.text-ellipsis--D6tEl`、`.search-input--oNVDM`、`.monica-input` 等），不属于本次问题，未动。
 
 ---

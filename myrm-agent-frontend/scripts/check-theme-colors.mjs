@@ -6,6 +6,8 @@
  * 单测与 jsdom 都看不见，所以必须在静态阶段拦住。测试文件不扫描（测试里会引用旧写法作说明）。
  *
  * 反向自检：扫描文件数为 0 时直接失败，而不是静默通过。
+ * 前提自检：`globals.css` 的 `--primary` 不是完整颜色时直接失败（变量若改成通道三元组，包 `hsl()` 反而是对的，
+ * 规则必须先改，不能继续拦合法写法）。
  *
  * 运行：bun scripts/check-theme-colors.mjs
  * 退出码：0 = 无违规；1 = 有违规 / 自检失败
@@ -15,10 +17,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { findWrappedThemeColorSites } from './theme-color-scan.ts';
+import { findWrappedThemeColorSites, isCompleteColorValue } from './theme-color-scan.ts';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = join(rootDir, 'src');
+const globalsCss = join(srcDir, 'app', 'globals.css');
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.css']);
 const PRUNE_DIRS = new Set(['node_modules', '.next', 'dist']);
 const TEST_PATH = /(?:^|[\\/])__tests__[\\/]|\.test\.tsx?$/;
@@ -35,6 +38,16 @@ function* walk(dir) {
       yield full;
     }
   }
+}
+
+// 前提自检：规则只在“主题变量是完整颜色”时成立，否则宁可失败也不误拦合法写法。
+const primary = /--primary:\s*([^;]+);/.exec(readFileSync(globalsCss, 'utf8'))?.[1];
+if (primary === undefined || !isCompleteColorValue(primary)) {
+  console.error(
+    `[theme-colors] 前提失效：globals.css 的 --primary 不是完整颜色（${primary ?? '未找到'}）。` +
+      '请先更新 scripts/theme-color-scan.ts 的判定规则，再改主题变量格式。',
+  );
+  process.exit(1);
 }
 
 let scannedFiles = 0;
