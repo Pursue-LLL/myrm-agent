@@ -279,7 +279,8 @@ async def _ensure_not_revoked(
     return None
 
 
-@public_router.api_route("/{token}", methods=["GET", "POST"], response_model=None)
+@public_router.get("/{token}", response_model=None)
+@public_router.post("/{token}", response_model=None)
 @limiter.limit("30/minute")
 async def get_public_artifact_share(
     request: Request,
@@ -324,7 +325,8 @@ async def get_public_artifact_share(
     return response
 
 
-@public_router.api_route("/{token}/", methods=["GET", "POST"])
+@public_router.get("/{token}/")
+@public_router.post("/{token}/")
 @limiter.limit("30/minute")
 async def get_public_artifact_share_index(
     request: Request,
@@ -350,7 +352,8 @@ async def get_public_artifact_share_index(
     return response
 
 
-@public_router.api_route("/{token}/{asset_path:path}", methods=["GET", "POST"])
+@public_router.get("/{token}/{asset_path:path}")
+@public_router.post("/{token}/{asset_path:path}")
 @limiter.limit("60/minute")
 async def get_public_artifact_share_asset(
     request: Request,

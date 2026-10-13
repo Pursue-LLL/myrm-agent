@@ -1,4 +1,18 @@
-"""General Agent API — autonomous decision-making agent with streaming SSE."""
+"""Media generation credential endpoints for the media settings page.
+
+[INPUT]
+- core.channel_bridge.config_loader::load_user_configs (POS: merged user config bundles)
+- services.agent.params.providers::_find_provider_api_key, _resolve_image_api_key_provider
+  (POS: provider API key resolution)
+- myrm_agent_harness.toolkits.llms.video / tts (POS: provider health check and probe synthesis)
+
+[OUTPUT]
+- POST /agents/test-media-config: credential and connectivity probe for image, video and TTS providers
+- GET /agents/media-provider-status: key presence and health for every registered video provider
+
+[POS]
+Lets the media settings page verify a provider before the user saves it.
+"""
 
 import asyncio
 import logging
@@ -63,9 +77,22 @@ def _auth_header(template: str, api_key: str) -> dict[str, str]:
     return {name: value.format(key=api_key)}
 
 
-async def _probe_endpoint(
-    url: str, headers: dict[str, str], timeout: float
-) -> tuple[bool, str]:
+async def _load_credentials() -> tuple[dict[str, object], dict[str, object]]:
+    """Return (providers_dict, voice_dict).
+
+    An unreadable config degrades to empty so callers report a missing key instead of a 500.
+    """
+    from app.core.channel_bridge.config_loader import load_user_configs
+
+    try:
+        configs = await load_user_configs()
+    except Exception as exc:
+        logger.warning("Failed to load user configs for media endpoints: %s", exc)
+        return {}, {}
+    return configs.providers_dict or {}, configs.voice_dict or {}
+
+
+async def _probe_endpoint(url: str, headers: dict[str, str], timeout: float) -> tuple[bool, str]:
     """Lightweight credential probe: any 2xx means the key is live.
 
     Uses the TLS-compat client factory so the probe exercises the same HTTP
@@ -94,9 +121,7 @@ async def _probe_volcengine_tts(api_key: str, model: str) -> tuple[bool, str]:
     from myrm_agent_harness.toolkits.llms.tts import AsyncTTSEngine, TTSConfig
 
     is_seed = "seed" in model.lower()
-    probe_text = (
-        "请用自然清晰的普通话朗读：「你好。」朗读完毕后自然结束。" if is_seed else "测"
-    )
+    probe_text = "请用自然清晰的普通话朗读：「你好。」朗读完毕后自然结束。" if is_seed else "测"
     effective_model = model or ("seed-audio-1.0" if is_seed else "doubao-tts")
     config = TTSConfig(
         provider="volcengine",
@@ -119,33 +144,21 @@ async def test_media_config(
     http_request: Request,
 ) -> JSONResponse:
     """Test media generation config by verifying API key and provider connectivity."""
-    from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.utils.response_utils import error_response, success_response
 
-    try:
-        configs = await load_user_configs()
-        providers_dict = configs.providers_dict
-        voice_dict = configs.voice_dict
-    except Exception as exc:
-        logger.warning("Failed to load user configs for media provider status: %s", exc)
-        providers_dict = {}
-        voice_dict = {}
+    providers_dict, voice_dict = await _load_credentials()
 
     if request.media_type == "image":
         key_provider = _resolve_image_api_key_provider(request.model or "dall-e-3")
         api_key = _find_provider_api_key(providers_dict, key_provider)
         if not api_key:
-            return error_response(
-                message=f"No API key found for provider '{key_provider}' in your settings"
-            )
+            return error_response(message=f"No API key found for provider '{key_provider}' in your settings")
         probe = _IMAGE_PROBE_ENDPOINTS.get(key_provider)
         if not probe:
             # Unknown provider family: fall back to key-presence check.
             return success_response(data={"status": "ok", "message": "API key found"})
         url, header_template = probe
-        ok, message = await _probe_endpoint(
-            url, _auth_header(header_template, api_key), timeout=15.0
-        )
+        ok, message = await _probe_endpoint(url, _auth_header(header_template, api_key), timeout=15.0)
         if ok:
             return success_response(data={"status": "ok", "message": message})
         return error_response(message=message)
@@ -153,18 +166,14 @@ async def test_media_config(
     if request.media_type == "video":
         api_key = _find_provider_api_key(providers_dict, request.provider)
         if not api_key:
-            return error_response(
-                message=f"No API key found for provider '{request.provider}' in your settings"
-            )
+            return error_response(message=f"No API key found for provider '{request.provider}' in your settings")
         try:
             from myrm_agent_harness.toolkits.llms.video import VideoGenerationConfig
             from myrm_agent_harness.toolkits.llms.video.providers import get_registry
 
             provider = get_registry().get(request.provider)
             if not provider:
-                return error_response(
-                    message=f"Provider '{request.provider}' not supported"
-                )
+                return error_response(message=f"Provider '{request.provider}' not supported")
 
             default_model = getattr(provider, "default_model", "sora")
             config = VideoGenerationConfig(
@@ -177,12 +186,8 @@ async def test_media_config(
                 healthy = await provider.health_check(config)
 
             if healthy:
-                return success_response(
-                    data={"status": "ok", "message": "Connection successful"}
-                )
-            return error_response(
-                message="Health check failed — verify your API key and provider settings"
-            )
+                return success_response(data={"status": "ok", "message": "Connection successful"})
+            return error_response(message="Health check failed — verify your API key and provider settings")
         except TimeoutError:
             return error_response(message="Connection timed out")
         except Exception as e:
@@ -191,9 +196,7 @@ async def test_media_config(
 
     if request.media_type == "tts":
         # Credential chain: voice settings first, then the provider table.
-        voice_provider = (
-            str(voice_dict.get("ttsProvider", "openai")) if voice_dict else "openai"
-        )
+        voice_provider = str(voice_dict.get("ttsProvider", "openai")) if voice_dict else "openai"
         tts_provider = request.provider or voice_provider
         tts_api_key = ""
         if voice_dict:
@@ -201,9 +204,7 @@ async def test_media_config(
         if not tts_api_key:
             tts_api_key = _find_provider_api_key(providers_dict, tts_provider) or ""
         if not tts_api_key:
-            return error_response(
-                message=f"No API key found for TTS provider '{tts_provider}' in your settings"
-            )
+            return error_response(message=f"No API key found for TTS provider '{tts_provider}' in your settings")
 
         tts_model = request.model
         if not tts_model and voice_dict:
@@ -228,9 +229,7 @@ async def test_media_config(
         if not light_probe:
             return error_response(message=f"Unsupported TTS provider: {tts_provider}")
         url, header_template = light_probe
-        ok, message = await _probe_endpoint(
-            url, _auth_header(header_template, tts_api_key), timeout=15.0
-        )
+        ok, message = await _probe_endpoint(url, _auth_header(header_template, tts_api_key), timeout=15.0)
         if ok:
             return success_response(data={"status": "ok", "message": message})
         return error_response(message=message)
@@ -244,11 +243,9 @@ async def media_provider_status(
     http_request: Request,
 ) -> JSONResponse:
     """Return availability status for all video providers (has API key + health check)."""
-    from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.utils.response_utils import success_response
 
-    configs = await load_user_configs()
-    providers_dict = configs.providers_dict
+    providers_dict, _ = await _load_credentials()
 
     try:
         from myrm_agent_harness.toolkits.llms.video import VideoGenerationConfig
@@ -269,9 +266,7 @@ async def media_provider_status(
             provider = registry.get(pid)
             if provider:
                 try:
-                    config = VideoGenerationConfig(
-                        provider=pid, api_key=SecretStr(api_key)
-                    )
+                    config = VideoGenerationConfig(provider=pid, api_key=SecretStr(api_key))
                     async with asyncio.timeout(10):
                         healthy = await provider.health_check(config)
                 except Exception:

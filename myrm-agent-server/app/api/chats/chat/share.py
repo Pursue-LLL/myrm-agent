@@ -333,7 +333,8 @@ async def get_chat_share_status(
     )
 
 
-@public_router.api_route("/{token}", methods=["GET", "POST"])
+@public_router.get("/{token}")
+@public_router.post("/{token}")
 @limiter.limit("30/minute")
 async def get_public_chat_share(
     request: Request,

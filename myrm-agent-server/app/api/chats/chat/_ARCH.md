@@ -18,7 +18,7 @@
 | `handoff.py` | 模块 | Web→Channel handoff API. | ✅ |
 | `import_session.py` | 模块 | 跨工具（Claude Code / Codex / Hermes）历史会话纯净转录本导入与即刻续聊 API，支持文件上传与文本流解析，自动脱敏并保持静态 Prompt Cache 前缀 | ✅ |
 | `rewind.py` | 模块 | Rewind conversation to before a user message; optional `scope` (conversation/files/both) reverts file snapshots and returns reverted-file details. | ✅ |
-| `messages.py` | 模块 | Message search (FTS5), paginated loading, focus-flush, export (metadata + messages + agentInfo + toolCallDetails + usageSummary + toolSummary + full-structure secret redaction). | ✅ |
+| `messages.py` | 模块 | Message search (FTS5), paginated loading, focus-flush, turn outline (`GET /{chat_id}/outline`), export (metadata + messages + agentInfo + toolCallDetails + usageSummary + toolSummary + full-structure secret redaction). | ✅ |
 | `export_helpers.py` | 模块 | Chat export 数据载荷聚合（工具统计/工具详情/智能体元数据）与凭据脱敏。 | ✅ |
 | `sandbox.py` | 模块 | Chat sandbox session management (enable/disable/merge/status/diff). Git worktree isolation for agent experimentation. `disable` explicitly discards the sandbox worktree (force-remove even when dirty). `merge` rolls the merge back on conflict (abort) and reports the conflicting file count. | ✅ |
 | `title.py` | 模块 | if not chat_id.strip(): | ✅ |

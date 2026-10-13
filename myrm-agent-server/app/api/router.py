@@ -9,7 +9,6 @@ from app.api.agents import (
     ai_build,
     general_agent,
     generate_prompt,
-    media,
     providers,
     subagents,
     suggestions,
@@ -148,7 +147,6 @@ api_router.include_router(web_push_router)
 api_router.include_router(general_agent.router, prefix="/agents", tags=["agents"])
 api_router.include_router(templates.router, prefix="/agents", tags=["agents"])
 api_router.include_router(suggestions.router, prefix="/agents", tags=["agents"])
-api_router.include_router(media.router, prefix="/agents", tags=["agents"])
 api_router.include_router(subagents.router, prefix="/chats", tags=["subagents"])
 api_router.include_router(user_agent.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(generate_prompt.router, prefix="/user-agents", tags=["user-agents"])
