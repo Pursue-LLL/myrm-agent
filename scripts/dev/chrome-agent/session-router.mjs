@@ -21,7 +21,8 @@
  * shared session (context-replay.mjs), because it already sees every base-session event.
  *
  * `describeSession` resolves a session to "<owned|base> <type> <current url>" for the
- * slow-request log (request-watch.mjs).
+ * slow-request log (request-watch.mjs); `pageOfSession` and `baseSessionOfPage` resolve the page
+ * behind a stuck request and the shared session to probe it with (hang-guard.mjs).
  *
  * The router does no I/O: the proxy injects delivery and detach callbacks, which keeps
  * every routing rule unit-testable without Chrome.
@@ -284,6 +285,35 @@ export class SessionRouter {
         const info = this.knownTargets.get(this.targetOfSession(sessionId)) ?? this.knownSessions.get(sessionId)?.targetInfo;
         if (!info) return null;
         return `${owned ? 'owned' : 'base'} ${info.type} ${(info.url || 'about:blank').slice(0, 60)}`;
+    }
+
+    /**
+     * The `page` target a session ultimately belongs to, following iframe/worker sessions up to
+     * their parent; null when the session is unknown or its root is not a page. Used to attribute
+     * an unanswered request to the page whose renderer is stuck (hang-guard.mjs).
+     */
+    pageOfSession(sessionId) {
+        let id = sessionId;
+        for (let hops = 0; id && hops < 16; hops++) {
+            const owned = this.owned.get(id);
+            const known = this.knownSessions.get(id);
+            const parent = owned ? owned.parent : known?.parentSessionId;
+            if (parent) {
+                id = parent;
+                continue;
+            }
+            const targetId = owned?.targetId ?? known?.targetInfo?.targetId;
+            return this.knownTargets.get(targetId)?.type === 'page' ? targetId : null;
+        }
+        return null;
+    }
+
+    /** A shared base session attached to the page itself (not to one of its frames or workers). */
+    baseSessionOfPage(targetId) {
+        for (const [sessionId, { targetInfo, parentSessionId }] of this.knownSessions) {
+            if (!parentSessionId && targetInfo?.targetId === targetId) return sessionId;
+        }
+        return undefined;
     }
 
     ownedCountOf(client) {

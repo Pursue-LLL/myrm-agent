@@ -25,11 +25,14 @@
  * Observability: every connection has an id (`c1`, `c2`, …); connects, disconnects, private session
  * attach/detach, blocked detaches, navigations/tab closes and requests Chrome leaves unanswered for 10 s
  * (request-watch.mjs) are logged with timestamps and that id, so a lost or hung page can be attributed.
+ * A page that stays silent after a request on it timed out (60 s) is closed (hang-guard.mjs), so a hung
+ * renderer cannot hold a session for longer than about two minutes.
  */
 
 import { spawn } from 'child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import { buildChromeLaunchArgs, resetProfileCrashFlags } from './chrome-launch.mjs';
+import { startHangGuard } from './hang-guard.mjs';
 import { createHttpServer } from './http-endpoints.mjs';
 import { startIdlePool } from './idle-pool.mjs';
 import { startRequestWatch } from './request-watch.mjs';
@@ -199,7 +202,7 @@ function sendToChrome(msg) {
 
 let globalIdCounter = 1;
 let clientCounter = 0;
-const pendingRequests = new Map();   // proxyId → { clientWs, client, originalId, method, sessionId, createdAt }
+const pendingRequests = new Map();   // proxyId → { clientWs, client, originalId, method, sessionId, awaitsScript, createdAt }
 const clients = new Map();           // ws → { id, label, ws, closed, proxyIds, connectedAt, discoveryEnabled, autoAttachEnabled }
 
 function safeSend(ws, data) {
@@ -251,35 +254,18 @@ function routeChromeMessage(msg) {
     }
 }
 
-// Stale-request reaper
-setInterval(() => {
-    const now = Date.now();
-    for (const [proxyId, req] of pendingRequests) {
-        if (now - req.createdAt > 60000) {
-            safeSend(req.clientWs, {
-                id: req.originalId,
-                error: { code: -32000, message: 'CDP request timeout (60s)' },
-            });
-            pendingRequests.delete(proxyId);
-            req.client?.proxyIds.delete(proxyId);
-            router.onRequestAbandoned(proxyId);
-        }
-    }
-    router.purgeOrphans();
-}, 30000);
-
 // ═══════════════════════════════════════════
-// Internal CDP request (proxy-initiated, used for discovery setup + HTTP endpoints)
+// Internal CDP request (proxy-initiated: discovery setup, HTTP endpoints, idle pool, hang guard)
 // ═══════════════════════════════════════════
 
-function cdpRequest(method, params = {}) {
+function cdpRequest(method, params = {}, { sessionId, timeoutMs = 5000 } = {}) {
     return new Promise((resolve, reject) => {
         if (!chromeWritable) return reject(new Error('Chrome not running'));
         const proxyId = globalIdCounter++;
         const timeout = setTimeout(() => {
             pendingRequests.delete(proxyId);
-            reject(new Error(`CDP request '${method}' timed out`));
-        }, 5000);
+            reject(Object.assign(new Error(`CDP request '${method}' timed out`), { timedOut: true }));
+        }, timeoutMs);
         const fakeClient = {
             send: (data) => {
                 clearTimeout(timeout);
@@ -294,7 +280,7 @@ function cdpRequest(method, params = {}) {
             method,
             createdAt: Date.now(),
         });
-        sendToChrome({ id: proxyId, method, params });
+        sendToChrome({ id: proxyId, method, params, sessionId });
     });
 }
 
@@ -348,12 +334,14 @@ function proxyStatus() {
 }
 
 const idlePool = startIdlePool({ cdpRequest, log, chromeUp: () => Boolean(chromeWritable), lease: router.tabLease });
-const requestWatch = startRequestWatch({ pendingRequests, log, chromeAgeMs: () => (chromeProcess ? Date.now() - chromeLaunchedAt : null), describeSession: (id) => router.describeSession(id), stallSnapshot: () => snapshotRenderers(chromeProcess?.pid) });
+const chromeAgeMs = () => (chromeProcess ? Date.now() - chromeLaunchedAt : null);
+const requestWatch = startRequestWatch({ pendingRequests, log, chromeAgeMs, describeSession: (id) => router.describeSession(id), stallSnapshot: () => snapshotRenderers(chromeProcess?.pid) });
+const hangGuard = startHangGuard({ pendingRequests, router, safeSend, cdpRequest, log, chromeAgeMs });
 const server = createHttpServer({
     port: PROXY_PORT,
     chromeUp: () => Boolean(chromeWritable),
     cdpRequest,
-    status: () => ({ ...proxyStatus(), ...requestWatch.stats(), ...idlePool.stats() }),
+    status: () => ({ ...proxyStatus(), ...requestWatch.stats(), ...idlePool.stats(), ...hangGuard.stats() }),
     isForbiddenUrl: isForbiddenE2eUrl,
     forbiddenUrlMessage: E2E_URL_REJECT_MESSAGE,
 });
@@ -444,6 +432,7 @@ wss.on('connection', (clientWs) => {
                 client,
                 originalId: msg.id,
                 method: msg.method, sessionId: msg.sessionId,
+                awaitsScript: msg.params?.awaitPromise === true,
                 createdAt: Date.now(),
             });
             client.proxyIds.add(proxyId);

@@ -302,3 +302,38 @@ test('describeSession follows a base session\'s page through navigation instead 
     ctx.router.onChromeEvent({ method: 'Target.targetInfoChanged', params: { targetInfo: { targetId: 'T9', type: 'page', url: 'https://x.com/a/status/9' } } });
     assert.equal(ctx.router.describeSession('BASE1'), 'base page https://x.com/a/status/9');
 });
+
+const childAttached = (parentSession, sessionId, targetId, type) => ({
+    method: ATTACHED,
+    sessionId: parentSession,
+    params: { sessionId, targetInfo: info(targetId, type), waitingForDebugger: false },
+});
+
+test('pageOfSession resolves base, owned and iframe sessions to their page; unknown or non-page roots to null', () => {
+    const ctx = setup();
+    const { router } = ctx;
+    router.onChromeEvent(attached('BASE1', 'T1'));
+    router.onChromeEvent(childAttached('BASE1', 'BASEFRAME', 'TF1', 'iframe'));
+    router.onChromeEvent(attached('SW1', 'TSW'));
+    router.onChromeEvent({ method: 'Target.targetInfoChanged', params: { targetInfo: info('TSW', 'service_worker') } });
+    assert.equal(router.pageOfSession('BASE1'), 'T1');
+    assert.equal(router.pageOfSession('BASEFRAME'), 'T1', 'a base iframe session belongs to its parent page');
+    assert.equal(router.pageOfSession('SW1'), null, 'a service worker is not a page');
+
+    router.onChromeEvent({ method: 'Target.targetCreated', params: { targetInfo: info('T2') } });
+    attach(ctx, ctx.client(1), 1, 'T2', 'OWN1');
+    router.onChromeEvent(childAttached('OWN1', 'OWNFRAME', 'TF2', 'iframe'));
+    assert.equal(router.pageOfSession('OWN1'), 'T2');
+    assert.equal(router.pageOfSession('OWNFRAME'), 'T2', 'an owned iframe session belongs to its owner\'s page');
+    assert.equal(router.pageOfSession('NOPE'), null);
+    assert.equal(router.pageOfSession(undefined), null);
+});
+
+test('baseSessionOfPage finds the shared session attached to the page itself, never one of its frames', () => {
+    const { router } = setup();
+    router.onChromeEvent(attached('BASE1', 'T1'));
+    router.onChromeEvent(childAttached('BASE1', 'BASEFRAME', 'TF1', 'iframe'));
+    assert.equal(router.baseSessionOfPage('T1'), 'BASE1');
+    assert.equal(router.baseSessionOfPage('TF1'), undefined);
+    assert.equal(router.baseSessionOfPage('NOPE'), undefined);
+});

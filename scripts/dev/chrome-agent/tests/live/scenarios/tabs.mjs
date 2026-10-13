@@ -246,8 +246,9 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         const cdpClient = await proxy.cdp();
         const { result: created } = await cdpClient.send('Target.createTarget', { url: 'about:blank' });
         const { result } = await cdpClient.send('Target.attachToTarget', { targetId: created.targetId, flatten: true });
-        // Never resolves, so Chrome never answers.
-        void cdpClient.send('Runtime.evaluate', { expression: 'new Promise(() => {})', awaitPromise: true }, result.sessionId);
+        // A synchronous endless loop hangs the renderer, so Chrome never answers (an awaitPromise request would
+        // be a script wait, not a stall: see scriptWaitIsNotAStall).
+        void cdpClient.send('Runtime.evaluate', { expression: 'while (true) {}' }, result.sessionId);
         await sleep(14500);
         const status = await (await fetch(`${proxy.base}/proxy/status`)).json();
         const logged = fs.readFileSync(proxy.logPath, 'utf8').split('\n').filter((l) => /slow request .* Runtime\.evaluate/.test(l));
@@ -256,5 +257,72 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
         await check('slowRequestLog: the stall also logs the renderer processes (priority, cpu share) once', snapshot.length === 1, snapshot.join(' | ').slice(0, 220));
         await check('slowRequestLog: /proxy/status reports slowRequests, loadavg1 and cpus', status.slowRequests >= 1 && typeof status.loadavg1 === 'number' && status.cpus > 0, JSON.stringify({ s: status.slowRequests, l: status.loadavg1, c: status.cpus }));
         cdpClient.close();
+    },
+
+    // A request that waits for a page script (awaitPromise) is unanswered by design for as long as the script runs:
+    // it is logged as a script wait and counted apart, never as a slow request, and takes no renderer snapshot.
+    async scriptWaitIsNotAStall() {
+        const before = await (await fetch(`${proxy.base}/proxy/status`)).json();
+        const cdpClient = await proxy.cdp();
+        const { result: created } = await cdpClient.send('Target.createTarget', { url: 'about:blank' });
+        const { result } = await cdpClient.send('Target.attachToTarget', { targetId: created.targetId, flatten: true });
+        const answered = await cdpClient.send('Runtime.evaluate',
+            { expression: 'new Promise((r) => setTimeout(() => r("done"), 13000))', awaitPromise: true, returnByValue: true }, result.sessionId);
+        const status = await (await fetch(`${proxy.base}/proxy/status`)).json();
+        const lines = fs.readFileSync(proxy.logPath, 'utf8').split('\n');
+        const waits = lines.filter((l) => /script wait .* Runtime\.evaluate \(awaitPromise\) still running after \d+s/.test(l));
+        await check('scriptWaitIsNotAStall: the script result still reaches the client', answered?.result?.result?.value === 'done', JSON.stringify(answered?.result?.result));
+        await check('scriptWaitIsNotAStall: a 13 s awaitPromise is logged as one script wait', waits.length === 1, waits.join(' | ').slice(0, 200));
+        await check('scriptWaitIsNotAStall: it is not counted as a slow request', status.slowRequests === before.slowRequests && status.scriptWaits === 1, JSON.stringify({ before: before.slowRequests, now: status.slowRequests, waits: status.scriptWaits }));
+        cdpClient.close();
+    },
+
+    // A page whose renderer is hung must not hold a session for longer than the reaper plus one probe
+    // (the 651 s stall): the proxy closes it, fails its pending requests at once and frees its lease.
+    // A page that is only waiting on a call that never completes (renderer alive) is left alone.
+    // Thresholds are shortened through the environment: reap after 6 s, probe for 4 s.
+    async hungPageIsClosed() {
+        const guarded = new SandboxProxy(option('--proxy-dir', undefined), {
+            CHROME_AGENT_HANG_REQUEST_MS: '6000', CHROME_AGENT_HANG_PROBE_MS: '4000', CHROME_AGENT_HANG_SWEEP_MS: '1000',
+        });
+        await guarded.start();
+        const cdpClient = await guarded.cdp();
+        const open = async (marker) => {
+            const { result: created } = await cdpClient.send('Target.createTarget', { url: 'about:blank' });
+            const { result } = await cdpClient.send('Target.attachToTarget', { targetId: created.targetId, flatten: true });
+            await cdpClient.send('Page.navigate', { url: `data:text/html,${marker}` }, result.sessionId);
+            return { targetId: created.targetId, sessionId: result.sessionId };
+        };
+        const hung = await open('hung');
+        const waiting = await open('waiting');
+        const healthy = await open('healthy');
+        await sleep(1000);
+        const reply = (promise) => Promise.race([promise, sleep(30000).then(() => ({ error: { message: 'no reply in 30s' } }))]);
+        const evaluate = (page, expression, extra = {}) => reply(cdpClient.send('Runtime.evaluate', { expression, returnByValue: true, ...extra }, page.sessionId));
+        const spin = evaluate(hung, 'while(true){}');
+        const stuck = evaluate(waiting, 'new Promise(() => {})', { awaitPromise: true });
+        await sleep(7000);
+        // Sent while the guard is still probing: it must fail at once when the page is closed, not wait for the reaper.
+        const follow = evaluate(hung, '1');
+        const listed = async (page) => (await guarded.chromePages()).some((p) => p.id === page.targetId);
+        let closed = false;
+        for (let waited = 0; waited < 25000 && !closed; waited += 500) {
+            closed = !(await listed(hung));
+            if (!closed) await sleep(500);
+        }
+        await check('hungPageIsClosed: a page whose renderer spins is closed within seconds of its request timing out', closed);
+        await check('hungPageIsClosed: the request that exposed the hang got the timeout reply', /timeout \(6s\)/.test((await spin).error?.message ?? ''), JSON.stringify((await spin).error));
+        await check('hungPageIsClosed: a request sent meanwhile fails at once with PAGE_HUNG', /^PAGE_HUNG/.test((await follow).error?.message ?? ''), JSON.stringify((await follow).error));
+        await check('hungPageIsClosed: a page that merely waits on a long call is not closed', (await listed(waiting)) && (await stuck).error?.message?.includes('timeout (6s)'), JSON.stringify((await stuck).error));
+        const alive = await Promise.all([evaluate(waiting, '1+1'), evaluate(healthy, '1+1')]);
+        await check('hungPageIsClosed: the waiting and the healthy page still answer', alive.every((a) => a.result?.result?.value === 2), JSON.stringify(alive.map((a) => a.result?.result ?? a.error)));
+        const status = await guarded.status();
+        await check('hungPageIsClosed: status counts one closed page, one answered probe, no pending request, two leases left',
+            status.hungPagesClosed === 1 && status.hangProbesAnswered >= 1 && status.pendingRequests === 0 && status.leasedTabs === 2,
+            JSON.stringify({ closed: status.hungPagesClosed, answered: status.hangProbesAnswered, pending: status.pendingRequests, leases: status.leasedTabs }));
+        const lines = fs.readFileSync(guarded.logPath, 'utf8').split('\n').filter((l) => l.includes('hang guard:'));
+        await check('hungPageIsClosed: the log names the closed page once', lines.filter((l) => /closed hung page \w{8} \(data:text\/html,hung\)/.test(l)).length === 1, lines.join(' | ').slice(0, 300));
+        cdpClient.close();
+        guarded.stop();
     },
 });
