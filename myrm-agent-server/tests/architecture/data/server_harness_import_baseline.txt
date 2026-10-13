@@ -235,8 +235,8 @@ myrm_agent_harness.backends.skills.scanning.archive_security
 myrm_agent_harness.backends.skills.scanning.llm_auditor
 myrm_agent_harness.backends.skills.scanning.patterns
 myrm_agent_harness.backends.skills.scanning.scanner
+myrm_agent_harness.backends.skills.scanning.scanning_write_backend
 myrm_agent_harness.backends.skills.scanning.zip_extract
-myrm_agent_harness.backends.skills.scanning_write_backend
 myrm_agent_harness.backends.skills.similarity
 myrm_agent_harness.backends.skills.snapshot
 myrm_agent_harness.backends.skills.state_manager
@@ -449,7 +449,6 @@ myrm_agent_harness.infra.tracing.metrics
 myrm_agent_harness.observability.diagnostics.fleet_telemetry
 myrm_agent_harness.observability.diagnostics.gateway_health
 myrm_agent_harness.observability.diagnostics.manager
-myrm_agent_harness.observability.diagnostics.performance
 myrm_agent_harness.observability.diagnostics.protocols
 myrm_agent_harness.observability.metrics
 myrm_agent_harness.observability.metrics.db_pool_collector
@@ -514,7 +513,6 @@ myrm_agent_harness.toolkits.browser.snapshot.page_snapshot
 myrm_agent_harness.toolkits.browser.spaces
 myrm_agent_harness.toolkits.code_execution
 myrm_agent_harness.toolkits.code_execution.config
-myrm_agent_harness.toolkits.code_execution.container.manager
 myrm_agent_harness.toolkits.code_execution.executors.base
 myrm_agent_harness.toolkits.code_execution.executors.local
 myrm_agent_harness.toolkits.code_execution.executors.local.executor
@@ -531,7 +529,6 @@ myrm_agent_harness.toolkits.code_execution.tool_discovery
 myrm_agent_harness.toolkits.code_execution.utils.log_distiller
 myrm_agent_harness.toolkits.code_execution.utils.port_sniffer
 myrm_agent_harness.toolkits.code_execution.utils.workspace_path
-myrm_agent_harness.toolkits.code_execution.workspace.registry
 myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind
 myrm_agent_harness.toolkits.computer_use
 myrm_agent_harness.toolkits.computer_use.app_identity
@@ -675,7 +672,6 @@ myrm_agent_harness.toolkits.memory.proactive.types
 myrm_agent_harness.toolkits.memory.profile_notes
 myrm_agent_harness.toolkits.memory.project_dongle
 myrm_agent_harness.toolkits.memory.protocols.embedding
-myrm_agent_harness.toolkits.memory.protocols.relational
 myrm_agent_harness.toolkits.memory.protocols.vector
 myrm_agent_harness.toolkits.memory.provenance_batch
 myrm_agent_harness.toolkits.memory.relational.sqlite_store

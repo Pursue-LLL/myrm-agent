@@ -7,7 +7,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-
 from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 
 from app.core.skills.discovery.agent_market_install import (
