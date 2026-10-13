@@ -301,7 +301,9 @@ export function EvolutionRejectionDashboard() {
                         </div>
                       </TableCell>
                       <TableCell>{renderStatusBadge(entry.status)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{growthTypeLabel(entry.growthType)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {growthTypeLabel(entry.growthType)}
+                      </TableCell>
                       <TableCell className="max-w-[400px] text-sm text-muted-foreground">
                         <div className="space-y-2">
                           {(() => {
@@ -343,14 +345,11 @@ export function EvolutionRejectionDashboard() {
                             onClick={async () => {
                               setRetryingIds((prev) => new Set(prev).add(entry.eventId));
                               try {
-                                const res = await fetch(
-                                  `/api/skills/evolution/fix/${entry.skillId || entry.skillName}`,
-                                  {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ reason: entry.reason, force_retry: true }),
-                                  },
-                                );
+                                const res = await fetch(`/api/v1/evolution/fix/${entry.skillId || entry.skillName}`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ reason: entry.reason, force_retry: true }),
+                                });
                                 if (!res.ok) {
                                   throw new Error('Failed to force retry');
                                 }
