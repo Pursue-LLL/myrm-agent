@@ -13,7 +13,7 @@
 //! [POS]
 //! Python 后端停机序列单一职责层。停 monitors → 请求服务端 drain
 //! （活跃 turns 完成 + WAL Checkpoint + 资源释放）→ 等待自退（reap 子进程）
-//! → 兜底强杀进程树，保证任意停机路径下进程树必然干净退场。
+//! → 兜底强杀后端进程（Windows 递归整棵子进程树，POSIX 仅该 PID）。
 
 use std::time::Duration;
 
@@ -68,7 +68,8 @@ async fn wait_for_graceful_exit(backend: &State<'_, PythonBackend>, budget: Dura
 /// Graceful backend stop sequence shared by every stop path (connection
 /// switch, config migration, app exit): stop monitors → request server-side
 /// drain (drain turns, WAL checkpoint, close resources) → wait for
-/// self-exit → force-kill the process tree as last resort.
+/// self-exit → force-kill the backend process as last resort (Windows kills the
+/// whole child tree, POSIX only the root PID).
 ///
 /// Stopping the monitors first is what keeps the watchdog from resurrecting
 /// a backend that was stopped intentionally.
@@ -81,8 +82,8 @@ pub async fn graceful_stop_backend(
     crate::runtime::stop_backend_monitors(app);
 
     // Best-effort drain request: the server may already be down or the
-    // config state unavailable; the force path below still guarantees the
-    // process tree is gone.
+    // config state unavailable; the force path below still force-kills the
+    // backend process.
     if let Some(config_manager) = app.try_state::<ConfigManager>() {
         let port = config_manager.load().api_port;
         if port > 0 {
@@ -137,7 +138,7 @@ pub async fn graceful_stop_backend(
             match child.try_wait() {
                 Ok(Some(status)) => {
                     println!(
-                        "Backend process tree exited (root PID: {}, status: {})",
+                        "Backend exited after force kill (root PID: {}, status: {})",
                         pid, status
                     );
                     return Ok("Backend stopped successfully".to_string());
