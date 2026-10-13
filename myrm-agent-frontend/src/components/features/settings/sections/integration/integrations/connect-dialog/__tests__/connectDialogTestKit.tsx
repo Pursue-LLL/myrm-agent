@@ -84,10 +84,6 @@ export function resetConnectDialogMocks() {
   storeState.mcpConfigs = [];
 }
 
-export function restoreConnectDialogGlobals() {
-  vi.restoreAllMocks();
-}
-
 export function makeEntry(overrides?: Partial<CatalogEntry>): CatalogEntry {
   return {
     id: 'svc',

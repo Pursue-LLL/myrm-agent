@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 import type { MCPServiceConfig } from '@/store/config/types';
@@ -10,7 +10,6 @@ import {
   mockSetMCPConfigs,
   mockToast,
   resetConnectDialogMocks,
-  restoreConnectDialogGlobals,
 } from './connectDialogTestKit';
 
 vi.mock('next-intl', async () => (await import('./connectDialogTestKit')).nextIntlMock);
@@ -22,7 +21,6 @@ import { useCatalogSecurityGate } from '../useCatalogSecurityGate';
 
 describe('useCatalogSecurityGate', () => {
   beforeEach(resetConnectDialogMocks);
-  afterEach(restoreConnectDialogGlobals);
 
   it('does not store a second copy of a service that was added while the acknowledgement was open', async () => {
     mockGateMcpEnable.mockResolvedValueOnce({ ...GATE_ALLOWED, needsAcknowledgement: true, allowed: false });

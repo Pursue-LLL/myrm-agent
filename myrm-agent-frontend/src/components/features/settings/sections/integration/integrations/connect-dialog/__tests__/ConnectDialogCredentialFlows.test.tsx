@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import {
@@ -10,7 +10,6 @@ import {
   mockSetMCPConfigs,
   mockToast,
   resetConnectDialogMocks,
-  restoreConnectDialogGlobals,
   SCAN_SUMMARY,
   storeState,
 } from './connectDialogTestKit';
@@ -62,7 +61,6 @@ const multiFieldEntry = (overrides?: Partial<CatalogEntry>) =>
 
 describe('IntegrationConnectDialog credential flows', () => {
   beforeEach(resetConnectDialogMocks);
-  afterEach(restoreConnectDialogGlobals);
 
   describe('api key connection', () => {
     it('saves a single credential into the service env and keeps catalog tuning', async () => {
