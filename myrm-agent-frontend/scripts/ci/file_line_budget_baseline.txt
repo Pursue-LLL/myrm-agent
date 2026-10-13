@@ -124,7 +124,6 @@ src/components/features/settings/sections/integration/channels/useChannelsState.
 src/components/features/settings/sections/integration/credentials/CredentialsDialogs.tsx
 src/components/features/settings/sections/integration/integrations/A2APeerRegistrySection.tsx
 src/components/features/settings/sections/integration/integrations/IntegrationConnectDialog.test.tsx
-src/components/features/settings/sections/integration/integrations/IntegrationConnectDialog.tsx
 src/components/features/settings/sections/knowledge/MemoryGuardianCard.tsx
 src/components/features/settings/sections/knowledge/MemorySection.tsx
 src/components/features/settings/sections/knowledge/MigrationWizardSection.tsx
