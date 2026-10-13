@@ -6,7 +6,7 @@
  * - Comprehensive unit tests for DesktopBridge protocol (Tauri vs WebFallback)
  *
  * [POS]
- * Tests interface compliance, zero-exception fallbacks, and window controls metric calculation.
+ * Tests interface compliance, the single-channel external open, zero-exception fallbacks, and platform detection.
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -35,18 +35,9 @@ describe('Desktop Bridge Protocol', () => {
     it('should report web platform and non-desktop state', () => {
       expect(bridge.isDesktop).toBe(false);
       expect(bridge.platform).toBe('web');
-      expect(bridge.capabilities.hasNativeDialog).toBe(false);
-      expect(bridge.capabilities.hasNativeTray).toBe(false);
-      expect(bridge.capabilities.hasNativeAppshot).toBe(false);
     });
 
-    it('should return zero window metrics without throwing', async () => {
-      const metrics = await bridge.window.getMetrics();
-      expect(metrics.isBorderless).toBe(false);
-      expect(metrics.trafficLightsPadding).toBe(0);
-      expect(metrics.titlebarHeight).toBe(0);
-      expect(metrics.dragRegionEnabled).toBe(false);
-
+    it('should report empty window controls without throwing', () => {
       const controlsState = bridge.getWindowControlsState();
       expect(controlsState.controlsInsetTop).toBe(0);
       expect(controlsState.controlsInsetLeft).toBe(0);
@@ -54,25 +45,16 @@ describe('Desktop Bridge Protocol', () => {
       expect(controlsState.isOverlayTitlebar).toBe(false);
     });
 
-    it('should handle tray, shell, and appshot safely without throwing', async () => {
-      const unsub = bridge.tray.onTrayEvent(() => {});
-      expect(typeof unsub).toBe('function');
-      expect(unsub()).toBeUndefined();
-
+    it('should open no file dialog without throwing', async () => {
       await expect(bridge.shell.openFileDialog()).resolves.toBeNull();
-
-      const unsubAppshot = bridge.appshot.listenAppshot(() => {});
-      expect(typeof unsubAppshot).toBe('function');
     });
   });
 
   describe('TauriDesktopBridge', () => {
-    it('should instantiate with desktop flag true', () => {
+    it('should instantiate with desktop flag true and the detected platform', () => {
       const bridge = new TauriDesktopBridge();
       expect(bridge.isDesktop).toBe(true);
-      expect(bridge.capabilities.hasNativeDialog).toBe(true);
-      expect(bridge.capabilities.hasNativeTray).toBe(true);
-      expect(bridge.capabilities.hasNativeAppshot).toBe(true);
+      expect(bridge.platform).toBe(detectDesktopPlatform());
     });
 
     describe('shell.openExternalUrl', () => {

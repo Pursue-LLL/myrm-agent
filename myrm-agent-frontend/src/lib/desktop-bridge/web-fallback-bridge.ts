@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - types.ts: IDesktopBridge and sub-bridge interfaces
+ * - types.ts: IDesktopBridge and IShellBridge
  *
  * [OUTPUT]
  * - WebFallbackDesktopBridge: Safe no-op and Web standard API implementations for pure web / cloud environments
@@ -10,36 +10,12 @@
  */
 
 import type {
-  DesktopBridgeCapabilities,
   DesktopPlatform,
   DesktopWindowControlsState,
-  IAppshotBridge,
   IDesktopBridge,
-  INotificationBridge,
   IShellBridge,
-  ITrayBridge,
-  IWindowBridge,
-  NativeNotificationPayload,
   NativeOpenFileDialogOptions,
-  WindowMetrics,
 } from './types';
-
-class WebFallbackWindowBridge implements IWindowBridge {
-  async getMetrics(): Promise<WindowMetrics> {
-    return {
-      isBorderless: false,
-      trafficLightsPadding: 0,
-      titlebarHeight: 0,
-      dragRegionEnabled: false,
-    };
-  }
-}
-
-class WebFallbackTrayBridge implements ITrayBridge {
-  onTrayEvent(_handler: (event: { type: string; payload?: unknown }) => void): () => void {
-    return () => {};
-  }
-}
 
 class WebFallbackShellBridge implements IShellBridge {
   async openExternalUrl(url: string): Promise<boolean> {
@@ -55,52 +31,10 @@ class WebFallbackShellBridge implements IShellBridge {
   }
 }
 
-class WebFallbackAppshotBridge implements IAppshotBridge {
-  listenAppshot(_handler: (payload: { path: string; mimeType: string }) => void): () => void {
-    return () => {};
-  }
-}
-
-class WebFallbackNotificationBridge implements INotificationBridge {
-  async show(payload: NativeNotificationPayload): Promise<boolean> {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      try {
-        if (Notification.permission === 'granted') {
-          new Notification(payload.title, { body: payload.body });
-          return true;
-        }
-        if (Notification.permission !== 'denied') {
-          const perm = await Notification.requestPermission();
-          if (perm === 'granted') {
-            new Notification(payload.title, { body: payload.body });
-            return true;
-          }
-        }
-      } catch (err) {
-        console.warn('Web notification delivery failed:', err);
-      }
-    }
-    return false;
-  }
-}
-
 export class WebFallbackDesktopBridge implements IDesktopBridge {
   readonly isDesktop = false;
   readonly platform: DesktopPlatform = 'web';
-  readonly capabilities: DesktopBridgeCapabilities = {
-    hasNativeDialog: false,
-    hasNativeTray: false,
-    hasNativeNotification: typeof window !== 'undefined' && 'Notification' in window,
-    hasNativeClipboard: typeof navigator !== 'undefined' && 'clipboard' in navigator,
-    hasNativeGlobalShortcuts: false,
-    hasNativeAppshot: false,
-  };
-
-  readonly window: IWindowBridge = new WebFallbackWindowBridge();
-  readonly tray: ITrayBridge = new WebFallbackTrayBridge();
   readonly shell: IShellBridge = new WebFallbackShellBridge();
-  readonly appshot: IAppshotBridge = new WebFallbackAppshotBridge();
-  readonly notification: INotificationBridge = new WebFallbackNotificationBridge();
 
   getWindowControlsState(): DesktopWindowControlsState {
     return {

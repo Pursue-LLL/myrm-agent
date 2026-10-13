@@ -4,39 +4,22 @@
  * - @/lib/desktop-bridge (POS: 统一桌面原生与 Web 降级契约体系)
  *
  * [OUTPUT]
- * - desktopBridge: 统一桌面原生桥接门面（兼容平滑迁移）
+ * - desktopBridge: 应用层桌面能力门面（平台判断、外链、目录选择）
  * - type DesktopBridgeInterface: 桌面桥接强类型接口
- * - type FileFilterOption, DirectoryPickerOptions, FilePickerOptions, NotificationOptions
+ * - type DirectoryPickerOptions
  *
  * [POS]
- * 桌面与 Web 统一桥接门面层。收敛所有桌面端原生系统能力调用，
- * 并与 @/lib/desktop-bridge 体系深度融合，为纯 WebUI / Tauri 桌面端 / Cloud 沙箱提供 100% 同构支持。
+ * 桌面与 Web 统一桥接门面层。业务代码经此调用桌面端原生能力，
+ * 纯 WebUI / Cloud 沙箱下平台判断为否、目录选择返回 null，外链走浏览器标准 API。
  */
 
 import { detectDesktopPlatform } from '@/lib/desktop-bridge/platform-detection';
 import { desktopBridge as coreDesktopBridge, type IDesktopBridge } from '@/lib/desktop-bridge';
 import { isTauriEnvironment } from '@/lib/tauri';
 
-export interface FileFilterOption {
-  name: string;
-  extensions: string[];
-}
-
 export interface DirectoryPickerOptions {
   title?: string;
   defaultPath?: string;
-}
-
-export interface FilePickerOptions {
-  title?: string;
-  defaultPath?: string;
-  multiple?: boolean;
-  filters?: FileFilterOption[];
-}
-
-export interface NotificationOptions {
-  title: string;
-  body: string;
 }
 
 export interface DesktopBridgeInterface {
@@ -48,18 +31,8 @@ export interface DesktopBridgeInterface {
   isWindows: () => boolean;
   /** 使用系统默认浏览器打开外部超链接 */
   openExternal: (url: string) => Promise<boolean>;
-  /** 获取桌面宿主应用版本号 */
-  getAppVersion: () => Promise<string>;
-  /** 安全写入系统剪贴板 */
-  writeClipboard: (text: string) => Promise<boolean>;
   /** 唤起系统原生目录选择器（非桌面环境优雅返回 null） */
   openDirectoryPicker: (options?: DirectoryPickerOptions) => Promise<string | null>;
-  /** 唤起系统原生文件选择器（非桌面环境优雅返回 null） */
-  openFilePicker: (options?: FilePickerOptions) => Promise<string | string[] | null>;
-  /** 发送系统桌面级通知（支持 Web Notification 降级） */
-  sendNotification: (options: NotificationOptions) => Promise<boolean>;
-  /** 请求用户注意力（macOS Dock 弹跳 / Windows 任务栏闪烁） */
-  requestUserAttention: (level?: 'critical' | 'informational') => Promise<void>;
 }
 
 class DesktopBridgeImpl implements DesktopBridgeInterface {
@@ -94,31 +67,6 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
     return await this.core.shell.openExternalUrl(url);
   }
 
-  public async getAppVersion(): Promise<string> {
-    if (!this.isDesktop()) {
-      return process.env.NEXT_PUBLIC_APP_VERSION || '0.1.0';
-    }
-
-    try {
-      const { getVersion } = await import('@tauri-apps/api/app');
-      return await getVersion();
-    } catch {
-      return process.env.NEXT_PUBLIC_APP_VERSION || '0.1.0';
-    }
-  }
-
-  public async writeClipboard(text: string): Promise<boolean> {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(text);
-        return true;
-      } catch {
-        // Continue to fallback
-      }
-    }
-    return false;
-  }
-
   public async openDirectoryPicker(options?: DirectoryPickerOptions): Promise<string | null> {
     if (!this.isDesktop()) {
       return null;
@@ -138,41 +86,6 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
       return res[0];
     }
     return null;
-  }
-
-  public async openFilePicker(options?: FilePickerOptions): Promise<string | string[] | null> {
-    if (!this.isDesktop()) {
-      return null;
-    }
-
-    return await this.core.shell.openFileDialog({
-      directory: false,
-      multiple: options?.multiple ?? false,
-      title: options?.title,
-      defaultPath: options?.defaultPath,
-      filters: options?.filters,
-    });
-  }
-
-  public async sendNotification(options: NotificationOptions): Promise<boolean> {
-    return await this.core.notification.show({
-      title: options.title,
-      body: options.body,
-    });
-  }
-
-  public async requestUserAttention(level: 'critical' | 'informational' = 'informational'): Promise<void> {
-    if (!this.isDesktop()) {
-      return;
-    }
-
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const attentionType = level === 'critical' ? 2 : 1;
-      await getCurrentWindow().requestUserAttention(attentionType);
-    } catch {
-      // Graceful fallback
-    }
   }
 }
 
