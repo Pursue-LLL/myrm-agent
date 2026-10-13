@@ -1373,3 +1373,58 @@ except Exception:
 3. 局限：没有核对线上数据库里 `skill_quality_history` 表的实际行数，也不知道外部部署是否设置过存储相关环境变量；未在 Tauri / 移动端实测；未跑 `next build`；旧的 `/settings/toolQuality` 深链现在的落点没有实测。
 
 ---
+
+## BUG-AGENT-2026-10-14-004: 技能自动优化链路只有消耗没有产出，批量优化页与「优化前」徽章从未有数据；存储工厂在默认配置下返回没有会话的内存实现
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（死代码 + 后台 LLM 开销，外加一处会让服务启动失败的隐患） |
+| 影响范围 | 服务端 `app/{api,services,adapters,database/models}/skill_optimization/`、`app/api/batch_optimization/`、`app/api/skills/evolution/history.py`、`app/server/lifespan.py`、`app/core/infra/server_globals.py`、`app/core/utils/lock.py`；前端 `batch-optimization` / `skill-optimization` 页面、`useBatchWebSocket`、历史面板徽章、六种语言 locale；harness `skills/optimization/ab_test.py`、`config.py`；plane `api/routers/telemetry.py`；`myrm-docs` 六个 `skill-evolution.mdx` |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-14-003`（同一条链路的另一半：当时「保留不动」的 plane 占位路由与调度器这次一并删除） |
+
+### 现象
+
+1. 服务启动时创建 `OptimizationScheduler` 并开始定时评估、批量优化，产出的优化结果没有任何地方保存或应用；
+2. 设置里没有入口的「批量优化」页（`/batch-optimization`）、WebSocket 进度、手动 optimize / feedback / health / metrics 路由，以及一个调用不存在的 `/comparison` 路由的 `/skill-optimization` 页，都读不到真实数据；
+3. 进化历史里的「优化前」徽章从未出现过：`save_quality_snapshot` 在生产代码里没有调用者，`get_latest_quality` 永远返回空；
+4. harness 的 `ab_test.py` 里提前停止、快速失败、选胜者的决策代码没有调用方，`ABTestConfig` 七个旋钮里六个只被这些代码读取；
+5. plane 的 `/telemetry/skill-quality` 只写 debug 日志，`/baselines/skills|strategies` 返回占位数据。
+
+### 根因
+
+1. 调度链的采样端没有接线：`ServerSkillExecutionProvider` 的样本方法返回空，质量分算完直接丢弃，批量任务的结果也没有落到任何审批或写盘路径；
+2. 设置项 `skill_optimization_storage_type` 默认值是 `memory`，`get_skill_optimization_storage()` 因此返回没有 `_get_session` 的内存存储，依赖会话的路径（批次撤销快照写入）在默认配置下拿到的是错的实现；
+3. 这几段是不同时期各写了一半，没有一处是从「谁产出数据、谁消费」倒推出来的。
+
+### 修复
+
+1. 服务端：删除调度器工厂与访问器、批量路由与 WebSocket、手动优化 / 反馈 / 健康 / 指标路由、通知 / 合并 / 提取 / 报告服务、批量任务与审计的仓库和模型、`server_globals`、只被调度器用的 `lock.py`、`SkillBaseline` / `BaselinesResponse` 两个只被基线同步器用的模型；`get_skill_optimization_storage()` 始终返回绑定当前会话工厂的 `SQLAlchemyStorage`，并删除 `skill_optimization_storage_type` 设置；`RollbackService` 只保留技能修改批次撤销要用的快照写入；历史接口去掉 `quality_delta`；
+2. 前端：删除批量优化页面、lib、WebSocket hook 与测试，孤儿 `/skill-optimization` 页，「优化前」徽章及六种语言文案，路由白名单与翻译补丁里只为它们存在的条目；
+3. harness：`ab_test.py` 只留 `start_ab_test` 与样本量计算，`ABTestConfig` 只留 `min_sample_size`、`max_sample_size`、`enable_adaptive_sampling`；
+4. plane：删除 `/telemetry/skill-quality`、`/baselines/*` 及只被它们用的 schema；
+5. 文档：`myrm-docs` 的 `core-concepts` 与 `guides` 下六个 `skill-evolution.mdx` 去掉批量优化流程、取消并回滚的「实测」段、质量增量徽章；roadmap `topic_08` 里「server 已接入 lifespan」的前提改正；
+6. 启动标签：调度器的初始化任务删除后，`lifespan.py` 里与结果按严格模式 `zip` 的 `_labels` 也要删对应一项，否则两边数量不等，服务启动会抛 `ValueError`；新增 `tests/server/test_lifespan_startup_labels.py` 把两个列表的长度钉在一起。
+
+保留不动：harness 的优化环库（26 个模块，MIT 公开 API）、`batch_snapshots` 表及其写入（skill_manage 批次撤销在用）、`/skill-optimization/mutations/{id}/rollback`、版本历史与回滚、Shadow A/B、晋升门禁、进化审核、`SkillHealthEvaluator`、`skill_quality_history` 等数据库表。
+
+### 验证
+
+1. 路由：把提交前后的服务端分别导出（同一份已提交的 harness），挂 `api_router` 取 OpenAPI，路径从 1532 条变为 1522 条，少的正是 `GET/POST /batch-optimization/tasks*` 共 6 条与 `GET /skill-optimization/health`、`GET /skill-optimization/metrics`、`POST /skill-optimization/feedback/{skill_id}`、`POST /skill-optimization/optimize/{skill_id}` 共 4 条，新增为 0；
+2. 服务端（工作区）：技能 / 优化 / API / 服务 / 架构等目录 pytest 2931 通过、23 失败；失败都落在他人未提交的改动上（curator 与 prebuilt 技能、路由消费者与同名域、`app` 包缺 `__init__.py`、前端 API 路径、harness 深导入、`auto_backup` 告警识别用例在整组运行时失败——单独成因未核实）；`server_harness_import_baseline` 里已过期的条目为 0，即本次删除没有留下陈旧基线；
+3. 服务端（已提交内容的干净导出）：`tests/server`、`tests/services/skill_optimization`、`tests/api/skill_optimization`、`tests/services/skills`、`tests/architecture` 共 1933 通过、22 失败；失败里 harness 深导入 2 例与前端 memory 路由 1 例来自他人提交，其余是裁剪导出缺 `scripts/`、安装脚本等文件造成（channel catalog 两例没有逐一核对）；
+4. 导入解析：对提交前后的 `app/`、`tests/` 做 AST 导入与 patch 目标检查，两次结果逐行相同，没有新增悬空导入；`git grep` 已删符号与路由只剩本文件的历史记录；
+5. 前端：`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx` 一处；`oxlint` 对改动文件无告警；受影响的四个目录 vitest 214 例里 12 例失败，全在 `SkillGrowthCaseCard*` 与 `EvolutionRejectionDashboard.sse` 这些没改过的文件里（`t.has is not a function` 与 SSE 重取次数）；`verify:i18n` 的 219 条缺失键没有一条属于本次删除的键或文件；`verify:orphans` 的清单里没有因本次删除而孤立的模块；`theme-init-asset` 白名单测试通过；
+6. harness：`tests/agent/skills/optimization` 工作区 168 例、已提交内容的干净导出 166 例全部通过，`ruff` 无告警；
+7. plane：`test_telemetry_routes.py` 与 `test_internal_api_auth_flow.py` 共 45 例，工作区与干净导出都通过，`ruff` 无告警。
+
+### 踩坑经验
+
+1. 删除一个启动任务时，要顺着 `gather` 的结果找所有按位置配对的东西（这里是严格 `zip` 的标签表）；这一处没有被任何现有测试覆盖，是复查 diff 时才发现的，已加测试；
+2. 和别人共享工作区时，一个文件里常常混着别人的改动；提交时从 HEAD 文本出发只做自己的修改，比挑 hunk 更稳（相邻改动会被合并成一个 hunk）；
+3. 根仓库有 pre-commit 钩子，提交期间会把未暂存的改动整体暂存再恢复，几秒内工作区会被临时改写；
+4. 局限：没有跑完整的服务启动；没有核实外部是否有程序抓取 `/skill-optimization/metrics`；进化审核链每个节点的 token 开销没有实测；`batch_snapshots` 表里历史行没有清理；未在 Tauri / 移动端实测。
+
+---
