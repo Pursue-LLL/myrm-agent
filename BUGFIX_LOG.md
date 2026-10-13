@@ -1103,13 +1103,15 @@ except Exception:
 1. 进程内的 Claude / ChatGPT / GitHub Copilot 订阅登录按决定整体下线，保留 xAI SuperGrok。下线只删代码不会删数据：这三个发行方（`provider_anthropic`、`provider_openai`、`provider_copilot`）的访问令牌与刷新令牌仍以加密形式留在 `oauthCredentials` 记录里，没有任何代码再读取或刷新它们，界面也不再有断开入口；
 2. 技能预检横幅在缺少 OAuth 连接时直接展示服务端返回的发行方标识（`技能名 (provider_openai)`，xAI 显示为小写 `xai`），且 OAuth 缺失与 MCP 缺失两串之间没有分隔符；
 3. 六个设置中心（开发者、系统、记忆、工具质量、技能、模型）共 17 处页头副标题是写死在组件里的 `中文 / English` 单串，所有语言的用户都同时看到两种语言，其中模型页中文部分还把 API 密钥写成「API 秘钥」；
-4. 模型页订阅卡片的提示与 toast 用 `locale === 'zh' ? … : …` 分支，日、韩、德、繁体中文用户只能看到英文。
+4. 模型页订阅卡片的提示与 toast 用 `locale === 'zh' ? … : …` 分支，日、韩、德、繁体中文用户只能看到英文；
+5. 德语目录里两条本来就在目录中的副标题（记忆中心「迁移」`settings.memoryCenter.tabDescriptions.migration`、技能「复利」`settings.skills.compounding.subtitle`）一直是英文原文，德语用户在页头看到整句英文。
 
 ### 根因
 
 1. 订阅令牌存放在一条加密 blob 里，没有清理遗留发行方的步骤；`oauth_refresher.py` 里 Copilot 的非标刷新、`oauth_store.py` 的 Copilot 基础地址解析、`config_loader.py` 的发行方映射、前端的三个订阅入口与 PKCE 重开页都是这三条登录的专属代码，随登录一起成为死代码；
 2. 预检横幅直接渲染服务端返回的发行方标识 `i.issuer`，没有使用已有的 `formatOAuthIssuerLabel`；该函数只做首字母大写，`xai` 只能得到 `Xai`（品牌拼写是 xAI）；`getOAuthIssuerSettingsPath` 还靠 `provider_` 前缀把订阅发行方指向模型页，三条登录下线后这个分支成了死代码；
-3. 副标题与卡片文案没有进 `locales`，违反「所有写死文案进 locales、六语言」的项目规范。
+3. 副标题与卡片文案没有进 `locales`，违反「所有写死文案进 locales、六语言」的项目规范；
+4. `verify-i18n.mjs` 校验键对齐、占位符、翻译壳、术语表与双语对照，不会发现「某语言的值与英文逐字相同」；页头守卫测试最初只覆盖搬进目录的 17 条，另外 5 条原有副标题只做了渲染断言，没有逐语言检查内容。
 
 ### 修复
 
@@ -1117,7 +1119,8 @@ except Exception:
 2. server：新增 `retired_provider_oauth_purge.py`，启动期在共享行锁内删除三个遗留发行方——没有遗留项时不写回，无法解析的 blob 不覆盖，重复执行结果相同；`lifespan.py` 在数据库就绪后调用，失败只记 warning、不阻塞启动；
 3. frontend：`provider-oauth.ts`、`ProviderOAuthSection.tsx`、`NoProviderBanner.tsx` 收敛为 xAI（首启弹窗只剩一个订阅入口）；订阅卡片文案进 `settings.modelService.oauth`（六语言）；
 4. frontend：`integrationOAuthDisplay.ts` 的 `formatOAuthIssuerLabel` 增加品牌名表（用 `Map`，以免 `constructor` 这类标识命中原型属性），删除 `getOAuthIssuerSettingsPath` 与 `provider_` 前缀，OAuth 重新授权落点统一为 `SETTINGS_CREDENTIALS_PATH`（`reauthToasts.ts`、`DataFlowDisclosurePanel.tsx`、`getIntegrationSkillSettingsPath` 同步）；预检横幅改用 `formatOAuthIssuerLabel` 渲染并补上两串之间的分隔；
-5. frontend：六个中心的 17 条副标题搬进六语言 `locales`（`settings.{developerCenter,systemCenter,memoryCenter,toolQualityCenter,modelCenter}.tabDescriptions.*`、`settings.skills.tabSubtitles.*`），组件改用 `useTranslations`，「API 秘钥」改为「API 密钥」；删除六语言里已退役的 `chat.subscriptionCopilot / Openai / Claude / PkceNotice / PkceReopen` 与 `i18n-shell-allowlist.json` 里对应条目。
+5. frontend：六个中心的 17 条副标题搬进六语言 `locales`（`settings.{developerCenter,systemCenter,memoryCenter,toolQualityCenter,modelCenter}.tabDescriptions.*`、`settings.skills.tabSubtitles.*`），组件改用 `useTranslations`，「API 秘钥」改为「API 密钥」；删除六语言里已退役的 `chat.subscriptionCopilot / Openai / Claude / PkceNotice / PkceReopen` 与 `i18n-shell-allowlist.json` 里对应条目；
+6. frontend：页头守卫测试把五个中心的全部标签页副标题（20 条）放进同一张清单，逐语言断言单语言、非英文并渲染；`de.json` 里上述两条译为德语。
 
 ### 验证
 
@@ -1125,14 +1128,16 @@ except Exception:
 2. 前端：对订阅卡片、首启弹窗、预检横幅、发行方展示名、重新授权 toast、数据流披露面板逐个做变异检查（约 25 个，均先红后绿，用抛弃式 vitest 配置，项目文件不动）；副标题新增 `centerSubtitles.test.tsx`：直接读六语言 `locales/*.json`，对 17 条副标题断言单语言（无「中文 / English」混排、英德无 CJK、其余语言含 CJK 且不等于英文），并以真实目录解析（缺失路径即抛错）渲染六个中心的每个标签页、六种语言共 132 例；对它应用 3 个变异（映射到不存在的 key、两个标签文案互换、key 拼错）分别 6、12、6 例变红；
 3. server：受影响的两批共 227 个用例通过（`web_push`、设置深链架构测试、`provider_oauth` 接口、`config_loader`、`model_resolver_enrich`、清理逻辑；OAuth 刷新 / 存储 / 会话凭据 / 诊断 / lifespan 等）；其中 `test_oauth_reauth_sse.py` 的 1 例因他人把 `_EVENT_TEMPLATES` 从 `dispatcher.py` 挪到 `adaptive_cards.py` 而早已红，把导入改到新位置后该文件单独复跑 3 例通过；`ruff check`、`ruff format --check` 对触及的服务端文件通过；
 4. frontend：11 个相关测试文件 355 例全绿；受影响目录的广域扫描 360 个文件 2215 例中 2213 例通过（见下方局限）；`verify-i18n.mjs`（含全量 key 对齐、占位符、翻译壳、双语对照、纯净门禁）、`prettier --check`、oxlint、`verify:stable-mocks`（本次触及的文件）通过，全量 `tsc --noEmit` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误；
-5. 局限：没有真实订阅账号与真实浏览器，xAI 设备码授权的端到端流程没有重新跑过，只有单元测试与前端交互测试；对 mypy 报告里落在 `oauth_store.py`、`oauth_refresher.py`、`server_diagnostics.py` 的既有报错，确认与本次改动的行不重叠，但没有在 HEAD 基线上单独比对错误数；pyright 在本机解析不到 `sqlalchemy`，结果无效。
+5. 页头守卫扩到全部 20 条副标题后立即红 2 例（德语两处仍是英文；并行会话的全量 vitest 也报过这 2 例），翻译后 `centerSubtitles.test.tsx` 241 例全绿，`verify-i18n.mjs` 六语言通过；
+6. 局限：没有真实订阅账号与真实浏览器，xAI 设备码授权的端到端流程没有重新跑过，只有单元测试与前端交互测试；对 mypy 报告里落在 `oauth_store.py`、`oauth_refresher.py`、`server_diagnostics.py` 的既有报错，确认与本次改动的行不重叠，但没有在 HEAD 基线上单独比对错误数；pyright 在本机解析不到 `sqlalchemy`，结果无效。
 
 ### 踩坑经验
 
 1. 删登录只删代码不够：令牌存在加密 blob 里，必须同时有启动期的幂等清理，并且要证明两件事——不会清掉还在用的发行方（`xai`、`google_workspace`），也不会改写没有遗留项的 blob 或覆盖无法解析的 blob（加密每次写入用新的随机数，密文不变即证明没有重写）；
 2. 变异检查要覆盖「清得太多」与「写得太多」两个方向，只测「清掉了」会放过把现役发行方也清掉的实现；
 3. 前端测试里 mock `next-intl` 的 `t` 必须是稳定引用（`verify:stable-mocks` 会拦），按命名空间缓存同一个函数；
-4. 局限（已核实、未处理，不属于本次范围）：`NoProviderBanner` 的启动授权失败路径先 `setActiveFlow(null)` 再用 `setActiveFlow((prev) => prev ? … : null)` 写错误，错误永远写不进去，用户看不到失败原因；授权轮询返回的 `pollRes.error` 与异常的 `err.message` 会原样展示给用户；预检横幅只缺 MCP 时点击落在 `/settings/skills`，而 `getIntegrationSkillSettingsPath` 对 MCP 给的是 `/settings/agents#loadout`；IM 通知模板 `adaptive_cards.py` 的 OAuth 重新授权文案写「Settings → Integrations」，设置菜单里没有这一项（凭据页叫 Credentials）；`tests/api/integrations/test_mcp_registry_api.py` 有两例依赖线上 Smithery 网络；`MemoryGuardianCard.test.tsx` 的 1 例在受影响目录扫描里失败（单独运行同样失败，渲染停在骨架屏，源文件与测试均未被本次改动）；`BuiltinToolsPanel.kanban.test.tsx` 的 1 例在满载的扫描里超时，单独运行通过。
+4. 守卫测试的覆盖面要等于被守卫的集合，而不是这次改过的那部分：只逐语言检查搬进目录的 17 条，放过了同一页头里另外两条德语英文值。同类缺口仍在：按「长度大于 25 且含至少 3 个英文单词」的启发式统计，修复前 `de.json` 有 162 条值与 `en.json` 逐字相同（`settings.` 下 62 条），`verify-i18n.mjs` 不会报，未处理；
+5. 局限（已核实、未处理，不属于本次范围）：`NoProviderBanner` 的启动授权失败路径先 `setActiveFlow(null)` 再用 `setActiveFlow((prev) => prev ? … : null)` 写错误，错误永远写不进去，用户看不到失败原因；授权轮询返回的 `pollRes.error` 与异常的 `err.message` 会原样展示给用户；预检横幅只缺 MCP 时点击落在 `/settings/skills`，而 `getIntegrationSkillSettingsPath` 对 MCP 给的是 `/settings/agents#loadout`；IM 通知模板 `adaptive_cards.py` 的 OAuth 重新授权文案写「Settings → Integrations」，设置菜单里没有这一项（凭据页叫 Credentials）；`tests/api/integrations/test_mcp_registry_api.py` 有两例依赖线上 Smithery 网络；`MemoryGuardianCard.test.tsx` 的 1 例在受影响目录扫描里失败（单独运行同样失败，渲染停在骨架屏，源文件与测试均未被本次改动）；`BuiltinToolsPanel.kanban.test.tsx` 的 1 例在满载的扫描里超时，单独运行通过。
 
 ---
 
