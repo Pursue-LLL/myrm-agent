@@ -169,8 +169,8 @@ async def test_get_recent_routing_tiers_empty_chat(setup_test_database):
 
 
 @pytest.mark.asyncio
-async def test_get_recent_routing_tiers_skips_null_extra_data_and_reports_unrouted_as_none(setup_test_database):
-    """Messages without extra_data are skipped; answers that carry extra_data but no tier are reported as None."""
+async def test_get_recent_routing_tiers_skips_messages_without_a_recorded_tier(setup_test_database):
+    """Messages without extra_data, and answers whose extra_data carries no tier, contribute nothing."""
     from app.database.connection import get_session
     from app.database.models import Chat, Message
     from app.database.repositories.chat_repo import ChatRepository
@@ -226,12 +226,15 @@ async def test_get_recent_routing_tiers_skips_null_extra_data_and_reports_unrout
     async with get_session() as db:
         tiers = await ChatRepository.get_recent_routing_tiers(db, chat_id)
 
-    assert tiers == ["reasoning", None]
+    assert tiers == ["reasoning"]
 
 
 @pytest.mark.asyncio
 async def test_get_recent_routing_tiers_window_counts_unrouted_answers(setup_test_database):
-    """The window is the latest answers, routed or not: an old routed turn must not leak past unrouted ones."""
+    """The window is the latest answers, routed or not: an old routed turn must not leak past unrouted ones.
+
+    Otherwise momentum would keep pushing a chat that has since moved to fast mode or a pinned model.
+    """
     from app.database.connection import get_session
     from app.database.models import Chat, Message
     from app.database.repositories.chat_repo import ChatRepository
@@ -259,4 +262,4 @@ async def test_get_recent_routing_tiers_window_counts_unrouted_answers(setup_tes
     async with get_session() as db:
         tiers = await ChatRepository.get_recent_routing_tiers(db, chat_id, limit=5)
 
-    assert tiers == [None] * 5
+    assert tiers == []

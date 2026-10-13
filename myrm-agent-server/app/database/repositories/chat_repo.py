@@ -62,6 +62,16 @@ class SiblingDetail(TypedDict):
 _DTO_COMPUTED_FIELDS: set[str] = {"sibling_count", "sibling_index"}
 
 
+def _answers_of_turn(chat_id: str, last_user: MessageDTO) -> ColumnElement[bool]:
+    """Assistant messages of the turn *last_user* opened: every one ordered after it, active or not."""
+    return and_(
+        Message.chat_id == chat_id,
+        Message.role == "assistant",
+        (Message.created_at > last_user.created_at)
+        | ((Message.created_at == last_user.created_at) & (Message.id > last_user.id)),
+    )
+
+
 class ChatRepository:
     """
     Chat 领域的专有仓储类（Repository）。
@@ -430,16 +440,7 @@ class ChatRepository:
         is_active=False.  Returns the user query and the sibling_group_id so
         the caller can attach the same group to the regenerated response.
         """
-        condition = (Message.created_at > last_user_msg.created_at) | (
-            (Message.created_at == last_user_msg.created_at) & (Message.id > last_user_msg.id)
-        )
-        result = await db.execute(
-            select(Message).where(
-                Message.chat_id == chat_id,
-                condition,
-                Message.role == "assistant",
-            )
-        )
+        result = await db.execute(select(Message).where(_answers_of_turn(chat_id, last_user_msg)))
         assistant_msgs = result.scalars().all()
 
         group_id = ""
@@ -491,13 +492,14 @@ class ChatRepository:
         return [SiblingDetail(id=row.id, is_active=row.is_active, created_at=row.created_at) for row in result.all()]
 
     @staticmethod
-    async def get_recent_routing_tiers(db: AsyncSession, chat_id: str, limit: int = 5) -> list[str | None]:
-        """Fetch the recorded routing values of the latest assistant messages for momentum and retry baselines.
+    async def get_recent_routing_tiers(db: AsyncSession, chat_id: str, limit: int = 5) -> list[str]:
+        """Fetch the recorded routing values of the latest assistant messages for momentum calculation.
 
-        Returns one raw `routingTier` entry per message in chronological order, None for an answer that carries no
-        routing record (fast mode, pinned model). The column holds either a complexity tier (e.g. "standard",
+        Returns the raw `routingTier` strings of the latest *limit* assistant messages that carry `extra_data`, in
+        chronological order; messages that recorded no tier add nothing but still occupy the window, so an old routed
+        turn does not leak past newer unrouted ones. The column holds either a complexity tier (e.g. "standard",
         "reasoning") or a specialty slot hit (e.g. "code", "long_doc"); callers partition them with
-        `services.agent.params.routing_memory.split_recent_routing`. Messages without `extra_data` are skipped.
+        `services.agent.params.routing_memory.split_recent_routing`.
         """
         result = await db.execute(
             select(Message.extra_data)
@@ -510,12 +512,36 @@ class ChatRepository:
             .limit(limit)
         )
         rows: Sequence[object] = result.scalars().all()
-        tiers: list[str | None] = []
+        tiers: list[str] = []
         for extra in reversed(rows):
             if isinstance(extra, dict):
                 tier = extra.get("routingTier")
-                tiers.append(tier if isinstance(tier, str) else None)
+                if isinstance(tier, str):
+                    tiers.append(tier)
         return tiers
+
+    @staticmethod
+    async def get_last_turn_routing_tier(db: AsyncSession, chat_id: str) -> str | None:
+        """Raw `routingTier` of the newest answer of the latest user turn that recorded one, None when none did.
+
+        The turn is what a retry replaces, so answers it already deactivated still count. Rows the system appended
+        on its own (background-job notices, auto-continue) carry no tier and are skipped rather than read as an
+        unrouted answer; an earlier turn's tier never stands in for a turn that recorded none.
+        """
+        last_user = await ChatRepository.get_last_user_message(db, chat_id)
+        if last_user is None:
+            return None
+        result = await db.execute(
+            select(Message.extra_data)
+            .where(_answers_of_turn(chat_id, last_user))
+            .order_by(Message.created_at.desc(), Message.id.desc())
+        )
+        rows: Sequence[object] = result.scalars().all()
+        for extra in rows:
+            tier = extra.get("routingTier") if isinstance(extra, dict) else None
+            if isinstance(tier, str):
+                return tier
+        return None
 
     # ── Pinned Threads ──────────────────────────────────────────────
 

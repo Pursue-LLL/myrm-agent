@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from myrm_agent_harness.api import TaskSpecialty
@@ -13,6 +15,7 @@ from app.services.agent.params import routing_memory
 from app.services.agent.params.models import AgentRequest, ModelSelection
 from app.services.agent.params.routing_memory import (
     complaint_floor,
+    load_retry_baseline,
     remember_turn_routing,
     resolve_turn_routing,
     split_recent_routing,
@@ -46,7 +49,7 @@ def _request(chat_id: str | None = "chat-1", **overrides: object) -> AgentReques
         "long_doc_model_selection": _LONG_DOC,
     }
     payload.update(overrides)
-    return AgentRequest(**payload)
+    return AgentRequest.model_validate(payload)
 
 
 def _resume_request(chat_id: str | None = "chat-1", **overrides: object) -> AgentRequest:
@@ -59,7 +62,7 @@ def _resume_request(chat_id: str | None = "chat-1", **overrides: object) -> Agen
         "resume_value": {"decision": "approve"},
     }
     payload.update(overrides)
-    return AgentRequest(**payload)
+    return AgentRequest.model_validate(payload)
 
 
 class _Resolver:
@@ -110,22 +113,49 @@ class TestSplitRecentRouting:
 
         assert recent.tiers == []
         assert recent.specialties == []
-        assert recent.last_tier is None
 
-    def test_unrouted_answers_do_not_feed_the_momentum(self) -> None:
-        recent = split_recent_routing(["standard", None, "simple", None])
 
-        assert recent.tiers == [RoutingTier.STANDARD, RoutingTier.SIMPLE]
-        assert recent.specialties == []
+class TestLoadRetryBaseline:
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [
+            ("simple", RoutingTier.SIMPLE),
+            ("standard", RoutingTier.STANDARD),
+            ("reasoning", RoutingTier.REASONING),
+            ("code", None),
+            ("long_doc", None),
+            ("bogus", None),
+            (None, None),
+        ],
+    )
+    async def test_maps_the_stored_value_to_a_complexity_tier(self, stored: str | None, expected: RoutingTier | None) -> None:
+        """A specialty hit or an unrecorded answer ran a slot or the main model, so it has no complexity baseline."""
+        lookup = AsyncMock(return_value=stored)
 
-    def test_last_tier_is_the_complexity_tier_of_the_latest_answer(self) -> None:
-        assert split_recent_routing(["simple", "standard"]).last_tier is RoutingTier.STANDARD
-        assert split_recent_routing(["standard", "reasoning"]).last_tier is RoutingTier.REASONING
+        with patch("app.database.repositories.chat_repo.ChatRepository.get_last_turn_routing_tier", lookup):
+            assert await load_retry_baseline("chat-1") is expected
 
-    @pytest.mark.parametrize("latest", [None, "code", "long_doc", "bogus"])
-    def test_last_tier_is_none_when_the_latest_answer_has_no_complexity_tier(self, latest: str | None) -> None:
-        """An earlier routed turn must not stand in for the answer that is being retried."""
-        assert split_recent_routing(["simple", "standard", latest]).last_tier is None
+        lookup.assert_awaited_once()
+
+    @pytest.mark.parametrize("chat_id", [None, ""])
+    async def test_without_a_chat_the_lookup_is_skipped(self, chat_id: str | None) -> None:
+        lookup = AsyncMock(return_value="reasoning")
+
+        with patch("app.database.repositories.chat_repo.ChatRepository.get_last_turn_routing_tier", lookup):
+            assert await load_retry_baseline(chat_id) is None
+
+        lookup.assert_not_awaited()
+
+    async def test_a_failing_lookup_degrades_to_the_main_model_baseline(self, caplog: pytest.LogCaptureFixture) -> None:
+        lookup = AsyncMock(side_effect=RuntimeError("database is locked"))
+
+        with (
+            patch("app.database.repositories.chat_repo.ChatRepository.get_last_turn_routing_tier", lookup),
+            caplog.at_level(logging.WARNING, logger=routing_memory.__name__),
+        ):
+            assert await load_retry_baseline("chat-1") is None
+
+        assert "Failed to load the retry baseline" in caplog.text
 
 
 class TestResolveTurnRouting:

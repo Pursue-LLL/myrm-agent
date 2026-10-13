@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Iterator
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -50,6 +51,15 @@ async def _resolve_without_provider_keys(selection: ModelSelection, providers: d
     return ModelConfig(model=selection.model, api_key=_DUMMY_KEY)
 
 
+def _last_turn_tier(tier: str | None) -> AbstractContextManager[AsyncMock]:
+    """The tier the retried answer turn recorded, as read when a retry computes its floor."""
+    return patch(
+        "app.database.repositories.chat_repo.ChatRepository.get_last_turn_routing_tier",
+        new_callable=AsyncMock,
+        return_value=tier,
+    )
+
+
 @pytest.fixture(autouse=True)
 def _resolvable_slots() -> Iterator[None]:
     """Slot models resolve to distinct configs, so the retry ladder has different rungs to climb to."""
@@ -76,7 +86,7 @@ class TestComplaintUpEscalation:
     async def test_complaint_up_escalates_with_simple_history(self, base_request: dict[str, object]) -> None:
         """sibling_group_id + no instruction + last tier SIMPLE → min_tier STANDARD."""
         base_request["sibling_group_id"] = "sg-test-1"
-        request = AgentRequest(**base_request)
+        request = AgentRequest.model_validate(base_request)
 
         mock_route = AsyncMock(return_value=_make_routing_result(RoutingTier.STANDARD))
 
@@ -90,6 +100,7 @@ class TestComplaintUpEscalation:
                 new_callable=AsyncMock,
                 return_value=["simple"],
             ),
+            _last_turn_tier("simple"),
         ):
             from app.services.agent.params.converter import (
                 convert_to_general_agent_params,
@@ -106,7 +117,7 @@ class TestComplaintUpEscalation:
     async def test_complaint_up_escalates_standard_to_reasoning(self, base_request: dict[str, object]) -> None:
         """sibling_group_id + no instruction + last tier STANDARD → min_tier REASONING."""
         base_request["sibling_group_id"] = "sg-test-2"
-        request = AgentRequest(**base_request)
+        request = AgentRequest.model_validate(base_request)
 
         mock_route = AsyncMock(return_value=_make_routing_result(RoutingTier.REASONING))
 
@@ -120,6 +131,7 @@ class TestComplaintUpEscalation:
                 new_callable=AsyncMock,
                 return_value=["standard"],
             ),
+            _last_turn_tier("standard"),
         ):
             from app.services.agent.params.converter import (
                 convert_to_general_agent_params,
@@ -135,7 +147,7 @@ class TestComplaintUpEscalation:
         """sibling_group_id + no instruction + last tier REASONING → min_tier stays
         REASONING (the highest tier has nothing to escalate to)."""
         base_request["sibling_group_id"] = "sg-test-5"
-        request = AgentRequest(**base_request)
+        request = AgentRequest.model_validate(base_request)
 
         mock_route = AsyncMock(return_value=_make_routing_result(RoutingTier.REASONING))
 
@@ -149,6 +161,7 @@ class TestComplaintUpEscalation:
                 new_callable=AsyncMock,
                 return_value=["reasoning"],
             ),
+            _last_turn_tier("reasoning"),
         ):
             from app.services.agent.params.converter import (
                 convert_to_general_agent_params,
@@ -163,7 +176,7 @@ class TestComplaintUpEscalation:
     async def test_complaint_up_unrecorded_answer_climbs_from_the_main_model(self, base_request: dict[str, object]) -> None:
         """sibling_group_id + no instruction + no recorded tier → the answer ran the main model, so min_tier REASONING."""
         base_request["sibling_group_id"] = "sg-test-3"
-        request = AgentRequest(**base_request)
+        request = AgentRequest.model_validate(base_request)
 
         mock_route = AsyncMock(return_value=_make_routing_result(RoutingTier.STANDARD))
 
@@ -177,6 +190,7 @@ class TestComplaintUpEscalation:
                 new_callable=AsyncMock,
                 return_value=[],
             ),
+            _last_turn_tier(None),
         ):
             from app.services.agent.params.converter import (
                 convert_to_general_agent_params,
@@ -194,7 +208,7 @@ class TestComplaintUpEscalation:
         base_request["action_mode"] = action_mode
         base_request["sibling_group_id"] = "sg-test-4"
         base_request["regenerate_instruction"] = "Use a more formal tone"
-        request = AgentRequest(**base_request)
+        request = AgentRequest.model_validate(base_request)
 
         mock_route = AsyncMock(return_value=_make_routing_result(RoutingTier.STANDARD))
 
@@ -208,6 +222,7 @@ class TestComplaintUpEscalation:
                 new_callable=AsyncMock,
                 return_value=["simple"],
             ),
+            _last_turn_tier("simple") as baseline_lookup,
         ):
             from app.services.agent.params.converter import (
                 convert_to_general_agent_params,
@@ -215,6 +230,7 @@ class TestComplaintUpEscalation:
 
             params, *_ = await convert_to_general_agent_params(request, [])
 
+        baseline_lookup.assert_not_awaited()
         call_kwargs = mock_route.call_args
         assert call_kwargs.kwargs.get("min_tier") is None
         assert "[Regeneration guidance: Use a more formal tone]" in (params.user_instructions or "")
@@ -227,7 +243,7 @@ class TestSmartRoutingLog:
     async def test_decision_log_carries_routing_latency(
         self, base_request: dict[str, object], caplog: pytest.LogCaptureFixture
     ) -> None:
-        request = AgentRequest(**base_request)
+        request = AgentRequest.model_validate(base_request)
         mock_route = AsyncMock(return_value=_make_routing_result(RoutingTier.STANDARD))
 
         with (

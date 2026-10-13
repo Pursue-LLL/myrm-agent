@@ -46,7 +46,7 @@ from .mention import (
 )
 from .models import AgentRequest
 from .resolvers import _resolve_model_config
-from .routing_memory import RecentRouting, complaint_floor, load_recent_routing, resolve_turn_routing
+from .routing_memory import RecentRouting, complaint_floor, load_recent_routing, load_retry_baseline, resolve_turn_routing
 from .upload_sync import (
     inject_uploaded_files_into_query,
     sync_uploaded_files_to_workspace,
@@ -392,7 +392,7 @@ async def convert_to_general_agent_params(
             retry_climbs = True
             if request.sibling_group_id and not request.regenerate_instruction:
                 complaint_min_tier, retry_climbs = complaint_floor(
-                    recent_routing.last_tier,
+                    await load_retry_baseline(request.chat_id),
                     standard=model_cfg,
                     light=light_model_cfg,
                     reasoning=reasoning_model_cfg,

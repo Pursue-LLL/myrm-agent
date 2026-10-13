@@ -29,12 +29,18 @@ async def _fake_resolve(selection: ModelSelection, providers: dict[str, object] 
 
 @asynccontextmanager
 async def _converter_env(history: list[str | None]) -> AsyncIterator[None]:
+    """*history* is the chat's answers in order, None for an answer that recorded no tier; the last one is retried."""
     with (
         patch("app.services.agent.params.converter._resolve_model_config", new=_fake_resolve),
         patch(
             "app.database.repositories.chat_repo.ChatRepository.get_recent_routing_tiers",
             new_callable=AsyncMock,
-            return_value=history,
+            return_value=[tier for tier in history if tier is not None],
+        ),
+        patch(
+            "app.database.repositories.chat_repo.ChatRepository.get_last_turn_routing_tier",
+            new_callable=AsyncMock,
+            return_value=history[-1] if history else None,
         ),
     ):
         yield

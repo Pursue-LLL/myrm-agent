@@ -1,23 +1,25 @@
 """Per-chat routing memory for the Smart Routing block of the parameter converter.
 
 [INPUT]
-- app.database.repositories.chat_repo::ChatRepository.get_recent_routing_tiers (POS: persisted `routingTier` history)
+- app.database.repositories.chat_repo::ChatRepository.get_recent_routing_tiers / get_last_turn_routing_tier
+  (POS: persisted `routingTier` history; the tier recorded by the latest user turn)
 - app.services.agent.params.models::AgentRequest / ModelSelection (POS: request DTO and key-free model choice)
 - myrm_agent_harness.toolkits.llms.routing::RoutingTier / TaskSpecialty (POS: complexity tiers and domain specialties)
 
 [OUTPUT]
 - RecentRouting / load_recent_routing(): recent routing history of a chat, split into the momentum inputs of the
-  complexity router (tiers) and the specialty router (specialties), plus the complexity tier of the latest answer
-- complaint_floor(): tier floor of a retry, climbing to the first rung that runs a different model config than the
-  answer being retried
+  complexity router (tiers) and the specialty router (specialties)
+- load_retry_baseline() / complaint_floor(): complexity tier of the answer turn a retry replaces, and the tier floor of
+  that retry, climbing to the first rung that runs a different model config than the answer being retried
 - remember_turn_routing() / resolve_turn_routing(): routing outcome of the latest user turn, reused when that turn
   is resumed after a human-in-the-loop interrupt
 
 [POS]
 Routing context that survives across requests of one chat. `routingTier` is persisted as either a complexity tier or a
-specialty slot hit, so history parsing partitions it by enum. The latest answer's own tier is the baseline a retry
-climbs from; an answer that records no complexity tier (fast mode, pinned model, deep research without escalation)
-ran the main model. Resume requests (tool approval, plan confirmation) carry
+specialty slot hit, so history parsing partitions it by enum. The tier recorded by the answer turn being retried is
+the baseline a retry climbs from; rows the system appended to that turn (background-job notices, auto-continue) are not
+answers and are skipped, and a turn that records no complexity tier (fast mode, pinned model, deep research without
+escalation) ran the main model. Resume requests (tool approval, plan confirmation) carry
 only the main model selection, so without this memory they would be re-routed and silently continue the interrupted
 turn on a different model with a cold prompt cache. The memory is process-local, like the in-process HITL timeout
 scheduler it complements; losing it (restart, LRU eviction) degrades to re-routing the resume request.
@@ -45,29 +47,24 @@ SelectionResolver = Callable[[ModelSelection, dict[str, object] | None], Awaitab
 
 @dataclass(frozen=True, slots=True)
 class RecentRouting:
-    """Routing history of a chat, oldest first.
-
-    *last_tier* is the complexity tier of the latest answer alone, None when that answer recorded none.
-    """
+    """Routing history of a chat, oldest first."""
 
     tiers: list[RoutingTier] = field(default_factory=list)
     specialties: list[TaskSpecialty] = field(default_factory=list)
-    last_tier: RoutingTier | None = None
 
 
-def split_recent_routing(values: Sequence[str | None]) -> RecentRouting:
-    """Partition persisted `routingTier` values (None = answer without a record) by the enum that recognises them.
+_TIER_BY_VALUE = {tier.value: tier for tier in RoutingTier}
+_SPECIALTY_BY_VALUE = {specialty.value: specialty for specialty in TaskSpecialty}
+
+
+def split_recent_routing(values: Sequence[str]) -> RecentRouting:
+    """Partition persisted `routingTier` values by the enum that recognises them.
 
     `reasoning` belongs to both enums; the turn was reasoning-class either way, so it feeds both histories.
     """
-    tier_by_value = {tier.value: tier for tier in RoutingTier}
-    specialty_by_value = {specialty.value: specialty for specialty in TaskSpecialty}
-    recorded = [value for value in values if value is not None]
-    latest = values[-1] if values else None
     return RecentRouting(
-        tiers=[tier_by_value[value] for value in recorded if value in tier_by_value],
-        specialties=[specialty_by_value[value] for value in recorded if value in specialty_by_value],
-        last_tier=tier_by_value.get(latest) if latest is not None else None,
+        tiers=[_TIER_BY_VALUE[value] for value in values if value in _TIER_BY_VALUE],
+        specialties=[_SPECIALTY_BY_VALUE[value] for value in values if value in _SPECIALTY_BY_VALUE],
     )
 
 
@@ -85,6 +82,26 @@ async def load_recent_routing(chat_id: str | None) -> RecentRouting:
         logger.warning("Failed to load recent routing history, routing without momentum: %s", exc)
         return RecentRouting()
     return split_recent_routing(values)
+
+
+async def load_retry_baseline(chat_id: str | None) -> RoutingTier | None:
+    """Complexity tier recorded by the answer turn a retry replaces.
+
+    None when that turn recorded no complexity tier (it ran the main model or a specialty slot) or when there is no
+    chat or the lookup fails; `complaint_floor` then climbs from the standard rung.
+    """
+    if not chat_id:
+        return None
+    try:
+        from app.database.connection import get_session
+        from app.database.repositories.chat_repo import ChatRepository
+
+        async with get_session() as db:
+            value = await ChatRepository.get_last_turn_routing_tier(db, chat_id)
+    except Exception as exc:
+        logger.warning("Failed to load the retry baseline, climbing from the main model: %s", exc)
+        return None
+    return _TIER_BY_VALUE.get(value) if value is not None else None
 
 
 _TIER_LADDER = (RoutingTier.SIMPLE, RoutingTier.STANDARD, RoutingTier.REASONING)

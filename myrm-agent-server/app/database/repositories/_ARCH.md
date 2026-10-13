@@ -9,7 +9,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|---|
-| `chat_repo.py` | 核心 | 提供 Chat 和 Message 实体 CRUD、compaction CAS 与 sibling group 持久化，并委托消息级 FTS5 检索。 | ✅ |
+| `chat_repo.py` | 核心 | 提供 Chat 和 Message 实体 CRUD、compaction CAS 与 sibling group 持久化、路由档位历史（动量窗口、被重试回合的档位），并委托消息级 FTS5 检索。 | ✅ |
 | `chat_message_search_repo.py` | 辅助 | 聊天消息全文检索仓储，封装消息级 FTS5 查询、active message 过滤与 Conversation Recall 排除策略。提供 `get_matching_chat_ids()` 供侧边栏 keyword 搜索接入 FTS。 | ✅ |
 | `fission_repo.py` | 核心 | FissionTaskRecord 数据访问层（高并发子代理任务拓扑持久化） | ✅ |
 | `channel_message_repo.py` | 核心 | 多渠道入站明细仓储（Channel Message Data Plane），提供原子写入、上下文按需拉取、知识学习候选集查询、30 天冷热生命周期滚动修剪以及当日配额调用计数（`get_daily_trigger_count`） | ✅ |
