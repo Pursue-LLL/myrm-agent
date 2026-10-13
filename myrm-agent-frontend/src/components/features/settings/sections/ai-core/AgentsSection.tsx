@@ -230,10 +230,10 @@ export default function AgentsSection() {
               variant="outline"
               className="gap-2"
               onClick={() => setBulkExportDialogOpen(true)}
-              title="批量导出智能体资产包"
+              title={t('agent.expertExport.bulk.entryTitle')}
             >
               <IconDownload className="w-[18px] h-[18px]" />
-              <span className="hidden sm:inline">批量导出</span>
+              <span className="hidden sm:inline">{t('agent.expertExport.bulk.entry')}</span>
             </Button>
             <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
               <IconUpload className="w-[18px] h-[18px]" />

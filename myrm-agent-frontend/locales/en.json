@@ -1631,6 +1631,25 @@
       },
       "roles": {
         "entry": "Entry agent",
+      "bulk": {
+        "title": "Bulk export and asset migration",
+        "selectDescription": "Choose the agents to migrate. The full dependency closure is calculated for you and packed as a standard plugin package.",
+        "reviewDescription": "Review the asset closure and the sensitive-information settings, then generate a standard Agent Plugins ZIP.",
+        "migrationHint": "Migration guide: the ZIP carries a migration manifest. On any new device or sandbox, open \"Settings → Agents → Import\" to restore everything losslessly.",
+        "exportReady": "The asset package is ready! To restore it on another device or a new instance, open \"Settings → Agents → Import\".",
+        "next": "Next: analyze dependencies ({count})",
+        "back": "Back",
+        "search": "Search agents...",
+        "selectAll": "Select all",
+        "clear": "Clear",
+        "selectedCount": "{selected} / {total} selected",
+        "bundleName": "Package name (optional, e.g. myrm-export-bundle)",
+        "empty": "No custom agents to export",
+        "subagents": "Includes {count} sub-agent(s)",
+        "noDescription": "No description",
+        "entry": "Bulk export",
+        "entryTitle": "Export several agents as one package"
+      },
         "sub": "Sub-agent"
       },
       "skill": {

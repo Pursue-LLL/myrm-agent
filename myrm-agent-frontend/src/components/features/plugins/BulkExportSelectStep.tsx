@@ -22,11 +22,7 @@
 import { memo, useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
-import {
-  IconAlertTriangle,
-  IconCheck,
-  IconSearch,
-} from '@/components/features/icons/PremiumIcons';
+import { IconAlertTriangle, IconCheck, IconSearch } from '@/components/features/icons/PremiumIcons';
 import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/alert';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
@@ -82,7 +78,7 @@ const BulkExportSelectStep = memo(
           <div className="relative flex-1">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜索智能体..."
+              placeholder={t('bulk.search')}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-9 h-9"
@@ -90,20 +86,20 @@ const BulkExportSelectStep = memo(
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={onSelectAll}>
-              全选
+              {t('bulk.selectAll')}
             </Button>
             <Button variant="ghost" size="sm" onClick={onClearAll}>
-              清空
+              {t('bulk.clear')}
             </Button>
             <Badge variant="secondary" className="font-mono">
-              已选 {selectedIds.length} / {customAgents.length}
+              {t('bulk.selectedCount', { selected: selectedIds.length, total: customAgents.length })}
             </Badge>
           </div>
         </div>
 
         <div>
           <Input
-            placeholder="包标识名称（可选，如 myrm-export-bundle）"
+            placeholder={t('bulk.bundleName')}
             value={bundleName}
             onChange={(e) => onBundleNameChange(e.target.value)}
             className="h-9"
@@ -112,7 +108,7 @@ const BulkExportSelectStep = memo(
 
         <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border divide-y max-h-[42vh]">
           {filteredAgents.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">暂无可导出的自定义智能体</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">{t('bulk.empty')}</div>
           ) : (
             filteredAgents.map((agent) => {
               const isSelected = selectedIds.includes(agent.id);
@@ -141,12 +137,12 @@ const BulkExportSelectStep = memo(
                           variant="outline"
                           className="text-[10px] px-1.5 py-0 font-normal shrink-0 text-muted-foreground border-border/60"
                         >
-                          含 {agent.subagent_ids.length} 个子智能体
+                          {t('bulk.subagents', { count: agent.subagent_ids.length })}
                         </Badge>
                       )}
                     </div>
                     <span className="text-xs text-muted-foreground line-clamp-1">
-                      {getBuiltinAgentDescription(agent.id, agent.description || '', locale) || '无描述'}
+                      {getBuiltinAgentDescription(agent.id, agent.description || '', locale) || t('bulk.noDescription')}
                     </span>
                   </div>
                   <div

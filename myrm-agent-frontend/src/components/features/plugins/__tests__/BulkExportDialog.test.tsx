@@ -14,10 +14,27 @@ const { toastMock, previewMock, downloadMock, triggerDownloadMock } = vi.hoisted
   triggerDownloadMock: vi.fn(),
 }));
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => Object.assign((key: string) => key, { has: () => true }),
-  useLocale: () => 'zh',
-}));
+// Resolve against the real en catalog so a missing or misnamed key fails here instead of rendering as a raw key.
+vi.mock('next-intl', async () => {
+  const { default: en } = await import('../../../../../locales/en.json');
+  const resolve = (namespace: string | undefined, key: string): string | undefined => {
+    const path = [...(namespace ? namespace.split('.') : []), ...key.split('.')];
+    const hit = path.reduce<unknown>(
+      (node, part) => (node && typeof node === 'object' ? (node as Record<string, unknown>)[part] : undefined),
+      en,
+    );
+    return typeof hit === 'string' ? hit : undefined;
+  };
+  return {
+    useTranslations: (namespace?: string) =>
+      Object.assign(
+        (key: string, values: Record<string, string | number> = {}) =>
+          (resolve(namespace, key) ?? key).replace(/\{(\w+)\}/g, (_, name: string) => String(values[name] ?? '')),
+        { has: (key: string) => resolve(namespace, key) !== undefined },
+      ),
+    useLocale: () => 'en',
+  };
+});
 
 vi.mock('@/hooks/shared/useToast', () => ({ toast: toastMock }));
 
@@ -112,22 +129,22 @@ describe('BulkExportDialog', () => {
     render(<BulkExportDialog open={true} onOpenChange={vi.fn()} agents={AGENTS} />);
 
     expect(screen.getByText('Custom Agent 1')).toBeDefined();
-    expect(screen.getByText('含 2 个子智能体')).toBeDefined();
+    expect(screen.getByText('Includes 2 sub-agent(s)')).toBeDefined();
     expect(screen.getByText('Custom Agent 2')).toBeDefined();
     expect(screen.queryByText('Builtin Lead')).toBeNull();
-    expect(screen.getByText('已选 2 / 2')).toBeDefined();
+    expect(screen.getByText('2 / 2 selected')).toBeDefined();
   });
 
   it('allows unselecting and re-selecting agents', () => {
     render(<BulkExportDialog open={true} onOpenChange={vi.fn()} agents={AGENTS} />);
 
-    const clearBtn = screen.getByText('清空');
+    const clearBtn = screen.getByText('Clear');
     fireEvent.click(clearBtn);
-    expect(screen.getByText('已选 0 / 2')).toBeDefined();
+    expect(screen.getByText('0 / 2 selected')).toBeDefined();
 
-    const selectAllBtn = screen.getByText('全选');
+    const selectAllBtn = screen.getByText('Select all');
     fireEvent.click(selectAllBtn);
-    expect(screen.getByText('已选 2 / 2')).toBeDefined();
+    expect(screen.getByText('2 / 2 selected')).toBeDefined();
   });
 
   it('triggers preview and navigates to preview step on next button click', async () => {
@@ -135,7 +152,7 @@ describe('BulkExportDialog', () => {
 
     render(<BulkExportDialog open={true} onOpenChange={vi.fn()} agents={AGENTS} />);
 
-    const nextBtn = screen.getByText(/下一步：分析依赖闭包/);
+    const nextBtn = screen.getByText(/Next: analyze dependencies/);
     fireEvent.click(nextBtn);
 
     await waitFor(() => {
@@ -147,7 +164,7 @@ describe('BulkExportDialog', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/multi-agents-bundle · v1.0.0/)).toBeDefined();
-      expect(screen.getByText('上一步')).toBeDefined();
+      expect(screen.getByText('Back')).toBeDefined();
     });
   });
 
@@ -160,15 +177,15 @@ describe('BulkExportDialog', () => {
     render(<BulkExportDialog open={true} onOpenChange={onOpenChange} agents={AGENTS} />);
 
     // 点击下一步进入预览
-    fireEvent.click(screen.getByText(/下一步：分析依赖闭包/));
+    fireEvent.click(screen.getByText(/Next: analyze dependencies/));
 
     await waitFor(() => {
-      expect(screen.getByText('actions.export')).toBeDefined();
-      expect(screen.getByText(/迁移指引：导出的 ZIP 压缩包内置迁移自省清单/)).toBeDefined();
+      expect(screen.getByText('Export')).toBeDefined();
+      expect(screen.getByText(/Migration guide: the ZIP carries a migration manifest/)).toBeDefined();
     });
 
     // 点击导出
-    fireEvent.click(screen.getByText('actions.export'));
+    fireEvent.click(screen.getByText('Export'));
 
     await waitFor(() => {
       expect(downloadMock).toHaveBeenCalledWith({
@@ -181,8 +198,8 @@ describe('BulkExportDialog', () => {
       expect(triggerDownloadMock).toHaveBeenCalledWith(fakeBlob, 'multi-agents-bundle_v1.0.0.zip');
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: 'exportSuccess',
-          description: expect.stringContaining('设置 → 智能体 → 导入'),
+          title: 'Agent package exported successfully',
+          description: expect.stringContaining('Settings → Agents → Import'),
         }),
       );
       expect(onOpenChange).toHaveBeenCalledWith(false);

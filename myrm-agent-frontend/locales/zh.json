@@ -1631,6 +1631,25 @@
       },
       "roles": {
         "entry": "主智能体",
+      "bulk": {
+        "title": "批量导出与资产迁移",
+        "selectDescription": "选择要打包迁移的智能体，系统将自动计算完整依赖闭包并生成标准插件包。",
+        "reviewDescription": "复核资产闭包与敏感词脱敏设置，一键生成标准 Agent Plugins ZIP 包。",
+        "migrationHint": "迁移指引：导出的 ZIP 压缩包内置迁移自省清单，在任意新设备或沙箱中打开「设置 → 智能体 → 导入」即可秒级无损还原。",
+        "exportReady": "资产包已就绪！如需在其他设备或新实例中恢复，请前往「设置 → 智能体 → 导入」一键无损还原。",
+        "next": "下一步：分析依赖闭包 ({count})",
+        "back": "上一步",
+        "search": "搜索智能体...",
+        "selectAll": "全选",
+        "clear": "清空",
+        "selectedCount": "已选 {selected} / {total}",
+        "bundleName": "包标识名称（可选，如 myrm-export-bundle）",
+        "empty": "暂无可导出的自定义智能体",
+        "subagents": "含 {count} 个子智能体",
+        "noDescription": "无描述",
+        "entry": "批量导出",
+        "entryTitle": "批量导出智能体资产包"
+      },
         "sub": "子智能体"
       },
       "skill": {

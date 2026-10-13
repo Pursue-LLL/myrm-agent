@@ -21,8 +21,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
 | `support/export_world.py` | 辅助 | 专家导出测试的假安装：`ExportWorld`（专家、技能目录与文件、连接器）+ `installed()` 上下文把导出闭包指向它；`SKILL_MD` 最小合法技能；`services/plugins` 与 `api/plugins` 导出测试共用 |
-| `support/redaction_review_e2e.py` | 辅助 | 导出脱敏复核 Chrome E2E 的浏览器侧：`ReviewFlow`（对话框标题、进入方式、成功提示措辞）+ `run_review_flow`（zh 与 en 各读一遍发现项的本地化句子且无原始代码、`kinds.` 键名与另一语言句子，再点“导出脱敏版”走真实下载并以对话框关闭为判据，结束恢复 `NEXT_LOCALE`）；专家导出与单技能导出两个 E2E 共用 |
+| `support/redaction_review_e2e.py` | 辅助 | 导出脱敏复核 Chrome E2E 的浏览器侧：`ReviewFlow`（对话框标题、进入方式、成功提示措辞）+ `run_review_flow`（zh 与 en 各读一遍发现项的本地化句子且无原始代码、`kinds.` 键名与另一语言句子，再点“导出脱敏版”走真实下载并以对话框关闭为判据，结束恢复 `NEXT_LOCALE`）；专家导出、批量导出与单技能导出三个 E2E 共用（`advance_js` 让打开在选择步骤的向导前进到复核步骤） |
 | `e2e/test_expert_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：`/settings/agents` 带密钥与本机路径的智能体，预览 API 返回 `api_token`/`absolute_path` 代码，导出对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框 |
+| `e2e/test_bulk_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：`/settings/agents` 点“批量导出”→下一步，带密钥与本机路径的智能体，批量预览 API 返回 `api_token`/`absolute_path` 代码，向导自身按钮/标题与复核面板在 zh/en 均本地化，点导出脱敏版后下载并关闭对话框 |
 | `e2e/test_skill_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：经 `.zip` 上传装一个带密钥与本机路径的技能，`/settings/skills` 已安装列表搜索 → 详情抽屉 → 导出，对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框；结束卸载该技能 |
 | `support/test_chrome_bridge_diagnostics.py` | 单元 | `wait_for_react_e2e_bridge` 超时诊断：快照辅助返回页面 readyState/脚本加载/未捕获错误，自身异常不覆盖原始超时，超时信息携带 `diagnostics=` 以区分「未 hydrate」与「脚本未加载完」 |
 | `e2e/test_telemetry_posture_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Developer 设置页面 OpenTelemetry Posture 遥测态势卡片、协议/端点/特性渲染与刷新端到端测试 |

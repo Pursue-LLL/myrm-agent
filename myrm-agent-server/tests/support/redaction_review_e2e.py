@@ -5,12 +5,12 @@
 
 [OUTPUT]
 - LEAKY_TEXT / TOKEN / API_TOKEN / ABSOLUTE_PATH: a text carrying one key and one local path, and the wording its findings get
-- ReviewFlow: what differs between export dialogs (title, how a user reaches it, button and toast wording)
+- ReviewFlow: what differs between export dialogs (title, how a user reaches it and its review step, button and toast wording)
 - run_review_flow(): per locale, read the localized finding kinds in the dialog, then press the redacted export
 - DISMISS_MIGRATION_JS: stops the migration banner from covering the page
 
 [POS]
-Shared by the expert-export and skill-export Chrome E2Es. Both dialogs render the same ``RedactionReview``, so
+Shared by the expert-export, bulk-export and skill-export Chrome E2Es. All three dialogs render the same ``RedactionReview``, so
 the reading of the panel lives here once; only the way into each dialog differs. The locale is switched through the
 ``NEXT_LOCALE`` cookie exactly as the language picker does, and restored afterwards so the shared E2E browser
 profile is left as it was found.
@@ -61,6 +61,8 @@ class ReviewFlow:
     entry_ready_js: Callable[[str], str]  # locale -> expression whose ``ready`` says the entry point is rendered
     open_js: str  # JS statements that click one step towards the dialog; run while it is absent (idempotent)
     exported_toast: Mapping[str, str]  # locale -> the success sentence shown after the export
+    # JS statements moving an open dialog towards its review step (idempotent); empty if it opens on the review.
+    advance_js: str = ""
 
 
 def _switch_locale(client: ChromeMcpClient, page: McpPage, value: str | None) -> None:
@@ -87,9 +89,13 @@ def _review_state_js(flow: ReviewFlow, *, expect: tuple[str, ...], leaked: tuple
   const text = dialog.textContent || '';
   const missing = {json.dumps(list(expect))}.filter((needle) => !text.includes(needle));
   const present = {json.dumps(list(leaked))}.filter((needle) => text.includes(needle));
+  // The review lists each finding's original line, so the seeded token marks a rendered panel.
+  const ready = text.includes({json.dumps(TOKEN)});
+  if (!ready) {{
+    {flow.advance_js}
+  }}
   return {{
-    // The review lists each finding's original line, so the seeded token marks a rendered panel.
-    ready: text.includes({json.dumps(TOKEN)}),
+    ready,
     missing,
     leaked: present,
     text: text.slice(0, 1800),

@@ -1631,6 +1631,25 @@
       },
       "roles": {
         "entry": "메인 에이전트",
+      "bulk": {
+        "title": "일괄 내보내기 및 자산 이전",
+        "selectDescription": "이전할 에이전트를 선택하세요. 전체 의존성이 자동으로 계산되어 표준 플러그인 패키지로 만들어집니다.",
+        "reviewDescription": "자산 의존성과 민감 정보 마스킹 설정을 검토한 뒤 표준 Agent Plugins ZIP을 생성합니다.",
+        "migrationHint": "이전 안내: ZIP에는 이전용 매니페스트가 들어 있습니다. 새 기기나 샌드박스에서 \"설정 → 에이전트 → 가져오기\"를 열면 그대로 복원할 수 있습니다.",
+        "exportReady": "자산 패키지가 준비되었습니다. 다른 기기나 새 인스턴스에서 복원하려면 \"설정 → 에이전트 → 가져오기\"를 열어 주세요.",
+        "next": "다음: 의존성 분석 ({count})",
+        "back": "이전",
+        "search": "에이전트 검색...",
+        "selectAll": "전체 선택",
+        "clear": "선택 해제",
+        "selectedCount": "{selected} / {total}개 선택됨",
+        "bundleName": "패키지 이름 (선택, 예: myrm-export-bundle)",
+        "empty": "내보낼 수 있는 사용자 지정 에이전트가 없습니다",
+        "subagents": "하위 에이전트 {count}개 포함",
+        "noDescription": "설명 없음",
+        "entry": "일괄 내보내기",
+        "entryTitle": "여러 에이전트를 하나의 패키지로 내보내기"
+      },
         "sub": "서브 에이전트"
       },
       "skill": {

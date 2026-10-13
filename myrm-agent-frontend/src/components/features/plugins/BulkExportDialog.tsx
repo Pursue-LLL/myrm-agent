@@ -170,7 +170,7 @@ const BulkExportDialog = memo(({ open, onOpenChange, agents }: BulkExportDialogP
         await triggerDownload(blob, filename || `${preview.plugin_name}_v${preview.version}.zip`);
         toast({
           title: t('exportSuccess'),
-          description: '资产包已就绪！如需在其他设备或新实例中恢复，请前往「设置 → 智能体 → 导入」一键无损还原。',
+          description: t('bulk.exportReady'),
         });
         onOpenChange(false);
       } catch (error) {
@@ -197,12 +197,10 @@ const BulkExportDialog = memo(({ open, onOpenChange, agents }: BulkExportDialogP
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5 text-primary" />
-            <span>批量导出与资产迁移</span>
+            <span>{t('bulk.title')}</span>
           </DialogTitle>
           <DialogDescription>
-            {step === 'select'
-              ? '选择要打包迁移的智能体，系统将自动计算完整依赖闭包并生成标准插件包。'
-              : '复核资产闭包与敏感词脱敏设置，一键生成标准 Agent Plugins ZIP 包。'}
+            {step === 'select' ? t('bulk.selectDescription') : t('bulk.reviewDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -277,9 +275,7 @@ const BulkExportDialog = memo(({ open, onOpenChange, agents }: BulkExportDialogP
 
                   <div className="rounded-md border border-border/60 bg-muted/40 p-2.5 text-xs text-muted-foreground flex items-center gap-2">
                     <IconCheckCircle className="h-4 w-4 text-primary shrink-0" />
-                    <span>
-                      迁移指引：导出的 ZIP 压缩包内置迁移自省清单，在任意新设备或沙箱中打开「设置 → 智能体 → 导入」即可秒级无损还原。
-                    </span>
+                    <span>{t('bulk.migrationHint')}</span>
                   </div>
                 </>
               )}
@@ -299,14 +295,14 @@ const BulkExportDialog = memo(({ open, onOpenChange, agents }: BulkExportDialogP
                 ) : (
                   <IconArrowRight className="mr-2 h-4 w-4" />
                 )}
-                下一步：分析依赖闭包 ({selectedIds.length})
+                {t('bulk.next', { count: selectedIds.length })}
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" onClick={() => setStep('select')} disabled={isExporting}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                上一步
+                {t('bulk.back')}
               </Button>
               {buildable && hasFindings && (
                 <Button

@@ -1631,6 +1631,25 @@
       },
       "roles": {
         "entry": "Hauptagent",
+      "bulk": {
+        "title": "Sammelexport und Asset-Migration",
+        "selectDescription": "Wähle die Agenten für die Migration. Alle Abhängigkeiten werden automatisch berechnet und als Standard-Plugin-Paket gebündelt.",
+        "reviewDescription": "Prüfe die Abhängigkeiten und die Einstellungen zur Schwärzung sensibler Daten und erzeuge dann ein Standard-Agent-Plugins-ZIP.",
+        "migrationHint": "Migrationshinweis: Das ZIP enthält ein Migrationsmanifest. Öffne auf einem neuen Gerät oder in einer neuen Sandbox „Einstellungen → Agenten → Import“, um alles verlustfrei wiederherzustellen.",
+        "exportReady": "Das Asset-Paket ist bereit! Um es auf einem anderen Gerät oder in einer neuen Instanz wiederherzustellen, öffne „Einstellungen → Agenten → Import“.",
+        "next": "Weiter: Abhängigkeiten analysieren ({count})",
+        "back": "Zurück",
+        "search": "Agenten suchen...",
+        "selectAll": "Alle auswählen",
+        "clear": "Leeren",
+        "selectedCount": "{selected} / {total} ausgewählt",
+        "bundleName": "Paketname (optional, z. B. myrm-export-bundle)",
+        "empty": "Keine eigenen Agenten zum Exportieren",
+        "subagents": "Enthält {count} Unter-Agent(en)",
+        "noDescription": "Keine Beschreibung",
+        "entry": "Sammelexport",
+        "entryTitle": "Mehrere Agenten als ein Paket exportieren"
+      },
         "sub": "Unteragent"
       },
       "skill": {
