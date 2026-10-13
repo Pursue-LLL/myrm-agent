@@ -1,7 +1,7 @@
 """Skill backend factory (business layer).
 
 [INPUT]
-myrm_agent_harness.api.protocols::SkillBackend (POS: public protocol definitions for framework extension points)
+myrm_agent_harness.api::SkillBackend (POS: public API surface of the harness)
 myrm_agent_harness.backends.skills::CompositeSkillBackend (POS: route-prefixed composition of skill backends)
 myrm_agent_harness.backends.skills::InMemorySkillBackend (POS: in-memory skill metadata without persistence)
 myrm_agent_harness.backends.skills::LocalSkillBackend (POS: skills loaded from local paths per the Claude Skills spec)
@@ -34,7 +34,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-from myrm_agent_harness.api.protocols import SkillBackend
+from myrm_agent_harness.api import SkillBackend
 from myrm_agent_harness.backends.skills import (
     CompositeSkillBackend,
     InMemorySkillBackend,
