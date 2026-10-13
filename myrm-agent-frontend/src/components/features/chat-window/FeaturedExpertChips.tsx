@@ -144,7 +144,10 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({ className
   }
 
   return (
-    <div className={cn('w-full flex flex-col items-center gap-2.5 my-1 animate-in fade-in duration-300', className)}>
+    <div
+      data-testid="empty-chat-featured-chips"
+      className={cn('w-full flex flex-col items-center gap-2.5 my-1 animate-in fade-in duration-300', className)}
+    >
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
         <Sparkles className="w-3.5 h-3.5 text-primary/70" />
         <span>{t('featuredTitle')}</span>
