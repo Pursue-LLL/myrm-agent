@@ -20510,7 +20510,11 @@
           "timeout": "Time-out",
           "onExpiry": "Bei Ablauf",
           "autoReject": "Entwurf verwerfen",
-          "autoSend": "Automatisch senden"
+          "autoSend": "Automatisch senden",
+          "timeoutMinutes": "{minutes} Min.",
+          "timeoutHour": "1 Std.",
+          "noNotifyChannel": "Es ist keine Benachrichtigungszustellung eingerichtet. Eine Antwort, die auf Prüfung wartet, meldet sich nur in dieser App und kann unbemerkt ablaufen, wenn gerade niemand hinsieht.",
+          "noNotifyChannelLink": "In den Einstellungen einrichten"
         },
         "identity": {
           "label": "Team-Identität",

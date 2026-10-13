@@ -20510,7 +20510,11 @@
           "timeout": "タイムアウト時間",
           "onExpiry": "タイムアウトポリシー",
           "autoReject": "自動破棄",
-          "autoSend": "自動送信"
+          "autoSend": "自動送信",
+          "timeoutMinutes": "{minutes} 分",
+          "timeoutHour": "1 時間",
+          "noNotifyChannel": "通知配信が設定されていないため、レビュー待ちの返信はこのアプリ内でのみ通知され、不在の間に確認されないまま期限切れになる可能性があります。",
+          "noNotifyChannelLink": "環境設定を開く"
         },
         "identity": {
           "label": "チームアイデンティティ",

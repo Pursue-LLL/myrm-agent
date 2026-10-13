@@ -20510,7 +20510,11 @@
           "timeout": "超時時間",
           "onExpiry": "超時策略",
           "autoReject": "自動丟棄",
-          "autoSend": "自動傳送"
+          "autoSend": "自動傳送",
+          "timeoutMinutes": "{minutes} 分鐘",
+          "timeoutHour": "1 小時",
+          "noNotifyChannel": "尚未設定通知投遞，待審核的回覆只會在本應用內提醒你，你不在時可能無人查看就已過期。",
+          "noNotifyChannelLink": "前往偏好設定"
         },
         "identity": {
           "label": "團隊身份",
