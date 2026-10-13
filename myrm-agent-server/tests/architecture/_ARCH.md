@@ -39,6 +39,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_unit_test_layout.py` | 禁止 `tests/unit/**/api/`（与 `tests/api/` importlib 包名冲突） |
 | `test_integrations_hardware_routes.py` | `/api/v1/integrations/hardware/*` 路由已注册（防 prefix 回归） |
 | `test_frontend_api_client_paths.py` | 前端 `src/**` 的 apiRequest/apiClient 字面量调用必须命中真实路由（路径+方法，含 `/webui`），重复 `/api` 前缀等同缺失路由；已知缺失路由显式登记 |
+| `test_memory_route_callers.py` | `/memory/**` 每个路由都要有调用方：前端非测试源码里有路径字面量（任意调用形式，按路径而非方法匹配），或登记在 `_EXTERNAL_CONSUMERS`（控制平面、公开文档探针、待 owner 决策）；登记项已删除或已有前端调用时失败 |
 | `test_openapi_operation_ids.py` | 全量公开 API 的 OpenAPI operationId 必须唯一：同一 (method, path) 重复注册（后者被静默遮蔽）或单个 `api_route` 挂多个 method 都会失败，一个路径只允许一个 handler |
 | `test_api_services_vocabulary.py` | `app/api/` 与 `app/services/` 顶域分区 + 别名表与 `CONTRIBUTING.md` 同步 |
 | `test_calendar_schema_retired.py` | 磁盘无 calendar ORM/API；`migrations.py` 尾部 DROP calendar_events 表/索引 |

@@ -5,7 +5,7 @@ tests/architecture/test_frontend_api_client_paths.py
 
 [INPUT]
 - tests.support.public_api_app: full OpenAPI path + method table (api_router + webui router)
-- myrm-agent-frontend/src/**/*.ts(x): apiRequest / apiClient call sites with literal paths
+- tests.support.frontend_api_paths: frontend sources + path normalization (apiRequest / apiClient call sites with literal paths)
 
 [OUTPUT]
 - Fails when a client reintroduces the double `/api` prefix or targets a missing route or method.
@@ -14,60 +14,37 @@ tests/architecture/test_frontend_api_client_paths.py
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 
+from tests.support.frontend_api_paths import FRONTEND_SRC, PATH_CHARS, frontend_sources, normalize_path
 from tests.support.public_api_app import API_PREFIX, public_api_openapi
 
-_FRONTEND_SRC = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "src"
-_WEBUI_PREFIX = "/webui"
-_SKIP_WITHOUT_FRONTEND = pytest.mark.skipif(not _FRONTEND_SRC.is_dir(), reason="frontend sources are not part of this checkout")
+_SKIP_WITHOUT_FRONTEND = pytest.mark.skipif(not FRONTEND_SRC.is_dir(), reason="frontend sources are not part of this checkout")
 
 # Client calls whose server route does not exist yet; each entry must disappear once the route lands.
 _KNOWN_MISSING_ROUTES: frozenset[tuple[str, str]] = frozenset()
 
-# Template expressions holding a query string rather than a path segment.
-_QUERY_EXPRESSIONS = frozenset({"q", "qs", "qStr", "params", "query", "queryStr", "queryString"})
-
-_PATH_CHARS = r"(?:\$\{[^}`]*\}|[^'\"`?\s$])*"
 _CALL_RE = re.compile(
     r"(?:apiRequest|apiClient\.(?P<verb>get|post|put|delete|patch))"
-    r"\s*(?:<[^>(]*>)?\(\s*(?P<quote>['\"`])(?P<path>/" + _PATH_CHARS + r")"
+    r"\s*(?:<[^>(]*>)?\(\s*(?P<quote>['\"`])(?P<path>/" + PATH_CHARS + r")"
     r"(?P<rest>[^;]{0,220})",
     re.DOTALL,
 )
 _METHOD_RE = re.compile(r"method:\s*'(?P<method>\w+)'")
-_TEMPLATE_RE = re.compile(r"\$\{(?P<expr>[^}`]*)\}")
-_PATH_CONST_RE = re.compile(r"const\s+(?P<name>\w+)\s*=\s*'(?P<value>/[^'\s]*)'")
 _VERBS = frozenset({"get", "post", "put", "delete", "patch"})
-
-
-def _normalize(raw_path: str) -> str:
-    """Collapse path parameters to `{}` and drop query-string templates."""
-    without_query = _TEMPLATE_RE.sub(lambda m: "" if m.group("expr").strip() in _QUERY_EXPRESSIONS else m.group(0), raw_path)
-    return _TEMPLATE_RE.sub("{}", without_query).rstrip("/")
-
-
-def _source_with_path_constants(text: str) -> str:
-    for constant in _PATH_CONST_RE.finditer(text):
-        text = text.replace("${" + constant.group("name") + "}", constant.group("value"))
-    return text
 
 
 def _client_calls() -> list[tuple[str, str, str]]:
     calls: list[tuple[str, str, str]] = []
-    for source in sorted([*_FRONTEND_SRC.rglob("*.ts"), *_FRONTEND_SRC.rglob("*.tsx")]):
-        if "__tests__" in source.parts or ".test." in source.name:
-            continue
-        text = _source_with_path_constants(source.read_text(encoding="utf-8"))
+    for name, text in frontend_sources():
         for match in _CALL_RE.finditer(text):
             if match.group("verb"):
                 method = match.group("verb").upper()
             else:
                 declared = _METHOD_RE.search(match.group("rest"))
                 method = declared.group("method").upper() if declared else "GET"
-            calls.append((str(source.relative_to(_FRONTEND_SRC)), method, _normalize(match.group("path"))))
+            calls.append((name, method, normalize_path(match.group("path"))))
     return calls
 
 

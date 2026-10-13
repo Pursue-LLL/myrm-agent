@@ -21,6 +21,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
 | `support/public_api_app.py` | 辅助 | `public_api_openapi()`：全量公开 API 的 OpenAPI 路径表，并带回生成期间捕获的 `Duplicate Operation ID` 警告（进程内只生成一次，`tests/architecture` 路由类测试共用；不 import `app.main`） |
+| `support/frontend_api_paths.py` | 辅助 | `frontend_sources()` / `normalize_path()`：前端非测试源码（路径常量已内联）与路径归一化，「前端调用必须命中路由」与「记忆路由必须有前端调用」两类架构测试共用 |
 | `support/chat_db_fixtures.py` | 辅助 | 内存库夹具插件（经根 `conftest.py` 的 `pytest_plugins` 全局注册，不是 conftest：既是 conftest 又列在 `pytest_plugins` 会被注册两次，指向其目录的运行直接中止）：`db_session`（建全部表并把 `get_session_factory` 绑到它）、`fts_db`（再建 `messages_fts` trigram 虚拟表、三个同步触发器与会话回忆表）；聊天持久化与搜索类测试显式请求 |
 | `support/artifact_upsert_fixture.py` | 辅助 | 制品 upsert 自动 mock 插件（autouse，`pytest_plugins` 全局注册）：把 `app.core.artifacts.listener.upsert_processor_artifact` 换成 `AsyncMock`；`core/artifacts` 与 `api/artifacts` 测试共用，对不碰制品管线的测试无副作用 |
 | `support/export_world.py` | 辅助 | 专家导出测试的假安装：`ExportWorld`（专家、技能目录与文件、连接器）+ `installed()` 上下文把导出闭包指向它；`SKILL_MD` 最小合法技能；`services/plugins` 与 `api/plugins` 导出测试共用 |
