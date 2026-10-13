@@ -299,7 +299,7 @@ class TestInjectProviderOAuthTokens:
         ],
     )
     def test_retired_subscription_issuers_are_never_injected(self, issuer: str, provider_id: str) -> None:
-        """Leftover credentials of the removed Claude / ChatGPT / Copilot logins must not become API keys."""
+        """Tokens stored under retired provider issuers (Claude / ChatGPT / Copilot) are never injected as API keys."""
         from app.core.channel_bridge.config_loader import _inject_provider_oauth_tokens
 
         providers_dict: dict[str, object] = {"providers": [{"id": provider_id, "isEnabled": True, "apiKeys": []}]}

@@ -1,16 +1,15 @@
-"""Purge credentials left behind by the retired in-process subscription logins.
+"""Purge oauthCredentials entries of provider issuers the server does not support.
 
 [INPUT]
 - app.services.integrations.oauth_store (POS: oauthCredentials blob read/write under the shared row lock)
 
 [OUTPUT]
-- RETIRED_PROVIDER_ISSUERS: oauthCredentials issuers written by the removed Claude / ChatGPT / GitHub Copilot logins
+- RETIRED_PROVIDER_ISSUERS: subscription issuers without a login, refresh or disconnect path (Claude, ChatGPT, GitHub Copilot)
 - purge_retired_provider_credentials: drop those issuers from the stored blob
 
 [POS]
-Startup data hygiene. Nothing reads or refreshes these issuers any more, so the
-stored OAuth tokens would otherwise stay encrypted-at-rest forever with no way to
-disconnect them from the UI.
+Startup data hygiene. A token stored under a retired issuer is never read, refreshed or
+disconnectable from the UI, so it would stay encrypted at rest indefinitely.
 """
 
 from __future__ import annotations

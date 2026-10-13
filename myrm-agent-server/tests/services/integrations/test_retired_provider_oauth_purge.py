@@ -1,4 +1,4 @@
-"""Real-database tests for purging credentials of the retired subscription logins.
+"""Real-database tests for purging oauthCredentials entries of retired provider issuers.
 
 No mocks on oauth_store: rows are written through ``upsert_oauth_credential`` and
 read back through ``decrypt_oauth_credentials`` so the real encrypt/decrypt path
