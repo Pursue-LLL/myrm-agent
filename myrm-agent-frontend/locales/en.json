@@ -14829,9 +14829,6 @@
         "probeRecommendedModeVerifyLocalNetworkAndEditor": "Check local network reachability and editor MCP settings, then run the connectivity check again.",
         "probeRecommendedActionSwitchMode": "Close and switch mode",
         "probeRecommendedActionRetryProbe": "Retry and connect",
-        "oauthDescription": "You will be redirected to the provider to authorize access.",
-        "oauthTitle": "Connect to {name}",
-        "waitingAuth": "Waiting for authorization...",
         "learnMore": "Learn more"
       }
     },

@@ -21,7 +21,6 @@ import { shouldBlockLocalOnlyInSandbox } from './deploymentGuard';
 import { AuthSection } from './connect-dialog/AuthSection';
 import { ProbeDiagnostics } from './connect-dialog/ProbeDiagnostics';
 import { resolveProbeUrl } from './connect-dialog/probe';
-import { useCatalogOAuth } from './connect-dialog/useCatalogOAuth';
 import { useCatalogSecurityGate } from './connect-dialog/useCatalogSecurityGate';
 import { useConnectivityProbe } from './connect-dialog/useConnectivityProbe';
 
@@ -67,7 +66,6 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         setMCPConfigs,
         onConnected,
       });
-    const { oauthPolling, startOAuthConnect } = useCatalogOAuth({ entry, runCatalogSecurityGate });
 
     const handleFieldChange = useCallback((key: string, value: string) => {
       setFieldValues((prev) => ({ ...prev, [key]: value }));
@@ -75,11 +73,6 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
 
     const handleConnect = useCallback(
       async (options?: { skipProbe?: boolean }) => {
-        if (entry.authType === 'oauth2') {
-          await startOAuthConnect();
-          return;
-        }
-
         if (entry.authType !== 'none') {
           if (hasMultiFields) {
             const empty = credentialFields.find((f) => !fieldValues[f.key]?.trim());
@@ -184,7 +177,6 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         runProbe,
         reportLocalOnlyBlocked,
         runCatalogSecurityGate,
-        startOAuthConnect,
         credentialFields,
       ],
     );
@@ -225,7 +217,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
                 probeStatus={probeStatus}
                 probeError={probeError}
                 probeRecommendedMode={probeRecommendedMode}
-                actionDisabled={connecting || oauthPolling}
+                actionDisabled={connecting}
                 onRecommendedAction={handleProbeRecommendedAction}
               />
 
@@ -245,12 +237,8 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
               <Button variant="outline" onClick={onClose}>
                 {t('cancel')}
               </Button>
-              <Button onClick={() => void handleConnect()} disabled={connecting || oauthPolling}>
-                {oauthPolling
-                  ? t('waitingAuth', { default: 'Waiting for authorization...' })
-                  : connecting
-                    ? t('connecting')
-                    : t('connect')}
+              <Button onClick={() => void handleConnect()} disabled={connecting}>
+                {connecting ? t('connecting') : t('connect')}
               </Button>
             </DialogFooter>
           </DialogContent>

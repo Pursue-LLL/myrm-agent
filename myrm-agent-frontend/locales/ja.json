@@ -14164,9 +14164,6 @@
         "probeRecommendedModeVerifyLocalNetworkAndEditor": "ローカルネットワークの到達可能性とエディタMCP設定を確認し、接続チェックを再度実行してください。",
         "probeRecommendedActionSwitchMode": "閉じてモードを切り替え",
         "probeRecommendedActionRetryProbe": "再試行して接続",
-        "oauthDescription": "アクセスを承認するため、プロバイダーにリダイレクトされます。",
-        "oauthTitle": "{name} に接続",
-        "waitingAuth": "認証を待っています…",
         "learnMore": "詳しく見る"
       }
     },

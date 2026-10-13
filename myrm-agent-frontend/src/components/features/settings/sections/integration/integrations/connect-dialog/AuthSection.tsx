@@ -5,7 +5,7 @@
  * - @/components/primitives/input|label (POS: 表单原语)
  *
  * [OUTPUT]
- * - AuthSection: 按条目认证方式渲染连接对话框的认证区（OAuth 说明 / 免认证说明 / 单字段与多字段凭证输入）
+ * - AuthSection: 按条目认证方式渲染连接对话框的认证区（免认证说明 / 单字段与多字段凭证输入）
  *
  * [POS]
  * 连接对话框的展示层：受控输入的状态由父级持有，本组件只负责按认证方式分支渲染与本地化标签。
@@ -40,25 +40,6 @@ function HelpLink({ href, label }: { href: string; label: string }) {
       {label}
       <IconExternalLink className="h-3 w-3" />
     </a>
-  );
-}
-
-function OAuthNotice({ name }: { name: string }) {
-  const t = useTranslations('settings.integrationCatalog.connectDialog');
-  return (
-    <div className="flex flex-col items-center justify-center space-y-4 py-4">
-      <div className="bg-muted flex h-16 w-16 items-center justify-center rounded-2xl">
-        <IconExternalLink className="h-8 w-8 text-primary" />
-      </div>
-      <div className="text-center">
-        <h3 className="font-medium">{t('oauthTitle', { name, default: `Connect to ${name}` })}</h3>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {t('oauthDescription', {
-            default: 'You will be redirected to the provider to authorize access.',
-          })}
-        </p>
-      </div>
-    </div>
   );
 }
 
@@ -126,9 +107,6 @@ function CredentialInputs({
 }
 
 export function AuthSection({ entry, ...credentialProps }: AuthSectionProps) {
-  if (entry.authType === 'oauth2') {
-    return <OAuthNotice name={entry.name} />;
-  }
   if (entry.authType === 'none') {
     return <NoAuthNotice helpText={credentialProps.helpText} helpUrl={entry.helpUrl} />;
   }

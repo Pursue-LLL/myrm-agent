@@ -14829,9 +14829,6 @@
         "probeRecommendedModeVerifyLocalNetworkAndEditor": "请先检查本地网络连通性与编辑器 MCP 配置，再重新执行连通性检测。",
         "probeRecommendedActionSwitchMode": "关闭并切换模式",
         "probeRecommendedActionRetryProbe": "重新检测并连接",
-        "oauthDescription": "你将被重定向到服务商处授权访问。",
-        "oauthTitle": "连接到 {name}",
-        "waitingAuth": "等待授权…",
         "learnMore": "了解更多"
       }
     },

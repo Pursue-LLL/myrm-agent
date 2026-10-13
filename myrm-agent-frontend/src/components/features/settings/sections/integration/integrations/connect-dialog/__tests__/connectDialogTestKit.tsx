@@ -14,7 +14,6 @@ export const mockApiRequest = vi.fn();
 export const mockSetMCPConfigs = vi.fn();
 export const mockGateMcpEnable = vi.fn();
 export const mockToast = vi.fn();
-export const mockShellOpen = vi.fn();
 export const mockIsSandbox = vi.fn();
 export const storeState: { mcpConfigs: MCPServiceConfig[] } = { mcpConfigs: [] };
 
@@ -61,7 +60,6 @@ export const configStoreMock = {
   default: () => ({ mcpConfigs: storeState.mcpConfigs, setMCPConfigs: mockSetMCPConfigs }),
 };
 export const apiMock = {
-  BACKEND_BASE_URL: 'http://127.0.0.1:8080',
   apiRequest: (...args: unknown[]) => mockApiRequest(...args),
 };
 export const securityGateMock = {
@@ -74,7 +72,6 @@ export const deployModeMock = {
   isSandbox: () => mockIsSandbox(),
   getDocsUrl: (path: string = '/') => `https://docs.myrm.ai${path === '/' ? '' : path}`,
 };
-export const tauriShellMock = { open: (...args: unknown[]) => mockShellOpen(...args) };
 
 export function resetConnectDialogMocks() {
   mockApiRequest.mockReset();
@@ -82,7 +79,6 @@ export function resetConnectDialogMocks() {
   mockGateMcpEnable.mockReset();
   mockGateMcpEnable.mockResolvedValue(GATE_ALLOWED);
   mockToast.mockReset();
-  mockShellOpen.mockReset();
   mockIsSandbox.mockReset();
   mockIsSandbox.mockReturnValue(false);
   storeState.mcpConfigs = [];
@@ -90,7 +86,6 @@ export function resetConnectDialogMocks() {
 
 export function restoreConnectDialogGlobals() {
   vi.restoreAllMocks();
-  Reflect.deleteProperty(window, '__TAURI__');
 }
 
 export function makeEntry(overrides?: Partial<CatalogEntry>): CatalogEntry {
@@ -124,28 +119,6 @@ export function makeEntry(overrides?: Partial<CatalogEntry>): CatalogEntry {
     postConnectGuideZh: null,
     ...overrides,
   };
-}
-
-export const OAUTH_SETTINGS = {
-  authorization_endpoint: 'https://gh.example/authorize',
-  token_endpoint: 'https://gh.example/token',
-  client_id: 'cid',
-  client_secret: 'csec',
-  scope: 'repo',
-};
-
-export function makeOauthEntry(): CatalogEntry {
-  return makeEntry({
-    authType: 'oauth2',
-    envKey: null,
-    mcpConfig: {
-      name: 'gh',
-      type: 'streamable_http',
-      url: 'https://gh.example/mcp',
-      description: 'GitHub',
-      oauth: OAUTH_SETTINGS,
-    },
-  });
 }
 
 export function makeStoredConfig(name: string): MCPServiceConfig {

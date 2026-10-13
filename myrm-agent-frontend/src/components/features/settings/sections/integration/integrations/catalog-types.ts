@@ -28,15 +28,6 @@ export interface CatalogEntry {
   postConnectGuideZh: string | null;
 }
 
-/** OAuth endpoints and client credentials carried in a catalog entry's `mcpConfig.oauth`. */
-export interface CatalogOAuthConfig {
-  authorization_endpoint: string;
-  token_endpoint: string;
-  client_id: string;
-  client_secret: string;
-  scope?: string;
-}
-
 /** Typed view of a catalog entry's `mcpConfig`: the template the connect dialog turns into a saved MCP service. */
 export interface CatalogMcpDialogConfig {
   name: string;
@@ -47,7 +38,6 @@ export interface CatalogMcpDialogConfig {
   env?: Record<string, string>;
   headers?: Record<string, string>;
   description?: string;
-  oauth?: CatalogOAuthConfig;
 }
 
 export interface CatalogResponse {

@@ -8,7 +8,7 @@
  * - useCatalogSecurityGate: 目录条目启用前的安全闸门、高风险确认挂起态与通过后的落库（含 hostSerial / keepaliveInterval 继承）
  *
  * [POS]
- * 连接对话框的启用层：API Key 与 OAuth 两条连接路径共用同一道闸门，通过后统一落库并通知调用方。
+ * 连接对话框的启用层：连接前统一过安全闸门，通过后落库并通知调用方。
  */
 'use client';
 
@@ -54,6 +54,7 @@ export function useCatalogSecurityGate({
             ? catalogMcpConfig.keepaliveInterval
             : config.keepaliveInterval,
       };
+      // The service may have been added elsewhere while the scan or the acknowledgement was pending.
       const exists = mcpConfigs.some((c) => c.name === finalConfig.name);
       if (!exists) {
         setMCPConfigs([...mcpConfigs, finalConfig]);
@@ -64,13 +65,13 @@ export function useCatalogSecurityGate({
     [entryName, catalogMcpConfig, mcpConfigs, onConnected, setMCPConfigs, t],
   );
 
-  /** Resolves true once the config is saved; false when it is held for acknowledgement or refused. */
+  /** Saves the config when the gate allows it; otherwise holds it for acknowledgement or reports the refusal. */
   const runCatalogSecurityGate = useCallback(
     async (config: MCPServiceConfig, acknowledgedHighRisks = false) => {
       const gate = await gateMcpEnable(config, { acknowledgedHighRisks });
       if (gate.needsAcknowledgement) {
         setPendingAck({ config, scanResult: gate.scanResult });
-        return false;
+        return;
       }
       if (!gate.allowed) {
         toast({
@@ -86,13 +87,12 @@ export function useCatalogSecurityGate({
           ),
           variant: 'destructive',
         });
-        return false;
+        return;
       }
       persistCatalogConfig({
         ...config,
         lastScanSummary: buildLastScanSummary(gate.scanResult),
       });
-      return true;
     },
     [persistCatalogConfig, t, tSettings],
   );

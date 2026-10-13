@@ -4,7 +4,6 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import {
   makeEntry,
-  makeOauthEntry,
   makeStoredConfig,
   mockApiRequest,
   mockGateMcpEnable,
@@ -293,14 +292,6 @@ describe('IntegrationConnectDialog credential flows', () => {
       expect(link).toHaveAttribute('href', 'https://svc.example/keys');
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    });
-
-    it('renders the oauth introduction instead of credential inputs', () => {
-      renderDialog(makeOauthEntry());
-
-      expect(screen.getByText('oauthTitle')).toBeInTheDocument();
-      expect(screen.getByText('oauthDescription')).toBeInTheDocument();
-      expect(screen.queryByPlaceholderText('credentialPlaceholder')).not.toBeInTheDocument();
     });
 
     it('closes through the cancel button', () => {

@@ -14164,9 +14164,6 @@
         "probeRecommendedModeVerifyLocalNetworkAndEditor": "로컬 네트워크 연결 및 편집기 MCP 설정을 확인한 후 연결 확인을 다시 실행하세요.",
         "probeRecommendedActionSwitchMode": "닫고 모드 전환",
         "probeRecommendedActionRetryProbe": "재시도 및 연결",
-        "oauthDescription": "액세스 권한을 부여하기 위해 공급자로 리디렉션됩니다.",
-        "oauthTitle": "{name}에 연결",
-        "waitingAuth": "인증을 기다리는 중…",
         "learnMore": "자세히 보기"
       }
     },
