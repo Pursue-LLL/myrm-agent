@@ -1,3 +1,18 @@
+/**
+ * [INPUT]
+ * - @/services/statistics::SkillTrendPoint (POS: 技能趋势按日数据点契约)
+ *
+ * [OUTPUT]
+ * - TrendMetric: 趋势图可切换的两个指标（成功率 / 使用次数）
+ * - TrendBarDatum: 趋势图一根柱子对应的一个日历日
+ * - fillIdleDays: 在技能首末次运行之间补齐没有运行的日子
+ * - toBarData: 数据点 -> 柱子数据，0 与无数据分开表达
+ * - formatBarValue: 柱子读数文案
+ *
+ * [POS]
+ * 技能趋势图的数据整形，纯函数，可脱离 React 测试。服务端只给有运行的日子，这里把横轴还原成日历。
+ */
+
 import type { SkillTrendPoint } from '@/services/statistics';
 
 export type TrendMetric = 'success_rate' | 'call_count';

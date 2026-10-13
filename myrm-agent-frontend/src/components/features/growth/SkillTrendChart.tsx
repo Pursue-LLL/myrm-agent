@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/components/features/app-shell/lazy-recharts::Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis (POS: Recharts 懒加载统一入口)
+ * - ./skillTrendSeries::toBarData, formatBarValue (POS: 趋势图数据整形，纯函数)
+ * - @/services/statistics::SkillTrendSeries (POS: 技能趋势序列契约)
+ *
+ * [OUTPUT]
+ * - SkillTrendChart: 技能使用趋势图，技能选择、成功率 / 次数切换、日粒度柱状图与账本截断说明
+ *
+ * [POS]
+ * 成长看板的技能趋势面板。柱区定高，悬停与触摸读出当日值；窗口随看板所选时间范围。
+ */
+
 import { memo, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { TrendingUp, CheckCircle2 } from 'lucide-react';
@@ -24,11 +37,13 @@ const CHART_HEIGHT = 128;
 /** Above this many bars they sit a pixel apart, so a 90-day range still fits a phone. */
 const DENSE_BAR_COUNT = 45;
 
-const FAILURE_COLOR = 'var(--color-red-500, #ef4444)';
+// Opaque 600 shades keep every bar at 3:1 or better against the card of both themes; the theme's own
+// `--destructive` is a dark red in the dark theme (2:1) and would nearly vanish there.
+const FAILURE_COLOR = 'var(--color-red-600, #dc2626)';
 
 const METRIC_CONFIG: Record<TrendMetric, { icon: typeof TrendingUp; barColor: string }> = {
-  success_rate: { icon: CheckCircle2, barColor: 'var(--color-emerald-500, #10b981)' },
-  call_count: { icon: TrendingUp, barColor: 'var(--color-blue-500, #3b82f6)' },
+  success_rate: { icon: CheckCircle2, barColor: 'var(--color-emerald-600, #059669)' },
+  call_count: { icon: TrendingUp, barColor: 'var(--color-blue-600, #2563eb)' },
 };
 
 interface TrendTooltipProps {
@@ -161,14 +176,7 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
               cursor={{ fill: 'var(--muted)', fillOpacity: 0.4 }}
               filterNull={false}
             />
-            <Bar
-              dataKey="value"
-              minPointSize={3}
-              maxBarSize={28}
-              radius={[2, 2, 0, 0]}
-              fillOpacity={0.8}
-              isAnimationActive={false}
-            />
+            <Bar dataKey="value" minPointSize={3} maxBarSize={28} radius={[2, 2, 0, 0]} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>

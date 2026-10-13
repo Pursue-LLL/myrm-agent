@@ -1234,7 +1234,7 @@ except Exception:
 
 ### 修复
 
-1. 柱区换成仓库统一的 `lazy-recharts`（定高 128px 的 `ResponsiveContainer` + `BarChart`）：定高从结构上排除 0 高度，横轴自动抽稀，悬停与触摸都读出当日值；0% 是红色短柱，无观测的日子留空；成功率纵轴固定 0–100%。逐柱颜色写在数据行的 `fill`，不用 `Cell`；`skillTrendSeries.ts` 在技能首末次运行之间补齐没有运行的日子，让横轴是日历；
+1. 柱区换成仓库统一的 `lazy-recharts`（定高 128px 的 `ResponsiveContainer` + `BarChart`）：定高从结构上排除 0 高度，横轴自动抽稀，悬停与触摸都读出当日值；0% 是红色短柱，无观测的日子留空；成功率纵轴固定 0–100%。逐柱颜色写在数据行的 `fill`，不用 `Cell`；柱色用不透明的 600 色阶（浅色主题下原先的 500 色阶带 0.8 透明度，按 WCAG 公式算与卡片底色的对比度只有 2.1 到 2.95，低于图形元素要求的 3:1；600 色阶不透明时两个主题下都不低于 3.6:1）；`skillTrendSeries.ts` 在技能首末次运行之间补齐没有运行的日子，让横轴是日历；
 2. 雷达颜色直接取 `var(--border)`、`var(--muted-foreground)`、`var(--primary)`；
 3. 「刷新」走 `growthDashboard.learningLoop.refresh`（六语言）；五个环卡片改为真正的 `button`（原生支持 Enter 与空格，去掉手写的键盘处理）。
 
@@ -1244,14 +1244,16 @@ except Exception:
    同一份 30 天数据交给修复前的组件（取自 `HEAD`）：30 根柱高度全为 0px，行 `scrollWidth` 921、`clientWidth` 442；
 2. 雷达：描边 `rgb(103, 153, 160)`、网格 `rgb(236, 234, 228)`；修复前量得描边 `none`、填充 `rgb(0, 0, 0)`；
 3. 五环卡片：改前（`div`）与改后（`button`）在 500、800、1280px 下盒子与文字位置逐项一致；Enter 与空格都能把看板切到对应页签；
-4. 新增 23 例测试：`skillTrendSeries.test.ts` 9、`SkillTrendChart.test.tsx` 11、`HealthRadar.test.tsx` 1、`LearningLoopFiveRingHub.test.tsx` 2。9 个变异（失败色挂错值、次数 0 画成柱、不补空日、逐行 `fill` 丢失、成功率纵轴交给数据、提示对无观测日显示次数、雷达改回 `hsl()`、环卡片跳错页签、刷新改回写死）全部被测试杀死，运行后文件按哈希核对还原；
+4. 新增 24 例测试：`skillTrendSeries.test.ts` 9、`SkillTrendChart.test.tsx` 12、`HealthRadar.test.tsx` 1、`LearningLoopFiveRingHub.test.tsx` 2。10 个变异（失败色挂错值、次数 0 画成柱、不补空日、逐行 `fill` 丢失、成功率纵轴交给数据、提示对无观测日显示次数、雷达改回 `hsl()`、环卡片跳错页签、刷新改回写死、图表容器高度改回百分比）全部被测试杀死，运行后文件按哈希核对还原；
+   最终颜色在 Chrome 中量得：浅色主题 26 根柱为 21 根 `oklch(0.596 0.145 163.225)`（emerald-600）与 5 根 `oklch(0.577 0.245 27.325)`（red-600），深色主题次数柱为 `oklch(0.546 0.245 262.881)`（blue-600）；图表 `svg` 为 `role="application"`、`tabindex="0"`，可用键盘聚焦；
 5. `oxlint` 对 growth 目录无输出，`prettier --check` 对触及的代码文件通过，`verify-i18n.mjs` 六语言通过，全量 `tsc --noEmit` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误。
 
 ### 踩坑经验
 
 1. jsdom 没有版面：高度、宽度、溢出类缺陷单测看不到。这类面板要用真实组件在真实浏览器里量一次；并且让图表依赖定高，而不是父级没有的百分比；
 2. 原型要走仓库真实的封装：直接用 recharts 时 `Cell` 能给每根柱上色，经 `lazy-recharts` 的包装组件却不被图表库按子类型识别，柱子落回默认黑色，同一份原型在两处结论相反；
-3. 主题变量是完整颜色，不要包 `hsl()`。同类写法还在 `KanbanGraphView.tsx`（9 处）与 `SkillQualityTrendChart.tsx`（7 处），这两个目录有他人未提交的改动，且未渲染确认，本次未动；`EnterpriseUsageTab.tsx` 经同一封装用 `Cell` 给饼图分片上色，存在同类风险，未验证；
-4. 局限：没有在完整 Next 应用里跑过（需要后端数据）；触摸只用合成事件验证了接线；Chrome 最小视口 500px，360px 未实测；真实用户是否受影响没有线上遥测。
+3. 主题变量是完整颜色，不要包 `hsl()`。同类写法还在 `KanbanGraphView.tsx`（9 处）与 `SkillQualityTrendChart.tsx`（7 处）；它们用的 `--primary`、`--chart-2`、`--chart-4`、`--destructive`、`--card`、`--border`、`--background` 在 `globals.css` 里都是十六进制，`--success`、`--warning` 在其中没有定义，但两个组件本身没有渲染确认，本次未动；
+4. `Cell` 的问题不限于柱图：同一封装下用探针渲染一个 `Pie`，三个 `Cell` 子元素的颜色都被忽略，扇区全是默认的 `rgb(128, 128, 128)`；把颜色写进数据行的 `fill` 后分别为 `rgb(225, 29, 72)`、`rgb(22, 163, 74)`、`rgb(37, 99, 235)`。`EnterpriseUsageTab.tsx:197` 与 `EnterpriseAuditTab.tsx:235` 是同样的写法，组件本身没有渲染，本次未动；
+5. 局限：没有在完整 Next 应用里跑过（需要后端数据）；触摸只用合成事件验证了接线；Chrome 最小视口 500px，360px 未实测；真实用户是否受影响没有线上遥测。
 
 ---

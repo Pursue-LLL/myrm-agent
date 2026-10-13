@@ -19,7 +19,11 @@ const hovered = vi.hoisted(() => ({ datum: null as TrendBarDatum | null }));
 vi.mock('@/components/features/app-shell/lazy-recharts', async () => {
   const { cloneElement } = await import('react');
   return {
-    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    ResponsiveContainer: ({ children, height }: { children: React.ReactNode; height: number | string }) => (
+      <div data-testid="chart-container" data-height={String(height)}>
+        {children}
+      </div>
+    ),
     BarChart: ({ data, children }: { data: TrendBarDatum[]; children: React.ReactNode }) => (
       <div data-testid="bar-chart" data-rows={JSON.stringify(data)}>
         {children}
@@ -146,6 +150,14 @@ describe('SkillTrendChart bars', () => {
 
     expect(chartRows().map((row) => row.value)).toEqual([2, null, 1, 4]);
     expect(new Set(barFills()).size).toBe(1);
+  });
+
+  it('gives the chart a pixel height, because a percentage resolves to 0 inside a parent without one', () => {
+    render(<SkillTrendChart trends={[sparse]} />);
+
+    const height = screen.getByTestId('chart-container').getAttribute('data-height');
+
+    expect(Number(height)).toBeGreaterThan(0);
   });
 
   it('scales the success rate to 0-100% whatever the best day was, and the run count to its own peak', () => {
