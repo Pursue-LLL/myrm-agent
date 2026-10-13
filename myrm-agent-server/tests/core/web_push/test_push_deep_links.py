@@ -133,12 +133,12 @@ class TestResolvePushUrl:
         )
         assert resolve_push_url(event) == "/settings/credentials"
 
-    def test_oauth_provider_reauth_routes_to_models(self) -> None:
+    def test_oauth_xai_reauth_routes_to_credentials(self) -> None:
         event = AppEvent(
             event_type=AppEventType.OAUTH_REAUTH_REQUIRED,
-            data={"issuer": "provider_openai", "reason": "expired"},
+            data={"issuer": "xai", "reason": "expired"},
         )
-        assert resolve_push_url(event) == "/settings/models"
+        assert resolve_push_url(event) == "/settings/credentials"
 
     def test_oauth_reauth_without_issuer_routes_to_credentials(self) -> None:
         event = AppEvent(event_type=AppEventType.OAUTH_REAUTH_REQUIRED, data={"reason": "expired"})

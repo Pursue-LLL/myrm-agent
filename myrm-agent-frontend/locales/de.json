@@ -2273,10 +2273,7 @@
     "subscriptionQuickConnect": "Abonnement vorhanden? 1-Klick-Verbindung",
     "subscriptionModalTitle": "Offizielle Abonnements verbinden",
     "subscriptionModalDesc": "Sichere direkte Verbindung über offizielle Gerätecodes ohne API-Schlüsselkauf. Anmeldedaten werden lokal verschlüsselt gespeichert.",
-    "subscriptionCopilot": "GitHub Copilot-Abonnement",
-    "subscriptionOpenai": "ChatGPT Plus / Pro-Abonnement",
     "subscriptionXai": "xAI SuperGrok-Abonnement",
-    "subscriptionClaude": "Claude Pro / Max-Abonnement",
     "subscriptionConnectBtn": "Verbinden",
     "subscriptionDeviceCodeHint": "Öffnen Sie die Bestätigungs-URL im Browser und geben Sie den Nutzercode ein:",
     "subscriptionCopyCode": "Code kopieren",
@@ -3206,8 +3203,6 @@
       "level": "Ebene",
       "runAffectedTests": "{count} betroffene Test-Suites ausführen"
     },
-    "subscriptionPkceNotice": "Die Autorisierungsseite für {providerName} wurde in einem neuen Tab geöffnet. Bitte schließen Sie die Anmeldung ab und kehren Sie hierher zurück.",
-    "subscriptionPkceReopen": "Autorisierungsseite erneut öffnen",
     "modelPlaybook": {
       "chipTitle": "Modell-Orchestrierungs-Leitfaden",
       "chipBadge": "Strategie",
@@ -15473,7 +15468,33 @@
       "connectionSuccess": "Verbindung erfolgreich",
       "connectionFailed": "Verbindung fehlgeschlagen",
       "vercelGatewaySpendHint": "Kosten, Ratenbegrenzungen und Latenz im Vercel AI Gateway Dashboard nachverfolgen",
-      "openVercelDashboard": "Dashboard öffnen"
+      "openVercelDashboard": "Dashboard öffnen",
+      "oauth": {
+        "title": "Abonnement-Anmeldung",
+        "connected": "Verbunden",
+        "noticeTitle": "Hinweis zum SuperGrok-Abonnement",
+        "noticeBody": "Nach der SuperGrok-Autorisierung können Sie Grok-Modelle (Grok-2 / Grok-beta) ohne API-Schlüssel direkt für Agent-Aufgaben in Myrm nutzen und profitieren zusätzlich von X-Echtzeitsuche und multimodalen Fähigkeiten.",
+        "deviceCodeHint": "Geben Sie diesen Code in Ihrem Browser ein, um die Autorisierung abzuschließen:",
+        "copyCode": "Code kopieren",
+        "openVerificationPage": "Bestätigungsseite öffnen",
+        "waiting": "Warte auf den Abschluss der Autorisierung...",
+        "cancel": "Abbrechen",
+        "connectedWithApiKey": "Über SuperGrok angemeldet. Ihr API-Schlüssel hat Vorrang; das Abonnement dient als Fallback.",
+        "connectedWithQuota": "Über SuperGrok angemeldet. Für KI-Aufrufe wird Ihr Abonnement-Kontingent verwendet.",
+        "tokenExpires": "Anmeldung gültig bis {time}",
+        "disconnect": "Trennen",
+        "loginPrompt": "Melden Sie sich mit Ihrem SuperGrok-Abonnement an, um KI-Modelle ohne API-Schlüssel zu nutzen.",
+        "loginButton": "Mit SuperGrok anmelden",
+        "toast": {
+          "timeout": "Zeitüberschreitung bei der Autorisierung. Bitte erneut versuchen.",
+          "connected": "SuperGrok erfolgreich verbunden",
+          "expired": "Autorisierung abgelaufen. Bitte erneut versuchen.",
+          "denied": "Autorisierung abgelehnt. Bitte erneut versuchen.",
+          "startFailed": "Autorisierung konnte nicht gestartet werden. Bitte erneut versuchen.",
+          "disconnected": "SuperGrok-Abonnement getrennt",
+          "disconnectFailed": "Trennen fehlgeschlagen"
+        }
+      }
     },
     "defaultModel": {
       "localModelWarning": "Lokale Leichtgewichtsmodelle neigen stark zu Halluzinationen oder Endlosschleifen bei komplexen Agent-Workflows. Für lange Aufgaben werden Modelle ab 30B oder Cloud-basierte fortschrittliche Modelle (wie Claude 3.5 Sonnet) empfohlen.",

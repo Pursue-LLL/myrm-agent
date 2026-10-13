@@ -5,7 +5,7 @@
  * - @/store/useChatStore (POS: 活跃技能与单轮覆盖状态)
  * - @/store/skill::useSkillStore (POS: 技能元数据字典，包含 required_oauth_issuers / required_mcp_server_ids)
  * - @/store/useConfigStore (POS: MCP 服务配置状态)
- * - @/lib/skills/integrationOAuthDisplay (POS: OAuth 设置路径与映射)
+ * - @/lib/skills/integrationOAuthDisplay (POS: OAuth 账号的设置页路径常量与展示名)
  *
  * [OUTPUT]
  * - SkillRequiredConnectorsPreflightBanner: 技能依赖连接器前置主动预检与轻量挂载建议条
@@ -24,7 +24,11 @@ import useChatStore from '@/store/useChatStore';
 import { useSkillStore } from '@/store/skill';
 import useConfigStore from '@/store/useConfigStore';
 import { useShallow } from 'zustand/react/shallow';
-import { getOAuthIssuerSettingsPath, SETTINGS_SKILLS_PATH } from '@/lib/skills/integrationOAuthDisplay';
+import {
+  formatOAuthIssuerLabel,
+  SETTINGS_CREDENTIALS_PATH,
+  SETTINGS_SKILLS_PATH,
+} from '@/lib/skills/integrationOAuthDisplay';
 
 export interface SkillRequiredConnectorsPreflightBannerProps {
   className?: string;
@@ -121,9 +125,13 @@ export function SkillRequiredConnectorsPreflightBanner({
   }
 
   const handleGoToSettings = () => {
-    const [firstMissingIssuer] = preflightResult.missingIssuers;
-    router.push(firstMissingIssuer ? getOAuthIssuerSettingsPath(firstMissingIssuer.issuer) : SETTINGS_SKILLS_PATH);
+    router.push(preflightResult.missingIssuers.length > 0 ? SETTINGS_CREDENTIALS_PATH : SETTINGS_SKILLS_PATH);
   };
+
+  const missingSummary = [
+    ...preflightResult.missingIssuers.map((i) => `${i.skillName} (${formatOAuthIssuerLabel(i.issuer)})`),
+    ...preflightResult.missingMcp.map((m) => `${m.skillName} [MCP: ${m.serverId}]`),
+  ].join(', ');
 
   return (
     <div
@@ -138,10 +146,7 @@ export function SkillRequiredConnectorsPreflightBanner({
         <AlertCircle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="flex items-center gap-1.5 truncate">
           <span className="font-medium shrink-0">{t('missingNotice')}:</span>
-          <span className="truncate text-muted-foreground/90">
-            {preflightResult.missingIssuers.map((i) => `${i.skillName} (${i.issuer})`).join(', ')}
-            {preflightResult.missingMcp.map((m) => `${m.skillName} [MCP: ${m.serverId}]`).join(', ')}
-          </span>
+          <span className="truncate text-muted-foreground/90">{missingSummary}</span>
         </div>
       </div>
 

@@ -2273,10 +2273,7 @@
     "subscriptionQuickConnect": "구독 중이신가요? 1클릭 연결",
     "subscriptionModalTitle": "공식 유료 구독 연결",
     "subscriptionModalDesc": "공식 디바이스 코드를 통한 안전한 직접 연결. API 키 없이 사용 가능하며 자격 증명은 로컬에 암호화 저장됩니다.",
-    "subscriptionCopilot": "GitHub Copilot 구독",
-    "subscriptionOpenai": "ChatGPT Plus / Pro 구독",
     "subscriptionXai": "xAI SuperGrok 구독",
-    "subscriptionClaude": "Claude Pro / Max 구독",
     "subscriptionConnectBtn": "연결",
     "subscriptionDeviceCodeHint": "브라우저에서 확인 URL을 열고 사용자 코드를 입력하세요:",
     "subscriptionCopyCode": "코드 복사",
@@ -3206,8 +3203,6 @@
       "level": "단계",
       "runAffectedTests": "영향받는 {count}개 테스트 실행"
     },
-    "subscriptionPkceNotice": "새 탭에서 {providerName} 인증 페이지가 열렸습니다. 로그인 및 승인을 완료한 후 여기로 돌아오세요.",
-    "subscriptionPkceReopen": "인증 페이지 다시 열기",
     "modelPlaybook": {
       "chipTitle": "모델 오케스트레이션 가이드",
       "chipBadge": "권장 전략",
@@ -15473,7 +15468,33 @@
       "connectionSuccess": "연결 성공",
       "connectionFailed": "연결 실패",
       "vercelGatewaySpendHint": "Vercel AI Gateway 대시보드에서 비용, 속도 제한 및 지연 시간을 모니터링",
-      "openVercelDashboard": "대시보드 열기"
+      "openVercelDashboard": "대시보드 열기",
+      "oauth": {
+        "title": "구독 로그인",
+        "connected": "연결됨",
+        "noticeTitle": "SuperGrok 구독 안내",
+        "noticeBody": "SuperGrok으로 인증하면 API 키 없이 Grok 시리즈 모델(Grok-2 / Grok-beta)로 Myrm의 에이전트 작업을 실행할 수 있으며, X(Twitter) 실시간 검색과 멀티모달 기능도 함께 사용할 수 있습니다.",
+        "deviceCodeHint": "브라우저에서 아래 코드를 입력해 인증을 완료하세요:",
+        "copyCode": "코드 복사",
+        "openVerificationPage": "인증 페이지 열기",
+        "waiting": "인증이 완료되기를 기다리는 중...",
+        "cancel": "취소",
+        "connectedWithApiKey": "SuperGrok 구독으로 로그인되었습니다. API 키가 우선 사용되며, 구독은 대체 수단으로 사용됩니다.",
+        "connectedWithQuota": "SuperGrok 구독으로 로그인되었습니다. AI 호출에는 구독 사용량이 사용됩니다.",
+        "tokenExpires": "로그인 유효 기간: {time}",
+        "disconnect": "연결 해제",
+        "loginPrompt": "SuperGrok 구독으로 로그인하면 API 키 없이 AI 모델을 사용할 수 있습니다.",
+        "loginButton": "SuperGrok으로 로그인",
+        "toast": {
+          "timeout": "인증 시간이 초과되었습니다. 다시 시도해 주세요.",
+          "connected": "SuperGrok 연결에 성공했습니다",
+          "expired": "인증이 만료되었습니다. 다시 시도해 주세요.",
+          "denied": "인증이 거부되었습니다. 다시 시도해 주세요.",
+          "startFailed": "인증을 시작하지 못했습니다. 다시 시도해 주세요.",
+          "disconnected": "SuperGrok 구독 연결을 해제했습니다",
+          "disconnectFailed": "연결을 해제하지 못했습니다"
+        }
+      }
     },
     "defaultModel": {
       "localModelWarning": "로컬 경량 모델은 복잡한 에이전트 도구 체인을 처리할 때 환각이나 무한 루프에 빠지기 쉽습니다. 긴 작업에는 30B+ 규모 모델이나 클라우드 고급 모델(예: Claude 3.5 Sonnet)을 권장합니다.",

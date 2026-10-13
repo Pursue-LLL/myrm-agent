@@ -88,11 +88,33 @@ describe('SkillRequiredConnectorsPreflightBanner', () => {
     });
   });
 
+  function requireSkill(overrides: Partial<Skill>) {
+    const [skill] = useSkillStore.getState().marketSkills;
+    useSkillStore.setState({ marketSkills: [{ ...skill, ...overrides }] });
+  }
+
   it('renders preflight banner when an active skill has unsatisfied OAuth requirements', () => {
     render(<SkillRequiredConnectorsPreflightBanner />);
     expect(screen.getByTestId('skill-connectors-preflight-banner')).toBeDefined();
     expect(screen.getByText(/Active skills require unconfigured connectors/)).toBeDefined();
-    expect(screen.getByText(/Google Workspace \(google_workspace\)/)).toBeDefined();
+    expect(screen.getByText(/Google Workspace \(Google Workspace\)/)).toBeDefined();
+  });
+
+  describe('missing connector summary', () => {
+    it('names each missing account the way people read it, never by its raw issuer id', () => {
+      requireSkill({ name: 'Inbox Assistant', required_oauth_issuers: ['google_workspace', 'xai'] });
+      render(<SkillRequiredConnectorsPreflightBanner />);
+
+      expect(screen.getByText('Inbox Assistant (Google Workspace), Inbox Assistant (xAI)')).toBeDefined();
+      expect(screen.queryByText(/google_workspace/)).toBeNull();
+    });
+
+    it('separates the missing accounts from the missing MCP connectors', () => {
+      requireSkill({ name: 'Notes Sync', required_oauth_issuers: ['xai'], required_mcp_server_ids: ['notion'] });
+      render(<SkillRequiredConnectorsPreflightBanner />);
+
+      expect(screen.getByText('Notes Sync (xAI), Notes Sync [MCP: notion]')).toBeDefined();
+    });
   });
 
   it('hides banner when all active skills are available or satisfy dependencies', () => {
@@ -146,13 +168,8 @@ describe('SkillRequiredConnectorsPreflightBanner', () => {
   });
 
   describe('connect action target', () => {
-    function requireSkill(overrides: Partial<Skill>) {
-      const [skill] = useSkillStore.getState().marketSkills;
-      useSkillStore.setState({ marketSkills: [{ ...skill, ...overrides }] });
-    }
-
-    it('opens Credentials for an account issuer', () => {
-      requireSkill({ required_oauth_issuers: ['google_workspace'] });
+    it.each(['google_workspace', 'xai'])('opens Credentials for the %s account', (issuer) => {
+      requireSkill({ required_oauth_issuers: [issuer] });
       render(<SkillRequiredConnectorsPreflightBanner />);
 
       fireEvent.click(screen.getByText('Connect Now'));
@@ -160,22 +177,13 @@ describe('SkillRequiredConnectorsPreflightBanner', () => {
       expect(push).toHaveBeenCalledWith('/settings/credentials');
     });
 
-    it('opens the Models page for an LLM-provider issuer', () => {
-      requireSkill({ required_oauth_issuers: ['provider_openai'] });
+    it('opens Credentials first when an account and an MCP connector are both missing', () => {
+      requireSkill({ required_oauth_issuers: ['xai'], required_mcp_server_ids: ['notion'] });
       render(<SkillRequiredConnectorsPreflightBanner />);
 
       fireEvent.click(screen.getByText('Connect Now'));
 
-      expect(push).toHaveBeenCalledWith('/settings/models');
-    });
-
-    it('opens the first missing issuer owner when several accounts are missing', () => {
-      requireSkill({ required_oauth_issuers: ['provider_anthropic', 'google_workspace'] });
-      render(<SkillRequiredConnectorsPreflightBanner />);
-
-      fireEvent.click(screen.getByText('Connect Now'));
-
-      expect(push).toHaveBeenCalledWith('/settings/models');
+      expect(push).toHaveBeenCalledWith('/settings/credentials');
     });
 
     it('opens Skills when only MCP connectors are missing', () => {

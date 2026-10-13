@@ -334,7 +334,7 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
         all_keys = _extract_all_active_keys(p)
         if not all_keys:
             continue
-        # OAuth-injected base_url takes precedence (e.g. Copilot dynamic proxy endpoint)
+        # OAuth-injected base_url takes precedence (e.g. the xAI SuperGrok endpoint)
         oauth_base = p.get("_oauthBaseUrl")
         api_url = str(oauth_base) if oauth_base else str(p.get("apiUrl") or p.get("baseURL") or "")
         api_url = api_url if api_url else None

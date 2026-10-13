@@ -8,7 +8,6 @@ import {
   getIntegrationSkillSettingsPath,
   getIntegrationSkillSettingsLinkLabel,
   formatOAuthIssuerLabel,
-  getOAuthIssuerSettingsPath,
   getSkillUnavailableDisplayMessage,
   isEnvGatedSkillUnavailable,
   SETTINGS_CREDENTIALS_PATH,
@@ -183,35 +182,35 @@ describe('formatOAuthIssuerLabel', () => {
     expect(formatOAuthIssuerLabel('OAuth')).toBe('OAuth');
     expect(formatOAuthIssuerLabel('__github__')).toBe('Github');
   });
+
+  it('spells brand names the way the brand does', () => {
+    expect(formatOAuthIssuerLabel('xai')).toBe('xAI');
+  });
+
+  it('never resolves an id to an inherited object property', () => {
+    expect(formatOAuthIssuerLabel('constructor')).toBe('Constructor');
+    expect(formatOAuthIssuerLabel('toString')).toBe('ToString');
+  });
 });
 
-describe('getOAuthIssuerSettingsPath', () => {
-  it('sends LLM-provider OAuth issuers to the Models page', () => {
-    for (const issuer of ['provider_openai', 'provider_anthropic', 'provider_copilot', 'provider_xai']) {
-      expect(getOAuthIssuerSettingsPath(issuer)).toBe(SETTINGS_PROVIDERS_PATH);
-    }
-  });
+describe('getIntegrationSkillSettingsPath account routing', () => {
+  it.each(['google_workspace', 'xai', 'github'])(
+    'sends a skill waiting on the %s account to the Credentials page',
+    (issuer) => {
+      const skill = buildSkill({
+        available: false,
+        unavailable_reason: 'Missing account',
+        required_oauth_issuers: [issuer],
+      });
 
-  it('sends account OAuth issuers to the Credentials page', () => {
-    for (const issuer of ['google_workspace', 'xai', 'github']) {
-      expect(getOAuthIssuerSettingsPath(issuer)).toBe(SETTINGS_CREDENTIALS_PATH);
-    }
-  });
+      expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_CREDENTIALS_PATH);
+    },
+  );
 
-  it('routes an unavailable skill by the first account it requires', () => {
-    const providerSkill = buildSkill({
-      available: false,
-      unavailable_reason: 'Missing account',
-      required_oauth_issuers: ['provider_openai', 'google_workspace'],
-    });
-    const accountSkill = buildSkill({
-      available: false,
-      unavailable_reason: 'Missing account',
-      required_oauth_issuers: ['google_workspace', 'provider_openai'],
-    });
+  it('sends the X live search skill to the Models page when it declares no account', () => {
+    const skill = buildSkill({ id: 'x-live-search', available: false, unavailable_reason: 'raw reason' });
 
-    expect(getIntegrationSkillSettingsPath(providerSkill)).toBe(SETTINGS_PROVIDERS_PATH);
-    expect(getIntegrationSkillSettingsPath(accountSkill)).toBe(SETTINGS_CREDENTIALS_PATH);
+    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_PROVIDERS_PATH);
   });
 });
 

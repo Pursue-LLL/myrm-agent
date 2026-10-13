@@ -77,7 +77,7 @@ async def test_sse_json_format_matches_frontend_contract() -> None:
 @pytest.mark.asyncio
 async def test_dispatcher_template_renders_for_oauth_reauth() -> None:
     """Verify the IM notification template renders without KeyError."""
-    from app.core.notifications.dispatcher import _EVENT_TEMPLATES
+    from app.core.notifications.adaptive_cards import _EVENT_TEMPLATES
 
     template = _EVENT_TEMPLATES[AppEventType.OAUTH_REAUTH_REQUIRED]
     rendered = template.format(issuer="google_workspace", reason="invalid_grant")

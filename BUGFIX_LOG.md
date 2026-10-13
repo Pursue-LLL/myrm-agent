@@ -1086,3 +1086,171 @@ except Exception:
 4. 局限：`waitUntilReady(30_000)`（`streamConsumer.ts`，`ConnectionManager.waitUntilReady` 只收超时、不收中止信号）仍不可中止，停止发生在等待工作区流就绪期间时，该轮的异步函数要等它返回（最长 30 秒）才结束；这段时间界面不受影响（`stopMessage` 当场复位），回合结束时也不会再上报失败（见修复 4）；行为变化：停止一个正在退避重试的请求，不再迟到地给气泡打失败标记并弹提示，而是安静结束，与首包之前停止的终态一致（该消息留在转录里、没有重试按钮）；没有真实浏览器验证，没有线上遥测。
 
 ---
+
+## BUG-AGENT-2026-10-13-007: 订阅登录下线后的遗留与周边缺陷：加密凭据无处断开、预检横幅露出原始发行方 ID、设置中心页头副标题写死「中文 / English」
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-13 |
+| 修复日期 | 2026-10-13 |
+| 严重程度 | P2（遗留的订阅令牌继续加密躺在库里且界面没有断开入口；多语言用户在页头和订阅卡片看到不属于自己语言的文案；预检横幅把 `provider_openai` 这类内部标识当名称展示） |
+| 影响范围 | server：`app/api/integrations/provider_oauth.py`、`app/services/agent/oauth_refresher.py`、`app/services/integrations/oauth_store.py`、`app/services/integrations/retired_provider_oauth_purge.py`（新增）、`app/core/channel_bridge/config_loader.py`、`app/core/web_push/push_deep_links.py`、`app/server/lifespan.py`、`app/core/infra/health/server_diagnostics.py`（及删除 `anthropic_policy_diagnostic.py`）；frontend：`src/services/provider-oauth.ts`、`ProviderOAuthSection.tsx`、`NoProviderBanner.tsx`、`src/lib/skills/integrationOAuthDisplay.ts`、`SkillRequiredConnectorsPreflightBanner.tsx`、`reauthToasts.ts`、`DataFlowDisclosurePanel.tsx`、六个设置中心组件、六语言 `locales` |
+| 出现次数 | 1（读代码与单元测试确认；没有真实订阅账号可做端到端授权） |
+| 关联 | `BUG-AGENT-2026-10-13-002`（设置页深链单一真源：本条把 OAuth 重新授权的落点收敛到凭据页）· harness `4d0be96a2`（同一轮排查中发现的多 Key 丢工具绑定，已在 harness 仓库单独修复并记录）· roadmap topic_07 #281 / #236（Claude、ChatGPT、Copilot 订阅登录的合规裁决与重做草案） |
+
+### 现象
+
+1. 进程内的 Claude / ChatGPT / GitHub Copilot 订阅登录按决定整体下线，保留 xAI SuperGrok。下线只删代码不会删数据：这三个发行方（`provider_anthropic`、`provider_openai`、`provider_copilot`）的访问令牌与刷新令牌仍以加密形式留在 `oauthCredentials` 记录里，没有任何代码再读取或刷新它们，界面也不再有断开入口；
+2. 技能预检横幅在缺少 OAuth 连接时直接展示服务端返回的发行方标识（`技能名 (provider_openai)`，xAI 显示为小写 `xai`），且 OAuth 缺失与 MCP 缺失两串之间没有分隔符；
+3. 六个设置中心（开发者、系统、记忆、工具质量、技能、模型）共 17 处页头副标题是写死在组件里的 `中文 / English` 单串，所有语言的用户都同时看到两种语言，其中模型页中文部分还把 API 密钥写成「API 秘钥」；
+4. 模型页订阅卡片的提示与 toast 用 `locale === 'zh' ? … : …` 分支，日、韩、德、繁体中文用户只能看到英文。
+
+### 根因
+
+1. 订阅令牌存放在一条加密 blob 里，没有清理遗留发行方的步骤；`oauth_refresher.py` 里 Copilot 的非标刷新、`oauth_store.py` 的 Copilot 基础地址解析、`config_loader.py` 的发行方映射、前端的三个订阅入口与 PKCE 重开页都是这三条登录的专属代码，随登录一起成为死代码；
+2. 预检横幅直接渲染服务端返回的发行方标识 `i.issuer`，没有使用已有的 `formatOAuthIssuerLabel`；该函数只做首字母大写，`xai` 只能得到 `Xai`（品牌拼写是 xAI）；`getOAuthIssuerSettingsPath` 还靠 `provider_` 前缀把订阅发行方指向模型页，三条登录下线后这个分支成了死代码；
+3. 副标题与卡片文案没有进 `locales`，违反「所有写死文案进 locales、六语言」的项目规范。
+
+### 修复
+
+1. server：`provider_oauth.py` 收敛为 xAI 门面（`/xai/start`、`/xai/poll` 委托 `xai_oauth.py`，共用 `/status/{provider}`、`/disconnect/{provider}`，以及仅本地模式的测试种子 / 清理端点）；删除 `oauth_refresher.py` 的 Copilot 刷新分支与 `COPILOT_ISSUER`、`oauth_store.py` 的 `extract_copilot_base_url`；`config_loader._PROVIDER_OAUTH_MAP` 只剩 `xai`（`provider_xai` 别名没有任何写入方：xAI 凭据一直写在发行方 `xai` 下）；`push_deep_links.py` 的 OAuth 重新授权统一落到 `/settings/credentials`；删除 Anthropic 订阅策略诊断探针；
+2. server：新增 `retired_provider_oauth_purge.py`，启动期在共享行锁内删除三个遗留发行方——没有遗留项时不写回，无法解析的 blob 不覆盖，重复执行结果相同；`lifespan.py` 在数据库就绪后调用，失败只记 warning、不阻塞启动；
+3. frontend：`provider-oauth.ts`、`ProviderOAuthSection.tsx`、`NoProviderBanner.tsx` 收敛为 xAI（首启弹窗只剩一个订阅入口）；订阅卡片文案进 `settings.modelService.oauth`（六语言）；
+4. frontend：`integrationOAuthDisplay.ts` 的 `formatOAuthIssuerLabel` 增加品牌名表（用 `Map`，以免 `constructor` 这类标识命中原型属性），删除 `getOAuthIssuerSettingsPath` 与 `provider_` 前缀，OAuth 重新授权落点统一为 `SETTINGS_CREDENTIALS_PATH`（`reauthToasts.ts`、`DataFlowDisclosurePanel.tsx`、`getIntegrationSkillSettingsPath` 同步）；预检横幅改用 `formatOAuthIssuerLabel` 渲染并补上两串之间的分隔；
+5. frontend：六个中心的 17 条副标题搬进六语言 `locales`（`settings.{developerCenter,systemCenter,memoryCenter,toolQualityCenter,modelCenter}.tabDescriptions.*`、`settings.skills.tabSubtitles.*`），组件改用 `useTranslations`，「API 秘钥」改为「API 密钥」；删除六语言里已退役的 `chat.subscriptionCopilot / Openai / Claude / PkceNotice / PkceReopen` 与 `i18n-shell-allowlist.json` 里对应条目。
+
+### 验证
+
+1. 清理逻辑的变异检查：`test_retired_provider_oauth_purge.py` 7 例在原实现下全绿；逐个应用 4 个变异（用抛弃式 pytest 插件在解释器内改写模块源码，项目文件不动）：遗留列表恒为空 → 3 红；把 `xai` 也列入遗留 → 5 红；去掉「无遗留项不写回」的提前返回 → 2 红（密文变化证明发生了重写，无法解析的 blob 被覆盖）；只写回不删除 → 3 红；锚点不存在时插件直接报错，证明改写确实生效；
+2. 前端：对订阅卡片、首启弹窗、预检横幅、发行方展示名、重新授权 toast、数据流披露面板逐个做变异检查（约 25 个，均先红后绿，用抛弃式 vitest 配置，项目文件不动）；副标题新增 `centerSubtitles.test.tsx`：直接读六语言 `locales/*.json`，对 17 条副标题断言单语言（无「中文 / English」混排、英德无 CJK、其余语言含 CJK 且不等于英文），并以真实目录解析（缺失路径即抛错）渲染六个中心的每个标签页、六种语言共 132 例；对它应用 3 个变异（映射到不存在的 key、两个标签文案互换、key 拼错）分别 6、12、6 例变红；
+3. server：受影响的两批共 227 个用例通过（`web_push`、设置深链架构测试、`provider_oauth` 接口、`config_loader`、`model_resolver_enrich`、清理逻辑；OAuth 刷新 / 存储 / 会话凭据 / 诊断 / lifespan 等）；其中 `test_oauth_reauth_sse.py` 的 1 例因他人把 `_EVENT_TEMPLATES` 从 `dispatcher.py` 挪到 `adaptive_cards.py` 而早已红，把导入改到新位置后该文件单独复跑 3 例通过；`ruff check`、`ruff format --check` 对触及的服务端文件通过；
+4. frontend：11 个相关测试文件 355 例全绿；受影响目录的广域扫描 360 个文件 2215 例中 2213 例通过（见下方局限）；`verify-i18n.mjs`（含全量 key 对齐、占位符、翻译壳、双语对照、纯净门禁）、`prettier --check`、oxlint、`verify:stable-mocks`（本次触及的文件）通过，全量 `tsc --noEmit` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误；
+5. 局限：没有真实订阅账号与真实浏览器，xAI 设备码授权的端到端流程没有重新跑过，只有单元测试与前端交互测试；对 mypy 报告里落在 `oauth_store.py`、`oauth_refresher.py`、`server_diagnostics.py` 的既有报错，确认与本次改动的行不重叠，但没有在 HEAD 基线上单独比对错误数；pyright 在本机解析不到 `sqlalchemy`，结果无效。
+
+### 踩坑经验
+
+1. 删登录只删代码不够：令牌存在加密 blob 里，必须同时有启动期的幂等清理，并且要证明两件事——不会清掉还在用的发行方（`xai`、`google_workspace`），也不会改写没有遗留项的 blob 或覆盖无法解析的 blob（加密每次写入用新的随机数，密文不变即证明没有重写）；
+2. 变异检查要覆盖「清得太多」与「写得太多」两个方向，只测「清掉了」会放过把现役发行方也清掉的实现；
+3. 前端测试里 mock `next-intl` 的 `t` 必须是稳定引用（`verify:stable-mocks` 会拦），按命名空间缓存同一个函数；
+4. 局限（已核实、未处理，不属于本次范围）：`NoProviderBanner` 的启动授权失败路径先 `setActiveFlow(null)` 再用 `setActiveFlow((prev) => prev ? … : null)` 写错误，错误永远写不进去，用户看不到失败原因；授权轮询返回的 `pollRes.error` 与异常的 `err.message` 会原样展示给用户；预检横幅只缺 MCP 时点击落在 `/settings/skills`，而 `getIntegrationSkillSettingsPath` 对 MCP 给的是 `/settings/agents#loadout`；IM 通知模板 `adaptive_cards.py` 的 OAuth 重新授权文案写「Settings → Integrations」，设置菜单里没有这一项（凭据页叫 Credentials）；`tests/api/integrations/test_mcp_registry_api.py` 有两例依赖线上 Smithery 网络；`MemoryGuardianCard.test.tsx` 的 1 例在受影响目录扫描里失败（单独运行同样失败，渲染停在骨架屏，源文件与测试均未被本次改动）；`BuiltinToolsPanel.kanban.test.tsx` 的 1 例在满载的扫描里超时，单独运行通过。
+
+---
+
+## BUG-AGENT-2026-10-13-008: 重新迁移同名技能时，已有的用量账本被迁移快照整体覆盖（结果、历史、置顶标记丢失）
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-13 |
+| 修复日期 | 2026-10-13 |
+| 严重程度 | P2（数据丢失：本机已积累的技能结果与使用历史被快照覆盖，无法恢复） |
+| 影响范围 | `myrm-agent-server/app/api/skills/migrations.py`, `myrm-agent-server/app/services/migration/skill_bundle_writer.py` |
+| 出现次数 | 1（用例复现，未取得线上遥测） |
+| 关联 | `BUG-AGENT-2026-10-13-009`（同一批次的技能账本）；提交 `8429cc390` |
+
+### 现象
+
+批准一次 Hermes 技能迁移时，若本机已有同名技能，它的 `.stats.json`（已观测结果、使用历史、置顶标记）被迁移快照整体覆盖。`SKILL.md` 在覆盖前有备份，账本没有。
+
+### 根因
+
+应用步骤对账本无条件写入快照。批量导入「替换同名技能」时会把原账本带过去，迁移路径与之不一致。
+
+### 修复
+
+已有账本永远优先于快照；没有账本的同名技能才用快照播种。应用步骤从 API 层搬到 `services/migration/skill_bundle_writer.py`，`migrations.py` 随之回到文件大小上限内。
+
+### 验证
+
+1. `test_usage_sidecar_import.py` 新增两例：`test_existing_ledger_is_never_replaced`、`test_seeds_ledger_for_existing_skill_without_one`；
+2. 本条与下一条涉及的 4 个服务端测试文件共 52 例通过（`test_usage_sidecar_import.py`、`test_usage_sidecar_integration.py`、`test_growth_dashboard_skill_range.py`、`test_skill_growth_outcomes.py`）。
+
+### 踩坑经验
+
+1. 「有备份」只对被备份的那个文件成立：一个目录里并存的旁路文件（账本、置顶标记）要逐个问「覆盖时谁来保」；
+2. 同一业务有两条写入路径（批量导入与迁移）时，行为差异本身就是缺陷来源，应收敛到同一个写入器。
+
+---
+
+## BUG-AGENT-2026-10-13-009: 技能趋势与 7 天次数静默少算最旧的运行（账本只留 200 条），趋势面板还不跟随 7/30/90 天范围
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-13 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（看板数字低于真实值且没有任何提示） |
+| 影响范围 | `myrm-agent-server/app/api/statistics/skill_growth/{ledger,trends,health,models}.py`, `myrm-agent-frontend/src/components/features/growth/{SkillTrendChart,SkillHealthPanel,growthMarkdownExport}` |
+| 出现次数 | 1（用例复现，未取得线上遥测） |
+| 关联 | `BUG-AGENT-2026-10-13-008`；提交 `4894f5c2c`、`ad38e1be5`、`efdef9e72`，harness 提交 `481cf2816`、`877ba95f5` |
+
+### 现象
+
+1. 技能趋势面板不理会 7/30/90 天选择器，永远显示整本账本，是看板上唯一不随范围变化的面板；
+2. 技能账本只保留最近 200 次运行：一周跑了 336 次的技能，趋势图与健康面板的 7 天次数都显示 200；
+3. 范围变化后，所选技能不在新范围内时图表停在最忙技能上，却没有任何标签高亮；空态写「暂无技能使用数据」，对只是这个范围里没有运行的用户是错的。
+
+### 根因
+
+趋势取数不带窗口。账本满（200 条）时分不清「被丢弃的运行」与「本来没有的运行」，计数却被当作总数展示。选择与空态没有处理「范围变了」。
+
+### 修复
+
+趋势窗口随所选范围（滚动 N 天，与健康、成本面板同口径），日按请求方时区划分。序列与健康项带 `truncated`：仅当账本已满且其最早保留的一次运行晚于窗口起点时为真。界面把次数读作下界（`200+`），趋势图说明更早的运行「可能」缺失（账本已满时分不清丢弃与不存在，措辞不下断言）。所选技能不在新范围内时回落到用得最多的技能，始终有一枚高亮标签并带 `aria-pressed`，空态按范围措辞。被丢弃的运行无法找回，没有新增存储。
+
+### 验证
+
+1. `test_skill_growth_outcomes.py`：每天三次、共 100 天的技能，90 天范围被标为截断而 30、7 天完整；一周 336 次的技能读出 `(200, True)`；`test_growth_dashboard_skill_range.py`：所选范围就是趋势窗口、截断标志到达客户端；
+2. 服务端相关 4 个测试文件共 52 例通过（与上一条合计）；前端 `SkillTrendChart.test.tsx`、`SkillHealthPanel.test.tsx`、`growthMarkdownExport.test.ts` 覆盖截断说明、选择回落与范围化空态。
+
+### 踩坑经验
+
+1. 容量上限产生的数字是下界，不是总数：凡展示它的地方都要带出「可能不全」，并且措辞与已知信息一致；
+2. 面板一旦随范围变化，依赖列表的 UI 状态（当前选择、空态文案）要同时处理「范围变了」。
+
+---
+
+## BUG-AGENT-2026-10-13-010: 技能趋势图一根柱子都不画且横向溢出；健康雷达无轮廓无网格黑填充；五环中心刷新按钮写死中文
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（成长看板的两个图表不可用，刷新按钮在英文界面显示中文） |
+| 影响范围 | `myrm-agent-frontend/src/components/features/growth/{SkillTrendChart,skillTrendSeries,HealthRadar,LearningLoopFiveRingHub}`，`locales/*.json` 的 `growthDashboard.learningLoop.refresh` |
+| 出现次数 | 1（真实组件在 Chrome 中量到，未取得线上遥测） |
+| 关联 | `BUG-AGENT-2026-10-13-009` |
+
+### 现象
+
+1. 技能趋势图（`/journey` 的「技能趋势」页签）一根柱子都不画：30 个日列、行高 128px，30 根柱的计算高度全是 0px；视口 500px 时该行还横向溢出（`scrollWidth` 大于 `clientWidth`）；
+2. 0% 与无数据都被画成 2% 的短桩，分不出「全部失败」与「没有观测」；悬停数值与 `title` 在触屏上不起作用；
+3. 概览页的记忆健康雷达没有轮廓、没有网格，填充是黑色；
+4. 五环中心的「刷新」写死中文，英文界面也显示；五个环卡片是 `div role="button"`，触发 oxlint 的 `jsx-a11y/prefer-tag-over-role`。
+
+### 根因
+
+1. 柱子写成 `height: N%`，百分比相对一个没有高度的 flex 列容器解析，得 0；每列还各带一个悬停数值与一个日期标签，把行撑宽。这种写法自 `6010b682c`（2026-07-13）起如此，jsdom 没有版面，单测看不到；
+2. 雷达颜色写成 `hsl(var(--primary))`，而主题变量里存的是完整颜色（`globals.css` 的 `--primary: #6799a0`，运行时由 `theme-engine/compiler.ts` 写入同类值），包进 `hsl()` 即无效值：描边 `none`、填充黑；
+3. 「刷新」是写死的中文；卡片是带键盘处理的 `div`，不是 `button`。
+
+### 修复
+
+1. 柱区换成仓库统一的 `lazy-recharts`（定高 128px 的 `ResponsiveContainer` + `BarChart`）：定高从结构上排除 0 高度，横轴自动抽稀，悬停与触摸都读出当日值；0% 是红色短柱，无观测的日子留空；成功率纵轴固定 0–100%。逐柱颜色写在数据行的 `fill`，不用 `Cell`；`skillTrendSeries.ts` 在技能首末次运行之间补齐没有运行的日子，让横轴是日历；
+2. 雷达颜色直接取 `var(--border)`、`var(--muted-foreground)`、`var(--primary)`；
+3. 「刷新」走 `growthDashboard.learningLoop.refresh`（六语言）；五个环卡片改为真正的 `button`（原生支持 Enter 与空格，去掉手写的键盘处理）。
+
+### 验证
+
+1. 真实组件在 Chrome 渲染（经 bun 打包真实的 `lazy-recharts`、`next-intl` 与编译后的 `globals.css`；500、800、1280px，浅色与深色）：30 天含 4 个无数据日 → 26 根柱全部可见，最小 3px、最大 94px；90 天 77 根；SVG 宽度等于容器宽度、无溢出；横轴抽稀为 7–8 个刻度；悬停读出当日值与已观测次数，无数据日读出破折号；切到次数后全为蓝柱；失败日 5 根为红、其余为绿；
+2. 雷达：描边 `rgb(103, 153, 160)`、网格 `rgb(236, 234, 228)`；修复前同样写法量得描边 `none`、填充 `rgb(0, 0, 0)`、网格 `none`；
+3. 五环卡片：改前（`div`）与改后（`button`）在 500、800、1280px 下盒子与文字位置逐项一致；Enter 与空格都能把看板切到对应页签；
+4. 新增 23 例测试：`skillTrendSeries.test.ts` 9、`SkillTrendChart.test.tsx` 11、`HealthRadar.test.tsx` 1、`LearningLoopFiveRingHub.test.tsx` 2。9 个变异（失败色挂错值、次数 0 画成柱、不补空日、逐行 `fill` 丢失、成功率纵轴交给数据、提示对无观测日显示次数、雷达改回 `hsl()`、环卡片跳错页签、刷新改回写死）全部被测试杀死，运行后文件按哈希核对还原；
+5. `oxlint` 对 growth 目录无输出，`prettier --check` 对触及的代码文件通过，`verify-i18n.mjs` 六语言通过，全量 `tsc --noEmit` 只剩他人 `KanbanTaskHandoffSection.test.tsx` 的 1 条类型错误。
+
+### 踩坑经验
+
+1. jsdom 没有版面：高度、宽度、溢出类缺陷单测看不到。这类面板要用真实组件在真实浏览器里量一次；并且让图表依赖定高，而不是父级没有的百分比；
+2. 原型要走仓库真实的封装：直接用 recharts 时 `Cell` 能给每根柱上色，经 `lazy-recharts` 的包装组件却不被图表库按子类型识别，柱子落回默认黑色，同一份原型在两处结论相反；
+3. 主题变量是完整颜色，不要包 `hsl()`。同类写法还在 `KanbanGraphView.tsx`（9 处）与 `SkillQualityTrendChart.tsx`（7 处），这两个目录有他人未提交的改动，且未渲染确认，本次未动；`EnterpriseUsageTab.tsx` 经同一封装用 `Cell` 给饼图分片上色，存在同类风险，未验证；
+4. 局限：没有在完整 Next 应用里跑过（需要后端数据）；触摸只用合成事件验证了接线；Chrome 最小视口 500px，360px 未实测；真实用户是否受影响没有线上遥测。
+
+---

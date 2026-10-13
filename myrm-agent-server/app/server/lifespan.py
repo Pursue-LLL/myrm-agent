@@ -417,6 +417,17 @@ async def _phase_1a_sequential() -> None:
         logger.warning("[Startup] Providers key consolidation failed (non-critical): %s", e)
 
     try:
+        from app.database.connection import get_session
+        from app.services.integrations.retired_provider_oauth_purge import (
+            purge_retired_provider_credentials,
+        )
+
+        async with get_session() as db:
+            await purge_retired_provider_credentials(db)
+    except Exception as e:
+        logger.warning("[Startup] Retired provider OAuth credential purge failed (non-critical): %s", e)
+
+    try:
         from app.core.infra.tls_config import apply_tls_config_from_db
 
         await apply_tls_config_from_db()

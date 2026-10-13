@@ -18,7 +18,6 @@ Diagnostic aggregation for `/health/doctor` lives here:
 | health_alert_policy.py | Core | `publish_health_alerts()` with 300s dedup; fail-only critical components. | ✅ |
 | health_presenter.py | Core | Sandbox-aware `present_health_report()` for WebUI payloads. | ✅ |
 | agent_diagnostics.py | Core | Agent ecosystem diagnostic probes (AgentColdStart Warm-Path, OllamaModelContextDiagnostic 64K context audit, AgentStepBudgetDiagnostic step budget audit, AgentPromptCacheAlignmentDiagnostic prefix cache jitter audit). | ✅ |
-| anthropic_policy_diagnostic.py | Core | Anthropic subscription policy and fallback escape diagnostic probe. | ✅ |
 | contracts.py | Core | Diagnostic protocol re-exports from harness observability. | ✅ |
 | skill_diagnostics.py | Core | Skill ecosystem diagnostic probe (SkillHoardingHealthDiagnostic skill hoarding & wrong-but-frequent low-quality audit). | ✅ |
 | desktop_locked_use_diagnostic.py | Core | Locked Use / Privacy Curtain bridge + desktop shell liveness probe for `/health/doctor`. Tests: `tests/core/infra/health/test_desktop_locked_use_diagnostic.py`. | ✅ |

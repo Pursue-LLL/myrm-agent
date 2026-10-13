@@ -7,7 +7,7 @@ Provider / 模型服务配置 UI：增删 Provider、API Key、批量迁移与�
 | `ProviderConfig.tsx` / `AddProviderDialog.tsx` / `DeleteProviderDialog.tsx` | Provider CRUD                                                                                              |
 | `ApiKeyManager.tsx` / `ApiUrlSelector.tsx`                                  | 凭证与端点                                                                                                 |
 | `MainToggle.tsx` / `EgressProxyConfig.tsx`                                  | 服务主启用开关与独立出网代理配置                                                                           |
-| `ProviderOAuthSection.tsx`                                                  | Provider OAuth 订阅登录（PKCE / Device Code）                                                              |
+| `ProviderOAuthSection.tsx`                                                  | xAI SuperGrok 订阅登录（Device Code 授权 / 轮询 / 断开），文案取自 `settings.modelService.oauth`           |
 | `ModelCheckbox.tsx` / `ModelInfoCard.tsx` / `InlineModelInfo.tsx`           | 模型列表与信息                                                                                             |
 | `OpenCodeContributorNotice.tsx` / `opencode-contributor-utils.ts`           | OpenCode Go Contributor 模型 consent 提示（模型服务 / 默认模型 / 全局 ModelPicker）                        |
 | `AddModelInput.tsx` / `ModelImportDialog.tsx` / `BatchMigrateDialog.tsx`    | 模型导入与迁移                                                                                             |

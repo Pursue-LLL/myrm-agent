@@ -1,18 +1,21 @@
-"""Unit tests for Provider OAuth API — Anthropic PKCE, OpenAI Device Code, Copilot Device Code, Status, and Disconnect."""
+"""Unit tests for the Provider OAuth API — xAI SuperGrok delegation, status, disconnect and E2E fixtures."""
 
 from __future__ import annotations
 
 import time
 from collections.abc import Iterator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.utils.response_utils import success_response
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
 API_PREFIX = "/api/v1/integrations/provider-oauth"
+
+_RETIRED_PROVIDERS = ("anthropic", "openai", "copilot")
 
 
 @pytest.fixture
@@ -25,346 +28,31 @@ def client() -> Iterator[TestClient]:
         yield TestClient(app)
 
 
-class TestAnthropicOAuth:
-    """Test Anthropic PKCE OAuth flow endpoints."""
+class TestRetiredSubscriptionLogins:
+    """The in-process Claude / ChatGPT / Copilot logins are gone and must not be re-mounted."""
 
-    def test_start_anthropic_oauth(self, client: TestClient):
-        response = client.post(f"{API_PREFIX}/anthropic/start")
-        assert response.status_code == 200
-        data = response.json()["data"]
-        assert "authorize_url" in data
-        assert "state" in data
-        assert "code_challenge=" in data["authorize_url"]
-        assert data["state"] in data["authorize_url"]
+    @pytest.mark.parametrize("provider", _RETIRED_PROVIDERS)
+    @pytest.mark.parametrize("action", ["start", "poll"])
+    def test_login_routes_do_not_exist(self, client: TestClient, provider: str, action: str) -> None:
+        assert client.post(f"{API_PREFIX}/{provider}/{action}").status_code == 404
 
-    def test_callback_missing_params(self, client: TestClient):
-        response = client.get(f"{API_PREFIX}/anthropic/callback")
-        assert response.status_code == 400
-        assert "Missing authorization code or state" in response.text
+    def test_anthropic_callback_route_does_not_exist(self, client: TestClient) -> None:
+        assert client.get(f"{API_PREFIX}/anthropic/callback?code=c&state=s").status_code == 404
 
-    def test_callback_invalid_state(self, client: TestClient):
-        response = client.get(f"{API_PREFIX}/anthropic/callback?code=test-code&state=nonexistent-state")
-        assert response.status_code == 400
-        assert "Invalid or expired authorization state" in response.text
-
-    def test_callback_success(self, client: TestClient):
-        # 1. Start flow to register state in _pending_pkce_flows
-        start_resp = client.post(f"{API_PREFIX}/anthropic/start")
-        state = start_resp.json()["data"]["state"]
-
-        # 2. Mock token exchange HTTP call and DB persistence
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "access_token": "sk-ant-oauth-token-123",
-            "refresh_token": "ant-refresh-token-456",
-            "expires_in": 3600,
-        }
-
-        with (
-            patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_resp)),
-            patch("app.api.integrations.provider_oauth.upsert_oauth_credential", new=AsyncMock()) as mock_upsert,
+    @pytest.mark.parametrize("provider", _RETIRED_PROVIDERS)
+    def test_status_and_disconnect_reject_retired_providers(self, client: TestClient, provider: str) -> None:
+        for response in (
+            client.get(f"{API_PREFIX}/status/{provider}"),
+            client.delete(f"{API_PREFIX}/disconnect/{provider}"),
         ):
-            response = client.get(f"{API_PREFIX}/anthropic/callback?code=auth-code-123&state={state}")
-            assert response.status_code == 200
-            assert "Anthropic Connected" in response.text
-            assert mock_upsert.called
-            call_args = mock_upsert.call_args[0]
-            assert call_args[1] == "provider_anthropic"
-            assert call_args[2]["token"] == "sk-ant-oauth-token-123"
-
-    def test_callback_token_exchange_failure(self, client: TestClient):
-        start_resp = client.post(f"{API_PREFIX}/anthropic/start")
-        state = start_resp.json()["data"]["state"]
-
-        mock_resp = MagicMock()
-        mock_resp.status_code = 400
-        mock_resp.text = "invalid_grant"
-
-        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_resp)):
-            response = client.get(f"{API_PREFIX}/anthropic/callback?code=bad-code&state={state}")
             assert response.status_code == 400
-            assert "Failed to exchange authorization code" in response.text
+            assert "Unknown provider" in response.text
 
 
-class TestOpenAIOAuth:
-    """Test OpenAI Device Code flow endpoints."""
+class TestXaiRoutes:
+    """/xai/start and /xai/poll delegate to the xAI device-code flow."""
 
-    def test_start_openai_device_code_success(self, client: TestClient):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "device_auth_id": "dev-auth-id-abc",
-            "user_code": "WDJB-ABCD",
-            "interval": 5,
-        }
-        mock_resp.raise_for_status.return_value = None
-
-        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_resp)):
-            response = client.post(f"{API_PREFIX}/openai/start")
-            assert response.status_code == 200
-            data = response.json()["data"]
-            assert data["user_code"] == "WDJB-ABCD"
-            assert "verification_uri" in data
-
-    def test_poll_openai_not_found(self, client: TestClient):
-        response = client.post(f"{API_PREFIX}/openai/poll?user_code=NONEXISTENT")
-        assert response.status_code == 404
-
-    def test_poll_openai_pending(self, client: TestClient):
-        # 1. Start flow to register user_code
-        start_resp_mock = MagicMock()
-        start_resp_mock.status_code = 200
-        start_resp_mock.json.return_value = {
-            "device_auth_id": "dev-auth-id-123",
-            "user_code": "OPENAI-PENDING",
-            "interval": 5,
-        }
-        start_resp_mock.raise_for_status.return_value = None
-
-        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=start_resp_mock)):
-            client.post(f"{API_PREFIX}/openai/start")
-
-        # 2. Poll returning 400 authorization_pending
-        poll_resp_mock = MagicMock()
-        poll_resp_mock.status_code = 400
-        poll_resp_mock.json.return_value = {"error": {"code": "authorization_pending"}}
-
-        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=poll_resp_mock)):
-            response = client.post(f"{API_PREFIX}/openai/poll?user_code=OPENAI-PENDING")
-            assert response.status_code == 200
-            assert response.json()["data"]["status"] == "pending"
-
-    def test_poll_openai_success(self, client: TestClient):
-        start_resp_mock = MagicMock()
-        start_resp_mock.status_code = 200
-        start_resp_mock.json.return_value = {
-            "device_auth_id": "dev-auth-id-success",
-            "user_code": "OPENAI-OK",
-            "interval": 5,
-        }
-        start_resp_mock.raise_for_status.return_value = None
-
-        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=start_resp_mock)):
-            client.post(f"{API_PREFIX}/openai/start")
-
-        # Device token exchange returns auth code
-        device_resp = MagicMock()
-        device_resp.status_code = 200
-        device_resp.json.return_value = {
-            "authorization_code": "auth-code-xyz",
-            "code_verifier": "verifier-xyz",
-        }
-
-        # Token endpoint returns access token
-        token_resp = MagicMock()
-        token_resp.status_code = 200
-        token_resp.json.return_value = {
-            "access_token": "openai-oauth-token-val",
-            "refresh_token": "openai-refresh-val",
-            "expires_in": 3600,
-        }
-
-        async def _mock_post(url, **kwargs):
-            if "deviceauth/token" in str(url):
-                return device_resp
-            return token_resp
-
-        with (
-            patch("httpx.AsyncClient.post", new=AsyncMock(side_effect=_mock_post)),
-            patch("app.api.integrations.provider_oauth.upsert_oauth_credential", new=AsyncMock()) as mock_upsert,
-        ):
-            response = client.post(f"{API_PREFIX}/openai/poll?user_code=OPENAI-OK")
-            assert response.status_code == 200
-            assert response.json()["data"]["status"] == "success"
-            assert mock_upsert.called
-            call_args = mock_upsert.call_args[0]
-            assert call_args[1] == "provider_openai"
-            assert call_args[2]["token"] == "openai-oauth-token-val"
-
-
-class TestCopilotOAuth:
-    """Test GitHub Copilot Device Code flow endpoints."""
-
-    def test_start_copilot_device_code(self, client: TestClient):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "device_code": "copilot-dev-code-123",
-            "user_code": "CP-1234",
-            "verification_uri": "https://github.com/login/device",
-            "expires_in": 900,
-            "interval": 5,
-        }
-        mock_resp.raise_for_status.return_value = None
-
-        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_resp)):
-            response = client.post(f"{API_PREFIX}/copilot/start")
-            assert response.status_code == 200
-            data = response.json()["data"]
-            assert data["user_code"] == "CP-1234"
-            assert data["verification_uri"] == "https://github.com/login/device"
-
-    def test_poll_copilot_pending(self, client: TestClient):
-        start_resp = MagicMock()
-        start_resp.status_code = 200
-        start_resp.json.return_value = {
-            "device_code": "copilot-dev-pending",
-            "user_code": "CP-PEND",
-            "verification_uri": "https://github.com/login/device",
-            "expires_in": 900,
-            "interval": 5,
-        }
-        start_resp.raise_for_status.return_value = None
-
-        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=start_resp)):
-            client.post(f"{API_PREFIX}/copilot/start")
-
-        poll_resp = MagicMock()
-        poll_resp.status_code = 200
-        poll_resp.headers = {"content-type": "application/json"}
-        poll_resp.json.return_value = {"error": "authorization_pending"}
-
-        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=poll_resp)):
-            response = client.post(f"{API_PREFIX}/copilot/poll?user_code=CP-PEND")
-            assert response.status_code == 200
-            assert response.json()["data"]["status"] == "pending"
-
-    def test_poll_copilot_success(self, client: TestClient):
-        start_resp = MagicMock()
-        start_resp.status_code = 200
-        start_resp.json.return_value = {
-            "device_code": "copilot-dev-success",
-            "user_code": "CP-OK",
-            "verification_uri": "https://github.com/login/device",
-            "expires_in": 900,
-            "interval": 5,
-        }
-        start_resp.raise_for_status.return_value = None
-
-        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=start_resp)):
-            client.post(f"{API_PREFIX}/copilot/start")
-
-        github_poll_resp = MagicMock()
-        github_poll_resp.status_code = 200
-        github_poll_resp.headers = {"content-type": "application/json"}
-        github_poll_resp.json.return_value = {"access_token": "gh-oauth-access-token"}
-
-        with (
-            patch("httpx.AsyncClient.post", new=AsyncMock(return_value=github_poll_resp)),
-            patch(
-                "app.api.integrations.provider_oauth._exchange_copilot_token",
-                new=AsyncMock(return_value=("copilot-token-789", time.time() + 1800, "https://api.individual.githubcopilot.com")),
-            ),
-            patch(
-                "app.api.integrations.provider_oauth._fetch_copilot_models",
-                new=AsyncMock(return_value=["gpt-4o", "claude-3.5-sonnet"]),
-            ),
-            patch("app.api.integrations.provider_oauth.upsert_oauth_credential", new=AsyncMock()) as mock_upsert,
-        ):
-            response = client.post(f"{API_PREFIX}/copilot/poll?user_code=CP-OK")
-            assert response.status_code == 200
-            data = response.json()["data"]
-            assert data["status"] == "success"
-            assert "gpt-4o" in data["available_models"]
-            assert mock_upsert.called
-            call_args = mock_upsert.call_args[0]
-            assert call_args[1] == "provider_copilot"
-            assert call_args[2]["token"] == "copilot-token-789"
-            assert call_args[2]["base_url"] == "https://api.individual.githubcopilot.com"
-
-
-class TestProviderOAuthStatusAndDisconnect:
-    """Test status and disconnect endpoints for all providers."""
-
-    def test_status_disconnected(self, client: TestClient):
-        with patch("app.api.integrations.provider_oauth.is_oauth_issuer_connected", new=AsyncMock(return_value=False)):
-            response = client.get(f"{API_PREFIX}/status/anthropic")
-            assert response.status_code == 200
-            data = response.json()["data"]
-            assert data["provider"] == "anthropic"
-            assert data["connected"] is False
-
-    def test_status_connected(self, client: TestClient):
-        row = type("Row", (), {"config_value": "enc", "is_encrypted": True})()
-        with (
-            patch("app.api.integrations.provider_oauth.is_oauth_issuer_connected", new=AsyncMock(return_value=True)),
-            patch("app.api.integrations.provider_oauth.load_oauth_credentials_row", new=AsyncMock(return_value=row)),
-            patch(
-                "app.api.integrations.provider_oauth.decrypt_oauth_credentials",
-                return_value={
-                    "provider_copilot": {
-                        "token": "tok",
-                        "expires_at": time.time() + 3600,
-                        "scope": "copilot",
-                        "base_url": "https://api.individual.githubcopilot.com",
-                        "available_models": ["gpt-4o", "claude-3.5-sonnet"],
-                    }
-                },
-            ),
-        ):
-            response = client.get(f"{API_PREFIX}/status/copilot")
-            assert response.status_code == 200
-            data = response.json()["data"]
-            assert data["connected"] is True
-            assert "gpt-4o" in data["available_models"]
-            assert data["base_url"] == "https://api.individual.githubcopilot.com"
-
-    def test_status_unknown_provider(self, client: TestClient):
-        response = client.get(f"{API_PREFIX}/status/unknown_provider")
-        assert response.status_code == 400
-        assert "Unknown provider" in response.text
-
-    def test_disconnect_success(self, client: TestClient):
-        with patch(
-            "app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=True)
-        ) as mock_delete:
-            response = client.delete(f"{API_PREFIX}/disconnect/openai")
-            assert response.status_code == 200
-            assert response.json()["data"]["connected"] is False
-            assert mock_delete.called
-            assert mock_delete.call_args[0][1] == "provider_openai"
-
-    def test_disconnect_unknown_provider(self, client: TestClient):
-        response = client.delete(f"{API_PREFIX}/disconnect/unknown_provider")
-        assert response.status_code == 400
-        assert "Unknown provider" in response.text
-
-    def test_disconnect_not_connected(self, client: TestClient):
-        with patch("app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=False)):
-            response = client.delete(f"{API_PREFIX}/disconnect/openai")
-            assert response.status_code == 404
-            assert response.json()["code"] == 40401
-
-    def test_status_connected_xai(self, client: TestClient):
-        row = type("Row", (), {"config_value": "enc", "is_encrypted": True})()
-        with (
-            patch("app.api.integrations.provider_oauth.is_oauth_issuer_connected", new=AsyncMock(return_value=True)),
-            patch("app.api.integrations.provider_oauth.load_oauth_credentials_row", new=AsyncMock(return_value=row)),
-            patch(
-                "app.api.integrations.provider_oauth.decrypt_oauth_credentials",
-                return_value={
-                    "xai": {
-                        "token": "xai-tok-123",
-                        "expires_at": time.time() + 3600,
-                        "scope": "api:access",
-                        "base_url": "https://api.x.ai/v1",
-                    }
-                },
-            ),
-        ):
-            response = client.get(f"{API_PREFIX}/status/xai")
-            assert response.status_code == 200
-            data = response.json()["data"]
-            assert data["connected"] is True
-            assert data["provider"] == "xai"
-            assert data["issuer"] == "xai"
-            assert "grok-2" in data["available_models"]
-            assert data["base_url"] == "https://api.x.ai/v1"
-
-    def test_xai_start_and_poll_routes(self, client: TestClient):
-        from app.core.utils.response_utils import success_response
-
+    def test_start_and_poll_delegate_to_xai_flow(self, client: TestClient) -> None:
         with (
             patch(
                 "app.api.integrations.xai_oauth.start_xai_oauth",
@@ -375,7 +63,7 @@ class TestProviderOAuthStatusAndDisconnect:
             patch(
                 "app.api.integrations.xai_oauth.poll_xai_oauth",
                 new=AsyncMock(return_value=success_response(data={"status": "pending"})),
-            ),
+            ) as mock_poll,
         ):
             start_resp = client.post(f"{API_PREFIX}/xai/start")
             assert start_resp.status_code == 200
@@ -384,21 +72,121 @@ class TestProviderOAuthStatusAndDisconnect:
             poll_resp = client.post(f"{API_PREFIX}/xai/poll?user_code=XAI-123")
             assert poll_resp.status_code == 200
             assert poll_resp.json()["data"]["status"] == "pending"
+            assert mock_poll.await_args.kwargs["user_code"] == "XAI-123"
 
-    def test_seed_and_cleanup_test_oauth(self, client: TestClient):
+
+class TestStatusAndDisconnect:
+    """GET /status/{provider} and DELETE /disconnect/{provider}."""
+
+    def test_status_disconnected(self, client: TestClient) -> None:
+        with patch("app.api.integrations.provider_oauth.is_oauth_issuer_connected", new=AsyncMock(return_value=False)):
+            response = client.get(f"{API_PREFIX}/status/xai")
+
+        assert response.status_code == 200
+        assert response.json()["data"] == {"provider": "xai", "issuer": "xai", "connected": False}
+
+    def test_status_connected_xai(self, client: TestClient) -> None:
+        row = type("Row", (), {"config_value": "enc", "is_encrypted": True})()
+        expires_at = time.time() + 3600
+        with (
+            patch("app.api.integrations.provider_oauth.is_oauth_issuer_connected", new=AsyncMock(return_value=True)),
+            patch("app.api.integrations.provider_oauth.load_oauth_credentials_row", new=AsyncMock(return_value=row)),
+            patch(
+                "app.api.integrations.provider_oauth.decrypt_oauth_credentials",
+                return_value={
+                    "xai": {
+                        "token": "xai-tok-123",
+                        "expires_at": expires_at,
+                        "scope": "api:access",
+                        "base_url": "https://api.x.ai/v1",
+                    }
+                },
+            ),
+        ):
+            response = client.get(f"{API_PREFIX}/status/xai")
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["connected"] is True
+        assert data["provider"] == "xai"
+        assert data["issuer"] == "xai"
+        assert data["expires_at"] == expires_at
+        assert data["scope"] == "api:access"
+        assert data["base_url"] == "https://api.x.ai/v1"
+        assert "grok-2" in data["available_models"]
+        assert "token" not in data
+
+    def test_status_unknown_provider(self, client: TestClient) -> None:
+        response = client.get(f"{API_PREFIX}/status/unknown_provider")
+        assert response.status_code == 400
+        assert "Unknown provider" in response.text
+
+    def test_disconnect_success(self, client: TestClient) -> None:
+        with patch(
+            "app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=True)
+        ) as mock_delete:
+            response = client.delete(f"{API_PREFIX}/disconnect/xai")
+
+        assert response.status_code == 200
+        assert response.json()["data"] == {"provider": "xai", "connected": False}
+        assert mock_delete.call_args[0][1] == "xai"
+
+    def test_disconnect_unknown_provider(self, client: TestClient) -> None:
+        response = client.delete(f"{API_PREFIX}/disconnect/unknown_provider")
+        assert response.status_code == 400
+        assert "Unknown provider" in response.text
+
+    def test_disconnect_not_connected(self, client: TestClient) -> None:
+        with patch("app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=False)):
+            response = client.delete(f"{API_PREFIX}/disconnect/xai")
+
+        assert response.status_code == 404
+        assert response.json()["code"] == 40401
+
+
+class TestE2eFixtureEndpoints:
+    """Local-mode-only seed / cleanup endpoints used by the Chrome E2E lanes."""
+
+    def test_seed_and_cleanup_xai(self, client: TestClient) -> None:
         with (
             patch("app.config.deploy_mode.is_local_mode", return_value=True),
             patch("app.api.integrations.provider_oauth.upsert_oauth_credential", new=AsyncMock()) as mock_upsert,
             patch("app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=True)) as mock_delete,
         ):
-            # 1. Seed copilot
-            resp = client.post(f"{API_PREFIX}/test/seed-oauth?provider=copilot&token=test-tok")
-            assert resp.status_code == 200
-            assert resp.json()["data"]["seeded"] is True
-            assert mock_upsert.called
+            seed_resp = client.post(f"{API_PREFIX}/test/seed-oauth?token=test-tok")
+            clean_resp = client.post(f"{API_PREFIX}/test/cleanup-oauth")
 
-            # 2. Cleanup copilot
-            clean_resp = client.post(f"{API_PREFIX}/test/cleanup-oauth?provider=copilot")
-            assert clean_resp.status_code == 200
-            assert clean_resp.json()["data"]["cleaned"] is True
-            assert mock_delete.called
+        assert seed_resp.status_code == 200
+        assert seed_resp.json()["data"] == {"provider": "xai", "issuer": "xai", "seeded": True}
+        issuer, entry = mock_upsert.call_args[0][1:]
+        assert issuer == "xai"
+        assert entry["token"] == "test-tok"
+        assert entry["base_url"] == "https://api.x.ai/v1"
+        assert entry["expires_at"] > entry["connected_at"]
+
+        assert clean_resp.status_code == 200
+        assert clean_resp.json()["data"] == {"provider": "xai", "issuer": "xai", "cleaned": True}
+        assert mock_delete.call_args[0][1] == "xai"
+
+    def test_seed_honours_explicit_base_url(self, client: TestClient) -> None:
+        with (
+            patch("app.config.deploy_mode.is_local_mode", return_value=True),
+            patch("app.api.integrations.provider_oauth.upsert_oauth_credential", new=AsyncMock()) as mock_upsert,
+        ):
+            response = client.post(f"{API_PREFIX}/test/seed-oauth?base_url=http://127.0.0.1:9/v1")
+
+        assert response.status_code == 200
+        assert mock_upsert.call_args[0][2]["base_url"] == "http://127.0.0.1:9/v1"
+
+    @pytest.mark.parametrize("path", ["test/seed-oauth", "test/cleanup-oauth"])
+    def test_hidden_outside_local_mode(self, client: TestClient, path: str) -> None:
+        with patch("app.config.deploy_mode.is_local_mode", return_value=False):
+            assert client.post(f"{API_PREFIX}/{path}").status_code == 404
+
+    @pytest.mark.parametrize("path", ["test/seed-oauth", "test/cleanup-oauth"])
+    def test_reject_unknown_provider(self, client: TestClient, path: str) -> None:
+        with patch("app.config.deploy_mode.is_local_mode", return_value=True):
+            response = client.post(f"{API_PREFIX}/{path}?provider=openai")
+
+        assert response.status_code == 400
+        assert "Unknown provider" in response.text

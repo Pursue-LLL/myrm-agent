@@ -2273,10 +2273,7 @@
     "subscriptionQuickConnect": "已有訂閱？一鍵接入",
     "subscriptionModalTitle": "一鍵接入官方付費訂閱",
     "subscriptionModalDesc": "透過官方設備碼安全直連，無需購買和配置 API Key，憑證本地安全加密存儲。",
-    "subscriptionCopilot": "GitHub Copilot 訂閱",
-    "subscriptionOpenai": "ChatGPT Plus / Pro 訂閱",
     "subscriptionXai": "xAI SuperGrok 訂閱",
-    "subscriptionClaude": "Claude Pro / Max 訂閱",
     "subscriptionConnectBtn": "連接",
     "subscriptionDeviceCodeHint": "請在瀏覽器中打開驗證鏈接並輸入設備碼：",
     "subscriptionCopyCode": "複製設備碼",
@@ -3206,8 +3203,6 @@
       "level": "層",
       "runAffectedTests": "執行 {count} 個受影響測試套件"
     },
-    "subscriptionPkceNotice": "{providerName} 授權頁面已在新分頁開啟。請在完成登入與授權後返回本頁面。",
-    "subscriptionPkceReopen": "重新打開授權頁面",
     "modelPlaybook": {
       "chipTitle": "模型編排戰略手冊",
       "chipBadge": "推薦策略",
@@ -15473,7 +15468,33 @@
       "connectionSuccess": "連線成功",
       "connectionFailed": "連線失敗",
       "vercelGatewaySpendHint": "在 Vercel AI Gateway 控制台追蹤開銷、限流與延遲",
-      "openVercelDashboard": "查看控制台"
+      "openVercelDashboard": "查看控制台",
+      "oauth": {
+        "title": "訂閱登入",
+        "connected": "已連線",
+        "noticeTitle": "SuperGrok 訂閱說明",
+        "noticeBody": "透過 SuperGrok 授權後，您可直接在 Myrm 中免 Key 使用 Grok 系列大型語言模型（Grok-2 / Grok-beta）驅動 Agent 任務，並共用 X (Twitter) 即時搜尋與多模態能力。",
+        "deviceCodeHint": "請在瀏覽器中輸入以下驗證碼完成授權：",
+        "copyCode": "複製驗證碼",
+        "openVerificationPage": "開啟驗證頁面",
+        "waiting": "等待授權完成...",
+        "cancel": "取消",
+        "connectedWithApiKey": "已透過 SuperGrok 訂閱登入。優先使用 API Key，訂閱登入作為備選。",
+        "connectedWithQuota": "已透過 SuperGrok 訂閱登入，將使用訂閱額度進行 AI 呼叫。",
+        "tokenExpires": "登入有效期限至：{time}",
+        "disconnect": "斷開連線",
+        "loginPrompt": "使用 SuperGrok 訂閱登入，無需 API Key 即可使用 AI 模型。",
+        "loginButton": "使用 SuperGrok 訂閱登入",
+        "toast": {
+          "timeout": "授權逾時，請重試",
+          "connected": "SuperGrok 訂閱連線成功",
+          "expired": "授權已過期，請重試",
+          "denied": "授權遭拒絕，請重試",
+          "startFailed": "啟動授權失敗，請重試",
+          "disconnected": "已斷開 SuperGrok 訂閱登入",
+          "disconnectFailed": "斷開連線失敗"
+        }
+      }
     },
     "defaultModel": {
       "localModelWarning": "本地輕量模型在處理複雜 Agent 工具鏈時極易產生幻覺或陷入死迴圈。執行長任務建議使用 30B 以上規模模型或雲端高階模型（如 Claude 3.5 Sonnet）。",

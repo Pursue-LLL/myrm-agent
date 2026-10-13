@@ -42,23 +42,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-_PROVIDER_OAUTH_MAP: dict[str, str] = {
-    "provider_anthropic": "anthropic",
-    "provider_openai": "openai",
-    "provider_copilot": "copilot",
-    "xai": "xai",
-    "provider_xai": "xai",
-}
+# oauthCredentials issuer → provider id whose subscription token backs LLM calls.
+_PROVIDER_OAUTH_MAP: dict[str, str] = {"xai": "xai"}
 
 
 def _inject_provider_oauth_tokens(
     providers_dict: dict[str, object],
     oauth_creds: dict[str, object],
 ) -> None:
-    """Inject OAuth tokens from provider_* issuers into matching provider configs.
+    """Inject subscription OAuth tokens into the matching provider configs.
 
-    Sets `_oauthToken` (and `_oauthBaseUrl` for Copilot) on the provider dict
-    so `_extract_all_active_keys` can use them as API key fallbacks.
+    Sets `_oauthToken` (and `_oauthBaseUrl` when the credential carries one) on the
+    provider dict so `_extract_all_active_keys` can use them as API key fallbacks.
     Tokens are always injected; `_extract_all_active_keys` handles API key priority.
     """
     providers = providers_dict.get("providers")
@@ -244,7 +239,7 @@ async def load_user_configs() -> UserConfigs:
     register_custom_model_pricing(providers_dict)
 
     # Inject provider OAuth tokens into provider configs so model_resolver
-    # can use them as API key fallbacks (e.g. Claude Pro, ChatGPT Plus, Copilot)
+    # can use them as API key fallbacks (xAI SuperGrok subscription)
     oauth_creds_raw = config_map.get("oauthCredentials")
     if isinstance(oauth_creds_raw, dict):
         _inject_provider_oauth_tokens(providers_dict, oauth_creds_raw)

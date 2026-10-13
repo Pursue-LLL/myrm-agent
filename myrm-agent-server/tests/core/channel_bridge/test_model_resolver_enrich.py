@@ -290,26 +290,3 @@ class TestProviderOAuthResolution:
         assert cfg.model == "xai/grok-2"
         assert cfg.api_key == "xai-oauth-test-token-xyz"
         assert cfg.base_url == "https://api.x.ai/v1"
-
-    def test_copilot_oauth_token_fallback_and_dynamic_proxy(self) -> None:
-        providers_dict: dict[str, object] = {
-            "providers": [
-                {
-                    "id": "copilot",
-                    "isEnabled": True,
-                    "apiUrl": "",
-                    "apiKeys": [],
-                    "_oauthToken": "gho_test_copilot_token",
-                    "_oauthBaseUrl": "https://api.individual.githubcopilot.com",
-                    "enabledModels": ["gpt-4o", "claude-3.5-sonnet"],
-                }
-            ],
-            "defaultModelConfig": {
-                "baseModel": {
-                    "primary": {"providerId": "copilot", "model": "claude-3.5-sonnet"},
-                }
-            },
-        }
-        cfg = _fallback_model_from_providers(providers_dict)
-        assert cfg.api_key == "gho_test_copilot_token"
-        assert cfg.base_url == "https://api.individual.githubcopilot.com"

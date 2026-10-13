@@ -1,5 +1,7 @@
 """测试config_parsers中的配置提取逻辑"""
 
+import pytest
+
 from app.core.channel_bridge.config_parsers import (
     extract_active_search_config as _extract_active_search_config,
 )
@@ -247,7 +249,7 @@ class TestExtractWebTtsConfig:
 
 
 class TestInjectProviderOAuthTokens:
-    """测试 _inject_provider_oauth_tokens 对各大厂商（含 xAI / Copilot / OpenAI / Anthropic）的注入闭环"""
+    """测试 _inject_provider_oauth_tokens：仅 xAI SuperGrok 订阅 token 会注入到 provider 配置"""
 
     def test_inject_xai_oauth_token_and_base_url(self) -> None:
         from app.core.channel_bridge.config_loader import _inject_provider_oauth_tokens
@@ -263,9 +265,6 @@ class TestInjectProviderOAuthTokens:
                 "token": "xai-oauth-test-token-12345",
                 "base_url": "https://api.x.ai/v1",
             },
-            "provider_openai": {
-                "token": "openai-oauth-test-token-67890",
-            },
         }
 
         _inject_provider_oauth_tokens(providers_dict, oauth_creds)
@@ -277,48 +276,36 @@ class TestInjectProviderOAuthTokens:
         assert xai_p["_oauthBaseUrl"] == "https://api.x.ai/v1"
 
         openai_p = next(p for p in providers if p["id"] == "openai")
-        assert openai_p["_oauthToken"] == "openai-oauth-test-token-67890"
+        assert "_oauthToken" not in openai_p
 
-    def test_inject_provider_xai_alias(self) -> None:
+    def test_inject_xai_oauth_token_without_base_url(self) -> None:
         from app.core.channel_bridge.config_loader import _inject_provider_oauth_tokens
 
-        providers_dict: dict[str, object] = {
-            "providers": [
-                {"id": "xai", "name": "xAI", "isEnabled": True, "apiKeys": []},
-            ]
-        }
-        oauth_creds: dict[str, object] = {
-            "provider_xai": {
-                "token": "xai-oauth-alias-token-99999",
-            },
-        }
+        providers_dict: dict[str, object] = {"providers": [{"id": "xai", "isEnabled": True, "apiKeys": []}]}
 
-        _inject_provider_oauth_tokens(providers_dict, oauth_creds)
+        _inject_provider_oauth_tokens(providers_dict, {"xai": {"token": "xai-oauth-token"}})
 
         providers = providers_dict["providers"]
         assert isinstance(providers, list)
-        xai_p = next(p for p in providers if p["id"] == "xai")
-        assert xai_p["_oauthToken"] == "xai-oauth-alias-token-99999"
+        assert providers[0]["_oauthToken"] == "xai-oauth-token"
+        assert "_oauthBaseUrl" not in providers[0]
 
-    def test_inject_copilot_oauth_token_and_base_url(self) -> None:
+    @pytest.mark.parametrize(
+        ("issuer", "provider_id"),
+        [
+            ("provider_anthropic", "anthropic"),
+            ("provider_openai", "openai"),
+            ("provider_copilot", "copilot"),
+        ],
+    )
+    def test_retired_subscription_issuers_are_never_injected(self, issuer: str, provider_id: str) -> None:
+        """Leftover credentials of the removed Claude / ChatGPT / Copilot logins must not become API keys."""
         from app.core.channel_bridge.config_loader import _inject_provider_oauth_tokens
 
-        providers_dict: dict[str, object] = {
-            "providers": [
-                {"id": "copilot", "name": "GitHub Copilot", "isEnabled": True, "apiKeys": []},
-            ]
-        }
-        oauth_creds: dict[str, object] = {
-            "provider_copilot": {
-                "token": "gh-copilot-oauth-token-abcde",
-                "base_url": "https://api.individual.githubcopilot.com",
-            },
-        }
+        providers_dict: dict[str, object] = {"providers": [{"id": provider_id, "isEnabled": True, "apiKeys": []}]}
 
-        _inject_provider_oauth_tokens(providers_dict, oauth_creds)
+        _inject_provider_oauth_tokens(providers_dict, {issuer: {"token": "leftover-token"}})
 
         providers = providers_dict["providers"]
         assert isinstance(providers, list)
-        copilot_p = next(p for p in providers if p["id"] == "copilot")
-        assert copilot_p["_oauthToken"] == "gh-copilot-oauth-token-abcde"
-        assert copilot_p["_oauthBaseUrl"] == "https://api.individual.githubcopilot.com"
+        assert "_oauthToken" not in providers[0]

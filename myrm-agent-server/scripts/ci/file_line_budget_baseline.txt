@@ -26,7 +26,6 @@ app/api/goals/router.py
 app/api/health/router.py
 app/api/integrations/llms.py
 app/api/integrations/mcp.py
-app/api/integrations/provider_oauth.py
 app/api/kanban/schemas.py
 app/api/memory/operations/shared_context/shared_contexts.py
 app/api/skills/discovery.py

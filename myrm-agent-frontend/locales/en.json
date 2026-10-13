@@ -2341,10 +2341,7 @@
     "subscriptionQuickConnect": "Have subscriptions? Connect in 1-Click",
     "subscriptionModalTitle": "Connect Official Subscriptions",
     "subscriptionModalDesc": "Securely connect via official device-code grants without buying API keys. Credentials encrypted locally.",
-    "subscriptionCopilot": "GitHub Copilot",
-    "subscriptionOpenai": "ChatGPT Plus / Pro",
     "subscriptionXai": "xAI SuperGrok",
-    "subscriptionClaude": "Claude Pro / Max",
     "subscriptionConnectBtn": "Connect",
     "subscriptionDeviceCodeHint": "Open verification URL in browser and enter user code:",
     "subscriptionCopyCode": "Copy Code",
@@ -3274,8 +3271,6 @@
       "level": "level",
       "runAffectedTests": "Run {count} Affected Test Suites"
     },
-    "subscriptionPkceNotice": "{providerName} authorization page opened in a new tab. Please complete login and approval, then return here.",
-    "subscriptionPkceReopen": "Reopen Authorization Page",
     "modelPlaybook": {
       "chipTitle": "Model Orchestration Playbook",
       "chipBadge": "Strategy",
@@ -16127,7 +16122,33 @@
       "connectionSuccess": "Connection Successful",
       "connectionFailed": "Connection Failed",
       "vercelGatewaySpendHint": "Track spend, rate limits, and latency on Vercel AI Gateway",
-      "openVercelDashboard": "Open Dashboard"
+      "openVercelDashboard": "Open Dashboard",
+      "oauth": {
+        "title": "Subscription Login",
+        "connected": "Connected",
+        "noticeTitle": "SuperGrok Subscription Notice",
+        "noticeBody": "After SuperGrok authorization, you can directly use Grok models (Grok-2 / Grok-beta) without an API key, with unified X Search and multimodal tool capabilities.",
+        "deviceCodeHint": "Enter this code in your browser to complete authorization:",
+        "copyCode": "Copy code",
+        "openVerificationPage": "Open verification page",
+        "waiting": "Waiting for authorization...",
+        "cancel": "Cancel",
+        "connectedWithApiKey": "Logged in via SuperGrok. Your API key takes priority; the subscription is the fallback.",
+        "connectedWithQuota": "Logged in via SuperGrok. Your subscription quota will be used for AI calls.",
+        "tokenExpires": "Login valid until {time}",
+        "disconnect": "Disconnect",
+        "loginPrompt": "Log in with your SuperGrok subscription to use AI models without an API key.",
+        "loginButton": "Log in with SuperGrok",
+        "toast": {
+          "timeout": "Authorization timed out. Please try again.",
+          "connected": "SuperGrok connected successfully",
+          "expired": "Authorization expired. Please try again.",
+          "denied": "Authorization denied. Please try again.",
+          "startFailed": "Failed to start authorization. Please try again.",
+          "disconnected": "SuperGrok subscription disconnected",
+          "disconnectFailed": "Failed to disconnect"
+        }
+      }
     },
     "defaultModel": {
       "localModelWarning": "Local lightweight models are highly prone to hallucinate or fall into infinite loops when processing complex Agent toolchains. For long tasks, it's recommended to use 30B+ scale models or cloud-based advanced models (like Claude 3.5 Sonnet).",

@@ -56,7 +56,7 @@ Paths align with in-app SSE handlers (`useGlobalEvents`):
 | `SYSTEM_NOTIFICATION` | `/{meta_data.chat_id}` or `/` |
 | `HEALTH_ALERT`, `BUDGET_ALERT` | `/settings/system` |
 | `CHANNEL_DISCONNECTED` | `/settings/channels` |
-| `OAUTH_REAUTH_REQUIRED` | `provider_*` issuer → `/settings/models`；其余 OAuth 账号 → `/settings/credentials` |
+| `OAUTH_REAUTH_REQUIRED` | `/settings/credentials`（所有 OAuth 账号，含 xAI） |
 
 The browser SW (`src/app/sw.ts`) imports `src/lib/web-push/pushTargetUrl.ts` (bundled via `scripts/build-sw-src.mjs` before inject-manifest). It sanitizes payload URLs before `openWindow`. When a window client is already on the target pathname but the query differs (e.g. approval deep link), the SW calls `client.navigate()` instead of focus-only.
 

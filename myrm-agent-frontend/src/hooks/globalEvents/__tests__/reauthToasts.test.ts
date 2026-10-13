@@ -75,13 +75,17 @@ describe('showOAuthReauthRequiredToast', () => {
     expect(push).toHaveBeenCalledWith('/settings/credentials');
   });
 
-  it('opens the Models page for an LLM-provider issuer', () => {
+  it('names the xAI account with its brand spelling and reconnects it under Credentials', () => {
     const { deps, warning, push } = buildDeps();
 
-    showOAuthReauthRequiredToast({ issuer: 'provider_anthropic', reason: 'expired' }, deps);
-    clickAction(warning);
+    showOAuthReauthRequiredToast({ issuer: 'xai', reason: 'expired' }, deps);
 
-    expect(push).toHaveBeenCalledWith('/settings/models');
+    expect(warning).toHaveBeenCalledWith(
+      'oauthReauthRequired:{"issuer":"xAI"}',
+      expect.objectContaining({ id: 'oauth-reauth-xai' }),
+    );
+    clickAction(warning);
+    expect(push).toHaveBeenCalledWith('/settings/credentials');
   });
 
   it('falls back to a generic account name', () => {

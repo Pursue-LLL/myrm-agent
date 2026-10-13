@@ -1,13 +1,12 @@
 """OAuth token auto-refresh service.
 
-Handles automatic refresh of OAuth tokens for Google Workspace, xAI,
-and Provider OAuth (Anthropic, OpenAI, Copilot) credentials.
-Copilot uses non-standard refresh via GitHub access_token exchange.
+Handles automatic refresh of OAuth tokens for Google Workspace, xAI and
+every other issuer that exposes a standard OAuth2 refresh_token grant.
 
 [INPUT]
 - app.database.models::UserConfig (POS: ORM model for user config storage)
 - app.services.config.encryption (POS: sensitive config encryption/decryption)
-- app.services.integrations.oauth_store (POS: oauthCredentials 加密读写、共享行锁与加密写回原语；extract_copilot_base_url: Copilot JWT proxy-ep parser)
+- app.services.integrations.oauth_store (POS: oauthCredentials 加密读写、共享行锁与加密写回原语)
 - myrm_agent_harness.agent.security::EphemeralUserCredential (POS: session-scoped credential)
 
 [OUTPUT]
@@ -35,7 +34,6 @@ from app.services.config.encryption import get_encryption_service
 from app.services.integrations.oauth_store import (
     CONFIG_KEY,
     decrypt_oauth_credentials,
-    extract_copilot_base_url,
     load_oauth_credentials_row,
     oauth_credentials_lock,
     persist_credentials_locked,
@@ -44,7 +42,6 @@ from app.services.integrations.oauth_store import (
 logger = logging.getLogger(__name__)
 
 GOOGLE_WORKSPACE_ISSUER = "google_workspace"
-COPILOT_ISSUER = "provider_copilot"
 
 _refresh_locks: dict[str, asyncio.Lock] = {}
 _reauth_emitted_at: dict[str, float] = {}
@@ -178,10 +175,6 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                     refresh_callback=lambda: refresh_oauth_token(issuer),
                 )
 
-            # Copilot uses non-standard refresh: GitHub access_token → /copilot_internal/v2/token
-            if issuer == COPILOT_ISSUER:
-                return await _refresh_copilot_token(cred_val)
-
             refresh_token = cred_val.get("refresh_token")
             token_url = cred_val.get("token_url")
             client_id, client_secret = _resolve_oauth_client_credentials(issuer, cred_val)
@@ -276,80 +269,5 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                     issuer,
                     exc,
                 )
-
-    return None
-
-
-async def _refresh_copilot_token(
-    cred_val: dict[str, object],
-) -> EphemeralUserCredential | None:
-    """Refresh GitHub Copilot token using GitHub access token.
-
-    Copilot tokens are short-lived (~30min). The refresh_token field
-    stores the long-lived GitHub access token used to acquire new Copilot tokens.
-    """
-    github_access_token = cred_val.get("refresh_token")
-    if not github_access_token:
-        logger.warning("refresh_copilot_token: missing GitHub access token (refresh_token)")
-        _emit_reauth_if_needed(COPILOT_ISSUER, "missing_github_token")
-        return None
-
-    copilot_headers = {
-        "Accept": "application/json",
-        "Authorization": f"Bearer {github_access_token}",
-        "User-Agent": "GitHubCopilotChat/0.35.0",
-        "Editor-Version": "vscode/1.107.0",
-        "Editor-Plugin-Version": "copilot-chat/0.35.0",
-        "Copilot-Integration-Id": "vscode-chat",
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(
-                "https://api.github.com/copilot_internal/v2/token",
-                headers=copilot_headers,
-            )
-            if resp.status_code != 200:
-                logger.error(
-                    "refresh_copilot_token: Copilot token exchange failed (%d): %s",
-                    resp.status_code,
-                    resp.text,
-                )
-                if resp.status_code in (401, 403):
-                    _emit_reauth_if_needed(COPILOT_ISSUER, "github_token_expired")
-                return None
-
-            data = resp.json()
-            new_token = data.get("token")
-            new_expires_at = data.get("expires_at")
-
-            if not new_token or not isinstance(new_expires_at, (int, float)):
-                logger.error("refresh_copilot_token: invalid Copilot token response")
-                return None
-
-            base_url = extract_copilot_base_url(new_token)
-
-            updated_cred = dict(cred_val)
-            updated_cred["token"] = new_token
-            updated_cred["expires_at"] = float(new_expires_at)
-            updated_cred["base_url"] = base_url
-
-            await _merge_refreshed_credential(
-                issuer=COPILOT_ISSUER,
-                updated_cred=updated_cred,
-            )
-
-            logger.info("refresh_copilot_token: successfully refreshed Copilot token")
-
-            return EphemeralUserCredential(
-                issuer=COPILOT_ISSUER,
-                token=new_token,
-                scope="copilot",
-                user_id="",
-                expires_at=float(new_expires_at),
-                refresh_callback=lambda: refresh_oauth_token(COPILOT_ISSUER),
-            )
-    except Exception as exc:
-        logger.error("refresh_copilot_token: failed: %s", exc)
 
     return None

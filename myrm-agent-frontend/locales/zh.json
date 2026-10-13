@@ -2341,10 +2341,7 @@
     "subscriptionQuickConnect": "已有订阅？一键接入",
     "subscriptionModalTitle": "一键接入官方付费订阅",
     "subscriptionModalDesc": "通过官方设备码安全直连，无需购买和配置 API Key，凭据本地安全加密存储。",
-    "subscriptionCopilot": "GitHub Copilot 订阅",
-    "subscriptionOpenai": "ChatGPT Plus / Pro 订阅",
     "subscriptionXai": "xAI SuperGrok 订阅",
-    "subscriptionClaude": "Claude Pro / Max 订阅",
     "subscriptionConnectBtn": "连接",
     "subscriptionDeviceCodeHint": "请在浏览器中打开验证链接并输入设备码：",
     "subscriptionCopyCode": "复制设备码",
@@ -3274,8 +3271,6 @@
       "level": "层",
       "runAffectedTests": "运行 {count} 个受影响测试套件"
     },
-    "subscriptionPkceNotice": "{providerName} 授权页面已在新标签页打开。请在完成登录与授权后返回本页面。",
-    "subscriptionPkceReopen": "重新打开授权页面",
     "modelPlaybook": {
       "chipTitle": "模型编排战略手册",
       "chipBadge": "推荐策略",
@@ -16127,7 +16122,33 @@
       "connectionSuccess": "连接成功",
       "connectionFailed": "连接失败",
       "vercelGatewaySpendHint": "在 Vercel AI Gateway 控制台追踪开销、限流与延迟",
-      "openVercelDashboard": "查看控制台"
+      "openVercelDashboard": "查看控制台",
+      "oauth": {
+        "title": "订阅登录",
+        "connected": "已连接",
+        "noticeTitle": "SuperGrok 订阅说明",
+        "noticeBody": "通过 SuperGrok 授权后，您可直接在 Myrm 中免 Key 使用 Grok 系列大语言模型（Grok-2 / Grok-beta）驱动 Agent 任务，并共享 X (Twitter) 实时搜索与多模态能力。",
+        "deviceCodeHint": "请在浏览器中输入以下验证码完成授权：",
+        "copyCode": "复制验证码",
+        "openVerificationPage": "打开验证页面",
+        "waiting": "等待授权完成...",
+        "cancel": "取消",
+        "connectedWithApiKey": "已通过 SuperGrok 订阅登录。API Key 优先使用，订阅登录作为备选。",
+        "connectedWithQuota": "已通过 SuperGrok 订阅登录，将使用订阅额度进行 AI 调用。",
+        "tokenExpires": "登录有效期至：{time}",
+        "disconnect": "断开连接",
+        "loginPrompt": "使用 SuperGrok 订阅登录，无需 API Key 即可使用 AI 模型。",
+        "loginButton": "使用 SuperGrok 订阅登录",
+        "toast": {
+          "timeout": "授权超时，请重试",
+          "connected": "SuperGrok 订阅连接成功",
+          "expired": "授权已过期，请重试",
+          "denied": "授权被拒绝，请重试",
+          "startFailed": "启动授权失败，请重试",
+          "disconnected": "已断开 SuperGrok 订阅登录",
+          "disconnectFailed": "断开失败"
+        }
+      }
     },
     "defaultModel": {
       "localModelWarning": "本地轻量模型在处理复杂 Agent 工具链时极易产生幻觉或陷入死循环。执行长任务建议使用 30B 以上规模模型或云端高阶模型（如 Claude 3.5 Sonnet）。",

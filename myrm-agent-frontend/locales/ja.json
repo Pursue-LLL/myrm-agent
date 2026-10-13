@@ -2273,10 +2273,7 @@
     "subscriptionQuickConnect": "サブスクリプションをお持ちですか？ワンクリック連携",
     "subscriptionModalTitle": "公式サブスクリプション連携",
     "subscriptionModalDesc": "公式デバイスコードによる安全な直接連携。APIキーを購入せずに利用可能、認証情報はローカルに暗号化保存されます。",
-    "subscriptionCopilot": "GitHub Copilot サブスクリプション",
-    "subscriptionOpenai": "ChatGPT Plus / Pro サブスクリプション",
     "subscriptionXai": "xAI SuperGrok サブスクリプション",
-    "subscriptionClaude": "Claude Pro / Max サブスクリプション",
     "subscriptionConnectBtn": "接続",
     "subscriptionDeviceCodeHint": "ブラウザで確認用URLを開き、ユーザーコードを入力してください：",
     "subscriptionCopyCode": "コードをコピー",
@@ -3206,8 +3203,6 @@
       "level": "階層",
       "runAffectedTests": "影響を受ける {count} 件のテストを実行"
     },
-    "subscriptionPkceNotice": "{providerName} の認証ページが新しいタブで開きました。ログインと承認を完了後、このページに戻ってください。",
-    "subscriptionPkceReopen": "認証ページを再度開く",
     "modelPlaybook": {
       "chipTitle": "モデルオーケストレーション方針",
       "chipBadge": "推奨戦略",
@@ -15473,7 +15468,33 @@
       "connectionSuccess": "接続しました",
       "connectionFailed": "接続失敗",
       "vercelGatewaySpendHint": "Vercel AI Gateway ダッシュボードでコスト、レート制限、レイテンシを確認",
-      "openVercelDashboard": "ダッシュボードを開く"
+      "openVercelDashboard": "ダッシュボードを開く",
+      "oauth": {
+        "title": "サブスクリプションログイン",
+        "connected": "接続済み",
+        "noticeTitle": "SuperGrok サブスクリプションについて",
+        "noticeBody": "SuperGrok で認証すると、API キーなしで Grok シリーズのモデル（Grok-2 / Grok-beta）を Myrm のエージェントタスクに利用でき、X（Twitter）のリアルタイム検索やマルチモーダル機能も共有されます。",
+        "deviceCodeHint": "ブラウザで次のコードを入力して認証を完了してください:",
+        "copyCode": "コードをコピー",
+        "openVerificationPage": "認証ページを開く",
+        "waiting": "認証の完了を待っています...",
+        "cancel": "キャンセル",
+        "connectedWithApiKey": "SuperGrok サブスクリプションでログイン済みです。API キーが優先され、サブスクリプションはフォールバックとして使われます。",
+        "connectedWithQuota": "SuperGrok サブスクリプションでログイン済みです。AI 呼び出しにはサブスクリプションの利用枠が使われます。",
+        "tokenExpires": "ログインの有効期限: {time}",
+        "disconnect": "切断",
+        "loginPrompt": "SuperGrok サブスクリプションでログインすると、API キーなしで AI モデルを利用できます。",
+        "loginButton": "SuperGrok でログイン",
+        "toast": {
+          "timeout": "認証がタイムアウトしました。もう一度お試しください。",
+          "connected": "SuperGrok の接続に成功しました",
+          "expired": "認証の有効期限が切れました。もう一度お試しください。",
+          "denied": "認証が拒否されました。もう一度お試しください。",
+          "startFailed": "認証を開始できませんでした。もう一度お試しください。",
+          "disconnected": "SuperGrok サブスクリプションを切断しました",
+          "disconnectFailed": "切断に失敗しました"
+        }
+      }
     },
     "defaultModel": {
       "localModelWarning": "ローカルの軽量モデルは、複雑な Agent ツールチェーンを処理する際に幻覚や無限ループを起こしやすいです。長時間タスクには 30B 以上のモデルか、クラウドの高度なモデル（Claude 3.5 Sonnet など）の使用を推奨します。",

@@ -163,9 +163,9 @@ describe('isTrustedSplitStackHostname and URL helpers', () => {
 
   it('recognizes oauthConnected providers as usable auth and resolves synthetic oauth marker', () => {
     const oauthProvider = {
-      id: 'copilot',
+      id: 'xai',
       providerType: 'openai-like' as const,
-      apiUrl: 'https://api.githubcopilot.com',
+      apiUrl: 'https://api.x.ai/v1',
       apiKeys: [],
       oauthConnected: true,
     };

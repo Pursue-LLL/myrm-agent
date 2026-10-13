@@ -278,20 +278,20 @@ describe('DataFlowDisclosurePanel', () => {
     });
   });
 
-  it('links each connected oauth integration to the page that owns its connection', async () => {
+  it('names each connected oauth account by brand and links it to the Credentials page that manages it', async () => {
     mockListOAuthCredentials.mockResolvedValue([
       { issuer: 'google_workspace', user_id: 'U1', scope: 'drive', expires_at: null, connected: true },
-      { issuer: 'provider_openai', user_id: 'U2', scope: 'chat', expires_at: null, connected: true },
+      { issuer: 'xai', user_id: 'U2', scope: 'chat', expires_at: null, connected: true },
     ]);
 
     render(<DataFlowDisclosurePanel />);
 
     await waitFor(() => {
       expect(screen.getByText('Google Workspace')).toBeDefined();
+      expect(screen.getByText('xAI')).toBeDefined();
     });
     const hrefs = screen.getAllByText('actionManage').map((node) => node.closest('a')?.getAttribute('href'));
-    expect(hrefs).toContain('/settings/credentials');
-    expect(hrefs).toContain('/settings/models');
+    expect(hrefs.filter((href) => href === '/settings/credentials')).toHaveLength(2);
     expect(hrefs).not.toContain('/settings/integrationCatalog');
   });
 

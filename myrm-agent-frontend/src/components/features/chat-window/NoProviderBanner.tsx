@@ -8,45 +8,19 @@ import { Button } from '@/components/primitives/button';
 import useProviderStore from '@/store/useProviderStore';
 import { hasUsableProviderAuth } from '@/store/config/providerTypes';
 import { startXaiOAuth, pollXaiOAuth } from '@/services/xai-oauth';
-import {
-  startProviderOAuth,
-  pollProviderOAuth,
-  fetchProviderOAuthStatus,
-  type ProviderOAuthProvider,
-} from '@/services/provider-oauth';
 
 interface DeviceCodeState {
-  providerId: string;
-  providerName: string;
   userCode: string;
   verificationUri: string;
   verificationUriComplete?: string;
-  isPolling: boolean;
   isSuccess: boolean;
-  isPkce?: boolean;
   error?: string;
 }
 
-const PROVIDER_SUBSCRIPTION_DEFAULTS: Record<string, { primary: string; models: string[] }> = {
-  copilot: { primary: 'gpt-4o', models: ['gpt-4o', 'claude-3-5-sonnet'] },
-  openai: { primary: 'gpt-4o', models: ['gpt-4o', 'o1', 'o3-mini'] },
-  xai: { primary: 'grok-2', models: ['grok-2', 'grok-2-mini', 'grok-beta'] },
-  anthropic: {
-    primary: 'claude-3-5-sonnet-20241022',
-    models: ['claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219'],
-  },
-};
-
-const SUBSCRIPTION_ENTRIES: Array<{
-  id: ProviderOAuthProvider;
-  nameKey: 'subscriptionCopilot' | 'subscriptionOpenai' | 'subscriptionXai' | 'subscriptionClaude';
-  sub: string;
-}> = [
-  { id: 'copilot', nameKey: 'subscriptionCopilot', sub: 'GPT-4o, Claude 3.5 Sonnet' },
-  { id: 'openai', nameKey: 'subscriptionOpenai', sub: 'GPT-4o, o1, o3-mini' },
-  { id: 'xai', nameKey: 'subscriptionXai', sub: 'Grok-2, Grok-Vision' },
-  { id: 'anthropic', nameKey: 'subscriptionClaude', sub: 'Claude 3.5 Sonnet, Claude 3.7 Sonnet' },
-];
+const XAI_PROVIDER_ID = 'xai';
+const XAI_DEFAULT_PRIMARY_MODEL = 'grok-2';
+const XAI_DEFAULT_MODELS = ['grok-2', 'grok-2-mini', 'grok-beta'];
+const XAI_MODEL_SUMMARY = 'Grok-2, Grok-Vision';
 
 const NoProviderBanner = memo(() => {
   const t = useTranslations('chat');
@@ -75,141 +49,65 @@ const NoProviderBanner = memo(() => {
     return () => cleanupPolling();
   }, [cleanupPolling]);
 
-  const onAuthSuccess = useCallback(
-    (providerId: string) => {
-      cleanupPolling();
-      const defaults = PROVIDER_SUBSCRIPTION_DEFAULTS[providerId] || {
-        primary: 'gpt-4o',
-        models: ['gpt-4o'],
-      };
-      const targetModel = defaults.primary;
-      const models = defaults.models;
+  const onAuthSuccess = useCallback(() => {
+    cleanupPolling();
 
-      // 1. 原子化启用 Provider，标记 oauthConnected，并补齐模型列表
-      const existingProvider = providers.find((p) => p.id === providerId);
-      const mergedAvailable = Array.from(new Set([...(existingProvider?.availableModels || []), ...models]));
-      const mergedEnabled = Array.from(new Set([...(existingProvider?.enabledModels || []), targetModel]));
+    // 1. 原子化启用 Provider，标记 oauthConnected，并补齐模型列表
+    const existingProvider = providers.find((p) => p.id === XAI_PROVIDER_ID);
+    const mergedAvailable = Array.from(new Set([...(existingProvider?.availableModels || []), ...XAI_DEFAULT_MODELS]));
+    const mergedEnabled = Array.from(new Set([...(existingProvider?.enabledModels || []), XAI_DEFAULT_PRIMARY_MODEL]));
 
-      updateProvider(providerId, {
-        isEnabled: true,
-        oauthConnected: true,
-        availableModels: mergedAvailable,
-        enabledModels: mergedEnabled,
+    updateProvider(XAI_PROVIDER_ID, {
+      isEnabled: true,
+      oauthConnected: true,
+      availableModels: mergedAvailable,
+      enabledModels: mergedEnabled,
+    });
+
+    // 2. 如果未绑定主模型槽位，自动绑定官方主力推荐模型
+    if (!defaultModelConfig.baseModel?.primary) {
+      setBaseModel({ providerId: XAI_PROVIDER_ID, model: XAI_DEFAULT_PRIMARY_MODEL });
+    }
+    setActiveFlow((prev) => (prev ? { ...prev, isSuccess: true } : null));
+    setTimeout(() => {
+      setIsModalOpen(false);
+      setActiveFlow(null);
+    }, 1500);
+  }, [cleanupPolling, updateProvider, defaultModelConfig, setBaseModel, providers]);
+
+  const handleStartOAuth = useCallback(async () => {
+    cleanupPolling();
+    setActiveFlow(null);
+    try {
+      const res = await startXaiOAuth();
+      setActiveFlow({
+        userCode: res.user_code,
+        verificationUri: res.verification_uri,
+        verificationUriComplete: res.verification_uri_complete,
+        isSuccess: false,
       });
 
-      // 2. 如果未绑定主模型槽位，自动绑定官方主力推荐模型
-      if (!defaultModelConfig.baseModel?.primary) {
-        setBaseModel({ providerId, model: targetModel });
-      }
-      setActiveFlow((prev) => (prev ? { ...prev, isPolling: false, isSuccess: true } : null));
-      setTimeout(() => {
-        setIsModalOpen(false);
-        setActiveFlow(null);
-      }, 1500);
-    },
-    [cleanupPolling, updateProvider, defaultModelConfig, setBaseModel, providers],
-  );
-
-  const handleStartOAuth = useCallback(
-    async (providerType: 'xai' | ProviderOAuthProvider) => {
-      cleanupPolling();
-      setActiveFlow(null);
-      try {
-        if (providerType === 'xai') {
-          const res = await startXaiOAuth();
-          const flow: DeviceCodeState = {
-            providerId: 'xai',
-            providerName: 'xAI SuperGrok',
-            userCode: res.user_code,
-            verificationUri: res.verification_uri,
-            verificationUriComplete: res.verification_uri_complete,
-            isPolling: true,
-            isSuccess: false,
-          };
-          setActiveFlow(flow);
-
-          pollTimerRef.current = setInterval(
-            async () => {
-              try {
-                const pollRes = await pollXaiOAuth(res.user_code);
-                if (pollRes.status === 'success') {
-                  onAuthSuccess('xai');
-                } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {
-                  cleanupPolling();
-                  setActiveFlow((prev) =>
-                    prev ? { ...prev, isPolling: false, error: pollRes.error || pollRes.status } : null,
-                  );
-                }
-              } catch {
-                // 轮询静默重试
-              }
-            },
-            (res.interval || 5) * 1000,
-          );
-        } else {
-          const res = await startProviderOAuth(providerType);
-          if (res.user_code && res.verification_uri) {
-            const userCode = res.user_code;
-            const flow: DeviceCodeState = {
-              providerId: providerType,
-              providerName: providerType === 'copilot' ? 'GitHub Copilot' : 'ChatGPT Plus / Pro',
-              userCode: res.user_code,
-              verificationUri: res.verification_uri,
-              isPolling: true,
-              isSuccess: false,
-            };
-            setActiveFlow(flow);
-
-            pollTimerRef.current = setInterval(
-              async () => {
-                try {
-                  const pollRes = await pollProviderOAuth(providerType, userCode);
-                  if (pollRes.status === 'success') {
-                    onAuthSuccess(providerType);
-                  } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {
-                    cleanupPolling();
-                    setActiveFlow((prev) =>
-                      prev ? { ...prev, isPolling: false, error: pollRes.error || pollRes.status } : null,
-                    );
-                  }
-                } catch {
-                  // 轮询静默重试
-                }
-              },
-              (res.interval || 5) * 1000,
-            );
-          } else if (res.authorize_url) {
-            const flow: DeviceCodeState = {
-              providerId: providerType,
-              providerName: 'Claude Pro / Max',
-              userCode: '',
-              verificationUri: res.authorize_url,
-              isPolling: true,
-              isSuccess: false,
-              isPkce: true,
-            };
-            setActiveFlow(flow);
-            window.open(res.authorize_url, '_blank', 'noopener,noreferrer');
-
-            pollTimerRef.current = setInterval(async () => {
-              try {
-                const s = await fetchProviderOAuthStatus(providerType);
-                if (s.connected) {
-                  onAuthSuccess(providerType);
-                }
-              } catch {
-                // 轮询静默重试
-              }
-            }, 3000);
+      pollTimerRef.current = setInterval(
+        async () => {
+          try {
+            const pollRes = await pollXaiOAuth(res.user_code);
+            if (pollRes.status === 'success') {
+              onAuthSuccess();
+            } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {
+              cleanupPolling();
+              setActiveFlow((prev) => (prev ? { ...prev, error: pollRes.error || pollRes.status } : null));
+            }
+          } catch {
+            // 轮询静默重试
           }
-        }
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : 'Failed to start authorization';
-        setActiveFlow((prev) => (prev ? { ...prev, isPolling: false, error: errorMsg } : null));
-      }
-    },
-    [cleanupPolling, onAuthSuccess],
-  );
+        },
+        (res.interval || 5) * 1000,
+      );
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to start authorization';
+      setActiveFlow((prev) => (prev ? { ...prev, error: errorMsg } : null));
+    }
+  }, [cleanupPolling, onAuthSuccess]);
 
   const handleCopyCode = useCallback(() => {
     if (activeFlow?.userCode) {
@@ -277,26 +175,21 @@ const NoProviderBanner = memo(() => {
             </p>
 
             {!activeFlow ? (
-              <div className="grid grid-cols-1 gap-2.5">
-                {SUBSCRIPTION_ENTRIES.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => handleStartOAuth(entry.id)}
-                    className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all text-left group"
-                  >
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                        {t(entry.nameKey)}
-                      </span>
-                      <span className="text-xs text-zinc-400">{entry.sub}</span>
-                    </div>
-                    <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900">
-                      {t('subscriptionConnectBtn')}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={handleStartOAuth}
+                className="flex w-full items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all text-left group"
+              >
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                    {t('subscriptionXai')}
+                  </span>
+                  <span className="text-xs text-zinc-400">{XAI_MODEL_SUMMARY}</span>
+                </div>
+                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900">
+                  {t('subscriptionConnectBtn')}
+                </span>
+              </button>
             ) : (
               <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/30">
                 {activeFlow.isSuccess ? (
@@ -304,33 +197,6 @@ const NoProviderBanner = memo(() => {
                     <Check className="h-8 w-8" />
                     <span className="text-sm font-semibold">{t('subscriptionConnected')}</span>
                   </div>
-                ) : activeFlow.isPkce ? (
-                  <>
-                    <span className="text-xs text-zinc-600 dark:text-zinc-300 mb-4 text-center leading-relaxed">
-                      {t('subscriptionPkceNotice', { providerName: activeFlow.providerName })}
-                    </span>
-
-                    <div className="flex items-center gap-2 w-full mb-4">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => window.open(activeFlow.verificationUri, '_blank', 'noopener,noreferrer')}
-                        className="flex-1 gap-1.5 h-9 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white text-xs font-medium"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        <span>{t('subscriptionPkceReopen')}</span>
-                      </Button>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-500" />
-                      <span>{t('subscriptionWaiting')}</span>
-                    </div>
-
-                    {activeFlow.error && (
-                      <span className="text-xs text-rose-500 dark:text-rose-400 mt-2">{activeFlow.error}</span>
-                    )}
-                  </>
                 ) : (
                   <>
                     <span className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
