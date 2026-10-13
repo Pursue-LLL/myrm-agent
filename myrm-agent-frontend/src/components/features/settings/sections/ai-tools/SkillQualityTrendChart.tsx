@@ -18,6 +18,11 @@ import {
   YAxis,
 } from '@/components/features/app-shell/lazy-recharts';
 
+// The theme defines no success / warning colours. Opaque 600 shades keep each line at 3:1 or better
+// against the card in both themes.
+const SUCCESS_COLOR = 'var(--color-emerald-600, #059669)';
+const WARNING_COLOR = 'var(--color-amber-600, #d97706)';
+
 interface TrendDataPoint {
   timestamp: string;
   avg_quality_score: number;
@@ -166,8 +171,8 @@ export function SkillQualityTrendChart({
               <YAxis domain={[0, 100]} className="text-sm" tick={{ fill: 'currentColor' }} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
+                  backgroundColor: 'var(--popover)',
+                  border: '1px solid var(--border)',
                   borderRadius: 'var(--radius)',
                 }}
               />
@@ -175,7 +180,7 @@ export function SkillQualityTrendChart({
               <Line
                 type="monotone"
                 dataKey="Quality Score"
-                stroke="hsl(var(--primary))"
+                stroke="var(--primary)"
                 strokeWidth={2}
                 dot={{ r: 4 }}
                 activeDot={{ r: 6 }}
@@ -184,7 +189,7 @@ export function SkillQualityTrendChart({
               <Line
                 type="monotone"
                 dataKey="Success Rate"
-                stroke="hsl(var(--success))"
+                stroke={SUCCESS_COLOR}
                 strokeWidth={2}
                 dot={{ r: 4 }}
                 name={t('successRate') || '成功率'}
@@ -193,7 +198,7 @@ export function SkillQualityTrendChart({
                 <Line
                   type="monotone"
                   dataKey="Token Efficiency"
-                  stroke="hsl(var(--warning))"
+                  stroke={WARNING_COLOR}
                   strokeWidth={2}
                   dot={{ r: 4 }}
                   name={t('tokenEfficiency') || 'Token效率'}
@@ -208,13 +213,13 @@ export function SkillQualityTrendChart({
                   <ReferenceLine
                     key={`evo-${idx}`}
                     x={dateLabel}
-                    stroke="hsl(var(--primary))"
+                    stroke="var(--primary)"
                     strokeDasharray="4 2"
                     strokeOpacity={0.6}
                     label={{
                       value: 'E',
                       position: 'top',
-                      fill: 'hsl(var(--primary))',
+                      fill: 'var(--primary)',
                       fontSize: 10,
                       fontWeight: 600,
                     }}

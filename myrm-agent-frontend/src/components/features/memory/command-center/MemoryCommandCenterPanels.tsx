@@ -955,7 +955,7 @@ const Panel = ({
         <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary/80">
           <span
             aria-hidden
-            className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.55)] animate-pulse"
+            className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px] shadow-primary/55 animate-pulse"
           />
           {liveHint}
         </span>

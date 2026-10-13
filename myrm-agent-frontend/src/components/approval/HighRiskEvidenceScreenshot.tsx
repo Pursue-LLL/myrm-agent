@@ -53,7 +53,7 @@ export default function HighRiskEvidenceScreenshot({
         />
         {hasHighlight && (
           <div
-            className="pointer-events-none absolute rounded-full border-[3px] border-destructive bg-destructive/10 shadow-[0_0_0_5px_hsl(var(--destructive)/0.15)]"
+            className="pointer-events-none absolute rounded-full border-[3px] border-destructive bg-destructive/10 shadow-[0_0_0_5px] shadow-destructive/15"
             style={{
               left: `calc(${leftPercent}% - ${RING_RADIUS}px)`,
               top: `calc(${topPercent}% - ${RING_RADIUS}px)`,

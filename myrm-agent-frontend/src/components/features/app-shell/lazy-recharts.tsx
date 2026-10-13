@@ -6,10 +6,14 @@ import type { ComponentType } from 'react';
 type RechartsExport = keyof typeof import('recharts');
 
 function lazyRechartsComponent(name: RechartsExport): ComponentType<Record<string, unknown>> {
-  return dynamic<Record<string, unknown>>(
+  const component = dynamic<Record<string, unknown>>(
     () => import('recharts').then((mod) => mod[name] as ComponentType<Record<string, unknown>>),
     { ssr: false },
   );
+  // recharts finds data-only children such as `Cell` by `type.displayName || type.name`; the lazy wrapper
+  // would otherwise be called `LoadableComponent` and every per-slice / per-bar colour would be dropped.
+  component.displayName = name;
+  return component;
 }
 
 export const Area = lazyRechartsComponent('Area');

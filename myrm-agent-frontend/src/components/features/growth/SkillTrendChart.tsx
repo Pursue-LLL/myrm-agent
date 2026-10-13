@@ -83,8 +83,7 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
     () => pills.find((s) => s.skill_name === selectedSkill) ?? pills[0],
     [pills, selectedSkill],
   );
-  // The colour travels with each row: the lazy chart parts are wrappers, which the library's child-type lookup
-  // (`Cell`) does not recognise.
+  // The colour travels with each row (`fill` on the datum) so a bar never depends on the order of `Cell` children.
   const bars = useMemo(
     () =>
       toBarData(activeTrend?.data_points ?? [], metric).map((bar) => ({

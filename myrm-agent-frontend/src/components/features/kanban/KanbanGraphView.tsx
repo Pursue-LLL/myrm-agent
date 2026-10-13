@@ -37,15 +37,20 @@ const STATUS_NODE_COLORS: Record<TaskStatus, { bg: string; border: string }> = {
   archived: { bg: 'bg-muted/30', border: 'border-muted-foreground/20' },
 };
 
-const STATUS_DOT_HEX: Record<TaskStatus, string> = {
+// Opaque 600 shades for the finished/failed states: the theme's chart-2 is a pale green (about 1.7:1 on the
+// card) and its dark-theme destructive is a dark red (about 2:1), too faint for a 1.5px dependency line.
+const COMPLETED_COLOR = 'var(--color-emerald-600, #059669)';
+const FAILED_COLOR = 'var(--color-red-600, #dc2626)';
+
+const STATUS_MINIMAP_COLOR: Record<TaskStatus, string> = {
   triage: '#a855f7',
   backlog: '#888',
-  ready: 'hsl(var(--primary))',
-  running: 'hsl(var(--chart-4))',
-  blocked: 'hsl(var(--destructive))',
+  ready: 'var(--primary)',
+  running: 'var(--chart-4)',
+  blocked: FAILED_COLOR,
   in_review: '#f59e0b',
-  completed: 'hsl(var(--chart-2))',
-  failed: 'hsl(var(--destructive))',
+  completed: COMPLETED_COLOR,
+  failed: FAILED_COLOR,
   archived: '#666',
 };
 
@@ -135,9 +140,9 @@ function TaskNode({ data }: NodeProps<Node<TaskNodeData>>) {
 const nodeTypes = { task: TaskNode };
 
 const EDGE_STATUS_STYLE: Partial<Record<TaskStatus, { stroke: string; strokeDasharray?: string }>> = {
-  completed: { stroke: 'hsl(var(--chart-2))' },
-  blocked: { stroke: 'hsl(var(--destructive))', strokeDasharray: '5 3' },
-  failed: { stroke: 'hsl(var(--destructive))', strokeDasharray: '5 3' },
+  completed: { stroke: COMPLETED_COLOR },
+  blocked: { stroke: FAILED_COLOR, strokeDasharray: '5 3' },
+  failed: { stroke: FAILED_COLOR, strokeDasharray: '5 3' },
 };
 
 function layoutGraph(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR' = 'TB') {
@@ -221,7 +226,7 @@ function KanbanGraphViewInner({ tasks, edges: edgeData, onTaskSelect }: KanbanGr
     if (!task) {
       return '#888';
     }
-    return STATUS_DOT_HEX[task.status] || '#888';
+    return STATUS_MINIMAP_COLOR[task.status] || '#888';
   }, []);
 
   if (tasks.length === 0) {
@@ -251,7 +256,7 @@ function KanbanGraphViewInner({ tasks, edges: edgeData, onTaskSelect }: KanbanGr
         />
         <MiniMap
           nodeColor={minimapNodeColor}
-          maskColor="hsl(var(--background) / 0.7)"
+          maskColor="color-mix(in srgb, var(--background) 70%, transparent)"
           className="!bg-muted/50 !border-border !rounded-lg"
           pannable
           zoomable

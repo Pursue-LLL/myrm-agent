@@ -669,16 +669,6 @@ a[href] {
   line-height: 24px;
 }
 
-.input-default-theme--ujGK4 {
-  color: var(--foreground);
-}
-
-.input-default-theme--ujGK4:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(var(--primary), 0.2);
-}
-
 .text-ellipsis--D6tEl {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -946,14 +936,14 @@ a[href] {
 }
 
 mark {
-  background-color: hsl(var(--primary) / 0.2);
+  background-color: color-mix(in srgb, var(--primary) 20%, transparent);
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
 }
 
 .dark mark {
-  background-color: hsl(var(--primary) / 0.3);
+  background-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .brand-gradient-text {
