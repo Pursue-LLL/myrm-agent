@@ -14,6 +14,7 @@ import StackUpdatePanel from './StackUpdatePanel';
 
 const SystemCenterSection = memo(() => {
   const t = useTranslations('settings');
+  const tDescription = useTranslations('settings.systemCenter.tabDescriptions');
   const searchParams = useSearchParams();
   const { handleTabChange: syncTabChange } = useSettingsSubTabUrl('system');
 
@@ -34,11 +35,7 @@ const SystemCenterSection = memo(() => {
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('menu.system')}</h1>
-        <p className="text-sm text-muted-foreground">
-          {activeTab === 'settings'
-            ? '管理本地端口、远程服务访问及系统进程状态 / Manage ports, network access, and system runtime'
-            : '查看当前系统版本、开发团队信息及应用更新日志 / Inspect system version, changelogs, and team details'}
-        </p>
+        <p className="text-sm text-muted-foreground">{tDescription(activeTab === 'about' ? 'about' : 'settings')}</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">

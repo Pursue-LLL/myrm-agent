@@ -65,11 +65,11 @@ const MemoryCenterSection = memo(() => {
   const getDescription = () => {
     switch (activeTab) {
       case 'explorer':
-        return '管理智能体的长期记忆、事实、经历及跨智能体共享上下文 / Browse and manage agent long-term memory';
+        return t('memoryCenter.tabDescriptions.explorer');
       case 'backup':
-        return '创建系统记忆的安全备份、随时恢复或进行快照版本控制 / Create or restore memory snapshots and backups';
+        return t('memoryCenter.tabDescriptions.backup');
       case 'cloud-backup':
-        return '将备份自动同步至云存储(WebDAV/S3)，确保跨设备数据安全 / Auto-sync backups to cloud storage for cross-device safety';
+        return t('memoryCenter.tabDescriptions.cloudBackup');
       case 'follow-ups':
         return t('memoryCenter.tabDescriptions.followUps');
       case 'team-hub':

@@ -13867,7 +13867,10 @@
       "tabDescriptions": {
         "followUps": "대화에서 추출된 선제적 팔로우업 보기 및 관리",
         "migration": "Hermes, OpenClaw, Claude Code 또는 Codex 스캔 — 미리보기 가져오기; 스킬은 검토 필요; MCP와 채널은 수동",
-        "teamHub": "공유 컨텍스트, Wiki, 스킬, 메모리 — 팀 구성을 한곳에서"
+        "teamHub": "공유 컨텍스트, Wiki, 스킬, 메모리 — 팀 구성을 한곳에서",
+        "explorer": "에이전트의 장기 메모리, 사실, 경험과 에이전트 간 공유 컨텍스트 관리",
+        "backup": "메모리의 안전한 백업을 만들고 언제든 복원하거나 스냅샷으로 버전 관리",
+        "cloudBackup": "백업을 클라우드 스토리지(WebDAV/S3)에 자동 동기화해 기기 간 데이터 보호"
       },
       "migrationUnavailable": {
         "title": "어시스턴트 가져오기는 로컬 또는 데스크톱에서만 지원됩니다",
@@ -17948,6 +17951,11 @@
         "skillEnabled": "스킬이 활성화되었습니다",
         "skillNotEnabled": "스킬이 활성화되지 않았습니다",
         "templateApplied": "템플릿이 적용되었습니다"
+      },
+      "tabSubtitles": {
+        "inventory": "에이전트의 핵심 스킬과 방법을 관리하고 발견",
+        "pending": "에이전트가 스스로 성장·진화해 만든 새 스킬을 검토하고 승인",
+        "rejections": "스킬 성장 감사와 진화 과정에서 발생한 비정상 차단 기록 확인"
       }
     },
     "language": "언어",
@@ -20899,6 +20907,33 @@
       "headline": "워크스테이션 보호를 위해 Myrm 데스크톱 앱을 설치하세요",
       "body": "현재 브라우저 모드입니다. Computer Use는 앱 내 승인으로 계속 사용할 수 있습니다. 잠금 상태 사용의 자동 잠금 해제에는 macOS 데스크톱 앱이 필요하며, 개인정보 보호 커튼과 화면 승인 하이라이트는 데스크톱 앱에서 macOS와 Windows를 지원합니다.",
       "bulletCurtain": "개인정보 보호 커튼 — 전체 화면 가림막으로 주변 사람이 에이전트 작업을 볼 수 없게 합니다(macOS 및 Windows)"
+    },
+    "developerCenter": {
+      "tabDescriptions": {
+        "devtools": "시스템 디버그 모드와 에이전트 평가 진단 설정",
+        "experimental": "개발·테스트 중인 미리보기 기능과 실험 플래그 켜기/끄기",
+        "usage": "모델 호출 횟수, 사용량 분포, 비용 비중, 실행 장부를 자세히 확인",
+        "companion": "데스크톱 컴패니언의 상호작용 방식, 음성 응답, 행동 습관 설정",
+        "importExport": "앱 전체 설정을 가져오거나 내보내 기기 간에 손쉽게 동기화"
+      }
+    },
+    "systemCenter": {
+      "tabDescriptions": {
+        "settings": "로컬 포트, 원격 서비스 접근, 시스템 프로세스 상태 관리",
+        "about": "현재 시스템 버전, 개발팀 정보, 앱 업데이트 내역 확인"
+      }
+    },
+    "toolQualityCenter": {
+      "tabDescriptions": {
+        "quality": "전체 스킬 실행 품질 분석과 다차원 성능 모니터링 지표 확인",
+        "stability": "스킬과 외부 도구의 호출 성공률, 소요 시간, 실행 상태 모니터링"
+      }
+    },
+    "modelCenter": {
+      "tabDescriptions": {
+        "providers": "AI 모델 제공자와 API 키 설정",
+        "default": "기본·폴백 모델, 라우팅 전략, 서드파티 모델 설정"
+      }
     }
   },
   "workLayout": {

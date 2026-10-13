@@ -14521,7 +14521,10 @@
       "tabDescriptions": {
         "followUps": "查看并管理从对话中自动提取的隐式跟进事项，可忽略或延后",
         "migration": "扫描 Hermes、OpenClaw、Claude Code、Codex — 预览导入；技能需审核；MCP 与渠道需手动配置",
-        "teamHub": "共享上下文、Wiki、技能与记忆 — 团队配置一屏入口"
+        "teamHub": "共享上下文、Wiki、技能与记忆 — 团队配置一屏入口",
+        "explorer": "管理智能体的长期记忆、事实、经历及跨智能体共享上下文",
+        "backup": "创建系统记忆的安全备份、随时恢复或进行快照版本控制",
+        "cloudBackup": "将备份自动同步至云存储(WebDAV/S3)，确保跨设备数据安全"
       },
       "migrationUnavailable": {
         "title": "助手导入仅支持本地与桌面版",
@@ -18626,6 +18629,11 @@
         "skillEnabled": "技能已启用",
         "skillNotEnabled": "技能未启用",
         "templateApplied": "模板已应用"
+      },
+      "tabSubtitles": {
+        "inventory": "管理和发现智能体的核心技能与方法",
+        "pending": "审查和批准智能体自动成长并进化出的新技能",
+        "rejections": "查看技能成长审计与进化过程中的异常阻断记录"
       }
     },
     "language": "语言",
@@ -21577,6 +21585,33 @@
       "headline": "工位级保护需安装 Myrm 桌面客户端",
       "body": "当前为浏览器模式。计算机使用仍可在应用内审批。Locked Use 自动解锁需 macOS 桌面客户端；工位防窥帷幕与屏幕审批高亮在 macOS 与 Windows 桌面客户端可用。",
       "bulletCurtain": "工位防窥帷幕 — 全屏遮蔽，旁人无法看到 Agent 操作（macOS 与 Windows）"
+    },
+    "developerCenter": {
+      "tabDescriptions": {
+        "devtools": "配置系统调试模式与智能体评估诊断设置",
+        "experimental": "启用或关闭正在开发测试中的前沿前瞻功能",
+        "usage": "追踪详细的模型调用次数、用量分布、费用占比与运行账本",
+        "companion": "设置萌宠桌面伙伴的互动偏好、语音响应与行为习惯",
+        "importExport": "导入或导出全局应用配置，方便跨设备轻松同步"
+      }
+    },
+    "systemCenter": {
+      "tabDescriptions": {
+        "settings": "管理本地端口、远程服务访问及系统进程状态",
+        "about": "查看当前系统版本、开发团队信息及应用更新日志"
+      }
+    },
+    "toolQualityCenter": {
+      "tabDescriptions": {
+        "quality": "查看全局技能执行质量分析与多维性能监控指标",
+        "stability": "监控技能与外部工具的调用成功率、耗时及运行状态"
+      }
+    },
+    "modelCenter": {
+      "tabDescriptions": {
+        "providers": "配置 AI 模型提供商与 API 密钥",
+        "default": "设定默认与降级模型、路由策略及第三方模型设置"
+      }
     }
   }
 }

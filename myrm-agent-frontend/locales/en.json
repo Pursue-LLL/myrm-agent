@@ -14521,7 +14521,10 @@
       "tabDescriptions": {
         "followUps": "View and manage proactive follow-ups extracted from conversations",
         "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual",
-        "teamHub": "Shared contexts, wiki, skills, and memory — team setup in one place"
+        "teamHub": "Shared contexts, wiki, skills, and memory — team setup in one place",
+        "explorer": "Browse and manage agent long-term memory",
+        "backup": "Create or restore memory snapshots and backups",
+        "cloudBackup": "Auto-sync backups to cloud storage for cross-device safety"
       },
       "migrationUnavailable": {
         "title": "Assistant import requires Local or Desktop",
@@ -18626,6 +18629,11 @@
         "skillEnabled": "Skill enabled",
         "skillNotEnabled": "Skill not enabled",
         "templateApplied": "Template applied"
+      },
+      "tabSubtitles": {
+        "inventory": "Manage and discover core agent capabilities",
+        "pending": "Review and approve self-evolved agent skills",
+        "rejections": "Inspect growth blockages and audit trails"
       }
     },
     "language": "Language",
@@ -21577,6 +21585,33 @@
       "headline": "Install the Myrm desktop app for workstation protection",
       "body": "You are in browser mode. Computer Use still works with in-app approvals. Locked Use auto-unlock needs the desktop app on macOS; Privacy Curtain and on-screen approval highlights work on macOS and Windows with the desktop app.",
       "bulletCurtain": "Privacy Curtain — full-screen shield so bystanders cannot see the agent (macOS and Windows)"
+    },
+    "developerCenter": {
+      "tabDescriptions": {
+        "devtools": "Technical diagnostics and LLM benchmarks",
+        "experimental": "Enable preview capabilities and labs flags",
+        "usage": "View detailed usage and billing metrics",
+        "companion": "Adjust desktop mascot interactions",
+        "importExport": "Backup and restore full app configs"
+      }
+    },
+    "systemCenter": {
+      "tabDescriptions": {
+        "settings": "Manage ports, network access, and system runtime",
+        "about": "Inspect system version, changelogs, and team details"
+      }
+    },
+    "toolQualityCenter": {
+      "tabDescriptions": {
+        "quality": "Performance and execution quality analytics",
+        "stability": "Tool stability, error rates, and duration tracking"
+      }
+    },
+    "modelCenter": {
+      "tabDescriptions": {
+        "providers": "Configure AI Providers and API credentials",
+        "default": "Define default, routing, and fallback models"
+      }
     }
   }
 }

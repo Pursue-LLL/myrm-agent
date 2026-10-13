@@ -13,8 +13,18 @@ import CompanionSection from './CompanionSection';
 import ImportExportSection from './ImportExportSection';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 
+/** Sub-tab id -> key under `settings.developerCenter.tabDescriptions`. */
+const DESCRIPTION_KEY_BY_TAB = {
+  devtools: 'devtools',
+  experimental: 'experimental',
+  usage: 'usage',
+  companion: 'companion',
+  importexport: 'importExport',
+} as const;
+
 const DeveloperCenterSection = memo(() => {
   const t = useTranslations('settings');
+  const tDescription = useTranslations('settings.developerCenter.tabDescriptions');
   const searchParams = useSearchParams();
   const { handleTabChange: syncTabChange } = useSettingsSubTabUrl('developer');
   const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
@@ -45,15 +55,7 @@ const DeveloperCenterSection = memo(() => {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('menu.developer')}</h1>
         <p className="text-sm text-muted-foreground">
-          {activeTab === 'devtools'
-            ? '配置系统调试模式与智能体评估诊断设置 / Technical diagnostics and LLM benchmarks'
-            : activeTab === 'experimental'
-              ? '启用或关闭正在开发测试中的前沿前瞻功能 / Enable preview capabilities and labs flags'
-              : activeTab === 'usage'
-                ? '追踪详细的模型调用次数、用量分布、费用占比与运行账本 / View detailed usage and billing metrics'
-                : activeTab === 'companion'
-                  ? '设置萌宠桌面伙伴的互动偏好、语音响应与行为习惯 / Adjust desktop mascot interactions'
-                  : '导入或导出全局应用配置，方便跨设备轻松同步 / Backup and restore full app configs'}
+          {tDescription(DESCRIPTION_KEY_BY_TAB[activeTab as keyof typeof DESCRIPTION_KEY_BY_TAB] ?? 'devtools')}
         </p>
       </div>
 

@@ -11,6 +11,7 @@ import ToolStabilitySection from './ToolStabilitySection';
 
 const ToolQualitySection = memo(() => {
   const t = useTranslations('settings');
+  const tDescription = useTranslations('settings.toolQualityCenter.tabDescriptions');
   const searchParams = useSearchParams();
   const { handleTabChange: syncTabChange } = useSettingsSubTabUrl('toolQuality');
 
@@ -34,9 +35,7 @@ const ToolQualitySection = memo(() => {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('menu.toolQuality')}</h1>
         <p className="text-sm text-muted-foreground">
-          {activeTab === 'quality'
-            ? '查看全局技能执行质量分析与多维性能监控指标 / Performance and execution quality analytics'
-            : '监控技能与外部工具的调用成功率、耗时及运行状态 / Tool stability, error rates, and duration tracking'}
+          {tDescription(activeTab === 'stability' ? 'stability' : 'quality')}
         </p>
       </div>
 

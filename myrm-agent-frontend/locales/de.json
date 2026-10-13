@@ -13867,7 +13867,10 @@
       "tabDescriptions": {
         "followUps": "Proaktive Folgeaktionen aus Gesprächen anzeigen und verwalten",
         "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual",
-        "teamHub": "Gemeinsame Kontexte, Wiki, Fähigkeiten und Speicher – Team-Setup an einem Ort"
+        "teamHub": "Gemeinsame Kontexte, Wiki, Fähigkeiten und Speicher – Team-Setup an einem Ort",
+        "explorer": "Langzeitspeicher der Agenten durchsuchen und verwalten",
+        "backup": "Snapshots und Sicherungen des Speichers erstellen oder wiederherstellen",
+        "cloudBackup": "Sicherungen automatisch mit Cloud-Speicher (WebDAV/S3) synchronisieren – für Datensicherheit auf allen Geräten"
       },
       "migrationUnavailable": {
         "title": "External source migration requires Local or Desktop",
@@ -17948,6 +17951,11 @@
         "skillEnabled": "Fähigkeit aktiviert",
         "skillNotEnabled": "Fähigkeit nicht aktiviert",
         "templateApplied": "Vorlage angewendet"
+      },
+      "tabSubtitles": {
+        "inventory": "Zentrale Fähigkeiten der Agenten verwalten und entdecken",
+        "pending": "Selbst entwickelte Fähigkeiten der Agenten prüfen und freigeben",
+        "rejections": "Wachstumsprüfungen und blockierte Entwicklungsschritte nachvollziehen"
       }
     },
     "language": "Sprache",
@@ -20899,6 +20907,33 @@
       "headline": "Installieren Sie die Myrm-Desktop-App für den Schutz Ihrer Arbeitsstation",
       "body": "Sie befinden sich im Browsermodus. Computer Use funktioniert weiterhin mit In-App-Freigaben. Die automatische Entsperrung der gesperrten Nutzung erfordert die Desktop-App unter macOS; Datenschutzvorhang und Bildschirmhervorhebungen bei Freigaben funktionieren mit der Desktop-App unter macOS und Windows.",
       "bulletCurtain": "Datenschutzvorhang — Vollbildschutz, damit Umstehende den Agent nicht sehen können (macOS und Windows)"
+    },
+    "developerCenter": {
+      "tabDescriptions": {
+        "devtools": "Technische Diagnosen und LLM-Benchmarks",
+        "experimental": "Vorschaufunktionen und Labs-Flags ein- oder ausschalten",
+        "usage": "Detaillierte Nutzungs- und Abrechnungskennzahlen einsehen",
+        "companion": "Interaktionen des Desktop-Companions anpassen",
+        "importExport": "Gesamte App-Konfiguration sichern und wiederherstellen"
+      }
+    },
+    "systemCenter": {
+      "tabDescriptions": {
+        "settings": "Ports, Netzwerkzugriff und System-Laufzeit verwalten",
+        "about": "Systemversion, Änderungsprotokolle und Teaminformationen einsehen"
+      }
+    },
+    "toolQualityCenter": {
+      "tabDescriptions": {
+        "quality": "Auswertungen zu Ausführungsqualität und Leistung der Fähigkeiten",
+        "stability": "Stabilität, Fehlerquoten und Laufzeiten der Tools verfolgen"
+      }
+    },
+    "modelCenter": {
+      "tabDescriptions": {
+        "providers": "KI-Anbieter und API-Zugangsdaten konfigurieren",
+        "default": "Standard-, Routing- und Fallback-Modelle festlegen"
+      }
     }
   },
   "workLayout": {
