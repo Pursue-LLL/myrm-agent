@@ -2305,7 +2305,8 @@
     "messageFailed": {
       "title": "Senden fehlgeschlagen",
       "description": "Das Senden der Nachricht ist fehlgeschlagen: {error}",
-      "networkError": "Verbindung zum Dienst verloren. Prüfen Sie den Backend-Dienst und laden Sie die Seite neu"
+      "networkError": "Verbindung zum Dienst verloren. Prüfen Sie den Backend-Dienst und laden Sie die Seite neu",
+      "generic": "Ihre Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es erneut"
     },
     "sendBlocked": {
       "title": "Senden nicht möglich",

@@ -1002,7 +1002,7 @@ const useChatStore = create<ChatState>()(
         // A resume has no typed input to hand back and its callers roll the card back from a catch block, like
         // every other resume route; resolving `false` would let them mark an unanswered card as answered.
         if (!dispatched && resumeValue !== undefined) {
-          throw new Error('Resume request was refused before the turn started');
+          throw new Error('Resume request was not delivered');
         }
         return dispatched;
       },

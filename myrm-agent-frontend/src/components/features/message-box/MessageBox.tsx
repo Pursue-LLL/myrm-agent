@@ -30,18 +30,15 @@ import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import type { McpAppView, ProgressItem, Source, ToolImageOutput } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { mergeMessageSources } from '@/store/chat/messageStream/streamHelpers';
-import {
-  stripDatetimeTag,
-  parseExplicitSkillActivation,
-  buildExplicitSkillWireMessage,
-} from '@/lib/utils/messageUtils';
+import { stripDatetimeTag } from '@/lib/utils/messageUtils';
 import { removeWaitingForTurnStep } from '@/store/chat/messageUtils';
-import { regenerateLastTurn, undoLastTurn, cancelAgentRequest, truncateAfterMessage } from '@/services/chat';
+import { regenerateLastTurn, undoLastTurn, cancelAgentRequest } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
 import { EvidenceStageHUD } from '@/components/features/chat-window/EvidenceStageHUD';
 import { ExecutionPhaseStepper } from '@/components/features/chat-window/ExecutionPhaseStepper';
 import ConsensusThinkingPanel from './ConsensusThinkingPanel';
 import UserMessage from './UserMessage';
+import { resendEditedUserMessage, retryFailedUserMessage } from './userMessageResend';
 import MarkdownContent from './MarkdownContent';
 import Suggestions from './Suggestions';
 import ArtifactsDisplay from '@/components/features/artifacts/ArtifactsDisplay';
@@ -421,38 +418,17 @@ const MessageBox = ({
   if (message.role === 'user') {
     const handleEdit = () => setEditingMessageId(message.messageId);
 
-    const handleEditSubmit = async (newContent: string) => {
+    const handleEditSubmit = (newContent: string) => {
       if (loading || !chatId) {
         return;
       }
       setEditingMessageId(null);
-
-      const activation = parseExplicitSkillActivation(message.content);
-      const wireContent = activation ? buildExplicitSkillWireMessage(activation, newContent) : newContent;
-
-      try {
-        await truncateAfterMessage(chatId, message.messageId);
-      } catch (error) {
-        console.error('Truncate failed:', error);
-      }
-
-      useChatStore.setState((state) => ({
-        messages: state.messages.slice(0, messageIndex),
-      }));
-      sendMessage(wireContent);
+      void resendEditedUserMessage(chatId, message, messageIndex, newContent);
     };
 
     const handleCancelEdit = () => setEditingMessageId(null);
 
-    const handleFailedRetry = message.sendFailed
-      ? () => {
-          const retryContent = stripDatetimeTag(message.content);
-          useChatStore.setState((state) => ({
-            messages: state.messages.filter((m) => m.messageId !== message.messageId),
-          }));
-          sendMessage(retryContent);
-        }
-      : undefined;
+    const handleFailedRetry = message.sendFailed ? () => void retryFailedUserMessage(message) : undefined;
 
     return (
       <UserMessage

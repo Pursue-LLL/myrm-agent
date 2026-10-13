@@ -5,10 +5,12 @@
  * [OUTPUT]
  * - resolveRequestState: per-request view of the chat state (agent override + queued attachments).
  * - retractUserBubble: state updater that removes the optimistic user bubble of a request the server refused.
+ * - sendFailureToast: toast options reporting a failed turn without exposing raw error texts.
  *
  * [POS]
  * Pure helpers of the send lifecycle. Kept apart from messageRequest.ts so the queue-drain semantics
- * (a queued message sends its own attachments, a busy rejection leaves no ghost bubble) stay unit-testable.
+ * (a queued message sends its own attachments, a busy rejection leaves no ghost bubble) and the wording policy
+ * for failed turns stay unit-testable.
  */
 import type { AgentConfig, ChatState, File, QueuedAttachments } from '@/store/chat/types';
 
@@ -48,4 +50,24 @@ export function retractUserBubble(messageId: string): (state: ChatState) => void
       state.messages.pop();
     }
   };
+}
+
+/**
+ * Toast options reporting a failed turn: the connection hint after a network failure, the server's own
+ * explanation when a refusal carried one, a fixed line otherwise. Raw error texts (internal exceptions, proxy
+ * error pages) never reach the UI; they belong in the console.
+ */
+export function sendFailureToast(isNetworkError: boolean, refusalDetail: string | undefined) {
+  if (isNetworkError) {
+    return { descriptionKey: 'chat.messageFailed.networkError', type: 'error', duration: 8000 } as const;
+  }
+  if (refusalDetail) {
+    return {
+      descriptionKey: 'chat.messageFailed.description',
+      descriptionValues: { error: refusalDetail },
+      type: 'error',
+      duration: 3000,
+    } as const;
+  }
+  return { descriptionKey: 'chat.messageFailed.generic', type: 'error', duration: 3000 } as const;
 }

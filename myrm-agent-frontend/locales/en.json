@@ -2305,7 +2305,8 @@
     "messageFailed": {
       "title": "Failed to Send",
       "description": "Message sending failed: {error}",
-      "networkError": "Service connection lost. Please check the backend service and refresh the page to retry"
+      "networkError": "Service connection lost. Please check the backend service and refresh the page to retry",
+      "generic": "Your message could not be sent. Please try again"
     },
     "sendBlocked": {
       "title": "Unable to Send",

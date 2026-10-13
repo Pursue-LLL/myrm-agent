@@ -292,9 +292,11 @@ export interface ChatState {
   // 聊天功能
   /**
    * Resolves `true` once the request was dispatched (including turns that later fail visibly or are aborted)
-   * and `false` when it was refused before the turn started: rejected locally before anything was shown or sent
-   * (guards, validation) or by the server with a non-retryable HTTP error (the failure is already shown).
-   * A refused resume (`resumeValue` given) rejects instead, because its callers roll their card back on failure.
+   * and `false` when the turn never started: rejected locally before anything was shown or sent (guards,
+   * validation), refused by the server with a non-retryable HTTP error, or the workspace stream was not ready
+   * before the first request (the failure is already shown).
+   * An undelivered resume (`resumeValue` given: refused, or no request got a reply) rejects instead, because its
+   * callers roll their card back on failure and report it themselves.
    * Rejects with `AgentBusyError` when the server is still running another turn.
    */
   sendMessage: (

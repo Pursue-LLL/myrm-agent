@@ -22,7 +22,7 @@ import type { TurnCapabilitySelection } from '@/hooks/message-input/turnCapabili
 /**
  * Why a chat's queue stopped sending on its own:
  * - stopped: the user stopped the running reply.
- * - stuck: sending needs the user to act; the busy backoff ran out or the request was refused before the turn started.
+ * - stuck: sending needs the user to act; the busy backoff ran out or the turn never started.
  */
 export type QueuePauseReason = 'stopped' | 'stuck';
 
@@ -30,8 +30,8 @@ export type QueuePauseReason = 'stopped' | 'stuck';
  * How a claimed message left the drain:
  * - consumed: the request was dispatched (or its content handed back to the composer); the message is done.
  * - busy: the server still runs another turn; retry later with backoff.
- * - blocked: the request was refused before the turn started, locally or by the server (for example a missing model
- *   or an expired session); retrying is pointless until the user acts.
+ * - blocked: the turn never started, either refused locally or by the server (for example a missing model or an
+ *   expired session) or because the workspace stream was not ready; retrying is pointless until the user acts.
  */
 export type ClaimOutcome = 'consumed' | 'busy' | 'blocked';
 

@@ -141,7 +141,7 @@ export { tryE2eAttachForPendingApproval };
 
 const RETRY_INITIAL_DELAY_MS = 2000;
 const RETRY_BACKOFF_FACTOR = 1.5;
-const RETRY_MAX_ATTEMPTS = 10; // 增加重试次数，以应对后端重启较慢的情况（总等待时间约 1 分钟）
+const RETRY_MAX_ATTEMPTS = 10; // Covers a slow backend restart: exponential backoff waits about 3.8 minutes in total.
 
 interface StructuredHttpErrorPayload {
   detail?: string;
@@ -284,7 +284,15 @@ export async function executeStreamWithRetry(
       if (multiplexBridge) {
         const workspaceReady = await connectionManager.waitUntilReady(30_000);
         if (!workspaceReady.ok) {
-          throw new Error(workspaceReady.err ?? 'Workspace multiplex stream not ready before agent-stream POST');
+          const gateError = new Error(
+            workspaceReady.err ?? 'Workspace multiplex stream not ready before agent-stream POST',
+          );
+          // Nothing was posted before the first attempt, so a failure the loop would not retry means the turn
+          // never started. After a failed POST the server may already hold the turn, which stays an ordinary failure.
+          if (attempt === 0 && !isTransientNetworkError(gateError)) {
+            throw new RequestRefusedError(gateError.message);
+          }
+          throw gateError;
         }
       }
 

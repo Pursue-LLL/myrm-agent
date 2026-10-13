@@ -50,7 +50,7 @@ import {
   RequestRefusedError,
   consumeStream,
 } from './streamConsumer';
-import { resolveRequestState, retractUserBubble } from './sendLifecycle';
+import { resolveRequestState, retractUserBubble, sendFailureToast } from './sendLifecycle';
 import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
 import useToolApprovalStore from '../useToolApprovalStore';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -1248,8 +1248,16 @@ export const sendMessage = async (
     }
     if (error instanceof Error && error.name !== 'AbortError') {
       const isNetworkError = isTransientNetworkError(error);
+      const refusal = error instanceof RequestRefusedError ? error : null;
 
-      if (isNetworkError) {
+      if (isHitlResume) {
+        // The answered card already sits in the transcript, so a failed resume leaves it alone. When the server
+        // never took the answer (refused, or no request got a reply) it is reported undispatched and the caller
+        // that rolls its card back tells the user.
+        if (isNetworkError || refusal) {
+          dispatched = false;
+        }
+      } else if (isNetworkError) {
         smartSetMessages((innerState) => {
           const msg = innerState.messages.find((m) => m.messageId === requestMessageId);
           if (msg) {
@@ -1264,17 +1272,15 @@ export const sendMessage = async (
           }
         });
         // The server never took the turn: report it undispatched so a queued message is kept for the user.
-        if (error instanceof RequestRefusedError) {
+        if (refusal) {
           dispatched = false;
         }
       }
 
-      showI18nToast('chat.messageFailed.title', undefined, {
-        descriptionKey: isNetworkError ? 'chat.messageFailed.networkError' : 'chat.messageFailed.description',
-        descriptionValues: isNetworkError ? undefined : { error: error.message },
-        type: 'error',
-        duration: isNetworkError ? 8000 : 3000,
-      });
+      console.error('[sendMessage] request failed:', error);
+      if (!isHitlResume || dispatched) {
+        showI18nToast('chat.messageFailed.title', undefined, sendFailureToast(isNetworkError, refusal?.detail));
+      }
       if (resolveE2eApiBase()) {
         throw error;
       }
