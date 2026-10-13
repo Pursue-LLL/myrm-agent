@@ -2,13 +2,14 @@
 //!
 //! [INPUT]
 //! - 目标进程 PID
+//! - runtime::suppress_console_window (POS: Windows 下为子进程设置 CREATE_NO_WINDOW，防止弹出控制台窗口)
 //!
 //! [OUTPUT]
 //! - kill_process_tree: Windows 用 `taskkill /T /F` 终止整棵子进程树；POSIX 只对该 PID 发 SIGKILL，不递归
 //!
 //! [POS]
 //! 后端 / 前端停机兜底、重启与端口幸存者回收共用的强杀入口。
-//! POSIX 下后代进程不会被一并终止，由后代自身的退出处理收尾；主进程崩溃时没有内核级联终止。
+//! POSIX 下后代进程不会被一并终止；两个平台都没有进程组或 Job Object，主进程崩溃时不会内核级联终止子进程。
 
 use std::process::Command;
 

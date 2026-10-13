@@ -5,7 +5,7 @@
 //! - runtime::PythonBackend (POS: Sidecar 子进程句柄)
 //! - runtime::ProcessRegistry (POS: 桌面受管进程注册中心)
 //! - runtime::stop_backend_monitors (POS: watchdog/wake 统一停挂)
-//! - utils::process_tree::kill_process_tree (POS: 进程树强杀)
+//! - utils::process_tree::kill_process_tree (POS: 进程强杀原语)
 //!
 //! [OUTPUT]
 //! - graceful_stop_backend: 全部停机路径共享的优雅停序列（连接切换/配置迁移/应用退出）。

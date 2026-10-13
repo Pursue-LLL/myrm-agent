@@ -25,7 +25,7 @@
 | `auth.rs` | 核心 | macOS 提权修复隔离属性 | — |
 | `quarantine.rs` | 核心 | com.apple.quarantine 扫描与静默修复 | — |
 | `updater_safety.rs` | 核心 | 启动期 OTA pubkey 占位符强校验 | ✅ |
-| `process_tree.rs` | 核心 | 进程强杀原语：Windows 递归终止整棵子进程树，POSIX 仅强杀指定 PID（后代由自身退出处理收尾） | ✅ |
+| `process_tree.rs` | 核心 | 进程强杀原语：Windows 递归终止整棵子进程树，POSIX 仅强杀指定 PID，不递归 | ✅ |
 | `protocol_page.rs` | 核心 | 自定义协议页面共用原语：入口 URL（`page_url`，含 Windows `http://<scheme>.localhost` 形态与查询参数）、`html_escape`、不缓存的 `html_response`；帷幕看板页与视觉审批高亮页共用，窗口页不走 `data:` URL 的原因记在模块头 | ✅ |
 
 ## 依赖
