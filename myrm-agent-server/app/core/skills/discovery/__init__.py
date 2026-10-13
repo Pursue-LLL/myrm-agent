@@ -16,22 +16,12 @@ from .mount import (
     maybe_mount_after_install,
     resolve_mount_skill_id,
 )
-from .rescan_service import (
-    RescanReport,
-    SkillRescanItem,
-    SkillRescanService,
-    rescan_service,
-)
 
 __all__ = [
     "DEFAULT_MOUNT_AGENT_ID",
-    "RescanReport",
     "SkillMountResult",
-    "SkillRescanItem",
-    "SkillRescanService",
     "complete_discovery_adoption",
     "get_update_checker",
     "maybe_mount_after_install",
-    "rescan_service",
     "resolve_mount_skill_id",
 ]

@@ -32,11 +32,7 @@ from pydantic import BaseModel
 
 from app.api.approvals.batch import router as batch_router
 from app.api.approvals.credentials import router as credentials_router
-from app.api.approvals.docket import router as docket_router
-from app.api.approvals.financial import router as financial_router
-from app.api.approvals.side_effect import router as side_effect_router
 from app.api.approvals.test_routes import router as test_routes_router
-from app.api.approvals.tiered_risk import router as tiered_risk_router
 from app.database.models.approval import ApprovalRecord
 from app.services.approvals.audit_ledger import get_audit_ledger
 from app.services.approvals.docket_service import DocketService
@@ -48,10 +44,6 @@ router = APIRouter(prefix="/approvals", tags=["approvals"])
 router.include_router(credentials_router)
 router.include_router(test_routes_router)
 router.include_router(batch_router)
-router.include_router(docket_router)
-router.include_router(financial_router)
-router.include_router(side_effect_router)
-router.include_router(tiered_risk_router)
 
 
 async def _handle_knowledge_patch_resolution(record: ApprovalRecord, decision: str) -> None:

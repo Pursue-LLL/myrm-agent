@@ -13,10 +13,9 @@
 | `queries.py` | 核心 | 审批主链 evolution / draft case 查询；列表 summary、detail 单条加载；stats SQL 分桶计数；list merge fetch=limit+offset | ✅ |
 | `proxy_guard.py` | 核心 | 自进化度量代理对齐守卫（Goodhart 防护）：从预测清单中抽取样本并对比契约，产出结构化偏离诊断 | ✅ |
 | `audit_queries.py` | 核心 | Ledger 事件审计与 timeline 查询（audit entries / stats / timeline） | ✅ |
-| `projection_queries.py` | 核心 | 技能成长账本投影查询层。把 `skill_growth.*` ledger 事件规范化为 projection 事件列表与摘要，补齐 `APPLY_FAILED` 等负向状态 | ✅ |
 | `lifecycle.py` | 核心 | 技能成长统一编排入口。接收 Harness 复盘结果，按类型与风险决定自动落地、人工审核、锁定拦截或扫描失败降级；根据 `deployment_capabilities.allows_local_skills` 判定物化权限（local/sandbox 默认允许，禁用时 fail-closed 跳过），semantic_memory 始终保留 | ✅ |
 
 ## 设计原则
 
-- **依赖方向**：constants/case_types ← queries/audit_queries/projection_queries ← lifecycle 单向依赖；跨子域引用根模块（`experience_ledger` / `auto_extractor` / `draft_notification` / `evolution_reviews`）时使用 `..` 相对导入。
+- **依赖方向**：constants/case_types ← queries/audit_queries ← lifecycle 单向依赖；跨子域引用根模块（`experience_ledger` / `auto_extractor` / `draft_notification` / `evolution_reviews`）时使用 `..` 相对导入。
 - **IMPORT CONSTRAINT**：本包不做聚合导出（条件性依赖环见 `__init__.py`），外部一律穿透导入子模块。

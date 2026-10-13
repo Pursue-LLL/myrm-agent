@@ -1,8 +1,8 @@
-"""Growth subpackage — skill growth case queries, audit, projection, and lifecycle.
+"""Growth subpackage — skill growth case queries, audit, and lifecycle.
 
 [POS]
 技能成长子域。constants 为动作类型 SSOT，case_types 为 DTO，
-queries 为成长 case 查询，audit_queries 为账本审计，projection_queries 为账本投影，
+queries 为成长 case 查询，audit_queries 为账本审计，
 lifecycle 为成长编排入口，proxy_guard 为自进化代理指标对齐守卫（Goodhart 防护）。
 
 [IMPORT CONSTRAINT]

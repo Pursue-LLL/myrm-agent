@@ -90,7 +90,6 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "skill_growth": _RouterMount("app.api.skills.growth", tags=("skill-growth",)),
     "evolution": _RouterMount("app.api.skills.evolution", tags=("evolution",)),
     "evolution_ws": _RouterMount("app.api.skills.ws_evolution", prefix="/ws", tags=("evolution",)),
-    "experience_ledger": _RouterMount("app.api.skills.experience_ledger", tags=("experience-ledger",)),
     "migration_discovery": _RouterMount("app.api.migration.discovery", tags=("migration",)),
     "migration_upload": _RouterMount("app.api.migration.upload", tags=("migration",)),
     "migrations": _RouterMount("app.api.skills.migrations", tags=("migrations",)),
@@ -115,7 +114,6 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "vault": _RouterMount("app.api.security.vault", prefix="/security", tags=("security",)),
     "vault_credentials": _RouterMount("app.api.security.vault_credentials", prefix="/security", tags=("security",)),
     "health": _RouterMount("app.api.health.router", prefix="/health", tags=("health",)),
-    "diagnostic": _RouterMount("app.api.health.diagnostic", prefix="/diagnostic", tags=("diagnostic",)),
     "checkpoint": _RouterMount("app.api.checkpoint", tags=("checkpoint",)),
     "statistics": _RouterMount(
         "app.api.statistics",
@@ -157,12 +155,6 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     ),
     "channels_instances": _RouterMount("app.api.channels.instances", prefix="/channels/manage", tags=("channels",)),
     "channels_topics": _RouterMount("app.api.channels.topics", prefix="/channels/manage", tags=("channels",)),
-    "channels_routes": _RouterMount(
-        "app.api.channels.routes_management",
-        prefix="/channels/routes",
-        tags=("channels",),
-    ),
-    "channels_dlq": _RouterMount("app.api.channels.dlq", prefix="/channels/dlq", tags=("channels",)),
     "api_keys": _RouterMount("app.api.api_keys", attr="router"),
     "media": _RouterMount("app.api.media", attr="media_router", prefix="/media", tags=("media",)),
     "budget": _RouterMount("app.api.budget", attr="budget_router", prefix="/budget", tags=("budget",)),
@@ -177,7 +169,7 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
 
 PRESETS: dict[str, tuple[str, ...]] = {
     "chats": ("chats",),
-    "health": ("health", "diagnostic", "ops"),
+    "health": ("health", "ops"),
     "notifications": ("notifications",),
     "security": (
         "allowlist",
@@ -199,8 +191,6 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "feishu_register",
         "channels_instances",
         "channels_topics",
-        "channels_routes",
-        "channels_dlq",
     ),
     "evolution": ("evolution", "evolution_ws"),
     "files": ("files", "vault_proxy", "artifact_share_public"),
@@ -240,7 +230,6 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "skills",
         "skill_growth",
         "evolution",
-        "experience_ledger",
         "migrations",
         "migration_discovery",
     ),

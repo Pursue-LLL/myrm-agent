@@ -9,7 +9,6 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 挂载子路由；**优先**挂载 `../test_fixtures`（E2E seed 路由） | ✅ |
-| `anchor_search.py` | 模块 | `GET /anchor-search` — 会话精确定位与高亮搜索，提供基于精确短语、布尔组合与滑动窗口切片的定位锚点（支持客户端平滑滚动与闪烁脉冲） | ✅ |
 | `catchup.py` | 模块 | Get catchup briefs for all chats with unread activity. | ✅ |
 | `compaction.py` | 模块 | 压缩摘要、归档只读、context pins/branches CRUD、snapshot bookmark fork | ✅ |
 | `copilot.py` | 模块 | Co-Pilot API：run-digest GET、advisor ask/messages/clear | ✅ |
@@ -29,6 +28,4 @@
 | `replay.py` | 模块 | `POST /{chat_id}/replay` — 会话重放与确定性验证接口，计算工具调用序列对齐率、Jaccard指数与确定性得分（0.0 ~ 1.0）。 | ✅ |
 | `export_pack.py` | 模块 | `HEAD & GET /{chat_id}/export-pack` — 会话事件日志、子Agent日志与工件文件的自包含流式 ZIP 导出管道，原生支持 `redact_secrets` 动态脱敏、O(1) 内存分块与 SHA256 清单。 | ✅ |
 | `memory_extract.py` | 模块 | `POST /{chat_id}/memory/retry-extract` — 对最近一轮 user/assistant 重新调度 memory extract；incognito / 无效 turn → 400；chat 不存在 → 404；返回 `scheduled` / `already_in_flight` | ✅ |
-| `task_hud.py` | 模块 | 会话级抗压缩任务状态机与不可降解 Task HUD REST 接口（`GET/POST/PATCH/DELETE /{chat_id}/tasks`） | ✅ |
 | `thought_control.py` | 路由 | 思考链提前收敛与主动停止干预控制端点（`POST /{chat_id}/stop-thinking`），遏制长思考死循环与无限推理，强制提前作答 | ✅ |
-| `zdr.py` | 模块 | Zero Data Retention (ZDR) endpoints: status, signed attestation receipt (JSON/Markdown), 60s reconnect, and 0x00 physical wipe. | ✅ |

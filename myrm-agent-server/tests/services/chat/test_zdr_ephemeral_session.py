@@ -1,14 +1,13 @@
-"""Unit tests for Zero Data Retention (ZDR) ephemeral in-memory session store & attestation.
+"""Unit tests for the Zero Data Retention (ZDR) ephemeral in-memory session store.
 
 [INPUT]
 - pytest (POS: 测试框架)
 - app.services.chat.ephemeral_session_store::EphemeralSessionStore
-- app.core.security.zdr_attestation::generate_zdr_attestation
 - app.database.dto::MessageDTO
 
 [OUTPUT]
 - Test suite verifying in-memory storage, 60s reconnect grace, physical 0x00 wipe,
-  and cryptographic attestation signing.
+  and the incognito bypass of database persistence.
 """
 
 from __future__ import annotations
@@ -18,7 +17,6 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.core.security.zdr_attestation import generate_zdr_attestation
 from app.database.dto import MessageDTO
 from app.services.chat.chat_message import _ChatMessageMixin
 from app.services.chat.ephemeral_session_store import EphemeralSessionStore
@@ -99,28 +97,6 @@ async def test_graceful_reconnect_window() -> None:
     assert await store.is_reconnect_window_expired(chat_id, timeout_seconds=60.0) is True
 
 
-def test_cryptographic_attestation_signing() -> None:
-    """Verify HMAC-SHA256 signature and markdown report generation."""
-    attestation = generate_zdr_attestation(
-        chat_id="chat-ciso-audit-999",
-        message_count=12,
-        total_chars=8500,
-    )
-
-    assert attestation.chat_id == "chat-ciso-audit-999"
-    assert attestation.message_count == 12
-    assert attestation.total_characters_processed == 8500
-    assert attestation.zero_disk_storage_verified is True
-    assert attestation.vendor_zdr_headers_injected is True
-    assert len(attestation.signature) == 64  # SHA256 hex digest length
-    assert attestation.attestation_id.startswith("zdr-attest-")
-
-    md_report = attestation.to_markdown_report()
-    assert "# Myrm Zero Data Retention (ZDR) Compliance Attestation" in md_report
-    assert "chat-ciso-audit-999" in md_report
-    assert "VERIFIED (100% RAM-Only)" in md_report
-
-
 @pytest.mark.asyncio
 async def test_chat_message_mixin_bypasses_db_for_incognito() -> None:
     """Verify append_message stores in EphemeralSessionStore when is_incognito=True."""
@@ -146,67 +122,3 @@ async def test_chat_message_mixin_bypasses_db_for_incognito() -> None:
     retrieved = await _ChatMessageMixin.get_all_messages(chat_id)
     assert len(retrieved) == 1
     assert retrieved[0].id == msg.id
-
-
-def test_zdr_rest_api_endpoints() -> None:
-    """Verify REST API endpoints: /status, /attestation, /reconnect, /wipe."""
-    from fastapi.testclient import TestClient
-
-    from tests.support.minimal_app import build_minimal_app
-
-    app = build_minimal_app(preset="chats")
-
-    with TestClient(app) as client:
-        non_existent = "non-existent-zdr"
-        # 1. Status for non-existent session
-        res = client.get(f"/api/v1/chats/{non_existent}/zdr/status")
-        assert res.status_code == 200
-        assert res.json()["data"]["is_active_ephemeral"] is False
-
-        # 2. Append message directly to simulate incognito session
-        store = EphemeralSessionStore.get_instance()
-        chat_id = "api-test-chat-zdr"
-        import asyncio
-
-        msg = MessageDTO(
-            id="m_api",
-            chat_id=chat_id,
-            role="user",
-            content="Top secret message",
-            sent_at=datetime.now(timezone.utc),
-            sent_timezone="UTC",
-            created_at=datetime.now(timezone.utc),
-        )
-        asyncio.run(store.append_message(chat_id, msg))
-
-        # 3. Status for active session
-        res = client.get(f"/api/v1/chats/{chat_id}/zdr/status")
-        assert res.status_code == 200
-        data = res.json()["data"]
-        assert data["is_active_ephemeral"] is True
-        assert data["zero_disk_retention"] is True
-        assert data["message_count"] == 1
-
-        # 4. Attestation
-        res = client.get(f"/api/v1/chats/{chat_id}/zdr/attestation")
-        assert res.status_code == 200
-        attest_data = res.json()["data"]
-        assert attest_data["chat_id"] == chat_id
-        assert attest_data["zero_disk_storage_verified"] is True
-        assert len(attest_data["signature"]) == 64
-
-        # 5. Reconnect
-        res = client.post(f"/api/v1/chats/{chat_id}/zdr/reconnect")
-        assert res.status_code == 200
-        assert res.json()["data"]["reconnected"] is True
-
-        # 6. Wipe
-        res = client.post(f"/api/v1/chats/{chat_id}/zdr/wipe")
-        assert res.status_code == 200
-        assert res.json()["data"]["wiped"] is True
-
-        # 7. Status after wipe
-        res = client.get(f"/api/v1/chats/{chat_id}/zdr/status")
-        assert res.status_code == 200
-        assert res.json()["data"]["is_active_ephemeral"] is False
-

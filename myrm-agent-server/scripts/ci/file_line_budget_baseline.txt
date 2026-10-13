@@ -17,7 +17,6 @@ app/api/companion/router.py
 app/api/config/router.py
 app/api/cron/routes/helpers.py
 app/api/cron/schemas.py
-app/api/events/permissions.py
 app/api/extension/router.py
 app/api/files/artifact_api.py
 app/api/files/browse.py

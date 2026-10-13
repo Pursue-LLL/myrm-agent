@@ -30,7 +30,6 @@ app/api/audit/anomaly_detector.py
 app/api/audit/bash_router.py
 app/api/batch_optimization/router.py
 app/api/channels/channel_ingress.py
-app/api/channels/dlq.py
 app/api/chats/chat/__init__.py
 app/api/chats/chat/catchup.py
 app/api/chats/chat/compaction.py
@@ -49,7 +48,6 @@ app/api/cron/routes/__init__.py
 app/api/cron/routes/helpers.py
 app/api/cron/routes/push_messages.py
 app/api/events/notifications.py
-app/api/events/permissions.py
 app/api/features/router.py
 app/api/files/__init__.py
 app/api/files/pdf_extract.py
@@ -59,13 +57,10 @@ app/api/files/storage.py
 app/api/files/upload.py
 app/api/files/vault_api.py
 app/api/files/vault_proxy.py
-app/api/health/diagnostic.py
 app/api/health/router.py
 app/api/integrations/catalog.py
-app/api/integrations/im_contacts.py
 app/api/integrations/llms.py
 app/api/integrations/mcp.py
-app/api/integrations/retrieval.py
 app/api/integrations/router.py
 app/api/integrations/search.py
 app/api/kanban/routes/bulk.py
@@ -99,7 +94,6 @@ app/api/skills/config_version.py
 app/api/skills/core.py
 app/api/skills/curator.py
 app/api/skills/evolution/__init__.py
-app/api/skills/evolution/rejections.py
 app/api/skills/growth.py
 app/api/skills/instances.py
 app/api/skills/migrations.py

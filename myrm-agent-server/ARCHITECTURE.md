@@ -195,7 +195,7 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 | --- | --- | --- |
 | **禁止 inversion** | `app/core/`、`app/services/`、`app/lifecycle/` **不得** import `app.api.*`（DTO、Depends、router 模块状态） | `tests/architecture/test_no_core_services_api_imports.py` |
 | **共享 DTO** | HTTP 与 services 共用的 Pydantic 模型放在 `app/schemas/` | 例：`schemas/security/dashboard.py` |
-| **跨层单例** | 进程级 registry / store 放在 `core/*`、`channels/storage/*` 或 `services/*/bootstrap.py`，**不得**挂在 router 模块上 | 例：`login_session_registry.py`、`route_registry.py` |
+| **跨层单例** | 进程级 registry / store 放在 `core/*`、`channels/storage/*` 或 `services/*/bootstrap.py`，**不得**挂在 router 模块上 | 例：`login_session_registry.py` |
 | **API 层职责** | `app/api/` 仅做路由、Depends 装配、请求/响应映射；业务编排调用 `services/` | `tests/architecture/test_api_services_vocabulary.py` |
 
 违反上述规则会导致：lifecycle 清理 job 依赖 router 懒加载、services 单测被迫 import FastAPI 包、OpenAPI DTO 与业务层双路径漂移。
