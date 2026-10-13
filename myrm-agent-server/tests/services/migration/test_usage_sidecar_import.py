@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.backends.skills.types import SkillUsageStats
 
 from app.services.migration._loader_utils import load_usage_sidecar
 
@@ -63,10 +64,10 @@ class TestLoadUsageSidecar:
 
 
 class TestBuildStatsJson:
-    """Test the Hermes→Myrm usage stats mapping in migrations.py."""
+    """Test the Hermes→Myrm usage stats mapping in skill_bundle_writer.py."""
 
     def test_maps_hermes_fields_to_myrm_format(self) -> None:
-        from app.api.skills.migrations import _build_stats_json
+        from app.services.migration.skill_bundle_writer import build_stats_json
 
         hermes_record = {
             "use_count": 42,
@@ -76,7 +77,7 @@ class TestBuildStatsJson:
             "pinned": True,
         }
 
-        result = _build_stats_json(hermes_record)
+        result = build_stats_json(hermes_record)
 
         assert result is not None
         assert result["call_count"] == 42
@@ -89,23 +90,23 @@ class TestBuildStatsJson:
         assert result["merged_into"] is None
 
     def test_maps_stale_state(self) -> None:
-        from app.api.skills.migrations import _build_stats_json
+        from app.services.migration.skill_bundle_writer import build_stats_json
 
-        result = _build_stats_json({"use_count": 5, "state": "stale", "created_at": "2026-01-01T00:00:00Z"})
+        result = build_stats_json({"use_count": 5, "state": "stale", "created_at": "2026-01-01T00:00:00Z"})
 
         assert result is not None
         assert result["lifecycle_status"] == "stale"
 
     def test_returns_none_for_empty_usage(self) -> None:
-        from app.api.skills.migrations import _build_stats_json
+        from app.services.migration.skill_bundle_writer import build_stats_json
 
-        result = _build_stats_json({"use_count": 0})
+        result = build_stats_json({"use_count": 0})
         assert result is None
 
     def test_handles_missing_fields_gracefully(self) -> None:
-        from app.api.skills.migrations import _build_stats_json
+        from app.services.migration.skill_bundle_writer import build_stats_json
 
-        result = _build_stats_json({"use_count": 10})
+        result = build_stats_json({"use_count": 10})
 
         assert result is not None
         assert result["call_count"] == 10
@@ -115,33 +116,33 @@ class TestBuildStatsJson:
         assert result["pinned"] is False
 
     def test_coerces_string_use_count(self) -> None:
-        from app.api.skills.migrations import _build_stats_json
+        from app.services.migration.skill_bundle_writer import build_stats_json
 
-        result = _build_stats_json({"use_count": "42", "created_at": "2026-01-01T00:00:00Z"})
+        result = build_stats_json({"use_count": "42", "created_at": "2026-01-01T00:00:00Z"})
 
         assert result is not None
         assert result["call_count"] == 42
 
     def test_falls_back_to_zero_on_invalid_use_count(self) -> None:
-        from app.api.skills.migrations import _build_stats_json
+        from app.services.migration.skill_bundle_writer import build_stats_json
 
-        result = _build_stats_json({"use_count": "abc", "created_at": "2026-01-01T00:00:00Z"})
+        result = build_stats_json({"use_count": "abc", "created_at": "2026-01-01T00:00:00Z"})
 
         assert result is not None
         assert result["call_count"] == 0
 
     def test_maps_archived_state(self) -> None:
-        from app.api.skills.migrations import _build_stats_json
+        from app.services.migration.skill_bundle_writer import build_stats_json
 
-        result = _build_stats_json({"use_count": 3, "state": "archived", "created_at": "2026-01-01T00:00:00Z"})
+        result = build_stats_json({"use_count": 3, "state": "archived", "created_at": "2026-01-01T00:00:00Z"})
 
         assert result is not None
         assert result["lifecycle_status"] == "archived"
 
     def test_unknown_state_defaults_to_active(self) -> None:
-        from app.api.skills.migrations import _build_stats_json
+        from app.services.migration.skill_bundle_writer import build_stats_json
 
-        result = _build_stats_json({"use_count": 3, "state": "unknown_state", "created_at": "2026-01-01T00:00:00Z"})
+        result = build_stats_json({"use_count": 3, "state": "unknown_state", "created_at": "2026-01-01T00:00:00Z"})
 
         assert result is not None
         assert result["lifecycle_status"] == "active"
@@ -156,7 +157,7 @@ class TestApplySkillMigrationWithUsage:
 
         monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(tmp_path)])
 
-        from app.api.skills.migrations import _apply_skill_migration
+        from app.services.migration.skill_bundle_writer import apply_skill_migration
 
         skills_raw = [
             {
@@ -172,7 +173,7 @@ class TestApplySkillMigrationWithUsage:
             },
         ]
 
-        result = await _apply_skill_migration(skills_raw)
+        result = await apply_skill_migration(skills_raw)
 
         assert result["skills_imported"] == 1
         assert result["usage_preserved"] == 1
@@ -192,7 +193,7 @@ class TestApplySkillMigrationWithUsage:
 
         monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(tmp_path)])
 
-        from app.api.skills.migrations import _apply_skill_migration
+        from app.services.migration.skill_bundle_writer import apply_skill_migration
 
         skills_raw = [
             {
@@ -201,10 +202,58 @@ class TestApplySkillMigrationWithUsage:
             },
         ]
 
-        result = await _apply_skill_migration(skills_raw)
+        result = await apply_skill_migration(skills_raw)
 
         assert result["skills_imported"] == 1
         assert "usage_preserved" not in result
 
         stats_file = tmp_path / "no-usage-skill" / ".stats.json"
         assert not stats_file.exists()
+
+    @pytest.mark.asyncio
+    async def test_existing_ledger_is_never_replaced(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Re-migrating a skill that already has a ledger keeps the run evidence gathered here."""
+        import app.core.skills.models as models_mod
+
+        monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(tmp_path)])
+
+        from app.services.migration.skill_bundle_writer import apply_skill_migration
+
+        skill_dir = tmp_path / "test-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("old body", encoding="utf-8")
+        existing = SkillUsageStats(call_count=40, success_count=30, failure_count=10, pinned=True)
+        existing.append_usage("2026-06-20T10:00:00+00:00", True)
+        ledger = skill_dir / ".stats.json"
+        ledger.write_text(json.dumps(existing.to_dict()), encoding="utf-8")
+        ledger_before = ledger.read_text(encoding="utf-8")
+
+        result = await apply_skill_migration(
+            [{"name": "test-skill", "content": "new body", "usage_stats": {"use_count": 120, "state": "archived"}}]
+        )
+
+        assert result == {"skills_imported": 1, "skills_overwritten": 1}
+        assert ledger.read_text(encoding="utf-8") == ledger_before
+        assert (skill_dir / "SKILL.md").read_text(encoding="utf-8") == "new body"
+        assert (skill_dir / "SKILL.md.bak-migration").read_text(encoding="utf-8") == "old body"
+
+    @pytest.mark.asyncio
+    async def test_seeds_ledger_for_existing_skill_without_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import app.core.skills.models as models_mod
+
+        monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(tmp_path)])
+
+        from app.services.migration.skill_bundle_writer import apply_skill_migration
+
+        skill_dir = tmp_path / "test-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("old body", encoding="utf-8")
+
+        result = await apply_skill_migration(
+            [{"name": "test-skill", "content": "new body", "usage_stats": {"use_count": 7, "state": "stale"}}]
+        )
+
+        assert result == {"skills_imported": 1, "skills_overwritten": 1, "usage_preserved": 1}
+        seeded = json.loads((skill_dir / ".stats.json").read_text(encoding="utf-8"))
+        assert seeded["call_count"] == 7
+        assert seeded["lifecycle_status"] == "stale"

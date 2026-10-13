@@ -24,7 +24,7 @@
 | `growth.py` | 模块 | Unified skill growth API：`GET /cases` summary、`GET /cases/{id}` detail、`GET /stats` 全量 status COUNT 统计；summary/detail 均携带 `impacted_dependents`（依赖本技能的库内技能 ID，经 core/skills/dependency_guard 查询） | ✅ |
 | `instances.py` | 模块 | Skill instances API - CRUD operations for multi-instance skill support. | ✅ |
 | `local.py` | 模块 | Local skills management endpoints: 路径配置 CRUD、单路径 dry-run 预览 (`/preview`)、安全评分准入门禁原子采纳 (`/adopt`)、全量扫描与健康状态实时透出 (`path_statuses`)、严格防范路径穿越 (CWE-22) | ✅ |
-| `migrations.py` | 模块 | Controlled migration review API；approve skill_import 直接写 `~/.myrm/skills`，受本地技能能力门控（`MYRM_ALLOW_LOCAL_SKILLS=0` 时 403；延迟导入避免独立加载循环依赖） | ✅ |
+| `migrations.py` | 模块 | Controlled migration review API；approve skill_import 委托 `services/migration/skill_bundle_writer.py` 写 `~/.myrm/skills`，受本地技能能力门控（`MYRM_ALLOW_LOCAL_SKILLS=0` 时 403；延迟导入避免独立加载循环依赖） | ✅ |
 | `packaging.py` | 模块 | Skill packaging and upload endpoints；预览返回文件树摘要 `review_digest`，导出携带“忽略脱敏”决定时回传校验，技能预览后被改动则 409 `skill_changed_since_preview`；`export_format` 仅接受 `agent_plugin` / `raw_skill`，其余值 422 | ✅ |
 | `permissions.py` | 模块 | Skill Permission Management API | ✅ |
 | `prebuilt.py` | 模块 | Prebuilt skill admin and update management API. | ✅ |
