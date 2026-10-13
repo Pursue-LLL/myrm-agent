@@ -718,6 +718,7 @@ class StreamContentCollector:
             cron_result = collect_cron_job_result(event)
             if cron_result is not None:
                 self._cron_job_result = cron_result
+            link_batch_to_step(self._progress_steps, event)
         elif event_type == "routing_decision" and isinstance(data, dict):
             tier = data.get("tier")
             if isinstance(tier, str):
@@ -737,7 +738,6 @@ class StreamContentCollector:
             self._session_recording = string_keyed_dict(data)
         elif event_type == "clarification_required":
             clarification = collect_clarification_required(event)
-            link_batch_to_step(self._progress_steps, event)
             if clarification is not None:
                 self._clarification = clarification
         elif event_type == "directory_request_required":
