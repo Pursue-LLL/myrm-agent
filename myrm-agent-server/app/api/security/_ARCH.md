@@ -19,12 +19,6 @@ Security Center 与 Agent 工具安全策略的 HTTP 层：供应链仪表盘、
 | `test_fixtures.py` | 测试 | local-only：allowlist pattern seed/clear、hitl-probe（`pending_interrupt_events`） | ✅ |
 | `vault.py` | 路由 | `POST /security/vault/unlock`：本地主密钥派生 | ✅ |
 | `vault_credentials.py` | 路由 | `/security/vault-credentials` CRUD | ✅ |
-| `tainted_egress.py` | 路由 | `/security/tainted-egress` 拦截受污染出网审批与会话信任管理 | ✅ |
-| `dir_trust_gate_router.py` | 路由 | `/api/security/dir-trust-gate/` 目录信任门评估、授权与撤销路由 | ✅ |
-| `admin_auth_surface_router.py` | 路由 | `/api/v1/security/admin-auth-surface/` 统一认证面配置治理与校验路由 | ✅ |
-| `asr_privacy_tradeoff_router.py` | 路由 | `/api/security/asr-privacy-tradeoff/` ASR 隐私策略评估路由 | ✅ |
-| `on_demand_masking_router.py` | 路由 | `/api/security/on-demand-masking/` 按需凭据脱敏解析路由 | ✅ |
-| `commerce_dispute_escrow_router.py` | 路由 | `/api/v1/security/commerce-dispute-escrow/` 商贸争议托管与熔断路由 | ✅ |
 
 ## 路由（前缀 `/api/v1`）
 
