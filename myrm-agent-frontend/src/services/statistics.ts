@@ -616,7 +616,7 @@ export interface SkillTrendPoint {
 export interface SkillTrendSeries {
   skill_name: string;
   data_points: SkillTrendPoint[];
-  /** True when the skill's kept history starts inside the requested range, so its earlier runs are missing. */
+  /** True when the skill's kept history starts inside the requested range, so its earlier runs may be missing. */
   truncated: boolean;
 }
 

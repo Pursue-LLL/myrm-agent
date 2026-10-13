@@ -8,6 +8,9 @@ import type { SkillTrendSeries } from '@/services/statistics';
 
 type MetricKey = 'success_rate' | 'call_count';
 
+/** The busiest skills get a selector pill; the chart always shows one of them. */
+const MAX_SKILL_PILLS = 10;
+
 const METRIC_CONFIG: Record<MetricKey, { icon: typeof TrendingUp; colorClass: string; barColor: string }> = {
   success_rate: { icon: CheckCircle2, colorClass: 'text-emerald-500', barColor: 'var(--color-emerald-500, #10b981)' },
   call_count: { icon: TrendingUp, colorClass: 'text-blue-500', barColor: 'var(--color-blue-500, #3b82f6)' },
@@ -18,9 +21,11 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [metric, setMetric] = useState<MetricKey>('success_rate');
 
+  const pills = useMemo(() => trends.slice(0, MAX_SKILL_PILLS), [trends]);
+  // A selection the range no longer contains falls back to the busiest skill, so a pill is always lit.
   const activeTrend = useMemo(
-    () => trends.find((s) => s.skill_name === selectedSkill) ?? trends[0],
-    [trends, selectedSkill],
+    () => pills.find((s) => s.skill_name === selectedSkill) ?? pills[0],
+    [pills, selectedSkill],
   );
 
   if (trends.length === 0) {
@@ -39,21 +44,25 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
     <div className="space-y-4">
       {/* Skill selector */}
       <div className="flex flex-wrap gap-1.5">
-        {trends.slice(0, 10).map((s) => (
-          <button
-            key={s.skill_name}
-            type="button"
-            onClick={() => setSelectedSkill(s.skill_name)}
-            className={cn(
-              'px-2.5 py-1 text-xs rounded-full border transition-colors',
-              (selectedSkill ?? trends[0]?.skill_name) === s.skill_name
-                ? 'bg-primary/10 border-primary/30 text-primary font-medium'
-                : 'border-border/60 text-muted-foreground hover:border-border',
-            )}
-          >
-            {s.skill_name}
-          </button>
-        ))}
+        {pills.map((s) => {
+          const isActive = activeTrend?.skill_name === s.skill_name;
+          return (
+            <button
+              key={s.skill_name}
+              type="button"
+              onClick={() => setSelectedSkill(s.skill_name)}
+              aria-pressed={isActive}
+              className={cn(
+                'px-2.5 py-1 text-xs rounded-full border transition-colors',
+                isActive
+                  ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+                  : 'border-border/60 text-muted-foreground hover:border-border',
+              )}
+            >
+              {s.skill_name}
+            </button>
+          );
+        })}
       </div>
 
       {/* Metric toggle */}
@@ -93,11 +102,7 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
               : `${point.date}: ${label}`;
 
           return (
-            <div
-              key={point.date}
-              className="flex-1 flex flex-col items-center gap-1 group"
-              title={tooltip}
-            >
+            <div key={point.date} className="flex-1 flex flex-col items-center gap-1 group" title={tooltip}>
               <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
                 {label}
               </span>

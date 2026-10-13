@@ -52,7 +52,7 @@ def dated_outcomes(stats: SkillUsageStats) -> list[tuple[datetime, bool | None]]
 
 
 def window_is_clipped(stats: SkillUsageStats, dated: list[tuple[datetime, bool | None]], since: datetime) -> bool:
-    """Whether runs after ``since`` may be missing: a full history that already starts inside the window dropped some."""
+    """Whether runs after ``since`` may be missing: a full history that already starts inside the window may have dropped some."""
     return stats.history_is_full and bool(dated) and dated[0][0] > since
 
 

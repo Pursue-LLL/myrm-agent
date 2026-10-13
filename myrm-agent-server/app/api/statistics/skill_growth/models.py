@@ -47,7 +47,7 @@ class SkillTrendSeries(BaseModel):
     skill_name: str
     data_points: list[SkillTrendPoint]
     truncated: bool = False
-    """True when the skill's kept history starts inside the requested range, so its earlier runs are missing."""
+    """True when the skill's kept history starts inside the requested range, so its earlier runs may be missing."""
 
 
 class SkillHealthItem(BaseModel):

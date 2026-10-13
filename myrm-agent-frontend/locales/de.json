@@ -10707,9 +10707,9 @@
     "skillTrends": {
       "title": "Skill-Nutzungstrends",
       "description": "Verfolgen Sie, wie sich die Leistung Ihrer Skills im Laufe der Zeit entwickelt.",
-      "empty": "Noch keine Skill-Nutzungsdaten. Trends werden angezeigt, sobald Skills verwendet werden.",
+      "empty": "Im gewählten Zeitraum wurde kein Skill verwendet. Trends werden angezeigt, sobald Skills verwendet werden.",
       "observedRuns": "Läufe mit eindeutigem Ergebnis: {count}",
-      "truncated": "Dieser Skill läuft so oft, dass nur die letzten Läufe gespeichert werden. Frühere Läufe in diesem Zeitraum fehlen im Diagramm.",
+      "truncated": "Von diesem Skill werden nur die letzten Läufe gespeichert, daher fehlen frühere Läufe in diesem Zeitraum möglicherweise im Diagramm.",
       "metric": {
         "success_rate": "Erfolgsrate",
         "call_count": "Nutzungsanzahl"

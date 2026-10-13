@@ -25,7 +25,7 @@
 | `session_model_sessions.py` | 模块 | Model-specific session usage listing API（`GET /usage/model-sessions`），按模型维度列出会话用量。 | ✅ |
 | `session_trace.py` | 路由 | 会话执行轨迹与甘特可观测性 API：从 event_log 恢复任务级执行流；挂载安全审计决策；丰富 LLM 思考 vs 工具执行性能甘特切片；透传重试与异常元数据；提供基于线程池的安全自然语言任务检索（`/traces/search`）。 | ✅ |
 | `session_trace_enrichment.py` | 模块 | 会话轨迹丰富辅助：提供执行轨迹与甘特图指标丰富、性能统计、安全标签关联以及记忆事件投影辅助。 | ✅ |
-| `skill_growth/`（子包） | 模块 | 成长看板技能侧数据域：技能进化时间线、逐技能用量/结果趋势、7 天健康判定（成功率与质量状态只计已观测结果，需达到 Curator 最小观测门槛，否则 `UNPROVEN`）。`__init__.py` 为聚合门面，详见 `skill_growth/_ARCH.md`。 | ✅ |
+| `skill_growth/`（子包） | 模块 | 成长看板技能侧数据域：技能进化时间线、逐技能用量/结果趋势（窗口为看板所选范围）、7 天健康判定（成功率与质量状态只计已观测结果，需达到 Curator 最小观测门槛，否则 `UNPROVEN`）。账本只留最近一批运行，窗口内可能缺失更早运行的技能标 `truncated`。`__init__.py` 为聚合门面，详见 `skill_growth/_ARCH.md`。 | ✅ |
 | `prompt_cache_radar.py` | 路由 | 系统级 Prompt Cache 命中率雷达（`/traces/prompt-cache-radar`）：跨会话异步聚合 prompt cache 命中率、新鲜输入 vs 缓存读取与预估成本节省，消除事件循环阻塞。 | ✅ |
 | `turn_capability.py` | 模块 | 单轮 Skill/MCP 能力覆写观测 API：写入 selection/applied/noop/queue/completed/failed/busy-requeue/dropped 事件；`send_failed` 仅接受 `failure_reason` 枚举（`network_error/archive_restore_invalid/abort/server_error/unknown_error`）；聚合 apply/noop/queue/completion/failure 率、selected/effective 规模均值、source 分解与失败原因分布，并做 90 天 retention 清理。 | ✅ |
 | `usage_aggregation.py` | 模块 | Coerce SQLAlchemy Row / tuple results into aggregate_usage inputs；聚合 token/cost/cache 指标并输出端到端 `streamTtft` 统计摘要（sampleCount/avg/p95，基于 `streamTtftMs` 样本，不依赖 usage 字段是否存在）；re-export `aggregate_chat_usage_rows`（会话级消息 extra_data 聚合，重建 Chat.total_* 用量缓存）。 | ✅ |

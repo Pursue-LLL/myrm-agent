@@ -10775,9 +10775,9 @@
     "skillTrends": {
       "title": "Skill Usage Trends",
       "description": "Track how your skills' performance evolves over time.",
-      "empty": "No skill usage data yet. Skills will show trends after they are used.",
+      "empty": "No skill ran in this period. Trends appear once skills are used.",
       "observedRuns": "Runs with a clear result: {count}",
-      "truncated": "This skill ran more often than its history keeps, so earlier runs in this range are not shown.",
+      "truncated": "Only this skill's most recent runs are kept, so earlier runs in this range may be missing.",
       "metric": {
         "success_rate": "Success Rate",
         "call_count": "Usage Count"
