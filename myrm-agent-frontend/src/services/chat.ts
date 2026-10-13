@@ -1132,6 +1132,7 @@ export const truncateAfterMessage = async (chatId: string, messageId: string): P
 /**
  * Rewind conversation to before a user message and seed the composer.
  * scope: "conversation" (messages only) or "both" (also revert file changes).
+ * Silent: the caller decides what the user is told, so a failure is not also reported by the request layer.
  */
 export const rewindToMessage = async (
   chatId: string,
@@ -1141,6 +1142,7 @@ export const rewindToMessage = async (
   return (await apiRequest(`/chats/${chatId}/rewind`, {
     method: 'POST',
     body: JSON.stringify({ message_id: messageId, scope }),
+    silent: true,
   })) as { data: RewindResult } & RewindResult;
 };
 
