@@ -285,6 +285,9 @@ class TestComplaintFloor:
     _LIGHT = _cfg("gpt-4o-mini")
     _REASONING = _cfg("deepseek-reasoner")
 
+    def test_ladder_covers_every_harness_tier(self) -> None:
+        assert set(routing_memory._TIER_LADDER) == set(RoutingTier)
+
     def test_distinct_rungs_climb_one_tier_per_retry(self) -> None:
         rungs = {"standard": self._MAIN, "light": self._LIGHT, "reasoning": self._REASONING}
 

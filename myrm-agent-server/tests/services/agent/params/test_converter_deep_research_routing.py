@@ -70,7 +70,7 @@ class TestDeepResearchIgnoresTheSimpleVerdict:
         assert params.model_cfg.model == "gpt-4o"
         assert params.fallback_model_cfg is not None
         assert params.fallback_model_cfg.model == "gpt-4o-fallback"
-        assert (tier, reason) == ("standard", "default_standard")
+        assert (tier, reason) == ("standard", None)
 
     async def test_same_query_in_agent_mode_still_routes_to_the_light_model(self) -> None:
         async with _converter_env():

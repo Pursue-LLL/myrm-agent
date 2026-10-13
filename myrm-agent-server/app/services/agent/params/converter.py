@@ -389,15 +389,14 @@ async def convert_to_general_agent_params(
             recent_routing_tiers = recent_routing.tiers or None
 
             complaint_min_tier: RoutingTier | None = None
-            retry_cannot_climb = False
+            retry_climbs = True
             if request.sibling_group_id and not request.regenerate_instruction:
-                complaint_min_tier, climbs = complaint_floor(
+                complaint_min_tier, retry_climbs = complaint_floor(
                     recent_routing_tiers[-1] if recent_routing_tiers else None,
                     standard=model_cfg,
                     light=light_model_cfg,
                     reasoning=reasoning_model_cfg,
                 )
-                retry_cannot_climb = not climbs
 
             route_started = time.perf_counter()
             routing_result = await route_task(
@@ -416,9 +415,9 @@ async def convert_to_general_agent_params(
             if request.action_mode == "deep_research" and routing_result.tier is RoutingTier.SIMPLE:
                 # The report is the deliverable of a research run and research topics are short by nature, so the
                 # planner/report model stays on the default model (research sub-agents use the light slot separately).
-                # The persisted tier is the one that ran, so the next turn's momentum and a retry start from it.
+                # The persisted tier is the one that ran, so the next turn's momentum and a retry start from it;
+                # no routing reason is recorded because the router's verdict was not applied.
                 routing_tier = RoutingTier.STANDARD.value
-                routing_reason = "default_standard"
                 logger.info("Smart routing: deep research ignores tier=simple routing_ms=%.1f", routing_ms)
             else:
                 model_cfg = routing_result.model_cfg
@@ -426,7 +425,7 @@ async def convert_to_general_agent_params(
                     fallback_model_cfg = routing_result.fallback_model_cfg
                 routing_tier = routing_result.tier.value
                 routing_reason = routing_result.reason
-                if retry_cannot_climb and routing_reason.startswith("min_tier_escalation("):
+                if not retry_climbs and routing_reason.startswith("min_tier_escalation("):
                     # The floor had no different model to move to, so the row must not claim an upgrade.
                     routing_reason = "retry_floor_held"
                 logger.info(
