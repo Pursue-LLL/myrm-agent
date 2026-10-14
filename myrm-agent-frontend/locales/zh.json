@@ -9782,7 +9782,6 @@
     "newSkillDraft": "新的技能成长案例已生成：{name}",
     "reviewDraft": "立即查看",
     "messageDeadLettered": "发送到 {channel} 的消息已永久失败，原因：{reason}",
-    "skillGrowthAutoApplied": "「{name}」已自动落地",
     "skillGrowthFailedScan": "「{name}」未通过预检安全扫描",
     "skillGrowthBlockedLocked": "「{name}」受进化锁保护，需要人工审核",
     "openSkillGrowth": "打开技能成长",
@@ -9791,6 +9790,9 @@
     "undoEvolve": "撤销 (Undo)",
     "rollbackSuccess": "已成功撤销并恢复：{name}",
     "rollbackFailed": "撤销失败，请重试",
+    "skillGrowthUndone": "已归档「{name}」，可随时在技能列表中恢复",
+    "skillGrowthUndoBlocked": "「{name}」已被固定，或正被智能体、定时任务使用，无法归档。请先解除固定或绑定",
+    "skillGrowthUndoFailed": "归档「{name}」失败，请重试",
     "forcePushReceived": "智能体配置已被组织更新",
     "forcePushRollbackHint": "快照已保存，可在智能体设置中回滚。",
     "subagentRebindRequired": "子 Agent 绑定已变更。请开启新对话以使用更新后的委派工具。",
@@ -18347,6 +18349,18 @@
         "reviseFailedScan": "\"{name}\" 已修订但安全扫描未通过，请修复标记的问题。",
         "riskInterceptionTitle": "风控拦截",
         "applyFailureTitle": "应用失败",
+        "applyFailureBody": "未能自动应用。请查看技术细节后重新批准。",
+        "heldReason": {
+          "title": "为什么需要你审核",
+          "similar": "它与你已有的技能相似：{names}。仅当它带来新内容时再批准。",
+          "evolutionLocked": "它要修改的技能受到保护，不会被自动更新，因此需要你来决定。",
+          "scanFailed": "它未通过自动安全检查。请先查看上方的检查结果再决定。"
+        },
+        "technical": {
+          "toggle": "技术细节",
+          "findings": "扫描器检出项",
+          "advice": "建议操作"
+        },
         "rejectReasonLabel": "拒绝原因",
         "rejectReasonPlaceholder": "说明需要如何调整后才能通过这次技能成长案例。",
         "triggerCondition": "触发条件",
@@ -18358,8 +18372,7 @@
           "title": "运行时失败证据",
           "tool": "工具：{value}",
           "count": "失败次数：{value}",
-          "confidence": "归因置信度 {value}%",
-          "loopKind": "循环类型：{value}"
+          "confidence": "归因置信度 {value}%"
         },
         "securityScan": {
           "title": "技能安全静态扫描体检详情 ({count} 项发现)",

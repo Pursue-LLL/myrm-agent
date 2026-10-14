@@ -10,7 +10,9 @@
 | `skillContentSync.ts`                        | 跨表面技能内容刷新广播（chat batch undo → 打开的 Skill 详情 sheet reload）                                                                 |
 | `versionOrigin.ts`                           | 技能版本 `created_by`（服务端内部标识）→ 本地化来源名称；未知来源返回 null，界面省略而不展示原始标识                                                                                                                                |
 | `scanRiskText.ts`                            | 安全扫描结论与待审原因的本地化出口：风险信号解析、威胁类别/严重度/信号文案与处置建议；类别与严重度以封闭词表判定（词表外显示通用文案，对象原型成员也不会被当成类别），不暴露内部代码        |
+| `growthReason.ts`                            | 成长卡片「为何需要你审核」的原因码解析：`similar:<名称列表>` / `scan_failed` / `evolution_locked` 三类封闭词表，词表外（含历史原因码、原型成员）返回 null，不暴露内部代码；`risk:` 信号归 `scanRiskText`，应用失败归 `applyError` |
 | `__tests__/composeLearnSlashMessage.test.ts` | raw `/learn` 拼接纯函数回归                                                                                                                                                                                                        |
 | `__tests__/integrationOAuthDisplay.test.ts`  | 多连接器声明路径、env 密钥门控判定与 issuer 落点 / 展示名回归                                                                                                                                                                                            |
 | `__tests__/versionOrigin.test.ts`            | 来源标识 → 文案键映射，及未知 / 原型链标识（`constructor`、`__proto__`）不外露回归                                                                                                                                                 |
+| `__tests__/growthReason.test.ts`             | 三类原因码解析、空名单/分隔符/未知码/原型成员/空值返回 null 回归 |
 | `__tests__/scanRiskText.test.ts`             | 六语文案同构、词表与译文键同步、未知/原型链标识不外露、信号占位符与处置建议去重回归                                                                                                         |

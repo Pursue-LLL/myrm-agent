@@ -9714,7 +9714,6 @@
     "newSkillDraft": "Ein neuer Fall zum Kompetenzwachstum ist fertig: {name}",
     "reviewDraft": "Rezension öffnen",
     "messageDeadLettered": "Die Nachrichtenzustellung an {channel} ist dauerhaft fehlgeschlagen. Grund: {reason}",
-    "skillGrowthAutoApplied": "„{name}“ wurde automatisch angewendet",
     "skillGrowthFailedScan": "„{name}“ hat den Sicherheitsscan vor dem Flug nicht bestanden",
     "skillGrowthBlockedLocked": "„{name}“ ist durch Evolution Lock geschützt und erfordert eine manuelle Überprüfung",
     "openSkillGrowth": "Offenes Kompetenzwachstum",
@@ -9723,6 +9722,9 @@
     "undoEvolve": "Rückgängig machen",
     "rollbackSuccess": "Erfolgreiches Rollback: {name}",
     "rollbackFailed": "Rollback fehlgeschlagen, bitte versuchen Sie es erneut",
+    "skillGrowthUndone": "„{name}“ wurde archiviert. Sie können die Fähigkeit jederzeit in der Fähigkeitenliste wiederherstellen.",
+    "skillGrowthUndoBlocked": "„{name}“ ist angeheftet oder wird von einem Agenten oder einer geplanten Aufgabe verwendet und kann nicht archiviert werden. Lösen Sie sie zuerst.",
+    "skillGrowthUndoFailed": "„{name}“ konnte nicht archiviert werden. Bitte versuchen Sie es erneut.",
     "forcePushReceived": "Agenten-Konfiguration wurde von der Organisation aktualisiert",
     "forcePushRollbackHint": "Ein Snapshot wurde gespeichert. Sie können in den Agenten-Einstellungen zurücksetzen.",
     "subagentRebindRequired": "Subagentenbindungen geändert. Starten Sie einen neuen Chat, um aktualisierte Delegationstools zu verwenden.",
@@ -17649,6 +17651,18 @@
         "reviseFailedScan": "„{name}“ überarbeitet, Sicherheitsscan jedoch fehlgeschlagen. Bitte beheben Sie die gemeldeten Probleme.",
         "riskInterceptionTitle": "Risiko-Intervention",
         "applyFailureTitle": "Anwendungsfehler",
+        "applyFailureBody": "Die Änderung konnte nicht automatisch angewendet werden. Prüfen Sie die technischen Details und genehmigen Sie erneut.",
+        "heldReason": {
+          "title": "Warum Ihre Prüfung nötig ist",
+          "similar": "Sie ähnelt vorhandenen Fähigkeiten: {names}. Genehmigen Sie sie nur, wenn sie etwas Neues bringt.",
+          "evolutionLocked": "Die Fähigkeit, die sie ändern würde, ist vor automatischen Updates geschützt und wartet daher auf Ihre Entscheidung.",
+          "scanFailed": "Sie hat die automatische Sicherheitsprüfung nicht bestanden. Sehen Sie sich die Befunde oben an, bevor Sie entscheiden."
+        },
+        "technical": {
+          "toggle": "Technische Details",
+          "findings": "Scanner-Befunde",
+          "advice": "Empfohlene Maßnahme"
+        },
         "rejectReasonLabel": "Grund für die Ablehnung",
         "rejectReasonPlaceholder": "Beschreiben Sie, was sich ändern sollte, bevor dieser Wachstumsfall angewendet werden kann.",
         "triggerCondition": "Auslösebedingung",
@@ -17660,8 +17674,7 @@
           "title": "Laufzeitfehler-Beleg",
           "tool": "Werkzeug: {value}",
           "count": "Fehler: {value}",
-          "confidence": "Zuschreibung {value}%",
-          "loopKind": "Schleife: {value}"
+          "confidence": "Zuschreibung {value}%"
         },
         "securityScan": {
           "title": "Sicherheits-Inspektionsdetails ({count} Befunde)",

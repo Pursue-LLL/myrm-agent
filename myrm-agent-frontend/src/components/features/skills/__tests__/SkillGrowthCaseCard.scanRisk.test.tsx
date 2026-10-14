@@ -5,7 +5,7 @@
 /** @vitest-environment jsdom */
 
 import type React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import en from '../../../../../locales/en.json';
 
@@ -13,7 +13,7 @@ import SkillGrowthCaseCard from '../SkillGrowthCaseCard';
 import { SCAN_RISK_NAMESPACE, scanRiskT } from './scanRiskTranslator';
 import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
 
-const growthCopy: Record<string, unknown> = en.settings.skills.growth;
+const growthCopy = en.settings.skills.growth;
 
 const growthT = (key: string, values?: Record<string, string | number>): string => {
   const value = key
@@ -141,6 +141,80 @@ describe('SkillGrowthCaseCard held-for-review explanation', () => {
     renderCard(makeItem({ reasonCode: 'manual_review' }));
 
     expect(screen.queryByText(en.settings.skills.growth.riskInterceptionTitle)).toBeNull();
+    expect(screen.queryByText(growthCopy.heldReason.title)).toBeNull();
+  });
+
+  it('names the skills a draft was found similar to without exposing the code', () => {
+    renderCard(makeItem({ reasonCode: 'similar:deploy-flow,release_notes' }));
+
+    expect(screen.getByText(growthCopy.heldReason.title)).toBeInTheDocument();
+    expect(
+      screen.getByText(growthCopy.heldReason.similar.replace('{names}', 'deploy-flow, release_notes')),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/similar:/)).toBeNull();
+  });
+
+  it.each([
+    ['scan_failed', growthCopy.heldReason.scanFailed],
+    ['evolution_locked', growthCopy.heldReason.evolutionLocked],
+  ])('explains %s in plain language', (reasonCode, sentence) => {
+    renderCard(makeItem({ reasonCode }));
+
+    expect(screen.getByText(sentence)).toBeInTheDocument();
+    expect(screen.queryByText(reasonCode)).toBeNull();
+  });
+
+  it('keeps the apply error text behind the technical details', () => {
+    renderCard(
+      makeItem({
+        reasonCode: 'apply_failed',
+        applyError: "PermissionError: [Errno 13] Permission denied: '/data/skills/weekly-report-upload'",
+        remediation: 'Fix the skill directory permissions, then approve again.',
+      }),
+    );
+
+    expect(screen.getByText(growthCopy.applyFailureBody)).toBeInTheDocument();
+    expect(screen.queryByText(/PermissionError/)).toBeNull();
+    expect(screen.queryByText(/directory permissions/)).toBeNull();
+
+    fireEvent.click(screen.getByText(growthCopy.technical.toggle));
+
+    expect(screen.getByText(/PermissionError/)).toBeInTheDocument();
+    expect(screen.getByText(/directory permissions/)).toBeInTheDocument();
+  });
+
+  it('shows runtime failure facts up front and the raw error signature only when expanded', () => {
+    renderCard(
+      makeItem({
+        runtimeFailure: {
+          source: 'tool',
+          tool_name: 'web_fetch',
+          error_signature: 'ConnectTimeout: upstream timed out after 30s',
+          tool_args_hash: null,
+          loop_kind: 'repeated_call',
+          skill_version: null,
+          attribution_confidence: 0.8,
+          failure_count: 3,
+          first_seen_at: '2026-10-14T11:00:00Z',
+          last_seen_at: '2026-10-14T12:00:00Z',
+          candidate_skill_names: [],
+        },
+      }),
+    );
+
+    expect(screen.getByText('Tool: web_fetch')).toBeInTheDocument();
+    expect(screen.getByText('Failures: 3')).toBeInTheDocument();
+    expect(screen.queryByText(/ConnectTimeout|repeated_call/)).toBeNull();
+
+    fireEvent.click(screen.getByText(growthCopy.technical.toggle));
+
+    expect(screen.getByText('repeated_call / ConnectTimeout: upstream timed out after 30s')).toBeInTheDocument();
+  });
+
+  it('shows no technical details when there is nothing technical to show', () => {
+    renderCard(makeItem({ reasonCode: 'similar:deploy-flow' }));
+
+    expect(screen.queryByText(growthCopy.technical.toggle)).toBeNull();
   });
 
   it('names scan findings by threat class and severity instead of their codes', () => {
@@ -168,5 +242,11 @@ describe('SkillGrowthCaseCard held-for-review explanation', () => {
     expect(screen.getByText(scanCopy.severity.high)).toBeInTheDocument();
     expect(screen.getByText(scanCopy.severity.medium)).toBeInTheDocument();
     expect(screen.queryByText(/brand_new_class|^data_exfiltration$/)).toBeNull();
+    expect(screen.queryByText(/webhook upload|Something unusual/)).toBeNull();
+
+    fireEvent.click(screen.getByText(growthCopy.technical.toggle));
+
+    expect(screen.getByText(/webhook upload/)).toBeInTheDocument();
+    expect(screen.getByText(/Something unusual/)).toBeInTheDocument();
   });
 });

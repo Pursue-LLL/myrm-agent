@@ -4,7 +4,7 @@
 - app.services.event.app_event_bus::AppEvent, AppEventType, get_event_bus (POS: 业务层 SSE 事件总线)
 
 [OUTPUT]
-- publish_skill_evolved_event: 发布 SKILL_EVOLVED 前端刷新事件
+- publish_skill_evolved_event: 发布 SKILL_EVOLVED 前端刷新事件（notify=False 时前端只刷新、不弹 toast）
 
 [POS]
 技能进化事件发布：services 层 SKILL_EVOLVED 事件唯一出口，供 evolution_review 落盘编排与自动物化消费。
@@ -33,7 +33,12 @@ def publish_skill_evolved_event(
     evolution_type: str,
     description: str,
     evolution_id: str | None = None,
+    notify: bool = True,
 ) -> None:
+    """Publish ``SKILL_EVOLVED``; ``notify=False`` asks the UI to refresh without a toast.
+
+    Auto-applied growth already announces itself through ``SKILL_GROWTH_UPDATED``, so a second toast would duplicate it.
+    """
     _publish(
         AppEventType.SKILL_EVOLVED,
         {
@@ -41,5 +46,6 @@ def publish_skill_evolved_event(
             "evolution_type": evolution_type,
             "description": description[:200],
             "evolution_id": evolution_id,
+            "notify": notify,
         },
     )

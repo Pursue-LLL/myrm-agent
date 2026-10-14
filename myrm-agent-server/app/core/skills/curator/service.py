@@ -6,6 +6,7 @@
 - myrm_agent_harness.backends.skills.stats_collector::SkillStatsCollector (POS: Usage stats collector)
 - myrm_agent_harness.backends.skills.local::LocalSkillBackend (POS: Local skill backend)
 - app.core.skills.models::DEFAULT_LOCAL_SKILL_PATHS (POS: Skill models and paths)
+- app.core.skills.config_version::bump_skill_config_version (POS: Skill config version bumper; invalidates warm-chat agents)
 - app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles / cron jobs)
 
 [OUTPUT]
@@ -41,6 +42,7 @@ from myrm_agent_harness.backends.skills.forgetting_strategy import (
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 
+from app.core.skills.config_version import bump_skill_config_version
 from app.core.skills.curator.bound_skills import bound_skill_names
 from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
@@ -362,12 +364,16 @@ def apply_skill_archived(collector: SkillStatsCollector, skill_path: Path, *, ar
 
     Single write path for user-initiated archive/restore so every surface (curator API,
     learning timeline) honours the same pinned guard and writes the state the skill loader reads.
+    The skill config version is bumped because warm chats reuse their built agent until the
+    execution fingerprint (which includes that version) changes; without it the skill stays
+    loaded in the running chat.
     """
     if archived and collector.get_stats(skill_path).pinned:
         raise SkillPinnedError(skill_path.name)
 
     status = SkillLifecycleStatus.ARCHIVED if archived else SkillLifecycleStatus.ACTIVE
     collector.update_lifecycle_status(skill_path, status)
+    bump_skill_config_version()
     return status
 
 

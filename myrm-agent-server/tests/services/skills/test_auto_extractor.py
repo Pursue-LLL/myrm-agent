@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.services.skills.auto_extractor import (
-    auto_extract_or_patch_skill,
+    auto_extract_skill,
     publish_skill_evolved_event,
 )
 
@@ -35,16 +35,6 @@ def mock_publish_event():
         yield mock_pub
 
 
-@pytest.fixture
-def mock_apply_patch():
-    with patch("app.services.skills.auto_extractor.apply_skill_patch") as mock_patch:
-        mock_patch_result = MagicMock()
-        mock_patch_result.success = True
-        mock_patch_result.content = "Patched content"
-        mock_patch.return_value = mock_patch_result
-        yield mock_patch
-
-
 @pytest.mark.asyncio
 async def test_auto_extract_new_skill(mock_skill_creation_service, mock_publish_event):
     result = {
@@ -57,7 +47,7 @@ async def test_auto_extract_new_skill(mock_skill_creation_service, mock_publish_
         "skill_steps": "Do this",
     }
 
-    await auto_extract_or_patch_skill(result)
+    await auto_extract_skill(result)
 
     mock_skill_creation_service.save_skill.assert_called_once()
     kwargs = mock_skill_creation_service.save_skill.call_args.kwargs
@@ -70,32 +60,7 @@ async def test_auto_extract_new_skill(mock_skill_creation_service, mock_publish_
         skill_name="test_skill",
         evolution_type="new",
         description="A new skill",
-    )
-
-
-@pytest.mark.asyncio
-async def test_auto_patch_existing_skill(mock_skill_creation_service, mock_publish_event, mock_apply_patch):
-    result = {
-        "user_id": "test_user_2",
-        "has_value": True,
-        "type": "skill_patch",
-        "skill_name": "existing_skill",
-        "patch_content": "Replace something",
-    }
-
-    await auto_extract_or_patch_skill(result)
-
-    mock_apply_patch.assert_called_once()
-
-    mock_skill_creation_service.save_skill.assert_called_once()
-    kwargs = mock_skill_creation_service.save_skill.call_args.kwargs
-    assert kwargs["name"] == "existing_skill"
-    assert kwargs["content"] == "Patched content"
-
-    mock_publish_event.assert_called_once_with(
-        skill_name="existing_skill",
-        evolution_type="patch",
-        description="Applied optimization patch",
+        notify=False,
     )
 
 
@@ -143,7 +108,7 @@ async def test_auto_extract_persists_eval_cases(mock_skill_creation_service, moc
         "app.core.skills.store.evolution_store.get_evolution_skill_store",
         return_value=mock_store,
     ):
-        materialization = await auto_extract_or_patch_skill(result, eval_cases=eval_cases)
+        materialization = await auto_extract_skill(result, eval_cases=eval_cases)
 
     assert materialization.success
     mock_store.save_skill.assert_awaited_once()
@@ -167,29 +132,7 @@ async def test_auto_extract_rejects_invalid_python_code_block(
         "skill_steps": "Run this:\n```python\ndef broken(\n```",
     }
 
-    res = await auto_extract_or_patch_skill(result)
-    assert res.success is False
-    assert "syntax error" in (res.error or "").lower()
-    mock_skill_creation_service.save_skill.assert_not_called()
-    mock_publish_event.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_auto_patch_rejects_invalid_python_code_block(
-    mock_skill_creation_service,
-    mock_publish_event,
-    mock_apply_patch,
-):
-    mock_apply_patch.return_value.content = "## Fixed\n```python\nfor i in\n```"
-    result = {
-        "user_id": "test_user_patch_syntax_err",
-        "has_value": True,
-        "type": "skill_patch",
-        "skill_name": "existing_skill",
-        "patch_content": "some diff",
-    }
-
-    res = await auto_extract_or_patch_skill(result)
+    res = await auto_extract_skill(result)
     assert res.success is False
     assert "syntax error" in (res.error or "").lower()
     mock_skill_creation_service.save_skill.assert_not_called()
@@ -208,10 +151,10 @@ async def test_auto_extract_rejects_attributed_python_code_block(
         "skill_name": "attributed_syntax_skill",
         "skill_description": "An attributed fence skill",
         "trigger_condition": "When attributed",
-        "skill_steps": "Run this:\n```python filename=\"sync.py\"\ndef broken(\n```",
+        "skill_steps": 'Run this:\n```python filename="sync.py"\ndef broken(\n```',
     }
 
-    res = await auto_extract_or_patch_skill(result)
+    res = await auto_extract_skill(result)
     assert res.success is False
     assert "syntax error" in (res.error or "").lower()
     mock_skill_creation_service.save_skill.assert_not_called()
@@ -230,10 +173,10 @@ async def test_auto_extract_accepts_valid_attributed_python_code_block(
         "skill_name": "valid_attr_skill",
         "skill_description": "Valid attributed code block",
         "trigger_condition": "When valid",
-        "skill_steps": "Run this:\n```python filename=\"sync.py\"\ndef process() -> int:\n    return 42\n```",
+        "skill_steps": 'Run this:\n```python filename="sync.py"\ndef process() -> int:\n    return 42\n```',
     }
 
-    res = await auto_extract_or_patch_skill(result)
+    res = await auto_extract_skill(result)
     assert res.success is True
     mock_skill_creation_service.save_skill.assert_called_once()
     mock_publish_event.assert_called_once()
@@ -254,11 +197,30 @@ async def test_auto_extract_mixed_code_blocks_valid(
         "skill_steps": (
             "Bash setup:\n```bash\necho 'hello world'\n```\n\n"
             "Python script:\n```python\ndef execute():\n    return 'done'\n```\n\n"
-            "JSON payload:\n```json\n{\"status\": \"ok\"}\n```\n"
+            'JSON payload:\n```json\n{"status": "ok"}\n```\n'
         ),
     }
 
-    res = await auto_extract_or_patch_skill(result)
+    res = await auto_extract_skill(result)
     assert res.success is True
     mock_skill_creation_service.save_skill.assert_called_once()
 
+
+@pytest.mark.asyncio
+async def test_auto_extract_refuses_patches_because_they_always_go_to_review(
+    mock_skill_creation_service,
+    mock_publish_event,
+):
+    result = {
+        "has_value": True,
+        "type": "skill_patch",
+        "skill_name": "existing_skill",
+        "patch_content": "Replace something",
+    }
+
+    res = await auto_extract_skill(result)
+
+    assert res.success is False
+    assert res.error == "unsupported result_type: skill_patch"
+    mock_skill_creation_service.save_skill.assert_not_called()
+    mock_publish_event.assert_not_called()

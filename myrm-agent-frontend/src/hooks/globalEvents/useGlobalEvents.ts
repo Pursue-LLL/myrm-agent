@@ -15,6 +15,7 @@ import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationT
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
 import { showMcpAuthRequiredToast, showOAuthReauthRequiredToast } from '@/hooks/globalEvents/reauthToasts';
+import { showSkillEvolvedToast, showSkillLearnedToast } from '@/hooks/globalEvents/skillGrowthToasts';
 import { showSubsumptionUndoToast } from '@/hooks/globalEvents/subsumptionUndoToast';
 import {
   notifyBackgroundTasksChangedForShellJobFinish,
@@ -210,14 +211,7 @@ export function useGlobalEvents(): void {
         const status = String(payload.data.status ?? '');
 
         if (status === 'AUTO_APPLIED') {
-          pushToast.success(t('skillGrowthAutoApplied', { name }), {
-            duration: 8_000,
-            dismissible: true,
-            action: {
-              label: t('openSkillGrowth'),
-              onClick: openSkillGrowth,
-            },
-          });
+          showSkillLearnedToast(name, { t, pushToast, openSkillGrowth });
         } else if (status === 'FAILED_SCAN') {
           pushToast.error(t('skillGrowthFailedScan', { name }), {
             duration: 10_000,
@@ -251,44 +245,8 @@ export function useGlobalEvents(): void {
       } else if (payload.type === 'skill_evolved') {
         const skillName = String(payload.data.skill_name ?? '');
         const evolutionType = String(payload.data.evolution_type ?? 'new');
-        const description = String(payload.data.description ?? '');
-        const evolutionId = String(payload.data.evolution_id ?? '');
 
-        const doRollback = async () => {
-          if (!evolutionId) {
-            return;
-          }
-          try {
-            const res = await fetch(`/api/v1/evolution/${evolutionId}/rollback`, { method: 'POST' });
-            if (!res.ok) {
-              throw new Error('Rollback failed');
-            }
-            pushToast.success(t('rollbackSuccess', { name: skillName }));
-          } catch {
-            pushToast.error(t('rollbackFailed', { name: skillName }));
-          }
-        };
-
-        pushToast.success(
-          evolutionType === 'new'
-            ? t('skillEvolvedNew', { name: skillName })
-            : t('skillEvolvedPatch', { name: skillName }),
-          {
-            description,
-            duration: 8_000,
-            dismissible: true,
-            action: {
-              label: t('openSkillGrowth'),
-              onClick: openSkillGrowth,
-            },
-            cancel: evolutionId
-              ? {
-                  label: t('undoEvolve') || 'Undo',
-                  onClick: doRollback,
-                }
-              : undefined,
-          },
-        );
+        showSkillEvolvedToast(payload.data, { t, pushToast, openSkillGrowth });
         window.dispatchEvent(
           new CustomEvent('skill-evolved', {
             detail: { skill_name: skillName, evolution_type: evolutionType },

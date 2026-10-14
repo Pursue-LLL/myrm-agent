@@ -9714,7 +9714,6 @@
     "newSkillDraft": "新的技能成長案例已生成：{name}",
     "reviewDraft": "立即檢視",
     "messageDeadLettered": "傳送到 {channel} 的訊息已永久失敗，原因：{reason}",
-    "skillGrowthAutoApplied": "「{name}」已自動落地",
     "skillGrowthFailedScan": "「{name}」未透過預檢安全掃描",
     "skillGrowthBlockedLocked": "「{name}」受進化鎖保護，需要人工稽核",
     "openSkillGrowth": "開啟技能成長",
@@ -9723,6 +9722,9 @@
     "undoEvolve": "撤銷 (Undo)",
     "rollbackSuccess": "已成功撤銷並恢復：{name}",
     "rollbackFailed": "撤銷失敗，請重試",
+    "skillGrowthUndone": "已歸檔「{name}」，可隨時在技能列表中恢復",
+    "skillGrowthUndoBlocked": "「{name}」已被固定，或正被智慧體、定時任務使用，無法歸檔。請先解除固定或繫結",
+    "skillGrowthUndoFailed": "歸檔「{name}」失敗，請重試",
     "forcePushReceived": "智慧體配置已被組織更新",
     "forcePushRollbackHint": "快照已儲存，可在智慧體設定中回滾。",
     "subagentRebindRequired": "子 Agent 繫結已變更。請開啟新對話以使用更新後的委派工具。",
@@ -17649,6 +17651,18 @@
         "reviseFailedScan": "\"{name}\" 已修訂但安全掃描未透過，請修復標記的問題。",
         "riskInterceptionTitle": "風控攔截",
         "applyFailureTitle": "應用失敗",
+        "applyFailureBody": "未能自動應用。請查看技術細節後重新批准。",
+        "heldReason": {
+          "title": "為什麼需要你審核",
+          "similar": "它與你已有的技能相似：{names}。僅當它帶來新內容時再批准。",
+          "evolutionLocked": "它要修改的技能受到保護，不會被自動更新，因此需要你來決定。",
+          "scanFailed": "它未通過自動安全檢查。請先查看上方的檢查結果再決定。"
+        },
+        "technical": {
+          "toggle": "技術細節",
+          "findings": "掃描器檢出項",
+          "advice": "建議操作"
+        },
         "rejectReasonLabel": "拒絕原因",
         "rejectReasonPlaceholder": "說明需要如何調整後才能透過這次技能成長案例。",
         "triggerCondition": "觸發條件",
@@ -17660,8 +17674,7 @@
           "title": "執行時失敗證據",
           "tool": "工具：{value}",
           "count": "失敗次數：{value}",
-          "confidence": "歸因置信度 {value}%",
-          "loopKind": "迴圈型別：{value}"
+          "confidence": "歸因置信度 {value}%"
         },
         "securityScan": {
           "title": "技能安全靜態掃描體檢詳情 ({count} 項發現)",

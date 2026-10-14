@@ -125,7 +125,7 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         proposed_content=proposed_content,
         confidence=_float_value(payload.get("confidence")),
         apply_status=None,
-        apply_error=None,
+        apply_error=_text(payload.get("apply_error")),
         reason_code=_text(payload.get("reason_code")),
         remediation=_text(payload.get("remediation")),
         runtime_failure=None,

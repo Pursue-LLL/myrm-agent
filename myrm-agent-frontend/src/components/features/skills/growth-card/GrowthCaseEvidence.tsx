@@ -1,14 +1,18 @@
 /**
- * [INPUT] SkillGrowthCaseSummary via @/services/skill/growth; useScanRiskText; @/lib/skills/scanRiskText::parseRiskSignals
- * [OUTPUT] GrowthCaseEvidence: 成长提案的证据面板组（验证证明、安全扫描发现、运行时失败、待审原因、应用失败）
- * [POS] features/skills/growth-card 卡片的只读证据区；扫描类别、严重度、待审信号与处置建议均以用户语言呈现
+ * [INPUT] SkillGrowthCaseSummary via @/services/skill/growth; useScanRiskText; @/lib/skills/scanRiskText::parseRiskSignals;
+ *         @/lib/skills/growthReason::parseHeldReason; GrowthTechnicalDetails
+ * [OUTPUT] GrowthCaseEvidence: 成长提案的证据面板组（验证证明、安全扫描发现、运行时失败、待审原因、应用失败、技术细节）
+ * [POS] features/skills/growth-card 卡片的只读证据区；扫描类别、严重度、待审原因与处置建议均以用户语言呈现，
+ *       扫描器描述、运行时错误签名与应用失败原文只出现在默认收起的技术细节里
  */
 'use client';
 
 import { useTranslations } from 'next-intl';
 import { ShieldCheck } from 'lucide-react';
 import { useScanRiskText } from '@/components/features/skills/useScanRiskText';
+import { GrowthTechnicalDetails } from '@/components/features/skills/growth-card/GrowthTechnicalDetails';
 import { Badge } from '@/components/primitives/badge';
+import { parseHeldReason } from '@/lib/skills/growthReason';
 import { parseRiskSignals } from '@/lib/skills/scanRiskText';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
@@ -19,6 +23,7 @@ export function GrowthCaseEvidence({ item }: { item: SkillGrowthCaseSummary }) {
   const { verificationProof, securityScanSummary, runtimeFailure } = item;
   const findings = securityScanSummary?.findings ?? [];
   const riskSignals = parseRiskSignals(item.reasonCode);
+  const heldReason = parseHeldReason(item.reasonCode);
   const riskRemediation = scanText.remediation(riskSignals);
 
   return (
@@ -67,7 +72,6 @@ export function GrowthCaseEvidence({ item }: { item: SkillGrowthCaseSummary }) {
                     <Badge variant="outline" className="text-[10px]">
                       {scanText.threatLabel(finding.threat_type)}
                     </Badge>
-                    <span className="min-w-0 break-words font-medium text-foreground">{finding.description}</span>
                   </div>
                   {finding.line_number != null && (
                     <span className="text-[10px] text-muted-foreground font-mono">
@@ -107,15 +111,7 @@ export function GrowthCaseEvidence({ item }: { item: SkillGrowthCaseSummary }) {
                 value: (runtimeFailure.attribution_confidence * 100).toFixed(0),
               })}
             </span>
-            {runtimeFailure.loop_kind && (
-              <span className="min-w-0 truncate">
-                {t('runtimeFailure.loopKind', { value: runtimeFailure.loop_kind })}
-              </span>
-            )}
           </div>
-          <p className="mt-2 break-words font-mono text-xs text-sky-900 dark:text-sky-100">
-            {runtimeFailure.error_signature}
-          </p>
         </div>
       )}
 
@@ -139,15 +135,30 @@ export function GrowthCaseEvidence({ item }: { item: SkillGrowthCaseSummary }) {
         </div>
       )}
 
+      {heldReason && (
+        <div className="mt-4 rounded-xl border border-amber-300/50 bg-amber-50/60 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('heldReason.title')}</p>
+          <p className="mt-1 break-words text-sm text-foreground">
+            {t(`heldReason.${heldReason.kind}`, {
+              names: heldReason.kind === 'similar' ? heldReason.names.join(', ') : '',
+            })}
+          </p>
+        </div>
+      )}
+
       {item.applyError && (
         <div className="mt-4 rounded-xl border border-orange-300/50 bg-orange-50/60 p-3 dark:border-orange-900/40 dark:bg-orange-950/20">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('applyFailureTitle')}</p>
-          <p className="mt-1 text-sm text-foreground">{item.applyError}</p>
-          {item.remediation && riskSignals.length === 0 && (
-            <p className="mt-2 text-sm text-muted-foreground">{item.remediation}</p>
-          )}
+          <p className="mt-1 text-sm text-foreground">{t('applyFailureBody')}</p>
         </div>
       )}
+
+      <GrowthTechnicalDetails
+        findings={findings}
+        runtimeFailure={runtimeFailure}
+        applyError={item.applyError}
+        remediation={item.applyError && riskSignals.length === 0 ? item.remediation : null}
+      />
     </>
   );
 }

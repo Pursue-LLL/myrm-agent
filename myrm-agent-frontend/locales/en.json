@@ -9782,7 +9782,6 @@
     "newSkillDraft": "A new skill growth case is ready: {name}",
     "reviewDraft": "Open review",
     "messageDeadLettered": "Message delivery to {channel} failed permanently. Reason: {reason}",
-    "skillGrowthAutoApplied": "\"{name}\" was auto-applied",
     "skillGrowthFailedScan": "\"{name}\" failed the pre-flight security scan",
     "skillGrowthBlockedLocked": "\"{name}\" is protected by evolution lock and requires manual review",
     "openSkillGrowth": "Open Skill Growth",
@@ -9791,6 +9790,9 @@
     "undoEvolve": "Undo",
     "rollbackSuccess": "Successfully rolled back: {name}",
     "rollbackFailed": "Rollback failed, please try again",
+    "skillGrowthUndone": "Archived \"{name}\". Restore it anytime from the skill list.",
+    "skillGrowthUndoBlocked": "\"{name}\" is pinned or in use by an agent or scheduled task, so it can't be archived. Unpin or unbind it first.",
+    "skillGrowthUndoFailed": "Couldn't archive \"{name}\". Please try again.",
     "forcePushReceived": "Agent profile updated by organization",
     "forcePushRollbackHint": "A snapshot was saved. You can rollback from agent settings.",
     "subagentRebindRequired": "Subagent bindings changed. Start a new chat to use updated delegation tools.",
@@ -18347,6 +18349,18 @@
         "reviseFailedScan": "\"{name}\" revised but failed security scan. Please fix the flagged issues.",
         "riskInterceptionTitle": "Risk Interception",
         "applyFailureTitle": "Apply Failure",
+        "applyFailureBody": "It couldn't be applied automatically. Check the technical details, then try approving again.",
+        "heldReason": {
+          "title": "Why it needs your review",
+          "similar": "It looks similar to skills you already have: {names}. Approve it only if it adds something new.",
+          "evolutionLocked": "The skill it would change is protected from automatic updates, so it waits for your decision.",
+          "scanFailed": "It didn't pass the automatic safety check. Review the findings above before deciding."
+        },
+        "technical": {
+          "toggle": "Technical details",
+          "findings": "Scanner findings",
+          "advice": "Suggested action"
+        },
         "rejectReasonLabel": "Reason for rejection",
         "rejectReasonPlaceholder": "Describe what should change before this growth case can be applied.",
         "triggerCondition": "Trigger Condition",
@@ -18358,8 +18372,7 @@
           "title": "Runtime Failure Evidence",
           "tool": "Tool: {value}",
           "count": "Failures: {value}",
-          "confidence": "Attribution {value}%",
-          "loopKind": "Loop: {value}"
+          "confidence": "Attribution {value}%"
         },
         "securityScan": {
           "title": "Skill Security Static Inspection Details ({count} findings)",

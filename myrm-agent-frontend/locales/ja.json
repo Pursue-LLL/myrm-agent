@@ -9714,7 +9714,6 @@
     "newSkillDraft": "新しいスキル成長ケースが作成されました：{name}",
     "reviewDraft": "今すぐ表示",
     "messageDeadLettered": "{channel} へのメッセージ配信が永続的に失敗しました。理由：{reason}",
-    "skillGrowthAutoApplied": "「{name}」を自動適用しました",
     "skillGrowthFailedScan": "「{name}」は事前セキュリティスキャンに合格しませんでした",
     "skillGrowthBlockedLocked": "「{name}」は進化ロックで保護されており、手動レビューが必要です",
     "openSkillGrowth": "スキル成長を開く",
@@ -9723,6 +9722,9 @@
     "undoEvolve": "元に戻す (Undo)",
     "rollbackSuccess": "{name} をロールバックしました",
     "rollbackFailed": "ロールバックに失敗しました。再試行してください",
+    "skillGrowthUndone": "「{name}」をアーカイブしました。スキル一覧からいつでも復元できます",
+    "skillGrowthUndoBlocked": "「{name}」は固定されているか、エージェントや定期タスクで使用中のためアーカイブできません。先に固定またはバインドを解除してください",
+    "skillGrowthUndoFailed": "「{name}」をアーカイブできませんでした。再試行してください",
     "forcePushReceived": "エージェント設定が組織によって更新されました",
     "forcePushRollbackHint": "スナップショットが保存されました。エージェント設定からロールバックできます。",
     "subagentRebindRequired": "サブエージェントのバインドが変更されました。更新後の委譲ツールを使用するには新しいチャットを開始してください。",
@@ -17649,6 +17651,18 @@
         "reviseFailedScan": "「{name}」は改訂されましたが、セキュリティスキャンに合格しませんでした。フラグされた問題を修正してください。",
         "riskInterceptionTitle": "リスク阻止",
         "applyFailureTitle": "適用に失敗しました",
+        "applyFailureBody": "自動で適用できませんでした。技術的な詳細を確認してから、もう一度承認してください。",
+        "heldReason": {
+          "title": "確認が必要な理由",
+          "similar": "すでにあるスキルと似ています：{names}。新しい内容がある場合のみ承認してください。",
+          "evolutionLocked": "変更対象のスキルは自動更新から保護されているため、あなたの判断を待っています。",
+          "scanFailed": "自動セキュリティチェックを通過できませんでした。上の検出結果を確認してから判断してください。"
+        },
+        "technical": {
+          "toggle": "技術的な詳細",
+          "findings": "スキャナーの検出項目",
+          "advice": "推奨される対応"
+        },
         "rejectReasonLabel": "拒否理由",
         "rejectReasonPlaceholder": "このスキル成長ケースを適用するために何を変更すべきか説明してください。",
         "triggerCondition": "トリガー条件",
@@ -17660,8 +17674,7 @@
           "title": "実行時失敗の証拠",
           "tool": "ツール：{value}",
           "count": "失敗回数：{value}",
-          "confidence": "帰属信頼度 {value}%",
-          "loopKind": "ループタイプ：{value}"
+          "confidence": "帰属信頼度 {value}%"
         },
         "securityScan": {
           "title": "スキルセキュリティ静的検証詳細 ({count} 件の検出)",
