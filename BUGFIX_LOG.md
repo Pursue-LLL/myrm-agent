@@ -2040,3 +2040,92 @@ except Exception:
 2. 同一状态码在不同服务上含义不同：RFC 只在令牌端点定义了 400 / 401，403 属于供应商自己的访问闸门，不能当成「刷新令牌被拒」。
 
 ---
+
+## BUG-AGENT-2026-10-14-015: 「安全清空」把没做的事报成成功（会话检查点没清、记忆事件数恒为 1）；过期的浏览器登录会话只有一个接口会清、且只清全局保险库，定时维护从不清
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P3（`POST /api/v1/health/database/safe-purge` 目前没有界面调用方；过期会话文件只占磁盘、不再被读取；不影响对话与登录行为） |
+| 影响范围 | server：`app/services/system/vault_purge_service.py`、`app/api/health/router.py`（响应新增 `purged_memory_events` 真实计数与 `cleared_checkpoints`）、`app/core/security/browser_vault.py`（新增 `cleanup_all_vaults`）、`app/api/browser_sessions/router.py`、`app/lifecycle/browser.py`（删除无调用方的函数）、`app/lifecycle/schedulers.py`（DB 维护任务新增会话清理） |
+| 出现次数 | 1（读代码、真实 SQLite / 真实 LangGraph 检查点库 / 真实文件保险库复现与单元测试确认） |
+| 关联 | harness `BUG-HARNESS-2026-10-14-016`（检查点包装器补转发 `adelete_thread`，本条是它在「安全清空」上的调用方）· 该条「踩坑」里记下的 `cleanup_expired_browser_sessions` 无调用方，本条处理 |
+
+### 现象
+
+1. 「安全清空」的返回值 `cleared_checkpoints` 只要检查点对象有 `adelete_thread` 属性就写 1，代码里没有任何一处调用它；`purged_memory_events` 在 `purge_memories=True` 时恒写 1，与实际删了多少行无关。清空后会话的检查点线程原样留在库里。
+2. `POST /browser/sessions/cleanup` 只清全局保险库，各 Agent 的保险库不清；`lifecycle/browser.py` 里同时清两处的函数没有任何调用方；每 6 小时的 DB 维护任务不清浏览器会话。已过期的加密会话文件在 Agent 保险库里只增不减。
+
+### 根因
+
+1. 这个清空服务的文档串与结果字段先于实现写下，实现只做了「探测能力」而没有「执行并计数」；两个计数没有任何测试断言过真实数值。
+2. 「清全部保险库」的逻辑写成了一个无人调用的函数，接口另写了一份只清全局的，定时任务没接入；三处各自为政，没有单一入口。
+
+### 修复
+
+1. `SafeVaultPurgeService` 在聊天行被删之前，对每个聊天调用 `sync_checkpoint_messages(checkpointer, chat_id, [])`（两种线程别名都删，失败抛 `ContinuitySyncError`）：单个聊天失败只记 WARNING 并跳过，不中断清空；`cleared_checkpoints` 是完整清掉的聊天数；检查点对象未注册时记 WARNING、计数为 0、其余照常清空。先删检查点再删聊天行，是为了被中断的清空不会留下再也列不出来的检查点。记忆管线的三张表按 `rowcount` 累加成真实计数；从未被赋值的 `freed_disk_bytes` 字段删除；API 响应补上 `purged_memory_events`、`cleared_checkpoints`。
+2. `browser_vault.py` 新增 `cleanup_all_vaults()`（全局 + 全部 Agent 保险库），接口与 DB 维护任务共用；任务内的清理失败只记日志、不影响同一周期的其余维护项；删除无调用方的 `cleanup_expired_browser_sessions`。
+
+### 验证
+
+1. A：`tests/services/system/test_safe_vault_purge_service.py`（真实 SQLite 加真实 LangGraph 检查点库：每个聊天的两种线程别名都被清掉、清空前先清检查点、单个聊天失败不中断、未注册检查点仍完成清空、记忆管线真实计数）；4 个变异（跳过检查点清除、清除顺序放到删聊天之后、失败即中断、计数写死）全部杀死。
+2. B：`tests/config/test_browser_vault.py`（真实文件保险库：过期的删、未过期的留，全局与各 Agent 保险库都覆盖）、`tests/api/browser_sessions/test_browser_sessions_cleanup_api.py`、`tests/lifecycle/test_db_maintenance_browser_sessions.py`（真实 `_db_maintenance_job` 调用清理，清理失败时其余维护项照常执行）；3 个变异（只清全局、定时任务不调用、接口退回只清全局）全部杀死。A 与 B 加上 `tests/channels/test_channel_data_plane.py` 共 45 例通过。
+3. 静态：本次改动的 server 与 harness 文件 `ruff check` / `ruff format --check` 通过；`hop_evaluator.py` mypy 通过。`browser_vault.py` 的 mypy 报错（行 51、66、99、144 的 `"object" not callable`）来自 harness `toolkits.browser` 的惰性导出被推成 `object`，不在本次改动的行内，未处理。
+4. 局限：没有清真实的向量库（Qdrant）条目，这一步本来就不在清空服务里，也没加；没有用真实用户数据库验证；清空接口仍没有界面入口，本条只修了它报告的数字与实际行为。
+
+### 踩坑经验
+
+1. 结果对象里的计数必须来自被执行的操作（`rowcount`、实际成功次数），不能来自「对象有没有这个方法」或常量；对应的测试要断言数值，而不是断言字段存在。
+2. 同一件事在多处各写一份，漏的往往是没人测的那份：这里是接口、无人调用的函数、定时任务三处，现在收敛到 `cleanup_all_vaults` 一个入口。
+
+---
+## BUG-AGENT-2026-10-14-016: 渠道入站风险闸门在事件循环上无时限地跑任意正则（邮箱规则 4 万字符卡 11 秒、回溯型自定义规则可卡死进程），内置的邮箱 / 手机 / 身份证 / 银行卡规则与隐私分类器是两套口径；无噪声记忆套件的“清除记忆”只清一个进程内字典
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（闸门对每条渠道入站消息执行，文本由聊天对端控制；卡住事件循环会让整个进程无响应。口径不一致只造成误拦与漏拦；无噪声记忆卡片是展示性界面，不影响真实记忆） |
+| 影响范围 | server：`app/services/risk/{constants,detection,rule_service,match_checks}.py`、`pyproject.toml`（新增 `regex`）；删除 `app/api/memory/noise_free_memory_router.py`、`app/services/memory/noise_free_memory_service.py`、`app/schemas/noise_free_memory.py` 与路由注册；frontend：删除指挥中心「无噪声记忆」卡片、子组件、服务客户端；harness 侧见 `BUG-HARNESS-2026-10-14-019` |
+| 出现次数 | 1（读代码、真实函数执行与单元测试确认；没有在真实渠道上端到端验证） |
+| 关联 | harness `BUG-HARNESS-2026-10-14-017`（同一个邮箱正则在隐私管线里的二次方耗时，已改为有界的 SSOT 写法，本条让风险闸门读同一份）· harness `BUG-HARNESS-2026-10-14-004`（自定义隐私模式的编译炸弹防护，本条通过公开的 `pattern_problem` 复用同一套判定） |
+
+### 现象
+
+1. 内置邮箱规则 `(?i)\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b` 对 4 万字符的 `a.a.a.` 连续串实测 11.2 秒；用户自定义规则用标准库 `re` 编译、没有任何匹配时限，写成回溯型（嵌套量词）即可让闸门长时间占住事件循环；计数很大的嵌套重复（如 `(a{1000}){1000}`）还能构造出编译不动的模式。
+2. 内置规则各写了一份自己的正则：手机号规则会在更长的数字（订单号、运单号）里截出 11 位判为手机号；身份证规则只看 18 位形状，不校验校验位；银行卡规则在“银行卡 / bank card”后面的日期里也能凑出卡号。隐私分类器用的检测器早已修过这些，闸门没有跟上。
+3. 内置规则只在首次启动时写入数据库，此后即使代码里的模式改了，库里的旧模式一直生效，而内置规则的模式用户无法编辑。
+4. 「测试规则」只告诉用户命中与否，不给出命中的文本。
+5. 指挥中心「无噪声记忆」卡片的“清除记忆”和“提交事实”只改 harness 提取器里的进程内字典，界面显示已清除、代次加一，用户真正的记忆没有任何变化（详见 `BUG-HARNESS-2026-10-14-019`）。
+
+### 根因
+
+1. 闸门在事件循环里同步匹配，规则来源（内置、用户自定义）都没有时间预算；标准库 `re` 不提供单次匹配的超时。
+2. 内置规则的模式和确认逻辑与隐私层是两处各自演进的拷贝，没有读检测器的单一真源。
+3. 种子逻辑是“有则跳过”，只管插入，不管已有行的模式是否过期。
+4. 无噪声记忆套件的事实没有接到任何真实记忆存储，整条链路（提取器、服务、路由、卡片）互相自洽却不连到数据。
+
+### 修复
+
+1. `detection.py` 改用 `regex` 包：每条规则的每次匹配都带 0.25 秒的时间预算，超时按命中处理（宁可多拦也不放过，并记警告与“匹配超时”摘要）；`compile_pattern` 统一做长度上限（4096）、计数重复过大的拒绝（复用 harness 的 `pattern_problem`）与编译，保存规则、加载规则、规则预览共用这一个入口，保存时拒绝，加载时跳过不可用的规则并记错误日志。
+2. 内置的邮箱、手机、身份证、银行卡规则改用隐私检测器自己的模式来源（`EMAIL_RE`、`CHINA_PHONE_RE`、`CHINA_ID_RE`、`CARD_CONTEXT_RE`），并施加同样的确认：身份证校验位、手机与邮箱排除示例占位值（`match_checks.py`）；银行卡规则按卡号上下文取值，不再被日期触发，也不再依赖 `account number` 关键词。
+3. `seed_builtin_rules` 对已存在的内置行只刷新模式，名称、严重级、动作、启用状态保持用户的设置。
+4. 「测试规则」返回命中的文本片段（最多 20 条），超时给出明确的英文提示要求简化模式。
+5. 删除无噪声记忆套件在 server 与 frontend 的全部代码，并移除指挥中心的挂载、`services/memory.ts` 的导出与硬编码文案基线里的两条。
+
+### 验证
+
+1. 新增 `tests/services/risk/test_risk_rules_engine.py`：个人数据命中 / 不命中成对用例（含订单号不是手机号、校验位错的身份证不是身份证、日期不是银行卡）、40K 点号连续串在 2 秒内完成、四条内置规则的模式可用、回溯型自定义规则被时限拦住并带“匹配超时”摘要、过大计数重复在保存时被拒绝且加载时被跳过、预览行为、种子刷新保留用户设置；`test_inbound_risk_gate_integration.py` 的夹具改用 `compile_pattern`。
+2. 实测：最慢的内置规则在 10 万字符文本上不超过 10 毫秒（机器负载很高时），0.25 秒预算有 25 倍余量；40K `a.a.a.` 串的邮箱匹配从 11.2 秒降到毫秒级。
+3. `tests/api/memory`、`tests/services/risk` 全绿；`app.api.memory.router` 导入后路由表里没有 noise-free 路径；前端 `features/memory` 90 个文件 542 例通过，`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；本次改动的 server 文件 `ruff check` 通过，风险引擎的 mypy 无新增报错。
+4. 局限：没有在真实 IM 渠道上端到端验证；银行卡规则不再把 `account number` 当触发词，只有银行卡 / 信用卡 / 卡号 / bank card / card number 等指明是支付卡的关键词后面的卡号才命中（与隐私分类器一致，没有卡号形状的账号不再被拦）；超时按命中处理意味着极端长文本上的病态自定义规则会拦截该消息（预期行为，用户在规则页能看到“匹配超时”的摘要）；server 依赖钉住已发布的 harness，本次用到的 `pattern_problem` 与 `CARD_CONTEXT_RE` 在发布新版 harness 并执行 `./myrm harness sync-lock` 之前，OSS 的锁定安装无法导入——这是维护者的发版步骤，本次没有执行；内置的护照规则对“passport renewal process”这类普通英文句子仍会误报，本次未动。
+
+### 踩坑经验
+
+1. 在事件循环里跑用户可控的正则，必须有单次匹配的时间预算，而标准库 `re` 做不到：用 `regex` 的 `timeout=`，并且决定好超时时是放行还是拦截（闸门取拦截）。
+2. 同一类检测在两处各写一份，修好的一边会随时间偏离另一边：内置规则直接读检测器的模式来源与确认函数，不要抄正则。
+3. “只在首次启动写入”的内置数据，代码里改了就要有同步路径，并且只能同步用户无法编辑的那部分。
+4. 没有接到真实数据的演示型界面比没有界面更糟：它会报告“已清除”。
+
+---
