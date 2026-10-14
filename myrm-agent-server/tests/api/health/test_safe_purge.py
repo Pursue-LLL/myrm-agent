@@ -6,6 +6,7 @@ Tests cover:
 - Safe purge of FTS5 external content shadow tables without leaving orphan rows
 - Cursor auto-increment sequence reset (sqlite_sequence)
 - POST /api/v1/health/database/safe-purge API integration
+- Refusal (409) while a conversation is running, with nothing deleted
 """
 
 from __future__ import annotations
@@ -26,9 +27,11 @@ from app.database.models.channel import ChannelPairingModel
 from app.database.models.channel_message import ChannelMessageModel
 from app.database.models.chat import Chat, Message
 from app.database.models.config import UserConfig
+from app.services.chat import chat_disposal
 from app.services.system.vault_purge_service import (
     SafeVaultPurgeResult,
     SafeVaultPurgeService,
+    VaultPurgeBusyError,
 )
 
 
@@ -45,7 +48,7 @@ def client(app: FastAPI) -> TestClient:
 
 
 @pytest.mark.asyncio
-async def test_safe_vault_purge_service_execution(tmp_path: Path):
+async def test_safe_vault_purge_service_execution(tmp_path: Path) -> None:
     """Verify SafeVaultPurgeService performs cascade wipe and preserves configuration."""
     engine = get_database_engine()
 
@@ -175,7 +178,7 @@ async def test_safe_vault_purge_service_execution(tmp_path: Path):
         assert msg_cnt == 0
 
 
-def test_safe_purge_vault_api_endpoint(client: TestClient):
+def test_safe_purge_vault_api_endpoint(client: TestClient) -> None:
     """Test POST /api/v1/health/database/safe-purge API endpoint."""
     fake_result = SafeVaultPurgeResult(
         success=True,
@@ -207,3 +210,42 @@ def test_safe_purge_vault_api_endpoint(client: TestClient):
         assert data["preserved_api_keys"] == 3
         assert data["preserved_user_configs"] == 4
         assert "messages_fts" in data["fts_tables_purged"]
+
+
+class _BusyGateway:
+    """Stand-in for the agent gateway with two conversations mid-turn."""
+
+    def active_session_ids(self) -> frozenset[str]:
+        return frozenset({"chat-running-1", "chat-running-2"})
+
+
+@pytest.mark.asyncio
+async def test_safe_vault_purge_refuses_while_a_conversation_is_running() -> None:
+    """A turn that is still writing would race the wipe, so nothing is touched and the caller is told why."""
+    engine = get_database_engine()
+    async with engine.begin() as conn:
+        await conn.execute(insert(Chat).values(id="chat-busy-guard", title="Running chat"))
+
+    try:
+        with (
+            patch("app.services.system.vault_purge_service.get_agent_gateway", return_value=_BusyGateway()),
+            patch.object(chat_disposal, "clear_runtime_caches", new=AsyncMock()) as stop_runtime,
+            pytest.raises(VaultPurgeBusyError) as busy,
+        ):
+            await SafeVaultPurgeService.purge_vault(purge_memories=True, purge_sandboxes=False, reclaim_disk=False)
+
+        assert busy.value.running == 2
+        stop_runtime.assert_not_awaited()
+        async with engine.connect() as conn:
+            assert await conn.scalar(text("SELECT COUNT(*) FROM chats WHERE id='chat-busy-guard'")) == 1
+    finally:
+        async with engine.begin() as conn:
+            await conn.execute(text("DELETE FROM chats WHERE id='chat-busy-guard'"))
+
+
+def test_safe_purge_vault_api_answers_409_while_a_conversation_is_running(client: TestClient) -> None:
+    with patch("app.services.system.vault_purge_service.get_agent_gateway", return_value=_BusyGateway()):
+        resp = client.post("/api/v1/health/database/safe-purge")
+
+    assert resp.status_code == 409
+    assert "2 conversations are running" in resp.text

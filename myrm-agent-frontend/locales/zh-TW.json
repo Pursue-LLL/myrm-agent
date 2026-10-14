@@ -14690,7 +14690,18 @@
         "rightsExporting": "正在準備匯出…",
         "rightsExportSuccess": "合規匯出已下載",
         "rightsExportFailed": "匯出失敗 — 請嘗試在記憶設定中匯出",
-        "rightsManageMemory": "管理記憶與刪除"
+        "rightsManageMemory": "管理記憶與刪除",
+        "eraseTitle": "清空全部會話",
+        "eraseDesc": "刪除本裝置上的所有會話及其產生的檔案。已儲存的記憶、智能體、API 金鑰與頻道設定會保留；由這些會話衍生的待處理記憶與記憶活動日誌會一併清空。需要副本請先匯出資料。",
+        "eraseButton": "清空會話",
+        "eraseConfirmTitle": "清空全部會話？",
+        "eraseConfirmDesc": "這會永久刪除所有會話及其產生的檔案，無法復原。\n已儲存的記憶、智能體、API 金鑰與頻道設定不受影響。",
+        "eraseConfirmAction": "清空會話",
+        "erasing": "正在清空…",
+        "eraseSuccess": "已清空 {count} 個會話",
+        "eraseStartFresh": "新增會話",
+        "eraseBusy": "有會話仍在執行。請先停止或等待完成，然後重試。",
+        "eraseFailed": "清空未能完成，請重試。"
       },
       "profile": {
         "title": "安全配置集",

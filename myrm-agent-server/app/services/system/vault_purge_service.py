@@ -4,9 +4,11 @@
 - app.database.connection::get_database_engine, get_session_factory (POS: database engine and session factory of the active deployment mode)
 - myrm_agent_harness.api::safe_purge_fts5_virtual_table (POS: FTS5 purge that leaves no shadow-table orphan rows)
 - app.services.chat.chat_disposal::clear_conversation_state, clear_runtime_caches, remove_chat_files (POS: single definition of the per-chat teardown steps)
+- app.services.agent.gateway::get_agent_gateway (POS: which conversations have a turn in flight)
 
 [OUTPUT]
 - SafeVaultPurgeResult: Structured audit summary of purged entities and preserved settings
+- VaultPurgeBusyError: raised when a conversation is mid-turn, before anything is touched
 - SafeVaultPurgeService: Transactional inverse purge orchestrator with whitelist protection
 
 [POS]
@@ -26,12 +28,21 @@ from datetime import UTC, datetime
 from sqlalchemy import text
 
 from app.database.connection import get_database_engine
+from app.services.agent.gateway import get_agent_gateway
 from app.services.chat import chat_disposal
 
 logger = logging.getLogger(__name__)
 
 # Global concurrency guard: ensures only one vault purge or conflicting write runs at once
 _PURGE_LOCK = asyncio.Lock()
+
+
+class VaultPurgeBusyError(RuntimeError):
+    """A conversation is mid-turn; wiping beneath it would race the turn's own writes."""
+
+    def __init__(self, running: int) -> None:
+        super().__init__(f"Cannot purge while {running} conversations are running; stop them or wait, then retry")
+        self.running = running
 
 
 @dataclass
@@ -83,7 +94,8 @@ class SafeVaultPurgeService:
         """Execute atomic safe vault purge with strict whitelist preservation.
 
         Order of operations (strict inverse topology):
-        1. Acquire PurgeLock to block concurrent pipeline writers.
+        1. Acquire PurgeLock to block concurrent pipeline writers, and refuse (``VaultPurgeBusyError``)
+           while any conversation has a turn in flight.
         2. Clean FTS5 shadow structures before source rows are touched.
         3. Stop the runtime work of every chat and drop its checkpoint threads and session grants while
            the chat rows still exist, so an interrupted purge never strands state whose chat can no
@@ -95,6 +107,10 @@ class SafeVaultPurgeService:
         7. Run PRAGMA incremental_vacuum and optimize to reclaim physical disk space.
         """
         async with _PURGE_LOCK:
+            running = get_agent_gateway().active_session_ids()
+            if running:
+                raise VaultPurgeBusyError(len(running))
+
             start_time = datetime.now(UTC)
             engine = get_database_engine()
             result = SafeVaultPurgeResult(success=False)
