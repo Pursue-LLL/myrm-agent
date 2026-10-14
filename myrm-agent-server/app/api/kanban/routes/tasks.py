@@ -252,6 +252,18 @@ async def reject_task(task_id: str, body: RejectTaskRequest) -> TaskResponse:
     return await _task_response_with_attachments(task)
 
 
+@router.post("/tasks/{task_id}/retry", response_model=TaskResponse)
+async def retry_task(task_id: str) -> TaskResponse:
+    """Retry a FAILED task — resets it to READY with a fresh retry budget.
+
+    A task that is not FAILED is returned unchanged (idempotent double-submit).
+    """
+    task = await get_kanban_service().retry_task(task_id)
+    if task is None:
+        raise HTTPException(404, f"Task {task_id} not found")
+    return await _task_response_with_attachments(task)
+
+
 @router.post("/tasks/{task_id}/promote", response_model=PromoteResponse)
 async def promote_task(task_id: str, body: PromoteRequest) -> PromoteResponse:
     svc = get_kanban_service()
