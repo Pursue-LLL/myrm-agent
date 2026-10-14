@@ -16656,16 +16656,12 @@
           "summary": "被 {backlinks} 處引用 · 引用 {outlinks} 處",
           "tabBacklinks": "被引用 ({count})",
           "tabOutlinks": "引用了 ({count})",
-          "tabNearby": "關聯概念 ({count})",
           "refresh": "重新整理連結",
           "loadFailed": "載入連結失敗",
           "emptyBacklinks": "還沒有內容引用這個概念",
           "emptyOutlinks": "這個概念還沒有引用其他內容",
-          "emptyNearby": "暫無可顯示的關聯概念",
           "missing": "缺失",
-          "jumpToSection": "點擊卡片可直達小節：{heading}",
-          "nearbySummary": "{nodes} 個概念 · {edges} 條關聯",
-          "nearbyHint": "點擊概念即可開啟"
+          "jumpToSection": "點擊卡片可直達小節：{heading}"
         }
       },
       "saveToWiki": {

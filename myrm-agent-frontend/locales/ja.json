@@ -16656,16 +16656,12 @@
           "summary": "{backlinks} 件から参照 · {outlinks} 件を参照",
           "tabBacklinks": "参照元 ({count})",
           "tabOutlinks": "参照先 ({count})",
-          "tabNearby": "関連概念 ({count})",
           "refresh": "リンクを更新",
           "loadFailed": "リンクの読み込みに失敗しました",
           "emptyBacklinks": "この概念を参照しているものはまだありません",
           "emptyOutlinks": "この概念はまだ他のものを参照していません",
-          "emptyNearby": "表示できる関連概念はまだありません",
           "missing": "見つかりません",
-          "jumpToSection": "カードをクリックすると該当セクションへ移動します: {heading}",
-          "nearbySummary": "{nodes} 件の概念 · {edges} 件の関連",
-          "nearbyHint": "概念をクリックして開く"
+          "jumpToSection": "カードをクリックすると該当セクションへ移動します: {heading}"
         }
       },
       "saveToWiki": {
