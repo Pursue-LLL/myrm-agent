@@ -4,8 +4,9 @@ Consumes InboundMessage from the MessageBus, applies DM/group policy,
 resolves the sender's identity, executes the Agent via AgentExecutor,
 and publishes the result as an OutboundMessage.
 
-Supports slash commands (/stop, /new, /compact, /retry, /undo, /bind, /unbind, /topic, /goal, /steer, /queue, /kanban, /learn)
-and voice STT/TTS via voice_handler module.
+Supports slash commands (see command_defs.SYSTEM_COMMANDS). Those that act on the owner's sandbox (/memory, /goal, /bind,
+/draft, ...) run only for the owner; the few marked ``any_sender`` (/stop, /new, /help, ...) stay open to every sender.
+Also supports voice STT/TTS via voice_handler module.
 
 
 [INPUT]
@@ -18,7 +19,7 @@ and voice STT/TTS via voice_handler module.
 - channels.routing.session_gate::SessionGate (POS: message debounce and concurrency control)
 - channels.routing.context_buffer::GroupContextBuffer (POS: group chat context accumulation buffer)
 - channels.routing.message_effects::MessageEffects (POS: typing/reaction/placeholder side effects)
-- channels.routing.router_commands::RouterCommandsMixin (POS: /stop, approval, and topic command handling)
+- channels.routing.commands.router_commands::RouterCommandsMixin (POS: slash-command handlers, including /stop, approval, topic and /draft)
 - channels.routing.router_execution::RouterExecutionMixin (POS: execution lifecycle — prepare/effects/stream/deliver/cleanup)
 - channels.routing.router_constants::limits (POS: concurrency, dedup, throttle, cleanup TTL)
 - channels.routing.router_host::RouterStreamHost, (POS: Typing protocols: host instance attributes required by Router Mixins.)

@@ -239,7 +239,7 @@ components: []
 
 **处理流程**：
 1. **去重**：message_id + TTL 防重复
-2. **命令检测**：`/stop` / `/new` / `/compact` / `/topic` / `/agent` / 审批命令
+2. **命令检测**：`/stop` / `/new` / `/compact` / `/topic` / `/agent` / `/draft` / 审批命令；系统命令默认仅 owner 可用，只有限定在发送者自己会话内的命令（`CommandDef.any_sender`，如 `/stop`、`/new`、`/help`）对所有发送者开放（见 `routing/_ARCH.md`）
 3. **策略解析**：DM/群聊策略 + 身份解析 + 群组启用检查
 4. **Debounce**：连发消息合并（SessionGate，默认 300ms 窗口）
 5. **入站附件增强**（`_handle_merged`，在 Agent 执行前）：语音转写 → 贴纸描述 → 视频元数据 → 图片 base64（`image_data_list`）→ **PDF/Office 文本**（`document_text_blocks`，受 `personalSettings.extractDocumentText` 控制，默认开启；解析复用 `services/files/content_extraction`）

@@ -1,12 +1,13 @@
-"""Inbound control commands: /stop, approvals, /new, /compact, /retry, /undo, /goal, /steer, /queue, /memory, /draft, /learn, topic commands.
+"""Inbound control commands: the router's slash-command handlers, composed from one mixin per command family.
 
 [INPUT]
-- channels.routing.router_commands_approval::RouterCommandsApprovalMixin
-- channels.routing.router_commands_session::RouterCommandsSessionMixin
-- channels.routing.router_commands_modes::RouterCommandsModesMixin
-- channels.routing.router_commands_goals::RouterCommandsGoalsMixin
-- channels.routing.router_commands_memory::RouterCommandsMemoryMixin
-- channels.routing.router_commands_draft::RouterCommandsDraftMixin
+- channels.routing.commands.router_commands_approval::RouterCommandsApprovalMixin (POS: /stop, reaction/button approval, resume payloads)
+- channels.routing.commands.router_commands_session::RouterCommandsSessionMixin (POS: /new, /compact, /retry, /undo, topic commands)
+- channels.routing.commands.router_commands_modes::RouterCommandsModesMixin (POS: /yolo, /personality, /steer, /queue)
+- channels.routing.commands.router_commands_goals::RouterCommandsGoalsMixin (POS: /goal, /subgoal, /background, /handoff)
+- channels.routing.commands.router_commands_memory::RouterCommandsMemoryMixin (POS: /status, /kanban, /learn, /memory)
+- channels.routing.commands.router_commands_draft::RouterCommandsDraftMixin (POS: /draft decisions on replies held for review)
+- channels.routing.commands.router_commands_quota::RouterCommandsQuotaMixin (POS: /quota usage inspection)
 
 [OUTPUT]
 - RouterCommandsMixin: composed mixin providing all slash command handler methods for AgentRouter

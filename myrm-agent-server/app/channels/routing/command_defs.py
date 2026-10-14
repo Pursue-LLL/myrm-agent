@@ -4,7 +4,7 @@
 - (none — leaf module)
 
 [OUTPUT]
-- CommandDef: Frozen dataclass describing a single slash command
+- CommandDef: Frozen dataclass describing a single slash command, including who may run it (any_sender, owner_only)
 - CommandAction: Enum of built-in system command action types
 - SYSTEM_COMMANDS: Tuple of all built-in system CommandDef instances
 
@@ -12,7 +12,8 @@
 Command definition module: data structures for the command registry.
 CommandDef is framework-level, business-agnostic; business-layer commands
 (Skill bindings, Agent routing aliases) are registered at runtime via
-CommandRegistry.register().
+CommandRegistry.register(). A system command is owner-only unless it opts in with
+any_sender, which it may do only when it stays inside the sender's own conversation.
 """
 
 from __future__ import annotations

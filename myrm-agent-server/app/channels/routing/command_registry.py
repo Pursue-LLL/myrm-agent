@@ -4,7 +4,8 @@
 - channels.routing.command_defs::CommandDef, CommandKind, SYSTEM_COMMANDS
 
 [OUTPUT]
-- CommandRegistry: Registry that maps command names/aliases to CommandDef
+- CommandRegistry: Registry that maps command names/aliases to CommandDef and renders /help text,
+  leaving out the owner-only commands for a sender who is not the owner
 - ResolvedCommand: Parsed command with extracted arguments
 
 [POS]
