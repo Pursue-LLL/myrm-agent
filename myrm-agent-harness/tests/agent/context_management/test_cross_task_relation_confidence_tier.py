@@ -1,7 +1,7 @@
 """Unit tests for CrossTaskRelationConfidenceTierPack (Roadmap Item 26).
 
 Validates:
-1. EpisodicMemory and EpisodicRelation schema extensions:
+1. EpisodicMemory schema extensions:
    - confidence_tier (strong / weak / shadow)
    - relation_category (same_work_item, same_problem, reusable_sop, shadow_context)
 2. Action execution guard in memory_context_format.py:
@@ -18,7 +18,6 @@ from myrm_agent_harness.agent.middlewares.memory_context.memory_context_format i
 )
 from myrm_agent_harness.toolkits.memory.types import (
     EpisodicMemory,
-    EpisodicRelation,
     MemoryType,
 )
 
@@ -38,19 +37,6 @@ def test_episodic_memory_confidence_tier_assignment() -> None:
     )
     assert ep.confidence_tier == "shadow"
     assert ep.relation_category == "shadow_context"
-
-
-def test_episodic_relation_confidence_tier_schema() -> None:
-    rel = EpisodicRelation(
-        source_memory_id="mem-1",
-        target_memory_id="mem-2",
-        relation_type="cross_task_reference",
-        confidence_tier="weak",
-        relation_category="same_problem",
-    )
-    assert rel.confidence_tier == "weak"
-    assert rel.relation_category == "same_problem"
-    assert rel.weight == 1.0
 
 
 def test_memory_context_format_action_execution_guard() -> None:
@@ -101,7 +87,10 @@ def test_memory_context_format_action_execution_guard() -> None:
     # 3. Action execution guard for weak/shadow background context
     assert "Cross-Task Background Context (Weak/Shadow - Do not execute)" in untrusted
     assert "[BACKGROUND CONTEXT - Reference only, do not execute as automated SOP] Rebooted redis cluster" in untrusted
-    assert "[LOCATE] [BACKGROUND CONTEXT - Reference only, do not execute as automated SOP] Inspected timeout threshold" in untrusted
+    assert (
+        "[LOCATE] [BACKGROUND CONTEXT - Reference only, do not execute as automated SOP] Inspected timeout threshold"
+        in untrusted
+    )
 
     # 4. Prompt cache preservation: stable system prompt should not be polluted
     assert stable is None or "Rebooted redis cluster" not in stable
@@ -147,7 +136,7 @@ def test_failure_attempt_takes_precedence_over_weak_tier() -> None:
         ]
     }
     ctx: dict[str, object] = {}
-    stable, untrusted, _accepted = _format_memory_context(ctx, learned, memory_search_enabled=False)
+    _stable, untrusted, _accepted = _format_memory_context(ctx, learned, memory_search_enabled=False)
 
     assert untrusted is not None
     # Must enter Failed Attempts section
@@ -161,12 +150,14 @@ def test_large_mixed_context_budget_and_prompt_cache_isolation() -> None:
     # Stress edge case: Mixed 20 episodic memories across all tiers and phases
     episodes = []
     for i in range(10):
-        episodes.append({
-            "content": f"Resolved memory leak in worker pool #{i}",
-            "subtask_phase": "edit" if i % 2 == 0 else "analyze",
-            "is_failure_attempt": False,
-            "confidence_tier": "strong" if i < 3 else ("weak" if i < 7 else "shadow"),
-        })
+        episodes.append(
+            {
+                "content": f"Resolved memory leak in worker pool #{i}",
+                "subtask_phase": "edit" if i % 2 == 0 else "analyze",
+                "is_failure_attempt": False,
+                "confidence_tier": "strong" if i < 3 else ("weak" if i < 7 else "shadow"),
+            }
+        )
     learned = {"learned_episodes": episodes}
     ctx: dict[str, object] = {}
     stable, untrusted, _accepted = _format_memory_context(ctx, learned, memory_search_enabled=False)
@@ -176,4 +167,3 @@ def test_large_mixed_context_budget_and_prompt_cache_isolation() -> None:
     assert "Cross-Task Background Context (Weak/Shadow - Do not execute)" in untrusted
     # Prompt Cache rule: stable prompt must remain completely untouched
     assert stable is None
-

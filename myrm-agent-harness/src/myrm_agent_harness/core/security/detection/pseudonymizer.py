@@ -10,7 +10,7 @@ direction — replacing pseudonyms back to originals in both batch and
 streaming modes.
 
 [INPUT]
-- core.security.detection.pii_patterns::S2_PATTERNS, S3_PATTERNS, china_id_valid, is_placeholder, luhn_valid (POS: Single definition of the built-in PII patterns and their validators.)
+- core.security.detection.pii_patterns::S2_PATTERNS, S3_PATTERNS, is_confirmed, is_placeholder (POS: Single definition of the built-in PII patterns and their validators: classification, redaction and pseudonymization all read it, so they never disagree about what a hit is.)
 - core.security.detection.card_context::find_card_number_spans (POS: Keyword-anchored detector for card numbers outside the network prefix table or with a typo in them.)
 - core.security.detection.custom_rules::CustomRules, NO_CUSTOM_RULES, find_custom_spans (POS: Single definition of custom-term matching for the privacy policy: the PII classifier, the redactor and the pseudonymizer share it, so detection and masking never disagree about what a user's keyword or pattern covers.)
 - core.security.detection.password_heuristic::find_password_spans (POS: last-resort keyword-anchored detector for passwords without vendor prefix or entropy.)
@@ -41,9 +41,8 @@ from myrm_agent_harness.core.security.detection.password_heuristic import find_p
 from myrm_agent_harness.core.security.detection.pii_patterns import (
     S2_PATTERNS,
     S3_PATTERNS,
-    china_id_valid,
+    is_confirmed,
     is_placeholder,
-    luhn_valid,
 )
 from myrm_agent_harness.core.security.detection.pseudonym_store import (
     PseudonymStore,
@@ -56,6 +55,7 @@ _PATTERN_TO_TYPE: dict[str, str] = {
     "bank_card": "BANK_CARD",
     "china_passport": "PASSPORT",
     # S2 patterns
+    "iban": "IBAN",
     "china_phone": "PHONE_NUMBER",
     "intl_phone": "PHONE_NUMBER",
     "us_phone": "PHONE_NUMBER",
@@ -117,11 +117,7 @@ def _extract_pii_items(
             if span in seen_spans:
                 continue
             val = m.group(0)
-            if is_placeholder(val):
-                continue
-            if name == "china_id_card" and not china_id_valid(val):
-                continue
-            if name == "bank_card" and not luhn_valid(val.replace("-", "").replace(" ", "")):
+            if is_placeholder(val) or not is_confirmed(name, m):
                 continue
 
             ptype = _PATTERN_TO_TYPE.get(name, name.upper())
@@ -152,8 +148,21 @@ def _extract_pii_items(
             if (start, end) not in seen_spans
         )
 
+    items = _drop_contained(items)
     items.sort(key=lambda x: len(x.original_text), reverse=True)
     return items
+
+
+def _drop_contained(items: list[PIIItem]) -> list[PIIItem]:
+    """*items* without those that lie within another: the groups of a typed IBAN also read as a visible card number,
+    and replacing the IBAN leaves nothing of the card for a second pseudonym to stand for."""
+    kept: list[PIIItem] = []
+    reach = -1
+    for item in sorted(items, key=lambda i: (i.start, -i.end)):
+        if item.end > reach:
+            kept.append(item)
+            reach = item.end
+    return kept
 
 
 def _pseudonymize_custom(

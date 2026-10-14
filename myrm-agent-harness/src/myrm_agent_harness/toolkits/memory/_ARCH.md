@@ -17,6 +17,7 @@ Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 | setup.py                 | Core     | Out-of-the-box local memory factory. Combines SQLite and embedded Qdrant to provide zero-config               | ✅    |
 | types.py                 | Core     | Memory type system foundation. Provides MemoryType, MemoryStatus, exact mutation outcome DTOs, profile attribute snapshots, BaseMemory (with trace_id), and all typed memory schemas. | ✅    |
 | config.py                | Core     | Memory configuration — functional switches and retrieval params only.                                         | ✅    |
+| threshold_strategy.py    | Core     | Adaptive similarity-threshold strategies: the protocol and the library-size based default used by `RetrievalConfig`. | ✅    |
 | _assistant_retrieval.py  | Internal | Two-Pass Assistant Retrieval for assistant-reference queries (MemPalace enhancement).                         | ✅    |
 | adaptive.py              | Core     | Adaptive dual-channel selection logic. Analyzes query characteristics (token count,                           | ✅    |
 | backup.py                | Core     | Provides BackupMetadata, BackupResult, RestoreResult.                                                         | ✅    |
@@ -37,6 +38,7 @@ Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 | result_booster.py        | Core     | Result boosting for memory retrieval (MemPalace enhancement).                                                 | ✅    |
 | security.py              | Core     | Public facade for memory security preflight scanning used by app-layer import and archive restore review flows. | ✅    |
 | retriever.py             | Core     | RRF retriever for multi-source memory search with 3-tier deterministic tie-breaking (score descending -> hit_count descending -> id ascending) and white-box RecallDebugTrace (HitSource). rank(): geometric scoring (type-prior preservation & L1-normalized dynamic multipliers) → correction-chain suppression → hard cutoff → MMR → normalization. fuse(): RRF scoring → correction-chain suppression → MMR → deterministic normalization with hit attribution. | ✅    |
+| retriever_scoring.py     | Core     | Per-candidate scoring mixed into `MemoryRetriever`: geometric signal fusion plus keyword, temporal and pattern boosts. | ✅    |
 | session.py               | Core     | Conversation-level memory buffer. Buffers memory writes during a session and batch-flushes; refuses scan-blocked content when it is added (`MemoryTaintedError`) | ✅    |
 | session_post_process.py  | Core     | Unified post-session task runner (memory consolidation + proactive extraction). | ✅ |
 | signals.py               | Core     | Context signal calculator for memory retrieval scoring. Provides normalized [0,1] factors                     | ✅    |
@@ -76,17 +78,12 @@ Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 | git_okf/ | Git-native loader for Google OKF v0.2 knowledge bundles. See [git_okf/_ARCH.md](git_okf/_ARCH.md). |
 | hybrid_engine/ | Orchestrates zero-config SQLite FTS5, offline synonym expansion,. See [hybrid_engine/_ARCH.md](hybrid_engine/_ARCH.md). |
 | ephemeral_delta/ | In-memory, session-scoped transient buffer for prompt-cache-preserving deltas. See [ephemeral_delta/_ARCH.md](ephemeral_delta/_ARCH.md). |
-| experience_observability/ | Zero-refactor host lifecycle plugin adapter. See [experience_observability/_ARCH.md](experience_observability/_ARCH.md). |
-| failure_retrieval/ | Error fingerprint extractor for failure-triggered session retrieval. See [failure_retrieval/_ARCH.md](failure_retrieval/_ARCH.md). |
 | markdown_curator/ | Calculates bi-directional deltas between in-memory stores and Markdown mirrors. See [markdown_curator/_ARCH.md](markdown_curator/_ARCH.md). |
 | peer_cognition/ | Self-evolving standing persona card engine and low-token context projector. See [peer_cognition/_ARCH.md](peer_cognition/_ARCH.md). |
-| procedure_experience/ | Fixed-count dual-node retriever for procedure-shaped experience memories. See [procedure_experience/_ARCH.md](procedure_experience/_ARCH.md). |
 | relational_backtrack/ | Core backtracking engine for cross-session entity and temporal causal recall. See [relational_backtrack/_ARCH.md](relational_backtrack/_ARCH.md). |
 | rule_cascade/ | Hierarchical deterministic rule cascade loader inspired by Claude Code. See [rule_cascade/_ARCH.md](rule_cascade/_ARCH.md). |
 | two_layer_dialectic/ | Dual-layer context injection engine preserving LLM Prompt Cache while resolving contradictions. See [two_layer_dialectic/_ARCH.md](two_layer_dialectic/_ARCH.md). |
-| graph_reorganization/ | Graph Memory Reorganization and Lineage Traceability Suite: synthesizes multi-relational edges and maintains immutable lineage DAG preventing amnesia. See [graph_reorganization/_ARCH.md](graph_reorganization/_ARCH.md). |
 | quadruple_retrieval/ | Goal-Driven Quadruple Parallel Retrieval and Reasoner Suite: deconstructs task goals, recalls via Graph/Vector/Lexical/Metadata channels, and reranks via Reasoner. See [quadruple_retrieval/_ARCH.md](quadruple_retrieval/_ARCH.md). |
-| live_correction/ | Natural Language Memory Feedback and Live Correction Suite: detects conversational corrections, localizes conflicts, executes atomic mutations, and generates receipts. See [live_correction/_ARCH.md](live_correction/_ARCH.md). |
 | chunking/ | Incremental Sliding Window Markdown Chunker Suite: semantic sliding window with 80-token overlap, content-hash incremental diffing, and line-level pointers. See [chunking/_ARCH.md](chunking/_ARCH.md). |
 | pitfall_alert/ | Proactive Past-Pitfall Alert and Decision Assist Suite: deterministic shadow intent recognizer, causal triad retrieval, session mute governance, and non-intrusive alert callouts. See [pitfall_alert/_ARCH.md](pitfall_alert/_ARCH.md). |
 | experience_compounding/ | Experience Compounding and Knowledge Condensation Suite: bounded logarithmic frequency compounding, semantic Golden Rule synthesis with lineage preservation, and obsolete context annealing governor. See [experience_compounding/_ARCH.md](experience_compounding/_ARCH.md). |

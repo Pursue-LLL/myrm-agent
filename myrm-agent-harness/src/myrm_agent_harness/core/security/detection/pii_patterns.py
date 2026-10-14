@@ -1,27 +1,32 @@
 """PII pattern tables and validators — what the built-in detectors look for, and how a hit is confirmed.
 
 The classifier decides what a text is, the redactor masks it and the pseudonymizer replaces it; all three read these
-tables, so a value that is detected is a value that is masked.
+tables, so a value that is detected is a value that is masked. Passwords, credentials and the card numbers a card
+keyword introduces are not pattern-table entries: they are found by span (password_heuristic, leak_detector,
+card_context).
 
 All patterns are pre-compiled module-level constants; the validators are pure functions.
 
 [INPUT]
-- (none: standard library only)
+- core.security.detection.iban::IBAN_RE, iban_valid, inside_iban (POS: IBAN detection for the PII pattern tables. The lengths are those of the SWIFT IBAN registry (89 countries). Typed with hyphens or other separators, an IBAN is not matched.)
 
 [OUTPUT]
-- S3_PATTERNS / S2_PATTERNS: (name, pattern) tables of the confidential and sensitive built-in detectors
+- S3_PATTERNS / S2_PATTERNS: (name, pattern) tables of the confidential and sensitive built-in regex detectors
 - the individual patterns (CHINA_ID_RE, BANK_CARD_RE, CHINA_PHONE_RE, ...), which the redactor pairs with its masks
-- luhn_valid(), china_id_valid(): the checksums a bank card and an identity number must pass
+- is_confirmed(): whether a pattern match is a real hit: it survives the checksum its type calls for (identity number, bank card, IBAN) and a card number is not part of an IBAN
+- bank_card_valid(), luhn_valid(), china_id_valid(): the checksums themselves
 - is_placeholder(): whether a value is an obvious example ("test", "user@example.com") rather than real data
 
 [POS]
-Single definition of the built-in PII patterns (bilingual CN/EN) and their validators, so that classification,
-redaction and pseudonymization never disagree about what a hit is.
+Single definition of the built-in PII patterns and their validators: classification, redaction and pseudonymization
+all read it, so they never disagree about what a hit is.
 """
 
 from __future__ import annotations
 
 import re
+
+from myrm_agent_harness.core.security.detection.iban import IBAN_RE, iban_valid, inside_iban
 
 # ---------------------------------------------------------------------------
 # S3 patterns — confidential (identity documents, financial accounts)
@@ -67,7 +72,7 @@ S3_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 # ---------------------------------------------------------------------------
-# S2 patterns — sensitive (personal contact, location)
+# S2 patterns — sensitive (personal contact, location, bank account)
 # ---------------------------------------------------------------------------
 
 # Eleven digits, or typed in groups of 3-4-4 (138 0013 8000, 138-0013-8000). A typed number does not follow a
@@ -121,7 +126,10 @@ CHINA_COURIER_RE = re.compile(
 
 SSN_RE = re.compile(r"(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)")
 
+# An IBAN names an account (money can be sent to it) but, unlike a card number, does not authorise a payment from it,
+# so it is S2. It comes first: typed in groups, its digits also look like a visible card number.
 S2_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("iban", IBAN_RE),
     ("china_phone", CHINA_PHONE_RE),
     ("intl_phone", INTL_PHONE_RE),
     ("us_phone", US_PHONE_RE),
@@ -158,8 +166,8 @@ def is_placeholder(value: str) -> bool:
 
 
 def luhn_valid(digits: str) -> bool:
-    """Validate a digit string against the Luhn algorithm."""
-    if not digits.isdigit() or len(digits) < 13:
+    """Validate a digit string against the Luhn algorithm; anything but decimal digits fails."""
+    if not digits.isdecimal() or len(digits) < 13:
         return False
     total = 0
     for i, ch in enumerate(reversed(digits)):
@@ -170,6 +178,11 @@ def luhn_valid(digits: str) -> bool:
                 n -= 9
         total += n
     return total % 10 == 0
+
+
+def bank_card_valid(value: str) -> bool:
+    """Whether a bank-card match passes the Luhn check, typed with or without the hyphens or spaces between groups."""
+    return luhn_valid(value.replace("-", "").replace(" ", ""))
 
 
 # ---------------------------------------------------------------------------
@@ -185,8 +198,24 @@ def china_id_valid(id_str: str) -> bool:
     if len(id_str) != 18:
         return False
     body = id_str[:17]
-    if not body.isdigit():
+    if not body.isdecimal():
         return False
     total = sum(int(body[i]) * _ID_WEIGHTS[i] for i in range(17))
     expected = _ID_CHECK_CODES[total % 11]
     return id_str[17].upper() == expected
+
+
+def is_confirmed(name: str, match: re.Match[str]) -> bool:
+    """Whether *match* of the pattern *name* is a real hit; a pattern without a rule always is.
+
+    A national ID, a bank card and an IBAN must survive their checksum. A card number that lies within a valid IBAN is
+    a run of the account number, not a card: a few percent of the digit-only IBANs typed in groups read as one.
+    """
+    value = match.group(0)
+    if name == "china_id_card":
+        return china_id_valid(value)
+    if name == "bank_card":
+        return bank_card_valid(value) and not inside_iban(match.string, match.start(), match.end())
+    if name == "iban":
+        return iban_valid(value)
+    return True
