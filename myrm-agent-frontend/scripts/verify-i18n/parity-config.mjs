@@ -1,7 +1,7 @@
 /**
  * [INPUT] i18n-shell-core::loadShellAllowlist (POS: 翻译壳检测共享逻辑)
  *         scripts/i18n-shell-allowlist.json (POS: 壳/双语豁免) + scripts/i18n-glossary.json (POS: 术语禁用表) + scripts/{zh,ja}-simplified-glyphs.txt (POS: 简体独有字形集合)
- * [OUTPUT] isParityExemptKey / loadParityConfig / loadGlyphSet / EN_PURITY_ALLOWED_KEYS / SCRIPT_RESIDUE_ALLOWED_KEYS
+ * [OUTPUT] loadParityConfig / loadGlyphSet / EN_PURITY_ALLOWED_KEYS / SCRIPT_RESIDUE_ALLOWED_KEYS
  * [POS] verify-i18n 全量门禁（验证 9）的配置装载与豁免键：豁免清单、预编译 glossary 与字形集合；任何装载失败都置 hasErrors（fail-safe），不静默放行。
  */
 
@@ -26,11 +26,6 @@ const KOREAN_FORMAL_TERM_KEYS = ['agent.formalKoreanReplies.title', 'agent.forma
 
 /** 非本语言文字残留门禁（ko/de 汉字假名 9g、zh-TW/ja 简体字形 9h/9j）共用的豁免键：en 语言名 + 跨语言术语。 */
 export const SCRIPT_RESIDUE_ALLOWED_KEYS = new Set([...EN_PURITY_ALLOWED_KEYS, ...KOREAN_FORMAL_TERM_KEYS]);
-
-/** 不参与全量对齐的动态示例/个性化闭环键前缀（各语言可自由增减）。 */
-export function isParityExemptKey(key) {
-  return key.startsWith('chat.samplePrompts.agent_pptx') || key.startsWith('chat.personalClosedLoop.');
-}
 
 /**
  * 装载壳检测 allowlist 与 glossary。

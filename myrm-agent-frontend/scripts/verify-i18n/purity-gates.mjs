@@ -1,6 +1,6 @@
 /**
  * [INPUT] i18n-shell-core::resolvePath / isLegitSameValue (POS: 翻译壳检测共享逻辑)
- *         parity-config::EN_PURITY_ALLOWED_KEYS / SCRIPT_RESIDUE_ALLOWED_KEYS / isParityExemptKey (POS: 验证 9 配置装载与豁免键)
+ *         parity-config::EN_PURITY_ALLOWED_KEYS / SCRIPT_RESIDUE_ALLOWED_KEYS (POS: 验证 9 配置装载与豁免键)
  *         value-rules::containsResidue / isEnglishSentenceResidue / *_RE (POS: 纯文本判据)
  *         report::reportKeys (POS: 违规打印)
  * [OUTPUT] verifyEnPurity / verifyForeignScript / verifySimplifiedGlyphs / verifyEnglishSentenceResidue
@@ -8,7 +8,7 @@
  */
 
 import { isLegitSameValue, resolvePath } from '../i18n-shell-core.mjs';
-import { EN_PURITY_ALLOWED_KEYS, SCRIPT_RESIDUE_ALLOWED_KEYS, isParityExemptKey } from './parity-config.mjs';
+import { EN_PURITY_ALLOWED_KEYS, SCRIPT_RESIDUE_ALLOWED_KEYS } from './parity-config.mjs';
 import { reportKeys } from './report.mjs';
 import {
   FOREIGN_SCRIPT_DE_RE,
@@ -18,12 +18,12 @@ import {
   isEnglishSentenceResidue,
 } from './value-rules.mjs';
 
-/** 在 en 叶子键中收集 `lang` 的值含 `residueRe` 的键（动态示例键与 `isAllowed` 命中的键除外）。 */
+/** 在 en 叶子键中收集 `lang` 的值含 `residueRe` 的键（`isAllowed` 命中的键除外）。 */
 function collectResidueKeys(ctx, lang, enLeaves, residueRe, isAllowed) {
   const localeData = ctx.translations[lang];
   const errors = [];
   for (const key of enLeaves) {
-    if (isParityExemptKey(key) || isAllowed(key)) {
+    if (isAllowed(key)) {
       continue;
     }
     if (containsResidue(resolvePath(localeData, key), residueRe)) {
@@ -117,7 +117,7 @@ export function verifyEnglishSentenceResidue(ctx, config, lang, enLeaves) {
   };
 
   for (const key of enLeaves) {
-    if (isParityExemptKey(key) || shellAllowlists.allowedSameKeys.has(key)) {
+    if (shellAllowlists.allowedSameKeys.has(key)) {
       continue;
     }
     const enValue = resolvePath(ctx.translations.en, key);

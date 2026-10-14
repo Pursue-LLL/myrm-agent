@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createContext } from '../verify-i18n/context.mjs';
 import { verifyKanbanClosure } from '../verify-i18n/namespace-keys.mjs';
-import { isParityExemptKey } from '../verify-i18n/parity-config.mjs';
 import {
   FOREIGN_SCRIPT_DE_RE,
   FOREIGN_SCRIPT_RE,
@@ -70,14 +69,6 @@ describe('isEnglishSentenceResidue', () => {
     for (const value of ['App ID', 'Bot Token', 'Client Secret', 'Alibaba Cloud', 'Token', 'Cancel', 'Done.']) {
       expect(isEnglishSentenceResidue(value)).toBe(false);
     }
-  });
-});
-
-describe('isParityExemptKey', () => {
-  it('exempts only the dynamic sample-prompt and closed-loop prefixes', () => {
-    expect(isParityExemptKey('chat.samplePrompts.agent_pptx.title')).toBe(true);
-    expect(isParityExemptKey('chat.personalClosedLoop.hint')).toBe(true);
-    expect(isParityExemptKey('chat.samplePrompts.agent_search.title')).toBe(false);
   });
 });
 

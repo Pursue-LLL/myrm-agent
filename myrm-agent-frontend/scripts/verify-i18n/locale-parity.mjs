@@ -1,7 +1,7 @@
 /**
  * [INPUT] i18n-shell-core::collectTranslationShells / resolvePath / walkTypes (POS: 翻译壳检测共享逻辑)
  *         context::LANGUAGES (POS: 共享上下文与支持语言)
- *         parity-config::loadParityConfig / loadGlyphSet / isParityExemptKey (POS: 验证 9 配置装载与豁免键)
+ *         parity-config::loadParityConfig / loadGlyphSet (POS: 验证 9 配置装载与豁免键)
  *         purity-gates::verify* (POS: 语言纯净门禁 9f-9k)
  *         value-rules::isBilingualDirty / placeholderSet (POS: 纯文本判据)
  *         report::reportKeys / reportShells (POS: 违规打印)
@@ -13,7 +13,7 @@
 
 import { collectTranslationShells, resolvePath, walkTypes } from '../i18n-shell-core.mjs';
 import { LANGUAGES } from './context.mjs';
-import { isParityExemptKey, loadGlyphSet, loadParityConfig } from './parity-config.mjs';
+import { loadGlyphSet, loadParityConfig } from './parity-config.mjs';
 import {
   verifyEnPurity,
   verifyEnglishSentenceResidue,
@@ -85,9 +85,6 @@ function collectValueErrors(config, lang, localeData, enData, enLeaves) {
   };
 
   for (const key of enLeaves) {
-    if (isParityExemptKey(key)) {
-      continue;
-    }
     const enValue = resolvePath(enData, key);
     const localeValue = resolvePath(localeData, key);
     if (enValue === undefined || localeValue === undefined) {
@@ -109,7 +106,7 @@ function verifyOneLocale(ctx, config, lang, enTypes, enLeaves, simplifiedGlyphGa
   walkTypes(data, '', localeTypes);
 
   // 9a. key parity (en vs zh baseline SSOT)
-  const missing = enLeaves.filter((key) => !localeTypes.has(key) && !isParityExemptKey(key));
+  const missing = enLeaves.filter((key) => !localeTypes.has(key));
   if (missing.length > 0) {
     console.error(`  ❌ ${lang}.json 缺少 ${missing.length} 个 en 键：`);
     missing.slice(0, 15).forEach((key) => console.error(`     - ${key}`));
@@ -129,9 +126,6 @@ function verifyOneLocale(ctx, config, lang, enTypes, enLeaves, simplifiedGlyphGa
   // 9c. 类型一致
   const typeMismatches = [];
   for (const [key, enType] of enTypes) {
-    if (isParityExemptKey(key)) {
-      continue;
-    }
     if (!localeTypes.has(key)) {
       continue;
     }
@@ -147,9 +141,10 @@ function verifyOneLocale(ctx, config, lang, enTypes, enLeaves, simplifiedGlyphGa
 
   // 9d. 占位符一致 + glossary forbidden + 双语对照 + 哨兵（壳检测见 collectTranslationShells）
   const valueErrors = collectValueErrors(config, lang, data, enData, enLeaves);
-  const shellErrors = collectTranslationShells(enData, data, config.shellAllowlists)
-    .filter(({ key }) => !isParityExemptKey(key))
-    .map(({ key, en }) => ({ path: key, value: en }));
+  const shellErrors = collectTranslationShells(enData, data, config.shellAllowlists).map(({ key, en }) => ({
+    path: key,
+    value: en,
+  }));
   reportShells(ctx, lang, shellErrors);
   const valueReports = [
     [valueErrors.glossary, '个 glossary forbidden 违规'],
