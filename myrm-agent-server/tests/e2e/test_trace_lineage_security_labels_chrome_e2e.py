@@ -408,7 +408,7 @@ async def _run_session(chat: McpChatSession, ledger: E2EResourceLedger) -> tuple
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
     workload="LIVE",
-    private_reason="exclusive_backend",
+    private_reason="live_shpoib",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

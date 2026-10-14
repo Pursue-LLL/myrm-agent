@@ -231,8 +231,8 @@ def _await_memory_write_ledger(api_url: str, chat_id: str, *, timeout_sec: float
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
-    workload="STANDARD",
-    private_reason="exclusive_backend",
+    workload="LIVE",
+    private_reason="live_shpoib",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -280,8 +280,8 @@ _RECALL_PROMPT_CJK = "我家的猫叫什么名字?它最爱吃什么零食?"
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
-    workload="STANDARD",
-    private_reason="exclusive_backend",
+    workload="LIVE",
+    private_reason="live_shpoib",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
