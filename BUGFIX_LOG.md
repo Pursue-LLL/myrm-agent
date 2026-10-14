@@ -2708,3 +2708,60 @@ except Exception:
 2. 模型生成的文本进入 YAML、SQL、shell 等语法载体前一律当数据转义，JSON 字符串是 YAML 双引号标量的安全子集，不必自己写转义表；
 3. 迁移代码时 pyright 能抓到测试没覆盖的调用点（补丁批准路径的 `_persist_approved_draft_eval_cases` 签名变更），改签名后要对整个文件跑类型检查；
 4. 共享工作区里测试夹具按模块路径打补丁（`get_session`）：函数迁到新模块后，夹具要同步补丁新模块，否则会直连真实库。
+
+---
+
+## BUG-AGENT-2026-10-14-027: 每次创建默认向量库都会删掉嵌入式 Qdrant 的锁文件，第二个进程能打开同一个数据目录并各写各的；回退到临时记忆后界面只变色、不说怎么办；清库的 FTS5 optimize 失败被吞掉；`chat_crud.py` 565 行
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（两个进程指向同一数据目录时会丢记忆集合；单进程使用不受影响） |
+| 影响范围 | server：`app/core/retriever/vector/defaults.py`、`scripts/cleanup_qdrant_locks.py`（删除）、`app/services/chat/{chat_crud,chat_deletion,chat_channel,chat_service}.py`、`app/services/system/vault_purge_service.py`；frontend：`MemoryCommandCenterPanels.tsx`、6 个 locale |
+| 出现次数 | 1（复审会话拆除与记忆回退链路时逐条验证发现；两进程场景用真实嵌入式 Qdrant 复现，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-14-020` / `-025`（会话拆除）；本地提交，未 push |
+
+### 现象
+
+1. `create_default_vector_store()` 每次调用都先动态导入 `scripts/cleanup_qdrant_locks.py` 并删掉数据目录里的 `.lock`。嵌入式 Qdrant 靠这把操作系统文件锁保证只有一个写入者；锁文件被删后，第二个进程能打开同一个目录。用真实嵌入式 Qdrant 复现：删锁后第二个客户端打开成功，两个写入者各自的内存视图看不到对方的写入，`meta.json` 以最后写入者为准，其中一个进程创建的集合丢失。
+2. 不删锁时，第二个进程会被拒绝并回落到内存模式（harness 的 `create_embedded_store`），记忆指挥中心的「向量存储持久化」行会变琥珀色，但只有颜色，没有说原因，也没有说用户能做什么。
+3. 清库在 FTS5 重建之后的 optimize 步骤是裸 `except: pass`，同级的删除、重建两步失败都会记 warning。
+4. `chat_crud.py` 565 行，超过 500 行硬线，同时装着 CRUD、会话 flush、置顶、整套回收站生命周期和渠道聊天解析。
+
+### 根因
+
+1. 清理脚本是为「崩溃后遗留的锁」写的，但这把锁由持有进程握着，进程退出（含 SIGKILL）时由操作系统释放，遗留的锁文件挡不住下一次打开：实测 SIGKILL 持有者后再次打开成功（现为回归测试）。清理从来不需要，反而绕过了唯一的并发保护。
+2. 回落状态只做了状态位和变色，没有面向用户的下一步。
+3. 写 optimize 时顺手带过。
+4. 文件按功能逐项累积，没有在越过行数线时拆分。
+
+### 修复
+
+1. 删除 `defaults.py` 里的清理块、脚本与它的测试；锁被占用时走已有的内存回落，由记忆指挥中心报告。
+2. 记忆指挥中心只在 `memory_fallback` 时于该行下显示一句提示（6 种语言，不含技术词）：可能有另一个 Myrm 窗口或程序占着同一个数据文件夹，或文件夹不可写，处理后重启。
+3. optimize 失败改为 warning，并写明它为什么不致命（重建后的索引不依赖它）。
+4. 回收站生命周期与渠道聊天解析原样迁到 `chat_deletion.py`（171 行）与 `chat_channel.py`（82 行），`ChatService` 组合；`chat_crud.py` 371 行并移出行数基线；`test_external_agent_pool_on_chat_delete.py` 的补丁目标跟随；文档里「由 chat_crud 调用」的三处改为真实调用方 `chat_disposal`。
+
+### 验证
+
+1. 新增 `tests/core/retriever/vector/test_defaults.py` 2 例：存活的客户端持锁时 `create_default_vector_store()` 返回非持久存储、`.lock` 仍在、第二个原生客户端被拒；子进程持锁后被 kill，下一次打开是持久存储。变异：恢复旧的删锁行为，第一例失败。
+2. 清库 optimize 用游标钩子让 optimize 失败：清库仍成功、三个索引全空、每个索引各一条 warning（`test_safe_vault_purge_service.py` 现 11 例通过）。
+3. 服务端 chat、channel_bridge、api/chats、system、health、retriever 等相关目录 1444 通过、1 失败：`test_context_pins_branches_api.py` 读 harness 的 `PERSISTENT_ROOT`，harness 提交 `a7b579dfc` 已改成用时读取，server 夹具过期，与本条无关。`test_aux_llm_privacy.py` 5 通过、4 失败（手机号没被脱敏）：harness `chat_model/sync_mixin.py` 有他人未提交的改动，本条没动这条路径。architecture 测试 475 通过、8 失败，全部指向他人未提交的内容（`services/workflow` 缺 `__init__.py` 与 `_ARCH.md`、`remote_access` 域、harness 深层导入基线）；fractal 文档与行数检查只报他人的文件。
+4. 前端 vitest 12 例通过（命令中心面板与清库条各一个文件），`verify-i18n` 通过，`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；触及文件的 ruff、prettier、oxlint 无问题。
+
+### 局限
+
+1. 没有在真实浏览器里看过提示在深浅主题与 375px 宽度下的样子：它是一行 `text-xs` 文本，沿用同一面板已有的琥珀色类，未验证。
+2. 没有用两个真实的 Myrm 进程端到端复现；复现用的是两个直接打开同一目录的嵌入式 Qdrant 客户端，回归测试用的是持锁客户端与被 kill 的子进程。桌面打包是否带了 `scripts/` 没验证，但全仓库已没有 `cleanup_qdrant_locks` 的引用。
+3. 回落到内存后，重启前写入的记忆不会落盘；本条只加了提示，没有改回落策略。
+4. 永久删除与「安全清空」对后台运行的任务没有拦截：`vault_purge_service.py` 只看 `get_agent_gateway().active_session_ids()`。所需的 `run_activity.py` 是他人未提交的工作，本条没有引用它；它提交后需要在 `purge_vault` 入口与永久删除路径补同一检查。
+5. `cleared_sandboxes` 保留：它是 `ChatFilesRemoval.removed_worktrees` 唯一的生产读取方，界面虽不读它；去掉它会让 `removed_worktrees` 变成没有读取方的字段，要连带改拆除函数的返回类型，收益低于风险。
+6. 未改动任何提示词。
+
+### 踩坑经验
+
+1. 写「清理残留」之前先问清楚：被清理的东西是不是同时承担保护作用；这里锁文件本身就是并发保护。
+2. 回落提示要写用户能做的事（关掉另一个窗口、检查文件夹可写、重启），不要写技术名词。
+3. 拆分 mixin 后，文档里「由某文件调用」要改成真实调用方，而不是跟着文件名走。
+4. 测试夹具按模块路径打补丁：方法迁到新模块后，补丁路径要同步，否则补丁打在旧模块上不报错、却不生效。
