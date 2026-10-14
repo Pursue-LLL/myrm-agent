@@ -17403,7 +17403,7 @@
         "hollowBlockedBadge": "Hohltest blockiert",
         "targetLayer": "Schicht: {layer}",
         "targetPathology": "Pathologie: {pathology}",
-        "verificationProofTitle": "Sandbox-Kapsel-Verifizierungsnachweis",
+        "verificationProofTitle": "Prüfprotokoll",
         "blastRadius": "Auswirkungsbereich: {files} Datei(en), {lines} Zeile(n)",
         "noVerificationProof": "Kein Sandbox-Verifizierungsnachweis verfügbar",
         "impactedDependents": {

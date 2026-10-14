@@ -18080,7 +18080,7 @@
         "hollowBlockedBadge": "Hollow Test Blocked",
         "targetLayer": "Layer: {layer}",
         "targetPathology": "Pathology: {pathology}",
-        "verificationProofTitle": "Verified Capsule Proof",
+        "verificationProofTitle": "Verification record",
         "blastRadius": "Blast Radius: {files} file(s), {lines} line(s)",
         "noVerificationProof": "No sandbox verification proof available",
         "impactedDependents": {

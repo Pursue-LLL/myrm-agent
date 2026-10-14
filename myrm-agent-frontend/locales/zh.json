@@ -18080,7 +18080,7 @@
         "hollowBlockedBadge": "空洞测试已拦截",
         "targetLayer": "架构层：{layer}",
         "targetPathology": "病理特征：{pathology}",
-        "verificationProofTitle": "沙箱胶囊验证凭证 (Verified Capsule Proof)",
+        "verificationProofTitle": "验证记录",
         "blastRadius": "影响范围: {files} 文件, {lines} 行",
         "noVerificationProof": "暂无沙箱实测验证凭证",
         "impactedDependents": {

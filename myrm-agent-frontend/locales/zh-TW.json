@@ -17403,7 +17403,7 @@
         "hollowBlockedBadge": "空洞測試已攔截",
         "targetLayer": "架構層：{layer}",
         "targetPathology": "病理特徵：{pathology}",
-        "verificationProofTitle": "沙箱膠囊驗證憑證 (Verified Capsule Proof)",
+        "verificationProofTitle": "驗證記錄",
         "blastRadius": "影響範圍: {files} 檔案, {lines} 行",
         "noVerificationProof": "暫無沙箱實測驗證憑證",
         "impactedDependents": {

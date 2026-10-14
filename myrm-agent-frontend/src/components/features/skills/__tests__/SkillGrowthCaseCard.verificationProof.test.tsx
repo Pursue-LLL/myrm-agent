@@ -1,5 +1,5 @@
 /**
- * Regression tests for SkillGrowthCaseCard Verified Badge and Capsule Proof rendering.
+ * Regression tests for SkillGrowthCaseCard verification record rendering and the view-mode split of developer diagnostics.
  */
 /** @vitest-environment jsdom */
 
@@ -14,7 +14,9 @@ import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
 const TRANSLATIONS: Record<string, string> = {
   'settings.skills.growth.verifiedBadge': 'Verified',
   'settings.skills.growth.hollowBlockedBadge': 'Hollow Test Blocked',
-  'settings.skills.growth.verificationProofTitle': 'Verified Capsule Proof',
+  'settings.skills.growth.verificationProofTitle': 'Verification record',
+  'settings.skills.growth.targetLayer': 'Layer',
+  'settings.skills.growth.targetPathology': 'Pathology',
   'settings.skills.growth.source.backgroundReview': 'Background Review',
   'settings.skills.growth.status.PENDING_REVIEW': 'Pending Review',
 };
@@ -86,8 +88,8 @@ function makeItem(overrides: Partial<SkillGrowthCaseSummary>): SkillGrowthCaseSu
   };
 }
 
-describe('SkillGrowthCaseCard Verified Capsule Proof', () => {
-  it('renders verified badge and capsule proof details when is_verified is true', () => {
+describe('SkillGrowthCaseCard verification record', () => {
+  it('renders verified badge and verification record details when is_verified is true', () => {
     const item = makeItem({
       verificationProof: {
         is_verified: true,
@@ -108,7 +110,7 @@ describe('SkillGrowthCaseCard Verified Capsule Proof', () => {
     );
 
     expect(screen.getByText('Verified')).toBeInTheDocument();
-    expect(screen.getByText('Verified Capsule Proof')).toBeInTheDocument();
+    expect(screen.getByText('Verification record')).toBeInTheDocument();
     expect(screen.getByText('Passed AST check and sandbox tests cleanly')).toBeInTheDocument();
     expect(screen.getByText('Blast Radius: 1 file(s), 18 line(s)')).toBeInTheDocument();
   });
@@ -134,5 +136,23 @@ describe('SkillGrowthCaseCard Verified Capsule Proof', () => {
     );
 
     expect(screen.getByText('Hollow Test Blocked')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['simple', false],
+    ['detailed', true],
+  ] as const)('shows layer and pathology diagnostics only in detailed mode (%s)', (viewMode, visible) => {
+    render(
+      <SkillGrowthCaseCard
+        item={makeItem({ targetLayer: 'L2', targetPathology: 'tool_misuse' })}
+        isProcessing={false}
+        viewMode={viewMode}
+        onApprove={async () => {}}
+        onReject={async () => {}}
+      />,
+    );
+
+    expect(screen.queryByText('Layer') !== null).toBe(visible);
+    expect(screen.queryByText('Pathology') !== null).toBe(visible);
   });
 });

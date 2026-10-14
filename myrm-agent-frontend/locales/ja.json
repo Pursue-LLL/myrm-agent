@@ -17403,7 +17403,7 @@
         "hollowBlockedBadge": "空洞テストをブロックしました",
         "targetLayer": "対象層: {layer}",
         "targetPathology": "病理特性: {pathology}",
-        "verificationProofTitle": "サンドボックスカプセル検証証明",
+        "verificationProofTitle": "検証記録",
         "blastRadius": "影響範囲: {files} ファイル, {lines} 行",
         "noVerificationProof": "サンドボックス検証証明はありません",
         "impactedDependents": {
