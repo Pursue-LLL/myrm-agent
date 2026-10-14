@@ -10,7 +10,8 @@ direction — replacing pseudonyms back to originals in both batch and
 streaming modes.
 
 [INPUT]
-- detection results from pii_classifier (PIIClassification)
+- core.security.detection.pii_patterns::S2_PATTERNS, S3_PATTERNS, china_id_valid, is_placeholder, luhn_valid (POS: Single definition of the built-in PII patterns and their validators.)
+- core.security.detection.card_context::find_card_number_spans (POS: Keyword-anchored detector for card numbers outside the network prefix table or with a typo in them.)
 - core.security.detection.custom_rules::CustomRules, NO_CUSTOM_RULES, find_custom_spans (POS: Single definition of custom-term matching for the privacy policy: the PII classifier, the redactor and the pseudonymizer share it, so detection and masking never disagree about what a user's keyword or pattern covers.)
 - core.security.detection.password_heuristic::find_password_spans (POS: last-resort keyword-anchored detector for passwords without vendor prefix or entropy.)
 - PseudonymStore for persistent mapping
@@ -29,6 +30,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from myrm_agent_harness.core.security.detection.card_context import find_card_number_spans
 from myrm_agent_harness.core.security.detection.custom_rules import (
     NO_CUSTOM_RULES,
     CustomRules,
@@ -36,6 +38,13 @@ from myrm_agent_harness.core.security.detection.custom_rules import (
     find_custom_spans,
 )
 from myrm_agent_harness.core.security.detection.password_heuristic import find_password_spans
+from myrm_agent_harness.core.security.detection.pii_patterns import (
+    S2_PATTERNS,
+    S3_PATTERNS,
+    china_id_valid,
+    is_placeholder,
+    luhn_valid,
+)
 from myrm_agent_harness.core.security.detection.pseudonym_store import (
     PseudonymStore,
 )
@@ -49,6 +58,7 @@ _PATTERN_TO_TYPE: dict[str, str] = {
     # S2 patterns
     "china_phone": "PHONE_NUMBER",
     "intl_phone": "PHONE_NUMBER",
+    "us_phone": "PHONE_NUMBER",
     "email": "EMAIL_ADDRESS",
     "credit_card_visible": "CREDIT_CARD",
     "private_ip": "PRIVATE_IP",
@@ -90,22 +100,14 @@ def _extract_pii_items(
     S2 scans S2 patterns. This ensures pseudonymize_text respects the
     per-level action configured in PrivacyPolicy.
     """
-    from myrm_agent_harness.core.security.detection.pii_classifier import (
-        _PLACEHOLDER_RE,
-        _S2_PATTERNS,
-        _S3_PATTERNS,
-        _china_id_valid,
-        _luhn_valid,
-    )
-
     items: list[PIIItem] = []
     seen_spans: set[tuple[int, int]] = set()
-    s3_names = frozenset(name for name, _ in _S3_PATTERNS)
+    s3_names = frozenset(name for name, _ in S3_PATTERNS)
 
     if level == SensitivityLevel.S3:
-        target_patterns = list(_S3_PATTERNS)
+        target_patterns = list(S3_PATTERNS)
     elif level == SensitivityLevel.S2:
-        target_patterns = list(_S2_PATTERNS)
+        target_patterns = list(S2_PATTERNS)
     else:
         return items
 
@@ -115,11 +117,11 @@ def _extract_pii_items(
             if span in seen_spans:
                 continue
             val = m.group(0)
-            if _PLACEHOLDER_RE.match(val.strip()):
+            if is_placeholder(val):
                 continue
-            if name == "china_id_card" and not _china_id_valid(val):
+            if name == "china_id_card" and not china_id_valid(val):
                 continue
-            if name == "bank_card" and not _luhn_valid(val.replace("-", "").replace(" ", "")):
+            if name == "bank_card" and not luhn_valid(val.replace("-", "").replace(" ", "")):
                 continue
 
             ptype = _PATTERN_TO_TYPE.get(name, name.upper())
@@ -136,14 +138,16 @@ def _extract_pii_items(
             seen_spans.add(span)
 
     if level == SensitivityLevel.S3:
+        # A card the prefix table already found is the same number (it may span more digits than the keyword-anchored
+        # shape, as a UnionPay number in five groups does), so any overlap with an item is a duplicate.
+        taken = [(item.start, item.end) for item in items]
         items.extend(
-            PIIItem(
-                original_text=content[start:end],
-                privacy_type="PASSWORD",
-                level=SensitivityLevel.S3,
-                start=start,
-                end=end,
-            )
+            PIIItem(content[start:end], "BANK_CARD", SensitivityLevel.S3, start, end)
+            for start, end in find_card_number_spans(content)
+            if not any(start < taken_end and taken_start < end for taken_start, taken_end in taken)
+        )
+        items.extend(
+            PIIItem(content[start:end], "PASSWORD", SensitivityLevel.S3, start, end)
             for start, end in find_password_spans(content, strict=False)
             if (start, end) not in seen_spans
         )
