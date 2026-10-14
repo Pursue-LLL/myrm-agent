@@ -1519,7 +1519,7 @@ except Exception:
 
 ### 验证
 
-1. 真实 Chrome（patchright 驱动的无头 Chromium，触屏用 `has_touch + is_mobile` 模拟）：用项目的 `@tailwindcss/postcss` 编译真实 `globals.css`，确认 8 个相关类（含 `obj` / `dep` / `att` / `img` 命名组变体）都由源码生成；隔离页面里用从 `a11y.ts` 读出的常量原文：桌面 1280 鼠标默认 opacity 0、悬停 1、移开 0，Tab 聚焦 1、失焦 0，命名组同样；触屏平板 1024×768、横屏手机 844×390、竖屏手机 390×844 默认都是 1（`pointer: coarse` 为真）；对照组 `opacity-100 sm:opacity-0 sm:group-hover:opacity-100`（旧写法的代表）在平板与横屏手机上为 0，在桌面 1280 上 Tab 聚焦后仍为 0；
+1. 真实 Chrome（patchright 驱动的无头 Chromium，触屏用 `has_touch + is_mobile` 模拟）：用项目的 `@tailwindcss/postcss` 编译真实 `globals.css`，确认 8 个相关类（含 `obj` / `dep` / `att` / `img` 命名组变体）都由源码生成；隔离页面里用从 `a11y.ts` 读出的常量原文：桌面 1280 鼠标默认 opacity 0、悬停 1、移开 0，Tab 聚焦 1、失焦 0，命名组同样；触屏平板 1024×768、横屏手机 844×390、竖屏手机 390×844 默认都是 1（`pointer: coarse` 为真）；对照组 `opacity-100 sm:opacity-0 sm:group-hover:opacity-100`（旧写法的代表）在平板与横屏手机上为 0，在桌面 1280 上 Tab 聚焦后仍为 0；另测 `opacity: 0` 的按钮在桌面鼠标与触屏点按下都照常触发点击，所以此前看不见的控件同样会被误触，这次只改可见性、不改点击行为；
 2. 测试：`vitest related` 覆盖改动文件 87 个文件 765 例通过（工作区）；`scripts/__tests__` 6 个文件 57 例通过；
 3. 静态：oxlint 对 41 个 S2 文件与新增脚本 0 error、9 条既有 warning（`no-img-element` 等）；prettier 对新增与改写的文件无差异；`tsc` 仅余他人未提交测试里的一处无关报错（`kanban/__tests__/KanbanTaskHandoffSection.test.tsx(68,3)`）；本地行数自检报告的 24 个新增超限文件里没有我改的文件；我改的文件中有 18 个本就超过 400 行（在既有基线内），每个净增不超过 7 行（`LocalPathsConfig.tsx`）；
 4. S4：基线取自已提交树（369 个文件、3550 处），扫描 1437 个 TSX 文件用时 5.1–9.3s；在已提交树的导出里加一个含中文与英文属性的合成文件，门禁失败并列出 `文件:行 [kind] 文案`，删除后恢复通过；固定种子抽 30 处人工核对，29 处是真实硬编码文案，1 处（`t('apiKey') || 'API Key'` 的回退值）算误报，精度约 97%（样本里 23 处在 `memory/command-center`，其余目录只有 7 处，召回率没有测）；
@@ -1532,6 +1532,6 @@ except Exception:
 3. 棘轮基线必须取自已提交树：工作区比 HEAD 多出他人未提交的新文件，直接写基线得到 522 个文件、5550 处，而已提交树是 369 个、3550 处；
 4. jsdom 里 `localizeReactNode` 只渲染「中文 / English」的一侧，`title="复制 / Copy"` 在测试里是 `Copy`，查询要用后者；
 5. 共享工作区提交：用独立索引 + `git apply --cached --unidiff-zero` 只应用我的 hunk，`ArtifactCard`、`GoalStatusExpanded`、`lib/utils/_ARCH.md` 三个文件混有他人改动，按关键字过滤 hunk，提交后用「提交内容里没有他人符号」和「工作区残差只剩他们的行数」核对；
-6. 局限：没有在真实聊天页验证（后端 :8000 未启动，浏览器 MCP 也拒绝应用地址），只验证了编译后的常量在隔离页面里的行为，触屏是模拟不是真机；触屏设备现在总是显示这些控件（设计变更，例如 iPad 上的侧栏行）；窄桌面窗口用鼠标时，原先 `isMobile` / `sm:` 分支下常显的控件现在改为悬停或聚焦显现；扫描器只覆盖直接写在 JSX 里的字面量，不含对象 / 数组常量再渲染的文案、`toast` / `Error` 消息和 `.ts` 文件，存量只是冻结没有清零；实测已提交树的 `.tsx` 里含 CJK 的字符串字面量共 1431 处，扫描器覆盖约 683 处（47.7%，按行号与文案前缀匹配的近似值），其余 748 处（126 个文件，437 处在对象属性值、132 处在调用参数、73 处在 JSX 之外的三元、61 处在数组）不在门禁范围内，把文案挪进这些位置会让门禁「变绿」而问题仍在（古德哈特风险），后续要扩大覆盖面需要先重新抽样核对精度；本地工作区里他人未提交的新文件会被新门禁拦下（新文件基线为 0），需要他们提交前处理；`check-a11y-ratchet.mjs` 自带的目录遍历没有并入共享的 `source-files.mjs`；`specialty-suites-gateway` 缺 `_ARCH.md`（他人未提交）使 `check_fractal_docs.py` 在工作区失败。
+6. 局限：没有在真实聊天页验证（后端 :8000 未启动，浏览器 MCP 也拒绝应用地址），只验证了编译后的常量在隔离页面里的行为，触屏是模拟不是真机；触屏设备现在总是显示这些控件（设计变更，例如 iPad 上的侧栏行），其中带破坏性的几个（`MemoryTrashPanel` 的永久清除、`AgentFaqTab` 删除、`LocalPathsConfig` / `ProviderList` 移除等）是否都有二次确认没有逐个核对；窄桌面窗口用鼠标时，原先 `isMobile` / `sm:` 分支下常显的控件现在改为悬停或聚焦显现；扫描器只覆盖直接写在 JSX 里的字面量，不含对象 / 数组常量再渲染的文案、`toast` / `Error` 消息和 `.ts` 文件，存量只是冻结没有清零；实测已提交树的 `.tsx` 里含 CJK 的字符串字面量共 1431 处，扫描器覆盖约 683 处（47.7%，按行号与文案前缀匹配的近似值），其余 748 处（126 个文件，437 处在对象属性值、132 处在调用参数、73 处在 JSX 之外的三元、61 处在数组）不在门禁范围内，把文案挪进这些位置会让门禁「变绿」而问题仍在（古德哈特风险），后续要扩大覆盖面需要先重新抽样核对精度；本地工作区里他人未提交的新文件会被新门禁拦下（新文件基线为 0），需要他们提交前处理；`check-a11y-ratchet.mjs` 自带的目录遍历没有并入共享的 `source-files.mjs`；`specialty-suites-gateway` 缺 `_ARCH.md`（他人未提交）使 `check_fractal_docs.py` 在工作区失败。
 
 ---
