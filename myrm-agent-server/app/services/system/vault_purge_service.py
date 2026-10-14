@@ -3,6 +3,7 @@
 [INPUT]
 - app.database.connection::get_database_engine, get_session_factory
 - myrm_agent_harness.api::safe_purge_fts5_virtual_table
+- myrm_agent_harness.runtime.context.session.session_continuity::sync_checkpoint_messages
 - app.services.chat.sandbox_worktree::cleanup_sandbox_worktree
 - app.platform_utils::get_checkpointer
 
@@ -12,8 +13,9 @@
 
 [POS]
 System-level safe vault purge orchestrator. Executes reverse-dependency physical wipes of
-conversation corpora, FTS5 shadow indexes, and consumer cursors while strictly safeguarding
-user configuration (API Keys, providers, custom agents, and channel pairing identities).
+conversation corpora, their LangGraph checkpoint threads, FTS5 shadow indexes, and consumer
+cursors while strictly safeguarding user configuration (API Keys, providers, custom agents,
+and channel pairing identities).
 """
 
 from __future__ import annotations
@@ -23,6 +25,10 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from myrm_agent_harness.runtime.context.session.session_continuity import (
+    ContinuitySyncError,
+    sync_checkpoint_messages,
+)
 from sqlalchemy import text
 
 from app.database.connection import get_database_engine
@@ -50,7 +56,6 @@ class SafeVaultPurgeResult:
     preserved_api_keys: int = 0
     preserved_user_configs: int = 0
     preserved_channel_pairings: int = 0
-    freed_disk_bytes: int = 0
     duration_ms: float = 0.0
     error: str | None = None
 
@@ -63,6 +68,13 @@ class SafeVaultPurgeService:
         "conversation_recall_segments_fts",
         "conversation_recall_fts",
         "messages_fts",
+    )
+
+    # Memory pipeline queues and event log emptied together with the conversations they were derived from
+    MEMORY_PIPELINE_TABLES: tuple[str, ...] = (
+        "pending_memories",
+        "memory_extract_retries",
+        "memory_operation_events",
     )
 
     @classmethod
@@ -78,10 +90,12 @@ class SafeVaultPurgeService:
         Order of operations (strict inverse topology):
         1. Acquire PurgeLock to block concurrent pipeline writers.
         2. Clean FTS5 shadow structures before source rows are touched.
-        3. Delete conversation recall, chat messages, and channel messages in one transaction.
-        4. Reset sqlite_sequence counters and clear consumer cursors in same transaction.
-        5. Clean LangGraph checkpoint threads and sandbox worktrees.
-        6. Clean ephemeral memory events / Qdrant points (preserving user config/agents).
+        3. Drop the LangGraph checkpoint threads of every chat while the chat rows still exist,
+           so an interrupted purge never strands checkpoints whose chat can no longer be listed.
+        4. Delete conversation recall, chat messages, and channel messages in one transaction.
+        5. In the same transaction, empty the memory pipeline tables (when ``purge_memories``)
+           and reset sqlite_sequence counters / consumer cursors.
+        6. Clean sandbox worktrees.
         7. Run PRAGMA incremental_vacuum and optimize to reclaim physical disk space.
         """
         async with _PURGE_LOCK:
@@ -135,14 +149,17 @@ class SafeVaultPurgeService:
                                 pass
                             result.fts_tables_purged.append(fts_tbl)
 
-                # Collect sandbox directories before deleting chats
+                # Collect chat ids and sandbox directories before deleting chats
+                chat_ids: list[str] = []
                 sandbox_dirs: list[tuple[str, str]] = []
                 if "chats" in existing_tables:
                     async with engine.connect() as conn:
-                        rows = (
-                            await conn.execute(text("SELECT id, sandbox_base_dir FROM chats WHERE sandbox_base_dir IS NOT NULL"))
-                        ).fetchall()
+                        rows = (await conn.execute(text("SELECT id, sandbox_base_dir FROM chats"))).fetchall()
+                        chat_ids = [r[0] for r in rows]
                         sandbox_dirs = [(r[0], r[1]) for r in rows if r[1]]
+
+                # Phase 2b: Checkpoint threads go while their chats are still listed
+                result.cleared_checkpoints = await cls._clear_checkpoint_threads(chat_ids)
 
                 # Phase 3: Transactional deletion of conversation corpora & cursor reset
                 async with engine.begin() as conn:
@@ -153,9 +170,10 @@ class SafeVaultPurgeService:
                     if "channel_messages" in existing_tables:
                         result.purged_channel_messages = await conn.scalar(text("SELECT COUNT(*) FROM channel_messages")) or 0
 
-                    async def _safe_delete(table_name: str) -> None:
-                        if table_name in existing_tables:
-                            await conn.execute(text(f"DELETE FROM {table_name}"))
+                    async def _safe_delete(table_name: str) -> int:
+                        if table_name not in existing_tables:
+                            return 0
+                        return (await conn.execute(text(f"DELETE FROM {table_name}"))).rowcount
 
                     # 3.1 Delete leaf conversation recall segments and documents
                     await _safe_delete("conversation_recall_segments")
@@ -171,12 +189,10 @@ class SafeVaultPurgeService:
                     await _safe_delete("chats")
                     await _safe_delete("channel_messages")
 
-                    # 3.4 Purge episodic memory items if requested (preserves profile and rules)
+                    # 3.4 Empty the memory pipeline tables if requested (stored memories, profile and rules stay)
                     if purge_memories:
-                        await _safe_delete("pending_memories")
-                        await _safe_delete("memory_extract_retries")
-                        await _safe_delete("memory_operation_events")
-                        result.purged_memory_events = 1
+                        for pipeline_table in cls.MEMORY_PIPELINE_TABLES:
+                            result.purged_memory_events += await _safe_delete(pipeline_table)
 
                     # 3.5 Reset sqlite_sequence for wiped tables to guarantee cursor sync
                     if "sqlite_sequence" in existing_tables:
@@ -193,17 +209,7 @@ class SafeVaultPurgeService:
                                 )
                                 result.cursors_reset.append(tbl)
 
-                # Phase 4: Clean LangGraph checkpointer threads & sandbox worktrees
-                try:
-                    from app.platform_utils import get_checkpointer
-
-                    cp = get_checkpointer()
-                    if hasattr(cp, "adelete_thread"):
-                        # If checkpointer supports thread clearing, notify
-                        result.cleared_checkpoints = 1
-                except Exception as exc:
-                    logger.warning("Checkpointer cleanup non-fatal notice: %s", exc)
-
+                # Phase 4: Clean sandbox worktrees
                 if purge_sandboxes and sandbox_dirs:
                     from app.services.chat.sandbox_worktree import (
                         cleanup_sandbox_worktree,
@@ -242,3 +248,30 @@ class SafeVaultPurgeService:
                 result.error = str(e)
                 result.duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000.0
                 return result
+
+    @staticmethod
+    async def _clear_checkpoint_threads(chat_ids: list[str]) -> int:
+        """Drop every thread alias of each chat; return how many chats were cleared completely.
+
+        A chat whose threads cannot be dropped is reported and skipped. Its checkpoints are
+        derived state: every turn rebuilds the history from the database.
+        """
+        if not chat_ids:
+            return 0
+
+        from app.platform_utils import get_checkpointer
+
+        try:
+            checkpointer = get_checkpointer()
+        except RuntimeError as exc:
+            logger.warning("Checkpointer unavailable, conversation checkpoints were not cleared: %s", exc)
+            return 0
+
+        cleared = 0
+        for chat_id in chat_ids:
+            try:
+                await sync_checkpoint_messages(checkpointer, chat_id, [])
+                cleared += 1
+            except ContinuitySyncError as exc:
+                logger.warning("Checkpoint threads of chat %s were not cleared: %s", chat_id, exc)
+        return cleared

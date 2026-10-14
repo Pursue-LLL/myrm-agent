@@ -340,7 +340,10 @@ async def execute_health_repair_action(
 
 @router.post("/database/safe-purge")
 async def safe_purge_vault(
-    purge_memories: bool = Query(True, description="Purge episodic memories while preserving profile attributes and rules"),
+    purge_memories: bool = Query(
+        True,
+        description="Empty the pending-memory queues and memory event log; stored memories, profile attributes and rules are kept",
+    ),
     purge_sandboxes: bool = Query(True, description="Clean orphaned sandbox directories"),
     reclaim_disk: bool = Query(True, description="Reclaim disk pages via PRAGMA optimize and incremental_vacuum"),
 ) -> dict[str, object]:
@@ -377,6 +380,8 @@ async def safe_purge_vault(
         "purged_chats": result.purged_chats,
         "purged_messages": result.purged_messages,
         "purged_channel_messages": result.purged_channel_messages,
+        "purged_memory_events": result.purged_memory_events,
+        "cleared_checkpoints": result.cleared_checkpoints,
         "fts_tables_purged": result.fts_tables_purged,
         "cursors_reset": result.cursors_reset,
         "cleared_sandboxes": result.cleared_sandboxes,
