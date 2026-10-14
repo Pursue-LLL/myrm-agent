@@ -17,8 +17,17 @@ vi.mock('next-intl', async () => {
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn() } }));
 
 vi.mock('@/services/kanban', () => ({
-  bulkAction: vi.fn().mockResolvedValue({ succeeded: 2, failed: 0 }),
+  bulkAction: vi.fn(),
 }));
+
+function bulkResult(failedIds: string[] = []) {
+  const results = ['t1', 't2'].map((taskId) => ({
+    task_id: taskId,
+    success: !failedIds.includes(taskId),
+    ...(failedIds.includes(taskId) ? { error: 'server detail that must not reach the UI' } : {}),
+  }));
+  return { results, total: 2, succeeded: 2 - failedIds.length, failed: failedIds.length };
+}
 
 function renderBar(selectedStatuses: TaskStatus[] = ['ready', 'blocked'], agents: { id: string; name: string }[] = []) {
   const onClear = vi.fn();
@@ -39,6 +48,7 @@ function renderBar(selectedStatuses: TaskStatus[] = ['ready', 'blocked'], agents
 describe('KanbanBulkActionBar archive and delete confirmation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(bulkAction).mockResolvedValue(bulkResult());
   });
 
   it('archiving asks first with the selected count and sends nothing yet', async () => {
@@ -59,8 +69,8 @@ describe('KanbanBulkActionBar archive and delete confirmation', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
     await waitFor(() => expect(bulkAction).toHaveBeenCalledWith('board-1', ['t1', 't2'], 'archive', {}, false));
-    expect(onClear).toHaveBeenCalled();
-    expect(onComplete).toHaveBeenCalled();
+    await waitFor(() => expect(onComplete).toHaveBeenCalledWith([]));
+    expect(onClear).not.toHaveBeenCalled();
   });
 
   it('cancelling puts the Archive button back and archives nothing', async () => {
@@ -102,6 +112,7 @@ describe('KanbanBulkActionBar archive and delete confirmation', () => {
 describe('KanbanBulkActionBar when the request itself fails', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(bulkAction).mockResolvedValue(bulkResult());
   });
 
   it('shows a localized message instead of the raw error and keeps the selection', async () => {
@@ -119,9 +130,42 @@ describe('KanbanBulkActionBar when the request itself fails', () => {
   });
 });
 
+describe('KanbanBulkActionBar when only some tasks succeed', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(bulkAction).mockResolvedValue(bulkResult());
+  });
+
+  it('reports the failed task ids so they stay selected, without surfacing the server error', async () => {
+    vi.mocked(bulkAction).mockResolvedValueOnce(bulkResult(['t2']));
+    const user = userEvent.setup();
+    const { onClear, onComplete } = renderBar();
+
+    await user.click(screen.getByRole('button', { name: 'Archive' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledWith(['t2']));
+    expect(onClear).not.toHaveBeenCalled();
+    expect(toast.warning).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(vi.mocked(toast.warning).mock.calls)).not.toContain('server detail');
+  });
+
+  it('reports every id when the whole batch fails, so the user can retry in place', async () => {
+    vi.mocked(bulkAction).mockResolvedValueOnce(bulkResult(['t1', 't2']));
+    const user = userEvent.setup();
+    const { onComplete } = renderBar();
+
+    await user.click(screen.getByRole('button', { name: 'Archive' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledWith(['t1', 't2']));
+  });
+});
+
 describe('KanbanBulkActionBar move targets follow the selection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(bulkAction).mockResolvedValue(bulkResult());
   });
 
   async function openMoveMenu(selectedStatuses: TaskStatus[]) {
@@ -191,6 +235,7 @@ describe('KanbanBulkActionBar menus', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(bulkAction).mockResolvedValue(bulkResult());
   });
 
   it('renders the menus outside the bar, so the bar overflow can never clip them', async () => {

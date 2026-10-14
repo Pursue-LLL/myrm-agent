@@ -1,11 +1,20 @@
 /** @vitest-environment jsdom */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/lib/api';
-import { listTasks, moveTask, retryTask, type KanbanBoard, type KanbanTask, type TaskStatus } from '@/services/kanban';
+import {
+  bulkAction,
+  listTasks,
+  moveTask,
+  retryTask,
+  type BulkActionResult,
+  type KanbanBoard,
+  type KanbanTask,
+  type TaskStatus,
+} from '@/services/kanban';
 import KanbanBoardView from '../KanbanBoardView';
 
 vi.mock('next-intl', async () => {
@@ -53,6 +62,7 @@ vi.mock('@/services/kanban', async (importOriginal) => ({
   listBoardEdges: vi.fn().mockResolvedValue({ items: [], total: 0 }),
   moveTask: vi.fn(),
   retryTask: vi.fn(),
+  bulkAction: vi.fn(),
 }));
 
 const BOARD: KanbanBoard = {
@@ -179,5 +189,96 @@ describe('KanbanBoardView retry, archive and move errors', () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Failed to move task'));
     expect(toast.error).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('KanbanBoardView bulk selection', () => {
+  // The API order interleaves columns, as it does in production.
+  const ALPHA = makeTask('t-alpha', 'Alpha ready', 'ready');
+  const BRAVO = makeTask('t-bravo', 'Bravo backlog', 'backlog');
+  const DELTA = makeTask('t-delta', 'Delta ready', 'ready');
+
+  const bulkResult = (failedIds: string[]): BulkActionResult => ({
+    results: ['t-alpha', 't-bravo'].map((taskId) => ({ task_id: taskId, success: !failedIds.includes(taskId) })),
+    total: 2,
+    succeeded: 2 - failedIds.length,
+    failed: failedIds.length,
+  });
+
+  const ctrlClick = (title: string) => fireEvent.click(screen.getByText(title), { metaKey: true });
+  const bar = () => screen.queryByTestId('kanban-bulk-bar');
+
+  async function renderSelectable() {
+    vi.mocked(listTasks).mockResolvedValue({ items: [ALPHA, BRAVO, DELTA], total: 3 });
+    const user = userEvent.setup();
+    render(<KanbanBoardView board={BOARD} onBack={vi.fn()} />);
+    await screen.findByText('Alpha ready');
+    return user;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('Shift-click selects the cards between the clicks in that column, not the other columns in between', async () => {
+    await renderSelectable();
+
+    ctrlClick('Alpha ready');
+    fireEvent.click(screen.getByText('Delta ready'), { shiftKey: true });
+
+    expect(bar()).toHaveTextContent('2 selected');
+  });
+
+  it('after a partial failure only the failed task stays selected', async () => {
+    vi.mocked(bulkAction).mockResolvedValue(bulkResult(['t-bravo']));
+    const user = await renderSelectable();
+    ctrlClick('Alpha ready');
+    ctrlClick('Bravo backlog');
+    expect(bar()).toHaveTextContent('2 selected');
+
+    await user.click(screen.getByRole('button', { name: 'Archive' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => expect(bar()).toHaveTextContent('1 selected'));
+    expect(bulkAction).toHaveBeenCalledWith('board-1', ['t-alpha', 't-bravo'], 'archive', {}, false);
+  });
+
+  it('after a fully successful action the selection is empty', async () => {
+    vi.mocked(bulkAction).mockResolvedValue(bulkResult([]));
+    const user = await renderSelectable();
+    ctrlClick('Alpha ready');
+    ctrlClick('Bravo backlog');
+
+    await user.click(screen.getByRole('button', { name: 'Archive' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => expect(bar()).toBeNull());
+  });
+
+  it('Escape closes an open bar menu first and only a second Escape clears the selection', async () => {
+    const user = await renderSelectable();
+    ctrlClick('Alpha ready');
+    ctrlClick('Bravo backlog');
+    await user.click(screen.getByRole('button', { name: 'Move to' }));
+    expect(await screen.findByRole('menuitem', { name: 'Ready' })).toBeTruthy();
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    expect(bar()).toHaveTextContent('2 selected');
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(bar()).toBeNull());
+  });
+
+  it('a selected task that disappears after a refresh leaves the selection', async () => {
+    await renderSelectable();
+    ctrlClick('Alpha ready');
+    ctrlClick('Bravo backlog');
+    expect(bar()).toHaveTextContent('2 selected');
+
+    vi.mocked(listTasks).mockResolvedValue({ items: [ALPHA, DELTA], total: 2 });
+    window.dispatchEvent(new CustomEvent('kanban-task-updated', { detail: { board_id: 'board-1' } }));
+
+    await waitFor(() => expect(bar()).toHaveTextContent('1 selected'));
   });
 });

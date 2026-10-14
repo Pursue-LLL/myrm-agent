@@ -2,6 +2,7 @@
  * [INPUT]
  * - @dnd-kit/core::useDroppable, useDraggable (POS: 跨平台拖拽基础设施)
  * - ./KanbanTaskCard (POS: 看板任务卡片渲染组件)
+ * - ./kanban-selection::columnLanes, laneKeyOf (POS: 看板多选与泳道规则，列渲染与 Shift 区间共用)
  *
  * [OUTPUT]
  * - KanbanDropColumn: 可放置的看板列组件（集成 useDroppable + 高亮/占位符动画）
@@ -19,6 +20,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import KanbanTaskCard from './KanbanTaskCard';
+import { columnLanes, laneKeyOf } from './kanban-selection';
 
 const STATUS_STYLES: Record<TaskStatus, string> = {
   triage: 'bg-purple-500/5 border-purple-500/30',
@@ -81,34 +83,10 @@ export function KanbanDropColumn({
   });
   const isHighlighted = (isOver || dragOverColumn === status) && draggedTaskId !== null;
 
-  const agentLanes = useMemo(() => {
-    if (!laneByProfile || status !== 'running') {
-      return null;
-    }
-    const groups = new Map<string | null, KanbanTask[]>();
-    for (const task of columnTaskItems) {
-      const key = task.agent_id ?? null;
-      const arr = groups.get(key);
-      if (arr) {
-        arr.push(task);
-      } else {
-        groups.set(key, [task]);
-      }
-    }
-    return [...groups.entries()].sort(([a], [b]) => {
-      if (a === null) {
-        return 1;
-      }
-      if (b === null) {
-        return -1;
-      }
-      const nameA = agentNameMap?.get(a) ?? a;
-      const nameB = agentNameMap?.get(b) ?? b;
-      return nameA.localeCompare(nameB);
-    });
-  }, [columnTaskItems, laneByProfile, status, agentNameMap]);
-
-  const showLaneHeaders = agentLanes !== null && agentLanes.length > 1;
+  const agentLanes = useMemo(
+    () => columnLanes(status, columnTaskItems, { laneByProfile: !!laneByProfile, agentNameMap }),
+    [status, columnTaskItems, laneByProfile, agentNameMap],
+  );
 
   const renderTaskCards = (items: KanbanTask[]) =>
     items.map((task) => (
@@ -148,9 +126,9 @@ export function KanbanDropColumn({
             <span className="text-[10px] text-primary/60 font-medium">{t('dropHere')}</span>
           </div>
         )}
-        {showLaneHeaders
+        {agentLanes
           ? agentLanes.map(([agentId, laneTasks]) => {
-              const laneKey = agentId ?? '__unassigned__';
+              const laneKey = laneKeyOf(agentId);
               const isCollapsed = collapsedAgents?.has(laneKey) ?? false;
               const displayName = agentId ? (agentNameMap?.get(agentId) ?? agentId) : t('unassigned');
               return (

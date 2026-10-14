@@ -2,6 +2,7 @@
  * [INPUT]
  * - ./useKanbanDnD (POS: 看板拖拽逻辑层)
  * - ./useKanbanAddTask (POS: 看板新增任务表单逻辑层)
+ * - ./useKanbanSelection (POS: 看板卡片多选状态层)
  * - ./KanbanDndComponents::KanbanDropColumn (POS: 看板 DnD 渲染组件层)
  * - @/services/kanban (POS: 看板 API 层)
  *
@@ -42,6 +43,7 @@ import { KanbanDropColumn } from './KanbanDndComponents';
 import { useKanbanDnD } from './useKanbanDnD';
 import { useKanbanTaskActions } from './useKanbanTaskActions';
 import { useKanbanAddTask } from './useKanbanAddTask';
+import { useKanbanSelection } from './useKanbanSelection';
 import { useAgentNameMap } from '@/hooks/agent/useAgentName';
 import useAgentStore from '@/store/useAgentStore';
 import useProviderStore from '@/store/useProviderStore';
@@ -116,7 +118,6 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   });
   const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
   const [pipelineWizardOpen, setPipelineWizardOpen] = useState(false);
-  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [laneByProfile, setLaneByProfile] = useState<boolean>(() => {
     if (typeof window === 'undefined') {
       return true;
@@ -139,35 +140,10 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     new Map(),
   );
 
-  const handleTaskSelect = useCallback(
-    (taskId: string, event: React.MouseEvent) => {
-      if (event.ctrlKey || event.metaKey) {
-        setSelectedTaskIds((prev) => (prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]));
-      } else if (event.shiftKey && selectedTaskIds.length > 0) {
-        const allIds = tasks.map((tk) => tk.task_id);
-        const lastIdx = allIds.indexOf(selectedTaskIds[selectedTaskIds.length - 1]);
-        const currIdx = allIds.indexOf(taskId);
-        if (lastIdx >= 0 && currIdx >= 0) {
-          const [from, to] = lastIdx < currIdx ? [lastIdx, currIdx] : [currIdx, lastIdx];
-          const rangeIds = allIds.slice(from, to + 1);
-          setSelectedTaskIds((prev) => [...new Set([...prev, ...rangeIds])]);
-        }
-      } else {
-        setSelectedTaskIds((prev) => (prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]));
-      }
-    },
-    [tasks, selectedTaskIds],
-  );
-
   const drawerTask = useMemo(
     () => (drawerTaskId ? (tasks.find((tk) => tk.task_id === drawerTaskId) ?? null) : null),
     [drawerTaskId, tasks],
   );
-
-  const selectedStatuses = useMemo(() => {
-    const selected = new Set(selectedTaskIds);
-    return tasks.filter((tk) => selected.has(tk.task_id)).map((tk) => tk.status);
-  }, [selectedTaskIds, tasks]);
 
   const allAgentIds = useMemo(() => {
     const ids = new Set<string>();
@@ -270,22 +246,11 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
 
   // Reset only when the board changes, not when resetAddForm's identity changes.
   const resetBoardScopedState = useEffectEvent(() => {
-    setSelectedTaskIds([]);
     resetAddForm();
   });
   useEffect(() => {
     resetBoardScopedState();
   }, [board.board_id]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedTaskIds.length > 0) {
-        setSelectedTaskIds([]);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTaskIds.length]);
 
   useEffect(() => {
     fetchTasks();
@@ -337,6 +302,15 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     }
     return grouped;
   }, [tasks, responsibilityFilter]);
+
+  const { selectedTaskIds, selectedStatuses, handleTaskSelect, selectOnly, clearSelection } = useKanbanSelection({
+    boardId: board.board_id,
+    tasks,
+    columnTasks,
+    laneByProfile,
+    agentNameMap,
+    collapsedAgents,
+  });
 
   const triageCount = columnTasks.triage.length;
   const [specifyAllLoading, setSpecifyAllLoading] = useState(false);
@@ -908,8 +882,9 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
         boardId={board.board_id}
         selectedIds={selectedTaskIds}
         selectedStatuses={selectedStatuses}
-        onClear={() => setSelectedTaskIds([])}
-        onComplete={() => {
+        onClear={clearSelection}
+        onComplete={(failedTaskIds) => {
+          selectOnly(failedTaskIds);
           fetchTasks();
           fetchSummary();
         }}

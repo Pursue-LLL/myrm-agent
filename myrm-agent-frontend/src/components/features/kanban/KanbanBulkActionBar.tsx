@@ -9,7 +9,8 @@
  *
  * [POS]
  * 看板多选后的批量操作入口。「移至」只列出至少对一个选中任务可达的目标；归档与删除在原位二次确认；
- * 批量请求允许部分成功，结果以 toast 汇总。两个下拉菜单走 portal，不受浮条自身布局裁剪；窄屏只显示图标并允许换行。
+ * 批量请求允许部分成功，结果以 toast 汇总，失败的任务经 onComplete 交还调用方保持选中。
+ * 两个下拉菜单走 portal，不受浮条自身布局裁剪；窄屏只显示图标并允许换行。
  */
 'use client';
 
@@ -34,7 +35,8 @@ interface KanbanBulkActionBarProps {
   /** 选中任务当前的状态；为空（查不到任务）时不过滤移动目标。 */
   selectedStatuses: TaskStatus[];
   onClear: () => void;
-  onComplete: () => void;
+  /** 批量请求结束后调用，参数为未成功的任务 id；调用方据此刷新数据，并让这些任务保持选中以便原地重试。 */
+  onComplete: (failedTaskIds: string[]) => void;
   agents: { id: string; name: string }[];
 }
 
@@ -116,8 +118,7 @@ export default function KanbanBulkActionBar({
       } else {
         toast.success(t('bulkSuccess', { count: result.succeeded }));
       }
-      onClear();
-      onComplete();
+      onComplete(result.results.filter((item) => !item.success).map((item) => item.task_id));
     } catch {
       toast.error(t('updateError'));
     } finally {
