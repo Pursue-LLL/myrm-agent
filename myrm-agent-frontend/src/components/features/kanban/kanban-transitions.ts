@@ -1,11 +1,12 @@
 /**
  * [INPUT]
  * - @/services/kanban::TaskStatus (POS: 看板 API 类型定义)
+ * - @shared/config/kanban_move_guard.json (POS: 服务端 move 守卫允许的流转表，前后端共用，由服务端契约测试逐对验证)
  *
  * [OUTPUT]
  * - MoveIntent: 一次「改状态」操作在界面上的真实含义
  * - isServerMoveAllowed: 服务端 move 接口是否接受该起止状态（含「原地不动」）
- * - resolveMoveIntent: 由起止状态判定操作含义（镜像服务端 move 守卫）
+ * - resolveMoveIntent: 由起止状态判定操作含义
  * - moveLabelKey: 状态流转入口的文案 key
  *
  * [POS]
@@ -13,6 +14,7 @@
  * 失败 → 就绪走「重试」而不是 move，归档先经过确认。
  */
 import type { TaskStatus } from '@/services/kanban';
+import moveGuardJson from '@shared/config/kanban_move_guard.json';
 
 /**
  * - move: 普通状态流转，直接调用 move 接口
@@ -22,24 +24,15 @@ import type { TaskStatus } from '@/services/kanban';
  */
 export type MoveIntent = 'move' | 'retry' | 'archive' | 'blocked';
 
-const TERMINAL_STATUSES: readonly TaskStatus[] = ['completed', 'failed', 'archived'];
-const TRIAGE_TARGETS: readonly TaskStatus[] = ['backlog', 'ready', 'archived'];
-
 /**
- * 服务端 move 守卫（move_orchestrator.move_task）：终态只能归档、草稿池只能去 backlog/ready/archived、审核态不可手动进出。
+ * 服务端 move 守卫（move_orchestrator.move_task）允许的目标：终态只能归档、草稿池只能去 backlog/ready/archived、审核态不可手动进出。
  * 守卫不特判「原地不动」，所以终态、草稿池、审核态任务移到自己当前的状态同样被拒。
+ * 数据在 shared/config/kanban_move_guard.json，服务端契约测试会用真实 move 接口逐对核对它。
  */
+const ALLOWED_TARGETS = moveGuardJson as Readonly<Record<TaskStatus, readonly TaskStatus[]>>;
+
 export function isServerMoveAllowed(from: TaskStatus, to: TaskStatus): boolean {
-  if (from === 'in_review' || to === 'in_review') {
-    return false;
-  }
-  if (TERMINAL_STATUSES.includes(from)) {
-    return to === 'archived';
-  }
-  if (from === 'triage') {
-    return TRIAGE_TARGETS.includes(to);
-  }
-  return true;
+  return ALLOWED_TARGETS[from].includes(to);
 }
 
 export function resolveMoveIntent(from: TaskStatus, to: TaskStatus): MoveIntent {

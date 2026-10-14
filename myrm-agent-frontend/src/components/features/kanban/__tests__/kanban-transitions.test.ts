@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { TaskStatus } from '@/services/kanban';
+import moveGuard from '@shared/config/kanban_move_guard.json';
 import { NEXT_STATUSES } from '../kanban-styles';
 import { isServerMoveAllowed, moveLabelKey, resolveMoveIntent } from '../kanban-transitions';
 
@@ -16,33 +17,31 @@ const ALL_STATUSES: TaskStatus[] = [
   'archived',
 ];
 
-/**
- * 服务端 move 守卫（move_orchestrator.move_task）对每个 (起点 → 终点) 的拒绝结果。
- * 数据来自对真实守卫逐对求值（9 × 8 = 72 对）；守卫规则变化时需同步更新这张表。
- */
-const SERVER_REJECTED: Record<TaskStatus, TaskStatus[]> = {
-  triage: ['running', 'blocked', 'in_review', 'completed', 'failed'],
-  backlog: ['in_review'],
-  ready: ['in_review'],
-  running: ['in_review'],
-  blocked: ['in_review'],
-  in_review: ['triage', 'backlog', 'ready', 'running', 'blocked', 'completed', 'failed', 'archived'],
-  completed: ['triage', 'backlog', 'ready', 'running', 'blocked', 'in_review', 'failed'],
-  failed: ['triage', 'backlog', 'ready', 'running', 'blocked', 'in_review', 'completed'],
-  archived: ['triage', 'backlog', 'ready', 'running', 'blocked', 'in_review', 'completed', 'failed'],
-};
+/** 前后端共用的 move 守卫表；服务端契约测试用真实 move 接口逐对核对它，这里只验证界面按它做判定。 */
+const GUARD = moveGuard as Record<TaskStatus, TaskStatus[]>;
 
 const PAIRS = ALL_STATUSES.flatMap((from) => ALL_STATUSES.filter((to) => to !== from).map((to) => [from, to] as const));
 
+describe('shared move guard table', () => {
+  it('lists every status as a source and only known statuses as targets', () => {
+    expect(Object.keys(GUARD).sort()).toEqual([...ALL_STATUSES].sort());
+    for (const [from, targets] of Object.entries(GUARD)) {
+      expect(new Set(targets).size, `${from} lists a target twice`).toBe(targets.length);
+      for (const to of targets) {
+        expect(ALL_STATUSES, `${from} -> ${to}`).toContain(to);
+      }
+    }
+  });
+});
+
 describe('resolveMoveIntent', () => {
-  it.each(PAIRS)('%s -> %s agrees with the server move guard', (from, to) => {
-    const rejectedByServer = SERVER_REJECTED[from].includes(to);
+  it.each(PAIRS)('%s -> %s follows the move guard table', (from, to) => {
     const intent = resolveMoveIntent(from, to);
 
     if (from === 'failed' && to === 'ready') {
       // 服务端不接受手动 move 出终态；界面把它当作「重试」，由重试接口承接。
       expect(intent).toBe('retry');
-    } else if (rejectedByServer) {
+    } else if (!GUARD[from].includes(to)) {
       expect(intent).toBe('blocked');
     } else {
       expect(intent).toBe(to === 'archived' ? 'archive' : 'move');
@@ -63,11 +62,20 @@ describe('resolveMoveIntent', () => {
 });
 
 describe('isServerMoveAllowed', () => {
-  it.each(PAIRS)('%s -> %s agrees with the server move guard', (from, to) => {
-    expect(isServerMoveAllowed(from, to)).toBe(!SERVER_REJECTED[from].includes(to));
+  it.each<[TaskStatus, TaskStatus, boolean]>([
+    ['ready', 'running', true],
+    ['blocked', 'ready', true],
+    ['triage', 'running', false],
+    ['triage', 'backlog', true],
+    ['completed', 'ready', false],
+    ['completed', 'archived', true],
+    ['running', 'in_review', false],
+    ['in_review', 'completed', false],
+  ])('%s -> %s is allowed: %s', (from, to, allowed) => {
+    expect(isServerMoveAllowed(from, to)).toBe(allowed);
   });
 
-  /** 对真实守卫逐个求值：只有终态、草稿池、审核态任务移到自己当前的状态也被拒；归档到归档放行。 */
+  /** 守卫不特判「原地不动」：只有终态、草稿池、审核态任务移到自己当前的状态也被拒；归档到归档放行。 */
   it.each<[TaskStatus, boolean]>([
     ['completed', false],
     ['failed', false],
