@@ -15085,6 +15085,8 @@
         "importSuccess": "{count}개 규칙을 성공적으로 가져왔습니다",
         "importError": "가져오기 실패, 파일 형식을 확인하세요",
         "duplicateRule": "중복 규칙",
+        "duplicatedName": "{name} (복사본)",
+        "actionError": "작업에 실패했습니다. 다시 시도하세요",
         "rules": {
           "email_address": {
             "name": "이메일 주소",

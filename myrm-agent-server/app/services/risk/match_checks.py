@@ -26,6 +26,9 @@ _REJECTS_PLACEHOLDERS = frozenset({"email_address", "cn_mobile_number"})
 # Rules whose pattern captures the ``key`` and ``value`` of an assignment.
 _ASSIGNMENT_RULES = frozenset({"credential_assignment", "cookie_session_like", "env_file_secret"})
 
+# Documentation cuts a token short with an ellipsis ("Bearer eyJhbGci...", "sk-ant-oat01-…"); a whole secret has none.
+_ELLIPSES = ("...", "\u2026")
+
 
 def is_confirmed_match(rule_id: str, match: regex.Match[str]) -> bool:
     """Whether *match*, which the pattern of the rule *rule_id* found, is a real hit; a rule without a check always is."""
@@ -39,13 +42,17 @@ def is_confirmed_match(rule_id: str, match: regex.Match[str]) -> bool:
 
 
 def _assigns_secret(match: regex.Match[str]) -> bool:
-    """Whether the ``value`` group is a secret and not a reference to one (call, identifier, template), a mask or a word.
+    """Whether the ``value`` group is a secret and not a reference to one (call, identifier, template), a mask, a word
+    or a token cut short with an ellipsis.
 
     A pattern the user edited to have no ``value`` group has nothing to check, so its matches count.
     """
     groups = match.groupdict()
-    if groups.get("value") is None:
+    value = groups.get("value")
+    if value is None:
         return True
+    if any(ellipsis in value for ellipsis in _ELLIPSES):
+        return False
     return (
         secret_value_span(
             match.string,

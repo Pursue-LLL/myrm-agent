@@ -15085,6 +15085,8 @@
         "importSuccess": "{count} Regeln erfolgreich importiert",
         "importError": "Import fehlgeschlagen, bitte Dateiformat prüfen",
         "duplicateRule": "Doppelte Regel",
+        "duplicatedName": "{name} (Kopie)",
+        "actionError": "Aktion fehlgeschlagen. Bitte erneut versuchen.",
         "rules": {
           "email_address": {
             "name": "E-Mail-Adresse",

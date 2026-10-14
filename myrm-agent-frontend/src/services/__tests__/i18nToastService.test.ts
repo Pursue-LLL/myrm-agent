@@ -50,6 +50,15 @@ describe('translateI18nKeyIfPresent', () => {
     expect(translateI18nKeyIfPresent('rules.known.name', 'Known')).toBe('translated:rules.known.name');
     expect(translateI18nKeyIfPresent('rules.custom.name', 'My rule')).toBe('My rule');
   });
+
+  it.each(['rules.constructor.name', 'rules.toString.name', 'rules.__proto__.name', 'hasOwnProperty'])(
+    'falls back for %s even when the translator reports it as present',
+    async (key) => {
+      const { setGlobalTranslator, translateI18nKeyIfPresent } = await loadService();
+      setGlobalTranslator(Object.assign((k: string) => `translated:${k}`, { has: () => true }));
+      expect(translateI18nKeyIfPresent(key, 'My rule')).toBe('My rule');
+    },
+  );
 });
 
 describe('showI18nToast', () => {

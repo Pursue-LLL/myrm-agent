@@ -73,11 +73,14 @@ CODE_THAT_NAMES_SECRETS = [
     "SECRET_KEY = os.environ.get('SECRET_KEY')",
     "headers = {'Authorization': f'Bearer {token}'}",
     "Authorization: Bearer <your-token>",
+    "Authorization: Bearer eyJhbGci...",
+    'Send {"token": "sk-ant-oat01-..."} to the endpoint',
+    "api_key = sk-ab\u2026wxyz",
 ]
 
 CREDENTIALS = {
     "openai project key": "key is sk-proj-" + _token(150, _URLSAFE),
-    "openai legacy key": "my key sk-" + _token(48),
+    "openai key without a project prefix": "my key sk-" + _token(48),
     "openai-compatible relay key": "key: sk-" + _token(32),
     "anthropic key": "sk-ant-api03-" + _token(93, _URLSAFE),
     "github token": "token ghp_" + _token(36),
@@ -97,6 +100,7 @@ CREDENTIALS = {
     "session id": "sessionid=9f8e7d6c5b4a3210fedcba",
     "java session cookie": "Cookie: JSESSIONID=9f8e7d6c5b4a3210fedcba",
     "bearer header": "Authorization: Bearer " + _token(40, _URLSAFE),
+    "password with dots inside": "password: Zk9.mango.42x",
     "refresh token json": '{"refresh_token": "' + _token(40, _URLSAFE) + '"}',
     "postgres url": "DATABASE_URL=postgres://admin:S3cret!pw@db.internal:5432/app",
     "redis url without user": "redis://:p4ssw0rd@cache.internal:6379/0",
@@ -180,7 +184,7 @@ def test_a_pattern_without_a_value_group_has_nothing_to_check() -> None:
     assert is_confirmed_match("credential_assignment", match)
 
 
-async def test_legacy_hit_text_is_cleared_and_new_summaries_are_kept(session_factory: async_sessionmaker[AsyncSession]) -> None:
+async def test_stored_match_text_is_cleared_and_positions_are_kept(session_factory: async_sessionmaker[AsyncSession]) -> None:
     summaries = ["sk-proj-abc123", "13812345678", "", f"{POSITION_SUMMARY_PREFIX}3-9", TIMED_OUT_SUMMARY]
     async with session_factory() as db:
         for summary in summaries:
@@ -189,30 +193,30 @@ async def test_legacy_hit_text_is_cleared_and_new_summaries_are_kept(session_fac
 
     service = RiskRuleService()
     async with session_factory() as db:
-        first = await service.clear_legacy_hit_text(db)
-        second = await service.clear_legacy_hit_text(db)
+        first = await service.clear_stored_match_text(db)
+        second = await service.clear_stored_match_text(db)
         stored = (await db.execute(select(RiskHit.match_summary).order_by(RiskHit.id))).scalars().all()
 
     assert (first, second) == (2, 0)
     assert stored == ["", "", "", "chars:3-9", TIMED_OUT_SUMMARY]
 
 
-async def test_a_rule_stored_with_the_removed_allow_action_becomes_a_disabled_block_rule(
+async def test_a_stored_rule_with_a_non_block_action_becomes_a_disabled_block_rule(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     async with session_factory() as db:
-        db.add(RiskRule(rule_id="legacy", display_name="L", pattern="x", severity="low", action="allow", is_enabled=True))
+        db.add(RiskRule(rule_id="non-block", display_name="N", pattern="x", severity="low", action="allow", is_enabled=True))
         db.add(RiskRule(rule_id="current", display_name="C", pattern="y", severity="low", action="block", is_enabled=True))
         await db.commit()
 
     service = RiskRuleService()
     async with session_factory() as db:
-        first = await service.disable_legacy_allow_rules(db)
-        second = await service.disable_legacy_allow_rules(db)
+        first = await service.disable_non_block_rules(db)
+        second = await service.disable_non_block_rules(db)
         rules = {rule.rule_id: (rule.action, rule.is_enabled) for rule in (await db.execute(select(RiskRule))).scalars()}
 
     assert (first, second) == (1, 0)
-    assert rules == {"legacy": ("block", False), "current": ("block", True)}
+    assert rules == {"non-block": ("block", False), "current": ("block", True)}
 
 
 async def test_block_is_the_only_action_a_rule_can_have(session_factory: async_sessionmaker[AsyncSession]) -> None:

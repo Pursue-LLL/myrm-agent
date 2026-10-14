@@ -15760,6 +15760,8 @@
         "importSuccess": "成功导入 {count} 条规则",
         "importError": "导入失败，请检查文件格式",
         "duplicateRule": "复制规则",
+        "duplicatedName": "{name}（副本）",
+        "actionError": "操作失败，请重试",
         "rules": {
           "email_address": {
             "name": "邮箱地址",

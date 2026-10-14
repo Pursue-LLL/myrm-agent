@@ -4,11 +4,8 @@ import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconPlus,
-  IconTrash,
-  IconEdit,
   IconShield,
   IconFlask,
-  IconCopy,
   IconRefresh,
   IconLoader,
   IconCheckCircle,
@@ -18,7 +15,6 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
-import { Switch } from '@/components/primitives/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import {
   AlertDialog,
@@ -35,7 +31,20 @@ import { apiRequest } from '@/lib/api';
 import SettingsSection from '../SettingsSection';
 import RiskRulesTestPanel from './RiskRulesTestPanel';
 import RiskRulesHitsPanel from './RiskRulesHitsPanel';
-import { CATEGORY_MAP, SEVERITY_COLORS, type RiskRule } from './risk-rules-types';
+import RiskRuleEditor from './RiskRuleEditor';
+import RiskRuleRow from './RiskRuleRow';
+import { useRiskRulesTransfer } from './useRiskRulesTransfer';
+import { CATEGORY_MAP, type RiskRule } from './risk-rules-types';
+
+const NEW_RULE: Partial<RiskRule> = {
+  rule_id: '',
+  display_name: '',
+  pattern: '',
+  severity: 'medium',
+  category: 'custom',
+  description: '',
+  sort_order: 0,
+};
 
 function RiskRulesSection() {
   const t = useTranslations('settings.securityPolicy.riskRules');
@@ -43,7 +52,7 @@ function RiskRulesSection() {
   const getRuleName = useCallback(
     (rule: RiskRule) => {
       const key = `rules.${rule.rule_id}.name` as Parameters<typeof t>[0];
-      return t.has(key) ? t(key) : rule.display_name;
+      return rule.is_builtin && t.has(key) ? t(key) : rule.display_name;
     },
     [t],
   );
@@ -51,7 +60,7 @@ function RiskRulesSection() {
   const getRuleDesc = useCallback(
     (rule: RiskRule) => {
       const key = `rules.${rule.rule_id}.desc` as Parameters<typeof t>[0];
-      return t.has(key) ? t(key) : rule.description;
+      return rule.is_builtin && t.has(key) ? t(key) : rule.description;
     },
     [t],
   );
@@ -65,6 +74,11 @@ function RiskRulesSection() {
   const [testOpen, setTestOpen] = useState(false);
   const [hitsOpen, setHitsOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  const closeEditor = useCallback(() => {
+    setEditingRule(null);
+    setIsCreating(false);
+  }, []);
 
   const loadRules = useCallback(async () => {
     setLoading(true);
@@ -86,6 +100,8 @@ function RiskRulesSection() {
     loadRules();
   }, [loadRules]);
 
+  const { handleExport, handleImport } = useRiskRulesTransfer(rules, loadRules);
+
   const handleToggle = useCallback(
     async (ruleId: string, enabled: boolean) => {
       try {
@@ -96,7 +112,7 @@ function RiskRulesSection() {
         setRules((prev) => prev.map((r) => (r.rule_id === ruleId ? { ...r, is_enabled: enabled } : r)));
         toast.success(t('toggleSuccess'));
       } catch {
-        toast.error(t('loadError'));
+        toast.error(t('actionError'));
       }
     },
     [t],
@@ -116,7 +132,7 @@ function RiskRulesSection() {
         setRules((prev) => prev.map((r) => ({ ...r, is_enabled: enabled })));
         toast.success(t('toggleSuccess'));
       } catch {
-        toast.error(t('loadError'));
+        toast.error(t('actionError'));
       }
     },
     [rules, t],
@@ -131,7 +147,7 @@ function RiskRulesSection() {
       setRules((prev) => prev.filter((r) => r.rule_id !== deleteTarget));
       toast.success(t('deleteSuccess'));
     } catch {
-      toast.error(t('loadError'));
+      toast.error(t('actionError'));
     } finally {
       setDeleteTarget(null);
     }
@@ -153,72 +169,33 @@ function RiskRulesSection() {
         });
         toast.success(t('saveSuccess'));
       }
-      setEditingRule(null);
-      setIsCreating(false);
+      closeEditor();
       loadRules();
     } catch {
-      toast.error(t('loadError'));
+      toast.error(t('actionError'));
     }
-  }, [editingRule, isCreating, loadRules, t]);
+  }, [closeEditor, editingRule, isCreating, loadRules, t]);
 
-  const handleExport = useCallback(() => {
-    const customRules = rules.filter((r) => !r.is_builtin);
-    if (customRules.length === 0) {
-      toast.error(t('noCustomRulesToExport'));
-      return;
-    }
-    const exportData = customRules.map(
-      ({ rule_id, display_name, description, pattern, severity, category, sort_order }) => ({
-        rule_id,
-        display_name,
-        description,
-        pattern,
-        severity,
-        category,
-        sort_order,
-      }),
-    );
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `risk-rules-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [rules, t]);
+  const handleEdit = useCallback((rule: RiskRule) => {
+    setEditingRule({ ...rule });
+    setIsCreating(false);
+  }, []);
 
-  const handleImport = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) {
-        return;
-      }
-      try {
-        const text = await file.text();
-        const parsed = JSON.parse(text) as Array<Record<string, unknown>>;
-        if (!Array.isArray(parsed)) {
-          throw new Error('Invalid format');
-        }
-        const validRules = parsed.filter((r) => r.rule_id && r.pattern);
-        if (validRules.length === 0) {
-          toast.error(t('importError'));
-          return;
-        }
-        const result = await apiRequest<{ imported: number; skipped: string[] }>('/risk/rules/batch-import', {
-          method: 'POST',
-          body: JSON.stringify({ rules: validRules }),
-        });
-        toast.success(t('importSuccess', { count: result.imported }));
-        loadRules();
-      } catch {
-        toast.error(t('importError'));
-      }
-    };
-    input.click();
-  }, [loadRules, t]);
+  const handleDuplicate = useCallback(
+    (rule: RiskRule) => {
+      setEditingRule({
+        rule_id: `${rule.rule_id}_copy`,
+        display_name: t('duplicatedName', { name: getRuleName(rule) }),
+        pattern: rule.pattern,
+        severity: rule.severity,
+        category: rule.category,
+        description: rule.description,
+        sort_order: rule.sort_order,
+      });
+      setIsCreating(true);
+    },
+    [getRuleName, t],
+  );
 
   const filteredRules = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -284,15 +261,7 @@ function RiskRulesSection() {
         <Button
           size="sm"
           onClick={() => {
-            setEditingRule({
-              rule_id: '',
-              display_name: '',
-              pattern: '',
-              severity: 'medium',
-              category: 'custom',
-              description: '',
-              sort_order: 0,
-            });
+            setEditingRule(NEW_RULE);
             setIsCreating(true);
           }}
         >
@@ -312,79 +281,14 @@ function RiskRulesSection() {
       {testOpen && <RiskRulesTestPanel />}
       {hitsOpen && <RiskRulesHitsPanel />}
 
-      {/* Edit/Create Form */}
       {editingRule && (
-        <div className="border border-primary/30 rounded-lg p-4 mb-4 space-y-3 bg-card">
-          <h3 className="font-medium text-sm">{isCreating ? t('createRule') : t('editRule')}</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              placeholder={t('ruleId')}
-              value={editingRule.rule_id || ''}
-              onChange={(e) => setEditingRule({ ...editingRule, rule_id: e.target.value })}
-              disabled={!isCreating}
-            />
-            <Input
-              placeholder={t('displayName')}
-              value={editingRule.display_name || ''}
-              onChange={(e) => setEditingRule({ ...editingRule, display_name: e.target.value })}
-            />
-          </div>
-          <Input
-            placeholder={t('pattern')}
-            value={editingRule.pattern || ''}
-            onChange={(e) => setEditingRule({ ...editingRule, pattern: e.target.value })}
-            className="font-mono text-sm"
-            disabled={!isCreating && editingRule.is_builtin === true}
-          />
-          {!isCreating && editingRule.is_builtin && (
-            <p className="text-xs text-muted-foreground">{t('builtinCannotEditPattern')}</p>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Select
-              value={editingRule.severity || 'medium'}
-              onValueChange={(v) => setEditingRule({ ...editingRule, severity: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">{t('severityLow')}</SelectItem>
-                <SelectItem value="medium">{t('severityMedium')}</SelectItem>
-                <SelectItem value="high">{t('severityHigh')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={editingRule.category || 'custom'}
-              onValueChange={(v) => setEditingRule({ ...editingRule, category: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(CATEGORY_MAP).map(([key, labelKey]) => (
-                  <SelectItem key={key} value={key}>
-                    {t(labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleSave}>
-              {t('saveRule')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setEditingRule(null);
-                setIsCreating(false);
-              }}
-            >
-              {t('cancel')}
-            </Button>
-          </div>
-        </div>
+        <RiskRuleEditor
+          rule={editingRule}
+          isCreating={isCreating}
+          onChange={setEditingRule}
+          onSave={handleSave}
+          onCancel={closeEditor}
+        />
       )}
 
       {/* Rules List */}
@@ -399,79 +303,16 @@ function RiskRulesSection() {
       ) : (
         <div className="space-y-2">
           {filteredRules.map((rule) => (
-            <div
+            <RiskRuleRow
               key={rule.rule_id}
-              className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors"
-            >
-              <Switch checked={rule.is_enabled} onCheckedChange={(checked) => handleToggle(rule.rule_id, checked)} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm truncate">{getRuleName(rule)}</span>
-                  {rule.is_builtin && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium">
-                      {t('builtin')}
-                    </span>
-                  )}
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${SEVERITY_COLORS[rule.severity] || ''}`}
-                  >
-                    {t(
-                      `severity${rule.severity.charAt(0).toUpperCase() + rule.severity.slice(1)}` as
-                        'severityLow' | 'severityMedium' | 'severityHigh',
-                    )}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {t(CATEGORY_MAP[rule.category] || 'categoryCustom')}
-                  </span>
-                </div>
-                {(rule.description || getRuleDesc(rule)) && (
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{getRuleDesc(rule)}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={() => {
-                    setEditingRule({ ...rule });
-                    setIsCreating(false);
-                  }}
-                >
-                  <IconEdit className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  title={t('duplicateRule')}
-                  onClick={() => {
-                    setEditingRule({
-                      rule_id: `${rule.rule_id}_copy`,
-                      display_name: `${getRuleName(rule)} (Copy)`,
-                      pattern: rule.pattern,
-                      severity: rule.severity,
-                      category: rule.category,
-                      description: rule.description,
-                      sort_order: rule.sort_order,
-                    });
-                    setIsCreating(true);
-                  }}
-                >
-                  <IconCopy className="w-3.5 h-3.5" />
-                </Button>
-                {!rule.is_builtin && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 text-destructive"
-                    onClick={() => setDeleteTarget(rule.rule_id)}
-                  >
-                    <IconTrash className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-              </div>
-            </div>
+              rule={rule}
+              name={getRuleName(rule)}
+              description={getRuleDesc(rule)}
+              onToggle={handleToggle}
+              onEdit={handleEdit}
+              onDuplicate={handleDuplicate}
+              onDelete={setDeleteTarget}
+            />
           ))}
         </div>
       )}

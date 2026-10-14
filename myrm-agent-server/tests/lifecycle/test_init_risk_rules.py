@@ -11,9 +11,10 @@ import logging
 import sqlite3
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import cast
 
 import pytest
-from sqlalchemy import event, func, select
+from sqlalchemy import Table, event, func, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -48,8 +49,8 @@ async def session_factory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> As
     event.listen(engine.sync_engine, "connect", _set_sqlite_pragma)
     register_sqlite_transaction_events(engine)
     async with engine.begin() as conn:
-        await conn.run_sync(RiskRule.__table__.create)
-        await conn.run_sync(RiskHit.__table__.create)
+        await conn.run_sync(cast(Table, RiskRule.__table__).create)
+        await conn.run_sync(cast(Table, RiskHit.__table__).create)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr("app.platform_utils.get_session_factory", lambda: factory)
     monkeypatch.setattr(risk_rules, "_RISK_RULE_INIT_RETRY_DELAY_SEC", 0)
@@ -146,11 +147,11 @@ async def test_an_error_that_is_not_a_locked_database_is_not_retried(
 
 
 @pytest.mark.asyncio
-async def test_startup_retires_what_older_versions_stored(
+async def test_startup_disables_non_block_rules_and_clears_stored_match_text(
     session_factory: async_sessionmaker[AsyncSession], detection: RiskDetectionService
 ) -> None:
     async with session_factory() as db:
-        db.add(RiskRule(rule_id="legacy-allow", display_name="L", pattern="x", severity="low", action="allow"))
+        db.add(RiskRule(rule_id="non-block", display_name="L", pattern="x", severity="low", action="allow"))
         for summary in ("sk-proj-abc123", "13812345678", "chars:3-9", "(matching timed out)"):
             db.add(RiskHit(trace_id="t", rule_id="r", rule_name="R", severity="high", action="block", match_summary=summary))
         await db.commit()
@@ -160,6 +161,6 @@ async def test_startup_retires_what_older_versions_stored(
 
     async with session_factory() as db:
         summaries = (await db.execute(select(RiskHit.match_summary).order_by(RiskHit.id))).scalars().all()
-        legacy = (await db.execute(select(RiskRule).where(RiskRule.rule_id == "legacy-allow"))).scalar_one()
+        stored_rule = (await db.execute(select(RiskRule).where(RiskRule.rule_id == "non-block"))).scalar_one()
     assert summaries == ["", "", "chars:3-9", "(matching timed out)"]
-    assert (legacy.action, legacy.is_enabled) == ("block", False)
+    assert (stored_rule.action, stored_rule.is_enabled) == ("block", False)

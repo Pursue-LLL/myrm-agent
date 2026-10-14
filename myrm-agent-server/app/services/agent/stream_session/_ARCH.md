@@ -30,7 +30,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `moa_overlay_setup.py` | 辅助 | Agent-loop MoA overlay：解析 `engineParams.moa_overlay` reference 模型并构建 harness middleware；支持 `user_turn`、`per_iteration`、`every_n` 以及自适应 `risk_triggered` 模式并透传自适应风险门禁参数；支持在 `privacy_filter != "off"` 时自动注入 `leak_detector.redact_leaks` 完成参考参谋上下文深度凭证脱敏；无可用 ref 时返回 None + `resolve_moa_overlay_skip_reason` 供 stream 发 `moa_overlay_skipped` SSE；skip reason 含 `budget_pressure`、`insufficient_refs`、`risk_trigger_timeout`（runtime 由 harness middleware emit） | ✅ |
 | `lanes/` | 核心 | Chat 专用 lane 流（见 [lanes/_ARCH.md](lanes/_ARCH.md)） | ✅ |
 | `reconnect.py` | 辅助 | Last-Event-ID SSE 重连 | ✅ |
-| `risk_gate.py` | 辅助 | 流式输入 risk 拦截 | ✅ |
+| `risk_gate.py` | 辅助 | 流式输入 risk 拦截：命中时记录命中位置，推送只含规则列表（id、名称、严重度）的 `risk_blocked` SSE，提示文案由前端按用户语言生成 | ✅ |
 | `entitlement_gap_preflight.py` | 辅助 | Stream 早期 factual gap SSE（不改 Turn1 工具绑定）：web_search profile ON 但 runtime 不可用 → `reason=not_configured|unreachable` + `settings_path=/settings/search`；substring enable-and-resend entitlement toasts removed | ✅ |
 
 ## 依赖关系

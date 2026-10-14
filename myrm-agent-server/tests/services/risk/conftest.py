@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
+from typing import cast
 
 import pytest
+from sqlalchemy import Table
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database.models import RiskHit, RiskRule
@@ -19,8 +21,8 @@ EngineBuilder = Callable[..., Awaitable[RiskDetectionService]]
 async def session_factory(tmp_path: Path) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'risk.db'}", connect_args={"check_same_thread": False})
     async with engine.begin() as conn:
-        await conn.run_sync(RiskRule.__table__.create)
-        await conn.run_sync(RiskHit.__table__.create)
+        await conn.run_sync(cast(Table, RiskRule.__table__).create)
+        await conn.run_sync(cast(Table, RiskHit.__table__).create)
     yield async_sessionmaker(engine, expire_on_commit=False)
     await engine.dispose()
 

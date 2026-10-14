@@ -110,8 +110,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务 |
 | `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |
-| `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
-| `services/risk/test_risk_rules_engine.py` | 模块 | 内置个人信息规则与检测引擎对真实 SQLite：身份证校验位、示例邮箱、订单号里的手机号形状、关键词后的日期不算命中；40K 点号串不再拖住邮箱规则；回溯型自定义规则在时间预算内按命中处理；过大的计数重复被拒并在加载时跳过；规则测试报告的是整段命中文本；播种刷新已存内置规则的 pattern 而不动用户所设 |
+| `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则；启动停用动作不是 `block` 的规则并清空命中记录里存下的匹配原文 |
+| `services/risk/conftest.py` | 辅助 | 风控测试夹具：真实 SQLite、从库里已存规则加载的检测引擎（播种的内置规则，可全开） |
+| `services/risk/test_builtin_rule_precision.py` | 模块 | 内置规则的精度：默认只启用安全凭证 8 条；日常聊天与引用凭据的代码不被默认规则拦下，每种凭据形状都被拦下；省略号截短的示例不算；关键词按整词匹配；命中摘要只记位置；启动把动作不是 `block` 的规则停用、清空存下的匹配原文且幂等；API 拒绝 `block` 以外的动作 |
+| `services/risk/test_risk_rules_engine.py` | 模块 | 内置个人信息规则与检测引擎对真实 SQLite：身份证校验位、示例邮箱、订单号里的手机号形状、关键词后的日期不算命中；40K 点号串在时间预算内完成；回溯型自定义规则在时间预算内按命中处理；过大的计数重复被拒并在加载时跳过；规则测试报告的是整段命中文本；播种刷新已存内置规则的 pattern 而不动用户所设 |
 | `integration/test_repo_call_graph_integration.py` | 模块 | 代码调用图谱与改动影响面分析集成任务流测试（多语言代码库索引、正反向拓扑遍历、受影响测试套件触达、增量重索引一致性） |
 | `e2e/test_migration_readiness_gap_chrome_e2e.py` | 模块 | migration post-import readiness gap（LIVE×3 SHPOIB：`mcp_warning` · `provider_critical` · `diagnostic_critical` 各独立 `::test_*` · R139 禁 batch） |
 | `e2e/test_mem0_import_review_chrome_e2e.py` | 模块 | mem0 export 真实 UI 导入 Chrome E2E（SHARED+NAMESPACE_WRITE×1：/settings/memory file picker 上传 mem0 `memories` JSON → 前端 POST dry-run → server auto-detect=mem0 → review dialog 渲染翻译后 `sources.mem0`（C1 无 raw key 泄漏）+ `memories` 映射桶；**停在 confirm 前不写真实记忆**，写路径由 unit/API 覆盖） |

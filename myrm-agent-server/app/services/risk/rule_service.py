@@ -292,24 +292,25 @@ class RiskRuleService:
             logger.info("Refreshed the pattern of %d built-in risk rules", refreshed)
         return inserted
 
-    async def disable_legacy_allow_rules(self, session: AsyncSession) -> int:
-        """Turn the rules stored with the removed ``allow`` action into disabled block rules.
+    async def disable_non_block_rules(self, session: AsyncSession) -> int:
+        """Turn every stored rule whose action is not ``block`` (the only action) into a disabled block rule.
 
-        An ``allow`` rule never changed what was held (a message another rule held stayed held), so a disabled rule acts
-        as it always did, whereas an enabled block rule would start holding messages. Returns the number of rules changed.
+        A rule with another action holds no message, so it is disabled: an enabled block rule would start holding
+        messages its author never meant to hold. Returns the number of rules changed.
         """
         result = await session.execute(
-            update(RiskRule).where(RiskRule.action == "allow").values(action=RiskAction.BLOCK, is_enabled=False)
+            update(RiskRule).where(RiskRule.action != RiskAction.BLOCK).values(action=RiskAction.BLOCK, is_enabled=False)
         )
         changed = int(result.rowcount or 0) if isinstance(result, CursorResult) else 0
         if changed > 0:
-            logger.info("Disabled %d risk rules that used the removed allow action", changed)
+            logger.info("Disabled %d risk rules stored with an action other than block", changed)
         return changed
 
-    async def clear_legacy_hit_text(self, session: AsyncSession) -> int:
-        """Blank the summary of hits recorded while summaries still held the matched text (a key, a number, an address).
+    async def clear_stored_match_text(self, session: AsyncSession) -> int:
+        """Blank every hit summary that is neither a position nor the timeout marker.
 
-        Returns the number of cleared hits; hits that name a position or a timeout are left as they are.
+        Such a summary holds the matched text (a key, a number, an address), which the hit log must not keep. Returns
+        the number of cleared hits.
         """
         result = await session.execute(
             update(RiskHit)

@@ -39,9 +39,12 @@ export const translateI18nKey = (key: string, fallback: string = key): string =>
   return globalTranslator(key);
 };
 
+/** A segment named like an `Object` member (`constructor`, `toString`): next-intl's `has` finds those on any message object. */
+const hasObjectMemberSegment = (key: string): boolean => key.split('.').some((segment) => segment in Object.prototype);
+
 /** Resolve a locale key when the locale files carry it, else `fallback` (a missing key must not surface as a path). */
 export const translateI18nKeyIfPresent = (key: string, fallback: string): string => {
-  if (!globalTranslator?.has?.(key)) {
+  if (hasObjectMemberSegment(key) || !globalTranslator?.has?.(key)) {
     return fallback;
   }
   return globalTranslator(key);

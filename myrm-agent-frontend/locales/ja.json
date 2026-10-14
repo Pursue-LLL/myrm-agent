@@ -15085,6 +15085,8 @@
         "importSuccess": "{count} 件のルールをインポートしました",
         "importError": "インポートに失敗しました。ファイル形式を確認してください",
         "duplicateRule": "コピールール",
+        "duplicatedName": "{name}（コピー）",
+        "actionError": "操作に失敗しました。もう一度お試しください",
         "rules": {
           "email_address": {
             "name": "メールアドレス",

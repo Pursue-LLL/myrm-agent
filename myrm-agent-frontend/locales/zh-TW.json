@@ -15085,6 +15085,8 @@
         "importSuccess": "成功匯入 {count} 條規則",
         "importError": "匯入失敗，請檢查檔案格式",
         "duplicateRule": "複製規則",
+        "duplicatedName": "{name}（副本）",
+        "actionError": "操作失敗，請重試",
         "rules": {
           "email_address": {
             "name": "郵箱地址",

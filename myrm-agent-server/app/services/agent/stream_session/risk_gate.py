@@ -1,4 +1,16 @@
-"""Risk gate for agent stream input."""
+"""Risk gate for agent stream input.
+
+[INPUT]
+- app.services.risk.detection::get_detection_service (POS: 风险检测引擎单例)
+- app.platform_utils::get_session_factory (POS: 数据库会话工厂)
+- app.schemas.streaming::SSEEnvelope (POS: 业务层 SSE 序列化防腐层)
+
+[OUTPUT]
+- check_stream_risk: 对用户输入做风险检测；命中时记录命中位置并返回只含规则列表（id、名称、严重度）的 `risk_blocked` SSE 响应，否则返回 None
+
+[POS]
+聊天输入进入 agent 流之前的风险闸门。事件不带句子：提示文案由前端按用户语言生成。
+"""
 
 from __future__ import annotations
 

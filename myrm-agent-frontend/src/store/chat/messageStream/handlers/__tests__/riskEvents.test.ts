@@ -106,4 +106,17 @@ describe('riskEvents', () => {
     expect(options.description.startsWith('Matched: Project Falcon / ')).toBe(true);
     expect(options.description.split(' / ')).toHaveLength(3);
   });
+
+  it('keeps the own name of a custom rule whose id is an Object member, whatever the translator says', async () => {
+    const lookup = translatorFor(en as Messages);
+    setGlobalTranslator(
+      Object.assign((key: string, values?: Record<string, unknown>) => lookup(key, values), { has: () => true }),
+    );
+    const { ctx } = createCtx(AgentEventType.RISK_BLOCKED, { rules: [rule('constructor', 'Project Falcon')] });
+
+    await riskEvents(ctx);
+
+    const [, options] = toastMock.error.mock.calls[0] as [string, { description: string }];
+    expect(options.description.startsWith('Matched: Project Falcon.')).toBe(true);
+  });
 });
