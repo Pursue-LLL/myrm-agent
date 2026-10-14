@@ -79,9 +79,9 @@ describe('EbbinghausLifecycleCard', () => {
     expect(screen.getByText('HOT 热活跃内存')).toBeInTheDocument();
     expect(screen.getByText('WARM 温向量检索')).toBeInTheDocument();
     expect(screen.getByText('COLD 冷存储归档')).toBeInTheDocument();
-    expect(screen.getByText(/共评估 15 条/)).toBeInTheDocument();
+    expect(await screen.findByText(/共评估 15 条/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Legacy Python 2 compatibility guideline/),
+      await screen.findByText(/Legacy Python 2 compatibility guideline/),
     ).toBeInTheDocument();
   });
 
