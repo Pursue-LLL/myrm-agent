@@ -107,9 +107,6 @@ from app.api.memory.markdown_curator_router import (
 from app.api.memory.mem_cube_router import (
     router as mem_cube_router,
 )
-from app.api.memory.memory_lineage_router import (
-    router as memory_lineage_router,
-)
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
@@ -338,10 +335,6 @@ router.include_router(
 router.include_router(
     dream_cognitive_router,
     tags=["memory-dream-cognitive"],
-)
-router.include_router(
-    memory_lineage_router,
-    tags=["memory-lineage"],
 )
 router.include_router(
     quadruple_retrieval_router,

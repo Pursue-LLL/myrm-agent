@@ -18,7 +18,6 @@
 | `health.ts`              | Shared Context 记忆依赖健康探测                                                                                   |
 | `integration.ts`         | Integration Memory：sync / browse / status                                                                        |
 | `cognitiveClock.ts`      | 嵌套多频认知时钟客户端：时钟调度状态查询、用户活跃通知上报与 T1 会话防抖手动提炼触发                              |
-| `memoryLineage.ts`       | 记忆图谱重组与演化溯源链客户端：语义边推导、白盒 DAG 谱系追溯、版本回滚与拓扑渲染                                |
 | `quadrupleRetrieval.ts` | 目标驱动四路并行检索与推理重排客户端：四路并行召回、前置意图解构与 Reasoner 决策指标                               |
 | `sqliteVec.ts`          | 基于SQLite与sqlite-vec的嵌入式轻量向量存储客户端：零守护进程、单文件自包含、双轨执行模式监控与时间衰减稠密检索 |
 | `vectorSpaceGuard.ts`   | Embedding模型维度与向量空间完整性校验守卫客户端：预检兼容性、模型底模与维度对齐、指纹绑定与安全重建索引 |

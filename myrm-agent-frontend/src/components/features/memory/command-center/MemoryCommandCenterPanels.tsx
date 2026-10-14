@@ -82,7 +82,6 @@ import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
 import { AutoMemoryConsolidationStudioCard } from './AutoMemoryConsolidationStudioCard';
 import { MemoryCubeStudioCard } from './MemoryCubeStudioCard';
 import { DreamCognitiveStudioCard } from './DreamCognitiveStudioCard';
-import { MemoryLineageStudioCard } from './MemoryLineageStudioCard';
 import { QuadrupleRetrievalStudioCard } from './QuadrupleRetrievalStudioCard';
 import { SqliteVecStudioCard } from './SqliteVecStudioCard';
 import { VectorSpaceGuardStudioCard } from './VectorSpaceGuardStudioCard';
@@ -349,9 +348,6 @@ export const UnderstandSection = ({
 
     {/* Dream Cognitive Consolidation & AI Mind Growth Diary Studio Card (Item 125 P1) */}
     <DreamCognitiveStudioCard />
-
-    {/* Graph Memory Reorganization & Lineage Traceability Studio Card (Item 126 P1) */}
-    <MemoryLineageStudioCard />
 
     {/* Goal-Driven Quadruple Retrieval & Reasoner Studio Card (Item 127 P1) */}
     <QuadrupleRetrievalStudioCard />

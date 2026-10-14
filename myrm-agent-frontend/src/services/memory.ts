@@ -49,7 +49,6 @@ export * from './memory/budgetPacking';
 export * from './memory/autoMemoryConsolidation';
 export * from './memory/memCube';
 export * from './memory/dreamCognitive';
-export * from './memory/memoryLineage';
 export * from './memory/quadrupleRetrieval';
 export * from './memory/sqliteVec';
 export * from './memory/vectorSpaceGuard';

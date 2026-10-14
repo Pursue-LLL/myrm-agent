@@ -135,11 +135,6 @@
 | `GrowthDiaryTimelineView.tsx` | 辅助 | 智能体心智进化成长日记时间轴检视组件：呈现演化标题、动机徽章、反思叙事、主题标签、Actions 列表与 Markdown 视图渲染 | ✅    |
 | `DreamCognitiveSynthesisConsoleView.tsx` | 辅助 | 梦境认知重组触发控制台：支持配置会话碎片与关联 Memory Cube，实时触发非阻塞梦境整合并展示执行报告与动作详情 | ✅    |
 | `dreamCognitiveFallbacks.ts` | 辅助 | 梦境认知重组与成长日记离线及单测仿真数据集 | ✅    |
-| `MemoryLineageStudioCard.tsx` | 核心 | 记忆图谱重组与演化溯源链中枢卡片：对标 MemOS 知识图谱重组与 Lineage 溯源链，全景 DAG 拓扑、多维语义边自动建立、白盒演化溯源与一键版本回溯 | ✅    |
-| `MemoryLineageHudBar.tsx` | 辅助 | 记忆谱系 4 维 HUD 监控条：呈现活跃记忆数、演化版本深度、多维语义边数与全自动图重组执行状态 | ✅    |
-| `LineageDagGraphView.tsx` | 辅助 | 演化谱系有向无环图与多维语义关系拓扑展示组件：支持 Active/Superseded 过滤、父子归纳/时序/推断/冲突语义边辨识与节点白盒追溯 | ✅    |
-| `GraphReorganizationConsoleView.tsx` | 辅助 | 自动化图谱重组工作台：支持调节置信度阈值、触发批次重组分析并实时呈现新合成语义关系边报告 | ✅    |
-| `memoryLineageFallbacks.ts` | 辅助 | 记忆图谱重组与演化溯源链离线及单测仿真数据集 | ✅    |
 | `QuadrupleRetrievalStudioCard.tsx` | 核心 | 目标驱动四路并行检索与推理重排工作台卡片：对标 MemOS 混合检索架构，前置 TaskGoalParser 消除自然语言模糊噪音，四路并行召回矩阵与 Reasoner 语义推理重排 | ✅    |
 | `QuadrupleRetrievalHudBar.tsx` | 辅助 | 四路检索 4 维 HUD 监控条：呈现总索引数、4 通道激活状态、平均端到端延迟与通道权重乘数 | ✅    |
 | `TaskGoalParserConsoleView.tsx` | 辅助 | 目标意图前置解构控制台：直观展示自然语言查询解构结果、实体锚点、词法分词、元数据过滤与置信度 | ✅    |
