@@ -427,6 +427,16 @@ async def _phase_1a_sequential() -> None:
     except Exception as e:
         logger.warning("[Startup] Retired provider OAuth credential purge failed (non-critical): %s", e)
 
+    # Subscription access tokens are short-lived, so a model instance that outlives one renews it per request.
+    try:
+        from myrm_agent_harness.api.hooks import set_api_key_refresher
+
+        from app.services.agent.provider_oauth_tokens import freshen_api_key
+
+        set_api_key_refresher(freshen_api_key)
+    except Exception as e:
+        logger.error("[Startup] Subscription token refresher registration failed: %s", e)
+
     try:
         from app.core.infra.tls_config import apply_tls_config_from_db
 

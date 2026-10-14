@@ -1587,3 +1587,76 @@ except Exception:
 5. 共享工作区：6 个语言文件被他人整体重写，只提交本条的 4 个键、每个语言各自在 HEAD 内容上做同样的删除（先用 JSON 等价检查），不碰他们的行。
 
 ---
+
+## BUG-AGENT-2026-10-14-008: xAI SuperGrok 订阅登录：访问令牌到期后仍带旧令牌发请求、模型页探测把占位符当密钥发给上游、重启后登录标志被重置、三处设备码登录各写一套
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（只影响用订阅登录的用户：令牌到期后的模型请求与模型页探测失败、重启后登录标志与另外两项用户设置被重置；不丢数据） |
+| 影响范围 | server：`app/services/agent/oauth_token_policy.py`（新增）、`provider_oauth_tokens.py`（新增）、`oauth_refresher.py`、`app/services/integrations/oauth_store.py`、`app/core/channel_bridge/config_loader.py`、`app/api/integrations/{llms,provider_oauth,xai_oauth}.py`、`app/server/lifespan.py`；harness：`toolkits/llms/adapters/chat_model/{session_affinity,api_key_refresher,payload_debug}.py`（新增）、`model.py`、`async_mixin.py`、`api/hooks.py`；frontend：`services/{xai-oauth,provider-oauth,provider-oauth-reconcile}.ts`、`services/config/configNormalizer.ts`、`store/useProviderStore.ts`、`store/config/{providerSubscription,subscriptionDefaultModel}.ts`、`hooks/shared/{useXaiDeviceLogin,useCopyFeedback}.ts`、`NoProviderBanner.tsx`、`ProviderOAuthSection.tsx`、`ProviderConfig.tsx`、`CredentialsDialogs.tsx`、`useCredentialsOAuth.ts`、六语言 `locales` |
+| 出现次数 | 1（读代码、探针与单元测试确认；没有真实 SuperGrok 账号，授权流程与上游行为没有做端到端验证） |
+| 关联 | `BUG-AGENT-2026-10-13-007`（订阅登录下线后的遗留；本条补上其中记录的横幅失败路径写不进错误、原样展示服务端错误文本）· roadmap topic_07 订阅登录条目（引用的路径与路由同步更正） |
+
+### 现象
+
+1. 访问令牌的新鲜度没有任何环节负责：`load_user_configs` 把库里的令牌原样注入提供商配置（HEAD `config_loader.py:245`），不看它是否临近到期；一轮 Agent 对话可能比一个访问令牌活得久，已创建的模型实例整轮沿用同一个令牌。
+2. 注入发生在默认模型解析之后（HEAD `config_loader.py:233` 先于 `:245`）：只有订阅、没有任何 API Key 的用户，解析默认模型时提供商手里没有凭据。
+3. 登录、断开、刷新写库后，已加载配置的缓存快照（30 秒）不失效（`persist_credentials_locked` 提交后什么也不做），三种操作在缓存期内都看不到结果。
+4. 模型页对订阅提供商做验证、可达性检查与速度测试时，把占位符 `__myrm_oauth_token__`（`providerTypes.ts:405`）当 API Key 原样发给上游，服务端没有解析占位符的位置。
+5. 刷新失败没有记忆：被提供商拒绝的刷新令牌每次调用都再试一次（对会轮换刷新令牌的发行方，重试本身就是消耗），上游故障时每次 LLM 调用都打一次令牌端点；调用方被取消时刷新请求跟着取消，若提供商此时已轮换，新的刷新令牌可能来不及落库。
+6. 内置提供商规范化只保留五个字段（HEAD `configNormalizer.ts` 的 `mergeProviders`）：每次启动把 `oauthConnected`、`credentialPoolStrategy`、`egressProxy` 重置为出厂值，订阅用户重启后被当成未登录。
+7. 设备码登录有三份实现（聊天横幅、模型页、凭据页），轮询间隔、`slow_down` 处理、超时、失败提示各不相同；横幅把 `grok-2` 等固定 id 写死为登录后的启用模型（`NoProviderBanner.tsx:21-22`），凭据页 xAI 对话框的中英文案写死（硬编码文案棘轮里该文件 12 处）；服务端同时有两套登录端点（`/integrations/provider-oauth/xai/{start,poll}` 与 `/integrations/xai/oauth/{start,poll}`）和两套状态 / 断开端点，状态接口还返回写死的模型名。
+8. 原生 xAI 端点的请求不带会话路由头 `x-grok-conv-id`，同一会话的多次请求不保证落到同一台服务器，不利于提示词缓存命中。
+
+### 根因
+
+1. 刷新只存在于会话级工具凭据的 `refresh_callback`；LLM 请求用的注入令牌没有刷新入口，注入位置也在默认模型解析之后。
+2. 配置快照的失效点只覆盖配置写入，没有覆盖 oauthCredentials 这条会注入进快照的数据。
+3. 占位符是前端约定，服务端没有对应的解析与主机校验。
+4. 刷新器没有失败分类：终态拒绝与可重试故障走同一条路径，取消语义由调用方决定。
+5. 内置提供商的合并写成显式字段清单，新增字段不会让任何东西报错，只是每次启动被悄悄重置。
+6. 登录流程按界面各写一份，没有「已连接」变成提供商状态的唯一位置，也没有对启动模型的单一来源。
+
+### 修复
+
+1. server：新增 `oauth_token_policy.py`（纯函数：到期取 JWT `exp` 与 `now + expires_in` 的较早者、5 分钟提前量、刷新失败分为终态 / 可重试）；`xai_oauth.py` 登录时用同一解析写 `expires_at`。
+2. server：新增 `provider_oauth_tokens.py`——提供商到发行方的唯一登记 `PROVIDER_OAUTH_ISSUERS`；`resolve_oauth_marker` 把占位符换成存库令牌（只发给签发主机，10 秒预算）；`refresh_provider_oauth_credentials` 在配置加载期刷新到期令牌（2 秒预算，超时沿用原令牌，刷新在后台继续并自行落库）；`freshen_api_key` 供 harness 在请求前续期（只认本进程签发过的令牌，最多记 16 个，其余密钥只做一次字典查找）。
+3. server：`config_loader.py` 先刷新到期令牌再注入，并把注入提前到默认模型解析之前；`oauth_store.persist_credentials_locked` 提交 oauthCredentials 后失效已加载配置快照（失败只记 warning，不掩盖已提交的写入）。
+4. server：`oauth_refresher.py` 按指纹记住被拒绝的刷新令牌（新登录换新令牌即解除）、可重试失败冷却 30 秒、刷新作为独立任务 `asyncio.shield`、终态失败照常发（去重的）重新授权事件。
+5. server：`llms.py` 的 `/verify`、`/check-reachability`、`/speed-test` 在建模型前调 `resolve_oauth_marker`；未连接或目标不是签发主机时，`/verify` 返回 502、可达性检查报不可达、测速对应项报错，三者都不碰上游。
+6. server：路由收敛——删除 `provider_oauth.py` 里 `/xai/{start,poll}` 的转发与 `xai_oauth.py` 里的 `/status`、`DELETE`，状态与断开统一走 `/integrations/provider-oauth/{status,disconnect}/{provider}`，状态不再返回写死的模型名；`/poll` 对 `expired_token` 返回 `expired`（此前与拒绝同为 `denied`）。
+7. server：`lifespan.py` 启动时通过 `myrm_agent_harness.api.hooks.set_api_key_refresher` 登记 `freshen_api_key`（失败只记 error，不阻塞启动）。
+8. harness：新增 `api_key_refresher.py`（进程级登记，异步路径每次请求前 `renew_api_key`），`model.py`、`async_mixin.py` 接入，`api/hooks.py` 导出 `set_api_key_refresher`；新增 `session_affinity.py`（按主机匹配原生 xAI 端点后注入 `x-grok-conv-id`，取 `prompt_routing_key_var`，没有则取 `chat_id_var`，调用方已设同名头时不覆盖）；`payload_debug.py` 从 `model.py` 拆出，两个文件回到行数上限内（基线 `async_mixin.py` 579→553、`model.py` 552→514）。
+9. frontend：`configNormalizer.ts` 的 `BUILT_IN_FIELD_OWNER` 是 `Record<keyof ProviderConfig, 'definition' | 'user'>`，新增字段时编译期强制决定归属，`mergeBuiltInProvider` 保留全部用户字段。
+10. frontend：`provider-oauth-reconcile.ts` 在启动（`initProviders` 成功路径）用服务端状态校正 `oauthConnected`，只改这个标志，比较基准是请求发出时的标志，请求期间完成的登录 / 退出不会被较早的回答覆盖；离线时什么都不改。
+11. frontend：`useXaiDeviceLogin.ts` 是唯一的设备码流程（RFC 8628：`slow_down` 追加 5 秒、最小间隔 1 秒、设备码寿命到期、卸载即停、重复 start 忽略），失败原因是封闭集合 `startFailed | expired | denied | timeout`，各界面映射成本地化文案；`providerSubscription.ts` 是「已连接」变成提供商状态的唯一位置（连接：置标志，按 models.dev 目录挑启动模型并启用，已有选择不动；断开：没有其他凭据的提供商被禁用并释放绑定的模型位，有 API Key 的继续可用）；`subscriptionDefaultModel.ts` 取目录里最新的、未弃用、支持工具调用且输出文本的模型，不再写死 id。
+12. frontend：横幅、模型页订阅卡片、凭据页 xAI 对话框改用同一个 hook 与同一份副作用；凭据页对话框文案进六语言 `locales`（硬编码文案棘轮里该文件 12→2，剩下 2 处是另一个对话框既有的中英并列文案）；复制反馈抽成 `useCopyFeedback`；外链用 `noopener,noreferrer` 打开；`xai-oauth.ts` 只剩设备码 start / poll，`provider-oauth.ts` 只剩状态与断开。
+
+行为说明：
+
+1. 显式断开订阅时，没有其他凭据的提供商会被禁用并释放它占用的模型位；有 API Key 的提供商保持启用。
+2. 启动校正只改 `oauthConnected`，不启用 / 禁用提供商，也不动模型选择。
+3. 连接成功时 models.dev 目录不可用：提供商已连接但不启用，成功视图照常显示，用户到模型页自选模型。
+
+### 验证
+
+1. server：本次触及的 10 个测试文件共 171 例通过（另 3 例 e2e 按标记跳过）；更宽一批（刷新器各测试、会话凭据、`config_loader`、模型解析、`tests/services/integrations`、LLM 探针与 OAuth 接口）共 311 例通过；新增 `test_oauth_token_policy.py`、`test_oauth_refresher_failure_memory.py`、`test_provider_oauth_tokens.py`、`test_llm_oauth_marker.py`、`test_lifespan_oauth_refresher.py`，并在 `test_oauth_store.py` 补了「明文原样存、密文进 `_cipher` 信封」2 例。
+2. harness：`test_api_key_refresher.py`、`test_prompt_routing_key.py`、`test_chat_model_stream_edges.py`、`test_integration_surface.py` 共 79 例通过；`set_api_key_refresher` 经公开门面登记后与 `renew_api_key` 读到同一份登记（门面测试 1 例）。
+3. frontend：广域 vitest 346 个文件 2055 例通过（聊天窗口、设置 / 模型服务、凭据页、`hooks/shared`、`store`、`services/config`、`services`）。
+4. 变异检查（临时改写源码、跑测试、恢复原文）：server 刷新失败记忆 6 个、占位符解析 3 个、`_ttft_sort_key` 1 个、存储形状（信封、键名、加密标志）3 个，harness 路由头 3 个、续期登记 5 个，全部杀死；frontend 第三批共 68 个：第一轮 52 个，杀死 50 个，存活 2 个——冗余的重读守卫经分析后删除，失败提示残留改成让重试保持挂起再断言后在第二轮杀死；第二轮 16 个，全部杀死。
+5. 静态：`ruff check` / `ruff format --check`、mypy（server 9 个源文件、harness 6 个源文件均无报错）、oxlint、prettier、ReadLints 对触及文件均通过；`verify-i18n.mjs` 通过；`tsc --noEmit` 只剩他人的两处错误（`KanbanTaskHandoffSection.test.tsx(68,3)`、`app/zz-adm-preview/Preview.tsx(89,31)`）；`verify-i18n-references.mjs` 的 219 个缺失 key 与此前记录的基线数目相同，没有一条出自本次文件。
+6. 门禁：本次的 server 文件没有新增 harness 深层导入（逐文件对照基线）；`test_server_harness_imports.py`、`test_api_route_consumers.py` 的现有失败都出自他人新增的导入与路由，没有一条涉及本次的路径与路由；`check-hardcoded-copy` 的 drift 提示里 `CredentialsDialogs.tsx` 12→2 是本次的改善，基线已同步收紧。
+7. 局限：没有真实 SuperGrok 账号与浏览器，设备码授权的端到端流程只有单元测试与前端交互测试；`x-grok-conv-id` 只验证了注入条件，没有在真实接口上量化缓存命中的变化；刷新锁是进程内 `asyncio.Lock`（既有设计），多个服务进程同时读写同一份库时不保证串行；`llms.py`、`lifespan.py`、`useProviderStore.ts` 本来就超过 400 行，本次只在其中加了调用点。
+
+### 踩坑经验
+
+1. 令牌「注入」与「新鲜」是两件事：注入点之前要有刷新点，注入点之后的长寿命对象要有续期钩子；配置加载被就绪探针以 3 秒截止时间等待，加载期预算必须更小（2 秒，超时沿用原令牌），LLM 调用与模型探针才能给完整的令牌交换时间。
+2. 服务端新增对 harness 的深层导入会被棘轮拦下，正确做法是经 `api.hooks` 导出并同步 `__all__`、`_ARCH` 与门面测试，而不是改基线。
+3. harness 的 `agent/security/__init__.py` 用 `__getattr__` 惰性导出类，mypy 把它们当变量，报 `not valid as a type`并级联出 `func-returns-value`；从定义模块 `agent.security.types` 导入即可，该路径已在基线内。
+4. 校正类逻辑要拿「请求发出时」的本地值与服务端答案比较，才不会让慢响应覆盖请求期间完成的登录；这一条靠「请求期间改动对象再让响应返回」的测试固定下来。
+5. 失败提示的测试要断言在中间状态上（重试进行中旧提示已消失），等流程走完再断言会被等待视图掩盖，变异检查正是这样发现的。
+6. 共享工作区里多个 harness / 前端文件夹带他人改动：用 HEAD 内容加自己的精确替换生成补丁，只提交自己的 hunk。
+
+---

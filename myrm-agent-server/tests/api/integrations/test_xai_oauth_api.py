@@ -164,3 +164,47 @@ def test_poll_returns_404_for_unknown_code(client: TestClient):
     resp = client.post("/api/v1/integrations/xai/oauth/poll?user_code=UNKNOWN")
 
     assert resp.status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("error_code", "expected", "flow_continues"),
+    [
+        ("slow_down", {"status": "pending", "slow_down": True}, True),
+        ("expired_token", {"status": "expired"}, False),
+        ("access_denied", {"status": "denied", "error": "access_denied"}, False),
+    ],
+)
+def test_poll_maps_the_token_endpoint_error(
+    client: TestClient,
+    error_code: str,
+    expected: dict[str, object],
+    flow_continues: bool,
+):
+    """POST /integrations/xai/oauth/poll turns the RFC 8628 errors into the statuses the client acts on."""
+    _pending_flows["ERR-CODE"] = _DeviceCodePending(
+        device_code="dc-err",
+        user_code="ERR-CODE",
+        verification_uri="https://auth.x.ai/device",
+        verification_uri_complete="https://auth.x.ai/device?user_code=ERR-CODE",
+        expires_at=time.time() + 600,
+        interval=5,
+    )
+
+    mock_response = Response(
+        400,
+        json={"error": error_code},
+        headers={"content-type": "application/json"},
+    )
+
+    with patch("app.api.integrations.xai_oauth.httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_client_cls.return_value = mock_client
+
+        resp = client.post("/api/v1/integrations/xai/oauth/poll?user_code=ERR-CODE")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"] == expected
+    assert ("ERR-CODE" in _pending_flows) is flow_continues

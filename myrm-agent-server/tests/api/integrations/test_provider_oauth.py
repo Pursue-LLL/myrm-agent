@@ -1,4 +1,4 @@
-"""Unit tests for the Provider OAuth API — xAI SuperGrok delegation, status, disconnect and E2E fixtures."""
+"""Unit tests for the Provider OAuth API — status, disconnect and E2E fixtures."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.utils.response_utils import success_response
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
@@ -49,30 +48,12 @@ class TestRetiredSubscriptionLogins:
             assert "Unknown provider" in response.text
 
 
-class TestXaiRoutes:
-    """/xai/start and /xai/poll delegate to the xAI device-code flow."""
+class TestXaiLoginLivesInXaiOauth:
+    """The xAI device-code login is served by /integrations/xai/oauth only."""
 
-    def test_start_and_poll_delegate_to_xai_flow(self, client: TestClient) -> None:
-        with (
-            patch(
-                "app.api.integrations.xai_oauth.start_xai_oauth",
-                new=AsyncMock(
-                    return_value=success_response(data={"user_code": "XAI-123", "verification_uri": "https://auth.x.ai/device"})
-                ),
-            ),
-            patch(
-                "app.api.integrations.xai_oauth.poll_xai_oauth",
-                new=AsyncMock(return_value=success_response(data={"status": "pending"})),
-            ) as mock_poll,
-        ):
-            start_resp = client.post(f"{API_PREFIX}/xai/start")
-            assert start_resp.status_code == 200
-            assert start_resp.json()["data"]["user_code"] == "XAI-123"
-
-            poll_resp = client.post(f"{API_PREFIX}/xai/poll?user_code=XAI-123")
-            assert poll_resp.status_code == 200
-            assert poll_resp.json()["data"]["status"] == "pending"
-            assert mock_poll.await_args.kwargs["user_code"] == "XAI-123"
+    @pytest.mark.parametrize("action", ["start", "poll"])
+    def test_provider_oauth_has_no_login_routes(self, client: TestClient, action: str) -> None:
+        assert client.post(f"{API_PREFIX}/xai/{action}").status_code == 404
 
 
 class TestStatusAndDisconnect:
@@ -113,7 +94,7 @@ class TestStatusAndDisconnect:
         assert data["expires_at"] == expires_at
         assert data["scope"] == "api:access"
         assert data["base_url"] == "https://api.x.ai/v1"
-        assert "grok-2" in data["available_models"]
+        assert "available_models" not in data
         assert "token" not in data
 
     def test_status_unknown_provider(self, client: TestClient) -> None:
@@ -162,6 +143,7 @@ class TestE2eFixtureEndpoints:
         assert issuer == "xai"
         assert entry["token"] == "test-tok"
         assert entry["base_url"] == "https://api.x.ai/v1"
+        assert "available_models" not in entry
         assert entry["expires_at"] > entry["connected_at"]
 
         assert clean_resp.status_code == 200

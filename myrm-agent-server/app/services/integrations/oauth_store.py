@@ -6,7 +6,8 @@
 
 [OUTPUT]
 load/upsert/delete helpers for oauthCredentials UserConfig blob
-persist_credentials_locked: encrypt-and-write write-back primitive (shared with MCP OAuth store)
+persist_credentials_locked: encrypt-and-write write-back primitive (shared with MCP OAuth store);
+    drops the cached user-config snapshot after committing oauthCredentials
 is_oauth_issuer_connected: probe whether an issuer has a stored access token
 
 [POS]
@@ -126,11 +127,14 @@ async def persist_credentials_locked(
     serialized writes. Used by oauthCredentials writers (upsert/delete/refresh
     merge, guarded by ``oauth_credentials_lock``) and the MCP OAuth token store
     (guarded by its own persist lock).
+
+    Every oauthCredentials commit also invalidates the loaded-config snapshot:
+    provider tokens are injected into it from this blob, so login, disconnect
+    and refresh must not be served stale for the cache TTL.
     """
     service = get_encryption_service()
-    final_value, is_encrypted = encrypt_oauth_credentials(credentials, service, config_key)
-    if is_encrypted and isinstance(final_value, str):
-        final_value = {"_cipher": final_value}
+    stored, is_encrypted = encrypt_oauth_credentials(credentials, service, config_key)
+    final_value: dict[str, object] = {"_cipher": stored} if isinstance(stored, str) else stored
 
     if row:
         row.config_value = final_value
@@ -148,6 +152,19 @@ async def persist_credentials_locked(
             )
         )
     await db.commit()
+    if config_key == CONFIG_KEY:
+        _invalidate_loaded_configs()
+
+
+def _invalidate_loaded_configs() -> None:
+    """Best-effort: the write is already committed, so a failure must not mask it."""
+    try:
+        # Imported lazily: the channel_bridge package wires the whole gateway on import.
+        from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+
+        invalidate_user_configs_cache()
+    except Exception:
+        logger.warning("Failed to invalidate loaded user configs after oauthCredentials write", exc_info=True)
 
 
 async def is_oauth_issuer_connected(db: AsyncSession, issuer: str) -> bool:

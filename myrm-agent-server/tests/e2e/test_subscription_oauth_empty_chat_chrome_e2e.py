@@ -2,7 +2,7 @@
 
 Verifies end-to-end:
 1. Provider OAuth status query and fixture seeding (/api/v1/integrations/provider-oauth/test/seed-oauth).
-2. Verification of connected state and available models via /status/xai.
+2. Verification of connected state and endpoint via /status/xai.
 3. Clean disconnection lifecycle via /disconnect/xai.
 4. UI route warmup and browser DOM interaction on the main Chat page.
 """
@@ -73,7 +73,8 @@ def test_subscription_oauth_seed_status_and_disconnect_lifecycle() -> None:
     assert data.get("connected") is True
     assert data.get("provider") == "xai"
     assert "https://api.x.ai/v1" in str(data.get("base_url"))
-    assert "grok-2" in data.get("available_models", [])
+    # Models come from the live catalog; the server no longer ships a model list.
+    assert "available_models" not in data
 
     # 4. 验证 WebUI 页面在 Chrome CDP 中的渲染
     prepare_e2e_ui_session(api_url)

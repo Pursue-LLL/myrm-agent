@@ -439,6 +439,36 @@ def _reset_subagent_checkpointer_if_loaded() -> None:
         module.reset_subagent_checkpointer()
 
 
+_OAUTH_STATE_REGISTRIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "app.services.agent.oauth_refresher",
+        ("_refresh_locks", "_reauth_emitted_at", "_rejected_refresh_tokens", "_retry_not_before"),
+    ),
+    ("app.services.agent.provider_oauth_tokens", ("_issued_tokens",)),
+)
+
+
+def _clear_oauth_token_state() -> None:
+    for module_name, registry_names in _OAUTH_STATE_REGISTRIES:
+        module = sys.modules.get(module_name)
+        if module is not None:
+            for registry_name in registry_names:
+                getattr(module, registry_name).clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_oauth_token_state() -> Iterator[None]:
+    """Forget OAuth refresh bookkeeping between tests.
+
+    Failure memory, reauth dedup and per-issuer locks are keyed by issuer name,
+    which tests reuse with different fake credentials; a rejection recorded by
+    one test must not short-circuit the refresh another test exercises.
+    """
+    _clear_oauth_token_state()
+    yield
+    _clear_oauth_token_state()
+
+
 @pytest.fixture(autouse=True)
 def _isolate_subagent_checkpointer() -> Iterator[None]:
     """Give every test its own sub-agent checkpointer.

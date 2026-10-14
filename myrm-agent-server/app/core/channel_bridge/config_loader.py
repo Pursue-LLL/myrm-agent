@@ -20,10 +20,11 @@ config updates so load_user_configs returns fresh data.
 - app.core.types::ModelConfig, MCPServerConfig
 - app.services.config_encryption_service (敏感配置解密)
 - app.core.channel_bridge.config_parsers::extract_active_search_config, is_search_user_configured
+- app.services.agent.provider_oauth_tokens::PROVIDER_OAUTH_ISSUERS, refresh_provider_oauth_credentials (subscription token registry and renewal)
 
 [OUTPUT]
 - UserConfigs: typed config bundle (model/search/retrieval/MCP/voice/security/external_agents + search_is_user_configured flag)
-- load_user_configs: async loader with TTL cache (auto-registers custom pricing, injects provider OAuth tokens)
+- load_user_configs: async loader with TTL cache (auto-registers custom pricing, renews due subscription tokens and injects them as provider keys before model resolution)
 - load_voice_config_only: lightweight voice-only loader (no model/provider dependency)
 - invalidate_user_configs_cache: 配置变更后调用以清除缓存
 """
@@ -42,10 +43,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# oauthCredentials issuer → provider id whose subscription token backs LLM calls.
-_PROVIDER_OAUTH_MAP: dict[str, str] = {"xai": "xai"}
-
-
 def _inject_provider_oauth_tokens(
     providers_dict: dict[str, object],
     oauth_creds: dict[str, object],
@@ -56,11 +53,13 @@ def _inject_provider_oauth_tokens(
     provider dict so `_extract_all_active_keys` can use them as API key fallbacks.
     Tokens are always injected; `_extract_all_active_keys` handles API key priority.
     """
+    from app.services.agent.provider_oauth_tokens import PROVIDER_OAUTH_ISSUERS
+
     providers = providers_dict.get("providers")
     if not isinstance(providers, list):
         return
 
-    for issuer, provider_id in _PROVIDER_OAUTH_MAP.items():
+    for provider_id, issuer in PROVIDER_OAUTH_ISSUERS.items():
         cred = oauth_creds.get(issuer)
         if not isinstance(cred, dict):
             continue
@@ -230,6 +229,17 @@ async def load_user_configs() -> UserConfigs:
     default_model_cfg = config_map.get("defaultModelConfig")
     if isinstance(default_model_cfg, dict) and isinstance(providers_dict, dict):
         providers_dict["defaultModelConfig"] = default_model_cfg
+
+    # Subscription tokens (xAI SuperGrok) stand in for API keys, so they must be
+    # renewed when due and injected before the default model is resolved:
+    # a subscription-only user has no other credential to resolve it with.
+    oauth_creds_raw = config_map.get("oauthCredentials")
+    if isinstance(oauth_creds_raw, dict):
+        from app.services.agent.provider_oauth_tokens import refresh_provider_oauth_credentials
+
+        await refresh_provider_oauth_credentials(oauth_creds_raw)
+        _inject_provider_oauth_tokens(providers_dict, oauth_creds_raw)
+
     model_cfg = _fallback_model_from_providers(providers_dict, "sandbox")
 
     search_services_raw = _coerce_config_dict(config_map.get("searchServices"))
@@ -237,12 +247,6 @@ async def load_user_configs() -> UserConfigs:
     search_configured = is_search_user_configured(search_services_raw)
 
     register_custom_model_pricing(providers_dict)
-
-    # Inject provider OAuth tokens into provider configs so model_resolver
-    # can use them as API key fallbacks (xAI SuperGrok subscription)
-    oauth_creds_raw = config_map.get("oauthCredentials")
-    if isinstance(oauth_creds_raw, dict):
-        _inject_provider_oauth_tokens(providers_dict, oauth_creds_raw)
 
     from app.core.channel_bridge.model_resolver import enrich_model_context_window
 

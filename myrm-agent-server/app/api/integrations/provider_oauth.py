@@ -2,22 +2,21 @@
 
 Lets a SuperGrok subscription authenticate through OAuth instead of an API key.
 The token is stored as a provider-scoped credential in oauthCredentials and
-injected by config_loader at LLM call time.
+injected by config_loader at LLM call time. The device-code login itself lives
+in ``xai_oauth`` (/integrations/xai/oauth).
 
 [INPUT]
-- app.api.integrations.xai_oauth (POS: xAI device-code flow that /xai/* delegates to)
+- app.services.agent.provider_oauth_tokens::PROVIDER_OAUTH_ISSUERS (POS: provider id → issuer registry)
 - app.services.integrations.oauth_store (POS: encrypted oauthCredentials persistence)
 
 [OUTPUT]
 Provider OAuth APIs under /integrations/provider-oauth
-  - /xai/start             POST   → initiate xAI SuperGrok device-code flow
-  - /xai/poll              POST   → poll xAI device-code completion
   - /status/{provider}     GET    → query provider OAuth status
   - /disconnect/{provider} DELETE → disconnect provider OAuth
 
 [POS]
-Provider-facing facade over the xAI OAuth flow plus the shared status / disconnect
-endpoints used by the Models page.
+Shared status / disconnect endpoints used by the Models page, the Credentials page and the startup
+reconciliation of the stored login flags, plus local-only E2E seeding.
 """
 
 from __future__ import annotations
@@ -25,14 +24,13 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
-from app.services.agent.session_credential_assembler import XAI_ISSUER
+from app.services.agent.provider_oauth_tokens import PROVIDER_OAUTH_ISSUERS
 from app.services.integrations.oauth_store import (
     decrypt_oauth_credentials,
     delete_oauth_credential,
@@ -44,33 +42,6 @@ from app.services.integrations.oauth_store import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-_ALL_PROVIDER_ISSUERS = {"xai": XAI_ISSUER}
-
-
-# ──────────────────────── xAI SuperGrok Delegated Routes ────────────────
-
-
-@router.post("/xai/start")
-@limiter.limit("5/minute")
-async def start_xai_oauth_provider(request: Request) -> JSONResponse:
-    """Initiate xAI SuperGrok device-code authorization flow via provider-oauth."""
-    from app.api.integrations.xai_oauth import start_xai_oauth
-
-    return await start_xai_oauth(request)
-
-
-@router.post("/xai/poll")
-@limiter.limit("30/minute")
-async def poll_xai_oauth_provider(
-    request: Request,
-    user_code: str = "",
-    db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
-    """Poll for xAI SuperGrok device-code authorization completion via provider-oauth."""
-    from app.api.integrations.xai_oauth import poll_xai_oauth
-
-    return await poll_xai_oauth(request, user_code=user_code, db=db)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -84,7 +55,7 @@ async def get_provider_oauth_status(
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Return OAuth connection status for a model provider."""
-    issuer = _ALL_PROVIDER_ISSUERS.get(provider)
+    issuer = PROVIDER_OAUTH_ISSUERS.get(provider)
     if not issuer:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
 
@@ -105,7 +76,6 @@ async def get_provider_oauth_status(
                 result["scope"] = cred_val.get("scope")
                 if provider == "xai":
                     result["base_url"] = cred_val.get("base_url", "https://api.x.ai/v1")
-                    result["available_models"] = ["grok-2", "grok-2-mini", "grok-beta"]
 
     return success_response(data=result)
 
@@ -116,7 +86,7 @@ async def disconnect_provider_oauth(
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Disconnect OAuth credentials for a model provider."""
-    issuer = _ALL_PROVIDER_ISSUERS.get(provider)
+    issuer = PROVIDER_OAUTH_ISSUERS.get(provider)
     if not issuer:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
 
@@ -149,7 +119,7 @@ async def seed_test_provider_oauth(
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
-    issuer = _ALL_PROVIDER_ISSUERS.get(provider)
+    issuer = PROVIDER_OAUTH_ISSUERS.get(provider)
     if not issuer:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
 
@@ -162,7 +132,6 @@ async def seed_test_provider_oauth(
         cred_data["base_url"] = base_url
     elif provider == "xai":
         cred_data["base_url"] = "https://api.x.ai/v1"
-        cred_data["available_models"] = ["grok-2", "grok-2-mini"]
 
     await upsert_oauth_credential(db, issuer, cred_data)
     return success_response(data={"provider": provider, "issuer": issuer, "seeded": True})
@@ -179,7 +148,7 @@ async def cleanup_test_provider_oauth(
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
-    issuer = _ALL_PROVIDER_ISSUERS.get(provider)
+    issuer = PROVIDER_OAUTH_ISSUERS.get(provider)
     if not issuer:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
 
