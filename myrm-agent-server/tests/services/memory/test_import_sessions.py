@@ -5,7 +5,8 @@ from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
-from myrm_agent_harness.toolkits.memory import MemoryMutationRef, MemoryMutationResult, ProfileAttributeSnapshot
+from myrm_agent_harness.toolkits.memory import ProfileAttributeSnapshot
+from myrm_agent_harness.toolkits.memory.types import MemoryMutationRef, MemoryMutationResult
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
