@@ -58,9 +58,7 @@ def _is_safe_repo_path(path: str) -> bool:
     return True
 
 
-async def _run_git(
-    base_dir: str, args: list[str], timeout: int = 15
-) -> subprocess.CompletedProcess[str]:
+async def _run_git(base_dir: str, args: list[str], timeout: int = 15) -> subprocess.CompletedProcess[str]:
     return await asyncio.to_thread(
         subprocess.run,
         ["git", *args],
@@ -95,19 +93,13 @@ async def _get_lane_context(
     return parent, lane, base_dir, _worktree_branch_name(lane.branch, lane.task_id)
 
 
-async def get_lane_changes(
-    svc: KanbanService, board_id: str, parent_task_id: str, lane_task_id: str
-) -> dict[str, Any]:
+async def get_lane_changes(svc: KanbanService, board_id: str, parent_task_id: str, lane_task_id: str) -> dict[str, Any]:
     """List files changed by a lane against the race target branch."""
-    parent, lane, base_dir, lane_branch = await _get_lane_context(
-        svc, board_id, parent_task_id, lane_task_id
-    )
+    parent, lane, base_dir, lane_branch = await _get_lane_context(svc, board_id, parent_task_id, lane_task_id)
     target = parent.branch or lane.branch
     if not target:
         raise RaceError("race_requires_branch", "Race target branch is missing")
-    result = await _run_git(
-        base_dir, ["diff", "--numstat", f"{target}...{lane_branch}", "--"]
-    )
+    result = await _run_git(base_dir, ["diff", "--numstat", f"{target}...{lane_branch}", "--"])
     if result.returncode != 0:
         raise RaceError("diff_failed", "All file differences were not computed")
     changes: list[LaneFileChange] = []
@@ -120,9 +112,7 @@ async def get_lane_changes(
             deletions = int(parts[1]) if parts[1] != "-" else 0
         except ValueError:
             continue
-        changes.append(
-            LaneFileChange(path=parts[2], additions=additions, deletions=deletions)
-        )
+        changes.append(LaneFileChange(path=parts[2], additions=additions, deletions=deletions))
         if len(changes) >= MAX_DIFF_FILES:
             break
     return {
@@ -144,9 +134,7 @@ async def get_lane_file_contents(
     """Return target vs lane file contents for side-by-side review."""
     if not _is_safe_repo_path(path):
         raise RaceError("unsafe_path", "Only in-repo relative file paths are allowed")
-    parent, lane, base_dir, lane_branch = await _get_lane_context(
-        svc, board_id, parent_task_id, lane_task_id
-    )
+    parent, lane, base_dir, lane_branch = await _get_lane_context(svc, board_id, parent_task_id, lane_task_id)
     target = parent.branch or lane.branch
     if not target:
         raise RaceError("race_requires_branch", "Race target branch is missing")

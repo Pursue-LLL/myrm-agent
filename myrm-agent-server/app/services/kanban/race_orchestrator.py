@@ -161,8 +161,7 @@ async def start_race(
     if slots < n:
         raise RaceError(
             "insufficient_slots",
-            f"Board runs {slots} tasks at once but the race needs {n}; "
-            "raise max_concurrent_tasks in board settings first",
+            f"Board runs {slots} tasks at once but the race needs {n}; raise max_concurrent_tasks in board settings first",
         )
     existing = await svc.store.list_tasks(board_id, parent_task_id=parent.task_id)
     if any(not t.is_terminal for t in existing):
@@ -177,9 +176,7 @@ async def start_race(
     raw_criteria = parent.metadata.get("completion_criteria")
     if isinstance(raw_criteria, str):
         criteria = raw_criteria
-    elif isinstance(raw_criteria, list) and all(
-        isinstance(item, dict) for item in raw_criteria
-    ):
+    elif isinstance(raw_criteria, list) and all(isinstance(item, dict) for item in raw_criteria):
         criteria = cast("list[dict[str, str | int]]", raw_criteria)
     for i, spec in enumerate(lane_specs):
         suffix = spec.title_suffix or f"方案{letters[i]}"
@@ -212,9 +209,7 @@ async def start_race(
                 try:
                     await svc.move_task(created_id, TaskStatus.ARCHIVED)
                 except Exception:
-                    logger.warning(
-                        "Race rollback archive failed for lane %s", created_id[:8]
-                    )
+                    logger.warning("Race rollback archive failed for lane %s", created_id[:8])
             raise
         lane_ids.append(lane.task_id)
 
@@ -233,9 +228,9 @@ async def start_race(
         "lane_ids": lane_ids,
         "estimate": estimate.to_dict(),
     }
-async def _find_decision(
-    svc: KanbanService, parent_task_id: str
-) -> dict[str, Any] | None:
+
+
+async def _find_decision(svc: KanbanService, parent_task_id: str) -> dict[str, Any] | None:
     """Return the stored decide outcome when this race was already decided."""
     try:
         events = await svc.list_events(parent_task_id)
@@ -254,9 +249,7 @@ async def _find_decision(
     return None
 
 
-async def get_race_lanes(
-    svc: KanbanService, board_id: str, parent_task_id: str
-) -> list[KanbanTask]:
+async def get_race_lanes(svc: KanbanService, board_id: str, parent_task_id: str) -> list[KanbanTask]:
     """List live and finished lanes of a race parent, oldest first."""
     parent = await _get_race_parent(svc, parent_task_id)
     lanes = await svc.store.list_tasks(board_id, parent_task_id=parent.task_id)
