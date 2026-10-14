@@ -2582,3 +2582,61 @@ except Exception:
 6. 删字段时只搜了风控目录，漏了 `tests/channels/test_bus.py` 里三处 `RiskMatch(action=…)`，跑渠道全量时才暴露：删字段要对全仓搜构造点，不能只看模块目录。
 
 ---
+
+---
+
+## BUG-AGENT-2026-10-14-025: 永久删除与「安全清空」各按一份手写表清单拆除会话数据：拼错的表名让小组件存储被静默跳过，有未保存改动的沙箱工作树与未合并分支被强制删除；无凭据的 GET 能触发数据库从备份恢复；资源检查与启动参数里还有无人调用、或被忽略的开关
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（清空与永久删除会丢掉用户没有保存的工作；匿名 GET 触发的恢复只在 SQLite 自检失败时才会执行，没有构造损坏库端到端复现，路径来自读代码） |
+| 影响范围 | server：`app/services/chat/{chat_bound_rows,chat_crud,chat_disposal,sandbox_worktree}.py`、`app/services/system/vault_purge_service.py`、`app/services/infra/sandbox_cleanup.py`、`app/core/utils/git_worktree.py`、`app/core/security/auth/public_paths.py`、`app/api/health/router.py`、`app/core/infra/health/{coordinator,sqlite}.py`、`app/startup/*`、`run.py`；frontend：`conversationPurge.ts`、`DataFlowErasureStrip.tsx`、6 个 locale；harness：`utils/db/fts5.py`、`api/__init__.py`；brand：`competitor-comparison.mdx`（中英） |
+| 出现次数 | 1（复审 `BUG-AGENT-2026-10-14-020` / `-022` 时逐条验证发现；真实 SQLite 与真实 git 仓库复现，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-14-017`（公开路径按前缀放行，本条把 GET 收窄到探针）· `-020`（会话拆除）· `-022`（清空入口）· harness `BUG-HARNESS-2026-10-14-023` |
+
+### 现象
+
+1. 「安全清空」按一份手写的表清单删会话绑定的数据，清单里把 `widget_kv` 写成 `widget_kv_entries`；删除函数对不存在的表只记一行忽略，所以小组件存储从来没被清空，清空后接口仍报成功。`approvals`、`commitments`、`fission_task_records` 同样靠 `chat_id` / `source_chat_id` 绑定会话，单个永久删除与清空回收站只处理 `widget_kv`，这三张表在两条路径上都没人清，安全清空也没有。
+2. 永久删除、清空回收站、安全清空对沙箱都用强制清理：工作树里有未提交的改动，也有只存在于该分支上的未合并提交，两者都被删掉；界面与接口不会告诉用户有什么被保留或丢失。
+3. 安全清空在事件循环里同步清理工件保险库（临时目录里 500 个会话 × 10 个工件加 5 000 个全局对象，停顿 1 937 ms），期间所有请求排队。
+4. `/api/v1/health` 前缀下的 GET 全部无需凭据：doctor、info、metrics、resources、pressure、update-status、browser 等诊断都对匿名者开放，并跳过 Host 白名单；其中 `GET /health/resources?auto_recover=true` 会让 SQLite 检查器在自检失败时隔离当前库并从最近备份恢复。该参数没有任何调用方（前端、控制平面、脚本都没有）。
+5. `force_recovery` 贯穿 `run.py`、两个启动器、启动检查、协调器、`SQLiteHealthChecker` 与上述路由，描述是「允许删除 SQLite WAL」，实际在检查器里被忽略；`purge_vault` 的 `purge_memories` / `purge_sandboxes` / `reclaim_disk` 三个开关无人传入非默认值。
+6. harness 的 `safe_purge_fts5_virtual_table` 没有任何生产调用方，只靠自己的测试和一条门面导出存活，而 server 的文件头与三份文档把清库里的 FTS5 清理说成它做的；`StorageVaultBackend.backup_corrupted` 用 `str.replace(".enc", ".corrupted")`，域名里含 `.enc`（如 `mail.enc.example.com`）时两处都被改写。
+
+### 根因
+
+1. 「哪些表绑定了会话」没有单一来源：清空、单个永久删除、清空回收站各存一份，没有任何测试对着真实库的表结构核对。
+2. 清理沙箱的 `force=True` 来自「用户已明确丢弃」的假设，但这三个入口丢弃的是会话，不是工作树里的改动。
+3. 公开路径用前缀，探针与诊断被放在同一个前缀下；`auto_recover` 是启动检查的参数，被原样暴露成了查询参数。
+4. 开关先于需求落地，调用方一直没出现，也没人删。
+
+### 修复
+
+1. `chat_bound_rows.py`：`CHAT_BOUND_TABLES` 是唯一注册表（`widget_kv`、`approvals`、`commitments`、`fission_task_records`），清空逐项遍历、单个永久删除与清空回收站调用 `delete_trashed_chat_bound_rows`；后者每条 DELETE 都带「该会话仍在回收站」的 EXISTS 条件，过期的 id 列表不会误删已恢复会话的数据，按 500 个一批。守卫测试要求真实库里每张带会话列的表必须登记、或写明由别的路径清除、或写明有意保留（及理由）。
+2. 沙箱：`cleanup_sandbox_worktree(force=False)` 保留有未保存改动的工作树，并且只用 `git branch -d` 删分支，有未合并提交就保留；`remove_chat_files` 返回 `ChatFilesRemoval(removed_worktrees, kept_worktrees)`，安全清空的结果与接口多一个 `kept_sandboxes`，清空条在 `kept_sandboxes > 0` 时多一行说明（6 种语言），确认文案补一句保留规则。只有「关闭沙箱」接口与合并后的清理仍然强制。
+3. 工件保险库清理改在 `asyncio.to_thread` 里跑，同一批数据实测事件循环停顿 1 937 ms → 16 ms。
+4. `public_paths`：只读公开路径改为三个精确路径 `/api/v1/health`、`/liveness`、`/ready`，其余健康端点走正常准入与 Host 白名单；`/health/resources` 变成只读（`auto_recover=False`，不再接受任何恢复参数，返回里去掉 `auto_recover` / `force_recovery` / `recovery`）。`/health/metrics` 的文档字符串原写「需要管理员权限」，实际只要求通过准入，已改成实情。
+5. 删除 `force_recovery` 整条链与对应测试，删除 `purge_vault` 的三个开关；启动期的 `--no-auto-recovery` 保留。
+6. harness 删除 `safe_purge_fts5_virtual_table`、只服务于它的 `ConnectionLike` 协议、门面导出与测试，brand 两份与 temp-docs 一份文档改成「清库事务里逐表发送 `delete-all` / `rebuild` / `optimize`」；`backup_corrupted` 改成只换结尾的 `.enc`。
+
+### 验证
+
+1. 红灯 / 变异：清单里写错表名 → 清空测试失败；去掉守卫测试的分类 → 失败；沙箱分支用 `-D` 的旧行为 → 新增的 3 个真实 git 仓库用例失败；把公开规则改回前缀 → 25 个用例失败；`/resources` 改回 `auto_recover=True` → 对应用例失败；`.enc` 用 `replace` → 新增用例失败；工件清理改回同步 → 事件循环用例失败。每个变异还原后全部通过。
+2. 新增 / 重写：`test_chat_bound_rows.py` 4 例（表存在、分类守卫、只删回收站里的、超过 500 个 id）、`test_safe_vault_purge_service.py` 10 例（真实全量表结构）、`test_chat_disposal.py` 18 例、`test_sandbox_worktree_integration.py` 7 例、`test_sandbox_cleanup_batch.py` 4 例、`test_safe_purge.py` 3 例、`test_resources.py` 3 例、`test_public_paths.py` 165 例、`test_auth_middleware.py` 7 例（远程模式：探针匿名可达，doctor 无密钥 401、有密钥 200）；前端 `DataFlowErasureStrip.test.tsx` 6 例。
+3. 扫描：server `tests/services/{chat,system,infra} tests/api/{health,chats} tests/middleware tests/core/{security,infra} tests/unit tests/database` 1 812 例通过，5 例失败均来自他人未提交的工作（`test_aux_llm_privacy` 4 例、`test_storage_governance_api`：`app/services/instance_archive/` 尚未跟踪）；`tests/architecture` 13 例失败，均为他人在途改动（路由消费者基线、harness 深层导入基线、前端 API 路径）；harness `tests/utils tests/api` 与会话保险库测试通过，仅 `test_token_tracker` 1 例失败（他人在途）；harness `boundary_check`、`check_fractal_docs`、`check_import_resolvability`、`check_test_source_assertions` 通过。
+4. 局限：
+   - 安全清空的运行检查只看网关登记的会话；cron / 看板 / IM 渠道 / 评测的运行与已脱离的子代理不经网关。统计它们的 `app/core/agent/run_activity.py` 还是未跟踪的他人工作，没有接入。
+   - 健康诊断端点改为需要准入后，前端里 8 个组件用相对路径的裸 `fetch`（`ResourcePressureBanner`、`UpdateNudgeBanner`、`StackUpdatePanel`、`AboutSection`、`useTrayStatus`、`BrowserPoolCard`、`BrowserDoctorCard`、`MemoryMonitorCard`）依赖浏览器自带的会话 cookie；远程 WebUI 的会话 cookie、沙箱控制平面代理签名、手机配对页三种准入下它们的真实行为没有实测，只核对了代码与调用点。
+   - 被保留的工作树没有界面入口可以移除（接口在，界面没有调用）；有未合并提交的分支被保留时不会提示。清理过程中抛异常的会话也按「保留」计数。
+   - `empty_trash` 在预读之后才进回收站的会话仍有既有的竞争窗口。
+   - 永久删除与清空回收站原先被 `_ARCH.md` 定义为「明确丢弃」（`force=True`），现改为保留有未保存改动的沙箱，文档已同步。
+
+### 踩坑经验
+
+1. 对「哪些表属于某个实体」这类事实，写成单一注册表，再用真实库的表结构做一次反向核对；手写清单加「表不存在就忽略」会把拼写错误变成静默跳过；
+2. 对同一批会话 id 的删除要带「仍在回收站」条件：别处可能已恢复其中一个，过期的 id 列表不是授权；
+3. 同一个前缀下既有探针又有诊断和运维动作时，按精确路径放行，并让「放行清单里的每一项都是真实的 GET 路由」成为测试，清单才不会悄悄过期；
+4. 暴露给 HTTP 的参数不要直接复用启动期的恢复开关：恢复会改库，读接口不应该能触发；
+5. 做公开面收窄前先列出每个调用点的凭据来源（`apiRequest` 带 Bearer 与配对头，裸 `fetch` 只带 cookie），再决定能不能收。

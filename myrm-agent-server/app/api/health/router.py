@@ -230,7 +230,7 @@ async def system_info() -> dict[str, object]:
 async def system_metrics() -> dict[str, object]:
     """获取系统级监控指标
 
-    暴露给 Control Plane 用于沙箱健康度监控。需要管理员权限。
+    暴露给 Control Plane 用于沙箱健康度监控；与其余诊断端点一样走正常准入（不属于公开探针）。
     包括：
     - DLQ (死信队列) 堆积量
     - memory_pressure: 内存压力等级和使用率
