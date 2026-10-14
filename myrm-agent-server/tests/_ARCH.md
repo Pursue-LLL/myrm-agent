@@ -90,6 +90,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/test_sse_heartbeat_filter.py` | 模块 | agent 测试客户端（同步 `TestClient` 与异步 `httpx.AsyncClient`）对行解析器隐藏 SSE keep-alive 帧（帧由真实 `ResilientStreamBuffer` 产出，格式变更在此报红，避免 `data: null` 解析洞在流测试里重开） |
 | `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
+| `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |
 | `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
 | `integration/test_repo_call_graph_integration.py` | 模块 | 代码调用图谱与改动影响面分析集成任务流测试（多语言代码库索引、正反向拓扑遍历、受影响测试套件触达、增量重索引一致性） |
 | `e2e/test_migration_readiness_gap_chrome_e2e.py` | 模块 | migration post-import readiness gap（LIVE×3 SHPOIB：`mcp_warning` · `provider_critical` · `diagnostic_critical` 各独立 `::test_*` · R139 禁 batch） |

@@ -46,32 +46,19 @@ async def _context_cleanup_job() -> None:
         cleanup_orphan_context_files_async,
     )
 
-    checkpointer = None
     access_tracker = None
     try:
         from myrm_agent_harness.runtime.context.file_access_tracker import (
             get_file_access_tracker,
         )
 
-        from app.platform_utils import get_checkpointer
-
-        checkpointer = get_checkpointer()
         access_tracker = await get_file_access_tracker()
     except Exception as exc:
-        logger.debug("Checkpointer/tracker unavailable for cleanup: %s", exc)
+        logger.warning("File access tracker unavailable for cleanup, using modification time only: %s", exc)
 
     try:
-        removed_count = await cleanup_orphan_context_files_async(
-            max_age_days=7,
-            session_active_days=30,
-            file_access_days=14,
-            checkpointer=checkpointer,
-            access_tracker=access_tracker,
-        )
-        logger.info(
-            f"Context cleanup: removed {removed_count} orphan files "
-            f"(strategy: session-aware, active=30d, access=14d, fallback=7d)"
-        )
+        removed_count = await cleanup_orphan_context_files_async(access_tracker=access_tracker)
+        logger.info("Context cleanup: removed %d orphan files", removed_count)
     except Exception as e:
         logger.error(f"Context cleanup failed: {e}", exc_info=True)
 
@@ -134,12 +121,9 @@ _context_cleanup_scheduler_task: asyncio.Task[None] | None = None
 
 
 async def start_context_cleanup_scheduler() -> None:
-    """Start context file cleanup scheduler with session-aware strategy.
+    """Start the context file cleanup scheduler.
 
-    Cleanup strategy:
-    1. If session active within 30 days → keep all files
-    2. Else if file accessed within 14 days → keep file
-    3. Else → remove file
+    A context file is removed once nothing has read or written it for the harness retention window.
 
     Scheduled daily at 3:00 AM.
     """
@@ -160,7 +144,7 @@ async def start_context_cleanup_scheduler() -> None:
                 # Keep scheduler reference for graceful shutdown
                 global _context_cleanup_scheduler
                 _context_cleanup_scheduler = scheduler
-                logger.info("Context cleanup scheduler started (daily at 03:00, session-aware strategy)")
+                logger.info("Context cleanup scheduler started (daily at 03:00)")
                 # Run until cancelled
                 await asyncio.Event().wait()
 
