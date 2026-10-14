@@ -15000,14 +15000,11 @@
         "displayName": "Anzeigename",
         "pattern": "Regex-Muster",
         "severity": "Schweregrad",
-        "action": "Aktion",
         "category": "Kategorie",
         "sortOrder": "Sortierreihenfolge",
         "severityLow": "Niedrig",
         "severityMedium": "Mittel",
         "severityHigh": "Hoch",
-        "actionAllow": "Erlauben",
-        "actionBlock": "Blockieren",
         "categoryPersonal": "Persönliche Daten",
         "categoryCompany": "Unternehmensintern",
         "categorySecurity": "Sicherheitsanmeldedaten",
@@ -15042,10 +15039,12 @@
         "hits": "Prüfprotokoll",
         "hitsTitle": "Risiko-Trefferaufzeichnungen",
         "hitsEmpty": "Keine Risiko-Treffer aufgezeichnet",
+        "hitPosition": "Zeichen {start}–{end}",
+        "hitTimedOut": "Abgleich überschritt das Zeitlimit; als Treffer gewertet",
+        "blockedTitle": "Nachricht durch Risikoregel blockiert",
+        "blockedDescription": "Treffer: {rules}. Zum Zulassen schalten Sie die Regel unter „Einstellungen → Sicherheitsrichtlinie → Risikoregeln“ aus.",
         "hitsRuleName": "Regel",
         "hitsSeverity": "Schweregrad",
-        "hitsAction": "Aktion",
-        "hitsMatch": "Trefferinhalt",
         "hitsTime": "Zeit",
         "hitsUser": "Benutzer",
         "hitsTotal": "{count} Datensätze insgesamt",
@@ -15104,12 +15103,12 @@
             "desc": "JWT-ähnliche Bearer-Tokens erkennen."
           },
           "cookie_session_like": {
-            "name": "Cookie/Sitzungsgeheimnis",
-            "desc": "Sitzungs-, Cookie- und Autorisierungswortlaut erkennen."
+            "name": "Sitzungs-/Zugriffstoken",
+            "desc": "Sitzungs-IDs, Zugriffs- oder Refresh-Token und Authorization-Header mit Wert erkennen."
           },
           "db_connection_string": {
             "name": "Datenbank-Verbindungsstring",
-            "desc": "Verbindungsstrings für Datenbanken, Caches und Warteschlangen erkennen."
+            "desc": "Verbindungszeichenfolgen für Datenbanken, Caches und Queues mit eingebettetem Passwort erkennen."
           },
           "kubeconfig_content": {
             "name": "Kubeconfig-Inhalt",
@@ -15117,7 +15116,7 @@
           },
           "env_file_secret": {
             "name": "Geheime Umgebungsvariable",
-            "desc": "Gängige Secret-Variablennamen in env-artigem Inhalt erkennen."
+            "desc": "Secret-Variablen wie SECRET_KEY mit zugewiesenem Wert in env-artigem Inhalt erkennen."
           },
           "private_ip": {
             "name": "Private Netzwerkadresse",

@@ -307,7 +307,6 @@ export interface ArtifactFocusStreamEvent extends BaseAgentEvent {
 export interface RiskBlockedStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.RISK_BLOCKED;
   data?: {
-    message: string;
     rules?: Array<{ rule_id: string; display_name: string; severity: string }>;
   };
 }

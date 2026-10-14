@@ -14,8 +14,11 @@ type TranslationValues = Record<string, string | number | boolean | Date | null 
  * 翻译函数类型
  * 使用更宽松的参数类型以兼容 next-intl 的 Translator 类型
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type TranslatorFunction = (key: string, values?: Record<string, any>) => string;
+type TranslatorFunction = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (key: string, values?: Record<string, any>): string;
+  has?(key: string): boolean;
+};
 
 // 全局翻译函数引用
 let globalTranslator: TranslatorFunction | null = null;
@@ -31,6 +34,14 @@ export const setGlobalTranslator = (translator: TranslatorFunction) => {
 /** Resolve a locale key outside React; before the translator is installed the key itself is returned. */
 export const translateI18nKey = (key: string, fallback: string = key): string => {
   if (!globalTranslator) {
+    return fallback;
+  }
+  return globalTranslator(key);
+};
+
+/** Resolve a locale key when the locale files carry it, else `fallback` (a missing key must not surface as a path). */
+export const translateI18nKeyIfPresent = (key: string, fallback: string): string => {
+  if (!globalTranslator?.has?.(key)) {
     return fallback;
   }
   return globalTranslator(key);

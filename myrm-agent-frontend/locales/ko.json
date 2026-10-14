@@ -15000,14 +15000,11 @@
         "displayName": "표시 이름",
         "pattern": "정규식 패턴",
         "severity": "심각도",
-        "action": "작업",
         "category": "카테고리",
         "sortOrder": "정렬 순서",
         "severityLow": "낮음",
         "severityMedium": "중간",
         "severityHigh": "높음",
-        "actionAllow": "허용",
-        "actionBlock": "차단",
         "categoryPersonal": "개인 정보",
         "categoryCompany": "회사 내부",
         "categorySecurity": "보안 자격 증명",
@@ -15042,10 +15039,12 @@
         "hits": "감사 로그",
         "hitsTitle": "위험 감지 기록",
         "hitsEmpty": "기록된 위험 감지가 없습니다",
+        "hitPosition": "{start}–{end}번째 문자",
+        "hitTimedOut": "일치 검사 시간 초과, 감지로 처리됨",
+        "blockedTitle": "메시지가 위험 규칙에 의해 차단되었습니다",
+        "blockedDescription": "일치한 규칙: {rules}. 허용하려면 「설정 → 보안 정책 → 위험 규칙」에서 해당 규칙을 끄세요.",
         "hitsRuleName": "규칙",
         "hitsSeverity": "심각도",
-        "hitsAction": "작업",
-        "hitsMatch": "일치 콘텐츠",
         "hitsTime": "시간",
         "hitsUser": "사용자",
         "hitsTotal": "{count}개 기록",
@@ -15104,12 +15103,12 @@
             "desc": "JWT 유사 베어러 토큰 감지."
           },
           "cookie_session_like": {
-            "name": "쿠키 / 세션 시크릿",
-            "desc": "세션, 쿠키 및 권한 부여 문구 감지."
+            "name": "세션 / 액세스 토큰",
+            "desc": "값이 있는 세션 ID, 액세스·리프레시 토큰, Authorization 헤더 감지."
           },
           "db_connection_string": {
             "name": "데이터베이스 연결 문자열",
-            "desc": "데이터베이스, 캐시 및 큐용 연결 문자열 감지."
+            "desc": "비밀번호가 포함된 데이터베이스, 캐시, 큐 연결 문자열 감지."
           },
           "kubeconfig_content": {
             "name": "Kubeconfig 콘텐츠",
@@ -15117,7 +15116,7 @@
           },
           "env_file_secret": {
             "name": "환경 시크릿 변수",
-            "desc": "env 스타일 콘텐츠의 일반적인 시크릿 변수 이름 감지."
+            "desc": "env 스타일 콘텐츠에서 값이 설정된 시크릿 변수(SECRET_KEY 등) 감지."
           },
           "private_ip": {
             "name": "사설 네트워크 주소",

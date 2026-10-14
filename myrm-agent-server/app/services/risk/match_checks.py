@@ -2,28 +2,57 @@
 
 [INPUT]
 - myrm_agent_harness.core.security.detection.pii_patterns::china_id_valid, is_placeholder (POS: Single definition of the built-in PII patterns and their validators: classification, redaction and pseudonymization all read it, so they never disagree about what a hit is.)
+- myrm_agent_harness.core.security.detection.secret_value::secret_value_span (POS: The one definition of a secret value versus a reference to one.)
 
 [OUTPUT]
-- is_confirmed_match: whether the text a built-in rule's pattern matched is a real hit
+- is_confirmed_match: whether what a built-in rule's pattern matched is a real hit
 
 [POS]
-A pattern finds what a value looks like; whether it is one takes the checks the privacy classifier applies to the same
-data. Running them here keeps the channel gate and the classifier agreeing about what an ID number, a phone number and an
-email address are.
+A pattern finds what a value looks like; whether it is one takes the checks the privacy classifier and the leak detector
+apply to the same data. Running them here keeps the channel gate agreeing with them about what an ID number, a phone number,
+an email address and a secret are, so ``password = input()`` and ``token = os.environ[...]`` in pasted code are not held
+while ``password: Zk9#mango42`` is.
 """
 
 from __future__ import annotations
 
+import regex
 from myrm_agent_harness.core.security.detection.pii_patterns import china_id_valid, is_placeholder
+from myrm_agent_harness.core.security.detection.secret_value import secret_value_span
 
 # Sample values ("user@example.com", "00000000000") are not a person's data.
 _REJECTS_PLACEHOLDERS = frozenset({"email_address", "cn_mobile_number"})
 
+# Rules whose pattern captures the ``key`` and ``value`` of an assignment.
+_ASSIGNMENT_RULES = frozenset({"credential_assignment", "cookie_session_like", "env_file_secret"})
 
-def is_confirmed_match(rule_id: str, value: str) -> bool:
-    """Whether *value*, which the pattern of the rule *rule_id* matched, is a real hit; a rule without a check always is."""
+
+def is_confirmed_match(rule_id: str, match: regex.Match[str]) -> bool:
+    """Whether *match*, which the pattern of the rule *rule_id* found, is a real hit; a rule without a check always is."""
+    if rule_id in _ASSIGNMENT_RULES:
+        return _assigns_secret(match)
     if rule_id == "cn_id_card":
-        return china_id_valid(value)
+        return china_id_valid(match.group())
     if rule_id in _REJECTS_PLACEHOLDERS:
-        return not is_placeholder(value)
+        return not is_placeholder(match.group())
     return True
+
+
+def _assigns_secret(match: regex.Match[str]) -> bool:
+    """Whether the ``value`` group is a secret and not a reference to one (call, identifier, template), a mask or a word.
+
+    A pattern the user edited to have no ``value`` group has nothing to check, so its matches count.
+    """
+    groups = match.groupdict()
+    if groups.get("value") is None:
+        return True
+    return (
+        secret_value_span(
+            match.string,
+            match.start("value"),
+            match.end("value"),
+            allow_letters_only=False,
+            key=groups.get("key") or "",
+        )
+        is not None
+    )

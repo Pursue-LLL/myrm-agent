@@ -709,7 +709,7 @@ class TestOutboundRiskGate:
             severity="high",
             action="block",
             category="pii",
-            match_summary="13812345678",
+            match_summary="chars:12-23",
         )
         blocked_result = DetectionResult(blocked=True, matches=(match,))
 
@@ -755,7 +755,7 @@ class TestOutboundRiskGate:
             severity="critical",
             action="block",
             category="credential",
-            match_summary="postgres://admin:***",
+            match_summary="chars:0-42",
         )
         blocked_result = DetectionResult(blocked=True, matches=(match,))
 
@@ -790,7 +790,7 @@ class TestOutboundRiskGate:
             severity="critical",
             action="block",
             category="credential",
-            match_summary="sk-abc***",
+            match_summary="chars:0-48",
         )
         blocked_result = DetectionResult(blocked=True, matches=(match,))
 

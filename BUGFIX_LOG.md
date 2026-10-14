@@ -2280,7 +2280,7 @@ except Exception:
 1. 新旧规则在同一份语料上对照（真实规则引擎，旧规则取自提交内容，每条规则逐条判定）：旧默认（31 条全开）拦下 31/39 条日常消息、拦下 21/28 条凭据；新默认（8 条）拦下 0/39、拦下 28/28；31 条全开时新规则拦下 4/39（邮箱与手机号、私网地址属于该开的规则本来就该命中；`roadmap` 出现在一个长 slug 里、`${DB_PASSWORD}` 被内部主机名规则命中，是这两条可选规则仍然存在的误报）。
 2. 耗时（每条消息过全部启用规则，取 5 次最小值）：2 千字符聊天旧 1.4 毫秒 / 新默认 0.3 毫秒；10 万字符日志旧 53.1 毫秒 / 新默认 11.9 毫秒；4 万字符 `a.a.a.` 串旧 23.7 毫秒 / 新默认 8.0 毫秒。31 条全开时新规则更慢：10 万字符日志 83.3 毫秒对旧的 53.1 毫秒（关键词规则加了词边界，单条约慢一倍，没有病态规则；仍远低于 0.25 秒的单条预算）。
 3. 测试：`tests/services/risk`（103 例）、`tests/lifecycle/test_init_risk_rules.py`、渠道入站风险闸门与 bus 测试共 174 例通过；新增 `test_builtin_rule_precision.py` 锁定默认规则的误报与漏报语料、关键词词边界、命中只记位置、旧原文清除、`allow` 归一与 API 拒绝；前端 `riskEvents.test.ts` 与 `i18nToastService.test.ts` 共 11 例通过；风控相关文件 `ruff`、`mypy`、`prettier` 通过。
-4. 更宽的服务端回归（风控、渠道、架构词表）有 14 例失败，均来自他人未提交的改动：渠道群路由与前缀触发（`is_untrusted_event_sender` 新接口，测试替身没有该方法）7 例、斜杠命令译文缺失 2 例、`tests/architecture` 域词表 3 例、`test_background_command` 1 例、扩展桥接 `_pid` 参数 1 例，与本条无关。
+4. 更宽的服务端回归（`tests/channels` 全部、架构域词表、入站隔离）6787 通过、14 失败，失败的是他人未提交的改动或未同步的测试，与本条无关：群路由与前缀触发 7 例（路由器新增的 `is_untrusted_event_sender` 调用，测试替身没有该方法）、`btw` 命令相关 3 例（`test_background_command` 2 例与缺失的命令译文 1 例）、`tests/architecture` 域词表 3 例、渠道日志脱敏 `test_redact_sensitive_with_special_characters` 1 例；本条改动的风控、生命周期、闸门与 bus 测试没有失败。
 5. 局限：语料是手工构造的，没有真实用户数据，新默认规则在真实聊天里的误报率未知；一个本身以 `sk-` 开头且后面连着 20 个以上字符的 slug 仍会命中 `api_key_like`；纯字母的密码不被 `credential_assignment` 拦下（精度优先）；旧版本导出的、带 `allow` 动作的规则文件导入会被拒绝；已安装的实例仍保留全开的旧开关，需要用户自己关掉误报多的规则；`RiskMatch.action` 与库里的 `action` 列保留（恒为 `block`）；`secret_value_span` 要求 harness 0.1.0rc6，服务端仍钉在 rc5，发布 harness 并执行 `./myrm harness sync-lock` 之前，OSS 的锁定安装无法导入——发版步骤由维护者执行，本次没有执行；没有在真实渠道与浏览器里端到端验证提示的外观（深浅主题、移动端）。
 
 ### 踩坑经验

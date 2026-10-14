@@ -15000,14 +15000,11 @@
         "displayName": "顯示名稱",
         "pattern": "正規表示式",
         "severity": "嚴重級別",
-        "action": "觸發動作",
         "category": "分類",
         "sortOrder": "排序",
         "severityLow": "低",
         "severityMedium": "中",
         "severityHigh": "高",
-        "actionAllow": "放行",
-        "actionBlock": "攔截",
         "categoryPersonal": "個人資訊",
         "categoryCompany": "公司內部",
         "categorySecurity": "安全憑證",
@@ -15042,10 +15039,12 @@
         "hits": "審計日誌",
         "hitsTitle": "風控命中記錄",
         "hitsEmpty": "暫無命中記錄",
+        "hitPosition": "第 {start}–{end} 個字元",
+        "hitTimedOut": "比對逾時，已視為命中",
+        "blockedTitle": "訊息已被風控規則攔截",
+        "blockedDescription": "命中規則：{rules}。如需放行，請在「設定 → 安全策略 → 風控規則」中關閉對應規則。",
         "hitsRuleName": "規則",
         "hitsSeverity": "級別",
-        "hitsAction": "動作",
-        "hitsMatch": "匹配內容",
         "hitsTime": "時間",
         "hitsUser": "使用者",
         "hitsTotal": "共 {count} 條記錄",
@@ -15104,12 +15103,12 @@
             "desc": "檢測 JWT 格式的 Bearer Token"
           },
           "cookie_session_like": {
-            "name": "Cookie / Session 憑證",
-            "desc": "檢測 Session、Cookie 和 Authorization 相關內容"
+            "name": "工作階段 / 存取權杖",
+            "desc": "檢測帶有取值的工作階段 ID、存取或更新權杖和 Authorization 標頭"
           },
           "db_connection_string": {
             "name": "資料庫連線串",
-            "desc": "檢測資料庫、快取和佇列的連線字串"
+            "desc": "檢測內嵌密碼的資料庫、快取和訊息佇列連線字串"
           },
           "kubeconfig_content": {
             "name": "Kubeconfig 配置",
@@ -15117,7 +15116,7 @@
           },
           "env_file_secret": {
             "name": "環境變數金鑰",
-            "desc": "檢測 env 檔案中的常見金鑰變數名"
+            "desc": "檢測 env 內容中被賦值的金鑰變數（如 SECRET_KEY）"
           },
           "private_ip": {
             "name": "內網 IP 地址",

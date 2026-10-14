@@ -10,7 +10,7 @@ class RuleCreateRequest(BaseModel):
     display_name: str = Field(..., min_length=1, max_length=255)
     pattern: str = Field(..., min_length=1)
     severity: str = Field(..., pattern=r"^(low|medium|high)$")
-    action: str = Field(..., pattern=r"^(allow|block)$")
+    action: str = Field(default="block", pattern=r"^block$")
     category: str = Field(default="custom")
     description: str | None = None
     sort_order: int = Field(default=0, ge=0)
@@ -21,7 +21,7 @@ class RuleUpdateRequest(BaseModel):
     description: str | None = None
     pattern: str | None = Field(None, min_length=1)
     severity: str | None = Field(None, pattern=r"^(low|medium|high)$")
-    action: str | None = Field(None, pattern=r"^(allow|block)$")
+    action: str | None = Field(None, pattern=r"^block$")
     category: str | None = None
     is_enabled: bool | None = None
     sort_order: int | None = Field(None, ge=0)

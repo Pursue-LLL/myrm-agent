@@ -7,40 +7,21 @@ must read data the way the privacy classifier does, and no rule may stall the lo
 from __future__ import annotations
 
 import time
-from collections.abc import AsyncIterator
-from pathlib import Path
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.database.models import RiskRule
 from app.services.risk import detection
-from app.services.risk.constants import builtin_risk_rules
+from app.services.risk.builtin_rules import builtin_risk_rules
 from app.services.risk.detection import RiskDetectionService, compile_pattern
 from app.services.risk.rule_service import RiskRuleService, RuleValidationError
 
-_TIMED_OUT = "(matching timed out)"
+from .conftest import EngineBuilder
+
+_TIMED_OUT = detection.TIMED_OUT_SUMMARY
 _STUCK_PATTERN = r"(a|aa)+$"
 _STUCK_TEXT = "a" * 60 + "!"
-
-
-@pytest.fixture()
-async def session_factory(tmp_path: Path) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'risk.db'}", connect_args={"check_same_thread": False})
-    async with engine.begin() as conn:
-        await conn.run_sync(RiskRule.__table__.create)
-    yield async_sessionmaker(engine, expire_on_commit=False)
-    await engine.dispose()
-
-
-async def _engine_over(session_factory: async_sessionmaker[AsyncSession], *, seed_builtins: bool = True) -> RiskDetectionService:
-    service = RiskDetectionService()
-    async with session_factory() as db:
-        if seed_builtins:
-            await RiskRuleService().seed_builtin_rules(db)
-            await db.commit()
-        await service.reload(db)
-    return service
 
 
 def _hit_rules(service: RiskDetectionService, text: str) -> set[str]:
@@ -57,8 +38,8 @@ def _hit_rules(service: RiskDetectionService, text: str) -> set[str]:
         ("credit card: 4532015112830366", "bank_card_context"),
     ],
 )
-async def test_personal_data_is_a_hit(session_factory: async_sessionmaker[AsyncSession], text: str, rule_id: str) -> None:
-    assert rule_id in _hit_rules(await _engine_over(session_factory), text)
+async def test_personal_data_is_a_hit(build_engine: EngineBuilder, text: str, rule_id: str) -> None:
+    assert rule_id in _hit_rules(await build_engine(enable_all=True), text)
 
 
 @pytest.mark.parametrize(
@@ -72,14 +53,12 @@ async def test_personal_data_is_a_hit(session_factory: async_sessionmaker[AsyncS
         ("account number 12345678901234 for the invoice", "bank_card_context"),
     ],
 )
-async def test_what_only_looks_like_personal_data_is_not_a_hit(
-    session_factory: async_sessionmaker[AsyncSession], text: str, rule_id: str
-) -> None:
-    assert rule_id not in _hit_rules(await _engine_over(session_factory), text)
+async def test_what_only_looks_like_personal_data_is_not_a_hit(build_engine: EngineBuilder, text: str, rule_id: str) -> None:
+    assert rule_id not in _hit_rules(await build_engine(enable_all=True), text)
 
 
-async def test_a_long_dotted_run_does_not_stall_the_email_rule(session_factory: async_sessionmaker[AsyncSession]) -> None:
-    service = await _engine_over(session_factory)
+async def test_a_long_dotted_run_does_not_stall_the_email_rule(build_engine: EngineBuilder) -> None:
+    service = await build_engine(enable_all=True)
 
     started = time.perf_counter()
     hits = _hit_rules(service, "a." * 20_000)
@@ -94,7 +73,7 @@ def test_every_builtin_pattern_is_usable() -> None:
 
 
 async def test_a_backtracking_custom_rule_holds_the_text_instead_of_stalling(
-    session_factory: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
+    session_factory: async_sessionmaker[AsyncSession], build_engine: EngineBuilder, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(detection, "MATCH_TIMEOUT_SECONDS", 0.05)
     async with session_factory() as db:
@@ -102,7 +81,7 @@ async def test_a_backtracking_custom_rule_holds_the_text_instead_of_stalling(
             db, rule_id="stuck", display_name="Stuck", pattern=_STUCK_PATTERN, severity="high", action="block"
         )
         await db.commit()
-    service = await _engine_over(session_factory, seed_builtins=False)
+    service = await build_engine(seed_builtins=False)
 
     started = time.perf_counter()
     result = service.detect(_STUCK_TEXT)
@@ -112,7 +91,9 @@ async def test_a_backtracking_custom_rule_holds_the_text_instead_of_stalling(
     assert [(m.rule_id, m.match_summary) for m in result.matches] == [("stuck", _TIMED_OUT)]
 
 
-async def test_a_pattern_too_large_to_build_is_refused_and_skipped(session_factory: async_sessionmaker[AsyncSession]) -> None:
+async def test_a_pattern_too_large_to_build_is_refused_and_skipped(
+    session_factory: async_sessionmaker[AsyncSession], build_engine: EngineBuilder
+) -> None:
     async with session_factory() as db:
         with pytest.raises(RuleValidationError, match="too large"):
             await RiskRuleService().create_rule(
@@ -122,7 +103,7 @@ async def test_a_pattern_too_large_to_build_is_refused_and_skipped(session_facto
         await db.commit()
 
     started = time.perf_counter()
-    service = await _engine_over(session_factory, seed_builtins=False)
+    service = await build_engine(seed_builtins=False)
 
     assert time.perf_counter() - started < 5
     assert service.rule_count == 0
@@ -155,14 +136,27 @@ async def test_seeding_refreshes_the_pattern_of_a_stored_builtin_rule_and_keeps_
                 display_name="My e-mail rule",
                 pattern=r"\S+@\S+",
                 severity="low",
-                action="allow",
+                action="block",
                 category="personal",
                 is_enabled=False,
                 is_builtin=True,
                 sort_order=10,
             )
         )
-        db.add(RiskRule(rule_id="mine", display_name="Mine", pattern="x", severity="low", action="allow", is_builtin=False))
+        db.add(
+            RiskRule(
+                rule_id="cn_mobile_number",
+                display_name="Mobile",
+                pattern="x",
+                severity="high",
+                action="block",
+                category="personal",
+                is_enabled=True,
+                is_builtin=True,
+                sort_order=20,
+            )
+        )
+        db.add(RiskRule(rule_id="mine", display_name="Mine", pattern="x", severity="low", action="block", is_builtin=False))
         await db.commit()
 
     service = RiskRuleService()
@@ -171,13 +165,16 @@ async def test_seeding_refreshes_the_pattern_of_a_stored_builtin_rule_and_keeps_
         await db.commit()
         again = await service.seed_builtin_rules(db)
         email = await service.get_rule(db, "email_address")
+        mobile = await service.get_rule(db, "cn_mobile_number")
         mine = await service.get_rule(db, "mine")
 
-    expected = next(rule["pattern"] for rule in builtin_risk_rules() if rule["rule_id"] == "email_address")
-    assert inserted == len(builtin_risk_rules()) - 1
+    expected = {rule["rule_id"]: rule["pattern"] for rule in builtin_risk_rules()}
+    assert inserted == len(expected) - 2
     assert again == 0
     assert email is not None
-    assert email.pattern == expected
-    assert (email.display_name, email.severity, email.action, email.is_enabled) == ("My e-mail rule", "low", "allow", False)
+    assert email.pattern == expected["email_address"]
+    assert (email.display_name, email.severity, email.is_enabled) == ("My e-mail rule", "low", False)
+    assert mobile is not None
+    assert (mobile.pattern, mobile.is_enabled) == (expected["cn_mobile_number"], True)
     assert mine is not None
     assert mine.pattern == "x"

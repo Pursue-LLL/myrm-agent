@@ -18,9 +18,10 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database.factory import register_sqlite_transaction_events
-from app.database.models import RiskRule
+from app.database.models import RiskHit, RiskRule
 from app.lifecycle import risk_rules
-from app.services.risk.constants import builtin_risk_rules
+from app.services.risk.builtin_rules import builtin_risk_rules
+from app.services.risk.constants import DEFAULT_ENABLED_CATEGORIES
 from app.services.risk.detection import RiskDetectionService
 from app.services.risk.rule_service import RiskRuleService
 
@@ -48,6 +49,7 @@ async def session_factory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> As
     register_sqlite_transaction_events(engine)
     async with engine.begin() as conn:
         await conn.run_sync(RiskRule.__table__.create)
+        await conn.run_sync(RiskHit.__table__.create)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr("app.platform_utils.get_session_factory", lambda: factory)
     monkeypatch.setattr(risk_rules, "_RISK_RULE_INIT_RETRY_DELAY_SEC", 0)
@@ -83,7 +85,7 @@ async def test_a_competing_startup_writer_does_not_leave_the_engine_without_rule
         if attempts == 1:
             await session.execute(select(func.count()).select_from(RiskRule))  # pins the snapshot, as the seed's own read does
             async with session_factory() as other:
-                other.add(RiskRule(rule_id="other-startup-writer", display_name="x", pattern="x", severity="low", action="allow"))
+                other.add(RiskRule(rule_id="other-startup-writer", display_name="x", pattern="x", severity="low", action="block"))
                 await other.commit()
         return await seed(service, session)
 
@@ -95,7 +97,7 @@ async def test_a_competing_startup_writer_does_not_leave_the_engine_without_rule
     stored = await _stored_rule_count(session_factory)
     assert attempts == 2
     assert stored == len(builtin_risk_rules()) + 1
-    assert detection.rule_count == stored
+    assert detection.rule_count == 1 + sum(1 for seed in builtin_risk_rules() if seed["category"] in DEFAULT_ENABLED_CATEGORIES)
     assert "locked database (attempt 1)" in caplog.text
     assert "initialization failed" not in caplog.text
 
@@ -141,3 +143,23 @@ async def test_an_error_that_is_not_a_locked_database_is_not_retried(
 
     assert attempts == 1
     assert "Risk rule initialization failed: bad rule table" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_startup_retires_what_older_versions_stored(
+    session_factory: async_sessionmaker[AsyncSession], detection: RiskDetectionService
+) -> None:
+    async with session_factory() as db:
+        db.add(RiskRule(rule_id="legacy-allow", display_name="L", pattern="x", severity="low", action="allow"))
+        for summary in ("sk-proj-abc123", "13812345678", "chars:3-9", "(matching timed out)"):
+            db.add(RiskHit(trace_id="t", rule_id="r", rule_name="R", severity="high", action="block", match_summary=summary))
+        await db.commit()
+
+    await risk_rules.init_risk_rules()
+    await risk_rules.init_risk_rules()
+
+    async with session_factory() as db:
+        summaries = (await db.execute(select(RiskHit.match_summary).order_by(RiskHit.id))).scalars().all()
+        legacy = (await db.execute(select(RiskRule).where(RiskRule.rule_id == "legacy-allow"))).scalar_one()
+    assert summaries == ["", "", "chars:3-9", "(matching timed out)"]
+    assert (legacy.action, legacy.is_enabled) == ("block", False)

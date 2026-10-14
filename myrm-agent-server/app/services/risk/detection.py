@@ -32,7 +32,9 @@ MAX_PATTERN_LENGTH = 4096
 # runs out of it counts as having matched (the text is not let through unchecked).
 MATCH_TIMEOUT_SECONDS = 0.25
 
-_TIMED_OUT_SUMMARY = "(matching timed out)"
+# What a hit's ``match_summary`` holds: where the match lies, or that matching ran out of time. Never the matched text.
+POSITION_SUMMARY_PREFIX = "chars:"
+TIMED_OUT_SUMMARY = "(matching timed out)"
 _MAX_PREVIEW_SNIPPETS = 20
 _SNIPPET_LENGTH = 80
 
@@ -76,15 +78,6 @@ class DetectionResult:
     blocked: bool
     matches: tuple[RiskMatch, ...]
 
-    @property
-    def highest_action(self) -> str:
-        if not self.matches:
-            return "allow"
-        from .constants import RiskAction
-
-        rank = RiskAction.RANK
-        return max(self.matches, key=lambda m: rank.get(m.action, 0)).action
-
 
 @dataclass
 class _CompiledRule:
@@ -99,15 +92,18 @@ class _CompiledRule:
 
 
 def _first_hit(rule: _CompiledRule, text: str) -> str | None:
-    """The abbreviated text of the first confirmed match of *rule* in *text*, or None.
+    """Where the first confirmed match of *rule* lies in *text* (``chars:START-END``), or None.
+
+    The summary names the position and never repeats the matched text: the rules exist to keep secrets and personal
+    data from spreading, and the hit record would otherwise store them in the clear.
 
     A rule that cannot finish the text within the budget counts as a hit, so that a message built to stall a pattern
     is held by the rule instead of passing it.
     """
     try:
         for m in rule.compiled.finditer(text, timeout=MATCH_TIMEOUT_SECONDS):
-            if is_confirmed_match(rule.rule_id, m.group()):
-                return _abbreviate(m.group())
+            if is_confirmed_match(rule.rule_id, m):
+                return f"{POSITION_SUMMARY_PREFIX}{m.start()}-{m.end()}"
     except TimeoutError:
         logger.warning(
             "Risk rule %s did not finish a %d-character text in %.2fs; the text counts as its hit",
@@ -115,7 +111,7 @@ def _first_hit(rule: _CompiledRule, text: str) -> str | None:
             len(text),
             MATCH_TIMEOUT_SECONDS,
         )
-        return _TIMED_OUT_SUMMARY
+        return TIMED_OUT_SUMMARY
     return None
 
 
@@ -166,33 +162,24 @@ class RiskDetectionService:
         return len(compiled)
 
     def detect(self, text: str) -> DetectionResult:
-        """Match text against compiled rules (short-circuit on first block)."""
+        """Match text against the compiled rules; the first rule that hits holds it."""
         if not text or not self._rules:
             return DetectionResult(blocked=False, matches=())
 
-        matches: list[RiskMatch] = []
-        blocked = False
-
         for rule in self._rules:
             snippet = _first_hit(rule, text)
-            if snippet is None:
-                continue
+            if snippet is not None:
+                match = RiskMatch(
+                    rule_id=rule.rule_id,
+                    display_name=rule.display_name,
+                    severity=rule.severity,
+                    action=rule.action,
+                    category=rule.category,
+                    match_summary=snippet,
+                )
+                return DetectionResult(blocked=True, matches=(match,))
 
-            match = RiskMatch(
-                rule_id=rule.rule_id,
-                display_name=rule.display_name,
-                severity=rule.severity,
-                action=rule.action,
-                category=rule.category,
-                match_summary=snippet,
-            )
-            matches.append(match)
-
-            if rule.action == "block":
-                blocked = True
-                break
-
-        return DetectionResult(blocked=blocked, matches=tuple(matches))
+        return DetectionResult(blocked=False, matches=())
 
     async def record_hits(
         self,
@@ -222,7 +209,7 @@ class RiskDetectionService:
     def detect_preview(self, text: str, pattern: str) -> list[str]:
         """Test a single regex pattern against text.
 
-        Returns the matched text of the first matches, as ``detect`` would report it.
+        Returns the abbreviated text of the first matches, so the author of a rule sees what it catches in the sample.
         Raises ValueError on an invalid pattern or one that cannot finish the text in time.
         """
         compiled = compile_pattern(pattern)

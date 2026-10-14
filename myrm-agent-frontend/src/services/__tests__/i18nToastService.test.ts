@@ -30,6 +30,28 @@ describe('translateI18nKey', () => {
   });
 });
 
+describe('translateI18nKeyIfPresent', () => {
+  it('returns the fallback before a translator is installed', async () => {
+    const { translateI18nKeyIfPresent } = await loadService();
+    expect(translateI18nKeyIfPresent('rules.custom.name', 'My rule')).toBe('My rule');
+  });
+
+  it('returns the fallback when the translator cannot say whether the key exists', async () => {
+    const { setGlobalTranslator, translateI18nKeyIfPresent } = await loadService();
+    setGlobalTranslator((key) => `translated:${key}`);
+    expect(translateI18nKeyIfPresent('rules.custom.name', 'My rule')).toBe('My rule');
+  });
+
+  it('translates a key the locale carries and falls back for one it does not', async () => {
+    const { setGlobalTranslator, translateI18nKeyIfPresent } = await loadService();
+    setGlobalTranslator(
+      Object.assign((key: string) => `translated:${key}`, { has: (key: string) => key === 'rules.known.name' }),
+    );
+    expect(translateI18nKeyIfPresent('rules.known.name', 'Known')).toBe('translated:rules.known.name');
+    expect(translateI18nKeyIfPresent('rules.custom.name', 'My rule')).toBe('My rule');
+  });
+});
+
 describe('showI18nToast', () => {
   beforeEach(() => {
     toastMock.mockClear();

@@ -4,7 +4,6 @@ export interface RiskRule {
   description: string | null;
   pattern: string;
   severity: string;
-  action: string;
   category: string;
   is_enabled: boolean;
   is_builtin: boolean;
@@ -21,7 +20,6 @@ export interface RiskHit {
   rule_id: string;
   rule_name: string;
   severity: string;
-  action: string;
   match_summary: string;
   created_at: string | null;
 }
@@ -40,9 +38,4 @@ export const SEVERITY_COLORS: Record<string, string> = {
   low: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
   medium: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
   high: 'bg-red-500/10 text-red-600 dark:text-red-400',
-};
-
-export const ACTION_COLORS: Record<string, string> = {
-  allow: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  block: 'bg-red-500/10 text-red-600 dark:text-red-400',
 };

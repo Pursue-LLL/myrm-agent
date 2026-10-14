@@ -35,7 +35,7 @@ import { apiRequest } from '@/lib/api';
 import SettingsSection from '../SettingsSection';
 import RiskRulesTestPanel from './RiskRulesTestPanel';
 import RiskRulesHitsPanel from './RiskRulesHitsPanel';
-import { CATEGORY_MAP, SEVERITY_COLORS, ACTION_COLORS, type RiskRule } from './risk-rules-types';
+import { CATEGORY_MAP, SEVERITY_COLORS, type RiskRule } from './risk-rules-types';
 
 function RiskRulesSection() {
   const t = useTranslations('settings.securityPolicy.riskRules');
@@ -168,13 +168,12 @@ function RiskRulesSection() {
       return;
     }
     const exportData = customRules.map(
-      ({ rule_id, display_name, description, pattern, severity, action, category, sort_order }) => ({
+      ({ rule_id, display_name, description, pattern, severity, category, sort_order }) => ({
         rule_id,
         display_name,
         description,
         pattern,
         severity,
-        action,
         category,
         sort_order,
       }),
@@ -290,7 +289,6 @@ function RiskRulesSection() {
               display_name: '',
               pattern: '',
               severity: 'medium',
-              action: 'block',
               category: 'custom',
               description: '',
               sort_order: 0,
@@ -341,7 +339,7 @@ function RiskRulesSection() {
           {!isCreating && editingRule.is_builtin && (
             <p className="text-xs text-muted-foreground">{t('builtinCannotEditPattern')}</p>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
               value={editingRule.severity || 'medium'}
               onValueChange={(v) => setEditingRule({ ...editingRule, severity: v })}
@@ -353,18 +351,6 @@ function RiskRulesSection() {
                 <SelectItem value="low">{t('severityLow')}</SelectItem>
                 <SelectItem value="medium">{t('severityMedium')}</SelectItem>
                 <SelectItem value="high">{t('severityHigh')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={editingRule.action || 'block'}
-              onValueChange={(v) => setEditingRule({ ...editingRule, action: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="allow">{t('actionAllow')}</SelectItem>
-                <SelectItem value="block">{t('actionBlock')}</SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -434,12 +420,6 @@ function RiskRulesSection() {
                         'severityLow' | 'severityMedium' | 'severityHigh',
                     )}
                   </span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${ACTION_COLORS[rule.action] || ''}`}>
-                    {t(
-                      `action${rule.action.charAt(0).toUpperCase() + rule.action.slice(1)}` as
-                        'actionAllow' | 'actionBlock',
-                    )}
-                  </span>
                   <span className="text-[10px] text-muted-foreground">
                     {t(CATEGORY_MAP[rule.category] || 'categoryCustom')}
                   </span>
@@ -471,7 +451,6 @@ function RiskRulesSection() {
                       display_name: `${getRuleName(rule)} (Copy)`,
                       pattern: rule.pattern,
                       severity: rule.severity,
-                      action: rule.action,
                       category: rule.category,
                       description: rule.description,
                       sort_order: rule.sort_order,

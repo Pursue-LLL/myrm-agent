@@ -15000,14 +15000,11 @@
         "displayName": "表示名",
         "pattern": "正規表現",
         "severity": "重大度",
-        "action": "アクション",
         "category": "カテゴリ",
         "sortOrder": "並び替え",
         "severityLow": "低",
         "severityMedium": "中",
         "severityHigh": "高",
-        "actionAllow": "許可",
-        "actionBlock": "ブロック",
         "categoryPersonal": "個人情報",
         "categoryCompany": "社内",
         "categorySecurity": "セキュリティ認証情報",
@@ -15042,10 +15039,12 @@
         "hits": "監査ログ",
         "hitsTitle": "リスクヒット記録",
         "hitsEmpty": "リスクヒットの記録はありません",
+        "hitPosition": "{start}～{end} 文字目",
+        "hitTimedOut": "照合がタイムアウトしたため、一致として扱いました",
+        "blockedTitle": "メッセージがリスクルールによりブロックされました",
+        "blockedDescription": "一致したルール：{rules}。許可するには、「設定 → セキュリティポリシー → リスクルール」で該当ルールをオフにしてください。",
         "hitsRuleName": "ルール",
         "hitsSeverity": "重大度",
-        "hitsAction": "アクション",
-        "hitsMatch": "一致した内容",
         "hitsTime": "時間",
         "hitsUser": "ユーザー",
         "hitsTotal": "合計 {count} 件",
@@ -15104,12 +15103,12 @@
             "desc": "JWT 形式の Bearer Token を検出"
           },
           "cookie_session_like": {
-            "name": "Cookie / Session 認証情報",
-            "desc": "Session、Cookie、Authorization 関連の表現を検出します。"
+            "name": "セッション / アクセストークン",
+            "desc": "値を伴うセッション ID、アクセス／リフレッシュトークン、Authorization ヘッダーを検出します。"
           },
           "db_connection_string": {
             "name": "データベース接続文字列",
-            "desc": "データベース、キャッシュ、キューの接続文字列を検出します。"
+            "desc": "パスワードを含むデータベース、キャッシュ、キューの接続文字列を検出"
           },
           "kubeconfig_content": {
             "name": "Kubeconfig 設定",
@@ -15117,7 +15116,7 @@
           },
           "env_file_secret": {
             "name": "環境変数キー",
-            "desc": "env 形式のコンテンツ内の一般的なシークレット変数名を検出"
+            "desc": "env 形式のコンテンツで値が設定されたシークレット変数（SECRET_KEY など）を検出"
           },
           "private_ip": {
             "name": "プライベートネットワーク IP アドレス",

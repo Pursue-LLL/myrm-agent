@@ -15,13 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import RiskHit, RiskRule
 
-from .constants import RiskAction, RiskCategory, RiskSeverity, builtin_risk_rules
-from .detection import compile_pattern
+from .builtin_rules import builtin_risk_rules
+from .constants import DEFAULT_ENABLED_CATEGORIES, RiskAction, RiskCategory, RiskSeverity
+from .detection import POSITION_SUMMARY_PREFIX, TIMED_OUT_SUMMARY, compile_pattern
 
 logger = logging.getLogger(__name__)
 
 VALID_SEVERITIES = frozenset({RiskSeverity.LOW, RiskSeverity.MEDIUM, RiskSeverity.HIGH})
-VALID_ACTIONS = frozenset({RiskAction.ALLOW, RiskAction.BLOCK})
+VALID_ACTIONS = frozenset({RiskAction.BLOCK})
 VALID_CATEGORIES = frozenset(
     {
         RiskCategory.PERSONAL,
@@ -94,7 +95,7 @@ class RiskRuleService:
         display_name: str,
         pattern: str,
         severity: str,
-        action: str,
+        action: str = RiskAction.BLOCK,
         category: str = RiskCategory.CUSTOM,
         description: str | None = None,
         sort_order: int = 0,
@@ -249,8 +250,9 @@ class RiskRuleService:
     async def seed_builtin_rules(self, session: AsyncSession) -> int:
         """Seed built-in rules into DB and bring the pattern of the stored ones up to date.
 
-        Nobody can edit the pattern of a built-in rule, so replacing it loses nothing; everything else a user may have
-        changed (severity, action, name, enabled) is left as it is.
+        A new rule starts enabled when its category is in ``DEFAULT_ENABLED_CATEGORIES``. Nobody can edit the pattern of
+        a built-in rule, so replacing it loses nothing; everything else a user may have changed (severity, name,
+        enabled) is left as it is.
 
         Returns the number of newly inserted rules.
         """
@@ -275,7 +277,7 @@ class RiskRuleService:
                 severity=d["severity"],
                 action=d["action"],
                 category=d["category"],
-                is_enabled=True,
+                is_enabled=d["category"] in DEFAULT_ENABLED_CATEGORIES,
                 is_builtin=True,
                 sort_order=d.get("sort_order", 0),
             )
@@ -289,6 +291,37 @@ class RiskRuleService:
         if refreshed > 0:
             logger.info("Refreshed the pattern of %d built-in risk rules", refreshed)
         return inserted
+
+    async def disable_legacy_allow_rules(self, session: AsyncSession) -> int:
+        """Turn the rules stored with the removed ``allow`` action into disabled block rules.
+
+        An ``allow`` rule never changed what was held (a message another rule held stayed held), so a disabled rule acts
+        as it always did, whereas an enabled block rule would start holding messages. Returns the number of rules changed.
+        """
+        result = await session.execute(
+            update(RiskRule).where(RiskRule.action == "allow").values(action=RiskAction.BLOCK, is_enabled=False)
+        )
+        changed = int(result.rowcount or 0) if isinstance(result, CursorResult) else 0
+        if changed > 0:
+            logger.info("Disabled %d risk rules that used the removed allow action", changed)
+        return changed
+
+    async def clear_legacy_hit_text(self, session: AsyncSession) -> int:
+        """Blank the summary of hits recorded while summaries still held the matched text (a key, a number, an address).
+
+        Returns the number of cleared hits; hits that name a position or a timeout are left as they are.
+        """
+        result = await session.execute(
+            update(RiskHit)
+            .where(RiskHit.match_summary != "")
+            .where(RiskHit.match_summary != TIMED_OUT_SUMMARY)
+            .where(~RiskHit.match_summary.startswith(POSITION_SUMMARY_PREFIX))
+            .values(match_summary="")
+        )
+        cleared = int(result.rowcount or 0) if isinstance(result, CursorResult) else 0
+        if cleared > 0:
+            logger.info("Cleared the matched text from %d stored risk hits", cleared)
+        return cleared
 
     async def get_hits(
         self,
