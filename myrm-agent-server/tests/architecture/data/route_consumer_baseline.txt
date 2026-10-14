@@ -57,8 +57,6 @@ GET /health/memory/search
 GET /health/metrics
 GET /health/resources
 GET /integrations/catalog/{entry_id}
-POST /integrations/provider-oauth/xai/poll
-POST /integrations/provider-oauth/xai/start
 GET /kanban/boards/{board_id}/tasks/{task_id}/race/winner
 POST /media/batch
 POST /media/batch/{job_id}/cancel
