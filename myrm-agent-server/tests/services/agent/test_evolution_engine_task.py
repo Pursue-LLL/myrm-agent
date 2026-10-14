@@ -154,12 +154,11 @@ async def test_proposal_none_skips_approval_flow() -> None:
 
 
 @pytest.mark.asyncio
-async def test_proposal_processed_and_broadcast() -> None:
-    """Reusable proposal → ConfidenceApprovalFlow processed and ws broadcast."""
+async def test_proposal_is_processed_by_the_approval_flow() -> None:
+    """Reusable proposal → handed to ConfidenceApprovalFlow (no websocket push)."""
     history = _history(["user", "assistant", "user", "assistant"], ["q1", "a1", "q2", "a2"])
     proposal = MagicMock()
     proposal.skill_id = "reusable-skill"
-    proposal.to_dict.return_value = {"id": "reusable-skill"}
     flow = MagicMock()
     flow.process_evolution = AsyncMock()
     with (
@@ -181,16 +180,11 @@ async def test_proposal_processed_and_broadcast() -> None:
             "app.services.agent.confidence_approval_flow.ConfidenceApprovalFlow",
             return_value=flow,
         ) as flow_cls,
-        patch(
-            "app.services.skills.ws_hub.broadcast_proposal",
-            new=AsyncMock(),
-        ) as broadcast,
     ):
         await _run_evolution_task("chat-prop", MagicMock())
 
     flow_cls.assert_called_once()
     flow.process_evolution.assert_awaited_once_with(proposal=proposal)
-    broadcast.assert_awaited_once_with(proposal.to_dict())
 
 
 @pytest.mark.asyncio

@@ -15,6 +15,7 @@ import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationT
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
 import { showMcpAuthRequiredToast, showOAuthReauthRequiredToast } from '@/hooks/globalEvents/reauthToasts';
+import { showSkillCapacityToast } from '@/hooks/globalEvents/skillCapacityToast';
 import { showSubsumptionUndoToast } from '@/hooks/globalEvents/subsumptionUndoToast';
 import {
   notifyBackgroundTasksChangedForShellJobFinish,
@@ -294,6 +295,8 @@ export function useGlobalEvents(): void {
             detail: { skill_name: skillName, evolution_type: evolutionType },
           }),
         );
+      } else if (payload.type === 'skill_capacity_reached') {
+        showSkillCapacityToast(payload.data, { t, router, toast: pushToast });
       } else if (payload.type === 'idle_status') {
         window.dispatchEvent(
           new CustomEvent('idle-status', {

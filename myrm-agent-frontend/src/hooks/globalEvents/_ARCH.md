@@ -10,5 +10,6 @@
 | `subsumptionUndoToast.ts`     | 空闲知识降维软删除后的撤销 toast（`idle_status` 的 `cognitive_subsumption` notification 携带可恢复 id，调用 `/memory/undo-consolidation`）                                          |
 | `messageDeadLetteredToast.ts` | 消息死信告警                                                                                                                                                                        |
 | `reauthToasts.ts`             | `mcp_auth_required` / `oauth_reauth_required` 重新授权 toast：MCP → `/settings/mcp`，OAuth 账号 → `/settings/credentials`，文案用 `formatOAuthIssuerLabel` 的账号展示名称呼账号且不展示后端 reason                  |
+| `skillCapacityToast.ts`       | 技能库已满的 `skill_capacity_reached`（服务端每次填满只发一次）：仅本地化文案与上限数量（不展示服务端措辞与 agent 标识），单条可替换 toast，操作直达技能管理 `/settings/skills` |
 
 Hook 层允许的 JSX 例外（toast 渲染）。消费者：`global-events-initializer.tsx`、workspace-browser。

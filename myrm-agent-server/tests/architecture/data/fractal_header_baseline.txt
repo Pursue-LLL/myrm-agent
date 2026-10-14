@@ -94,7 +94,6 @@ app/api/skills/quality.py
 app/api/skills/router.py
 app/api/skills/schemas.py
 app/api/skills/sync.py
-app/api/skills/ws_evolution.py
 app/api/statistics/router.py
 app/api/stt/router.py
 app/api/stt/ws_stream.py
