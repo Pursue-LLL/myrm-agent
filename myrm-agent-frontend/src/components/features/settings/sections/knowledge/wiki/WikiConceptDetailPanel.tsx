@@ -123,7 +123,8 @@ export function WikiConceptDetailPanel({
     <Card className="col-span-1 md:col-span-2 h-full overflow-hidden flex flex-col min-h-0">
       {selectedConcept ? (
         <>
-          <CardHeader className="border-b bg-muted/20 flex flex-row items-center justify-between py-4 gap-3">
+          {/* 头部嵌在宽度不定的详情栏里：快捷入口的文字按头部自身宽度（容器查询）而非视口宽度显隐，避免挤掉词条标题 */}
+          <CardHeader className="@container border-b bg-muted/20 flex flex-row items-center justify-between py-4 gap-3">
             <div className="flex items-center gap-2 truncate pr-4">
               <span className="font-semibold text-lg truncate">{selectedConcept.name}</span>
               {selectedConcept.provenance && (
@@ -180,7 +181,7 @@ export function WikiConceptDetailPanel({
                     aria-label={t('links.title')}
                   >
                     <Network className="w-3.5 h-3.5 text-primary" />
-                    <span className="hidden md:inline">{t('links.title')}</span>
+                    <span className="hidden @xl:inline">{t('links.title')}</span>
                   </Button>
                   <Button data-testid="wiki-concept-edit-btn" variant="outline" size="sm" onClick={onEdit}>
                     <IconEdit className="w-4 h-4 mr-2" />

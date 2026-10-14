@@ -8,7 +8,7 @@
  * - @/lib/utils/classnameUtils::cn (POS: 类名合并工具)
  *
  * [OUTPUT]
- * - WikiConceptLinksPanel: 词条双向链接面板，呈现反向引用（含上下文切片与所在小节）与前置引用
+ * - WikiConceptLinksPanel: 词条双向链接面板，呈现反向引用（含上下文切片与所在小节）与前置引用；链接被服务端截断的方向，计数标为「N+」
  *
  * [POS]
  * 词条脉络导航组件。嵌入词条详情抽屉，展示词条的入链与出链，支持点击直达关联词条。

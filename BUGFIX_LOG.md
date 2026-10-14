@@ -1545,7 +1545,7 @@ except Exception:
 | 严重程度 | P2（展示与所选词条不一致、失败提示未本地化；不丢数据） |
 | 影响范围 | 前端 `wiki/WikiConceptLinksPanel.tsx`、`wiki/useWikiConceptsList.ts`、`wiki/useWikiConceptClaimActions.ts`、`services/wiki/service.ts`、6 语言 `locales`；server `app/api/wiki/router.py` 的 `/wiki/concepts/{name}/links`；harness `toolkits/wiki/retrieval/{graph_store,indexer,edge_links,graph_analysis}.py` |
 | 出现次数 | 1 |
-| 关联 | roadmap topic_02 #133（原编号 #140）第三批补修；BUG-HARNESS-2026-10-14-007 |
+| 关联 | roadmap topic_02 #140 第三批补修；BUG-HARNESS-2026-10-14-007 |
 
 ### 现象
 
@@ -1731,7 +1731,7 @@ except Exception:
 | 严重程度 | P3（展示的数量不准、手机上少一个快捷入口；不丢数据） |
 | 影响范围 | harness `toolkits/wiki/retrieval/graph_store.py`；server `app/api/wiki/router.py` 的 `/wiki/concepts/{name}/links` 响应模型；前端 `wiki/WikiConceptLinksPanel.tsx`、`wiki/WikiConceptDetailPanel.tsx`、新增 `wiki/useConceptHeadingFocus.ts`、`services/wiki/service.ts`、硬编码文案基线 |
 | 出现次数 | 1 |
-| 关联 | roadmap topic_02 #133（原编号 #140）第四批补修；BUG-AGENT-2026-10-14-007 |
+| 关联 | roadmap topic_02 #140 第四批补修；BUG-AGENT-2026-10-14-007 |
 
 ### 现象
 
@@ -1748,7 +1748,7 @@ except Exception:
 ### 修复
 
 1. `get_concept_links` 每个方向多取一行（`LIMIT MAX_CONCEPT_LINKS + 1`，`_fetch_capped`）判断是否还有更多，仍只返回前 100 条，新增 `outlinks_has_more` / `backlinks_has_more`；server 响应模型两个布尔字段（默认 `False`）与前端类型同步；面板在被截断的方向显示「100+」（页签与摘要胶囊），另一方向照常，复用已有的 `{count}` 占位符，六语言没有新增键。不改排序、不加分页（面板没有「加载更多」入口，也没有读取方需要）。
-2. 按钮改取已有的 `links.title`，`md` 以下只显示图标并带 `aria-label`，任何断点都不隐藏；硬编码文案基线里这个文件由 2 收紧到 0，只删这一条。
+2. 按钮改取已有的 `links.title`；文字按详情头部自身宽度（容器查询 `@xl`，不随视口）显隐，头部较窄时只显示图标并带 `aria-label`，任何宽度都不隐藏；硬编码文案基线里这个文件由 2 收紧到 0，只删这一条。
 3. 小节锚点聚焦原样移入 `useConceptHeadingFocus.ts`（115 行；移动的 96 行用脚本与原文逐行比对一致），详情面板降到 328 行。
 
 ### 验证
@@ -1757,7 +1757,7 @@ except Exception:
 2. 多取一行是否改变展示哪 100 条：150 条同权重边，上限 100 / 101 / 150 三种取法的前 100 行逐项相同（查询计划是 `idx_wiki_edges_target` 加临时 B 树排序）。这是合成库实测，没有性能声明。
 3. 全量：harness `tests/toolkits/wiki` 862 例通过 861，失败 1 例是调用真实 LLM 的 `test_sidecar_integration::test_sidecar_incremental_rebuild_skips_unchanged`（第一次全量停在同文件的另一个用例；整文件单独重跑 3 例通过，当前代码与 HEAD 快照各一次）；server `tests/api/wiki` 与 `tests/integration/wiki`（不含调用真实 LLM 的 `test_wiki_real_llm.py`）164 例通过 161，失败 3 例都在安全拦截用例（`test_wiki_clip_api.py::test_wiki_clip_security_blocked_job_response`、`test_wiki_import_raw_gate.py::test_import_folder_blocks_credential_content`、`test_import_urls_security_blocked`），与链接接口无关，但没有在干净 HEAD 上复跑；前端 wiki `__tests__` 目录 11 个文件 70 例通过。
 4. 静态：ruff、mypy（`graph_store.py`）、oxlint、prettier、`verify-i18n` 通过（第一次运行时他人正在改语言文件，报占位符不一致，重跑通过）；`tsc --noEmit` 全量只报他人的 `KanbanTaskHandoffSection.test.tsx` 一条；文件行数门禁不再列出本条改的文件，硬编码文案门禁里这个文件不再出现（整体门禁仍因他人新增的文件失败）。
-5. 局限：没有取得真实浏览器证据。`./myrm test -m chrome_e2e …::test_wiki_concept_detail_source_jump` 两次都在 `/settings/wiki` 路由水合超时（`E2E_ROUTE_HYDRATION_TIMEOUT`），前端日志同期是大量接口请求超时（机器负载均值 38–90），没有走到任何断言；为它写的 28 行断言没跑出结果，已撤回。按钮在 `md` 断点的实际布局、六语言文案长度、深浅主题都没有目测（jsdom 不计算样式）；「100+」只在 harness 层（101 页）与 DOM 层分别验证，没有在真实应用里串起来。
+5. 局限：没有取得真实浏览器证据。`./myrm test -m chrome_e2e …::test_wiki_concept_detail_source_jump` 两次都在 `/settings/wiki` 路由水合超时（`E2E_ROUTE_HYDRATION_TIMEOUT`），前端日志同期是大量接口请求超时（机器负载均值 38–90），没有走到任何断言；为它写的 28 行断言没跑出结果，已撤回。按钮文字在 `@xl` 容器断点附近的实际布局（德语文案 25 个字符最长，标题 `truncate` 兜底）、深浅主题都没有目测（jsdom 不计算样式）；「100+」只在 harness 层（101 页）与 DOM 层分别验证，没有在真实应用里串起来。
 
 ### 踩坑经验
 
