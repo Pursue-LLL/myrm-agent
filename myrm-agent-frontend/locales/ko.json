@@ -16650,7 +16650,24 @@
         "renameSuccess": "성공적으로 이름 변경됨",
         "operationFailed": "작업 실패",
         "namePlaceholder": "이름 입력...",
-        "confirm": "확인"
+        "confirm": "확인",
+        "links": {
+          "title": "링크와 맥락",
+          "summary": "{backlinks}곳에서 참조 · {outlinks}곳 참조",
+          "tabBacklinks": "참조됨 ({count})",
+          "tabOutlinks": "참조함 ({count})",
+          "tabNearby": "관련 개념 ({count})",
+          "refresh": "링크 새로고침",
+          "loadFailed": "링크 로드 실패",
+          "emptyBacklinks": "이 개념을 참조하는 항목이 아직 없습니다",
+          "emptyOutlinks": "이 개념은 아직 다른 항목을 참조하지 않습니다",
+          "emptyNearby": "표시할 관련 개념이 아직 없습니다",
+          "missing": "없음",
+          "strength": "연관도 {value}",
+          "jumpToSection": "카드를 클릭하면 해당 섹션으로 이동합니다: {heading}",
+          "nearbySummary": "개념 {nodes}개 · 연결 {edges}개",
+          "nearbyHint": "개념을 클릭하면 열립니다"
+        }
       },
       "saveToWiki": {
         "buttonTitle": "Wiki로 정리 (검토 대기)",

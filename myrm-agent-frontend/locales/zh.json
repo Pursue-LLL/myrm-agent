@@ -17304,7 +17304,24 @@
         "renameSuccess": "重命名成功",
         "operationFailed": "操作失败",
         "namePlaceholder": "输入名称...",
-        "confirm": "确认"
+        "confirm": "确认",
+        "links": {
+          "title": "链接与上下文",
+          "summary": "被 {backlinks} 处引用 · 引用 {outlinks} 处",
+          "tabBacklinks": "被引用 ({count})",
+          "tabOutlinks": "引用了 ({count})",
+          "tabNearby": "关联概念 ({count})",
+          "refresh": "刷新链接",
+          "loadFailed": "加载链接失败",
+          "emptyBacklinks": "还没有内容引用这个概念",
+          "emptyOutlinks": "这个概念还没有引用其他内容",
+          "emptyNearby": "暂无可显示的关联概念",
+          "missing": "缺失",
+          "strength": "关联度 {value}",
+          "jumpToSection": "点击卡片可直达小节：{heading}",
+          "nearbySummary": "{nodes} 个概念 · {edges} 条关联",
+          "nearbyHint": "点击概念即可打开"
+        }
       },
       "saveToWiki": {
         "buttonTitle": "沉淀到 Wiki（待审核）",

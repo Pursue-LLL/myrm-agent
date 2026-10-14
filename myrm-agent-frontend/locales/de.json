@@ -16650,7 +16650,24 @@
         "renameSuccess": "Erfolgreich umbenannt",
         "operationFailed": "Operation fehlgeschlagen",
         "namePlaceholder": "Namen eingeben...",
-        "confirm": "Bestätigen"
+        "confirm": "Bestätigen",
+        "links": {
+          "title": "Verknüpfungen und Kontext",
+          "summary": "Verlinkt von {backlinks} · Verweist auf {outlinks}",
+          "tabBacklinks": "Verlinkt von ({count})",
+          "tabOutlinks": "Verweist auf ({count})",
+          "tabNearby": "Verwandt ({count})",
+          "refresh": "Verknüpfungen aktualisieren",
+          "loadFailed": "Laden der Verknüpfungen fehlgeschlagen",
+          "emptyBacklinks": "Auf dieses Konzept verweist noch nichts",
+          "emptyOutlinks": "Dieses Konzept verweist noch auf nichts",
+          "emptyNearby": "Noch keine verwandten Konzepte vorhanden",
+          "missing": "Fehlt",
+          "strength": "Stärke {value}",
+          "jumpToSection": "Karte anklicken, um zum Abschnitt zu springen: {heading}",
+          "nearbySummary": "{nodes, plural, one {# Konzept} other {# Konzepte}} · {edges, plural, one {# Verbindung} other {# Verbindungen}}",
+          "nearbyHint": "Konzept anklicken, um es zu öffnen"
+        }
       },
       "saveToWiki": {
         "buttonTitle": "Save to Wiki",

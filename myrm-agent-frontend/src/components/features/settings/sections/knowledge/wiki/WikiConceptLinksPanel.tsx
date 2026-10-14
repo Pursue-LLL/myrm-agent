@@ -2,6 +2,7 @@
 
 /**
  * [INPUT]
+ * - next-intl::useTranslations (POS: 六语言文案，命名空间 settings.wiki.concepts.links)
  * - @/services/wikiService::wikiService (POS: Wiki REST 客户端，提供 getConceptLinks 词条链接与拓扑网络检索)
  * - @/components/primitives/button::Button (POS: 基础按钮组件)
  * - @/lib/utils/classnameUtils::cn (POS: 类名合并工具)
@@ -14,6 +15,7 @@
  */
 
 import { useEffect, useState, useTransition, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowUpRight, CornerDownLeft, Network, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import { wikiService, type ConceptLinksResponse, type ConceptLinkItem } from '@/services/wikiService';
 import { Button } from '@/components/primitives/button';
@@ -26,6 +28,7 @@ interface WikiConceptLinksPanelProps {
 }
 
 export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }: WikiConceptLinksPanelProps) {
+  const t = useTranslations('settings.wiki.concepts.links');
   const [linksData, setLinksData] = useState<ConceptLinksResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +45,7 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
       const data = await wikiService.getConceptLinks(conceptName, 1, agentId);
       setLinksData(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load concept links');
+      setError(err instanceof Error ? err.message : '');
     } finally {
       setLoading(false);
     }
@@ -73,72 +76,73 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
     >
       {/* 头部导航与统计胶囊 */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Network className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">双向链接与知识脉络</span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">{t('title')}</span>
           <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-primary/10 text-primary border border-primary/20">
-            {backlinks.length} 引用 · {outlinks.length} 出链
+            {t('summary', { backlinks: backlinks.length, outlinks: outlinks.length })}
           </span>
         </div>
 
         {/* 视图切换按钮组 */}
-        <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border border-border/40 text-xs">
+        <div className="flex max-w-full items-center gap-1 overflow-x-auto scrollbar-hide bg-muted/40 p-0.5 rounded-lg border border-border/40 text-xs">
           <button
             type="button"
             onClick={() => setActiveTab('backlinks')}
             className={cn(
-              'px-2.5 py-1 rounded-md transition-all font-medium flex items-center gap-1.5',
+              'px-2.5 py-1 rounded-md transition-all font-medium flex shrink-0 items-center gap-1.5 whitespace-nowrap',
               activeTab === 'backlinks'
                 ? 'bg-background text-foreground shadow-xs border border-border/60'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <CornerDownLeft className="w-3.5 h-3.5 text-sky-500" />
-            <span>被引脉络 ({backlinks.length})</span>
+            <span>{t('tabBacklinks', { count: backlinks.length })}</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('outlinks')}
             className={cn(
-              'px-2.5 py-1 rounded-md transition-all font-medium flex items-center gap-1.5',
+              'px-2.5 py-1 rounded-md transition-all font-medium flex shrink-0 items-center gap-1.5 whitespace-nowrap',
               activeTab === 'outlinks'
                 ? 'bg-background text-foreground shadow-xs border border-border/60'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" />
-            <span>引用前置 ({outlinks.length})</span>
+            <span>{t('tabOutlinks', { count: outlinks.length })}</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('ego')}
             className={cn(
-              'px-2.5 py-1 rounded-md transition-all font-medium flex items-center gap-1.5',
+              'px-2.5 py-1 rounded-md transition-all font-medium flex shrink-0 items-center gap-1.5 whitespace-nowrap',
               activeTab === 'ego'
                 ? 'bg-background text-foreground shadow-xs border border-border/60'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Network className="w-3.5 h-3.5 text-indigo-500" />
-            <span>局部拓扑 ({egoNodes.length})</span>
+            <span>{t('tabNearby', { count: egoNodes.length })}</span>
           </button>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={fetchLinks}
-            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-            title="刷新链接拓扑"
+            className="h-6 w-6 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+            title={t('refresh')}
+            aria-label={t('refresh')}
           >
             <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
           </Button>
         </div>
       </div>
 
-      {error && (
+      {error !== null && (
         <div className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+          <span>{error || t('loadFailed')}</span>
         </div>
       )}
 
@@ -146,7 +150,7 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
       {activeTab === 'backlinks' && (
         <div className="space-y-2">
           {backlinks.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-3 text-center">暂无上游词条或研报直接引用此知识点</p>
+            <p className="text-xs text-muted-foreground py-3 text-center">{t('emptyBacklinks')}</p>
           ) : (
             <div className="grid grid-cols-1 gap-2">
               {backlinks.map((link: ConceptLinkItem) => (
@@ -167,23 +171,25 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 font-medium text-xs text-foreground group-hover:text-primary transition-colors">
+                    <div className="flex min-w-0 items-center gap-1.5 font-medium text-xs text-foreground group-hover:text-primary transition-colors">
                       <FileText className="w-3.5 h-3.5 text-sky-500 shrink-0" />
                       <span className="truncate">{link.name}</span>
                       {!link.exists && (
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                          待补充
+                        <span className="shrink-0 text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          {t('missing')}
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-muted-foreground font-mono">权重 {link.weight.toFixed(1)}</span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground font-mono">
+                      {t('strength', { value: link.weight.toFixed(1) })}
+                    </span>
                   </div>
 
                   {(link.heading || link.line_number) && (
                     <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                       {link.heading && (
                         <span
-                          title={`点击卡片可直达小节：${link.heading}`}
+                          title={t('jumpToSection', { heading: link.heading })}
                           className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50 font-mono truncate max-w-[220px]"
                         >
                           § {link.heading}
@@ -213,7 +219,7 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
       {activeTab === 'outlinks' && (
         <div className="space-y-2">
           {outlinks.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-3 text-center">此词条尚未显式引用其他知识点</p>
+            <p className="text-xs text-muted-foreground py-3 text-center">{t('emptyOutlinks')}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {outlinks.map((link: ConceptLinkItem) => (
@@ -241,11 +247,11 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
                   </div>
                   {!link.exists ? (
                     <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
-                      幽灵引用
+                      {t('missing')}
                     </span>
                   ) : (
                     <span className="text-[10px] text-muted-foreground font-mono shrink-0">
-                      W{link.weight.toFixed(1)}
+                      {t('strength', { value: link.weight.toFixed(1) })}
                     </span>
                   )}
                 </button>
@@ -260,7 +266,7 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
         <div className="space-y-3">
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3 min-h-[120px] flex flex-wrap items-center justify-center gap-2">
             {egoNodes.length === 0 ? (
-              <p className="text-xs text-muted-foreground">暂无局部拓扑数据</p>
+              <p className="text-xs text-muted-foreground">{t('emptyNearby')}</p>
             ) : (
               egoNodes.map((node) => {
                 const isCenter = node.id === conceptName;
@@ -289,11 +295,9 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
               })
             )}
           </div>
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
-            <span>
-              局部关联网：{egoNodes.length} 节点 · {egoEdges.length} 关系边
-            </span>
-            <span>点击节点可立即穿透阅读</span>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-muted-foreground px-1">
+            <span>{t('nearbySummary', { nodes: egoNodes.length, edges: egoEdges.length })}</span>
+            <span>{t('nearbyHint')}</span>
           </div>
         </div>
       )}
