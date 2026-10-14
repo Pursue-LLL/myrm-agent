@@ -58,7 +58,7 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/boards/{board_id}/tasks/bulk-action` | `action` ∈ move/archive/reassign/delete；delete 需 `confirm=true` |
+| POST | `/boards/{board_id}/tasks/bulk-action` | `action` ∈ move/archive/reassign/delete；delete 需 `confirm=true`；逐条执行、允许部分成功；reassign 的 `params.agent_id` 为空串表示取消指派 |
 
 ### `task_meta.py`
 

@@ -24,9 +24,21 @@ def _reset_singleton() -> None:
     KanbanService._instance = None
 
 
+_KNOWN_AGENT_IDS = frozenset({"agent-007", "agent-x"})
+
+
 @pytest.fixture(autouse=True)
-def _skip_agent_validation() -> None:  # type: ignore[misc]
-    with patch.object(KanbanService, "_validate_agent_id", new_callable=AsyncMock):
+def _known_agents() -> None:  # type: ignore[misc]
+    """Resolve agent ids like the repository does, so the real validator runs: known ids exist, anything else
+    (including the empty string) is missing."""
+
+    async def lookup(agent_id: str) -> object | None:
+        return object() if agent_id in _KNOWN_AGENT_IDS else None
+
+    with patch(
+        "app.services.agent.agent_service.AgentService.get_agent_by_id",
+        new=AsyncMock(side_effect=lookup),
+    ):
         yield
 
 
@@ -244,6 +256,26 @@ class TestBulkAction:
         assert resp.status_code == 200
         data = resp.json()
         assert data["succeeded"] == 1
+        assert client.get(f"/api/v1/kanban/tasks/{t1['task_id']}").json()["agent_id"] is None
+
+    def test_bulk_reassign_unknown_agent_fails_per_item(self, client: TestClient) -> None:
+        board = _create_board(client, "BulkUnknownAgent")
+        bid = str(board["board_id"])
+        t1 = _create_task(client, bid, "K1", agent_id="agent-x")
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{bid}/tasks/bulk-action",
+            json={
+                "task_ids": [str(t1["task_id"])],
+                "action": "reassign",
+                "params": {"agent_id": "agent-missing"},
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["failed"] == 1
+        assert "not found" in data["results"][0]["error"]
+        assert client.get(f"/api/v1/kanban/tasks/{t1['task_id']}").json()["agent_id"] == "agent-x"
 
     def test_bulk_empty_task_ids_rejected(self, client: TestClient) -> None:
         board = _create_board(client, "BulkEmpty")
