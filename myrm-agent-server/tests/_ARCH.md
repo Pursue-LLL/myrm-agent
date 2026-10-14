@@ -41,6 +41,11 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_memory_pending_command.py` | 单元 | IM `/memory` 待审批：列表对纠正/遗忘提案附目标记忆摘要（含多语言），普通新增不附加；目标已变化的提案以用户语言提示，`approve all` 汇报未通过数量 |
 | `channels/routing/test_draft_review_stream_hold.py` | 单元 | `draft_review` 待审回复：生成期间正文不流式写入聊天占位消息（审批续跑回合同样），普通回复照常流式；是否扣留只取决于话题，与回合类型无关 |
 | `channels/routing/test_action_button_approval.py` | 单元 | IM 按钮审批：内容解析校验、群聊请求者/共同审批人授权（私聊免检）、批准/拒绝续跑与重复点击幂等、原消息状态行按点击者语言编辑、无运行任务时 SSE 回退；扣留回复（`outbound_draft`）仅 owner 可裁决——非 owner 被拒并指引、运行中的任务不放行他人、工具审批不受 owner 校验，owner 卡片的每个按钮处理器都认识 |
+| `channels/routing/test_command_authorization.py` | 单元 | 内置系统命令默认仅 owner 可用：目录钉住对所有发送者开放的命令集合（只在发送者自己的会话内、至多花一轮），技能/Agent 路由命令不受 owner 限制；其余命令对非 owner 一律被拒（不论 DM 策略是否放行）而 owner 全部可达；`/help` 列表与回复按发送者身份过滤；非 owner 不能委派任务或 steer 运行中的委派，被拒的 `/btw` 不会被委派前缀捡走 |
+| `channels/routing/test_draft_command.py` | 单元 | IM `/draft approve\|reject <编号>`：参数解析（过短、非十六进制、多余词一律给用法）；对真实审批表裁决，与 WebUI/按钮走同一收口（批准发出、拒绝丢弃）；6 位以上短码即可且回复报完整短码、按 owner 语言作答并回到提问的会话；未知编号、已处理、非扣留回复的审批、两条同码（都不裁决）、畸形请求、查询失败均不改动任何审批且不抛出 |
+| `services/approvals/draft_testkit.py` | 辅助 | 被扣留回复测试的共享构建器：`held_reply()`（带附件、按钮与线程的整条回复）、`draft_payload()`（路由器存储的 payload 形态：正文可编辑，其余冻结）；`test_outbound_draft.py`、`test_registry_lifecycle.py` 与 `channels/routing/test_draft_command.py` 共用 |
+| `services/approvals/test_outbound_draft.py` | 单元 | 被扣留回复定案后的收尾：按评审后的正文发出（含仅附件），无快照、快照不可解码或无内容则不发；批准后发不出去时告知 owner（错误 toast 与通知中心，按 owner 语言）且永不抛出；拒绝或超时不发送并释放临时附件；关闭发送方的“待审核”占位消息（无占位则不动，平台不可编辑则删除，平台挂起有时限，网关不可达不撤销决定） |
+| `services/approvals/test_registry_concurrency.py` | 集成 | 生产同构 SQLite（WAL + 延迟 BEGIN 升级写锁）上的并发定案：批准与拒绝同时、TTL 清理与点击同时，每条被扣留回复恰好定案并收尾一次，落败方读到已定案状态而不是 `database is locked` |
 | `core/notifications/test_approval_card.py` | 单元 | 审批通知卡片：草稿正文预览（截断/附件摘要/自动发送提示/剩余时间）不含内部标识与链接，仅 Telegram 带批准/拒绝按钮、其他渠道提示打开应用，按用户语言渲染 |
 | `channels/reliability/test_durable_outbound_poison_isolation.py` | 单元 | 持久化出站队列：带按钮的消息重启后完整读回；无法解码的记录隔离到失败桶，不拖垮其余记录、仅一次性上报永久失败且绝不重发，网关启动不受影响 |
 | `api/memory/test_pending_proposal_seed.py` | 单元 | `POST /memory/test/seed-pending-proposal` 契约（local-only 404 · correct/delete 入队 · 目标不存在或非语义记忆 404 · 重复提案 409） |

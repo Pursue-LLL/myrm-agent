@@ -2,6 +2,7 @@
 [INPUT]
 - app.database.models.approval::ApprovalRecord (POS: 审批持久化模型)
 - app.services.event.app_event_bus::AppEvent (POS: 服务器级 SSE 总线)
+- app.database.factory::acquire_write_lock (POS: 事务起始处获取 SQLite 写锁，供读后写的工作单元使用)
 - app.services.approvals.outbound_draft::finalize_outbound_draft (POS: 被扣留回复定案后的发送/释放/收尾)
 - app.services.skills.growth.constants::is_background_growth_approval (POS: growth draft 分流 SSOT)
 
@@ -13,6 +14,8 @@
 [POS]
 统一审批流调度器。负责将各种拦截节点落库并推送 SSE 事件，接收 resolve 指令。
 outbound_draft 的定案（WebUI/IM 按钮/`/draft`/批量/TTL）统一在此收口：状态提交后调用 finalize_outbound_draft。
+定案是读后写（resolve_approval、TTL 清理），事务起始先取 SQLite 写锁：并发的定案只有一方生效，另一方等待后读到已定案状态
+（resolve_approval 返回 None），不会重复发送，也不会以 "database is locked" 失败。
 """
 
 import asyncio
@@ -23,6 +26,7 @@ from uuid import uuid4
 from sqlalchemy import and_, func, or_, select
 
 from app.database.connection import get_session
+from app.database.factory import acquire_write_lock
 from app.database.models.approval import ApprovalRecord
 from app.services.approvals.outbound_draft import finalize_outbound_draft
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
@@ -42,6 +46,7 @@ class ApprovalRegistry:
             The number of approvals that were auto-rejected.
         """
         async with get_session() as db:
+            await acquire_write_lock(db)  # as in resolve_approval: a click racing the sweep decides the record only once
             stmt = select(ApprovalRecord).where(
                 and_(
                     ApprovalRecord.status == "PENDING",
@@ -237,6 +242,10 @@ class ApprovalRegistry:
             decision: 'approve' or 'deny'
         """
         async with get_session() as db:
+            # Check-then-update on one record: with the write lock taken first, a resolver racing this one waits
+            # here and then finds the record decided (None), instead of both deciding it or the loser failing
+            # with "database is locked" once the winner commits.
+            await acquire_write_lock(db)
             stmt = select(ApprovalRecord).where(ApprovalRecord.id == approval_id)
             result = await db.execute(stmt)
             record = result.scalar_one_or_none()
