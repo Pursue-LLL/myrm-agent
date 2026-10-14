@@ -158,9 +158,6 @@ from app.api.memory.pitfall_alert_router import (
 from app.api.memory.private_notebook_router import (
     router as private_notebook_router,
 )
-from app.api.memory.procedure_experience_router import (
-    router as procedure_experience_router,
-)
 from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.quadruple_retrieval_router import (
     router as quadruple_retrieval_router,
@@ -312,10 +309,6 @@ router.include_router(
 router.include_router(
     markdown_curator_router,
     tags=["memory-markdown-curator"],
-)
-router.include_router(
-    procedure_experience_router,
-    tags=["memory-procedure-experience"],
 )
 router.include_router(
     business_template_router,

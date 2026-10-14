@@ -74,7 +74,6 @@ import { PromptCachePreservingDeltaCard } from './PromptCachePreservingDeltaCard
 import { DeterministicRuleCascadeCard } from './DeterministicRuleCascadeCard';
 import { TemporalRelationalBacktrackingCard } from './TemporalRelationalBacktrackingCard';
 import { MemoryCuratorStudioCard } from './MemoryCuratorStudioCard';
-import { ProcedureExperienceRetrievalCard } from './ProcedureExperienceRetrievalCard';
 import { BusinessScenarioTemplatesCard } from './BusinessScenarioTemplatesCard';
 import { ExperienceObservabilityStudioCard } from './ExperienceObservabilityStudioCard';
 import { PeerCognitionStudioCard } from './PeerCognitionStudioCard';
@@ -328,9 +327,6 @@ export const UnderstandSection = ({
 
     {/* Human-Readable Markdown Bidi-Sync & Memory Curator Studio Card (Item 101 P0) */}
     <MemoryCuratorStudioCard />
-
-    {/* Procedure-Shaped Experience Protocol & Fixed-Count Dual-Node Retrieval Card (Item 104 P0) */}
-    <ProcedureExperienceRetrievalCard />
 
     {/* Business Scenario Experience Templates & Escalation Gate Card (Item 107 P0) */}
     <BusinessScenarioTemplatesCard />

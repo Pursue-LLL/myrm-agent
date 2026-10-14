@@ -41,7 +41,6 @@ export * from './memory/ephemeralDelta';
 export * from './memory/ruleCascade';
 export * from './memory/relationalBacktrack';
 export * from './memory/curatorStudio';
-export * from './memory/procedureExperience';
 export * from './memory/businessTemplates';
 export * from './memory/experienceObservability';
 export * from './memory/peerCognition';

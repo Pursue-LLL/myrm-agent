@@ -91,13 +91,6 @@
 | `MemoryCuratorAddForm.tsx` | 辅助 | 折叠式新记忆录入表单：录入标题、分类、详细内容与标签并即时刷盘 | ✅    |
 | `MemoryCuratorEntryCard.tsx` | 辅助 | 单条记忆卡片项：支持原地编辑、状态徽章、置信度与一键物理抹除 | ✅    |
 | `curatorFallbacks.ts` | 辅助 | 策展工作台离线与单测仿真数据集 | ✅    |
-| `ProcedureExperienceRetrievalCard.tsx` | 核心 | 过程形态经验协议与双节点检索卡片：八字段模板终结流水账式轨迹，首问意图与写前拦截双节点精准命中，固定 Top-N 彻底终结字符截断 | ✅    |
-| `ProcedureProtocolInspectorView.tsx` | 辅助 | 八字段过程经验协议检视子组件：呈现操作意图/不可变边界/步骤/反模式八维度结构与紧凑检索锚点面 | ✅    |
-| `ProcedureMultiIntentSplitTool.tsx` | 辅助 | 多意图强制拆条工具子组件：支持复杂复合意图自动语义切分为单一职责条目 | ✅    |
-| `ProcedureRegisterForm.tsx` | 辅助 | 八字段规范过程经验注册表单：严格校验目标、前置、步骤、边界与反模式 | ✅    |
-| `DualNodeRetrievalConsoleView.tsx` | 辅助 | 双节点固定条数检索控制台子组件：呈现首问 first_user vs 写前 pre_write 节点切换、固定 Top-N 注入对比与锚点面加权 | ✅    |
-| `ProcedureExperienceHudBar.tsx` | 辅助 | 过程经验 4 维 HUD 监控条：呈现八字段合规条目数、双节点拦截状态、固定条数策略与多意图强制拆条模式 | ✅    |
-| `procedureFallbacks.ts` | 辅助 | 过程经验离线与单测仿真数据集 | ✅    |
 | `BusinessScenarioTemplatesCard.tsx` | 核心 | 业务场景经验模板与转人工门禁工作台卡片：对标 OpenViking PPT 复盘与 τ²-bench 换货真实场景，复用排障方法而非旧数据，先问必查闭环与确定性转人工门禁 | ✅    |
 | `BusinessTemplateHudBar.tsx` | 辅助 | 业务经验 4 维 HUD 监控条：呈现冷启动模板数、经营复盘规则数、零售换货 5 阶段状态与例外转人工门禁触发点 | ✅    |
 | `BusinessAnalysisReviewTemplateView.tsx` | 辅助 | 经营分析复盘三方法检视子组件：公式计算值回查、多源口径核对与交付前模板验收，提供有效性验证演化交互 | ✅    |
