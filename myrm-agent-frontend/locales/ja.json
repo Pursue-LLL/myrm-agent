@@ -14815,7 +14815,7 @@
           "localApiKey": "ローカルモデル API Key",
           "localApiKeyPlaceholder": "必要な場合は入力（不要なら空欄のまま）",
           "s2Strategy": "S2（機密）ポリシー",
-          "s2CloudAfterRedact": "マスキング後にクラウドへ",
+          "s2CloudAfterRedact": "クラウドモデル",
           "s2Local": "ローカルのみ",
           "s3Strategy": "S3（極秘）ポリシー",
           "s3Local": "ローカルのみ",

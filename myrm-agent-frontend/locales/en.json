@@ -15490,7 +15490,7 @@
           "localApiKey": "Local Model API Key",
           "localApiKeyPlaceholder": "Leave empty if not required",
           "s2Strategy": "S2 (Sensitive) Strategy",
-          "s2CloudAfterRedact": "Redact then Cloud",
+          "s2CloudAfterRedact": "Cloud Model",
           "s2Local": "Local Only",
           "s3Strategy": "S3 (Confidential) Strategy",
           "s3Local": "Local Only",

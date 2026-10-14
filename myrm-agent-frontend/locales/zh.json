@@ -15490,7 +15490,7 @@
           "localApiKey": "本地模型 API Key",
           "localApiKeyPlaceholder": "不需要则留空",
           "s2Strategy": "S2（敏感）策略",
-          "s2CloudAfterRedact": "脱敏后上云",
+          "s2CloudAfterRedact": "云端模型",
           "s2Local": "仅本地",
           "s3Strategy": "S3（机密）策略",
           "s3Local": "仅本地",

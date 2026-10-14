@@ -14815,7 +14815,7 @@
           "localApiKey": "Lokaler Modell-API-Schlüssel",
           "localApiKeyPlaceholder": "Leer lassen, wenn nicht erforderlich",
           "s2Strategy": "S2-Strategie (sensibel)",
-          "s2CloudAfterRedact": "Maskieren, dann Cloud",
+          "s2CloudAfterRedact": "Cloud-Modell",
           "s2Local": "Nur lokal",
           "s3Strategy": "S3-Strategie (vertraulich)",
           "s3Local": "Nur lokal",
