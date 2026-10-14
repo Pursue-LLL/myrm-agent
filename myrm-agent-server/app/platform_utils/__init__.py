@@ -116,8 +116,7 @@ def get_sandbox_executor_factory() -> "Callable[..., CodeExecutor]":
 def get_storage_provider() -> "StorageProvider":
     """获取存储提供商
 
-    根据 DEPLOY_MODE 返回对应的存储后端：
-    - 所有模式均统一使用本地存储（LocalStorageBackend），沙箱模式下指向持久化Volume
+    返回框架层全局存储单例：存在 /persistent 目录时为 PersistentStorageBackend，否则为 LocalStorageBackend。
     """
     global _storage_provider
     if _storage_provider is None:
