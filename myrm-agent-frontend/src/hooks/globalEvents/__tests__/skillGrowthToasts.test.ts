@@ -11,11 +11,12 @@ const mocks = vi.hoisted(() => {
       super(message);
     }
   }
-  return { ApiError: FakeApiError, updateSkillLifecycle: vi.fn() };
+  return { ApiError: FakeApiError, updateSkillLifecycle: vi.fn(), rollbackSkillEvolution: vi.fn() };
 });
 
 vi.mock('@/lib/api', () => ({ ApiError: mocks.ApiError }));
 vi.mock('@/services/skill/core', () => ({ updateSkillLifecycle: mocks.updateSkillLifecycle }));
+vi.mock('@/services/skill/growth', () => ({ rollbackSkillEvolution: mocks.rollbackSkillEvolution }));
 
 describe('skill growth toasts', () => {
   const t = (key: string, values?: Record<string, string | number>) => (values ? `${key}:${values.name}` : key);
@@ -103,26 +104,23 @@ describe('skill growth toasts', () => {
       expect(pushToast.success.mock.calls[1][1].cancel).toEqual(expect.objectContaining({ label: 'undoEvolve' }));
     });
 
-    it('rolls the evolution back through the evolution API', async () => {
-      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-      vi.stubGlobal('fetch', fetchMock);
+    it('rolls the evolution back through the authenticated evolution client', async () => {
+      mocks.rollbackSkillEvolution.mockResolvedValue(undefined);
       showSkillEvolvedToast({ ...base, evolution_id: 'evo-1' }, deps);
 
       await pushToast.success.mock.calls[0][1].cancel.onClick();
 
-      expect(fetchMock).toHaveBeenCalledWith('/api/v1/evolution/evo-1/rollback', { method: 'POST' });
+      expect(mocks.rollbackSkillEvolution).toHaveBeenCalledWith('evo-1');
       expect(pushToast.success).toHaveBeenLastCalledWith('rollbackSuccess:deploy-flow');
-      vi.unstubAllGlobals();
     });
 
     it('reports a failed rollback', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+      mocks.rollbackSkillEvolution.mockRejectedValue(new mocks.ApiError('conflict', 409));
       showSkillEvolvedToast({ ...base, evolution_id: 'evo-1' }, deps);
 
       await pushToast.success.mock.calls[0][1].cancel.onClick();
 
       expect(pushToast.error).toHaveBeenCalledWith('rollbackFailed:deploy-flow');
-      vi.unstubAllGlobals();
     });
   });
 });

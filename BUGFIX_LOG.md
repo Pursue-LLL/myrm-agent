@@ -2457,7 +2457,7 @@ except Exception:
 | 发现日期 | 2026-10-14 |
 | 修复日期 | 2026-10-14 |
 | 严重程度 | P2（数据正确性：技能描述被污染并进入每轮的技能目录；归档不对热会话生效；其余为 P3） |
-| 影响范围 | server：`app/core/skills/curator/service.py`（`apply_skill_archived`）、`app/services/skills/{auto_extractor,draft_notification,evolution_events}.py`、`skills/growth/{lifecycle,queries}.py`；frontend：`hooks/globalEvents/skillGrowthToasts.ts`（新增）、`useGlobalEvents.ts`、`lib/skills/growthReason.ts`（新增）、`components/features/skills/growth-card/`（新增 `GrowthTechnicalDetails.tsx`）、六种语言文案；各目录 `_ARCH.md` 与根 `ARCHITECTURE.md` |
+| 影响范围 | server：`app/core/skills/curator/service.py`（`apply_skill_archived`、`run_curator_sweep`）、`app/api/skills/drafts.py`、`app/services/skills/{auto_extractor,draft_notification,evolution_events}.py`、`skills/growth/{lifecycle,queries}.py`；frontend：`hooks/globalEvents/skillGrowthToasts.ts`（新增）、`useGlobalEvents.ts`、`services/skill/growth.ts`、`SkillHistoryPanel.tsx`、`lib/skills/growthReason.ts`（新增）、`components/features/skills/growth-card/`（新增 `GrowthTechnicalDetails.tsx`）、六种语言文案；各目录 `_ARCH.md` 与根 `ARCHITECTURE.md` |
 | 出现次数 | 1（读代码 + 红灯测试确认；未在真实浏览器与真实 LLM 里跑过） |
 | 关联 | `BUG-AGENT-2026-10-14-018`（本条补上它记录的局限之一：扫描发现的 `description` 与应用失败的 `remediation` 原文未本地化；它记录的「没做浏览器级别视觉检查」仍未补上）；本地提交，未 push |
 
@@ -2467,7 +2467,10 @@ except Exception:
 2. 后台学习的草稿因「相似技能 / 扫描失败 / 进化锁 / 应用失败」落成待审，系统把英文备注拼进记录的 `reason`；用户人工批准时，`draft.description`（即这段 `reason`）被原样写进新技能的 SKILL.md frontmatter，备注因此成了技能描述，并出现在每一轮进入模型的技能目录里；
 3. 自动落地一个新技能时，`skill_evolved` 与 `skill_growth_updated(AUTO_APPLIED)` 各弹一条 toast，两条都没有撤销入口；
 4. 成长卡片里扫描器的英文描述、运行时的错误签名与循环类型、应用失败原文直接展示；「相似技能 / 扫描未过 / 进化锁」这几类原因只存在于上面那段英文备注里，卡片没有本地化说明；
-5. `auto_extract_skill` 里有一条永远走不到的补丁分支：后台复盘产出的补丁一律走人工审核。
+5. `auto_extract_skill` 里有一条永远走不到的补丁分支：后台复盘产出的补丁一律走人工审核；
+6. 用户撤销（归档）一个自动学到的技能后，同名技能再次被提议时落成待审；人工批准会重写 SKILL.md，但生命周期状态仍是已归档，技能被批准了却不会被加载，界面没有任何提示；
+7. Curator 的 sweep 归档技能后不推进配置版本，已打开的会话继续带着被归档的技能；
+8. 可选进化的回滚（`skill_evolved` 提示里的撤销）用裸 `fetch` 调 `/api/v1/evolution/{id}/rollback`，不带 `Authorization` 头，也绕过本机后端就绪检查；开启令牌鉴权的部署里这个撤销会失败，只显示「撤销失败」。
 
 ### 根因
 
@@ -2475,7 +2478,10 @@ except Exception:
 2. 「给人看的审核原因」与「会成为技能内容的描述」共用了同一个字段（`reason`）；
 3. 两个事件各自带提示，没有约定谁负责提示；又不能简单地让所有 `skill_evolved` 静默，因为人工批准草稿时发的也是这个事件，而前端对「已批准」状态没有提示；
 4. 服务端只下发了拼好的英文，没有下发稳定的原因码，展示层无从本地化；
-5. 补丁分支是 P1 改成「补丁一律人审」之前遗留的。
+5. 补丁分支是 P1 改成「补丁一律人审」之前遗留的；
+6. 草稿落盘只写文件，不看同名技能当前的生命周期状态；
+7. sweep 的归档由 Harness 的 Curator 引擎直接写状态，服务层没有在其后通知缓存键；
+8. 回滚没有服务层封装，提示代码直接拼 URL 调 `fetch`，另一处历史面板用的是 `apiRequest`，两处走了不同的请求入口。
 
 ### 修复
 
@@ -2484,14 +2490,19 @@ except Exception:
 3. `publish_skill_evolved_event` 增加 `notify`，后台自动落地传 `False`（由成长事件提示），人工批准与可选进化保持默认 `True`；前端 `skillGrowthToasts.ts` 只在 `notify === false` 时跳过提示，同时仍派发 `skill-evolved` 供界面刷新；
 4. 自动落地的提示只弹一条，带「撤销」= 归档（`PATCH /skills/curator/{name}/lifecycle`，可在技能列表恢复）；固定或被绑定时服务端返回 409，用单独文案说明，其他失败用通用文案；该提示改用「Agent 学会了新技能」的措辞，删除不再使用的 `skillGrowthAutoApplied`；
 5. 前端新增 `lib/skills/growthReason.ts`（封闭词表解析 `similar:` / `scan_failed` / `evolution_locked`，词表外返回 null）；`GrowthCaseEvidence` 按原因码给出本地化的「为什么需要你审核」，应用失败只给本地化结论；扫描器描述、运行时错误签名与循环类型、应用失败原文与服务端建议统一收进默认收起的 `GrowthTechnicalDetails`；六种语言新增对应文案，删除不再使用的 `runtimeFailure.loopKind`；
-6. 删除 `auto_extract_skill` 的补丁分支，传入非 `skill_draft` 类型直接返回 `unsupported result_type`。
+6. 删除 `auto_extract_skill` 的补丁分支，传入非 `skill_draft` 类型直接返回 `unsupported result_type`；
+7. `drafts.py::_materialize_skill_draft` 落盘成功后，若同名技能处于已归档状态，经 `set_skill_archived(..., archived=False)` 恢复：批准草稿就是用户决定让它运行；
+8. `run_curator_sweep` 在 `archived_count > 0` 时推进配置版本；
+9. 新增 `services/skill/growth.ts::rollbackSkillEvolution`（`apiRequest`，带鉴权头），提示与历史面板共用，删除裸 `fetch`；
+10. `useScanRiskText.ts` 的翻译器绑定去掉类型注解：`verify:i18n` 的引用门禁此前对 `scanRiskText.ts` 报 6 条键缺失，原因是门禁只认 `const t = useTranslations(...)`，认不出 `const t: ScanRiskTranslate = ...`，键实际都在 `settings.skills.scanRisk`；去掉注解后该门禁不再报这 6 条；
+11. `drafts.py` 里两处已有的 pyright 类型错误（`eval_cases` 收窄、`_TEST_MOCK_DRAFT_NAMES` 的元组长度）一并修掉；`undoEvolve` 在中文、繁体中文、日文里去掉「(Undo)」后缀，与其余语言一致。
 
 ### 验证
 
-1. 服务端：`tests/core/skills/curator`、`tests/services/skills`、`tests/api/skills`、`tests/api/evolution`、`tests/architecture`、`tests/services/agent/stream_session` 共 2718 通过、17 失败；17 例是他人的改动（`test_curator.py` 4 例，`tests/architecture` 13 例：路由消费者、服务域词表、`__init__.py` 布局、前端 API 路径、server 对 harness 的深层导入），失败信息里没有本条涉及的文件；本条涉及文件 `ruff check` / `ruff format` / `pyright` 无问题（同包 `audit_queries.py` 有 2 条 `order_by(desc(...))` 的 pyright 类型报错，不是本条改的文件，未动）；
-2. 前端：全量 vitest 1398 个文件 9916 例通过；新增 `skillGrowthToasts.test.ts` 11 例、`growthReason.test.ts` 12 例，并在 `SkillGrowthCaseCard.scanRisk.test.tsx` 补了原因码、应用失败、运行时失败、技术细节折叠的用例；本条涉及目录 `oxlint`、`prettier`、fractal 文档检查通过，行数基线没有新增项，`useGlobalEvents.ts` 由 716 行降到 674 行；六种语言新增键的占位符与英文逐项一致，`toastCopyKeys` 测试通过；`bun run lint` 有 3 个门禁失败（`verify:stable-mocks`、`verify:a11y`、`verify:hardcoded-copy`），报出的文件都是他人的（Kanban、system-monitor 等），`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；
-3. 变异验证：去掉 `bump_skill_config_version()`、跳过 `notify` 判断、把 409 判断改成 500、撤销改成恢复、卡片直出 `applyError`、技术细节里去掉扫描器描述、`scan_failed` 解析失效，共 7 处，各被 1 例杀死，还原后通过；
-4. 局限：没有在真实浏览器里看过（深浅主题、375px 宽度）：ChromeAgent 拒绝了 `localhost:3000`（`CHROME_AGENT_E2E_URL_REJECTED`），需要走 `./myrm test -m chrome_e2e` 通道，未运行，当前只有 jsdom 渲染测试与语义色 / 主题色门禁（`verify:theme-colors` 通过）；没有用真实 LLM 端到端跑过后台复盘；「归档后热会话下一轮不再带该技能」由指纹与缓存复用的代码链路加版本推进的单测推出，没有开真实对话验证；已经在库里的待审记录保留旧的带备注描述（不迁移，数量受上限约束且会被处理掉）；撤销自动落地的技能后，对应成长卡片的状态仍显示「已自动落地」；Curator 后台自动归档路径没有推进版本，不在本条范围；复盘提示词没有改动，也没有评估其对产出质量的影响。
+1. 服务端：`tests/api/skills`、`tests/core/skills`、`tests/services/skills`、`tests/api/evolution`、`tests/integration/skills` 与 `tests/architecture` 分两次跑：第一次（`-x`，排除他人改动的 `test_curator.py`）747 通过后在 `test_prebuilt_skills_e2e.py` 停下；第二次 `tests/architecture` + `tests/integration/skills` 2095 通过、16 失败，其中 13 例是 `tests/architecture` 的他人改动（路由消费者、服务域词表、`__init__.py` 布局、前端 API 路径、server 对 harness 的深层导入；`test_frontend_api_literals_target_existing_routes` 的违规清单里没有本条新增的 `/evolution/{}/rollback`），3 例是 `test_prebuilt_skills_e2e.py`（失败日志出自 `app/core/skills/store/service.py:352` 的「Runtime load excluded … (disabled)」，该文件有他人未提交改动，`gates/runtime_load.py` 是他人新增的未跟踪文件；本条没有改这些文件，单独跑该文件同样失败 3 例）；本条涉及的全部文件 `ruff check` / `ruff format` / `pyright` 无问题；同目录其余文件另有 7 条 ruff、10 个未格式化、72 条 pyright 报错（`app/{api,core,services}/skills` 下 22 个文件，多数是他人正在改的文件），没有动；
+2. 前端：全量 vitest 1398 个文件 9919 例，9917 通过、2 失败（`stageTaskCount.test.ts`、`taskTopologyModel.test.ts`：子代理拓扑「待审节点」的断言，他人的改动）；新增 `skillGrowthToasts.test.ts` 11 例、`growthReason.test.ts` 12 例，并在 `SkillGrowthCaseCard.scanRisk.test.tsx` 补了原因码、应用失败、运行时失败、技术细节折叠的用例；本条涉及文件 `oxlint`、`prettier`、fractal 文档检查通过；`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；`bun run lint` 仍有 `verify:stable-mocks`、`verify:a11y`、`verify:hardcoded-copy` 三个门禁失败，报出的文件（agent-assembler、channels、chat/group、system-monitor 等）都是他人的，本条涉及文件不在其中；`verify:i18n` 还剩 53 条键缺失，全部在他人的 chat / kanban / `SkillDetailSheetContent`；`useGlobalEvents.ts` 由 716 行降到 674 行，行数基线没有新增本条的项；
+3. 变异验证：去掉 `bump_skill_config_version()`、跳过 `notify` 判断、把 409 判断改成 500、撤销改成恢复、卡片直出 `applyError`、技术细节里去掉扫描器描述、`scan_failed` 解析失效，共 7 处，各被 1 例杀死，还原后通过；第 6、7 条各有红灯测试（去掉修复后失败：批准后状态仍为 `archived`、sweep 归档后版本仍为 0.0），修复后通过；第 8 条的单测改为断言经 `rollbackSkillEvolution` 调用，裸 `fetch` 的缺陷由 `apiRequest` 带 `Authorization` 头的代码（`lib/api.ts:436-446`）确认，没有开令牌鉴权的真实部署验证；
+4. 局限：没有在真实浏览器里看过（深浅主题、375px 宽度）：ChromeAgent 拒绝了 `localhost:3000`（`CHROME_AGENT_E2E_URL_REJECTED`），需要走 `./myrm test -m chrome_e2e` 通道，未运行，当前只有 jsdom 渲染测试与语义色 / 主题色门禁（`verify:theme-colors` 通过）；没有用真实 LLM 端到端跑过后台复盘；「归档后热会话下一轮不再带该技能」由指纹与缓存复用的代码链路加版本推进的单测推出，没有开真实对话验证；已经在库里的待审记录保留旧的带备注描述（不迁移，数量受上限约束且会被处理掉）；撤销自动落地的技能后，对应成长卡片的状态仍显示「已自动落地」；自动学到的技能默认带进化锁，Curator 的自动淘汰对它们不生效，所以 sweep 归档的版本推进只对用户自建、未加锁的技能有意义；复盘提示词没有改动，也没有评估其对产出质量的影响。
 
 ### 踩坑经验
 

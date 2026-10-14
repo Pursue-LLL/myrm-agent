@@ -7,13 +7,7 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  riskRemediation,
-  riskSignalLabel,
-  severityLabel,
-  threatTypeLabel,
-  type ScanRiskTranslate,
-} from '@/lib/skills/scanRiskText';
+import { riskRemediation, riskSignalLabel, severityLabel, threatTypeLabel } from '@/lib/skills/scanRiskText';
 
 export interface ScanRiskText {
   threatLabel: (threatType: string) => string;
@@ -23,7 +17,7 @@ export interface ScanRiskText {
 }
 
 export function useScanRiskText(): ScanRiskText {
-  const t: ScanRiskTranslate = useTranslations('settings.skills.scanRisk');
+  const t = useTranslations('settings.skills.scanRisk');
   return useMemo(
     () => ({
       threatLabel: (threatType) => threatTypeLabel(t, threatType),

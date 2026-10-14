@@ -4,7 +4,7 @@
  * ./core::approveSkillDraft,rejectSkillDraft (POS: 技能审批 API)
  *
  * [OUTPUT]
- * SkillGrowthCase/Summary/Audit DTO 与 `/skill-growth/*` cases/detail/stats/audit API。
+ * SkillGrowthCase/Summary/Audit DTO 与 `/skill-growth/*` cases/detail/stats/audit API；`/evolution/*` 审批、修订、回滚 API。
  *
  * [POS]
  * 技能进化（growth）客户端。`/skill-growth/*` REST 契约。
@@ -383,6 +383,11 @@ export async function reviseSkillGrowthCase(
     method: 'PATCH',
     body: JSON.stringify({ evolved_content: evolvedContent }),
   });
+}
+
+/** Restores the skill version an applied evolution replaced. Callers own the failure toast. */
+export async function rollbackSkillEvolution(evolutionId: string): Promise<void> {
+  await apiRequest(`/evolution/${encodeURIComponent(evolutionId)}/rollback`, { method: 'POST', silent: true });
 }
 
 export async function listSkillGrowthAudit(limit: number = 20, days: number = 30): Promise<SkillGrowthAuditEntry[]> {

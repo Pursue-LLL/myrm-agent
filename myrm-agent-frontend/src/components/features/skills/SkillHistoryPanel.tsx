@@ -21,6 +21,7 @@ import { toast } from '@/hooks/shared/useToast';
 import { useTheme } from 'next-themes';
 import { LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import { apiRequest } from '@/lib/api';
+import { rollbackSkillEvolution } from '@/services/skill/growth';
 
 interface EvolutionRecord {
   id: string;
@@ -71,7 +72,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
     setPendingRollback(null);
     setIsRollingBack(id);
     try {
-      await apiRequest(`/evolution/${id}/rollback`, { method: 'POST', silent: true });
+      await rollbackSkillEvolution(id);
       toast({ title: t('rollbackSuccess', { name }) });
       await fetchHistory();
     } catch {

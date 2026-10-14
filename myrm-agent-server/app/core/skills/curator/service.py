@@ -174,6 +174,8 @@ async def run_curator_sweep(*, force: bool = False, trigger: Literal["manual", "
 
         _save_last_run_time()
         _save_history(result, trigger=trigger, duration_ms=duration_ms)
+        if result.archived_count:
+            bump_skill_config_version()
 
         return result
 

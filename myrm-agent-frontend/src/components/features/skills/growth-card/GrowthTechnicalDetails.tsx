@@ -1,16 +1,15 @@
 /**
- * [INPUT] SecurityScanFindingDetailDto / RuntimeFailureEvidence via @/services/skill/growth
+ * [INPUT] @/services/skill/growth::SecurityScanFindingDetailDto,RuntimeFailureEvidence (POS: 技能进化（growth）客户端)
  * [OUTPUT] GrowthTechnicalDetails: 默认收起的「技术细节」折叠区，原样展示扫描器描述、运行时错误签名与应用失败原文
  * [POS] features/skills/growth-card 证据区的出口：这些文本来自扫描器与运行时、不随界面语言本地化，
  *       主区域只显示本地化结论，需要排查时再展开，避免普通用户直接读到技术原文
  */
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconChevronDown } from '@/components/features/icons/PremiumIcons';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/primitives/collapsible';
-import { cn } from '@/lib/utils/classnameUtils';
 import type { RuntimeFailureEvidence, SecurityScanFindingDetailDto } from '@/services/skill/growth';
 
 interface GrowthTechnicalDetailsProps {
@@ -39,7 +38,6 @@ export function GrowthTechnicalDetails({
   remediation,
 }: GrowthTechnicalDetailsProps) {
   const t = useTranslations('settings.skills.growth');
-  const [open, setOpen] = useState(false);
 
   const runtimeText = runtimeFailure
     ? [runtimeFailure.loop_kind, runtimeFailure.error_signature].filter(Boolean).join(' / ')
@@ -49,9 +47,9 @@ export function GrowthTechnicalDetails({
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="mt-4">
-      <CollapsibleTrigger className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
-        <IconChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
+    <Collapsible className="mt-3">
+      <CollapsibleTrigger className="group inline-flex items-center gap-1 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+        <IconChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]:rotate-180" />
         {t('technical.toggle')}
       </CollapsibleTrigger>
       <CollapsibleContent>

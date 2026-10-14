@@ -8,7 +8,7 @@
 | `memoryOperationToasts.ts`    | 记忆 CRUD toast；`implicit_feedback_personal` 事件刷新待审批队列（提示由聊天页 `usePendingMemoryToast` 负责）                                                                       |
 | `locatorHealedToast.tsx`      | 浏览器 locator 自愈通知                                                                                                                                                             |
 | `subsumptionUndoToast.ts`     | 空闲知识降维软删除后的撤销 toast（`idle_status` 的 `cognitive_subsumption` notification 携带可恢复 id，调用 `/memory/undo-consolidation`）                                          |
-| `skillGrowthToasts.ts`        | 技能成长 toast：后台自动学会新技能（`skill_growth_updated` 的 `AUTO_APPLIED`）只弹一条，带「撤销」= 归档（`PATCH /skills/curator/{name}/lifecycle`，可在技能列表恢复；固定或被绑定时服务端返回 409，文案说明原因）；`skill_evolved` 带 `notify=false`（已由成长事件提示）时只刷新不弹窗，人工批准与可选进化的提示与回滚入口不变 |
+| `skillGrowthToasts.ts`        | 技能成长 toast：后台自动学会新技能（`skill_growth_updated` 的 `AUTO_APPLIED`）只弹一条，带「撤销」= 归档（`PATCH /skills/curator/{name}/lifecycle`，可在技能列表恢复；固定或被绑定时服务端返回 409，文案说明原因）；`skill_evolved` 带 `notify=false`（已由成长事件提示）时只刷新不弹窗，人工批准与可选进化（`skill_evolved` 默认通知）弹出带回滚的提示，回滚经 `rollbackSkillEvolution`（带鉴权头的统一请求入口） |
 | `messageDeadLetteredToast.ts` | 消息死信告警                                                                                                                                                                        |
 | `reauthToasts.ts`             | `mcp_auth_required` / `oauth_reauth_required` 重新授权 toast：MCP → `/settings/mcp`，OAuth 账号 → `/settings/credentials`，文案用 `formatOAuthIssuerLabel` 的账号展示名称呼账号且不展示后端 reason                  |
 | `backupAlertToast.ts`         | 自动备份连续失败的 `health_alert`（`component=instance_backup`）：仅本地化文案（不展示服务端措辞与组件名），操作直达备份设置卡片 `/settings/workbench#auto-backup` |

@@ -9719,7 +9719,7 @@
     "openSkillGrowth": "開啟技能成長",
     "skillEvolvedNew": "Agent 學會了新技能：{name}",
     "skillEvolvedPatch": "Agent 最佳化了技能：{name}",
-    "undoEvolve": "撤銷 (Undo)",
+    "undoEvolve": "撤銷",
     "rollbackSuccess": "已成功撤銷並恢復：{name}",
     "rollbackFailed": "撤銷失敗，請重試",
     "skillGrowthUndone": "已歸檔「{name}」，可隨時在技能列表中恢復",

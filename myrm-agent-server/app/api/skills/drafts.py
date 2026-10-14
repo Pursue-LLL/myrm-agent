@@ -11,10 +11,11 @@ front-end refresh events through the single-source publish helpers.
 - app.services.skills.evolution_events::publish_skill_evolved_event (POS: SKILL_EVOLVED 前端刷新事件单一出口)
 - app.services.skills.experience_ledger::record_skill_growth_event (POS: 学习资产事件账本)
 - app.core.skills.config_version::bump_skill_config_version (POS: skill 配置版本自增)
+- app.core.skills.curator.service::describe_skill_lifecycle,set_skill_archived (POS: 技能归档/恢复的单一写入口)
 
 [OUTPUT]
 - GET /drafts: 草稿分页列表 + 未审核计数
-- POST /drafts/{draft_id}/approve: 审批通过 → 技能落地 + 前端事件
+- POST /drafts/{draft_id}/approve: 审批通过 → 技能落地（已归档的同名技能一并恢复）+ 前端事件
 - POST /drafts/{draft_id}/reject: 审批拒绝 → 负反馈记忆 + 前端事件
 
 [POS]
@@ -34,6 +35,7 @@ from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.skills.config_version import bump_skill_config_version
+from app.core.skills.curator.service import describe_skill_lifecycle, set_skill_archived
 from app.database.connection import get_session
 from app.database.models import Agent, ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
@@ -44,7 +46,7 @@ from app.services.skills.growth.constants import GROWTH_ACTION_TYPES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-_TEST_MOCK_DRAFT_NAMES: tuple[str, ...] = (
+_TEST_MOCK_DRAFT_NAMES: tuple[str, str] = (
     "test-frontend-approve",
     "test-frontend-reject",
 )
@@ -117,6 +119,7 @@ def _approval_growth_status(record: ApprovalRecord) -> str:
 
 def _to_skill_draft_record(record: ApprovalRecord) -> SkillDraftRecord:
     payload = record.payload if isinstance(record.payload, dict) else {}
+    eval_cases = payload.get("eval_cases")
     return SkillDraftRecord(
         id=record.id,
         agent_id=record.agent_id,
@@ -131,7 +134,7 @@ def _to_skill_draft_record(record: ApprovalRecord) -> SkillDraftRecord:
         reviewed_at=record.resolved_at,
         created_at=record.created_at,
         approval_status=record.status,
-        eval_cases=(payload.get("eval_cases") if isinstance(payload.get("eval_cases"), list) else None),
+        eval_cases=eval_cases if isinstance(eval_cases, list) else None,
     )
 
 
@@ -471,6 +474,13 @@ async def _persist_approved_draft_eval_cases(
         logger.warning("Failed to persist approved draft eval_cases for %s: %s", skill_name, exc)
 
 
+def _restore_if_archived(skill_name: str) -> None:
+    """Approving a draft is the user's decision to run the skill, so an archived one comes back."""
+    lifecycle = describe_skill_lifecycle(skill_name)
+    if lifecycle is not None and lifecycle[0]:
+        set_skill_archived(skill_name, archived=False)
+
+
 async def _materialize_skill_draft(
     draft: SkillDraftRecord,
     override_name: str | None,
@@ -516,6 +526,7 @@ async def _materialize_skill_draft(
     )
 
     if save_result.success:
+        _restore_if_archived(skill_name)
         bump_skill_config_version()
         await _persist_approved_draft_eval_cases(draft, skill_name, skill_md)
         logger.info("Skill draft materialized: %s -> %s", draft.id, save_result.skill_id)

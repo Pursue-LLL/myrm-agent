@@ -9719,7 +9719,7 @@
     "openSkillGrowth": "スキル成長を開く",
     "skillEvolvedNew": "Agent が新しいスキルを学習しました：{name}",
     "skillEvolvedPatch": "Agent 最適化スキル：{name}",
-    "undoEvolve": "元に戻す (Undo)",
+    "undoEvolve": "元に戻す",
     "rollbackSuccess": "{name} をロールバックしました",
     "rollbackFailed": "ロールバックに失敗しました。再試行してください",
     "skillGrowthUndone": "「{name}」をアーカイブしました。スキル一覧からいつでも復元できます",

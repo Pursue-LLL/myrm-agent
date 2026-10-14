@@ -498,6 +498,40 @@ async def test_approve_draft_with_markdown_fence(mock_local_skills_dir: Path) ->
 
 
 @pytest.mark.asyncio
+async def test_approve_restores_an_archived_skill_of_the_same_name(
+    mock_local_skills_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Undo archives a learned skill; approving its re-proposed draft must not leave it archived."""
+    from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
+    from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
+
+    import app.core.skills.curator.service as curator_service
+
+    monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path / "data"))
+    collector = SkillStatsCollector()
+    monkeypatch.setattr(curator_service, "_stats_collector", collector)
+    skill_dir = mock_local_skills_dir / "undone-skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text("---\nname: undone-skill\ndescription: old\n---\n", encoding="utf-8")
+    curator_service.apply_skill_archived(collector, skill_dir, archived=True)
+
+    draft = await notify_skill_draft_created(
+        {
+            "has_value": True,
+            "type": "skill_draft",
+            "skill_name": "undone-skill",
+            "content": "---\nname: undone-skill\ndescription: new\n---\n\n## Steps\n1. Do",
+        }
+    )
+    assert draft is not None
+
+    result = await approve_skill_draft(draft.id, ApproveDraftRequest(skill_name="undone-skill"))
+
+    assert result["materialized"] is True
+    assert collector.get_stats(skill_dir).lifecycle_status == SkillLifecycleStatus.ACTIVE
+
+
+@pytest.mark.asyncio
 async def test_materialize_semantic_memory_failure() -> None:
     """Semantic memory materialization failure returns a clean error dict."""
     from app.api.skills.drafts import _materialize_semantic_memory
