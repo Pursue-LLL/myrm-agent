@@ -43,7 +43,7 @@ describe('verifyLocaleParity', () => {
     expect(logs).not.toContain(passLine('de'));
   });
 
-  it('treats a zh-only key as an orphan even under the former capabilities subtree', () => {
+  it('treats a zh-only key under settings.plugins.import.capabilities as an orphan', () => {
     const { ctx, errors } = runParity({
       en,
       zh: {
