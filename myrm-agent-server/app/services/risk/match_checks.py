@@ -1,7 +1,7 @@
 """Checks that turn a pattern match of a built-in risk rule into a hit.
 
 [INPUT]
-- myrm_agent_harness.core.security.detection.pii_patterns::china_id_valid, is_placeholder (POS: privacy detectors' shared validators)
+- myrm_agent_harness.core.security.detection.pii_patterns::china_id_valid, is_placeholder (POS: Single definition of the built-in PII patterns and their validators: classification, redaction and pseudonymization all read it, so they never disagree about what a hit is.)
 
 [OUTPUT]
 - is_confirmed_match: whether the text a built-in rule's pattern matched is a real hit

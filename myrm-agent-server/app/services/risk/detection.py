@@ -3,8 +3,9 @@
 Compiles and caches active risk rules as regex patterns, performs short-circuit
 matching against text content, and records risk hits to the database.
 
-Patterns are written for the ``regex`` package (everything ``re`` accepts) because only it can stop a match that
-runs too long: ``detect`` runs on the event loop, on text any chat sender controls.
+Patterns are read by the ``regex`` package, whose default mode reads ordinary ``re`` patterns the same way (it differs
+on corner cases such as ``[[:alpha:]]``), because only it can stop a match that runs too long: ``detect`` runs on
+the event loop, on text any chat sender controls.
 """
 
 from __future__ import annotations

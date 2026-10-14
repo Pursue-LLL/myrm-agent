@@ -95,12 +95,6 @@ import { CjkIterationInspectionCard } from './CjkIterationInspectionCard';
 import { MemorySkillTriadInspectionCard } from './MemorySkillTriadInspectionCard';
 import { BitemporalTmsInspectionCard } from './BitemporalTmsInspectionCard';
 
-
-
-
-
-
-
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 
 const MEMORY_TYPES: MemoryType[] = [
@@ -382,14 +376,7 @@ export const UnderstandSection = ({
     {/* Temporal Truth Maintenance & Bitemporal Filter Inspection Card (Item 148 P1) */}
     <BitemporalTmsInspectionCard />
 
-
-
-
-
     <div className="grid gap-4 xl:grid-cols-2">
-
-
-
       <Panel title={t('commandCenter.influenceTitle')}>
         {snapshot.influence.length ? (
           <div className="space-y-2">
