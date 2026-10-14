@@ -206,7 +206,7 @@ async def test_safe_vault_purge_drops_the_checkpoint_threads_of_every_chat(
         )
 
     assert result.success is True
-    assert result.cleared_checkpoints == 1
+    assert result.checkpoint_cleared_chats == 1
     assert not await _is_stored(sqlite_checkpointer, "chat-1")
     assert not await _is_stored(sqlite_checkpointer, "chat_chat-1")
     assert await _is_stored(sqlite_checkpointer, "kanban-task-1")
@@ -274,7 +274,7 @@ async def test_safe_vault_purge_keeps_going_when_one_chat_checkpoint_cannot_be_c
 
     assert result.success is True
     assert result.purged_chats == 2
-    assert result.cleared_checkpoints == 1
+    assert result.checkpoint_cleared_chats == 1
     assert not await _is_stored(sqlite_checkpointer, "chat-1")
     assert await _is_stored(sqlite_checkpointer, "chat-2")
     async with purge_test_engine.connect() as conn:
@@ -299,7 +299,7 @@ async def test_safe_vault_purge_without_a_registered_checkpointer_still_purges(
 
     assert result.success is True
     assert result.purged_chats == 1
-    assert result.cleared_checkpoints == 0
+    assert result.checkpoint_cleared_chats == 0
 
 
 def test_safe_vault_purge_api_endpoint() -> None:
@@ -311,7 +311,7 @@ def test_safe_vault_purge_api_endpoint() -> None:
         purged_messages=25,
         purged_channel_messages=3,
         purged_memory_events=2,
-        cleared_checkpoints=5,
+        checkpoint_cleared_chats=5,
         fts_tables_purged=["messages_fts"],
         cursors_reset=["channel_messages"],
         cleared_sandboxes=0,
@@ -334,7 +334,7 @@ def test_safe_vault_purge_api_endpoint() -> None:
         assert data["purged_chats"] == 5
         assert data["purged_messages"] == 25
         assert data["purged_memory_events"] == 2
-        assert data["cleared_checkpoints"] == 5
+        assert data["checkpoint_cleared_chats"] == 5
         assert data["preserved_agents"] == 2
         assert data["preserved_api_keys"] == 1
         assert "duration_ms" in data

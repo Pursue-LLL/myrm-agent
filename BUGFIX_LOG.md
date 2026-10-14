@@ -2048,23 +2048,23 @@ except Exception:
 | 发现日期 | 2026-10-14 |
 | 修复日期 | 2026-10-14 |
 | 严重程度 | P3（`POST /api/v1/health/database/safe-purge` 目前没有界面调用方；过期会话文件只占磁盘、不再被读取；不影响对话与登录行为） |
-| 影响范围 | server：`app/services/system/vault_purge_service.py`、`app/api/health/router.py`（响应新增 `purged_memory_events` 真实计数与 `cleared_checkpoints`）、`app/core/security/browser_vault.py`（新增 `cleanup_all_vaults`）、`app/api/browser_sessions/router.py`、`app/lifecycle/browser.py`（删除无调用方的函数）、`app/lifecycle/schedulers.py`（DB 维护任务新增会话清理） |
+| 影响范围 | server：`app/services/system/vault_purge_service.py`、`app/api/health/router.py`（响应新增 `purged_memory_events` 真实计数与 `checkpoint_cleared_chats`）、`app/core/security/browser_vault.py`（新增 `cleanup_all_vaults`）、`app/api/browser_sessions/router.py`、`app/lifecycle/browser.py`（删除无调用方的函数）、`app/lifecycle/schedulers.py`（DB 维护任务新增会话清理） |
 | 出现次数 | 1（读代码、真实 SQLite / 真实 LangGraph 检查点库 / 真实文件保险库复现与单元测试确认） |
 | 关联 | harness `BUG-HARNESS-2026-10-14-016`（检查点包装器补转发 `adelete_thread`，本条是它在「安全清空」上的调用方）· 该条「踩坑」里记下的 `cleanup_expired_browser_sessions` 无调用方，本条处理 |
 
 ### 现象
 
-1. 「安全清空」的返回值 `cleared_checkpoints` 只要检查点对象有 `adelete_thread` 属性就写 1，代码里没有任何一处调用它；`purged_memory_events` 在 `purge_memories=True` 时恒写 1，与实际删了多少行无关。清空后会话的检查点线程原样留在库里。
-2. `POST /browser/sessions/cleanup` 只清全局保险库，各 Agent 的保险库不清；`lifecycle/browser.py` 里同时清两处的函数没有任何调用方；每 6 小时的 DB 维护任务不清浏览器会话。已过期的加密会话文件在 Agent 保险库里只增不减。
+1. 「安全清空」的结果字段 `cleared_checkpoints` 只要检查点对象有 `adelete_thread` 属性就写 1，代码里没有任何一处调用它；`purged_memory_events` 在 `purge_memories=True` 时恒写 1，与实际删了多少行无关。清空后会话的检查点线程原样留在库里。
+2. `POST /browser/sessions/cleanup`（设置页「已保存的登录会话」卡片的清理按钮调用它）只清全局保险库，各 Agent 的保险库不清；`lifecycle/browser.py` 里同时清两处的函数没有任何调用方；每 6 小时的 DB 维护任务不清浏览器会话。过期会话只在被读取时才会被删（`SessionVault.load` 遇到过期即删除），没有再被访问的域名，其过期文件在 Agent 保险库里一直留在磁盘上。
 
 ### 根因
 
-1. 这个清空服务的文档串与结果字段先于实现写下，实现只做了「探测能力」而没有「执行并计数」；两个计数没有任何测试断言过真实数值。
+1. 清空服务只做了「探测能力」（`hasattr`）而没有「执行并计数」；旧测试只播种 1 行待处理记忆并断言 `purged_memory_events == 1`，与写死的 1 无法区分，检查点计数则没有任何断言。
 2. 「清全部保险库」的逻辑写成了一个无人调用的函数，接口另写了一份只清全局的，定时任务没接入；三处各自为政，没有单一入口。
 
 ### 修复
 
-1. `SafeVaultPurgeService` 在聊天行被删之前，对每个聊天调用 `sync_checkpoint_messages(checkpointer, chat_id, [])`（两种线程别名都删，失败抛 `ContinuitySyncError`）：单个聊天失败只记 WARNING 并跳过，不中断清空；`cleared_checkpoints` 是完整清掉的聊天数；检查点对象未注册时记 WARNING、计数为 0、其余照常清空。先删检查点再删聊天行，是为了被中断的清空不会留下再也列不出来的检查点。记忆管线的三张表按 `rowcount` 累加成真实计数；从未被赋值的 `freed_disk_bytes` 字段删除；API 响应补上 `purged_memory_events`、`cleared_checkpoints`。
+1. `SafeVaultPurgeService` 在聊天行被删之前，对每个聊天调用 `sync_checkpoint_messages(checkpointer, chat_id, [])`（两种线程别名都删，失败抛 `ContinuitySyncError`）：单个聊天失败只记 WARNING 并跳过，不中断清空；结果字段改名为 `checkpoint_cleared_chats`，数的是「检查点线程已清掉的聊天数」（该聊天本来没有线程也计入，不是线程条数）；检查点对象未注册时记 WARNING、计数为 0、其余照常清空。先删检查点再删聊天行，是为了被中断的清空不会留下再也列不出来的检查点。记忆管线的三张表按 `rowcount` 累加成真实计数；从未被赋值的 `freed_disk_bytes` 字段删除；API 响应补上 `purged_memory_events`、`checkpoint_cleared_chats`。
 2. `browser_vault.py` 新增 `cleanup_all_vaults()`（全局 + 全部 Agent 保险库），接口与 DB 维护任务共用；任务内的清理失败只记日志、不影响同一周期的其余维护项；删除无调用方的 `cleanup_expired_browser_sessions`。
 
 ### 验证
@@ -2072,7 +2072,11 @@ except Exception:
 1. A：`tests/services/system/test_safe_vault_purge_service.py`（真实 SQLite 加真实 LangGraph 检查点库：每个聊天的两种线程别名都被清掉、清空前先清检查点、单个聊天失败不中断、未注册检查点仍完成清空、记忆管线真实计数）；4 个变异（跳过检查点清除、清除顺序放到删聊天之后、失败即中断、计数写死）全部杀死。
 2. B：`tests/config/test_browser_vault.py`（真实文件保险库：过期的删、未过期的留，全局与各 Agent 保险库都覆盖）、`tests/api/browser_sessions/test_browser_sessions_cleanup_api.py`、`tests/lifecycle/test_db_maintenance_browser_sessions.py`（真实 `_db_maintenance_job` 调用清理，清理失败时其余维护项照常执行）；3 个变异（只清全局、定时任务不调用、接口退回只清全局）全部杀死。A 与 B 加上 `tests/channels/test_channel_data_plane.py` 共 45 例通过。
 3. 静态：本次改动的 server 与 harness 文件 `ruff check` / `ruff format --check` 通过；`hop_evaluator.py` mypy 通过。`browser_vault.py` 的 mypy 报错（行 51、66、99、144 的 `"object" not callable`）来自 harness `toolkits.browser` 的惰性导出被推成 `object`，不在本次改动的行内，未处理。
-4. 局限：没有清真实的向量库（Qdrant）条目，这一步本来就不在清空服务里，也没加；没有用真实用户数据库验证；清空接口仍没有界面入口，本条只修了它报告的数字与实际行为。
+4. 局限：
+   - 没有清真实的向量库（Qdrant）条目，这一步本来就不在清空服务里，也没加；没有用真实用户数据库验证；清空接口仍没有界面入口，本条只修了它报告的数字与实际行为。
+   - 检查点只按 `chats` 表里的聊天清除；不对应聊天行的线程（看板、定时任务一类）不动，其内容是否含已被清空的会话文字未验证。
+   - 设置页卡片只列全局保险库，清理按钮的提示个数现在含各 Agent 保险库里被删的过期会话，个数可能大于列表里看到的过期条数。
+   - 每 6 小时的自动清理沿用 `SessionVault.cleanup_expired` 的行为：解密失败的文件也会被删且不留备份（`session_vault/__init__.py:475-477`；`load` 遇到同样情况会先备份再删，见 `:365-368`）；读取到删除之间没有锁，同一域名恰在此刻重新登录写入的新会话理论上可能被误删（读 `:464`、删 `:473`）。会话丢失的后果是需要重新登录，窗口为毫秒级，没有实测。
 
 ### 踩坑经验
 

@@ -1,11 +1,11 @@
 """Safe Vault Purge and Cascade Synchronization Service.
 
 [INPUT]
-- app.database.connection::get_database_engine, get_session_factory
-- myrm_agent_harness.api::safe_purge_fts5_virtual_table
-- myrm_agent_harness.runtime.context.session.session_continuity::sync_checkpoint_messages
-- app.services.chat.sandbox_worktree::cleanup_sandbox_worktree
-- app.platform_utils::get_checkpointer
+- app.database.connection::get_database_engine, get_session_factory (POS: database engine and session factory of the active deployment mode)
+- myrm_agent_harness.api::safe_purge_fts5_virtual_table (POS: FTS5 purge that leaves no shadow-table orphan rows)
+- myrm_agent_harness.runtime.context.session.session_continuity::sync_checkpoint_messages, ContinuitySyncError (POS: framework-neutral SSOT aligning LangGraph checkpoint threads with persisted chat history, fail-closed)
+- app.services.chat.sandbox_worktree::cleanup_sandbox_worktree (POS: shared git worktree lifecycle management for chat sandbox sessions)
+- app.platform_utils::get_checkpointer (POS: platform adapter layer; returns the LangGraph checkpointer injected at startup)
 
 [OUTPUT]
 - SafeVaultPurgeResult: Structured audit summary of purged entities and preserved settings
@@ -48,7 +48,7 @@ class SafeVaultPurgeResult:
     purged_messages: int = 0
     purged_channel_messages: int = 0
     purged_memory_events: int = 0
-    cleared_checkpoints: int = 0
+    checkpoint_cleared_chats: int = 0
     cleared_sandboxes: int = 0
     fts_tables_purged: list[str] = field(default_factory=list)
     cursors_reset: list[str] = field(default_factory=list)
@@ -159,7 +159,7 @@ class SafeVaultPurgeService:
                         sandbox_dirs = [(r[0], r[1]) for r in rows if r[1]]
 
                 # Phase 2b: Checkpoint threads go while their chats are still listed
-                result.cleared_checkpoints = await cls._clear_checkpoint_threads(chat_ids)
+                result.checkpoint_cleared_chats = await cls._clear_checkpoint_threads(chat_ids)
 
                 # Phase 3: Transactional deletion of conversation corpora & cursor reset
                 async with engine.begin() as conn:

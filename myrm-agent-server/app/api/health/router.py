@@ -381,7 +381,7 @@ async def safe_purge_vault(
         "purged_messages": result.purged_messages,
         "purged_channel_messages": result.purged_channel_messages,
         "purged_memory_events": result.purged_memory_events,
-        "cleared_checkpoints": result.cleared_checkpoints,
+        "checkpoint_cleared_chats": result.checkpoint_cleared_chats,
         "fts_tables_purged": result.fts_tables_purged,
         "cursors_reset": result.cursors_reset,
         "cleared_sandboxes": result.cleared_sandboxes,
