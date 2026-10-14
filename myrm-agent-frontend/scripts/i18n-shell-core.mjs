@@ -1,7 +1,7 @@
 /**
  * [INPUT] scripts/i18n-shell-allowlist.json (POS: 翻译壳检测豁免清单)
  * [OUTPUT] walkTypes / resolvePath / isLegitSameValue / isTranslationShell / loadShellAllowlist / collectTranslationShells
- * [POS] i18n 翻译壳检测共享逻辑。供 verify-i18n.mjs 与 i18n-dump-remaining.mjs 共用，防止 gate 口径漂移。
+ * [POS] i18n 翻译壳检测共享逻辑。供 verify-i18n/（locale-parity、purity-gates、parity-config）与 i18n-dump-remaining.mjs 共用，防止 gate 口径漂移。
  */
 
 import { readFileSync } from 'fs';
