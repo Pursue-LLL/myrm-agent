@@ -107,7 +107,7 @@ async def test_delete_removes_the_rows_of_trashed_chats_and_spares_the_rest(engi
 
     async with engine.connect() as conn:
         for bound in CHAT_BOUND_TABLES:
-            remaining = (await conn.execute(text(f"SELECT {bound.chat_column} FROM {bound.table}"))).scalars().all()
+            remaining: list[str] = list((await conn.execute(text(f"SELECT {bound.chat_column} FROM {bound.table}"))).scalars())
             assert sorted(remaining) == ["restored", "stays"], f"{bound.table} kept {remaining}"
 
 
@@ -125,5 +125,5 @@ async def test_delete_handles_more_chats_than_one_statement_can_bind(engine: Asy
         await delete_trashed_chat_bound_rows(conn, chat_ids)
 
     async with engine.connect() as conn:
-        remaining = (await conn.execute(text(f"SELECT {target.chat_column} FROM {target.table}"))).scalars().all()
+        remaining: list[str] = list((await conn.execute(text(f"SELECT {target.chat_column} FROM {target.table}"))).scalars())
     assert remaining == ["stays"]

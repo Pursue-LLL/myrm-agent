@@ -33,7 +33,7 @@ from app.services.chat.sandbox_worktree import (
 )
 
 
-def _run_git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
+def _run_git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
         cwd=str(cwd),

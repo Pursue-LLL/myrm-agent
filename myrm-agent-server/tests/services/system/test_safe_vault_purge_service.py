@@ -6,7 +6,7 @@ misspelled table name, which is how a purge can report success while a table kee
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -90,7 +90,7 @@ async def purge_engine(tmp_path: Path) -> AsyncIterator[AsyncEngine]:
 
 
 @pytest.fixture
-def remove_files() -> AsyncMock:
+def remove_files() -> Iterator[AsyncMock]:
     """The file removal is covered by the disposal tests; here it must only be called with the right input."""
     spy = AsyncMock(return_value=ChatFilesRemoval(removed_worktrees=1, kept_worktrees=2))
     with patch.object(chat_disposal, "remove_chat_files", spy):
@@ -139,9 +139,7 @@ async def test_purge_leaves_no_searchable_trace_in_any_full_text_index(
 
 
 @pytest.mark.asyncio
-async def test_purge_resets_the_consumer_cursors_of_the_wiped_tables(
-    purge_engine: AsyncEngine, remove_files: AsyncMock
-) -> None:
+async def test_purge_resets_the_consumer_cursors_of_the_wiped_tables(purge_engine: AsyncEngine, remove_files: AsyncMock) -> None:
     result = await SafeVaultPurgeService.purge_vault()
 
     assert sorted(result.cursors_reset) == ["channel_messages", "conversation_recall_documents", "conversation_recall_segments"]
@@ -272,9 +270,7 @@ async def test_purge_keeps_going_when_one_chat_checkpoint_cannot_be_cleared(
 
 
 @pytest.mark.asyncio
-async def test_purge_without_a_registered_checkpointer_still_purges(
-    purge_engine: AsyncEngine, remove_files: AsyncMock
-) -> None:
+async def test_purge_without_a_registered_checkpointer_still_purges(purge_engine: AsyncEngine, remove_files: AsyncMock) -> None:
     """A missing checkpoint store is reported as zero cleared threads and never aborts the purge."""
     _reset_checkpointer_for_testing()
 
