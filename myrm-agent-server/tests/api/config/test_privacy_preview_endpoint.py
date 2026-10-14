@@ -92,6 +92,12 @@ def test_a_pattern_that_cannot_match_is_named() -> None:
     assert data["model_sees"] == "帮我总结[REDACTED] [PII:custom]Q3预算超支原因，发给李总"
 
 
+def test_a_pattern_too_large_to_build_is_named_and_does_not_take_the_server_down() -> None:
+    data = _preview(privacy_custom_patterns_s3=[r"\d{99999999}", r"EMP-\d{6}"])
+
+    assert data["ineffective_patterns"] == [r"\d{99999999}"]
+
+
 def test_the_patterns_that_cannot_match_are_named_without_a_sentence() -> None:
     response = client.post(_URL, json={"text": "", "privacy_custom_patterns_s2": ["(["], "privacy_custom_patterns_s3": []})
 
