@@ -48,6 +48,7 @@ dependencies = [
   "websockets>=17.0.1",                   # WebSocket 通信 (11+ channels/voice)
   "aioboto3>=15.5.0",                   # AWS S3 异步客户端 (备份 + sandbox/storage)
   "tenacity>=9.1.4", # Vercel deploy retries (vercel_client.py)
+  "regex>=2026.4.4", # Risk-rule pattern engine: a per-match time budget that stdlib re lacks (services/risk/detection.py)
   "pywebpush>=2.4.0", # Web Push (VAPID) notifications (core/web_push/)
 ]
 

@@ -3,9 +3,17 @@
 Severity levels: low / medium / high
 Actions: allow / block
 Categories: personal / company / security / finance_legal / political / customer
+
+The e-mail, mobile number, ID card and bank card rules use the privacy detectors' own patterns, so the channel gate and
+the privacy classifier read the same data the same way.
 """
 
 from __future__ import annotations
+
+import re
+
+from myrm_agent_harness.core.security.detection.card_context import CARD_CONTEXT_RE
+from myrm_agent_harness.core.security.detection.pii_patterns import CHINA_ID_RE, CHINA_PHONE_RE, EMAIL_RE
 
 
 class RiskSeverity:
@@ -33,6 +41,12 @@ class RiskCategory:
     CUSTOM = "custom"
 
 
+def _detector_pattern(detector: re.Pattern[str]) -> str:
+    """The source of a privacy detector as a rule pattern; rules are compiled without flags, so its case-insensitivity
+    is written into the pattern."""
+    return f"(?i){detector.pattern}" if detector.flags & re.IGNORECASE else detector.pattern
+
+
 def builtin_risk_rules() -> list[dict[str, str | int | bool]]:
     """Return the 31 built-in risk rule seed definitions."""
     return [
@@ -41,7 +55,7 @@ def builtin_risk_rules() -> list[dict[str, str | int | bool]]:
             "rule_id": "email_address",
             "display_name": "Email address",
             "description": "Detect email addresses.",
-            "pattern": r"(?i)\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b",
+            "pattern": _detector_pattern(EMAIL_RE),
             "severity": RiskSeverity.MEDIUM,
             "action": RiskAction.BLOCK,
             "category": RiskCategory.PERSONAL,
@@ -51,7 +65,7 @@ def builtin_risk_rules() -> list[dict[str, str | int | bool]]:
             "rule_id": "cn_mobile_number",
             "display_name": "Chinese mainland mobile number",
             "description": "Detect Chinese mainland mobile phone numbers.",
-            "pattern": r"(?:\+?86[- ]?)?1[3-9]\d{9}",
+            "pattern": _detector_pattern(CHINA_PHONE_RE),
             "severity": RiskSeverity.HIGH,
             "action": RiskAction.BLOCK,
             "category": RiskCategory.PERSONAL,
@@ -61,7 +75,7 @@ def builtin_risk_rules() -> list[dict[str, str | int | bool]]:
             "rule_id": "cn_id_card",
             "display_name": "Chinese ID card number",
             "description": "Detect 18-digit Chinese ID card numbers.",
-            "pattern": r"\b\d{17}[\dXx]\b",
+            "pattern": _detector_pattern(CHINA_ID_RE),
             "severity": RiskSeverity.HIGH,
             "action": RiskAction.BLOCK,
             "category": RiskCategory.PERSONAL,
@@ -81,7 +95,7 @@ def builtin_risk_rules() -> list[dict[str, str | int | bool]]:
             "rule_id": "bank_card_context",
             "display_name": "Bank card context",
             "description": "Detect card-number-like data near bank-card keywords.",
-            "pattern": r"(?i)(银行卡|bank card|card number|account number).{0,24}\b\d(?:[ -]?\d){11,18}\b",
+            "pattern": _detector_pattern(CARD_CONTEXT_RE),
             "severity": RiskSeverity.HIGH,
             "action": RiskAction.BLOCK,
             "category": RiskCategory.PERSONAL,

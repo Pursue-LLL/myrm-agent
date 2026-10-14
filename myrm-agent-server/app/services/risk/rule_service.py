@@ -7,7 +7,6 @@ for risk rules. Built-in rules can only be toggled, not deleted or pattern-modif
 from __future__ import annotations
 
 import logging
-import re
 from collections.abc import Sequence
 
 from sqlalchemy import func, select, update
@@ -17,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import RiskHit, RiskRule
 
 from .constants import RiskAction, RiskCategory, RiskSeverity, builtin_risk_rules
-from .detection import MAX_PATTERN_LENGTH
+from .detection import compile_pattern
 
 logger = logging.getLogger(__name__)
 
@@ -41,15 +40,13 @@ class RuleValidationError(Exception):
 
 
 def _validate_pattern(pattern: str) -> None:
-    """Validate regex pattern: syntax and length."""
+    """Validate regex pattern: it must be one the detection engine can use."""
     if not pattern or not pattern.strip():
         raise RuleValidationError("Pattern cannot be empty")
-    if len(pattern) > MAX_PATTERN_LENGTH:
-        raise RuleValidationError(f"Pattern length {len(pattern)} exceeds limit {MAX_PATTERN_LENGTH}")
     try:
-        re.compile(pattern)
-    except re.error as exc:
-        raise RuleValidationError(f"Invalid regex pattern: {exc}") from exc
+        compile_pattern(pattern)
+    except ValueError as exc:
+        raise RuleValidationError(str(exc)) from exc
 
 
 def _validate_fields(
@@ -250,19 +247,25 @@ class RiskRuleService:
         return imported, skipped
 
     async def seed_builtin_rules(self, session: AsyncSession) -> int:
-        """Seed built-in rules into DB. Skips rules that already exist.
+        """Seed built-in rules into DB and bring the pattern of the stored ones up to date.
+
+        Nobody can edit the pattern of a built-in rule, so replacing it loses nothing; everything else a user may have
+        changed (severity, action, name, enabled) is left as it is.
 
         Returns the number of newly inserted rules.
         """
         defaults = builtin_risk_rules()
-        existing_result = await session.execute(
-            select(RiskRule.rule_id).where(RiskRule.rule_id.in_([d["rule_id"] for d in defaults]))
-        )
-        existing_ids = set(existing_result.scalars().all())
+        existing_result = await session.execute(select(RiskRule).where(RiskRule.rule_id.in_([d["rule_id"] for d in defaults])))
+        existing = {rule.rule_id: rule for rule in existing_result.scalars().all()}
 
         inserted = 0
+        refreshed = 0
         for d in defaults:
-            if d["rule_id"] in existing_ids:
+            stored = existing.get(str(d["rule_id"]))
+            if stored is not None:
+                if stored.is_builtin and stored.pattern != d["pattern"]:
+                    stored.pattern = str(d["pattern"])
+                    refreshed += 1
                 continue
             rule = RiskRule(
                 rule_id=d["rule_id"],
@@ -279,9 +282,12 @@ class RiskRuleService:
             session.add(rule)
             inserted += 1
 
-        if inserted > 0:
+        if inserted > 0 or refreshed > 0:
             await session.flush()
+        if inserted > 0:
             logger.info("Seeded %d built-in risk rules", inserted)
+        if refreshed > 0:
+            logger.info("Refreshed the pattern of %d built-in risk rules", refreshed)
         return inserted
 
     async def get_hits(
