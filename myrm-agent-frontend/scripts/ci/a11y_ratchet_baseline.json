@@ -1,8 +1,7 @@
 {
   "rules": {
-    "click-events-have-key-events": 1,
-    "no-static-element-interactions": 3,
-    "prefer-tag-over-role": 79
+    "no-static-element-interactions": 2,
+    "prefer-tag-over-role": 72
   },
-  "waivers": 81
+  "waivers": 82
 }
