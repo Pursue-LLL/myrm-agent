@@ -65,7 +65,8 @@ class PrivacyPreviewRequest(BaseModel):
 
 class PrivacyPreviewResponse(BaseModel):
     """``action`` is null for a text with nothing sensitive; ``model_sees`` is null when the rules block the text;
-    ``ineffective_patterns`` lists the custom patterns that do not compile and so protect nothing."""
+    ``ineffective_patterns`` lists the custom patterns that cannot be used (they do not compile or are too large to
+    build) and so protect nothing."""
 
     level: SensitivityLevel
     action: PIIAction | None
