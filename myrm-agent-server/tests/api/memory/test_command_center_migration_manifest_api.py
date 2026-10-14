@@ -58,13 +58,11 @@ def _build_snapshot(*, authoritative: bool) -> MemoryCommandCenterResponse:
                 "event_count": 0,
                 "failed_event_count": 0,
                 "queue_backlog": 0,
-                "storage_mode": "sqlite",
                 "redaction_scope": "metadata_only",
                 "sandbox_isolation": "local_or_per_user_sandbox",
             },
             "runtime": {
                 "deploy_mode": "local",
-                "storage_mode": "sqlite",
                 "memory_base_path": "/tmp/memory",
                 "relational_status": "available",
                 "vector_status": "available",

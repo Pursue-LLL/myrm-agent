@@ -173,7 +173,6 @@ const SystemHealthPanel = memo(() => {
           <p className="text-xs text-muted-foreground leading-relaxed">
             {t('meta', {
               deploy: health.deploy_mode,
-              storage: health.storage_mode,
               bundle: health.bundle_id,
             })}
           </p>

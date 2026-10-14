@@ -35,7 +35,6 @@ export interface OpsAggregatedSnapshot {
   };
   memory: {
     health_status: 'healthy' | 'degraded' | 'critical' | 'unknown';
-    storage_mode: string;
     queue_backlog: number;
   };
   doctor_summary: {

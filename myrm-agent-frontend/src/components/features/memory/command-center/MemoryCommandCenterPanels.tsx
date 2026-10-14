@@ -678,7 +678,6 @@ const EventList = ({
 const RuntimePanel = ({ snapshot, t }: { snapshot: MemoryCommandCenterResponse; t: MemoryTranslation }) => (
   <div className="grid gap-2">
     <RuntimeRow label={t('commandCenter.deployMode')} value={snapshot.runtime.deploy_mode} />
-    <RuntimeRow label={t('commandCenter.storageMode')} value={snapshot.runtime.storage_mode} />
     <RuntimeRow
       label={t('commandCenter.vectorStatus')}
       value={translateRuntimeStatus(snapshot.runtime.vector_status, t)}

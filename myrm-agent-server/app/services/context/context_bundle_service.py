@@ -26,7 +26,7 @@ from myrm_agent_harness.toolkits.context_bundle.health import (
     WorkspaceSceneHealthBackend,
 )
 
-from app.config.deploy_mode import get_deploy_mode, get_storage_mode
+from app.config.deploy_mode import get_deploy_mode
 from app.config.settings import settings
 from app.schemas.context.bundle import (
     ContextBundleHealthResponse,
@@ -70,7 +70,6 @@ class ContextBundleService:
             writable=health.writable,
             manifest_exists=health.manifest_exists,
             deploy_mode=get_deploy_mode(),
-            storage_mode=get_storage_mode(),
             scenes=scenes,
             migration_actions_pending=len(migration.actions),
             warnings=list(migration.warnings),

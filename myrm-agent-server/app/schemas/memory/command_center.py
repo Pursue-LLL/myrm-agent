@@ -434,7 +434,6 @@ class MemoryCommandPlaneSummary(BaseModel):
     archive_restore_rollback_failed: int = 0
     archive_restore_missing_items: int = 0
     archive_restore_failed_items: int = 0
-    storage_mode: str
     last_event_at: datetime | None = None
     redaction_scope: Literal["metadata_only"]
     sandbox_isolation: Literal["local_or_per_user_sandbox"]
@@ -480,7 +479,6 @@ class MemoryCommandRuntimeStatus(BaseModel):
     """Deployment and storage status visible to the local memory UI."""
 
     deploy_mode: str
-    storage_mode: str
     memory_base_path: str
     relational_status: Literal["available", "unavailable"]
     vector_status: Literal["available", "unavailable"]

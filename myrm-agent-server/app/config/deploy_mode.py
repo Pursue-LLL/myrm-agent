@@ -86,12 +86,6 @@ class QdrantMode(str, Enum):
     EMBEDDED = "embedded"
 
 
-class StorageMode(str, Enum):
-    """文件存储模式"""
-
-    LOCAL = "local"  # 所有模式均使用本地文件系统
-
-
 class ModelSource(str, Enum):
     """模型来源 - 统一使用自定义提供商"""
 
@@ -118,20 +112,6 @@ def get_database_mode() -> DatabaseMode:
 def get_qdrant_mode() -> QdrantMode:
     """获取 Qdrant 模式 - 所有部署模式统一使用嵌入式"""
     return QdrantMode.EMBEDDED
-
-
-def get_storage_mode() -> StorageMode:
-    """获取文件存储模式
-
-    优先使用 STORAGE_MODE 环境变量，否则根据部署模式推断。
-    """
-    mode = os.getenv("STORAGE_MODE")
-    if mode:
-        try:
-            return StorageMode(mode.lower())
-        except ValueError:
-            pass
-    return StorageMode.LOCAL
 
 
 def get_embedding_mode() -> ModelSource:
@@ -185,12 +165,10 @@ __all__ = [
     "DeployMode",
     "DatabaseMode",
     "QdrantMode",
-    "StorageMode",
     "ModelSource",
     "get_deploy_mode",
     "get_database_mode",
     "get_qdrant_mode",
-    "get_storage_mode",
     "get_embedding_mode",
     "get_reranker_mode",
     "is_local_mode",

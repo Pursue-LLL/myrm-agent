@@ -23,7 +23,6 @@ class ContextBundleHealthResponse(BaseModel):
     writable: bool
     manifest_exists: bool
     deploy_mode: str
-    storage_mode: str
     scenes: list[ContextBundleSceneHealth] = Field(default_factory=list)
     migration_actions_pending: int = 0
     warnings: list[str] = Field(default_factory=list)

@@ -92,7 +92,6 @@ const makeRuntimeSnapshot = (
     generated_at: '2026-04-29T00:00:00Z',
     runtime: {
       deploy_mode: 'local',
-      storage_mode: 'local_files',
       memory_base_path: '/tmp/myrm-memory',
       relational_status: 'available',
       vector_status: 'available',

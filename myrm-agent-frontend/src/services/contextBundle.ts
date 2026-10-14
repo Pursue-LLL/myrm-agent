@@ -27,7 +27,6 @@ export interface ContextBundleHealth {
   writable: boolean;
   manifest_exists: boolean;
   deploy_mode: string;
-  storage_mode: string;
   scenes: ContextBundleSceneHealth[];
   migration_actions_pending: number;
   warnings: string[];

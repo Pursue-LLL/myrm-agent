@@ -85,7 +85,7 @@
         "refresh": "새로고침",
         "loading": "시스템 상태 로드 중…",
         "loadFailed": "시스템 상태 로드 실패",
-        "meta": "배포: {deploy} · 저장소: {storage} · 번들: {bundle}",
+        "meta": "배포: {deploy} · 번들: {bundle}",
         "warnings": "경고",
         "migrationPending": "레이아웃 마이그레이션 대기 중",
         "migrationCount": "{count}개 작업 필요",

@@ -408,7 +408,6 @@ class MemoryCommandCenterInsights:
     def build_plane_summary(
         *,
         health_status: str,
-        storage_mode: str,
         timeline: list[MemoryCommandTimelineEvent],
         governance_backlog: int,
         import_rollback_health: ImportRollbackHealth,
@@ -437,7 +436,6 @@ class MemoryCommandCenterInsights:
             archive_restore_rollback_failed=archive_restore_health.rollback_failed_batches,
             archive_restore_missing_items=archive_restore_health.missing_items,
             archive_restore_failed_items=archive_restore_health.failed_items,
-            storage_mode=storage_mode,
             last_event_at=last_event,
             redaction_scope="metadata_only",
             sandbox_isolation="local_or_per_user_sandbox",
