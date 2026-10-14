@@ -2760,6 +2760,7 @@ except Exception:
 6. 未改动任何提示词。
 7. 回落提示只出现在记忆指挥中心里，而该面板默认不可见：前端 `MemorySection.tsx` 只在 `NEXT_PUBLIC_MEMORY_LABS=1` 时渲染它，服务端 `app/api/memory/router.py` 只在 `MYRM_MEMORY_LABS=1` 时挂载它的接口。默认用户看不到这条提示，默认可见的位置没有任何回落提示；`/health/ready` 在回落时仍报 `qdrant: true`（工厂不抛错）。需要一个默认可见的入口才算触达真实用户，本条没有做。
 8. 6 个服务端调用方（`warmup.py`、`schedulers.py`、`faq/router.py`、`faq/factory.py`、`cascade.py`、`adapters/setup.py`）仍保留对 `None` 的防御分支，类型检查不报错；删掉它们要连带改写若干把工厂打补丁成返回 None 的测试，没有行为收益，未动。
+9. 「持有进程退出即释放」只在本机文件系统（macOS APFS 临时目录）上实测过。数据目录放在网络文件系统或 Docker Desktop 挂载卷上时，进程崩溃后锁是否立即释放没有验证；若不释放，重启后仍会停在临时模式。这类残留锁无法安全地自动清理（能否拿到锁就是唯一的判据），所以不再尝试。
 
 ### 踩坑经验
 
