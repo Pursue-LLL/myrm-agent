@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { Code, Compass, Cpu, Flame, Lock, Minimize2, RotateCcw, SlidersHorizontal, Unlock, X } from 'lucide-react';
 
 export interface RadarDimensionValues {
@@ -11,6 +12,8 @@ export interface RadarDimensionValues {
   breadth: number;
 }
 
+type RadarPresetKey = 'balanced' | 'code' | 'research';
+
 export interface DynamicPreferenceRadarDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -19,40 +22,40 @@ export interface DynamicPreferenceRadarDrawerProps {
   onValueChange: (dimension: keyof RadarDimensionValues, value: number) => void;
   onToggleLock: (nextLocked: boolean) => void;
   onReset: () => void;
-  onSelectPreset?: (preset: 'balanced' | 'code' | 'research') => void;
+  onSelectPreset?: (preset: RadarPresetKey) => void;
   className?: string;
 }
 
-export const RADAR_PRESETS: Record<'balanced' | 'code' | 'research', { label: string; values: RadarDimensionValues }> =
-  {
-    balanced: {
-      label: '平衡通用',
-      values: { recency: 1.0, actionability: 1.0, technical_depth: 1.0, conciseness: 1.0, breadth: 1.0 },
-    },
-    code: {
-      label: '编码实战',
-      values: { recency: 1.5, actionability: 2.5, technical_depth: 2.0, conciseness: 1.8, breadth: 0.5 },
-    },
-    research: {
-      label: '调研推演',
-      values: { recency: 2.0, actionability: 0.5, technical_depth: 2.5, conciseness: 0.8, breadth: 2.5 },
-    },
-  };
+export const RADAR_PRESETS: Record<RadarPresetKey, { values: RadarDimensionValues }> = {
+  balanced: {
+    values: { recency: 1.0, actionability: 1.0, technical_depth: 1.0, conciseness: 1.0, breadth: 1.0 },
+  },
+  code: {
+    values: { recency: 1.5, actionability: 2.5, technical_depth: 2.0, conciseness: 1.8, breadth: 0.5 },
+  },
+  research: {
+    values: { recency: 2.0, actionability: 0.5, technical_depth: 2.5, conciseness: 0.8, breadth: 2.5 },
+  },
+};
 
-interface DimensionConfig {
+const PRESET_LABEL_KEYS = {
+  balanced: 'presetBalanced',
+  code: 'presetCode',
+  research: 'presetResearch',
+} as const satisfies Record<RadarPresetKey, string>;
+
+const DIMENSIONS = [
+  { key: 'recency', labelKey: 'dimensionRecency', hintKey: 'dimensionRecencyHint', icon: Flame },
+  { key: 'actionability', labelKey: 'dimensionActionability', hintKey: 'dimensionActionabilityHint', icon: Code },
+  { key: 'technical_depth', labelKey: 'dimensionDepth', hintKey: 'dimensionDepthHint', icon: Cpu },
+  { key: 'conciseness', labelKey: 'dimensionConciseness', hintKey: 'dimensionConcisenessHint', icon: Minimize2 },
+  { key: 'breadth', labelKey: 'dimensionBreadth', hintKey: 'dimensionBreadthHint', icon: Compass },
+] as const satisfies ReadonlyArray<{
   key: keyof RadarDimensionValues;
-  label: string;
-  subLabel: string;
+  labelKey: string;
+  hintKey: string;
   icon: React.ComponentType<{ className?: string }>;
-}
-
-const DIMENSIONS: DimensionConfig[] = [
-  { key: 'recency', label: '时效脉冲', subLabel: '最新事件/日内分辨率', icon: Flame },
-  { key: 'actionability', label: '代码实操', subLabel: '可执行脚本/实操步骤', icon: Code },
-  { key: 'technical_depth', label: '架构深度', subLabel: '底层原理/演进根因', icon: Cpu },
-  { key: 'conciseness', label: '精炼表达', subLabel: '直击要害/杜绝套话', icon: Minimize2 },
-  { key: 'breadth', label: '全景视野', subLabel: '全局宏观/生态对比', icon: Compass },
-];
+}>;
 
 const SVG_SIZE = 240;
 const CENTER = SVG_SIZE / 2;
@@ -71,6 +74,8 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
   onSelectPreset,
   className = '',
 }) => {
+  const t = useTranslations('chat.preferenceRadar');
+  const commonT = useTranslations('common');
   const radarPoints = useMemo(() => {
     const total = DIMENSIONS.length;
     return DIMENSIONS.map((dim, index) => {
@@ -99,7 +104,7 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
   const semanticSummary = useMemo(() => {
     const entries = DIMENSIONS.map((d) => ({
       key: d.key,
-      label: d.label,
+      label: t(d.labelKey),
       val: values[d.key] ?? 1.0,
     })).sort((a, b) => b.val - a.val);
 
@@ -107,10 +112,15 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
     const second = entries[1];
 
     if (highest.val < 1.15 && entries[entries.length - 1].val > 0.85) {
-      return '偏好均衡：各维度均衡召回，通用协同工作';
+      return t('summaryBalanced');
     }
-    return `偏好聚焦：强化「${highest.label} (${highest.val.toFixed(1)}x)」与「${second.label} (${second.val.toFixed(1)}x)」`;
-  }, [values]);
+    return t('summaryFocused', {
+      first: highest.label,
+      firstValue: highest.val.toFixed(1),
+      second: second.label,
+      secondValue: second.val.toFixed(1),
+    });
+  }, [values, t]);
 
   if (!isOpen) {
     return null;
@@ -120,7 +130,7 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
     <aside
       data-testid="preference-radar-drawer"
       className={`fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-background/95 p-5 shadow-2xl backdrop-blur-md transition-all duration-300 dark:bg-zinc-950/95 sm:max-w-md ${className}`}
-      aria-label="偏好拟合雷达看板"
+      aria-label={t('ariaLabel')}
     >
       {/* 顶部标题与操作栏 */}
       <div className="flex items-center justify-between border-b border-border/60 pb-4">
@@ -129,8 +139,8 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
             <SlidersHorizontal className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold tracking-tight text-foreground">在线偏好拟合雷达</h2>
-            <p className="text-xs text-muted-foreground">连续重力衰减与多维权重微调</p>
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">{t('title')}</h2>
+            <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -143,15 +153,16 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
                 ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                 : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
-            title={locked ? '已锁定：AI自动拟合暂停' : '未锁定：AI根据会话反馈自适应微调'}
+            title={locked ? t('lockedTitle') : t('unlockedTitle')}
           >
             {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-            <span>{locked ? '已锁定' : '自适应中'}</span>
+            <span>{locked ? t('lockedLabel') : t('adaptiveLabel')}</span>
           </button>
           <button
             type="button"
             data-testid="radar-close-button"
             onClick={onClose}
+            aria-label={commonT('close')}
             className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <X className="h-4 w-4" />
@@ -165,7 +176,7 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
           {semanticSummary}
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-          {(Object.keys(RADAR_PRESETS) as Array<'balanced' | 'code' | 'research'>).map((presetKey) => {
+          {(Object.keys(RADAR_PRESETS) as RadarPresetKey[]).map((presetKey) => {
             const preset = RADAR_PRESETS[presetKey];
             return (
               <button
@@ -184,7 +195,7 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
                 }}
                 className="whitespace-nowrap rounded-md border border-border/70 bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-primary/10 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {preset.label}
+                {t(PRESET_LABEL_KEYS[presetKey])}
               </button>
             );
           })}
@@ -268,8 +279,8 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 font-medium text-foreground">
                   <Icon className="h-3.5 w-3.5 text-primary" />
-                  <span>{dim.label}</span>
-                  <span className="text-[10px] text-muted-foreground">({dim.subLabel})</span>
+                  <span>{t(dim.labelKey)}</span>
+                  <span className="text-[10px] text-muted-foreground">({t(dim.hintKey)})</span>
                 </div>
                 <span className="font-mono text-xs font-semibold text-primary">{currentVal.toFixed(2)}x</span>
               </div>
@@ -298,9 +309,9 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
           className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           <RotateCcw className="h-3.5 w-3.5" />
-          <span>重置基准 (1.0x)</span>
+          <span>{t('resetBaseline')}</span>
         </button>
-        <span className="text-[11px] text-muted-foreground">{locked ? '手动固定模式' : '动态学习模式'}</span>
+        <span className="text-[11px] text-muted-foreground">{locked ? t('modeManual') : t('modeDynamic')}</span>
       </div>
     </aside>
   );

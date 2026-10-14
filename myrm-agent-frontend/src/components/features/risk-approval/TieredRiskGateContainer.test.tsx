@@ -48,7 +48,7 @@ describe('TieredRiskGateContainer', () => {
     expect(screen.getByText('drop_table')).toBeInTheDocument();
     expect(screen.getAllByText('users_v2').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Database schema destruction')).toBeInTheDocument();
-    expect(screen.getByText('授权并执行')).toBeInTheDocument();
+    expect(screen.getByText('authorizeAndRun')).toBeInTheDocument();
   });
 
   it('responds to global "myrm:tiered-risk-eval" custom event', () => {
@@ -59,7 +59,7 @@ describe('TieredRiskGateContainer', () => {
       window.dispatchEvent(
         new CustomEvent('myrm:tiered-risk-eval', {
           detail: mockEval,
-        })
+        }),
       );
     });
 
@@ -73,7 +73,7 @@ describe('TieredRiskGateContainer', () => {
 
     render(<TieredRiskGateContainer />);
 
-    const confirmBtn = screen.getByText('授权并执行');
+    const confirmBtn = screen.getByText('authorizeAndRun');
     await act(async () => {
       fireEvent.click(confirmBtn);
     });

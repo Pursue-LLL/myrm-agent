@@ -25,6 +25,9 @@ interface SubagentInsightsViewProps {
   onSelectNode?: (taskId: string) => void;
 }
 
+/** 并行子任务数超过该值时，建议最终汇总步骤合并各路输出，避免上下文溢出。 */
+const HIGH_FAN_OUT_THRESHOLD = 15;
+
 interface AgentTypeStat {
   agentType: string;
   count: number;
@@ -73,7 +76,7 @@ export const SubagentInsightsView: React.FC<SubagentInsightsViewProps> = ({ node
     return stats;
   }, [visibleNodes]);
 
-  // Find outlier nodes (duration > 2x average of its type or > 60s)
+  // 异常节点：卡住、耗时超过同类型均值 2 倍且大于 30s、被预算或超时守卫中止
   const anomalies = useMemo(() => {
     const list: { node: SubagentNode; reason: string; severity: 'warning' | 'danger' }[] = [];
 
@@ -85,69 +88,59 @@ export const SubagentInsightsView: React.FC<SubagentInsightsViewProps> = ({ node
       if (node.stale) {
         list.push({
           node,
-          reason: `Stalled without tool/token progress for ${node.staleDurationSeconds || 0}s`,
+          reason: t('insightsAnomalyStalled', { seconds: node.staleDurationSeconds || 0 }),
           severity: 'danger',
         });
       } else if (stat && stat.count >= 2 && duration > stat.avgDuration * 2 && duration > 30) {
         list.push({
           node,
-          reason: `Execution duration (${duration}s) is >2x above average (${Math.round(stat.avgDuration)}s) for ${type}`,
+          reason: t('insightsAnomalySlow', { duration, average: Math.round(stat.avgDuration), type }),
           severity: 'warning',
         });
       } else if (node.status === 'timed_out' || node.status === 'cancelled_by_budget') {
         list.push({
           node,
-          reason: `Aborted due to budget or timeout guard`,
+          reason: t('insightsAnomalyAborted'),
           severity: 'danger',
         });
       }
     }
 
     return list;
-  }, [visibleNodes, typeStats]);
+  }, [visibleNodes, typeStats, t]);
 
-  // Compute LoopGuard recommendations
+  // 面向用户的优化建议
   const loopGuardSuggestions = useMemo(() => {
     const suggestions: string[] = [];
 
     if (anomalies.some((a) => a.node.stale)) {
-      suggestions.push(
-        'LoopGuard: Detected stalled subagents. Consider steering prompt to narrow task scope or cancelling.',
-      );
+      suggestions.push(t('insightsAdviceStalled'));
     }
 
     const failedVerifications = visibleNodes.filter((n) => n.verification && !n.verification.passed);
     if (failedVerifications.length > 0) {
-      suggestions.push(
-        `LoopGuard: ${failedVerifications.length} task(s) failed adversarial verification. Review findings before concluding synthesis.`,
-      );
+      suggestions.push(t('insightsAdviceVerification', { count: failedVerifications.length }));
     }
 
-    if (visibleNodes.length > 15) {
-      suggestions.push(
-        'Topology: High fan-out detected (>15 agents). Ensure synthesis stage pools outputs to prevent context token overflow.',
-      );
+    if (visibleNodes.length > HIGH_FAN_OUT_THRESHOLD) {
+      suggestions.push(t('insightsAdviceFanOut', { limit: HIGH_FAN_OUT_THRESHOLD }));
     }
 
     return suggestions;
-  }, [anomalies, visibleNodes]);
+  }, [anomalies, visibleNodes, t]);
 
   if (visibleNodes.length === 0) {
-    return (
-      <div className="py-12 text-center text-xs text-muted-foreground">
-        No subagent telemetry data available for insights.
-      </div>
-    );
+    return <div className="py-12 text-center text-xs text-muted-foreground">{t('insightsEmpty')}</div>;
   }
 
   return (
     <div className="space-y-4 text-xs" data-testid="subagent-insights-view">
-      {/* LoopGuard & Optimization Advice */}
+      {/* 优化建议 */}
       {loopGuardSuggestions.length > 0 && (
         <div className="p-3.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 text-amber-900 dark:text-amber-200">
           <div className="flex items-center gap-1.5 font-bold mb-2 text-xs">
             <Lightbulb className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-            <span>LoopGuard Optimization & Root-Cause Advice</span>
+            <span>{t('insightsAdviceTitle')}</span>
           </div>
           <ul className="space-y-1 text-[11px] list-disc list-inside">
             {loopGuardSuggestions.map((s, idx) => (
@@ -163,12 +156,12 @@ export const SubagentInsightsView: React.FC<SubagentInsightsViewProps> = ({ node
       <div>
         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-          <span>Anomalies & Baseline Outliers ({anomalies.length})</span>
+          <span>{t('insightsAnomaliesTitle', { count: anomalies.length })}</span>
         </h4>
 
         {anomalies.length === 0 ? (
           <div className="p-3 rounded-lg border bg-muted/20 text-muted-foreground text-center text-[11px]">
-            All subagents operating within normal duration and token baselines.
+            {t('insightsAnomaliesEmpty')}
           </div>
         ) : (
           <div className="space-y-1.5">
@@ -188,7 +181,7 @@ export const SubagentInsightsView: React.FC<SubagentInsightsViewProps> = ({ node
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 font-medium">
                     <Badge variant="outline" className="text-[10px] font-mono">
-                      {item.node.agent_type || 'Subagent'}
+                      {item.node.agent_type || t('detailFallbackAgentType')}
                     </Badge>
                     <span className="truncate">{item.reason}</span>
                   </div>
@@ -202,11 +195,11 @@ export const SubagentInsightsView: React.FC<SubagentInsightsViewProps> = ({ node
         )}
       </div>
 
-      {/* Baseline Performance by Agent Type */}
+      {/* 按子任务类型的性能基线 */}
       <div>
         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
           <Gauge className="w-3.5 h-3.5 text-primary" />
-          <span>Agent Type Performance Baselines</span>
+          <span>{t('insightsTypePerformance')}</span>
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -215,20 +208,20 @@ export const SubagentInsightsView: React.FC<SubagentInsightsViewProps> = ({ node
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-foreground text-xs">{stat.agentType}</span>
                 <Badge variant="secondary" className="text-[10px]">
-                  {stat.count} spawned
+                  {t('insightsSpawned', { count: stat.count })}
                 </Badge>
               </div>
               <div className="grid grid-cols-3 gap-1 text-[11px] text-muted-foreground pt-1 border-t border-border/40">
                 <div>
-                  <span className="text-[9px] block opacity-70">Avg Duration</span>
+                  <span className="text-[9px] block opacity-70">{t('insightsAvgDuration')}</span>
                   <span className="font-semibold text-foreground">{Math.round(stat.avgDuration)}s</span>
                 </div>
                 <div>
-                  <span className="text-[9px] block opacity-70">Total Tokens</span>
+                  <span className="text-[9px] block opacity-70">{t('insightsTotalTokens')}</span>
                   <span className="font-semibold text-foreground">{fmtTokens(stat.totalTokens)}</span>
                 </div>
                 <div>
-                  <span className="text-[9px] block opacity-70">Total Cost</span>
+                  <span className="text-[9px] block opacity-70">{t('insightsTotalCost')}</span>
                   <span className="font-semibold text-foreground">{fmtCost(stat.totalCostUsd) || '$0'}</span>
                 </div>
               </div>

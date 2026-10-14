@@ -4,33 +4,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LoopStatusBar } from '../LoopStatusBar';
 import * as sessionLoopService from '@/services/sessionLoop';
 
-const stableT = (key: string, values?: Record<string, unknown>) => {
-  if (key === 'loopScheduler.activeTitle') {
-    return '自适应循环运行中';
-  }
-  if (key === 'loopScheduler.pausedTitle') {
-    return '循环暂停 (用户输入中)';
-  }
-  if (key === 'loopScheduler.stop') {
-    return '停止';
-  }
-  if (key === 'loopScheduler.stopping') {
-    return '停止中...';
-  }
-  if (key === 'loopScheduler.backoffCount') {
-    return `退避 x${values?.count}`;
-  }
-  if (key === 'loopScheduler.runsLimit') {
-    return `第 ${values?.fired}/${values?.limit} 轮`;
-  }
-  if (key === 'loopScheduler.runs') {
-    return `第 ${values?.fired} 轮`;
-  }
-  if (key === 'loopScheduler.untilCondition') {
-    return `终止条件: ${values?.condition}`;
-  }
-  return key;
-};
+// 带参数回显：同时验证翻译键与插值参数
+const stableT = (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -98,11 +73,11 @@ describe('LoopStatusBar Component', () => {
       expect(screen.getByTestId('session-loop-status-bar')).toBeDefined();
     });
 
-    expect(screen.getByText('自适应循环运行中')).toBeDefined();
+    expect(screen.getByText('loopScheduler.activeTitle')).toBeDefined();
     expect(screen.getByText('Check CI build status')).toBeDefined();
     expect(screen.getByText('2m')).toBeDefined();
-    expect(screen.getByText('退避 x2')).toBeDefined();
-    expect(screen.getByText('第 3/10 轮')).toBeDefined();
+    expect(screen.getByText('loopScheduler.backoffCount:{"count":2}')).toBeDefined();
+    expect(screen.getByText('loopScheduler.runsLimit:{"fired":3,"limit":10}')).toBeDefined();
     expect(screen.getByTestId('loop-countdown')).toBeDefined();
   });
 
@@ -182,6 +157,37 @@ describe('LoopStatusBar Component', () => {
       expect(screen.getByTestId('loop-until-badge')).toBeDefined();
     });
 
-    expect(screen.getByText('终止条件: port 8080 is open')).toBeDefined();
+    expect(screen.getByText('loopScheduler.untilCondition:{"condition":"port 8080 is open"}')).toBeDefined();
+  });
+
+  it('shows the paused title without a countdown and counts unlimited runs', async () => {
+    vi.mocked(sessionLoopService.getSessionLoopStatus).mockResolvedValue({
+      chat_id: 'chat-test-paused',
+      is_active: true,
+      status: 'paused',
+      mode: 'interval',
+      prompt: 'Watch the queue',
+      current_delay_seconds: 60,
+      current_delay_human: '1m',
+      next_due_in_seconds: 0,
+      next_due_in_human: '0s',
+      ticks_fired: 4,
+      times_limit: 0,
+      until_condition: '',
+      consecutive_unchanged: 0,
+      last_stop_reason: null,
+      paused_reason: 'user_active',
+    });
+
+    render(<LoopStatusBar chatId="chat-test-paused" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('session-loop-status-bar')).toBeDefined();
+    });
+
+    expect(screen.getByText('loopScheduler.pausedTitle')).toBeDefined();
+    expect(screen.getByText('loopScheduler.runs:{"fired":4}')).toBeDefined();
+    expect(screen.queryByTestId('loop-countdown')).toBeNull();
+    expect(screen.getByText('loopScheduler.stop')).toBeDefined();
   });
 });

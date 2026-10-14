@@ -91,7 +91,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
         if (file.name.endsWith('.json') || file.name.endsWith('.jsonl')) {
           setSelectedFile(file);
         } else {
-          toast.error(t('chat.import.invalidFileType') || 'Please upload a .json or .jsonl transcript file');
+          toast.error(t('chat.import.invalidFileType'));
         }
       }
     },
@@ -111,14 +111,14 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
       let result: ImportTranscriptResult;
       if (activeTab === 'upload') {
         if (!selectedFile) {
-          toast.error(t('chat.import.noFileSelected') || 'Please select a file to import');
+          toast.error(t('chat.import.noFileSelected'));
           setLoading(false);
           return;
         }
         result = await importTranscriptFile(selectedFile);
       } else {
         if (!rawText.trim()) {
-          toast.error(t('chat.import.noTextProvided') || 'Please paste transcript JSON or JSONL content');
+          toast.error(t('chat.import.noTextProvided'));
           setLoading(false);
           return;
         }
@@ -126,12 +126,9 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
       }
 
       setImportResult(result);
-      toast.success(
-        t('chat.import.successToast', { count: result.turns_count }) ||
-          `Imported ${result.turns_count} turns successfully`,
-      );
+      toast.success(t('chat.import.successToast', { count: result.turns_count }));
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Import failed';
+      const message = err instanceof Error ? err.message : t('chat.import.importFailed');
       toast.error(message);
     } finally {
       setLoading(false);
@@ -163,14 +160,13 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
             </div>
             <div>
               <DialogTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-                <span>{t('chat.import.modalTitle') || 'Import External Transcript'}</span>
+                <span>{t('chat.import.modalTitle')}</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
-                  {t('chat.import.cleanRecordBadge') || 'Clean Record'}
+                  {t('chat.import.cleanRecordBadge')}
                 </span>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-1">
-                {t('chat.import.modalSubtitle') ||
-                  'Import sessions from Claude Code, Codex CLI, or Hermes Agent and resume instantly.'}
+                {t('chat.import.modalSubtitle')}
               </DialogDescription>
             </div>
           </div>
@@ -186,9 +182,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5 text-primary">
                   <CheckCircle2 className="w-5 h-5" />
-                  <span className="font-semibold text-sm">
-                    {t('chat.import.successTitle') || 'Session Ready for Resumption'}
-                  </span>
+                  <span className="font-semibold text-sm">{t('chat.import.successTitle')}</span>
                 </div>
                 <span className="text-xs font-mono uppercase bg-muted/70 px-2 py-0.5 rounded text-muted-foreground">
                   {importResult.source_platform}
@@ -199,30 +193,30 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
 
               <div className="grid grid-cols-3 gap-3 pt-2">
                 <div className="p-3 rounded-lg bg-muted/40 border border-border/50 text-center">
-                  <div className="text-xs text-muted-foreground">{t('chat.import.turns') || 'Turns'}</div>
+                  <div className="text-xs text-muted-foreground">{t('chat.import.turns')}</div>
                   <div className="text-sm font-semibold text-foreground mt-0.5">{importResult.turns_count}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/40 border border-border/50 text-center">
-                  <div className="text-xs text-muted-foreground">{t('chat.import.tokenSaved') || 'Compression'}</div>
+                  <div className="text-xs text-muted-foreground">{t('chat.import.tokenSaved')}</div>
                   <div className="text-sm font-semibold text-primary mt-0.5">
                     {Math.round(importResult.reduction_ratio * 100)}%
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/40 border border-border/50 text-center">
-                  <div className="text-xs text-muted-foreground">{t('chat.import.privacy') || 'Privacy'}</div>
+                  <div className="text-xs text-muted-foreground">{t('chat.import.privacy')}</div>
                   <div className="text-sm font-semibold text-foreground mt-0.5 flex items-center justify-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                    <span>{t('chat.import.redacted') || 'Clean'}</span>
+                    <span>{t('chat.import.redacted')}</span>
                   </div>
                 </div>
               </div>
 
               <div className="pt-2 flex justify-end gap-2">
                 <Button variant="outline" size="sm" onClick={resetState}>
-                  {t('chat.import.importAnother') || 'Import Another'}
+                  {t('chat.import.importAnother')}
                 </Button>
                 <Button data-testid="import-resume-btn" size="sm" onClick={navigateToChat} className="gap-2">
-                  <span>{t('chat.import.resumeNow') || 'Resume Chat Now'}</span>
+                  <span>{t('chat.import.resumeNow')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </div>
@@ -243,7 +237,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                   )}
                 >
                   <FileCode2 className="w-3.5 h-3.5" />
-                  <span>{t('chat.import.tabUpload') || 'Upload File'}</span>
+                  <span>{t('chat.import.tabUpload')}</span>
                 </button>
                 <button
                   type="button"
@@ -257,7 +251,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                   )}
                 >
                   <Terminal className="w-3.5 h-3.5" />
-                  <span>{t('chat.import.tabPaste') || 'Paste JSON / JSONL'}</span>
+                  <span>{t('chat.import.tabPaste')}</span>
                 </button>
               </div>
 
@@ -295,18 +289,13 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                         <div className="space-y-1">
                           <div className="text-sm font-semibold text-foreground">{selectedFile.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            {(selectedFile.size / 1024).toFixed(1)} KB ·{' '}
-                            {t('chat.import.clickToChange') || 'Click to change'}
+                            {(selectedFile.size / 1024).toFixed(1)} KB · {t('chat.import.clickToChange')}
                           </div>
                         </div>
                       ) : (
                         <div className="space-y-1">
-                          <div className="text-sm font-medium text-foreground">
-                            {t('chat.import.dropHint') || 'Drop transcript .json or .jsonl file here'}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {t('chat.import.formatHint') || 'Supports Claude Code, Codex CLI, and Hermes Agent'}
-                          </div>
+                          <div className="text-sm font-medium text-foreground">{t('chat.import.dropHint')}</div>
+                          <div className="text-xs text-muted-foreground">{t('chat.import.formatHint')}</div>
                         </div>
                       )}
                     </div>
@@ -319,10 +308,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                     data-testid="import-paste-textarea"
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
-                    placeholder={
-                      t('chat.import.pastePlaceholder') ||
-                      'Paste raw JSON / JSONL transcript events here (e.g. from ~/.claude/projects/ or ~/.hermes/sessions/)...'
-                    }
+                    placeholder={t('chat.import.pastePlaceholder')}
                     rows={8}
                     className="w-full text-xs font-mono p-3 rounded-xl bg-card border border-border/60 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground resize-none"
                   />
@@ -332,16 +318,13 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
               {/* Feature highlight bullet */}
               <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
                 <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                <span>
-                  {t('chat.import.featuresSummary') ||
-                    'Auto-scrubs credentials, folds verbose tool stdout, and preserves stable prompt-cache prefix layout.'}
-                </span>
+                <span>{t('chat.import.featuresSummary')}</span>
               </div>
 
               {/* Action buttons */}
               <div className="flex justify-end gap-2.5 pt-2">
                 <Button variant="outline" size="sm" onClick={() => handleModalClose(false)} disabled={loading}>
-                  {t('common.cancel') || 'Cancel'}
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   data-testid="import-submit-btn"
@@ -355,12 +338,12 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>{t('chat.import.processing') || 'Processing...'}</span>
+                      <span>{t('chat.import.processing')}</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>{t('chat.import.startImport') || 'Import & Resume'}</span>
+                      <span>{t('chat.import.startImport')}</span>
                     </>
                   )}
                 </Button>

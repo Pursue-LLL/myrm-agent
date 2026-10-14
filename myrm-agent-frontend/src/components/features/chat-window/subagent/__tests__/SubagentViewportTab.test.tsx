@@ -64,7 +64,7 @@ describe('SubagentViewportTab', () => {
     render(<SubagentViewportTab node={node} chatId="chat-42" />);
 
     expect(screen.getByTestId('subagent-viewport-empty')).toBeDefined();
-    expect(screen.getByText('纯文本/代码任务视口')).toBeDefined();
+    expect(screen.getByText('viewportEmptyTitle')).toBeDefined();
   });
 
   it('dispatches open_visual_desktop event when clicking open desktop button in placeholder card', () => {
@@ -101,7 +101,7 @@ describe('SubagentViewportTab', () => {
 
     expect(screen.getByTestId('subagent-viewport-active')).toBeDefined();
     expect(screen.getByText('https://news.ycombinator.com')).toBeDefined();
-    expect(screen.getByText('Snapshot')).toBeDefined();
+    expect(screen.getByText('viewportSnapshot')).toBeDefined();
 
     const img = screen.getByAltText('Hacker News') as HTMLImageElement;
     expect(img.src).toContain('data:image/png;base64');
@@ -157,7 +157,7 @@ describe('SubagentViewportTab', () => {
     render(<SubagentViewportTab node={node} chatId="chat-42" />);
 
     expect(screen.getByTestId('subagent-viewport-active')).toBeDefined();
-    expect(screen.getByText('Live')).toBeDefined();
+    expect(screen.getByText('viewportLive')).toBeDefined();
     expect(screen.getByText('https://sandbox.internal/dashboard')).toBeDefined();
   });
 
@@ -177,15 +177,15 @@ describe('SubagentViewportTab', () => {
 
     render(<SubagentViewportTab node={node} chatId="chat-42" />);
 
-    const zoomBtn = screen.getByTitle('全屏缩放');
+    const zoomBtn = screen.getByTitle('viewportFullscreen');
     fireEvent.click(zoomBtn);
 
-    expect(screen.getByText('退出放大')).toBeDefined();
+    expect(screen.getByText('viewportExitZoom')).toBeDefined();
 
     // Press Escape key
     fireEvent.keyDown(window, { key: 'Escape' });
 
-    expect(screen.queryByText('退出放大')).toBeNull();
+    expect(screen.queryByText('viewportExitZoom')).toBeNull();
   });
 
   it('exits zoom mode when clicking the backdrop, but keeps zoom when clicking the image', () => {
@@ -204,19 +204,19 @@ describe('SubagentViewportTab', () => {
 
     render(<SubagentViewportTab node={node} chatId="chat-42" />);
 
-    const zoomBtn = screen.getByTitle('全屏缩放');
+    const zoomBtn = screen.getByTitle('viewportFullscreen');
     fireEvent.click(zoomBtn);
 
-    expect(screen.getByText('退出放大')).toBeDefined();
+    expect(screen.getByText('viewportExitZoom')).toBeDefined();
 
     // Clicking the image directly does NOT exit zoom
-    const img = screen.getByAltText('Subagent Viewport Preview');
+    const img = screen.getByAltText('viewportPreviewAlt');
     fireEvent.click(img);
-    expect(screen.getByText('退出放大')).toBeDefined();
+    expect(screen.getByText('viewportExitZoom')).toBeDefined();
 
     // Clicking the backdrop exits zoom
     const backdrop = screen.getByTestId('subagent-viewport-backdrop');
     fireEvent.click(backdrop);
-    expect(screen.queryByText('退出放大')).toBeNull();
+    expect(screen.queryByText('viewportExitZoom')).toBeNull();
   });
 });
