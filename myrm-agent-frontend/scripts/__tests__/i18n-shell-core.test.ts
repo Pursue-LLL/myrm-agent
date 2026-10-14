@@ -1,9 +1,23 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { isLegitSameValue, isTranslationShell } from '../i18n-shell-core.mjs';
+import { hasNonAsciiLetter, isLegitSameValue, isTranslationShell } from '../i18n-shell-core.mjs';
 
 const NO_ALLOWLIST = { allowedSameValues: new Set<string>(), allowedSameKeys: new Set<string>() };
+
+describe('hasNonAsciiLetter', () => {
+  it('counts letters and combining marks outside ASCII', () => {
+    expect(hasNonAsciiLetter('Café')).toBe(true);
+    expect(hasNonAsciiLetter('設定')).toBe(true);
+    expect(hasNonAsciiLetter('한국어')).toBe(true);
+  });
+
+  it('ignores ASCII and non-ASCII punctuation or symbols', () => {
+    expect(hasNonAsciiLetter('Please wait...')).toBe(false);
+    expect(hasNonAsciiLetter('Please wait… — done · ©')).toBe(false);
+    expect(hasNonAsciiLetter('{count} × {max} → {total}')).toBe(false);
+  });
+});
 
 describe('isLegitSameValue', () => {
   it('treats values with a non-ASCII letter as already localized', () => {

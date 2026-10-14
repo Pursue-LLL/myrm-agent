@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createContext } from '../verify-i18n/context.mjs';
 import { verifyKanbanClosure } from '../verify-i18n/namespace-keys.mjs';
+import { verifyEnglishSentenceResidue } from '../verify-i18n/purity-gates.mjs';
 import {
   FOREIGN_SCRIPT_DE_RE,
   FOREIGN_SCRIPT_RE,
@@ -69,6 +70,29 @@ describe('isEnglishSentenceResidue', () => {
     for (const value of ['App ID', 'Bot Token', 'Client Secret', 'Alibaba Cloud', 'Token', 'Cancel', 'Done.']) {
       expect(isEnglishSentenceResidue(value)).toBe(false);
     }
+  });
+});
+
+describe('verifyEnglishSentenceResidue', () => {
+  const config = { shellAllowlists: { allowedSameValues: new Set<string>(), allowedSameKeys: new Set<string>() } };
+
+  function run(localeValue: string) {
+    const ctx = createContext('/unused');
+    ctx.translations = { en: { k: 'Please click the button to continue.' }, ja: { k: localeValue } };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    return { ctx, errors: verifyEnglishSentenceResidue(ctx, config, 'ja', ['k']) };
+  }
+
+  it('flags an untranslated sentence even when it carries non-ASCII punctuation', () => {
+    expect(run('Please click the button… to proceed.').errors).toEqual(['k']);
+    expect(run('Please click the button — to proceed').errors).toEqual(['k']);
+    expect(run('Please click the button to proceed.').ctx.hasErrors).toBe(true);
+  });
+
+  it('accepts values that contain a non-ASCII letter', () => {
+    const { ctx, errors } = run('ボタンをクリックして続行 — please wait');
+    expect(errors).toEqual([]);
+    expect(ctx.hasErrors).toBe(false);
   });
 });
 

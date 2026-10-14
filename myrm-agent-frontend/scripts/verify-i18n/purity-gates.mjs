@@ -1,5 +1,5 @@
 /**
- * [INPUT] i18n-shell-core::resolvePath / isLegitSameValue (POS: 翻译壳检测共享逻辑)
+ * [INPUT] i18n-shell-core::resolvePath / hasNonAsciiLetter / isLegitSameValue (POS: 翻译壳检测共享逻辑)
  *         parity-config::EN_PURITY_ALLOWED_KEYS / SCRIPT_RESIDUE_ALLOWED_KEYS (POS: 验证 9 配置装载与豁免键)
  *         value-rules::containsResidue / isEnglishSentenceResidue / *_RE (POS: 纯文本判据)
  *         report::reportKeys (POS: 违规打印)
@@ -7,7 +7,7 @@
  * [POS] verify-i18n 的语言纯净门禁（9f/9g/9h/9j/9k）：en 不得混入非拉丁文字；ko/de 不得残留汉字假名；zh-TW/ja 不得残留简体独有字形；非拉丁系语言不得整条仍是英文句子。每个门禁打印违规并返回违规键供上层汇总。
  */
 
-import { isLegitSameValue, resolvePath } from '../i18n-shell-core.mjs';
+import { hasNonAsciiLetter, isLegitSameValue, resolvePath } from '../i18n-shell-core.mjs';
 import { EN_PURITY_ALLOWED_KEYS, SCRIPT_RESIDUE_ALLOWED_KEYS } from './parity-config.mjs';
 import { reportKeys } from './report.mjs';
 import {
@@ -82,7 +82,7 @@ export function verifySimplifiedGlyphs(ctx, lang, enLeaves, simplifiedGlyphGates
 }
 
 // 9k. 非拉丁系语言（zh/ja/ko/zh-TW）句子级纯英文残留门禁：
-// 整条文案仍是英文句子（值≠en 且纯 ASCII 且含英文实义句子）即残留。
+// 整条文案仍是英文句子（值≠en 且不含非 ASCII 字母且含英文实义句子）即残留。
 // 与 9g/9h/9j 的「混入字形」检测互补（后者拦混入、本检测拦整条）；
 // 字段名/品牌名/单技术词天然豁免。de 为拉丁语系，纯英文残留无法以字符级
 // 与合法德文区分，不适用（由 9g 汉字/假名拦截 + glossary 语义词兜底）。
@@ -102,8 +102,8 @@ export function verifyEnglishSentenceResidue(ctx, config, lang, enLeaves) {
     if (localeLeaf === enLeaf) {
       return; // 与 en 同值走壳检测（collectTranslationShells）
     }
-    if (localeLeaf === '' || /[\u0080-\uFFFF]/.test(localeLeaf)) {
-      return; // 空串/已含本语言字符
+    if (localeLeaf === '' || hasNonAsciiLetter(localeLeaf)) {
+      return; // 空串/已含本语言文字（非 ASCII 标点不算）
     }
     if (isLegitSameValue(localeLeaf)) {
       return; // 技术格式/占位模板/URL 等合法保留

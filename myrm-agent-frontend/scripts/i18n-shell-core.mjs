@@ -1,6 +1,6 @@
 /**
  * [INPUT] scripts/i18n-shell-allowlist.json (POS: 翻译壳检测豁免清单)
- * [OUTPUT] walkTypes / resolvePath / isLegitSameValue / isTranslationShell / loadShellAllowlist / collectTranslationShells
+ * [OUTPUT] walkTypes / resolvePath / hasNonAsciiLetter / isLegitSameValue / isTranslationShell / loadShellAllowlist / collectTranslationShells
  * [POS] i18n 翻译壳检测共享逻辑。供 verify-i18n/（locale-parity、purity-gates、parity-config）与 i18n-dump-remaining.mjs 共用，防止 gate 口径漂移。
  */
 
@@ -42,6 +42,14 @@ export function resolvePath(obj, dottedPath) {
 }
 
 /**
+ * 值是否含非 ASCII 字母（已本地化文本的唯一字符级依据）。
+ * 非 ASCII 的标点与符号（`·`/`—`/`…`/箭头/`™`）不携带语言信息，不计入。
+ */
+export function hasNonAsciiLetter(value) {
+  return /[\p{L}\p{M}]/u.test(value.replace(/\p{ASCII}/gu, ''));
+}
+
+/**
  * 值是否可合法保持与英文一致（非翻译壳）。
  *
  * 判据按「值整体类型」判定：
@@ -61,7 +69,7 @@ export function isLegitSameValue(value) {
   if (!value || value.length < 3) {
     return true;
   }
-  if (/[\p{L}\p{M}]/u.test(value.replace(/\p{ASCII}/gu, ''))) {
+  if (hasNonAsciiLetter(value)) {
     return true;
   }
   const text = value.replace(/[^\p{ASCII}]/gu, ' ');
