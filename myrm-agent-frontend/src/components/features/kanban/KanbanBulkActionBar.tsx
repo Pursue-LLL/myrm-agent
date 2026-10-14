@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * - ./kanban-transitions::isServerMoveAllowed (POS: 看板状态流转判定，服务端 move 守卫的镜像)
+ * - @/services/kanban::bulkAction, BulkAction, TaskStatus (POS: 看板 API 请求与类型)
+ *
+ * [OUTPUT]
+ * - KanbanBulkActionBar (default): 多选任务后的批量移动 / 归档 / 重新分配 / 删除工具栏
+ *
+ * [POS]
+ * 看板多选后的批量操作入口。「移至」只列出至少对一个选中任务可达的目标；归档与删除在原位二次确认；
+ * 批量请求允许部分成功，结果以 toast 汇总。
+ */
 'use client';
 
 import { useState } from 'react';
