@@ -42,7 +42,6 @@ from .schedulers import (
     stop_memory_guardian_guard_telemetry_dispatcher,
     stop_remote_backup_scheduler,
 )
-from .skills import shutdown_skill_optimization_listeners, start_skill_optimization_listeners
 from .system import (
     init_allowlist_store,
     init_workspace_trust_store,
@@ -87,8 +86,6 @@ __all__ = [
     "stop_remote_backup_scheduler",
     "start_memory_guardian_scheduler",
     "stop_memory_guardian_scheduler",
-    "shutdown_skill_optimization_listeners",
-    "start_skill_optimization_listeners",
     "auto_continue_interrupted_turns",
     "init_allowlist_store",
     "init_risk_rules",

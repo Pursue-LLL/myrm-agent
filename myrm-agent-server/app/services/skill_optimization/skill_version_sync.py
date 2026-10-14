@@ -8,12 +8,10 @@
 - persist_skill_version: 保存并可选激活 DB 快照（含重试）
 - activate_version_with_disk_sync: 激活快照并同步磁盘
 - restore_skill_snapshot: 批量/手动恢复到指定快照
-- ensure_baseline_version: AB 测试 baseline 种子写入
-- start_shadow_ab_test: 启动 shadow A/B 并写入 inactive candidate 快照
 - load_skill_content_for_batch: batch 快照读盘（prebuilt + workspace）
 
 [POS]
-技能优化版本双写层。统一 DB skill_versions 与磁盘 SKILL.md 的原子同步，供进化/AB/batch 共用。
+技能版本双写层。统一 DB skill_versions 与磁盘 SKILL.md 的原子同步，供进化/替换/batch 共用。
 """
 
 from __future__ import annotations
@@ -24,19 +22,11 @@ import tempfile
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
-from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore, SkillVersion
+from myrm_agent_harness.agent.skills.optimization.types import SkillVersion
 
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 
 logger = logging.getLogger(__name__)
-
-_NEUTRAL_QUALITY = SkillQualityScore(
-    success_rate=0.5,
-    token_efficiency=0.5,
-    execution_time=0.5,
-    user_satisfaction=0.5,
-    call_frequency=0.5,
-)
 
 
 def atomic_write_text_file(target: Path, content: str) -> None:
@@ -86,11 +76,6 @@ async def load_skill_content_for_batch(skill_id: str) -> str | None:
     return None
 
 
-async def _resolve_quality_score(storage: SQLAlchemyStorage, skill_id: str) -> SkillQualityScore:
-    latest = await storage.get_latest_quality(skill_id)
-    return latest if latest is not None else _NEUTRAL_QUALITY
-
-
 async def resolve_skill_md_path(skill_id: str) -> Path | None:
     """Resolve SKILL.md path via skills_service storage_path."""
     from app.core.skills.store.service import skills_service
@@ -136,7 +121,6 @@ async def persist_skill_version(
     *,
     created_by: str = "system",
     optimization_id: str | None = None,
-    quality_score: SkillQualityScore | None = None,
     activate: bool = True,
     version: int | None = None,
     disk_path: Path | None = None,
@@ -152,7 +136,6 @@ async def persist_skill_version(
                 skill_id=skill_id,
                 version=ver,
                 content=content,
-                quality_score=quality_score,
                 created_by=created_by,
                 optimization_id=optimization_id,
             )
@@ -202,109 +185,8 @@ async def restore_skill_snapshot(
             skill_id=skill_id,
             version=version,
             content=content,
-            quality_score=_NEUTRAL_QUALITY,
             created_by="batch_rollback",
         )
         await storage.activate_version(skill_id, version)
 
     await sync_content_to_disk(skill_id, content)
-
-
-async def ensure_baseline_version(
-    storage: SQLAlchemyStorage,
-    skill_id: str,
-    baseline_version: int,
-) -> tuple[SkillVersion, SkillQualityScore]:
-    """Ensure baseline version exists in DB; seed from disk when missing."""
-    existing = await storage.get_skill_version(skill_id, baseline_version)
-    if existing is not None:
-        score = existing.quality_score if existing.quality_score is not None else _NEUTRAL_QUALITY
-        return existing, score
-
-    content = await load_skill_content_for_batch(skill_id)
-    if content is None:
-        raise ValueError(f"Cannot seed baseline for {skill_id}: SKILL.md not found")
-
-    quality_score = await _resolve_quality_score(storage, skill_id)
-    saved = await persist_skill_version(
-        storage,
-        skill_id,
-        content,
-        version=baseline_version,
-        created_by="ab_test_seed",
-        quality_score=quality_score,
-        activate=True,
-    )
-    return saved, quality_score
-
-
-async def _assert_no_running_ab_test(storage: SQLAlchemyStorage, skill_id: str) -> None:
-    async with storage._get_session() as session:
-        from app.adapters.skill_optimization.ab_test_repo import ABTestRepository
-
-        ab_repo = ABTestRepository(session)
-        running = await ab_repo.get_running_tests()
-        if any(test.skill_id == skill_id for test in running):
-            raise ValueError(f"A shadow test is already running for skill {skill_id}")
-
-
-async def start_shadow_ab_test(
-    storage: SQLAlchemyStorage,
-    skill_id: str,
-    candidate_content: str,
-    *,
-    baseline_version: int | None = None,
-) -> dict[str, object]:
-    """Start a shadow A/B test: baseline stays active on disk, candidate stored inactive in DB."""
-    from myrm_agent_harness.agent.skills.optimization import ABTestEngine
-    from myrm_agent_harness.agent.skills.optimization.config import ABTestConfig
-
-    await _assert_no_running_ab_test(storage, skill_id)
-
-    if baseline_version is not None:
-        baseline_skill_version, baseline_score = await ensure_baseline_version(
-            storage,
-            skill_id,
-            baseline_version,
-        )
-        resolved_baseline = baseline_skill_version.version
-    else:
-        active = await storage.get_active_version(skill_id)
-        if active is None:
-            await ensure_baseline_version(storage, skill_id, 1)
-            active = await storage.get_active_version(skill_id)
-        if active is None:
-            raise ValueError(f"Cannot resolve active baseline for skill {skill_id}")
-        resolved_baseline = active.version
-        baseline_score = await _resolve_quality_score(storage, skill_id)
-
-    ab_engine = ABTestEngine(ABTestConfig())
-    test_result = await ab_engine.start_ab_test(
-        skill_id=skill_id,
-        baseline_version=resolved_baseline,
-        baseline_score=baseline_score,
-        candidate_content=candidate_content,
-        current_skill_version=resolved_baseline,
-    )
-
-    await persist_skill_version(
-        storage,
-        skill_id,
-        candidate_content,
-        version=test_result.candidate_version,
-        created_by="ab_test",
-        quality_score=baseline_score,
-        activate=False,
-        sync_disk=False,
-    )
-    await storage.save_ab_test(test_result)
-
-    test_id = f"{test_result.skill_id}:v{test_result.baseline_version}:v{test_result.candidate_version}"
-
-    return {
-        "test_id": test_id,
-        "skill_id": test_result.skill_id,
-        "baseline_version": test_result.baseline_version,
-        "candidate_version": test_result.candidate_version,
-        "status": test_result.status.value,
-    }

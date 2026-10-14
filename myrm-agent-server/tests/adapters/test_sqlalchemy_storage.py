@@ -4,7 +4,6 @@ SQLAlchemyStorage 单元测试：每次操作独立 session、健康检查、Ski
 """
 
 import pytest
-from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -42,17 +41,6 @@ async def engine():
 def session_factory(engine):
     """创建 session_factory"""
     return async_sessionmaker(engine, expire_on_commit=False)
-
-
-@pytest.fixture
-def quality_score() -> SkillQualityScore:
-    return SkillQualityScore(
-        success_rate=0.85,
-        token_efficiency=0.75,
-        execution_time=0.90,
-        user_satisfaction=0.80,
-        call_frequency=0.60,
-    )
 
 
 # ==================== Session Lifecycle Tests ====================
@@ -97,7 +85,7 @@ async def test_health_check(session_factory):
 
 
 @pytest.mark.asyncio
-async def test_save_and_get_skill_version(session_factory, quality_score):
+async def test_save_and_get_skill_version(session_factory):
     """测试保存和获取版本"""
     storage = SQLAlchemyStorage(session_factory=session_factory)
 
@@ -105,7 +93,6 @@ async def test_save_and_get_skill_version(session_factory, quality_score):
         skill_id="skill-001",
         version=1,
         content="def hello(): pass",
-        quality_score=quality_score,
         created_by="llm",
         optimization_id="opt-001",
     )
@@ -116,8 +103,7 @@ async def test_save_and_get_skill_version(session_factory, quality_score):
     retrieved = await storage.get_skill_version("skill-001", 1)
     assert retrieved is not None
     assert retrieved.content == "def hello(): pass"
-    assert retrieved.quality_score is not None
-    assert retrieved.quality_score.success_rate == 0.85
+    assert retrieved.optimization_id == "opt-001"
 
 
 @pytest.mark.asyncio

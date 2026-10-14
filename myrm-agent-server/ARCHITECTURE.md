@@ -234,7 +234,6 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 为了极致降低持续进化的 LLM 调用成本（减少 90%+ 成本及延迟）：
 
 - **稳定前缀架构**：遵循「指令首发、数据居中、采样垫后」的 Prompt 构建原则，确保 Agent 优化指令等高频、大体积文本在 LLM 侧被高效识别为 **Prompt Cache Prefix**。
-- **冷热数据分离**：在 `SkillOptimizer` 提示词中，将高变动的性能遥测数据（Success Rate, Tokens）放置在 prompt 尾部，从而最大化静态指令集的缓存命中率。
 - **Context Health 聚合**：`app/api/statistics/context_health.py` 将 Chat 压缩元数据、Message usage 与 Harness task metrics 聚合为 Session Analytics 的 context health，包含 cache-TTL 剪枝、归档写入/复用、恢复 requested/allowed/blocked outcome、blocked ratio、恢复范围提示、自适应剪枝退让和 provider-aware cache retention。
 - **入账 Human 路由一致性**：`app/core/utils/delivery_provenance.py`。Server 在 GeneralAgent **`stream_pipeline`：INFO 记下 `general_agent_delivery_labels`** 后以 `apply_delivery_banner` 落横幅；FastLane/DeepResearch（`general_agent/streaming`，`apply_general_agent_pipeline_banner`/`params.channel_name`）；Fast Search 通过 `prompt_mode="search"` 统一走 GeneralAgent 路径（等价 `web_chat`→GUI 横幅）；IM `prepend_plain_banner`；Headless wakeup（`services/agent/wakeup_handler.py` 将 **`channel_name=headless_wakeup`** 且 **`memory_channel_id` 缺省时锁 `web_chat`**，防记忆命名空间漂移）。`web_chat` 仍映射 http_gui/browser_sse；`cron`/`eval`/其它见 `resolve_general_agent_pipeline_labels`。用户以 `[use skill]` 显式调用技能时，横幅落在该标签之后（`decorate_behind_skill_tag`，harness 只认位于文本最开头的标签）。
 
@@ -242,13 +241,9 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 
 为了支持 Agent 技能的持续迭代与安全灰度：
 
-- **无感上下文追踪 (Context Tracking)**：利用 `ContextVar` 实现跨 Harness 和 Server 的版本号随路追踪，确保每一笔请求的来源版本可回溯、可审计，性能损耗控制在微秒级。
-- **零风险影子验证 (Shadow Testing)**：`ShadowTester` 引擎是纯粹的"执行+比对"引擎，利用沙箱的 `isolated_mode` 在后台静默执行候选版本，返回 `ShadowTestResult` 而不操作 DB。所有副作用在影子模式下均被自动拦截或 Mock。
-- **托管队列 (Managed Queue)**：`ABTestManager` 作为中枢控制器，通过 `asyncio.Queue` + worker pool 统一管理影子测试的调度、重试（指数退避）、优雅关机，替代裸 `create_task` 的不可靠方式。
-- **智能判官 (Result Comparator)**：Harness 层提供 `ResultComparator` Protocol + `StructuredComparator`（JSON 结构化 + Jaccard 文本相似度，零 LLM 成本）；Server 层实现 `SemanticComparator`（基于原始分数均值判断是否触发 LLM 语义判定，仅在 local_avg < 0.7 且 > 0.1 的中间地带调用 LLM）。
-- **侧边比对证据链 (Side-by-Side Evidence)**：`ShadowSampleModel` 记录真实请求下的输入输出快照，包含 `similarity_score` 和 `diff_summary`。前端 `SkillQualityGuardian` 展示 SimilarityBar、diff 摘要、可展开 JSON diff，支持数据驱动的版本晋升。
-- **原子计数与保留策略**：`atomic_increment_sample_size` 确保并发安全；分歧样本 100% 保留，一致样本 20% 采样；`cap_samples_per_test` 优先保留分歧样本；`cleanup_old_samples` 按 TTL 清理已完成测试。
-- **Auto-Promote**：样本量达标 + 成功率 > 95% + 延迟无回归时自动转正，通过 EventEmitter 通知前端。
+- **版本快照双写 (Dual-Write Snapshots)**：每次技能写入由 `write_orchestrator` 落 DB `skill_versions` 快照并原子同步磁盘 `SKILL.md`；`VersionAwareSkillBackend` 仅在载入技能正文时返回激活快照，系统提示词中的技能清单不经版本路由，前缀稳定、Prompt Cache 不受影响。
+- **可证伪变更清单 (Change Manifest)**：进化提案经 harness `build_change_manifest` 以绑定的 eval_cases 静态断言（零 LLM）给出基线/目标通过率与 held-out 泛化裁决，随提案交给审批卡片展示，由用户决定是否应用。
+- **原子应用与一键回滚**：应用前写前快照，`/skill-optimization/rollback/{skill_id}` 与 `/skill-optimization/mutations/{batch_id}/rollback` 分别回到指定版本与撤销整批技能修改。
 - **技能免疫闭环**：订阅 Harness `SkillFailureEvent`，在 Server 单机业务层完成运行时失败分类、幂等去重、修复提案生成与 GUI 审批落地，Control Plane 不参与技能业务。
 
 ### 0.5 Shared Context 共享记忆治理 (Shared Memory Governance)

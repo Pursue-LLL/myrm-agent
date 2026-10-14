@@ -16,7 +16,7 @@ app.core.skills.models::SkillType (POS: catalog skill data models)
 app.core.skills.store.service::skills_service (POS: skill CRUD service)
 app.core.skills.gates.oauth_availability::wrap_integration_oauth_backend (POS: keeps skill availability consistent
     between Catalog and Agent runtime)
-app.core.skills.storage_adapters::SnapshotStoreAdapter, ABTestStoreAdapter (POS: protocol adapters over SQLAlchemyStorage)
+app.core.skills.storage_adapters::SnapshotStoreAdapter (POS: protocol adapter over SQLAlchemyStorage)
 app.adapters.skill_optimization.sqlalchemy_storage::SQLAlchemyStorage (POS: bridges framework protocols and SQLAlchemy
     repositories, one session per operation)
 app.platform_utils::get_session_factory (POS: platform adapter layer selected by DEPLOY_MODE)
@@ -232,20 +232,19 @@ async def create_skill_backend(
 
     runtime_backend: SkillBackend = final_backend
 
-    # Version awareness: A/B testing and snapshot routing via storage protocols
+    # Version awareness: serve the activated version snapshot via the storage protocol
     try:
         from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
-        from app.core.skills.storage_adapters import ABTestStoreAdapter, SnapshotStoreAdapter
+        from app.core.skills.storage_adapters import SnapshotStoreAdapter
         from app.platform_utils import get_session_factory
 
-        # The backend outlives this call and queries the stores on every load, so each query opens
+        # The backend outlives this call and queries the store on every load, so each query opens
         # its own session; one held open would pin a pooled connection and serve a stale snapshot.
         db_storage = SQLAlchemyStorage(session_factory=get_session_factory())
 
         runtime_backend = VersionAwareSkillBackend(
             base_backend=final_backend,
             snapshot_store=SnapshotStoreAdapter(db_storage),
-            ab_test_store=ABTestStoreAdapter(db_storage),
         )
     except ImportError:
         logger.warning("Skill optimization storage not available, disabled version awareness")

@@ -42,7 +42,6 @@ from app.lifecycle import (
     start_memory_guardian_guard_telemetry_dispatcher,
     start_memory_guardian_scheduler,
     start_memory_pressure_monitor,
-    start_skill_optimization_listeners,
     warmup_browser_sessions,
     warmup_global_browser_pool,
 )
@@ -241,7 +240,6 @@ async def run_async_warmup() -> None:
             start_login_session_cleanup_scheduler(),
             start_maintenance_scheduler(),
             _start_rate_limiter_cleanup(),
-            start_skill_optimization_listeners(),
             start_approval_ttl_scheduler(),
             start_cancellation_cleanup_scheduler(),
             start_memory_guardian_scheduler(),

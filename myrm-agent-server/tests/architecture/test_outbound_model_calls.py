@@ -25,9 +25,7 @@ _OUT_OF_SCOPE: dict[str, str] = {
     ),
 }
 # file -> why it is covered; the file must still call sanitize_outbound_text
-_MASKED_FIRST: dict[str, str] = {
-    "services/skill_optimization/semantic_comparator.py": "the judged tool outputs are masked before the judge sees them",
-}
+_MASKED_FIRST: dict[str, str] = {}
 
 
 def direct_chat_call_lines(source: str) -> list[int]:

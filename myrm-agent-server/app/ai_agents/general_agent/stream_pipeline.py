@@ -352,9 +352,6 @@ async def execute_stream_pipeline(
         from myrm_agent_harness.backends.skills.decorators.version_aware import (
             session_id_var,
         )
-        from myrm_agent_harness.backends.skills.protocols import (
-            resolved_skill_versions_var,
-        )
 
         from app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware import (
             reset_answer_tool_convergence,
@@ -362,7 +359,6 @@ async def execute_stream_pipeline(
 
         reset_answer_tool_convergence()
         token = session_id_var.set(str(context["session_id"]))
-        version_token = resolved_skill_versions_var.set({})
 
         from app.services.infra.sleep_inhibitor import SleepInhibitor
 
@@ -403,14 +399,10 @@ async def execute_stream_pipeline(
                         await mark_thread_failed(agent_wrapper._current_thread_id)
                     raise
                 finally:
-                    for _var, _tok in (
-                        (session_id_var, token),
-                        (resolved_skill_versions_var, version_token),
-                    ):
-                        try:
-                            _var.reset(_tok)
-                        except ValueError:
-                            pass
+                    try:
+                        session_id_var.reset(token)
+                    except ValueError:
+                        pass
                     if task_completed and agent_wrapper._checkpoint_helper and agent_wrapper._current_thread_id:
                         await mark_thread_completed(agent_wrapper._current_thread_id)
 

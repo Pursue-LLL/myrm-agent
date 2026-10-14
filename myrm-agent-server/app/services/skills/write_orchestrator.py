@@ -42,20 +42,6 @@ class SkillFileWriteResult:
     skipped_unchanged: bool = False
 
 
-def is_neutral_quality_score(score: object | None) -> bool:
-    """True when all quality dimensions are the default 0.5 placeholder (no real samples)."""
-    if score is None:
-        return True
-    dims = (
-        getattr(score, "success_rate", None),
-        getattr(score, "token_efficiency", None),
-        getattr(score, "execution_time", None),
-        getattr(score, "user_satisfaction", None),
-        getattr(score, "call_frequency", None),
-    )
-    return all(d == 0.5 for d in dims)
-
-
 def note_skill_content_hash(skill_id: str, content_hash: str) -> None:
     with _REGISTRY_LOCK:
         _CONTENT_HASH_REGISTRY[skill_id] = content_hash

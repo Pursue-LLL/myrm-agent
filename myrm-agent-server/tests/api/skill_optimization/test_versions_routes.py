@@ -9,24 +9,19 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore, SkillVersion
+from myrm_agent_harness.agent.skills.optimization.types import SkillVersion
 
 from app.api.skill_optimization.dependencies import get_storage
 from app.api.skill_optimization.routes import versions as versions_routes
 
 ClientFactory = Callable[[list[SkillVersion]], TestClient]
 
-_PLACEHOLDER = SkillQualityScore(0.5, 0.5, 0.5, 0.5, 0.5)
-_MEASURED_LOW = SkillQualityScore(0.6, 0.5, 0.4, 0.5, 0.3)
-_MEASURED_HIGH = SkillQualityScore(0.9, 0.7, 0.6, 0.8, 0.3)
 
-
-def _version(number: int, score: SkillQualityScore | None, *, active: bool = False) -> SkillVersion:
+def _version(number: int, *, active: bool = False) -> SkillVersion:
     return SkillVersion(
         skill_id="skill-1",
         version=number,
         content=f"content-v{number}",
-        quality_score=score,
         created_at=datetime(2026, 1, number),
         created_by="llm",
         is_active=active,
@@ -61,46 +56,38 @@ def make_client() -> Iterator[ClientFactory]:
         client.close()
 
 
-def test_compare_hides_placeholder_scores_and_delta(make_client: ClientFactory) -> None:
-    client = make_client([_version(1, _PLACEHOLDER), _version(2, None)])
+def test_compare_reports_content_change_without_score_fields(make_client: ClientFactory) -> None:
+    client = make_client([_version(1), _version(2)])
 
     body = client.get("/api/v1/skill-optimization/versions/skill-1/compare", params={"v1": 1, "v2": 2}).json()
 
-    assert body["v1"]["quality_score"] is None
-    assert body["v2"]["quality_score"] is None
-    assert body["score_delta"] is None
     assert body["content_changed"] is True
+    assert body["v1"]["content"] == "content-v1"
+    assert "score_delta" not in body
+    assert "quality_score" not in body["v1"]
 
 
-def test_compare_reports_delta_for_measured_scores(make_client: ClientFactory) -> None:
-    client = make_client([_version(1, _MEASURED_LOW), _version(2, _MEASURED_HIGH)])
+def test_compare_unknown_version_returns_404(make_client: ClientFactory) -> None:
+    client = make_client([_version(1)])
 
-    body = client.get("/api/v1/skill-optimization/versions/skill-1/compare", params={"v1": 1, "v2": 2}).json()
+    response = client.get("/api/v1/skill-optimization/versions/skill-1/compare", params={"v1": 1, "v2": 9})
 
-    assert body["v1"]["quality_score"]["overall_score"] == pytest.approx(_MEASURED_LOW.overall_score)
-    assert body["score_delta"]["success_rate"] == pytest.approx(0.3)
-    assert body["score_delta"]["user_satisfaction"] == pytest.approx(0.3)
-    assert set(body["score_delta"]) == {
-        "overall_score",
-        "success_rate",
-        "token_efficiency",
-        "execution_time",
-        "user_satisfaction",
-    }
+    assert response.status_code == 404
 
 
-def test_detail_uses_same_score_rules_as_list(make_client: ClientFactory) -> None:
-    client = make_client([_version(1, _PLACEHOLDER), _version(2, _MEASURED_HIGH)])
+def test_detail_returns_content_and_provenance(make_client: ClientFactory) -> None:
+    client = make_client([_version(1), _version(2, active=True)])
 
-    placeholder = client.get("/api/v1/skill-optimization/versions/skill-1/1").json()
-    measured = client.get("/api/v1/skill-optimization/versions/skill-1/2").json()
+    body = client.get("/api/v1/skill-optimization/versions/skill-1/2").json()
 
-    assert placeholder["quality_score"] is None
-    assert measured["quality_score"]["call_frequency"] == pytest.approx(0.3)
+    assert body["content"] == "content-v2"
+    assert body["is_active"] is True
+    assert body["created_by"] == "llm"
+    assert "quality_score" not in body
 
 
 def test_rollback_returns_real_versions_without_synthetic_audit_log(make_client: ClientFactory) -> None:
-    client = make_client([_version(1, None), _version(2, None, active=True)])
+    client = make_client([_version(1), _version(2, active=True)])
 
     with patch(
         "app.services.skill_optimization.skill_version_sync.activate_version_with_disk_sync",
@@ -117,7 +104,7 @@ def test_rollback_returns_real_versions_without_synthetic_audit_log(make_client:
 
 
 def test_rollback_unknown_target_returns_404(make_client: ClientFactory) -> None:
-    client = make_client([_version(1, None, active=True)])
+    client = make_client([_version(1, active=True)])
 
     response = client.post("/api/v1/skill-optimization/rollback/skill-1", params={"target_version": 9})
 

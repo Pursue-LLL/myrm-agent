@@ -163,13 +163,6 @@ myrm_agent_harness.agent.skills.market.taps
 myrm_agent_harness.agent.skills.market.transaction
 myrm_agent_harness.agent.skills.optimization
 myrm_agent_harness.agent.skills.optimization.config
-myrm_agent_harness.agent.skills.optimization.event_emitter
-myrm_agent_harness.agent.skills.optimization.health_check
-myrm_agent_harness.agent.skills.optimization.in_memory_storage
-myrm_agent_harness.agent.skills.optimization.protocols
-myrm_agent_harness.agent.skills.optimization.quality_calculator
-myrm_agent_harness.agent.skills.optimization.result_comparator
-myrm_agent_harness.agent.skills.optimization.scheduler
 myrm_agent_harness.agent.skills.optimization.security
 myrm_agent_harness.agent.skills.optimization.types
 myrm_agent_harness.agent.skills.packaging
@@ -179,8 +172,6 @@ myrm_agent_harness.agent.skills.runtime.session_skills_rehydrate
 myrm_agent_harness.agent.skills.security.content_sanitizer
 myrm_agent_harness.agent.skills.sync.idle_integration
 myrm_agent_harness.agent.streaming.broadcast.catchup
-myrm_agent_harness.agent.streaming.broadcast.event_bus
-myrm_agent_harness.agent.streaming.broadcast.types
 myrm_agent_harness.agent.streaming.citation_audit
 myrm_agent_harness.agent.streaming.rules.types
 myrm_agent_harness.agent.streaming.run_digest

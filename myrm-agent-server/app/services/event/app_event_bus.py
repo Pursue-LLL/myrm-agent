@@ -50,7 +50,6 @@ class AppEventType(StrEnum):
     TEAMMATE_MESSAGE = "teammate_message"
     APPROVAL_RESOLVED = "approval_resolved"
     CRON_UPDATED = "cron_updated"
-    SKILL_AB_TEST_UPDATED = "skill_ab_test_updated"
     BUDGET_UPDATED = "budget_updated"
     CHANNEL_STATUS_UPDATED = "channel_status_updated"
     KANBAN_TASK_UPDATED = "kanban_task_updated"

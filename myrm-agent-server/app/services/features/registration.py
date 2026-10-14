@@ -94,18 +94,6 @@ _ALL_FEATURES: list[FeatureSpec] = [
     ),
     # === Experimental ===
     FeatureSpec(
-        id="skill_optimization",
-        key="skill_optimization",
-        stage=FeatureStage.EXPERIMENTAL,
-        default_enabled=False,
-        description="Enable automatic skill quality optimization via shadow testing",
-        experimental_info=ExperimentalInfo(
-            name="Skill Optimization",
-            description=("Automatically test and optimize skill quality through A/B shadow testing. May increase token usage."),
-            announcement="NEW: Skill Optimization is now available as an experimental feature.",
-        ),
-    ),
-    FeatureSpec(
         id="deep_research",
         key="deep_research",
         stage=FeatureStage.REMOVED,

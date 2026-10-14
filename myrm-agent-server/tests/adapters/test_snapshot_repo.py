@@ -4,7 +4,6 @@ SnapshotRepository 单元测试：版本保存、查询、激活、删除。
 """
 
 import pytest
-from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -39,19 +38,8 @@ async def session():
     await engine.dispose()
 
 
-@pytest.fixture
-def quality_score() -> SkillQualityScore:
-    return SkillQualityScore(
-        success_rate=0.85,
-        token_efficiency=0.75,
-        execution_time=0.90,
-        user_satisfaction=0.80,
-        call_frequency=0.60,
-    )
-
-
 @pytest.mark.asyncio
-async def test_save_version(session: AsyncSession, quality_score: SkillQualityScore):
+async def test_save_version(session: AsyncSession):
     """测试保存版本"""
     repo = SnapshotRepository(session)
 
@@ -59,7 +47,6 @@ async def test_save_version(session: AsyncSession, quality_score: SkillQualitySc
         skill_id="skill-001",
         version=1,
         content="def hello(): pass",
-        quality_score=quality_score,
         created_by="llm",
         optimization_id="opt-001",
         metadata={"note": "initial version"},
@@ -72,22 +59,6 @@ async def test_save_version(session: AsyncSession, quality_score: SkillQualitySc
     assert version.is_active is False
     assert version.optimization_id == "opt-001"
     assert version.metadata == {"note": "initial version"}
-    assert version.quality_score is not None
-    assert version.quality_score.success_rate == 0.85
-
-
-@pytest.mark.asyncio
-async def test_save_version_without_quality_score(session: AsyncSession):
-    """测试保存不含质量评分的版本"""
-    repo = SnapshotRepository(session)
-
-    version = await repo.save_version(
-        skill_id="skill-001",
-        version=1,
-        content="def hello(): pass",
-    )
-
-    assert version.quality_score is None
 
 
 @pytest.mark.asyncio
@@ -268,25 +239,3 @@ async def test_delete_versions_noop_when_within_limit(session: AsyncSession):
 
     deleted = await repo.delete_versions("skill-001", keep_latest=5)
     assert deleted == 0
-
-
-@pytest.mark.asyncio
-async def test_quality_score_roundtrip(session: AsyncSession, quality_score: SkillQualityScore):
-    """测试质量评分序列化/反序列化完整性"""
-    repo = SnapshotRepository(session)
-
-    await repo.save_version(
-        skill_id="skill-001",
-        version=1,
-        content="test content",
-        quality_score=quality_score,
-    )
-
-    retrieved = await repo.get_version("skill-001", 1)
-    assert retrieved is not None
-    assert retrieved.quality_score is not None
-    assert retrieved.quality_score.success_rate == quality_score.success_rate
-    assert retrieved.quality_score.token_efficiency == quality_score.token_efficiency
-    assert retrieved.quality_score.execution_time == quality_score.execution_time
-    assert retrieved.quality_score.user_satisfaction == quality_score.user_satisfaction
-    assert retrieved.quality_score.call_frequency == quality_score.call_frequency

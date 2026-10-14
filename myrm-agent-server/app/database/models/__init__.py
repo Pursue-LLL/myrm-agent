@@ -68,12 +68,8 @@ from .security import (
 )
 from .skill import ExperienceLedgerEvent, PendingEvolution, PendingMigration
 from .skill_optimization import (
-    ABTestResultModel,
     BatchSnapshot,
-    OptimizationRecord,
-    ShadowSampleModel,
     SkillPackageRevision,
-    SkillQualityHistory,
     SkillVersionModel,
 )
 from .turn_capability_metric import TurnCapabilityMetricEvent
@@ -163,10 +159,6 @@ __all__ = [
     "WebPushSubscription",
     # Message Filter
     # Skill Optimization
-    "OptimizationRecord",
-    "ABTestResultModel",
-    "ShadowSampleModel",
-    "SkillQualityHistory",
     "SkillVersionModel",
     "BatchSnapshot",
     "SkillPackageRevision",

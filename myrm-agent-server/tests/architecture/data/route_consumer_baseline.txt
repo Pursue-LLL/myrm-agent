@@ -79,7 +79,6 @@ POST /security/profiles/clone
 DELETE /security/profiles/{profile_key}
 GET /security/profiles/{profile_key}
 PUT /security/profiles/{profile_key}
-GET /skill-optimization/ab-tests
 GET /skill-optimization/package-revisions/{skill_id}
 POST /skill-optimization/package-revisions/{skill_id}/restore/{revision_number}
 POST /skills/admin/prebuilt

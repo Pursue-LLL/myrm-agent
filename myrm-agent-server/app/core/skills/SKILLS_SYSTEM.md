@@ -158,16 +158,16 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 
 ### 3.10 技能生命周期发布验收门（Release gate）
 
-单机产品已内置版本 SSOT、Shadow A/B、晋升回归门与 batch 回滚；发版前至少跑通下列自动化（不必再对标桌面竞品补平行能力）：
+单机产品已内置版本 SSOT、可证伪变更清单、原子应用与一键回滚（含 batch 回滚）；发版前至少跑通下列自动化（不必再对标桌面竞品补平行能力）：
 
 | 路径 | 验收要点 | 参考测试 |
 |------|----------|----------|
 | Agent 写 SKILL.md | DB 版本 + 磁盘一致；meta-tool 失败可 `restore_skill_md_from_active_version` | `app/services/skills/write_orchestrator.py`；harness `batch_runner` 集成 |
 | `skill_manage` 批量改 | 变更前 snapshot，失败整批 rollback；成功可 GUI Undo（consume batch_snapshots） | harness `tests/backends/test_skill_system_core.py`；server `tests/services/skills/test_mutation_batch_*.py` |
-| Shadow A/B → promote | 候选版本 inactive 落库；晋升走 regression gate | `tests/services/skill_optimization/test_start_shadow_ab_test.py` |
+| 版本回滚 | 激活历史版本并同步写回磁盘 SKILL.md；历史版本可对比 | `tests/api/skill_optimization/test_versions_routes.py`、`tests/services/skill_optimization/test_skill_version_integration.py` |
 | 进化审批 → 落盘 | 审批通过后 apply；拒绝/失败 rollback | `tests/integration/test_skill_evolution_integration.py` |
 
-GUI 冒烟（Chrome E2E，按需）：技能详情版本 Tab 回滚、SkillQualityGuardian promote/stop（见 `myrm-agent-frontend/src/components/features/skills/_ARCH.md`）；chat `skill_manage` Undo 提示与 Task Steps 展开见 `tests/e2e/test_skill_manage_undo_hint_chrome_e2e.py`（需 `E2E_SKILL_MANAGE_UNDO_CHAT_PATH`）。
+GUI 冒烟（Chrome E2E，按需）：技能详情版本 Tab 回滚（见 `myrm-agent-frontend/src/components/features/skills/_ARCH.md`）；chat `skill_manage` Undo 提示与 Task Steps 展开见 `tests/e2e/test_skill_manage_undo_hint_chrome_e2e.py`（需 `E2E_SKILL_MANAGE_UNDO_CHAT_PATH`）。
 
 ---
 

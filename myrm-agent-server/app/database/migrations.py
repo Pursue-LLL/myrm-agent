@@ -645,6 +645,12 @@ MIGRATION_STATEMENTS: list[str] = [
     "DROP TABLE IF EXISTS batch_optimization_tasks",
     # Retired offline durable-task table: no model, route or startup hook reads or writes it.
     "DROP TABLE IF EXISTS offline_durable_tasks",
+    # Retired shadow A/B verification: no model, route or page reads or writes these tables or the per-version quality score.
+    "DROP TABLE IF EXISTS skill_shadow_samples",
+    "DROP TABLE IF EXISTS skill_ab_test_results",
+    "DROP TABLE IF EXISTS skill_optimization_records",
+    "DROP TABLE IF EXISTS skill_quality_history",
+    "ALTER TABLE skill_versions DROP COLUMN quality_score",
 ]
 
 # 创建索引的SQL语句列表

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore, SkillVersion
+    from myrm_agent_harness.agent.skills.optimization.types import SkillVersion
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,25 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 from app.api.skill_optimization.dependencies import get_storage
 from app.database.connection import get_db
-from app.services.skills.write_orchestrator import is_neutral_quality_score
 
 router = APIRouter()
-
-
-_SCORE_DELTA_KEYS = ("overall_score", "success_rate", "token_efficiency", "execution_time", "user_satisfaction")
-
-
-def _quality_score_payload(score: SkillQualityScore | None) -> dict[str, float] | None:
-    if score is None or is_neutral_quality_score(score):
-        return None
-    return {
-        "overall_score": score.overall_score,
-        "success_rate": score.success_rate,
-        "token_efficiency": score.token_efficiency,
-        "execution_time": score.execution_time,
-        "user_satisfaction": score.user_satisfaction,
-        "call_frequency": score.call_frequency,
-    }
 
 
 @router.get("/versions/{skill_id}")
@@ -59,7 +42,6 @@ async def list_skill_versions(
                 "created_by": v.created_by,
                 "is_active": v.is_active,
                 "optimization_id": v.optimization_id,
-                "quality_score": _quality_score_payload(v.quality_score),
                 "metadata": v.metadata,
             }
             for v in versions
@@ -99,18 +81,12 @@ async def compare_skill_versions(
             "created_by": v.created_by,
             "is_active": v.is_active,
             "content": v.content,
-            "quality_score": _quality_score_payload(v.quality_score),
         }
-
-    score_1 = _quality_score_payload(version_1.quality_score)
-    score_2 = _quality_score_payload(version_2.quality_score)
-    score_delta = {key: score_2[key] - score_1[key] for key in _SCORE_DELTA_KEYS} if score_1 and score_2 else None
 
     return {
         "skill_id": skill_id,
         "v1": _version_summary(version_1),
         "v2": _version_summary(version_2),
-        "score_delta": score_delta,
         "content_changed": version_1.content != version_2.content,
     }
 
@@ -145,7 +121,6 @@ async def get_skill_version_detail(
         "created_by": sv.created_by,
         "is_active": sv.is_active,
         "optimization_id": sv.optimization_id,
-        "quality_score": _quality_score_payload(sv.quality_score),
         "metadata": sv.metadata,
     }
 

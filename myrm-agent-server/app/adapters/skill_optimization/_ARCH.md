@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-技能优化系统的数据访问层（Data Access Layer），采用 Repository Pattern 封装数据库操作。
+技能版本历史的数据访问层（Data Access Layer），采用 Repository Pattern 封装数据库操作。
 通过 SQLAlchemyStorage 适配器实现 harness 框架的 `SkillOptimizationStorage` Protocol。
 
 ---
@@ -14,12 +14,8 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `optimization_repo.py` | 核心 | 优化记录 CRUD | ✅ |
-| `quality_repo.py` | 核心 | 质量历史 CRUD | ✅ |
-| `ab_test_repo.py` | 核心 | A/B 测试 CRUD | ✅ |
 | `snapshot_repo.py` | 核心 | skill_versions 表 CRUD（由 `skill_version_sync` 双写接入） | ✅ |
 | `sqlalchemy_storage.py` | 核心 | 框架适配器，实现 `SkillOptimizationStorage` Protocol；每次操作使用独立 session | ✅ |
-| `converters.py` | 核心 | ORM 行与框架领域对象、质量评分 JSON 与 `SkillQualityScore` 之间的无状态转换 | ✅ |
 
 ---
 
