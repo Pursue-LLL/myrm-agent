@@ -122,9 +122,7 @@ class PolicyResolver:
         policy = await self._get_group_policy(msg.channel)
 
         if policy == GroupPolicy.DISABLED:
-            logger.warning(
-                "PolicyResolver: group disabled for %s, ignoring", msg.channel
-            )
+            logger.warning("PolicyResolver: group disabled for %s, ignoring", msg.channel)
             return None
 
         enabled = await self._get_enabled_groups()
@@ -156,9 +154,7 @@ class PolicyResolver:
         from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
         if not should_respond:
-            asyncio.create_task(
-                ChannelDataPlaneService.record_inbound(msg, is_trigger=False)
-            )
+            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=False))
             # Buffer human chatter only: bot/alert noise crowds out human
             # context and can seed bot-to-bot loops. Persistence above stays
             # unconditional for DWD completeness.
@@ -174,9 +170,7 @@ class PolicyResolver:
                 )
             return None
 
-        asyncio.create_task(
-            ChannelDataPlaneService.record_inbound(msg, is_trigger=True)
-        )
+        asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=True))
 
         # Clean thread-mute message from processing to prevent agent triggering on confirmations
         if cleaned == "___MUTE_CONFIRMED___":
@@ -199,15 +193,9 @@ class PolicyResolver:
                     guest_meta = dict(msg.metadata or {})
                     guest_meta[METADATA_GUEST_TURN_KEY] = "1"
                     if msg.thread_id:
-                        self._tracker.activate(
-                            f"{msg.channel}:{msg.chat_id}:{msg.thread_id}"
-                        )
-                    return f"guest_{msg.channel}_{msg.sender_id}", dataclasses.replace(
-                        msg, metadata=guest_meta
-                    )
-                return await resolve_group_sender_identity(
-                    self._pairing, self._fx, msg, default_uid, self._tracker
-                )
+                        self._tracker.activate(f"{msg.channel}:{msg.chat_id}:{msg.thread_id}")
+                    return f"guest_{msg.channel}_{msg.sender_id}", dataclasses.replace(msg, metadata=guest_meta)
+                return await resolve_group_sender_identity(self._pairing, self._fx, msg, default_uid, self._tracker)
 
         return None
 
@@ -223,9 +211,7 @@ class PolicyResolver:
         # BotLoopGuard applies to DMs too: an automation bot relaying into DM
         # must not run unbounded agent turns. Human DMs are never counted.
         if msg.is_bot:
-            allowed, state = self._bot_loop_guard.admit(
-                f"{msg.channel}:{msg.chat_id or msg.sender_id}"
-            )
+            allowed, state = self._bot_loop_guard.admit(f"{msg.channel}:{msg.chat_id or msg.sender_id}")
             if not allowed:
                 logger.warning(
                     "PolicyResolver: BotLoopGuard %s, dropping bot DM in %s:%s",
@@ -261,9 +247,7 @@ class PolicyResolver:
 
         if user_id and user_id.startswith("paired_member_"):
             if not is_exempt_diagnostic_command(msg.content):
-                is_exceeded, daily_quota, usage_count = await check_sender_daily_quota(
-                    self._pairing, msg
-                )
+                is_exceeded, daily_quota, usage_count = await check_sender_daily_quota(self._pairing, msg)
                 if is_exceeded:
                     logger.warning(
                         "PolicyResolver: sender %s/%s exceeded daily quota %d (used %d)",
@@ -283,20 +267,14 @@ class PolicyResolver:
 
             is_auth = not user_id.startswith("guest_") and not user_id.startswith("paired_member_")
             msg_with_user = dataclasses.replace(msg, user_id=user_id)
-            asyncio.create_task(
-                ChannelDataPlaneService.record_inbound(
-                    msg_with_user, is_trigger=True, is_authenticated=is_auth
-                )
-            )
+            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg_with_user, is_trigger=True, is_authenticated=is_auth))
 
         return user_id
 
     async def _touch_display_name(self, msg: InboundMessage) -> None:
         """Best-effort update of display_name when the sender's name changes."""
         try:
-            await self._pairing.touch_display_name(
-                msg.channel, msg.sender_id, msg.sender_name or ""
-            )
+            await self._pairing.touch_display_name(msg.channel, msg.sender_id, msg.sender_name or "")
         except Exception:
             logger.debug(
                 "touch_display_name failed for %s/%s",
@@ -307,9 +285,7 @@ class PolicyResolver:
 
     async def _should_respond_in_group(self, msg: InboundMessage) -> tuple[bool, str]:
         """Determine whether the bot should respond based on trigger config."""
-        return await should_respond_in_group_support(
-            self._policy, self._tracker, self._fx, msg
-        )
+        return await should_respond_in_group_support(self._policy, self._tracker, self._fx, msg)
 
     async def _get_dm_policy(self, channel: str) -> DmPolicy:
         return await query_dm_policy(self._policy, channel)
@@ -317,9 +293,7 @@ class PolicyResolver:
     async def _get_group_policy(self, channel: str) -> GroupPolicy:
         return await query_group_policy(self._policy, channel)
 
-    async def _get_group_trigger(
-        self, channel: str
-    ) -> tuple[GroupTriggerMode, list[str]]:
+    async def _get_group_trigger(self, channel: str) -> tuple[GroupTriggerMode, list[str]]:
         return await query_group_trigger(self._policy, channel)
 
     async def _get_enabled_groups(self) -> set[str]:
@@ -375,9 +349,7 @@ class PolicyResolver:
             status=PairingStatus.PENDING,
             display_name=msg.sender_name,
         )
-        logger.warning(
-            "PolicyResolver: auto-paired %s/%s as PENDING", msg.channel, msg.sender_id
-        )
+        logger.warning("PolicyResolver: auto-paired %s/%s as PENDING", msg.channel, msg.sender_id)
         await self._fx.send_pairing_request_reply(msg)
         self._cooldown.should_suppress(f"{msg.channel}:{msg.sender_id}")
         return None
