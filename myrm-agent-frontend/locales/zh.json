@@ -1566,7 +1566,7 @@
       "delete": "删除",
       "deleteConfirm": "确认删除此FAQ条目？",
       "import": "批量导入",
-      "importDesc": "从JSON导入FAQ条目。格式：[{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "从JSON导入FAQ条目。格式：['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "导入",
       "importSuccess": "已导入 {count} 个条目",
       "importFailed": "导入失败",
@@ -12354,9 +12354,9 @@
     "mcpTlsHint": "对于 mTLS：提供客户端证书以及可选的分开密钥。路径支持 ~ 展开。",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "已配置",
-    "mcpHeadersHint": "使用 {{secret:KEY_NAME}} 引用存储在 Agent Secrets 中的密钥。",
+    "mcpHeadersHint": "使用 '{{secret:KEY_NAME}}' 引用存储在 Agent Secrets 中的密钥。",
     "mcpHeaderKeyPlaceholder": "请求头名称（例如 Authorization）",
-    "mcpHeaderValuePlaceholder": "值或 {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "值或 '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "配置已保存",
     "mcpSecretRefSaveHintDesc": "请求头中的密钥引用将在运行时解析。",
@@ -14740,7 +14740,6 @@
         "title": "使用提示",
         "usage": "在输入框中输入 / 触发命令面板",
         "trigger": "在输入框中输入 / 触发命令面板",
-        "variables": "模板支持变量：'{{input}}', '{{date}}', '{{time}}'",
         "examples": "示例：/translate 翻译，/review 代码审查",
         "example": "示例：/translate 翻译，/review 代码审查"
       },
@@ -14773,17 +14772,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "示例",
-          "translate": {
-            "name": "translate",
-            "template": "请将以下内容翻译为英文：'{{input}}'"
-          },
-          "review": {
-            "name": "review",
-            "template": "请审查此代码：'{{input}}'"
-          }
         },
         "actions": {
           "cancel": "取消",
@@ -16519,7 +16507,7 @@
         "embeddingModel": "嵌入模型",
         "embeddingModelDescription": "文本向量化模型，用于支持知识库、记忆、网络搜索等能力的语义搜索",
         "dismiss": "忽略",
-        "orphanWarning": "检测到 {{count}} 条旧记忆需要迁移到新模型",
+        "orphanWarning": "检测到 {count} 条旧记忆需要迁移到新模型",
         "reindex": "迁移",
         "reindexing": "迁移中...",
         "rerankerModel": "重排序模型",
@@ -18989,7 +18977,7 @@
       "recipeImport": {
         "title": "从 AI 技能导入配方",
         "hint": "粘贴 generate-myrm-theme 输出的 JSON；如需背景图请在步骤 1 上传。",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "导入配方",
         "success": "配方已导入编辑器",
         "errors": {
@@ -20223,9 +20211,9 @@
     "mcpOAuthConfigured": "已配置",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "已配置",
-    "mcpHeadersHint": "使用 {{secret:KEY_NAME}} 引用在 Agent Secrets 中存储的密钥。",
+    "mcpHeadersHint": "使用 '{{secret:KEY_NAME}}' 引用在 Agent Secrets 中存储的密钥。",
     "mcpHeaderKeyPlaceholder": "Header 名称（如 Authorization）",
-    "mcpHeaderValuePlaceholder": "值或 {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "值或 '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "添加 Header",
     "mcpSecretRefSaveHint": "配置已保存",
     "mcpSecretRefSaveHintDesc": "Headers 中的密钥引用将在运行时解析。",
@@ -20272,8 +20260,8 @@
       "risky_mcp_profile": "请限制访问范围并在了解风险后确认启用",
       "suspicious_url": "请移除不可信的外部回调 URL",
       "sensitive_path": "请将文件系统 MCP 限制在非敏感目录",
-      "hardcoded_secret": "请改用 {{secret:KEY}} 引用密钥",
-      "credential_exposure": "请改用 {{secret:KEY}} 引用密钥",
+      "hardcoded_secret": "请改用 '{{secret:KEY}}' 引用密钥",
+      "credential_exposure": "请改用 '{{secret:KEY}}' 引用密钥",
       "supply_chain": "请在参数中 pin 包名和版本",
       "supply_chain_malware": "请移除被标记的软件包并使用已验证依赖"
     },

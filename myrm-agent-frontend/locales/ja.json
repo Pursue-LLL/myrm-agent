@@ -1542,7 +1542,7 @@
       "delete": "削除",
       "deleteConfirm": "このFAQエントリを削除しますか？",
       "import": "一括インポート",
-      "importDesc": "JSONからFAQエントリをインポート。形式: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "JSONからFAQエントリをインポート。形式: ['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "インポート",
       "importSuccess": "{count} 件のエントリをインポートしました",
       "importFailed": "インポートに失敗しました",
@@ -12286,9 +12286,9 @@
     "mcpTlsHint": "mTLS: クライアント証明書と、必要に応じて別のキーを指定してください。パスは ~ 展開をサポートします。",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "設定済み",
-    "mcpHeadersHint": "{{secret:KEY_NAME}} を使用して Agent Secrets に保存されたシークレットを参照します。",
+    "mcpHeadersHint": "'{{secret:KEY_NAME}}' を使用して Agent Secrets に保存されたシークレットを参照します。",
     "mcpHeaderKeyPlaceholder": "ヘッダー名（例: Authorization）",
-    "mcpHeaderValuePlaceholder": "値または {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "値または '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "設定を保存しました",
     "mcpSecretRefSaveHintDesc": "ヘッダー内のシークレット参照は実行時に解決されます。",
@@ -14065,7 +14065,6 @@
         "title": "ヒント",
         "usage": "入力ボックスに / を入力するとコマンドパレットが起動します",
         "trigger": "入力ボックスに / を入力するとコマンドパレットが起動します",
-        "variables": "テンプレートは変数をサポート：'{{input}}', '{{date}}', '{{time}}'",
         "examples": "例：/translate 翻訳、/review コードレビュー",
         "example": "例：/translate 翻訳、/review コードレビュー"
       },
@@ -14098,17 +14097,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "サンプル",
-          "translate": {
-            "name": "translate",
-            "template": "以下を英語に翻訳してください：'{{input}}'"
-          },
-          "review": {
-            "name": "review",
-            "template": "このコードをレビューしてください：'{{input}}'"
-          }
         },
         "actions": {
           "cancel": "キャンセル",
@@ -15844,7 +15832,7 @@
         "embeddingModel": "エンベディングモデル",
         "embeddingModelDescription": "ナレッジベース、メモリ、ウェブ検索などのセマンティック検索用のテキストベクトル化モデル",
         "dismiss": "閉じる",
-        "orphanWarning": "以前のモデルの {{count}} 件のメモリを新しいモデルに移行する必要があります",
+        "orphanWarning": "以前のモデルの {count} 件のメモリを新しいモデルに移行する必要があります",
         "reindex": "移行",
         "reindexing": "移行中...",
         "rerankerModel": "リランカーモデル",
@@ -18291,7 +18279,7 @@
       "recipeImport": {
         "title": "AIスキルからレシピをインポート",
         "hint": "generate-myrm-theme のJSONを貼り付け、必要に応じてステップ1でヒーローメディアをアップロードしてください。",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "レシピをインポート",
         "success": "レシピをエディタにインポートしました",
         "errors": {
@@ -19525,9 +19513,9 @@
     "mcpOAuthConfigured": "設定済み",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "設定済み",
-    "mcpHeadersHint": "Agent Secrets に保存された秘密鍵を参照するには {{secret:KEY_NAME}} を使用します。",
+    "mcpHeadersHint": "Agent Secrets に保存された秘密鍵を参照するには '{{secret:KEY_NAME}}' を使用します。",
     "mcpHeaderKeyPlaceholder": "ヘッダー名（例：Authorization）",
-    "mcpHeaderValuePlaceholder": "値または {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "値または '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "ヘッダーを追加",
     "mcpSecretRefSaveHint": "設定を保存しました",
     "mcpSecretRefSaveHintDesc": "ヘッダー内のシークレット参照は実行時に解決されます。",
@@ -19574,8 +19562,8 @@
       "risky_mcp_profile": "アクセス範囲を制限し、リスクを解決してから有効化を確認してください",
       "suspicious_url": "信頼できない外部コールバック URL を削除してください",
       "sensitive_path": "ファイルシステム MCP を非機密ディレクトリに制限してください",
-      "hardcoded_secret": "平文ではなく {{secret:KEY}} 参照を使用してください",
-      "credential_exposure": "平文ではなく {{secret:KEY}} 参照を使用してください",
+      "hardcoded_secret": "平文ではなく '{{secret:KEY}}' 参照を使用してください",
+      "credential_exposure": "平文ではなく '{{secret:KEY}}' 参照を使用してください",
       "supply_chain": "引数でパッケージ名とバージョンを固定（pin）してください",
       "supply_chain_malware": "フラグされたパッケージを削除し、検証済みの依存関係を使用してください"
     },

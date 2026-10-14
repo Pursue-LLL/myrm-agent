@@ -275,7 +275,7 @@
       "forkStreamingBlocked": "Cannot fork while the agent is responding",
       "forkEmpty": "No messages to fork from",
       "goal": "Set or manage a long-running goal for this conversation",
-      "goalUsage": "Usage: /goal <objective> | status | pause | resume | clear",
+      "goalUsage": "Usage: /goal '<objective>' | status | pause | resume | clear",
       "goalSet": "Goal mode enabled — edit the objective and send to start",
       "goalStatus": "Goal status: {status}",
       "goalNoActive": "No active goal in this conversation",
@@ -284,7 +284,7 @@
       "goalCleared": "Goal cleared",
       "goalActionFailed": "Goal command failed",
       "loop": "Create or manage a recurring scheduled task for this conversation",
-      "loopUsage": "Usage: /loop [interval] [--times N] [--until condition] <prompt>, or /loop stop",
+      "loopUsage": "Usage: /loop [interval] [--times N] [--until condition] '<prompt>', or /loop stop",
       "loopMissingPrompt": "Please provide a task prompt for /loop",
       "loopCreated": "Scheduled loop task created (Interval: {interval}), first run triggered",
       "loopCreateFailed": "Failed to create loop task",
@@ -1566,7 +1566,7 @@
       "delete": "Delete",
       "deleteConfirm": "Delete this FAQ entry?",
       "import": "Bulk Import",
-      "importDesc": "Import FAQ entries from JSON. Format: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "Import FAQ entries from JSON. Format: ['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "Import",
       "importSuccess": "Imported {count} entries",
       "importFailed": "Import failed",
@@ -11353,7 +11353,7 @@
       "passed": "Passed",
       "failed": "Failed",
       "pending": "Pending",
-      "multiTurn": "<Multi-turn>",
+      "multiTurn": "'<Multi-turn>'",
       "viewDiff": "View Diff",
       "noReport": "No eval report yet. Click \"Run Eval\" to start.",
       "evalRunning": "Eval task in progress, please wait",
@@ -12354,9 +12354,9 @@
     "mcpTlsHint": "For mTLS: provide client cert and optionally a separate key. Paths support ~ expansion.",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "Configured",
-    "mcpHeadersHint": "Use {{secret:KEY_NAME}} to reference secrets stored in Agent Secrets.",
+    "mcpHeadersHint": "Use '{{secret:KEY_NAME}}' to reference secrets stored in Agent Secrets.",
     "mcpHeaderKeyPlaceholder": "Header name (e.g. Authorization)",
-    "mcpHeaderValuePlaceholder": "Value or {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "Value or '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Configuration saved",
     "mcpSecretRefSaveHintDesc": "Secret references in headers will be resolved at runtime.",
@@ -14740,7 +14740,6 @@
         "title": "Tips",
         "usage": "Type / in the input box to trigger command palette",
         "trigger": "Type / in the input box to trigger command palette",
-        "variables": "Template supports variables: '{{input}}', '{{date}}', '{{time}}'",
         "examples": "Examples: /translate for translation, /review for code review",
         "example": "Examples: /translate for translation, /review for code review"
       },
@@ -14773,17 +14772,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "Examples",
-          "translate": {
-            "name": "translate",
-            "template": "Please translate to English: '{{input}}'"
-          },
-          "review": {
-            "name": "review",
-            "template": "Please review this code: '{{input}}'"
-          }
         },
         "actions": {
           "cancel": "Cancel",
@@ -16519,7 +16507,7 @@
         "embeddingModel": "Embedding Model",
         "embeddingModelDescription": "Text vectorization model for semantic search across knowledge base, memory, web search, and other capabilities",
         "dismiss": "Dismiss",
-        "orphanWarning": "{{count}} memories from a previous model need migration",
+        "orphanWarning": "{count} memories from a previous model need migration",
         "reindex": "Migrate",
         "reindexing": "Migrating...",
         "rerankerModel": "Reranker Model",
@@ -18989,7 +18977,7 @@
       "recipeImport": {
         "title": "Import recipe from AI skill",
         "hint": "Paste the JSON from generate-myrm-theme, then upload hero media in step 1 if needed.",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "Import recipe",
         "success": "Recipe imported into the editor",
         "errors": {
@@ -19446,7 +19434,7 @@
       "tunnelDockerRunLabel": "Docker run command",
       "tunnelDockerRunCopied": "Docker command copied to clipboard",
       "tunnelUpstreamAuthLabel": "Upstream auth header (optional)",
-      "tunnelUpstreamAuthPlaceholder": "Bearer <token>",
+      "tunnelUpstreamAuthPlaceholder": "Bearer '<token>'",
       "tunnelUpstreamAuthHint": "Sent to your internal MCP server when the tunnel agent forwards requests.",
       "tunnelBindMcp": "Add as Org MCP",
       "tunnelBindMcpSuccess": "Tunnel added to organization MCP servers",
@@ -20223,9 +20211,9 @@
     "mcpOAuthConfigured": "Configured",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "Configured",
-    "mcpHeadersHint": "Use {{secret:KEY_NAME}} to reference secrets stored in Agent Secrets.",
+    "mcpHeadersHint": "Use '{{secret:KEY_NAME}}' to reference secrets stored in Agent Secrets.",
     "mcpHeaderKeyPlaceholder": "Header name (e.g. Authorization)",
-    "mcpHeaderValuePlaceholder": "Value or {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "Value or '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Configuration saved",
     "mcpSecretRefSaveHintDesc": "Secret references in headers will be resolved at runtime.",
@@ -20272,8 +20260,8 @@
       "risky_mcp_profile": "Restrict scope and acknowledge risk before enabling",
       "suspicious_url": "Remove untrusted external callback URLs",
       "sensitive_path": "Restrict filesystem MCP to non-sensitive directories",
-      "hardcoded_secret": "Use {{secret:KEY}} references instead of plaintext",
-      "credential_exposure": "Use {{secret:KEY}} references instead of plaintext",
+      "hardcoded_secret": "Use '{{secret:KEY}}' references instead of plaintext",
+      "credential_exposure": "Use '{{secret:KEY}}' references instead of plaintext",
       "supply_chain": "Pin package name and version in arguments",
       "supply_chain_malware": "Remove the flagged package and use verified dependencies"
     },

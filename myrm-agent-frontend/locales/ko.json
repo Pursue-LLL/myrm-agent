@@ -1542,7 +1542,7 @@
       "delete": "삭제",
       "deleteConfirm": "이 FAQ 항목을 삭제하시겠습니까?",
       "import": "일괄 가져오기",
-      "importDesc": "JSON에서 FAQ 항목 가져오기. 형식: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "JSON에서 FAQ 항목 가져오기. 형식: ['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "가져오기",
       "importSuccess": "{count}개 항목 가져옴",
       "importFailed": "가져오기 실패",
@@ -12286,9 +12286,9 @@
     "mcpTlsHint": "mTLS: 클라이언트 인증서와 선택적으로 별도 키를 제공하세요. 경로는 ~ 확장을 지원합니다.",
     "mcpHeadersSection": "HTTP 헤더",
     "mcpHeadersConfigured": "구성됨",
-    "mcpHeadersHint": "에이전트 시크릿에 저장된 시크릿을 참조하려면 {{secret:KEY_NAME}}을 사용하세요.",
+    "mcpHeadersHint": "에이전트 시크릿에 저장된 시크릿을 참조하려면 '{{secret:KEY_NAME}}'을 사용하세요.",
     "mcpHeaderKeyPlaceholder": "헤더 이름 (예: Authorization)",
-    "mcpHeaderValuePlaceholder": "값 또는 {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "값 또는 '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "헤더 추가",
     "mcpSecretRefSaveHint": "구성이 저장되었습니다",
     "mcpSecretRefSaveHintDesc": "헤더의 시크릿 참조는 런타임에 해석됩니다.",
@@ -14065,7 +14065,6 @@
         "title": "팁",
         "usage": "입력창에 / 를 입력하면 명령 팔레트가 실행됩니다",
         "trigger": "입력창에 / 를 입력하면 명령 팔레트가 실행됩니다",
-        "variables": "템플릿은 변수를 지원합니다: '{{input}}', '{{date}}', '{{time}}'",
         "examples": "예: /translate 번역용, /review 코드 리뷰용",
         "example": "예: /translate 번역용, /review 코드 리뷰용"
       },
@@ -14098,17 +14097,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "예시",
-          "translate": {
-            "name": "translate",
-            "template": "영어로 번역하세요: '{{input}}'"
-          },
-          "review": {
-            "name": "review",
-            "template": "다음 코드를 리뷰하세요: '{{input}}'"
-          }
         },
         "actions": {
           "cancel": "취소",
@@ -15844,7 +15832,7 @@
         "embeddingModel": "임베딩 모델",
         "embeddingModelDescription": "지식 베이스, 메모리, 웹 검색 등 기능의 의미 검색을 위한 텍스트 벡터화 모델",
         "dismiss": "닫기",
-        "orphanWarning": "이전 모델의 {{count}}개 메모리가 마이그레이션을 기다립니다",
+        "orphanWarning": "이전 모델의 {count}개 메모리가 마이그레이션을 기다립니다",
         "reindex": "마이그레이션",
         "reindexing": "마이그레이션 중...",
         "rerankerModel": "리랭커 모델",
@@ -18291,7 +18279,7 @@
       "recipeImport": {
         "title": "AI 스킬에서 레시피 가져오기",
         "hint": "generate-myrm-theme 의 JSON을 붙여넣은 후 필요한 경우 1단계에서 히어로 미디어를 업로드하세요.",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "레시피 가져오기",
         "success": "레시피가 편집기에 가져와졌습니다",
         "errors": {
@@ -18748,7 +18736,7 @@
       "tunnelDockerRunLabel": "Docker 실행 명령",
       "tunnelDockerRunCopied": "Docker 명령이 클립보드에 복사되었습니다",
       "tunnelUpstreamAuthLabel": "업스트림 인증 헤더 (선택)",
-      "tunnelUpstreamAuthPlaceholder": "Bearer <token>",
+      "tunnelUpstreamAuthPlaceholder": "Bearer '<token>'",
       "tunnelUpstreamAuthHint": "터널 에이전트가 요청을 전달할 때 내부 MCP 서버로 전송됩니다.",
       "tunnelBindMcp": "조직 MCP로 추가",
       "tunnelBindMcpSuccess": "터널이 조직 MCP 서버에 추가되었습니다",
@@ -19525,9 +19513,9 @@
     "mcpOAuthConfigured": "구성됨",
     "mcpHeadersSection": "HTTP 헤더",
     "mcpHeadersConfigured": "설정됨",
-    "mcpHeadersHint": "Agent Secrets에 저장된 비밀 키를 참조하려면 {{secret:KEY_NAME}}을 사용하세요.",
+    "mcpHeadersHint": "Agent Secrets에 저장된 비밀 키를 참조하려면 '{{secret:KEY_NAME}}'을 사용하세요.",
     "mcpHeaderKeyPlaceholder": "헤더 이름 (예: Authorization)",
-    "mcpHeaderValuePlaceholder": "값 또는 {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "값 또는 '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "헤더 추가",
     "mcpSecretRefSaveHint": "구성이 저장되었습니다",
     "mcpSecretRefSaveHintDesc": "헤더의 시크릿 참조는 런타임에 해석됩니다.",
@@ -19574,8 +19562,8 @@
       "risky_mcp_profile": "활성화 전에 범위를 제한하고 위험을 인지하세요",
       "suspicious_url": "신뢰할 수 없는 외부 콜백 URL을 제거하세요",
       "sensitive_path": "파일시스템 MCP를 비민감 디렉터리로 제한하세요",
-      "hardcoded_secret": "평문 대신 {{secret:KEY}} 참조를 사용하세요",
-      "credential_exposure": "평문 대신 {{secret:KEY}} 참조를 사용하세요",
+      "hardcoded_secret": "평문 대신 '{{secret:KEY}}' 참조를 사용하세요",
+      "credential_exposure": "평문 대신 '{{secret:KEY}}' 참조를 사용하세요",
       "supply_chain": "인자에 패키지 이름과 버전을 고정하세요",
       "supply_chain_malware": "플래그된 패키지를 제거하고 검증된 의존성을 사용하세요"
     },

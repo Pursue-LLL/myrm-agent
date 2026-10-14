@@ -1542,7 +1542,7 @@
       "delete": "刪除",
       "deleteConfirm": "確認刪除此FAQ條目？",
       "import": "批量導入",
-      "importDesc": "從JSON導入FAQ條目。格式：[{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "從JSON導入FAQ條目。格式：['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "導入",
       "importSuccess": "已導入 {count} 個條目",
       "importFailed": "導入失敗",
@@ -12286,9 +12286,9 @@
     "mcpTlsHint": "對於 mTLS：提供客戶端證書以及可選的分開密鑰。路徑支援 ~ 展開。",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "已配置",
-    "mcpHeadersHint": "使用 {{secret:KEY_NAME}} 參照儲存在 Agent Secrets 中的密鑰。",
+    "mcpHeadersHint": "使用 '{{secret:KEY_NAME}}' 參照儲存在 Agent Secrets 中的密鑰。",
     "mcpHeaderKeyPlaceholder": "請求頭名稱（例如 Authorization）",
-    "mcpHeaderValuePlaceholder": "值或 {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "值或 '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "配置已儲存",
     "mcpSecretRefSaveHintDesc": "請求頭中的密鑰引用將在運行時解析。",
@@ -14065,7 +14065,6 @@
         "title": "使用提示",
         "usage": "在輸入框中輸入 / 觸發命令面板",
         "trigger": "在輸入框中輸入 / 觸發命令面板",
-        "variables": "模板支援變數：'{{input}}', '{{date}}', '{{time}}'",
         "examples": "示例：/translate 翻譯，/review 程式碼審查",
         "example": "示例：/translate 翻譯，/review 程式碼審查"
       },
@@ -14098,17 +14097,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "示例",
-          "translate": {
-            "name": "translate",
-            "template": "請將以下內容翻譯為英文：'{{input}}'"
-          },
-          "review": {
-            "name": "review",
-            "template": "請審查此程式碼：'{{input}}'"
-          }
         },
         "actions": {
           "cancel": "取消",
@@ -15844,7 +15832,7 @@
         "embeddingModel": "嵌入模型",
         "embeddingModelDescription": "文字向量化模型，用於支援知識庫、記憶、網路搜尋等能力的語義搜尋",
         "dismiss": "忽略",
-        "orphanWarning": "檢測到 {{count}} 條舊記憶需要遷移到新模型",
+        "orphanWarning": "檢測到 {count} 條舊記憶需要遷移到新模型",
         "reindex": "遷移",
         "reindexing": "遷移中...",
         "rerankerModel": "重排序模型",
@@ -18291,7 +18279,7 @@
       "recipeImport": {
         "title": "從 AI 技能導入配方",
         "hint": "粘貼 generate-myrm-theme 輸出的 JSON；如需背景圖請在步驟 1 上傳。",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "導入配方",
         "success": "配方已導入編輯器",
         "errors": {
@@ -19525,9 +19513,9 @@
     "mcpOAuthConfigured": "已配置",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "已配置",
-    "mcpHeadersHint": "使用 {{secret:KEY_NAME}} 引用在 Agent Secrets 中儲存的金鑰。",
+    "mcpHeadersHint": "使用 '{{secret:KEY_NAME}}' 引用在 Agent Secrets 中儲存的金鑰。",
     "mcpHeaderKeyPlaceholder": "Header 名稱（如 Authorization）",
-    "mcpHeaderValuePlaceholder": "值或 {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "值或 '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "新增 Header",
     "mcpSecretRefSaveHint": "配置已儲存",
     "mcpSecretRefSaveHintDesc": "Headers 中的金鑰引用將在執行時解析。",
@@ -19574,8 +19562,8 @@
       "risky_mcp_profile": "請限制訪問範圍並在瞭解風險後確認啟用",
       "suspicious_url": "請移除不可信的外部回撥 URL",
       "sensitive_path": "請將檔案系統 MCP 限制在非敏感目錄",
-      "hardcoded_secret": "請改用 {{secret:KEY}} 引用金鑰",
-      "credential_exposure": "請改用 {{secret:KEY}} 引用金鑰",
+      "hardcoded_secret": "請改用 '{{secret:KEY}}' 引用金鑰",
+      "credential_exposure": "請改用 '{{secret:KEY}}' 引用金鑰",
       "supply_chain": "請在引數中 pin 包名和版本",
       "supply_chain_malware": "請移除被標記的軟體包並使用已驗證依賴"
     },

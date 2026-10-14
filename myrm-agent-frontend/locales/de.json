@@ -251,7 +251,7 @@
       "forkStreamingBlocked": "Abzweigen nicht möglich, während der Agent antwortet",
       "forkEmpty": "Keine Nachrichten zum Abzweigen vorhanden",
       "goal": "Ein langfristiges Ziel für dieses Gespräch festlegen oder verwalten",
-      "goalUsage": "Verwendung: /goal <Ziel> | Status | Pause | Lebenslauf | klar",
+      "goalUsage": "Verwendung: /goal '<Ziel>' | status | pause | resume | clear",
       "goalSet": "Goal mode enabled — edit the objective and send to start",
       "goalStatus": "Zielstatus: {status}",
       "goalNoActive": "Kein aktives Ziel in diesem Gespräch",
@@ -260,7 +260,7 @@
       "goalCleared": "Ziel gelöscht",
       "goalActionFailed": "Zielbefehl fehlgeschlagen",
       "loop": "Wiederkehrende geplante Aufgabe für diese Konversation erstellen oder verwalten",
-      "loopUsage": "Verwendung: /loop [Intervall] [--times N] [--until Bedingung] <Prompt>, oder /loop stop",
+      "loopUsage": "Verwendung: /loop [Intervall] [--times N] [--until Bedingung] '<Prompt>', oder /loop stop",
       "loopMissingPrompt": "Bitte geben Sie einen Aufgaben-Prompt für /loop an",
       "loopCreated": "Geplante Loop-Aufgabe erstellt (Intervall: {interval}), erste Ausführung gestartet",
       "loopCreateFailed": "Loop-Aufgabe konnte nicht erstellt werden",
@@ -1542,7 +1542,7 @@
       "delete": "Löschen",
       "deleteConfirm": "Diesen FAQ-Eintrag löschen?",
       "import": "Massenimport",
-      "importDesc": "FAQ-Einträge aus JSON importieren. Format: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "FAQ-Einträge aus JSON importieren. Format: ['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "Importieren",
       "importSuccess": "Importierte {count}-Einträge",
       "importFailed": "Import fehlgeschlagen",
@@ -11285,7 +11285,7 @@
       "passed": "Bestanden",
       "failed": "Fehlgeschlagen",
       "pending": "Ausstehend",
-      "multiTurn": "<Multi-Turn>",
+      "multiTurn": "'<Multi-Turn>'",
       "viewDiff": "Diff anzeigen",
       "noReport": "Kein Evaluierungsbericht vorhanden. Klicken Sie auf \"Evaluierung starten\".",
       "evalRunning": "Evaluierungsaufgabe läuft, bitte warten",
@@ -12286,9 +12286,9 @@
     "mcpTlsHint": "Für mTLS: Client-Zertifikat bereitstellen und optional einen separaten Schlüssel. Pfade unterstützen ~-Expansion.",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "Konfiguriert",
-    "mcpHeadersHint": "Verwenden Sie {{secret:KEY_NAME}}, um in Agent Secrets gespeicherte Geheimnisse zu referenzieren.",
+    "mcpHeadersHint": "Verwenden Sie '{{secret:KEY_NAME}}', um in Agent Secrets gespeicherte Geheimnisse zu referenzieren.",
     "mcpHeaderKeyPlaceholder": "Header-Name (z. B. Autorisierung)",
-    "mcpHeaderValuePlaceholder": "Wert oder {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "Wert oder '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Konfiguration gespeichert",
     "mcpSecretRefSaveHintDesc": "Geheimverweise in Headern werden zur Laufzeit aufgelöst.",
@@ -14065,7 +14065,6 @@
         "title": "Tipps",
         "usage": "Geben Sie / in das Eingabefeld ein, um die Befehlspalette auszulösen",
         "trigger": "Geben Sie / in das Eingabefeld ein, um die Befehlspalette auszulösen",
-        "variables": "Vorlage unterstützt Variablen: „{{input}}“, „{{date}}“, „{{time}}“",
         "examples": "Beispiele: /translate für Übersetzung, /review für Codeüberprüfung",
         "example": "Beispiele: /translate für Übersetzung, /review für Codeüberprüfung"
       },
@@ -14090,7 +14089,7 @@
           "template": {
             "label": "Vorlage",
             "placeholder": "Bitte übersetzen Sie Folgendes ins Englische:\n\n'{{input}}'",
-            "hint": "Verwenden Sie „{{input}}“, um Benutzereingaben einzufügen"
+            "hint": "Verwenden Sie „'{{input}}'“, um Benutzereingaben einzufügen"
           }
         },
         "variables": {
@@ -14098,17 +14097,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "Beispiele",
-          "translate": {
-            "name": "translate",
-            "template": "Bitte übersetzen Sie ins Englische: „{{input}}“"
-          },
-          "review": {
-            "name": "review",
-            "template": "Bitte überprüfen Sie diesen Code: „{{input}}“"
-          }
         },
         "actions": {
           "cancel": "Abbrechen",
@@ -15844,7 +15832,7 @@
         "embeddingModel": "Embedding-Modell",
         "embeddingModelDescription": "Text-Vektorisierungsmodell für semantische Suche über Wissensdatenbank, Speicher, Websuche und andere Funktionen",
         "dismiss": "Verwerfen",
-        "orphanWarning": "{{count}} Speicher aus einem Vorgängermodell müssen migriert werden",
+        "orphanWarning": "{count} Speicher aus einem Vorgängermodell müssen migriert werden",
         "reindex": "Migrieren",
         "reindexing": "Migration...",
         "rerankerModel": "Reranker-Modell",
@@ -18291,7 +18279,7 @@
       "recipeImport": {
         "title": "Rezept aus KI-Skill importieren",
         "hint": "Fügen Sie JSON aus generic-myrm-theme ein und laden Sie dann bei Bedarf Hero-Medien in Schritt 1 hoch.",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "Rezept importieren",
         "success": "Rezept in den Editor importiert",
         "errors": {
@@ -18748,7 +18736,7 @@
       "tunnelDockerRunLabel": "Docker-Ausführungsbefehl",
       "tunnelDockerRunCopied": "Docker-Befehl in die Zwischenablage kopiert",
       "tunnelUpstreamAuthLabel": "Upstream-Authentifizierungsheader (optional)",
-      "tunnelUpstreamAuthPlaceholder": "Bearer <token>",
+      "tunnelUpstreamAuthPlaceholder": "Bearer '<token>'",
       "tunnelUpstreamAuthHint": "Wird an Ihren internen MCP-Server gesendet, wenn der Tunnelagent Anforderungen weiterleitet.",
       "tunnelBindMcp": "Als Organisation hinzufügen MCP",
       "tunnelBindMcpSuccess": "Tunnel zu den MCP-Servern der Organisation hinzugefügt",
@@ -19525,9 +19513,9 @@
     "mcpOAuthConfigured": "Konfiguriert",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "Konfiguriert",
-    "mcpHeadersHint": "Verwenden Sie {{secret:KEY_NAME}}, um auf in Agent Secrets gespeicherte Schlüssel zu verweisen.",
+    "mcpHeadersHint": "Verwenden Sie '{{secret:KEY_NAME}}', um auf in Agent Secrets gespeicherte Schlüssel zu verweisen.",
     "mcpHeaderKeyPlaceholder": "Header-Name (z.B. Authorization)",
-    "mcpHeaderValuePlaceholder": "Wert oder {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "Wert oder '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Header hinzufügen",
     "mcpSecretRefSaveHint": "Konfiguration gespeichert",
     "mcpSecretRefSaveHintDesc": "Secret-Referenzen in Headers werden zur Laufzeit aufgelöst.",
@@ -19574,8 +19562,8 @@
       "risky_mcp_profile": "Beschränken Sie den Umfang und erkennen Sie das Risiko an, bevor Sie es aktivieren",
       "suspicious_url": "Entfernen Sie nicht vertrauenswürdige externe Rückruf-URLs",
       "sensitive_path": "Beschränken Sie das Dateisystem MCP auf nicht sensible Verzeichnisse",
-      "hardcoded_secret": "Verwenden Sie {{secret:KEY}}-Referenzen anstelle von Klartext",
-      "credential_exposure": "Verwenden Sie {{secret:KEY}}-Referenzen anstelle von Klartext",
+      "hardcoded_secret": "Verwenden Sie '{{secret:KEY}}'-Referenzen anstelle von Klartext",
+      "credential_exposure": "Verwenden Sie '{{secret:KEY}}'-Referenzen anstelle von Klartext",
       "supply_chain": "Paketnamen und -version in Argumenten anpinnen",
       "supply_chain_malware": "Entfernen Sie das markierte Paket und verwenden Sie überprüfte Abhängigkeiten"
     },
