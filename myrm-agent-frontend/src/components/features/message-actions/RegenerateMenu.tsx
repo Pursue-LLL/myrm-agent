@@ -68,7 +68,8 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
     }
   };
 
-  // `instruction` is prompt text for the model, not UI copy: it stays English so one preset sends one prompt in every UI language.
+  // `instruction` is prompt text for the model, not UI copy: it stays English
+  // so one preset sends the same prompt in every UI language.
   const presets = [
     { icon: RefreshCw, labelKey: 'regenerate_try_again' as const, instruction: undefined },
     { icon: AlignLeft, labelKey: 'regenerate_concise' as const, instruction: 'Be more concise and to the point' },

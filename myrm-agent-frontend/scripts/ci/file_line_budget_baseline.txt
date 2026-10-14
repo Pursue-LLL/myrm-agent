@@ -82,7 +82,6 @@ src/components/features/message-box/MarkdownContent.tsx
 src/components/features/message-box/MemoryCitationsButton.tsx
 src/components/features/message-box/MessageBox.tsx
 src/components/features/message-box/TokenUsageDisplay.tsx
-src/components/features/message-box/UserMessage.tsx
 src/components/features/message-box/progress-steps/ProgressSteps.tsx
 src/components/features/message-box/progress-steps/renderers/EvictedOutputDrawer.tsx
 src/components/features/message-input-actions/ActiveWorkingMemoryPanel.tsx
