@@ -1,19 +1,42 @@
 # syntax=docker/dockerfile:1.7
 # MyrmAgent Server Docker Image (open-source distribution)
 #
-# BUILD CONTEXT (required): myrm-agent repository root (contains myrm-agent-server/ and shared/).
-# Installs myrm-agent-harness[compiled-core] from PyPI via uv.lock.
+# BUILD CONTEXT (required): myrm-agent repository root (contains myrm-agent-harness/,
+# myrm-agent-server/ and shared/). The harness is built from this repository as a wheel;
+# every other dependency is installed from uv.lock.
 #
 #   docker build -f myrm-agent-server/Dockerfile -t myrm-server .
 #
-# For private CI that builds harness from source, use docker/Dockerfile.official
+# Cloud runtime image (non-root, no gosu): docker/Dockerfile.official
+
+# China mainland mirror acceleration: docker build --build-arg USE_CN_MIRROR=1
+ARG USE_CN_MIRROR
+ARG APT_MIRROR
 
 # ============================================================================
-# Stage 1: Builder
+# Stage 1: Harness wheel (single pure-Python wheel, same artifact as PyPI)
+# ============================================================================
+FROM python:3.13-slim AS harness-wheel
+
+ARG USE_CN_MIRROR
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /build/myrm-agent-harness
+
+COPY myrm-agent-harness/pyproject.toml myrm-agent-harness/README.md myrm-agent-harness/LICENSE ./
+COPY myrm-agent-harness/src ./src
+
+RUN if [ "${USE_CN_MIRROR}" = "1" ]; then \
+      export UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple"; \
+    fi; \
+    uv build --wheel -o /wheels
+
+# ============================================================================
+# Stage 2: Builder
 # ============================================================================
 FROM python:3.13-slim AS builder
 
-# China mainland mirror acceleration: docker build --build-arg USE_CN_MIRROR=1
 ARG USE_CN_MIRROR
 ARG APT_MIRROR
 
@@ -34,6 +57,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc libolm-dev \
     && rm -rf /var/lib/apt/lists/*
 
+COPY --from=harness-wheel /wheels /wheels
+
 WORKDIR /build
 
 COPY myrm-agent-server/pyproject.toml myrm-agent-server/uv.lock ./
@@ -48,10 +73,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
       export UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple"; \
     fi; \
     uv venv \
-    && uv sync --frozen --no-dev --all-extras --no-install-project
+    && uv sync --frozen --no-dev --all-extras --no-install-project --no-install-package myrm-agent-harness \
+    && uv pip install --no-deps /wheels/myrm_agent_harness-*.whl
 
 # ============================================================================
-# Stage 2: Runtime
+# Stage 3: Runtime
 # ============================================================================
 FROM python:3.13-slim AS runtime
 
