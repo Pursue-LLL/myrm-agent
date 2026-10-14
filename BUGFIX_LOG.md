@@ -1722,7 +1722,7 @@ except Exception:
 
 ---
 
-## BUG-AGENT-2026-10-14-010: 词条被超过 100 个页面引用时，面板把截断后的条数当总数展示；详情头部的「链接」快捷入口是硬编码中文且手机上整个消失
+## BUG-AGENT-2026-10-14-010: 词条被超过 100 个页面引用时，面板把截断后的条数当总数展示；详情头部的「链接」快捷入口是硬编码中文且手机上整个消失；窄屏下详情头部把词条名挤到 0 宽
 
 | 属性 | 值 |
 |------|------|
@@ -1738,26 +1738,30 @@ except Exception:
 1. 一个词条被超过 100 个页面引用时，`get_concept_links` 每个方向只返回前 100 条，页签与摘要写「被引用 (100)」，用户会把它当成总数；响应里没有任何「被截断」的标记（合成库 150 个页面引用同一词条，返回 100 条）。
 2. 详情头部跳到链接面板的快捷按钮，文案「脉络」与提示「跳转到双向链接与脉络」是硬编码中文，六种语言的用户都看到中文，与面板标题「链接与上下文」叫法也不一致；按钮带 `hidden sm:flex`，手机宽度下整个入口消失。
 3. `WikiConceptDetailPanel.tsx` 416 行，超出 400 行预算，且不在行数基线里。
+4. 详情头部把词条名、来源徽标、来源对话链接和操作按钮排在同一行且不换行。默认「保存到 Wiki」生成的词条名（`SaveToWikiButton.tsx:92-98`，如 `untitled-note`，111px）在手机（视口 360/390/430）和视口 1024 的小窗口下可见宽度是 0px（英、德文案），中文文案最多 19–90px；这是改前就有的，本批把快捷入口改成常驻图标后窄屏又固定多占 48px。
 
 ### 根因
 
 1. 截断只写在 SQL 的 `LIMIT 100` 里，「是否被截断」没有往上游传。
 2. 按钮是直接写的字面量；响应式处理成「窄屏整体隐藏」，而不是「窄屏收成图标」。
 3. 小节锚点聚焦（约 95 行：滚动、高亮、多帧重试、同词条内跳转）与展示组件放在同一文件，叠加几次修复后越过预算。
+4. 头部是单行 flex，名字是唯一可收缩的项（来源徽标、来源链接、按钮都是 `shrink-0`）。名字自带的 `truncate` 只会把它截成省略号，宽度被挤到 0 时连省略号都没有，所以它不是兜底。
 
 ### 修复
 
 1. `get_concept_links` 每个方向多取一行（`LIMIT MAX_CONCEPT_LINKS + 1`，`_fetch_capped`）判断是否还有更多，仍只返回前 100 条，新增 `outlinks_has_more` / `backlinks_has_more`；server 响应模型两个布尔字段（默认 `False`）与前端类型同步；面板在被截断的方向显示「100+」（页签与摘要胶囊），另一方向照常，复用已有的 `{count}` 占位符，六语言没有新增键。不改排序、不加分页（面板没有「加载更多」入口，也没有读取方需要）。
 2. 按钮改取已有的 `links.title`；文字按详情头部自身宽度（容器查询 `@xl`，不随视口）显隐，头部较窄时只显示图标并带 `aria-label`，任何宽度都不隐藏；硬编码文案基线里这个文件由 2 收紧到 0，只删这一条。
-3. 小节锚点聚焦原样移入 `useConceptHeadingFocus.ts`（115 行；移动的 96 行用脚本与原文逐行比对一致），详情面板降到 328 行。
+3. 小节锚点聚焦原样移入 `useConceptHeadingFocus.ts`（115 行；移动的 96 行用脚本与原文逐行比对一致），详情面板降到 330 行。
+4. 头部与标题块都 `flex-wrap`：放不下时操作按钮整组换到下一行（`ml-auto` 靠右），标题块里的来源徽标与来源链接再换行，词条名独占一行（标题块 `min-w-0`，名字 `max-w-full truncate`，过长才出省略号）；放得下时仍是一行。快捷入口文字显隐的容器查询阈值不变（换行之后阈值附近不再有名字宽度的断崖）。
 
 ### 验证
 
 1. 先红后绿：harness 4 例失败（载荷键集合、100 条不截断与 101 条截断、出链方向独立），修复后 `test_concept_links.py` 10 例通过；server 4 例失败，修复后 6 例通过；前端 3 例失败（面板「N+」1 例、快捷按钮 2 例），修复后两个文件 16 例通过。`LIMIT ?` 参数化先单独做，原有 6 例照过，再加红灯。
 2. 多取一行是否改变展示哪 100 条：150 条同权重边，上限 100 / 101 / 150 三种取法的前 100 行逐项相同（查询计划是 `idx_wiki_edges_target` 加临时 B 树排序）。这是合成库实测，没有性能声明。
-3. 全量：harness `tests/toolkits/wiki` 862 例通过 861，失败 1 例是调用真实 LLM 的 `test_sidecar_integration::test_sidecar_incremental_rebuild_skips_unchanged`（第一次全量停在同文件的另一个用例；整文件单独重跑 3 例通过，当前代码与 HEAD 快照各一次）；server `tests/api/wiki` 与 `tests/integration/wiki`（不含调用真实 LLM 的 `test_wiki_real_llm.py`）164 例通过 161，失败 3 例都在安全拦截用例（`test_wiki_clip_api.py::test_wiki_clip_security_blocked_job_response`、`test_wiki_import_raw_gate.py::test_import_folder_blocks_credential_content`、`test_import_urls_security_blocked`），与链接接口无关，但没有在干净 HEAD 上复跑；前端 wiki `__tests__` 目录 11 个文件 70 例通过。
+3. 全量：harness `tests/toolkits/wiki` 862 例通过 861，失败 1 例是调用真实 LLM 的 `test_sidecar_integration::test_sidecar_incremental_rebuild_skips_unchanged`（第一次全量停在同文件的另一个用例；整文件单独重跑 3 例通过，当前代码与 HEAD 快照各一次）；server `tests/api/wiki` 与 `tests/integration/wiki`（不含调用真实 LLM 的 `test_wiki_real_llm.py`）164 例通过 161，失败 3 例都在安全拦截用例（`test_wiki_clip_api.py::test_wiki_clip_security_blocked_job_response`、`test_wiki_import_raw_gate.py::test_import_folder_blocks_credential_content`、`test_import_urls_security_blocked`），与链接接口无关，但没有在干净 HEAD 上复跑；前端 wiki `__tests__` 目录 11 个文件 71 例通过（含头部换行类名断言 1 例，先红后绿）。
 4. 静态：ruff、mypy（`graph_store.py`）、oxlint、prettier、`verify-i18n` 通过（第一次运行时他人正在改语言文件，报占位符不一致，重跑通过）；`tsc --noEmit` 全量只报他人的 `KanbanTaskHandoffSection.test.tsx` 一条；文件行数门禁不再列出本条改的文件，硬编码文案门禁里这个文件不再出现（整体门禁仍因他人新增的文件失败）。
-5. 局限：没有取得真实浏览器证据。`./myrm test -m chrome_e2e …::test_wiki_concept_detail_source_jump` 两次都在 `/settings/wiki` 路由水合超时（`E2E_ROUTE_HYDRATION_TIMEOUT`），前端日志同期是大量接口请求超时（机器负载均值 38–90），没有走到任何断言；为它写的 28 行断言没跑出结果，已撤回。按钮文字在 `@xl` 容器断点附近的实际布局（德语文案 25 个字符最长，标题 `truncate` 兜底）、深浅主题都没有目测（jsdom 不计算样式）；「100+」只在 harness 层（101 页）与 DOM 层分别验证，没有在真实应用里串起来。
+5. 局限：没有取得真实浏览器证据。`./myrm test -m chrome_e2e …::test_wiki_concept_detail_source_jump` 三次都在 `/settings/wiki` 路由水合超时（`E2E_ROUTE_HYDRATION_TIMEOUT`）：前两次前端日志同期是大量接口请求超时（机器负载均值 38–90）；第三次在头部换行改完之后，运行时与健康检查通过、`/settings/wiki` 返回 200、日志没有编译或运行时报错（负载均值 22–29）。三次都没有走到任何断言，所以既不能证明也不能否定面板在真实浏览器里的表现；该用例验证来源跳转而不是布局，通过了也不覆盖头部换行。为它写的 28 行断言没跑出结果，已撤回。深浅主题没有目测（jsdom 不计算样式），头部换行只有类名断言与下面的副本量测；「100+」只在 harness 层（101 页）与 DOM 层分别验证，没有在真实应用里串起来。
+6. 布局实验（独立副本，不是真实应用）：项目自己的 `tailwindcss` 编译加无头 Chromium 渲染；两个版本的类名由脚本从提交前与修改后的源文件里读出，不是手抄；头部内容宽由 `SettingsLayout.tsx:322-344`、`WikiConceptsList.tsx:117` 与 `CardHeader` 的 `p-6` 算出（视口 360 / 390 / 430 / 768 / 1024 / 1280 / 1440 / 1728 对应 278 / 308 / 348 / 433 / 379 / 550 / 657 / 849px）；徽标与来源链接文案取自 en / de / zh 的真实值（`Chat Compound` + `Source conversation`、`Chat-Verbund` + `Quellkonversation`、`对话沉淀` + `来源对话`），默认名按 `SaveToWikiButton.tsx:92-98` 的生成规则取 `untitled-note`（111px）与 `rag-evaluation-metho`（184px），再加一个 40 字符长名。288 个组合（8 视口 × 3 语言 × 2 版本 × 3 名字 × 查看 / 编辑态）里，词条名完整可见（长名取整行宽）的组合：提交前版本默认名只有 5–9 / 24（查看态）、6–7 / 24（编辑态），长名 1 / 24 与 3 / 24；修改后六类全部 24 / 24，右侧无溢出。代价是头部变高：放不下时从 67px 变为最高 127–133px，1280 / 1440 视口下 20 字符默认名（英、德）与 1440 的德语 `untitled-note` 也会从一行变两行（107px）。副本用 system-ui 字体与默认主题，不含产品字体与主题配色。
 
 ### 踩坑经验
 
