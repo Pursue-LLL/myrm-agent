@@ -1,0 +1,136 @@
+"""SSRF guard for Playwright document navigation (redirect-aware).
+
+[INPUT]
+- core.security.guards.ssrf::async_pin_url (POS: DNS-validated URL checks + audit)
+- utils.page_health::abort_pending_navigation (POS: bounded browser and page health primitives)
+
+[OUTPUT]
+- assert_browser_navigation_allowed: Validate a navigation URL
+- assert_browser_redirect_chain_allowed: Walk redirect chain on a Playwright Request
+- goto_with_ssrf_guard: page.goto with temporary document-level route interception
+
+[POS]
+Playwright-specific SSRF guard aligned with OpenClaw document navigation policy.
+Reuses core SSRF guards; does not duplicate IP blocklists. A failed navigation is stopped
+before the route handler is removed, and the removal itself is bounded, because a main frame
+stuck in a stalled navigation never answers `unroute`.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+from typing import TYPE_CHECKING
+from urllib.parse import urlparse
+
+from ..utils.page_health import abort_pending_navigation
+
+if TYPE_CHECKING:
+    from patchright.async_api import Page, Request, Response, Route
+
+_NETWORK_SCHEMES = frozenset({"http", "https"})
+_UNROUTE_TIMEOUT_S = 2.0
+
+
+class BrowserNavigationBlockedError(ValueError):
+    """Raised when a browser navigation URL fails SSRF validation."""
+
+
+async def assert_browser_navigation_allowed(url: str) -> None:
+    """Validate URL for browser navigation (async DNS + audit on block)."""
+    parsed = urlparse(url)
+    if parsed.scheme == "about":
+        return
+    if parsed.scheme not in _NETWORK_SCHEMES:
+        raise BrowserNavigationBlockedError(f"Unsupported navigation scheme: {url}")
+
+    from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError, async_pin_url
+
+    try:
+        await async_pin_url(url)
+    except SSRFSecurityError as exc:
+        raise BrowserNavigationBlockedError(f"SSRF blocked: {exc}") from exc
+
+
+async def assert_browser_redirect_chain_allowed(request: Request | None) -> None:
+    """Validate every hop in a Playwright redirect chain."""
+    if request is None:
+        return
+    current: Request | None = request
+    while current is not None:
+        await assert_browser_navigation_allowed(current.url)
+        current = current.redirected_from
+
+
+def _is_document_navigation(page: Page, request: Request) -> bool:
+    if request.resource_type != "document":
+        return False
+    frame = request.frame
+    if frame is None:
+        return False
+    return frame == page.main_frame or frame.parent_frame == page.main_frame
+
+
+async def _continue_route_safely(route: Route) -> None:
+    """Fall through to subsequent route handlers (including patchright's inject route).
+
+    Uses ``route.fallback()`` — NOT ``route.continue_()`` — because patchright
+    implements ``add_init_script`` via a network-level inject route (see
+    ``domain_filter._continue_route_safely``). ``continue_()`` terminates the
+    handler chain and silently disables all init scripts (dom_enhancer, stealth,
+    localStorage restore) on the current context.
+    """
+    try:
+        await route.fallback()
+    except Exception as exc:
+        if "Route is already handled" in str(exc):
+            return
+        raise
+
+
+async def goto_with_ssrf_guard(
+    page: Page,
+    url: str,
+    *,
+    timeout_ms: int,
+    allow_private_networks: bool,
+) -> Response | None:
+    """Navigate with document-level SSRF route guard and post-navigation redirect checks."""
+    if allow_private_networks:
+        return await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+
+    blocked_error: BaseException | None = None
+
+    async def handler(route: Route, request: Request) -> None:
+        nonlocal blocked_error
+        if blocked_error is not None:
+            with contextlib.suppress(Exception):
+                await route.abort()
+            return
+        if not _is_document_navigation(page, request):
+            await _continue_route_safely(route)
+            return
+        try:
+            await assert_browser_navigation_allowed(request.url)
+        except BrowserNavigationBlockedError as exc:
+            if request.frame == page.main_frame:
+                blocked_error = exc
+            with contextlib.suppress(Exception):
+                await route.abort()
+            return
+        await _continue_route_safely(route)
+
+    await page.route("**/*", handler)
+    try:
+        response = await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+        if blocked_error is not None:
+            raise blocked_error
+        await assert_browser_redirect_chain_allowed(response.request if response else None)
+        await assert_browser_navigation_allowed(page.url)
+        return response
+    except BaseException:
+        await abort_pending_navigation(page)
+        raise
+    finally:
+        with contextlib.suppress(Exception):
+            await asyncio.wait_for(page.unroute("**/*", handler), timeout=_UNROUTE_TIMEOUT_S)

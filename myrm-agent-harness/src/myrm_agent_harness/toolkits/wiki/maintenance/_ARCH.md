@@ -1,0 +1,27 @@
+# maintenance/
+
+## Overview
+Wiki health checks and auto-maintenance. Broken link detection, completeness checks,
+LLM-driven wikilink enrichment, and proactive knowledge-gap analysis
+(isolated/bridge node detection via graph insights). Cross-concept contradiction
+synthesis runs at compile time (`pipeline/contradiction_synthesis/`).
+
+Deterministic broken markdown/wikilink links, frontmatter-type checks, and raw-backed provenance gaps live in `../diagnostics/structural_lint.py` (SSOT); `linter.py` delegates to that module.
+
+## File & Submodule Index
+
+| File | Role | Description | I/O/P |
+|------|------|-------------|-------|
+| `__init__.py` | Package | Wiki 维护模块入口包：聚合导出 WikiLinter 与 MaintainMode | ✅ |
+| linter.py | Core | Health checker: …; `scan(mode)` read-only issue list; `lint_and_maintain(mode=STRUCTURAL|FULL)` — STRUCTURAL skips LLM drift/backlinks; post-maintain **vault git snapshot** when `enable_version_control`; inherits `_discover_connections` from `BacklinkDiscoveryMixin` | ✅ |
+| backlink_discovery.py | Core | `BacklinkDiscoveryMixin._discover_connections`: asks the LLM which existing concepts an article should link to, parses the suggested wikilink array via `parse_llm_json_list` (robust against fences, prose, trailing commas), and appends the valid, not yet linked ones through `publish_concept_article` | ✅ |
+| gap_issues.py | Core | `knowledge_gap_issues`: isolated/bridge insights → `knowledge_gap` lint issues, only for pages that exist in this vault (insights also cover read-only public mounts) | ✅ |
+| issue_kind.py | Types | `action_kind_for_issue_type` + `count_open_actions` SSOT for health report UI lanes | ✅ |
+| modes.py | Types | `MaintainMode` enum for cron vs manual maintain SSOT | ✅ |
+| stale_summary.py | Core | Hash-based raw stale detection vs `last_compile_raw_hashes` snapshot; conservative all-raw-stale when compile time exists without hash snapshot; path set + concept stale-source matching + raw ingest tri-state resolver | ✅ |
+
+## Key Dependencies
+
+- `core` (config, structure, types)
+- `retrieval` (indexer for FTS5/edge updates)
+- `web_search` (optional, for deep research)

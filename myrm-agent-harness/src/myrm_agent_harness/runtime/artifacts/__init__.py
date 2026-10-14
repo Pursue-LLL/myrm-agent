@@ -1,0 +1,1 @@
+"""Runtime checkpoint protocol types."""
