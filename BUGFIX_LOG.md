@@ -2373,6 +2373,7 @@ except Exception:
 3. 归档被当作普通移动，走与其它列相同的无确认路径。
 4. 对话框描述缺 `overflow-wrap:anywhere`。
 5. 文案直接写在 `ask()` / `window.confirm()` 调用里。
+6. 批量操作栏的请求失败分支把 `String(e)` 直通 toast；`bulk-action` 声明了没有任何界面、测试与调用方的 `reclaim`（会中止运行中的 agent）。
 
 ### 修复
 
@@ -2381,17 +2382,19 @@ except Exception:
 3. frontend：`kanban-transitions.ts` 的 `resolveMoveIntent` 镜像服务端守卫，返回 `move / retry / archive / blocked`；卡片菜单、抽屉、拖拽三条路径都经 `requestMove`，重试与归档弹确认，`failed→ready` 变成「重试」；拖拽先排除不可能的目标并给本地化提示（只有 `deps_unmet` 用专门文案，其它一律通用文案，不再显示服务端原文）；批量归档用与批量删除一致的行内确认；`ConfirmDialog` 描述加 `wrap-anywhere`；批量操作栏加 `whitespace-nowrap` 与子项不收缩，窄屏下整条横向滚动而不是把按钮文字竖排。
 4. 三处写死中文的对话框改走 i18n；`ConclusionAttributionStudioCard` 里无调用方的 `cascade` 参数及其「级联模式」措辞一并移除，并去掉其中一处原生 emoji。6 个语言包同步新增键。
 5. 确认文案与实际行为一致：重试确认写明「失败后已继续推进的下游任务不会重新执行」（失败即放行依赖它的 BACKLOG 任务，见 `dispatcher_failure.py` 的失败收尾）；归档确认直接写明任务无法恢复（服务端与界面都没有恢复已归档任务的路径）。
+6. 批量操作栏请求失败时显示本地化提示并保留选中（复用 `updateError`），不再显示原始异常；`bulk-action` 移除 `reclaim`，会中止运行中 agent 的动作只保留带确认的单任务入口；`TestBulkAction` 迁入独立的 `test_bulk_action_api.py`。
 
 ### 验证
 
-1. 测试：harness `tests/toolkits/kanban/test_retry.py` 18 例通过（含「失败已放行的下游任务不被重跑」READY / RUNNING / COMPLETED 三种）；server `tests/api/kanban/test_retry_api.py` 8 例通过；frontend 新增 `kanban-transitions`、`useKanbanDnDBlocking`、`KanbanTaskDrawerMove`、`KanbanBulkActionBar`、`KanbanBoardView`、`confirm-dialog` 六个测试文件并修改既有相关测试。最后一次受影响目录的 vitest：165 个文件、1636 例全部通过（此前整库一次：1393 个文件、9868 例通过）。
+1. 测试：harness `tests/toolkits/kanban/test_retry.py` 18 例通过（含「失败已放行的下游任务不被重跑」READY / RUNNING / COMPLETED 三种）；server `tests/api/kanban/test_retry_api.py` 10 例通过；frontend 新增 `kanban-transitions`、`useKanbanDnDBlocking`、`KanbanTaskDrawerMove`、`KanbanBulkActionBar`、`KanbanBoardView`、`confirm-dialog` 六个测试文件并修改既有相关测试。最后一次受影响目录的 vitest：165 个文件、1636 例全部通过（此前整库一次：1393 个文件、9868 例通过）。
 2. 变异检查：拿掉拖拽预拦截与确认闸门，19 例失败；拿掉看板对 `requestMove` 的接线，4 例失败；两次均已还原并比对。
 3. 真实 Chrome（生产构建，隔离输出目录，模拟接口复现服务端守卫语义；覆盖桌面浅色与深色、375px 深色、中文与英文，不是全部组合）：失败卡片菜单变为「任务详情 / 重试 / 归档 / 删除」；重试确认后实际发出 `POST /kanban/tasks/{id}/retry`（不是 `/move`），卡片离开失败列进入就绪列并出现成功提示；取消不发任何请求；抽屉头部「重试」关闭抽屉后弹出同一个确认并发出同一个请求；失败卡片拖到执行中弹出「该任务不能移到该状态」且没有请求，拖到就绪弹出重试确认，已完成卡片拖到就绪同样被拦；就绪卡片拖入失败仍走原终态确认。归档确认里的 140 多字符无空格标题在 375px 对话框内换行，对话框与文档均无横向溢出；编译产物含 `.wrap-anywhere{overflow-wrap:anywhere}`。批量归档行内确认在 1440px 下全部按钮可点击（仅末尾「取消选择」图标被全局悬浮入口遮住），375px 下「确认 / 取消」位于操作条可见区域内（但整条被悬浮入口部分遮挡，见局限）。英文下重试确认、归档确认与拖拽拦截提示正常显示，没有缺失键。
 4. 静态：改动文件 oxlint 与 prettier 干净；`tsc` 仅剩他人未提交文件 `KanbanTaskHandoffSection.test.tsx(68,3)` 的一处错误；harness 改动文件的 ruff / mypy 干净，行数闸门基线已更新。
-5. 局限：
+5. 批量条清理：`test_bulk_action_api.py` 12 例通过；前端 kanban 目录 22 个文件、306 例通过；两条新用例在改动前均失败（后端 `reclaim` 返回 200 而非 400；前端本地化提示未被调用）。
+6. 局限：
    - 浏览器复核用的是模拟接口，不是真实服务端与真实模型；重试后任务真正被认领执行的链路由 harness 与 server 测试覆盖，没有在真实桌面部署上端到端跑过。
    - OSS CI 使用 PyPI 固定的 `myrm-agent-harness==0.1.0rc5`，server 新路由要在 CI 里生效，需要先发布 harness 并执行 `./myrm harness sync-lock`（独立的维护者发布步骤，本次未做）。
-   - `ConclusionAttributionStudioCard` 只本地化了删除确认，其余约 50 处写死中文仍在；`KanbanBulkActionBar.execute` 里原有的 `toast.error(String(e))` 仍会显示原始错误。
+   - `ConclusionAttributionStudioCard` 只本地化了删除确认，其余约 50 处写死中文仍在。
    - 窄屏下批量操作栏与全局悬浮入口（小莫中枢、设计师之眼等）在底部重叠，且多选只能靠 Ctrl / Cmd / Shift 点击，触屏无法选择；均为原有问题，未动。
    - 当前工作区里他人未提交的 `move_orchestrator.py` 交接（handoff）改动使 `tests/api/kanban/test_kanban_api.py::TestSyntheticRun::test_move_with_result_and_metadata` 失败（断言 `metadata.handoff` 只含 `changed_files`，现多了 `summary`、`timestamp`），与本条无关。
 
