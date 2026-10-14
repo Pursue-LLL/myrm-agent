@@ -36,6 +36,7 @@ import pytest
 from blockbuster import BlockBuster
 from dotenv import load_dotenv
 
+from tests.support.e2e_fixture_stamps import FixtureStamps
 from tests.support.e2e_runtime_guard import (
     E2EResourceLedger,
     assert_e2e_runtime_unchanged,
@@ -681,6 +682,8 @@ def _require_live_e2e_lease(
         reap_chrome_e2e_session_hygiene,
     )
 
+    stamps = FixtureStamps()
+    stamps.mark("entry")
     runtime_cell_id: str | None = None
     _release_runtime_cell = None
     try:
@@ -691,12 +694,17 @@ def _require_live_e2e_lease(
         _release_runtime_cell = release_runtime_cell
     except ImportError:
         pass
+    stamps.mark("cell")
 
     try:
         _epoch_drift_entry_skip_if_shared(request)
+        stamps.mark("epoch_skip")
         reap_chrome_e2e_session_hygiene()
+        stamps.mark("reap")
         _heal_stale_e2e_lease()
+        stamps.mark("heal")
         lease = require_e2e_runtime_lease()
+        stamps.mark("lease")
 
         dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
         if str(dev_infra) not in sys.path:
@@ -718,9 +726,13 @@ def _require_live_e2e_lease(
                 )
         except RuntimeError as exc:
             pytest.fail(str(exc))
+        stamps.mark("health")
         from e2e_core.orchestrator import begin_bootstrap_phase
 
+        stamps.mark("orchestrator_import")
         begin_bootstrap_phase(phase_label=request.node.name)
+        stamps.mark("phase")
+        stamps.emit()
         from e2e_session_runtime.snapshot import write_session_snapshot
 
         write_session_snapshot(

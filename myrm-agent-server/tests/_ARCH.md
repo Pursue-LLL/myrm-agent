@@ -77,6 +77,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/local_embedding_server.py` | 辅助 | 本地 OpenAI 兼容 embedding 端点（`/v1/embeddings`，确定性 1024 维哈希向量）；产品支持任意自托管 embedding `api_base`，用于外部 embedding 账户配额不可用时打通真实链路（`e2e/test_memory_ab_model_disclosure_chrome_e2e.py` 使用） |
 | `support/retrieval_embedding.py` | 辅助 | `configured_retrieval_embedding(api_url)`：为 Chrome E2E 写入 WebUI `retrieval.embeddingConfig`（已配置则沿用；否则用 `.env.test` 的真实 embedding 账户，缺失时回退 `local_embedding_server`），使 `create_memory_manager` 走真实嵌入 |
 | `support/e2e_wall_progress.py` | 辅助 | Chrome E2E 墙钟 progress token（R57：仅 touch，不再重置 body 计时） |
+| `support/e2e_fixture_stamps.py` | 辅助 | Chrome E2E 租约夹具（`conftest.py::_require_live_e2e_lease`）内的墙钟戳：一次输出 `E2E_LEASE_FIXTURE_STAMPS` 行，根仓 `scripts/dev/e2e_wait_audit.py` 的 `C4b`–`C4i` 据此拆分后端启动后到 body 前的夹具耗时 |
 | `../../scripts/dev/lib/e2e_core/shared_ui_session.py` | 辅助 | R51-v2 Shared UI Session Contract（marker `e2e_search_policy` · conftest env · bootstrap/`click_new_chat` 四阶段 reset） |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
 | `support/evicted_drawer_selectors.py` | 辅助 | UECD Drawer Chrome E2E 共享选择器/探针 SSOT（`data-testid` 定位 + `/files/evicted` 分页参数断言 + `drawer_mount_wait_js` 等待 lazy drawer mount） |
