@@ -34,7 +34,6 @@ import asyncio
 import logging
 from pathlib import Path
 
-from myrm_agent_harness.api import SkillBackend
 from myrm_agent_harness.backends.skills import (
     CompositeSkillBackend,
     InMemorySkillBackend,
@@ -42,6 +41,7 @@ from myrm_agent_harness.backends.skills import (
     StorageSkillBackend,
     VersionAwareSkillBackend,
 )
+from myrm_agent_harness.backends.skills import SkillBackendProtocol as SkillBackend
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillTrust
 from myrm_agent_harness.core.security.path import safe_join_path
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
