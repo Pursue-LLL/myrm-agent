@@ -7086,7 +7086,6 @@
     "createReminderHint": "예약 시 이 메시지를 바로 전달합니다(AI 모델 미사용).",
     "chatLinkedTasks": "예약 {count}개",
     "chatLinkedTasksTooltip": "이 대화에 연결된 예약 작업 보기",
-    "suggestionsLink": "일정 제안",
     "filteredByChat": "대화 {chatId}… 에 연결된 작업만 표시",
     "scriptLabel": "Python 스크립트",
     "scriptPlaceholder": "import requests\nr = requests.get('https://example.com')\nprint('DOWN!' if r.status_code != 200 else '')",
@@ -17404,16 +17403,12 @@
           "revise": "수정",
           "reviseLabel": "제안 내용 편집",
           "cancelRevise": "취소",
-          "saveRevision": "수정 저장",
-          "createCron": "예약 작업 생성"
+          "saveRevision": "수정 저장"
         },
         "approveShadowSuccess": "{name}에 대한 섀도우 테스트가 시작되었습니다",
         "reviseSuccess": "\"{name}\"이(가) 수정되었습니다",
         "reviseFailed": "\"{name}\" 수정 실패",
         "reviseFailedScan": "\"{name}\"이(가) 수정되었지만 보안 스캔에 실패했습니다. 지적된 문제를 해결하세요.",
-        "cronSuggestion": {
-          "title": "권장 일정"
-        },
         "riskInterceptionTitle": "위험 차단",
         "applyFailureTitle": "적용 실패",
         "rejectReasonLabel": "거부 사유",
@@ -17466,9 +17461,7 @@
         "empty": {
           "title": "이 보기에 사례가 없습니다",
           "description": "에이전트가 개선 사항을 캡처하거나 검토한 후 최근 스킬 성장 활동이 여기에 표시됩니다."
-        },
-        "cronCreateFailed": "{name}에 대한 정기 검토를 예약하지 못했습니다",
-        "cronCreated": "{name}에 대한 정기 검토를 예약했습니다"
+        }
       },
       "upload": {
         "title": "사용자 정의 스킬 업로드",

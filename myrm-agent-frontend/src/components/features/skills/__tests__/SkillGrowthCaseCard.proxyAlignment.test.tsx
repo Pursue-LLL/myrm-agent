@@ -7,6 +7,7 @@
 import type React from 'react';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import en from '../../../../../locales/en.json';
 
 import SkillGrowthCaseCard from '../SkillGrowthCaseCard';
 import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
@@ -21,13 +22,18 @@ const TRANSLATIONS: Record<string, string> = {
   'settings.skills.growth.proxyAlignment.alignedTooltip': 'Metrics well aligned',
 };
 
+const growthTypeNames: Record<string, string> = en.growthDashboard.growthTypes;
+const growthTypeT = Object.assign((key: string) => growthTypeNames[key] ?? key, {
+  has: (key: string) => key in growthTypeNames,
+});
+
 const stableT = (key: string): string => {
   const shortKey = key.replace(/^settings\.skills\.growth\./, '');
   return TRANSLATIONS[`settings.skills.growth.${shortKey}`] ?? `__${key}__`;
 };
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
+  useTranslations: (namespace?: string) => (namespace === 'growthDashboard.growthTypes' ? growthTypeT : stableT),
   useLocale: () => 'en',
 }));
 
@@ -70,7 +76,6 @@ function makeItem(overrides: Partial<SkillGrowthCaseSummary>): SkillGrowthCaseSu
     remediation: null,
     runtimeFailure: null,
     chatId: null,
-    formMetadata: null,
     hasDiff: false,
     hasTrajectory: false,
     hasTriggerCondition: false,

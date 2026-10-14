@@ -7154,7 +7154,6 @@
     "createReminderHint": "Delivers this message on schedule without calling an AI model.",
     "chatLinkedTasks": "{count} scheduled",
     "chatLinkedTasksTooltip": "View scheduled tasks linked to this conversation",
-    "suggestionsLink": "Schedule Suggestions",
     "filteredByChat": "Showing tasks linked to conversation {chatId}…",
     "scriptLabel": "Python Script",
     "scriptPlaceholder": "import requests\nr = requests.get('https://example.com')\nprint('DOWN!' if r.status_code != 200 else '')",
@@ -18081,16 +18080,12 @@
           "revise": "Revise",
           "reviseLabel": "Edit Proposed Content",
           "cancelRevise": "Cancel",
-          "saveRevision": "Save Revision",
-          "createCron": "Create Scheduled Task"
+          "saveRevision": "Save Revision"
         },
         "approveShadowSuccess": "Shadow test started for {name}",
         "reviseSuccess": "\"{name}\" revised successfully",
         "reviseFailed": "Failed to revise \"{name}\"",
         "reviseFailedScan": "\"{name}\" revised but failed security scan. Please fix the flagged issues.",
-        "cronSuggestion": {
-          "title": "Suggested Schedule"
-        },
         "riskInterceptionTitle": "Risk Interception",
         "applyFailureTitle": "Apply Failure",
         "rejectReasonLabel": "Reason for rejection",
@@ -18143,9 +18138,7 @@
         "empty": {
           "title": "No cases in this view",
           "description": "Recent skill growth activity will appear here after the agent captures or reviews improvements."
-        },
-        "cronCreateFailed": "Failed to schedule recurring review for {name}",
-        "cronCreated": "Recurring review scheduled for {name}"
+        }
       },
       "upload": {
         "title": "Upload Custom Skill",

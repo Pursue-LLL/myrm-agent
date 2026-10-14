@@ -10,7 +10,6 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import {
   AlertTriangle,
-  CalendarClock,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -51,7 +50,6 @@ interface SkillGrowthCaseCardProps {
   onApproveShadow?: () => Promise<void>;
   onReject: (reason?: string) => Promise<void>;
   onRevise?: (evolvedContent: string) => Promise<void>;
-  onCreateCron?: (scheduleHint: string) => Promise<void>;
 }
 
 const STATUS_STYLES: Record<
@@ -87,7 +85,6 @@ export default function SkillGrowthCaseCard({
   onApproveShadow,
   onReject,
   onRevise,
-  onCreateCron,
 }: SkillGrowthCaseCardProps) {
   const t = useTranslations('settings.skills.growth');
   const growthTypeLabel = useGrowthTypeLabel();
@@ -211,7 +208,6 @@ export default function SkillGrowthCaseCard({
   }, [onRevise, editedContent]);
 
   const showContentPanel = !isSimple || contentExpanded;
-  const cronScheduleHint = item.formMetadata?.scheduleHint;
 
   return (
     <div className="rounded-2xl border bg-background p-4">
@@ -396,40 +392,13 @@ export default function SkillGrowthCaseCard({
                 {t('actions.approveShadow')}
               </Button>
             )}
-            {item.growthType === 'cron_suggestion' && onCreateCron && cronScheduleHint ? (
-              <Button
-                size="sm"
-                className="bg-violet-600 hover:bg-violet-700 text-white"
-                onClick={() => onCreateCron(cronScheduleHint)}
-                disabled={isProcessing}
-              >
-                <CalendarClock className="mr-2 h-4 w-4" />
-                {t('actions.createCron')}
-              </Button>
-            ) : (
-              <Button size="sm" onClick={onApprove} disabled={isProcessing}>
-                <Check className="mr-2 h-4 w-4" />
-                {approveLabel}
-              </Button>
-            )}
+            <Button size="sm" onClick={onApprove} disabled={isProcessing}>
+              <Check className="mr-2 h-4 w-4" />
+              {approveLabel}
+            </Button>
           </div>
         )}
       </div>
-
-      {item.growthType === 'cron_suggestion' && item.formMetadata?.scheduleHint && (
-        <div className="mt-4 rounded-xl border border-violet-300/50 bg-violet-50/60 p-3 dark:border-violet-900/40 dark:bg-violet-950/20">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t('cronSuggestion.title')}
-          </p>
-          <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-            <CalendarClock className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-            <span>{item.formMetadata.scheduleHint}</span>
-          </div>
-          {item.formMetadata.formReasoning && (
-            <p className="mt-2 text-xs text-muted-foreground">{item.formMetadata.formReasoning}</p>
-          )}
-        </div>
-      )}
 
       {item.verificationProof && (
         <div className="mt-4 rounded-xl border border-emerald-300/50 bg-emerald-50/50 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">

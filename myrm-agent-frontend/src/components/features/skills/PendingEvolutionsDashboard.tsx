@@ -7,7 +7,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, Clock3, List, RefreshCw, ShieldAlert, SquareStack } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Badge } from '@/components/primitives/badge';
@@ -25,7 +24,6 @@ import {
   type SkillGrowthCaseSummary,
   type SkillGrowthSummary,
 } from '@/services/skill/growth';
-import { createCronJob } from '@/services/cron';
 import { useSkillStore } from '@/store/skill';
 import useAuthStore from '@/store/useAuthStore';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -59,8 +57,6 @@ export function PendingEvolutionsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [processingCaseId, setProcessingCaseId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<GrowthFilter>('all');
-  const searchParams = useSearchParams();
-  const growthTypeFilter = searchParams.get('growthType')?.trim() || null;
   const [viewMode, setViewMode] = useState<SkillGrowthViewMode>(() => {
     if (typeof window === 'undefined') {
       return 'simple';
@@ -165,13 +161,10 @@ export function PendingEvolutionsDashboard() {
     };
   }, [listTotal, summary]);
 
-  const filteredCases = useMemo(() => {
-    let items = cases.filter((item) => matchesFilter(item, activeFilter));
-    if (growthTypeFilter) {
-      items = items.filter((item) => item.growthType === growthTypeFilter);
-    }
-    return items;
-  }, [activeFilter, cases, growthTypeFilter]);
+  const filteredCases = useMemo(
+    () => cases.filter((item) => matchesFilter(item, activeFilter)),
+    [activeFilter, cases],
+  );
 
   const handleApprove = useCallback(
     async (item: SkillGrowthCaseSummary, applyMode: 'immediate' | 'shadow' = 'immediate') => {
@@ -248,40 +241,6 @@ export function PendingEvolutionsDashboard() {
         await loadCases(true);
       } catch (reviseError) {
         toast.error(reviseError instanceof Error ? reviseError.message : t('reviseFailed', { name: item.skillName }));
-      } finally {
-        setProcessingCaseId(null);
-      }
-    },
-    [loadCases, processingCaseId, t, user?.id],
-  );
-
-  const handleCreateCron = useCallback(
-    async (item: SkillGrowthCaseSummary, scheduleHint: string) => {
-      if (!user?.id || processingCaseId) {
-        return;
-      }
-      setProcessingCaseId(item.id);
-      try {
-        await createCronJob({
-          name: item.skillName || scheduleHint,
-          job_type: 'agent',
-          schedule: {
-            kind: 'cron',
-            expr: scheduleHint,
-            tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-          prompt: item.summary || item.description || scheduleHint,
-        });
-        await approveSkillGrowthCase(item, 'immediate');
-        toast.success(t('cronCreated', { name: item.skillName }));
-        window.dispatchEvent(
-          new CustomEvent('skill-growth-updated', {
-            detail: { caseId: item.id, status: 'APPROVED', source: item.source },
-          }),
-        );
-        await loadCases(true);
-      } catch (cronError) {
-        toast.error(cronError instanceof Error ? cronError.message : t('cronCreateFailed', { name: item.skillName }));
       } finally {
         setProcessingCaseId(null);
       }
@@ -419,11 +378,6 @@ export function PendingEvolutionsDashboard() {
               onApproveShadow={() => handleApprove(item, 'shadow')}
               onReject={(reason?: string) => handleReject(item, reason)}
               onRevise={(evolvedContent: string) => handleRevise(item, evolvedContent)}
-              onCreateCron={
-                item.growthType === 'cron_suggestion' && item.formMetadata?.scheduleHint
-                  ? (hint: string) => handleCreateCron(item, hint)
-                  : undefined
-              }
             />
           ))}
         </div>

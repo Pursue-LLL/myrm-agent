@@ -7154,7 +7154,6 @@
     "createReminderHint": "到点直接推送此消息，不调用 AI 模型。",
     "chatLinkedTasks": "{count} 个定时",
     "chatLinkedTasksTooltip": "查看绑定此对话的定时任务",
-    "suggestionsLink": "排程建议",
     "filteredByChat": "仅显示对话 {chatId}… 关联的任务",
     "scriptLabel": "Python 脚本",
     "scriptPlaceholder": "import requests\nr = requests.get('https://example.com')\nprint('异常!' if r.status_code != 200 else '')",
@@ -18081,16 +18080,12 @@
           "revise": "修订",
           "reviseLabel": "编辑提案内容",
           "cancelRevise": "取消",
-          "saveRevision": "保存修订",
-          "createCron": "创建定时任务"
+          "saveRevision": "保存修订"
         },
         "approveShadowSuccess": "已为 {name} 启动 Shadow 测试",
         "reviseSuccess": "\"{name}\" 修订成功",
         "reviseFailed": "\"{name}\" 修订失败",
         "reviseFailedScan": "\"{name}\" 已修订但安全扫描未通过，请修复标记的问题。",
-        "cronSuggestion": {
-          "title": "建议的执行计划"
-        },
         "riskInterceptionTitle": "风控拦截",
         "applyFailureTitle": "应用失败",
         "rejectReasonLabel": "拒绝原因",
@@ -18143,9 +18138,7 @@
         "empty": {
           "title": "当前视图暂无案例",
           "description": "当 Agent 捕获到新经验、自动落地能力，或需要你审核时，相关记录会出现在这里。"
-        },
-        "cronCreateFailed": "无法为 {name} 安排定期复查",
-        "cronCreated": "已为 {name} 安排定期复查"
+        }
       },
       "upload": {
         "title": "上传自定义技能",

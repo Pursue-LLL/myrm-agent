@@ -96,8 +96,7 @@
           "reviseLabel": "제안 내용 편집",
           "cancelRevise": "취소",
           "saveRevision": "수정 저장",
-          "approveShadow": "승인 + 섀도우 테스트",
-          "createCron": "예약 작업 생성"
+          "approveShadow": "승인 + 섀도우 테스트"
         },
         "reviseSuccess": "\"{name}\"이(가) 수정되었습니다",
         "reviseFailed": "\"{name}\" 수정 실패",
@@ -143,10 +142,7 @@
         "loadingDetail": "변경 사항 로드 중…",
         "detailLoadFailed": "변경 사항 세부 정보 로드 실패",
         "listScopeHint": "총 {total}건 중 최신 {shown}건을 표시 중",
-        "approveShadowSuccess": "{name}에 대한 섀도우 테스트가 시작되었습니다",
-        "cronSuggestion": {
-          "title": "권장 일정"
-        }
+        "approveShadowSuccess": "{name}에 대한 섀도우 테스트가 시작되었습니다"
       },
       "draft": {
         "reviewPanelTitle": "대기 중인 초안",

@@ -7086,7 +7086,6 @@
     "createReminderHint": "スケジュール通りにこのメッセージを配信します（AI モデルは使用しません）。",
     "chatLinkedTasks": "{count} 個スケジュール",
     "chatLinkedTasksTooltip": "この会話に紐づく定期タスクを表示",
-    "suggestionsLink": "スケジュール提案",
     "filteredByChat": "会話 {chatId}… に紐づくタスクのみ表示",
     "scriptLabel": "Python スクリプト",
     "scriptPlaceholder": "import requests\nr = requests.get('https://example.com')\nprint('異常!' if r.status_code != 200 else '')",
@@ -17404,16 +17403,12 @@
           "revise": "改訂",
           "reviseLabel": "編集提案内容",
           "cancelRevise": "キャンセル",
-          "saveRevision": "改訂を保存",
-          "createCron": "スケジュールタスクを作成"
+          "saveRevision": "改訂を保存"
         },
         "approveShadowSuccess": "{name} の Shadow テストを開始しました",
         "reviseSuccess": "「{name}」の改訂に成功しました",
         "reviseFailed": "「{name}」の改訂に失敗しました",
         "reviseFailedScan": "「{name}」は改訂されましたが、セキュリティスキャンに合格しませんでした。フラグされた問題を修正してください。",
-        "cronSuggestion": {
-          "title": "推奨の実行プラン"
-        },
         "riskInterceptionTitle": "リスク阻止",
         "applyFailureTitle": "適用に失敗しました",
         "rejectReasonLabel": "拒否理由",
@@ -17466,9 +17461,7 @@
         "empty": {
           "title": "このビューにはケースがありません",
           "description": "Agent が新しい経験を捕捉するか、改善をレビューした後、関連する記録がここに表示されます。"
-        },
-        "cronCreateFailed": "{name} の定期レビューをスケジュールできませんでした",
-        "cronCreated": "{name} の定期レビューをスケジュールしました"
+        }
       },
       "upload": {
         "title": "カスタムスキルをアップロード",

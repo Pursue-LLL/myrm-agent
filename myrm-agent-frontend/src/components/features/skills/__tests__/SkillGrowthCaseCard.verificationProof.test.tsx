@@ -6,6 +6,7 @@
 import type React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import en from '../../../../../locales/en.json';
 
 import SkillGrowthCaseCard from '../SkillGrowthCaseCard';
 import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
@@ -18,6 +19,11 @@ const TRANSLATIONS: Record<string, string> = {
   'settings.skills.growth.status.PENDING_REVIEW': 'Pending Review',
 };
 
+const growthTypeNames: Record<string, string> = en.growthDashboard.growthTypes;
+const growthTypeT = Object.assign((key: string) => growthTypeNames[key] ?? key, {
+  has: (key: string) => key in growthTypeNames,
+});
+
 const stableT = (key: string, params?: Record<string, unknown>): string => {
   if (key === 'blastRadius' && params) {
     return `Blast Radius: ${params.files} file(s), ${params.lines} line(s)`;
@@ -26,7 +32,7 @@ const stableT = (key: string, params?: Record<string, unknown>): string => {
 };
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
+  useTranslations: (namespace?: string) => (namespace === 'growthDashboard.growthTypes' ? growthTypeT : stableT),
   useLocale: () => 'en',
 }));
 
@@ -69,7 +75,6 @@ function makeItem(overrides: Partial<SkillGrowthCaseSummary>): SkillGrowthCaseSu
     remediation: null,
     runtimeFailure: null,
     chatId: null,
-    formMetadata: null,
     hasDiff: false,
     hasTrajectory: false,
     hasTriggerCondition: false,

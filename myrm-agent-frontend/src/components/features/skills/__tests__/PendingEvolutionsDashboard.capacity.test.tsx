@@ -38,10 +38,6 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }));
 
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(),
-}));
-
 import { PendingEvolutionsDashboard } from '../PendingEvolutionsDashboard';
 
 describe('PendingEvolutionsDashboard Capacity Guard', () => {

@@ -113,7 +113,6 @@ interface SkillGrowthCaseSummaryApiItem {
   remediation: string | null;
   runtime_failure: RuntimeFailureEvidence | null;
   chat_id: string | null;
-  form_metadata: { schedule_hint?: string; form_reasoning?: string } | null;
   has_diff: boolean;
   has_trajectory: boolean;
   has_trigger_condition: boolean;
@@ -209,7 +208,6 @@ export interface SkillGrowthCaseSummary {
   remediation: string | null;
   runtimeFailure: RuntimeFailureEvidence | null;
   chatId: string | null;
-  formMetadata: { scheduleHint?: string; formReasoning?: string } | null;
   hasDiff: boolean;
   hasTrajectory: boolean;
   hasTriggerCondition: boolean;
@@ -307,9 +305,6 @@ function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary
     remediation: item.remediation,
     runtimeFailure: item.runtime_failure,
     chatId: item.chat_id,
-    formMetadata: item.form_metadata
-      ? { scheduleHint: item.form_metadata.schedule_hint, formReasoning: item.form_metadata.form_reasoning }
-      : null,
     hasDiff: item.has_diff,
     hasTrajectory: item.has_trajectory,
     hasTriggerCondition: item.has_trigger_condition,

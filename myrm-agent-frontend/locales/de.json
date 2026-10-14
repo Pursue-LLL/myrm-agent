@@ -7086,7 +7086,6 @@
     "createReminderHint": "Liefert diese Nachricht planmaessig ohne AI-Modell.",
     "chatLinkedTasks": "{count} geplant",
     "chatLinkedTasksTooltip": "Mit dieser Unterhaltung verknuepfte Aufgaben anzeigen",
-    "suggestionsLink": "Zeitplan-Vorschlaege",
     "filteredByChat": "Nur Aufgaben fuer Unterhaltung {chatId}…",
     "scriptLabel": "Python-Skript",
     "scriptPlaceholder": "import requests\nr = requests.get('https://example.com')\nprint('DOWN!' if r.status_code != 200 else '')",
@@ -17404,16 +17403,12 @@
           "revise": "Überarbeiten",
           "reviseLabel": "Vorgeschlagenen Inhalt bearbeiten",
           "cancelRevise": "Abbrechen",
-          "saveRevision": "Überarbeitung speichern",
-          "createCron": "Geplanten Task erstellen"
+          "saveRevision": "Überarbeitung speichern"
         },
         "approveShadowSuccess": "Schattentest für {name} gestartet",
         "reviseSuccess": "„{name}“ erfolgreich überarbeitet",
         "reviseFailed": "„{name}“ konnte nicht überarbeitet werden",
         "reviseFailedScan": "„{name}“ überarbeitet, Sicherheitsscan jedoch fehlgeschlagen. Bitte beheben Sie die gemeldeten Probleme.",
-        "cronSuggestion": {
-          "title": "Vorgeschlagener Zeitplan"
-        },
         "riskInterceptionTitle": "Risiko-Intervention",
         "applyFailureTitle": "Anwendungsfehler",
         "rejectReasonLabel": "Grund für die Ablehnung",
@@ -17466,9 +17461,7 @@
         "empty": {
           "title": "Keine Fälle in dieser Ansicht",
           "description": "Aktuelle Fähigkeitswachstumsaktivitäten erscheinen hier, nachdem der Agent Verbesserungen erfasst oder geprüft hat."
-        },
-        "cronCreateFailed": "Terminierung der wiederkehrenden Überprüfung für {name} fehlgeschlagen",
-        "cronCreated": "Wiederkehrende Überprüfung für {name} geplant"
+        }
       },
       "upload": {
         "title": "Benutzerdefinierte Fähigkeit hochladen",
