@@ -74,10 +74,6 @@ class SnapshotRepository:
                 "execution_time": quality_score.execution_time,
                 "user_satisfaction": quality_score.user_satisfaction,
                 "call_frequency": quality_score.call_frequency,
-                "prompt_tokens": quality_score.prompt_tokens,
-                "completion_tokens": quality_score.completion_tokens,
-                "total_tokens": quality_score.total_tokens,
-                "llm_cost_usd": quality_score.llm_cost_usd,
             }
 
         model = SkillVersionModel(
@@ -277,10 +273,6 @@ class SnapshotRepository:
                 execution_time=model.quality_score["execution_time"],
                 user_satisfaction=model.quality_score["user_satisfaction"],
                 call_frequency=model.quality_score["call_frequency"],
-                prompt_tokens=model.quality_score.get("prompt_tokens", 0),
-                completion_tokens=model.quality_score.get("completion_tokens", 0),
-                total_tokens=model.quality_score.get("total_tokens", 0),
-                llm_cost_usd=model.quality_score.get("llm_cost_usd", 0.0),
             )
 
         return SkillVersion(
