@@ -5,7 +5,7 @@ memory entry. The approve route in ``drafts.py`` owns status transitions and eve
 what gets written.
 
 [INPUT]
-- app.api.skills.drafts::SkillDraftRecord (POS: 草稿记录视图，仅类型引用)
+- app.api.skills.draft_record::SkillDraftRecord (POS: 技能草稿记录视图)
 - app.core.skills.creation.service::skill_creation_service (POS: 技能创作服务)
 - app.core.skills.config_version::bump_skill_config_version (POS: skill 配置版本自增)
 - app.core.skills.utils::resolve_skill_description, yaml_scalar (POS: 技能描述回退与 frontmatter 标量转义)
@@ -32,7 +32,7 @@ from app.database.connection import get_session
 from app.database.models import ApprovalRecord
 
 if TYPE_CHECKING:
-    from app.api.skills.drafts import SkillDraftRecord
+    from app.api.skills.draft_record import SkillDraftRecord
 
 logger = logging.getLogger(__name__)
 

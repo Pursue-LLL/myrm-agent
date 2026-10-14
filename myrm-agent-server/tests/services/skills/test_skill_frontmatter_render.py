@@ -20,6 +20,7 @@ _MODEL_DESCRIPTIONS = [
     "123",
     "key: value # trailing comment",
     "部署 nginx：一键完成",
+    "next\x85line",
 ]
 
 

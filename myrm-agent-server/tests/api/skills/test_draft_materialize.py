@@ -8,7 +8,7 @@ import pytest
 from myrm_agent_harness.api.skills import parse_skill_frontmatter
 
 from app.api.skills.draft_materialize import materialize_skill_draft
-from app.api.skills.drafts import SkillDraftRecord
+from app.api.skills.draft_record import SkillDraftRecord
 
 _HOSTILE_DESCRIPTION = 'Convert: C:\\temp\\new # files\nthen say "done"'
 

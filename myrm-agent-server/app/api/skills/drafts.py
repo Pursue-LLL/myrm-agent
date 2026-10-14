@@ -10,7 +10,8 @@ front-end refresh events through the single-source publish helpers.
 - app.services.skills.draft_notification::publish_skill_growth_event (POS: SKILL_GROWTH_UPDATED 前端刷新事件单一出口)
 - app.services.skills.evolution_events::publish_skill_evolved_event (POS: SKILL_EVOLVED 前端刷新事件单一出口)
 - app.services.skills.experience_ledger::record_skill_growth_event (POS: 学习资产事件账本)
-- app.api.skills.draft_materialize::materialize_skill_draft,materialize_skill_patch,materialize_semantic_memory (POS: 批准草稿的落地写入)
+- app.api.skills.draft_materialize::materialize_skill_draft,materialize_skill_patch,materialize_semantic_memory (POS: 技能草稿落地：新技能写盘、补丁应用、语义记忆写入)
+- app.api.skills.draft_record::SkillDraftRecord (POS: 技能草稿记录视图)
 
 [OUTPUT]
 - GET /drafts: 草稿分页列表 + 未审核计数
@@ -24,7 +25,6 @@ front-end refresh events through the single-source publish helpers.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
@@ -37,6 +37,7 @@ from app.api.skills.draft_materialize import (
     materialize_skill_draft,
     materialize_skill_patch,
 )
+from app.api.skills.draft_record import SkillDraftRecord
 from app.database.connection import get_session
 from app.database.models import Agent, ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
@@ -80,24 +81,6 @@ class SkillDraftListResponse(BaseModel):
 class ApproveDraftRequest(BaseModel):
     skill_name: str | None = None
     scope_agent_id: str | None = None
-
-
-@dataclass(slots=True)
-class SkillDraftRecord:
-    id: str
-    agent_id: str
-    chat_id: str | None
-    draft_type: str
-    name: str | None
-    description: str | None
-    trigger_condition: str | None
-    skill_steps: str | None
-    content: str | None
-    status: str
-    reviewed_at: datetime | None
-    created_at: datetime
-    approval_status: str
-    eval_cases: list[dict[str, object]] | None = None
 
 
 def _payload_text(payload: dict[str, object], key: str) -> str | None:

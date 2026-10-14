@@ -2655,7 +2655,7 @@ except Exception:
 | 发现日期 | 2026-10-14 |
 | 修复日期 | 2026-10-14 |
 | 严重程度 | P1（隐身承诺被破坏：学习结果写入持久库）；其余 P2 |
-| 影响范围 | server：`app/ai_agents/general_agent/factory.py`（`_build_skill_review_callback`）、`app/api/skills/drafts.py`、`app/api/skills/draft_materialize.py`（新增，自 `drafts.py` 原样迁出落地写入）、`app/services/skills/auto_extractor.py`、`app/core/skills/utils.py`；frontend：`components/features/skills/SkillGrowthCaseCard.tsx`；harness：`agent/skill_agent/review.py`（见 harness `BUG-HARNESS-2026-10-14-024`）；各目录 `_ARCH.md` |
+| 影响范围 | server：`app/ai_agents/general_agent/factory.py`（`_build_skill_review_callback`）、`app/api/skills/drafts.py`、`app/api/skills/draft_materialize.py`（新增，自 `drafts.py` 原样迁出落地写入）、`app/api/skills/draft_record.py`（新增，草稿记录视图）、`app/services/skills/auto_extractor.py`、`app/core/skills/utils.py`；frontend：`components/features/skills/SkillGrowthCaseCard.tsx`；harness：`agent/skill_agent/review.py`（见 harness `BUG-HARNESS-2026-10-14-024`）；各目录 `_ARCH.md` |
 | 出现次数 | 1（读代码 + 红灯测试 + 真实 frontmatter 解析器实验确认；未用真实 LLM、未在真实浏览器里跑过） |
 | 关联 | `BUG-AGENT-2026-10-14-023`、`-018`（同一条后台学习链路）；本地提交，未 push |
 
@@ -2679,19 +2679,19 @@ except Exception:
 ### 修复
 
 1. 工厂新增 `_build_skill_review_callback`：隐身模式不挂载回调；harness 的 `_should_trigger_skill_review` 在没有回调时直接返回 False，同时省掉没有消费方的复盘 LLM 调用；
-2. `core/skills/utils.py` 新增 `yaml_scalar`（`json.dumps(..., ensure_ascii=False)`，JSON 字符串是 YAML 双引号标量的子集）与 `resolve_skill_description`（description → trigger_condition → 技能名）；自动路径（`auto_extractor._build_skill_markdown`）与人工路径（`draft_materialize._frontmatter`，覆盖有正文无 frontmatter 与纯表单两个分支）共用；扫描用的渲染文本与落盘文本仍为同一份；
+2. `core/skills/utils.py` 新增 `yaml_scalar`（`json.dumps(..., ensure_ascii=False)`，JSON 字符串是 YAML 双引号标量的子集）与 `resolve_skill_description`（description → trigger_condition → 技能名）；`yaml_scalar` 额外转义 U+0085（JSON 不转义、YAML 会折成空格）；自动路径（`auto_extractor._build_skill_markdown`）与人工路径（`draft_materialize._frontmatter`，覆盖有正文无 frontmatter 与纯表单两个分支）共用；扫描用的渲染文本与落盘文本仍为同一份；
 3. 删除占位文案，进化库里补建记录时的 description 也改用同一回退结果；
 4. 删除拒绝路由里的记忆写入，保留账本负向事件与前端刷新事件（夜间复盘数的是账本）；
 5. 前端：新技能草稿一键拒绝，不再出现原因输入；进化修订提案保持「先填原因再确认」；
-6. `drafts.py` 的落地写入（`materialize_*`、`_build_skill_md`、评测用例持久化等）原样迁入 `draft_materialize.py`，`drafts.py` 由 766 行降到 457 行（仍在行数基线内），迁移时只改了符号可见性与导入。
+6. `drafts.py` 的落地写入（`materialize_*`、`_build_skill_md`、评测用例持久化等）原样迁入 `draft_materialize.py`，`drafts.py` 由 766 行降到 440 行（仍在行数基线内），迁移时只改了符号可见性与导入；`SkillDraftRecord` 放进独立的 `draft_record.py`，落地层不再反向依赖路由模块。
 
 ### 验证
 
-1. 红灯：新增 `test_skill_frontmatter_render.py`（15 例）与 `test_draft_materialize.py`（3 例）在修复前 14 例失败，4 例碰巧通过，修复后全部通过；变异：去掉 harness 的无回调守卫后 `test_no_review_consumer_never_triggers` 失败，去掉工厂的隐身判断后 `test_review_callback_is_none_when_incognito` 失败，各还原后通过；前端 `SkillGrowthCaseCard.reject.test.tsx` 2 例，把 `collectsRejectReason` 临时改成 `true` 时草稿一键拒绝的用例失败，还原后通过；
+1. 红灯：新增 `test_skill_frontmatter_render.py` 与 `test_draft_materialize.py` 的前 18 例在修复前 14 例失败，4 例碰巧通过，修复后全部通过；后补的 U+0085 用例（`test_skill_frontmatter_render.py` 现共 16 例）在去掉转义时失败，还原后通过；变异：去掉 harness 的无回调守卫后 `test_no_review_consumer_never_triggers` 失败，去掉工厂的隐身判断后 `test_review_callback_is_none_when_incognito` 失败，各还原后通过；前端 `SkillGrowthCaseCard.reject.test.tsx` 2 例，把 `collectsRejectReason` 临时改成 `true` 时草稿一键拒绝的用例失败，还原后通过；
 2. 服务端：`tests/api/skills`、`tests/services/skills`、`tests/api/approvals`（不含他人正在改的 `test_curator.py`，单独跑它有 4 例失败，失败点在他人未提交的 `curator/service.py` 改动）408 通过、1 跳过；`tests/api/agent/test_incognito_edge_cases.py`、`tests/ai_agents/general_agent`、`tests/core/skills`、`tests/architecture` 2597 通过、13 失败，13 例全部在 `tests/architecture` 且与 `-023` 记录的同一批他人在途改动（路由消费者、服务域词表、`__init__.py` 布局、前端 API 路径、深层 harness 导入）一致，深层导入清单里没有本条涉及的模块；
 3. harness：`tests/agent/skill_agent` 160 通过、2 失败（`test_skill_agent_privacy_context.py` 的两例断言 `auto_extract_memories` 被调度，来自他人未跟踪的 `memory_extraction_scheduler.py` 改动，与本条无关）；
 4. 本条涉及文件 `ruff check` / `ruff format` / `pyright` 无问题（`factory.py` 另有 25 条他人或早已存在的 pyright 报错，不在本条改动处）；前端 `vitest` 技能卡片 5 个文件 27 例通过，`prettier`、`oxlint` 通过，fractal 文档检查通过，`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；`bun run lint` 仍有 `verify:stable-mocks`、`verify:a11y`、`verify:hardcoded-copy` 三个门禁失败，报出的文件都是他人的；
-5. 实验：JSON 引号化的描述在真实 `parse_skill_frontmatter` 上对 20 条样例中的 18 条往返一致（含冒号、`#`、引号、反斜杠、制表符、U+2028、中文），例外两条：U+0085（被解析成空格）与超过 1024 字符（加载器截断到 1024，既有行为）。
+5. 实验：JSON 引号化的描述在真实 `parse_skill_frontmatter` 上对 20 条样例中的 18 条往返一致（含冒号、`#`、引号、反斜杠、制表符、U+2028、中文），例外两条：U+0085（被解析成空格，已在 `yaml_scalar` 里转义并有用例）与超过 1024 字符（加载器截断到 1024，既有行为）。
 
 ### 局限
 
@@ -2699,7 +2699,8 @@ except Exception:
 2. 没有用真实 LLM 端到端跑过后台复盘，模型实际写出冒号或 `#` 开头描述的频率没有测过；隐身行为由单元测试（工厂回调为 None、harness 不触发）证明，没有开真实隐身对话验证；
 3. 同类的 frontmatter 拼接还有两处没改，输入来源不同：`skill_solidify_service.py` 的固化向导（`name`、`display_title`、`description` 来自用户在界面里填的内容）与 `batch_import` 的安全扫描文本；
 4. 新技能草稿的拒绝变成一次点击，没有二次确认；已拒绝的草稿不能在界面里恢复，但同名技能之后仍可被再次提议；
-5. 已经落在库里的待审记录与已写入的技能文件不迁移；未改动任何提示词。
+5. 隐身合同只补上了后台复盘这一条链路。harness 的全局进化集成（`evolution/infra/integration.py` 的 `TRACE_SLICE_READY` 窗口计数与切片抽取）不感知隐身，而 `app/ai_agents/agents.py` 创建事件日志后端时也没有隐身判断；隐身会话是否真的会走到这条链路并产出提案没有验证；
+6. 已经落在库里的待审记录与已写入的技能文件不迁移；未改动任何提示词。
 
 ### 踩坑经验
 
