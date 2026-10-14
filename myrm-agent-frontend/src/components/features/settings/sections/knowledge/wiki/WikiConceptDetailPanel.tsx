@@ -8,6 +8,7 @@
  * - ./VideoKnowledgePlayer::VideoKnowledgePlayer (POS: 视频知识播放与时间戳对齐组件)
  * - ./WikiConceptClaimsSection::WikiConceptClaimsSection (POS: 词条声明与事实凭证下钻组件)
  * - ./WikiConceptLinksPanel::WikiConceptLinksPanel (POS: 词条双向链接与脉络导航组件)
+ * - ./useConceptHeadingFocus::useConceptHeadingFocus (POS: 反向链接小节标题的聚焦、滚动与高亮 Hook)
  *
  * [OUTPUT]
  * - WikiConceptDetailPanel: 词条详情预览、反向引用小节锚点聚焦定位、多标签窄写与分屏编辑一体化面板
@@ -16,7 +17,7 @@
  * 知识库词条主阅读与编辑工作区。承载概念预览、来源对话跳转、反向链接小节直达与多模态知识交互。
  */
 
-import { useMemo, useEffect, useRef, useState, useCallback } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
@@ -33,6 +34,7 @@ import { Network } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { Concept } from '@/services/wikiService';
 import type { WikiEditTab } from './useWikiConceptsList';
+import { useConceptHeadingFocus } from './useConceptHeadingFocus';
 
 interface WikiConceptDetailPanelProps {
   selectedConcept: Concept | null;
@@ -111,107 +113,18 @@ export function WikiConceptDetailPanel({
     return selectedConcept ? extractVideoNoteMeta(selectedConcept.content) : null;
   }, [selectedConcept]);
 
-  const [targetHeading, setTargetHeading] = useState<string | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const highlightTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (highlightTimerRef.current) {
-        clearTimeout(highlightTimerRef.current);
-      }
-    };
-  }, []);
-
-  const scrollToHeading = useCallback((headingText: string): boolean => {
-    const container = contentRef.current;
-    if (!container) {
-      return false;
-    }
-    const headings = Array.from(container.querySelectorAll('h1, h2, h3, h4, h5, h6'));
-    const normalizedTarget = headingText.trim().toLowerCase();
-    let matched = headings.find((h) => (h.textContent || '').trim().toLowerCase() === normalizedTarget);
-    if (!matched) {
-      matched = headings.find((h) => {
-        const text = (h.textContent || '').trim().toLowerCase();
-        return text.includes(normalizedTarget) || normalizedTarget.includes(text);
-      });
-    }
-    if (matched) {
-      matched.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (highlightTimerRef.current) {
-        clearTimeout(highlightTimerRef.current);
-      }
-      matched.classList.add(
-        'bg-primary/10',
-        'ring-1',
-        'ring-primary/40',
-        'rounded-md',
-        'transition-all',
-        'duration-500',
-      );
-      highlightTimerRef.current = setTimeout(() => {
-        matched.classList.remove('bg-primary/10', 'ring-1', 'ring-primary/40', 'rounded-md');
-        highlightTimerRef.current = null;
-      }, 2000);
-      return true;
-    }
-    return false;
-  }, []);
-
-  useEffect(() => {
-    if (!targetHeading || isEditing) {
-      return;
-    }
-
-    let cancelled = false;
-    const delays = [80, 250, 600];
-    const timers: NodeJS.Timeout[] = [];
-
-    delays.forEach((delay) => {
-      const timer = setTimeout(() => {
-        if (cancelled) {
-          return;
-        }
-        const found = scrollToHeading(targetHeading);
-        if (found) {
-          timers.forEach((t) => clearTimeout(t));
-          setTargetHeading(null);
-        }
-      }, delay);
-      timers.push(timer);
-    });
-
-    return () => {
-      cancelled = true;
-      timers.forEach((t) => clearTimeout(t));
-    };
-  }, [selectedConcept?.name, selectedConcept?.content, targetHeading, isEditing, scrollToHeading]);
-
-  const handleSelectConceptFromLinks = useCallback(
-    (name: string, heading?: string | null) => {
-      setTargetHeading(heading || null);
-      if (selectedConcept && selectedConcept.name === name) {
-        if (heading) {
-          const found = scrollToHeading(heading);
-          if (found) {
-            setTargetHeading(null);
-          }
-        }
-        return;
-      }
-      if (onSelectConcept) {
-        onSelectConcept(name);
-      }
-    },
-    [selectedConcept, onSelectConcept, scrollToHeading],
-  );
+  const { contentRef, handleSelectConceptFromLinks } = useConceptHeadingFocus({
+    selectedConcept,
+    isEditing,
+    onSelectConcept,
+  });
 
   return (
     <Card className="col-span-1 md:col-span-2 h-full overflow-hidden flex flex-col min-h-0">
       {selectedConcept ? (
         <>
-          <CardHeader className="border-b bg-muted/20 flex flex-row items-center justify-between py-4 gap-3">
+          {/* 头部嵌在宽度不定的详情栏里：快捷入口的文字按头部自身宽度（容器查询）而非视口宽度显隐，避免挤掉词条标题 */}
+          <CardHeader className="@container border-b bg-muted/20 flex flex-row items-center justify-between py-4 gap-3">
             <div className="flex items-center gap-2 truncate pr-4">
               <span className="font-semibold text-lg truncate">{selectedConcept.name}</span>
               {selectedConcept.provenance && (
@@ -263,11 +176,12 @@ export function WikiConceptDetailPanel({
                       const el = document.getElementById('wiki-concept-links');
                       el?.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className="text-xs text-muted-foreground hover:text-foreground hidden sm:flex items-center gap-1.5"
-                    title="跳转到双向链接与脉络"
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+                    title={t('links.title')}
+                    aria-label={t('links.title')}
                   >
                     <Network className="w-3.5 h-3.5 text-primary" />
-                    <span>脉络</span>
+                    <span className="hidden @xl:inline">{t('links.title')}</span>
                   </Button>
                   <Button data-testid="wiki-concept-edit-btn" variant="outline" size="sm" onClick={onEdit}>
                     <IconEdit className="w-4 h-4 mr-2" />

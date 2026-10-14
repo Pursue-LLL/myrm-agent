@@ -645,7 +645,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "DROP TABLE IF EXISTS batch_optimization_tasks",
     # The offline durable-task table has no model, route or startup hook that reads or writes it.
     "DROP TABLE IF EXISTS offline_durable_tasks",
-    # Retired shadow A/B verification: no model, route or page reads or writes these tables or the per-version quality score.
+    # No model, route or page reads or writes the shadow A/B tables or the per-version quality score.
     "DROP TABLE IF EXISTS skill_shadow_samples",
     "DROP TABLE IF EXISTS skill_ab_test_results",
     "DROP TABLE IF EXISTS skill_optimization_records",

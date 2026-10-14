@@ -76,19 +76,14 @@ export function LoopStatusBar({ chatId, className = '' }: LoopStatusBarProps) {
             <div className="flex min-w-0 flex-col">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-foreground">
-                  {isPaused
-                    ? t('loopScheduler.pausedTitle') || '循环暂停 (用户输入中)'
-                    : t('loopScheduler.activeTitle') || '自适应循环运行中'}
+                  {isPaused ? t('loopScheduler.pausedTitle') : t('loopScheduler.activeTitle')}
                 </span>
 
                 {/* Backoff Indicator */}
                 {hasBackoff ? (
                   <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
                     <Clock className="h-3 w-3" />
-                    <span>
-                      {t('loopScheduler.backoffCount', { count: status.consecutive_unchanged }) ||
-                        `退避 x${status.consecutive_unchanged}`}
-                    </span>
+                    <span>{t('loopScheduler.backoffCount', { count: status.consecutive_unchanged })}</span>
                   </span>
                 ) : null}
 
@@ -101,8 +96,7 @@ export function LoopStatusBar({ chatId, className = '' }: LoopStatusBarProps) {
                   >
                     <Target className="h-3 w-3 shrink-0" />
                     <span className="truncate">
-                      {t('loopScheduler.untilCondition', { condition: status.until_condition }) ||
-                        `终止条件: ${status.until_condition}`}
+                      {t('loopScheduler.untilCondition', { condition: status.until_condition })}
                     </span>
                   </span>
                 ) : null}
@@ -110,11 +104,8 @@ export function LoopStatusBar({ chatId, className = '' }: LoopStatusBarProps) {
                 {/* Turn counter */}
                 <span className="text-[11px] text-muted-foreground">
                   {status.times_limit > 0
-                    ? t('loopScheduler.runsLimit', {
-                        fired: status.ticks_fired,
-                        limit: status.times_limit,
-                      }) || `第 ${status.ticks_fired}/${status.times_limit} 轮`
-                    : t('loopScheduler.runs', { fired: status.ticks_fired }) || `第 ${status.ticks_fired} 轮`}
+                    ? t('loopScheduler.runsLimit', { fired: status.ticks_fired, limit: status.times_limit })
+                    : t('loopScheduler.runs', { fired: status.ticks_fired })}
                 </span>
               </div>
 
@@ -150,7 +141,7 @@ export function LoopStatusBar({ chatId, className = '' }: LoopStatusBarProps) {
               className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 active:scale-95 disabled:opacity-50"
             >
               <Square className="h-3 w-3 fill-current" />
-              <span>{isStopping ? t('loopScheduler.stopping') || '停止中...' : t('loopScheduler.stop') || '停止'}</span>
+              <span>{isStopping ? t('loopScheduler.stopping') : t('loopScheduler.stop')}</span>
             </button>
           </div>
         </div>

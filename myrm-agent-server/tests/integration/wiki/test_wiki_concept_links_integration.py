@@ -170,7 +170,9 @@ def test_concept_links_full_task_flow_e2e(
     assert "[[distributed_systems]]" in claim_link["context_snippet"]
 
     # 7. The payload carries exactly what the links panel reads
-    assert set(data) == {"concept_name", "outlinks", "backlinks"}
+    assert set(data) == {"concept_name", "outlinks", "backlinks", "outlinks_has_more", "backlinks_has_more"}
+    assert data["outlinks_has_more"] is False
+    assert data["backlinks_has_more"] is False
     assert all(set(item) == {"name", "exists"} for item in data["outlinks"])
     assert all(set(item) == {"name", "exists", "context_snippet", "heading"} for item in data["backlinks"])
 

@@ -349,27 +349,19 @@ async def run_async_warmup() -> None:
                 warmer = VectorStoreWarmer(store)
                 all_collections = await store.list_collections()
 
-                if hasattr(store, "ensure_payload_indexes"):
+                # Optional per-collection maintenance that only some vector stores implement.
+                for hook_name, failure_label in (
+                    ("ensure_payload_indexes", "Payload index creation"),
+                    ("backfill_epoch_timestamps", "Epoch timestamp backfill"),
+                ):
+                    maintenance = getattr(store, hook_name, None)
+                    if maintenance is None:
+                        continue
                     for coll in all_collections:
                         try:
-                            await store.ensure_payload_indexes(coll)
-                        except Exception as idx_err:
-                            logger.warning(
-                                "[Startup] Payload index creation failed for %s: %s",
-                                coll,
-                                idx_err,
-                            )
-
-                if hasattr(store, "backfill_epoch_timestamps"):
-                    for coll in all_collections:
-                        try:
-                            await store.backfill_epoch_timestamps(coll)
-                        except Exception as bf_err:
-                            logger.warning(
-                                "[Startup] Epoch timestamp backfill failed for %s: %s",
-                                coll,
-                                bf_err,
-                            )
+                            await maintenance(coll)
+                        except Exception as maintenance_err:
+                            logger.warning("[Startup] %s failed for %s: %s", failure_label, coll, maintenance_err)
 
                 kb_collections = [(coll, 1536) for coll in all_collections if isinstance(coll, str) and coll.startswith("kb_")]
 

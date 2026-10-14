@@ -56,19 +56,13 @@ describe('RiskConfirmationCard', () => {
     const onConfirm = vi.fn();
     const onReject = vi.fn();
 
-    render(
-      <RiskConfirmationCard
-        evaluation={readEval}
-        onConfirm={onConfirm}
-        onReject={onReject}
-      />
-    );
+    render(<RiskConfirmationCard evaluation={readEval} onConfirm={onConfirm} onReject={onReject} />);
 
     expect(screen.getByText('read_file')).toBeInTheDocument();
     expect(screen.getAllByText('/workspace/README.md').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/只读操作/)).toBeInTheDocument();
-    expect(screen.getByText('已放行')).toBeInTheDocument();
-    expect(screen.queryByText('终止打回')).not.toBeInTheDocument();
+    expect(screen.getByText('tierRead')).toBeInTheDocument();
+    expect(screen.getByText('approved')).toBeInTheDocument();
+    expect(screen.queryByText('reject')).not.toBeInTheDocument();
   });
 
   it('renders Level 2 WRITE operation and handles dry-run trigger', async () => {
@@ -88,18 +82,18 @@ describe('RiskConfirmationCard', () => {
         onConfirm={onConfirm}
         onReject={onReject}
         onSimulateDryRun={onSimulateDryRun}
-      />
+      />,
     );
 
     expect(screen.getByText('update_config')).toBeInTheDocument();
-    expect(screen.getByText(/状态写入/)).toBeInTheDocument();
-    expect(screen.getByText('继续执行')).toBeInTheDocument();
+    expect(screen.getByText('tierWrite')).toBeInTheDocument();
+    expect(screen.getByText('continueRun')).toBeInTheDocument();
 
-    const dryRunBtn = screen.getByText('Dry-Run 预演');
+    const dryRunBtn = screen.getByText('dryRun');
     fireEvent.click(dryRunBtn);
 
     expect(onSimulateDryRun).toHaveBeenCalledWith('update_config', writeEval.param_summary);
-    expect(await screen.findByText(/Dry-Run 预演模拟结果/)).toBeInTheDocument();
+    expect(await screen.findByText('dryRunResultTitle')).toBeInTheDocument();
     expect(screen.getByText(/Simulated 1 config update/)).toBeInTheDocument();
   });
 
@@ -107,35 +101,23 @@ describe('RiskConfirmationCard', () => {
     const onConfirm = vi.fn();
     const onReject = vi.fn();
 
-    render(
-      <RiskConfirmationCard
-        evaluation={highRiskEval}
-        onConfirm={onConfirm}
-        onReject={onReject}
-      />
-    );
+    render(<RiskConfirmationCard evaluation={highRiskEval} onConfirm={onConfirm} onReject={onReject} />);
 
     expect(screen.getByText('delete_database')).toBeInTheDocument();
-    expect(screen.getByText(/高危操作/)).toBeInTheDocument();
+    expect(screen.getByText('tierHighRisk')).toBeInTheDocument();
     expect(screen.getByText('Irreversible database dropping')).toBeInTheDocument();
     expect(screen.getByText('High blast radius')).toBeInTheDocument();
-    expect(screen.getByText('终止打回')).toBeInTheDocument();
-    expect(screen.getByText('授权并执行')).toBeInTheDocument();
+    expect(screen.getByText('reject')).toBeInTheDocument();
+    expect(screen.getByText('authorizeAndRun')).toBeInTheDocument();
   });
 
   it('triggers onConfirm callback with token upon authorization', async () => {
     const onConfirm = vi.fn();
     const onReject = vi.fn();
 
-    render(
-      <RiskConfirmationCard
-        evaluation={highRiskEval}
-        onConfirm={onConfirm}
-        onReject={onReject}
-      />
-    );
+    render(<RiskConfirmationCard evaluation={highRiskEval} onConfirm={onConfirm} onReject={onReject} />);
 
-    const confirmBtn = screen.getByText('授权并执行');
+    const confirmBtn = screen.getByText('authorizeAndRun');
     fireEvent.click(confirmBtn);
 
     expect(onConfirm).toHaveBeenCalledWith({
@@ -150,24 +132,18 @@ describe('RiskConfirmationCard', () => {
     const onConfirm = vi.fn();
     const onReject = vi.fn();
 
-    render(
-      <RiskConfirmationCard
-        evaluation={highRiskEval}
-        onConfirm={onConfirm}
-        onReject={onReject}
-      />
-    );
+    render(<RiskConfirmationCard evaluation={highRiskEval} onConfirm={onConfirm} onReject={onReject} />);
 
-    const editBtn = screen.getByText('修改参数');
+    const editBtn = screen.getByText('editParams');
     fireEvent.click(editBtn);
 
-    expect(screen.getByText(/修改执行参数/)).toBeInTheDocument();
+    expect(screen.getByText('editingParamsTitle')).toBeInTheDocument();
     const textarea = screen.getByRole('textbox');
     fireEvent.change(textarea, {
       target: { value: JSON.stringify({ database: 'backup_cluster', force: false }) },
     });
 
-    const modifiedConfirmBtn = screen.getByText('修改参数并执行');
+    const modifiedConfirmBtn = screen.getByText('applyEditsAndRun');
     fireEvent.click(modifiedConfirmBtn);
 
     expect(onConfirm).toHaveBeenCalledWith({
@@ -178,25 +154,33 @@ describe('RiskConfirmationCard', () => {
     });
   });
 
+  it('shows a translated error and does not submit when the edited parameters are not valid JSON', async () => {
+    const onConfirm = vi.fn();
+    const onReject = vi.fn();
+
+    render(<RiskConfirmationCard evaluation={highRiskEval} onConfirm={onConfirm} onReject={onReject} />);
+
+    fireEvent.click(screen.getByText('editParams'));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '{ not json' } });
+    fireEvent.click(screen.getByText('applyEditsAndRun'));
+
+    expect(await screen.findByText('invalidJson')).toBeInTheDocument();
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
   it('handles operator rejection with custom reason input', () => {
     const onConfirm = vi.fn();
     const onReject = vi.fn();
 
-    render(
-      <RiskConfirmationCard
-        evaluation={highRiskEval}
-        onConfirm={onConfirm}
-        onReject={onReject}
-      />
-    );
+    render(<RiskConfirmationCard evaluation={highRiskEval} onConfirm={onConfirm} onReject={onReject} />);
 
-    const rejectBtn = screen.getByText('终止打回');
+    const rejectBtn = screen.getByText('reject');
     fireEvent.click(rejectBtn);
 
-    const input = screen.getByPlaceholderText(/输入拒绝理由/);
+    const input = screen.getByPlaceholderText('rejectReasonPlaceholder');
     fireEvent.change(input, { target: { value: 'Production write blocked by policy' } });
 
-    const confirmRejectBtn = screen.getByText('确认打回');
+    const confirmRejectBtn = screen.getByText('confirmReject');
     fireEvent.click(confirmRejectBtn);
 
     expect(onReject).toHaveBeenCalledWith('Production write blocked by policy');

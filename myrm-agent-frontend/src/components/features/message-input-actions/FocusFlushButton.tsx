@@ -17,7 +17,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/primitives/alert-dialog';
 
+const emphasis = (chunks: React.ReactNode) => <strong className="text-foreground font-medium">{chunks}</strong>;
+
 const FocusFlushButton = () => {
+  const t = useTranslations('chat.focusFlush');
+  const toastT = useTranslations('commands.builtin');
   const commonT = useTranslations('common');
   const { chatId, resetSessionState, loadMessages, stopMessage } = useChatStore(
     useShallow((state) => ({
@@ -36,19 +40,19 @@ const FocusFlushButton = () => {
     }
 
     setIsOpen(false); // Close dialog immediately
-    const toastId = toast.loading('Flushing chat history...');
+    const toastId = toast.loading(toastT('focusFlushing'));
     try {
       // Force kill any active backend agent request for this chat to prevent state tearing
       stopMessage();
 
       const result = await focusFlushChat(chatId);
       if (result.cleared) {
-        toast.success('Chat history cleared. Sandbox environment retained.', { id: toastId });
+        toast.success(toastT('focusSuccess'), { id: toastId });
         resetSessionState();
         await loadMessages(chatId);
       }
     } catch {
-      toast.error('Failed to flush chat', { id: toastId });
+      toast.error(toastT('focusFailed'), { id: toastId });
     }
   };
 
@@ -62,8 +66,8 @@ const FocusFlushButton = () => {
         <button
           type="button"
           className="flex items-center justify-center p-1.5 md:p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
-          title="Focus mode (Clear chat history but keep Sandbox)"
-          aria-label="Focus mode"
+          title={t('tooltip')}
+          aria-label={t('ariaLabel')}
         >
           <AiMagicIcon size={18} />
         </button>
@@ -72,23 +76,22 @@ const FocusFlushButton = () => {
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AiMagicIcon size={22} className="text-primary" />
-            Focus Session (Clear History)
+            {t('dialogTitle')}
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-base pt-2 text-muted-foreground">
-            Are you sure you want to clear this conversation's history? <br />
-            <br />
-            This will give the Agent a fresh context and{' '}
-            <strong className="text-foreground font-medium">save Token costs</strong>, but your{' '}
-            <strong className="text-foreground font-medium">
-              Sandbox environment, files, and installed packages will remain intact
-            </strong>
-            .
+          <AlertDialogDescription className="space-y-6 pt-2 text-base text-muted-foreground">
+            <span className="block">{t('dialogQuestion')}</span>
+            <span className="block">
+              {t.rich('dialogDetail', {
+                cost: emphasis,
+                keep: emphasis,
+              })}
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel className="border-border hover:bg-muted/50">{commonT('cancel')}</AlertDialogCancel>
           <AlertDialogAction onClick={handleFocus} className="bg-primary text-primary-foreground hover:bg-primary/90">
-            Clear History
+            {t('confirm')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

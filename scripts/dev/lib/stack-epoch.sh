@@ -18,13 +18,12 @@ _harness_fingerprint() {
   local server_dir="$1"
   local py="${server_dir}/.venv/bin/python"
   [[ -x "${py}" ]] || return 0
+  # find_spec locates the package without running its __init__ (a full import costs seconds of CPU).
   cd "${server_dir}" && "${py}" -c "
 import pathlib
-try:
-    import myrm_agent_harness
-    print(pathlib.Path(myrm_agent_harness.__file__).resolve().parent)
-except Exception:
-    print('unknown')
+from importlib.util import find_spec
+spec = find_spec('myrm_agent_harness')
+print(pathlib.Path(spec.origin).resolve().parent if spec and spec.origin else 'unknown')
 " 2>/dev/null || echo "unknown"
 }
 

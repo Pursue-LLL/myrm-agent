@@ -8,7 +8,7 @@
  * - @/lib/utils/classnameUtils::cn (POS: 类名合并工具)
  *
  * [OUTPUT]
- * - WikiConceptLinksPanel: 词条双向链接面板，呈现反向引用（含上下文切片与所在小节）与前置引用
+ * - WikiConceptLinksPanel: 词条双向链接面板，呈现反向引用（含上下文切片与所在小节）与前置引用；链接被服务端截断的方向，计数标为「N+」
  *
  * [POS]
  * 词条脉络导航组件。嵌入词条详情抽屉，展示词条的入链与出链，支持点击直达关联词条。
@@ -29,6 +29,9 @@ interface WikiConceptLinksPanelProps {
 }
 
 type LinksTab = 'backlinks' | 'outlinks';
+
+// 服务端按上限截断时展示「N+」，避免用户把截断后的条数当成总数
+const formatLinkCount = (shown: number, hasMore: boolean): string => (hasMore ? `${shown}+` : String(shown));
 
 interface ConceptLinksContentProps extends WikiConceptLinksPanelProps {
   activeTab: LinksTab;
@@ -104,18 +107,20 @@ function ConceptLinksContent({
 
   const outlinks = linksData?.outlinks ?? [];
   const backlinks = linksData?.backlinks ?? [];
+  const outlinksCount = formatLinkCount(outlinks.length, linksData?.outlinks_has_more ?? false);
+  const backlinksCount = formatLinkCount(backlinks.length, linksData?.backlinks_has_more ?? false);
   // 首次加载失败时没有数据，不能把「0 条」与空态当事实展示给用户
   const visibleTab = linksData ? activeTab : null;
   const tabs: ReadonlyArray<{ id: LinksTab; label: string; Icon: LucideIcon; iconClass: string }> = [
     {
       id: 'backlinks',
-      label: t('tabBacklinks', { count: backlinks.length }),
+      label: t('tabBacklinks', { count: backlinksCount }),
       Icon: CornerDownLeft,
       iconClass: 'text-sky-500',
     },
     {
       id: 'outlinks',
-      label: t('tabOutlinks', { count: outlinks.length }),
+      label: t('tabOutlinks', { count: outlinksCount }),
       Icon: ArrowUpRight,
       iconClass: 'text-emerald-500',
     },
@@ -134,7 +139,7 @@ function ConceptLinksContent({
             <span className="text-sm font-semibold tracking-tight text-foreground">{t('title')}</span>
             {linksData && (
               <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-primary/10 text-primary border border-primary/20">
-                {t('summary', { backlinks: backlinks.length, outlinks: outlinks.length })}
+                {t('summary', { backlinks: backlinksCount, outlinks: outlinksCount })}
               </span>
             )}
           </div>

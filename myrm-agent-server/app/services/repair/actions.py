@@ -21,6 +21,7 @@ explicit user decision.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 
 from myrm_agent_harness.observability.diagnostics.protocols import HealthReport
 
@@ -55,6 +56,9 @@ __all__ = [
     "build_repair_actions",
     "execute_repair_action",
 ]
+
+# A server diagnostic reaches the repair rules as a HealthReport (health snapshot) or as its dict form.
+_ServerReport = HealthReport | dict[str, object]
 
 
 def _action_key(action: RepairAction) -> tuple[str, str]:
@@ -158,9 +162,8 @@ async def _browser_orphan_action() -> RepairAction | None:
     )
 
 
-def _dlq_action(server_reports: list[dict[str, object]]) -> RepairAction | None:
+def _dlq_action(server_reports: Sequence[_ServerReport]) -> RepairAction | None:
     for report in server_reports:
-        # server_reports can be a list of dicts or a list of HealthReport objects
         if isinstance(report, dict):
             comp_name = report.get("component_name")
             status = report.get("status")
@@ -189,7 +192,7 @@ def _dlq_action(server_reports: list[dict[str, object]]) -> RepairAction | None:
     return None
 
 
-def _orphan_session_action(server_reports: list[dict[str, object]]) -> RepairAction | None:
+def _orphan_session_action(server_reports: Sequence[_ServerReport]) -> RepairAction | None:
     for report in server_reports:
         comp_name = report.get("component_name") if isinstance(report, dict) else getattr(report, "component_name", None)
         meta = report.get("meta_data") if isinstance(report, dict) else getattr(report, "meta_data", None)
@@ -231,7 +234,7 @@ def _orphan_session_action(server_reports: list[dict[str, object]]) -> RepairAct
 
 
 async def build_repair_actions(
-    harness_reports: list[HealthReport], server_reports: list[dict[str, object]]
+    harness_reports: list[HealthReport], server_reports: Sequence[_ServerReport]
 ) -> list[RepairAction]:
     """Build safe repair recommendations from current health signals."""
 

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -22,6 +24,9 @@ from app.services.agent.provider_oauth_tokens import (
 
 _MODULE = "app.services.agent.provider_oauth_tokens"
 _XAI_BASE_URL = "https://api.x.ai/v1"
+_FRONTEND_PROVIDER_TYPES_TS = (
+    Path(__file__).resolve().parents[4] / "myrm-agent-frontend" / "src" / "store" / "config" / "providerTypes.ts"
+)
 
 
 def _credential(token: str = "stored-token", *, expires_in: float = 3600, **extra: object) -> dict[str, object]:
@@ -46,6 +51,14 @@ def _refreshed(token: str = "renewed-token", expires_in: float = 3600) -> Simple
 class TestRegistry:
     def test_xai_is_the_only_subscription_provider(self) -> None:
         assert PROVIDER_OAUTH_ISSUERS == {"xai": "xai"}
+
+    def test_key_marker_matches_the_frontend_placeholder(self) -> None:
+        """A drifted literal would send the placeholder to the provider as a real key."""
+        source = _FRONTEND_PROVIDER_TYPES_TS.read_text(encoding="utf-8")
+        match = re.search(r"OAUTH_AUTH_API_KEY_MARKER\s*=\s*'([^']+)'", source)
+
+        assert match is not None, "OAUTH_AUTH_API_KEY_MARKER missing in the frontend provider types"
+        assert match.group(1) == OAUTH_KEY_MARKER
 
 
 class TestRefreshProviderOAuthCredentials:

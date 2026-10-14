@@ -26,6 +26,7 @@ import {
   Activity,
   ExternalLink,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -48,6 +49,7 @@ interface ViewportData {
 }
 
 export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, chatId }) => {
+  const t = useTranslations('subagentDashboard');
   const [isZoomed, setIsZoomed] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
 
@@ -137,7 +139,7 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
   const handleOpenDesktop = () => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('open_visual_desktop'));
-      toast.info('正在切换至沙箱图形桌面 (Grok click-to-control)');
+      toast.info(t('viewportSwitchingToast'));
     }
   };
 
@@ -145,7 +147,7 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
     if (typeof navigator !== 'undefined') {
       navigator.clipboard.writeText(url);
       setHasCopied(true);
-      toast.success('URL 已复制');
+      toast.success(t('viewportUrlCopied'));
       setTimeout(() => setHasCopied(false), 2000);
     }
   };
@@ -160,10 +162,8 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
           <Terminal className="w-8 h-8 opacity-70" />
         </div>
         <div className="space-y-1">
-          <h4 className="text-sm font-semibold text-foreground">纯文本/代码任务视口</h4>
-          <p className="text-xs text-muted-foreground max-w-sm">
-            当前子任务为纯文本或代码任务，尚未产生独立的沙箱浏览器快照。
-          </p>
+          <h4 className="text-sm font-semibold text-foreground">{t('viewportEmptyTitle')}</h4>
+          <p className="text-xs text-muted-foreground max-w-sm">{t('viewportEmptyDescription')}</p>
         </div>
         <Button
           variant="outline"
@@ -173,7 +173,7 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
           className="text-xs gap-1.5"
         >
           <MonitorPlay className="w-3.5 h-3.5 text-primary" />
-          <span>打开沙箱图形桌面窥视</span>
+          <span>{t('viewportOpenDesktop')}</span>
         </Button>
       </div>
     );
@@ -196,12 +196,12 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
             {viewportData.isLive ? (
               <>
                 <Activity className="w-3 h-3 animate-pulse" />
-                <span>Live</span>
+                <span>{t('viewportLive')}</span>
               </>
             ) : (
               <>
                 <Clock className="w-3 h-3" />
-                <span>Snapshot</span>
+                <span>{t('viewportSnapshot')}</span>
               </>
             )}
           </Badge>
@@ -220,7 +220,7 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
                   }
                 }}
                 className="p-0.5 text-muted-foreground hover:text-foreground transition-colors ml-1"
-                title="复制 URL"
+                title={t('viewportCopyUrl')}
               >
                 {hasCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
               </button>
@@ -229,13 +229,15 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                title="新标签页打开"
+                title={t('viewportOpenInNewTab')}
               >
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
           ) : (
-            <span className="text-xs text-muted-foreground truncate">{viewportData.title || '沙箱浏览器视口'}</span>
+            <span className="text-xs text-muted-foreground truncate">
+              {viewportData.title || t('viewportFallbackTitle')}
+            </span>
           )}
         </div>
 
@@ -245,10 +247,10 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
             variant="ghost"
             onClick={() => setIsZoomed(!isZoomed)}
             className="h-7 px-2 text-xs gap-1"
-            title={isZoomed ? '恢复尺寸' : '全屏缩放'}
+            title={isZoomed ? t('viewportRestoreSize') : t('viewportFullscreen')}
           >
             {isZoomed ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{isZoomed ? '缩小' : '放大'}</span>
+            <span className="hidden sm:inline">{isZoomed ? t('viewportZoomOut') : t('viewportZoomIn')}</span>
           </Button>
           <Button
             size="sm"
@@ -258,7 +260,7 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
             className="h-7 px-2.5 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <MonitorPlay className="w-3.5 h-3.5" />
-            <span>接管控制</span>
+            <span>{t('viewportTakeover')}</span>
           </Button>
         </div>
       </div>
@@ -278,7 +280,7 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
               data-testid="subagent-viewport-backdrop"
               onClick={() => setIsZoomed(false)}
               className="absolute inset-0 w-full h-full bg-transparent border-0 cursor-zoom-out"
-              aria-label="退出放大"
+              aria-label={t('viewportExitZoom')}
             />
             <Button
               size="sm"
@@ -287,14 +289,14 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
               className="absolute top-4 right-4 z-10 h-8 px-3 text-xs gap-1 shadow-md"
             >
               <Minimize2 className="w-3.5 h-3.5" />
-              <span>退出放大</span>
+              <span>{t('viewportExitZoom')}</span>
             </Button>
           </>
         )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={viewportData.screenshotUrl}
-          alt={viewportData.title || 'Subagent Viewport Preview'}
+          alt={viewportData.title || t('viewportPreviewAlt')}
           className={cn(
             'object-contain rounded-lg transition-transform duration-150',
             isZoomed

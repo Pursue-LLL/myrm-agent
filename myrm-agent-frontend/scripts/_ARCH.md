@@ -75,6 +75,6 @@
 
 - 新 CI 门禁脚本放本目录并在本 `_ARCH.md` 与根 `_ARCH.md` CI 节登记
 - `frontend-build.yml` 的门禁步骤互相独立（`if: ${{ !cancelled() }}`），一次运行列出全部红灯；`lint` 步骤内的静态门禁同理由 `run-lint-gates.ts` 全部执行，新增此类门禁只改 `LINT_GATES`；新增独立步骤沿用 `if` 写法，依赖 `locales/namespaces/` 生成物的门禁须排在 `bun run i18n:split` 步骤之后；`verify-sw-push.mjs` 随 `bun run build` 执行，不单列步骤
-- baseline 文件仅通过 `--write-baseline` 更新，禁止手改豁免逻辑
+- 棘轮基线只通过门禁自带的收紧命令更新：`check-hardcoded-copy.mjs --write-baseline`、`check-a11y-ratchet.mjs --ratchet`（只写入降低的额度，不新增条目、不抬高额度）；`check_file_line_budget.py`、`check_fractal_docs.py` 的台账用各自的 `--write-baseline`；禁止手改豁免逻辑
 - `ci/barrel_whitelist.txt` 跨域 barrel 条目须与根 `_ARCH.md` 桶表同步，手改后跑 `check_barrel_exports.py` 验证
 - 删除模块前跑 `check_module_resolution.py`：`tsc` 不校验 `require()` 目标，静态图谱扫不到的目标仍可能被动态加载器引用

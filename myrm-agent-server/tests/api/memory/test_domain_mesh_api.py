@@ -6,7 +6,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.memory import DomainCategory, MemoryDomain
+from myrm_agent_harness.toolkits.memory import MemoryDomain
+from myrm_agent_harness.toolkits.memory.domain_types import DomainCategory
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
 from app.api.dependencies import get_deploy_identity

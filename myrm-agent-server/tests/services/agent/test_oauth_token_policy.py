@@ -106,13 +106,29 @@ class TestClassifyRefreshFailure:
         [
             (400, {"error": "invalid_grant"}),
             (401, {"error": "invalid_client"}),
-            (401, None),
             (403, {"error": "access_denied"}),
-            (400, "not-json-object"),
+            (400, {"error": "unsupported_grant_type"}),
         ],
     )
-    def test_rejections_are_terminal(self, status: int, body: object) -> None:
+    def test_oauth_rejections_are_terminal(self, status: int, body: object) -> None:
         assert classify_refresh_failure(status, body) == "terminal"
+
+    @pytest.mark.parametrize(
+        ("status", "body"),
+        [
+            (401, None),
+            (403, None),
+            (404, None),
+            (407, None),
+            (400, "not-json-object"),
+            (401, {"message": "Unauthorized"}),
+            (400, {"error": ""}),
+            (400, {"error": 7}),
+        ],
+    )
+    def test_4xx_without_an_oauth_error_body_is_transient(self, status: int, body: object) -> None:
+        """A proxy, gateway or firewall answering for the provider must not condemn the refresh token."""
+        assert classify_refresh_failure(status, body) == "transient"
 
     @pytest.mark.parametrize(
         ("status", "body"),

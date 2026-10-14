@@ -19,15 +19,12 @@ vi.mock('@/services/memory/preferences', () => ({
   tunePreferenceRadar: vi.fn().mockResolvedValue({ success: true }),
   RADAR_PRESETS: {
     balanced: {
-      label: '平衡通用',
       values: { recency: 1.0, actionability: 1.0, technical_depth: 1.0, conciseness: 1.0, breadth: 1.0 },
     },
     code: {
-      label: '编码实战',
       values: { recency: 1.5, actionability: 2.5, technical_depth: 2.0, conciseness: 1.8, breadth: 0.5 },
     },
     research: {
-      label: '调研推演',
       values: { recency: 2.0, actionability: 0.5, technical_depth: 2.5, conciseness: 0.8, breadth: 2.5 },
     },
   },

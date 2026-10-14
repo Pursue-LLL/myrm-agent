@@ -58,6 +58,8 @@ class _DeviceCodePending(BaseModel):
     interval: int
 
 
+# Process-local: a login has to start and finish on the same server process. A poll that reaches a process
+# without the flow (restart, eviction, a second worker) answers 404.
 _pending_flows: dict[str, _DeviceCodePending] = {}
 
 

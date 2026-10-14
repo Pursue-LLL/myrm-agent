@@ -40,7 +40,8 @@ logger = logging.getLogger(__name__)
 
 PROVIDER_OAUTH_ISSUERS: dict[str, str] = {"xai": XAI_ISSUER}
 
-# Must equal ``OAUTH_AUTH_API_KEY_MARKER`` in the frontend providerTypes module.
+# Must equal ``OAUTH_AUTH_API_KEY_MARKER`` in the frontend providerTypes module;
+# ``test_provider_oauth_tokens`` pins the two literals together.
 OAUTH_KEY_MARKER = "__myrm_oauth_token__"
 
 # Config loading is awaited by readiness probes with a 3 s deadline, so it only
@@ -89,7 +90,7 @@ async def _fresh_credential(issuer: str, credential: Mapping[str, object], *, bu
 
     Best effort within ``budget_s``: on timeout or failure the stored token is
     returned unchanged (the refresh keeps running and persists on its own), so
-    callers degrade to today's behavior instead of failing.
+    callers carry on with the stored token instead of failing.
     """
     if not is_refresh_due(credential, now=time.time()):
         return dict(credential)

@@ -7,7 +7,8 @@ from __future__ import annotations
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from myrm_agent_harness.toolkits.memory import FailureOutcomeType, HistoricalResolutionEntry
+from myrm_agent_harness.toolkits.memory import HistoricalResolutionEntry
+from myrm_agent_harness.toolkits.memory.failure_retrieval import FailureOutcomeType
 
 from app.api.memory.failure_search_router import (
     router as failure_search_router,

@@ -13,6 +13,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { fetchModelPricing, type ModelPricingItem } from '@/services/pricing';
 import { Coins, Zap, HelpCircle } from 'lucide-react';
@@ -22,16 +23,16 @@ interface ModelPricingPopoverProps {
   children: React.ReactNode;
 }
 
-export const ModelPricingPopover: React.FC<ModelPricingPopoverProps> = ({
-  currentModel,
-  children,
-}) => {
+export const ModelPricingPopover: React.FC<ModelPricingPopoverProps> = ({ currentModel, children }) => {
+  const t = useTranslations('chat.modelPricing');
   const [pricingMap, setPricingMap] = useState<Record<string, ModelPricingItem>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [open, setOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     let mounted = true;
     setLoading(true);
 
@@ -56,9 +57,7 @@ export const ModelPricingPopover: React.FC<ModelPricingPopoverProps> = ({
   }, [open, currentModel]);
 
   const activeItem = currentModel ? pricingMap[currentModel] : undefined;
-  const otherItems = Object.values(pricingMap).filter(
-    (item) => !currentModel || item.model !== currentModel
-  );
+  const otherItems = Object.values(pricingMap).filter((item) => !currentModel || item.model !== currentModel);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -73,17 +72,13 @@ export const ModelPricingPopover: React.FC<ModelPricingPopoverProps> = ({
           <div className="flex items-center justify-between border-b pb-2 border-border/60">
             <div className="flex items-center gap-1.5 font-semibold text-foreground text-sm">
               <Coins className="w-4 h-4 text-amber-500" />
-              <span>算力单价与 Prompt Cache 透视</span>
+              <span>{t('title')}</span>
             </div>
-            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-              权威 LiteLLM 实时数据
-            </span>
+            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{t('sourceBadge')}</span>
           </div>
 
           {loading ? (
-            <div className="py-6 text-center text-muted-foreground animate-pulse">
-              加载四维单价矩阵中...
-            </div>
+            <div className="py-6 text-center text-muted-foreground animate-pulse">{t('loading')}</div>
           ) : (
             <>
               {/* 当前选中模型卡片 */}
@@ -96,19 +91,19 @@ export const ModelPricingPopover: React.FC<ModelPricingPopoverProps> = ({
                     {activeItem.supports_prompt_caching && (
                       <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
                         <Zap className="w-3 h-3 fill-current" />
-                        支持 Prompt Cache
+                        {t('supportsCache')}
                       </span>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div className="bg-background/80 p-1.5 rounded border border-border/40">
-                      <div className="text-muted-foreground text-[10px]">输入单价</div>
+                      <div className="text-muted-foreground text-[10px]">{t('inputPrice')}</div>
                       <div className="font-semibold text-foreground">
                         ${activeItem.input_cost_per_mtoken.toFixed(2)} / 1M
                       </div>
                     </div>
                     <div className="bg-background/80 p-1.5 rounded border border-border/40">
-                      <div className="text-muted-foreground text-[10px]">输出单价</div>
+                      <div className="text-muted-foreground text-[10px]">{t('outputPrice')}</div>
                       <div className="font-semibold text-foreground">
                         ${activeItem.output_cost_per_mtoken.toFixed(2)} / 1M
                       </div>
@@ -118,7 +113,7 @@ export const ModelPricingPopover: React.FC<ModelPricingPopoverProps> = ({
                         <div>
                           <div className="text-emerald-700 dark:text-emerald-300 text-[10px] flex items-center gap-1">
                             <Zap className="w-2.5 h-2.5 fill-current" />
-                            Cache 命中读取单价
+                            {t('cacheReadPrice')}
                           </div>
                           <div className="font-bold text-emerald-600 dark:text-emerald-400">
                             ${activeItem.cache_read_cost_per_mtoken.toFixed(2)} / 1M
@@ -126,9 +121,7 @@ export const ModelPricingPopover: React.FC<ModelPricingPopoverProps> = ({
                         </div>
                         {activeItem.cache_read_discount !== null && (
                           <div className="text-right">
-                            <span className="text-[10px] text-emerald-700 dark:text-emerald-300">
-                              立省
-                            </span>
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-300">{t('savings')}</span>
                             <div className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm">
                               {(activeItem.cache_read_discount * 100).toFixed(0)}%
                             </div>
@@ -144,7 +137,7 @@ export const ModelPricingPopover: React.FC<ModelPricingPopoverProps> = ({
               {otherItems.length > 0 && (
                 <div className="space-y-1.5">
                   <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
-                    <span>主流模型单价对比 ($ / 1M tokens)</span>
+                    <span>{t('compareTitle')}</span>
                   </div>
                   <div className="max-h-40 overflow-y-auto space-y-1 pr-1 select-none text-[10px]">
                     {otherItems.slice(0, 6).map((item) => (
@@ -152,15 +145,13 @@ export const ModelPricingPopover: React.FC<ModelPricingPopoverProps> = ({
                         key={item.model}
                         className="flex items-center justify-between p-1.5 rounded bg-muted/40 hover:bg-muted/70 transition-colors"
                       >
-                        <span className="truncate max-w-[140px] font-mono text-foreground">
-                          {item.model}
-                        </span>
+                        <span className="truncate max-w-[140px] font-mono text-foreground">{item.model}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-muted-foreground">
-                            入: ${item.input_cost_per_mtoken.toFixed(2)}
+                            {t('inPrice', { price: `$${item.input_cost_per_mtoken.toFixed(2)}` })}
                           </span>
                           <span className="text-muted-foreground">
-                            出: ${item.output_cost_per_mtoken.toFixed(2)}
+                            {t('outPrice', { price: `$${item.output_cost_per_mtoken.toFixed(2)}` })}
                           </span>
                           {item.cache_read_discount !== null && (
                             <span className="text-emerald-600 font-medium">
@@ -176,7 +167,7 @@ export const ModelPricingPopover: React.FC<ModelPricingPopoverProps> = ({
 
               <div className="pt-1 border-t border-border/50 text-[10px] text-muted-foreground flex items-center gap-1">
                 <HelpCircle className="w-3 h-3 flex-shrink-0" />
-                <span>所有计价严格按底层提供商官标权威四维单价实时折算，零加价。</span>
+                <span>{t('footnote')}</span>
               </div>
             </>
           )}

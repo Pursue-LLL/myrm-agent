@@ -4,7 +4,7 @@
 app/services/memory/business_template_service.py
 
 [INPUT]
-- app.schemas.business_templates, myrm_agent_harness.toolkits.memory.business_templates
+- app.schemas.business_templates, app.services.memory.business_templates
 
 [OUTPUT]
 - BusinessTemplateService, get_business_template_service
@@ -15,13 +15,6 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from myrm_agent_harness.toolkits.memory import (
-    BusinessExperienceTemplate,
-    BusinessTemplateEngine,
-    EscalationEvaluationContext,
-    TemplateCategory,
-)
-
 from app.schemas.business_templates import (
     BusinessExperienceTemplateDTO,
     ChecklistStepDTO,
@@ -30,6 +23,12 @@ from app.schemas.business_templates import (
     ListTemplatesResponseDTO,
     RecordValidationRequest,
     RecordValidationResponseDTO,
+)
+from app.services.memory.business_templates import (
+    BusinessExperienceTemplate,
+    BusinessTemplateEngine,
+    EscalationEvaluationContext,
+    TemplateCategory,
 )
 
 logger = logging.getLogger(__name__)
