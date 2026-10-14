@@ -4770,6 +4770,7 @@
       "storageMode": "存储",
       "vectorStatus": "向量索引",
       "vectorPersistence": "向量存储持久化",
+      "vectorPersistenceHint": "记忆当前运行在临时模式。请确认没有其他 Myrm 窗口或进程正在使用同一个数据文件夹，且该文件夹可写，然后重启。",
       "embeddingStatus": "嵌入模型",
       "controlPlaneStatus": "控制平面",
       "eventLedgerStatus": "事件账本",

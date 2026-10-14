@@ -4702,6 +4702,7 @@
       "storageMode": "ストレージ",
       "vectorStatus": "ベクトルインデックス",
       "vectorPersistence": "ベクトルストレージの永続化",
+      "vectorPersistenceHint": "記憶は一時モードで動作しています。ほかの Myrm のウィンドウやプロセスが同じデータフォルダーを使用しておらず、フォルダーが書き込み可能であることを確認してから再起動してください。",
       "embeddingStatus": "エンベディングモデル",
       "controlPlaneStatus": "制御平面",
       "eventLedgerStatus": "イベント台帳",

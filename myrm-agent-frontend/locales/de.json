@@ -4702,6 +4702,7 @@
       "storageMode": "Lagerung",
       "vectorStatus": "Vektorindex",
       "vectorPersistence": "Vektorpersistenz",
+      "vectorPersistenceHint": "Das Gedächtnis läuft im temporären Modus. Stellen Sie sicher, dass kein anderes Myrm-Fenster oder -Prozess denselben Datenordner verwendet und der Ordner beschreibbar ist, und starten Sie dann neu.",
       "embeddingStatus": "Einbetten",
       "controlPlaneStatus": "Kontrollebene",
       "eventLedgerStatus": "Ereignisbuch",

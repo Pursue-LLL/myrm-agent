@@ -4702,6 +4702,7 @@
       "storageMode": "저장소",
       "vectorStatus": "벡터 인덱스",
       "vectorPersistence": "벡터 저장 영속성",
+      "vectorPersistenceHint": "기억이 임시 모드로 실행 중입니다. 다른 Myrm 창이나 프로세스가 같은 데이터 폴더를 사용하고 있지 않은지, 폴더에 쓰기 권한이 있는지 확인한 뒤 다시 시작하세요.",
       "embeddingStatus": "임베딩",
       "controlPlaneStatus": "컨트롤 플레인",
       "eventLedgerStatus": "이벤트 원장",

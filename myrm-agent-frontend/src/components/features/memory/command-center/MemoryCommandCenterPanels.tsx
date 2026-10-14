@@ -688,6 +688,11 @@ const RuntimePanel = ({ snapshot, t }: { snapshot: MemoryCommandCenterResponse; 
       value={translateRuntimeStatus(snapshot.runtime.vector_persistence, t)}
       alert={snapshot.runtime.vector_persistence === 'memory_fallback'}
     />
+    {snapshot.runtime.vector_persistence === 'memory_fallback' && (
+      <p className="px-1 text-xs leading-5 text-amber-700 dark:text-amber-300">
+        {t('commandCenter.vectorPersistenceHint')}
+      </p>
+    )}
     <RuntimeRow
       label={t('commandCenter.embeddingStatus')}
       value={translateRuntimeStatus(snapshot.runtime.embedding_status, t)}

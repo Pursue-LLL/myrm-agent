@@ -4770,6 +4770,7 @@
       "storageMode": "Storage",
       "vectorStatus": "Vector index",
       "vectorPersistence": "Vector persistence",
+      "vectorPersistenceHint": "Memory is running in temporary mode. Make sure no other Myrm window or process is using the same data folder and that the folder is writable, then restart.",
       "embeddingStatus": "Embedding",
       "controlPlaneStatus": "Control plane",
       "eventLedgerStatus": "Event ledger",
