@@ -6,6 +6,7 @@
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import { auditCitationMarkers, resolveSourceCountForAudit } from '@/lib/citations/auditCitationMarkers';
+import { readLastMessage } from '../lastMessage';
 import * as H from './handlerDeps';
 
 export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -23,19 +24,24 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
   }
 
   if (data.type === H.AgentEventType.FILE_MUTATION_FAILED) {
-    const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex !== -1 && data.data?.files) {
+    if (data.data?.files) {
       actions.setMessages((s) => {
-        s.messages[messageIndex].fileMutationFailures = data.data.files;
+        const messageIndex = H.findAssistantMessageIndex(s.messages, data.messageId);
+        if (messageIndex !== -1) {
+          s.messages[messageIndex].fileMutationFailures = data.data.files;
+        }
       });
     }
     return done(ctx);
   }
 
   if (data.type === H.AgentEventType.WORKSPACE_MERGE_FAILED) {
-    const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex !== -1 && data.data?.errors) {
+    if (data.data?.errors) {
       actions.setMessages((s) => {
+        const messageIndex = H.findAssistantMessageIndex(s.messages, data.messageId);
+        if (messageIndex === -1) {
+          return;
+        }
         s.messages[messageIndex].workspaceMergeFailures = data.data.errors;
         const failedCount = data.data.failed_count;
         if (typeof failedCount === 'number' && failedCount > 0) {
@@ -178,7 +184,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       // Do not abort it here: the reader still owns the stream teardown.
       actions.clearActiveStream?.();
 
-      const lastMsg = state.messages[state.messages.length - 1];
+      const lastMsg = readLastMessage(actions.setMessages);
       if (lastMsg) {
         actions._processSuggestions(lastMsg);
       }

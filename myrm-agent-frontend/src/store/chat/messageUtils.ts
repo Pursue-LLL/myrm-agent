@@ -103,6 +103,9 @@ export const discardStreamedDraft = (ctx: StreamDraftBuffers): void => {
   ctx.state.scheduler?.cancel?.();
 };
 
+/** Answers whose follow-ups are being requested; a repeated terminal event must not ask the model twice. */
+const suggestionsInFlight = new Set<string>();
+
 /**
  * 处理建议生成
  *
@@ -118,13 +121,26 @@ export const processSuggestions = async (
     return;
   }
 
-  if (lastMsg.role === 'assistant' && lastMsg.content.trim().length > 0 && !lastMsg.suggestions) {
-    try {
-      const chatHistory = buildSimpleChatHistory(messages);
-      const suggestions = await getSuggestionsService(chatHistory);
-      updateMessage(lastMsg.messageId, suggestions);
-    } catch (error) {
-      console.error('Failed to get suggestions:', error);
-    }
+  // A turn can finish in a pane other than the one the store shows: its history is not in `messages`, so the
+  // follow-ups would be generated from, and filed under, the wrong chat.
+  if (!messages.some((message) => message.messageId === lastMsg.messageId)) {
+    return;
+  }
+
+  if (lastMsg.role !== 'assistant' || lastMsg.content.trim().length === 0 || lastMsg.suggestions) {
+    return;
+  }
+  if (suggestionsInFlight.has(lastMsg.messageId)) {
+    return;
+  }
+
+  suggestionsInFlight.add(lastMsg.messageId);
+  try {
+    const suggestions = await getSuggestionsService(buildSimpleChatHistory(messages));
+    updateMessage(lastMsg.messageId, suggestions);
+  } catch (error) {
+    console.error('Failed to get suggestions:', error);
+  } finally {
+    suggestionsInFlight.delete(lastMsg.messageId);
   }
 };

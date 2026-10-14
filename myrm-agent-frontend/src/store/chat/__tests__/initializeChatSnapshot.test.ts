@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AgentConfig, ChatState, Message } from '@/store/chat/types';
 import {
@@ -96,6 +96,12 @@ vi.mock('@/store/chat/messageRequest', () => ({
 }));
 
 describe('initializeChat navigation snapshot', () => {
+  // initializeChat loads history through a dynamic import. Transforming that module graph on a busy machine
+  // takes seconds, far beyond the 1s default of vi.waitFor, so resolve it once before the timed assertions.
+  beforeAll(async () => {
+    await import('@/store/chat/messageManagement');
+  }, 60_000);
+
   beforeEach(() => {
     resetChatNavigationSnapshotsForTests();
     vi.clearAllMocks();
