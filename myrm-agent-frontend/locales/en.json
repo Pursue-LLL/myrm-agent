@@ -20263,7 +20263,8 @@
       "hardcoded_secret": "Plaintext secret or token in configuration",
       "credential_exposure": "Potential credential exposure detected",
       "supply_chain": "Supply-chain risk (e.g. unpinned npx package)",
-      "supply_chain_malware": "Package has a known malware advisory"
+      "supply_chain_malware": "Package has a known malware advisory",
+      "dangerous_env_injection": "Dangerous environment variable that can hijack the MCP server"
     },
     "mcpThreatRec": {
       "prompt_injection": "Do not enable this MCP; report to your administrator",
@@ -20279,7 +20280,8 @@
       "hardcoded_secret": "Use '{{secret:KEY}}' references instead of plaintext",
       "credential_exposure": "Use '{{secret:KEY}}' references instead of plaintext",
       "supply_chain": "Pin package name and version in arguments",
-      "supply_chain_malware": "Remove the flagged package and use verified dependencies"
+      "supply_chain_malware": "Remove the flagged package and use verified dependencies",
+      "dangerous_env_injection": "Remove this environment variable to prevent arbitrary code execution"
     },
     "mcpDeleteFailed": "Delete Failed",
     "mcpDeleteSuccess": "Service Deleted",

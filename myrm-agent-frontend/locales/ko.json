@@ -19565,7 +19565,8 @@
       "hardcoded_secret": "구성에 평문 비밀 또는 토큰이 있음",
       "credential_exposure": "잠재적 자격 증명 노출 감지됨",
       "supply_chain": "공급망 위험 (예: 버전 고정되지 않은 npx 패키지)",
-      "supply_chain_malware": "패키지에 알려진 악성코드 권고가 있음"
+      "supply_chain_malware": "패키지에 알려진 악성코드 권고가 있음",
+      "dangerous_env_injection": "MCP 서버를 탈취할 수 있는 위험한 환경 변수"
     },
     "mcpThreatRec": {
       "prompt_injection": "이 MCP를 활성화하지 말고 관리자에게 보고하세요",
@@ -19581,7 +19582,8 @@
       "hardcoded_secret": "평문 대신 '{{secret:KEY}}' 참조를 사용하세요",
       "credential_exposure": "평문 대신 '{{secret:KEY}}' 참조를 사용하세요",
       "supply_chain": "인자에 패키지 이름과 버전을 고정하세요",
-      "supply_chain_malware": "플래그된 패키지를 제거하고 검증된 의존성을 사용하세요"
+      "supply_chain_malware": "플래그된 패키지를 제거하고 검증된 의존성을 사용하세요",
+      "dangerous_env_injection": "임의 코드 실행을 막으려면 이 환경 변수를 제거하세요"
     },
     "mcpDeleteFailed": "삭제 실패",
     "mcpDeleteSuccess": "서비스 삭제됨",

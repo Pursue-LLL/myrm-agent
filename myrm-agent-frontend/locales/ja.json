@@ -19565,7 +19565,8 @@
       "hardcoded_secret": "設定に平文のシークレットまたはトークンが含まれています",
       "credential_exposure": "認証情報の漏えいの可能性を検出",
       "supply_chain": "サプライチェーンリスク（例: pin されていない npx パッケージ）",
-      "supply_chain_malware": "パッケージに既知のマルウェアアドバイザリがあります"
+      "supply_chain_malware": "パッケージに既知のマルウェアアドバイザリがあります",
+      "dangerous_env_injection": "MCPサーバーを乗っ取り得る危険な環境変数を検出"
     },
     "mcpThreatRec": {
       "prompt_injection": "この MCP を有効にしないでください。管理者に連絡してください",
@@ -19581,7 +19582,8 @@
       "hardcoded_secret": "平文ではなく '{{secret:KEY}}' 参照を使用してください",
       "credential_exposure": "平文ではなく '{{secret:KEY}}' 参照を使用してください",
       "supply_chain": "引数でパッケージ名とバージョンを固定（pin）してください",
-      "supply_chain_malware": "フラグされたパッケージを削除し、検証済みの依存関係を使用してください"
+      "supply_chain_malware": "フラグされたパッケージを削除し、検証済みの依存関係を使用してください",
+      "dangerous_env_injection": "任意コード実行を防ぐため、この環境変数を削除してください"
     },
     "mcpDeleteFailed": "削除に失敗しました",
     "mcpDeleteSuccess": "サービスを削除しました",

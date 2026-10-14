@@ -19565,7 +19565,8 @@
       "hardcoded_secret": "Klartext-Geheimnis oder Token in der Konfiguration",
       "credential_exposure": "Potenzielle Offenlegung von Anmeldeinformationen erkannt",
       "supply_chain": "Lieferkettenrisiko (z. B. nicht angeheftetes Npx-Paket)",
-      "supply_chain_malware": "Für das Paket gibt es eine bekannte Malware-Meldung"
+      "supply_chain_malware": "Für das Paket gibt es eine bekannte Malware-Meldung",
+      "dangerous_env_injection": "Gefährliche Umgebungsvariable, die den MCP-Server übernehmen kann"
     },
     "mcpThreatRec": {
       "prompt_injection": "Aktivieren Sie dieses MCP nicht; Melden Sie sich bei Ihrem Administrator",
@@ -19581,7 +19582,8 @@
       "hardcoded_secret": "Verwenden Sie '{{secret:KEY}}'-Referenzen anstelle von Klartext",
       "credential_exposure": "Verwenden Sie '{{secret:KEY}}'-Referenzen anstelle von Klartext",
       "supply_chain": "Paketnamen und -version in Argumenten anpinnen",
-      "supply_chain_malware": "Entfernen Sie das markierte Paket und verwenden Sie überprüfte Abhängigkeiten"
+      "supply_chain_malware": "Entfernen Sie das markierte Paket und verwenden Sie überprüfte Abhängigkeiten",
+      "dangerous_env_injection": "Entfernen Sie diese Umgebungsvariable, um die Ausführung beliebigen Codes zu verhindern"
     },
     "mcpDeleteFailed": "Löschen fehlgeschlagen",
     "mcpDeleteSuccess": "Dienst gelöscht",

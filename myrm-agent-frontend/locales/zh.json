@@ -20263,7 +20263,8 @@
       "hardcoded_secret": "配置中存在明文密钥或令牌",
       "credential_exposure": "检测到可能的凭证泄露",
       "supply_chain": "供应链风险（如未 pin 的 npx 包）",
-      "supply_chain_malware": "软件包存在已知恶意软件公告"
+      "supply_chain_malware": "软件包存在已知恶意软件公告",
+      "dangerous_env_injection": "检测到可劫持 MCP 服务的危险环境变量"
     },
     "mcpThreatRec": {
       "prompt_injection": "请勿启用该 MCP，并联系管理员",
@@ -20279,7 +20280,8 @@
       "hardcoded_secret": "请改用 '{{secret:KEY}}' 引用密钥",
       "credential_exposure": "请改用 '{{secret:KEY}}' 引用密钥",
       "supply_chain": "请在参数中 pin 包名和版本",
-      "supply_chain_malware": "请移除被标记的软件包并使用已验证依赖"
+      "supply_chain_malware": "请移除被标记的软件包并使用已验证依赖",
+      "dangerous_env_injection": "请移除该环境变量，以防止任意代码执行"
     },
     "mcpDeleteFailed": "删除失败",
     "mcpDeleteSuccess": "服务已删除",
