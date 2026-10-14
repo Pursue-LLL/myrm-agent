@@ -1483,3 +1483,55 @@ except Exception:
 7. 局限：`SKILL_EVOLUTION_ADVANTAGE` 里带日期的测试验证表（2026-06-28、2026-07-08）仍记着 optimization 目录 164 例，它们是当时的实测记录，没有改；`topic_11`、`topic_14` 里仍在他人工作区、尚未提交的条目，工作区文本改了，没有提交；`dependencies.py` 里 `get_event_emitter` 的删除依赖他人未提交的 `runtime.py`，留在工作区没有提交；`optimizer.py` / `observability.py` 的去留需要在他们的改动落地后再核实；没有重新跑服务启动的完整流程，也没有实测前端页面。
 
 ---
+
+## BUG-AGENT-2026-10-14-006: 平板与横屏手机上看不到用户消息的动作行（含 Rewind 唯一入口）；41 个组件的 46 个功能控件只靠悬停或宽度断点显现，键盘够不到；TSX 硬编码文案没有门禁
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（功能性控件在无悬停设备上不可达，键盘也无法触达；不影响数据） |
+| 影响范围 | 前端 `lib/utils/a11y.ts`、43 个组件文件（`message-box`、`artifacts`、`kanban`、`settings`、`sidebar`、`skills`、`workspace-browser` 等）、`scripts/` 静态门禁、`package.json` 的 `lint` |
+| 出现次数 | 1 |
+| 关联 | 提交 `d13c3b22e`（S1）、`5e6394e22`（S2）、`76fe91709`（S4），本地提交，未 push |
+
+### 现象
+
+1. 用户气泡的动作行（复制 / 编辑 / Fork / Rewind，Rewind 的唯一入口）写作 `opacity-100 sm:opacity-0 sm:group-hover:opacity-100`：用宽度 `sm`（≥640px）充当「有没有悬停」的判据，平板与横屏手机宽度够大却没有悬停，整行不可见；键盘聚焦到行内按钮时也不会显现；
+2. 同类写法在 41 个组件文件里共 46 个功能控件单元（删除、复制、下载、移除、打开、重命名等）：只有 `group-hover`、`sm:` / `md:` 宽度门，或 `isMobile`（`useIsMobile()`，≤768px）三元三种之一；
+3. `bun run lint` 里没有任何门禁拦截 TSX 里绕过 i18n 的用户可见字面量。
+
+### 根因
+
+1. 宽度断点被当作输入方式的代理，而宽度与是否有悬停无关；
+2. `opacity-0` 的控件只写了 `group-hover`，没有 `group-focus-within`，键盘用户没有显现路径；
+3. 项目规则（文案必须中英双语）只靠人工检查，没有机器门禁。
+
+### 修复
+
+1. `lib/utils/a11y.ts` 新增 `REVEAL_ON_HOVER = 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100'`：鼠标悬停、键盘聚焦到所在 `group`、粗指针触屏三条路径任一成立即可见；命名组（`group/img` 等）无法复用常量，就地写带同名后缀的三个变体；
+2. S1：用户气泡动作行改用常量；附件下载按钮在 HEAD 里已有同样三个变体的内联写法，改为引用常量（行为不变）；补两处测试固定三条显现路径；
+3. S2：41 个组件文件的 46 个功能控件单元改用常量（命名组 `img` / `obj` / `dep` / `att` 就地写三变体）；`PortalTabs` 保留 `isActive && 'opacity-100'`，`MermaidChart` 在 `alwaysVisible` 时不加常量，`ChatHistoryRow`、`WikiConceptTree` 等去掉 `isMobile` 分支；
+4. S4：`scripts/hardcoded-copy-scan.ts`（TypeScript AST 找 JSX 文本、JSX 表达式里的字符串字面量与承载文案的属性）+ `scripts/check-hardcoded-copy.mjs`（按文件计数的棘轮：增加失败，改善未更新基线也失败，`--write-baseline` 才重写）接入 `bun run lint`，即 CI 的 Oxlint 步骤；目录遍历抽到 `scripts/source-files.mjs`，`check-theme-colors.mjs` 共用，输出与重构前逐字一致；
+5. 文档：`lib/utils/_ARCH.md`、`message-box/_ARCH.md`、`image-editor/_ARCH.md`、`wiki/_ARCH.md`、`scripts/_ARCH.md`、前端根 `_ARCH.md` 同步；根仓库 roadmap 里 4 处 `UserMessage*.tsx` 行号引用改成现状。
+
+保留不动：32 个非控件单元（悬停才出现的装饰箭头、拖动图标、图表柱高亮与说明文字，本身不可点击）；两处由 JS 状态控制的悬停显现（`kanban/KanbanTaskCard.tsx` 的 `showActions`、`memory/cards/MemoryCard.tsx` 的勾选框）；`OrgMarketplace` / `TemplateMarket` 的「已安装」状态指示（是指示不是控件）。
+
+### 验证
+
+1. 真实 Chrome（patchright 驱动的无头 Chromium，触屏用 `has_touch + is_mobile` 模拟）：用项目的 `@tailwindcss/postcss` 编译真实 `globals.css`，确认 8 个相关类（含 `obj` / `dep` / `att` / `img` 命名组变体）都由源码生成；隔离页面里用从 `a11y.ts` 读出的常量原文：桌面 1280 鼠标默认 opacity 0、悬停 1、移开 0，Tab 聚焦 1、失焦 0，命名组同样；触屏平板 1024×768、横屏手机 844×390、竖屏手机 390×844 默认都是 1（`pointer: coarse` 为真）；对照组 `opacity-100 sm:opacity-0 sm:group-hover:opacity-100`（旧写法的代表）在平板与横屏手机上为 0，在桌面 1280 上 Tab 聚焦后仍为 0；
+2. 测试：`vitest related` 覆盖改动文件 87 个文件 765 例通过（工作区）；`scripts/__tests__` 5 个文件 50 例通过；
+3. 静态：oxlint 对 41 个 S2 文件与新增脚本 0 error、9 条既有 warning（`no-img-element` 等）；prettier 对新增与改写的文件无差异；`tsc` 仅余他人未提交测试里的一处无关报错（`kanban/__tests__/KanbanTaskHandoffSection.test.tsx(68,3)`）；本地行数自检报告的 24 个新增超限文件里没有我改的文件；我改的文件中有 18 个本就超过 400 行（在既有基线内），每个净增不超过 7 行（`LocalPathsConfig.tsx`）；
+4. S4：基线取自已提交树（369 个文件、3550 处），扫描 1437 个 TSX 文件用时 5.1–9.3s；在已提交树的导出里加一个含中文与英文属性的合成文件，门禁失败并列出 `文件:行 [kind] 文案`，删除后恢复通过；固定种子抽 30 处人工核对，29 处是真实硬编码文案，1 处（`t('apiKey') || 'API Key'` 的回退值）算误报，精度约 97%（样本里 23 处在 `memory/command-center`，其余目录只有 7 处，召回率没有测）；
+5. 在已提交树的导出里模拟 CI 的 lint 链：`verify:stable-mocks`（1130 个测试文件）、`verify:theme-colors`（2457 个文件）、`verify:hardcoded-copy` 通过；`verify:a11y` 失败（豁免注释 81→82，另有三项已改善未收紧基线），在我的提交之前的树上同样失败、输出一致，是他人提交造成的，没有处理。
+
+### 踩坑经验
+
+1. 对照组要先确认它的 CSS 真的被编译出来：第一版探针里旧写法的 `sm:opacity-0` 没有任何源码使用，Tailwind 没生成它，对照组在桌面上也显示为可见，看上去像是旧写法没问题；用 `@source inline(...)` 强制生成后对照才成立；
+2. 批量改写前先用 AST 枚举，再逐个判定「功能控件」还是「装饰」：第一版估算「>20」，实际 46 个功能单元、32 个非控件单元；codemod 还误匹配过同一容器里的说明文字与删除按钮，要加标签与附加类名过滤；
+3. 棘轮基线必须取自已提交树：工作区比 HEAD 多出他人未提交的新文件，直接写基线得到 522 个文件、5550 处，而已提交树是 369 个、3550 处；
+4. jsdom 里 `localizeReactNode` 只渲染「中文 / English」的一侧，`title="复制 / Copy"` 在测试里是 `Copy`，查询要用后者；
+5. 共享工作区提交：用独立索引 + `git apply --cached --unidiff-zero` 只应用我的 hunk，`ArtifactCard`、`GoalStatusExpanded`、`lib/utils/_ARCH.md` 三个文件混有他人改动，按关键字过滤 hunk，提交后用「提交内容里没有他人符号」和「工作区残差只剩他们的行数」核对；
+6. 局限：没有在真实聊天页验证（后端 :8000 未启动，浏览器 MCP 也拒绝应用地址），只验证了编译后的常量在隔离页面里的行为，触屏是模拟不是真机；触屏设备现在总是显示这些控件（设计变更，例如 iPad 上的侧栏行）；窄桌面窗口用鼠标时，原先 `isMobile` / `sm:` 分支下常显的控件现在改为悬停或聚焦显现；扫描器只覆盖直接写在 JSX 里的字面量，不含对象 / 数组常量再渲染的文案、`toast` / `Error` 消息和 `.ts` 文件，存量只是冻结没有清零；本地工作区里他人未提交的新文件会被新门禁拦下（新文件基线为 0），需要他们提交前处理；`check-a11y-ratchet.mjs` 自带的目录遍历没有并入共享的 `source-files.mjs`；`specialty-suites-gateway` 缺 `_ARCH.md`（他人未提交）使 `check_fractal_docs.py` 在工作区失败。
+
+---
