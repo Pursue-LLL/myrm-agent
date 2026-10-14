@@ -66,21 +66,6 @@ from myrm_agent_harness.toolkits.memory.experience_compounding import (
     CompoundedExperienceItem,
     ExperienceCompoundingSuite,
 )
-from myrm_agent_harness.toolkits.memory.experience_observability import (
-    ExperienceObservabilityMetric,
-    ExperienceObservabilityTracker,
-    HostAccessChannel,
-    SessionTraceEvidence,
-    ZeroRefactorHostPlugin,
-)
-from myrm_agent_harness.toolkits.memory.failure_retrieval import (
-    ErrorFingerprint,
-    ErrorFingerprintExtractor,
-    FailureHistoricalSessionSearchEngine,
-    FailureRetrievalResult,
-    FailureTriggerConfig,
-    HistoricalResolutionEntry,
-)
 from myrm_agent_harness.toolkits.memory.four_tier_fts import (
     DreamCompactionReport,
     FourTierDreamCompactor,
@@ -113,14 +98,6 @@ from myrm_agent_harness.toolkits.memory.job_compounding import (
     JobDescriptionSpec,
     PreferenceCompoundingEngine,
     RuleType,
-)
-from myrm_agent_harness.toolkits.memory.live_correction import (
-    CorrectionAckReceipt,
-    CorrectionTargetLocalizer,
-    LiveCorrectionMutationResult,
-    LiveCorrectionOrchestrator,
-    NaturalLanguageCorrectionDetector,
-    TargetNodeCandidate,
 )
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.markdown_curator import (
@@ -189,13 +166,6 @@ from myrm_agent_harness.toolkits.memory.pitfall_alert import (
     ShadowDecisionIntentRecognizer,
 )
 from myrm_agent_harness.toolkits.memory.private_notebook import ModelPrivateNotebookManager
-from myrm_agent_harness.toolkits.memory.procedure_experience import (
-    DualNodeFixedCountRetriever,
-    DualNodeRetrievalQuery,
-    ProcedureMemoryEntry,
-    ProcedureProtocolEngine,
-    RetrievalNodeKind,
-)
 from myrm_agent_harness.toolkits.memory.quadruple_retrieval import (
     ParsedTaskGoal,
     QuadrupleParallelRetriever,
@@ -468,22 +438,6 @@ __all__ = [
     "CuratorStudioSummary",
     "MarkdownSyncDelta",
     "MemoryCuratorStudio",
-    "DualNodeFixedCountRetriever",
-    "DualNodeRetrievalQuery",
-    "ProcedureMemoryEntry",
-    "ProcedureProtocolEngine",
-    "RetrievalNodeKind",
-    "HostAccessChannel",
-    "SessionTraceEvidence",
-    "ExperienceObservabilityMetric",
-    "ExperienceObservabilityTracker",
-    "ZeroRefactorHostPlugin",
-    "ErrorFingerprint",
-    "ErrorFingerprintExtractor",
-    "FailureHistoricalSessionSearchEngine",
-    "FailureRetrievalResult",
-    "FailureTriggerConfig",
-    "HistoricalResolutionEntry",
     "PeerCognitionGraphStore",
     "PeerCognitionProjection",
     "PeerIdentity",
@@ -525,12 +479,6 @@ __all__ = [
     "QuadrupleRetrievalOrchestrator",
     "QuadrupleRetrievalReport",
     "RerankedMemoryHit",
-    "CorrectionAckReceipt",
-    "CorrectionTargetLocalizer",
-    "LiveCorrectionMutationResult",
-    "LiveCorrectionOrchestrator",
-    "NaturalLanguageCorrectionDetector",
-    "TargetNodeCandidate",
     "ChunkSourceHydrator",
     "ChunkingConfig",
     "IncrementalDiffReport",

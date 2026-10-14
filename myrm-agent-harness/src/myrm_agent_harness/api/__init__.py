@@ -119,12 +119,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.core.security.missing_semantics",
         "MissingDependencyFailFastError",
     ),
-    "AttributionVerdict": ("myrm_agent_harness.eval.manifest_prediction", "AttributionVerdict"),
-    "ChangePredictionManifest": ("myrm_agent_harness.eval.manifest_prediction", "ChangePredictionManifest"),
-    "ManifestAttributionResult": ("myrm_agent_harness.eval.manifest_prediction", "ManifestAttributionResult"),
-    "MetricAttributionDetail": ("myrm_agent_harness.eval.manifest_prediction", "MetricAttributionDetail"),
-    "MetricContract": ("myrm_agent_harness.eval.metric_contract", "MetricContract"),
-    "MetricPrediction": ("myrm_agent_harness.eval.manifest_prediction", "MetricPrediction"),
     "MissingSemanticsBlockedError": (
         "myrm_agent_harness.core.security.missing_semantics",
         "MissingSemanticsBlockedError",
@@ -134,7 +128,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "MissingSemanticsError": ("myrm_agent_harness.core.security.missing_semantics", "MissingSemanticsError"),
     "MissingSemanticsPolicy": ("myrm_agent_harness.core.security.missing_semantics", "MissingSemanticsPolicy"),
     "Origin": ("myrm_agent_harness.core.security.http.redirect_guard", "Origin"),
-    "PredictionDirection": ("myrm_agent_harness.eval.manifest_prediction", "PredictionDirection"),
     "PrivacyFailClosedLadder": ("myrm_agent_harness.core.security.guards.privacy_ladder", "PrivacyFailClosedLadder"),
     "PrivacyFailClosedViolationError": (
         "myrm_agent_harness.core.security.guards.privacy_ladder",
@@ -217,8 +210,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "drop_subagent_checkpoint_if_terminal",
     ),
     "evaluate_five_contract_progress": ("myrm_agent_harness.eval.contracts", "evaluate_five_contract_progress"),
-    "evaluate_manifest_attribution": ("myrm_agent_harness.eval.manifest_prediction", "evaluate_manifest_attribution"),
-    "evaluate_metric_proxy_alignment": ("myrm_agent_harness.eval.metric_contract", "evaluate_metric_proxy_alignment"),
     "evaluate_missing_capability": (
         "myrm_agent_harness.core.security.missing_semantics",
         "evaluate_missing_capability",
@@ -335,8 +326,11 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "ProviderBalanceProbeProtocol": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceProbeProtocol"),
     "ProviderBalanceResult": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceResult"),
     "ProviderBalanceStatus": ("myrm_agent_harness.toolkits.llms.probe", "ProviderBalanceStatus"),
-    "WorkingMemorySnapshot": ("myrm_agent_harness.toolkits.memory", "WorkingMemorySnapshot"),
-    "create_consolidation_cleanup_task": ("myrm_agent_harness.toolkits.memory", "create_consolidation_cleanup_task"),
+    "WorkingMemorySnapshot": ("myrm_agent_harness.toolkits.memory.consolidation", "WorkingMemorySnapshot"),
+    "create_consolidation_cleanup_task": (
+        "myrm_agent_harness.toolkits.memory.consolidation",
+        "create_consolidation_cleanup_task",
+    ),
     "TaintedEgressGateway": ("myrm_agent_harness.core.security.egress", "TaintedEgressGateway"),
     "TaintedEgressDecision": ("myrm_agent_harness.core.security.egress", "TaintedEgressDecision"),
     "TaintedEgressBlockedError": ("myrm_agent_harness.core.security.egress", "TaintedEgressBlockedError"),

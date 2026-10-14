@@ -2,11 +2,12 @@
 
 [INPUT]
 - core.security.guards.ssrf::async_pin_url (POS: DNS-validated URL checks + audit)
-- core.security.redirect_hop_guard::RedirectHopEvaluator, PrivateOriginGrants (POS: literal-host private network and cloud metadata classification, no DNS)
+- core.security.redirect_hop_guard::RedirectHopEvaluator, PrivateOriginGrants (POS: private network and cloud metadata classification; local mode also judges a hostname by what it resolves to)
+- domain_filter.context_lists::DomainListPolicy, domain_lists_for (POS: the context's domain allow/block lists and the rule that applies them)
 - utils.page_health::abort_pending_navigation (POS: bounded browser and page health primitives)
 
 [OUTPUT]
-- BrowserNavigationBlockedError: a navigation URL failed SSRF validation
+- BrowserNavigationBlockedError: a navigation URL failed SSRF or domain-list validation
 - assert_browser_navigation_allowed: Validate a navigation URL
 - assert_browser_redirect_chain_allowed: Walk redirect chain on a Playwright Request
 - goto_with_ssrf_guard: page.goto with temporary document-level route interception
@@ -20,8 +21,13 @@ before the route handler is removed, and the removal itself is bounded, because 
 stuck in a stalled navigation never answers `unroute`.
 
 Two policies share this module. Without grants (cloud) every resolved address must be public.
-With grants (local mode) only the literal host is classified: private origins pass when the agent
+With grants (local mode) the host is classified as written and by what it resolves to, but only
+loopback, link-local and cloud metadata addresses count: private origins pass when the agent
 navigated there explicitly, and cloud metadata endpoints never pass.
+
+The agent's domain allow/block lists are applied to redirect hops here as well: the context's
+request filter is never handed a hop, so without this a listed site could bounce the tab to a
+host the user forbade.
 """
 
 from __future__ import annotations
@@ -37,10 +43,13 @@ from myrm_agent_harness.core.security.redirect_hop_guard import (
     RedirectHopEvaluator,
 )
 
+from ..domain_filter.context_lists import domain_lists_for
 from ..utils.page_health import abort_pending_navigation
 
 if TYPE_CHECKING:
     from patchright.async_api import Page, Request, Response, Route
+
+    from ..domain_filter.context_lists import DomainListPolicy
 
 _NETWORK_SCHEMES = frozenset({"http", "https"})
 _UNROUTE_TIMEOUT_S = 2.0
@@ -48,15 +57,16 @@ _BLANK_TIMEOUT_S = 2.0
 
 
 class BrowserNavigationBlockedError(ValueError):
-    """Raised when a browser navigation URL fails SSRF validation."""
+    """Raised when a browser navigation URL fails SSRF or domain-list validation."""
 
 
 async def assert_browser_navigation_allowed(url: str, grants: PrivateOriginGrants | None = None) -> None:
     """Validate URL for browser navigation.
 
     Without ``grants`` the host is resolved and every address must be public (audited on block).
-    With ``grants`` only the literal host is classified: the user's own resolver may legitimately
-    map public names to proxy or VPN ranges, so DNS answers are not second-guessed there.
+    With ``grants`` the host is classified as written and by its DNS answer, but only loopback,
+    link-local and metadata answers count: the user's own resolver may legitimately map public
+    names to proxy or VPN ranges, so other answers are not second-guessed there.
     """
     parsed = urlparse(url)
     if parsed.scheme == "about":
@@ -65,7 +75,7 @@ async def assert_browser_navigation_allowed(url: str, grants: PrivateOriginGrant
         raise BrowserNavigationBlockedError(f"Unsupported navigation scheme: {url}")
 
     if grants is not None:
-        verdict = RedirectHopEvaluator(grants=grants).evaluate_hop(url)
+        verdict = await RedirectHopEvaluator(grants=grants).evaluate_hop_resolved(url)
         if verdict.disposition != HopDisposition.ALLOW:
             raise BrowserNavigationBlockedError(f"SSRF blocked: {verdict.reason}")
         return
@@ -78,13 +88,33 @@ async def assert_browser_navigation_allowed(url: str, grants: PrivateOriginGrant
         raise BrowserNavigationBlockedError(f"SSRF blocked: {exc}") from exc
 
 
+def _assert_domain_lists_allow_hop(url: str, domain_lists: DomainListPolicy | None) -> None:
+    """Apply the context's domain lists to a redirect hop the request filter was never handed."""
+    if domain_lists is None:
+        return
+    hostname = urlparse(url).hostname or ""
+    violation = domain_lists.violation(hostname)
+    if violation is None:
+        return
+    reason = "is on the domain blocklist" if violation == "blocklist" else "is not on the domain allowlist"
+    raise BrowserNavigationBlockedError(f"Navigation blocked: redirect target '{hostname or url}' {reason}")
+
+
 async def assert_browser_redirect_chain_allowed(
-    request: Request | None, grants: PrivateOriginGrants | None = None
+    request: Request | None,
+    grants: PrivateOriginGrants | None = None,
+    domain_lists: DomainListPolicy | None = None,
 ) -> None:
-    """Validate every hop in a Playwright redirect chain."""
+    """Validate every hop in a Playwright redirect chain.
+
+    Every URL gets the SSRF check. Every URL after the first also gets the domain lists: the
+    request filter judged the entry URL itself, but is never handed a redirect target.
+    """
     current: Request | None = request
     while current is not None:
         await assert_browser_navigation_allowed(current.url, grants)
+        if current.redirected_from is not None:
+            _assert_domain_lists_allow_hop(current.url, domain_lists)
         current = current.redirected_from
 
 
@@ -166,7 +196,9 @@ async def goto_with_ssrf_guard(
         response = await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
         if blocked_error is not None:
             raise blocked_error
-        await assert_browser_redirect_chain_allowed(response.request if response else None, grants)
+        await assert_browser_redirect_chain_allowed(
+            response.request if response else None, grants, domain_lists_for(page.context)
+        )
         await assert_browser_navigation_allowed(page.url, grants)
         return response
     except BaseException as exc:

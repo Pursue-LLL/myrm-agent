@@ -8,7 +8,8 @@ values are never stored.
 [INPUT]
 - core.security.detection.card_context::find_card_number_spans (POS: Keyword-anchored detector for card numbers outside the network prefix table or with a typo in them.)
 - core.security.detection.custom_rules::CustomRules, NO_CUSTOM_RULES, find_custom_spans (POS: Single definition of custom-term matching for the privacy policy: the PII classifier, the redactor and the pseudonymizer share it, so detection and masking never disagree about what a user's keyword or pattern covers.)
-- core.security.detection.pii_patterns::compiled PII patterns and validators (POS: Single definition of the built-in PII patterns and their validators.)
+- core.security.detection.iban::IBAN_RE, iban_valid (POS: IBAN detection for the PII pattern tables. The lengths are those of the SWIFT IBAN registry (89 countries). Typed with hyphens or other separators, an IBAN is not matched.)
+- core.security.detection.pii_patterns::compiled PII patterns, is_confirmed and validators (POS: Single definition of the built-in PII patterns and their validators: classification, redaction and pseudonymization all read it, so they never disagree about what a hit is.)
 - core.security.detection.password_heuristic::find_password_spans (POS: last-resort keyword-anchored detector for passwords without vendor prefix or entropy.)
 
 [OUTPUT]
@@ -16,7 +17,12 @@ values are never stored.
 - redact_value(): redact a single known PII value by type
 
 [POS]
-PII redactor. Type-aware smart masking (phone numbers retain first 3 and last 4 digits, emails retain domain, etc.) for user-friendly redaction. Passwords are replaced by span (password_heuristic, recall mode) before the regex stages, so the label and the punctuation around the value survive. The user's custom terms are replaced by span right after the passwords.
+PII redactor. Type-aware smart masking (phone numbers retain first 3 and last 4 digits, emails retain domain, cards
+and IBANs their last 4 characters, etc.) for user-friendly redaction, applied for the levels the caller names, so one level's
+redaction never masks another level's content. Passwords are replaced by span (password_heuristic, recall mode) before
+the regex stages, so the label and the punctuation around the value survive. The user's custom terms are replaced by
+span right after the passwords, and the card numbers a card keyword introduces right after the S3 patterns. A match
+that fails its checksum is neither masked nor counted.
 
 """
 
@@ -27,6 +33,7 @@ from collections.abc import Callable, Iterable
 
 from myrm_agent_harness.core.security.detection.card_context import find_card_number_spans
 from myrm_agent_harness.core.security.detection.custom_rules import NO_CUSTOM_RULES, CustomRules, find_custom_spans
+from myrm_agent_harness.core.security.detection.iban import IBAN_RE, iban_valid
 from myrm_agent_harness.core.security.detection.password_heuristic import find_password_spans
 from myrm_agent_harness.core.security.detection.pii_patterns import (
     BANK_CARD_RE,
@@ -42,8 +49,8 @@ from myrm_agent_harness.core.security.detection.pii_patterns import (
     SSN_RE,
     US_PHONE_RE,
     china_id_valid,
+    is_confirmed,
     is_placeholder,
-    luhn_valid,
 )
 from myrm_agent_harness.core.security.types import SensitivityLevel
 
@@ -85,16 +92,23 @@ def _redact_china_id(m: re.Match[str]) -> str:
     return f"{val[:6]}********{val[-4:]} [PII:id_card]"
 
 
-def _mask_bank_card(digits: str) -> str:
-    return f"**** **** **** {digits[-4:]} [PII:bank_card]"
+def _mask_bank_card(value: str) -> str:
+    """The card number *value*, whatever its separators, reduced to its last four digits."""
+    last_four = re.sub(r"\D", "", value)[-4:]
+    return f"**** **** **** {last_four} [PII:bank_card]"
 
 
 def _redact_bank_card(m: re.Match[str]) -> str:
     val = m.group(0)
-    cleaned = val.replace("-", "").replace(" ", "")
-    if not luhn_valid(cleaned):
+    return _mask_bank_card(val) if is_confirmed("bank_card", m) else val
+
+
+def _redact_iban(m: re.Match[str]) -> str:
+    val = m.group(0)
+    if not iban_valid(val):
         return val
-    return _mask_bank_card(cleaned)
+    compact = val.replace(" ", "")
+    return f"{compact[:2].upper()}** **** **** {compact[-4:]} [PII:iban]"
 
 
 def _redact_credit_card(m: re.Match[str]) -> str:
@@ -103,13 +117,13 @@ def _redact_credit_card(m: re.Match[str]) -> str:
     return f"**** **** **** {cleaned[-4:]} [PII:credit_card]"
 
 
-def _replace_spans(content: str, bounds: Iterable[tuple[int, int]], marker: str) -> str:
-    """*content* with each sorted, disjoint ``(start, end)`` range replaced by *marker*."""
+def _replace_spans(content: str, bounds: Iterable[tuple[int, int]], marker: str | Callable[[str], str]) -> str:
+    """*content* with each sorted, disjoint ``(start, end)`` range replaced by *marker*, or by ``marker(original)``."""
     parts: list[str] = []
     cursor = 0
     for start, end in bounds:
         parts.append(content[cursor:start])
-        parts.append(marker)
+        parts.append(marker(content[start:end]) if callable(marker) else marker)
         cursor = end
     parts.append(content[cursor:])
     return "".join(parts)
@@ -128,14 +142,7 @@ def _redact_card_numbers(content: str) -> tuple[str, int]:
     spans = find_card_number_spans(content)
     if not spans:
         return content, 0
-    parts: list[str] = []
-    cursor = 0
-    for start, end in spans:
-        parts.append(content[cursor:start])
-        parts.append(_mask_bank_card(re.sub(r"\D", "", content[start:end])))
-        cursor = end
-    parts.append(content[cursor:])
-    return "".join(parts), len(spans)
+    return _replace_spans(content, spans, _mask_bank_card), len(spans)
 
 
 def _redact_custom(content: str, custom: CustomRules) -> tuple[str, int]:
@@ -190,6 +197,7 @@ _S3_REDACTIONS: tuple[_Redaction, ...] = (
 )
 
 _S2_REDACTIONS: tuple[_Redaction, ...] = (
+    ("iban", IBAN_RE, _redact_iban, False),
     ("china_phone", CHINA_PHONE_RE, _redact_china_phone, False),
     ("intl_phone", INTL_PHONE_RE, _redact_intl_phone, False),
     ("us_phone", US_PHONE_RE, _redact_us_phone, False),
@@ -247,9 +255,10 @@ def redact_pii(
 
     Redaction order: passwords first (a value the text labels as a password wins
     over whatever pattern it also matches), then the user's *custom* keywords and
-    patterns, then S3 patterns (identity docs, financial), then S2 patterns
-    (contact info, location). Placeholder values are skipped to avoid false
-    positives. Without *custom* only the built-in detectors apply.
+    patterns, then S3 patterns (identity docs, financial), then the card numbers a
+    card keyword introduces, then S2 patterns (contact info, location). Placeholder
+    values are skipped to avoid false positives, and so are matches that fail their
+    checksum. Without *custom* only the built-in detectors apply.
 
     *levels* narrows the built-in detectors: S3 covers passwords, identity documents, bank cards and credentials, S2
     the contact and location patterns. A caller that applies a different action per level passes one level at a time,
