@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Default server pytest suite (unit + API integration; excludes @pytest.mark.e2e and performance/benchmark).
-# Requires local harness (vortexai layout) or PyPI-published harness for the pinned version.
+# The harness comes from the sibling ../myrm-agent-harness directory (editable path source).
 set -euo pipefail
 
 SERVER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

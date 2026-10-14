@@ -54,10 +54,7 @@ _run_md_refs() {
 
 _run_import_resolvability() {
   local harness_root py
-  if ! harness_root="$(myrm_ci_resolve_harness_root)"; then
-    echo "CI import-resolvability: harness source unavailable (PyPI mode); skipping import resolvability check"
-    return 0
-  fi
+  harness_root="$(myrm_ci_resolve_harness_root)"
   py="${SERVER_ROOT}/.venv/bin/python"
   [[ -x "${py}" ]] || py="python3"
   "${py}" "${harness_root}/scripts/check_import_resolvability.py" \
