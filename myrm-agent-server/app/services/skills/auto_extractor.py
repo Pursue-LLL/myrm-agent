@@ -6,6 +6,7 @@ event. Orchestration and policy decisions live in ``growth/lifecycle.py``.
 [INPUT]
 - myrm_agent_harness.agent.skills.evolution.core.types::EnvironmentFingerprint, EvolutionType, SkillLineage, SkillRecord (POS: Harness 技能演化核心类型)
 - app.core.skills.creation.service::skill_creation_service (POS: Skill creation service)
+- app.core.skills.utils::resolve_skill_description, yaml_scalar (POS: 技能描述回退与 frontmatter 标量转义)
 - app.core.skills.store.evolution_store::get_evolution_skill_store (POS: core/skills/store 进化 SQLite 入口)
 - app.services.skills.evolution_events::publish_skill_evolved_event (POS: 技能进化事件发布)
 
@@ -32,13 +33,12 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 )
 
 from app.core.skills.creation.service import skill_creation_service
+from app.core.skills.utils import resolve_skill_description, yaml_scalar
 from app.services.skills.evolution_events import publish_skill_evolved_event
 
 logger = logging.getLogger(__name__)
 
 _PYTHON_CODE_BLOCK_RE = re.compile(r"```(?:python|py)[^\n]*\n(.*?)\n```", re.DOTALL)
-
-_DEFAULT_SKILL_DESCRIPTION = "Auto-extracted skill"
 
 
 def validate_python_code_blocks(text: str) -> str | None:
@@ -71,6 +71,7 @@ class SkillMaterializationResult:
 
 async def _persist_review_eval_cases(
     skill_name: str,
+    description: str,
     content: str,
     skill_path: str,
     eval_cases: list[dict[str, object]],
@@ -91,7 +92,7 @@ async def _persist_review_eval_cases(
             record = SkillRecord(
                 skill_id=skill_name,
                 name=skill_name,
-                description="Auto-extracted skill",
+                description=description,
                 content=content,
                 path=skill_path,
                 lineage=SkillLineage(
@@ -116,7 +117,7 @@ def _build_skill_markdown(
 ) -> str:
     return f"""---
 name: {skill_name}
-description: {description}
+description: {yaml_scalar(description)}
 category: custom
 always: false
 ---
@@ -131,6 +132,14 @@ always: false
 """
 
 
+def _draft_description(result: dict[str, object]) -> str:
+    return resolve_skill_description(
+        str(result.get("skill_description") or ""),
+        str(result.get("trigger_condition") or ""),
+        str(result.get("skill_name") or ""),
+    )
+
+
 def render_skill_draft_markdown(result: dict[str, object]) -> str:
     """Render the SKILL.md that materializing a ``skill_draft`` result writes to disk.
 
@@ -138,7 +147,7 @@ def render_skill_draft_markdown(result: dict[str, object]) -> str:
     """
     return _build_skill_markdown(
         str(result.get("skill_name") or ""),
-        str(result.get("skill_description") or _DEFAULT_SKILL_DESCRIPTION),
+        _draft_description(result),
         str(result.get("trigger_condition") or ""),
         str(result.get("skill_steps") or ""),
     )
@@ -167,7 +176,7 @@ async def auto_extract_skill(
             error=f"unsupported result_type: {result_type}",
         )
 
-    description = str(result.get("skill_description") or _DEFAULT_SKILL_DESCRIPTION)
+    description = _draft_description(result)
     skill_steps = str(result.get("skill_steps") or "")
 
     code_syntax_error = validate_python_code_blocks(skill_steps)
@@ -203,6 +212,7 @@ async def auto_extract_skill(
 
     await _persist_review_eval_cases(
         skill_name,
+        description,
         content,
         str(skill_creation_service.base_path / skill_name / "SKILL.md"),
         eval_cases or [],

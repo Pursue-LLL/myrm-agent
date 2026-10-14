@@ -63,6 +63,8 @@ export default function SkillGrowthCaseCard({
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
   const approveLabel = item.status === 'APPLY_FAILED' ? t('actions.retryApply') : t('actions.approve');
   const canRevise = showReviewActions && item.source === 'evolution' && onRevise;
+  // Only revision proposals record why they were turned down; a new-skill draft is simply discarded.
+  const collectsRejectReason = item.source === 'evolution';
 
   const hasExpandableContent = item.hasDiff || item.hasTrajectory || item.hasTriggerCondition || item.hasSkillSteps;
 
@@ -110,11 +112,11 @@ export default function SkillGrowthCaseCard({
   }, [contentExpanded, hasExpandableContent, loadDetail]);
 
   const handleReject = async () => {
-    if (!showRejectInput) {
+    if (collectsRejectReason && !showRejectInput) {
       setShowRejectInput(true);
       return;
     }
-    await onReject(rejectionReason.trim() || undefined);
+    await onReject(collectsRejectReason ? rejectionReason.trim() || undefined : undefined);
     setShowRejectInput(false);
     setRejectionReason('');
   };

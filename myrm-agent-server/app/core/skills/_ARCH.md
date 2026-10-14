@@ -24,7 +24,7 @@
 | `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理；快照 `requires` 取自实际留存的 SKILL.md（用户改过则以用户副本为准），未重写的快照仅补丁 `requires` 字段；在线编辑 SKILL.md 后于下次同步对齐 | ✅ |
 | `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`）。边界见 [SKILLS_SYSTEM.md §3.5](SKILLS_SYSTEM.md) | ✅ |
 | `storage_adapters.py` | 核心 | SnapshotStore 协议适配器 | ✅ |
-| `utils.py` | 核心 | 技能名称标准化（normalize_skill_name） | — |
+| `utils.py` | 核心 | 技能名称标准化（normalize_skill_name）；`yaml_scalar` 把模型生成文本渲染为 YAML 双引号标量，`resolve_skill_description` 给出 description 回退链（description → trigger_condition → 名称），自动与人工两条落盘路径共用 | — |
 | `store/__init__.py` | 子域 | 存储层聚合出口：CRUD 服务 + 用户配置 + 转发 harness sanitizer（`myrm_agent_harness.agent.skills.market.sanitizer`） | — |
 | `store/service.py` | 核心 | 技能 CRUD 服务 | — |
 | `store/reader.py` | 核心 | 技能读取 | — |

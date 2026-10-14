@@ -3,6 +3,8 @@
 提供技能相关的公共工具函数，避免代码重复。
 """
 
+import json
+
 
 def normalize_skill_name(name: str) -> str:
     """标准化技能名称，统一以 _skill 结尾用于 LLM 识别
@@ -45,4 +47,22 @@ def normalize_skill_name(name: str) -> str:
     return normalized if normalized.endswith("_skill") else f"{normalized}_skill"
 
 
-__all__ = ["normalize_skill_name"]
+def yaml_scalar(value: str) -> str:
+    """Render ``value`` as a YAML double-quoted scalar for SKILL.md frontmatter.
+
+    JSON string syntax is a subset of YAML double-quoted scalars, so colons, ``#``, quotes, backslashes
+    and line breaks in model-generated text stay data instead of breaking or retyping the frontmatter.
+    """
+    return json.dumps(value, ensure_ascii=False)
+
+
+def resolve_skill_description(description: str | None, trigger_condition: str | None, name: str) -> str:
+    """Pick the text skill discovery matches on: the description, else when to use it, else the name."""
+    for candidate in (description, trigger_condition):
+        text = (candidate or "").strip()
+        if text:
+            return text
+    return name
+
+
+__all__ = ["normalize_skill_name", "resolve_skill_description", "yaml_scalar"]

@@ -2645,3 +2645,65 @@ except Exception:
 3. 同一个前缀下既有探针又有诊断和运维动作时，按精确路径放行，并让「放行清单里的每一项都是真实的 GET 路由」成为测试，清单才不会悄悄过期；
 4. 暴露给 HTTP 的参数不要直接复用启动期的恢复开关：恢复会改库，读接口不应该能触发；
 5. 做公开面收窄前先列出每个调用点的凭据来源（`apiRequest` 带 Bearer 与配对头，裸 `fetch` 只带 cookie），再决定能不能收。
+
+---
+
+## BUG-AGENT-2026-10-14-026: 隐身会话结束后仍会触发后台技能复盘，并把学到的技能与待审记录写进库；自动与人工两条落盘路径把含冒号、`#`、反斜杠或换行的描述原样写进 frontmatter；描述缺失时写进占位文案；拒绝草稿时写一条没有任何读取方的记忆
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（隐身承诺被破坏：学习结果写入持久库）；其余 P2 |
+| 影响范围 | server：`app/ai_agents/general_agent/factory.py`（`_build_skill_review_callback`）、`app/api/skills/drafts.py`、`app/api/skills/draft_materialize.py`（新增，自 `drafts.py` 原样迁出落地写入）、`app/services/skills/auto_extractor.py`、`app/core/skills/utils.py`；frontend：`components/features/skills/SkillGrowthCaseCard.tsx`；harness：`agent/skill_agent/review.py`（见 harness `BUG-HARNESS-2026-10-14-024`）；各目录 `_ARCH.md` |
+| 出现次数 | 1（读代码 + 红灯测试 + 真实 frontmatter 解析器实验确认；未用真实 LLM、未在真实浏览器里跑过） |
+| 关联 | `BUG-AGENT-2026-10-14-023`、`-018`（同一条后台学习链路）；本地提交，未 push |
+
+### 现象
+
+1. 隐身会话里，只要轨迹满足触发条件，会话结束后仍会做一次技能复盘；产出的新技能直接写盘并自动启用，或写成待审批记录。隐身合同是不读写记忆、不留轨迹，工厂里其他持久化写入点都按 `agent_wrapper.incognito_mode` 关掉了，唯独复盘回调无条件挂载；
+2. 后台自动学习落盘新技能时，description 以未加引号的形式写进 SKILL.md。对 13 条模型可能写出的描述做解析实验：9 条往返失败（含 `: `、含 ` #`、换行、以 `- `/`@`/`*`/`[` 开头、`yes`、`null` 等），带引号、含反斜杠、纯数字、中文的 4 条碰巧通过；失败时草稿落成「应用失败」待审（`lifecycle.py` 的 `REASON_APPLY_FAILED`），用户无从判断原因；
+3. 人工批准草稿的路径只转义了双引号，反斜杠与换行仍会破坏 frontmatter；
+4. 模型没给 description 时，自动路径写入占位文案 `Auto-extracted skill`，它就是技能发现时用来匹配的文字；
+5. 拒绝草稿时向记忆库写一条「USER REJECTED SKILL PROPOSAL…」，全仓库没有任何代码读取这类记忆（`negative-exemplar` / `rejected-skill-proposal` 只有写入点与它的测试）；
+6. 新技能草稿的卡片点「拒绝」后先弹出原因输入框、按钮变成「确认拒绝」，但草稿拒绝接口不接收原因（`rejectSkillDraft(draftId)`），输入的文字被丢弃。
+
+### 根因
+
+1. 复盘回调在工厂里无条件挂载，隐身合同没有覆盖这一条写入链；harness 侧也没有「没有消费方就不复盘」的约束，宿主不传回调时仍会白做一次 LLM 调用（复盘结果只在 `review.py:313` 的 `if on_skill_review_ready` 处被消费）；
+2. frontmatter 靠 f-string 拼接，模型生成的文本被当成 YAML 语法而不是数据；自动与人工两处各拼一份、转义规则不同；
+3. 占位文案是写代码时的兜底，没有考虑它会成为技能目录里被匹配的描述；
+4. 拒绝时的记忆写入是想象中的「负反馈回路」，没有读取方就没有效果；
+5. 卡片的两步拒绝是为进化修订提案（接口接收并审计原因）设计的，新技能草稿共用了同一个交互。
+
+### 修复
+
+1. 工厂新增 `_build_skill_review_callback`：隐身模式不挂载回调；harness 的 `_should_trigger_skill_review` 在没有回调时直接返回 False，同时省掉没有消费方的复盘 LLM 调用；
+2. `core/skills/utils.py` 新增 `yaml_scalar`（`json.dumps(..., ensure_ascii=False)`，JSON 字符串是 YAML 双引号标量的子集）与 `resolve_skill_description`（description → trigger_condition → 技能名）；自动路径（`auto_extractor._build_skill_markdown`）与人工路径（`draft_materialize._frontmatter`，覆盖有正文无 frontmatter 与纯表单两个分支）共用；扫描用的渲染文本与落盘文本仍为同一份；
+3. 删除占位文案，进化库里补建记录时的 description 也改用同一回退结果；
+4. 删除拒绝路由里的记忆写入，保留账本负向事件与前端刷新事件（夜间复盘数的是账本）；
+5. 前端：新技能草稿一键拒绝，不再出现原因输入；进化修订提案保持「先填原因再确认」；
+6. `drafts.py` 的落地写入（`materialize_*`、`_build_skill_md`、评测用例持久化等）原样迁入 `draft_materialize.py`，`drafts.py` 由 766 行降到 457 行（仍在行数基线内），迁移时只改了符号可见性与导入。
+
+### 验证
+
+1. 红灯：新增 `test_skill_frontmatter_render.py`（15 例）与 `test_draft_materialize.py`（3 例）在修复前 14 例失败，4 例碰巧通过，修复后全部通过；变异：去掉 harness 的无回调守卫后 `test_no_review_consumer_never_triggers` 失败，去掉工厂的隐身判断后 `test_review_callback_is_none_when_incognito` 失败，各还原后通过；前端 `SkillGrowthCaseCard.reject.test.tsx` 2 例，把 `collectsRejectReason` 临时改成 `true` 时草稿一键拒绝的用例失败，还原后通过；
+2. 服务端：`tests/api/skills`、`tests/services/skills`、`tests/api/approvals`（不含他人正在改的 `test_curator.py`，单独跑它有 4 例失败，失败点在他人未提交的 `curator/service.py` 改动）408 通过、1 跳过；`tests/api/agent/test_incognito_edge_cases.py`、`tests/ai_agents/general_agent`、`tests/core/skills`、`tests/architecture` 2597 通过、13 失败，13 例全部在 `tests/architecture` 且与 `-023` 记录的同一批他人在途改动（路由消费者、服务域词表、`__init__.py` 布局、前端 API 路径、深层 harness 导入）一致，深层导入清单里没有本条涉及的模块；
+3. harness：`tests/agent/skill_agent` 160 通过、2 失败（`test_skill_agent_privacy_context.py` 的两例断言 `auto_extract_memories` 被调度，来自他人未跟踪的 `memory_extraction_scheduler.py` 改动，与本条无关）；
+4. 本条涉及文件 `ruff check` / `ruff format` / `pyright` 无问题（`factory.py` 另有 25 条他人或早已存在的 pyright 报错，不在本条改动处）；前端 `vitest` 技能卡片 5 个文件 27 例通过，`prettier`、`oxlint` 通过，fractal 文档检查通过，`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；`bun run lint` 仍有 `verify:stable-mocks`、`verify:a11y`、`verify:hardcoded-copy` 三个门禁失败，报出的文件都是他人的；
+5. 实验：JSON 引号化的描述在真实 `parse_skill_frontmatter` 上对 20 条样例中的 18 条往返一致（含冒号、`#`、引号、反斜杠、制表符、U+2028、中文），例外两条：U+0085（被解析成空格）与超过 1024 字符（加载器截断到 1024，既有行为）。
+
+### 局限
+
+1. 没有在真实浏览器里看过（深浅主题、375px 宽度）：ChromeAgent 拒绝 `localhost:3000`（`CHROME_AGENT_E2E_URL_REJECTED`）；`./myrm test -m chrome_e2e` 通道因工作区有未部署的后端改动要求 PRIVATE epoch，且上一轮在同一台机器上对 `test_growth_center_chrome_e2e.py` 试跑 5 次均未通过（见 `-013`），本条没有再试；本条前端改动只删除了草稿卡片的输入框与按钮文字切换，没有新增标记与样式，行为由 jsdom 用例覆盖；
+2. 没有用真实 LLM 端到端跑过后台复盘，模型实际写出冒号或 `#` 开头描述的频率没有测过；隐身行为由单元测试（工厂回调为 None、harness 不触发）证明，没有开真实隐身对话验证；
+3. 同类的 frontmatter 拼接还有两处没改，输入来源不同：`skill_solidify_service.py` 的固化向导（`name`、`display_title`、`description` 来自用户在界面里填的内容）与 `batch_import` 的安全扫描文本；
+4. 新技能草稿的拒绝变成一次点击，没有二次确认；已拒绝的草稿不能在界面里恢复，但同名技能之后仍可被再次提议；
+5. 已经落在库里的待审记录与已写入的技能文件不迁移；未改动任何提示词。
+
+### 踩坑经验
+
+1. 一份契约（隐身）要用「所有持久化写入点」做一次反向清点，而不是只检查新增的；漏掉的往往是后台异步链路；
+2. 模型生成的文本进入 YAML、SQL、shell 等语法载体前一律当数据转义，JSON 字符串是 YAML 双引号标量的安全子集，不必自己写转义表；
+3. 迁移代码时 pyright 能抓到测试没覆盖的调用点（补丁批准路径的 `_persist_approved_draft_eval_cases` 签名变更），改签名后要对整个文件跑类型检查；
+4. 共享工作区里测试夹具按模块路径打补丁（`get_session`）：函数迁到新模块后，夹具要同步补丁新模块，否则会直连真实库。

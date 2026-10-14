@@ -534,7 +534,7 @@ async def test_approve_restores_an_archived_skill_of_the_same_name(
 @pytest.mark.asyncio
 async def test_materialize_semantic_memory_failure() -> None:
     """Semantic memory materialization failure returns a clean error dict."""
-    from app.api.skills.drafts import _materialize_semantic_memory
+    from app.api.skills.draft_materialize import materialize_semantic_memory
 
     class _Draft:
         id = "memory-draft"
@@ -544,7 +544,7 @@ async def test_materialize_semantic_memory_failure() -> None:
         "app.services.agent.platform_config.require_platform_embedding_config",
         side_effect=RuntimeError("no embedding backend"),
     ):
-        result = await _materialize_semantic_memory(_Draft())  # type: ignore[arg-type]
+        result = await materialize_semantic_memory(_Draft())  # type: ignore[arg-type]
 
     assert result["materialized"] is False
     assert "Semantic memory materialization failed" in (result.get("error") or "")
@@ -669,10 +669,8 @@ async def test_reject_non_pending_review_raises_400() -> None:
 
 
 @pytest.mark.asyncio
-async def test_reject_writes_negative_exemplar_memory(mock_local_skills_dir: Path) -> None:
-    """Rejecting a draft adds a negative exemplar memory (mocked)."""
-    from unittest.mock import patch as mock_patch
-
+async def test_reject_leaves_memory_untouched(mock_local_skills_dir: Path) -> None:
+    """Rejection lives in the ledger; no memory is written because nothing would read it."""
     draft = await notify_skill_draft_created(
         {
             "has_value": True,
@@ -683,31 +681,11 @@ async def test_reject_writes_negative_exemplar_memory(mock_local_skills_dir: Pat
     )
     assert draft is not None
 
-    fake_manager = AsyncMock()
-    fake_manager.add_knowledge = AsyncMock(return_value=SimpleNamespace(id="neg-1"))
-
-    with (
-        mock_patch(
-            "app.services.agent.platform_config.require_platform_embedding_config",
-            new=AsyncMock(return_value=SimpleNamespace(provider="openai", api_key="k")),
-        ),
-        mock_patch(
-            "app.core.memory.adapters.setup.create_memory_manager",
-            new=AsyncMock(return_value=fake_manager),
-        ),
-        mock_patch(
-            "app.core.memory.adapters.setup.resolve_context_binding",
-            return_value=SimpleNamespace(namespace="test"),
-        ),
-    ):
+    with patch("app.core.memory.adapters.setup.create_memory_manager", new=AsyncMock()) as create_manager:
         result = await reject_skill_draft(draft.id)
 
     assert result["status"] == "REJECTED"
-    fake_manager.add_knowledge.assert_awaited_once()
-    assert fake_manager.add_knowledge.await_args.kwargs["tags"] == [
-        "rejected-skill-proposal",
-        "negative-exemplar",
-    ]
+    create_manager.assert_not_awaited()
 
     async with get_session() as db:
         await db.execute(delete(ExperienceLedgerEvent))

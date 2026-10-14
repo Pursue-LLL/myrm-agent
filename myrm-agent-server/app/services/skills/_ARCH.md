@@ -16,7 +16,7 @@
 | `evolution_reviews.py` | 门面 | evolution 审核生命周期门面（re-export `evolution_review/` 公共 API） | ✅ |
 | `experience_ledger.py` | 核心 | 学习资产事件账本（append-only，统一记录 migration/evolution/review/skill_growth 事件，并提供技能成长聚合查询） | ✅ |
 | `draft_notification.py` | 核心 | 技能成长记录持久化 + 安全预检（CRITICAL 硬拦截）+ 24h 去重 + 草稿 payload 携带结构化的 `reason_code`（`REASON_*`：`risk:` / `similar:` / `scan_failed` / `evolution_locked` / `apply_failed`）/ `security_scan_summary` / `apply_error`，审核备注从不写进会成为 SKILL.md `description` 的字段，由卡片按原因码本地化 + `ApprovalRecord` rich status 落库 + `SKILL_GROWTH_UPDATED` 事件发布单一出口 + `NEW_SKILL_DRAFT` 事件发布 + ledger 镜像 | ✅ |
-| `auto_extractor.py` | 核心 | 技能物化辅助器。执行 Python AST 语法门禁，将已通过策略判断的新技能安全落盘（补丁一律走人工审核，这里直接拒绝），并发布 `notify=False` 的 `SKILL_EVOLVED` 事件，提示由成长事件承担，避免同一次学习弹两条；`render_skill_draft_markdown` 渲染新技能落盘文本，安全预检与物化共用 | ✅ |
+| `auto_extractor.py` | 核心 | 技能物化辅助器。执行 Python AST 语法门禁，将已通过策略判断的新技能安全落盘（补丁一律走人工审核，这里直接拒绝），并发布 `notify=False` 的 `SKILL_EVOLVED` 事件，提示由成长事件承担，避免同一次学习弹两条；`render_skill_draft_markdown` 渲染新技能落盘文本，安全预检与物化共用；description 经 `yaml_scalar` 引号转义，缺失时回退 trigger_condition 再回退技能名，不写占位文案 | ✅ |
 | `permission_service.py` | 核心 | 技能权限管理服务：per-session 缓存、授权加载、卸载时清除授权/审计数据 | ✅ |
 | `similarity_checker.py` | 核心 | 技能语义去重实现。基于 HybridSkillSearchEngine 检查新技能是否与已有技能功能重复，防止技能熵增 | ✅ |
 | `evolution_events.py` | 辅助 | 技能进化 `SKILL_EVOLVED` 事件发布（services 层单一入口）；`notify=False` 时界面只刷新、不弹 toast | ✅ |

@@ -71,7 +71,6 @@ async def build_general_agent(
         make_loaded_skills_persist_callback,
         make_notes_load,
         make_notes_persist,
-        make_skill_review_callback,
         make_summary_persist_with_wiki_archive,
     )
     from .config_builders import (
@@ -829,7 +828,7 @@ async def build_general_agent(
         state_manager=state_manager,
         default_skill_instances=(default_skill_instances if default_skill_instances else None),
         global_env=global_env,
-        on_skill_review_ready=make_skill_review_callback(),
+        on_skill_review_ready=_build_skill_review_callback(agent_wrapper),
         on_session_cleanup=_build_session_cleanup_callback(
             agent_wrapper,
             user_id or "default",
@@ -1072,6 +1071,16 @@ def _working_memory_snapshot() -> "WorkingMemorySnapshot | None":
     if isinstance(snapshot, WorkingMemorySnapshot):
         return snapshot
     return None
+
+
+def _build_skill_review_callback(agent_wrapper: "GeneralAgent") -> "Callable[[dict[str, object]], None] | None":
+    """Background skill review writes skills and approval records, so an incognito session never wires it."""
+    if agent_wrapper.incognito_mode:
+        return None
+
+    from .callbacks import make_skill_review_callback
+
+    return make_skill_review_callback()
 
 
 def _build_session_cleanup_callback(
