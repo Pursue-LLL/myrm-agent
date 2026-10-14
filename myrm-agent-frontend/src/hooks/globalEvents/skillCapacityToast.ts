@@ -1,5 +1,5 @@
 /**
- * [INPUT] SETTINGS_SKILLS_PATH: 技能设置页路由（lib/skills/integrationOAuthDisplay）
+ * [INPUT] '@/lib/skills/integrationOAuthDisplay'::SETTINGS_SKILLS_PATH (POS: OAuth 账号的设置页落点与展示名)
  * [OUTPUT] showSkillCapacityToast: 技能库已满的本地化警告 toast，操作直达技能管理；
  *          SkillCapacityToastDeps: 它所需的翻译、路由与 toast 能力
  * [POS] 技能库已满提示。服务端以 `skill_capacity_reached` 事件下发（每次填满只发一次），这里只展示本地化文案与上限数量，

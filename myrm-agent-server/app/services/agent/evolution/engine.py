@@ -3,9 +3,10 @@
 [INPUT]
 - app.services.chat.chat_service::ChatService
 - myrm_agent_harness.toolkits.llms::llm_manager
-- myrm_agent_harness.agent.skills.evolution::SkillBudgetGovernor (POS: Count-only skill library capacity governor)
-- app.services.skills.evolution_events::publish_skill_capacity_reached_event (POS: 技能进化 SSE 事件单一出口)
-- app.core.skills.curator.service::describe_skill_lifecycle (POS: Installed/archived state of a local skill)
+- myrm_agent_harness.agent.skills.evolution::SkillBudgetGovernor (POS: Core capacity governor for skill self-evolution)
+- app.services.skills.evolution_events::publish_skill_capacity_reached_event (POS: 技能进化事件发布：services 层事件唯一出口)
+- app.core.skills.curator.service::describe_skill_lifecycle (POS: Curator business service for skill lifecycle management)
+- app.core.skills.store.evolution_store::get_evolution_skill_store (POS: core/skills/store 进化 SQLite 入口)
 - app.core.types::ModelConfig
 
 [OUTPUT]

@@ -32,4 +32,6 @@ finalize_agent_stream_session (stream_finalize.py)
 - `myrm_agent_harness.agent.skills.evolution`
 - `app.services.agent.confidence_approval_flow`
 - `app.services.skills.evolution_events`（`SKILL_CAPACITY_REACHED` 发布）
+- `app.core.skills.curator.service`（`describe_skill_lifecycle`：库已满时对照实际已安装且未归档的技能）
+- `app.core.skills.store.evolution_store`（`get_evolution_skill_store`：容量只读 `COUNT(*)`）
 - `app.services.agent.stream_session.stream_finalize` (caller)
