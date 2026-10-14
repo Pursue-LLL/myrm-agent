@@ -123,6 +123,8 @@ const SecurityPrivacyPanel = memo(() => {
 
             <PrivacyRuleTester />
 
+            <AdvancedPiiConfig />
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <IconSearch className="h-3.5 w-3.5 text-primary" />
@@ -261,8 +263,6 @@ const SecurityPrivacyPanel = memo(() => {
                   )}
               </div>
             </div>
-
-            <AdvancedPiiConfig />
           </div>
         )}
       </div>

@@ -15232,7 +15232,9 @@
           "blocked": "这条消息会被拦截，不会发送给模型。",
           "unchanged": "当前设置只提醒，原文会原样发送。",
           "deepScanNote": "试一试不包含深度扫描。",
-          "failed": "暂时无法试用，请稍后再试。"
+          "failed": "暂时无法试用，请稍后再试。",
+          "ineffectiveTitle": "以下自定义模式暂时无法生效",
+          "ineffectiveHint": "它们的写法有误，目前不会遮盖任何内容。请修改后重新添加，或直接删除。"
         },
         "deepScanLabel": "深度扫描（LLM 增强）",
         "deepScanDesc": "使用 LLM 检测正则无法捕获的非结构化隐私信息（如病史、家庭关系、工作单位等）。可能增加延迟。",
@@ -15278,7 +15280,6 @@
           "toolsS2Desc": "触发 S2 保护的工具调用。",
           "toolsS3Label": "S3 敏感工具",
           "toolsS3Desc": "触发 S3 保护的工具调用。",
-          "invalidRegex": "无效的正则表达式",
           "keywordTooShort": "关键词至少需要 2 个字符"
         }
       },

@@ -17,8 +17,16 @@ vi.mock('@/lib/api', () => ({
 
 const SENTENCE = '帮我总结凤凰计划Q3预算超支原因';
 
-function answer(preview: { level: string; action: string | null; model_sees: string | null }) {
-  mockFetchWithTimeout.mockResolvedValue({ ok: true, json: async () => preview });
+function answer(preview: {
+  level: string;
+  action: string | null;
+  model_sees: string | null;
+  ineffective_patterns?: string[];
+}) {
+  mockFetchWithTimeout.mockResolvedValue({
+    ok: true,
+    json: async () => ({ ineffective_patterns: [], ...preview }),
+  });
 }
 
 function typeSentence(text = SENTENCE) {
@@ -39,7 +47,7 @@ describe('PrivacyRuleTester', () => {
     });
   });
 
-  it('asks nothing while the box is empty', async () => {
+  it('asks nothing while the box is empty and no pattern is set', async () => {
     render(<PrivacyRuleTester />);
 
     typeSentence('   ');
@@ -124,6 +132,61 @@ describe('PrivacyRuleTester', () => {
       '凤凰计划',
       '李总',
     ]);
+  });
+
+  it('checks the patterns on their own when no sentence is typed, and names the ones that cannot take effect', async () => {
+    useConfigStore.setState({ privacyCustomPatternsS3: ['(['] });
+    answer({ level: 's1', action: null, model_sees: '', ineffective_patterns: ['(['] });
+    render(<PrivacyRuleTester />);
+
+    expect(await screen.findByText('tester.ineffectiveTitle', {}, { timeout: 3000 })).toBeTruthy();
+    expect(screen.getByText('([')).toBeTruthy();
+    expect(screen.getByText('tester.ineffectiveHint')).toBeTruthy();
+    expect(JSON.parse(mockFetchWithTimeout.mock.calls[0][1].body)).toMatchObject({
+      text: '',
+      privacy_custom_patterns_s3: ['(['],
+    });
+    expect(screen.queryByText('tester.levelNone')).toBeNull();
+    expect(screen.queryByText('tester.modelSees')).toBeNull();
+  });
+
+  it('shows the patterns that cannot take effect next to what the working rules do', async () => {
+    useConfigStore.setState({ privacyCustomPatternsS3: ['(['] });
+    answer({
+      level: 's3',
+      action: 'redact',
+      model_sees: '帮我总结[REDACTED] [PII:custom]Q3预算超支原因',
+      ineffective_patterns: ['(['],
+    });
+    render(<PrivacyRuleTester />);
+
+    typeSentence();
+
+    expect(await screen.findByText('tester.ineffectiveTitle', {}, { timeout: 3000 })).toBeTruthy();
+    expect(screen.getByText('帮我总结[REDACTED] [PII:custom]Q3预算超支原因')).toBeTruthy();
+    expect(screen.getByText('tester.levelS3')).toBeTruthy();
+  });
+
+  it('shows no notice when every pattern can take effect', async () => {
+    useConfigStore.setState({ privacyCustomPatternsS3: ['EMP-\\d{6}'] });
+    answer({ level: 's1', action: null, model_sees: '', ineffective_patterns: [] });
+    render(<PrivacyRuleTester />);
+
+    await waitFor(() => expect(mockFetchWithTimeout).toHaveBeenCalledTimes(1), { timeout: 3000 });
+
+    expect(screen.queryByText('tester.ineffectiveTitle')).toBeNull();
+  });
+
+  it('checks the patterns again when they change, and drops the notice once none is left', async () => {
+    useConfigStore.setState({ privacyCustomPatternsS3: ['(['] });
+    answer({ level: 's1', action: null, model_sees: '', ineffective_patterns: ['(['] });
+    render(<PrivacyRuleTester />);
+    expect(await screen.findByText('tester.ineffectiveTitle', {}, { timeout: 3000 })).toBeTruthy();
+
+    useConfigStore.setState({ privacyCustomPatternsS3: [] });
+
+    await waitFor(() => expect(screen.queryByText('tester.ineffectiveTitle')).toBeNull(), { timeout: 3000 });
+    expect(mockFetchWithTimeout).toHaveBeenCalledTimes(1);
   });
 
   it('warns that deep scan is not part of the try-out', () => {

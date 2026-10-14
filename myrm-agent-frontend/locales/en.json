@@ -15232,7 +15232,9 @@
           "blocked": "This message would be stopped and not sent to the model.",
           "unchanged": "Your setting only warns, so the original text is sent.",
           "deepScanNote": "Try it does not include deep scan.",
-          "failed": "Unable to try it right now. Please try again later."
+          "failed": "Unable to try it right now. Please try again later.",
+          "ineffectiveTitle": "These custom patterns can't take effect yet",
+          "ineffectiveHint": "They are written incorrectly, so they hide nothing right now. Fix them and add them again, or remove them."
         },
         "deepScanLabel": "Deep Scan (LLM-enhanced)",
         "deepScanDesc": "Use LLM to detect non-structured PII (medical history, family relations, workplace, etc.) that regex patterns cannot catch. May increase latency.",
@@ -15278,7 +15280,6 @@
           "toolsS2Desc": "Tool calls that should trigger S2 protection.",
           "toolsS3Label": "S3 Sensitive Tools",
           "toolsS3Desc": "Tool calls that should trigger S3 protection.",
-          "invalidRegex": "Invalid regex pattern",
           "keywordTooShort": "Keyword must be at least 2 characters"
         }
       },

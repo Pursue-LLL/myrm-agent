@@ -14578,7 +14578,9 @@
           "blocked": "這則訊息會被攔截，不會傳送給模型。",
           "unchanged": "目前設定只提醒，原文會原樣傳送。",
           "deepScanNote": "試一試不包含深度掃描。",
-          "failed": "暫時無法試用，請稍後再試。"
+          "failed": "暫時無法試用，請稍後再試。",
+          "ineffectiveTitle": "以下自訂模式暫時無法生效",
+          "ineffectiveHint": "它們的寫法有誤，目前不會遮蓋任何內容。請修改後重新新增，或直接刪除。"
         },
         "deepScanLabel": "深度掃描（LLM 增強）",
         "deepScanDesc": "使用 LLM 檢測正則無法捕獲的非結構化隱私資訊（如病史、家庭關係、工作單位等）。可能增加延遲。",
@@ -14624,7 +14626,6 @@
           "toolsS2Desc": "觸發 S2 保護的工具呼叫。",
           "toolsS3Label": "S3 敏感工具",
           "toolsS3Desc": "觸發 S3 保護的工具呼叫。",
-          "invalidRegex": "無效的正規表示式",
           "keywordTooShort": "關鍵詞至少需要 2 個字元"
         }
       },

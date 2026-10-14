@@ -6,15 +6,16 @@
  *   lib/api::fetchWithTimeout (POS: 前端统一请求入口)
  *   next-intl useTranslations
  * [OUTPUT]
- *   PrivacyRuleTester: 隐私规则"试一试"卡片，输入一句话，展示按当前设置模型会收到什么
+ *   PrivacyRuleTester: 隐私规则"试一试"卡片，输入一句话，展示按当前设置模型会收到什么；有自定义模式时，
+ *   无论是否输入句子，都列出写法有误、无法生效的模式
  * [POS]
  *   隐私保护设置面板的规则试验台。判定交给后端 `POST /config/privacy-preview`（与对话回合同一套检测与处理），
- *   前端只负责展示、不做本地匹配，试验结果因此与实际行为一致
+ *   前端只负责展示、不做本地匹配或校验，试验结果与「哪些模式无效」因此都与实际行为一致
  */
 
 import { memo, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconBan, IconFlask, IconLoader } from '@/components/features/icons/PremiumIcons';
+import { IconAlertTriangle, IconBan, IconFlask, IconLoader } from '@/components/features/icons/PremiumIcons';
 import { Input } from '@/components/primitives/input';
 import { fetchWithTimeout } from '@/lib/api';
 import useConfigStore from '@/store/useConfigStore';
@@ -26,6 +27,7 @@ interface PrivacyPreview {
   level: SensitivityLevel;
   action: PIIAction | null;
   model_sees: string | null;
+  ineffective_patterns: string[];
 }
 
 type PreviewState =
@@ -50,6 +52,68 @@ const LEVEL_BADGE_CLASS: Record<Exclude<SensitivityLevel, 's1'>, string> = {
   s3: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400 border-red-200 dark:border-red-800/50',
 };
 
+const IneffectivePatternsNotice = memo(({ patterns }: { patterns: string[] }) => {
+  const t = useTranslations('settings.securityPolicy.privacy');
+  return (
+    <output className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 dark:border-amber-800/50 dark:bg-amber-950/30">
+      <IconAlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+      <span className="min-w-0 space-y-1.5">
+        <span className="block text-xs font-medium text-amber-700 dark:text-amber-400">
+          {t('tester.ineffectiveTitle')}
+        </span>
+        <span className="flex flex-wrap gap-1.5">
+          {patterns.map((pattern) => (
+            <code
+              key={pattern}
+              className="max-w-full break-all rounded-md border border-amber-200 bg-background px-1.5 py-0.5 font-mono text-xs text-foreground dark:border-amber-800/50"
+            >
+              {pattern}
+            </code>
+          ))}
+        </span>
+        <span className="block text-xs text-amber-700/90 dark:text-amber-400/90">{t('tester.ineffectiveHint')}</span>
+      </span>
+    </output>
+  );
+});
+IneffectivePatternsNotice.displayName = 'IneffectivePatternsNotice';
+
+const SentenceVerdict = memo(({ preview }: { preview: PrivacyPreview }) => {
+  const t = useTranslations('settings.securityPolicy.privacy');
+  if (preview.level === 's1' || preview.action === null) {
+    return <p className="text-xs text-muted-foreground">{t('tester.levelNone')}</p>;
+  }
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full border ${LEVEL_BADGE_CLASS[preview.level]}`}
+        >
+          {t(preview.level === 's3' ? 'tester.levelS3' : 'tester.levelS2')}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {t('tester.action', { action: t(ACTION_LABEL_KEYS[preview.action]) })}
+        </span>
+      </div>
+      {preview.model_sees === null ? (
+        <p className="flex items-start gap-1.5 text-xs text-destructive">
+          <IconBan className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          {t('tester.blocked')}
+        </p>
+      ) : (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">{t('tester.modelSees')}</p>
+          <p className="rounded-lg border border-border/60 bg-background p-2 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
+            {preview.model_sees}
+          </p>
+          {preview.action === 'warn' && <p className="text-xs text-muted-foreground">{t('tester.unchanged')}</p>}
+        </div>
+      )}
+    </>
+  );
+});
+SentenceVerdict.displayName = 'SentenceVerdict';
+
 const PrivacyRuleTester = memo(() => {
   const t = useTranslations('settings.securityPolicy.privacy');
   const s2Action = useConfigStore((state) => state.privacyS2Action);
@@ -62,10 +126,11 @@ const PrivacyRuleTester = memo(() => {
 
   const [text, setText] = useState('');
   const [state, setState] = useState<PreviewState>({ status: 'idle' });
+  const hasPatterns = patternsS2.length + patternsS3.length > 0;
 
   useEffect(() => {
     const trimmed = text.trim();
-    if (!trimmed) {
+    if (!trimmed && !hasPatterns) {
       setState({ status: 'idle' });
       return;
     }
@@ -111,10 +176,11 @@ const PrivacyRuleTester = memo(() => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [text, s2Action, s3Action, keywordsS2, keywordsS3, patternsS2, patternsS3]);
+  }, [text, hasPatterns, s2Action, s3Action, keywordsS2, keywordsS3, patternsS2, patternsS3]);
 
   const checking = state.status === 'checking';
   const preview = state.status === 'done' ? state.preview : state.status === 'checking' ? state.previous : null;
+  const hasText = text.trim() !== '';
 
   return (
     <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-2.5">
@@ -141,38 +207,10 @@ const PrivacyRuleTester = memo(() => {
 
       {preview && (
         <div className={`space-y-2 transition-opacity ${checking ? 'opacity-60' : ''}`}>
-          {preview.level === 's1' || preview.action === null ? (
-            <p className="text-xs text-muted-foreground">{t('tester.levelNone')}</p>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full border ${LEVEL_BADGE_CLASS[preview.level]}`}
-                >
-                  {t(preview.level === 's3' ? 'tester.levelS3' : 'tester.levelS2')}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {t('tester.action', { action: t(ACTION_LABEL_KEYS[preview.action]) })}
-                </span>
-              </div>
-              {preview.model_sees === null ? (
-                <p className="flex items-start gap-1.5 text-xs text-destructive">
-                  <IconBan className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  {t('tester.blocked')}
-                </p>
-              ) : (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">{t('tester.modelSees')}</p>
-                  <p className="rounded-lg border border-border/60 bg-background p-2 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-                    {preview.model_sees}
-                  </p>
-                  {preview.action === 'warn' && (
-                    <p className="text-xs text-muted-foreground">{t('tester.unchanged')}</p>
-                  )}
-                </div>
-              )}
-            </>
+          {preview.ineffective_patterns.length > 0 && (
+            <IneffectivePatternsNotice patterns={preview.ineffective_patterns} />
           )}
+          {hasText && <SentenceVerdict preview={preview} />}
         </div>
       )}
     </div>

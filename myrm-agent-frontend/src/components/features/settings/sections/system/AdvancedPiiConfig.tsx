@@ -45,8 +45,6 @@ interface TagListEditorProps {
   onAdd: () => void;
   onRemove: (index: number) => void;
   levelColor: 'amber' | 'red';
-  validate?: (v: string) => boolean;
-  errorMessage?: string;
 }
 
 const TagListEditor = memo(
@@ -60,10 +58,7 @@ const TagListEditor = memo(
     onAdd,
     onRemove,
     levelColor,
-    validate,
-    errorMessage,
   }: TagListEditorProps) => {
-    const [inputError, setInputError] = useState('');
     const colorClass =
       levelColor === 'red'
         ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400 border-red-200 dark:border-red-800/50'
@@ -76,14 +71,7 @@ const TagListEditor = memo(
         <div className="flex gap-2">
           <Input
             value={inputValue}
-            onChange={(e) => {
-              onInputChange(e.target.value);
-              if (validate && e.target.value && !validate(e.target.value)) {
-                setInputError(errorMessage ?? '');
-              } else {
-                setInputError('');
-              }
-            }}
+            onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -97,7 +85,6 @@ const TagListEditor = memo(
             <IconPlus className="h-3.5 w-3.5" />
           </Button>
         </div>
-        {inputError && <p className="text-xs text-destructive mt-0.5">{inputError}</p>}
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {tags.map((tag, i) => (
@@ -187,19 +174,6 @@ const AdvancedPiiConfig = memo(() => {
   const [newPatternS2, setNewPatternS2] = useState('');
   const [newPatternS3, setNewPatternS3] = useState('');
 
-  const isValidRegex = useCallback((pattern: string): boolean => {
-    try {
-      new RegExp(pattern, 'i');
-    } catch {
-      return false;
-    }
-    // ReDoS prevention: reject nested quantifiers like (a+)+, (a*)+, (a+)*, (a{2,})+
-    if (/([+*]\)?[+*]|[+*]\)?\{|\}\)?[+*])/.test(pattern)) {
-      return false;
-    }
-    return true;
-  }, []);
-
   const addKeyword = useCallback(
     (level: 's2' | 's3', value: string) => {
       const trimmed = value.trim();
@@ -236,8 +210,7 @@ const AdvancedPiiConfig = memo(() => {
   const addPattern = useCallback(
     (level: 's2' | 's3', value: string) => {
       const trimmed = value.trim();
-      if (!trimmed || !isValidRegex(trimmed)) {
-        toast.error(t('privacy.advanced.invalidRegex'));
+      if (!trimmed) {
         return;
       }
       if (level === 's2') {
@@ -252,14 +225,7 @@ const AdvancedPiiConfig = memo(() => {
         setNewPatternS3('');
       }
     },
-    [
-      privacyCustomPatternsS2,
-      privacyCustomPatternsS3,
-      setPrivacyCustomPatternsS2,
-      setPrivacyCustomPatternsS3,
-      isValidRegex,
-      t,
-    ],
+    [privacyCustomPatternsS2, privacyCustomPatternsS3, setPrivacyCustomPatternsS2, setPrivacyCustomPatternsS3],
   );
 
   const removePattern = useCallback(
@@ -338,8 +304,6 @@ const AdvancedPiiConfig = memo(() => {
             onAdd={() => addPattern('s2', newPatternS2)}
             onRemove={(i) => removePattern('s2', i)}
             levelColor="amber"
-            validate={isValidRegex}
-            errorMessage={t('privacy.advanced.invalidRegex')}
           />
 
           <TagListEditor
@@ -352,8 +316,6 @@ const AdvancedPiiConfig = memo(() => {
             onAdd={() => addPattern('s3', newPatternS3)}
             onRemove={(i) => removePattern('s3', i)}
             levelColor="red"
-            validate={isValidRegex}
-            errorMessage={t('privacy.advanced.invalidRegex')}
           />
 
           <ToolTagEditor

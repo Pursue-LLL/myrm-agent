@@ -11,8 +11,9 @@
 [POS]
 app/api/config/privacy_preview.py - lets the privacy settings page try a sentence against the rules as they stand in
 the form, before or without saving. The rules arrive in the request, like those of a chat turn, and the harness answers
-as a turn would, so the page shows what the product does rather than what a second implementation guesses. Nothing is
-stored or logged.
+as a turn would, so the page shows what the product does rather than what a second implementation guesses. The answer
+also names the custom patterns that cannot match, which is why an empty sentence is accepted: the page asks for them as
+soon as there are rules, without waiting for a sentence. Nothing is stored or logged.
 """
 
 from __future__ import annotations
@@ -39,7 +40,7 @@ class PrivacyPreviewRequest(BaseModel):
     The rule lists are not capped: a chat turn accepts every rule the settings hold, so the preview must too.
     """
 
-    text: str = Field(min_length=1, max_length=_MAX_TEXT_CHARS)
+    text: str = Field(max_length=_MAX_TEXT_CHARS)
     privacy_s2_action: PIIAction | None = None
     privacy_s3_action: PIIAction | None = None
     privacy_custom_keywords_s2: list[str] = Field(default_factory=list)
@@ -63,11 +64,13 @@ class PrivacyPreviewRequest(BaseModel):
 
 
 class PrivacyPreviewResponse(BaseModel):
-    """``action`` is null for a text with nothing sensitive; ``model_sees`` is null when the rules block the text."""
+    """``action`` is null for a text with nothing sensitive; ``model_sees`` is null when the rules block the text;
+    ``ineffective_patterns`` lists the custom patterns that do not compile and so protect nothing."""
 
     level: SensitivityLevel
     action: PIIAction | None
     model_sees: str | None
+    ineffective_patterns: list[str]
 
 
 @privacy_preview_router.post("/privacy-preview", response_model=PrivacyPreviewResponse)
@@ -78,4 +81,9 @@ def preview_privacy(request: PrivacyPreviewRequest) -> PrivacyPreviewResponse:
     """
     policy = privacy_policy_from_params(resolve_privacy_params(None, request.privacy_params()))
     preview = preview_privacy_policy(request.text, policy)
-    return PrivacyPreviewResponse(level=preview.level, action=preview.action, model_sees=preview.model_sees)
+    return PrivacyPreviewResponse(
+        level=preview.level,
+        action=preview.action,
+        model_sees=preview.model_sees,
+        ineffective_patterns=list(preview.ineffective_patterns),
+    )

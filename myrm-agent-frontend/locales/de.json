@@ -14578,7 +14578,9 @@
           "blocked": "Diese Nachricht würde gestoppt und nicht an das Modell gesendet.",
           "unchanged": "Ihre Einstellung warnt nur, daher wird der Originaltext gesendet.",
           "deepScanNote": "„Ausprobieren“ enthält keinen Deep Scan.",
-          "failed": "Im Moment nicht möglich. Bitte später erneut versuchen."
+          "failed": "Im Moment nicht möglich. Bitte später erneut versuchen.",
+          "ineffectiveTitle": "Diese eigenen Muster greifen noch nicht",
+          "ineffectiveHint": "Sie sind fehlerhaft geschrieben und verbergen daher derzeit nichts. Korrigieren Sie sie und fügen Sie sie erneut hinzu, oder entfernen Sie sie."
         },
         "deepScanLabel": "Tiefenscan (LLM-erweitert)",
         "deepScanDesc": "Verwendet LLM, um nicht strukturierte PII (Krankengeschichte, Familienbeziehungen, Arbeitsplatz usw.) zu erkennen, die Regex-Muster nicht erfassen. Kann die Latenz erhöhen.",
@@ -14624,7 +14626,6 @@
           "toolsS2Desc": "Tool-Aufrufe, die den S2-Schutz auslösen sollen.",
           "toolsS3Label": "S3-Sensible Tools",
           "toolsS3Desc": "Tool-Aufrufe, die den S3-Schutz auslösen sollen.",
-          "invalidRegex": "Ungültiges Regex-Muster",
           "keywordTooShort": "Schlüsselwort muss mindestens 2 Zeichen lang sein"
         }
       },

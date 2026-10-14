@@ -91,11 +91,11 @@
 | `securityPolicyUtils.ts`                         | 能力面枚举、预设矩阵配置、双向转换与规则扁平化工具函数                                                                                                                                                                                                                                             |
 | `securityProfileUtils.ts`                        | 安全 Profile 模板常量与标签映射工具                                                                                                                                                                                                                                                                |
 | `__tests__/CapabilitySurfaceMatrixGrid.test.tsx` | 能力面矩阵组件单测（网格渲染、三态按钮切换、预设批量更新）                                                                                                                                                                                                                                         |
-| `SecurityPrivacyPanel.tsx` | PII 隐私保护面板：S2/S3 处理方式（`PrivacyActionRow`，附所选方式的实际后果）、「试一试」试验台、深度扫描、保护范围说明（已覆盖/未覆盖/识别方式的局限），以及 Privacy Routing（`id=security-privacy-routing` 锚点供 DataFlow 深链） |
+| `SecurityPrivacyPanel.tsx` | PII 隐私保护面板：S2/S3 处理方式（`PrivacyActionRow`，附所选方式的实际后果）、「试一试」试验台与紧随其后的高级自定义规则（改规则的地方就在看结果的地方下方）、深度扫描、保护范围说明（已覆盖/未覆盖/识别方式的局限），以及 Privacy Routing（`id=security-privacy-routing` 锚点供 DataFlow 深链） |
 | `PrivacyActionRow.tsx` | 一个敏感级别的处理方式选择行：图标 + 名称 + 四选一下拉 + 所选方式的一句话后果（原样发送 / 占位符 / 打码 / 拦截），文案与后端实际行为一一对应 |
-| `PrivacyRuleTester.tsx` | 隐私规则「试一试」：把表单里的处理方式与自定义规则连同一句话发给 `POST /config/privacy-preview`（与对话回合同一套检测与处理），展示识别级别、处理方式与模型实际会收到的文本；规则改动后自动重试，不含深度扫描 |
-| `AdvancedPiiConfig.tsx` | 高级 PII 自定义规则：S2/S3 关键词、正则、敏感工具的增删（正则保存前做 ReDoS 防护校验） |
-| `__tests__/PrivacyRuleTester.test.tsx` | 试验台单测（空输入不请求、请求体即表单规则、拦截/仅警告/无命中/失败四种呈现、规则变更重试、深度扫描提示） |
+| `PrivacyRuleTester.tsx` | 隐私规则「试一试」：把表单里的处理方式与自定义规则连同一句话发给 `POST /config/privacy-preview`（与对话回合同一套检测与处理），展示识别级别、处理方式与模型实际会收到的文本；规则改动后自动重试，不含深度扫描。已设自定义模式时，即使没有输入句子也会查询并列出写法有误、无法生效的模式（由后端判定，前端不做本地校验） |
+| `AdvancedPiiConfig.tsx` | 高级 PII 自定义规则：S2/S3 关键词、正则、敏感工具的增删（正则不在前端校验：能否生效由后端判定，并在「试一试」里提示） |
+| `__tests__/PrivacyRuleTester.test.tsx` | 试验台单测（空输入且无模式时不请求、请求体即表单规则、拦截/仅警告/无命中/失败四种呈现、规则变更重试、无句子时按模式查询并提示无法生效的模式、深度扫描提示） |
 | `__tests__/PrivacyActionRow.test.tsx` | 处理方式行单测（四种方式各自的后果说明、下拉显示当前选择） |
 | `DataFlowDisclosurePanel.tsx`                    | 数据流向披露 SSOT：本地域 / deploy-aware 控制平面 / LLM+MCP+OAuth 集成+Agent Connector+Tauri Channel 实时 egress（含 channel SSE 事件刷新）/ Provider training policy / 跨境路由摘要 / Your Rights 合规导出                                                                                        |
 | `DataFlowYourRightsStrip.tsx`                    | DataFlow 内「您的数据权利」：client-side compliance JSON 导出（routing API key 脱敏）+ Memory 设置深链                                                                                                                                                                                             |
