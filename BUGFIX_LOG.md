@@ -2527,7 +2527,7 @@ except Exception:
 | 发现日期 | 2026-10-14 |
 | 修复日期 | 2026-10-14 |
 | 严重程度 | P2（误拦会让用户关掉规则，漏拦让真密钥进模型；`action` 是死字段，没有用户可见的后果，但每次启动多两次写库、接口与种子多一个无意义字段） |
-| 影响范围 | server：`app/services/risk/{constants,patterns,builtin_rules,builtin_business_rules,match_checks,detection,rule_service}.py`、`app/api/risk/{router,schemas}.py`、`app/lifecycle/risk_rules.py`、`app/database/{models/security,migrations}.py`；harness：`core/security/detection/{secret_value,leak_detector}.py` |
+| 影响范围 | server：`app/services/risk/{constants,patterns,builtin_rules,builtin_business_rules,match_checks,detection,rule_service}.py`、`app/api/risk/{router,schemas}.py`、`app/lifecycle/risk_rules.py`、`app/database/{models/security,migrations}.py`、`app/services/security/profile_manager.py`（只改类型）；harness：`core/security/detection/{secret_value,leak_detector}.py` |
 | 出现次数 | 1（复审 `BUG-AGENT-2026-10-14-019` 时逐条验证发现；没有真实用户聊天数据） |
 | 关联 | `BUG-AGENT-2026-10-14-019`（本条修它留下的误拦、漏拦与表述过满的数字）· harness `BUG-HARNESS-2026-10-14-022` |
 
@@ -2548,7 +2548,7 @@ except Exception:
 
 ### 修复
 
-1. server `match_checks._assigns_secret`：先把值截到它自己的范围（下一个 `&k=`、第一个非 ASCII 标点），再交 harness `secret_value_span`，并拒绝以 `your` / `change` / `replace` / `example` / `placeholder` / `dummy` / `sample` / `insert` / `enter` 开头、且在分隔符、大写字母或结尾处结束的值（`Yourdog2012!` 仍是密码，`Enterprise2012x` 也是）；`db_connection_string` 的 pattern 捕获密码为 `value`，纳入同一确认。
+1. server `match_checks._assigns_secret`：先把值截到它自己的范围（下一个 `&k=`、第一个非 ASCII 标点），再交 harness `secret_value_span`，并拒绝以 `your` / `change` / `replace` / `example` / `placeholder` / `dummy` / `sample` / `insert` / `enter` 开头的占位值：任何大小写下，词在分隔符或结尾处结束；驼峰写法则在下一个大写字母处结束；词后面接着别的字母的是密码本身（`Yourdog2012!`、`Enterprise2012x`、`ENTERPRISE2012!` 都仍被拦）；`db_connection_string` 的 pattern 捕获密码为 `value`，纳入同一确认。
 2. `patterns.KEY_START`（`(?<![A-Za-z0-9])`）取代 `\b`：`DB_PASSWORD`、`GROQ_API_KEY`、`aws_secret_access_key` 的键能被认出；`credential_assignment` 与 `env_file_secret` 使用它。
 3. `API_KEY_PATTERN` 由闸门自己的 `sk-` 形状加 harness `DISTINCTIVE_KEY_PATTERNS`（24 种）拼成，不再另存清单；`vercel_`、`fal_` 等会命中标识符的弱前缀不在其中；`test_builtin_rule_precision.py` 要求表里每种形状都有样本且被拦下，表新增形状而没有样本时失败。
 4. harness `is_reference_value` 认三段以上属性链结尾的 `!`（`process.env.GROQ_API_KEY!`；两段的 `john.smith!` 仍可能是密码），见 harness 条目。
@@ -2559,9 +2559,11 @@ except Exception:
 
 1. 同一份测试清单、同一个真实规则引擎，HEAD 与新代码对照：应放行 55 条，HEAD 误拦 7、新 0；应拦下 64 条，HEAD 漏 16、新 0。HEAD 一侧用的是现在的 harness（已含 `!` 的判断），所以 `process.env.X!` 两条在 HEAD 一侧也放行。
 2. 变异验证 6 处，各被 1 例杀死，还原后通过：不截值、不认占位词、连接串不看密码、键起点改回 `\b`、不用 harness 的表、非 ASCII 符号也截（`password: p@ss€word42` 被截成 `p@ss` 放行）。
-3. 测试：风控、生命周期、数据库迁移、渠道闸门与 bus 相关 361 例通过（含新增的迁移测试：旧库的 `action` 列被删、非 `block` 规则被停用、旧摘要原文被清空、新库迁移幂等；新增的 API 测试：规则与命中不带 `action`、仍带 `action` 的旧客户端请求不被拒）；harness `tests/core/security` 1127 例通过；server 的 `ruff` 与风控文件的 `mypy` 无新增问题，harness `ruff`、`mypy` 通过。
+3. 测试：风控、生命周期、数据库迁移、渠道闸门与 bus 相关 361 例通过（含新增的迁移测试：旧库的 `action` 列被删、非 `block` 规则被停用、旧摘要原文被清空、新库迁移幂等；新增的 API 测试：规则与命中不带 `action`、仍带 `action` 的旧客户端请求不被拒）；harness `tests/core/security` 1127 例通过（复审后增加 1 例，现为 1128 例）；server 的 `ruff` 与风控文件的 `mypy` 无新增问题，harness `ruff`、`mypy` 通过。
 4. 更宽的回归：`tests/channels`、`tests/core/channel_bridge`、`tests/api/channels` 7530 通过、14 失败；其中 3 例是本条漏改的 `test_bus.py`（`RiskMatch(action=…)`，已修，单文件 55 例通过），其余 11 例与 019 记录的他人改动同族（群路由 6、前缀触发 1、`btw` 命令 2、日志脱敏 1、译文孤键 1），没有逐例复核原因，也没有改它们。`tests/architecture` 13 例失败（路由调用者基线、API 与服务域词表、`services/workflow` 缺 `__init__.py`、前端 API 路径、harness 导入基线里他人新增的深层导入），不涉及风控代码。
 5. 耗时（每条消息过 8 条默认规则，取 5 次最小值，HEAD 与新代码同一台机器同一批文本）：2 千字符聊天 0.26 → 0.41 毫秒；36 万字符日志 4.7 → 11.2 毫秒；36 万字符 `a.a.` 串 72 → 93 毫秒；36 万字符全是 `password = input() ` 的文本 166 → 196 毫秒（`credential_assignment` 单条 132 → 141 毫秒，距 0.25 秒的单条时限不远；时限只约束正则扫描，不约束命中后的确认循环）。
+6. 提交后的复审：全大写的占位词前缀见“踩坑”第 1 条。修正后 3 个新增的全大写应拦用例通过；把旧正则写回去，这 3 例失败、其余通过，还原后全部通过。整个 `external_reference_project`（约 110 万个文件）里，以全大写占位词开头、没有分隔符的赋值值只有 `CHANGEME`、`YOURSECRETACCESSKEY`、`YOURACCESSTOKEN`、`REPLACEMENT_TEST_RELAY_KEY`、`CHANGEME_*_PASSWORD` 这类，逐个过闸门都放行（纯字母或下划线词，本来就不算密钥），所以收紧没有在这份语料里带来新命中。同一批文本、同一台机器、取 5 次最小值，上一提交 → 当前：2 千字符聊天 0.24 → 0.34 毫秒；36 万字符、含大量 `token` 与 `id=` 的日志 43.6 → 60.4 毫秒；36 万字符 `a.a.` 串 72 → 93–101 毫秒（两轮测量）；36 万字符 `password = input() ` 164 → 195 毫秒。这份日志与上面第 5 条的不是同一份文本，数字不能互相比较。
+7. 同一轮把 `SecurityProfile.config_json` 的类型从裸 `dict` 改成 `dict[str, object]`（模块里原有的 `mypy` 错误），连带去掉 `profile_manager` 里一处不再需要的 `type: ignore`，换成 `cast`；`_serialize_config` 先做 JSON 往返，不改入参，所以去掉原来的 `dict(...)` 拷贝行为不变。`mypy` 对这两个文件与风控文件无错误，`tests/services/security`、风控、迁移与生命周期共 171 例通过。复审后重跑：`tests/services/risk`、迁移、生命周期、渠道 bus 与入站闸门（6 个文件集合）共 233 例通过；第 3 条的 361 例集合更大，没有原样重跑，两个数字不能互相对比。
 
 ### 局限
 
@@ -2569,12 +2571,15 @@ except Exception:
 2. 同族问题没有覆盖：`process.env.X!.trim()` 仍被拦；密码里含 `&x=` 的会在那里被截断；以占位词加分隔符开头的真密码（`Your_Pass_2024!`）会放行；纯字母的连接串密码（`postgres://admin:hunter@db`）会放行，与赋值规则“精度优先”的口径一致，HEAD 上这类写法被拦；全角冒号的 `password：…` 与中文键名（`密码`）不被规则识别（原有）。
 3. 键起点从 `\b` 改成“不是字母数字”之后，`user_token: abc123def456` 这类带前缀的键开始被检查；抽样没有新增命中，真实聊天里的误拦率未知。
 4. 019 起带 `action` 的旧导出文件：字段被忽略，规则按启用的拦截规则导入。
+5. 不带标签、单独贴出的 Databricks（`dapi…`）、Twilio（`SK…`）、Firecrawl（`fc-…`）、Vercel、Cloudflare、ElevenLabs、fal、Telegram 机器人与 Discord 机器人令牌不被闸门拦下：这 9 种形状在 harness 里属于弱前缀，不在 `DISTINCTIVE_KEY_PATTERNS` 里；带 `api_key=` 一类的标签时会被赋值规则拦下。在整个参考语料里，这 9 种形状中的 4 种（Telegram、Discord、Twilio、Databricks）扫到 22 处（其余 5 种没有扫）：14 处是 Telegram 文档占位（`123456789:XXXX…`），3 处是 `dapi0123456789abcdef…` 示例，5 处形似 Discord 的有 4 个是 Swift 驼峰标识符，另 1 个是令牌形状的字符串（没有查它的出处），Twilio 为 0 处；没有一处能确认是真令牌，所以把它们放进拒绝级会误拦文档与代码。代价是这些真令牌不带标签直接粘贴时不被拦（上一提交同样不拦，没有退步）。
+6. 规则编辑器的测试面板（`detect_preview`，`detection.py:206-219`）只跑模式本身，不做命中后的确认，所以对内置赋值规则，面板会列出闸门并不拦下的 `password = input()`；与闸门在这一点上口径不同（原有）。
+7. 全大写、没有分隔符的占位词加数字（`YOURPASSWORD1`、`ENTERPASSWORD1`）会被拦，因为词后面接着字母，与 `ENTERPRISE2012!` 无法区分；纯字母的（`CHANGEME`、`YOURPASSWORD`）不受影响。
 5. 回滚：旧版服务在已迁移的库上播种内置规则会因没有 `action` 列写库失败，之后风控没有规则、不拦任何消息；升级后不要回退。
 6. `secret_value_span` 与 `DISTINCTIVE_KEY_PATTERNS` 都不在 harness 已发布的标签里，服务端仍钉 `==0.1.0rc5`，发布 harness 并执行 `./myrm harness sync-lock` 之前 OSS 的锁定安装无法导入；发版由维护者执行，本次没有执行。没有在真实渠道与浏览器里端到端验证；提示词没有改动。
 
 ### 踩坑经验
 
-1. 全局 `(?i)` 下，占位词清单会把 `Yourdog2012!`、`Changeme2024!` 当占位；改用作用域内的 `(?i:…)`，并要求词在分隔符、大写字母或结尾处结束。
+1. 全局 `(?i)` 下，占位词清单会把 `Yourdog2012!`、`Changeme2024!` 当占位；改用作用域内的 `(?i:…)`。这一步还不够：`(?i:enter)(?=[A-Z])` 里的“下一个字符是大写”对全大写的 `ENTERPRISE2012!` 同样成立（词已吃掉 `ENTER`，下一个是 `P`），于是 `ENTERPRISE2012!`、`SAMPLER99xyz`、`YOURMOM1234x` 被当成占位放行。清单里只有首字母大写的写法，361 例看不出来；交付后的第二轮复审逐个构造全大写值才发现。现在分隔符与结尾不分大小写，驼峰（`[Yy]our` 这类首字母可大可小、其余小写）才看“下一个是大写”。
 2. 曾想用“全大写短横线串就是占位”，但 `API_SECRET=ABCD-EFGH-IJKL-9999` 是真密钥的形状，所以用词表而不是形状。
 3. 600 个文件的抽样里看不到 `vercel_`、`fal_` 对标识符的误拦；整个语料用 `rg -P` 扫出约 3.5 万处，所以它们进了弱前缀表。抽样看不到不等于不存在。
 4. `KEY_START` 起初写成 `(?:(?<![A-Za-z0-9])|(?<=[_-]))`，第二支是第一支的子集（`_` 与 `-` 本来就不是字母数字），多余，且在病态文本上让 `credential_assignment` 慢了一倍；改成单个后行断言后 `a.a.` 串上从 39 毫秒降到 31 毫秒，仍比 HEAD 的 20 毫秒慢。

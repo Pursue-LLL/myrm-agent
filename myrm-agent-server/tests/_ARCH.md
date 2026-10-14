@@ -109,11 +109,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/test_sse_heartbeat_filter.py` | 模块 | agent 测试客户端（同步 `TestClient` 与异步 `httpx.AsyncClient`）对行解析器隐藏 SSE keep-alive 帧（帧由真实 `ResilientStreamBuffer` 产出，格式变更在此报红，避免 `data: null` 解析洞在流测试里重开） |
 | `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
+| `database/test_risk_action_column_retired.py` | 模块 | 风险表的迁移对真实 SQLite：升级中的库丢掉规则与命中记录的 `action` 列，非 `block` 的规则被停用、其余规则保持原状，命中记录里既不是位置也不是超时标记的摘要被清空；新库从不带这两列，迁移重复执行不出错 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务 |
 | `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |
 | `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
 | `services/risk/conftest.py` | 辅助 | 风控测试夹具：真实 SQLite、从库里已存规则加载的检测引擎（播种的内置规则，可全开） |
-| `services/risk/test_builtin_rule_precision.py` | 模块 | 内置规则的精度：默认只启用安全凭证 8 条；日常聊天与引用凭据的代码不被默认规则拦下，清单里的每条凭据被拦下（清单是挑选的写法，不代表全部凭据）；省略号截短的示例、文档里的占位、`&k=` 与全角标点之后的内容、TypeScript 非空断言、引用或词作密码的连接串不算；环境变量前缀的键与以占位词开头的真实密码照样被拦；harness 表里每种厂商前缀形状都有样本且被拦下（表新增形状而没有样本时失败）；关键词按整词匹配；命中摘要只记位置 |
+| `services/risk/test_builtin_rule_precision.py` | 模块 | 内置规则的精度：默认只启用安全凭证 8 条；日常聊天与引用凭据的代码不被默认规则拦下，清单里的每条凭据被拦下（清单是挑选的写法，不代表全部凭据）；省略号截短的示例、文档里的占位、`&k=` 与全角标点之后的内容、TypeScript 非空断言、引用或词作密码的连接串不算；环境变量前缀的键与以占位词开头的真实密码（含全大写写法）照样被拦；harness 表里每种厂商前缀形状都有样本且被拦下（表新增形状而没有样本时失败）；关键词按整词匹配；命中摘要只记位置 |
 | `services/risk/test_risk_rules_api.py` | 模块 | 风险规则 HTTP API 对真实 SQLite：创建与读取的规则、命中列表都不带 `action`；仍带 `action` 的旧客户端请求（创建与批量导入）不被拒绝 |
 | `services/risk/test_risk_rules_engine.py` | 模块 | 内置个人信息规则与检测引擎对真实 SQLite：身份证校验位、示例邮箱、订单号里的手机号形状、关键词后的日期不算命中；40K 点号串在时间预算内完成；回溯型自定义规则在时间预算内按命中处理；过大的计数重复被拒并在加载时跳过；规则测试报告的是整段命中文本；播种刷新已存内置规则的 pattern 而不动用户所设 |
 | `integration/test_repo_call_graph_integration.py` | 模块 | 代码调用图谱与改动影响面分析集成任务流测试（多语言代码库索引、正反向拓扑遍历、受影响测试套件触达、增量重索引一致性） |

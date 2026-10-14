@@ -86,6 +86,8 @@ CODE_THAT_NAMES_SECRETS = [
     "secret: isSecret\uff08N3\uff09",
     # The value a reader is told to fill in, in every spelling documentation uses.
     "password: YourSecurePassword123!",
+    "api_secret = yourSecretKey2024",
+    "DB_PASSWORD=ENTER_DB_PASSWORD_123",
     "SECRET_KEY=CHANGE-TO-A-UNIQUE-64-CHAR-SECRET-KEY",
     "api_key = replace_with_your_key",
     "client_secret: example-secret-value",
@@ -135,6 +137,9 @@ CREDENTIALS = {
     "aws secret access key": "aws_secret_access_key = " + _token(40),
     "password that begins with a placeholder word": "password: Yourdog2012!",
     "password that begins with another placeholder word": "password=Changeme2024!",
+    "all-capitals password that begins with a placeholder word": "password: ENTERPRISE2012!",
+    "all-capitals password that begins with another placeholder word": "DB_PASSWORD=SAMPLER99xyz",
+    "all-capitals secret that begins with a third placeholder word": "SECRET_KEY=YOURMOM1234x",
     "env secret in groups of letters": "API_SECRET=ABCD-EFGH-IJKL-9999",
     "key before the next query parameter": "api_key=Zk9#mango42x&profile=x",
     "password before full-width punctuation": "password: Zk9#mango42x\uff0c\u8bf7\u4fdd\u7ba1",

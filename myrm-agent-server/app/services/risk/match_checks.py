@@ -38,10 +38,12 @@ _ELLIPSES = ("...", "\u2026")
 _VALUE_END_RE = regex.compile(r"&[A-Za-z_]\w*=|(?![\x00-\x7f])\p{P}")
 
 # A value that starts with one of these words is the one a reader is told to fill in: ``your_api_key``,
-# ``YourSecurePassword123!``, ``CHANGE-TO-A-UNIQUE-64-CHAR-SECRET-KEY``. The word ends at a separator, a capital or the
-# end of the value, so a password such as ``Yourdog2012!`` is still one.
+# ``CHANGE-TO-A-UNIQUE-64-CHAR-SECRET-KEY``, ``YourSecurePassword123!``. In any case the word ends at a separator or at the
+# end of the value; written in camel case it ends at the next capital. A word that runs on is part of a password:
+# ``Yourdog2012!`` and ``ENTERPRISE2012!`` are secrets.
 _PLACEHOLDER_START_RE = regex.compile(
-    r"(?:(?i:your|change|replace|example|placeholder|dummy|sample|insert|enter))(?:[-_]|(?=[A-Z])|$)"
+    r"(?i:your|change|replace|example|placeholder|dummy|sample|insert|enter)(?:[-_]|$)"
+    r"|(?:[Yy]our|[Cc]hange|[Rr]eplace|[Ee]xample|[Pp]laceholder|[Dd]ummy|[Ss]ample|[Ii]nsert|[Ee]nter)(?=[A-Z])"
 )
 
 
