@@ -3,9 +3,8 @@
 ## 架构概述
 
 业务层向量存储入口。核心实现（VectorStore ABC、Qdrant 实现、配置模型）位于框架层 `myrm_agent_harness.toolkits.vector`，本模块负责：
-1. **重新导出** 框架层的向量存储 API
+1. **重新导出** 框架层的向量存储 API（含远程模式实例池 `VectorStorePool`）
 2. **业务默认配置** (defaults.py) — 基于 QDRANT_PATH 环境变量的嵌入式 Qdrant 配置
-3. **连接池** (pool.py) — 适用于远程模式的实例池
 
 **所有部署模式（Local / Sandbox）统一使用 Qdrant 嵌入式模式。** Sandbox 模式下 Qdrant 运行在用户沙箱内，数据存储在沙箱持久化卷上。
 
@@ -48,9 +47,7 @@ Agent-in-Sandbox 架构下，每个用户拥有独立沙箱实例。向量数据
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 从框架层重新导出向量存储 API + 业务默认配置 | ✅ |
-| `defaults.py` | 业务 | 基于 QDRANT_PATH 的嵌入式默认配置 | ✅ |
-| `pool.py` | 辅助 | 远程模式实例池（嵌入式模式无意义） | ✅ |
-
+| `defaults.py` | 业务 | 基于 QDRANT_PATH 的嵌入式默认配置；不触碰数据目录锁——单写者由框架层 OS 文件锁保证，第二个进程被拒后回退内存模式并由记忆指挥中心提示 | ✅ |
 **框架层实现** (`myrm_agent_harness.toolkits.vector`)：
 - `toolkits/vector/base.py` — VectorStore ABC + 数据模型
 - `toolkits/vector/config.py` — 部署模式 + 配置
@@ -67,4 +64,4 @@ Agent-in-Sandbox 架构下，每个用户拥有独立沙箱实例。向量数据
 
 ### 被依赖
 - `app/core/memory/adapters/` — 记忆系统适配器
-- `app/api/health.py` — 就绪检查
+- `app/api/health/router.py` — 就绪检查
