@@ -1866,7 +1866,7 @@ except Exception:
 
 1. A、B、C、G 与门禁提交各在干净导出上跑过 `bun run lint`、相关 vitest、全量 `tsc --noEmit`（只剩 `clipNotifyPayload.test.ts` 的导出产物）；B、C、G 与门禁提交另跑了 `check_fractal_docs`，B、G 与门禁提交另跑了 `verify-i18n-references`（均通过）；测试规模：B 618 个测试文件 / 4445 例，C 83 / 694，G 139 / 1103，门禁 12 个脚本测试文件 / 122 例；D 只改 zh-TW 文案，只跑了 `verify:i18n`，输出与 HEAD 逐字一致（G 同样一致）；
 2. 变异检查：向干净导出注入 `{{count}}`，ICU 门禁退出码 1 并报 `MALFORMED_ARGUMENT`；注入硬编码 toast、`t() || 'x'`、`err.message || '…'`、模板字符串四种写法，toast 门禁全部失败并列出行号，错误的 `translateI18nKey` 键被引用校验报出；G 的「无译文时显示服务端原文」用例在旧比较下失败；撤销 `ConfirmDialog` 的焦点修复后，C 的焦点用例失败；
-3. toast 门禁在 2.4 千个源码文件上约 3 秒；
+3. toast 门禁扫描 2432 个源码文件（不含测试与 `.d.ts`），两组各 3 次实测：2.8–5.0 秒、3.5–6.0 秒（后一组测量时机器负载约 50）；
 4. C 的组件测试用真实 Radix 与真实 next-intl（6 语言文案），25 例；**Kanban 页没有在真实浏览器里验证**：共享 :3000 与我单独起的 :3300 两个开发服务器上，无头 Chromium 都停在设置页骨架，页面反复重新导航，从未渲染到看板；源码里有 `GlobalErrorBoundary` 等自动 `location.reload()` 的路径，当时机器负载 60 以上、分块请求长时间挂起，但没有确认是哪条路径触发的，也没有确证是负载所致。375px 宽的德语长文案是否折行、两套主题下对话框配色，因此没有看过实际渲染。
 
 **局限**
