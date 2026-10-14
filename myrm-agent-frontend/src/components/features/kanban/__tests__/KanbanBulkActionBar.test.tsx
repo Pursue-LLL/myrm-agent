@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import userEvent, { PointerEventsCheckLevel } from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -20,7 +20,7 @@ vi.mock('@/services/kanban', () => ({
   bulkAction: vi.fn().mockResolvedValue({ succeeded: 2, failed: 0 }),
 }));
 
-function renderBar(selectedStatuses: TaskStatus[] = ['ready', 'blocked']) {
+function renderBar(selectedStatuses: TaskStatus[] = ['ready', 'blocked'], agents: { id: string; name: string }[] = []) {
   const onClear = vi.fn();
   const onComplete = vi.fn();
   render(
@@ -30,7 +30,7 @@ function renderBar(selectedStatuses: TaskStatus[] = ['ready', 'blocked']) {
       selectedStatuses={selectedStatuses}
       onClear={onClear}
       onComplete={onComplete}
-      agents={[]}
+      agents={agents}
     />,
   );
   return { onClear, onComplete };
@@ -134,11 +134,11 @@ describe('KanbanBulkActionBar move targets follow the selection', () => {
   it('offers every target when the selection can move anywhere, and a click sends the move', async () => {
     const user = await openMoveMenu(['ready', 'blocked']);
 
-    expect(screen.getByRole('button', { name: 'Ready' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Blocked' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Completed' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Ready' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Blocked' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Completed' })).toBeTruthy();
 
-    await user.click(screen.getByRole('button', { name: 'Blocked' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Blocked' }));
 
     await waitFor(() =>
       expect(bulkAction).toHaveBeenCalledWith('board-1', ['t1', 't2'], 'move', { status: 'blocked' }, false),
@@ -163,22 +163,110 @@ describe('KanbanBulkActionBar move targets follow the selection', () => {
   it('keeps a target that at least one selected task can reach, so mixed moves still partly succeed', async () => {
     await openMoveMenu(['failed', 'triage']);
 
-    expect(screen.getByRole('button', { name: 'Ready' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Blocked' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Completed' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Ready' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Blocked' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Completed' })).toBeNull();
   });
 
   it('keeps the status a selected task is already in', async () => {
     await openMoveMenu(['failed', 'ready']);
 
-    expect(screen.getByRole('button', { name: 'Ready' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Ready' })).toBeTruthy();
   });
 
   it('fails open when the selected tasks cannot be resolved to statuses', async () => {
     await openMoveMenu([]);
 
-    expect(screen.getByRole('button', { name: 'Ready' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Blocked' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Completed' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Ready' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Blocked' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Completed' })).toBeTruthy();
+  });
+});
+
+describe('KanbanBulkActionBar menus', () => {
+  const AGENTS = [
+    { id: 'agent-a', name: 'Ledger Analyst' },
+    { id: 'agent-b', name: 'Report Writer' },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders the menus outside the bar, so the bar overflow can never clip them', async () => {
+    const user = userEvent.setup();
+    renderBar(['ready', 'blocked'], AGENTS);
+
+    await user.click(screen.getByRole('button', { name: 'Move to' }));
+    expect(screen.getByTestId('kanban-bulk-bar').contains(screen.getByRole('menu'))).toBe(false);
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByRole('button', { name: 'Reassign' }));
+    expect(screen.getByTestId('kanban-bulk-bar').contains(screen.getByRole('menu'))).toBe(false);
+  });
+
+  it('closes an open menu on Escape or an outside click and keeps the bar', async () => {
+    // A modal Radix menu disables pointer events on the page while it is open, so the outside click is dispatched unchecked.
+    const user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never });
+    renderBar();
+
+    await user.click(screen.getByRole('button', { name: 'Move to' }));
+    expect(screen.getByRole('menu')).toBeTruthy();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+
+    await user.click(screen.getByRole('button', { name: 'Reassign' }));
+    expect(screen.getByRole('menu')).toBeTruthy();
+    await user.click(document.body);
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+
+    expect(screen.getByTestId('kanban-bulk-bar')).toBeTruthy();
+    expect(bulkAction).not.toHaveBeenCalled();
+  });
+
+  it('reassigns the whole selection to the chosen agent', async () => {
+    const user = userEvent.setup();
+    renderBar(['ready', 'blocked'], AGENTS);
+
+    await user.click(screen.getByRole('button', { name: 'Reassign' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Report Writer' }));
+
+    await waitFor(() =>
+      expect(bulkAction).toHaveBeenCalledWith('board-1', ['t1', 't2'], 'reassign', { agent_id: 'agent-b' }, false),
+    );
+  });
+
+  it('Unassigned sends an empty agent id', async () => {
+    const user = userEvent.setup();
+    renderBar(['ready', 'blocked'], AGENTS);
+
+    await user.click(screen.getByRole('button', { name: 'Reassign' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Unassigned' }));
+
+    await waitFor(() =>
+      expect(bulkAction).toHaveBeenCalledWith('board-1', ['t1', 't2'], 'reassign', { agent_id: '' }, false),
+    );
+  });
+
+  it('locks both menu triggers while a request is in flight', async () => {
+    let finish: (value: { results: []; total: number; succeeded: number; failed: number }) => void = () => {};
+    vi.mocked(bulkAction).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(screen.getByRole('button', { name: 'Move to' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Ready' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Move to' })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Reassign' })).toBeDisabled();
+    expect(bulkAction).toHaveBeenCalledTimes(1);
+
+    finish({ results: [], total: 2, succeeded: 2, failed: 0 });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Move to' })).toBeEnabled());
   });
 });
