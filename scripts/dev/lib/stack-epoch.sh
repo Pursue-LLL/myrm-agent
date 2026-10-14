@@ -18,16 +18,16 @@ _harness_fingerprint() {
   local server_dir="$1"
   local py="${server_dir}/.venv/bin/python"
   [[ -x "${py}" ]] || return 0
-  cd "${server_dir}" && "${py}" -c "
-import pathlib
-try:
-    import myrm_agent_harness
-    from myrm_agent_harness.runtime.install_guard.probe import get_distribution_mode
-    pkg = pathlib.Path(myrm_agent_harness.__file__).resolve().parent
-    print(f'{get_distribution_mode().value}:{pkg}')
-except Exception:
-    print('unknown')
-" 2>/dev/null || echo "unknown"
+  local probe mode pkg_dir
+  probe="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/e2e_core/harness_distribution.py"
+  if ! {
+    read -r mode
+    read -r pkg_dir
+  } < <(cd "${server_dir}" && "${py}" "${probe}" 2>/dev/null); then
+    echo "unknown"
+    return 0
+  fi
+  echo "${mode}:${pkg_dir}"
 }
 
 _bump_stack_epoch() {
