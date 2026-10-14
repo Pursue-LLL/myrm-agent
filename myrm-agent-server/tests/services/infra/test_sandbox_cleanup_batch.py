@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import time
 from pathlib import Path
 
 import pytest
@@ -70,3 +72,30 @@ async def test_cleaning_no_chats_touches_nothing(harness_dir: Path) -> None:
     assert await cleanup_chat_workspaces([]) == {"storage_workspace": True, "artifact_vault": True}
 
     assert set(harness_dir.rglob("*")) == entries_before
+
+
+@pytest.mark.asyncio
+async def test_vault_cleanup_does_not_stall_the_event_loop(harness_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A vault scan walks and unlinks files; on the loop it froze every other request for the whole purge."""
+
+    def slow_purge(self: ArtifactVault, task_ids: object) -> int:
+        time.sleep(0.5)
+        return 0
+
+    monkeypatch.setattr(ArtifactVault, "purge_by_task_ids", slow_purge)
+    heartbeats = 0
+
+    async def heartbeat() -> None:
+        nonlocal heartbeats
+        while True:
+            await asyncio.sleep(0.01)
+            heartbeats += 1
+
+    ticker = asyncio.create_task(heartbeat())
+    try:
+        assert await cleanup_chat_workspaces(["chat-slow"]) == {"storage_workspace": True, "artifact_vault": True}
+    finally:
+        ticker.cancel()
+
+    # 0.5 s of purge leaves room for ~50 beats; a blocked loop manages at most one.
+    assert heartbeats >= 20
