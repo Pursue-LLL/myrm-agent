@@ -13,32 +13,17 @@
  * 退出码：0 = 无违规；1 = 有违规 / 自检失败
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, extname, join, relative, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { walkSourceFiles } from './source-files.mjs';
 import { findWrappedThemeColorSites, isCompleteColorValue } from './theme-color-scan.ts';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = join(rootDir, 'src');
 const globalsCss = join(srcDir, 'app', 'globals.css');
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.css']);
-const PRUNE_DIRS = new Set(['node_modules', '.next', 'dist']);
-const TEST_PATH = /(?:^|[\\/])__tests__[\\/]|\.test\.tsx?$/;
-
-function* walk(dir) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (PRUNE_DIRS.has(entry.name)) {
-      continue;
-    }
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      yield* walk(full);
-    } else if (SOURCE_EXTENSIONS.has(extname(entry.name)) && !TEST_PATH.test(full)) {
-      yield full;
-    }
-  }
-}
 
 // 前提自检：规则只在“主题变量是完整颜色”时成立，否则宁可失败也不误拦合法写法。
 const primary = /--primary:\s*([^;]+);/.exec(readFileSync(globalsCss, 'utf8'))?.[1];
@@ -52,7 +37,7 @@ if (primary === undefined || !isCompleteColorValue(primary)) {
 
 let scannedFiles = 0;
 const violations = [];
-for (const file of walk(srcDir)) {
+for (const file of walkSourceFiles(srcDir, SOURCE_EXTENSIONS)) {
   scannedFiles += 1;
   for (const { line, text } of findWrappedThemeColorSites(readFileSync(file, 'utf8'))) {
     violations.push(`${relative(rootDir, file)}:${line}  ${text}`);

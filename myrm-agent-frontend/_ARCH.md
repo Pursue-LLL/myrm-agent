@@ -18,7 +18,7 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 
 ## 脚本
 
-详见 [scripts/_ARCH.md](scripts/_ARCH.md)。CI 核心：`oxlint`（errors 阻断 / warnings 不阻断，配置 `.oxlintrc.json` + `.oxlintignore`）、`check_fractal_docs.py`、`check_typescript_strict.py`、`check_barrel_exports.py`、`check_module_resolution.py`、`verify-i18n.mjs`、`verify-sw-push.mjs`（`bun run build` 末段执行）。tsc 与 `check_module_resolution.py` 依赖 `locales/namespaces/` 生成物，CI 与 `dev` / `pretest` 一样先跑 `i18n:split`。
+详见 [scripts/_ARCH.md](scripts/_ARCH.md)。CI 核心：`oxlint`（errors 阻断 / warnings 不阻断，配置 `.oxlintrc.json` + `.oxlintignore`；`bun run lint` 同时串联 `verify:stable-mocks` / `verify:a11y` / `verify:theme-colors` / `verify:hardcoded-copy` 四道静态门禁）、`check_fractal_docs.py`、`check_typescript_strict.py`、`check_barrel_exports.py`、`check_module_resolution.py`、`verify-i18n.mjs`、`verify-sw-push.mjs`（`bun run build` 末段执行）。tsc 与 `check_module_resolution.py` 依赖 `locales/namespaces/` 生成物，CI 与 `dev` / `pretest` 一样先跑 `i18n:split`。
 
 ## PWA / Service Worker（Web 部署）
 
