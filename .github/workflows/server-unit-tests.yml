@@ -14,16 +14,17 @@ concurrency:
   group: server-unit-tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# CI has no LLM credentials: tests resolve model identifiers from the environment first, so
+# offline placeholders stand in for the developer-only .env.test (e2e tests are excluded).
+env:
+  BASIC_MODEL: openai/ci-offline-placeholder
+  LITE_MODEL: openai/ci-offline-placeholder
+
 jobs:
   default-pytest:
     name: Default pytest (-m not e2e)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    # CI has no LLM credentials: tests resolve model identifiers from the environment first, so
-    # offline placeholders stand in for the developer-only .env.test (e2e tests are excluded).
-    env:
-      BASIC_MODEL: openai/ci-offline-placeholder
-      LITE_MODEL: openai/ci-offline-placeholder
     defaults:
       run:
         working-directory: myrm-agent-server
@@ -43,7 +44,7 @@ jobs:
 
   locked-use-pytest:
     name: Locked Use regression (tests/services/locked_use)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
       run:
