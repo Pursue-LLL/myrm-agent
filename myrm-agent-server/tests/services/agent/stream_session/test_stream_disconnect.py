@@ -48,7 +48,7 @@ def _session(
 
 def _monitor_loops() -> list[asyncio.Task[object]]:
     """Live CancellationMonitor polling tasks: the resource a finished turn must not leave behind."""
-    return [task for task in asyncio.all_tasks() if task.get_coro().__qualname__.endswith("._monitor_loop")]
+    return [task for task in asyncio.all_tasks() if getattr(task.get_coro(), "__qualname__", "").endswith("._monitor_loop")]
 
 
 async def _until_cancelled(token: CancellationToken) -> None:

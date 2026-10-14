@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import Request
+from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 from app.ai_agents.agents import GeneralAgentParams
@@ -18,7 +19,8 @@ from app.services.agent.params.models import AgentRequest
 from app.services.agent.stream_session import stream_chunks
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
-from tests.api.agent.utils import get_model_selection
+
+_NO_CHUNKS: tuple[str, ...] = ()
 
 
 def _session() -> AgentStreamSession:
@@ -27,7 +29,6 @@ def _session() -> AgentStreamSession:
             message_id="msg-watch",
             chat_id="chat-watch",
             query="hello",
-            model_selection=get_model_selection(),
         ),
         http_request=cast(Request, None),
         params=GeneralAgentParams(
@@ -41,7 +42,7 @@ def _session() -> AgentStreamSession:
         routing_tier=None,
         archive_restore_results=[],
         research_model_cfg=None,
-        registry=None,
+        registry=cast(GlobalStreamRegistry, None),
         collector=StreamContentCollector(chat_id="chat-watch"),
         is_long_running_task=False,
         goal_provider=None,
@@ -72,7 +73,7 @@ async def _drive_generator(
 
     async def fake_exception_chunks(*_args: object, **_kwargs: object) -> AsyncIterator[str]:
         timeline.append("exception-handler")
-        for chunk in ():
+        for chunk in _NO_CHUNKS:
             yield chunk
 
     async def fake_finalize(*_args: object, **_kwargs: object) -> None:

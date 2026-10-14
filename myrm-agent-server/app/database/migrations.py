@@ -643,7 +643,7 @@ MIGRATION_STATEMENTS: list[str] = [
     # Retired batch-optimization tables: no model, route or page reads or writes them.
     "DROP TABLE IF EXISTS batch_audit_logs",
     "DROP TABLE IF EXISTS batch_optimization_tasks",
-    # Retired offline durable-task table: no model, route or startup hook reads or writes it.
+    # The offline durable-task table has no model, route or startup hook that reads or writes it.
     "DROP TABLE IF EXISTS offline_durable_tasks",
     # Retired shadow A/B verification: no model, route or page reads or writes these tables or the per-version quality score.
     "DROP TABLE IF EXISTS skill_shadow_samples",

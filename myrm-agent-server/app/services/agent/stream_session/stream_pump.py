@@ -1,4 +1,24 @@
-"""Pump generated SSE chunks into the global stream buffer."""
+"""Pump generated SSE chunks into the global stream buffer.
+
+[INPUT]
+- app.services.agent.stream_session.stream_chunks::generate_cancellable_stream (POS: Agent 流式 SSE chunk 编排：凭据注入、三轨 gap 预检、Vision fallback，委托 loop/finalize)
+- app.services.agent.stream_session.stream_session_types::AgentStreamSession (POS: 单回合会话状态)
+- app.services.agent.stream_session.pre_reply_compact_sse (POS: Web-only SSE wiring for idle pre-reply compaction. Reuses frontend context_compaction progress steps)
+- app.services.agent.streaming_support.sse_helpers::error_sse (POS: SSE 事件辅助层。提供 SSE 事件解析、错误格式化，以及审批/澄清 HITL 超时后台 auto-resume 调度)
+- app.services.agent.streaming_support.multiplexer::WorkspaceMultiplexer (POS: Workspace SSE Multiplexer for multi-tab support)
+- app.schemas.streaming::SSEEnvelope (POS: 业务层 SSE 序列化防腐层。保证发送给前端的每个 chunk 符合统一类型)
+- app.services.project.orchestrator::project_orchestrator (POS: 项目并发控制。确保同一个项目的多个 Agent 不会并发修改工作区文件)
+- app.services.agent.gateway::get_agent_gateway (POS: Agent 执行网关。并发控制、内存压力熔断、优雅排空、超时保护和可观测性)
+- app.services.infra.system_notification::SystemNotificationService (POS: System notification persistence service for API/business layers)
+- myrm_agent_harness.agent.streaming.stream_buffer::ResilientStreamBuffer (POS: Harness engine-layer SSE reconnect replay buffer)
+- myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management)
+
+[OUTPUT]
+- pump_to_buffer: run a turn's SSE stream into its replay buffer and the workspace multiplexer, serialize turns per project, and notify the user when a long-running turn ends after the client left
+
+[POS]
+Background pump of an E1 turn: owns the turn from the project turn-lock wait to the delayed buffer cleanup.
+"""
 
 from __future__ import annotations
 

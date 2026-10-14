@@ -25,7 +25,6 @@ app/api/audit/anomaly_detector.py
 app/api/audit/bash_router.py
 app/api/channels/channel_ingress.py
 app/api/chats/chat/__init__.py
-app/api/chats/chat/catchup.py
 app/api/chats/chat/compaction.py
 app/api/chats/chat/core.py
 app/api/chats/chat/fork.py
@@ -207,8 +206,6 @@ app/services/agent/stream_session/reconnect.py
 app/services/agent/stream_session/risk_gate.py
 app/services/agent/stream_session/stream_finalize.py
 app/services/agent/stream_session/stream_lane_factory.py
-app/services/agent/stream_session/stream_pump.py
-app/services/agent/stream_session/stream_session_types.py
 app/services/agent/streaming_support/multiplexer.py
 app/services/audit/auth_log_reader.py
 app/services/background/daemon.py

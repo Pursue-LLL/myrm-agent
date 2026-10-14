@@ -1,4 +1,23 @@
-"""Shared types for agent stream session execution."""
+"""Shared types for agent stream session execution.
+
+[INPUT]
+- app.ai_agents::GeneralAgentParams (POS: Agent 参数定义层。纯参数数据结构，解耦 AgentFactory 创建逻辑与 Pydantic 参数校验)
+- app.core.types::ModelConfig (POS: Business-specific type definitions used across the business layer)
+- app.services.agent.params::AgentRequest (POS: Agent parameter conversion and model resolution)
+- app.services.agent.stream_session.lazy_session_gate::PendingSessionDraft (POS: Stream-session persistence gate: no session row or sandbox directory exists until the first active generation event)
+- app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata)
+- app.services.chat.compact_service::CompactResult (POS: Chat context compaction facade)
+- myrm_agent_harness.agent.streaming.stream_buffer::GlobalStreamRegistry (POS: Harness engine-layer SSE reconnect replay buffer)
+- myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management)
+- myrm_agent_harness.utils.runtime.steering::SteeringToken (POS: Steering token mechanism. Allows external message injection during Agent runtime to interrupt the current tool chain)
+
+[OUTPUT]
+- AgentStreamSession: the state of one agent turn shared by chunk generation, disconnect watch, pump and finalize
+- GRACE_PERIOD_SECONDS: how long a direct-SSE client may stay away before its turn is cancelled
+
+[POS]
+Single-turn session state of the stream pipeline: the one object the stream_session modules pass around.
+"""
 
 from __future__ import annotations
 

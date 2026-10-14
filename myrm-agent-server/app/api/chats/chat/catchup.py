@@ -1,3 +1,22 @@
+"""Catchup inbox API: briefs of unread web chats and read marking.
+
+[INPUT]
+- app.api.dependencies::get_deploy_identity (POS: API 层统一依赖注入入口。所有 FastAPI 端点的依赖应从此模块导入)
+- app.core.utils.response_utils::success_response (POS: 统一 API 响应格式工具。封装标准化的成功/列表/分页/错误响应构造)
+- app.database.models.approval::ApprovalRecord (POS: 统一审批记录模型。存储所有被拦截的执行节点的挂起状态)
+- app.database.models.chat::Chat, Message (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
+- app.platform_utils::get_session_factory (POS: 平台适配层。按 DEPLOY_MODE 选择平台实现，提供数据库会话工厂)
+- app.services.agent.gateway::get_agent_gateway (POS: Agent 执行网关。并发控制、内存压力熔断、优雅排空、超时保护和可观测性)
+- myrm_agent_harness.agent.streaming.broadcast.catchup::CatchupBriefExtractor (POS: Extracts structured summary (files touched, tools used, etc.) from agent messages for the Catchup feature)
+
+[OUTPUT]
+- get_catchup_briefs: GET /catchup, a brief per unread web chat; a chat with a turn in flight is running, one with a pending approval is waiting_for_approval
+- mark_chat_as_read: POST /{chat_id}/read, stamps last_read_at and answers 404 for an unknown chat
+
+[POS]
+Catchup inbox endpoints: what happened in each unread web chat while the user was away.
+"""
+
 import logging
 from datetime import datetime
 from typing import Any
