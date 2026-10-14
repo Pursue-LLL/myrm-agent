@@ -1457,10 +1457,10 @@ except Exception:
 
 ### 修复
 
-1. harness：删除 24 个无人导入的模块与只测它们的 14 个测试文件；`SkillOptimizationStorage` 去掉上述 7 个方法，`SkillQualityAggregator` / `SkillQualityDataSource` 协议、`StorageConnectionError` / `StorageTimeoutError` 与聚合 / 预测 / 异常数据类一并删除；`OptimizationConfig` 去掉 `MonitoringConfig`、`enable_auto_optimization` 与三个预设，`PerformanceConfig` 只留优化器读取的 LLM 调用字段；包文档、`__init__` 导出、`_ARCH`、mixin MRO 架构测试与行数基线同步收缩；
-2. 服务端：存储与三个仓库删除对应的 7 个包装方法及其测试；`versions.py` 的对比 / 详情复用 `_quality_score_payload`（占位分返回 `null`，增量只在两边都有真实评分时计算），回滚接口去掉伪造的 `audit_log`、无人订阅的事件发射和用不到的数据库依赖；
+1. harness：删除 24 个无人导入的模块与只测它们的 14 个测试文件；`SkillOptimizationStorage` 去掉上述 7 个方法，`SkillQualityAggregator` / `SkillQualityDataSource` 协议、`StorageConnectionError` / `StorageTimeoutError` 与聚合 / 预测 / 异常数据类一并删除；`OptimizationConfig` 去掉 `MonitoringConfig`、`enable_auto_optimization` 与三个预设，`PerformanceConfig` 只留优化器读取的 LLM 调用字段；`SkillQualityScore` 去掉再没有人写入的四个成本字段（`prompt_tokens`、`completion_tokens`、`total_tokens`、`llm_cost_usd`），`__init__` 里的 `SkillExecutionSample` 改从定义处导出；包文档、`__init__` 导出、`_ARCH`、mixin MRO 架构测试与行数基线同步收缩；
+2. 服务端：存储与三个仓库删除对应的 7 个包装方法及其测试；快照仓库不再读写那四个成本字段（已有行里多出的键读取时忽略），四个仓库的 `desc(列)` 改为 `列.desc()`，消除 8 条 pyright 报错；`versions.py` 的对比 / 详情复用 `_quality_score_payload`（占位分返回 `null`，增量只在两边都有真实评分时计算），回滚接口去掉伪造的 `audit_log`、无人订阅的事件发射和用不到的数据库依赖；
 3. 迁移：在 `MIGRATION_STATEMENTS` 末尾追加 `DROP TABLE IF EXISTS` 两条，新增 `tests/database/test_batch_optimization_tables_retired.py`；
-4. 文档：`app/adapters/_ARCH.md` 去掉默认内存存储的图示行；plane `api/schemas/_ARCH.md` 去掉已不存在的 Skill baseline 行；根仓库四篇优势材料（提交 `a65d6a5033`）里改成代码事实，「止损三绳」改为「两绳」，批量执行器测试数 105 改为 97，子智能体总数 500 改为 485。
+4. 文档：`app/adapters/_ARCH.md` 去掉默认内存存储的图示行；plane `api/schemas/_ARCH.md` 去掉已不存在的 Skill baseline 行；根仓库四篇优势材料（提交 `a65d6a5033`）里改成代码事实，另有 `HARNESS_ARCHITECTURE_ADVANTAGE`、`SKILL_MARKET_AND_ADOPTION_ADVANTAGE` 与 roadmap `topic_14` 里对已删模块、已删 A/B 决策代码的引用改成现状，「止损三绳」改为「两绳」，批量执行器测试数 105 改为 97，子智能体总数 500 改为 485。
 
 保留不动：`optimizer.py`、`observability.py`（两者同样没有包外调用方，但带着他人未提交的改动，这次没有碰）；Shadow A/B、晋升门禁、进化审核、`RollbackService` 的批次快照与 `/mutations/{id}/rollback`、`SkillHealthEvaluator`、质量快照三件套与优化记录两件套。
 
@@ -1478,6 +1478,8 @@ except Exception:
 2. 收缩协议要同时收缩实现与测试：协议删掉 7 个方法后，服务端的包装、仓库方法和用例都成了死代码；收尾用「协议方法集与实现方法集的差集」检查；
 3. `MIGRATION_STATEMENTS` 的版本号是列表下标，`schema_gate` 用 `len - 1`，所以 DROP 只能追加在末尾；
 4. 共享工作区里，同一个 hunk 常常混着别人的相邻行（行数基线、`_ARCH` 表）：提交时把别人的 `+` 行改回 HEAD 文本，或从 HEAD 文本出发重建整份文件，而不是直接挑 hunk；
-5. 局限：`dependencies.py` 里 `get_event_emitter` 的删除依赖他人未提交的 `runtime.py`，留在工作区没有提交；`optimizer.py` / `observability.py` 的去留需要在他们的改动落地后再核实；没有重新跑服务启动的完整流程，也没有实测前端页面。
+5. 为迁移写夹具要按旧模型的真实表结构写：旧模型已被删除，从历史提交里取；第一版夹具凭印象给两张表之间写了外键，实际没有；
+6. 删掉一个生产者（这里是成本计算器）后，要顺着它写入的字段找「再没人写」的残留；四个成本字段是靠检索字段名找出来的；
+7. 局限：`SKILL_EVOLUTION_ADVANTAGE` 里带日期的测试验证表（2026-06-28、2026-07-08）仍记着 optimization 目录 164 例，它们是当时的实测记录，没有改；`topic_11`、`topic_14` 里仍在他人工作区、尚未提交的条目，工作区文本改了，没有提交；`dependencies.py` 里 `get_event_emitter` 的删除依赖他人未提交的 `runtime.py`，留在工作区没有提交；`optimizer.py` / `observability.py` 的去留需要在他们的改动落地后再核实；没有重新跑服务启动的完整流程，也没有实测前端页面。
 
 ---
