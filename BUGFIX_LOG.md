@@ -2236,3 +2236,109 @@ except Exception:
 6. 共享工作区里同一批文件带着他人未提交的改动：提交用「HEAD 文本 + 精确锚点替换」生成并核对残留 hunk，而不是整文件提交。
 
 ---
+
+## BUG-AGENT-2026-10-14-019: 会话的几种结束方式各拆各的：对回收站外的会话执行永久删除会清空它的全部消息、永久删除读不到沙箱目录而从不清 worktree、两个自动清除不清记忆与运行时缓存、清空回收站不清小组件存储；「安全清空」补做文件清理时每个会话都整库重扫金库
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（过期的回收站视图删除一个已被恢复的会话，会话仍在列表里但消息全没了，无法找回；其余为 P2：已删除会话的记忆、授权、worktree、小组件数据残留） |
+| 影响范围 | server：新增 `app/services/chat/chat_disposal.py`（拆除步骤单一定义）、`chat_retention.py`（两个自动清除的到期策略）；改动 `chat_crud.py`、`app/database/repositories/chat_repo.py`、`uow.py`、`chat/_base.py`（`get_chat_by_id` 透传 `include_trashed`）、`app/services/system/vault_purge_service.py`、`app/services/infra/sandbox_cleanup.py`（批量清理）、`app/lifecycle/schedulers.py`；harness：`ArtifactVault.purge_by_task_ids`（提交 `5cef842a1`） |
+| 出现次数 | 1（读代码 + 真实 SQLite 架构上的红灯测试确认；未在真实桌面部署与真实 Qdrant 上端到端验证） |
+| 关联 | `BUG-AGENT-2026-10-14-015`（「安全清空」漏清检查点，本条把它并入同一套拆除步骤） |
+
+### 现象
+
+1. `DELETE /chats/trash/{id}` 对一个不在回收站的会话返回 404，但它的全部消息已被删除：`ChatRepository.permanently_delete_chat` 先无条件按 `chat_id` 删消息，再只在会话已进回收站时删会话行；服务层在同一事务里先删了 recall 索引与小组件存储，事务照常提交。红灯测试：播种一个活跃会话与一条消息，调用后消息数 0（期望 1）。触发条件：回收站列表已过期（会话在另一个标签页被恢复）后点永久删除。
+2. 单个会话永久删除时读沙箱目录用的是 `get_chat_by_id`，它默认过滤 `deleted_at IS NULL`（`chat_repo.py:164-165`），而永久删除只作用于回收站内的会话，所以读到的永远是 None，`cleanup_sandbox_worktree` 这一分支从未执行，git worktree 一直留在磁盘上。清空回收站读的是回收站列表，不受影响。
+3. 回收站 30 天自动清除与无痕会话 1 小时自动清除各自内联了一份删除：直接 `DELETE FROM chats`，只清 checkpoint 与工作空间。派生记忆、记忆抽取重试队列、运行时池与执行缓存、工作记忆、沙箱 worktree、小组件存储都不清。
+4. 清空回收站不删小组件存储（`widget_kv.chat_id` 没有外键），也不清重试队列、工作记忆与执行缓存；单个永久删除则会清。
+5. 清空回收站末尾的「FTS 优化」从未执行：它对 aiosqlite 驱动连接的 `execute` 没有 `await`，探针实测报 `coroutine 'Connection.execute' was never awaited` 且 0 行写入；同时 mypy 也报该处类型错误。
+
+### 根因
+
+同一件事（一个会话彻底结束）有 6 个入口，每个入口手写自己的子集，没有任何东西规定「一个会话结束必须拆哪些」，也没有测试把入口与步骤交叉起来看；永久删除的仓储函数把「是否在回收站」放在行删除上，却没有放在先于它的消息删除上。
+
+### 修复
+
+1. `chat_disposal.py` 定义拆除步骤：`clear_conversation_state`（checkpoint 线程经 `sync_checkpoint_messages` 全部别名 + 会话授权 + 拒绝熔断计数；checkpoint 清不干净只返回 False，授权照清）、`clear_runtime_caches`、`clear_extract_retry_queue`、`forget_chat_memories`、`remove_chat_files`、`dispose_permanently_deleted_chats`（先停生产者再抹状态）。每步 fail-open：行已提交，异常会中断后续步骤。焦点刷新、软删除、永久删除、清空回收站、安全清空都由它组合。
+2. `chat_retention.py`：两个自动清除只决定哪些会话到期，删除委托 `ChatService.permanently_delete_chat`；无痕会话先直接置入回收站（不再重复跑软删除副作用）。原先内联在 `schedulers.py` 的两段删除代码移除。
+3. 仓储：永久删除的消息删除带 `EXISTS(回收站内的该会话)` 条件，单条语句，不先 SELECT（读事务会让写事务无法升级为 `BEGIN IMMEDIATE`）；服务层在行删除成功后才删 recall 索引与小组件存储；沙箱目录读取传 `include_trashed=True`；清空回收站补删小组件存储。
+4. 删除清空回收站里从未执行的 FTS 优化块，不复活：真实执行的成本实测为 18000 条消息 0.56 s（首次）到 1.7 s，且发生在写事务里、请求路径上，收益没有验证。
+5. 「安全清空」：逐会话停运行时工作、清检查点与授权（行删除前），行删除后移除全部会话的 worktree 与工作空间（受 `purge_sandboxes` 控制）。`cleared_sandboxes` 仍是移除的 worktree 数。
+6. 文件清理改批量：`WorkspaceCleanupService.cleanup_chat_workspaces` 与 harness `ArtifactVault.purge_by_task_ids` 让共享金库整批只扫描一次。`purge_by_task_id` 委托它，匹配规则只有一份。
+
+### 验证
+
+1. `tests/services/chat/test_chat_disposal.py`（17 例）：永久删除 / 清空回收站 / 回收站自动清除 / 无痕自动清除四个入口用同一张表断言：会话行、消息、小组件存储、两个 checkpoint 别名、会话授权全部消失，运行时池、执行缓存、工作记忆、记忆级联、重试队列、worktree、工作空间各被调用一次且参数正确；回收站外会话永久删除返回 False 且消息、小组件、检查点、授权原样；批量入口只调一次工作空间清理；各步骤单测含失败不阻断后续。`tests/services/infra/test_sandbox_cleanup_batch.py`（3 例，真实文件系统）、harness `tests/agent/artifacts/test_vault_purge.py` 新增 2 例。
+2. 变异检查（7 个，全部被杀死后还原并比对）：拆除跳过 checkpoint（5 例失败）、清空回收站跳过拆除（1）、仓储去掉回收站条件（1，即现象 1 的红灯）、沙箱目录读取去掉 `include_trashed`（3）、无痕清除跳过置入回收站（1）、清空回收站改回逐个拆除（1）、金库改回逐个扫描（1）。
+3. 实测（临时目录，真实 SQLite 检查点与 SQLite 库）：1000 个会话、金库 500 个对象时，逐个清理推算 13.2 s、批量 92.6 ms；金库 5000 个对象时推算 159.8 s、批量 642.9 ms（逐个清理单次实测 13.2 ms / 159.8 ms）。完整「安全清空」1000 个会话 1.6 s 到 4.5 s（含检查点、运行时、行删除、工作空间批量清理；两次运行的差异来自首次冷启动，未做多轮统计）。
+4. 静态：改动的 server 与 harness 文件 `ruff check` / `ruff format` / mypy 通过（顺带修了 `chat_crud.py` 的类型错误、`test_external_agent_pool_on_chat_delete.py` 两处多余的 `type: ignore`、harness `vault.py` 的 `get_manifest` 返回类型）。
+5. 局限：`empty_trash` 仍只取前 10000 个回收站会话做拆除，而仓储一次删光全部；清空回收站在列表与删除之间被恢复的会话仍会被拆除（均为原有行为，未改）；记忆级联、worktree 在拆除测试里是 spy，真实 Qdrant 与真实 git worktree 没有端到端验证；一次误操作对 `app/services` 整个目录跑了格式化（已把能还原的 62 个文件还原到 HEAD，4 个带他人未提交改动的已跟踪文件与 23 个他人新增文件只剩格式变化，见最终报告）。
+
+### 踩坑经验
+
+1. 「FK 级联绕过子表触发器导致 FTS 孤儿行」的说法在 `PRAGMA foreign_keys=ON`（`database/factory.py:82`）下不成立：真实架构上直接 `DELETE FROM chats` 后 `messages_fts` 命中数为 0，所以自动清除原先的直接 SQL 删除并没有 FTS 孤儿行，这条没有当 bug 处理；
+2. 「入口 × 步骤」交叉表才能抓到「读沙箱目录读到 None」这种单入口测试写不出来的缺陷，它在第一次跑矩阵时就红了；
+3. 把按会话循环的清理改批量前先量：单次 13 ms 看起来无害，乘上会话数与金库大小就是分钟级；
+4. 共享工作区里不要对目录批量格式化：只格式化自己改的文件。
+
+---
+
+## BUG-AGENT-2026-10-14-019: 风控内置规则默认全开，日常聊天与代码被大面积拦下（39 条日常消息拦下 31 条），同一批规则又漏掉 7/28 种真实凭据；命中记录把被拦下的密钥原文存进库；「放行」动作没有任何作用；Web 端的拦截提示是写死的英文
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（默认规则把普通对话拦成常态，用户只会整体关掉风控，真正的凭据反而没人拦；命中记录以明文保存被拦下的密钥） |
+| 影响范围 | server：`app/services/risk/{constants,patterns,builtin_rules,builtin_business_rules,match_checks,detection,rule_service}.py`、`app/api/risk/schemas.py`、`app/lifecycle/risk_rules.py`、`app/services/agent/stream_session/risk_gate.py`；frontend：`riskEvents.ts`、`i18nToastService.ts`、风控设置页三个文件、六种语言文案；harness：`toolkits/computer_use/recording/synthesizer.py`（见 `BUG-HARNESS-2026-10-14-020`） |
+| 出现次数 | 1（用 39 条日常消息与代码、28 条凭据样本在真实规则引擎上对照新旧规则得出；没有真实用户数据） |
+| 关联 | `BUG-AGENT-2026-10-14-016`（同一套引擎的时限与口径统一，本条在其之上改默认与精度）· `BUG-AGENT-2026-07-27-002`（测试夹具里的普通英文词触发风控，同一个根因的另一个症状） |
+
+### 现象
+
+1. 31 条内置规则首次启动全部启用。39 条日常消息与代码（“schedule the meeting”“team meeting agenda”“cookie recipe”“Set SECRET_KEY in your .env”“redis://localhost:6379”“password = input(...)”“token = 4096”“password=${DB_PASSWORD}”等）里拦下 31 条；关键词按子串匹配，`tin` 命中 meeting、`nda` 命中 agenda，赋值类规则把变量引用、占位符、数字都当成密钥。
+2. 同一批默认规则对 28 条凭据样本只拦下 21 条，漏掉 OpenAI project key（`sk-proj-…`）、Anthropic key、GitHub fine-grained token、Slack token、Stripe live key、GitLab token 与 JSON 里的 `"password": "…"`。
+3. 命中记录的 `match_summary` 存的是被拦下的原文（密钥、手机号、地址），设置页的命中列表直接显示。
+4. 规则的动作有 `block` 与 `allow` 两种，设置页可选；`allow` 命中后只是不拦，既不放行别的规则、也不改变任何结果；`DetectionResult.highest_action` 与 `RiskAction.RANK` 没有调用方。
+5. Web 端被拦时 SSE 里带的 `message` 是服务端写死的英文句子，非英文界面也是英文，也没说明去哪里关掉规则。
+6. harness 的计算机操作录制里还有一份同样的邮箱正则（`synthesizer.py`），对点号连续串是二次方耗时。
+
+### 根因
+
+1. 默认启用与规则精度没有关联：规则按“能想到的敏感词”写，全部默认开，没有区分“命中即真泄露”（凭据）与“只是话题相关”（词汇）；关键词不带词边界；赋值类规则只看形状，不判断右值是真值还是引用。
+2. 凭据规则的前缀表不全，且 `-` 不在允许字符里，带连字符的长密钥被截断后不够长。
+3. 命中摘要沿用“方便排查”的写法，没有把“规则本身就是为了不让秘密扩散”这一点用在自己的存储上。
+4. `allow` 动作在引擎里没有对应语义，是从没接上的设计残留。
+5. 拦截文案放在服务端，而展示语言只有前端知道。
+
+### 修复
+
+1. 默认只启用安全凭证类别的 8 条规则（`DEFAULT_ENABLED_CATEGORIES`），其余 23 条为按需开启；已存在的安装保留各自的开关状态（库里区分不出“默认”与“用户选的”），但模式刷新照常生效。
+2. 赋值类规则（`credential_assignment`、`cookie_session_like`、`env_file_secret`）捕获 `key` / `value`，由 `match_checks.is_confirmed_match` 调 harness 的 `secret_value_span` 判定右值是不是真值（排除遮罩、占位符、函数调用、模板、字段状态词、代码字符、纯数字；要求含数字或强符号）；`api_key_like` 补全前缀表并允许 `-`，带词首边界，避免 `task-…` 之类的 slug 误中；关键词规则统一走 `keyword_pattern`（ASCII 整词加可选复数，中日韩文字任意位置）。
+3. 命中摘要只记位置 `chars:起-止`（超时记 `(matching timed out)`），不记原文；启动时清空旧版本留下的原文摘要（`clear_legacy_hit_text`）。规则测试仍显示用户自己粘贴的样本里的命中片段。
+4. 删除 `allow`：`VALID_ACTIONS` 只剩 `block`，API 的 `action` 只接受 `block`，设置页不再提供该选项，删除 `highest_action` 与两个 `RANK`；库里已有的 `allow` 规则在启动时改为停用的 `block` 规则（`disable_legacy_allow_rules`）。
+5. SSE 的 `risk_blocked` 只带规则列表（id、名称、严重度），前端用与设置页相同的规则名、用户所选语言拼出提示并指向“设置 → 安全策略 → 风控规则”；`translateI18nKeyIfPresent` 保证自定义规则回退到它自己的名字。
+6. 600 多行的 `constants.py` 拆成 `constants`（词表与默认）、`patterns`（共享模式片段）、`builtin_rules` 与 `builtin_business_rules`（种子定义）。
+7. harness 的 `synthesizer.py` 改读 `EMAIL_RE`（BUG-HARNESS-2026-10-14-020）。
+
+### 验证
+
+1. 新旧规则在同一份语料上对照（真实规则引擎，旧规则取自提交内容，每条规则逐条判定）：旧默认（31 条全开）拦下 31/39 条日常消息、拦下 21/28 条凭据；新默认（8 条）拦下 0/39、拦下 28/28；31 条全开时新规则拦下 4/39（邮箱与手机号、私网地址属于该开的规则本来就该命中；`roadmap` 出现在一个长 slug 里、`${DB_PASSWORD}` 被内部主机名规则命中，是这两条可选规则仍然存在的误报）。
+2. 耗时（每条消息过全部启用规则，取 5 次最小值）：2 千字符聊天旧 1.4 毫秒 / 新默认 0.3 毫秒；10 万字符日志旧 53.1 毫秒 / 新默认 11.9 毫秒；4 万字符 `a.a.a.` 串旧 23.7 毫秒 / 新默认 8.0 毫秒。31 条全开时新规则更慢：10 万字符日志 83.3 毫秒对旧的 53.1 毫秒（关键词规则加了词边界，单条约慢一倍，没有病态规则；仍远低于 0.25 秒的单条预算）。
+3. 测试：`tests/services/risk`（103 例）、`tests/lifecycle/test_init_risk_rules.py`、渠道入站风险闸门与 bus 测试共 174 例通过；新增 `test_builtin_rule_precision.py` 锁定默认规则的误报与漏报语料、关键词词边界、命中只记位置、旧原文清除、`allow` 归一与 API 拒绝；前端 `riskEvents.test.ts` 与 `i18nToastService.test.ts` 共 11 例通过；风控相关文件 `ruff`、`mypy`、`prettier` 通过。
+4. 更宽的服务端回归（风控、渠道、架构词表）有 14 例失败，均来自他人未提交的改动：渠道群路由与前缀触发（`is_untrusted_event_sender` 新接口，测试替身没有该方法）7 例、斜杠命令译文缺失 2 例、`tests/architecture` 域词表 3 例、`test_background_command` 1 例、扩展桥接 `_pid` 参数 1 例，与本条无关。
+5. 局限：语料是手工构造的，没有真实用户数据，新默认规则在真实聊天里的误报率未知；一个本身以 `sk-` 开头且后面连着 20 个以上字符的 slug 仍会命中 `api_key_like`；纯字母的密码不被 `credential_assignment` 拦下（精度优先）；旧版本导出的、带 `allow` 动作的规则文件导入会被拒绝；已安装的实例仍保留全开的旧开关，需要用户自己关掉误报多的规则；`RiskMatch.action` 与库里的 `action` 列保留（恒为 `block`）；`secret_value_span` 要求 harness 0.1.0rc6，服务端仍钉在 rc5，发布 harness 并执行 `./myrm harness sync-lock` 之前，OSS 的锁定安装无法导入——发版步骤由维护者执行，本次没有执行；没有在真实渠道与浏览器里端到端验证提示的外观（深浅主题、移动端）。
+
+### 踩坑经验
+
+1. 默认开启的规则必须能回答“命中就是真泄露”，话题相关的词汇规则一律按需开启；否则用户的唯一应对是整体关掉，保护反而归零。
+2. 关键词匹配必须带词边界，英文短缩写（`tin`、`nda`、`vat`）尤其容易藏在常用词里。
+3. 赋值类规则要判断右值是不是值：变量引用、占位符、遮罩、数字都不是密钥，同一份判定放在 harness 里，不要在业务层再抄一份。
+4. 保护秘密的组件自己的审计记录也不能存秘密；只记位置就够排查。
+5. 没有语义的选项不要留在界面上：一个什么都不改变的“放行”比没有选项更误导。
+6. 用户可见的拦截文案由展示层按用户语言生成，服务端只下发稳定的标识。
+
+---

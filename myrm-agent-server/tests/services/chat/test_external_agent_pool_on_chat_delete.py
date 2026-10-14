@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.chat.chat_crud import _ChatCrudMixin
 from app.services.chat.chat_service import ChatService
 
 
@@ -27,7 +26,7 @@ async def test_delete_chat_closes_external_agent_pool() -> None:
             AsyncMock(),
         ),
         patch(
-            "app.services.chat.chat_crud.close_external_agent_pool_for_chat",
+            "app.services.chat.chat_disposal.close_external_agent_pool_for_chat",
             mock_close,
         ),
         patch(
@@ -60,10 +59,11 @@ async def test_permanently_delete_chat_closes_external_agent_pool() -> None:
             AsyncMock(),
         ),
         patch("app.services.chat.chat_crud._delete_widget_kv_for_chat", AsyncMock()),
-        patch("app.services.chat.chat_crud._cascade_delete_memories", AsyncMock()),
-        patch.object(_ChatCrudMixin, "_cleanup_checkpointer", AsyncMock()),
+        patch("app.services.chat.chat_disposal.forget_chat_memories", AsyncMock()),
+        patch("app.services.chat.chat_disposal.clear_conversation_state", AsyncMock()),
+        patch("app.services.chat.chat_disposal.remove_chat_files", AsyncMock()),
         patch(
-            "app.services.chat.chat_crud.close_external_agent_pool_for_chat",
+            "app.services.chat.chat_disposal.close_external_agent_pool_for_chat",
             mock_close,
         ),
         patch(
@@ -116,8 +116,8 @@ async def test_delete_chat_live_tears_down_registry_pool() -> None:
     await mixin._do_setup_external_agents([], mount_invoke_acp_agent_tool=False)
 
     registry = get_chat_runtime_pool_registry()
-    assert chat_id in registry._entries  # type: ignore[attr-defined]
+    assert chat_id in registry._entries
 
     ok = await ChatService.delete_chat(chat_id)
     assert ok is True
-    assert chat_id not in registry._entries  # type: ignore[attr-defined]
+    assert chat_id not in registry._entries

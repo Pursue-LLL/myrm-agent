@@ -96,6 +96,10 @@ async def test_purge_vault_orchestration_success() -> None:
             "app.services.chat.sandbox_worktree.cleanup_sandbox_worktree",
             new_callable=AsyncMock,
         ) as mock_cleanup_sandbox,
+        patch(
+            "app.services.infra.sandbox_cleanup.cleanup_chat_workspaces",
+            new_callable=AsyncMock,
+        ) as mock_cleanup_workspace,
     ):
         result = await SafeVaultPurgeService.purge_vault(
             purge_memories=True,
@@ -117,6 +121,7 @@ async def test_purge_vault_orchestration_success() -> None:
     assert len(result.cursors_reset) == 3
     assert result.cleared_sandboxes == 1
     mock_cleanup_sandbox.assert_awaited_once_with("/tmp/sandbox-1", "chat-1", force=True)
+    mock_cleanup_workspace.assert_awaited_once_with(["chat-1"])
 
 
 @pytest.mark.asyncio

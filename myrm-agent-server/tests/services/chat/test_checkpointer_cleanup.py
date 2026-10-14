@@ -1,64 +1,13 @@
-"""Unit tests for LangGraph checkpointer cleanup across all chat lifecycle paths.
+"""LangGraph checkpointer API assumptions the chat lifecycle relies on.
 
-Validates that ``_cleanup_checkpointer`` correctly calls ``adelete_thread``
-for both ``chat_id`` and ``chat_{chat_id}`` thread variants, handles errors
-gracefully, and is wired into every session termination path.
+The disposal steps themselves are covered in ``test_chat_disposal.py``; this module pins the checkpointer
+behaviour they depend on (``adelete_thread`` exists, is idempotent and really removes a thread) and that the
+other deletion call sites use that same API.
 """
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
-
-from app.services.chat.chat_crud import _ChatCrudMixin
-
-
-@pytest.fixture
-def mock_checkpointer() -> MagicMock:
-    cp = MagicMock()
-    cp.adelete_thread = AsyncMock()
-    return cp
-
-
-# ── Core _cleanup_checkpointer Tests ─────────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_cleanup_calls_adelete_thread_for_both_ids(mock_checkpointer: MagicMock) -> None:
-    """Should call adelete_thread for both chat_id and chat_{chat_id}."""
-    with patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer):
-        await _ChatCrudMixin._cleanup_checkpointer("abc-123")
-
-    assert mock_checkpointer.adelete_thread.call_count == 2
-    mock_checkpointer.adelete_thread.assert_any_call("abc-123")
-    mock_checkpointer.adelete_thread.assert_any_call("chat_abc-123")
-
-
-@pytest.mark.asyncio
-async def test_cleanup_handles_adelete_exception_gracefully(mock_checkpointer: MagicMock) -> None:
-    """adelete_thread failure should be caught, not propagated."""
-    mock_checkpointer.adelete_thread = AsyncMock(side_effect=RuntimeError("DB locked"))
-    with patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer):
-        await _ChatCrudMixin._cleanup_checkpointer("err-chat")  # must not raise
-
-
-@pytest.mark.asyncio
-async def test_cleanup_handles_get_checkpointer_failure() -> None:
-    """If get_checkpointer itself raises, cleanup should not propagate."""
-    with patch("app.platform_utils.get_checkpointer", side_effect=RuntimeError("not initialized")):
-        await _ChatCrudMixin._cleanup_checkpointer("no-cp")  # must not raise
-
-
-@pytest.mark.asyncio
-async def test_cleanup_idempotent(mock_checkpointer: MagicMock) -> None:
-    """Calling cleanup multiple times for same chat_id should be safe."""
-    with patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer):
-        await _ChatCrudMixin._cleanup_checkpointer("idem-1")
-        await _ChatCrudMixin._cleanup_checkpointer("idem-1")
-
-    assert mock_checkpointer.adelete_thread.call_count == 4  # 2 calls * 2 invocations
-
 
 # ── Integration: MemorySaver round-trip ──────────────────────────────
 
@@ -105,30 +54,7 @@ async def test_memorysaver_full_cycle() -> None:
     assert len(items_after) == 0
 
 
-# ── Wiring verification: all call sites ─────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_permanently_delete_calls_cleanup(mock_checkpointer: MagicMock) -> None:
-    """permanently_delete_chat should call _cleanup_checkpointer on success."""
-    with (
-        patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer),
-        patch.object(_ChatCrudMixin, "permanently_delete_chat", wraps=_ChatCrudMixin.permanently_delete_chat),
-    ):
-        import app.services.chat.chat_crud as mod
-
-        assert "_cleanup_checkpointer" in dir(mod._ChatCrudMixin)
-
-
-@pytest.mark.asyncio
-async def test_scheduler_auto_purge_includes_cleanup() -> None:
-    """Verify schedulers.py references _cleanup_checkpointer for auto-purge."""
-    import inspect
-
-    import app.lifecycle.schedulers as sched
-
-    source = inspect.getsource(sched)
-    assert "_cleanup_checkpointer" in source, "schedulers.py auto-purge must call _cleanup_checkpointer"
+# ── Other call sites ────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio

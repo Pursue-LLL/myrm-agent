@@ -461,48 +461,11 @@ async def _db_maintenance_job() -> None:
     except Exception as e:
         logger.warning("Async task cleanup failed: %s", e)
 
-    # Chat trash auto-purge: permanently delete chats trashed > 30 days
+    # Chat trash auto-purge: permanently delete chats trashed past the retention window
     try:
-        from datetime import datetime as dt
-        from datetime import timedelta
+        from app.services.chat.chat_retention import purge_expired_trash
 
-        from app.database.repositories.chat_repo import ChatRepository
-        from app.platform_utils import session_factory
-        from app.services.chat.conversation_recall_index_service import (
-            ConversationRecallIndexService,
-        )
-
-        cutoff = dt.utcnow() - timedelta(days=30)
-        async with session_factory() as session:
-            expired_ids = await ChatRepository.get_expired_trashed_chat_ids(session, cutoff)
-            if expired_ids:
-                for cid in expired_ids:
-                    await ConversationRecallIndexService.delete_chat(session, cid)
-                from sqlalchemy import delete as sa_delete
-
-                from app.database.models import Chat
-
-                await session.execute(sa_delete(Chat).where(Chat.id.in_(expired_ids)))
-                await session.commit()
-                logger.info(
-                    "Chat trash auto-purge: %d expired chats permanently deleted",
-                    len(expired_ids),
-                )
-
-        if expired_ids:
-            from app.services.chat.chat_crud import _ChatCrudMixin
-            from app.services.infra.sandbox_cleanup import cleanup_chat_workspace
-
-            for cid in expired_ids:
-                await _ChatCrudMixin._cleanup_checkpointer(cid)
-                try:
-                    await cleanup_chat_workspace(cid)
-                except Exception as ws_err:
-                    logger.warning(
-                        "Chat trash auto-purge workspace cleanup failed (chat=%s): %s",
-                        cid,
-                        ws_err,
-                    )
+        await purge_expired_trash()
     except Exception as e:
         logger.warning("Chat trash auto-purge failed: %s", e)
 
@@ -555,51 +518,11 @@ async def _db_maintenance_job() -> None:
 
 
 async def _incognito_cleanup_job() -> None:
-    """Incognito chat auto-purge: permanently delete incognito chats older than 1 hour"""
+    """Incognito chat auto-purge: permanently delete incognito chats idle past the session window"""
     try:
-        from datetime import datetime as dt
-        from datetime import timedelta
+        from app.services.chat.chat_retention import purge_idle_incognito_chats
 
-        from sqlalchemy import delete as sa_delete
-        from sqlalchemy import select
-
-        from app.database.models import Chat
-        from app.platform_utils import session_factory
-        from app.services.chat.conversation_recall_index_service import (
-            ConversationRecallIndexService,
-        )
-
-        cutoff = dt.utcnow() - timedelta(hours=1)
-        async with session_factory() as session:
-            stmt = select(Chat.id).where(Chat.is_incognito.is_(True), Chat.updated_at < cutoff)
-            result = await session.execute(stmt)
-            expired_incognito_ids = [row[0] for row in result.fetchall()]
-
-            if expired_incognito_ids:
-                for cid in expired_incognito_ids:
-                    await ConversationRecallIndexService.delete_chat(session, cid)
-
-                await session.execute(sa_delete(Chat).where(Chat.id.in_(expired_incognito_ids)))
-                await session.commit()
-                logger.info(
-                    "Incognito chat auto-purge: %d expired incognito chats permanently deleted",
-                    len(expired_incognito_ids),
-                )
-
-        if expired_incognito_ids:
-            from app.services.chat.chat_crud import _ChatCrudMixin
-            from app.services.infra.sandbox_cleanup import cleanup_chat_workspace
-
-            for cid in expired_incognito_ids:
-                await _ChatCrudMixin._cleanup_checkpointer(cid)
-                try:
-                    await cleanup_chat_workspace(cid)
-                except Exception as ws_err:
-                    logger.warning(
-                        "Incognito chat auto-purge workspace cleanup failed (chat=%s): %s",
-                        cid,
-                        ws_err,
-                    )
+        await purge_idle_incognito_chats()
     except Exception as e:
         logger.warning("Incognito chat auto-purge failed: %s", e)
 
