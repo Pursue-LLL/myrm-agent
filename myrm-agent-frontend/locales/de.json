@@ -5956,9 +5956,7 @@
         "title": "Politik",
         "description": "Governance-Regeln für diesen gemeinsamen Kontext.",
         "correctionAutoApprove": "Korrektur der automatischen Ausbreitung",
-        "correctionAutoApproveHint": "Wenn ein Agent korrigiert wird, wird die Korrektur automatisch in diesen gemeinsamen Kontext geschrieben, sodass alle gebundenen Agenten daraus lernen.",
-        "goalCompletionAutoApprove": "Automatische Archivierung der Zielerreichung",
-        "goalCompletionAutoApproveHint": "Wenn ein Ziel erreicht ist, werden Architekturentscheidungen des Planers automatisch in diesen gemeinsamen Kontext geschrieben."
+        "correctionAutoApproveHint": "Wenn ein Agent korrigiert wird, wird die Korrektur automatisch in diesen gemeinsamen Kontext geschrieben, sodass alle gebundenen Agenten daraus lernen."
       },
       "proposals": {
         "title": "Angebotseingang",
@@ -5966,8 +5964,7 @@
         "contentPlaceholder": "Schreiben Sie einen Kandidaten für einen dauerhaften gemeinsamen Speicher ...",
         "create": "Vorschlag erstellen",
         "empty": "Noch keine Vorschläge",
-        "correctionTag": "Korrektur",
-        "goalCompletionTag": "Zielerreichung"
+        "correctionTag": "Korrektur"
       },
       "proposalStatus": {
         "pending": "Ausstehend",

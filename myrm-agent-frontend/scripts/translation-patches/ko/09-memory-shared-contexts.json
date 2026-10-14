@@ -70,9 +70,7 @@
         "title": "정책",
         "description": "이 공유 컨텍스트의 거버넌스 규칙.",
         "correctionAutoApprove": "수정 자동 전파",
-        "correctionAutoApproveHint": "에이전트가 수정되면 수정 사항이 이 공유 컨텍스트에 자동으로 기록되어 모든 바인딩된 에이전트가 학습합니다.",
-        "goalCompletionAutoApprove": "목표 완료 자동 보관",
-        "goalCompletionAutoApproveHint": "목표가 완료되면 Planner의 아키텍처 결정이 이 공유 컨텍스트에 자동으로 기록됩니다."
+        "correctionAutoApproveHint": "에이전트가 수정되면 수정 사항이 이 공유 컨텍스트에 자동으로 기록되어 모든 바인딩된 에이전트가 학습합니다."
       },
       "proposals": {
         "title": "제안 수신함",
@@ -80,8 +78,7 @@
         "contentPlaceholder": "지속 가능한 공유 메모리 후보 작성...",
         "create": "제안 생성",
         "empty": "제안이 아직 없습니다",
-        "correctionTag": "수정",
-        "goalCompletionTag": "목표 완료"
+        "correctionTag": "수정"
       },
       "proposalStatus": {
         "pending": "대기",

@@ -5956,9 +5956,7 @@
         "title": "治理策略",
         "description": "此共享上下文的治理規則。",
         "correctionAutoApprove": "糾錯自動傳播",
-        "correctionAutoApproveHint": "當 Agent 被糾正時，糾錯內容將自動寫入此共享上下文，讓所有繫結的 Agent 同步學習。",
-        "goalCompletionAutoApprove": "Goal 完成自動歸檔",
-        "goalCompletionAutoApproveHint": "當 Goal 完成時，Planner 記錄的架構決策將自動寫入此共享上下文，供團隊 Agent 複用。"
+        "correctionAutoApproveHint": "當 Agent 被糾正時，糾錯內容將自動寫入此共享上下文，讓所有繫結的 Agent 同步學習。"
       },
       "proposals": {
         "title": "提案收件箱",
@@ -5966,8 +5964,7 @@
         "contentPlaceholder": "寫入一條可長期複用的共享記憶候選...",
         "create": "建立提案",
         "empty": "暫無提案",
-        "correctionTag": "糾錯",
-        "goalCompletionTag": "Goal 完成"
+        "correctionTag": "糾錯"
       },
       "proposalStatus": {
         "pending": "待審批",

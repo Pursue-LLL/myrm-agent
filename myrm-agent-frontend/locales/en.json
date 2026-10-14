@@ -6024,9 +6024,7 @@
         "title": "Policy",
         "description": "Governance rules for this shared context.",
         "correctionAutoApprove": "Correction Auto-Propagation",
-        "correctionAutoApproveHint": "When an Agent is corrected, the correction is automatically written to this shared context so all bound Agents learn from it.",
-        "goalCompletionAutoApprove": "Goal Completion Auto-Archive",
-        "goalCompletionAutoApproveHint": "When a Goal completes, architectural decisions from the Planner are automatically written to this shared context."
+        "correctionAutoApproveHint": "When an Agent is corrected, the correction is automatically written to this shared context so all bound Agents learn from it."
       },
       "proposals": {
         "title": "Proposal Inbox",
@@ -6034,8 +6032,7 @@
         "contentPlaceholder": "Write a durable shared memory candidate...",
         "create": "Create Proposal",
         "empty": "No proposals yet",
-        "correctionTag": "Correction",
-        "goalCompletionTag": "Goal Completion"
+        "correctionTag": "Correction"
       },
       "proposalStatus": {
         "pending": "Pending",

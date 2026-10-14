@@ -5956,9 +5956,7 @@
         "title": "ガバナンスポリシー",
         "description": "この共有コンテキストのガバナンスルール。",
         "correctionAutoApprove": "修正の自動伝播",
-        "correctionAutoApproveHint": "エージェントが修正されたとき、修正内容はこの共有コンテキストに自動的に書き込まれ、バインドされたすべてのエージェントが同期学習します。",
-        "goalCompletionAutoApprove": "Goal 完了時に自動アーカイブ",
-        "goalCompletionAutoApproveHint": "ゴールが完了すると、Planner のアーキテクチャ決定がこの共有コンテキストに自動的に書き込まれ、チームエージェントが再利用できます。"
+        "correctionAutoApproveHint": "エージェントが修正されたとき、修正内容はこの共有コンテキストに自動的に書き込まれ、バインドされたすべてのエージェントが同期学習します。"
       },
       "proposals": {
         "title": "提案受信トレイ",
@@ -5966,8 +5964,7 @@
         "contentPlaceholder": "再利用可能な共有メモリの候補を書き込み...",
         "create": "提案を作成",
         "empty": "提案はまだありません",
-        "correctionTag": "修正",
-        "goalCompletionTag": "Goal 完了"
+        "correctionTag": "修正"
       },
       "proposalStatus": {
         "pending": "待承認",

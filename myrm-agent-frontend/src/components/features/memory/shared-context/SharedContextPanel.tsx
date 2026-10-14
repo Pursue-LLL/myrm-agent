@@ -11,7 +11,7 @@
  * [POS]
  * Shared Context management UI. It lets users create contexts, manage bindings, review proposals,
  * promote history evidence, inspect archived read-only contexts, and configure governance policies
- * (correction auto-propagation and goal-completion auto-archive).
+ * (correction auto-propagation).
  */
 
 import { memo } from 'react';
@@ -208,13 +208,6 @@ const SharedContextPanel = memo(() => {
                 disabled={!panel.selectedContextIsActive || panel.actionId === 'toggle-correction'}
                 onToggle={panel.handleToggleCorrectionAutoApprove}
               />
-              <PolicyToggleRow
-                title={t('policy.goalCompletionAutoApprove')}
-                hint={t('policy.goalCompletionAutoApproveHint')}
-                enabled={panel.goalCompletionAutoApprove}
-                disabled={!panel.selectedContextIsActive || panel.actionId === 'toggle-goal-completion'}
-                onToggle={panel.handleToggleGoalCompletionAutoApprove}
-              />
             </section>
 
             <section className="rounded-xl border border-border/60 bg-card p-4">
@@ -361,11 +354,6 @@ const SharedContextPanel = memo(() => {
                             {proposal.source_type === 'correction_propagation' && (
                               <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-600 dark:text-amber-400">
                                 {t('proposals.correctionTag')}
-                              </span>
-                            )}
-                            {proposal.source_type === 'goal_completion' && (
-                              <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-600 dark:text-sky-400">
-                                {t('proposals.goalCompletionTag')}
                               </span>
                             )}
                             <span>{t(`proposalStatus.${proposal.status}`)}</span>
