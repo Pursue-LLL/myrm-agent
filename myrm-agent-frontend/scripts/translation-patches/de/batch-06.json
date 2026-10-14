@@ -52,38 +52,6 @@
       }
     },
     "skillOptimization": {
-      "title": "Fähigkeits-Selbstoptimierung",
-      "description": "LLM-gesteuertes automatisches Optimierungssystem für Fähigkeiten zur kontinuierlichen Qualitätsverbesserung",
-      "dashboard": "Dashboard",
-      "activeOptimizations": "Aktive Optimierungen",
-      "qualityRanking": "Qualitätsranking",
-      "topSkills": "Top 10 beste Fähigkeiten",
-      "bottomSkills": "Die 10 am stärksten optimierungsbedürftigen Fähigkeiten",
-      "triggerOptimization": "Optimierung auslösen",
-      "viewHistory": "Verlauf anzeigen",
-      "actions": "Aktionen",
-      "noData": "Keine Daten verfügbar",
-      "qualityScore": "Qualitätswert",
-      "overallScore": "Gesamtwert",
-      "successRate": "Erfolgsquote",
-      "tokenEfficiency": "Token-Effizienz",
-      "executionTime": "Ausführungszeit",
-      "userSatisfaction": "Benutzerzufriedenheit",
-      "callFrequency": "Aufruffrequenz",
-      "radarChart": "5D-Qualitäts-Radardiagramm",
-      "optimizationHistory": "Optimierungsverlauf",
-      "status": {
-        "pending": "Ausstehend",
-        "inProgress": "In Bearbeitung",
-        "completed": "Abgeschlossen",
-        "failed": "Fehlgeschlagen"
-      },
-      "abTestStatus": {
-        "running": "Läuft",
-        "baselineWin": "Basislinie gewinnt",
-        "candidateWin": "Kandidat gewinnt",
-        "noDifference": "Kein signifikanter Unterschied"
-      },
       "versions": {
         "title": "Versionsverlauf",
         "version": "Version",
@@ -104,30 +72,6 @@
         "createdByRollback": "Zurücksetzen",
         "refresh": "Aktualisieren",
         "confirmAction": "Diese Version aktivieren"
-      },
-      "guardian": {
-        "idleTitle": "Schattenvalidierung verfügbar",
-        "idleDescription": "Eine Kandidatenversion ist bereit. Starten Sie einen Schattentest, um Live-Datenverkehr vor der Promotion zu vergleichen.",
-        "startShadow": "Schattentest starten",
-        "startSuccess": "Schattentest gestartet",
-        "startFailed": "Start des Schattentests fehlgeschlagen",
-        "consistency": "Konsistenz",
-        "samples": "Stichproben",
-        "versions": "Versionen",
-        "confidence": "Testkonfidenz",
-        "hideSamples": "Stichproben ausblenden",
-        "reviewDifferences": "Unterschiede prüfen",
-        "stopTest": "Test stoppen",
-        "stopConfirmTitle": "Schattentest stoppen?",
-        "cancel": "Abbrechen",
-        "promoteFailed": "Promotion der Version fehlgeschlagen",
-        "stopSuccess": "Schattentest gestoppt",
-        "stopFailed": "Stoppen des Tests fehlgeschlagen",
-        "networkError": "Netzwerkfehler",
-        "match": "Übereinstimmend",
-        "diverged": "Abgewichen",
-        "baselineLabel": "Basislinie",
-        "candidateLabel": "Kandidat"
       }
     },
     "skillAggregation": {

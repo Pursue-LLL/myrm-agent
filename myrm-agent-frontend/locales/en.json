@@ -10173,32 +10173,6 @@
       "pre_rollback": "Before restore"
     }
   },
-  "SkillOptimization": {
-    "qualityScore": "Quality Score",
-    "successRate": "Success Rate",
-    "tokenEfficiency": "Token Efficiency",
-    "executionTime": "Execution Time",
-    "userSatisfaction": "User Satisfaction",
-    "callFrequency": "Call Frequency",
-    "loading": "Loading...",
-    "noData": "No Data",
-    "overallScore": "Overall Score",
-    "baselineVersion": "Baseline Version",
-    "optimizedVersion": "Optimized Version",
-    "successRateDelta": "Success Rate Delta",
-    "tokenEfficiencyDelta": "Token Efficiency Delta",
-    "executionTimeDelta": "Execution Time Delta",
-    "activeSkills": "Active Skills",
-    "totalCalls": "Total Calls",
-    "avgSuccessRate": "Avg Success Rate",
-    "avgExecutionTime": "Avg Execution Time",
-    "recommendedToOptimize": "Recommended to Optimize",
-    "optimizeAll": "Optimize All",
-    "priorityScore": "Priority Score",
-    "optimize": "Optimize",
-    "optimizing": "Optimizing...",
-    "noRecommendations": "No skills recommended for optimization"
-  },
   "Agent": {
     "list": {
       "title": "My Agents",
@@ -16652,39 +16626,6 @@
       }
     },
     "skillOptimization": {
-      "title": "Skill Self-Optimization",
-      "description": "LLM-driven automatic skill optimization system for continuous quality improvement",
-      "dashboard": "Dashboard",
-      "activeOptimizations": "Active Optimizations",
-      "abTestsRunning": "A/B Tests Running",
-      "qualityRanking": "Quality Ranking",
-      "topSkills": "Top 10 Best Skills",
-      "bottomSkills": "Bottom 10 Skills to Optimize",
-      "triggerOptimization": "Trigger Optimization",
-      "viewHistory": "View History",
-      "actions": "Actions",
-      "noData": "No data available",
-      "qualityScore": "Quality Score",
-      "overallScore": "Overall Score",
-      "successRate": "Success Rate",
-      "tokenEfficiency": "Token Efficiency",
-      "executionTime": "Execution Time",
-      "userSatisfaction": "User Satisfaction",
-      "callFrequency": "Call Frequency",
-      "radarChart": "5D Quality Radar Chart",
-      "optimizationHistory": "Optimization History",
-      "status": {
-        "pending": "Pending",
-        "inProgress": "In Progress",
-        "completed": "Completed",
-        "failed": "Failed"
-      },
-      "abTestStatus": {
-        "running": "Running",
-        "baselineWin": "Baseline Win",
-        "candidateWin": "Candidate Win",
-        "noDifference": "No Significant Difference"
-      },
       "versions": {
         "title": "Version History",
         "version": "Version",
@@ -16708,34 +16649,6 @@
         "createdByRollback": "Rollback",
         "refresh": "Refresh",
         "confirmAction": "Activate this version"
-      },
-      "guardian": {
-        "idleTitle": "Shadow validation available",
-        "idleDescription": "A candidate version is ready. Start a shadow test to compare live traffic before promoting.",
-        "startShadow": "Start shadow test",
-        "startSuccess": "Shadow test started",
-        "startFailed": "Failed to start shadow test",
-        "runningTitle": "Shadow test: v{baseline} vs v{candidate}",
-        "consistency": "Consistency",
-        "samples": "Samples",
-        "versions": "Versions",
-        "confidence": "Test confidence",
-        "hideSamples": "Hide samples",
-        "reviewDifferences": "Review differences",
-        "stopTest": "Stop test",
-        "stopConfirmTitle": "Stop shadow test?",
-        "stopConfirmDescription": "Shadow test for \"{skillId}\" will stop. Baseline v{baseline} stays active.",
-        "cancel": "Cancel",
-        "promote": "Promote v{version}",
-        "promoteSuccess": "Version v{version} is now active",
-        "promoteFailed": "Failed to promote version",
-        "stopSuccess": "Shadow test stopped",
-        "stopFailed": "Failed to stop test",
-        "networkError": "Network error",
-        "match": "Match",
-        "diverged": "Diverged",
-        "baselineLabel": "Baseline",
-        "candidateLabel": "Candidate"
       }
     },
     "wiki": {

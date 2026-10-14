@@ -10105,32 +10105,6 @@
       "pre_rollback": "復元前"
     }
   },
-  "SkillOptimization": {
-    "qualityScore": "品質スコア",
-    "successRate": "成功率",
-    "tokenEfficiency": "Token効率",
-    "executionTime": "実行時間",
-    "userSatisfaction": "ユーザー満足度",
-    "callFrequency": "呼び出し頻度",
-    "loading": "読み込み中...",
-    "noData": "データなし",
-    "overallScore": "総合スコア",
-    "baselineVersion": "ベースライン版",
-    "optimizedVersion": "最適化バージョン",
-    "successRateDelta": "成功率の変化",
-    "tokenEfficiencyDelta": "トークン効率の変化",
-    "executionTimeDelta": "実行時間の変化",
-    "activeSkills": "アクティブスキル数",
-    "totalCalls": "合計呼び出し回数",
-    "avgSuccessRate": "平均成功率",
-    "avgExecutionTime": "平均実行時間",
-    "recommendedToOptimize": "おすすめ最適化スキル",
-    "optimizeAll": "すべて最適化",
-    "priorityScore": "優先度スコア",
-    "optimize": "最適化",
-    "optimizing": "最適化中...",
-    "noRecommendations": "最適化を推奨されるスキルはありません"
-  },
   "Agent": {
     "list": {
       "title": "マイエージェント",
@@ -15998,39 +15972,6 @@
       }
     },
     "skillOptimization": {
-      "title": "スキル自最適化",
-      "description": "LLM 駆動のスキル自動最適化システム。継続的にスキル品質を向上させます",
-      "dashboard": "ダッシュボード",
-      "activeOptimizations": "進行中の最適化",
-      "abTestsRunning": "A/Bテスト実行中",
-      "qualityRanking": "品質ランキング",
-      "topSkills": "Top 10 スキル",
-      "bottomSkills": "最適化待ちスキル Top 10",
-      "triggerOptimization": "手動トリガー最適化",
-      "viewHistory": "表示履歴",
-      "actions": "操作",
-      "noData": "利用可能なデータがありません",
-      "qualityScore": "品質スコア",
-      "overallScore": "総合スコア",
-      "successRate": "成功率",
-      "tokenEfficiency": "Token効率",
-      "executionTime": "実行時間",
-      "userSatisfaction": "ユーザー満足度",
-      "callFrequency": "呼び出し頻度",
-      "radarChart": "5 次元品質レーダーチャート",
-      "optimizationHistory": "最適化履歴",
-      "status": {
-        "pending": "未処理",
-        "inProgress": "進行中",
-        "completed": "完了",
-        "failed": "失敗"
-      },
-      "abTestStatus": {
-        "running": "実行中",
-        "baselineWin": "Baseline 勝利",
-        "candidateWin": "Candidate 勝利",
-        "noDifference": "有意差なし"
-      },
       "versions": {
         "title": "バージョン履歴",
         "version": "バージョン",
@@ -16054,34 +15995,6 @@
         "createdByRollback": "ロールバック",
         "refresh": "更新",
         "confirmAction": "このバージョンを有効化"
-      },
-      "guardian": {
-        "idleTitle": "Shadow 検証が可能",
-        "idleDescription": "候補バージョンが準備できました。Shadow テストを開始して、全量リリース前に実トラフィックと比較できます。",
-        "startShadow": "Shadow テストを起動",
-        "startSuccess": "Shadow テストを開始しました",
-        "startFailed": "Shadow テストの起動に失敗",
-        "runningTitle": "Shadow テスト：v{baseline} vs v{candidate}",
-        "consistency": "一貫性",
-        "samples": "サンプル数",
-        "versions": "バージョン",
-        "confidence": "テスト置信度",
-        "hideSamples": "非表示サンプル",
-        "reviewDifferences": "差分を表示",
-        "stopTest": "テストを停止",
-        "stopConfirmTitle": "Shadow テストを停止しますか？",
-        "stopConfirmDescription": "スキル「{skillId}」の Shadow テストを停止します。ベースライン v{baseline} は有効のままです。",
-        "cancel": "キャンセル",
-        "promote": "v{version} に昇格",
-        "promoteSuccess": "バージョン v{version} が現在のバージョンになりました",
-        "promoteFailed": "バージョンの昇格に失敗しました",
-        "stopSuccess": "Shadow テスト停止済み",
-        "stopFailed": "テストの停止に失敗しました",
-        "networkError": "ネットワークエラー",
-        "match": "一致",
-        "diverged": "相違",
-        "baselineLabel": "ベースライン",
-        "candidateLabel": "候補"
       }
     },
     "wiki": {

@@ -1,22 +1,4 @@
 {
-  "SkillOptimization": {
-    "overallScore": "종합 점수",
-    "baselineVersion": "기준 버전",
-    "optimizedVersion": "최적화된 버전",
-    "successRateDelta": "성공률 변화",
-    "tokenEfficiencyDelta": "토큰 효율 변화",
-    "executionTimeDelta": "실행 시간 변화",
-    "activeSkills": "활성 스킬",
-    "totalCalls": "총 호출",
-    "avgSuccessRate": "평균 성공률",
-    "avgExecutionTime": "평균 실행 시간",
-    "recommendedToOptimize": "최적화 권장",
-    "optimizeAll": "모두 최적화",
-    "priorityScore": "우선순위 점수",
-    "optimize": "최적화",
-    "optimizing": "최적화 중...",
-    "noRecommendations": "최적화가 권장되는 스킬이 없습니다"
-  },
   "Agent": {
     "fleet": {
       "kpi": {

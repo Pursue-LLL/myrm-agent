@@ -161,7 +161,6 @@ src/components/features/skills/SkillDiscoverTab.tsx
 src/components/features/skills/SkillGrowthCaseCard.tsx
 src/components/features/skills/SkillInstanceManager.tsx
 src/components/features/skills/SkillPermissionsManager.tsx
-src/components/features/skills/SkillQualityGuardian.tsx
 src/components/features/theme-studio/ThemeStudioGalleryPanel.tsx
 src/components/features/theme-studio/ThemeStudioSection.tsx
 src/components/features/workspace-browser/WorkspaceFileBrowser.tsx

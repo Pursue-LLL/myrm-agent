@@ -10105,32 +10105,6 @@
       "pre_rollback": "Vor Wiederherstellung"
     }
   },
-  "SkillOptimization": {
-    "qualityScore": "Qualitätsfaktor",
-    "successRate": "Erfolgsquote",
-    "tokenEfficiency": "Token-Effizienz",
-    "executionTime": "Ausführungszeit",
-    "userSatisfaction": "Benutzerzufriedenheit",
-    "callFrequency": "Anrufhäufigkeit",
-    "loading": "Laden...",
-    "noData": "Keine Daten",
-    "overallScore": "Gesamtpunktzahl",
-    "baselineVersion": "Basisversion",
-    "optimizedVersion": "Optimierte Version",
-    "successRateDelta": "Erfolgsratendelta",
-    "tokenEfficiencyDelta": "Token-Effizienz-Delta",
-    "executionTimeDelta": "Ausführungszeitdelta",
-    "activeSkills": "Aktive Fähigkeiten",
-    "totalCalls": "Gesamtanzahl der Anrufe",
-    "avgSuccessRate": "Durchschnittliche Erfolgsquote",
-    "avgExecutionTime": "Durchschnittliche Ausführungszeit",
-    "recommendedToOptimize": "Zur Optimierung empfohlen",
-    "optimizeAll": "Alles optimieren",
-    "priorityScore": "Prioritätspunktzahl",
-    "optimize": "Optimieren",
-    "optimizing": "Optimierung...",
-    "noRecommendations": "Es werden keine Fähigkeiten zur Optimierung empfohlen"
-  },
   "Agent": {
     "list": {
       "title": "Meine Agenten",
@@ -15998,39 +15972,6 @@
       }
     },
     "skillOptimization": {
-      "title": "Fähigkeits-Selbstoptimierung",
-      "description": "LLM-gesteuertes automatisches Optimierungssystem für Fähigkeiten zur kontinuierlichen Qualitätsverbesserung",
-      "dashboard": "Armaturenbrett",
-      "activeOptimizations": "Aktive Optimierungen",
-      "abTestsRunning": "A/B-Tests laufen",
-      "qualityRanking": "Qualitätsranking",
-      "topSkills": "Top 10 beste Fähigkeiten",
-      "bottomSkills": "Die 10 am stärksten optimierungsbedürftigen Fähigkeiten",
-      "triggerOptimization": "Optimierung auslösen",
-      "viewHistory": "Verlauf anzeigen",
-      "actions": "Aktionen",
-      "noData": "Keine Daten verfügbar",
-      "qualityScore": "Qualitätswert",
-      "overallScore": "Gesamtwert",
-      "successRate": "Erfolgsquote",
-      "tokenEfficiency": "Token-Effizienz",
-      "executionTime": "Ausführungszeit",
-      "userSatisfaction": "Benutzerzufriedenheit",
-      "callFrequency": "Aufruffrequenz",
-      "radarChart": "5D-Qualitäts-Radardiagramm",
-      "optimizationHistory": "Optimierungsverlauf",
-      "status": {
-        "pending": "Ausstehend",
-        "inProgress": "In Bearbeitung",
-        "completed": "Abgeschlossen",
-        "failed": "Fehlgeschlagen"
-      },
-      "abTestStatus": {
-        "running": "Läuft",
-        "baselineWin": "Basislinie gewinnt",
-        "candidateWin": "Kandidat gewinnt",
-        "noDifference": "Kein signifikanter Unterschied"
-      },
       "versions": {
         "title": "Versionsverlauf",
         "version": "Versionsnummer",
@@ -16054,34 +15995,6 @@
         "createdByRollback": "Zurücksetzen",
         "refresh": "Aktualisieren",
         "confirmAction": "Diese Version aktivieren"
-      },
-      "guardian": {
-        "idleTitle": "Schattenvalidierung verfügbar",
-        "idleDescription": "Eine Kandidatenversion ist bereit. Starten Sie einen Schattentest, um Live-Datenverkehr vor der Promotion zu vergleichen.",
-        "startShadow": "Schattentest starten",
-        "startSuccess": "Schattentest gestartet",
-        "startFailed": "Start des Schattentests fehlgeschlagen",
-        "runningTitle": "Schattentest: v{baseline} vs v{candidate}",
-        "consistency": "Konsistenz",
-        "samples": "Stichproben",
-        "versions": "Versionen",
-        "confidence": "Testkonfidenz",
-        "hideSamples": "Stichproben ausblenden",
-        "reviewDifferences": "Unterschiede prüfen",
-        "stopTest": "Test stoppen",
-        "stopConfirmTitle": "Schattentest stoppen?",
-        "stopConfirmDescription": "Der Schattentest für „{skillId}“ wird beendet. Baseline v{baseline} bleibt aktiv.",
-        "cancel": "Abbrechen",
-        "promote": "Heraufstufen von v{version}",
-        "promoteSuccess": "Version v{version} ist jetzt aktiv",
-        "promoteFailed": "Promotion der Version fehlgeschlagen",
-        "stopSuccess": "Schattentest gestoppt",
-        "stopFailed": "Stoppen des Tests fehlgeschlagen",
-        "networkError": "Netzwerkfehler",
-        "match": "Übereinstimmend",
-        "diverged": "Abgewichen",
-        "baselineLabel": "Basislinie",
-        "candidateLabel": "Kandidat"
       }
     },
     "wiki": {

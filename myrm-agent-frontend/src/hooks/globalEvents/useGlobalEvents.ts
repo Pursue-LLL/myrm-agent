@@ -40,7 +40,6 @@ const PASSTHROUGH_EVENTS: ReadonlySet<string> = new Set([
   'subagents_updated',
   'teammate_message',
   'cron_updated',
-  'skill_ab_test_updated',
   'budget_updated',
   'channel_status_updated',
   'skill_pool_updated',

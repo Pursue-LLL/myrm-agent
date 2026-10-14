@@ -10173,32 +10173,6 @@
       "pre_rollback": "恢复前"
     }
   },
-  "SkillOptimization": {
-    "qualityScore": "质量评分",
-    "successRate": "成功率",
-    "tokenEfficiency": "Token效率",
-    "executionTime": "执行时间",
-    "userSatisfaction": "用户满意度",
-    "callFrequency": "调用频率",
-    "loading": "加载中...",
-    "noData": "暂无数据",
-    "overallScore": "综合评分",
-    "baselineVersion": "基线版本",
-    "optimizedVersion": "优化版本",
-    "successRateDelta": "成功率变化",
-    "tokenEfficiencyDelta": "Token效率变化",
-    "executionTimeDelta": "执行时间变化",
-    "activeSkills": "活跃技能数",
-    "totalCalls": "总调用次数",
-    "avgSuccessRate": "平均成功率",
-    "avgExecutionTime": "平均执行时间",
-    "recommendedToOptimize": "推荐优化技能",
-    "optimizeAll": "一键优化全部",
-    "priorityScore": "优先级得分",
-    "optimize": "优化",
-    "optimizing": "优化中...",
-    "noRecommendations": "暂无推荐优化技能"
-  },
   "Agent": {
     "list": {
       "title": "我的智能体",
@@ -16652,39 +16626,6 @@
       }
     },
     "skillOptimization": {
-      "title": "技能自优化",
-      "description": "LLM驱动的技能自动优化系统，持续提升技能质量",
-      "dashboard": "仪表盘",
-      "activeOptimizations": "进行中的优化",
-      "abTestsRunning": "A/B测试运行中",
-      "qualityRanking": "质量排名",
-      "topSkills": "Top 10 最佳技能",
-      "bottomSkills": "Bottom 10 待优化技能",
-      "triggerOptimization": "手动触发优化",
-      "viewHistory": "查看历史",
-      "actions": "操作",
-      "noData": "暂无数据",
-      "qualityScore": "质量评分",
-      "overallScore": "综合评分",
-      "successRate": "成功率",
-      "tokenEfficiency": "Token效率",
-      "executionTime": "执行时间",
-      "userSatisfaction": "用户满意度",
-      "callFrequency": "调用频率",
-      "radarChart": "5维质量雷达图",
-      "optimizationHistory": "优化历史",
-      "status": {
-        "pending": "待处理",
-        "inProgress": "进行中",
-        "completed": "已完成",
-        "failed": "失败"
-      },
-      "abTestStatus": {
-        "running": "运行中",
-        "baselineWin": "Baseline获胜",
-        "candidateWin": "Candidate获胜",
-        "noDifference": "无显著差异"
-      },
       "versions": {
         "title": "版本历史",
         "version": "版本",
@@ -16708,34 +16649,6 @@
         "createdByRollback": "版本回滚",
         "refresh": "刷新",
         "confirmAction": "激活此版本"
-      },
-      "guardian": {
-        "idleTitle": "可进行 Shadow 验证",
-        "idleDescription": "候选版本已就绪。启动 Shadow 测试可在全量上线前对比真实流量表现。",
-        "startShadow": "启动 Shadow 测试",
-        "startSuccess": "Shadow 测试已启动",
-        "startFailed": "启动 Shadow 测试失败",
-        "runningTitle": "Shadow 测试：v{baseline} vs v{candidate}",
-        "consistency": "一致性",
-        "samples": "样本数",
-        "versions": "版本",
-        "confidence": "测试置信度",
-        "hideSamples": "隐藏样本",
-        "reviewDifferences": "查看差异",
-        "stopTest": "停止测试",
-        "stopConfirmTitle": "停止 Shadow 测试？",
-        "stopConfirmDescription": "技能「{skillId}」的 Shadow 测试将停止，基线 v{baseline} 保持生效。",
-        "cancel": "取消",
-        "promote": "提升 v{version}",
-        "promoteSuccess": "版本 v{version} 已设为当前版本",
-        "promoteFailed": "提升版本失败",
-        "stopSuccess": "Shadow 测试已停止",
-        "stopFailed": "停止测试失败",
-        "networkError": "网络错误",
-        "match": "一致",
-        "diverged": "分歧",
-        "baselineLabel": "基线",
-        "candidateLabel": "候选"
       }
     },
     "wiki": {

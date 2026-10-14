@@ -47,7 +47,6 @@ import {
   getIntegrationSkillSettingsPath,
   hasIntegrationSettingsLink,
 } from '@/lib/skills/integrationOAuthDisplay';
-import { SkillQualityGuardian } from './SkillQualityGuardian';
 import { SkillVersionsPanel } from './SkillVersionsPanel';
 import { SkillPermissionUsageDashboard } from './SkillPermissionUsageDashboard';
 import { LazyMonacoEditor } from '@/components/features/app-shell/lazy-monaco-editor';
@@ -175,7 +174,6 @@ export function SkillDetailSheetContent({
     <div className="py-4 space-y-5">
       <p className="text-muted-foreground">{resolveSkillDescription(skill, t('detail.noDescription'))}</p>
 
-      <SkillQualityGuardian skillId={skill.id} onPromoted={reloadSkillContent} />
       <SkillVersionsPanel skillId={skill.id} onActivated={reloadSkillContent} />
 
       {/* Availability warning */}

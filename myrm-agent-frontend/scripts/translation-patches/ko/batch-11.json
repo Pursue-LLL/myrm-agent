@@ -306,15 +306,5 @@
     "externalEffectsTooltip": "이 스냅샷에는 파일 롤백으로 되돌릴 수 없는 외부 작업({effects})이 포함되어 있습니다",
     "restoreExternalWarning": "외부 작업({effects})이 수행되었으며 이 복원으로 되돌릴 수 없습니다",
     "allAgents": "전체"
-  },
-  "SkillOptimization": {
-    "qualityScore": "품질 점수",
-    "successRate": "성공률",
-    "tokenEfficiency": "토큰 효율",
-    "executionTime": "실행 시간",
-    "userSatisfaction": "사용자 만족도",
-    "callFrequency": "호출 빈도",
-    "loading": "로딩 중...",
-    "noData": "데이터 없음"
   }
 }
