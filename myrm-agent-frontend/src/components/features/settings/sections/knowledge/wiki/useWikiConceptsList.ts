@@ -277,6 +277,7 @@ export function useWikiConceptsList(options?: {
     if (!selectedConcept) {
       return;
     }
+    const requestId = selectRequestRef.current;
     setIsSaving(true);
     const lease = editContentHash ? { if_match: editContentHash } : {};
     try {
@@ -335,20 +336,23 @@ export function useWikiConceptsList(options?: {
       }
 
       const refreshed = await wikiService.getConcept(selectedConcept.name, agentScopeId);
-      setSelectedConcept(refreshed);
-      const sections = refreshed.editor_sections;
-      if (sections) {
-        setEditCompiledTruth(sections.compiled_truth);
-        setEditTimelineDisplay(sections.timeline);
-        setEditTags(sections.tags.join(', '));
-        setEditAliases(sections.aliases.join(', '));
+      // 保存期间改选了别的词条：写入已成功，但这份刷新结果不属于当前选中的词条，也不再属于任何编辑会话
+      if (requestId === selectRequestRef.current) {
+        setSelectedConcept(refreshed);
+        const sections = refreshed.editor_sections;
+        if (sections) {
+          setEditCompiledTruth(sections.compiled_truth);
+          setEditTimelineDisplay(sections.timeline);
+          setEditTags(sections.tags.join(', '));
+          setEditAliases(sections.aliases.join(', '));
+        }
+        setEditContentHash(refreshed.content_hash);
+        if (editTab === 'timeline') {
+          setEditTimelineAppend('');
+        }
+        setIsEditing(false);
+        setEditBaseline(null);
       }
-      setEditContentHash(refreshed.content_hash);
-      if (editTab === 'timeline') {
-        setEditTimelineAppend('');
-      }
-      setIsEditing(false);
-      setEditBaseline(null);
       toast.success(t('updateSuccess'));
       onVaultMutated?.();
     } catch (error) {
@@ -366,6 +370,7 @@ export function useWikiConceptsList(options?: {
   const { handleUpdateClaimStatus, handleHealClaims } = useWikiConceptClaimActions({
     selectedConcept,
     setSelectedConcept,
+    selectRequestRef,
     agentScopeId,
     onVaultMutated,
   });
@@ -376,6 +381,7 @@ export function useWikiConceptsList(options?: {
     }
 
     const { name, isDir } = deleteTarget;
+    const requestId = selectRequestRef.current;
     setIsDeleting(name);
     try {
       if (isDir) {
@@ -383,7 +389,9 @@ export function useWikiConceptsList(options?: {
       } else {
         await wikiService.deleteConcept(name, agentScopeId);
       }
-      if (selectedConcept?.name === name || selectedConcept?.name.startsWith(`${name}/`)) {
+      // 删除期间改选了别的词条时，selectedConcept 是发起删除时的快照，不能据此清空新选择
+      const deletedSelected = selectedConcept?.name === name || selectedConcept?.name.startsWith(`${name}/`);
+      if (deletedSelected && requestId === selectRequestRef.current) {
         setSelectedConcept(null);
       }
       toast.success(t('deleteSuccess'));
