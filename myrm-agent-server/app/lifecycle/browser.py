@@ -1,4 +1,4 @@
-"""Browser lifecycle management — global pool warmup/shutdown, proxy pool resolution, expired session cleanup."""
+"""Browser lifecycle management — global pool warmup/shutdown and proxy pool resolution."""
 
 from __future__ import annotations
 
@@ -95,28 +95,3 @@ async def shutdown_global_browser_pool() -> None:
     pool = get_global_browser_pool()
     await pool.shutdown()
     logger.info("[Shutdown] GlobalBrowserPool closed")
-
-
-async def cleanup_expired_browser_sessions() -> None:
-    """Clean up expired saved browser sessions from all vaults (global + per-agent)."""
-    try:
-        from app.core.security.browser_vault import (
-            cleanup_all_agent_vaults,
-            get_global_session_vault,
-        )
-
-        vault = get_global_session_vault()
-        removed = await vault.cleanup_expired()
-
-        agent_removed = await cleanup_all_agent_vaults()
-        total_removed = removed + agent_removed
-
-        if total_removed > 0:
-            logger.info(
-                "Cleaned up %d expired browser sessions (global=%d, agents=%d)",
-                total_removed,
-                removed,
-                agent_removed,
-            )
-    except Exception as exc:
-        logger.error("Expired session cleanup failed: %s", exc, exc_info=True)

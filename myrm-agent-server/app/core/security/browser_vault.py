@@ -9,6 +9,7 @@
 - get_global_session_vault: 获取全局 SessionVault 单例（用于非 agent 场景）
 - get_agent_session_vault: 获取 agent 专属 SessionVault（按 agent_id 物理隔离）
 - cleanup_all_agent_vaults: 清理所有 agent vault 中的过期 session
+- cleanup_all_vaults: 清理全局 vault 与所有 agent vault 中的过期 session（设置页按钮与定时维护的唯一入口）
 
 [POS]
 SessionVault 实例管理。全局 vault 用于 web_fetch 等非 agent 场景；
@@ -150,3 +151,13 @@ async def cleanup_all_agent_vaults() -> int:
             logger.warning("Failed to cleanup expired sessions for agent %s: %s", agent_id, exc)
 
     return total_removed
+
+
+async def cleanup_all_vaults() -> int:
+    """清理全局 vault 与所有 agent vault 中的过期 session。
+
+    Returns:
+        总共清理的过期 session 数量
+    """
+    removed = await get_global_session_vault().cleanup_expired()
+    return removed + await cleanup_all_agent_vaults()

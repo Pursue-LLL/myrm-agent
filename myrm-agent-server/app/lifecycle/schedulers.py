@@ -374,6 +374,7 @@ async def _db_maintenance_job() -> None:
     7. Kanban data GC — clean old events/runs/workspaces for terminal tasks
     8. Artifact share registry GC — remove expired share records (TTL + retention)
     9. Channel data plane GC — prune channel messages older than 30 days
+    10. Browser session GC — remove expired saved login sessions (global vault + every agent vault)
     """
     # SQLite WAL checkpoint
     try:
@@ -541,6 +542,16 @@ async def _db_maintenance_job() -> None:
             logger.info("Channel data plane GC: %d expired messages pruned", pruned_count)
     except Exception as e:
         logger.warning("Channel data plane GC failed: %s", e)
+
+    # Browser session GC: saved login sessions past their TTL are only dropped lazily on read otherwise
+    try:
+        from app.core.security.browser_vault import cleanup_all_vaults
+
+        removed_sessions = await cleanup_all_vaults()
+        if removed_sessions > 0:
+            logger.info("Browser session GC: %d expired saved sessions removed", removed_sessions)
+    except Exception as e:
+        logger.warning("Browser session GC failed: %s", e)
 
 
 async def _incognito_cleanup_job() -> None:

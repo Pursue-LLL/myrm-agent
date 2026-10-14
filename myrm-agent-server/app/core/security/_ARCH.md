@@ -25,7 +25,7 @@ security/
 ├── _ARCH.md             # 本文档
 ├── master_key.py        # MasterKeyProvider（零落盘密钥管理）
 ├── config_crypto.py     # 敏感配置key检测（字段级）
-├── browser_vault.py     # SessionVault 实例管理（全局 + agent 级隔离）
+├── browser_vault.py     # SessionVault 实例管理（全局 + agent 级隔离）与全保险库过期清理
 ├── llm_reviewer.py      # 动态 LLM 适配器（Transcript Classifier）
 ├── pii_actions.py       # PII action 字符串安全解析（非法/缺失值回退默认，防崩溃）
 ├── privacy_settings.py  # 持久化隐私设置 → 无 web 请求入口（渠道/定时/语音/目标/看板/唤醒）的 agent 隐私参数，与进程级隐私策略的构造
@@ -50,7 +50,7 @@ security/
 |------|------|
 | `master_key.py` | MasterKeyProvider，3 级获取 Master Key：环境变量 (SaaS) → OS Keyring (Local/Tauri) → VaultLockedError (需用户解锁)。零落盘 (Zero-Disk) 架构，绝不向硬盘写明文密钥。 |
 | `config_crypto.py` | 敏感配置字段检测（关键词匹配 + 精确 key 匹配，如 browserCloudProvider、egress_proxy、llm_proxy 等） |
-| `browser_vault.py` | SessionVault 实例管理：全局单例（非 agent 场景）+ 按 agent_id 物理隔离的 agent vault |
+| `browser_vault.py` | SessionVault 实例管理：全局单例（非 agent 场景）+ 按 agent_id 物理隔离的 agent vault；`cleanup_all_vaults` 一次清理全局 + 全部 agent vault 的过期会话（API 与 DB 维护定时任务共用） |
 | `llm_reviewer.py` | 动态 Transcript Classifier 适配器，运行时获取用户 LLM 实例 |
 | `pii_actions.py` | 持久化 PII action 字符串安全解析：缺失/非法值回退默认枚举，杜绝非法配置导致 agent 初始化或记忆提取崩溃（retry 与 security extension 共用） |
 | `privacy_settings.py` | 读取持久化个人设置里的隐私设置（privacyEnabled / S2 / S3 / deep scan / 自定义关键词·正则·敏感工具）：`privacy_agent_params` 供所有服务端自建的 `GeneralAgentParams`（渠道、定时、语音×2、目标、看板、唤醒）；`resolve_privacy_params` 供 web 对话——请求写明的优先，请求没说的跟随已保存设置；`privacy_policy_from_params` 把一组完整的隐私字段构造成 `PrivacyPolicy`（`privacy_policy_from_settings` 用它构造进程级策略，设置页「试一试」预览用它构造草稿策略）。本地路由（privacy_routing）仍仅随请求 |
