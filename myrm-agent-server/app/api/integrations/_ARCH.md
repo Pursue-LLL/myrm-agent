@@ -21,7 +21,7 @@
 | `mcp_oauth.py` | 模块 | MCP OAuth 2.0 + PKCE authorization flow API. | ✅ |
 | `model_specs.py` | 模块 | Settings Hardware Cookbook 使用的 Ollama 模型规格数据源。 | ✅ |
 | `oauth.py` | 模块 | OAuth 凭证管理 API。提供个人 SaaS 集成凭证的加密存储、查询和撤销，支持断开时可选清除同步数据。 | ✅ |
-| `xai_oauth.py` | 模块 | xAI OAuth device-code 登录（仅 `/start`、`/poll`）；SuperGrok 订阅授权；`/poll` 把 RFC 8628 的 `slow_down` / `expired_token` / `access_denied` 映射为客户端据以行动的 `pending` / `expired` / `denied`；复用 oauth_store 持久化 | ✅ |
+| `xai_oauth.py` | 模块 | xAI OAuth device-code 登录（仅 `/start`、`/poll`）；SuperGrok 订阅授权；`/poll` 把 RFC 8628 的 `slow_down` / `expired_token` / `access_denied` 映射为客户端据以行动的 `pending` / `expired` / `denied`；待完成的流程只存在于本进程内存，进程不持有该流程时 `/poll` 返回 404；复用 oauth_store 持久化 | ✅ |
 | `provider_oauth.py` | 模块 | Provider OAuth 状态与断开（仅 xAI SuperGrok）：`/status/{provider}`、`/disconnect/{provider}` 供模型页、凭证页与启动期登录标记校准共用（设备码登录在 `xai_oauth.py`）；`/test/seed-oauth`、`/test/cleanup-oauth` 仅本地模式供 Chrome E2E；OAuth token 经 `config_loader` 注入 model_resolver 链路 | ✅ |
 | `router.py` | 路由 | Integrations API router | ✅ |
 | `search.py` | 模块 | Search provider manifest (`GET /providers`) 与 live probe 验证 (`POST /verify`)；manifest 驱动 Settings 下拉 | ✅ |
