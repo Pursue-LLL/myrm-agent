@@ -20,6 +20,7 @@ Board and task mutation mixin: create, update, delete, move, reclaim, approve/re
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.kanban.protocols import (
     PlanRevisionOutcome,
@@ -89,8 +90,18 @@ from app.services.kanban.task_ops import (
     update_task as run_update_task,
 )
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
+    from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
+
 
 class KanbanBoardTaskMixin(KanbanServiceCore):
+    if TYPE_CHECKING:
+        # Provided by KanbanDispatcherMixin, which KanbanService composes with this mixin.
+        async def start_dispatcher(
+            self, board_id: str, runner: TaskRunner, worker_id: str | None = None
+        ) -> KanbanDispatcher | None: ...
+
     async def create_board(
         self,
         name: str,
