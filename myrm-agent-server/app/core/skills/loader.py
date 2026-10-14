@@ -1,7 +1,7 @@
 """Skill backend factory (business layer).
 
 [INPUT]
-myrm_agent_harness.api::SkillBackend (POS: public API surface of the harness)
+myrm_agent_harness.backends.skills::SkillBackendProtocol (POS: skill backend contract, imported as SkillBackend)
 myrm_agent_harness.backends.skills::CompositeSkillBackend (POS: route-prefixed composition of skill backends)
 myrm_agent_harness.backends.skills::InMemorySkillBackend (POS: in-memory skill metadata without persistence)
 myrm_agent_harness.backends.skills::LocalSkillBackend (POS: skills loaded from local paths per the Claude Skills spec)
@@ -18,7 +18,7 @@ app.core.skills.gates.oauth_availability::wrap_integration_oauth_backend (POS: k
     between Catalog and Agent runtime)
 app.core.skills.storage_adapters::SnapshotStoreAdapter, ABTestStoreAdapter (POS: protocol adapters over SQLAlchemyStorage)
 app.adapters.skill_optimization.sqlalchemy_storage::SQLAlchemyStorage (POS: bridges framework protocols and SQLAlchemy
-    repositories, fixed or per-operation sessions)
+    repositories, one session per operation)
 app.platform_utils::get_session_factory (POS: platform adapter layer selected by DEPLOY_MODE)
 
 [OUTPUT]
