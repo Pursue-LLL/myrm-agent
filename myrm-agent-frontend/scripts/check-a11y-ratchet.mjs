@@ -11,6 +11,8 @@
  *
  * 基线 `scripts/ci/a11y_ratchet_baseline.json` 登记当前存量。当前值高于基线 → 新增退化，失败；
  * 低于基线 → 基线 drift，失败（需用 `--ratchet` 收紧，否则空出的额度会被后续改动悄悄占用）。
+ * 基线只能收紧：`--ratchet` 写入 `min(当前, 基线)`（见 `ratchet-baseline.ts`），不会新增规则条目、
+ * 也不会抬高已有额度，所以它不能被用来把新增的告警或豁免“洗”进基线。
  *
  * 硬门禁（键盘焦点可见性）：全局 focus-ring.css 在 `@layer base`，会被 `outline-none` 覆盖，而 jsx-a11y/axe
  * 都无法判断聚焦后是否可见。`focus-visibility-scan.ts` 解析 className 属性值，凡含 `outline-none/hidden/0`
@@ -25,7 +27,7 @@
  * 反向自检：oxlint 未产出可解析 JSON 或扫描文件数为 0 时直接失败，而不是静默通过。
  *
  * 运行：bun scripts/check-a11y-ratchet.mjs
- *       bun scripts/check-a11y-ratchet.mjs --ratchet  # 用当前值重写基线
+ *       bun scripts/check-a11y-ratchet.mjs --ratchet  # 只把降低的额度写进基线
  * 退出码：0 = 与基线一致；1 = 退化 / drift / 自检失败
  */
 
@@ -35,6 +37,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { findInvisibleFocusSites } from './focus-visibility-scan.ts';
+import { tightenCounts } from './ratchet-baseline.ts';
 import { findHoverOnlyRevealSites } from './reveal-contract-scan.ts';
 import { walkSourceFiles } from './source-files.mjs';
 
@@ -133,18 +136,25 @@ if (focusViolated || revealViolated) {
 
 const current = { rules: countRuleWarnings(), waivers: countWaivers() };
 
-if (process.argv.includes('--ratchet')) {
-  const sortedRules = Object.fromEntries(Object.entries(current.rules).sort(([a], [b]) => a.localeCompare(b)));
-  writeFileSync(baselinePath, `${JSON.stringify({ rules: sortedRules, waivers: current.waivers }, null, 2)}\n`, 'utf8');
-  console.log(`[a11y-ratchet] 基线已写入 ${relative(rootDir, baselinePath)}`);
-  process.exit(0);
-}
-
 let baseline;
 try {
   baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
 } catch (error) {
   fail(`无法读取基线 ${relative(rootDir, baselinePath)}: ${error.message}`);
+}
+
+if (process.argv.includes('--ratchet')) {
+  const tightened = {
+    rules: tightenCounts(current.rules, baseline.rules),
+    waivers: Math.min(current.waivers, baseline.waivers),
+  };
+  const changed = JSON.stringify(tightened) !== JSON.stringify(baseline);
+  if (changed) {
+    writeFileSync(baselinePath, `${JSON.stringify(tightened, null, 2)}\n`, 'utf8');
+  }
+  console.log(`[a11y-ratchet] 基线${changed ? '已收紧' : '无需收紧'}（${relative(rootDir, baselinePath)}）。`);
+  // 新增的告警 / 豁免不会被写入：继续按收紧后的基线比较，仍高于基线时如实失败。
+  baseline = tightened;
 }
 
 const metrics = [...new Set([...Object.keys(baseline.rules), ...Object.keys(current.rules)])].map((rule) => ({
@@ -162,13 +172,15 @@ if (regressed.length > 0) {
   console.error('[a11y-ratchet] 无障碍退化（高于基线）：');
   regressed.forEach((m) => console.error(format(m)));
   console.error(
-    '\n处理方式：改用原生元素（button/a）或补齐键盘支持（见 src/lib/utils/a11y.ts 的 activateOnKey）；不要新增豁免刷指标。',
+    '\n处理方式：改用原生元素（button/a）或补齐键盘支持（见 src/lib/utils/a11y.ts 的 activateOnKey）；不要新增豁免刷指标。基线只降不升，`--ratchet` 不会把新增写进去。',
   );
 }
 if (drifted.length > 0) {
   console.error('[a11y-ratchet] 基线 drift（已改善但基线未收紧）：');
   drifted.forEach((m) => console.error(format(m)));
-  console.error('\n处理方式：运行 `bun scripts/check-a11y-ratchet.mjs --ratchet` 收紧基线并一并提交。');
+  console.error(
+    '\n处理方式：运行 `bun scripts/check-a11y-ratchet.mjs --ratchet` 收紧基线（只写入降低的额度）并一并提交。',
+  );
 }
 if (regressed.length > 0 || drifted.length > 0) {
   process.exit(1);

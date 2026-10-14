@@ -8,10 +8,13 @@
  *   - 某文件数量低于基线（含文件已删除或改名）→ 基线 drift，失败；不收紧的话，空出的额度会被后续改动悄悄占用。
  * 按文件而非总数计数，一个文件清掉的额度不能抵扣另一个文件的新增。
  *
+ * 基线只能收紧：`--write-baseline` 写入 `min(当前, 基线)`（见 `ratchet-baseline.ts`），不会新增文件条目、
+ * 也不会抬高已有条目，所以它不能被用来把新增的硬编码文案“洗”进基线。
+ *
  * 反向自检：扫描文件数为 0 时直接失败，而不是静默通过。
  *
  * 运行：bun scripts/check-hardcoded-copy.mjs
- *       bun scripts/check-hardcoded-copy.mjs --write-baseline  # 用当前值重写基线
+ *       bun scripts/check-hardcoded-copy.mjs --write-baseline  # 只把降低的额度写进基线
  * 退出码：0 = 与基线一致；1 = 新增 / drift / 自检失败
  */
 
@@ -21,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 
 import { diffAgainstBaseline } from './hardcoded-copy-ratchet.ts';
 import { findHardcodedCopySites } from './hardcoded-copy-scan.ts';
+import { tightenCounts } from './ratchet-baseline.ts';
 import { walkSourceFiles } from './source-files.mjs';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,19 +58,22 @@ const current = Object.fromEntries(
 );
 const total = Object.values(current).reduce((sum, count) => sum + count, 0);
 
-if (process.argv.includes('--write-baseline')) {
-  writeFileSync(baselinePath, `${JSON.stringify(current, null, 2)}\n`, 'utf8');
-  console.log(
-    `[hardcoded-copy] 基线已写入 ${relative(rootDir, baselinePath)}：${Object.keys(current).length} 个文件、${total} 处。`,
-  );
-  process.exit(0);
-}
-
 let baseline;
 try {
   baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
 } catch (error) {
   fail(`无法读取基线 ${relative(rootDir, baselinePath)}: ${error.message}`);
+}
+
+if (process.argv.includes('--write-baseline')) {
+  const tightened = tightenCounts(current, baseline);
+  const tightenedFiles = Object.keys(baseline).filter((file) => tightened[file] !== baseline[file]).length;
+  if (tightenedFiles > 0) {
+    writeFileSync(baselinePath, `${JSON.stringify(tightened, null, 2)}\n`, 'utf8');
+  }
+  console.log(`[hardcoded-copy] 基线已收紧 ${tightenedFiles} 个文件（${relative(rootDir, baselinePath)}）。`);
+  // 新增的额度不会被写入：继续按收紧后的基线比较，仍高于基线时如实失败。
+  baseline = tightened;
 }
 
 const { increased, drifted } = diffAgainstBaseline(current, baseline);
@@ -85,7 +92,7 @@ if (increased.length > 0) {
     }
   }
   console.error(
-    '\n处理方式：文案写进 `locales/*.json` 并用 `useTranslations` 读取（中英双语）；品牌 / 单位 / 协议名这类不需要翻译的记号提取为具名常量。不要为了过门禁而重写基线。',
+    '\n处理方式：文案写进 `locales/*.json` 并用 `useTranslations` 读取（中英双语）；品牌 / 单位 / 协议名这类不需要翻译的记号提取为具名常量。基线只降不升，`--write-baseline` 不会把新增写进去。',
   );
 }
 if (drifted.length > 0) {
@@ -93,7 +100,9 @@ if (drifted.length > 0) {
   for (const file of drifted) {
     console.error(`    - ${file}: ${delta(file)}`);
   }
-  console.error('\n处理方式：运行 `bun scripts/check-hardcoded-copy.mjs --write-baseline` 收紧基线并一并提交。');
+  console.error(
+    '\n处理方式：运行 `bun scripts/check-hardcoded-copy.mjs --write-baseline` 收紧基线（只写入降低的额度）并一并提交。',
+  );
 }
 if (increased.length > 0 || drifted.length > 0) {
   process.exit(1);
