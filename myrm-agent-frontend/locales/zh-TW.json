@@ -14592,8 +14592,7 @@
         "scenes": {
           "memory": "記憶",
           "workspace": "工作區",
-          "offload": "解除安裝",
-          "archive": "歸檔"
+          "offload": "解除安裝"
         }
       },
       "telemetry": {

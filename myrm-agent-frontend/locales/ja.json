@@ -14592,8 +14592,7 @@
         "scenes": {
           "memory": "メモリ",
           "workspace": "ワークスペース",
-          "offload": "アンインストール",
-          "archive": "アーカイブ"
+          "offload": "アンインストール"
         }
       },
       "telemetry": {
