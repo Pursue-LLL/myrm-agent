@@ -1,5 +1,22 @@
 'use client';
 
+/**
+ * Catchup inbox: the chats that moved on while the user was elsewhere.
+ *
+ * [INPUT]
+ * - services/chat::getCatchupBriefs / markChatAsRead (POS: server-side inbox projection and presence stamp)
+ * - store/useChatStore (POS: the chat the user has open, which is never news to them)
+ * - catchup/CatchupBriefCard (POS: one chat's brief)
+ * - window events `subagents_updated` / `cron_updated` / `app_resync_required` / `run-digest-updated`
+ *   (POS: global SSE bridge signals that a chat's state changed)
+ *
+ * [OUTPUT]
+ * - CatchupInbox: header popover with a badge count; renders nothing when there is nothing to catch up on
+ *
+ * [POS]
+ * Entry point of the Catchup experience; refetches only on signals that can change the list.
+ */
+
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Inbox, X, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';

@@ -33,7 +33,7 @@ class SessionNodeModel(BaseModel):
     last_active_at: str = Field(..., description="ISO timestamp of last activity")
     tags: List[str] = Field(default_factory=list, description="Categorical or workflow tags")
     workspace_dir: Optional[str] = Field(None, description="Isolated working directory or git worktree")
-    match_highlights: Optional[List[str]] = Field(None, description="Matched search snippet highlights")
+    match_highlights: Optional[List[str]] = Field(default=None, description="Matched search snippet highlights")
 
 
 class ProjectClusterModel(BaseModel):

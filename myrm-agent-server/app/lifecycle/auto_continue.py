@@ -174,8 +174,9 @@ async def _dispatch_auto_continue(
             if not isinstance(chunk, dict):
                 continue
             event_type = chunk.get("type")
-            if event_type == "message" and isinstance(chunk.get("data"), str):
-                collected_parts.append(chunk["data"])
+            data = chunk.get("data")
+            if event_type == "message" and isinstance(data, str):
+                collected_parts.append(data)
             elif event_type == "message_end":
                 # Keep the persisted snapshot aligned with the canonical path:
                 # stream_finalize extracts token_economics from this same event.

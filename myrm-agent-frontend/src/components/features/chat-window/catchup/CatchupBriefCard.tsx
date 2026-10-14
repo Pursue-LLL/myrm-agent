@@ -1,5 +1,19 @@
 'use client';
 
+/**
+ * One chat's Catchup card.
+ *
+ * [INPUT]
+ * - services/chat::CatchupBrief (POS: bounded, closed-vocabulary summary from the server)
+ * - next-intl `Catchup` namespace (POS: localized status, need and count copy)
+ *
+ * [OUTPUT]
+ * - CatchupBriefCard: status, what was asked, the reply opening, changed files, tool call count, and what the user must do
+ *
+ * [POS]
+ * Presentation only. Running and approval-blocked chats offer no dismissal, since they would be listed again at once.
+ */
+
 import React from 'react';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { CheckCircle2, Clock, AlertCircle, FileCode, Wrench, Activity, MessageSquare, CircleStop } from 'lucide-react';

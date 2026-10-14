@@ -101,11 +101,7 @@ async def list_session_map_projects(
                 if state_filter and s_state != state_filter:
                     continue
 
-                updated_str = (
-                    c.updated_at.isoformat()
-                    if c.updated_at
-                    else datetime.now(timezone.utc).isoformat()
-                )
+                updated_str = c.updated_at.isoformat() if c.updated_at else datetime.now(timezone.utc).isoformat()
                 node = SessionNodeModel(
                     id=c.id,
                     title=c.title or "Untitled Session",

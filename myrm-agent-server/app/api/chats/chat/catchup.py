@@ -18,7 +18,7 @@
 
 [POS]
 Catchup inbox endpoints. ``Chat.last_read_at`` is the user's last presence in a chat; an agent reply newer than it is unseen.
-A chat that never recorded presence (legacy NULL) counts as read until something happens that needs the user.
+A chat with no recorded presence (NULL) counts as read until something happens that needs the user.
 """
 
 from __future__ import annotations
