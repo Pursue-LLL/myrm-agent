@@ -91,39 +91,20 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
   return (
     <div
       id="wiki-concept-links"
-      className="rounded-xl border border-border/70 bg-card/60 backdrop-blur-sm p-4 space-y-4 shadow-sm"
+      className="@container rounded-xl border border-border/70 bg-card/60 backdrop-blur-sm p-4 space-y-4 shadow-sm"
     >
-      {/* 头部导航与统计胶囊 */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Network className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">{t('title')}</span>
-          {linksData && (
-            <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-primary/10 text-primary border border-primary/20">
-              {t('summary', { backlinks: backlinks.length, outlinks: outlinks.length })}
-            </span>
-          )}
-        </div>
-
-        {/* 视图切换按钮组 */}
-        <div className="flex max-w-full items-center gap-1 overflow-x-auto scrollbar-hide bg-muted/40 p-0.5 rounded-lg border border-border/40 text-xs">
-          {linksData &&
-            tabs.map(({ id, label, Icon, iconClass }) => (
-              <button
-                type="button"
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={cn(
-                  'px-2.5 py-1 rounded-md transition-all font-medium flex shrink-0 items-center gap-1.5 whitespace-nowrap',
-                  activeTab === id
-                    ? 'bg-background text-foreground shadow-xs border border-border/60'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon className={cn('w-3.5 h-3.5', iconClass)} />
-                <span>{label}</span>
-              </button>
-            ))}
+      {/* 头部导航与统计胶囊：面板嵌在宽度不定的详情栏里，按面板自身宽度（容器查询）而不是视口宽度适配 */}
+      <div className="space-y-3 border-b border-border/50 pb-3">
+        <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <Network className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold tracking-tight text-foreground">{t('title')}</span>
+            {linksData && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-primary/10 text-primary border border-primary/20">
+                {t('summary', { backlinks: backlinks.length, outlinks: outlinks.length })}
+              </span>
+            )}
+          </div>
           <Button
             type="button"
             variant="ghost"
@@ -136,6 +117,28 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
             <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
           </Button>
         </div>
+
+        {/* 视图切换按钮组：等分整行，放不下时在条内横向滚动 */}
+        {linksData && (
+          <div className="flex w-full items-center gap-1 overflow-x-auto scrollbar-hide bg-muted/40 p-0.5 rounded-lg border border-border/40 text-xs">
+            {tabs.map(({ id, label, Icon, iconClass }) => (
+              <button
+                type="button"
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={cn(
+                  'flex flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 font-medium transition-all @md:px-3',
+                  activeTab === id
+                    ? 'bg-background text-foreground shadow-xs border border-border/60'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icon className={cn('hidden w-3.5 h-3.5 @md:block', iconClass)} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {error !== null && (
@@ -206,7 +209,7 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
           {outlinks.length === 0 ? (
             <p className="text-xs text-muted-foreground py-3 text-center">{t('emptyOutlinks')}</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 @md:grid-cols-2">
               {outlinks.map((link: ConceptLinkItem) => (
                 <button
                   type="button"
