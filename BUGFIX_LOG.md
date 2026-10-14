@@ -1787,7 +1787,7 @@ except Exception:
 | 严重程度 | P2（键盘与触屏用户够不到卡片动作；非中文用户在 11 个组件里看到未翻译或中英混排的界面；不影响数据） |
 | 影响范围 | 前端 `scripts/`（`run-lint-gates.ts`、`reveal-contract-scan.ts`、`ratchet-baseline.ts`、`check-a11y-ratchet.mjs`、`check-hardcoded-copy.mjs`、`source-files.mjs`）、`lib/utils/a11y.ts`、`kanban`、`memory/cards`、11 个组件及 6 个 `locales/*.json` |
 | 出现次数 | 1 |
-| 关联 | 提交 `d3dad2bd6`、`00647c949`、`e80ea3ed3`、`48695d574`、`658566e7b`、`f3b7ef162`、`dd8a64b12`，本地提交，未 push；接续条目 006 的「局限」 |
+| 关联 | 提交 `d3dad2bd6`、`00647c949`、`e80ea3ed3`、`48695d574`、`658566e7b`、`f3b7ef162`、`dd8a64b12`，后续批次 `65874ad322`、`53aa05eada`、`3af4e8f772`、`43b82f2614`、`7a64855249`、`ac36e37f94`，本地提交，未 push；接续条目 006 的「局限」 |
 
 ### 现象
 
@@ -1832,6 +1832,50 @@ except Exception:
 3. 共享工作区里 locales 被他人改动了上千行：用「在 HEAD 文本上按命名空间文本插入」生成提交用的 blob，再对同一份插入逻辑在工作区文本上重放，两边都用「解析后等于改前 + 我的键」自检；
 4. 翻译壳检测会拦下与英文完全相同的值：de 的 `Subagent`、`Live`、`Tools ({count})`、`Commits ({count})` 都得换成真正的德语写法或项目里已有的写法；
 5. 局限：新增的 de / ja / ko / zh-TW 译文只经过机器门禁，没有母语者审校；真实聊天页与 Kanban 页没有端到端点过（后端 :8000 未启动）；鼠标 + 触屏并存的混合设备没有覆盖；`SubagentDetailDrawer.tsx` 591 行（改前 574）、`MaskedCredentialInputCard.tsx` 463 行，未拆分；`LoopStatusBar` 的时长缩写 `m` / `s` 与服务端给的 `current_delay_human` 仍是英文；`RiskConfirmationCard` 发给后端的审批理由是英文审计串，保持不变；干净 HEAD 上 `verify:i18n` 本来就是红的（ja / ko / de / zh-TW 各缺 92 个 en 键、17 个孤儿键、de 的 `settings.browserDoctor.statusOptional` 是翻译壳），`verify:orphans` 同样为红，均不是本次引入；扫描器的覆盖面限制见条目 006，存量只是继续下降（当前 3408 处 / 358 个文件），没有清零。
+
+
+### 补充：同一天的第二批（ICU 门禁、toast 门禁、Kanban 确认、MCP 文案）
+
+上面「局限」里「扫描器只覆盖 JSX 字面量、toast 不在门禁里」对 toast 不再成立（B 的门禁已覆盖）；「Kanban 页没有端到端点过」仍然成立，见下面的验证。
+
+**现象**
+
+7. `locales/*.json` 有 17 条文案不是合法 ICU（`{{secret:KEY}}`、裸 `<token>` 等）：开发构建抛 `INVALID_MESSAGE`，生产构建带插值参数时把键路径显示给用户；没有任何门禁检查 ICU 语法（A，`65874ad322`）；
+8. 约 150 处 toast 写死中文或英文，分布在 store、hooks、services 与组件里（B，`53aa05eada`）；`t('key') || '兜底'` 的兜底永远不会执行：next-intl 对缺失或解析失败的键返回带命名空间的键路径，不返回空值；
+9. Kanban 卡片菜单与拖拽浮层里「删除」「回收」一次点击就执行（C，`43b82f2614`）：删除连同运行记录与事件一并清除，并把依赖它、其余依赖都已满足的 backlog 任务提升为就绪（`app/services/kanban/task_ops.py:230-251`，级联见 `app/database/models/kanban.py`）；回收会停掉执行中的 Agent 并重置为就绪（`move_orchestrator.py:291-321`）；
+10. 共享的 `ConfirmDialog` 在受控且没有 trigger 时，关闭后焦点落到 `<body>`，键盘用户回到页面顶部（C）；
+11. MCP 扫描发出的 `dangerous_env_injection` 在 `settings.mcpThreat` / `mcpThreatRec` 里没有文案；`localizedOrFallback` 用「返回值等于键」判断有没有译文，而 next-intl 返回的是 `settings.mcpThreat.x`，永远不相等，用户看到键路径而不是服务端原文（G，`7a64855249`）；
+12. zh-TW 有 7 条把「歷史」写成「曆史」（D，`ac36e37f94`）。
+
+**根因**
+
+1. ICU 语法与 toast 文案都没有门禁，而 toast 弹在事件处理里，tsc 与单测都看不到；
+2. `|| '兜底'` 依赖「缺键返回空值」这个不成立的假设；`localizedOrFallback` 的判断同出一源；
+3. 删除 / 回收的入口直接调用执行函数，中间没有确认层；
+4. Radix 受控 `AlertDialog` 没有 trigger 时，关闭没有可还焦点的元素。
+
+**修复**
+
+1. A：`check-icu-syntax.mjs` + `icu-syntax-scan.ts`（用 `@formatjs/icu-messageformat-parser` 解析每条文案，零容忍）进入 `LINT_GATES`，并修掉 17 条非法文案；
+2. B：toast 文案迁入 locales（新增 69 个键 × 6 语言）：组件用 `useTranslations`，store / 工具函数用 `showI18nToast` / `translateI18nKey`；`3af4e8f772` 加 `toast-copy-scan.ts` 并入 `check-hardcoded-copy.mjs`——`.ts` / `.tsx` 里的 toast 写死文案零容忍、没有基线，`verify-i18n-references.mjs` 同时校验 `translateI18nKey` 的键；
+3. C：看板视图持有一个 `ConfirmDialog`（`KanbanTaskActionConfirm.tsx`），卡片菜单只发起请求；文案交代后果；`kanban.reclaimConfirm` 实为菜单标签，改名 `reclaimAction`；共享 `ConfirmDialog` 在打开时记下焦点元素（焦点在菜单项上时改记菜单的触发按钮），关闭后还焦点，已有的 force-promote 与 drop-confirm 对话框一并受益；
+4. G：`localizedOrFallback` 改用 `t.has(key)`，补 `dangerous_env_injection` 的描述与建议 × 6 语言；
+5. D：zh-TW 7 处「曆史」改「歷史」。
+
+**验证**
+
+1. A、B、C、G 与门禁提交各在干净导出上跑过 `bun run lint`、相关 vitest、全量 `tsc --noEmit`（只剩 `clipNotifyPayload.test.ts` 的导出产物）；B、C、G 与门禁提交另跑了 `check_fractal_docs`，B、G 与门禁提交另跑了 `verify-i18n-references`（均通过）；测试规模：B 618 个测试文件 / 4445 例，C 83 / 694，G 139 / 1103，门禁 12 个脚本测试文件 / 122 例；D 只改 zh-TW 文案，只跑了 `verify:i18n`，输出与 HEAD 逐字一致（G 同样一致）；
+2. 变异检查：向干净导出注入 `{{count}}`，ICU 门禁退出码 1 并报 `MALFORMED_ARGUMENT`；注入硬编码 toast、`t() || 'x'`、`err.message || '…'`、模板字符串四种写法，toast 门禁全部失败并列出行号，错误的 `translateI18nKey` 键被引用校验报出；G 的「无译文时显示服务端原文」用例在旧比较下失败；撤销 `ConfirmDialog` 的焦点修复后，C 的焦点用例失败；
+3. toast 门禁在 2.4 千个源码文件上约 3 秒；
+4. C 的组件测试用真实 Radix 与真实 next-intl（6 语言文案），25 例；**Kanban 页没有在真实浏览器里验证**：共享 :3000 与我单独起的 :3300 两个开发服务器上，无头 Chromium 都停在设置页骨架，页面反复重新导航，从未渲染到看板；源码里有 `GlobalErrorBoundary` 等自动 `location.reload()` 的路径，当时机器负载 60 以上、分块请求长时间挂起，但没有确认是哪条路径触发的，也没有确证是负载所致。375px 宽的德语长文案是否折行、两套主题下对话框配色，因此没有看过实际渲染。
+
+**局限**
+
+1. 门禁盲区：先赋给变量再传入 toast 的文案、经其它封装函数转发的 toast；
+2. 存量：工作区非测试源码里 `t('…') || '字面量'` 形态仍有 315 处 / 65 个文件（`rg --pcre2 "\bt\(\s*['\"][^)]*\)\s*\|\|\s*['\"]" src` 去掉测试文件）；toast 里的已由门禁清零，其余位置没有处理；18 个文件用了 next-intl 会忽略的 `defaultMessage`；9 个文件用 `isZh ?` 三元；`clipboardUtils.ts` 的 `ask()` / `window.confirm` 文案与 `api.ts:644` 的 `console.warn('重试失败:')` 仍是中文字面量；
+3. HEAD 上 `verify:hardcoded-copy` 为红，原因不是这批改动：他人提交的组件（workspace-boundary、visual-diff 审批卡等）顶破 JSX 棘轮基线，已提交的 `TimeTravelRollbackModal.tsx` 仍有 10 处 toast 字面量（其作者的工作区版本已迁移、尚未提交）；`verify:i18n` 在 HEAD 上本来就是红的（各语言缺键 / 孤儿键）；
+4. 新增的 de / ja / ko / zh-TW 译文只经过机器门禁，没有母语者审校；
+5. 删除仍是永久删除，没有回收站；`KanbanBoardView.tsx` 已 981 行（超过 500 行上限，本批只加了确认接线的 +19 / -4 行，未拆分）。
 
 ---
 
