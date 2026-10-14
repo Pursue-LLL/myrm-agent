@@ -95,6 +95,24 @@ describe('CatchupInbox', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('renders nothing until the first fetch returns, so an empty inbox never flashes its trigger', async () => {
+    getCatchupBriefs.mockReturnValue(new Promise(() => undefined));
+    const { container } = await renderInbox();
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('keeps an open popover on the all-caught-up state when its list empties', async () => {
+    await renderInbox();
+    fireEvent.click(screen.getByRole('button', { name: 'Catchup inbox, 2 waiting' }));
+    getCatchupBriefs.mockResolvedValue({ briefs: [] });
+
+    digestEvent('a', 'completed');
+    await advance(1100);
+
+    expect(screen.getByText(enMessages.Catchup.allCaughtUp)).toBeInTheDocument();
+  });
+
   it('refetches once when a chat changes phase, not on every progress event', async () => {
     await renderInbox();
     expect(getCatchupBriefs).toHaveBeenCalledTimes(1);

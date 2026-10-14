@@ -11,7 +11,7 @@
  *   (POS: global SSE bridge signals that a chat's state changed)
  *
  * [OUTPUT]
- * - CatchupInbox: header popover with a badge count; renders nothing when there is nothing to catch up on
+ * - CatchupInbox: header popover with a badge count; renders nothing while there is nothing to catch up on
  *
  * [POS]
  * Entry point of the Catchup experience; refetches only on signals that can change the list.
@@ -42,7 +42,6 @@ export const CatchupInbox: React.FC = () => {
   const openChatId = useChatStore((s) => s.chatId?.trim() ?? '');
   const [briefs, setBriefs] = useState<CatchupBrief[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const lastPhaseByChat = useRef(new Map<string, string>());
   const refetchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const previousOpenChatId = useRef(openChatId);
@@ -53,8 +52,6 @@ export const CatchupInbox: React.FC = () => {
       setBriefs(res.briefs || []);
     } catch (error) {
       console.error('Failed to fetch catchup briefs:', error);
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
@@ -118,7 +115,9 @@ export const CatchupInbox: React.FC = () => {
     setIsOpen(false);
   };
 
-  if (visibleBriefs.length === 0 && !isLoading) {
+  // An empty inbox shows nothing (also before the first fetch returns); an open popover whose list empties stays
+  // until it is closed, so it never vanishes under the user's cursor.
+  if (visibleBriefs.length === 0 && !isOpen) {
     return null;
   }
 
@@ -160,9 +159,7 @@ export const CatchupInbox: React.FC = () => {
         </div>
 
         <ScrollArea className="h-[400px] p-4">
-          {isLoading && visibleBriefs.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">{t('loading')}</div>
-          ) : visibleBriefs.length === 0 ? (
+          {visibleBriefs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm gap-2">
               <CheckCircle2 className="h-8 w-8 text-muted-foreground/50" />
               {t('allCaughtUp')}

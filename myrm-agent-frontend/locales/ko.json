@@ -11750,7 +11750,6 @@
     "inboxTitle": "정리함",
     "openInbox": "정리함, 대기 중 {count}건",
     "close": "닫기",
-    "loading": "불러오는 중...",
     "allCaughtUp": "모두 정리되었습니다!",
     "untitledChat": "제목 없는 대화",
     "statusCompleted": "완료됨",

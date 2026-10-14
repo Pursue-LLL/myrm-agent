@@ -11818,7 +11818,6 @@
     "inboxTitle": "会话追赶简报",
     "openInbox": "会话追赶简报，{count} 项待处理",
     "close": "关闭",
-    "loading": "加载中...",
     "allCaughtUp": "您已处理完所有简报！",
     "untitledChat": "未命名会话",
     "statusCompleted": "已完成",

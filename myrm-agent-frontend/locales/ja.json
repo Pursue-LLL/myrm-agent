@@ -11750,7 +11750,6 @@
     "inboxTitle": "キャッチアップ受信トレイ",
     "openInbox": "キャッチアップ受信トレイ、未確認 {count} 件",
     "close": "閉じる",
-    "loading": "読み込み中...",
     "allCaughtUp": "すべて確認済みです！",
     "untitledChat": "無題のセッション",
     "statusCompleted": "完了",

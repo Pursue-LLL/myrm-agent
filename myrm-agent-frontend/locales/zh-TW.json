@@ -11750,7 +11750,6 @@
     "inboxTitle": "會話追趕簡報",
     "openInbox": "會話追趕簡報，{count} 項待處理",
     "close": "關閉",
-    "loading": "載入中...",
     "allCaughtUp": "您已處理完所有簡報！",
     "untitledChat": "未命名會話",
     "statusCompleted": "已完成",

@@ -11818,7 +11818,6 @@
     "inboxTitle": "Catchup Inbox",
     "openInbox": "Catchup inbox, {count} waiting",
     "close": "Close",
-    "loading": "Loading...",
     "allCaughtUp": "You are all caught up!",
     "untitledChat": "Untitled conversation",
     "statusCompleted": "Completed",

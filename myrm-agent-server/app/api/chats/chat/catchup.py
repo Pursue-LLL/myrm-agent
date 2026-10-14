@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Collection
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, NamedTuple
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -63,6 +63,14 @@ class CatchupInbox(BaseModel):
     briefs: list[CatchupItem]
 
 
+class _Candidate(NamedTuple):
+    chat_id: str
+    title: str | None
+    updated_at: datetime
+    last_read_at: datetime | None
+    has_pending_approval: bool
+
+
 def _naive_utc(moment: datetime) -> datetime:
     """Normalize to the naive-UTC convention that ``Message.created_at`` and ``last_read_at`` are stored in."""
     if moment.tzinfo is None:
@@ -89,9 +97,7 @@ async def _unseen_failures(db: AsyncSession) -> dict[str, CatchupStatus]:
     return failures
 
 
-async def _candidate_chats(
-    db: AsyncSession, running_ids: Collection[str], failed_ids: Collection[str]
-) -> list[tuple[str, str | None, datetime, datetime | None]]:
+async def _candidate_chats(db: AsyncSession, running_ids: Collection[str], failed_ids: Collection[str]) -> list[_Candidate]:
     """Newest web chats that hold something unseen: a reply, a running turn, a pending approval or a failure."""
     unseen_reply = exists().where(
         Message.chat_id == Chat.id,
@@ -101,7 +107,7 @@ async def _candidate_chats(
     )
     pending_approval = exists().where(ApprovalRecord.chat_id == Chat.id, ApprovalRecord.status == "PENDING")
     stmt = (
-        select(Chat.id, Chat.title, Chat.updated_at, Chat.last_read_at)
+        select(Chat.id, Chat.title, Chat.updated_at, Chat.last_read_at, pending_approval.label("has_pending_approval"))
         .where(
             Chat.source == "web",
             Chat.deleted_at.is_(None),
@@ -110,7 +116,7 @@ async def _candidate_chats(
         .order_by(Chat.updated_at.desc())
         .limit(INBOX_LIMIT)
     )
-    return [(row[0], row[1], row[2], row[3]) for row in await db.execute(stmt)]
+    return [_Candidate(*row) for row in await db.execute(stmt)]
 
 
 async def _chat_brief_inputs(
@@ -162,30 +168,24 @@ async def get_catchup_briefs(user_id: Annotated[str, Depends(get_deploy_identity
     async with get_session_factory()() as db:
         failures = await _unseen_failures(db)
         chats = await _candidate_chats(db, running_ids, failures.keys())
-        approval_rows = await db.execute(
-            select(ApprovalRecord.chat_id).where(
-                ApprovalRecord.chat_id.in_([chat[0] for chat in chats]), ApprovalRecord.status == "PENDING"
-            )
-        )
-        approval_ids = set(approval_rows.scalars())
 
-        for chat_id, title, updated_at, last_read_at in chats:
+        for chat in chats:
             status: CatchupStatus = "completed"
-            if chat_id in approval_ids:
+            if chat.has_pending_approval:
                 status = "waiting_for_approval"
-            elif chat_id in running_ids:
+            elif chat.chat_id in running_ids:
                 status = "running"
-            elif chat_id in failures:
-                status = failures[chat_id]
+            elif chat.chat_id in failures:
+                status = failures[chat.chat_id]
 
-            messages, progress_steps = await _chat_brief_inputs(db, chat_id, last_read_at)
+            messages, progress_steps = await _chat_brief_inputs(db, chat.chat_id, chat.last_read_at)
             brief = extract_catchup_brief(messages, progress_steps, status)
             briefs.append(
                 CatchupItem(
                     **brief.model_dump(),
-                    chat_id=chat_id,
-                    chat_title=title or "",
-                    updated_at=updated_at.isoformat(),
+                    chat_id=chat.chat_id,
+                    chat_title=chat.title or "",
+                    updated_at=chat.updated_at.isoformat(),
                 )
             )
 
