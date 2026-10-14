@@ -27,6 +27,8 @@ import { buildMermaidConfig, sanitizeMermaidSvg } from './mermaid-theme';
 import type { MermaidChartProps, LegendItem } from './mermaid-theme';
 import MermaidLegendPanel from './MermaidLegendPanel';
 import { globalMermaidRenderQueue, MermaidRenderTimeoutError } from './mermaidRenderQueue';
+import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const getTouchDistance = (touches: React.TouchList) => {
   const dx = touches[0].clientX - touches[1].clientX;
@@ -466,7 +468,10 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
 
   const renderControlButtons = (alwaysVisible: boolean) => (
     <div
-      className={`absolute top-3 right-3 z-10 flex space-x-1 ${alwaysVisible ? '' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200`}
+      className={cn(
+        'absolute top-3 right-3 z-10 flex space-x-1 transition-all duration-200',
+        !alwaysVisible && REVEAL_ON_HOVER,
+      )}
     >
       {controlButtons.map(({ icon: Icon, onClick, disabled, title }, index) => (
         <button

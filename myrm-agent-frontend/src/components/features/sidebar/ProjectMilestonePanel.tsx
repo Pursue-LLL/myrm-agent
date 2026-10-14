@@ -27,7 +27,7 @@ import {
   type AssessmentImportValueSummary,
 } from '@/services/assessmentImportMetrics';
 import { useTranslations } from 'next-intl';
-import { activateOnKey } from '@/lib/utils/a11y';
+import { activateOnKey, REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 export default function ProjectMilestonePanel() {
   const t = useTranslations();
@@ -546,7 +546,7 @@ function MilestoneRow({
         </div>
         <button
           onClick={() => onDelete(milestone)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/40 hover:text-destructive"
+          className={cn('transition-opacity text-muted-foreground/40 hover:text-destructive', REVEAL_ON_HOVER)}
         >
           <Trash2 size={8} />
         </button>

@@ -32,6 +32,7 @@ import { SourceItem } from '@/components/features/message-actions/SourcesButton'
 import type { CitedMemoryReference, Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { normalizeCitationTitle } from '@/lib/citations/preprocessCitationMarkers';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface MemoryCitationsButtonProps {
   memoryIds?: string[];
@@ -354,7 +355,7 @@ function SingleCopyButton({ text, title, ariaLabel }: { text: string; title: str
       onClick={handleCopy}
       className={cn(
         'inline-flex items-center justify-center p-1 rounded-md transition-all',
-        'opacity-0 group-hover:opacity-100 focus:opacity-100',
+        REVEAL_ON_HOVER,
         'bg-background/80 hover:bg-muted border border-border/40 text-muted-foreground hover:text-foreground',
         copied && 'opacity-100 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
       )}

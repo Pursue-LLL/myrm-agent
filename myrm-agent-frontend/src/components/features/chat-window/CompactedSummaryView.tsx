@@ -31,6 +31,8 @@ import { CompactedBookmarksList } from './CompactedBookmarksList';
 import { CompactedMilestoneCard, BranchSummaryCard } from '../compaction-milestone';
 import { parseCompactionEntry } from '../compaction-milestone/compactionParser';
 import { useCompactedSummaryState, bookmarkDisplayLabel } from './useCompactedSummaryState';
+import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const markdownLinkComponents = {
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
@@ -182,7 +184,7 @@ export const CompactedSummaryView = () => {
             <FileText size={16} weight="duotone" />
             {t('title')}
           </div>
-          <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          <div className={cn('flex gap-2 transition-opacity', REVEAL_ON_HOVER)}>
             {!isEditing ? (
               <button
                 type="button"

@@ -39,6 +39,7 @@ import {
   MoveDialog,
   useWorkspaceFileOps,
 } from './WorkspaceFileOps';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -159,7 +160,10 @@ const TreeItem: React.FC<TreeItemProps> = memo(
             <span
               role="button"
               tabIndex={-1}
-              className="text-xs font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 hover:underline cursor-pointer ml-1"
+              className={cn(
+                'text-xs font-semibold text-primary transition-opacity shrink-0 cursor-pointer ml-1',
+                REVEAL_ON_HOVER,
+              )}
               title="@ mention"
               onClick={(e) => {
                 e.stopPropagation();

@@ -63,6 +63,7 @@ import { ArchiveRestoreResultChip } from './ArchiveRestoreResultChip';
 import { SkillManageBatchRollbackAction } from './SkillManageBatchRollbackAction';
 import { extractSkillManageBatchId } from './skillManageBatch';
 import { EXPAND_PROGRESS_STEPS_EVENT, type ExpandProgressStepsDetail } from '@/lib/chat/progressStepsUi';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface ProgressStepsProps {
   messageId: string;
@@ -307,7 +308,10 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                 setSelectedStepForModal(step);
               }}
               title={t('viewDetailTooltip')}
-              className="ml-auto opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all duration-150 shrink-0"
+              className={cn(
+                'ml-auto p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all duration-150 shrink-0',
+                REVEAL_ON_HOVER,
+              )}
             >
               <Info className="w-3.5 h-3.5" />
             </button>

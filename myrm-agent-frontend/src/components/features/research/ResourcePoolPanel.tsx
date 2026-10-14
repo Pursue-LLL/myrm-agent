@@ -26,6 +26,7 @@ import { uploadFiles } from '@/services/file';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
 import useResearchStore, { type ResearchResource } from '@/store/useResearchStore';
 import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface ResourceItemProps {
   resource: ResearchResource;
@@ -61,7 +62,7 @@ function ResourceItem({ resource, onToggle, onRemove }: ResourceItemProps) {
       </div>
 
       <button
-        className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+        className={cn('shrink-0 text-muted-foreground hover:text-destructive transition-all', REVEAL_ON_HOVER)}
         onClick={(e) => {
           e.stopPropagation();
           onRemove(resource.id);

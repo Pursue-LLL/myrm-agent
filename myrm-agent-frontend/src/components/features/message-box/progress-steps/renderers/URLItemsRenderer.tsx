@@ -13,7 +13,7 @@ import {
 import useChatStore from '@/store/useChatStore';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import { useTranslations } from 'next-intl';
-import { activateOnKey } from '@/lib/utils/a11y';
+import { activateOnKey, REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface URLItemsRendererProps {
   items: { url: string }[];
@@ -178,7 +178,10 @@ const URLItemsRenderer: React.FC<URLItemsRendererProps> = ({
 
                     <button
                       type="button"
-                      className="flex-shrink-0 p-1.5 rounded-md opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-chart-2/10"
+                      className={cn(
+                        'flex-shrink-0 p-1.5 rounded-md transition-opacity hover:bg-chart-2/10',
+                        REVEAL_ON_HOVER,
+                      )}
                       onClick={(e) => handleAgentBrowse(e, item.url)}
                       title={t('agentBrowse')}
                     >

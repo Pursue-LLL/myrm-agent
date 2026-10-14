@@ -37,6 +37,8 @@ import { fmtCost, fmtTokens, extractCostUsd, extractTotalTokens } from '@/lib/ut
 import type { SubagentNode, StreamEntry, TeammateMessageEntry } from '@/store/chat/useSubagentStore';
 import { STATUS_ICON_MAP } from './SubagentStream';
 import { SubagentViewportTab } from './SubagentViewportTab';
+import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface SubagentDetailDrawerProps {
   node: SubagentNode | null;
@@ -384,7 +386,7 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node
                     size="sm"
                     variant="ghost"
                     onClick={() => handleCopy(node.description, 'Task description')}
-                    className="absolute top-2 right-2 h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className={cn('absolute top-2 right-2 h-7 px-2 transition-opacity', REVEAL_ON_HOVER)}
                   >
                     <Copy className="w-3.5 h-3.5" />
                   </Button>

@@ -6,6 +6,7 @@ import type { TaskDepInfo } from './kanban-styles';
 import { STATUS_DOT } from './kanban-styles';
 import type { KanbanTask } from '@/services/kanban';
 import KanbanMarkdown from './KanbanMarkdown';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 // --- Dependencies Section ---
 
@@ -77,7 +78,10 @@ export function DependenciesSection({
                 </button>
                 <button
                   onClick={() => handleRemoveDep(parent.task_id)}
-                  className="text-[9px] text-destructive/50 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  className={cn(
+                    'text-[9px] text-destructive/50 hover:text-destructive transition-opacity shrink-0',
+                    REVEAL_ON_HOVER,
+                  )}
                 >
                   &times;
                 </button>

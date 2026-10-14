@@ -16,6 +16,7 @@ import {
   type IntegrationSyncResult,
 } from '@/services/memory/integration';
 import SettingsSection from '../../SettingsSection';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const IntegrationMemorySection = memo(() => {
   const t = useTranslations('settings.integrationMemory');
@@ -235,7 +236,7 @@ const TreeCard = memo(({ tree, onSync, onRemove, syncing, t }: TreeCardProps) =>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+        <div className={cn('flex items-center gap-1 transition-opacity shrink-0', REVEAL_ON_HOVER)}>
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onSync} disabled={syncing}>
             <RefreshCw className={cn('h-3 w-3', syncing && 'animate-spin')} />
           </Button>

@@ -36,6 +36,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import type { Skill, SecurityScanSummary, SkillLifecycleAction } from '@/store/skill/types';
 import SkillAvailabilityNotice from './SkillAvailabilityNotice';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 function getSecurityBadgeProps(security: SecurityScanSummary): {
   icon: React.ElementType;
@@ -308,11 +309,7 @@ const SkillCard = memo(
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
+                <Button variant="ghost" size="icon" className={cn('h-8 w-8 transition-opacity', REVEAL_ON_HOVER)}>
                   <MoreHorizontal size={16} />
                 </Button>
               </DropdownMenuTrigger>

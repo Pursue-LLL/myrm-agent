@@ -5,11 +5,11 @@ import { Tree } from 'react-arborist';
 import { useTranslations } from 'next-intl';
 import { ChevronRight, ChevronDown, Folder, FileText, Edit2 } from 'lucide-react';
 import { IconLoader, IconTrash } from '@/components/features/icons/PremiumIcons';
-import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { TreeNode } from '@/services/wikiService';
 import type { Concept } from '@/services/wikiService';
 import type { DeleteTarget } from './useWikiConceptsList';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface WikiConceptTreeProps {
   treeRef: React.RefObject<TreeApi<TreeNode> | null>;
@@ -39,7 +39,6 @@ export function WikiConceptTree({
   onDelete,
 }: WikiConceptTreeProps) {
   const t = useTranslations('settings.wiki.concepts');
-  const isMobile = useIsMobile();
 
   if (isLoading) {
     return (
@@ -117,10 +116,7 @@ export function WikiConceptTree({
 
             <div
               data-wiki-node-action
-              className={cn(
-                'flex items-center gap-1 transition-opacity',
-                isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
-              )}
+              className={cn('flex items-center gap-1 transition-opacity', REVEAL_ON_HOVER)}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();

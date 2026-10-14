@@ -43,6 +43,8 @@ import {
 import { getExternalAgentAuthStatus, type ExternalAgentAuthStatus } from '@/services/external-agents';
 import ExternalAgentAuthControls from './ExternalAgentAuthControls';
 import SettingsSection from '../SettingsSection';
+import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const DEFAULT_AGENT: ExternalAgentConfig = {
   name: '',
@@ -365,13 +367,13 @@ const ExternalAgentsConfig = memo(() => {
                     />
                     <button
                       onClick={() => handleStartEdit(index)}
-                      className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-muted rounded transition-all"
+                      className={cn('p-1.5 hover:bg-muted rounded transition-all', REVEAL_ON_HOVER)}
                     >
                       <IconPencil className="w-3.5 h-3.5 text-muted-foreground" />
                     </button>
                     <button
                       onClick={() => setDeleteIndex(index)}
-                      className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-muted rounded transition-all"
+                      className={cn('p-1.5 hover:bg-muted rounded transition-all', REVEAL_ON_HOVER)}
                     >
                       <IconTrash className="w-3.5 h-3.5 text-red-500" />
                     </button>

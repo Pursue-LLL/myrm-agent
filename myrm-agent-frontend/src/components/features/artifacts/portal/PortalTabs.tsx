@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
-import { activateOnKey } from '@/lib/utils/a11y';
+import { activateOnKey, REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface OpenArtifactTab {
   artifact: Artifact;
@@ -75,7 +75,7 @@ const PortalTabs: React.FC<PortalTabsProps> = ({
               <button
                 className={cn(
                   'ml-auto p-0.5 rounded hover:bg-muted-foreground/20 transition-colors',
-                  'opacity-0 group-hover:opacity-100',
+                  REVEAL_ON_HOVER,
                   isActive && 'opacity-100',
                 )}
                 onClick={(e) => {

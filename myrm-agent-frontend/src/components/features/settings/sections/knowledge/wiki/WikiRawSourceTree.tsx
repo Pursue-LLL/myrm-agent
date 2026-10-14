@@ -19,6 +19,7 @@ import { Textarea } from '@/components/primitives/textarea';
 import { cn } from '@/lib/utils/classnameUtils';
 import { wikiService, type TreeNode } from '@/services/wikiService';
 import { getWikiOperationErrorMessage } from './wikiTreeUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface WikiRawSourceTreeProps {
   treeData: TreeNode[];
@@ -135,7 +136,7 @@ function RawTreeNode({
       <span className="min-w-0 flex-1 truncate font-mono text-xs">{displayPath}</span>
       <button
         type="button"
-        className="shrink-0 rounded px-2 py-0.5 text-xs text-destructive opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+        className={cn('shrink-0 rounded px-2 py-0.5 text-xs text-destructive transition-opacity', REVEAL_ON_HOVER)}
         onClick={() => onRequestForget(displayPath)}
         aria-label={t('rawForgetConfirm')}
       >

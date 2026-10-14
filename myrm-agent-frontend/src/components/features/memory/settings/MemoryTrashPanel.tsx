@@ -6,6 +6,7 @@ import { IconLoader, IconTrash } from '@/components/features/icons/PremiumIcons'
 import { cn } from '@/lib/utils/classnameUtils';
 import type { Memory } from '@/store/memory';
 import MemoryTypeIcon from '../cards/MemoryTypeIcon';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface MemoryTrashPanelProps {
   memories: Memory[];
@@ -84,7 +85,7 @@ const MemoryTrashPanel = memo(function MemoryTrashPanel({
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <div className={cn('flex items-center gap-1 transition-opacity shrink-0', REVEAL_ON_HOVER)}>
                   <button
                     onClick={() => onRestore(mem.id)}
                     className={cn(

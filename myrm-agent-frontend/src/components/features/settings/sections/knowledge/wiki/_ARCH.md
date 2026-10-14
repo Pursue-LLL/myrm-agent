@@ -65,6 +65,6 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 - Settings Advanced：整页 replace 前内联警告文案（settings caller only）
 - Batch import：首次默认 skip 冲突；`conflict_paths` 非空时弹出 `WikiImportConflictDialog` 可 supersede 重试
 - Batch import 安全：`security_blocked_paths` / `security_redacted_paths` 非空时弹出 `WikiImportSecurityDialog`
-- Raw forget：Overview raw 树删除 → reason → `DELETE /wiki/raw/{path}`；移动端删除按钮常显
+- Raw forget：Overview raw 树删除 → reason → `DELETE /wiki/raw/{path}`；删除按钮用 `REVEAL_ON_HOVER`（触屏常显，桌面悬停或键盘聚焦显示）
 - Maintain：若移除 blocked raw，toast 展示 `raw_security_removed` 与路径列表
 - Maintain（Full）：POST 响应 issues overlay 健康列表；GET 合并 vault 快照 drift（刷新仍可见）

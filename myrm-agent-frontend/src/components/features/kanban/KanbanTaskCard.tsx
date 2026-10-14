@@ -551,7 +551,7 @@ export default function KanbanTaskCard({
                         </div>
                         <button
                           onClick={() => handleRemoveDep(parent.task_id)}
-                          className="text-[9px] text-destructive/50 hover:text-destructive opacity-0 group-hover/dep:opacity-100 transition-opacity shrink-0"
+                          className="text-[9px] text-destructive/50 hover:text-destructive transition-opacity shrink-0 opacity-0 group-hover/dep:opacity-100 group-focus-within/dep:opacity-100 pointer-coarse:opacity-100"
                           title={t('removeDep')}
                         >
                           &times;

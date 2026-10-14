@@ -29,6 +29,7 @@ import type { InstalledCompanionPet } from '@/services/companion/petInstall';
 import { companionPetSpritesheetUrl } from '@/services/companion/petSpritesheet';
 import { resolveCompanionFormatLabelKey } from '@/services/companion/companionFormatLabelCore';
 import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface InstalledPetRowProps {
   pets: InstalledCompanionPet[];
@@ -108,7 +109,8 @@ export function InstalledPetRow({
                     data-testid={`installed-pet-menu-${pet.slug}`}
                     className={cn(
                       'absolute right-0 top-0 rounded-md p-0.5 text-muted-foreground',
-                      'opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 focus:opacity-100',
+                      REVEAL_ON_HOVER,
+                      'transition-opacity',
                       'hover:bg-background/80 hover:text-foreground',
                       isBusy && 'pointer-events-none',
                     )}

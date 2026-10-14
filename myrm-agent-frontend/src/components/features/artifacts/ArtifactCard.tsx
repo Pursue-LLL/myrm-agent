@@ -54,7 +54,7 @@ import {
   type ArtifactDeployPreflight,
 } from './artifactUtils';
 import { buildPublicArtifactShareUrl } from '@/services/artifactShares';
-import { activateOnKey } from '@/lib/utils/a11y';
+import { activateOnKey, REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface ArtifactCardProps {
   artifact: Artifact;
@@ -595,7 +595,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+          <div className={cn('flex items-center gap-1 transition-opacity duration-200', REVEAL_ON_HOVER)}>
             {hasLocalPath && (
               <Button
                 variant="ghost"

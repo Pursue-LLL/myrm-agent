@@ -48,6 +48,7 @@ import { exportSessionZipPack } from '@/services/chatExportPack';
 import { moveChatToProject } from '@/services/projects';
 import useChatStore from '@/store/useChatStore';
 import { useProjectStore } from '@/store/useProjectStore';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const FastSearchIcon = ({ size, className }: { size?: number; className?: string }) => (
   <svg
@@ -302,7 +303,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                 <button
                   className={cn(
                     'transition-opacity p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded min-w-[32px] min-h-[32px] flex items-center justify-center',
-                    isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+                    REVEAL_ON_HOVER,
                   )}
                   aria-label={t('common.more')}
                 >

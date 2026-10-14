@@ -24,6 +24,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface ProviderListProps {
   providers: ProviderConfig[];
@@ -153,7 +154,7 @@ const SortableProviderItem = memo<{
               e.stopPropagation();
               onRemove();
             }}
-            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-all"
+            className={cn('p-1 hover:bg-destructive/10 rounded transition-all', REVEAL_ON_HOVER)}
             title={t('removeProvider')}
           >
             <Trash2 className="w-3.5 h-3.5 text-destructive" />
