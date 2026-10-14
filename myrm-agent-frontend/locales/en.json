@@ -7900,7 +7900,7 @@
     "dropHere": "Drop here",
     "reclaimTitle": "Reclaim Running Task",
     "reclaimDesc": "This will immediately stop the agent executing this task and reset it to Ready.",
-    "reclaimConfirm": "Reclaim",
+    "reclaimAction": "Reclaim",
     "reclaimReasonPlaceholder": "Reason (optional)",
     "reclaimReassignLabel": "Reassign to agent (optional)",
     "reclaimSuccess": "Task reclaimed successfully",
@@ -8235,7 +8235,9 @@
       "actionBacklog": "Prioritize or schedule for execution",
       "actionDone": "Task completed successfully"
     },
-    "cardActions": "Task actions"
+    "cardActions": "Task actions",
+    "deleteConfirmTitle": "Delete this task?",
+    "deleteConfirmDesc": "\"{title}\"\nThe task and its run history are deleted permanently. Tasks waiting on it become Ready if nothing else blocks them, and may start running automatically."
   },
   "channels": {
     "sectionTitle": "Message Channels",

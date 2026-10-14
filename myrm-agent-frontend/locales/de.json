@@ -7832,7 +7832,7 @@
     "dropHere": "Hier ablegen",
     "reclaimTitle": "Laufende Aufgabe zurückfordern",
     "reclaimDesc": "Dies stoppt sofort den Agenten, der diese Aufgabe ausführt, und setzt sie auf Bereit zurück.",
-    "reclaimConfirm": "Zurückfordern",
+    "reclaimAction": "Zurückfordern",
     "reclaimReasonPlaceholder": "Grund (optional)",
     "reclaimReassignLabel": "Agent neu zuweisen (optional)",
     "reclaimSuccess": "Aufgabe erfolgreich zurückgefordert",
@@ -8167,7 +8167,9 @@
       "actionBacklog": "Priorisieren oder zur Ausführung planen",
       "actionDone": "Aufgabe erfolgreich abgeschlossen"
     },
-    "cardActions": "Aufgabenaktionen"
+    "cardActions": "Aufgabenaktionen",
+    "deleteConfirmTitle": "Aufgabe löschen?",
+    "deleteConfirmDesc": "„{title}“\nDie Aufgabe und ihr Ausführungsverlauf werden endgültig gelöscht. Aufgaben, die auf sie warten, werden Bereit, sofern sie nichts anderes blockiert, und können automatisch starten."
   },
   "channels": {
     "sectionTitle": "Nachrichtenkanäle",

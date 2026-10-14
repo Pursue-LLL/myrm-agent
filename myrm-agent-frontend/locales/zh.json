@@ -7900,7 +7900,7 @@
     "dropHere": "拖放到这里",
     "reclaimTitle": "回收运行中的任务",
     "reclaimDesc": "这将立即停止正在执行此任务的智能体，并将任务重置为就绪状态。",
-    "reclaimConfirm": "回收",
+    "reclaimAction": "回收",
     "reclaimReasonPlaceholder": "原因（可选）",
     "reclaimReassignLabel": "重新分配给智能体（可选）",
     "reclaimSuccess": "任务已成功回收",
@@ -8235,7 +8235,9 @@
       "actionBacklog": "排定优先级并安排执行",
       "actionDone": "任务已成功执行完毕"
     },
-    "cardActions": "任务操作"
+    "cardActions": "任务操作",
+    "deleteConfirmTitle": "删除此任务？",
+    "deleteConfirmDesc": "「{title}」\n任务及其运行记录将被永久删除。正在等待它的任务，若没有其他依赖未完成，会变为就绪状态并可能自动开始执行。"
   },
   "channels": {
     "sectionTitle": "消息通道",

@@ -7832,7 +7832,7 @@
     "dropHere": "ここにドロップ",
     "reclaimTitle": "実行中タスクの回収",
     "reclaimDesc": "このタスクを実行中のエージェントを即座に停止し、準備完了状態にリセットします。",
-    "reclaimConfirm": "回収",
+    "reclaimAction": "回収",
     "reclaimReasonPlaceholder": "理由（任意）",
     "reclaimReassignLabel": "エージェントに再割り当て（任意）",
     "reclaimSuccess": "タスクの回収に成功しました",
@@ -8167,7 +8167,9 @@
       "actionBacklog": "優先度を設定して実行をスケジュール",
       "actionDone": "タスクは正常に完了しました"
     },
-    "cardActions": "タスクの操作"
+    "cardActions": "タスクの操作",
+    "deleteConfirmTitle": "このタスクを削除しますか？",
+    "deleteConfirmDesc": "「{title}」\nタスクと実行履歴は完全に削除されます。このタスクを待っていたタスクは、他に待機要因がなければ準備完了になり、自動的に実行が始まることがあります。"
   },
   "channels": {
     "sectionTitle": "メッセージチャネル",

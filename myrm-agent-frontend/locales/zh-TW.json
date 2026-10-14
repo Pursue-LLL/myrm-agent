@@ -7832,7 +7832,7 @@
     "dropHere": "拖放到這裡",
     "reclaimTitle": "回收執行中的任務",
     "reclaimDesc": "這將立即停止正在執行此任務的智慧體，並將任務重置為就緒狀態。",
-    "reclaimConfirm": "回收",
+    "reclaimAction": "回收",
     "reclaimReasonPlaceholder": "原因（可選）",
     "reclaimReassignLabel": "重新分配給智慧體（可選）",
     "reclaimSuccess": "任務已成功回收",
@@ -8167,7 +8167,9 @@
       "actionBacklog": "排定優先順序並安排執行",
       "actionDone": "任務已成功執行完畢"
     },
-    "cardActions": "任務操作"
+    "cardActions": "任務操作",
+    "deleteConfirmTitle": "刪除此任務？",
+    "deleteConfirmDesc": "「{title}」\n任務及其執行記錄將被永久刪除。正在等待它的任務，若沒有其他依賴未完成，會變為就緒狀態並可能自動開始執行。"
   },
   "channels": {
     "sectionTitle": "訊息通道",

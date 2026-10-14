@@ -115,7 +115,7 @@ describe('KanbanTaskCardActions menu', () => {
 
     expect(screen.queryByRole('menuitem', { name: 'specify' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'decompose' })).toBeNull();
-    expect(screen.queryByRole('menuitem', { name: 'reclaimConfirm' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'reclaimAction' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'taskDetails' })).toBeNull();
   });
 
@@ -125,7 +125,7 @@ describe('KanbanTaskCardActions menu', () => {
     renderActions('running', { onReclaim });
 
     await user.click(trigger());
-    await user.click(screen.getByRole('menuitem', { name: 'reclaimConfirm' }));
+    await user.click(screen.getByRole('menuitem', { name: 'reclaimAction' }));
 
     expect(onReclaim).toHaveBeenCalledWith('task-1');
   });
@@ -136,7 +136,7 @@ describe('KanbanTaskCardActions menu', () => {
 
     await user.click(trigger());
 
-    expect(screen.queryByRole('menuitem', { name: 'reclaimConfirm' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'reclaimAction' })).toBeNull();
   });
 });
 

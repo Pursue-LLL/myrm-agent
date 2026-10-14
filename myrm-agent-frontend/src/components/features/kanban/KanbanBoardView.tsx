@@ -45,6 +45,7 @@ import KanbanTaskDrawer from './KanbanTaskDrawer';
 import KanbanInlineAddForm from './KanbanInlineAddForm';
 import KanbanBulkActionBar from './KanbanBulkActionBar';
 import KanbanReplanDialog from './KanbanReplanDialog';
+import { KanbanTaskActionConfirm, useKanbanTaskActionConfirm } from './KanbanTaskActionConfirm';
 import { KanbanDropColumn } from './KanbanDndComponents';
 import { useKanbanDnD } from './useKanbanDnD';
 import { useKanbanAddTask } from './useKanbanAddTask';
@@ -493,6 +494,13 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     [fetchTasks, t],
   );
 
+  const {
+    state: taskActionState,
+    requestReclaim,
+    requestDelete,
+    dismiss: dismissTaskAction,
+  } = useKanbanTaskActionConfirm(tasks);
+
   const handleBulkMove = useCallback(
     async (taskIds: string[], targetStatus: TaskStatus) => {
       for (const id of taskIds) {
@@ -768,8 +776,8 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                     selectedTaskIds={selectedTaskIds}
                     onTaskSelect={handleTaskSelect}
                     onMoveTask={handleMoveTask}
-                    onDeleteTask={handleDeleteTask}
-                    onReclaimTask={handleReclaimTask}
+                    onDeleteTask={requestDelete}
+                    onReclaimTask={requestReclaim}
                     onRefresh={fetchTasks}
                     onOpenTaskDrawer={setDrawerTaskId}
                     laneByProfile={laneByProfile}
@@ -852,9 +860,9 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                       task={draggedTask}
                       allTasks={tasks}
                       onMove={handleMoveTask}
-                      onDelete={handleDeleteTask}
+                      onDelete={requestDelete}
                       onRefresh={fetchTasks}
-                      onReclaim={handleReclaimTask}
+                      onReclaim={requestReclaim}
                     />
                   </div>
                 ) : null}
@@ -960,6 +968,13 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
         cancelText={t('cancel')}
         variant="destructive"
         onConfirm={handleDropConfirm}
+      />
+
+      <KanbanTaskActionConfirm
+        state={taskActionState}
+        onDismiss={dismissTaskAction}
+        onReclaim={handleReclaimTask}
+        onDelete={handleDeleteTask}
       />
     </div>
   );

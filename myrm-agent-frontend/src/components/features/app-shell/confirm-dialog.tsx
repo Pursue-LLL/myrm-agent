@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { Trash2, AlertTriangle, Info } from 'lucide-react';
 import {
   AlertDialog,
@@ -46,6 +46,18 @@ interface ConfirmDialogProps {
 
   // 自定义样式
   className?: string;
+}
+
+/**
+ * 受控且没有 trigger 的对话框，Radix 关闭时无处可还焦点，会把焦点丢到 <body>，键盘用户回到页面顶部。
+ * 打开时记下当前焦点元素；焦点在菜单项上时（菜单随选择关闭、菜单项会卸载），改记菜单自己的触发按钮。
+ */
+function focusReturnTarget(active: Element | null): HTMLElement | null {
+  if (!(active instanceof HTMLElement) || active === document.body) {
+    return null;
+  }
+  const triggerId = active.closest('[role="menu"]')?.getAttribute('aria-labelledby');
+  return (triggerId ? document.getElementById(triggerId) : null) ?? active;
 }
 
 const variantConfig: Record<
@@ -117,6 +129,22 @@ export const ConfirmDialog = ({
     }
   };
 
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  // 布局阶段、早于 Radix FocusScope 把焦点移进对话框的 effect，此时拿到的还是触发操作的元素。
+  useLayoutEffect(() => {
+    if (open && !trigger) {
+      returnFocusRef.current = focusReturnTarget(document.activeElement);
+    }
+  }, [open, trigger]);
+
+  const handleCloseAutoFocus = (event: Event) => {
+    const target = returnFocusRef.current;
+    if (!trigger && target?.isConnected) {
+      event.preventDefault();
+      target.focus();
+    }
+  };
+
   const config = variantConfig[variant];
   const Icon = icon || <config.icon size={20} />;
 
@@ -143,7 +171,10 @@ export const ConfirmDialog = ({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
-      <AlertDialogContent className={cn('sm:max-w-[425px]', 'animate-in fade-in-0 zoom-in-95 duration-200', className)}>
+      <AlertDialogContent
+        onCloseAutoFocus={handleCloseAutoFocus}
+        className={cn('sm:max-w-[425px]', 'animate-in fade-in-0 zoom-in-95 duration-200', className)}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle
             className={cn('flex items-center gap-2 animate-in slide-in-from-top-2 duration-300', config.iconColor)}

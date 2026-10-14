@@ -100,7 +100,7 @@ export function StatusActionsBar({
               onClick={() => setShowReclaimDialog(true)}
               className="text-[10px] px-2 py-1 rounded-full bg-destructive/10 hover:bg-destructive/20 text-destructive font-medium transition-colors"
             >
-              {t('reclaimConfirm')}
+              {t('reclaimAction')}
             </button>
           )}
         </div>
@@ -174,7 +174,7 @@ export function StatusActionsBar({
               disabled={reclaiming}
               className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium disabled:opacity-50"
             >
-              {t('reclaimConfirm')}
+              {t('reclaimAction')}
             </button>
             <button
               onClick={() => {

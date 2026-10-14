@@ -7832,7 +7832,7 @@
     "dropHere": "여기에 놓기",
     "reclaimTitle": "실행 중인 작업 회수",
     "reclaimDesc": "이 작업을 실행 중인 에이전트를 즉시 중지하고 준비 상태로 초기화합니다.",
-    "reclaimConfirm": "회수",
+    "reclaimAction": "회수",
     "reclaimReasonPlaceholder": "사유 (선택사항)",
     "reclaimReassignLabel": "에이전트에 재할당 (선택사항)",
     "reclaimSuccess": "작업이 성공적으로 회수되었습니다",
@@ -8167,7 +8167,9 @@
       "actionBacklog": "우선순위 지정 및 실행 예약",
       "actionDone": "작업이 성공적으로 완료되었습니다"
     },
-    "cardActions": "작업 메뉴"
+    "cardActions": "작업 메뉴",
+    "deleteConfirmTitle": "이 작업을 삭제할까요?",
+    "deleteConfirmDesc": "\"{title}\"\n작업과 실행 기록이 영구적으로 삭제됩니다. 이 작업을 기다리던 작업은 다른 대기 요인이 없으면 준비됨 상태가 되어 자동으로 실행될 수 있습니다."
   },
   "channels": {
     "sectionTitle": "메시지 채널",
