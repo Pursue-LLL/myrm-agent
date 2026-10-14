@@ -43,8 +43,7 @@ dependencies = [
   # --- 事件循环 ---
   "uvloop>=0.22.1; sys_platform != 'win32'", # 高性能事件循环 (uvicorn_runner.py)
   "orjson>=3.12.0",                     # 高性能 JSON (sse_helpers + streaming + login)
-  "wakepy>=1.0.0",                      # 阻止系统休眠 (power/manager.py)
-  "psutil>=7.2.2",                      # 系统监控 (server_lock + health + power)
+  "psutil>=7.2.2",                      # 系统监控 (server_lock + health)
   "fluent-runtime>=0.4.0",             # i18n Fluent 引擎 (channels/i18n/engine.py)
   "websockets>=17.0.1",                   # WebSocket 通信 (11+ channels/voice)
   "aioboto3>=15.5.0",                   # AWS S3 异步客户端 (备份 + sandbox/storage)

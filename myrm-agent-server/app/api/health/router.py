@@ -354,7 +354,7 @@ async def safe_purge_vault(
     - Channel Pairings & Authorizations
 
     It wipes:
-    - All chats, forks, offline durable tasks, interrupted markers, and messages
+    - All chats, forks, interrupted markers, and messages
     - Leaf conversation recall segments & documents
     - FTS5 shadow inverted indexes (messages_fts, conversation_recall_fts, segments_fts)
     - Consumer cursor auto-increment sequences (sqlite_sequence)

@@ -142,7 +142,7 @@ These domains use matching names under both layers:
 | `background_tasks/` | `background/` | Long-running worker jobs (UI panel) |
 | `credentials/` | `integrations/` (+ `config/`) | OAuth / MCP credential slots |
 | `api_keys/` | `config/` | API key storage and rotation |
-| `system/` · `health/` | `infra/` · `power/` | Ops, shutdown, sleep inhibition |
+| `system/` · `health/` | `infra/` | Ops, shutdown, sleep inhibition |
 | `files/` (HTTP upload) | `files/` (bytes→text) + `artifacts/` | Deploy bundles and share tokens often touch `services/artifacts/` |
 
 ### `api/` only — no sibling `services/<same-name>/`

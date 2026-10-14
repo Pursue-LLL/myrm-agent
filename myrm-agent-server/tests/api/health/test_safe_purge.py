@@ -67,7 +67,6 @@ async def test_safe_vault_purge_service_execution(tmp_path: Path):
             )
         )
         await conn.execute(text("CREATE TABLE IF NOT EXISTS interrupted_turn_markers (id VARCHAR(255) PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE IF NOT EXISTS offline_durable_tasks (id VARCHAR(255) PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE IF NOT EXISTS conversation_forks (child_chat_id VARCHAR(255) PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE IF NOT EXISTS widget_kv_entries (id VARCHAR(255) PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE IF NOT EXISTS pending_memories (id VARCHAR(255) PRIMARY KEY)"))

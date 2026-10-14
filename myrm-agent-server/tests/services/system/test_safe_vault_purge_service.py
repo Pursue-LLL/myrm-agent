@@ -35,7 +35,6 @@ async def purge_test_engine() -> AsyncEngine:
         await conn.execute(text("CREATE TABLE conversation_recall_segments (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT)"))
         await conn.execute(text("CREATE TABLE conversation_recall_documents (id INTEGER PRIMARY KEY AUTOINCREMENT, doc TEXT)"))
         await conn.execute(text("CREATE TABLE interrupted_turn_markers (id TEXT PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE offline_durable_tasks (id TEXT PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE conversation_forks (id TEXT PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE widget_kv_entries (id TEXT PRIMARY KEY)"))
 

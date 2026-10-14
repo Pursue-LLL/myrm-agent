@@ -22,7 +22,6 @@ from .chat import (
     ConversationFork,
     InterruptedTurnMarker,
     Message,
-    OfflineDurableTask,
 )
 from .commitment import CommitmentModel
 from .config import ConfigAuditLog, UserConfig
@@ -96,7 +95,6 @@ __all__ = [
     "Chat",
     "Message",
     "ConversationFork",
-    "OfflineDurableTask",
     "InterruptedTurnMarker",
     # Agent
     "Agent",

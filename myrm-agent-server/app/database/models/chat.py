@@ -178,27 +178,6 @@ class ConversationFork(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class OfflineDurableTask(Base):
-    """持久化离线任务表
-
-    记录因客户端断线而转入后台托管的长耗时任务（如 deep_research）。
-    在 Server 意外重启时，通过扫描此表恢复任务执行。
-    """
-
-    __tablename__ = "offline_durable_tasks"
-
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    chat_id: Mapped[str] = mapped_column(
-        String(255),
-        ForeignKey("chats.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    action_mode: Mapped[str] = mapped_column(String(50), nullable=False)
-    serialized_params: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
 class InterruptedTurnMarker(Base):
     """Write-ahead marker for crash auto-continue.
 

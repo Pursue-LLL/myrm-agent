@@ -63,7 +63,6 @@
 | `system/` | ✅ 辅助 | 系统运维与技术支持排障包聚合服务（Support Debug Bundle） | [_ARCH.md](system/_ARCH.md) |
 | `locked_use/` | ✅ 辅助 | Locked Use 协调层（Computer Use 锁屏解锁编排，集成 SleepInhibitor + Tauri IPC） | [_ARCH.md](locked_use/_ARCH.md) |
 | `infra/` | ✅ 辅助 | 基础设施维护（沙箱清理、防休眠、系统通知） | [_ARCH.md](infra/_ARCH.md) |
-| `power/` | ✅ 辅助 | 电源与系统状态管理（智能防休眠锁、电量感知） | [_ARCH.md](power/_ARCH.md) |
 | `background/` | ✅ 辅助 | 后台守护任务 | [_ARCH.md](background/_ARCH.md) |
 | `wiki/` | ✅ 辅助 | Wiki 服务（记忆转 Wiki） | [_ARCH.md](wiki/_ARCH.md) |
 | `faq/` | ✅ 辅助 | Channel FAQ 语义缓存（per-agent Q&A CRUD + 零 LLM 拦截 + 命中追踪） | [_ARCH.md](faq/_ARCH.md) |

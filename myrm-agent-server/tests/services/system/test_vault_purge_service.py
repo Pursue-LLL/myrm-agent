@@ -66,7 +66,6 @@ async def test_purge_vault_orchestration_success() -> None:
         ("conversation_recall_segments",),
         ("conversation_recall_documents",),
         ("interrupted_turn_markers",),
-        ("offline_durable_tasks",),
         ("conversation_forks",),
         ("widget_kv_entries",),
         ("pending_memories",),

@@ -1,4 +1,4 @@
-"""Offline durable tasks persist `GeneralAgentParams` via model_dump → model_validate."""
+"""Interrupted-turn markers persist `GeneralAgentParams` via model_dump → model_validate."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from app.core.types import ModelConfig
 
 
 def test_general_agent_params_json_dump_validate_preserves_browser_and_auto_restore() -> None:
-    """Same path as `streaming.py` durable registration and `lifecycle/system.py` resume."""
+    """Same path as `write_interrupted_turn_marker` and the `lifecycle/auto_continue.py` resume."""
     original = GeneralAgentParams(
         query="task",
         model_cfg=ModelConfig(model="gpt-4o", api_key="test-key"),

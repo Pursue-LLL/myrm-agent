@@ -2139,7 +2139,6 @@ dependencies = [
     { name = "tenacity" },
     { name = "uvicorn" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
-    { name = "wakepy" },
     { name = "watchdog" },
     { name = "websockets" },
 ]
@@ -2234,7 +2233,6 @@ requires-dist = [
     { name = "tenacity", specifier = ">=9.1.4" },
     { name = "uvicorn", specifier = ">=0.52.4" },
     { name = "uvloop", marker = "sys_platform != 'win32'", specifier = ">=0.22.1" },
-    { name = "wakepy", specifier = ">=1.0.0" },
     { name = "watchdog", specifier = ">=6.0.0" },
     { name = "websockets", specifier = ">=17.0.1" },
 ]
@@ -3948,18 +3946,6 @@ source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/c0/91/b2eb59c2cf243de5de1e91c963655df78c015509f51297685a8c86a27b8c/w3lib-2.4.1.tar.gz", hash = "sha256:8dd69ee39ff6398d708c793abc779c334a69bac7cee1cdf71736c669ed6be864", size = 48494, upload-time = "2026-03-20T09:50:27.477Z" }
 wheels = [
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/66/c3/f8b216cbd742e5b84c40f045204c764ccb7524d2aeab021054ec69446b0a/w3lib-2.4.1-py3-none-any.whl", hash = "sha256:40930132907e68de906a5b89331ab8c8ff4f01bd35b5539ef7896017d814138d", size = 21695, upload-time = "2026-03-20T09:50:26.187Z" },
-]
-
-[[package]]
-name = "wakepy"
-version = "1.0.0"
-source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
-dependencies = [
-    { name = "jeepney", marker = "platform_system == 'DragonFly' or platform_system == 'FreeBSD' or platform_system == 'Minix' or platform_system == 'NetBSD' or platform_system == 'OpenBSD' or platform_system == 'SunOS' or sys_platform == 'aix' or sys_platform == 'linux'" },
-]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d6/13/78e45a3d2cd754f95d2fca5aece046676da559b8e34e294e69bb441f18fd/wakepy-1.0.0.tar.gz", hash = "sha256:a9425e8e77e89bccfe24a70f33ecd8596b474c75ddac79310cd54f2bc92210e3", size = 323693, upload-time = "2026-02-07T21:20:32.244Z" }
-wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/52/33/e692c64d00b7a0d203191b1a20c81c32dca93da38345f6f1ad91426e36fc/wakepy-1.0.0-py3-none-any.whl", hash = "sha256:d5497640791517982cf66d894c502e9fa5133dc75c4a45d3b18a3495d1cf8afb", size = 70336, upload-time = "2026-02-07T21:20:31.027Z" },
 ]
 
 [[package]]

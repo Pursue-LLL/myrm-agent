@@ -131,7 +131,6 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "onboarding",
         "ops",
         "org_model_policy",
-        "power",
         "project",
         "remote_host",
         "repair",

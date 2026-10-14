@@ -28,7 +28,6 @@ from app.lifecycle import (
     auto_continue_interrupted_turns,
     cleanup_browser_threads,
     init_risk_rules,
-    resume_durable_offline_tasks,
     start_approval_ttl_scheduler,
     start_auth_alert_monitor,
     start_auth_log_cleanup_scheduler,
@@ -248,7 +247,6 @@ async def run_async_warmup() -> None:
             start_memory_guardian_scheduler(),
             start_idle_task_listeners(),
             init_evolution_runtime(),
-            resume_durable_offline_tasks(),
             auto_continue_interrupted_turns(),
             cleanup_old_notifications(),
         ]

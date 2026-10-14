@@ -161,9 +161,8 @@ class SafeVaultPurgeService:
                     await _safe_delete("conversation_recall_segments")
                     await _safe_delete("conversation_recall_documents")
 
-                    # 3.2 Delete conversation forks, markers, widgets, and offline tasks
+                    # 3.2 Delete conversation forks, markers and widgets
                     await _safe_delete("interrupted_turn_markers")
-                    await _safe_delete("offline_durable_tasks")
                     await _safe_delete("conversation_forks")
                     await _safe_delete("widget_kv_entries")
 

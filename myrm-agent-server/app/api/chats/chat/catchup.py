@@ -2,15 +2,16 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.agent.streaming.broadcast.catchup import CatchupBriefExtractor
 from sqlalchemy import select
 
 from app.api.dependencies import get_deploy_identity
 from app.core.utils.response_utils import success_response
 from app.database.models.approval import ApprovalRecord as ApprovalRecord
-from app.database.models.chat import Chat, Message, OfflineDurableTask
+from app.database.models.chat import Chat, Message
 from app.platform_utils import get_session_factory
+from app.services.agent.gateway import get_agent_gateway
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -20,6 +21,7 @@ router = APIRouter()
 async def get_catchup_briefs(user_id: str = Depends(get_deploy_identity)) -> Any:
     """Get catchup briefs for all chats with unread activity."""
     session_factory = get_session_factory()
+    gateway = get_agent_gateway()
 
     briefs: dict[str, dict[str, Any]] = {}
 
@@ -43,10 +45,8 @@ async def get_catchup_briefs(user_id: str = Depends(get_deploy_identity)) -> Any
             # Determine status
             status = "completed"
 
-            # Check if running offline
-            task_stmt = select(OfflineDurableTask).where(OfflineDurableTask.chat_id == chat.id)
-            task_result = await db.execute(task_stmt)
-            if task_result.scalars().first():
+            # A turn in flight is running, whether or not the client that started it is still connected
+            if gateway.is_session_active(chat.id):
                 status = "running"
 
             # Check if waiting for approval
@@ -104,7 +104,7 @@ async def mark_chat_as_read(chat_id: str, user_id: str = Depends(get_deploy_iden
         chat = result.scalars().first()
 
         if not chat:
-            return success_response(message="Chat not found", code=404)
+            raise HTTPException(status_code=404, detail="Chat not found")
 
         chat.last_read_at = datetime.utcnow()
         await db.commit()

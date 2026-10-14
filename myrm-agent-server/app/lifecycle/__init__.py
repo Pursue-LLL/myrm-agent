@@ -47,7 +47,6 @@ from .system import (
     init_allowlist_store,
     init_workspace_trust_store,
     pause_orphaned_active_goals,
-    resume_durable_offline_tasks,
     start_channel_gateway,
     start_idle_task_listeners,
 )
@@ -95,7 +94,6 @@ __all__ = [
     "init_risk_rules",
     "init_workspace_trust_store",
     "pause_orphaned_active_goals",
-    "resume_durable_offline_tasks",
     "start_channel_gateway",
     "start_idle_task_listeners",
 ]
