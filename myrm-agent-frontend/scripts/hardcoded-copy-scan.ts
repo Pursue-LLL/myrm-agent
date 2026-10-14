@@ -52,7 +52,7 @@ function isCopy(text: string, dualLanguageLocalized: boolean): boolean {
 }
 
 /** 字符串字面量、无替换模板，以及静态片段拼接的模板（占位符处以空格隔开，避免把相邻片段误拼成单词）。 */
-function staticText(node: ts.Node): string | null {
+export function staticText(node: ts.Node): string | null {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     return node.text;
   }
@@ -63,7 +63,7 @@ function staticText(node: ts.Node): string | null {
 }
 
 /** 表达式里会被直接渲染的字符串分支：三元的两支、`&&` 右侧、`||` / `??` 两侧。 */
-function renderedLiterals(expression: ts.Expression): ts.Node[] {
+export function renderedLiterals(expression: ts.Expression): ts.Node[] {
   if (staticText(expression) !== null) {
     return [expression];
   }

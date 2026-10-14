@@ -12,6 +12,7 @@
  * - useTranslations()（根）绑定后的 t('key') → 完整键 key
  * - getTranslations({ locale, namespace: 'ns' }) 绑定后的 t('key') → ns.key
  * - showI18nToast('key', ...) 的 titleKey / options 中 descriptionKey / action.label → 完整键 key（不经命名空间归因）；三元 descriptionKey / action.label（`cond ? 'a' : 'b'`）两个分支也纳入校验
+ * - translateI18nKey('key', ...) 的第一参 → 完整键 key（store / 工具函数里取文案，不经命名空间归因）
  *
  * 归因策略：以「最近前驱同名绑定」关联调用与命名空间——组件内 `const t = ...`
  * 的遮蔽天然形成作用域边界，无需完整 JS 解析器；调用位于同名绑定声明之前（helper
@@ -92,8 +93,11 @@ const TRANSLATE_CALL_LIKE_RE = /\bt\s*\(\s*(['"])/;
  * 位于 `?` 前不提取。
  */
 const SHOW_TOAST_TITLE_RE = /showI18nToast\s*\(\s*(['"])([^'"]+)\1/g;
+/** `translateI18nKey('key', fallback?)`：与 showI18nToast 一样是完整键，由全局 translator 解析。 */
+const TRANSLATE_I18N_KEY_RE = /\btranslateI18nKey\s*\(\s*(['"])([^'"]+)\1/g;
 const SHOW_TOAST_OPTIONS_RE = /showI18nToast\s*\([^;]*?descriptionKey\s*:\s*(['"])([^'"]+)\1/g;
-const SHOW_TOAST_TERNARY_DESC_RE = /showI18nToast\s*\([^;]*?descriptionKey\s*:\s*[^,;})]*?\?\s*(['"])([^'"]+)\1\s*:\s*(['"])([^'"]+)\3/g;
+const SHOW_TOAST_TERNARY_DESC_RE =
+  /showI18nToast\s*\([^;]*?descriptionKey\s*:\s*[^,;})]*?\?\s*(['"])([^'"]+)\1\s*:\s*(['"])([^'"]+)\3/g;
 const SHOW_TOAST_ACTION_RE = /showI18nToast\s*\([^;]*?action\s*:\s*\{\s*[^}]*?label\s*:\s*(['"])([^'"]+)\1/g;
 const SHOW_TOAST_TERNARY_ACTION_RE =
   /showI18nToast\s*\([^;]*?action\s*:\s*\{\s*[^}]*?label\s*:\s*[^,;})]*?\?\s*(['"])([^'"]+)\1\s*:\s*(['"])([^'"]+)\3/g;
@@ -101,7 +105,9 @@ const SHOW_TOAST_TERNARY_ACTION_RE =
 function collectSourceFiles(dir, out = []) {
   for (const entry of readdirSync(dir)) {
     const fullPath = join(dir, entry);
-    if (EXCLUDED_DIRS.has(entry)) continue;
+    if (EXCLUDED_DIRS.has(entry)) {
+      continue;
+    }
     const stat = statSync(fullPath);
     if (stat.isDirectory()) {
       collectSourceFiles(fullPath, out);
@@ -115,7 +121,9 @@ function collectSourceFiles(dir, out = []) {
 function lineOf(source, offset) {
   let line = 1;
   for (let i = 0; i < offset; i += 1) {
-    if (source.charCodeAt(i) === 10) line += 1;
+    if (source.charCodeAt(i) === 10) {
+      line += 1;
+    }
   }
   return line;
 }
@@ -140,7 +148,9 @@ function resolveModuleFile(modulePath) {
   for (const candidate of MODULE_EXT_CANDIDATES) {
     const full = modulePath + candidate;
     try {
-      if (statSync(full).isFile()) return full;
+      if (statSync(full).isFile()) {
+        return full;
+      }
     } catch {
       // 继续尝试下一个候选
     }
@@ -152,7 +162,9 @@ function resolveModuleFile(modulePath) {
 function buildImporters(files, sourceByFile) {
   const importers = new Map();
   const addImporter = (importedFile, importerFile) => {
-    if (!importers.has(importedFile)) importers.set(importedFile, []);
+    if (!importers.has(importedFile)) {
+      importers.set(importedFile, []);
+    }
     importers.get(importedFile).push(importerFile);
   };
   for (const importerPath of files) {
@@ -160,22 +172,34 @@ function buildImporters(files, sourceByFile) {
     const seen = new Set();
     for (const match of source.matchAll(IMPORT_FROM_RE)) {
       const importPath = match[2];
-      if (seen.has(importPath)) continue;
+      if (seen.has(importPath)) {
+        continue;
+      }
       seen.add(importPath);
       const local = resolveLocalPath(importPath, importerPath);
-      if (local == null) continue;
+      if (local == null) {
+        continue;
+      }
       const target = resolveModuleFile(local);
-      if (target != null) addImporter(target, importerPath);
+      if (target != null) {
+        addImporter(target, importerPath);
+      }
     }
     // side-effect import：`import './x.css'` 等
     for (const match of source.matchAll(IMPORT_SIDE_EFFECT_RE)) {
       const importPath = match[2];
-      if (seen.has(importPath)) continue;
+      if (seen.has(importPath)) {
+        continue;
+      }
       seen.add(importPath);
       const local = resolveLocalPath(importPath, importerPath);
-      if (local == null) continue;
+      if (local == null) {
+        continue;
+      }
       const target = resolveModuleFile(local);
-      if (target != null) addImporter(target, importerPath);
+      if (target != null) {
+        addImporter(target, importerPath);
+      }
     }
   }
   return importers;
@@ -187,18 +211,28 @@ function collectBindings(source) {
     const name = match[1];
     bindings.push({ name, ns, offset: match.index, line: lineOf(source, match.index) });
   };
-  for (const match of source.matchAll(BIND_USE_TRANSLATIONS_NS_RE)) record(match, match[3]);
-  for (const match of source.matchAll(BIND_USE_TRANSLATIONS_ROOT_RE)) record(match, '');
+  for (const match of source.matchAll(BIND_USE_TRANSLATIONS_NS_RE)) {
+    record(match, match[3]);
+  }
+  for (const match of source.matchAll(BIND_USE_TRANSLATIONS_ROOT_RE)) {
+    record(match, '');
+  }
   // 动态命名空间（useTranslations(variable)）无法静态归因，ns 置 null 标记，t() 调用直接跳过。
-  for (const match of source.matchAll(BIND_USE_TRANSLATIONS_DYNAMIC_RE)) record(match, null);
-  for (const match of source.matchAll(BIND_GET_TRANSLATIONS_RE)) record(match, match[3]);
+  for (const match of source.matchAll(BIND_USE_TRANSLATIONS_DYNAMIC_RE)) {
+    record(match, null);
+  }
+  for (const match of source.matchAll(BIND_GET_TRANSLATIONS_RE)) {
+    record(match, match[3]);
+  }
   return bindings;
 }
 
 function collectCalls(source) {
   const calls = [];
   for (const match of source.matchAll(CALL_RE)) {
-    if (match[1] === 'showI18nToast') continue; // 由下方专用 RE 处理（完整键，非命名空间相对）
+    if (match[1] === 'showI18nToast') {
+      continue;
+    } // 由下方专用 RE 处理（完整键，非命名空间相对）
     calls.push({
       name: match[1],
       key: match[3],
@@ -209,6 +243,9 @@ function collectCalls(source) {
   // showI18nToast 的 titleKey / descriptionKey / action.label 是完整键，不走命名空间归因。
   // 归因阶段识别 name === 'showI18nToast' 的调用时直接按完整键校验。
   for (const match of source.matchAll(SHOW_TOAST_TITLE_RE)) {
+    calls.push({ name: 'showI18nToast', key: match[2], offset: match.index, line: lineOf(source, match.index) });
+  }
+  for (const match of source.matchAll(TRANSLATE_I18N_KEY_RE)) {
     calls.push({ name: 'showI18nToast', key: match[2], offset: match.index, line: lineOf(source, match.index) });
   }
   // 三元 descriptionKey：true/false 两个分支均为完整键引用
@@ -233,7 +270,9 @@ function collectCalls(source) {
 function resolveEnKey(en, dottedPath) {
   let node = en;
   for (const part of dottedPath.split('.')) {
-    if (node == null || typeof node !== 'object') return undefined;
+    if (node == null || typeof node !== 'object') {
+      return undefined;
+    }
     node = node[part];
   }
   return node;
@@ -259,18 +298,24 @@ function collectCallerNamespaces(filePath, importersByFile, bindingsByFile, sour
     const current = queue.shift();
     const local = (bindingsByFile.get(current) ?? []).filter((b) => b.name === callName);
     if (local.length > 0) {
-      for (const b of local) namespaces.add(b.ns);
+      for (const b of local) {
+        namespaces.add(b.ns);
+      }
       continue;
     }
     for (const callerPath of importersByFile.get(current) ?? []) {
-      if (seen.has(callerPath)) continue;
+      if (seen.has(callerPath)) {
+        continue;
+      }
       seen.add(callerPath);
       // 调用方若把翻译绑定作为实参/JSX 属性传给当前模块（如 `resolveScopeNote(..., tHumanize)`、
       // `<Comp t={t} />`），说明当前模块的翻译函数参数来源确定，直接采用该绑定命名空间，
       // 比按同名 `t` 归因更精确（scopeNote.ts 的 t 实参是 tHumanize 而非 t）。
       const inferred = inferArgNamespaces(callerPath, bindingsByFile, sourceByFile);
       if (inferred.length > 0) {
-        for (const ns of inferred) namespaces.add(ns);
+        for (const ns of inferred) {
+          namespaces.add(ns);
+        }
         continue;
       }
       queue.push(callerPath);
@@ -283,14 +328,18 @@ function collectCallerNamespaces(filePath, importersByFile, bindingsByFile, sour
 function inferArgNamespaces(callerPath, bindingsByFile, sourceByFile) {
   const source = sourceByFile.get(callerPath);
   const bindings = bindingsByFile.get(callerPath) ?? [];
-  if (bindings.length === 0) return [];
+  if (bindings.length === 0) {
+    return [];
+  }
   const namespaces = new Set();
   for (const b of bindings) {
     // 作为函数调用实参：`f(a, tName)` / `f(tName)` 中 tName 是括号内独立实参标识符
     const argUse = new RegExp(`[,(]\\s*${b.name}\\b`);
     // 作为 JSX 属性值：`prop={tName}`（属性名任意，值绑定到翻译函数）
     const jsxUse = new RegExp(`=\\{\\s*${b.name}\\s*\\}`);
-    if (argUse.test(source) || jsxUse.test(source)) namespaces.add(b.ns);
+    if (argUse.test(source) || jsxUse.test(source)) {
+      namespaces.add(b.ns);
+    }
   }
   return [...namespaces];
 }
@@ -313,13 +362,17 @@ for (const filePath of files) {
   // 无绑定文件也要扫描：props 传入的 t 可能调用翻译键（如 useAgentEditor 的 t('error')），
   // 需要通过递归继承调用方命名空间校验，不能直接跳过。
   const hasTranslateCallLike = TRANSLATE_CALL_LIKE_RE.test(source);
-  if (bindings.length === 0 && !source.includes('showI18nToast') && !hasTranslateCallLike) continue;
+  if (bindings.length === 0 && !source.includes('showI18nToast') && !hasTranslateCallLike) {
+    continue;
+  }
 
   const calls = collectCalls(source);
   for (const call of calls) {
     if (call.name === 'showI18nToast') {
       // 完整键引用：不经命名空间归因，直接按完整键校验
-      if (!KEY_RE.test(call.key)) continue; // 动态 key 无法静态验证
+      if (!KEY_RE.test(call.key)) {
+        continue;
+      } // 动态 key 无法静态验证
       if (resolveEnKey(en, call.key) === undefined) {
         missing.push({ file: rel, line: call.line, key: call.key });
       }
@@ -328,10 +381,14 @@ for (const filePath of files) {
     // 最近前驱同名翻译绑定决定命名空间（JS 遮蔽语义）
     let ns = null;
     for (const binding of bindings) {
-      if (binding.name === call.name && binding.offset < call.offset) ns = binding.ns;
+      if (binding.name === call.name && binding.offset < call.offset) {
+        ns = binding.ns;
+      }
     }
     if (ns !== null) {
-      if (!KEY_RE.test(call.key)) continue; // 动态/非字面量键无法静态验证
+      if (!KEY_RE.test(call.key)) {
+        continue;
+      } // 动态/非字面量键无法静态验证
       const fullKey = ns ? `${ns}.${call.key}` : call.key;
       if (resolveEnKey(en, fullKey) === undefined) {
         missing.push({ file: rel, line: call.line, key: fullKey });
@@ -356,12 +413,26 @@ for (const filePath of files) {
       // translationNamespace prop，运行时命名空间由调用方决定，无法静态归因）。前者沿
       // import 引用链递归继承调用方的翻译命名空间（含根 ''），任一候选存在该键即通过；
       // 后者（存在同名绑定但 ns 全为 null）无法静态解析，跳过避免误报。
-      if (call.name !== 't') continue; // 非翻译函数名（useSWR、fetch 等）跳过
+      if (call.name !== 't') {
+        continue;
+      } // 非翻译函数名（useSWR、fetch 等）跳过
       const dynamicOnly = bindings.some((b) => b.name === call.name && b.ns === null);
-      if (dynamicOnly) continue;
-      const callerNamespaces = collectCallerNamespaces(filePath, importersByFile, bindingsByFile, sourceByFile, call.name);
-      if (callerNamespaces.length === 0) continue;
-      if (!KEY_RE.test(call.key)) continue;
+      if (dynamicOnly) {
+        continue;
+      }
+      const callerNamespaces = collectCallerNamespaces(
+        filePath,
+        importersByFile,
+        bindingsByFile,
+        sourceByFile,
+        call.name,
+      );
+      if (callerNamespaces.length === 0) {
+        continue;
+      }
+      if (!KEY_RE.test(call.key)) {
+        continue;
+      }
       const inherited = callerNamespaces.some((candidate) => {
         const fullKey = candidate ? `${candidate}.${call.key}` : call.key;
         return resolveEnKey(en, fullKey) !== undefined;
@@ -375,7 +446,9 @@ for (const filePath of files) {
       }
       continue;
     }
-    if (!KEY_RE.test(call.key)) continue;
+    if (!KEY_RE.test(call.key)) {
+      continue;
+    }
     const resolved = candidateNs.some((candidate) => {
       const fullKey = candidate ? `${candidate}.${call.key}` : call.key;
       return resolveEnKey(en, fullKey) !== undefined;
