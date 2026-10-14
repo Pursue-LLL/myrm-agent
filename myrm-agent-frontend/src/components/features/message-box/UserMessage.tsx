@@ -3,6 +3,7 @@
  * - ./SendFailedNotice::SendFailedNotice (POS: Failed-send line of a user bubble)
  * - ./UserMessageAttachments::HistoryImageItem, FileContentBlock (POS: Attachment previews of a sent user bubble)
  * - ./QuoteToolbar::QuoteToolbar, useQuoteSelection (POS: Text-selection toolbar of a message)
+ * - @/lib/utils/a11y::REVEAL_ON_HOVER (POS: Hover/focus/touch reveal contract of the action row)
  * - @/lib/utils/messageUtils (POS: Message text cleanup helpers, explicit skill activation wire format)
  * - @/lib/utils/urlUtils::splitTextWithAtLinks (POS: URL helpers, splits message text at @links)
  *
@@ -15,6 +16,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Copy, Check, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
 import { SkillActivationChips } from './SkillActivationChips';
 import { SendFailedNotice } from './SendFailedNotice';
@@ -221,7 +223,12 @@ const UserMessage = React.memo(
                   })}
                 </h2>
 
-                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0">
+                <div
+                  className={cn(
+                    'flex items-center gap-1 transition-opacity duration-200 flex-shrink-0',
+                    REVEAL_ON_HOVER,
+                  )}
+                >
                   {timestamp && (
                     <span className="text-xs text-muted-foreground/60 mr-1 select-none" title={timestamp.title}>
                       {timestamp.label}

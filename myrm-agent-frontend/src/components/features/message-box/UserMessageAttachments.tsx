@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - @/lib/utils/fileUtils::getDisplayUrl (POS: Web/Tauri file display URL resolution)
- * - @/lib/utils/a11y::activateOnKey (POS: Keyboard activation for clickable non-button elements)
+ * - @/lib/utils/a11y::activateOnKey, REVEAL_ON_HOVER (POS: Keyboard activation for clickable non-button elements; hover/focus/touch reveal contract)
  *
  * [OUTPUT]
  * - HistoryImageItem: Thumbnail of an image attached to a sent message; falls back to a placeholder when it fails to load.
@@ -17,7 +17,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { File as FileType } from '@/store/chat/types';
 import { getDisplayUrl } from '@/lib/utils/fileUtils';
-import { activateOnKey } from '@/lib/utils/a11y';
+import { activateOnKey, REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 export const HistoryImageItem = ({
   file,
@@ -109,13 +109,7 @@ export const FileContentBlock = ({ file }: { file: FileType }) => {
           </span>
         </div>
       </div>
-      <div
-        className={cn(
-          'flex items-center ml-2 transition-opacity',
-          // Touch screens of any width have no hover to reveal it, so a coarse pointer always shows it.
-          'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100',
-        )}
-      >
+      <div className={cn('flex items-center ml-2 transition-opacity', REVEAL_ON_HOVER)}>
         <button
           onClick={handleDownload}
           className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors"

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 import type { File as FileType } from '@/store/chat/types';
 
 import UserMessage from '../UserMessage';
@@ -60,6 +61,16 @@ describe('UserMessage @links', () => {
     expect(screen.getByRole('link', { name: '@http://localhost:3000/x' }).getAttribute('href')).toBe(
       'http://localhost:3000/x',
     );
+  });
+});
+
+describe('UserMessage action row', () => {
+  it('reveals on touch and keyboard focus as well as on hover, so rewind stays reachable without a mouse', () => {
+    render(<UserMessage {...bubble} />);
+
+    const row = screen.getByTitle('Copy').parentElement;
+
+    expect(row).toHaveClass(...REVEAL_ON_HOVER.split(' '));
   });
 });
 
