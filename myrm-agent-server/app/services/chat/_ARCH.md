@@ -24,7 +24,8 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_service.py` | ✅ 核心 | ChatService 门面类，通过 Mixin 组合各域方法 | ✅ |
 | `_base.py` | ✅ 基础 | `_ChatRepositoryPort` 协议 + `_ChatServiceBase` 基类（`_cr()` 访问器） | ✅ |
 | `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、软删除回收站 (trash/restore/permanent-delete/empty/auto-purge/batch-delete；permanent-delete/empty 将只读预读剥离独立短事务，写事务升级 `BEGIN IMMEDIATE` 防并发 snapshot 冲突)、session flush、channel chat 管理、Pinned Threads (pin/unpin/reorder, max 9)、LangGraph checkpointer 与会话级时效白名单/拒绝熔断计数联动清理（`_cleanup_checkpointer`，杜绝幽灵特权残留与内存泄漏）、会话级工作记忆运行态缓存清理（`_clear_session_working_memory`）、`ensure_chat_source`（web→cron 打标并同步 recall 索引 source） | ✅ |
-| `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化（持久化后联动用量同步与记忆影响账本投影） | ✅ |
+| `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化（持久化后联动用量同步与记忆影响账本投影）；`ensure_chat_and_append_user_message(mark_read=True)` 仅由人工发送路径传入，同事务把 `last_read_at` 盖为用户在场时刻（`datetime.utcnow()`，与 `Message.created_at` 同时钟域；幂等重试早退不盖章），系统注入（wakeup）保持默认 `False` | ✅ |
+| `catchup_brief.py` | ✅ 核心 | Catchup 收件箱的纯函数投影：`extract_catchup_brief` 把未读消息与 progress steps 压成有界 `CatchupBrief`（提示/回复预览、改动文件、工具计数、`needs_from_user` 编码 approval/error/question；wakeup 系统行不算用户提示）；状态与需求为封闭词表，由前端本地化 | ✅ |
 | `chat_usage_sync.py` | ✅ 核心 | `sync_chat_usage` + `ChatUsageCache` 实例：assistant 消息落库及轮次突变（retry/undo/truncate/rewind/regenerate/switch_sibling）后聚合该 chat 全部 active 消息 extra_data 的 `tokenEconomics` 快照，覆盖式写 `Chat.total_calls/total_tokens/total_usd`；进程内 TTL 缓存按「最后聚合消息 id」校验防重复全量聚合且不漏最新消息；源为 DB 消息级数据，不依赖 event-log 文件 | ✅ |
 | `chat_memory_events.py` | ✅ 辅助 | 将 assistant 消息的 `citedMemoryRefs` / `memoryRetrievalTraces` 投影为记忆操作账本事件（`record_memory_influence_event`），消息持久化的有界 best-effort 副作用 | ✅ |
 | `chat_history.py` | ✅ 核心 | `_ChatHistoryMixin`: Web/Channel 历史加载（含 compaction summary 注入）、FTS5 搜索 | ✅ |
@@ -32,7 +33,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_turn.py` | [Pass] 核心 | `_ChatTurnMixin`: 重试/撤销/截断/rewind/重新生成、兄弟消息切换；rewind 支持 `scope=conversation/both`（both 联动文件 revert + 快照清理 + 异常自愈补偿 `_restore_pre_rewind_snapshot`，revert 前先取体系 B `PRE_ROLLBACK` 工作区快照作为可撤销保护点；conversation-only 联动孤儿快照清理）；分支突变后 checkpoint sync + `Chat.total_*` 用量重算 + `_sync_todos_for_active_branch` 物理工作区进度文件原子对齐 | [Pass] |
 | `chat_title.py` | ✅ 核心 | 独立聊天标题生成服务：支持轻量模型自动总结、多级容灾降级调用与智能 Snippet 后备提取；截断到提示窗口前先按隐私策略脱敏（避免跨截断点的敏感串半截泄漏） | ✅ |
 | `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要（跟随真实模型窗口；送给摘要模型的内容由 harness 出站闸门按隐私策略脱敏，库内消息与召回归档保持原文） | ✅ |
-| `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理）。 | ✅ |
+| `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理）；`WAKEUP_MESSAGE_ID_PREFIX` 标识系统注入的 wakeup 用户行。 | ✅ |
 | `usage_cache.py` | ✅ 辅助 | `ChatUsageCache`: 进程内 TTL 缓存（默认 5s，key=chat_id），携带「最后聚合 assistant 消息 id」，同一会话连续消息落库/连续突变防抖；last_message_id 变化（新消息或 sibling 切换）强制重算 | ✅ |
 | `compact_service.py` | ✅ 核心 | 无损上下文压缩 **facade**（实现见 `compact/` 子包）；导出 `compact_chat` / idle estimate / cooldown / anti-thrash 接线 | ✅ |
 | `compact/` | ✅ 核心 | 压缩子模块：`service.py`（compact_chat）、`persist.py`、`idle_estimate.py`、`message_io.py`、`summarize_guard.py`、`llm_config.py`、`archive.py` | ✅ |

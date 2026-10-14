@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.connection import get_db
 from app.database.models.chat import Chat
 from app.database.models.project import Project
+from app.services.agent.gateway import get_agent_gateway
 
 from .models import (
     AgentState,
@@ -39,11 +40,11 @@ from .models import (
 router = APIRouter()
 
 
-def _infer_session_state(chat: Chat) -> AgentState:
-    """Infers agent runtime pulse based on chat activity."""
+def _infer_session_state(chat: Chat, running_ids: frozenset[str]) -> AgentState:
+    """Infers agent runtime pulse; a chat is working exactly while the gateway has a turn in flight for it."""
     if chat.compression_ineffective_streak > 3:
         return "error"
-    if chat.total_calls > 0 and not chat.last_read_at:
+    if chat.id in running_ids:
         return "working"
     if chat.compacted_before_id:
         return "idle"
@@ -94,8 +95,9 @@ async def list_session_map_projects(
             # Query all chats
             chat_stmt = select(Chat).order_by(Chat.updated_at.desc()).limit(200)
             chat_res = await db.execute(chat_stmt)
+            running_ids = get_agent_gateway().active_session_ids()
             for c in chat_res.scalars().all():
-                s_state = _infer_session_state(c)
+                s_state = _infer_session_state(c, running_ids)
                 if state_filter and s_state != state_filter:
                     continue
 

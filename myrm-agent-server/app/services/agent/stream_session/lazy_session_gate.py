@@ -122,6 +122,7 @@ class PendingSessionDraft:
                 is_incognito=self.is_incognito,
                 active_moa_preset_id=self.active_moa_preset_id,
                 persist_moa_preset=self.persist_moa_preset,
+                mark_read=True,
             )
 
 

@@ -135,7 +135,10 @@ async def _dispatch_auto_continue(
             return
 
         if marker.chat_id:
-            params.chat_history = await ChatService.load_web_chat_history(marker.chat_id)
+            # The interrupted turn's query is replayed through params, so its persisted row must not also be history.
+            params.chat_history = await ChatService.load_web_chat_history(
+                marker.chat_id, exclude_message_id=marker.user_message_id or None
+            )
 
         from myrm_agent_harness.utils.runtime.steering import (
             SteeringToken,

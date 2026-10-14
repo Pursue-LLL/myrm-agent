@@ -621,7 +621,7 @@ async def test_dispatch_loads_chat_history():
 
         await _dispatch_auto_continue(marker, factory)
 
-    mock_load_history.assert_awaited_once_with("chat-auto-001")
+    mock_load_history.assert_awaited_once_with("chat-auto-001", exclude_message_id="msg-user-001")
 
 
 @pytest.mark.asyncio

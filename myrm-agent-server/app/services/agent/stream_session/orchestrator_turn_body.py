@@ -413,7 +413,7 @@ async def execute_agent_turn_after_reserve(
     if request.chat_id and request.resume_value is None and not is_long_running_task:
         if pending_draft is None or getattr(pending_draft, "committed", False):
             try:
-                await write_interrupted_turn_marker(request, params)
+                await write_interrupted_turn_marker(request, params, user_message_id=persisted_message_id)
             except Exception as marker_exc:
                 logger.debug("Turn marker write skipped: %s", marker_exc)
 
@@ -423,8 +423,14 @@ async def execute_agent_turn_after_reserve(
 async def write_interrupted_turn_marker(
     request: AgentRequest,
     params: GeneralAgentParams,
+    *,
+    user_message_id: str | None = None,
 ) -> None:
-    """Persist a write-ahead marker so a crash leaves a recoverable trace."""
+    """Persist a write-ahead marker so a crash leaves a recoverable trace.
+
+    ``user_message_id`` is the id the user row was stored under, which can differ from the request's
+    id; replay excludes that row from history because the turn's query is replayed separately.
+    """
     from app.database.models.chat import InterruptedTurnMarker
     from app.platform_utils import get_session_factory
 
@@ -434,7 +440,7 @@ async def write_interrupted_turn_marker(
         marker = InterruptedTurnMarker(
             id=str(uuid.uuid4()),
             chat_id=request.chat_id,
-            user_message_id=request.message_id or "",
+            user_message_id=user_message_id or request.message_id or "",
             action_mode=request.action_mode or "fast",
             agent_id=getattr(request, "agent_id", None),
             serialized_params=params.model_dump(mode="json", exclude={"chat_history"}),
