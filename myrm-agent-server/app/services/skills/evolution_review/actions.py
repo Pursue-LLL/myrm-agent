@@ -58,7 +58,10 @@ def _rebuild_manifest_after_revision(payload: EvolutionApprovalPayload, revised_
     Returns None when no manifest or no eval_cases exist (nothing to predict).
     """
     manifest_dict = payload.change_manifest
-    if not isinstance(manifest_dict, dict) or not manifest_dict.get("predictions") or not payload.eval_cases:
+    if not isinstance(manifest_dict, dict) or not payload.eval_cases:
+        return None
+    raw_predictions = manifest_dict.get("predictions")
+    if not isinstance(raw_predictions, list) or not raw_predictions:
         return None
 
     from myrm_agent_harness.agent.skills.evolution.core.eval_regression import (
@@ -70,9 +73,11 @@ def _rebuild_manifest_after_revision(payload: EvolutionApprovalPayload, revised_
         PredictionDirection,
     )
 
-    try:
-        original_pred = next(p for p in manifest_dict["predictions"] if p.get("metric_name") == "pass_rate")
-    except StopIteration:
+    original_pred = next(
+        (p for p in raw_predictions if isinstance(p, dict) and p.get("metric_name") == "pass_rate"),
+        None,
+    )
+    if original_pred is None:
         return None
 
     baseline = float(original_pred["baseline_value"])
@@ -85,12 +90,14 @@ def _rebuild_manifest_after_revision(payload: EvolutionApprovalPayload, revised_
         tolerance=float(original_pred.get("tolerance", 0.05)),
     )
 
+    rollback_patch = manifest_dict.get("rollback_patch")
+    created_at = manifest_dict.get("created_at")
     manifest = ChangePredictionManifest(
         manifest_id=str(manifest_dict.get("manifest_id", "")),
         target_component=str(manifest_dict.get("target_component", "")),
         rationale=f"Revised: {manifest_dict.get('rationale', '')}".strip(),
-        rollback_patch=manifest_dict.get("rollback_patch"),
-        created_at=manifest_dict.get("created_at"),
+        rollback_patch=rollback_patch if isinstance(rollback_patch, str) else None,
+        created_at=created_at if isinstance(created_at, str) else None,
         predictions=[revised_pred],
     )
     return manifest.to_dict()
@@ -100,7 +107,6 @@ async def approve_evolution_review_record(
     evolution_id: str,
     *,
     auto_approved: bool = False,
-    apply_mode: str = "immediate",
 ) -> EvolutionReviewRecord:
     approval_record = await load_approval_record(evolution_id)
     if approval_record is None:
@@ -128,7 +134,7 @@ async def approve_evolution_review_record(
             raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
         record = resolved
 
-    return await apply_approval_record(record, auto_approved=auto_approved, apply_mode=apply_mode)
+    return await apply_approval_record(record, auto_approved=auto_approved)
 
 
 async def reject_evolution_review_record(

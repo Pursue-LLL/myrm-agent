@@ -5,9 +5,9 @@
 - .persistence::persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
 [OUTPUT]
-- Description/content apply orchestration, shadow apply, approval apply pipeline
+- Description/content apply orchestration, approval apply pipeline
 [POS]
-Evolution 落盘编排（description / shadow / approval 成功路径）。
+Evolution 落盘编排（description / approval 成功路径）。
 """
 
 from __future__ import annotations
@@ -84,24 +84,19 @@ async def enqueue_cognitive_subsumption(payload: EvolutionApprovalPayload) -> No
 async def apply_to_disk_and_store(
     payload: EvolutionApprovalPayload,
     agent_id: str | None = None,
-    *,
-    apply_mode: str = "immediate",
 ) -> None:
     store = get_skill_store()
     if payload.evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION.value:
         await apply_description_update(payload, store, agent_id)
-    elif apply_mode == "shadow":
-        await apply_content_shadow(payload)
     else:
         await apply_content_update(payload, store, agent_id)
 
-    if apply_mode != "shadow":
-        try:
-            await enqueue_cognitive_subsumption(payload)
-        except Exception as exc:
-            logger.warning("Failed to enqueue cognitive_subsumption task: %s", exc)
+    try:
+        await enqueue_cognitive_subsumption(payload)
+    except Exception as exc:
+        logger.warning("Failed to enqueue cognitive_subsumption task: %s", exc)
 
-        bump_skill_config_version()
+    bump_skill_config_version()
 
 
 async def apply_description_update(
@@ -178,16 +173,6 @@ async def mark_apply_failure(
     return updated
 
 
-async def apply_content_shadow(payload: EvolutionApprovalPayload) -> None:
-    from app.services.skill_optimization.bootstrap import (
-        get_skill_optimization_storage as get_storage,
-    )
-    from app.services.skill_optimization.skill_version_sync import start_shadow_ab_test
-
-    storage = get_storage()
-    await start_shadow_ab_test(storage, payload.skill_id, payload.evolved_content)
-
-
 def _attribute_manifest_after_apply(
     payload: EvolutionApprovalPayload,
 ) -> dict[str, object] | None:
@@ -251,14 +236,13 @@ async def apply_approval_record(
     record: ApprovalRecord,
     *,
     auto_approved: bool,
-    apply_mode: str = "immediate",
 ) -> EvolutionReviewRecord:
     payload = approval_payload(record)
     if payload is None:
         raise EvolutionApplyError("Evolution approval payload is invalid.")
 
     try:
-        await apply_to_disk_and_store(payload, agent_id=record.agent_id, apply_mode=apply_mode)
+        await apply_to_disk_and_store(payload, agent_id=record.agent_id)
     except Exception as exc:
         await mark_apply_failure(record, payload, str(exc), auto_approved=auto_approved)
         raise EvolutionApplyError(str(exc)) from exc
