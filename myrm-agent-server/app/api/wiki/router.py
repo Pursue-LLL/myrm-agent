@@ -311,6 +311,8 @@ class ConceptLinksResponse(BaseModel):
     concept_name: str
     outlinks: list[ConceptLinkItem] = Field(default_factory=list)
     backlinks: list[ConceptBacklinkItem] = Field(default_factory=list)
+    outlinks_has_more: bool = False
+    backlinks_has_more: bool = False
 
 
 class WikiEditorSectionsResponse(BaseModel):
@@ -1479,6 +1481,8 @@ def get_concept_links(
             concept_name=str(res.get("concept_name", name)),
             outlinks=[ConceptLinkItem(**item) for item in res.get("outlinks", [])],
             backlinks=[ConceptBacklinkItem(**item) for item in res.get("backlinks", [])],
+            outlinks_has_more=bool(res.get("outlinks_has_more", False)),
+            backlinks_has_more=bool(res.get("backlinks_has_more", False)),
         )
     except HTTPException:
         raise

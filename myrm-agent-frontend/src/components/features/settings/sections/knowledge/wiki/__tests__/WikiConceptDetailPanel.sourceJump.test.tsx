@@ -54,7 +54,7 @@ vi.mock('@/components/features/message-box/MarkdownContent', () => ({
 
 vi.mock('../WikiConceptLinksPanel', () => ({
   WikiConceptLinksPanel: ({ onSelectConcept }: { onSelectConcept?: (name: string, heading?: string) => void }) => (
-    <div>
+    <div id="wiki-concept-links">
       <button data-testid="mock-jump-btn" onClick={() => onSelectConcept?.('Alpha', '简介')}>
         Jump to Intro
       </button>
@@ -230,5 +230,38 @@ describe('WikiConceptDetailPanel source provenance jump', () => {
     const exactHeading = screen.getByTestId('heading-exact');
     expect(fuzzyHeading.classList.contains('bg-primary/10')).toBe(false);
     expect(exactHeading.classList.contains('bg-primary/10')).toBe(false);
+  });
+});
+
+describe('WikiConceptDetailPanel links shortcut', () => {
+  const concept: Concept = { name: 'Alpha', content: '# Alpha' };
+
+  it('is labelled with translated copy and never hidden at any breakpoint', () => {
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    const shortcut = screen.getByRole('button', { name: 'links.title' });
+    expect(shortcut.getAttribute('aria-label')).toBe('links.title');
+    expect(shortcut.getAttribute('title')).toBe('links.title');
+    // 窄屏下文字可以收起成纯图标，但按钮本身不能在任何断点被隐藏
+    expect(shortcut.classList.contains('hidden')).toBe(false);
+    expect(shortcut.textContent).not.toMatch(/[\u4e00-\u9fff]/);
+  });
+
+  it('scrolls the links panel into view when pressed', () => {
+    const scrolledIds: string[] = [];
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value(this: HTMLElement) {
+        scrolledIds.push(this.id);
+      },
+    });
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    act(() => {
+      screen.getByRole('button', { name: 'links.title' }).click();
+    });
+
+    expect(scrolledIds).toEqual(['wiki-concept-links']);
   });
 });

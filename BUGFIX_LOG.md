@@ -1721,3 +1721,50 @@ except Exception:
 5. 局限：没有做浏览器级别的视觉与交互检查（详情页去掉面板后的版本历史布局）；桌面 sidecar 的 SQLite `DROP COLUMN` 沿用 `migrations.py` 里已有的同类写法，没有在桌面包里实测；落后到索引版本 63 之前的古老数据库在 HEAD 上就会失败，这次没有改变这一点；`SKILL_EVOLUTION_ADVANTAGE` 里带日期的测试结果表和 `de/auto-translated-overrides.json` 里已删词条的陈旧条目没有改；整应用入口 `app.main` 在当前工作区因他人未提交的 harness 改动（`agent.security.audit_pack` 缺失）无法导入，没有做整应用启动验证；服务端提交依赖 harness 提交 `e556569995`，harness 发版后要同步锁文件；工作区里其余测试失败来自他人未提交的改动，没有一条指向本次删除的符号。
 
 ---
+
+## BUG-AGENT-2026-10-14-010: 词条被超过 100 个页面引用时，面板把截断后的条数当总数展示；详情头部的「链接」快捷入口是硬编码中文且手机上整个消失
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P3（展示的数量不准、手机上少一个快捷入口；不丢数据） |
+| 影响范围 | harness `toolkits/wiki/retrieval/graph_store.py`；server `app/api/wiki/router.py` 的 `/wiki/concepts/{name}/links` 响应模型；前端 `wiki/WikiConceptLinksPanel.tsx`、`wiki/WikiConceptDetailPanel.tsx`、新增 `wiki/useConceptHeadingFocus.ts`、`services/wiki/service.ts`、硬编码文案基线 |
+| 出现次数 | 1 |
+| 关联 | roadmap topic_02 #133（原编号 #140）第四批补修；BUG-AGENT-2026-10-14-007 |
+
+### 现象
+
+1. 一个词条被超过 100 个页面引用时，`get_concept_links` 每个方向只返回前 100 条，页签与摘要写「被引用 (100)」，用户会把它当成总数；响应里没有任何「被截断」的标记（合成库 150 个页面引用同一词条，返回 100 条）。
+2. 详情头部跳到链接面板的快捷按钮，文案「脉络」与提示「跳转到双向链接与脉络」是硬编码中文，六种语言的用户都看到中文，与面板标题「链接与上下文」叫法也不一致；按钮带 `hidden sm:flex`，手机宽度下整个入口消失。
+3. `WikiConceptDetailPanel.tsx` 416 行，超出 400 行预算，且不在行数基线里。
+
+### 根因
+
+1. 截断只写在 SQL 的 `LIMIT 100` 里，「是否被截断」没有往上游传。
+2. 按钮是直接写的字面量；响应式处理成「窄屏整体隐藏」，而不是「窄屏收成图标」。
+3. 小节锚点聚焦（约 95 行：滚动、高亮、多帧重试、同词条内跳转）与展示组件放在同一文件，叠加几次修复后越过预算。
+
+### 修复
+
+1. `get_concept_links` 每个方向多取一行（`LIMIT MAX_CONCEPT_LINKS + 1`，`_fetch_capped`）判断是否还有更多，仍只返回前 100 条，新增 `outlinks_has_more` / `backlinks_has_more`；server 响应模型两个布尔字段（默认 `False`）与前端类型同步；面板在被截断的方向显示「100+」（页签与摘要胶囊），另一方向照常，复用已有的 `{count}` 占位符，六语言没有新增键。不改排序、不加分页（面板没有「加载更多」入口，也没有读取方需要）。
+2. 按钮改取已有的 `links.title`，`md` 以下只显示图标并带 `aria-label`，任何断点都不隐藏；硬编码文案基线里这个文件由 2 收紧到 0，只删这一条。
+3. 小节锚点聚焦原样移入 `useConceptHeadingFocus.ts`（115 行；移动的 96 行用脚本与原文逐行比对一致），详情面板降到 328 行。
+
+### 验证
+
+1. 先红后绿：harness 4 例失败（载荷键集合、100 条不截断与 101 条截断、出链方向独立），修复后 `test_concept_links.py` 10 例通过；server 4 例失败，修复后 6 例通过；前端 3 例失败（面板「N+」1 例、快捷按钮 2 例），修复后两个文件 16 例通过。`LIMIT ?` 参数化先单独做，原有 6 例照过，再加红灯。
+2. 多取一行是否改变展示哪 100 条：150 条同权重边，上限 100 / 101 / 150 三种取法的前 100 行逐项相同（查询计划是 `idx_wiki_edges_target` 加临时 B 树排序）。这是合成库实测，没有性能声明。
+3. 全量：harness `tests/toolkits/wiki` 862 例通过 861，失败 1 例是调用真实 LLM 的 `test_sidecar_integration::test_sidecar_incremental_rebuild_skips_unchanged`（第一次全量停在同文件的另一个用例；整文件单独重跑 3 例通过，当前代码与 HEAD 快照各一次）；server `tests/api/wiki` 与 `tests/integration/wiki`（不含调用真实 LLM 的 `test_wiki_real_llm.py`）164 例通过 161，失败 3 例都在安全拦截用例（`test_wiki_clip_api.py::test_wiki_clip_security_blocked_job_response`、`test_wiki_import_raw_gate.py::test_import_folder_blocks_credential_content`、`test_import_urls_security_blocked`），与链接接口无关，但没有在干净 HEAD 上复跑；前端 wiki `__tests__` 目录 11 个文件 70 例通过。
+4. 静态：ruff、mypy（`graph_store.py`）、oxlint、prettier、`verify-i18n` 通过（第一次运行时他人正在改语言文件，报占位符不一致，重跑通过）；`tsc --noEmit` 全量只报他人的 `KanbanTaskHandoffSection.test.tsx` 一条；文件行数门禁不再列出本条改的文件，硬编码文案门禁里这个文件不再出现（整体门禁仍因他人新增的文件失败）。
+5. 局限：没有取得真实浏览器证据。`./myrm test -m chrome_e2e …::test_wiki_concept_detail_source_jump` 两次都在 `/settings/wiki` 路由水合超时（`E2E_ROUTE_HYDRATION_TIMEOUT`），前端日志同期是大量接口请求超时（机器负载均值 38–90），没有走到任何断言；为它写的 28 行断言没跑出结果，已撤回。按钮在 `md` 断点的实际布局、六语言文案长度、深浅主题都没有目测（jsdom 不计算样式）；「100+」只在 harness 层（101 页）与 DOM 层分别验证，没有在真实应用里串起来。
+
+### 踩坑经验
+
+1. 「LIMIT N」会静默丢数据，调用方没法知道；在查询处多取一行当探针，返回前 N 条加一个布尔，比让前端猜成本低得多。换成 N+1 后前 N 行是否不变要验证，并列权重下尤其如此。
+2. `check-hardcoded-copy.mjs --write-baseline` 会把所有已降低的文件一起收紧，共享工作区里会连带改到他人的条目；这里手工只删自己的那一行，再确认差异只有一行。
+3. 「窄屏隐藏」会把入口直接拿掉；入口比文字更重要时，应该收成图标并补 `aria-label`。
+4. 文件刚过预算时，往里加一行就会让门禁里多一个未入基线的文件；提取一段内聚的逻辑（这里是锚点聚焦 hook）并逐行比对，比删注释压行数稳妥。
+5. 共享的 e2e 基础设施会被他人同时改：第一次运行时 `scripts/dev/ready.sh` 正在被编辑、有语法错误，第二次起能解析；之后两次的路由水合超时与代码无关，但也因此拿不到浏览器证据，不能把「没有失败」写成「验证过」。
+
+---

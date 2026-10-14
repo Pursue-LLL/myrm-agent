@@ -164,6 +164,9 @@ export interface ConceptLinksResponse {
   concept_name: string;
   outlinks: ConceptLinkItem[];
   backlinks: ConceptBacklinkItem[];
+  /** 该方向的链接被服务端截断，实际数量多于 outlinks / backlinks 返回的条数 */
+  outlinks_has_more: boolean;
+  backlinks_has_more: boolean;
 }
 
 export interface WikiGraphInsights {

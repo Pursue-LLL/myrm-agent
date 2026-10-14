@@ -56,6 +56,8 @@ def test_get_concept_links_endpoint(client: TestClient):
                 "heading": None,
             },
         ],
+        "outlinks_has_more": False,
+        "backlinks_has_more": False,
     }
     mock_archiver._query_engine._indexer = mock_indexer
 
@@ -86,7 +88,35 @@ def test_get_concept_links_endpoint(client: TestClient):
                 "heading": None,
             },
         ],
+        "outlinks_has_more": False,
+        "backlinks_has_more": False,
     }
+
+
+def test_get_concept_links_reports_which_direction_was_cut(client: TestClient):
+    """A direction cut at the indexer's cap is flagged on its own, so the UI can show "100+" for that side only."""
+    mock_archiver = MagicMock()
+    mock_indexer = MagicMock()
+    mock_indexer.get_concept_links.return_value = {
+        "concept_name": "hub",
+        "outlinks": [],
+        "backlinks": [{"name": "a", "exists": True, "context_snippet": None, "heading": None}],
+        "outlinks_has_more": False,
+        "backlinks_has_more": True,
+    }
+    mock_archiver._query_engine._indexer = mock_indexer
+
+    from app.api.wiki.router import _get_wiki_archiver
+
+    client.app.dependency_overrides[_get_wiki_archiver] = lambda: mock_archiver
+    try:
+        response = client.get("/api/v1/wiki/concepts/hub/links")
+    finally:
+        client.app.dependency_overrides.pop(_get_wiki_archiver, None)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["outlinks_has_more"] is False
+    assert response.json()["backlinks_has_more"] is True
 
 
 def test_get_concept_links_empty_and_cjk(client: TestClient):
@@ -94,7 +124,13 @@ def test_get_concept_links_empty_and_cjk(client: TestClient):
     mock_archiver = MagicMock()
     mock_indexer = MagicMock()
     cjk_name = "分布式存储系统"
-    mock_indexer.get_concept_links.return_value = {"concept_name": cjk_name, "outlinks": [], "backlinks": []}
+    mock_indexer.get_concept_links.return_value = {
+        "concept_name": cjk_name,
+        "outlinks": [],
+        "backlinks": [],
+        "outlinks_has_more": False,
+        "backlinks_has_more": False,
+    }
     mock_archiver._query_engine._indexer = mock_indexer
 
     from app.api.wiki.router import _get_wiki_archiver
@@ -106,7 +142,13 @@ def test_get_concept_links_empty_and_cjk(client: TestClient):
         client.app.dependency_overrides.pop(_get_wiki_archiver, None)
 
     assert response.status_code == 200, response.text
-    assert response.json() == {"concept_name": cjk_name, "outlinks": [], "backlinks": []}
+    assert response.json() == {
+        "concept_name": cjk_name,
+        "outlinks": [],
+        "backlinks": [],
+        "outlinks_has_more": False,
+        "backlinks_has_more": False,
+    }
 
 
 def test_get_concept_links_error_handling(client: TestClient):

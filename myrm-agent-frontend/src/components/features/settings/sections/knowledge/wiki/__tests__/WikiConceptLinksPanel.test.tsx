@@ -62,8 +62,24 @@ const backlink = (name: string, overrides: Partial<ConceptBacklinkItem> = {}): C
 
 const linksOf = (
   concept_name: string,
-  { outlinks = [], backlinks = [] }: { outlinks?: ConceptLinkItem[]; backlinks?: ConceptBacklinkItem[] } = {},
-): ConceptLinksResponse => ({ concept_name, outlinks, backlinks });
+  {
+    outlinks = [],
+    backlinks = [],
+    outlinksHasMore = false,
+    backlinksHasMore = false,
+  }: {
+    outlinks?: ConceptLinkItem[];
+    backlinks?: ConceptBacklinkItem[];
+    outlinksHasMore?: boolean;
+    backlinksHasMore?: boolean;
+  } = {},
+): ConceptLinksResponse => ({
+  concept_name,
+  outlinks,
+  backlinks,
+  outlinks_has_more: outlinksHasMore,
+  backlinks_has_more: backlinksHasMore,
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -123,6 +139,17 @@ describe('WikiConceptLinksPanel', () => {
 
     await userEvent.click(screen.getByText('Links to (0)'));
     expect(await screen.findByText('This concept has no links yet')).toBeInTheDocument();
+  });
+
+  it('adds a trailing plus only to the direction the server cut at its cap', async () => {
+    const backlinks = Array.from({ length: 100 }, (_, index) => backlink(`source-${index}`));
+    mockLinks(linksOf('hub', { backlinks, outlinks: [outlink('leaf')], backlinksHasMore: true }));
+
+    renderPanel({ conceptName: 'hub' });
+
+    expect(await screen.findByText('Cited by 100+ · Links to 1')).toBeInTheDocument();
+    expect(screen.getByText('Cited by (100+)')).toBeInTheDocument();
+    expect(screen.getByText('Links to (1)')).toBeInTheDocument();
   });
 
   it('disables interaction for references whose page is missing', async () => {
