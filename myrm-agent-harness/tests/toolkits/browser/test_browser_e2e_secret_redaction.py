@@ -177,10 +177,9 @@ async def test_e2e_navigate_redacts_oauth_code_query(
     result = await _invoke(
         tool_dict["browser_navigate_tool"], {"url": f"https://example.com/?code={_OAUTH_CODE}&state=xyz"}
     )
-    content = result["content"]
-    assert _OAUTH_CODE not in content, "OAuth code leaked in navigate output"
-    assert "code=" in content, "query key must survive (only value is masked)"
-    assert "oauths...2345" in content, "masked code tail must survive"
+    assert _OAUTH_CODE not in result, "OAuth code leaked in navigate output"
+    assert "code=" in result, "query key must survive (only value is masked)"
+    assert "oauths...2345" in result, "masked code tail must survive"
 
 
 @pytest.mark.e2e
