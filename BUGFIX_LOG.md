@@ -1436,7 +1436,7 @@ except Exception:
 | 发现日期 | 2026-10-14 |
 | 修复日期 | 2026-10-14 |
 | 严重程度 | P3（死代码与对外误导：公开配置 `enable_auto_optimization` 不起作用，回滚响应带着伪造字段，材料里宣称的能力不存在） |
-| 影响范围 | harness `agent/skills/optimization/`（模块、协议、类型、配置、测试、`_ARCH`、行数基线）；服务端 `app/adapters/skill_optimization/`、`app/api/skill_optimization/routes/versions.py`、`app/database/migrations.py`；根仓库 `temp-docs/materials` 四篇优势材料 |
+| 影响范围 | harness `agent/skills/optimization/`（模块、协议、类型、配置、测试、`_ARCH`、行数基线）；服务端 `app/adapters/skill_optimization/`、`app/api/skill_optimization/routes/versions.py`、`app/database/migrations.py`；根仓库四篇优势材料 |
 | 出现次数 | 1 |
 | 关联 | `BUG-AGENT-2026-10-14-004`（那次对 harness 优化库「保留不动」，这次核实可达性后删除不可达部分） |
 
@@ -1664,5 +1664,59 @@ except Exception:
 4. 校正类逻辑要拿「请求发出时」的本地值与服务端答案比较，才不会让慢响应覆盖请求期间完成的登录；这一条靠「请求期间改动对象再让响应返回」的测试固定下来。
 5. 失败提示的测试要断言在中间状态上（重试进行中旧提示已消失），等流程走完再断言会被等待视图掩盖，变异检查正是这样发现的。
 6. 共享工作区里多个 harness / 前端文件夹带他人改动：用 HEAD 内容加自己的精确替换生成补丁，只提交自己的 hunk。
+
+---
+
+## BUG-AGENT-2026-10-14-009: 技能「Shadow A/B 验证」整条链没有产出过结论，却在详情页提供一键启动并按会话对半分流；质量分是 0.5 占位；优势材料据此宣称有「影子对照」闸门
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（名不副实且有线上副作用：详情页能启动 A/B，运行期间 harness 把会话对半分给候选版本，而这条链拿不到可用结论；材料对外宣称它是验证闸门） |
+| 影响范围 | harness `backends/skills/decorators/`、`agent/skills/optimization/`、`agent/skills/evolution/core/`、`agent/streaming/broadcast/`；服务端 `app/services/skill_optimization/`、`app/adapters/skill_optimization/`、`app/api/skill_optimization/`、`app/database/models/skill_optimization/`、`app/lifecycle/`、`app/database/migrations.py`；前端 `SkillQualityGuardian`、`services/skill/optimization.ts`、六种语言文案；根仓库优势材料与路线图 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-14-003` / `004` / `005`（逐步删除这条链上不可达的部分；005「保留不动」里的 Shadow A/B、晋升门禁、质量快照三件套、优化记录两件套，这次核实后一并删除） |
+
+### 现象
+
+1. 技能详情页的「质量守护」面板可以对一个技能启动 Shadow A/B；运行期间 `VersionAwareSkillBackend` 按会话把 50% 粘性分流给候选版本；
+2. 这条链没有产出过结论：影子回放的触发按错误的工具名匹配；回放执行时在智能体工具列表里按技能 ID 找同名工具，而技能是以文档形式经 `skill_select_tool` 注入的，工具列表里只有 `skill_market_tool`、`skill_manage_tool` 这类元工具，找不到就返回 error；
+3. 运行均值从未落库；版本表的 `quality_score` 在没有真实样本时回落到 0.5 常量 `_NEUTRAL_QUALITY`（005 已把它从对比 / 详情接口的返回里摘掉，写入路径仍在）；
+4. `skill_shadow_samples`、`skill_ab_test_results`、`skill_optimization_records`、`skill_quality_history` 四张表和 `skill_versions.quality_score` 只被这条链读写；
+5. 优势材料把它写成已经验证过的「影子对照 / 晋升闸门」。
+
+### 根因
+
+1. 链路按设想一次搭完，没有和「技能是文档、不是可调用工具」这一事实对账，回放因此无处可跑；
+2. 004、005 只删了不可达的部分，保留了「已接线」的部分；「已接线」不等于「能产出结论」，没有把入口一路走到出口核实；
+3. 材料按设想写，没有回到代码核实。
+
+### 修复
+
+纯删除，没有新增能力：
+
+1. harness（`e556569995`，37 个文件，+284 / −3313；`75d932b8f6` 更正装饰器目录的依赖清单）：`VersionAwareSkillBackend` 只返回已激活快照或文件系统基线，删除 `forced_version_var`、`resolved_skill_versions_var`、`ABTestStoreProtocol` 与粘性 A/B 分支（系统提示里的技能列表本来就不经版本路由，提示缓存不受影响）；删除 `ToolCallEventData.version` 及其广播接线；`skills.optimization` 只留版本历史协议 / 类型与内容安全校验，`ab_test`、`optimizer`、`observability`、`event_emitter`、`event_adapter`、`result_comparator`、`quality_calculator` 删除；`build_change_manifest` 搬到 `evolution.core.change_manifest`，删除晋升判定 `evaluate_promotion_gate`；
+2. 服务端（`27021dbd0`，70 个文件，+202 / −3836）：删除影子测试、A/B 管理、晋升门禁、语义比对、执行提供者与运行时，四个 A/B 仓库与转换器，A/B 路由，四个模型，生命周期接线与 `SKILL_AB_TEST_UPDATED` 事件，以及对应测试与架构基线；
+3. 迁移：在 `MIGRATION_STATEMENTS` 末尾追加四条 `DROP TABLE IF EXISTS` 和 `ALTER TABLE skill_versions DROP COLUMN quality_score`，新增 `tests/database/test_skill_shadow_verification_tables_retired.py`（升级库与全新库各一例）；
+4. 前端（`a92fba6bc`，18 个文件，+3 / −1125）：删除 `SkillQualityGuardian` 及详情页挂载、`optimization.ts` 里的 A/B 启动与质量分类型、`skill_ab_test_updated` 透传事件、六种语言里的守护 / A/B / 质量分文案以及携带它们的翻译补丁；
+5. 文档：根仓库优势材料与两份路线图里的相关说法改成代码事实（`31acd520f`，9 个文件，+50 / −53）；公开文档在更早的提交里已同步。
+
+保留不动：回归过滤、变更清单 `build_change_manifest`、审批卡（`testPassed` / `verificationProof` / 影响范围）、带快照的原子应用与一键回滚、版本历史面板、Eval Lab 三臂对比 `app/core/eval/skill_ab.py`、`session_id_var`。
+
+### 验证
+
+1. harness：已提交内容的干净导出里，`tests/backends/skills`、`tests/agent/skills/optimization`、`tests/agent/skills/evolution`、`tests/agent/streaming/broadcast` 共 1087 通过、3 跳过；`ruff check` 对相关源码与测试目录无告警；
+2. 服务端：已提交内容的干净导出里，版本快照仓库、SQLAlchemy 存储、`api/skill_optimization`、`services/skill_optimization` 与两个表退役测试共 43 例通过，`test_no_user_id` 与 `test_outbound_model_calls` 7 例通过，`ruff check` 对改动目录无告警；
+3. 前端：已提交内容的干净导出里，`tsc` 只剩一条（导出里没有 `myrm-agent-extension` 目录造成的模块缺失），技能 / 服务 / 全局事件 / 版本来源相关 105 个测试文件、553 例通过，`verify-i18n` 在我的提交前后输出逐行一致（失败项是他人未翻译的词条）；工作区 `tsc` 只有一条他人的看板测试报错；
+4. 迁移：升级库会删掉四张表与那一列，全新库不执行这些语句，两例都通过；DROP 放在 `MIGRATION_STATEMENTS` 末尾，与既有的退役表同一处，`schema_gate` 的版本号随之加一，降级会被拦下。
+
+### 踩坑经验
+
+1. 「谁调用了它」只回答可达性，回答不了「调用之后能不能产出结论」；删一条链之前要把触发条件、执行、落库、读取走完一遍，004 与 005 就是在这里留了尾巴；
+2. 退役表的 DROP 一开始放在 `INDEX_STATEMENTS`，升级夹具在版本 63 就因 `calendar_events` 已退役而失败（HEAD 上本来就如此）；放回 `MIGRATION_STATEMENTS` 末尾才与既有先例和 `schema_gate` 一致；
+3. 共享工作区里六个语言文件都带着他人改动，且 de / ja / ko / zh-TW 不能无损地 JSON 往返，只能做文本删除；提交时用「HEAD 内容 + 同样的文本删除」生成，而不是挑 hunk；材料文档同理，用「HEAD 文本 + 精确替换」生成，再与工作区逐行比对，补上脚本漏掉的几行；
+4. 提交后用 `git archive` 取已提交内容做干净导出再跑测试，才能确认提交没有依赖他人未提交的定义；`tsc` 遇到 JSON 语法错误只报语法错误，他人写到一半的语言文件会让整次结果失效，要等文件恢复后重跑；
+5. 局限：没有做浏览器级别的视觉与交互检查（详情页去掉面板后的版本历史布局）；桌面 sidecar 的 SQLite `DROP COLUMN` 沿用 `migrations.py` 里已有的同类写法，没有在桌面包里实测；落后到索引版本 63 之前的古老数据库在 HEAD 上就会失败，这次没有改变这一点；`SKILL_EVOLUTION_ADVANTAGE` 里带日期的测试结果表和 `de/auto-translated-overrides.json` 里已删词条的陈旧条目没有改；整应用入口 `app.main` 在当前工作区因他人未提交的 harness 改动（`agent.security.audit_pack` 缺失）无法导入，没有做整应用启动验证；服务端提交依赖 harness 提交 `e556569995`，harness 发版后要同步锁文件；工作区里其余测试失败来自他人未提交的改动，没有一条指向本次删除的符号。
 
 ---
