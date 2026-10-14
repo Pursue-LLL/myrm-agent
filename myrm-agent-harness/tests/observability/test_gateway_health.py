@@ -33,7 +33,12 @@ class TestGatewayHealthInspectorOtlpPosture:
     def test_otlp_not_configured_when_env_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
         monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
-        configured, connected = GatewayHealthInspector.check_otlp_posture()
+        # Tracing/metrics providers are process-global; other tests may have left them initialized.
+        with (
+            patch("myrm_agent_harness.infra.tracing.tracer.is_tracing_initialized", return_value=False),
+            patch("myrm_agent_harness.infra.tracing.metrics.exporter.is_metrics_initialized", return_value=False),
+        ):
+            configured, connected = GatewayHealthInspector.check_otlp_posture()
         assert configured is False
         assert connected is False
 
@@ -160,8 +165,5 @@ class TestGatewayHealthRegistration:
     def test_probe_registered_in_diagnostic_manager(self) -> None:
         import myrm_agent_harness.observability.diagnostics.manager as manager_module
 
-        hook_names = [
-            getattr(hook, "__name__", "")
-            for hook in manager_module._diagnostic_hooks
-        ]
+        hook_names = [getattr(hook, "__name__", "") for hook in manager_module._diagnostic_hooks]
         assert "check_gateway_runtime_health" in hook_names

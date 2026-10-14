@@ -406,13 +406,16 @@ class TestValidateUrlForSSRF:
         ):
             await async_pin_url("http://nohost.example/x")
 
-    def test_dynamic_blocked_hostnames_registration(self) -> None:
+    def test_dynamic_blocked_hostnames_registration(self, monkeypatch) -> None:
+        # validate_url_for_ssrf is the synchronous path, so DNS is stubbed on socket.getaddrinfo.
+        monkeypatch.setattr(
+            "socket.getaddrinfo",
+            lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 0))],
+        )
         clear_dynamic_blocked_hostnames()
         try:
             url = "http://cp.internal.enterprise.org/api/dispatch"
-            with mock_getaddrinfo("8.8.8.8"):
-                res = validate_url_for_ssrf(url)
-                assert res.safe is True
+            assert validate_url_for_ssrf(url).safe is True
 
             register_blocked_hostnames("cp.internal.enterprise.org")
             res_blocked = validate_url_for_ssrf(url)
@@ -420,9 +423,6 @@ class TestValidateUrlForSSRF:
             assert "Blocked hostname: cp.internal.enterprise.org" in res_blocked.error
 
             unregister_blocked_hostnames("cp.internal.enterprise.org")
-            with mock_getaddrinfo("8.8.8.8"):
-                res_restored = validate_url_for_ssrf(url)
-                assert res_restored.safe is True
+            assert validate_url_for_ssrf(url).safe is True
         finally:
             clear_dynamic_blocked_hostnames()
-

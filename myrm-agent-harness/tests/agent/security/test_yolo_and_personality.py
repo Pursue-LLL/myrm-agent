@@ -21,7 +21,7 @@ from myrm_agent_harness.agent.security.config import parse_security_config
 from myrm_agent_harness.agent.security.types import Capability, SecurityConfig
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
-SERVER_ROOT = REPO_ROOT / "myrm-agent" / "myrm-agent-server"
+SERVER_ROOT = REPO_ROOT / "myrm-agent-server"
 
 _YOLO_VALID_ACTIONS = {"on", "off", "toggle", "status"}
 

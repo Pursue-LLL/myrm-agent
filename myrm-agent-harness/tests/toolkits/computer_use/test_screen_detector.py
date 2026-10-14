@@ -64,7 +64,10 @@ class TestScreenDetector:
         assert detector.get_state() == ScreenLockState.UNLOCKED
         assert detector.is_locked() is False
 
-    def test_ttl_caching(self) -> None:
+    def test_ttl_caching(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # CI runners export CI=true, which short-circuits get_state() before the native probe.
+        monkeypatch.delenv("CI", raising=False)
+        monkeypatch.delenv("MYRM_HEADLESS", raising=False)
         detector = ScreenDetector(cache_ttl_sec=0.5)
         with patch.object(detector, "_probe_native_state", return_value=ScreenLockState.UNLOCKED) as probe:
             # First call probes native
@@ -126,6 +129,13 @@ class TestMacOSProbe:
 
 
 class TestProbeFailureReporting:
+    @pytest.fixture(autouse=True)
+    def _interactive_macos_session(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """CI exports CI=1 (and Xvfb sets DISPLAY), which makes the detector report a headless UNLOCKED before probing."""
+        for name in ("CI", "MYRM_HEADLESS", "DISPLAY"):
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(sys, "platform", "darwin")
+
     def test_nil_session_dictionary_reports_unknown(self) -> None:
         detector = ScreenDetector()
         with patch.object(detector, "_probe_macos", return_value=ScreenLockState.UNKNOWN):
@@ -286,6 +296,7 @@ class TestDesktopSessionInterruption:
         assert backend.click.call_count == 0
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="macos_input imports Quartz (macOS-only)")
 def test_macos_input_write_interrupted_when_locked() -> None:
     from myrm_agent_harness.toolkits.computer_use.backends import macos_input
     from myrm_agent_harness.toolkits.computer_use.screen_detector import get_default_screen_detector

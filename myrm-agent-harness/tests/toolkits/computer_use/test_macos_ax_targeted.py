@@ -12,6 +12,7 @@ Covers:
 from __future__ import annotations
 
 import subprocess
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -244,6 +245,7 @@ class TestCaptureAxSnapshot:
             snapshot = capture_ax_snapshot("foreground")
             assert snapshot.meta.scope == "foreground"
 
+    @pytest.mark.skipif(sys.platform != "darwin", reason="target pid resolution uses Quartz (macOS-only)")
     def test_targeted_success(self) -> None:
         mock_result = subprocess.CompletedProcess(
             args=[],
@@ -259,6 +261,7 @@ class TestCaptureAxSnapshot:
             assert snapshot.meta.app_name == "TextEdit"
             assert snapshot.meta.scope == "target"
 
+    @pytest.mark.skipif(sys.platform != "darwin", reason="target pid resolution uses Quartz (macOS-only)")
     def test_targeted_fails_falls_back_to_foreground(self) -> None:
         call_count = 0
         targeted_result = subprocess.CompletedProcess(

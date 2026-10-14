@@ -55,6 +55,9 @@ _DEFAULT_CONTEXT_OPTIONS: dict[str, object] = {
     },
 }
 
+# ``extra_kwargs`` keys consumed by the request filter rather than ``browser.new_context()``.
+_FILTER_KWARGS = frozenset({"domain_allowlist", "domain_blocklist", "resource_block", "allow_private_networks"})
+
 _CHROME_VERSION = "147.0.0.0"
 
 _PLATFORM_UA: dict[str, str] = {
@@ -132,6 +135,7 @@ class ContextFactory:
                 Special keys (not passed to new_context):
                 - domain_allowlist (DomainAllowlist): domain filtering
                 - resource_block (ResourceBlockConfig): resource type blocking
+                - allow_private_networks (bool): local mode, lifts the private-address block
             context_key: Unique context identifier for proxy sticky session binding.
                 When provided, same context_key always gets the same proxy.
                 Falls back to context_type if not provided.
@@ -150,6 +154,7 @@ class ContextFactory:
         domain_allowlist = extra_kwargs.get("domain_allowlist") if extra_kwargs else None
         domain_blocklist = extra_kwargs.get("domain_blocklist") if extra_kwargs else None
         resource_block = extra_kwargs.get("resource_block") if extra_kwargs else None
+        allow_private_networks = bool(extra_kwargs.get("allow_private_networks")) if extra_kwargs else False
 
         # Try to safely extract permissions, some engines (like Firefox) don't support all Chromium permissions
         permissions = ctx_opts.get("permissions", [])
@@ -208,13 +213,16 @@ class ContextFactory:
                     effective_allowlist,
                     domain_blocklist=domain_blocklist,
                     resource_block=resource_block,
+                    allow_private_networks=allow_private_networks,
                 )
             except Exception:
                 await context.close()
                 raise
         elif resource_block:
             try:
-                await self._install_resource_blocking(context, resource_block)
+                await self._install_resource_blocking(
+                    context, resource_block, allow_private_networks=allow_private_networks
+                )
             except Exception:
                 await context.close()
                 raise
@@ -246,12 +254,7 @@ class ContextFactory:
                 _sync_accept_language(ctx_opts, effective_emulation.locale)
 
         if extra_kwargs:
-            playwright_kwargs = {
-                k: v
-                for k, v in extra_kwargs.items()
-                if k not in ("domain_allowlist", "domain_blocklist", "resource_block")
-            }
-            ctx_opts.update(playwright_kwargs)
+            ctx_opts.update({k: v for k, v in extra_kwargs.items() if k not in _FILTER_KWARGS})
 
         return ctx_opts
 
@@ -278,6 +281,7 @@ class ContextFactory:
         *,
         domain_blocklist: object | None = None,
         resource_block: object | None = None,
+        allow_private_networks: bool = False,
     ) -> None:
         """Install domain filter and resource blocking on context."""
         from myrm_agent_harness.toolkits.browser.domain_filter import (
@@ -289,12 +293,15 @@ class ContextFactory:
             domain_allowlist,  # type: ignore[arg-type]
             domain_blocklist=domain_blocklist,  # type: ignore[arg-type]
             resource_block=resource_block,  # type: ignore[arg-type]
+            allow_private_networks=allow_private_networks,
         )
 
     @staticmethod
     async def _install_resource_blocking(
         context: BrowserContext,
         resource_block: object,
+        *,
+        allow_private_networks: bool = False,
     ) -> None:
         """Install resource type + ad domain blocking without domain allowlist."""
         from myrm_agent_harness.toolkits.browser.domain_filter import (
@@ -306,4 +313,5 @@ class ContextFactory:
             context,
             DomainAllowlist(patterns=()),  # empty allowlist = no domain restriction
             resource_block=resource_block,  # type: ignore[arg-type]
+            allow_private_networks=allow_private_networks,
         )

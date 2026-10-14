@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,6 +12,17 @@ pytestmark = pytest.mark.xdist_group("browser_perf")
 
 from myrm_agent_harness.toolkits.browser.session import Interactor
 from myrm_agent_harness.toolkits.browser.snapshot import RefInfo
+
+_ROUNDS = 5
+
+
+async def _best_avg_ms(run_round: Callable[[], Awaitable[float]]) -> float:
+    """Return the lowest per-call latency (ms) over several rounds.
+
+    Scheduler preemption on a shared CI runner only ever adds time, so the fastest round is the stable
+    estimate of the code's own cost; a real regression slows every round.
+    """
+    return min([await run_round() for _ in range(_ROUNDS)])
 
 
 @pytest.fixture
@@ -57,25 +69,24 @@ async def test_performance_simple_actions(interactor: Interactor) -> None:
         # Warm up
         await interactor.interact("click", "e0")
 
-        # Benchmark: 1000 iterations
         iterations = 1000
-        start = time.perf_counter()
 
-        for _ in range(iterations):
-            await interactor.interact("click", "e0")
-            await interactor.interact("fill", "e1", "test@example.com")
-            await interactor.interact("check", "e2")
+        async def run_round() -> float:
+            start = time.perf_counter()
+            for _ in range(iterations):
+                await interactor.interact("click", "e0")
+                await interactor.interact("fill", "e1", "test@example.com")
+                await interactor.interact("check", "e2")
+            return (time.perf_counter() - start) / (iterations * 3) * 1000
 
-        elapsed = time.perf_counter() - start
-        avg_per_call = elapsed / (iterations * 3) * 1000  # ms
+        avg_per_call = await _best_avg_ms(run_round)
 
         print(f"\n{'=' * 60}")
         print("Performance Test Results:")
         print(f"{'=' * 60}")
-        print(f"Total iterations: {iterations * 3:,} calls")
-        print(f"Total time: {elapsed:.3f}s")
+        print(f"Calls per round: {iterations * 3:,} (best of {_ROUNDS} rounds)")
         print(f"Average per call: {avg_per_call:.4f}ms")
-        print(f"Throughput: {(iterations * 3) / elapsed:.0f} calls/sec")
+        print(f"Throughput: {1000 / avg_per_call:.0f} calls/sec")
         print(f"{'=' * 60}")
 
         # Assert performance target (1ms is reasonable for mock operations)
@@ -114,22 +125,22 @@ async def test_performance_special_actions(interactor: Interactor) -> None:
         "myrm_agent_harness.toolkits.browser.session.interactor.resolve_locator",
         return_value=mock_locator,
     ):
-        # Benchmark: 500 iterations
         iterations = 500
-        start = time.perf_counter()
 
-        for _ in range(iterations):
-            await interactor.interact("scroll", "e0", "100")
-            await interactor.interact("drag", "e0", "200,150")
+        async def run_round() -> float:
+            state["top"] = 0.0
+            start = time.perf_counter()
+            for _ in range(iterations):
+                await interactor.interact("scroll", "e0", "100")
+                await interactor.interact("drag", "e0", "200,150")
+            return (time.perf_counter() - start) / (iterations * 2) * 1000
 
-        elapsed = time.perf_counter() - start
-        avg_per_call = elapsed / (iterations * 2) * 1000  # ms
+        avg_per_call = await _best_avg_ms(run_round)
 
         print(f"\n{'=' * 60}")
         print("Special Actions Performance:")
         print(f"{'=' * 60}")
-        print(f"Total iterations: {iterations * 2:,} calls")
-        print(f"Total time: {elapsed:.3f}s")
+        print(f"Calls per round: {iterations * 2:,} (best of {_ROUNDS} rounds)")
         print(f"Average per call: {avg_per_call:.4f}ms")
         print(f"{'=' * 60}")
 

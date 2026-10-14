@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
+import errno
 from unittest.mock import MagicMock
 
 import pytest
 
 from myrm_agent_harness.toolkits.code_execution.executors.local._background_pty_spawn import (
     _PtyProcessWrapper,
+    _PtyReaderProtocol,
     _PtyStdinWriter,
     pty_spawn_eligible,
 )
@@ -49,3 +52,27 @@ def test_pty_process_wrapper_reuses_single_stdin_writer() -> None:
         read_file=MagicMock(),
     )
     assert wrapper.stdin is wrapper.stdin
+
+
+@pytest.mark.asyncio
+async def test_pty_reader_treats_linux_hangup_as_eof_after_buffered_output() -> None:
+    """EIO from a hung-up PTY master must not discard output already read from the child."""
+    reader = asyncio.StreamReader()
+    protocol = _PtyReaderProtocol(reader)
+
+    reader.feed_data(b"error output\r\n")
+    protocol.connection_lost(OSError(errno.EIO, "Input/output error"))
+
+    assert await reader.readline() == b"error output\r\n"
+    assert await reader.readline() == b""
+
+
+@pytest.mark.asyncio
+async def test_pty_reader_still_propagates_other_read_errors() -> None:
+    reader = asyncio.StreamReader()
+    protocol = _PtyReaderProtocol(reader)
+
+    protocol.connection_lost(OSError(errno.EBADF, "Bad file descriptor"))
+
+    with pytest.raises(OSError, match="Bad file descriptor"):
+        await reader.readline()

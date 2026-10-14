@@ -16,6 +16,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+# The healthy-workspace assertions must not depend on ripgrep being installed on the host.
+_RG_PATH = "/usr/bin/rg"
+
 
 class TestCheckWorkspaceStorageHealth:
     """Tests for check_workspace_storage_health."""
@@ -33,7 +36,10 @@ class TestCheckWorkspaceStorageHealth:
             conn.execute("CREATE TABLE test (id INTEGER)")
             conn.close()
 
-            with patch.dict(os.environ, {"MYRM_DATA_DIR": str(workspace)}):
+            with (
+                patch.dict(os.environ, {"MYRM_DATA_DIR": str(workspace)}),
+                patch("shutil.which", return_value=_RG_PATH),
+            ):
                 report = await check_workspace_storage_health()
                 assert report.status == "pass"
 
@@ -52,7 +58,10 @@ class TestCheckWorkspaceStorageHealth:
             conn.execute("CREATE TABLE test (id INTEGER)")
             conn.close()
 
-            with patch.dict(os.environ, {"MYRM_DATA_DIR": str(workspace)}):
+            with (
+                patch.dict(os.environ, {"MYRM_DATA_DIR": str(workspace)}),
+                patch("shutil.which", return_value=_RG_PATH),
+            ):
                 report = await check_workspace_storage_health()
                 # Should still pass - skills.db check is optional
                 assert report.status == "pass"
@@ -62,7 +71,11 @@ class TestCheckWorkspaceStorageHealth:
         """Verify workspace path is read from MYRM_DATA_DIR environment variable."""
         from myrm_agent_harness.observability.diagnostics.probes import check_workspace_storage_health
 
-        with tempfile.TemporaryDirectory() as tmpdir, patch.dict(os.environ, {"MYRM_DATA_DIR": str(tmpdir)}):
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            patch.dict(os.environ, {"MYRM_DATA_DIR": str(tmpdir)}),
+            patch("shutil.which", return_value=_RG_PATH),
+        ):
             report = await check_workspace_storage_health()
             assert report.status == "pass"
             assert str(tmpdir) in report.detail

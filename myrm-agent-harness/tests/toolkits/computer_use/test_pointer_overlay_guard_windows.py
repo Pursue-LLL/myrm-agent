@@ -41,7 +41,9 @@ async def test_pointer_refused_when_overlay_hwnd_present(action: str) -> None:
 
 @pytest.mark.parametrize("action", _POINTER_ACTIONS)
 async def test_pointer_proceeds_when_no_overlay(action: str) -> None:
+    # The backend imports pyautogui lazily, and it only ships with the Windows/desktop extras.
     with (
+        patch.dict("sys.modules", {"pyautogui": MagicMock()}),
         patch.object(win_mod, "_lowest_overlay_hwnd", MagicMock(return_value=None)),
         patch.object(win_mod.asyncio, "to_thread", AsyncMock(return_value=None)),
     ):

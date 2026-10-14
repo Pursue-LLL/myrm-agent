@@ -2,7 +2,8 @@
 
 The allow path uses a local-loopback HTTP server with ``allow_private_networks=True``
 so SSRF guard does not preempt the domain filter; the block path relies on the
-domain filter's ``route.abort("blockedbyclient")`` producing ERR_BLOCKED_BY_CLIENT.
+domain filter's ``route.abort("blockedbyclient")``, which surfaces as a
+``BrowserNavigationError`` carrying ERR_BLOCKED_BY_CLIENT.
 The wildcard allow case uses www.example.com (reachable in CI/test networks).
 """
 
@@ -14,9 +15,9 @@ from contextlib import asynccontextmanager, contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
-from patchright._impl._errors import Error as PatchrightError
 
 from myrm_agent_harness.toolkits.browser import BrowserSession, DomainAllowlist
+from myrm_agent_harness.toolkits.browser.exceptions import BrowserNavigationError
 from myrm_agent_harness.toolkits.browser.pool import ContextType, GlobalBrowserPool
 
 _PAGE_HTML = b"<!DOCTYPE html><html><body><h1>ok</h1></body></html>"
@@ -77,7 +78,7 @@ async def test_domain_allowlist_blocks_navigation() -> None:
             async with _session_with_allowlist(pool, DomainAllowlist.from_strings(["example.com"])) as session:
                 await session.navigate(url)
                 pytest.fail("Expected navigation to be blocked")
-    except PatchrightError as e:
+    except BrowserNavigationError as e:
         assert "net::ERR_BLOCKED_BY_CLIENT" in str(e)
     finally:
         await pool.shutdown()
@@ -125,7 +126,7 @@ async def test_domain_allowlist_wildcard_patterns() -> None:
                 # Loopback host is not covered by the wildcard patterns → blocked.
                 await session.navigate(url)
                 pytest.fail("Expected navigation to be blocked")
-    except PatchrightError as e:
+    except BrowserNavigationError as e:
         assert "ERR_BLOCKED_BY_CLIENT" in str(e) or "ERR_CONNECTION_CLOSED" in str(e)
     finally:
         await pool.shutdown()

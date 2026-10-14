@@ -13,7 +13,7 @@ from myrm_agent_harness.backends.profiles.diversity_lint import (
 )
 
 PREBUILT_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../../myrm-agent/myrm-agent-server/assets/prebuilt_agents")
+    os.path.join(os.path.dirname(__file__), "../../../myrm-agent-server/assets/prebuilt_agents")
 )
 
 

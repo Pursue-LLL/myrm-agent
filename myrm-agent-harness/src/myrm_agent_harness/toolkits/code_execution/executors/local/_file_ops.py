@@ -21,6 +21,7 @@ the shell pre-flight.
 from __future__ import annotations
 
 import logging
+import shlex
 import time
 from pathlib import Path
 from typing import Protocol, runtime_checkable
@@ -129,8 +130,7 @@ class LocalFileOpsMixin:
         matched = first_matching_pattern(resolved_path, protected_paths_var.get())
         if matched is not None:
             raise PermissionError(
-                f"Write denied: '{resolved_path}' is protected by the active Goal "
-                f"(pattern: '{matched}')."
+                f"Write denied: '{resolved_path}' is protected by the active Goal (pattern: '{matched}')."
             )
         if is_evidence_readonly_file(resolved_path):
             raise PermissionError(
@@ -138,9 +138,7 @@ class LocalFileOpsMixin:
                 f"Write derived output to 'artifacts/' instead."
             )
         if is_sensitive_file(resolved_path):
-            raise PermissionError(
-                f"Write denied: '{resolved_path}' matches a credential path rule."
-            )
+            raise PermissionError(f"Write denied: '{resolved_path}' matches a credential path rule.")
         if is_protected_instruction_file(resolved_path):
             raise PermissionError(
                 f"Write denied: '{resolved_path}' is a persona instruction file. "
@@ -305,6 +303,9 @@ class LocalFileOpsMixin:
 
         tool = "ripgrep" if self._has_ripgrep else "grep"
 
+        quoted_pattern = shlex.quote(pattern)
+        quoted_path = shlex.quote(str(safe))
+
         if self._has_ripgrep:
             flags = ["--line-number"]
             if not use_regex:
@@ -312,20 +313,14 @@ class LocalFileOpsMixin:
             if not case_sensitive:
                 flags.append("--ignore-case")
 
-            flags_str = " ".join(flags)
             result = await self._exec_bash(  # type: ignore[attr-defined]
-                f"rg {flags_str} '{pattern}' '{safe}' 2>/dev/null || true"
+                f"rg {' '.join(flags)} -- {quoted_pattern} {quoted_path} 2>/dev/null || true"
             )
         else:
-            flags = ["-rn"]
-            if not use_regex:
-                flags.append("F")
-            if not case_sensitive:
-                flags.append("i")
-
-            flags_str = "-" + "".join(flags)
+            # POSIX ERE keeps regex mode close to ripgrep's syntax (alternation, groups, \w, \b).
+            flags_str = "-rn" + ("E" if use_regex else "F") + ("" if case_sensitive else "i")
             result = await self._exec_bash(  # type: ignore[attr-defined]
-                f"grep {flags_str} '{pattern}' '{safe}' || true"
+                f"grep {flags_str} -- {quoted_pattern} {quoted_path} || true"
             )
 
         elapsed = time.time() - start

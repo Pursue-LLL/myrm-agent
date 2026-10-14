@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from myrm_agent_harness.agent.security.attestation import (
     AttestationConfig,
     AttestationFailedHardBreakError,
@@ -61,8 +62,13 @@ def test_binary_integrity_probe_success_and_tamper_detection(tmp_path: Path) -> 
     assert "missing" in (res_missing.error_message or "").lower()
 
 
-def test_environment_attestation_engine_all_vectors_and_hard_break(tmp_path: Path) -> None:
+def test_environment_attestation_engine_all_vectors_and_hard_break(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Ensure attestation engine generates report and enforces hard-break on critical anomaly."""
+    # CI runners expose a writable /var/run/docker.sock, which the mount audit rightly flags;
+    # pin the audited paths so the "clean" baseline does not depend on the host.
+    monkeypatch.setattr(HostIsolationProbe, "DANGEROUS_HOST_PATHS", (str(tmp_path / "absent-socket"),))
     safe_file = tmp_path / "core_runner.py"
     safe_file.write_text("print('safe')", encoding="utf-8")
     safe_sha = BinaryIntegrityProbe.compute_file_sha256(safe_file)

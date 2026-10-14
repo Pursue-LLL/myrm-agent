@@ -16,7 +16,7 @@ import pytest
 from myrm_agent_harness.agent.config.litellm_routing import normalize_env_model_selection_string
 from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
 
-_ENV_TEST = Path(__file__).resolve().parents[5] / "myrm-agent" / "myrm-agent-server" / ".env.test"
+_ENV_TEST = Path(__file__).resolve().parents[5] / "myrm-agent-server" / ".env.test"
 
 
 class TestReasoningTimeoutIntegration:
@@ -180,7 +180,6 @@ class TestReasoningTimeoutRealAPI:
         import litellm
 
         captured_kwargs: dict = {}
-        original_completion = litellm.completion
 
         def spy_completion(*args: object, **kwargs: object) -> dict[str, object]:
             captured_kwargs.update(kwargs)  # type: ignore[arg-type]

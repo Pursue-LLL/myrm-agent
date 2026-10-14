@@ -56,8 +56,9 @@ async def test_tool_navigate_basic(browser_session: BrowserSession) -> None:
     browser_navigate = tool_dict["browser_navigate_tool"]
 
     result = await browser_navigate.ainvoke({"url": "about:blank"})
-    assert "about:blank" in result.lower()
-    assert "status" in result.lower()
+    content = result["content"].lower()
+    assert "about:blank" in content
+    assert "status" in content
 
 
 @pytest.mark.e2e
@@ -71,8 +72,9 @@ async def test_tool_navigate_real_site(browser_session: BrowserSession) -> None:
     browser_navigate = tool_dict["browser_navigate_tool"]
 
     result = await browser_navigate.ainvoke({"url": "https://example.com"})
-    assert "example.com" in result.lower()
-    assert "status=200" in result.lower() or "200" in result
+    content = result["content"].lower()
+    assert "example.com" in content
+    assert "status=200" in content or "200" in content
 
 
 # =============================================================================
@@ -379,7 +381,7 @@ async def test_tool_full_workflow(browser_session: BrowserSession) -> None:
 
     # Step 1: Navigate
     nav_result = await tool_dict["browser_navigate_tool"].ainvoke({"url": "about:blank"})
-    assert "about:blank" in nav_result.lower()
+    assert "about:blank" in nav_result["content"].lower()
 
     # Setup test page
     page = browser_session._tab_controller.get_active_page()

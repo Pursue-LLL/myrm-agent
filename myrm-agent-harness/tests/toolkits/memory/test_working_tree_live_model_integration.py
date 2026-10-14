@@ -25,7 +25,7 @@ from myrm_agent_harness.toolkits.memory.working_tree import (
     FastContradictionDetector,
 )
 
-_ENV_TEST = Path(__file__).resolve().parents[4] / "myrm-agent" / "myrm-agent-server" / ".env.test"
+_ENV_TEST = Path(__file__).resolve().parents[4] / "myrm-agent-server" / ".env.test"
 
 
 from langchain_core.language_models.chat_models import BaseChatModel

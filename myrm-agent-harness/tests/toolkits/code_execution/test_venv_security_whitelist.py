@@ -41,6 +41,17 @@ def tmp_venv(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def outside_tmp_zone(outside_system_tmp: Path) -> tuple[Path, Path]:
+    """Workspace and venv python placed where the validator does not auto-allow them."""
+    workspace = outside_system_tmp / "workspace"
+    workspace.mkdir()
+    python = outside_system_tmp / ".sandbox_venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.touch()
+    return workspace, python
+
+
+@pytest.fixture
 def venv_manager_with_venv(tmp_venv: Path) -> VenvManager:
     config = ExecutionConfig(local={"shared_venv_path": str(tmp_venv)})
     return VenvManager(config)
@@ -130,15 +141,15 @@ class TestValidateCommandWithVenvWhitelist:
         )
         assert result.is_safe
 
-    def test_without_additional_paths_venv_blocked(self, tmp_workspace: Path, tmp_venv: Path) -> None:
+    def test_without_additional_paths_venv_blocked(self, outside_tmp_zone: tuple[Path, Path]) -> None:
         """Before the fix: venv paths are blocked without additional_paths."""
-        python_path = str(tmp_venv / "bin" / "python")
-        script = tmp_workspace / "run.py"
+        workspace, python = outside_tmp_zone
+        script = workspace / "run.py"
         script.touch()
-        cmd = f"{python_path} {script}"
+        cmd = f"{python} {script}"
         result = validate_command(
             cmd,
-            workspace_path=tmp_workspace,
+            workspace_path=workspace,
             additional_paths=None,
         )
         assert not result.is_safe
@@ -228,7 +239,7 @@ class TestIsPathAllowed:
         python_path = str(tmp_venv / "bin" / "python")
         assert _is_path_allowed(python_path, allowed) is True
 
-    def test_venv_path_without_additional_blocked(self, tmp_workspace: Path, tmp_venv: Path) -> None:
-        allowed = _get_allowed_paths(workspace_path=tmp_workspace)
-        python_path = str(tmp_venv / "bin" / "python")
-        assert _is_path_allowed(python_path, allowed) is False
+    def test_venv_path_without_additional_blocked(self, outside_tmp_zone: tuple[Path, Path]) -> None:
+        workspace, python = outside_tmp_zone
+        allowed = _get_allowed_paths(workspace_path=workspace)
+        assert _is_path_allowed(str(python), allowed) is False

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import atexit
 import inspect
 import logging
@@ -31,7 +32,7 @@ os.environ["OTEL_METRICS_EXPORTER"] = "none"
 os.environ["OTEL_TRACES_EXPORTER"] = "none"
 
 _env_test_candidates = (
-    Path(__file__).resolve().parent.parent.parent / "myrm-agent" / "myrm-agent-server" / ".env.test",
+    Path(__file__).resolve().parent.parent.parent / "myrm-agent-server" / ".env.test",
     Path(__file__).resolve().parent.parent / ".env.test",
 )
 for _candidate in _env_test_candidates:
@@ -89,14 +90,21 @@ def _isolate_subagent_checkpointer() -> Iterator[None]:
 
 
 _BROWSER_TEST_ROOT = Path(__file__).resolve().parent / "toolkits" / "browser"
+_BROWSER_POOL_RESET_TIMEOUT_S = 30.0
 _TESTS_ROOT = Path(__file__).resolve().parent
 _INTEGRATION_TEST_ROOT = _TESTS_ROOT / "integration"
 
 
 def _needs_browser_singleton_reset(request: pytest.FixtureRequest) -> bool:
-    """Return whether a test may touch the GlobalBrowserPool singleton."""
+    """Return whether a test may leave a live Chromium in the GlobalBrowserPool singleton.
+
+    Browser tests drive the pool directly. Integration/e2e tests reach it through web-fetch escalation (a
+    crawl falls back to the browser fetcher), which launches a real Chromium on that test's event loop.
+    """
     item_path = Path(request.fspath).resolve()
-    return bool(item_path.is_relative_to(_BROWSER_TEST_ROOT))
+    if item_path.is_relative_to(_BROWSER_TEST_ROOT):
+        return True
+    return any(request.node.get_closest_marker(name) is not None for name in ("integration", "e2e"))
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -192,6 +200,21 @@ def _reset_session_executor_stash() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _reset_subagent_checkpointer_singleton() -> Iterator[None]:
+    """Give every test its own subagent checkpointer.
+
+    The singleton's SQLite saver binds asyncio locks to the event loop that first used it, while
+    pytest-asyncio runs each test on a fresh loop; a saver left behind by one test (for example after a
+    hard-timeout cancellation) fails the next one with "Lock is bound to a different event loop".
+    """
+    from myrm_agent_harness.agent.sub_agents.checkpointer import reset_subagent_checkpointer
+
+    reset_subagent_checkpointer()
+    yield
+    reset_subagent_checkpointer()
+
+
+@pytest.fixture(autouse=True)
 def _restore_chat_id_var() -> Iterator[None]:
     """Isolate the active chat id ContextVar between all tests.
 
@@ -208,13 +231,73 @@ def _restore_chat_id_var() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _reset_taint_tracker() -> Iterator[None]:
+    """Isolate the context-local taint tracker between all tests.
+
+    ``get_taint_tracker()`` creates one tracker lazily and every later test (sync, or async on a copied
+    context) shares that object, so a test that records a taint label leaves every later test of the
+    worker tainted; code that propagates child taint to a parent then runs with a label nobody set.
+    """
+    from myrm_agent_harness.agent.security.guards.taint_tracker import reset_taint_tracker
+
+    reset_taint_tracker()
+    yield
+    reset_taint_tracker()
+
+
+@pytest.fixture(autouse=True)
+def _reset_ptc_safety_registry() -> Iterator[None]:
+    """Isolate the dynamic MCP safety registry between all tests.
+
+    Connecting an MCP server registers per-skill and per-tool safety metadata in process-wide
+    registries. Left behind, they make the compliance audit report a ghost skill and let an unrelated
+    tool with the same name resolve to another server's read-only annotations, which skips approval.
+    """
+    from myrm_agent_harness.core.security.tool_registry.registry import (
+        _PTC_LOCK,
+        _PTC_SAFETY_METADATA,
+        _PTC_TOOL_FLAT_INDEX,
+    )
+
+    def clear() -> None:
+        with _PTC_LOCK:
+            _PTC_SAFETY_METADATA.clear()
+            _PTC_TOOL_FLAT_INDEX.clear()
+
+    clear()
+    yield
+    clear()
+
+
+def _unregister_security_reviewer_if_loaded() -> None:
+    module = sys.modules.get("myrm_agent_harness.agent.middlewares.approval._batch_review")
+    if module is not None:
+        module.register_security_reviewer(None)
+
+
+@pytest.fixture(autouse=True)
+def _reset_security_reviewer() -> Iterator[None]:
+    """Unregister the auto-mode security reviewer between all tests.
+
+    ``register_security_reviewer`` stores the reviewer in a process-wide slot, and auto mode is on by
+    default. A reviewer left behind by one test approves ASK decisions of every later test of the
+    worker, including writes to protected instruction files that must stay pending.
+    """
+    _unregister_security_reviewer_if_loaded()
+    yield
+    _unregister_security_reviewer_if_loaded()
+
+
+@pytest.fixture(autouse=True)
 async def _reset_global_browser_pool_singleton(request: pytest.FixtureRequest) -> AsyncIterator[None]:
     """Shut down GlobalBrowserPool singleton after browser-related tests.
 
     ``get_global_browser_pool()`` keeps a module-level instance with a lifecycle
     background task; without teardown, Chromium workers can outlive the test.
-    Scoped to browser/integration/e2e paths to avoid async fixture overhead on
-    the full ~20k unit-test matrix.
+    Scoped to browser/integration/e2e tests to avoid async fixture overhead on
+    the full ~20k unit-test matrix. The pool must be shut down on the event loop
+    that used it: a browser left behind by an earlier test is bound to a closed
+    loop, so a later teardown would wait on its connection forever.
     """
     yield
     if not _needs_browser_singleton_reset(request):
@@ -222,11 +305,18 @@ async def _reset_global_browser_pool_singleton(request: pytest.FixtureRequest) -
 
     try:
         from myrm_agent_harness.toolkits.browser.pool import reset_global_browser_pool_for_tests
-
-        with suppress(Exception):
-            await reset_global_browser_pool_for_tests()
     except ImportError:
-        pass
+        return
+    try:
+        await asyncio.wait_for(reset_global_browser_pool_for_tests(), timeout=_BROWSER_POOL_RESET_TIMEOUT_S)
+    except TimeoutError:
+        pytest.fail(
+            f"GlobalBrowserPool shutdown hung for {_BROWSER_POOL_RESET_TIMEOUT_S}s; a previous test left a browser "
+            "bound to a closed event loop.",
+            pytrace=False,
+        )
+    except Exception:
+        logger.debug("GlobalBrowserPool reset failed", exc_info=True)
 
 
 # ---------------------------------------------------------------------------
@@ -261,6 +351,22 @@ def blocking_io_gate() -> Iterator[BlockBuster]:
     """Fixture that activates blockbuster for a single test."""
     with _blocking_io_gate_ctx() as bb:
         yield bb
+
+
+@pytest.fixture
+def outside_system_tmp() -> Iterator[Path]:
+    """Scratch dir outside ``/tmp``, which the command validator always allows.
+
+    ``tmp_path`` lives under ``/tmp`` on Linux, so tests asserting that a path is *blocked* need a
+    location beside the test tree instead. Skips when the checkout itself sits under ``/tmp``.
+    """
+    root = Path(tempfile.mkdtemp(prefix="outside_tmp_", dir=Path(__file__).resolve().parent))
+    try:
+        if root.resolve().is_relative_to(Path("/tmp").resolve()):
+            pytest.skip("checkout lives under /tmp, which the validator always allows")
+        yield root
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 @pytest.hookimpl(hookwrapper=True)

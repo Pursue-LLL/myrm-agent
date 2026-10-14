@@ -1,6 +1,6 @@
 """Shared fixtures for real-LLM e2e integration tests of the content-extraction layer.
 
-Loads credentials from ``myrm-agent/myrm-agent-server/.env.test`` (the same
+Loads credentials from ``myrm-agent-server/.env.test`` (the same
 file pytest uses for server-side integration/e2e suites) and builds real
 ``ChatLiteLLM`` instances for the BASIC (agnes hub) and LITE (minimax) model
 lanes. Tests that require a real model must opt in via ``@pytest.mark.e2e``.
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-_ENV_TEST = Path(__file__).resolve().parents[4] / "myrm-agent" / "myrm-agent-server" / ".env.test"
+_ENV_TEST = Path(__file__).resolve().parents[4] / "myrm-agent-server" / ".env.test"
 
 from tests.integration.llm_extraction.litellm_creds import litellm_config_for
 

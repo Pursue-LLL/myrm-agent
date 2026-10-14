@@ -176,7 +176,8 @@ class BrowserSession(
             content_vault: Content vault for storing downloads/screenshots
             vision_llm: Vision LLM for visual tasks
             extension_bridge: Extension bridge for private URL fallback in sandbox mode
-            allow_private_networks: Allow navigation to private networks
+            allow_private_networks: Allow navigation to private networks. Lifts the SSRF private-address
+                block in both the navigator and the context-level request filter.
             engine_preference: Preferred browser engine (e.g. 'chromium_patchright', 'firefox_camoufox').
             launch_mode_preference: Per-agent launch mode override (e.g. 'extension' to use user's real browser).
             dialog_policy: Dialog handling strategy ('smart', 'auto_accept', 'auto_dismiss', 'wait_for_agent').
@@ -216,6 +217,8 @@ class BrowserSession(
             context_kwargs["domain_allowlist"] = domain_allowlist
         if domain_blocklist:
             context_kwargs["domain_blocklist"] = domain_blocklist
+        if allow_private_networks:
+            context_kwargs["allow_private_networks"] = True
         if download_config is not None:
             context_kwargs["accept_downloads"] = True
         self._device_emulator = DeviceEmulator()

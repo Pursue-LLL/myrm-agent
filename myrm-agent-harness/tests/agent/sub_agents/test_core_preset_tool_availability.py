@@ -17,7 +17,7 @@ def _monorepo_root() -> Path:
 
 
 def _core_presets_dir() -> Path:
-    path = _monorepo_root() / "myrm-agent" / "myrm-agent-server" / "app" / "config" / "subagents" / "core"
+    path = _monorepo_root() / "myrm-agent-server" / "app" / "config" / "subagents" / "core"
     if not path.exists():
         pytest.skip("Core subagent presets directory not found")
     return path

@@ -305,8 +305,8 @@ async def test_live_transcript_classifier_with_model() -> None:
 
     from dotenv import dotenv_values
 
-    # Resolve repo root: parents[4] is /open-perplexity from /open-perplexity/myrm-agent-harness/tests/agent/middlewares/approval/test_auto_mode_hardening.py
-    env_test_path = Path("/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-agent-server/.env.test")
+    # parents[5] is the repository root (myrm-agent-harness/tests/agent/middlewares/approval/<this file>)
+    env_test_path = Path(__file__).resolve().parents[5] / "myrm-agent-server" / ".env.test"
     vals = {}
     if env_test_path.is_file():
         vals = dotenv_values(str(env_test_path))

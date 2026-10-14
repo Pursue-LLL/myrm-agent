@@ -18,6 +18,7 @@ import shutil
 import sys
 
 import pytest
+from pydantic import ValidationError
 
 from myrm_agent_harness.toolkits.acp.acp_agent_tools import (
     create_invoke_acp_agent_tool,
@@ -323,15 +324,9 @@ class TestRuntimePoolReal:
         return pool
 
     @pytest.mark.asyncio
-    async def test_pool_mcp_env_reaches_child_process(self) -> None:
-        """Per-call mcp_servers env must reach a real child process over the pool."""
-        bridge = (
-            "import sys,json;"
-            "line=sys.stdin.readline();"
-            "p=json.loads(line);"
-            "envs=[(s.get('name'),s.get('env')) for s in p.get('mcp_servers',[])];"
-            "print(json.dumps({'type':'text','text':json.dumps(envs)}),flush=True)"
-        )
+    async def test_pool_withholds_per_call_mcp_servers_from_cli_backend(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A CLI backend declares no MCP support, so per-call servers (and their secrets) never reach the child."""
+        bridge = "import sys;print(' '.join(sys.argv[1:]),flush=True)"
         pool = RuntimePool(max_concurrent=1)
         pool.register(
             "cli-bridge",
@@ -365,20 +360,15 @@ class TestRuntimePoolReal:
                 for e in events
                 if e.type == RuntimeEventType.TEXT_DELTA and isinstance(e.data.get("content"), str)
             )
-            assert '"MCP_TOKEN": "secret"' in text
+            assert text.strip() == "hello"
+            assert "pool_mcp_skipped backend=cli-bridge" in caplog.text
         finally:
             await pool.close_all()
 
     @pytest.mark.asyncio
-    async def test_pool_mcp_forwarded_from_config_mcp_servers(self) -> None:
-        """RuntimeConfig.mcp_servers must flow to the child when no per-call servers."""
-        bridge = (
-            "import sys,json;"
-            "line=sys.stdin.readline();"
-            "p=json.loads(line);"
-            "envs=[(s.get('name'),s.get('env')) for s in p.get('mcp_servers',[])];"
-            "print(json.dumps({'type':'text','text':json.dumps(envs)}),flush=True)"
-        )
+    async def test_pool_withholds_config_mcp_servers_from_cli_backend(self) -> None:
+        """RuntimeConfig.mcp_servers is withheld from a CLI backend just like per-call servers."""
+        bridge = "import sys;print(' '.join(sys.argv[1:]),flush=True)"
         pool = RuntimePool(max_concurrent=1)
         pool.register(
             "cli-cfg-mcp",
@@ -404,7 +394,7 @@ class TestRuntimePoolReal:
                 for e in events
                 if e.type == RuntimeEventType.TEXT_DELTA and isinstance(e.data.get("content"), str)
             )
-            assert '"CFG_TOKEN": "cfg-value"' in text
+            assert text.strip() == "hello"
         finally:
             await pool.close_all()
 
@@ -555,7 +545,7 @@ class TestDelegateToolReal:
                 backend_type="cli",
                 command="codex",
                 args=["exec", "--json", "-p"],
-                    permission_mode="allow_all",
+                permission_mode="allow_all",
                 timeout_seconds=TIMEOUT,
                 max_turns=1,
                 description="Codex CLI",
@@ -587,9 +577,9 @@ class TestDelegateToolReal:
             RuntimeConfig(backend_type="cli", command="echo"),
         )
         tool_func = create_invoke_acp_agent_tool(pool, cwd=os.getcwd())
-        result = await tool_func.ainvoke({"agent_name": "dummy", "task": "hello", "mode": "bad_mode"})
-        assert "[error]" in result
-        assert "Invalid mode" in result
+        # The Literal-typed input schema rejects unknown modes before the tool body runs.
+        with pytest.raises(ValidationError, match="persistent"):
+            await tool_func.ainvoke({"agent_name": "dummy", "task": "hello", "mode": "bad_mode"})
 
     @pytest.mark.asyncio
     async def test_delegate_task_too_large(self) -> None:

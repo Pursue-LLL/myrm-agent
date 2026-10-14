@@ -9,6 +9,7 @@ import pytest
 
 from myrm_agent_harness.agent._factory.mcp_routing import (
     compute_direct_threshold,
+    estimate_schema_tokens,
     route_mcp_servers,
 )
 from myrm_agent_harness.agent.skills.runtime.registry import skill_registry
@@ -16,6 +17,9 @@ from myrm_agent_harness.toolkits.mcp.config import MCPConfig
 from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
 
 _MEGA_TOOL_COUNT = 55
+# Each tool carries a long description so the server's schema weight clears the PTC threshold with margin.
+_PROBE_DOC_SENTENCE = "Mega routing probe tool with extended semantics for the schema token budget. "
+_PROBE_DOC_REPEATS = 40
 
 
 def _write_mega_mcp_server(script_path: Path, tool_count: int = _MEGA_TOOL_COUNT) -> None:
@@ -34,7 +38,7 @@ def _write_mega_mcp_server(script_path: Path, tool_count: int = _MEGA_TOOL_COUNT
                 "    limit: int = 10,",
                 '    filter_mode: str = "all",',
                 ") -> str:",
-                f'    """Mega routing probe tool {i} with extended semantics for schema token budget."""',
+                f'    """Probe tool {i}. {_PROBE_DOC_SENTENCE * _PROBE_DOC_REPEATS}"""',
                 '    return f"{query}:{limit}:{filter_mode}"',
                 "",
             ]
@@ -82,6 +86,8 @@ async def test_route_mcp_servers_real_stdio_mega_server_ptc_path(
         conn = await manager.get_connection([cfg])
         server_tools = conn.tools_by_server.get(cfg.name) or []
         assert len(server_tools) >= 50, f"expected >=50 tools, got {len(server_tools)}"
+        schema_tokens = estimate_schema_tokens(server_tools)
+        assert schema_tokens > threshold, f"probe schema ({schema_tokens} tokens) must exceed threshold {threshold}"
 
         result = await route_mcp_servers([cfg])
 

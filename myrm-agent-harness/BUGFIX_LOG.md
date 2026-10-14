@@ -2,6 +2,86 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-12-003 · 导入浏览器工具包就会加载 patchright：`wait/_impl.py` 在模块顶层导入它的超时异常类，违背「首次使用时才加载」的约定
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-12 |
+| **修复时间** | 2026-10-12 |
+| **症状** | `from myrm_agent_harness.toolkits.browser import BrowserSession` 之后 `'patchright' in sys.modules` 为真；启动基准 `benchmarks/bench_startup_performance.py::test_lazy_loading_patchright` 在 CI 里失败 |
+| **关联产品** | myrm-agent-harness `toolkits/browser/wait/_impl.py`、`toolkits/browser/utils/timeout.py` |
+| **根因** | `wait/_impl.py` 顶层 `from patchright.async_api import TimeoutError as PlaywrightTimeoutError`，并在模块级拼出 `_TIMEOUT_ERRORS` 元组；`session` 包的导入链会经过这个模块，其余 patchright 类型都只用于注解，只有这一处是运行时导入 |
+| **修复** | `toolkits/browser/utils/timeout.py` 新增带缓存的 `timeout_error_types()`，在第一次进入 `except` 子句求值时才导入 patchright，未安装时退化为内置 `TimeoutError`；`is_timeout_error` 复用它；`toolkits/browser/wait/_impl.py` 删除顶层导入与 `_TIMEOUT_ERRORS`，所有 `except` 改用 `timeout_error_types()` |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 本机对 `import BrowserSession` 做了前后各 9 次计时（修复前 min 583ms / median 659ms，修复后 min 544ms / median 646ms），差异在噪声内，因此**不声称启动提速**，只恢复「导入不加载驱动」的约定；`test_import_browser`（<250ms）与 `test_import_web_search`（<300ms）两个阈值本机仍超，未在此处理 |
+| **回归** | `tests/toolkits/browser/test_timeout_utils.py`（两类超时都被识别、无 patchright 时退化、新开子进程断言导入后 `patchright` 不在 `sys.modules`） |
+| **代码位置** | `toolkits/browser/utils/timeout.py::timeout_error_types`、`toolkits/browser/wait/_impl.py` |
+
+### BUG-HARNESS-2026-10-12-002 · 会话结束的技能复盘把本轮问答原地追加进调用方传入的聊天历史列表
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-09 |
+| **修复时间** | 2026-10-12 |
+| **症状** | 同一个历史列表被多次传给 `_trigger_background_skill_review` 后，列表里累积出重复的本轮 `query`/`reply`；CI 里同一个 worker 先跑了前面的用例，后面的用例拿到的历史比自己构造的多出若干条消息 |
+| **关联产品** | myrm-agent-harness `agent/skill_agent/review.py` |
+| **根因** | `convert_chat_history_simple` 对已经是 `BaseMessage` 列表的输入原样返回同一个列表对象（`utils/chat_utils.py` 的 `return history`）；复盘在拿不到图状态时对这个列表执行 `messages.append(...)` 补入本轮问答，等于改写了调用方的历史 |
+| **修复** | 复盘处先复制再追加，不改变 `convert_chat_history_simple` 的返回约定 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 由 CI 失败与代码路径确认；运行中的智能体里调用方是否持有并复用同一个列表、由此造成多大影响，没有端到端复现。该用例单独运行时通过，只在同一进程里多个用例共用模块级 `_HISTORY` 时暴露 |
+| **回归** | `tests/agent/skill_agent/test_skill_agent_review_paths.py::TestReviewTaskInputs::test_supplied_history_list_is_not_mutated` |
+| **代码位置** | `agent/skill_agent/review.py::SkillAgentReviewMixin._trigger_background_skill_review` |
+
+### BUG-HARNESS-2026-10-12-001 · 本地模式下浏览器上下文的请求过滤器仍按公网规则拦截回环地址：`allow_private_networks=True` 只对导航前检查生效
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-09 |
+| **修复时间** | 2026-10-12 |
+| **症状** | 会话以 `allow_private_networks=True` 创建（本地模式），导航前的 SSRF 检查放行了 `127.0.0.1` 之类的地址，但页面请求仍被中止（`blockedbyclient`），本机服务页面打不开。CI 的 Browser integration 任务在这个根因上有 10 个用例失败 |
+| **关联产品** | myrm-agent-harness `toolkits/browser/session/browser_session.py`、`pool/context_factory.py`、`domain_filter/__init__.py` |
+| **根因** | 浏览器池默认的资源拦截配置让每个上下文都装上请求过滤器；过滤器按跳数复核私有地址与云元数据地址，但 `install_http_filter` 的 `allow_private_networks` 从未被传入：会话只把该标志交给导航器，没有写进上下文参数，`ContextFactory` 与 `install_domain_filter` 也没有对应形参 |
+| **修复** | 会话在本地模式下把 `allow_private_networks` 写入上下文参数；`ContextFactory` 把它当作过滤器专用键（不传给 `browser.new_context()`）并转交给 `install_domain_filter` 与资源拦截两条安装路径；`install_domain_filter` 新增同名形参并转给 `install_http_filter`。默认值保持 `False`，云元数据与广告域名的拦截不受影响 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 本地沙箱里没有可用的 Chromium，无法在本机复现 10 个集成用例；根因由 CI 日志与代码路径确认，修复后的 CI 结果见 PR #1。默认值与云端行为由单元用例覆盖，没有对真实站点做回归 |
+| **回归** | `tests/toolkits/browser/test_private_network_route_filter.py`（默认拦截回环、本地模式放行、广告域名仍被拦截、`ContextFactory` 转发且不传给 `new_context`、会话写入上下文参数） |
+| **代码位置** | `toolkits/browser/session/browser_session.py::BrowserSession.__init__`、`toolkits/browser/pool/context_factory.py::ContextFactory.create_context`、`toolkits/browser/domain_filter/__init__.py::install_domain_filter` |
+
+### BUG-HARNESS-2026-10-09-002 · `browser_navigate` 只给正文脱敏，来源里的最终 URL 仍是原文：OAuth 回调的 `code` 可随工具结果进入模型上下文和引用列表
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-09 |
+| **修复时间** | 2026-10-09 |
+| **症状** | 导航到 OAuth 回调地址（`https://x.com/callback?code=...&state=...`）时，返回的 `content` 里的 URL 已被脱敏，但同一个返回字典里的 `metadata.sources[].url` 与 `source_key` 仍是浏览器的原始最终 URL，`title` 也未脱敏。来源事件与引用栏、记忆溯源都读取这份 metadata |
+| **关联产品** | myrm-agent-harness `toolkits/browser/tools/navigate.py` |
+| **根因** | 只有 `content` 经过 `mark_untrusted`（先 `redact_sensitive_text` 再包裹）；来源直接取 `page.url` 与 `await page.title()`。工具返回的字典整体就是 ToolMessage 的内容（`agent/streaming/event_handlers.py::_extract_tool_metadata` 从中取 metadata），所以原始 URL 与正文并列存在于同一条工具结果里 |
+| **修复** | `url`、`title` 先过 `redact_sensitive_text`，`source_key` 使用脱敏后的 URL；脱敏后的链接保留 `?code=` 键名与掩码值，仍是可点击的引用 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 模型是否真的看到整份字典取决于适配层如何序列化 ToolMessage 内容，这一环按代码路径推断，没有抓取真实模型请求验证；回归用例的“修复前失败”按构造成立（旧代码原样返回 `page.url`），没有单独跑一次修复前版本。`web_fetch` 等其他返回 `metadata.sources` 的工具没有逐个核查 |
+| **回归** | `tests/toolkits/browser/test_mark_untrusted_redaction.py::test_navigate_sources_redact_credentials_in_final_url`；既有 `test_navigate_redacted_and_wrapped` 与 `test_tools_comprehensive.py::test_browser_navigate_basic` 保持通过 |
+| **代码位置** | `toolkits/browser/tools/navigate.py::create_navigate_tool` |
+
+### BUG-HARNESS-2026-10-09-001 · 快照把普通长页面和真实对话框里的输入框全部标成 `[blocked]`，代理无法点击或输入
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-08 |
+| **修复时间** | 2026-10-09 |
+| **症状** | 真实 Chromium 中，正文高度超过视口的普通页面、撑满视口高度的应用根容器，其上所有输入框在 ARIA 树里带 `[blocked]` 且没有引用，代理无法操作；真实 `<dialog>` 内只靠 `label`、`placeholder` 或 `title` 命名的输入框同样被判为“在弹窗之外”而被阻塞 |
+| **关联产品** | myrm-agent-harness `toolkits/browser/snapshot/observer_scripts.py`（`MODAL_BLOCKING_SCRIPT`）及其 `[blocked]` 标注 |
+| **根因** | 两处叠加：（1）遮罩判定只看“覆盖视口 ≥50%”，把不拦截点击的流内容器（`html`/`body`、整页应用根、长文章）也当作遮罩；（2）弹窗内部可交互名称只取 `innerText` 或 `aria-label`，漏掉 `label`、`placeholder`、`title`，与 ARIA 树按名称匹配时这些字段被当成弹窗外元素 |
+| **修复** | 遮罩必须是脱离文档流的图层：`position: fixed`，或 `absolute` 且 `z-index > 0`；`dialog` 与 modal 属性的判定不变。内部名称收集 `aria-label`、关联 `label`、文本、`placeholder`、`title`，去重，上限由 30 提到 60 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 没有 `dialog`/modal 属性、`absolute` 且 `z-index: auto` 的全屏遮罩不再被识别为阻塞层，这是有意取舍，没有拿真实站点样本验证；名称仍只截取前 50 个字符参与匹配，这一点没有改动 |
+| **回归** | `tests/toolkits/browser/test_modal_blocking_integration.py`（3 个真实 Chromium 用例：长页面、满高应用根、对话框自身字段可达且背后页面被阻塞），修复前失败、修复后通过；`test_aria_enhancer.py`、`test_cursor_detect_script.py` 保持通过 |
+| **代码位置** | `toolkits/browser/snapshot/observer_scripts.py::MODAL_BLOCKING_SCRIPT` |
+
 ### BUG-HARNESS-2026-10-08-004 · 健康探活与连通性测试的“5 秒超时、1 个 token”从未生效：写在 `config` 里的限制到不了提供方，挂起的端点最多占住调用方 300 秒
 
 | 字段 | 内容 |

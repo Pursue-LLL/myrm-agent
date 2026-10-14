@@ -30,6 +30,7 @@ async def test_context_kwargs_passes_domain_allowlist() -> None:
         *,
         domain_blocklist: object | None = None,
         resource_block: object | None = None,
+        allow_private_networks: bool = False,
     ) -> None:
         nonlocal install_domain_filter_called
         install_domain_filter_called = True
@@ -68,6 +69,7 @@ async def test_context_kwargs_no_domain_allowlist() -> None:
         *,
         domain_blocklist: object | None = None,
         resource_block: object | None = None,
+        allow_private_networks: bool = False,
     ) -> None:
         nonlocal install_domain_filter_called
         install_domain_filter_called = True

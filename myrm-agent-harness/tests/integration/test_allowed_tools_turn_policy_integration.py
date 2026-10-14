@@ -28,7 +28,7 @@ from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
 
 pytestmark = [pytest.mark.integration, pytest.mark.timeout(90)]
 
-_ENV_TEST = Path(__file__).resolve().parents[3] / "myrm-agent" / "myrm-agent-server" / ".env.test"
+_ENV_TEST = Path(__file__).resolve().parents[3] / "myrm-agent-server" / ".env.test"
 
 
 @pytest.fixture(autouse=True)

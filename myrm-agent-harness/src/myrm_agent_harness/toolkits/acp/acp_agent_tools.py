@@ -130,9 +130,6 @@ context and capabilities.
         mode: Literal["persistent", "oneshot"] = "persistent",
     ) -> str:
         """Invoke an external ACP agent and return its response."""
-        if mode not in ("persistent", "oneshot"):
-            return f"[error] Invalid mode '{mode}'. Use 'persistent' or 'oneshot'."
-
         task_size = len(task.encode("utf-8"))
         if task_size > MAX_TASK_BYTES:
             return f"[error] Task too large ({task_size} bytes). Max: {MAX_TASK_BYTES} bytes."
