@@ -1,7 +1,7 @@
 {
   "rules": {
     "no-static-element-interactions": 2,
-    "prefer-tag-over-role": 72
+    "prefer-tag-over-role": 71
   },
   "waivers": 82
 }

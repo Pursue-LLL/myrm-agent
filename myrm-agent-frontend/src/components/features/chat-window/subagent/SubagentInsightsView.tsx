@@ -15,10 +15,10 @@ import {
   Zap,
 } from 'lucide-react';
 import { Card } from '@/components/primitives/card';
-import { Badge } from '@/components/primitives/badge';
+import { Badge, badgeVariants } from '@/components/primitives/badge';
+import { cn } from '@/lib/utils/classnameUtils';
 import { fmtCost, fmtTokens, extractCostUsd, extractTotalTokens } from '@/lib/utils/subagent/subagentTree';
 import type { SubagentNode } from '@/store/chat/useSubagentStore';
-import { activateOnKey } from '@/lib/utils/a11y';
 
 interface SubagentInsightsViewProps {
   nodes: Record<string, SubagentNode> | SubagentNode[];
@@ -166,30 +166,26 @@ export const SubagentInsightsView: React.FC<SubagentInsightsViewProps> = ({ node
         ) : (
           <div className="space-y-1.5">
             {anomalies.map((item, idx) => (
-              <div
+              <button
+                type="button"
                 key={idx}
-                onClick={() => onSelectNode && onSelectNode(item.node.task_id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={activateOnKey}
-                className={`p-2.5 rounded-lg border text-xs flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                onClick={() => onSelectNode?.(item.node.task_id)}
+                className={`w-full p-2.5 rounded-lg border text-left text-xs flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                   item.severity === 'danger'
                     ? 'bg-red-50/40 dark:bg-red-950/20 border-red-200 dark:border-red-900/50 hover:bg-red-50/80'
                     : 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50 hover:bg-amber-50/80'
                 }`}
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 font-medium">
-                    <Badge variant="outline" className="text-[10px] font-mono">
-                      {item.node.agent_type || t('detailFallbackAgentType')}
-                    </Badge>
-                    <span className="truncate">{item.reason}</span>
-                  </div>
-                </div>
+                <span className="min-w-0 flex-1 flex items-center gap-2 font-medium">
+                  <span className={cn(badgeVariants({ variant: 'outline' }), 'text-[10px] font-mono')}>
+                    {item.node.agent_type || t('detailFallbackAgentType')}
+                  </span>
+                  <span className="truncate">{item.reason}</span>
+                </span>
                 <span className="font-mono text-[10px] text-muted-foreground shrink-0">
                   {item.node.duration_seconds || 0}s
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         )}

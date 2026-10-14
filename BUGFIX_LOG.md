@@ -1768,3 +1768,60 @@ except Exception:
 5. 共享的 e2e 基础设施会被他人同时改：第一次运行时 `scripts/dev/ready.sh` 正在被编辑、有语法错误，第二次起能解析；之后两次的路由水合超时与代码无关，但也因此拿不到浏览器证据，不能把「没有失败」写成「验证过」。
 
 ---
+
+## BUG-AGENT-2026-10-14-011: 悬停显现的菜单触发器在菜单打开时消失；Kanban 卡片与待办记忆勾选框只能鼠标悬停才出现；棘轮基线写入命令会放宽额度；11 个高密度组件的界面文案写死在源码里
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（键盘与触屏用户够不到卡片动作；非中文用户在 11 个组件里看到未翻译或中英混排的界面；不影响数据） |
+| 影响范围 | 前端 `scripts/`（`run-lint-gates.ts`、`reveal-contract-scan.ts`、`ratchet-baseline.ts`、`check-a11y-ratchet.mjs`、`check-hardcoded-copy.mjs`、`source-files.mjs`）、`lib/utils/a11y.ts`、`kanban`、`memory/cards`、11 个组件及 6 个 `locales/*.json` |
+| 出现次数 | 1 |
+| 关联 | 提交 `d3dad2bd6`、`00647c949`、`e80ea3ed3`、`48695d574`、`658566e7b`、`f3b7ef162`、`dd8a64b12`，本地提交，未 push；接续条目 006 的「局限」 |
+
+### 现象
+
+1. `bun run lint` 用 `&&` 串联各门禁，前一个变红后面的就不跑：硬编码文案门禁在 `verify:a11y` 红着的那段时间没有在 CI 里执行过；
+2. Kanban 卡片的 Specify / Decompose / Move / Reclaim / Delete 只在鼠标悬停时才渲染，键盘与触屏够不到；卡片详情抽屉只能双击打开；dnd-kit 在卡片内任一按钮上按 Enter / Space 都会启动键盘拖拽；待办记忆的勾选框由 JS 悬停状态控制；
+3. 悬停显现的控件没有门禁：`opacity-0 group-hover:opacity-100` 的控件键盘聚焦时看不见、触屏上不存在，jsx-a11y 与单测都看不到；
+4. `--write-baseline`（硬编码文案）与 `--ratchet`（a11y）用当前数字覆盖基线，失败信息推荐的命令本身就能把退化改绿；
+5. 用 `REVEAL_ON_HOVER` 显现的菜单触发器，菜单打开后指针与焦点进入 Radix 的 portal，`group-hover` 与 `group-focus-within` 同时失效，触发器在自己打开的菜单下面淡出；
+6. 子任务详情抽屉 / 视口 / 洞察、风险确认卡、会话导入、模型单价浮层、压缩锚点条、偏好雷达、Focus 清空按钮、循环状态条、凭证暂存卡共 11 个组件的标签、提示、`aria-label`、toast、校验错误是字面量，门禁基线记 132 处。
+
+### 根因
+
+1. 门禁聚合用 shell 串联，没有「全部跑完再汇总」的步骤；
+2. 悬停显现只靠样式类约定，没有机器校验「键盘路径 + 触屏路径」；
+3. 基线写入命令的语义是「覆盖」而不是「收紧」；
+4. `data-[state=open]` 没有进入显现常量，浮层打开状态没有被当作显现条件；
+5. 文案进 locales 靠人工，扫描器只统计直接写在 JSX 里的字面量，toast、校验函数返回值、选项常量里的文案既不在门禁里，也不在基线里。
+
+### 修复
+
+1. A `d3dad2bd6`：`scripts/run-lint-gates.ts` 逐个执行 `LINT_GATES` 并汇总退出码，本地与 CI 共用同一份清单；
+2. C `00647c949`：卡片动作收进一个常驻挂载、悬停 / 键盘聚焦 / 触屏都可显现的菜单，并补「任务详情」入口；卡片本身注册为 dnd-kit 的 activator，内部按钮在键盘上不再触发拖拽；记忆勾选框改用同一显现契约并补可访问名称；
+3. D `e80ea3ed3`：`reveal-contract-scan.ts` 零容忍扫描「悬停显现却缺键盘路径或触屏路径」的交互元素，与键盘焦点可见性一起在 a11y 门禁里一次列全；目录遍历统一用 `source-files.mjs`，豁免计数通过 `includeTests` 继续覆盖测试文件；
+4. B `48695d574`：`ratchet-baseline.ts` 的 `tightenCounts` 逐项取 `min(当前, 基线)`，不新增条目、不放宽额度，两个基线写入命令与提示信息同步；
+5. E `658566e7b`：`REVEAL_ON_HOVER` 增加 `data-[state=open]:opacity-100`；
+6. F `f3b7ef162`：11 个组件的全部用户可见字符串迁入 `locales/{en,zh,zh-TW,de,ja,ko}.json`，新增 189 条键；已存在的键（`chat.loopScheduler.*`、`commands.builtin.focus*`、导入结果文案）直接复用，并删掉它们前面永不触发的 `|| '中文兜底'`；雷达预设与维度改为携带翻译键，凭证校验函数改为返回错误码；Focus 清空确认里的加粗用 `t.rich`；顺带给雷达关闭、密钥显示 / 隐藏、凭证行删除、抽屉复制这几个纯图标按钮补了可访问名称，修掉 `ModelPricingPopover` 的 `curly` 告警；基线按这 11 个文件精确收紧 132 处；
+7. `dd8a64b12`：修正 C 里 `KanbanDndComponents.keyboard.test.tsx` 的不稳定 `next-intl` mock（`verify:stable-mocks` 硬门禁拦截）；
+8. 本条目所在提交：`SubagentInsightsView` 的异常行由 `div role="button"` 改为原生 `button`，其中的类型徽章改用 `badgeVariants` 的 `span`（`Badge` 渲染 `div`，放进 `button` 是无效嵌套），`prefer-tag-over-role` 基线 72 → 71。
+
+### 验证
+
+1. C 在真实 Chrome 里对真实的 `KanbanDropColumn` 验证；E 在真实 Chrome 里用生产常量验证——指针停在已打开的菜单内时触发器 opacity 保持 1（修复前为 0）；D 在干净 HEAD 导出上通过、注入违规写法后失败，并做了变异测试；B 在干净导出上端到端验证基线只降不升；
+2. F 的 6 种语言全部过 `verify:i18n` 的键对齐、占位符、术语与禁用词检查（过程中修掉 de 的 4 处翻译壳与 zh-TW 的 1 处禁用词）；`verify-i18n-references` 通过（2459 个文件无缺失键）；
+3. 测试里 `next-intl` 被全局 mock 成 `key => key`，ICU 语法错误测不出来，所以另用真实 `createTranslator` 把 189 条键 × 6 种语言共 1134 次渲染跑了一遍：无 `INVALID_MESSAGE`、无缺失键、无残留花括号或标签；反例对照（故意写坏的消息）能被检出；动态键（雷达 13 个、TTL 4 个、子任务状态 12 个）逐一核对存在；
+4. 在已提交树的导出上跑 `bun run lint` 的 5 个门禁全绿、fractal docs 通过、prettier 通过；工作区 vitest（chat-window / sidebar / risk-approval / approval / chat / message-input-actions / kanban / scripts）198 个文件 1143 例通过；全量 `tsc --noEmit` 只剩他人未提交的 `KanbanTaskHandoffSection.test.tsx(68,3)`，我改的文件 0 报错；
+5. 新增或补充约 31 个用例，包含此前没有测试的 `FocusFlushButton`、`SessionImportModal`、`ModelPricingPopover`、`SubagentInsightsView`。
+
+### 踩坑经验
+
+1. 扫描器计数为 0 不等于没有硬编码：`MaskedCredentialInputCard` 扫描器只报 8 处，实际有 31 条用户可见字符串（toast、校验返回值、下拉选项都不在扫描范围）；迁移时按文件逐条核对，而不是只清到门禁变绿；
+2. C 提交时只跑了这个测试本身，没有在已提交树的导出里跑完整 lint 链，漏掉 `verify:stable-mocks`，F 做导出核对时才发现；提交前要在导出上跑整条链，而不是只跑自己新增的测试；
+3. 共享工作区里 locales 被他人改动了上千行：用「在 HEAD 文本上按命名空间文本插入」生成提交用的 blob，再对同一份插入逻辑在工作区文本上重放，两边都用「解析后等于改前 + 我的键」自检；
+4. 翻译壳检测会拦下与英文完全相同的值：de 的 `Subagent`、`Live`、`Tools ({count})`、`Commits ({count})` 都得换成真正的德语写法或项目里已有的写法；
+5. 局限：新增的 de / ja / ko / zh-TW 译文只经过机器门禁，没有母语者审校；真实聊天页与 Kanban 页没有端到端点过（后端 :8000 未启动）；鼠标 + 触屏并存的混合设备没有覆盖；`SubagentDetailDrawer.tsx` 591 行（改前 574）、`MaskedCredentialInputCard.tsx` 463 行，未拆分；`LoopStatusBar` 的时长缩写 `m` / `s` 与服务端给的 `current_delay_human` 仍是英文；`RiskConfirmationCard` 发给后端的审批理由是英文审计串，保持不变；干净 HEAD 上 `verify:i18n` 本来就是红的（ja / ko / de / zh-TW 各缺 92 个 en 键、17 个孤儿键、de 的 `settings.browserDoctor.statusOptional` 是翻译壳），`verify:orphans` 同样为红，均不是本次引入；扫描器的覆盖面限制见条目 006，存量只是继续下降（当前 3408 处 / 358 个文件），没有清零。
+
+---

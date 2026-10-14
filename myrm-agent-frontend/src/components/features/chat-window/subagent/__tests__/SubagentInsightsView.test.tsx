@@ -31,7 +31,7 @@ describe('SubagentInsightsView', () => {
     expect(screen.getByText('insightsEmpty')).toBeDefined();
   });
 
-  it('reports a stalled node as an anomaly, offers advice, and selects it by click and keyboard', () => {
+  it('reports a stalled node as an anomaly, offers advice, and selects it through a native button', () => {
     const onSelectNode = vi.fn();
     const nodes = [makeNode('t1', { stale: true, staleDurationSeconds: 90, duration_seconds: 12 })];
 
@@ -44,9 +44,9 @@ describe('SubagentInsightsView', () => {
     const row = screen.getByRole('button');
     expect(row.textContent).toContain('insightsAnomalyStalled:{"seconds":90}');
 
+    expect(row.tagName).toBe('BUTTON');
     fireEvent.click(row);
-    fireEvent.keyDown(row, { key: 'Enter' });
-    expect(onSelectNode).toHaveBeenCalledTimes(2);
+    expect(onSelectNode).toHaveBeenCalledTimes(1);
     expect(onSelectNode).toHaveBeenCalledWith('t1');
   });
 
