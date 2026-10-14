@@ -5,8 +5,8 @@
  * [OUTPUT]
  * Types: PackingCandidateDTO, BilledTokenBudgetDTO, MarginalValueMetricsDTO,
  *        PackedCandidateItemDTO, DroppedCandidateItemDTO, TokenAccountingReportDTO,
- *        PackedRecallResultDTO, PackRecallRequest, InspectMarginalRequest, InspectMarginalResponseItem
- * Functions: packRecallCandidates, inspectMarginalValues, getDefaultBudget
+ *        PackedRecallResultDTO, PackRecallRequest
+ * Functions: packRecallCandidates, getDefaultBudget
  *
  * [POS]
  * Client service for Budget Greedy Marginal Value Recall Packing Suite (Item 122 P2).
@@ -84,27 +84,10 @@ export interface PackRecallRequest {
   enable_knapsack?: boolean;
 }
 
-export interface InspectMarginalRequest {
-  candidates: PackingCandidateDTO[];
-  budget?: BilledTokenBudgetDTO;
-}
-
-export interface InspectMarginalResponseItem {
-  candidate: PackingCandidateDTO;
-  metrics: MarginalValueMetricsDTO;
-}
-
 const BASE_URL = '/memory/budget-packing';
 
 export async function packRecallCandidates(payload: PackRecallRequest): Promise<PackedRecallResultDTO> {
   return apiRequest<PackedRecallResultDTO>(`${BASE_URL}/pack`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function inspectMarginalValues(payload: InspectMarginalRequest): Promise<InspectMarginalResponseItem[]> {
-  return apiRequest<InspectMarginalResponseItem[]>(`${BASE_URL}/inspect-marginal`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });

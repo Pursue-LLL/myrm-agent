@@ -64,25 +64,6 @@ async def test_list_and_search_business_templates_api(test_app: FastAPI) -> None
 
 
 @pytest.mark.asyncio
-async def test_get_business_template_by_id_api(test_app: FastAPI) -> None:
-    """Validate retrieving single template details by template ID."""
-    transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Valid ID
-        res = await client.get("/api/memory/business-templates/BA-REV-01")
-        assert res.status_code == 200
-        data = res.json()
-        assert data["template_id"] == "BA-REV-01"
-        assert "经营分析" in data["name"]
-        assert len(data["checklist_steps"]) == 3
-        assert len(data["boundary_conditions"]) >= 2
-
-        # Invalid ID
-        res_404 = await client.get("/api/memory/business-templates/NON_EXISTENT_ID")
-        assert res_404.status_code == 404
-
-
-@pytest.mark.asyncio
 async def test_evaluate_escalation_gate_api(test_app: FastAPI) -> None:
     """Validate evaluation of customer and operational contexts against escalation gates."""
     transport = ASGITransport(app=test_app)

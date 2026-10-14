@@ -64,18 +64,6 @@ export interface MemoryArchiveExportResponse {
   archive: MemoryArchivePayload;
 }
 
-export interface MemoryArchiveDryRunResult {
-  manifest: MemoryArchiveManifest;
-  total_items: number;
-  supported_items: number;
-  unsupported_items: number;
-  warning_codes: string[];
-}
-
-export interface MemoryArchiveDryRunResponse {
-  result: MemoryArchiveDryRunResult;
-}
-
 export type MemoryArchiveRestoreMode = 'safe_merge' | 'review_only' | 'skip';
 export type MemoryArchiveRestoreStatus = 'ready' | 'warning' | 'critical';
 export type MemoryArchiveRestoreItemStatus =
@@ -501,13 +489,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 export const exportMemoryArchive = async (): Promise<MemoryArchiveExportResponse> => {
   return apiRequest<MemoryArchiveExportResponse>('/memory/archive/export');
-};
-
-export const dryRunMemoryArchive = async (archive: MemoryArchivePayload): Promise<MemoryArchiveDryRunResponse> => {
-  return apiRequest<MemoryArchiveDryRunResponse>('/memory/archive/dry-run', {
-    method: 'POST',
-    body: JSON.stringify({ archive }),
-  });
 };
 
 export const dryRunArchiveRestore = async (

@@ -11,7 +11,6 @@ from pathlib import Path
 from myrm_agent_harness.toolkits.memory.graph_rrf import (
     DualChannelRRFRetriever,
     EntityNode,
-    RelationEdge,
     RRFConfig,
     SQLiteGraphMemoryStore,
     VectorHit,
@@ -25,8 +24,6 @@ from app.schemas.graph_rrf import (
     FusedMemoryHitResponse,
     GraphTraverseRequest,
     GraphTraverseResponse,
-    MemoryAssociationRequest,
-    RelationEdgeCreateRequest,
     RelationEdgeResponse,
 )
 
@@ -55,50 +52,6 @@ class GraphRRFMemoryService:
             entity_type=persisted.entity_type,
             properties=persisted.properties,
             created_at=persisted.created_at,
-        )
-
-    def get_entity_node(self, node_id: str) -> EntityNodeResponse | None:
-        """Retrieve an entity node by ID."""
-        persisted = self.store.get_node(node_id)
-        if not persisted:
-            return None
-        return EntityNodeResponse(
-            id=persisted.id,
-            name=persisted.name,
-            entity_type=persisted.entity_type,
-            properties=persisted.properties,
-            created_at=persisted.created_at,
-        )
-
-    def add_relation_edge(
-        self, req: RelationEdgeCreateRequest
-    ) -> RelationEdgeResponse:
-        """Create or update a relationship edge."""
-        edge = RelationEdge(
-            id=req.id,
-            source_id=req.source_id,
-            target_id=req.target_id,
-            relation_type=req.relation_type,
-            weight=req.weight,
-            properties=dict(req.properties),
-        )
-        self.store.add_edge(edge)
-        return RelationEdgeResponse(
-            id=edge.id,
-            source_id=edge.source_id,
-            target_id=edge.target_id,
-            relation_type=edge.relation_type,
-            weight=edge.weight,
-            properties=edge.properties,
-            created_at=edge.created_at,
-        )
-
-    def associate_memory(self, req: MemoryAssociationRequest) -> None:
-        """Link a memory unit with an entity node."""
-        self.store.associate_memory(
-            memory_id=req.memory_id,
-            entity_id=req.entity_id,
-            content=req.content,
         )
 
     def traverse_graph(self, req: GraphTraverseRequest) -> GraphTraverseResponse:

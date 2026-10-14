@@ -17,7 +17,6 @@ from datetime import datetime
 from typing import Literal
 
 from myrm_agent_harness.toolkits.memory import (
-    MemoryArchiveDryRunResult,
     MemoryArchivePayload,
     MemoryArchiveRestoreDryRunResult,
     MemoryArchiveRestoreResult,
@@ -45,18 +44,6 @@ class MemoryArchiveExportResponse(BaseModel):
     """Response for a single-sandbox memory archive export."""
 
     archive: MemoryArchivePayload
-
-
-class MemoryArchiveDryRunRequest(BaseModel):
-    """Request to validate a memory archive before restore/import."""
-
-    archive: dict[str, object] = Field(..., description="Raw Myrm memory archive payload")
-
-
-class MemoryArchiveDryRunResponse(BaseModel):
-    """Content-safe memory archive import preview."""
-
-    result: MemoryArchiveDryRunResult
 
 
 class MemoryArchiveRestoreDryRunRequest(BaseModel):

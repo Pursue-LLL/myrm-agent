@@ -58,11 +58,6 @@ class TemporalGraphService:
         saved = self._store.save_node(node)
         return self._node_to_dto(saved)
 
-    def get_node(self, node_id: str) -> TemporalEntityNodeDTO | None:
-        """Retrieves an entity node by ID."""
-        node = self._store.get_node(node_id)
-        return self._node_to_dto(node) if node else None
-
     def list_nodes(self, entity_type: str | None = None, limit: int = 100) -> list[TemporalEntityNodeDTO]:
         """Lists entity nodes optionally filtered by type."""
         nodes = self._store.list_nodes(entity_type=entity_type, limit=limit)
@@ -98,11 +93,6 @@ class TemporalGraphService:
             is_conflict_detected=outcome.is_conflict_detected,
             conflict_reason=outcome.conflict_reason,
         )
-
-    def get_edge(self, edge_id: str) -> TemporalFactEdgeDTO | None:
-        """Retrieves a relationship edge by ID."""
-        edge = self._store.get_edge(edge_id)
-        return self._edge_to_dto(edge) if edge else None
 
     def list_edges(
         self,

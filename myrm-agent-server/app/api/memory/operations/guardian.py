@@ -7,18 +7,15 @@
 - app.lifecycle.memory_guardian::run_pattern_discovery_once (POS: 按需执行行为模式发现)
 
 [OUTPUT]
-- GET  /guardian/health: Memory health score + scheduler status
-- GET  /guardian/overview: Consolidated health/policy/alerts + morning digest
+- GET  /guardian/overview: Consolidated health score, scheduler status, policy, alerts and morning digest
 - POST /guardian/trigger: Manually trigger one maintenance cycle (`safe` / `force`)
-- GET  /guardian/policy: Read guardian schedule policy
 - PUT  /guardian/policy: Update guardian schedule policy
-- GET  /guardian/morning-digest: Latest completed maintenance-window digest for morning review
 - GET  /guardian/pattern-discoveries: Recent pattern discovery results
 - POST /guardian/trigger-pattern-discovery: Manually trigger pattern discovery
 
 [POS]
-记忆守护者 API。暴露记忆系统健康分数和调度器状态，提供 `safe/force` 手动维护触发、
-受约束策略配置（频率档位 + quiet window）、晨间摘要读取，以及行为模式发现历史查询和手动触发。
+记忆守护者 API。通过 overview 暴露记忆系统健康分数、调度器状态、策略与晨间摘要，提供 `safe/force` 手动维护触发、
+受约束策略配置（频率档位 + quiet window），以及行为模式发现历史查询和手动触发。
 """
 
 from __future__ import annotations
@@ -117,7 +114,7 @@ async def _build_guardian_health_payload(
     memory_manager: MemoryManager,
     db: AsyncSession,
 ) -> tuple[dict[str, object], MemoryGuardianPolicy]:
-    """Build health/policy/alert payload shared by health and overview endpoints."""
+    """Build the health/policy/alert payload served by the overview endpoint."""
     try:
         health = await memory_manager.compute_health_score()
     except Exception as exc:
@@ -146,21 +143,6 @@ async def _build_guardian_health_payload(
         "alerts": alerts,
     }
     return payload, policy
-
-
-@router.get("/health")
-async def get_memory_health(
-    request: Request,
-    memory_manager: MemoryManager = Depends(get_crud_memory_manager),
-    db: AsyncSession = Depends(get_db_session),
-) -> dict[str, object]:
-    """Return current memory health score and guardian scheduler status."""
-    payload, _policy = await _build_guardian_health_payload(
-        request,
-        memory_manager=memory_manager,
-        db=db,
-    )
-    return payload
 
 
 @router.get("/overview")
@@ -206,28 +188,11 @@ async def trigger_maintenance(payload: MemoryGuardianTriggerRequest | None = Non
         ) from exc
 
 
-@router.get("/policy")
-async def get_guardian_policy() -> dict[str, object]:
-    """Return the persisted Memory Guardian scheduling policy."""
-    policy = await load_memory_guardian_policy()
-    return policy.model_dump()
-
-
 @router.put("/policy")
 async def update_guardian_policy(policy: MemoryGuardianPolicy) -> dict[str, object]:
     """Update Memory Guardian scheduling policy."""
     saved = await save_memory_guardian_policy(policy)
     return saved.model_dump()
-
-
-@router.get("/morning-digest")
-async def get_guardian_morning_digest(
-    request: Request,
-    db: AsyncSession = Depends(get_db_session),
-) -> dict[str, object]:
-    """Return the latest completed maintenance-window digest for morning review."""
-    policy = await _resolve_guardian_policy(request)
-    return await MemoryOperationLedgerService(db).latest_guardian_morning_digest(policy=policy)
 
 
 @router.get("/pattern-discoveries")
@@ -314,4 +279,3 @@ async def trigger_t1_session_debounce(body: CognitiveClockT1TriggerRequest) -> d
 
     success = await execute_t1_session_debounce(session_id=body.session_id)
     return {"status": "ok" if success else "failed", "session_id": body.session_id}
-

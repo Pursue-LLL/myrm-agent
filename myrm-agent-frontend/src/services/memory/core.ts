@@ -142,13 +142,6 @@ export interface UpdateMemoryRequest {
   is_exact_fact?: boolean;
 }
 
-export interface MemorySearchResponse {
-  results: Memory[];
-  scores: number[];
-  query: string;
-  total: number;
-}
-
 export interface MemoryStatsResponse {
   total_memories: number;
   by_type: Record<MemoryType, number>;
@@ -304,20 +297,6 @@ export const deleteMemory = async (
 export const deleteAllMemories = async (memoryType?: MemoryType): Promise<{ deleted_count: number }> => {
   const qs = memoryType ? `?memory_type=${memoryType}` : '';
   return apiRequest(`/memory/all${qs}`, { method: 'DELETE' });
-};
-
-export const searchMemories = async (
-  query: string,
-  params: { memoryTypes?: MemoryType[]; limit?: number } = {},
-): Promise<MemorySearchResponse> => {
-  const searchParams = new URLSearchParams({ query });
-  if (params.memoryTypes?.length) {
-    searchParams.append('memory_types', params.memoryTypes.join(','));
-  }
-  if (params.limit) {
-    searchParams.append('limit', params.limit.toString());
-  }
-  return apiRequest<MemorySearchResponse>(`/memory/search?${searchParams}`);
 };
 
 export const getMemoryStats = async (): Promise<MemoryStatsResponse> => {
@@ -534,13 +513,6 @@ export interface MemoryMaintenanceTriggerResponse {
   error?: string;
 }
 
-export const getMemoryHealth = async (): Promise<MemoryHealthResponse> => {
-  const timezoneOffsetMinutes = typeof window !== 'undefined' ? -new Date().getTimezoneOffset() : 0;
-  return apiRequest<MemoryHealthResponse>('/memory/guardian/health', {
-    headers: { 'x-client-timezone-offset-minutes': String(timezoneOffsetMinutes) },
-  });
-};
-
 export const triggerMemoryMaintenance = async (
   mode: MemoryGuardianTriggerMode = 'safe',
 ): Promise<MemoryMaintenanceTriggerResponse> => {
@@ -548,10 +520,6 @@ export const triggerMemoryMaintenance = async (
     method: 'POST',
     body: JSON.stringify({ mode }),
   });
-};
-
-export const getMemoryGuardianPolicy = async (): Promise<MemoryGuardianPolicy> => {
-  return apiRequest<MemoryGuardianPolicy>('/memory/guardian/policy', { silent: true });
 };
 
 export const updateMemoryGuardianPolicy = async (policy: MemoryGuardianPolicy): Promise<MemoryGuardianPolicy> => {
@@ -595,14 +563,6 @@ export interface MemoryGuardianOverviewResponse extends MemoryHealthResponse {
 export const getMemoryGuardianOverview = async (): Promise<MemoryGuardianOverviewResponse> => {
   const timezoneOffsetMinutes = typeof window !== 'undefined' ? -new Date().getTimezoneOffset() : 0;
   return apiRequest<MemoryGuardianOverviewResponse>('/memory/guardian/overview', {
-    silent: true,
-    headers: { 'x-client-timezone-offset-minutes': String(timezoneOffsetMinutes) },
-  });
-};
-
-export const getMemoryGuardianMorningDigest = async (): Promise<MemoryGuardianMorningDigest> => {
-  const timezoneOffsetMinutes = typeof window !== 'undefined' ? -new Date().getTimezoneOffset() : 0;
-  return apiRequest<MemoryGuardianMorningDigest>('/memory/guardian/morning-digest', {
     silent: true,
     headers: { 'x-client-timezone-offset-minutes': String(timezoneOffsetMinutes) },
   });

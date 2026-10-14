@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - ErrorFingerprintDTO, HistoricalResolutionEntryDTO, FailureRetrievalResultDTO: normalized error fingerprint, recorded resolution and retrieval result
-- SearchFailureRequest, RecordHistoricalResolutionRequest, InterceptFailureRequest, InterceptFailureResponseDTO: endpoint payloads
+- SearchFailureRequest: search payload
 - FailureTriggerConfigDTO: automatic trigger configuration
 
 [POS]
@@ -63,40 +63,6 @@ class SearchFailureRequest(BaseModel):
     exit_code: int | None = Field(default=None, description="Exit code if applicable")
     top_n: int = Field(default=3, description="Maximum number of matches to retrieve per category")
     include_cautionary: bool = Field(default=True, description="Whether to include failed cautionary lessons")
-
-
-class RecordHistoricalResolutionRequest(BaseModel):
-    """Request payload to index a new historical resolution or cautionary lesson."""
-
-    entry_id: str = Field(description="Unique entry identifier")
-    session_id: str = Field(description="Originating session identifier")
-    turn_index: int = Field(default=0, description="Turn index in session")
-    error_signature: str = Field(description="Error signature or pattern")
-    outcome_type: str = Field(
-        default="successful_resolution",
-        description="Outcome type: successful_resolution or cautionary_failure",
-    )
-    solution_snippet: str = Field(description="Actionable command, patch, or procedure applied")
-    explanation: str = Field(default="", description="Explanation of resolution rationale")
-    confidence: float = Field(default=1.0, description="Confidence score between 0.0 and 1.0")
-
-
-class InterceptFailureRequest(BaseModel):
-    """Request payload for failure interception and automated prompt injection."""
-
-    tool_name: str = Field(description="Name of tool that failed")
-    error_content: str = Field(description="Raw error output, traceback, or stderr")
-    exit_code: int | None = Field(default=None, description="Command exit code if shell execution")
-
-
-class InterceptFailureResponseDTO(BaseModel):
-    """Response payload returning prompt-injected guidance upon failure."""
-
-    should_inject: bool = Field(description="Whether a relevant historical resolution was found to inject")
-    injected_prompt_block: str = Field(description="Formatted markdown block ready for LLM context injection")
-    result: FailureRetrievalResultDTO | None = Field(
-        default=None, description="Underlying retrieval result if matched"
-    )
 
 
 class FailureTriggerConfigDTO(BaseModel):

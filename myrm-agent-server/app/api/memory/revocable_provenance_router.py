@@ -35,18 +35,6 @@ async def save_memory(
         raise HTTPException(status_code=400, detail=str(err)) from err
 
 
-@router.get("/memories/{memory_id}", response_model=ProvenanceQualifiedMemoryDTO)
-async def get_memory(
-    memory_id: str,
-    service: RevocableProvenanceService = Depends(get_revocable_provenance_service),
-) -> ProvenanceQualifiedMemoryDTO:
-    """Retrieves a single memory entry along with full provenance origin metadata."""
-    mem = service.get_memory(memory_id)
-    if mem is None:
-        raise HTTPException(status_code=404, detail=f"Memory '{memory_id}' not found")
-    return mem
-
-
 @router.get("/memories", response_model=list[ProvenanceQualifiedMemoryDTO])
 async def list_memories(
     include_revoked: bool = Query(default=False, description="Whether to include revoked entries"),
@@ -54,16 +42,6 @@ async def list_memories(
 ) -> list[ProvenanceQualifiedMemoryDTO]:
     """Lists all stored memories, optionally filtering out revoked ones."""
     return service.list_memories(include_revoked=include_revoked)
-
-
-@router.get("/memories/session/{session_id}", response_model=list[ProvenanceQualifiedMemoryDTO])
-async def find_by_session(
-    session_id: str,
-    include_revoked: bool = Query(default=False, description="Whether to include revoked entries"),
-    service: RevocableProvenanceService = Depends(get_revocable_provenance_service),
-) -> list[ProvenanceQualifiedMemoryDTO]:
-    """Finds all memories derived from a specific source chat session."""
-    return service.find_by_session(session_id=session_id, include_revoked=include_revoked)
 
 
 @router.delete("/memories/{memory_id}/forget", response_model=ForgetResultDTO)

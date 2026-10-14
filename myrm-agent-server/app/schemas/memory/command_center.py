@@ -176,7 +176,6 @@ class MemoryCommandEconomicsDashboard(BaseModel):
     recommendations: list[str] = Field(default_factory=list)
 
 
-
 class MemoryCommandConflictItem(BaseModel):
     """Claim, correction, supersession, and pending-conflict visibility item."""
 
@@ -608,20 +607,6 @@ class MemoryCommandActionResponse(BaseModel):
     target_kind: str
     target_id: str
     action: str
-
-
-class MemoryCommandDiagnosticActionRequest(BaseModel):
-    """Executable Memory Doctor action request."""
-
-    action: Literal["run_diagnostics", "run_health_refresh", "restore_disciplined_defaults"]
-
-
-class MemoryCommandDiagnosticActionResponse(BaseModel):
-    """Executable Memory Doctor action result."""
-
-    status: Literal["completed", "completed_with_findings", "failed"]
-    action: str
-    run: MemoryCommandDiagnosticRun
 
 
 class MemoryCommandRepairActionRequest(BaseModel):

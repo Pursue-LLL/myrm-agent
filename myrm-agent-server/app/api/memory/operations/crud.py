@@ -5,7 +5,6 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.schemas.memory.archive import (
-    MemoryArchiveDryRunResponse,
     MemoryArchiveExportResponse,
     MemoryImportConfirmResponse,
     MemoryImportDryRunResponse,
@@ -31,7 +30,6 @@ router = APIRouter()
 router.get("/", response_model=MemoryListPaginatedResponse)(handlers.list_memories_paginated)
 router.post("/", response_model=MemoryItem)(handlers.create_memory)
 router.put("/{memory_type}/{memory_id}", response_model=MemoryItem)(handlers.update_memory)
-router.post("/{memory_id}/correct", response_model=MemoryItem)(handlers.correct_memory)
 router.delete("/all")(handlers.delete_all_memories)
 router.delete("/{memory_id}")(handlers.delete_memory_by_id)
 router.get("/trash", response_model=MemoryListPaginatedResponse)(handlers.list_trash_memories)
@@ -46,7 +44,6 @@ router.get("/export/markdown")(handlers.export_memories_markdown)
 router.get("/export/rules-safe")(handlers.export_rules_safe)
 router.get("/export/rules-safe/preview")(handlers.preview_rules_safe)
 router.get("/archive/export", response_model=MemoryArchiveExportResponse)(handlers.export_memory_archive)
-router.post("/archive/dry-run", response_model=MemoryArchiveDryRunResponse)(handlers.dry_run_memory_archive)
 router.post("/import/dry-run", response_model=MemoryImportDryRunResponse)(handlers.dry_run_import_memories)
 router.post("/import/confirm", response_model=MemoryImportConfirmResponse)(handlers.confirm_import_memories)
 router.post("/import/readiness-recheck", response_model=MemoryImportReadinessRecheckResponse)(handlers.recheck_import_readiness)

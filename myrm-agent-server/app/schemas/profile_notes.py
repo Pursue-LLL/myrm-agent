@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - ProfileNotesIntakeRequest, ProfileNotesIntakeResponse
-- LayerWatermarkResponse, ProfileNotesStatusResponse
+- LayerWatermarkResponse
 - ProfileNotesUpdateRequest, ProfileNotesContentResponse
 
 [POS]
@@ -49,15 +49,6 @@ class LayerWatermarkResponse(BaseModel):
     usage_ratio: float = Field(..., ge=0.0, description="Usage percentage ratio")
     level: str = Field(..., description="Watermark alert level ('safe', 'warning', 'critical', 'overflow')")
     warning_message: str | None = Field(default=None, description="Warning alert message if applicable")
-
-
-class ProfileNotesStatusResponse(BaseModel):
-    """Combined capacity watermark status for both memory layers."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    user_watermark: LayerWatermarkResponse = Field(..., description="User profile watermark status")
-    memory_watermark: LayerWatermarkResponse = Field(..., description="Agent working notes watermark status")
 
 
 class ProfileNotesUpdateRequest(BaseModel):

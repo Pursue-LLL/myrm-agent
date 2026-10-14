@@ -4,9 +4,7 @@
  *
  * [OUTPUT]
  * Ebbinghaus Temporal Decay and Tiered Storage Archival DTOs and API clients:
- * - registerMemoryDecay
  * - evaluateMemoryLifecycle
- * - rerankCandidatesWithDecay
  * - reviveColdMemory
  * - exportColdArchive
  *
@@ -19,21 +17,6 @@ import { apiRequest } from '@/lib/api';
 
 export type StorageTierKind = 'HOT' | 'WARM' | 'COLD' | string;
 
-export interface RegisterMemoryDecayRequest {
-  memory_id: string;
-  content: string;
-  importance?: number;
-  pinned?: boolean;
-  created_at?: number;
-}
-
-export interface RegisterMemoryDecayResponse {
-  memory_id: string;
-  initial_score: number;
-  initial_tier: StorageTierKind;
-  pinned: boolean;
-}
-
 export interface EvaluateLifecycleRequest {
   current_time?: number;
 }
@@ -45,33 +28,6 @@ export interface EvaluateLifecycleResponse {
   cold_count: number;
   migrated_count: number;
   migrated_memory_ids: string[];
-}
-
-export interface CandidateItemInput {
-  memory_id: string;
-  content: string;
-  base_similarity: number;
-}
-
-export interface RerankCandidatesRequest {
-  candidates: CandidateItemInput[];
-  decay_weight?: number;
-  exclude_cold?: boolean;
-  current_time?: number;
-}
-
-export interface ScoredRerankItemSchema {
-  memory_id: string;
-  content: string;
-  base_similarity: number;
-  decay_score: number;
-  final_score: number;
-  tier: StorageTierKind;
-}
-
-export interface RerankCandidatesResponse {
-  total_returned: number;
-  items: ScoredRerankItemSchema[];
 }
 
 export interface ReviveMemoryRequest {
@@ -103,32 +59,12 @@ export interface ExportColdArchiveResponse {
   records: ColdArchiveItemSchema[];
 }
 
-export const registerMemoryDecay = async (
-  request: RegisterMemoryDecayRequest,
-): Promise<RegisterMemoryDecayResponse> => {
-  return apiRequest<RegisterMemoryDecayResponse>('/memory/lifecycle/register', {
-    method: 'POST',
-    body: JSON.stringify(request),
-    headers: { 'Content-Type': 'application/json' },
-  });
-};
-
 export const evaluateMemoryLifecycle = async (
   request?: EvaluateLifecycleRequest,
 ): Promise<EvaluateLifecycleResponse> => {
   return apiRequest<EvaluateLifecycleResponse>('/memory/lifecycle/evaluate', {
     method: 'POST',
     body: JSON.stringify(request || {}),
-    headers: { 'Content-Type': 'application/json' },
-  });
-};
-
-export const rerankCandidatesWithDecay = async (
-  request: RerankCandidatesRequest,
-): Promise<RerankCandidatesResponse> => {
-  return apiRequest<RerankCandidatesResponse>('/memory/lifecycle/rerank', {
-    method: 'POST',
-    body: JSON.stringify(request),
     headers: { 'Content-Type': 'application/json' },
   });
 };

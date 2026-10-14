@@ -5,7 +5,6 @@
 
 [OUTPUT]
 - FiveDimEvidenceMetadataDTO, DeterministicRuleEntryDTO: evidence metadata and a deterministic rule
-- RegisterRuleRequest, RegisterRuleResponse: rule registration
 - QueryCascadedRulesRequest, CascadedRuleSetDTO: rules cascaded for a target path
 - PreFilterEvidenceRequest, PreFilteredEvidenceResponse: evidence pre-filtering by scope, authority, confidence and decay
 
@@ -43,28 +42,6 @@ class DeterministicRuleEntryDTO(BaseModel):
     rule_content: str
     metadata: FiveDimEvidenceMetadataDTO
     is_enforced: bool = True
-
-
-class RegisterRuleRequest(BaseModel):
-    """Request payload to register a deterministic engineering rule."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    rule_id: str
-    title: str
-    rule_content: str
-    metadata: FiveDimEvidenceMetadataDTO
-    is_enforced: bool = True
-
-
-class RegisterRuleResponse(BaseModel):
-    """Response returned upon successfully registering a rule."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    is_success: bool = True
-    rule_id: str
-    registered_rule: DeterministicRuleEntryDTO
 
 
 class QueryCascadedRulesRequest(BaseModel):

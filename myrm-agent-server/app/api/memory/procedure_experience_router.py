@@ -16,7 +16,6 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from myrm_agent_harness.toolkits.memory import ProcedureMemoryEntry
 
 from app.schemas.procedure_experience import (
     DualNodeRetrievalRequest,
@@ -24,7 +23,6 @@ from app.schemas.procedure_experience import (
     MultiIntentSplitRequest,
     MultiIntentSplitResponseDTO,
     ProcedureMemoryEntryDTO,
-    ProtocolValidationResponseDTO,
     RegisterProcedureMemoryRequest,
 )
 from app.services.memory.procedure_experience_service import (
@@ -67,32 +65,6 @@ async def retrieve_dual_node(
 
 
 @router.post(
-    "/validate",
-    response_model=ProtocolValidationResponseDTO,
-    summary="Validate 8-field protocol conformance",
-)
-async def validate_protocol(
-    request: RegisterProcedureMemoryRequest,
-    service: Annotated[ProcedureExperienceService, Depends(get_procedure_experience_service)],
-) -> ProtocolValidationResponseDTO:
-    """Check whether a candidate memory entry conforms to the 8-field procedure protocol."""
-    domain_entry = ProcedureMemoryEntry(
-        entry_id=request.entry_id or "temp_check",
-        name=request.name,
-        retrieval_anchor=request.retrieval_anchor or "",
-        operation_intent=request.operation_intent,
-        preconditions=list(request.preconditions),
-        immutable_boundary=list(request.immutable_boundary),
-        procedure_steps=list(request.procedure_steps),
-        write_field_provenance=dict(request.write_field_provenance),
-        anti_patterns=list(request.anti_patterns),
-        applicability=list(request.applicability),
-        negative_applicability=list(request.negative_applicability),
-    )
-    return service.validate_protocol(domain_entry)
-
-
-@router.post(
     "/split-intents",
     response_model=MultiIntentSplitResponseDTO,
     summary="Decompose multi-intent traces into distinct fragments",
@@ -115,19 +87,3 @@ async def list_procedures(
 ) -> list[ProcedureMemoryEntryDTO]:
     """Retrieve all indexed procedure-shaped memory entries."""
     return service.list_entries()
-
-
-@router.get(
-    "/{entry_id}",
-    response_model=ProcedureMemoryEntryDTO,
-    summary="Get single procedure memory by ID",
-)
-async def get_procedure(
-    entry_id: str,
-    service: Annotated[ProcedureExperienceService, Depends(get_procedure_experience_service)],
-) -> ProcedureMemoryEntryDTO:
-    """Fetch an individual procedure-shaped memory entry."""
-    entry = service.get_entry(entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail=f"Procedure entry '{entry_id}' not found.")
-    return entry

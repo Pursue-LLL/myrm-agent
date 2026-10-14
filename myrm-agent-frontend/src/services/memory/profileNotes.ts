@@ -5,7 +5,6 @@
  * [OUTPUT]
  * Profile & Working Notes dual-layer DTOs and API request functions:
  * - checkProfileNotesIntake
- * - getProfileNotesWatermarks
  * - getProfileNotesContents
  * - updateProfileNotesContents
  *
@@ -25,11 +24,6 @@ export interface LayerWatermarkResponse {
   usage_ratio: number;
   level: WatermarkLevel;
   warning_message: string | null;
-}
-
-export interface ProfileNotesStatusResponse {
-  user_watermark: LayerWatermarkResponse;
-  memory_watermark: LayerWatermarkResponse;
 }
 
 export interface ProfileNotesIntakeRequest {
@@ -66,10 +60,6 @@ export const checkProfileNotesIntake = async (
       'Content-Type': 'application/json',
     },
   });
-};
-
-export const getProfileNotesWatermarks = async (): Promise<ProfileNotesStatusResponse> => {
-  return apiRequest<ProfileNotesStatusResponse>('/memory/profile-notes/watermarks');
 };
 
 export const getProfileNotesContents = async (): Promise<ProfileNotesContentResponse> => {

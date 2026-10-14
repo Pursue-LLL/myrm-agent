@@ -20,10 +20,8 @@ from myrm_agent_harness.toolkits.memory import (
     ErrorFingerprint,
     ErrorFingerprintExtractor,
     FailureHistoricalSessionSearchEngine,
-    FailureOutcomeType,
     FailureRetrievalResult,
     FailureTriggerConfig,
-    FailureTriggerInterceptor,
     HistoricalResolutionEntry,
 )
 
@@ -32,9 +30,6 @@ from app.schemas.failure_search import (
     FailureRetrievalResultDTO,
     FailureTriggerConfigDTO,
     HistoricalResolutionEntryDTO,
-    InterceptFailureRequest,
-    InterceptFailureResponseDTO,
-    RecordHistoricalResolutionRequest,
     SearchFailureRequest,
 )
 
@@ -79,17 +74,12 @@ def _result_to_dto(result: FailureRetrievalResult) -> FailureRetrievalResultDTO:
 
 
 class FailureSearchService:
-    """Service encapsulating historical session error retrieval and interceptor."""
+    """Service encapsulating historical session error retrieval."""
 
     def __init__(self) -> None:
         self._search_engine = FailureHistoricalSessionSearchEngine()
         self._extractor = ErrorFingerprintExtractor()
         self._config = FailureTriggerConfig()
-        self._interceptor = FailureTriggerInterceptor(
-            search_engine=self._search_engine,
-            extractor=self._extractor,
-            config=self._config,
-        )
 
     def search_resolutions(self, req: SearchFailureRequest) -> FailureRetrievalResultDTO:
         """Search historical sessions using raw error message or trace."""
@@ -105,57 +95,10 @@ class FailureSearchService:
         )
         return _result_to_dto(result)
 
-    def index_resolution(self, req: RecordHistoricalResolutionRequest) -> HistoricalResolutionEntryDTO:
-        """Index a new historical resolution or cautionary attempt."""
-        outcome = (
-            FailureOutcomeType.CAUTIONARY_FAILURE
-            if req.outcome_type == FailureOutcomeType.CAUTIONARY_FAILURE.value
-            else FailureOutcomeType.SUCCESSFUL_RESOLUTION
-        )
-        entry = HistoricalResolutionEntry(
-            entry_id=req.entry_id,
-            session_id=req.session_id,
-            turn_index=req.turn_index,
-            error_signature=req.error_signature,
-            outcome_type=outcome,
-            solution_snippet=req.solution_snippet,
-            explanation=req.explanation,
-            confidence=req.confidence,
-        )
-        self._search_engine.index_resolution(entry)
-        return _entry_to_dto(entry)
-
-    def get_resolution(self, session_id: str, turn_index: int | None = None) -> HistoricalResolutionEntryDTO | None:
-        """Directly retrieve resolution from session without guessing."""
-        entry = self._search_engine.read_session_resolution(session_id=session_id, turn_index=turn_index)
-        if entry is None:
-            return None
-        return _entry_to_dto(entry)
-
     def list_resolutions(self) -> list[HistoricalResolutionEntryDTO]:
         """List all indexed historical resolution entries."""
         entries = self._search_engine.list_entries()
         return [_entry_to_dto(e) for e in entries]
-
-    def intercept_failure(self, req: InterceptFailureRequest) -> InterceptFailureResponseDTO:
-        """Intercept tool failure and produce formatted markdown injection block."""
-        retrieval_res = self._interceptor.on_execution_failure(
-            raw_error=req.error_content,
-            tool_name=req.tool_name,
-            exit_code=req.exit_code,
-        )
-        if retrieval_res and retrieval_res.total_matched > 0:
-            prompt_block = self._interceptor.format_resolution_guidance(retrieval_res)
-            return InterceptFailureResponseDTO(
-                should_inject=True,
-                injected_prompt_block=prompt_block,
-                result=_result_to_dto(retrieval_res),
-            )
-        return InterceptFailureResponseDTO(
-            should_inject=False,
-            injected_prompt_block="",
-            result=None,
-        )
 
     def get_config(self) -> FailureTriggerConfigDTO:
         """Get current automated failure retrieval configuration."""

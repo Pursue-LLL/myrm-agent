@@ -76,15 +76,6 @@ async def test_register_and_list_peers_api(test_app: FastAPI) -> None:
         assert len(agents) == 1
         assert agents[0]["peer_id"] == "agent_reviewer"
 
-        # 5. Get single peer
-        get_res = await client.get("/api/memory/peer-cognition/peers/user_alice")
-        assert get_res.status_code == 200
-        assert get_res.json()["role_title"] == "Lead Software Architect"
-
-        # 6. Not found
-        nf_res = await client.get("/api/memory/peer-cognition/peers/unknown_peer")
-        assert nf_res.status_code == 404
-
 
 @pytest.mark.asyncio
 async def test_persona_card_lifecycle_and_evolution_api(test_app: FastAPI) -> None:

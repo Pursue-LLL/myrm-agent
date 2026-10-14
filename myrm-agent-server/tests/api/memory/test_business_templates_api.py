@@ -73,22 +73,6 @@ async def test_list_business_templates_with_category_and_query(test_app: FastAPI
 
 
 @pytest.mark.asyncio
-async def test_get_single_template(test_app: FastAPI) -> None:
-    """Verify fetching individual template with checklist steps and 404 for unknown template."""
-    transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res_ok = await client.get("/api/v1/memory/business-templates/BA-REV-01")
-        assert res_ok.status_code == 200
-        tpl = res_ok.json()
-        assert tpl["template_id"] == "BA-REV-01"
-        assert len(tpl["checklist_steps"]) >= 3
-        assert len(tpl["boundary_conditions"]) >= 1
-
-        res_404 = await client.get("/api/v1/memory/business-templates/NON_EXISTENT_TPL")
-        assert res_404.status_code == 404
-
-
-@pytest.mark.asyncio
 async def test_evaluate_escalation_proceed(test_app: FastAPI) -> None:
     """Verify evaluate escalation gate allows automated flow when prerequisites pass."""
     payload = {

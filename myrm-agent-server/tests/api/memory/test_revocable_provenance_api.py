@@ -1,6 +1,6 @@
 """[POS]: tests/api/memory/test_revocable_provenance_api.py
 [INPUT]: Isolated FastAPI test application, AsyncClient, and temporary storage directories.
-[OUTPUT]: Integration tests verifying provenance memory creation, lookups, atomic forget, and dream diary recording.
+[OUTPUT]: Integration tests verifying provenance memory creation, listing, atomic forget, and dream diary recording.
 """
 
 from __future__ import annotations
@@ -37,8 +37,8 @@ def test_app(isolated_service: RevocableProvenanceService) -> FastAPI:
 
 
 @pytest.mark.asyncio
-async def test_provenance_memory_crud_and_session_lookup_api(test_app: FastAPI) -> None:
-    """Verifies creating memories with provenance and looking them up by memory_id and session_id."""
+async def test_provenance_memory_save_and_list_api(test_app: FastAPI) -> None:
+    """Verifies creating memories with provenance and listing them."""
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Save two provenance-qualified memories
@@ -72,22 +72,12 @@ async def test_provenance_memory_crud_and_session_lookup_api(test_app: FastAPI) 
         res2 = await client.post("/api/memory/provenance/memories", json=payload2)
         assert res2.status_code == 200
 
-        # 2. Lookup single memory by ID
-        res_get = await client.get("/api/memory/provenance/memories/mem_arch_001")
-        assert res_get.status_code == 200
-        assert res_get.json()["statement"] == payload1["statement"]
-
-        # 3. Lookup 404 for non-existent memory
-        res_not_found = await client.get("/api/memory/provenance/memories/ghost_id")
-        assert res_not_found.status_code == 404
-
-        # 4. Lookup by session_id
-        res_by_session = await client.get("/api/memory/provenance/memories/session/session_project_x")
-        assert res_by_session.status_code == 200
-        sess_items = res_by_session.json()
-        assert len(sess_items) == 2
-        assert sess_items[0]["memory_id"] == "mem_arch_001"
-        assert sess_items[1]["memory_id"] == "mem_arch_002"
+        # 2. Both memories are listed with their provenance
+        res_list = await client.get("/api/memory/provenance/memories")
+        assert res_list.status_code == 200
+        items = res_list.json()
+        assert {item["memory_id"] for item in items} == {"mem_arch_001", "mem_arch_002"}
+        assert all(item["provenance"]["session_id"] == "session_project_x" for item in items)
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,4 @@
-"""API tests for memory guardian trigger/policy/digest endpoints."""
+"""API tests for memory guardian trigger/policy/overview endpoints."""
 
 from __future__ import annotations
 
@@ -31,6 +31,16 @@ def client() -> TestClient:
         app.dependency_overrides.clear()
 
 
+@pytest.fixture(autouse=True)
+def _stub_morning_digest(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The overview endpoint always queries the digest; tests that do not care get an empty one."""
+    monkeypatch.setattr(
+        guardian_operation.MemoryOperationLedgerService,
+        "latest_guardian_morning_digest",
+        AsyncMock(return_value={"available": False}),
+    )
+
+
 def test_trigger_maintenance_defaults_to_safe_mode(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     run_mock = AsyncMock(return_value={"triggered": True, "mode": "safe", "applied": False})
     monkeypatch.setattr(memory_guardian, "run_memory_guardian_once", run_mock)
@@ -51,27 +61,6 @@ def test_trigger_maintenance_supports_force_mode(client: TestClient, monkeypatch
     assert response.status_code == 200
     assert response.json()["mode"] == "force"
     run_mock.assert_awaited_once_with(mode="force")
-
-
-def test_get_guardian_policy(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    policy = MemoryGuardianPolicy(
-        frequency_tier="aggressive",
-        quiet_window_enabled=True,
-        quiet_window_start_hour=23,
-        quiet_window_end_hour=7,
-        timezone_offset_minutes=480,
-    )
-    load_mock = AsyncMock(return_value=policy)
-    monkeypatch.setattr(guardian_operation, "load_memory_guardian_policy", load_mock)
-
-    response = client.get("/api/v1/memory/guardian/policy")
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["frequency_tier"] == "aggressive"
-    assert payload["quiet_window_enabled"] is True
-    assert payload["quiet_window_start_hour"] == 23
-    assert payload["quiet_window_end_hour"] == 7
 
 
 def test_update_guardian_policy(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -99,38 +88,6 @@ def test_update_guardian_policy(client: TestClient, monkeypatch: pytest.MonkeyPa
     assert save_mock.await_count == 1
     saved_policy = save_mock.await_args.args[0]
     assert isinstance(saved_policy, MemoryGuardianPolicy)
-
-
-def test_get_guardian_morning_digest(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    policy = MemoryGuardianPolicy(timezone_initialized=True)
-    load_mock = AsyncMock(return_value=policy)
-    monkeypatch.setattr(guardian_operation, "load_memory_guardian_policy", load_mock)
-    digest_mock = AsyncMock(
-        return_value={
-            "available": True,
-            "summary": "Guardian maintenance: merged 2, corrected 1",
-            "counts": {
-                "merged": 2,
-                "corrected": 1,
-                "forgotten": 0,
-                "archived": 0,
-                "stale_removed": 0,
-                "stale_extended": 0,
-            },
-        }
-    )
-    monkeypatch.setattr(
-        guardian_operation.MemoryOperationLedgerService,
-        "latest_guardian_morning_digest",
-        digest_mock,
-    )
-
-    response = client.get("/api/v1/memory/guardian/morning-digest")
-
-    assert response.status_code == 200
-    assert response.json()["available"] is True
-    digest_mock.assert_awaited_once()
-    assert digest_mock.await_args.kwargs["policy"] is policy
 
 
 def test_get_guardian_overview_returns_health_and_digest(
@@ -193,7 +150,7 @@ def test_get_guardian_overview_returns_health_and_digest(
     digest_mock.assert_awaited_once()
 
 
-def test_get_memory_health_bootstraps_timezone_from_request_header(
+def test_get_guardian_overview_bootstraps_timezone_from_request_header(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -218,7 +175,7 @@ def test_get_memory_health_bootstraps_timezone_from_request_header(
     )
 
     response = client.get(
-        "/api/v1/memory/guardian/health",
+        "/api/v1/memory/guardian/overview",
         headers={"x-client-timezone-offset-minutes": "480"},
     )
 
@@ -231,7 +188,7 @@ def test_get_memory_health_bootstraps_timezone_from_request_header(
     load_mock.assert_not_awaited()
 
 
-def test_get_memory_health_bootstraps_timezone_from_alias_header(
+def test_get_guardian_overview_bootstraps_timezone_from_alias_header(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -256,7 +213,7 @@ def test_get_memory_health_bootstraps_timezone_from_alias_header(
     )
 
     response = client.get(
-        "/api/v1/memory/guardian/health",
+        "/api/v1/memory/guardian/overview",
         headers={"x-timezone-offset-minutes": "540"},
     )
 
@@ -266,7 +223,7 @@ def test_get_memory_health_bootstraps_timezone_from_alias_header(
     load_mock.assert_not_awaited()
 
 
-def test_get_memory_health_bootstraps_timezone_from_server_fallback_when_uninitialized(
+def test_get_guardian_overview_bootstraps_timezone_from_server_fallback_when_uninitialized(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -291,7 +248,7 @@ def test_get_memory_health_bootstraps_timezone_from_server_fallback_when_uniniti
         lambda *, policy: {"running": False, "timezone_offset_minutes": policy.timezone_offset_minutes},
     )
 
-    response = client.get("/api/v1/memory/guardian/health")
+    response = client.get("/api/v1/memory/guardian/overview")
 
     assert response.status_code == 200
     assert response.json()["policy"]["timezone_offset_minutes"] == 330
@@ -299,7 +256,7 @@ def test_get_memory_health_bootstraps_timezone_from_server_fallback_when_uniniti
     bootstrap_mock.assert_awaited_once_with(330, source="server_fallback")
 
 
-def test_get_memory_health_uses_initialized_policy_without_bootstrap(
+def test_get_guardian_overview_uses_initialized_policy_without_bootstrap(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -323,7 +280,7 @@ def test_get_memory_health_uses_initialized_policy_without_bootstrap(
         lambda *, policy: {"running": False, "timezone_offset_minutes": policy.timezone_offset_minutes},
     )
 
-    response = client.get("/api/v1/memory/guardian/health")
+    response = client.get("/api/v1/memory/guardian/overview")
 
     assert response.status_code == 200
     assert response.json()["policy"]["timezone_offset_minutes"] == 120
@@ -331,7 +288,7 @@ def test_get_memory_health_uses_initialized_policy_without_bootstrap(
     bootstrap_mock.assert_not_awaited()
 
 
-def test_get_memory_health_falls_back_to_loaded_policy_when_bootstrap_raises(
+def test_get_guardian_overview_falls_back_to_loaded_policy_when_bootstrap_raises(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -356,7 +313,7 @@ def test_get_memory_health_falls_back_to_loaded_policy_when_bootstrap_raises(
         lambda *, policy: {"running": False, "timezone_offset_minutes": policy.timezone_offset_minutes},
     )
 
-    response = client.get("/api/v1/memory/guardian/health")
+    response = client.get("/api/v1/memory/guardian/overview")
 
     assert response.status_code == 200
     assert response.json()["policy"]["timezone_offset_minutes"] == 0

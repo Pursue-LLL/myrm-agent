@@ -68,7 +68,6 @@ POST /media/batch/{job_id}/retry
 POST /media/batch/{job_id}/start
 GET /memory/retrieval/quadruple/items
 POST /memory/retrieval/quadruple/items
-POST /memory/{memory_id}/correct
 POST /migrations/memory/submit
 GET /migrations/workbuddy/skills-map
 GET /public/chat-share/{token}

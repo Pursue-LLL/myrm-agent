@@ -62,11 +62,6 @@ export interface DualNodeRetrievalResponseDTO {
   matched_entries: ProcedureMemoryEntryDTO[];
 }
 
-export interface ProtocolValidationResponseDTO {
-  is_valid: boolean;
-  violations: string[];
-}
-
 export interface MultiIntentSplitRequest {
   raw_text: string;
 }
@@ -98,18 +93,8 @@ export async function retrieveDualNode(
   return apiClient.post<DualNodeRetrievalResponseDTO>('/memory/procedure/retrieve', payload);
 }
 
-export async function validateProcedureProtocol(
-  request: RegisterProcedureMemoryRequest
-): Promise<ProtocolValidationResponseDTO> {
-  return apiClient.post<ProtocolValidationResponseDTO>('/memory/procedure/validate', request);
-}
-
 export async function splitIntents(rawText: string): Promise<MultiIntentSplitResponseDTO> {
   return apiClient.post<MultiIntentSplitResponseDTO>('/memory/procedure/split-intents', {
     raw_text: rawText,
   });
-}
-
-export async function getProcedure(entryId: string): Promise<ProcedureMemoryEntryDTO> {
-  return apiClient.get<ProcedureMemoryEntryDTO>(`/memory/procedure/${encodeURIComponent(entryId)}`);
 }

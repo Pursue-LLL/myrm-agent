@@ -29,7 +29,6 @@ from app.schemas.procedure_experience import (
     DualNodeRetrievalResponseDTO,
     MultiIntentSplitResponseDTO,
     ProcedureMemoryEntryDTO,
-    ProtocolValidationResponseDTO,
     RegisterProcedureMemoryRequest,
 )
 
@@ -176,14 +175,6 @@ class ProcedureExperienceService:
             matched_entries=dtos,
         )
 
-    def validate_protocol(self, entry: ProcedureMemoryEntry) -> ProtocolValidationResponseDTO:
-        """Check 8-field protocol conformance."""
-        violations = self._protocol_engine.validate_protocol(entry)
-        return ProtocolValidationResponseDTO(
-            is_valid=len(violations) == 0,
-            violations=violations,
-        )
-
     def split_intents(self, raw_text: str) -> MultiIntentSplitResponseDTO:
         """Decompose multi-intent raw traces into distinct single-intent fragments."""
         fragments = self._protocol_engine.split_multi_intent_raw_steps(raw_text)
@@ -195,11 +186,6 @@ class ProcedureExperienceService:
     def list_entries(self) -> list[ProcedureMemoryEntryDTO]:
         """List all registered procedure memory entries."""
         return [self._to_dto(e) for e in self._retriever.list_all()]
-
-    def get_entry(self, entry_id: str) -> ProcedureMemoryEntryDTO | None:
-        """Retrieve entry by unique identifier."""
-        entry = self._retriever.get_entry(entry_id)
-        return self._to_dto(entry) if entry else None
 
     @staticmethod
     def _to_dto(e: ProcedureMemoryEntry) -> ProcedureMemoryEntryDTO:

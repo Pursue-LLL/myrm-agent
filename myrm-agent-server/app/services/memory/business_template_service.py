@@ -95,13 +95,6 @@ class BusinessTemplateService:
             templates=dtos,
         )
 
-    def get_template(self, template_id: str) -> BusinessExperienceTemplateDTO | None:
-        """Retrieve a specific template by ID."""
-        tpl = self._engine.get_template(template_id)
-        if tpl is None:
-            return None
-        return _template_to_dto(tpl)
-
     def evaluate_escalation(
         self,
         req: EscalationEvaluationRequest,

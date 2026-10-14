@@ -147,12 +147,6 @@ class DreamCognitiveService:
         entries.sort(key=lambda e: e.created_at, reverse=True)
         return [_diary_domain_to_dto(e) for e in entries[:limit]]
 
-    def get_diary(self, diary_id: str) -> GrowthDiaryEntryDTO | None:
-        """Fetch a specific diary entry by its identifier."""
-        with self._lock:
-            entry = self._diaries.get(diary_id)
-        return _diary_domain_to_dto(entry) if entry else None
-
     def get_diary_markdown(self, diary_id: str) -> str | None:
         """Fetch the formatted human-readable markdown presentation of a diary entry."""
         with self._lock:

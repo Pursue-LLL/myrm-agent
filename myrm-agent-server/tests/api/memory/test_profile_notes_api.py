@@ -63,17 +63,8 @@ def test_profile_notes_intake_filter_accept_user_preference(client: TestClient) 
     assert data["rejected_reason"] is None
 
 
-def test_profile_notes_watermarks_and_contents_flow(client: TestClient) -> None:
-    # 1. Check initial watermarks
-    wm_resp = client.get("/api/memory/profile-notes/watermarks")
-    assert wm_resp.status_code == 200
-    wm_data = wm_resp.json()
-    assert "user_watermark" in wm_data
-    assert "memory_watermark" in wm_data
-    assert wm_data["user_watermark"]["max_chars"] == 1375
-    assert wm_data["memory_watermark"]["max_chars"] == 2200
-
-    # 2. Update contents
+def test_profile_notes_contents_flow(client: TestClient) -> None:
+    # 1. Update contents
     update_resp = client.put(
         "/api/memory/profile-notes/contents",
         json={
@@ -87,8 +78,10 @@ def test_profile_notes_watermarks_and_contents_flow(client: TestClient) -> None:
     assert "single file <= 400 lines" in update_data["memory_content"]
     assert update_data["user_watermark"]["current_chars"] > 0
     assert update_data["memory_watermark"]["current_chars"] > 0
+    assert update_data["user_watermark"]["max_chars"] == 1375
+    assert update_data["memory_watermark"]["max_chars"] == 2200
 
-    # 3. Retrieve updated contents
+    # 2. Retrieve updated contents
     get_resp = client.get("/api/memory/profile-notes/contents")
     assert get_resp.status_code == 200
     get_data = get_resp.json()

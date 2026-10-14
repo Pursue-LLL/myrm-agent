@@ -36,20 +36,6 @@ export interface DeterministicRuleEntryDTO {
   is_enforced: boolean;
 }
 
-export interface RegisterRuleRequestDTO {
-  rule_id: string;
-  title: string;
-  rule_content: string;
-  metadata: FiveDimEvidenceMetadataDTO;
-  is_enforced?: boolean;
-}
-
-export interface RegisterRuleResponseDTO {
-  is_success: boolean;
-  rule_id: string;
-  registered_rule: DeterministicRuleEntryDTO;
-}
-
 export interface QueryCascadedRulesRequestDTO {
   target_path: string;
 }
@@ -76,19 +62,6 @@ export interface PreFilteredEvidenceResponseDTO {
   total_evaluated: number;
   passed_count: number;
   rejection_reasons: Record<string, number>;
-}
-
-export async function registerDeterministicRule(
-  request: RegisterRuleRequestDTO
-): Promise<RegisterRuleResponseDTO> {
-  const payload = {
-    rule_id: request.rule_id,
-    title: request.title,
-    rule_content: request.rule_content,
-    metadata: request.metadata,
-    is_enforced: request.is_enforced ?? true,
-  };
-  return apiClient.post<RegisterRuleResponseDTO>('/memory/rules/register', payload);
 }
 
 export async function queryCascadedRules(

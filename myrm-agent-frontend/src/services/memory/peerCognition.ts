@@ -109,14 +109,6 @@ export async function listPeerIdentities(
   );
 }
 
-export async function getPeerIdentity(
-  peerId: string,
-): Promise<PeerIdentityDTO> {
-  return apiClient.get<PeerIdentityDTO>(
-    `/memory/peer-cognition/peers/${encodeURIComponent(peerId)}`,
-  );
-}
-
 export async function getPersonaCard(
   peerId: string,
 ): Promise<PeerPersonaCardDTO> {

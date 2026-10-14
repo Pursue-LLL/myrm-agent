@@ -11,7 +11,7 @@ app.schemas.memory.archive::*Import* / *Archive* (POS: 记忆归档与导入 API
 memory CRUD handler functions、状态变更、偏好摘要、偏好管理、标签统计、服务端绑定导入、Memory Archive、导入后诊断和回滚预演端点
 
 [POS]
-记忆 API 操作层。提供标准记忆增删改查、偏好稳定性管理、单用户 archive 导出/校验，
+记忆 API 操作层。提供标准记忆增删改查、偏好稳定性管理、单用户 archive 导出，
 以及 dry-run -> confirm -> diagnostic -> rollback preview -> rollback 的可审计导入流程。
 """
 
@@ -21,12 +21,10 @@ import logging
 
 from fastapi import Depends, HTTPException, Query
 from myrm_agent_harness.toolkits.memory import MemoryError, MemoryManager, MemoryOperationKind, MemoryType
-from myrm_agent_harness.toolkits.memory.manager import MemoryTaintedError
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 from pydantic import BaseModel
 
 from app.schemas.memory.crud import (
-    CorrectMemoryRequest,
     CreateMemoryRequest,
     MemoryItem,
     MemoryListPaginatedResponse,
@@ -251,34 +249,6 @@ async def update_memory(
 ) -> MemoryItem:
     """Update an existing memory's content, importance, reasoning or application."""
     return await update_memory_item(manager, parse_memory_type(memory_type), memory_id, body)
-
-
-async def correct_memory(
-    memory_id: str,
-    body: CorrectMemoryRequest,
-    manager: MemoryManager = Depends(get_crud_memory_manager),
-) -> MemoryItem:
-    """Correct a factually wrong semantic memory: demote the old one and create a linked correction."""
-    try:
-        correction = await manager.correct_memory(memory_id, body.corrected_content)
-        await _record_memory_event(
-            kind=MemoryOperationKind.CORRECT,
-            summary="Memory corrected manually.",
-            memory_id=correction.id,
-            memory_type=MemoryType.SEMANTIC.value,
-            metadata={"correction_of": memory_id},
-        )
-        return memory_to_item(correction, MemoryType.SEMANTIC)
-    except MemoryTaintedError:
-        raise  # rendered as a 400 by the global handler
-    except Exception as e:
-        error_msg = str(e)
-        if "not found" in error_msg.lower():
-            raise HTTPException(status_code=404, detail=error_msg) from e
-        if "only supports" in error_msg.lower():
-            raise HTTPException(status_code=400, detail=error_msg) from e
-        logger.error("Memory correction failed: %s", error_msg, exc_info=True)
-        raise HTTPException(status_code=500, detail="Correction failed") from e
 
 
 async def delete_all_memories(

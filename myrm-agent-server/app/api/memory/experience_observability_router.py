@@ -15,14 +15,13 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.schemas.experience_observability import (
     ExperienceObservabilityMetricDTO,
     HostPluginConfigDTO,
     ObservabilityDashboardResponseDTO,
     RecordEffectEventRequest,
-    RecordRecallEventRequest,
     SessionTraceEvidenceDTO,
     UpdatePluginConfigRequest,
 )
@@ -49,20 +48,6 @@ async def get_dashboard(
 
 
 @router.get(
-    "/metrics",
-    response_model=list[ExperienceObservabilityMetricDTO],
-    summary="List tracked experience telemetry metrics",
-)
-async def list_metrics(
-    service: Annotated[ExperienceObservabilityService, Depends(get_experience_observability_service)],
-    channel: str | None = Query(default=None, description="Filter by access channel (plugin/mcp/skill)"),
-    status: str | None = Query(default=None, description="Filter by effect status (effective/neutral/adverse)"),
-) -> list[ExperienceObservabilityMetricDTO]:
-    """List experience telemetry metrics with optional channel and status filtering."""
-    return service.list_metrics(channel_str=channel, status_str=status)
-
-
-@router.get(
     "/traces/{session_id}",
     response_model=SessionTraceEvidenceDTO,
     summary="Retrieve originating session trace evidence for an experience",
@@ -78,18 +63,6 @@ async def get_trace_evidence(
     return trace
 
 
-@router.get(
-    "/config",
-    response_model=HostPluginConfigDTO,
-    summary="Get current zero-refactor host plugin configuration",
-)
-async def get_plugin_config(
-    service: Annotated[ExperienceObservabilityService, Depends(get_experience_observability_service)],
-) -> HostPluginConfigDTO:
-    """Retrieve active host plugin configuration parameters."""
-    return service.get_plugin_config()
-
-
 @router.post(
     "/config",
     response_model=HostPluginConfigDTO,
@@ -101,19 +74,6 @@ async def update_plugin_config(
 ) -> HostPluginConfigDTO:
     """Update runtime settings for the zero-refactor host plugin."""
     return service.update_plugin_config(request)
-
-
-@router.post(
-    "/record-recall",
-    response_model=ExperienceObservabilityMetricDTO,
-    summary="Record an experience recall event hit",
-)
-async def record_recall(
-    request: RecordRecallEventRequest,
-    service: Annotated[ExperienceObservabilityService, Depends(get_experience_observability_service)],
-) -> ExperienceObservabilityMetricDTO:
-    """Record an experience recall event and update its access metrics."""
-    return service.record_recall_event(request)
 
 
 @router.post(

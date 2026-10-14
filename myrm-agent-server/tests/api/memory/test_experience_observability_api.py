@@ -48,28 +48,6 @@ async def test_get_dashboard_api(test_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_and_filter_metrics_api(test_app: FastAPI) -> None:
-    """Validate listing and filtering experience metrics by channel and status."""
-    transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # 1. Full list
-        res = await client.get("/api/memory/experience-observability/metrics")
-        assert res.status_code == 200
-        items = res.json()
-        assert len(items) >= 5
-        entry_ids = [m["entry_id"] for m in items]
-        assert "proc_git_push_safe" in entry_ids
-        assert "RET-EXC-01" in entry_ids
-
-        # 2. Filter by channel
-        res_mcp = await client.get("/api/memory/experience-observability/metrics?channel=mcp")
-        assert res_mcp.status_code == 200
-        items_mcp = res_mcp.json()
-        assert any(m["entry_id"] == "proc_db_index_ddl" for m in items_mcp)
-        assert next(m for m in items if m["entry_id"] == "proc_git_push_safe")["name"] == "SafeGitBranchPushGuard"
-
-
-@pytest.mark.asyncio
 async def test_get_trace_evidence_api(test_app: FastAPI) -> None:
     """Validate retrieving originating session evidence trace via REST API."""
     transport = ASGITransport(app=test_app)
@@ -88,20 +66,10 @@ async def test_get_trace_evidence_api(test_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_record_recall_and_effect_events_api(test_app: FastAPI) -> None:
-    """Validate recording recall hits and task outcome effects via REST API."""
+async def test_record_effect_event_api(test_app: FastAPI) -> None:
+    """Validate recording a task outcome effect via REST API."""
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # 1. Record recall
-        res_rec = await client.post(
-            "/api/memory/experience-observability/record-recall",
-            json={"entry_id": "proc_git_push_safe", "channel": "mcp"},
-        )
-        assert res_rec.status_code == 200
-        data_rec = res_rec.json()
-        assert data_rec["access_channel"] == "mcp"
-
-        # 2. Record effect (success)
         res_eff = await client.post(
             "/api/memory/experience-observability/record-effect",
             json={"entry_id": "proc_git_push_safe", "is_success": True, "is_dispute": False},
@@ -114,18 +82,11 @@ async def test_record_recall_and_effect_events_api(test_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_plugin_config_api(test_app: FastAPI) -> None:
-    """Validate getting and updating host plugin configuration via REST API."""
+async def test_plugin_config_update_api(test_app: FastAPI) -> None:
+    """Validate updating host plugin configuration via REST API."""
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # GET config
-        res_get = await client.get("/api/memory/experience-observability/config")
-        assert res_get.status_code == 200
-        cfg = res_get.json()
-        assert cfg["enabled"] is True
-        assert cfg["active_channel"] == "plugin"
-
-        # POST update config: switch to MCP and Cursor host
+        # Switch to MCP and Cursor host
         res_post = await client.post(
             "/api/memory/experience-observability/config",
             json={

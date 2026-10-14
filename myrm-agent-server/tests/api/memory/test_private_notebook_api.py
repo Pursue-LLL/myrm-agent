@@ -105,17 +105,14 @@ async def test_notes_crud_and_search_api(test_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_history_and_context_handover_api(test_app: FastAPI) -> None:
-    """Verifies turn recording, cross-context search, and clean context window rotation."""
+async def test_history_and_context_handover_api(test_app: FastAPI, isolated_service: PrivateNotebookService) -> None:
+    """Verifies context listing, history search, and clean context window rotation."""
+    # 1. Record turns
+    isolated_service.manager.record_turn("user", "Let's investigate the CPU spike on worker 3.")
+    isolated_service.manager.record_turn("assistant", "Collected profile dump, top consumer is JSON parser.")
+
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # 1. Record turns
-        turn1 = {"role": "user", "content": "Let's investigate the CPU spike on worker 3."}
-        turn2 = {"role": "assistant", "content": "Collected profile dump, top consumer is JSON parser."}
-        res_t1 = await client.post("/api/memory/notebook/turn", json=turn1)
-        res_t2 = await client.post("/api/memory/notebook/turn", json=turn2)
-        assert res_t1.status_code == 200
-        assert res_t2.status_code == 200
 
         # Check contexts list
         res_ctxs = await client.get("/api/memory/notebook/history/contexts")
@@ -124,13 +121,6 @@ async def test_history_and_context_handover_api(test_app: FastAPI) -> None:
         assert len(ctx_list) == 1
         active_ctx_id = ctx_list[0]["context_id"]
         assert ctx_list[0]["turn_count"] == 2
-
-        # Check entries under context
-        res_entries = await client.get(f"/api/memory/notebook/history/entries/{active_ctx_id}")
-        assert res_entries.status_code == 200
-        entries = res_entries.json()
-        assert len(entries) == 2
-        assert "CPU spike" in entries[0]["content"]
 
         # Search history
         res_hist_search = await client.get("/api/memory/notebook/history/search?q=JSON+parser")

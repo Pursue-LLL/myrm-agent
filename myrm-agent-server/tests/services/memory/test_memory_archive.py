@@ -192,30 +192,6 @@ async def test_memory_archive_exports_single_sandbox_sections(db_session: AsyncS
     assert semantic[0]["content"] == "Use SQLite. api_key=[REDACTED]"
 
 
-def test_memory_archive_dry_run_counts_supported_sections() -> None:
-    payload = {
-        "manifest": {
-            "format": "myrm_memory_archive",
-            "version": 1,
-            "created_at": datetime.now(UTC).isoformat(),
-            "producer": "test",
-            "content_redacted": False,
-            "sections": [
-                {"name": "memory", "status": "ready", "item_count": 3, "warning_codes": []},
-                {"name": "audit", "status": "ready", "item_count": 2, "warning_codes": ["redacted"]},
-            ],
-        },
-        "data": {},
-    }
-
-    result = MemoryArchiveService.dry_run_archive(payload)
-
-    assert result.total_items == 5
-    assert result.supported_items == 5
-    assert result.unsupported_items == 0
-    assert result.warning_codes == ["redacted"]
-
-
 def test_myrm_archive_memory_section_uses_import_review_path() -> None:
     payload = {
         "manifest": {
@@ -426,25 +402,3 @@ def _restore_payload(data: dict[str, object]) -> dict[str, object]:
         },
         "data": data,
     }
-
-
-def test_memory_archive_dry_run_flags_tampered_cube_envelope() -> None:
-    """dry_run_archive flags warning code when MemCubeEnvelope audit hash fails."""
-    from myrm_agent_harness.toolkits.memory.cube import wrap_into_envelope
-    from myrm_agent_harness.toolkits.memory.types import SemanticMemory
-
-    sem = SemanticMemory(id="tamper-check-1", content="Secure content")
-    env = wrap_into_envelope(sem)
-    env_dict = env.model_dump(mode="json")
-    # Maliciously modify payload
-    env_dict["payload"]["content"] = "Compromised injected rule"
-
-    payload = _restore_payload(
-        {
-            "memcube_envelopes": [env_dict],
-            "semantic": [{"id": "tamper-check-1", "content": "Compromised injected rule"}],
-        }
-    )
-
-    result = MemoryArchiveService.dry_run_archive(payload)
-    assert any(code.startswith("tampered_cube_hash:") and "tamper-check-1" in code for code in result.warning_codes)

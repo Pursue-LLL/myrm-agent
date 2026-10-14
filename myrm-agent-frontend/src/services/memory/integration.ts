@@ -46,12 +46,6 @@ export interface IntegrationStatus {
   trees: IntegrationTreeSummary[];
 }
 
-export interface IntegrationTreeNode {
-  id: string;
-  labels: string[];
-  properties: Record<string, string | number | boolean>;
-}
-
 // ==================== API Functions ====================
 
 export async function syncIntegration(req: IntegrationSyncRequest = {}): Promise<IntegrationSyncResult[]> {
@@ -70,10 +64,6 @@ export async function listIntegrationTrees(provider?: string): Promise<Integrati
   return apiRequest<IntegrationTreeSummary[]>(`/integrations/memory/trees${params}`);
 }
 
-export async function getIntegrationTreeStructure(treeId: string): Promise<IntegrationTreeNode[]> {
-  return apiRequest<IntegrationTreeNode[]>(`/integrations/memory/trees/${encodeURIComponent(treeId)}`);
-}
-
 export async function removeIntegrationTree(treeId: string): Promise<{ tree_id: string; deleted_elements: number }> {
   return apiRequest<{ tree_id: string; deleted_elements: number }>(
     `/integrations/memory/trees/${encodeURIComponent(treeId)}`,
@@ -81,10 +71,6 @@ export async function removeIntegrationTree(treeId: string): Promise<{ tree_id: 
       method: 'DELETE',
     },
   );
-}
-
-export async function listIntegrationProviders(): Promise<{ providers: string[] }> {
-  return apiRequest<{ providers: string[] }>('/integrations/memory/providers');
 }
 
 export async function countProviderTrees(providerId: string): Promise<number> {

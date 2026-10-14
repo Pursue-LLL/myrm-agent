@@ -51,29 +51,6 @@ export interface SearchFailureRequest {
   include_cautionary?: boolean;
 }
 
-export interface RecordHistoricalResolutionRequest {
-  entry_id: string;
-  session_id: string;
-  turn_index?: number;
-  error_signature: string;
-  outcome_type?: FailureOutcomeType;
-  solution_snippet: string;
-  explanation?: string;
-  confidence?: number;
-}
-
-export interface InterceptFailureRequest {
-  tool_name: string;
-  error_content: string;
-  exit_code?: number | null;
-}
-
-export interface InterceptFailureResponseDTO {
-  should_inject: boolean;
-  injected_prompt_block: string;
-  result: FailureRetrievalResultDTO | null;
-}
-
 export interface FailureTriggerConfigDTO {
   enabled: boolean;
   auto_trigger_on_error: boolean;
@@ -94,34 +71,6 @@ export async function queryFailureResolutions(
 export async function fetchHistoricalResolutions(): Promise<HistoricalResolutionEntryDTO[]> {
   return apiClient.get<HistoricalResolutionEntryDTO[]>(
     '/memory/failure-search/resolutions',
-  );
-}
-
-export async function fetchSessionResolution(
-  sessionId: string,
-  turnIndex?: number,
-): Promise<HistoricalResolutionEntryDTO> {
-  const query = turnIndex !== undefined ? `?turn_index=${turnIndex}` : '';
-  return apiClient.get<HistoricalResolutionEntryDTO>(
-    `/memory/failure-search/resolutions/${encodeURIComponent(sessionId)}${query}`,
-  );
-}
-
-export async function recordHistoricalResolution(
-  request: RecordHistoricalResolutionRequest,
-): Promise<HistoricalResolutionEntryDTO> {
-  return apiClient.post<HistoricalResolutionEntryDTO>(
-    '/memory/failure-search/resolutions',
-    request,
-  );
-}
-
-export async function interceptFailureEvent(
-  request: InterceptFailureRequest,
-): Promise<InterceptFailureResponseDTO> {
-  return apiClient.post<InterceptFailureResponseDTO>(
-    '/memory/failure-search/intercept',
-    request,
   );
 }
 

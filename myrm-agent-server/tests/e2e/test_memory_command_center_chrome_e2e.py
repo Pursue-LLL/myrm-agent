@@ -105,8 +105,8 @@ def _seed_benchmarked_run() -> None:
     """Pre-seed one benchmarked run: the trend section needs at least two runs to show."""
     seeded = http_json(
         "POST",
-        f"{get_e2e_api_url()}/api/v1/memory/command-center/diagnostics/actions",
-        body={"action": "run_diagnostics"},
+        f"{get_e2e_api_url()}/api/v1/memory/command-center/diagnostics/repairs",
+        body={"plan_id": "run_diagnostics", "mode": "execute"},
         timeout_sec=300.0,
     )
     assert isinstance(seeded, dict), seeded

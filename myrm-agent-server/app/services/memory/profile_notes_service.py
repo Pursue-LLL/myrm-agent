@@ -5,7 +5,7 @@
 - myrm_agent_harness.toolkits.memory.profile_notes::CapacityWatermarkGovernor
 - myrm_agent_harness.toolkits.memory.profile_notes::MemoryLayerType, WatermarkStatus
 - app.schemas.profile_notes::ProfileNotesIntakeRequest, ProfileNotesIntakeResponse
-- app.schemas.profile_notes::LayerWatermarkResponse, ProfileNotesStatusResponse
+- app.schemas.profile_notes::LayerWatermarkResponse
 - app.schemas.profile_notes::ProfileNotesUpdateRequest, ProfileNotesContentResponse
 
 [OUTPUT]
@@ -33,7 +33,6 @@ from app.schemas.profile_notes import (
     LayerWatermarkResponse,
     ProfileNotesContentResponse,
     ProfileNotesIntakeResponse,
-    ProfileNotesStatusResponse,
 )
 
 logger: Final[logging.Logger] = logging.getLogger(__name__)
@@ -86,15 +85,6 @@ class ProfileNotesService:
             usage_ratio=status.usage_ratio,
             level=status.level.value,
             warning_message=status.warning_message,
-        )
-
-    def get_watermarks(self) -> ProfileNotesStatusResponse:
-        """Return combined watermark statuses for both layers."""
-        user_wm = self.get_layer_watermark(MemoryLayerType.USER)
-        mem_wm = self.get_layer_watermark(MemoryLayerType.MEMORY)
-        return ProfileNotesStatusResponse(
-            user_watermark=user_wm,
-            memory_watermark=mem_wm,
         )
 
     def get_contents(self) -> ProfileNotesContentResponse:

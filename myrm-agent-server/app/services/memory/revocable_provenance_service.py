@@ -78,21 +78,9 @@ class RevocableProvenanceService:
         saved = self._store.save_memory(mem)
         return self._memory_to_dto(saved)
 
-    def get_memory(self, memory_id: str) -> ProvenanceQualifiedMemoryDTO | None:
-        """Retrieves a memory entry by ID."""
-        mem = self._store.get_memory(memory_id)
-        if mem is None:
-            return None
-        return self._memory_to_dto(mem)
-
     def list_memories(self, include_revoked: bool = False) -> list[ProvenanceQualifiedMemoryDTO]:
         """Lists all memories in the store."""
         mems = self._store.list_memories(include_revoked=include_revoked)
-        return [self._memory_to_dto(m) for m in mems]
-
-    def find_by_session(self, session_id: str, include_revoked: bool = False) -> list[ProvenanceQualifiedMemoryDTO]:
-        """Finds all memories derived from a specific source session."""
-        mems = self._store.find_by_session(session_id=session_id, include_revoked=include_revoked)
         return [self._memory_to_dto(m) for m in mems]
 
     def forget_memory(self, memory_id: str, request: ForgetMemoryRequestDTO) -> ForgetResultDTO:

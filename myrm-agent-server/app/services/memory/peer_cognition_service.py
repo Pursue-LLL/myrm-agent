@@ -121,13 +121,6 @@ class PeerCognitionService:
         self._card_engine.create_or_update_card(req.peer_id)
         return _identity_to_dto(identity)
 
-    def get_peer(self, peer_id: str) -> PeerIdentityDTO | None:
-        """Retrieve peer identity by identifier."""
-        peer = self._graph_store.get_peer(peer_id)
-        if peer is None:
-            return None
-        return _identity_to_dto(peer)
-
     def list_peers(self, peer_type_str: str | None = None) -> list[PeerIdentityDTO]:
         """List peers, optionally filtered by peer category."""
         ptype: PeerType | None = None

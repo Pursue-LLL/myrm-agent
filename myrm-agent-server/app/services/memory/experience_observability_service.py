@@ -28,7 +28,6 @@ from app.schemas.experience_observability import (
     HostPluginConfigDTO,
     ObservabilityDashboardResponseDTO,
     RecordEffectEventRequest,
-    RecordRecallEventRequest,
     SessionTraceEvidenceDTO,
     UpdatePluginConfigRequest,
 )
@@ -97,22 +96,6 @@ class ExperienceObservabilityService:
             metrics=dtos,
         )
 
-    def list_metrics(
-        self,
-        channel_str: str | None = None,
-        status_str: str | None = None,
-    ) -> list[ExperienceObservabilityMetricDTO]:
-        """List tracked experience metrics with optional channel and status filtering."""
-        raw_metrics = self._tracker.list_metrics()
-        dtos = [_metric_to_dto(m) for m in raw_metrics]
-
-        if channel_str:
-            dtos = [m for m in dtos if m.access_channel == channel_str]
-        if status_str:
-            dtos = [m for m in dtos if m.effect_status == status_str]
-
-        return dtos
-
     def get_trace_evidence(self, session_id: str) -> SessionTraceEvidenceDTO | None:
         """Retrieve originating session evidence trace."""
         trace = self._tracker.get_trace_evidence(session_id)
@@ -157,16 +140,6 @@ class ExperienceObservabilityService:
             auto_commit=cfg.auto_commit,
             monitored_host=cfg.monitored_host,
         )
-
-    def record_recall_event(self, req: RecordRecallEventRequest) -> ExperienceObservabilityMetricDTO:
-        """Record an experience recall event hit."""
-        try:
-            channel = HostAccessChannel(req.channel)
-        except ValueError:
-            channel = HostAccessChannel.PLUGIN
-
-        metric = self._tracker.record_recall(entry_id=req.entry_id, channel=channel)
-        return _metric_to_dto(metric)
 
     def record_effect_event(self, req: RecordEffectEventRequest) -> ExperienceObservabilityMetricDTO:
         """Record task outcome or user dispute following experience injection."""

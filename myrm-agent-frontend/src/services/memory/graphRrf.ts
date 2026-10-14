@@ -5,9 +5,6 @@
  * [OUTPUT]
  * Hybrid Vector and Knowledge Graph Reciprocal Rank Fusion (RRF) DTOs and API clients:
  * - createEntityNode
- * - getEntityNode
- * - createRelationEdge
- * - associateMemoryEntity
  * - traverseKnowledgeGraph
  * - searchDualChannelRRF
  *
@@ -33,15 +30,6 @@ export interface EntityNodeResponse {
   created_at: number;
 }
 
-export interface RelationEdgeCreateRequest {
-  id: string;
-  source_id: string;
-  target_id: string;
-  relation_type: string;
-  weight?: number;
-  properties?: Record<string, string>;
-}
-
 export interface RelationEdgeResponse {
   id: string;
   source_id: string;
@@ -50,12 +38,6 @@ export interface RelationEdgeResponse {
   weight: number;
   properties: Record<string, string>;
   created_at: number;
-}
-
-export interface MemoryAssociationRequest {
-  memory_id: string;
-  entity_id: string;
-  content?: string;
 }
 
 export interface GraphTraversalPath {
@@ -117,32 +99,6 @@ export const createEntityNode = async (
   request: EntityNodeCreateRequest,
 ): Promise<EntityNodeResponse> => {
   return apiRequest<EntityNodeResponse>('/memory/graph-rrf/nodes', {
-    method: 'POST',
-    body: JSON.stringify(request),
-  });
-};
-
-export const getEntityNode = async (
-  nodeId: string,
-): Promise<EntityNodeResponse> => {
-  return apiRequest<EntityNodeResponse>(`/memory/graph-rrf/nodes/${encodeURIComponent(nodeId)}`, {
-    method: 'GET',
-  });
-};
-
-export const createRelationEdge = async (
-  request: RelationEdgeCreateRequest,
-): Promise<RelationEdgeResponse> => {
-  return apiRequest<RelationEdgeResponse>('/memory/graph-rrf/edges', {
-    method: 'POST',
-    body: JSON.stringify(request),
-  });
-};
-
-export const associateMemoryEntity = async (
-  request: MemoryAssociationRequest,
-): Promise<{ status: string; memory_id: string; entity_id: string }> => {
-  return apiRequest<{ status: string; memory_id: string; entity_id: string }>('/memory/graph-rrf/associate', {
     method: 'POST',
     body: JSON.stringify(request),
   });

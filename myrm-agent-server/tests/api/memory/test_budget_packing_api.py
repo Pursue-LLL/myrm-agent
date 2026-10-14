@@ -124,36 +124,3 @@ async def test_pack_recall_candidates_greedy_api(test_app: FastAPI) -> None:
         # Check prompt block presence
         assert "<recalled_memories" in data["composed_prompt_block"]
         assert "</recalled_memories>" in data["composed_prompt_block"]
-
-
-@pytest.mark.asyncio
-async def test_inspect_marginal_values_api(test_app: FastAPI) -> None:
-    """Validate sequential inspection of marginal value metrics."""
-    transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        candidates = [
-            {
-                "id": "c1",
-                "content": "前端状态管理采用 Zustand 轻量状态机。",
-                "relevance_score": 0.90,
-                "billed_tokens": 25,
-            },
-            {
-                "id": "c2",
-                "content": "后端任务调度采用 Redis 和 Celery 分布式队列。",
-                "relevance_score": 0.80,
-                "billed_tokens": 30,
-            },
-        ]
-
-        res = await client.post(
-            "/api/memory/budget-packing/inspect-marginal",
-            json={"candidates": candidates},
-        )
-        assert res.status_code == 200
-        items = res.json()
-        assert len(items) == 2
-        assert items[0]["candidate"]["id"] == "c1"
-        assert items[0]["metrics"]["redundancy_score"] == 0.0
-        assert items[1]["candidate"]["id"] == "c2"
-        assert items[1]["metrics"]["marginal_value_density"] > 0

@@ -73,34 +73,11 @@ export async function fetchObservabilityDashboard(): Promise<ObservabilityDashbo
   );
 }
 
-export async function fetchObservabilityMetrics(
-  channel?: string,
-  status?: string,
-): Promise<ExperienceObservabilityMetricDTO[]> {
-  const params = new URLSearchParams();
-  if (channel) params.set('channel', channel);
-  if (status) params.set('status', status);
-  const qStr = params.toString() ? `?${params.toString()}` : '';
-  return apiClient.get<ExperienceObservabilityMetricDTO[]>(
-    `/memory/experience-observability/metrics${qStr}`,
-  );
-}
-
 export async function fetchTraceEvidence(
   sessionId: string,
 ): Promise<SessionTraceEvidenceDTO> {
   return apiClient.get<SessionTraceEvidenceDTO>(
     `/memory/experience-observability/traces/${encodeURIComponent(sessionId)}`,
-  );
-}
-
-export async function recordRecallHit(
-  entryId: string,
-  channel: HostAccessChannel = 'plugin',
-): Promise<ExperienceObservabilityMetricDTO> {
-  return apiClient.post<ExperienceObservabilityMetricDTO>(
-    '/memory/experience-observability/record-recall',
-    { entry_id: entryId, channel },
   );
 }
 
@@ -112,12 +89,6 @@ export async function recordEffectOutcome(
   return apiClient.post<ExperienceObservabilityMetricDTO>(
     '/memory/experience-observability/record-effect',
     { entry_id: entryId, is_success: isSuccess, is_dispute: isDispute },
-  );
-}
-
-export async function fetchPluginConfig(): Promise<HostPluginConfigDTO> {
-  return apiClient.get<HostPluginConfigDTO>(
-    '/memory/experience-observability/config',
   );
 }
 

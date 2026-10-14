@@ -38,8 +38,6 @@ from app.database.connection import get_session
 from app.schemas.memory.archive import (
     CronImportSummary,
     CronMigrationSkippedPreviewItem,
-    MemoryArchiveDryRunRequest,
-    MemoryArchiveDryRunResponse,
     MemoryArchiveExportResponse,
     MemoryImportConfirmRequest,
     MemoryImportConfirmResponse,
@@ -214,16 +212,6 @@ async def export_memory_archive(
         },
     )
     return MemoryArchiveExportResponse(archive=archive)
-
-
-async def dry_run_memory_archive(
-    body: MemoryArchiveDryRunRequest,
-) -> MemoryArchiveDryRunResponse:
-    """Validate a Myrm memory archive before any restore/import work."""
-
-    async with get_session() as db:
-        result = MemoryArchiveService(db).dry_run_archive(body.archive)
-    return MemoryArchiveDryRunResponse(result=result)
 
 
 async def dry_run_import_memories(

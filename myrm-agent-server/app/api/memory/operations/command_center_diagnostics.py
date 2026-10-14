@@ -6,7 +6,7 @@ app.services.memory.diagnostics.diagnostic.diagnostic_repair_executor::MemoryDia
 app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆账本服务)
 
 [OUTPUT]
-router: `/command-center/diagnostics` diagnostic actions, history, and repair endpoints.
+router: `/command-center/diagnostics` diagnostic history and repair endpoints.
 
 [POS]
 记忆指挥中心诊断与修复 API 操作层。
@@ -25,32 +25,18 @@ from app.api.memory.utils import get_crud_memory_manager
 from app.database.models.memory import MemoryOperationEventModel
 from app.schemas.memory.command_center import (
     MemoryCommandBenchmarkSummary,
-    MemoryCommandDiagnosticActionRequest,
-    MemoryCommandDiagnosticActionResponse,
     MemoryCommandDiagnosticHistoryItem,
     MemoryCommandDiagnosticHistoryResponse,
     MemoryCommandRepairActionRequest,
     MemoryCommandRepairActionResponse,
 )
-from app.services.memory.command_center.command_center import MemoryCommandCenterService
 from app.services.memory.diagnostics.diagnostic.diagnostic_repair_executor import (
     MemoryDiagnosticRepairExecutor,
 )
-from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 from app.services.memory.ledger.operation_ledger_guardian import as_aware
 
 router = APIRouter(prefix="/command-center/diagnostics")
-
-
-def _diagnostic_action_status(
-    run_status: str,
-) -> Literal["completed", "completed_with_findings", "failed"]:
-    if run_status == "ready":
-        return "completed"
-    if run_status in {"warning", "missing"}:
-        return "completed_with_findings"
-    return "failed"
 
 
 def _history_status(status: str, metadata: dict[str, object]) -> Literal["ready", "warning", "critical", "missing"]:
@@ -97,24 +83,6 @@ def _diagnostic_history_item(
         benchmark=benchmark,
         embedding_model=(embedding_model if isinstance(embedding_model, str) and embedding_model.strip() else None),
     )
-
-
-@router.post("/actions", response_model=MemoryCommandDiagnosticActionResponse)
-async def run_memory_diagnostic_action(
-    body: MemoryCommandDiagnosticActionRequest,
-    db: AsyncSession = Depends(get_db_session),
-    memory_manager: MemoryManager = Depends(get_crud_memory_manager),
-) -> MemoryCommandDiagnosticActionResponse:
-    """Execute a GUI Memory Doctor action from the command center."""
-    command_center = MemoryCommandCenterService(db, memory_manager)
-    if body.action == "run_health_refresh":
-        await command_center.refresh_health()
-    snapshot = await command_center.build_snapshot()
-    run = await MemoryDiagnosticsService(db, memory_manager).run_diagnostics(
-        health_cache_status=snapshot.health.cache_status,
-        runtime=snapshot.runtime,
-    )
-    return MemoryCommandDiagnosticActionResponse(status=_diagnostic_action_status(run.status), action=body.action, run=run)
 
 
 @router.get("/history", response_model=MemoryCommandDiagnosticHistoryResponse)

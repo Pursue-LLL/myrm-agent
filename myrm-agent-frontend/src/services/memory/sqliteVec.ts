@@ -4,8 +4,8 @@
  *
  * [OUTPUT]
  * Types: SqliteVecStatsResponse, SqliteVecSearchRequest, SqliteVecSearchItem,
- *        SqliteVecSearchResponse, SqliteVecHealthResponse
- * Functions: fetchSqliteVecStats, searchSqliteVec, checkSqliteVecHealth
+ *        SqliteVecSearchResponse
+ * Functions: fetchSqliteVecStats, searchSqliteVec
  *
  * [POS]
  * Client service for Item 130 SqliteVec Embedded Zero-Dependency Vector Store Suite.
@@ -53,12 +53,6 @@ export interface SqliteVecSearchResponse {
   execution_mode: string;
 }
 
-export interface SqliteVecHealthResponse {
-  status: string;
-  engine_mode: string;
-  db_path: string;
-}
-
 export async function fetchSqliteVecStats(): Promise<SqliteVecStatsResponse> {
   return apiRequest<SqliteVecStatsResponse>('/memory/sqlite-vec/stats', {
     method: 'GET',
@@ -71,11 +65,5 @@ export async function searchSqliteVec(
   return apiRequest<SqliteVecSearchResponse>('/memory/sqlite-vec/search', {
     method: 'POST',
     body: JSON.stringify(req),
-  });
-}
-
-export async function checkSqliteVecHealth(): Promise<SqliteVecHealthResponse> {
-  return apiRequest<SqliteVecHealthResponse>('/memory/sqlite-vec/health', {
-    method: 'GET',
   });
 }

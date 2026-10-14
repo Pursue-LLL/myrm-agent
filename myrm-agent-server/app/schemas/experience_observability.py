@@ -6,7 +6,7 @@
 [OUTPUT]
 - ExperienceObservabilityMetricDTO, SessionTraceEvidenceDTO, ObservabilityDashboardResponseDTO: per-experience metrics, session trace evidence and the dashboard
 - HostPluginConfigDTO, UpdatePluginConfigRequest: host lifecycle plugin configuration
-- RecordRecallEventRequest, RecordEffectEventRequest: recall and effect event payloads
+- RecordEffectEventRequest: effect event payload
 
 [POS]
 API contracts of experience observability and the host lifecycle plugin, shared by its router and service.
@@ -72,15 +72,6 @@ class UpdatePluginConfigRequest(BaseModel):
     auto_capture: bool | None = Field(default=None, description="Toggle auto capture")
     auto_commit: bool | None = Field(default=None, description="Toggle auto commit")
     monitored_host: str | None = Field(default=None, description="Update target host name")
-
-
-class RecordRecallEventRequest(BaseModel):
-    """Request payload to manually or externally record an experience recall hit."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    entry_id: str = Field(..., description="Recalled experience identifier")
-    channel: str = Field(default="plugin", description="Channel via which recall occurred")
 
 
 class RecordEffectEventRequest(BaseModel):

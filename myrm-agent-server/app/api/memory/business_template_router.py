@@ -18,7 +18,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.schemas.business_templates import (
-    BusinessExperienceTemplateDTO,
     EscalationEvaluationRequest,
     EscalationEvaluationResponseDTO,
     ListTemplatesResponseDTO,
@@ -47,22 +46,6 @@ async def list_templates(
 ) -> ListTemplatesResponseDTO:
     """Retrieve all business scenario experience templates with optional category filtering and search."""
     return service.list_templates(category_str=category, query=query)
-
-
-@router.get(
-    "/{template_id}",
-    response_model=BusinessExperienceTemplateDTO,
-    summary="Retrieve single business experience template by ID",
-)
-async def get_template(
-    template_id: str,
-    service: Annotated[BusinessTemplateService, Depends(get_business_template_service)],
-) -> BusinessExperienceTemplateDTO:
-    """Retrieve specific experience template details including checklist steps and boundary conditions."""
-    tpl = service.get_template(template_id)
-    if tpl is None:
-        raise HTTPException(status_code=404, detail=f"Template not found: {template_id}")
-    return tpl
 
 
 @router.post(

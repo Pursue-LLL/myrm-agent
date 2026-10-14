@@ -10,12 +10,12 @@ metrics, dual-track execution status, and performing temporal decay retrieval.
 - app.services.memory.sqlite_vec (SqliteVecProvider, get_sqlite_vec_provider)
 
 [OUTPUT]
-- router: APIRouter with /stats, /search, and /health endpoints
+- router: APIRouter with /stats and /search endpoints
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 
 from app.schemas.sqlite_vec import (
     SqliteVecSearchRequest,
@@ -60,16 +60,3 @@ async def search_vectors(
         half_life_seconds=payload.half_life_seconds,
         score_threshold=payload.score_threshold,
     )
-
-
-@router.get(
-    "/health",
-    summary="Check SQLite vector store engine health",
-    status_code=status.HTTP_200_OK,
-)
-async def check_engine_health(
-    provider: SqliteVecProvider = Depends(get_sqlite_vec_provider),
-) -> dict[str, str | bool]:
-    """Verify underlying database file integrity and connection availability."""
-    healthy = await provider.health_check()
-    return {"healthy": healthy, "engine": "sqlite-vec"}

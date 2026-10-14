@@ -4,7 +4,7 @@
  *
  * [OUTPUT]
  * Four-Tier Persistent Memory & SQLite FTS5 Compaction DTOs and API clients:
- * - saveFourTierMemory, getFourTierMemory, deleteFourTierMemory, listFourTierMemories
+ * - saveFourTierMemory, deleteFourTierMemory, listFourTierMemories
  * - searchFourTierFts (Millisecond BM25 full-text recall via SQLite FTS5)
  * - runFourTierDreamCompaction (Background /dream maintenance merging and pruning)
  *
@@ -76,18 +76,6 @@ export async function saveFourTierMemory(
     method: 'POST',
     body: JSON.stringify(request),
   });
-}
-
-/**
- * Retrieves a single four-tier memory item by ID.
- */
-export async function getFourTierMemory(
-  itemId: string,
-  projectHash = 'default'
-): Promise<FourTierMemoryItemDTO> {
-  return apiRequest<FourTierMemoryItemDTO>(
-    `/memory/four-tier/items/${encodeURIComponent(itemId)}?project_hash=${encodeURIComponent(projectHash)}`
-  );
 }
 
 /**

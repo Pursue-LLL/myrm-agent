@@ -1,7 +1,7 @@
 """
 [POS] tests/api/memory/test_graph_rrf_api.py
-[INPUT] fastapi.FastAPI, starlette.testclient.TestClient, app.api.memory.graph_rrf_router
-[OUTPUT] test_node_and_edge_crud, test_memory_association_and_traversal, test_dual_channel_search
+[INPUT] fastapi.FastAPI, starlette.testclient.TestClient, app.api.memory.graph_rrf_router, app.services.memory.graph_rrf_service (seeds memory associations)
+[OUTPUT] test_node_creation, test_memory_association_and_traversal, test_dual_channel_search
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from starlette.testclient import TestClient
 
 from app.api.memory.graph_rrf_router import router as graph_rrf_router
+from app.services.memory.graph_rrf_service import get_graph_rrf_service
 
 
 @pytest.fixture
@@ -22,10 +23,9 @@ def client() -> TestClient:
         yield test_client
 
 
-def test_node_and_edge_crud(client: TestClient) -> None:
-    """Verify node and edge creation endpoints."""
-    # 1. Create Node A
-    resp_a = client.post(
+def test_node_creation(client: TestClient) -> None:
+    """Verify entity node creation endpoint."""
+    resp = client.post(
         "/api/memory/graph-rrf/nodes",
         json={
             "id": "node-alpha",
@@ -34,43 +34,12 @@ def test_node_and_edge_crud(client: TestClient) -> None:
             "properties": {"tier": "critical"},
         },
     )
-    assert resp_a.status_code == 201
-    data_a = resp_a.json()
-    assert data_a["id"] == "node-alpha"
-    assert data_a["name"] == "AlphaSystem"
-
-    # 2. Get Node A
-    get_resp = client.get("/api/memory/graph-rrf/nodes/node-alpha")
-    assert get_resp.status_code == 200
-    assert get_resp.json()["name"] == "AlphaSystem"
-
-    # 3. Create Node B
-    resp_b = client.post(
-        "/api/memory/graph-rrf/nodes",
-        json={
-            "id": "node-beta",
-            "name": "BetaGateway",
-            "entity_type": "proxy",
-            "properties": {"zone": "us-east"},
-        },
-    )
-    assert resp_b.status_code == 201
-
-    # 4. Create Edge A -> B
-    resp_edge = client.post(
-        "/api/memory/graph-rrf/edges",
-        json={
-            "id": "edge-ab",
-            "source_id": "node-alpha",
-            "target_id": "node-beta",
-            "relation_type": "routes_traffic_to",
-            "weight": 1.5,
-            "properties": {"protocol": "grpc"},
-        },
-    )
-    assert resp_edge.status_code == 201
-    data_edge = resp_edge.json()
-    assert data_edge["relation_type"] == "routes_traffic_to"
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["id"] == "node-alpha"
+    assert data["name"] == "AlphaSystem"
+    assert data["entity_type"] == "service"
+    assert data["properties"] == {"tier": "critical"}
 
 
 def test_memory_association_and_traversal(client: TestClient) -> None:
@@ -87,16 +56,11 @@ def test_memory_association_and_traversal(client: TestClient) -> None:
     )
 
     # Link memory
-    assoc_resp = client.post(
-        "/api/memory/graph-rrf/associate",
-        json={
-            "memory_id": "mem-auth-01",
-            "entity_id": "node-svc",
-            "content": "AuthService enforces JWT verification with RSA256.",
-        },
+    get_graph_rrf_service().store.associate_memory(
+        memory_id="mem-auth-01",
+        entity_id="node-svc",
+        content="AuthService enforces JWT verification with RSA256.",
     )
-    assert assoc_resp.status_code == 200
-    assert assoc_resp.json()["status"] == "success"
 
     # Traverse from seed
     traverse_resp = client.post(
@@ -124,13 +88,10 @@ def test_dual_channel_search(client: TestClient) -> None:
             "properties": {},
         },
     )
-    client.post(
-        "/api/memory/graph-rrf/associate",
-        json={
-            "memory_id": "mem-core-fact",
-            "entity_id": "node-core",
-            "content": "CoreEngine handles distributed state coordination.",
-        },
+    get_graph_rrf_service().store.associate_memory(
+        memory_id="mem-core-fact",
+        entity_id="node-core",
+        content="CoreEngine handles distributed state coordination.",
     )
 
     # Execute search with vector candidate + graph seed

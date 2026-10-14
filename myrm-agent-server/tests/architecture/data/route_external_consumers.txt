@@ -1,6 +1,7 @@
 # Routes the frontend never calls but something outside it does: `METHOD /path | who calls it, with file:line`.
 # Read by tests/architecture/test_api_route_consumers.py; an entry goes stale as soon as the route disappears or gains a frontend caller.
 GET /memory/head | documented read-only probe for external clients and plugins (myrm-agent-brand/myrm-docs/docs/getting-started/competitor-comparison.mdx:1227)
+GET /memory/search | documented memory search API (myrm-agent-brand/myrm-docs/docs/api-reference/memory.mdx:48)
 GET /memory/command-center/plane-summary | polled by the control plane fleet health monitor (myrm-control-plane/src/myrm_control_plane/telemetry/fleet_health_monitor.py:89)
 POST /system/drain | control plane sandbox recycler drains in-flight turns before recycling (myrm-control-plane/src/myrm_control_plane/orchestration/sandbox_recycler/actions.py:14)
 DELETE /system/drain | control plane sandbox recycler lifts the drain (myrm-control-plane/src/myrm_control_plane/orchestration/sandbox_recycler/actions.py:14)

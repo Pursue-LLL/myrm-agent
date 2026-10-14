@@ -85,18 +85,14 @@ export async function fetchBusinessTemplates(
   query?: string,
 ): Promise<ListTemplatesResponseDTO> {
   const params = new URLSearchParams();
-  if (category) params.set('category', category);
-  if (query) params.set('query', query);
+  if (category) {
+    params.set('category', category);
+  }
+  if (query) {
+    params.set('query', query);
+  }
   const qStr = params.toString() ? `?${params.toString()}` : '';
   return apiClient.get<ListTemplatesResponseDTO>(`/memory/business-templates/list${qStr}`);
-}
-
-export async function fetchBusinessTemplateById(
-  templateId: string,
-): Promise<BusinessExperienceTemplateDTO> {
-  return apiClient.get<BusinessExperienceTemplateDTO>(
-    `/memory/business-templates/${encodeURIComponent(templateId)}`,
-  );
 }
 
 export async function evaluateEscalationGate(

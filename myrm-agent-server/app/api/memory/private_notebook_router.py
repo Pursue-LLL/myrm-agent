@@ -16,7 +16,6 @@ from app.schemas.private_notebook import (
     NoteEntryDTO,
     NoteMetadataDTO,
     NoteSearchResultDTO,
-    RecordTurnRequestDTO,
     RewriteNoteRequestDTO,
 )
 from app.services.memory.private_notebook_service import (
@@ -102,15 +101,6 @@ async def list_contexts(
     return service.list_contexts()
 
 
-@router.get("/history/entries/{context_id}", response_model=list[HistoryEntryItemDTO])
-async def list_entries(
-    context_id: str,
-    service: PrivateNotebookService = Depends(get_private_notebook_service),
-) -> list[HistoryEntryItemDTO]:
-    """Lists interaction turns under a historical context window."""
-    return service.list_entries(context_id)
-
-
 @router.get("/history/search", response_model=list[HistoryEntryItemDTO])
 async def search_history(
     q: str = Query(description="Search keyword query"),
@@ -119,16 +109,6 @@ async def search_history(
 ) -> list[HistoryEntryItemDTO]:
     """Searches past execution history across all archived contexts."""
     return service.search_history(q, max_results=max_results)
-
-
-@router.post("/turn")
-async def record_turn(
-    request: RecordTurnRequestDTO,
-    service: PrivateNotebookService = Depends(get_private_notebook_service),
-) -> dict[str, object]:
-    """Records an ongoing interaction turn into active context history."""
-    service.record_turn(request)
-    return {"status": "success"}
 
 
 @router.post("/new-context", response_model=NewContextResponseDTO)

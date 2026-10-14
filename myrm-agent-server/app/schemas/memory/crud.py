@@ -184,12 +184,6 @@ class CreateMemoryRequest(BaseModel):
     )
 
 
-class CorrectMemoryRequest(BaseModel):
-    """Request to correct a factually wrong semantic memory."""
-
-    corrected_content: str = Field(..., min_length=1, max_length=2000, description="Corrected content")
-
-
 class UpdateMemoryRequest(BaseModel):
     """Request to update an existing memory"""
 

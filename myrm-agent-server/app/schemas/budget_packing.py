@@ -6,7 +6,7 @@
 [OUTPUT]
 - RecallCandidateDTO, BilledTokenBudgetDTO: packing inputs (scored candidate, billed-token budget with diversity penalty)
 - MarginalValueMetricsDTO, PackedCandidateItemDTO, DroppedCandidateItemDTO, TokenAccountingReportDTO, PackedRecallResultDTO: packing outcome with per-item metrics and token accounting
-- PackRecallRequest, InspectMarginalRequest, InspectMarginalResponseItem: endpoint payloads
+- PackRecallRequest: endpoint payload
 
 [POS]
 API contracts of budget-greedy recall packing, shared by its router and service.
@@ -100,17 +100,3 @@ class PackRecallRequest(BaseModel):
     candidates: list[RecallCandidateDTO]
     budget: BilledTokenBudgetDTO | None = None
     enable_knapsack: bool = True
-
-
-class InspectMarginalRequest(BaseModel):
-    """Request payload to inspect marginal values sequentially."""
-
-    candidates: list[RecallCandidateDTO]
-    budget: BilledTokenBudgetDTO | None = None
-
-
-class InspectMarginalResponseItem(BaseModel):
-    """Inspection item breakdown."""
-
-    candidate: RecallCandidateDTO
-    metrics: MarginalValueMetricsDTO

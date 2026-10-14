@@ -6,7 +6,7 @@ app.database.models.memory::* (POS: 记忆域 ORM 模型)
 app.database.models.chat::* (POS: 会话与消息域模型)
 
 [OUTPUT]
-MemoryArchiveService: export and dry-run validation for GUI-reviewed memory archives.
+MemoryArchiveService: export of GUI-reviewed memory archives.
 
 [POS]
 单用户记忆归档服务。聚合普通记忆、Shared Context、会话和审计账本，
@@ -18,11 +18,8 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from typing import cast
 
 from myrm_agent_harness.toolkits.memory import (
-    MemCubeEnvelope,
-    MemoryArchiveDryRunResult,
     MemoryArchiveManifest,
     MemoryArchivePayload,
     MemoryArchiveSection,
@@ -95,39 +92,6 @@ class MemoryArchiveService:
                 content_redacted=self._redaction_count > 0,
             ),
             data=data,
-        )
-
-    @staticmethod
-    def dry_run_archive(payload: dict[str, object]) -> MemoryArchiveDryRunResult:
-        """Validate archive shape and MemCube signatures without mutating server state."""
-
-        archive = MemoryArchivePayload.model_validate(payload)
-        supported_names: set[str] = {"memory", "shared_context", "conversation", "replay", "audit"}
-        total_items = sum(section.item_count for section in archive.manifest.sections)
-        supported_items = sum(section.item_count for section in archive.manifest.sections if section.name in supported_names)
-        warning_codes = [code for section in archive.manifest.sections for code in section.warning_codes]
-
-        # Verify MemCube envelopes integrity if present
-        raw_envelopes = archive.data.get("memcube_envelopes")
-        if not raw_envelopes and isinstance(archive.data.get("memory"), dict):
-            raw_envelopes = cast(dict[str, object], archive.data["memory"]).get("memcube_envelopes")
-        if isinstance(raw_envelopes, list):
-            for raw_env in raw_envelopes:
-                if isinstance(raw_env, dict):
-                    try:
-                        env = MemCubeEnvelope[dict[str, object]].model_validate(raw_env)
-                        if not env.verify_audit_hash():
-                            warning_codes.append(f"tampered_cube_hash:{env.header.cube_id}")
-                    except Exception:
-                        warning_codes.append("malformed_memcube_envelope")
-
-        unsupported_items = total_items - supported_items
-        return MemoryArchiveDryRunResult(
-            manifest=archive.manifest,
-            total_items=total_items,
-            supported_items=supported_items,
-            unsupported_items=unsupported_items,
-            warning_codes=warning_codes,
         )
 
     async def _export_memory(self, manager: MemoryManager) -> dict[str, list[dict[str, object]]]:

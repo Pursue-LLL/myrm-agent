@@ -106,8 +106,8 @@ async def test_trigger_cognitive_consolidation_api(test_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_and_get_growth_diaries_api(test_app: FastAPI) -> None:
-    """Verify listing diaries, fetching single entry details, and markdown rendering."""
+async def test_list_growth_diaries_and_markdown_api(test_app: FastAPI) -> None:
+    """Verify listing diaries and markdown rendering."""
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Trigger run first
@@ -136,22 +136,13 @@ async def test_list_and_get_growth_diaries_api(test_app: FastAPI) -> None:
         assert len(list_data) >= 1
         assert list_data[0]["diary_id"] == diary_id
 
-        # 3. Get single diary
-        res_get = await client.get(f"/api/memory/dream-cognitive/diaries/{diary_id}")
-        assert res_get.status_code == 200
-        assert res_get.json()["diary_id"] == diary_id
-
-        # 4. Get formatted markdown
+        # 3. Get formatted markdown
         res_md = await client.get(f"/api/memory/dream-cognitive/diaries/{diary_id}/markdown")
         assert res_md.status_code == 200
         assert "text/markdown" in res_md.headers["content-type"]
         md_text = res_md.text
         assert "# 📔 智能体心智演进日记:" in md_text
         assert "### 🧠 具身心智自省 (Reflective Narrative)" in md_text
-
-        # 5. Non-existent diary should return 404
-        res_404 = await client.get("/api/memory/dream-cognitive/diaries/non_existent_diary")
-        assert res_404.status_code == 404
 
 
 @pytest.mark.asyncio

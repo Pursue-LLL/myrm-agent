@@ -32,7 +32,7 @@ def test_app(isolated_service: ProcedureExperienceService) -> FastAPI:
 
 @pytest.mark.asyncio
 async def test_procedure_register_and_list_api(test_app: FastAPI) -> None:
-    """Validate registering, listing, and retrieving 8-field procedure memories."""
+    """Validate registering and listing 8-field procedure memories."""
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Register a valid 8-field procedure entry
@@ -65,20 +65,14 @@ async def test_procedure_register_and_list_api(test_app: FastAPI) -> None:
         data_reg = res_reg.json()
         assert "retrieval_anchor" in data_reg
         assert "proc_" in data_reg["entry_id"]
-        entry_id = data_reg["entry_id"]
 
-        # 2. Get registered entry by ID
-        res_get = await client.get(f"/api/memory/procedure/{entry_id}")
-        assert res_get.status_code == 200
-        assert res_get.json()["name"] == "多租户缓存防击穿更新"
-
-        # 3. List all registered procedures (seeds + new entry)
+        # 2. List all registered procedures (seeds + new entry)
         res_list = await client.get("/api/memory/procedure/list")
         assert res_list.status_code == 200
         entries = res_list.json()
         assert len(entries) >= 3
 
-        # 4. Attempt to register an invalid payload missing preconditions (should 400)
+        # 3. Attempt to register an invalid payload missing preconditions (should 400)
         invalid_payload = {
             "name": "缺少前置条件的空条目",
             "operation_intent": "测试协议校验拦截",

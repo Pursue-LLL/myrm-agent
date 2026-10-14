@@ -2,7 +2,7 @@
 
 Covers the real write-read consistency path end to end:
 
-1. POST /memory/command-center/diagnostics/actions with action=run_diagnostics executes the
+1. POST /memory/command-center/diagnostics/repairs with plan_id=run_diagnostics executes the
    golden recall benchmark against a real MemoryManager backed by a real embedding provider
    (BAAI/bge-m3 via SiliconFlow, configured in .env.test). The benchmark measures latency
    p50/p95 with perf_counter and the service persists the flattened metrics (including
@@ -102,8 +102,8 @@ async def test_diagnostic_run_history_roundtrip_with_real_embedding(
         with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):
             client = TestClient(app)
             run_resp = client.post(
-                "/api/v1/memory/command-center/diagnostics/actions",
-                json={"action": "run_diagnostics"},
+                "/api/v1/memory/command-center/diagnostics/repairs",
+                json={"plan_id": "run_diagnostics", "mode": "execute"},
             )
             assert run_resp.status_code == 200, run_resp.text
             probes = run_resp.json()["run"]["probes"]

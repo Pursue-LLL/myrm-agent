@@ -6,7 +6,6 @@
 [OUTPUT]
 - ProcedureMemoryEntryDTO, RegisterProcedureMemoryRequest: procedure memory entry and its registration
 - DualNodeRetrievalRequest, DualNodeRetrievalResponseDTO: fixed-count dual-node retrieval
-- ProtocolValidationResponseDTO: protocol violations of an entry
 - MultiIntentSplitRequest, MultiIntentSplitResponseDTO: splitting a text into intent fragments
 
 [POS]
@@ -79,15 +78,6 @@ class DualNodeRetrievalResponseDTO(BaseModel):
     top_n_requested: int
     total_matched: int
     matched_entries: list[ProcedureMemoryEntryDTO]
-
-
-class ProtocolValidationResponseDTO(BaseModel):
-    """Response payload detailing protocol conformance check."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    is_valid: bool
-    violations: list[str] = Field(default_factory=list)
 
 
 class MultiIntentSplitRequest(BaseModel):

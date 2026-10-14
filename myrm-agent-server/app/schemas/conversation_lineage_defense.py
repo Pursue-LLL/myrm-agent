@@ -94,17 +94,6 @@ class LineageDefenseSearchResponseDTO(BaseModel):
     audit_report: LineageDedupAuditReportDTO
 
 
-class LineageDefenseAuditRequestDTO(BaseModel):
-    """Audit request payload comparing raw vs lineage-defended ranking."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    candidates: list[CandidateSessionDTO]
-    include_internal: bool = False
-    window_size: int = 5
-    cron_weight_multiplier: float = 0.45
-
-
 class LineageDefenseStatsDTO(BaseModel):
     """Aggregate dashboard metrics for lineage defense."""
 
