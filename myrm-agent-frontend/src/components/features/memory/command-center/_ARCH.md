@@ -109,11 +109,6 @@
 | `ExperienceDistributionDashboardView.tsx` | 辅助 | 经验效果分布与会话溯源子组件：呈现经验全景列表、原始 Session 证据链高亮溯源与交互式采纳/争议效果反馈 | ✅    |
 | `ZeroRefactorPluginConsoleView.tsx` | 辅助 | 零改造宿主生命周期插件配置与演练控制台子组件：提供 Plugin/MCP/Skill 三路接入通道切换、目标宿主切换与生命周期事件钩子模拟 | ✅    |
 | `experienceObservabilityFallbacks.ts` | 辅助 | 经验可观测与宿主插件离线及单测仿真数据集 | ✅    |
-| `FailureSessionRetrievalStudioCard.tsx` | 核心 | 失败触发历史会话检索与自愈中枢卡片：对标 AgentGit agit search MCP，工具报错自动提取指纹检索历史同类错误、直读 Session 解决轮次、零提示免问自动恢复 | ✅    |
-| `FailureRetrievalHudBar.tsx` | 辅助 | 失败检索自愈 4 维 HUD 监控条：呈现双轨收录库数、正向解法占比、避坑死胡同警示数与静默免提示拦截状态 | ✅    |
-| `FailureResolutionSearchView.tsx` | 辅助 | 智能报错检索与解法对比测试器：支持输入错误堆栈/典型预设，实时提取指纹并双轨展示正向验证解法与避坑反模式，支持命令一键复制 | ✅    |
-| `HistoricalResolutionsCatalogView.tsx` | 辅助 | 历史错误解法库全景列表子组件：提供成功/避坑多维度过滤、Session ID 轮次溯源、置信度徽章与方案代码审查 | ✅    |
-| `failureSessionRetrievalFallbacks.ts` | 辅助 | 失败检索与历史解法库离线及单测仿真数据集 | ✅    |
 | `PeerCognitionStudioCard.tsx` | 核心 | 社会认知实体图谱与常驻画像卡中枢卡片：对标 Hermes+Honcho 官方实践，以参与者 Peer 为中心组织记忆，打破孤立事实表局限，常驻 Peer Card 自演化与多智能体角色对齐 | ✅    |
 | `PeerCognitionHudBar.tsx` | 辅助 | 社会认知 4 维 HUD 监控条：呈现常驻 Peer 实体数、语义关系边数、累计协作演化频次与低 Token 上下文投影开销 | ✅    |
 | `PeerEntityGraphExplorerView.tsx` | 辅助 | 实体拓扑与关系边检索探索子组件：支持按用户/智能体/项目/审查者筛选实体，呈现 asserts/approves/collaborates/governs 语义边与动态建立关系 | ✅    |

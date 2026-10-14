@@ -44,7 +44,6 @@ export * from './memory/curatorStudio';
 export * from './memory/procedureExperience';
 export * from './memory/businessTemplates';
 export * from './memory/experienceObservability';
-export * from './memory/failureSessionRetrieval';
 export * from './memory/peerCognition';
 export * from './memory/twoLayerDialectic';
 export * from './memory/budgetPacking';

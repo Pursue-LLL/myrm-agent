@@ -72,9 +72,6 @@ from app.api.memory.experience_gene_router import (
 from app.api.memory.experience_observability_router import (
     router as experience_observability_router,
 )
-from app.api.memory.failure_search_router import (
-    router as failure_search_router,
-)
 from app.api.memory.follow_ups import router as follow_ups_router
 from app.api.memory.four_layer_promotion_router import (
     router as four_layer_promotion_router,
@@ -327,10 +324,6 @@ router.include_router(
 router.include_router(
     experience_observability_router,
     tags=["memory-experience-observability"],
-)
-router.include_router(
-    failure_search_router,
-    tags=["memory-failure-search"],
 )
 router.include_router(
     peer_cognition_router,

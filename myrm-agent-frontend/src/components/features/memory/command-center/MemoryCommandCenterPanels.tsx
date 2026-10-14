@@ -77,7 +77,6 @@ import { MemoryCuratorStudioCard } from './MemoryCuratorStudioCard';
 import { ProcedureExperienceRetrievalCard } from './ProcedureExperienceRetrievalCard';
 import { BusinessScenarioTemplatesCard } from './BusinessScenarioTemplatesCard';
 import { ExperienceObservabilityStudioCard } from './ExperienceObservabilityStudioCard';
-import { FailureSessionRetrievalStudioCard } from './FailureSessionRetrievalStudioCard';
 import { PeerCognitionStudioCard } from './PeerCognitionStudioCard';
 import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
 import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
@@ -338,9 +337,6 @@ export const UnderstandSection = ({
 
     {/* Zero-Refactor Host Lifecycle Plugin & Experience Observability Studio Card (Item 108 P1) */}
     <ExperienceObservabilityStudioCard />
-
-    {/* Failure-Triggered Historical Session Retrieval Studio Card (Item 109 P0) */}
-    <FailureSessionRetrievalStudioCard />
 
     {/* Peer-Centric Social Cognition Entity Graph & Agent Persona Card Studio Card (Item 110 P0) */}
     <PeerCognitionStudioCard />
