@@ -61,7 +61,7 @@ class ABTestManager:
         shadow_timeout: float = _DEFAULT_SHADOW_TIMEOUT,
         consistent_sample_rate: float = _DEFAULT_CONSISTENT_SAMPLE_RATE,
         max_samples_per_test: int = _DEFAULT_MAX_SAMPLES_PER_TEST,
-        auto_promote_enabled: bool = True,
+        auto_promote_enabled: bool = False,
         auto_promote_threshold: float = _DEFAULT_AUTO_PROMOTE_THRESHOLD,
         max_latency_ratio: float = _DEFAULT_MAX_LATENCY_RATIO,
     ):
@@ -141,17 +141,42 @@ class ABTestManager:
                 }
 
                 try:
-                    self._queue.put_nowait(task_data)
+                    await asyncio.wait_for(self._queue.put(task_data), timeout=30.0)
                     logger.info(f"Queued shadow test for {skill_id}: v{event.version} vs v{shadow_version}")
-                except asyncio.QueueFull:
-                    logger.warning(f"Shadow test queue full, dropping test for {skill_id}")
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Shadow test queue saturated for %s; sample deferred (backpressure)",
+                        skill_id,
+                    )
 
         except Exception as e:
             logger.error(f"Failed to handle tool completion for A/B testing: {e}")
 
-    async def promote_version(self, skill_id: str, version: int) -> bool:
+    async def promote_version(
+        self,
+        skill_id: str,
+        version: int,
+        *,
+        force: bool = False,
+        require_eval_cases: bool = True,
+    ) -> bool:
         """提升某个版本为Master版本"""
         try:
+            from app.services.skill_optimization.promotion_errors import PromotionGateError
+            from app.services.skill_optimization.promotion_gate_service import evaluate_version_promotion
+
+            active = await self.storage.get_active_version(skill_id)
+            if active is not None and active.version != version and not force:
+                verdict = await evaluate_version_promotion(
+                    self.storage,
+                    skill_id,
+                    active.version,
+                    version,
+                    require_eval_cases=False if force else require_eval_cases,
+                )
+                if not verdict.allowed:
+                    raise PromotionGateError(verdict)
+
             async with self.storage._get_session() as session:
                 from app.adapters.skill_optimization.ab_test_repo import ABTestRepository
                 from app.adapters.skill_optimization.snapshot_repo import SnapshotRepository
@@ -186,6 +211,10 @@ class ABTestManager:
 
             return True
         except Exception as e:
+            from app.services.skill_optimization.promotion_errors import PromotionGateError
+
+            if isinstance(e, PromotionGateError):
+                raise
             logger.error(f"Failed to promote version {version} for {skill_id}: {e}")
             return False
 
@@ -383,7 +412,11 @@ class ABTestManager:
                     f"Auto-promoting {test.skill_id} v{test.candidate_version}: "
                     f"samples={test.sample_size}, success_rate={success_rate:.2%}"
                 )
-                await self.promote_version(test.skill_id, test.candidate_version)
+                await self.promote_version(
+                    test.skill_id,
+                    test.candidate_version,
+                    require_eval_cases=True,
+                )
 
                 await self.shadow_tester.event_emitter.emit(
                     "auto_promote",

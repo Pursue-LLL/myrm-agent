@@ -28,8 +28,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/primitives/alert-dialog';
+import { ApiError } from '@/lib/api';
 import { toast } from '@/hooks/shared/useToast';
-import { getSkillVersionDetail, listSkillVersions, startShadowAbTest } from '@/services/skill/optimization';
+import {
+  getSkillVersionDetail,
+  listSkillVersions,
+  promoteSkillVersion,
+  startShadowAbTest,
+} from '@/services/skill/optimization';
 
 interface ShadowSample {
   id: number;
@@ -212,18 +218,22 @@ export function SkillQualityGuardian({ skillId, onPromoted, onStopped }: SkillQu
   const handlePromote = async (version: number) => {
     setIsPromoting(true);
     try {
-      const resp = await fetch(`/api/v1/skill-optimization/ab-tests/${skillId}/promote?version=${version}`, {
-        method: 'POST',
-      });
-      if (resp.ok) {
-        toast({ title: t('promoteSuccess', { version }) });
-        onPromoted?.();
-        await fetchStatus();
+      await promoteSkillVersion(skillId, version);
+      toast({ title: t('promoteSuccess', { version }) });
+      onPromoted?.();
+      await fetchStatus();
+    } catch (err: unknown) {
+      if (err instanceof ApiError && (err.code === 409 || err.code === 40901)) {
+        const msg =
+          typeof err.data?.message === 'string'
+            ? err.data.message
+            : typeof err.message === 'string'
+              ? err.message
+              : t('promoteFailed');
+        toast({ title: t('promoteBlocked'), description: msg, variant: 'destructive' });
       } else {
         toast({ title: t('promoteFailed'), variant: 'destructive' });
       }
-    } catch {
-      toast({ title: t('networkError'), variant: 'destructive' });
     } finally {
       setIsPromoting(false);
     }

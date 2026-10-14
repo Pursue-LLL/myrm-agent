@@ -129,6 +129,31 @@ async def get_ab_test_status(
     }
 
 
+@router.get("/ab-tests/{skill_id}/promotion-gate")
+async def preview_promotion_gate(
+    skill_id: str,
+    candidate_version: int,
+    storage: Annotated[SQLAlchemyStorage, Depends(get_storage)],
+) -> dict[str, object]:
+    """Dry-run regression gate (no disk writes)."""
+    from app.services.skill_optimization.promotion_gate_service import (
+        evaluate_version_promotion,
+        verdict_to_api_dict,
+    )
+
+    active = await storage.get_active_version(skill_id)
+    if active is None:
+        raise HTTPException(status_code=404, detail=f"No active version for skill {skill_id}")
+
+    verdict = await evaluate_version_promotion(
+        storage,
+        skill_id,
+        active.version,
+        candidate_version,
+    )
+    return verdict_to_api_dict(verdict)
+
+
 @router.post("/ab-tests/{skill_id}/promote")
 async def promote_skill_version(
     skill_id: str,
@@ -136,7 +161,22 @@ async def promote_skill_version(
     manager: Annotated[ABTestManager, Depends(get_ab_test_manager)],
 ) -> dict[str, str | int]:
     """提升某个版本为正式版本并关闭 A/B 测试"""
-    success = await manager.promote_version(skill_id, version)
+    from app.services.skill_optimization.promotion_errors import PromotionGateError
+    from app.services.skill_optimization.promotion_gate_service import verdict_to_api_dict
+
+    try:
+        success = await manager.promote_version(
+            skill_id,
+            version,
+            force=False,
+            require_eval_cases=True,
+        )
+    except PromotionGateError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=verdict_to_api_dict(exc.verdict),
+        ) from exc
+
     if not success:
         raise HTTPException(status_code=500, detail="Failed to promote version")
 
