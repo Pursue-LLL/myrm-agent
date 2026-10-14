@@ -10536,14 +10536,14 @@
       "status": {
         "PENDING_REVIEW": "Ausstehende Überprüfung",
         "AUTO_APPLIED": "Automatisch angewendet",
-        "FAILED_SCAN": "Scan fehlgeschlagen",
+        "FAILED_SCAN": "Prüfung nicht bestanden",
         "BLOCKED_LOCKED": "Durch Sperre blockiert",
         "APPROVED": "Genehmigt",
         "REJECTED": "Abgelehnt",
         "APPLY_FAILED": "Anwenden fehlgeschlagen",
         "pendingReview": "Ausstehende Überprüfung",
         "autoApplied": "Automatisch angewendet",
-        "failedScan": "Scan fehlgeschlagen",
+        "failedScan": "Prüfung nicht bestanden",
         "blockedLocked": "Durch Sperre blockiert",
         "approved": "Genehmigt",
         "rejected": "Abgelehnt",
@@ -10650,7 +10650,7 @@
       "empty": "Noch keine Wachstumsereignisse",
       "pendingReview": "Ausstehende Überprüfung",
       "autoApplied": "Automatisch angewendet",
-      "failedScan": "Scan fehlgeschlagen",
+      "failedScan": "Prüfung nicht bestanden",
       "blockedLocked": "Durch Sperre blockiert",
       "approved": "Genehmigt",
       "rejected": "Abgelehnt",
@@ -10919,40 +10919,6 @@
       "cache": "Cache-Einsparungen",
       "routing": "Routing-Einsparungen",
       "totalCost": "Tatsächliche Kosten"
-    },
-    "manifestPredictions": {
-      "title": "Manifest-Vorhersagen & Attribution",
-      "description": "Benchmark-Bewertung prognostizierter Leistungs-Deltas im Vergleich zu tatsächlichen Ausführungsmetriken",
-      "evaluating": "Wird bewertet...",
-      "evaluateNow": "Benchmark jetzt ausführen",
-      "manifestId": "Manifest-ID",
-      "targetComponent": "Zielkomponente",
-      "recommendedAction": "Empfohlene Aktion",
-      "rationale": "Begründung",
-      "metricsTitle": "Vorhergesagte vs. tatsächliche Metriken",
-      "confidence": "Konfidenz",
-      "metricName": "Metrik",
-      "baseline": "Basislinie",
-      "predictedTarget": "Vorhergesagt",
-      "actualValue": "Tatsächlich",
-      "delta": "Differenz",
-      "verdict": "Urteil",
-      "explanation": "Erklärung",
-      "hideRollbackPatch": "Rollback-Patch ausblenden",
-      "viewRollbackPatch": "Rollback-Patch anzeigen",
-      "rollbackSuccess": "Rollback-Patch erfolgreich angewendet.",
-      "rollbackFailed": "Fehler beim Rollback der Skill-Evolution.",
-      "verdicts": {
-        "confirmed": "Bestätigt",
-        "regression": "Rückschritt",
-        "refuted": "Widerlegt",
-        "inconclusive": "Uneindeutig"
-      },
-      "actions": {
-        "keep": "Behalten",
-        "rollback": "Zurücksetzen",
-        "re_evaluate": "Neu bewerten"
-      }
     }
   },
   "subagentDashboard": {
@@ -17546,7 +17512,7 @@
         "status": {
           "PENDING_REVIEW": "Ausstehende Prüfung",
           "AUTO_APPLIED": "Automatisch angewendet",
-          "FAILED_SCAN": "Scan fehlgeschlagen",
+          "FAILED_SCAN": "Prüfung nicht bestanden",
           "BLOCKED_LOCKED": "Durch Sperre blockiert",
           "APPROVED": "Genehmigt",
           "REJECTED": "Abgelehnt",
@@ -17557,15 +17523,9 @@
           "manualEvolution": "Manuelle Evolution",
           "memoryExtraction": "Speicherextraktion"
         },
-        "proxyAlignment": {
-          "driftBadge": "Goodhart-Abweichungsrisiko",
-          "driftTooltip": "Goodhartsches Gesetz erkannt: Proxy-Metriken scheinen besser, aber Kernqualität sank",
-          "alignedBadge": "Metriken ausgerichtet",
-          "alignedTooltip": "Kernabsicht und Proxy-Effizienz sind ohne Abkürzungen harmonisiert"
-        },
         "confidence": "Konfidenz {value}%",
-        "testPassed": "Validierung bestanden",
-        "testFailed": "Validierung fehlgeschlagen",
+        "scanPassed": "Sicherheitsscan bestanden",
+        "scanFailed": "Sicherheitsscan nicht bestanden",
         "verifiedBadge": "Verifiziert",
         "hollowBlockedBadge": "Hohltest blockiert",
         "targetLayer": "Schicht: {layer}",
@@ -17605,34 +17565,6 @@
           "count": "Fehler: {value}",
           "confidence": "Zuschreibung {value}%",
           "loopKind": "Schleife: {value}"
-        },
-        "manifestPrediction": {
-          "title": "Falsifizierbare Änderungsprognosen & Attribution",
-          "baseline": "Basiswert",
-          "target": "Zielwert",
-          "predictedDirection": {
-            "INCREASE": "Erwarteter Anstieg",
-            "DECREASE": "Erwarteter Rückgang",
-            "NEUTRAL": "Erwartete Neutralität"
-          },
-          "falsificationConditions": "Falsifizierungsbedingungen",
-          "attributionVerdict": "Attributionsurteil",
-          "verdictBadge": {
-            "CONFIRMED": "CONFIRMED",
-            "REFUTED": "REFUTED",
-            "REGRESSION": "REGRESSION",
-            "INCONCLUSIVE": "INCONCLUSIVE"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "Generalisierung optimal",
-            "overfitting": "Überanpassungs-Warnung",
-            "generalization_collapse": "Generalisierungszusammenbruch",
-            "stable_parity": "Stabile Parität",
-            "regression": "Regression erkannt",
-            "insufficient_holdout": "Unzureichender Testdatensatz"
-          },
-          "metricDeltas": "Beobachtete Metrikänderungen",
-          "unpredictedRegressions": "Unerwartete Regressionen"
         },
         "securityScan": {
           "title": "Sicherheits-Inspektionsdetails ({count} Befunde)",

@@ -10536,14 +10536,14 @@
       "status": {
         "PENDING_REVIEW": "검토 대기",
         "AUTO_APPLIED": "자동 적용됨",
-        "FAILED_SCAN": "스캔 실패",
+        "FAILED_SCAN": "검사 미통과",
         "BLOCKED_LOCKED": "잠금에 의해 차단됨",
         "APPROVED": "승인됨",
         "REJECTED": "거부됨",
         "APPLY_FAILED": "적용 실패",
         "pendingReview": "검토 대기",
         "autoApplied": "자동 적용됨",
-        "failedScan": "스캔 실패",
+        "failedScan": "검사 미통과",
         "blockedLocked": "잠금에 의해 차단됨",
         "approved": "승인됨",
         "rejected": "거부됨",
@@ -10650,7 +10650,7 @@
       "empty": "아직 성장 이벤트가 없습니다",
       "pendingReview": "검토 대기 중",
       "autoApplied": "자동 적용됨",
-      "failedScan": "스캔 실패",
+      "failedScan": "검사 미통과",
       "blockedLocked": "잠금으로 차단됨",
       "approved": "승인됨",
       "rejected": "거부됨",
@@ -10919,40 +10919,6 @@
       "cache": "캐시 절감",
       "routing": "라우팅 절감",
       "totalCost": "실제 비용"
-    },
-    "manifestPredictions": {
-      "title": "매니페스트 예측 및 귀속",
-      "description": "실제 실행 지표와 예측된 성능 델타를 비교하는 벤치마크 평가",
-      "evaluating": "평가 중...",
-      "evaluateNow": "지금 벤치마크 평가",
-      "manifestId": "매니페스트 ID",
-      "targetComponent": "대상 컴포넌트",
-      "recommendedAction": "권장 조치",
-      "rationale": "근거",
-      "metricsTitle": "예측 지표와 실제 지표 비교",
-      "confidence": "신뢰도",
-      "metricName": "지표명",
-      "baseline": "기준선",
-      "predictedTarget": "예측치",
-      "actualValue": "실제치",
-      "delta": "변화량",
-      "verdict": "판정",
-      "explanation": "설명",
-      "hideRollbackPatch": "롤백 패치 숨기기",
-      "viewRollbackPatch": "롤백 패치 보기",
-      "rollbackSuccess": "롤백 패치가 성공적으로 적용되었습니다.",
-      "rollbackFailed": "스킬 롤백에 실패했습니다.",
-      "verdicts": {
-        "confirmed": "확인됨",
-        "regression": "성능 저하",
-        "refuted": "미달성",
-        "inconclusive": "판정 불가"
-      },
-      "actions": {
-        "keep": "유지",
-        "rollback": "롤백",
-        "re_evaluate": "재평가"
-      }
     }
   },
   "subagentDashboard": {
@@ -17546,7 +17512,7 @@
         "status": {
           "PENDING_REVIEW": "검토 대기",
           "AUTO_APPLIED": "자동 적용",
-          "FAILED_SCAN": "스캔 실패",
+          "FAILED_SCAN": "검사 미통과",
           "BLOCKED_LOCKED": "잠금으로 차단됨",
           "APPROVED": "승인됨",
           "REJECTED": "거부됨",
@@ -17557,15 +17523,9 @@
           "manualEvolution": "수동 진화",
           "memoryExtraction": "메모리 추출"
         },
-        "proxyAlignment": {
-          "driftBadge": "지표 왜곡 위험",
-          "driftTooltip": "굿하트의 법칙 왜곡 감지: 프록시 지표는 개선되었으나 핵심 정확도가 저하되었습니다",
-          "alignedBadge": "지표 정렬 확인됨",
-          "alignedTooltip": "핵심 의도와 프록시 효율 지표가 편법 없이 잘 정렬되었습니다"
-        },
         "confidence": "신뢰도 {value}%",
-        "testPassed": "검증 통과",
-        "testFailed": "검증 실패",
+        "scanPassed": "보안 스캔 통과",
+        "scanFailed": "보안 스캔 실패",
         "verifiedBadge": "인증됨",
         "hollowBlockedBadge": "빈 테스트 차단됨",
         "targetLayer": "대상 계층: {layer}",
@@ -17605,34 +17565,6 @@
           "count": "실패: {value}",
           "confidence": "귀속 {value}%",
           "loopKind": "루프: {value}"
-        },
-        "manifestPrediction": {
-          "title": "반증 가능한 변경 예측 및 귀인",
-          "baseline": "기준선",
-          "target": "목표",
-          "predictedDirection": {
-            "INCREASE": "상승 예상",
-            "DECREASE": "하락 예상",
-            "NEUTRAL": "유지 예상"
-          },
-          "falsificationConditions": "반증 조건",
-          "attributionVerdict": "귀인 판정",
-          "verdictBadge": {
-            "CONFIRMED": "CONFIRMED",
-            "REFUTED": "REFUTED",
-            "REGRESSION": "REGRESSION",
-            "INCONCLUSIVE": "INCONCLUSIVE"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "일반화 향상 (Pareto 최적)",
-            "overfitting": "과적합 경고",
-            "generalization_collapse": "일반화 붕괴 심각한 퇴화",
-            "stable_parity": "양축 안정",
-            "regression": "양축 회귀",
-            "insufficient_holdout": "검증 세트 샘플 부족"
-          },
-          "metricDeltas": "관측된 지표 변화",
-          "unpredictedRegressions": "예상치 못한 성능 저하 경고"
         },
         "securityScan": {
           "title": "스킬 보안 정적 검사 세부 정보 ({count}개 발견)",

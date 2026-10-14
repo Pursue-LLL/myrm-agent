@@ -229,9 +229,7 @@ export function PendingEvolutionsDashboard() {
       setProcessingCaseId(item.id);
       try {
         const result = await reviseSkillGrowthCase(item, evolvedContent);
-        if (result.test_passed) {
-          toast.success(t('reviseSuccess', { name: item.skillName }));
-        } else {
+        if (result.test_passed === false) {
           toast.error(t('reviseFailedScan', { name: item.skillName }));
         }
         await loadCases(true);

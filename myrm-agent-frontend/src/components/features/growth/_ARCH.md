@@ -11,7 +11,6 @@
 | `GrowthDashboard.tsx`          | 核心 | 仪表盘主页面，含时间范围选择器(7/30/90D)、KPI 卡片、Savings 卡片、Tabs 编排（Overview / Evolution Digest / Knowledge Graph / Skill Trends / Daily Review） | ✅    |
 | `SkillTrendChart.tsx`          | 组件 | 技能使用趋势图。支持技能选择、双维度切换（成功率/次数）、日粒度柱状图（日按用户本地时区划分，技能按已记录使用次数降序、首项默认选中）；柱区用仓库统一的 `lazy-recharts`（定高 128px，横轴自动抽稀刻度，悬停与触摸都读出当日值，成功率柱带当日已观测次数）；逐柱颜色写在数据行的 `fill` 里（颜色随数据走，不依赖 `Cell` 子元素的顺序）；0% 的日子是红色短柱，无观测的日子留空；成功率纵轴固定 0–100%；窗口随看板所选时间范围，所选技能不在新范围内时回落到用得最多的技能（始终有一枚高亮标签）；范围内无技能运行时给出范围化空态；账本只留最近一批运行、范围内更早的运行可能缺失时附一句说明（`truncated`） | ✅    |
 | `skillTrendSeries.ts`          | 辅助 | 趋势图的数据整形（纯函数）：在技能首末次运行之间补齐没有运行的日子，让横轴是日历而不是「有运行的日子」列表（服务端只给有运行的日子，类目轴会把相隔 9 天与相隔 1 天画得一样近）；按指标产出柱高（0 与 `null` 分开，次数为 0 的日子留空）与读数文案                                              | ✅    |
-| `ManifestPredictionsPanel.tsx` | 组件 | 变更清单与可证伪预测归因面板：展示演进前预期指标提升（方向/基准/目标/容差）与评测后实测对比归因判定（CONFIRMED/REFUTED/REGRESSION）及回滚补丁建议          | ✅    |
 | `PatternDigestPanel.tsx`       | 组件 | 行为模式发现复盘面板。展示 Pattern Discovery 历史结果卡片、空状态引导、手动触发分析按钮                                                                    | ✅    |
 | `ActivityHeatmap.tsx`          | 组件 | GitHub 风格的活动热力图渲染                                                                                                                                | ✅    |
 | `DailyJournal.tsx`             | 组件 | 日志视图（按天展示对话摘要）                                                                                                                               | ✅    |

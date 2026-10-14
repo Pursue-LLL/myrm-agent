@@ -54,7 +54,6 @@ src/components/features/eval-lab/hooks/useCasesEval.ts
 src/components/features/eval-lab/tabs/ReportTab.tsx
 src/components/features/growth/GrowthDashboard.tsx
 src/components/features/growth/LearningTimeline.tsx
-src/components/features/growth/ManifestPredictionsPanel.tsx
 src/components/features/kanban/KanbanBoardView.tsx
 src/components/features/kanban/KanbanInlineAddForm.tsx
 src/components/features/kanban/KanbanPipelineWizard.tsx

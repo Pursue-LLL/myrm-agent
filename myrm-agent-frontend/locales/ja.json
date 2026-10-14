@@ -10536,14 +10536,14 @@
       "status": {
         "PENDING_REVIEW": "レビュー待ち",
         "AUTO_APPLIED": "自動適用済み",
-        "FAILED_SCAN": "セキュリティスキャン失敗",
+        "FAILED_SCAN": "チェック不合格",
         "BLOCKED_LOCKED": "ロックによりブロック",
         "APPROVED": "承認済み",
         "REJECTED": "拒否済み",
         "APPLY_FAILED": "適用に失敗しました",
         "pendingReview": "レビュー待ち",
         "autoApplied": "自動適用済み",
-        "failedScan": "セキュリティスキャン失敗",
+        "failedScan": "チェック不合格",
         "blockedLocked": "ロックによりブロック",
         "approved": "承認済み",
         "rejected": "拒否済み",
@@ -10650,7 +10650,7 @@
       "empty": "成長イベントはまだありません",
       "pendingReview": "レビュー待ち",
       "autoApplied": "自動適用済み",
-      "failedScan": "スキャン失敗",
+      "failedScan": "チェック不合格",
       "blockedLocked": "ロックによりブロック",
       "approved": "承認済み",
       "rejected": "拒否済み",
@@ -10919,40 +10919,6 @@
       "cache": "キャッシュ節約",
       "routing": "ルーティング節約",
       "totalCost": "実際コスト"
-    },
-    "manifestPredictions": {
-      "title": "マニフェスト予測と帰属",
-      "description": "予測されたパフォーマンス差分と実際の実行メトリクスを比較するベンチマーク評価",
-      "evaluating": "評価中...",
-      "evaluateNow": "今すぐベンチマークを評価",
-      "manifestId": "マニフェスト ID",
-      "targetComponent": "対象コンポーネント",
-      "recommendedAction": "推奨アクション",
-      "rationale": "根拠",
-      "metricsTitle": "予測と実際のメトリクス",
-      "confidence": "信頼度",
-      "metricName": "メトリクス名",
-      "baseline": "ベースライン",
-      "predictedTarget": "予測値",
-      "actualValue": "実測値",
-      "delta": "差分",
-      "verdict": "判定",
-      "explanation": "説明",
-      "hideRollbackPatch": "ロールバックパッチを非表示",
-      "viewRollbackPatch": "ロールバックパッチを表示",
-      "rollbackSuccess": "ロールバックパッチが正常に適用されました。",
-      "rollbackFailed": "スキルのロールバックに失敗しました。",
-      "verdicts": {
-        "confirmed": "確認済み",
-        "regression": "リグレッション",
-        "refuted": "未達成",
-        "inconclusive": "判定不能"
-      },
-      "actions": {
-        "keep": "維持",
-        "rollback": "ロールバック",
-        "re_evaluate": "再評価"
-      }
     }
   },
   "subagentDashboard": {
@@ -17546,7 +17512,7 @@
         "status": {
           "PENDING_REVIEW": "レビュー待ち",
           "AUTO_APPLIED": "自動適用済み",
-          "FAILED_SCAN": "セキュリティスキャン失敗",
+          "FAILED_SCAN": "チェック不合格",
           "BLOCKED_LOCKED": "ロックによりブロック",
           "APPROVED": "承認済み",
           "REJECTED": "拒否済み",
@@ -17557,15 +17523,9 @@
           "manualEvolution": "手動最適化",
           "memoryExtraction": "記憶抽出"
         },
-        "proxyAlignment": {
-          "driftBadge": "指標乖離リスク",
-          "driftTooltip": "グッドハートの法則による乖離を検知：プロキシ指標は向上しましたが、コア精度が低下しています",
-          "alignedBadge": "指標整合性確認済",
-          "alignedTooltip": "コア意図と効率指標が正常に整合しており、手抜きはありません"
-        },
         "confidence": "信頼度 {value}%",
-        "testPassed": "検証合格",
-        "testFailed": "検証失敗",
+        "scanPassed": "セキュリティスキャン合格",
+        "scanFailed": "セキュリティスキャン不合格",
         "verifiedBadge": "検証済み",
         "hollowBlockedBadge": "空洞テストをブロックしました",
         "targetLayer": "対象層: {layer}",
@@ -17605,34 +17565,6 @@
           "count": "失敗回数：{value}",
           "confidence": "帰属信頼度 {value}%",
           "loopKind": "ループタイプ：{value}"
-        },
-        "manifestPrediction": {
-          "title": "反証可能な変更の予測と帰属",
-          "baseline": "ベースライン",
-          "target": "目標値",
-          "predictedDirection": {
-            "INCREASE": "上昇予測",
-            "DECREASE": "低下予測",
-            "NEUTRAL": "変化なし予測"
-          },
-          "falsificationConditions": "反証条件",
-          "attributionVerdict": "帰属判定",
-          "verdictBadge": {
-            "CONFIRMED": "CONFIRMED",
-            "REFUTED": "REFUTED",
-            "REGRESSION": "REGRESSION",
-            "INCONCLUSIVE": "INCONCLUSIVE"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "汎化性能向上 (Pareto 最適)",
-            "overfitting": "過学習警告",
-            "generalization_collapse": "汎化崩壊の深刻な劣化",
-            "stable_parity": "両軸安定",
-            "regression": "両軸リグレッション",
-            "insufficient_holdout": "検証セットのサンプル不足"
-          },
-          "metricDeltas": "観測された指標の変化",
-          "unpredictedRegressions": "予期しないリグレッション警告"
         },
         "securityScan": {
           "title": "スキルセキュリティ静的検証詳細 ({count} 件の検出)",

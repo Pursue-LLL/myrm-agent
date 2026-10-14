@@ -10604,14 +10604,14 @@
       "status": {
         "PENDING_REVIEW": "Pending Review",
         "AUTO_APPLIED": "Auto Applied",
-        "FAILED_SCAN": "Failed Scan",
+        "FAILED_SCAN": "Check Failed",
         "BLOCKED_LOCKED": "Blocked by Lock",
         "APPROVED": "Approved",
         "REJECTED": "Rejected",
         "APPLY_FAILED": "Apply Failed",
         "pendingReview": "Pending Review",
         "autoApplied": "Auto Applied",
-        "failedScan": "Failed Scan",
+        "failedScan": "Check Failed",
         "blockedLocked": "Blocked by Lock",
         "approved": "Approved",
         "rejected": "Rejected",
@@ -10718,7 +10718,7 @@
       "empty": "No growth events yet",
       "pendingReview": "Pending Review",
       "autoApplied": "Auto Applied",
-      "failedScan": "Failed Scan",
+      "failedScan": "Check Failed",
       "blockedLocked": "Blocked by Lock",
       "approved": "Approved",
       "rejected": "Rejected",
@@ -10987,40 +10987,6 @@
       "cache": "Cache Savings",
       "routing": "Routing Savings",
       "totalCost": "Actual Cost"
-    },
-    "manifestPredictions": {
-      "title": "Manifest Predictions & Attribution",
-      "description": "Benchmark evaluation of predicted performance deltas against actual execution metrics",
-      "evaluating": "Evaluating...",
-      "evaluateNow": "Evaluate Benchmark Now",
-      "manifestId": "Manifest ID",
-      "targetComponent": "Target Component",
-      "recommendedAction": "Recommended Action",
-      "rationale": "Rationale",
-      "metricsTitle": "Predicted vs Actual Metrics",
-      "confidence": "Confidence",
-      "metricName": "Metric",
-      "baseline": "Baseline",
-      "predictedTarget": "Predicted",
-      "actualValue": "Actual",
-      "delta": "Delta",
-      "verdict": "Verdict",
-      "explanation": "Explanation",
-      "hideRollbackPatch": "Hide Rollback Patch",
-      "viewRollbackPatch": "View Rollback Patch",
-      "rollbackSuccess": "Rollback patch applied successfully.",
-      "rollbackFailed": "Failed to rollback skill evolution.",
-      "verdicts": {
-        "confirmed": "Confirmed",
-        "regression": "Regression",
-        "refuted": "Refuted",
-        "inconclusive": "Inconclusive"
-      },
-      "actions": {
-        "keep": "Keep",
-        "rollback": "Rollback",
-        "re_evaluate": "Re-evaluate"
-      }
     }
   },
   "subagentDashboard": {
@@ -18244,7 +18210,7 @@
         "status": {
           "PENDING_REVIEW": "Pending Review",
           "AUTO_APPLIED": "Auto Applied",
-          "FAILED_SCAN": "Failed Scan",
+          "FAILED_SCAN": "Check Failed",
           "BLOCKED_LOCKED": "Blocked by Lock",
           "APPROVED": "Approved",
           "REJECTED": "Rejected",
@@ -18255,15 +18221,9 @@
           "manualEvolution": "Manual Evolution",
           "memoryExtraction": "Memory Extraction"
         },
-        "proxyAlignment": {
-          "driftBadge": "Goodhart Drift Risk",
-          "driftTooltip": "Goodhart's Law drift detected: proxies improved but core intent regressed",
-          "alignedBadge": "Metrics Aligned",
-          "alignedTooltip": "Core intent and proxy metrics are well-aligned without corner-cutting"
-        },
         "confidence": "Confidence {value}%",
-        "testPassed": "Validation passed",
-        "testFailed": "Validation failed",
+        "scanPassed": "Security scan passed",
+        "scanFailed": "Security scan failed",
         "verifiedBadge": "Verified",
         "hollowBlockedBadge": "Hollow Test Blocked",
         "targetLayer": "Layer: {layer}",
@@ -18303,34 +18263,6 @@
           "count": "Failures: {value}",
           "confidence": "Attribution {value}%",
           "loopKind": "Loop: {value}"
-        },
-        "manifestPrediction": {
-          "title": "Change Manifest Predictions & Attribution",
-          "baseline": "Baseline",
-          "target": "Target",
-          "predictedDirection": {
-            "INCREASE": "Predicted Increase",
-            "DECREASE": "Predicted Decrease",
-            "NEUTRAL": "Predicted Neutral"
-          },
-          "falsificationConditions": "Falsification Conditions",
-          "attributionVerdict": "Attribution Verdict",
-          "verdictBadge": {
-            "CONFIRMED": "CONFIRMED",
-            "REFUTED": "REFUTED",
-            "REGRESSION": "REGRESSION",
-            "INCONCLUSIVE": "INCONCLUSIVE"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "Generalization Optimal",
-            "overfitting": "Overfitting Alert",
-            "generalization_collapse": "Generalization Collapse",
-            "stable_parity": "Stable Parity",
-            "regression": "Regression Detected",
-            "insufficient_holdout": "Insufficient Holdout"
-          },
-          "metricDeltas": "Observed Metric Deltas",
-          "unpredictedRegressions": "Unpredicted Regressions"
         },
         "securityScan": {
           "title": "Skill Security Static Inspection Details ({count} findings)",

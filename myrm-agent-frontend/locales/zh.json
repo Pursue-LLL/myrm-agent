@@ -10604,14 +10604,14 @@
       "status": {
         "PENDING_REVIEW": "待审核",
         "AUTO_APPLIED": "已自动应用",
-        "FAILED_SCAN": "安全扫描失败",
+        "FAILED_SCAN": "检查未通过",
         "BLOCKED_LOCKED": "被锁定拦截",
         "APPROVED": "已批准",
         "REJECTED": "已拒绝",
         "APPLY_FAILED": "应用失败",
         "pendingReview": "待审核",
         "autoApplied": "已自动应用",
-        "failedScan": "安全扫描失败",
+        "failedScan": "检查未通过",
         "blockedLocked": "被锁定拦截",
         "approved": "已批准",
         "rejected": "已拒绝",
@@ -10718,7 +10718,7 @@
       "empty": "暂无成长事件",
       "pendingReview": "待审核",
       "autoApplied": "已自动应用",
-      "failedScan": "扫描失败",
+      "failedScan": "检查未通过",
       "blockedLocked": "锁定拦截",
       "approved": "已批准",
       "rejected": "已拒绝",
@@ -10987,40 +10987,6 @@
       "cache": "缓存节省",
       "routing": "路由节省",
       "totalCost": "实际花费"
-    },
-    "manifestPredictions": {
-      "title": "清单预测与归因",
-      "description": "基准测试评估预测性能变化与实际执行指标对比",
-      "evaluating": "正在评估...",
-      "evaluateNow": "立即评估基准",
-      "manifestId": "清单 ID",
-      "targetComponent": "目标组件",
-      "recommendedAction": "建议操作",
-      "rationale": "依据理由",
-      "metricsTitle": "预测与实际指标对比",
-      "confidence": "置信度",
-      "metricName": "指标名称",
-      "baseline": "基线",
-      "predictedTarget": "预测目标",
-      "actualValue": "实际值",
-      "delta": "变化量",
-      "verdict": "判定结果",
-      "explanation": "说明",
-      "hideRollbackPatch": "隐藏回滚补丁",
-      "viewRollbackPatch": "查看回滚补丁",
-      "rollbackSuccess": "回滚补丁已成功应用。",
-      "rollbackFailed": "回滚技能演进失败。",
-      "verdicts": {
-        "confirmed": "已确认",
-        "regression": "退化",
-        "refuted": "未达预期",
-        "inconclusive": "待确定"
-      },
-      "actions": {
-        "keep": "保留",
-        "rollback": "回滚",
-        "re_evaluate": "重新评估"
-      }
     }
   },
   "subagentDashboard": {
@@ -18244,7 +18210,7 @@
         "status": {
           "PENDING_REVIEW": "待审核",
           "AUTO_APPLIED": "已自动落地",
-          "FAILED_SCAN": "安全扫描失败",
+          "FAILED_SCAN": "检查未通过",
           "BLOCKED_LOCKED": "被锁定拦截",
           "APPROVED": "已通过",
           "REJECTED": "已拒绝",
@@ -18255,15 +18221,9 @@
           "manualEvolution": "手动优化",
           "memoryExtraction": "记忆提取"
         },
-        "proxyAlignment": {
-          "driftBadge": "度量欺骗风险",
-          "driftTooltip": "检测到古德哈特代理指标偏离：Token或耗时看似优化，但核心业务准确率衰减",
-          "alignedBadge": "度量对齐已验证",
-          "alignedTooltip": "核心业务意图与代理指标协同优化，无投机性偷工减料"
-        },
         "confidence": "置信度 {value}%",
-        "testPassed": "验证通过",
-        "testFailed": "验证失败",
+        "scanPassed": "安全扫描通过",
+        "scanFailed": "安全扫描未通过",
         "verifiedBadge": "已认证",
         "hollowBlockedBadge": "空洞测试已拦截",
         "targetLayer": "架构层：{layer}",
@@ -18303,34 +18263,6 @@
           "count": "失败次数：{value}",
           "confidence": "归因置信度 {value}%",
           "loopKind": "循环类型：{value}"
-        },
-        "manifestPrediction": {
-          "title": "可证伪变更预测与归因",
-          "baseline": "基线",
-          "target": "目标",
-          "predictedDirection": {
-            "INCREASE": "预期提升",
-            "DECREASE": "预期降低",
-            "NEUTRAL": "预期保持"
-          },
-          "falsificationConditions": "证伪条件",
-          "attributionVerdict": "归因结论",
-          "verdictBadge": {
-            "CONFIRMED": "预期达成",
-            "REFUTED": "未达预期",
-            "REGRESSION": "发生退化",
-            "INCONCLUSIVE": "证据不足"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "泛化提升 (Pareto 最优)",
-            "overfitting": "疑似过拟合告警",
-            "generalization_collapse": "泛化崩塌严重退化",
-            "stable_parity": "双轴平稳",
-            "regression": "双轴回退",
-            "insufficient_holdout": "验证集样本不足"
-          },
-          "metricDeltas": "实测指标变化",
-          "unpredictedRegressions": "未预期退化警告"
         },
         "securityScan": {
           "title": "技能安全静态扫描体检详情 ({count} 项发现)",

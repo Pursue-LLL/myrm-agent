@@ -10536,14 +10536,14 @@
       "status": {
         "PENDING_REVIEW": "待稽核",
         "AUTO_APPLIED": "已自動應用",
-        "FAILED_SCAN": "安全掃描失敗",
+        "FAILED_SCAN": "檢查未通過",
         "BLOCKED_LOCKED": "被鎖定攔截",
         "APPROVED": "已批准",
         "REJECTED": "已拒絕",
         "APPLY_FAILED": "應用失敗",
         "pendingReview": "待稽核",
         "autoApplied": "已自動應用",
-        "failedScan": "安全掃描失敗",
+        "failedScan": "檢查未通過",
         "blockedLocked": "被鎖定攔截",
         "approved": "已批准",
         "rejected": "已拒絕",
@@ -10650,7 +10650,7 @@
       "empty": "暫無成長事件",
       "pendingReview": "待稽核",
       "autoApplied": "已自動應用",
-      "failedScan": "掃描失敗",
+      "failedScan": "檢查未通過",
       "blockedLocked": "鎖定攔截",
       "approved": "已批准",
       "rejected": "已拒絕",
@@ -10919,40 +10919,6 @@
       "cache": "快取節省",
       "routing": "路由節省",
       "totalCost": "實際花費"
-    },
-    "manifestPredictions": {
-      "title": "清單預測與歸因",
-      "description": "基準測試評估預測效能變化與實際執行指標對比",
-      "evaluating": "正在評估...",
-      "evaluateNow": "立即評估基準",
-      "manifestId": "清單 ID",
-      "targetComponent": "目標元件",
-      "recommendedAction": "建議操作",
-      "rationale": "依據理由",
-      "metricsTitle": "預測與實際指標對比",
-      "confidence": "信賴度",
-      "metricName": "指標名稱",
-      "baseline": "基準線",
-      "predictedTarget": "預測目標",
-      "actualValue": "實際值",
-      "delta": "變化量",
-      "verdict": "判定結果",
-      "explanation": "說明",
-      "hideRollbackPatch": "隱藏回滾補丁",
-      "viewRollbackPatch": "檢視回滾補丁",
-      "rollbackSuccess": "回滾補丁已成功套用。",
-      "rollbackFailed": "回滾技能演進失敗。",
-      "verdicts": {
-        "confirmed": "已確認",
-        "regression": "退化",
-        "refuted": "未達預期",
-        "inconclusive": "待確定"
-      },
-      "actions": {
-        "keep": "保留",
-        "rollback": "回滾",
-        "re_evaluate": "重新評估"
-      }
     }
   },
   "subagentDashboard": {
@@ -17546,7 +17512,7 @@
         "status": {
           "PENDING_REVIEW": "待稽核",
           "AUTO_APPLIED": "已自動落地",
-          "FAILED_SCAN": "安全掃描失敗",
+          "FAILED_SCAN": "檢查未通過",
           "BLOCKED_LOCKED": "被鎖定攔截",
           "APPROVED": "已透過",
           "REJECTED": "已拒絕",
@@ -17557,15 +17523,9 @@
           "manualEvolution": "手動最佳化",
           "memoryExtraction": "記憶提取"
         },
-        "proxyAlignment": {
-          "driftBadge": "度量欺騙風險",
-          "driftTooltip": "檢測到古德哈特代理指標偏離：Token或耗時看似最佳化，但核心業務準確率衰減",
-          "alignedBadge": "度量對齊已驗證",
-          "alignedTooltip": "核心業務意圖與代理指標協同最佳化，無投機性偷工減料"
-        },
         "confidence": "置信度 {value}%",
-        "testPassed": "驗證透過",
-        "testFailed": "驗證失敗",
+        "scanPassed": "安全掃描通過",
+        "scanFailed": "安全掃描未通過",
         "verifiedBadge": "已認證",
         "hollowBlockedBadge": "空洞測試已攔截",
         "targetLayer": "架構層：{layer}",
@@ -17605,34 +17565,6 @@
           "count": "失敗次數：{value}",
           "confidence": "歸因置信度 {value}%",
           "loopKind": "迴圈型別：{value}"
-        },
-        "manifestPrediction": {
-          "title": "可證偽變更預測與歸因",
-          "baseline": "基準線",
-          "target": "目標",
-          "predictedDirection": {
-            "INCREASE": "預期提升",
-            "DECREASE": "預期降低",
-            "NEUTRAL": "預期保持"
-          },
-          "falsificationConditions": "證偽條件",
-          "attributionVerdict": "歸因結論",
-          "verdictBadge": {
-            "CONFIRMED": "CONFIRMED",
-            "REFUTED": "REFUTED",
-            "REGRESSION": "REGRESSION",
-            "INCONCLUSIVE": "INCONCLUSIVE"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "泛化提升 (Pareto 最優)",
-            "overfitting": "疑似過擬合告警",
-            "generalization_collapse": "泛化崩塌嚴重退化",
-            "stable_parity": "雙軸平穩",
-            "regression": "雙軸回退",
-            "insufficient_holdout": "驗證集樣本不足"
-          },
-          "metricDeltas": "實測指標變化",
-          "unpredictedRegressions": "未預期退化警告"
         },
         "securityScan": {
           "title": "技能安全靜態掃描體檢詳情 ({count} 項發現)",
