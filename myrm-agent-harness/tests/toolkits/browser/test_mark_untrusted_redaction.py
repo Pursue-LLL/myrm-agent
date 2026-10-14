@@ -122,6 +122,27 @@ async def test_navigate_redacted_and_wrapped() -> None:
 
 
 @pytest.mark.asyncio
+async def test_navigate_sources_redact_credentials_in_final_url() -> None:
+    secret = "oauthsecretcode12345"
+    final_url = f"https://x.com/callback?code={secret}&state=xyz"
+    session = MagicMock()
+    session.navigate = AsyncMock(return_value=f"Navigated to {final_url} (status=200, title=Callback)")
+    active_page = MagicMock()
+    active_page.url = final_url
+    active_page.title = AsyncMock(return_value="Callback")
+    session.get_active_page = MagicMock(return_value=active_page)
+    tool = create_navigate_tool(session)  # type: ignore[arg-type]
+
+    output = await tool.ainvoke({"url": final_url})
+
+    source = output["metadata"]["sources"][0]
+    assert secret not in output["content"]
+    assert secret not in source["url"]
+    assert secret not in source["source_key"]
+    assert source["url"].startswith("https://x.com/callback?code=")
+
+
+@pytest.mark.asyncio
 async def test_interact_redacted_and_wrapped() -> None:
     session = MagicMock()
     session.list_downloads.return_value = []

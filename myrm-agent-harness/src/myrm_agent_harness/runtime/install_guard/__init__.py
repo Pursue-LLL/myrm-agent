@@ -1,28 +1,11 @@
-"""Install guard — dual-wheel install readiness probe and post-install verification.
+"""Install guard — post-install verification CLI for the harness wheel.
 
 [INPUT]
-- install_guard.probe (POS: Source vs compiled distribution readiness)
-- install_guard._generated.core_ip_manifest (POS: Generated core IP import path list)
+- install_guard.verify (POS: Post-install verification checks)
 
 [OUTPUT]
-- DistributionMode, assert_distribution_ready, get_distribution_mode, is_compiled_distribution
+- Console script ``verify-harness-distribution`` (via ``install_guard.verify:main``)
 
 [POS]
-Runtime domain for proprietary dual-wheel packaging: manifest imports, install probe, platform key, verify CLI.
+Runtime domain for install readiness: confirms an installed harness is importable and its runtime dependencies work.
 """
-
-from myrm_agent_harness.runtime.install_guard.probe import (
-    DistributionMode,
-    DistributionNotReadyError,
-    assert_distribution_ready,
-    get_distribution_mode,
-    is_compiled_distribution,
-)
-
-__all__ = [
-    "DistributionMode",
-    "DistributionNotReadyError",
-    "assert_distribution_ready",
-    "get_distribution_mode",
-    "is_compiled_distribution",
-]

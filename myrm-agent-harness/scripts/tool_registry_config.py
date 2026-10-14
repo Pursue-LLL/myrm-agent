@@ -14,7 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 HARNESS_ROOT = REPO_ROOT
 HARNESS_SRC = HARNESS_ROOT / "src" / "myrm_agent_harness"
-SERVER_ROOT = REPO_ROOT.parent / "myrm-agent" / "myrm-agent-server"
+SERVER_ROOT = REPO_ROOT.parent / "myrm-agent-server"
 SERVER_SRC = SERVER_ROOT / "app"
 # The server tree exists only in the monorepo layout; gates that cross-reference it skip in a standalone harness clone.
 SERVER_TREE_AVAILABLE = SERVER_SRC.is_dir()

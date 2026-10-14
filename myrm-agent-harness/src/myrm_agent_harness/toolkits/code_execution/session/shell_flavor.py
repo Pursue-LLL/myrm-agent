@@ -90,11 +90,13 @@ class BashFlavor(ShellFlavor):
         # crash (triggering a pointless recovery). The trap only fires when the
         # shell actually exits; a healthy command leaves it dormant so markers
         # are emitted exactly once per execution.
+        # The blank line after the command absorbs a trailing line-continuation backslash; otherwise it
+        # would splice the rc capture onto the user's last line and the exit marker would carry no code.
         clean_command = command.rstrip("\r\n")
         return (
             f'trap \'echo "{exit_marker}"$?; echo "{end_marker}"\' EXIT\n'
             "{\n"
-            f"{clean_command}\n"
+            f"{clean_command}\n\n"
             f"__myrm_rc__={exit_code_var}\n"
             "}\n"
             f"echo '{exit_marker}'\"$__myrm_rc__\"\n"

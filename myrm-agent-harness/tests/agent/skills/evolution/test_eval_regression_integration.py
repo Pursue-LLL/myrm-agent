@@ -139,7 +139,7 @@ class _StructuredOutputWrapper:
 
 def _load_test_env() -> dict[str, str]:
     """Load .env.test from the server directory for LLM credentials."""
-    env_path = Path(__file__).resolve().parents[5] / "myrm-agent" / "myrm-agent-server" / ".env.test"
+    env_path = Path(__file__).resolve().parents[5] / "myrm-agent-server" / ".env.test"
     env_vars: dict[str, str] = {}
     if env_path.exists():
         for line in env_path.read_text().splitlines():

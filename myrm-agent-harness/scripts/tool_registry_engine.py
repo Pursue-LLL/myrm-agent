@@ -325,14 +325,14 @@ def get_changed_python_files(scan_roots: tuple[Path, ...]) -> list[Path] | None:
     """Return Python files changed in git (staged + unstaged)."""
     try:
         staged = subprocess.run(
-            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+            ["git", "diff", "--cached", "--name-only", "--relative", "--diff-filter=ACMR"],
             capture_output=True,
             text=True,
             timeout=5,
             cwd=REPO_ROOT,
         )
         unstaged = subprocess.run(
-            ["git", "diff", "--name-only", "--diff-filter=ACMR"],
+            ["git", "diff", "--name-only", "--relative", "--diff-filter=ACMR"],
             capture_output=True,
             text=True,
             timeout=5,

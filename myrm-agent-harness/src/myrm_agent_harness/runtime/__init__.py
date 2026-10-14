@@ -11,7 +11,7 @@ Subpackages:
 - cognitive_clock/: Cooperative pause signals for background work
 - maintenance/: Global adaptive maintenance scheduling
 - quota/: Storage quota management
-- install_guard/: Dual-wheel install readiness
+- install_guard/: Post-install verification CLI
 - diagnostics/: Doctor and compliance self-audit
 - survival/: Memory pressure, resource monitor, startup timing
 - paths/: Execution path constants and compression

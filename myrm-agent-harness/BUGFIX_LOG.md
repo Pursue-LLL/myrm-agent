@@ -210,6 +210,40 @@
 | **回归** | `tests/toolkits/browser/test_process_owner.py`（环境读取抛 `SystemError` 得 `UNKNOWN`）、`tests/toolkits/browser/doctor/test_orphan_detection.py`（失败进程排在真实残留之前，扫描仍报出后者；名称与可执行文件不可读但 `argv[0]` 可读、以及三个来源全部不可读，各用 `AccessDenied` / `NoSuchProcess` / `SystemError` 三种异常）、`tests/toolkits/browser/doctor/test_orphan_cleanup.py`（身份读不到则不发信号并报 `not_an_orphan`）；回退验证：分别去掉三处捕获使 2 / 1 / 2 个用例失败；同一压测脚本修复前 229,410 次 12 次逃逸，修复后 200,808 次 0 次（各跑 1 次） |
 | **代码位置** | `toolkits/browser/process_owner.py::read_owner_state` · `toolkits/browser/doctor/orphans.py`（`find_orphan_automation_processes`、`_is_chromium_process`） |
 
+### BUG-HARNESS-2026-10-12-005 · 会话结束的技能复盘把本轮问答原地追加进调用方传入的聊天历史列表
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-09 |
+| **修复时间** | 2026-10-12 |
+| **症状** | 同一个历史列表被多次传给 `_trigger_background_skill_review` 后，列表里累积出重复的本轮 `query`/`reply`；CI 里同一个 worker 先跑了前面的用例，后面的用例拿到的历史比自己构造的多出若干条消息 |
+| **关联产品** | myrm-agent-harness `agent/skill_agent/review.py` |
+| **根因** | `convert_chat_history_simple` 对已经是 `BaseMessage` 列表的输入原样返回同一个列表对象（`utils/chat_utils.py` 的 `return history`）；复盘在拿不到图状态时对这个列表执行 `messages.append(...)` 补入本轮问答，等于改写了调用方的历史 |
+| **修复** | 复盘处先复制再追加，不改变 `convert_chat_history_simple` 的返回约定 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 由 CI 失败与代码路径确认；运行中的智能体里调用方是否持有并复用同一个列表、由此造成多大影响，没有端到端复现。该用例单独运行时通过，只在同一进程里多个用例共用模块级 `_HISTORY` 时暴露 |
+| **回归** | `tests/agent/skill_agent/test_skill_agent_review_paths.py::TestReviewTaskInputs::test_supplied_history_list_is_not_mutated` |
+| **代码位置** | `agent/skill_agent/review.py::SkillAgentReviewMixin._trigger_background_skill_review` |
+
+
+### BUG-HARNESS-2026-10-12-004 · 导入浏览器工具包就会加载 patchright：`wait/_impl.py` 在模块顶层导入它的超时异常类，违背「首次使用时才加载」的约定
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-12 |
+| **修复时间** | 2026-10-12 |
+| **症状** | `from myrm_agent_harness.toolkits.browser import BrowserSession` 之后 `'patchright' in sys.modules` 为真；启动基准 `benchmarks/bench_startup_performance.py::test_lazy_loading_patchright` 在 CI 里失败 |
+| **关联产品** | myrm-agent-harness `toolkits/browser/wait/_impl.py`、`toolkits/browser/utils/timeout.py` |
+| **根因** | `wait/_impl.py` 顶层 `from patchright.async_api import TimeoutError as PlaywrightTimeoutError`，并在模块级拼出 `_TIMEOUT_ERRORS` 元组；`session` 包的导入链会经过这个模块，其余 patchright 类型都只用于注解，只有这一处是运行时导入 |
+| **修复** | `toolkits/browser/utils/timeout.py` 新增带缓存的 `timeout_error_types()`，在第一次进入 `except` 子句求值时才导入 patchright，未安装时退化为内置 `TimeoutError`；`is_timeout_error` 复用它；`toolkits/browser/wait/_impl.py` 删除顶层导入与 `_TIMEOUT_ERRORS`，所有 `except` 改用 `timeout_error_types()` |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 本机对 `import BrowserSession` 做了前后各 9 次计时（修复前 min 583ms / median 659ms，修复后 min 544ms / median 646ms），差异在噪声内，因此**不声称启动提速**，只恢复「导入不加载驱动」的约定；`test_import_browser`（<250ms）与 `test_import_web_search`（<300ms）两个阈值本机仍超，未在此处理 |
+| **回归** | `tests/toolkits/browser/test_timeout_utils.py`（两类超时都被识别、无 patchright 时退化、新开子进程断言导入后 `patchright` 不在 `sys.modules`） |
+| **代码位置** | `toolkits/browser/utils/timeout.py::timeout_error_types`、`toolkits/browser/wait/_impl.py` |
+
+
 ### BUG-HARNESS-2026-10-12-003 · `CodeExecutor` 的 shell 默认文件操作不是字节无损的：名字含单引号的文件读写失败或可注入命令，读取经 stdout 被脱敏/截断，大文件读写失败
 
 | 字段 | 内容 |
@@ -226,20 +260,20 @@
 | **回归** | `tests/toolkits/code_execution/executors/test_base_executor_shell_quoting.py`（带引号文件名与注入模式；含密钥与绝对路径的文本读回原样；0 / 1 / 分片边界 ±1 / 5 分片+7 字节的随机字节往返；约 620 KB 文本不截断；截断写与跨分片追加；`.gz` 解压；缺失文件抛 `FileNotFoundError`、写入失败抛 `OSError`）；回退验证：恢复旧实现后脱敏、大随机字节、大文本、写入失败 4 个用例失败 |
 | **代码位置** | `executors/shell_file_transfer.py`（`read_bytes_via_shell`、`write_bytes_via_shell`）· `executors/base.py::CodeExecutor`（文件操作默认实现） |
 
-### BUG-HARNESS-2026-10-12-002 · 没有 doctype 的页面被判为“被模态遮罩阻塞”：html/body 因覆盖视口 50% 以上被当成遮罩，带 label 的输入框被标 `[blocked]` 且拿不到 ref
+### BUG-HARNESS-2026-10-12-002 · 快照把没有 doctype 的页面、普通长页面、满高应用根上的输入框全部标成 `[blocked]`：只覆盖视口、并不拦截点击的流内容器被当成“模态遮罩”，带 label 的输入框拿不到 ref
 
 | 字段 | 内容 |
 | --- | --- |
 | **状态** | FIXED |
-| **发现时间** | 2026-10-12 |
+| **发现时间** | 2026-10-08 |
 | **修复时间** | 2026-10-12 |
-| **症状** | quirks 模式页面（无 doctype）上快照把整页标为 blocked，表单字段没有可用 ref，Agent 无法点击或填写；模态框内仅靠 `label`、`placeholder`、`title` 命名的字段在遮罩说明里也缺失 |
+| **症状** | quirks 模式页面（无 doctype）、正文高度超过视口的普通页面、撑满视口高度的应用根容器上，快照把页面里的输入框全部标为 `[blocked]` 且没有引用，Agent 无法点击或填写；真实 `<dialog>` 内只靠 `label`、`placeholder`、`title` 命名的字段在遮罩说明里也缺失，被判为“在弹窗之外” |
 | **关联产品** | myrm-agent-harness `toolkits/browser/snapshot` |
-| **根因** | `MODAL_BLOCKING_SCRIPT` 把覆盖视口 ≥50% 的任意元素视为遮罩，quirks 模式下 `html`/`body` 恒占满视口；模态内可操作元素的名称只取 `innerText` 与 `aria-label`，与无障碍树的命名来源不一致 |
-| **修复** | 遮罩候选排除 `document.documentElement` 与 `document.body`（仍可凭 modal 属性或 dialog 角色成为候选）；模态内元素名称追加 `label`、`placeholder`、`title` |
-| **反复次数** | 第 1 次发现 |
-| **踩坑** | quirks 模式下 html/body 恒占满视口，必然触发；标准模式取决于页面内容高度，缺陷表现随页面而变，不易稳定复现 |
-| **回归** | `tests/toolkits/browser/snapshot/test_modal_detection_integration.py`（quirks 模式页面不是模态；dialog 列出 Username、Submit、Email 字段）；回退验证：去掉根元素排除时 quirks 页面被判为 `{'role': 'region', 'coverage': 1, ...}`；去掉 label/placeholder/title 命名时 dialog 只列出 `{'Submit'}` |
+| **根因** | 两处叠加：（1）`MODAL_BLOCKING_SCRIPT` 只看“覆盖视口 ≥50%”，把不拦截点击的流内容器（quirks 模式下恒占满视口的 `html`/`body`、整页应用根、长文章）也当作遮罩；（2）模态内可操作元素的名称只取 `innerText` 与 `aria-label`，与无障碍树的命名来源不一致，按名称匹配时这些字段被当成弹窗外元素 |
+| **修复** | 遮罩必须是脱离文档流的图层：`position: fixed`，或 `absolute` 且 `z-index > 0`；`dialog` 角色与 `aria-modal` 的判定不变。内部名称收集 `aria-label`、关联 `label`、文本、`placeholder`、`title`，去重，上限由 30 提到 60 |
+| **反复次数** | 第 2 次发现（先后在两条分支上独立定位到同一缺陷，合并为一条） |
+| **踩坑** | quirks 模式下 html/body 恒占满视口，必然触发；标准模式取决于页面内容高度，缺陷表现随页面而变，不易稳定复现。没有 `dialog`/modal 属性、`absolute` 且 `z-index: auto` 的全屏遮罩不再被识别为阻塞层，这是有意取舍，没有拿真实站点样本验证；名称仍只截取前 50 个字符参与匹配 |
+| **回归** | `tests/toolkits/browser/snapshot/test_modal_detection_integration.py`（quirks 模式页面不是模态；dialog 列出 Username、Submit、Email 字段）· `tests/toolkits/browser/test_modal_blocking_integration.py`（3 个真实 Chromium 用例：长页面、满高应用根、对话框自身字段可达且背后页面被阻塞）；回退验证：去掉流内容器排除时 quirks 页面被判为 `{'role': 'region', 'coverage': 1, ...}`；去掉 label/placeholder/title 命名时 dialog 只列出 `{'Submit'}` |
 | **代码位置** | `observer_scripts.py::MODAL_BLOCKING_SCRIPT` |
 
 ### BUG-HARNESS-2026-10-12-001 · 浏览器动作录制从不产生步骤：捕获脚本被注入到 patchright 的隔离世界，`expose_function` 桥在那里是丢弃调用的空桩
@@ -257,6 +291,23 @@
 | **踩坑** | 主世界注入意味着页面自己的脚本也能调用 `window.__myrmCaptureCallback(...)` 伪造步骤；该信任边界来自 `expose_function` 的设计本身，修复前后都存在，未在本条处理 |
 | **回归** | `tests/toolkits/browser/action_capture/test_capture_engine_lifecycle.py` 的替身 `evaluate` 断言 `isolated_context is False`；`test_capture_engine_navigation_integration.py::test_capture_survives_navigation_and_restart` 在真实 Chromium 中验证：把两处 `isolated_context=False` 改回默认值时失败（`baseline click not captured: []`），修复后通过 |
 | **代码位置** | `capture_engine.py::ActionCaptureEngine._inject_capture` |
+
+### BUG-HARNESS-2026-10-09-002 · `browser_navigate` 只给正文脱敏，来源里的最终 URL 仍是原文：OAuth 回调的 `code` 可随工具结果进入模型上下文和引用列表
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-09 |
+| **修复时间** | 2026-10-09 |
+| **症状** | 导航到 OAuth 回调地址（`https://x.com/callback?code=...&state=...`）时，返回的 `content` 里的 URL 已被脱敏，但同一个返回字典里的 `metadata.sources[].url` 与 `source_key` 仍是浏览器的原始最终 URL，`title` 也未脱敏。来源事件与引用栏、记忆溯源都读取这份 metadata |
+| **关联产品** | myrm-agent-harness `toolkits/browser/tools/navigate.py` |
+| **根因** | 只有 `content` 经过 `mark_untrusted`（先 `redact_sensitive_text` 再包裹）；来源直接取 `page.url` 与 `await page.title()`。工具返回的字典整体就是 ToolMessage 的内容（`agent/streaming/event_handlers.py::_extract_tool_metadata` 从中取 metadata），所以原始 URL 与正文并列存在于同一条工具结果里 |
+| **修复** | `url`、`title` 先过 `redact_sensitive_text`，`source_key` 使用脱敏后的 URL；脱敏后的链接保留 `?code=` 键名与掩码值，仍是可点击的引用 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 模型是否真的看到整份字典取决于适配层如何序列化 ToolMessage 内容，这一环按代码路径推断，没有抓取真实模型请求验证；回归用例的“修复前失败”按构造成立（旧代码原样返回 `page.url`），没有单独跑一次修复前版本。`web_fetch` 等其他返回 `metadata.sources` 的工具没有逐个核查 |
+| **回归** | `tests/toolkits/browser/test_mark_untrusted_redaction.py::test_navigate_sources_redact_credentials_in_final_url`；既有 `test_navigate_redacted_and_wrapped` 与 `test_tools_comprehensive.py::test_browser_navigate_basic` 保持通过 |
+| **代码位置** | `toolkits/browser/tools/navigate.py::create_navigate_tool` |
+
 
 ### BUG-HARNESS-2026-10-08-006 · Linux 上后台 PTY 任务的输出在子进程退出后被丢弃：主端读取抛 `OSError: [Errno 5]`，尚未被取走的行全部丢失且没有任何提示
 

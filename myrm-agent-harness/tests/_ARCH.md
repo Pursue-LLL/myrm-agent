@@ -9,7 +9,7 @@ Harness test suite: unit, integration, architecture gates, and performance bench
 | Path | Role | Description |
 |------|------|-------------|
 | `__init__.py` | 核心 | tests 包标记（pytest 收集根） |
-| `conftest.py` | 核心 | 全局 pytest 配置：隔离 `MYRM_DATA_DIR`、`outside_tmp_path` 夹具（`/var/tmp` 下的临时目录，供"未加白名单即被拦截"类断言使用，因为校验器恒放行 `/tmp` 而 Linux 的 `tmp_path` 位于其下）、进程级状态隔离自动夹具（审批拒绝计数、会话 executor stash、`chat_id_var`、动态 MCP 安全元数据注册表、context 污点追踪器、已发布的 active tool registry/resolved tools、子代理 checkpointer 单例、CLI 工具探测缓存）、blocking_io gate、benchmark→performance 标记、浏览器 xdist 串行组、`pytest_collection_finish` warmup/acquire_page 漏标门禁、浏览器测试目录，或池内仍有存活浏览器/launcher 的测试，在夹具收尾调用 `reset_global_browser_pool_for_tests()`（带 30s 超时，超时则丢弃单例）；sessionfinish 浏览器进程树 cleanup（`tests/support/browser_process_cleanup`） |
+| `conftest.py` | 核心 | 全局 pytest 配置：隔离 `MYRM_DATA_DIR`、`outside_tmp_path` 夹具（`/var/tmp` 下的临时目录，供"未加白名单即被拦截"类断言使用，因为校验器恒放行 `/tmp` 而 Linux 的 `tmp_path` 位于其下）、进程级状态隔离自动夹具（审批拒绝计数、会话 executor stash、`chat_id_var`、动态 MCP 安全元数据注册表、context 污点追踪器、已发布的 active tool registry/resolved tools、子代理 checkpointer 单例、CLI 工具探测缓存、auto-mode security reviewer）、blocking_io gate、benchmark→performance 标记、浏览器 xdist 串行组、`pytest_collection_finish` warmup/acquire_page 漏标门禁、浏览器测试目录，或池内仍有存活浏览器/launcher 的测试，在夹具收尾调用 `reset_global_browser_pool_for_tests()`（带 30s 超时，超时则丢弃单例）；sessionfinish 浏览器进程树 cleanup（`tests/support/browser_process_cleanup`） |
 | `fixtures/` | 辅助 | 预留 harness-only 夹具目录 · [fixtures/_ARCH.md](fixtures/_ARCH.md) |
 | `examples/` | 辅助 | 非 shipping 参考实现 · [examples/_ARCH.md](examples/_ARCH.md) |
 | `mocks/` | 辅助 | 共享 in-memory backend mock · [mocks/_ARCH.md](mocks/_ARCH.md) |
@@ -24,7 +24,6 @@ Harness test suite: unit, integration, architecture gates, and performance bench
 | `observability/` | 单元 | 顶层 metrics/diagnostics/tracing · [observability/_ARCH.md](observability/_ARCH.md) |
 | `agent/streaming/broadcast/` | 单元 | ToolBroadcastBus / ToolCallBroadcaster · [agent/streaming/broadcast/_ARCH.md](agent/streaming/broadcast/_ARCH.md) |
 | `integration/` | 集成 | 跨模块集成（含浏览器 wait-strategies 等） |
-| `dev/` | 单元 | vortexai 维护者脚本回归（`test_run_pytest_safe.py`） |
 | `agent/skills/curator/test_curator_engine.py` | 单元 | SkillCurator 生命周期与 LRU 驱逐（勿用通用名 `test_engine.py`，会与 `agent/dynamic_workflow/test_engine.py` 触发 collect import mismatch） |
 | `agent/skills/` | 单元 | 技能子系统测试树 · [agent/skills/_ARCH.md](agent/skills/_ARCH.md) |
 | `agent/_factory/test_mcp_routing_route.py` | 单元 | `route_mcp_servers` direct/PTC/aggregate demotion + compress 边界（mock connection） |
@@ -52,9 +51,9 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
 | Local default (harness-only) | `pytest` (addopts apply filter automatically) | Serial; ~300–500MB typical peak (darwin arm64, 2026-06) |
 | Full suite | `pytest -m ""` | All markers including integration/e2e/performance |
 | Browser integration | `pytest -m "integration or e2e" --timeout=600` | Real Chromium; run separately |
-| CI unit | `.github/workflows/test.yml` job `unit` | `uv sync --python 3.13 --locked --extra all --group dev`, then `uv run --no-sync pytest -n 2` over the whole `tests/` tree with the default marker filter; a stale `uv.lock` fails the install step (run `uv lock` after editing `pyproject.toml`; `compiled-core*` exclusion: `harness_packaging/DISTRIBUTION_SYSTEM.md` § CI) |
-| CI performance | `.github/workflows/performance.yml` | `uv sync --python 3.13 --locked --extra all`, then `tests/performance/ -m performance -n0` |
-| CI browser | `.github/workflows/test.yml` job `browser-integration` | Same install; `-n0`, `-m "integration or e2e"`, Patchright Chromium (`--with-deps`) |
+| CI unit | `.github/workflows/harness-test.yml` (repo root) job `unit` | `uv sync --python 3.13 --locked --extra all --group dev`, then `uv run --no-sync pytest -n 2` with default marker filter; no `--ignore` workarounds; a stale `uv.lock` fails the install step (run `uv lock` after editing `pyproject.toml`) |
+| CI performance | `.github/workflows/harness-performance.yml` (repo root) | `uv sync --python 3.13 --locked --extra all`, then `tests/performance/ -m performance -n0` |
+| CI browser | `.github/workflows/harness-test.yml` (repo root) job `browser-integration` | Same install; `-n0`, `-m "integration or e2e"`, Patchright Chromium (`--with-deps`) |
 
 ## Browser integration pitfalls（实测经验，2026-08）
 

@@ -20,7 +20,7 @@ from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer 
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
-_SERVER_ROOT = _REPO_ROOT / "myrm-agent" / "myrm-agent-server"
+_SERVER_ROOT = _REPO_ROOT / "myrm-agent-server"
 
 
 def _google_workspace_integration_write_patterns() -> tuple[tuple[str, str], ...]:

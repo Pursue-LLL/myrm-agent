@@ -312,8 +312,7 @@ myrm-agent-harness/          # 本仓库根（示意）
 │       └── utils/                   # 通用工具函数
 │
 ├── tests/                           # 测试套件（单元 / 集成 / 架构门禁 / 性能）
-├── harness_packaging/               # 分发构建（Nuitka compiled-core + release wheel）
-└── scripts/                         # 边界检测、构建与发布脚本
+└── scripts/                         # 边界检测、发布与文档门禁脚本
 ```
 
 详细架构说明请参考 [ARCHITECTURE.md](ARCHITECTURE.md)。
@@ -591,7 +590,6 @@ source .venv/bin/activate
 # `UV_DEFAULT_INDEX=https://pypi.org/simple uv lock` 并提交 uv.lock，否则 `--locked` 会失败。
 # 不要在镜像源下直接 `uv lock`：它会把所有包的 registry 与下载 URL 改写成镜像地址，
 # `tests/architecture/test_core_dependencies.py` 会拦截这种 lock。
-# compiled-core* 平台包发版前不在 PyPI 上，开发锁通过 [tool.uv] exclude-dependencies（需 uv ≥ 0.9.8）排除它们。
 
 # ⚠️ 重要：安装 pre-commit（自动化边界检测）
 pip install pre-commit
