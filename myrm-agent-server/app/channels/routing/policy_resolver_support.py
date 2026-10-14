@@ -13,6 +13,7 @@
 - lid_mapped_phone: the phone number a WhatsApp LID sender is verified to map to
 - resolve_paired_user: a sender's identity from its ACTIVE pairing, directly or through its verified LID mapping
 - is_admin_sender: the one owner rule, shared by admin-only commands and the decision on a held channel reply
+- is_control_plane_forward: whether the control plane forwarded the message after resolving the sender's identity itself
 
 [POS]
 Helpers of PolicyResolver (policy lookups, cooldown and follow-up tracking, group sender arbitration), plus the owner
@@ -239,13 +240,18 @@ async def check_sender_daily_quota(
     return False, daily_quota, usage_count
 
 
+def is_control_plane_forward(msg: InboundMessage) -> bool:
+    """Whether the control plane forwarded ``msg`` after resolving the sender's identity itself."""
+    return msg.metadata.get("trusted_inbound") == "control_plane"
+
+
 async def is_admin_sender(pairing: PairingStore, msg: InboundMessage) -> bool:
     """Whether ``msg`` comes from the sandbox owner.
 
     The owner is whoever the control plane forwarded (it has already resolved the identity), or a sender
     with an ACTIVE ADMIN pairing, the same pairing ``PairingStore.resolve`` maps to the owner's identity.
     """
-    if msg.metadata.get("trusted_inbound") == "control_plane":
+    if is_control_plane_forward(msg):
         return True
     detail = await pairing.get_pairing_detail(msg.channel, msg.sender_id)
     return detail is not None and detail[0] == PairingStatus.ACTIVE and detail[1] == PairingRole.ADMIN

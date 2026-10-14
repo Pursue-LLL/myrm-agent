@@ -46,6 +46,7 @@ from app.channels.routing.policy_resolver_support import (
     GroupFollowUpTracker,
     check_guest_mention_allowed,
     check_sender_daily_quota,
+    is_control_plane_forward,
     is_exempt_diagnostic_command,
     query_dm_policy,
     query_enabled_groups,
@@ -116,7 +117,7 @@ class PolicyResolver:
         The admission gates (control-plane forward, group policy, enabled groups, guest mention) are mirrored
         side-effect-free in ``sender_admission``; change them together.
         """
-        if msg.user_id and msg.metadata.get("trusted_inbound") == "control_plane":
+        if msg.user_id and is_control_plane_forward(msg):
             return msg.user_id, msg
 
         policy = await self._get_group_policy(msg.channel)
