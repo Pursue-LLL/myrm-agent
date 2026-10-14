@@ -1864,7 +1864,12 @@
       "copyFailed": "コピーに失敗しました。クリップボードの権限を確認してください。",
       "readBlocked": "クリップボードの読み取りが拒否されました。設定で変更してください。",
       "readRefused": "クリップボードの読み取りを拒否しました",
-      "readFailed": "クリップボードの読み取りに失敗しました。権限を確認してください。"
+      "readFailed": "クリップボードの読み取りに失敗しました。権限を確認してください。",
+      "readPermissionTitle": "クリップボードへのアクセス許可",
+      "readPermissionPrompt": "アプリがクリップボードの内容の読み取りを求めています。許可しますか？",
+      "readPermissionRemember": "許可すると、次回からは確認されません。",
+      "readPermissionAllow": "許可",
+      "readPermissionDeny": "拒否"
     }
   },
   "chat": {
@@ -5332,6 +5337,9 @@
         "files": "ファイル",
         "noCommits": "最近のコミット履歴が検出されませんでした",
         "gitUnavailable": "現在のワークスペースに Git リポジトリが検出されませんでした"
+      },
+      "conclusionAttribution": {
+        "deleteConfirm": "結論「{id}」を削除しますか？"
       }
     },
     "createDialog": {

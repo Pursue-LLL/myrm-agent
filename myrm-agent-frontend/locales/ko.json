@@ -1864,7 +1864,12 @@
       "copyFailed": "복사 실패. 클립보드 권한을 확인하세요.",
       "readBlocked": "클립보드 읽기가 거부되었습니다. 설정에서 변경하세요.",
       "readRefused": "클립보드 읽기를 거부했습니다",
-      "readFailed": "클립보드를 읽지 못했습니다. 권한을 확인하세요."
+      "readFailed": "클립보드를 읽지 못했습니다. 권한을 확인하세요.",
+      "readPermissionTitle": "클립보드 접근 권한 요청",
+      "readPermissionPrompt": "앱이 클립보드 내용을 읽으려고 합니다. 허용하시겠습니까?",
+      "readPermissionRemember": "허용하면 다시 묻지 않습니다.",
+      "readPermissionAllow": "허용",
+      "readPermissionDeny": "거부"
     }
   },
   "chat": {
@@ -5332,6 +5337,9 @@
         "files": "개 파일",
         "noCommits": "최근 커밋 기록이 감지되지 않음",
         "gitUnavailable": "현재 작업 영역에서 Git 저장소가 감지되지 않았습니다"
+      },
+      "conclusionAttribution": {
+        "deleteConfirm": "결론 \"{id}\"을(를) 삭제하시겠습니까?"
       }
     },
     "createDialog": {

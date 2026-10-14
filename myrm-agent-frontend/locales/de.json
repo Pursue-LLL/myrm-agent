@@ -1864,7 +1864,12 @@
       "copyFailed": "Kopieren fehlgeschlagen. Bitte Zwischenablage-Berechtigung prüfen.",
       "readBlocked": "Zugriff auf die Zwischenablage wurde verweigert. Ändern Sie dies in den Einstellungen.",
       "readRefused": "Zugriff auf die Zwischenablage abgelehnt",
-      "readFailed": "Zwischenablage konnte nicht gelesen werden. Bitte Berechtigungen prüfen."
+      "readFailed": "Zwischenablage konnte nicht gelesen werden. Bitte Berechtigungen prüfen.",
+      "readPermissionTitle": "Zugriff auf die Zwischenablage",
+      "readPermissionPrompt": "Die App möchte Ihre Zwischenablage lesen. Zulassen?",
+      "readPermissionRemember": "Nach der Zustimmung werden Sie nicht erneut gefragt.",
+      "readPermissionAllow": "Zulassen",
+      "readPermissionDeny": "Ablehnen"
     }
   },
   "chat": {
@@ -5332,6 +5337,9 @@
         "files": "Dateien",
         "noCommits": "Kein aktueller Commit-Verlauf erkannt",
         "gitUnavailable": "Im aktuellen Arbeitsbereich wurde kein Git-Repository erkannt"
+      },
+      "conclusionAttribution": {
+        "deleteConfirm": "Schlussfolgerung „{id}“ löschen?"
       }
     },
     "createDialog": {

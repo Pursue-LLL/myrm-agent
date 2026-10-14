@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Network,
   ShieldCheck,
@@ -73,9 +74,8 @@ interface ConclusionAttributionStudioCardProps {
   className?: string;
 }
 
-export const ConclusionAttributionStudioCard: React.FC<
-  ConclusionAttributionStudioCardProps
-> = ({ className = '' }) => {
+export const ConclusionAttributionStudioCard: React.FC<ConclusionAttributionStudioCardProps> = ({ className = '' }) => {
+  const t = useTranslations('memory.commandCenter.conclusionAttribution');
   const [metrics, setMetrics] = useState<AttributionMetricsResponse>(mockMetrics);
   const [conclusions, setConclusions] = useState<AttributedConclusionDTO[]>(mockConclusions);
   const [filterLevel, setFilterLevel] = useState<string>('all');
@@ -161,13 +161,13 @@ export const ConclusionAttributionStudioCard: React.FC<
     }
   };
 
-  const handleDelete = async (c: AttributedConclusionDTO, cascade: boolean) => {
-    if (!window.confirm(`确定删除结论【${c.id}】？(级联模式: ${cascade ? '是' : '否'})`)) {
+  const handleDelete = async (c: AttributedConclusionDTO) => {
+    if (!window.confirm(t('deleteConfirm', { id: c.id }))) {
       return;
     }
     setIsLoading(true);
     try {
-      await conclusionAttributionApi.deleteConclusion(c.id, cascade);
+      await conclusionAttributionApi.deleteConclusion(c.id, false);
       showToast(`已成功删除结论【${c.id}】`);
       loadData();
     } catch {
@@ -179,7 +179,9 @@ export const ConclusionAttributionStudioCard: React.FC<
   };
 
   const handleSimulateChat = async () => {
-    if (!chatQuery.trim()) return;
+    if (!chatQuery.trim()) {
+      return;
+    }
     setIsLoading(true);
     try {
       const res = await conclusionAttributionApi.chatWithEvidence({
@@ -194,17 +196,21 @@ export const ConclusionAttributionStudioCard: React.FC<
       setChatReply(`基于显式记忆：用户严禁使用 Any 类型 [explicit]`);
       setChatEvidence({
         conclusions: mockConclusions.slice(0, 1),
-        messages: [{
-          message_id: 'mock_msg_1',
-          session_id: 'sess_fallback',
-          role: 'user',
-          snippet: chatQuery,
-        }],
-        tool_calls: [{
-          tool_name: 'query_conclusions',
-          tool_input: { query: chatQuery },
-          tool_output_snippet: '1 conclusion matched',
-        }],
+        messages: [
+          {
+            message_id: 'mock_msg_1',
+            session_id: 'sess_fallback',
+            role: 'user',
+            snippet: chatQuery,
+          },
+        ],
+        tool_calls: [
+          {
+            tool_name: 'query_conclusions',
+            tool_input: { query: chatQuery },
+            tool_output_snippet: '1 conclusion matched',
+          },
+        ],
       });
       showToast('使用降级证据链模拟响应');
     } finally {
@@ -213,7 +219,9 @@ export const ConclusionAttributionStudioCard: React.FC<
   };
 
   const filteredItems = conclusions.filter((c) => {
-    if (filterLevel === 'all') return true;
+    if (filterLevel === 'all') {
+      return true;
+    }
     return c.level.toLowerCase() === filterLevel.toLowerCase();
   });
 
@@ -223,9 +231,7 @@ export const ConclusionAttributionStudioCard: React.FC<
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Network className="w-5 h-5 text-indigo-500" />
-          <h3 className="font-semibold text-foreground text-base">
-            记忆结论归因与证据链可视化工作台
-          </h3>
+          <h3 className="font-semibold text-foreground text-base">记忆结论归因与证据链可视化工作台</h3>
           <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-mono">
             Item 141 · P1
           </span>
@@ -258,7 +264,10 @@ export const ConclusionAttributionStudioCard: React.FC<
         <div className="p-3 bg-muted/40 rounded-lg border border-border/50">
           <div className="text-xs text-muted-foreground">直接事实 / 衍生推论</div>
           <div className="text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">
-            {metrics.explicit_count} <span className="text-xs text-muted-foreground font-normal">/ {metrics.deductive_count + metrics.inductive_count}</span>
+            {metrics.explicit_count}{' '}
+            <span className="text-xs text-muted-foreground font-normal">
+              / {metrics.deductive_count + metrics.inductive_count}
+            </span>
           </div>
         </div>
         <div className="p-3 bg-muted/40 rounded-lg border border-border/50">
@@ -352,7 +361,7 @@ export const ConclusionAttributionStudioCard: React.FC<
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(c, false)}
+                    onClick={() => handleDelete(c)}
                     aria-label={`删除${c.id}`}
                     title="安全删除 (Delete)"
                     className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-destructive transition-colors"
@@ -411,15 +420,19 @@ export const ConclusionAttributionStudioCard: React.FC<
             <div className="space-y-2 text-xs">
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">风险等级:</span>
-                <span className={`px-2 py-0.5 rounded font-bold font-mono ${
-                  rippleReport.severity === 'critical' || rippleReport.severity === 'high'
-                    ? 'bg-destructive/10 text-destructive'
-                    : 'bg-emerald-500/10 text-emerald-600'
-                }`}>
+                <span
+                  className={`px-2 py-0.5 rounded font-bold font-mono ${
+                    rippleReport.severity === 'critical' || rippleReport.severity === 'high'
+                      ? 'bg-destructive/10 text-destructive'
+                      : 'bg-emerald-500/10 text-emerald-600'
+                  }`}
+                >
                   {rippleReport.severity.toUpperCase()}
                 </span>
                 <span className="text-muted-foreground">波及推论数:</span>
-                <span className="font-mono font-bold text-foreground">{rippleReport.impacted_conclusion_ids.length}</span>
+                <span className="font-mono font-bold text-foreground">
+                  {rippleReport.impacted_conclusion_ids.length}
+                </span>
               </div>
               <p className="text-muted-foreground">{rippleReport.explanation}</p>
             </div>
@@ -459,7 +472,8 @@ export const ConclusionAttributionStudioCard: React.FC<
             {chatEvidence && (
               <div className="pt-2 border-t space-y-1.5 font-mono text-[11px]">
                 <div className="text-indigo-600 dark:text-indigo-400 font-semibold">
-                  📦 Verifiable Evidence Package ({chatEvidence.conclusions.length} 条依据结论 / {chatEvidence.messages.length} 条溯源消息)
+                  📦 Verifiable Evidence Package ({chatEvidence.conclusions.length} 条依据结论 /{' '}
+                  {chatEvidence.messages.length} 条溯源消息)
                 </div>
                 {chatEvidence.conclusions.map((ec) => (
                   <div key={ec.id} className="text-muted-foreground pl-2 border-l-2 border-indigo-500/30">

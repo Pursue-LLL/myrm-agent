@@ -1864,7 +1864,12 @@
       "copyFailed": "複製失敗，請檢查剪貼簿權限",
       "readBlocked": "讀取剪貼簿已被拒絕，請在設定中更改",
       "readRefused": "已拒絕讀取剪貼簿",
-      "readFailed": "讀取剪貼簿失敗，請檢查權限"
+      "readFailed": "讀取剪貼簿失敗，請檢查權限",
+      "readPermissionTitle": "剪貼簿權限請求",
+      "readPermissionPrompt": "應用程式請求讀取您的剪貼簿內容，是否允許？",
+      "readPermissionRemember": "允許後將不再提示。",
+      "readPermissionAllow": "允許",
+      "readPermissionDeny": "拒絕"
     }
   },
   "chat": {
@@ -5332,6 +5337,9 @@
         "files": "個檔案",
         "noCommits": "未偵測到近期的 Commit 歷史",
         "gitUnavailable": "目前工作區未偵測到 Git 倉庫"
+      },
+      "conclusionAttribution": {
+        "deleteConfirm": "確定刪除結論「{id}」？"
       }
     },
     "createDialog": {

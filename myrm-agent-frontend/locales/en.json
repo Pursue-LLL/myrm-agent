@@ -1888,7 +1888,12 @@
       "copyFailed": "Copy failed. Check clipboard permissions.",
       "readBlocked": "Clipboard access was denied. Change this in settings.",
       "readRefused": "Clipboard access denied",
-      "readFailed": "Failed to read the clipboard. Check permissions."
+      "readFailed": "Failed to read the clipboard. Check permissions.",
+      "readPermissionTitle": "Clipboard access request",
+      "readPermissionPrompt": "This app wants to read your clipboard. Allow it?",
+      "readPermissionRemember": "You will not be asked again once you allow it.",
+      "readPermissionAllow": "Allow",
+      "readPermissionDeny": "Deny"
     }
   },
   "chat": {
@@ -5400,6 +5405,9 @@
         "files": "files",
         "noCommits": "No recent commit history detected",
         "gitUnavailable": "No Git repository detected in workspace"
+      },
+      "conclusionAttribution": {
+        "deleteConfirm": "Delete conclusion \"{id}\"?"
       }
     },
     "createDialog": {
