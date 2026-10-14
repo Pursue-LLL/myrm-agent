@@ -79,6 +79,7 @@ myrm_agent_harness.agent.meta_tools.mount_policy
 myrm_agent_harness.agent.meta_tools.progress.schemas
 myrm_agent_harness.agent.meta_tools.progress.storage
 myrm_agent_harness.agent.meta_tools.skills.manage
+myrm_agent_harness.agent.meta_tools.skills.manage.batch_runner
 myrm_agent_harness.agent.meta_tools.skills.market
 myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine
 myrm_agent_harness.agent.meta_tools.spawn_subagent
@@ -265,6 +266,7 @@ myrm_agent_harness.infra.sqlite_salvage
 myrm_agent_harness.infra.tls_compat
 myrm_agent_harness.infra.tracing
 myrm_agent_harness.infra.tracing.metrics
+myrm_agent_harness.observability
 myrm_agent_harness.observability.diagnostics.fleet_telemetry
 myrm_agent_harness.observability.diagnostics.gateway_health
 myrm_agent_harness.observability.diagnostics.manager
@@ -316,6 +318,7 @@ myrm_agent_harness.toolkits.browser.action_capture
 myrm_agent_harness.toolkits.browser.captcha
 myrm_agent_harness.toolkits.browser.captcha.protocols
 myrm_agent_harness.toolkits.browser.checkpoint
+myrm_agent_harness.toolkits.browser.doctor
 myrm_agent_harness.toolkits.browser.doctor.orphans
 myrm_agent_harness.toolkits.browser.domain_skills
 myrm_agent_harness.toolkits.browser.observability
