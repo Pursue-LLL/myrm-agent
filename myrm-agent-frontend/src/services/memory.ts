@@ -51,7 +51,6 @@ export * from './memory/memCube';
 export * from './memory/dreamCognitive';
 export * from './memory/memoryLineage';
 export * from './memory/quadrupleRetrieval';
-export * from './memory/liveCorrection';
 export * from './memory/sqliteVec';
 export * from './memory/vectorSpaceGuard';
 export * from './memory/markdownChunker';

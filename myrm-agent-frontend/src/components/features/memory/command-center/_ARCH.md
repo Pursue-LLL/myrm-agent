@@ -146,12 +146,6 @@
 | `QuadrupleRecallMatrixView.tsx` | 辅助 | 四路并行召回矩阵看板：直观展示 Graph 拓扑、Vector 稠密、Lexical 词法与 Metadata 过滤四通道命中量与融合增益 | ✅    |
 | `ReasonerHarmonizerCard.tsx` | 辅助 | 推理重排单项条目卡片：展示排名、多通道徽章、Reasoner 裁决徽章（Boost/Keep/Stale Penalty/Suppress）与可展开审计推导 | ✅    |
 | `quadrupleRetrievalFallbacks.ts` | 辅助 | 目标驱动四路并行检索离线与单测仿真数据集 | ✅    |
-| `LiveCorrectionStudioCard.tsx` | 核心 | 自然语言交互式记忆反馈与即时重校工作台卡片：对标 MemOS Feedback 与 mem_feedback 模块，支持对话中一键纠正偏见与失误、语义槽位提取、冲突定位对比与用户应答回执 | ✅    |
-| `LiveCorrectionHudBar.tsx` | 辅助 | 实时记忆重校 3 维 HUD 监控条：呈现重校引擎运行状态、活跃候选记忆数、累积已生效纠错数与重置动作 | ✅    |
-| `CorrectionIntentDetectorView.tsx` | 辅助 | 自然语言纠错指令输入与语义槽位分析视图：支持快捷预设指令点击、多意图分类、新断言/否定值/主体/置信度白盒提取 | ✅    |
-| `ConflictLocalizationComparisonView.tsx` | 辅助 | 记忆冲突定位与状态机演进视图：呈现活跃候选记忆节点、命中定位指示、Supersede/Retract/Amend 转换前后 Diff 对比 | ✅    |
-| `LiveCorrectionReceiptCard.tsx` | 辅助 | 即时重校执行回执卡片：呈现对话助手自然语言应答确认气泡、端到端耗时与不可篡改审计追踪键值项 | ✅    |
-| `liveCorrectionFallbacks.ts` | 辅助 | 自然语言交互式记忆反馈与即时重校离线与单测仿真数据集 | ✅    |
 | `SqliteVecStudioCard.tsx` | 核心 | 基于SQLite与sqlite-vec的嵌入式轻量向量存储工作台卡片：对标 OpenClaw 嵌入式存储方案，展示单文件零容器自包含引擎指标、Native SIMD vec0/Process BLOB 双轨模式与时间衰减稠密检索 | ✅    |
 | `SqliteVecHudBar.tsx` | 辅助 | SQLite-Vec 向量引擎 4 维 HUD 监控条：呈现引擎双轨运行模式、文件体积、向量集合数、存储文档总数与指标刷新 | ✅    |
 | `SqliteVecQueryConsoleView.tsx` | 辅助 | 稠密向量近邻检索控制台：支持配置测试查询向量、艾宾浩斯时间半衰期衰减开关与相似度过滤阈值 | ✅    |

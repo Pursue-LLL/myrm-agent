@@ -84,7 +84,6 @@ import { MemoryCubeStudioCard } from './MemoryCubeStudioCard';
 import { DreamCognitiveStudioCard } from './DreamCognitiveStudioCard';
 import { MemoryLineageStudioCard } from './MemoryLineageStudioCard';
 import { QuadrupleRetrievalStudioCard } from './QuadrupleRetrievalStudioCard';
-import { LiveCorrectionStudioCard } from './LiveCorrectionStudioCard';
 import { SqliteVecStudioCard } from './SqliteVecStudioCard';
 import { VectorSpaceGuardStudioCard } from './VectorSpaceGuardStudioCard';
 import { MarkdownChunkerStudioCard } from './MarkdownChunkerStudioCard';
@@ -356,9 +355,6 @@ export const UnderstandSection = ({
 
     {/* Goal-Driven Quadruple Retrieval & Reasoner Studio Card (Item 127 P1) */}
     <QuadrupleRetrievalStudioCard />
-
-    {/* Natural Language Memory Feedback & Live Correction Studio Card (Item 128 P0) */}
-    <LiveCorrectionStudioCard />
 
     {/* SqliteVec Embedded Zero-Dependency Vector Store Studio Card (Item 130 P0) */}
     <SqliteVecStudioCard />

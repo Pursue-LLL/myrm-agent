@@ -98,9 +98,6 @@ from app.api.memory.job_compounding_router import (
 from app.api.memory.kg_screening_router import (
     router as kg_screening_router,
 )
-from app.api.memory.live_correction_router import (
-    router as live_correction_router,
-)
 from app.api.memory.markdown_chunker import (
     router as markdown_chunker_router,
 )
@@ -349,10 +346,6 @@ router.include_router(
 router.include_router(
     quadruple_retrieval_router,
     tags=["memory-quadruple-retrieval"],
-)
-router.include_router(
-    live_correction_router,
-    tags=["memory-live-correction-suite"],
 )
 router.include_router(
     space_guard_router,
