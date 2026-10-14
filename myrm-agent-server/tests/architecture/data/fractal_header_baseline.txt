@@ -176,8 +176,6 @@ app/middleware/text_sanitizer_middleware.py
 app/middleware/ws_auth.py
 app/platform_utils/__init__.py
 app/platform_utils/execution.py
-app/platform_utils/local/file_service.py
-app/platform_utils/protocols.py
 app/platform_utils/sandbox/__init__.py
 app/platform_utils/sandbox/entitlements/__init__.py
 app/platform_utils/sandbox/entitlements/entitlement_guard.py

@@ -11,13 +11,13 @@
     from app.platform_utils import database_engine, session_factory
 
 特点：
-- 类型安全的 getter 函数（返回具体类型 / Protocol）
+- 类型安全的 getter 函数（返回具体类型）
 - 延迟加载（首次访问时才创建，后续 O(1)）
-- 零 cast，Protocol 接口约束
+- 零 cast
 """
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from app.config.deploy_mode import get_deploy_mode
 from app.config.deploy_mode import is_local_mode as _is_local_mode
@@ -32,13 +32,11 @@ if TYPE_CHECKING:
 
     from app.core.artifacts.processor import BaseArtifactProcessor
     from app.platform_utils.execution import ExecutionStrategy
-    from app.platform_utils.protocols import FileService
 
     database_engine: AsyncEngine
     session_factory: async_sessionmaker[AsyncSession]
     sandbox_executor_factory: Callable[..., CodeExecutor]
     storage_provider: StorageProvider
-    file_service: FileService
     checkpointer: BaseCheckpointSaver[str]
     execution_strategy: ExecutionStrategy
 
@@ -56,7 +54,6 @@ _database_engine: "AsyncEngine | None" = None
 _session_factory: "async_sessionmaker[AsyncSession] | None" = None
 _sandbox_executor_factory: "Callable[..., CodeExecutor] | None" = None
 _storage_provider: "StorageProvider | None" = None
-_file_service: "FileService | None" = None
 _checkpointer: "BaseCheckpointSaver[str] | None" = None
 
 # =============================================================================
@@ -116,7 +113,8 @@ def get_sandbox_executor_factory() -> "Callable[..., CodeExecutor]":
 def get_storage_provider() -> "StorageProvider":
     """获取存储提供商
 
-    返回框架层全局存储单例：存在 /persistent 目录时为 PersistentStorageBackend，否则为 LocalStorageBackend。
+    返回框架层全局存储单例（LocalStorageBackend，根目录 {MYRM_DATA_DIR}/storage）；
+    沙箱模式由部署层把 MYRM_DATA_DIR 指向持久卷，所有存储 key 都落在该卷内。
     """
     global _storage_provider
     if _storage_provider is None:
@@ -126,26 +124,6 @@ def get_storage_provider() -> "StorageProvider":
 
         _storage_provider = _fw_get()
     return _storage_provider
-
-
-# =============================================================================
-# 文件服务
-# =============================================================================
-
-
-def get_file_service() -> "FileService":
-    """获取文件服务
-
-    根据 DEPLOY_MODE 返回对应的文件服务：
-    - 所有模式均统一使用本地文件服务（LocalFileService），沙箱即存储，无需上传云端
-    """
-    global _file_service
-    if _file_service is None:
-        from app.platform_utils.local.file_service import LocalFileService
-
-        _file_service = cast("FileService", LocalFileService())
-    assert _file_service is not None
-    return _file_service
 
 
 # =============================================================================
@@ -274,8 +252,6 @@ def __getattr__(name: str) -> object:
         return get_sandbox_executor_factory()
     elif name == "storage_provider":
         return get_storage_provider()
-    elif name == "file_service":
-        return get_file_service()
     elif name == "checkpointer":
         return get_checkpointer()
     elif name == "execution_strategy":
@@ -294,7 +270,6 @@ __all__ = [
     "session_factory",
     "sandbox_executor_factory",
     "storage_provider",
-    "file_service",
     "checkpointer",
     "get_artifact_processor",
     "get_database_engine",
@@ -302,7 +277,6 @@ __all__ = [
     "reset_database_engine",
     "get_sandbox_executor_factory",
     "get_storage_provider",
-    "get_file_service",
     "get_checkpointer",
     "set_checkpointer",
     "_reset_checkpointer_for_testing",

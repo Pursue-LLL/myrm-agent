@@ -24,7 +24,6 @@
     |------------------|-------------------------------|--------------------------------------|
     | 访问控制         | 回环请求直接放行             | SANDBOX_API_KEY 单租户访问             |
     | 存储后端         | LocalStorageBackend           | LocalStorageBackend（指向持久化Volume）|
-    | 文件服务         | LocalFileService              | LocalFileService（本地沙箱存储）        |
     | 产出物处理       | LocalArtifactProcessor        | LocalArtifactProcessor（本地记录）      |
     | 配置加密         | 明文存储                      | AES-256-GCM 加密                     |
     | 路由注册         | 全功能（通道管理/Events）     | 裁剪（由 CP 管理）                   |
