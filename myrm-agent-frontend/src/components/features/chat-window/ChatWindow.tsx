@@ -51,6 +51,7 @@ import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 import Chat from './Chat';
+import { isChatRouteHydratedForId, subscribeChatRouteHydrated } from './chatRouteHydration';
 import { DualModeContainer } from '../work-layout';
 import { ExtensionUIModal } from '../extension-ui';
 import { TieredRiskGateContainer } from '../risk-approval';
@@ -96,34 +97,6 @@ interface ChatWindowProps {
   id?: string;
 }
 
-function isChatRouteHydratedForId(chatId: string | undefined): boolean {
-  if (!chatId) {
-    return false;
-  }
-  const state = useChatStore.getState();
-  return (
-    state.chatId === chatId &&
-    state.isMessagesLoaded &&
-    (state.messages.length > 0 || Boolean(state.compactedSummary?.trim()))
-  );
-}
-
-function subscribeChatRouteHydrated(chatId: string | undefined, onStoreChange: () => void): () => void {
-  if (!chatId) {
-    return () => {};
-  }
-  return useChatStore.subscribe((state, prevState) => {
-    const nextReady = isChatRouteHydratedForId(chatId);
-    const prevReady =
-      prevState.chatId === chatId &&
-      prevState.isMessagesLoaded &&
-      (prevState.messages.length > 0 || Boolean(prevState.compactedSummary?.trim()));
-    if (nextReady !== prevReady) {
-      onStoreChange();
-    }
-  });
-}
-
 const ChatWindow = ({ id }: ChatWindowProps) => {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -147,20 +120,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const [activeTab, setActiveTab] = useState<'chat' | 'trace'>('chat');
   const recoveryT = useTranslations('recovery');
 
-  useEffect(() => {
-    if (!id) {
-      return;
-    }
-    return useChatStore.subscribe((state) => {
-      if (
-        state.chatId === id &&
-        state.isMessagesLoaded &&
-        (state.messages.length > 0 || Boolean(state.compactedSummary?.trim()))
-      ) {
-        setRouteHydrationEpoch((epoch) => epoch + 1);
-      }
-    });
-  }, [id]);
+  // The chat view is re-created when the conversation finishes loading; any other store write must leave it mounted.
+  useEffect(() => subscribeChatRouteHydrated(id, () => setRouteHydrationEpoch((epoch) => epoch + 1)), [id]);
 
   useEffect(() => {
     useExtensionUIStore.getState().setChatId(id || null);
