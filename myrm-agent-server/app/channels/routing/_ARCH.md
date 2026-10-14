@@ -143,6 +143,10 @@ trigger and logs a warning, because the consume loop has no per-message guard).
 - Not applied, on purpose: the member quota and `BotLoopGuard`; both cap chat turns, not trigger matching.
 - Not checked: `POST /cron/trigger/event` under the API prefix (`api/cron/routes/triggers.py`), an authenticated REST
   call that carries no sender.
+- Not carried over: the untrusted-ingress fence that chat turns apply to members and guests
+  (`core/channel_bridge/agent_executor/executor.py`). A triggered job does not apply it, and the matched message text
+  is appended to the job prompt after the injection scan (`core/cron/adapters/agent_runner.py`). Admission decides who
+  may start a job, not what the message may steer.
 
 The verdict and the resolvers read the same LID-to-phone mapping (`lid_mapped_phone` in `policy_resolver_support.py`);
 only the resolvers go on to bind it. `tests/channels/routing/test_sender_admission.py` runs the verdict and the real
