@@ -1890,3 +1890,61 @@ except Exception:
 6. 局限：没有取得浏览器级别的视觉检查（卡片去掉预测段后的布局、安全徽章新措辞在深浅主题下的显示）；人工修订路径把任何发现都判为扫描未通过，自动流只拒绝 critical，两条路径的严格程度不同，没有统一；发现详情面板仍显示 `threat_type` 原始标识与扫描器的英文描述；`DROP TABLE` 只覆盖升级库与全新库的两个夹具，没有在桌面包里实测；`tests/architecture` 仍有他人未提交改动造成的失败（路由消费者、API 服务词汇、包初始化、前端 API 路径、harness 导入基线的新增项），没有一条指向本次删除的符号；`tests/api/skills/test_curator.py` 的 4 例失败来自他人未提交的 `curator/service.py`；新增的 de / ja / ko / zh-TW 译文只经过机器门禁；服务端提交依赖 harness 提交 `645607acb1`，harness 发版后要同步锁文件。
 
 ---
+
+## BUG-AGENT-2026-10-14-013: 技能库满载后删除技能也不会恢复自动学习，满载提示发给了没人连接的 WebSocket；待审核页的容量条自己写死 50 条；版本历史把内部标识原样印给用户；影子 A/B 删除后公开文档、路线图与官网仍在宣称它
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（技能库满载后用户删掉技能也不会恢复自动学习，且全程没有任何提示；公开材料仍在宣称已删除的验证闸门；不影响数据） |
+| 影响范围 | harness `agent/skills/evolution/core/budget_governor.py`、`agent/skills/evolution/db/store_queries.py`；服务端 `app/services/agent/evolution/engine.py`、`app/services/skills/evolution_events.py`、`app/services/event/app_event_bus.py`、`app/api/router.py`（删除 `app/api/skills/ws_evolution.py`、`app/services/skills/ws_hub.py`）；前端 `hooks/globalEvents/`、`lib/skills/versionOrigin.ts`、`PendingEvolutionsDashboard`、`SkillVersionsPanel`、六种语言文案；品牌仓库的公开文档与官网文案；根仓库优势材料与路线图 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-14-009`（影子 A/B 整条链的删除；本条补齐它遗留的容量规则、公开文档、官网与路线图表述）、`BUG-AGENT-2026-10-14-012`；提交 harness `d46a104e1`、myrm-agent `dcdf55a512` / `00ac99ccf3` / `ef6148e871`、品牌仓库 `a40d61da`、根仓库 `c67375633`，本地提交，未 push |
+
+### 现象
+
+1. 技能库达到上限后自动学习会暂停，但用户删除或归档技能并不能解除：容量按进化库 `skills.db` 里的记录计算，而删除、归档只动安装目录，从不触碰进化库，所以库会一直满着；
+2. 满载提示是向 `/ws/evolution` 广播的，前端、桌面端与扩展里没有任何代码连接这个地址（旧提交里前端只有发布、语音、浏览器录制三类 `new WebSocket`），用户从头到尾看不到「已暂停」；
+3. 每个满足触发条件的对话回合，都会把进化库里所有技能正文逐个计 token，再与 40,000 token 的上限、80% 软阈值比较；技能正文按需加载、并不进系统提示，这个上限与提示词成本无关；容量检查失败时只记 debug 日志；
+4. 待审核页的容量条把上限写死为 50，计数用的是本地技能列表长度，与服务端判定用的不是同一个集合；
+5. 版本历史每一行把服务端写入的 `created_by` 原样印出来（`agent_meta_tool`、`evolution_engine`、`batch_import`），`createdByLlm` 的文案还写着「LLM 优化」；
+6. 影子 A/B 链删除后，公开的技能演进文档（英 / 中 / 韩）仍把「A/B 测试」列为安全层，竞品对比页对技能库容量的描述与代码不符，官网评价文案、内部优势材料和路线图里也还有已不存在的说法。
+
+### 根因
+
+1. 容量规则同时按条数与 token 计量，数据源是进化库而不是用户当前看得到、删得掉的技能集合，删除与归档没有回写进化库；
+2. 满载提示沿用了 WebSocket 中枢推送，加推送时没有核实有没有订阅端；
+3. 把 token 上限当成「提示词预算」，但技能正文按需加载，上限量的是另一件事，却每回合付出全量分词的代价；
+4. 前端自己画了一个容量条，常量与计数口径都与服务端各算各的；
+5. 展示层直接取了存储字段；
+6. 删除一条链时只清了代码，没有把公开文档、官网、路线图当成同一次删除的一部分。
+
+### 修复
+
+1. harness `d46a104e1`：`SkillBudgetGovernor.check_budget(evolution_type, current_count)` 改为纯函数，只按数量（默认上限 50）判定，修复类进化（FIX / OPTIMIZE_DESCRIPTION）不受限；删除 token 上限、软阈值、冷技能识别与 `cold_storage_days`；`store_queries` 新增 `count_active_skills`（`COUNT(*)`，与读取活跃技能共用同一个过滤条件）；
+2. 服务端 `dcdf55a512`：`check_skill_budget_before_evolution` 先用 `COUNT(*)` 取数，只有达到上限时才对照实际已安装且未归档的技能（`describe_skill_lifecycle`）核对一次，所以删除、归档后会自动恢复学习；存储不可读时放行并记 WARNING；满载时对该 agent 作用域只发布一次 `SKILL_CAPACITY_REACHED`（全局 SSE），容量释放后再次填满才会重新提示；删除没有订阅端的 `/ws/evolution` 与 `ws_hub`，进化触发与运行时里的 ws 推送一并去掉；
+3. 前端 `dcdf55a512`：新增 `hooks/globalEvents/skillCapacityToast.ts`，收到事件弹一条可替换的本地化 toast（只展示上限数量，不展示服务端措辞与 agent 标识），操作直达「技能管理」；删除待审核页的容量徽标与横幅；六种语言补 `notifications.skillCapacityReached` / `skillCapacityReachedHint` / `manageSkills`；
+4. 前端 `00ac99ccf3`：新增 `lib/skills/versionOrigin.ts`，把 `created_by` 映射为本地化的来源名称（Agent 修改 / 手动编辑 / 技能成长 / 回滚 / 导入 / AI 优化），未知来源直接省略，不展示原始标识；`createdByLlm` 由「LLM 优化」改为「AI 优化」，六种语言同步；
+5. 文档 `ef6148e871`、品牌仓库 `a40d61da`、根仓库 `c67375633`：公开的技能演进文档（英 / 中 / 韩）把「A/B 测试」换成代码里真实存在的「改进闸门」（派生路径把原技能作为基线候选）；竞品对比页把 50 个上限写成数量并说明满载提示，同时去掉一句与技能演进无关、无出处的端到端测试说法；官网评价文案、内部优势材料与路线图同步去掉已不存在的说法；`skill_optimization` 包的文档串与 fractal 头部基线里的影子链残留一并清掉。
+
+### 验证
+
+1. harness：`tests/agent/skills/evolution` 393 通过（含按数量判定、修复类放行、`count_active_skills` 与过滤条件一致的用例）；
+2. 服务端：容量守卫、实时核对、事件发布、进化运行时、进化引擎任务 5 个测试文件共 28 通过；
+3. 前端：`hooks/globalEvents`、`lib/skills`、`components/features/skills` 33 个测试文件 198 例通过（新增 `skillCapacityToast.test.ts` 5 例、`versionOrigin.test.ts` 11 例）；
+4. `verify-i18n` 六种语言的键对齐、占位符、术语与翻译壳检查通过；`verify-i18n-references` 目前仍报 53 个他人组件的缺失键，没有一条属于本次涉及的文件或键；
+5. Prompt Cache：`scripts/measure_turn1_token_inventory.py --json` 的输出与改动前基线逐字段相等（15 个工具、工具小计 6,438 token），系统提示、工具定义与已绑定技能均未改动；`tests/architecture/test_prompt_token_budget_gate.py` 3 例通过；
+6. 容量检查耗时（单次实测，机器负载约 40，进化库 60 条记录）：未满时 0.491 毫秒，满载并核对实际技能时 18.701 毫秒/次；
+7. Chrome E2E 未通过：按正式流程（`./myrm ready --attach --chrome` → `e2e-context launch-check` → `./myrm test -m chrome_e2e`）对 `test_growth_center_chrome_e2e.py::test_growth_center_stats_and_lazy_detail_in_real_ui`（它打开的正是本次改过的 `PendingEvolutionsDashboard` 所在页面）试跑 5 次，没有一次通过：第 1 次页面里成长面板始终没有出现（9 分 36 秒）；第 2、5 次页面脚本最慢的块加载 89 秒左右，React 桥接在期限内没有就绪（各约 4 分钟，第 5 次结束时机器负载均值 107）；第 3 次私有 epoch 后端 43 秒内没有对齐，第 4 次共享热池恢复期内附加失败，这两次测试体都没有启动。试跑间隙对同一路由的 GET 返回 200（0.9 秒），57 个脚本块串行取完 128 秒（负载均值 77），测试匹配的文案（`Skill Growth` / `Total Cases` / `Pending Review`）与 `locales/en.json` 一致；失败发生在脚本加载阶段，不是断言内容，这既不能证明本次改动有问题，也不能当作通过；
+
+### 踩坑经验
+
+1. 「删除」必须写回计算容量的那份数据：容量按 A 处计数、用户在 B 处删除，规则就永远不会松开；改成数量规则之后，达到上限时还要对照实际技能核对一次，否则同样的问题只是换了个数字；
+2. 为保护提示词而设的 token 上限，量的却是按需加载的正文，每回合付出全量分词的代价、拿不到任何保护；与其调参数，不如删掉这条规则；
+3. 往没人订阅的通道推送等于没推送，加推送前先搜订阅端；这次的 `/ws/evolution` 从后端到前端没有一个连接方；
+4. 删除一条链要把公开文档、官网、路线图与基线文件当成同一次改动；影子 A/B 删除后，三处公开文案仍在宣称它；
+5. 共享工作区里同一批文件带着他人的未提交改动：提交时用「HEAD 文本 + 精确锚点替换」生成，再核对文件集合与残留 hunk，而不是挑 hunk 或整文件提交；
+6. 局限：Chrome E2E 没有通过（见验证 7），现有 E2E 也没有一条覆盖满载 toast 与版本历史的来源标签；没有做浏览器级别的视觉检查（满载 toast、版本历史新标签在深浅主题下的显示）；新增的 de / ja / ko / zh-TW 译文只经过机器门禁；删除 `/ws/evolution` 后待人工审核的提案没有实时通知（旧的推送本来就没人接收，需要用户打开页面才看到，没有补 SSE）；待审核页的容量条是删除而不是改成服务端下发，要不要在页面上保留容量表是产品决定；服务端提交依赖 harness 提交 `d46a104e1`，harness 发版后要执行 `./myrm harness sync-lock`；`fractal_header_baseline.txt` 里另有 5 条他人删除文件留下的过期项（`api/skill_optimization/routes/{dashboard,optimization,system}.py`、`api/skills/{audit,quality}.py`）未动，对门禁无害；`SKILL_EVOLUTION_ADVANTAGE.md` 里带日期的测试结果表与 `de/auto-translated-overrides.json` 里已删词条的过期项没有改；`verify-i18n-references` 的 53 个缺失键来自他人组件，仍在，非本次引入。
+
+---
