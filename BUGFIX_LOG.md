@@ -2342,3 +2342,60 @@ except Exception:
 4. 共享工作区里不要对目录批量格式化：只格式化自己改的文件。
 
 ---
+
+## BUG-AGENT-2026-10-14-021: 看板里失败的任务没有任何可用的重试入口（菜单与抽屉里的「移至就绪」必被服务端拒绝），拖到不可能的列要等服务端报错且把服务端原文印给用户；归档（单个与批量）没有确认；确认对话框遇到无空格长标题会撑破；三处原生对话框写死中文
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（任务耗尽重试预算后，人在界面里无路可走；其余为误导性提示与缺失的二次确认） |
+| 影响范围 | harness：`toolkits/kanban/retry.py`（新增）、`dispatcher_failure.py`、`_orchestrator_tools.py`（提交 `f3057d1a9`）；server：`app/services/kanban/retry_ops.py`（新增）、`service_mixins/board_task_mixin.py`、`app/api/kanban/routes/tasks.py`（提交 `d420921820`）；frontend：`kanban-transitions.ts`（新增）、`useKanbanTaskActions.ts`（新增）、`KanbanTaskActionConfirm.tsx`、`KanbanBoardView.tsx`、`useKanbanDnD.ts`、`KanbanTaskCardActions.tsx`、`KanbanTaskDrawer*.tsx`、`KanbanBulkActionBar.tsx`、`app-shell/confirm-dialog.tsx`、`lib/utils/clipboardUtils.ts`、`memory/command-center/ConclusionAttributionStudioCard.tsx`、6 个语言包 |
+| 出现次数 | 1（读代码 + 单元 / 集成测试 + 生产构建在真实 Chrome 里对着模拟接口复核；未对真实服务端与真实模型端到端） |
+| 关联 | — |
+
+### 现象
+
+1. 失败任务的卡片菜单与抽屉头部提供「移至就绪」（`kanban-styles.ts:11` 原为 `failed: ['ready', 'archived']`），而服务端守卫在 `move_orchestrator.py` 里拒绝手动移出终态（`task.is_terminal and target_status != ARCHIVED`），点了只会得到 409。能把 FAILED 拉回来的只有仅供 Agent 使用的 `kanban_retry_task` 工具：人没有入口，重置、READY 流转与审计事件的实现也只存在于工具与分发器两处。
+2. 把卡片拖到服务端必然拒绝的列（终态任务拖到归档以外的任何列、草稿池任务拖到执行中、IN_REVIEW 的进出等）要等请求回来才失败，提示直接显示服务端原文；多选拖拽则逐个报同样的错。
+3. 归档与批量归档没有确认，归档后任务离开看板，界面里没有恢复入口。
+4. 确认对话框的描述含用户任务标题，标题是无空格长串时撑破对话框。
+5. 剪贴板读取授权的桌面端对话框、浏览器端 `confirm`、结论删除确认三处写死中文。
+
+### 根因
+
+1. 前端的「可移动状态」表与服务端守卫是两份互不知晓的拷贝；重试这件事没有共享实现，调用方只有一个 Agent 工具。
+2. 前端没有镜像服务端守卫；失败提示把 `err.message` 直通 toast。
+3. 归档被当作普通移动，走与其它列相同的无确认路径。
+4. 对话框描述缺 `overflow-wrap:anywhere`。
+5. 文案直接写在 `ask()` / `window.confirm()` 调用里。
+
+### 修复
+
+1. harness：`retry_failed_task` 持有重置、`FAILED→READY` 的 CAS 与 `RETRYING` 审计事件；按 store 的 `asyncio.Lock` 串行化重复提交；重置在任务仍为 FAILED 时先落库，其后才做 CAS，工作线程紧接着认领时不会被覆盖。`KanbanDispatcher.retry_task` 只在真正生效时发 `task_retrying` 并唤醒分发器；`kanban_retry_task` 委托它，工具 schema、docstring 与错误文案逐字不变。
+2. server：`POST /api/v1/kanban/tasks/{id}/retry`，任务不存在返回 404，非 FAILED 的任务原样返回 200（重复提交幂等）；手动移出 FAILED 仍被拒绝，重试是唯一回路。
+3. frontend：`kanban-transitions.ts` 的 `resolveMoveIntent` 镜像服务端守卫，返回 `move / retry / archive / blocked`；卡片菜单、抽屉、拖拽三条路径都经 `requestMove`，重试与归档弹确认，`failed→ready` 变成「重试」；拖拽先排除不可能的目标并给本地化提示（只有 `deps_unmet` 用专门文案，其它一律通用文案，不再显示服务端原文）；批量归档用与批量删除一致的行内确认；`ConfirmDialog` 描述加 `wrap-anywhere`；批量操作栏加 `whitespace-nowrap` 与子项不收缩，窄屏下整条横向滚动而不是把按钮文字竖排。
+4. 三处写死中文的对话框改走 i18n；`ConclusionAttributionStudioCard` 里无调用方的 `cascade` 参数及其「级联模式」措辞一并移除。6 个语言包同步新增键。
+
+### 验证
+
+1. 测试：harness `tests/toolkits/kanban/test_retry.py` 15 例通过；server `tests/api/kanban/test_retry_api.py` 8 例通过；frontend 新增 `kanban-transitions`、`useKanbanDnDBlocking`、`KanbanTaskDrawerMove`、`KanbanBulkActionBar`、`KanbanBoardView`、`confirm-dialog` 六个测试文件并修改既有相关测试。最后一次受影响目录的 vitest：165 个文件、1636 例全部通过（此前整库一次：1393 个文件、9868 例通过）。
+2. 变异检查：拿掉拖拽预拦截与确认闸门，19 例失败；拿掉看板对 `requestMove` 的接线，4 例失败；两次均已还原并比对。
+3. 真实 Chrome（生产构建，隔离输出目录，模拟接口复现服务端守卫语义；覆盖桌面浅色与深色、375px 深色、中文与英文，不是全部组合）：失败卡片菜单变为「任务详情 / 重试 / 归档 / 删除」；重试确认后实际发出 `POST /kanban/tasks/{id}/retry`（不是 `/move`），卡片离开失败列进入就绪列并出现成功提示；取消不发任何请求；抽屉头部「重试」关闭抽屉后弹出同一个确认并发出同一个请求；失败卡片拖到执行中弹出「该任务不能移到该状态」且没有请求，拖到就绪弹出重试确认，已完成卡片拖到就绪同样被拦；就绪卡片拖入失败仍走原终态确认。归档确认里的 140 多字符无空格标题在 375px 对话框内换行，对话框与文档均无横向溢出；编译产物含 `.wrap-anywhere{overflow-wrap:anywhere}`。批量归档行内确认在 1440px 下全部按钮可点击（仅末尾「取消选择」图标被全局悬浮入口遮住），375px 下「确认 / 取消」位于操作条可见区域内（但整条被悬浮入口部分遮挡，见局限）。英文下重试确认、归档确认与拖拽拦截提示正常显示，没有缺失键。
+4. 静态：改动文件 oxlint 与 prettier 干净；`tsc` 仅剩他人未提交文件 `KanbanTaskHandoffSection.test.tsx(68,3)` 的一处错误；harness 改动文件的 ruff / mypy 干净，行数闸门基线已更新。
+5. 局限：
+   - 浏览器复核用的是模拟接口，不是真实服务端与真实模型；重试后任务真正被认领执行的链路由 harness 与 server 测试覆盖，没有在真实桌面部署上端到端跑过。
+   - OSS CI 使用 PyPI 固定的 `myrm-agent-harness==0.1.0rc5`，server 新路由要在 CI 里生效，需要先发布 harness 并执行 `./myrm harness sync-lock`（独立的维护者发布步骤，本次未做）。
+   - `ConclusionAttributionStudioCard` 只本地化了删除确认，其余约 50 处写死中文仍在；`KanbanBulkActionBar.execute` 里原有的 `toast.error(String(e))` 仍会显示原始错误。
+   - 窄屏下批量操作栏与全局悬浮入口（小莫中枢、设计师之眼等）在底部重叠，且多选只能靠 Ctrl / Cmd / Shift 点击，触屏无法选择；均为原有问题，未动。
+   - 当前工作区里他人未提交的 `move_orchestrator.py` 交接（handoff）改动使 `tests/api/kanban/test_kanban_api.py::TestSyntheticRun::test_move_with_result_and_metadata` 失败（断言 `metadata.handoff` 只含 `changed_files`，现多了 `summary`、`timestamp`），与本条无关。
+
+### 踩坑经验
+
+1. 前后端各存一份「允许的流转」时，只要有一份没跟上，界面就会提供一个必然失败的动作；前端镜像服务端守卫并用同一张用例表测，比等服务端报错再翻译错误更便宜。
+2. 面向用户的失败提示不要透传服务端原文：只对有专门语义的错误码（如依赖未满足）给专门文案，其余统一通用文案，细节留在日志里。
+3. 把重试这种「重置 + 状态转移 + 审计」收成一份共享实现，调用方（Agent 工具、REST、GUI）才不会各漏一步；先在任务仍为 FAILED 时落库再做 CAS，避免与紧接着认领的工作线程互相覆盖。
+4. 模拟接口只模拟真实形状：这次复核里应用两次掉进全局错误边界，原因都是模拟接口给某些列表字段返回了对象，不是被验证的代码；排查时先看崩溃栈落在谁的组件里，再决定要不要改被测代码。
+5. 浏览器自动化里 `click` 会等页面空闲，页面有持续动画或重连时可能一直超时；改用聚焦加键盘（也是真实的输入路径）可以绕开，而不是改成合成点击。
+
+---
