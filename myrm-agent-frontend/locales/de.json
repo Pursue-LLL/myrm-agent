@@ -16197,9 +16197,12 @@
         "scoreDelta": "Wertänderung",
         "contentChanged": "Inhalt geändert",
         "contentUnchanged": "Inhalt unverändert",
-        "createdByLlm": "LLM-Optimierung",
+        "createdByLlm": "KI-Optimierung",
         "createdByManual": "Manuelle Bearbeitung",
         "createdByRollback": "Zurücksetzen",
+        "createdByAgent": "Agent-Bearbeitung",
+        "createdBySkillGrowth": "Kompetenzwachstum",
+        "createdByImport": "Importiert",
         "refresh": "Aktualisieren",
         "confirmAction": "Diese Version aktivieren"
       }

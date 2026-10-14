@@ -16872,9 +16872,12 @@
         "scoreDelta": "评分变化",
         "contentChanged": "内容已变更",
         "contentUnchanged": "内容未变更",
-        "createdByLlm": "LLM优化",
+        "createdByLlm": "AI 优化",
         "createdByManual": "手动编辑",
         "createdByRollback": "版本回滚",
+        "createdByAgent": "Agent 修改",
+        "createdBySkillGrowth": "技能成长",
+        "createdByImport": "导入",
         "refresh": "刷新",
         "confirmAction": "激活此版本"
       }

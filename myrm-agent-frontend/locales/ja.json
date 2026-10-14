@@ -16197,9 +16197,12 @@
         "scoreDelta": "スコア変化",
         "contentChanged": "内容変更済み",
         "contentUnchanged": "内容変更なし",
-        "createdByLlm": "LLM最適化",
+        "createdByLlm": "AI 最適化",
         "createdByManual": "手動編集",
         "createdByRollback": "ロールバック",
+        "createdByAgent": "Agent による編集",
+        "createdBySkillGrowth": "スキル成長",
+        "createdByImport": "インポート",
         "refresh": "更新",
         "confirmAction": "このバージョンを有効化"
       }

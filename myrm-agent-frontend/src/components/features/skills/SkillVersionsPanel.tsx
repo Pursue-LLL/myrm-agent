@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
+import { skillVersionOriginLabel } from '@/lib/skills/versionOrigin';
 import { ChevronDown, GitCompare, History, Loader2, RefreshCw, RotateCcw } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -161,7 +162,9 @@ export function SkillVersionsPanel({ skillId, onActivated, className }: SkillVer
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatRelativeTime(v.created_at, appLocale)} · {v.created_by}
+                      {[formatRelativeTime(v.created_at, appLocale), skillVersionOriginLabel(v.created_by, t)]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">

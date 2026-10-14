@@ -16872,9 +16872,12 @@
         "scoreDelta": "Score Change",
         "contentChanged": "Content Changed",
         "contentUnchanged": "Content Unchanged",
-        "createdByLlm": "LLM Optimization",
+        "createdByLlm": "AI Optimization",
         "createdByManual": "Manual Edit",
         "createdByRollback": "Rollback",
+        "createdByAgent": "Agent Edit",
+        "createdBySkillGrowth": "Skill Growth",
+        "createdByImport": "Import",
         "refresh": "Refresh",
         "confirmAction": "Activate this version"
       }

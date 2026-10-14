@@ -16197,9 +16197,12 @@
         "scoreDelta": "評分變化",
         "contentChanged": "內容已變更",
         "contentUnchanged": "內容未變更",
-        "createdByLlm": "LLM最佳化",
+        "createdByLlm": "AI 最佳化",
         "createdByManual": "手動編輯",
         "createdByRollback": "版本回滾",
+        "createdByAgent": "Agent 修改",
+        "createdBySkillGrowth": "技能成長",
+        "createdByImport": "匯入",
         "refresh": "重新整理",
         "confirmAction": "啟用此版本"
       }

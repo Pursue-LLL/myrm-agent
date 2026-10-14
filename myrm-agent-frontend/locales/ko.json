@@ -16197,9 +16197,12 @@
         "scoreDelta": "점수 변화",
         "contentChanged": "콘텐츠 변경됨",
         "contentUnchanged": "콘텐츠 변경 없음",
-        "createdByLlm": "LLM 최적화",
+        "createdByLlm": "AI 최적화",
         "createdByManual": "수동 편집",
         "createdByRollback": "롤백",
+        "createdByAgent": "에이전트 편집",
+        "createdBySkillGrowth": "스킬 성장",
+        "createdByImport": "가져오기",
         "refresh": "새로고침",
         "confirmAction": "이 버전 활성화"
       }
