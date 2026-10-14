@@ -701,8 +701,9 @@ def _require_live_e2e_lease(
         stamps.mark("epoch_skip")
         reap_chrome_e2e_session_hygiene()
         stamps.mark("reap")
-        _heal_stale_e2e_lease()
+        heal_branch = _heal_stale_e2e_lease()
         stamps.mark("heal")
+        print(f"E2E_LEASE_HEAL: branch={heal_branch}", flush=True)
         lease = require_e2e_runtime_lease()
         stamps.mark("lease")
 
