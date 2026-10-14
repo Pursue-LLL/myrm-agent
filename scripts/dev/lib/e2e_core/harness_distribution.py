@@ -57,5 +57,6 @@ def main() -> int:
 if __name__ == "__main__":
     # Running by path puts this directory first on sys.path, where sibling modules could shadow
     # what the fallback imports; `python -c` callers used the cwd, so keep that.
-    sys.path[0] = ""
+    if sys.path and Path(sys.path[0]).resolve() == Path(__file__).resolve().parent:
+        sys.path[0] = ""
     raise SystemExit(main())
