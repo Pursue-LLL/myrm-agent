@@ -73,7 +73,8 @@ class EvolutionApprovalPayload(BaseModel):
     original_content: str
     evolved_content: str
     confidence: float
-    # Outcome of the security scan on the evolved content; None when no scan ran.
+    # True when the security scan of the evolved content found nothing, False when it reported
+    # findings, None when no scan ran.
     test_passed: bool | None = None
     task_context: str | None = None
     trajectory: str | None = None

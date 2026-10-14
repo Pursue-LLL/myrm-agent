@@ -5,8 +5,10 @@
 - .persistence::load_approval_record, persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
 - .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
+- myrm_agent_harness.agent.skills.evolution.core.types::EvolutionType (POS: 进化类型枚举)
+- myrm_agent_harness.backends.skills.scanning.scanner::scan_skill_content, compute_scan_summary (POS: 技能内容安全扫描)
 [OUTPUT]
-- approve/reject/revise/rollback evolution review records
+- approve/reject/revise/rollback evolution review records；修订时按新内容重新扫描并刷新 test_passed 与 security_scan_summary
 [POS]
 Evolution 审核写操作：审批决议、修订提案、回滚已落地变更。
 """
@@ -181,18 +183,23 @@ async def revise_evolution_review_record(
         raise EvolutionApplyError(f"Revised content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS}).")
 
     scan_passed: bool | None = None
+    scan_summary: dict[str, object] | None = None
     try:
         from myrm_agent_harness.backends.skills.scanning.scanner import (
+            compute_scan_summary,
             scan_skill_content,
         )
 
         scan_result = scan_skill_content(payload.skill_name, evolved_content)
         scan_passed = scan_result.is_clean
+        scan_summary = compute_scan_summary(scan_result).to_dict()
     except Exception as exc:
         logger.warning("Security scan failed during revision for %s: %s", evolution_id, exc)
 
     payload.evolved_content = evolved_content
     payload.test_passed = scan_passed
+    # The stored summary always describes the current evolved content; None when the scan could not run.
+    payload.security_scan_summary = scan_summary
     if scan_passed is False:
         payload.growth_status = EvolutionGrowthStatus.FAILED_SCAN
         payload.reason_code = "revised_failed_scan"

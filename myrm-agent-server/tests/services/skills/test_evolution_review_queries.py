@@ -188,13 +188,14 @@ async def test_unscanned_proposal_persists_null_test_passed() -> None:
 
 
 @pytest.mark.asyncio
-async def test_payload_with_retired_manifest_keys_still_loads() -> None:
+async def test_payload_with_undeclared_keys_still_loads() -> None:
+    """Stored payloads may carry keys the model does not declare; they are ignored, not rejected."""
     payload = EvolutionApprovalPayload(
-        skill_id="skill_legacy",
-        skill_name="legacy_skill",
-        skill_path="/tmp/legacy_skill.md",
+        skill_id="skill_extra_keys",
+        skill_name="extra_keys_skill",
+        skill_path="/tmp/extra_keys_skill.md",
         evolution_type="fix",
-        reason="Stored before the manifest fields were retired",
+        reason="Payload with undeclared keys",
         original_content="a",
         evolved_content="b",
         confidence=0.9,
@@ -211,7 +212,7 @@ async def test_payload_with_retired_manifest_keys_still_loads() -> None:
     record = approval_to_evolution_review_record(approval)
 
     assert record is not None
-    assert record.skill_id == "skill_legacy"
+    assert record.skill_id == "skill_extra_keys"
     assert record.test_passed is True
 
 

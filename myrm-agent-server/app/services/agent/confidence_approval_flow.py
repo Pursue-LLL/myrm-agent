@@ -204,12 +204,15 @@ class ConfidenceApprovalFlow:
 
 
 def _scan_outcome(proposal: EvolutionProposal) -> bool | None:
-    """Security-scan outcome recorded for the review card.
+    """Whether the security scan of the proposed content found nothing; None when no scan ran.
 
-    A proposal reaches review only when the scan did not reject it, so a scan
-    summary means "passed"; without a summary no scan ran and nothing is claimed.
+    A scan rejects only critical findings, so a proposal that reaches review may
+    still carry findings: a recorded summary alone does not mean the content is clean.
     """
-    return True if proposal.security_scan_summary is not None else None
+    summary = proposal.security_scan_summary
+    if summary is None:
+        return None
+    return summary.get("total_findings") == 0
 
 
 def _ngram_counts(text: str) -> Counter[str]:

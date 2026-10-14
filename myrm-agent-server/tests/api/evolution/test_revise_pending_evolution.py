@@ -94,6 +94,7 @@ async def test_revise_pending_evolution_success(
         assert isinstance(record.payload, dict)
         assert record.payload["evolved_content"] == new_content
         assert record.payload["growth_status"] == "PENDING_REVIEW"
+        assert record.payload["security_scan_summary"]["total_findings"] == 0
 
 
 @pytest.mark.asyncio
@@ -132,6 +133,12 @@ async def test_revise_with_malicious_content(async_client: AsyncClient, sample_p
     assert body["test_passed"] is False
     assert body["reason_code"] == "revised_failed_scan"
     assert body["remediation"] is not None
+
+    async with get_session() as db:
+        record = await db.get(ApprovalRecord, sample_pending_evolution.id)
+        assert record is not None
+        assert isinstance(record.payload, dict)
+        assert record.payload["security_scan_summary"]["total_findings"] > 0
 
 
 @pytest.mark.asyncio
