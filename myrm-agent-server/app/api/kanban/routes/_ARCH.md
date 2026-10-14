@@ -19,7 +19,7 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 | `tasks.py` | 路由 | Task CRUD、move、promote、reclaim、approve/reject、retry（列表查询见 `tasks_list.py`） | ✅ |
 | `tasks_list.py` | 路由 | `GET /boards/{board_id}/tasks`：列表查询 + stats/attachments/diagnostics DTO 富化装配 | ✅ |
 | `skill_ids.py` | 辅助 | `validate_extra_skill_ids`：任务技能 id 存在性校验（非法 400） | ✅ |
-| `bulk.py` | 路由 | `bulk-action`：move/archive/reassign/reclaim/delete | ✅ |
+| `bulk.py` | 路由 | `bulk-action`：move/archive/reassign/delete | ✅ |
 | `task_meta.py` | 路由 | runs、events、comments、diagnostics、依赖边 | ✅ |
 | `specify.py` | 路由 | specify/apply-spec/specify-all、decompose/apply-decompose | ✅ |
 | `race.py` | 路由 | 赛马 estimate/start/lanes/decide/winner（V1 仅 git-worktree 任务） | ✅ |
@@ -58,7 +58,7 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/boards/{board_id}/tasks/bulk-action` | `action` ∈ move/archive/reassign/reclaim/delete；delete 需 `confirm=true` |
+| POST | `/boards/{board_id}/tasks/bulk-action` | `action` ∈ move/archive/reassign/delete；delete 需 `confirm=true` |
 
 ### `task_meta.py`
 

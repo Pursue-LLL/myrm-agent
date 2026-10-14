@@ -1568,6 +1568,21 @@ class TestBulkAction:
         )
         assert resp.status_code == 400
 
+    def test_bulk_reclaim_is_not_a_bulk_action(self, client: TestClient) -> None:
+        """Reclaim stops a running agent, so it stays a single-task, confirmed action."""
+        board = _create_board(client, "BulkNoReclaim")
+        bid = str(board["board_id"])
+        t1 = _create_task(client, bid, "NR1")
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{bid}/tasks/bulk-action",
+            json={
+                "task_ids": [str(t1["task_id"])],
+                "action": "reclaim",
+            },
+        )
+        assert resp.status_code == 400
+
     def test_bulk_partial_failure(self, client: TestClient) -> None:
         board = _create_board(client, "BulkPartial")
         bid = str(board["board_id"])

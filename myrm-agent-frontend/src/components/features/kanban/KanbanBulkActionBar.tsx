@@ -78,8 +78,8 @@ export default function KanbanBulkActionBar({
       }
       onClear();
       onComplete();
-    } catch (e) {
-      toast.error(String(e));
+    } catch {
+      toast.error(t('updateError'));
     } finally {
       setLoading(false);
       setShowMoveMenu(false);

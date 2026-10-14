@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { bulkAction } from '@/services/kanban';
@@ -94,5 +95,25 @@ describe('KanbanBulkActionBar archive and delete confirmation', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
     await waitFor(() => expect(bulkAction).toHaveBeenCalledWith('board-1', ['t1', 't2'], 'delete', {}, true));
+  });
+});
+
+describe('KanbanBulkActionBar when the request itself fails', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows a localized message instead of the raw error and keeps the selection', async () => {
+    vi.mocked(bulkAction).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const user = userEvent.setup();
+    const { onClear, onComplete } = renderBar();
+
+    await user.click(screen.getByRole('button', { name: 'Archive' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Failed to update task'));
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(onClear).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
   });
 });

@@ -357,7 +357,7 @@ export async function retryTask(taskId: string): Promise<KanbanTask> {
 
 // ==================== Bulk Actions ====================
 
-export type BulkAction = 'move' | 'archive' | 'reassign' | 'reclaim' | 'delete';
+export type BulkAction = 'move' | 'archive' | 'reassign' | 'delete';
 
 export interface BulkActionResult {
   results: { task_id: string; success: boolean; error?: string }[];

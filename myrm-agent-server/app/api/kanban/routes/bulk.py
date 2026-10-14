@@ -21,7 +21,7 @@ from app.api.kanban.schemas import (
 # Bulk actions
 # ---------------------------------------------------------------------------
 
-_BULK_VALID_ACTIONS = {"move", "archive", "reassign", "reclaim", "delete"}
+_BULK_VALID_ACTIONS = {"move", "archive", "reassign", "delete"}
 
 
 @router.post(
@@ -69,19 +69,6 @@ async def bulk_action(board_id: str, body: BulkActionRequest) -> BulkActionRespo
             elif body.action == "reassign":
                 agent_id = body.params.get("agent_id")
                 task = await svc.update_task(task_id, agent_id=agent_id)
-                if task is None:
-                    results.append(BulkActionItemResult(task_id=task_id, success=False, error="Not found"))
-                else:
-                    results.append(BulkActionItemResult(task_id=task_id, success=True))
-
-            elif body.action == "reclaim":
-                reason = body.params.get("reason")
-                new_agent_id = body.params.get("new_agent_id")
-                task = await svc.reclaim_task(
-                    task_id,
-                    reason=reason,
-                    new_agent_id=new_agent_id,
-                )
                 if task is None:
                     results.append(BulkActionItemResult(task_id=task_id, success=False, error="Not found"))
                 else:
