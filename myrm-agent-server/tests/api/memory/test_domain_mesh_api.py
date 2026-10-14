@@ -46,9 +46,7 @@ def mock_memory_mgr():
     app.dependency_overrides.pop(get_memory_manager, None)
 
 
-def test_domain_mesh_overview_endpoint(
-    client: TestClient, auth_headers: dict[str, str], mock_memory_mgr: AsyncMock
-) -> None:
+def test_domain_mesh_overview_endpoint(client: TestClient, auth_headers: dict[str, str], mock_memory_mgr: AsyncMock) -> None:
     u_mem = SemanticMemory(
         id="mem-user-1",
         content="Prefers dark mode theme in IDE and WebUI.",
@@ -94,9 +92,7 @@ def test_domain_mesh_overview_endpoint(
     assert data["user"]["highlights"][0]["l0"] == "Dark mode preference"
 
 
-def test_domain_mesh_drill_down_endpoint(
-    client: TestClient, auth_headers: dict[str, str], mock_memory_mgr: AsyncMock
-) -> None:
+def test_domain_mesh_drill_down_endpoint(client: TestClient, auth_headers: dict[str, str], mock_memory_mgr: AsyncMock) -> None:
     mem = SemanticMemory(
         id="mem-drill-1",
         content="Detailed verbatim architectural blueprint with full code snippets.",
@@ -107,19 +103,14 @@ def test_domain_mesh_drill_down_endpoint(
     )
     mock_memory_mgr.get_memory.return_value = mem
 
-    resp = client.get(
-        "/api/v1/memory/domain-mesh/drill-down/mem-drill-1", headers=auth_headers
-    )
+    resp = client.get("/api/v1/memory/domain-mesh/drill-down/mem-drill-1", headers=auth_headers)
     assert resp.status_code == 200
     data = resp.json()
 
     assert data["id"] == "mem-drill-1"
     assert data["l0"] == "Arch blueprint"
     assert data["l1"] == "Blueprint overview."
-    assert (
-        data["l2_content"]
-        == "Detailed verbatim architectural blueprint with full code snippets."
-    )
+    assert data["l2_content"] == "Detailed verbatim architectural blueprint with full code snippets."
     assert data["domain"] == "task"
 
 
@@ -177,11 +168,8 @@ def test_domain_mesh_legacy_untyped_fallback(
     assert data["task"]["total_count"] == 1
     assert data["user"]["total_count"] == 0
 
-    drill_resp = client.get(
-        "/api/v1/memory/domain-mesh/drill-down/mem-legacy-sop", headers=auth_headers
-    )
+    drill_resp = client.get("/api/v1/memory/domain-mesh/drill-down/mem-legacy-sop", headers=auth_headers)
     assert drill_resp.status_code == 200
     drill_data = drill_resp.json()
     assert drill_data["domain"] == "task"
     assert drill_data["category"] == "trajectories"
-

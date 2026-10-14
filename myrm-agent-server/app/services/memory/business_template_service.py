@@ -1,13 +1,19 @@
-"""BusinessTemplateService, get_business_template_service.
-
-[POS]
-app/services/memory/business_template_service.py
+"""Application service for business experience templates, escalation evaluation and validation feedback.
 
 [INPUT]
-- app.schemas.business_templates, app.services.memory.business_templates
+- app.schemas.business_templates::{BusinessExperienceTemplateDTO, ChecklistStepDTO, EscalationEvaluationRequest,
+  EscalationEvaluationResponseDTO, ListTemplatesResponseDTO, RecordValidationRequest, RecordValidationResponseDTO}
+  (POS: API contracts of business scenario experience templates, shared by its router and service.)
+- app.services.memory.business_templates::{BusinessExperienceTemplate, BusinessTemplateEngine,
+  EscalationEvaluationContext, TemplateCategory} (POS: Business scenario experience templates and escalation
+  checklist suite.)
 
 [OUTPUT]
-- BusinessTemplateService, get_business_template_service
+- BusinessTemplateService: Lists templates, evaluates escalation gates and records validation feedback as API DTOs
+- get_business_template_service: Process-wide singleton accessor of the service
+
+[POS]
+Application service between the business-template router and the template engine. Owns the domain-to-DTO mapping.
 """
 
 from __future__ import annotations
