@@ -16663,7 +16663,6 @@
           "emptyOutlinks": "Dieses Konzept verweist noch auf nichts",
           "emptyNearby": "Noch keine verwandten Konzepte vorhanden",
           "missing": "Fehlt",
-          "strength": "Stärke {value}",
           "jumpToSection": "Karte anklicken, um zum Abschnitt zu springen: {heading}",
           "nearbySummary": "{nodes, plural, one {# Konzept} other {# Konzepte}} · {edges, plural, one {# Verbindung} other {# Verbindungen}}",
           "nearbyHint": "Konzept anklicken, um es zu öffnen"

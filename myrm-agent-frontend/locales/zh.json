@@ -17317,7 +17317,6 @@
           "emptyOutlinks": "这个概念还没有引用其他内容",
           "emptyNearby": "暂无可显示的关联概念",
           "missing": "缺失",
-          "strength": "关联度 {value}",
           "jumpToSection": "点击卡片可直达小节：{heading}",
           "nearbySummary": "{nodes} 个概念 · {edges} 条关联",
           "nearbyHint": "点击概念即可打开"

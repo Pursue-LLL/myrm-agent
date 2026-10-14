@@ -38,7 +38,8 @@ const mockLinks = (response: Awaited<ReturnType<typeof wikiService.getConceptLin
 
 describe('WikiConceptLinksPanel', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // reset 而不是 clear：未消费的 mockResolvedValueOnce 不能泄漏到下一个用例
+    vi.resetAllMocks();
   });
 
   it('renders backlinks with context snippet and handles tab switching', async () => {
@@ -77,7 +78,8 @@ describe('WikiConceptLinksPanel', () => {
     expect(await screen.findByText('Links and context')).toBeInTheDocument();
     expect(screen.getByText('Cited by 1 · Links to 1')).toBeInTheDocument();
     expect(screen.getByText('Cited by (1)')).toBeInTheDocument();
-    expect(screen.getByText('Strength 4.5')).toBeInTheDocument();
+    // 边权重是内部指标：列表已按强度排序，不向用户展示数值
+    expect(screen.queryByText(/4\.5/)).not.toBeInTheDocument();
 
     expect(screen.getByText('§ 采购审核机制')).toBeInTheDocument();
     expect(screen.getByText('L7')).toBeInTheDocument();
@@ -92,7 +94,7 @@ describe('WikiConceptLinksPanel', () => {
 
     await userEvent.click(screen.getByText('Links to (1)'));
     expect(await screen.findByText('outgoing-target')).toBeInTheDocument();
-    expect(screen.getByText('Strength 3.0')).toBeInTheDocument();
+    expect(screen.queryByText(/3\.0/)).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByText('Related (2)'));
     expect(await screen.findByText('2 concepts · 1 connection')).toBeInTheDocument();
@@ -200,6 +202,9 @@ describe('WikiConceptLinksPanel', () => {
     renderPanel({ conceptName: 'retry-test' });
 
     expect(await screen.findByText('Network connection timeout')).toBeInTheDocument();
+    // 没有拿到数据时，不能把「0 条」与「没有链接」的空态当事实展示
+    expect(screen.queryByText(/^Cited by/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing links to this concept yet')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Refresh links' }));
 
@@ -244,7 +249,6 @@ describe('WikiConceptLinksPanel', () => {
 
     expect(await screen.findByText('链接与上下文')).toBeInTheDocument();
     expect(screen.getByText('被 1 处引用 · 引用 1 处')).toBeInTheDocument();
-    expect(screen.getByText('关联度 4.5')).toBeInTheDocument();
 
     await userEvent.click(screen.getByText('关联概念 (2)'));
     expect(await screen.findByText('2 个概念 · 1 条关联')).toBeInTheDocument();

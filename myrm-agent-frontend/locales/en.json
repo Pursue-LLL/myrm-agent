@@ -17317,7 +17317,6 @@
           "emptyOutlinks": "This concept has no links yet",
           "emptyNearby": "No related concepts to show yet",
           "missing": "Missing",
-          "strength": "Strength {value}",
           "jumpToSection": "Click the card to jump to the section: {heading}",
           "nearbySummary": "{nodes, plural, one {# concept} other {# concepts}} · {edges, plural, one {# connection} other {# connections}}",
           "nearbyHint": "Click a concept to open it"

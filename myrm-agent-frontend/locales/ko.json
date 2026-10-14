@@ -16663,7 +16663,6 @@
           "emptyOutlinks": "이 개념은 아직 다른 항목을 참조하지 않습니다",
           "emptyNearby": "표시할 관련 개념이 아직 없습니다",
           "missing": "없음",
-          "strength": "연관도 {value}",
           "jumpToSection": "카드를 클릭하면 해당 섹션으로 이동합니다: {heading}",
           "nearbySummary": "개념 {nodes}개 · 연결 {edges}개",
           "nearbyHint": "개념을 클릭하면 열립니다"

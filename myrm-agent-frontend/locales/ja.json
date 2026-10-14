@@ -16663,7 +16663,6 @@
           "emptyOutlinks": "この概念はまだ他のものを参照していません",
           "emptyNearby": "表示できる関連概念はまだありません",
           "missing": "見つかりません",
-          "strength": "関連度 {value}",
           "jumpToSection": "カードをクリックすると該当セクションへ移動します: {heading}",
           "nearbySummary": "{nodes} 件の概念 · {edges} 件の関連",
           "nearbyHint": "概念をクリックして開く"
