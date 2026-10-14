@@ -33,7 +33,9 @@ export function walkTypes(obj, prefix, out) {
 export function resolvePath(obj, dottedPath) {
   let node = obj;
   for (const part of dottedPath.split('.')) {
-    if (node == null || typeof node !== 'object') return undefined;
+    if (node == null || typeof node !== 'object') {
+      return undefined;
+    }
     node = node[part];
   }
   return node;
@@ -43,7 +45,9 @@ export function resolvePath(obj, dottedPath) {
  * 值是否可合法保持与英文一致（非翻译壳）。
  *
  * 判据按「值整体类型」判定：
- * - 含非 ASCII（已本地化）/ URL / 纯路径 / 邮箱 / 域名 → 合法保留；
+ * - 含非 ASCII 字母（已本地化文本）/ URL / 纯路径 / 邮箱 / 域名 → 合法保留；
+ *   非 ASCII 的标点与符号（`·`/`—`/`…`/箭头/`™`）不携带语言信息，按分隔符处理，
+ *   以便 `Todo · Log · Weekly Report` 这类值按其中的英文词判壳；
  * - 无空格 token：全大写国际缩写（`MCP`/`FAQ`/`URL`）→ 合法；含非字母结构
  *   （`-`/`/`/`@`/`#`/数字等，如 `sk-...`、`spaces/xxxxx`、`@bot:matrix.org`）→ 合法；
  *   纯英文单词（`Active`/`Paused`）或纯单词+省略号（`Loading...`）→ 判壳；
@@ -54,24 +58,41 @@ export function resolvePath(obj, dottedPath) {
  * 等未翻译英文被漏检。
  */
 export function isLegitSameValue(value) {
-  if (!value || value.length < 3) return true;
-  if (/[\u0080-\uFFFF]/.test(value)) return true;
-  if (/https?:\/\//.test(value)) return true;
-  if (/^\/[^\s]*$/.test(value)) return true;
-  if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(value)) return true;
-  if (/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(value)) return true;
-  if (!value.includes(' ')) {
+  if (!value || value.length < 3) {
+    return true;
+  }
+  if (/[\p{L}\p{M}]/u.test(value.replace(/\p{ASCII}/gu, ''))) {
+    return true;
+  }
+  const text = value.replace(/[^\p{ASCII}]/gu, ' ');
+  if (/https?:\/\//.test(text)) {
+    return true;
+  }
+  if (/^\/[^\s]*$/.test(text)) {
+    return true;
+  }
+  if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(text)) {
+    return true;
+  }
+  if (/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(text)) {
+    return true;
+  }
+  if (!text.includes(' ')) {
     // 全大写缩写（MCP/FAQ/URL 等国际通用缩写）→ 合法保留
-    if (/^[A-Z]{2,}$/.test(value)) return true;
+    if (/^[A-Z]{2,}$/.test(text)) {
+      return true;
+    }
     // 纯字母单词（Active/Paused/TypeScript）→ 判壳
-    if (/^[A-Za-z]+$/.test(value)) return false;
-    if (value.endsWith('...')) {
-      const core = value.slice(0, -3);
+    if (/^[A-Za-z]+$/.test(text)) {
+      return false;
+    }
+    if (text.endsWith('...')) {
+      const core = text.slice(0, -3);
       return !/^[A-Za-z]+$/.test(core);
     }
     return true;
   }
-  const stripped = value.replace(/\{[^{}]+\}/g, ' ').replace(/[.,;:!?()[\]/\\]/g, ' ');
+  const stripped = text.replace(/\{[^{}]+\}/g, ' ').replace(/[.,;:!?()[\]/\\]/g, ' ');
   return !/[A-Za-z]{2,}/.test(stripped);
 }
 
@@ -86,11 +107,21 @@ export function loadShellAllowlist(rootDir = resolve(scriptsDir, '..')) {
 }
 
 export function isTranslationShell(key, enValue, localeValue, allowlists) {
-  if (typeof enValue !== 'string' || typeof localeValue !== 'string') return false;
-  if (localeValue !== enValue || enValue.length <= 2) return false;
-  if (isLegitSameValue(enValue)) return false;
-  if (allowlists.allowedSameValues.has(enValue)) return false;
-  if (allowlists.allowedSameKeys.has(key)) return false;
+  if (typeof enValue !== 'string' || typeof localeValue !== 'string') {
+    return false;
+  }
+  if (localeValue !== enValue || enValue.length <= 2) {
+    return false;
+  }
+  if (isLegitSameValue(enValue)) {
+    return false;
+  }
+  if (allowlists.allowedSameValues.has(enValue)) {
+    return false;
+  }
+  if (allowlists.allowedSameKeys.has(key)) {
+    return false;
+  }
   return true;
 }
 
@@ -115,10 +146,14 @@ export function collectTranslationShells(enData, localeData, allowlists) {
   };
 
   for (const key of enTypes.keys()) {
-    if (!key) continue;
+    if (!key) {
+      continue;
+    }
     const enValue = resolvePath(enData, key);
     const localeValue = resolvePath(localeData, key);
-    if (enValue === undefined || localeValue === undefined) continue;
+    if (enValue === undefined || localeValue === undefined) {
+      continue;
+    }
     visit(key, enValue, localeValue);
   }
 

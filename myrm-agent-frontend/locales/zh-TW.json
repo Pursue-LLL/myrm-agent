@@ -3084,7 +3084,7 @@
     },
     "personalClosedLoop": {
       "badge": "三位一體閉環",
-      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "title": "個人工作流閉環：待辦 · 日誌 · 週報",
       "desc": "以看板待辦為輸入源，沉澱每日日誌事實，自動聚合生成高質量結構化週報，實現個人精細化閉環交付。",
       "step1Title": "待辦拆解",
       "step1Desc": "Kanban 看板任務梳理與階段跟蹤",
@@ -4794,7 +4794,7 @@
           "layer2CadenceLabel": "Layer 2 辯證檢查 Cadence",
           "conflictPatrol": "衝突巡檢",
           "dialecticDepthLabel": "辯證深度 / 算力",
-          "passDepthLevel": "Pass {depth} · {level}",
+          "passDepthLevel": "第 {depth} 輪 · {level}",
           "refreshTelemetryAria": "重新整理遙測",
           "resetCadenceAria": "重置會話 Cadence 計數器"
         }
@@ -12466,7 +12466,7 @@
       "folderGate": {
         "title": "是否信任此資料夾？",
         "description": "該資料夾可能包含會在本機執行的技能、規則與本地工具。關聯前請先選擇信任程度",
-        "loading": "Scanning folder…",
+        "loading": "正在掃描資料夾…",
         "loadFailed": "無法掃描該資料夾，請重試或選擇其他路徑",
         "decideFailed": "無法儲存您的選擇，請重試",
         "disclosureTitle": "在此資料夾中發現",
@@ -12569,7 +12569,7 @@
       },
       "secure": {
         "title": "安全與隱私",
-        "description": "Supports end-to-end encryption and local deployment — your data is fully under your control"
+        "description": "支援端對端加密與本機部署 — 您的資料完全由您掌控"
       },
       "extensible": {
         "title": "高度可擴展",
@@ -12577,7 +12577,7 @@
       },
       "opensource": {
         "title": "核心產品開源",
-        "description": "Server, Frontend, Desktop are open-source, community-driven, continuously iterated — contributions welcome"
+        "description": "服務端、前端、桌面端皆已開源，社群驅動、持續迭代 — 歡迎貢獻"
       }
     },
     "changelog": {
@@ -12621,7 +12621,7 @@
       "title": "許可證與版權",
       "type": "MIT 許可證（核心產品）",
       "description": "本倉庫中的 Server、Frontend 與 Desktop 均以 MIT 許可證發布。",
-      "copyright": "© {year} MyrmAgent. All rights reserved."
+      "copyright": "© {year} MyrmAgent. 保留所有權利。"
     }
   },
   "budget": {
@@ -12630,9 +12630,9 @@
     "save": "儲存",
     "todaySpend": "今日支出",
     "sessionSpend": "會話支出",
-    "statusWarning": "Approaching budget limit — agent has been notified",
-    "statusFinalization": "Budget nearly exhausted — agent will conclude response",
-    "statusExceeded": "Budget exceeded — execution blocked",
+    "statusWarning": "接近預算上限 — 智慧體已收到提醒",
+    "statusFinalization": "預算即將耗盡 — 智慧體將結束回覆",
+    "statusExceeded": "預算已超限 — 執行被阻止",
     "ecoModeHint": "已啟用省電模式：優化上下文壓縮以節省 Token",
     "criticalPauseActive": "已觸發審批暫停",
     "autoDowngradedActive": "已平滑降級至經濟模型",
@@ -12945,7 +12945,7 @@
       "speed": "播放速度",
       "scrubber": "時間線滑塊",
       "errorMarker": "錯誤",
-      "keyboardHint": "Space: play/pause · ←/→: step frame",
+      "keyboardHint": "空白鍵：播放/暫停 · ←/→：逐格",
       "running": "執行中...",
       "latestTool": "最新工具：{name}",
       "result": "結果",
@@ -14942,7 +14942,7 @@
         "description": "關聯專案工作區時您明確信任的資料夾。撤銷信任後，該資料夾內的本地技能、規則與 MCP 服務將被停用",
         "totalEntries": "共 {count} 個資料夾",
         "refresh": "重新整理",
-        "loading": "Loading…",
+        "loading": "載入中…",
         "empty": "暫無受信任資料夾",
         "loadError": "載入失敗",
         "revokeSuccess": "已撤銷信任",
@@ -16462,7 +16462,7 @@
         "truncatedList": "顯示 {shown} / {total} 項問題。",
         "loadFailed": "無法加載健康報告。",
         "retry": "重試",
-        "maintainToastOpen": "{open, plural, one {# item still needs your action} other {# items still need your action}} · {fixed} auto-fixed",
+        "maintainToastOpen": "{open, plural, other {# 項仍待處理}} · 已自動修復 {fixed} 項",
         "issueType": {
           "broken_link": "斷鏈",
           "broken_wikilink": "無效雙向連結",

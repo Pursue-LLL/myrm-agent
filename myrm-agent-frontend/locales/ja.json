@@ -481,8 +481,8 @@
   },
   "loadout": {
     "title": "エージェント配装",
-    "subtitle": "What this agent inherits — team memory, wiki, skills, and memory policy at a glance.",
-    "loading": "Loading loadout…",
+    "subtitle": "このエージェントが継承する内容 — チームメモリ、Wiki、スキル、メモリポリシーを一目で確認できます。",
+    "loading": "配装を読み込み中…",
     "saveAgentFirst": "ロードアウトを確認するには、先にエージェントを保存してください。",
     "fix": "修正",
     "openTeamAssets": "チーム資産",
@@ -511,11 +511,11 @@
     "memoryPolicy": {
       "on": "メモリオン",
       "off": "メモリオフ",
-      "onWithPreCompact": "On · pre-compact {tokens} tok"
+      "onWithPreCompact": "オン · 事前圧縮 {tokens} tok"
     },
     "teamHub": {
       "title": "チーム資産",
-      "subtitle": "Shared contexts, wiki, skills, and chat memory — one place for team setup and review.",
+      "subtitle": "共有コンテキスト、Wiki、スキル、チャットメモリ — チームの設定とレビューをひとつの場所で。",
       "builtIn": "組み込み",
       "wikiTitle": "Wiki",
       "wikiDesc": "ナレッジベースとエージェントスコープのノート",
@@ -3084,7 +3084,7 @@
     },
     "personalClosedLoop": {
       "badge": "トリニティループ",
-      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "title": "個人ワークフローループ：ToDo · ログ · 週次レポート",
       "desc": "カンバンのタスクを入力として日々の事実ログを記録し、構造化された週次レビューへ自動集約して、洗練された個人の成果につなげます。",
       "step1Title": "ToDo の分解",
       "step1Desc": "カンバンのタスク計画とフェーズ追跡",
@@ -3952,7 +3952,7 @@
       "prev": "前へ",
       "next": "次へ",
       "lineCount": "{count} 行",
-      "sizeBadge": "{lines} lines · {size}",
+      "sizeBadge": "{lines} 行 · {size}",
       "storageTruncated": "ストレージ上限に達しました。ファイルは不完全な可能性があります",
       "loadingPage": "ページを読み込み中...",
       "searchPagePlaceholder": "現在のページを検索...",
@@ -4794,7 +4794,7 @@
           "layer2CadenceLabel": "Layer 2 弁証法周期",
           "conflictPatrol": "矛盾パトロール",
           "dialecticDepthLabel": "弁証法深度 / 算力",
-          "passDepthLevel": "Pass {depth} · {level}",
+          "passDepthLevel": "第 {depth} パス · {level}",
           "refreshTelemetryAria": "テレメトリを更新",
           "resetCadenceAria": "セッション周期をリセット"
         }
@@ -12466,7 +12466,7 @@
       "folderGate": {
         "title": "このフォルダを信頼しますか？",
         "description": "このフォルダには、本機で実行されるスキル・ルール・ローカルツールが含まれる可能性があります。関連付けの前に信頼度を選択してください",
-        "loading": "Scanning folder…",
+        "loading": "フォルダをスキャン中…",
         "loadFailed": "フォルダをスキャンできませんでした。再試行するか別のパスを選択してください",
         "decideFailed": "選択を保存できませんでした。もう一度お試しください",
         "disclosureTitle": "このフォルダで検出",
@@ -12621,7 +12621,7 @@
       "title": "ライセンスと著作権",
       "type": "MITライセンス（コア製品）",
       "description": "このリポジトリの Server、Frontend、Desktop は MIT ライセンスでリリースされています。",
-      "copyright": "© {year} MyrmAgent. All rights reserved."
+      "copyright": "© {year} MyrmAgent. 無断複写・転載を禁じます。"
     }
   },
   "budget": {
@@ -12945,7 +12945,7 @@
       "speed": "再生速度",
       "scrubber": "タイムラインスクラバー",
       "errorMarker": "エラー",
-      "keyboardHint": "Space: play/pause · ←/→: step frame",
+      "keyboardHint": "Space: 再生/一時停止 · ←/→: コマ送り",
       "running": "実行中...",
       "latestTool": "最新ツール：{name}",
       "result": "結果",
@@ -14942,7 +14942,7 @@
         "description": "プロジェクトワークスペースの関連付け時に明示的に信頼したフォルダです。信頼を取り消すと、フォルダ内のローカルスキル・ルール・MCP サービスが無効になります",
         "totalEntries": "全 {count} フォルダ",
         "refresh": "更新",
-        "loading": "Loading…",
+        "loading": "読み込み中…",
         "empty": "信頼済みフォルダはありません",
         "loadError": "読み込み失敗",
         "revokeSuccess": "信頼を取り消しました",
@@ -14970,7 +14970,7 @@
         "enableDesc": "有効にすると、LLM が割り込み前に危険な可能性のあるツール呼び出しを評価します。",
         "saved": "スマート意図ガード設定を保存しました",
         "modelSaved": "スマート意図ガードモデルを保存しました",
-        "modelCleared": "Reviewer model cleared — using default model as fallback.",
+        "modelCleared": "レビュアーモデルをクリアしました — 既定のモデルをフォールバックとして使用します。",
         "selectModel": "審査モデルを選択",
         "selectModelPlaceholder": "高速モデルを選択（例: GPT-4o-mini）",
         "modelRecommendation": "推奨: 高速かつ低コストのモデル（GPT-4o-mini や Claude 3 Haiku など）で最適なレイテンシを実現します。",

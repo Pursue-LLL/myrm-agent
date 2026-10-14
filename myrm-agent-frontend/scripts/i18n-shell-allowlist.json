@@ -35,6 +35,7 @@
     "Bearer '<token>'",
     "Bearer Token",
     "Bearer sk-...",
+    "Bearer …",
     "BlueBubbles",
     "BlueBubbles API URL",
     "Bot ID",
@@ -102,6 +103,7 @@
     "Max",
     "Microsoft Teams",
     "MiniMax",
+    "MoA · {preset}",
     "ModelScope",
     "Myrm",
     "Myrm Memory Archive",
@@ -242,6 +244,8 @@
     "devPorts.portStatus",
     "workbench.tabPlugins",
     "workbench.tabTerminal",
-    "templateMarketplace.card.team"
+    "templateMarketplace.card.team",
+    "memoryInsight.namespaceAgent",
+    "voice.voiceModeAudioOnly"
   ]
 }

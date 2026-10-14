@@ -4862,7 +4862,7 @@
           "layer2CadenceLabel": "Layer 2 辩证检查 Cadence",
           "conflictPatrol": "冲突巡检",
           "dialecticDepthLabel": "辩证深度 / 算力",
-          "passDepthLevel": "Pass {depth} · {level}",
+          "passDepthLevel": "第 {depth} 轮 · {level}",
           "refreshTelemetryAria": "刷新遥测数据",
           "resetCadenceAria": "重置会话 Cadence 计数器"
         }
@@ -12637,7 +12637,7 @@
       },
       "secure": {
         "title": "安全与隐私",
-        "description": "Supports end-to-end encryption and local deployment — your data is fully under your control"
+        "description": "支持端到端加密与本地部署 — 您的数据完全由您掌控"
       },
       "extensible": {
         "title": "高度可扩展",
@@ -12645,7 +12645,7 @@
       },
       "opensource": {
         "title": "核心产品开源",
-        "description": "Server, Frontend, Desktop are open-source, community-driven, continuously iterated — contributions welcome"
+        "description": "服务端、前端、桌面端均已开源，社区驱动、持续迭代 — 欢迎贡献"
       }
     },
     "changelog": {
@@ -12689,7 +12689,7 @@
       "title": "许可证与版权",
       "type": "MIT 许可证（核心产品）",
       "description": "本仓库中的 Server、Frontend 与 Desktop 均以 MIT 许可证发布。",
-      "copyright": "© {year} MyrmAgent. All rights reserved."
+      "copyright": "© {year} MyrmAgent. 保留所有权利。"
     }
   },
   "budget": {
@@ -12698,9 +12698,9 @@
     "save": "保存",
     "todaySpend": "今日支出",
     "sessionSpend": "会话支出",
-    "statusWarning": "Approaching budget limit — agent has been notified",
-    "statusFinalization": "Budget nearly exhausted — agent will conclude response",
-    "statusExceeded": "Budget exceeded — execution blocked",
+    "statusWarning": "接近预算上限 — 智能体已收到提醒",
+    "statusFinalization": "预算即将耗尽 — 智能体将结束回复",
+    "statusExceeded": "预算已超限 — 执行被阻止",
     "ecoModeHint": "已启用省电模式：优化上下文压缩以节省 Token",
     "criticalPauseActive": "已触发审批暂停",
     "autoDowngradedActive": "已平滑降级至经济模型",
@@ -13013,7 +13013,7 @@
       "speed": "播放速度",
       "scrubber": "时间线滑块",
       "errorMarker": "错误",
-      "keyboardHint": "Space: play/pause · ←/→: step frame",
+      "keyboardHint": "空格：播放/暂停 · ←/→：逐帧",
       "running": "运行中...",
       "latestTool": "最新工具：{name}",
       "result": "结果",
@@ -17137,7 +17137,7 @@
         "truncatedList": "显示 {shown} / {total} 项问题。",
         "loadFailed": "无法加载健康报告。",
         "retry": "重试",
-        "maintainToastOpen": "{open, plural, one {# item still needs your action} other {# items still need your action}} · {fixed} auto-fixed",
+        "maintainToastOpen": "{open, plural, other {# 项仍待处理}} · 已自动修复 {fixed} 项",
         "issueType": {
           "broken_link": "断链",
           "broken_wikilink": "无效双向链接",

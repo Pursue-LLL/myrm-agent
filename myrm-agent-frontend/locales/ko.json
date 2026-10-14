@@ -3084,7 +3084,7 @@
     },
     "personalClosedLoop": {
       "badge": "트리니티 루프",
-      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "title": "개인 워크플로 루프: 할 일 · 로그 · 주간 보고서",
       "desc": "칸반 작업을 입력으로 삼아 일일 사실 기록을 남기고, 구조화된 주간 리뷰로 자동 집계하여 정제된 개인 성과로 이어 줍니다.",
       "step1Title": "할 일 분해",
       "step1Desc": "칸반 작업 계획 및 단계 추적",
@@ -4794,7 +4794,7 @@
           "layer2CadenceLabel": "Layer 2 변증법 주기",
           "conflictPatrol": "충돌 순찰",
           "dialecticDepthLabel": "변증법 깊이 / 연산",
-          "passDepthLevel": "Pass {depth} · {level}",
+          "passDepthLevel": "패스 {depth} · {level}",
           "refreshTelemetryAria": "원격 측정 새로고침",
           "resetCadenceAria": "세션 주기 재설정"
         }
@@ -12466,7 +12466,7 @@
       "folderGate": {
         "title": "이 폴더를 신뢰하시겠습니까?",
         "description": "이 폴더에는 이 기기에서 실행될 수 있는 스킬·규칙·로컬 도구가 포함될 수 있습니다. 연결 전에 신뢰 수준을 선택하세요",
-        "loading": "Scanning folder…",
+        "loading": "폴더 스캔 중…",
         "loadFailed": "폴더를 스캔하지 못했습니다. 다시 시도하거나 다른 경로를 선택하세요",
         "decideFailed": "선택을 저장하지 못했습니다. 다시 시도하세요",
         "disclosureTitle": "이 폴더에서 발견",
@@ -14942,7 +14942,7 @@
         "description": "프로젝트 워크스페이스 연결 시 명시적으로 신뢰한 폴더입니다. 신뢰를 철회하면 폴더 내 로컬 스킬·규칙·MCP 서비스가 비활성화됩니다",
         "totalEntries": "총 {count}개 폴더",
         "refresh": "새로 고침",
-        "loading": "Loading…",
+        "loading": "불러오는 중…",
         "empty": "신뢰한 폴더가 없습니다",
         "loadError": "불러오기 실패",
         "revokeSuccess": "신뢰가 철회되었습니다",
@@ -18576,7 +18576,7 @@
       "restore": "이 버전 복원",
       "restoring": "복원 중...",
       "currentVersion": "현재 버전",
-      "versionDevice": "Version {version} · Device {device}",
+      "versionDevice": "버전 {version} · 기기 {device}",
       "loadFailed": "구성 기록을 불러오지 못했습니다",
       "restoreSuccess": "{version} 버전으로 복원되었습니다",
       "restoreFailed": "구성 복원 실패"
