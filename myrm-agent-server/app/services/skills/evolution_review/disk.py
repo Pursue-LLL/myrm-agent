@@ -21,11 +21,6 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionType,
     SkillLineage,
 )
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.database.models import ApprovalRecord
@@ -173,65 +168,6 @@ async def mark_apply_failure(
     return updated
 
 
-def _attribute_manifest_after_apply(
-    payload: EvolutionApprovalPayload,
-) -> dict[str, object] | None:
-    """Attribute actual static-assertion metrics back to the change prediction manifest.
-
-    Uses the manifest snapshot persisted at proposal creation (payload.change_manifest)
-    and the eval_cases snapshot persisted alongside it (payload.eval_cases), so the
-    prediction baseline cannot drift after the fact. The applied content's actual
-    pass rate is computed with the same deterministic zero-LLM assertion engine.
-    Returns None when no manifest exists (no eval_cases / description-only evolution).
-    """
-    manifest_dict = payload.change_manifest
-    if not isinstance(manifest_dict, dict):
-        return None
-    raw_predictions = manifest_dict.get("predictions")
-    if not isinstance(raw_predictions, list) or not raw_predictions:
-        return None
-    created_at = manifest_dict.get("created_at")
-    rollback_patch = manifest_dict.get("rollback_patch")
-
-    from myrm_agent_harness.agent.skills.evolution.core.eval_regression import (
-        evaluate_content_assertions,
-    )
-    from myrm_agent_harness.eval.manifest_prediction import ChangePredictionManifest
-
-    try:
-        manifest = ChangePredictionManifest(
-            manifest_id=str(manifest_dict.get("manifest_id", "")),
-            target_component=str(manifest_dict.get("target_component", "")),
-            rationale=str(manifest_dict.get("rationale", "")),
-            created_at=created_at if isinstance(created_at, str) else None,
-            rollback_patch=rollback_patch if isinstance(rollback_patch, str) else None,
-            predictions=[],
-        )
-        for pred in raw_predictions:
-            if not isinstance(pred, dict):
-                continue
-            manifest.predictions.append(
-                MetricPrediction(
-                    metric_name=str(pred.get("metric_name", "")),
-                    direction=PredictionDirection(str(pred.get("direction", "neutral"))),
-                    baseline_value=float(pred.get("baseline_value", 0.0)),
-                    target_value=float(pred.get("target_value", 0.0)),
-                    tolerance=float(pred.get("tolerance", 0.02)),
-                )
-            )
-
-        actual_metrics = {"pass_rate": evaluate_content_assertions(payload.eval_cases, payload.evolved_content)}
-        result = evaluate_manifest_attribution(manifest, actual_metrics)
-        return result.to_dict()
-    except (ValueError, TypeError, KeyError) as exc:
-        logger.warning(
-            "Change manifest attribution failed for skill '%s': %s",
-            payload.skill_id,
-            exc,
-        )
-        return None
-
-
 async def apply_approval_record(
     record: ApprovalRecord,
     *,
@@ -252,10 +188,6 @@ async def apply_approval_record(
     payload.remediation = None
     payload.reason_code = None if payload.growth_status == EvolutionGrowthStatus.APPROVED else payload.reason_code
     payload.growth_status = EvolutionGrowthStatus.APPROVED
-
-    attribution = _attribute_manifest_after_apply(payload)
-    if attribution is not None:
-        payload.attribution_result = attribution
 
     updated = await persist_approval_payload(
         record.id,
@@ -284,11 +216,6 @@ async def apply_approval_record(
                 "evolution_type": payload.evolution_type,
                 "skill_path": payload.skill_path,
                 "apply_status": payload.apply_status.value,
-                "attribution_verdict": (
-                    (payload.attribution_result or {}).get("overall_verdict")
-                    if isinstance(payload.attribution_result, dict)
-                    else None
-                ),
             },
         )
     )

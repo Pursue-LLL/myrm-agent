@@ -42,6 +42,7 @@ def _make_proposal(
     score: float = 0.9,
     is_general: bool = True,
     evolution_type: EvolutionType = EvolutionType.FIX,
+    security_scan_summary: dict[str, object] | None = None,
 ) -> EvolutionProposal:
     return EvolutionProposal(
         skill_id=skill_id,
@@ -53,6 +54,7 @@ def _make_proposal(
         reasoning="test",
         is_general=is_general,
         created_at=None,
+        security_scan_summary=security_scan_summary,
     )
 
 
@@ -133,10 +135,33 @@ class TestEvaluateRiskSignals:
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
         assert not any("diff_range" in s for s in signals)
 
-    def test_exact_threshold_no_signal(self) -> None:
-        original = "a" * 100
-        proposed = "a" * 150  # exactly 50% change — threshold is > 50%, so no trigger
+    def test_same_length_rewrite_triggers_signal(self) -> None:
+        original = "\n".join(f"step {i}: open the page and click the button" for i in range(20))
+        proposed = "\n".join(f"step {i}: close the tab and wait a moment!!!" for i in range(20))
+        assert len(original) == len(proposed)
         proposal = _make_proposal(original=original, proposed=proposed)
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
+        assert any("diff_range" in s for s in signals)
+
+    def test_growth_beyond_half_triggers_signal(self) -> None:
+        original = "\n".join(f"step {i}: open the page and click the button" for i in range(20))
+        appended = "\n".join(f"extra {i}: brand new guidance appended here" for i in range(12))
+        proposal = _make_proposal(original=original, proposed=f"{original}\n{appended}")
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
+        assert any("diff_range" in s for s in signals)
+
+    def test_small_in_place_edit_no_signal(self) -> None:
+        original_lines = [f"step {i}: open the page and click the button" for i in range(20)]
+        proposed_lines = [*original_lines[:9], "step 9: wait for the dialog, then press enter", *original_lines[10:]]
+        proposal = _make_proposal(original="\n".join(original_lines), proposed="\n".join(proposed_lines))
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
+        assert not any("diff_range" in s for s in signals)
+
+    def test_chinese_description_tweak_no_signal(self) -> None:
+        proposal = _make_proposal(
+            original="当用户需要搜索网络上的最新新闻并整理成摘要时使用此技能，不适用于本地文件检索。",
+            proposed="当用户需要搜索网络上的最新资讯并整理成摘要时使用此技能，不适用于本地文件检索。",
+        )
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
         assert not any("diff_range" in s for s in signals)
 
@@ -256,8 +281,8 @@ async def test_approval_result_has_risk_signals_field() -> None:
 
 
 @pytest.mark.asyncio
-async def test_test_passed_reflects_score() -> None:
-    """test_passed is True when score > 0, False when score == 0."""
+async def test_test_passed_records_the_security_scan_outcome() -> None:
+    """test_passed is True when a security scan ran and passed, None when no scan ran."""
     from sqlalchemy import select
 
     from app.database.connection import get_session
@@ -275,20 +300,25 @@ async def test_test_passed_reflects_score() -> None:
                     return record, review
         raise AssertionError(f"No evolution review for skill_id={skill_id}")
 
-    zero_proposal = _make_proposal(skill_id="test_skill_zero_score", score=0.0, is_general=False)
+    unscanned_proposal = _make_proposal(skill_id="test_skill_unscanned", score=0.9, is_general=False)
     flow = ConfidenceApprovalFlow()
-    await flow.process_evolution(zero_proposal)
+    await flow.process_evolution(unscanned_proposal)
 
-    record, review = await _review_for_skill("test_skill_zero_score")
-    assert review.test_passed is False
+    record, review = await _review_for_skill("test_skill_unscanned")
+    assert review.test_passed is None
     async with get_session() as db:
         await db.delete(record)
         await db.commit()
 
-    positive_proposal = _make_proposal(skill_id="test_skill_positive_score", score=0.5, is_general=False)
-    await flow.process_evolution(positive_proposal)
+    scanned_proposal = _make_proposal(
+        skill_id="test_skill_scanned",
+        score=0.1,
+        is_general=False,
+        security_scan_summary={"trust_recommendation": "install", "finding_count": 0},
+    )
+    await flow.process_evolution(scanned_proposal)
 
-    record, review = await _review_for_skill("test_skill_positive_score")
+    record, review = await _review_for_skill("test_skill_scanned")
     assert review.test_passed is True
     async with get_session() as db:
         await db.delete(record)

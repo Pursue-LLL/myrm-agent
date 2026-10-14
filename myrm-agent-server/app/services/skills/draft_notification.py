@@ -261,9 +261,8 @@ async def persist_skill_draft_record(
                 lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED, version=1),
                 verification_steps=v_steps if isinstance(v_steps, list) else [],
             )
-            val = SandboxValidator()
-            proof = await val.verify_skill_capsule(v_skill)
-            verification_proof = proof.to_dict()
+            proof = await SandboxValidator().verify_skill_capsule(v_skill)
+            verification_proof = proof.to_dict() if proof is not None else None
         except Exception as exc:
             logger.debug("Automatic capsule verification fallback skipped: %s", exc)
             verification_proof = None

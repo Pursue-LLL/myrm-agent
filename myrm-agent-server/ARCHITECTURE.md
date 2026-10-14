@@ -242,7 +242,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 为了支持 Agent 技能的持续迭代与安全灰度：
 
 - **版本快照双写 (Dual-Write Snapshots)**：每次技能写入由 `write_orchestrator` 落 DB `skill_versions` 快照并原子同步磁盘 `SKILL.md`；`VersionAwareSkillBackend` 仅在载入技能正文时返回激活快照，系统提示词中的技能清单不经版本路由，前缀稳定、Prompt Cache 不受影响。
-- **可证伪变更清单 (Change Manifest)**：进化提案经 harness `build_change_manifest` 以绑定的 eval_cases 静态断言（零 LLM）给出基线/目标通过率与 held-out 泛化裁决，随提案交给审批卡片展示，由用户决定是否应用。
+- **回归守卫与安全扫描**：进化变体先经 harness 基线相对回归门（仅原版通过的 EvalCase 计入守卫，丢失按比例扣分，守卫用例全部丢失才淘汰），再经安全扫描；审批卡片只展示实际执行过的扫描结果（未扫描即无结论），由用户决定是否应用。
 - **原子应用与一键回滚**：应用前写前快照，`/skill-optimization/rollback/{skill_id}` 与 `/skill-optimization/mutations/{batch_id}/rollback` 分别回到指定版本与撤销整批技能修改。
 - **技能免疫闭环**：订阅 Harness `SkillFailureEvent`，在 Server 单机业务层完成运行时失败分类、幂等去重、修复提案生成与 GUI 审批落地，Control Plane 不参与技能业务。
 

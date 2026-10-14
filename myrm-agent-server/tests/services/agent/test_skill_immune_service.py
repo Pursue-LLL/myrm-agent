@@ -146,6 +146,7 @@ async def test_skill_failure_event_without_evolution_engine_creates_one_blocked_
     assert records[0].status == "REJECTED"
     assert payload["growth_status"] == EvolutionGrowthStatus.FAILED_SCAN.value
     assert payload["reason_code"] == "runtime:no_evolution_engine"
+    assert payload["test_passed"] is None
     assert payload["runtime_failure"]["failure_count"] == 2
 
     with pytest.raises(EvolutionApplyError, match="Blocked evolution cannot be approved"):

@@ -10,7 +10,7 @@ from app.services.skills.evolution_reviews import approval_to_evolution_review_r
 
 @pytest.mark.asyncio
 async def test_confidence_approval_flow_ast_block():
-    """测试 AST Syntax 验证不通过时，Score 被置为 0.0，且 test_passed=False 的阻断拦截流程。"""
+    """AST Syntax 验证不通过时，Score 为 0.0：提案被拦下转人工审核，且不声称任何安全扫描结论（test_passed 为空）。"""
 
     failed_proposal = EvolutionProposal(
         skill_id="skill_syntax_error",
@@ -45,7 +45,7 @@ async def test_confidence_approval_flow_ast_block():
         assert approval is not None
         assert review is not None
         assert review.confidence == 0.0
-        assert review.test_passed is False
+        assert review.test_passed is None
 
         await db.delete(approval)
         await db.commit()

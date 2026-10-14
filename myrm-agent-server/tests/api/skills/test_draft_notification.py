@@ -450,3 +450,43 @@ async def test_persist_draft_rejected_and_blocked_statuses(
         await db.execute(delete(ExperienceLedgerEvent))
         await db.execute(delete(ApprovalRecord))
         await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_persist_draft_prompt_only_content_carries_no_verification_proof(
+    mock_local_skills_dir: Path,
+) -> None:
+    """A draft with nothing executable is never labelled as sandbox-verified."""
+    from app.services.skills.draft_notification import persist_skill_draft_record
+
+    record = await persist_skill_draft_record(
+        {
+            "type": "skill_draft",
+            "skill_name": "prompt-only-skill",
+            "content": "---\nname: prompt-only-skill\n---\n## Steps\n1. Summarise the page for the user",
+        },
+        status="PENDING_REVIEW",
+    )
+    assert record is not None
+    assert record.payload["verification_proof"] is None
+
+
+@pytest.mark.asyncio
+async def test_persist_draft_with_assertion_block_carries_verification_proof(
+    mock_local_skills_dir: Path,
+) -> None:
+    """A draft whose assertion block really ran in the sandbox keeps its proof."""
+    from app.services.skills.draft_notification import persist_skill_draft_record
+
+    record = await persist_skill_draft_record(
+        {
+            "type": "skill_draft",
+            "skill_name": "asserting-skill",
+            "content": "---\nname: asserting-skill\n---\n## Steps\n```python\nassert 1 + 1 == 2\n```\n",
+        },
+        status="PENDING_REVIEW",
+    )
+    assert record is not None
+    proof = record.payload["verification_proof"]
+    assert isinstance(proof, dict)
+    assert proof["is_verified"] is True

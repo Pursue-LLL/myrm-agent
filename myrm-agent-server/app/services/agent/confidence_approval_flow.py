@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 DIFF_CHANGE_THRESHOLD = 0.5
 EFFECTIVE_RATE_THRESHOLD = 0.5
 MIN_OBSERVED_FOR_RATE_SIGNAL = 3
+_NGRAM_SIZE = 3
 
 
 @dataclass
@@ -58,7 +60,7 @@ class ConfidenceApprovalFlow:
 
         Auto-merge requires ALL conditions:
         1. score >= threshold AND is_general (existing LLM signals)
-        2. diff change ratio <= 50% (prevents silent large-scale rewrites)
+        2. changed-content ratio <= 50% (prevents silent large-scale rewrites)
         3. historical success rate over observed runs >= 50% or insufficient data (prevents risky fixes on low-quality skills)
         """
         from app.core.skills.store.evolution_store import get_evolution_skill_store
@@ -84,7 +86,7 @@ class ConfidenceApprovalFlow:
 
         should_auto_approve = (
             proposal.score >= self._auto_approve_threshold
-            and getattr(proposal, "is_general", False)
+            and proposal.is_general
             and len(risk_signals) == 0
             and not force_manual_review
         )
@@ -114,7 +116,7 @@ class ConfidenceApprovalFlow:
             )
 
         review_record = await create_evolution_review_record(
-            agent_id=getattr(proposal, "agent_id", None) or "default",
+            agent_id=proposal.agent_id or "default",
             chat_id=None,
             proposal_skill_id=proposal.skill_id,
             skill_name=skill_name,
@@ -124,15 +126,14 @@ class ConfidenceApprovalFlow:
             original_content=proposal.original_content,
             evolved_content=proposal.proposed_content,
             confidence=proposal.score,
-            test_passed=proposal.score > 0,
+            test_passed=_scan_outcome(proposal),
             task_context=proposal.task_context,
             trajectory=proposal.trajectory,
             reason_code=reason_code,
             remediation=remediation,
             runtime_failure=runtime_failure,
             eval_cases=proposal.updated_eval_cases,
-            change_manifest=getattr(proposal, "change_manifest", None),
-            security_scan_summary=getattr(proposal, "security_scan_summary", None),
+            security_scan_summary=proposal.security_scan_summary,
         )
 
         approved = False
@@ -151,7 +152,7 @@ class ConfidenceApprovalFlow:
 
                 publish_skill_evolved_event(
                     skill_name=skill_name,
-                    evolution_type=getattr(proposal.evolution_type, "value", proposal.evolution_type),
+                    evolution_type=proposal.evolution_type.value,
                     description="Auto-learned skill from background evolution.",
                     evolution_id=review_record.id,
                 )
@@ -189,11 +190,9 @@ class ConfidenceApprovalFlow:
         """Evaluate deterministic risk signals. Returns list of triggered signal names."""
         signals: list[str] = []
 
-        # Signal 1: Diff change ratio — large rewrites should not auto-merge
-        original_len = len(proposal.original_content)
-        proposed_len = len(proposal.proposed_content)
-        if original_len > 0:
-            change_ratio = abs(proposed_len - original_len) / original_len
+        # Signal 1: Changed-content ratio — large rewrites should not auto-merge
+        if proposal.original_content:
+            change_ratio = _changed_content_ratio(proposal.original_content, proposal.proposed_content)
             if change_ratio > DIFF_CHANGE_THRESHOLD:
                 signals.append(f"diff_range:{change_ratio:.0%}")
 
@@ -202,6 +201,38 @@ class ConfidenceApprovalFlow:
             signals.append(low_rate)
 
         return signals
+
+
+def _scan_outcome(proposal: EvolutionProposal) -> bool | None:
+    """Security-scan outcome recorded for the review card.
+
+    A proposal reaches review only when the scan did not reject it, so a scan
+    summary means "passed"; without a summary no scan ran and nothing is claimed.
+    """
+    return True if proposal.security_scan_summary is not None else None
+
+
+def _ngram_counts(text: str) -> Counter[str]:
+    if len(text) < _NGRAM_SIZE:
+        return Counter([text]) if text else Counter()
+    return Counter(text[i : i + _NGRAM_SIZE] for i in range(len(text) - _NGRAM_SIZE + 1))
+
+
+def _changed_content_ratio(original: str, proposed: str) -> float:
+    """Share of the original's content that was rewritten, removed, or outgrown by additions.
+
+    Compares character n-gram multisets, so a same-length rewrite counts as a
+    full rewrite (a plain length comparison reports 0%). N-grams keep the
+    measure meaningful for one-line descriptions and for text without
+    whitespace such as Chinese, and the comparison is linear time, unlike
+    sequence alignment, which degrades badly on repetitive text. ``original``
+    must be non-empty.
+    """
+    original_grams = _ngram_counts(original)
+    proposed_grams = _ngram_counts(proposed)
+    unchanged = sum((original_grams & proposed_grams).values())
+    changed = max(original_grams.total(), proposed_grams.total()) - unchanged
+    return changed / original_grams.total()
 
 
 def _low_success_rate_signal(skill_name: str) -> str | None:
