@@ -14,7 +14,6 @@
 | `command_center/` | 个人大脑指挥中心聚合服务（单用户/单沙箱可观测快照、trace run 聚合、`vector_persistence` 揭示）与洞察服务（影响证据、瀑布流、eval checks、迁移来源聚合等）。见 `command_center/_ARCH.md` |
 | `diagnostics/` | Memory Diagnostics 服务与静态检查构建器、probe 结果归一化、质量治理、黄金召回基准、修复计划/执行器、SLO 汇总。见 `diagnostics/_ARCH.md` |
 | `evidence/` | 证据回放与溯源服务（对话上下文切片检索、敏感凭据脱敏）。见 `evidence/_ARCH.md` |
-| `business_templates/` | 零售售后换货与经营分析复盘的业务经验模板（领域模型、三套预置模板、转人工边界评估引擎、验证反馈计数）；业务语义只存放在 Server 层。见 `business_templates/_ARCH.md` |
 | `extract_retry/` | 记忆提取持久化重试队列（幂等入队、退避重试、重启恢复、终态账本）与后台 worker；对指定 chat 重新调度 `auto_extract_memories`（含隐私保护上下文重建）；chat→agent extraction LLM 解析（`resolve_chat_extraction_llm.py`）。见 `extract_retry/_ARCH.md` |
 | `imports/` | 导入 adapter 目录与解析器、dry-run dispatcher、导入审查会话编排、item-level 事务账本与崩溃安全回滚 journal、Integration Memory 业务服务与 Sync Daemon、MCP Server→IntegrationProvider 桥接（`mcp_bridge_provider.py`）。见 `imports/_ARCH.md` |
 | `ledger/` | 单用户记忆操作账本（`record_event` 事件发布在持久化成功之后，杜绝 ghost event）、Guardian 调度策略（`guardian_policy.py`）与晨间摘要聚合。见 `ledger/_ARCH.md` |

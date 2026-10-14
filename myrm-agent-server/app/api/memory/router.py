@@ -26,9 +26,6 @@ from app.api.memory.bitemporal_tms_router import (
 from app.api.memory.budget_packing_router import (
     router as budget_packing_router,
 )
-from app.api.memory.business_template_router import (
-    router as business_template_router,
-)
 from app.api.memory.cjk_iteration_router import (
     router as cjk_iteration_router,
 )
@@ -300,10 +297,6 @@ router.include_router(
 router.include_router(
     markdown_curator_router,
     tags=["memory-markdown-curator"],
-)
-router.include_router(
-    business_template_router,
-    tags=["memory-business-templates"],
 )
 router.include_router(
     peer_cognition_router,

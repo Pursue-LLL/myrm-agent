@@ -91,12 +91,6 @@
 | `MemoryCuratorAddForm.tsx` | 辅助 | 折叠式新记忆录入表单：录入标题、分类、详细内容与标签并即时刷盘 | ✅    |
 | `MemoryCuratorEntryCard.tsx` | 辅助 | 单条记忆卡片项：支持原地编辑、状态徽章、置信度与一键物理抹除 | ✅    |
 | `curatorFallbacks.ts` | 辅助 | 策展工作台离线与单测仿真数据集 | ✅    |
-| `BusinessScenarioTemplatesCard.tsx` | 核心 | 业务场景经验模板与转人工门禁工作台卡片：对标 OpenViking PPT 复盘与 τ²-bench 换货真实场景，复用排障方法而非旧数据，先问必查闭环与确定性转人工门禁 | ✅    |
-| `BusinessTemplateHudBar.tsx` | 辅助 | 业务经验 4 维 HUD 监控条：呈现冷启动模板数、经营复盘规则数、零售换货 5 阶段状态与例外转人工门禁触发点 | ✅    |
-| `BusinessAnalysisReviewTemplateView.tsx` | 辅助 | 经营分析复盘三方法检视子组件：公式计算值回查、多源口径核对与交付前模板验收，提供有效性验证演化交互 | ✅    |
-| `RetailExchangeChecklistView.tsx` | 辅助 | 换货全链路先问必查交互式检查清单子组件：先问 -> 必查 -> 显式确认 -> 办理 -> 告知后续 5 阶段步进与 tau2 约束 | ✅    |
-| `EscalationGateEvaluatorView.tsx` | 辅助 | 例外转人工决策门禁评估子组件：定制例外/政策模糊、断码缺货、连续纠偏争议 3 大拦截规则仿真与结构化人工交接包组装 | ✅    |
-| `businessTemplateFallbacks.ts` | 辅助 | 业务场景经验模板离线与单测仿真数据集 | ✅    |
 | `PeerCognitionStudioCard.tsx` | 核心 | 社会认知实体图谱与常驻画像卡中枢卡片：对标 Hermes+Honcho 官方实践，以参与者 Peer 为中心组织记忆，打破孤立事实表局限，常驻 Peer Card 自演化与多智能体角色对齐 | ✅    |
 | `PeerCognitionHudBar.tsx` | 辅助 | 社会认知 4 维 HUD 监控条：呈现常驻 Peer 实体数、语义关系边数、累计协作演化频次与低 Token 上下文投影开销 | ✅    |
 | `PeerEntityGraphExplorerView.tsx` | 辅助 | 实体拓扑与关系边检索探索子组件：支持按用户/智能体/项目/审查者筛选实体，呈现 asserts/approves/collaborates/governs 语义边与动态建立关系 | ✅    |
