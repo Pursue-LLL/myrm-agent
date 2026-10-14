@@ -263,10 +263,9 @@ def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

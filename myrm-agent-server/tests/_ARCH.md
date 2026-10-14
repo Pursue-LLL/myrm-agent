@@ -8,14 +8,13 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 
 | 路径 | 地位 | 职责 |
 |------|------|------|
-| `conftest.py` | 核心 | 进程级 `.env` + [T] secrets bootstrap、隔离 workspace、`test_secrets` session fixture、integration/e2e 路径每测后 `reset_global_browser_pool_for_tests()`、session 结束 + `@chrome_e2e` timeout 时 `reset_database_engine()` + `reap_chrome_e2e_session_hygiene()` + `shutdown_cached_memory_managers()`、浏览器进程树 cleanup（`tests/support/browser_process_cleanup`）；`@pytest.mark.chrome_e2e` 三维 profile + **PRIVATE 必填 `private_reason`** + **`global_write_non_namespace`⇒`GLOBAL_WRITE` 语义校验**（与 `scripts/dev/e2e_session/profile.py` 对齐）；autouse `_isolate_oauth_token_state` 每测前后清空 OAuth 刷新记账（失败记忆、重新授权去重、按发行方的锁、已签发令牌表）：测试复用发行方名而凭据各异，一个用例记下的拒绝不得短路另一个用例的刷新 |
+| `conftest.py` | 核心 | 进程级 `.env` + [T] secrets bootstrap、隔离 workspace、`test_secrets` session fixture、integration/e2e 路径每测后 `reset_global_browser_pool_for_tests()`、session 结束 + `@chrome_e2e` timeout 时 `reset_database_engine()` + `reap_chrome_e2e_session_hygiene()` + `shutdown_cached_memory_managers()`、浏览器进程树 cleanup（`tests/support/browser_process_cleanup`）；`@pytest.mark.chrome_e2e` 三维 profile + **PRIVATE 必填 `private_reason`** + **`global_write_non_namespace`⇒`GLOBAL_WRITE` 语义校验**（与 `scripts/dev/e2e_session/profile.py` 对齐） |
 | `support/browser_process_cleanup.py` | 辅助 | pytest 进程树内 browser 自动化子进程 teardown |
 | `support/test_browser_process_cleanup.py` | 单元 | browser_process_cleanup 单测（100% 覆盖） |
 | `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
 | `support/session_mock_guard.py` | 辅助 | `restore_leaked_session_mocks(mock_get_session, mock_get_session_factory)`：列在 DB 会话 `patch` 之前的上下文守卫，退出时把「补丁生效期间首次 import 而捕获了 mock」的模块全局重绑回真实可调用对象（`patch` 只还原它点名的属性）；`tests/api/{agent,skills,companion,notifications,approvals}/conftest.py` 的会话夹具共用 |
 | `support/test_session_mock_guard.py` | 单元 | 守卫回归：补丁期间首次 import 的模块在无守卫时保留 mock（复现后续用例 `no such table: user_configs`），有守卫时重绑为真实函数 |
 | `support/fake_secrets.py` | 辅助 | 厂商格式假凭据夹具 SSOT：`stripe_live_key(body)`、`slack_bot_token(body)` 在调用时才拼出厂商前缀，源码里不出现完整 token（GitHub push protection 会拒绝含完整厂商 token 的推送，假值也不例外）；脱敏与泄漏检测类测试共用，由 `architecture/test_no_provider_shaped_secrets_in_tests.py` 守卫 |
-| `support/jwt_tokens.py` | 辅助 | 未签名 JWT 构造（`make_jwt`、`encode_segment`）：给需要可读 `exp` 声明的访问令牌的测试用，`test_oauth_token_policy.py` 与 `test_oauth_refresher_failure_memory.py` 共用 |
 | `support/e2e_provider_seed.py` | 辅助 | LIVE E2E provider seed SSOT：`resolve_e2e_llm_endpoints`（OmniRoute `:20128` preflight · fail-fast，无 silent fallback）、`seed_live_e2e_providers` |
 | `support/test_e2e_provider_seed.py` | 单元 | `resolve_e2e_llm_endpoints` keep/fallback 契约 |
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
@@ -27,13 +26,29 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/artifact_upsert_fixture.py` | 辅助 | 制品 upsert 自动 mock 插件（autouse，`pytest_plugins` 全局注册）：把 `app.core.artifacts.listener.upsert_processor_artifact` 换成 `AsyncMock`；`core/artifacts` 与 `api/artifacts` 测试共用，对不碰制品管线的测试无副作用 |
 | `support/export_world.py` | 辅助 | 专家导出测试的假安装：`ExportWorld`（专家、技能目录与文件、连接器）+ `installed()` 上下文把导出闭包指向它；`SKILL_MD` 最小合法技能；`services/plugins` 与 `api/plugins` 导出测试共用 |
 | `support/redaction_review_e2e.py` | 辅助 | 导出脱敏复核 Chrome E2E 的浏览器侧：`ReviewFlow`（对话框标题、进入方式、成功提示措辞）+ `run_review_flow`（zh 与 en 各读一遍发现项的本地化句子且无原始代码、`kinds.` 键名与另一语言句子，再点“导出脱敏版”走真实下载并以对话框关闭为判据，结束恢复 `NEXT_LOCALE`）；专家导出、批量导出与单技能导出三个 E2E 共用（`advance_js` 让打开在选择步骤的向导前进到复核步骤） |
-| `e2e/test_expert_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：`/settings/agents` 带密钥与本机路径的智能体，预览 API 返回 `api_token`/`absolute_path` 代码，导出对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框 |
-| `e2e/test_bulk_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：`/settings/agents` 点“批量导出”→下一步，带密钥与本机路径的智能体，批量预览 API 返回 `api_token`/`absolute_path` 代码，向导自身按钮/标题与复核面板在 zh/en 均本地化，点导出脱敏版后下载并关闭对话框 |
-| `e2e/test_featured_expert_lucide_icons_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：空聊天首页精选专家芯片（`empty-chat-featured-chips`）按模板 API 的 `lucide:<name>` 逐个懒加载图标；每个芯片须为已解析的具名 svg（非 Bot/Users 占位），且不同图标几何互异 |
-| `e2e/test_skill_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+NAMESPACE_WRITE×1）：经 `.zip` 上传装一个带密钥与本机路径的技能，`/settings/skills` 已安装列表搜索 → 详情抽屉 → 导出，对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框；结束卸载该技能 |
+| `e2e/test_expert_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（SHARED+NAMESPACE_WRITE×1）：`/settings/agents` 带密钥与本机路径的智能体，预览 API 返回 `api_token`/`absolute_path` 代码，导出对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框 |
+| `e2e/test_bulk_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（SHARED+NAMESPACE_WRITE×1）：`/settings/agents` 点“批量导出”→下一步，带密钥与本机路径的智能体，批量预览 API 返回 `api_token`/`absolute_path` 代码，向导自身按钮/标题与复核面板在 zh/en 均本地化，点导出脱敏版后下载并关闭对话框 |
+| `e2e/test_featured_expert_lucide_icons_chrome_e2e.py` | E2E | Chrome E2E（SHARED+READ×1）：空聊天首页精选专家芯片（`empty-chat-featured-chips`）按模板 API 的 `lucide:<name>` 逐个懒加载图标；每个芯片须为已解析的具名 svg（非 Bot/Users 占位），且不同图标几何互异 |
+| `e2e/test_skill_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+GLOBAL_WRITE×1）：经 `.zip` 上传装一个带密钥与本机路径的技能，`/settings/skills` 已安装列表搜索 → 详情抽屉 → 导出，对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框；结束卸载该技能 |
 | `support/test_chrome_bridge_diagnostics.py` | 单元 | `wait_for_react_e2e_bridge` 超时诊断：快照辅助返回页面 readyState/脚本加载/未捕获错误，自身异常不覆盖原始超时，超时信息携带 `diagnostics=` 以区分「未 hydrate」与「脚本未加载完」 |
+| `support/test_chrome_bridge_load.py` | 单元 | `wait_for_load_to_settle` 及其在 `wait_for_react_e2e_bridge` 中的接线（假时钟）：脚本仍在完成时不触发 heal 重载（慢 hydrate 的页面能等到 bridge），45s 无进展才重载，截止时间到仍带诊断失败；探针 JS 暴露等待所读信号，API 轮询不算加载进度 |
 | `e2e/test_telemetry_posture_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Developer 设置页面 OpenTelemetry Posture 遥测态势卡片、协议/端点/特性渲染与刷新端到端测试 |
 | `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试 |
+| `api/system/test_update_snapshots_api.py` | 单元 | 系统 API 恢复点路由：创建、列表、排队恢复（下次启动生效，运行库不被写）、删除 |
+| `api/memory/test_memory_migration_api.py` | 单元 | 记忆迁移 API：竞品检测与迁入；`/export`、`/restore` 路径不存在（断言 404） |
+| `api/instance_archive/test_auto_backup_router.py` | 单元 | 定时备份 HTTP 面：读取/保存/立即备份、参数错误与导出进行中的稳定码、备份文件夹读不到时报告 `folder_available=false`（不当作空）、无法解析的 `~用户名` 路径保存不返回 500（关闭状态 200 并原样回显，开启状态 400 `backup_dir_invalid`）、云端沙箱与非标准布局的 `supported=false`、配对 token 默认拒绝 |
+| `api/instance_archive/test_router.py` | 单元 | 整实例备份 HTTP 面：完整流程、稳定错误码、布局守卫、一次性 outcome 外壳、配对 token 默认拒绝、导出结果带回读不到的数据项数量（`unreadable_count`），导入预览报告带同名字段 |
+| `services/instance_archive/auto_backup/` | 模块 | 定时整实例备份：纯调度规则、设置/实例标记持久化与钳制、目标文件夹校验、保留只动本实例的文件（多实例共用文件夹互不干扰、未来日期文件不顶掉新备份）、运行器（成功/失败/跨卷/不可读/运行中换目录的失败丢弃）、服务（文件夹为唯一事实：手动删光立即到期、换目录、告警恰一次、导出进行中不记失败、两个调用方同时通过检查也只启动一次）、文件夹读不到按「未知」处理（`test_service_availability.py`：拔出移动硬盘的完整时间线、文件夹被删、拒绝访问、读得到但被清空仍立即到期、手输的 `~不存在的用户/…` 仍可读取与更正且定时运行记为失败而非崩溃）、不回答的文件夹有界且不占用共享线程池（`test_folder_guard.py`：超时、卡住后快速失败、已放弃的排队调用不执行、daemon、空闲退出；按进展等待的长搬运（持续汇报进展则不受总时长限制、最后一次汇报后超时才放弃、放弃后下一次汇报即被告知、卡住后两类调用立即失败且不再起线程、等待方自身被冻结不误判为失联）；`test_service_folder_hang.py`：共享盘替身在文件系统层阻塞，并发轮询不卡死、保存与立即备份以 `backup_write_failed` 被拒且不写设置、定时运行约在超时内记为失败并释放运行位、连续失败只告警一次、恢复后定时备份补做且读得到；`test_transfer_stall.py`：预检通过之后拷贝中途失联——停滞的拷贝记为 `backup_write_failed` 并释放运行位、迟到返回的拷贝不留 `.partial` 与新备份（含卡在最后一次 `fsync`、同卷 rename 等待、迟到发布被撤回）、慢但持续有进展的拷贝正常完成、写入攒在共享端直到刷盘的慢共享（整份刷完超过窗口，每段都在窗口内）不被放弃且刷盘不比每段一次更频繁、共享在某一段刷盘时拒收（空间不足）记为失败且不留 `.partial`、裁剪不返回不撤销已完成的备份、卡住期间下一次运行立即失败且不叠第二个拷贝、源归档删不掉不改变已记录的结果、服务层卡住后不再显示运行中；`test_incomplete_backup.py`：导出读不到数据项时以 `.incomplete.zip` 留存且可恢复、记为 `backup_incomplete` 失败、绝不裁剪完整备份且只留最新一份不完整副本、告警恰在第 2 次连续失败发一次、完整备份成功后清零失败并清掉不完整副本、真实 `chmod 0` 文件的端到端；`test_retention.py` 另钉死不完整副本命名独立且不被列为备份、另一实例的不完整副本不被动；`test_destination.py`：不回答的文件夹与真实拒绝的错误码区分、前导 `~` 仍展开为家目录、无法解析的 `~用户名` 保持原样并按 `backup_dir_invalid` 拒绝）；共享测试夹具在 `harness.py`（含 `until` / `scheduled_run_ends`）/ `rig.py` / `conftest.py`；含恢复往返与 `LOCAL_USER_ID` 身份契约 |
+| `services/instance_archive/archive_flow.py` | 辅助 | 导出 → 上传 → stage 的共享步骤与两个 SQLite 读取器（流程测试与预览测试共用） |
+| `services/instance_archive/test_export_import_flow.py` | 模块 | 导出 → 分块上传 → stage → confirm → 启动前换入 → 回滚的端到端（真实 SQLite 与文件树） |
+| `services/instance_archive/test_export_jobs.py` | 模块 | 后台导出任务：生命周期、单飞、取消与过期清理 |
+| `services/instance_archive/test_import_review.py` | 模块 | 导入预览：备份生成时间取自包内清单、与运行中实例的计数并排、读不到运行库时降级为空、备份声明读不到的数据项数量（只信非负整数并设上限，旧归档视为 0） |
+| `services/instance_archive/test_import_time_db_opens.py` | 模块 | 导入 app 模块时不得打开归档携带的数据库（启动前换入会替换它们，import 期打开会持有换入前文件） |
+| `services/instance_archive/test_export_completeness.py` | 模块 | 导出如实报告读不到的数据项：无法读取的文件、无法列出的目录计入 `unreadable`，导出途中消失的文件不计入，读得到时为空；该数量同时写入 manifest（`unreadable_count`） |
+| `services/instance_archive/test_policy.py` | 模块 | 路径分类：默认包含、显式排除、敌意条目拦截；扫描把无法列出的目录与无法读取的文件记为读不到，与已消失的文件区分 |
+| `services/instance_archive/test_restore_points.py` | 模块 | 恢复点：一致性快照、staging 校验、下次启动换入、拒绝更新版 schema 与被篡改快照 |
+| `services/instance_archive/test_schema_reconciliation.py` | 模块 | 把归档策略钉到真实 ORM schema，表/列改名或新增密钥列不会悄悄使策略失效 |
+| `services/instance_archive/test_uploads.py` | 模块 | 分块上传会话：块几何、续传、校验与路径安全 |
 | `api/memory/test_evidence_playback_api.py` | 单元 | 记忆证据链溯源、上下文切片回放与凭据脱敏 API 集成测试 |
 | `api/memory/test_command_center_graph_api.py` | 单元 | 记忆指挥中心知识图谱双视图（Hub 聚合排序、孤岛三态与连通度度数）API 单元与契约测试 |
 | `api/memory/test_pending_api.py` | 单元 | 待审批记忆 HTTP 面（`/memory/pending`）：列表、单条/批量批准与拒绝（含审批者改写文本透传、不可编辑提案 400、内部 ValueError 仍为 500），记录缺失 404 与服务端失败 500 的错误映射 |
@@ -43,6 +58,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_draft_review_stream_hold.py` | 单元 | `draft_review` 待审回复：生成期间正文不流式写入聊天占位消息（审批续跑回合同样），普通回复照常流式；是否扣留只取决于话题，与回合类型无关 |
 | `channels/routing/test_action_button_approval.py` | 单元 | IM 按钮审批：内容解析校验、群聊请求者/共同审批人授权（私聊免检）、批准/拒绝续跑与重复点击幂等、原消息状态行按点击者语言编辑、无运行任务时 SSE 回退；扣留回复（`outbound_draft`）仅 owner 可裁决——非 owner 被拒并指引、运行中的任务不放行他人、工具审批不受 owner 校验，owner 卡片的每个按钮处理器都认识 |
 | `channels/routing/test_command_authorization.py` | 单元 | 内置系统命令默认仅 owner 可用：目录钉住对所有发送者开放的命令集合（只在发送者自己的会话内、至多花一轮），技能/Agent 路由命令不受 owner 限制；其余命令对非 owner 一律被拒（不论 DM 策略是否放行）而 owner 全部可达；`/help` 列表与回复按发送者身份过滤；非 owner 不能委派任务或 steer 运行中的委派，被拒的 `/btw` 不会被委派前缀捡走 |
+| `channels/routing/test_sender_admission.py` | 单元 | 事件触发的发送者准入（只读判定）：用真实配对表钉住 DM（ALLOWLIST/PAIRING/OPEN/DISABLED × 所有者/成员/陌生人/已拉黑/待审批）、群聊（启用群、非启用群、访客 @mention、群策略 DISABLED）、WhatsApp LID 映射与控制面转发的放行/拒绝，并与真实 `resolve_dm_user` / `resolve_group_user` 逐例比对；判定前后配对状态不变、不创建 LID 绑定 |
+| `channels/test_router_cron_event_dispatch.py` | 单元 | 路由器的 cron 事件触发钩子：普通消息触发一次且重复投递仍只触发一次，命令/待审批/reaction 不触发；访问策略不放行的发送者不触发、已配对成员触发；准入查询失败时拒绝触发并记 WARNING，后续消息照常路由 |
 | `channels/routing/test_draft_command.py` | 单元 | IM `/draft approve\|reject <编号>`：参数解析（过短、非十六进制、多余词一律给用法）；对真实审批表裁决，与 WebUI/按钮走同一收口（批准发出、拒绝丢弃）；6 位以上短码即可且回复报完整短码、按 owner 语言作答并回到提问的会话；未知编号、已处理、非扣留回复的审批、两条同码（都不裁决）、畸形请求、查询失败均不改动任何审批且不抛出 |
 | `services/approvals/draft_testkit.py` | 辅助 | 被扣留回复测试的共享构建器：`held_reply()`（带附件、按钮与线程的整条回复）、`draft_payload()`（路由器存储的 payload 形态：正文在 `draft_content`，其余冻结在 `outbound`）；`test_outbound_draft.py`、`test_registry_lifecycle.py` 与 `channels/routing/test_draft_command.py` 共用 |
 | `services/approvals/test_outbound_draft.py` | 单元 | 被扣留回复定案后的收尾：按评审后的正文发出（含仅附件），无快照、快照不可解码或无内容则不发；批准后发不出去时告知 owner（错误 toast 与通知中心，按 owner 语言）且永不抛出；拒绝或超时不发送并释放临时附件；关闭发送方的“待审核”占位消息（无占位则不动，平台不可编辑则删除，平台挂起有时限，网关不可达不撤销决定） |
@@ -59,8 +76,6 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `integration/test_expert_exchange_integration.py` | 模块 | 专家交换真实栈集成（真实数据库 + 连接器配置库 + 技能安装流水线 + 导出/导入路由 + ZIP，无 mock）：团队（含泄漏密钥、越权策略、远程连接器）导出 → 空的第二套安装导入（子专家重新连线 · 密钥与越权策略不外带 · 连接器默认停用且头部为占位符）；自定义技能（安装 → 导出 → 卸载 → 导入：路径泄漏被脱敏、专家重新指向新装技能）；同机导入默认生成「(imported)」副本且不动原件，选择「替换」时保存可回滚版本并保持用户自己的安全策略 |
 | `core/utils/test_error_redaction.py` | 单元 | 全局异常处理与标准 HTTP 异常响应消息自动凭据与路径脱敏测试 |
 | `e2e/test_control_ui_error_redaction_flow_e2e.py` | E2E | Task Flow E2E：Control UI 错误脱敏跨渠道测试连通性与 FastAPI 入口/出口全局防护全链路测试 |
-| `channels/routing/test_sender_admission.py` | 单元 | 事件触发的发送者准入（只读判定）：用真实配对表钉住 DM（ALLOWLIST/PAIRING/OPEN/DISABLED × 所有者/成员/陌生人/已拉黑/待审批）、群聊（启用群、非启用群、访客 @mention、群策略 DISABLED）、WhatsApp LID 映射与控制面转发的放行/拒绝，并与真实 `resolve_dm_user` / `resolve_group_user` 逐例比对；判定前后配对状态不变、不创建 LID 绑定 |
-| `channels/test_router_cron_event_dispatch.py` | 单元 | 路由器的 cron 事件触发钩子：普通消息触发一次且重复投递仍只触发一次，命令/待审批/reaction 不触发；访问策略不放行的发送者不触发、已配对成员触发；准入查询失败时拒绝触发并记 WARNING，后续消息照常路由 |
 | `e2e/test_error_redaction_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Control UI Toast 弹窗与设置界面敏感凭据打码防护测试 |
 | `e2e/test_mermaid_preview_sanitize_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Mermaid 图表严格净化与 XSS 物理阻断端到端测试 |
 | `unit/test_conversation_recall_cjk_query.py` | 单元 | 会话召回 CJK 中日韩分词与二元词降级规划测试 |
@@ -79,6 +94,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/e2e_wall_progress.py` | 辅助 | Chrome E2E 墙钟 progress token（R57：仅 touch，不再重置 body 计时） |
 | `support/e2e_fixture_stamps.py` | 辅助 | Chrome E2E 租约夹具（`conftest.py::_require_live_e2e_lease`）内的墙钟戳：一次输出 `E2E_LEASE_FIXTURE_STAMPS` 行，根仓 `scripts/dev/e2e_wait_audit.py` 的 `C4b`–`C4i` 据此拆分后端启动后到 body 前的夹具耗时 |
 | `../../scripts/dev/lib/e2e_core/shared_ui_session.py` | 辅助 | R51-v2 Shared UI Session Contract（marker `e2e_search_policy` · conftest env · bootstrap/`click_new_chat` 四阶段 reset） |
+| `support/chrome_bridge_load.py` | 辅助 | E2E bridge 等待的「慢加载 vs 卡死」判定（纯逻辑，时钟可注入）：脚本仍在完成视为 hydrate 中，`complete` 且静默 3s 视为沉降，45s 无变化视为停滞，只有后两者才交给 heal 重载 |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
 | `support/evicted_drawer_selectors.py` | 辅助 | UECD Drawer Chrome E2E 共享选择器/探针 SSOT（`data-testid` 定位 + `/files/evicted` 分页参数断言 + `drawer_mount_wait_js` 等待 lazy drawer mount） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装；`hide_sse_heartbeats`（同步 `TestClient`）与 `hide_sse_heartbeats_async`（`httpx.AsyncClient`）响应钩子共用同一状态机，让行解析器看不到 keep-alive 帧；`check_e2e_errors` 环境类错误 skip） |
@@ -87,10 +103,11 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/chrome_skill_hooks_live_e2e.py` | 辅助 | 技能钩子 LIVE E2E 的后端装配：经产品 API 采纳带 `hooks:` 的本地技能，`setup_skill_chat` / `SkillChat`（providers + 持有该技能的智能体 + 空聊天），`audit_hooks()` / `fail_closed_hooks()` 生成写可观测文件的 SKILL.md `hooks:` 块 |
 | `support/chrome_skill_hooks_composer.py` | 辅助 | 技能钩子 Chrome E2E 的浏览器侧：真实 composer 里斜杠选技能 chip、可选经真实 file input 挂附件、输入并点真实发送键，页面对已发送回合的自述（`describe_page`），转录区 chip 渲染探针 |
 | `support/chrome_skill_hooks_approval.py` | 辅助 | 技能钩子 Chrome E2E 的 HITL 审批卡：等待审批卡出现、点真实 Approve 键，`approve_cards_until_reply` 逐张批准直到回复落库（模型重试被执行器拒绝的命令会再停一张卡），`describe_unanswered_resume` 给出批准后无回复的失败现场 |
-| `support/chrome_skill_hooks_observe.py` | 辅助 | 技能钩子回合留下的证据：等用户消息/助手回复落库、读取钩子写出的文件与后端日志，`assert_no_hook_raised` / `assert_audit_turn_governed` |
+| `support/chrome_skill_hooks_observe.py` | 辅助 | 技能钩子回合留下的证据：等用户消息/助手回复落库、`completed_assistant_replies` 列出服务端标记为 complete 的助手回复、读取钩子写出的文件与后端日志，`assert_no_hook_raised` / `assert_audit_turn_governed` |
 | `api/agent/test_sse_heartbeat_filter.py` | 模块 | agent 测试客户端（同步 `TestClient` 与异步 `httpx.AsyncClient`）对行解析器隐藏 SSE keep-alive 帧（帧由真实 `ResilientStreamBuffer` 产出，格式变更在此报红，避免 `data: null` 解析洞在流测试里重开） |
 | `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
+| `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务 |
 | `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |
 | `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
 | `services/risk/test_risk_rules_engine.py` | 模块 | 内置个人信息规则与检测引擎对真实 SQLite：身份证校验位、示例邮箱、订单号里的手机号形状、关键词后的日期不算命中；40K 点号串不再拖住邮箱规则；回溯型自定义规则在时间预算内按命中处理；过大的计数重复被拒并在加载时跳过；规则测试报告的是整段命中文本；播种刷新已存内置规则的 pattern 而不动用户所设 |
@@ -122,6 +139,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_cron_observability_chrome_e2e.py` | 模块 | Cron observability Chrome MCP E2E（READ×1 anti-mux 单会话：settings/cron banner 隐藏 · SchedulerHealthBadge · Custom create preview · Chat banner 随 health 显隐；须 `-m chrome_e2e`） |
 | `e2e/test_background_shell_live_agent_chrome_e2e.py` | 模块 | Background shell LIVE×1 SHPOIB（`lane=LIVE_AGENT`，默认 `private_backend=True`）：自然语言 user turn + `bash_code_execute_tool` stream（HITL 时 `decisions[]` approve resume）；5× stream retry + REST 20s probe + 3× chat retry；`finally` teardown cancel |
 | `e2e/test_skill_marketplace_live_agent_chrome_e2e.py` | 模块 | Skill marketplace LIVE×1 SHPOIB：`skill_market_tool` 经 agent-stream 真实 LLM 调用断言；UI toggle 见 READ `test_skill_mount_builtin_gate_chrome_e2e` |
+| `e2e/test_skill_manage_live_agent_chrome_e2e.py` | 模块 | skill_manage LIVE×1 SHPOIB 全链路零 seed：真实 WebUI 输入框发请求 → 真实模型调 `skill_manage_tool` save → 目录出现带标记的 SKILL.md → 服务端写入的 `skill_mutation_batch_id` → Task Steps 撤销提示 → 确认回滚后该批次新建的技能消失；UI 契约（seed 批次）另见 `test_skill_manage_undo_*_chrome_e2e` |
+| `e2e/test_follow_up_suggestions_live_agent_chrome_e2e.py` | 模块 | 追问建议 LIVE×1 SHPOIB 零 seed：真实输入框提问 → 真实模型回答 → 轻量模型生成的追问 chip（`message-suggestion`）出现在答案下 → 点击 chip 即把该问题作为下一条用户消息发出，服务端落库该用户消息并给出第二条 complete 助手回答；页面 `loading` 与服务端落库两侧的变化序列（`E2E_ANSWER_TIMELINE`）随结果打印 |
+| `e2e/test_chat_view_stays_mounted_chrome_e2e.py` | 模块 | 打开的会话不被重建（PRIVATE，无 LLM）：种子会话打开后静置 12 s，输入框节点零次重建、`/agents/templates` 等挂载期请求不重复；再逐键输入一句话（按键只送达获得焦点的输入框，输入框被重建即丢键），0 个丢键、焦点不丢、输入框不重建；`E2E_VIEW_IDLE` / `E2E_VIEW_TYPING` 随结果打印 |
 | `e2e/test_revert_files_live_agent_chrome_e2e.py` | 模块 | RevertFiles LIVE×1 SHPOIB：真实 LLM 回合 `file_edit_tool` 修改 workspace 文件 → SnapshotObserver 记录快照 → 页面刷新 hydrate `requestMessageId`（`r-` 前缀）→ probe 与 `RevertFiles` 同一解析（`requestMessageId \|\| messageId`）→ 真实 UI 回退并断言文件恢复 seed 内容 |
 | `e2e/test_last_turn_regenerate_chrome_e2e.py` | 模块 | 重新生成只在最新回合的回答上出现（READ，无 LLM）：种子会话含两轮回答与回答之后的后台任务通知 → 页面上只有第二轮回答有该按钮（首轮回答与通知没有） |
 | `api/agent/test_memory_conversation_search_e2e.py` | 模块 | Memory + sessions opt-in API 集成（真实 LLM agent-stream；8 场景：opt-in/incognito/memory-off/多轮/passphrase） |
@@ -147,7 +167,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/skills/test_permission_gate_real_db_integration.py` | 模块 | 技能权限 gate 真实 DB 全链路集成（无 mock）：grant 行写入 SQLite → 缓存读取 → gate 决策；revoke 清缓存实时失效；脏值跳过 |
 | `services/skills/test_mutation_batch_stream.py` | 模块 | 批次提交事件契约：事件形状、关联到最新未关联批次的 skill_manage 步骤（连续批次各归其步、命名空间工具名、失败/他工具步骤跳过、无步骤时不建步骤、id 小写化、畸形 id 与他工具事件忽略） |
 | `services/skills/test_mutation_batch_hook_announce.py` | 模块 | `ServerSkillManageBatchHook` 提交后才广播批次 id（顺序 commit→emit）、快照未解析时不广播、进度通道抛错不影响已提交批次（记 WARNING）、无通道时照常提交 |
-| `integration/skills/` | 模块 | 技能管道集成测试目录：prebuilt 同步契约（`test_prebuilt_skills_e2e.py`——含 `test_tdd_skill_v120_contract_guard` 断言 TDD v1.2.0 契约字段/正文标题/边界护栏措辞/references 段落 + batch import/curator/discovery 等 7 文件） + `test_skill_rescan_supply_chain_integration.py`（供应链重扫全链路集成：真实磁盘包提取、OSV缓存/已知通告、AdvisoryAck 确认治理、自动隔离下架与事件总线广播） |
+| `integration/skills/` | 模块 | 技能管道集成测试目录：prebuilt 同步契约（`test_prebuilt_skills_e2e.py`——含 `test_tdd_skill_v120_contract_guard` 断言 TDD v1.2.0 契约字段/正文标题/边界护栏措辞/references 段落 + batch import/curator/discovery 等 7 文件） + `test_skill_rescan_supply_chain_integration.py`（供应链重扫全链路集成：真实磁盘包提取、OSV缓存/已知通告、AdvisoryAck 确认治理、自动隔离下架与事件总线广播） + `test_skill_manage_undo_lifecycle_integration.py`（skill_manage 保存 → 目录按名解析 → 按 batch_id 撤销：真实工具/批次 hook/目录/回滚服务，内存库 + tmp 技能根；批次 id 与用户界面一致，取自 `StreamContentCollector` 经真实事件路径（hook → 进度通道 → 收集器）写入的 Task Steps 步骤；守住「写入根 = 目录主根」与「撤销可回收批次新建的技能」） |
 | `api/chats/test_citation_seed_fixture.py` | 模块 | citation fixture seed HTTP 单测（local-only，`/chats/test/seed-citation-fixture`） |
 | `api/chats/test_deliverable_seed_fixture.py` | 模块 | deliverable link fixture seed HTTP 单测（`/chats/test/seed-deliverable-link-fixture`） |
 | `e2e/test_deliverable_bundle_board_chrome_e2e.py` | 模块 | TaskDeliverableBundle 看板 Chrome MCP E2E（seed 完成态 Goal + 3 项不同类目工件 → 展开 GoalStatusCard → 验证聚合看板渲染、类目 Tab 过滤、多选动态导出按钮） |
@@ -246,6 +266,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/test_bash_compressor_declarative_e2e.py` | 模块 | Declarative bash 压缩真实 LLM agent-stream e2e（`@pytest.mark.e2e`；TestClient 进程内；`.myrm/filters.yaml` replace+strip 生效断言；压缩断言仅针对 tool stdout，LLM 回复文本不受过滤器影响） |
 | `api/agent/test_bash_compressor_live_api_e2e.py` | 模块 | Declarative bash 压缩 live API e2e（`@pytest.mark.e2e`；`resolve_verify_api_base()` 私池 + provider seed + 后端 workspace 根解析；SSE 收集 + workspace 压缩回放） |
 | `api/agent/test_idle_failure_chain_live_api_e2e.py` | 模块 | 失败工具回合后 idle 链 live API e2e（`@pytest.mark.e2e`；仅隔离 runtime；读 `idle_tasks.db` 断言只含受支持的 idle 任务类型且全部 completed） |
+| `api/agent/test_skill_manage_undo_live_api_e2e.py` | 模块 | skill_manage 保存后撤销 live API e2e（`@pytest.mark.e2e`；`resolve_verify_api_base()` 私池 + 真实模型：agent-stream 上带参数的步骤事件先于 `skill_mutation_batch_id` 事件 → 落库步骤携带该批次 id → 技能进目录且 SKILL.md 含标记 → `POST /skill-optimization/mutations/{id}/rollback` 后技能消失；无浏览器，不替代 Chrome E2E） |
 | `e2e/test_idle_chain_chrome_e2e.py` | 模块 | 真实 WebUI 发起一轮对话后 idle 链 Chrome e2e（`chrome_e2e` PRIVATE/LIVE）：关闭标签页后读隔离 runtime 的 `idle_tasks.db`，断言本会话 idle 任务全部 completed，失败信息附队列时间线 |
 | `api/agent/test_bash_compressor_make_live_api_e2e.py` | 模块 | 内置 make 过滤器 live API e2e（`@pytest.mark.e2e`；`printf %b` 生成 tab recipe Makefile 触发真实 make 输出；raw 含 BUILT_OK 但压缩未消除目录行时回退 workspace 本地 make 验证） |
 | `api/agent/test_mcp.py` | 模块 | Agent MCP 集成（`@pytest.mark.e2e`）：amap · 12306 Node stdio PTC；TestClient 进程内；须 `-m e2e` |
@@ -286,19 +307,19 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `tasks/test_task_event_bus.py` | 模块 | TaskEventBus 回归（事件正常入队；队列满时淘汰最旧并投递带 `sync_required` 的最新事件，断言 emitted/dropped/replaced 指标与 queue_full warning 节流） |
 | `e2e/test_team_hub_builtin_badge_chrome_e2e.py` | 模块 | Team Assets Hub 内置 Agent 徽标 + 名称本地化 Chrome E2E（PRIVATE+READ×1：API 数据契约 `is_built_in` + `/settings/memory?sub=team-hub` 渲染「内置」徽标与 `getBuiltinAgentName` 本地化名 + follow-ups 筛选下拉本地化 + zh 界面无英文名泄漏） |
 | `e2e/test_pattern_digest_panel_chrome_e2e.py` | 模块 | /journey Pattern Digest 面板真实浏览器 Chrome E2E（SHARED+READ×1：`window.fetch` 页内拦截 pattern-discovery API，零后端污染）。T1 /journey 渲染 growth dashboard → 切 evolution tab；T2 seed 2 events 卡片渲染（title/confidence/durability/count，zh/en 双语断言）；T3 展开卡揭示 suggestion/evidence；T4 空态 LEDGER → 本地化空态引导 + 触发按钮；T5 点击「立即分析」捕获真实 POST `/trigger-pattern-discovery`（hook 返回 `pattern_count=0` 走 no-new-patterns 分支）。用 `pin_direct_blank_heal` 防 wait_for_state 把 /journey heal 回家 |
+| `e2e/test_skill_health_chrome_e2e.py` | 模块 | /journey 技能健康度面板 Chrome E2E（SHARED+READ×3：`window.fetch` 页内替换 growth-dashboard 的 `skill_health`，零后端污染）。T1 三种结论（明星/风险/待验证）渲染：风险行显示成功率，待验证行只显示「–」与「已观测/所需」且无成功率，页面无任何状态码（STAR/HEALTHY/AT_RISK/UNPROVEN/STALE）；行按 `data-testid="skill-health-row"` 定位；切到「待治理」仅剩风险行、切到「健康与明星」仅剩明星行。T2 空列表 → 一句话空态且无筛选按钮。T3 点击风险行的「管理」→ 落在 `/settings/skills`、已安装 tab 激活且搜索框预填该技能名（不落技能市场）。服务端结论由 `tests/api/statistics/skill_growth` 覆盖；`pin_direct_blank_heal` 防 wait_for_state 把 /journey heal 回家 |
 | `e2e/test_pending_approvals_chrome_e2e.py` | 模块 | Fleet pendingApprovals KPI Chrome E2E（PRIVATE+NAMESPACE_WRITE×1：`POST /chats/test/seed-kanban-in-review-fixture` 单写者建 IN_REVIEW 任务 → 真实 UI /agents Fleet「Pending」KPI +1 → **点击 KPI 卡片验证深链直达 `/settings/kanban?status=in_review`（看板自动选中含待审任务的 board + status 过滤条 + 任务卡片落地）** → 双击卡片开抽屉 approve/reject 双生命周期回落；fixture 绑定内置 agent，抽屉 agent 下拉断言本地化名不泄漏英文） |
 | `api/statistics/test_badges.py` | 模块 | Nav badges API 单测（monkeypatch kanban 合并 + OperationalError 降级；`TestKanbanCountRealStore` 真 SQL store 链验证 `count_tasks_by_agent`/`count_tasks` 聚合） |
 | `api/statistics/test_model_sessions_listing.py` | 模块 | 模型会话列表（真实消息表）：每个会话的调用数/token/费用汇总、按总 token 降序排列，以及 `lastUsedAt`——取用过该模型的最新一条消息的时间，与行的先后顺序无关 |
 | `api/statistics/test_pending_approvals_integration.py` | 模块 | pendingApprovals 全链路集成（真实 store seed IN_REVIEW → badges/fleet KPI 反映真实行；approve/reject 后回落；goal+kanban 合并） |
 | `api/agent/test_fleet_overview_integration.py` | 模块 | Fleet Overview API 集成（Chat/CronJob/Approval 真实 DB 聚合 + kanban IN_REVIEW 并入 pendingApprovals + kanban store 故障降级） |
 | `api/chats/test_kanban_in_review_seed_integration.py` | 模块 | IN_REVIEW seed fixture 集成（fixture → badges 计数 + approve/reject 转换回落） |
-| `core/web_push/test_push_deep_links.py` | 模块 | Web Push 点击路由（resolve_push_url：APPROVAL_REQUIRED 深链、pending_review+board_id 直达看板 in_review 列、非 review 状态回退聊天页、缺 chat 回首页） |
+| `core/web_push/test_push_deep_links.py` | 模块 | Web Push 点击路由（resolve_push_url：APPROVAL_REQUIRED 深链、pending_review+board_id 直达看板 in_review 列、非 review 状态回退聊天页、缺 chat 回首页、自动备份告警直达备份设置） |
 | `api/kanban/test_in_review_api.py` | 模块 | IN_REVIEW 审批 API（approve/reject 转换、守卫、pending_review 通知 payload 含 board_id） |
 | `platform_utils/sandbox/_ARCH.md` | 模块 | `platform_utils/sandbox` 业务逻辑回归（platform provider seed 14 例 + tool gateway merge），见子目录清单 |
 | `services/agent/test_evolution_trigger_guard.py` | 模块 | `trigger_skill_evolution` 守卫单测（同 chat 在飞任务去重、普通对话 tool_steps<3 门槛跳过、DW `conversation_text` 绕过门槛） |
 | `services/agent/test_evolution_engine_task.py` | 模块 | `_run_evolution_task` 后台任务执行路径单测（短历史跳过、历史拼接、DW 文本跳过 DB、无 proposal 早退、approval+broadcast 全链、异常兜底日志） |
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
-| `e2e/test_skill_health_chrome_e2e.py` | 模块 | /journey 技能健康度面板 Chrome E2E（SHARED+READ×3：`window.fetch` 页内替换 growth-dashboard 的 `skill_health`，零后端污染）。T1 三种结论（明星/风险/待验证）渲染：风险行显示成功率，待验证行只显示「–」与「已观测/所需」且无成功率，页面无任何状态码（STAR/HEALTHY/AT_RISK/UNPROVEN/STALE）；行按 `data-testid="skill-health-row"` 定位；切到「待治理」仅剩风险行、切到「健康与明星」仅剩明星行。T2 空列表 → 一句话空态且无筛选按钮。T3 点击风险行的「管理」→ 落在 `/settings/skills`、已安装 tab 激活且搜索框预填该技能名（不落技能市场）。服务端结论由 `tests/api/statistics/skill_growth` 覆盖；`pin_direct_blank_heal` 防 wait_for_state 把 /journey heal 回家 |
 | `support/offline_memory.py` | 辅助 | 离线真实记忆管理器：真实内嵌 Qdrant + SQLite，仅把 embedding 换成确定性哈希向量（无需凭据与网络），并把 Qdrant 重试退避归零；`offline_memory_manager(base_path, monkeypatch)`，用例之间须 `clear_embedded_stores()` |
 | `support/in_memory_remote_backup.py` | 辅助 | 内存版 `RemoteBackupStrategy`（字典存储 + 可编排的上传失败次数），远程备份测试共用 |
 | `services/memory/backup/` | 模块 | 备份域真实存储测试（关键路径无 mock）：`test_snapshot.py`（覆盖往返、合并不重复、导出被截断即失败、审批队列管理器被拒、回放短缺上报、坏文件解码）· `test_volume_store.py`（保存/列表/加载/删除、备份 id 穿越拒绝、半成品不留、坏元数据跳过）· `test_service.py`（覆盖恢复先留底、失败指向留底备份、坏备份不动记忆）· `test_remote_round_trip.py`（远程备份→新设备恢复且可重复、远程恢复不删记忆、不完整不上传、穿越文件名与临时目录清理） |
@@ -378,7 +399,7 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - **Background shell LIVE Chrome E2E**：`tests/e2e/test_background_shell_live_agent_chrome_e2e.py`（LIVE×1 SHPOIB：自然语言 prompt + agent-stream spawn；HITL 时 `decisions[]` approve；见 `BUGFIX_LOG.md` BUG-DG-2026-07-23-010）
 - **UECD EvictedOutputDrawer Chrome E2E**：`tests/e2e/test_evicted_live_terminal_chrome_e2e.py`（READ×1 SHPOIB：`seed-evicted-live-terminal-fixture?variant=full|expired` → LiveTerminal 截断预览 → View Full Output → **`drawer_mount_wait_js` 等待 lazy drawer DOM** → Drawer 全文/过期；共享 `tests/support/evicted_drawer_selectors.py` 统一选择器与分页参数探针）。**CI anti-mux**：同一 SHPOIB + **单 `open_mcp_page`**，场景间 `client.navigate` 切 chat；**禁止**拆成 2 测例各开新 tab（并行 E2E 下第二次 `new_page` 易 30s timeout；pytest rerun 不采纳）。HTTP/API 覆盖见 `test_evicted_web_fetch_spill.py`、`test_evicted_background_spill.py`、`test_evicted_uecd_live_api_integration.py`
 - **失败 bash 双 evicted Drawer Chrome E2E**：`tests/e2e/test_bash_failure_dual_evicted_drawer_chrome_e2e.py`（SHARED+NAMESPACE_WRITE×1：`variant=bash_failure` seed 一个失败 bash step 同时 evict stdout+stderr → LiveTerminal 双 "view full output" 入口 → `EvictedOutputDrawer` 分别读回两文件；共享 `ensure_chat_route` + `evicted_drawer_selectors.py`）
-- **Chrome E2E 共享路由/heal helpers**：`tests/support/chrome_mcp_e2e.py` 提供 `ensure_chat_route`（复用 warm shell 时强制导航到目标 chat 路由并校验 React hydration，`errorOverlay`/`ChunkLoadError` 下 cache-bypass reload 自愈）、`wait_for_state`（含 errorOverlay 检测的 overlay-heal 阶段）、`warm_ui_route`（turbopack 预编译）。凡 `open_mcp_page` 后直接进入 chat 页的 E2E 均经 `ensure_chat_route`，禁止绕过
+- **Chrome E2E 共享路由/heal helpers**：`tests/support/chrome_mcp_e2e.py` 提供 `ensure_chat_route`（复用 warm shell 时强制导航到目标 chat 路由并校验 React hydration，`errorOverlay`/`ChunkLoadError` 下 cache-bypass reload 自愈）、`wait_for_state`（含 errorOverlay 检测的 overlay-heal 阶段）、`warm_ui_route`（turbopack 预编译）、`wait_for_react_e2e_bridge`（页面脚本仍在加载时不触发 heal 重载：每次重载都重启全部 chunk 下载，慢速 dev server 上永远等不完；页面沉降仍无 bridge 或 45s 无进展才重载）。凡 `open_mcp_page` 后直接进入 chat 页的 E2E 均经 `ensure_chat_route`，禁止绕过
 - **UECD LIVE fast+deep Chrome E2E**：`tests/e2e/test_fast_deep_search_evicted_read_chrome_e2e.py`（LIVE×1 SHPOIB：真实 MiniMax + fast/deep + Wikipedia `web_fetch_tool` spill → `file_read_tool`；`preserveActionMode` + progress **UI 优先 / API 自愈**（Chrome CDP flake 时 `_api_deep_search_progress` 不断言中断））
 - **UECD LIVE bash foreground Chrome E2E**：`tests/e2e/test_bash_foreground_evicted_live_chrome_e2e.py`（LIVE×1 SHPOIB：yolo code_execute agent → 前台 `bash_code_execute_tool` 大输出 spill → GET `/files/evicted` + LiveTerminal Drawer；**无 enrich 端点**，断言真实 `tool_call_id` 绑定 reload 路径）
 - **Subagent Dashboard Chrome E2E**：`tests/e2e/test_subagent_dashboard_chrome_e2e.py`（LIVE lane ×6：`subagent-dashboard-e2e-prepare.mjs` delegate → Dashboard cancel / pause toggle / token+model / budget used-limit / canvas 拓扑渲染+点击节点定位回树 / fission 拓扑经 store bridge 注入后合并渲染；`open_mcp_page(..., timeout_ms=MAX_PAGE_TIMEOUT_MS)`）

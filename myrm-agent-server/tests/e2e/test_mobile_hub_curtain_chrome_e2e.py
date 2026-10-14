@@ -43,10 +43,9 @@ _HUB_PROBE_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="READ",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(300)
