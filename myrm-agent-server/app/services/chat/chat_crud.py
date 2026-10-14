@@ -26,6 +26,7 @@ from app.database.repositories.uow import UnitOfWork
 
 from . import chat_disposal
 from ._base import _ChatServiceBase
+from .chat_bound_rows import delete_trashed_chat_bound_rows
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -358,11 +359,11 @@ class _ChatCrudMixin(_ChatServiceBase):
             repo = _ChatServiceBase._cr(uow)
             sess = uow.session
             assert sess is not None
-            # The repository only deletes a trashed chat; every dependent row below is deleted only if it did.
+            # Both deletes act only on a chat that is in the trash, so a stale trash view erases nothing.
+            await delete_trashed_chat_bound_rows(sess, [chat_id])
             ok = await repo.permanently_delete_chat(chat_id)
             if ok:
                 await ConversationRecallIndexService.delete_chat(sess, chat_id)
-                await _delete_widget_kv_for_chat(sess, chat_id)
 
         if ok:
             await chat_disposal.dispose_permanently_deleted_chats({chat_id: sandbox_base_dir})
@@ -405,9 +406,9 @@ class _ChatCrudMixin(_ChatServiceBase):
             repo = _ChatServiceBase._cr(uow)
             sess = uow.session
             assert sess is not None
+            await delete_trashed_chat_bound_rows(sess, chat_ids)
             for cid in chat_ids:
                 await ConversationRecallIndexService.delete_chat(sess, cid)
-                await _delete_widget_kv_for_chat(sess, cid)
             count = await repo.empty_trash()
 
         await chat_disposal.dispose_permanently_deleted_chats({cid: sandbox_map.get(cid) for cid in chat_ids})
@@ -562,13 +563,3 @@ class _ChatCrudMixin(_ChatServiceBase):
         )
 
         return await purge_orphan_empty_sessions(older_than_minutes=older_than_minutes)
-
-
-async def _delete_widget_kv_for_chat(session: AsyncSession, chat_id: str) -> None:
-    """Remove all widget KV entries associated with a chat."""
-    from sqlalchemy import delete
-
-    from app.database.models.widget_kv import WidgetKVEntry
-
-    stmt = delete(WidgetKVEntry).where(WidgetKVEntry.chat_id == chat_id)
-    await session.execute(stmt)

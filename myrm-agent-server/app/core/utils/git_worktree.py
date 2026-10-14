@@ -15,7 +15,7 @@
 - _collect_conflict_files: List files with unresolved merge conflicts.
 - _abort_merge: Roll back an in-progress merge so the repo stays usable.
 - _remove_worktree: Remove a worktree directory with ``git worktree remove --force``.
-- _delete_git_branch: Delete a local branch whose commits were merged away.
+- _delete_git_branch: Delete a local branch, unconditionally or only when its commits are merged.
 - WorktreeErrorReason / WorktreeCreateError: Structured worktree creation error types.
 - _classify_git_error: Map git stderr to a WorktreeErrorReason.
 
@@ -385,16 +385,20 @@ async def _remove_worktree(base_dir: str, worktree_path: str, *, context: str) -
         return False
 
 
-async def _delete_git_branch(base_dir: str, branch: str) -> bool:
-    """Delete a local branch whose commits were merged away.
+async def _delete_git_branch(base_dir: str, branch: str, *, merged_only: bool = False) -> bool:
+    """Delete a local branch.
 
-    Returns True on success or when the branch is already gone; False when
-    git refused (e.g. the branch still holds unmerged commits).
+    By default the branch goes unconditionally (``git branch -D``). With
+    ``merged_only`` git refuses a branch whose commits never reached the
+    current branch (``git branch -d``), so they stay reachable.
+
+    Returns True when the branch is gone; False when git refused or the
+    branch does not exist.
     """
     try:
         result = await asyncio.to_thread(
             subprocess.run,
-            ["git", "branch", "-D", branch],
+            ["git", "branch", "-d" if merged_only else "-D", branch],
             cwd=base_dir,
             capture_output=True,
             text=True,

@@ -24,10 +24,12 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Chat, Message
-from app.database.models.widget_kv import WidgetKVEntry
 from app.platform_utils import _reset_checkpointer_for_testing, set_checkpointer
 from app.services.chat import chat_disposal, chat_retention
+from app.services.chat.chat_bound_rows import CHAT_BOUND_TABLES, ChatBoundTable
+from app.services.chat.chat_disposal import ChatFilesRemoval
 from app.services.chat.chat_service import ChatService
+from tests.support.real_schema_db import seed_row
 
 CHAT_ID = "chat-disposal-1"
 SANDBOX_ROOT = "/tmp/myrm-test-sandbox"
@@ -53,7 +55,7 @@ def spies(monkeypatch: pytest.MonkeyPatch) -> Spies:
         execution_cache=AsyncMock(),
         memory_purge=AsyncMock(return_value={}),
         retry_queue=AsyncMock(),
-        worktree=AsyncMock(),
+        worktree=AsyncMock(return_value=True),
         workspace=AsyncMock(return_value={}),
         working_memory=MagicMock(),
     )
@@ -105,7 +107,9 @@ async def _seed_chat(
     db.add(
         Message(id=f"m-{chat_id}", chat_id=chat_id, role="user", content="hello", sent_at=datetime.now(UTC), sent_timezone="UTC")
     )
-    db.add(WidgetKVEntry(namespace=f"ns-{chat_id}", key="k", value="v", chat_id=chat_id))
+    connection = await db.connection()
+    for bound in CHAT_BOUND_TABLES:
+        await seed_row(connection, bound.table, **{bound.chat_column: chat_id})
     await db.commit()
 
 
@@ -122,9 +126,14 @@ def _is_granted() -> bool:
     return get_allowlist().check(OWNER, "shell_exec", "bash", session_id=CHAT_ID)
 
 
-async def _count(db: AsyncSession, model: type[Chat] | type[Message] | type[WidgetKVEntry]) -> int:
+async def _count(db: AsyncSession, model: type[Chat] | type[Message]) -> int:
     db.expire_all()
     return (await db.execute(select(func.count()).select_from(model))).scalar_one()
+
+
+async def _bound_row_count(db: AsyncSession, bound: ChatBoundTable) -> int:
+    db.expire_all()
+    return (await db.execute(text(f"SELECT COUNT(*) FROM {bound.table}"))).scalar_one()
 
 
 @dataclass(frozen=True)
@@ -169,7 +178,8 @@ async def test_every_entry_point_tears_down_the_same_state(
 
     assert await _count(db_session, Chat) == 0
     assert await _count(db_session, Message) == 0
-    assert await _count(db_session, WidgetKVEntry) == 0
+    for bound in CHAT_BOUND_TABLES:
+        assert await _bound_row_count(db_session, bound) == 0, f"{bound.table} kept the rows of the deleted chat"
     assert not await _is_stored(checkpointer, CHAT_ID)
     assert not await _is_stored(checkpointer, f"chat_{CHAT_ID}")
     assert not _is_granted()
@@ -178,7 +188,7 @@ async def test_every_entry_point_tears_down_the_same_state(
     spies.working_memory.assert_called_once_with(CHAT_ID)
     spies.memory_purge.assert_awaited_once_with(CHAT_ID)
     spies.retry_queue.assert_awaited_once_with(CHAT_ID)
-    spies.worktree.assert_awaited_once_with(SANDBOX_DIR, CHAT_ID, force=True)
+    spies.worktree.assert_awaited_once_with(SANDBOX_DIR, CHAT_ID)
     spies.workspace.assert_awaited_once_with([CHAT_ID])
 
 
@@ -217,7 +227,8 @@ async def test_permanent_delete_of_a_chat_outside_the_trash_changes_nothing(
 
     assert await _count(db_session, Chat) == 1
     assert await _count(db_session, Message) == 1
-    assert await _count(db_session, WidgetKVEntry) == 1
+    for bound in CHAT_BOUND_TABLES:
+        assert await _bound_row_count(db_session, bound) == 1, f"{bound.table} lost the rows of a chat outside the trash"
     assert await _is_stored(checkpointer, CHAT_ID)
     assert _is_granted()
     spies.memory_purge.assert_not_awaited()
@@ -321,14 +332,14 @@ async def test_clear_conversation_state_is_idempotent(checkpointer: BaseCheckpoi
 async def test_remove_chat_files_keeps_removing_the_workspace_when_the_worktree_fails(spies: Spies) -> None:
     spies.worktree.side_effect = RuntimeError("worktree busy")
 
-    assert await chat_disposal.remove_chat_files({CHAT_ID: SANDBOX_DIR}) == 0
+    assert await chat_disposal.remove_chat_files({CHAT_ID: SANDBOX_DIR}) == ChatFilesRemoval(kept_worktrees=1)
 
     spies.workspace.assert_awaited_once_with([CHAT_ID])
 
 
 @pytest.mark.asyncio
 async def test_remove_chat_files_without_a_sandbox_skips_the_worktree(spies: Spies) -> None:
-    assert await chat_disposal.remove_chat_files({CHAT_ID: None}) == 0
+    assert await chat_disposal.remove_chat_files({CHAT_ID: None}) == ChatFilesRemoval()
 
     spies.worktree.assert_not_awaited()
     spies.workspace.assert_awaited_once_with([CHAT_ID])
@@ -336,11 +347,23 @@ async def test_remove_chat_files_without_a_sandbox_skips_the_worktree(spies: Spi
 
 @pytest.mark.asyncio
 async def test_remove_chat_files_counts_removed_worktrees_and_cleans_all_workspaces_in_one_call(spies: Spies) -> None:
-    removed = await chat_disposal.remove_chat_files({"a": f"{SANDBOX_ROOT}/a", "b": None, "c": f"{SANDBOX_ROOT}/c"})
+    removal = await chat_disposal.remove_chat_files({"a": f"{SANDBOX_ROOT}/a", "b": None, "c": f"{SANDBOX_ROOT}/c"})
 
-    assert removed == 2
+    assert removal == ChatFilesRemoval(removed_worktrees=2)
     assert spies.worktree.await_count == 2
     spies.workspace.assert_awaited_once_with(["a", "b", "c"])
+
+
+@pytest.mark.asyncio
+async def test_remove_chat_files_leaves_a_worktree_with_unsaved_work_in_place(spies: Spies) -> None:
+    """Safe mode: the worktree that refuses removal is reported as kept, and the other chats are still cleaned."""
+    spies.worktree.side_effect = [False, True]
+
+    removal = await chat_disposal.remove_chat_files({"dirty": f"{SANDBOX_ROOT}/dirty", "clean": f"{SANDBOX_ROOT}/clean"})
+
+    assert removal == ChatFilesRemoval(removed_worktrees=1, kept_worktrees=1)
+    assert [call.kwargs for call in spies.worktree.await_args_list] == [{}, {}]
+    spies.workspace.assert_awaited_once_with(["dirty", "clean"])
 
 
 @pytest.mark.asyncio

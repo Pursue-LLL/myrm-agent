@@ -15372,10 +15372,11 @@
         "eraseDesc": "Deletes every conversation and the files they produced. Saved memories, agents, API keys and channel settings are kept; Pending Memories and Recent Memory Activity are cleared. Export your data first if you want a copy.",
         "eraseButton": "Clear conversations",
         "eraseConfirmTitle": "Clear all conversations?",
-        "eraseConfirmDesc": "This permanently deletes every conversation and the files they produced, and clears Pending Memories and Recent Memory Activity. It cannot be undone.\nSaved memories, agents, API keys and channel settings are not affected.",
+        "eraseConfirmDesc": "This permanently deletes every conversation and the files they produced, and clears Pending Memories and Recent Memory Activity. It cannot be undone.\nSaved memories, agents, API keys and channel settings are not affected. Workspaces with unsaved changes are kept.",
         "eraseConfirmAction": "Clear conversations",
         "erasing": "Clearing…",
         "eraseSuccess": "{count, plural, one {Cleared # conversation} other {Cleared # conversations}}",
+        "eraseKept": "{count, plural, one {# workspace with unsaved changes was kept in your project folder} other {# workspaces with unsaved changes were kept in your project folder}}",
         "eraseBusy": "A conversation is still running. Stop it or wait for it to finish, then try again.",
         "eraseFailed": "Could not finish clearing conversations. Try again."
       },

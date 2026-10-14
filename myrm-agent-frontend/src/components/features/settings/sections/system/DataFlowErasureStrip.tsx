@@ -8,7 +8,8 @@
  * - DataFlowErasureStrip
  *
  * [POS]
- * DataFlow 面板「清空全部会话」条：二次确认后调用安全清空接口，成功后丢弃侧栏列表缓存并引导新建会话。
+ * DataFlow 面板「清空全部会话」条：二次确认后调用安全清空接口，成功后丢弃侧栏列表缓存并引导新建会话；
+ * 仍有未保存改动的沙箱工作区会被服务端保留，结果里单独告知保留数量。
  */
 
 'use client';
@@ -19,7 +20,11 @@ import { IconCheckCircle, IconTrash } from '@/components/features/icons/PremiumI
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { Button } from '@/components/primitives/button';
 import { toast } from '@/lib/utils/toast';
-import { ConversationPurgeBusyError, purgeAllConversations } from '@/services/conversationPurge';
+import {
+  ConversationPurgeBusyError,
+  purgeAllConversations,
+  type ConversationPurgeResult,
+} from '@/services/conversationPurge';
 import useChatStore from '@/store/useChatStore';
 
 export const DataFlowErasureStrip = memo(() => {
@@ -28,7 +33,7 @@ export const DataFlowErasureStrip = memo(() => {
   const tChat = useTranslations('chat');
   const setChatHistoryItems = useChatStore((state) => state.setChatHistoryItems);
   const setChatHistoryPagination = useChatStore((state) => state.setChatHistoryPagination);
-  const [clearedCount, setClearedCount] = useState<number | null>(null);
+  const [outcome, setOutcome] = useState<ConversationPurgeResult | null>(null);
 
   // 失败只提示、不抛出：ConfirmDialog 对抛出的错误仅写 console，用户看不到原因。
   const handleConfirm = useCallback(async () => {
@@ -36,7 +41,7 @@ export const DataFlowErasureStrip = memo(() => {
       const result = await purgeAllConversations();
       setChatHistoryItems([]);
       setChatHistoryPagination(null);
-      setClearedCount(result.purged_chats);
+      setOutcome(result);
     } catch (error) {
       toast.error(error instanceof ConversationPurgeBusyError ? t('eraseBusy') : t('eraseFailed'));
     }
@@ -74,7 +79,7 @@ export const DataFlowErasureStrip = memo(() => {
             </Button>
           }
         />
-        {clearedCount !== null && (
+        {outcome !== null && (
           <Button type="button" size="sm" variant="outline" onClick={handleStartFresh}>
             {tChat('newChat')}
           </Button>
@@ -82,11 +87,18 @@ export const DataFlowErasureStrip = memo(() => {
       </div>
       {/* 始终挂载：实时区域须先于文字存在，读屏软件才会播报结果。 */}
       <output className="block text-xs font-medium text-foreground empty:hidden">
-        {clearedCount !== null && (
-          <span className="flex items-center gap-1.5">
-            <IconCheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-            {t('eraseSuccess', { count: clearedCount })}
-          </span>
+        {outcome !== null && (
+          <>
+            <span className="flex items-center gap-1.5">
+              <IconCheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+              {t('eraseSuccess', { count: outcome.purged_chats })}
+            </span>
+            {outcome.kept_sandboxes > 0 && (
+              <span className="mt-1 block pl-5 font-normal text-muted-foreground">
+                {t('eraseKept', { count: outcome.kept_sandboxes })}
+              </span>
+            )}
+          </>
         )}
       </output>
     </div>

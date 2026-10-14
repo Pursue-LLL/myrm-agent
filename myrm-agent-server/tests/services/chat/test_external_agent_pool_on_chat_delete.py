@@ -58,7 +58,7 @@ async def test_permanently_delete_chat_closes_external_agent_pool() -> None:
             "app.services.chat.chat_crud.ConversationRecallIndexService.delete_chat",
             AsyncMock(),
         ),
-        patch("app.services.chat.chat_crud._delete_widget_kv_for_chat", AsyncMock()),
+        patch("app.services.chat.chat_crud.delete_trashed_chat_bound_rows", AsyncMock()),
         patch("app.services.chat.chat_disposal.forget_chat_memories", AsyncMock()),
         patch("app.services.chat.chat_disposal.clear_conversation_state", AsyncMock()),
         patch("app.services.chat.chat_disposal.remove_chat_files", AsyncMock()),

@@ -103,7 +103,7 @@ describe('DataFlowErasureStrip', () => {
   });
 
   it('purges once, empties the sidebar cache and offers a fresh start on success', async () => {
-    mockPurge.mockResolvedValue({ purged_chats: 3, purged_messages: 12, cleared_sandboxes: 3 });
+    mockPurge.mockResolvedValue({ purged_chats: 3, purged_messages: 12, cleared_sandboxes: 3, kept_sandboxes: 0 });
     const user = userEvent.setup();
     render(<DataFlowErasureStrip />);
 
@@ -111,6 +111,7 @@ describe('DataFlowErasureStrip', () => {
 
     const status = await screen.findByRole('status');
     expect(status).toHaveTextContent(`${DIALOG}.eraseSuccess:{"count":3}`);
+    expect(status).not.toHaveTextContent(`${DIALOG}.eraseKept`);
     expect(mockPurge).toHaveBeenCalledTimes(1);
     expect(useChatStore.getState().chatHistoryItems).toEqual([]);
     expect(useChatStore.getState().chatHistoryPagination).toBeNull();
@@ -120,6 +121,18 @@ describe('DataFlowErasureStrip', () => {
 
     await user.click(screen.getByRole('button', { name: 'chat.newChat' }));
     expect(assign).toHaveBeenCalledWith('/');
+  });
+
+  it('says how many workspaces with unsaved changes were kept', async () => {
+    mockPurge.mockResolvedValue({ purged_chats: 2, purged_messages: 8, cleared_sandboxes: 1, kept_sandboxes: 2 });
+    const user = userEvent.setup();
+    render(<DataFlowErasureStrip />);
+
+    await user.click(await openDialog(user));
+
+    const status = await screen.findByRole('status');
+    expect(status).toHaveTextContent(`${DIALOG}.eraseSuccess:{"count":2}`);
+    expect(status).toHaveTextContent(`${DIALOG}.eraseKept:{"count":2}`);
   });
 
   it('tells the user to stop the running conversation and keeps their chats', async () => {

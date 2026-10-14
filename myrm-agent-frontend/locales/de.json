@@ -14697,10 +14697,11 @@
         "eraseDesc": "Löscht alle Chats und die Dateien, die sie erzeugt haben. Gespeicherte Erinnerungen, Agenten, API-Schlüssel und Kanaleinstellungen bleiben erhalten; ausstehende Erinnerungen und die letzte Speicheraktivität werden gelöscht. Exportieren Sie Ihre Daten zuvor, wenn Sie eine Kopie möchten.",
         "eraseButton": "Chats löschen",
         "eraseConfirmTitle": "Alle Chats löschen?",
-        "eraseConfirmDesc": "Dadurch werden alle Chats und die Dateien, die sie erzeugt haben, endgültig gelöscht und ausstehende Erinnerungen sowie die letzte Speicheraktivität geleert. Das kann nicht rückgängig gemacht werden.\nGespeicherte Erinnerungen, Agenten, API-Schlüssel und Kanaleinstellungen sind nicht betroffen.",
+        "eraseConfirmDesc": "Dadurch werden alle Chats und die Dateien, die sie erzeugt haben, endgültig gelöscht und ausstehende Erinnerungen sowie die letzte Speicheraktivität geleert. Das kann nicht rückgängig gemacht werden.\nGespeicherte Erinnerungen, Agenten, API-Schlüssel und Kanaleinstellungen sind nicht betroffen, ebenso Arbeitsbereiche mit ungespeicherten Änderungen.",
         "eraseConfirmAction": "Chats löschen",
         "erasing": "Wird gelöscht…",
         "eraseSuccess": "{count, plural, one {# Chat gelöscht} other {# Chats gelöscht}}",
+        "eraseKept": "{count, plural, one {# Arbeitsbereich mit ungespeicherten Änderungen bleibt in Ihrem Projektordner erhalten} other {# Arbeitsbereiche mit ungespeicherten Änderungen bleiben in Ihrem Projektordner erhalten}}",
         "eraseBusy": "Ein Chat läuft noch. Beenden Sie ihn oder warten Sie, bis er fertig ist, und versuchen Sie es erneut.",
         "eraseFailed": "Das Löschen konnte nicht abgeschlossen werden. Bitte erneut versuchen."
       },

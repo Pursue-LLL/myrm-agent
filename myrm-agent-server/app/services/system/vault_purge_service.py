@@ -1,8 +1,8 @@
 """Safe Vault Purge and Cascade Synchronization Service.
 
 [INPUT]
-- app.database.connection::get_database_engine, get_session_factory (POS: database engine and session factory of the active deployment mode)
-- myrm_agent_harness.api::safe_purge_fts5_virtual_table (POS: FTS5 purge that leaves no shadow-table orphan rows)
+- app.database.connection::get_database_engine (POS: database engine of the active deployment mode)
+- app.services.chat.chat_bound_rows::CHAT_BOUND_TABLES (POS: plain tables whose rows belong to one chat and go with it)
 - app.services.chat.chat_disposal::clear_conversation_state, clear_runtime_caches, remove_chat_files (POS: single definition of the per-chat teardown steps)
 - app.services.agent.gateway::get_agent_gateway (POS: which conversations have a turn in flight)
 
@@ -15,7 +15,7 @@
 System-level safe vault purge orchestrator. Executes reverse-dependency physical wipes of
 conversation corpora, the state and files of every chat, FTS5 shadow indexes, and consumer
 cursors while strictly safeguarding user configuration (API Keys, providers, custom agents,
-and channel pairing identities).
+and channel pairing identities). Sandbox worktrees that still hold unsaved work are kept.
 """
 
 from __future__ import annotations
@@ -30,10 +30,11 @@ from sqlalchemy import text
 from app.database.connection import get_database_engine
 from app.services.agent.gateway import get_agent_gateway
 from app.services.chat import chat_disposal
+from app.services.chat.chat_bound_rows import CHAT_BOUND_TABLES
 
 logger = logging.getLogger(__name__)
 
-# Global concurrency guard: ensures only one vault purge or conflicting write runs at once
+# Serializes purges against each other; it does not stop other writers, the in-flight check does that.
 _PURGE_LOCK = asyncio.Lock()
 
 
@@ -56,6 +57,7 @@ class SafeVaultPurgeResult:
     purged_memory_events: int = 0
     checkpoint_cleared_chats: int = 0
     cleared_sandboxes: int = 0
+    kept_sandboxes: int = 0
     fts_tables_purged: list[str] = field(default_factory=list)
     cursors_reset: list[str] = field(default_factory=list)
     preserved_agents: int = 0
@@ -84,27 +86,22 @@ class SafeVaultPurgeService:
     )
 
     @classmethod
-    async def purge_vault(
-        cls,
-        *,
-        purge_memories: bool = True,
-        purge_sandboxes: bool = True,
-        reclaim_disk: bool = True,
-    ) -> SafeVaultPurgeResult:
+    async def purge_vault(cls) -> SafeVaultPurgeResult:
         """Execute atomic safe vault purge with strict whitelist preservation.
 
         Order of operations (strict inverse topology):
-        1. Acquire PurgeLock to block concurrent pipeline writers, and refuse (``VaultPurgeBusyError``)
-           while any conversation has a turn in flight.
+        1. Take the purge lock and refuse (``VaultPurgeBusyError``) while any conversation has a turn
+           in flight.
         2. Clean FTS5 shadow structures before source rows are touched.
         3. Stop the runtime work of every chat and drop its checkpoint threads and session grants while
            the chat rows still exist, so an interrupted purge never strands state whose chat can no
            longer be listed.
-        4. Delete conversation recall, chat messages, and channel messages in one transaction.
-        5. In the same transaction, empty the memory pipeline tables (when ``purge_memories``)
-           and reset sqlite_sequence counters / consumer cursors.
-        6. Remove the sandbox worktrees, workspaces and artifacts of the purged chats.
-        7. Run PRAGMA incremental_vacuum and optimize to reclaim physical disk space.
+        4. In one transaction delete the rows bound to a chat, conversation recall, messages, chats and
+           channel messages, empty the memory pipeline tables, and reset sqlite_sequence counters /
+           consumer cursors.
+        5. Remove the sandbox worktrees, workspaces and artifacts of the purged chats; a worktree with
+           unsaved work is kept and counted in ``kept_sandboxes``.
+        6. Run PRAGMA incremental_vacuum and optimize to reclaim physical disk space.
         """
         async with _PURGE_LOCK:
             running = get_agent_gateway().active_session_ids()
@@ -188,24 +185,24 @@ class SafeVaultPurgeService:
                             return 0
                         return (await conn.execute(text(f"DELETE FROM {table_name}"))).rowcount
 
-                    # 3.1 Delete leaf conversation recall segments and documents
+                    # 3.1 Delete the rows that only store a chat id, then the leaf conversation recall rows
+                    for bound in CHAT_BOUND_TABLES:
+                        await _safe_delete(bound.table)
                     await _safe_delete("conversation_recall_segments")
                     await _safe_delete("conversation_recall_documents")
 
-                    # 3.2 Delete conversation forks, markers and widgets
+                    # 3.2 Delete conversation forks and interrupted-turn markers
                     await _safe_delete("interrupted_turn_markers")
                     await _safe_delete("conversation_forks")
-                    await _safe_delete("widget_kv_entries")
 
                     # 3.3 Delete core messages and chats
                     await _safe_delete("messages")
                     await _safe_delete("chats")
                     await _safe_delete("channel_messages")
 
-                    # 3.4 Empty the memory pipeline tables if requested (stored memories, profile and rules stay)
-                    if purge_memories:
-                        for pipeline_table in cls.MEMORY_PIPELINE_TABLES:
-                            result.purged_memory_events += await _safe_delete(pipeline_table)
+                    # 3.4 Empty the memory pipeline tables (stored memories, profile and rules stay)
+                    for pipeline_table in cls.MEMORY_PIPELINE_TABLES:
+                        result.purged_memory_events += await _safe_delete(pipeline_table)
 
                     # 3.5 Reset sqlite_sequence for wiped tables to guarantee cursor sync
                     if "sqlite_sequence" in existing_tables:
@@ -222,18 +219,18 @@ class SafeVaultPurgeService:
                                 )
                                 result.cursors_reset.append(tbl)
 
-                # Phase 4: Remove the files the purged chats produced
-                if purge_sandboxes:
-                    result.cleared_sandboxes = await chat_disposal.remove_chat_files(sandbox_by_chat)
+                # Phase 4: Remove the files the purged chats produced; work that is not saved elsewhere stays
+                removal = await chat_disposal.remove_chat_files(sandbox_by_chat)
+                result.cleared_sandboxes = removal.removed_worktrees
+                result.kept_sandboxes = removal.kept_worktrees
 
-                # Phase 5: Reclaim physical disk pages if requested
-                if reclaim_disk:
-                    async with engine.connect() as conn:
-                        try:
-                            await conn.execute(text("PRAGMA optimize"))
-                            await conn.execute(text("PRAGMA incremental_vacuum"))
-                        except Exception as exc:
-                            logger.warning("Disk vacuum non-fatal notice: %s", exc)
+                # Phase 5: Reclaim physical disk pages
+                async with engine.connect() as conn:
+                    try:
+                        await conn.execute(text("PRAGMA optimize"))
+                        await conn.execute(text("PRAGMA incremental_vacuum"))
+                    except Exception as exc:
+                        logger.warning("Disk vacuum non-fatal notice: %s", exc)
 
                 result.success = True
                 result.duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000.0

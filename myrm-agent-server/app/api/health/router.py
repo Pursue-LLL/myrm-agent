@@ -339,14 +339,7 @@ async def execute_health_repair_action(
 
 
 @router.post("/database/safe-purge")
-async def safe_purge_vault(
-    purge_memories: bool = Query(
-        True,
-        description="Empty the pending-memory queues and memory event log; stored memories, profile attributes and rules are kept",
-    ),
-    purge_sandboxes: bool = Query(True, description="Remove the git worktrees, workspaces and artifacts of the purged chats"),
-    reclaim_disk: bool = Query(True, description="Reclaim disk pages via PRAGMA optimize and incremental_vacuum"),
-) -> dict[str, object]:
+async def safe_purge_vault() -> dict[str, object]:
     """Safe Vault Purge: Cascade-proof cleanup of chat corpora & FTS5 shadow structures.
 
     Unlike destructive reset_database(), this endpoint strictly preserves white-listed
@@ -358,21 +351,20 @@ async def safe_purge_vault(
 
     It wipes:
     - All chats, forks, interrupted markers, and messages
+    - Widget data, approvals, proactive commitments and fission records bound to a chat
     - Leaf conversation recall segments & documents
     - FTS5 shadow inverted indexes (messages_fts, conversation_recall_fts, segments_fts)
     - Consumer cursor auto-increment sequences (sqlite_sequence)
-    - LangGraph checkpoints, session grants, and the sandbox worktrees / workspaces of those chats
+    - The pending-memory queues and memory event log (stored memories, profile attributes and rules stay)
+    - LangGraph checkpoints, session grants, and the workspaces / artifacts of those chats
+    - The sandbox worktrees of those chats, except those with unsaved work (counted in ``kept_sandboxes``)
 
     Answers 409 without touching anything while a conversation has a turn in flight.
     """
     from app.services.system.vault_purge_service import SafeVaultPurgeService, VaultPurgeBusyError
 
     try:
-        result = await SafeVaultPurgeService.purge_vault(
-            purge_memories=purge_memories,
-            purge_sandboxes=purge_sandboxes,
-            reclaim_disk=reclaim_disk,
-        )
+        result = await SafeVaultPurgeService.purge_vault()
     except VaultPurgeBusyError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not result.success:
@@ -390,6 +382,7 @@ async def safe_purge_vault(
         "fts_tables_purged": result.fts_tables_purged,
         "cursors_reset": result.cursors_reset,
         "cleared_sandboxes": result.cleared_sandboxes,
+        "kept_sandboxes": result.kept_sandboxes,
         "preserved_agents": result.preserved_agents,
         "preserved_api_keys": result.preserved_api_keys,
         "preserved_user_configs": result.preserved_user_configs,

@@ -118,12 +118,13 @@ async def create_sandbox_worktree(base_dir: str, chat_id: str) -> str | Worktree
 async def cleanup_sandbox_worktree(base_dir: str, chat_id: str, *, force: bool = False) -> bool:
     """Remove the sandbox worktree and its branch.
 
-    Default safe mode checks for uncommitted changes first and keeps the
-    worktree when it is dirty, so ending a chat session never silently drops
-    file-tool edits the agent never committed.  ``force=True`` (used after a
-    successful merge, or when the user explicitly discards the sandbox)
-    deletes unconditionally.  Returns True if the worktree was removed or
-    absent; False when preserved due to dirtiness.
+    Default safe mode keeps the worktree when it has uncommitted changes and
+    keeps the branch when it holds commits that never reached the parent
+    branch, so ending a chat never silently drops work the agent produced.
+    ``force=True`` (used after a successful merge, or when the user
+    explicitly discards the sandbox) deletes both unconditionally.  Returns
+    True if the worktree was removed or absent; False when it was preserved
+    (dirty, or git could not remove it).
     """
     worktree_dir = get_sandbox_worktree_path(base_dir, chat_id)
 
@@ -140,7 +141,7 @@ async def cleanup_sandbox_worktree(base_dir: str, chat_id: str, *, force: bool =
         return False
 
     if await _remove_worktree(base_dir, worktree_dir, context="sandbox"):
-        await _delete_git_branch(base_dir, _sandbox_branch_name(chat_id))
+        await _delete_git_branch(base_dir, _sandbox_branch_name(chat_id), merged_only=not force)
         return True
     return False
 

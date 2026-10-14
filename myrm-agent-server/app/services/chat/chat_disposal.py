@@ -14,21 +14,23 @@
 - clear_runtime_caches: running pools, execution scopes and in-memory working state of a chat
 - clear_extract_retry_queue: pending memory-extraction retries of a chat
 - forget_chat_memories: memories derived from a chat plus its retry queue
-- remove_chat_files: sandbox worktrees, storage workspaces and artifact vault objects of one or many chats
+- ChatFilesRemoval: how many sandbox worktrees were removed and how many were kept
+- remove_chat_files: sandbox worktrees (dirty ones are kept), storage workspaces and artifact vault objects of one or many chats
 - dispose_permanently_deleted_chats: all of the above, in the order a permanent delete needs
 
 [POS]
-Single definition of the per-chat teardown steps. Every way a chat can end (focus flush, soft delete,
-permanent delete, empty trash, the trash and incognito auto-purges, the safe vault purge) composes the same
-steps from here, so a path cannot forget one. The database rows are deleted first and are the source of truth;
-each step is fail-open because a leftover is logged and recoverable while an exception would abort a deletion
-that already committed.
+Single definition of the per-chat teardown steps. Permanent delete, empty trash and the trash and incognito
+auto-purges run all of them through ``dispose_permanently_deleted_chats``; focus flush, soft delete and the
+safe vault purge compose only the steps that apply to them (the purge keeps stored memories by design).
+The database rows are deleted first and are the source of truth; each step is fail-open because a leftover
+is logged and recoverable while an exception would abort a deletion that already committed.
 """
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 from myrm_agent_harness.agent.security.approval_flow import get_allowlist, reset_denial_counter
 from myrm_agent_harness.runtime.context.session.session_continuity import sync_checkpoint_messages
@@ -99,29 +101,43 @@ async def forget_chat_memories(chat_id: str) -> None:
     await clear_extract_retry_queue(chat_id)
 
 
-async def remove_chat_files(sandbox_dirs: Mapping[str, str | None]) -> int:
+@dataclass(frozen=True)
+class ChatFilesRemoval:
+    """What happened to the sandbox worktrees of the chats whose files were removed."""
+
+    removed_worktrees: int = 0
+    kept_worktrees: int = 0
+
+
+async def remove_chat_files(sandbox_dirs: Mapping[str, str | None]) -> ChatFilesRemoval:
     """Remove the files the given chats produced: sandbox worktrees, storage workspaces and artifact vault objects.
 
-    Worktrees go one by one and are removed even when they hold uncommitted edits: once a chat is gone nothing
-    in the UI can reach them, so keeping them would leak disk forever. Workspaces and vault objects go in one
-    batch because every vault scan reads all object metadata, so cleaning N chats separately costs N scans.
+    Worktrees go one by one in safe mode: one that still holds uncommitted edits is kept, and so is the branch of
+    commits that never reached the parent branch, because the agent's work may exist nowhere else. A kept
+    worktree stays in the project folder, where ``git worktree list`` shows it, for the user to merge or delete.
+    Workspaces and vault objects go in one batch because every vault scan reads all object metadata, so
+    cleaning N chats separately costs N scans.
 
     Args:
         sandbox_dirs: Chat id mapped to the sandbox base directory of that chat (None when it has none).
 
     Returns:
-        Number of sandbox worktrees that were removed.
+        How many sandbox worktrees were removed and how many were left in place.
     """
-    worktrees_removed = 0
+    removed = 0
+    kept = 0
     for chat_id, sandbox_base_dir in sandbox_dirs.items():
         if not sandbox_base_dir:
             continue
         try:
             from app.services.chat.sandbox_worktree import cleanup_sandbox_worktree
 
-            await cleanup_sandbox_worktree(sandbox_base_dir, chat_id, force=True)
-            worktrees_removed += 1
+            if await cleanup_sandbox_worktree(sandbox_base_dir, chat_id):
+                removed += 1
+            else:
+                kept += 1
         except Exception as exc:
+            kept += 1
             logger.warning("Sandbox worktree cleanup failed (chat=%s): %s", chat_id, exc)
     try:
         from app.services.infra.sandbox_cleanup import cleanup_chat_workspaces
@@ -130,7 +146,7 @@ async def remove_chat_files(sandbox_dirs: Mapping[str, str | None]) -> int:
         logger.debug("Chat workspaces cleaned (chats=%d): %s", len(sandbox_dirs), results)
     except Exception as exc:
         logger.error("Chat workspace cleanup failed (chats=%d): %s", len(sandbox_dirs), exc)
-    return worktrees_removed
+    return ChatFilesRemoval(removed_worktrees=removed, kept_worktrees=kept)
 
 
 async def dispose_permanently_deleted_chats(sandbox_dirs: Mapping[str, str | None]) -> None:
