@@ -123,7 +123,7 @@ export function WikiConceptDetailPanel({
     <Card className="col-span-1 md:col-span-2 h-full overflow-hidden flex flex-col min-h-0">
       {selectedConcept ? (
         <>
-          {/* 头部嵌在宽度不定的详情栏里：放不下时整块换行，词条名独占一行而不是被徽标和按钮挤没；快捷入口的文字按头部自身宽度（容器查询）而非视口宽度显隐 */}
+          {/* 头部嵌在宽度不定的详情栏里：放不下时整块换行，词条名独占一行；快捷入口的文字按头部自身宽度（容器查询）而非视口宽度显隐 */}
           <CardHeader className="@container border-b bg-muted/20 flex flex-row flex-wrap items-center justify-between py-4 gap-x-3 gap-y-2">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 pr-4">
               <span className="font-semibold text-lg truncate max-w-full">{selectedConcept.name}</span>
