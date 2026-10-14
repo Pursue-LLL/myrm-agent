@@ -368,13 +368,12 @@ async def _db_maintenance_job() -> None:
     1. SQLite WAL checkpoint — prevents WAL file unbounded growth
     2. Database backup — disaster recovery snapshot
     3. Qdrant segment optimization — stable query performance
-    4. Browser thread cleanup — zombie detection + old record deletion
-    5. Memory import review cleanup — remove rollback-expired import sessions
-    6. Async task queue cleanup — prune terminal tasks older than 30 days (tasks.db)
-    7. Chat trash auto-purge — permanently delete chats trashed > 30 days
-    8. Kanban data GC — clean old events/runs/workspaces for terminal tasks
-    9. Artifact share registry GC — remove expired share records (TTL + retention)
-    10. Channel data plane GC — prune channel messages older than 30 days
+    4. Memory import review cleanup — remove rollback-expired import sessions
+    5. Async task queue cleanup — prune terminal tasks older than 30 days (tasks.db)
+    6. Chat trash auto-purge — permanently delete chats trashed > 30 days
+    7. Kanban data GC — clean old events/runs/workspaces for terminal tasks
+    8. Artifact share registry GC — remove expired share records (TTL + retention)
+    9. Channel data plane GC — prune channel messages older than 30 days
     """
     # SQLite WAL checkpoint
     try:
@@ -432,14 +431,6 @@ async def _db_maintenance_job() -> None:
         pass
     except Exception as e:
         logger.warning("Qdrant segment optimization failed: %s", e)
-
-    # Browser thread cleanup (zombie detection + old record pruning)
-    try:
-        from .browser import cleanup_browser_threads
-
-        await cleanup_browser_threads()
-    except Exception as e:
-        logger.warning("Periodic thread cleanup failed: %s", e)
 
     # Memory import review cleanup
     try:

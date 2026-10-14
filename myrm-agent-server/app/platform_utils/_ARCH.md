@@ -52,15 +52,9 @@ LangGraph 官方 Saver (AsyncSqliteSaver)
   ├─ 对话状态持久化（checkpoints 表）
   └─ 由 LangGraph 框架自动调用（每步自动保存/恢复）
 
-装饰器: IncrementalSessionCheckpointer
-  ├─ 增量保存（hash 去重）
-  ├─ 浏览器会话追踪（SessionVault）
-  └─ 线程追踪（ThreadStore）
-
-ThreadStore（线程生命周期管理）
-  ├─ 任务注册（checkpoint_threads 表）
-  ├─ 僵尸检测（48h 未活跃 → failed）
-  └─ 自动恢复（应用重启后恢复活跃会话）
+装饰器: LoadFallbackCheckpointer（harness `runtime/checkpointing/load_fallback.py`）
+  ├─ 转发 saver 的全部异步接口（含 adelete_thread）
+  └─ 无法反序列化的旧 checkpoint 读作"无 checkpoint"（开启全新会话，不使每轮失败）
 ```
 
 #### 生命周期管理

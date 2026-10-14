@@ -313,7 +313,6 @@ myrm_agent_harness.toolkits.browser
 myrm_agent_harness.toolkits.browser.action_capture
 myrm_agent_harness.toolkits.browser.captcha
 myrm_agent_harness.toolkits.browser.captcha.protocols
-myrm_agent_harness.toolkits.browser.checkpoint
 myrm_agent_harness.toolkits.browser.doctor.orphans
 myrm_agent_harness.toolkits.browser.domain_skills
 myrm_agent_harness.toolkits.browser.observability
@@ -451,6 +450,7 @@ myrm_agent_harness.toolkits.memory.graph
 myrm_agent_harness.toolkits.memory.graph.age_store
 myrm_agent_harness.toolkits.memory.graph.base
 myrm_agent_harness.toolkits.memory.graph.sqlite_store
+myrm_agent_harness.toolkits.memory.graph_reorganization
 myrm_agent_harness.toolkits.memory.graph_rrf
 myrm_agent_harness.toolkits.memory.handoff
 myrm_agent_harness.toolkits.memory.health

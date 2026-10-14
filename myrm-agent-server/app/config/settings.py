@@ -634,9 +634,6 @@ class AppSettings(BaseSettings):
     # --- [O] Auth CAPTCHA ---
     hcaptcha_secret_key: SecretStr = SecretStr("")  # HCAPTCHA_SECRET_KEY
 
-    # --- [O] Browser session warmup ---
-    browser_auto_warmup: bool = False  # BROWSER_AUTO_WARMUP
-
     # --- [O] Memory Command Center + experimental memory HTTP surface ---
     memory_labs_enabled: bool = Field(
         default=False,
@@ -753,7 +750,6 @@ class AppSettings(BaseSettings):
         return {
             "port": self.port,
             "host": self.host,
-            "browser_auto_warmup": self.browser_auto_warmup,
             "mcp.allow_stdio": self.mcp.allow_stdio,
             "mcp.require_https": self.mcp.require_https,
             "event_log.max_jsonl_line_bytes": self.event_log_max_jsonl_line_bytes,

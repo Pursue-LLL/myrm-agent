@@ -28,8 +28,6 @@ def capture_built_unit(agent_wrapper: GeneralAgent, skill_agent: SkillAgent) -> 
         skill_agent=skill_agent,
         browser_session=agent_wrapper._browser_session,
         desktop_session=getattr(agent_wrapper, "_desktop_session", None),
-        checkpoint_helper=agent_wrapper._checkpoint_helper,
-        current_thread_id=agent_wrapper._current_thread_id,
     )
 
 
@@ -38,8 +36,6 @@ def apply_built_unit(agent_wrapper: GeneralAgent, unit: BuiltExecutionUnit) -> N
     agent_wrapper._browser_session = unit.browser_session
     if hasattr(agent_wrapper, "_desktop_session"):
         agent_wrapper._desktop_session = unit.desktop_session
-    agent_wrapper._checkpoint_helper = unit.checkpoint_helper
-    agent_wrapper._current_thread_id = unit.current_thread_id
 
 
 def detach_wrapper_refs(agent_wrapper: GeneralAgent) -> None:
@@ -48,4 +44,3 @@ def detach_wrapper_refs(agent_wrapper: GeneralAgent) -> None:
     agent_wrapper._browser_session = None
     if hasattr(agent_wrapper, "_desktop_session"):
         agent_wrapper._desktop_session = None
-    agent_wrapper._checkpoint_helper = None

@@ -85,8 +85,6 @@ async def test_built_execution_unit_teardown_closes_all_resources() -> None:
         skill_agent=skill_agent,
         browser_session=browser,
         desktop_session=desktop,
-        checkpoint_helper=object(),
-        current_thread_id="t1",
     )
     await unit.teardown()
 
@@ -95,8 +93,6 @@ async def test_built_execution_unit_teardown_closes_all_resources() -> None:
     skill_agent.close.assert_awaited_once()
     assert unit.browser_session is None
     assert unit.desktop_session is None
-    assert unit.checkpoint_helper is None
-    assert unit.current_thread_id is None
 
 
 @pytest.mark.asyncio

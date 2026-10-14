@@ -2,7 +2,6 @@
 
 [INPUT]
 - tool_setup::ToolSetupMixin (POS: 工具初始化混入)
-- checkpoint_helpers (POS: 浏览器 Checkpoint 辅助)
 - compression_intent (POS: 压缩意图构建)
 - llm_factory (POS: LLM 实例创建工厂)
 - core.memory.adapters.setup (POS: 记忆系统适配器)
@@ -39,10 +38,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
     from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
-    from myrm_agent_harness.toolkits.browser import (
-        BrowserCheckpointHelper,
-        BrowserSession,
-    )
+    from myrm_agent_harness.toolkits.browser import BrowserSession
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
     from myrm_agent_harness.utils import CancellationToken
@@ -291,8 +287,6 @@ class GeneralAgent(ToolSetupMixin):
         self._executor = None
         self._current_chat_id: str | None = None
         self._session_vault = None
-        self._checkpoint_helper: BrowserCheckpointHelper | None = None
-        self._current_thread_id: str | None = None
         self._runtime_pool: RuntimePool | None = None
         self._runtime_pool_scope_id: str | None = None
         self._runtime_pool_from_registry = False
