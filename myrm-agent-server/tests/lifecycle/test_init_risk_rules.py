@@ -86,7 +86,7 @@ async def test_a_competing_startup_writer_does_not_leave_the_engine_without_rule
         if attempts == 1:
             await session.execute(select(func.count()).select_from(RiskRule))  # pins the snapshot, as the seed's own read does
             async with session_factory() as other:
-                other.add(RiskRule(rule_id="other-startup-writer", display_name="x", pattern="x", severity="low", action="block"))
+                other.add(RiskRule(rule_id="other-startup-writer", display_name="x", pattern="x", severity="low"))
                 await other.commit()
         return await seed(service, session)
 
@@ -144,23 +144,3 @@ async def test_an_error_that_is_not_a_locked_database_is_not_retried(
 
     assert attempts == 1
     assert "Risk rule initialization failed: bad rule table" in caplog.text
-
-
-@pytest.mark.asyncio
-async def test_startup_disables_non_block_rules_and_clears_stored_match_text(
-    session_factory: async_sessionmaker[AsyncSession], detection: RiskDetectionService
-) -> None:
-    async with session_factory() as db:
-        db.add(RiskRule(rule_id="non-block", display_name="L", pattern="x", severity="low", action="allow"))
-        for summary in ("sk-proj-abc123", "13812345678", "chars:3-9", "(matching timed out)"):
-            db.add(RiskHit(trace_id="t", rule_id="r", rule_name="R", severity="high", action="block", match_summary=summary))
-        await db.commit()
-
-    await risk_rules.init_risk_rules()
-    await risk_rules.init_risk_rules()
-
-    async with session_factory() as db:
-        summaries = (await db.execute(select(RiskHit.match_summary).order_by(RiskHit.id))).scalars().all()
-        stored_rule = (await db.execute(select(RiskRule).where(RiskRule.rule_id == "non-block"))).scalar_one()
-    assert summaries == ["", "", "chars:3-9", "(matching timed out)"]
-    assert (stored_rule.action, stored_rule.is_enabled) == ("block", False)

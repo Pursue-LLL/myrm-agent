@@ -1,7 +1,7 @@
 """The built-in risk rules for business and compliance content: company, customer, finance and legal, political.
 
 [INPUT]
-- .constants::RiskAction, RiskCategory, RiskSeverity, RuleSeed (POS: Vocabulary of rule severity, action and category.)
+- .constants::RiskCategory, RiskSeverity, RuleSeed (POS: Vocabulary of rule severity and category.)
 - .patterns::keyword_pattern (POS: Builds a whole-word keyword pattern.)
 
 [OUTPUT]
@@ -14,7 +14,7 @@ starts enabled (see ``DEFAULT_ENABLED_CATEGORIES``); a user turns on the ones th
 
 from __future__ import annotations
 
-from .constants import RiskAction, RiskCategory, RiskSeverity, RuleSeed
+from .constants import RiskCategory, RiskSeverity, RuleSeed
 from .patterns import keyword_pattern
 
 BUSINESS_RULES: list[RuleSeed] = [
@@ -25,7 +25,6 @@ BUSINESS_RULES: list[RuleSeed] = [
         "description": "Detect RFC1918 private IP addresses.",
         "pattern": r"\b(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})\b",
         "severity": RiskSeverity.MEDIUM,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.COMPANY,
         "sort_order": 200,
     },
@@ -35,7 +34,6 @@ BUSINESS_RULES: list[RuleSeed] = [
         "description": "Detect common internal domain and system naming patterns.",
         "pattern": r"(?i)\b(?:corp|internal|intra|intranet|gitlab|jenkins|confluence|jira|wiki|oa|vpn)\.[a-z0-9.-]+\b",
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.COMPANY,
         "sort_order": 210,
     },
@@ -45,7 +43,6 @@ BUSINESS_RULES: list[RuleSeed] = [
         "description": "Detect internal hostnames and environment-specific resource names.",
         "pattern": r"(?i)\b(?:prod|stg|stage|dev|test|uat|db|redis|mq|k8s|kube|es|kafka|mongo|mysql|postgres)[-_][a-z0-9.-]+\b",
         "severity": RiskSeverity.MEDIUM,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.COMPANY,
         "sort_order": 220,
     },
@@ -55,7 +52,6 @@ BUSINESS_RULES: list[RuleSeed] = [
         "description": "Detect Kubernetes internal service DNS references.",
         "pattern": r"(?i)\b[a-z0-9-]+\.[a-z0-9-]+\.svc(?:\.cluster\.local)?\b",
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.COMPANY,
         "sort_order": 230,
     },
@@ -65,7 +61,6 @@ BUSINESS_RULES: list[RuleSeed] = [
         "description": "Detect project codename or unreleased roadmap wording.",
         "pattern": keyword_pattern("项目代号", "产品代号", "代号", "codename", "roadmap", "未发布", "未公开", "internal launch"),
         "severity": RiskSeverity.MEDIUM,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.COMPANY,
         "sort_order": 240,
     },
@@ -85,7 +80,6 @@ BUSINESS_RULES: list[RuleSeed] = [
             "staff directory",
         ),
         "severity": RiskSeverity.MEDIUM,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.COMPANY,
         "sort_order": 250,
     },
@@ -97,7 +91,6 @@ BUSINESS_RULES: list[RuleSeed] = [
             "薪资", "薪酬", "绩效", "KPI", "晋升", "调薪", "裁员", "salary", "compensation", "payroll", "performance review"
         ),
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.COMPANY,
         "sort_order": 260,
     },
@@ -110,7 +103,6 @@ BUSINESS_RULES: list[RuleSeed] = [
             "客户名单", "客户列表", "联系人清单", "CRM导出", "customer list", "client list", "contact list", "lead list"
         ),
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.CUSTOMER,
         "sort_order": 300,
     },
@@ -133,7 +125,6 @@ BUSINESS_RULES: list[RuleSeed] = [
             "order details",
         ),
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.CUSTOMER,
         "sort_order": 310,
     },
@@ -145,7 +136,6 @@ BUSINESS_RULES: list[RuleSeed] = [
             "工单", "客服记录", "客户画像", "客户需求", "ticket", "case record", "crm note", "customer profile"
         ),
         "severity": RiskSeverity.MEDIUM,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.CUSTOMER,
         "sort_order": 320,
     },
@@ -169,7 +159,6 @@ BUSINESS_RULES: list[RuleSeed] = [
             "cash flow",
         ),
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.FINANCE_LEGAL,
         "sort_order": 400,
     },
@@ -179,7 +168,6 @@ BUSINESS_RULES: list[RuleSeed] = [
         "description": "Detect invoice and tax identifier wording.",
         "pattern": keyword_pattern("发票", "税号", "纳税识别号", "开票信息", "invoice", "tax id", "vat", "tin"),
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.FINANCE_LEGAL,
         "sort_order": 410,
     },
@@ -199,7 +187,6 @@ BUSINESS_RULES: list[RuleSeed] = [
             "non-disclosure agreement",
         ),
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.FINANCE_LEGAL,
         "sort_order": 420,
     },
@@ -224,7 +211,6 @@ BUSINESS_RULES: list[RuleSeed] = [
             "national security",
         ),
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.POLITICAL,
         "sort_order": 500,
     },
@@ -246,7 +232,6 @@ BUSINESS_RULES: list[RuleSeed] = [
             "classified unit",
         ),
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.POLITICAL,
         "sort_order": 510,
     },
@@ -258,7 +243,6 @@ BUSINESS_RULES: list[RuleSeed] = [
             "恐怖袭击", "炸弹制造", "极端组织", "暴恐", "terrorist attack", "bomb making", "extremist organization"
         ),
         "severity": RiskSeverity.HIGH,
-        "action": RiskAction.BLOCK,
         "category": RiskCategory.POLITICAL,
         "sort_order": 520,
     },

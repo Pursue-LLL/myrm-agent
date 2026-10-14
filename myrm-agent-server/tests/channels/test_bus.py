@@ -707,7 +707,6 @@ class TestOutboundRiskGate:
             rule_id="r1",
             display_name="CN Mobile",
             severity="high",
-            action="block",
             category="pii",
             match_summary="chars:12-23",
         )
@@ -753,7 +752,6 @@ class TestOutboundRiskGate:
             rule_id="r1",
             display_name="DB Credential",
             severity="critical",
-            action="block",
             category="credential",
             match_summary="chars:0-42",
         )
@@ -788,7 +786,6 @@ class TestOutboundRiskGate:
             rule_id="r2",
             display_name="API Key",
             severity="critical",
-            action="block",
             category="credential",
             match_summary="chars:0-48",
         )

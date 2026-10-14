@@ -1,14 +1,15 @@
-"""Risk rule vocabulary: severity, action, category, and which categories start enabled.
+"""Risk rule vocabulary: severity, category, and which categories start enabled.
+
+A rule that matches holds the message; a rule that should not apply is disabled.
 
 Severity levels: low / medium / high
-Action: block (a rule that should not apply is disabled, not given another action)
 Categories: personal / company / security / finance_legal / political / customer
 """
 
 from __future__ import annotations
 
 # The seed definition of a built-in rule: ``rule_id``, ``display_name``, ``description``, ``pattern``, ``severity``,
-# ``action``, ``category`` and ``sort_order``.
+# ``category`` and ``sort_order``.
 RuleSeed = dict[str, str | int | bool]
 
 
@@ -16,12 +17,6 @@ class RiskSeverity:
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
-
-    RANK = {LOW: 1, MEDIUM: 2, HIGH: 3}
-
-
-class RiskAction:
-    BLOCK = "block"
 
 
 class RiskCategory:

@@ -47,7 +47,6 @@ API_KEY_RULE = _CompiledRule(
     rule_id="r-apikey",
     display_name="API Key Leak",
     severity="critical",
-    action="block",
     category="credential",
     compiled=compile_pattern(r"sk-[A-Za-z0-9]{20,}"),
 )
@@ -56,7 +55,6 @@ PHONE_RULE = _CompiledRule(
     rule_id="r-phone",
     display_name="CN Mobile",
     severity="high",
-    action="block",
     category="pii",
     compiled=compile_pattern(r"1[3-9]\d{9}"),
 )

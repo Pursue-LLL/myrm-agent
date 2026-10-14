@@ -2278,14 +2278,14 @@ except Exception:
 
 ### 验证
 
-1. 新旧规则在同一份语料上对照（真实规则引擎，旧规则取自提交内容，每条规则逐条判定）：旧默认（31 条全开）拦下 31/39 条日常消息、拦下 21/28 条凭据；新默认（8 条）拦下 0/39、拦下 28/28；31 条全开时新规则拦下 4/39（邮箱与手机号、私网地址属于该开的规则本来就该命中；`roadmap` 出现在一个长 slug 里、`${DB_PASSWORD}` 被内部主机名规则命中，是这两条可选规则仍然存在的误报）。
+1. 新旧规则在同一份语料上对照（真实规则引擎，旧规则取自提交内容，每条规则逐条判定）：旧默认（31 条全开）拦下 31/39 条日常消息、拦下 21/28 条凭据；新默认（8 条）拦下 0/39、拦下 28 条凭据样本中的 28 条（这两份语料是照着已发现的问题挑出来的回归清单，不是独立抽样，不能当作对一般文本的误报率与召回率）；31 条全开时新规则拦下 4/39（邮箱与手机号、私网地址属于该开的规则本来就该命中；`roadmap` 出现在一个长 slug 里、`${DB_PASSWORD}` 被内部主机名规则命中，是这两条可选规则仍然存在的误报）。
 2. 耗时（每条消息过全部启用规则，取 5 次最小值）：2 千字符聊天旧 1.4 毫秒 / 新默认 0.3 毫秒；10 万字符日志旧 53.1 毫秒 / 新默认 11.9 毫秒；4 万字符 `a.a.a.` 串旧 23.7 毫秒 / 新默认 8.0 毫秒。31 条全开时新规则更慢：10 万字符日志 83.3 毫秒对旧的 53.1 毫秒（关键词规则加了词边界，单条约慢一倍，没有病态规则；仍远低于 0.25 秒的单条预算）。
 3. 测试：`tests/services/risk`、`tests/lifecycle/test_init_risk_rules.py`、渠道入站风险闸门与 bus 测试共 170 例通过；新增 `test_builtin_rule_precision.py` 锁定默认规则的误报与漏报语料、关键词词边界、命中只记位置、旧原文清除、`allow` 归一与 API 拒绝；前端 `riskEvents.test.ts`、`i18nToastService.test.ts` 与 `RiskRuleParts.test.tsx` 共 22 例通过（去掉 `translateI18nKeyIfPresent` 的保护后其中 5 例失败）；风控相关文件 `ruff`、`mypy`、`prettier` 通过。
 4. 更宽的服务端回归（`tests/channels` 全部、架构域词表、入站隔离）6787 通过、14 失败，失败的是他人未提交的改动或未同步的测试，与本条无关：群路由与前缀触发 7 例（路由器新增的 `is_untrusted_event_sender` 调用，测试替身没有该方法）、`btw` 命令相关 3 例（`test_background_command` 2 例与缺失的命令译文 1 例）、`tests/architecture` 域词表 3 例、渠道日志脱敏 `test_redact_sensitive_with_special_characters` 1 例；本条改动的风控、生命周期、闸门与 bus 测试没有失败。
-5. 真实文件语料（`external_reference_project` 里随机取的 300 个文档与 300 个源码文件，505 万字符，只含文件不含聊天）：旧规则全开 483/600 个文件命中，新默认 8 条 5/600、新规则全开 246/600。新默认的 5 处命中里 4 处不是密钥（`postgresql://user:pass@host`、LiteLLM 的 `api_key: os.environ/NAME` 引用、`Authorization=Bearer%20unrelated`、`sessionId: 'wf-ptc-e2e-session'`），1 处是测试夹具里形似密钥的假值 `API_KEY=sk-secret123456789`。省略号保护去掉的两个文件命中是文档里的截短示例 `Bearer oma_live_…` 与 `{"token":"sk-ant-oat01-..."}`（关掉保护时默认规则命中 7/600，已对照验证）。
+5. 真实文件语料（`external_reference_project` 里随机取的 300 个文档与 300 个源码文件，505 万字符，只含文件不含聊天；只是这一份抽样，换一份抽样数字会变，见 BUG-AGENT-2026-10-14-024）：旧规则全开 483/600 个文件命中，新默认 8 条 5/600、新规则全开 246/600。新默认的 5 处命中里 4 处不是密钥（`postgresql://user:pass@host`、LiteLLM 的 `api_key: os.environ/NAME` 引用、`Authorization=Bearer%20unrelated`、`sessionId: 'wf-ptc-e2e-session'`），1 处是测试夹具里形似密钥的假值 `API_KEY=sk-secret123456789`。省略号保护去掉的两个文件命中是文档里的截短示例 `Bearer oma_live_…` 与 `{"token":"sk-ant-oat01-..."}`（关掉保护时默认规则命中 7/600，已对照验证）。
 6. 启动时的归一化（`disable_non_block_rules`、`clear_stored_match_text`）：20 万行命中记录且无需清理时首次约 100 毫秒、再次约 19 毫秒；清除其中 2 万行原文约 53 毫秒。
 7. 最坏情形：1 MB 全是 `password = input() ` 的文本（5 万处候选，逐处确认后都不算密钥），默认 8 条规则合计 349 毫秒，`credential_assignment` 超过 0.25 秒时限，按命中处理（拦下）；同一文本旧的 31 条规则 511 毫秒，同样超时；10 万字符为 46.8 毫秒。时限只约束正则扫描，不约束命中后的确认循环，所以更长的文本耗时仍随长度线性增长。
-8. 局限：除上面的真实文件语料外，没有真实用户聊天数据，新默认规则在真实聊天里的误报率未知；`os.environ/NAME`、`user:pass@host`、`sessionId: '…'` 这类引用或占位仍会命中默认规则；一个本身以 `sk-` 开头且后面连着 20 个以上字符的 slug 仍会命中 `api_key_like`；纯字母的密码不被 `credential_assignment` 拦下（精度优先）；旧版本导出的、带 `allow` 动作的规则文件导入会被拒绝；已安装的实例仍保留全开的旧开关，需要用户自己关掉误报多的规则；`RiskMatch.action` 与库里的 `action` 列保留（恒为 `block`）；`secret_value_span` 不在 harness 的 `v0.1.0rc5` 标签里（该标签的 `secret_value.py` 没有这个函数，`git tag --contains b00705cc8` 为空），而服务端钉在 `==0.1.0rc5`，发布 harness 并执行 `./myrm harness sync-lock` 之前，OSS 的锁定安装无法导入；harness 的 `pyproject.toml` 版本是 `0.1.0rc6`，但标签 `v0.1.0rc6` 早已存在（2026-06-06），发版时要先核对版本号不与旧标签冲突——发版步骤由维护者执行，本次没有执行；没有在真实渠道与浏览器里端到端验证提示的外观（深浅主题、移动端）。
+8. 局限：除上面的真实文件语料外，没有真实用户聊天数据，新默认规则在真实聊天里的误报率未知；`os.environ/NAME`、`user:pass@host`、`sessionId: '…'` 这类引用或占位仍会命中默认规则；一个本身以 `sk-` 开头且后面连着 20 个以上字符的 slug 仍会命中 `api_key_like`；纯字母的密码不被 `credential_assignment` 拦下（精度优先）；旧版本导出的、带 `allow` 动作的规则文件导入会被拒绝（BUG-AGENT-2026-10-14-024 起不再认这个字段，导入后是启用的拦截规则）；已安装的实例仍保留全开的旧开关，需要用户自己关掉误报多的规则；`RiskMatch.action` 与库里的 `action` 列在本条保留（恒为 `block`），BUG-AGENT-2026-10-14-024 已整体删除；`secret_value_span` 不在 harness 的 `v0.1.0rc5` 标签里（该标签的 `secret_value.py` 没有这个函数，`git tag --contains b00705cc8` 为空），而服务端钉在 `==0.1.0rc5`，发布 harness 并执行 `./myrm harness sync-lock` 之前，OSS 的锁定安装无法导入；harness 的 `pyproject.toml` 版本是 `0.1.0rc6`，但标签 `v0.1.0rc6` 早已存在（2026-06-06），发版时要先核对版本号不与旧标签冲突——发版步骤由维护者执行，本次没有执行；没有在真实渠道与浏览器里端到端验证提示的外观（深浅主题、移动端）。
 
 ### 踩坑经验
 
@@ -2510,5 +2510,68 @@ except Exception:
 2. 事件的「提示」与「刷新」要分开：静默掉整类事件会让共用该事件的另一条路径失去反馈，需要显式的 `notify` 标志；
 3. zsh 不会对未加引号的变量按空格拆词，`FILES="a b"` 再传给 `ruff` 会被当成一个路径；要用数组 `FILES=(a b)` 与 `"${FILES[@]}"`；
 4. 用 `Intl` 之外的方式拼名称列表时，技能名受 `SKILL_NAME_PATTERN` 约束不含逗号，才能用逗号当分隔符，这个前提要在解析处写明。
+
+---
+
+## BUG-AGENT-2026-10-14-024: 风控闸门对带占位词、引用或查询串的赋值仍然拦下，对带环境变量前缀的真密钥与 13 种厂商前缀放行；规则与命中记录的 `action` 字段恒为 `block`，却留在库、接口、种子和每次启动的归一化里
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（误拦会让用户关掉规则，漏拦让真密钥进模型；`action` 是死字段，没有用户可见的后果，但每次启动多两次写库、接口与种子多一个无意义字段） |
+| 影响范围 | server：`app/services/risk/{constants,patterns,builtin_rules,builtin_business_rules,match_checks,detection,rule_service}.py`、`app/api/risk/{router,schemas}.py`、`app/lifecycle/risk_rules.py`、`app/database/{models/security,migrations}.py`；harness：`core/security/detection/{secret_value,leak_detector}.py` |
+| 出现次数 | 1（复审 `BUG-AGENT-2026-10-14-019` 时逐条验证发现；没有真实用户聊天数据） |
+| 关联 | `BUG-AGENT-2026-10-14-019`（本条修它留下的误拦、漏拦与表述过满的数字）· harness `BUG-HARNESS-2026-10-14-022` |
+
+### 现象
+
+1. 在测试清单上（55 条应放行、64 条应拦下；清单是照着下面这些问题写的回归清单，不是独立抽样），019 之后的 HEAD 误拦 7 条：`?api_key=YOUR_KEY&k=1&sig=Zk9mango42`（值一路读过 `&k=`）、`secret: isSecret（N3）`（值读进全角括号）、`password: YourSecurePassword123!` 与 `SECRET_KEY=CHANGE-TO-A-UNIQUE-64-CHAR-SECRET-KEY`（文档里让读者填的占位）、`postgres://app:${DB_PASSWORD}@db:5432/app`、`postgres://user:<password>@host/db`、`postgres://user:password@localhost/db`（连接串规则不看密码是引用还是词）；漏拦 16 条：`GROQ_API_KEY=gsk_…`、`DB_PASSWORD=…`、`aws_secret_access_key = …`（键前面的 `_` 是词字符，`\b` 找不到键）和 hf_、r8_、pplx-、gsk_、dop_v1_、sbp_、npm_、pypi-、SG.、tvly-、bb_live_、shpat_、shpss_ 共 13 种厂商前缀（闸门自己存的前缀清单比 harness 的表短）。新代码在同一清单上误拦 0、漏拦 0。
+2. 真实文件语料（`external_reference_project` 里按固定种子取的 300 个文档与 300 个源码文件，472 万字符；只是这一份抽样）：HEAD 17 个文件命中，新代码 12 个，没有新增命中，清掉 5 个（`python-scaffold` 技能、三份 crewAI 文档、`modal/references/secrets.md`）。
+3. 规则与命中记录各有一个 `action` 列，值只会是 `block`：种子 31 条各写一遍，API 请求与响应带它，`RiskMatch` 带它，每次启动还跑 `disable_non_block_rules` 与 `clear_stored_match_text` 两次写库归一化，而没有任何读取方按它做分支。
+4. 019 条目里有两处数字写得过满：“拦下 28/28”和“5/600”是挑出来的清单与一份抽样上的结果，不是对一般文本的误报率与召回率。
+
+### 根因
+
+1. 赋值规则的值是 `[^\s"']+`，只在空白与引号处结束，所以它会读过 `&k=` 与全角标点；占位只靠通用的“引用/词/掩码”判断，文档占位不在其中；`db_connection_string` 没有命中后的确认。
+2. 键起点用 `\b`，`_` 与字母同属词字符，环境变量前缀的键永远不匹配。
+3. 厂商前缀密钥的清单在闸门里存了一份，harness 的 `leak_detector` 又存了一份，两份各自增删，闸门那份落后 13 种。
+4. `process.env.GROQ_API_KEY!` 的 TypeScript 非空断言不在 harness 的引用判断里。
+5. `action` 是 `allow` 被删之后留下的单值字段，019 只把取值收窄到 `block`，没有删字段。
+
+### 修复
+
+1. server `match_checks._assigns_secret`：先把值截到它自己的范围（下一个 `&k=`、第一个非 ASCII 标点），再交 harness `secret_value_span`，并拒绝以 `your` / `change` / `replace` / `example` / `placeholder` / `dummy` / `sample` / `insert` / `enter` 开头、且在分隔符、大写字母或结尾处结束的值（`Yourdog2012!` 仍是密码，`Enterprise2012x` 也是）；`db_connection_string` 的 pattern 捕获密码为 `value`，纳入同一确认。
+2. `patterns.KEY_START`（`(?<![A-Za-z0-9])`）取代 `\b`：`DB_PASSWORD`、`GROQ_API_KEY`、`aws_secret_access_key` 的键能被认出；`credential_assignment` 与 `env_file_secret` 使用它。
+3. `API_KEY_PATTERN` 由闸门自己的 `sk-` 形状加 harness `DISTINCTIVE_KEY_PATTERNS`（24 种）拼成，不再另存清单；`vercel_`、`fal_` 等会命中标识符的弱前缀不在其中；`test_builtin_rule_precision.py` 要求表里每种形状都有样本且被拦下，表新增形状而没有样本时失败。
+4. harness `is_reference_value` 认三段以上属性链结尾的 `!`（`process.env.GROQ_API_KEY!`；两段的 `john.smith!` 仍可能是密码），见 harness 条目。
+5. 删除 `action`：种子、两个模型列、API 字段、`RiskAction`、`RiskMatch` 与编译后规则里的字段、`rule_service` 的校验；两个启动归一化改成迁移（先把非 `block` 的规则停用，再 `DROP COLUMN` 两次，再清空旧摘要里的原文），启动不再多两次写库。
+6. 019 条目里过满的数字补上样本限定；`_ARCH.md`、`tests/_ARCH.md` 的对应描述与 harness `redact/patterns.py` 的“单一来源”说法改准确；`server_harness_import_baseline.txt` 补上 019 起就缺的三个条目（`card_context`、`pii_patterns`、`secret_value`）。
+
+### 验证
+
+1. 同一份测试清单、同一个真实规则引擎，HEAD 与新代码对照：应放行 55 条，HEAD 误拦 7、新 0；应拦下 64 条，HEAD 漏 16、新 0。HEAD 一侧用的是现在的 harness（已含 `!` 的判断），所以 `process.env.X!` 两条在 HEAD 一侧也放行。
+2. 变异验证 6 处，各被 1 例杀死，还原后通过：不截值、不认占位词、连接串不看密码、键起点改回 `\b`、不用 harness 的表、非 ASCII 符号也截（`password: p@ss€word42` 被截成 `p@ss` 放行）。
+3. 测试：风控、生命周期、数据库迁移、渠道闸门与 bus 相关 361 例通过（含新增的迁移测试：旧库的 `action` 列被删、非 `block` 规则被停用、旧摘要原文被清空、新库迁移幂等；新增的 API 测试：规则与命中不带 `action`、仍带 `action` 的旧客户端请求不被拒）；harness `tests/core/security` 1127 例通过；server 的 `ruff` 与风控文件的 `mypy` 无新增问题，harness `ruff`、`mypy` 通过。
+4. 更宽的回归：`tests/channels`、`tests/core/channel_bridge`、`tests/api/channels` 7530 通过、14 失败；其中 3 例是本条漏改的 `test_bus.py`（`RiskMatch(action=…)`，已修，单文件 55 例通过），其余 11 例与 019 记录的他人改动同族（群路由 6、前缀触发 1、`btw` 命令 2、日志脱敏 1、译文孤键 1），没有逐例复核原因，也没有改它们。`tests/architecture` 13 例失败（路由调用者基线、API 与服务域词表、`services/workflow` 缺 `__init__.py`、前端 API 路径、harness 导入基线里他人新增的深层导入），不涉及风控代码。
+5. 耗时（每条消息过 8 条默认规则，取 5 次最小值，HEAD 与新代码同一台机器同一批文本）：2 千字符聊天 0.26 → 0.41 毫秒；36 万字符日志 4.7 → 11.2 毫秒；36 万字符 `a.a.` 串 72 → 93 毫秒；36 万字符全是 `password = input() ` 的文本 166 → 196 毫秒（`credential_assignment` 单条 132 → 141 毫秒，距 0.25 秒的单条时限不远；时限只约束正则扫描，不约束命中后的确认循环）。
+
+### 局限
+
+1. 抽样里剩下的 12 个命中：2 个是文档在讲 PEM 头本身，2 个是文档示例（`Bearer token123`、`sk-litellm-virtual-key-abc123`），3 个是 `sessionId: 'session-123'` 一类会话标识，1 个是 `sessionId: entry!.sessionId`（`!` 在链中间，本条只认链尾的 `!`），1 个是 `apiKey: items.mem0ApiKey`（带数字的标识符链被当成可能的密钥），1 个是字符串里字面的 `API_KEY=secret\n#…`，2 个是测试里的假密钥。
+2. 同族问题没有覆盖：`process.env.X!.trim()` 仍被拦；密码里含 `&x=` 的会在那里被截断；以占位词加分隔符开头的真密码（`Your_Pass_2024!`）会放行；纯字母的连接串密码（`postgres://admin:hunter@db`）会放行，与赋值规则“精度优先”的口径一致，HEAD 上这类写法被拦；全角冒号的 `password：…` 与中文键名（`密码`）不被规则识别（原有）。
+3. 键起点从 `\b` 改成“不是字母数字”之后，`user_token: abc123def456` 这类带前缀的键开始被检查；抽样没有新增命中，真实聊天里的误拦率未知。
+4. 019 起带 `action` 的旧导出文件：字段被忽略，规则按启用的拦截规则导入。
+5. 回滚：旧版服务在已迁移的库上播种内置规则会因没有 `action` 列写库失败，之后风控没有规则、不拦任何消息；升级后不要回退。
+6. `secret_value_span` 与 `DISTINCTIVE_KEY_PATTERNS` 都不在 harness 已发布的标签里，服务端仍钉 `==0.1.0rc5`，发布 harness 并执行 `./myrm harness sync-lock` 之前 OSS 的锁定安装无法导入；发版由维护者执行，本次没有执行。没有在真实渠道与浏览器里端到端验证；提示词没有改动。
+
+### 踩坑经验
+
+1. 全局 `(?i)` 下，占位词清单会把 `Yourdog2012!`、`Changeme2024!` 当占位；改用作用域内的 `(?i:…)`，并要求词在分隔符、大写字母或结尾处结束。
+2. 曾想用“全大写短横线串就是占位”，但 `API_SECRET=ABCD-EFGH-IJKL-9999` 是真密钥的形状，所以用词表而不是形状。
+3. 600 个文件的抽样里看不到 `vercel_`、`fal_` 对标识符的误拦；整个语料用 `rg -P` 扫出约 3.5 万处，所以它们进了弱前缀表。抽样看不到不等于不存在。
+4. `KEY_START` 起初写成 `(?:(?<![A-Za-z0-9])|(?<=[_-]))`，第二支是第一支的子集（`_` 与 `-` 本来就不是字母数字），多余，且在病态文本上让 `credential_assignment` 慢了一倍；改成单个后行断言后 `a.a.` 串上从 39 毫秒降到 31 毫秒，仍比 HEAD 的 20 毫秒慢。
+5. 第一版对非 ASCII 的标点和符号都截断，复审时发现 `p@ss€word42` 会被截成 `p@ss` 而放行，改为只截标点并加了用例。
+6. 删字段时只搜了风控目录，漏了 `tests/channels/test_bus.py` 里三处 `RiskMatch(action=…)`，跑渠道全量时才暴露：删字段要对全仓搜构造点，不能只看模块目录。
 
 ---

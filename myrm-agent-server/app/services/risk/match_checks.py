@@ -11,7 +11,8 @@
 A pattern finds what a value looks like; whether it is one takes the checks the privacy classifier and the leak detector
 apply to the same data. Running them here keeps the channel gate agreeing with them about what an ID number, a phone number,
 an email address and a secret are, so ``password = input()`` and ``token = os.environ[...]`` in pasted code are not held
-while ``password: Zk9#mango42`` is.
+while ``password: Zk9#mango42`` is. The gate refuses a message, so it adds what a refusal needs and masking does not: a
+value that documentation fills in (``YourSecurePassword123!``, ``change_me``) is not a secret either.
 """
 
 from __future__ import annotations
@@ -23,11 +24,25 @@ from myrm_agent_harness.core.security.detection.secret_value import secret_value
 # Sample values ("user@example.com", "00000000000") are not a person's data.
 _REJECTS_PLACEHOLDERS = frozenset({"email_address", "cn_mobile_number"})
 
-# Rules whose pattern captures the ``key`` and ``value`` of an assignment.
-_ASSIGNMENT_RULES = frozenset({"credential_assignment", "cookie_session_like", "env_file_secret"})
+# Rules whose pattern captures the ``value`` of an assignment (and, for most, its ``key``); a connection string's value is
+# its password.
+_ASSIGNMENT_RULES = frozenset({"credential_assignment", "cookie_session_like", "env_file_secret", "db_connection_string"})
 
 # Documentation cuts a token short with an ellipsis ("Bearer eyJhbGci...", "sk-ant-oat01-…"); a whole secret has none.
 _ELLIPSES = ("...", "\u2026")
+
+# Where the value of an assignment ends although the pattern's ``[^\s"']+`` runs on: at the next query parameter
+# (``api_key=abc&profile=x``) and at the first non-ASCII punctuation mark (the full-width bracket or comma after a value in
+# Chinese prose: ``secret: isSecret（N3）``). Non-ASCII symbols (``€``, ``£``, ``°``) stay in the value, because passwords
+# have them.
+_VALUE_END_RE = regex.compile(r"&[A-Za-z_]\w*=|(?![\x00-\x7f])\p{P}")
+
+# A value that starts with one of these words is the one a reader is told to fill in: ``your_api_key``,
+# ``YourSecurePassword123!``, ``CHANGE-TO-A-UNIQUE-64-CHAR-SECRET-KEY``. The word ends at a separator, a capital or the
+# end of the value, so a password such as ``Yourdog2012!`` is still one.
+_PLACEHOLDER_START_RE = regex.compile(
+    r"(?:(?i:your|change|replace|example|placeholder|dummy|sample|insert|enter))(?:[-_]|(?=[A-Z])|$)"
+)
 
 
 def is_confirmed_match(rule_id: str, match: regex.Match[str]) -> bool:
@@ -42,8 +57,8 @@ def is_confirmed_match(rule_id: str, match: regex.Match[str]) -> bool:
 
 
 def _assigns_secret(match: regex.Match[str]) -> bool:
-    """Whether the ``value`` group is a secret and not a reference to one (call, identifier, template), a mask, a word
-    or a token cut short with an ellipsis.
+    """Whether the ``value`` group is a secret and not a reference to one (call, identifier, template), a mask, a word,
+    a placeholder or a token cut short with an ellipsis.
 
     A pattern the user edited to have no ``value`` group has nothing to check, so its matches count.
     """
@@ -53,13 +68,9 @@ def _assigns_secret(match: regex.Match[str]) -> bool:
         return True
     if any(ellipsis in value for ellipsis in _ELLIPSES):
         return False
-    return (
-        secret_value_span(
-            match.string,
-            match.start("value"),
-            match.end("value"),
-            allow_letters_only=False,
-            key=groups.get("key") or "",
-        )
-        is not None
-    )
+    end = _VALUE_END_RE.search(value)
+    if end is not None:
+        value = value[: end.start()]
+    start = match.start("value")
+    span = secret_value_span(match.string, start, start + len(value), allow_letters_only=False, key=groups.get("key") or "")
+    return span is not None and not _PLACEHOLDER_START_RE.match(value)

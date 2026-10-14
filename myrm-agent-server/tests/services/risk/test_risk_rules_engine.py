@@ -77,9 +77,7 @@ async def test_a_backtracking_custom_rule_holds_the_text_instead_of_stalling(
 ) -> None:
     monkeypatch.setattr(detection, "MATCH_TIMEOUT_SECONDS", 0.05)
     async with session_factory() as db:
-        await RiskRuleService().create_rule(
-            db, rule_id="stuck", display_name="Stuck", pattern=_STUCK_PATTERN, severity="high", action="block"
-        )
+        await RiskRuleService().create_rule(db, rule_id="stuck", display_name="Stuck", pattern=_STUCK_PATTERN, severity="high")
         await db.commit()
     service = await build_engine(seed_builtins=False)
 
@@ -96,10 +94,8 @@ async def test_a_pattern_too_large_to_build_is_refused_and_skipped(
 ) -> None:
     async with session_factory() as db:
         with pytest.raises(RuleValidationError, match="too large"):
-            await RiskRuleService().create_rule(
-                db, rule_id="huge", display_name="Huge", pattern="a{99999999}", severity="low", action="block"
-            )
-        db.add(RiskRule(rule_id="stored-huge", display_name="Stored", pattern="a{99999999}", severity="low", action="block"))
+            await RiskRuleService().create_rule(db, rule_id="huge", display_name="Huge", pattern="a{99999999}", severity="low")
+        db.add(RiskRule(rule_id="stored-huge", display_name="Stored", pattern="a{99999999}", severity="low"))
         await db.commit()
 
     started = time.perf_counter()
@@ -136,7 +132,6 @@ async def test_seeding_refreshes_the_pattern_of_a_stored_builtin_rule_and_keeps_
                 display_name="My e-mail rule",
                 pattern=r"\S+@\S+",
                 severity="low",
-                action="block",
                 category="personal",
                 is_enabled=False,
                 is_builtin=True,
@@ -149,14 +144,13 @@ async def test_seeding_refreshes_the_pattern_of_a_stored_builtin_rule_and_keeps_
                 display_name="Mobile",
                 pattern="x",
                 severity="high",
-                action="block",
                 category="personal",
                 is_enabled=True,
                 is_builtin=True,
                 sort_order=20,
             )
         )
-        db.add(RiskRule(rule_id="mine", display_name="Mine", pattern="x", severity="low", action="block", is_builtin=False))
+        db.add(RiskRule(rule_id="mine", display_name="Mine", pattern="x", severity="low", is_builtin=False))
         await db.commit()
 
     service = RiskRuleService()

@@ -6,7 +6,7 @@
 - app.platform_utils::get_session_factory (POS: 数据库会话工厂)
 
 [OUTPUT]
-- init_risk_rules: 播种内置风险规则、停用动作不是 block 的规则、清除命中记录中存下的匹配原文并初始化检测引擎（遇并发启动写入方导致的锁库时在新事务上重试）
+- init_risk_rules: 播种内置风险规则并初始化检测引擎（遇并发启动写入方导致的锁库时在新事务上重试）
 
 [POS]
 启动编排层的风险规则子模块。与 ``system.py`` 的其余启动任务并发运行，故自带锁库重试。
@@ -31,8 +31,6 @@ async def _seed_and_load_risk_rules() -> None:
     async with get_session_factory()() as db:
         service = RiskRuleService()
         inserted = await service.seed_builtin_rules(db)
-        await service.disable_non_block_rules(db)
-        await service.clear_stored_match_text(db)
         await db.commit()
         if inserted > 0:
             logger.info("Seeded %d built-in risk rules on startup", inserted)

@@ -16,13 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import RiskHit, RiskRule
 
 from .builtin_rules import builtin_risk_rules
-from .constants import DEFAULT_ENABLED_CATEGORIES, RiskAction, RiskCategory, RiskSeverity
-from .detection import POSITION_SUMMARY_PREFIX, TIMED_OUT_SUMMARY, compile_pattern
+from .constants import DEFAULT_ENABLED_CATEGORIES, RiskCategory, RiskSeverity
+from .detection import compile_pattern
 
 logger = logging.getLogger(__name__)
 
 VALID_SEVERITIES = frozenset({RiskSeverity.LOW, RiskSeverity.MEDIUM, RiskSeverity.HIGH})
-VALID_ACTIONS = frozenset({RiskAction.BLOCK})
 VALID_CATEGORIES = frozenset(
     {
         RiskCategory.PERSONAL,
@@ -50,16 +49,10 @@ def _validate_pattern(pattern: str) -> None:
         raise RuleValidationError(str(exc)) from exc
 
 
-def _validate_fields(
-    severity: str,
-    action: str,
-    category: str,
-) -> None:
+def _validate_fields(severity: str, category: str) -> None:
     """Validate enum-like fields."""
     if severity not in VALID_SEVERITIES:
         raise RuleValidationError(f"Invalid severity '{severity}', must be one of {sorted(VALID_SEVERITIES)}")
-    if action not in VALID_ACTIONS:
-        raise RuleValidationError(f"Invalid action '{action}', must be one of {sorted(VALID_ACTIONS)}")
     if category not in VALID_CATEGORIES:
         raise RuleValidationError(f"Invalid category '{category}', must be one of {sorted(VALID_CATEGORIES)}")
 
@@ -95,14 +88,13 @@ class RiskRuleService:
         display_name: str,
         pattern: str,
         severity: str,
-        action: str = RiskAction.BLOCK,
         category: str = RiskCategory.CUSTOM,
         description: str | None = None,
         sort_order: int = 0,
     ) -> RiskRule:
         """Create a custom risk rule."""
         _validate_pattern(pattern)
-        _validate_fields(severity, action, category)
+        _validate_fields(severity, category)
 
         existing = await self.get_rule(session, rule_id)
         if existing is not None:
@@ -114,7 +106,6 @@ class RiskRuleService:
             description=description,
             pattern=pattern,
             severity=severity,
-            action=action,
             category=category,
             is_enabled=True,
             is_builtin=False,
@@ -133,7 +124,6 @@ class RiskRuleService:
         description: str | None = None,
         pattern: str | None = None,
         severity: str | None = None,
-        action: str | None = None,
         category: str | None = None,
         is_enabled: bool | None = None,
         sort_order: int | None = None,
@@ -153,10 +143,6 @@ class RiskRuleService:
             if severity not in VALID_SEVERITIES:
                 raise RuleValidationError(f"Invalid severity '{severity}'")
             rule.severity = severity
-        if action is not None:
-            if action not in VALID_ACTIONS:
-                raise RuleValidationError(f"Invalid action '{action}'")
-            rule.action = action
         if category is not None:
             if category not in VALID_CATEGORIES:
                 raise RuleValidationError(f"Invalid category '{category}'")
@@ -222,11 +208,7 @@ class RiskRuleService:
                 continue
 
             _validate_pattern(str(data["pattern"]))
-            _validate_fields(
-                str(data.get("severity", "medium")),
-                str(data.get("action", "block")),
-                str(data.get("category", "custom")),
-            )
+            _validate_fields(str(data.get("severity", "medium")), str(data.get("category", "custom")))
 
             rule = RiskRule(
                 rule_id=rule_id,
@@ -234,7 +216,6 @@ class RiskRuleService:
                 description=data.get("description"),
                 pattern=str(data["pattern"]),
                 severity=str(data.get("severity", "medium")),
-                action=str(data.get("action", "block")),
                 category=str(data.get("category", "custom")),
                 is_enabled=True,
                 is_builtin=False,
@@ -275,7 +256,6 @@ class RiskRuleService:
                 description=d.get("description"),
                 pattern=d["pattern"],
                 severity=d["severity"],
-                action=d["action"],
                 category=d["category"],
                 is_enabled=d["category"] in DEFAULT_ENABLED_CATEGORIES,
                 is_builtin=True,
@@ -291,38 +271,6 @@ class RiskRuleService:
         if refreshed > 0:
             logger.info("Refreshed the pattern of %d built-in risk rules", refreshed)
         return inserted
-
-    async def disable_non_block_rules(self, session: AsyncSession) -> int:
-        """Turn every stored rule whose action is not ``block`` (the only action) into a disabled block rule.
-
-        A rule with another action holds no message, so it is disabled: an enabled block rule would start holding
-        messages its author never meant to hold. Returns the number of rules changed.
-        """
-        result = await session.execute(
-            update(RiskRule).where(RiskRule.action != RiskAction.BLOCK).values(action=RiskAction.BLOCK, is_enabled=False)
-        )
-        changed = int(result.rowcount or 0) if isinstance(result, CursorResult) else 0
-        if changed > 0:
-            logger.info("Disabled %d risk rules stored with an action other than block", changed)
-        return changed
-
-    async def clear_stored_match_text(self, session: AsyncSession) -> int:
-        """Blank every hit summary that is neither a position nor the timeout marker.
-
-        Such a summary holds the matched text (a key, a number, an address), which the hit log must not keep. Returns
-        the number of cleared hits.
-        """
-        result = await session.execute(
-            update(RiskHit)
-            .where(RiskHit.match_summary != "")
-            .where(RiskHit.match_summary != TIMED_OUT_SUMMARY)
-            .where(~RiskHit.match_summary.startswith(POSITION_SUMMARY_PREFIX))
-            .values(match_summary="")
-        )
-        cleared = int(result.rowcount or 0) if isinstance(result, CursorResult) else 0
-        if cleared > 0:
-            logger.info("Cleared the matched text from %d stored risk hits", cleared)
-        return cleared
 
     async def get_hits(
         self,

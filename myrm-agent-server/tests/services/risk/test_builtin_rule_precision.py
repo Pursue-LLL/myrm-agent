@@ -1,24 +1,26 @@
 """What the built-in risk rules hold and what they let through, on text people actually send to an assistant.
 
 A rule that holds everyday messages is switched off by its users, which leaves nothing holding the secrets: the rules that
-start enabled must pass ordinary chat and code and still hold every credential shape.
+start enabled must pass the ordinary chat and code listed here and still hold each credential listed here, and the vendor
+shapes the harness identifies on their own.
 """
 
 from __future__ import annotations
 
+import re
+
 import pytest
 import regex
-from pydantic import ValidationError
+from myrm_agent_harness.core.security.detection.leak_detector import DISTINCTIVE_KEY_PATTERNS
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.api.risk.schemas import RuleCreateRequest
-from app.database.models import RiskHit, RiskRule
+from app.database.models import RiskRule
 from app.services.risk.builtin_rules import builtin_risk_rules
 from app.services.risk.constants import DEFAULT_ENABLED_CATEGORIES, RiskCategory
-from app.services.risk.detection import POSITION_SUMMARY_PREFIX, TIMED_OUT_SUMMARY, RiskDetectionService
+from app.services.risk.detection import RiskDetectionService
 from app.services.risk.match_checks import is_confirmed_match
-from app.services.risk.rule_service import RiskRuleService, RuleValidationError
+from app.services.risk.rule_service import RiskRuleService
 
 from .conftest import EngineBuilder
 
@@ -76,6 +78,24 @@ CODE_THAT_NAMES_SECRETS = [
     "Authorization: Bearer eyJhbGci...",
     'Send {"token": "sk-ant-oat01-..."} to the endpoint',
     "api_key = sk-ab\u2026wxyz",
+    # A TypeScript non-null assertion still names the variable and does not carry the key.
+    "const apiKey = process.env.GROQ_API_KEY!;",
+    "  apiKey: process.env.GROQ_API_KEY!,",
+    # The value of an assignment ends at the next query parameter and at the first full-width punctuation mark.
+    "https://x.io/cb?api_key=YOUR_KEY&k=1&sig=Zk9mango42",
+    "secret: isSecret\uff08N3\uff09",
+    # The value a reader is told to fill in, in every spelling documentation uses.
+    "password: YourSecurePassword123!",
+    "SECRET_KEY=CHANGE-TO-A-UNIQUE-64-CHAR-SECRET-KEY",
+    "api_key = replace_with_your_key",
+    "client_secret: example-secret-value",
+    # A connection string whose password is a reference or a word.
+    "DATABASE_URL=postgres://app:${DB_PASSWORD}@db:5432/app",
+    "postgres://user:<password>@host/db",
+    "postgres://user:password@localhost/db",
+    # An identifier that happens to begin with the prefix of a vendor key.
+    "const vercel_deployment_inspector_url_builder = 1",
+    "fal_ai_client_request_handler_configuration_object = make()",
 ]
 
 CREDENTIALS = {
@@ -108,6 +128,46 @@ CREDENTIALS = {
     "jwt": ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"),
     "private key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA",
     "kubeconfig": "apiVersion: v1\nkind: Config\nclusters:\n- cluster:\n    server: https://10.0.0.1",
+    "groq key in an env file": "GROQ_API_KEY=gsk_" + _token(40),
+    "openai key in an env file": "OPENAI_API_KEY=sk-" + _token(48),
+    "password with an env prefix": "DB_PASSWORD=Zk9#mango42x",
+    "api key with a kebab prefix": "my-api-key: a8f3c9d1e7b24f6a9c0d1e2f3a4b5c6d",
+    "aws secret access key": "aws_secret_access_key = " + _token(40),
+    "password that begins with a placeholder word": "password: Yourdog2012!",
+    "password that begins with another placeholder word": "password=Changeme2024!",
+    "env secret in groups of letters": "API_SECRET=ABCD-EFGH-IJKL-9999",
+    "key before the next query parameter": "api_key=Zk9#mango42x&profile=x",
+    "password before full-width punctuation": "password: Zk9#mango42x\uff0c\u8bf7\u4fdd\u7ba1",
+    "mysql url with a query separator in the password": "mysql://root:Pa55w0rd&x=1@10.0.0.2/app",
+    "password with a non-ASCII symbol": "password: p@ss\u20acword42",
+}
+
+# One sample per vendor shape the harness identifies on its own; the gate builds its pattern from that table.
+_VENDOR_SAMPLES = {
+    "stripe_key": "sk_test_" + _token(24),
+    "stripe_restricted": "rk_live_" + _token(24),
+    "openai_key": "sk-" + _token(48, _URLSAFE),
+    "anthropic_key": "sk-ant-" + _token(32, _URLSAFE),
+    "google_key": "AIza" + _token(35, _URLSAFE),
+    "huggingface_token": "hf_" + _token(34),
+    "replicate_token": "r8_" + _token(36),
+    "perplexity_key": "pplx-" + _token(48),
+    "groq_key": "gsk_" + _token(40),
+    "aws_access_key": "AKIA" + _token(16, _ALNUM.upper()),
+    "aws_session_token": "ASIA" + _token(16, _ALNUM.upper()),
+    "digitalocean_token": "dop_v1_" + _token(64, "0123456789abcdef"),
+    "supabase_key": "sbp_" + _token(40, "0123456789abcdef"),
+    "github_token": "ghs_" + _token(36),
+    "github_pat": "github_pat_" + _token(22, _URLSAFE),
+    "gitlab_token": "glpat-" + _token(20, _URLSAFE),
+    "npm_token": "npm_" + _token(36),
+    "pypi_token": "pypi-" + _token(36, _URLSAFE),
+    "slack_token": "xoxp-123456789012-" + _token(10),
+    "sendgrid_key": "SG." + _token(22, _URLSAFE) + "." + _token(43, _URLSAFE),
+    "tavily_key": "tvly-" + _token(32),
+    "browserbase_key": "bb_live_" + _token(32),
+    "shopify_token": "shpat_" + _token(32, "0123456789abcdef"),
+    "shopify_shared_secret": "shpss_" + _token(32, "0123456789abcdef"),
 }
 
 
@@ -134,7 +194,7 @@ async def test_everyday_text_and_code_pass_the_default_rules(build_engine: Engin
 
 
 @pytest.mark.parametrize("text", CREDENTIALS.values(), ids=CREDENTIALS.keys())
-async def test_every_credential_shape_is_held_by_the_default_rules(build_engine: EngineBuilder, text: str) -> None:
+async def test_every_listed_credential_is_held_by_the_default_rules(build_engine: EngineBuilder, text: str) -> None:
     assert (await build_engine()).detect(text).blocked
 
 
@@ -184,47 +244,13 @@ def test_a_pattern_without_a_value_group_has_nothing_to_check() -> None:
     assert is_confirmed_match("credential_assignment", match)
 
 
-async def test_stored_match_text_is_cleared_and_positions_are_kept(session_factory: async_sessionmaker[AsyncSession]) -> None:
-    summaries = ["sk-proj-abc123", "13812345678", "", f"{POSITION_SUMMARY_PREFIX}3-9", TIMED_OUT_SUMMARY]
-    async with session_factory() as db:
-        for summary in summaries:
-            db.add(RiskHit(trace_id="t", rule_id="r", rule_name="R", severity="high", action="block", match_summary=summary))
-        await db.commit()
-
-    service = RiskRuleService()
-    async with session_factory() as db:
-        first = await service.clear_stored_match_text(db)
-        second = await service.clear_stored_match_text(db)
-        stored = (await db.execute(select(RiskHit.match_summary).order_by(RiskHit.id))).scalars().all()
-
-    assert (first, second) == (2, 0)
-    assert stored == ["", "", "", "chars:3-9", TIMED_OUT_SUMMARY]
+def test_every_distinctive_vendor_shape_has_a_sample() -> None:
+    """A shape added to the harness's table fails here until it has a sample, and so a test that the gate holds it."""
+    assert set(_VENDOR_SAMPLES) == {name for name, _ in DISTINCTIVE_KEY_PATTERNS}
 
 
-async def test_a_stored_rule_with_a_non_block_action_becomes_a_disabled_block_rule(
-    session_factory: async_sessionmaker[AsyncSession],
-) -> None:
-    async with session_factory() as db:
-        db.add(RiskRule(rule_id="non-block", display_name="N", pattern="x", severity="low", action="allow", is_enabled=True))
-        db.add(RiskRule(rule_id="current", display_name="C", pattern="y", severity="low", action="block", is_enabled=True))
-        await db.commit()
-
-    service = RiskRuleService()
-    async with session_factory() as db:
-        first = await service.disable_non_block_rules(db)
-        second = await service.disable_non_block_rules(db)
-        rules = {rule.rule_id: (rule.action, rule.is_enabled) for rule in (await db.execute(select(RiskRule))).scalars()}
-
-    assert (first, second) == (1, 0)
-    assert rules == {"non-block": ("block", False), "current": ("block", True)}
-
-
-async def test_block_is_the_only_action_a_rule_can_have(session_factory: async_sessionmaker[AsyncSession]) -> None:
-    async with session_factory() as db:
-        with pytest.raises(RuleValidationError, match="Invalid action 'allow'"):
-            await RiskRuleService().create_rule(db, rule_id="x", display_name="X", pattern="x", severity="low", action="allow")
-
-
-def test_the_api_refuses_an_action_other_than_block() -> None:
-    with pytest.raises(ValidationError):
-        RuleCreateRequest(rule_id="x", display_name="X", pattern="x", severity="low", action="allow")
+@pytest.mark.parametrize(("name", "pattern"), DISTINCTIVE_KEY_PATTERNS, ids=[name for name, _ in DISTINCTIVE_KEY_PATTERNS])
+async def test_every_distinctive_vendor_shape_is_held(build_engine: EngineBuilder, name: str, pattern: re.Pattern[str]) -> None:
+    sample = _VENDOR_SAMPLES[name]
+    assert pattern.fullmatch(sample), "the sample is not of the shape it stands for"
+    assert "api_key_like" in _hits(await build_engine(), f"here it is: {sample}")

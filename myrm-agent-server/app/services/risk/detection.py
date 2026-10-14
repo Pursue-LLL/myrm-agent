@@ -66,7 +66,6 @@ class RiskMatch:
     rule_id: str
     display_name: str
     severity: str
-    action: str
     category: str
     match_summary: str
 
@@ -86,7 +85,6 @@ class _CompiledRule:
     rule_id: str
     display_name: str
     severity: str
-    action: str
     category: str
     compiled: regex.Pattern[str]
 
@@ -150,7 +148,6 @@ class RiskDetectionService:
                     rule_id=rule.rule_id,
                     display_name=rule.display_name,
                     severity=rule.severity,
-                    action=rule.action,
                     category=rule.category,
                     compiled=compiled_re,
                 )
@@ -173,7 +170,6 @@ class RiskDetectionService:
                     rule_id=rule.rule_id,
                     display_name=rule.display_name,
                     severity=rule.severity,
-                    action=rule.action,
                     category=rule.category,
                     match_summary=snippet,
                 )
@@ -199,7 +195,6 @@ class RiskDetectionService:
                 rule_id=m.rule_id,
                 rule_name=m.display_name,
                 severity=m.severity,
-                action=m.action,
                 match_summary=m.match_summary,
             )
             session.add(hit)
