@@ -26,7 +26,7 @@ BOLD='\033[1m'
 show_help() {
     echo -e "${CYAN}${BOLD}MyrmAgent CLI${NC}"
     echo "Usage: myrm <command>"
-    echo "  setup    First-time install (PyPI harness)"
+    echo "  setup    First-time install"
     echo "  dev      Backend only (:8080)"
     echo "  start    Backend + frontend (:8080 + :3000)"
     echo "  stop | status | update"

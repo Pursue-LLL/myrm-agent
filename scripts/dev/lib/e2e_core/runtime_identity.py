@@ -504,7 +504,7 @@ def _backend_source_fingerprint() -> str:
     root = Path(__file__).resolve().parents[4]
     server_dir = Path(os.environ.get("MYRM_SERVER_DIR", root / "myrm-agent-server"))
     harness_dir = Path(
-        os.environ.get("MYRM_HARNESS_DIR", root.parent / "myrm-agent-harness")
+        os.environ.get("MYRM_HARNESS_DIR", root / "myrm-agent-harness")
     )
     tracked_groups = (
         (server_dir, ("app", "pyproject.toml", "uv.lock")),

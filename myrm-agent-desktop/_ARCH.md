@@ -46,7 +46,7 @@ myrm-agent 产品仓桌面子模块根。L0 模块地图；L1 见 ARCHITECTURE.m
 ## 依赖
 
 - 内嵌/伴随 `myrm-agent-server`、`myrm-agent-frontend` 静态资源
-- **不**依赖 PyPI harness 打包进 Tauri（后端 sidecar 已捆绑解释器/runtime）
+- harness 不经 PyPI 获取：sidecar 构建时用仓库内 `myrm-agent-harness/` 源码 `uv build --wheel` 并装入 server venv，与解释器/runtime 一同捆绑
 - 发版 CI：`scripts/ci/desktop-release/` · [../scripts/ci/desktop-release/_ARCH.md](../scripts/ci/desktop-release/_ARCH.md)
 
 ## 文档

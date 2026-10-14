@@ -24,7 +24,7 @@ FastAPI 单机业务后端：HTTP API、渠道桥接、生命周期编排；Agen
 |------|------|
 | `run.py` | 进程 CLI 入口 → `app/startup/*` |
 | `deploy.py` | 薄 shim → `scripts/deploy.py` |
-| `pyproject.toml` / `uv.lock` | Python 依赖与 harness PyPI pin |
+| `pyproject.toml` / `uv.lock` | Python 依赖；harness 经 `[tool.uv.sources]` 解析为同仓 editable path 源 |
 | `Dockerfile` / `docker-compose.yaml` | 容器构建与编排 |
 
 ## 约束
