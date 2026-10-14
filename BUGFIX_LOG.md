@@ -2380,7 +2380,7 @@ except Exception:
 2. server：`POST /api/v1/kanban/tasks/{id}/retry`，任务不存在返回 404，非 FAILED 的任务原样返回 200（重复提交幂等）；手动移出 FAILED 仍被拒绝，重试是唯一回路。
 3. frontend：`kanban-transitions.ts` 的 `resolveMoveIntent` 镜像服务端守卫，返回 `move / retry / archive / blocked`；卡片菜单、抽屉、拖拽三条路径都经 `requestMove`，重试与归档弹确认，`failed→ready` 变成「重试」；拖拽先排除不可能的目标并给本地化提示（只有 `deps_unmet` 用专门文案，其它一律通用文案，不再显示服务端原文）；批量归档用与批量删除一致的行内确认；`ConfirmDialog` 描述加 `wrap-anywhere`；批量操作栏加 `whitespace-nowrap` 与子项不收缩，窄屏下整条横向滚动而不是把按钮文字竖排。
 4. 三处写死中文的对话框改走 i18n；`ConclusionAttributionStudioCard` 里无调用方的 `cascade` 参数及其「级联模式」措辞一并移除，并去掉其中一处原生 emoji。6 个语言包同步新增键。
-5. 确认文案对着实际行为复核后改写：重试确认补上「失败后已继续推进的下游任务不会重新执行」（失败即放行依赖它的 BACKLOG 任务，见 `dispatcher_failure.py` 的失败收尾），归档确认去掉「在这里」的限定语（服务端与界面都没有恢复已归档任务的路径）。
+5. 确认文案与实际行为一致：重试确认写明「失败后已继续推进的下游任务不会重新执行」（失败即放行依赖它的 BACKLOG 任务，见 `dispatcher_failure.py` 的失败收尾）；归档确认直接写明任务无法恢复（服务端与界面都没有恢复已归档任务的路径）。
 
 ### 验证
 
