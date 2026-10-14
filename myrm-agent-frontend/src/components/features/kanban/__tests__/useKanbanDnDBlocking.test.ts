@@ -125,7 +125,7 @@ describe('useKanbanDnD 不可达流转拦截', () => {
     expect(hook.result.current.dropConfirmState).toBeNull();
   });
 
-  it('归档有自己的确认，拖拽层不再重复弹终态确认', () => {
+  it('归档有自己的确认，拖拽层不重复弹终态确认', () => {
     const hook = setup([makeTask('a', 'ready')]);
 
     drop(hook, 'a', 'archived');
