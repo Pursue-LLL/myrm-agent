@@ -270,7 +270,8 @@ describe('WikiConceptDetailPanel links shortcut', () => {
 
 describe('WikiConceptDetailPanel header layout', () => {
   // 头部嵌在宽度不定的详情栏里（手机、平板、窄窗口）：放不下时整块换行，词条名独占一行，
-  // 不能被来源徽标、来源链接和操作按钮挤到 0 宽。jsdom 不计算样式，这里只钉住换行所依赖的类名。
+  // 不能被来源徽标、来源链接和操作按钮挤到 0 宽；CardHeader 基类自带的 `space-y-1.5` 要显式归零，
+  // 否则标题块多出 6px 下外边距（单行时偏高 3px、换行时行距变大）。jsdom 不计算样式，这里只钉住这些类名。
   const concept: Concept = {
     name: 'Alpha',
     content: '# Alpha',
@@ -286,6 +287,8 @@ describe('WikiConceptDetailPanel header layout', () => {
     const name = within(titleBlock).getByText('Alpha');
 
     expect(header.classList.contains('flex-wrap')).toBe(true);
+    expect(header.classList.contains('space-y-0')).toBe(true);
+    expect(header.classList.contains('justify-between')).toBe(false);
     expect(titleBlock.classList.contains('flex-wrap')).toBe(true);
     expect(titleBlock.classList.contains('truncate')).toBe(false);
     expect(name.classList.contains('max-w-full')).toBe(true);
