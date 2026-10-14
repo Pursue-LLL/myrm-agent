@@ -10,7 +10,7 @@ app.services.memory.imports.integration_memory::get_integration_memory_service (
 
 [OUTPUT]
 OAuth credential CRUD endpoints: GET /oauth, POST /oauth/{issuer}, DELETE /oauth/{issuer}
-GET /oauth 的每项带 renewable（访问令牌可自行续期，expires_at 不再代表连接寿命）与 needs_reauth
+GET /oauth 的每项带 renewable（访问令牌可自行续期，expires_at 不限定连接寿命）与 needs_reauth
 （供应商已永久拒绝 refresh token，只能重新登录）；两者只读内存与已存凭证，不发起网络请求。
 DELETE 支持 clear_synced_memory 参数，断开时可选清除该 provider 已同步的记忆数据。
 

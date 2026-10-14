@@ -122,8 +122,9 @@ def is_refresh_due(credential: Mapping[str, object], *, now: float) -> bool:
 def is_renewable(credential: Mapping[str, object]) -> bool:
     """True when a stored credential carries what a refresh needs.
 
-    Such a credential keeps working past its access-token expiry, so that expiry
-    says nothing about whether the connection is usable.
+    Such a credential outlives its access token, so that token's expiry says
+    nothing about whether the connection is usable; only a refresh the provider
+    rejects ends it.
     """
     return bool(credential.get("refresh_token")) and bool(credential.get("token_url"))
 

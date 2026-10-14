@@ -1,4 +1,4 @@
-"""Unit tests for OAuth API — clear_synced_memory parameter."""
+"""Tests for the OAuth credential API: list contract (renewable / needs_reauth) and disconnect memory clearing."""
 
 from __future__ import annotations
 
