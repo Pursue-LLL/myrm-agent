@@ -16,7 +16,7 @@ pairing status, and WhatsApp LID fallback logic.
 - PolicyResolver: InboundMessage → user_id resolution (or None to skip), plus a read-only is_sender_admitted
 
 [POS]
-Policy resolution module extracted from Router core routing logic.
+Inbound policy resolution: decides whether a message reaches an agent turn and under which identity.
 Handles DM/group policy evaluation, user identity resolution, and pairing state management.
 Router holds an instance via composition and calls resolve_group_user / resolve_dm_user,
 and is_sender_admitted for work that must follow the access policy but runs before those resolvers.

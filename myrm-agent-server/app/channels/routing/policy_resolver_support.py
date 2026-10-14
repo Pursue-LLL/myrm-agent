@@ -15,8 +15,8 @@
 - is_admin_sender: the one owner rule, shared by admin-only commands and the decision on a held channel reply
 
 [POS]
-PolicyResolver helpers split out to keep the resolver module under its line budget, plus the owner rule that
-AgentRouter applies to admin-only commands and held-reply decisions.
+Helpers of PolicyResolver (policy lookups, cooldown and follow-up tracking, group sender arbitration), plus the owner
+rule that AgentRouter applies to admin-only commands and held-reply decisions.
 """
 
 from __future__ import annotations
