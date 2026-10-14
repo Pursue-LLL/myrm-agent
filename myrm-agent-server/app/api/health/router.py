@@ -24,7 +24,7 @@
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 
 from app.api.health.browser import router as browser_router
@@ -430,57 +430,32 @@ async def reset_database() -> dict[str, str]:
 
 
 @router.get("/resources")
-async def resource_health_check(
-    auto_recover: bool = Query(False, description="Automatically recover unhealthy resources"),
-    force_recovery: bool = Query(False, description="Allow dangerous recovery actions (SQLite WAL deletion)"),
-) -> dict[str, object]:
-    """Resource-level health check (Qdrant, SQLite, Browser).
+async def resource_health_check() -> dict[str, object]:
+    """Read-only resource health check (Qdrant, SQLite, Browser).
 
-    Checks and optionally recovers unhealthy resources.
-    Safe by default: only attempts recovery if auto_recover=true.
-
-    Args:
-        auto_recover: Enable automatic recovery on failure
-        force_recovery: Allow dangerous recovery actions (SQLite WAL deletion)
+    Reports the state of each resource without repairing anything: recovery (such as restoring the
+    database from a backup) only runs at startup, never from an HTTP request.
 
     Returns:
-        Resource health status and recovery results
+        Resource health status per checker
     """
     from app.core.infra.health import run_all_health_checks
 
     try:
-        all_healthy, results = await run_all_health_checks(
-            auto_recover=auto_recover,
-            force_sqlite_wal_cleanup=force_recovery,
-            max_retries=1,
-        )
-
-        formatted_results = []
-        for name, check_result, recovery_result in results:
-            item: dict[str, object] = {
-                "name": name,
-                "status": check_result.status.value if check_result else "unknown",
-                "message": check_result.message if check_result else "No check result",
-                "details": check_result.details if check_result else None,
-                "checked_at": (check_result.checked_at.isoformat() if check_result and check_result.checked_at else None),
-            }
-
-            if recovery_result:
-                item["recovery"] = {
-                    "status": recovery_result.status.value,
-                    "message": recovery_result.message,
-                    "actions_taken": recovery_result.actions_taken,
-                    "details": recovery_result.details,
-                    "recovered_at": (recovery_result.recovered_at.isoformat() if recovery_result.recovered_at else None),
-                }
-
-            formatted_results.append(item)
+        all_healthy, results = await run_all_health_checks(auto_recover=False)
 
         return {
             "all_healthy": all_healthy,
-            "auto_recover": auto_recover,
-            "force_recovery": force_recovery,
-            "resources": formatted_results,
+            "resources": [
+                {
+                    "name": name,
+                    "status": check_result.status.value if check_result else "unknown",
+                    "message": check_result.message if check_result else "No check result",
+                    "details": check_result.details if check_result else None,
+                    "checked_at": (check_result.checked_at.isoformat() if check_result and check_result.checked_at else None),
+                }
+                for name, check_result, _ in results
+            ],
         }
 
     except Exception as exc:

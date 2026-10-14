@@ -50,10 +50,8 @@ class SQLiteHealthChecker(HealthChecker):
       native WAL recovery for stale journal files.
     """
 
-    def __init__(self, force_wal_cleanup: bool = False) -> None:
+    def __init__(self) -> None:
         self.sqlite_path = Path(settings.database.sqlite_path)
-        if force_wal_cleanup:
-            logger.warning("force_wal_cleanup is ignored. Manual WAL deletion is prohibited to prevent data loss.")
 
     async def check(self) -> HealthCheckResult:
         """Check SQLite database health via SELECT 1 + PRAGMA quick_check."""

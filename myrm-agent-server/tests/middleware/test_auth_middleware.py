@@ -95,6 +95,14 @@ def remote_auth_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[FastAPI]:
     async def health() -> dict[str, str]:
         return {"status": "healthy"}
 
+    @app.get("/api/v1/health/liveness")
+    async def liveness() -> dict[str, str]:
+        return {"state": "idle"}
+
+    @app.get("/api/v1/health/doctor")
+    async def doctor() -> dict[str, str]:
+        return {"overall": "ok"}
+
     @app.post("/api/v1/health/database/reset")
     async def reset_database() -> dict[str, str]:
         return {"status": "reset"}
@@ -131,12 +139,20 @@ async def test_remote_requires_api_key(remote_auth_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_remote_health_probe_is_public_but_operator_actions_are_not(remote_auth_app: FastAPI) -> None:
+async def test_remote_health_probe_is_public_but_diagnostics_and_operator_actions_are_not(
+    remote_auth_app: FastAPI,
+) -> None:
     async with _remote_client(remote_auth_app) as client:
         probe = await client.get("/api/v1/health")
+        liveness = await client.get("/api/v1/health/liveness")
+        doctor_denied = await client.get("/api/v1/health/doctor")
+        doctor_allowed = await client.get("/api/v1/health/doctor", headers={"X-Sandbox-Api-Key": _REMOTE_API_KEY})
         reset_denied = await client.post("/api/v1/health/database/reset")
         reset_allowed = await client.post("/api/v1/health/database/reset", headers={"X-Sandbox-Api-Key": _REMOTE_API_KEY})
     assert probe.status_code == 200
+    assert liveness.status_code == 200
+    assert doctor_denied.status_code == 401
+    assert doctor_allowed.status_code == 200
     assert reset_denied.status_code == 401
     assert reset_allowed.status_code == 200
 

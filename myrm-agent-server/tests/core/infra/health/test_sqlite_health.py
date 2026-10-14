@@ -139,17 +139,3 @@ async def test_recover_no_backups(tmp_path: Path) -> None:
         result = await checker.recover()
 
         assert result.status == RecoveryStatus.FAILED
-
-
-@pytest.mark.asyncio
-async def test_force_wal_cleanup_ignored(tmp_path: Path) -> None:
-    db = tmp_path / "app.db"
-    _create_test_db(db)
-
-    with patch("app.core.infra.health.sqlite.settings") as mock_settings:
-        mock_settings.database.sqlite_path = str(db)
-        from app.core.infra.health.sqlite import SQLiteHealthChecker
-
-        checker = SQLiteHealthChecker(force_wal_cleanup=True)
-        result = await checker.check()
-        assert result.status == HealthStatus.HEALTHY

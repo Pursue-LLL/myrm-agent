@@ -27,7 +27,7 @@ Diagnostic aggregation for `/health/doctor` lives here:
 | qdrant.py | Core | Qdrant path verifier (Lock management is natively handled by Qdrant Rust engine with Server entrypoint Phantom-Kill). | ✅ |
 | sqlite.py | Core | SQLite health checker with PRAGMA quick_check integrity verification and backup-based recovery via SQLiteBackupManager. | ✅ |
 | browser.py | Core | Browser & driver automation pool health checker delegating to Harness authoritative orphans doctor. Tests: `tests/core/infra/health/test_browser_health_checker.py`. | ✅ |
-| coordinator.py | Core | Business-level health check coordinator that instantiates and runs all checkers. | ✅ |
+| coordinator.py | Core | Business-level health check coordinator that instantiates and runs all checkers; recovery (`auto_recover`) is requested only by the startup check, `GET /health/resources` runs it read-only. | ✅ |
 
 ## Module Dependencies
 
