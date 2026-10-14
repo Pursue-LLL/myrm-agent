@@ -230,9 +230,7 @@ class SkillAgentReviewMixin:
         )
         from myrm_agent_harness.utils.chat_utils import convert_chat_history_simple
 
-        # ``convert_chat_history_simple`` hands an already-converted list back as-is; the turn is
-        # appended below, so work on a copy to leave the caller's history untouched.
-        messages = list(convert_chat_history_simple(chat_history)) if chat_history else []
+        messages = convert_chat_history_simple(chat_history) if chat_history else []
 
         ctx = getattr(self, "_last_context", None) or {}
         user_id = getattr(self, "_user_id", None)
