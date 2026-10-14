@@ -5986,7 +5986,8 @@
     "extractionReason": "提取依據",
     "validPermanent": "長期有效",
     "manualReviewRequired": "需人工確認 · 永不自動覆蓋",
-    "sourceEvidence": "依據發言"
+    "sourceEvidence": "依據發言",
+    "selectMemory": "選取這則記憶"
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",
@@ -8078,7 +8079,8 @@
       "actionDispatching": "排隊等待空閒執行器派發",
       "actionBacklog": "排定優先順序並安排執行",
       "actionDone": "任務已成功執行完畢"
-    }
+    },
+    "cardActions": "任務操作"
   },
   "channels": {
     "sectionTitle": "訊息通道",

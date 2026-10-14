@@ -6054,7 +6054,8 @@
     "extractionReason": "提取依据",
     "validPermanent": "长期有效",
     "manualReviewRequired": "需人工确认 · 永不自动覆盖",
-    "sourceEvidence": "依据发言"
+    "sourceEvidence": "依据发言",
+    "selectMemory": "选择这条记忆"
   },
   "sharedContextTargetBinding": {
     "title": "继承的共享上下文",
@@ -8146,7 +8147,8 @@
       "actionDispatching": "排队等待空闲执行器派发",
       "actionBacklog": "排定优先级并安排执行",
       "actionDone": "任务已成功执行完毕"
-    }
+    },
+    "cardActions": "任务操作"
   },
   "channels": {
     "sectionTitle": "消息通道",

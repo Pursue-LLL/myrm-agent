@@ -12,7 +12,7 @@
  */
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -216,15 +216,25 @@ function DraggableTaskCard({
   queuedByConcurrency = false,
 }: DraggableTaskCardProps) {
   const t = useTranslations('kanban');
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({
     id: task.task_id,
     disabled: task.status === 'in_review',
   });
+  // dnd-kit 的键盘激活只在登记了 activator 时才校验 event.target；未登记时卡片内任何按钮上的
+  // Enter/Space 都会被当作“开始拖拽”并 preventDefault，卡片里的菜单与展开按钮就无法用键盘操作。
+  // 把卡片自身登记为 activator，拖拽仍可由聚焦卡片后按 Space/Enter 触发。
+  const setCardRef = useCallback(
+    (node: HTMLElement | null) => {
+      setNodeRef(node);
+      setActivatorNodeRef(node);
+    },
+    [setNodeRef, setActivatorNodeRef],
+  );
 
   return (
     // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- role, tabIndex and key listeners come from dnd-kit via spread
     <div
-      ref={setNodeRef}
+      ref={setCardRef}
       {...listeners}
       {...attributes}
       onClick={(e) => {

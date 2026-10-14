@@ -5986,7 +5986,8 @@
     "extractionReason": "Extraktionsgrund",
     "validPermanent": "Dauerhaft",
     "manualReviewRequired": "Manuelle Überprüfung erforderlich · Kein automatisches Überschreiben",
-    "sourceEvidence": "Quellenbeleg"
+    "sourceEvidence": "Quellenbeleg",
+    "selectMemory": "Diesen Speichereintrag auswählen"
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",
@@ -8078,7 +8079,8 @@
       "actionDispatching": "In Warteschlange für nächsten Ausführer",
       "actionBacklog": "Priorisieren oder zur Ausführung planen",
       "actionDone": "Aufgabe erfolgreich abgeschlossen"
-    }
+    },
+    "cardActions": "Aufgabenaktionen"
   },
   "channels": {
     "sectionTitle": "Nachrichtenkanäle",

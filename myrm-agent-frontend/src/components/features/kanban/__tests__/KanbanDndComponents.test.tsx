@@ -10,6 +10,7 @@ vi.mock('@dnd-kit/core', () => ({
     attributes: { role: 'button', tabIndex: 0, 'aria-roledescription': 'draggable' },
     listeners: {},
     setNodeRef: vi.fn(),
+    setActivatorNodeRef: vi.fn(),
     isDragging: false,
   })),
 }));
@@ -170,6 +171,7 @@ describe('KanbanDropColumn', () => {
       attributes: { role: 'button', tabIndex: 0, 'aria-roledescription': 'draggable' } as never,
       listeners: {} as never,
       setNodeRef: vi.fn(),
+      setActivatorNodeRef: vi.fn(),
       isDragging: true,
       node: { current: null } as never,
       activatorEvent: null,

@@ -5986,7 +5986,8 @@
     "extractionReason": "추출 근거",
     "validPermanent": "영구적",
     "manualReviewRequired": "수동 확인 필요 · 자동 덮어쓰기 없음",
-    "sourceEvidence": "근거 발언"
+    "sourceEvidence": "근거 발언",
+    "selectMemory": "이 메모리 선택"
   },
   "sharedContextTargetBinding": {
     "title": "상속된 공유 컨텍스트",
@@ -8078,7 +8079,8 @@
       "actionDispatching": "대기 중인 에이전트 실행기에 큐잉됨",
       "actionBacklog": "우선순위 지정 및 실행 예약",
       "actionDone": "작업이 성공적으로 완료되었습니다"
-    }
+    },
+    "cardActions": "작업 메뉴"
   },
   "channels": {
     "sectionTitle": "메시지 채널",

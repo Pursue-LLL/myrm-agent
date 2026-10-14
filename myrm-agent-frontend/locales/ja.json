@@ -5986,7 +5986,8 @@
     "extractionReason": "抽出理由",
     "validPermanent": "無期限",
     "manualReviewRequired": "手動確認が必要 · 自動上書きなし",
-    "sourceEvidence": "根拠となる発言"
+    "sourceEvidence": "根拠となる発言",
+    "selectMemory": "このメモリを選択"
   },
   "sharedContextTargetBinding": {
     "title": "継承された共有コンテキスト",
@@ -8078,7 +8079,8 @@
       "actionDispatching": "待機中の実行エージェントにキューイング",
       "actionBacklog": "優先度を設定して実行をスケジュール",
       "actionDone": "タスクは正常に完了しました"
-    }
+    },
+    "cardActions": "タスクの操作"
   },
   "channels": {
     "sectionTitle": "メッセージチャネル",

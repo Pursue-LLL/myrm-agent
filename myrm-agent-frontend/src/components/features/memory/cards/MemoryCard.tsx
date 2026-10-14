@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Tag,
 } from 'lucide-react';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { PendingMemory, Memory, MemoryType } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
@@ -75,7 +76,6 @@ const MemoryCard = memo<MemoryCardProps>(
   }) => {
     const t = useTranslations('memory');
     const router = useRouter();
-    const [isHovered, setIsHovered] = useState(false);
     const [showActions, setShowActions] = useState(false);
 
     const isPending = variant === 'pending';
@@ -127,20 +127,24 @@ const MemoryCard = memo<MemoryCardProps>(
           }
           onClick();
         }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => {
-          setIsHovered(false);
-          setShowActions(false);
-        }}
+        onMouseLeave={() => setShowActions(false)}
       >
         {isPending && onSelect && (
           <div
             className={cn(
               'absolute -left-2 -top-2 z-10 transition-all duration-200',
-              isHovered || selected ? 'opacity-100 scale-100' : 'opacity-0 scale-75',
+              selected
+                ? 'opacity-100 scale-100'
+                : cn(
+                    REVEAL_ON_HOVER,
+                    'scale-75 group-hover:scale-100 group-focus-within:scale-100 pointer-coarse:scale-100',
+                  ),
             )}
           >
             <button
+              type="button"
+              aria-label={t('selectMemory')}
+              aria-pressed={selected}
               onClick={onSelect}
               className={cn(
                 'h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all',

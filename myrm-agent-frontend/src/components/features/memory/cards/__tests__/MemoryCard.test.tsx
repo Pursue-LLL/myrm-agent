@@ -199,3 +199,37 @@ describe('MemoryCard usage stats and procedural details', () => {
     expect(screen.getByText('How:')).toBeInTheDocument();
   });
 });
+
+describe('MemoryCard selection checkbox', () => {
+  const renderSelectable = (selected: boolean) =>
+    render(
+      <TooltipProvider>
+        <MemoryCard memory={basePending} variant="pending" selected={selected} onSelect={vi.fn()} />
+      </TooltipProvider>,
+    );
+
+  it('stays in the DOM and is revealed on hover, keyboard focus and touch while unselected', () => {
+    renderSelectable(false);
+
+    const button = screen.getByRole('button', { name: 'selectMemory' });
+    const classes = button.parentElement?.className.split(/\s+/) ?? [];
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        'opacity-0',
+        'group-hover:opacity-100',
+        'group-focus-within:opacity-100',
+        'pointer-coarse:opacity-100',
+      ]),
+    );
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('is always visible once selected', () => {
+    renderSelectable(true);
+
+    const button = screen.getByRole('button', { name: 'selectMemory' });
+    expect(button.parentElement).toHaveClass('opacity-100', 'scale-100');
+    expect(button.parentElement).not.toHaveClass('opacity-0');
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+  });
+});

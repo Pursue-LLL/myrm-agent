@@ -6054,7 +6054,8 @@
     "extractionReason": "Extraction Reason",
     "validPermanent": "Permanent",
     "manualReviewRequired": "Manual review required · Never auto-overwrites",
-    "sourceEvidence": "Source Evidence"
+    "sourceEvidence": "Source Evidence",
+    "selectMemory": "Select this memory"
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",
@@ -8146,7 +8147,8 @@
       "actionDispatching": "Queued for next available agent runner",
       "actionBacklog": "Prioritize or schedule for execution",
       "actionDone": "Task completed successfully"
-    }
+    },
+    "cardActions": "Task actions"
   },
   "channels": {
     "sectionTitle": "Message Channels",
