@@ -2133,3 +2133,51 @@ except Exception:
 4. 没有接到真实数据的演示型界面比没有界面更糟：它会报告“已清除”。
 
 ---
+## BUG-AGENT-2026-10-14-017: 公开路径白名单按前缀放行，把前缀下的运维动作一并放行：`/api/v1/health/**` 下的数据库重置、安全清空、修复执行，`/api/v1/a2a/**` 下的对端增删与任务审批，以及 WebUI 密码保护开关，都不需要认证
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（本机仅回环访问时只有同机进程与浏览器页面能触达；一旦服务对局域网 / Tailscale 暴露，同网络上任何人无需凭据即可调用，其中数据库重置会直接删除 SQLite 文件） |
+| 影响范围 | server：`app/core/security/auth/public_paths.py`（`is_public_path` 增加方法参数）、`app/middleware/{auth,host_allowlist,ws_auth}.py`、`app/core/security/auth/identity.py`、`app/api/webui/auth_routes.py`（保护开关 handler 自行认证）；frontend：`BrowserDoctorCard`、`CloudBrowserCard`、`BrowserProxyCard`、`MemoryMonitorCard` 的变更类请求改走 `apiRequest` |
+| 出现次数 | 1（枚举全量路由表、读 handler、真实中间件链的单元与门禁测试确认；没有在真实的局域网暴露部署上端到端验证） |
+| 关联 | `BUG-AGENT-2026-10-14-015`（「安全清空」所在的路由前缀；本条是发现它属于公开前缀时一并发现的） |
+
+### 现象
+
+1. `PUBLIC_PATH_PREFIXES` 含整段 `/api/v1/health`，认证、Host/Origin 白名单（DNS 重绑定防护）、WebSocket 握手三处都按它放行。该前缀下实际有 8 个非 GET 路由：`POST /health/database/reset`（删除数据库文件）、`POST /health/database/safe-purge`（清空全部会话）、`POST /health/repair-actions/{action_id}/execute`、`DELETE /health/browser/orphans`、`POST /health/browser/test-cloud-connection`、`POST /health/browser/test-proxy-connection`、`POST /health/memory/profile/start`、`POST /health/memory/profile/stop`。
+2. 同一机制放行了整段 `/api/v1/a2a`：RPC 与 AgentCard 发现本来就该公开（对端用 Bearer 令牌，未受信对端的任务只进「待审批」队列），但同前缀下的运维路由也跟着公开：`POST/PATCH/DELETE /a2a/peers`、`POST /a2a/peers/probe`、`POST /a2a/tasks/{id}/approve|reject`、`GET /a2a/tasks/pending-approval`。未受信对端提交任务后，可以自己调 approve 绕过「运维人员审批」。
+3. `PUT /webui/auth/protection` 在公开前缀 `/webui/auth/` 下，handler 里没有任何身份检查，一个无会话的远程客户端能把「需要登录密码」关掉（同组的 `change-password`、`disable-protection`、`generate-setup-token` 都在 handler 内校验了密码或会话，只有它漏了）。
+4. 本机模式下 `HostAllowlistMiddleware` 对公开路径整体跳过，所以外站网页发往 `http://127.0.0.1:<port>/api/v1/health/database/reset` 的跨源 POST 也不会被 Origin 检查拦下。
+
+### 根因
+
+公开规则只看路径前缀，不看方法：为了让探活 GET 免认证而公开了整段前缀，前缀下后来加的变更类运维路由默认继承了「公开」。没有任何门禁检查「哪些变更类路由是公开的」，所以新增或挪动路由时没人会发现。
+
+### 修复
+
+1. `is_public_path(path, method)`：`/api/v1/health` 改为只读前缀（只对 GET/HEAD 公开）；`/api/v1/a2a` 整段前缀换成精确的公开面：`/api/v1/a2a/rpc`、`/api/v1/a2a/agents/` 前缀（每个 Agent 的 RPC 与发现）、`/api/v1/a2a/.well-known/agent-card.json`；对端与任务审批管理路由不再公开。四处调用点（HTTP 认证、身份解析、Host/Origin 白名单、WebSocket 握手）都传方法；方法参数无默认值，漏传会在类型检查时暴露。
+2. `PUT /webui/auth/protection` 在 handler 内用 `resolve_status` 判断，未认证返回 401；回环且本机无需密码时仍视为已认证，带会话的请求照常通过。
+3. 新增门禁 `tests/architecture/test_public_mutating_routes.py`：全量路由表里任何对外开放的变更类路由，必须登记「handler 自己怎么认证」（13 条，含 A2A 两个 RPC、分享链接三个路由、`/webui/auth/*` 八个），未登记或登记后不再公开都会失败。
+4. 前端 5 处对这些路由的 raw `fetch`（没有带认证头，也不走 `BACKEND_BASE_URL`）改为 `apiRequest`；两处 GET（健康检查、记忆历史）仍是公开的，不动。
+
+### 验证
+
+1. `tests/core/security/auth/test_public_paths.py`（80 例：8 条健康运维路由 × 4 个变更方法、6 条 A2A 运维路由 × 全部方法、公开面保持公开）、`tests/middleware/test_auth_middleware.py`（远程模式下无凭据的 POST `/health/database/reset` 与 `/a2a/tasks/{id}/approve` 返回 401，带 API Key 通过，`/health` GET 与 `/a2a/rpc` 保持公开）、`tests/middleware/test_host_allowlist_middleware.py`（外站 Origin 的变更类健康路由返回 403、GET 探活仍通）、`tests/services/webui/test_protection_session_policy.py`（非回环无会话 401 且开关未变；带会话 200）、门禁 2 例。变异检查：把规则改回旧的整段前缀，66 例失败（单元、门禁、中间件、Host 白名单四层都杀死）；保护开关的 401 用例在加认证判断之前实测返回 200（红灯）。
+2. 前端：`BrowserDoctorCard`（19 例，清理改走 mock 的 `apiRequest`）、新增 `BrowserConnectionCards`（6 例）与 `MemoryMonitorCard`（4 例）共 29 例通过；变异（云端浏览器卡改回 raw `fetch`）3 例失败；本次改动文件的 `tsc --noEmit` 无错误（全仓库还有他人未提交改动导致的 Kanban 类型错误，不在本次范围）。
+3. 静态：本次改动的 server 文件 `ruff check` / `ruff format --check` / mypy 通过（顺带修了 `identity.py`、`ws_auth.py`、`auth_routes.py`、测试夹具里原有的 mypy 错误与 `host_allowlist.py` 的格式问题）。
+4. 局限：
+   - 未验证真实部署：云托管入口前置的网络层是否已经挡住这些路径、远程模式下 Bearer 令牌的实际流转，都没有在真实环境里测。
+   - `change-password` 与 `disable-protection` 校验密码但没有登录那样的失败次数限制，未认证远程客户端可以不限速地试密码（`auth_service.py:231-256` 对比 `:194-203` 的 `_is_rate_limited`），本条没有改。
+   - A2A 的 `tasks/get` 与 `tasks/cancel` 对任何调用者开放（不区分是否受信对端），靠任务 ID 不可猜测；本条没有改。
+   - 本次新增的 `MemoryMonitorCard` 测试里卡片自身仍有硬编码英文文案（`Start Heap Profiling` 等），未在本条处理。
+
+### 踩坑经验
+
+1. 「前缀公开」是一个会随时间放大的授权：每个挂在公开前缀下的新路由都默认免认证。公开规则要么精确到路径、要么带方法，并且要有门禁列出所有「公开的变更类路由」，让新增者必须说明它怎么自己认证。
+2. 同一组路由里「大部分有校验、个别漏掉」最容易漏检：`/webui/auth/*` 八个变更路由里七个自己校验，只有保护开关没有。
+3. 前端对受保护接口用 raw `fetch` 在本机模式下看不出问题（回环被信任），一旦接口收紧，远程模式才会 401；对内接口统一走 `apiRequest`。
+
+---
+

@@ -14,6 +14,7 @@ import { Switch } from '@/components/primitives/switch';
 import { Button } from '@/components/primitives/button';
 import { getConfigSyncManager, type BrowserProxyConfigValue } from '@/services/config';
 import { toast } from '@/hooks/shared/useToast';
+import { apiRequest } from '@/lib/api';
 
 const DEFAULT_CONFIG: BrowserProxyConfigValue = {
   enabled: false,
@@ -82,11 +83,13 @@ const BrowserProxyCard = memo(() => {
     setTestStatus('testing');
     setTestMessage('');
     try {
-      const resp = await fetch('/api/v1/health/browser/test-proxy-connection', { method: 'POST' });
-      const data = await resp.json();
+      const data = await apiRequest<{ status: string; message?: string; error?: string }>(
+        '/health/browser/test-proxy-connection',
+        { method: 'POST', silent: true },
+      );
       if (data.status === 'connected') {
         setTestStatus('success');
-        setTestMessage(data.message);
+        setTestMessage(data.message ?? '');
       } else {
         setTestStatus('failed');
         setTestMessage(data.message || data.error || 'Connection failed');

@@ -14,7 +14,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 | `MemoryGuardianCard.tsx`            | 组件   | 记忆 Guardian 状态卡片                                                                                 | ✅    |
 | `MemoryGuardianDigestPanel.tsx`     | 组件   | 记忆 Guardian 每日摘要面板                                                                             | ✅    |
 | `MemoryGuardianPolicyPanel.tsx`     | 组件   | 记忆 Guardian 策略配置面板                                                                             | ✅    |
-| `MemoryMonitorCard.tsx`             | 组件   | 记忆用量/健康监控                                                                                      | ✅    |
+| `MemoryMonitorCard.tsx`             | 组件   | 记忆用量/健康监控（堆分析的启停经 `apiRequest`，带认证头）                                             | ✅    |
 | `WorkingStateCard.tsx`              | 组件   | Working state 展示                                                                                     | ✅    |
 | `MemoryBackupSection.tsx`           | 组件   | 记忆备份导出/导入 UI                                                                                   | ✅    |
 | `RemoteBackupSection.tsx`           | 组件   | 远程备份配置                                                                                           | ✅    |
@@ -54,6 +54,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 | `__tests__/MigrationWizardSteps.resultReadiness.test.tsx`   | ResultStep readiness 门禁、Migration readiness anchor、**conversation search opt-in 按钮** |
 | `__tests__/CodexWikiCompletionLane.test.tsx`                | Codex Wiki 补全泳道渲染                                                                    |
 | `__tests__/MemoryGuardianCard.test.tsx`                     | 记忆 Guardian 卡片状态展示                                                                 |
+| `__tests__/MemoryMonitorCard.test.tsx`                      | 记忆监控卡堆分析启停：经 `apiRequest` 发出、服务端拒绝时显示其详情、传输失败显示本地化网络错误、停止后保留热点分配 |
 | `__tests__/SecondBrainPitfallGuardrails.test.tsx`           | Second Brain 陷阱护栏文案/条件渲染                                                         |
 | `__tests__/WikiPendingEdits.scope.test.tsx`                 | 待审编辑作用域（含来源对话跳转、分页漂移自愈）                                              |
 | `myrm-agent-server/tests/e2e/test_wiki_pending_panel_chrome_e2e.py` | 真浏览器 E2E：待审面板分页 50/100、加载更多、真实 REST reject 漂移自愈回页 1 + stats badge 同步、fixture seed/cleanup 复原 |

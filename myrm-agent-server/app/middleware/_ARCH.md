@@ -49,7 +49,7 @@ FastAPI 全局 HTTP 中间件。提供文本清洗、认证和缓存控制。
 
 ### 内部依赖
 - `app/config/settings`：`SANDBOX_API_KEY`
-- `app/core/security/auth/public_paths`：公开路径白名单
+- `app/core/security/auth/public_paths`：公开路径规则（按路径 + 方法；认证与 Host/Origin 白名单共用）
 - `app/platform_utils/deployment_capabilities`：部署能力位
 - `app/middleware/auth_audit`：审计 JSONL
 

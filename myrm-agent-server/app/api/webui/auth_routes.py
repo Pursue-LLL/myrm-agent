@@ -68,14 +68,14 @@ class SetupTokenResponse(BaseModel):
     setup_path: str
 
 
-def _to_response(status_payload: WebuiAuthStatus) -> dict[str, object]:
-    return {
-        "is_setup_done": status_payload.is_setup_done,
-        "is_authenticated": status_payload.is_authenticated,
-        "user_id": status_payload.user_id,
-        "username": status_payload.username,
-        "role": status_payload.role,
-    }
+def _to_response(status_payload: WebuiAuthStatus) -> AuthStatusResponse:
+    return AuthStatusResponse(
+        is_setup_done=status_payload.is_setup_done,
+        is_authenticated=status_payload.is_authenticated,
+        user_id=status_payload.user_id,
+        username=status_payload.username,
+        role=status_payload.role,
+    )
 
 
 def _authenticated_payload(username: str) -> dict[str, object]:
@@ -97,7 +97,7 @@ def _json_with_session(username: str, request: Request) -> JSONResponse:
 @router.get("/auth/status")
 async def get_auth_status(request: Request) -> AuthStatusResponse:
     payload = webui_auth_service.resolve_status(request)
-    return AuthStatusResponse(**_to_response(payload))
+    return _to_response(payload)
 
 
 @router.post("/auth/setup")
@@ -167,7 +167,10 @@ async def get_protection_config() -> ProtectionConfigResponse:
 
 
 @router.put("/auth/protection", response_model=ProtectionConfigResponse)
-async def update_protection_config(body: ProtectionUpdateRequest) -> ProtectionConfigResponse:
+async def update_protection_config(request: Request, body: ProtectionUpdateRequest) -> ProtectionConfigResponse:
+    # `/webui/auth/` is public so login can work; this route changes the access policy itself and must self-authenticate.
+    if not webui_auth_service.resolve_status(request).is_authenticated:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     webui_auth_service.update_protection_enabled(enabled=body.require_password)
     return ProtectionConfigResponse(
         require_password=is_password_protection_enabled(),

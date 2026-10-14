@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
+from unittest.mock import patch
+
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -59,12 +63,12 @@ async def test_public_health_skips_auth(auth_app: FastAPI) -> None:
     assert response.json()["status"] == "healthy"
 
 
-@pytest.mark.asyncio
-async def test_remote_requires_api_key(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from unittest.mock import patch
+_REMOTE_API_KEY = "test-remote-key"
 
+
+@pytest.fixture
+def remote_auth_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[FastAPI]:
+    """Auth middleware in remote-exposed mode; callers must reach it from a non-loopback address."""
     from pydantic import SecretStr
 
     import app.config.settings as settings_module
@@ -77,11 +81,7 @@ async def test_remote_requires_api_key(
     monkeypatch.setenv("WEBUI_REMOTE_MODE", "true")
     get_deploy_mode.cache_clear()
     get_settings.cache_clear()
-    monkeypatch.setattr(
-        settings_module.settings,
-        "sandbox_api_key",
-        SecretStr("test-remote-key"),
-    )
+    monkeypatch.setattr(settings_module.settings, "sandbox_api_key", SecretStr(_REMOTE_API_KEY))
     _reset_capabilities_cache_for_testing()
 
     app = FastAPI()
@@ -91,20 +91,65 @@ async def test_remote_requires_api_key(
     async def protected() -> dict[str, str]:
         return {"ok": "1"}
 
-    transport = ASGITransport(app=app)
+    @app.get("/api/v1/health")
+    async def health() -> dict[str, str]:
+        return {"status": "healthy"}
+
+    @app.post("/api/v1/health/database/reset")
+    async def reset_database() -> dict[str, str]:
+        return {"status": "reset"}
+
+    @app.post("/api/v1/a2a/tasks/{task_id}/approve")
+    async def approve_task(task_id: str) -> dict[str, str]:
+        return {"approved": task_id}
+
+    @app.post("/api/v1/a2a/rpc")
+    async def a2a_rpc() -> dict[str, str]:
+        return {"jsonrpc": "2.0"}
+
+    yield app
+    get_settings.cache_clear()
+
+
+@asynccontextmanager
+async def _remote_client(app: FastAPI) -> AsyncIterator[AsyncClient]:
     with (
         patch("app.core.security.auth.identity.is_loopback_ip", return_value=False),
         patch("app.core.security.auth.identity.is_private_network_ip", return_value=False),
     ):
-        async with AsyncClient(transport=transport, base_url="http://203.0.113.10") as client:
-            denied = await client.get("/api/v1/protected")
-            allowed = await client.get(
-                "/api/v1/protected",
-                headers={"X-Sandbox-Api-Key": "test-remote-key"},
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://203.0.113.10") as client:
+            yield client
+
+
+@pytest.mark.asyncio
+async def test_remote_requires_api_key(remote_auth_app: FastAPI) -> None:
+    async with _remote_client(remote_auth_app) as client:
+        denied = await client.get("/api/v1/protected")
+        allowed = await client.get("/api/v1/protected", headers={"X-Sandbox-Api-Key": _REMOTE_API_KEY})
     assert denied.status_code == 401
     assert allowed.status_code == 200
-    get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_remote_health_probe_is_public_but_operator_actions_are_not(remote_auth_app: FastAPI) -> None:
+    async with _remote_client(remote_auth_app) as client:
+        probe = await client.get("/api/v1/health")
+        reset_denied = await client.post("/api/v1/health/database/reset")
+        reset_allowed = await client.post("/api/v1/health/database/reset", headers={"X-Sandbox-Api-Key": _REMOTE_API_KEY})
+    assert probe.status_code == 200
+    assert reset_denied.status_code == 401
+    assert reset_allowed.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_remote_a2a_rpc_is_public_but_operator_approval_is_not(remote_auth_app: FastAPI) -> None:
+    async with _remote_client(remote_auth_app) as client:
+        rpc = await client.post("/api/v1/a2a/rpc")
+        approve_denied = await client.post("/api/v1/a2a/tasks/task-1/approve")
+        approve_allowed = await client.post("/api/v1/a2a/tasks/task-1/approve", headers={"X-Sandbox-Api-Key": _REMOTE_API_KEY})
+    assert rpc.status_code == 200
+    assert approve_denied.status_code == 401
+    assert approve_allowed.status_code == 200
 
 
 def test_local_admin_user_id_constant() -> None:

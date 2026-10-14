@@ -89,6 +89,23 @@ def test_host_allowlist_skips_public_path() -> None:
     assert resp.status_code == 200
 
 
+def test_host_allowlist_enforces_origin_on_health_operator_actions() -> None:
+    app = Starlette(
+        routes=[
+            Route("/api/v1/health", _dummy_endpoint, methods=["GET"]),
+            Route("/api/v1/health/database/reset", _dummy_endpoint, methods=["POST"]),
+        ]
+    )
+    app.add_middleware(HostAllowlistMiddleware)
+    client = TestClient(app)
+    headers = {"Host": "127.0.0.1:8080", "Origin": "http://evil-tracker.com"}
+    # A foreign page may read the public probe but must not trigger a mutating operator action.
+    assert client.get("/api/v1/health", headers=headers).status_code == 200
+    blocked = client.post("/api/v1/health/database/reset", headers=headers)
+    assert blocked.status_code == 403
+    assert "Origin not allowed" in blocked.json().get("detail", "")
+
+
 def test_host_allowlist_missing_host() -> None:
     client = TestClient(_build_test_app())
     resp = client.get("/api/v1/test", headers={"Host": ""})

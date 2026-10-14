@@ -35,6 +35,7 @@ import {
   IconTrash,
 } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
+import { apiRequest } from '@/lib/api';
 import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils/classnameUtils';
 import { buildDoctorView, statusLabelKey, type BrowserDoctorReport, type DoctorTone } from './browserDoctorView';
@@ -173,13 +174,10 @@ const BrowserDoctorCard = memo(() => {
     setCleanupMessage(null);
     setCleanupHasFailures(false);
     try {
-      const resp = await fetch('/api/v1/health/browser/orphans?confirm=true', {
+      const data = await apiRequest<OrphanCleanupResult>('/health/browser/orphans?confirm=true', {
         method: 'DELETE',
+        silent: true,
       });
-      if (!resp.ok) {
-        throw new Error(await readApiErrorDetail(resp, t('cleanupFailed')));
-      }
-      const data = (await resp.json()) as OrphanCleanupResult;
       const failed = data.failed ?? [];
       if (failed.length > 0) {
         setCleanupHasFailures(true);
@@ -371,9 +369,7 @@ const BrowserDoctorCard = memo(() => {
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>{t('confirmCleanupTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('confirmCleanupDescription')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('confirmCleanupDescription')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cleaning}>{t('cancel')}</AlertDialogCancel>
