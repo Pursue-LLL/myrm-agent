@@ -144,7 +144,8 @@ describe('gapEvents', () => {
     const toastOptions = toastInfo.mock.calls[0]?.[1] as {
       action?: { label?: string; onClick?: () => void };
     };
-    expect(toastOptions.action?.label).toBe('Go to Settings');
+    // No translator is installed in unit tests, so the key the handler resolved comes back verbatim.
+    expect(toastOptions.action?.label).toBe('agent.configEditor.goToSettings');
     expect(typeof toastOptions.action?.onClick).toBe('function');
   });
 
@@ -162,7 +163,7 @@ describe('gapEvents', () => {
     const toastOptions = toastInfo.mock.calls[0]?.[1] as {
       action?: { label?: string; onClick?: () => void };
     };
-    expect(toastOptions.action?.label).toBe('Go to Settings');
+    expect(toastOptions.action?.label).toBe('agent.configEditor.goToSettings');
   });
 
   it('shows local quick-enable CTA on web_search not_configured in local mode', async () => {

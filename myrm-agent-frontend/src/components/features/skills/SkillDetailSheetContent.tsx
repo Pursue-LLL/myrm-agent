@@ -152,8 +152,10 @@ export function SkillDetailSheetContent({
       const res = await saveSkillFile(skill.id, 'SKILL.md', editorContent);
       if (res.status === 'ok') {
         toast({
-          title: t('detail.sourceSaved') || 'SKILL.md updated successfully',
-          description: res.is_clean ? undefined : `Security review: ${res.trust_recommendation}`,
+          title: t('detail.sourceSaved'),
+          description: res.is_clean
+            ? undefined
+            : t('detail.securityReviewNote', { recommendation: res.trust_recommendation }),
         });
         setIsEditorDirty(false);
         reloadSkillContent();
@@ -162,7 +164,7 @@ export function SkillDetailSheetContent({
       const msg = err instanceof Error ? err.message : String(err);
       toast({
         variant: 'destructive',
-        title: t('detail.sourceSaveFailed') || 'Failed to save SKILL.md',
+        title: t('detail.sourceSaveFailed'),
         description: msg,
       });
     } finally {

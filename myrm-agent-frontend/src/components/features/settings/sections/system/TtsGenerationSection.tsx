@@ -230,10 +230,10 @@ const TtsGenerationSection = memo(() => {
       await putVoiceConfig(next, record?.version ?? voiceVersion);
       setKeyConfigured(true);
       setApiKey('');
-      toast.success(t('apiKeySaved') || 'API Key saved successfully!');
+      toast.success(t('apiKeySaved'));
     } catch (error) {
       console.error('Failed to save TTS API Key:', error);
-      toast.error(t('apiKeySaveFailed') || 'Failed to save API Key');
+      toast.error(t('apiKeySaveFailed'));
     } finally {
       setSavingKey(false);
     }

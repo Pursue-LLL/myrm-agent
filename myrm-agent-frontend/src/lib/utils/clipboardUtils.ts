@@ -5,6 +5,7 @@ import {
 } from '@tauri-apps/plugin-clipboard-manager';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
+import { translateI18nKey } from '@/services/i18nToastService';
 
 /**
  * 检测当前是否运行在 Tauri 环境中
@@ -90,7 +91,7 @@ export const writeToClipboard = async (text: string, silent = false): Promise<bo
     }
 
     if (!silent) {
-      toast.success('已复制到剪贴板');
+      toast.success(translateI18nKey('common.clipboard.copied'));
     }
     return true;
   } catch (error) {
@@ -98,7 +99,7 @@ export const writeToClipboard = async (text: string, silent = false): Promise<bo
       console.error('Failed to write to clipboard:', error);
     }
     if (!silent) {
-      toast.error('复制失败，请检查剪贴板权限');
+      toast.error(translateI18nKey('common.clipboard.copyFailed'));
     }
     return false;
   }
@@ -130,7 +131,7 @@ export const writeRichToClipboard = async (plainText: string, html: string, sile
     }
 
     if (!silent) {
-      toast.success('已复制到剪贴板');
+      toast.success(translateI18nKey('common.clipboard.copied'));
     }
     return true;
   } catch (error) {
@@ -143,12 +144,12 @@ export const writeRichToClipboard = async (plainText: string, html: string, sile
         throw new DOMException('Clipboard write blocked', 'NotAllowedError');
       }
       if (!silent) {
-        toast.success('已复制到剪贴板');
+        toast.success(translateI18nKey('common.clipboard.copied'));
       }
       return true;
     } catch {
       if (!silent) {
-        toast.error('复制失败，请检查剪贴板权限');
+        toast.error(translateI18nKey('common.clipboard.copyFailed'));
       }
       return false;
     }
@@ -169,7 +170,7 @@ const requestReadPermission = async (): Promise<boolean> => {
     return true;
   }
   if (savedPermission === 'denied') {
-    toast.error('读取剪贴板已被拒绝，请在设置中更改');
+    toast.error(translateI18nKey('common.clipboard.readBlocked'));
     return false;
   }
 
@@ -189,7 +190,7 @@ const requestReadPermission = async (): Promise<boolean> => {
       } else {
         // 不持久化拒绝，以便下次还能问，或者持久化？
         // 为了体验，暂时不持久化拒绝，或者只在本次会话拒绝
-        toast.error('已拒绝读取剪贴板');
+        toast.error(translateI18nKey('common.clipboard.readRefused'));
         return false;
       }
     } catch (e) {
@@ -203,7 +204,7 @@ const requestReadPermission = async (): Promise<boolean> => {
       localStorage.setItem(CLIPBOARD_PERMISSION_KEY, 'granted');
       return true;
     } else {
-      toast.error('已拒绝读取剪贴板');
+      toast.error(translateI18nKey('common.clipboard.readRefused'));
       return false;
     }
   }
@@ -230,7 +231,7 @@ export const readFromClipboard = async (): Promise<string> => {
     }
   } catch (error) {
     console.error('Failed to read from clipboard:', error);
-    toast.error('读取剪贴板失败，请检查权限');
+    toast.error(translateI18nKey('common.clipboard.readFailed'));
     throw error;
   }
 };

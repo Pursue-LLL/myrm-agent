@@ -39,9 +39,12 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
         const notifyEnabled = H.useConfigStore.getState().enableCacheBreakNotification;
         if (notifyEnabled) {
           const tokenDrop = typeof sd?.token_drop === 'number' ? sd.token_drop : 0;
-          const dropText = tokenDrop > 1000 ? `, ~${Math.round(tokenDrop / 1000)}k tokens uncached` : '';
-          import('@/lib/utils/toast').then(({ toast }) => {
-            toast.info(`Cache reset: ${reason}${dropText}`, { duration: 5000 });
+          import('@/services/i18nToastService').then(({ showI18nToast }) => {
+            showI18nToast(
+              'chat.cacheResetNotice',
+              { reason, tokens: tokenDrop > 1000 ? Math.round(tokenDrop / 1000) : 0 },
+              { type: 'info', duration: 5000 },
+            );
           });
         }
       }

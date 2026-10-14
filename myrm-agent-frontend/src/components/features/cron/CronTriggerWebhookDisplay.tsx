@@ -33,10 +33,13 @@ export function CronTriggerWebhookDisplay({ path, secret }: { path?: string | nu
   const { url: webhookUrl, loading } = useIngressUrl(`/api/v1/cron/trigger/webhook/${path || ''}`);
   const isLocalhost = webhookUrl.includes('localhost') || webhookUrl.includes('127.0.0.1');
 
-  const copyToClipboard = useCallback((text: string) => {
-    writeToClipboard(text);
-    toast.success('Copied');
-  }, []);
+  const copyToClipboard = useCallback(
+    (text: string) => {
+      writeToClipboard(text);
+      toast.success(t('copied'));
+    },
+    [t],
+  );
 
   if (!path) {
     return null;

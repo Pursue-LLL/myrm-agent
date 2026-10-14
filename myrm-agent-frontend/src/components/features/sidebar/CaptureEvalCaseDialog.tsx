@@ -79,7 +79,7 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
     if (!targetDatasetId) {
       toast({
         title: t('chat.captureEvalCase.error'),
-        description: t('chat.captureEvalCase.emptyDatasetError') || 'Dataset name cannot be empty',
+        description: t('chat.captureEvalCase.emptyDatasetError'),
         variant: 'destructive',
       });
       return;
@@ -89,17 +89,16 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
     try {
       await evalService.captureCaseFromChat(chatId, targetDatasetId);
       toast({
-        title: t('chat.captureEvalCase.success') || 'Captured as Eval Case',
-        description:
-          t('chat.captureEvalCase.successDesc') || 'Chat session has been appended to the evaluation dataset.',
+        title: t('chat.captureEvalCase.success'),
+        description: t('chat.captureEvalCase.successDesc'),
       });
       onOpenChange(false);
       onSuccess?.();
     } catch (error: unknown) {
       console.error('Failed to capture eval case:', error);
       toast({
-        title: t('chat.captureEvalCase.error') || 'Capture Failed',
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        title: t('chat.captureEvalCase.error'),
+        description: error instanceof Error ? error.message : t('common.unknownError'),
         variant: 'destructive',
       });
     } finally {

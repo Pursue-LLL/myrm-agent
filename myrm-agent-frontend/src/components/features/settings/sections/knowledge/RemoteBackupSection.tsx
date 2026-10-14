@@ -84,7 +84,7 @@ export default function RemoteBackupSection() {
       syncManager.set('backupSync', config);
       toast.success(t('save'));
     } catch {
-      toast.error('Failed to save configuration');
+      toast.error(t('saveFailed'));
     }
   }, [config, t]);
 
@@ -213,7 +213,7 @@ export default function RemoteBackupSection() {
         loadRemoteFiles();
       }
     } catch {
-      toast.error('Delete failed');
+      toast.error(t('deleteFailed'));
     }
   };
 

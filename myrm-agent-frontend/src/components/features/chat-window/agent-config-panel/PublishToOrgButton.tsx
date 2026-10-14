@@ -48,10 +48,10 @@ const PublishToOrgButton = ({ agentId, agentName, className }: PublishToOrgButto
       });
 
       setPublished(true);
-      toast.success(t('publishSuccess') || `Published "${agentName}" to org marketplace`);
+      toast.success(t('publishSuccess'));
     } catch (e) {
       console.error(e);
-      toast.error(t('publishError') || 'Failed to publish to org marketplace');
+      toast.error(t('publishError'));
     } finally {
       setPublishing(false);
     }

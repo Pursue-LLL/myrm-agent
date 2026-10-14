@@ -16,6 +16,7 @@ import { done } from '../streamContext';
 import * as H from './handlerDeps';
 import { isBuiltinToolId } from '@/store/chat/types/builtinTools';
 import { toast } from '@/lib/utils/toast';
+import { translateI18nKey } from '@/services/i18nToastService';
 import {
   resolveWebSearchConfigGapActionLabel,
   runWebSearchConfigGapAction,
@@ -56,7 +57,7 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
       toast.info(message, {
         duration: 12000,
         action: {
-          label: isZh ? '前往设置' : 'Go to Settings',
+          label: translateI18nKey('agent.configEditor.goToSettings'),
           onClick: () => {
             if (typeof window !== 'undefined') {
               window.location.assign(settingsPath);

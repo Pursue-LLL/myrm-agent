@@ -64,7 +64,7 @@ export default function KanbanReplanDialog({
       return;
     }
     if (!rationale.trim()) {
-      toast.error(t('replanRationaleRequired') || 'Rationale is required for plan revision');
+      toast.error(t('replanRationaleRequired'));
       return;
     }
 
@@ -80,15 +80,15 @@ export default function KanbanReplanDialog({
       });
 
       if (result.ok) {
-        toast.success(t('replanAppliedSuccess') || 'Plan revision applied successfully');
+        toast.success(t('replanAppliedSuccess'));
         onOpenChange(false);
         onApplied?.();
       } else {
-        toast.error(result.reason || t('replanFailed') || 'Plan revision failed');
+        toast.error(result.reason || t('replanFailed'));
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(msg || t('replanFailed') || 'Plan revision error');
+      toast.error(msg || t('replanFailed'));
     } finally {
       setApplying(false);
     }

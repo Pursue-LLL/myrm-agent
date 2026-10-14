@@ -228,7 +228,11 @@
     "bundleCategoryOther": "其他资产",
     "bundleExportSelected": "导出选中 ({count})",
     "bundleSelectAll": "全选",
-    "bundleClearSelection": "清空选择"
+    "bundleClearSelection": "清空选择",
+    "subgoalAddFailed": "添加子目标失败",
+    "subgoalAddNetworkError": "网络错误：添加子目标失败",
+    "subgoalRemoveFailed": "移除子目标失败",
+    "subgoalRemoveNetworkError": "网络错误：移除子目标失败"
   },
   "commands": {
     "palette": {
@@ -967,7 +971,8 @@
       },
       "turn1BudgetWarning": "预估 Turn1 schema（约 {tokens} tokens）超出直接绑定预算（{budget}）。请减少已选 endpoint，否则 Agent 无法使用这些 API 工具。",
       "turn1BudgetServiceWarning": "该服务已选 endpoint 可能超出 Turn1 绑定预算。请减少选择，避免 Agent 启动失败。",
-      "atLeastOneEndpoint": "必须至少保留一个端点。"
+      "atLeastOneEndpoint": "必须至少保留一个端点。",
+      "presetAdded": "已添加 {name} 连接器"
     },
     "sharedContexts": {
       "targetLabel": "智能体",
@@ -1236,7 +1241,8 @@
         "equippedCountSuffix": "已装配",
         "pureInstructionNotice": "未装配技能 · 纯指令模式",
         "emptyExplanation": "当前未勾选装配任何技能。该智能体将以纯语言模型指令模式运行；可点击上方「全选」或在下方勾选装配所需技能。"
-      }
+      },
+      "forcePushSummary": "v{version} → 已同步 {synced}，已跳过 {skipped}，失败 {failed}（共 {total}）"
     },
     "validation": {
       "dependencyInvalid": "智能体配置存在问题",
@@ -1872,6 +1878,17 @@
         "absolute_path": "本机文件路径",
         "unknown": "敏感信息"
       }
+    },
+    "errorTitle": "错误",
+    "unknownError": "未知错误",
+    "apiErrorDetails": "详情",
+    "apiErrorTraceId": "追踪 ID",
+    "clipboard": {
+      "copied": "已复制到剪贴板",
+      "copyFailed": "复制失败，请检查剪贴板权限",
+      "readBlocked": "读取剪贴板已被拒绝，请在设置中更改",
+      "readRefused": "已拒绝读取剪贴板",
+      "readFailed": "读取剪贴板失败，请检查权限"
     }
   },
   "chat": {
@@ -3474,7 +3491,13 @@
       "dialogQuestion": "确定要清除本次对话的历史记录吗？",
       "dialogDetail": "这将为 Agent 提供全新的上下文并<cost>节省 Token 成本</cost>，但<keep>沙箱环境、文件和已安装的软件包将完整保留</keep>。",
       "confirm": "清除历史"
-    }
+    },
+    "folderDrop": {
+      "grantFailed": "授予目录访问权限失败：{path}"
+    },
+    "cacheResetNotice": "缓存已重置：{reason}{tokens, plural, =0 {} other {，约 #k token 未命中缓存}}",
+    "pdfParsedPages": "[PDF] {fileName}：已解析 {parsed}/{total} 页",
+    "pdfImageOptimized": "[PDF] 解析优化：已提取 {kept} 张核心图像（拦截 {dropped} 张视觉噪点）"
   },
   "mode": {
     "fast": "快速搜索",
@@ -6105,7 +6128,14 @@
     "validPermanent": "长期有效",
     "manualReviewRequired": "需人工确认 · 永不自动覆盖",
     "sourceEvidence": "依据发言",
-    "selectMemory": "选择这条记忆"
+    "selectMemory": "选择这条记忆",
+    "shareRules": {
+      "loadFailed": "加载规则失败",
+      "selectAtLeastOne": "请至少选择一条规则",
+      "exported": "已成功导出 {count} 条规则",
+      "exportFailed": "导出失败",
+      "copied": "已复制 {count} 条规则到剪贴板"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "继承的共享上下文",
@@ -6692,6 +6722,16 @@
       "download": "下载产物",
       "exportZip": "一键打包导出 ZIP",
       "emptyDesc": "在与智能体对话中生成的交付物与文件将自动沉淀在此处"
+    },
+    "architecture": {
+      "jsonCopied": "JSON 已复制",
+      "jsonCopiedDesc": "架构 IR 已复制到剪贴板",
+      "copyFailed": "复制失败",
+      "exportFailed": "导出失败",
+      "viewportNotFound": "未找到画布视口元素",
+      "exportSuccess": "导出成功",
+      "svgExported": "架构图已导出为独立 SVG",
+      "pngExported": "架构图已导出为高清 PNG"
     }
   },
   "MessageSources": {
@@ -8248,7 +8288,9 @@
       "clearConfirm": "确定清空该渠道的所有背景上下文记录吗？此操作不可撤销（符合 GDPR 遗忘权）。",
       "clearedSuccess": "已成功清除历史明细",
       "clearing": "清除中...",
-      "refresh": "刷新统计"
+      "refresh": "刷新统计",
+      "deletedCount": "已删除 {count} 条消息",
+      "clearFailed": "清空渠道记录失败"
     },
     "groupsTitle": "群组管理",
     "groupsDesc": "选择机器人应在哪些群组中响应。未选中的群组将被忽略。",
@@ -9737,7 +9779,6 @@
     "forcePushRollbackHint": "快照已保存，可在智能体设置中回滚。",
     "subagentRebindRequired": "子 Agent 绑定已变更。请开启新对话以使用更新后的委派工具。",
     "subagentStale": "子 Agent 停滞",
-    "noProgressFor": "无进展已",
     "viewAgent": "查看",
     "approvalRequired": "Agent 需要审批授权：{actionType}",
     "approvalsRecovered": "已恢复 {count} 条待审批项",
@@ -9795,7 +9836,12 @@
     "mcpAuthRequired": "{server} 需要重新授权",
     "oauthReauthRequired": "{issuer} 授权已过期，请重新授权以恢复访问。",
     "reauthorize": "立即授权",
-    "budgetFinalization": "预算即将耗尽 — 正在收尾"
+    "budgetFinalization": "预算即将耗尽 — 正在收尾",
+    "healthAlertTip": "提示：{tip}",
+    "budgetRemaining": "{dimension} — 剩余 ${remaining}",
+    "subagentStaleDescription": "已 {minutes} 分钟无进展 · {tokens, number} tokens",
+    "subagentStaleStats": "{minutes} 分钟 · {tokens, number} tokens",
+    "agentProfileRollbackSuccess": "已成功回滚智能体配置。"
   },
   "configConflict": {
     "title": "配置冲突检测",
@@ -11579,7 +11625,8 @@
       "description": "基于评测失败轨迹的确定性特征归因，消融实证表明：扩展工具/中间件防护对任务成功率的提升收益远大于单纯调试提示词（Tools/Middleware ≫ Prompt）。建议优先按下方建议顺序优化 Harness 配置。",
       "affectsCases": "关联 {count} 个未通过用例",
       "quickConfig": "直达配置"
-    }
+    },
+    "skillAbStartFailed": "启动技能 A/B 测试失败"
   },
   "vault": {
     "title": "解锁安全金库",
@@ -12523,6 +12570,10 @@
         "restrict": "不信任并关联",
         "trust": "信任并关联"
       }
+    },
+    "workspaceTrust": {
+      "trusted": "已信任此工作区，扩展与工具已完全启用。",
+      "trustFailed": "信任工作区失败"
     }
   },
   "milestone": {
@@ -14704,6 +14755,14 @@
         "title": "助手导入仅支持本地与桌面版",
         "description": "SaaS 云沙箱无法访问你电脑上的 Hermes、OpenClaw、Claude Code、Codex 等目录。请下载 Tauri 桌面版或使用 Local WebUI 后，在设置→记忆→迁移中使用向导。",
         "downloadCta": "前往下载页面"
+      },
+      "monitor": {
+        "profilingStarted": "内存剖析已启动，系统可能出现轻微额外开销。",
+        "profilingStartFailed": "启动内存剖析失败",
+        "profilingStartNetworkError": "启动内存剖析时网络出错",
+        "profilingStopped": "内存剖析已停止，结果已就绪。",
+        "profilingStopFailed": "停止内存剖析失败",
+        "profilingStopNetworkError": "停止内存剖析时网络出错"
       }
     },
     "commands": {
@@ -14976,7 +15035,13 @@
       "endpointDesc": "将此 Base URL 用于任何 OpenAI 兼容客户端：",
       "docsTitle": "快速开始",
       "docsDesc": "使用 API 密钥配合 OpenAI SDK 或任意兼容客户端。model 字段选择智能体（\"default\" 表示默认智能体）。",
-      "createdAt": "创建时间"
+      "createdAt": "创建时间",
+      "loadFailed": "加载 API 密钥失败",
+      "createFailed": "创建 API 密钥失败",
+      "keyRevoked": "API 密钥已撤销",
+      "revokeFailed": "撤销密钥失败",
+      "keyDeleted": "API 密钥已删除",
+      "deleteFailed": "删除密钥失败"
     },
     "hosting": {
       "title": "托管目标",
@@ -15167,7 +15232,8 @@
         "installInProgress": "安装中…",
         "installSuccess": "安装成功",
         "installing": "正在安装 {backend}",
-        "installingDesc": "可能需要几分钟。安装日志显示在下方。"
+        "installingDesc": "可能需要几分钟。安装日志显示在下方。",
+        "installFailed": "安装失败"
       },
       "showSystemMessages": "显示系统消息",
       "showSystemMessagesDesc": "在聊天中显示 AI 的系统提示词（System Prompts）",
@@ -15314,7 +15380,10 @@
         "title": "安全配置集",
         "description": "选择预设的安全配置集或在下方自定义。",
         "loading": "正在加载配置集...",
-        "selectDefault": "选择配置集"
+        "selectDefault": "选择配置集",
+        "activated": "已启用配置集：{name}",
+        "activateFailed": "启用配置集失败",
+        "loaded": "配置集已载入"
       },
       "modeAllow": "允许",
       "modeAsk": "需要审批",
@@ -15432,7 +15501,8 @@
           "testConnection": "测试",
           "testSuccess": "本地模型连接成功",
           "testFailed": "连接失败",
-          "noLocalModelWarning": "已选择本地路由策略但未配置本地模型，所有请求将回退到云端处理。"
+          "noLocalModelWarning": "已选择本地路由策略但未配置本地模型，所有请求将回退到云端处理。",
+          "testSuccessLatency": "本地模型连接成功 ({latency}ms)"
         },
         "advanced": {
           "title": "高级 PII 配置",
@@ -16304,7 +16374,8 @@
         "agenticBadge": "64K Agentic 增强",
         "agenticTooltip": "自动生成的 64K 上下文 modelfile，满足生产级工具调用与长期记忆需求",
         "keepAliveTipTitle": "全天候常驻与显存释放指南",
-        "keepAliveTipDesc": "将模型保留在显存中以支持全天候后台机器人，或在重负载任务时释放显存。"
+        "keepAliveTipDesc": "将模型保留在显存中以支持全天候后台机器人，或在重负载任务时释放显存。",
+        "downloadFailed": "下载失败"
       },
       "importFromModelsDev": "从 models.dev 导入",
       "getModels": "获取模型",
@@ -17651,6 +17722,11 @@
         "skipped": "今天已提交过同名复盘，未重复入库",
         "empty": "请输入复盘内容",
         "error": "提交失败，请稍后重试"
+      },
+      "reviewSlip": {
+        "fetchFailed": "获取审阅单失败",
+        "applied": "选择性回写完成：已沉淀 {committed} 项，跳过 {discarded} 项",
+        "applyFailed": "应用选择性回写失败"
       }
     },
     "skills": {
@@ -18128,7 +18204,9 @@
         "sourceTab": "源码",
         "saveSource": "保存 SKILL.md",
         "sourceSaved": "SKILL.md 保存成功",
-        "sourceSaveFailed": "保存 SKILL.md 失败"
+        "sourceSaveFailed": "保存 SKILL.md 失败",
+        "forceEnableFailed": "强制启用失败",
+        "securityReviewNote": "安全审查：{recommendation}"
       },
       "growth": {
         "title": "技能成长",
@@ -18688,7 +18766,8 @@
         "error": "更新权限失败",
         "skillEnabled": "技能已启用",
         "skillNotEnabled": "技能未启用",
-        "templateApplied": "模板已应用"
+        "templateApplied": "模板已应用",
+        "approveFailed": "批准权限失败"
       },
       "tabSubtitles": {
         "inventory": "管理和发现智能体的核心技能与方法",
@@ -20583,7 +20662,9 @@
       "deleteFromCloud": "删除",
       "deleteSuccess": "云端备份已删除",
       "enabled": "启用云端备份",
-      "save": "保存配置"
+      "save": "保存配置",
+      "saveFailed": "保存配置失败",
+      "deleteFailed": "删除失败"
     },
     "sessionAnalytics": {
       "copyMarkdown": "复制对账单 (MD)",
@@ -21636,7 +21717,8 @@
       "policyUpdated": "安全策略更新成功",
       "tierProd": "生产环境",
       "tierStaging": "预发环境",
-      "tierDev": "开发环境"
+      "tierDev": "开发环境",
+      "probeFailed": "探测 {host} 失败：{message}"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "屏幕审批高亮 — 在真实显示器上对点击目标显示红框（macOS 与 Windows）",

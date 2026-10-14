@@ -204,7 +204,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
       toast({
         ...payload,
         action: {
-          label: t('trialRunInSandbox') || '沙箱试跑',
+          label: t('trialRunInSandbox'),
           onClick: () => {
             launchSkillTrialRun({
               skillId: skill.id,

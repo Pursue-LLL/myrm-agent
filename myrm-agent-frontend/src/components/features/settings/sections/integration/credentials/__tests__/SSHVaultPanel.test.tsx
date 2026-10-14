@@ -36,9 +36,11 @@ const translations: Record<string, string> = {
   tierProd: '生产环境',
   tierStaging: '预发环境',
   tierDev: '开发环境',
+  probeFailed: '{host} 探测失败：{message}',
 };
 
-const stableT = (key: string) => translations[key] || key;
+const stableT = (key: string, values?: Record<string, string>) =>
+  (translations[key] ?? key).replace(/\{(\w+)\}/g, (_, name: string) => values?.[name] ?? `{${name}}`);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -258,7 +260,7 @@ describe('SSHVaultPanel', () => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
           variant: 'destructive',
-          title: expect.stringContaining('Network error 500'),
+          title: 'prod-cluster-01 探测失败：Network error 500',
         }),
       );
     });

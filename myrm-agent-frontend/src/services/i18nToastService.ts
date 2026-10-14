@@ -28,8 +28,8 @@ export const setGlobalTranslator = (translator: TranslatorFunction) => {
   globalTranslator = translator;
 };
 
-/** Resolve a locale key outside React; falls back when translator is not initialized. */
-export const translateI18nKey = (key: string, fallback: string): string => {
+/** Resolve a locale key outside React; before the translator is installed the key itself is returned. */
+export const translateI18nKey = (key: string, fallback: string = key): string => {
   if (!globalTranslator) {
     return fallback;
   }

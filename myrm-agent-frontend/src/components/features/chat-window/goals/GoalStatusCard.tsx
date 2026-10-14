@@ -175,13 +175,13 @@ export function GoalStatusCard() {
         body: JSON.stringify({ text }),
       });
       if (!res.ok) {
-        toast.error('Failed to add subgoal');
+        toast.error(t('subgoalAddFailed'));
         return;
       }
-      toast.success(t('subgoalAdded') || 'Subgoal added');
+      toast.success(t('subgoalAdded'));
     } catch (e) {
       console.error('Failed to add subgoal', e);
-      toast.error('Network error: failed to add subgoal');
+      toast.error(t('subgoalAddNetworkError'));
     }
   };
 
@@ -189,13 +189,13 @@ export function GoalStatusCard() {
     try {
       const res = await fetchWithTimeout(`/goals/${chatId}/subgoals/${index}`, { method: 'DELETE' });
       if (!res.ok) {
-        toast.error('Failed to remove subgoal');
+        toast.error(t('subgoalRemoveFailed'));
         return;
       }
-      toast.success(t('subgoalRemoved') || 'Subgoal removed');
+      toast.success(t('subgoalRemoved'));
     } catch (e) {
       console.error('Failed to remove subgoal', e);
-      toast.error('Network error: failed to remove subgoal');
+      toast.error(t('subgoalRemoveNetworkError'));
     }
   };
 

@@ -32,7 +32,7 @@
 - `authHeaders.ts`：认证请求头构建 — 认证 token 读取（localStorage `auth_token`）与 `getAuthHeaders` 请求头组装，SSR 安全（window 未定义返回空）。
 - `avatarUtils.ts`：智能体头像解析工具层 — `parseAvatarUrl` 统一解析 avatar URL（icon:/lucide:/emoji:/home:///http(s):///gradient: 六格式）与 `isIconAvatar` 快捷判断、`ParsedAvatar` 结果类型。
 - `classnameUtils.ts`：类名合并 — `cn` 组合 clsx 条件拼接与 tailwind-merge 冲突消解。
-- `clipboardUtils.ts`：Tauri/Web 双环境剪贴板封装 — `isTauri` 运行环境检测与 `writeToClipboard` 双路径写入（Tauri 插件 / Web API）。
+- `clipboardUtils.ts`：Tauri/Web 双环境剪贴板封装 — `isTauri` 运行环境检测与 `writeToClipboard` 双路径写入（Tauri 插件 / Web API）；成功 / 失败 / 读取被拒的 toast 文案经 `translateI18nKey('common.clipboard.*')` 取（单测 `__tests__/clipboardUtils.test.ts`）。
 - `completionSound.ts`：完成提示音 — Web Audio API 双音符柔和提示（G4→C5 纯四度），零外部音频文件依赖，仅在用户非注视页面时播放。
 - `componentPreloader.ts`：重型组件预加载 — hover 触发 Monaco/Sandpack 提前加载，优化首次渲染体验。
 - `cronEstimate.ts`：定时表达式估算 — cron/interval/once 三类调度月执行次数估算。

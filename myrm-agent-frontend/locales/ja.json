@@ -204,7 +204,11 @@
     "bundleCategoryOther": "その他のアセット",
     "bundleExportSelected": "選択した項目をエクスポート ({count})",
     "bundleSelectAll": "すべて選択",
-    "bundleClearSelection": "選択を解除"
+    "bundleClearSelection": "選択を解除",
+    "subgoalAddFailed": "子ゴールの追加に失敗しました",
+    "subgoalAddNetworkError": "ネットワークエラー：子ゴールを追加できませんでした",
+    "subgoalRemoveFailed": "子ゴールの削除に失敗しました",
+    "subgoalRemoveNetworkError": "ネットワークエラー：子ゴールを削除できませんでした"
   },
   "commands": {
     "palette": {
@@ -943,7 +947,8 @@
       },
       "turn1BudgetWarning": "推定Turn1スキーマ（約{tokens}トークン）が直接バインド予算（{budget}）を超えています。選択エンドポイントを減らさないとエージェントはこれらのAPIツールを使用できません。",
       "turn1BudgetServiceWarning": "このサービスの選択エンドポイントがTurn1バインド予算を超える可能性があります。エージェント起動エラーを避けるため選択を減らしてください。",
-      "atLeastOneEndpoint": "エンドポイントを少なくとも1つ選択してください。"
+      "atLeastOneEndpoint": "エンドポイントを少なくとも1つ選択してください。",
+      "presetAdded": "{name} コネクターを追加しました"
     },
     "sharedContexts": {
       "targetLabel": "エージェント",
@@ -1212,7 +1217,8 @@
         "equippedCountSuffix": "装備済み",
         "pureInstructionNotice": "スキル未装備 · 純粋指示モード",
         "emptyExplanation": "現在スキルは装備されていません。このエージェントは純粋な指示モードで動作します。「すべて選択」をクリックするか、以下でスキルを選択して装備してください。"
-      }
+      },
+      "forcePushSummary": "v{version} → 同期 {synced} 件、スキップ {skipped} 件、失敗 {failed} 件（合計 {total} 件）"
     },
     "validation": {
       "dependencyInvalid": "エージェント設定存で質問",
@@ -1848,6 +1854,17 @@
         "absolute_path": "ローカルのファイルパス",
         "unknown": "機密情報"
       }
+    },
+    "errorTitle": "エラー",
+    "unknownError": "不明なエラー",
+    "apiErrorDetails": "詳細",
+    "apiErrorTraceId": "トレースID",
+    "clipboard": {
+      "copied": "クリップボードにコピーしました",
+      "copyFailed": "コピーに失敗しました。クリップボードの権限を確認してください。",
+      "readBlocked": "クリップボードの読み取りが拒否されました。設定で変更してください。",
+      "readRefused": "クリップボードの読み取りを拒否しました",
+      "readFailed": "クリップボードの読み取りに失敗しました。権限を確認してください。"
     }
   },
   "chat": {
@@ -3406,7 +3423,13 @@
       "dialogQuestion": "この会話の履歴を本当にクリアしますか？",
       "dialogDetail": "これによりエージェントは新しいコンテキストで動作し、<cost>トークンコストを節約</cost>できます。<keep>サンドボックス環境、ファイル、インストール済みパッケージはそのまま保持されます</keep>。",
       "confirm": "履歴をクリア"
-    }
+    },
+    "folderDrop": {
+      "grantFailed": "ディレクトリへのアクセス許可に失敗しました：{path}"
+    },
+    "cacheResetNotice": "キャッシュをリセットしました：{reason}{tokens, plural, =0 {} other {、約 #k トークンがキャッシュ外}}",
+    "pdfParsedPages": "[PDF] {fileName}：{parsed}/{total} ページを解析しました",
+    "pdfImageOptimized": "[PDF] 解析を最適化しました：主要な画像 {kept} 枚を抽出（視覚ノイズ {dropped} 枚を除外）"
   },
   "mode": {
     "fast": "高速検索",
@@ -6037,7 +6060,14 @@
     "validPermanent": "無期限",
     "manualReviewRequired": "手動確認が必要 · 自動上書きなし",
     "sourceEvidence": "根拠となる発言",
-    "selectMemory": "このメモリを選択"
+    "selectMemory": "このメモリを選択",
+    "shareRules": {
+      "loadFailed": "ルールの読み込みに失敗しました",
+      "selectAtLeastOne": "少なくとも 1 つのルールを選択してください",
+      "exported": "{count} 件のルールをエクスポートしました",
+      "exportFailed": "エクスポートに失敗しました",
+      "copied": "{count} 件のルールをクリップボードにコピーしました"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "継承された共有コンテキスト",
@@ -6624,6 +6654,16 @@
       "download": "ダウンロード",
       "exportZip": "ZIPバンドルとしてエクスポート",
       "emptyDesc": "エージェントとの会話で生成された成果物とファイルがここに自動的に蓄積されます"
+    },
+    "architecture": {
+      "jsonCopied": "JSON をコピーしました",
+      "jsonCopiedDesc": "アーキテクチャ IR をクリップボードにコピーしました",
+      "copyFailed": "コピーに失敗しました",
+      "exportFailed": "エクスポートに失敗しました",
+      "viewportNotFound": "ビューポート要素が見つかりません",
+      "exportSuccess": "エクスポートしました",
+      "svgExported": "アーキテクチャ図を単体の SVG としてエクスポートしました",
+      "pngExported": "アーキテクチャ図を高解像度 PNG としてエクスポートしました"
     }
   },
   "MessageSources": {
@@ -8180,7 +8220,9 @@
       "clearConfirm": "このチャンネルのすべての背景コンテキスト記録を消去しますか？この操作は取り消せません（GDPR準拠）。",
       "clearedSuccess": "履歴レコードを正常に消去しました",
       "clearing": "消去中...",
-      "refresh": "メトリクス更新"
+      "refresh": "メトリクス更新",
+      "deletedCount": "{count} 件のメッセージを削除しました",
+      "clearFailed": "チャネル記録の消去に失敗しました"
     },
     "groupsTitle": "グループ管理",
     "groupsDesc": "ボットが応答すべきグループを選択します。選択されていないグループは無視されます。",
@@ -9669,7 +9711,6 @@
     "forcePushRollbackHint": "スナップショットが保存されました。エージェント設定からロールバックできます。",
     "subagentRebindRequired": "サブエージェントのバインドが変更されました。更新後の委譲ツールを使用するには新しいチャットを開始してください。",
     "subagentStale": "サブエージェントが停滞",
-    "noProgressFor": "進捗なし",
     "viewAgent": "表示",
     "approvalRequired": "Agent に承認が必要です：{actionType}",
     "approvalsRecovered": "{count} 件の保留中の承認を復元しました",
@@ -9727,7 +9768,12 @@
     "mcpAuthRequired": "{server} の再認証が必須です",
     "oauthReauthRequired": "{issuer} の認証が期限切れです。アクセスを復元するには再認証してください。",
     "reauthorize": "今すぐ認可",
-    "budgetFinalization": "予算が間もなく尽きます — 最終処理中"
+    "budgetFinalization": "予算が間もなく尽きます — 最終処理中",
+    "healthAlertTip": "ヒント：{tip}",
+    "budgetRemaining": "{dimension} — 残り ${remaining}",
+    "subagentStaleDescription": "{minutes} 分間進捗なし · {tokens, number} トークン",
+    "subagentStaleStats": "{minutes} 分 · {tokens, number} トークン",
+    "agentProfileRollbackSuccess": "エージェントの設定を正常にロールバックしました。"
   },
   "configConflict": {
     "title": "設定の競合を検出",
@@ -11511,7 +11557,8 @@
       "description": "評価失敗トレースの決定論的帰属分析に基づきます。アブレーション実証により、ツールやミドルウェアの拡張はプロンプトの微調整よりも遥かに高い投資対効果（ROI）をもたらします（Tools/Middleware ≫ Prompt）。以下の優先順位に従って設定を最適化することをお勧めします。",
       "affectsCases": "{count} 件の失敗ケースに関連",
       "quickConfig": "設定へ移動"
-    }
+    },
+    "skillAbStartFailed": "スキル A/B テストの開始に失敗しました"
   },
   "vault": {
     "title": "セキュリティ金庫のロック解除",
@@ -12455,6 +12502,10 @@
         "restrict": "信頼せずに関連付け",
         "trust": "信頼して関連付け"
       }
+    },
+    "workspaceTrust": {
+      "trusted": "ワークスペースを信頼しました。拡張機能とツールがすべて有効になりました。",
+      "trustFailed": "ワークスペースを信頼できませんでした"
     }
   },
   "milestone": {
@@ -14029,6 +14080,14 @@
         "title": "アシスタントのインポートは Local または Desktop のみでサポートされています",
         "description": "SaaS クラウドサンドボックスは、お使いのマシン上の Hermes、OpenClaw、Claude Code、Codex フォルダを読み取れません。Tauri デスクトップアプリをダウンロードするか Local WebUI を実行してから、設定 → メモリ → 移行を開いてください。",
         "downloadCta": "ダウンロードページへ移動"
+      },
+      "monitor": {
+        "profilingStarted": "ヒーププロファイリングを開始しました。システムにわずかな負荷がかかる場合があります。",
+        "profilingStartFailed": "プロファイリングの開始に失敗しました",
+        "profilingStartNetworkError": "プロファイリング開始中にネットワークエラーが発生しました",
+        "profilingStopped": "ヒーププロファイリングを停止しました。結果を確認できます。",
+        "profilingStopFailed": "プロファイリングの停止に失敗しました",
+        "profilingStopNetworkError": "プロファイリング停止中にネットワークエラーが発生しました"
       }
     },
     "commands": {
@@ -14301,7 +14360,13 @@
       "endpointDesc": "この Base URL はあらゆる OpenAI 互換クライアントで使用できます：",
       "docsTitle": "クイックスタート",
       "docsDesc": "API キーを OpenAI SDK または任意の互換クライアントで使用します。",
-      "createdAt": "作成時間"
+      "createdAt": "作成時間",
+      "loadFailed": "APIキーの読み込みに失敗しました",
+      "createFailed": "APIキーの作成に失敗しました",
+      "keyRevoked": "APIキーを失効させました",
+      "revokeFailed": "キーの失効に失敗しました",
+      "keyDeleted": "APIキーを削除しました",
+      "deleteFailed": "キーの削除に失敗しました"
     },
     "hosting": {
       "title": "ホスティング先",
@@ -14492,7 +14557,8 @@
         "installInProgress": "インストール中…",
         "installSuccess": "インストールに成功しました",
         "installing": "{backend} をインストール中",
-        "installingDesc": "数分かかる場合があります。インストールログは下に表示されます。"
+        "installingDesc": "数分かかる場合があります。インストールログは下に表示されます。",
+        "installFailed": "インストールに失敗しました"
       },
       "showSystemMessages": "システムメッセージを表示",
       "showSystemMessagesDesc": "チャット内に AI のシステムプロンプト（System Prompts）を表示",
@@ -14639,7 +14705,10 @@
         "title": "セキュリティ設定集",
         "description": "ビルトインのセキュリティプロファイルを選択するか、以下でカスタマイズしてください。",
         "loading": "設定集を読み込み中...",
-        "selectDefault": "設定集を選択"
+        "selectDefault": "設定集を選択",
+        "activated": "設定集を有効にしました：{name}",
+        "activateFailed": "設定集の有効化に失敗しました",
+        "loaded": "設定集を読み込みました"
       },
       "modeAllow": "許可",
       "modeAsk": "承認が必要",
@@ -14757,7 +14826,8 @@
           "testConnection": "テスト",
           "testSuccess": "ローカルモデルに接続しました",
           "testFailed": "接続失敗",
-          "noLocalModelWarning": "ローカルルーティング戦略を選択しましたが、ローカルモデルが設定されていません。すべてのリクエストはクラウドにフォールバックします。"
+          "noLocalModelWarning": "ローカルルーティング戦略を選択しましたが、ローカルモデルが設定されていません。すべてのリクエストはクラウドにフォールバックします。",
+          "testSuccessLatency": "ローカルモデルに接続しました ({latency}ms)"
         },
         "advanced": {
           "title": "PII 詳細設定",
@@ -15629,7 +15699,8 @@
         "agenticBadge": "64K Agentic 強化",
         "agenticTooltip": "本番環境レベルのツール呼び出しと長期記憶要件を満たす自動生成された 64K コンテキスト modelfile",
         "keepAliveTipTitle": "24/7 常駐とメモリ解放ガイド",
-        "keepAliveTipDesc": "モデルをメモリに保持してバックグラウンドボットを常時稼働させるか、重いタスク時にメモリを解放します。"
+        "keepAliveTipDesc": "モデルをメモリに保持してバックグラウンドボットを常時稼働させるか、重いタスク時にメモリを解放します。",
+        "downloadFailed": "ダウンロードに失敗しました"
       },
       "importFromModelsDev": "から models.dev インポート",
       "getModels": "モデルを取得",
@@ -16976,6 +17047,11 @@
         "skipped": "本日同名の振り返りが既に保存されているため、重複をスキップしました",
         "empty": "まず振り返りを入力してください",
         "error": "送信に失敗しました。後でもう一度お試しください"
+      },
+      "reviewSlip": {
+        "fetchFailed": "レビュー一覧の取得に失敗しました",
+        "applied": "選択的な書き戻しが完了しました：{committed} 件を反映、{discarded} 件をスキップ",
+        "applyFailed": "選択的な書き戻しの適用に失敗しました"
       }
     },
     "skills": {
@@ -17430,7 +17506,9 @@
         "sourceTab": "ソース",
         "saveSource": "SKILL.md を保存",
         "sourceSaved": "SKILL.md を正常に保存しました",
-        "sourceSaveFailed": "SKILL.md の保存に失敗しました"
+        "sourceSaveFailed": "SKILL.md の保存に失敗しました",
+        "forceEnableFailed": "強制有効化に失敗しました",
+        "securityReviewNote": "セキュリティレビュー：{recommendation}"
       },
       "growth": {
         "title": "スキル成長",
@@ -17990,7 +18068,8 @@
         "error": "権限の更新に失敗しました",
         "skillEnabled": "スキルが有効になりました",
         "skillNotEnabled": "スキルは有効になっていません",
-        "templateApplied": "テンプレートが適用されました"
+        "templateApplied": "テンプレートが適用されました",
+        "approveFailed": "権限の承認に失敗しました"
       },
       "tabSubtitles": {
         "inventory": "エージェントの中核となるスキルと手法を管理・発見",
@@ -19885,7 +19964,9 @@
       "deleteFromCloud": "削除",
       "deleteSuccess": "クラウドバックアップを削除しました",
       "enabled": "クラウドバックアップを有効にする",
-      "save": "設定を保存"
+      "save": "設定を保存",
+      "saveFailed": "設定の保存に失敗しました",
+      "deleteFailed": "削除に失敗しました"
     },
     "sessionAnalytics": {
       "copyMarkdown": "台帳コピー (MD)",
@@ -20938,7 +21019,8 @@
       "policyUpdated": "セキュリティポリシーが更新されました",
       "tierProd": "本番環境",
       "tierStaging": "ステージング",
-      "tierDev": "開発環境"
+      "tierDev": "開発環境",
+      "probeFailed": "{host} の接続確認に失敗しました：{message}"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "画面上の承認ハイライト — クリック対象の実ディスプレイに赤い枠を表示（macOS と Windows）",

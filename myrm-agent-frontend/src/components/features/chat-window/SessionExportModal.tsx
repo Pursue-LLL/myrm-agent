@@ -50,6 +50,7 @@ export interface SessionExportModalProps {
 
 export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, initialFormat }: SessionExportModalProps) {
   const t = useTranslations('chat');
+  const tCommon = useTranslations('common');
   const { resolvedTheme } = useTheme();
   const [selectedFormat, setSelectedFormat] = useState<ExportFormatType>(initialFormat ?? 'html');
   const [redactSecrets, setRedactSecrets] = useState(true);
@@ -126,7 +127,7 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
       console.error('[SessionExportModal] Export failed:', err);
       toast({
         title: t('exportChat.error', { defaultMessage: '导出失败' }),
-        description: err instanceof Error ? err.message : 'Unknown error',
+        description: err instanceof Error ? err.message : tCommon('unknownError'),
         variant: 'destructive',
       });
     } finally {
@@ -141,6 +142,7 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
     includeToolCalls,
     resolvedTheme,
     t,
+    tCommon,
     onOpenChange,
   ]);
 
@@ -182,13 +184,13 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
       console.error('[SessionExportModal] Copy markdown failed:', err);
       toast({
         title: t('exportChat.error', { defaultMessage: '复制失败' }),
-        description: err instanceof Error ? err.message : 'Unknown error',
+        description: err instanceof Error ? err.message : tCommon('unknownError'),
         variant: 'destructive',
       });
     } finally {
       setIsExporting(false);
     }
-  }, [chatId, isExporting, redactSecrets, includeReasoning, includeToolCalls, t]);
+  }, [chatId, isExporting, redactSecrets, includeReasoning, includeToolCalls, t, tCommon]);
 
   const formats: Array<{
     id: ExportFormatType;

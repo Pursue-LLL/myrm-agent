@@ -153,7 +153,7 @@ const SkillsSection = memo(({ initialSearch }: SkillsSectionProps) => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch {
-      toast({ title: t('installed.exportFailed') || 'Export failed', variant: 'destructive' });
+      toast({ title: t('installed.exportFailed'), variant: 'destructive' });
     } finally {
       setIsSyncing(false);
     }
@@ -497,7 +497,7 @@ const SkillsSection = memo(({ initialSearch }: SkillsSectionProps) => {
       } catch (error) {
         toast({
           title: t('permissions.error'),
-          description: error instanceof Error ? error.message : 'Failed to approve permissions',
+          description: error instanceof Error ? error.message : t('permissions.approveFailed'),
           variant: 'destructive',
         });
       }
@@ -533,7 +533,7 @@ const SkillsSection = memo(({ initialSearch }: SkillsSectionProps) => {
     } catch (error) {
       toast({
         title: t('detail.toggleFailed'),
-        description: error instanceof Error ? error.message : 'Force enable failed',
+        description: error instanceof Error ? error.message : t('detail.forceEnableFailed'),
         variant: 'destructive',
       });
     }

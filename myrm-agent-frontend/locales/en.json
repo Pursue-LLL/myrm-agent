@@ -228,7 +228,11 @@
     "bundleCategoryOther": "Other Assets",
     "bundleExportSelected": "Export Selected ({count})",
     "bundleSelectAll": "Select All",
-    "bundleClearSelection": "Clear Selection"
+    "bundleClearSelection": "Clear Selection",
+    "subgoalAddFailed": "Failed to add subgoal",
+    "subgoalAddNetworkError": "Network error: failed to add subgoal",
+    "subgoalRemoveFailed": "Failed to remove subgoal",
+    "subgoalRemoveNetworkError": "Network error: failed to remove subgoal"
   },
   "commands": {
     "palette": {
@@ -967,7 +971,8 @@
       },
       "turn1BudgetWarning": "Estimated Turn1 schema (~{tokens} tokens) exceeds the direct bind budget ({budget}). Reduce selected endpoints or the agent cannot use these API tools.",
       "turn1BudgetServiceWarning": "This service's selected endpoints may exceed the Turn1 bind budget. Reduce the selection to avoid agent startup errors.",
-      "atLeastOneEndpoint": "At least one endpoint must remain selected."
+      "atLeastOneEndpoint": "At least one endpoint must remain selected.",
+      "presetAdded": "Added {name} connector"
     },
     "sharedContexts": {
       "targetLabel": "agent",
@@ -1236,7 +1241,8 @@
         "equippedCountSuffix": "Equipped",
         "pureInstructionNotice": "No skills equipped · Pure instruction mode",
         "emptyExplanation": "No skills are currently equipped. The agent will run in pure instruction mode. Click \"Select All\" above or check skills below to equip them."
-      }
+      },
+      "forcePushSummary": "v{version} → {synced} synced, {skipped} skipped, {failed} failed ({total} total)"
     },
     "validation": {
       "dependencyInvalid": "Agent configuration has issues",
@@ -1872,6 +1878,17 @@
         "absolute_path": "Local file path",
         "unknown": "Sensitive information"
       }
+    },
+    "errorTitle": "Error",
+    "unknownError": "Unknown error",
+    "apiErrorDetails": "Details",
+    "apiErrorTraceId": "Trace ID",
+    "clipboard": {
+      "copied": "Copied to clipboard",
+      "copyFailed": "Copy failed. Check clipboard permissions.",
+      "readBlocked": "Clipboard access was denied. Change this in settings.",
+      "readRefused": "Clipboard access denied",
+      "readFailed": "Failed to read the clipboard. Check permissions."
     }
   },
   "chat": {
@@ -3474,7 +3491,13 @@
       "dialogQuestion": "Are you sure you want to clear this conversation's history?",
       "dialogDetail": "This will give the Agent a fresh context and <cost>save Token costs</cost>, but your <keep>Sandbox environment, files, and installed packages will remain intact</keep>.",
       "confirm": "Clear History"
-    }
+    },
+    "folderDrop": {
+      "grantFailed": "Failed to grant directory access: {path}"
+    },
+    "cacheResetNotice": "Cache reset: {reason}{tokens, plural, =0 {} other {, ~#k tokens uncached}}",
+    "pdfParsedPages": "[PDF] {fileName}: parsed {parsed}/{total} pages",
+    "pdfImageOptimized": "[PDF] Parsing optimized: extracted {kept} key images, filtered out {dropped} visual-noise images"
   },
   "mode": {
     "fast": "Fast Search",
@@ -6105,7 +6128,14 @@
     "validPermanent": "Permanent",
     "manualReviewRequired": "Manual review required · Never auto-overwrites",
     "sourceEvidence": "Source Evidence",
-    "selectMemory": "Select this memory"
+    "selectMemory": "Select this memory",
+    "shareRules": {
+      "loadFailed": "Failed to load rules",
+      "selectAtLeastOne": "Please select at least one rule",
+      "exported": "{count, plural, one {Exported # rule successfully} other {Exported # rules successfully}}",
+      "exportFailed": "Export failed",
+      "copied": "{count, plural, one {Copied # rule to clipboard} other {Copied # rules to clipboard}}"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",
@@ -6692,6 +6722,16 @@
       "download": "Download",
       "exportZip": "Export as ZIP Bundle",
       "emptyDesc": "Deliverables and files generated during agent conversations will automatically appear here"
+    },
+    "architecture": {
+      "jsonCopied": "JSON Copied",
+      "jsonCopiedDesc": "Architecture IR copied to clipboard",
+      "copyFailed": "Copy Failed",
+      "exportFailed": "Export Failed",
+      "viewportNotFound": "Viewport element not found",
+      "exportSuccess": "Export Successful",
+      "svgExported": "Architecture diagram exported as standalone SVG",
+      "pngExported": "Architecture diagram exported as high-res PNG"
     }
   },
   "MessageSources": {
@@ -8248,7 +8288,9 @@
       "clearConfirm": "Are you sure you want to clear all ambient message records for this channel? This action cannot be undone (GDPR compliant).",
       "clearedSuccess": "Successfully cleared records",
       "clearing": "Clearing...",
-      "refresh": "Refresh Metrics"
+      "refresh": "Refresh Metrics",
+      "deletedCount": "{count, plural, one {# message deleted} other {# messages deleted}}",
+      "clearFailed": "Failed to clear channel records"
     },
     "groupsTitle": "Group Management",
     "groupsDesc": "Select which groups the bot should respond in. Unselected groups will be ignored.",
@@ -9737,7 +9779,6 @@
     "forcePushRollbackHint": "A snapshot was saved. You can rollback from agent settings.",
     "subagentRebindRequired": "Subagent bindings changed. Start a new chat to use updated delegation tools.",
     "subagentStale": "Subagent stalled",
-    "noProgressFor": "No progress for",
     "viewAgent": "View",
     "approvalRequired": "Agent requires approval: {actionType}",
     "approvalsRecovered": "Recovered {count} pending approval(s)",
@@ -9795,7 +9836,12 @@
     "mcpAuthRequired": "{server} requires re-authorization",
     "oauthReauthRequired": "{issuer} authorization expired. Please reauthorize to restore access.",
     "reauthorize": "Reauthorize",
-    "budgetFinalization": "Budget nearly exhausted — finalizing"
+    "budgetFinalization": "Budget nearly exhausted — finalizing",
+    "healthAlertTip": "Tip: {tip}",
+    "budgetRemaining": "{dimension} — ${remaining} remaining",
+    "subagentStaleDescription": "No progress for {minutes} min · {tokens, number} tokens",
+    "subagentStaleStats": "{minutes} min · {tokens, number} tokens",
+    "agentProfileRollbackSuccess": "Successfully rolled back agent profile."
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",
@@ -11579,7 +11625,8 @@
       "description": "Deterministic trajectory failure attribution indicates: expanding Tools/Middleware brings significantly higher ROI than Prompt-only adjustments (Tools/Middleware ≫ Prompt). Optimize your Harness configuration following the prioritized recommendations below.",
       "affectsCases": "Affects {count} failed cases",
       "quickConfig": "Configure"
-    }
+    },
+    "skillAbStartFailed": "Failed to start Skill A/B"
   },
   "vault": {
     "title": "Unlock Security Vault",
@@ -12523,6 +12570,10 @@
         "restrict": "Link without trusting",
         "trust": "Trust and link"
       }
+    },
+    "workspaceTrust": {
+      "trusted": "Workspace trusted. Full extensions and tools are now enabled.",
+      "trustFailed": "Failed to trust workspace"
     }
   },
   "milestone": {
@@ -14704,6 +14755,14 @@
         "title": "Assistant import requires Local or Desktop",
         "description": "SaaS cloud sandboxes cannot read Hermes, OpenClaw, Claude Code, or Codex folders on your machine. Download the Tauri desktop app or run Local WebUI, then open Settings → Memory → Migration.",
         "downloadCta": "Go to download page"
+      },
+      "monitor": {
+        "profilingStarted": "Heap profiling started. System may experience slight overhead.",
+        "profilingStartFailed": "Failed to start profiling",
+        "profilingStartNetworkError": "Network error starting profiling",
+        "profilingStopped": "Heap profiling stopped. Results ready.",
+        "profilingStopFailed": "Failed to stop profiling",
+        "profilingStopNetworkError": "Network error stopping profiling"
       }
     },
     "commands": {
@@ -14976,7 +15035,13 @@
       "endpointDesc": "Use this base URL with any OpenAI-compatible client:",
       "docsTitle": "Quick Start",
       "docsDesc": "Use your API key with the OpenAI SDK or any compatible client. The model field selects an agent (use \"default\" for the primary agent).",
-      "createdAt": "Created"
+      "createdAt": "Created",
+      "loadFailed": "Failed to load API keys",
+      "createFailed": "Failed to create API key",
+      "keyRevoked": "API key revoked",
+      "revokeFailed": "Failed to revoke key",
+      "keyDeleted": "API key deleted",
+      "deleteFailed": "Failed to delete key"
     },
     "hosting": {
       "title": "Hosting Targets",
@@ -15167,7 +15232,8 @@
         "installInProgress": "Installing…",
         "installSuccess": "Installed successfully",
         "installing": "Installing {backend}",
-        "installingDesc": "This may take a few minutes. The installation log appears below."
+        "installingDesc": "This may take a few minutes. The installation log appears below.",
+        "installFailed": "Installation failed"
       },
       "showSystemMessages": "Show System Messages",
       "showSystemMessagesDesc": "Display AI system prompts (System Prompts) in chat",
@@ -15314,7 +15380,10 @@
         "title": "Security Profile",
         "description": "Select a pre-built security profile or customize below.",
         "loading": "Loading profiles...",
-        "selectDefault": "Select Profile"
+        "selectDefault": "Select Profile",
+        "activated": "Activated profile: {name}",
+        "activateFailed": "Failed to activate profile",
+        "loaded": "Profile loaded"
       },
       "modeAllow": "Allow",
       "modeAsk": "Require Approval",
@@ -15432,7 +15501,8 @@
           "testConnection": "Test",
           "testSuccess": "Local model connected",
           "testFailed": "Connection failed",
-          "noLocalModelWarning": "You have selected a local routing strategy but no local model is configured. Routing will fall back to cloud for all requests."
+          "noLocalModelWarning": "You have selected a local routing strategy but no local model is configured. Routing will fall back to cloud for all requests.",
+          "testSuccessLatency": "Local model connected ({latency}ms)"
         },
         "advanced": {
           "title": "Advanced PII Configuration",
@@ -16304,7 +16374,8 @@
         "agenticBadge": "64K Agentic",
         "agenticTooltip": "Automatically derived 64K context modelfile for production-ready tool calling and long-term memory",
         "keepAliveTipTitle": "24/7 Keep-Alive & GPU Drain Guide",
-        "keepAliveTipDesc": "Keep models in memory for 24/7 background bots, or unload them to free VRAM for compute-heavy tasks."
+        "keepAliveTipDesc": "Keep models in memory for 24/7 background bots, or unload them to free VRAM for compute-heavy tasks.",
+        "downloadFailed": "Download failed"
       },
       "importFromModelsDev": "Import from models.dev",
       "getModels": "Get Models",
@@ -17651,6 +17722,11 @@
         "skipped": "A review with the same title was already stored today; duplicate skipped",
         "empty": "Please enter your review first",
         "error": "Submission failed; please retry later"
+      },
+      "reviewSlip": {
+        "fetchFailed": "Failed to load the review slip",
+        "applied": "Selective write-back complete: {committed} saved, {discarded} skipped",
+        "applyFailed": "Failed to apply selective write-back"
       }
     },
     "skills": {
@@ -18128,7 +18204,9 @@
         "sourceTab": "Source",
         "saveSource": "Save SKILL.md",
         "sourceSaved": "SKILL.md updated successfully",
-        "sourceSaveFailed": "Failed to save SKILL.md"
+        "sourceSaveFailed": "Failed to save SKILL.md",
+        "forceEnableFailed": "Force enable failed",
+        "securityReviewNote": "Security review: {recommendation}"
       },
       "growth": {
         "title": "Skill Growth",
@@ -18688,7 +18766,8 @@
         "error": "Failed to update permissions",
         "skillEnabled": "Skill enabled",
         "skillNotEnabled": "Skill not enabled",
-        "templateApplied": "Template applied"
+        "templateApplied": "Template applied",
+        "approveFailed": "Failed to approve permissions"
       },
       "tabSubtitles": {
         "inventory": "Manage and discover core agent capabilities",
@@ -20583,7 +20662,9 @@
       "deleteFromCloud": "Delete",
       "deleteSuccess": "Cloud backup deleted",
       "enabled": "Enable Cloud Backup",
-      "save": "Save Configuration"
+      "save": "Save Configuration",
+      "saveFailed": "Failed to save configuration",
+      "deleteFailed": "Delete failed"
     },
     "sessionAnalytics": {
       "copyMarkdown": "Copy Ledger (MD)",
@@ -21636,7 +21717,8 @@
       "policyUpdated": "Security policy updated successfully",
       "tierProd": "Production",
       "tierStaging": "Staging",
-      "tierDev": "Development"
+      "tierDev": "Development",
+      "probeFailed": "Probe failed for {host}: {message}"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "On-screen approval highlight — red frame on the real display at the click target (macOS and Windows)",

@@ -3,7 +3,7 @@ import { partitionFilesByType, getMimeType } from '@/lib/utils/fileUtils';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { fromStoreFile } from '@/services/file-service/types';
 import { extractPdfContent, extractDocumentContent } from '@/services/file';
-import { toast } from '@/lib/utils/toast';
+import { showI18nToast } from '@/services/i18nToastService';
 import useConfigStore from '@/store/useConfigStore';
 
 type VisionTextPart = { type: 'text'; text: string };
@@ -69,7 +69,11 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
     }
 
     if (result.parsedPages > 0 && result.parsedPages < result.pageCount) {
-      toast.info(`[PDF] ${file.fileName}：已解析 ${result.parsedPages}/${result.pageCount} 页`, { duration: 5000 });
+      showI18nToast(
+        'chat.pdfParsedPages',
+        { fileName: file.fileName, parsed: result.parsedPages, total: result.pageCount },
+        { type: 'info', duration: 5000 },
+      );
     }
 
     if (result.images && result.images.length > 0) {
@@ -79,9 +83,10 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
       }
 
       if (result.imageTrace && result.imageTrace.droppedCount > 0) {
-        toast.success(
-          `[PDF] 解析优化：已提取 ${result.imageTrace.keptCount} 张核心图像（拦截 ${result.imageTrace.droppedCount} 张视觉噪点，为您节省约 ${result.imageTrace.droppedCount * 2}s 耗时）`,
-          { duration: 6000 },
+        showI18nToast(
+          'chat.pdfImageOptimized',
+          { kept: result.imageTrace.keptCount, dropped: result.imageTrace.droppedCount },
+          { type: 'success', duration: 6000 },
         );
       }
     }

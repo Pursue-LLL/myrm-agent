@@ -224,15 +224,15 @@ export default function ManifestPredictionsPanel({ className = '', initialManife
   const handleExecuteRollback = async () => {
     const activeCase = cases.find((c) => c.id === selectedCaseId);
     if (!activeCase) {
-      toast.success(t('rollbackSuccess') || 'Rollback patch applied successfully.');
+      toast.success(t('rollbackSuccess'));
       return;
     }
     try {
       setIsRollingBack(true);
       await rejectSkillGrowthCase(activeCase, 'Attributed performance regression on benchmark evaluation');
-      toast.success(t('rollbackSuccess') || 'Skill evolution rolled back and rejected.');
+      toast.success(t('rollbackSuccess'));
     } catch {
-      toast.error(t('rollbackFailed') || 'Failed to rollback skill evolution.');
+      toast.error(t('rollbackFailed'));
     } finally {
       setIsRollingBack(false);
     }

@@ -56,7 +56,7 @@ export default function MemoryBackupSection() {
       const data = await response.json();
       setBackups(data.backups || []);
     } catch (error) {
-      toast.error(t('loadError') || 'Failed to load backups');
+      toast.error(t('loadError'));
       console.error('Load backups error:', error);
     } finally {
       setLoading(false);
@@ -82,14 +82,14 @@ export default function MemoryBackupSection() {
       }
       const data = await response.json();
       if (data.success) {
-        toast.success(t('createSuccess') || 'Backup created successfully');
+        toast.success(t('createSuccess'));
         setDescription('');
         await loadBackups();
       } else {
         throw new Error(data.error || 'Unknown error');
       }
     } catch (error) {
-      toast.error(t('createError') || 'Failed to create backup');
+      toast.error(t('createError'));
       console.error('Create backup error:', error);
     } finally {
       setCreating(false);
@@ -109,14 +109,12 @@ export default function MemoryBackupSection() {
       }
       const data = await response.json();
       if (data.success) {
-        toast.success(
-          t('restoreSuccess', { count: data.restored_count ?? 0 }) || `Restored ${data.restored_count} memories`,
-        );
+        toast.success(t('restoreSuccess', { count: data.restored_count ?? 0 }));
       } else {
         throw new Error(data.error || 'Unknown error');
       }
     } catch (error) {
-      toast.error(t('restoreError') || 'Failed to restore backup');
+      toast.error(t('restoreError'));
       console.error('Restore backup error:', error);
     }
   };
@@ -130,10 +128,10 @@ export default function MemoryBackupSection() {
       if (!response.ok) {
         throw new Error('Failed to delete backup');
       }
-      toast.success(t('deleteSuccess') || 'Backup deleted');
+      toast.success(t('deleteSuccess'));
       await loadBackups();
     } catch (error) {
-      toast.error(t('deleteError') || 'Failed to delete backup');
+      toast.error(t('deleteError'));
       console.error('Delete backup error:', error);
     }
   };

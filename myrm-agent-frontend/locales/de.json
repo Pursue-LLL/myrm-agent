@@ -204,7 +204,11 @@
     "bundleCategoryOther": "Sonstige Assets",
     "bundleExportSelected": "Auswahl exportieren ({count})",
     "bundleSelectAll": "Alles auswählen",
-    "bundleClearSelection": "Auswahl aufheben"
+    "bundleClearSelection": "Auswahl aufheben",
+    "subgoalAddFailed": "Teilziel konnte nicht hinzugefügt werden",
+    "subgoalAddNetworkError": "Netzwerkfehler: Teilziel konnte nicht hinzugefügt werden",
+    "subgoalRemoveFailed": "Teilziel konnte nicht entfernt werden",
+    "subgoalRemoveNetworkError": "Netzwerkfehler: Teilziel konnte nicht entfernt werden"
   },
   "commands": {
     "palette": {
@@ -943,7 +947,8 @@
       },
       "turn1BudgetWarning": "Das geschätzte Turn1-Schema (~{tokens} Token) übersteigt das Direktbindungsbudget ({budget}). Reduzieren Sie ausgewählte Endpunkte, sonst kann der Agent diese API-Tools nicht verwenden.",
       "turn1BudgetServiceWarning": "Die ausgewählten Endpunkte dieses Dienstes können das Turn1-Bind-Budget überschreiten. Reduzieren Sie die Auswahl, um Startfehler des Agenten zu vermeiden.",
-      "atLeastOneEndpoint": "Mindestens ein Endpunkt muss ausgewählt bleiben."
+      "atLeastOneEndpoint": "Mindestens ein Endpunkt muss ausgewählt bleiben.",
+      "presetAdded": "{name}-Konnektor hinzugefügt"
     },
     "sharedContexts": {
       "targetLabel": "Agent",
@@ -1212,7 +1217,8 @@
         "equippedCountSuffix": "Ausgerüstet",
         "pureInstructionNotice": "Keine Fähigkeiten ausgerüstet · Reiner Anweisungsmodus",
         "emptyExplanation": "Derzeit sind keine Fähigkeiten ausgerüstet. Der Agent läuft im reinen Anweisungsmodus. Klicken Sie oben auf \"Alle auswählen\" oder wählen Sie unten Fähigkeiten aus."
-      }
+      },
+      "forcePushSummary": "v{version} → {synced} synchronisiert, {skipped} übersprungen, {failed} fehlgeschlagen ({total} gesamt)"
     },
     "validation": {
       "dependencyInvalid": "Agentenkonfiguration hat Probleme",
@@ -1848,6 +1854,17 @@
         "absolute_path": "Lokaler Dateipfad",
         "unknown": "Vertrauliche Information"
       }
+    },
+    "errorTitle": "Fehler",
+    "unknownError": "Unbekannter Fehler",
+    "apiErrorDetails": "Einzelheiten",
+    "apiErrorTraceId": "Trace-ID",
+    "clipboard": {
+      "copied": "In die Zwischenablage kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen. Bitte Zwischenablage-Berechtigung prüfen.",
+      "readBlocked": "Zugriff auf die Zwischenablage wurde verweigert. Ändern Sie dies in den Einstellungen.",
+      "readRefused": "Zugriff auf die Zwischenablage abgelehnt",
+      "readFailed": "Zwischenablage konnte nicht gelesen werden. Bitte Berechtigungen prüfen."
     }
   },
   "chat": {
@@ -3406,7 +3423,13 @@
       "dialogQuestion": "Soll der Verlauf dieser Unterhaltung wirklich gelöscht werden?",
       "dialogDetail": "Dadurch erhält der Agent einen frischen Kontext und <cost>spart Token-Kosten</cost>. Die <keep>Sandbox-Umgebung, Dateien und installierten Pakete bleiben dabei unverändert erhalten</keep>.",
       "confirm": "Verlauf löschen"
-    }
+    },
+    "folderDrop": {
+      "grantFailed": "Verzeichniszugriff konnte nicht gewährt werden: {path}"
+    },
+    "cacheResetNotice": "Cache zurückgesetzt: {reason}{tokens, plural, =0 {} other {, ca. #k Tokens nicht im Cache}}",
+    "pdfParsedPages": "[PDF] {fileName}: {parsed}/{total} Seiten verarbeitet",
+    "pdfImageOptimized": "[PDF] Analyse optimiert: {kept} Kernbilder extrahiert, {dropped} irrelevante Bilder herausgefiltert"
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -6037,7 +6060,14 @@
     "validPermanent": "Dauerhaft",
     "manualReviewRequired": "Manuelle Überprüfung erforderlich · Kein automatisches Überschreiben",
     "sourceEvidence": "Quellenbeleg",
-    "selectMemory": "Diesen Speichereintrag auswählen"
+    "selectMemory": "Diesen Speichereintrag auswählen",
+    "shareRules": {
+      "loadFailed": "Regeln konnten nicht geladen werden",
+      "selectAtLeastOne": "Bitte wählen Sie mindestens eine Regel aus",
+      "exported": "{count, plural, one {# Regel erfolgreich exportiert} other {# Regeln erfolgreich exportiert}}",
+      "exportFailed": "Export fehlgeschlagen",
+      "copied": "{count, plural, one {# Regel in die Zwischenablage kopiert} other {# Regeln in die Zwischenablage kopiert}}"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",
@@ -6624,6 +6654,16 @@
       "download": "Herunterladen",
       "exportZip": "Als ZIP-Paket exportieren",
       "emptyDesc": "Ergebnisse und Dateien aus Agent-Gesprächen erscheinen hier automatisch"
+    },
+    "architecture": {
+      "jsonCopied": "JSON kopiert",
+      "jsonCopiedDesc": "Architektur-IR in die Zwischenablage kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen",
+      "exportFailed": "Export fehlgeschlagen",
+      "viewportNotFound": "Viewport-Element nicht gefunden",
+      "exportSuccess": "Export erfolgreich",
+      "svgExported": "Architekturdiagramm als eigenständige SVG exportiert",
+      "pngExported": "Architekturdiagramm als hochauflösendes PNG exportiert"
     }
   },
   "MessageSources": {
@@ -8180,7 +8220,9 @@
       "clearConfirm": "Möchten Sie alle Umgebungskontext-Einträge für diesen Kanal wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden (DSGVO-konform).",
       "clearedSuccess": "Einträge erfolgreich gelöscht",
       "clearing": "Löschen...",
-      "refresh": "Metriken aktualisieren"
+      "refresh": "Metriken aktualisieren",
+      "deletedCount": "{count, plural, one {# Nachricht gelöscht} other {# Nachrichten gelöscht}}",
+      "clearFailed": "Kanalprotokolle konnten nicht gelöscht werden"
     },
     "groupsTitle": "Gruppenleitung",
     "groupsDesc": "Wählen Sie aus, in welchen Gruppen der Bot antworten soll. Nicht ausgewählte Gruppen werden ignoriert.",
@@ -9669,7 +9711,6 @@
     "forcePushRollbackHint": "Ein Snapshot wurde gespeichert. Sie können in den Agenten-Einstellungen zurücksetzen.",
     "subagentRebindRequired": "Subagentenbindungen geändert. Starten Sie einen neuen Chat, um aktualisierte Delegationstools zu verwenden.",
     "subagentStale": "Subagent ist ins Stocken geraten",
-    "noProgressFor": "Kein Fortschritt für",
     "viewAgent": "Anzeigen",
     "approvalRequired": "Agent erfordert Genehmigung: {actionType}",
     "approvalsRecovered": "{count} ausstehende Freigabe(n) wiederhergestellt",
@@ -9727,7 +9768,12 @@
     "mcpAuthRequired": "{server} erfordert erneute Autorisierung",
     "oauthReauthRequired": "{issuer} Autorisierung abgelaufen. Bitte erneut autorisieren, um den Zugriff wiederherzustellen.",
     "reauthorize": "Erneut autorisieren",
-    "budgetFinalization": "Budget fast ausgeschöpft — wird abgeschlossen"
+    "budgetFinalization": "Budget fast ausgeschöpft — wird abgeschlossen",
+    "healthAlertTip": "Tipp: {tip}",
+    "budgetRemaining": "{dimension} — ${remaining} verbleibend",
+    "subagentStaleDescription": "Seit {minutes} Min. kein Fortschritt · {tokens, number} Tokens",
+    "subagentStaleStats": "{minutes} Min. · {tokens, number} Tokens",
+    "agentProfileRollbackSuccess": "Agent-Profil erfolgreich zurückgesetzt."
   },
   "configConflict": {
     "title": "Konfigurationskonflikt erkannt",
@@ -11511,7 +11557,8 @@
       "description": "Basierend auf deterministischer Fehlerursachenanalyse: Die Erweiterung von Tools/Middleware bringt einen deutlich höheren ROI als reine Prompt-Änderungen (Tools/Middleware ≫ Prompt). Optimieren Sie Ihre Konfiguration anhand der empfohlenen Prioritäten.",
       "affectsCases": "Betrifft {count} fehlgeschlagene Fälle",
       "quickConfig": "Konfigurieren"
-    }
+    },
+    "skillAbStartFailed": "Skill-A/B-Test konnte nicht gestartet werden"
   },
   "vault": {
     "title": "Sicherheitstresor entsperren",
@@ -12455,6 +12502,10 @@
         "restrict": "Nicht vertrauen und verknüpfen",
         "trust": "Vertrauen und verknüpfen"
       }
+    },
+    "workspaceTrust": {
+      "trusted": "Arbeitsbereich vertraut. Alle Erweiterungen und Tools sind jetzt aktiviert.",
+      "trustFailed": "Arbeitsbereich konnte nicht als vertrauenswürdig markiert werden"
     }
   },
   "milestone": {
@@ -14029,6 +14080,14 @@
         "title": "External source migration requires Local or Desktop",
         "description": "SaaS-Cloud-Sandboxes können die Ordner von Hermes, OpenClaw, Claude Code und Codex auf Ihrem Rechner nicht lesen. Laden Sie die Tauri-Desktop-App herunter oder starten Sie die lokale WebUI und öffnen Sie dann Einstellungen → Speicher → Migration.",
         "downloadCta": "Zur Download-Seite gehen"
+      },
+      "monitor": {
+        "profilingStarted": "Heap-Profiling gestartet. Das System kann geringfügig stärker ausgelastet sein.",
+        "profilingStartFailed": "Profiling konnte nicht gestartet werden",
+        "profilingStartNetworkError": "Netzwerkfehler beim Starten des Profilings",
+        "profilingStopped": "Heap-Profiling gestoppt. Ergebnisse liegen vor.",
+        "profilingStopFailed": "Profiling konnte nicht gestoppt werden",
+        "profilingStopNetworkError": "Netzwerkfehler beim Stoppen des Profilings"
       }
     },
     "commands": {
@@ -14301,7 +14360,13 @@
       "endpointDesc": "Verwenden Sie diese Basis-URL mit jedem OpenAI-kompatiblen Client:",
       "docsTitle": "Schnellstart",
       "docsDesc": "Use your API key with the OpenAI SDK or any compatible client.",
-      "createdAt": "Erstellt"
+      "createdAt": "Erstellt",
+      "loadFailed": "API-Schlüssel konnten nicht geladen werden",
+      "createFailed": "API-Schlüssel konnte nicht erstellt werden",
+      "keyRevoked": "API-Schlüssel widerrufen",
+      "revokeFailed": "Schlüssel konnte nicht widerrufen werden",
+      "keyDeleted": "API-Schlüssel gelöscht",
+      "deleteFailed": "Schlüssel konnte nicht gelöscht werden"
     },
     "hosting": {
       "title": "Hosting-Ziele",
@@ -14492,7 +14557,8 @@
         "installInProgress": "Installation läuft…",
         "installSuccess": "Erfolgreich installiert",
         "installing": "{backend} wird installiert",
-        "installingDesc": "Dies kann einige Minuten dauern. Das Installationsprotokoll wird unten angezeigt."
+        "installingDesc": "Dies kann einige Minuten dauern. Das Installationsprotokoll wird unten angezeigt.",
+        "installFailed": "Installation fehlgeschlagen"
       },
       "showSystemMessages": "Systemnachrichten anzeigen",
       "showSystemMessagesDesc": "Display AI system prompts in chat",
@@ -14639,7 +14705,10 @@
         "title": "Sicherheitsprofil",
         "description": "Wählen Sie ein vorgefertigtes Sicherheitsprofil oder passen Sie es unten an.",
         "loading": "Profile werden geladen...",
-        "selectDefault": "Profil auswählen"
+        "selectDefault": "Profil auswählen",
+        "activated": "Profil aktiviert: {name}",
+        "activateFailed": "Profil konnte nicht aktiviert werden",
+        "loaded": "Profil geladen"
       },
       "modeAllow": "Erlauben",
       "modeAsk": "Genehmigung erforderlich",
@@ -14757,7 +14826,8 @@
           "testConnection": "Testen",
           "testSuccess": "Lokales Modell verbunden",
           "testFailed": "Verbindung fehlgeschlagen",
-          "noLocalModelWarning": "Sie haben eine lokale Routing-Strategie gewählt, aber kein lokales Modell konfiguriert. Das Routing fällt für alle Anfragen auf die Cloud zurück."
+          "noLocalModelWarning": "Sie haben eine lokale Routing-Strategie gewählt, aber kein lokales Modell konfiguriert. Das Routing fällt für alle Anfragen auf die Cloud zurück.",
+          "testSuccessLatency": "Lokales Modell verbunden ({latency}ms)"
         },
         "advanced": {
           "title": "Erweiterte PII-Konfiguration",
@@ -15629,7 +15699,8 @@
         "agenticBadge": "64K Agentic",
         "agenticTooltip": "Automatisch abgeleitetes 64K-Kontext-Modelfile für produktionsreife Tool-Aufrufe und Langzeitgedächtnis",
         "keepAliveTipTitle": "24/7-Keep-Alive & GPU-Freigabe-Leitfaden",
-        "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben."
+        "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben.",
+        "downloadFailed": "Download fehlgeschlagen"
       },
       "importFromModelsDev": "Von models.dev importieren",
       "getModels": "Modelle abrufen",
@@ -16976,6 +17047,11 @@
         "skipped": "Ein Rückblick mit demselben Titel wurde heute bereits gespeichert; Duplikat übersprungen",
         "empty": "Bitte zuerst Ihren Rückblick eingeben",
         "error": "Übermittlung fehlgeschlagen; bitte später erneut versuchen"
+      },
+      "reviewSlip": {
+        "fetchFailed": "Prüfliste konnte nicht geladen werden",
+        "applied": "Selektives Zurückschreiben abgeschlossen: {committed} gespeichert, {discarded} übersprungen",
+        "applyFailed": "Selektives Zurückschreiben fehlgeschlagen"
       }
     },
     "skills": {
@@ -17430,7 +17506,9 @@
         "sourceTab": "Quellcode",
         "saveSource": "SKILL.md speichern",
         "sourceSaved": "SKILL.md erfolgreich gespeichert",
-        "sourceSaveFailed": "Speichern von SKILL.md fehlgeschlagen"
+        "sourceSaveFailed": "Speichern von SKILL.md fehlgeschlagen",
+        "forceEnableFailed": "Erzwungenes Aktivieren fehlgeschlagen",
+        "securityReviewNote": "Sicherheitsprüfung: {recommendation}"
       },
       "growth": {
         "title": "Fähigkeitswachstum",
@@ -17990,7 +18068,8 @@
         "error": "Berechtigungen konnten nicht aktualisiert werden",
         "skillEnabled": "Fähigkeit aktiviert",
         "skillNotEnabled": "Fähigkeit nicht aktiviert",
-        "templateApplied": "Vorlage angewendet"
+        "templateApplied": "Vorlage angewendet",
+        "approveFailed": "Berechtigungen konnten nicht genehmigt werden"
       },
       "tabSubtitles": {
         "inventory": "Zentrale Fähigkeiten der Agenten verwalten und entdecken",
@@ -19885,7 +19964,9 @@
       "deleteFromCloud": "Löschen",
       "deleteSuccess": "Cloud-Backup gelöscht",
       "enabled": "Aktivieren Sie Cloud-Backup",
-      "save": "Konfiguration speichern"
+      "save": "Konfiguration speichern",
+      "saveFailed": "Konfiguration konnte nicht gespeichert werden",
+      "deleteFailed": "Löschen fehlgeschlagen"
     },
     "sessionAnalytics": {
       "copyMarkdown": "Hauptbuch kopieren (MD)",
@@ -20938,7 +21019,8 @@
       "policyUpdated": "Sicherheitsrichtlinie erfolgreich aktualisiert",
       "tierProd": "Produktion",
       "tierStaging": "Staging-Umgebung",
-      "tierDev": "Entwicklung"
+      "tierDev": "Entwicklung",
+      "probeFailed": "Prüfung von {host} fehlgeschlagen: {message}"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "Bildschirmhervorhebung bei Freigaben — roter Rahmen auf dem echten Display am Klickziel (macOS und Windows)",

@@ -72,7 +72,7 @@ const SecurityPrivacyPanel = memo(() => {
       );
       const data = await resp.json();
       if (data.success) {
-        toast.success(`${t('privacy.routing.testSuccess')} (${data.latency_ms}ms)`);
+        toast.success(t('privacy.routing.testSuccessLatency', { latency: data.latency_ms }));
       } else {
         toast.error(`${t('privacy.routing.testFailed')}: ${data.message}`);
       }

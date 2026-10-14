@@ -50,12 +50,12 @@ export function ChannelDataPlaneSection({ channel }: ChannelDataPlaneSectionProp
       setClearing(true);
       const res = await clearChannelDataPlane(channel);
       toast.success(t('clearedSuccess'), {
-        description: `${res.deleted_count} messages deleted`,
+        description: t('deletedCount', { count: res.deleted_count }),
       });
       setConfirmClear(false);
       await fetchStats();
     } catch {
-      toast.error('Failed to clear channel records');
+      toast.error(t('clearFailed'));
     } finally {
       setClearing(false);
     }
