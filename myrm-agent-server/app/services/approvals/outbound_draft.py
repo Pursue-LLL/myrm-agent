@@ -95,11 +95,10 @@ async def send_outbound_draft_payload(
     agent_id: str | None,
     record_id: str,
 ) -> bool:
-    """Publish the reply a draft approval holds, carrying the (possibly edited) reviewed text.
+    """Publish the reply a draft approval holds, carrying the text in ``draft_content``.
 
-    The reply goes out exactly as the agent produced it (attachments, buttons, thread); ``agent_id`` only stands in
-    for an unknown owner. Returns True if the message was sent, False if skipped (no readable snapshot, or nothing
-    to send).
+    Attachments, buttons and thread go out as the agent produced them; ``agent_id`` only stands in for an unknown
+    owner. Returns True if the message was sent, False if skipped (no readable snapshot, or nothing to send).
     """
     from app.core.channel_bridge import get_channel_gateway
 

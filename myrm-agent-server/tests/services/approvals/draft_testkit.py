@@ -22,5 +22,5 @@ def held_reply(*media: MediaAttachment, content: str = "hello") -> OutboundMessa
 
 
 def draft_payload(reply: OutboundMessage, *, draft_content: str | None = None, **extra: object) -> dict[str, object]:
-    """Payload as the router stores it: the text stays editable, the rest of the reply is frozen."""
+    """Payload as the router stores it: the text as ``draft_content``, the rest of the reply frozen in ``outbound``."""
     return {"draft_content": reply.content if draft_content is None else draft_content, "outbound": reply.to_dict(), **extra}

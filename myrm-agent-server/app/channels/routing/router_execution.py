@@ -330,7 +330,7 @@ class RouterExecutionMixin:
 
         payload: dict[str, object] = {
             "draft_content": result.content,
-            # Everything but the text (which the reviewer may edit): attachments, buttons and routing stay as produced.
+            # Everything but the text, which is read from ``draft_content`` when the reply is sent.
             "outbound": dataclasses.replace(result, content="").to_dict(),
             "channel": result.channel,
             "recipient_id": result.recipient_id,
