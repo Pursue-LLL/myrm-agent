@@ -13,7 +13,6 @@
 
 在 Agent-in-Sandbox 架构下，Server 层是单用户服务：
 - Nonce 管理和 HMAC 签名验证由框架层 `myrm_agent_harness.infra.security` 提供
-- SecurityMiddleware 实现在 `app/middleware/security.py`；**默认不在 `middlewares.py` register**（SaaS 由 CP 反代隔离）
 
 ---
 
@@ -39,7 +38,6 @@ security/
 - 权限策略引擎在框架层 `myrm_agent_harness.agent.security`
 - Nonce/Signature/Timestamp 验证在框架层 `myrm_agent_harness.infra.security`
 - 凭证加密存储在框架层 `app.channels.storage`
-- SecurityMiddleware 在 `app/middleware/security.py`（默认未挂载；可选 WebUI Remote 直连场景启用）
 - 配置加密服务在 `app/services/config/encryption.py`（业务层策略注入）
 
 ---
@@ -74,7 +72,6 @@ security/
 | 权限策略引擎 | 框架层 | `myrm_agent_harness.agent.security` |
 | MasterKey 管理 | 业务层 | `app/core/security/master_key.py` |
 | 加密策略决策 | 业务层 | `app/services/config/encryption.py` |
-| 安全中间件集成 | 业务层 | `app/middleware/security.py` |
 | 分享链接 HMAC + 密码门 | 业务层 | `app/core/security/share_hmac.py` |
 | 分享解锁 cookie 机制 | 业务层 | `app/core/security/share_unlock.py` |
 | 内部服务认证 | 业务层 | `app/api/dependencies.py` |
@@ -90,7 +87,6 @@ security/
 - `myrm_agent_harness.agent.security`: 框架层权限策略引擎
 
 ### 被依赖
-- `app/middleware/security.py`: SecurityMiddleware（sandbox模式启用）
 - `app/services/config/encryption.py`: 配置存储透明加解密
 - `app/core/channel_bridge/config_loader.py`: 频道配置加载解密
 - `app/core/cron/crypto.py`: 定时任务配置加密（委托）

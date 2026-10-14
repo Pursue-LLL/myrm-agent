@@ -6,12 +6,10 @@ Validates:
 3. One-way read inheritance from global scope
 4. Backward-compatible fallback when project_id is None
 5. MemoryManager isolated storage & retrieval between different projects
-6. Project workspace boundary confinement and escape rejection
 """
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -26,12 +24,6 @@ from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingCon
 
 from app.core.memory.adapters.policy import derive_binding_namespaces
 from app.core.memory.adapters.setup import resolve_context_binding
-from app.services.project.workspace_boundary import (
-    ProjectWorkspaceEscapeError,
-    assert_project_workspace_boundary,
-    is_cross_project_workspace_collision,
-    validate_project_workspace_boundary,
-)
 
 
 def test_derive_binding_namespaces_project_isolation() -> None:
@@ -235,39 +227,6 @@ async def test_cross_project_memory_manager_zero_leakage(tmp_path: Path) -> None
     assert len(rules_b) == 0
 
 
-def test_project_workspace_boundary_enforcement() -> None:
-    """Workspace boundary rejects path traversal escapes and foreign directories."""
-    with tempfile.TemporaryDirectory() as tmp_root:
-        root_path = Path(tmp_root)
-        proj_a = root_path / "project_a"
-        proj_b = root_path / "project_b"
-        proj_a.mkdir()
-        proj_b.mkdir()
-
-        safe_file = proj_a / "src" / "index.ts"
-        safe_file.parent.mkdir(parents=True)
-        safe_file.touch()
-
-        # Valid subpath
-        assert validate_project_workspace_boundary(safe_file, proj_a) is True
-        assert assert_project_workspace_boundary(safe_file, proj_a) == str(safe_file.resolve())
-
-        # Root itself is valid
-        assert validate_project_workspace_boundary(proj_a, proj_a) is True
-
-        # Escapes to sibling project via ../
-        escape_path = proj_a / ".." / "project_b" / "secret.env"
-        assert validate_project_workspace_boundary(escape_path, proj_a) is False
-        with pytest.raises(ProjectWorkspaceEscapeError):
-            assert_project_workspace_boundary(escape_path, proj_a)
-
-        # Collision detection between projects
-        assert is_cross_project_workspace_collision(proj_a, proj_b) is False
-        assert is_cross_project_workspace_collision(proj_a, proj_a) is True
-        nested_sub = proj_a / "subfolder"
-        assert is_cross_project_workspace_collision(proj_a, nested_sub) is True
-
-
 @pytest.mark.asyncio
 async def test_purge_project_memories_lifecycle() -> None:
     """Test purge_project_memories orchestrates metadata deletion with safe namespace expansion."""
@@ -282,10 +241,12 @@ async def test_purge_project_memories_lifecycle() -> None:
     # 2. Mock manager execution
     mock_mgr = MagicMock()
     mock_mgr._namespaces = ["global", "agent:default"]
-    mock_mgr.delete_memories_by_metadata = AsyncMock(side_effect=[
-        {"semantic": 2, "episodic": 1},
-        {"conversation": 1},
-    ])
+    mock_mgr.delete_memories_by_metadata = AsyncMock(
+        side_effect=[
+            {"semantic": 2, "episodic": 1},
+            {"conversation": 1},
+        ]
+    )
 
     with patch("app.core.memory.adapters.cascade.get_cascade_memory_manager", AsyncMock(return_value=mock_mgr)):
         res = await purge_project_memories("proj-abc")
@@ -296,4 +257,3 @@ async def test_purge_project_memories_lifecycle() -> None:
         assert mock_mgr.delete_memories_by_metadata.call_count == 2
         mock_mgr.delete_memories_by_metadata.assert_any_call("primary_namespace", "project:proj-abc")
         mock_mgr.delete_memories_by_metadata.assert_any_call("project_id", "proj-abc")
-

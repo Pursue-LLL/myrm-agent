@@ -76,7 +76,6 @@ Design notes:
 | `context_compaction_telemetry.py` | ✅ 核心 | Context 压缩遥测分发器。配置来自 `settings.control_plane` + `settings.context_compaction_telemetry`（`ContextCompactionTelemetryConfig.from_settings()`）；读取 Harness `TaskMetrics` 快照，有界队列 + 批量 flush + 背压保护异步上报 Control Plane（`events` 契约，`X-Telemetry-Subject` 头）。 |
 | `context_guard_service.py` | ✅ 核心 | Context Guard 入站防线：超大 prompt（>16,000 字符或 >8,000 token 压力）透明外溢到「Agent 实际运行的工作区」的 `.myrm/spillover/`（新会话尚无 DB 行，走 JIT 路径 `params.workspace_resolve.default_chat_workspace_path`；无可用工作区或 chat_id 非法则原样放行，交网关体积兜底），开头的 `[use skill]` 标签保持在引用块之前；`sweep_all_workspaces` 清扫各 chat 工作区的过期外溢文件 | ✅ |
 | `search.py` | ✅ 辅助 | Web 搜索服务封装 | ✅ |
-| `routing_advisor.py` | ✅ 核心 | 智能路由顾问 — 根据历史事件提供高危模型的降级建议 | ✅ |
 | `browser_skill_binding.py` | ✅ 辅助 | `enable_browser` 时合并 peripheral prebuilt `browser-automation` skill（`is_core:false`）；由 `AgentFactory.create_general_agent` 调用，覆盖 Web/Cron/Channel/Kanban 全入口 | ✅ |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置 SSOT：`load_platform_model_config` / `load_llm_from_model_config` / `load_platform_llm`（wire-aware）/ `webui_model_preflight_warning` / `resolve_xai_search_config`；`require_platform_embedding_config` embedding 配置结构检查，`verify_platform_embedding_ready` 结构检查 + 真实探活（供 Memory A/B 评测入口 fail-fast，缺失或不可用即抛 `ConfigIncompleteError`） | ✅ |
 | `session_access_service.py` | ✅ 核心 | 会话目录 grant 持久化：bootstrap/resume/persist/revoke · 云卷部署边界 gate · resume 与 path-ASK 统一验证链 | ✅ |

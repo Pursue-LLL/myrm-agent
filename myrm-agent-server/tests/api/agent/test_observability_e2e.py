@@ -1,57 +1,14 @@
 import os
-import time
 import uuid
 from pathlib import Path
 
 import pytest
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.trace_builder import build_trace
-from myrm_agent_harness.agent.event_log.types import StructuredEvent
 
 from app.config.settings import settings
-from app.services.agent.routing_advisor import analyze_provider_health
 
 _EVENT_LOG_DIR = Path(settings.database.event_log_dir)
-
-
-@pytest.mark.asyncio
-async def test_5min_reactive_degradation():
-    """Test the 5-minute reactive degradation logic (routing_advisor)."""
-    # Create a unique session ID to avoid collisions
-    session_id = f"test_degradation_{uuid.uuid4().hex[:8]}"
-    backend = FileEventLogBackend(log_dir=_EVENT_LOG_DIR, session_id=session_id)
-
-    current_time = time.time()
-    events = []
-
-    # Insert 6 failed events for "test_provider" within the last 1 minute
-    for i in range(6):
-        events.append(
-            StructuredEvent(
-                sequence=i * 2,
-                timestamp=current_time - 60,
-                event_type="tool_start",
-                session_id=session_id,
-                data={"tool_name": "test_provider"},
-            )
-        )
-        events.append(
-            StructuredEvent(
-                sequence=i * 2 + 1,
-                timestamp=current_time - 60 + 1,
-                event_type="tool_failure",
-                session_id=session_id,
-                data={"tool_name": "test_provider", "error": "Timeout", "duration_ms": 1000},
-            )
-        )
-    await backend.append(events)
-
-    # Analyze health with a 5-minute window
-    health = await analyze_provider_health("test_provider", time_window_minutes=5)
-
-    assert health["healthy"] is False
-    assert health["recommend_fallback"] is True
-    assert "High failure rate" in str(health["reason"])
 
 
 @pytest.mark.asyncio

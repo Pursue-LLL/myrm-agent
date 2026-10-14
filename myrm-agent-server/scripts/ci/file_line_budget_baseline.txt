@@ -153,4 +153,3 @@ app/services/ops/snapshot_service.py
 app/services/project/assessment_import_service.py
 app/services/repair/actions.py
 app/services/skills/growth/queries.py
-app/services/webui/device_bridge.py

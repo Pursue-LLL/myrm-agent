@@ -1,7 +1,7 @@
 """Skill growth lifecycle orchestration.
 
 [INPUT]
-- app.api.skills.config_version::bump_skill_config_version (POS: Skill config version bumper)
+- app.core.skills.config_version::bump_skill_config_version (POS: Skill config version bumper)
 - app.core.skills.creation.service::skill_creation_service (POS: Skill creation service)
 - app.core.skills.providers.local::compute_local_skill_id (POS: Local skill ID computation)
 - app.core.skills.store.service::skills_service (POS: Skill store service)
