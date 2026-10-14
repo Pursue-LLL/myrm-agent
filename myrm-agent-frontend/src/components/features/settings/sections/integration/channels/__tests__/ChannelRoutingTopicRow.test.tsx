@@ -136,4 +136,22 @@ describe('ChannelRoutingTopicRow draft review', () => {
     expect(screen.queryByText('replyMode.timeout:')).toBeNull();
     expect(screen.queryByText('replyMode.noNotifyChannel')).toBeNull();
   });
+
+  it.each(['threadSharing.label:', 'replyMode.label:'])(
+    'lets the %s row and its buttons wrap, so long translations are not clipped on a narrow screen',
+    (labelText) => {
+      renderRow();
+
+      const label = screen.getByText(labelText);
+      expect(label.parentElement?.className).toContain('flex-wrap');
+      expect(label.nextElementSibling?.className).toContain('flex-wrap');
+    },
+  );
+
+  it('lets the agent select shrink and the identity scope buttons wrap, so a long translation never leaves the card', () => {
+    renderRow();
+
+    expect(screen.getByDisplayValue('inheritGlobalDefault').className).toContain('min-w-0');
+    expect(screen.getByText('identity.inherit').parentElement?.className).toContain('flex-wrap');
+  });
 });

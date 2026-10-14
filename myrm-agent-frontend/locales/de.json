@@ -20408,7 +20408,7 @@
           "autoSend": "Automatisch senden",
           "timeoutMinutes": "{minutes} Min.",
           "timeoutHour": "1 Std.",
-          "noNotifyChannel": "Es ist keine Benachrichtigungszustellung eingerichtet. Eine Antwort, die auf Prüfung wartet, meldet sich nur in dieser App und kann unbemerkt ablaufen, wenn gerade niemand hinsieht.",
+          "noNotifyChannel": "Es ist keine Benachrichtigungszustellung eingerichtet. Eine Antwort, die auf Prüfung wartet, wird nur in dieser App oder per Hintergrund-Push-Benachrichtigung gemeldet und kann unbemerkt ablaufen, wenn gerade niemand hinsieht.",
           "noNotifyChannelLink": "In den Einstellungen einrichten"
         },
         "identity": {

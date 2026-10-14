@@ -93,7 +93,7 @@ export function ChannelRoutingTopicRow({
             value={topic.agentId || 'none'}
             onChange={(event) => onBindTopic(topic.topicId, event.target.value)}
             disabled={isSaving}
-            className="bg-background border border-input rounded-full text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none"
+            className="min-w-0 bg-background border border-input rounded-full text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none"
           >
             <option value="none">{t('inheritGlobalDefault')}</option>
             {agents.map((agent) => (
@@ -139,7 +139,7 @@ export function ChannelRoutingTopicRow({
         {projects.length === 0 && <span className="text-xs text-muted-foreground">{t('workspace.emptyProjects')}</span>}
       </div>
 
-      <div className="flex items-center gap-2 pl-11">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-11">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -151,7 +151,7 @@ export function ChannelRoutingTopicRow({
           </Tooltip>
         </TooltipProvider>
         <span className="text-xs text-muted-foreground">{t('threadSharing.label')}:</span>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           <button
             onClick={() => onSetThreadSharingMode(topic.topicId, 'isolated')}
             disabled={isSaving}
@@ -179,7 +179,7 @@ export function ChannelRoutingTopicRow({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 pl-11">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-11">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -191,7 +191,7 @@ export function ChannelRoutingTopicRow({
           </Tooltip>
         </TooltipProvider>
         <span className="text-xs text-muted-foreground">{t('replyMode.label')}:</span>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           <button
             onClick={() => onSetReplyMode(topic.topicId, 'auto')}
             disabled={isSaving}
@@ -307,7 +307,7 @@ export function ChannelRoutingTopicRow({
             maxLength={32}
             className="bg-background border border-input rounded-full text-xs px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none w-40 placeholder:text-muted-foreground/60"
           />
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {IDENTITY_SCOPES.map((scope) => (
               <button
                 key={scope}

@@ -21085,7 +21085,7 @@
           "autoSend": "自动发送",
           "timeoutMinutes": "{minutes} 分钟",
           "timeoutHour": "1 小时",
-          "noNotifyChannel": "尚未设置通知投递，待审核的回复只会在本应用内提醒你，你不在时可能无人查看就已过期。",
+          "noNotifyChannel": "尚未设置通知投递。待审核的回复只会在本应用内或通过后台推送通知提醒你，你不在时可能无人查看就已过期。",
           "noNotifyChannelLink": "前往偏好设置"
         },
         "identity": {

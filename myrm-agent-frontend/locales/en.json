@@ -21085,7 +21085,7 @@
           "autoSend": "Send automatically",
           "timeoutMinutes": "{minutes} min",
           "timeoutHour": "1 hour",
-          "noNotifyChannel": "No notification delivery is set up, so a reply waiting for review only alerts you inside this app and may expire unseen while you are away.",
+          "noNotifyChannel": "No notification delivery is set up. A reply waiting for review reaches you only inside this app or through background push notifications, so it may expire unseen while you are away.",
           "noNotifyChannelLink": "Set up in Preferences"
         },
         "identity": {
