@@ -1992,3 +1992,51 @@ except Exception:
 6. 局限：Chrome E2E 没有通过（见验证 7），现有 E2E 也没有一条覆盖满载 toast 与版本历史的来源标签；满载提示只走进程内事件总线，推给当时已连接的 WebUI / 桌面端；没有客户端连接时只能靠总线向新订阅者重放最近 100 条事件补发（服务重启即丢；重放还会让重新打开的页面在空间已释放、服务端尚未清除标记时再弹一次），IM 通知（`adaptive_cards` 的事件模板）与 Web Push 都没有该事件的模板、不转发，所以只用 IM 的用户看不到；品牌仓库公开文档里「学习不会悄无声息地停下」的说法已撤回（品牌仓库 `629611ea`）；用户删除技能时 `skills_service.delete_skill` 不碰进化库，启动时的孤儿清理只处理插件技能，已删技能的记录一直留在进化库里，所以进化库记录数一旦达到 50，之后每个满足触发条件的回合都走在库核对路径，与真实在库数量无关：单次实测（机器负载均值 34 到 55，在库 20 个技能）记录数 50 / 120 / 520 / 2020 条时每次约 7 / 8 / 25 / 49 毫秒，约一半花在读取完整记录上，没有优化；根治办法是删除与归档时同步失活进化记录，涉及多条删除路径，没有做；`useGlobalEvents.ts` 已有 719 行，超过单文件 500 行上限，本次只加了接线的 4 行，该文件上有他人未提交的改动，没有拆分；没有做浏览器级别的视觉检查（满载 toast、版本历史新标签在深浅主题下的显示）；新增的 de / ja / ko / zh-TW 译文只经过机器门禁；删除 `/ws/evolution` 后待人工审核的提案没有实时通知（旧的推送本来就没人接收，需要用户打开页面才看到，没有补 SSE）；待审核页的容量条是删除而不是改成服务端下发，要不要在页面上保留容量表是产品决定；服务端提交依赖 harness 提交 `d46a104e1`，harness 发版后要执行 `./myrm harness sync-lock`；`fractal_header_baseline.txt` 里另有 5 条他人删除文件留下的过期项（`api/skill_optimization/routes/{dashboard,optimization,system}.py`、`api/skills/{audit,quality}.py`）未动，对门禁无害；`SKILL_EVOLUTION_ADVANTAGE.md` 里带日期的测试结果表与 `de/auto-translated-overrides.json` 里已删词条的过期项没有改；`verify-i18n-references` 的 53 个缺失键来自他人组件，仍在，非本次引入。
 
 ---
+
+## BUG-AGENT-2026-10-14-014: 凭证页对能自动续期的授权常态误报「即将过期 / 已失效」；xAI 刷新被套餐拦截（403）时被当成授权已撤销，并永久停止刷新
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P3（只影响凭证页的状态展示与 xAI 套餐被拦截时的提示与重试；不丢数据，对话里的令牌仍按原路径续期） |
+| 影响范围 | server：`app/services/agent/oauth_token_policy.py`（`classify_refresh_failure`、新增 `is_renewable`）、`oauth_refresher.py`（新增只读 `is_refresh_rejected`）、`app/api/integrations/oauth.py`（列表项新增 `renewable`、`needs_reauth`）；frontend：`settings/sections/integration/credentials/{credentialsConstants,credentialsOAuthUtils}.ts`、`CredentialsOAuthPanel.tsx` |
+| 出现次数 | 1（读代码、真实函数执行与单元测试确认；没有真实 SuperGrok 账号，xAI 刷新失败的响应体形态没有端到端验证） |
+| 关联 | `BUG-AGENT-2026-10-14-008`（订阅登录加固；本条修正其中刷新失败分类对 403 的处理）· harness `BUG-HARNESS-2026-10-14-018`（同一批次：xAI 额度耗尽的 403 诊断） |
+
+### 现象
+
+1. 凭证页按访问令牌的 `expires_at` 判卡片状态（`credentialsOAuthUtils.ts`）：7 天内显示「即将过期」，已过期显示「已失效」并给「一键修复」。带 refresh_token 的授权（xAI、Google Workspace 等）访问令牌只有数小时到一小时，`expires_at` 只在有 Agent 回合触发刷新时才更新，于是：登录后立刻显示「即将过期（1 天）」，空闲超过令牌寿命显示「已失效」。真实函数执行：6 小时寿命的新令牌得 `{expiring, daysLeft: 1}`，空闲 7 小时得 `{expired}`。
+2. `classify_refresh_failure` 把任何带非空字符串 `error` 的 4xx（含 403）判为终态（`oauth_token_policy.py` 的旧判定与 `test_oauth_token_policy.py` 的 `(403, {"error": "access_denied"})` 用例）。终态会按指纹记住刷新令牌、此后不再尝试刷新，并发「请重新登录」事件。Hermes 对同一 xAI 令牌端点的处理（`hermes_cli/auth_xai.py:323-342`，其 issue 编号 #26847）：403 是套餐 / 权益拦截，重新登录无效，只有 400 与 401 才要求重新登录。
+
+### 根因
+
+1. 卡片状态把「访问令牌的寿命」当成「连接的寿命」；列表接口只返回访问令牌的 `expires_at`，没有告诉界面这个授权能否自行续期、刷新令牌是否已被供应商拒绝。
+2. 刷新失败分类只看「4xx + OAuth 错误体」，没有区分 RFC 6749 第 5.2 节定义的拒绝授权（400，客户端认证失败时 401）与其前面的访问闸门（403 等）。
+
+### 修复
+
+1. server：`oauth_token_policy.py` 的 `classify_refresh_failure` 只对 400 / 401 且带 OAuth 错误体的响应判终态，其余状态（含 403）一律可重试（30 秒冷却，不记指纹、不发重新授权事件）；新增纯函数 `is_renewable`（凭证同时带 `refresh_token` 与 `token_url`）。
+2. server：`oauth_refresher.py` 新增只读 `is_refresh_rejected(issuer, credential)`，只比较进程内失败记忆里的指纹与当前刷新令牌，不做 I/O、不触发刷新。
+3. server：`GET /integrations/oauth` 的每项多返回 `renewable` 与 `needs_reauth`，没有网络请求、没有副作用。
+4. frontend：`resolveOauthCardState` 先判 `needs_reauth`（已失效），再判 `renewable`（已连接，不看访问令牌到期），其余（手工粘贴、无刷新令牌）保持原有的 7 天预警；卡片对可续期凭证不再显示「到期时间」行，没有别的明细时整个明细框不渲染。没有新增文案。
+
+行为说明：
+
+1. 进程重启后失败记忆为空：此前被拒绝的刷新令牌会显示为已连接，直到下一次刷新尝试再次遇到拒绝；拒绝仍会按原有路径发（去重的）重新授权事件。
+2. xAI 刷新被 403 拦截后每 30 秒最多再试一次，不再弹「请重新登录」，也不再永久停止刷新。
+
+### 验证
+
+1. server：新增 / 改写 `test_oauth_token_policy.py`（403 与 404 / 407 等访问闸门为可重试，`is_renewable` 5 种缺失组合）、`test_oauth_refresher_failure_memory.py`（`is_refresh_rejected` 只认被拒绝的那枚刷新令牌，xAI 风格的 403 响应体不进失败记忆、不发事件）、`test_oauth_api.py`（列表三种凭证的两个字段，加 FE 类型声明了服务端列表的每个字段的契约检查）；OAuth 相关 10 个 server 测试文件加 `tests/api/integrations` 共 419 例通过、2 例跳过。
+2. frontend：新增 `credentialsOAuthUtils.test.ts`（真实函数 + 假时钟：新登录、空闲超过寿命、被拒绝、手工令牌的预警与过期）与 `CredentialsOAuthPanel.test.tsx`（渲染真实面板：可续期卡片为已连接且无到期行，手工令牌保留到期行与预警，被拒绝显示已失效与修复按钮）；`settings/sections/integration` 下 30 个文件 189 例通过。
+3. 变异检查（临时改写源码、跑测试、恢复原文并比对）：server 5 个（403 退回终态、`is_renewable` 的与改或、失败记忆忽略发行方、忽略令牌身份、列表丢掉 `needs_reauth`）、frontend 4 个（忽略 `needs_reauth`、忽略 `renewable`、到期行总是显示、FE 类型缺 `renewable`），全部杀死。
+4. 静态：`ruff check` / `ruff format --check`、mypy（3 个 server 源文件）、oxlint、prettier、ReadLints 通过；`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`。
+5. 局限：没有真实 SuperGrok 账号与浏览器，xAI 令牌端点对失效刷新令牌的响应状态与响应体未验证（403 的语义来自 Hermes 源码与 issue，不是自行抓取；若 xAI 对已失效的刷新令牌也返回 403，则不再提示重新登录，用户在对话失败后经重新连接恢复）；`needs_reauth` 只来自进程内存，进程重启或空闲超过供应商刷新令牌寿命后的失效授权，在下一次刷新尝试之前显示为已连接；没有做卡片在深浅主题与手机宽度下的视觉检查；架构门禁里 `test_api_services_vocabulary.py`、`test_api_route_consumers.py`、`test_frontend_api_client_paths.py` 的失败来自他人新增的目录与对 harness 的导入（`ConversationTurn`），与本次路径无关。
+
+### 踩坑经验
+
+1. 「访问令牌到期」与「授权失效」是两个状态：展示层不能拿前者推断后者，服务端要把「能否自行续期」与「是否被供应商拒绝」作为事实交给界面。
+2. 同一状态码在不同服务上含义不同：RFC 只在令牌端点定义了 400 / 401，403 属于供应商自己的访问闸门，不能当成「刷新令牌被拒」。
+
+---

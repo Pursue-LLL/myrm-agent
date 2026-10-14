@@ -3,11 +3,15 @@
 [INPUT]
 app.database.connection::get_db (POS: 异步数据库会话工厂)
 app.database.models::UserConfig (POS: 用户配置 ORM 模型)
+app.services.agent.oauth_refresher::is_refresh_rejected (POS: 进程内刷新失败记忆的只读查询)
+app.services.agent.oauth_token_policy::is_renewable (POS: 凭证能否自行续期的纯函数)
 app.services.config.encryption::get_encryption_service (POS: AES-256-GCM 加密服务单例)
 app.services.memory.imports.integration_memory::get_integration_memory_service (POS: 集成记忆服务单例)
 
 [OUTPUT]
 OAuth credential CRUD endpoints: GET /oauth, POST /oauth/{issuer}, DELETE /oauth/{issuer}
+GET /oauth 的每项带 renewable（访问令牌可自行续期，expires_at 不再代表连接寿命）与 needs_reauth
+（供应商已永久拒绝 refresh token，只能重新登录）；两者只读内存与已存凭证，不发起网络请求。
 DELETE 支持 clear_synced_memory 参数，断开时可选清除该 provider 已同步的记忆数据。
 
 [POS]
@@ -23,6 +27,8 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_db
+from app.services.agent.oauth_refresher import is_refresh_rejected
+from app.services.agent.oauth_token_policy import is_renewable
 from app.services.config.encryption import get_encryption_service
 from app.services.integrations.oauth_store import (
     decrypt_oauth_credentials,
@@ -44,6 +50,10 @@ class OAuthCredentialItem(BaseModel):
     scope: str | None = None
     expires_at: float | None = None
     connected: bool = False
+    # The access token renews itself: its expires_at does not bound the connection.
+    renewable: bool = False
+    # The provider permanently rejected the refresh token: only signing in again helps.
+    needs_reauth: bool = False
 
 
 class SaveOAuthCredentialPayload(BaseModel):
@@ -71,6 +81,8 @@ async def list_oauth_credentials(
             scope=val.get("scope"),
             expires_at=val.get("expires_at"),
             connected=bool(val.get("token")),
+            renewable=is_renewable(val),
+            needs_reauth=is_refresh_rejected(issuer, val),
         )
         for issuer, val in credentials.items()
         if isinstance(val, dict)

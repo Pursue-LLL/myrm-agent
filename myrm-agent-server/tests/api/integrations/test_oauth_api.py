@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.integrations.oauth import OAuthCredentialItem
+from app.services.agent import oauth_refresher
+from app.services.agent.oauth_token_policy import refresh_token_fingerprint
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
 API_PREFIX = "/api/v1/integrations"
+
+FRONTEND_CREDENTIAL_RECORD = (
+    Path(__file__).resolve().parents[4]
+    / "myrm-agent-frontend/src/components/features/settings/sections/integration/credentials/credentialsConstants.ts"
+)
 
 
 @pytest.fixture
@@ -65,6 +75,44 @@ class TestOAuthListCredentials:
             assert slack["connected"] is True
             assert slack["user_id"] == "U1"
             assert github["connected"] is False
+
+    def test_list_tells_renewable_and_rejected_credentials_apart(self, client: TestClient):
+        """Access-token expiry only bounds a connection that cannot renew itself."""
+        row = type("Row", (), {"config_value": "encrypted", "is_encrypted": True})()
+        token_url = "https://auth.example/token"
+        stored = {
+            "xai": {"token": "a", "refresh_token": "rt_live", "token_url": token_url, "expires_at": 1.0},
+            "google_workspace": {"token": "b", "refresh_token": "rt_dead", "token_url": token_url, "expires_at": 1.0},
+            "pasted": {"token": "c", "expires_at": 1.0},
+        }
+        oauth_refresher._rejected_refresh_tokens["google_workspace"] = refresh_token_fingerprint("rt_dead")
+        with (
+            patch(
+                "app.api.integrations.oauth.load_oauth_credentials_row",
+                new=AsyncMock(return_value=row),
+            ),
+            patch("app.api.integrations.oauth.decrypt_oauth_credentials", return_value=stored),
+        ):
+            response = client.get(f"{API_PREFIX}/oauth")
+
+        assert response.status_code == 200
+        flags = {item["issuer"]: (item["renewable"], item["needs_reauth"]) for item in response.json()}
+        assert flags == {
+            "xai": (True, False),
+            "google_workspace": (True, True),
+            "pasted": (False, False),
+        }
+
+
+class TestOAuthListContract:
+    def test_frontend_record_declares_every_field_the_list_returns(self):
+        """The Credentials card reads these keys by name; a field the UI type lacks is silently ignored."""
+        record_type = FRONTEND_CREDENTIAL_RECORD.read_text(encoding="utf-8").split("export type OauthCredentialRecord", 1)[1]
+        record_type = record_type.split("};", 1)[0]
+
+        missing = [name for name in OAuthCredentialItem.model_fields if not re.search(rf"\b{name}\??:", record_type)]
+
+        assert missing == []
 
 
 class TestOAuthDeleteClearSyncedMemory:
