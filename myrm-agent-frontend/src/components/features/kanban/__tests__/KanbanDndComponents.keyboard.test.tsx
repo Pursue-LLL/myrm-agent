@@ -7,8 +7,10 @@ import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import { expectNonNull } from '@/test-utils/expectDefined';
 import { KanbanDropColumn } from '../KanbanDndComponents';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('../KanbanTaskCard', () => ({
@@ -70,7 +72,7 @@ function renderBoardColumn() {
         onDeleteTask={vi.fn()}
         onReclaimTask={vi.fn()}
         onRefresh={vi.fn()}
-        t={((key: string) => key) as ReturnType<typeof useTranslations<'kanban'>>}
+        t={stableT as ReturnType<typeof useTranslations<'kanban'>>}
       />
     </DndContext>,
   );
