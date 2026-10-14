@@ -25,7 +25,7 @@ Detailed design: [CONVERSATION_FORK_SYSTEM.md](CONVERSATION_FORK_SYSTEM.md)
 | `cognitive_clock/` | Four-tier cognitive clock scheduling primitives | [cognitive_clock/_ARCH.md](cognitive_clock/_ARCH.md) |
 | `maintenance/` | Global adaptive maintenance scheduling | [maintenance/_ARCH.md](maintenance/_ARCH.md) |
 | `quota/` | Storage quota management | [quota/_ARCH.md](quota/_ARCH.md) |
-| `install_guard/` | Dual-wheel install readiness | [install_guard/_ARCH.md](install_guard/_ARCH.md) |
+| `install_guard/` | Post-install verification CLI | [install_guard/_ARCH.md](install_guard/_ARCH.md) |
 | `diagnostics/` | Doctor + compliance self-audit | [diagnostics/_ARCH.md](diagnostics/_ARCH.md) |
 | `survival/` | Memory pressure, resource monitor, startup timing | [survival/_ARCH.md](survival/_ARCH.md) |
 | `paths/` | Execution path SSOT + compression | [paths/_ARCH.md](paths/_ARCH.md) |

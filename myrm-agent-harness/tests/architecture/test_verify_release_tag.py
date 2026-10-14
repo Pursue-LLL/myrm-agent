@@ -18,16 +18,19 @@ def test_tag_gate_skips_non_tag_ref(monkeypatch) -> None:
     monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
     assert main() == 0
 
+    monkeypatch.setenv("GITHUB_REF", "refs/tags/v9.9.9")
+    assert main() == 0
+
 
 def test_tag_gate_passes_when_versions_match(monkeypatch) -> None:
     import tomllib
 
     pyproject = tomllib.loads((_REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     version = pyproject["project"]["version"]
-    monkeypatch.setenv("GITHUB_REF", f"refs/tags/v{version}")
+    monkeypatch.setenv("GITHUB_REF", f"refs/tags/harness-v{version}")
     assert main() == 0
 
 
 def test_tag_gate_fails_on_version_mismatch(monkeypatch) -> None:
-    monkeypatch.setenv("GITHUB_REF", "refs/tags/v9.9.9")
+    monkeypatch.setenv("GITHUB_REF", "refs/tags/harness-v9.9.9")
     assert main() == 1

@@ -2,8 +2,7 @@
 
 External consumers (myrm-agent-server, third-party agent frameworks) should
 import from ``myrm_agent_harness.api`` rather than reaching into internal
-modules.  Core implementation may ship as compiled native extensions (``.so``)
-in release wheels while this layer remains readable Python source.
+modules.
 
 Quick start::
 
@@ -236,11 +235,9 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     ),
     "generate_fix_suggestion": ("myrm_agent_harness.toolkits.cron.engine.connector_health", "generate_fix_suggestion"),
     "close_subagent_checkpointer": ("myrm_agent_harness.api.subagents", "close_subagent_checkpointer"),
-    "get_distribution_mode": ("myrm_agent_harness.runtime.install_guard.probe", "get_distribution_mode"),
     "get_ptc_safety_metadata": ("myrm_agent_harness.core.security.tool_registry.registry", "get_ptc_safety_metadata"),
     "get_subagent_checkpointer": ("myrm_agent_harness.api.subagents", "get_subagent_checkpointer"),
     "get_workspace_root": ("myrm_agent_harness.api.hooks", "get_workspace_root"),
-    "is_compiled_distribution": ("myrm_agent_harness.runtime.install_guard.probe", "is_compiled_distribution"),
     "is_registered_action_tool": ("myrm_agent_harness.agent.tool_management.tool_layers", "is_registered_action_tool"),
     "redact_connector_url": ("myrm_agent_harness.toolkits.cron.engine.connector_health", "redact_connector_url"),
     "redact_sensitive_text": ("myrm_agent_harness.core.security.redact.engine", "redact_sensitive_text"),

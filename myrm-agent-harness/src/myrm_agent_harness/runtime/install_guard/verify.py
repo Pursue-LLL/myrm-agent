@@ -1,39 +1,21 @@
-"""Post-install harness distribution verification for Docker, CI, and Tauri.
+"""Post-install harness verification for Docker, CI, and Tauri.
 
 [INPUT]
-- install_guard._generated.core_ip_manifest::CORE_IP_IMPORTS (POS: Core IP import path list)
-- install_guard.probe::assert_distribution_ready (POS: Distribution readiness probe)
 - myrm_agent_harness.api::create_skill_agent (POS: Stable public agent factory)
 
 [OUTPUT]
-- run_verification(): Execute manifest import, distribution, core-deps, and API checks
+- run_verification(): Execute core-deps and public-API checks (+ optional CJK font check)
 - verify_core_runtime_imports(): Probe lxml/dill/aiosqlite/bs4 from core dependencies
 - main(): CLI entry for console script ``verify-harness-distribution``
 
 [POS]
-Production install gate. Confirms dual-wheel installs are complete before Docker, CI, or Tauri release.
+Production install gate. Confirms an installed harness wheel is importable and usable before Docker, CI, or Tauri release.
 """
 
 from __future__ import annotations
 
 import argparse
-import importlib
 import sys
-
-
-def verify_manifest_imports() -> None:
-    """Import every core IP module listed in the installed manifest."""
-    from myrm_agent_harness.runtime.install_guard._generated.core_ip_manifest import CORE_IP_IMPORTS
-
-    for import_name in CORE_IP_IMPORTS:
-        importlib.import_module(import_name)
-
-
-def verify_distribution_ready() -> None:
-    """Fail closed when release wheel is installed without platform core wheel."""
-    from myrm_agent_harness.runtime.install_guard.probe import assert_distribution_ready
-
-    assert_distribution_ready()
 
 
 def verify_public_api() -> None:
@@ -81,12 +63,10 @@ def verify_matplotlib_cjk() -> None:
 
 
 def run_verification(*, matplotlib_cjk: bool = False) -> None:
-    """Run all distribution checks."""
-    verify_manifest_imports()
-    verify_distribution_ready()
+    """Run all post-install checks."""
     verify_core_runtime_imports()
     verify_public_api()
-    print("harness distribution OK")
+    print("harness install OK")
     if matplotlib_cjk:
         verify_matplotlib_cjk()
 
@@ -102,7 +82,7 @@ def main() -> None:
     try:
         run_verification(matplotlib_cjk=args.matplotlib_cjk)
     except Exception as exc:
-        print(f"harness distribution verification FAILED: {exc}", file=sys.stderr)
+        print(f"harness install verification FAILED: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
 
 
