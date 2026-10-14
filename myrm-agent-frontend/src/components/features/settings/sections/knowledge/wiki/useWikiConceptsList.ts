@@ -101,6 +101,8 @@ export function useWikiConceptsList(options?: {
 
   const treeRef = useRef<TreeApi<TreeNode> | null>(null);
   const lastHighlightedConceptRef = useRef<string | null>(null);
+  // 词条选择只认最后一次发起的请求：快速连点或切换 Agent 范围时，较早发起的响应（含失败）一律丢弃
+  const selectRequestRef = useRef(0);
 
   const fetchTree = useCallback(async () => {
     try {
@@ -116,6 +118,7 @@ export function useWikiConceptsList(options?: {
   }, [agentScopeId, t]);
 
   useEffect(() => {
+    selectRequestRef.current += 1;
     setSelectedConcept(null);
     setIsEditing(false);
     setEditContent('');
@@ -138,13 +141,19 @@ export function useWikiConceptsList(options?: {
 
   const handleSelectConcept = useCallback(
     async (id: string) => {
+      const requestId = ++selectRequestRef.current;
       try {
         const data = await wikiService.getConcept(id, agentScopeId);
+        if (requestId !== selectRequestRef.current) {
+          return;
+        }
         setSelectedConcept(data);
         setIsEditing(false);
         setEditBaseline(null);
       } catch {
-        toast.error(t('loadFailed'));
+        if (requestId === selectRequestRef.current) {
+          toast.error(t('loadFailed'));
+        }
       }
     },
     [agentScopeId, t],

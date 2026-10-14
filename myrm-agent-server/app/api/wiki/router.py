@@ -299,18 +299,18 @@ class WikiGraphResponse(BaseModel):
 
 class ConceptLinkItem(BaseModel):
     name: str
-    weight: float = 1.0
     exists: bool = True
+
+
+class ConceptBacklinkItem(ConceptLinkItem):
     context_snippet: str | None = None
-    line_number: int | None = None
     heading: str | None = None
 
 
 class ConceptLinksResponse(BaseModel):
     concept_name: str
     outlinks: list[ConceptLinkItem] = Field(default_factory=list)
-    backlinks: list[ConceptLinkItem] = Field(default_factory=list)
-    ego_graph: WikiGraphResponse
+    backlinks: list[ConceptBacklinkItem] = Field(default_factory=list)
 
 
 class WikiEditorSectionsResponse(BaseModel):
@@ -1471,22 +1471,14 @@ async def delete_wiki_folder(
 def get_concept_links(
     name: str,
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    depth: int = Query(1, ge=1, le=2, description="Neighborhood depth for ego graph"),
 ) -> ConceptLinksResponse:
-    """Fetch bidirectional links (outlinks and backlinks) with context snippets and 1-degree ego graph."""
+    """Fetch bidirectional links: outlinks, and backlinks with their context snippet and section."""
     try:
-        indexer = archiver._query_engine._indexer
-        res = indexer.get_concept_links(name, depth=depth)
-        ego_raw = res.get("ego_graph") or {}
-        ego_graph = WikiGraphResponse(
-            nodes=[GraphNodeItem(**n) for n in ego_raw.get("nodes", [])],
-            edges=[GraphEdgeItem(**e) for e in ego_raw.get("edges", [])],
-        )
+        res = archiver._query_engine._indexer.get_concept_links(name)
         return ConceptLinksResponse(
             concept_name=str(res.get("concept_name", name)),
             outlinks=[ConceptLinkItem(**item) for item in res.get("outlinks", [])],
-            backlinks=[ConceptLinkItem(**item) for item in res.get("backlinks", [])],
-            ego_graph=ego_graph,
+            backlinks=[ConceptBacklinkItem(**item) for item in res.get("backlinks", [])],
         )
     except HTTPException:
         raise
@@ -3379,8 +3371,7 @@ async def transcribe_meeting_audio(
                 debate_points=list(result.notes.debate_points),
                 risks=list(result.notes.risks),
                 action_items=[
-                    {"description": i.description, "owner": i.owner, "due_hint": i.due_hint}
-                    for i in result.notes.action_items
+                    {"description": i.description, "owner": i.owner, "due_hint": i.due_hint} for i in result.notes.action_items
                 ],
                 published_wiki_paths=result.published_wiki_paths,
             )
@@ -3458,10 +3449,7 @@ def _live_notes_response(
         debate_points=list(notes.debate_points) if notes else [],
         risks=list(notes.risks) if notes else [],
         action_items=(
-            [
-                {"description": item.description, "owner": item.owner, "due_hint": item.due_hint}
-                for item in notes.action_items
-            ]
+            [{"description": item.description, "owner": item.owner, "due_hint": item.due_hint} for item in notes.action_items]
             if notes
             else []
         ),

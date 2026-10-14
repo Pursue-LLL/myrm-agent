@@ -41,43 +41,21 @@ def test_get_concept_links_endpoint(client: TestClient):
     mock_indexer = MagicMock()
     mock_indexer.get_concept_links.return_value = {
         "concept_name": "target-concept",
-        "outlinks": [
-            {
-                "name": "outgoing-dep",
-                "weight": 3.0,
-                "exists": True,
-                "context_snippet": None,
-            }
-        ],
+        "outlinks": [{"name": "outgoing-dep", "exists": True}],
         "backlinks": [
             {
                 "name": "source-article",
-                "weight": 3.5,
                 "exists": True,
                 "context_snippet": "This article depends on [[target-concept]].",
-                "line_number": 42,
                 "heading": "Detailed Architecture",
             },
             {
                 "name": "root-summary",
-                "weight": 1.0,
-                "exists": True,
+                "exists": False,
                 "context_snippet": "Mentions [[target-concept]] in lead.",
-                "line_number": None,
                 "heading": None,
             },
         ],
-        "ego_graph": {
-            "nodes": [
-                {"id": "target-concept", "name": "target concept", "group": 1},
-                {"id": "outgoing-dep", "name": "outgoing dep", "group": 1},
-                {"id": "source-article", "name": "source article", "group": 1},
-            ],
-            "edges": [
-                {"source": "target-concept", "target": "outgoing-dep", "weight": 3.0},
-                {"source": "source-article", "target": "target-concept", "weight": 3.5},
-            ],
-        },
     }
     mock_archiver._query_engine._indexer = mock_indexer
 
@@ -90,21 +68,25 @@ def test_get_concept_links_endpoint(client: TestClient):
         client.app.dependency_overrides.pop(_get_wiki_archiver, None)
 
     assert response.status_code == 200, response.text
-    data = response.json()
-    assert data["concept_name"] == "target-concept"
-    assert len(data["outlinks"]) == 1
-    assert data["outlinks"][0]["name"] == "outgoing-dep"
-    assert data["outlinks"][0]["weight"] == 3.0
-    assert len(data["backlinks"]) == 2
-    assert data["backlinks"][0]["name"] == "source-article"
-    assert data["backlinks"][0]["context_snippet"] == "This article depends on [[target-concept]]."
-    assert data["backlinks"][0]["line_number"] == 42
-    assert data["backlinks"][0]["heading"] == "Detailed Architecture"
-    assert data["backlinks"][1]["name"] == "root-summary"
-    assert data["backlinks"][1]["line_number"] is None
-    assert data["backlinks"][1]["heading"] is None
-    assert len(data["ego_graph"]["nodes"]) == 3
-    assert len(data["ego_graph"]["edges"]) == 2
+    mock_indexer.get_concept_links.assert_called_once_with("target-concept")
+    assert response.json() == {
+        "concept_name": "target-concept",
+        "outlinks": [{"name": "outgoing-dep", "exists": True}],
+        "backlinks": [
+            {
+                "name": "source-article",
+                "exists": True,
+                "context_snippet": "This article depends on [[target-concept]].",
+                "heading": "Detailed Architecture",
+            },
+            {
+                "name": "root-summary",
+                "exists": False,
+                "context_snippet": "Mentions [[target-concept]] in lead.",
+                "heading": None,
+            },
+        ],
+    }
 
 
 def test_get_concept_links_empty_and_cjk(client: TestClient):
@@ -112,50 +94,19 @@ def test_get_concept_links_empty_and_cjk(client: TestClient):
     mock_archiver = MagicMock()
     mock_indexer = MagicMock()
     cjk_name = "分布式存储系统"
-    mock_indexer.get_concept_links.return_value = {
-        "concept_name": cjk_name,
-        "outlinks": [],
-        "backlinks": [],
-        "ego_graph": {
-            "nodes": [{"id": cjk_name, "name": cjk_name, "group": 1}],
-            "edges": [],
-        },
-    }
+    mock_indexer.get_concept_links.return_value = {"concept_name": cjk_name, "outlinks": [], "backlinks": []}
     mock_archiver._query_engine._indexer = mock_indexer
 
     from app.api.wiki.router import _get_wiki_archiver
 
     client.app.dependency_overrides[_get_wiki_archiver] = lambda: mock_archiver
     try:
-        response = client.get(f"/api/v1/wiki/concepts/{cjk_name}/links?depth=2")
+        response = client.get(f"/api/v1/wiki/concepts/{cjk_name}/links")
     finally:
         client.app.dependency_overrides.pop(_get_wiki_archiver, None)
 
     assert response.status_code == 200, response.text
-    data = response.json()
-    assert data["concept_name"] == cjk_name
-    assert data["outlinks"] == []
-    assert data["backlinks"] == []
-    assert len(data["ego_graph"]["nodes"]) == 1
-    assert len(data["ego_graph"]["edges"]) == 0
-
-
-def test_get_concept_links_invalid_depth(client: TestClient):
-    """Test FastAPI validation when depth is out of bounds (ge=1, le=2)."""
-    mock_archiver = MagicMock()
-    from app.api.wiki.router import _get_wiki_archiver
-
-    client.app.dependency_overrides[_get_wiki_archiver] = lambda: mock_archiver
-    try:
-        # depth=0 is invalid (< 1)
-        res_zero = client.get("/api/v1/wiki/concepts/test/links?depth=0")
-        assert res_zero.status_code == 422
-
-        # depth=3 is invalid (> 2)
-        res_three = client.get("/api/v1/wiki/concepts/test/links?depth=3")
-        assert res_three.status_code == 422
-    finally:
-        client.app.dependency_overrides.pop(_get_wiki_archiver, None)
+    assert response.json() == {"concept_name": cjk_name, "outlinks": [], "backlinks": []}
 
 
 def test_get_concept_links_error_handling(client: TestClient):
@@ -212,4 +163,3 @@ def test_heading_markdown_syntax_stripping_and_alias_caching(tmp_path: Path):
     # Invalidate cache clears correctly
     wiki2.invalidate_alias_cache()
     assert wiki2._alias_to_path_cache is None
-

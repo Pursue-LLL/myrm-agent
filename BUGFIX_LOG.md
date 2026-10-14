@@ -1535,3 +1535,55 @@ except Exception:
 6. 局限：没有在真实聊天页验证（后端 :8000 未启动，浏览器 MCP 也拒绝应用地址），只验证了编译后的常量在隔离页面里的行为，触屏是模拟不是真机；触屏设备现在总是显示这些控件（设计变更，例如 iPad 上的侧栏行），其中带破坏性的几个（`MemoryTrashPanel` 的永久清除、`AgentFaqTab` 删除、`LocalPathsConfig` / `ProviderList` 移除等）是否都有二次确认没有逐个核对；窄桌面窗口用鼠标时，原先 `isMobile` / `sm:` 分支下常显的控件现在改为悬停或聚焦显现；扫描器只覆盖直接写在 JSX 里的字面量，不含对象 / 数组常量再渲染的文案、`toast` / `Error` 消息和 `.ts` 文件，存量只是冻结没有清零；实测已提交树的 `.tsx` 里含 CJK 的字符串字面量共 1431 处，扫描器覆盖约 683 处（47.7%，按行号与文案前缀匹配的近似值），其余 748 处（126 个文件，437 处在对象属性值、132 处在调用参数、73 处在 JSX 之外的三元、61 处在数组）不在门禁范围内，把文案挪进这些位置会让门禁「变绿」而问题仍在（古德哈特风险），后续要扩大覆盖面需要先重新抽样核对精度；本地工作区里他人未提交的新文件会被新门禁拦下（新文件基线为 0），需要他们提交前处理；`check-a11y-ratchet.mjs` 自带的目录遍历没有并入共享的 `source-files.mjs`；`specialty-suites-gateway` 缺 `_ARCH.md`（他人未提交）使 `check_fractal_docs.py` 在工作区失败。
 
 ---
+
+## BUG-AGENT-2026-10-14-007: 词条链接面板切换词条后仍显示上一个词条的链接、迟到响应覆盖新词条，失败时展示服务端英文消息；快速连点词条后详情与所点词条不一致；面板每次打开都多算一份无人需要的局部图谱
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（展示与所选词条不一致、失败提示未本地化；不丢数据） |
+| 影响范围 | 前端 `wiki/WikiConceptLinksPanel.tsx`、`wiki/useWikiConceptsList.ts`、`services/wiki/service.ts`、6 语言 `locales`；server `app/api/wiki/router.py` 的 `/wiki/concepts/{name}/links`；harness `toolkits/wiki/retrieval/{graph_store,indexer,edge_links,graph_analysis}.py` |
+| 出现次数 | 1 |
+| 关联 | roadmap topic_02 #133（原编号 #140）第三批补修；BUG-HARNESS-2026-10-14-007 |
+
+### 现象
+
+1. 面板在词条切换后继续显示上一个词条的出入链，直到新响应到达：骨架屏只在首次加载出现（`loading && !linksData`），详情标题已是新词条、下面的链接却属于旧词条；快速连续切换时，较早发起的响应后到会覆盖较晚的。
+2. 加载失败时面板展示服务端消息原文（`Failed to fetch concept links`），六种语言的用户都看到英文；同一个面板里本来就有本地化的 `loadFailed`。
+3. 词条树里快速连点两个词条：较慢的响应后到，会覆盖后点的词条，详情与所点不一致且没有任何提示；切换 Agent 范围后，在途的选择请求还会把旧范围的词条写回来。
+4. 面板的「关联概念」页签只是本地 40 点邻域，与词条树、3D 图谱和出入链列表重复；每次打开面板，`get_concept_links` 为它多做一次 BFS（合成 300 页库上约占一次打开 5.24 ms 中的 3 ms，这只是量级，不是性能声明）。
+5. 接口里 `weight`、`line_number` 前端没有任何读取（编辑器 `lineNumbers` 为 `off`，行号用户对照不了）；出链的 `context_snippet` 恒为 `null`；`source_systems` 会写出 `system:*` 伪边，没有任何读取方，读它的各处（`edge_links`、`graph_analysis`、`link_extraction`）都在给它让路，资料文档还把它写成「血缘追溯」。
+
+### 根因
+
+1. 面板是单个组件，`fetchLinks` 依赖 `conceptName` 重新拉取，但 `linksData` 不随词条清空，也没有对「已不是当前词条」的响应做丢弃。
+2. 错误状态存的是 `err.message`，渲染时 `{error || t('loadFailed')}` 在有消息时总是用消息。
+3. `handleSelectConcept` 没有「只认最后一次请求」的保护，重置 Effect 也不让在途请求失效。
+4. 局部图谱、`weight`、`line_number` 是面板最初的设计留下的，后来页签文案与展示都改过，数据却一直在产出。
+
+### 修复
+
+1. 面板拆成外层与内层：外层持有页签选择，内层以「Agent 范围 + 词条」为 key 挂载，切换词条即丢弃旧数据与在途请求、从骨架屏开始，页签选择跨词条保留；内层用请求计数让刷新与卸载后的迟到响应失效。
+2. 失败只展示 `loadFailed`。
+3. `useWikiConceptsList` 里 `selectRequestRef` 计数：只有最后一次发起的选择写入状态、弹错误提示；重置 Effect 同样让在途选择失效。
+4. 删除「关联概念」页签与它的整条数据：前端类型与 `getConceptLinks` 的 `depth`、server 的 `depth` 查询参数与 `ego_graph` 字段、harness 的 `get_concept_links(depth)` 与 BFS 调用、4 个语言键 ×6 语言；`/wiki/graph` 与它的模型保留（3D 图谱在用）。
+5. 出链只带 `name`、`exists`，入链另带 `context_snippet`、`heading`（server 与前端各拆成基础类型与入链类型）；`_extract_mention_record` 只返回 `(片段, 小节)`；`weight` 只留在 SQL 排序里。
+6. 删除 `source_systems` → `system:*` 伪边的生产者（`indexer._source_system_targets` 及 `yaml`、`load_frontmatter_metadata` 导入）与 `edge_links` 里为它加的过滤；`source_systems` 仍是 metric 页面的前置校验字段（`frontmatter_contract.py:177`），只是不再写边；资料文档里「血缘追溯」的说法同步改为如实描述。
+
+### 验证
+
+1. 先红后绿：前端 7 例失败（面板 4 例、选择 hook 3 例）、harness 3 例、server 3 例，原因都与预期一致，修复后全部通过；新增的前端用例在旧代码上分别复现了「旧词条数据残留」「迟到响应覆盖」「服务端英文消息」「乱序选择」「切换范围后写回」。
+2. 前端 `knowledge` 目录与 `services/wiki` 22 个文件 108 例通过；harness `tests/toolkits/wiki` 全量 859 例：第一次全量 857 通过，失败 2 例，其一是漏改的 `_extract_mention_record` 解包（`test_wiki_alias_and_chinese_anchor.py`，已修，该文件与 `test_concept_links.py`、`test_link_edges.py`、`test_frontmatter_contract.py` 共 49 例重跑通过），其二是调用真实 LLM 的 `test_sidecar_integration::test_sidecar_build_index_query_pipeline`（单独重跑超过 120s 超时，日志里是访问 raw.githubusercontent.com 的 `ConnectTimeout`，与本条无关）；server 链接单测与集成测试 5 例通过。
+3. 静态：`ruff check` / `ruff format --check`、`mypy`（3 个 harness 模块）、oxlint、prettier、`verify-i18n.mjs` 通过；`tsc --noEmit` 全量只报他人文件的错误（`KanbanTaskHandoffSection.test.tsx`、两个 `xai` 凭据测试），本条文件无报错。
+4. 局限：没有在运行的应用里看过面板（只改了页签数量，容器查询类名未动）；没有测真实 vault；旧索引里已存在的 `system:*` 边行没有迁移，该页下一次被写入时会随整页边的替换消失（`source_systems` 没有出现在任何提示词里，实际写入概率低，未测真实库）。
+
+### 踩坑经验
+
+1. 删一个私有函数的返回值字段，要连测试里的解包点一起查：`test_wiki_alias_and_chinese_anchor.py:74` 与 `test_frontmatter_contract.py` 里固化旧行为的用例只在全量运行里暴露，只跑自己改的几个文件不够；
+2. 「生产者没有读取方」的数据，会让下游到处加过滤给它让路；先查有没有真正的读取方，没有就删生产者，而不是继续补过滤；
+3. 面板「切换词条」的正确性用「按词条 key 挂载」从结构上解决，比在一个组件里手工清空状态加取消标志更不容易漏；页签选择放到外层，才不会因为重新挂载而丢；
+4. 后台起测试时 `( 命令 ) &` 在这个环境里会随工具调用结束被回收且没有任何输出，要用工具自带的后台模式；
+5. 共享工作区：6 个语言文件被他人整体重写，只提交本条的 4 个键、每个语言各自在 HEAD 内容上做同样的删除（先用 JSON 等价检查），不碰他们的行。
+
+---

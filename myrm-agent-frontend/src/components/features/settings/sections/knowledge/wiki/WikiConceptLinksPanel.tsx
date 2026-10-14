@@ -3,21 +3,22 @@
 /**
  * [INPUT]
  * - next-intl::useTranslations (POS: 六语言文案，命名空间 settings.wiki.concepts.links)
- * - @/services/wikiService::wikiService (POS: Wiki REST 客户端，提供 getConceptLinks 词条链接与拓扑网络检索)
+ * - @/services/wikiService::wikiService (POS: Wiki REST 客户端，提供 getConceptLinks 词条双向链接检索)
  * - @/components/primitives/button::Button (POS: 基础按钮组件)
  * - @/lib/utils/classnameUtils::cn (POS: 类名合并工具)
  *
  * [OUTPUT]
- * - WikiConceptLinksPanel: 词条双向链接与局部微型拓扑雷达面板，呈现反向引用（含上下文切片）、前置引用与局部图谱
+ * - WikiConceptLinksPanel: 词条双向链接面板，呈现反向引用（含上下文切片与所在小节）与前置引用
  *
  * [POS]
- * 词条脉络导航组件。嵌入词条详情抽屉，展示词条的入链、出链及 Ego 拓扑图，支持点击直达关联词条。
+ * 词条脉络导航组件。嵌入词条详情抽屉，展示词条的入链与出链，支持点击直达关联词条。
+ * 面板数据按词条独立加载（切换词条即重新挂载），标签页选择跨词条保留。
  */
 
-import { useEffect, useState, useTransition, useCallback } from 'react';
+import { useEffect, useState, useTransition, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowUpRight, CornerDownLeft, Network, FileText, AlertCircle, RefreshCw, type LucideIcon } from 'lucide-react';
-import { wikiService, type ConceptLinksResponse, type ConceptLinkItem } from '@/services/wikiService';
+import { wikiService, type ConceptLinksResponse } from '@/services/wikiService';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -27,34 +28,69 @@ interface WikiConceptLinksPanelProps {
   onSelectConcept?: (name: string, heading?: string | null) => void;
 }
 
-type LinksTab = 'backlinks' | 'outlinks' | 'ego';
+type LinksTab = 'backlinks' | 'outlinks';
+
+interface ConceptLinksContentProps extends WikiConceptLinksPanelProps {
+  activeTab: LinksTab;
+  onTabChange: (tab: LinksTab) => void;
+}
 
 export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }: WikiConceptLinksPanelProps) {
+  const [activeTab, setActiveTab] = useState<LinksTab>('backlinks');
+
+  // 以词条与 Agent 范围为 key：切换后旧数据与在途请求随旧实例一并丢弃，新词条从骨架屏开始
+  return (
+    <ConceptLinksContent
+      key={`${agentId ?? ''}:${conceptName}`}
+      conceptName={conceptName}
+      agentId={agentId}
+      onSelectConcept={onSelectConcept}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+    />
+  );
+}
+
+function ConceptLinksContent({
+  conceptName,
+  agentId,
+  onSelectConcept,
+  activeTab,
+  onTabChange,
+}: ConceptLinksContentProps) {
   const t = useTranslations('settings.wiki.concepts.links');
   const [linksData, setLinksData] = useState<ConceptLinksResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<LinksTab>('backlinks');
+  const [failed, setFailed] = useState<boolean>(false);
   const [, startTransition] = useTransition();
+  const requestRef = useRef(0);
 
   const fetchLinks = useCallback(async () => {
-    if (!conceptName) {
-      return;
-    }
+    const requestId = ++requestRef.current;
     setLoading(true);
-    setError(null);
+    setFailed(false);
     try {
-      const data = await wikiService.getConceptLinks(conceptName, 1, agentId);
-      setLinksData(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '');
+      const data = await wikiService.getConceptLinks(conceptName, agentId);
+      if (requestId === requestRef.current) {
+        setLinksData(data);
+      }
+    } catch {
+      if (requestId === requestRef.current) {
+        setFailed(true);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestRef.current) {
+        setLoading(false);
+      }
     }
   }, [conceptName, agentId]);
 
   useEffect(() => {
-    fetchLinks();
+    void fetchLinks();
+    // 卸载时让在途请求失效，避免迟到的响应写入已离场的面板
+    return () => {
+      requestRef.current += 1;
+    };
   }, [fetchLinks]);
 
   if (loading && !linksData) {
@@ -68,8 +104,6 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
 
   const outlinks = linksData?.outlinks ?? [];
   const backlinks = linksData?.backlinks ?? [];
-  const egoNodes = linksData?.ego_graph?.nodes ?? [];
-  const egoEdges = linksData?.ego_graph?.edges ?? [];
   // 首次加载失败时没有数据，不能把「0 条」与空态当事实展示给用户
   const visibleTab = linksData ? activeTab : null;
   const tabs: ReadonlyArray<{ id: LinksTab; label: string; Icon: LucideIcon; iconClass: string }> = [
@@ -85,7 +119,6 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
       Icon: ArrowUpRight,
       iconClass: 'text-emerald-500',
     },
-    { id: 'ego', label: t('tabNearby', { count: egoNodes.length }), Icon: Network, iconClass: 'text-indigo-500' },
   ];
 
   return (
@@ -125,7 +158,7 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
               <button
                 type="button"
                 key={id}
-                onClick={() => setActiveTab(id)}
+                onClick={() => onTabChange(id)}
                 className={cn(
                   'flex flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 font-medium transition-all @md:px-3',
                   activeTab === id
@@ -141,10 +174,10 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
         )}
       </div>
 
-      {error !== null && (
+      {failed && (
         <div className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error || t('loadFailed')}</span>
+          <span>{t('loadFailed')}</span>
         </div>
       )}
 
@@ -155,7 +188,7 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
             <p className="text-xs text-muted-foreground py-3 text-center">{t('emptyBacklinks')}</p>
           ) : (
             <div className="grid grid-cols-1 gap-2">
-              {backlinks.map((link: ConceptLinkItem) => (
+              {backlinks.map((link) => (
                 <button
                   type="button"
                   key={link.name}
@@ -210,7 +243,7 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
             <p className="text-xs text-muted-foreground py-3 text-center">{t('emptyOutlinks')}</p>
           ) : (
             <div className="grid grid-cols-1 gap-2 @md:grid-cols-2">
-              {outlinks.map((link: ConceptLinkItem) => (
+              {outlinks.map((link) => (
                 <button
                   type="button"
                   key={link.name}
@@ -242,47 +275,6 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Tab 3: 局部拓扑微型雷达（Ego Graph） */}
-      {visibleTab === 'ego' && (
-        <div className="space-y-3">
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 min-h-[120px] flex flex-wrap items-center justify-center gap-2">
-            {egoNodes.length === 0 ? (
-              <p className="text-xs text-muted-foreground">{t('emptyNearby')}</p>
-            ) : (
-              egoNodes.map((node) => {
-                const isCenter = node.id === conceptName;
-                return (
-                  <button
-                    key={node.id}
-                    type="button"
-                    onClick={() => {
-                      if (!isCenter && onSelectConcept) {
-                        startTransition(() => onSelectConcept(node.id));
-                      }
-                    }}
-                    className={cn(
-                      'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 border',
-                      isCenter
-                        ? 'bg-primary text-primary-foreground border-primary shadow-sm font-semibold scale-105'
-                        : 'bg-card text-foreground border-border/70 hover:border-primary/50 hover:bg-muted/50 cursor-pointer',
-                    )}
-                  >
-                    <span
-                      className={cn('w-2 h-2 rounded-full', isCenter ? 'bg-primary-foreground' : 'bg-primary/60')}
-                    />
-                    <span className="truncate max-w-[140px]">{node.name || node.id}</span>
-                  </button>
-                );
-              })
-            )}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-muted-foreground px-1">
-            <span>{t('nearbySummary', { nodes: egoNodes.length, edges: egoEdges.length })}</span>
-            <span>{t('nearbyHint')}</span>
-          </div>
         </div>
       )}
     </div>

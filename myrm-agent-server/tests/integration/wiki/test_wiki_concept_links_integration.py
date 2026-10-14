@@ -110,8 +110,7 @@ def test_concept_links_full_task_flow_e2e(
     # Claim referencing concept under H1 heading
     claim_file = struct.get_claim_file_path("scalability_claim")
     claim_file.write_text(
-        "# 扩展性声明\n\n"
-        "Empirical benchmarks assert linear scale in [[distributed_systems]].\n",
+        "# 扩展性声明\n\nEmpirical benchmarks assert linear scale in [[distributed_systems]].\n",
         encoding="utf-8",
     )
 
@@ -131,7 +130,7 @@ def test_concept_links_full_task_flow_e2e(
     )
 
     # 4. Invoke API endpoint through HTTP TestClient
-    response = wiki_client.get("/api/v1/wiki/concepts/distributed_systems/links?depth=1")
+    response = wiki_client.get("/api/v1/wiki/concepts/distributed_systems/links")
     assert response.status_code == 200, f"Expected 200, got: {response.text}"
 
     data = response.json()
@@ -145,7 +144,7 @@ def test_concept_links_full_task_flow_e2e(
     assert "byzantine_fault_tolerance" in outlinks
     assert outlinks["byzantine_fault_tolerance"]["exists"] is False
 
-    # 6. Assert backlinks validation with extracted line numbers, headings, and snippets
+    # 6. Assert backlinks validation with extracted headings and snippets
     backlinks = {item["name"]: item for item in data["backlinks"]}
     assert len(backlinks) == 3
 
@@ -153,7 +152,6 @@ def test_concept_links_full_task_flow_e2e(
     raft_link = backlinks["consensus_raft"]
     assert raft_link["exists"] is True
     assert raft_link["heading"] == "核心算法选型"
-    assert raft_link["line_number"] == 7
     assert raft_link["context_snippet"] is not None
     assert "[[distributed_systems]]" in raft_link["context_snippet"]
 
@@ -161,7 +159,6 @@ def test_concept_links_full_task_flow_e2e(
     paxos_link = backlinks["paxos_protocol"]
     assert paxos_link["exists"] is True
     assert paxos_link["heading"] == "一致性保障"
-    assert paxos_link["line_number"] == 7
     assert paxos_link["context_snippet"] is not None
     assert "[[distributed_systems]]" in paxos_link["context_snippet"]
 
@@ -169,14 +166,13 @@ def test_concept_links_full_task_flow_e2e(
     claim_link = backlinks["scalability_claim"]
     assert claim_link["exists"] is True
     assert claim_link["heading"] == "扩展性声明"
-    assert claim_link["line_number"] == 3
     assert claim_link["context_snippet"] is not None
     assert "[[distributed_systems]]" in claim_link["context_snippet"]
 
-    # 7. Assert ego graph topology structure
-    ego_graph = data["ego_graph"]
-    assert isinstance(ego_graph["nodes"], list)
-    assert isinstance(ego_graph["edges"], list)
+    # 7. The payload carries exactly what the links panel reads
+    assert set(data) == {"concept_name", "outlinks", "backlinks"}
+    assert all(set(item) == {"name", "exists"} for item in data["outlinks"])
+    assert all(set(item) == {"name", "exists", "context_snippet", "heading"} for item in data["backlinks"])
 
     # 8. Assert isolated/nonexistent concept returns safe default structure
     empty_res = wiki_client.get("/api/v1/wiki/concepts/unlinked_concept/links")
@@ -185,4 +181,3 @@ def test_concept_links_full_task_flow_e2e(
     assert empty_data["concept_name"] == "unlinked_concept"
     assert empty_data["outlinks"] == []
     assert empty_data["backlinks"] == []
-    assert empty_data["ego_graph"]["nodes"] == []
