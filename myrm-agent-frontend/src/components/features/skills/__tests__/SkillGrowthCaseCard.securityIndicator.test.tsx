@@ -1,6 +1,6 @@
 /**
- * Regression tests for the proposal card's scan outcome: only a scan that actually ran is reported,
- * and a blocked case is not described as a failed security scan.
+ * Regression tests for the proposal card's security indicator: it reads the recorded scan summary,
+ * speaks in user-facing risk wording, and a blocked case is not described as a failed security scan.
  */
 /** @vitest-environment jsdom */
 
@@ -14,11 +14,14 @@ import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
 
 const growthCopy: Record<string, unknown> = en.settings.skills.growth;
 
-const growthT = (key: string): string => {
+const growthT = (key: string, values?: Record<string, string | number>): string => {
   const value = key
     .split('.')
     .reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], growthCopy);
-  return typeof value === 'string' ? value : key;
+  if (typeof value !== 'string') {
+    return key;
+  }
+  return value.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`));
 };
 
 const growthTypeNames: Record<string, string> = en.growthDashboard.growthTypes;
@@ -63,7 +66,6 @@ function makeItem(overrides: Partial<SkillGrowthCaseSummary>): SkillGrowthCaseSu
     summary: 'A skill fix proposal',
     description: null,
     confidence: 0.9,
-    testPassed: null,
     applyStatus: null,
     applyError: null,
     reasonCode: null,
@@ -93,30 +95,37 @@ function renderCard(item: SkillGrowthCaseSummary): void {
   );
 }
 
-describe('SkillGrowthCaseCard scan outcome', () => {
-  it('reports a passed security scan', () => {
-    renderCard(makeItem({ testPassed: true }));
+const securityCopy = en.settings.skills.growth.securityScan;
 
-    expect(screen.getByText(en.settings.skills.growth.scanPassed)).toBeInTheDocument();
-    expect(screen.queryByText(en.settings.skills.growth.scanFailed)).toBeNull();
+describe('SkillGrowthCaseCard security indicator', () => {
+  it.each([
+    ['trusted', 100, securityCopy.risk.trusted],
+    ['installed', 75, securityCopy.risk.installed],
+    ['untrusted', 55, securityCopy.risk.untrusted],
+    ['reject', 20, securityCopy.risk.reject],
+  ])('shows the %s level as plain risk wording with a localized tooltip', (trust, score, label) => {
+    renderCard(makeItem({ securityScanSummary: { score, trust_recommendation: trust } }));
+
+    expect(screen.getByText(`${score}/100 · ${label}`)).toBeInTheDocument();
+    expect(screen.getByTitle(securityCopy.badgeTitle.replace('{score}', String(score)))).toBeInTheDocument();
+    expect(screen.queryByText((content) => content.includes(trust.toUpperCase()))).toBeNull();
   });
 
-  it('reports a failed security scan', () => {
-    renderCard(makeItem({ testPassed: false, status: 'FAILED_SCAN' }));
+  it('shows only the score for a trust level it does not know', () => {
+    renderCard(makeItem({ securityScanSummary: { score: 90, trust_recommendation: 'new-level' } }));
 
-    expect(screen.getByText(en.settings.skills.growth.scanFailed)).toBeInTheDocument();
-    expect(screen.queryByText(en.settings.skills.growth.scanPassed)).toBeNull();
+    expect(screen.getByText('90/100')).toBeInTheDocument();
+    expect(screen.queryByText(/new-level/i)).toBeNull();
   });
 
-  it('claims nothing about scanning when no scan ran', () => {
-    renderCard(makeItem({ testPassed: null, status: 'FAILED_SCAN' }));
+  it('claims nothing about scanning when the case carries no scan summary', () => {
+    renderCard(makeItem({ securityScanSummary: null }));
 
-    expect(screen.queryByText(en.settings.skills.growth.scanPassed)).toBeNull();
-    expect(screen.queryByText(en.settings.skills.growth.scanFailed)).toBeNull();
+    expect(screen.queryByText(/\/100/)).toBeNull();
   });
 
   it('labels the blocked status without calling it a security scan failure', () => {
-    renderCard(makeItem({ testPassed: null, status: 'FAILED_SCAN' }));
+    renderCard(makeItem({ status: 'FAILED_SCAN' }));
 
     expect(screen.getByText(en.settings.skills.growth.status.FAILED_SCAN)).toBeInTheDocument();
     expect(en.settings.skills.growth.status.FAILED_SCAN.toLowerCase()).not.toContain('scan');

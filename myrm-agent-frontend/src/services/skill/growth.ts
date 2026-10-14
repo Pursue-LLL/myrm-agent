@@ -67,7 +67,6 @@ interface SkillGrowthCaseSummaryApiItem {
   summary: string;
   description: string | null;
   confidence: number | null;
-  test_passed: boolean | null;
   apply_status: string | null;
   apply_error: string | null;
   reason_code: string | null;
@@ -159,7 +158,6 @@ export interface SkillGrowthCaseSummary {
   summary: string;
   description: string | null;
   confidence: number | null;
-  testPassed: boolean | null;
   applyStatus: string | null;
   applyError: string | null;
   reasonCode: string | null;
@@ -253,7 +251,6 @@ function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary
     summary: item.summary,
     description: item.description,
     confidence: item.confidence,
-    testPassed: item.test_passed,
     applyStatus: item.apply_status,
     applyError: item.apply_error,
     reasonCode: item.reason_code,

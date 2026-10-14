@@ -70,7 +70,6 @@ function makeItem(overrides: Partial<SkillGrowthCaseSummary>): SkillGrowthCaseSu
     summary: 'A verified capsule test skill',
     description: null,
     confidence: 0.95,
-    testPassed: true,
     applyStatus: null,
     applyError: null,
     reasonCode: null,

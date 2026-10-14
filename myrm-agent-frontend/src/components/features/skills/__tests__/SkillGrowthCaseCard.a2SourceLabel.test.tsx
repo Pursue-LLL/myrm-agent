@@ -68,7 +68,6 @@ function makeItem(overrides: Partial<SkillGrowthCaseSummary>): SkillGrowthCaseSu
     summary: 'A proposal',
     description: null,
     confidence: 0.9,
-    testPassed: null,
     applyStatus: null,
     applyError: null,
     reasonCode: null,

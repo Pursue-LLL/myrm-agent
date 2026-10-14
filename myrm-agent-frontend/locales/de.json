@@ -17529,8 +17529,6 @@
           "memoryExtraction": "Speicherextraktion"
         },
         "confidence": "Konfidenz {value}%",
-        "scanPassed": "Sicherheitsscan bestanden",
-        "scanFailed": "Sicherheitsscan nicht bestanden",
         "verifiedBadge": "Verifiziert",
         "hollowBlockedBadge": "Hohltest blockiert",
         "targetLayer": "Schicht: {layer}",
@@ -17574,7 +17572,14 @@
         "securityScan": {
           "title": "Sicherheits-Inspektionsdetails ({count} Befunde)",
           "score": "Sicherheitsbewertung: {score}/100",
-          "line": "Zeile {line}"
+          "line": "Zeile {line}",
+          "badgeTitle": "Sicherheitsbewertung {score}/100",
+          "risk": {
+            "trusted": "Geringes Risiko",
+            "installed": "Mittleres Risiko",
+            "untrusted": "Hohes Risiko",
+            "reject": "Blockiert"
+          }
         },
         "empty": {
           "title": "Keine Fälle in dieser Ansicht",

@@ -47,6 +47,12 @@ interface SkillGrowthCaseCardProps {
   onRevise?: (evolvedContent: string) => Promise<void>;
 }
 
+const SCAN_TRUST_LEVELS: readonly string[] = ['trusted', 'installed', 'untrusted', 'reject'];
+
+function isScanTrustLevel(value: string): boolean {
+  return SCAN_TRUST_LEVELS.includes(value);
+}
+
 const STATUS_STYLES: Record<
   SkillGrowthCaseSummary['status'],
   { badge: string; tone: 'default' | 'secondary' | 'destructive' | 'outline' }
@@ -276,7 +282,7 @@ export default function SkillGrowthCaseCard({
                         ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:border-amber-500/50 dark:text-amber-300'
                         : 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:border-rose-500/50 dark:text-rose-300',
                 )}
-                title={`Security Score: ${item.securityScanSummary.score}/100 [${item.securityScanSummary.trust_recommendation}]`}
+                title={t('securityScan.badgeTitle', { score: item.securityScanSummary.score })}
               >
                 {item.securityScanSummary.score >= 50 ? (
                   <ShieldCheck className="h-3 w-3" />
@@ -284,7 +290,9 @@ export default function SkillGrowthCaseCard({
                   <ShieldAlert className="h-3 w-3" />
                 )}
                 <span>
-                  {item.securityScanSummary.score}/100 {item.securityScanSummary.trust_recommendation.toUpperCase()}
+                  {item.securityScanSummary.score}/100
+                  {isScanTrustLevel(item.securityScanSummary.trust_recommendation) &&
+                    ` · ${t(`securityScan.risk.${item.securityScanSummary.trust_recommendation}` as Parameters<typeof t>[0])}`}
                 </span>
               </Badge>
             )}
@@ -319,18 +327,6 @@ export default function SkillGrowthCaseCard({
               >
                 <IconGlow className="h-3.5 w-3.5" />
                 {t('confidence', { value: (item.confidence * 100).toFixed(1) })}
-              </span>
-            )}
-            {item.testPassed !== null && (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1',
-                  isSimple &&
-                    (item.testPassed ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'),
-                )}
-              >
-                {item.testPassed ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
-                {item.testPassed ? t('scanPassed') : t('scanFailed')}
               </span>
             )}
           </div>

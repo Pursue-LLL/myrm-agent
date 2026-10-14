@@ -17529,8 +17529,6 @@
           "memoryExtraction": "메모리 추출"
         },
         "confidence": "신뢰도 {value}%",
-        "scanPassed": "보안 스캔 통과",
-        "scanFailed": "보안 스캔 실패",
         "verifiedBadge": "인증됨",
         "hollowBlockedBadge": "빈 테스트 차단됨",
         "targetLayer": "대상 계층: {layer}",
@@ -17574,7 +17572,14 @@
         "securityScan": {
           "title": "스킬 보안 정적 검사 세부 정보 ({count}개 발견)",
           "score": "보안 점수: {score}/100",
-          "line": "{line}번째 줄"
+          "line": "{line}번째 줄",
+          "badgeTitle": "보안 점수 {score}/100",
+          "risk": {
+            "trusted": "낮은 위험",
+            "installed": "중간 위험",
+            "untrusted": "높은 위험",
+            "reject": "차단됨"
+          }
         },
         "empty": {
           "title": "이 보기에 사례가 없습니다",

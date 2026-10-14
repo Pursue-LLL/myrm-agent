@@ -17529,8 +17529,6 @@
           "memoryExtraction": "記憶提取"
         },
         "confidence": "置信度 {value}%",
-        "scanPassed": "安全掃描通過",
-        "scanFailed": "安全掃描未通過",
         "verifiedBadge": "已認證",
         "hollowBlockedBadge": "空洞測試已攔截",
         "targetLayer": "架構層：{layer}",
@@ -17574,7 +17572,14 @@
         "securityScan": {
           "title": "技能安全靜態掃描體檢詳情 ({count} 項發現)",
           "score": "安全評分：{score}/100",
-          "line": "第 {line} 行"
+          "line": "第 {line} 行",
+          "badgeTitle": "安全評分 {score}/100",
+          "risk": {
+            "trusted": "低風險",
+            "installed": "中等風險",
+            "untrusted": "高風險",
+            "reject": "已攔截"
+          }
         },
         "empty": {
           "title": "當前檢視暫無案例",

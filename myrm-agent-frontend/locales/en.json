@@ -18227,8 +18227,6 @@
           "memoryExtraction": "Memory Extraction"
         },
         "confidence": "Confidence {value}%",
-        "scanPassed": "Security scan passed",
-        "scanFailed": "Security scan failed",
         "verifiedBadge": "Verified",
         "hollowBlockedBadge": "Hollow Test Blocked",
         "targetLayer": "Layer: {layer}",
@@ -18272,7 +18270,14 @@
         "securityScan": {
           "title": "Skill Security Static Inspection Details ({count} findings)",
           "score": "Score: {score}/100",
-          "line": "Line: {line}"
+          "line": "Line: {line}",
+          "badgeTitle": "Security score {score}/100",
+          "risk": {
+            "trusted": "Low risk",
+            "installed": "Moderate risk",
+            "untrusted": "High risk",
+            "reject": "Blocked"
+          }
         },
         "empty": {
           "title": "No cases in this view",

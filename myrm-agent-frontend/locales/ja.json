@@ -17529,8 +17529,6 @@
           "memoryExtraction": "記憶抽出"
         },
         "confidence": "信頼度 {value}%",
-        "scanPassed": "セキュリティスキャン合格",
-        "scanFailed": "セキュリティスキャン不合格",
         "verifiedBadge": "検証済み",
         "hollowBlockedBadge": "空洞テストをブロックしました",
         "targetLayer": "対象層: {layer}",
@@ -17574,7 +17572,14 @@
         "securityScan": {
           "title": "スキルセキュリティ静的検証詳細 ({count} 件の検出)",
           "score": "セキュリティスコア：{score}/100",
-          "line": "{line} 行目"
+          "line": "{line} 行目",
+          "badgeTitle": "セキュリティスコア {score}/100",
+          "risk": {
+            "trusted": "低リスク",
+            "installed": "中リスク",
+            "untrusted": "高リスク",
+            "reject": "ブロック済み"
+          }
         },
         "empty": {
           "title": "このビューにはケースがありません",
