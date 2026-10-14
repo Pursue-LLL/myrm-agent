@@ -1513,7 +1513,7 @@ except Exception:
 2. S1：用户气泡动作行改用常量；附件下载按钮在 HEAD 里已有同样三个变体的内联写法，改为引用常量（行为不变）；补两处测试固定三条显现路径；
 3. S2：41 个组件文件的 46 个功能控件单元改用常量（命名组 `img` / `obj` / `dep` / `att` 就地写三变体）；`PortalTabs` 保留 `isActive && 'opacity-100'`，`MermaidChart` 在 `alwaysVisible` 时不加常量，`ChatHistoryRow`、`WikiConceptTree` 等去掉 `isMobile` 分支；
 4. S4：`scripts/hardcoded-copy-scan.ts`（TypeScript AST 找 JSX 文本、JSX 表达式里的字符串字面量与承载文案的属性）+ `scripts/check-hardcoded-copy.mjs`（按文件计数的棘轮：增加失败，改善未更新基线也失败，`--write-baseline` 才重写）接入 `bun run lint`，即 CI 的 Oxlint 步骤；目录遍历抽到 `scripts/source-files.mjs`，`check-theme-colors.mjs` 共用，输出与重构前逐字一致；
-5. 文档：`lib/utils/_ARCH.md`、`message-box/_ARCH.md`、`image-editor/_ARCH.md`、`wiki/_ARCH.md`、`scripts/_ARCH.md`、前端根 `_ARCH.md` 同步；根仓库 roadmap 里 4 处 `UserMessage*.tsx` 行号引用改成现状。
+5. 文档：`lib/utils/_ARCH.md`、`message-box/_ARCH.md`、`image-editor/_ARCH.md`、`wiki/_ARCH.md`、`scripts/_ARCH.md`、前端根 `_ARCH.md` 同步；根仓库 `topic_09` roadmap 里 3 行 `UserMessage*.tsx` 行号引用改成现状（根仓库提交 `0dcf3f263`；`topic_06` 里原有的一处引用在我动手前后被他人重写移除，没有处理）。
 
 保留不动：32 个非控件单元（悬停才出现的装饰箭头、拖动图标、图表柱高亮与说明文字，本身不可点击）；两处由 JS 状态控制的悬停显现（`kanban/KanbanTaskCard.tsx` 的 `showActions`、`memory/cards/MemoryCard.tsx` 的勾选框）；`OrgMarketplace` / `TemplateMarket` 的「已安装」状态指示（是指示不是控件）。
 
