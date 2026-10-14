@@ -152,7 +152,6 @@ app/core/skills/store/reader.py
 app/core/skills/store/service.py
 app/core/skills/store/user_config.py
 app/core/skills/utils.py
-app/core/storage/lifecycle.py
 app/core/storage/models.py
 app/core/storage/service.py
 app/core/types/business.py
@@ -183,7 +182,6 @@ app/platform_utils/sandbox/__init__.py
 app/platform_utils/sandbox/entitlements/__init__.py
 app/platform_utils/sandbox/entitlements/entitlement_guard.py
 app/platform_utils/sandbox/entitlements/platform_budget_adapter.py
-app/platform_utils/sandbox/storage.py
 app/schemas/context/bundle.py
 app/server/middlewares.py
 app/server/runtime_dev_info.py

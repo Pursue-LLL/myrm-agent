@@ -428,23 +428,6 @@ class DatabaseSettings(BaseSettings):
 
 
 # ---------------------------------------------------------------------------
-# [S] Object storage (S3) — env: S3_*, AWS_*
-# ---------------------------------------------------------------------------
-
-
-class StorageSettings(BaseSettings):
-    """S3-compatible object storage for sandbox artifact persistence."""
-
-    model_config = SettingsConfigDict(env_prefix="")
-
-    s3_endpoint_url: str = ""  # S3_ENDPOINT_URL
-    s3_bucket_name: str = "myrm"  # S3_BUCKET_NAME
-    s3_region: str = "auto"  # S3_REGION
-    aws_access_key_id: SecretStr = SecretStr("")  # AWS_ACCESS_KEY_ID
-    aws_secret_access_key: SecretStr = SecretStr("")  # AWS_SECRET_ACCESS_KEY
-
-
-# ---------------------------------------------------------------------------
 # [O] Server-side integrations — env: GITHUB_TOKEN, CRON_FAILURE_WEBHOOK_URL
 # ---------------------------------------------------------------------------
 
@@ -673,7 +656,6 @@ class AppSettings(BaseSettings):
     agent: AgentGatewaySettings = Field(default_factory=AgentGatewaySettings)
     webui: WebUISettings = Field(default_factory=WebUISettings)
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    storage: StorageSettings = Field(default_factory=StorageSettings)
     services: ServiceSettings = Field(default_factory=ServiceSettings)
     control_plane: ControlPlaneSettings = Field(default_factory=ControlPlaneSettings)
     context_compaction_telemetry: ContextCompactionTelemetrySettings = Field(
@@ -795,7 +777,6 @@ __all__ = [
     "ExecutionCacheSettings",
     "SecuritySettings",
     "ServiceSettings",
-    "StorageSettings",
     "WebUISettings",
     "get_settings",
     "settings",

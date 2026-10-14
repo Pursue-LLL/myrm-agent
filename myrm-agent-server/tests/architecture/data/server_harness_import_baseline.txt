@@ -496,7 +496,6 @@ myrm_agent_harness.toolkits.retriever.embedding.factory
 myrm_agent_harness.toolkits.retriever.reranker.factory
 myrm_agent_harness.toolkits.retriever.sufficiency
 myrm_agent_harness.toolkits.storage.base
-myrm_agent_harness.toolkits.storage.cached
 myrm_agent_harness.toolkits.storage.factory
 myrm_agent_harness.toolkits.storage.local
 myrm_agent_harness.toolkits.storage.paths

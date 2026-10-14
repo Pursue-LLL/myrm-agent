@@ -731,14 +731,6 @@ async def _shutdown(app_instance: FastAPI) -> None:
         except Exception as e:
             logger.error("[Shutdown] Frontend stop failed: %s", e)
 
-    try:
-        from app.core.storage.lifecycle import shutdown_all_storages
-
-        await shutdown_all_storages(timeout=60.0, force=False)
-        logger.info("[Shutdown] Storage instances closed")
-    except Exception as e:
-        logger.error("[Shutdown] Storage shutdown failed: %s", e)
-
     if _context_cleanup_scheduler_instance is not None:
         try:
             await _context_cleanup_scheduler_instance.stop()

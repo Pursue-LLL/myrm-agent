@@ -28,7 +28,7 @@
 
 | 模块 | 职责 |
 |------|------|
-| `sandbox/` | Sandbox 模式实现（云端存储等） |
+| `sandbox/` | Sandbox 模式实现（控制平面配额与预算、tool gateway、SaaS 首启种子） |
 | `local/` | 本地模式实现（本地文件服务等） |
 
 ---
