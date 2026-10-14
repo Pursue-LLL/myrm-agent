@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.skill_optimization import SkillQualityHistory
@@ -86,7 +86,7 @@ class QualityRepository:
         result = await self.session.execute(
             select(SkillQualityHistory)
             .where(SkillQualityHistory.skill_id == skill_id)
-            .order_by(desc(SkillQualityHistory.recorded_at))
+            .order_by(SkillQualityHistory.recorded_at.desc())
             .limit(1)
         )
         return result.scalar_one_or_none()

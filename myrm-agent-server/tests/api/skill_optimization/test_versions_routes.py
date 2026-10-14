@@ -14,6 +14,8 @@ from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore
 from app.api.skill_optimization.dependencies import get_storage
 from app.api.skill_optimization.routes import versions as versions_routes
 
+ClientFactory = Callable[[list[SkillVersion]], TestClient]
+
 _PLACEHOLDER = SkillQualityScore(0.5, 0.5, 0.5, 0.5, 0.5)
 _MEASURED_LOW = SkillQualityScore(0.6, 0.5, 0.4, 0.5, 0.3)
 _MEASURED_HIGH = SkillQualityScore(0.9, 0.7, 0.6, 0.8, 0.3)
@@ -43,7 +45,7 @@ class _FakeStorage:
 
 
 @pytest.fixture
-def make_client() -> Iterator[Callable[[list[SkillVersion]], TestClient]]:
+def make_client() -> Iterator[ClientFactory]:
     clients: list[TestClient] = []
 
     def _make(versions: list[SkillVersion]) -> TestClient:
@@ -59,7 +61,7 @@ def make_client() -> Iterator[Callable[[list[SkillVersion]], TestClient]]:
         client.close()
 
 
-def test_compare_hides_placeholder_scores_and_delta(make_client) -> None:
+def test_compare_hides_placeholder_scores_and_delta(make_client: ClientFactory) -> None:
     client = make_client([_version(1, _PLACEHOLDER), _version(2, None)])
 
     body = client.get("/api/v1/skill-optimization/versions/skill-1/compare", params={"v1": 1, "v2": 2}).json()
@@ -70,7 +72,7 @@ def test_compare_hides_placeholder_scores_and_delta(make_client) -> None:
     assert body["content_changed"] is True
 
 
-def test_compare_reports_delta_for_measured_scores(make_client) -> None:
+def test_compare_reports_delta_for_measured_scores(make_client: ClientFactory) -> None:
     client = make_client([_version(1, _MEASURED_LOW), _version(2, _MEASURED_HIGH)])
 
     body = client.get("/api/v1/skill-optimization/versions/skill-1/compare", params={"v1": 1, "v2": 2}).json()
@@ -87,7 +89,7 @@ def test_compare_reports_delta_for_measured_scores(make_client) -> None:
     }
 
 
-def test_detail_uses_same_score_rules_as_list(make_client) -> None:
+def test_detail_uses_same_score_rules_as_list(make_client: ClientFactory) -> None:
     client = make_client([_version(1, _PLACEHOLDER), _version(2, _MEASURED_HIGH)])
 
     placeholder = client.get("/api/v1/skill-optimization/versions/skill-1/1").json()
@@ -97,7 +99,7 @@ def test_detail_uses_same_score_rules_as_list(make_client) -> None:
     assert measured["quality_score"]["call_frequency"] == pytest.approx(0.3)
 
 
-def test_rollback_returns_real_versions_without_synthetic_audit_log(make_client) -> None:
+def test_rollback_returns_real_versions_without_synthetic_audit_log(make_client: ClientFactory) -> None:
     client = make_client([_version(1, None), _version(2, None, active=True)])
 
     with patch(
@@ -114,7 +116,7 @@ def test_rollback_returns_real_versions_without_synthetic_audit_log(make_client)
     assert activate.await_args.args[1:] == ("skill-1", 1)
 
 
-def test_rollback_unknown_target_returns_404(make_client) -> None:
+def test_rollback_unknown_target_returns_404(make_client: ClientFactory) -> None:
     client = make_client([_version(1, None, active=True)])
 
     response = client.post("/api/v1/skill-optimization/rollback/skill-1", params={"target_version": 9})

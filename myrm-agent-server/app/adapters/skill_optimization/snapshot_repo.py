@@ -25,7 +25,7 @@ from myrm_agent_harness.agent.skills.optimization.types import (
     SkillQualityScore,
     SkillVersion,
 )
-from sqlalchemy import delete, desc, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.skill_optimization import SkillVersionModel
@@ -161,7 +161,7 @@ class SnapshotRepository:
         result = await self.session.execute(
             select(SkillVersionModel)
             .where(SkillVersionModel.skill_id == skill_id)
-            .order_by(desc(SkillVersionModel.version))
+            .order_by(SkillVersionModel.version.desc())
             .limit(limit)
         )
         models = result.scalars().all()
@@ -228,7 +228,7 @@ class SnapshotRepository:
             int: 删除的版本数量
         """
         result = await self.session.execute(
-            select(SkillVersionModel).where(SkillVersionModel.skill_id == skill_id).order_by(desc(SkillVersionModel.version))
+            select(SkillVersionModel).where(SkillVersionModel.skill_id == skill_id).order_by(SkillVersionModel.version.desc())
         )
         all_versions = list(result.scalars().all())
 

@@ -10,7 +10,7 @@ import logging
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy import desc, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.skill_optimization import ABTestResultModel, ShadowSampleModel
@@ -57,7 +57,7 @@ class ABTestRepository:
     async def get_running_tests(self) -> list[ABTestResultModel]:
         """获取进行中的A/B测试"""
         result = await self.session.execute(
-            select(ABTestResultModel).where(ABTestResultModel.status == "RUNNING").order_by(desc(ABTestResultModel.started_at))
+            select(ABTestResultModel).where(ABTestResultModel.status == "RUNNING").order_by(ABTestResultModel.started_at.desc())
         )
         return list(result.scalars().all())
 
@@ -66,7 +66,7 @@ class ABTestRepository:
         result = await self.session.execute(
             select(ABTestResultModel)
             .where(ABTestResultModel.skill_id == skill_id)
-            .order_by(desc(ABTestResultModel.started_at))
+            .order_by(ABTestResultModel.started_at.desc())
             .limit(limit)
         )
         return list(result.scalars().all())
@@ -153,7 +153,7 @@ class ABTestRepository:
         result = await self.session.execute(
             select(ShadowSampleModel)
             .where(ShadowSampleModel.test_id == test_id)
-            .order_by(desc(ShadowSampleModel.recorded_at))
+            .order_by(ShadowSampleModel.recorded_at.desc())
             .limit(limit)
         )
         return list(result.scalars().all())
@@ -163,7 +163,7 @@ class ABTestRepository:
         result = await self.session.execute(
             select(ShadowSampleModel)
             .where(ShadowSampleModel.test_id == test_id, ShadowSampleModel.is_match.is_(False))
-            .order_by(desc(ShadowSampleModel.recorded_at))
+            .order_by(ShadowSampleModel.recorded_at.desc())
             .limit(limit)
         )
         return list(result.scalars().all())
@@ -204,7 +204,7 @@ class ABTestRepository:
     async def cap_samples_per_test(self, test_id: str, max_samples: int = 200) -> int:
         """限制每个测试的样本数量，保留最新的，优先保留分歧样本"""
         all_samples = await self.session.execute(
-            select(ShadowSampleModel).where(ShadowSampleModel.test_id == test_id).order_by(desc(ShadowSampleModel.recorded_at))
+            select(ShadowSampleModel).where(ShadowSampleModel.test_id == test_id).order_by(ShadowSampleModel.recorded_at.desc())
         )
         samples = list(all_samples.scalars().all())
 

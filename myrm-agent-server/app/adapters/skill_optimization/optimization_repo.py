@@ -6,7 +6,7 @@ CRUD operations for skill optimization records.
 import logging
 from uuid import uuid4
 
-from sqlalchemy import desc, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.skill_optimization import OptimizationRecord
@@ -70,7 +70,7 @@ class OptimizationRepository:
         result = await self.session.execute(
             select(OptimizationRecord)
             .where(OptimizationRecord.skill_id == skill_id)
-            .order_by(desc(OptimizationRecord.started_at))
+            .order_by(OptimizationRecord.started_at.desc())
             .limit(limit)
         )
         return list(result.scalars().all())
@@ -80,7 +80,7 @@ class OptimizationRepository:
         result = await self.session.execute(
             select(OptimizationRecord)
             .where(OptimizationRecord.status.in_(["PENDING", "IN_PROGRESS"]))
-            .order_by(desc(OptimizationRecord.started_at))
+            .order_by(OptimizationRecord.started_at.desc())
         )
         return list(result.scalars().all())
 

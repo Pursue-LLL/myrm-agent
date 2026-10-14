@@ -14,15 +14,22 @@ from app.database.models import Base
 _BATCH_TABLES = ("batch_audit_logs", "batch_optimization_tasks")
 _FIRST_DROP = "DROP TABLE IF EXISTS batch_audit_logs"
 
-# The layout of an upgrading database: the audit table references the task table.
+# The shape of an upgrading database: both tables carry their own indexes and no foreign key links them.
 _UPGRADING_DB_DDL = """
-CREATE TABLE batch_optimization_tasks (id VARCHAR(36) PRIMARY KEY, status VARCHAR(20) NOT NULL);
-CREATE TABLE batch_audit_logs (
-    id VARCHAR(36) PRIMARY KEY,
-    task_id VARCHAR(36) NOT NULL REFERENCES batch_optimization_tasks(id),
-    action VARCHAR(50) NOT NULL
+CREATE TABLE batch_optimization_tasks (
+    batch_id VARCHAR(255) PRIMARY KEY,
+    skill_ids JSON NOT NULL,
+    status VARCHAR(50) NOT NULL
 );
-CREATE INDEX ix_batch_audit_logs_task_id ON batch_audit_logs(task_id);
+CREATE INDEX ix_batch_optimization_tasks_status ON batch_optimization_tasks(status);
+CREATE TABLE batch_audit_logs (
+    log_id VARCHAR(255) PRIMARY KEY,
+    batch_id VARCHAR(255) NOT NULL,
+    operation VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    details JSON NOT NULL
+);
+CREATE INDEX ix_batch_audit_logs_batch_id ON batch_audit_logs(batch_id);
 """
 
 
@@ -43,8 +50,14 @@ async def test_an_upgrading_database_loses_the_batch_tables_and_keeps_everything
             await conn.run_sync(Base.metadata.create_all)
             for statement in filter(None, (part.strip() for part in _UPGRADING_DB_DDL.split(";"))):
                 await conn.execute(text(statement))
-            await conn.execute(text("INSERT INTO batch_optimization_tasks (id, status) VALUES ('t1', 'completed')"))
-            await conn.execute(text("INSERT INTO batch_audit_logs (id, task_id, action) VALUES ('a1', 't1', 'rollback')"))
+            await conn.execute(
+                text("INSERT INTO batch_optimization_tasks (batch_id, skill_ids, status) VALUES ('b1', '[]', 'completed')")
+            )
+            await conn.execute(
+                text(
+                    "INSERT INTO batch_audit_logs (log_id, batch_id, operation, status, details) VALUES ('l1', 'b1', 'rollback', 'ok', '{}')"
+                )
+            )
             await conn.execute(
                 text(
                     "INSERT INTO user_configs (id, config_key, config_value, version, last_device_id, is_encrypted) VALUES ('u1', 'k', '{}', '1', 'd', 0)"
