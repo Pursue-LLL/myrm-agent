@@ -472,7 +472,7 @@ export const ConclusionAttributionStudioCard: React.FC<ConclusionAttributionStud
             {chatEvidence && (
               <div className="pt-2 border-t space-y-1.5 font-mono text-[11px]">
                 <div className="text-indigo-600 dark:text-indigo-400 font-semibold">
-                  📦 Verifiable Evidence Package ({chatEvidence.conclusions.length} 条依据结论 /{' '}
+                  Verifiable Evidence Package ({chatEvidence.conclusions.length} 条依据结论 /{' '}
                   {chatEvidence.messages.length} 条溯源消息)
                 </div>
                 {chatEvidence.conclusions.map((ec) => (

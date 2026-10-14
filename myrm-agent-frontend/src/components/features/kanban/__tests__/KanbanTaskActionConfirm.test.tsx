@@ -300,6 +300,7 @@ describe('KanbanTaskActionConfirm move gate', () => {
     const confirm = await dialog();
     expect(confirm).toHaveTextContent('Retry this task?');
     expect(confirm).toHaveTextContent('runs again');
+    expect(confirm).toHaveTextContent('already moved on after its failure are not re-run');
     expect(confirm).toHaveTextContent('model quota');
     expect(onRetry).not.toHaveBeenCalled();
     expect(onMove).not.toHaveBeenCalled();

@@ -2269,19 +2269,23 @@ except Exception:
 
 1. 默认只启用安全凭证类别的 8 条规则（`DEFAULT_ENABLED_CATEGORIES`），其余 23 条为按需开启；已存在的安装保留各自的开关状态（库里区分不出“默认”与“用户选的”），但模式刷新照常生效。
 2. 赋值类规则（`credential_assignment`、`cookie_session_like`、`env_file_secret`）捕获 `key` / `value`，由 `match_checks.is_confirmed_match` 调 harness 的 `secret_value_span` 判定右值是不是真值（排除遮罩、占位符、函数调用、模板、字段状态词、代码字符、纯数字；要求含数字或强符号）；`api_key_like` 补全前缀表并允许 `-`，带词首边界，避免 `task-…` 之类的 slug 误中；关键词规则统一走 `keyword_pattern`（ASCII 整词加可选复数，中日韩文字任意位置）。
-3. 命中摘要只记位置 `chars:起-止`（超时记 `(matching timed out)`），不记原文；启动时清空旧版本留下的原文摘要（`clear_legacy_hit_text`）。规则测试仍显示用户自己粘贴的样本里的命中片段。
-4. 删除 `allow`：`VALID_ACTIONS` 只剩 `block`，API 的 `action` 只接受 `block`，设置页不再提供该选项，删除 `highest_action` 与两个 `RANK`；库里已有的 `allow` 规则在启动时改为停用的 `block` 规则（`disable_legacy_allow_rules`）。
+3. 命中摘要只记位置 `chars:起-止`（超时记 `(matching timed out)`），不记原文；启动时清空既不是位置也不是超时标记的摘要（`clear_stored_match_text`）。规则测试仍显示用户自己粘贴的样本里的命中片段。
+4. 删除 `allow`：`VALID_ACTIONS` 只剩 `block`，API 的 `action` 只接受 `block`，设置页不再提供该选项，删除 `highest_action` 与两个 `RANK`；库里动作不是 `block` 的规则在启动时改为停用的 `block` 规则（`disable_non_block_rules`）。
 5. SSE 的 `risk_blocked` 只带规则列表（id、名称、严重度），前端用与设置页相同的规则名、用户所选语言拼出提示并指向“设置 → 安全策略 → 风控规则”；`translateI18nKeyIfPresent` 保证自定义规则回退到它自己的名字。
 6. 600 多行的 `constants.py` 拆成 `constants`（词表与默认）、`patterns`（共享模式片段）、`builtin_rules` 与 `builtin_business_rules`（种子定义）。
 7. harness 的 `synthesizer.py` 改读 `EMAIL_RE`（BUG-HARNESS-2026-10-14-020）。
+8. 复审补充：赋值的右值里带省略号（`...`、`…`）按被截短的示例处理，不算密钥（`match_checks._assigns_secret`）；`translateI18nKeyIfPresent` 对含 `Object` 成员同名片段（`constructor`、`toString`）的键直接回退，因为 next-intl 的 `has` 会把这类键判为存在，自定义规则 id 为 `constructor` 时提示里会显示 `Object`，设置页同时只为内置规则查语系；设置页拆成 `RiskRuleRow`、`RiskRuleEditor`、`useRiskRulesTransfer`（原 503 行，现 344 行，行数基线条目删除）；开关、批量启停、删除、保存失败原先都提示“加载规则失败”，改用新文案 `actionError`；复制规则名称里写死的英文后缀 `(Copy)` 改为六种语言的 `duplicatedName`；列表里的图标按钮与开关补 `aria-label`。
 
 ### 验证
 
 1. 新旧规则在同一份语料上对照（真实规则引擎，旧规则取自提交内容，每条规则逐条判定）：旧默认（31 条全开）拦下 31/39 条日常消息、拦下 21/28 条凭据；新默认（8 条）拦下 0/39、拦下 28/28；31 条全开时新规则拦下 4/39（邮箱与手机号、私网地址属于该开的规则本来就该命中；`roadmap` 出现在一个长 slug 里、`${DB_PASSWORD}` 被内部主机名规则命中，是这两条可选规则仍然存在的误报）。
 2. 耗时（每条消息过全部启用规则，取 5 次最小值）：2 千字符聊天旧 1.4 毫秒 / 新默认 0.3 毫秒；10 万字符日志旧 53.1 毫秒 / 新默认 11.9 毫秒；4 万字符 `a.a.a.` 串旧 23.7 毫秒 / 新默认 8.0 毫秒。31 条全开时新规则更慢：10 万字符日志 83.3 毫秒对旧的 53.1 毫秒（关键词规则加了词边界，单条约慢一倍，没有病态规则；仍远低于 0.25 秒的单条预算）。
-3. 测试：`tests/services/risk`（103 例）、`tests/lifecycle/test_init_risk_rules.py`、渠道入站风险闸门与 bus 测试共 174 例通过；新增 `test_builtin_rule_precision.py` 锁定默认规则的误报与漏报语料、关键词词边界、命中只记位置、旧原文清除、`allow` 归一与 API 拒绝；前端 `riskEvents.test.ts` 与 `i18nToastService.test.ts` 共 11 例通过；风控相关文件 `ruff`、`mypy`、`prettier` 通过。
+3. 测试：`tests/services/risk`、`tests/lifecycle/test_init_risk_rules.py`、渠道入站风险闸门与 bus 测试共 170 例通过；新增 `test_builtin_rule_precision.py` 锁定默认规则的误报与漏报语料、关键词词边界、命中只记位置、旧原文清除、`allow` 归一与 API 拒绝；前端 `riskEvents.test.ts`、`i18nToastService.test.ts` 与 `RiskRuleParts.test.tsx` 共 22 例通过（去掉 `translateI18nKeyIfPresent` 的保护后其中 5 例失败）；风控相关文件 `ruff`、`mypy`、`prettier` 通过。
 4. 更宽的服务端回归（`tests/channels` 全部、架构域词表、入站隔离）6787 通过、14 失败，失败的是他人未提交的改动或未同步的测试，与本条无关：群路由与前缀触发 7 例（路由器新增的 `is_untrusted_event_sender` 调用，测试替身没有该方法）、`btw` 命令相关 3 例（`test_background_command` 2 例与缺失的命令译文 1 例）、`tests/architecture` 域词表 3 例、渠道日志脱敏 `test_redact_sensitive_with_special_characters` 1 例；本条改动的风控、生命周期、闸门与 bus 测试没有失败。
-5. 局限：语料是手工构造的，没有真实用户数据，新默认规则在真实聊天里的误报率未知；一个本身以 `sk-` 开头且后面连着 20 个以上字符的 slug 仍会命中 `api_key_like`；纯字母的密码不被 `credential_assignment` 拦下（精度优先）；旧版本导出的、带 `allow` 动作的规则文件导入会被拒绝；已安装的实例仍保留全开的旧开关，需要用户自己关掉误报多的规则；`RiskMatch.action` 与库里的 `action` 列保留（恒为 `block`）；`secret_value_span` 要求 harness 0.1.0rc6，服务端仍钉在 rc5，发布 harness 并执行 `./myrm harness sync-lock` 之前，OSS 的锁定安装无法导入——发版步骤由维护者执行，本次没有执行；没有在真实渠道与浏览器里端到端验证提示的外观（深浅主题、移动端）。
+5. 真实文件语料（`external_reference_project` 里随机取的 300 个文档与 300 个源码文件，505 万字符，只含文件不含聊天）：旧规则全开 483/600 个文件命中，新默认 8 条 5/600、新规则全开 246/600。新默认的 5 处命中里 4 处不是密钥（`postgresql://user:pass@host`、LiteLLM 的 `api_key: os.environ/NAME` 引用、`Authorization=Bearer%20unrelated`、`sessionId: 'wf-ptc-e2e-session'`），1 处是测试夹具里形似密钥的假值 `API_KEY=sk-secret123456789`。省略号保护去掉的两个文件命中是文档里的截短示例 `Bearer oma_live_…` 与 `{"token":"sk-ant-oat01-..."}`（关掉保护时默认规则命中 7/600，已对照验证）。
+6. 启动时的归一化（`disable_non_block_rules`、`clear_stored_match_text`）：20 万行命中记录且无需清理时首次约 100 毫秒、再次约 19 毫秒；清除其中 2 万行原文约 53 毫秒。
+7. 最坏情形：1 MB 全是 `password = input() ` 的文本（5 万处候选，逐处确认后都不算密钥），默认 8 条规则合计 349 毫秒，`credential_assignment` 超过 0.25 秒时限，按命中处理（拦下）；同一文本旧的 31 条规则 511 毫秒，同样超时；10 万字符为 46.8 毫秒。时限只约束正则扫描，不约束命中后的确认循环，所以更长的文本耗时仍随长度线性增长。
+8. 局限：除上面的真实文件语料外，没有真实用户聊天数据，新默认规则在真实聊天里的误报率未知；`os.environ/NAME`、`user:pass@host`、`sessionId: '…'` 这类引用或占位仍会命中默认规则；一个本身以 `sk-` 开头且后面连着 20 个以上字符的 slug 仍会命中 `api_key_like`；纯字母的密码不被 `credential_assignment` 拦下（精度优先）；旧版本导出的、带 `allow` 动作的规则文件导入会被拒绝；已安装的实例仍保留全开的旧开关，需要用户自己关掉误报多的规则；`RiskMatch.action` 与库里的 `action` 列保留（恒为 `block`）；`secret_value_span` 不在 harness 的 `v0.1.0rc5` 标签里（该标签的 `secret_value.py` 没有这个函数，`git tag --contains b00705cc8` 为空），而服务端钉在 `==0.1.0rc5`，发布 harness 并执行 `./myrm harness sync-lock` 之前，OSS 的锁定安装无法导入；harness 的 `pyproject.toml` 版本是 `0.1.0rc6`，但标签 `v0.1.0rc6` 早已存在（2026-06-06），发版时要先核对版本号不与旧标签冲突——发版步骤由维护者执行，本次没有执行；没有在真实渠道与浏览器里端到端验证提示的外观（深浅主题、移动端）。
 
 ### 踩坑经验
 
@@ -2375,11 +2379,12 @@ except Exception:
 1. harness：`retry_failed_task` 持有重置、`FAILED→READY` 的 CAS 与 `RETRYING` 审计事件；按 store 的 `asyncio.Lock` 串行化重复提交；重置在任务仍为 FAILED 时先落库，其后才做 CAS，工作线程紧接着认领时不会被覆盖。`KanbanDispatcher.retry_task` 只在真正生效时发 `task_retrying` 并唤醒分发器；`kanban_retry_task` 委托它，工具 schema、docstring 与错误文案逐字不变。
 2. server：`POST /api/v1/kanban/tasks/{id}/retry`，任务不存在返回 404，非 FAILED 的任务原样返回 200（重复提交幂等）；手动移出 FAILED 仍被拒绝，重试是唯一回路。
 3. frontend：`kanban-transitions.ts` 的 `resolveMoveIntent` 镜像服务端守卫，返回 `move / retry / archive / blocked`；卡片菜单、抽屉、拖拽三条路径都经 `requestMove`，重试与归档弹确认，`failed→ready` 变成「重试」；拖拽先排除不可能的目标并给本地化提示（只有 `deps_unmet` 用专门文案，其它一律通用文案，不再显示服务端原文）；批量归档用与批量删除一致的行内确认；`ConfirmDialog` 描述加 `wrap-anywhere`；批量操作栏加 `whitespace-nowrap` 与子项不收缩，窄屏下整条横向滚动而不是把按钮文字竖排。
-4. 三处写死中文的对话框改走 i18n；`ConclusionAttributionStudioCard` 里无调用方的 `cascade` 参数及其「级联模式」措辞一并移除。6 个语言包同步新增键。
+4. 三处写死中文的对话框改走 i18n；`ConclusionAttributionStudioCard` 里无调用方的 `cascade` 参数及其「级联模式」措辞一并移除，并去掉其中一处原生 emoji。6 个语言包同步新增键。
+5. 确认文案对着实际行为复核后改写：重试确认补上「失败后已继续推进的下游任务不会重新执行」（失败即放行依赖它的 BACKLOG 任务，见 `dispatcher_failure.py` 的失败收尾），归档确认去掉「在这里」的限定语（服务端与界面都没有恢复已归档任务的路径）。
 
 ### 验证
 
-1. 测试：harness `tests/toolkits/kanban/test_retry.py` 15 例通过；server `tests/api/kanban/test_retry_api.py` 8 例通过；frontend 新增 `kanban-transitions`、`useKanbanDnDBlocking`、`KanbanTaskDrawerMove`、`KanbanBulkActionBar`、`KanbanBoardView`、`confirm-dialog` 六个测试文件并修改既有相关测试。最后一次受影响目录的 vitest：165 个文件、1636 例全部通过（此前整库一次：1393 个文件、9868 例通过）。
+1. 测试：harness `tests/toolkits/kanban/test_retry.py` 18 例通过（含「失败已放行的下游任务不被重跑」READY / RUNNING / COMPLETED 三种）；server `tests/api/kanban/test_retry_api.py` 8 例通过；frontend 新增 `kanban-transitions`、`useKanbanDnDBlocking`、`KanbanTaskDrawerMove`、`KanbanBulkActionBar`、`KanbanBoardView`、`confirm-dialog` 六个测试文件并修改既有相关测试。最后一次受影响目录的 vitest：165 个文件、1636 例全部通过（此前整库一次：1393 个文件、9868 例通过）。
 2. 变异检查：拿掉拖拽预拦截与确认闸门，19 例失败；拿掉看板对 `requestMove` 的接线，4 例失败；两次均已还原并比对。
 3. 真实 Chrome（生产构建，隔离输出目录，模拟接口复现服务端守卫语义；覆盖桌面浅色与深色、375px 深色、中文与英文，不是全部组合）：失败卡片菜单变为「任务详情 / 重试 / 归档 / 删除」；重试确认后实际发出 `POST /kanban/tasks/{id}/retry`（不是 `/move`），卡片离开失败列进入就绪列并出现成功提示；取消不发任何请求；抽屉头部「重试」关闭抽屉后弹出同一个确认并发出同一个请求；失败卡片拖到执行中弹出「该任务不能移到该状态」且没有请求，拖到就绪弹出重试确认，已完成卡片拖到就绪同样被拦；就绪卡片拖入失败仍走原终态确认。归档确认里的 140 多字符无空格标题在 375px 对话框内换行，对话框与文档均无横向溢出；编译产物含 `.wrap-anywhere{overflow-wrap:anywhere}`。批量归档行内确认在 1440px 下全部按钮可点击（仅末尾「取消选择」图标被全局悬浮入口遮住），375px 下「确认 / 取消」位于操作条可见区域内（但整条被悬浮入口部分遮挡，见局限）。英文下重试确认、归档确认与拖拽拦截提示正常显示，没有缺失键。
 4. 静态：改动文件 oxlint 与 prettier 干净；`tsc` 仅剩他人未提交文件 `KanbanTaskHandoffSection.test.tsx(68,3)` 的一处错误；harness 改动文件的 ruff / mypy 干净，行数闸门基线已更新。
@@ -2397,5 +2402,45 @@ except Exception:
 3. 把重试这种「重置 + 状态转移 + 审计」收成一份共享实现，调用方（Agent 工具、REST、GUI）才不会各漏一步；先在任务仍为 FAILED 时落库再做 CAS，避免与紧接着认领的工作线程互相覆盖。
 4. 模拟接口只模拟真实形状：这次复核里应用两次掉进全局错误边界，原因都是模拟接口给某些列表字段返回了对象，不是被验证的代码；排查时先看崩溃栈落在谁的组件里，再决定要不要改被测代码。
 5. 浏览器自动化里 `click` 会等页面空闲，页面有持续动画或重连时可能一直超时；改用聚焦加键盘（也是真实的输入路径）可以绕开，而不是改成合成点击。
+
+---
+
+## BUG-AGENT-2026-10-14-022: 「安全清空」只有接口、设置里没有任何入口，用户无法自己清空全部会话；接口也不看有没有会话正在运行
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（清空会话的入口缺失；运行中清空造成的竞争没有复现，守卫来自读代码） |
+| 影响范围 | server：`app/services/system/vault_purge_service.py`（`VaultPurgeBusyError`）、`app/api/health/router.py`（409）、`tests/architecture/data/route_consumer_baseline.txt`（移除该路由）；frontend：`src/services/conversationPurge.ts`、`DataFlowErasureStrip.tsx`、`DataFlowDisclosurePanel.tsx`、6 个 locale；brand：`competitor-comparison.mdx`（中英） |
+| 出现次数 | 1（读代码 + 红灯测试确认；未在真实浏览器里点过界面） |
+| 关联 | `BUG-AGENT-2026-10-14-020`（清空时的逐会话拆除）、`BUG-AGENT-2026-10-14-017`（该路由已受认证保护） |
+
+### 现象
+
+1. `POST /health/database/safe-purge` 在路由消费者基线里登记为没有前端调用方（`route_consumer_baseline.txt` 原第 54 行）。「数据流向与隐私披露」里「您的数据权利」只有导出与记忆管理两个动作，用户想清空自己的会话只能直接调接口。
+2. `SafeVaultPurgeService.purge_vault` 取到清空互斥锁后不看网关里有没有仍在运行的一轮对话，任何带认证的调用方都能在对话进行中清空。
+
+### 根因
+
+接口先于界面落地，基线把「没有调用方」登记成了既成事实；清空与运行中的会话之间没有任何约定。
+
+### 修复
+
+1. server：`purge_vault` 取锁后立即检查 `get_agent_gateway().active_session_ids()`，非空抛 `VaultPurgeBusyError`，此时尚未碰任何状态；路由映射为 409（与 `rewind` 的 `SessionBusyError` → 409 一致）；`purge_sandboxes` 的参数描述改成真实行为。
+2. frontend：`conversationPurge.ts`（超时 300 s，409 映射为 `ConversationPurgeBusyError`）；`DataFlowErasureStrip` 放在「您的数据权利」下方：二次确认说明保留项（记忆、智能体、API 密钥、渠道设置）→ 调用 → 成功后清空侧栏会话缓存并给出「新建会话」按钮（整页跳转，丢弃内存里已被删除的当前会话）；运行中与其它失败各给可重试提示，不抛出；六种语言文案齐全。
+3. 基线移除该路由；brand 文档补上运行中拒绝与设置入口，并把测试数改成实际值。
+
+### 验证
+
+1. server `tests/api/health/test_safe_purge.py` 4 例（新增 2 例：运行中拒绝，真实 SQLite 里的会话行原样、`clear_runtime_caches` 未被调用；API 层返回 409 且消息含运行数）。红灯：先是 ImportError，补上类型后 API 返回 500 而不是 409；变异（去掉运行检查）使 2 例失败，还原后通过。`tests/api/health tests/services/system tests/services/chat/test_chat_disposal.py` 共 94 例通过。
+2. frontend `DataFlowErasureStrip.test.tsx` 5 例（展示说明、取消不清空、成功时的计数 / 侧栏缓存 / 新建会话、运行中拒绝、通用失败）+ `conversationPurge.test.ts` 3 例；5 个变异（不清侧栏缓存、运行中错误当成通用失败、新建会话无动作、服务层 409 映射失效、成功计数写死 0）各被 1 例杀死，还原后 8 例通过；连同相邻的 `DataFlowDisclosurePanel` / `DataFlowYourRightsStrip` 测试，4 个文件共 35 例通过。
+3. 静态：server 三个文件 `ruff check` / `ruff format` / mypy 无问题；frontend 新文件 prettier / oxlint 干净，`verify:icu-syntax`、`verify:theme-colors` 通过，`verify:i18n` 的 6 语言完整性通过（引用检查的 59 个缺键与本条无关）。
+4. 局限：运行检查是快照，清空窗口内新开的一轮不会被拦住；只覆盖网关登记的会话，cron / 看板 / IM 渠道 / 评测的 agent 运行不经网关，不在其内；客户端 300 s 超时后服务端可能仍在清空；500 可能是部分清空（数据库事务是原子的，之前的状态清理与之后的文件删除是尽力而为）；界面没有在真实浏览器里验证（浏览器工具拒绝 E2E 地址，需走 `./myrm test` 的 E2E 通道，未运行）。
+
+### 踩坑经验
+
+1. 路由消费者基线只收缩不扩张：补上调用方后要同步删掉基线行，否则 `test_baseline_only_shrinks` 会提示该行已不再是孤儿；
+2. `ConfirmDialog` 对 `onConfirm` 抛出的错误只写 console，用户看不到原因，所以需要用户看到的失败要在回调里自己处理并给提示，而不是抛出。
 
 ---
