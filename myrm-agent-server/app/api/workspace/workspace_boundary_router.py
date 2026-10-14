@@ -7,6 +7,7 @@ app/api/workspace/workspace_boundary_router.py
 """
 
 from typing import Optional
+
 from fastapi import APIRouter, Query
 
 from app.services.workspace.boundary.boundary_types import (

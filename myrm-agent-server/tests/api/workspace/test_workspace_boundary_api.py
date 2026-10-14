@@ -8,7 +8,6 @@ tests/api/workspace/test_workspace_boundary_api.py
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest

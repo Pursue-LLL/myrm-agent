@@ -7,16 +7,17 @@ app/api/approvals/bidirectional_router.py
 """
 
 from typing import Optional
+
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
+from app.services.approvals.bidirectional.bidirectional_approval_service import (
+    BidirectionalApprovalService,
+)
 from app.services.approvals.bidirectional.protocol_types import (
     ApprovalAck,
     StructuredApprovalDecision,
     StructuredApprovalRequest,
-)
-from app.services.approvals.bidirectional.bidirectional_approval_service import (
-    BidirectionalApprovalService,
 )
 
 router = APIRouter(prefix="/bidirectional", tags=["bidirectional-approvals"])

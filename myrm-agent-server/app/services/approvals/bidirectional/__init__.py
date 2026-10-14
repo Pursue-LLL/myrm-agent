@@ -6,6 +6,9 @@ Export protocol types and bidirectional approval service.
 app/services/approvals/bidirectional/__init__.py
 """
 
+from app.services.approvals.bidirectional.bidirectional_approval_service import (
+    BidirectionalApprovalService,
+)
 from app.services.approvals.bidirectional.protocol_types import (
     ApprovalAck,
     ApprovalActionKind,
@@ -16,9 +19,6 @@ from app.services.approvals.bidirectional.protocol_types import (
     RiskSeverity,
     StructuredApprovalDecision,
     StructuredApprovalRequest,
-)
-from app.services.approvals.bidirectional.bidirectional_approval_service import (
-    BidirectionalApprovalService,
 )
 
 __all__ = [

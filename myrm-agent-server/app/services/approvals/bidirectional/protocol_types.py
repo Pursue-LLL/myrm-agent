@@ -7,6 +7,7 @@ app/services/approvals/bidirectional/protocol_types.py
 """
 
 from typing import Literal, Optional
+
 from pydantic import BaseModel, Field
 
 ApprovalActionKind = Literal["file_write", "command_exec", "tool_call", "outbound_request"]

@@ -7,6 +7,7 @@ app/services/workspace/boundary/boundary_types.py
 """
 
 from typing import Literal, Optional
+
 from pydantic import BaseModel, Field
 
 ExecutionHostType = Literal["local_host", "cloud_sandbox", "docker_container"]
