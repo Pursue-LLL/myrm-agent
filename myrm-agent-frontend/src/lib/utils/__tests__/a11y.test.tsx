@@ -83,9 +83,15 @@ describe('activateOnKey', () => {
 });
 
 describe('REVEAL_ON_HOVER', () => {
-  it('默认透明，鼠标悬停、键盘聚焦、触屏三条路径各自能让控件可见', () => {
+  it('默认透明，鼠标悬停、键盘聚焦、触屏、浮层打开四条路径各自能让控件可见', () => {
     expect(REVEAL_ON_HOVER.split(' ').sort()).toEqual(
-      ['group-focus-within:opacity-100', 'group-hover:opacity-100', 'opacity-0', 'pointer-coarse:opacity-100'].sort(),
+      [
+        'data-[state=open]:opacity-100',
+        'group-focus-within:opacity-100',
+        'group-hover:opacity-100',
+        'opacity-0',
+        'pointer-coarse:opacity-100',
+      ].sort(),
     );
   });
 });
