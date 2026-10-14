@@ -2,8 +2,8 @@
 /**
  * 硬编码文案门禁（棘轮）：`src/` 下 TSX 里绕过 i18n 的用户可见字面量，按文件计数，只降不升。
  *
- * 背景与判定规则见 `hardcoded-copy-scan.ts`。存量很大且无法一次清零，所以用 `ci/hardcoded_copy_baseline.json`
- * 冻结每个文件当前的数量：
+ * 扫描规则见 `hardcoded-copy-scan.ts`，基线比较规则见 `hardcoded-copy-ratchet.ts`。存量很大且无法一次清零，
+ * 所以用 `ci/hardcoded_copy_baseline.json` 冻结每个文件当前的数量：
  *   - 某文件数量高于基线（含基线里没有的新文件）→ 新增了硬编码文案，失败；
  *   - 某文件数量低于基线（含文件已删除或改名）→ 基线 drift，失败；不收紧的话，空出的额度会被后续改动悄悄占用。
  * 按文件而非总数计数，一个文件清掉的额度不能抵扣另一个文件的新增。
@@ -19,6 +19,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { diffAgainstBaseline } from './hardcoded-copy-ratchet.ts';
 import { findHardcodedCopySites } from './hardcoded-copy-scan.ts';
 import { walkSourceFiles } from './source-files.mjs';
 
@@ -68,9 +69,7 @@ try {
   fail(`无法读取基线 ${relative(rootDir, baselinePath)}: ${error.message}`);
 }
 
-const files = [...new Set([...Object.keys(baseline), ...Object.keys(current)])].sort();
-const increased = files.filter((file) => (current[file] ?? 0) > (baseline[file] ?? 0));
-const drifted = files.filter((file) => (current[file] ?? 0) < (baseline[file] ?? 0));
+const { increased, drifted } = diffAgainstBaseline(current, baseline);
 const delta = (file) => `${baseline[file] ?? 0} → ${current[file] ?? 0}`;
 
 if (increased.length > 0) {
