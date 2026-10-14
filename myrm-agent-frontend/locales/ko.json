@@ -7464,7 +7464,7 @@
     "triggerWebhookCurl": "cURL 예제",
     "triggerWebhookAdd": "웹훅 추가",
     "triggerEventLabel": "이벤트 트리거",
-    "triggerEventDesc": "들어오는 메시지가 정규식 패턴과 일치하면 작업을 실행합니다",
+    "triggerEventDesc": "들어오는 메시지가 정규식 패턴과 일치하면 작업을 실행합니다. 접근 정책에서 무시되는 메시지(예: 바인딩되지 않은 계정이 보낸 메시지, 활성화되지 않은 그룹의 메시지)로는 실행되지 않습니다.",
     "triggerEventPattern": "패턴 (정규식)",
     "triggerEventPatternInvalid": "잘못된 정규식",
     "triggerEventChannel": "채널 (선택)",

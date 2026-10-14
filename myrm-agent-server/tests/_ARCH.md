@@ -58,6 +58,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `integration/test_expert_exchange_integration.py` | 模块 | 专家交换真实栈集成（真实数据库 + 连接器配置库 + 技能安装流水线 + 导出/导入路由 + ZIP，无 mock）：团队（含泄漏密钥、越权策略、远程连接器）导出 → 空的第二套安装导入（子专家重新连线 · 密钥与越权策略不外带 · 连接器默认停用且头部为占位符）；自定义技能（安装 → 导出 → 卸载 → 导入：路径泄漏被脱敏、专家重新指向新装技能）；同机导入默认生成「(imported)」副本且不动原件，选择「替换」时保存可回滚版本并保持用户自己的安全策略 |
 | `core/utils/test_error_redaction.py` | 单元 | 全局异常处理与标准 HTTP 异常响应消息自动凭据与路径脱敏测试 |
 | `e2e/test_control_ui_error_redaction_flow_e2e.py` | E2E | Task Flow E2E：Control UI 错误脱敏跨渠道测试连通性与 FastAPI 入口/出口全局防护全链路测试 |
+| `channels/routing/test_sender_admission.py` | 单元 | 事件触发的发送者准入（只读判定）：用真实配对表钉住 DM（ALLOWLIST/PAIRING/OPEN/DISABLED × 所有者/成员/陌生人/已拉黑/待审批）、群聊（启用群、非启用群、访客 @mention、群策略 DISABLED）、WhatsApp LID 映射与控制面转发的放行/拒绝，并与真实 `resolve_dm_user` / `resolve_group_user` 逐例比对；判定前后配对状态不变、不创建 LID 绑定 |
+| `channels/test_router_cron_event_dispatch.py` | 单元 | 路由器的 cron 事件触发钩子：普通消息触发一次且重复投递仍只触发一次，命令/待审批/reaction 不触发；访问策略不放行的发送者不触发、已配对成员触发；准入查询失败时拒绝触发并记 WARNING，后续消息照常路由 |
 | `e2e/test_error_redaction_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Control UI Toast 弹窗与设置界面敏感凭据打码防护测试 |
 | `e2e/test_mermaid_preview_sanitize_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Mermaid 图表严格净化与 XSS 物理阻断端到端测试 |
 | `unit/test_conversation_recall_cjk_query.py` | 单元 | 会话召回 CJK 中日韩分词与二元词降级规划测试 |

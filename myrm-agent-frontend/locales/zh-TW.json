@@ -7464,7 +7464,7 @@
     "triggerWebhookCurl": "cURL 示例",
     "triggerWebhookAdd": "新增 Webhook",
     "triggerEventLabel": "事件觸發器",
-    "triggerEventDesc": "當收到的訊息匹配正規表示式時觸發任務",
+    "triggerEventDesc": "當收到的訊息匹配正規表示式時觸發任務。訪問策略會忽略的訊息（例如來自未繫結賬號，或位於未啟用群聊中）不會觸發。",
     "triggerEventPattern": "匹配規則（正則）",
     "triggerEventPatternInvalid": "正規表示式無效",
     "triggerEventChannel": "頻道（可選）",

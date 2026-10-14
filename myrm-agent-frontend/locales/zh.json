@@ -7532,7 +7532,7 @@
     "triggerWebhookCurl": "cURL 示例",
     "triggerWebhookAdd": "添加 Webhook",
     "triggerEventLabel": "事件触发器",
-    "triggerEventDesc": "当收到的消息匹配正则表达式时触发任务",
+    "triggerEventDesc": "当收到的消息匹配正则表达式时触发任务。访问策略会忽略的消息（例如来自未绑定账号，或位于未启用群聊中）不会触发。",
     "triggerEventPattern": "匹配规则（正则）",
     "triggerEventPatternInvalid": "正则表达式无效",
     "triggerEventChannel": "频道（可选）",

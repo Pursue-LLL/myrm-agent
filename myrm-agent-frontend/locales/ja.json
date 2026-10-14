@@ -7464,7 +7464,7 @@
     "triggerWebhookCurl": "cURL サンプル",
     "triggerWebhookAdd": "Webhook を追加",
     "triggerEventLabel": "イベントトリガー",
-    "triggerEventDesc": "イベント駆動 — 指定したチャネルの新しいメッセージでトリガー",
+    "triggerEventDesc": "受信メッセージが正規表現パターンに一致したときにジョブを実行します。アクセスポリシーで無視されるメッセージ（未バインドのアカウントからのものや、有効化されていないグループ内のものなど）では実行されません。",
     "triggerEventPattern": "パターン（正規表現）",
     "triggerEventPatternInvalid": "イベントパターンが無効です",
     "triggerEventChannel": "チャンネル（任意）",

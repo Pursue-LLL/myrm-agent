@@ -123,6 +123,29 @@ denies, because the consume loop has no per-message guard). It gates:
 
 The check sees the raw `msg.sender_id`.
 
+## Event-Trigger Admission
+
+A cron event trigger starts an unattended job on the owner's account, so it follows the same sender policy as a chat
+turn. The resolvers that enforce that policy (`resolve_dm_user`, `resolve_group_user`) run after the trigger hook and
+have side effects (inbound ledger, context buffer, pending pairings, LID binding, quota replies, loop-guard budget), so
+the router first asks `PolicyResolver.is_sender_admitted` (`sender_admission.py`): a read-only verdict that mirrors
+their admission rules and changes nothing. `AgentRouter._is_sender_admitted` fails closed (a lookup error skips the
+trigger and logs a warning, because the consume loop has no per-message guard).
+
+- Admitted: control-plane forwards (they carry an identity the control plane already resolved,
+  `api/channels/channel_ingress.py`), the owner, DM senders the DM policy lets in (OPEN, an ACTIVE pairing — a
+  WhatsApp LID counts through its verified phone mapping, without being bound — or an identity the adapter already
+  resolved), and group messages from enabled groups or from guests when guest mention mode allows them.
+- Dropped: whatever the resolvers would ignore — strangers under ALLOWLIST/PAIRING, blocked or pending pairings,
+  DISABLED policies, messages from groups that are not enabled.
+- Group admission is per chat, not per mention: an unaddressed message in an enabled group still fires a trigger, so a
+  group can be watched quietly while the bot only answers when mentioned.
+- Not applied, on purpose: the member quota and `BotLoopGuard`; both cap chat turns, not trigger matching.
+
+The verdict and the resolvers read the same LID-to-phone mapping (`lid_mapped_phone` in `policy_resolver_support.py`);
+only the resolvers go on to bind it. `tests/channels/routing/test_sender_admission.py` checks the verdict against the
+real resolvers, so the two sets of rules cannot drift apart unnoticed.
+
 ## Held Replies (`reply_mode=draft_review`)
 
 `TopicContext.holds_reply_for_review` is the single predicate for every stage
@@ -235,10 +258,10 @@ Pinned by `tests/channels/routing/test_bot_loop_guard.py`,
 | graceful_degradation.py | Core | Graceful degradation controller for smooth quality adaptation. | [OK] |
 | message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply, busy ack). `edit_placeholder` prepares the reply like any outbound (downgrade + risk gate), edits text only and sends attachments as a files-only follow-up through the bus. send_quota_exceeded_reply 提供配额超限多语言提醒。 | [OK] |
 | placeholder_strategy.py | Core | Adaptive placeholder defer (180ms) and short-circuit for fast replies; eager materialize on stream activity. | [OK] |
-| policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. 支持群聊发言人特权解耦 (Group Ingress Sender-Scoped RBAC & Confused Deputy Mitigation)，仲裁 Admin (沙箱所有者特权) / Member (每日配额与受限栅栏) / Guest (元工具特权剥离)。放行 /status, /quota, /help 只读自查诊断命令。Bot-authored 入口防护：群触发与 DM 路径均经 BotLoopGuard 限流，bot 消息不进入观察上下文缓冲。 | [OK] |
-| policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker + 群聊发言人身份仲裁与诊断命令判定 (resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support)，以及沙箱所有者的唯一判定规则 `is_admin_sender`（控制面转发或 ADMIN 配对）。触发判定第 0 层为 bot 发送者门控：bot 消息仅显式 mention 可触发，防告警/互刷烧 LLM；失控循环由 BotLoopGuard 兜底。 | [OK] |
+| policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. 支持群聊发言人特权解耦 (Group Ingress Sender-Scoped RBAC & Confused Deputy Mitigation)，仲裁 Admin (沙箱所有者特权) / Member (每日配额与受限栅栏) / Guest (元工具特权剥离)。放行 /status, /quota, /help 只读自查诊断命令。Bot-authored 入口防护：群触发与 DM 路径均经 BotLoopGuard 限流，bot 消息不进入观察上下文缓冲。`is_sender_admitted` 暴露只读准入判定（`sender_admission.py`），供路由器在解析器之前为 cron 事件触发把关。 | [OK] |
+| policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker + 群聊发言人身份仲裁与诊断命令判定 (resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support)，以及沙箱所有者的唯一判定规则 `is_admin_sender`（控制面转发或 ADMIN 配对）、DM 配对查找 `resolve_paired_user`（含 WhatsApp LID 回退绑定）与只读的 LID→手机号映射 `lid_mapped_phone`。触发判定第 0 层为 bot 发送者门控：bot 消息仅显式 mention 可触发，防告警/互刷烧 LLM；失控循环由 BotLoopGuard 兜底。 | [OK] |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
-| router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, checks active task `busy_input_mode` (steer/redirect auto-dispatch), applies inbound risk gate (symmetric with outbound risk gate in bus.py), dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | [OK] |
+| router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, checks active task `busy_input_mode` (steer/redirect auto-dispatch), applies inbound risk gate (symmetric with outbound risk gate in bus.py), dispatches cron event triggers via `inbound_event_dispatch` (only for senders the access policy admits, `_is_sender_admitted`, fail-closed) then submits to SessionGate. | [OK] |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
 | router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; `_prepare_execution_context` rejects search-track `route_agent_id` (external CLI aliases like `claude` unchanged); `_deliver_agent_result` auto-attaches WebUI handoff deep link button for IM channel replies and intercepts the whole outbound reply (attachments and buttons included) as a draft ApprovalRecord when `topic_ctx.reply_mode == "draft_review"` (Channel Outbound HITL); if the draft cannot be created the reply is withheld (fail-closed), never sent unreviewed. | — |
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | [OK] |
@@ -250,6 +273,7 @@ Pinned by `tests/channels/routing/test_bot_loop_guard.py`,
 | channel_data_plane.py | Core | ChannelDataPlaneService: 渠道入站脱敏持久化、上下文拉取（排除 agent 自产回复与 bot/告警噪音行）、知识提取自适应打标（paired_member 与 guest 经 `is_untrusted_sender` 统一隔离防长期记忆投毒）与自产回复追溯。 | [OK] |
 | identity_scope.py | Core | Team-shared identity resolution: TopicContext + InboundMessage → harness TeamIdentitySpec + `ident:<id>` memory namespace + credential track; `is_untrusted_sender` (SSOT for guest / paired-member predicate) and `resolve_turn_memory_scope` (group, guest and paired-member turns get a memory compartment: stable `ident:` namespace per group chat or per untrusted DM sender, never the owner's `global` / `agent:<id>`; conversation_search disabled; named identity bound with `inherit` shares the channel baseline compartment across its groups). `default_identity_id` keeps namespace-safe ids readable and appends a raw-id digest to any id sanitising would alter, so distinct chats never share a compartment. Pure, no DB/LLM. | [OK] |
 | follow_up.py | Core | Proactive follow-up decisions: completion receipts (message-id keyed dedup), lazy stall scan (no daemon; heartbeat-driven for silent groups), muted-set (mute survives inbound), cooldown caps. Pure predicates + best-effort send orchestration. | [OK] |
+| sender_admission.py | Core | `check_sender_admitted`: read-only verdict on whether the access policy would let a sender through to an agent turn. Mirrors the admission gates of `resolve_dm_user` / `resolve_group_user` (control-plane forward, group policy + enabled groups / guest @mention, DM policy + ACTIVE pairing incl. verified WhatsApp LID mapping, owner always) without their side effects (no replies, quota, pending pairing, LID binding, ledger write). Gates cron event triggers in `router.py`. | [OK] |
 | session_gate.py | Core | Sits between Router's consume loop and the per-message handler. Supports optional `on_busy_ack` callback (30s debounce) for immediate user feedback when messages are queued or dropped. | [OK] |
 | session_rate_limiter.py | Core | Session-level rate limiting for single-instance self-protection. | [OK] |
 | stream_config.py | Config | Unified configuration for streaming components. | [OK] |

@@ -7532,7 +7532,7 @@
     "triggerWebhookCurl": "cURL Example",
     "triggerWebhookAdd": "Add Webhook",
     "triggerEventLabel": "Event Triggers",
-    "triggerEventDesc": "Fire the job when an incoming message matches the regex pattern",
+    "triggerEventDesc": "Fire the job when an incoming message matches the regex pattern. Messages your access policy ignores (for example from unbound accounts, or in groups that are not enabled) never fire it.",
     "triggerEventPattern": "Pattern (regex)",
     "triggerEventPatternInvalid": "Invalid regex",
     "triggerEventChannel": "Channel (optional)",

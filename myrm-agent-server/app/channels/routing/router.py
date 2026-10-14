@@ -648,11 +648,14 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 asyncio.create_task(self._handle_bang_command(msg))
                 continue
 
-            await dispatch_cron_event_for_inbound_message(
-                msg.content,
-                msg.channel,
-                msg.user_id or "",
-            )
+            # Event triggers start unattended jobs on the owner's account, so they follow the same sender policy as a
+            # chat turn. The resolvers that enforce it run later and have side effects, hence the read-only check.
+            if await self._is_sender_admitted(msg):
+                await dispatch_cron_event_for_inbound_message(
+                    msg.content,
+                    msg.channel,
+                    msg.user_id or "",
+                )
 
             # Auto busy_input_mode dispatch (steer / redirect) when an active task is running
             chat_id = msg.chat_id or msg.sender_id
@@ -852,6 +855,14 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             return await is_admin_sender(self._resolver.pairing, msg)
         except Exception:
             logger.warning("Admin check failed for %s/%s, denying", msg.channel, msg.sender_id, exc_info=True)
+            return False
+
+    async def _is_sender_admitted(self, msg: InboundMessage) -> bool:
+        """Whether the access policy admits the sender. Fails closed: the consume loop has no per-message guard."""
+        try:
+            return await self._resolver.is_sender_admitted(msg)
+        except Exception:
+            logger.warning("Admission check failed for %s/%s, denying", msg.channel, msg.sender_id, exc_info=True)
             return False
 
     async def _dispatch_resolved(

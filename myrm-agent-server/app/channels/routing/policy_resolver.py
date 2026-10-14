@@ -8,14 +8,16 @@ pairing status, and WhatsApp LID fallback logic.
 - channels.protocols.pairing::PairingStore, ChannelPolicyProvider (POS: identity binding and policy protocols)
 - channels.routing.context_buffer::GroupContextBuffer (POS: group chat context accumulation buffer)
 - channels.routing.message_effects::MessageEffects (POS: typing/reaction/placeholder side effects)
+- channels.routing.sender_admission::check_sender_admitted (POS: side-effect-free admission check)
 
 [OUTPUT]
-- PolicyResolver: InboundMessage → user_id resolution (or None to skip)
+- PolicyResolver: InboundMessage → user_id resolution (or None to skip), plus a read-only is_sender_admitted
 
 [POS]
 Policy resolution module extracted from Router core routing logic.
 Handles DM/group policy evaluation, user identity resolution, and pairing state management.
-Router holds an instance via composition and calls resolve_group_user / resolve_dm_user.
+Router holds an instance via composition and calls resolve_group_user / resolve_dm_user,
+and is_sender_admitted for work that must follow the access policy but runs before those resolvers.
 """
 
 from __future__ import annotations
@@ -48,9 +50,10 @@ from app.channels.routing.policy_resolver_support import (
     query_group_policy,
     query_group_trigger,
     resolve_group_sender_identity,
-    resolve_lid_fallback_helper,
+    resolve_paired_user,
     should_respond_in_group_support,
 )
+from app.channels.routing.sender_admission import check_sender_admitted
 from app.channels.types import (
     METADATA_GUEST_TURN_KEY,
     ContextEntry,
@@ -92,6 +95,13 @@ class PolicyResolver:
     def pairing(self) -> PairingStore:
         """Expose pairing store for router commands."""
         return self._pairing
+
+    async def is_sender_admitted(self, msg: InboundMessage) -> bool:
+        """Whether the access policy lets this sender through, decided without any side effect.
+
+        For work that must follow the policy but runs before ``resolve_*_user``, which reply, count and pair.
+        """
+        return await check_sender_admitted(self._pairing, self._policy, self._get_channel, msg)
 
     async def resolve_group_user(
         self,
@@ -225,9 +235,7 @@ class PolicyResolver:
 
         user_id: str | None = None
         if policy == DmPolicy.OPEN:
-            user_id = await self._pairing.resolve(msg.channel, msg.sender_id)
-            if not user_id and msg.sender_id.endswith("@lid"):
-                user_id = await self._resolve_lid_fallback(msg)
+            user_id = await self._resolve_paired_user(msg)
             if not user_id:
                 # Security Gate: Prevent silent privilege escalation to default_user_id (e.g. sandbox/admin).
                 guest_uid = f"guest_{msg.channel}_{msg.sender_id}"
@@ -314,14 +322,9 @@ class PolicyResolver:
 
     async def _resolve_allowlist(self, msg: InboundMessage) -> str | None:
         """Allowlist mode: only ACTIVE pairings are processed, others silently ignored."""
-        user_id = await self._pairing.resolve(msg.channel, msg.sender_id)
+        user_id = await self._resolve_paired_user(msg)
         if user_id:
             return user_id
-
-        if msg.sender_id.endswith("@lid"):
-            user_id = await self._resolve_lid_fallback(msg)
-            if user_id:
-                return user_id
 
         status = await self._pairing.get_status(msg.channel, msg.sender_id)
         if status == PairingStatus.BLOCKED:
@@ -335,20 +338,15 @@ class PolicyResolver:
         )
         return None
 
-    async def _resolve_lid_fallback(self, msg: InboundMessage) -> str | None:
-        """Resolve a WhatsApp LID sender via verified LID→PN mapping."""
-        return await resolve_lid_fallback_helper(self._pairing, self._get_channel, msg)
+    async def _resolve_paired_user(self, msg: InboundMessage) -> str | None:
+        """The sender's identity from an ACTIVE pairing, also via the verified WhatsApp LID mapping."""
+        return await resolve_paired_user(self._pairing, self._get_channel, msg)
 
     async def _resolve_with_pairing(self, msg: InboundMessage) -> str | None:
         """Pairing mode: auto-create PENDING for unknown senders."""
-        user_id = await self._pairing.resolve(msg.channel, msg.sender_id)
+        user_id = await self._resolve_paired_user(msg)
         if user_id:
             return user_id
-
-        if msg.sender_id.endswith("@lid"):
-            user_id = await self._resolve_lid_fallback(msg)
-            if user_id:
-                return user_id
 
         status = await self._pairing.get_status(msg.channel, msg.sender_id)
         if status == PairingStatus.BLOCKED:

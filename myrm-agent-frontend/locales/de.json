@@ -7464,7 +7464,7 @@
     "triggerWebhookCurl": "cURL Beispiel",
     "triggerWebhookAdd": "Webhook hinzufügen",
     "triggerEventLabel": "Ereignisauslöser",
-    "triggerEventDesc": "Den Job auslösen, wenn eine eingehende Nachricht mit dem Regex-Muster übereinstimmt",
+    "triggerEventDesc": "Den Job auslösen, wenn eine eingehende Nachricht mit dem Regex-Muster übereinstimmt. Nachrichten, die Ihre Zugriffsrichtlinie ignoriert (zum Beispiel von ungebundenen Konten oder aus nicht aktivierten Gruppen), lösen ihn nie aus.",
     "triggerEventPattern": "Muster (Regex)",
     "triggerEventPatternInvalid": "Ungültiger regulärer Ausdruck",
     "triggerEventChannel": "Kanal (optional)",
