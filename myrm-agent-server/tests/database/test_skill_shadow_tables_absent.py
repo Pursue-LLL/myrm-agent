@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from app.database import migrations
 from app.database.models import Base
 
-_RETIRED_TABLES = (
+_DROPPED_TABLES = (
     "skill_shadow_samples",
     "skill_ab_test_results",
     "skill_optimization_records",
@@ -19,7 +19,7 @@ _RETIRED_TABLES = (
 )
 _FIRST_DROP = "DROP TABLE IF EXISTS skill_shadow_samples"
 
-# The shape of an upgrading database: the retired tables carry their own indexes and skill_versions
+# The shape of an upgrading database: the shadow A/B tables carry their own indexes and skill_versions
 # still carries the per-version quality score.
 _UPGRADING_DB_DDL = """
 CREATE TABLE skill_shadow_samples (
@@ -64,7 +64,7 @@ async def _skill_version_columns(engine: AsyncEngine) -> set[str]:
 
 
 @pytest.mark.asyncio
-async def test_an_upgrading_database_loses_the_retired_tables_and_keeps_its_skill_versions(
+async def test_an_upgrading_database_loses_the_shadow_ab_tables_and_keeps_its_skill_versions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -88,16 +88,16 @@ async def test_an_upgrading_database_loses_the_retired_tables_and_keeps_its_skil
             )
 
         full_list = list(migrations.MIGRATION_STATEMENTS)
-        # The upgrading user already recorded every migration that preceded the retirement.
+        # The upgrading user has already recorded every migration that precedes the DROP statements.
         monkeypatch.setattr(migrations, "MIGRATION_STATEMENTS", full_list[: full_list.index(_FIRST_DROP)])
         await migrations.run_migrations(engine)
-        assert set(_RETIRED_TABLES) <= await _tables(engine)
+        assert set(_DROPPED_TABLES) <= await _tables(engine)
         assert "quality_score" in await _skill_version_columns(engine)
 
         monkeypatch.setattr(migrations, "MIGRATION_STATEMENTS", full_list)
         await migrations.run_migrations(engine)
 
-        assert not set(_RETIRED_TABLES) & await _tables(engine)
+        assert not set(_DROPPED_TABLES) & await _tables(engine)
         assert "quality_score" not in await _skill_version_columns(engine)
         async with engine.connect() as conn:
             row = (await conn.execute(text("SELECT content, is_active FROM skill_versions WHERE skill_id = 's1'"))).one()
@@ -116,8 +116,8 @@ async def test_a_new_database_never_creates_them_and_migrations_stay_idempotent(
         await migrations.run_migrations(engine)
         await migrations.run_migrations(engine)
 
-        assert not set(_RETIRED_TABLES) & await _tables(engine)
-        assert not set(_RETIRED_TABLES) & set(Base.metadata.tables)
+        assert not set(_DROPPED_TABLES) & await _tables(engine)
+        assert not set(_DROPPED_TABLES) & set(Base.metadata.tables)
         assert "quality_score" not in await _skill_version_columns(engine)
     finally:
         await engine.dispose()
