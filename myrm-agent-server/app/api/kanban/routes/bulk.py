@@ -81,7 +81,7 @@ async def bulk_action(board_id: str, body: BulkActionRequest) -> BulkActionRespo
                 else:
                     results.append(BulkActionItemResult(task_id=task_id, success=True))
 
-        except (ValueError, Exception) as exc:
+        except Exception as exc:
             results.append(BulkActionItemResult(task_id=task_id, success=False, error=str(exc)))
 
     succeeded = sum(1 for r in results if r.success)
