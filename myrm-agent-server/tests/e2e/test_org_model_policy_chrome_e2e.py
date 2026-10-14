@@ -79,9 +79,9 @@ _MODEL_PICKER_POLICY_STATE_JS = """(() => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="GLOBAL_WRITE",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="global_write_non_namespace",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.timeout(300)
 def test_model_picker_shows_policy_restricted_models_as_disabled() -> None:

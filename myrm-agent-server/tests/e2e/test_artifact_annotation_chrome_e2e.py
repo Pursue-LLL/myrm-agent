@@ -322,8 +322,8 @@ def _wait_review_answered(chat_id: str, api_url: str, intent: str, *, known: int
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
-    workload="LIVE",
-    private_reason="live_shpoib",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

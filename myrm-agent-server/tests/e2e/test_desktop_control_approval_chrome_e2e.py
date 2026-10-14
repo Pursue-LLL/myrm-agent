@@ -21,9 +21,10 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
     workload="DESKTOP",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.chrome_e2e_desktop
 @pytest.mark.e2e_search_policy("empty")

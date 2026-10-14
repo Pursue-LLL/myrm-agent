@@ -65,9 +65,10 @@ _PENDING_METADATA_CHECK_JS = """(async () => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

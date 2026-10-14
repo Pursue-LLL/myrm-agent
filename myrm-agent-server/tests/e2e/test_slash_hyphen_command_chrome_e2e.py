@@ -160,9 +160,9 @@ def _type_react_controlled_text(
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="GLOBAL_WRITE",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="global_write_non_namespace",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -231,9 +231,9 @@ def test_hyphenated_slash_command_preserves_prefix_on_execute() -> None:
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="GLOBAL_WRITE",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="global_write_non_namespace",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

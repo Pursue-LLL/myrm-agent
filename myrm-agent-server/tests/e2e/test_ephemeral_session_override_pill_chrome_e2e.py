@@ -176,8 +176,8 @@ def _wait_active_ephemeral_deltas(api_url: str, chat_id: str, *, timeout_sec: fl
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
-    workload="LIVE",
-    private_reason="live_shpoib",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

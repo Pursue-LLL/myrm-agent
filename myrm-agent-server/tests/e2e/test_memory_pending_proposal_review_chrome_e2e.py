@@ -197,6 +197,7 @@ def _review_and_accept(
     assert gone.get("ready") is True, gone
 
 
+# exclusive_backend reason: configured_retrieval_embedding mutates global /api/v1/config/retrieval and mutates instance-wide /api/v1/memory/pending + /api/v1/memory/trash.
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -254,6 +255,7 @@ def _stale_refusal_probe_js() -> str:
 }})()"""
 
 
+# exclusive_backend reason: configured_retrieval_embedding mutates global /api/v1/config/retrieval and exercises 409 conflict on instance-wide /api/v1/memory/pending.
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",

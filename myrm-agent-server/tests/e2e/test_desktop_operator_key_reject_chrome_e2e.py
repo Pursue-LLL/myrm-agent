@@ -125,7 +125,7 @@ def _approve_pending_tool_approvals(api_url: str) -> int:
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
     workload="DESKTOP",
-    private_reason="live_shpoib",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.chrome_e2e_desktop
 @pytest.mark.e2e_search_policy("empty")

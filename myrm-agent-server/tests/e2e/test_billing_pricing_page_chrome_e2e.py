@@ -20,9 +20,10 @@ _PRICING_READY_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
-    access_scope="READ",
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.timeout(240)

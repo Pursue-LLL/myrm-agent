@@ -48,9 +48,10 @@ def _seed_allowlist_pattern_row(client, page) -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.timeout(240)

@@ -150,9 +150,9 @@ def _flow(name: str) -> ReviewFlow:
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="GLOBAL_WRITE",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="global_write_non_namespace",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
