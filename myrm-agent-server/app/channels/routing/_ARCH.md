@@ -141,10 +141,13 @@ trigger and logs a warning, because the consume loop has no per-message guard).
 - Group admission is per chat, not per mention: an unaddressed message in an enabled group still fires a trigger, so a
   group can be watched quietly while the bot only answers when mentioned.
 - Not applied, on purpose: the member quota and `BotLoopGuard`; both cap chat turns, not trigger matching.
+- Not checked: `POST /cron/trigger/event` under the API prefix (`api/cron/routes/triggers.py`), an authenticated REST
+  call that carries no sender.
 
 The verdict and the resolvers read the same LID-to-phone mapping (`lid_mapped_phone` in `policy_resolver_support.py`);
-only the resolvers go on to bind it. `tests/channels/routing/test_sender_admission.py` checks the verdict against the
-real resolvers, so the two sets of rules cannot drift apart unnoticed.
+only the resolvers go on to bind it. `tests/channels/routing/test_sender_admission.py` runs the verdict and the real
+resolvers over the same matrix of DM policy, pairing status, group state and guest mention, so a rule changed on one
+side only fails there.
 
 ## Held Replies (`reply_mode=draft_review`)
 

@@ -1,7 +1,7 @@
 """Support helpers for inbound policy resolution: cooldown and follow-up tracking, group sender arbitration, owner check.
 
 [INPUT]
-- app.channels.protocols.pairing::PairingRole, PairingStatus (POS: storage protocol for channel user identity binding)
+- app.channels.protocols.pairing::DmPolicy, GroupPolicy, PairingRole, PairingStatus (POS: storage protocol for channel user identity binding)
 - app.channels.types::METADATA_GUEST_TURN_KEY (POS: channel notification and message-metadata constants)
 
 [OUTPUT]

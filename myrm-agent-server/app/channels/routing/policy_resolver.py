@@ -4,11 +4,13 @@ Resolves the sender's system user_id by checking DM/group policies,
 pairing status, and WhatsApp LID fallback logic.
 
 [INPUT]
-- channels.core.bus::MessageBus (POS: async message bus)
-- channels.protocols.pairing::PairingStore, ChannelPolicyProvider (POS: identity binding and policy protocols)
+- channels.protocols.pairing::PairingStore, ChannelPolicyProvider, DmPolicy, GroupPolicy, GroupTriggerMode, PairingStatus (POS: identity binding and policy protocols)
+- channels.routing.bot_loop_guard::BotLoopGuard (POS: bot-to-bot reply loop protection: caps admitted bot triggers per conversation)
 - channels.routing.context_buffer::GroupContextBuffer (POS: group chat context accumulation buffer)
 - channels.routing.message_effects::MessageEffects (POS: typing/reaction/placeholder side effects)
+- channels.routing.policy_resolver_support::BoundedCooldownMap, GroupFollowUpTracker, policy query and sender check helpers (POS: policy lookups, cooldown and follow-up tracking, the owner rule)
 - channels.routing.sender_admission::check_sender_admitted (POS: side-effect-free admission check)
+- channels.types::InboundMessage, ContextEntry, METADATA_GUEST_TURN_KEY (POS: core message types and metadata constants shared by every channel)
 
 [OUTPUT]
 - PolicyResolver: InboundMessage → user_id resolution (or None to skip), plus a read-only is_sender_admitted
@@ -111,6 +113,8 @@ class PolicyResolver:
 
         Returns (user_id, possibly-modified msg) or None to skip.
         Flow: groupPolicy → enabled_groups → trigger check → context buffer → default_user_id.
+        The admission gates (control-plane forward, group policy, enabled groups, guest mention) are mirrored
+        side-effect-free in ``sender_admission``; change them together.
         """
         if msg.user_id and msg.metadata.get("trusted_inbound") == "control_plane":
             return msg.user_id, msg
@@ -208,7 +212,11 @@ class PolicyResolver:
         return None
 
     async def resolve_dm_user(self, msg: InboundMessage) -> str | None:
-        """Resolve the sender's system user_id via DM policy + PairingStore."""
+        """Resolve the sender's system user_id via DM policy + PairingStore.
+
+        The admission gates (pre-resolved identity, DM policy, ACTIVE pairing incl. the LID mapping) are mirrored
+        side-effect-free in ``sender_admission``; change them together.
+        """
         if msg.user_id:
             return msg.user_id
 

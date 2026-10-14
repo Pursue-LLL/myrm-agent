@@ -45,7 +45,8 @@ async def check_sender_admitted(
     Mirrors the admission gates of ``resolve_group_user`` / ``resolve_dm_user`` and nothing else: a control-plane
     forward, the group policy with enabled groups (or a guest @mention), the DM policy with an ACTIVE pairing.
     The owner is always admitted. Group admission is per chat, so a message that does not address the bot is still
-    admitted; the daily quota and BotLoopGuard only cap chat turns and are not applied.
+    admitted; the daily quota and BotLoopGuard only cap chat turns and are not applied. A policy provider without a
+    default user id, which a group turn also needs, is not modelled: the deploy identity is always set.
     """
     if msg.user_id and msg.metadata.get("trusted_inbound") == "control_plane":
         return True
