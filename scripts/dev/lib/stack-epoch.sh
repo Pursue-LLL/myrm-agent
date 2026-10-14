@@ -22,9 +22,7 @@ _harness_fingerprint() {
 import pathlib
 try:
     import myrm_agent_harness
-    from myrm_agent_harness.runtime.install_guard.probe import get_distribution_mode
-    pkg = pathlib.Path(myrm_agent_harness.__file__).resolve().parent
-    print(f'{get_distribution_mode().value}:{pkg}')
+    print(pathlib.Path(myrm_agent_harness.__file__).resolve().parent)
 except Exception:
     print('unknown')
 " 2>/dev/null || echo "unknown"

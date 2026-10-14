@@ -10,16 +10,12 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 SERVER_ROOT = PROJECT_ROOT / "myrm-agent-server"
-HARNESS_ROOT = Path(
-    os.environ.get(
-        "MYRM_HARNESS_ROOT",
-        PROJECT_ROOT.parent / "myrm-agent-harness",
-    )
-)
+HARNESS_ROOT = PROJECT_ROOT / "myrm-agent-harness"
 OUTPUT_DIR = PROJECT_ROOT / "myrm-agent-desktop" / "src-tauri" / "binaries"
 
 SYSTEM = platform.system().lower()
@@ -57,62 +53,19 @@ def check_pyinstaller() -> None:
         )
 
 
-def _install_harness_from_source_build() -> None:
-    """Build production wheels from a local harness clone (MYRM_HARNESS_INSTALL_MODE=source)."""
-    if not HARNESS_ROOT.is_dir():
-        raise FileNotFoundError(
-            f"Harness source not found at {HARNESS_ROOT}. "
-            "Set MYRM_HARNESS_ROOT or use default PyPI install (MYRM_HARNESS_INSTALL_MODE=pypi)."
-        )
+def ensure_production_harness_wheels() -> None:
+    """Sync the server venv from uv.lock, then install the in-repo harness as a wheel.
 
-    print("\nBuilding harness production wheels from local clone (source mode)...")
-    subprocess.run(
-        ["uv", "sync", "--group", "build"],
-        cwd=HARNESS_ROOT,
-        check=True,
-    )
-    venv_python = HARNESS_ROOT / ".venv" / "bin" / "python"
-    if not venv_python.exists():
-        venv_python = HARNESS_ROOT / ".venv" / "Scripts" / "python.exe"
-    subprocess.run(
-        [
-            str(venv_python),
-            "scripts/assemble_production.py",
-            "--install",
-            str(SERVER_ROOT),
-        ],
-        cwd=HARNESS_ROOT,
-        check=True,
-    )
-
-
-def _resolve_harness_install_mode() -> str:
-    """Mirror maintainer install_harness.sh auto resolution for local monorepo builds."""
-    explicit = os.environ.get("MYRM_HARNESS_INSTALL_MODE", "auto")
-    if explicit != "auto":
-        return explicit
-    if HARNESS_ROOT.is_dir():
-        return "source"
-    return "pypi"
-
-
-def _install_editable_harness() -> None:
-    """Install editable harness from local clone (monorepo maintainer path)."""
-    if not HARNESS_ROOT.is_dir():
-        raise FileNotFoundError(
-            f"Harness source not found at {HARNESS_ROOT}. "
-            "Set MYRM_HARNESS_ROOT or run ./myrm harness install first."
-        )
-
-    print("\nInstalling editable harness from local clone...")
+    uv.lock resolves the harness as an editable path source; the bundle ships a built wheel
+    instead, so every harness dependency still comes from the lock.
+    """
+    print("\nInstalling server dependencies + in-repo harness wheel (desktop production venv)...")
     subprocess.run(
         [
             "uv",
             "sync",
             "--frozen",
             "--no-install-package",
-            "myrm-agent-harness",
-            "--no-sources-package",
             "myrm-agent-harness",
             "--all-extras",
             "--no-group",
@@ -127,45 +80,18 @@ def _install_editable_harness() -> None:
         cwd=SERVER_ROOT,
         check=True,
     )
-    subprocess.run(
-        [
-            "uv",
-            "pip",
-            "install",
-            "-e",
-            f"{HARNESS_ROOT}[file-parsers,web,fastapi,retrieval,qdrant,image-processing,browser,computer-use]",
-        ],
-        cwd=SERVER_ROOT,
-        check=True,
-    )
-
-
-def ensure_production_harness_wheels() -> None:
-    """Install harness into the server venv before PyInstaller bundling."""
-    install_mode = _resolve_harness_install_mode()
-    if install_mode == "source":
-        _install_harness_from_source_build()
-        return
-    if install_mode == "editable":
-        _install_editable_harness()
-        return
-
-    print("\nInstalling server + harness from PyPI (desktop production venv)...")
-    sync_args = [
-        "uv",
-        "sync",
-        "--frozen",
-        "--all-extras",
-        "--no-group",
-        "dev",
-        "--no-extra",
-        "matrix-e2ee",
-        "--no-extra",
-        "voice-tts",
-        "--no-extra",
-        "wechat-silk",
-    ]
-    subprocess.run(sync_args, cwd=SERVER_ROOT, check=True)
+    with tempfile.TemporaryDirectory() as wheel_dir:
+        subprocess.run(
+            ["uv", "build", "--wheel", "-o", wheel_dir],
+            cwd=HARNESS_ROOT,
+            check=True,
+        )
+        wheel = next(Path(wheel_dir).glob("myrm_agent_harness-*.whl"))
+        subprocess.run(
+            ["uv", "pip", "install", "--no-deps", str(wheel)],
+            cwd=SERVER_ROOT,
+            check=True,
+        )
 
 
 def _server_python() -> Path:
@@ -267,7 +193,6 @@ def build_backend(*, skip_harness_install: bool = False):
 def main():
     print("MyrmAgent - Sidecar Builder")
     print(f"Platform: {SYSTEM}")
-    print(f"Harness install mode: {_resolve_harness_install_mode()}")
     print(f"Backend binary: {BINARY_NAME}\n")
 
     ensure_production_harness_wheels()

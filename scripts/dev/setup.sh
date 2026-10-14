@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # First-time dependency setup after cloning myrm-agent.
-# Monorepo (sibling myrm-agent-harness): editable harness via install_harness.sh.
-# OSS-only clone: PyPI harness via uv sync.
+# The harness (myrm-agent-harness/) lives in this repository; uv sync installs it as an editable path source.
 #
 # Usage (from repo root):
 #   ./scripts/dev/setup.sh
@@ -25,29 +24,11 @@ if ! command -v bun >/dev/null 2>&1; then
   exit 1
 fi
 
-_resolve_monorepo_harness_installer() {
-  local agent_root="$1"
-  local parent harness_src installer
-  parent="$(cd "${agent_root}/.." && pwd)"
-  harness_src="${parent}/myrm-agent-harness/src/myrm_agent_harness"
-  installer="${parent}/scripts/maintainer/install_harness.sh"
-  if [[ -d "${harness_src}" && -f "${installer}" ]]; then
-    echo "${installer}"
-    return 0
-  fi
-  return 1
-}
-
 cd "${SERVER_DIR}"
 uv python install 3.13
 
-if harness_installer="$(_resolve_monorepo_harness_installer "${REPO_ROOT}")"; then
-  echo "📦 Server: monorepo harness detected → editable install..."
-  bash "${harness_installer}"
-else
-  echo "📦 Server: uv sync (PyPI harness)..."
-  uv sync "${SERVER_UV_SYNC_FLAGS[@]}"
-fi
+echo "📦 Server: uv sync (editable in-repo harness)..."
+uv sync "${SERVER_UV_SYNC_FLAGS[@]}"
 
 echo "🌐 Installing browser runtime (patchright)..."
 uv run patchright install chromium || echo "⚠️  Browser install failed (non-fatal). Run: uv run patchright install chromium"
