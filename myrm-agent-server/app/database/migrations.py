@@ -640,6 +640,9 @@ MIGRATION_STATEMENTS: list[str] = [
     "DROP TABLE IF EXISTS message_filter_rules",
     "DROP TABLE IF EXISTS message_filter_audit",
     "DROP TABLE IF EXISTS message_filter_config_history",
+    # The batch-optimization tables lost their ORM models, API and page with the batch optimizer; nothing reads or writes them.
+    "DROP TABLE IF EXISTS batch_audit_logs",
+    "DROP TABLE IF EXISTS batch_optimization_tasks",
 ]
 
 # 创建索引的SQL语句列表

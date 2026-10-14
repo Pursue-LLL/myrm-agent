@@ -1408,7 +1408,7 @@ except Exception:
 5. 文档：`myrm-docs` 的 `core-concepts` 与 `guides` 下六个 `skill-evolution.mdx` 去掉批量优化流程、取消并回滚的「实测」段、质量增量徽章；roadmap `topic_08` 里「server 已接入 lifespan」的前提改正；
 6. 启动标签：调度器的初始化任务删除后，`lifespan.py` 里与结果按严格模式 `zip` 的 `_labels` 也要删对应一项，否则两边数量不等，服务启动会抛 `ValueError`；新增 `tests/server/test_lifespan_startup_labels.py` 把两个列表的长度钉在一起。
 
-保留不动：harness 的优化环库（26 个模块，MIT 公开 API）、`batch_snapshots` 表及其写入（skill_manage 批次撤销在用）、`/skill-optimization/mutations/{id}/rollback`、版本历史与回滚、Shadow A/B、晋升门禁、进化审核、`SkillHealthEvaluator`、`skill_quality_history` 等数据库表。
+保留不动：harness 的优化环库（当时未核实可达性，不可达部分已在 `BUG-AGENT-2026-10-14-005` 删除）、`batch_snapshots` 表及其写入（skill_manage 批次撤销在用）、`/skill-optimization/mutations/{id}/rollback`、版本历史与回滚、Shadow A/B、晋升门禁、进化审核、`SkillHealthEvaluator`、`skill_quality_history` 等数据库表。
 
 ### 验证
 
@@ -1426,5 +1426,58 @@ except Exception:
 2. 和别人共享工作区时，一个文件里常常混着别人的改动；提交时从 HEAD 文本出发只做自己的修改，比挑 hunk 更稳（相邻改动会被合并成一个 hunk）；
 3. 根仓库有 pre-commit 钩子，提交期间会把未暂存的改动整体暂存再恢复，几秒内工作区会被临时改写；
 4. 局限：服务启动只在临时数据目录里用真实 lifespan 进入并退出过一次（476 条日志、0 条 ERROR），没有跑过长时间运行；没有核实外部是否有程序抓取 `/skill-optimization/metrics`；进化审核链每个节点的 token 开销没有实测；`batch_snapshots` 表里历史行没有清理；未在 Tauri / 移动端实测。
+
+---
+
+## BUG-AGENT-2026-10-14-005: 技能优化库里 24 个模块没有任何调用方，回滚接口返回自造的审计日志并向无人订阅的事件中心发消息
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P3（死代码与对外误导：公开配置 `enable_auto_optimization` 不起作用，回滚响应带着伪造字段，材料里宣称的能力不存在） |
+| 影响范围 | harness `agent/skills/optimization/`（模块、协议、类型、配置、测试、`_ARCH`、行数基线）；服务端 `app/adapters/skill_optimization/`、`app/api/skill_optimization/routes/versions.py`、`app/database/migrations.py`；根仓库 `temp-docs/materials` 四篇优势材料 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-14-004`（那次对 harness 优化库「保留不动」，这次核实可达性后删除不可达部分） |
+
+### 现象
+
+1. harness 优化包里的调度器、批量执行器、聚合栈、异常与预测分析、死信队列、限流、Prometheus 导出、成本计算、健康检查协议，没有任何生产代码导入；服务端调度器在 004 删除后，它们成了只被自己的测试引用的孤岛；
+2. `OptimizationConfig.enable_auto_optimization` 与 `MonitoringConfig` 的旋钮没有读取者；
+3. `SkillOptimizationStorage` 协议里 7 个方法（历史、最近优化、清理、A/B 状态更新、样本递增、最好 / 最差技能）没有调用方，服务端存储、三个仓库各为它们写了一份实现，仓库测试里还有对应用例；
+4. `POST /skill-optimization/rollback/{skill_id}` 的响应里 `audit_log` 是现场拼的字典（`triggered_by` 写死 `manual`，没有落库），同时向没有订阅者的 `EventEmitter` 发 `version_rollback`；版本对比与详情接口各自手写一份质量分字典，把「没有真实样本」的 0.5 占位分当成真实评分返回，对比出恒为 0 的假增量；
+5. `batch_audit_logs`、`batch_optimization_tasks` 两张表在 004 里连同模型失去了读写者，却仍留在已有数据库里；
+6. 优势材料里还写着已经删除的批量优化页、质量增量徽章、调度器、异常检测与预测能力。
+
+### 根因
+
+1. 004 删除了服务端调度链和 `ab_test.py` 里的决策代码，没有对库里其余模块逐个核查「谁在导入」，它们仍按「公开 API」被保留；
+2. 回滚接口是按设想写的（审计、事件通知），没有对应的存储或订阅端；对比与详情接口复制了一份已有的序列化函数；
+3. 这些部分都是为将来的闭环预写的，与实际接上的 Shadow A/B 链没有对账。
+
+### 修复
+
+1. harness：删除 24 个无人导入的模块与只测它们的 14 个测试文件；`SkillOptimizationStorage` 去掉上述 7 个方法，`SkillQualityAggregator` / `SkillQualityDataSource` 协议、`StorageConnectionError` / `StorageTimeoutError` 与聚合 / 预测 / 异常数据类一并删除；`OptimizationConfig` 去掉 `MonitoringConfig`、`enable_auto_optimization` 与三个预设，`PerformanceConfig` 只留优化器读取的 LLM 调用字段；包文档、`__init__` 导出、`_ARCH`、mixin MRO 架构测试与行数基线同步收缩；
+2. 服务端：存储与三个仓库删除对应的 7 个包装方法及其测试；`versions.py` 的对比 / 详情复用 `_quality_score_payload`（占位分返回 `null`，增量只在两边都有真实评分时计算），回滚接口去掉伪造的 `audit_log`、无人订阅的事件发射和用不到的数据库依赖；
+3. 迁移：在 `MIGRATION_STATEMENTS` 末尾追加 `DROP TABLE IF EXISTS` 两条，新增 `tests/database/test_batch_optimization_tables_retired.py`；
+4. 文档：`app/adapters/_ARCH.md` 去掉默认内存存储的图示行；plane `api/schemas/_ARCH.md` 去掉已不存在的 Skill baseline 行；根仓库四篇优势材料（提交 `a65d6a5033`）里改成代码事实，「止损三绳」改为「两绳」，批量执行器测试数 105 改为 97，子智能体总数 500 改为 485。
+
+保留不动：`optimizer.py`、`observability.py`（两者同样没有包外调用方，但带着他人未提交的改动，这次没有碰）；Shadow A/B、晋升门禁、进化审核、`RollbackService` 的批次快照与 `/mutations/{id}/rollback`、`SkillHealthEvaluator`、质量快照三件套与优化记录两件套。
+
+### 验证
+
+1. 可达性：从 `__init__` 再导出和服务端导入出发做包内可达性分析，24 个模块不可达；可达的是 `ab_test`、`config`、`event_adapter`、`event_emitter`、`protocols`、`quality_calculator`、`result_comparator`、`security`、`types`；删除后用已提交内容的干净导出导入整个包与 `skills.evolution`，成功；
+2. harness：已提交内容的干净导出里 `tests/agent/skills/optimization` 加 `test_mixin_mro.py` 共 55 例通过（工作区 57 例，多出的 2 例属于他人未提交的 `test_event_adapter.py`）；`ruff check` 与 `format --check` 对改动文件无告警；`tests/architecture` 加 `tests/agent/skills` 整组 10031 通过、16 失败，失败全在他人的改动上（device_mesh 工具注册、curator 与 promotion_gate 的 `_ARCH` 清单、core-IP 清单、行数基线里他人文件、wiki 文档链接、PyPI / wheel 环境检查），没有一条指向 optimization 包；`_ARCH` 清单校验对 optimization 目录为 OK（12 个 py 文件）；
+3. 服务端：`SkillOptimizationStorage` 的方法集与 `SQLAlchemyStorage` 的公有方法集逐项对比，两个方向的差集都是 0；`tests/services/skill_optimization`、`tests/architecture`、`tests/api/skill_optimization`、`tests/adapters`、`tests/database` 共 2244 通过、13 失败，失败集中在路由调用方基线（含他人新增的 `package-revisions` 路由）、API / 服务同名域划分、`app` 包布局、前端 API 路径、server 到 harness 的深导入基线，均不涉及本次删除的符号；
+4. 迁移：新增表退役测试与 schema 门禁共 8 例通过；回滚 / 版本对比 / 详情路由新增 `test_versions_routes.py`，加质量仓库测试共 12 例通过；
+5. 前端：`services/skill/optimization.ts` 的对比 / 详情 / 回滚类型里没有 `audit_log` 与 `score_delta`，`quality_score` 本就允许 `null`，前端不需要改。
+
+### 踩坑经验
+
+1. 可达性分析要把 `__init__` 的再导出算进去：第一版脚本漏了这一步，把仍在被导出的 `ab_test` 判成不可达；
+2. 收缩协议要同时收缩实现与测试：协议删掉 7 个方法后，服务端的包装、仓库方法和用例都成了死代码；收尾用「协议方法集与实现方法集的差集」检查；
+3. `MIGRATION_STATEMENTS` 的版本号是列表下标，`schema_gate` 用 `len - 1`，所以 DROP 只能追加在末尾；
+4. 共享工作区里，同一个 hunk 常常混着别人的相邻行（行数基线、`_ARCH` 表）：提交时把别人的 `+` 行改回 HEAD 文本，或从 HEAD 文本出发重建整份文件，而不是直接挑 hunk；
+5. 局限：`dependencies.py` 里 `get_event_emitter` 的删除依赖他人未提交的 `runtime.py`，留在工作区没有提交；`optimizer.py` / `observability.py` 的去留需要在他们的改动落地后再核实；没有重新跑服务启动的完整流程，也没有实测前端页面。
 
 ---

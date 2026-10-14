@@ -17,8 +17,7 @@ Framework Protocol 实现层（Business Layer 的 harness 适配器）。
 
 **框架层（harness）负责**：
 - 定义 Protocol 接口（如 `SkillBackendProtocol`, `StorageProtocol`）
-- 提供默认实现（如 `InMemoryStorage`）
-- 核心业务逻辑（如 Skill Optimization 引擎）
+- 提供与业务无关的纯逻辑（如 A/B 测试启动、执行结果比较、技能安全校验）
 
 **业务层（server/adapters）负责**：
 - 实现框架 Protocol（使用业务技术栈）
@@ -47,9 +46,10 @@ Framework Protocol 实现层（Business Layer 的 harness 适配器）。
 **框架 Protocol**：
 ```python
 # myrm_agent_harness.agent.skills.optimization.protocols
-class SkillQualityDataSource(Protocol):
-    async def get_quality_history(...) -> list[dict]: ...
-    async def save_quality_score(...) -> None: ...
+class SkillOptimizationStorage(Protocol):
+    async def save_skill_version(...) -> SkillVersion: ...
+    async def get_quality_history(...) -> list[tuple[datetime, SkillQualityScore]]: ...
+    async def save_quality_snapshot(...) -> None: ...
 ```
 
 **Server 实现**：
@@ -85,7 +85,6 @@ class SQLAlchemyStorage(SkillOptimizationStorage):
 ┌─────────────────────────────────────┐
 │ myrm_agent_harness.agent.skills.optimization │ ← 框架层（Protocol 定义）
 │ - protocols.py (StorageProtocol)    │
-│ - in_memory_storage.py (默认实现)    │
 └─────────────────────────────────────┘
             ↑ 依赖（实现接口）
 ┌─────────────────────────────────────┐

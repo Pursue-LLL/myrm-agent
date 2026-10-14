@@ -23,11 +23,10 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from myrm_agent_harness.agent.skills.optimization import (
     ABTestResult,
-    ABTestStatus,
     OptimizationResult,
     SkillQualityScore,
     SkillVersion,
@@ -99,48 +98,6 @@ class SQLAlchemyStorage:
         except Exception as e:
             raise StorageError(f"Failed to get optimization record: {e}") from e
 
-    async def get_optimization_history(
-        self,
-        skill_id: str,
-        limit: int = 10,
-    ) -> list[OptimizationResult]:
-        try:
-            async with self._get_session() as session:
-                repo = OptimizationRepository(session)
-                records = await repo.get_by_skill_id(skill_id, limit)
-                return [to_optimization_result(r) for r in records]
-        except StorageError:
-            raise
-        except Exception as e:
-            raise StorageError(f"Failed to get optimization history: {e}") from e
-
-    async def get_recent_optimizations(
-        self,
-        hours: int = 24,
-        limit: int = 100,
-    ) -> list[OptimizationResult]:
-        try:
-            async with self._get_session() as session:
-                repo = OptimizationRepository(session)
-                records = await repo.get_recent(limit)
-                cutoff_time = datetime.now() - timedelta(hours=hours)
-                filtered = [r for r in records if r.started_at >= cutoff_time]
-                return [to_optimization_result(r) for r in filtered]
-        except StorageError:
-            raise
-        except Exception as e:
-            raise StorageError(f"Failed to get recent optimizations: {e}") from e
-
-    async def delete_old_optimizations(self, days: int = 90) -> int:
-        try:
-            async with self._get_session() as session:
-                repo = OptimizationRepository(session)
-                return await repo.delete_old_records(days)
-        except StorageError:
-            raise
-        except Exception as e:
-            raise StorageError(f"Failed to delete old optimizations: {e}") from e
-
     # ==================== ABTestResult ====================
 
     async def save_ab_test(self, result: ABTestResult) -> None:
@@ -193,41 +150,6 @@ class SQLAlchemyStorage:
         except Exception as e:
             raise StorageError(f"Failed to get running A/B tests: {e}") from e
 
-    async def update_ab_test_status(
-        self,
-        skill_id: str,
-        status: ABTestStatus,
-        winner: str | None = None,
-    ) -> None:
-        try:
-            async with self._get_session() as session:
-                repo = ABTestRepository(session)
-                rows = await repo.get_by_skill_id(skill_id, limit=1)
-                if rows:
-                    await repo.update_status(
-                        test_id=rows[0].id,
-                        status=status.value,
-                        winner=winner,
-                    )
-        except StorageError:
-            raise
-        except Exception as e:
-            raise StorageError(f"Failed to update A/B test status: {e}") from e
-
-    async def increment_ab_test_sample_size(
-        self,
-        skill_id: str,
-        increment: int = 1,
-    ) -> int:
-        try:
-            async with self._get_session() as session:
-                repo = ABTestRepository(session)
-                return await repo.increment_sample_size(skill_id, increment)
-        except StorageError:
-            raise
-        except Exception as e:
-            raise StorageError(f"Failed to increment sample size: {e}") from e
-
     # ==================== SkillQualityHistory ====================
 
     async def save_quality_snapshot(
@@ -278,34 +200,6 @@ class SQLAlchemyStorage:
             raise
         except Exception as e:
             raise StorageError(f"Failed to get latest quality: {e}") from e
-
-    async def get_top_skills(
-        self,
-        limit: int = 10,
-    ) -> list[tuple[str, SkillQualityScore]]:
-        try:
-            async with self._get_session() as session:
-                repo = QualityRepository(session)
-                tops = await repo.get_top_skills(limit)
-                return [(skill_id, to_quality_score(score)) for skill_id, score in tops]
-        except StorageError:
-            raise
-        except Exception as e:
-            raise StorageError(f"Failed to get top skills: {e}") from e
-
-    async def get_bottom_skills(
-        self,
-        limit: int = 10,
-    ) -> list[tuple[str, SkillQualityScore]]:
-        try:
-            async with self._get_session() as session:
-                repo = QualityRepository(session)
-                bottoms = await repo.get_bottom_skills(limit)
-                return [(skill_id, to_quality_score(score)) for skill_id, score in bottoms]
-        except StorageError:
-            raise
-        except Exception as e:
-            raise StorageError(f"Failed to get bottom skills: {e}") from e
 
     # ==================== SkillVersion ====================
 

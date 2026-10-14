@@ -4,11 +4,9 @@ CRUD operations for skill optimization records.
 """
 
 import logging
-from datetime import datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy import delete, desc, select
-from sqlalchemy.engine import CursorResult
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.skill_optimization import OptimizationRecord
@@ -77,18 +75,6 @@ class OptimizationRepository:
         )
         return list(result.scalars().all())
 
-    async def get_recent(self, limit: int = 10) -> list[OptimizationRecord]:
-        """获取最近的优化记录
-
-        Args:
-            limit: 返回记录数量限制
-
-        Returns:
-            list[OptimizationRecord]: 优化记录列表（按时间倒序）
-        """
-        result = await self.session.execute(select(OptimizationRecord).order_by(desc(OptimizationRecord.started_at)).limit(limit))
-        return list(result.scalars().all())
-
     async def get_active_optimizations(self) -> list[OptimizationRecord]:
         """获取进行中的优化记录"""
         result = await self.session.execute(
@@ -153,14 +139,3 @@ class OptimizationRepository:
         await self.session.commit()
         logger.info(f"Deleted optimization record: {record_id}")
         return True
-
-    async def delete_old_records(self, days: int = 90) -> int:
-        """Delete optimization records whose run started before the retention cutoff."""
-        cutoff = datetime.now() - timedelta(days=days)
-        result = await self.session.execute(delete(OptimizationRecord).where(OptimizationRecord.started_at < cutoff))
-        await self.session.commit()
-        if not isinstance(result, CursorResult):
-            return 0
-        deleted = result.rowcount if result.rowcount is not None else 0
-        logger.info("Deleted %s optimization records older than %s days", deleted, days)
-        return int(deleted)

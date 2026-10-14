@@ -110,62 +110,6 @@ async def test_get_quality_history(session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_get_top_skills(session: AsyncSession):
-    """测试获取Top技能"""
-    repo = QualityRepository(session)
-
-    # 保存不同技能的快照
-    await repo.save_quality_snapshot(
-        skill_id="skill-A",
-        quality_score={"overall_score": 0.95},
-    )
-    await repo.save_quality_snapshot(
-        skill_id="skill-B",
-        quality_score={"overall_score": 0.85},
-    )
-    await repo.save_quality_snapshot(
-        skill_id="skill-C",
-        quality_score={"overall_score": 0.75},
-    )
-
-    # 获取Top 2
-    top_skills = await repo.get_top_skills(limit=2)
-    assert len(top_skills) == 2
-    assert top_skills[0][0] == "skill-A"
-    assert top_skills[0][1] == 0.95
-    assert top_skills[1][0] == "skill-B"
-    assert top_skills[1][1] == 0.85
-
-
-@pytest.mark.asyncio
-async def test_get_bottom_skills(session: AsyncSession):
-    """测试获取Bottom技能"""
-    repo = QualityRepository(session)
-
-    # 保存不同技能的快照
-    await repo.save_quality_snapshot(
-        skill_id="skill-D",
-        quality_score={"overall_score": 0.95},
-    )
-    await repo.save_quality_snapshot(
-        skill_id="skill-E",
-        quality_score={"overall_score": 0.85},
-    )
-    await repo.save_quality_snapshot(
-        skill_id="skill-F",
-        quality_score={"overall_score": 0.75},
-    )
-
-    # 获取Bottom 2
-    bottom_skills = await repo.get_bottom_skills(limit=2)
-    assert len(bottom_skills) == 2
-    assert bottom_skills[0][0] == "skill-F"
-    assert bottom_skills[0][1] == 0.75
-    assert bottom_skills[1][0] == "skill-E"
-    assert bottom_skills[1][1] == 0.85
-
-
-@pytest.mark.asyncio
 async def test_get_all_latest_qualities(session: AsyncSession):
     """测试获取所有技能的最新质量"""
     repo = QualityRepository(session)

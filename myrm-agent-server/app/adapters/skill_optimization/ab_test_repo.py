@@ -107,17 +107,6 @@ class ABTestRepository:
         )
         await self.session.commit()
 
-    async def increment_sample_size(self, skill_id: str, increment: int = 1) -> int:
-        """Increment sample_size for the latest A/B test row for a skill; returns new total or 0 if none."""
-        tests = await self.get_by_skill_id(skill_id, limit=1)
-        if not tests:
-            return 0
-        test_id = tests[0].id
-        for _ in range(max(increment, 0)):
-            await self.atomic_increment_sample_size(test_id)
-        updated = await self.get_by_id(test_id)
-        return updated.sample_size if updated else 0
-
     async def delete(self, test_id: str) -> bool:
         """删除A/B测试记录"""
         test = await self.get_by_id(test_id)
