@@ -1627,7 +1627,7 @@ except Exception:
 
 ### 修复
 
-1. server：新增 `oauth_token_policy.py`（纯函数：到期取 JWT `exp` 与 `now + expires_in` 的较早者、5 分钟提前量、刷新失败分为终态 / 可重试）；`xai_oauth.py` 登录时用同一解析写 `expires_at`。
+1. server：新增 `oauth_token_policy.py`（纯函数：到期取 JWT `exp` 与 `now + expires_in` 的较早者、5 分钟提前量、刷新失败分为终态 / 可重试：只有 4xx 且响应体是 OAuth 错误——JSON 里带非空字符串 `error`，RFC 6749 第 5.2 节——才算终态，网关 / 代理 / 防火墙返回的无 OAuth 错误体的 4xx 与超时、限流、5xx 一样可重试）；`xai_oauth.py` 登录时用同一解析写 `expires_at`。
 2. server：新增 `provider_oauth_tokens.py`——提供商到发行方的唯一登记 `PROVIDER_OAUTH_ISSUERS`；`resolve_oauth_marker` 把占位符换成存库令牌（只发给签发主机，10 秒预算）；`refresh_provider_oauth_credentials` 在配置加载期刷新到期令牌（2 秒预算，超时沿用原令牌，刷新在后台继续并自行落库）；`freshen_api_key` 供 harness 在请求前续期（只认本进程签发过的令牌，最多记 16 个，其余密钥只做一次字典查找）。
 3. server：`config_loader.py` 先刷新到期令牌再注入，并把注入提前到默认模型解析之前；`oauth_store.persist_credentials_locked` 提交 oauthCredentials 后失效已加载配置快照（失败只记 warning，不掩盖已提交的写入）。
 4. server：`oauth_refresher.py` 按指纹记住被拒绝的刷新令牌（新登录换新令牌即解除）、可重试失败冷却 30 秒、刷新作为独立任务 `asyncio.shield`、终态失败照常发（去重的）重新授权事件。
@@ -1637,7 +1637,7 @@ except Exception:
 8. harness：新增 `api_key_refresher.py`（进程级登记，异步路径每次请求前 `renew_api_key`），`model.py`、`async_mixin.py` 接入，`api/hooks.py` 导出 `set_api_key_refresher`；新增 `session_affinity.py`（按主机匹配原生 xAI 端点后注入 `x-grok-conv-id`，取 `prompt_routing_key_var`，没有则取 `chat_id_var`，调用方已设同名头时不覆盖）；`payload_debug.py` 从 `model.py` 拆出，两个文件回到行数上限内（基线 `async_mixin.py` 579→553、`model.py` 552→514）。
 9. frontend：`configNormalizer.ts` 的 `BUILT_IN_FIELD_OWNER` 是 `Record<keyof ProviderConfig, 'definition' | 'user'>`，新增字段时编译期强制决定归属，`mergeBuiltInProvider` 保留全部用户字段。
 10. frontend：`provider-oauth-reconcile.ts` 在启动（`initProviders` 成功路径）用服务端状态校正 `oauthConnected`，只改这个标志，比较基准是请求发出时的标志，请求期间完成的登录 / 退出不会被较早的回答覆盖；离线时什么都不改。
-11. frontend：`useXaiDeviceLogin.ts` 是唯一的设备码流程（RFC 8628：`slow_down` 追加 5 秒、最小间隔 1 秒、设备码寿命到期、卸载即停、重复 start 忽略），失败原因是封闭集合 `startFailed | expired | denied | timeout`，各界面映射成本地化文案；`providerSubscription.ts` 是「已连接」变成提供商状态的唯一位置（连接：置标志，按 models.dev 目录挑启动模型并启用，已有选择不动；断开：没有其他凭据的提供商被禁用并释放绑定的模型位，有 API Key 的继续可用）；`subscriptionDefaultModel.ts` 取目录里最新的、未弃用、支持工具调用且输出文本的模型，不再写死 id。
+11. frontend：`useXaiDeviceLogin.ts` 是唯一的设备码流程（RFC 8628：`slow_down` 追加 5 秒、最小间隔 1 秒、设备码寿命到期、卸载即停、重复 start 忽略），失败原因是封闭集合 `startFailed | expired | denied | timeout`，各界面映射成本地化文案；`providerSubscription.ts` 是应用内登录 / 登出变成提供商状态的唯一位置（连接：置标志，按 models.dev 目录挑启动模型并启用，已有选择不动；断开：没有其他凭据的提供商被禁用并释放绑定的模型位，有 API Key 的继续可用）；`subscriptionDefaultModel.ts` 取目录里最新的、未弃用、支持工具调用且输出文本的模型，不再写死 id。
 12. frontend：横幅、模型页订阅卡片、凭据页 xAI 对话框改用同一个 hook 与同一份副作用；凭据页对话框文案进六语言 `locales`（硬编码文案棘轮里该文件 12→2，剩下 2 处是另一个对话框既有的中英并列文案）；复制反馈抽成 `useCopyFeedback`；外链用 `noopener,noreferrer` 打开；`xai-oauth.ts` 只剩设备码 start / poll，`provider-oauth.ts` 只剩状态与断开。
 
 行为说明：
@@ -1645,13 +1645,14 @@ except Exception:
 1. 显式断开订阅时，没有其他凭据的提供商会被禁用并释放它占用的模型位；有 API Key 的提供商保持启用。
 2. 启动校正只改 `oauthConnected`，不启用 / 禁用提供商，也不动模型选择。
 3. 连接成功时 models.dev 目录不可用：提供商已连接但不启用，成功视图照常显示，用户到模型页自选模型。
+4. 刷新被拒绝只认 OAuth 错误体：4xx 但响应体不是带 `error` 字符串的 JSON（代理 / 防火墙拦截页、网关自己的 JSON）按可重试处理，不记住刷新令牌、不发重新授权事件。若某个提供商用非 OAuth 格式的响应拒绝刷新令牌，它同样按可重试处理（每 30 秒最多再试一次，不弹重新授权），而不是被永久阻断。
 
 ### 验证
 
-1. server：本次触及的 10 个测试文件共 171 例通过（另 3 例 e2e 按标记跳过）；更宽一批（刷新器各测试、会话凭据、`config_loader`、模型解析、`tests/services/integrations`、LLM 探针与 OAuth 接口）共 311 例通过；新增 `test_oauth_token_policy.py`、`test_oauth_refresher_failure_memory.py`、`test_provider_oauth_tokens.py`、`test_llm_oauth_marker.py`、`test_lifespan_oauth_refresher.py`，并在 `test_oauth_store.py` 补了「明文原样存、密文进 `_cipher` 信封」2 例。
+1. server：本次触及的 10 个测试文件加 e2e 文件共 187 例通过（4 例 e2e 按标记取消选择）；刷新器、会话凭据、`config_loader`、Google Workspace 同步、LLM 探针与 OAuth 接口相关的 18 个测试文件共 191 例通过（其中 `test_provider_oauth_tokens.py` 含服务端占位符与前端 `OAUTH_AUTH_API_KEY_MARKER` 字面量一致的检查）；新增 `test_oauth_token_policy.py`、`test_oauth_refresher_failure_memory.py`、`test_provider_oauth_tokens.py`、`test_llm_oauth_marker.py`、`test_lifespan_oauth_refresher.py`，并在 `test_oauth_store.py` 补了「明文原样存、密文进 `_cipher` 信封」2 例。
 2. harness：`test_api_key_refresher.py`、`test_prompt_routing_key.py`、`test_chat_model_stream_edges.py`、`test_integration_surface.py` 共 79 例通过；`set_api_key_refresher` 经公开门面登记后与 `renew_api_key` 读到同一份登记（门面测试 1 例）。
 3. frontend：广域 vitest 346 个文件 2055 例通过（聊天窗口、设置 / 模型服务、凭据页、`hooks/shared`、`store`、`services/config`、`services`）。
-4. 变异检查（临时改写源码、跑测试、恢复原文）：server 刷新失败记忆 6 个、占位符解析 3 个、`_ttft_sort_key` 1 个、存储形状（信封、键名、加密标志）3 个，harness 路由头 3 个、续期登记 5 个，全部杀死；frontend 第三批共 68 个：第一轮 52 个，杀死 50 个，存活 2 个——冗余的重读守卫经分析后删除，失败提示残留改成让重试保持挂起再断言后在第二轮杀死；第二轮 16 个，全部杀死。
+4. 变异检查（临时改写源码、跑测试、恢复原文）：server 刷新失败记忆 6 个、占位符解析 3 个、`_ttft_sort_key` 1 个、存储形状（信封、键名、加密标志）3 个，harness 路由头 3 个、续期登记 5 个，全部杀死；frontend 第三批共 68 个：第一轮 52 个，杀死 50 个，存活 2 个——冗余的重读守卫经分析后删除，失败提示残留改成让重试保持挂起再断言后在第二轮杀死；第二轮 16 个，全部杀死；复核阶段对刷新失败分类 4 个（退回旧规则、空 `error`、非字符串 `error`、忽略可重试的 OAuth 错误码）与占位符字面量漂移 1 个做变异（只改解释器内存里的模块源码，工作树不动），全部杀死。
 5. 静态：`ruff check` / `ruff format --check`、mypy（server 9 个源文件、harness 6 个源文件均无报错）、oxlint、prettier、ReadLints 对触及文件均通过；`verify-i18n.mjs` 通过；`tsc --noEmit` 只剩他人的两处错误（`KanbanTaskHandoffSection.test.tsx(68,3)`、`app/zz-adm-preview/Preview.tsx(89,31)`）；`verify-i18n-references.mjs` 的 219 个缺失 key 与此前记录的基线数目相同，没有一条出自本次文件。
 6. 门禁：本次的 server 文件没有新增 harness 深层导入（逐文件对照基线）；`test_server_harness_imports.py`、`test_api_route_consumers.py` 的现有失败都出自他人新增的导入与路由，没有一条涉及本次的路径与路由；`check-hardcoded-copy` 的 drift 提示里 `CredentialsDialogs.tsx` 12→2 是本次的改善，基线已同步收紧。
 7. 局限：没有真实 SuperGrok 账号与浏览器，设备码授权的端到端流程只有单元测试与前端交互测试；`x-grok-conv-id` 只验证了注入条件，没有在真实接口上量化缓存命中的变化；刷新锁是进程内 `asyncio.Lock`（既有设计），多个服务进程同时读写同一份库时不保证串行；`llms.py`、`lifespan.py`、`useProviderStore.ts` 本来就超过 400 行，本次只在其中加了调用点。

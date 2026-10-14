@@ -4,7 +4,7 @@
  * @/store/config/providerTypes::ProviderConfig (type only)
  *
  * [OUTPUT]
- * reconcileProviderOAuthFlags
+ * reconcileProviderOAuthFlags: corrects the stored `oauthConnected` flags that disagree with the server's login state
  *
  * [POS]
  * Aligns the stored `oauthConnected` flag of subscription providers with the server, which owns the tokens. The flag is

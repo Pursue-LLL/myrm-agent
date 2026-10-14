@@ -3,18 +3,19 @@
  * @/services/models-dev::ModelsDevModel (POS: models.dev catalog entry shape)
  *
  * [OUTPUT]
- * pickSubscriptionDefaultModel
+ * pickSubscriptionDefaultModel: id of the newest non-deprecated tool-calling text model in the catalog, or null when
+ * none qualifies
  *
  * [POS]
- * Chooses the model a freshly connected subscription provider starts with. It reads the live catalog instead of a
- * hard-coded id, so the choice follows the vendor's releases without a code change.
+ * Chooses the model a freshly connected subscription provider starts with. It reads the live catalog, so the choice
+ * follows the vendor's releases without a code change.
  */
 
 import type { ModelsDevModel } from '@/services/models-dev';
 
 /**
- * The legacy array form of `modalities` lists the inputs only, so it says nothing about the output; an entry that
- * omits the output list is given the benefit of the doubt.
+ * The array form of `modalities` lists the inputs only, so it says nothing about the output; an entry that omits the
+ * output list is given the benefit of the doubt.
  */
 function outputsText(model: ModelsDevModel): boolean {
   const { modalities } = model;

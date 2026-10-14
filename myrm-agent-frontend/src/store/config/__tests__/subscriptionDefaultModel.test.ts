@@ -62,7 +62,7 @@ describe('pickSubscriptionDefaultModel', () => {
   });
 
   it.each([
-    ['legacy array modalities', ['text', 'image']],
+    ['array-form modalities', ['text', 'image']],
     ['missing modalities', undefined],
     ['missing output list', { input: ['text'] }],
   ])('accepts a model whose output modality is unspecified (%s)', (_label, modalities) => {

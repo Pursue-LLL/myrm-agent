@@ -123,7 +123,7 @@ describe('built-in provider merge on normalize', () => {
     expect(result.providerType).toBeUndefined();
   });
 
-  it('does not rewrite a saved provider whose settings startup normalization used to drop', () => {
+  it('does not rewrite a saved provider that carries oauthConnected, egressProxy and credentialPoolStrategy', () => {
     const normalized = normalizeProviders(null);
     const saved = {
       ...normalized,

@@ -34,8 +34,8 @@ DEFAULT_TOKEN_TTL_S = 3600
 
 RefreshFailureKind = Literal["terminal", "transient"]
 
-# Request timeouts and rate limits heal on retry; every other 4xx means the
-# provider rejected this refresh token (or the client) for good.
+# Request timeouts and rate limits heal on retry whatever the body says; for any
+# other 4xx only an OAuth error body proves the provider rejected the grant.
 _TRANSIENT_STATUS_CODES = frozenset({408, 425, 429})
 _TRANSIENT_ERROR_CODES = frozenset({"temporarily_unavailable", "server_error", "slow_down"})
 
@@ -95,9 +95,8 @@ def resolve_expires_at(token: object, expires_in: object, *, now: float) -> floa
 def credential_expiry(credential: Mapping[str, object]) -> float | None:
     """Effective expiry of a stored credential entry (None when unknown).
 
-    Entries persisted before expiry resolution existed may carry an
-    ``expires_at`` far beyond the token's real lifetime; taking the earlier of
-    it and the JWT ``exp`` heals them without a migration.
+    A stored ``expires_at`` may lie beyond the token's real lifetime; the earlier
+    of it and the JWT ``exp`` wins, so such an entry never looks fresh.
     """
     candidates = [
         value
@@ -120,14 +119,18 @@ def is_refresh_due(credential: Mapping[str, object], *, now: float) -> bool:
 def classify_refresh_failure(status_code: int, body: object) -> RefreshFailureKind:
     """Decide whether a failed refresh can heal by retrying later.
 
-    ``terminal`` means the provider rejected this refresh token or client, so
-    retrying only spends (and, for rotating tokens, burns) attempts until the
-    user signs in again. ``transient`` covers outages, rate limits and unknown
-    non-error statuses.
+    ``terminal`` means the provider itself rejected this refresh token or client:
+    a client-error status with an OAuth error body (RFC 6749 section 5.2, JSON
+    carrying ``error``). Retrying only spends (and, for rotating tokens, burns)
+    attempts until the user signs in again. ``transient`` covers outages, rate
+    limits, unknown non-error statuses and 4xx answers without an OAuth error
+    body: those come from a proxy, gateway or firewall in front of the provider
+    and heal on their own.
     """
     if status_code < 400 or status_code >= 500 or status_code in _TRANSIENT_STATUS_CODES:
         return "transient"
-    if isinstance(body, dict) and body.get("error") in _TRANSIENT_ERROR_CODES:
+    error = body.get("error") if isinstance(body, dict) else None
+    if not isinstance(error, str) or not error or error in _TRANSIENT_ERROR_CODES:
         return "transient"
     return "terminal"
 

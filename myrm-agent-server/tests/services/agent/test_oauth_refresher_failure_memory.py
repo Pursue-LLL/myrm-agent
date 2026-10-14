@@ -128,7 +128,7 @@ class TestRejectedRefreshToken:
 
 class TestTransientFailure:
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("status", [429, 503])
+    @pytest.mark.parametrize("status", [429, 503, 403, 407])
     async def test_cools_down_without_notifying_then_retries(self, status: int) -> None:
         post = AsyncMock(return_value=_response(status))
 

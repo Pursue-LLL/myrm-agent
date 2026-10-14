@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/lib/utils/clipboardUtils::writeToClipboard (POS: shared Tauri/Web clipboard writer)
+ *
+ * [OUTPUT]
+ * useCopyFeedback: `copy(text)` writes to the clipboard and `copied` stays true for a short confirmation window
+ *
+ * [POS]
+ * The shared "copied" confirmation behind copy buttons; the window restarts on every copy and no timer outlives the
+ * component.
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 

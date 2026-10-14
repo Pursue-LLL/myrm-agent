@@ -73,7 +73,7 @@ def test_subscription_oauth_seed_status_and_disconnect_lifecycle() -> None:
     assert data.get("connected") is True
     assert data.get("provider") == "xai"
     assert "https://api.x.ai/v1" in str(data.get("base_url"))
-    # Models come from the live catalog; the server no longer ships a model list.
+    # Models come from the live catalog; the server ships no model list.
     assert "available_models" not in data
 
     # 4. 验证 WebUI 页面在 Chrome CDP 中的渲染

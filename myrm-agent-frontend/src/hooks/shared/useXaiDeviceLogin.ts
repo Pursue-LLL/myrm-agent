@@ -6,7 +6,9 @@
  * @/store/config/providerSubscription::connectProviderSubscription (POS: store-side effects of a successful login)
  *
  * [OUTPUT]
- * useXaiDeviceLogin, XaiLoginFailure, XaiDeviceLogin
+ * useXaiDeviceLogin: starts, polls and cancels a device-code login and exposes its phase, user code and verification URL
+ * XaiLoginFailure: closed set of reasons a login ends without a connection
+ * XaiDeviceLogin: the shape the hook returns
  *
  * [POS]
  * The one device-code login flow (RFC 8628) for the xAI subscription, shared by the chat banner, the Models page and

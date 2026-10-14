@@ -6,11 +6,15 @@
  * ./providerTypes::hasUsableProviderAuth (POS: whether a provider can still authenticate)
  *
  * [OUTPUT]
- * connectProviderSubscription, disconnectProviderSubscription
+ * connectProviderSubscription: marks the provider connected, enables it with a model it can run and fills an empty
+ * base-model slot
+ * disconnectProviderSubscription: clears the connected flag and disables the provider when nothing else can
+ * authenticate it
  *
  * [POS]
- * Store-side effects of a subscription (OAuth) login or logout. It is the one place where "connected" becomes provider
- * state, so the chat banner, the Models page and the Credentials page leave the app in the same condition.
+ * Store-side effects of a subscription (OAuth) login or logout made in the app. It is the one place where such a
+ * login or logout becomes provider state, so the chat banner, the Models page and the Credentials page leave the app in
+ * the same condition; the startup reconciliation only realigns the connected flag with the server.
  */
 
 import { getModelsForProvider } from '@/services/models-dev';
