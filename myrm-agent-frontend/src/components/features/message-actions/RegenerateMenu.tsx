@@ -68,6 +68,7 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
     }
   };
 
+  // `instruction` is prompt text for the model, not UI copy: it stays English so one preset sends one prompt in every UI language.
   const presets = [
     { icon: RefreshCw, labelKey: 'regenerate_try_again' as const, instruction: undefined },
     { icon: AlignLeft, labelKey: 'regenerate_concise' as const, instruction: 'Be more concise and to the point' },
@@ -94,7 +95,7 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
         <button
           onClick={() => setOpen(!open)}
           className="p-1 pr-1.5 text-black/70 dark:text-white/70 hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white"
-          aria-label="Regenerate options"
+          aria-label={t('regenerate_options')}
         >
           <ChevronDown size={12} />
         </button>

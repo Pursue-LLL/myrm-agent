@@ -92,7 +92,9 @@ const HistoryImageItem = ({
 };
 
 const FileContentBlock = ({ file }: { file: FileType }) => {
+  const t = useTranslations('chat');
   const src = useMemo(() => getDisplayUrl(file), [file]);
+  const extension = file.fileExtension?.replace('.', '');
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -134,7 +136,7 @@ const FileContentBlock = ({ file }: { file: FileType }) => {
         <div className="flex flex-col min-w-0">
           <span className="text-sm font-medium text-foreground truncate">{file.fileName}</span>
           <span className="text-xs text-muted-foreground uppercase">
-            {file.fileExtension ? file.fileExtension.replace('.', '') : 'FILE'} Document
+            {extension ? t('attachment_document', { type: extension }) : t('attachment_document_generic')}
           </span>
         </div>
       </div>
@@ -142,7 +144,7 @@ const FileContentBlock = ({ file }: { file: FileType }) => {
         <button
           onClick={handleDownload}
           className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
-          title="Download"
+          title={t('attachment_download')}
         >
           <Download size={16} />
         </button>

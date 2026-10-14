@@ -5,6 +5,7 @@ import RegenerateMenu from '../RegenerateMenu';
 const stableT = (key: string) => {
   const translations: Record<string, string> = {
     regenerate: 'Regenerate',
+    regenerate_options: 'Regenerate options',
     regenerate_try_again: 'Try Again',
     regenerate_concise: 'More Concise',
     regenerate_detailed: 'More Detailed',
