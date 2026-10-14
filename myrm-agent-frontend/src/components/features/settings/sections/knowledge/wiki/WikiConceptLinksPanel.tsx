@@ -179,22 +179,13 @@ export function WikiConceptLinksPanel({ conceptName, agentId, onSelectConcept }:
                     )}
                   </div>
 
-                  {(link.heading || link.line_number) && (
-                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                      {link.heading && (
-                        <span
-                          title={t('jumpToSection', { heading: link.heading })}
-                          className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50 font-mono truncate max-w-[220px]"
-                        >
-                          § {link.heading}
-                        </span>
-                      )}
-                      {link.line_number && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-mono">
-                          L{link.line_number}
-                        </span>
-                      )}
-                    </div>
+                  {link.heading && (
+                    <span
+                      title={t('jumpToSection', { heading: link.heading })}
+                      className="mt-0.5 self-start text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50 font-mono truncate max-w-[220px]"
+                    >
+                      § {link.heading}
+                    </span>
                   )}
 
                   {link.context_snippet && (

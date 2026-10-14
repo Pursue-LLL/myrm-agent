@@ -82,7 +82,8 @@ describe('WikiConceptLinksPanel', () => {
     expect(screen.queryByText(/4\.5/)).not.toBeInTheDocument();
 
     expect(screen.getByText('§ 采购审核机制')).toBeInTheDocument();
-    expect(screen.getByText('L7')).toBeInTheDocument();
+    // 编辑器不显示行号，行号徽章对用户没有可对照的位置
+    expect(screen.queryByText('L7')).not.toBeInTheDocument();
     expect(screen.getByTitle('Click the card to jump to the section: 采购审核机制')).toBeInTheDocument();
 
     expect(screen.getByText('referencing-source')).toBeInTheDocument();
