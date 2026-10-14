@@ -172,7 +172,6 @@ app/lifecycle/__init__.py
 app/lifecycle/browser.py
 app/lifecycle/monitors.py
 app/lifecycle/schedulers.py
-app/lifecycle/skills.py
 app/middleware/auth.py
 app/middleware/cache.py
 app/middleware/ingress.py
