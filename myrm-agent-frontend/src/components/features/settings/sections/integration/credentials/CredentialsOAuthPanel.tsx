@@ -50,6 +50,10 @@ export function CredentialsOAuthPanel({
             const desc = getPlatformDescription(plat, locale);
             const { state, daysLeft } = resolveOauthCardState(active);
             const { badgeColorClass, badgePulseDotClass } = getOauthBadgeStyles(state);
+            const showExpiry = !active?.renewable;
+            const showDetails = Boolean(
+              active && state !== 'expired' && (active.user_id || active.scope || showExpiry),
+            );
 
             let badgeText = t('disconnected');
             if (state === 'connected') {
@@ -137,7 +141,7 @@ export function CredentialsOAuthPanel({
                     </div>
                   )}
 
-                  {active && state !== 'expired' && (
+                  {active && showDetails && (
                     <div className="mt-4 space-y-1.5 bg-muted/30 rounded-lg p-3 text-xs border border-border/50">
                       {active.user_id && (
                         <div className="flex justify-between items-center">
@@ -151,12 +155,16 @@ export function CredentialsOAuthPanel({
                           <span className="font-medium max-w-[180px] truncate text-foreground">{active.scope}</span>
                         </div>
                       )}
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">{t('expiresAt')}:</span>
-                        <span className="font-medium text-foreground">
-                          {active.expires_at ? new Date(active.expires_at * 1000).toLocaleString() : t('neverExpires')}
-                        </span>
-                      </div>
+                      {showExpiry && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">{t('expiresAt')}:</span>
+                          <span className="font-medium text-foreground">
+                            {active.expires_at
+                              ? new Date(active.expires_at * 1000).toLocaleString()
+                              : t('neverExpires')}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
