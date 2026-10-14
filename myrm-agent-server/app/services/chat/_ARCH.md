@@ -23,7 +23,9 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 |------|------|------|-------|
 | `chat_service.py` | ✅ 核心 | ChatService 门面类，通过 Mixin 组合各域方法 | ✅ |
 | `_base.py` | ✅ 基础 | `_ChatRepositoryPort` 协议 + `_ChatServiceBase` 基类（`_cr()` 访问器） | ✅ |
-| `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、软删除回收站 (trash/restore/permanent-delete/empty/auto-purge/batch-delete；permanent-delete/empty 将只读预读剥离独立短事务，写事务升级 `BEGIN IMMEDIATE` 防并发 snapshot 冲突)、session flush、channel chat 管理、Pinned Threads (pin/unpin/reorder, max 9)、会话结束后的状态拆除（checkpoint、会话级授权、运行时缓存、记忆级联、沙箱文件）统一委托 `chat_disposal`，永久删除只作用于回收站内的会话（过期的回收站视图不会清空已被恢复会话的消息与 `chat_bound_rows` 行）、`ensure_chat_source`（web→cron 打标并同步 recall 索引 source） | ✅ |
+| `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、session flush、Pinned Threads (pin/unpin/reorder, max 9)、`ensure_default_workspace_dir`、`ensure_chat_source`（web→cron 打标并同步 recall 索引 source） | ✅ |
+| `chat_deletion.py` | ✅ 核心 | `_ChatDeletionMixin`: 会话删除生命周期——软删除回收站 (trash/restore/permanent-delete/empty/batch-delete/orphan-empty-session purge)；permanent-delete/empty 将只读预读剥离独立短事务，写事务升级 `BEGIN IMMEDIATE` 防并发 snapshot 冲突；会话结束后的状态拆除（checkpoint、会话级授权、运行时缓存、记忆级联、沙箱文件）统一委托 `chat_disposal`，永久删除只作用于回收站内的会话（过期的回收站视图不会清空已被恢复会话的消息与 `chat_bound_rows` 行） | ✅ |
+| `chat_channel.py` | ✅ 核心 | `_ChatChannelMixin`: 渠道聊天解析与创建（`get_channel_chat_by_key`、`get_or_create_channel_chat`，并发创建靠唯一约束 + IntegrityError 回读收敛） | ✅ |
 | `chat_disposal.py` | ✅ 核心 | 会话结束后的拆除步骤单一定义：`clear_conversation_state`（LangGraph checkpoint 线程 + 会话级时效授权 + 拒绝熔断计数；checkpoint 清不干净只返回 False，授权照清）、`clear_runtime_caches`（外部 Agent 运行时池、执行缓存、工作记忆）、`clear_extract_retry_queue`、`forget_chat_memories`（记忆级联删除 + 重试队列）、`remove_chat_files`（沙箱 worktree 逐个以 safe 模式移除：有未保存改动的 worktree 与含未合并提交的分支保留，返回 `ChatFilesRemoval(removed_worktrees, kept_worktrees)`；工作空间与 ArtifactVault 一次批量）、`dispose_permanently_deleted_chats`（先停生产者再抹状态）。永久删除、清空回收站与两个自动清除经 `dispose_permanently_deleted_chats` 走全部步骤，焦点刷新、软删除与安全清空只组合适用的步骤，每一步 fail-open | ✅ |
 | `chat_bound_rows.py` | ✅ 核心 | 只存聊天 id、没有外键指向 `chats` 的表的单一清单 `CHAT_BOUND_TABLES`（widget_kv / approvals / commitments / fission_task_records）与 `delete_trashed_chat_bound_rows`（每条 DELETE 自带回收站判断，过期的 id 列表不会误删已恢复会话的数据，500 个 id 一批）；永久删除、清空回收站与安全清空共用这一份，遗留行会把已删对话的内容经主动承诺带进其它会话；守卫测试 `tests/services/chat/test_chat_bound_rows.py` 对完整 schema 校验：含聊天列的表要么在清单里，要么在带理由的例外表里 | ✅ |
 | `chat_retention.py` | ✅ 核心 | 时间型永久删除策略：回收站超过 30 天（`purge_expired_trash`）与无痕会话空闲超过 1 小时（`purge_idle_incognito_chats`）；只决定哪些会话到期，删除委托 `ChatService`，与手动永久删除走同一套拆除 | ✅ |
@@ -64,7 +66,11 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 ```
 ChatService
   ├─ _ChatCrudMixin      (chat_crud.py)
-  │    CRUD、trash (soft-delete/restore/permanent-delete/empty/batch-delete)、session、channel、ensure_default_workspace_dir、pin/unpin/reorder
+  │    CRUD、session flush、ensure_chat_source、ensure_default_workspace_dir、pin/unpin/reorder
+  ├─ _ChatDeletionMixin  (chat_deletion.py)
+  │    trash (soft-delete/restore/permanent-delete/empty/batch-delete)、orphan empty session purge
+  ├─ _ChatChannelMixin   (chat_channel.py)
+  │    get_channel_chat_by_key、get_or_create_channel_chat
   ├─ _ChatMessageMixin   (chat_message.py)
   │    append_message、ensure_chat_and_append_user_message、persist_assistant_message_safe
   ├─ _ChatHistoryMixin   (chat_history.py)

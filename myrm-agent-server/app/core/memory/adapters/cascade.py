@@ -11,7 +11,7 @@ shutdown_cascade_manager: 关闭级联管理器并释放资源
 
 [POS]
 GDPR 遗忘权实现层。提供全局 namespace 的 MemoryManager 单例，仅用于按 source_chat_id
-元数据删除/计数记忆，无需 embedding 服务。由 chat_crud.py 在永久删除会话时调用。
+元数据删除/计数记忆，无需 embedding 服务。由 chat_disposal.py 在永久删除会话时调用。
 """
 
 from __future__ import annotations

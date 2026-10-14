@@ -19,10 +19,10 @@ async def test_delete_chat_closes_external_agent_pool() -> None:
     mock_uow.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("app.services.chat.chat_crud.UnitOfWork", return_value=mock_uow),
-        patch("app.services.chat.chat_crud._ChatServiceBase._cr", return_value=mock_repo),
+        patch("app.services.chat.chat_deletion.UnitOfWork", return_value=mock_uow),
+        patch("app.services.chat.chat_deletion._ChatServiceBase._cr", return_value=mock_repo),
         patch(
-            "app.services.chat.chat_crud.ConversationRecallIndexService.set_chat_excluded",
+            "app.services.chat.chat_deletion.ConversationRecallIndexService.set_chat_excluded",
             AsyncMock(),
         ),
         patch(
@@ -52,13 +52,13 @@ async def test_permanently_delete_chat_closes_external_agent_pool() -> None:
     mock_uow.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("app.services.chat.chat_crud.UnitOfWork", return_value=mock_uow),
-        patch("app.services.chat.chat_crud._ChatServiceBase._cr", return_value=mock_repo),
+        patch("app.services.chat.chat_deletion.UnitOfWork", return_value=mock_uow),
+        patch("app.services.chat.chat_deletion._ChatServiceBase._cr", return_value=mock_repo),
         patch(
-            "app.services.chat.chat_crud.ConversationRecallIndexService.delete_chat",
+            "app.services.chat.chat_deletion.ConversationRecallIndexService.delete_chat",
             AsyncMock(),
         ),
-        patch("app.services.chat.chat_crud.delete_trashed_chat_bound_rows", AsyncMock()),
+        patch("app.services.chat.chat_deletion.delete_trashed_chat_bound_rows", AsyncMock()),
         patch("app.services.chat.chat_disposal.forget_chat_memories", AsyncMock()),
         patch("app.services.chat.chat_disposal.clear_conversation_state", AsyncMock()),
         patch("app.services.chat.chat_disposal.remove_chat_files", AsyncMock()),
