@@ -164,6 +164,11 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     [drawerTaskId, tasks],
   );
 
+  const selectedStatuses = useMemo(() => {
+    const selected = new Set(selectedTaskIds);
+    return tasks.filter((tk) => selected.has(tk.task_id)).map((tk) => tk.status);
+  }, [selectedTaskIds, tasks]);
+
   const allAgentIds = useMemo(() => {
     const ids = new Set<string>();
     for (const ag of summaryData?.by_agent ?? []) {
@@ -902,6 +907,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
       <KanbanBulkActionBar
         boardId={board.board_id}
         selectedIds={selectedTaskIds}
+        selectedStatuses={selectedStatuses}
         onClear={() => setSelectedTaskIds([])}
         onComplete={() => {
           fetchTasks();

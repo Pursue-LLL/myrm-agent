@@ -4,11 +4,12 @@
  *
  * [OUTPUT]
  * - MoveIntent: 一次「改状态」操作在界面上的真实含义
+ * - isServerMoveAllowed: 服务端 move 接口是否接受该起止状态（含「原地不动」）
  * - resolveMoveIntent: 由起止状态判定操作含义（镜像服务端 move 守卫）
  * - moveLabelKey: 状态流转入口的文案 key
  *
  * [POS]
- * 看板状态流转的单一判定点。卡片菜单、抽屉、拖拽共用它：服务端必然拒绝的流转在发起前就拦下，
+ * 看板状态流转的单一判定点。卡片菜单、抽屉、拖拽、批量条共用它：服务端必然拒绝的流转在发起前就拦下，
  * 失败 → 就绪走「重试」而不是 move，归档先经过确认。
  */
 import type { TaskStatus } from '@/services/kanban';
@@ -24,8 +25,11 @@ export type MoveIntent = 'move' | 'retry' | 'archive' | 'blocked';
 const TERMINAL_STATUSES: readonly TaskStatus[] = ['completed', 'failed', 'archived'];
 const TRIAGE_TARGETS: readonly TaskStatus[] = ['backlog', 'ready', 'archived'];
 
-/** 服务端 move 守卫（move_orchestrator.move_task）：终态只能归档、草稿池只能去 backlog/ready/archived、审核态不可手动进出。 */
-function isServerMoveAllowed(from: TaskStatus, to: TaskStatus): boolean {
+/**
+ * 服务端 move 守卫（move_orchestrator.move_task）：终态只能归档、草稿池只能去 backlog/ready/archived、审核态不可手动进出。
+ * 守卫不特判「原地不动」，所以终态、草稿池、审核态任务移到自己当前的状态同样被拒。
+ */
+export function isServerMoveAllowed(from: TaskStatus, to: TaskStatus): boolean {
   if (from === 'in_review' || to === 'in_review') {
     return false;
   }

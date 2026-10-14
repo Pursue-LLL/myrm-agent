@@ -14,7 +14,7 @@
 | KanbanTaskCardActions.tsx            | 辅助 | 卡片单一操作菜单（详情 / Specify / Decompose / 状态流转 / 回收 / 删除，回收与删除只发起确认请求；失败任务的「就绪」入口显示为「重试」）；触发器常驻 DOM，桌面悬停或键盘聚焦显现、触屏常显（`REVEAL_ON_HOVER`）；触发器与 portal 菜单上的指针手势不冒泡给 dnd 卡片（否则按下起拖拽、双击开抽屉） | ✅    |
 | KanbanTaskActionConfirm.tsx          | 辅助 | 删除 / 回收 / 重试 / 归档的确认对话框与 `useKanbanTaskActionConfirm` 状态 hook：由看板视图统一持有，卡片菜单、抽屉、拖拽只发起请求；`requestMove` 按 `resolveMoveIntent` 分流（重试与归档先确认，其余直接流转）；文案交代后果（删除连同运行记录一并清除、等待它的任务可能变为就绪并自动开跑；回收会停止执行中的 Agent 并回到就绪；重试会再次消耗模型额度，且失败后已继续推进的下游任务不会重跑；归档后任务离开看板且无法恢复）；关闭动画期间保留任务标题，文案不闪空 | ✅    |
 | useKanbanTaskActions.ts              | 辅助 | 回收 / 删除 / 重试 / 归档的执行函数：确认后调 API、刷新列表、给出本地化提示（失败不透出服务端原文）；归档复用看板的乐观移动 | ✅    |
-| kanban-transitions.ts                | 核心 | 状态流转的单一判定点：`resolveMoveIntent(from, to)` 镜像服务端 move 守卫，返回 move / retry / archive / blocked；`moveLabelKey` 给出入口文案 key（失败 → 就绪显示「重试」）。卡片菜单、抽屉、拖拽共用 | ✅    |
+| kanban-transitions.ts                | 核心 | 状态流转的单一判定点：`isServerMoveAllowed(from, to)` 镜像服务端 move 守卫（含「原地不动」）；`resolveMoveIntent(from, to)` 在它之上返回 move / retry / archive / blocked；`moveLabelKey` 给出入口文案 key（失败 → 就绪显示「重试」）。卡片菜单、抽屉、拖拽、批量条共用 | ✅    |
 | KanbanTaskDrawer.tsx                 | 辅助 | 任务详情抽屉面板入口（编排 hook 与子组件）                                                                                                                                                                                                | ✅    |
 | useKanbanTaskDrawer.ts               | 辅助 | 抽屉面板状态管理 hook（数据加载/操作处理/计算属性）                                                                                                                                                                                       | ✅    |
 | resolveTaskDepInfos.ts               | 辅助 | 任务依赖图节点标题解析（本地列表 + 远程 fallback）                                                                                                                                                                                        | ✅    |
@@ -28,7 +28,7 @@
 | KanbanTaskDrawerBodySections.tsx     | 辅助 | 抽屉附件与结果区段组件                                                                                                                                                                                                                    | ✅    |
 | KanbanTaskDrawerBodyMetaSections.tsx | 辅助 | 抽屉依赖/评论/进度区段组件                                                                                                                                                                                                                | ✅    |
 | KanbanInlineAddForm.tsx              | 辅助 | 内联新增任务表单 UI（标题/描述/agent/模型覆盖/技能/超时/依赖）                                                                                                                                                                            | ✅    |
-| KanbanBulkActionBar.tsx              | 辅助 | 批量操作工具栏（归档与删除都在原位二次确认，同一时刻只开一个）                                                                                                                                                                                                                            | ✅    |
+| KanbanBulkActionBar.tsx              | 辅助 | 批量操作工具栏（归档与删除都在原位二次确认，同一时刻只开一个；「移至」只列出至少对一个选中任务可达的目标，选中任务全为终态 / 审核态时整个入口隐藏）                                                                                                                                                                                                                            | ✅    |
 | KanbanGraphView.tsx                  | 辅助 | 任务依赖 DAG 可视化（含 running 节点脉冲 / failed 节点抖动动画；依赖连线按父任务状态着色——已完成为 emerald 实线，阻塞 / 失败为红色虚线，小地图同色，颜色取主题变量或带回退的 Tailwind 色阶，不包 `hsl()`）                                                                                                                                                                          | ✅    |
 | KanbanPipelineWizard.tsx             | 辅助 | 流水线模板创建向导（支持 repeat_for fan-out 模板的 multi-select 动态并行任务创建）                                                                                                                                                        | ✅    |
 | KanbanDecomposeDialog.tsx            | 辅助 | AI 任务分解对话框                                                                                                                                                                                                                         | ✅    |
@@ -48,6 +48,8 @@
 - `archive`：归档先确认；批量归档在工具栏原位确认。
 - `blocked`：服务端必然以 409 拒绝的流转，拖拽落点直接拦下并提示，不发请求；批量拖拽里被拦下的卡片合并成一次提示。
 - `move`：其余流转直接调用 `moveTask`；`deps_unmet` 仍走强制放行确认，其余失败一律提示本地化文案。
+
+批量条的「移至」直接用 `isServerMoveAllowed` 过滤目标：只隐藏对整个选择必然全部失败的目标，仍有任务能到达的目标保留，混合选择由服务端逐条返回部分成功；选中任务查不到状态时不过滤。失败任务的恢复只走单卡的「重试」。
 
 ## Stale Write Guard（乐观 UI 防冲突）
 

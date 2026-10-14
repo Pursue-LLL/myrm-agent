@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { TaskStatus } from '@/services/kanban';
 import { NEXT_STATUSES } from '../kanban-styles';
-import { moveLabelKey, resolveMoveIntent } from '../kanban-transitions';
+import { isServerMoveAllowed, moveLabelKey, resolveMoveIntent } from '../kanban-transitions';
 
 const ALL_STATUSES: TaskStatus[] = [
   'triage',
@@ -59,6 +59,25 @@ describe('resolveMoveIntent', () => {
         expect(resolveMoveIntent(from, to), `${from} -> ${to}`).not.toBe('blocked');
       }
     }
+  });
+});
+
+describe('isServerMoveAllowed', () => {
+  it.each(PAIRS)('%s -> %s agrees with the server move guard', (from, to) => {
+    expect(isServerMoveAllowed(from, to)).toBe(!SERVER_REJECTED[from].includes(to));
+  });
+
+  /** 对真实守卫逐个求值：只有终态、草稿池、审核态任务移到自己当前的状态也被拒；归档到归档放行。 */
+  it.each<[TaskStatus, boolean]>([
+    ['completed', false],
+    ['failed', false],
+    ['in_review', false],
+    ['triage', false],
+    ['ready', true],
+    ['blocked', true],
+    ['archived', true],
+  ])('a %s task moved to its own status is allowed: %s', (status, allowed) => {
+    expect(isServerMoveAllowed(status, status)).toBe(allowed);
   });
 });
 
