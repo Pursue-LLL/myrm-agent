@@ -15,11 +15,12 @@
 | `solidify/` | 子域 | 交付物固化为全包 Skill：参数最小化提取 + 4合1资产打包 + 外部真机预览（清单见 [`solidify/_ARCH.md`](solidify/_ARCH.md)） | — |
 | `evolution_reviews.py` | 门面 | evolution 审核生命周期门面（re-export `evolution_review/` 公共 API） | ✅ |
 | `experience_ledger.py` | 核心 | 学习资产事件账本（append-only，统一记录 migration/evolution/review/skill_growth 事件，并提供技能成长聚合查询） | ✅ |
-| `draft_notification.py` | 核心 | 技能成长记录持久化 + 安全预检 + 24h 去重 + `ApprovalRecord` rich status 落库 + `SKILL_GROWTH_UPDATED` 事件发布单一出口 + `NEW_SKILL_DRAFT` 事件发布 + ledger 镜像 | ✅ |
-| `auto_extractor.py` | 核心 | 技能物化辅助器。执行 Python AST 语法门禁，将已通过策略判断的成长结果安全落盘成真实技能或补丁，并发布 `SKILL_EVOLVED` 事件 | ✅ |
+| `draft_notification.py` | 核心 | 技能成长记录持久化 + 安全预检（CRITICAL 硬拦截）+ 24h 去重 + 草稿 payload 可携带 `reason_code` / `security_scan_summary`（被风险策略拦下的草稿向审核卡片说明原因）+ `ApprovalRecord` rich status 落库 + `SKILL_GROWTH_UPDATED` 事件发布单一出口 + `NEW_SKILL_DRAFT` 事件发布 + ledger 镜像 | ✅ |
+| `auto_extractor.py` | 核心 | 技能物化辅助器。执行 Python AST 语法门禁，将已通过策略判断的成长结果安全落盘成真实技能或补丁，并发布 `SKILL_EVOLVED` 事件；`render_skill_draft_markdown` 渲染新技能落盘文本，安全预检与物化共用 | ✅ |
 | `permission_service.py` | 核心 | 技能权限管理服务：per-session 缓存、授权加载、卸载时清除授权/审计数据 | ✅ |
 | `similarity_checker.py` | 核心 | 技能语义去重实现。基于 HybridSkillSearchEngine 检查新技能是否与已有技能功能重复，防止技能熵增 | ✅ |
-| `evolution_events.py` | 辅助 | 技能进化 `SKILL_EVOLVED` / `SKILL_CAPACITY_REACHED`（技能库已满，暂停自动学习新技能）事件发布（services 层单一入口） | ✅ |
+| `evolution_events.py` | 辅助 | 技能进化 `SKILL_EVOLVED` 事件发布（services 层单一入口） | ✅ |
+| `scan_risk_policy.py` | 核心 | 后台自动学习的"高危新增 → 人工复核"共用策略：对比原内容与新内容的扫描结果，按 (类别, 描述, 严重度) 计数差分判定是否新增 HIGH+ 风险（语境型类别只对 CRITICAL 生效，新技能对比空内容）；扫描失败 fail-closed；复盘新技能入口（`growth/lifecycle.py`）与进化审批流（`confidence_approval_flow.py`）共用，信号词汇 `new_high_finding:<类别>` / `scan_unavailable` 由审核卡片本地化 | ✅ |
 | `write_orchestrator.py` | 核心 | SKILL.md 写入 SSOT：DB 版本 persist 与磁盘 `sync_disk` 同序；meta-tool 失败时 `restore_skill_md_from_active_version` | ✅ |
 | `package_revision_service.py` | 核心 | PackageRevision 持久化与 fail-closed 恢复 | ✅ |
 | `mutation_batch_hook.py` | 核心 | skill_manage 批次提交后 batch_snapshots 单事务写入（fail-closed）；落库提交后经工具进度通道向流广播批次 id（广播失败只记 WARNING，不影响已提交批次） | ✅ |

@@ -157,7 +157,6 @@ src/components/features/skills/SkillBatchImportDialog.tsx
 src/components/features/skills/SkillCard.tsx
 src/components/features/skills/SkillDetailSheetContent.tsx
 src/components/features/skills/SkillDiscoverTab.tsx
-src/components/features/skills/SkillGrowthCaseCard.tsx
 src/components/features/skills/SkillInstanceManager.tsx
 src/components/features/skills/SkillPermissionsManager.tsx
 src/components/features/theme-studio/ThemeStudioGalleryPanel.tsx

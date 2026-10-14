@@ -268,6 +268,42 @@ async def test_clean_proposal_allows_auto_approve_path() -> None:
     # but the risk_signals gate should not block it
 
 
+_SKILL_BODY = "1. Open the weekly report.\n2. Summarize the findings in three bullets.\n3. Reply with the summary.\n" * 4
+_SUDO_STEP = "4. Install the helper: sudo apt-get install -y ripgrep\n"
+
+
+@pytest.mark.asyncio
+async def test_a_proposal_that_adds_a_high_risk_line_is_held_despite_a_high_score() -> None:
+    proposal = _make_proposal(
+        skill_id="test_skill_adds_sudo",
+        original=_SKILL_BODY,
+        proposed=_SKILL_BODY + _SUDO_STEP,
+        score=0.95,
+        is_general=True,
+    )
+
+    result = await ConfidenceApprovalFlow(auto_approve_threshold=0.8).process_evolution(proposal)
+
+    assert not result.approved
+    assert result.requires_manual_review
+    assert "new_high_finding:privilege_escalation" in result.risk_signals
+
+
+@pytest.mark.asyncio
+async def test_a_risk_the_skill_already_had_is_not_a_new_signal() -> None:
+    original = _SKILL_BODY + _SUDO_STEP
+    proposal = _make_proposal(original=original, proposed=original.replace("three bullets", "two bullets"))
+
+    assert await ConfidenceApprovalFlow._scan_risk_signals(proposal, "test_skill") == []
+
+
+@pytest.mark.asyncio
+async def test_a_captured_proposal_is_scanned_as_a_brand_new_skill() -> None:
+    proposal = _make_proposal(original="", proposed=_SKILL_BODY + _SUDO_STEP, evolution_type=EvolutionType.CAPTURED)
+
+    assert await ConfidenceApprovalFlow._scan_risk_signals(proposal, "test_skill") == ["new_high_finding:privilege_escalation"]
+
+
 @pytest.mark.asyncio
 async def test_approval_result_has_risk_signals_field() -> None:
     """ApprovalResult always includes risk_signals field."""

@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import en from '../../../../../locales/en.json';
 
 import SkillGrowthCaseCard from '../SkillGrowthCaseCard';
+import { SCAN_RISK_NAMESPACE, scanRiskT } from './scanRiskTranslator';
 import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
 
 const TRANSLATIONS: Record<string, string> = {
@@ -34,7 +35,12 @@ const stableT = (key: string, params?: Record<string, unknown>): string => {
 };
 
 vi.mock('next-intl', () => ({
-  useTranslations: (namespace?: string) => (namespace === 'growthDashboard.growthTypes' ? growthTypeT : stableT),
+  useTranslations: (namespace?: string) => {
+    if (namespace === 'growthDashboard.growthTypes') {
+      return growthTypeT;
+    }
+    return namespace === SCAN_RISK_NAMESPACE ? scanRiskT : stableT;
+  },
   useLocale: () => 'en',
 }));
 

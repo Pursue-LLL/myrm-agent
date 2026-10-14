@@ -2181,3 +2181,58 @@ except Exception:
 
 ---
 
+## BUG-AGENT-2026-10-14-018: 后台自动学习只拦 CRITICAL，带外传 / 提权 / 持久化行为的技能草稿直接物化；运行时进化的自动合并不看安全扫描；修订提案遇到任意一条发现就被判扫描失败；待审核卡片把内部风险代码原样印给用户；会话结束触发的 CAPTURED 提取与容量暂停整条链无人受益
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（默认开启的后台学习会在无人审阅时落地含 HIGH 级风险行为的技能；其余为 P2/P3） |
+| 影响范围 | 服务端 `app/services/skills/scan_risk_policy.py`（新增）、`skills/growth/lifecycle.py`、`skills/auto_extractor.py`、`skills/draft_notification.py`、`skills/evolution_review/actions.py`、`app/services/agent/confidence_approval_flow.py`、`stream_session/stream_finalize.py`、`skills/evolution_events.py`、`event/app_event_bus.py`（删除 `app/services/agent/evolution/engine.py`）；前端 `lib/skills/scanRiskText.ts`、`components/features/skills/`（成长卡片拆出 `growth-card/`）、`hooks/globalEvents/`、`PendingEvolutionsDashboard`、六种语言文案；品牌仓库竞品对比页与根仓库优势材料 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-14-013`（该条引入的容量暂停与满载提示，本条整体撤销，原因见根因 5）；本地提交，未 push |
+
+### 现象
+
+1. 默认开启的后台复盘（`process_skill_review_result`）对技能草稿只做 CRITICAL 预检；一份把数据上传到外部地址、改权限或写入开机项的草稿，只要没有 CRITICAL 发现就直接物化为可用技能；预检只扫描草稿的步骤文本（`skill_steps`），描述与触发条件不在扫描范围内，也没有把它当成一份完整的 SKILL.md 扫描；
+2. 运行时失败触发的进化提案（`ConfidenceApprovalFlow`）自动合并只看改动幅度与历史成功率，一次改动凭空多出的 HIGH 级风险不影响是否自动合并；
+3. 修订待审提案时，新内容只要有任何扫描发现（含 LOW / MEDIUM，甚至原本就存在的）就被标成 `FAILED_SCAN`，用户无法继续审阅；前端又用 `test_passed === false` 判断结果，对「仅有 HIGH、仍待审」的修订会误报失败；
+4. 待审核卡片、本地技能预览与技能详情把风险信号码（`diff_range:73%`、`low_effective_rate:20%(5runs)`）、威胁类别码（`data_exfiltration`）和英文处置建议原样展示给用户，非英文界面也是英文；
+5. 会话结束触发的 CAPTURED 提取（`trigger_skill_evolution`）与 `13` 号条目的「技能库满载暂停学习」两条链：默认的后台复盘已覆盖同一目的，CAPTURED 提取只在显式开启进化时运行；容量暂停只挡住这条可选链，对默认路径没有任何约束，而技能库的上限由 Curator 负责（活跃技能超过 `max_skills=50` 时把最久未使用的标记为过期），满载提示因此既不会在默认路径触发，也与 Curator 的规则重复。
+
+### 根因
+
+1. 后台学习的闸门只回答「有没有 CRITICAL」，没有回答「这次让技能多出了什么需要人看一眼的风险」；
+2. 后台复盘的结果里没有 `content`，只有 `skill_name / skill_description / trigger_condition / skill_steps`，闸门没有先渲染出 SKILL.md 就扫描；
+3. 修订闸门把「扫描不干净」当成「扫描拒绝」，与扫描器自己的 `REJECT` 建议（CRITICAL）是两个口径；
+4. 服务端只下发稳定的码，展示层没有统一的翻译出口，每个渲染点各自处理；
+5. 容量暂停链建在一条可选路径上，没有核实默认路径是否经过它；上限本来就有 Curator 这个单一责任方。
+
+### 修复
+
+1. 新增 `scan_risk_policy.assess_scan_risk(skill_name, proposed, *, original=None)`：对「新内容 − 原内容」按 `(威胁类别, 描述, 严重度)` 做多重集差分，只统计 HIGH 及以上；同类发现数量增加仍算新增（复制一行有风险的内容不会被当成「原本就有」）；`filesystem_access / memory_config_snooping / network_access / path_traversal / prompt_injection / screen_input` 六类取决于技能用途（GUI 技能必然截图点击、联网技能必然访问网络），HIGH 不计，CRITICAL 仍计；新技能的原内容为空；扫描器抛异常按「扫描不可用」处理，不放行；扫描放进 `asyncio.to_thread`，大技能不会占住事件循环；
+2. 后台复盘：在 CRITICAL 硬拦截之后、物化之前渲染 SKILL.md（`render_skill_draft_markdown`）并评估；有新增 HIGH 风险或扫描不可用时落为 `PENDING_REVIEW` 草稿，`reason_code = "risk:" + 信号列表`，并把扫描摘要写入 `security_scan_summary`，卡片可展示；
+3. 运行时进化：`ConfidenceApprovalFlow` 新增信号 `new_high_finding:<类别>` 与 `scan_unavailable`，任意一个出现都降为人工审批，处置建议随信号给出；
+4. 修订闸门：只有扫描器判定 `REJECT` 才进入 `FAILED_SCAN`；仅有 HIGH 的修订仍待审并保留发现；前端 `PendingEvolutionsDashboard` 改按 `result.status === 'FAILED_SCAN'` 报失败；删除 `SkillGrowthReviseResult` 里没人读的 `test_passed`；
+5. 删除 CAPTURED 触发（`evolution/engine.py`、`stream_finalize` 的触发调用）与容量暂停链（服务端容量检查与 `SKILL_CAPACITY_REACHED` 发布、前端 `skillCapacityToast`、六种语言的 `skillCapacityReached` 等文案）及对应测试，品牌仓库竞品对比页与根仓库优势材料里的「满载提示 / 容量暂停」说法改为 Curator 的自我收敛；顺带删除 `stream_finalize` 里已无调用方的 `record_citations` / `get_memory_manager` 分支并补全类型；harness 的 `capture_skill_from_trajectory` 与 `SkillBudgetGovernor` 作为库接口保留，产品不再调用；
+6. 前端新增 `lib/skills/scanRiskText.ts` 与 `useScanRiskText`：威胁类别与严重度以封闭词表判定（词表外显示「其他风险」，不暴露代码），风险信号翻译为带数值的自然语言，处置建议按信号种类各一句且去重；成长卡片、本地技能预览、技能详情共用；`SkillGrowthCaseCard.tsx` 由 634 行拆为 340 行并移出行数基线，子区块在 `growth-card/`；六种语言新增 `settings.skills.scanRisk`。
+
+### 验证
+
+1. 服务端：本次涉及的 7 个测试文件共 80 例通过，其中新增 `test_scan_risk_policy.py` 11 例（真实扫描器）、`test_skill_scan_threat_i18n_sync.py` 12 例（扫描器可报告的全部威胁类别与六种语言译文键完全一致），并在后台复盘、运行时进化信号、修订闸门的测试里分别补了 4、3、1 例；关闭后台复盘闸门后新增的 3 例会失败（变异验证）；
+2. 更宽的服务端回归 `tests/api/evolution`、`tests/api/skills`、`tests/services/skills`、`tests/services/agent/stream_session`、`tests/architecture`：2701 通过、17 失败；失败的是他人的改动，与本条无关：`test_curator.py` 4 例，`tests/architecture` 13 例（路由消费者、服务域词表、`__init__.py` 布局、前端 API 路径、server 对 harness 的深层导入基线）；本条新增的 `scan_risk_policy` 对 harness 的导入不在新增深层导入清单里；
+3. 前端：全量 vitest 1383 个文件 9705 例通过；`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；`verify-i18n` 六种语言的键对齐、占位符、翻译壳检查通过；fractal 文档检查通过；
+4. 前端测试里 `constructor / __proto__ / toString / hasOwnProperty` 作为威胁类别或严重度时，next-intl 的 `t.has` 会把原型成员当成「存在」，直接把键路径印给用户；词表判定改为封闭数组后该用例通过；
+5. 语料实测（`external_reference_project` 下去重后随机取 500 份社区 `SKILL.md`，固定种子，当作全新技能评估）：63 份（12.6%）会被拦下复核，其中 27 份（5.4%）没有任何 CRITICAL 发现，即旧闸门不会拦、新策略才会拦的那部分；拦截的类别以 `persistence` 27、`data_exfiltration` 16、`container_escape` 11、`privilege_escalation` 8 为主；单次扫描耗时中位 11.8 毫秒、p95 36.6 毫秒、最大 157.4 毫秒（机器负载较高时的单次测量）；
+6. 局限：社区技能的命中率是后台自动学习草稿的上界，后台复盘产出的草稿由本人会话生成，没有用真实 LLM 端到端跑过；正则扫描器本身有盲区（`base64 -d | bash`、`curl -k` 等写法扫不出），本策略只让「扫描器已经能看见的新增风险」必经人审；自动合并阈值 0.8 没有外部依据；后台复盘路径里步骤文本会被预检与策略各扫一次，多出约一次扫描的耗时；扫描发现的 `description` 文本和应用失败面板里的 `remediation` 仍是服务端英文，未本地化；没有做浏览器级别的视觉检查（深浅主题、移动端）；`SkillHistoryPanel.EvolutionRecord.test_passed` 仍保留。
+
+### 踩坑经验
+
+1. 「只拦最严重一档」的闸门会让次一档里真正危险的行为静默通过；闸门应当回答「这次改动新增了什么需要人看」，并用差分而不是绝对值，否则原本就存在的发现会反复拦同一个技能；
+2. 按次数差分而不是按集合差分：集合差分会让「再复制一行有风险的内容」逃过去；
+3. 安全闸门里扫描器抛异常必须判为「不可用」并交给人，不能当成干净；
+4. 展示层依赖 i18n 库的「是否存在该键」来决定走本地化还是兜底时，要先确认库对原型成员的行为；服务端下发的类别码这种封闭词表，用封闭数组判定最稳，再用测试把词表、译文键与扫描器三者锁在一起；
+5. 给可选路径加的保护，要先核实默认路径是否经过它；一份约束如果已有单一责任方（这里是 Curator），不要在另一条链上再造一份；
+6. 共享工作区里同一批文件带着他人未提交的改动：提交用「HEAD 文本 + 精确锚点替换」生成并核对残留 hunk，而不是整文件提交。
+
+---

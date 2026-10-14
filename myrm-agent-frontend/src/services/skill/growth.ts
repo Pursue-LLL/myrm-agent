@@ -370,7 +370,6 @@ export async function rejectSkillGrowthCase(
 export interface SkillGrowthReviseResult {
   status: string;
   skill_id: string | null;
-  test_passed: boolean | null;
   reason_code: string | null;
   remediation: string | null;
 }

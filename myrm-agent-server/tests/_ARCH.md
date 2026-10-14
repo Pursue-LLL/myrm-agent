@@ -70,6 +70,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/test_agent_clone_e2e.py` | 模块 | Agent 克隆 API E2E（自定义名 / 默认「(Copy)」/ 不存在 404 / 提示词与技能随克隆保留、家目录与头像不带）+ 已退役的 JSON 导入导出与工作区文件束路由不再对外提供（404/405 守卫） |
 | `integration/test_expert_export_i18n_sync.py` | 模块 | 跨层同步：专家导出的 `Omit` 原因码与 `OmittedKind` 种类须与 6 个 locale 的 `agent.expertExport.omitReason` / `omittedKinds` 键完全一致，避免导出对话框显示原始 key |
 | `integration/test_readiness_i18n_sync.py` | 模块 | 跨层同步：`ReadinessCode` 须与 6 个 locale 的 `Agent.readiness.reasons` 键完全一致，`ExportErrorCode`（重试流程码除外）须被 `agent.expertExport.errors` 覆盖，文案均非空，避免新增错误码在界面上静默降级为通用句 |
+| `integration/test_skill_scan_threat_i18n_sync.py` | 模块 | 跨层同步：技能扫描器可报告的威胁类别（正则分组 + Unicode/AST/LLM 审计/包审计）须与 6 个 locale 的 `settings.skills.scanRisk.threat` 键完全一致，避免待审卡片把扫描发现显示为「其他风险」 |
 | `services/plugins/test_export_acceptance.py` | 模块 | 专家导出验收（以官方冻结 schema 与归档字节为判据，不对内部结构做断言）：`plugin.json`/`mcp.json` schema 合规与 `ai.myrm` 独占扩展 · 归档路径安全 · 脱敏只触及秘密（其余字节不变）· 未带出清单对账（含反例）· 导出→导入→再导出定点往返 · 本地导出→云端导入的 stdio 降级 |
 | `services/plugins/test_third_party_plugin.py` | 模块 | 第三方真实插件（`fixtures/agent_plugins/third_party/hindsight/`）在平铺与单层包裹两种归档下都能解析并预览：技能与远程连接器不丢，外来 `extensions` 命名空间保持外来 |
 | `fixtures/agent_plugins/` | 辅助 | 官方冻结 JSON Schema（`plugin.schema.json` / `mcp.schema.json`）与第三方真实插件夹具（`third_party/hindsight/`，`NOTICE` 记录来源与许可） |
@@ -317,8 +318,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/web_push/test_push_deep_links.py` | 模块 | Web Push 点击路由（resolve_push_url：APPROVAL_REQUIRED 深链、pending_review+board_id 直达看板 in_review 列、非 review 状态回退聊天页、缺 chat 回首页、自动备份告警直达备份设置） |
 | `api/kanban/test_in_review_api.py` | 模块 | IN_REVIEW 审批 API（approve/reject 转换、守卫、pending_review 通知 payload 含 board_id） |
 | `platform_utils/sandbox/_ARCH.md` | 模块 | `platform_utils/sandbox` 业务逻辑回归（platform provider seed 14 例 + tool gateway merge），见子目录清单 |
-| `services/agent/test_evolution_trigger_guard.py` | 模块 | `trigger_skill_evolution` 守卫单测（同 chat 在飞任务去重、普通对话 tool_steps<3 门槛跳过、DW `conversation_text` 绕过门槛） |
-| `services/agent/test_evolution_engine_task.py` | 模块 | `_run_evolution_task` 后台任务执行路径单测（短历史跳过、历史拼接、DW 文本跳过 DB、无 proposal 早退、approval+broadcast 全链、异常兜底日志） |
+| `services/skills/test_scan_risk_policy.py` | 模块 | 后台学习的高危新增复核策略（真实扫描器）：新技能对比空内容、同类发现数量增加仍判新增（计数差分）、原有发现不重复拦截、语境型类别仅 CRITICAL 生效、扫描异常 fail-closed、信号词汇 |
+| `services/agent/test_stream_finalize_persistence.py` | 模块 | `finalize_agent_stream_session` 收尾持久化单测（记忆预算与引用顺序、brief 状态载荷、无效预算载荷跳过、未应用原因、brief 缺失时仍发注入状态、预算钩子失败时保留注入状态） |
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
 | `support/offline_memory.py` | 辅助 | 离线真实记忆管理器：真实内嵌 Qdrant + SQLite，仅把 embedding 换成确定性哈希向量（无需凭据与网络），并把 Qdrant 重试退避归零；`offline_memory_manager(base_path, monkeypatch)`，用例之间须 `clear_embedded_stores()` |
 | `support/in_memory_remote_backup.py` | 辅助 | 内存版 `RemoteBackupStrategy`（字典存储 + 可编排的上传失败次数），远程备份测试共用 |

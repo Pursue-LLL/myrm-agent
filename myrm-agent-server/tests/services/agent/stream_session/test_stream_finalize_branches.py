@@ -88,7 +88,6 @@ class TestFinalizeBranchCoverage:
                 new_callable=AsyncMock,
             ),
             patch("app.services.agent.stream_session.stream_finalize.schedule_approval_timeout") as mock_schedule_approval,
-            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(
@@ -123,7 +122,6 @@ class TestFinalizeBranchCoverage:
             ),
             patch("app.services.chat.chat_service.ChatService.schedule_background_drain") as mock_drain,
             patch("app.services.copilot.run_digest_store.RunDigestStore.end_run") as mock_end_run,
-            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
@@ -140,8 +138,6 @@ class TestFinalizeBranchCoverage:
         session.request.turn_capability_telemetry = TurnCapabilityTelemetryRequest(
             source="direct", effective_skill_count=2, effective_mcp_count=0
         )
-        manager = MagicMock()
-        manager.record_citations = AsyncMock()
         evo_integration = MagicMock()
         evo_integration._slice_cursors = {"chat-branch": (2, ["tool-a", "tool-b"])}
         evo_integration.queue = AsyncMock()
@@ -161,10 +157,6 @@ class TestFinalizeBranchCoverage:
                 new_callable=AsyncMock,
             ),
             patch("app.services.agent.stream_session.stream_finalize.merge_memory_citation_fallback"),
-            patch(
-                "myrm_agent_harness.api.hooks.get_memory_manager",
-                return_value=manager,
-            ),
             patch(
                 "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
                 return_value={"used": 3, "total": 64},
@@ -186,12 +178,10 @@ class TestFinalizeBranchCoverage:
                 "myrm_agent_harness.agent.skills.evolution.infra.integration.get_global_evolution_integration",
                 return_value=evo_integration,
             ),
-            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
 
-        manager.record_citations.assert_awaited_once()
         assert evo_integration.queue.enqueue.await_count == 1
         assert session.turn_capability_terminal_recorded is True
 
@@ -218,10 +208,6 @@ class TestFinalizeBranchCoverage:
             ),
             patch("app.services.agent.stream_session.stream_finalize.merge_memory_citation_fallback"),
             patch(
-                "myrm_agent_harness.api.hooks.get_memory_manager",
-                side_effect=RuntimeError("manager gone"),
-            ),
-            patch(
                 "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
                 return_value={"used": 1, "total": 16},
             ),
@@ -237,7 +223,6 @@ class TestFinalizeBranchCoverage:
                 "app.services.agent.stream_session.stream_finalize._clear_interrupted_turn_marker",
                 side_effect=RuntimeError("marker gone"),
             ),
-            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
@@ -280,7 +265,6 @@ class TestFinalizeBranchCoverage:
             patch(
                 "app.services.agent.stream_session.stream_finalize.schedule_clarification_timeout"
             ) as mock_schedule_clarification,
-            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
@@ -308,7 +292,6 @@ class TestFinalizeBranchCoverage:
                 new_callable=AsyncMock,
             ),
             patch("app.services.agent.stream_session.stream_finalize.schedule_directory_timeout") as mock_schedule_directory,
-            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification(directory_pending=True))
@@ -337,7 +320,6 @@ class TestFinalizeBranchCoverage:
             patch(
                 "app.services.agent.stream_session.stream_finalize.schedule_clarification_timeout"
             ) as mock_schedule_clarification,
-            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification(pending=True))

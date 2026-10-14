@@ -6,8 +6,9 @@
 - app.core.skills.providers.local::compute_local_skill_id (POS: Local skill ID computation)
 - app.core.skills.store.service::skills_service (POS: Skill store service)
 - app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: 部署能力语义注册表。启动时一次性计算并缓存当前部署环境支持的语义能力位。)
-- ..auto_extractor::auto_extract_or_patch_skill (POS: 技能物化辅助器)
+- ..auto_extractor::auto_extract_or_patch_skill, render_skill_draft_markdown (POS: 技能物化辅助器)
 - ..draft_notification (POS: 技能成长记录持久化)
+- ..scan_risk_policy::assess_scan_risk (POS: 后台学习的高危新增复核策略)
 - myrm_agent_harness.backends.skills.similarity::SkillSimilarityChecker (POS: Skill similarity checking protocol)
 
 [OUTPUT]
@@ -33,12 +34,13 @@ from app.core.skills.providers.local import compute_local_skill_id
 from app.core.skills.store.service import skills_service
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 
-from ..auto_extractor import auto_extract_or_patch_skill
+from ..auto_extractor import auto_extract_or_patch_skill, render_skill_draft_markdown
 from ..draft_notification import (
     evaluate_growth_scan,
     notify_skill_draft_created,
     persist_skill_draft_record,
 )
+from ..scan_risk_policy import assess_scan_risk
 
 if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.similarity import SkillSimilarityChecker
@@ -175,6 +177,23 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
                 status=scan_status,
                 description=scan_description,
                 dedupe_statuses=("FAILED_SCAN",),
+            ),
+        )
+
+    # CRITICAL is a hard stop above; HIGH-level behavior (outbound uploads, privilege changes,
+    # persistence) is allowed in a skill but must be seen by the user before it runs unattended.
+    risk = await assess_scan_risk(skill_name, render_skill_draft_markdown(result))
+    if risk.requires_review:
+        logger.info("Skill draft '%s' held for review by the scan risk policy: %s", skill_name, risk.signals)
+        return cast(
+            object | None,
+            await persist_skill_draft_record(
+                result,
+                status="PENDING_REVIEW",
+                description=scan_description,
+                dedupe_statuses=("PENDING_REVIEW",),
+                reason_code="risk:" + ",".join(risk.signals),
+                security_scan_summary=risk.scan_summary,
             ),
         )
 

@@ -8,7 +8,7 @@
 - myrm_agent_harness.agent.skills.evolution.core.types::EvolutionType (POS: 进化类型枚举)
 - myrm_agent_harness.backends.skills.scanning.scanner::scan_skill_content, compute_scan_summary (POS: 技能内容安全扫描)
 [OUTPUT]
-- approve/reject/revise/rollback evolution review records；修订时按新内容重新扫描并刷新 test_passed 与 security_scan_summary
+- approve/reject/revise/rollback evolution review records；修订时按新内容重新扫描并刷新 test_passed 与 security_scan_summary，仅扫描器判定 REJECT（CRITICAL）才拦为 FAILED_SCAN
 [POS]
 Evolution 审核写操作：审批决议、修订提案、回滚已落地变更。
 """
@@ -183,15 +183,20 @@ async def revise_evolution_review_record(
         raise EvolutionApplyError(f"Revised content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS}).")
 
     scan_passed: bool | None = None
+    scan_rejected = False
     scan_summary: dict[str, object] | None = None
     try:
         from myrm_agent_harness.backends.skills.scanning.scanner import (
             compute_scan_summary,
             scan_skill_content,
         )
+        from myrm_agent_harness.backends.skills.types import SkillTrustRecommendation
 
         scan_result = scan_skill_content(payload.skill_name, evolved_content)
         scan_passed = scan_result.is_clean
+        # Only findings the scanner itself rejects block the revision; lesser findings stay visible in
+        # the summary for the reviewer, who already decides on approval.
+        scan_rejected = scan_result.trust_recommendation == SkillTrustRecommendation.REJECT
         scan_summary = compute_scan_summary(scan_result).to_dict()
     except Exception as exc:
         logger.warning("Security scan failed during revision for %s: %s", evolution_id, exc)
@@ -200,7 +205,7 @@ async def revise_evolution_review_record(
     payload.test_passed = scan_passed
     # The stored summary always describes the current evolved content; None when the scan could not run.
     payload.security_scan_summary = scan_summary
-    if scan_passed is False:
+    if scan_rejected:
         payload.growth_status = EvolutionGrowthStatus.FAILED_SCAN
         payload.reason_code = "revised_failed_scan"
         payload.remediation = "Revised content failed security scan. Please fix the flagged issues."

@@ -12,6 +12,7 @@ events. Orchestration and policy decisions live in ``growth/lifecycle.py``.
 
 [OUTPUT]
 - auto_extract_or_patch_skill: 执行代码 AST 语法门禁，将已通过策略判断的成长结果落盘为真实技能或补丁
+- render_skill_draft_markdown: 渲染新技能落盘的 SKILL.md 文本（安全预检与物化共用同一份）
 - validate_python_code_blocks: 校验 Markdown 中 Python 代码块语法合法性
 - SkillMaterializationResult: 物化结果 DTO
 
@@ -41,6 +42,8 @@ from app.services.skills.evolution_events import publish_skill_evolved_event
 logger = logging.getLogger(__name__)
 
 _PYTHON_CODE_BLOCK_RE = re.compile(r"```(?:python|py)[^\n]*\n(.*?)\n```", re.DOTALL)
+
+_DEFAULT_SKILL_DESCRIPTION = "Auto-extracted skill"
 
 
 def validate_python_code_blocks(text: str) -> str | None:
@@ -133,6 +136,19 @@ always: false
 """
 
 
+def render_skill_draft_markdown(result: dict[str, object]) -> str:
+    """Render the SKILL.md that materializing a ``skill_draft`` result writes to disk.
+
+    The pre-materialization security scan reads this exact text, so what is scanned is what is saved.
+    """
+    return _build_skill_markdown(
+        str(result.get("skill_name") or ""),
+        str(result.get("skill_description") or _DEFAULT_SKILL_DESCRIPTION),
+        str(result.get("trigger_condition") or ""),
+        str(result.get("skill_steps") or ""),
+    )
+
+
 async def auto_extract_or_patch_skill(
     result: dict[str, object],
     eval_cases: list[dict[str, object]] | None = None,
@@ -150,8 +166,7 @@ async def auto_extract_or_patch_skill(
         return SkillMaterializationResult(success=False, error="missing skill_name")
 
     if result_type == "skill_draft":
-        description = str(result.get("skill_description") or "Auto-extracted skill")
-        trigger_condition = str(result.get("trigger_condition") or "")
+        description = str(result.get("skill_description") or _DEFAULT_SKILL_DESCRIPTION)
         skill_steps = str(result.get("skill_steps") or "")
 
         code_syntax_error = validate_python_code_blocks(skill_steps)
@@ -165,7 +180,7 @@ async def auto_extract_or_patch_skill(
                 error=code_syntax_error,
             )
 
-        content = _build_skill_markdown(skill_name, description, trigger_condition, skill_steps)
+        content = render_skill_draft_markdown(result)
         save_result = await skill_creation_service.save_skill(
             name=skill_name,
             content=content,

@@ -183,8 +183,14 @@ async def persist_skill_draft_record(
     description: str | None = None,
     reviewed_at: datetime | None = None,
     dedupe_statuses: tuple[str, ...] = ("PENDING_REVIEW",),
+    reason_code: str | None = None,
+    security_scan_summary: dict[str, object] | None = None,
 ) -> ApprovalRecord | None:
-    """Persist a skill growth case using ApprovalRegistry."""
+    """Persist a skill growth case using ApprovalRegistry.
+
+    ``reason_code`` and ``security_scan_summary`` let a draft held back by the risk policy
+    show the reviewer why it was held back.
+    """
     agent_id = str(result.get("agent_id") or "default")
     chat_id = result.get("chat_id")
     draft_type = str(result.get("type") or "unknown")
@@ -277,6 +283,8 @@ async def persist_skill_draft_record(
         "growth_status": status,
         "eval_cases": eval_cases if isinstance(eval_cases, list) else None,
         "verification_proof": verification_proof,
+        "reason_code": reason_code,
+        "security_scan_summary": security_scan_summary,
     }
 
     approval_status = "PENDING"

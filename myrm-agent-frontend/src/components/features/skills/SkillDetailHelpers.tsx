@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Shield, ShieldCheck, ShieldAlert, ShieldX, ChevronDown, FileCheck2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { useScanRiskText } from '@/components/features/skills/useScanRiskText';
 import { Badge } from '@/components/primitives/badge';
 import type { SkillEvalCase, SecurityScanSummary } from '@/store/skill/types';
 
@@ -38,11 +39,11 @@ export function RequirementRow({ icon: Icon, label, items }: RequirementRowProps
 
 /* ─── SecurityScanSection ─── */
 
-const severityConfig: Record<string, { color: string; label: string }> = {
-  critical: { color: 'text-red-600 dark:text-red-400', label: 'Critical' },
-  high: { color: 'text-orange-600 dark:text-orange-400', label: 'High' },
-  medium: { color: 'text-yellow-600 dark:text-yellow-400', label: 'Medium' },
-  low: { color: 'text-blue-600 dark:text-blue-400', label: 'Low' },
+const severityColors: Record<string, string> = {
+  critical: 'text-red-600 dark:text-red-400',
+  high: 'text-orange-600 dark:text-orange-400',
+  medium: 'text-yellow-600 dark:text-yellow-400',
+  low: 'text-blue-600 dark:text-blue-400',
 };
 
 function getScoreConfig(score: number) {
@@ -81,6 +82,7 @@ interface SecurityScanSectionProps {
 
 export function SecurityScanSection({ security, t }: SecurityScanSectionProps) {
   const [expanded, setExpanded] = useState(false);
+  const scanText = useScanRiskText();
   const { icon: ScoreIcon, color, bg } = getScoreConfig(security.score);
   const hasFindings = security.total_findings > 0;
 
@@ -114,21 +116,22 @@ export function SecurityScanSection({ security, t }: SecurityScanSectionProps) {
       {expanded && hasFindings && (
         <div className="mt-2 pt-2 border-t border-current/10 space-y-2">
           {(['critical', 'high', 'medium', 'low'] as const).map((severity) => {
-            const cfg = severityConfig[severity];
             const items = security.findings.filter((f) => f.severity === severity);
-            if (!cfg || items.length === 0) {
+            if (items.length === 0) {
               return null;
             }
             return (
               <div key={severity}>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className={cn('text-xs font-medium', cfg.color)}>{cfg.label}</span>
+                  <span className={cn('text-xs font-medium', severityColors[severity])}>
+                    {scanText.severityLabel(severity)}
+                  </span>
                   <span className="text-xs text-muted-foreground">({items.length})</span>
                 </div>
                 <div className="space-y-0.5 pl-3">
                   {items.map((finding, i) => (
                     <div key={`${finding.threat_type}-${i}`} className="text-xs text-muted-foreground">
-                      <span className="font-mono text-[11px] opacity-70">[{finding.threat_type}]</span>{' '}
+                      <span className="text-[11px] opacity-70">[{scanText.threatLabel(finding.threat_type)}]</span>{' '}
                       {finding.line_number != null && (
                         <span className="font-mono text-[11px] opacity-70">L{finding.line_number} </span>
                       )}
