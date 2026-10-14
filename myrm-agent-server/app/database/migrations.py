@@ -651,6 +651,8 @@ MIGRATION_STATEMENTS: list[str] = [
     "DROP TABLE IF EXISTS skill_optimization_records",
     "DROP TABLE IF EXISTS skill_quality_history",
     "ALTER TABLE skill_versions DROP COLUMN quality_score",
+    # Evolution proposals live in approval_records; no model, route or page reads or writes pending_evolutions.
+    "DROP TABLE IF EXISTS pending_evolutions",
 ]
 
 # 创建索引的SQL语句列表

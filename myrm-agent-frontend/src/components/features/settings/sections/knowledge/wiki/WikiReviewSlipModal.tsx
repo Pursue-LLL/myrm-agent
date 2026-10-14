@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ interface WikiReviewSlipModalProps {
 }
 
 export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiReviewSlipModalProps) {
+  const t = useTranslations('settings.wiki.reviewSlip');
   const { agentScopeId } = useWikiAgentScope();
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -78,14 +80,14 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
         setUserDecisions(initialSelections);
       } catch (err) {
         console.error('Failed to generate review slips:', err);
-        toast.error('获取审阅单失败');
+        toast.error(t('fetchFailed'));
       } finally {
         setLoading(false);
       }
     };
 
     void loadCandidates();
-  }, [open, agentScopeId]);
+  }, [open, agentScopeId, t]);
 
   const handleApply = async () => {
     if (!batch || batch.questions.length === 0) {
@@ -115,12 +117,12 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
         agentScopeId,
       );
 
-      toast.success(`选择性回写完成：已沉淀 ${res.committed_count} 项，跳过 ${res.discarded_count} 项`);
+      toast.success(t('applied', { committed: res.committed_count, discarded: res.discarded_count }));
       onOpenChange(false);
       onApplied?.();
     } catch (err) {
       console.error('Failed to apply review slip writeback:', err);
-      toast.error('应用选择性回写失败');
+      toast.error(t('applyFailed'));
     } finally {
       setSubmitting(false);
     }

@@ -228,7 +228,11 @@
     "bundleCategoryOther": "Other Assets",
     "bundleExportSelected": "Export Selected ({count})",
     "bundleSelectAll": "Select All",
-    "bundleClearSelection": "Clear Selection"
+    "bundleClearSelection": "Clear Selection",
+    "subgoalAddFailed": "Failed to add subgoal",
+    "subgoalAddNetworkError": "Network error: failed to add subgoal",
+    "subgoalRemoveFailed": "Failed to remove subgoal",
+    "subgoalRemoveNetworkError": "Network error: failed to remove subgoal"
   },
   "commands": {
     "palette": {
@@ -275,7 +279,7 @@
       "forkStreamingBlocked": "Cannot fork while the agent is responding",
       "forkEmpty": "No messages to fork from",
       "goal": "Set or manage a long-running goal for this conversation",
-      "goalUsage": "Usage: /goal <objective> | status | pause | resume | clear",
+      "goalUsage": "Usage: /goal '<objective>' | status | pause | resume | clear",
       "goalSet": "Goal mode enabled — edit the objective and send to start",
       "goalStatus": "Goal status: {status}",
       "goalNoActive": "No active goal in this conversation",
@@ -284,7 +288,7 @@
       "goalCleared": "Goal cleared",
       "goalActionFailed": "Goal command failed",
       "loop": "Create or manage a recurring scheduled task for this conversation",
-      "loopUsage": "Usage: /loop [interval] [--times N] [--until condition] <prompt>, or /loop stop",
+      "loopUsage": "Usage: /loop [interval] [--times N] [--until condition] '<prompt>', or /loop stop",
       "loopMissingPrompt": "Please provide a task prompt for /loop",
       "loopCreated": "Scheduled loop task created (Interval: {interval}), first run triggered",
       "loopCreateFailed": "Failed to create loop task",
@@ -967,7 +971,8 @@
       },
       "turn1BudgetWarning": "Estimated Turn1 schema (~{tokens} tokens) exceeds the direct bind budget ({budget}). Reduce selected endpoints or the agent cannot use these API tools.",
       "turn1BudgetServiceWarning": "This service's selected endpoints may exceed the Turn1 bind budget. Reduce the selection to avoid agent startup errors.",
-      "atLeastOneEndpoint": "At least one endpoint must remain selected."
+      "atLeastOneEndpoint": "At least one endpoint must remain selected.",
+      "presetAdded": "Added {name} connector"
     },
     "sharedContexts": {
       "targetLabel": "agent",
@@ -1236,7 +1241,8 @@
         "equippedCountSuffix": "Equipped",
         "pureInstructionNotice": "No skills equipped · Pure instruction mode",
         "emptyExplanation": "No skills are currently equipped. The agent will run in pure instruction mode. Click \"Select All\" above or check skills below to equip them."
-      }
+      },
+      "forcePushSummary": "v{version} → {synced} synced, {skipped} skipped, {failed} failed ({total} total)"
     },
     "validation": {
       "dependencyInvalid": "Agent configuration has issues",
@@ -1566,7 +1572,7 @@
       "delete": "Delete",
       "deleteConfirm": "Delete this FAQ entry?",
       "import": "Bulk Import",
-      "importDesc": "Import FAQ entries from JSON. Format: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "Import FAQ entries from JSON. Format: ['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "Import",
       "importSuccess": "Imported {count} entries",
       "importFailed": "Import failed",
@@ -1872,6 +1878,17 @@
         "absolute_path": "Local file path",
         "unknown": "Sensitive information"
       }
+    },
+    "errorTitle": "Error",
+    "unknownError": "Unknown error",
+    "apiErrorDetails": "Details",
+    "apiErrorTraceId": "Trace ID",
+    "clipboard": {
+      "copied": "Copied to clipboard",
+      "copyFailed": "Copy failed. Check clipboard permissions.",
+      "readBlocked": "Clipboard access was denied. Change this in settings.",
+      "readRefused": "Clipboard access denied",
+      "readFailed": "Failed to read the clipboard. Check permissions."
     }
   },
   "chat": {
@@ -3474,7 +3491,13 @@
       "dialogQuestion": "Are you sure you want to clear this conversation's history?",
       "dialogDetail": "This will give the Agent a fresh context and <cost>save Token costs</cost>, but your <keep>Sandbox environment, files, and installed packages will remain intact</keep>.",
       "confirm": "Clear History"
-    }
+    },
+    "folderDrop": {
+      "grantFailed": "Failed to grant directory access: {path}"
+    },
+    "cacheResetNotice": "Cache reset: {reason}{tokens, plural, =0 {} other {, ~#k tokens uncached}}",
+    "pdfParsedPages": "[PDF] {fileName}: parsed {parsed}/{total} pages",
+    "pdfImageOptimized": "[PDF] Parsing optimized: extracted {kept} key images, filtered out {dropped} visual-noise images"
   },
   "mode": {
     "fast": "Fast Search",
@@ -6001,9 +6024,7 @@
         "title": "Policy",
         "description": "Governance rules for this shared context.",
         "correctionAutoApprove": "Correction Auto-Propagation",
-        "correctionAutoApproveHint": "When an Agent is corrected, the correction is automatically written to this shared context so all bound Agents learn from it.",
-        "goalCompletionAutoApprove": "Goal Completion Auto-Archive",
-        "goalCompletionAutoApproveHint": "When a Goal completes, architectural decisions from the Planner are automatically written to this shared context."
+        "correctionAutoApproveHint": "When an Agent is corrected, the correction is automatically written to this shared context so all bound Agents learn from it."
       },
       "proposals": {
         "title": "Proposal Inbox",
@@ -6011,8 +6032,7 @@
         "contentPlaceholder": "Write a durable shared memory candidate...",
         "create": "Create Proposal",
         "empty": "No proposals yet",
-        "correctionTag": "Correction",
-        "goalCompletionTag": "Goal Completion"
+        "correctionTag": "Correction"
       },
       "proposalStatus": {
         "pending": "Pending",
@@ -6105,7 +6125,14 @@
     "validPermanent": "Permanent",
     "manualReviewRequired": "Manual review required · Never auto-overwrites",
     "sourceEvidence": "Source Evidence",
-    "selectMemory": "Select this memory"
+    "selectMemory": "Select this memory",
+    "shareRules": {
+      "loadFailed": "Failed to load rules",
+      "selectAtLeastOne": "Please select at least one rule",
+      "exported": "{count, plural, one {Exported # rule successfully} other {Exported # rules successfully}}",
+      "exportFailed": "Export failed",
+      "copied": "{count, plural, one {Copied # rule to clipboard} other {Copied # rules to clipboard}}"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",
@@ -6692,6 +6719,16 @@
       "download": "Download",
       "exportZip": "Export as ZIP Bundle",
       "emptyDesc": "Deliverables and files generated during agent conversations will automatically appear here"
+    },
+    "architecture": {
+      "jsonCopied": "JSON Copied",
+      "jsonCopiedDesc": "Architecture IR copied to clipboard",
+      "copyFailed": "Copy Failed",
+      "exportFailed": "Export Failed",
+      "viewportNotFound": "Viewport element not found",
+      "exportSuccess": "Export Successful",
+      "svgExported": "Architecture diagram exported as standalone SVG",
+      "pngExported": "Architecture diagram exported as high-res PNG"
     }
   },
   "MessageSources": {
@@ -7863,7 +7900,7 @@
     "dropHere": "Drop here",
     "reclaimTitle": "Reclaim Running Task",
     "reclaimDesc": "This will immediately stop the agent executing this task and reset it to Ready.",
-    "reclaimConfirm": "Reclaim",
+    "reclaimAction": "Reclaim",
     "reclaimReasonPlaceholder": "Reason (optional)",
     "reclaimReassignLabel": "Reassign to agent (optional)",
     "reclaimSuccess": "Task reclaimed successfully",
@@ -8198,7 +8235,9 @@
       "actionBacklog": "Prioritize or schedule for execution",
       "actionDone": "Task completed successfully"
     },
-    "cardActions": "Task actions"
+    "cardActions": "Task actions",
+    "deleteConfirmTitle": "Delete this task?",
+    "deleteConfirmDesc": "\"{title}\"\nThe task and its run history are deleted permanently. Tasks waiting on it become Ready if nothing else blocks them, and may start running automatically."
   },
   "channels": {
     "sectionTitle": "Message Channels",
@@ -8248,7 +8287,9 @@
       "clearConfirm": "Are you sure you want to clear all ambient message records for this channel? This action cannot be undone (GDPR compliant).",
       "clearedSuccess": "Successfully cleared records",
       "clearing": "Clearing...",
-      "refresh": "Refresh Metrics"
+      "refresh": "Refresh Metrics",
+      "deletedCount": "{count, plural, one {# message deleted} other {# messages deleted}}",
+      "clearFailed": "Failed to clear channel records"
     },
     "groupsTitle": "Group Management",
     "groupsDesc": "Select which groups the bot should respond in. Unselected groups will be ignored.",
@@ -9730,6 +9771,9 @@
     "openSkillGrowth": "Open Skill Growth",
     "skillEvolvedNew": "Agent learned a new skill: {name}",
     "skillEvolvedPatch": "Agent improved a skill: {name}",
+    "skillCapacityReached": "Skill library is full ({max} skills)",
+    "skillCapacityReachedHint": "The agent has paused learning new skills. Archive or delete skills you no longer use to resume.",
+    "manageSkills": "Manage skills",
     "undoEvolve": "Undo",
     "rollbackSuccess": "Successfully rolled back: {name}",
     "rollbackFailed": "Rollback failed, please try again",
@@ -9737,7 +9781,6 @@
     "forcePushRollbackHint": "A snapshot was saved. You can rollback from agent settings.",
     "subagentRebindRequired": "Subagent bindings changed. Start a new chat to use updated delegation tools.",
     "subagentStale": "Subagent stalled",
-    "noProgressFor": "No progress for",
     "viewAgent": "View",
     "approvalRequired": "Agent requires approval: {actionType}",
     "approvalsRecovered": "Recovered {count} pending approval(s)",
@@ -9795,7 +9838,12 @@
     "mcpAuthRequired": "{server} requires re-authorization",
     "oauthReauthRequired": "{issuer} authorization expired. Please reauthorize to restore access.",
     "reauthorize": "Reauthorize",
-    "budgetFinalization": "Budget nearly exhausted — finalizing"
+    "budgetFinalization": "Budget nearly exhausted — finalizing",
+    "healthAlertTip": "Tip: {tip}",
+    "budgetRemaining": "{dimension} — ${remaining} remaining",
+    "subagentStaleDescription": "No progress for {minutes} min · {tokens, number} tokens",
+    "subagentStaleStats": "{minutes} min · {tokens, number} tokens",
+    "agentProfileRollbackSuccess": "Successfully rolled back agent profile."
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",
@@ -10558,14 +10606,14 @@
       "status": {
         "PENDING_REVIEW": "Pending Review",
         "AUTO_APPLIED": "Auto Applied",
-        "FAILED_SCAN": "Failed Scan",
+        "FAILED_SCAN": "Check Failed",
         "BLOCKED_LOCKED": "Blocked by Lock",
         "APPROVED": "Approved",
         "REJECTED": "Rejected",
         "APPLY_FAILED": "Apply Failed",
         "pendingReview": "Pending Review",
         "autoApplied": "Auto Applied",
-        "failedScan": "Failed Scan",
+        "failedScan": "Check Failed",
         "blockedLocked": "Blocked by Lock",
         "approved": "Approved",
         "rejected": "Rejected",
@@ -10672,7 +10720,7 @@
       "empty": "No growth events yet",
       "pendingReview": "Pending Review",
       "autoApplied": "Auto Applied",
-      "failedScan": "Failed Scan",
+      "failedScan": "Check Failed",
       "blockedLocked": "Blocked by Lock",
       "approved": "Approved",
       "rejected": "Rejected",
@@ -10941,40 +10989,6 @@
       "cache": "Cache Savings",
       "routing": "Routing Savings",
       "totalCost": "Actual Cost"
-    },
-    "manifestPredictions": {
-      "title": "Manifest Predictions & Attribution",
-      "description": "Benchmark evaluation of predicted performance deltas against actual execution metrics",
-      "evaluating": "Evaluating...",
-      "evaluateNow": "Evaluate Benchmark Now",
-      "manifestId": "Manifest ID",
-      "targetComponent": "Target Component",
-      "recommendedAction": "Recommended Action",
-      "rationale": "Rationale",
-      "metricsTitle": "Predicted vs Actual Metrics",
-      "confidence": "Confidence",
-      "metricName": "Metric",
-      "baseline": "Baseline",
-      "predictedTarget": "Predicted",
-      "actualValue": "Actual",
-      "delta": "Delta",
-      "verdict": "Verdict",
-      "explanation": "Explanation",
-      "hideRollbackPatch": "Hide Rollback Patch",
-      "viewRollbackPatch": "View Rollback Patch",
-      "rollbackSuccess": "Rollback patch applied successfully.",
-      "rollbackFailed": "Failed to rollback skill evolution.",
-      "verdicts": {
-        "confirmed": "Confirmed",
-        "regression": "Regression",
-        "refuted": "Refuted",
-        "inconclusive": "Inconclusive"
-      },
-      "actions": {
-        "keep": "Keep",
-        "rollback": "Rollback",
-        "re_evaluate": "Re-evaluate"
-      }
     }
   },
   "subagentDashboard": {
@@ -11353,7 +11367,7 @@
       "passed": "Passed",
       "failed": "Failed",
       "pending": "Pending",
-      "multiTurn": "<Multi-turn>",
+      "multiTurn": "'<Multi-turn>'",
       "viewDiff": "View Diff",
       "noReport": "No eval report yet. Click \"Run Eval\" to start.",
       "evalRunning": "Eval task in progress, please wait",
@@ -11579,7 +11593,8 @@
       "description": "Deterministic trajectory failure attribution indicates: expanding Tools/Middleware brings significantly higher ROI than Prompt-only adjustments (Tools/Middleware ≫ Prompt). Optimize your Harness configuration following the prioritized recommendations below.",
       "affectsCases": "Affects {count} failed cases",
       "quickConfig": "Configure"
-    }
+    },
+    "skillAbStartFailed": "Failed to start Skill A/B"
   },
   "vault": {
     "title": "Unlock Security Vault",
@@ -12354,9 +12369,9 @@
     "mcpTlsHint": "For mTLS: provide client cert and optionally a separate key. Paths support ~ expansion.",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "Configured",
-    "mcpHeadersHint": "Use {{secret:KEY_NAME}} to reference secrets stored in Agent Secrets.",
+    "mcpHeadersHint": "Use '{{secret:KEY_NAME}}' to reference secrets stored in Agent Secrets.",
     "mcpHeaderKeyPlaceholder": "Header name (e.g. Authorization)",
-    "mcpHeaderValuePlaceholder": "Value or {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "Value or '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Configuration saved",
     "mcpSecretRefSaveHintDesc": "Secret references in headers will be resolved at runtime.",
@@ -12523,6 +12538,10 @@
         "restrict": "Link without trusting",
         "trust": "Trust and link"
       }
+    },
+    "workspaceTrust": {
+      "trusted": "Workspace trusted. Full extensions and tools are now enabled.",
+      "trustFailed": "Failed to trust workspace"
     }
   },
   "milestone": {
@@ -14704,6 +14723,14 @@
         "title": "Assistant import requires Local or Desktop",
         "description": "SaaS cloud sandboxes cannot read Hermes, OpenClaw, Claude Code, or Codex folders on your machine. Download the Tauri desktop app or run Local WebUI, then open Settings → Memory → Migration.",
         "downloadCta": "Go to download page"
+      },
+      "monitor": {
+        "profilingStarted": "Heap profiling started. System may experience slight overhead.",
+        "profilingStartFailed": "Failed to start profiling",
+        "profilingStartNetworkError": "Network error starting profiling",
+        "profilingStopped": "Heap profiling stopped. Results ready.",
+        "profilingStopFailed": "Failed to stop profiling",
+        "profilingStopNetworkError": "Network error stopping profiling"
       }
     },
     "commands": {
@@ -14740,7 +14767,6 @@
         "title": "Tips",
         "usage": "Type / in the input box to trigger command palette",
         "trigger": "Type / in the input box to trigger command palette",
-        "variables": "Template supports variables: '{{input}}', '{{date}}', '{{time}}'",
         "examples": "Examples: /translate for translation, /review for code review",
         "example": "Examples: /translate for translation, /review for code review"
       },
@@ -14773,17 +14799,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "Examples",
-          "translate": {
-            "name": "translate",
-            "template": "Please translate to English: '{{input}}'"
-          },
-          "review": {
-            "name": "review",
-            "template": "Please review this code: '{{input}}'"
-          }
         },
         "actions": {
           "cancel": "Cancel",
@@ -14988,7 +15003,13 @@
       "endpointDesc": "Use this base URL with any OpenAI-compatible client:",
       "docsTitle": "Quick Start",
       "docsDesc": "Use your API key with the OpenAI SDK or any compatible client. The model field selects an agent (use \"default\" for the primary agent).",
-      "createdAt": "Created"
+      "createdAt": "Created",
+      "loadFailed": "Failed to load API keys",
+      "createFailed": "Failed to create API key",
+      "keyRevoked": "API key revoked",
+      "revokeFailed": "Failed to revoke key",
+      "keyDeleted": "API key deleted",
+      "deleteFailed": "Failed to delete key"
     },
     "hosting": {
       "title": "Hosting Targets",
@@ -15179,7 +15200,8 @@
         "installInProgress": "Installing…",
         "installSuccess": "Installed successfully",
         "installing": "Installing {backend}",
-        "installingDesc": "This may take a few minutes. The installation log appears below."
+        "installingDesc": "This may take a few minutes. The installation log appears below.",
+        "installFailed": "Installation failed"
       },
       "showSystemMessages": "Show System Messages",
       "showSystemMessagesDesc": "Display AI system prompts (System Prompts) in chat",
@@ -15326,7 +15348,10 @@
         "title": "Security Profile",
         "description": "Select a pre-built security profile or customize below.",
         "loading": "Loading profiles...",
-        "selectDefault": "Select Profile"
+        "selectDefault": "Select Profile",
+        "activated": "Activated profile: {name}",
+        "activateFailed": "Failed to activate profile",
+        "loaded": "Profile loaded"
       },
       "modeAllow": "Allow",
       "modeAsk": "Require Approval",
@@ -15433,7 +15458,7 @@
           "localApiKey": "Local Model API Key",
           "localApiKeyPlaceholder": "Leave empty if not required",
           "s2Strategy": "S2 (Sensitive) Strategy",
-          "s2CloudAfterRedact": "Redact then Cloud",
+          "s2CloudAfterRedact": "Cloud Model",
           "s2Local": "Local Only",
           "s3Strategy": "S3 (Confidential) Strategy",
           "s3Local": "Local Only",
@@ -15444,7 +15469,8 @@
           "testConnection": "Test",
           "testSuccess": "Local model connected",
           "testFailed": "Connection failed",
-          "noLocalModelWarning": "You have selected a local routing strategy but no local model is configured. Routing will fall back to cloud for all requests."
+          "noLocalModelWarning": "You have selected a local routing strategy but no local model is configured. Routing will fall back to cloud for all requests.",
+          "testSuccessLatency": "Local model connected ({latency}ms)"
         },
         "advanced": {
           "title": "Advanced PII Configuration",
@@ -16316,7 +16342,8 @@
         "agenticBadge": "64K Agentic",
         "agenticTooltip": "Automatically derived 64K context modelfile for production-ready tool calling and long-term memory",
         "keepAliveTipTitle": "24/7 Keep-Alive & GPU Drain Guide",
-        "keepAliveTipDesc": "Keep models in memory for 24/7 background bots, or unload them to free VRAM for compute-heavy tasks."
+        "keepAliveTipDesc": "Keep models in memory for 24/7 background bots, or unload them to free VRAM for compute-heavy tasks.",
+        "downloadFailed": "Download failed"
       },
       "importFromModelsDev": "Import from models.dev",
       "getModels": "Get Models",
@@ -16519,7 +16546,7 @@
         "embeddingModel": "Embedding Model",
         "embeddingModelDescription": "Text vectorization model for semantic search across knowledge base, memory, web search, and other capabilities",
         "dismiss": "Dismiss",
-        "orphanWarning": "{{count}} memories from a previous model need migration",
+        "orphanWarning": "{count} memories from a previous model need migration",
         "reindex": "Migrate",
         "reindexing": "Migrating...",
         "rerankerModel": "Reranker Model",
@@ -16845,9 +16872,12 @@
         "scoreDelta": "Score Change",
         "contentChanged": "Content Changed",
         "contentUnchanged": "Content Unchanged",
-        "createdByLlm": "LLM Optimization",
+        "createdByLlm": "AI Optimization",
         "createdByManual": "Manual Edit",
         "createdByRollback": "Rollback",
+        "createdByAgent": "Agent Edit",
+        "createdBySkillGrowth": "Skill Growth",
+        "createdByImport": "Import",
         "refresh": "Refresh",
         "confirmAction": "Activate this version"
       }
@@ -17663,6 +17693,11 @@
         "skipped": "A review with the same title was already stored today; duplicate skipped",
         "empty": "Please enter your review first",
         "error": "Submission failed; please retry later"
+      },
+      "reviewSlip": {
+        "fetchFailed": "Failed to load the review slip",
+        "applied": "Selective write-back complete: {committed} saved, {discarded} skipped",
+        "applyFailed": "Failed to apply selective write-back"
       }
     },
     "skills": {
@@ -18140,7 +18175,9 @@
         "sourceTab": "Source",
         "saveSource": "Save SKILL.md",
         "sourceSaved": "SKILL.md updated successfully",
-        "sourceSaveFailed": "Failed to save SKILL.md"
+        "sourceSaveFailed": "Failed to save SKILL.md",
+        "forceEnableFailed": "Force enable failed",
+        "securityReviewNote": "Security review: {recommendation}"
       },
       "growth": {
         "title": "Skill Growth",
@@ -18178,7 +18215,7 @@
         "status": {
           "PENDING_REVIEW": "Pending Review",
           "AUTO_APPLIED": "Auto Applied",
-          "FAILED_SCAN": "Failed Scan",
+          "FAILED_SCAN": "Check Failed",
           "BLOCKED_LOCKED": "Blocked by Lock",
           "APPROVED": "Approved",
           "REJECTED": "Rejected",
@@ -18189,15 +18226,9 @@
           "manualEvolution": "Manual Evolution",
           "memoryExtraction": "Memory Extraction"
         },
-        "proxyAlignment": {
-          "driftBadge": "Goodhart Drift Risk",
-          "driftTooltip": "Goodhart's Law drift detected: proxies improved but core intent regressed",
-          "alignedBadge": "Metrics Aligned",
-          "alignedTooltip": "Core intent and proxy metrics are well-aligned without corner-cutting"
-        },
         "confidence": "Confidence {value}%",
-        "testPassed": "Validation passed",
-        "testFailed": "Validation failed",
+        "scanPassed": "Security scan passed",
+        "scanFailed": "Security scan failed",
         "verifiedBadge": "Verified",
         "hollowBlockedBadge": "Hollow Test Blocked",
         "targetLayer": "Layer: {layer}",
@@ -18237,34 +18268,6 @@
           "count": "Failures: {value}",
           "confidence": "Attribution {value}%",
           "loopKind": "Loop: {value}"
-        },
-        "manifestPrediction": {
-          "title": "Change Manifest Predictions & Attribution",
-          "baseline": "Baseline",
-          "target": "Target",
-          "predictedDirection": {
-            "INCREASE": "Predicted Increase",
-            "DECREASE": "Predicted Decrease",
-            "NEUTRAL": "Predicted Neutral"
-          },
-          "falsificationConditions": "Falsification Conditions",
-          "attributionVerdict": "Attribution Verdict",
-          "verdictBadge": {
-            "CONFIRMED": "CONFIRMED",
-            "REFUTED": "REFUTED",
-            "REGRESSION": "REGRESSION",
-            "INCONCLUSIVE": "INCONCLUSIVE"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "Generalization Optimal",
-            "overfitting": "Overfitting Alert",
-            "generalization_collapse": "Generalization Collapse",
-            "stable_parity": "Stable Parity",
-            "regression": "Regression Detected",
-            "insufficient_holdout": "Insufficient Holdout"
-          },
-          "metricDeltas": "Observed Metric Deltas",
-          "unpredictedRegressions": "Unpredicted Regressions"
         },
         "securityScan": {
           "title": "Skill Security Static Inspection Details ({count} findings)",
@@ -18700,7 +18703,8 @@
         "error": "Failed to update permissions",
         "skillEnabled": "Skill enabled",
         "skillNotEnabled": "Skill not enabled",
-        "templateApplied": "Template applied"
+        "templateApplied": "Template applied",
+        "approveFailed": "Failed to approve permissions"
       },
       "tabSubtitles": {
         "inventory": "Manage and discover core agent capabilities",
@@ -18989,7 +18993,7 @@
       "recipeImport": {
         "title": "Import recipe from AI skill",
         "hint": "Paste the JSON from generate-myrm-theme, then upload hero media in step 1 if needed.",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "Import recipe",
         "success": "Recipe imported into the editor",
         "errors": {
@@ -19446,7 +19450,7 @@
       "tunnelDockerRunLabel": "Docker run command",
       "tunnelDockerRunCopied": "Docker command copied to clipboard",
       "tunnelUpstreamAuthLabel": "Upstream auth header (optional)",
-      "tunnelUpstreamAuthPlaceholder": "Bearer <token>",
+      "tunnelUpstreamAuthPlaceholder": "Bearer '<token>'",
       "tunnelUpstreamAuthHint": "Sent to your internal MCP server when the tunnel agent forwards requests.",
       "tunnelBindMcp": "Add as Org MCP",
       "tunnelBindMcpSuccess": "Tunnel added to organization MCP servers",
@@ -20223,9 +20227,9 @@
     "mcpOAuthConfigured": "Configured",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "Configured",
-    "mcpHeadersHint": "Use {{secret:KEY_NAME}} to reference secrets stored in Agent Secrets.",
+    "mcpHeadersHint": "Use '{{secret:KEY_NAME}}' to reference secrets stored in Agent Secrets.",
     "mcpHeaderKeyPlaceholder": "Header name (e.g. Authorization)",
-    "mcpHeaderValuePlaceholder": "Value or {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "Value or '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Configuration saved",
     "mcpSecretRefSaveHintDesc": "Secret references in headers will be resolved at runtime.",
@@ -20259,7 +20263,8 @@
       "hardcoded_secret": "Plaintext secret or token in configuration",
       "credential_exposure": "Potential credential exposure detected",
       "supply_chain": "Supply-chain risk (e.g. unpinned npx package)",
-      "supply_chain_malware": "Package has a known malware advisory"
+      "supply_chain_malware": "Package has a known malware advisory",
+      "dangerous_env_injection": "Dangerous environment variable that can hijack the MCP server"
     },
     "mcpThreatRec": {
       "prompt_injection": "Do not enable this MCP; report to your administrator",
@@ -20272,10 +20277,11 @@
       "risky_mcp_profile": "Restrict scope and acknowledge risk before enabling",
       "suspicious_url": "Remove untrusted external callback URLs",
       "sensitive_path": "Restrict filesystem MCP to non-sensitive directories",
-      "hardcoded_secret": "Use {{secret:KEY}} references instead of plaintext",
-      "credential_exposure": "Use {{secret:KEY}} references instead of plaintext",
+      "hardcoded_secret": "Use '{{secret:KEY}}' references instead of plaintext",
+      "credential_exposure": "Use '{{secret:KEY}}' references instead of plaintext",
       "supply_chain": "Pin package name and version in arguments",
-      "supply_chain_malware": "Remove the flagged package and use verified dependencies"
+      "supply_chain_malware": "Remove the flagged package and use verified dependencies",
+      "dangerous_env_injection": "Remove this environment variable to prevent arbitrary code execution"
     },
     "mcpDeleteFailed": "Delete Failed",
     "mcpDeleteSuccess": "Service Deleted",
@@ -20595,7 +20601,9 @@
       "deleteFromCloud": "Delete",
       "deleteSuccess": "Cloud backup deleted",
       "enabled": "Enable Cloud Backup",
-      "save": "Save Configuration"
+      "save": "Save Configuration",
+      "saveFailed": "Failed to save configuration",
+      "deleteFailed": "Delete failed"
     },
     "sessionAnalytics": {
       "copyMarkdown": "Copy Ledger (MD)",
@@ -21648,7 +21656,8 @@
       "policyUpdated": "Security policy updated successfully",
       "tierProd": "Production",
       "tierStaging": "Staging",
-      "tierDev": "Development"
+      "tierDev": "Development",
+      "probeFailed": "Probe failed for {host}: {message}"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "On-screen approval highlight — red frame on the real display at the click target (macOS and Windows)",

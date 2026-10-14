@@ -141,7 +141,6 @@ myrm_agent_harness.agent.skills.curator
 myrm_agent_harness.agent.skills.curator.consolidation
 myrm_agent_harness.agent.skills.evolution
 myrm_agent_harness.agent.skills.evolution.core.engine
-myrm_agent_harness.agent.skills.evolution.core.eval_regression
 myrm_agent_harness.agent.skills.evolution.core.types
 myrm_agent_harness.agent.skills.evolution.db.store
 myrm_agent_harness.agent.skills.evolution.execution.sandbox_validator
@@ -251,7 +250,6 @@ myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.core.security.types
 myrm_agent_harness.eval
 myrm_agent_harness.eval.builder
-myrm_agent_harness.eval.manifest_prediction
 myrm_agent_harness.eval.protocols
 myrm_agent_harness.infra.delivery.dead_letter
 myrm_agent_harness.infra.delivery.notification_ledger
@@ -456,7 +454,6 @@ myrm_agent_harness.toolkits.memory.graph
 myrm_agent_harness.toolkits.memory.graph.age_store
 myrm_agent_harness.toolkits.memory.graph.base
 myrm_agent_harness.toolkits.memory.graph.sqlite_store
-myrm_agent_harness.toolkits.memory.graph_reorganization
 myrm_agent_harness.toolkits.memory.graph_rrf
 myrm_agent_harness.toolkits.memory.handoff
 myrm_agent_harness.toolkits.memory.health

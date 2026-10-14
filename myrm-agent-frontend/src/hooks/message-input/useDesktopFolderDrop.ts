@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { isTauriEnvironment, listenTauriEvent } from '@/lib/tauri';
 import { grantSessionAccessRoot } from '@/services/chat';
@@ -52,6 +53,7 @@ export interface TauriDragDropPayload {
 }
 
 export function useDesktopFolderDrop(options: UseDesktopFolderDropOptions = {}) {
+  const t = useTranslations('chat.folderDrop');
   const { disabled = false, onFolderGranted } = options;
   const chatId = useChatStore((state) => state.chatId);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -83,11 +85,11 @@ export function useDesktopFolderDrop(options: UseDesktopFolderDropOptions = {}) 
           onFolderGranted?.(targetPath);
         } catch (error) {
           console.warn(`Failed to grant directory access for ${targetPath}:`, error);
-          toast.error(`Failed to grant directory access: ${targetPath}`);
+          toast.error(t('grantFailed', { path: targetPath }));
         }
       }
     },
-    [chatId, disabled, onFolderGranted],
+    [chatId, disabled, onFolderGranted, t],
   );
 
   useEffect(() => {

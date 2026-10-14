@@ -131,7 +131,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
       if (normalizedStarterPrompt) {
         setInputMessage(normalizedStarterPrompt);
       }
-      toast.success(t('instantiateSuccess') || 'Agent created from template!');
+      toast.success(t('instantiateSuccess'));
       if (onInstantiated) {
         onInstantiated(newAgent.id);
       } else if (template.agent_type === 'team') {
@@ -141,7 +141,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
       }
     } catch (e) {
       console.error(e);
-      toast.error(t('instantiateError') || 'Failed to instantiate template');
+      toast.error(t('instantiateError'));
     } finally {
       setInstantiatingId(null);
     }

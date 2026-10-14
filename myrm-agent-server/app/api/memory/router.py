@@ -26,9 +26,6 @@ from app.api.memory.bitemporal_tms_router import (
 from app.api.memory.budget_packing_router import (
     router as budget_packing_router,
 )
-from app.api.memory.business_template_router import (
-    router as business_template_router,
-)
 from app.api.memory.cjk_iteration_router import (
     router as cjk_iteration_router,
 )
@@ -69,12 +66,6 @@ from app.api.memory.experience_compounding_router import (
 from app.api.memory.experience_gene_router import (
     router as experience_gene_router,
 )
-from app.api.memory.experience_observability_router import (
-    router as experience_observability_router,
-)
-from app.api.memory.failure_search_router import (
-    router as failure_search_router,
-)
 from app.api.memory.follow_ups import router as follow_ups_router
 from app.api.memory.four_layer_promotion_router import (
     router as four_layer_promotion_router,
@@ -101,9 +92,6 @@ from app.api.memory.job_compounding_router import (
 from app.api.memory.kg_screening_router import (
     router as kg_screening_router,
 )
-from app.api.memory.live_correction_router import (
-    router as live_correction_router,
-)
 from app.api.memory.markdown_chunker import (
     router as markdown_chunker_router,
 )
@@ -112,9 +100,6 @@ from app.api.memory.markdown_curator_router import (
 )
 from app.api.memory.mem_cube_router import (
     router as mem_cube_router,
-)
-from app.api.memory.memory_lineage_router import (
-    router as memory_lineage_router,
 )
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
@@ -160,9 +145,6 @@ from app.api.memory.pitfall_alert_router import (
 )
 from app.api.memory.private_notebook_router import (
     router as private_notebook_router,
-)
-from app.api.memory.procedure_experience_router import (
-    router as procedure_experience_router,
 )
 from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.quadruple_retrieval_router import (
@@ -317,22 +299,6 @@ router.include_router(
     tags=["memory-markdown-curator"],
 )
 router.include_router(
-    procedure_experience_router,
-    tags=["memory-procedure-experience"],
-)
-router.include_router(
-    business_template_router,
-    tags=["memory-business-templates"],
-)
-router.include_router(
-    experience_observability_router,
-    tags=["memory-experience-observability"],
-)
-router.include_router(
-    failure_search_router,
-    tags=["memory-failure-search"],
-)
-router.include_router(
     peer_cognition_router,
     tags=["memory-peer-cognition"],
 )
@@ -357,16 +323,8 @@ router.include_router(
     tags=["memory-dream-cognitive"],
 )
 router.include_router(
-    memory_lineage_router,
-    tags=["memory-lineage"],
-)
-router.include_router(
     quadruple_retrieval_router,
     tags=["memory-quadruple-retrieval"],
-)
-router.include_router(
-    live_correction_router,
-    tags=["memory-live-correction-suite"],
 )
 router.include_router(
     space_guard_router,

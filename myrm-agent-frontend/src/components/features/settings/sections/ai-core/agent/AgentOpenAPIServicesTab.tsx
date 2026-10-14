@@ -54,6 +54,7 @@ interface ServiceEditorProps {
 
 function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: ServiceEditorProps) {
   const t = useTranslations('agent.openapi');
+  const tCommon = useTranslations('common');
   const [parsing, setParsing] = useState(false);
   const [parsedSpec, setParsedSpec] = useState<ParseSpecResponse | null>(null);
   const [showAuth, setShowAuth] = useState(!!service.auth && service.auth.type !== 'none');
@@ -244,7 +245,11 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
                             const currentList = isCurrentlyAll ? allIds : service.selected_endpoints ?? [];
                             const next = currentList.filter((id) => id !== ep.operation_id);
                             if (next.length === 0) {
-                              toast({ title: 'Error', description: t('atLeastOneEndpoint'), variant: 'destructive' });
+                              toast({
+                                title: tCommon('errorTitle'),
+                                description: t('atLeastOneEndpoint'),
+                                variant: 'destructive',
+                              });
                               return;
                             }
                             updateField('selected_endpoints', next);
@@ -479,7 +484,7 @@ export function AgentOpenAPIServicesTab({ services, onChange, readonly }: AgentO
       },
     ]);
     setShowPresets(false);
-    toast({ title: `Added ${preset.name} connector` });
+    toast({ title: t('presetAdded', { name: preset.name }) });
   };
 
   const handleUpdate = (index: number, updated: OpenAPIServiceConfig) => {
@@ -538,7 +543,10 @@ export function AgentOpenAPIServicesTab({ services, onChange, readonly }: AgentO
               >
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    {preset.icon_url && <img src={preset.icon_url} alt="" className="w-4 h-4" />}
+                    {preset.icon_url && (
+                      // oxlint-disable-next-line next/no-img-element -- connector icons come from arbitrary hosts, which next/image cannot optimize
+                      <img src={preset.icon_url} alt="" className="w-4 h-4" />
+                    )}
                     <h4 className="text-sm font-semibold">{preset.name}</h4>
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-2">{preset.description}</p>

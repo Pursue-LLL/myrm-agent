@@ -204,7 +204,11 @@
     "bundleCategoryOther": "Sonstige Assets",
     "bundleExportSelected": "Auswahl exportieren ({count})",
     "bundleSelectAll": "Alles auswählen",
-    "bundleClearSelection": "Auswahl aufheben"
+    "bundleClearSelection": "Auswahl aufheben",
+    "subgoalAddFailed": "Teilziel konnte nicht hinzugefügt werden",
+    "subgoalAddNetworkError": "Netzwerkfehler: Teilziel konnte nicht hinzugefügt werden",
+    "subgoalRemoveFailed": "Teilziel konnte nicht entfernt werden",
+    "subgoalRemoveNetworkError": "Netzwerkfehler: Teilziel konnte nicht entfernt werden"
   },
   "commands": {
     "palette": {
@@ -251,7 +255,7 @@
       "forkStreamingBlocked": "Abzweigen nicht möglich, während der Agent antwortet",
       "forkEmpty": "Keine Nachrichten zum Abzweigen vorhanden",
       "goal": "Ein langfristiges Ziel für dieses Gespräch festlegen oder verwalten",
-      "goalUsage": "Verwendung: /goal <Ziel> | Status | Pause | Lebenslauf | klar",
+      "goalUsage": "Verwendung: /goal '<Ziel>' | status | pause | resume | clear",
       "goalSet": "Goal mode enabled — edit the objective and send to start",
       "goalStatus": "Zielstatus: {status}",
       "goalNoActive": "Kein aktives Ziel in diesem Gespräch",
@@ -260,7 +264,7 @@
       "goalCleared": "Ziel gelöscht",
       "goalActionFailed": "Zielbefehl fehlgeschlagen",
       "loop": "Wiederkehrende geplante Aufgabe für diese Konversation erstellen oder verwalten",
-      "loopUsage": "Verwendung: /loop [Intervall] [--times N] [--until Bedingung] <Prompt>, oder /loop stop",
+      "loopUsage": "Verwendung: /loop [Intervall] [--times N] [--until Bedingung] '<Prompt>', oder /loop stop",
       "loopMissingPrompt": "Bitte geben Sie einen Aufgaben-Prompt für /loop an",
       "loopCreated": "Geplante Loop-Aufgabe erstellt (Intervall: {interval}), erste Ausführung gestartet",
       "loopCreateFailed": "Loop-Aufgabe konnte nicht erstellt werden",
@@ -943,7 +947,8 @@
       },
       "turn1BudgetWarning": "Das geschätzte Turn1-Schema (~{tokens} Token) übersteigt das Direktbindungsbudget ({budget}). Reduzieren Sie ausgewählte Endpunkte, sonst kann der Agent diese API-Tools nicht verwenden.",
       "turn1BudgetServiceWarning": "Die ausgewählten Endpunkte dieses Dienstes können das Turn1-Bind-Budget überschreiten. Reduzieren Sie die Auswahl, um Startfehler des Agenten zu vermeiden.",
-      "atLeastOneEndpoint": "Mindestens ein Endpunkt muss ausgewählt bleiben."
+      "atLeastOneEndpoint": "Mindestens ein Endpunkt muss ausgewählt bleiben.",
+      "presetAdded": "{name}-Konnektor hinzugefügt"
     },
     "sharedContexts": {
       "targetLabel": "Agent",
@@ -1212,7 +1217,8 @@
         "equippedCountSuffix": "Ausgerüstet",
         "pureInstructionNotice": "Keine Fähigkeiten ausgerüstet · Reiner Anweisungsmodus",
         "emptyExplanation": "Derzeit sind keine Fähigkeiten ausgerüstet. Der Agent läuft im reinen Anweisungsmodus. Klicken Sie oben auf \"Alle auswählen\" oder wählen Sie unten Fähigkeiten aus."
-      }
+      },
+      "forcePushSummary": "v{version} → {synced} synchronisiert, {skipped} übersprungen, {failed} fehlgeschlagen ({total} gesamt)"
     },
     "validation": {
       "dependencyInvalid": "Agentenkonfiguration hat Probleme",
@@ -1542,7 +1548,7 @@
       "delete": "Löschen",
       "deleteConfirm": "Diesen FAQ-Eintrag löschen?",
       "import": "Massenimport",
-      "importDesc": "FAQ-Einträge aus JSON importieren. Format: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "FAQ-Einträge aus JSON importieren. Format: ['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "Importieren",
       "importSuccess": "Importierte {count}-Einträge",
       "importFailed": "Import fehlgeschlagen",
@@ -1848,6 +1854,17 @@
         "absolute_path": "Lokaler Dateipfad",
         "unknown": "Vertrauliche Information"
       }
+    },
+    "errorTitle": "Fehler",
+    "unknownError": "Unbekannter Fehler",
+    "apiErrorDetails": "Einzelheiten",
+    "apiErrorTraceId": "Trace-ID",
+    "clipboard": {
+      "copied": "In die Zwischenablage kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen. Bitte Zwischenablage-Berechtigung prüfen.",
+      "readBlocked": "Zugriff auf die Zwischenablage wurde verweigert. Ändern Sie dies in den Einstellungen.",
+      "readRefused": "Zugriff auf die Zwischenablage abgelehnt",
+      "readFailed": "Zwischenablage konnte nicht gelesen werden. Bitte Berechtigungen prüfen."
     }
   },
   "chat": {
@@ -3406,7 +3423,13 @@
       "dialogQuestion": "Soll der Verlauf dieser Unterhaltung wirklich gelöscht werden?",
       "dialogDetail": "Dadurch erhält der Agent einen frischen Kontext und <cost>spart Token-Kosten</cost>. Die <keep>Sandbox-Umgebung, Dateien und installierten Pakete bleiben dabei unverändert erhalten</keep>.",
       "confirm": "Verlauf löschen"
-    }
+    },
+    "folderDrop": {
+      "grantFailed": "Verzeichniszugriff konnte nicht gewährt werden: {path}"
+    },
+    "cacheResetNotice": "Cache zurückgesetzt: {reason}{tokens, plural, =0 {} other {, ca. #k Tokens nicht im Cache}}",
+    "pdfParsedPages": "[PDF] {fileName}: {parsed}/{total} Seiten verarbeitet",
+    "pdfImageOptimized": "[PDF] Analyse optimiert: {kept} Kernbilder extrahiert, {dropped} irrelevante Bilder herausgefiltert"
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -5933,9 +5956,7 @@
         "title": "Politik",
         "description": "Governance-Regeln für diesen gemeinsamen Kontext.",
         "correctionAutoApprove": "Korrektur der automatischen Ausbreitung",
-        "correctionAutoApproveHint": "Wenn ein Agent korrigiert wird, wird die Korrektur automatisch in diesen gemeinsamen Kontext geschrieben, sodass alle gebundenen Agenten daraus lernen.",
-        "goalCompletionAutoApprove": "Automatische Archivierung der Zielerreichung",
-        "goalCompletionAutoApproveHint": "Wenn ein Ziel erreicht ist, werden Architekturentscheidungen des Planers automatisch in diesen gemeinsamen Kontext geschrieben."
+        "correctionAutoApproveHint": "Wenn ein Agent korrigiert wird, wird die Korrektur automatisch in diesen gemeinsamen Kontext geschrieben, sodass alle gebundenen Agenten daraus lernen."
       },
       "proposals": {
         "title": "Angebotseingang",
@@ -5943,8 +5964,7 @@
         "contentPlaceholder": "Schreiben Sie einen Kandidaten für einen dauerhaften gemeinsamen Speicher ...",
         "create": "Vorschlag erstellen",
         "empty": "Noch keine Vorschläge",
-        "correctionTag": "Korrektur",
-        "goalCompletionTag": "Zielerreichung"
+        "correctionTag": "Korrektur"
       },
       "proposalStatus": {
         "pending": "Ausstehend",
@@ -6037,7 +6057,14 @@
     "validPermanent": "Dauerhaft",
     "manualReviewRequired": "Manuelle Überprüfung erforderlich · Kein automatisches Überschreiben",
     "sourceEvidence": "Quellenbeleg",
-    "selectMemory": "Diesen Speichereintrag auswählen"
+    "selectMemory": "Diesen Speichereintrag auswählen",
+    "shareRules": {
+      "loadFailed": "Regeln konnten nicht geladen werden",
+      "selectAtLeastOne": "Bitte wählen Sie mindestens eine Regel aus",
+      "exported": "{count, plural, one {# Regel erfolgreich exportiert} other {# Regeln erfolgreich exportiert}}",
+      "exportFailed": "Export fehlgeschlagen",
+      "copied": "{count, plural, one {# Regel in die Zwischenablage kopiert} other {# Regeln in die Zwischenablage kopiert}}"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",
@@ -6624,6 +6651,16 @@
       "download": "Herunterladen",
       "exportZip": "Als ZIP-Paket exportieren",
       "emptyDesc": "Ergebnisse und Dateien aus Agent-Gesprächen erscheinen hier automatisch"
+    },
+    "architecture": {
+      "jsonCopied": "JSON kopiert",
+      "jsonCopiedDesc": "Architektur-IR in die Zwischenablage kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen",
+      "exportFailed": "Export fehlgeschlagen",
+      "viewportNotFound": "Viewport-Element nicht gefunden",
+      "exportSuccess": "Export erfolgreich",
+      "svgExported": "Architekturdiagramm als eigenständige SVG exportiert",
+      "pngExported": "Architekturdiagramm als hochauflösendes PNG exportiert"
     }
   },
   "MessageSources": {
@@ -7795,7 +7832,7 @@
     "dropHere": "Hier ablegen",
     "reclaimTitle": "Laufende Aufgabe zurückfordern",
     "reclaimDesc": "Dies stoppt sofort den Agenten, der diese Aufgabe ausführt, und setzt sie auf Bereit zurück.",
-    "reclaimConfirm": "Zurückfordern",
+    "reclaimAction": "Zurückfordern",
     "reclaimReasonPlaceholder": "Grund (optional)",
     "reclaimReassignLabel": "Agent neu zuweisen (optional)",
     "reclaimSuccess": "Aufgabe erfolgreich zurückgefordert",
@@ -8130,7 +8167,9 @@
       "actionBacklog": "Priorisieren oder zur Ausführung planen",
       "actionDone": "Aufgabe erfolgreich abgeschlossen"
     },
-    "cardActions": "Aufgabenaktionen"
+    "cardActions": "Aufgabenaktionen",
+    "deleteConfirmTitle": "Aufgabe löschen?",
+    "deleteConfirmDesc": "„{title}“\nDie Aufgabe und ihr Ausführungsverlauf werden endgültig gelöscht. Aufgaben, die auf sie warten, werden Bereit, sofern sie nichts anderes blockiert, und können automatisch starten."
   },
   "channels": {
     "sectionTitle": "Nachrichtenkanäle",
@@ -8180,7 +8219,9 @@
       "clearConfirm": "Möchten Sie alle Umgebungskontext-Einträge für diesen Kanal wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden (DSGVO-konform).",
       "clearedSuccess": "Einträge erfolgreich gelöscht",
       "clearing": "Löschen...",
-      "refresh": "Metriken aktualisieren"
+      "refresh": "Metriken aktualisieren",
+      "deletedCount": "{count, plural, one {# Nachricht gelöscht} other {# Nachrichten gelöscht}}",
+      "clearFailed": "Kanalprotokolle konnten nicht gelöscht werden"
     },
     "groupsTitle": "Gruppenleitung",
     "groupsDesc": "Wählen Sie aus, in welchen Gruppen der Bot antworten soll. Nicht ausgewählte Gruppen werden ignoriert.",
@@ -9662,6 +9703,9 @@
     "openSkillGrowth": "Offenes Kompetenzwachstum",
     "skillEvolvedNew": "Agent hat eine neue Fähigkeit gelernt: {name}",
     "skillEvolvedPatch": "Agent hat eine Fertigkeit verbessert: {name}",
+    "skillCapacityReached": "Skill-Bibliothek ist voll (max. {max} Fähigkeiten)",
+    "skillCapacityReachedHint": "Der Agent lernt vorerst keine neuen Fähigkeiten mehr. Archivieren oder löschen Sie ungenutzte Fähigkeiten, um das Lernen fortzusetzen.",
+    "manageSkills": "Fähigkeiten verwalten",
     "undoEvolve": "Rückgängig machen",
     "rollbackSuccess": "Erfolgreiches Rollback: {name}",
     "rollbackFailed": "Rollback fehlgeschlagen, bitte versuchen Sie es erneut",
@@ -9669,7 +9713,6 @@
     "forcePushRollbackHint": "Ein Snapshot wurde gespeichert. Sie können in den Agenten-Einstellungen zurücksetzen.",
     "subagentRebindRequired": "Subagentenbindungen geändert. Starten Sie einen neuen Chat, um aktualisierte Delegationstools zu verwenden.",
     "subagentStale": "Subagent ist ins Stocken geraten",
-    "noProgressFor": "Kein Fortschritt für",
     "viewAgent": "Anzeigen",
     "approvalRequired": "Agent erfordert Genehmigung: {actionType}",
     "approvalsRecovered": "{count} ausstehende Freigabe(n) wiederhergestellt",
@@ -9727,7 +9770,12 @@
     "mcpAuthRequired": "{server} erfordert erneute Autorisierung",
     "oauthReauthRequired": "{issuer} Autorisierung abgelaufen. Bitte erneut autorisieren, um den Zugriff wiederherzustellen.",
     "reauthorize": "Erneut autorisieren",
-    "budgetFinalization": "Budget fast ausgeschöpft — wird abgeschlossen"
+    "budgetFinalization": "Budget fast ausgeschöpft — wird abgeschlossen",
+    "healthAlertTip": "Tipp: {tip}",
+    "budgetRemaining": "{dimension} — ${remaining} verbleibend",
+    "subagentStaleDescription": "Seit {minutes} Min. kein Fortschritt · {tokens, number} Tokens",
+    "subagentStaleStats": "{minutes} Min. · {tokens, number} Tokens",
+    "agentProfileRollbackSuccess": "Agent-Profil erfolgreich zurückgesetzt."
   },
   "configConflict": {
     "title": "Konfigurationskonflikt erkannt",
@@ -10490,14 +10538,14 @@
       "status": {
         "PENDING_REVIEW": "Ausstehende Überprüfung",
         "AUTO_APPLIED": "Automatisch angewendet",
-        "FAILED_SCAN": "Scan fehlgeschlagen",
+        "FAILED_SCAN": "Prüfung nicht bestanden",
         "BLOCKED_LOCKED": "Durch Sperre blockiert",
         "APPROVED": "Genehmigt",
         "REJECTED": "Abgelehnt",
         "APPLY_FAILED": "Anwenden fehlgeschlagen",
         "pendingReview": "Ausstehende Überprüfung",
         "autoApplied": "Automatisch angewendet",
-        "failedScan": "Scan fehlgeschlagen",
+        "failedScan": "Prüfung nicht bestanden",
         "blockedLocked": "Durch Sperre blockiert",
         "approved": "Genehmigt",
         "rejected": "Abgelehnt",
@@ -10604,7 +10652,7 @@
       "empty": "Noch keine Wachstumsereignisse",
       "pendingReview": "Ausstehende Überprüfung",
       "autoApplied": "Automatisch angewendet",
-      "failedScan": "Scan fehlgeschlagen",
+      "failedScan": "Prüfung nicht bestanden",
       "blockedLocked": "Durch Sperre blockiert",
       "approved": "Genehmigt",
       "rejected": "Abgelehnt",
@@ -10873,40 +10921,6 @@
       "cache": "Cache-Einsparungen",
       "routing": "Routing-Einsparungen",
       "totalCost": "Tatsächliche Kosten"
-    },
-    "manifestPredictions": {
-      "title": "Manifest-Vorhersagen & Attribution",
-      "description": "Benchmark-Bewertung prognostizierter Leistungs-Deltas im Vergleich zu tatsächlichen Ausführungsmetriken",
-      "evaluating": "Wird bewertet...",
-      "evaluateNow": "Benchmark jetzt ausführen",
-      "manifestId": "Manifest-ID",
-      "targetComponent": "Zielkomponente",
-      "recommendedAction": "Empfohlene Aktion",
-      "rationale": "Begründung",
-      "metricsTitle": "Vorhergesagte vs. tatsächliche Metriken",
-      "confidence": "Konfidenz",
-      "metricName": "Metrik",
-      "baseline": "Basislinie",
-      "predictedTarget": "Vorhergesagt",
-      "actualValue": "Tatsächlich",
-      "delta": "Differenz",
-      "verdict": "Urteil",
-      "explanation": "Erklärung",
-      "hideRollbackPatch": "Rollback-Patch ausblenden",
-      "viewRollbackPatch": "Rollback-Patch anzeigen",
-      "rollbackSuccess": "Rollback-Patch erfolgreich angewendet.",
-      "rollbackFailed": "Fehler beim Rollback der Skill-Evolution.",
-      "verdicts": {
-        "confirmed": "Bestätigt",
-        "regression": "Rückschritt",
-        "refuted": "Widerlegt",
-        "inconclusive": "Uneindeutig"
-      },
-      "actions": {
-        "keep": "Behalten",
-        "rollback": "Zurücksetzen",
-        "re_evaluate": "Neu bewerten"
-      }
     }
   },
   "subagentDashboard": {
@@ -11285,7 +11299,7 @@
       "passed": "Bestanden",
       "failed": "Fehlgeschlagen",
       "pending": "Ausstehend",
-      "multiTurn": "<Multi-Turn>",
+      "multiTurn": "'<Multi-Turn>'",
       "viewDiff": "Diff anzeigen",
       "noReport": "Kein Evaluierungsbericht vorhanden. Klicken Sie auf \"Evaluierung starten\".",
       "evalRunning": "Evaluierungsaufgabe läuft, bitte warten",
@@ -11511,7 +11525,8 @@
       "description": "Basierend auf deterministischer Fehlerursachenanalyse: Die Erweiterung von Tools/Middleware bringt einen deutlich höheren ROI als reine Prompt-Änderungen (Tools/Middleware ≫ Prompt). Optimieren Sie Ihre Konfiguration anhand der empfohlenen Prioritäten.",
       "affectsCases": "Betrifft {count} fehlgeschlagene Fälle",
       "quickConfig": "Konfigurieren"
-    }
+    },
+    "skillAbStartFailed": "Skill-A/B-Test konnte nicht gestartet werden"
   },
   "vault": {
     "title": "Sicherheitstresor entsperren",
@@ -12286,9 +12301,9 @@
     "mcpTlsHint": "Für mTLS: Client-Zertifikat bereitstellen und optional einen separaten Schlüssel. Pfade unterstützen ~-Expansion.",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "Konfiguriert",
-    "mcpHeadersHint": "Verwenden Sie {{secret:KEY_NAME}}, um in Agent Secrets gespeicherte Geheimnisse zu referenzieren.",
+    "mcpHeadersHint": "Verwenden Sie '{{secret:KEY_NAME}}', um in Agent Secrets gespeicherte Geheimnisse zu referenzieren.",
     "mcpHeaderKeyPlaceholder": "Header-Name (z. B. Autorisierung)",
-    "mcpHeaderValuePlaceholder": "Wert oder {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "Wert oder '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Konfiguration gespeichert",
     "mcpSecretRefSaveHintDesc": "Geheimverweise in Headern werden zur Laufzeit aufgelöst.",
@@ -12455,6 +12470,10 @@
         "restrict": "Nicht vertrauen und verknüpfen",
         "trust": "Vertrauen und verknüpfen"
       }
+    },
+    "workspaceTrust": {
+      "trusted": "Arbeitsbereich vertraut. Alle Erweiterungen und Tools sind jetzt aktiviert.",
+      "trustFailed": "Arbeitsbereich konnte nicht als vertrauenswürdig markiert werden"
     }
   },
   "milestone": {
@@ -14029,6 +14048,14 @@
         "title": "External source migration requires Local or Desktop",
         "description": "SaaS-Cloud-Sandboxes können die Ordner von Hermes, OpenClaw, Claude Code und Codex auf Ihrem Rechner nicht lesen. Laden Sie die Tauri-Desktop-App herunter oder starten Sie die lokale WebUI und öffnen Sie dann Einstellungen → Speicher → Migration.",
         "downloadCta": "Zur Download-Seite gehen"
+      },
+      "monitor": {
+        "profilingStarted": "Heap-Profiling gestartet. Das System kann geringfügig stärker ausgelastet sein.",
+        "profilingStartFailed": "Profiling konnte nicht gestartet werden",
+        "profilingStartNetworkError": "Netzwerkfehler beim Starten des Profilings",
+        "profilingStopped": "Heap-Profiling gestoppt. Ergebnisse liegen vor.",
+        "profilingStopFailed": "Profiling konnte nicht gestoppt werden",
+        "profilingStopNetworkError": "Netzwerkfehler beim Stoppen des Profilings"
       }
     },
     "commands": {
@@ -14065,7 +14092,6 @@
         "title": "Tipps",
         "usage": "Geben Sie / in das Eingabefeld ein, um die Befehlspalette auszulösen",
         "trigger": "Geben Sie / in das Eingabefeld ein, um die Befehlspalette auszulösen",
-        "variables": "Vorlage unterstützt Variablen: „{{input}}“, „{{date}}“, „{{time}}“",
         "examples": "Beispiele: /translate für Übersetzung, /review für Codeüberprüfung",
         "example": "Beispiele: /translate für Übersetzung, /review für Codeüberprüfung"
       },
@@ -14090,7 +14116,7 @@
           "template": {
             "label": "Vorlage",
             "placeholder": "Bitte übersetzen Sie Folgendes ins Englische:\n\n'{{input}}'",
-            "hint": "Verwenden Sie „{{input}}“, um Benutzereingaben einzufügen"
+            "hint": "Verwenden Sie „'{{input}}'“, um Benutzereingaben einzufügen"
           }
         },
         "variables": {
@@ -14098,17 +14124,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "Beispiele",
-          "translate": {
-            "name": "translate",
-            "template": "Bitte übersetzen Sie ins Englische: „{{input}}“"
-          },
-          "review": {
-            "name": "review",
-            "template": "Bitte überprüfen Sie diesen Code: „{{input}}“"
-          }
         },
         "actions": {
           "cancel": "Abbrechen",
@@ -14313,7 +14328,13 @@
       "endpointDesc": "Verwenden Sie diese Basis-URL mit jedem OpenAI-kompatiblen Client:",
       "docsTitle": "Schnellstart",
       "docsDesc": "Use your API key with the OpenAI SDK or any compatible client.",
-      "createdAt": "Erstellt"
+      "createdAt": "Erstellt",
+      "loadFailed": "API-Schlüssel konnten nicht geladen werden",
+      "createFailed": "API-Schlüssel konnte nicht erstellt werden",
+      "keyRevoked": "API-Schlüssel widerrufen",
+      "revokeFailed": "Schlüssel konnte nicht widerrufen werden",
+      "keyDeleted": "API-Schlüssel gelöscht",
+      "deleteFailed": "Schlüssel konnte nicht gelöscht werden"
     },
     "hosting": {
       "title": "Hosting-Ziele",
@@ -14504,7 +14525,8 @@
         "installInProgress": "Installation läuft…",
         "installSuccess": "Erfolgreich installiert",
         "installing": "{backend} wird installiert",
-        "installingDesc": "Dies kann einige Minuten dauern. Das Installationsprotokoll wird unten angezeigt."
+        "installingDesc": "Dies kann einige Minuten dauern. Das Installationsprotokoll wird unten angezeigt.",
+        "installFailed": "Installation fehlgeschlagen"
       },
       "showSystemMessages": "Systemnachrichten anzeigen",
       "showSystemMessagesDesc": "Display AI system prompts in chat",
@@ -14651,7 +14673,10 @@
         "title": "Sicherheitsprofil",
         "description": "Wählen Sie ein vorgefertigtes Sicherheitsprofil oder passen Sie es unten an.",
         "loading": "Profile werden geladen...",
-        "selectDefault": "Profil auswählen"
+        "selectDefault": "Profil auswählen",
+        "activated": "Profil aktiviert: {name}",
+        "activateFailed": "Profil konnte nicht aktiviert werden",
+        "loaded": "Profil geladen"
       },
       "modeAllow": "Erlauben",
       "modeAsk": "Genehmigung erforderlich",
@@ -14758,7 +14783,7 @@
           "localApiKey": "Lokaler Modell-API-Schlüssel",
           "localApiKeyPlaceholder": "Leer lassen, wenn nicht erforderlich",
           "s2Strategy": "S2-Strategie (sensibel)",
-          "s2CloudAfterRedact": "Maskieren, dann Cloud",
+          "s2CloudAfterRedact": "Cloud-Modell",
           "s2Local": "Nur lokal",
           "s3Strategy": "S3-Strategie (vertraulich)",
           "s3Local": "Nur lokal",
@@ -14769,7 +14794,8 @@
           "testConnection": "Testen",
           "testSuccess": "Lokales Modell verbunden",
           "testFailed": "Verbindung fehlgeschlagen",
-          "noLocalModelWarning": "Sie haben eine lokale Routing-Strategie gewählt, aber kein lokales Modell konfiguriert. Das Routing fällt für alle Anfragen auf die Cloud zurück."
+          "noLocalModelWarning": "Sie haben eine lokale Routing-Strategie gewählt, aber kein lokales Modell konfiguriert. Das Routing fällt für alle Anfragen auf die Cloud zurück.",
+          "testSuccessLatency": "Lokales Modell verbunden ({latency}ms)"
         },
         "advanced": {
           "title": "Erweiterte PII-Konfiguration",
@@ -15641,7 +15667,8 @@
         "agenticBadge": "64K Agentic",
         "agenticTooltip": "Automatisch abgeleitetes 64K-Kontext-Modelfile für produktionsreife Tool-Aufrufe und Langzeitgedächtnis",
         "keepAliveTipTitle": "24/7-Keep-Alive & GPU-Freigabe-Leitfaden",
-        "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben."
+        "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben.",
+        "downloadFailed": "Download fehlgeschlagen"
       },
       "importFromModelsDev": "Von models.dev importieren",
       "getModels": "Modelle abrufen",
@@ -15844,7 +15871,7 @@
         "embeddingModel": "Embedding-Modell",
         "embeddingModelDescription": "Text-Vektorisierungsmodell für semantische Suche über Wissensdatenbank, Speicher, Websuche und andere Funktionen",
         "dismiss": "Verwerfen",
-        "orphanWarning": "{{count}} Speicher aus einem Vorgängermodell müssen migriert werden",
+        "orphanWarning": "{count} Speicher aus einem Vorgängermodell müssen migriert werden",
         "reindex": "Migrieren",
         "reindexing": "Migration...",
         "rerankerModel": "Reranker-Modell",
@@ -16170,9 +16197,12 @@
         "scoreDelta": "Wertänderung",
         "contentChanged": "Inhalt geändert",
         "contentUnchanged": "Inhalt unverändert",
-        "createdByLlm": "LLM-Optimierung",
+        "createdByLlm": "KI-Optimierung",
         "createdByManual": "Manuelle Bearbeitung",
         "createdByRollback": "Zurücksetzen",
+        "createdByAgent": "Agent-Bearbeitung",
+        "createdBySkillGrowth": "Kompetenzwachstum",
+        "createdByImport": "Importiert",
         "refresh": "Aktualisieren",
         "confirmAction": "Diese Version aktivieren"
       }
@@ -16988,6 +17018,11 @@
         "skipped": "Ein Rückblick mit demselben Titel wurde heute bereits gespeichert; Duplikat übersprungen",
         "empty": "Bitte zuerst Ihren Rückblick eingeben",
         "error": "Übermittlung fehlgeschlagen; bitte später erneut versuchen"
+      },
+      "reviewSlip": {
+        "fetchFailed": "Prüfliste konnte nicht geladen werden",
+        "applied": "Selektives Zurückschreiben abgeschlossen: {committed} gespeichert, {discarded} übersprungen",
+        "applyFailed": "Selektives Zurückschreiben fehlgeschlagen"
       }
     },
     "skills": {
@@ -17442,7 +17477,9 @@
         "sourceTab": "Quellcode",
         "saveSource": "SKILL.md speichern",
         "sourceSaved": "SKILL.md erfolgreich gespeichert",
-        "sourceSaveFailed": "Speichern von SKILL.md fehlgeschlagen"
+        "sourceSaveFailed": "Speichern von SKILL.md fehlgeschlagen",
+        "forceEnableFailed": "Erzwungenes Aktivieren fehlgeschlagen",
+        "securityReviewNote": "Sicherheitsprüfung: {recommendation}"
       },
       "growth": {
         "title": "Fähigkeitswachstum",
@@ -17480,7 +17517,7 @@
         "status": {
           "PENDING_REVIEW": "Ausstehende Prüfung",
           "AUTO_APPLIED": "Automatisch angewendet",
-          "FAILED_SCAN": "Scan fehlgeschlagen",
+          "FAILED_SCAN": "Prüfung nicht bestanden",
           "BLOCKED_LOCKED": "Durch Sperre blockiert",
           "APPROVED": "Genehmigt",
           "REJECTED": "Abgelehnt",
@@ -17491,15 +17528,9 @@
           "manualEvolution": "Manuelle Evolution",
           "memoryExtraction": "Speicherextraktion"
         },
-        "proxyAlignment": {
-          "driftBadge": "Goodhart-Abweichungsrisiko",
-          "driftTooltip": "Goodhartsches Gesetz erkannt: Proxy-Metriken scheinen besser, aber Kernqualität sank",
-          "alignedBadge": "Metriken ausgerichtet",
-          "alignedTooltip": "Kernabsicht und Proxy-Effizienz sind ohne Abkürzungen harmonisiert"
-        },
         "confidence": "Konfidenz {value}%",
-        "testPassed": "Validierung bestanden",
-        "testFailed": "Validierung fehlgeschlagen",
+        "scanPassed": "Sicherheitsscan bestanden",
+        "scanFailed": "Sicherheitsscan nicht bestanden",
         "verifiedBadge": "Verifiziert",
         "hollowBlockedBadge": "Hohltest blockiert",
         "targetLayer": "Schicht: {layer}",
@@ -17539,34 +17570,6 @@
           "count": "Fehler: {value}",
           "confidence": "Zuschreibung {value}%",
           "loopKind": "Schleife: {value}"
-        },
-        "manifestPrediction": {
-          "title": "Falsifizierbare Änderungsprognosen & Attribution",
-          "baseline": "Basiswert",
-          "target": "Zielwert",
-          "predictedDirection": {
-            "INCREASE": "Erwarteter Anstieg",
-            "DECREASE": "Erwarteter Rückgang",
-            "NEUTRAL": "Erwartete Neutralität"
-          },
-          "falsificationConditions": "Falsifizierungsbedingungen",
-          "attributionVerdict": "Attributionsurteil",
-          "verdictBadge": {
-            "CONFIRMED": "CONFIRMED",
-            "REFUTED": "REFUTED",
-            "REGRESSION": "REGRESSION",
-            "INCONCLUSIVE": "INCONCLUSIVE"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "Generalisierung optimal",
-            "overfitting": "Überanpassungs-Warnung",
-            "generalization_collapse": "Generalisierungszusammenbruch",
-            "stable_parity": "Stabile Parität",
-            "regression": "Regression erkannt",
-            "insufficient_holdout": "Unzureichender Testdatensatz"
-          },
-          "metricDeltas": "Beobachtete Metrikänderungen",
-          "unpredictedRegressions": "Unerwartete Regressionen"
         },
         "securityScan": {
           "title": "Sicherheits-Inspektionsdetails ({count} Befunde)",
@@ -18002,7 +18005,8 @@
         "error": "Berechtigungen konnten nicht aktualisiert werden",
         "skillEnabled": "Fähigkeit aktiviert",
         "skillNotEnabled": "Fähigkeit nicht aktiviert",
-        "templateApplied": "Vorlage angewendet"
+        "templateApplied": "Vorlage angewendet",
+        "approveFailed": "Berechtigungen konnten nicht genehmigt werden"
       },
       "tabSubtitles": {
         "inventory": "Zentrale Fähigkeiten der Agenten verwalten und entdecken",
@@ -18291,7 +18295,7 @@
       "recipeImport": {
         "title": "Rezept aus KI-Skill importieren",
         "hint": "Fügen Sie JSON aus generic-myrm-theme ein und laden Sie dann bei Bedarf Hero-Medien in Schritt 1 hoch.",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "Rezept importieren",
         "success": "Rezept in den Editor importiert",
         "errors": {
@@ -18748,7 +18752,7 @@
       "tunnelDockerRunLabel": "Docker-Ausführungsbefehl",
       "tunnelDockerRunCopied": "Docker-Befehl in die Zwischenablage kopiert",
       "tunnelUpstreamAuthLabel": "Upstream-Authentifizierungsheader (optional)",
-      "tunnelUpstreamAuthPlaceholder": "Bearer <token>",
+      "tunnelUpstreamAuthPlaceholder": "Bearer '<token>'",
       "tunnelUpstreamAuthHint": "Wird an Ihren internen MCP-Server gesendet, wenn der Tunnelagent Anforderungen weiterleitet.",
       "tunnelBindMcp": "Als Organisation hinzufügen MCP",
       "tunnelBindMcpSuccess": "Tunnel zu den MCP-Servern der Organisation hinzugefügt",
@@ -19525,9 +19529,9 @@
     "mcpOAuthConfigured": "Konfiguriert",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "Konfiguriert",
-    "mcpHeadersHint": "Verwenden Sie {{secret:KEY_NAME}}, um auf in Agent Secrets gespeicherte Schlüssel zu verweisen.",
+    "mcpHeadersHint": "Verwenden Sie '{{secret:KEY_NAME}}', um auf in Agent Secrets gespeicherte Schlüssel zu verweisen.",
     "mcpHeaderKeyPlaceholder": "Header-Name (z.B. Authorization)",
-    "mcpHeaderValuePlaceholder": "Wert oder {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "Wert oder '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Header hinzufügen",
     "mcpSecretRefSaveHint": "Konfiguration gespeichert",
     "mcpSecretRefSaveHintDesc": "Secret-Referenzen in Headers werden zur Laufzeit aufgelöst.",
@@ -19561,7 +19565,8 @@
       "hardcoded_secret": "Klartext-Geheimnis oder Token in der Konfiguration",
       "credential_exposure": "Potenzielle Offenlegung von Anmeldeinformationen erkannt",
       "supply_chain": "Lieferkettenrisiko (z. B. nicht angeheftetes Npx-Paket)",
-      "supply_chain_malware": "Für das Paket gibt es eine bekannte Malware-Meldung"
+      "supply_chain_malware": "Für das Paket gibt es eine bekannte Malware-Meldung",
+      "dangerous_env_injection": "Gefährliche Umgebungsvariable, die den MCP-Server übernehmen kann"
     },
     "mcpThreatRec": {
       "prompt_injection": "Aktivieren Sie dieses MCP nicht; Melden Sie sich bei Ihrem Administrator",
@@ -19574,10 +19579,11 @@
       "risky_mcp_profile": "Beschränken Sie den Umfang und erkennen Sie das Risiko an, bevor Sie es aktivieren",
       "suspicious_url": "Entfernen Sie nicht vertrauenswürdige externe Rückruf-URLs",
       "sensitive_path": "Beschränken Sie das Dateisystem MCP auf nicht sensible Verzeichnisse",
-      "hardcoded_secret": "Verwenden Sie {{secret:KEY}}-Referenzen anstelle von Klartext",
-      "credential_exposure": "Verwenden Sie {{secret:KEY}}-Referenzen anstelle von Klartext",
+      "hardcoded_secret": "Verwenden Sie '{{secret:KEY}}'-Referenzen anstelle von Klartext",
+      "credential_exposure": "Verwenden Sie '{{secret:KEY}}'-Referenzen anstelle von Klartext",
       "supply_chain": "Paketnamen und -version in Argumenten anpinnen",
-      "supply_chain_malware": "Entfernen Sie das markierte Paket und verwenden Sie überprüfte Abhängigkeiten"
+      "supply_chain_malware": "Entfernen Sie das markierte Paket und verwenden Sie überprüfte Abhängigkeiten",
+      "dangerous_env_injection": "Entfernen Sie diese Umgebungsvariable, um die Ausführung beliebigen Codes zu verhindern"
     },
     "mcpDeleteFailed": "Löschen fehlgeschlagen",
     "mcpDeleteSuccess": "Dienst gelöscht",
@@ -19897,7 +19903,9 @@
       "deleteFromCloud": "Löschen",
       "deleteSuccess": "Cloud-Backup gelöscht",
       "enabled": "Aktivieren Sie Cloud-Backup",
-      "save": "Konfiguration speichern"
+      "save": "Konfiguration speichern",
+      "saveFailed": "Konfiguration konnte nicht gespeichert werden",
+      "deleteFailed": "Löschen fehlgeschlagen"
     },
     "sessionAnalytics": {
       "copyMarkdown": "Hauptbuch kopieren (MD)",
@@ -20950,7 +20958,8 @@
       "policyUpdated": "Sicherheitsrichtlinie erfolgreich aktualisiert",
       "tierProd": "Produktion",
       "tierStaging": "Staging-Umgebung",
-      "tierDev": "Entwicklung"
+      "tierDev": "Entwicklung",
+      "probeFailed": "Prüfung von {host} fehlgeschlagen: {message}"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "Bildschirmhervorhebung bei Freigaben — roter Rahmen auf dem echten Display am Klickziel (macOS und Windows)",

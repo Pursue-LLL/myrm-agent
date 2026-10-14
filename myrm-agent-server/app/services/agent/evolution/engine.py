@@ -3,8 +3,9 @@
 [INPUT]
 - app.services.chat.chat_service::ChatService
 - myrm_agent_harness.toolkits.llms::llm_manager
-- myrm_agent_harness.agent.skills.evolution::SkillBudgetGovernor (POS: Skill budget governor protocol and evaluator)
-- myrm_agent_harness.utils.text_utils::get_token_count (POS: Token counting utility)
+- myrm_agent_harness.agent.skills.evolution::SkillBudgetGovernor (POS: Count-only skill library capacity governor)
+- app.services.skills.evolution_events::publish_skill_capacity_reached_event (POS: 技能进化 SSE 事件单一出口)
+- app.core.skills.curator.service::describe_skill_lifecycle (POS: Installed/archived state of a local skill)
 - app.core.types::ModelConfig
 
 [OUTPUT]
@@ -15,21 +16,26 @@ Business-layer implementation of the Skill Self-Evolution Engine.
 Runs asynchronously in the background after a successful agent interaction.
 Analyzes the chat history to detect successful complex patterns and automatically
 generates reusable SKILL.md definitions, saving them to the local persistent volume.
+A full skill library pauses capture and tells the user once per fill-up; only skills the user
+can still see (installed, not archived) count toward the limit.
 """
 
 import asyncio
 import logging
+from collections.abc import Sequence
 
 from myrm_agent_harness.agent.skills.evolution import (
     BudgetCheckResult,
     BudgetStatus,
     EvolutionType,
     SkillBudgetGovernor,
+    SkillRecord,
 )
 from myrm_agent_harness.toolkits.llms import llm_manager
 
 from app.core.types import ModelConfig
 from app.services.chat.chat_service import ChatService
+from app.services.skills.evolution_events import publish_skill_capacity_reached_event
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +49,11 @@ _MIN_TOOL_STEPS_FOR_CAPTURE = 3
 # captures of the same history when consecutive turns finalize in quick
 # succession (asyncio task names do not enforce uniqueness).
 _RUNNING_EVOLUTION_TASKS: dict[str, asyncio.Task[None]] = {}
+
+# Agent scopes (``None`` = unscoped) already told that their skill library is full.
+# Cleared once capacity frees up, so a library that fills up again is announced again
+# instead of repeating the notice on every qualifying turn.
+_LIBRARY_FULL_NOTIFIED: set[str | None] = set()
 
 
 async def _run_evolution_task(
@@ -118,15 +129,9 @@ async def _run_evolution_task(
         skill_name = proposal.skill_id
 
         from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
-        from app.services.skills.ws_hub import broadcast_proposal
 
-        flow = ConfidenceApprovalFlow()
-        await flow.process_evolution(
-            proposal=proposal,
-        )
-
-        # Broadcast to the user that a new skill draft is ready for review
-        await broadcast_proposal(proposal.to_dict())
+        # Auto-merged proposals publish SKILL_EVOLVED; the rest wait in the review queue.
+        await ConfidenceApprovalFlow().process_evolution(proposal=proposal)
 
         logger.info(f"✨ Successfully generated new skill proposal: '{skill_name}' (chat: {chat_id})")
 
@@ -134,39 +139,60 @@ async def _run_evolution_task(
         logger.error(f"Background skill evolution failed for chat {chat_id}: {e}", exc_info=True)
 
 
+def _count_live_skills(records: Sequence[SkillRecord]) -> int:
+    """Count the records whose skill is still installed and not archived."""
+    from app.core.skills.curator.service import describe_skill_lifecycle
+
+    live = 0
+    for record in records:
+        lifecycle = describe_skill_lifecycle(record.name)
+        if lifecycle is not None and not lifecycle[0]:
+            live += 1
+    return live
+
+
 def check_skill_budget_before_evolution(
     agent_id: str | None = None,
     evolution_type: EvolutionType = EvolutionType.CAPTURED,
     governor: SkillBudgetGovernor | None = None,
 ) -> BudgetCheckResult:
-    """Evaluate whether capacity permits triggering another skill evolution cycle."""
+    """Evaluate whether capacity permits triggering another skill evolution cycle.
+
+    Fails open: when the skill store cannot be read, evolution proceeds rather than stalling.
+    """
     gov = governor or SkillBudgetGovernor()
     try:
         from app.core.skills.store.evolution_store import get_evolution_skill_store
 
         store = get_evolution_skill_store()
-        active_skills = store.get_active_skills(agent_id=agent_id)
-        current_count = len(active_skills)
-        from myrm_agent_harness.utils.text_utils import get_token_count
-
-        current_tokens = sum(max(100, get_token_count(s.content)) for s in active_skills)
-
-        return gov.check_budget(
-            evolution_type=evolution_type,
-            current_tokens=current_tokens,
-            current_count=current_count,
-        )
+        current_count = store.count_active_skills(agent_id=agent_id)
+        if current_count >= gov.config.max_skill_count:
+            # Deleting or archiving a skill never touches the evolution store, so its record
+            # keeps counting. Before declaring the library full, count only skills the user
+            # can still see; otherwise freeing space would never resume learning.
+            current_count = _count_live_skills(store.get_active_skills(agent_id=agent_id))
+        return gov.check_budget(evolution_type=evolution_type, current_count=current_count)
     except Exception as exc:
-        logger.debug("Skill budget check skipped on error: %s", exc)
+        logger.warning("Skill capacity check skipped (fail-open): %s", exc)
         return BudgetCheckResult(
             allowed=True,
             status=BudgetStatus.NORMAL,
-            current_tokens=0,
-            max_tokens=gov.config.max_tokens,
             current_count=0,
             max_count=gov.config.max_skill_count,
             message="Check skipped",
         )
+
+
+def _notify_library_full_once(agent_id: str | None, budget_check: BudgetCheckResult) -> None:
+    """Tell the user their skill library is full, at most once per fill-up of an agent scope."""
+    if agent_id in _LIBRARY_FULL_NOTIFIED:
+        return
+    _LIBRARY_FULL_NOTIFIED.add(agent_id)
+    publish_skill_capacity_reached_event(
+        agent_id=agent_id,
+        current_count=budget_check.current_count,
+        max_count=budget_check.max_count,
+    )
 
 
 def trigger_skill_evolution(
@@ -210,52 +236,9 @@ def trigger_skill_evolution(
             chat_id,
             budget_check.message,
         )
-        try:
-            from app.services.skills.ws_hub import broadcast_message
-
-            asyncio.create_task(
-                broadcast_message(
-                    "SKILL_CAPACITY_LIMIT",
-                    {
-                        "chat_id": chat_id,
-                        "agent_id": agent_id,
-                        "status": str(budget_check.status),
-                        "message": budget_check.message,
-                        "current_tokens": budget_check.current_tokens,
-                        "max_tokens": budget_check.max_tokens,
-                        "current_count": budget_check.current_count,
-                        "max_count": budget_check.max_count,
-                    },
-                )
-            )
-        except Exception as ws_err:
-            logger.debug("Failed to broadcast skill capacity limit event: %s", ws_err)
+        _notify_library_full_once(agent_id, budget_check)
         return
-
-    if budget_check.status == BudgetStatus.SOFT_LIMIT:
-        logger.info(
-            "Skill capacity warning for chat %s: %s",
-            chat_id,
-            budget_check.message,
-        )
-        try:
-            from app.services.skills.ws_hub import broadcast_message
-
-            asyncio.create_task(
-                broadcast_message(
-                    "SKILL_CAPACITY_WARNING",
-                    {
-                        "chat_id": chat_id,
-                        "agent_id": agent_id,
-                        "status": str(budget_check.status),
-                        "message": budget_check.message,
-                        "current_tokens": budget_check.current_tokens,
-                        "max_tokens": budget_check.max_tokens,
-                    },
-                )
-            )
-        except Exception as ws_err:
-            logger.debug("Failed to broadcast skill capacity warning event: %s", ws_err)
+    _LIBRARY_FULL_NOTIFIED.discard(agent_id)
 
     task = asyncio.create_task(
         _run_evolution_task(chat_id, model_cfg, conversation_text=conversation_text, agent_id=agent_id),

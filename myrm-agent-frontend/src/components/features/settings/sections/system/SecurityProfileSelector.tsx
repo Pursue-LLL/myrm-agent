@@ -85,16 +85,16 @@ const SecurityProfileSelector = memo(function SecurityProfileSelector({
         }
         const activated: SecurityProfile = await res.json();
         setActiveKey(activated.profile_key);
-        toast.success(`Activated profile: ${activated.display_name}`);
+        toast.success(t('profile.activated', { name: activated.display_name }));
         onProfileSelect?.(activated);
       } catch (err) {
-        toast.error('Failed to activate profile');
+        toast.error(t('profile.activateFailed'));
         console.error(err);
       } finally {
         setActivating(null);
       }
     },
-    [onProfileSelect],
+    [onProfileSelect, t],
   );
 
   const activeProfile = profiles.find((p) => p.profile_key === activeKey);

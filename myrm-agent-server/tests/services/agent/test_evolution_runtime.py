@@ -123,47 +123,27 @@ async def test_shutdown_without_started_runtime_is_a_noop() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("approved", "expected_channel"),
-    [(True, "message"), (False, "proposal")],
-)
-async def test_proposal_is_routed_by_approval_result(approved: bool, expected_channel: str) -> None:
+async def test_proposal_is_persisted_through_the_approval_flow() -> None:
     proposal = MagicMock(skill_id="s1", score=0.9)
-    proposal.to_dict.return_value = {"skill_id": "s1"}
     flow = MagicMock()
-    flow.process_evolution = AsyncMock(return_value=SimpleNamespace(approved=approved))
-    broadcast_message = AsyncMock()
-    broadcast_proposal = AsyncMock()
+    flow.process_evolution = AsyncMock(return_value=SimpleNamespace(approved=False))
 
-    with (
-        patch.object(evolution_runtime, "ConfidenceApprovalFlow", MagicMock(return_value=flow)),
-        patch.object(evolution_runtime, "broadcast_message", broadcast_message),
-        patch.object(evolution_runtime, "broadcast_proposal", broadcast_proposal),
-    ):
+    with patch.object(evolution_runtime, "ConfidenceApprovalFlow", MagicMock(return_value=flow)):
         await evolution_runtime.handle_new_proposal(proposal)
 
-    if expected_channel == "message":
-        broadcast_message.assert_awaited_once_with("AUTO_MERGED_EVOLUTION", {"skill_id": "s1"})
-        broadcast_proposal.assert_not_awaited()
-    else:
-        broadcast_proposal.assert_awaited_once_with({"skill_id": "s1"})
-        broadcast_message.assert_not_awaited()
+    flow.process_evolution.assert_awaited_once_with(proposal)
 
 
 @pytest.mark.asyncio
-async def test_proposal_is_not_broadcast_when_persistence_fails() -> None:
+async def test_persistence_failure_is_logged_and_contained() -> None:
     proposal = MagicMock(skill_id="s1", score=0.9)
     flow = MagicMock()
     flow.process_evolution = AsyncMock(side_effect=RuntimeError("db down"))
-    broadcast_message = AsyncMock()
-    broadcast_proposal = AsyncMock()
 
     with (
         patch.object(evolution_runtime, "ConfidenceApprovalFlow", MagicMock(return_value=flow)),
-        patch.object(evolution_runtime, "broadcast_message", broadcast_message),
-        patch.object(evolution_runtime, "broadcast_proposal", broadcast_proposal),
+        patch.object(evolution_runtime, "logger") as logger,
     ):
         await evolution_runtime.handle_new_proposal(proposal)
 
-    broadcast_message.assert_not_awaited()
-    broadcast_proposal.assert_not_awaited()
+    logger.error.assert_called_once()

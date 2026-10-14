@@ -32,4 +32,3 @@
 | `schemas.py` | 模块 | Skills API request/response schemas；`redaction_responses` 把逐文件脱敏发现映射成审阅对话框的 diff 形状（技能预览与专家导出预览共用）；每条发现带 `kinds`（`SecretKind` 稳定码，由前端按用户语言渲染） | ✅ |
 | `solidify_router.py` | 路由 | 交付物一键固化与隔离真机预览路由：`POST /solidify`（4合1资产打包）、`POST /preview`、`GET /preview/{preview_id}`（Relaxed CSP + no-referrer 放行） | ✅ |
 | `sync.py` | 模块 | Skill synchronization and backup protocol；export 打包 `manifest.json`（format/format_version/skills[].sha256+version），import 按 manifest 做完整性校验并返回 `imported/updated/unchanged/hash_mismatch` 恢复摘要；`_safe_extract` 逐成员校验路径（绝对路径/`..` 穿越/反斜杠分隔符归一化），恶意 ZIP 返回 400；import 受沙箱能力门控（export 只读天然安全） | ✅ |
-| `ws_evolution.py` | 模块 | WebSocket Evolution Proposal Streaming — HTTP transport only. | ✅ |

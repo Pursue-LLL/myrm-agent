@@ -27,6 +27,7 @@ interface BatchMigrateDialogProps {
 export const BatchMigrateDialog = memo<BatchMigrateDialogProps>(
   ({ open, onOpenChange, fromProviderId, fromProviderName, onSuccess }) => {
     const t = useTranslations('settings.modelService.migrateProvider');
+    const tCommon = useTranslations('common');
     const locale = useLocale();
     const providers = useProviderStore((state) => state.providers);
     const [toProviderId, setToProviderId] = useState<string>('');
@@ -84,7 +85,7 @@ export const BatchMigrateDialog = memo<BatchMigrateDialogProps>(
         console.error('Failed to migrate provider:', error);
         toast({
           title: t('migrateFailed'),
-          description: error instanceof Error ? error.message : 'Unknown error',
+          description: error instanceof Error ? error.message : tCommon('unknownError'),
           variant: 'destructive',
         });
       } finally {

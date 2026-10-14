@@ -31,7 +31,7 @@ interface EvolutionRecord {
   original_content: string;
   evolved_content: string;
   confidence: number;
-  test_passed: boolean;
+  test_passed: boolean | null;
   status: 'approved' | 'rejected' | 'rolled_back';
   created_at: string;
   resolved_at: string | null;

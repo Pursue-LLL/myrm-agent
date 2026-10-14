@@ -74,19 +74,13 @@ import { PromptCachePreservingDeltaCard } from './PromptCachePreservingDeltaCard
 import { DeterministicRuleCascadeCard } from './DeterministicRuleCascadeCard';
 import { TemporalRelationalBacktrackingCard } from './TemporalRelationalBacktrackingCard';
 import { MemoryCuratorStudioCard } from './MemoryCuratorStudioCard';
-import { ProcedureExperienceRetrievalCard } from './ProcedureExperienceRetrievalCard';
-import { BusinessScenarioTemplatesCard } from './BusinessScenarioTemplatesCard';
-import { ExperienceObservabilityStudioCard } from './ExperienceObservabilityStudioCard';
-import { FailureSessionRetrievalStudioCard } from './FailureSessionRetrievalStudioCard';
 import { PeerCognitionStudioCard } from './PeerCognitionStudioCard';
 import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
 import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
 import { AutoMemoryConsolidationStudioCard } from './AutoMemoryConsolidationStudioCard';
 import { MemoryCubeStudioCard } from './MemoryCubeStudioCard';
 import { DreamCognitiveStudioCard } from './DreamCognitiveStudioCard';
-import { MemoryLineageStudioCard } from './MemoryLineageStudioCard';
 import { QuadrupleRetrievalStudioCard } from './QuadrupleRetrievalStudioCard';
-import { LiveCorrectionStudioCard } from './LiveCorrectionStudioCard';
 import { SqliteVecStudioCard } from './SqliteVecStudioCard';
 import { VectorSpaceGuardStudioCard } from './VectorSpaceGuardStudioCard';
 import { MarkdownChunkerStudioCard } from './MarkdownChunkerStudioCard';
@@ -330,18 +324,6 @@ export const UnderstandSection = ({
     {/* Human-Readable Markdown Bidi-Sync & Memory Curator Studio Card (Item 101 P0) */}
     <MemoryCuratorStudioCard />
 
-    {/* Procedure-Shaped Experience Protocol & Fixed-Count Dual-Node Retrieval Card (Item 104 P0) */}
-    <ProcedureExperienceRetrievalCard />
-
-    {/* Business Scenario Experience Templates & Escalation Gate Card (Item 107 P0) */}
-    <BusinessScenarioTemplatesCard />
-
-    {/* Zero-Refactor Host Lifecycle Plugin & Experience Observability Studio Card (Item 108 P1) */}
-    <ExperienceObservabilityStudioCard />
-
-    {/* Failure-Triggered Historical Session Retrieval Studio Card (Item 109 P0) */}
-    <FailureSessionRetrievalStudioCard />
-
     {/* Peer-Centric Social Cognition Entity Graph & Agent Persona Card Studio Card (Item 110 P0) */}
     <PeerCognitionStudioCard />
 
@@ -359,14 +341,8 @@ export const UnderstandSection = ({
     {/* Dream Cognitive Consolidation & AI Mind Growth Diary Studio Card (Item 125 P1) */}
     <DreamCognitiveStudioCard />
 
-    {/* Graph Memory Reorganization & Lineage Traceability Studio Card (Item 126 P1) */}
-    <MemoryLineageStudioCard />
-
     {/* Goal-Driven Quadruple Retrieval & Reasoner Studio Card (Item 127 P1) */}
     <QuadrupleRetrievalStudioCard />
-
-    {/* Natural Language Memory Feedback & Live Correction Studio Card (Item 128 P0) */}
-    <LiveCorrectionStudioCard />
 
     {/* SqliteVec Embedded Zero-Dependency Vector Store Studio Card (Item 130 P0) */}
     <SqliteVecStudioCard />

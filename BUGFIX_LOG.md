@@ -1722,14 +1722,14 @@ except Exception:
 
 ---
 
-## BUG-AGENT-2026-10-14-010: 词条被超过 100 个页面引用时，面板把截断后的条数当总数展示；详情头部的「链接」快捷入口是硬编码中文且手机上整个消失
+## BUG-AGENT-2026-10-14-010: 词条被超过 100 个页面引用时，面板把截断后的条数当总数展示；详情头部的「链接」快捷入口是硬编码中文且手机上整个消失；窄屏下详情头部把词条名挤到 0 宽
 
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-14 |
 | 修复日期 | 2026-10-14 |
 | 严重程度 | P3（展示的数量不准、手机上少一个快捷入口；不丢数据） |
-| 影响范围 | harness `toolkits/wiki/retrieval/graph_store.py`；server `app/api/wiki/router.py` 的 `/wiki/concepts/{name}/links` 响应模型；前端 `wiki/WikiConceptLinksPanel.tsx`、`wiki/WikiConceptDetailPanel.tsx`、新增 `wiki/useConceptHeadingFocus.ts`、`services/wiki/service.ts`、硬编码文案基线 |
+| 影响范围 | harness `toolkits/wiki/retrieval/graph_store.py`、`indexer.py`、新增 `concept_links.py`；server `app/api/wiki/router.py` 的 `/wiki/concepts/{name}/links` 响应模型；前端 `wiki/WikiConceptLinksPanel.tsx`、`wiki/WikiConceptDetailPanel.tsx`、新增 `wiki/useConceptHeadingFocus.ts`、`services/wiki/service.ts`、硬编码文案基线 |
 | 出现次数 | 1 |
 | 关联 | roadmap topic_02 #140 第四批补修；BUG-AGENT-2026-10-14-007 |
 
@@ -1738,26 +1738,34 @@ except Exception:
 1. 一个词条被超过 100 个页面引用时，`get_concept_links` 每个方向只返回前 100 条，页签与摘要写「被引用 (100)」，用户会把它当成总数；响应里没有任何「被截断」的标记（合成库 150 个页面引用同一词条，返回 100 条）。
 2. 详情头部跳到链接面板的快捷按钮，文案「脉络」与提示「跳转到双向链接与脉络」是硬编码中文，六种语言的用户都看到中文，与面板标题「链接与上下文」叫法也不一致；按钮带 `hidden sm:flex`，手机宽度下整个入口消失。
 3. `WikiConceptDetailPanel.tsx` 416 行，超出 400 行预算，且不在行数基线里。
+4. 详情头部把词条名、来源徽标、来源对话链接和操作按钮排在同一行且不换行。默认「保存到 Wiki」生成的词条名（`SaveToWikiButton.tsx:92-98`，如 `untitled-note`，111px）查看态下，英、德文案在视口 320 / 360 / 390 / 430 与 1024 的可见宽度都是 0px（视口 768 为 28 / 14px），中文文案在视口 320 / 360 / 390 / 430 / 1024 依次是 0 / 0 / 19 / 59 / 90px，编辑态更窄（英文在视口 1280 也只剩 84px）；这是改前就有的，本批把快捷入口改成常驻图标后窄屏又固定多占 48px。
+5. `get_concept_links` 返回 `dict[str, object]`，server 路由用 `res.get("outlinks", [])` 取列表，mypy（server `pyproject.toml` 的 `strict = true`）把它判成不可迭代，`router.py:1482-1483` 是两处真实报错；路由里 5 个带默认值的 `.get`（概念名、两个列表、两个 `*_has_more`）在只有一条返回路径、五个键齐全（`graph_store.py:382-388`）的前提下永远走不到默认值。
 
 ### 根因
 
 1. 截断只写在 SQL 的 `LIMIT 100` 里，「是否被截断」没有往上游传。
 2. 按钮是直接写的字面量；响应式处理成「窄屏整体隐藏」，而不是「窄屏收成图标」。
 3. 小节锚点聚焦（约 95 行：滚动、高亮、多帧重试、同词条内跳转）与展示组件放在同一文件，叠加几次修复后越过预算。
+4. 头部是单行 flex，名字是唯一可收缩的项（来源徽标、来源链接、按钮都是 `shrink-0`）。名字自带的 `truncate` 只会把它截成省略号，宽度被挤到 0 时连省略号都没有，所以它不是兜底。
+5. 返回值没有类型，键集合与值类型只靠约定；调用方只能用 `.get` 加默认值兜底，类型检查器既核对不了键，也推不出值是列表。
 
 ### 修复
 
 1. `get_concept_links` 每个方向多取一行（`LIMIT MAX_CONCEPT_LINKS + 1`，`_fetch_capped`）判断是否还有更多，仍只返回前 100 条，新增 `outlinks_has_more` / `backlinks_has_more`；server 响应模型两个布尔字段（默认 `False`）与前端类型同步；面板在被截断的方向显示「100+」（页签与摘要胶囊），另一方向照常，复用已有的 `{count}` 占位符，六语言没有新增键。不改排序、不加分页（面板没有「加载更多」入口，也没有读取方需要）。
 2. 按钮改取已有的 `links.title`；文字按详情头部自身宽度（容器查询 `@xl`，不随视口）显隐，头部较窄时只显示图标并带 `aria-label`，任何宽度都不隐藏；硬编码文案基线里这个文件由 2 收紧到 0，只删这一条。
-3. 小节锚点聚焦原样移入 `useConceptHeadingFocus.ts`（115 行；移动的 96 行用脚本与原文逐行比对一致），详情面板降到 328 行。
+3. 小节锚点聚焦原样移入 `useConceptHeadingFocus.ts`（115 行；移动的 96 行用脚本与原文逐行比对一致），详情面板降到 330 行。
+4. 头部与标题块都 `flex-wrap`：放不下时操作按钮整组换到下一行（`ml-auto` 靠右），标题块里的来源徽标与来源链接再换行，词条名独占一行（标题块 `min-w-0`，名字 `max-w-full truncate`，过长才出省略号）；放得下时仍是一行。头部显式 `space-y-0`：`CardHeader` 基类自带 `space-y-1.5`，不归零时标题块多出 6px 下外边距，单行名字比按钮中心高 3px、换行行距成了 14px 而不是 `gap-y-2` 的 8px；多余的 `justify-between` 去掉（`ml-auto` 已把操作组推到右侧，对布局零影响）。快捷入口文字显隐的容器查询阈值不变（换行之后阈值附近不再有名字宽度的断崖）。
+5. `get_concept_links` 返回 TypedDict `ConceptLinks`（新增 `retrieval/concept_links.py`：`ConceptLink`、`ConceptBacklink`，先例是 `pipeline/pending.py` 的 `PendingWikiEdit`），`WikiIndexer.get_concept_links` 同步；server 路由按键直接读取并删掉 5 个 `.get` 默认值，不 import harness 的类型名（类型随返回值推断）。运行时没有变化（TypedDict 就是 dict）。
 
 ### 验证
 
 1. 先红后绿：harness 4 例失败（载荷键集合、100 条不截断与 101 条截断、出链方向独立），修复后 `test_concept_links.py` 10 例通过；server 4 例失败，修复后 6 例通过；前端 3 例失败（面板「N+」1 例、快捷按钮 2 例），修复后两个文件 16 例通过。`LIMIT ?` 参数化先单独做，原有 6 例照过，再加红灯。
 2. 多取一行是否改变展示哪 100 条：150 条同权重边，上限 100 / 101 / 150 三种取法的前 100 行逐项相同（查询计划是 `idx_wiki_edges_target` 加临时 B 树排序）。这是合成库实测，没有性能声明。
-3. 全量：harness `tests/toolkits/wiki` 862 例通过 861，失败 1 例是调用真实 LLM 的 `test_sidecar_integration::test_sidecar_incremental_rebuild_skips_unchanged`（第一次全量停在同文件的另一个用例；整文件单独重跑 3 例通过，当前代码与 HEAD 快照各一次）；server `tests/api/wiki` 与 `tests/integration/wiki`（不含调用真实 LLM 的 `test_wiki_real_llm.py`）164 例通过 161，失败 3 例都在安全拦截用例（`test_wiki_clip_api.py::test_wiki_clip_security_blocked_job_response`、`test_wiki_import_raw_gate.py::test_import_folder_blocks_credential_content`、`test_import_urls_security_blocked`），与链接接口无关，但没有在干净 HEAD 上复跑；前端 wiki `__tests__` 目录 11 个文件 70 例通过。
+3. 全量：harness `tests/toolkits/wiki` 862 例通过 861，失败 1 例是调用真实 LLM 的 `test_sidecar_integration::test_sidecar_incremental_rebuild_skips_unchanged`（第一次全量停在同文件的另一个用例；整文件单独重跑 3 例通过，当前代码与 HEAD 快照各一次）；server `tests/api/wiki` 与 `tests/integration/wiki`（不含调用真实 LLM 的 `test_wiki_real_llm.py`）164 例通过 161，失败 3 例都在安全拦截用例（`test_wiki_clip_api.py::test_wiki_clip_security_blocked_job_response`、`test_wiki_import_raw_gate.py::test_import_folder_blocks_credential_content`、`test_import_urls_security_blocked`），与链接接口无关，但没有在干净 HEAD 上复跑；前端 wiki `__tests__` 目录 11 个文件 71 例通过（含头部换行与间距类名断言 1 例，先红后绿）。
 4. 静态：ruff、mypy（`graph_store.py`）、oxlint、prettier、`verify-i18n` 通过（第一次运行时他人正在改语言文件，报占位符不一致，重跑通过）；`tsc --noEmit` 全量只报他人的 `KanbanTaskHandoffSection.test.tsx` 一条；文件行数门禁不再列出本条改的文件，硬编码文案门禁里这个文件不再出现（整体门禁仍因他人新增的文件失败）。
-5. 局限：没有取得真实浏览器证据。`./myrm test -m chrome_e2e …::test_wiki_concept_detail_source_jump` 两次都在 `/settings/wiki` 路由水合超时（`E2E_ROUTE_HYDRATION_TIMEOUT`），前端日志同期是大量接口请求超时（机器负载均值 38–90），没有走到任何断言；为它写的 28 行断言没跑出结果，已撤回。按钮文字在 `@xl` 容器断点附近的实际布局（德语文案 25 个字符最长，标题 `truncate` 兜底）、深浅主题都没有目测（jsdom 不计算样式）；「100+」只在 harness 层（101 页）与 DOM 层分别验证，没有在真实应用里串起来。
+5. 局限：没有取得真实浏览器证据。`./myrm test -m chrome_e2e …::test_wiki_concept_detail_source_jump` 三次都在 `/settings/wiki` 路由水合超时（`E2E_ROUTE_HYDRATION_TIMEOUT`）：前两次前端日志同期是大量接口请求超时（机器负载均值 38–90）；第三次在头部换行改完之后，运行时与健康检查通过、`/settings/wiki` 返回 200、日志没有编译或运行时报错（负载均值 22–29）。三次都没有走到任何断言，所以既不能证明也不能否定面板在真实浏览器里的表现；该用例验证来源跳转而不是布局，通过了也不覆盖头部换行。为它写的 28 行断言没跑出结果，已撤回。深浅主题没有目测（jsdom 不计算样式），头部换行只有类名断言与下面的副本量测；「100+」只在 harness 层（101 页）与 DOM 层分别验证，没有在真实应用里串起来。
+6. 布局实验（独立副本，不是真实应用）：项目自己的 `tailwindcss` 编译加无头 Chromium 渲染。四个版本的类名都由脚本从源文件读出，不是手抄：换行修复前（`97c77ef219`）、换行修复后（`fc0f1475ef`）、只加 `space-y-0`、当前（`f5f8893858`）；头部、标题块、名字、徽标、来源链接、操作组的类名取自各版本的 `WikiConceptDetailPanel.tsx`，再经项目自己的 `cn`（`twMerge` + `clsx`）、`buttonVariants`、`badgeVariants` 合并，所以 `CardHeader` 基类的 `space-y-1.5`、按钮的 `gap-2`、图标的 `mr-2`、保存按钮的 `border-0` 都按真实合并结果带入。头部内容宽由 `SettingsLayout.tsx:322-344`、`WikiConceptsList.tsx:117` 与 `CardHeader` 的 `p-6` 算出（视口 320 / 360 / 390 / 430 / 768 / 1024 / 1280 / 1440 / 1728 对应 238 / 278 / 308 / 348 / 433 / 379 / 550 / 657 / 849px，是公式值，没有在真实页面核对）；文案取 en / zh / zh-TW / ko / de / ja 六种语言的真实值，默认名按 `SaveToWikiButton.tsx:92-98` 的生成规则取 `untitled-note`（111px）与 `rag-evaluation-metho`（184px），再加一个 40 字符长名（356px）。每个版本 6 语言 × 9 视口 × 3 名字 × 查看 / 编辑态 = 324 个组合。词条名完整可见（长名按拿到整行宽度算）的组合每格 54 个：换行修复前 `untitled-note` 查看 / 编辑态 21 / 17、`rag-evaluation-metho` 14 / 14、长名 4 / 5，其中名字被压到 0px 的每个名字 45 / 108；换行修复后与当前版本全部 54 / 54。当前版本与「只加 `space-y-0`」版本在 324 个组合里的操作组位置、宽度、头部高度、名字宽度逐项相同，即 `justify-between` 零影响；当前版本与换行修复后版本的换行判定 324 / 324 一致（都是 249 个换行），徽标、来源链接、操作组宽度逐项相同。间距的差别：`space-y-1.5` 被 Tailwind 4.3.3 编译为 `:where(.space-y-1.5 > :not(:last-child)) { margin-block-end: 6px }`，落在标题块上，一行的 75 个组合里名字中心比按钮中心高 3px，换行的 249 个组合里标题块与操作组相距 14px；加 `space-y-0` 后分别是 0px 与 8px（`gap-y-2`）。头部高度：一行 67 → 65px，换行 107 / 127 / 133 / 153 → 101 / 121 / 127 / 147px。代价是放不下时头部变高：当前版本里视口 1280 的查看态 `rag-evaluation-metho` 在英、德文案换行（65 → 101px），编辑态更早，`untitled-note` 的英、德就换行；视口 1440 的查看态德语 `untitled-note` 与英、德 `rag-evaluation-metho` 换行；视口 1024 的所有语言默认名都换行，视口 1728 的两个默认名全部一行；40 字符长名 108 个组合里 99 个换行。控件宽度（en / zh / zh-TW / ko / de / ja）：徽标（`chat-compound`）117.4 / 68.1 / 68.1 / 66.7 / 104.9 / 92.2px，来源链接 115.5 / 47.7 / 47.7 / 44.9 / 101.2 / 47.5px，查看态操作组（快捷入口只显示图标时）128.5 / 129.0 / 129.0 / 126.8 / 168.8 / 129.0px，视口 1440 起快捷入口显示文字，该组变为 236.2 / 204.1 / 192.6 / 188.0 / 336.0 / 205.2px，编辑态操作组 189.4 / 168.1 / 168.1 / 163.5 / 243.6 / 204.0px。最宽的德语编辑态 243.6px 对视口 360 的行宽 278px 有 34.4px 余量，对视口 390 有 64.4px；视口 320 行宽 238px，该组超出 5.6px，落在 24px 右侧内边距里；换行修复前同一组合超出 33.6px，比内边距多 9.6px，面板 `Card` 带 `overflow-hidden`，按几何关系保存按钮右侧会被裁掉（副本没有套 `Card`，未渲染验证）。副本用 system-ui 字体与默认主题，图标是同尺寸的占位 SVG，不含产品字体（Inter，用户还能换字体）与主题配色。探针脚本是一次性临时文件，没有入库，这些数字不能在仓库里一键复现，也没有在真实浏览器里校准。
+7. 类型与回归：server `router.py` 的 mypy 从 11 个错误降到 9 个，消失的正是 `:1482-1483` 两处，没有新增；剩下 9 个（`:617`、`:829`、`:1780`、`:1781`、`:1852`、`:2238` 两个、`:2395`、`:2445`）在 health、queue、pending、graph 等其他端点，与本条无关，未改。harness 的 mypy（`graph_store.py`、`indexer.py`、`concept_links.py`）、ruff check 与 format 通过，`graph_store.py` 388 行；`test_concept_links.py`、`test_link_edges.py`、`test_wiki_alias_and_chinese_anchor.py`、`test_concept_identity.py` 共 42 例通过，`tests/toolkits/wiki` 全量（不含调用真实 LLM 的 `test_sidecar_integration.py`）859 例通过；server `test_wiki_concept_links.py` 与 `test_wiki_concept_links_integration.py` 6 例通过，`router.py` 的 ruff 通过。改前先在沙箱里用与 `router.py` 相同的 pydantic 模型复现了同样的两个报错，TypedDict 写法下为 0。
 
 ### 踩坑经验
 
@@ -1766,6 +1774,7 @@ except Exception:
 3. 「窄屏隐藏」会把入口直接拿掉；入口比文字更重要时，应该收成图标并补 `aria-label`。
 4. 文件刚过预算时，往里加一行就会让门禁里多一个未入基线的文件；提取一段内聚的逻辑（这里是锚点聚焦 hook）并逐行比对，比删注释压行数稳妥。
 5. 共享的 e2e 基础设施会被他人同时改：第一次运行时 `scripts/dev/ready.sh` 正在被编辑、有语法错误，第二次起能解析；之后两次的路由水合超时与代码无关，但也因此拿不到浏览器证据，不能把「没有失败」写成「验证过」。
+6. 组件库基类会悄悄带来布局间距：`CardHeader` 自带 `space-y-1.5`，改成 `flex-row` 后仍对标题块生效（Tailwind 4 编译为 `:not(:last-child)` 的下外边距），表现为 3px 错位和换行行距变大；改布局后要用项目的 `cn` 合并出真实类名再量。手算控件宽度也会错（漏 `font-medium`、按钮内部 `gap-2`、图标 `mr-2`、保存按钮的 `border-0`），宽度要从真实类名量出来。
 
 ---
 
@@ -1823,5 +1832,60 @@ except Exception:
 3. 共享工作区里 locales 被他人改动了上千行：用「在 HEAD 文本上按命名空间文本插入」生成提交用的 blob，再对同一份插入逻辑在工作区文本上重放，两边都用「解析后等于改前 + 我的键」自检；
 4. 翻译壳检测会拦下与英文完全相同的值：de 的 `Subagent`、`Live`、`Tools ({count})`、`Commits ({count})` 都得换成真正的德语写法或项目里已有的写法；
 5. 局限：新增的 de / ja / ko / zh-TW 译文只经过机器门禁，没有母语者审校；真实聊天页与 Kanban 页没有端到端点过（后端 :8000 未启动）；鼠标 + 触屏并存的混合设备没有覆盖；`SubagentDetailDrawer.tsx` 591 行（改前 574）、`MaskedCredentialInputCard.tsx` 463 行，未拆分；`LoopStatusBar` 的时长缩写 `m` / `s` 与服务端给的 `current_delay_human` 仍是英文；`RiskConfirmationCard` 发给后端的审批理由是英文审计串，保持不变；干净 HEAD 上 `verify:i18n` 本来就是红的（ja / ko / de / zh-TW 各缺 92 个 en 键、17 个孤儿键、de 的 `settings.browserDoctor.statusOptional` 是翻译壳），`verify:orphans` 同样为红，均不是本次引入；扫描器的覆盖面限制见条目 006，存量只是继续下降（当前 3408 处 / 358 个文件），没有清零。
+
+---
+
+## BUG-AGENT-2026-10-14-012: 技能演进审批卡上的「变更预测与归因」永远自证为真；「测试通过」其实是质量分大于 0；回归闸门把原版就过不了的断言算成每个候选的固定扣分；沙盒校验给无可执行内容的技能盖「已验证」
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（审批人据以放行的几个数字不是测出来的：预测归因恒为「已证实」、扫描 / 测试徽章与实际检查不符、自动合并的「大改动」信号漏掉同长度重写；没有数据损坏） |
+| 影响范围 | harness `agent/skills/evolution/core/`（`change_manifest`、`eval_regression`、`proposal_builder`、`types`）、`agent/skills/evolution/execution/sandbox_validator.py`、`eval/`（`manifest_prediction`、`metric_contract`、`leakage_guard`）、`api/__init__.py`、`install_guard/_generated/core_ip_manifest.py`；服务端 `app/api/skills/{evolution/pending,growth}.py`、`app/services/skills/{evolution_review,growth}/`、`app/services/agent/{confidence_approval_flow,evolution/skill_immune_service}.py`、`app/services/skills/draft_notification.py`、`app/database/{models/skill,migrations}.py`；前端 `growth/`、`skills/SkillGrowthCaseCard`、`PendingEvolutionsDashboard`、`SkillHistoryPanel`、`services/skill/growth.ts`、六种语言文案；根仓库优势材料 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-14-009`（009 的「保留不动」里的变更清单 `build_change_manifest` 这次核实后一并删除，审批卡的 `testPassed` / `verificationProof` 改为只陈述真实发生过的检查）；提交 harness `645607acb1`、服务端 `d2a7e27b3f`、前端 `c82ad4528e`，本地提交，未 push |
+
+### 现象
+
+1. 提案卡的「变更清单预测」段把预测通过率与「实测」通过率并排展示，并给出 CONFIRMED / REFUTED / REGRESSION 归因。「实测」是同一个静态断言函数在同一段文本上再跑一遍，与预测同源，删掉一个必需步骤的重写也被判为已证实；指标守卫读取 `predicted_value` 键，而清单从来不写这个键，这条链永远为空；
+2. `test_passed` 在自动流里取 `proposal.score > 0`，卡片上显示为「测试通过」，但演进流程里没有任何测试执行；运行期免疫闸门拦下的记录（没有跑过任何扫描）被标成 `FAILED_SCAN`，语言文案写「Failed Scan / 扫描失败」；人工修订路径里扫描器抛异常时被按「通过」记录；
+3. 回归闸门对每个断言都做全局扣分：原版就过不了的断言（例如对 Markdown SOP 写的 Python AST 断言）让所有候选都被扣同一个常数；候选丢掉全部用例时的硬过滤，在少于七个用例时被扣分算术挡住而不可达；
+4. `SandboxValidator` 对纯提示词或只有 bash 的技能返回 `is_verified=True`；ZIP 导入闸门把只有示例代码、没有断言的代码块判为 `Hollow Test Rejected`；
+5. 自动合并的「大改动」信号只比较长度：同长度的整段重写差值为 0，不触发；
+6. `pending_evolutions` 表与模型没有任何路由或页面读写（提案走 `approval_records`）。
+
+### 根因
+
+1. 清单预测把「预测」和「验证」做成了同一函数的两次调用，没有独立的验证来源，因此无法被证伪；
+2. `test_passed` 沿用了早期「提案先跑测试」的设想，字段名与取值没有随流程变化；状态枚举与文案没有随运行期免疫闸门这个新来源更新；
+3. 回归闸门没有区分「原版本来就过 / 本来就过不了」，把后者也当成必须守住的基线；
+4. 沙盒校验把「没有发现失败」等同于「已验证」；
+5. 长度差是最容易写的近似，量的是「变长了多少」而不是「改了多少」。
+
+### 修复
+
+1. W1 + W2（删除）：harness 删除 `change_manifest`、`eval.manifest_prediction`、`eval.metric_contract`、`evaluate_pareto_generalization` 及其导出与 `core_ip_manifest` 条目，`ProposalBuilder` 不再生成清单；服务端删除清单归因路由与重建、载荷 / 查询 / 卡片类型里的清单与归因字段、`proxy_guard` 一整条代理对齐链；前端删除 `ManifestPredictionsPanel`、卡片里的预测段与对应服务类型；历史审批记录里残留的旧键由 pydantic 默认的 `extra=ignore` 忽略（有加载测试）；
+2. W3 真实性：`test_passed` 的含义收窄为「安全扫描的结果」——自动流里有 `security_scan_summary` 才为 `True`，否则为 `None`；人工修订路径取扫描器结果，扫描器抛异常为 `None`；运行期免疫记录、AST 失败的零分提案都是 `None`。`test_passed` 的类型在 API 与前端同步为可空，卡片只在非空时显示扫描徽章，修订提示只把 `=== false` 当成扫描未通过；`FAILED_SCAN` 的六种语言文案改为中性的「检查未通过 / Check Failed」；沙盒校验在没有实际检查时返回无证明，提示词类技能不再盖「已验证」，只有带断言的代码块才可能被判空洞，导入闸门语义不变；删除 `pending_evolutions` 模型，在 `MIGRATION_STATEMENTS` 末尾追加 `DROP TABLE IF EXISTS pending_evolutions`；
+3. W4：回归闸门只守住原版通过的用例，扣分按「丢失的受守用例数」计算（每个 0.15、上限 1.0），候选丢光全部受守用例才硬过滤；原版就过不了的断言不再产生扣分；
+4. W5：`confidence_approval_flow` 的大改动信号改为按字符 3-gram 多重集比较的「改动占比」（线性时间），同长度的整段重写占比接近 100%，会触发，整段追加仍会触发，阈值仍是 50%；顺手去掉对 dataclass 字段的 `getattr`；
+5. 文档：两处 `_ARCH`、`ARCHITECTURE`、`SKILLS_SYSTEM`、前端 `_ARCH` 与根仓库优势材料里关于清单预测、帕累托、归因的说法改成代码事实。
+
+### 验证
+
+1. harness（提交 `645607acb1`）：`tests/agent/skills/evolution` 与 `tests/eval` 共 712 通过；回归闸门新增基线相对用例，沙盒校验新增「无证明」与「空洞判定」用例；
+2. 服务端：`tests/api/evolution`、`tests/api/skills`（不含他人的 `test_curator.py`）、`tests/services/skills`、`test_skill_immune_service`、新增的 `test_pending_evolutions_table_retired`（升级库与全新库各一例）共 381 通过、1 跳过；`ruff check` / `ruff format --check` / `pyright` 对 22 个改动文件 0 告警；
+3. 前端：技能 / 成长 / 服务相关 31 个测试文件 203 例通过（新增 `SkillGrowthCaseCard.scanOutcome.test.tsx`：`testPassed` 为 `null` 时无扫描徽章）；`oxlint` 对改动文件无告警；`verify-i18n` 六种语言通过；`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；
+4. 改动占比的度量对比：`difflib.SequenceMatcher` 在 2000 行半空行文本上（`autojunk=False`）超过 8 秒，在 2 万行互不相同的文本上（`autojunk=True`）仍超过 8 秒；3-gram 多重集比较在同样的 2000 行输入上 7 毫秒、2 万行（53 万字符）输入上 129 毫秒（本机单次实测）；
+5. 已提交内容的干净导出（`git archive HEAD`，补上未入库的 `.env.test`、`locales/namespaces`、`shared/config`、`e2e_core`）：服务端 `tests/api/evolution`、`test_growth_api`、`test_draft_notification`、`tests/services/skills`、`test_skill_immune_service` 与表退役测试共 200 通过；前端 `SkillGrowthCaseCard*`、`growth/`、`services/skill` 12 个测试文件 104 例通过，`oxlint` 无告警；导出里 `verify-i18n` 仍是红的，是 HEAD 上本来就有的「各语言缺 92 个 en 键、17 个孤儿键」，输出里没有出现本次涉及的任何键；
+6. `server_harness_import_baseline.txt` 里 `manifest_prediction` 与 `eval_regression` 两条已不再被服务端导入，随之删除，`test_baseline_matches_current_imports` 的「基线多出」一侧清空（该测试剩余的差异全是他人新增的 harness 模块导入）。
+
+### 踩坑经验
+
+1. 「预测 vs 实测」只有在两边来自不同来源时才有意义；同一函数在同一输入上调两次，只是在展示一个恒等式；
+2. 字段名叫 `test_passed`，含义却早已变成别的东西，比删字段更危险：下游的徽章、提示、导出都在按原名解释它；这次保留字段名（避免一次牵动 API 与历史记录），只收窄语义并让「没检查过」可以表达为 `None`；
+3. 度量改动幅度时，序列对齐类算法在重复文本上会退化到不可用，且对没有空白的中文与单行描述没有意义；字符 n-gram 多重集线性、对两类文本都稳定；
+4. 一次删除要沿「入口 → 计算 → 落库 → 展示」走完：删掉 `evolution.core.eval_regression` 的服务端导入后，架构基线里对应的行同时变成过期项；
+5. 局限：没有取得浏览器级别的视觉检查（卡片去掉预测段后的布局、可空徽章在深浅主题下的显示）；`DROP TABLE` 只覆盖升级库与全新库的两个夹具，没有在桌面包里实测；`tests/architecture` 仍有他人未提交改动造成的失败（路由消费者、API 服务词汇、包初始化、前端 API 路径、harness 导入基线的新增项），没有一条指向本次删除的符号；`tests/api/skills/test_curator.py` 的 4 例失败来自他人未提交的 `curator.py`；新增的 de / ja / ko / zh-TW 译文只经过机器门禁；服务端提交依赖 harness 提交 `645607acb1`，harness 发版后要同步锁文件。
 
 ---

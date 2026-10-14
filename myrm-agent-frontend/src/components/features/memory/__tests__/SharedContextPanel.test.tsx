@@ -305,29 +305,16 @@ describe('SharedContextPanel', () => {
     });
   }, 15000);
 
-  it('shows goal completion proposal tag in inbox', async () => {
-    memoryApi.listSharedContextWriteProposals.mockResolvedValue({
-      items: [proposal({ source_type: 'goal_completion', source_id: 'goal-1' })],
-      total: 1,
-    });
-
-    render(<SharedContextPanel />);
-
-    expect(await screen.findByText('proposals.goalCompletionTag')).toBeInTheDocument();
-  });
-
-  it('toggles goal completion auto-archive policy', async () => {
+  it('toggles correction auto-propagation policy', async () => {
     const user = userEvent.setup();
     render(<SharedContextPanel />);
 
-    expect(await screen.findByText('policy.goalCompletionAutoApprove')).toBeInTheDocument();
-    const switches = screen.getAllByRole('switch');
-    const goalSwitch = switches[switches.length - 1];
-    await user.click(goalSwitch);
+    expect(await screen.findByText('policy.correctionAutoApprove')).toBeInTheDocument();
+    await user.click(screen.getByRole('switch'));
 
     await waitFor(() => {
       expect(memoryApi.updateSharedContext).toHaveBeenCalledWith('customer-a', {
-        policy: { goal_completion_auto_approve: false },
+        policy: { correction_auto_approve: false },
       });
     });
   });

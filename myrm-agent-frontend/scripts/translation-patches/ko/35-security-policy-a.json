@@ -63,7 +63,7 @@
           "localApiKey": "로컬 모델 API 키",
           "localApiKeyPlaceholder": "필요하지 않으면 비워 두세요",
           "s2Strategy": "S2 (민감) 전략",
-          "s2CloudAfterRedact": "편집 후 클라우드",
+          "s2CloudAfterRedact": "클라우드 모델",
           "s2Local": "로컬 전용",
           "s3Strategy": "S3 (기밀) 전략",
           "s3Local": "로컬 전용",

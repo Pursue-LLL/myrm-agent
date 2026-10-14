@@ -104,7 +104,7 @@ export default function KanbanTaskCardActions({
             className={cn(ITEM_CLASS, 'text-destructive focus:text-destructive')}
             onSelect={() => onReclaim(task.task_id)}
           >
-            {t('reclaimConfirm')}
+            {t('reclaimAction')}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem

@@ -26,6 +26,7 @@ interface DeleteProviderDialogProps {
 export const DeleteProviderDialog = memo<DeleteProviderDialogProps>(
   ({ open, onOpenChange, providerId, providerName, onConfirm }) => {
     const t = useTranslations('settings.modelService.deleteProvider');
+    const tCommon = useTranslations('common');
     const locale = useLocale();
     const [usage, setUsage] = useState<ProviderUsageResponse | null>(null);
     const [loading, setLoading] = useState(false);
@@ -59,7 +60,7 @@ export const DeleteProviderDialog = memo<DeleteProviderDialogProps>(
         console.error('Failed to delete provider:', error);
         toast({
           title: t('deleteFailed'),
-          description: error instanceof Error ? error.message : 'Unknown error',
+          description: error instanceof Error ? error.message : tCommon('unknownError'),
           variant: 'destructive',
         });
       } finally {

@@ -79,7 +79,7 @@ class TestCollectSessionDeliverables:
         goal = SimpleNamespace(goal_id="g-1", metadata={})
 
         with patch("app.database.connection.get_session", _mock_get_session):
-            await manager._consolidate_decisions_on_completion(goal)
+            await manager._collect_deliverables_on_completion(goal)
 
         assert "deliverables" in goal.metadata
         assert len(goal.metadata["deliverables"]) == 2
@@ -89,7 +89,7 @@ class TestCollectSessionDeliverables:
     async def test_consolidation_noop_without_session(self) -> None:
         manager = ServerGoalManager(AsyncMock(), session_id=None)
         goal = SimpleNamespace(goal_id="g-2", metadata={})
-        await manager._consolidate_decisions_on_completion(goal)
+        await manager._collect_deliverables_on_completion(goal)
         assert "deliverables" not in goal.metadata
 
 

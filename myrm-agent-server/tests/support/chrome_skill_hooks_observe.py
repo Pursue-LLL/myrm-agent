@@ -26,7 +26,6 @@ import urllib.request
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -49,6 +48,10 @@ def _message_text(content: object) -> str:
 
 def _stored_as_sent(text: str, wire: str, *, exact: bool, spilled: bool) -> bool:
     if spilled:
+        # Imported here, not at module level: pytest collects every test file that imports this helper,
+        # and this import loads the whole agent package (~5000 modules) that only a spilled turn needs.
+        from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag
+
         invocation = parse_use_tag(wire)
         return invocation is not None and text.startswith(invocation.tag) and "<file_spillover" in text
     return text == wire if exact else wire in text

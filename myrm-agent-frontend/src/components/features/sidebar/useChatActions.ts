@@ -67,7 +67,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
       console.error('Failed to capture eval case:', error);
       toast({
         title: t('chat.captureEvalCase.error'),
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: error instanceof Error ? error.message : t('common.unknownError'),
         variant: 'destructive',
       });
     } finally {
@@ -141,7 +141,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
       });
     } catch (error) {
       console.error('Failed to delete chat:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : t('common.unknownError');
       toast({
         title: t('chat.deleteChat.error'),
         description: errorMessage,
@@ -200,7 +200,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
         console.error('Export chat failed:', error);
         toast({
           title: t('chat.exportChat.error'),
-          description: error instanceof Error ? error.message : 'Unknown error',
+          description: error instanceof Error ? error.message : t('common.unknownError'),
           variant: 'destructive',
         });
       } finally {
@@ -226,7 +226,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
         console.error('Open in IDE failed:', error);
         toast({
           title: t('chat.ideHandoff.failed'),
-          description: error instanceof Error ? error.message : 'Unknown error',
+          description: error instanceof Error ? error.message : t('common.unknownError'),
           variant: 'destructive',
         });
       } finally {
@@ -243,7 +243,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
       } catch (e) {
         toast({
           title: t('chat.pin.error'),
-          description: e instanceof Error ? e.message : 'Unknown error',
+          description: e instanceof Error ? e.message : t('common.unknownError'),
           variant: 'destructive',
         });
       }
@@ -258,7 +258,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
       } catch (e) {
         toast({
           title: t('chat.unpin.error'),
-          description: e instanceof Error ? e.message : 'Unknown error',
+          description: e instanceof Error ? e.message : t('common.unknownError'),
           variant: 'destructive',
         });
       }
@@ -297,7 +297,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
         console.error('Failed to reveal artifacts:', error);
         toast({
           title: t('chat.revealArtifacts.error'),
-          description: error instanceof Error ? error.message : 'Unknown error',
+          description: error instanceof Error ? error.message : t('common.unknownError'),
           variant: 'destructive',
         });
       } finally {

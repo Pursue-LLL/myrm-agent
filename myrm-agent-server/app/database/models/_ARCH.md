@@ -30,7 +30,7 @@
 | `channel_message.py` | 域模块 | ChannelMessageModel（多渠道入站明细持久化实体，支撑凭据脱敏、打标与记忆候选） | ✅ |
 | `media.py` | 域模块 | BatchImageJob, MediaLibrary | ✅ |
 | `security.py` | 域模块 | UserToolAllowlist, RiskRule, RiskHit, SecurityProfile, SkillPermissionGrant, SkillPermissionUsageLog | ✅ |
-| `skill.py` | 域模块 | PendingEvolution (deprecated), PendingMigration, ExperienceLedgerEvent | ✅ |
+| `skill.py` | 域模块 | PendingMigration, ExperienceLedgerEvent | ✅ |
 | `approval.py` | 域模块 | ApprovalRecord | ✅ |
 | `notification.py` | 域模块 | SystemNotification | ✅ |
 | `assessment_import.py` | 域模块 | AssessmentImportLedger（评估导入幂等台账，`project_id+artifact_version_id` 唯一约束） | ✅ |

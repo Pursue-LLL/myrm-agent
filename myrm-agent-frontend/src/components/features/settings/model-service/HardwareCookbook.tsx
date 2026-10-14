@@ -196,7 +196,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
         toast.info(t('cancel'));
       } else {
         console.error('Download failed:', err);
-        toast.error(err instanceof Error ? err.message : 'Download failed');
+        toast.error(err instanceof Error ? err.message : t('downloadFailed'));
       }
     } finally {
       setDownloadingModel(null);

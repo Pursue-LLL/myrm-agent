@@ -320,9 +320,9 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         autoReview: parsed.autoReview,
       });
 
-      toast.success('Profile loaded');
+      toast.success(t('profile.loaded'));
     },
-    [capabilityRules, networkCommand, save],
+    [capabilityRules, networkCommand, save, t],
   );
 
   const handleNLApply = useCallback(

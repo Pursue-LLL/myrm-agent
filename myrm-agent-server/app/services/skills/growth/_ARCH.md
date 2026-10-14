@@ -11,7 +11,6 @@
 | `constants.py` | 核心 | `GROWTH_ACTION_TYPES` SSOT；`is_background_growth_approval()` 供 drafts API 与 ApprovalRegistry 分流 | ✅ |
 | `case_types.py` | 核心 | 技能成长 case DTO：Summary（列表）与 Detail（单条按需拉取） | ✅ |
 | `queries.py` | 核心 | 审批主链 evolution / draft case 查询；列表 summary、detail 单条加载；stats SQL 分桶计数；list merge fetch=limit+offset | ✅ |
-| `proxy_guard.py` | 核心 | 自进化度量代理对齐守卫（Goodhart 防护）：从预测清单中抽取样本并对比契约，产出结构化偏离诊断 | ✅ |
 | `audit_queries.py` | 核心 | Ledger 事件审计与 timeline 查询（audit entries / stats / timeline） | ✅ |
 | `lifecycle.py` | 核心 | 技能成长统一编排入口。接收 Harness 复盘结果，按类型与风险决定自动落地、人工审核、锁定拦截或扫描失败降级；根据 `deployment_capabilities.allows_local_skills` 判定物化权限（local/sandbox 默认允许，禁用时 fail-closed 跳过），semantic_memory 始终保留 | ✅ |
 

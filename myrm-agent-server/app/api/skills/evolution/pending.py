@@ -45,7 +45,7 @@ class PendingEvolutionSummaryResponse(BaseModel):
     evolution_type: str
     reason: str
     confidence: float
-    test_passed: bool
+    test_passed: bool | None
     status: str
     approval_status: str
     apply_status: str
@@ -57,8 +57,6 @@ class PendingEvolutionSummaryResponse(BaseModel):
     chat_id: str | None = None
     created_at: str
     impacted_dependents: list[str] = Field(default_factory=list)
-    prediction_manifest: dict[str, object] | None = None
-    attribution_result: dict[str, object] | None = None
     security_scan_summary: dict[str, object] | None = None
 
 
@@ -95,8 +93,6 @@ def _summary_from_record(
         chat_id=record.chat_id,
         created_at=record.created_at.isoformat(),
         impacted_dependents=impacted_dependents or [],
-        prediction_manifest=(record.change_manifest if isinstance(record.change_manifest, dict) else None),
-        attribution_result=(record.attribution_result if isinstance(record.attribution_result, dict) else None),
         security_scan_summary=(record.security_scan_summary if isinstance(record.security_scan_summary, dict) else None),
     )
 

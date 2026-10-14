@@ -66,7 +66,7 @@ from .security import (
     SkillPermissionUsageLog,
     UserToolAllowlist,
 )
-from .skill import ExperienceLedgerEvent, PendingEvolution, PendingMigration
+from .skill import ExperienceLedgerEvent, PendingMigration
 from .skill_optimization import (
     BatchSnapshot,
     SkillPackageRevision,
@@ -143,7 +143,6 @@ __all__ = [
     "SkillPermissionUsageLog",
     "VaultCredential",
     # Skill
-    "PendingEvolution",
     "PendingMigration",
     "ExperienceLedgerEvent",
     # Approval

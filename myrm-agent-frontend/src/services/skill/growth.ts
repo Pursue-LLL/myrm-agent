@@ -41,45 +41,6 @@ export interface VerificationProofDto {
   verified_at?: string;
 }
 
-export interface MetricPredictionDto {
-  metric_name: string;
-  direction: 'INCREASE' | 'DECREASE' | 'NEUTRAL';
-  baseline_value: number;
-  target_value: number;
-  rationale: string;
-}
-
-export interface PredictionManifestDto {
-  manifest_id: string;
-  change_id: string;
-  created_at: string;
-  predictions: MetricPredictionDto[];
-  falsification_conditions: string[];
-  verdict?: string | null;
-  pareto_generalization_verdict?: string | null;
-  search_pass_rate?: number | null;
-  test_pass_rate?: number | null;
-}
-
-export interface AttributionResultDto {
-  manifest_id: string;
-  verdict: 'CONFIRMED' | 'REFUTED' | 'REGRESSION' | 'INCONCLUSIVE';
-  attributed_at: string;
-  metric_deltas: Record<string, number>;
-  unpredicted_regressions: string[];
-  details: string;
-}
-
-export interface ProxyAlignmentDto {
-  contract_id: string;
-  verdict: 'aligned' | 'accepted_tradeoff' | 'goodhart_drift' | 'unconverged';
-  sample_size: number;
-  intent_delta: number;
-  proxy_improvement: number;
-  flagged_proxies: string[];
-  warning_message: string;
-}
-
 export interface SecurityScanFindingDetailDto {
   threat_type: string;
   severity: string;
@@ -122,9 +83,6 @@ interface SkillGrowthCaseSummaryApiItem {
   verification_proof?: VerificationProofDto | null;
   target_layer?: string | null;
   target_pathology?: string | null;
-  prediction_manifest?: PredictionManifestDto | null;
-  attribution_result?: AttributionResultDto | null;
-  proxy_alignment?: ProxyAlignmentDto | null;
   security_scan_summary?: SecurityScanSummaryDto | null;
 }
 
@@ -217,9 +175,6 @@ export interface SkillGrowthCaseSummary {
   verificationProof: VerificationProofDto | null;
   targetLayer?: string | null;
   targetPathology?: string | null;
-  predictionManifest?: PredictionManifestDto | null;
-  attributionResult?: AttributionResultDto | null;
-  proxyAlignment?: ProxyAlignmentDto | null;
   securityScanSummary?: SecurityScanSummaryDto | null;
 }
 
@@ -314,9 +269,6 @@ function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary
     verificationProof: item.verification_proof ?? null,
     targetLayer: item.target_layer ?? null,
     targetPathology: item.target_pathology ?? null,
-    predictionManifest: item.prediction_manifest ?? null,
-    attributionResult: item.attribution_result ?? null,
-    proxyAlignment: item.proxy_alignment ?? null,
     securityScanSummary: item.security_scan_summary ?? null,
   };
 }
@@ -421,7 +373,7 @@ export async function rejectSkillGrowthCase(
 export interface SkillGrowthReviseResult {
   status: string;
   skill_id: string | null;
-  test_passed: boolean;
+  test_passed: boolean | null;
   reason_code: string | null;
   remediation: string | null;
 }
@@ -462,51 +414,4 @@ export async function getSkillGrowthAuditStats(timeRangeDays: number): Promise<S
     })),
     timeRangeDays: response.time_range_days,
   };
-}
-
-export interface MetricPredictionRequest {
-  metric_name: string;
-  direction: 'increase' | 'decrease' | 'neutral' | 'preserve_min';
-  baseline_value: number;
-  target_value: number;
-  tolerance?: number;
-}
-
-export interface EvaluatePredictionManifestRequest {
-  manifest_id: string;
-  target_component: string;
-  rationale: string;
-  predictions: MetricPredictionRequest[];
-  actual_metrics: Record<string, number>;
-  rollback_patch?: string | null;
-}
-
-export interface MetricAttributionDetailResponse {
-  metric_name: string;
-  predicted_target: number;
-  actual_value: number;
-  delta: number;
-  verdict: 'confirmed' | 'refuted' | 'regression' | 'inconclusive';
-  explanation: string;
-}
-
-export interface ManifestAttributionResultResponse {
-  manifest_id: string;
-  overall_verdict: 'confirmed' | 'refuted' | 'regression' | 'inconclusive';
-  metric_attributions: MetricAttributionDetailResponse[];
-  confidence_score: number;
-  recommended_action: 'keep' | 'rollback' | 're_evaluate';
-}
-
-export async function evaluateManifestAttribution(
-  payload: EvaluatePredictionManifestRequest,
-): Promise<ManifestAttributionResultResponse> {
-  const response = await apiRequest<{ data: ManifestAttributionResultResponse } | ManifestAttributionResultResponse>(
-    '/skill-growth/manifest-attribution',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    },
-  );
-  return 'data' in response ? (response as { data: ManifestAttributionResultResponse }).data : response;
 }

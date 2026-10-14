@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const stableT = (key: string) => key;
@@ -31,7 +31,9 @@ vi.mock('@/components/primitives/card', async () => {
     CardContent: React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(({ children }, ref) => (
       <div ref={ref}>{children}</div>
     )),
-    CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    CardHeader: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+      <div className={className}>{children}</div>
+    ),
   };
 });
 
@@ -263,5 +265,33 @@ describe('WikiConceptDetailPanel links shortcut', () => {
     });
 
     expect(scrolledIds).toEqual(['wiki-concept-links']);
+  });
+});
+
+describe('WikiConceptDetailPanel header layout', () => {
+  // 头部嵌在宽度不定的详情栏里（手机、平板、窄窗口）：放不下时整块换行，词条名独占一行，
+  // 不能被来源徽标、来源链接和操作按钮挤到 0 宽；CardHeader 基类自带的 `space-y-1.5` 要显式归零，
+  // 否则标题块多出 6px 下外边距（单行时偏高 3px、换行时行距变大）。jsdom 不计算样式，这里只钉住这些类名。
+  const concept: Concept = {
+    name: 'Alpha',
+    content: '# Alpha',
+    provenance: 'chat-compound',
+    source_chat: 'chat-123',
+  };
+
+  it('lets the header and the title block wrap instead of squeezing the concept name', () => {
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    const header = screen.getByTestId('wiki-concept-edit-btn').closest('[class~="@container"]') as HTMLElement;
+    const [titleBlock, actions] = Array.from(header.children) as HTMLElement[];
+    const name = within(titleBlock).getByText('Alpha');
+
+    expect(header.classList.contains('flex-wrap')).toBe(true);
+    expect(header.classList.contains('space-y-0')).toBe(true);
+    expect(header.classList.contains('justify-between')).toBe(false);
+    expect(titleBlock.classList.contains('flex-wrap')).toBe(true);
+    expect(titleBlock.classList.contains('truncate')).toBe(false);
+    expect(name.classList.contains('max-w-full')).toBe(true);
+    expect(actions.classList.contains('ml-auto')).toBe(true);
   });
 });

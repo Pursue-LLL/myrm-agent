@@ -38,7 +38,6 @@ from .types import (
     MAX_SKILL_CONTENT_CHARS,
     EvolutionApplyError,
     EvolutionApplyStatus,
-    EvolutionApprovalPayload,
     EvolutionGrowthStatus,
     EvolutionReviewRecord,
     approval_payload,
@@ -47,60 +46,6 @@ from .types import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _rebuild_manifest_after_revision(payload: EvolutionApprovalPayload, revised_content: str) -> dict[str, object] | None:
-    """Recompute the prediction manifest after a manual revision.
-
-    The original manifest's target was computed against the pre-revision
-    proposed content; once the user edits that content the prediction would go
-    stale, so baseline/target are recomputed from the eval_cases snapshot.
-    Returns None when no manifest or no eval_cases exist (nothing to predict).
-    """
-    manifest_dict = payload.change_manifest
-    if not isinstance(manifest_dict, dict) or not payload.eval_cases:
-        return None
-    raw_predictions = manifest_dict.get("predictions")
-    if not isinstance(raw_predictions, list) or not raw_predictions:
-        return None
-
-    from myrm_agent_harness.agent.skills.evolution.core.eval_regression import (
-        evaluate_content_assertions,
-    )
-    from myrm_agent_harness.eval.manifest_prediction import (
-        ChangePredictionManifest,
-        MetricPrediction,
-        PredictionDirection,
-    )
-
-    original_pred = next(
-        (p for p in raw_predictions if isinstance(p, dict) and p.get("metric_name") == "pass_rate"),
-        None,
-    )
-    if original_pred is None:
-        return None
-
-    baseline = float(original_pred["baseline_value"])
-    target_pass_rate = evaluate_content_assertions(payload.eval_cases, revised_content)
-    revised_pred = MetricPrediction(
-        metric_name="pass_rate",
-        direction=PredictionDirection.INCREASE,
-        baseline_value=baseline,
-        target_value=max(target_pass_rate, baseline),
-        tolerance=float(original_pred.get("tolerance", 0.05)),
-    )
-
-    rollback_patch = manifest_dict.get("rollback_patch")
-    created_at = manifest_dict.get("created_at")
-    manifest = ChangePredictionManifest(
-        manifest_id=str(manifest_dict.get("manifest_id", "")),
-        target_component=str(manifest_dict.get("target_component", "")),
-        rationale=f"Revised: {manifest_dict.get('rationale', '')}".strip(),
-        rollback_patch=rollback_patch if isinstance(rollback_patch, str) else None,
-        created_at=created_at if isinstance(created_at, str) else None,
-        predictions=[revised_pred],
-    )
-    return manifest.to_dict()
 
 
 async def approve_evolution_review_record(
@@ -235,7 +180,7 @@ async def revise_evolution_review_record(
     if len(evolved_content) > MAX_SKILL_CONTENT_CHARS:
         raise EvolutionApplyError(f"Revised content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS}).")
 
-    scan_passed = True
+    scan_passed: bool | None = None
     try:
         from myrm_agent_harness.backends.skills.scanning.scanner import (
             scan_skill_content,
@@ -248,7 +193,7 @@ async def revise_evolution_review_record(
 
     payload.evolved_content = evolved_content
     payload.test_passed = scan_passed
-    if not scan_passed:
+    if scan_passed is False:
         payload.growth_status = EvolutionGrowthStatus.FAILED_SCAN
         payload.reason_code = "revised_failed_scan"
         payload.remediation = "Revised content failed security scan. Please fix the flagged issues."
@@ -258,7 +203,6 @@ async def revise_evolution_review_record(
         payload.apply_error = None
         payload.reason_code = "revised"
         payload.remediation = None
-        payload.change_manifest = _rebuild_manifest_after_revision(payload, evolved_content)
 
     updated = await persist_approval_payload(
         evolution_id,

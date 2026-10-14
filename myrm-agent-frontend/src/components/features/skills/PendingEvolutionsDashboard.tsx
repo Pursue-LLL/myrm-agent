@@ -28,8 +28,6 @@ import { useSkillStore } from '@/store/skill';
 import useAuthStore from '@/store/useAuthStore';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
-  CapacityAlertBanner,
-  CapacityPoolBadge,
   EMPTY_SUMMARY,
   FILTER_ORDER,
   LIST_CASES_LIMIT,
@@ -42,13 +40,7 @@ import {
 export function PendingEvolutionsDashboard() {
   const t = useTranslations('settings.skills.growth');
   const { user } = useAuthStore();
-  const { fetchLocalSkills, fetchUserSkillConfig, localSkills } = useSkillStore();
-
-  const skillCount = localSkills?.length ?? 0;
-  const maxSkillCount = 50;
-  const capacityPercent = Math.min(100, Math.round((skillCount / maxSkillCount) * 100));
-  const isWarning = capacityPercent >= 80 && capacityPercent < 100;
-  const isLimit = capacityPercent >= 100;
+  const { fetchLocalSkills, fetchUserSkillConfig } = useSkillStore();
 
   const [cases, setCases] = useState<SkillGrowthCaseSummary[]>([]);
   const [listTotal, setListTotal] = useState(0);
@@ -229,9 +221,7 @@ export function PendingEvolutionsDashboard() {
       setProcessingCaseId(item.id);
       try {
         const result = await reviseSkillGrowthCase(item, evolvedContent);
-        if (result.test_passed) {
-          toast.success(t('reviseSuccess', { name: item.skillName }));
-        } else {
+        if (result.test_passed === false) {
           toast.error(t('reviseFailedScan', { name: item.skillName }));
         }
         await loadCases(true);
@@ -250,13 +240,6 @@ export function PendingEvolutionsDashboard() {
       description={t('description')}
       action={
         <div className="flex items-center gap-2">
-          <CapacityPoolBadge
-            skillCount={skillCount}
-            maxSkillCount={maxSkillCount}
-            capacityPercent={capacityPercent}
-            isWarning={isWarning}
-            isLimit={isLimit}
-          />
           <Button variant="outline" size="sm" className="gap-2" onClick={toggleViewMode}>
             {viewMode === 'simple' ? <List className="h-4 w-4" /> : <SquareStack className="h-4 w-4" />}
             {t(`viewMode.${viewMode}` as Parameters<typeof t>[0])}
@@ -294,14 +277,6 @@ export function PendingEvolutionsDashboard() {
           toneClassName="border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
         />
       </div>
-
-      <CapacityAlertBanner
-        skillCount={skillCount}
-        maxSkillCount={maxSkillCount}
-        capacityPercent={capacityPercent}
-        isWarning={isWarning}
-        isLimit={isLimit}
-      />
 
       {showListScopeHint && (
         <p className="text-sm text-muted-foreground">{t('listScopeHint', { shown: cases.length, total: listTotal })}</p>

@@ -64,7 +64,7 @@ const InstallDialog = memo(({ open, onOpenChange, command, onInstalled }: Instal
         }
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Installation failed');
+      toast.error(err instanceof Error ? err.message : t('installFailed'));
     } finally {
       setInstalling(false);
     }

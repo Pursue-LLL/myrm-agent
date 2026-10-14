@@ -94,7 +94,6 @@ app/api/skills/quality.py
 app/api/skills/router.py
 app/api/skills/schemas.py
 app/api/skills/sync.py
-app/api/skills/ws_evolution.py
 app/api/statistics/router.py
 app/api/stt/router.py
 app/api/stt/ws_stream.py
@@ -173,7 +172,6 @@ app/lifecycle/__init__.py
 app/lifecycle/browser.py
 app/lifecycle/monitors.py
 app/lifecycle/schedulers.py
-app/lifecycle/skills.py
 app/middleware/auth.py
 app/middleware/cache.py
 app/middleware/ingress.py

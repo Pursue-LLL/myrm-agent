@@ -55,7 +55,7 @@ export function useChatShareActions(t: ReturnType<typeof useTranslations>) {
       } catch (error) {
         toast({
           title: t('chat.share.error'),
-          description: error instanceof Error ? error.message : 'Unknown error',
+          description: error instanceof Error ? error.message : t('common.unknownError'),
           variant: 'destructive',
         });
       } finally {
@@ -79,7 +79,7 @@ export function useChatShareActions(t: ReturnType<typeof useTranslations>) {
     } catch (error) {
       toast({
         title: t('chat.share.error'),
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: error instanceof Error ? error.message : t('common.unknownError'),
         variant: 'destructive',
       });
     }

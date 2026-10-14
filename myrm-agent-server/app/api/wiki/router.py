@@ -1478,11 +1478,11 @@ def get_concept_links(
     try:
         res = archiver._query_engine._indexer.get_concept_links(name)
         return ConceptLinksResponse(
-            concept_name=str(res.get("concept_name", name)),
-            outlinks=[ConceptLinkItem(**item) for item in res.get("outlinks", [])],
-            backlinks=[ConceptBacklinkItem(**item) for item in res.get("backlinks", [])],
-            outlinks_has_more=bool(res.get("outlinks_has_more", False)),
-            backlinks_has_more=bool(res.get("backlinks_has_more", False)),
+            concept_name=res["concept_name"],
+            outlinks=[ConceptLinkItem(**item) for item in res["outlinks"]],
+            backlinks=[ConceptBacklinkItem(**item) for item in res["backlinks"]],
+            outlinks_has_more=res["outlinks_has_more"],
+            backlinks_has_more=res["backlinks_has_more"],
         )
     except HTTPException:
         raise

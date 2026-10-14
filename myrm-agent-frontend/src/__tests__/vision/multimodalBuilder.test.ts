@@ -34,6 +34,11 @@ vi.mock('@/store/useConfigStore', () => ({
   },
 }));
 
+vi.mock('@/services/i18nToastService', () => ({
+  showI18nToast: vi.fn(),
+}));
+
+import { showI18nToast } from '@/services/i18nToastService';
 import { buildMultimodalQuery, type VisionContentPart } from '@/store/chat/multimodalBuilder';
 
 describe('buildMultimodalQuery with cameraFrames', () => {
@@ -238,5 +243,79 @@ describe('buildMultimodalQuery - PDF images always included', () => {
       type: 'image_url',
       image_url: { url: '/api/media/files/pdf-img-1/content', detail: 'auto' },
     });
+  });
+});
+
+describe('buildMultimodalQuery - PDF extraction notices', () => {
+  const pdfFile = {
+    id: 'f3',
+    fileName: 'big.pdf',
+    fileExtension: 'pdf',
+    fileUrl: '/files/f3',
+    fileType: 'uploaded' as const,
+  };
+
+  beforeEach(() => {
+    vi.mocked(showI18nToast).mockClear();
+  });
+
+  it('tells the user how many pages were parsed when the PDF was only partially read', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: 'First pages',
+      images: [],
+      pageCount: 5,
+      parsedPages: 2,
+      strategy: 'text',
+      tables: [],
+    });
+
+    await buildMultimodalQuery('summarize', [pdfFile]);
+
+    expect(showI18nToast).toHaveBeenCalledTimes(1);
+    expect(showI18nToast).toHaveBeenCalledWith(
+      'chat.pdfParsedPages',
+      { fileName: 'big.pdf', parsed: 2, total: 5 },
+      { type: 'info', duration: 5000 },
+    );
+  });
+
+  it('reports the real kept and dropped image counts without an invented time saving', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: '',
+      images: [{ mimeType: 'image/png', data: 'base64chart' }],
+      pageCount: 1,
+      parsedPages: 1,
+      strategy: 'hybrid',
+      tables: [],
+      imageTrace: { totalProcessed: 3, keptCount: 1, droppedCount: 2, dropReasons: {} },
+    });
+
+    await buildMultimodalQuery('analyze', [pdfFile]);
+
+    expect(showI18nToast).toHaveBeenCalledTimes(1);
+    expect(showI18nToast).toHaveBeenCalledWith(
+      'chat.pdfImageOptimized',
+      { kept: 1, dropped: 2 },
+      { type: 'success', duration: 6000 },
+    );
+  });
+
+  it('stays quiet when every page was parsed and no image was filtered out', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: 'All pages',
+      images: [{ mimeType: 'image/png', data: 'base64chart' }],
+      pageCount: 1,
+      parsedPages: 1,
+      strategy: 'hybrid',
+      tables: [],
+      imageTrace: { totalProcessed: 1, keptCount: 1, droppedCount: 0, dropReasons: {} },
+    });
+
+    await buildMultimodalQuery('analyze', [pdfFile]);
+
+    expect(showI18nToast).not.toHaveBeenCalled();
   });
 });

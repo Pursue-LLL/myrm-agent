@@ -4,7 +4,7 @@ app.database.connection::get_session (POS: 数据库会话工厂)
 app.database.models::SharedContextModel (POS: 记忆域模型)
 
 [OUTPUT]
-SharedContextService: 共享上下文 CRUD、绑定解析和写入提案治理（goal_completion / correction_propagation 源幂等 dedup）
+SharedContextService: 共享上下文 CRUD、绑定解析和写入提案治理（correction_propagation 源幂等 dedup）
 find_write_proposal_by_source: 按 source 查询已有写入提案
 resolve_shared_context_ids: 运行时共享上下文绑定解析
 shared_context_namespaces: SharedContext ID 到 Harness namespace 的转换
@@ -43,12 +43,11 @@ _VALID_CONTEXT_STATUSES: set[str] = {"active", "archived"}
 _VALID_VISIBILITIES: set[str] = {"private", "team", "restricted"}
 _VALID_PROPOSAL_STATUSES: set[str] = {"pending", "approved", "rejected"}
 _VALID_MEMORY_TYPES: set[str] = {"semantic", "episodic"}
-_IDEMPOTENT_PROPOSAL_SOURCE_TYPES: frozenset[str] = frozenset({"goal_completion", "correction_propagation"})
+_IDEMPOTENT_PROPOSAL_SOURCE_TYPES: frozenset[str] = frozenset({"correction_propagation"})
 _DEFAULT_POLICY: dict[str, object] = {
     "write_mode": "proposal_required",
     "read_mode": "bound_targets",
     "correction_auto_approve": True,
-    "goal_completion_auto_approve": True,
 }
 LEGACY_TEAM_CONTEXT_ID = "legacy-team"
 

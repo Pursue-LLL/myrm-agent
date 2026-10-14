@@ -97,7 +97,6 @@ from app.api.skills import router as skills_router
 from app.api.skills.evolution import router as evolution_router
 from app.api.skills.growth import router as skill_growth_router
 from app.api.skills.migrations import router as migrations_router
-from app.api.skills.ws_evolution import router as evolution_ws_router
 from app.api.spreadsheet import router as spreadsheet_router
 from app.api.ssh_vault.router import router as ssh_vault_router
 from app.api.statistics import build_statistics_router
@@ -180,7 +179,6 @@ api_router.include_router(browser_sessions_router, prefix="/browser", tags=["bro
 api_router.include_router(browser_spaces_router, prefix="/browser", tags=["browser-spaces"])
 api_router.include_router(skill_growth_router, tags=["skill-growth"])
 api_router.include_router(evolution_router, tags=["evolution"])
-api_router.include_router(evolution_ws_router, prefix="/ws", tags=["evolution"])
 api_router.include_router(migration_discovery_router, tags=["migration"])
 api_router.include_router(migration_upload_router, tags=["migration"])
 api_router.include_router(migrations_router, tags=["migrations"])

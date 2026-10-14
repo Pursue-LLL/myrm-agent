@@ -7,7 +7,7 @@
  * - SSR shell 组件不得 useTranslations(deferred namespace)（与 locale-manifest.ts 对齐）
  * - home-route settings i18n shell contract（scan-home-i18n-shell.mjs）
  * - 全语言 vs en：key parity（缺键=ERROR / 孤儿键=ERROR）、叶子类型一致、ICU 占位符变量一致、
- *   ICU 花括号平衡、翻译壳检测（含单 token 英文壳，豁免见 scripts/i18n-shell-allowlist.json）、
+ *   翻译壳检测（含单 token 英文壳，豁免见 scripts/i18n-shell-allowlist.json）、
  *   双语对照脏值检测（"本地语 / English" 并存）、异常哨兵（[object Object] / 空串）
  * - en 纯净性门禁：en（SSOT）叶子值不得混入 CJK（语言名 allowlist 豁免），防 SSOT 污染连锁
  * - ko/de 非本语言文字纯净门禁：拉丁/谚文系语言（ko/de）文案中出现汉字或日文假名即残留
@@ -545,17 +545,6 @@ function placeholderSet(value) {
     .join('|');
 }
 
-/** ICU 花括号是否成对平衡（防 next-intl 运行时解析崩溃）。 */
-function isBraceBalanced(value) {
-  let depth = 0;
-  for (const ch of value) {
-    if (ch === '{') depth += 1;
-    else if (ch === '}') depth -= 1;
-    if (depth < 0) return false;
-  }
-  return depth === 0;
-}
-
 /**
  * 非拉丁文字区间（汉字 \u4e00-\u9fff、日文假名 \u3040-\u30ff、韩文谚文 \uac00-\ud7af、
  * 全角标点 \u3000-\u303f / \uff00-\uffef），用于 en 纯净性与双语对照检测。
@@ -666,20 +655,7 @@ const enTypes = new Map();
 walkTypes(translations.en, '', enTypes);
 const enLeaves = [...enTypes.keys()];
 
-// 9e. en.json 自身 ICU 花括号平衡（SSOT 损坏会连锁所有语言）
-const enBraceErrors = [];
-for (const key of enLeaves) {
-  if (key.startsWith('chat.samplePrompts.agent_pptx') || key.startsWith('chat.personalClosedLoop.')) continue;
-  const enValue = resolvePath(translations.en, key);
-  if (typeof enValue === 'string' && !isBraceBalanced(enValue)) {
-    enBraceErrors.push(key);
-  }
-}
-if (enBraceErrors.length > 0) {
-  console.error(`  ❌ en.json 存在 ${enBraceErrors.length} 个 ICU 花括号不平衡键：`);
-  enBraceErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
-  hasErrors = true;
-}
+// 9e. ICU 语法由 lint 门禁 `verify:icu-syntax`（check-icu-syntax.mjs，真 ICU parser）负责，此处不重复校验。
 
 // 9f. en.json 纯净性（SSOT 语言纯净门禁）：en 叶子值不得混入非拉丁文字（语言名/品牌 allowlist 豁免）
 const EN_PURITY_ALLOWED_KEYS = new Set([
@@ -798,12 +774,11 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key) && (lang !
     hasErrors = true;
   }
 
-  // 9d. 占位符一致 + glossary forbidden + 双语对照 + 哨兵 + ICU 花括号（壳检测见 collectTranslationShells）
+  // 9d. 占位符一致 + glossary forbidden + 双语对照 + 哨兵（壳检测见 collectTranslationShells）
   const placeholderErrors = [];
   const glossaryErrors = [];
   const bilingualErrors = [];
   const sentinelErrors = [];
-  const braceErrors = [];
   let foreignScriptErrors = [];
   let simplifiedGlyphErrors = [];
   let pureEnErrors = [];
@@ -818,10 +793,6 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key) && (lang !
     }
     if (!localeValue.trim()) {
       sentinelErrors.push(`${key} = 空字符串`);
-      return;
-    }
-    if (!isBraceBalanced(localeValue)) {
-      braceErrors.push(`${key} = ICU 花括号不平衡`);
       return;
     }
     if (placeholderSet(enValue) !== placeholderSet(localeValue)) {
@@ -897,11 +868,6 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key) && (lang !
   if (sentinelErrors.length > 0) {
     console.error(`  ❌ ${lang}.json 存在 ${sentinelErrors.length} 个异常哨兵：`);
     sentinelErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
-    hasErrors = true;
-  }
-  if (braceErrors.length > 0) {
-    console.error(`  ❌ ${lang}.json 存在 ${braceErrors.length} 个 ICU 花括号不平衡：`);
-    braceErrors.slice(0, 10).forEach((key) => console.error(`     - ${key}`));
     hasErrors = true;
   }
 
@@ -988,7 +954,7 @@ const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key) && (lang !
 
   if (missing.length === 0 && typeMismatches.length === 0 && shellErrors.length === 0
     && placeholderErrors.length === 0 && glossaryErrors.length === 0 && bilingualErrors.length === 0
-    && sentinelErrors.length === 0 && braceErrors.length === 0 && foreignScriptErrors.length === 0
+    && sentinelErrors.length === 0 && foreignScriptErrors.length === 0
     && simplifiedGlyphErrors.length === 0 && pureEnErrors.length === 0) {
     console.log(`  ✅ ${lang}.json 全量 parity / 占位符 / 壳 / glossary / 双语对照 / 纯净门禁 检测 通过`);
   }

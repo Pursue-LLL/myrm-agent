@@ -17,6 +17,7 @@ export const LINT_GATES: readonly string[] = [
   'verify:a11y',
   'verify:theme-colors',
   'verify:hardcoded-copy',
+  'verify:icu-syntax',
   'lint:oxlint',
 ];
 

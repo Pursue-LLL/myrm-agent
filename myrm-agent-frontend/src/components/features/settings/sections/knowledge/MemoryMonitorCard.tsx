@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   IconActivity,
   IconAlertTriangle,
@@ -37,6 +38,7 @@ interface TopAllocation {
 }
 
 export const MemoryMonitorCard = memo(() => {
+  const t = useTranslations('settings.memoryCenter.monitor');
   const [history, setHistory] = useState<MemoryMetric[]>([]);
   const [isProfiling, setIsProfiling] = useState(false);
   const [topAllocations, setTopAllocations] = useState<TopAllocation[]>([]);
@@ -78,14 +80,14 @@ export const MemoryMonitorCard = memo(() => {
       if (res.ok) {
         setIsProfiling(true);
         setTopAllocations([]);
-        toast.success('Heap profiling started. System may experience slight overhead.');
+        toast.success(t('profilingStarted'));
       } else {
         const data = await res.json();
-        toast.error(data.detail || 'Failed to start profiling');
+        toast.error(data.detail || t('profilingStartFailed'));
       }
     } catch (err) {
       console.error(err);
-      toast.error('Network error starting profiling');
+      toast.error(t('profilingStartNetworkError'));
     }
   };
 
@@ -96,14 +98,14 @@ export const MemoryMonitorCard = memo(() => {
         const data = await res.json();
         setIsProfiling(false);
         setTopAllocations(data.top_allocations || []);
-        toast.success('Heap profiling stopped. Results ready.');
+        toast.success(t('profilingStopped'));
       } else {
         const data = await res.json();
-        toast.error(data.detail || 'Failed to stop profiling');
+        toast.error(data.detail || t('profilingStopFailed'));
       }
     } catch (err) {
       console.error(err);
-      toast.error('Network error stopping profiling');
+      toast.error(t('profilingStopNetworkError'));
     }
   };
 

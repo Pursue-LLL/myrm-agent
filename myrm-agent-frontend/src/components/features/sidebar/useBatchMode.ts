@@ -57,7 +57,7 @@ export function useBatchMode(chatHistoryItems: ChatItem[], t: ReturnType<typeof 
       console.error('Batch delete failed:', error);
       toast({
         title: t('chat.batch.error'),
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: error instanceof Error ? error.message : t('common.unknownError'),
         variant: 'destructive',
       });
     }

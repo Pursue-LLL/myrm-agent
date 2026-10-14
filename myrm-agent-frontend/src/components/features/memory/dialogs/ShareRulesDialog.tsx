@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useState, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2, Copy, Download, Eye, Check } from 'lucide-react';
 
 import {
@@ -21,6 +22,7 @@ interface ShareRulesDialogProps {
 }
 
 const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: ShareRulesDialogProps) {
+  const t = useTranslations('memory.shareRules');
   const [previews, setPreviews] = useState<SafeRulePreviewItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -43,13 +45,13 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
         setPreviews(items);
         setSelectedIds(new Set(items.map((i) => i.id)));
       } catch {
-        toast({ title: 'Failed to load rules', variant: 'destructive' });
+        toast({ title: t('loadFailed'), variant: 'destructive' });
       } finally {
         setIsLoading(false);
       }
     };
     load();
-  }, [open, format]);
+  }, [open, format, t]);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -78,19 +80,19 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
 
   const handleExport = useCallback(async () => {
     if (selectedIds.size === 0) {
-      toast({ title: 'Please select at least one rule', variant: 'destructive' });
+      toast({ title: t('selectAtLeastOne'), variant: 'destructive' });
       return;
     }
     setIsExporting(true);
     try {
       await exportRulesSafe({ ruleIds: Array.from(selectedIds), format });
-      toast({ title: `Exported ${selectedIds.size} rules successfully` });
+      toast({ title: t('exported', { count: selectedIds.size }) });
     } catch {
-      toast({ title: 'Export failed', variant: 'destructive' });
+      toast({ title: t('exportFailed'), variant: 'destructive' });
     } finally {
       setIsExporting(false);
     }
-  }, [selectedIds, format]);
+  }, [selectedIds, format, t]);
 
   const handleCopyAll = useCallback(async () => {
     const selected = previews.filter((p) => selectedIds.has(p.id));
@@ -98,8 +100,8 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast({ title: `Copied ${selected.length} rules to clipboard` });
-  }, [previews, selectedIds]);
+    toast({ title: t('copied', { count: selected.length }) });
+  }, [previews, selectedIds, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

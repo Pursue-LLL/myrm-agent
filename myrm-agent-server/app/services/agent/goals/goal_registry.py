@@ -1,20 +1,18 @@
 """Goal Registry — 会话级 Goal 句柄全局注册表.
 
 [INPUT]
-- myrm_agent_harness.agent.goals.protocol::GoalProvider (POS: Goal provider protocol)
-- myrm_agent_harness.agent.sub_agents.planner.storage::PlannerStorage (POS: Planner 计划持久化)
-- app.services.chat.chat_service::ChatService (POS: Chat CRUD 编排层)
-- app.services.memory.shared_context.shared_context::SharedContextService (POS: Shared Context 共享上下文服务)
-- app.services.memory.shared_context.shared_context_materializer::SharedContextProposalMaterializer (POS: Shared Context 写入物化服务)
+- myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: GoalProvider protocol)
+- myrm_agent_harness.agent.goals.manager::GoalManager (POS: Implementation of GoalProvider)
+- app.services.kanban.service::KanbanService (POS: Kanban business service facade; domain logic lives in sibling orchestrator modules.)
 - app.services.event.app_event_bus::get_event_bus (POS: 应用级事件总线)
 - app.services.agent.platform_config::load_platform_llm (POS: WebUI 默认 wire-aware 对话模型)
+- app.database.models.artifact::Artifact (POS: Provides enterprise artifact models with tamper-evident tracking.)
 - app.core.utils.chat_utils::extract_answer_text (POS: LangChain 响应文本提取，含 reasoning 回退)
 - app.core.utils.chat_utils::parse_judge_json (POS: judge JSON 解析)
 
 [OUTPUT]
 - GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider
-- ServerGoalManager: 扩展 harness GoalManager，提供 semantic judge 与 Goal 完成时 SharedContext 决策归档
-- _resolve_shared_context_ids_for_goal: 按 agent+channel+conversation 解析 Goal 会话的 SharedContext 绑定
+- ServerGoalManager: 扩展 harness GoalManager，提供 semantic judge 与 Goal 完成时的会话交付物汇总
 
 [POS]
 会话级 Goal 注册表。使 HTTP API 能够通过 session_id 定位正在运行的
@@ -37,33 +35,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.verification.base import VerificationResult
 
 logger = logging.getLogger(__name__)
-
-
-async def _resolve_shared_context_ids_for_goal(session_id: str) -> list[str]:
-    """Resolve SharedContext bindings for a goal session (align with agent request converter)."""
-    from app.services.memory.shared_context.shared_context import (
-        resolve_shared_context_ids,
-    )
-
-    agent_id: str | None = None
-    try:
-        from app.services.chat.chat_service import ChatService
-
-        chat = await ChatService.get_chat_metadata(session_id)
-        if chat is not None:
-            agent_id = chat.agent_id
-    except Exception as exc:
-        logger.warning(
-            "Failed to load chat metadata for goal consolidation session %s: %s",
-            session_id,
-            exc,
-        )
-
-    return await resolve_shared_context_ids(
-        agent_id=agent_id,
-        channel_id="web_chat",
-        conversation_id=session_id,
-    )
 
 
 def _screen_is_capturable() -> bool:
@@ -108,11 +79,11 @@ class ServerGoalManager(GoalManager):
         from myrm_agent_harness.agent.goals.types import GoalStatus
 
         if status == GoalStatus.COMPLETE:
-            await self._consolidate_decisions_on_completion(goal)
+            await self._collect_deliverables_on_completion(goal)
 
         return goal
 
-    async def _consolidate_decisions_on_completion(self, goal: "Goal") -> None:
+    async def _collect_deliverables_on_completion(self, goal: "Goal") -> None:
         """Collect session deliverables when goal completes."""
         if not self.session_id:
             return

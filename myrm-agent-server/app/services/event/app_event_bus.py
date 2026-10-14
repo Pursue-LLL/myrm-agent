@@ -36,6 +36,7 @@ class AppEventType(StrEnum):
     NEW_SKILL_DRAFT = "new_skill_draft"
     SKILL_GROWTH_UPDATED = "skill_growth_updated"
     SKILL_EVOLVED = "skill_evolved"
+    SKILL_CAPACITY_REACHED = "skill_capacity_reached"
     SYSTEM_NOTIFICATION = "system_notification"
     IDLE_STATUS = "idle_status"
     APPROVAL_REQUIRED = "approval_required"
