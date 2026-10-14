@@ -24,6 +24,7 @@ vi.mock('@/services/wikiService', async (importOriginal) => ({
     applyWiki: vi.fn(),
     healConceptClaims: vi.fn(),
     deleteConcept: vi.fn(),
+    deleteFolder: vi.fn(),
   },
 }));
 
@@ -118,7 +119,11 @@ describe('useWikiConceptsList selection', () => {
 describe('useWikiConceptsList late writes after an action', () => {
   type Hook = ReturnType<typeof useWikiConceptsList>;
 
-  const refreshedA: Concept = { name: 'A', content: '# A refreshed' };
+  const refreshedA: Concept = {
+    name: 'A',
+    content: '# A refreshed',
+    editor_sections: { compiled_truth: 'A-truth', timeline: '', tags: [], aliases: [] },
+  };
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -171,6 +176,7 @@ describe('useWikiConceptsList late writes after an action', () => {
     });
 
     expect(result.current.selectedConcept?.name).toBe('B');
+    expect(result.current.editCompiledTruth).not.toBe('A-truth');
     expect(onVaultMutated).toHaveBeenCalledTimes(1);
   });
 
@@ -202,6 +208,57 @@ describe('useWikiConceptsList late writes after an action', () => {
     });
 
     expect(result.current.selectedConcept?.name ?? null).toBe(expected);
+  });
+
+  it('applies the refreshed concept when the same concept was selected again meanwhile', async () => {
+    const heal = deferred<{ total_healed_evidence: number }>();
+    (wikiService.healConceptClaims as ReturnType<typeof vi.fn>).mockReturnValue(heal.promise);
+    let loads = 0;
+    getConceptMock().mockImplementation(async () => {
+      loads += 1;
+      return { name: 'A', content: loads === 3 ? '# A healed' : '# A before' };
+    });
+    const { result } = renderHook(() => useWikiConceptsList());
+
+    await act(async () => {
+      await result.current.requestSelectConcept('A');
+    });
+    await act(async () => {
+      void result.current.handleHealClaims();
+    });
+    await act(async () => {
+      await result.current.requestSelectConcept('A');
+    });
+    await act(async () => {
+      heal.resolve({ total_healed_evidence: 1 });
+    });
+
+    expect(result.current.selectedConcept?.content).toBe('# A healed');
+  });
+
+  it('clears the detail when a concept inside the deleted folder was opened meanwhile', async () => {
+    const deletion = deferred<void>();
+    (wikiService.deleteFolder as ReturnType<typeof vi.fn>).mockReturnValue(deletion.promise);
+    getConceptMock().mockImplementation((id: string) => Promise.resolve(concept(id)));
+    const { result } = renderHook(() => useWikiConceptsList());
+
+    await act(async () => {
+      await result.current.requestSelectConcept('other');
+    });
+    await act(async () => {
+      result.current.handleDeleteRequest({ name: 'folder', isDir: true });
+    });
+    await act(async () => {
+      void result.current.confirmDelete();
+    });
+    await act(async () => {
+      await result.current.requestSelectConcept('folder/page');
+    });
+    await act(async () => {
+      deletion.resolve();
+    });
+
+    expect(result.current.selectedConcept).toBeNull();
   });
 
   it('applies the refreshed concept when nothing else was selected meanwhile', async () => {

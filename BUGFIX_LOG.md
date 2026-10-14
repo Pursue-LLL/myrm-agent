@@ -1554,7 +1554,7 @@ except Exception:
 3. 词条树里快速连点两个词条：较慢的响应后到，会覆盖后点的词条，详情与所点不一致且没有任何提示；切换 Agent 范围后，在途的选择请求还会把旧范围的词条写回来。
 4. 面板的「关联概念」页签只是本地 40 点邻域，与词条树、3D 图谱和出入链列表重复；每次打开面板，`get_concept_links` 为它多做一次 BFS（合成 300 页库上约占一次打开 5.24 ms 中的 3 ms，这只是量级，不是性能声明）。
 5. 接口里 `weight`、`line_number` 前端没有任何读取（编辑器 `lineNumbers` 为 `off`，行号用户对照不了）；出链的 `context_snippet` 恒为 `null`；`source_systems` 会写出 `system:*` 伪边，没有任何读取方，读它的各处（`edge_links`、`graph_analysis`、`link_extraction`）都在给它让路，资料文档还把它写成「血缘追溯」。
-6. 在词条详情里执行声明状态更新、证据修复、保存或删除后，请求返回前改选了另一个词条：迟到的刷新把详情改回操作前的词条（保存还会连带重置编辑区与草稿基线），删除返回后会把刚选的新词条清空，详情区变成空白。
+6. 在词条详情里执行声明状态更新、证据修复、保存或删除后，请求返回前改选了另一个词条：迟到的刷新把详情改回操作前的词条（保存还会连带重置编辑区与草稿基线），删除返回后会把刚选的新词条清空，详情区变成空白；删除期间打开被删文件夹下的词条时，详情仍停在已被删除的词条上。
 
 ### 根因
 
@@ -1562,7 +1562,7 @@ except Exception:
 2. 错误状态存的是 `err.message`，渲染时 `{error || t('loadFailed')}` 在有消息时总是用消息。
 3. `handleSelectConcept` 没有「只认最后一次请求」的保护，重置 Effect 也不让在途请求失效。
 4. 局部图谱、`weight`、`line_number` 是面板最初的设计留下的，后来页签文案与展示都改过，数据却一直在产出。
-5. 声明状态更新、证据修复、保存在 `await` 刷新之后无条件写入选中词条，删除在 `await` 之后用发起时的 `selectedConcept` 快照判断是否清空，都不看期间是否改选；`selectRequestRef` 只守住了 `handleSelectConcept` 一处写入。
+5. 声明状态更新、证据修复、保存在 `await` 刷新之后无条件写入选中词条，删除在 `await` 之后用发起时的 `selectedConcept` 快照判断是否清空，都不看期间详情是否已换成别的词条；`selectRequestRef` 只守住了 `handleSelectConcept` 一处写入。
 
 ### 修复
 
@@ -1572,12 +1572,12 @@ except Exception:
 4. 删除「关联概念」页签与它的整条数据：前端类型与 `getConceptLinks` 的 `depth`、server 的 `depth` 查询参数与 `ego_graph` 字段、harness 的 `get_concept_links(depth)` 与 BFS 调用、4 个语言键 ×6 语言；`/wiki/graph` 与它的模型保留（3D 图谱在用）。
 5. 出链只带 `name`、`exists`，入链另带 `context_snippet`、`heading`（server 与前端各拆成基础类型与入链类型）；`_extract_mention_record` 只返回 `(片段, 小节)`；`weight` 只留在 SQL 排序里。
 6. 删除 `source_systems` → `system:*` 伪边的生产者（`indexer._source_system_targets` 及 `yaml`、`load_frontmatter_metadata` 导入）与 `edge_links` 里为它加的过滤；`source_systems` 仍是 metric 页面的前置校验字段（`frontmatter_contract.py:177`），只是不再写边；资料文档里「血缘追溯」的说法同步改为如实描述。
-7. 声明状态更新、证据修复、保存、删除四条操作在发起时记下 `selectRequestRef` 计数，返回时计数已变就不再写入选中词条（保存还跳过编辑区与草稿基线的重置）；写入已成功的提示与 `onVaultMutated` 照常触发。声明操作 hook 通过 `selectRequestRef` 入参与词条选择共用同一计数，`selectedConcept` 的全部写入点（`setSelectedConcept(`）现在都受它保护。
+7. 新增 `shownConceptNameRef`：详情区正在展示的词条名，由包装后的 `setSelectedConcept` 在每次写入时同步维护（`selectedConcept` 的全部写入点都经过它）。声明状态更新、证据修复、保存三条操作返回时，只有展示的词条仍是操作对象才写入（保存还跳过编辑区与草稿基线的重置）；删除返回时按展示的词条名判断是否清空（含被删文件夹下的词条），不再用发起时的快照；写入已成功的提示与 `onVaultMutated` 照常触发。声明操作 hook 通过 `shownConceptNameRef` 入参共用这个判断。
 
 ### 验证
 
-1. 先红后绿：前端 7 例失败（面板 4 例、选择 hook 3 例）、harness 3 例、server 3 例，原因都与预期一致，修复后全部通过；新增的前端用例在旧代码上分别复现了「旧词条数据残留」「迟到响应覆盖」「服务端英文消息」「乱序选择」「切换范围后写回」。随后补的四条操作（声明状态更新、证据修复、保存、删除）先红后绿：前端 4 例在旧代码上失败（刷新迟到覆盖新选择 3 例、删除迟到清空新选择 1 例，断言都是「选中仍是后选的 B」），另有 2 个对照用例（无改选时刷新照常落地、无改选时删除照常清空）在旧代码上即通过，用来防止守卫过头。
-2. 前端 `knowledge` 目录与 `services/wiki` 22 个文件 114 例通过；harness `tests/toolkits/wiki` 全量 859 例：第一次全量 857 通过，失败 2 例，其一是漏改的 `_extract_mention_record` 解包（`test_wiki_alias_and_chinese_anchor.py`，已修，该文件与 `test_concept_links.py`、`test_link_edges.py`、`test_frontmatter_contract.py` 共 49 例重跑通过），其二是调用真实 LLM 的 `test_sidecar_integration::test_sidecar_build_index_query_pipeline`（单独重跑超过 120s 超时，日志里是访问 raw.githubusercontent.com 的 `ConnectTimeout`，与本条无关）；server 链接单测与集成测试 5 例通过。
+1. 先红后绿：前端 7 例失败（面板 4 例、选择 hook 3 例）、harness 3 例、server 3 例，原因都与预期一致，修复后全部通过；新增的前端用例在旧代码上分别复现了「旧词条数据残留」「迟到响应覆盖」「服务端英文消息」「乱序选择」「切换范围后写回」。随后补的四条操作（声明状态更新、证据修复、保存、删除）先红后绿：前端 4 例在旧代码上失败（刷新迟到覆盖新选择 3 例、删除迟到清空新选择 1 例，断言都是「选中仍是后选的 B」），另有 2 个对照用例（无改选时刷新照常落地、无改选时删除照常清空）在旧代码上即通过，用来防止守卫过头。第一版用选择计数做判断，对抗审查补了 2 例并改成按展示的词条名判断：操作期间重新点同一个词条时刷新应落地（计数版先红：详情停在操作前的数据）、操作期间打开被删文件夹下的词条时删除后应清空详情（计数版先红）；保存用例另断言编辑区不被迟到的刷新改写，把编辑区写入的守卫拿掉后该用例失败。
+2. 前端 `knowledge` 目录与 `services/wiki` 22 个文件 116 例通过；harness `tests/toolkits/wiki` 全量 859 例：第一次全量 857 通过，失败 2 例，其一是漏改的 `_extract_mention_record` 解包（`test_wiki_alias_and_chinese_anchor.py`，已修，该文件与 `test_concept_links.py`、`test_link_edges.py`、`test_frontmatter_contract.py` 共 49 例重跑通过），其二是调用真实 LLM 的 `test_sidecar_integration::test_sidecar_build_index_query_pipeline`（单独重跑超过 120s 超时，日志里是访问 raw.githubusercontent.com 的 `ConnectTimeout`，与本条无关）；server 链接单测与集成测试 5 例通过。
 3. 静态：`ruff check` / `ruff format --check`、`mypy`（3 个 harness 模块）、oxlint、prettier、`verify-i18n.mjs` 通过；`tsc --noEmit` 全量只报他人文件的错误（`KanbanTaskHandoffSection.test.tsx`、两个 `xai` 凭据测试），本条文件无报错。
 4. 局限：没有在运行的应用里看过面板（只改了页签数量，容器查询类名未动）；没有测真实 vault；旧索引里已存在的 `system:*` 边行没有迁移，该页下一次被写入时会随整页边的替换消失（`source_systems` 没有出现在任何提示词里，实际写入概率低，未测真实库）。
 
@@ -1589,7 +1589,8 @@ except Exception:
 4. 后台起测试时 `( 命令 ) &` 在这个环境里会随工具调用结束被回收且没有任何输出，要用工具自带的后台模式；
 5. 共享工作区：6 个语言文件被他人整体重写，只提交本条的 4 个键、每个语言各自在 HEAD 内容上做同样的删除（先用 JSON 等价检查），不碰他们的行。
 6. 给「只认最后一次」加保护时，要先列出这份状态的全部写入点再逐个守卫：本条第一轮只守了 `handleSelectConcept`，之后对 `setSelectedConcept(` 与 `getConcept(` 做全仓检索才发现保存、声明操作、删除三处旁路；
-7. 操作回调里读到的 `selectedConcept` 是发起时的闭包快照，`await` 之后拿它做判断（比如「删的是不是当前选中的」）会把已经改选的状态当成没变。
+7. 操作回调里读到的 `selectedConcept` 是发起时的闭包快照，`await` 之后拿它做判断（比如「删的是不是当前选中的」）会把已经改选的状态当成没变；需要「现在展示的是谁」时，用同步维护的 ref，不要用快照，也不要用 effect 去镜像 state（提交与 effect 之间的间隙里迟到的结果仍会读到旧值）；
+8. 用「请求计数」判断迟到的操作结果会误伤同一个对象：操作期间重新点同一个词条也会让计数变化，刷新被丢弃，详情停在操作前的数据。判断「结果还属不属于当前展示」应当比较对象本身，计数只适合「只认最后一次」的选择请求。
 
 ---
 

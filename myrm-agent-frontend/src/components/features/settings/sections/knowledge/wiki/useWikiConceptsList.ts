@@ -76,7 +76,7 @@ export function useWikiConceptsList(options?: {
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [selectedConcept, setSelectedConcept] = useState<Concept | null>(null);
+  const [selectedConcept, setSelectedConceptState] = useState<Concept | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editTab, setEditTab] = useState<WikiEditTab>('truth');
   const [editContent, setEditContent] = useState('');
@@ -103,6 +103,12 @@ export function useWikiConceptsList(options?: {
   const lastHighlightedConceptRef = useRef<string | null>(null);
   // 词条选择只认最后一次发起的请求：快速连点或切换 Agent 范围时，较早发起的响应（含失败）一律丢弃
   const selectRequestRef = useRef(0);
+  // 详情区正在展示的词条名：操作回调里的 selectedConcept 是发起时的快照，await 之后要以这里的最新值判断结果是否还属于当前详情
+  const shownConceptNameRef = useRef<string | null>(null);
+  const setSelectedConcept = useCallback((concept: Concept | null) => {
+    shownConceptNameRef.current = concept?.name ?? null;
+    setSelectedConceptState(concept);
+  }, []);
 
   const fetchTree = useCallback(async () => {
     try {
@@ -128,7 +134,7 @@ export function useWikiConceptsList(options?: {
     setTreeData([]);
     lastHighlightedConceptRef.current = null;
     void fetchTree();
-  }, [fetchTree, options?.treeSyncNonce, agentScopeId]);
+  }, [fetchTree, options?.treeSyncNonce, agentScopeId, setSelectedConcept]);
 
   const hasUnsavedEdits = Boolean(
     editBaseline &&
@@ -156,7 +162,7 @@ export function useWikiConceptsList(options?: {
         }
       }
     },
-    [agentScopeId, t],
+    [agentScopeId, setSelectedConcept, t],
   );
 
   const requestSelectConcept = useCallback(
@@ -277,7 +283,6 @@ export function useWikiConceptsList(options?: {
     if (!selectedConcept) {
       return;
     }
-    const requestId = selectRequestRef.current;
     setIsSaving(true);
     const lease = editContentHash ? { if_match: editContentHash } : {};
     try {
@@ -336,8 +341,8 @@ export function useWikiConceptsList(options?: {
       }
 
       const refreshed = await wikiService.getConcept(selectedConcept.name, agentScopeId);
-      // 保存期间改选了别的词条：写入已成功，但这份刷新结果不属于当前选中的词条，也不再属于任何编辑会话
-      if (requestId === selectRequestRef.current) {
+      // 保存期间详情已换成别的词条：写入已成功，但这份刷新结果不属于当前详情，也不再属于任何编辑会话
+      if (shownConceptNameRef.current === selectedConcept.name) {
         setSelectedConcept(refreshed);
         const sections = refreshed.editor_sections;
         if (sections) {
@@ -370,7 +375,7 @@ export function useWikiConceptsList(options?: {
   const { handleUpdateClaimStatus, handleHealClaims } = useWikiConceptClaimActions({
     selectedConcept,
     setSelectedConcept,
-    selectRequestRef,
+    shownConceptNameRef,
     agentScopeId,
     onVaultMutated,
   });
@@ -381,7 +386,6 @@ export function useWikiConceptsList(options?: {
     }
 
     const { name, isDir } = deleteTarget;
-    const requestId = selectRequestRef.current;
     setIsDeleting(name);
     try {
       if (isDir) {
@@ -389,9 +393,8 @@ export function useWikiConceptsList(options?: {
       } else {
         await wikiService.deleteConcept(name, agentScopeId);
       }
-      // 删除期间改选了别的词条时，selectedConcept 是发起删除时的快照，不能据此清空新选择
-      const deletedSelected = selectedConcept?.name === name || selectedConcept?.name.startsWith(`${name}/`);
-      if (deletedSelected && requestId === selectRequestRef.current) {
+      const shown = shownConceptNameRef.current;
+      if (shown === name || shown?.startsWith(`${name}/`)) {
         setSelectedConcept(null);
       }
       toast.success(t('deleteSuccess'));

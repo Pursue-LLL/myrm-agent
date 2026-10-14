@@ -14,8 +14,8 @@ import { getWikiOperationErrorMessage } from './wikiTreeUtils';
 export interface UseWikiConceptClaimActionsProps {
   selectedConcept: Concept | null;
   setSelectedConcept: (concept: Concept | null) => void;
-  /** 与词条选择共用的请求计数：操作期间改选或重置后，迟到的刷新结果不再写入选中词条 */
-  selectRequestRef: RefObject<number>;
+  /** 详情区正在展示的词条名：操作期间详情已换成别的词条或被重置时，迟到的刷新结果不再写入 */
+  shownConceptNameRef: RefObject<string | null>;
   agentScopeId?: string | null;
   onVaultMutated?: () => void;
 }
@@ -23,15 +23,15 @@ export interface UseWikiConceptClaimActionsProps {
 export function useWikiConceptClaimActions({
   selectedConcept,
   setSelectedConcept,
-  selectRequestRef,
+  shownConceptNameRef,
   agentScopeId,
   onVaultMutated,
 }: UseWikiConceptClaimActionsProps) {
   const t = useTranslations('settings.wiki.concepts');
 
-  const refreshSelectedConcept = async (name: string, requestId: number) => {
+  const refreshSelectedConcept = async (name: string) => {
     const refreshed = await wikiService.getConcept(name, agentScopeId);
-    if (requestId === selectRequestRef.current) {
+    if (shownConceptNameRef.current === name) {
       setSelectedConcept(refreshed);
     }
   };
@@ -40,7 +40,6 @@ export function useWikiConceptClaimActions({
     if (!selectedConcept) {
       return;
     }
-    const requestId = selectRequestRef.current;
     const currentClaims = selectedConcept.claims || [];
     const patchClaims = currentClaims.map((c) => ({
       id: c.id,
@@ -59,7 +58,7 @@ export function useWikiConceptClaimActions({
         agentScopeId,
         'settings',
       );
-      await refreshSelectedConcept(selectedConcept.name, requestId);
+      await refreshSelectedConcept(selectedConcept.name);
       toast.success(t('claimsStatusUpdated'));
       onVaultMutated?.();
     } catch (error) {
@@ -71,7 +70,6 @@ export function useWikiConceptClaimActions({
     if (!selectedConcept) {
       return;
     }
-    const requestId = selectRequestRef.current;
     try {
       const result = await wikiService.healConceptClaims([selectedConcept.name], agentScopeId);
       if (result.total_healed_evidence > 0) {
@@ -79,7 +77,7 @@ export function useWikiConceptClaimActions({
       } else {
         toast.info(t('claimsHealNone'));
       }
-      await refreshSelectedConcept(selectedConcept.name, requestId);
+      await refreshSelectedConcept(selectedConcept.name);
       onVaultMutated?.();
     } catch (error) {
       toast.error(getWikiOperationErrorMessage(error, t('operationFailed')));
