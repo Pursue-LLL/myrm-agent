@@ -1,144 +1,45 @@
 'use client';
 
-import { memo, useState, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, LogIn, LogOut, ExternalLink, Copy, Check, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  type ProviderOAuthProvider,
-  type ProviderOAuthStatus,
-  getProviderOAuthProviderByProviderId,
-  startProviderOAuth,
-  pollProviderOAuth,
-  fetchProviderOAuthStatus,
-  disconnectProviderOAuth,
-} from '@/services/provider-oauth';
+import { useCopyFeedback } from '@/hooks/shared/useCopyFeedback';
+import { useXaiDeviceLogin } from '@/hooks/shared/useXaiDeviceLogin';
+import { disconnectProviderOAuth, getProviderOAuthProviderByProviderId } from '@/services/provider-oauth';
+import { disconnectProviderSubscription } from '@/store/config/providerSubscription';
 import { toast } from 'sonner';
 
 interface ProviderOAuthSectionProps {
   providerId: string;
+  /** The provider's persisted login state; the section never asks the server for it. */
+  connected: boolean;
   hasApiKey: boolean;
-  onOAuthStatusChange?: (connected: boolean, availableModels?: string[]) => void;
 }
 
-const POLL_INTERVAL_MS = 3000;
-const POLL_TIMEOUT_MS = 600_000;
-
-const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasApiKey, onOAuthStatusChange }) => {
+const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, connected, hasApiKey }) => {
   const t = useTranslations('settings.modelService.oauth');
   const oauthProvider = getProviderOAuthProviderByProviderId(providerId);
 
-  const [status, setStatus] = useState<ProviderOAuthStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isPolling, setIsPolling] = useState(false);
-  const [deviceCode, setDeviceCode] = useState<string | null>(null);
-  const [verificationUri, setVerificationUri] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pollStartRef = useRef<number>(0);
+  const { copied, copy } = useCopyFeedback();
 
-  const cleanup = useCallback(() => {
-    if (pollTimerRef.current) {
-      clearTimeout(pollTimerRef.current);
-      pollTimerRef.current = null;
+  const { phase, userCode, verificationUrl, start, cancel } = useXaiDeviceLogin({
+    onConnected: () => toast.success(t('toast.connected')),
+    onFailed: (reason) => toast.error(t(`toast.${reason}`)),
+  });
+
+  const handleCopyCode = useCallback(() => {
+    if (userCode) {
+      void copy(userCode);
     }
-    setIsPolling(false);
-    setIsLoading(false);
-    setDeviceCode(null);
-    setVerificationUri(null);
-  }, []);
-
-  useEffect(() => {
-    if (!oauthProvider) {
-      return;
-    }
-    let cancelled = false;
-    fetchProviderOAuthStatus(oauthProvider)
-      .then((s) => {
-        if (!cancelled) {
-          setStatus(s);
-          onOAuthStatusChange?.(s.connected, s.available_models);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [oauthProvider, onOAuthStatusChange]);
-
-  useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
-
-  const handleCopyCode = useCallback(async () => {
-    if (!deviceCode) {
-      return;
-    }
-    await navigator.clipboard.writeText(deviceCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [deviceCode]);
-
-  const startPoll = useCallback(
-    (provider: ProviderOAuthProvider, userCode: string) => {
-      setIsPolling(true);
-      pollStartRef.current = Date.now();
-
-      const doPoll = async () => {
-        if (Date.now() - pollStartRef.current > POLL_TIMEOUT_MS) {
-          cleanup();
-          toast.error(t('toast.timeout'));
-          return;
-        }
-
-        try {
-          const result = await pollProviderOAuth(provider, userCode);
-          if (result.status === 'success') {
-            cleanup();
-            const refreshed = await fetchProviderOAuthStatus(provider);
-            setStatus(refreshed);
-            onOAuthStatusChange?.(true, refreshed.available_models);
-            toast.success(t('toast.connected'));
-            return;
-          }
-          if (result.status === 'expired' || result.status === 'denied') {
-            cleanup();
-            toast.error(t(result.status === 'expired' ? 'toast.expired' : 'toast.denied'));
-            return;
-          }
-          const interval = result.slow_down ? POLL_INTERVAL_MS * 2 : POLL_INTERVAL_MS;
-          pollTimerRef.current = setTimeout(doPoll, interval);
-        } catch {
-          pollTimerRef.current = setTimeout(doPoll, POLL_INTERVAL_MS);
-        }
-      };
-
-      pollTimerRef.current = setTimeout(doPoll, POLL_INTERVAL_MS);
-    },
-    [cleanup, t, onOAuthStatusChange],
-  );
+  }, [copy, userCode]);
 
   const handleConnect = useCallback(async () => {
-    if (!oauthProvider) {
-      return;
+    const url = await start();
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
-    setIsLoading(true);
-
-    try {
-      const result = await startProviderOAuth(oauthProvider);
-      if (!result.user_code || !result.verification_uri) {
-        throw new Error('Incomplete authorization response');
-      }
-      setDeviceCode(result.user_code);
-      setVerificationUri(result.verification_uri);
-      setIsLoading(false);
-      window.open(result.verification_uri, '_blank', 'noopener,noreferrer');
-      startPoll(oauthProvider, result.user_code);
-    } catch {
-      setIsLoading(false);
-      toast.error(t('toast.startFailed'));
-    }
-  }, [oauthProvider, startPoll, t]);
+  }, [start]);
 
   const handleDisconnect = useCallback(async () => {
     if (!oauthProvider) {
@@ -146,25 +47,25 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasA
     }
     try {
       await disconnectProviderOAuth(oauthProvider);
-      setStatus((prev) => (prev ? { ...prev, connected: false } : null));
-      onOAuthStatusChange?.(false);
-      toast.success(t('toast.disconnected'));
     } catch {
       toast.error(t('toast.disconnectFailed'));
+      return;
     }
-  }, [oauthProvider, t, onOAuthStatusChange]);
+    disconnectProviderSubscription(providerId);
+    toast.success(t('toast.disconnected'));
+  }, [oauthProvider, providerId, t]);
 
   if (!oauthProvider) {
     return null;
   }
 
-  const isConnected = status?.connected ?? false;
+  const isStarting = phase === 'starting';
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">{t('title')}</h4>
-        {isConnected && (
+        {connected && (
           <span className="flex items-center gap-1.5 text-xs text-emerald-600">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {t('connected')}
@@ -181,12 +82,12 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasA
       </div>
 
       <div className="p-4 bg-background/50 rounded-xl border border-border/50">
-        {isPolling && deviceCode ? (
+        {phase === 'waiting' && userCode ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">{t('deviceCodeHint')}</p>
             <div className="flex items-center gap-3">
               <code className="px-4 py-2 bg-muted rounded-lg text-lg font-mono font-bold tracking-widest select-all">
-                {deviceCode}
+                {userCode}
               </code>
               <button
                 onClick={handleCopyCode}
@@ -201,9 +102,9 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasA
                 )}
               </button>
             </div>
-            {verificationUri && (
+            {verificationUrl && (
               <a
-                href={verificationUri}
+                href={verificationUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
@@ -217,20 +118,15 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasA
               {t('waiting')}
             </div>
             <button
-              onClick={cleanup}
+              onClick={cancel}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-all"
             >
               {t('cancel')}
             </button>
           </div>
-        ) : isConnected ? (
+        ) : connected ? (
           <div className="space-y-3">
             <p className="text-sm text-foreground">{t(hasApiKey ? 'connectedWithApiKey' : 'connectedWithQuota')}</p>
-            {status?.expires_at && (
-              <p className="text-xs text-muted-foreground">
-                {t('tokenExpires', { time: new Date(status.expires_at * 1000).toLocaleString() })}
-              </p>
-            )}
             <button
               onClick={handleDisconnect}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-500/30 text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-all"
@@ -244,14 +140,14 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasA
             <p className="text-sm text-muted-foreground">{t('loginPrompt')}</p>
             <button
               onClick={handleConnect}
-              disabled={isLoading}
+              disabled={isStarting}
               className={cn(
                 'flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-all',
                 'bg-primary text-primary-foreground hover:bg-primary/90',
-                isLoading && 'opacity-60 cursor-wait',
+                isStarting && 'opacity-60 cursor-wait',
               )}
             >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+              {isStarting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
               {t('loginButton')}
             </button>
           </div>

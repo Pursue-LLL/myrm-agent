@@ -15,6 +15,38 @@ import { DEFAULT_PERSONAL_SETTINGS } from './types';
 import { valuesEqual } from './configFingerprint';
 import { sanitizeActiveThemeProfileId, stripStudioPreviewProfiles } from '@/theme-engine/studio-constants';
 
+/**
+ * Who owns each field of a built-in provider: the shipped definition (identity, label) or the
+ * user's saved settings. Typed over every ProviderConfig key, so adding a field forces this
+ * decision at compile time; a field left out of the merge is silently reset on every startup.
+ */
+const BUILT_IN_FIELD_OWNER: Record<keyof ProviderConfig, 'definition' | 'user'> = {
+  id: 'definition',
+  routingProfile: 'definition',
+  name: 'definition',
+  isBuiltIn: 'definition',
+  providerType: 'definition',
+  isEnabled: 'user',
+  apiKeys: 'user',
+  apiUrl: 'user',
+  enabledModels: 'user',
+  availableModels: 'user',
+  credentialPoolStrategy: 'user',
+  oauthConnected: 'user',
+  egressProxy: 'user',
+};
+
+const USER_OWNED_FIELDS = (Object.keys(BUILT_IN_FIELD_OWNER) as (keyof ProviderConfig)[]).filter(
+  (field) => BUILT_IN_FIELD_OWNER[field] === 'user',
+);
+
+function mergeBuiltInProvider(definition: ProviderConfig, saved: ProviderConfig): ProviderConfig {
+  const userValues = Object.fromEntries(
+    USER_OWNED_FIELDS.flatMap((field) => (saved[field] == null ? [] : [[field, saved[field]]])),
+  );
+  return { ...definition, ...userValues };
+}
+
 function mergeProviders(providers: ProviderConfig[]): ProviderConfig[] {
   if (!providers || !Array.isArray(providers)) {
     return getInitialProviders();
@@ -27,14 +59,7 @@ function mergeProviders(providers: ProviderConfig[]): ProviderConfig[] {
   const mergedProviders = activeProviders.map((provider) => {
     const initialProvider = initialProviderMap.get(provider.id);
     if (initialProvider?.isBuiltIn) {
-      return {
-        ...initialProvider,
-        isEnabled: provider.isEnabled,
-        apiKeys: provider.apiKeys ?? initialProvider.apiKeys,
-        apiUrl: provider.apiUrl ?? initialProvider.apiUrl,
-        enabledModels: provider.enabledModels ?? initialProvider.enabledModels,
-        availableModels: provider.availableModels ?? initialProvider.availableModels,
-      };
+      return mergeBuiltInProvider(initialProvider, provider);
     }
     return {
       ...provider,

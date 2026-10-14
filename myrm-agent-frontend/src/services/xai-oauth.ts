@@ -1,7 +1,5 @@
 import { apiRequest } from '@/lib/api';
 
-export const XAI_ISSUER = 'xai';
-
 export interface XaiOAuthStartResponse {
   user_code: string;
   verification_uri: string;
@@ -16,13 +14,6 @@ export interface XaiOAuthPollResponse {
   slow_down?: boolean;
 }
 
-export interface XaiOAuthStatus {
-  issuer: string;
-  connected: boolean;
-  scope: string | null;
-  expires_at: number | null;
-}
-
 export async function startXaiOAuth(): Promise<XaiOAuthStartResponse> {
   return apiRequest<XaiOAuthStartResponse>('/integrations/xai/oauth/start', {
     method: 'POST',
@@ -34,12 +25,4 @@ export async function pollXaiOAuth(userCode: string): Promise<XaiOAuthPollRespon
     method: 'POST',
     silent: true,
   });
-}
-
-export async function fetchXaiOAuthStatus(): Promise<XaiOAuthStatus> {
-  return apiRequest<XaiOAuthStatus>('/integrations/xai/oauth/status', { silent: true });
-}
-
-export async function disconnectXaiOAuth(): Promise<void> {
-  await apiRequest('/integrations/xai/oauth', { method: 'DELETE' });
 }

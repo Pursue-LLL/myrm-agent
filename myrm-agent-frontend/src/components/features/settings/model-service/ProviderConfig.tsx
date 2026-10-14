@@ -217,26 +217,9 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
     }
   };
 
-  const [oauthConnected, setOauthConnected] = useState(false);
   const supportsOAuth = !!getProviderOAuthProviderByProviderId(provider.id);
 
-  const handleOAuthStatusChange = useCallback(
-    (connected: boolean, availableModels?: string[]) => {
-      setOauthConnected(connected);
-      if (connected && availableModels?.length) {
-        const existing = new Set(provider.availableModels ?? []);
-        const newModels = availableModels.filter((m) => !existing.has(m));
-        if (newModels.length > 0) {
-          onChange({
-            ...provider,
-            availableModels: [...(provider.availableModels ?? []), ...newModels],
-          });
-        }
-      }
-    },
-    [provider, onChange],
-  );
-  const hasUsableAuth = hasUsableProviderAuth(provider) || oauthConnected;
+  const hasUsableAuth = hasUsableProviderAuth(provider);
   const requestApiKey = resolveProviderApiKeyForRequests(provider);
   const hasEnabledModels = (provider.enabledModels?.length ?? 0) > 0;
   const canEnable = hasUsableAuth && hasEnabledModels;
@@ -331,8 +314,8 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
       {supportsOAuth && (
         <ProviderOAuthSection
           providerId={provider.id}
+          connected={Boolean(provider.oauthConnected)}
           hasApiKey={hasActiveApiKey(provider)}
-          onOAuthStatusChange={handleOAuthStatusChange}
         />
       )}
 
@@ -444,7 +427,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">{t('models')}</h4>
-          {!hasUsableAuth && !oauthConnected && <span className="text-xs text-amber-500">{t('addKeyFirst')}</span>}
+          {!hasUsableAuth && <span className="text-xs text-amber-500">{t('addKeyFirst')}</span>}
         </div>
         <div className="p-5 bg-background/50 rounded-xl border border-border/50">
           <ModelCheckbox

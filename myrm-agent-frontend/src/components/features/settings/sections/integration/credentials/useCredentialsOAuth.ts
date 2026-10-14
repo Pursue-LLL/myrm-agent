@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/hooks/shared/useToast';
+import { useXaiDeviceLogin } from '@/hooks/shared/useXaiDeviceLogin';
 import { countProviderTrees } from '@/services/memory/integration';
 import {
   disconnectGoogleWorkspaceOAuth,
@@ -12,7 +13,8 @@ import {
   pollGoogleWorkspaceOAuthState,
   startGoogleWorkspaceOAuth,
 } from '@/services/google-workspace-oauth';
-import { disconnectXaiOAuth, pollXaiOAuth, startXaiOAuth } from '@/services/xai-oauth';
+import { disconnectProviderOAuth } from '@/services/provider-oauth';
+import { disconnectProviderSubscription } from '@/store/config/providerSubscription';
 import { apiRequest } from '@/lib/api';
 import {
   OAUTH_POLL_INTERVAL_MS,
@@ -20,6 +22,8 @@ import {
   type OauthCredentialRecord,
   type OauthIntegration,
 } from './credentialsConstants';
+
+const XAI_DISPLAY_NAME = 'xAI / SuperGrok';
 
 export function useCredentialsOAuth() {
   const t = useTranslations('settings.credentials');
@@ -39,18 +43,10 @@ export function useCredentialsOAuth() {
   const [googleWorkspaceWriteEnabled, setGoogleWorkspaceWriteEnabled] = useState(false);
   const googlePollRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [xaiOauthPolling, setXaiOauthPolling] = useState(false);
-  const [xaiUserCode, setXaiUserCode] = useState('');
-  const [xaiVerificationUrl, setXaiVerificationUrl] = useState('');
-  const xaiPollRef = useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
     return () => {
       if (googlePollRef.current) {
         clearInterval(googlePollRef.current);
-      }
-      if (xaiPollRef.current) {
-        clearInterval(xaiPollRef.current);
       }
     };
   }, []);
@@ -72,6 +68,26 @@ export function useCredentialsOAuth() {
       setIsOauthLoading(false);
     }
   }, []);
+
+  const {
+    phase: xaiLoginPhase,
+    userCode: xaiLoginUserCode,
+    verificationUrl: xaiLoginVerificationUrl,
+    start: startXaiLogin,
+    cancel: cancelXaiLogin,
+  } = useXaiDeviceLogin({
+    onConnected: () => {
+      setConnectModalTarget(null);
+      toast({ title: t('connectSuccess', { name: XAI_DISPLAY_NAME }) });
+      fetchOauthCreds();
+    },
+    onFailed: (reason) => {
+      toast({
+        title: reason === 'timeout' ? t('xaiOauthTimeout') : t('connectError', { name: XAI_DISPLAY_NAME }),
+        variant: 'destructive',
+      });
+    },
+  });
 
   const handleConnectOauth = useCallback(async () => {
     if (!connectModalTarget) {
@@ -113,7 +129,8 @@ export function useCredentialsOAuth() {
       if (disconnectConfirmTarget.oauthFlow === 'google_workspace') {
         await disconnectGoogleWorkspaceOAuth();
       } else if (disconnectConfirmTarget.oauthFlow === 'xai_device_code') {
-        await disconnectXaiOAuth();
+        await disconnectProviderOAuth('xai');
+        disconnectProviderSubscription('xai');
       } else {
         await apiRequest(`/integrations/oauth/${disconnectConfirmTarget.id}${params}`, {
           method: 'DELETE',
@@ -207,65 +224,11 @@ export function useCredentialsOAuth() {
   );
 
   const handleXaiOAuthConnect = useCallback(async () => {
-    setXaiOauthPolling(true);
-    try {
-      const startRes = await startXaiOAuth();
-      setXaiUserCode(startRes.user_code);
-      setXaiVerificationUrl(startRes.verification_uri_complete || startRes.verification_uri);
-
-      window.open(startRes.verification_uri_complete || startRes.verification_uri, '_blank');
-
-      if (xaiPollRef.current) {
-        clearInterval(xaiPollRef.current);
-      }
-      const pollStartedAt = Date.now();
-      const interval = Math.max((startRes.interval || 5) * 1000, OAUTH_POLL_INTERVAL_MS);
-
-      xaiPollRef.current = setInterval(async () => {
-        if (Date.now() - pollStartedAt > OAUTH_POLL_TIMEOUT_MS) {
-          if (xaiPollRef.current) {
-            clearInterval(xaiPollRef.current);
-          }
-          setXaiOauthPolling(false);
-          setXaiUserCode('');
-          toast({ title: t('xaiOauthTimeout', { defaultValue: 'Authorization timed out' }), variant: 'destructive' });
-          return;
-        }
-        try {
-          const pollRes = await pollXaiOAuth(startRes.user_code);
-          if (pollRes.status === 'success') {
-            if (xaiPollRef.current) {
-              clearInterval(xaiPollRef.current);
-            }
-            setXaiOauthPolling(false);
-            setXaiUserCode('');
-            setConnectModalTarget(null);
-            toast({ title: t('connectSuccess', { name: 'xAI / SuperGrok' }) });
-            fetchOauthCreds();
-          } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {
-            if (xaiPollRef.current) {
-              clearInterval(xaiPollRef.current);
-            }
-            setXaiOauthPolling(false);
-            setXaiUserCode('');
-            toast({
-              title: t('connectError', { name: 'xAI / SuperGrok' }),
-              variant: 'destructive',
-            });
-          }
-        } catch {
-          // ignore polling errors
-        }
-      }, interval);
-    } catch (error) {
-      setXaiOauthPolling(false);
-      toast({
-        title: t('connectError', { name: 'xAI / SuperGrok' }),
-        description: String(error),
-        variant: 'destructive',
-      });
+    const verificationUrl = await startXaiLogin();
+    if (verificationUrl) {
+      window.open(verificationUrl, '_blank', 'noopener,noreferrer');
     }
-  }, [fetchOauthCreds, t]);
+  }, [startXaiLogin]);
 
   const openConnectModal = useCallback(async (plat: OauthIntegration) => {
     setConnectModalTarget(plat);
@@ -298,17 +261,13 @@ export function useCredentialsOAuth() {
     if (googlePollRef.current) {
       clearInterval(googlePollRef.current);
     }
-    if (xaiPollRef.current) {
-      clearInterval(xaiPollRef.current);
-    }
+    cancelXaiLogin();
     setGoogleOauthPolling(false);
-    setXaiOauthPolling(false);
-    setXaiUserCode('');
     setConnectModalTarget(null);
     setTokenInput('');
     setUserIdInput('');
     setScopeInput('');
-  }, []);
+  }, [cancelXaiLogin]);
 
   return {
     clearSyncedMemory,
@@ -336,8 +295,8 @@ export function useCredentialsOAuth() {
     setUserIdInput,
     tokenInput,
     userIdInput,
-    xaiOauthPolling,
-    xaiUserCode,
-    xaiVerificationUrl,
+    xaiOauthPolling: xaiLoginPhase !== 'idle',
+    xaiUserCode: xaiLoginUserCode ?? '',
+    xaiVerificationUrl: xaiLoginVerificationUrl ?? '',
   };
 }
