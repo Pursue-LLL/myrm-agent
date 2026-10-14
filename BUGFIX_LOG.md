@@ -1834,3 +1834,58 @@ except Exception:
 5. 局限：新增的 de / ja / ko / zh-TW 译文只经过机器门禁，没有母语者审校；真实聊天页与 Kanban 页没有端到端点过（后端 :8000 未启动）；鼠标 + 触屏并存的混合设备没有覆盖；`SubagentDetailDrawer.tsx` 591 行（改前 574）、`MaskedCredentialInputCard.tsx` 463 行，未拆分；`LoopStatusBar` 的时长缩写 `m` / `s` 与服务端给的 `current_delay_human` 仍是英文；`RiskConfirmationCard` 发给后端的审批理由是英文审计串，保持不变；干净 HEAD 上 `verify:i18n` 本来就是红的（ja / ko / de / zh-TW 各缺 92 个 en 键、17 个孤儿键、de 的 `settings.browserDoctor.statusOptional` 是翻译壳），`verify:orphans` 同样为红，均不是本次引入；扫描器的覆盖面限制见条目 006，存量只是继续下降（当前 3408 处 / 358 个文件），没有清零。
 
 ---
+
+## BUG-AGENT-2026-10-14-012: 技能演进审批卡上的「变更预测与归因」永远自证为真；「测试通过」其实是质量分大于 0；回归闸门把原版就过不了的断言算成每个候选的固定扣分；沙盒校验给无可执行内容的技能盖「已验证」
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（审批人据以放行的几个数字不是测出来的：预测归因恒为「已证实」、扫描 / 测试徽章与实际检查不符、自动合并的「大改动」信号漏掉同长度重写；没有数据损坏） |
+| 影响范围 | harness `agent/skills/evolution/core/`（`change_manifest`、`eval_regression`、`proposal_builder`、`types`）、`agent/skills/evolution/execution/sandbox_validator.py`、`eval/`（`manifest_prediction`、`metric_contract`、`leakage_guard`）、`api/__init__.py`、`install_guard/_generated/core_ip_manifest.py`；服务端 `app/api/skills/{evolution/pending,growth}.py`、`app/services/skills/{evolution_review,growth}/`、`app/services/agent/{confidence_approval_flow,evolution/skill_immune_service}.py`、`app/services/skills/draft_notification.py`、`app/database/{models/skill,migrations}.py`；前端 `growth/`、`skills/SkillGrowthCaseCard`、`PendingEvolutionsDashboard`、`SkillHistoryPanel`、`services/skill/growth.ts`、六种语言文案；根仓库优势材料 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-14-009`（009 的「保留不动」里的变更清单 `build_change_manifest` 这次核实后一并删除，审批卡的 `testPassed` / `verificationProof` 改为只陈述真实发生过的检查）；提交 harness `645607acb1`、服务端 `d2a7e27b3f`、前端 `c82ad4528e`，本地提交，未 push |
+
+### 现象
+
+1. 提案卡的「变更清单预测」段把预测通过率与「实测」通过率并排展示，并给出 CONFIRMED / REFUTED / REGRESSION 归因。「实测」是同一个静态断言函数在同一段文本上再跑一遍，与预测同源，删掉一个必需步骤的重写也被判为已证实；指标守卫读取 `predicted_value` 键，而清单从来不写这个键，这条链永远为空；
+2. `test_passed` 在自动流里取 `proposal.score > 0`，卡片上显示为「测试通过」，但演进流程里没有任何测试执行；运行期免疫闸门拦下的记录（没有跑过任何扫描）被标成 `FAILED_SCAN`，语言文案写「Failed Scan / 扫描失败」；人工修订路径里扫描器抛异常时被按「通过」记录；
+3. 回归闸门对每个断言都做全局扣分：原版就过不了的断言（例如对 Markdown SOP 写的 Python AST 断言）让所有候选都被扣同一个常数；候选丢掉全部用例时的硬过滤，在少于七个用例时被扣分算术挡住而不可达；
+4. `SandboxValidator` 对纯提示词或只有 bash 的技能返回 `is_verified=True`；ZIP 导入闸门把只有示例代码、没有断言的代码块判为 `Hollow Test Rejected`；
+5. 自动合并的「大改动」信号只比较长度：同长度的整段重写差值为 0，不触发；
+6. `pending_evolutions` 表与模型没有任何路由或页面读写（提案走 `approval_records`）。
+
+### 根因
+
+1. 清单预测把「预测」和「验证」做成了同一函数的两次调用，没有独立的验证来源，因此无法被证伪；
+2. `test_passed` 沿用了早期「提案先跑测试」的设想，字段名与取值没有随流程变化；状态枚举与文案没有随运行期免疫闸门这个新来源更新；
+3. 回归闸门没有区分「原版本来就过 / 本来就过不了」，把后者也当成必须守住的基线；
+4. 沙盒校验把「没有发现失败」等同于「已验证」；
+5. 长度差是最容易写的近似，量的是「变长了多少」而不是「改了多少」。
+
+### 修复
+
+1. W1 + W2（删除）：harness 删除 `change_manifest`、`eval.manifest_prediction`、`eval.metric_contract`、`evaluate_pareto_generalization` 及其导出与 `core_ip_manifest` 条目，`ProposalBuilder` 不再生成清单；服务端删除清单归因路由与重建、载荷 / 查询 / 卡片类型里的清单与归因字段、`proxy_guard` 一整条代理对齐链；前端删除 `ManifestPredictionsPanel`、卡片里的预测段与对应服务类型；历史审批记录里残留的旧键由 pydantic 默认的 `extra=ignore` 忽略（有加载测试）；
+2. W3 真实性：`test_passed` 的含义收窄为「安全扫描的结果」——自动流里有 `security_scan_summary` 才为 `True`，否则为 `None`；人工修订路径取扫描器结果，扫描器抛异常为 `None`；运行期免疫记录、AST 失败的零分提案都是 `None`。`test_passed` 的类型在 API 与前端同步为可空，卡片只在非空时显示扫描徽章，修订提示只把 `=== false` 当成扫描未通过；`FAILED_SCAN` 的六种语言文案改为中性的「检查未通过 / Check Failed」；沙盒校验在没有实际检查时返回无证明，提示词类技能不再盖「已验证」，只有带断言的代码块才可能被判空洞，导入闸门语义不变；删除 `pending_evolutions` 模型，在 `MIGRATION_STATEMENTS` 末尾追加 `DROP TABLE IF EXISTS pending_evolutions`；
+3. W4：回归闸门只守住原版通过的用例，扣分按「丢失的受守用例数」计算（每个 0.15、上限 1.0），候选丢光全部受守用例才硬过滤；原版就过不了的断言不再产生扣分；
+4. W5：`confidence_approval_flow` 的大改动信号改为按字符 3-gram 多重集比较的「改动占比」（线性时间），同长度的整段重写占比接近 100%，会触发，整段追加仍会触发，阈值仍是 50%；顺手去掉对 dataclass 字段的 `getattr`；
+5. 文档：两处 `_ARCH`、`ARCHITECTURE`、`SKILLS_SYSTEM`、前端 `_ARCH` 与根仓库优势材料里关于清单预测、帕累托、归因的说法改成代码事实。
+
+### 验证
+
+1. harness（提交 `645607acb1`）：`tests/agent/skills/evolution` 与 `tests/eval` 共 712 通过；回归闸门新增基线相对用例，沙盒校验新增「无证明」与「空洞判定」用例；
+2. 服务端：`tests/api/evolution`、`tests/api/skills`（不含他人的 `test_curator.py`）、`tests/services/skills`、`test_skill_immune_service`、新增的 `test_pending_evolutions_table_retired`（升级库与全新库各一例）共 381 通过、1 跳过；`ruff check` / `ruff format --check` / `pyright` 对 22 个改动文件 0 告警；
+3. 前端：技能 / 成长 / 服务相关 31 个测试文件 203 例通过（新增 `SkillGrowthCaseCard.scanOutcome.test.tsx`：`testPassed` 为 `null` 时无扫描徽章）；`oxlint` 对改动文件无告警；`verify-i18n` 六种语言通过；`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；
+4. 改动占比的度量对比：`difflib.SequenceMatcher` 在 2000 行半空行文本上（`autojunk=False`）超过 8 秒，在 2 万行互不相同的文本上（`autojunk=True`）仍超过 8 秒；3-gram 多重集比较在同样的 2000 行输入上 7 毫秒、2 万行（53 万字符）输入上 129 毫秒（本机单次实测）；
+5. 已提交内容的干净导出（`git archive HEAD`，补上未入库的 `.env.test`、`locales/namespaces`、`shared/config`、`e2e_core`）：服务端 `tests/api/evolution`、`test_growth_api`、`test_draft_notification`、`tests/services/skills`、`test_skill_immune_service` 与表退役测试共 200 通过；前端 `SkillGrowthCaseCard*`、`growth/`、`services/skill` 12 个测试文件 104 例通过，`oxlint` 无告警；导出里 `verify-i18n` 仍是红的，是 HEAD 上本来就有的「各语言缺 92 个 en 键、17 个孤儿键」，输出里没有出现本次涉及的任何键；
+6. `server_harness_import_baseline.txt` 里 `manifest_prediction` 与 `eval_regression` 两条已不再被服务端导入，随之删除，`test_baseline_matches_current_imports` 的「基线多出」一侧清空（该测试剩余的差异全是他人新增的 harness 模块导入）。
+
+### 踩坑经验
+
+1. 「预测 vs 实测」只有在两边来自不同来源时才有意义；同一函数在同一输入上调两次，只是在展示一个恒等式；
+2. 字段名叫 `test_passed`，含义却早已变成别的东西，比删字段更危险：下游的徽章、提示、导出都在按原名解释它；这次保留字段名（避免一次牵动 API 与历史记录），只收窄语义并让「没检查过」可以表达为 `None`；
+3. 度量改动幅度时，序列对齐类算法在重复文本上会退化到不可用，且对没有空白的中文与单行描述没有意义；字符 n-gram 多重集线性、对两类文本都稳定；
+4. 一次删除要沿「入口 → 计算 → 落库 → 展示」走完：删掉 `evolution.core.eval_regression` 的服务端导入后，架构基线里对应的行同时变成过期项；
+5. 局限：没有取得浏览器级别的视觉检查（卡片去掉预测段后的布局、可空徽章在深浅主题下的显示）；`DROP TABLE` 只覆盖升级库与全新库的两个夹具，没有在桌面包里实测；`tests/architecture` 仍有他人未提交改动造成的失败（路由消费者、API 服务词汇、包初始化、前端 API 路径、harness 导入基线的新增项），没有一条指向本次删除的符号；`tests/api/skills/test_curator.py` 的 4 例失败来自他人未提交的 `curator.py`；新增的 de / ja / ko / zh-TW 译文只经过机器门禁；服务端提交依赖 harness 提交 `645607acb1`，harness 发版后要同步锁文件。
+
+---
