@@ -42,7 +42,6 @@ export * from './memory/ruleCascade';
 export * from './memory/relationalBacktrack';
 export * from './memory/curatorStudio';
 export * from './memory/businessTemplates';
-export * from './memory/experienceObservability';
 export * from './memory/peerCognition';
 export * from './memory/twoLayerDialectic';
 export * from './memory/budgetPacking';

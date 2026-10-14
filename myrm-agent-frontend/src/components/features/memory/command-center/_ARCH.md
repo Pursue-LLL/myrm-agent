@@ -97,11 +97,6 @@
 | `RetailExchangeChecklistView.tsx` | 辅助 | 换货全链路先问必查交互式检查清单子组件：先问 -> 必查 -> 显式确认 -> 办理 -> 告知后续 5 阶段步进与 tau2 约束 | ✅    |
 | `EscalationGateEvaluatorView.tsx` | 辅助 | 例外转人工决策门禁评估子组件：定制例外/政策模糊、断码缺货、连续纠偏争议 3 大拦截规则仿真与结构化人工交接包组装 | ✅    |
 | `businessTemplateFallbacks.ts` | 辅助 | 业务场景经验模板离线与单测仿真数据集 | ✅    |
-| `ExperienceObservabilityStudioCard.tsx` | 核心 | 零改造宿主生命周期插件与经验可观测看板卡片：对标 OpenViking Plugin/MCP/Skill 三路零改造接入，经验列表、Session 溯源与效果分布全景可视 | ✅    |
-| `ExperienceObservabilityHudBar.tsx` | 辅助 | 经验可观测 4 维 HUD 监控条：呈现受监控条目数、累计注入数、归因成功率与当前宿主通道网关 | ✅    |
-| `ExperienceDistributionDashboardView.tsx` | 辅助 | 经验效果分布与会话溯源子组件：呈现经验全景列表、原始 Session 证据链高亮溯源与交互式采纳/争议效果反馈 | ✅    |
-| `ZeroRefactorPluginConsoleView.tsx` | 辅助 | 零改造宿主生命周期插件配置与演练控制台子组件：提供 Plugin/MCP/Skill 三路接入通道切换、目标宿主切换与生命周期事件钩子模拟 | ✅    |
-| `experienceObservabilityFallbacks.ts` | 辅助 | 经验可观测与宿主插件离线及单测仿真数据集 | ✅    |
 | `PeerCognitionStudioCard.tsx` | 核心 | 社会认知实体图谱与常驻画像卡中枢卡片：对标 Hermes+Honcho 官方实践，以参与者 Peer 为中心组织记忆，打破孤立事实表局限，常驻 Peer Card 自演化与多智能体角色对齐 | ✅    |
 | `PeerCognitionHudBar.tsx` | 辅助 | 社会认知 4 维 HUD 监控条：呈现常驻 Peer 实体数、语义关系边数、累计协作演化频次与低 Token 上下文投影开销 | ✅    |
 | `PeerEntityGraphExplorerView.tsx` | 辅助 | 实体拓扑与关系边检索探索子组件：支持按用户/智能体/项目/审查者筛选实体，呈现 asserts/approves/collaborates/governs 语义边与动态建立关系 | ✅    |

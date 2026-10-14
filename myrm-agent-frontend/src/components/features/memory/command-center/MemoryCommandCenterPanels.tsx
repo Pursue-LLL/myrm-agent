@@ -75,7 +75,6 @@ import { DeterministicRuleCascadeCard } from './DeterministicRuleCascadeCard';
 import { TemporalRelationalBacktrackingCard } from './TemporalRelationalBacktrackingCard';
 import { MemoryCuratorStudioCard } from './MemoryCuratorStudioCard';
 import { BusinessScenarioTemplatesCard } from './BusinessScenarioTemplatesCard';
-import { ExperienceObservabilityStudioCard } from './ExperienceObservabilityStudioCard';
 import { PeerCognitionStudioCard } from './PeerCognitionStudioCard';
 import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
 import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
@@ -328,9 +327,6 @@ export const UnderstandSection = ({
 
     {/* Business Scenario Experience Templates & Escalation Gate Card (Item 107 P0) */}
     <BusinessScenarioTemplatesCard />
-
-    {/* Zero-Refactor Host Lifecycle Plugin & Experience Observability Studio Card (Item 108 P1) */}
-    <ExperienceObservabilityStudioCard />
 
     {/* Peer-Centric Social Cognition Entity Graph & Agent Persona Card Studio Card (Item 110 P0) */}
     <PeerCognitionStudioCard />
