@@ -154,8 +154,13 @@ class SafeVaultPurgeService:
                                 )
                             try:
                                 await conn.execute(text(f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('optimize')"))
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                # Optimize only merges index segments; the rebuilt index is already correct without it.
+                                logger.warning(
+                                    "FTS5 optimize after purge failed for %s: %s",
+                                    fts_tbl,
+                                    exc,
+                                )
                             result.fts_tables_purged.append(fts_tbl)
 
                 # Collect chat ids and sandbox directories before deleting chats

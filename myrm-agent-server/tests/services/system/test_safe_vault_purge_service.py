@@ -6,6 +6,7 @@ misspelled table name, which is how a purge can report success while a table kee
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -16,7 +17,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from myrm_agent_harness.runtime.checkpointing import create_checkpointer
 from myrm_agent_harness.runtime.context.session.session_continuity import sync_checkpoint_messages
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from app.platform_utils import _reset_checkpointer_for_testing, set_checkpointer
@@ -136,6 +137,29 @@ async def test_purge_leaves_no_searchable_trace_in_any_full_text_index(
     assert sorted(result.fts_tables_purged) == sorted(FTS_QUERIES)
     for table, term in FTS_QUERIES.items():
         assert await _fts_matches(purge_engine, table, term) == 0, f"{table} still finds {term!r}"
+
+
+@pytest.mark.asyncio
+async def test_purge_survives_a_failing_index_optimize_and_says_so(
+    purge_engine: AsyncEngine, remove_files: AsyncMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Optimize only merges index segments: the wipe is complete without it, but a failure must not be silent."""
+
+    def fail_optimize(conn: object, cursor: object, statement: str, *_: object) -> None:
+        if "'optimize'" in statement:
+            raise RuntimeError("optimize unavailable")
+
+    event.listen(purge_engine.sync_engine, "before_cursor_execute", fail_optimize)
+
+    with caplog.at_level(logging.WARNING, logger="app.services.system.vault_purge_service"):
+        result = await SafeVaultPurgeService.purge_vault()
+
+    assert result.success is True, result.error
+    assert sorted(result.fts_tables_purged) == sorted(FTS_QUERIES)
+    for table, term in FTS_QUERIES.items():
+        assert await _fts_matches(purge_engine, table, term) == 0, f"{table} still finds {term!r}"
+    warned = [r.getMessage() for r in caplog.records if "FTS5 optimize after purge failed" in r.getMessage()]
+    assert len(warned) == len(FTS_QUERIES)
 
 
 @pytest.mark.asyncio
