@@ -118,7 +118,6 @@ myrm_agent_harness.agent.security.guards.taint_tracker
 myrm_agent_harness.agent.security.guards.untrusted_ingress_fence
 myrm_agent_harness.agent.security.jit_gate
 myrm_agent_harness.agent.security.jit_gate.models
-myrm_agent_harness.agent.security.lease
 myrm_agent_harness.agent.security.message_filtering
 myrm_agent_harness.agent.security.path_security
 myrm_agent_harness.agent.security.policy_generator
