@@ -2724,7 +2724,7 @@ except Exception:
 
 ### 现象
 
-1. `create_default_vector_store()` 每次调用都先动态导入 `scripts/cleanup_qdrant_locks.py` 并删掉数据目录里的 `.lock`。嵌入式 Qdrant 靠这把操作系统文件锁保证只有一个写入者；锁文件被删后，第二个进程能打开同一个目录。用真实嵌入式 Qdrant 复现：删锁后第二个客户端打开成功，两个写入者各自的内存视图看不到对方的写入，`meta.json` 以最后写入者为准，其中一个进程创建的集合丢失。
+1. `create_default_vector_store()` 每次调用都先动态导入 `scripts/cleanup_qdrant_locks.py` 并删掉数据目录里的 `.lock`。嵌入式 Qdrant 靠这把操作系统文件锁保证只有一个写入者；锁文件被删后，第二个进程能打开同一个目录。用真实嵌入式 Qdrant 复现：删锁后第二个客户端打开成功，两个写入者各自的内存视图看不到对方的写入，`meta.json` 以最后写入者为准，其中一个进程创建的集合丢失。这段清理在工厂每次被调用时都执行，而公开的就绪探针 `GET /api/v1/health/ready`（`app/api/health/router.py`、`public_paths.py`）也调用该工厂，所以每次探测都会删一次运行中进程的锁。
 2. 不删锁时，第二个进程会被拒绝并回落到内存模式（harness 的 `create_embedded_store`），记忆指挥中心的「向量存储持久化」行会变琥珀色，但只有颜色，没有说原因，也没有说用户能做什么。
 3. 清库在 FTS5 重建之后的 optimize 步骤是裸 `except: pass`，同级的删除、重建两步失败都会记 warning。
 4. `chat_crud.py` 565 行，超过 500 行硬线，同时装着 CRUD、会话 flush、置顶、整套回收站生命周期和渠道聊天解析。
@@ -2738,8 +2738,8 @@ except Exception:
 
 ### 修复
 
-1. 删除 `defaults.py` 里的清理块、脚本与它的测试；锁被占用时走已有的内存回落，由记忆指挥中心报告。
-2. 记忆指挥中心只在 `memory_fallback` 时于该行下显示一句提示（6 种语言，不含技术词）：可能有另一个 Myrm 窗口或程序占着同一个数据文件夹，或文件夹不可写，处理后重启。
+1. 删除 `defaults.py` 里的清理块、脚本与它的测试；锁被占用时走已有的内存回落，由记忆指挥中心报告。同时删掉工厂里永远不会触发的 `store is None` 分支与它的不实日志（「Memory system will be disabled」）：harness 的 `create_embedded_store` 从不返回 None，打不开只会回落内存或抛 `RuntimeError`；`create_vector_store` 与 `create_default_vector_store` 的返回类型改为非可选，docstring 如实描述。
+2. 记忆指挥中心只在 `memory_fallback` 时于该行下显示一句提示（6 种语言，不含技术词）：可能有另一个 Myrm 窗口或程序占着同一个数据文件夹，或文件夹不可写，处理后重启。该面板默认隐藏，见局限 7。
 3. optimize 失败改为 warning，并写明它为什么不致命（重建后的索引不依赖它）。
 4. 回收站生命周期与渠道聊天解析原样迁到 `chat_deletion.py`（171 行）与 `chat_channel.py`（82 行），`ChatService` 组合；`chat_crud.py` 371 行并移出行数基线；`test_external_agent_pool_on_chat_delete.py` 的补丁目标跟随；文档里「由 chat_crud 调用」的三处改为真实调用方 `chat_disposal`。
 
@@ -2758,6 +2758,8 @@ except Exception:
 4. 永久删除与「安全清空」对后台运行的任务没有拦截：`vault_purge_service.py` 只看 `get_agent_gateway().active_session_ids()`。所需的 `run_activity.py` 是他人未提交的工作，本条没有引用它；它提交后需要在 `purge_vault` 入口与永久删除路径补同一检查。
 5. `cleared_sandboxes` 保留：它是 `ChatFilesRemoval.removed_worktrees` 唯一的生产读取方，界面虽不读它；去掉它会让 `removed_worktrees` 变成没有读取方的字段，要连带改拆除函数的返回类型，收益低于风险。
 6. 未改动任何提示词。
+7. 回落提示只出现在记忆指挥中心里，而该面板默认不可见：前端 `MemorySection.tsx` 只在 `NEXT_PUBLIC_MEMORY_LABS=1` 时渲染它，服务端 `app/api/memory/router.py` 只在 `MYRM_MEMORY_LABS=1` 时挂载它的接口。默认用户看不到这条提示，默认可见的位置没有任何回落提示；`/health/ready` 在回落时仍报 `qdrant: true`（工厂不抛错）。需要一个默认可见的入口才算触达真实用户，本条没有做。
+8. 6 个服务端调用方（`warmup.py`、`schedulers.py`、`faq/router.py`、`faq/factory.py`、`cascade.py`、`adapters/setup.py`）仍保留对 `None` 的防御分支，类型检查不报错；删掉它们要连带改写若干把工厂打补丁成返回 None 的测试，没有行为收益，未动。
 
 ### 踩坑经验
 
@@ -2765,3 +2767,4 @@ except Exception:
 2. 回落提示要写用户能做的事（关掉另一个窗口、检查文件夹可写、重启），不要写技术名词。
 3. 拆分 mixin 后，文档里「由某文件调用」要改成真实调用方，而不是跟着文件名走。
 4. 测试夹具按模块路径打补丁：方法迁到新模块后，补丁路径要同步，否则补丁打在旧模块上不报错、却不生效。
+5. 给界面加提示之前，先沿着渲染入口查一遍它对默认用户是否可见（功能开关、接口是否挂载）；只在实验面板里可见的提示不等于告知了用户。

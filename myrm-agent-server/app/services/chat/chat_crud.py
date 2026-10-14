@@ -25,10 +25,10 @@ from app.database.repositories.uow import UnitOfWork
 
 from . import chat_disposal
 from ._base import _ChatServiceBase
+from .conversation_recall_index_service import ConversationRecallIndexService
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
-from .conversation_recall_index_service import ConversationRecallIndexService
 
 logger = logging.getLogger(__name__)
 
