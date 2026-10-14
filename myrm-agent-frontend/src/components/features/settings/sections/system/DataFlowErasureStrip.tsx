@@ -25,6 +25,7 @@ import useChatStore from '@/store/useChatStore';
 export const DataFlowErasureStrip = memo(() => {
   const t = useTranslations('settings.securityPolicy.dataFlow');
   const tCommon = useTranslations('common');
+  const tChat = useTranslations('chat');
   const setChatHistoryItems = useChatStore((state) => state.setChatHistoryItems);
   const setChatHistoryPagination = useChatStore((state) => state.setChatHistoryPagination);
   const [clearedCount, setClearedCount] = useState<number | null>(null);
@@ -52,7 +53,7 @@ export const DataFlowErasureStrip = memo(() => {
         <h4 className="text-sm font-semibold text-foreground">{t('eraseTitle')}</h4>
         <p className="text-xs text-muted-foreground mt-1">{t('eraseDesc')}</p>
       </div>
-      {clearedCount === null ? (
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2">
         <ConfirmDialog
           variant="destructive"
           title={t('eraseConfirmTitle')}
@@ -73,17 +74,21 @@ export const DataFlowErasureStrip = memo(() => {
             </Button>
           }
         />
-      ) : (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <output className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+        {clearedCount !== null && (
+          <Button type="button" size="sm" variant="outline" onClick={handleStartFresh}>
+            {tChat('newChat')}
+          </Button>
+        )}
+      </div>
+      {/* 始终挂载：实时区域须先于文字存在，读屏软件才会播报结果。 */}
+      <output className="block text-xs font-medium text-foreground empty:hidden">
+        {clearedCount !== null && (
+          <span className="flex items-center gap-1.5">
             <IconCheckCircle className="h-3.5 w-3.5 text-emerald-500" />
             {t('eraseSuccess', { count: clearedCount })}
-          </output>
-          <Button type="button" size="sm" variant="outline" onClick={handleStartFresh}>
-            {t('eraseStartFresh')}
-          </Button>
-        </div>
-      )}
+          </span>
+        )}
+      </output>
     </div>
   );
 });

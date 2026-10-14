@@ -85,6 +85,8 @@ describe('DataFlowErasureStrip', () => {
     render(<DataFlowErasureStrip />);
     expect(screen.getByText(`${DIALOG}.eraseTitle`)).toBeInTheDocument();
     expect(screen.getByText(`${DIALOG}.eraseDesc`)).toBeInTheDocument();
+    // A live region has to be in the page before its text arrives, or screen readers do not announce the result.
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
     expect(mockPurge).not.toHaveBeenCalled();
   });
 
@@ -112,9 +114,11 @@ describe('DataFlowErasureStrip', () => {
     expect(mockPurge).toHaveBeenCalledTimes(1);
     expect(useChatStore.getState().chatHistoryItems).toEqual([]);
     expect(useChatStore.getState().chatHistoryPagination).toBeNull();
-    expect(screen.queryByRole('button', { name: OPEN_BUTTON })).not.toBeInTheDocument();
+    // Keyboard focus goes back to the trigger instead of being dropped on <body>.
+    await waitFor(() => expect(screen.getByRole('button', { name: OPEN_BUTTON })).toHaveFocus());
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: `${DIALOG}.eraseStartFresh` }));
+    await user.click(screen.getByRole('button', { name: 'chat.newChat' }));
     expect(assign).toHaveBeenCalledWith('/');
   });
 
@@ -127,7 +131,7 @@ describe('DataFlowErasureStrip', () => {
 
     await waitFor(() => expect(mockToastError).toHaveBeenCalledWith(`${DIALOG}.eraseBusy`));
     expect(useChatStore.getState().chatHistoryItems).toEqual([historyItem]);
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
     expect(screen.getByRole('button', { name: OPEN_BUTTON })).toBeInTheDocument();
   });
 
@@ -140,7 +144,7 @@ describe('DataFlowErasureStrip', () => {
 
     await waitFor(() => expect(mockToastError).toHaveBeenCalledWith(`${DIALOG}.eraseFailed`));
     expect(useChatStore.getState().chatHistoryItems).toEqual([historyItem]);
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
     expect(screen.getByRole('button', { name: OPEN_BUTTON })).toBeInTheDocument();
   });
 });

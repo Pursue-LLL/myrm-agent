@@ -2428,19 +2428,21 @@ except Exception:
 ### 修复
 
 1. server：`purge_vault` 取锁后立即检查 `get_agent_gateway().active_session_ids()`，非空抛 `VaultPurgeBusyError`，此时尚未碰任何状态；路由映射为 409（与 `rewind` 的 `SessionBusyError` → 409 一致）；`purge_sandboxes` 的参数描述改成真实行为。
-2. frontend：`conversationPurge.ts`（超时 300 s，409 映射为 `ConversationPurgeBusyError`）；`DataFlowErasureStrip` 放在「您的数据权利」下方：二次确认说明保留项（记忆、智能体、API 密钥、渠道设置）→ 调用 → 成功后清空侧栏会话缓存并给出「新建会话」按钮（整页跳转，丢弃内存里已被删除的当前会话）；运行中与其它失败各给可重试提示，不抛出；六种语言文案齐全。
+2. frontend：`conversationPurge.ts`（超时 300 s，409 映射为 `ConversationPurgeBusyError`）；`DataFlowErasureStrip` 放在「您的数据权利」下方：二次确认说明保留项（记忆、智能体、API 密钥、渠道设置）→ 调用 → 成功后清空侧栏会话缓存；确认对话框的触发按钮保持挂载（键盘焦点留在原处），结果写进常驻的实时区域，并给出「新对话」按钮（复用 `chat.newChat`，整页跳转，丢弃内存里已被删除的当前会话）；运行中与其它失败各给可重试提示，不抛出；文案沿用记忆管理界面的用词（待确认记忆、最近记忆活动），不写「本设备」；六种语言文案齐全。
 3. 基线移除该路由；brand 文档补上运行中拒绝与设置入口，并把测试数改成实际值。
 
 ### 验证
 
 1. server `tests/api/health/test_safe_purge.py` 4 例（新增 2 例：运行中拒绝，真实 SQLite 里的会话行原样、`clear_runtime_caches` 未被调用；API 层返回 409 且消息含运行数）。红灯：先是 ImportError，补上类型后 API 返回 500 而不是 409；变异（去掉运行检查）使 2 例失败，还原后通过。`tests/api/health tests/services/system tests/services/chat/test_chat_disposal.py` 共 94 例通过。
-2. frontend `DataFlowErasureStrip.test.tsx` 5 例（展示说明、取消不清空、成功时的计数 / 侧栏缓存 / 新建会话、运行中拒绝、通用失败）+ `conversationPurge.test.ts` 3 例；5 个变异（不清侧栏缓存、运行中错误当成通用失败、新建会话无动作、服务层 409 映射失效、成功计数写死 0）各被 1 例杀死，还原后 8 例通过；连同相邻的 `DataFlowDisclosurePanel` / `DataFlowYourRightsStrip` 测试，4 个文件共 35 例通过。
+2. frontend `DataFlowErasureStrip.test.tsx` 5 例（展示说明、取消不清空、成功时的计数 / 侧栏缓存 / 焦点留在触发按钮 / 新对话入口、运行中拒绝、通用失败；实时区域在初始与失败时为空）+ `conversationPurge.test.ts` 3 例；5 个变异（不清侧栏缓存、运行中错误当成通用失败、新建会话无动作、服务层 409 映射失效、成功计数写死 0）各被 1 例杀死，还原后 8 例通过；对话框随成功结果卸载的旧实现上，探针测得 `document.activeElement` 为 `<body>`，焦点与预挂载实时区域两个红灯测试在组件改写后转绿；`system` 与 `services/__tests__` 两个目录 105 个文件 850 例通过。
 3. 静态：server 三个文件 `ruff check` / `ruff format` / mypy 无问题；frontend 新文件 prettier / oxlint 干净，`verify:icu-syntax`、`verify:theme-colors` 通过，`verify:i18n` 的 6 语言完整性通过（引用检查的 59 个缺键与本条无关）。
 4. 局限：运行检查是快照，清空窗口内新开的一轮不会被拦住；只覆盖网关登记的会话，cron / 看板 / IM 渠道 / 评测的 agent 运行不经网关，不在其内；客户端 300 s 超时后服务端可能仍在清空；500 可能是部分清空（数据库事务是原子的，之前的状态清理与之后的文件删除是尽力而为）；界面没有在真实浏览器里验证（浏览器工具拒绝 E2E 地址，需走 `./myrm test` 的 E2E 通道，未运行）。
 
 ### 踩坑经验
 
 1. 路由消费者基线只收缩不扩张：补上调用方后要同步删掉基线行，否则 `test_baseline_only_shrinks` 会提示该行已不再是孤儿；
-2. `ConfirmDialog` 对 `onConfirm` 抛出的错误只写 console，用户看不到原因，所以需要用户看到的失败要在回调里自己处理并给提示，而不是抛出。
+2. `ConfirmDialog` 对 `onConfirm` 抛出的错误只写 console，用户看不到原因，所以需要用户看到的失败要在回调里自己处理并给提示，而不是抛出；
+3. 对话框的触发按钮不能随成功结果一起卸载：条件渲染掉它，键盘焦点会落到 `<body>`（探针实测）；结果提示用常驻挂载的 `<output>`，内容变化才会被读屏播报；
+4. 面向用户的文案先查现有界面的叫法（本条的「待确认记忆」「最近记忆活动」取自记忆管理界面），并避免绑定部署形态的措辞（「本设备」在托管部署下不成立）。
 
 ---
