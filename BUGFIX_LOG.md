@@ -1729,7 +1729,7 @@ except Exception:
 | 发现日期 | 2026-10-14 |
 | 修复日期 | 2026-10-14 |
 | 严重程度 | P3（展示的数量不准、手机上少一个快捷入口；不丢数据） |
-| 影响范围 | harness `toolkits/wiki/retrieval/graph_store.py`；server `app/api/wiki/router.py` 的 `/wiki/concepts/{name}/links` 响应模型；前端 `wiki/WikiConceptLinksPanel.tsx`、`wiki/WikiConceptDetailPanel.tsx`、新增 `wiki/useConceptHeadingFocus.ts`、`services/wiki/service.ts`、硬编码文案基线 |
+| 影响范围 | harness `toolkits/wiki/retrieval/graph_store.py`、`indexer.py`、新增 `concept_links.py`；server `app/api/wiki/router.py` 的 `/wiki/concepts/{name}/links` 响应模型；前端 `wiki/WikiConceptLinksPanel.tsx`、`wiki/WikiConceptDetailPanel.tsx`、新增 `wiki/useConceptHeadingFocus.ts`、`services/wiki/service.ts`、硬编码文案基线 |
 | 出现次数 | 1 |
 | 关联 | roadmap topic_02 #140 第四批补修；BUG-AGENT-2026-10-14-007 |
 
@@ -1739,6 +1739,7 @@ except Exception:
 2. 详情头部跳到链接面板的快捷按钮，文案「脉络」与提示「跳转到双向链接与脉络」是硬编码中文，六种语言的用户都看到中文，与面板标题「链接与上下文」叫法也不一致；按钮带 `hidden sm:flex`，手机宽度下整个入口消失。
 3. `WikiConceptDetailPanel.tsx` 416 行，超出 400 行预算，且不在行数基线里。
 4. 详情头部把词条名、来源徽标、来源对话链接和操作按钮排在同一行且不换行。默认「保存到 Wiki」生成的词条名（`SaveToWikiButton.tsx:92-98`，如 `untitled-note`，111px）查看态下，英、德文案在视口 320 / 360 / 390 / 430 与 1024 的可见宽度都是 0px（视口 768 为 28 / 14px），中文文案在视口 320 / 360 / 390 / 430 / 1024 依次是 0 / 0 / 19 / 59 / 90px，编辑态更窄（英文在视口 1280 也只剩 84px）；这是改前就有的，本批把快捷入口改成常驻图标后窄屏又固定多占 48px。
+5. `get_concept_links` 返回 `dict[str, object]`，server 路由用 `res.get("outlinks", [])` 取列表，mypy（server `pyproject.toml` 的 `strict = true`）把它判成不可迭代，`router.py:1482-1483` 是两处真实报错；路由里 5 个带默认值的 `.get`（概念名、两个列表、两个 `*_has_more`）在只有一条返回路径、五个键齐全（`graph_store.py:382-388`）的前提下永远走不到默认值。
 
 ### 根因
 
@@ -1746,6 +1747,7 @@ except Exception:
 2. 按钮是直接写的字面量；响应式处理成「窄屏整体隐藏」，而不是「窄屏收成图标」。
 3. 小节锚点聚焦（约 95 行：滚动、高亮、多帧重试、同词条内跳转）与展示组件放在同一文件，叠加几次修复后越过预算。
 4. 头部是单行 flex，名字是唯一可收缩的项（来源徽标、来源链接、按钮都是 `shrink-0`）。名字自带的 `truncate` 只会把它截成省略号，宽度被挤到 0 时连省略号都没有，所以它不是兜底。
+5. 返回值没有类型，键集合与值类型只靠约定；调用方只能用 `.get` 加默认值兜底，类型检查器既核对不了键，也推不出值是列表。
 
 ### 修复
 
@@ -1753,6 +1755,7 @@ except Exception:
 2. 按钮改取已有的 `links.title`；文字按详情头部自身宽度（容器查询 `@xl`，不随视口）显隐，头部较窄时只显示图标并带 `aria-label`，任何宽度都不隐藏；硬编码文案基线里这个文件由 2 收紧到 0，只删这一条。
 3. 小节锚点聚焦原样移入 `useConceptHeadingFocus.ts`（115 行；移动的 96 行用脚本与原文逐行比对一致），详情面板降到 330 行。
 4. 头部与标题块都 `flex-wrap`：放不下时操作按钮整组换到下一行（`ml-auto` 靠右），标题块里的来源徽标与来源链接再换行，词条名独占一行（标题块 `min-w-0`，名字 `max-w-full truncate`，过长才出省略号）；放得下时仍是一行。头部显式 `space-y-0`：`CardHeader` 基类自带 `space-y-1.5`，不归零时标题块多出 6px 下外边距，单行名字比按钮中心高 3px、换行行距成了 14px 而不是 `gap-y-2` 的 8px；多余的 `justify-between` 去掉（`ml-auto` 已把操作组推到右侧，对布局零影响）。快捷入口文字显隐的容器查询阈值不变（换行之后阈值附近不再有名字宽度的断崖）。
+5. `get_concept_links` 返回 TypedDict `ConceptLinks`（新增 `retrieval/concept_links.py`：`ConceptLink`、`ConceptBacklink`，先例是 `pipeline/pending.py` 的 `PendingWikiEdit`），`WikiIndexer.get_concept_links` 同步；server 路由按键直接读取并删掉 5 个 `.get` 默认值，不 import harness 的类型名（类型随返回值推断）。运行时没有变化（TypedDict 就是 dict）。
 
 ### 验证
 
@@ -1762,6 +1765,7 @@ except Exception:
 4. 静态：ruff、mypy（`graph_store.py`）、oxlint、prettier、`verify-i18n` 通过（第一次运行时他人正在改语言文件，报占位符不一致，重跑通过）；`tsc --noEmit` 全量只报他人的 `KanbanTaskHandoffSection.test.tsx` 一条；文件行数门禁不再列出本条改的文件，硬编码文案门禁里这个文件不再出现（整体门禁仍因他人新增的文件失败）。
 5. 局限：没有取得真实浏览器证据。`./myrm test -m chrome_e2e …::test_wiki_concept_detail_source_jump` 三次都在 `/settings/wiki` 路由水合超时（`E2E_ROUTE_HYDRATION_TIMEOUT`）：前两次前端日志同期是大量接口请求超时（机器负载均值 38–90）；第三次在头部换行改完之后，运行时与健康检查通过、`/settings/wiki` 返回 200、日志没有编译或运行时报错（负载均值 22–29）。三次都没有走到任何断言，所以既不能证明也不能否定面板在真实浏览器里的表现；该用例验证来源跳转而不是布局，通过了也不覆盖头部换行。为它写的 28 行断言没跑出结果，已撤回。深浅主题没有目测（jsdom 不计算样式），头部换行只有类名断言与下面的副本量测；「100+」只在 harness 层（101 页）与 DOM 层分别验证，没有在真实应用里串起来。
 6. 布局实验（独立副本，不是真实应用）：项目自己的 `tailwindcss` 编译加无头 Chromium 渲染。四个版本的类名都由脚本从源文件读出，不是手抄：换行修复前（`97c77ef219`）、换行修复后（`fc0f1475ef`）、只加 `space-y-0`、当前（`f5f8893858`）；头部、标题块、名字、徽标、来源链接、操作组的类名取自各版本的 `WikiConceptDetailPanel.tsx`，再经项目自己的 `cn`（`twMerge` + `clsx`）、`buttonVariants`、`badgeVariants` 合并，所以 `CardHeader` 基类的 `space-y-1.5`、按钮的 `gap-2`、图标的 `mr-2`、保存按钮的 `border-0` 都按真实合并结果带入。头部内容宽由 `SettingsLayout.tsx:322-344`、`WikiConceptsList.tsx:117` 与 `CardHeader` 的 `p-6` 算出（视口 320 / 360 / 390 / 430 / 768 / 1024 / 1280 / 1440 / 1728 对应 238 / 278 / 308 / 348 / 433 / 379 / 550 / 657 / 849px，是公式值，没有在真实页面核对）；文案取 en / zh / zh-TW / ko / de / ja 六种语言的真实值，默认名按 `SaveToWikiButton.tsx:92-98` 的生成规则取 `untitled-note`（111px）与 `rag-evaluation-metho`（184px），再加一个 40 字符长名（356px）。每个版本 6 语言 × 9 视口 × 3 名字 × 查看 / 编辑态 = 324 个组合。词条名完整可见（长名按拿到整行宽度算）的组合每格 54 个：换行修复前 `untitled-note` 查看 / 编辑态 21 / 17、`rag-evaluation-metho` 14 / 14、长名 4 / 5，其中名字被压到 0px 的每个名字 45 / 108；换行修复后与当前版本全部 54 / 54。当前版本与「只加 `space-y-0`」版本在 324 个组合里的操作组位置、宽度、头部高度、名字宽度逐项相同，即 `justify-between` 零影响；当前版本与换行修复后版本的换行判定 324 / 324 一致（都是 249 个换行），徽标、来源链接、操作组宽度逐项相同。间距的差别：`space-y-1.5` 被 Tailwind 4.3.3 编译为 `:where(.space-y-1.5 > :not(:last-child)) { margin-block-end: 6px }`，落在标题块上，一行的 75 个组合里名字中心比按钮中心高 3px，换行的 249 个组合里标题块与操作组相距 14px；加 `space-y-0` 后分别是 0px 与 8px（`gap-y-2`）。头部高度：一行 67 → 65px，换行 107 / 127 / 133 / 153 → 101 / 121 / 127 / 147px。代价是放不下时头部变高：当前版本里视口 1280 的查看态 `rag-evaluation-metho` 在英、德文案换行（65 → 101px），编辑态更早，`untitled-note` 的英、德就换行；视口 1440 的查看态德语 `untitled-note` 与英、德 `rag-evaluation-metho` 换行；视口 1024 的所有语言默认名都换行，视口 1728 的两个默认名全部一行；40 字符长名 108 个组合里 99 个换行。控件宽度（en / zh / zh-TW / ko / de / ja）：徽标（`chat-compound`）117.4 / 68.1 / 68.1 / 66.7 / 104.9 / 92.2px，来源链接 115.5 / 47.7 / 47.7 / 44.9 / 101.2 / 47.5px，查看态操作组（快捷入口只显示图标时）128.5 / 129.0 / 129.0 / 126.8 / 168.8 / 129.0px，视口 1440 起快捷入口显示文字，该组变为 236.2 / 204.1 / 192.6 / 188.0 / 336.0 / 205.2px，编辑态操作组 189.4 / 168.1 / 168.1 / 163.5 / 243.6 / 204.0px。最宽的德语编辑态 243.6px 对视口 360 的行宽 278px 有 34.4px 余量，对视口 390 有 64.4px；视口 320 行宽 238px，该组超出 5.6px，落在 24px 右侧内边距里；换行修复前同一组合超出 33.6px，比内边距多 9.6px，面板 `Card` 带 `overflow-hidden`，按几何关系保存按钮右侧会被裁掉（副本没有套 `Card`，未渲染验证）。副本用 system-ui 字体与默认主题，图标是同尺寸的占位 SVG，不含产品字体（Inter，用户还能换字体）与主题配色。
+7. 类型与回归：server `router.py` 的 mypy 从 11 个错误降到 9 个，消失的正是 `:1482-1483` 两处，没有新增；剩下 9 个（`:617`、`:829`、`:1780`、`:1781`、`:1852`、`:2238` 两个、`:2395`、`:2445`）在 health、queue、pending、graph 等其他端点，与本条无关，未改。harness 的 mypy（`graph_store.py`、`indexer.py`、`concept_links.py`）、ruff check 与 format 通过，`graph_store.py` 388 行；`test_concept_links.py`、`test_link_edges.py`、`test_wiki_alias_and_chinese_anchor.py`、`test_concept_identity.py` 共 42 例通过，`tests/toolkits/wiki` 全量（不含调用真实 LLM 的 `test_sidecar_integration.py`）859 例通过；server `test_wiki_concept_links.py` 与 `test_wiki_concept_links_integration.py` 6 例通过，`router.py` 的 ruff 通过。改前先在沙箱里用与 `router.py` 相同的 pydantic 模型复现了同样的两个报错，TypedDict 写法下为 0。
 
 ### 踩坑经验
 
