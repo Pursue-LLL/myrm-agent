@@ -58,12 +58,11 @@ class SkillQualityDataSource(Protocol):
 class SQLAlchemyStorage(SkillOptimizationStorage):
     """SQLAlchemy implementation of SkillOptimizationStorage Protocol
 
-    支持两种session管理模式：
-    - 固定session（API请求级，FastAPI依赖注入）
-    - session_factory（ABTestManager 等长生命周期组件）
+    每次操作通过 session_factory 创建独立 session 并在结束时关闭，
+    长生命周期组件（ABTestManager、skill loader）不持有未关闭的 session。
     """
 
-    def __init__(self, session=None, session_factory=None): ...
+    def __init__(self, session_factory): ...
 ```
 
 **包含的 Repository**：

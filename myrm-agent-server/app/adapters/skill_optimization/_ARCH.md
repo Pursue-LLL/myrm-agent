@@ -18,7 +18,8 @@
 | `quality_repo.py` | 核心 | 质量历史 CRUD | ✅ |
 | `ab_test_repo.py` | 核心 | A/B 测试 CRUD | ✅ |
 | `snapshot_repo.py` | 核心 | skill_versions 表 CRUD（由 `skill_version_sync` 双写接入） | ✅ |
-| `sqlalchemy_storage.py` | 核心 | 框架适配器，实现 `SkillOptimizationStorage` Protocol | ✅ |
+| `sqlalchemy_storage.py` | 核心 | 框架适配器，实现 `SkillOptimizationStorage` Protocol；每次操作使用独立 session | ✅ |
+| `converters.py` | 核心 | ORM 行与框架领域对象、质量评分 JSON 与 `SkillQualityScore` 之间的无状态转换 | ✅ |
 
 ---
 

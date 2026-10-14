@@ -7,15 +7,15 @@
 - sqlalchemy.ext.asyncio (POS: SQLAlchemy异步引擎)
 - myrm_agent_harness.agent.skills.optimization.protocols (POS: 存储协议)
 - app.adapters.skill_optimization.*_repo (POS: 各Repository)
+- app.adapters.skill_optimization.converters (POS: ORM 行与领域对象的转换)
 
 [OUTPUT]
-- SQLAlchemyStorage: Protocol适配器，支持session和session_factory两种模式
+- SQLAlchemyStorage: Protocol适配器，每次操作从 session_factory 取独立 session
 
 [POS]
 实现SkillOptimizationStorage Protocol，桥接框架层Protocol和业务层SQLAlchemy Repositories。
-支持两种session管理模式：
-1. 固定session（API场景，FastAPI依赖注入，生命周期由调用方管理）
-2. session_factory（长生命周期组件如 ABTestManager，每次操作创建独立session）
+每次操作创建独立 session 并在结束时关闭：长生命周期组件（ABTestManager、skill loader）
+不会因持有未关闭的 session 而占住连接池连接或读到过期快照。
 """
 
 from __future__ import annotations
@@ -24,11 +24,6 @@ import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from app.database.models.skill_optimization.ab_test_result import ABTestResultModel
-    from app.database.models.skill_optimization.optimization_record import OptimizationRecord
 
 from myrm_agent_harness.agent.skills.optimization import (
     ABTestResult,
@@ -41,6 +36,7 @@ from myrm_agent_harness.agent.skills.optimization import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .ab_test_repo import ABTestRepository
+from .converters import quality_score_to_dict, to_ab_test_result, to_optimization_result, to_quality_score
 from .optimization_repo import OptimizationRepository
 from .quality_repo import QualityRepository
 from .snapshot_repo import SnapshotRepository
@@ -52,38 +48,20 @@ class SQLAlchemyStorage:
     """SQLAlchemy存储适配器
 
     实现SkillOptimizationStorage Protocol，使用SQLAlchemy repositories作为后端。
-    支持两种 session 管理模式：
-    - 固定session：API请求级，生命周期由调用方管理
-    - session_factory：ABTestManager 等长生命周期组件，每次操作创建独立session
+    每次操作通过 session_factory 创建独立 session 并在结束时关闭。
     """
 
-    def __init__(
-        self,
-        session: AsyncSession | None = None,
-        session_factory: Callable[[], AsyncSession] | None = None,
-    ) -> None:
-        if session is None and session_factory is None:
-            raise ValueError("Must provide either session or session_factory")
-
-        self._fixed_session = session
+    def __init__(self, session_factory: Callable[[], AsyncSession]) -> None:
         self._session_factory = session_factory
 
     @asynccontextmanager
     async def _get_session(self) -> AsyncIterator[AsyncSession]:
-        """获取session（统一入口）
-
-        固定session模式：直接返回，不关闭（调用方负责）
-        factory模式：创建新session，操作完成后关闭
-        """
-        if self._fixed_session is not None:
-            yield self._fixed_session
-        else:
-            assert self._session_factory is not None
-            session = self._session_factory()
-            try:
-                yield session
-            finally:
-                await session.close()
+        """为单次操作创建 session，结束时关闭"""
+        session = self._session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
 
     # ==================== OptimizationRecord ====================
 
@@ -101,7 +79,7 @@ class SQLAlchemyStorage:
                     await repo.create(
                         skill_id=record.skill_id,
                         skill_type=record.skill_type.value,
-                        baseline_score=_quality_score_to_dict(record.baseline_score),
+                        baseline_score=quality_score_to_dict(record.baseline_score),
                     )
         except StorageError:
             raise
@@ -115,7 +93,7 @@ class SQLAlchemyStorage:
                 records = await repo.get_by_skill_id(skill_id, limit=1)
                 if not records:
                     return None
-                return self._convert_to_optimization_result(records[0])
+                return to_optimization_result(records[0])
         except StorageError:
             raise
         except Exception as e:
@@ -130,7 +108,7 @@ class SQLAlchemyStorage:
             async with self._get_session() as session:
                 repo = OptimizationRepository(session)
                 records = await repo.get_by_skill_id(skill_id, limit)
-                return [self._convert_to_optimization_result(r) for r in records]
+                return [to_optimization_result(r) for r in records]
         except StorageError:
             raise
         except Exception as e:
@@ -147,7 +125,7 @@ class SQLAlchemyStorage:
                 records = await repo.get_recent(limit)
                 cutoff_time = datetime.now() - timedelta(hours=hours)
                 filtered = [r for r in records if r.started_at >= cutoff_time]
-                return [self._convert_to_optimization_result(r) for r in filtered]
+                return [to_optimization_result(r) for r in filtered]
         except StorageError:
             raise
         except Exception as e:
@@ -176,15 +154,15 @@ class SQLAlchemyStorage:
                         test_id=first.id,
                         status=result.status.value,
                         winner=result.winner,
-                        candidate_score=_quality_score_to_dict(result.candidate_score),
+                        candidate_score=quality_score_to_dict(result.candidate_score),
                     )
                 else:
                     await repo.create(
                         skill_id=result.skill_id,
                         baseline_version=result.baseline_version,
                         candidate_version=result.candidate_version,
-                        baseline_score=_quality_score_to_dict(result.baseline_score),
-                        candidate_score=_quality_score_to_dict(result.candidate_score),
+                        baseline_score=quality_score_to_dict(result.baseline_score),
+                        candidate_score=quality_score_to_dict(result.candidate_score),
                     )
         except StorageError:
             raise
@@ -198,7 +176,7 @@ class SQLAlchemyStorage:
                 tests = await repo.get_by_skill_id(skill_id)
                 if not tests:
                     return None
-                return self._convert_to_ab_test_result(tests[0])
+                return to_ab_test_result(tests[0])
         except StorageError:
             raise
         except Exception as e:
@@ -209,7 +187,7 @@ class SQLAlchemyStorage:
             async with self._get_session() as session:
                 repo = ABTestRepository(session)
                 tests = await repo.get_running_tests()
-                return [self._convert_to_ab_test_result(t) for t in tests]
+                return [to_ab_test_result(t) for t in tests]
         except StorageError:
             raise
         except Exception as e:
@@ -263,7 +241,7 @@ class SQLAlchemyStorage:
                 repo = QualityRepository(session)
                 await repo.save_quality_snapshot(
                     skill_id=skill_id,
-                    quality_score=_quality_score_to_dict(score),
+                    quality_score=quality_score_to_dict(score),
                 )
         except StorageError:
             raise
@@ -279,7 +257,7 @@ class SQLAlchemyStorage:
             async with self._get_session() as session:
                 repo = QualityRepository(session)
                 history = await repo.get_quality_history(skill_id, days)
-                return [(h.recorded_at, self._convert_to_quality_score(h.quality_score)) for h in history]
+                return [(h.recorded_at, to_quality_score(h.quality_score)) for h in history]
         except StorageError:
             raise
         except Exception as e:
@@ -295,7 +273,7 @@ class SQLAlchemyStorage:
                 latest = await repo.get_latest_quality(skill_id)
                 if not latest:
                     return None
-                return self._convert_to_quality_score(latest.quality_score)
+                return to_quality_score(latest.quality_score)
         except StorageError:
             raise
         except Exception as e:
@@ -309,7 +287,7 @@ class SQLAlchemyStorage:
             async with self._get_session() as session:
                 repo = QualityRepository(session)
                 tops = await repo.get_top_skills(limit)
-                return [(skill_id, self._convert_to_quality_score(score)) for skill_id, score in tops]
+                return [(skill_id, to_quality_score(score)) for skill_id, score in tops]
         except StorageError:
             raise
         except Exception as e:
@@ -323,7 +301,7 @@ class SQLAlchemyStorage:
             async with self._get_session() as session:
                 repo = QualityRepository(session)
                 bottoms = await repo.get_bottom_skills(limit)
-                return [(skill_id, self._convert_to_quality_score(score)) for skill_id, score in bottoms]
+                return [(skill_id, to_quality_score(score)) for skill_id, score in bottoms]
         except StorageError:
             raise
         except Exception as e:
@@ -452,76 +430,3 @@ class SQLAlchemyStorage:
                 "writable": False,
                 "error": str(e),
             }
-
-    # ==================== Internal Methods ====================
-
-    def _convert_to_optimization_result(self, record: "OptimizationRecord") -> OptimizationResult:
-        from myrm_agent_harness.agent.skills.optimization import (
-            OptimizationStatus,
-            SecurityValidationResult,
-            SkillType,
-        )
-
-        return OptimizationResult(
-            skill_id=record.skill_id,
-            skill_type=SkillType(record.skill_type),
-            baseline_score=self._convert_to_quality_score(record.baseline_score),
-            optimized_content=record.optimized_content or "",
-            security_validation=SecurityValidationResult(passed=True, issues=[]),
-            status=OptimizationStatus(record.status),
-            started_at=record.started_at,
-            completed_at=record.completed_at,
-            error=None,
-        )
-
-    def _convert_to_ab_test_result(self, test: "ABTestResultModel") -> ABTestResult:
-        return ABTestResult(
-            skill_id=test.skill_id,
-            baseline_version=test.baseline_version,
-            candidate_version=test.candidate_version,
-            baseline_score=self._convert_to_quality_score(test.baseline_score),
-            candidate_score=self._convert_to_quality_score(test.candidate_score),
-            sample_size=test.sample_size,
-            status=ABTestStatus(test.status),
-            started_at=test.started_at,
-            completed_at=test.completed_at,
-            winner=test.winner,
-        )
-
-    def _convert_to_quality_score(self, score_raw: object | None) -> SkillQualityScore:
-        if score_raw is None:
-            return SkillQualityScore(0.0, 0.0, 0.0, 0.0, 0.0)
-        if isinstance(score_raw, (int, float)):
-            v = float(score_raw)
-            return SkillQualityScore(v, v, v, v, v)
-        if not isinstance(score_raw, dict):
-            return SkillQualityScore(0.0, 0.0, 0.0, 0.0, 0.0)
-        d = score_raw
-
-        def gf(key: str, default: float = 0.0) -> float:
-            raw = d.get(key, default)
-            if isinstance(raw, bool):
-                return default
-            if isinstance(raw, (int, float)):
-                return float(raw)
-            return default
-
-        return SkillQualityScore(
-            gf("success_rate"),
-            gf("token_efficiency"),
-            gf("execution_time"),
-            gf("user_satisfaction"),
-            gf("call_frequency"),
-        )
-
-
-def _quality_score_to_dict(score: SkillQualityScore) -> dict[str, float]:
-    """将SkillQualityScore转换为dict（序列化用）"""
-    return {
-        "success_rate": score.success_rate,
-        "token_efficiency": score.token_efficiency,
-        "execution_time": score.execution_time,
-        "user_satisfaction": score.user_satisfaction,
-        "call_frequency": score.call_frequency,
-        "overall_score": score.overall_score,
-    }
