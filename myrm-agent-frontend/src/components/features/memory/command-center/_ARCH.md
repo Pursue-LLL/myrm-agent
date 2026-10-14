@@ -48,8 +48,6 @@
 | `TaskTriadTrajectoryCard.tsx` | 核心 | 超长任务三元状态轨迹黑匣子卡片：已达成里程碑、死胡同防循环规则拦截雷达、在途约束中途保护与单步避坑快照 HUD | ✅    |
 | `ActivityCompactorCard.tsx` | 核心 | 分级滑动时间窗口活动日志折叠与提炼管道卡片：10min 动作算法去抖折叠 (0 Token)、6h 宏观业务里程碑提纯与 24h 长期偏好归档 | ✅    |
 | `ActivityCompactorTimelineView.tsx` | 辅助 | 分级活动折叠卡片子组件：呈现微观 10min 纯算法折叠切片与 6h 宏观里程碑时间线列表 | ✅    |
-| `NoiseFreeMemoryCard.tsx` | 核心 | 工具回执噪声剥离与单调递增清除代次套件卡片：物理剥离工具调用/回执、代码级 PII 正则拦截网关与 Epoch Fencing 防幽灵复活 | ✅    |
-| `NoiseFreeMemoryEpochView.tsx` | 辅助 | 无噪声记忆套件子组件：呈现当前代次 (Epoch) HUD、已持久化事实列表与幽灵写入拦截统计 | ✅    |
 | `PrivateNotebookCard.tsx` | 核心 | 透明可检视模型私有笔记本卡片：对标 Codex PR #42385 超越版、Notes 5 工具操作台、历史交互检索与平滑跨窗口接力 | ✅    |
 | `PrivateNotebookNotesListView.tsx` | 辅助 | 私有笔记本卡片子组件：呈现透明 Markdown 笔记索引、行数统计、实时检视与人工纠偏覆写 | ✅    |
 | `PrivateNotebookHistoryView.tsx` | 辅助 | 私有笔记本卡片子组件：跨上下文窗口长程交互历史检索、归档窗口列表与流式条目展现 | ✅    |

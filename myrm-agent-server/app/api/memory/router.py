@@ -110,9 +110,6 @@ from app.api.memory.migration_router import (
 from app.api.memory.migration_wizard import (
     router as migration_wizard_router,
 )
-from app.api.memory.noise_free_memory_router import (
-    router as noise_free_memory_router,
-)
 from app.api.memory.operations import (
     archive_restore,
     backup,
@@ -241,10 +238,6 @@ router.include_router(
 router.include_router(
     activity_compactor_router,
     tags=["memory-activity-compactor"],
-)
-router.include_router(
-    noise_free_memory_router,
-    tags=["memory-noise-free-extractor"],
 )
 router.include_router(
     private_notebook_router,

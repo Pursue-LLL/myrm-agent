@@ -28,7 +28,6 @@ export * from './memory/onboardingInsight';
 export * from './memory/screenObservationSafety';
 export * from './memory/taskTriadTrajectory';
 export * from './memory/activityCompactor';
-export * from './memory/noiseFreeMemory';
 export * from './memory/privateNotebook';
 export * from './memory/jobCompounding';
 export * from './memory/revocableProvenance';

@@ -61,7 +61,6 @@ import { FirstEncounterReportCard } from './FirstEncounterReportCard';
 import { ScreenObservationSafetyCard } from './ScreenObservationSafetyCard';
 import { TaskTriadTrajectoryCard } from './TaskTriadTrajectoryCard';
 import { ActivityCompactorCard } from './ActivityCompactorCard';
-import { NoiseFreeMemoryCard } from './NoiseFreeMemoryCard';
 import { PrivateNotebookCard } from './PrivateNotebookCard';
 import { JobCompoundingCard } from './JobCompoundingCard';
 import { RevocableProvenanceCard } from './RevocableProvenanceCard';
@@ -284,9 +283,6 @@ export const UnderstandSection = ({
 
     {/* Hierarchical Activity Compactor & Telemetry Pipe Card (Item 87) */}
     <ActivityCompactorCard />
-
-    {/* Tool-Noise-Free Async Memory & Purge Generation Epoch Suite Card (Item 88) */}
-    <NoiseFreeMemoryCard />
 
     {/* Transparent Inspectable Model Private Notebook Suite Card (Item 89 P0) */}
     <PrivateNotebookCard />

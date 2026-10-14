@@ -172,8 +172,6 @@
   "src/components/features/memory/command-center/MemorySkillTriadInspectionCard.tsx": 20,
   "src/components/features/memory/command-center/MigrationMappingPreviewCard.tsx": 9,
   "src/components/features/memory/command-center/MultiPlatformMemoryMigrationStudioCard.tsx": 21,
-  "src/components/features/memory/command-center/NoiseFreeMemoryCard.tsx": 18,
-  "src/components/features/memory/command-center/NoiseFreeMemoryEpochView.tsx": 11,
   "src/components/features/memory/command-center/OkfKnowledgeBundleBrowserView.tsx": 25,
   "src/components/features/memory/command-center/OkfMemoryRotAuditConsoleView.tsx": 37,
   "src/components/features/memory/command-center/PeerCognitionHudBar.tsx": 12,
