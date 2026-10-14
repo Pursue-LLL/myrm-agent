@@ -64,9 +64,11 @@ _CHINA_ID_RE = re.compile(
     r"(?!\d)"
 )
 
+# One run of digits, or groups of four typed with the same hyphen or space between them (4532 0151 1283 0366; the
+# UnionPay form adds a last group of one to three). Only these separators: every Luhn check strips just them.
 _BANK_CARD_RE = re.compile(
-    r"(?<!\d)"
-    r"(?:62|4\d|5[1-5]|3[47])\d{13,17}"
+    r"(?<!\d)(?:62|4\d|5[1-5]|3[47])"
+    r"(?:\d{13,17}|\d{2}([- ])\d{4}\1\d{4}\1\d{4}(?:\1\d{1,3})?)"
     r"(?!\d)"
 )
 
@@ -86,10 +88,12 @@ _S3_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 # S2 patterns — sensitive (personal contact, location)
 # ---------------------------------------------------------------------------
 
+# Eleven digits, or typed in groups of 3-4-4 (138 0013 8000, 138-0013-8000). A typed number does not follow a
+# letter: the tail of a UUID (dd75f159-9266-4208) is not a phone number.
 _CHINA_PHONE_RE = re.compile(
     r"(?<!\d)"
     r"(?:\+?86[-\s]?)?"
-    r"1[3-9]\d{9}"
+    r"1[3-9]\d(?:\d{8}|(?<![A-Za-z]1[3-9]\d)[- ]\d{4}[- ]\d{4})"
     r"(?!\d)"
 )
 

@@ -93,10 +93,11 @@ class TestRedactPii:
         assert "[PII:address]" in text
 
     def test_credit_card_visible_redacted(self) -> None:
-        text, count = redact_pii("card 4532-0151-1283-0366")
+        # The grouped number fails the Luhn check, so only the looser visible-card rule applies.
+        text, count = redact_pii("card 4532-0151-1283-0367")
         assert count >= 1
         assert "[PII:credit_card]" in text
-        assert "0366" in text  # last 4 preserved
+        assert "0367" in text  # last 4 preserved
 
 
 class TestRedactingRedactedText:
@@ -186,6 +187,12 @@ class TestRedactingCustomRules:
         text, count = redact_pii("帮我总结凤凰计划Q3预算超支原因", self._KEYWORD)
 
         assert text == "帮我总结[REDACTED] [PII:custom]Q3预算超支原因"
+        assert count == 1
+
+    def test_a_multi_word_keyword_split_by_a_line_break_is_replaced(self) -> None:
+        text, count = redact_pii("see Project\nAtlas now", CustomRules(keywords=("Project Atlas",)))
+
+        assert text == "see [REDACTED] [PII:custom] now"
         assert count == 1
 
     def test_every_occurrence_is_replaced(self) -> None:

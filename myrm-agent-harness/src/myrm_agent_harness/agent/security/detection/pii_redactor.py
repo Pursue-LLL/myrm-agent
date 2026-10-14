@@ -49,11 +49,8 @@ from myrm_agent_harness.core.security.detection.pii_classifier import (
 
 
 def _redact_china_phone(m: re.Match[str]) -> str:
-    val = m.group(0)
-    digits = re.sub(r"\D", "", val)
-    if len(digits) >= 11:
-        return f"{digits[:3]}****{digits[-4:]} [PII:phone]"
-    return "[PII:phone]"
+    number = re.sub(r"\D", "", m.group(0))[-11:]  # the match may start with the +86 country code
+    return f"{number[:3]}****{number[-4:]} [PII:phone]"
 
 
 def _redact_intl_phone(m: re.Match[str]) -> str:

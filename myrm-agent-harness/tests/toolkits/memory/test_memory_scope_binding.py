@@ -131,9 +131,10 @@ def test_resolve_primary_namespace_prefers_durable_scopes() -> None:
     The primary namespace is the only value retrieval filters on, so it must be
     the broadest scope a later session can still reach.
     """
-    assert resolve_primary_namespace(
-        ["global", "agent:scifi", "channel:telegram", "conversation:conv-1", "task:task-1"]
-    ) == "agent:scifi"
+    assert (
+        resolve_primary_namespace(["global", "agent:scifi", "channel:telegram", "conversation:conv-1", "task:task-1"])
+        == "agent:scifi"
+    )
 
     # No agent scope: fall back to the global broadcast scope.
     assert resolve_primary_namespace(["global", "channel:telegram", "conversation:conv-1"]) == "global"
@@ -236,6 +237,39 @@ def test_scope_helpers_support_formal_memory_policy():
     assert base_scope.namespaces == ["task:task-1"]
     assert base_scope.agent_id == "planner"
     assert base_scope.channel_id == "telegram"
+
+
+def test_scope_helpers_derive_client_scope_from_memory_policy() -> None:
+    policy = AgentMemoryPolicy(
+        client_id="acme-corp",
+        agent_id="researcher",
+        read_scopes=(MemoryScopeLevel.GLOBAL, MemoryScopeLevel.CLIENT, MemoryScopeLevel.AGENT),
+        write_policy=MemoryWritePolicy.CLIENT,
+    )
+
+    namespaces = derive_namespaces(
+        namespaces=None,
+        client_id="acme-corp",
+        agent_id="researcher",
+        channel_id=None,
+        conversation_id=None,
+        task_id=None,
+        memory_policy=policy,
+    )
+    assert namespaces == ["global", "client:acme-corp", "agent:researcher"]
+
+    scope = build_scope(
+        namespaces=namespaces,
+        client_id="acme-corp",
+        agent_id="researcher",
+        channel_id=None,
+        conversation_id=None,
+        task_id=None,
+        memory_policy=policy,
+    )
+    assert scope.client_id == "acme-corp"
+    assert scope.primary_namespace == "client:acme-corp"
+    assert scope.namespaces == ["client:acme-corp"]
 
 
 def test_bind_scope_helper_uses_scope_copy():

@@ -41,7 +41,7 @@ class TestS3Detection:
         assert result.level == SensitivityLevel.S1
 
     def test_bank_card_luhn_valid(self) -> None:
-        # 6222021234567890018 passes Luhn
+        # 4532015112830366 passes Luhn
         result = classify_content("卡号 4532015112830366", _ENABLED)
         assert result.level == SensitivityLevel.S3
         assert "bank_card" in result.patterns
@@ -121,7 +121,8 @@ class TestS2Detection:
         assert "email" in result.patterns
 
     def test_credit_card_visible_format(self) -> None:
-        result = classify_content("card 4532-0151-1283-0366", _ENABLED)
+        # A grouped number that fails the Luhn check is not a card number the S3 rule can vouch for.
+        result = classify_content("card 4532-0151-1283-0367", _ENABLED)
         assert result.level == SensitivityLevel.S2
         assert "credit_card_visible" in result.patterns
 
@@ -166,6 +167,11 @@ class TestCustomKeywords:
         policy = PrivacyPolicy(enabled=True, custom_keywords_s2=("微信号",))
         result = classify_content("请发 微信号 给我", policy)
         assert result.level == SensitivityLevel.S2
+
+    def test_a_multi_word_s3_keyword_split_by_a_line_break_is_s3(self) -> None:
+        policy = PrivacyPolicy(enabled=True, custom_keywords_s3=("Project Atlas",))
+        result = classify_content("see Project\nAtlas now", policy)
+        assert result.level == SensitivityLevel.S3
 
     def test_custom_s3_pattern(self) -> None:
         policy = PrivacyPolicy(enabled=True, custom_patterns_s3=(r"PROJ-\d{6}",))
