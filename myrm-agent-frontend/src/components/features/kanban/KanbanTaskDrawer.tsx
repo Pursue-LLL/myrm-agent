@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/primitives/sheet';
-import type { KanbanTask } from '@/services/kanban';
+import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import { STATUS_DOT } from './kanban-styles';
 import { useAgentName } from '@/hooks/agent/useAgentName';
 import { useKanbanTaskDrawer } from './useKanbanTaskDrawer';
@@ -23,6 +23,7 @@ interface KanbanTaskDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRefresh: () => void;
+  onRequestMove: (taskId: string, targetStatus: TaskStatus) => void;
   onNavigateTask?: (taskId: string) => void;
   enabledModels: KanbanModelOption[];
 }
@@ -33,13 +34,14 @@ export default function KanbanTaskDrawer({
   open,
   onOpenChange,
   onRefresh,
+  onRequestMove,
   onNavigateTask,
   enabledModels,
 }: KanbanTaskDrawerProps) {
   const t = useTranslations('kanban');
   const agentName = useAgentName(task?.agent_id);
 
-  const drawer = useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefresh, t });
+  const drawer = useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefresh, onRequestMove, t });
 
   if (!task) {
     return null;
@@ -183,7 +185,7 @@ export default function KanbanTaskDrawer({
 
             <DependenciesSection
               parents={drawer.parents}
-              children={drawer.children}
+              dependents={drawer.children}
               showAddDep={drawer.showAddDep}
               setShowAddDep={drawer.setShowAddDep}
               addingDep={drawer.addingDep}

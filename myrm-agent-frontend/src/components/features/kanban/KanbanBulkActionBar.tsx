@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { X, Archive, ArrowRight, UserRound, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils/classnameUtils';
 import type { TaskStatus, BulkAction } from '@/services/kanban';
 import { bulkAction } from '@/services/kanban';
 
@@ -17,6 +18,42 @@ interface KanbanBulkActionBarProps {
 
 const MOVE_TARGETS: TaskStatus[] = ['ready', 'blocked', 'completed'];
 
+/** 归档后任务离开看板、删除不可恢复：两者都先在原位置二次确认。 */
+type PendingConfirm = 'archive' | 'delete';
+
+interface InlineConfirmProps {
+  message: string;
+  tone: 'default' | 'destructive';
+  loading: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function InlineConfirm({ message, tone, loading, onConfirm, onCancel }: InlineConfirmProps) {
+  const t = useTranslations('kanban');
+  const destructive = tone === 'destructive';
+  return (
+    <div className="flex items-center gap-1">
+      <span className={cn('text-xs', destructive && 'text-destructive')}>{message}</span>
+      <button
+        onClick={onConfirm}
+        disabled={loading}
+        className={cn(
+          'text-xs px-2 py-1 rounded transition-colors disabled:opacity-50',
+          destructive
+            ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            : 'bg-primary text-primary-foreground hover:bg-primary/90',
+        )}
+      >
+        {t('confirm')}
+      </button>
+      <button onClick={onCancel} className="text-xs px-2 py-1 rounded hover:bg-muted transition-colors">
+        {t('cancel')}
+      </button>
+    </div>
+  );
+}
+
 export default function KanbanBulkActionBar({
   boardId,
   selectedIds,
@@ -28,7 +65,7 @@ export default function KanbanBulkActionBar({
   const [loading, setLoading] = useState(false);
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const [showAssignMenu, setShowAssignMenu] = useState(false);
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
   const execute = async (action: BulkAction, params: Record<string, string> = {}, confirm = false) => {
     setLoading(true);
@@ -47,7 +84,7 @@ export default function KanbanBulkActionBar({
       setLoading(false);
       setShowMoveMenu(false);
       setShowAssignMenu(false);
-      setShowConfirmDelete(false);
+      setPendingConfirm(null);
     }
   };
 
@@ -57,21 +94,31 @@ export default function KanbanBulkActionBar({
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-200 max-w-[calc(100vw-2rem)]">
-      <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl border bg-background/95 backdrop-blur-sm shadow-lg overflow-x-auto">
+      <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl border bg-background/95 backdrop-blur-sm shadow-lg overflow-x-auto whitespace-nowrap [&>*]:shrink-0">
         <span className="text-sm font-medium tabular-nums">{t('bulkSelected', { count: selectedIds.length })}</span>
 
         <div className="w-px h-5 bg-border mx-1" />
 
         {/* Archive */}
-        <button
-          onClick={() => execute('archive')}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
-          title={t('bulkArchive')}
-        >
-          <Archive className="w-3.5 h-3.5" />
-          {t('bulkArchive')}
-        </button>
+        {pendingConfirm === 'archive' ? (
+          <InlineConfirm
+            message={t('bulkArchiveConfirm', { count: selectedIds.length })}
+            tone="default"
+            loading={loading}
+            onConfirm={() => execute('archive')}
+            onCancel={() => setPendingConfirm(null)}
+          />
+        ) : (
+          <button
+            onClick={() => setPendingConfirm('archive')}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+            title={t('bulkArchive')}
+          >
+            <Archive className="w-3.5 h-3.5" />
+            {t('bulkArchive')}
+          </button>
+        )}
 
         {/* Move status */}
         <div className="relative">
@@ -137,26 +184,17 @@ export default function KanbanBulkActionBar({
 
         {/* Delete */}
         <div className="relative">
-          {showConfirmDelete ? (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-destructive">{t('bulkDeleteConfirm', { count: selectedIds.length })}</span>
-              <button
-                onClick={() => execute('delete', {}, true)}
-                disabled={loading}
-                className="text-xs px-2 py-1 rounded bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
-              >
-                {t('confirm')}
-              </button>
-              <button
-                onClick={() => setShowConfirmDelete(false)}
-                className="text-xs px-2 py-1 rounded hover:bg-muted transition-colors"
-              >
-                {t('cancel')}
-              </button>
-            </div>
+          {pendingConfirm === 'delete' ? (
+            <InlineConfirm
+              message={t('bulkDeleteConfirm', { count: selectedIds.length })}
+              tone="destructive"
+              loading={loading}
+              onConfirm={() => execute('delete', {}, true)}
+              onCancel={() => setPendingConfirm(null)}
+            />
           ) : (
             <button
-              onClick={() => setShowConfirmDelete(true)}
+              onClick={() => setPendingConfirm('delete')}
               disabled={loading}
               className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors disabled:opacity-50"
             >

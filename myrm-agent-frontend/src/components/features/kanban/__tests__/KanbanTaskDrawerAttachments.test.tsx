@@ -106,6 +106,7 @@ async function renderDrawer(task: KanbanTask) {
       open={true}
       onOpenChange={onOpenChange}
       onRefresh={onRefresh}
+      onRequestMove={vi.fn()}
       enabledModels={[]}
     />,
   );

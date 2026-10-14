@@ -76,6 +76,19 @@ describe('KanbanTaskCardActions menu', () => {
     expect(labels).toEqual(['moveTo.running', 'moveTo.blocked', 'moveTo.archived', 'deleteAction']);
   });
 
+  it('labels the failed to ready transition as a retry and still sends the ready status', async () => {
+    const user = userEvent.setup();
+    const { onMove } = renderActions('failed');
+
+    await user.click(trigger());
+
+    const labels = screen.getAllByRole('menuitem').map((item) => item.textContent);
+    expect(labels).toEqual(['retryAction', 'moveTo.archived', 'deleteAction']);
+
+    await user.click(screen.getByRole('menuitem', { name: 'retryAction' }));
+    expect(onMove).toHaveBeenCalledWith('task-1', 'ready');
+  });
+
   it('runs the handler of the selected item', async () => {
     const user = userEvent.setup();
     const onOpenTaskDrawer = vi.fn();

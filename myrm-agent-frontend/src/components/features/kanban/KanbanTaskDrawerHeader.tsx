@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask, TaskStatus, PromoteResult } from '@/services/kanban';
 import { NEXT_STATUSES, STATUS_DOT } from './kanban-styles';
+import { moveLabelKey } from './kanban-transitions';
 import type { AgentListItem } from '@/services/agent';
 
 interface StatusActionsBarProps {
@@ -92,7 +93,7 @@ export function StatusActionsBar({
               disabled={promoting}
               className="text-[10px] px-2 py-1 rounded-full bg-muted hover:bg-muted-foreground/20 transition-colors font-medium disabled:opacity-50"
             >
-              {t(`moveTo.${ns}`)}
+              {t(moveLabelKey(task.status, ns))}
             </button>
           ))}
           {task.status === 'running' && (

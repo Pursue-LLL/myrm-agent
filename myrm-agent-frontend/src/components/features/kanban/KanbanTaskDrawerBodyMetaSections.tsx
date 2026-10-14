@@ -12,7 +12,7 @@ import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface DependenciesSectionProps {
   parents: TaskDepInfo[];
-  children: TaskDepInfo[];
+  dependents: TaskDepInfo[];
   showAddDep: boolean;
   setShowAddDep: (v: boolean) => void;
   addingDep: boolean;
@@ -26,7 +26,7 @@ interface DependenciesSectionProps {
 
 export function DependenciesSection({
   parents,
-  children,
+  dependents,
   showAddDep,
   setShowAddDep,
   addingDep,
@@ -117,7 +117,7 @@ export function DependenciesSection({
         )}
       </section>
 
-      {children.length > 0 && (
+      {dependents.length > 0 && (
         <section>
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
             {t('dependents')}
@@ -135,7 +135,7 @@ export function DependenciesSection({
             )}
           </h4>
           <div className="space-y-1">
-            {children.map((child) => (
+            {dependents.map((child) => (
               <button
                 key={child.task_id}
                 onClick={() => onNavigateTask?.(child.task_id)}

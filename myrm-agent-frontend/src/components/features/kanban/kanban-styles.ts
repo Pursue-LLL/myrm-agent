@@ -8,6 +8,7 @@ export const NEXT_STATUSES: Partial<Record<TaskStatus, TaskStatus[]>> = {
   blocked: ['ready'],
   in_review: [],
   completed: ['archived'],
+  // failed → ready 是「重试」入口，走重试接口而非 move（见 kanban-transitions）。
   failed: ['ready', 'archived'],
 };
 

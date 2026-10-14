@@ -182,7 +182,13 @@ export const ConfirmDialog = ({
             {Icon}
             {title}
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-base pt-2 animate-in slide-in-from-top-4 duration-300 delay-75 whitespace-pre-line">
+          <AlertDialogDescription
+            className={cn(
+              'text-base pt-2 animate-in slide-in-from-top-4 duration-300 delay-75 whitespace-pre-line',
+              // 描述里常嵌用户输入（任务标题等），无空格的长串不换行会撑破对话框。
+              'wrap-anywhere',
+            )}
+          >
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
