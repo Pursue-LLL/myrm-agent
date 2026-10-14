@@ -57,10 +57,10 @@ python scripts/check_import_resolvability.py              # 全量：每条一�
 python scripts/check_import_resolvability.py --incremental  # pre-commit：仅 harness 源码变更时运行
 python scripts/check_import_resolvability.py \
     --package myrm_agent_harness=src/myrm_agent_harness \
-    --package app=../myrm-agent/myrm-agent-server/app --scan app   # server 树对照 harness（server CI 调用）
+    --package app=../myrm-agent-server/app --scan app   # server 树对照 harness（server CI 调用）
 ```
 
-Pre-commit runs `validate_arch_inventory.py` via hook `harness-arch-inventory-check` and `check_file_line_limit.py` via hook `harness-line-limit-check`, `check_test_source_assertions.py` via hook `harness-test-source-assertion-check`, and `check_import_resolvability.py` via hook `harness-import-resolvability-check` (see `.pre-commit-config.yaml`). CI runs the import gate in `.github/workflows/boundary-check.yml`; the server repo runs it against its own `app/` tree from `scripts/ci/run_architecture_gates.sh` whenever the harness source sits beside it.
+Pre-commit runs `validate_arch_inventory.py` via hook `harness-arch-inventory-check` and `check_file_line_limit.py` via hook `harness-line-limit-check`, `check_test_source_assertions.py` via hook `harness-test-source-assertion-check`, and `check_import_resolvability.py` via hook `harness-import-resolvability-check` (see the repository-root `.pre-commit-config.yaml`). CI runs the import gate in `.github/workflows/harness-boundary.yml` (repository root); the server repo runs it against its own `app/` tree from `scripts/ci/run_architecture_gates.sh` whenever the harness source sits beside it.
 
 ## File line grandfather 策略
 

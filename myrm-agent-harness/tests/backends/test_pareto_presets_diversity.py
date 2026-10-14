@@ -13,7 +13,7 @@ from myrm_agent_harness.backends.profiles.diversity_lint import (
     validate_provider_diversity,
 )
 
-SERVER_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../myrm-agent/myrm-agent-server"))
+SERVER_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../myrm-agent-server"))
 PREBUILT_DIR = os.path.join(SERVER_ROOT, "assets", "prebuilt_agents")
 
 

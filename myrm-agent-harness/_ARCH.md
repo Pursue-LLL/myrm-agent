@@ -33,5 +33,5 @@ MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first �
 
 - 框架层禁止 import `app.*` 或任何 server 业务模块
 - 公开 API 变更须同步 `tests/api/`
-- 性能基准仅放在 `benchmarks/`，禁止在 vortexai 开发壳根目录创建 `benchmarks/`
+- 性能基准仅放在 `benchmarks/`，禁止在仓库根目录另建 `benchmarks/`
 - 运行时目录 `.myrm/`、`.agent/` 仅本地/workspace，已 gitignore，禁止提交

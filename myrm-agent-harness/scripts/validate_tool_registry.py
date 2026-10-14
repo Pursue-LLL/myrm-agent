@@ -799,7 +799,7 @@ def main() -> int:
     )
 
     # Layer-product gate is cheap (static _TOOL_LAYERS dict) — run in all modes so
-    # pre-commit --incremental (.pre-commit-config.yaml) catches layer mistakes too.
+    # pre-commit --incremental (repo-root .pre-commit-config.yaml) catches layer mistakes too.
     catalog_errors = validate_tool_catalog(load_registered_layers())
     # Governance coverage is a static metadata comparison — run in all modes so
     # pre-commit catches new tools that would silently bypass governance.

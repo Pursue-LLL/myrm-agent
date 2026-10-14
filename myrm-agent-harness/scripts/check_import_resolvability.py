@@ -13,7 +13,7 @@ Usage:
     python scripts/check_import_resolvability.py --incremental    # Pre-commit: skip unless harness sources changed
     python scripts/check_import_resolvability.py --json           # Machine-readable output
     python scripts/check_import_resolvability.py \\
-        --package app=../myrm-agent/myrm-agent-server/app \\
+        --package app=../myrm-agent-server/app \\
         --package myrm_agent_harness=src/myrm_agent_harness --scan app    # Server tree against the harness
 
 Exit codes:

@@ -159,4 +159,4 @@ Injected via server `DESKTOP_CONTROL_RULES` (`myrm-agent-server/app/ai_agents/pr
 
 - Browser parity: [BROWSER_SYSTEM.md](../browser/BROWSER_SYSTEM.md)
 - Module index: [_ARCH.md](_ARCH.md)
-- 模块索引：[_ARCH.md](_ARCH.md)（hybrid desktop 规划仅在私有 vortexai `temp-docs/`，非本仓路径）
+- 模块索引：[_ARCH.md](_ARCH.md)（hybrid desktop 规划不在本仓库内）

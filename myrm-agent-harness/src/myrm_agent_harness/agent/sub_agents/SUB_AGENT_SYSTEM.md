@@ -528,7 +528,7 @@ config = SubagentConfig(
 
 ## 参考资料
 
-- 模块索引：[_ARCH.md](_ARCH.md)（维护者 roadmap 仅在私有 vortexai `temp-docs/`，非本仓路径）
+- 模块索引：[_ARCH.md](_ARCH.md)（维护者 roadmap 不在本仓库内）
 
 ### DAG 并发执行与动态并发裂变 (Swarm Fission)
 `orchestrator.py` 提供了 `execute_dag_plan`，支持基于有向无环图 (DAG) 的并发执行模式。

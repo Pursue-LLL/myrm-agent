@@ -581,8 +581,8 @@ result = await executor.execute(code, context)
 
 ```bash
 # 克隆和设置
-git clone <repo-url>
-cd myrm-agent-harness
+git clone https://github.com/Pursue-LLL/myrm-agent.git
+cd myrm-agent/myrm-agent-harness
 uv sync --python 3.13 --locked --extra all --group dev
 source .venv/bin/activate
 
@@ -591,9 +591,9 @@ source .venv/bin/activate
 # 不要在镜像源下直接 `uv lock`：它会把所有包的 registry 与下载 URL 改写成镜像地址，
 # `tests/architecture/test_core_dependencies.py` 会拦截这种 lock。
 
-# ⚠️ 重要：安装 pre-commit（自动化边界检测）
+# ⚠️ 重要：在仓库根安装 pre-commit（自动化边界检测，hook 配置位于 myrm-agent/.pre-commit-config.yaml）
 pip install pre-commit
-pre-commit install
+(cd .. && pre-commit install)
 
 # 运行测试（默认串行 + 安全 marker 过滤，避免本机内存打满）
 pytest -v
