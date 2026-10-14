@@ -67,7 +67,7 @@ async def _check_semantic_duplicate(skill_name: str, description: str) -> str | 
         if not similar:
             return None
         names = ", ".join(f"'{s.name}' ({s.similarity_score:.0%})" for s in similar)
-        return f"Semantically similar skill(s) detected: {names}. Downgraded to manual review to prevent skill entropy."
+        return f"Similar skill(s) already exist: {names}. Review before adding."
     except Exception as e:
         logger.warning("Semantic dedup check failed (non-blocking): %s", e)
         return None
@@ -153,7 +153,7 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
     dedup_warning = await _check_semantic_duplicate(skill_name, description)
     if dedup_warning:
         logger.info("Skill draft '%s' flagged by semantic dedup: %s", skill_name, dedup_warning)
-        desc_with_warning = f"{description}\n\n⚠️ {dedup_warning}" if description.strip() else dedup_warning
+        desc_with_warning = f"{description}\n\n{dedup_warning}" if description.strip() else dedup_warning
         return cast(
             object | None,
             await persist_skill_draft_record(

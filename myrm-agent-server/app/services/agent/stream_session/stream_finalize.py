@@ -7,10 +7,10 @@ import logging
 import uuid
 from collections.abc import AsyncGenerator
 from contextvars import Token
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.config.exceptions import ConfigIncompleteError
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
+from myrm_agent_harness.core.security.types import EphemeralUserCredential, user_credentials_ctx
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationRegistry,
@@ -60,10 +60,6 @@ from app.services.agent.streaming_support.sse_helpers import (
     schedule_clarification_timeout,
     schedule_directory_timeout,
 )
-
-if TYPE_CHECKING:
-    from myrm_agent_harness.agent.skill_agent.context import MemoryRuntimeInjection
-    from myrm_agent_harness.core.security.types import EphemeralUserCredential
 
 logger = logging.getLogger(__name__)
 
@@ -413,7 +409,7 @@ async def yield_stream_exception_chunks(
             },
         }
         if exc.context and "cooldown_remaining_ms" in exc.context:
-            error_data["retry_after_ms"] = exc.context["cooldown_remaining_ms"]
+            error_data["cooldown_remaining_ms"] = exc.context["cooldown_remaining_ms"]
         yield SSEEnvelope.from_any(error_data).to_sse_chunk()
         await _record_turn_capability_failed_once(
             session,
@@ -436,8 +432,6 @@ async def finalize_agent_stream_session(
     approval: ApprovalTimeoutHolder,
     clarification: ClarificationTimeoutHolder,
 ) -> None:
-    from myrm_agent_harness.agent.security import user_credentials_ctx
-
     user_credentials_ctx.reset(token_ctx)
     draft = getattr(session, "pending_session_draft", None)
     if draft is not None and not draft.committed:
@@ -480,7 +474,6 @@ async def finalize_agent_stream_session(
             content = re.sub(r"<cite:[^>]+>", "", content)
             extra_data["citations"] = citations
 
-        injection: MemoryRuntimeInjection | None = None
         try:
             budget = get_memory_runtime_budget()
         except Exception as e:

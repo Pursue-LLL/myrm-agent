@@ -78,7 +78,7 @@ class TestFinalizeBranchCoverage:
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-            patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+            patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
             patch(
                 "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
                 return_value=None,
@@ -111,7 +111,7 @@ class TestFinalizeBranchCoverage:
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-            patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+            patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
             patch(
                 "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
                 return_value=metrics,
@@ -147,7 +147,7 @@ class TestFinalizeBranchCoverage:
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-            patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+            patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
             patch(
                 "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
                 return_value=None,
@@ -197,7 +197,7 @@ class TestFinalizeBranchCoverage:
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-            patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+            patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
             patch(
                 "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
                 return_value=None,
@@ -245,7 +245,7 @@ class TestFinalizeBranchCoverage:
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-            patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+            patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
             patch(
                 "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
                 return_value=None,
@@ -282,7 +282,7 @@ class TestFinalizeBranchCoverage:
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-            patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+            patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
             patch(
                 "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
                 return_value=None,
@@ -308,7 +308,7 @@ class TestFinalizeBranchCoverage:
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-            patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+            patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
             patch(
                 "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
                 return_value=None,

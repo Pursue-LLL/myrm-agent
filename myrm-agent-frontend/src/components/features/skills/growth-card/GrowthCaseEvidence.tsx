@@ -67,9 +67,9 @@ export function GrowthCaseEvidence({ item }: { item: SkillGrowthCaseSummary }) {
                     <Badge variant="outline" className="text-[10px]">
                       {scanText.threatLabel(finding.threat_type)}
                     </Badge>
-                    <span className="font-medium text-foreground">{finding.description}</span>
+                    <span className="min-w-0 break-words font-medium text-foreground">{finding.description}</span>
                   </div>
-                  {finding.line_number && (
+                  {finding.line_number != null && (
                     <span className="text-[10px] text-muted-foreground font-mono">
                       {t('securityScan.line', { line: finding.line_number })}
                     </span>

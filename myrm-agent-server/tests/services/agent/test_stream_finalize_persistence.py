@@ -65,7 +65,7 @@ async def test_finalize_persists_memory_budget_without_citations() -> None:
         patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
             "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
             return_value=None,
@@ -106,7 +106,7 @@ async def test_finalize_citations_preserve_first_seen_order() -> None:
         patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
             "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
             return_value=None,
@@ -146,7 +146,7 @@ async def test_finalize_persists_memory_brief_status_payload() -> None:
         patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
             "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
             return_value=None,
@@ -211,7 +211,7 @@ async def test_finalize_skips_invalid_memory_budget_payload() -> None:
         patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
             "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
             return_value=None,
@@ -250,7 +250,7 @@ async def test_finalize_persists_not_applied_injection_reason() -> None:
         patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
             "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
             return_value=None,
@@ -291,7 +291,7 @@ async def test_finalize_emits_injection_status_when_brief_status_missing() -> No
         patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
             "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
             return_value=None,
@@ -332,7 +332,7 @@ async def test_finalize_keeps_injection_status_when_budget_hook_fails() -> None:
         patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
             "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
             return_value=None,
