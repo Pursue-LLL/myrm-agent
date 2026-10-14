@@ -6,10 +6,8 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from fastapi import Request
-from myrm_agent_harness.utils.runtime.cancellation import (
-    CancellationMonitor,
-    CancellationToken,
-)
+from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry
+from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.ai_agents import GeneralAgentParams
@@ -30,11 +28,10 @@ class AgentStreamSession:
     cancel_token: CancellationToken
     steering_token: SteeringToken | None
     routing_tier: str | None
-    archive_restore_results: list[object]
+    archive_restore_results: list[dict[str, object]]
     research_model_cfg: ModelConfig | None
-    registry: object
+    registry: GlobalStreamRegistry
     collector: StreamContentCollector
-    monitor: CancellationMonitor
     is_long_running_task: bool
     goal_provider: object | None
     extra_context: dict[str, object]
@@ -43,7 +40,6 @@ class AgentStreamSession:
     context_warnings: list[str] = field(default_factory=list)
     stream_started_at_monotonic: float = field(default=0.0)
     stream_ttft_ms: int | None = field(default=None)
-    durable_registered: bool = field(default=False)
     had_fatal_error: bool = field(default=False)
     turn_capability_terminal_recorded: bool = field(default=False)
     disconnect_time: float | None = field(default=None)

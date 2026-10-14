@@ -50,8 +50,6 @@ def _make_session(
     session.collector.sibling_group_id = None
     session.collector.has_pending_hitl_replay = MagicMock(return_value=False)
     session.collector.cleanup = MagicMock()
-    session.monitor = MagicMock()
-    session.monitor.stop = AsyncMock()
     session.extra_context = {}
     session.stream_ttft_ms = None
     session.had_fatal_error = False

@@ -28,11 +28,10 @@ async def test_pump_emits_context_compaction_when_pre_reply_compact_succeeded() 
         attempted=True,
     )
     session.pre_reply_compact_sse_sent = False
-    session.params.message_id = "msg-1"
+    session.request.message_id = "msg-1"
     session.params.project_id = None
     session.request.chat_id = "chat-1"
     session.is_long_running_task = False
-    session.durable_registered = False
     session.had_fatal_error = False
     session.collector = MagicMock()
     session.registry.remove = AsyncMock()
@@ -59,11 +58,10 @@ async def test_pump_skips_context_compaction_when_pre_reply_compact_skipped() ->
     session = MagicMock()
     session.pre_reply_compact_result = CompactResult(compacted=False, reason="idle_compact_disabled")
     session.pre_reply_compact_sse_sent = False
-    session.params.message_id = "msg-2"
+    session.request.message_id = "msg-2"
     session.params.project_id = None
     session.request.chat_id = "chat-2"
     session.is_long_running_task = False
-    session.durable_registered = False
     session.had_fatal_error = False
     session.collector = MagicMock()
     session.registry.remove = AsyncMock()
@@ -93,11 +91,10 @@ async def test_pump_skips_duplicate_sse_when_already_sent() -> None:
         attempted=True,
     )
     session.pre_reply_compact_sse_sent = True
-    session.params.message_id = "msg-3"
+    session.request.message_id = "msg-3"
     session.params.project_id = None
     session.request.chat_id = "chat-3"
     session.is_long_running_task = False
-    session.durable_registered = False
     session.had_fatal_error = False
     session.collector = MagicMock()
     session.registry.remove = AsyncMock()

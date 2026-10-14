@@ -146,7 +146,6 @@ async def test_finalize_agent_stream_session_with_cancelled_turn():
     session.params.message_id = "msg_cancel_1"
     session.params.enable_skill_manage = False
     session.cancel_token = cancel_token
-    session.monitor = AsyncMock()
     session.turn_capability_terminal_recorded = True
 
     approval = ApprovalTimeoutHolder()

@@ -68,7 +68,9 @@ async def test_bootstrap_existing_chat_persists_immediately():
 
     with (
         patch("app.services.chat.chat_service.ChatService.get_chat_metadata", new_callable=AsyncMock) as mock_meta,
-        patch("app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock) as mock_append,
+        patch(
+            "app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock
+        ) as mock_append,
     ):
         mock_meta.return_value = existing_chat
         mock_append.return_value = fake_msg
@@ -118,7 +120,6 @@ async def test_finalize_discards_draft_when_cancelled_before_first_token():
     session.extra_context = {}
     session.migration_live_readiness_status = None
     session.params = MagicMock(enable_skill_manage=False)
-    session.monitor = AsyncMock()
     # cancel_token has no dataclass default, so spec-mocks don't expose it;
     # production requires it (stream_session_types.py:30).
     session.cancel_token = MagicMock()
@@ -130,8 +131,12 @@ async def test_finalize_discards_draft_when_cancelled_before_first_token():
     clarification.pending = False
 
     with (
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new_callable=AsyncMock) as mock_persist_asst,
-        patch("app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock) as mock_commit_chat,
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new_callable=AsyncMock
+        ) as mock_persist_asst,
+        patch(
+            "app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock
+        ) as mock_commit_chat,
     ):
         await finalize_agent_stream_session(session, token_ctx, approval, clarification)
 
@@ -178,7 +183,6 @@ async def test_finalize_commits_draft_when_tool_step_present_without_text():
     session.stream_ttft_ms = 85
     session.extra_context = {}
     session.migration_live_readiness_status = None
-    session.monitor = AsyncMock()
     session.cancel_token = MagicMock()
     session.cancel_token.is_cancelled = False
     session.params = MagicMock(enable_skill_manage=False)
@@ -189,9 +193,15 @@ async def test_finalize_commits_draft_when_tool_step_present_without_text():
     clarification.pending = False
 
     with (
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new_callable=AsyncMock) as mock_persist_asst,
-        patch("app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock) as mock_commit_chat,
-        patch("app.services.agent.params.workspace_resolve.materialize_default_chat_workspace_dir", new_callable=AsyncMock) as mock_mat,
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new_callable=AsyncMock
+        ) as mock_persist_asst,
+        patch(
+            "app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock
+        ) as mock_commit_chat,
+        patch(
+            "app.services.agent.params.workspace_resolve.materialize_default_chat_workspace_dir", new_callable=AsyncMock
+        ) as mock_mat,
     ):
         await finalize_agent_stream_session(session, token_ctx, approval, clarification)
 
@@ -238,7 +248,6 @@ async def test_finalize_commits_draft_when_assistant_content_present():
     session.stream_ttft_ms = 120
     session.extra_context = {}
     session.migration_live_readiness_status = None
-    session.monitor = AsyncMock()
     # cancel_token has no dataclass default, so spec-mocks don't expose it;
     # production requires it (stream_session_types.py:30).
     session.cancel_token = MagicMock()
@@ -252,9 +261,15 @@ async def test_finalize_commits_draft_when_assistant_content_present():
     clarification.pending = False
 
     with (
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new_callable=AsyncMock) as mock_persist_asst,
-        patch("app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock) as mock_commit_chat,
-        patch("app.services.agent.params.workspace_resolve.materialize_default_chat_workspace_dir", new_callable=AsyncMock) as mock_mat,
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new_callable=AsyncMock
+        ) as mock_persist_asst,
+        patch(
+            "app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock
+        ) as mock_commit_chat,
+        patch(
+            "app.services.agent.params.workspace_resolve.materialize_default_chat_workspace_dir", new_callable=AsyncMock
+        ) as mock_mat,
     ):
         await finalize_agent_stream_session(session, token_ctx, approval, clarification)
 
@@ -338,6 +353,7 @@ async def test_purge_orphan_empty_sessions_handles_individual_failures():
         patch("app.services.chat.chat_service.ChatService.delete_chat", new_callable=AsyncMock) as mock_soft,
         patch("app.services.chat.chat_service.ChatService.permanently_delete_chat", new_callable=AsyncMock) as mock_perm,
     ):
+
         async def side_effect_soft(cid: str) -> bool:
             if cid == "chat-fail-soft":
                 return False
@@ -356,4 +372,3 @@ async def test_purge_orphan_empty_sessions_handles_individual_failures():
         assert count == 1
         assert mock_soft.await_count == 3
         assert mock_perm.await_count == 2
-

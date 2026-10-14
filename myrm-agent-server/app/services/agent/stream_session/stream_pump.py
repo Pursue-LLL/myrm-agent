@@ -4,21 +4,25 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
-from fastapi.responses import JSONResponse, StreamingResponse
-
-from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.services.agent.stream_session.stream_chunks import generate_cancellable_stream
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.sse_helpers import error_sse
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.streaming.stream_buffer import ResilientStreamBuffer
+    from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
+
+    from app.services.project.orchestrator import ProjectOrchestrator
 
 logger = logging.getLogger(__name__)
 
 
 async def _acquire_guarded(
-    orch: object,
+    orch: ProjectOrchestrator,
     project_id: str,
-    cancel_token: object,
+    cancel_token: CancellationToken,
 ) -> None:
     """Acquire the project turn lock while reacting to user cancel/disconnect.
 
@@ -28,7 +32,7 @@ async def _acquire_guarded(
     (1s worst-case cancellation latency, lock ownership is safe on Python 3.12+).
     """
     while True:
-        if getattr(cancel_token, "is_cancelled", False):
+        if cancel_token.is_cancelled:
             raise asyncio.CancelledError
         try:
             await asyncio.wait_for(orch.acquire(project_id), timeout=1.0)
@@ -37,17 +41,19 @@ async def _acquire_guarded(
             continue
 
 
-async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
+async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuffer) -> None:
     from app.schemas.streaming import SSEEnvelope
     from app.services.agent.stream_session.pre_reply_compact_sse import (
         append_pre_reply_compact_sse,
     )
     from app.services.project.orchestrator import project_orchestrator
 
+    message_id = session.request.message_id
+
     if not session.pre_reply_compact_sse_sent:
         await append_pre_reply_compact_sse(
             buffer,
-            session.params.message_id,
+            message_id,
             session.pre_reply_compact_result,
         )
 
@@ -57,7 +63,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
         waiting_msg = SSEEnvelope.from_any(
             {
                 "type": "status",
-                "messageId": session.params.message_id,
+                "messageId": message_id,
                 "step_key": "waiting_for_turn",
                 "status": "waiting",
                 "data": {"message": "Waiting for other agents in the project to finish..."},
@@ -79,7 +85,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
             cleared_msg = SSEEnvelope.from_any(
                 {
                     "type": "status",
-                    "messageId": session.params.message_id,
+                    "messageId": message_id,
                     "step_key": "waiting_for_turn_clear",
                     "status": "success",
                 }
@@ -97,7 +103,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
 
                 await WorkspaceMultiplexer.get().publish(
                     chat_id=session.request.chat_id,
-                    message_id=session.params.message_id,
+                    message_id=message_id,
                     chunk=chunk,
                 )
     except asyncio.CancelledError:
@@ -105,7 +111,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
     except Exception as e:
         stream_had_error = True
         logger.error("Error pumping stream to buffer: %s", e, exc_info=True)
-        await buffer.append(error_sse("Stream interrupted", session.params.message_id))
+        await buffer.append(error_sse("Stream interrupted", message_id))
     finally:
         if project_id and lock_acquired:
             project_orchestrator.release(project_id)
@@ -115,33 +121,8 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
             get_agent_gateway().release_if_reserved_only(session.request.chat_id)
         await buffer.end_stream()
 
-        # --- Offline Guardian Notification & Cleanup ---
+        # A long-running turn keeps going after its client left; tell the user once it ends.
         try:
-            if session.is_long_running_task:
-                try:
-                    if session.durable_registered and session.request.chat_id:
-                        from sqlalchemy import delete
-
-                        from app.database.models.chat import OfflineDurableTask
-                        from app.platform_utils import get_session_factory
-
-                        session_factory = get_session_factory()
-                        async with session_factory() as db:
-                            await db.execute(
-                                delete(OfflineDurableTask).where(OfflineDurableTask.chat_id == session.request.chat_id)
-                            )
-                            await db.commit()
-                            logger.info(
-                                "Offline Durable Guardian task cleared: chat_id=%s",
-                                session.request.chat_id,
-                            )
-
-                            from app.services.power.manager import release_power_lock
-
-                            release_power_lock(session.request.chat_id)
-                except Exception as e:
-                    logger.error("Failed to clear durable task: %s", e)
-
             if session.is_long_running_task and not session.cancel_token.is_cancelled:
                 if await session.http_request.is_disconnected():
                     from app.services.infra.system_notification import (
@@ -156,13 +137,13 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                             source="offline_guardian",
                             meta_data={
                                 "chat_id": session.request.chat_id,
-                                "message_id": session.params.message_id,
+                                "message_id": message_id,
                                 "action_url": f"/{session.request.chat_id}",
                             },
                         )
                         logger.info(
                             "Offline Guardian error notification sent for: %s",
-                            session.params.message_id,
+                            message_id,
                         )
                     else:
                         await SystemNotificationService.create_notification(
@@ -172,13 +153,13 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                             source="offline_guardian",
                             meta_data={
                                 "chat_id": session.request.chat_id,
-                                "message_id": session.params.message_id,
+                                "message_id": message_id,
                                 "action_url": f"/{session.request.chat_id}",
                             },
                         )
                         logger.info(
                             "Offline Guardian notification sent for: %s",
-                            session.params.message_id,
+                            message_id,
                         )
         except Exception as e:
             logger.error("Offline Guardian notification error: %s", e)
@@ -186,30 +167,12 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
         async def _delayed_remove() -> None:
             try:
                 await asyncio.sleep(300)
-                await session.registry.remove(session.params.message_id)
+                await session.registry.remove(message_id)
             except asyncio.CancelledError:
                 pass
 
         task = asyncio.create_task(
             _delayed_remove(),
-            name=f"buffer_cleanup_{session.params.message_id}",
+            name=f"buffer_cleanup_{message_id}",
         )
         task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
-
-
-async def launch_buffered_stream(
-    session: AgentStreamSession,
-) -> StreamingResponse | JSONResponse:
-    buffer = await session.registry.get_or_create(session.params.message_id)
-    asyncio.create_task(pump_to_buffer(session, buffer))
-
-    if getattr(session.request, "multiplexed", False):
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(content={"status": "accepted", "message_id": session.params.message_id})
-
-    return StreamingResponse(
-        content=buffer.subscribe(),
-        media_type="text/event-stream",
-        headers=SSE_RESPONSE_HEADERS,
-    )

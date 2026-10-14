@@ -7,7 +7,6 @@
 [OUTPUT]
 - persist_user_message: append user turn and commit it before any turn setup
 - load_chat_history: load web chat history after setup gates complete
-- persist_user_message_and_load_history: compatibility helper combining both steps
 
 [POS]
 Orchestrator helper isolating DB persist + history load from stream session lifecycle.
@@ -41,22 +40,6 @@ class BootstrappedMessageId(str):
         return instance
 
 
-async def persist_user_message_and_load_history(
-    request: AgentRequest,
-    *,
-    text_content: str,
-) -> list[list[str | dict[str, object]]]:
-    """Persist a new user message, then load chat history for the stream."""
-    persisted_message_id = await persist_user_message(
-        request,
-        text_content=text_content,
-    )
-    return await load_chat_history(
-        request,
-        exclude_message_id=persisted_message_id,
-    )
-
-
 async def persist_user_message(
     request: AgentRequest,
     *,
@@ -88,7 +71,7 @@ async def persist_user_message(
         sent_at_utc = datetime.now(tz=UTC)
 
     sent_timezone = request.timezone or "UTC"
-    extra_data_val = None
+    extra_data_val: dict[str, object] | None = None
     if isinstance(request.query, list):
         extra_data_val = {"original_query": request.query}
 
@@ -138,7 +121,6 @@ async def persist_user_message(
         resolved_id,
     )
     return BootstrappedMessageId(resolved_id, pending_draft=draft)
-
 
 
 async def load_chat_history(

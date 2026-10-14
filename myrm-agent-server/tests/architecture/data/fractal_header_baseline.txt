@@ -213,9 +213,7 @@ app/services/agent/routing_advisor.py
 app/services/agent/search.py
 app/services/agent/stream_session/reconnect.py
 app/services/agent/stream_session/risk_gate.py
-app/services/agent/stream_session/stream_disconnect.py
 app/services/agent/stream_session/stream_finalize.py
-app/services/agent/stream_session/stream_generator.py
 app/services/agent/stream_session/stream_lane_factory.py
 app/services/agent/stream_session/stream_pump.py
 app/services/agent/stream_session/stream_session_types.py

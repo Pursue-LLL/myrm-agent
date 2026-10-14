@@ -28,7 +28,6 @@ from myrm_agent_harness.agent.middlewares.approval.scheduler import (
     ApprovalTimeoutScheduler,
 )
 from myrm_agent_harness.utils.runtime.cancellation import (
-    CancellationMonitor,
     CancellationRegistry,
     CancellationToken,
 )
@@ -47,11 +46,8 @@ from app.services.agent.stream_session import chat_history_bootstrap
 from app.services.agent.stream_session.migration_bound_project import (
     apply_migration_bound_project,
 )
-from app.services.agent.stream_session.stream_generator import (
-    AgentStreamSession,
-    build_disconnect_checker,
-)
 from app.services.agent.stream_session.stream_pump import pump_to_buffer
+from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.stream_session.turn_capability_terminal import (
     TurnCapabilityFailureReason,
 )
@@ -101,40 +97,11 @@ async def execute_agent_turn_after_reserve(
     # Commit the user row before any optional profile/model-window/compact work.
     # The multiplexed HTTP response is already accepted at this point; API
     # observers must see the turn even when stale-context setup is slow.
-    #
-    # Resolve helpers from the module at call time.  Uvicorn's dev reloader can
-    # reload this module before reloading its dependency; the fallback keeps an
-    # in-flight old worker from crashing with a mixed-generation ImportError.
-    persisted_message_id: str | None = None
-    chat_history: list[list[str | dict[str, object]]] | None = None
-    persist_user_message = getattr(
-        chat_history_bootstrap,
-        "persist_user_message",
-        None,
+    persisted_message_id = await chat_history_bootstrap.persist_user_message(
+        request,
+        text_content=text_content,
     )
-    load_chat_history = getattr(chat_history_bootstrap, "load_chat_history", None)
-    logger.info(
-        "E1 turn setup chat_id=%s message_id=%s split_helpers=%s",
-        request.chat_id,
-        request.message_id,
-        callable(persist_user_message) and callable(load_chat_history),
-    )
-    pending_draft: object | None = None
-    if callable(persist_user_message) and callable(load_chat_history):
-        persisted_message_id = await persist_user_message(
-            request,
-            text_content=text_content,
-        )
-        pending_draft = getattr(persisted_message_id, "pending_draft", None)
-    else:
-        # Mixed-generation hot reload fallback.  A fresh process always takes
-        # the split path above; an old worker remains functional until it exits.
-        chat_history = await chat_history_bootstrap.persist_user_message_and_load_history(
-            request,
-            text_content=text_content,
-        )
-        if isinstance(chat_history, tuple) and len(chat_history) > 1:
-            pending_draft = chat_history[1]
+    pending_draft = persisted_message_id.pending_draft if persisted_message_id is not None else None
 
     pre_reply_compact_result: CompactResult | None = None
     pre_reply_compact_sse_sent = False
@@ -158,11 +125,10 @@ async def execute_agent_turn_after_reserve(
             )
         )
 
-    if chat_history is None:
-        chat_history = await load_chat_history(
-            request,
-            exclude_message_id=persisted_message_id,
-        )
+    chat_history = await chat_history_bootstrap.load_chat_history(
+        request,
+        exclude_message_id=persisted_message_id,
+    )
 
     await apply_migration_bound_project(request)
 
@@ -432,11 +398,6 @@ async def execute_agent_turn_after_reserve(
         research_model_cfg=research_model_cfg,
         registry=registry,
         collector=collector,
-        monitor=CancellationMonitor(
-            token=cancel_token,
-            disconnect_checker=lambda: False,
-            check_interval=0.5,
-        ),
         is_long_running_task=is_long_running_task,
         goal_provider=goal_provider,
         extra_context=extra_context or {},
@@ -446,12 +407,7 @@ async def execute_agent_turn_after_reserve(
         stream_started_at_monotonic=stream_started_at_monotonic,
         pre_reply_compact_result=pre_reply_compact_result,
         pre_reply_compact_sse_sent=pre_reply_compact_sse_sent,
-        pending_session_draft=pending_draft,  # type: ignore[arg-type]
-    )
-    session.monitor = CancellationMonitor(
-        token=cancel_token,
-        disconnect_checker=build_disconnect_checker(session),
-        check_interval=0.5,
+        pending_session_draft=pending_draft,
     )
 
     if request.chat_id and request.resume_value is None and not is_long_running_task:

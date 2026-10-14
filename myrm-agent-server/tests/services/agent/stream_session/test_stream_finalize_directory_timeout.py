@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -14,10 +14,10 @@ def _make_session(chat_id: str = "chat-directory-1") -> MagicMock:
     session = MagicMock()
     session.request.chat_id = chat_id
     session.request.timezone = "UTC"
+    session.request.resume_value = None
     session.collector.has_persistable_turn = False
     session.collector.has_content = False
     session.collector.cleanup = MagicMock()
-    session.monitor.stop = AsyncMock()
     session.cancel_token.is_cancelled = False
     session.params = MagicMock()
     session.params.message_id = "msg-1"
