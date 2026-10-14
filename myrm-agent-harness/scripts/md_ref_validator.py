@@ -10,9 +10,9 @@ a deterministic order:
 
 1. explicit relatives (``./`` / ``../``) — against the md file's directory,
    plus the table row's first-cell directory when present;
-2. cross-repo aliases (``myrm-agent-server/...`` etc.) — against the monorepo
-   root, with the ``myrm-agent-harness`` shorthand expanded through the
-   ``src/myrm_agent_harness/`` package prefix;
+2. sibling-project aliases (``myrm-agent-server/...`` etc.) — against the
+   repository root, with the ``myrm-agent-harness`` shorthand expanded through
+   the ``src/myrm_agent_harness/`` package prefix;
 3. module shortcuts whose first segment is a top-level module directory of the
    scanned repo's source root (harness ``agent/``/``toolkits/``..., server
    ``api/``/``services/``...) — against the md directory, then the package
@@ -76,13 +76,20 @@ _PROBE_EXTENSIONS = (".tsx", ".ts", ".mjs", ".js", ".cjs")
 # dotted symbol suffixes.
 _DATA_EXTENSIONS = frozenset({".txt", ".jsonl", ".ndjson", ".csv", ".tsv", ".lock", ".env"})
 _FILE_SUFFIXES = _FILE_EXTENSIONS | _DATA_EXTENSIONS
-# Repo aliases resolved against the monorepo root.
-_REPO_ALIAS_DIRS = frozenset({"myrm-agent", "myrm-agent-harness", "myrm-control-plane", "myrm-agent-brand"})
-_SUBREPO_ALIASES = {
-    "myrm-agent-server": "myrm-agent/myrm-agent-server",
-    "myrm-agent-frontend": "myrm-agent/myrm-agent-frontend",
-    "myrm-agent-desktop": "myrm-agent/myrm-agent-desktop",
-}
+# Top-level project aliases resolved against the repository root. ``myrm-agent``,
+# ``myrm-control-plane`` and ``myrm-agent-brand`` only exist in the private dev
+# shell that wraps this repository; they are unverifiable (skipped) elsewhere.
+_REPO_ALIAS_DIRS = frozenset(
+    {
+        "myrm-agent",
+        "myrm-agent-harness",
+        "myrm-agent-server",
+        "myrm-agent-frontend",
+        "myrm-agent-desktop",
+        "myrm-control-plane",
+        "myrm-agent-brand",
+    }
+)
 # Directories whose .md are runtime/packaging artifacts, not source refs.
 _MD_SKIP_DIR_NAMES = frozenset({"prebuilt_skills"})
 # Docs whose backtick refs carry planning/benchmark semantics (competitor
@@ -186,7 +193,7 @@ def _is_verifiable_ref(ref: str, top_dirs: frozenset[str]) -> bool:
     if ref.startswith(("./", "../")):
         return True
     first = ref.split("/", 1)[0]
-    return first in _REPO_ALIAS_DIRS or first in _SUBREPO_ALIASES or first in top_dirs
+    return first in _REPO_ALIAS_DIRS or first in top_dirs
 
 
 def _path_exists(base: Path, ref: str) -> bool:
@@ -320,8 +327,8 @@ def _resolve_md_ref(
     pkg_root: Path | None,
 ) -> bool:
     """Resolve a markdown path ref in the order described by the module docstring.
-    Cross-repo refs whose repo dir is absent locally (standalone harness) are
-    treated as unverifiable and skipped, keeping false positives at zero."""
+    Refs to a project dir that is absent locally are treated as unverifiable and
+    skipped, keeping false positives at zero."""
     for cand in _progressive_paths(ref):
         if cand.startswith(("./", "../")):
             if _path_exists(md_path.parent, cand):
@@ -330,15 +337,14 @@ def _resolve_md_ref(
                 return True
             continue
         first = cand.split("/", 1)[0]
-        if first in _REPO_ALIAS_DIRS or first in _SUBREPO_ALIASES:
-            target_dir = _SUBREPO_ALIASES.get(first, first)
-            if not (monorepo_root / target_dir).is_dir():
-                return True  # repo not checked out locally; unverifiable
+        if first in _REPO_ALIAS_DIRS:
+            if not (monorepo_root / first).is_dir():
+                return True  # project not checked out locally; unverifiable
             rest = cand.split("/", 1)[1]
-            if _path_exists(monorepo_root / target_dir, rest):
+            if _path_exists(monorepo_root / first, rest):
                 return True
             if first == "myrm-agent-harness" and _path_exists(
-                monorepo_root / target_dir / _PKG_REL, rest
+                monorepo_root / first / _PKG_REL, rest
             ):
                 return True
             continue

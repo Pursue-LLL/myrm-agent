@@ -34,8 +34,8 @@ _ALLOWLIST_SUFFIXES = (
 )
 _SCAN_ROOTS = (
     _HARNESS_SRC,
-    _MONOREPO_ROOT / "myrm-agent" / "myrm-agent-server" / "app",
-    _MONOREPO_ROOT / "myrm-agent" / "myrm-agent-server" / "tests",
+    _MONOREPO_ROOT / "myrm-agent-server" / "app",
+    _MONOREPO_ROOT / "myrm-agent-server" / "tests",
 )
 
 

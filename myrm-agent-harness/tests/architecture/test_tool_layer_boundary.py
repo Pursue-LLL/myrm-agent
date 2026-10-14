@@ -10,14 +10,7 @@ from myrm_agent_harness.agent.tool_management.tool_layers import _TOOL_LAYERS, T
 _HARNESS_ROOT = Path(__file__).resolve().parents[2]
 _MONOREPO_ROOT = _HARNESS_ROOT.parent
 _SERVER_BOOTSTRAP = (
-    _MONOREPO_ROOT
-    / "myrm-agent"
-    / "myrm-agent-server"
-    / "app"
-    / "ai_agents"
-    / "general_agent"
-    / "tools"
-    / "_tool_layer_bootstrap.py"
+    _MONOREPO_ROOT / "myrm-agent-server" / "app" / "ai_agents" / "general_agent" / "tools" / "_tool_layer_bootstrap.py"
 )
 
 

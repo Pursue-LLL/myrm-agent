@@ -14,7 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 HARNESS_ROOT = REPO_ROOT
 HARNESS_SRC = HARNESS_ROOT / "src" / "myrm_agent_harness"
-SERVER_ROOT = REPO_ROOT.parent / "myrm-agent" / "myrm-agent-server"
+SERVER_ROOT = REPO_ROOT.parent / "myrm-agent-server"
 SERVER_SRC = SERVER_ROOT / "app"
 
 SCAN_ROOTS: tuple[Path, ...] = (HARNESS_SRC, SERVER_SRC)

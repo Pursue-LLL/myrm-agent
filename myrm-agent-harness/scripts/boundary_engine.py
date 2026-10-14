@@ -23,21 +23,25 @@ _repo_root = Path(__file__).parent.parent
 def get_changed_harness_files(harness_root: Path) -> list[Path] | None:
     """Get Python files changed in the harness directory via git.
 
+    Paths are taken relative to the harness root (``--relative``), so the result is the same
+    whether the harness is a standalone checkout or a subdirectory of a larger repository.
     Checks both staged and unstaged changes. Returns None if git is
     unavailable or not in a git repository (caller should fall back to full scan).
     """
     try:
         staged = subprocess.run(
-            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+            ["git", "diff", "--cached", "--name-only", "--relative", "--diff-filter=ACMR"],
             capture_output=True,
             text=True,
             timeout=5,
+            cwd=_repo_root,
         )
         unstaged = subprocess.run(
-            ["git", "diff", "--name-only", "--diff-filter=ACMR"],
+            ["git", "diff", "--name-only", "--relative", "--diff-filter=ACMR"],
             capture_output=True,
             text=True,
             timeout=5,
+            cwd=_repo_root,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None
