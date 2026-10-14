@@ -601,7 +601,19 @@ def _chrome_e2e_epoch_pin(
         f"seeded={'yes' if outcome.seeded else 'no'} detail={outcome.detail}",
         flush=True,
     )
-    yield
+    try:
+        yield
+    finally:
+        try:
+            from e2e_core.epoch_backend_pool import release_epoch_backend_holder
+            from e2e_core.verify_backend_seed import _isolated_registry_root
+
+            release_epoch_backend_holder(
+                isolated_root=_isolated_registry_root(),
+                runtime_id=outcome.runtime_id,
+            )
+        except Exception:
+            pass
 
 
 @pytest.fixture(autouse=True)
