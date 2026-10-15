@@ -24,7 +24,6 @@ import { RepoEvidenceCard } from '../cards/RepoEvidenceCard';
 import { MemoryEconomicsPanel } from './MemoryEconomicsPanel';
 import { GraphRRFRetrievalCard } from './GraphRRFRetrievalCard';
 import { HindsightReflectionCard } from './HindsightReflectionCard';
-import { GeneEvolutionInspectorCard } from './GeneEvolutionInspectorCard';
 import { GroundTruthDriftDefenseCard } from './GroundTruthDriftDefenseCard';
 import { KnowledgeGraphPoisoningShieldCard } from './KnowledgeGraphPoisoningShieldCard';
 import { IntegrationRetainedContextPurgeCard } from './IntegrationRetainedContextPurgeCard';
@@ -64,7 +63,6 @@ export const UnderstandSection = ({
     <RepoEvidenceCard />
     <GraphRRFRetrievalCard />
     <HindsightReflectionCard />
-    <GeneEvolutionInspectorCard />
     <GroundTruthDriftDefenseCard />
     <KnowledgeGraphPoisoningShieldCard />
     <IntegrationRetainedContextPurgeCard />

@@ -429,7 +429,6 @@ myrm_agent_harness.toolkits.memory.drift_defense
 myrm_agent_harness.toolkits.memory.ephemeral_delta
 myrm_agent_harness.toolkits.memory.ephemeral_delta.notify
 myrm_agent_harness.toolkits.memory.ephemeral_delta.shared_store
-myrm_agent_harness.toolkits.memory.evolution
 myrm_agent_harness.toolkits.memory.graph
 myrm_agent_harness.toolkits.memory.graph.age_store
 myrm_agent_harness.toolkits.memory.graph.base

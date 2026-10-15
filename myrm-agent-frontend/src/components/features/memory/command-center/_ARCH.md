@@ -32,8 +32,6 @@
 | `GraphTraversalResultView.tsx`          | 辅助 | 知识图谱拓扑遍历子组件：呈现触达节点徽章、多跳关系路径展开与关联记忆 | ✅    |
 | `HindsightReflectionCard.tsx`           | 核心 | 事后经验反思与失败任务回放缓冲卡片：避坑规则沉淀、前置预警探测与反思指标 HUD | ✅    |
 | `HindsightWarningsView.tsx`             | 辅助 | 事后反思卡片子组件：呈现高风险避坑警示卡片与推荐纠偏建议动作 | ✅    |
-| `GeneEvolutionInspectorCard.tsx`        | 核心 | 因果经验基因合成与达尔文演化卡片：前置征兆探针、被证伪假设避坑建议与置信度动态惩罚 | ✅    |
-| `GeneAdviceListView.tsx`                | 辅助 | 经验基因卡片子组件：呈现规划期命中经验建议、触发征兆徽章与死胡同避坑清单 | ✅    |
 | `GroundTruthDriftDefenseCard.tsx`       | 核心 | Ground Truth 真实性漂移防御与过时记忆熔断卡片：物理文件存在性与 AST 符号扫描、过时前缀装配与置信度衰减 | ✅    |
 | `DriftReferenceAuditView.tsx`           | 辅助 | 真实性漂移防御卡片子组件：呈现物理不一致证据列表、漂移类型徽标与装配效果预览 | ✅    |
 | `SovereignMigrationInspectorCard.tsx`   | 核心 | 全量数字资产主权打包、跨机无损还原与多源迁入卡片：.myrmpkg 加密便携导出、路径解绑重映射与竞品智能体迁入 | ✅    |
