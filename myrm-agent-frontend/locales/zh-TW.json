@@ -3021,7 +3021,6 @@
       "nextTurnOnly": "僅對下一條消息生效",
       "overrideSkillsShort": "技能 {skills} 項",
       "overrideMcpShort": "MCP {mcps} 項",
-      "overrideRemove": "恢復默認",
       "minimalMountNotice": "活躍功能過多可能稀釋模型注意力，建議收斂至當前任務必需工具。"
     },
     "samplePrompts": {
@@ -3099,8 +3098,7 @@
       "step2Prompt": "幫我記錄並整理今日工作日誌（Daily Journal），梳理關鍵事實、核心決策卡點與進展證據。",
       "step3Title": "智慧週報",
       "step3Desc": "WeeklyReview 藍圖聚合度量產出",
-      "step3Prompt": "幫我調取本週完成的待辦事項與每日日誌記錄，按結論先行、資料度量與卡點復盤聚合生成一份標準本週工作總結報告。",
-      "oneClickAction": "一鍵載入閉環 Prompt"
+      "step3Prompt": "幫我調取本週完成的待辦事項與每日日誌記錄，按結論先行、資料度量與卡點復盤聚合生成一份標準本週工作總結報告。"
     },
     "skillConnectorsPreflight": {
       "title": "連接器前置依賴預檢",
@@ -12650,11 +12648,6 @@
     "statusFinalization": "預算即將耗盡 — 智慧體將結束回覆",
     "statusExceeded": "預算已超限 — 執行被阻止",
     "ecoModeHint": "已啟用省電模式：優化上下文壓縮以節省 Token",
-    "criticalPauseActive": "已觸發審批暫停",
-    "autoDowngradedActive": "已平滑降級至經濟模型",
-    "softGateActive": "已觸發軟配額門禁",
-    "tier1Label": "支出預警提示",
-    "selfConfirmButton": "確認繼續執行",
     "enableLabel": "啟用預算控制",
     "enableDesc": "對 LLM 支出進行多維度監控與限制",
     "sessionLimit": "會話上限",
@@ -13683,18 +13676,6 @@
     "footerNote": "您可在設定中心隨時切換或微調以上模型配置策略。",
     "closeBtn": "關閉",
     "configureBtn": "前往設定中心配置"
-  },
-  "security": {
-    "taintedEgress": {
-      "title": "敏感資料出網攔截",
-      "description": "偵測到包含敏感憑證的出網請求試圖連接外部主機。",
-      "destinationHost": "目標主機",
-      "dataType": "敏感資料類型",
-      "detectedPattern": "命中模式",
-      "trustSession": "在本次工作階段中始終信任該目標（消除後續彈窗）",
-      "approve": "允許出網",
-      "reject": "阻斷攔截"
-    }
   },
   "ttsAudio": {
     "generatedSpeech": "已生成語音",
@@ -15489,14 +15470,6 @@
       "keyPoolActive": "{count} 個金鑰參與自動負載均衡與故障轉移",
       "poolStatsTitle": "金鑰池執行狀態",
       "poolStatsTooltip": "檢視執行階段呼叫統計、429 頻控次數與冷卻狀態",
-      "circuitBreakerTitle": "模型服務熔斷健康度",
-      "circuitBreakerHealthy": "全端點正常",
-      "circuitBreakerWarning": "存在熔斷端點",
-      "resetAllCircuitBreakers": "重設所有熔斷",
-      "resetThisBreaker": "立即重試復原",
-      "resetCircuitBreakerSuccess": "已重設 {count} 個端點熔斷狀態",
-      "noActiveCircuitBreakers": "所有 Provider 與模型端點均處於健康就緒狀態",
-      "failureCount": "連續失敗: {count} 次",
       "poolCalls": "{count} 次呼叫",
       "poolRateLimits": "{count} 次限流",
       "poolInCooldown": "冷卻中 ({seconds}秒)",

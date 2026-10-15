@@ -1,4 +1,3 @@
-// @orphan-ok Standalone rollback card for 10-minute snapshot undo window after destructive command execution
 'use client';
 
 import React, { useEffect, useState } from 'react';

@@ -9,7 +9,6 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 | 文件                                    | 职责                                                                                              |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `config.ts`                             | 支持 locale 列表与 defaultLocale                                                                  |
-| `routing.ts`                            | next-intl routing 配置                                                                            |
 | `request.ts`                            | Server Component locale 解析（`loadShellMessages`）                                               |
 | `load-messages.ts`                      | Server-only：shell / deferred namespace 文件加载                                                  |
 | `locale-manifest.ts`                    | SSR shell vs deferred namespace 清单（含 `themeStudio` settings shell；deferred 顶层 `channels`） |

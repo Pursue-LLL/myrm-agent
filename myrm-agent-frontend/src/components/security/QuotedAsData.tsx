@@ -1,4 +1,3 @@
-// @orphan-ok Visual trust badge component rendering unendorsed external data quotes safely
 'use client';
 
 import React, { useState } from 'react';

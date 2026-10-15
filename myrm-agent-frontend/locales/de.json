@@ -3021,7 +3021,6 @@
       "nextTurnOnly": "Gilt nur für die nächste Nachricht",
       "overrideSkillsShort": "{skills} Fähigkeiten",
       "overrideMcpShort": "{mcps} MCP-Dienste",
-      "overrideRemove": "Zurücksetzen",
       "minimalMountNotice": "Zu viele aktive Funktionen können die Modellfokussierung verwässern. Empfehlung: auf die für die aktuelle Aufgabe notwendigen Werkzeuge eingrenzen."
     },
     "samplePrompts": {
@@ -3099,8 +3098,7 @@
       "step2Prompt": "Hilf mir, mein heutiges Arbeitsjournal (Tagesjournal) zu verfassen und die wichtigsten Fakten, zentralen Entscheidungshindernisse und Fortschrittsbelege aufzulisten.",
       "step3Title": "Intelligenter Wochenbericht",
       "step3Desc": "Wochenrückblick-Vorlage zur Aggregation von Kennzahlen",
-      "step3Prompt": "Rufe die in dieser Woche erledigten Aufgaben und Tagesjournal-Einträge ab und erstelle einen strukturierten Wochenbericht: Ergebnis zuerst, datenbasierte Kennzahlen und Rückblick auf Hindernisse.",
-      "oneClickAction": "Workflow-Prompt laden"
+      "step3Prompt": "Rufe die in dieser Woche erledigten Aufgaben und Tagesjournal-Einträge ab und erstelle einen strukturierten Wochenbericht: Ergebnis zuerst, datenbasierte Kennzahlen und Rückblick auf Hindernisse."
     },
     "skillConnectorsPreflight": {
       "title": "Connector-Vorabprüfung",
@@ -12650,11 +12648,6 @@
     "statusFinalization": "Budget fast aufgebraucht – der Agent schließt seine Antwort ab",
     "statusExceeded": "Budget überschritten – Ausführung blockiert",
     "ecoModeHint": "Eco-Modus aktiviert: Kontextkomprimierung optimieren, um Tokens zu sparen",
-    "criticalPauseActive": "Kritische Pause wartet auf Genehmigung",
-    "autoDowngradedActive": "Automatisch auf Sparmodell herabgestuft",
-    "softGateActive": "Soft-Ausgaben-Gate ausgelöst",
-    "tier1Label": "Ausgaben-Warnhinweis",
-    "selfConfirmButton": "Bestätigen und fortfahren",
     "enableLabel": "Aktivieren Sie die Budgetkontrolle",
     "enableDesc": "Mehrdimensionale Überwachung und Begrenzung der LLM-Ausgaben",
     "sessionLimit": "Sitzungslimit",
@@ -13683,18 +13676,6 @@
     "footerNote": "Sie können diese Modellstrategien jederzeit in den Einstellungen anpassen.",
     "closeBtn": "Schließen",
     "configureBtn": "In Einstellungen konfigurieren"
-  },
-  "security": {
-    "taintedEgress": {
-      "title": "Sensible Datenübertragung abgefangen",
-      "description": "Eine ausgehende Netzwerkanfrage mit sensiblen Zugangsdaten wurde abgefangen.",
-      "destinationHost": "Ziel-Host",
-      "dataType": "Sensibler Datentyp",
-      "detectedPattern": "Erkanntes Muster",
-      "trustSession": "Diesem Ziel in dieser Sitzung immer vertrauen (verhindert weitere Abfragen)",
-      "approve": "Verbindung erlauben",
-      "reject": "Blockieren & Verweigern"
-    }
   },
   "ttsAudio": {
     "generatedSpeech": "Generierte Sprache",
@@ -15489,14 +15470,6 @@
       "keyPoolActive": "{count} Schlüssel, die am automatischen Lastausgleich und Failover teilnehmen",
       "poolStatsTitle": "Schlüsselpool-Laufzeitstatus",
       "poolStatsTooltip": "Laufzeit-Aufrufmetriken, 429-Ratenbegrenzungsfehler und Abkühlstatus anzeigen",
-      "circuitBreakerTitle": "Modell-Endpunkt-Schutzschalter",
-      "circuitBreakerHealthy": "Alle Endpunkte intakt",
-      "circuitBreakerWarning": "Offener Schutzschalter erkannt",
-      "resetAllCircuitBreakers": "Alle Schutzschalter zurücksetzen",
-      "resetThisBreaker": "Erneut versuchen & wiederherstellen",
-      "resetCircuitBreakerSuccess": "{count} Endpunkt-Schutzschalter zurückgesetzt",
-      "noActiveCircuitBreakers": "Alle Modellanbieter und Endpunkte befinden sich in einem intakten, bereiten Zustand",
-      "failureCount": "Aufeinanderfolgende Fehler: {count}",
       "poolCalls": "{count} Aufrufe",
       "poolRateLimits": "{count} Ratenbegrenzungen",
       "poolInCooldown": "Abkühlung ({seconds}s)",

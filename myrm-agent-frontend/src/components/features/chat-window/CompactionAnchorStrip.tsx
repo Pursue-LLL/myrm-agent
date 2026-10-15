@@ -1,8 +1,6 @@
 'use client';
 
 /**
- * @orphan-ok Verified exact anchor indexing visual capsule strip for compaction context
- *
  * [INPUT]
  * - anchors: ExactAnchorData containing commit SHAs, file paths, errors, symbols, and endpoints
  * - onSymbolClick?: Optional callback when clicking a file path or code symbol

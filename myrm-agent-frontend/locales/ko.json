@@ -3021,7 +3021,6 @@
       "nextTurnOnly": "다음 메시지에만 적용됩니다",
       "overrideSkillsShort": "스킬 {skills}개",
       "overrideMcpShort": "MCP {mcps}개",
-      "overrideRemove": "재설정",
       "minimalMountNotice": "활성 기능이 너무 많으면 모델 집중도가 희석될 수 있습니다. 현재 작업에 필요한 도구로 좁힐 것을 권장합니다."
     },
     "samplePrompts": {
@@ -3099,8 +3098,7 @@
       "step2Prompt": "오늘의 업무 일지(일일 저널)를 작성하고 주요 사실, 핵심 의사결정 차단 요인, 진행 근거를 정리해 주세요.",
       "step3Title": "스마트 주간 보고서",
       "step3Desc": "지표를 집계하는 주간 리뷰 블루프린트",
-      "step3Prompt": "이번 주 완료된 작업과 일일 저널 기록을 불러와, 결론 우선, 데이터로 뒷받침된 지표, 차단 요인 회고 순서로 구조화된 주간 요약 보고서를 작성해 주세요.",
-      "oneClickAction": "워크플로 프롬프트 불러오기"
+      "step3Prompt": "이번 주 완료된 작업과 일일 저널 기록을 불러와, 결론 우선, 데이터로 뒷받침된 지표, 차단 요인 회고 순서로 구조화된 주간 요약 보고서를 작성해 주세요."
     },
     "skillConnectorsPreflight": {
       "title": "커넥터 사전 점검",
@@ -12650,11 +12648,6 @@
     "statusFinalization": "예산이 거의 소진됨 — 에이전트가 응답을 마무리합니다",
     "statusExceeded": "예산 초과 — 실행이 차단되었습니다",
     "ecoModeHint": "에코 모드 활성화: 토큰을 절약하기 위해 컨텍스트 압축 최적화 중",
-    "criticalPauseActive": "승인 대기 일시 정지됨",
-    "autoDowngradedActive": "이코노미 모델로 자동 다운그레이드됨",
-    "softGateActive": "소프트 지출 제한 트리거됨",
-    "tier1Label": "지출 경고 안내",
-    "selfConfirmButton": "확인 후 계속",
     "enableLabel": "예산 관리 활성화",
     "enableDesc": "LLM 지출의 다차원 모니터링 및 제한",
     "sessionLimit": "세션 한도",
@@ -13683,18 +13676,6 @@
     "footerNote": "설정 센터에서 언제든지 모델 연동 정책을 전환하거나 미세 조정할 수 있습니다.",
     "closeBtn": "닫기",
     "configureBtn": "설정 센터에서 구성"
-  },
-  "security": {
-    "taintedEgress": {
-      "title": "민감 데이터 외부 유출 차단",
-      "description": "민감한 자격 증명이 포함된 외부 전송 요청이 감지되어 차단되었습니다.",
-      "destinationHost": "대상 호스트",
-      "dataType": "민감 데이터 유형",
-      "detectedPattern": "감지된 패턴",
-      "trustSession": "이 세션 동안 이 대상 호스트를 항상 신뢰（이후 팝업 방지）",
-      "approve": "전송 허용",
-      "reject": "차단 및 거부"
-    }
   },
   "ttsAudio": {
     "generatedSpeech": "생성된 음성",
@@ -15489,14 +15470,6 @@
       "keyPoolActive": "{count}개 키가 자동 로드 밸런싱 및 장애 조치에 참여 중",
       "poolStatsTitle": "키 풀 런타임 상태",
       "poolStatsTooltip": "런타임 호출 지표, 429 속도 제한 오류 및 쿨다운 상태 확인",
-      "circuitBreakerTitle": "모델 엔드포인트 서킷 브레이커",
-      "circuitBreakerHealthy": "모든 엔드포인트 정상",
-      "circuitBreakerWarning": "차단된 엔드포인트 감지됨",
-      "resetAllCircuitBreakers": "모든 서킷 브레이커 초기화",
-      "resetThisBreaker": "다시 시도하여 복구",
-      "resetCircuitBreakerSuccess": "{count}개 엔드포인트 브레이커를 재설정했습니다",
-      "noActiveCircuitBreakers": "모든 모델 공급자 및 엔드포인트가 정상 상태입니다",
-      "failureCount": "연속 실패: {count}회",
       "poolCalls": "{count}회 호출",
       "poolRateLimits": "{count}회 속도 제한",
       "poolInCooldown": "쿨다운 중 ({seconds}초)",

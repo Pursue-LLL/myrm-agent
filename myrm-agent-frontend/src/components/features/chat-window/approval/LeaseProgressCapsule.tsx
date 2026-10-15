@@ -1,6 +1,4 @@
 /**
- * @orphan-ok In-place lease progress HUD and quick extension capsule for desktop control
- *
  * [INPUT]
  * - react::FC
  * - lucide-react::Clock, Plus, AlertTriangle, CheckCircle2

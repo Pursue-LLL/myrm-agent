@@ -3021,7 +3021,6 @@
       "nextTurnOnly": "次のメッセージのみに適用",
       "overrideSkillsShort": "スキル {skills} 件",
       "overrideMcpShort": "MCP {mcps} 件",
-      "overrideRemove": "リセット",
       "minimalMountNotice": "アクティブな機能が多すぎるとモデルの注意力が希釈される可能性があります。現在のタスクに必要なツールに絞り込むことを推奨します。"
     },
     "samplePrompts": {
@@ -3099,8 +3098,7 @@
       "step2Prompt": "今日の作業日誌（日次ジャーナル）を作成し、重要な事実、中核となる意思決定のブロッカー、進捗の根拠を挙げてください。",
       "step3Title": "スマート週次レポート",
       "step3Desc": "指標を集約する週次レビューのブループリント",
-      "step3Prompt": "今週の完了済みタスクと日次ジャーナルのログを取得し、結論先行、データに裏付けられた指標、ブロッカーの振り返りに沿って、構造化された週次サマリーレポートをまとめてください。",
-      "oneClickAction": "ワークフローのプロンプトを読み込む"
+      "step3Prompt": "今週の完了済みタスクと日次ジャーナルのログを取得し、結論先行、データに裏付けられた指標、ブロッカーの振り返りに沿って、構造化された週次サマリーレポートをまとめてください。"
     },
     "skillConnectorsPreflight": {
       "title": "コネクタ事前チェック",
@@ -12650,11 +12648,6 @@
     "statusFinalization": "予算がほぼ使い切りました — エージェントは応答をまとめます",
     "statusExceeded": "予算を超過しました — 実行をブロック",
     "ecoModeHint": "エコモードが有効: トークン節約のためコンテキスト圧縮を最適化中",
-    "criticalPauseActive": "承認待ちの一時停止がトリガーされました",
-    "autoDowngradedActive": "エコノミーモデルに自動ダウングレードされました",
-    "softGateActive": "ソフト利用制限がトリガーされました",
-    "tier1Label": "支出警告の通知",
-    "selfConfirmButton": "確認して続行",
     "enableLabel": "予算管理を有効化",
     "enableDesc": "LLM支出の多次元監視と制限",
     "sessionLimit": "セッション上限",
@@ -13683,18 +13676,6 @@
     "footerNote": "設定センターからいつでもモデル連携ポリシーを調整・微調整できます。",
     "closeBtn": "閉じる",
     "configureBtn": "設定センターで構成"
-  },
-  "security": {
-    "taintedEgress": {
-      "title": "機密データ送信の傍受",
-      "description": "機密認証情報を含む送信リクエストが外部ホストへの接続を試行したため傍受されました。",
-      "destinationHost": "宛先ホスト",
-      "dataType": "機密データ種別",
-      "detectedPattern": "検出パターン",
-      "trustSession": "このセッション中はこの宛先を常に信頼する（今後のプロンプトを防止）",
-      "approve": "送信を許可",
-      "reject": "ブロックして拒否"
-    }
   },
   "ttsAudio": {
     "generatedSpeech": "生成された音声",
@@ -15489,14 +15470,6 @@
       "keyPoolActive": "{count} 個のキーが自動ロードバランシングとフェイルオーバーに参加中",
       "poolStatsTitle": "キープール稼働状況",
       "poolStatsTooltip": "ランタイム呼び出しメトリクス、429レート制限エラー、クールダウン状態を確認",
-      "circuitBreakerTitle": "モデルエンドポイントのサーキットブレーカー",
-      "circuitBreakerHealthy": "全エンドポイント正常",
-      "circuitBreakerWarning": "遮断されたエンドポイントを検出",
-      "resetAllCircuitBreakers": "全サーキットブレーカーをリセット",
-      "resetThisBreaker": "再試行して復旧",
-      "resetCircuitBreakerSuccess": "{count} 件のエンドポイントブレーカーをリセットしました",
-      "noActiveCircuitBreakers": "すべてのモデルプロバイダーとエンドポイントは正常な状態です",
-      "failureCount": "連続失敗: {count} 回",
       "poolCalls": "{count} 回の呼び出し",
       "poolRateLimits": "{count} 回のレート制限",
       "poolInCooldown": "クールダウン中 ({seconds}秒)",

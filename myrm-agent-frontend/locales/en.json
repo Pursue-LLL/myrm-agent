@@ -3089,7 +3089,6 @@
       "nextTurnOnly": "Applies to the next message only",
       "overrideSkillsShort": "{skills} skills",
       "overrideMcpShort": "{mcps} MCP",
-      "overrideRemove": "Reset",
       "minimalMountNotice": "Mounting too many capabilities may dilute model focus. Consider narrowing to essential tools."
     },
     "samplePrompts": {
@@ -3167,8 +3166,7 @@
       "step2Prompt": "Help me document today's work journal (Daily Journal), listing key facts, core decision blockers, and progress evidence.",
       "step3Title": "Smart Weekly Report",
       "step3Desc": "WeeklyReview blueprint aggregating metrics",
-      "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective.",
-      "oneClickAction": "Load Workflow Prompt"
+      "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective."
     },
     "skillConnectorsPreflight": {
       "title": "Skill Connectors Preflight",
@@ -12718,11 +12716,6 @@
     "statusFinalization": "Budget nearly exhausted — agent will conclude response",
     "statusExceeded": "Budget exceeded — execution blocked",
     "ecoModeHint": "Eco mode activated: optimizing context compression to save tokens",
-    "criticalPauseActive": "Critical Pause Awaiting Approval",
-    "autoDowngradedActive": "Automatically Downgraded to Economy Model",
-    "softGateActive": "Soft Spend Gate Triggered",
-    "tier1Label": "Spend Warning Notice",
-    "selfConfirmButton": "Confirm & Continue",
     "enableLabel": "Enable Budget Control",
     "enableDesc": "Multi-dimensional monitoring and limiting of LLM spend",
     "sessionLimit": "Session Limit",
@@ -13751,18 +13744,6 @@
     "footerNote": "Configure models and fine-tune routing anytime in Settings.",
     "closeBtn": "Close",
     "configureBtn": "Configure in Settings"
-  },
-  "security": {
-    "taintedEgress": {
-      "title": "Sensitive Egress Intercepted",
-      "description": "An outbound network request containing sensitive credentials was intercepted.",
-      "destinationHost": "Destination Host",
-      "dataType": "Sensitive Data Type",
-      "detectedPattern": "Detected Pattern",
-      "trustSession": "Always trust this destination for this session (prevents future prompts)",
-      "approve": "Allow Outbound",
-      "reject": "Block & Deny"
-    }
   },
   "ttsAudio": {
     "generatedSpeech": "Generated speech",
@@ -16164,14 +16145,6 @@
       "keyPoolActive": "{count} keys participating in auto load balancing & failover",
       "poolStatsTitle": "Credential Pool Runtime Stats",
       "poolStatsTooltip": "View runtime call metrics, 429 rate limit errors, and cooldown status",
-      "circuitBreakerTitle": "Model Endpoint Health & Circuit Breakers",
-      "circuitBreakerHealthy": "All Endpoints Healthy",
-      "circuitBreakerWarning": "Open Circuit Detected",
-      "resetAllCircuitBreakers": "Reset All Breakers",
-      "resetThisBreaker": "Retry & Recover",
-      "resetCircuitBreakerSuccess": "Reset {count} circuit breaker endpoint(s)",
-      "noActiveCircuitBreakers": "All model providers and endpoints are in healthy ready state",
-      "failureCount": "Consecutive Failures: {count}",
       "poolCalls": "{count} calls",
       "poolRateLimits": "{count} rate limits",
       "poolInCooldown": "Cooldown ({seconds}s)",

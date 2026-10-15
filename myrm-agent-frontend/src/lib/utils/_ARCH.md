@@ -48,4 +48,3 @@
 - `requestManager.ts`：全局请求管理 — 流式 AI 搜索请求注册、跟踪与取消（AbortController 集合管理）。
 - `teammateMessage.ts`：teammate 消息归一 — `normalizeTeammateEntry` 消息行（message_id/from/to/body/created_at）到 `TeammateMessageEntry` 归一。
 - `toast.ts`：Toast 统一包装 — 兼容 shadcn/ui 与 Sonner 双 API 形态，错误信息经 `errorRedactor` 脱敏后展示。
-- `urlLinkify.ts`：URL 链接化 — 纯文本 URL 转可点击 `<a>` 标签（noopener noreferrer 安全属性）。

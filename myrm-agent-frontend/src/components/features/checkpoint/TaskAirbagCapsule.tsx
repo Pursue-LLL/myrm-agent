@@ -1,4 +1,3 @@
-// @orphan-ok Task Safety Airbag Capsule badge for autonomous run cards
 'use client';
 
 /**

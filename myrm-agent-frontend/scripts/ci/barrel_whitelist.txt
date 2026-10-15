@@ -17,5 +17,4 @@ src/lib/utils/error-handling/index.ts
 src/lib/utils/locale/index.ts
 src/lib/utils/mcp-config/index.ts
 src/lib/utils/media/index.ts
-src/lib/utils/subagent/index.ts
 src/theme-engine/index.ts
