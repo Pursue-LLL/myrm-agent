@@ -9,10 +9,12 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type UniqueIdentifier,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/primitives/button';
+import { useDndAccessibility, useDndItemLabels } from '@/hooks/ui/useDndAccessibility';
 import useChatStore from '@/store/useChatStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import type { QueuedGoal } from '@/store/chat/goals/useGoalStore';
@@ -82,7 +84,11 @@ function SortableQueueItem({
   onCancel: (id: string) => void;
 }) {
   const t = useTranslations('Goal');
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: goal.goal_id });
+  const { roleDescription, handleLabel } = useDndItemLabels();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: goal.goal_id,
+    attributes: { roleDescription },
+  });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -97,7 +103,12 @@ function SortableQueueItem({
       style={style}
       className="flex items-center gap-2 p-2 rounded-full border bg-card/60 hover:bg-card transition-colors group touch-none"
     >
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing shrink-0">
+      <div
+        {...attributes}
+        {...listeners}
+        aria-label={handleLabel}
+        className="cursor-grab active:cursor-grabbing shrink-0"
+      >
         <GripVerticalIcon className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground" />
       </div>
       <span className="text-xs text-muted-foreground/60 font-mono w-4 shrink-0">{index + 1}</span>
@@ -133,6 +144,11 @@ export function GoalQueueSection() {
   );
 
   const sortableIds = useMemo(() => queuedGoals.map((g) => g.goal_id), [queuedGoals]);
+  const goalObjective = useCallback(
+    (id: UniqueIdentifier) => queuedGoals.find((g) => g.goal_id === id)?.objective,
+    [queuedGoals],
+  );
+  const accessibility = useDndAccessibility(goalObjective);
 
   useEffect(() => {
     if (chatId) {
@@ -184,7 +200,12 @@ export function GoalQueueSection() {
           {t('queueTitle')} ({queuedGoals.length})
         </span>
       </div>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        accessibility={accessibility}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-1.5">
             {queuedGoals.map((goal, idx) => (

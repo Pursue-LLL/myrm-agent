@@ -1709,6 +1709,19 @@
     }
   },
   "common": {
+    "dnd": {
+      "instructions": "Zum Aufnehmen eines Elements die Leertaste oder Eingabetaste drücken. Beim Ziehen mit den Pfeiltasten bewegen. Mit erneutem Druck auf Leertaste oder Eingabetaste ablegen, mit Escape abbrechen.",
+      "roleDescription": "ziehbares Element",
+      "handleLabel": "Zum Umsortieren ziehen",
+      "unknownItem": "Element",
+      "pickedUp": "„{item}“ aufgenommen.",
+      "movedOver": "„{item}“ befindet sich über „{target}“.",
+      "leftTarget": "„{item}“ befindet sich nicht mehr über einem Ablageziel.",
+      "backAtStart": "„{item}“ befindet sich wieder an der ursprünglichen Position.",
+      "droppedOn": "„{item}“ wurde auf „{target}“ abgelegt.",
+      "dropped": "„{item}“ wurde abgelegt.",
+      "cancelled": "Ziehen abgebrochen. „{item}“ wurde an die ursprüngliche Position zurückgelegt."
+    },
     "keyValueEditor": {
       "keyPlaceholder": "Schlüssel",
       "valuePlaceholder": "Wert"

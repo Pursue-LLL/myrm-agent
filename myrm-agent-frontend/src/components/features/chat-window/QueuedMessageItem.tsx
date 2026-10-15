@@ -2,6 +2,7 @@
  * [INPUT]
  * - @/store/chat/useMessageQueueStore::QueuedMessage (POS: 排队消息内存状态源)
  * - @/lib/utils/imeUtils::isImeComposing (POS: IME 输入法兼容性守卫)
+ * - @/hooks/ui/useDndAccessibility::useDndItemLabels (POS: 拖拽项的本地化 aria-roledescription)
  *
  * [OUTPUT]
  * - QueuedMessageItem: 单条排队消息（可拖拽排序、就地编辑、移出队列）。
@@ -16,6 +17,7 @@ import TextareaAutosize from 'react-textarea-autosize';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Check, ClockCountdown, DotsSixVertical, Paperclip, PencilSimple, X } from '@phosphor-icons/react';
+import { useDndItemLabels } from '@/hooks/ui/useDndAccessibility';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import type { QueuedMessage } from '@/store/chat/useMessageQueueStore';
 
@@ -126,9 +128,11 @@ export function QueuedMessageItem({
 }: QueuedMessageItemProps) {
   const t = useTranslations('chat');
   const tTurn = useTranslations('chat.turnCapabilities');
+  const { roleDescription } = useDndItemLabels();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: message.id,
     disabled: isEditing,
+    attributes: { roleDescription },
   });
 
   const overrideSummary = useMemo(() => {

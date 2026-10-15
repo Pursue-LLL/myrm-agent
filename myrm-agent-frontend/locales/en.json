@@ -1733,6 +1733,19 @@
     }
   },
   "common": {
+    "dnd": {
+      "instructions": "To pick up an item, press Space or Enter. While dragging, use the arrow keys to move it. Press Space or Enter again to drop it, or press Escape to cancel.",
+      "roleDescription": "draggable item",
+      "handleLabel": "Drag to reorder",
+      "unknownItem": "item",
+      "pickedUp": "Picked up “{item}”.",
+      "movedOver": "“{item}” is over “{target}”.",
+      "leftTarget": "“{item}” is no longer over a drop target.",
+      "backAtStart": "“{item}” is back at its starting position.",
+      "droppedOn": "“{item}” was dropped on “{target}”.",
+      "dropped": "“{item}” was dropped.",
+      "cancelled": "Dragging cancelled. “{item}” was returned to its original position."
+    },
     "keyValueEditor": {
       "keyPlaceholder": "Key",
       "valuePlaceholder": "Value"

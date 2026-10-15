@@ -1709,6 +1709,19 @@
     }
   },
   "common": {
+    "dnd": {
+      "instructions": "항목을 집으려면 스페이스바 또는 Enter 키를 누르세요. 드래그하는 동안 화살표 키로 이동하고, 스페이스바 또는 Enter 키를 다시 누르면 놓고, Esc 키를 누르면 취소합니다.",
+      "roleDescription": "드래그 가능한 항목",
+      "handleLabel": "드래그하여 순서 변경",
+      "unknownItem": "항목",
+      "pickedUp": "“{item}”을(를) 집었습니다.",
+      "movedOver": "“{item}”이(가) “{target}” 위로 이동했습니다.",
+      "leftTarget": "“{item}”이(가) 더 이상 놓을 수 있는 위치 위에 있지 않습니다.",
+      "backAtStart": "“{item}”이(가) 원래 위치로 돌아왔습니다.",
+      "droppedOn": "“{item}”을(를) “{target}”에 놓았습니다.",
+      "dropped": "“{item}”을(를) 놓았습니다.",
+      "cancelled": "드래그를 취소했습니다. “{item}”이(가) 원래 위치로 돌아갔습니다."
+    },
     "keyValueEditor": {
       "keyPlaceholder": "키",
       "valuePlaceholder": "값"

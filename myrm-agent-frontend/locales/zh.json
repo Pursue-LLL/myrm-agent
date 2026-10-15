@@ -1733,6 +1733,19 @@
     }
   },
   "common": {
+    "dnd": {
+      "instructions": "按空格键或回车键拾起该项。拖动时用方向键移动，再次按空格键或回车键放下，按 Esc 键取消。",
+      "roleDescription": "可拖动项",
+      "handleLabel": "拖动调整顺序",
+      "unknownItem": "该项",
+      "pickedUp": "已拾起“{item}”。",
+      "movedOver": "“{item}”已移到“{target}”上。",
+      "leftTarget": "“{item}”已不在任何可放置位置上。",
+      "backAtStart": "“{item}”已回到原位。",
+      "droppedOn": "“{item}”已放到“{target}”。",
+      "dropped": "“{item}”已放下。",
+      "cancelled": "已取消拖动，“{item}”已回到原位。"
+    },
     "keyValueEditor": {
       "keyPlaceholder": "键",
       "valuePlaceholder": "值"

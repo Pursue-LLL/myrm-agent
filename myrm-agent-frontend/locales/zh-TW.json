@@ -1709,6 +1709,19 @@
     }
   },
   "common": {
+    "dnd": {
+      "instructions": "按空白鍵或 Enter 鍵拾起此項目。拖曳時以方向鍵移動，再次按空白鍵或 Enter 鍵放下，按 Esc 鍵取消。",
+      "roleDescription": "可拖曳項目",
+      "handleLabel": "拖曳調整順序",
+      "unknownItem": "此項目",
+      "pickedUp": "已拾起「{item}」。",
+      "movedOver": "「{item}」已移到「{target}」上。",
+      "leftTarget": "「{item}」已不在任何可放置位置上。",
+      "backAtStart": "「{item}」已回到原位。",
+      "droppedOn": "「{item}」已放到「{target}」。",
+      "dropped": "「{item}」已放下。",
+      "cancelled": "已取消拖曳，「{item}」已回到原位。"
+    },
     "keyValueEditor": {
       "keyPlaceholder": "鍵",
       "valuePlaceholder": "值"

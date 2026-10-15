@@ -2,6 +2,7 @@
  * [INPUT]
  * - @/store/chat/useMessageQueueStore::{QueuedMessage, QueuePauseReason} (POS: 排队消息内存状态源)
  * - ./QueuedMessageItem::QueuedMessageItem (POS: 单条排队消息行)
+ * - @/hooks/ui/useDndAccessibility::useDndAccessibility (POS: 屏幕阅读器的本地化说明与播报)
  *
  * [OUTPUT]
  * - QueuedMessagesList: 可拖拽排序的排队消息列表，附带暂停/卡住状态条。
@@ -22,10 +23,12 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type UniqueIdentifier,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ArrowClockwise } from '@phosphor-icons/react';
 import type { QueuedMessage, QueuePauseReason } from '@/store/chat/useMessageQueueStore';
+import { useDndAccessibility } from '@/hooks/ui/useDndAccessibility';
 import { QueuedMessageItem } from './QueuedMessageItem';
 
 interface QueuedMessagesListProps {
@@ -77,6 +80,15 @@ export function QueuedMessagesList({
   );
 
   const sortableIds = useMemo(() => queue.map((message) => message.id), [queue]);
+  // 排队消息没有标题，播报念它在队列里的序号（与行内「排队中 (n/总数)」一致）。
+  const positionLabel = useCallback(
+    (id: UniqueIdentifier) => {
+      const index = queue.findIndex((message) => message.id === id);
+      return index === -1 ? undefined : t('queue.queued', { index: String(index + 1), total: String(queue.length) });
+    },
+    [queue, t],
+  );
+  const accessibility = useDndAccessibility(positionLabel);
 
   useEffect(() => () => setEditingId(null), [setEditingId]);
 
@@ -116,7 +128,12 @@ export function QueuedMessagesList({
     <div className="mb-2 flex w-full flex-col gap-2">
       {pausedReason && <QueueStatusBanner reason={pausedReason} onResume={resume} />}
       {/* DndContext renders its screen-reader helpers as siblings, so it must wrap the <ul> rather than sit inside it. */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        accessibility={accessibility}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
           <ul aria-label={t('queue.listLabel')} className="flex flex-col gap-2">
             {queue.map((message, index) => (

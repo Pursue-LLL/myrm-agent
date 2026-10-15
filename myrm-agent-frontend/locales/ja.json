@@ -1709,6 +1709,19 @@
     }
   },
   "common": {
+    "dnd": {
+      "instructions": "項目をつかむには、スペースキーまたは Enter キーを押します。ドラッグ中は矢印キーで移動し、もう一度スペースキーまたは Enter キーを押すとドロップ、Esc キーで取り消します。",
+      "roleDescription": "ドラッグ可能な項目",
+      "handleLabel": "ドラッグして並べ替え",
+      "unknownItem": "この項目",
+      "pickedUp": "「{item}」をつかみました。",
+      "movedOver": "「{item}」が「{target}」の上に移動しました。",
+      "leftTarget": "「{item}」はドロップできる場所から外れました。",
+      "backAtStart": "「{item}」は元の位置に戻りました。",
+      "droppedOn": "「{item}」を「{target}」にドロップしました。",
+      "dropped": "「{item}」をドロップしました。",
+      "cancelled": "ドラッグを取り消しました。「{item}」は元の位置に戻りました。"
+    },
     "keyValueEditor": {
       "keyPlaceholder": "キー",
       "valuePlaceholder": "値"

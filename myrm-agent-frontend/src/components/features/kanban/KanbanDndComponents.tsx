@@ -5,6 +5,7 @@
  * - ./kanban-card-gestures::ISOLATE_FROM_CARD (POS: 卡片内控件的手势隔离，勾选框展开它)
  * - @/components/primitives/checkbox (POS: Radix 勾选框封装)
  * - ./kanban-selection::columnLanes, laneKeyOf (POS: 看板多选与泳道规则，列渲染与 Shift 区间共用)
+ * - @/hooks/ui/useDndAccessibility::useDndItemLabels (POS: 卡片的本地化 aria-roledescription)
  *
  * [OUTPUT]
  * - KanbanDropColumn: 可放置的看板列组件（集成 useDroppable + 高亮/占位符动画）
@@ -20,6 +21,7 @@ import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Checkbox } from '@/components/primitives/checkbox';
+import { useDndItemLabels } from '@/hooks/ui/useDndAccessibility';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import KanbanTaskCard from './KanbanTaskCard';
@@ -205,11 +207,13 @@ function DraggableTaskCard({
   queuedByConcurrency = false,
 }: DraggableTaskCardProps) {
   const t = useTranslations('kanban');
+  const { roleDescription } = useDndItemLabels();
   const selected = selectedTaskIds.includes(task.task_id);
   const selecting = selectedTaskIds.length > 0;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({
     id: task.task_id,
     disabled: task.status === 'in_review',
+    attributes: { roleDescription },
   });
   // dnd-kit 的键盘激活只在登记了 activator 时才校验 event.target；未登记时卡片内任何按钮上的
   // Enter/Space 都会被当作“开始拖拽”并 preventDefault，卡片里的菜单与展开按钮就无法用键盘操作。

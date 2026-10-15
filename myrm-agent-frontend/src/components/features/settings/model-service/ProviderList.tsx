@@ -1,9 +1,10 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, Trash2, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { useDndAccessibility, useDndItemLabels } from '@/hooks/ui/useDndAccessibility';
 import { ProviderConfig } from '@/store/config/providerTypes';
 import ProviderIcon from './ProviderIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
@@ -15,6 +16,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  type UniqueIdentifier,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -58,8 +60,10 @@ const SortableProviderItem = memo<{
   onResetCircuit?: () => void;
   t: ReturnType<typeof useTranslations<'settings.modelService'>>;
 }>(({ provider, isSelected, onSelect, onRemove, circuitBreaker, onResetCircuit, t }) => {
+  const { roleDescription, handleLabel } = useDndItemLabels();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: provider.id,
+    attributes: { roleDescription },
   });
 
   const style = {
@@ -102,6 +106,7 @@ const SortableProviderItem = memo<{
         <div
           {...attributes}
           {...listeners}
+          aria-label={handleLabel}
           className="p-0.5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
         >
           <ChevronRight className="w-3.5 h-3.5" />
@@ -179,6 +184,8 @@ const ProviderList = memo<ProviderListProps>(
     onResetCircuit,
   }) => {
     const t = useTranslations('settings.modelService');
+    const providerName = useCallback((id: UniqueIdentifier) => providers.find((p) => p.id === id)?.name, [providers]);
+    const accessibility = useDndAccessibility(providerName);
 
     const sensors = useSensors(
       useSensor(PointerSensor, {
@@ -205,7 +212,12 @@ const ProviderList = memo<ProviderListProps>(
 
     return (
       <div className="flex flex-col">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          accessibility={accessibility}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
           <SortableContext items={providers.map((p) => p.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-1">
               {providers.map((provider) => (

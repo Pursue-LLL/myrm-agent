@@ -41,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
 import type { IdeHandoffTarget } from '@/lib/ide-handoff';
+import { useDndItemLabels } from '@/hooks/ui/useDndAccessibility';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import type { ChatItem } from '@/services/chat';
@@ -514,8 +515,10 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
 ChatHistoryRow.displayName = 'ChatHistoryRow';
 
 export const SortablePinnedRow = memo<ChatHistoryRowProps>(({ chat, ...rest }) => {
+  const { roleDescription } = useDndItemLabels();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: chat.id,
+    attributes: { roleDescription },
   });
   const style = {
     transform: CSS.Transform.toString(transform),

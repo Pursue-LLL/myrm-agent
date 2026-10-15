@@ -223,6 +223,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
 
   const {
     sensors,
+    accessibility,
     draggedTaskId,
     dragOverColumn,
     dropConfirmState,
@@ -285,6 +286,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
           ) : (
             <DndContext
               sensors={sensors}
+              accessibility={accessibility}
               collisionDetection={closestCenter}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
