@@ -25,7 +25,6 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 import pytest
-from myrm_agent_harness.infra.pubsub.event_bus import PubSubBus
 
 from app.api.events.notifications import _sse_generator
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus, get_event_bus
@@ -104,7 +103,7 @@ async def test_stream_includes_timestamp() -> None:
 @pytest.fixture
 def isolated_bus(monkeypatch: pytest.MonkeyPatch) -> ServerEventBus:
     """A fresh bus, so events published here never enter the process-wide backlog."""
-    bus: ServerEventBus = PubSubBus()
+    bus = ServerEventBus()
     monkeypatch.setattr("app.api.events.notifications.get_event_bus", lambda: bus)
     return bus
 
