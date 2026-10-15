@@ -3191,3 +3191,52 @@ except Exception:
 2. 框架给了本地化诊断，宿主就读它；自己拼 `[Error] {原文}` 等于把提供方的措辞当产品文案。
 3. 契约测试要用真实链路加桩 LLM：只测分类器或只测渠道映射，抓不到「事件里到底有没有这个字段」。
 4. 文案要在真实目录里渲染一遍再下结论：Fluent 会去掉多行值开头的空行，只断言「包含标题」的测试发现不了拼接缺口；用真实捕获的事件跑完整路径才看到。
+
+## BUG-AGENT-2026-10-15-007: 全局事件总线里 5 个无人发布的事件类型连同 IM 模板与前端处理分支仍在；记忆透视抽屉整簇组件没有任何入口，且「遗忘 / 纠偏 / 升格」只改本地数组、不写后端；创建审批时对枚举的判断恒为真
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15（复审死功能路径：先逐个事件名找发布方，再沿「谁能让它出现」追到抽屉簇） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P3（无运行时影响；文档失实、违反前端文案与主题规范的死代码、一个看似能「遗忘」实则不写后端的界面） |
+| 影响范围 | server：`app/services/event/app_event_bus.py`、`app/core/notifications/{adaptive_cards.py,_ARCH.md}`、`app/services/approvals/registry.py`、`tests/core/notifications/test_dispatcher.py`；frontend：`src/hooks/globalEvents/useGlobalEvents.ts`、6 个 locale、`scripts/translation-patches/ko/batch-11.json`、`scripts/ci/hardcoded_copy_baseline.json`、`ChatWindow.tsx`、`src/store/useMemoryInspectorStore.ts`（删除）、`src/components/features/memory-inspector/`（整目录删除，含 4 个测试与 `_ARCH.md`） |
+| 出现次数 | 1（逐项用不区分大小写的全仓扫描与调用链核实；没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-14-027` 的同类清理（死守卫、死代码）；本地提交，未 push |
+
+### 现象
+
+1. `AppEventType` 里的 `CONFIG_HEALTH_WARNING`、`WECHAT_SESSION_EXPIRED`、`CHANNEL_STATUS_UPDATED`、`SANDBOX_PERSIST_TRIGGERED`、`SANDBOX_PERSIST_COMPLETED` 在 myrm-agent（含桌面端与前端）、harness、control-plane、brand 四个仓库里都没有发布方。前两个还各有一条 IM 文本模板（`adaptive_cards.py`）和一个只验证模板格式化的测试；前端 `useGlobalEvents.ts` 为 `config_health_warning` 留着一个 toast 分支（带硬编码英文兜底 `LLM provider`），`channel_status_updated` 在透传白名单里；`notifications/_ARCH.md` 把前两项标成「(reserved)」。真实的路径早已由别的机制承担：渠道断开走 `CHANNEL_DISCONNECTED`，缺配置走 `gapEvents.ts`。
+2. `src/components/features/memory-inspector/` 整个模块没有入口：`ChatWindow.tsx` 挂了两处 `MemoryInspectorContainer`，但它只在 `isOpen` 时渲染，而 `isOpen` 只由 `openInspector` 置位；`openInspector` 的唯一调用方 `MemoryCitationBadge` 没有任何渲染位置，容器监听的 `myrm:open-memory-inspector` 没有任何派发方（只有它自己的测试在派发）。聊天里真正的记忆引用展示是 `MessageActionBar.tsx` 的 `MemoryCitationsButton`。更糟的是 store 的 `promoteMemory`、`correctMemory`、`forgetMemory` 只改本地数组，不请求后端，而 `_ARCH.md` 写着「彻底物理清除错误或敏感记忆条目」：如果有人把入口接上，用户点「遗忘」会看到条目消失，数据其实还在。模块含 30 处硬编码文案（棘轮基线登记 2 + 6 + 22），违反六语言规范。
+3. `approvals/registry.py` 创建审批时的 `event_type in [e.value for e in AppEventType]` 恒为真（`event_type` 只会是上面几行赋的枚举成员或 `None`，`StrEnum` 成员等于自身的值），每次创建审批还白建一个列表。
+
+### 根因
+
+1. 事件类型和模板先行、发布方没接上就收口，后来由更具体的机制取代，枚举与模板没人回头删；`_ARCH.md` 用「(reserved)」把它保留下来。
+2. 抽屉簇是按路线图条目整簇落地的，入口（引用徽章）没有挂进消息栏，随后消息栏另做了 `MemoryCitationsButton`；文档写的是「消息气泡轻量挂载」，没有对照渲染位置核实。治理动作在 store 里只做了乐观更新，没有后端调用。
+3. 写守卫时顺手带过。
+
+### 修复
+
+1. 删除 5 个枚举成员、2 条模板、2 个测试、2 行 `_ARCH.md`；`useGlobalEvents.ts` 删除 `config_health_warning` 分支与 `channel_status_updated` 白名单项；`notifications.configHealthWarning` 与 `notifications.goToSettings` 从 6 个 locale 与 `ko/batch-11.json` 一并删除（后者是被 `i18n-patch-apply.mjs` 深度合并的翻译补丁，只删语言包的话，重放补丁会把死键带回 ko）。`notifications.goToSettings` 的唯一调用方就是被删的分支（`DailyWrapCard` 用的是 `growthDashboard.dailyWrap.goToSettings`）。保留 `teammate_message`、`ux_warning_truncated`：harness 用字符串发布它们。
+2. 删除 `memory-inspector/` 整目录、`useMemoryInspectorStore.ts`、`ChatWindow.tsx` 的 import 与两处挂载，并把 `hardcoded_copy_baseline.json` 里这三个文件的 30 项额度收回（棘轮对已删除文件按「低于基线」处理，不收紧会让空出的额度被后续改动占用）。
+3. `registry.py` 的条件改为 `if event_type is not None:`。
+
+### 验证
+
+1. 删除前后的不区分大小写全仓扫描：四个仓库里 5 个事件名、`configHealthWarning`、`MemoryInspector*`、`EpistemicBadge`、`myrm:open-memory-inspector` 除被删的位置外零命中；`AppEventType(` 只出现在类定义里，没有按字符串反序列化，所以删枚举成员不会让历史数据解析失败；前端 `export-known-sse-event-types.ts` 导出的是聊天流事件，与全局事件总线无关。
+2. server：`tests/core/notifications` + `tests/services/approvals` 删前 156 通过，删后 154 通过（少的 2 个正是被删的模板测试）；再加 `tests/api/events`、`tests/api/approvals`、`tests/core/web_push`、渠道死信、doctor SSE 策略、预算、空闲任务监听、技能草稿通知共 163 通过；触及文件的 `ruff check`、`ruff format --check` 通过。
+3. frontend：`verify-i18n`（六个语言包 parity）通过；`src/hooks/globalEvents` 7 个文件 51 例、`chat-window/__tests__` 108 个文件 572 例通过；`tsc --noEmit` 15 个错误，全部在他人的文件里（`ergonomic-cockpit`、`creator-studio`、`in-situ-picker`、`kanban`、`thinking-permission`、`ReviewLoopDashboard`），没有一个提到本条触及的文件；触及文件的 oxlint 与 prettier 无问题。`verify-i18n-references`、`check-orphan-modules`、`check-hardcoded-copy`、`check-a11y-ratchet` 当前退出码为 1，输出里没有一条提到本条触及的路径或键（报的是 `kanban`、`skills`、`workspace` 等他人的文件）。
+4. 容器删除不改变界面：被删的 `MemoryInspectorContainer` 在 `isOpen` 为假时 `return null`，而 `isOpen` 在没有调用方的情况下恒为假，所以 `ChatWindow` 渲染出的 DOM 不变（由 `chat-window` 的 572 例回归覆盖，没有在浏览器里目测）。
+
+### 局限
+
+1. 仓库之外的 SSE 订阅者无法穷举；四个仓库里没有引用，根目录文档里只有路线图的历史记录（`temp-docs/roadmap/_retired.tsv`、提取备份）提到抽屉条目的名字，没有发布方或调用方。
+2. 上面第 3 条里四个门禁的红灯来自他人在制品，本条没有处理，也没有在干净的 HEAD 上对照过「删之前是否同样为红」，只能证明红灯条目不涉及本条触及的文件。
+3. 真实浏览器里的 `ChatWindow` 没有目测；等价性靠「容器恒为 null」的静态推理加 572 例回归。
+
+### 踩坑经验
+
+1. 判断「死」要用不区分大小写的全仓扫描，并且要扫翻译补丁目录：只看 `locales/` 会漏掉 `ko/batch-11.json`，重放补丁会让死键复活。
+2. 删一个组件前先问「谁能让它出现」，不要只看它自己有没有渲染位置：入口组件没挂，它背后的抽屉、容器、store、事件监听整簇都是死的；只删入口会留下一个永远不会打开的半死模块。
+3. 判断一个文案键还有没有人用，要按命名空间看：`goToSettings` 在 6 个命名空间里各有一份，看到别处用了同名键就判定保留会误判，`DailyWrapCard` 用的是另一个命名空间。
+4. 界面上的「遗忘」按钮必须真正删后端数据；只改本地数组的实现在没有入口时没有害处，一旦被接上就是对用户的谎言。
