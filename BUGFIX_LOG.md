@@ -3398,7 +3398,8 @@ except Exception:
 1. 新增 3 例：普通载荷的输出与 `json.dumps(ensure_ascii=False)` 逐字节一致；`datetime` / `UUID` 以字符串送达；积压里有一个带 `datetime` 的事件时，连续 3 个新订阅者都能收到它之后的正常事件。把 `default=str` 临时去掉后后两例失败（`TypeError: Object of type datetime is not JSON serializable`），恢复后全部通过。`test_expired_pending_marked_timeout` 改为断言记录落成 `TIMEOUT` 且清理不发布任何事件；新增 `test_branch_switch_publishes_goal_branch_switched_event` 固定枚举成员、线上名字与载荷；总线去重测试的占位类型从 `STATUS` 换成 `SYSTEM_NOTIFICATION`。
 2. `tests/api/events`、`tests/services/approvals`、`tests/lifecycle` 共 217 通过；`tests/services/agent/test_goal_branch_stash.py`、`tests/api/events`、`tests/core/notifications` 共 115 通过；触及文件的 `ruff check`、`ruff format --check` 通过；`mypy` 不再报 `goal_registry.py` 的这一行（该文件其余历史 mypy 错误与本条无关，未处理）。
 3. 全量审计：对 server 全部 `AppEvent(` 构造点做 AST 扫描（176 个非平凡载荷值），可疑值逐个读了类型：`resource_monitor.get_history()` 是 `list[dict[str, float | int]]`，`ResourceMetricsEvent` 是 `JsonObject`，唯一注册的空闲任务 handler 返回基础类型，看板、配对、技能事件是 `dict[str, str]` 等。没有一个内置发布者现在会产生非 JSON 原生值，所以第 1 项是预防性修复，没有线上触发。
-4. 开销：20 万次序列化，原来 1.93 微秒 / 事件，加 `default=str`（实验时还带着一层 `try`）后 1.95 微秒；最终代码没有 `try`。
+4. 开销：15 轮交替测量（每轮 10 万次序列化一个典型看板事件）：不加 `default=str` 中位数 2.08 微秒 / 事件（范围 1.96–2.54），加了中位数 2.26（范围 1.98–2.76）；最小值之差 +0.02 微秒，中位数之差 +0.19 微秒，噪声范围约 0.5 微秒，开销在噪声量级，远小于一次网络写。
+5. 真实 HTTP：修复后用 uvicorn + httpx，对积压里带 `datetime` 的同一批事件连续重连 3 次，每次都是 200，并依次收到 `kanban_task_updated`、`system_notification`；修复前同样的场景是 3 次都「拿到 200 响应头后断流」。
 
 ### 局限
 
