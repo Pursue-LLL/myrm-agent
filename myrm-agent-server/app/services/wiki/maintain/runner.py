@@ -4,6 +4,7 @@
 - app.services.wiki.vault::get_wiki_archiver (POS: shared archiver accessor)
 - app.services.wiki.maintain.state_store (POS: wikiMaintainState persistence)
 - app.services.wiki.maintain.run_registry (POS: single flight + live state of the run of a vault scope)
+- myrm_agent_harness.toolkits.wiki.core.types::LintIssue (POS: maintenance issue DTO)
 - myrm_agent_harness.toolkits.wiki.maintenance.modes::MaintainMode (POS: structural vs full)
 - myrm_agent_harness.toolkits.wiki.maintenance.progress::MaintainProgressCallback (POS: LLM phase progress observer)
 
@@ -22,11 +23,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
+from myrm_agent_harness.toolkits.wiki.core.types import LintIssue
 from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 from myrm_agent_harness.toolkits.wiki.maintenance.progress import MaintainProgressCallback
 
@@ -54,8 +57,10 @@ _COMPILE_BUSY_REASON = "compile_in_progress"
 _NO_LLM_REASON = "no_llm_configured"
 _MAINTAIN_BUSY_REASON = "maintain_in_progress"
 
-# A run takes 5-25 minutes (up to 25 sequential model calls); the cap only frees the vault when a provider hangs.
+# A full run is up to 25 sequential model calls of 12-60s each; the cap only frees the vault when a provider hangs.
 _RUN_TIMEOUT_SECONDS = 45 * 60
+# Issues listed in a run result; the counters still cover all of them.
+_MAX_REPORTED_ISSUES = 200
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,9 +84,21 @@ def _compile_is_busy(archiver: MemoryToWikiArchiver) -> bool:
     return isinstance(processing, int) and processing > 0
 
 
-def _build_list_only_report(*, issues: Sequence[object]) -> str:
-    from myrm_agent_harness.toolkits.wiki.core.types import LintIssue
+def _lint_issue_payloads(issues: Sequence[LintIssue]) -> list[dict[str, object]]:
+    return [
+        {
+            "issue_type": item.issue_type,
+            "severity": item.severity,
+            "location": item.location,
+            "description": item.description,
+            "action_kind": item.action_kind,
+            "suggested_fix": item.suggested_fix,
+        }
+        for item in issues[:_MAX_REPORTED_ISSUES]
+    ]
 
+
+def _build_list_only_report(*, issues: Sequence[object]) -> str:
     lint_issues: list[LintIssue] = [item for item in issues if isinstance(item, LintIssue)]
     if not lint_issues:
         return (
@@ -215,8 +232,6 @@ async def _run_maintain_pipeline(
         )
 
         if mode_literal == "list_only":
-            import time
-
             start_t = time.perf_counter()
             scanned_issues, _ = await archiver._linter.scan(
                 mode=MaintainMode.STRUCTURAL,
@@ -233,18 +248,6 @@ async def _run_maintain_pipeline(
             )
             persist_wiki_health_snapshot(archiver._structure, health_report)
 
-            lint_issue_payloads: list[dict[str, object]] = [
-                {
-                    "issue_type": item.issue_type,
-                    "severity": item.severity,
-                    "location": item.location,
-                    "description": item.description,
-                    "action_kind": item.action_kind,
-                    "suggested_fix": item.suggested_fix,
-                }
-                for item in scanned_issues[:200]
-            ]
-
             summary_text = _build_list_only_report(issues=scanned_issues)
 
             result = WikiMaintainRunResult(
@@ -256,7 +259,7 @@ async def _run_maintain_pipeline(
                 open_actions_count=count_open_actions(scanned_issues),
                 raw_security_removed=0,
                 raw_security_removed_paths=[],
-                lint_issues=lint_issue_payloads,
+                lint_issues=_lint_issue_payloads(scanned_issues),
                 summary_text=summary_text,
             )
             async with get_session() as db:
@@ -277,18 +280,6 @@ async def _run_maintain_pipeline(
         )
         persist_wiki_health_snapshot(archiver._structure, health_report)
 
-        lint_issue_payloads = [
-            {
-                "issue_type": item.issue_type,
-                "severity": item.severity,
-                "location": item.location,
-                "description": item.description,
-                "action_kind": item.action_kind,
-                "suggested_fix": item.suggested_fix,
-            }
-            for item in lint_result.issues[:200]
-        ]
-
         result = WikiMaintainRunResult(
             mode=mode_literal,
             issues_found=lint_result.issues_found,
@@ -298,7 +289,7 @@ async def _run_maintain_pipeline(
             open_actions_count=count_open_actions(lint_result.issues),
             raw_security_removed=lint_result.raw_security_removed,
             raw_security_removed_paths=list(lint_result.raw_security_removed_paths),
-            lint_issues=lint_issue_payloads,
+            lint_issues=_lint_issue_payloads(lint_result.issues),
         )
         result.summary_text = _build_summary_text(result=result)
         async with get_session() as db:

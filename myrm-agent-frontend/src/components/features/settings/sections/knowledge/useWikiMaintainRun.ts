@@ -8,7 +8,7 @@
  * [OUTPUT]
  * useWikiMaintainRun: start a maintenance run, follow it to the end, and pick a run in flight back up on mount
  * WikiMaintainOutcome: how a followed run ended
- * MAINTAIN_POLL_INTERVAL_MS / MAINTAIN_POLL_MAX_CONSECUTIVE_ERRORS: polling cadence and tolerance
+ * MAINTAIN_FIRST_POLL_DELAY_MS / MAINTAIN_POLL_INTERVAL_MS / MAINTAIN_POLL_MAX_CONSECUTIVE_ERRORS: polling cadence and tolerance
  *
  * [POS]
  * Settings Wiki maintenance. A full run takes minutes and outlives any single request, so the page starts it
@@ -27,6 +27,8 @@ import {
 } from '@/services/wikiService';
 import type { MaintainFailureReason } from './wiki/wikiSectionUtils';
 
+// A structural run is quick, so the first look comes early; a full run takes minutes and is polled at the slow pace.
+export const MAINTAIN_FIRST_POLL_DELAY_MS = 500;
 export const MAINTAIN_POLL_INTERVAL_MS = 2000;
 export const MAINTAIN_POLL_MAX_CONSECUTIVE_ERRORS = 5;
 
@@ -76,10 +78,12 @@ export function useWikiMaintainRun({ agentScopeId, onFinished }: UseWikiMaintain
       const isCurrent = () => watchTokenRef.current === token;
       let status = first;
       let failedPolls = 0;
+      let pollDelayMs = MAINTAIN_FIRST_POLL_DELAY_MS;
 
       while (status.state === 'running') {
         setTracked({ agentScopeId, status });
-        await sleep(MAINTAIN_POLL_INTERVAL_MS);
+        await sleep(pollDelayMs);
+        pollDelayMs = MAINTAIN_POLL_INTERVAL_MS;
         if (!isCurrent()) {
           return;
         }

@@ -133,4 +133,3 @@ async def get_wiki_layer_items(
     """Retrieve list of documents inside a specific layer with metadata snippet."""
     service = get_writeback_service(workspace_root=workspace_root)
     return service.list_layer_items(agent_id=agent_id, layer_key=layer, limit=limit)
-

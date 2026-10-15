@@ -245,7 +245,7 @@ import { toast } from 'sonner';
 import { ApiError } from '@/lib/api';
 import type { WikiMaintainResponse, WikiMaintainStatus } from '@/services/wikiService';
 import { WikiSection } from '../WikiSection';
-import { MAINTAIN_POLL_INTERVAL_MS } from '../useWikiMaintainRun';
+import { MAINTAIN_FIRST_POLL_DELAY_MS, MAINTAIN_POLL_INTERVAL_MS } from '../useWikiMaintainRun';
 
 function maintainStatus(overrides: Partial<WikiMaintainStatus> = {}): WikiMaintainStatus {
   return { state: 'idle', mode: null, phase: null, done: 0, total: 0, result: null, error_code: null, ...overrides };
@@ -329,10 +329,11 @@ describe('WikiSection evidence snippet flow', () => {
 describe('WikiSection maintenance flow', () => {
   beforeEach(() => {
     resetWikiMocks();
-    // The 2s poll cadence is a production concern; the flow under test only needs the polls to happen.
+    // The poll cadence is a production concern; the flow under test only needs the polls to happen.
     const realSetTimeout = window.setTimeout.bind(window);
+    const pollDelays = [MAINTAIN_FIRST_POLL_DELAY_MS, MAINTAIN_POLL_INTERVAL_MS];
     vi.spyOn(window, 'setTimeout').mockImplementation(((handler: TimerHandler, delay?: number, ...args: unknown[]) =>
-      realSetTimeout(handler, delay === MAINTAIN_POLL_INTERVAL_MS ? 0 : delay, ...args)) as typeof window.setTimeout);
+      realSetTimeout(handler, pollDelays.includes(delay ?? -1) ? 0 : delay, ...args)) as typeof window.setTimeout);
   });
   afterEach(() => {
     vi.restoreAllMocks();

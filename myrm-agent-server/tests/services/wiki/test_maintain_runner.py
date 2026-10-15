@@ -6,17 +6,50 @@ from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.toolkits.wiki.core.types import LintResult
+from myrm_agent_harness.toolkits.wiki.core.types import LintIssue, LintResult
 from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 
 from app.services.wiki.maintain import run_wiki_maintain_job
-from app.services.wiki.maintain.runner import _build_summary_text, _run_maintain_pipeline
+from app.services.wiki.maintain.runner import (
+    _MAX_REPORTED_ISSUES,
+    _build_summary_text,
+    _lint_issue_payloads,
+    _run_maintain_pipeline,
+)
 from app.services.wiki.maintain.schemas import WikiMaintainRunResult
 
 
 @asynccontextmanager
 async def _fake_session():
     yield MagicMock()
+
+
+def _issue(location: str = "concepts/a.md") -> LintIssue:
+    return LintIssue(
+        issue_type="broken_link",
+        severity="high",
+        location=location,
+        description="Broken link to missing-node",
+        action_kind="repair",
+        can_auto_fix=False,
+        suggested_fix="Remove the link",
+    )
+
+
+def test_lint_issue_payloads_carry_the_issue_fields_and_stop_at_the_reporting_cap() -> None:
+    issues = [_issue(f"concepts/{index}.md") for index in range(_MAX_REPORTED_ISSUES + 5)]
+
+    payloads = _lint_issue_payloads(issues)
+
+    assert len(payloads) == _MAX_REPORTED_ISSUES
+    assert payloads[0] == {
+        "issue_type": "broken_link",
+        "severity": "high",
+        "location": "concepts/0.md",
+        "description": "Broken link to missing-node",
+        "action_kind": "repair",
+        "suggested_fix": "Remove the link",
+    }
 
 
 def test_build_summary_silent_when_only_unfixed_issues() -> None:
@@ -63,7 +96,7 @@ async def test_structural_maintain_persists_state() -> None:
             issues_fixed=1,
             connections_discovered=0,
             duration_ms=10,
-            issues=[],
+            issues=[_issue()],
         )
     )
 
@@ -92,6 +125,7 @@ async def test_structural_maintain_persists_state() -> None:
     assert mock_archiver._linter.lint_and_maintain.await_args.kwargs["mode"] == MaintainMode.STRUCTURAL
     assert result.issues_found == 2
     assert result.issues_fixed == 1
+    assert [issue["location"] for issue in result.lint_issues] == ["concepts/a.md"]
     assert "fixed" in result.summary_text.lower()
     save_mock.assert_awaited_once()
 
@@ -166,6 +200,7 @@ async def test_list_only_maintain_no_fix_and_generates_markdown_report() -> None
     assert result.mode == "list_only"
     assert result.issues_found == 1
     assert result.issues_fixed == 0
+    assert [issue["location"] for issue in result.lint_issues] == ["concepts/service.md"]
     assert "Wiki 知识库健康周检报告" in result.summary_text
     assert "严重断链: 1 处" in result.summary_text
     assert "(/settings/wiki)" in result.summary_text

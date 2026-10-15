@@ -25,6 +25,7 @@ vi.mock('@/lib/api', () => ({
 
 import { ApiError } from '@/lib/api';
 import {
+  MAINTAIN_FIRST_POLL_DELAY_MS,
   MAINTAIN_POLL_INTERVAL_MS,
   MAINTAIN_POLL_MAX_CONSECUTIVE_ERRORS,
   useWikiMaintainRun,
@@ -110,6 +111,32 @@ describe('useWikiMaintainRun', () => {
     await tick(3);
     expect(statusMock).toHaveBeenCalledTimes(3);
     expect(onFinished).toHaveBeenCalledTimes(1);
+  });
+
+  it('looks early at a run that has just started, then settles into the slow pace', async () => {
+    startMock.mockResolvedValue(running());
+    statusMock.mockResolvedValueOnce(status()).mockResolvedValue(running());
+    const { result } = mount();
+    await act(async () => {});
+    await act(async () => {
+      await result.current.start('structural');
+    });
+    expect(statusMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MAINTAIN_FIRST_POLL_DELAY_MS);
+    });
+    expect(statusMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MAINTAIN_FIRST_POLL_DELAY_MS);
+    });
+    expect(statusMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MAINTAIN_POLL_INTERVAL_MS - MAINTAIN_FIRST_POLL_DELAY_MS);
+    });
+    expect(statusMock).toHaveBeenCalledTimes(3);
   });
 
   it('is busy from the click, before the server has answered', async () => {

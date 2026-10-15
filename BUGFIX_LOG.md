@@ -4080,17 +4080,18 @@ except Exception:
 
 1. harness：`progress.py` 定义阶段、进度与可选观察者（观察者抛错只记日志，不影响运行）；`linter.py` 里的漂移核对原样搬进 `drift_review.py`（纯移动，加进度上报），`linter.py` 回到 339 行；`lint_and_maintain` 与两个模型阶段按页上报，没有可问页面或结构化模式时不上报。
 2. server：`run_registry.py` 每个知识库范围一份最近一轮的状态，检查与占位之间没有 `await` 所以不需要锁；`runner.py` 的 `schedule_wiki_maintain`（REST，后台任务，已有进行中的一轮就返回它）与 `run_wiki_maintain_job`（Cron，阻塞，已有一轮在跑则静默跳过且不写状态；`list_only` 只读不占单飞）共用同一登记；单轮 45 分钟硬上限，提供商卡死时释放知识库；对外失败只有错误码，不带异常原文；`POST /wiki/maintain` 回 202（启动或加入），compile 进行中回 409，`GET /wiki/maintain/status` 给状态、阶段、`done/total`、结果与错误码。和先前宣布的方案相比有一处调整：已有一轮在跑时回 202 加入而不是 409，这样第二次点击或另一个标签页能接上同一轮；409 只留给 compile。
-3. frontend：`useWikiMaintainRun` 每 2 秒轮询，连续 5 次读取失败才算失败，挂载时若服务端已有进行中的一轮就接上，结果只上报一次，回调经 ref 读取；按钮在运行期间禁用并显示「核对内容准确性 / 发现关联 n/m」；新增两个语言键 `settings.wiki.maintainProgress.{driftReview,linkDiscovery}`（六种语言）；`maintainWiki` 与它的 30 分钟超时删除，客户端拆到 `services/wiki/maintain.ts`（`service.ts` 本来就超过 500 行，不再增长）；`compileWiki` 加 `LONG_RUNNING_REQUEST_TIMEOUT_MS`。
+3. frontend：`useWikiMaintainRun` 发起后 0.5 秒首次读取状态、之后每 2 秒轮询（短的运行不必等满一个间隔），连续 5 次读取失败才算失败，挂载时若服务端已有进行中的一轮就接上，结果只上报一次，回调经 ref 读取；按钮在运行期间禁用并显示「核对内容准确性 / 发现关联 n/m」；新增两个语言键 `settings.wiki.maintainProgress.{driftReview,linkDiscovery}`（六种语言）；`maintainWiki` 与它的 30 分钟超时删除，客户端拆到 `services/wiki/maintain.ts`（`service.ts` 本来就超过 500 行，不再增长）；`compileWiki` 加 `LONG_RUNNING_REQUEST_TIMEOUT_MS`。
 4. `useWikiIngestSubscription`：快照回调经 ref 读取，不再是 effect 依赖。
 5. `WikiGovernanceWorkbench`：全部文字取自已有的六语言键，删除 `|| '中文'` 兜底；删除泄漏目录路径的那一行和六份语言包里的 `isolatedInArchive`；可点的卡片换成原生 `<button>`（两张切换列表的带 `aria-pressed`）；操作结果用本地文案，服务端 `success: false` 按失败处理；撤销入口与服务端同一个 30 秒时钟到点撤回；结果区用 `<output>`，失败用警示图标；`hardcoded_copy_baseline.json` 里它的 24 处额度收紧到 0。
+6. 对抗式复核后的收尾：`runner.py` 里两处相同的 issue 载荷推导合成 `_lint_issue_payloads`，上限 200 提成 `_MAX_REPORTED_ISSUES`，函数内的 `import time` 与 `LintIssue` 的延迟导入提到模块顶部；同目录的 `WikiFolderSelectTree.tsx` 把 `div role=button` 换成原生按钮（既有的 `oxlint` 告警消除）；`_ARCH.md` 补上单进程假设（依据 `run.py` 默认 uvicorn 单进程）。
 
 ### 验证
 
-1. 新增测试：harness `test_maintain_progress.py` 6 例；server `test_maintain_single_flight.py` 13 例、`test_maintain_endpoint.py` 重写、`test_maintain_runner.py` 加 1 例（三个文件共 29 例）；frontend `useWikiMaintainRun.test.tsx` 14 例、`useWikiIngestSubscription.test.tsx` 6 例、`WikiGovernanceWorkbench.test.tsx` 19 例（六种语言逐一核对文案，英文与德文界面不得出现任何汉字、假名或谚文）、`maintain.test.ts` 5 例、`WikiSection.wikiEvidence.test.tsx` 4 个维护流程、`wikiSectionUtils.test.ts` 增加进度文案与失败提示键及六语言 locale 契约。
+1. 新增测试：harness `test_maintain_progress.py` 6 例；server `test_maintain_single_flight.py` 13 例、`test_maintain_endpoint.py` 重写、`test_maintain_runner.py` 加 2 例（三个文件共 30 例）；frontend `useWikiMaintainRun.test.tsx` 15 例、`useWikiIngestSubscription.test.tsx` 6 例、`WikiGovernanceWorkbench.test.tsx` 19 例（六种语言逐一核对文案，英文与德文界面不得出现任何汉字、假名或谚文）、`maintain.test.ts` 5 例、`WikiFolderSelectTree.test.tsx` 2 例、`WikiSection.wikiEvidence.test.tsx` 4 个维护流程、`wikiSectionUtils.test.ts` 增加进度文案与失败提示键及六语言 locale 契约。
 2. 先红后绿：治理工作台测试在旧实现上 19 例全红（看得到 `Pending Review 3篇`、`延期90天`、`role="button"` 的 `div`），订阅 hook 测试在旧实现上 2 例红。
-3. 变异检查（每个变异改一处、跑、由 `finally` 写回原文并核对）：server 去掉单飞 → 3 例红；去掉 45 分钟上限 → 1 例红；失败不记到运行上 → 1 例红；Cron 绕过单飞 → 1 例红；harness 观察者不再隔离异常 → 1 例红；frontend 去掉睡眠后的失效检查 → 1 例红，把 `onFinished` 放进依赖 → 第一版测试没有抓住（重连后的调用次数刚好相同），补了「回调换新后状态读取只发生一次」的断言后 1 例红，去掉 409 映射 → 2 例红，去掉 `compileWiki` 的超时 → 1 例红。过程中发现单飞与上限的测试在变异下是「挂住」而不是「失败」，已加 `asyncio.wait_for` 保护。
-4. 回归：harness `tests/toolkits/wiki` 939 例通过（另有 1 例依赖真实模型的 `test_sidecar_integration.py` 没跑：路线图记录它在同一份 HEAD 代码上 7 次中 2 次失败）；server `tests/api/wiki` 与 `tests/services/wiki` 428 例通过、3 例失败（`test_wiki_clip_api.py::test_wiki_clip_security_blocked_job_response`、`test_wiki_import_raw_gate.py` 的两例）：在 HEAD 的干净检出里 `scan_raw_publish_content` 对 `sk-…` 内容同样返回 `redacted` 而不是 `blocked`，与本条无关；frontend `knowledge`、`services/wiki`、`lib/constants` 28 个文件 206 例通过。
-5. 静态检查：触及的 Python 文件 `ruff check`、`ruff format --check` 通过，`mypy` 在 `maintenance/`、`maintain/`、`maintain_routes.py` 上没有错误；前端触及文件 `prettier`、`oxlint` 无告警，`tsc --noEmit` 没有一条属于触及的文件（全部在他人未提交的 `needs-you` 测试里），`verify:theme-colors` 通过；`verify:hardcoded-copy` 里治理工作台的条目已清零。
+3. 变异检查（每个变异改一处、跑、由 `finally` 写回原文并核对）：server 去掉单飞 → 3 例红；去掉 45 分钟上限 → 1 例红；失败不记到运行上 → 1 例红；Cron 绕过单飞 → 1 例红；harness 观察者不再隔离异常 → 1 例红；frontend 去掉睡眠后的失效检查 → 1 例红，把 `onFinished` 放进依赖 → 第一版测试没有抓住（重连后的调用次数刚好相同），补了「回调换新后状态读取只发生一次」的断言后 1 例红，去掉 409 映射 → 2 例红，去掉 `compileWiki` 的超时 → 1 例红，首次读取不再提前 → 1 例红，永远只用提前的间隔 → 3 例红，文件夹树换回 `div role=button` → 1 例红。过程中发现单飞与上限的测试在变异下是「挂住」而不是「失败」，已加 `asyncio.wait_for` 保护。
+4. 回归：harness `tests/toolkits/wiki` 939 例通过（另有 1 例依赖真实模型的 `test_sidecar_integration.py` 没跑：路线图记录它在同一份 HEAD 代码上 7 次中 2 次失败）；server `tests/api/wiki` 与 `tests/services/wiki` 428 例通过、3 例失败（`test_wiki_clip_api.py::test_wiki_clip_security_blocked_job_response`、`test_wiki_import_raw_gate.py` 的两例）：在 HEAD 的干净检出里 `scan_raw_publish_content` 对 `sk-…` 内容同样返回 `redacted` 而不是 `blocked`，与本条无关；frontend `knowledge`、`services/wiki`、`lib/constants` 29 个文件 209 例通过。
+5. 静态检查：触及的 Python 文件 `ruff check`、`ruff format --check` 通过，`mypy` 在 `maintenance/`、`maintain/`、`maintain_routes.py` 上没有错误；前端触及文件 `prettier`、`oxlint` 无告警，`tsc --noEmit` 没有一条属于触及的文件（全部在他人未提交的 `needs-you` 测试里），`verify:theme-colors` 通过；`verify:hardcoded-copy` 里治理工作台的条目已清零。整个前端 `bun run lint` 仍有 3 个门禁失败（`verify:stable-mocks`、`verify:a11y`、`verify:hardcoded-copy`）、241 条 oxlint 告警与 20 个文件的 `tsc` 错误，逐条核对没有一条属于本条触及的文件。
 
 ### 局限
 
@@ -4102,8 +4103,11 @@ except Exception:
 6. 没有取消入口、没有按页游标、没有 SSE 推送：评估后放弃，原因是取消入口的收益低（评分 4/10），SSE 订阅 hook 在每个快照上重连、多订阅者时指纹去重可能吞掉第二个订阅者的首个快照、也没有心跳。
 7. 六种语言的新文案与治理工作台里复用的既有键都没有母语者审校；治理工作台在更长的德文与日文文案下的布局只做了防御性样式（`flex-wrap`、`min-w-0`），没有在真实浏览器里看过手机与桌面截图。
 8. 触及的大文件在本条之前就超过 500 行：`WikiSection.tsx` 2057 行（HEAD 2050 行，本条净增 7 行）、`router.py` 3469 行（HEAD 3530 行，本条净减 61 行），没有拆分，拆分是独立的重构；`service.ts` 1111 行（HEAD 1118 行）。
-9. 同目录里 `WikiFolderSelectTree.tsx:25` 有一条既有的 `jsx-a11y(prefer-tag-over-role)` 告警（与治理工作台同类），不在本条触及的文件里，没有改。
-10. 服务端治理接口返回的 `message` 现在前端不再显示，但接口本身没有改（仍是英文句子），其他调用方若要显示需要自己本地化。
+9. 服务端治理接口返回的 `message` 现在前端不再显示，但接口本身没有改（仍是英文句子），其他调用方若要显示需要自己本地化。
+10. 一轮在跑时再点「全量」会加入那一轮：若那一轮是 Cron 起的结构化维护，用户拿到的是结构化的结果（健康报告按那一轮的实际模式标注），不会再补跑一轮全量。
+11. 超时或失败若发生在链接发现中途，收尾的 `after_wiki_vault_mutation`（失效结构统计缓存与别名缓存、排一次 git 快照）没有执行；结构统计缓存的 TTL 是 120 秒（`structural_stats_cache.py:23`），所以统计最长滞后 120 秒，别名缓存与 git 快照的滞后没有测，也没有改。
+12. 用户离开设置页后一轮才结束，不会弹结果提示：重新打开页面时已结束的运行按设计保持安静，结果看健康卡片里持久化的快照。
+13. 维护结果与健康快照里的 `location` 有直接取自服务端文件路径的值（`drift_review.py:117`、`linter.py:262` 的 `str(concept_path)`），界面只显示文件名（`WikiHealthIssuesSection.tsx:66`）；这是既有行为，同样出现在 `/wiki/health`，没有改。
 
 ### 踩坑经验
 
