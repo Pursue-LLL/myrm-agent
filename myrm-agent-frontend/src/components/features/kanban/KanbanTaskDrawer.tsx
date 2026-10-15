@@ -64,7 +64,7 @@ export default function KanbanTaskDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[400px] sm:max-w-[440px] overflow-y-auto p-0"
+        className="w-full sm:w-[400px] sm:max-w-[440px] overflow-y-auto p-0"
         hideCloseButton
         data-testid="kanban-task-drawer"
       >
