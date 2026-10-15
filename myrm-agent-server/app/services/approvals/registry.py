@@ -42,6 +42,9 @@ class ApprovalRegistry:
     async def cleanup_expired_approvals(cls) -> int:
         """Find pending approvals that have expired and reject them automatically.
 
+        Finalizes the stored state only: a suspended agent is resumed by the harness
+        ApprovalTimeoutScheduler when its timer fires, not by this sweep.
+
         Returns:
             The number of approvals that were auto-rejected.
         """
@@ -78,27 +81,6 @@ class ApprovalRegistry:
 
                 record.status = "TIMEOUT"
                 record.reason = (record.reason or "") + "\n\n[Auto-Rejected: TTL Expired]"
-
-                # Emit event to awaken the suspended state machine with "deny" decision
-                if record.thread_id:
-                    try:
-                        bus = get_event_bus()
-                        bus.publish(
-                            AppEvent(
-                                event_type=AppEventType.STATUS,
-                                data={
-                                    "action": "resume_agent",
-                                    "thread_id": record.thread_id,
-                                    "chat_id": record.chat_id,
-                                    "agent_id": record.agent_id,
-                                    "decision": "deny",
-                                    "edited_payload": None,
-                                },
-                            )
-                        )
-                        logger.info("Auto-rejected expired approval: %s (thread_id=%s)", record.id, record.thread_id)
-                    except Exception as e:
-                        logger.error("Failed to publish resume event for expired approval %s: %s", record.id, e)
 
             await db.commit()
 

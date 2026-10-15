@@ -10,7 +10,7 @@ def bus():
     return ServerEventBus(max_backlog=5)
 
 
-def _make_event(event_type: AppEventType = AppEventType.STATUS, data: dict | None = None) -> AppEvent:
+def _make_event(event_type: AppEventType = AppEventType.SYSTEM_NOTIFICATION, data: dict | None = None) -> AppEvent:
     return AppEvent(event_type=event_type, data=data or {"key": "value"})
 
 
@@ -39,7 +39,7 @@ class TestEventBusDedup:
 
     def test_different_event_type_not_suppressed(self, bus):
         q = bus.subscribe()
-        e1 = _make_event(event_type=AppEventType.STATUS, data={"x": 1})
+        e1 = _make_event(event_type=AppEventType.SYSTEM_NOTIFICATION, data={"x": 1})
         e2 = _make_event(event_type=AppEventType.HEALTH_ALERT, data={"x": 1})
 
         bus.publish(e1)
