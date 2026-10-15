@@ -177,34 +177,6 @@ def test_wiki_compile_endpoint(client: TestClient) -> None:
         print(f"❌ Error: {response.text}")
 
 
-def test_wiki_maintain_endpoint(client: TestClient) -> None:
-    """Test POST /api/v1/wiki/maintain endpoint."""
-    print("\n🔧 Testing /api/v1/wiki/maintain...")
-
-    response = client.post("/api/v1/wiki/maintain")
-
-    print(f"Status: {response.status_code}")
-
-    if response.status_code == 200:
-        data = response.json()
-        print("✅ Maintenance result:")
-        print(f"  - Issues found: {data.get('issues_found', 0)}")
-        print(f"  - Issues fixed: {data.get('issues_fixed', 0)}")
-        print(f"  - Connections: {data.get('connections_discovered', 0)}")
-        print(f"  - Duration: {data.get('duration_ms', 0)}ms")
-
-        assert "issues_found" in data
-        assert "issues_fixed" in data
-        assert "connections_discovered" in data
-        assert "open_actions_count" in data
-        assert "issues" in data
-        assert isinstance(data["issues"], list)
-    elif response.status_code in [401, 403]:
-        print("⚠️ Authentication/Authorization required (expected)")
-    else:
-        print(f"❌ Error: {response.text}")
-
-
 def test_wiki_purpose_get(client: TestClient) -> None:
     """Test GET /api/v1/wiki/purpose endpoint."""
     print("\n🧭 Testing /api/v1/wiki/purpose GET...")

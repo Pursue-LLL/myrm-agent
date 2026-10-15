@@ -5,7 +5,7 @@ fastapi::APIRouter, Depends, HTTPException, Query (POS: FastAPI 路由与依赖�
 pydantic::BaseModel, Field (POS: 数据验证与序列化)
 app.api.dependencies::get_optional_llm_for_user, get_workspace_root (POS: 依赖注入函数)
 app.services.wiki::MemoryToWikiArchiver (POS: Memory→Wiki 自动归档服务)
-app.services.wiki.health_report_service::WikiHealthIssueResponse, WikiHealthReportResponse (POS: 仅服务端的健康报告编排，结构化 GET 零 LLM，响应模型在此唯一定义)
+app.services.wiki.health_report_service::WikiHealthReportResponse (POS: 仅服务端的健康报告编排，结构化 GET 零 LLM，响应模型在此唯一定义)
 langchain_core.language_models::BaseChatModel (POS: LangChain LLM 基类)
 myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Artifact 存储金库，ingest 端点延迟导入)
 app.database.models.artifact::Artifact (POS: Artifact 数据库模型，ingest 端点延迟导入)
@@ -19,7 +19,7 @@ Artifact 内容写入接口
 
 [POS]
 业务层 Wiki API 路由。提供全量 REST 端点供前端 Brain Console 调用：
-查询/编译/维护/ingest wiki。/concepts (CRUD)、/queue (状态控制)、/pending (人工审核)、
+查询/编译/ingest wiki（维护 /maintain 见 maintain_routes.py）。/concepts (CRUD)、/queue (状态控制)、/pending (人工审核)、
 /import/* (批量导入经 harness raw_gate)、/ingest (artifact 内容写入)。
 """
 
@@ -50,7 +50,7 @@ from app.api.memory.utils import get_optional_memory_manager
 from app.channels.types import VoiceConfig
 from app.services.meeting_notes.service import process_meeting_audio
 from app.services.wiki import MemoryToWikiArchiver
-from app.services.wiki.health_report_service import WikiHealthIssueResponse, WikiHealthReportResponse
+from app.services.wiki.health_report_service import WikiHealthReportResponse
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
@@ -193,17 +193,6 @@ class CompileRunResponse(BaseModel):
     facet_count: int = 0
     warning_count: int = 0
     survey_skipped: bool = False
-
-
-class WikiMaintenanceResponse(BaseModel):
-    issues_found: int
-    issues_fixed: int
-    connections_discovered: int
-    duration_ms: int
-    open_actions_count: int = 0
-    raw_security_removed: int = 0
-    raw_security_removed_paths: list[str] = Field(default_factory=list)
-    issues: list[WikiHealthIssueResponse] = Field(default_factory=list)
 
 
 class WikiStructuralIssuesResponse(BaseModel):
@@ -744,58 +733,6 @@ async def compile_wiki(
     except Exception as e:
         logger.error(f"Wiki compilation failed: {e}")
         raise HTTPException(status_code=500, detail="Wiki compilation failed") from e
-
-
-@router.post("/maintain", response_model=WikiMaintenanceResponse)
-async def maintain_wiki(
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
-    mode: Annotated[
-        Literal["structural", "full"],
-        Query(description="Maintenance intensity: structural (default) or full"),
-    ] = "structural",
-) -> WikiMaintenanceResponse:
-    try:
-        from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
-
-        from app.services.wiki.maintain import run_wiki_maintain_job
-
-        maintain_mode = MaintainMode.FULL if mode == "full" else MaintainMode.STRUCTURAL
-        result = await run_wiki_maintain_job(
-            llm=archiver._llm,
-            agent_id=agent_id,
-            mode=maintain_mode,
-        )
-        if result.skipped and result.skipped_reason == "compile_in_progress":
-            raise HTTPException(
-                status_code=409,
-                detail="Wiki compilation is in progress; maintain skipped",
-            )
-        return WikiMaintenanceResponse(
-            issues_found=result.issues_found,
-            issues_fixed=result.issues_fixed,
-            connections_discovered=result.connections_discovered,
-            duration_ms=result.duration_ms,
-            open_actions_count=result.open_actions_count,
-            raw_security_removed=result.raw_security_removed,
-            raw_security_removed_paths=list(result.raw_security_removed_paths),
-            issues=[
-                WikiHealthIssueResponse(
-                    issue_type=str(item["issue_type"]),
-                    severity=str(item["severity"]),
-                    location=str(item["location"]),
-                    description=str(item["description"]),
-                    action_kind=str(item["action_kind"]),
-                    suggested_fix=(str(item["suggested_fix"]) if item.get("suggested_fix") is not None else None),
-                )
-                for item in result.lint_issues
-            ],
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Wiki maintenance failed: {e}")
-        raise HTTPException(status_code=500, detail="Wiki maintenance failed") from e
 
 
 @router.get("/health-report", response_model=WikiHealthReportResponse)
@@ -3517,6 +3454,7 @@ async def finalize_live_meeting(
 
 from app.api.wiki.governance_routes import router as wiki_governance_router  # noqa: E402
 from app.api.wiki.ingest_stream import register_ingest_stream_routes  # noqa: E402
+from app.api.wiki.maintain_routes import router as wiki_maintain_router  # noqa: E402
 from app.api.wiki.obsidian_binding_routes import router as wiki_obsidian_binding_router  # noqa: E402
 from app.api.wiki.routes.clip import router as wiki_clip_router  # noqa: E402
 from app.api.wiki.sources import router as wiki_sources_router  # noqa: E402
@@ -3524,6 +3462,7 @@ from app.api.wiki.writeback_routes import router as wiki_writeback_router  # noq
 
 register_ingest_stream_routes(router)
 router.include_router(wiki_clip_router)
+router.include_router(wiki_maintain_router)
 router.include_router(wiki_sources_router)
 router.include_router(wiki_obsidian_binding_router)
 router.include_router(wiki_governance_router)

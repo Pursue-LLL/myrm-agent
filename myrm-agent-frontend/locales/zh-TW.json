@@ -16414,6 +16414,10 @@
       "querying": "查詢中...",
       "compiling": "編譯中...",
       "maintaining": "維護中...",
+      "maintainProgress": {
+        "driftReview": "核對內容準確性 {done}/{total}",
+        "linkDiscovery": "探索關聯 {done}/{total}"
+      },
       "repairingTypes": "修復中...",
       "repairingPublication": "修復發布狀態中...",
       "reindexingVectors": "重建向量索引中...",
@@ -17005,7 +17009,6 @@
       "emptyExpiring": "暫無老化概念，所有知識均為活躍常青狀態",
       "emptyArchived": "暫無已歸檔概念",
       "daysUnchanged": "已 {days} 天未更新",
-      "isolatedInArchive": "實體隔離於 archive/ 目錄",
       "extendButton": "延期90天",
       "archiveButton": "歸檔",
       "reviveButton": "一鍵復活",

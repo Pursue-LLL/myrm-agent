@@ -17089,6 +17089,10 @@
       "querying": "Querying...",
       "compiling": "Compiling...",
       "maintaining": "Maintaining...",
+      "maintainProgress": {
+        "driftReview": "Reviewing accuracy {done}/{total}",
+        "linkDiscovery": "Finding links {done}/{total}"
+      },
       "repairingTypes": "Repairing...",
       "repairingPublication": "Repairing publication...",
       "reindexingVectors": "Rebuilding vectors...",
@@ -17680,7 +17684,6 @@
       "emptyExpiring": "No expiring concepts. All knowledge is actively maintained.",
       "emptyArchived": "No archived concepts.",
       "daysUnchanged": "Unchanged for {days} days",
-      "isolatedInArchive": "Isolated in archive/ directory",
       "extendButton": "Extend 90 Days",
       "archiveButton": "Archive",
       "reviveButton": "Revive",

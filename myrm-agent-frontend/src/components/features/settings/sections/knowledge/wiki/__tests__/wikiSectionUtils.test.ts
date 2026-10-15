@@ -9,6 +9,8 @@ import type { WikiMaintainResponse } from '@/services/wikiService';
 import {
   healthReportFromMaintainResponse,
   resolveHealthIssueNavigationTarget,
+  resolveMaintainFailureToastKey,
+  resolveMaintainProgressLabel,
   resolveMaintainToast,
 } from '../wikiSectionUtils';
 
@@ -136,6 +138,55 @@ describe('resolveMaintainToast', () => {
     } as WikiMaintainResponse;
 
     expect(resolveMaintainToast(legacy)).toEqual({ variant: 'success', key: 'success.maintainComplete' });
+  });
+});
+
+describe('resolveMaintainProgressLabel', () => {
+  it('names the phase with the pages done of total', () => {
+    expect(resolveMaintainProgressLabel({ phase: 'link_discovery', done: 7, total: 20 })).toEqual({
+      key: 'maintainProgress.linkDiscovery',
+      values: { done: 7, total: 20 },
+    });
+    expect(resolveMaintainProgressLabel({ phase: 'drift_review', done: 0, total: 5 })).toEqual({
+      key: 'maintainProgress.driftReview',
+      values: { done: 0, total: 5 },
+    });
+  });
+
+  it('has no label before the model phases start', () => {
+    expect(resolveMaintainProgressLabel(null)).toBeNull();
+  });
+
+  it.each(locales)('%s words both phases with the done and total counters', (code) => {
+    const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
+
+    for (const phase of ['drift_review', 'link_discovery'] as const) {
+      const label = resolveMaintainProgressLabel({ phase, done: 1, total: 2 });
+      const message = lookupWikiMessage(tree, label?.key ?? '');
+
+      expect(message, `${code}: ${phase}`).toBeTypeOf('string');
+      expect(icuArguments(message as string), `${code}: ${phase}`).toEqual(['done', 'total']);
+    }
+  });
+});
+
+describe('resolveMaintainFailureToastKey', () => {
+  it('tells the user to retry after the compile when the vault is compiling', () => {
+    expect(resolveMaintainFailureToastKey('compile_busy')).toBe('errors.maintainCompileBusy');
+  });
+
+  it('falls back to the generic failure for everything else', () => {
+    expect(resolveMaintainFailureToastKey('failed')).toBe('errors.maintainFailed');
+  });
+
+  it.each(locales)('%s words both failure toasts', (code) => {
+    const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
+
+    for (const reason of ['compile_busy', 'failed'] as const) {
+      expect(lookupWikiMessage(tree, resolveMaintainFailureToastKey(reason)), `${code}: ${reason}`).toBeTypeOf(
+        'string',
+      );
+    }
   });
 });
 

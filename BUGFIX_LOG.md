@@ -3789,6 +3789,12 @@ except Exception:
 4. 测试环境里 Turbopack 不接受指向文件系统根之外的符号链接 `node_modules`，隔离实例改用 webpack 模式。
 5. 共享环境里正式 E2E 通道跑不通时，写清楚每次卡在哪一步，不要把「用例写好了」当成「验证过了」。
 
+### 更正（BUG-AGENT-2026-10-15-021）
+
+1. 「修复」第 1 条里 `maintainWiki` 带 30 分钟 `timeout` 的做法作废：全量维护改成服务端后台任务，前端只发起并轮询状态，`maintainWiki` 已删除；「局限」第 2、3、5 条（30 分钟是上限、云端网关超时、无并发锁）由 `021` 的后台任务与单飞取代。
+2. `LONG_RUNNING_REQUEST_TIMEOUT_MS` 与 `next.config.ts` 的 `proxyTimeout` 保留，现在只服务 `compileWiki`；编译的真实耗时没有测过。
+3. 未提交的端到端用例 `test_wiki_maintain_long_run_chrome_e2e.py` 已删除（它断言的是已被取代的长请求行为，且从未跑出通过的结论）。
+
 ## BUG-AGENT-2026-10-15-017: 被风控拦下的文字在看板、定时任务、心跳、批注退回、技能优化与目标草拟的 12 个调用点上，要么在统一提示之外再叠一条失败提示，要么只显示「生成失败」，要么把 `[object Object]` 当提示
 
 | 属性 | 值 |
@@ -4042,3 +4048,66 @@ except Exception:
 3. 要把任务造到 IN_REVIEW 或 RUNNING 做接口测试，沿用 `tests/api/kanban/test_in_review_api.py` 的做法：`asyncio.run` 里经 `KanbanService.get_instance().store.save_task` 改状态，不必走完整的执行流程。
 4. 判断「某个字段会不会被读给模型」不能只看上下文构建器直接读的字段：回收理由经运行的 `error` 字段被 `## Prior attempts` 读到，只查事件会漏掉它。要从写入点出发找出所有会存这段文字的字段，再逐个看谁读它。
 5. 用零上下文的 hunk 把自己的改动从他人未提交的改动里分拣出来后，要用 `git show :路径` 逐处核对暂存区的内容：驳回闸门被放到了 `svc = get_kanban_service()` 之后一行（跳过上方他人的 hunk 后，后面 hunk 的新侧行号失准），hunk 数量与 `git diff --cached --stat` 都看不出来。
+
+## BUG-AGENT-2026-10-15-021: 云端托管下设置里的「全量维护」是一个必然超过代理 120 秒读超时的同步请求，没有并发保护与进度；治理工作台在非中文界面里露出中文与目录路径、用 `div role=button` 做按钮；编译请求没有长超时；ingest 订阅每收到一个快照就断开重连
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15（复审路线图 topic_02 #140 第七批时，对 `BUG-AGENT-2026-10-15-016` 的做法追问「云端模式下它真的成立吗」） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（云端托管下每次全量维护都会被代理切成 504 而服务端继续跑，用户再点一次就并发起第二轮、重复消耗模型额度；不丢数据） |
+| 影响范围 | harness：`toolkits/wiki/maintenance/`（新增 `progress.py`、`drift_review.py`，`linter.py` 与 `backlink_discovery.py` 接入进度观察者）；server：`app/services/wiki/maintain/`（新增 `run_registry.py`，`runner.py` 重构）、`app/api/wiki/maintain_routes.py`（新增，从 `router.py` 迁出）；frontend：`services/wiki/maintain.ts`（新增）、`useWikiMaintainRun.ts`（新增）、`WikiSection.tsx`、`useWikiIngestSubscription.ts`、`wiki/WikiGovernanceWorkbench.tsx`、`wiki/wikiSectionUtils.ts`、六份语言包及对应测试与 `_ARCH.md`；不涉及提示词（系统提示与逐页的用户消息原文不变，进度回调在模型调用之外触发） |
+| 出现次数 | 1（读码得出，云端代理的行为没有在真实云端环境里复现） |
+| 关联 | `BUG-AGENT-2026-10-15-016`（被本条取代的部分见其「更正」）；路线图 topic_02 #140 第七批；本地提交，未 push |
+
+### 现象
+
+1. 云端控制平面的反向代理读超时是 120 秒（`myrm-control-plane/src/myrm_control_plane/gateway/reverse_proxy/client.py:24`，超时回 504：`router.py:152-154`）。全量维护是最多 5 次漂移核对加 20 次链接发现的串行模型调用，单次 12–60 秒（`016` 的探测），一次同步请求不可能在 120 秒内答完。`016` 的 30 分钟超时只覆盖本地模式与桌面端。
+2. 没有并发保护：离线实验里两轮并发运行对 20 个不同页面发起了 40 次调用；一轮被取消后，它的游标丢失。点击后 504，用户再点一次，两轮并存。
+3. 运行期间界面只有「维护中」，没有进度；刷新页面后运行状态不可见。
+4. 治理工作台（`WikiGovernanceWorkbench.tsx`）：英文界面里显示「篇」「项」「需复核」「延期90天」「归档」「一键复活」与整句中文；六处 `t(key) || '中文'` 兜底永远不会执行；「物理隔离于 archive/ 目录」把存储目录写给用户（同一句在六种语言包里都有键 `isolatedInArchive`）；三张可点的卡片是 `div role="button"`，空格键无效；刷新按钮的 `aria-label` 是写死的英文；操作结果直接显示服务端返回的英文消息（`Extended 1 concept(s) by 90 days`）；服务端回 `success: false`（比如撤销令牌已过期）也显示成「成功」样式的消息；撤销入口在服务端 30 秒窗口过后仍留在界面上。
+5. `compileWiki` 没有覆盖默认 30 秒超时：它整批答完才返回（读码得出，真实耗时没有测）。
+6. `useWikiIngestSubscription` 把调用方每次渲染都新建的回调放进 effect 依赖，而每个快照又会让调用方重新渲染：vitest 探针里 3 个快照之后 `EventSource` 被构造了 4 次。真实环境里的发生频率没有测。
+
+### 根因
+
+1. 把「长任务」做成「长请求」：每一层（浏览器、Next 代理、云端网关）都有自己的超时，逐层放宽既做不完（云端网关不在仓库里可配的范围），也没有进度，更挡不住重复点击。任务应该在服务端后台跑，请求只负责启动与查询。
+2. 治理工作台是一次性写出的界面：文案与结构没有走 `useTranslations` 与语义元素的约定，也没有测试覆盖非中文界面。
+3. 订阅 hook 把「最新回调」当成「连接身份」。
+
+### 修复
+
+1. harness：`progress.py` 定义阶段、进度与可选观察者（观察者抛错只记日志，不影响运行）；`linter.py` 里的漂移核对原样搬进 `drift_review.py`（纯移动，加进度上报），`linter.py` 回到 339 行；`lint_and_maintain` 与两个模型阶段按页上报，没有可问页面或结构化模式时不上报。
+2. server：`run_registry.py` 每个知识库范围一份最近一轮的状态，检查与占位之间没有 `await` 所以不需要锁；`runner.py` 的 `schedule_wiki_maintain`（REST，后台任务，已有进行中的一轮就返回它）与 `run_wiki_maintain_job`（Cron，阻塞，已有一轮在跑则静默跳过且不写状态；`list_only` 只读不占单飞）共用同一登记；单轮 45 分钟硬上限，提供商卡死时释放知识库；对外失败只有错误码，不带异常原文；`POST /wiki/maintain` 回 202（启动或加入），compile 进行中回 409，`GET /wiki/maintain/status` 给状态、阶段、`done/total`、结果与错误码。和先前宣布的方案相比有一处调整：已有一轮在跑时回 202 加入而不是 409，这样第二次点击或另一个标签页能接上同一轮；409 只留给 compile。
+3. frontend：`useWikiMaintainRun` 每 2 秒轮询，连续 5 次读取失败才算失败，挂载时若服务端已有进行中的一轮就接上，结果只上报一次，回调经 ref 读取；按钮在运行期间禁用并显示「核对内容准确性 / 发现关联 n/m」；新增两个语言键 `settings.wiki.maintainProgress.{driftReview,linkDiscovery}`（六种语言）；`maintainWiki` 与它的 30 分钟超时删除，客户端拆到 `services/wiki/maintain.ts`（`service.ts` 本来就超过 500 行，不再增长）；`compileWiki` 加 `LONG_RUNNING_REQUEST_TIMEOUT_MS`。
+4. `useWikiIngestSubscription`：快照回调经 ref 读取，不再是 effect 依赖。
+5. `WikiGovernanceWorkbench`：全部文字取自已有的六语言键，删除 `|| '中文'` 兜底；删除泄漏目录路径的那一行和六份语言包里的 `isolatedInArchive`；可点的卡片换成原生 `<button>`（两张切换列表的带 `aria-pressed`）；操作结果用本地文案，服务端 `success: false` 按失败处理；撤销入口与服务端同一个 30 秒时钟到点撤回；结果区用 `<output>`，失败用警示图标；`hardcoded_copy_baseline.json` 里它的 24 处额度收紧到 0。
+
+### 验证
+
+1. 新增测试：harness `test_maintain_progress.py` 6 例；server `test_maintain_single_flight.py` 13 例、`test_maintain_endpoint.py` 重写、`test_maintain_runner.py` 加 1 例（三个文件共 29 例）；frontend `useWikiMaintainRun.test.tsx` 14 例、`useWikiIngestSubscription.test.tsx` 6 例、`WikiGovernanceWorkbench.test.tsx` 19 例（六种语言逐一核对文案，英文与德文界面不得出现任何汉字、假名或谚文）、`maintain.test.ts` 5 例、`WikiSection.wikiEvidence.test.tsx` 4 个维护流程、`wikiSectionUtils.test.ts` 增加进度文案与失败提示键及六语言 locale 契约。
+2. 先红后绿：治理工作台测试在旧实现上 19 例全红（看得到 `Pending Review 3篇`、`延期90天`、`role="button"` 的 `div`），订阅 hook 测试在旧实现上 2 例红。
+3. 变异检查（每个变异改一处、跑、由 `finally` 写回原文并核对）：server 去掉单飞 → 3 例红；去掉 45 分钟上限 → 1 例红；失败不记到运行上 → 1 例红；Cron 绕过单飞 → 1 例红；harness 观察者不再隔离异常 → 1 例红；frontend 去掉睡眠后的失效检查 → 1 例红，把 `onFinished` 放进依赖 → 第一版测试没有抓住（重连后的调用次数刚好相同），补了「回调换新后状态读取只发生一次」的断言后 1 例红，去掉 409 映射 → 2 例红，去掉 `compileWiki` 的超时 → 1 例红。过程中发现单飞与上限的测试在变异下是「挂住」而不是「失败」，已加 `asyncio.wait_for` 保护。
+4. 回归：harness `tests/toolkits/wiki` 939 例通过（另有 1 例依赖真实模型的 `test_sidecar_integration.py` 没跑：路线图记录它在同一份 HEAD 代码上 7 次中 2 次失败）；server `tests/api/wiki` 与 `tests/services/wiki` 428 例通过、3 例失败（`test_wiki_clip_api.py::test_wiki_clip_security_blocked_job_response`、`test_wiki_import_raw_gate.py` 的两例）：在 HEAD 的干净检出里 `scan_raw_publish_content` 对 `sk-…` 内容同样返回 `redacted` 而不是 `blocked`，与本条无关；frontend `knowledge`、`services/wiki`、`lib/constants` 28 个文件 206 例通过。
+5. 静态检查：触及的 Python 文件 `ruff check`、`ruff format --check` 通过，`mypy` 在 `maintenance/`、`maintain/`、`maintain_routes.py` 上没有错误；前端触及文件 `prettier`、`oxlint` 无告警，`tsc --noEmit` 没有一条属于触及的文件（全部在他人未提交的 `needs-you` 测试里），`verify:theme-colors` 通过；`verify:hardcoded-copy` 里治理工作台的条目已清零。
+
+### 局限
+
+1. **没有在真实浏览器与真实云端里验证**：整条「设置 → 知识库 → 维护」的异步流程只有 jsdom 与桩服务端的测试；`016` 留下的真实 Chrome 端到端用例已删除，没有新写。云端代理的 120 秒行为是读码得出，没有在真实云端复现。
+2. 全量维护的真实用量没有数据：不知道真实用户多久点一次、一轮多久；45 分钟上限与 2 秒轮询间隔是按单次调用 12–60 秒、最多 25 次估的，没有实测。
+3. `POST /wiki/compile` 在云端模式下仍可能撞到 120 秒代理读超时：它的真实耗时没有测，这里只补了客户端与 Next 代理的 30 分钟超时。
+4. 运行登记在内存里，服务端重启后丢失（前端把消失的运行按失败处理；运行结果另由 `wikiMaintainState` 与 vault 健康快照持久化）；单进程假设，多进程部署下单飞不跨进程。
+5. 智能体工具路径（`wiki_agent_tools.py:503`）不经单飞，是否同时触发由调用方决定，没有处理。
+6. 没有取消入口、没有按页游标、没有 SSE 推送：评估后放弃，原因是取消入口的收益低（评分 4/10），SSE 订阅 hook 在每个快照上重连、多订阅者时指纹去重可能吞掉第二个订阅者的首个快照、也没有心跳。
+7. 六种语言的新文案与治理工作台里复用的既有键都没有母语者审校；治理工作台在更长的德文与日文文案下的布局只做了防御性样式（`flex-wrap`、`min-w-0`），没有在真实浏览器里看过手机与桌面截图。
+8. 触及的大文件在本条之前就超过 500 行：`WikiSection.tsx` 2057 行（HEAD 2050 行，本条净增 7 行）、`router.py` 3469 行（HEAD 3530 行，本条净减 61 行），没有拆分，拆分是独立的重构；`service.ts` 1111 行（HEAD 1118 行）。
+9. 同目录里 `WikiFolderSelectTree.tsx:25` 有一条既有的 `jsx-a11y(prefer-tag-over-role)` 告警（与治理工作台同类），不在本条触及的文件里，没有改。
+10. 服务端治理接口返回的 `message` 现在前端不再显示，但接口本身没有改（仍是英文句子），其他调用方若要显示需要自己本地化。
+
+### 踩坑经验
+
+1. 云端代理与浏览器、Next 代理各有一层超时，长任务不要靠逐层放宽，改成「请求只启动、状态靠轮询」才不依赖任何一层的上限，也顺带解决了重复点击与刷新后看不到进度。
+2. 单飞要先看「检查与占位之间有没有 `await`」：没有就不需要锁；有后台任务时要保存任务的强引用，否则事件循环可能提前回收它。
+3. 变异检查要同时看「会不会红」与「红的方式」：去掉单飞或上限后原测试是挂住而不是失败，等于在 CI 里变成超时；给被测的等待加上限才能让它快速失败。
+4. 测试里替换 `window.setTimeout` 把轮询间隔压成 0，比整体启用假计时器稳：Testing Library 的 `findBy` 在异步包装里等一个真实的 `setTimeout(0)`，假计时器会让它挂住。
+5. zsh 里未加引号的变量不会按空格拆成多个参数：用数组存测试路径，否则 `pytest $T` 会报「no tests ran」而不是报错。

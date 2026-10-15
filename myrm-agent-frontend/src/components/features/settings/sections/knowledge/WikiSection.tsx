@@ -77,9 +77,12 @@ import { ObsidianVaultActions } from './ObsidianVaultActions';
 import MeetingNotesImportCard from './MeetingNotesImportCard';
 import DailyReviewCard from './DailyReviewCard';
 import { consumeMigrationObsidianVaultImport } from '@/lib/migrationChatHandoff';
+import { useWikiMaintainRun, type WikiMaintainOutcome } from './useWikiMaintainRun';
 import {
   healthReportFromMaintainResponse,
   resolveHealthIssueNavigationTarget,
+  resolveMaintainFailureToastKey,
+  resolveMaintainProgressLabel,
   resolveMaintainToast,
 } from './wiki/wikiSectionUtils';
 import { WikiLayersLedgerPanel } from './wiki/WikiLayersLedgerPanel';
@@ -221,7 +224,6 @@ export function WikiSection() {
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileRun, setCompileRun] = useState<CompileRunStatus | null>(null);
   const [isResumingCompile, setIsResumingCompile] = useState(false);
-  const [isMaintaining, setIsMaintaining] = useState(false);
   const [isRepairingTypes, setIsRepairingTypes] = useState(false);
   const [isRepairingPublication, setIsRepairingPublication] = useState(false);
   const [isReindexingVectors, setIsReindexingVectors] = useState(false);
@@ -1001,32 +1003,33 @@ export function WikiSection() {
     }
   };
 
-  const handleMaintain = async () => {
-    setIsMaintaining(true);
-    try {
-      const result = await wikiService.maintainWiki(maintainMode, agentScopeId);
-      const summary = resolveMaintainToast(result);
-      toast[summary.variant](t(summary.key, summary.values));
-      setHealthReportExpanded(true);
-      await loadStats();
-      setHealthReport((prev) =>
-        healthReportFromMaintainResponse(result, maintainMode, {
-          duplicate_groups_pending: prev?.duplicate_groups_pending ?? 0,
-          synthesis_pending: prev?.synthesis_pending ?? 0,
-        }),
-      );
-      setTreeSyncNonce((value) => value + 1);
-    } catch (error) {
-      console.error('Maintain failed:', error);
-      if (error instanceof ApiError && error.code === 409) {
-        toast.error(t('errors.maintainCompileBusy'));
-      } else {
-        toast.error(t('errors.maintainFailed'));
-      }
-    } finally {
-      setIsMaintaining(false);
+  const handleMaintainFinished = async (outcome: WikiMaintainOutcome) => {
+    if (outcome.kind === 'failure') {
+      toast.error(t(resolveMaintainFailureToastKey(outcome.reason)));
+      return;
     }
+    const { result, mode } = outcome;
+    const summary = resolveMaintainToast(result);
+    toast[summary.variant](t(summary.key, summary.values));
+    setHealthReportExpanded(true);
+    await loadStats();
+    setHealthReport((prev) =>
+      healthReportFromMaintainResponse(result, mode, {
+        duplicate_groups_pending: prev?.duplicate_groups_pending ?? 0,
+        synthesis_pending: prev?.synthesis_pending ?? 0,
+      }),
+    );
+    setTreeSyncNonce((value) => value + 1);
   };
+
+  const {
+    isRunning: isMaintaining,
+    progress: maintainProgress,
+    start: startMaintain,
+  } = useWikiMaintainRun({ agentScopeId, onFinished: handleMaintainFinished });
+  const maintainProgressLabel = resolveMaintainProgressLabel(maintainProgress);
+
+  const handleMaintain = () => startMaintain(maintainMode);
 
   const handleRepairPageTypes = async () => {
     setIsRepairingTypes(true);
@@ -1797,7 +1800,11 @@ export function WikiSection() {
                     data-testid="wiki-maintain-button"
                   >
                     <IconWrench className="w-4 h-4 mr-2" />
-                    {isMaintaining ? t('maintaining') : t('actions.maintain')}
+                    {isMaintaining
+                      ? maintainProgressLabel
+                        ? t(maintainProgressLabel.key, maintainProgressLabel.values)
+                        : t('maintaining')
+                      : t('actions.maintain')}
                   </Button>
                   <Button
                     onClick={handleRepairPageTypes}

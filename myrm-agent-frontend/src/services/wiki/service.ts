@@ -851,6 +851,7 @@ export const wikiService = {
   compileWiki: async (agentId?: string | null): Promise<WikiCompileResponse> => {
     return apiRequest<WikiCompileResponse>(buildWikiApiPath('/wiki/compile', agentId), {
       method: 'POST',
+      timeout: LONG_RUNNING_REQUEST_TIMEOUT_MS,
     });
   },
 
@@ -897,14 +898,6 @@ export const wikiService = {
 
   getGraphInsights: async (agentId?: string | null): Promise<WikiGraphInsights> => {
     return apiRequest<WikiGraphInsights>(buildWikiApiPath('/wiki/graph/insights', agentId));
-  },
-
-  maintainWiki: async (mode: 'structural' | 'full', agentId?: string | null): Promise<WikiMaintainResponse> => {
-    const params = new URLSearchParams({ mode });
-    return apiRequest<WikiMaintainResponse>(buildWikiApiPath(`/wiki/maintain?${params.toString()}`, agentId), {
-      method: 'POST',
-      timeout: LONG_RUNNING_REQUEST_TIMEOUT_MS,
-    });
   },
 
   exportVault: async (agentId?: string | null): Promise<void> => {

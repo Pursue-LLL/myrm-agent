@@ -16414,6 +16414,10 @@
       "querying": "Abfrage...",
       "compiling": "Kompilieren...",
       "maintaining": "Aufrechterhaltung...",
+      "maintainProgress": {
+        "driftReview": "Genauigkeit wird geprüft {done}/{total}",
+        "linkDiscovery": "Verknüpfungen werden gesucht {done}/{total}"
+      },
       "repairingTypes": "Reparieren...",
       "repairingPublication": "Veröffentlichung wird repariert...",
       "reindexingVectors": "Vektoren neu aufbauen...",
@@ -17005,7 +17009,6 @@
       "emptyExpiring": "Keine ablaufenden Konzepte. Alle Wissensinhalte werden aktiv gepflegt.",
       "emptyArchived": "Keine archivierten Konzepte vorhanden.",
       "daysUnchanged": "Seit {days} Tagen unverändert",
-      "isolatedInArchive": "Physisch im Verzeichnis archive/ isoliert",
       "extendButton": "Um 90 Tage verlängern",
       "archiveButton": "Archivieren",
       "reviveButton": "Wiederherstellen",

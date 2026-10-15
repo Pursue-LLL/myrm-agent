@@ -16414,6 +16414,10 @@
       "querying": "쿼리 중...",
       "compiling": "컴파일 중...",
       "maintaining": "유지보수 중...",
+      "maintainProgress": {
+        "driftReview": "내용 정확성 검토 중 {done}/{total}",
+        "linkDiscovery": "연결 탐색 중 {done}/{total}"
+      },
       "repairingTypes": "복구 중...",
       "repairingPublication": "게시 상태 복구 중...",
       "reindexingVectors": "벡터 인덱스 재구축 중...",
@@ -17005,7 +17009,6 @@
       "emptyExpiring": "만료 예정 개념이 없습니다. 모든 지식이 활성 상태로 유지되고 있습니다.",
       "emptyArchived": "아카이브된 개념이 없습니다.",
       "daysUnchanged": "{days}일 동안 변경 없음",
-      "isolatedInArchive": "archive/ 디렉터리에 물리적으로 격리됨",
       "extendButton": "90일 연장",
       "archiveButton": "아카이브",
       "reviveButton": "복구",

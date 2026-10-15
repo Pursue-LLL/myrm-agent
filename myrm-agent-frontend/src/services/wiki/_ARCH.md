@@ -8,7 +8,8 @@
 
 | 文件                                 | 职责                                                                                                                                                                                                                                               |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `service.ts`                         | `/wiki/*` 客户端：概念树/队列/导入/审批与 query；`buildWikiApiPath`/`buildWikiAssetUrl`；`queryWiki` 返回结构化 `source_snippets(level/path/section/snippet)`；`maintainWiki` 每页一次 LLM，用 `LONG_RUNNING_REQUEST_TIMEOUT_MS` 覆盖默认 30s 超时 |
+| `service.ts`                         | `/wiki/*` 客户端：概念树/队列/导入/审批与 query；`buildWikiApiPath`/`buildWikiAssetUrl`；`queryWiki` 返回结构化 `source_snippets(level/path/section/snippet)`；`compileWiki` 整批答完才返回，用 `LONG_RUNNING_REQUEST_TIMEOUT_MS` 覆盖默认 30s 超时 |
+| `maintain.ts`                        | Wiki 维护运行客户端：`startWikiMaintain`（`POST /wiki/maintain`，立即返回 202 状态，已有进行中的运行则加入它）与 `getWikiMaintainStatus`（`GET /wiki/maintain/status`）；`WikiMaintainStatus` / `WikiMaintainProgress` DTO。全量维护要数分钟，所以不做长请求，由调用方轮询 |
 | `sourceSync.ts`                      | Wiki 源同步：配置 / 状态 / 结果                                                                                                                                                                                                                    |
 | `sectionLabels.ts`                   | Wiki 区块标题 i18n key 解析（Chat/设置共享）                                                                                                                                                                                                       |
 | `evidenceContextCore.ts`             | Wiki 证据 query 上下文解析核心（chat `context_key` 回溯边界 + `turn_distance`），供输入 Hook 与流式发送链路复用统一口径                                                                                                                            |
@@ -19,7 +20,7 @@
 ## 依赖
 
 - `@/lib/api`（service/evidenceMetrics/sourceSync）
-- `@/lib/constants/requestTimeouts`（service 的 `maintainWiki` 超时）
+- `@/lib/constants/requestTimeouts`（service 的 `compileWiki` 超时）
 - `@/lib/wiki/claimStatusDisplay`（service 复用 `WikiClaimStatus`）
 - `@/store/chat/types`（evidenceMetrics 复用 `WikiSourceLevel`）
 - 父模块 [services/_ARCH.md](../_ARCH.md)

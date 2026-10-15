@@ -1,10 +1,11 @@
 'use client';
 
-import type { WikiHealthReport, WikiMaintainResponse } from '@/services/wikiService';
+import type { WikiHealthReport, WikiMaintainProgress, WikiMaintainResponse } from '@/services/wikiService';
 
 /**
- * [INPUT] comma-separated tag/alias input strings; WikiMaintainResponse from wikiService
- * [OUTPUT] splitTagsInput; resolveHealthIssueNavigationTarget; healthReportFromMaintainResponse; resolveMaintainToast
+ * [INPUT] comma-separated tag/alias input strings; WikiMaintainResponse and WikiMaintainProgress from wikiService
+ * [OUTPUT] splitTagsInput; resolveHealthIssueNavigationTarget; healthReportFromMaintainResponse; resolveMaintainToast;
+ *          resolveMaintainProgressLabel; resolveMaintainFailureToastKey
  * [POS] Settings wiki metadata editor helpers (list parsing lives on server SSOT)
  */
 
@@ -86,7 +87,33 @@ export function resolveMaintainToast(result: WikiMaintainResponse): MaintainToas
   return { variant: 'success', key: 'success.maintainComplete' };
 }
 
-/** Build Overview health report state from POST /wiki/maintain (preserves full-mode drift). */
+export interface MaintainProgressLabel {
+  /** Key under the `settings.wiki` translation namespace. */
+  key: 'maintainProgress.driftReview' | 'maintainProgress.linkDiscovery';
+  values: { done: number; total: number };
+}
+
+/** The button text of a run that is inside a model phase; null before the first phase starts. */
+export function resolveMaintainProgressLabel(progress: WikiMaintainProgress | null): MaintainProgressLabel | null {
+  if (!progress) {
+    return null;
+  }
+  return {
+    key: progress.phase === 'drift_review' ? 'maintainProgress.driftReview' : 'maintainProgress.linkDiscovery',
+    values: { done: progress.done, total: progress.total },
+  };
+}
+
+export type MaintainFailureReason = 'compile_busy' | 'failed';
+
+/** Key under the `settings.wiki` translation namespace for a run that did not finish. */
+export function resolveMaintainFailureToastKey(
+  reason: MaintainFailureReason,
+): 'errors.maintainCompileBusy' | 'errors.maintainFailed' {
+  return reason === 'compile_busy' ? 'errors.maintainCompileBusy' : 'errors.maintainFailed';
+}
+
+/** Build Overview health report state from a finished maintenance run (preserves full-mode drift). */
 export function healthReportFromMaintainResponse(
   result: WikiMaintainResponse,
   mode: 'structural' | 'full',

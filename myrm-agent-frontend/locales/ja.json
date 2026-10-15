@@ -16414,6 +16414,10 @@
       "querying": "クエリ中...",
       "compiling": "コンパイル中...",
       "maintaining": "メンテナンス中...",
+      "maintainProgress": {
+        "driftReview": "内容の正確性を確認中 {done}/{total}",
+        "linkDiscovery": "関連リンクを探索中 {done}/{total}"
+      },
       "repairingTypes": "修復中…",
       "repairingPublication": "公開状態を修復中…",
       "reindexingVectors": "ベクトルインデックスを再構築中…",
@@ -17005,7 +17009,6 @@
       "emptyExpiring": "期限切れ間近の概念はありません。すべての知識はアクティブに維持されています。",
       "emptyArchived": "アーカイブ済みの概念はありません。",
       "daysUnchanged": "{days} 日間更新なし",
-      "isolatedInArchive": "archive/ ディレクトリに物理的に隔離されています",
       "extendButton": "90日間延長",
       "archiveButton": "アーカイブ",
       "reviveButton": "復活",

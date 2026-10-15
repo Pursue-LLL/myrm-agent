@@ -7,4 +7,4 @@
 | `paths.ts`           | 应用路由与 API 路径常量                                                                                                                                       |
 | `artifact.ts`        | 工件 MIME/类型枚举                                                                                                                                            |
 | `codeblock-theme.ts` | 代码高亮主题 token                                                                                                                                            |
-| `requestTimeouts.ts` | 长耗时同步请求的客户端与 Next 重写代理共用超时上限；`proxyTimeout` 对所有重写生效，客户端断开时代理会销毁上游请求；被 `next.config.ts` 引用，必须零运行时依赖 |
+| `requestTimeouts.ts` | 长耗时同步请求（目前只有 `compileWiki`）的客户端与 Next 重写代理共用超时上限；`proxyTimeout` 对所有重写生效，客户端断开时代理会销毁上游请求；被 `next.config.ts` 引用，必须零运行时依赖 |

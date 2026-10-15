@@ -3,23 +3,39 @@
 [INPUT]
 - app.services.wiki.vault::get_wiki_archiver (POS: shared archiver accessor)
 - app.services.wiki.maintain.state_store (POS: wikiMaintainState persistence)
+- app.services.wiki.maintain.run_registry (POS: single flight + live state of the run of a vault scope)
 - myrm_agent_harness.toolkits.wiki.maintenance.modes::MaintainMode (POS: structural vs full)
+- myrm_agent_harness.toolkits.wiki.maintenance.progress::MaintainProgressCallback (POS: LLM phase progress observer)
 
 [OUTPUT]
-- run_wiki_maintain_job: deterministic maintain pipeline + state persistence + cron summary text
+- run_wiki_maintain_job: blocking maintain run for cron (one run per vault scope) + state persistence + summary text
+- schedule_wiki_maintain: background maintain run for POST /wiki/maintain, or the run already in flight
+- WikiMaintainScheduleResult: the run to watch, or why none was started
 
 [POS]
-Server SSOT bridging POST /wiki/maintain and router cron __wiki_maintain__ commands.
+Server SSOT bridging POST /wiki/maintain and router cron __wiki_maintain__ commands. Both go through one
+single flight per vault scope: a full run takes minutes and two runs on the same vault only pay twice.
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
+from myrm_agent_harness.toolkits.wiki.maintenance.progress import MaintainProgressCallback
 
 from app.database.connection import get_session
+from app.services.wiki.maintain.run_registry import (
+    MaintainRun,
+    get_wiki_maintain_run,
+    start_wiki_maintain_run,
+)
 from app.services.wiki.maintain.schemas import (
     WikiMaintainModeLiteral,
     WikiMaintainRunResult,
@@ -29,13 +45,41 @@ from app.services.wiki.maintain.state_store import (
     state_from_run_result,
 )
 
+if TYPE_CHECKING:
+    from app.services.wiki import MemoryToWikiArchiver
+
 logger = logging.getLogger(__name__)
 
 _COMPILE_BUSY_REASON = "compile_in_progress"
 _NO_LLM_REASON = "no_llm_configured"
+_MAINTAIN_BUSY_REASON = "maintain_in_progress"
+
+# A run takes 5-25 minutes (up to 25 sequential model calls); the cap only frees the vault when a provider hangs.
+_RUN_TIMEOUT_SECONDS = 45 * 60
 
 
-def _build_list_only_report(*, issues: list[object]) -> str:
+@dataclass(frozen=True, slots=True)
+class WikiMaintainScheduleResult:
+    """The run to watch, or why no run was started."""
+
+    run: MaintainRun | None = None
+    skipped_reason: str | None = None
+
+
+def _mode_literal(mode: MaintainMode | str) -> WikiMaintainModeLiteral:
+    if isinstance(mode, str) and mode == "list_only":
+        return "list_only"
+    if mode == MaintainMode.FULL or mode == "full":
+        return "full"
+    return "structural"
+
+
+def _compile_is_busy(archiver: MemoryToWikiArchiver) -> bool:
+    processing = archiver._queue.get_stats().get("processing", 0)
+    return isinstance(processing, int) and processing > 0
+
+
+def _build_list_only_report(*, issues: Sequence[object]) -> str:
     from myrm_agent_harness.toolkits.wiki.core.types import LintIssue
 
     lint_issues: list[LintIssue] = [item for item in issues if isinstance(item, LintIssue)]
@@ -123,18 +167,14 @@ def _build_summary_text(*, result: WikiMaintainRunResult) -> str:
     return ", ".join(parts)
 
 
-async def run_wiki_maintain_job(
+async def _run_maintain_pipeline(
     *,
     llm: BaseChatModel | None,
     agent_id: str | None = None,
     mode: MaintainMode | str = MaintainMode.STRUCTURAL,
+    on_progress: MaintainProgressCallback | None = None,
 ) -> WikiMaintainRunResult:
-    if isinstance(mode, str) and mode == "list_only":
-        mode_literal: WikiMaintainModeLiteral = "list_only"
-    elif mode == MaintainMode.FULL or mode == "full":
-        mode_literal = "full"
-    else:
-        mode_literal = "structural"
+    mode_literal = _mode_literal(mode)
 
     if llm is None and mode_literal != "list_only":
         skipped = WikiMaintainRunResult(
@@ -150,10 +190,9 @@ async def run_wiki_maintain_job(
     from app.services.wiki.asset_index_service import run_wiki_asset_index
     from app.services.wiki.vault import after_wiki_vault_mutation, get_wiki_archiver
 
-    archiver = get_wiki_archiver(llm, agent_id=agent_id)
-    queue_stats = archiver._queue.get_stats()
-    processing = queue_stats.get("processing", 0)
-    if isinstance(processing, int) and processing > 0:
+    # The read-only listing needs no model, so ``llm`` may be None here.
+    archiver = get_wiki_archiver(llm, agent_id=agent_id)  # type: ignore[arg-type]
+    if _compile_is_busy(archiver):
         skipped = WikiMaintainRunResult(
             skipped=True,
             skipped_reason=_COMPILE_BUSY_REASON,
@@ -194,7 +233,7 @@ async def run_wiki_maintain_job(
             )
             persist_wiki_health_snapshot(archiver._structure, health_report)
 
-            lint_issue_payloads = [
+            lint_issue_payloads: list[dict[str, object]] = [
                 {
                     "issue_type": item.issue_type,
                     "severity": item.severity,
@@ -225,7 +264,7 @@ async def run_wiki_maintain_job(
             return result
 
         maintain_enum = MaintainMode.FULL if mode_literal == "full" else MaintainMode.STRUCTURAL
-        lint_result = await archiver._linter.lint_and_maintain(mode=maintain_enum)
+        lint_result = await archiver._linter.lint_and_maintain(mode=maintain_enum, on_progress=on_progress)
         await run_wiki_asset_index(archiver)
         await after_wiki_vault_mutation(archiver, "maintain")
 
@@ -276,3 +315,84 @@ async def run_wiki_maintain_job(
         async with get_session() as db:
             await save_wiki_maintain_state(db, state_from_run_result(failed), agent_id=agent_id)
         raise
+
+
+async def _execute_run(
+    run: MaintainRun,
+    *,
+    llm: BaseChatModel | None,
+    agent_id: str | None,
+) -> WikiMaintainRunResult:
+    """Run the pipeline under the time cap and record the outcome on ``run``; a failure is re-raised."""
+    budget = asyncio.timeout(_RUN_TIMEOUT_SECONDS)
+    try:
+        async with budget:
+            result = await _run_maintain_pipeline(
+                llm=llm,
+                agent_id=agent_id,
+                mode=run.mode,
+                on_progress=run.on_progress,
+            )
+    except TimeoutError:
+        if budget.expired():
+            logger.warning("Wiki maintain for agent %s stopped after %ss", agent_id, _RUN_TIMEOUT_SECONDS)
+            run.fail("maintain_timeout")
+        else:
+            run.fail("maintain_failed")
+        raise
+    except BaseException:
+        run.fail("maintain_failed")
+        raise
+    if result.skipped and result.skipped_reason == _COMPILE_BUSY_REASON:
+        run.fail("compile_in_progress")
+    else:
+        run.succeed(result)
+    return result
+
+
+async def _run_in_background(run: MaintainRun, *, llm: BaseChatModel | None, agent_id: str | None) -> None:
+    # Nobody awaits this task: the outcome is on the run, and the pipeline has already logged a failure.
+    with contextlib.suppress(Exception):
+        await _execute_run(run, llm=llm, agent_id=agent_id)
+
+
+async def run_wiki_maintain_job(
+    *,
+    llm: BaseChatModel | None,
+    agent_id: str | None = None,
+    mode: MaintainMode | str = MaintainMode.STRUCTURAL,
+) -> WikiMaintainRunResult:
+    """Run maintenance to the end (cron); skipped silently while another run holds the vault."""
+    mode_literal = _mode_literal(mode)
+    if mode_literal == "list_only":
+        # Read-only health listing: it neither costs model calls nor competes with a running maintenance.
+        return await _run_maintain_pipeline(llm=llm, agent_id=agent_id, mode=mode_literal)
+
+    run = start_wiki_maintain_run(agent_id, mode_literal)
+    if run is None:
+        return WikiMaintainRunResult(
+            skipped=True,
+            skipped_reason=_MAINTAIN_BUSY_REASON,
+            mode=mode_literal,
+            summary_text="[SILENT]",
+        )
+    return await _execute_run(run, llm=llm, agent_id=agent_id)
+
+
+def schedule_wiki_maintain(
+    *,
+    llm: BaseChatModel,
+    agent_id: str | None = None,
+    mode: MaintainMode = MaintainMode.STRUCTURAL,
+) -> WikiMaintainScheduleResult:
+    """Start a background run, or hand back the run already in flight for this vault."""
+    from app.services.wiki.vault import get_wiki_archiver
+
+    if _compile_is_busy(get_wiki_archiver(llm, agent_id=agent_id)):
+        return WikiMaintainScheduleResult(skipped_reason=_COMPILE_BUSY_REASON)
+
+    run = start_wiki_maintain_run(agent_id, "full" if mode == MaintainMode.FULL else "structural")
+    if run is None:
+        return WikiMaintainScheduleResult(run=get_wiki_maintain_run(agent_id))
+    run.task = asyncio.create_task(_run_in_background(run, llm=llm, agent_id=agent_id))
+    return WikiMaintainScheduleResult(run=run)

@@ -17089,6 +17089,10 @@
       "querying": "查询中...",
       "compiling": "编译中...",
       "maintaining": "维护中...",
+      "maintainProgress": {
+        "driftReview": "核对内容准确性 {done}/{total}",
+        "linkDiscovery": "发现关联 {done}/{total}"
+      },
       "repairingTypes": "修复中...",
       "repairingPublication": "修复发布状态中...",
       "reindexingVectors": "重建向量索引中...",
@@ -17680,7 +17684,6 @@
       "emptyExpiring": "暂无老化概念，所有知识均为活跃常青状态",
       "emptyArchived": "暂无已归档概念",
       "daysUnchanged": "已 {days} 天未更新",
-      "isolatedInArchive": "物理隔离于 archive/ 目录",
       "extendButton": "延期90天",
       "archiveButton": "归档",
       "reviveButton": "一键复活",

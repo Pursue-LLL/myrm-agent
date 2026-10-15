@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryWikiMock = vi.fn();
 const listAgentsMock = vi.fn();
@@ -9,7 +9,8 @@ const apiRequestMock = vi.fn();
 const recordWikiQueryAttemptMock = vi.fn();
 const recordWikiQuerySubmittedMock = vi.fn();
 const recordEvidenceSurfaceMock = vi.fn();
-const maintainWikiMock = vi.fn();
+const startWikiMaintainMock = vi.fn();
+const getWikiMaintainStatusMock = vi.fn();
 
 const stableT = (key: string) => key;
 
@@ -40,6 +41,14 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/lib/api', () => ({
   apiRequest: (...args: unknown[]) => apiRequestMock(...args),
+  ApiError: class ApiError extends Error {
+    constructor(
+      message: string,
+      public code: number = 50001,
+    ) {
+      super(message);
+    }
+  },
 }));
 
 vi.mock('@/lib/utils/clipboardUtils', () => ({
@@ -47,9 +56,10 @@ vi.mock('@/lib/utils/clipboardUtils', () => ({
 }));
 
 vi.mock('@/services/wikiService', () => ({
+  startWikiMaintain: (...args: unknown[]) => startWikiMaintainMock(...args),
+  getWikiMaintainStatus: (...args: unknown[]) => getWikiMaintainStatusMock(...args),
   wikiService: {
     queryWiki: (...args: unknown[]) => queryWikiMock(...args),
-    maintainWiki: (...args: unknown[]) => maintainWikiMock(...args),
     getHealthReport: vi.fn().mockResolvedValue({
       mode: 'structural',
       generated_at: new Date().toISOString(),
@@ -232,12 +242,20 @@ vi.mock('@/components/primitives/select', () => ({
 }));
 
 import { toast } from 'sonner';
-import type { WikiMaintainResponse } from '@/services/wikiService';
+import { ApiError } from '@/lib/api';
+import type { WikiMaintainResponse, WikiMaintainStatus } from '@/services/wikiService';
 import { WikiSection } from '../WikiSection';
+import { MAINTAIN_POLL_INTERVAL_MS } from '../useWikiMaintainRun';
+
+function maintainStatus(overrides: Partial<WikiMaintainStatus> = {}): WikiMaintainStatus {
+  return { state: 'idle', mode: null, phase: null, done: 0, total: 0, result: null, error_code: null, ...overrides };
+}
 
 function resetWikiMocks() {
   queryWikiMock.mockReset();
-  maintainWikiMock.mockReset();
+  startWikiMaintainMock.mockReset();
+  getWikiMaintainStatusMock.mockReset();
+  getWikiMaintainStatusMock.mockResolvedValue(maintainStatus());
   listAgentsMock.mockReset();
   apiRequestMock.mockReset();
   recordWikiQueryAttemptMock.mockReset();
@@ -309,38 +327,105 @@ describe('WikiSection evidence snippet flow', () => {
 });
 
 describe('WikiSection maintenance flow', () => {
-  beforeEach(resetWikiMocks);
+  beforeEach(() => {
+    resetWikiMocks();
+    // The 2s poll cadence is a production concern; the flow under test only needs the polls to happen.
+    const realSetTimeout = window.setTimeout.bind(window);
+    vi.spyOn(window, 'setTimeout').mockImplementation(((handler: TimerHandler, delay?: number, ...args: unknown[]) =>
+      realSetTimeout(handler, delay === MAINTAIN_POLL_INTERVAL_MS ? 0 : delay, ...args)) as typeof window.setTimeout);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-  it('locks the button for the whole run, then reports the discovered links', async () => {
-    let finishRun: (result: WikiMaintainResponse) => void = () => undefined;
-    maintainWikiMock.mockReturnValue(
-      new Promise<WikiMaintainResponse>((resolve) => {
-        finishRun = resolve;
-      }),
-    );
+  const RESULT: WikiMaintainResponse = {
+    issues_found: 1,
+    issues_fixed: 1,
+    connections_discovered: 3,
+    duration_ms: 240_000,
+    open_actions_count: 0,
+    raw_security_removed: 0,
+    raw_security_removed_paths: [],
+    issues: [],
+  };
+
+  function buttonWithText(text: string): Promise<HTMLButtonElement> {
+    return screen.findByText(text).then((node) => node.closest('button') as HTMLButtonElement);
+  }
+
+  it('locks the button for the whole run, shows the progress, then reports the discovered links', async () => {
+    let finishRun: (status: WikiMaintainStatus) => void = () => {};
+    const lastPoll = new Promise<WikiMaintainStatus>((resolve) => {
+      finishRun = resolve;
+    });
+    startWikiMaintainMock.mockResolvedValue(maintainStatus({ state: 'running', mode: 'structural' }));
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(maintainStatus())
+      .mockResolvedValueOnce(
+        maintainStatus({ state: 'running', mode: 'structural', phase: 'link_discovery', done: 7, total: 20 }),
+      )
+      .mockReturnValueOnce(lastPoll);
     render(<WikiSection />);
 
     fireEvent.click(await screen.findByText('actions.maintain'));
 
-    const runningButton = (await screen.findByText('maintaining')).closest('button') as HTMLButtonElement;
-    expect(runningButton.disabled).toBe(true);
+    const progressButton = await buttonWithText('maintainProgress.linkDiscovery');
+    expect(progressButton.disabled).toBe(true);
+    expect(startWikiMaintainMock).toHaveBeenCalledWith('structural', null);
     expect(toast.success).not.toHaveBeenCalled();
 
-    finishRun({
-      issues_found: 1,
-      issues_fixed: 1,
-      connections_discovered: 3,
-      duration_ms: 240_000,
-      open_actions_count: 0,
-      raw_security_removed: 0,
-      raw_security_removed_paths: [],
-      issues: [],
-    });
-
+    finishRun(maintainStatus({ state: 'succeeded', mode: 'structural', result: RESULT }));
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith('success.maintainSummaryWithLinks');
     });
-    expect(maintainWikiMock).toHaveBeenCalledTimes(1);
-    expect(((await screen.findByText('actions.maintain')).closest('button') as HTMLButtonElement).disabled).toBe(false);
+    expect((await buttonWithText('actions.maintain')).disabled).toBe(false);
+    expect(startWikiMaintainMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells the user to wait for the compile when it blocks the start', async () => {
+    startWikiMaintainMock.mockRejectedValue(new ApiError('conflict', 409));
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.maintain'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('errors.maintainCompileBusy');
+    });
+    expect((await buttonWithText('actions.maintain')).disabled).toBe(false);
+  });
+
+  it('picks a run back up after the page is reopened and reports its result', async () => {
+    let finishRun: (status: WikiMaintainStatus) => void = () => {};
+    const lastPoll = new Promise<WikiMaintainStatus>((resolve) => {
+      finishRun = resolve;
+    });
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(
+        maintainStatus({ state: 'running', mode: 'full', phase: 'drift_review', done: 2, total: 5 }),
+      )
+      .mockReturnValueOnce(lastPoll);
+    render(<WikiSection />);
+
+    expect((await buttonWithText('maintainProgress.driftReview')).disabled).toBe(true);
+    expect(startWikiMaintainMock).not.toHaveBeenCalled();
+
+    finishRun(maintainStatus({ state: 'succeeded', mode: 'full', result: RESULT }));
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('success.maintainSummaryWithLinks');
+    });
+  });
+
+  it('reports a failed run with the generic failure message', async () => {
+    startWikiMaintainMock.mockResolvedValue(maintainStatus({ state: 'running', mode: 'full' }));
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(maintainStatus())
+      .mockResolvedValueOnce(maintainStatus({ state: 'failed', mode: 'full', error_code: 'maintain_failed' }));
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.maintain'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('errors.maintainFailed');
+    });
   });
 });

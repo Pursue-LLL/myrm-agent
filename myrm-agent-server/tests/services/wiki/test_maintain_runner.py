@@ -10,7 +10,7 @@ from myrm_agent_harness.toolkits.wiki.core.types import LintResult
 from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 
 from app.services.wiki.maintain import run_wiki_maintain_job
-from app.services.wiki.maintain.runner import _build_summary_text
+from app.services.wiki.maintain.runner import _build_summary_text, _run_maintain_pipeline
 from app.services.wiki.maintain.schemas import WikiMaintainRunResult
 
 
@@ -94,6 +94,35 @@ async def test_structural_maintain_persists_state() -> None:
     assert result.issues_fixed == 1
     assert "fixed" in result.summary_text.lower()
     save_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_pipeline_hands_the_progress_observer_to_the_linter() -> None:
+    mock_archiver = MagicMock()
+    mock_archiver._queue.get_stats.return_value = {"processing": 0}
+    mock_archiver._linter.lint_and_maintain = AsyncMock(
+        return_value=LintResult(issues_found=0, issues_fixed=0, connections_discovered=0, duration_ms=1, issues=[])
+    )
+    observer = MagicMock()
+
+    with patch("app.services.wiki.vault.get_wiki_archiver", return_value=mock_archiver):
+        with patch("app.services.wiki.asset_index_service.run_wiki_asset_index", new=AsyncMock()):
+            with patch("app.services.wiki.vault.after_wiki_vault_mutation", new=AsyncMock()):
+                with patch("app.services.wiki.maintain.runner.get_session", _fake_session):
+                    with patch(
+                        "app.services.wiki.dedup_runner.get_wiki_dedup_stats",
+                        return_value=MagicMock(duplicate_groups_pending=0),
+                    ):
+                        with patch("app.services.wiki.maintain.runner.save_wiki_maintain_state", new=AsyncMock()):
+                            await _run_maintain_pipeline(
+                                llm=MagicMock(),
+                                agent_id="agent-1",
+                                mode=MaintainMode.FULL,
+                                on_progress=observer,
+                            )
+
+    assert mock_archiver._linter.lint_and_maintain.await_args.kwargs["on_progress"] is observer
+    assert mock_archiver._linter.lint_and_maintain.await_args.kwargs["mode"] == MaintainMode.FULL
 
 
 @pytest.mark.asyncio

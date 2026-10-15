@@ -179,7 +179,6 @@
   "src/components/features/settings/sections/knowledge/MemorySection.tsx": 4,
   "src/components/features/settings/sections/knowledge/wiki/VideoKnowledgePlayer.tsx": 1,
   "src/components/features/settings/sections/knowledge/wiki/WikiEditorToolbar.tsx": 1,
-  "src/components/features/settings/sections/knowledge/wiki/WikiGovernanceWorkbench.tsx": 24,
   "src/components/features/settings/sections/knowledge/wiki/WikiLayerItemPreviewModal.tsx": 13,
   "src/components/features/settings/sections/knowledge/wiki/WikiLayersLedgerPanel.tsx": 19,
   "src/components/features/settings/sections/knowledge/wiki/WikiReviewSlipModal.tsx": 13,
