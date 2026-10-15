@@ -36,7 +36,6 @@ onboarding.router
 sqlite_vec.router
 screen_observation_safety_router
 task_triad_trajectory_router
-activity_compactor_router
 private_notebook_router
 job_compounding_router
 revocable_provenance_router

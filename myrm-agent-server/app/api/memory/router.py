@@ -11,9 +11,6 @@ from app.api.memory import (
     onboarding,
     sqlite_vec,
 )
-from app.api.memory.activity_compactor_router import (
-    router as activity_compactor_router,
-)
 from app.api.memory.auto_memory_consolidation_router import (
     router as auto_memory_consolidation_router,
 )
@@ -219,10 +216,6 @@ router.include_router(
 router.include_router(
     task_triad_trajectory_router,
     tags=["memory-triad-trajectory"],
-)
-router.include_router(
-    activity_compactor_router,
-    tags=["memory-activity-compactor"],
 )
 router.include_router(
     private_notebook_router,

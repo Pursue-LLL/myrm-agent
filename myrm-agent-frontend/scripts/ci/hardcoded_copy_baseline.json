@@ -79,8 +79,6 @@
   "src/components/features/memory-inspector/MemoryInspectorDrawer.tsx": 22,
   "src/components/features/memory/cards/TasteSummaryCard.tsx": 4,
   "src/components/features/memory/command-center/ActiveExperiencesPoolView.tsx": 22,
-  "src/components/features/memory/command-center/ActivityCompactorCard.tsx": 19,
-  "src/components/features/memory/command-center/ActivityCompactorTimelineView.tsx": 6,
   "src/components/features/memory/command-center/AdaptiveRrfRankVisualizerView.tsx": 25,
   "src/components/features/memory/command-center/AgentMountTopologyTuner.tsx": 18,
   "src/components/features/memory/command-center/AutoMemoryConsolidationStudioCard.tsx": 15,

@@ -60,7 +60,6 @@ import { ProjectLivingFactLedgerCard } from './ProjectLivingFactLedgerCard';
 import { FirstEncounterReportCard } from './FirstEncounterReportCard';
 import { ScreenObservationSafetyCard } from './ScreenObservationSafetyCard';
 import { TaskTriadTrajectoryCard } from './TaskTriadTrajectoryCard';
-import { ActivityCompactorCard } from './ActivityCompactorCard';
 import { PrivateNotebookCard } from './PrivateNotebookCard';
 import { JobCompoundingCard } from './JobCompoundingCard';
 import { RevocableProvenanceCard } from './RevocableProvenanceCard';
@@ -269,9 +268,6 @@ export const UnderstandSection = ({
 
     {/* Task Triad State Trajectory & Anti-Loop Blackbox Card (Item 86) */}
     <TaskTriadTrajectoryCard />
-
-    {/* Hierarchical Activity Compactor & Telemetry Pipe Card (Item 87) */}
-    <ActivityCompactorCard />
 
     {/* Transparent Inspectable Model Private Notebook Suite Card (Item 89 P0) */}
     <PrivateNotebookCard />
