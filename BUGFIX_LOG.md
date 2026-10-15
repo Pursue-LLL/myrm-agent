@@ -4316,6 +4316,7 @@ except Exception:
 2. 全量维护是最多 25 次串行模型调用，运行中没有任何停止入口（`BUG-AGENT-2026-10-15-021` 局限 6）。
 3. `POST /wiki/compile` 是一次同步请求，要串行跑完整个编译才返回。控制平面反向代理读超时 120 秒（`myrm-control-plane/src/myrm_control_plane/gateway/reverse_proxy/client.py:24`），熔断阈值 5 次失败后开启 60 秒（`deployment/config/fields_ops.py:47,50`）：连续 5 次长请求超时会让健康的上游被熔断。生产里每次导入本来就走后台 worker（`start_background_worker()`），同步编译只有这一个手动入口。
 4. 既有 bug：`compile_run.state` 是熔断状态，除非暂停恒为 `'running'`，空队列也是 `running / idle`；旧的 `isWikiCompileBusy` 把它当成「正在编译」，所以一旦收到 ingest SSE 快照，「维护」与「重建索引」按钮就一直被禁用。第一版测试里订阅桩恒为 `snapshot: null`，掩盖了它。
+5. 入队时的增量变更检查要给每个原文算 SHA256，在事件循环上同步执行：合成库 5000 个约 195 KB 的原文使事件循环停顿 2809 ms（实测，3 次取中位数），期间 SSE 与其他请求都在等；旧的同步长请求里同样如此，只是被长请求本身掩盖。
 
 ### 根因
 
@@ -4328,15 +4329,15 @@ except Exception:
 
 1. harness：`ai_calls.py` 的每轮 `AiCalls` 记录问过与未应答的次数，`unavailable` 表示问过且一次都没答出来；`LintResult.ai_unavailable` 交给 server；Cron 摘要与前端提示按它如实说明「模型没有回答，页面核对与链接发现被跳过」。server 里无法到达的「没配置模型」分支一并删除。
 2. 取消（协作式，不是强杀）：`AiCalls` 持有 `asyncio.Event`，`ask()` 在调用前与等待中响应停止并抛 `MaintainStoppedError`，在途调用被丢弃（结果由回调吞掉）；两个模型阶段结束该阶段、从正常路径返回 `LintResult.stopped=True`，所有写入都不被打断，没有半写文件；链接发现的游标从最后处理的页面之后续上。server：`CANCELLED` 状态、幂等的 `POST /wiki/maintain/cancel`、`MaintainRun.stop` 与 `cancel_requested`，取消的 Cron 摘要恒为 `[SILENT]`，状态接口带 `cancel_requested`，刷新页面后仍显示「正在停止」。frontend：与维护按钮并排的「停止」按钮，只对全量维护开放（结构性维护没有模型调用）；取消后的提示说明已做的保留。
-3. 手动编译改为入队：harness 新增 `WikiCompiler.enqueue_changed_sources()`（增量只排新增或变更的原文，全量排全部），`compile_all` 复用同一方法；`POST /wiki/compile` 改为 202，入队、唤醒 worker、排资产索引、发布 ingest 快照，返回 `pending` 与 `compile_run`。frontend 的 `compileWiki` 回到普通 POST，进度与完成走既有 ingest SSE，活动→空闲时只提示一次「编译完成」；`lib/constants/requestTimeouts.ts`、其测试与 `next.config.ts` 的 `experimental.proxyTimeout` 随长请求一并删除。
+3. 手动编译改为入队：harness 新增 `WikiCompiler.enqueue_changed_sources()`（增量只排新增或变更的原文，全量排全部），`compile_all` 复用同一方法，增量变更检查的 SHA256 放到工作线程（合成库 5000 个原文：事件循环最长停顿 1046 ms → 46 ms（每个约 9 KB）、2809 ms → 60 ms（每个约 195 KB），3 次取中位数，本机，页缓存已预热，不是线上数据）；`POST /wiki/compile` 改为 202，入队、唤醒 worker、排资产索引、发布 ingest 快照，返回 `pending` 与 `compile_run`。frontend 的 `compileWiki` 回到普通 POST，进度与完成走既有 ingest SSE，活动→空闲时只提示一次「编译完成」；`lib/constants/requestTimeouts.ts`、其测试与 `next.config.ts` 的 `experimental.proxyTimeout` 随长请求一并删除。
 4. `isWikiCompileBusy` 改为 `isCompiling || (ingestSnapshot?.stats.processing ?? 0) > 0`；编译按钮自身的禁用条件仍是 `isCompiling || paused`：若也跟队列状态走，重启后遗留的待处理条目会让按钮永久不可点。
 5. 同批清理：`MemoryToWikiArchiver.maintain_wiki()`（无生产调用方）及其测试删除；server `maintain/runner.py` 把 Cron 摘要与列表报告拆到 `reporting.py`；`memory_to_wiki.py` 的四处既有 mypy 错误（索引器属性、公共目录列表型、查询模式、`commit_vault_git` 返回值）与 `compiler.py` 的一处（`serialize_frontmatter_block` 入参）改为具体类型；六种语言新增 7 个键、删除 2 个无人引用的键（含 `scripts/translation-patches` 里的同名项）。
 
 ### 验证
 
-1. 新增测试：harness `test_maintain_ai_calls.py` 17 例、`test_compiler_enqueue.py` 5 例；server `test_wiki_compile_endpoint.py` 7 例，`test_maintain_endpoint.py`、`test_maintain_runner.py`、`test_maintain_single_flight.py` 补取消与全部未应答用例；frontend 补取消（hook、按钮、提示与六语言文案契约）与整条编译流程（可控的 ingest 订阅桩）的用例。
-2. 变异检查（改一处、跑、写回）：harness 停止逻辑 4 个（3 个被抓住，1 个是行为冗余的守卫，已删除代码）、入队 3 个、server 取消 5 个、编译路由 5 个、frontend 取消 6 个、编译流程 5 个，其余全部被测试抓住；「活动周期结束后重置标记」一处第一版测试没抓住，补了第二个活动周期后抓住。
-3. 回归：harness `tests/toolkits/wiki` 962 例通过，ruff 与 mypy 干净；server wiki 与 cron 459 例通过、3 例失败（`sk-…` 安全拦截既有失败，与 `BUG-AGENT-2026-10-15-021` 记录的同一批，不经过编译与维护）；`memory_to_wiki` 相关 26 例与 `tests/integration/wiki` 五个文件单独运行均通过；frontend `knowledge` 与 `services/wiki` 28 个文件 236 例通过，更宽的 `src/services`、`src/components/features/settings`、`src/lib` 为 3280 通过、3 例失败，均在 `timeUtils.test.ts`（`zh` 日期标题星期前的空格，ICU 版本差异，与本条无关）；oxlint 退出码 0，`tsc` 对 wiki 与 knowledge 无报错，`verify:theme-colors`、`verify:icu-syntax` 通过，`verify:i18n` 没有 wiki 与编译相关的条目。
+1. 新增测试：harness `test_maintain_ai_calls.py` 17 例、`test_compiler_enqueue.py` 6 例；server `test_wiki_compile_endpoint.py` 7 例，`test_maintain_endpoint.py`、`test_maintain_runner.py`、`test_maintain_single_flight.py` 补取消与全部未应答用例；frontend 补取消（hook、按钮、提示与六语言文案契约）与整条编译流程（可控的 ingest 订阅桩）的用例。
+2. 变异检查（改一处、跑、写回）：harness 停止逻辑 4 个（3 个被抓住，1 个是行为冗余的守卫，已删除代码）、入队 3 个、线程化 1 个、server 取消 5 个、编译路由 5 个、frontend 取消 6 个、编译流程 5 个，其余全部被测试抓住；「活动周期结束后重置标记」一处第一版测试没抓住，补了第二个活动周期后抓住。
+3. 回归：harness `tests/toolkits/wiki` 960 例通过（3 例依赖真实模型的 `test_sidecar_integration.py` 未跑；真实 LLM 的 `test_compile_all_full_pipeline_real_llm` 入队重构后与线程化后各跑一次，均通过），ruff 干净，mypy 对触及文件无错误；server wiki 与 cron 459 例通过、3 例失败（`sk-…` 安全拦截既有失败，与 `BUG-AGENT-2026-10-15-021` 记录的同一批，不经过编译与维护）；`memory_to_wiki` 相关 26 例与 `tests/integration/wiki` 五个文件单独运行均通过；frontend `knowledge` 与 `services/wiki` 28 个文件 236 例通过，更宽的 `src/services`、`src/components/features/settings`、`src/lib` 为 3280 通过、3 例失败，均在 `timeUtils.test.ts`（`zh` 日期标题星期前的空格，ICU 版本差异，与本条无关）；oxlint 退出码 0，`tsc` 对 wiki 与 knowledge 无报错，`verify:theme-colors`、`verify:icu-syntax` 通过，`verify:i18n` 没有 wiki 与编译相关的条目。
 
 ### 局限
 
@@ -4345,7 +4346,8 @@ except Exception:
 3. 手动编译不再自动跳转到「待处理编辑」，提示里也不再带「已发布 / 待处理 / 被拦截」计数（总览里的「待综合」徽章仍在）。
 4. 入队到 worker 开始处理之间有亚秒级空档，server 维护只检查 `processing > 0`，这一小段里点维护不会被挡住。
 5. 点编译与点停止的真实频率没有数据。
-6. 与本条无关、未动：`compile_all` 与 `_worker_loop` 各有一份相近的流水线；`compiler.py`（904 行）、`router.py`（3472 行）、`WikiSection.tsx`（2074 行）超过文件行数建议；Cron 的 `build_list_only_report` 仅中文且带 emoji；运行登记仍在内存里（见 `BUG-AGENT-2026-10-15-021` 局限 4）。
+6. 入队时的变更检查对 2 万个原文（合计约 1 GB，合成库，3 次取中位数 13107 ms）仍要十几秒：在线程里执行、不停顿事件循环，但这次请求要等它，前端默认 30 秒超时。
+7. 与本条无关、未动：`compile_all` 与 `_worker_loop` 各有一份相近的流水线；`compiler.py`（904 行）、`router.py`（3472 行）、`WikiSection.tsx`（2074 行）超过文件行数建议；Cron 的 `build_list_only_report` 仅中文且带 emoji；运行登记仍在内存里（见 `BUG-AGENT-2026-10-15-021` 局限 4）。
 
 ### 踩坑经验
 
