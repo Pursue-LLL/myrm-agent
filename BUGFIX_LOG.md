@@ -1722,16 +1722,16 @@ except Exception:
 
 ---
 
-## BUG-AGENT-2026-10-14-010: 词条被超过 100 个页面引用时，面板把截断后的条数当总数展示；详情头部的「链接」快捷入口是硬编码中文且手机上整个消失；窄屏下详情头部把词条名挤到 0 宽；被截断的链接列表里留下哪些由写入先后决定
+## BUG-AGENT-2026-10-14-010: 词条被超过 100 个页面引用时，面板把截断后的条数当总数展示；详情头部的「链接」快捷入口是硬编码中文且手机上整个消失；窄屏下详情头部把词条名挤到 0 宽；被截断的链接列表里留下哪些由写入先后决定；边的权重随页面写入先后而变，链接面板的页签是没有语义的手写按钮
 
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-14 |
-| 修复日期 | 2026-10-14（现象 6 与修复 6、7 为 2026-10-15） |
+| 修复日期 | 2026-10-14（现象 6、7 与修复 6 至 10 为 2026-10-15） |
 | 严重程度 | P3（展示的数量不准、手机上少一个快捷入口；不丢数据） |
-| 影响范围 | harness `toolkits/wiki/retrieval/graph_store.py`、`indexer.py`、新增 `concept_links.py`、`maintenance/issue_kind.py`；server `app/api/wiki/router.py` 的 `/wiki/concepts/{name}/links` 响应模型，以及同文件队列、待审、图谱、健康报告、导入辅助函数的类型修正；前端 `wiki/WikiConceptLinksPanel.tsx`、`wiki/WikiConceptDetailPanel.tsx`、新增 `wiki/useConceptHeadingFocus.ts`、`services/wiki/service.ts`、硬编码文案基线 |
+| 影响范围 | harness `toolkits/wiki/retrieval/graph_store.py`、`indexer.py`、新增 `concept_links.py`、`maintenance/issue_kind.py`；server `app/api/wiki/router.py` 的 `/wiki/concepts/{name}/links` 响应模型，以及同文件队列、待审、图谱、健康报告、导入辅助函数的类型修正；前端 `wiki/WikiConceptLinksPanel.tsx`、`wiki/WikiConceptDetailPanel.tsx`、新增 `wiki/useConceptHeadingFocus.ts`、`services/wiki/service.ts`、硬编码文案基线；第六批：harness 新增 `retrieval/edge_weights.py`，改 `edge_links.py`、`indexer.py`、`fts_write.py`、`identity_migration.py`（索引版本 2→3）；前端 `WikiConceptLinksPanel.tsx` 的页签换成项目的 Radix `Tabs` 原语；公开文档 `myrm-docs` 知识图谱段（英、中、韩）与 `temp-docs/materials/WIKI_KNOWLEDGE_BASE_ADVANTAGE.md` 两处权重说明 |
 | 出现次数 | 1 |
-| 关联 | roadmap topic_02 #140 第四批补修；BUG-AGENT-2026-10-14-007 |
+| 关联 | roadmap topic_02 #140 第四至六批补修；BUG-AGENT-2026-10-14-007 |
 
 ### 现象
 
@@ -1741,6 +1741,7 @@ except Exception:
 4. 详情头部把词条名、来源徽标、来源对话链接和操作按钮排在同一行且不换行。默认「保存到 Wiki」生成的词条名（`SaveToWikiButton.tsx:92-98`，如 `untitled-note`，111px）查看态下，英、德文案在视口 320 / 360 / 390 / 430 与 1024 的可见宽度都是 0px（视口 768 为 28 / 14px），中文文案在视口 320 / 360 / 390 / 430 / 1024 依次是 0 / 0 / 19 / 59 / 90px，编辑态更窄（英文在视口 1280 也只剩 84px）；这是改前就有的，本批把快捷入口改成常驻图标后窄屏又固定多占 48px。
 5. `get_concept_links` 返回 `dict[str, object]`，server 路由用 `res.get("outlinks", [])` 取列表，mypy（server `pyproject.toml` 的 `strict = true`）把它判成不可迭代，`router.py:1482-1483` 是两处真实报错；路由里 5 个带默认值的 `.get`（概念名、两个列表、两个 `*_has_more`）在只有一条返回路径、五个键齐全（`graph_store.py:383-389`）的前提下永远走不到默认值。
 6. 一个词条被超过 100 个页面引用时，截断后列出哪 100 条由写入历史决定。生产路径不传来源文件（`indexer.py:293` 传 `source_files=None`，`:234` 的重叠加分不触发），权重只剩基础 3.0 加共同邻居项（`:241-251`，0 到 1.5），入边来源页与词条没有共同链接时权重相同：合成库 150 个页面引用同一词条，150 条全是 3.0（真实库里这样的并列有多常见没有测过）。权重相同的边按 rowid 返回，而编辑页面会先删后插（`indexer.py:214`、`:219`）、拿到新 rowid。实测：编辑一个已列出的页面（只改正文、链接不变），它从「被引用」里消失，补进来的是原来的第 101 个；最后写入的 `p148`、`p149` 从没出现过。最近动过的页面最先被截掉。
+7. 同一份内容的同一条边，权重取决于页面的写入先后和进程的哈希种子。权重在写入时算一次，之后不再更新：三元闭包 a→b、a→c、b→c 按 6 种写入顺序建库，有 3 种得到的权重与「从当前边推出的值」不符；一页的目标集合是 `set`（`indexer.py:285`），页内先后也由哈希种子决定。页面被编辑、被删除、前向引用被补齐、旧库被迁移时，都只重算本页的出边，指向它的入边与邻居的权重不再更新。合成库（5 个种子，每个 300 页、每页 10 条链接、10 个主题簇、70% 链接在簇内）同一份内容按两种写入顺序建库，平均 74.9% 的页面「权重最高的 4 个邻居」集合不同；检索路径 `best_first.py:221` 用 `child_base + weight` 给邻居排序，邻居多于剩余名额（`max_context_articles=5` 去掉种子后是 4 个）时，这决定哪些页面进入上下文。另外，面板的页签是手写 `<button>`，没有 `tablist` / `tab` / `aria-selected`，读屏软件读不出这是一组页签，方向键也切换不了。
 
 ### 根因
 
@@ -1750,6 +1751,7 @@ except Exception:
 4. 头部是单行 flex，名字是唯一可收缩的项（来源徽标、来源链接、按钮都是 `shrink-0`）。名字自带的 `truncate` 只会把它截成省略号，宽度被挤到 0 时连省略号都没有，所以它不是兜底。
 5. 返回值没有类型，键集合与值类型只靠约定；调用方只能用 `.get` 加默认值兜底，类型检查器既核对不了键，也推不出值是列表。
 6. 入边查询 `ORDER BY weight DESC LIMIT ?` 没有第二排序键；SQLite 文档（`lang_select`，ORDER BY 一节）写明排序表达式全部相等的行返回顺序未定义。入边走 `idx_wiki_edges_target`，并列项按 rowid。出边当前不受影响，只是因为它扫主键索引 `(source, target)`，并列项天然按目标名升序（60 个目标、三个 `PYTHONHASHSEED`、重新索引后顺序都一致），这是计划器碰巧，不是保证：给 `wiki_edges` 加一个只含 `source` 的索引，计划器改用它，顺序变成写入顺序，而写入的 `targets` 是集合（`indexer.py:285`）再转成列表（`:293`），顺序随哈希种子变化（三个种子三种顺序）。
+7. 权重被定义成「写入那一刻已经存在的边」的函数，而不是「当前的边」的函数：`_calculate_edge_weight`（`indexer.py:222-251`，已删）读 `wiki_edges` 里此刻已有的行，`_replace_edges` 只替换本页的出边，没有任何路径在别的页面变化后更新受影响的边，同一份内容经不同的写入历史存成不同的数据。其中 `source_files` 的重叠加分分支（`:231-239`）唯一的生产调用点传 `None`（`:293`），从未生效，公开文档却把它写成三维权重（直接链接 + 来源重叠 + 共同邻居）。页签：手写 `<button>` 只有样式没有语义；项目里已有这类场景的 Radix `Tabs` 原语（`primitives/tabs.tsx`，其余 20 个非测试文件在用）。
 
 ### 修复
 
@@ -1758,9 +1760,11 @@ except Exception:
 3. 小节锚点聚焦原样移入 `useConceptHeadingFocus.ts`（115 行；移动的 96 行用脚本与原文逐行比对一致），详情面板降到 330 行。
 4. 头部与标题块都 `flex-wrap`：放不下时操作按钮整组换到下一行（`ml-auto` 靠右），标题块里的来源徽标与来源链接再换行，词条名独占一行（标题块 `min-w-0`，名字 `max-w-full truncate`，过长才出省略号）；放得下时仍是一行。头部显式 `space-y-0`：`CardHeader` 基类自带 `space-y-1.5`，不归零时标题块多出 6px 下外边距，单行名字比按钮中心高 3px、换行行距成了 14px 而不是 `gap-y-2` 的 8px；多余的 `justify-between` 去掉（`ml-auto` 已把操作组推到右侧，对布局零影响）。快捷入口文字显隐的容器查询阈值不变（换行之后阈值附近不再有名字宽度的断崖）。
 5. `get_concept_links` 返回 TypedDict `ConceptLinks`（新增 `retrieval/concept_links.py`：`ConceptLink`、`ConceptBacklink`，先例是 `pipeline/pending.py` 的 `PendingWikiEdit`），`WikiIndexer.get_concept_links` 同步；server 路由按键直接读取并删掉 5 个 `.get` 默认值，不 import harness 的类型名（类型随返回值推断）。运行时没有变化（TypedDict 就是 dict）。
-6. 两条被截断的查询加名称作第二排序键（`ORDER BY weight DESC, target` / `ORDER BY weight DESC, source`，`graph_store.py:358`、`:367`），权重仍在前、既有语义不变：权重相同的链接按名称排序，被截断时留下哪些、什么顺序，与它们的写入顺序、重新索引、查询计划无关（权重本身的写入顺序依赖见验证 10）。出边这一半当前没有可复现的缺陷，加键是把碰巧的确定性变成保证。`get_outgoing_edges`（`indexer.py:197-204`，检索路径 `best_first.py:221` 使用）不改：它在喂给 LLM 的路径上，探针图里的出边权重全相同所以顺序稳定。server 响应模型 `ConceptLinkItem`、`ConceptBacklinkItem`、`ConceptLinksResponse` 去掉 7 个不可达的默认值（`exists`、`context_snippet`、`heading`、两个列表、两个 `*_has_more`，`router.py:282-297`）：唯一的构造方是路由（`router.py:1463-1468`），五个值都显式传入；前端接口（`service.ts:153-170`）与 harness 的 `ConceptLinks` 本来就是必填，模型不再把 `exists=True`、`has_more=False` 这类事实声明成默认。
+6. 两条被截断的查询加名称作第二排序键（`ORDER BY weight DESC, target` / `ORDER BY weight DESC, source`，`graph_store.py:358`、`:367`），权重仍在前、既有语义不变：权重相同的链接按名称排序，被截断时留下哪些、什么顺序，与它们的写入顺序、重新索引、查询计划无关（权重本身的写入顺序依赖由修复 9 处理）。出边这一半当前没有可复现的缺陷，加键是把碰巧的确定性变成保证。`get_outgoing_edges`（检索路径 `best_first.py:221` 使用）在修复 9 里一并加了名称次序键，同样是把碰巧的确定性变成保证（当前查询计划下它的顺序本来就一致）。server 响应模型 `ConceptLinkItem`、`ConceptBacklinkItem`、`ConceptLinksResponse` 去掉 7 个不可达的默认值（`exists`、`context_snippet`、`heading`、两个列表、两个 `*_has_more`，`router.py:282-297`）：唯一的构造方是路由（`router.py:1463-1468`），五个值都显式传入；前端接口（`service.ts:153-170`）与 harness 的 `ConceptLinks` 本来就是必填，模型不再把 `exists=True`、`has_more=False` 这类事实声明成默认。
 7. server `router.py` 其余端点的 9 个既有 mypy 错误一并清掉（该文件被本条触及，类型门禁要求它整体干净）：`WikiHealthIssueResponse` 与 `WikiHealthReportResponse` 在 `router.py` 与 `app/services/wiki/health_report_service.py` 各有一份字段相同的定义，路由返回的是 service 那份、声明的却是自己那份，现在路由直接导入 service 的定义（名字与字段都相同，OpenAPI 模式不变）；队列与待审草稿的列表项是 harness 的 TypedDict，响应模型声明的是 `dict[str, object]`，逐项 `dict(...)` 复制；图谱节点与边用 `GraphNodeItem.model_validate` / `GraphEdgeItem.model_validate`（原先由响应模型隐式校验，是同一套校验）；来源片段的 `claim_confidence` 先对 `object` 做 `isinstance` 收窄再 `float`；`_publish_import_raw` 与 `_track_import_publish_result` 补上 `RawPublishResult` 注解。
 8. harness `maintenance/issue_kind.py:39` 的 `count_open_actions` 形参由 `list[object]` 放宽为只读的 `Sequence[object]`（函数只遍历、不修改，`list[LintIssue]` 不再被判不兼容，对既有调用方是放宽）。修复 7 让路由新增了对 `health_report_service` 的导入，两个文件的头注释与 `services/wiki/_ARCH.md` 同步写明响应模型只在 service 里定义一次。
+9. 边权重改为「当前边」的纯函数（新增 `retrieval/edge_weights.py`）：`weight(s, t) = round(3.0 + min(1.5, 0.5 × |out(s) ∩ out(t)|), 2)`，只取决于边两端的出链集合，所以一页的出链变化只会影响以它为起点或终点的边。一条幂等 UPDATE（只读 `source` / `target` 两列、不读旧权重，显式写 `main.wiki_edges`；查询计划是两路索引的 MULTI-INDEX OR 加主键覆盖索引查找）在同一事务里刷新这些边：页面写入（`indexer.py:219`，`_replace_edges` 替换出边之后）、前向引用补齐（`edge_links.py:109`，`relink_dangling_edges` 汇总被改写的来源页）、页面删除（`fts_write.py:211`，被删页面不再有出链，指向它的边回到基础值）、旧库迁移（`identity_migration.py:59`，索引版本 2→3，在目标收敛之后全量重算一次，不重跑版本 1、2 的步骤）。一次刷新按 200 个页面分块，不碰 SQLite 的绑定参数上限。删除 `_calculate_edge_weight` 与从未生效的 `source_files` 分支（`upsert_edges`、`_replace_edges` 的形参一并去掉，没有兼容层）、`store_edge` 的权重形参与 `MAX(weight, excluded.weight)` 合并（现为 `DO NOTHING`，新边先取基础值 3.0，再由刷新定值）；`get_outgoing_edges` 加 `, target` 次序键（`indexer.py:203`）。公开文档里「直接链接 + 来源重叠 + 共同邻居」的说法与代码不符（来源重叠从未生效），英、中、韩三份改为「直接链接加两端共同链接的加分」，内部材料 `temp-docs/materials/WIKI_KNOWLEDGE_BASE_ADVANTAGE.md` 两处同步。
+10. 概念链接面板的页签改用项目的 Radix `Tabs` 原语（`WikiConceptLinksPanel.tsx:132` 根、`:169` 列表、`:174` 页签、`:196,251` 内容）：获得 `tablist` / `tab` / `tabpanel`、`aria-selected`、方向键切换与单一 Tab 停靠点，列表用已有的 `title` 文案作可读名称（没有新文案，六语言不变）。外观与 `@container` 响应式保持：等分整行、放不下时条内横向滚动、激活项底色加描边；焦点环改为内收（`ring-inset`），避免被带 `overflow-x-auto` 的列表裁掉；首次加载失败（没有数据）时不渲染列表与内容，「不把 0 条当事实」的语义不变；颜色只用主题变量，没有新增图标与 emoji。
 
 ### 验证
 
@@ -1773,7 +1777,13 @@ except Exception:
 7. 类型与回归：server `router.py` 的 mypy 从 11 个错误降到 0：第四批消失的是 `:1482-1483` 两处，第五批清掉其余 9 个（修复 7）；同一次 mypy 报的 `health_report_service.py:164,205` 两个错误（`count_open_actions` 的形参是 `list[object]`，传 `list[LintIssue]` 不兼容）由修复 8 清掉，两个文件现在都是 0 个错误。harness 的 mypy（`graph_store.py`、`indexer.py`、`concept_links.py`）、ruff check 与 format 通过，`graph_store.py` 389 行；`test_concept_links.py`、`test_link_edges.py`、`test_wiki_alias_and_chinese_anchor.py`、`test_concept_identity.py` 共 45 例通过，`tests/toolkits/wiki` 全量（不含调用真实 LLM 的 `test_sidecar_integration.py`）862 例通过（带汇总行，无跳过）；server `test_wiki_concept_links.py` 与 `test_wiki_concept_links_integration.py` 7 例通过，`router.py` 的 ruff 通过（这几个数字含第 6 项新增的 3 + 1 例）。改前先在沙箱里用与 `router.py` 相同的 pydantic 模型复现了同样的两个报错，TypedDict 写法下为 0。修复 7 之后重跑 server `tests/api/wiki`、`tests/integration/wiki`（不含调用真实 LLM 的 `test_wiki_real_llm.py`）与 `tests/services/wiki/test_health_report_service.py`：172 例通过 169，失败的 3 例与验证 3 相同；路由里改动的几处表达式另用一次性脚本核对改前改后（脚本未入库）：`claim_confidence` 的 8 种输入（缺省、`None`、空串、0、0.5、`"0.7"`、`True`、3）结果相同，队列、待审、图谱三个载荷的 `model_dump()` 逐项相等。
 8. 并列排序（第 6 项）：先红后绿。harness 2 例新增（`test_capped_backlinks_are_ordered_by_name_and_survive_an_edit`：101 个并列入边、按名字逆序写入、列出前 100、编辑第一个页面后列表不变；`test_capped_outlinks_are_ordered_by_name_whichever_index_the_planner_scans`：101 个出链、临时库加只含 `source` 的索引），不加排序键时两例都失败（入边列出的是写入先后的 `n100…`，出边是哈希序的 `t071…`），加键后 `test_concept_links.py` 12 例通过；两个查询各自只被一个用例覆盖，删掉对应的键只会让对应的那个用例变红。server 1 例新增（三个响应模型的必填键集合）：旧模型的 `required` 是 `['name']`、`['name']`、`['concept_name']`（用相同的 pydantic 定义在沙箱里取得），所以该用例在改前必红；没有把 `router.py` 回退后实跑。
 9. 实测（合成库，临时目录，不是真实数据）：150 个页面引用同一词条，现有 SQL 下编辑 `p000` 后它从可见集合消失，加键后可见集合与顺序都不变；2000 条入边的 SQL 30 次中位数 1.556 ms → 1.802 ms（最大值 3.108 → 6.708 ms，在抖动量级内），一次打开面板整体约 23 ms，不是瓶颈。出边在三个 `PYTHONHASHSEED` 下顺序一致、编辑后也一致；加只含 `source` 的索引后三个种子得到三种顺序，加 `, target` 后三个种子一致。
-10. 局限：词条被引用超过 100 次的频率没有数据（没有碰真实库）；并列项的顺序对所有词条都从写入先后变成名称字节序（大写在小写之前，中文按码点），既有测试的断言只有单元素与集合比较，是 grep 的结论，由上面的全量运行覆盖；「编辑后名单不变」只在编辑不改变该边权重时成立，权重是索引时的快照（`indexer.py:241-251`），链接结构变了会合理地换权重组；第 101 条以后仍然看不到（只显示「100+」），没有加分页。权重本身带写入顺序依赖，没有处理：`_calculate_edge_weight` 的共同邻居项读的是该页「已经写入的边」（`indexer.py:243`），而一页的目标集合是 `set`（`indexer.py:285`，`:293` 转成列表），所以同一内容的同一条边，权重随进程的哈希种子变化（三元闭包 a→b、a→c、c→b：8 个种子各起一个新进程，a→c 在 3 个种子里是 3.5、其余 3.0）。探针里同一页的各来源页一起翻转，面板顺序没变（8 个来源页各 3.5 或各 3.0）；检索路径 `best_first.py:221` 的 `child_base + weight` 得分会随之变，那是改变检索排序，不在本条范围内。
+10. 局限：词条被引用超过 100 次的频率没有数据（没有碰真实库）；并列项的顺序对所有词条都从写入先后变成名称字节序（大写在小写之前，中文按码点），既有测试的断言只有单元素与集合比较，是 grep 的结论，由上面的全量运行覆盖；「编辑后名单不变」只在编辑不改变该边权重时成立，权重是索引时的快照（`indexer.py:241-251`），链接结构变了会合理地换权重组；第 101 条以后仍然看不到（只显示「100+」），没有加分页。权重本身带写入顺序依赖，由修复 9 处理（以下是修复前的实测）：`_calculate_edge_weight` 的共同邻居项读的是该页「已经写入的边」（`indexer.py:243`），而一页的目标集合是 `set`（`indexer.py:285`，`:293` 转成列表），所以同一内容的同一条边，权重随进程的哈希种子变化（三元闭包 a→b、a→c、c→b：8 个种子各起一个新进程，a→c 在 3 个种子里是 3.5、其余 3.0）。探针里同一页的各来源页一起翻转，面板顺序没变（8 个来源页各 3.5 或各 3.0）；检索路径 `best_first.py:221` 的 `child_base + weight` 得分会随之变，所以第六批在修复 9 里一并处理。
+11. 先红后绿（边权重）：新增 `tests/toolkits/wiki/test_edge_weight_purity.py` 20 例，修复前 15 例失败、5 例通过；通过的 5 例是三个恰好按「先被指向者」顺序的写入、版本 3 索引保持权重、并列边按名称排序，断言的是不能被破坏的行为，不是新行为。覆盖：三元闭包 6 种写入顺序、`upsert_edges` 3 种调用顺序、随机图 4 个种子 × 3 种写入顺序（正序、逆序、乱序，含两个悬空目标）、编辑页面（加链接、去链接）刷新入边、删除页面、前向引用补齐、版本 2→3 迁移、版本 3 不重算、超过一次绑定上限（450 页）的刷新；每例都读出存储的边，用 Python 从头推出权重逐条比较，不依赖实现里的 SQL。
+12. 变异验证（pytest 插件运行时把某个调用点换成空函数，不改文件，用后删除）：关掉 `indexer` 的刷新，10 例变红；关掉 `fts_write` 的刷新，只有删除用例（1 例）变红；关掉 `edge_links` 的刷新，9 例变红（含前向引用用例）；关掉迁移的全量重算，只有迁移用例（1 例）变红。`PYTHONHASHSEED` 取 0、1、2、3、4242，20 例全部通过。
+13. 全量：harness `tests/toolkits/wiki`（不含调用真实 LLM 的 `test_sidecar_integration.py`）882 例通过（改前 862 加新增 20）；`test_indexer_edge_cases.py` 里旧的权重用例（断言 `>= 3.0`，直接调用已删的函数与 `source_files`）改写为 3.0 / 3.5 / 4.5（共同链接加分与 1.5 的上限）；server `tests/api/wiki` 与 `tests/integration/wiki`（不含真实 LLM）162 例通过、3 例失败，是同一批既有的安全拦截用例（`test_wiki_clip_security_blocked_job_response`、`test_import_folder_blocks_credential_content`、`test_import_urls_security_blocked`），本批没有改安全扫描。
+14. 合成库前后对比（同一份内容；`/tmp` 临时脚本，HEAD 快照对工作区；不是真实数据）：5 个种子，每个 300 页、每页 10 条链接、10 个主题簇、70% 链接在簇内；以「权重最高的 4 个邻居（`max_context_articles=5` 去掉种子后的名额）里与种子同簇的比例」衡量，0.7615 → 0.9348；同一份内容按两种写入顺序建库，「前 4 个邻居集合不同的页面占比」74.9% → 0%。「同簇」是造图时自己打的标签，不是人工判定的相关度；真实库里提升多少没有测，出链少、几乎没有三角关系的库两个版本几乎没有差别。写入成本：1500 页、1.5 万条边，`upsert_edges` 逐页写入的总耗时，前后各测 7 次（机器有其他负载，抖动大）：改前 2.29 至 3.40 s、中位数 3.16 s，改后 2.91 至 6.20 s、中位数 3.70 s，约慢 0.36 ms/页（+17%），两组范围重叠；旧库一次性迁移（全量刷新）1.5 万条边 46 至 61 ms（7 次）。
+15. 静态与前端：ruff check 与 format、mypy（`edge_weights.py`、`edge_links.py`、`indexer.py`、`identity_migration.py`、`fts_write.py`）通过；前端面板测试 10 例通过（原 8 例加新增 2 例：`tablist` 有名称、两个 `tab` 的 `aria-selected` 与对应 `tabpanel`、方向键左右切换且焦点跟随；首次加载失败时没有 `tablist` 与 `tabpanel`）；prettier、oxlint 通过；`tsc --noEmit` 全量 14 个错误都在他人的文件里，面板相关为 0；`check-a11y-ratchet` 因他人的文件失败，面板没有被列出。
+16. 局限：全部是合成库与 jsdom，没有真实 vault，没有真实浏览器与深浅主题的目测（页签样式只有类名，没有渲染量测）；Adamic-Adar 式的共同链接加分在真实知识库上有多准没有验证（文献里的链接重叠相关度是入链变体，Milne & Witten 2008，这里是出链变体）；联邦只读挂载的公共索引（`pub_N`）不在刷新范围内，它们的权重由各自库的拥有者打开时迁移；旧权重被一次性重算，导出的图谱截图或外部缓存里的旧权重不会更新。
 
 ### 踩坑经验
 
@@ -1785,6 +1795,8 @@ except Exception:
 6. 组件库基类会悄悄带来布局间距：`CardHeader` 自带 `space-y-1.5`，改成 `flex-row` 后仍对标题块生效（Tailwind 4 编译为 `:not(:last-child)` 的下外边距），表现为 3px 错位和换行行距变大；改布局后要用项目的 `cn` 合并出真实类名再量。手算控件宽度也会错（漏 `font-medium`、按钮内部 `gap-2`、图标 `mr-2`、保存按钮的 `border-0`），宽度要从真实类名量出来。
 7. 带 `LIMIT` 的查询要写全排序键。并列项取哪些由索引扫描顺序决定：出边走主键索引，碰巧按名字稳定；入边走单列索引，按 rowid，被编辑一次就换位置；给表加一个索引、换一个计划，碰巧的稳定就没了。判断「稳定」要在多个进程（不同哈希种子）与重新索引之后各取一次顺序，不能只看一次运行。
 8. 判断「稳定」的探针图要含会让权重不同的结构。前几次探针的图（扁平、星形）里所有边权重都是 3.0，什么顺序依赖都看不出来，据此得出的「检索路径顺序稳定」只对这类图成立；加一个三元闭包后，同一条边的权重在不同哈希种子下就是 3.0 或 3.5。
+9. 写入时定下、之后不再更新的派生值，本质是写入历史的函数；只要它依赖「别的行此刻的状态」，就必须在那些行变化时一起刷新，或者改成读时计算。这里选写时刷新：权重只依赖两端的出链集合，影响范围精确到「以变化页面为起点或终点的边」，刷新是一条幂等 SQL。设计这类刷新要列全所有改变依赖项的写入路径（页面写入、前向引用改写、页面删除、迁移）：前向引用补齐一次会改写很多来源页，只返回改写个数不够，要汇总被改写的来源页再刷新。
+10. 用「写入顺序」作自变量做微分测试，比逐个场景断言更容易抓到这类缺陷：同一份内容按多种顺序建库，逐条与「从当前边从头推出」的结果比较；再把每个刷新调用点换成空函数做变异，确认每个调用点都有只因它而红的用例。
 
 ---
 
