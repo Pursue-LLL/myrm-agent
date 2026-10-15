@@ -2,11 +2,15 @@
 
 /**
  * [INPUT]
- * ./MemoryEconomicsPanel::MemoryEconomicsPanel (POS: 记忆经济学面板)
- * ../cards/ConflictResolutionCard::ConflictResolutionCard (POS: 记忆冲突处置卡片)
+ * @/services/memory/commandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
+ * @/lib/memory/memoryLabs::isMemoryLabsEnabled (POS: Memory Command Center 与设置内实验面板的开关)
+ * ./MemoryEconomicsPanel::MemoryEconomicsPanel (POS: 前端记忆命令中心经济学剖析组件)
+ * ../insights/BehavioralMetricsPanel::BehavioralMetricsPanel (POS: 记忆指挥中心行为洞察面板)
+ * ../cards/ConflictResolutionCard::ConflictResolutionCard (POS: 记忆冲突仲裁卡片组件)
+ * ./MemoryCommandCenterObservationPanels::InfluenceRow (POS: 个人大脑指挥中心的只读观测面板)
  *
  * [OUTPUT]
- * UnderstandSection: the understand tab content.
+ * UnderstandSection: 「理解」分区内容，按序挂载经济学、行为指标与各记忆能力卡片，末尾为影响与冲突两栏。
  *
  * [POS]
  * 个人大脑指挥中心「理解」分区：记忆经济学、行为指标、各记忆能力卡片以及影响与冲突面板。
@@ -59,83 +63,32 @@ export const UnderstandSection = ({
   defaultChatId?: string | null;
 }) => (
   <div className="space-y-4">
-    {/* Stateful Long-Horizon Memory Economics Profiler (Omri et al. 2026) */}
     <MemoryEconomicsPanel initialDashboard={snapshot.economics} />
-
-    {/* Deterministic Behavioral Routine Metrics Panel (Zero Model Cost) */}
     <BehavioralMetricsPanel t={t} />
-
-    {/* Repository History Evidence Digest Card */}
     <RepoEvidenceCard />
-
-    {/* CodeGraph Memory Asset & Pre-Modification Impact Analysis Card */}
     <CodeGraphAssetCard />
-
-    {/* Hybrid Vector and Knowledge Graph Reciprocal Rank Fusion Memory Card */}
     <GraphRRFRetrievalCard />
-
-    {/* Hindsight Experience Replay and Retrospective Reflection Buffer Card */}
     <HindsightReflectionCard />
-
-    {/* Token-Budget-Aware Codebase Semantic Memory Compaction Card */}
     <CodeMemoryCompactionCard />
-
-    {/* Causal Experience Gene Synthesizer and Confidence Evolution Ledger Card */}
     <GeneEvolutionInspectorCard />
-
-    {/* Targeted Experience Auto-Recall Trigger and 5-Turn Sliding Dedup Gate Card */}
     <AutoRecallGovernanceCard />
-
-    {/* Ground Truth Priority & Code Drift Stale Memory Defense Card */}
     <GroundTruthDriftDefenseCard />
-
-    {/* Cross-Agent Composable Context & Conflict Arbitration Engine Suite Card */}
     <CrossAgentConflictArbitrationCard />
-
-    {/* Knowledge Graph Pre-Extraction Content Screening & Prompt Injection Shield Card */}
     <KnowledgeGraphPoisoningShieldCard />
-
-    {/* Integration Disconnect Retained Context Purge & Provenance Revocation Shield Card (Item 179) */}
     <IntegrationRetainedContextPurgeCard />
-
-    {/* Project State Living Fact Ledger & 4-Tier Context Projection Card (Item 63) */}
     <ProjectLivingFactLedgerCard />
-
-    {/* First Encounter Onboarding Insight Sampling & Report Card (Item 67) */}
     <FirstEncounterReportCard />
-
-    {/* Transparent Inspectable Model Private Notebook Suite Card (Item 89 P0) */}
     <PrivateNotebookCard />
-
-    {/* Four-Tier Persistent Memory & FTS5 Self-Maintenance Compaction Card (Item 92 P0) */}
     <FourTierPersistentMemoryCard />
-
-    {/* Temporal Knowledge Graph Decay & Entity Fact Conflict Resolution Card (Item 93 P0) */}
     <TemporalKnowledgeGraphCard />
-
-    {/* Conversation Lineage Dedup & Automation Demotion Suite Card (Item 97 P0) */}
     <ConversationLineageDefenseCard />
-
-    {/* Prompt-Cache Preserving Ephemeral Delta Memory Suite Card (Item 98 P0) */}
     <PromptCachePreservingDeltaCard defaultChatId={defaultChatId} />
-
     {isMemoryLabsEnabled() ? <TwoLayerDialecticStudioCard /> : null}
-
-    {/* Budget Greedy Marginal Value Recall Packing Studio Card (Item 122 P2) */}
     <BudgetGreedyPackingStudioCard />
-
-    {/* Memory Cube Scoped Isolation & Dynamic Mounting Studio Card (Item 124 P0) */}
     <MemoryCubeStudioCard />
-
-    {/* Incremental Sliding Window Markdown Chunker Studio Card (Item 132 P1) */}
     <MarkdownChunkerStudioCard />
-
-    {/* Multi-Platform Memory Migration & Import Engine Studio Card (Item 134 P1) */}
     <MultiPlatformMemoryMigrationStudioCard />
-
-    {/* Retrieval Score Honesty & Raw vs Ranking Inspection Card (Item 142 P1) */}
     <ScoreHonestyInspectionCard />
-
     <div className="grid gap-4 xl:grid-cols-2">
       <Panel title={t('commandCenter.influenceTitle')}>
         {snapshot.influence.length ? (

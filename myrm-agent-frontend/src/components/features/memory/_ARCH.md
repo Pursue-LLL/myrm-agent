@@ -155,6 +155,8 @@
 | --------------------------------------------------- | ---------------------------------------------------------------------------- | ----- |
 | `__tests__/MemoryCommandCenterDoctorPanel.test.tsx` | Doctor 诊断面板渲染与健康指标卡测试                                          | ✅    |
 | `__tests__/MemoryCommandCenterPanels.test.tsx`      | migration adapter missing 状态动作闭环与渲染守卫测试                         | ✅    |
+| `__tests__/MemoryCommandCenterSections.test.tsx`    | 观察/理解分区渲染、事件流回放入口守卫与影响/冲突空态测试                     | ✅    |
+| `__tests__/memoryCommandCenterFormat.test.ts`       | 命令中心文案格式化：枚举翻译与回显、操作类型与实时流描述分支、枚举守卫测试   | ✅    |
 | `__tests__/MemoryCard.ttl.test.tsx`                 | procedural 卡片 TTL 显示：未锁定显示过期天数、用户锁定（is_user_locked）隐藏 | ✅    |
 | `__tests__/PendingMemoryList.test.tsx`              | 待审批记忆列表批量操作测试                                                   | ✅    |
 | `__tests__/SharedContextPanel.test.tsx`             | 共享上下文面板测试                                                           | ✅    |

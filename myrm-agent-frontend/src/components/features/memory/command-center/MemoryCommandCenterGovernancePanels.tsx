@@ -2,10 +2,14 @@
 
 /**
  * [INPUT]
- * ./MemoryCommandCenterDoctorPanel::DoctorExecutableAction (POS: doctor action contract)
+ * @/services/memory/commandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
+ * ./MemoryCommandCenterDoctorPanel::DoctorExecutableAction (POS: 个人大脑指挥中心 Memory Doctor 面板)
+ * ./memoryCommandCenterFormat::translateRecordStatus (POS: 个人大脑指挥中心面板共用的枚举守卫与文案格式化)
  *
  * [OUTPUT]
- * GovernanceRow, MigrationPanel, ConsolidationRollbackCard: governance and migration panels.
+ * GovernanceRow: 待审批记忆行与批准 / 拒绝动作。
+ * MigrationPanel: 迁移覆盖、适配器就绪度与 missing 状态的迁移向导入口。
+ * ConsolidationRollbackCard: 最近一次整合摘要与一键回滚。
  *
  * [POS]
  * 个人大脑指挥中心的治理动作行、迁移覆盖与适配器状态面板，以及整合回滚卡片。

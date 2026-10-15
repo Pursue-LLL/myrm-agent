@@ -2,10 +2,12 @@
 
 /**
  * [INPUT]
- * @/lib/utils/classnameUtils::cn (POS: className merge helper)
+ * @/lib/utils/classnameUtils::cn (POS: Tailwind 类名合并工具)
  *
  * [OUTPUT]
- * Panel, MetricTile, RuntimeRow, EmptyState: command center layout atoms.
+ * Panel: 带标题与实时提示的版块容器。
+ * MetricTile / RuntimeRow: 指标块与运行时状态行（支持告警态）。
+ * EmptyState: 虚线空态占位。
  *
  * [POS]
  * 个人大脑指挥中心的版块、指标块、运行时行与空态原子组件，供各分区面板共用。

@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 /**
  * [INPUT]
- * ../MemoryCommandCenterPanels::ActSection (POS: 个人大脑指挥中心基础展示面板，含 migration missing 动作闭环)
+ * ../command-center/MemoryCommandCenterPanels::ActSection (POS: 个人大脑指挥中心基础展示面板)
  *
  * [OUTPUT]
  * MemoryCommandCenterPanels migration actions tests: missing 状态按钮渲染与动作回调守卫。

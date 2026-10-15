@@ -3,7 +3,10 @@
  * @/services/memory/commandCenter::MemoryCommandTimelineEvent (POS: Frontend Personal Brain Command Center client)
  *
  * [OUTPUT]
- * MEMORY_TYPES, MemoryTranslation, formatTime, translate* / format* helpers, isCoverageStatus, isMigrationAdapterStatus.
+ * MEMORY_TYPES / MemoryTranslation: 记忆类型清单与 memory 命名空间翻译函数类型。
+ * translateMemoryType / translateSpaceKind / translateRecordStatus / translateRuntimeStatus / translateTimelineTitle / translateOperationKind: 枚举值翻译，未知值原样回显。
+ * formatTime / formatLiveStreamDescription: 时间与实时流事件描述格式化。
+ * isCoverageStatus / isMigrationAdapterStatus: 迁移覆盖与适配器状态守卫。
  *
  * [POS]
  * 个人大脑指挥中心面板共用的枚举守卫与文案格式化：未知枚举值原样回显，已知值走 memory 命名空间翻译。

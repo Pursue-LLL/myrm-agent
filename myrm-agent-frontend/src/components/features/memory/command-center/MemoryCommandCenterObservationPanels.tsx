@@ -2,11 +2,17 @@
 
 /**
  * [INPUT]
- * ../replay/memoryLiveStream::resolveReplaySessionId (POS: replay session resolver)
- * ../cards/EvidenceBadge::EvidenceBadge (POS: evidence anchor badge)
+ * @/services/memory/commandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
+ * ../replay/memoryLiveStream::resolveReplaySessionId (POS: Command Center 实时记忆流纯函数)
+ * ../cards/EvidenceBadge::EvidenceBadge (POS: 记忆卡片与治理视图中的通用证据徽标组件)
+ * ./memoryCommandCenterFormat::translateTimelineTitle (POS: 个人大脑指挥中心面板共用的枚举守卫与文案格式化)
+ * ./MemoryCommandCenterPrimitives::MetricTile (POS: 个人大脑指挥中心的版块、指标块、运行时行与空态原子组件)
  *
  * [OUTPUT]
- * InfluenceRow, EventList, RuntimePanel, CostPanel, ReplayRow: read-only observation panels.
+ * InfluenceRow: 单次回答的记忆影响记录行，含证据徽标。
+ * EventList: 记忆事件列表，实时模式自动滚动，带会话线索的事件可点击进入回放。
+ * RuntimePanel / CostPanel: 运行时状态行与 token 成本指标。
+ * ReplayRow: 会话回放概览行。
  *
  * [POS]
  * 个人大脑指挥中心的只读观测面板：记忆影响行、实时事件流、运行时状态、成本与回放概览。

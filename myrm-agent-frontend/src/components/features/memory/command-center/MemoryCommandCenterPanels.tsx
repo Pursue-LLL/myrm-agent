@@ -4,8 +4,8 @@
  * [INPUT]
  * @/services/memory/commandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
  * ./MemoryCommandCenterAdvancedPanels::MemoryAdvancedVerifyPanels (POS: 个人大脑指挥中心验证面板)
- * ./MemoryCommandCenterObservationPanels::EventList (POS: 个人大脑指挥中心观测子面板)
- * ./MemoryCommandCenterGovernancePanels::MigrationPanel (POS: 个人大脑指挥中心治理子面板)
+ * ./MemoryCommandCenterObservationPanels::EventList (POS: 个人大脑指挥中心的只读观测面板)
+ * ./MemoryCommandCenterGovernancePanels::MigrationPanel (POS: 个人大脑指挥中心的治理动作行、迁移覆盖与适配器状态面板)
  *
  * [OUTPUT]
  * ObserveSection, ActSection, VerifySection: Personal Brain Command Center section panels.
