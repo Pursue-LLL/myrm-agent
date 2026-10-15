@@ -88,9 +88,10 @@ async def _merge_then_release_dependents(
 
     Dependents create their worktree from the repository as it is when they start, so they must not be
     released before the merge lands. They are released even when the merge fails, raises, or is cancelled by
-    shutdown: the failure is recorded as an event and the worktree is preserved, so holding them back would
-    only stall the board. A cancellation that arrives while the merge is still queued is recorded too, since
-    nothing else would tell the user the code never landed.
+    shutdown: the failure is recorded as an event and the worktree is preserved, and
+    ``task_runner.worktree.landing_gate`` holds each dependent for the user when it is about to run. A
+    cancellation that arrives while the merge is still queued is recorded too, since nothing else would tell
+    the user the code never landed.
     """
     started = False
     try:

@@ -60,8 +60,9 @@ async def wait_parents_landed(store: KanbanStore, task: KanbanTask) -> None:
     """Wait until every parent of ``task`` that is still merging has finished merging.
 
     Returns at once, without reading the store, when no merge is in flight. A merge that fails still ends the wait:
-    its failure is already recorded on the parent, and holding the dependent back would only stall the board.
-    A merge that outlasts ``_LANDING_WAIT_SECONDS`` is left running and the dependent starts anyway.
+    its failure is recorded on the parent, and ``task_runner.worktree.landing_gate`` decides from that record whether
+    the dependent may run. A merge that outlasts ``_LANDING_WAIT_SECONDS`` is left running and the dependent starts
+    anyway.
     """
     landings = _loop_landings()
     if not landings:
