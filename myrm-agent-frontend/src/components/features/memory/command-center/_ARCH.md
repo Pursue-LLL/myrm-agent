@@ -76,9 +76,6 @@
 | `PromptCachePreservingDeltaCard.tsx` | 核心 | 会话内记忆更新检视：稳定 system 前缀 + human 尾部的布局预览；默认绑定当前聊天 session；命中率见聊天上下文环，此处不展示伪造百分比 | ✅    |
 | `EphemeralDeltaLiveInspectorView.tsx` | 辅助 | 瞬态增量实时检视子组件：呈现活跃增量列表、交互式用户修正录入表单、LWW 重写覆盖与前缀哈希校验 | ✅    |
 | `PromptCacheConsolidationView.tsx` | 辅助 | 缓存一致性与归档子组件：双轨预览、一键归档落库；HUD 仅展示后端遥测，无数据时显示占位符 | ✅    |
-| `DeterministicRuleCascadeCard.tsx` | 核心 | 确定性规则级联与五维预过滤卡片：深度融合 Claude Code 工程规范自顶向下确定性级联加载与物理级五维元数据隔离拦截，终结向量碰运气与越权泄露 | ✅    |
-| `DeterministicRuleCascadeHierarchyView.tsx` | 辅助 | 目录穿透级联子组件：呈现从根到叶目录规则继承树、高深度覆盖低深度同名冲突、三级来源权威度徽标与生效规则列表 | ✅    |
-| `FiveDimEvidencePreFilterAuditView.tsx` | 辅助 | 五维物理预过滤审计子组件：呈现 Scope/Authority/Half-life/Confidence/Permission 5 维边界调优、拒绝原因统计与安全记忆穿透对比 | ✅    |
 | `TemporalRelationalBacktrackingCard.tsx` | 核心 | 时序因果锚点与跨会话实体反向回溯卡片：深度攻克开篇“吃火锅 ↔ 打边炉哪个客户”经典痛点，三元组锚定、同义方言倒查与原文证据强绑定 | ✅    |
 | `CrossSessionBacktrackConsoleView.tsx` | 辅助 | 跨会话反向回溯控制台子组件：呈现口语化方言动作线索反查、毫秒级目标客体锁定、出处对话切片高亮与综合因果推断 | ✅    |
 | `RelationalAnchorGraphView.tsx` | 辅助 | 时序因果拓扑子组件：呈现结构化实体-动作-时间三元组列表、同义词方言映射簇、新建三元组录入与原文证据强绑定 | ✅    |

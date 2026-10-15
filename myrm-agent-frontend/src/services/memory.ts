@@ -37,7 +37,6 @@ export * from './memory/diskReconciliation';
 export * from './memory/gitOkf';
 export * from './memory/conversationLineageDefense';
 export * from './memory/ephemeralDelta';
-export * from './memory/ruleCascade';
 export * from './memory/relationalBacktrack';
 export * from './memory/curatorStudio';
 export * from './memory/twoLayerDialectic';

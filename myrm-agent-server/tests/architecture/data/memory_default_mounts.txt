@@ -47,7 +47,6 @@ git_okf_router
 hybrid_memory_router
 conversation_lineage_defense_router
 ephemeral_delta_router
-rule_cascade_router
 relational_backtrack_router
 markdown_curator_router
 two_layer_dialectic_router

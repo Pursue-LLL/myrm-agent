@@ -70,7 +70,6 @@ import { DiskMemoryReconciliationCard } from './DiskMemoryReconciliationCard';
 import { GitNativeKnowledgeBundleCard } from './GitNativeKnowledgeBundleCard';
 import { ConversationLineageDefenseCard } from './ConversationLineageDefenseCard';
 import { PromptCachePreservingDeltaCard } from './PromptCachePreservingDeltaCard';
-import { DeterministicRuleCascadeCard } from './DeterministicRuleCascadeCard';
 import { TemporalRelationalBacktrackingCard } from './TemporalRelationalBacktrackingCard';
 import { MemoryCuratorStudioCard } from './MemoryCuratorStudioCard';
 import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
@@ -302,9 +301,6 @@ export const UnderstandSection = ({
 
     {/* Prompt-Cache Preserving Ephemeral Delta Memory Suite Card (Item 98 P0) */}
     <PromptCachePreservingDeltaCard defaultChatId={defaultChatId} />
-
-    {/* Deterministic Rule Cascade & 5D Pre-Filter Suite Card (Item 99 P0) */}
-    <DeterministicRuleCascadeCard />
 
     {/* Temporal Relational Anchor & Cross-Session Backtracking Card (Item 100 P0) */}
     <TemporalRelationalBacktrackingCard />
