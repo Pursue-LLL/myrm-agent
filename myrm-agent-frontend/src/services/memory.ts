@@ -13,7 +13,6 @@ export * from './memory/cognitiveClock';
 export * from './memory/profileNotes';
 export * from './memory/fourLayerPromotion';
 export * from './memory/decayLifecycle';
-export * from './memory/graphRrf';
 export * from './memory/hindsight';
 export * from './memory/driftDefense';
 export * from './memory/sovereignMigration';

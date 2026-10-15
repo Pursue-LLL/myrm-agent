@@ -28,8 +28,6 @@
 | `FourLayerPromotionAuditCard.tsx`       | 核心 | 四层记忆架构与三通道晋升审计面板：两步压缩方法卡、证据链接、规则遵守契约与原子回滚 | ✅    |
 | `EbbinghausLifecycleCard.tsx`           | 核心 | 艾宾浩斯遗忘衰减与分层生命周期流转卡片：三级水槽 HUD、周期评估迁移、冷记忆唤醒与冷库探针 | ✅    |
 | `ColdArchiveRecordsView.tsx`            | 辅助 | 艾宾浩斯生命周期卡片子组件：呈现 COLD 冷存储归档数据切片与访问频次时间戳 | ✅    |
-| `GraphRRFRetrievalCard.tsx`             | 核心 | 知识图谱与语义向量双路检索 RRF 融合卡片：双通道查询控制台、融合排名列表与节点快速注册 | ✅    |
-| `GraphTraversalResultView.tsx`          | 辅助 | 知识图谱拓扑遍历子组件：呈现触达节点徽章、多跳关系路径展开与关联记忆 | ✅    |
 | `HindsightReflectionCard.tsx`           | 核心 | 事后经验反思与失败任务回放缓冲卡片：避坑规则沉淀、前置预警探测与反思指标 HUD | ✅    |
 | `HindsightWarningsView.tsx`             | 辅助 | 事后反思卡片子组件：呈现高风险避坑警示卡片与推荐纠偏建议动作 | ✅    |
 | `GroundTruthDriftDefenseCard.tsx`       | 核心 | Ground Truth 真实性漂移防御与过时记忆熔断卡片：物理文件存在性与 AST 符号扫描、过时前缀装配与置信度衰减 | ✅    |
