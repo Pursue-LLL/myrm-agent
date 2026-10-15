@@ -44,30 +44,16 @@
 | `IntegrationRetainedContextPurgeCard.tsx` | 核心 | 集成断连上下文治理与溯源撤销卡片：对标并超越 OpenAI Dots 隐私规范、已摄入上下文透明盘点、双模断连选择性 Purge 与来源撤销账本 | ✅    |
 | `ProjectLivingFactLedgerCard.tsx` | 核心 | 长期项目动态事实状态账本与四层上下文投影卡片：决议/否决/约束全景账本、4-Tier 动态投影仿真器与基于验证结果的能力沉淀飞轮 | ✅    |
 | `FirstEncounterReportCard.tsx` | 核心 | 历史会话轻量采样与“初见报告”冷启动卡片：多源 Agent 探测雷达、首2尾12关键帧采样、香农熵双轨零泄漏脱敏与个人技术画像一键入库 | ✅    |
-| `ScreenObservationSafetyCard.tsx` | 核心 | 屏幕观测记忆防注入与描述性事实门禁卡片：不可信证据语义隔离、强制第三人称语法校验与防单次过度提升门禁 | ✅    |
-| `TaskTriadTrajectoryCard.tsx` | 核心 | 超长任务三元状态轨迹黑匣子卡片：已达成里程碑、死胡同防循环规则拦截雷达、在途约束中途保护与单步避坑快照 HUD | ✅    |
 | `PrivateNotebookCard.tsx` | 核心 | 透明可检视模型私有笔记本卡片：对标 Codex PR #42385 超越版、Notes 5 工具操作台、历史交互检索与平滑跨窗口接力 | ✅    |
 | `PrivateNotebookNotesListView.tsx` | 辅助 | 私有笔记本卡片子组件：呈现透明 Markdown 笔记索引、行数统计、实时检视与人工纠偏覆写 | ✅    |
 | `PrivateNotebookHistoryView.tsx` | 辅助 | 私有笔记本卡片子组件：跨上下文窗口长程交互历史检索、归档窗口列表与流式条目展现 | ✅    |
 | `PrivateNotebookHandoverView.tsx` | 辅助 | 私有笔记本卡片子组件：跨窗口平滑移交 (new_context) 表单、交接原因录入与状态报告 | ✅    |
-| `JobCompoundingCard.tsx` | 核心 | 业务岗位说明书与经验复利沉淀卡片：对标 Grok Bot 蓝皮书最佳实践、立项四要素向导、领域规则与成熟度成长看板 | ✅    |
-| `JobDescriptionBuilderView.tsx` | 辅助 | 岗位复利卡片子组件：立项四要素向导表单（业务目标范围、绑定工具源、工作风格调性、自主/审批动作边界） | ✅    |
-| `CompoundingMaturityView.tsx` | 辅助 | 岗位复利卡片子组件：四级成熟度进度阶梯、已沉淀领域规则清单、审批边界试运行模拟器 | ✅    |
-| `RevocableProvenanceCard.tsx` | 核心 | 可撤销带溯源记忆与梦境日记卡片：对标 OpenClaw 2.0，双向溯源图谱挂载、定点无损原子遗忘（保证底座不可变）与后台梦境日记看板 | ✅    |
-| `ProvenanceQualifiedMemoryListView.tsx` | 辅助 | 溯源记忆子组件：呈现带 Session/Message/Quote 双向溯源图谱事实列表、原子遗忘定点撤销与快速沉淀表单 | ✅    |
-| `DreamDiaryDeckView.tsx` | 辅助 | 梦境日记子组件：呈现后台模型梦境蒸馏周期卡片、扫描轮次/晋升事实/剪枝去重指标与手动记录表单 | ✅    |
 | `FourTierPersistentMemoryCard.tsx` | 核心 | 四重持久记忆体系与 FTS5 梦境自维护卡片：对标小米 MiMo Code/Desktop，项目-会话-进度-全局四重解耦、SQLite FTS5 毫秒全文召回与 7 天 /dream 自维护循环 | ✅    |
 | `FourTierMemoryTierListView.tsx` | 辅助 | 四重分层记忆子组件：4 栏 Scope 标签切换（项目/会话/进度/全局）、记忆切片浏览/详情展开/单条删除与新建表单 | ✅    |
 | `FourTierFtsSearchAndDreamView.tsx` | 辅助 | FTS5 检索与梦境压缩子组件：SQLite FTS5 毫秒级全文召回控制台、BM25 评分结果高亮切片与 /dream 梦境压缩维护报告 | ✅    |
 | `TemporalKnowledgeGraphCard.tsx` | 核心 | 时序知识图谱衰减与互斥事实原子消解卡片：深度借鉴 mem/graphiti 与 mem/OpenViking，时序边失效、互斥事实原子消解 superseded_by 与 30 天指数半衰期动态衰减评分 | ✅    |
 | `TemporalGraphEvolutionTimelineView.tsx` | 辅助 | 时序关系演进子组件：呈现有效关系/已失效历史边演进时间线、前序-后继版本谱系追溯与冲突消解表单 | ✅    |
 | `TemporalDecayScorerConsoleView.tsx` | 辅助 | 半衰期衰减与实体节点管理子组件：半衰期动态衰减评分探针计算器、实体节点管理列表与新建节点表单 | ✅    |
-| `DiskMemoryReconciliationCard.tsx` | 核心 | 磁盘文件与 FTS5 双向对账及显式写入门禁卡片：深度汲取小米 MiMo Code 生产级源码，Direction A 增量建索、Direction B 僵尸索引修剪与读写严格解耦门禁 | ✅    |
-| `DiskReconciliationAuditConsoleView.tsx` | 辅助 | 双向对账巡检子组件：呈现待对账目录指定表单、最新审计报告指标卡片与 FTS5 搜索一致性验证 | ✅    |
-| `WriteGatePermissionInspectorView.tsx` | 辅助 | 显式写入门禁权限子组件：呈现 4 种安全策略切换、读写解耦状态说明与实时门禁裁决探针 | ✅    |
-| `GitNativeKnowledgeBundleCard.tsx` | 核心 | Git 原生项目知识库与记忆防腐烂门禁卡片：基于 Google OKF v0.2 标准，随代码版本化流转、两阶段渐进式披露、stale_after 显式保质期与人机防篡改信任天平 | ✅    |
-| `OkfKnowledgeBundleBrowserView.tsx` | 辅助 | 知识包卡片浏览器子组件：呈现目录挂载、第一阶段轻量披露清单（<300 Tokens）、治理层级过滤与第二阶段深入检视 | ✅    |
-| `OkfMemoryRotAuditConsoleView.tsx` | 辅助 | 防腐烂门禁与 BM25 检索子组件：呈现保质期过期巡检、人机防篡改验签报告与亚毫秒内存 BM25 词法检索 | ✅    |
 | `ConversationLineageDefenseCard.tsx` | 核心 | 会话血统代际去重与自动化降权卡片：深度汲取 Hermes Agent PR #19434，来源感知降权破除高频 Cron 召回盲区、血统根去重消除多代冗余、非对称渐进水合削减 70%+ Token | ✅    |
 | `ConversationLineageDedupView.tsx` | 辅助 | 血统去重视图子组件：呈现 lineage_root_id 家族代表世代、折叠历史祖先切片展开与演化谱系 | ✅    |
 | `AutomationDemotionAuditConsoleView.tsx` | 辅助 | 自动化降权控制台子组件：呈现来源降权系数调优、Top-1 展开视窗 vs Top-2..N 紧凑卡片与 Token 节约报告 | ✅    |

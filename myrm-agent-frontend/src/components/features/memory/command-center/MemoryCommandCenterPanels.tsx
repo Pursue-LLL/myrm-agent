@@ -58,15 +58,9 @@ import { KnowledgeGraphPoisoningShieldCard } from './KnowledgeGraphPoisoningShie
 import { IntegrationRetainedContextPurgeCard } from './IntegrationRetainedContextPurgeCard';
 import { ProjectLivingFactLedgerCard } from './ProjectLivingFactLedgerCard';
 import { FirstEncounterReportCard } from './FirstEncounterReportCard';
-import { ScreenObservationSafetyCard } from './ScreenObservationSafetyCard';
-import { TaskTriadTrajectoryCard } from './TaskTriadTrajectoryCard';
 import { PrivateNotebookCard } from './PrivateNotebookCard';
-import { JobCompoundingCard } from './JobCompoundingCard';
-import { RevocableProvenanceCard } from './RevocableProvenanceCard';
 import { FourTierPersistentMemoryCard } from './FourTierPersistentMemoryCard';
 import { TemporalKnowledgeGraphCard } from './TemporalKnowledgeGraphCard';
-import { DiskMemoryReconciliationCard } from './DiskMemoryReconciliationCard';
-import { GitNativeKnowledgeBundleCard } from './GitNativeKnowledgeBundleCard';
 import { ConversationLineageDefenseCard } from './ConversationLineageDefenseCard';
 import { PromptCachePreservingDeltaCard } from './PromptCachePreservingDeltaCard';
 import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
@@ -250,32 +244,14 @@ export const UnderstandSection = ({
     {/* First Encounter Onboarding Insight Sampling & Report Card (Item 67) */}
     <FirstEncounterReportCard />
 
-    {/* Screen Observation Safety Gate & Anti-Injection Card (Item 85) */}
-    <ScreenObservationSafetyCard />
-
-    {/* Task Triad State Trajectory & Anti-Loop Blackbox Card (Item 86) */}
-    <TaskTriadTrajectoryCard />
-
     {/* Transparent Inspectable Model Private Notebook Suite Card (Item 89 P0) */}
     <PrivateNotebookCard />
-
-    {/* Domain-Specific Agent Job Description & Preference Compounding Card (Item 90 P0) */}
-    <JobCompoundingCard />
-
-    {/* Revocable Provenance-Qualified Memory & Dream Diary Suite Card (Item 91 P0) */}
-    <RevocableProvenanceCard />
 
     {/* Four-Tier Persistent Memory & FTS5 Self-Maintenance Compaction Card (Item 92 P0) */}
     <FourTierPersistentMemoryCard />
 
     {/* Temporal Knowledge Graph Decay & Entity Fact Conflict Resolution Card (Item 93 P0) */}
     <TemporalKnowledgeGraphCard />
-
-    {/* Disk Memory FTS Reconciliation Loop & Explicit Write Gate Card (Item 94 P0) */}
-    <DiskMemoryReconciliationCard />
-
-    {/* Git-Native Project Knowledge Bundle & Memory Rot Prevention Card (Item 95 P0) */}
-    <GitNativeKnowledgeBundleCard />
 
     {/* Conversation Lineage Dedup & Automation Demotion Suite Card (Item 97 P0) */}
     <ConversationLineageDefenseCard />

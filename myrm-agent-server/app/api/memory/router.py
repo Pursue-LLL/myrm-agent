@@ -27,9 +27,6 @@ from app.api.memory.cross_agent_router import (
 from app.api.memory.decay_lifecycle_router import (
     router as decay_lifecycle_router,
 )
-from app.api.memory.disk_reconciliation_router import (
-    router as disk_reconciliation_router,
-)
 from app.api.memory.drift_router import (
     router as memory_drift_router,
 )
@@ -46,15 +43,9 @@ from app.api.memory.four_layer_promotion_router import (
 from app.api.memory.four_tier_fts_router import (
     router as four_tier_fts_router,
 )
-from app.api.memory.git_okf_router import (
-    router as git_okf_router,
-)
 from app.api.memory.graph_rrf_router import router as graph_rrf_router
 from app.api.memory.hindsight_reflection_router import (
     router as hindsight_reflection_router,
-)
-from app.api.memory.job_compounding_router import (
-    router as job_compounding_router,
 )
 from app.api.memory.kg_screening_router import (
     router as kg_screening_router,
@@ -102,17 +93,8 @@ from app.api.memory.private_notebook_router import (
     router as private_notebook_router,
 )
 from app.api.memory.profile_notes_router import router as profile_notes_router
-from app.api.memory.revocable_provenance_router import (
-    router as revocable_provenance_router,
-)
 from app.api.memory.score_honesty_router import (
     router as score_honesty_router,
-)
-from app.api.memory.screen_observation_safety_router import (
-    router as screen_observation_safety_router,
-)
-from app.api.memory.task_triad_trajectory_router import (
-    router as task_triad_trajectory_router,
 )
 from app.api.memory.temporal_graph_router import (
     router as temporal_graph_router,
@@ -170,24 +152,8 @@ if is_local_mode():
     router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
 router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
 router.include_router(
-    screen_observation_safety_router,
-    tags=["memory-screen-observation-safety"],
-)
-router.include_router(
-    task_triad_trajectory_router,
-    tags=["memory-triad-trajectory"],
-)
-router.include_router(
     private_notebook_router,
     tags=["memory-private-notebook"],
-)
-router.include_router(
-    job_compounding_router,
-    tags=["memory-job-compounding"],
-)
-router.include_router(
-    revocable_provenance_router,
-    tags=["memory-revocable-provenance"],
 )
 router.include_router(
     four_tier_fts_router,
@@ -196,14 +162,6 @@ router.include_router(
 router.include_router(
     temporal_graph_router,
     tags=["memory-temporal-graph"],
-)
-router.include_router(
-    disk_reconciliation_router,
-    tags=["memory-reconciliation"],
-)
-router.include_router(
-    git_okf_router,
-    tags=["memory-git-okf"],
 )
 router.include_router(
     conversation_lineage_defense_router,
