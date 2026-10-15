@@ -3514,6 +3514,8 @@ except Exception:
 4. 迟到的浏览器接管点击现在先被 409 拒绝，早于 `resolve_pending_browser_takeover_for_chat`（`registry.py:362`），那条记录保持 `PENDING`，由清理任务定案为 `TIMEOUT`；此前它会先被标成已处理再被拒。这是有意的改变，没有对应测试；计时器是否会为接管记录计时也没有核实。
 5. 已过期但还没被每 5 分钟一次的清理任务扫到的 `PENDING` 记录，仍被 `count_pending_for_chat`（`registry.py:288-303`，没有 `expires_at` 过滤）计入，新回合最多被「智能体忙」挡 5 分钟（`orchestrator.py:183-196`）。用最小复现验证过，本条没有改代码，已记入路线图第 203 项。
 6. `resolve_if_first` 在启动回合之前就消耗了键，这一点与拆分之前一致；`gateway.py` 里其它已有的 `no-any-return` 等 mypy 错误没有处理；预检查给首字节增加的耗时没有测量（它是内存里的一次查找，旁边本来就有一次数据库查询）。
+7. 通用恢复路径（`sendMessage` 带恢复值：澄清回答、目录授权、浏览器接管）收到 HTTP 409 时，`streamConsumer.ts:253-254` 按旧约定一律当作「智能体忙」抛 `AgentBusyError`；三个调用方（`ClarificationInput.tsx`、`DirectoryApprovalInput.tsx`、`useBrowserTakeoverActions.ts`）都只是弹失败提示、卡片保持未回答（接管卡会重新打开）。本条之前，这几类恢复输给计时器时收到的是帧内英文错误。哪一种对用户更好没有做对比验证，前端没有改；要像审批抽屉那样显示本地化的「已过期」并收起卡片，需要给这几个调用方各加一条处理和六套语言文案。
+8. 仲裁键只在 `schedule()` 时被清掉（harness `scheduler.py:92`），Web 路径只有 `tool_approval_request`、`clarification_required`、`directory_request_required` 会在回合结束时重新挂计时器（`stream_finalize.py:539-555`），`approval_required` 类中断（浏览器接管属此类，harness `stream_dispatcher.py:144-148`）不挂。同一聊天里已有一次恢复消耗了键之后，接管恢复会被 `resolve_if_first` 当作「已被超时处理」拒绝：用真实函数复现，`extract_approval_timeout` 对接管形态返回 `None`，同一个键连续两次 `resolve_if_first` 得到 `True`、`False`。这个判断在拆分前的 409 版本（`ab896f588f`）里就存在，不是本条引入，本条没有改；根治需要 harness 提供按键清除的公共接口，涉及发版顺序，已记入路线图第 203 项。没有在浏览器里端到端复现「接管两次」的流程。
 
 ### 踩坑经验
 
