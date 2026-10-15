@@ -45,28 +45,6 @@ export function showMemoryOperationToasts(data: Record<string, unknown>, deps: M
     router.push(MEMORY_SHARED_TAB_PATH);
   };
 
-  if (operation === 'goal_completion_consolidation') {
-    const decisionCount = typeof data.decision_count === 'number' ? data.decision_count : 0;
-    if (autoApproved) {
-      toast.success(t('goalMemoryArchived', { count: decisionCount }), {
-        description: contextName || undefined,
-        duration: 8_000,
-        dismissible: true,
-      });
-      return;
-    }
-    toast.info(t('goalMemoryPendingApproval', { count: decisionCount }), {
-      description: contextName || undefined,
-      duration: 8_000,
-      dismissible: true,
-      action: {
-        label: t('reviewSharedContextProposal'),
-        onClick: openSharedContextInbox,
-      },
-    });
-    return;
-  }
-
   if (operation === 'correction_propagation') {
     if (autoApproved) {
       toast.success(t('correctionMemorySynced'), {
@@ -93,14 +71,6 @@ export function showMemoryOperationToasts(data: Record<string, unknown>, deps: M
     // window's pending-count toast and badge react to the refreshed queue.
     void import('@/store/memory').then(({ useMemoryStore }) => {
       void useMemoryStore.getState().fetchPendingMemories(true);
-    });
-    return;
-  }
-
-  if (operation === 'goal_completion_consolidation_failed') {
-    toast.error(t('goalMemoryArchiveFailed'), {
-      duration: 10_000,
-      dismissible: true,
     });
     return;
   }
