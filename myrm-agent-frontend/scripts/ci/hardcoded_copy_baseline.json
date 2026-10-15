@@ -88,8 +88,6 @@
   "src/components/features/memory/command-center/FourTierFtsSearchAndDreamView.tsx": 24,
   "src/components/features/memory/command-center/FourTierMemoryTierListView.tsx": 20,
   "src/components/features/memory/command-center/FourTierPersistentMemoryCard.tsx": 10,
-  "src/components/features/memory/command-center/HindsightReflectionCard.tsx": 19,
-  "src/components/features/memory/command-center/HindsightWarningsView.tsx": 5,
   "src/components/features/memory/command-center/IncrementalDiffInspectorCard.tsx": 15,
   "src/components/features/memory/command-center/IntegrationRetainedContextPurgeCard.tsx": 33,
   "src/components/features/memory/command-center/KnowledgeGraphPoisoningShieldCard.tsx": 26,

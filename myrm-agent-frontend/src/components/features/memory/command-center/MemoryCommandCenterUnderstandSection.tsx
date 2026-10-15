@@ -22,7 +22,6 @@ import { ConflictResolutionCard } from '../cards/ConflictResolutionCard';
 import { BehavioralMetricsPanel } from '../insights/BehavioralMetricsPanel';
 import { RepoEvidenceCard } from '../cards/RepoEvidenceCard';
 import { MemoryEconomicsPanel } from './MemoryEconomicsPanel';
-import { HindsightReflectionCard } from './HindsightReflectionCard';
 import { KnowledgeGraphPoisoningShieldCard } from './KnowledgeGraphPoisoningShieldCard';
 import { IntegrationRetainedContextPurgeCard } from './IntegrationRetainedContextPurgeCard';
 import { ProjectLivingFactLedgerCard } from './ProjectLivingFactLedgerCard';
@@ -59,7 +58,6 @@ export const UnderstandSection = ({
     <MemoryEconomicsPanel initialDashboard={snapshot.economics} />
     <BehavioralMetricsPanel t={t} />
     <RepoEvidenceCard />
-    <HindsightReflectionCard />
     <KnowledgeGraphPoisoningShieldCard />
     <IntegrationRetainedContextPurgeCard />
     <ProjectLivingFactLedgerCard />
