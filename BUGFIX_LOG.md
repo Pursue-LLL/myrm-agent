@@ -3299,3 +3299,64 @@ except Exception:
 3. 判断「完成」要看产品里谁在调用：单测通过加一张实验室卡不是消费方；先看状态落在哪里（进程内字典还是记忆库），再看调用方。
 4. 删整条链时从消费端往生产端删（前端、服务端、框架），每一步都不留悬空导入；基线与默认挂载清单只减不增，删多少就收多少，否则空出的额度会被后续改动占用。
 5. 路线图条目的退役有规矩：必须能从提交里取回原文，且不能在写它的当天退役，所以先改状态、次日由工具删除。
+
+## BUG-AGENT-2026-10-15-009: 子代理与后台任务的 REST 转向、定时任务与心跳的提示词、看板任务的标题 / 描述 / 验收标准与评论、IM 的系统命令都不过风控闸门，密钥被写进库或原样交给模型；REST 拒绝在网页上没有任何提示；超长粘贴按固定 0.25 秒时限被整段误拦，同步匹配还卡住事件循环
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15（`BUG-AGENT-2026-10-15-004` 之后的入口走查：把所有「用户亲手输入的文本被存下或交给模型」的写入路由逐个列出，对照有没有过闸门） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（闸门默认只开安全类规则，缺口让用户自己输入的密钥进数据库、进任务卡、进模型上下文，不跨用户；另一半是超长日志整段被误拦与每 MB 约 190 毫秒的事件循环停顿） |
+| 影响范围 | server：`app/services/risk/{refusal,detection,ingress}.py`、`app/services/agent/stream_session/risk_gate.py`、`app/api/{agents/subagents,background_tasks/router}.py`、`app/api/cron/routes/{jobs,heartbeat}.py`、`app/api/kanban/routes/{tasks,task_meta}.py`、`app/api/goals/constraints.py`、`app/channels/routing/{router,commands/router_commands_modes}.py`，各目录 `_ARCH.md`；frontend：`src/services/riskHeldToast.ts`（新）、`src/lib/api.ts`、`src/store/chat/messageStream/handlers/riskEvents.ts`、`SubagentTree.tsx`，4 份 `_ARCH.md`；语言包没有改动 |
+| 出现次数 | 1（用真实路由处理函数与真实检测引擎复核；没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-15-004`（同一道闸门；其局限 4「`detect` 在事件循环上同步运行」在本条关闭）、`-14-016`、`-14-019`、`-14-024`；本地提交，未 push，未发布 harness 版本 |
+
+### 现象
+
+1. 没有闸门的入口（带密钥的文本在这些入口里被原样处理）：子代理转向 `steer_subagent`、后台任务转向 `steer_background_task`、定时任务创建与更新的 `prompt`、心跳启用的 `prompt`、看板任务创建与更新的标题 / 描述 / 语义验收标准、看板评论、IM 的系统命令（`/background`、`/bg`、`/btw`、`/goal`、`/subgoal`、`/kanban`、`/learn`、`/steer` 等，直接对命令后的文本动作，不经过 `_handle_merged`）。
+2. 即使服务端拒绝，网页也看不到：`apiRequest` 把 `detail` 对象解析成 `ApiError`，`businessCode` 是字符串 `risk_held`；`inferSeverity` 对字符串业务码返回 `low`（`Number('risk_held')` 是 NaN），`low` 不弹提示。调试新测试时，用真实 `apiRequest` 走一个 `detail.code` 为字符串的 400，没有任何 toast（`api.ts` 的 `inferSeverity`）。
+3. 超长粘贴被误拦：8 条默认启用规则对结构化日志（每行约 100 字符、不含任何密钥）按固定 0.25 秒时限匹配，5 MB 时 `cookie_session_like` 超时、20 MB 时 `api_key_like` 超时，超时按「命中」处理（失败即拦），整段无害日志被拦（实测见下）。同一段文本里 `detect` 在事件循环上同步运行，1 MB 时循环最长停顿 191 毫秒。
+
+### 根因
+
+1. `BUG-AGENT-2026-10-15-004` 把闸门接到了聊天、steer / redirect、目标与 IM 消息，没有一张「哪些入口必须过闸门」的清单，也没有测试保证新入口会过；后来加的转向、定时、看板入口各自没有人想起它。
+2. IM 的 `_dispatch_system_command` 只被 `_dispatch_resolved` 调用，系统命令的文本在这里就被执行，从不进入 `_handle_merged`（闸门所在）；只有 `/steer` 在命令实现里单独接了一道。
+3. 检测的时限是固定常量，与文本长度无关；`detect` 是同步函数，被异步入口直接调用。
+4. `api.ts` 的统一错误出口按严重度决定是否提示，字符串业务码被归为 `low`，又有 30 秒的 `code|message` 去重；没有给「被风控拦下」留位置。
+
+### 修复
+
+1. 新增 `services/risk/refusal.py`：`reject_if_risky(*texts, session_id=None)` 对每段文本分别过 `screen_user_text`（本机验证：规则 `password\s*=\s*\S{6,}` 对合并后的文本命中、对分开的文本不命中，合并会让相邻字段的词拼成一句话），命中即抛 HTTP 400，`detail = {"code": "risk_held", "message": "Text held by a risk rule", "rules": [{rule_id, display_name, severity}]}`，不回显文本；`risk_rules_payload` 与 SSE 的 `risk_blocked` 共用。
+2. 接入：子代理转向、后台任务转向（均在做任何事之前）、定时任务创建 / 更新与心跳启用的 `prompt`、看板任务创建 / 更新的标题、描述与 `semantic` 验收标准（`shell` 类标准是被执行的命令，不是模型读的文本，不筛）、看板评论、目标 objective 与约束（改用同一函数）。
+3. IM：在 `_dispatch_resolved` 对系统命令加唯一一道闸门（它是 `_dispatch_system_command` 的唯一调用点），删掉 `/steer` 里重复的那一道。
+4. 检测：`match_budget(n) = max(0.25, 0.5 秒 × n / 百万字符)`，`detect_async` 在 32 000 字符以内就地匹配、超过则 `asyncio.to_thread`（`regex` 包匹配 `str` 时释放 GIL）；`ingress.screen_user_text` 改用 `detect_async`，`detect_preview` 与单条匹配沿用同一预算。
+5. 前端：`services/riskHeldToast.ts` 是 `risk_held` 提示的单一出处（`parseRiskRules`、`showRiskHeldToast`、`showRiskHeldRefusal`）：规则名取设置页同一组语言包键，自定义规则回退它自己的名字，至多 3 个，停留 10 秒，指向「设置 → 安全策略 → 风控规则」；`api.ts` 的 `displayApiErrorToast` 在去重之前先交给 `showRiskHeldRefusal`；`riskEvents.ts` 与 `SubagentTree.tsx`（绕过 `apiRequest` 的 `fetchWithTimeout` 调用）复用它。
+6. 新增架构守卫 `tests/architecture/test_text_entry_risk_gate.py`：用 AST 登记 16 个入口各自必须调用的闸门、4 个闸门包装函数必须以 `screen_user_text` 收尾；新增接收用户指令文本的入口要在表里加一行。
+
+### 验证
+
+1. 新增 / 扩展的服务端测试：REST 入口 21 例（真实路由处理函数、只注入规则；断言 HTTP 400、`code` 与规则列表、响应里没有密钥、数据库里什么都没存；干净文本与非文本字段仍通过）、`test_refusal.py` 7 例、`test_detection_scaling.py` 8 例（含固定时限下无害长文本被误拦、加长预算后放行；含密钥的长文本仍被拦且不是靠超时；大文本不卡事件循环、短文本就地匹配）、架构守卫 21 例、IM 顺序 22 例（含系统命令各一例、`/steer` 走消费循环）、目标接口 4 例。
+2. 变异检查（临时 pytest 插件，用后已删）：把 `refusal.screen_user_text` 改成恒返回空，上面三个 REST 相关文件 32 例里 17 例失败（失败的都是「应被拦」的用例，15 个「应放行」的用例仍通过）；IM 一侧去掉 `_dispatch_resolved` 的闸门、检测改回同步就地匹配，对应测试失败（心跳测试在匹配前后各睡一次，事件循环停顿才会表现为一个长间隔，否则会空转通过）。没有用只含 HEAD 的导出目录对照，因为工作区里有大量他人未提交的改动。
+3. 更大的集合：`tests/services/risk`、`tests/channels/routing`、`tests/api/goals`、转向接口、`tests/api/background_tasks`、`tests/api/cron`、`tests/api/kanban`、架构守卫、`tests/services/agent/stream_session`：1736 通过、2 失败、1 跳过、2 取消选择。2 个失败与本条无关：`tests/api/cron/test_blueprint_api.py::test_sort_order_monotonically_increasing`（`app/core/cron/blueprints.py` 与该测试都没有未提交改动，文件里 `sort_order=19` 排在 16 之前，在已提交的代码上就是这样）；`tests/api/kanban/test_kanban_api.py::TestSyntheticRun::test_move_with_result_and_metadata`（他人未提交的 `app/services/kanban/move_orchestrator.py` 往 `handoff` 里加了 `summary` 与 `timestamp`，断言还是旧字典；本条没有改这个文件）。
+4. 耗时（同一台机器，8 条默认启用规则，结构化日志、无密钥；旧 = 固定 0.25 秒，新 = 长度缩放预算 + `detect_async`）：1 MB 旧 0.19 秒不拦、新 0.24 秒不拦；5 MB 旧 0.67 秒**拦**、新 1.19 秒不拦（预算 2.5 秒）；20 MB 旧 0.31 秒**拦**、新 4.99 秒不拦（预算 10 秒）。1 MB 时事件循环最长停顿：同步 `detect` 191 毫秒，`detect_async` 10 毫秒。`detect_async` 本身不更快，只是不占着事件循环；超长文本的总耗时变长是预算放宽、匹配真的跑完的代价。
+5. 前端：4 个测试文件 32 例通过（`riskHeldToast`、`riskEvents`、`api`、`SubagentTreeSteer`；`api` 的 3 个新用例用真实 `apiRequest`：风控拒绝连发两次都弹本地化提示（绕过去重）、`silent` 调用不弹、5xx 的通用提示不变）；`prettier --check` 通过；`tsc --noEmit` 的 19 行输出里没有触及的文件；`bun run lint` 6 道门里 3 道失败（`verify:stable-mocks`、`verify:a11y`、`verify:hardcoded-copy`），输出中不含本条触及的文件；`verify:theme-colors` 通过。
+6. 静态检查：`ruff check` 与 `ruff format --check` 对 19 个触及的 Python 文件通过；`mypy`（`pyproject.toml` 的范围是 `app`）在本条改动的行上没有报错，所报的 `subagents.py:92`、`144`、`background_tasks/router.py:169`、`router_commands_modes.py:133-168` 都在未改动的行上。
+
+### 局限
+
+1. 有意不筛的入口：定时任务 `shell` 命令与看板 `shell` 验收标准（是被执行的命令，不是模型读的文本）、任务的 `result` / `blocked_reason`（是输出，不是指令）、语音实时通道、OpenAI 兼容的 `/v1/chat/completions`、偏好与档案文本；`_ARCH.md` 里记了原因。
+2. 只筛请求里带来的字段：库里已有的旧数据不被重新检查。
+3. 反斜杠转义的 JSON 赋值（`{\"password\":\"…\"}`）仍不被拦，与 `BUG-AGENT-2026-10-15-004` 的局限 7 相同；长度超过 64 个字符的赋值值同样不拦（该条局限 1），本条没有改规则。
+4. 5 MB 以上的无害粘贴现在不再被误拦，但总耗时随长度线性增长（20 MB 约 5 秒，在工作线程上）；单条规则超过预算仍按命中处理，回溯型自定义规则只会被拦、不会卡住循环。
+5. 调用方自己的 `catch` 里仍可能再弹一条通用失败提示（现有模式，未逐个核对每个调用点）；没有在真实浏览器与真实 IM 平台里端到端验证；`SubagentTree.tsx` 543 行，超过 500 行上限，是本条之前就有的，没有拆。
+6. 服务端引用了 harness 里尚未发布的 `secret_value_span` 与 `is_reference_token`（见 `BUG-AGENT-2026-10-15-004` 局限 6），发布 harness 并执行 `./myrm harness sync-lock` 之前 OSS 的锁定安装无法导入；发版由维护者执行。提示词没有改动。
+7. 上面第 3 条的 2 个失败测试属于他人的未提交改动或已提交代码里原有的问题，本条没有修。
+
+### 踩坑经验
+
+1. 一道闸门只能保证「接了它的入口」；要保证新入口，需要一张登记表加一条会失败的测试（AST 检查入口函数里有没有调用闸门），而不是靠记得。
+2. 一次请求里的多个字段要分别过闸，不要拼成一段：形如 `password = xxxxxx` 的规则会把相邻字段的词拼成一句话。
+3. 统一错误出口里的「严重度」会悄悄吞掉一类错误：字符串业务码被判为 `low` 就没有提示。新增一个有契约的拒绝（`code` + 规则列表），要用真实的 `apiRequest` 把一次 400 走到 toast，而不是只测组件。
+4. 失败即拦的时限要随输入规模缩放，并在「无害的大输入」上量一次：固定 0.25 秒把 5 MB 的普通日志整段当成命中；反过来，缩放预算要靠「真有密钥的长文本仍被拦、而且不是靠超时」来守住。
+5. 测事件循环有没有被占住，要在被测调用前后各让出一次：循环在同步匹配期间根本没有机会跑心跳，只在调用前后测会空转通过。
+6. 共享文件（`BUGFIX_LOG.md`、`_ARCH.md`、`router.py`）里有他人未提交的改动：只追加或只改自己的行，提交时用显式路径与「HEAD 加自己的块」的内容，不用 `git add -A`。

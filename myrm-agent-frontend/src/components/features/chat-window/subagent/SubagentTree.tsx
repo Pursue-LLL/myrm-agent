@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { fetchWithTimeout } from '@/lib/api';
+import { showRiskHeldRefusal } from '@/services/riskHeldToast';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { Button } from '@/components/primitives/button';
 import {
@@ -201,7 +202,9 @@ export const SubagentTreeNode = ({ node, chatId, setOpen, onOpenDetail }: TreeNo
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        toast.error(body.message || t('steerFailed'));
+        if (!showRiskHeldRefusal(body.detail)) {
+          toast.error(body.message || t('steerFailed'));
+        }
         return;
       }
       setSteerMessage('');

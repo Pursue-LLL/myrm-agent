@@ -12,7 +12,7 @@ Multi-agent execution tracking and visualization surfaces inside the chat window
 | `SubagentGantt.tsx`                    | Horizontal timeline and duration Gantt chart for parallel subagent tasks                                                         |
 | `SubagentInsightsView.tsx`             | Execution quality and performance insights breakdown (token consumption, duration, and error patterns)                           |
 | `SubagentStream.tsx`                   | Live stream timeline component rendering subagent progress, thinking steps, and tool execution items                             |
-| `SubagentTree.tsx`                     | Hierarchical tree view displaying parent-child subagent delegations and execution statuses                                       |
+| `SubagentTree.tsx`                     | Hierarchical tree view displaying parent-child subagent delegations and execution statuses; a steer refused by the risk gate (`risk_held`) is shown through the shared localized notice, not a raw error                                       |
 | `SubagentViewportTab.tsx`              | Sandboxed browser live peek panel and terminal snapshot view with full-screen zoom and click-to-control desktop takeover         |
 
 ## Dependencies

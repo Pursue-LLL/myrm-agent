@@ -2,30 +2,27 @@
  * [INPUT]
  * - @/lib/deploy-mode::getApiBaseUrl (POS: 前端部署模式与基础地址解析层)
  * - @/lib/utils/backend-url::BACKEND_BASE_URL, createDynamicUrl (POS: 后端服务基础地址层)
+ * - @/services/riskHeldToast::showRiskHeldRefusal (POS: 被风控规则拦下的文字的统一提示)
  *
  * [OUTPUT]
  * - API_BASE_URL: 规范化的 API 基础地址。
  * - BACKEND_BASE_URL: 规范化的后端基础地址。
  * - getApiUrl / getWsUrl / getStorageUrl: 统一 URL 拼接工具（getWsUrl 动态读取 getApiBaseUrl 以支持 sandbox 部署）。
- * - fetchWithTimeout / apiRequest: 前端统一请求入口（local gate + `BACKEND_UNREACHABLE`；relay UI locale via `Accept-Language`；运输失败后 `markLocalBackendUnreachable` 失效缓存；`fetchWithTimeout` 为直连调用 SSOT；401/403 强登出拦截）
+ * - fetchWithTimeout / apiRequest: 前端统一请求入口（local gate + `BACKEND_UNREACHABLE`；relay UI locale via `Accept-Language`；运输失败后 `markLocalBackendUnreachable` 失效缓存；`fetchWithTimeout` 为直连调用 SSOT；401/403 强登出拦截；错误 toast 对 `risk_held` 拒绝改用本地化的风控提示）
  *
  * [POS]
  * 前端 API 接入层。统一封装请求基址、超时、错误归一化、存储 URL 拼接以及安全拦截（全局强登出），避免脏配置污染请求链路。
  */
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { ensureLocalBackendReady, markLocalBackendUnreachable } from '@/lib/backend-health';
-import {
-  getApiBaseUrl,
-  isLocalMode,
-  resolveE2eApiBase,
-  shouldRedirectToLoginOnAuthFailure,
-} from '@/lib/deploy-mode';
+import { getApiBaseUrl, isLocalMode, resolveE2eApiBase, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import { BACKEND_BASE_URL, createDynamicUrl } from '@/lib/utils/backend-url';
 import { BACKEND_UNREACHABLE_CODE, resolveBackendUnreachableMessage } from '@/lib/local-backend-dev';
 import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
 import { toast } from '@/lib/utils/toast';
 import { translateI18nKey } from '@/services/i18nToastService';
+import { showRiskHeldRefusal } from '@/services/riskHeldToast';
 import { redactErrorMessage } from '@/lib/utils/error-handling';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
 
@@ -596,6 +593,11 @@ const ALWAYS_SHOW_ERROR: ErrorDedupGate = {
 
 function displayApiErrorToast(error: unknown, duration: number | undefined, dedupGate: ErrorDedupGate): void {
   if (error instanceof ApiError) {
+    // A held text is refused every time the user sends it, so its notice is never deduplicated.
+    if (showRiskHeldRefusal(error.data)) {
+      return;
+    }
+
     if (!dedupGate.shouldShow(error)) {
       return;
     }

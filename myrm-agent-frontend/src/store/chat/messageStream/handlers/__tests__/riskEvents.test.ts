@@ -88,35 +88,4 @@ describe('riskEvents', () => {
       duration: 10_000,
     });
   });
-
-  it('keeps the own name of a custom rule, lists each rule once and names at most three', async () => {
-    const { ctx } = createCtx(AgentEventType.RISK_BLOCKED, {
-      rules: [
-        rule('my_rule', 'Project Falcon'),
-        rule('my_rule', 'Project Falcon'),
-        rule('private_key_marker', 'Private key material'),
-        rule('jwt_token_like', 'JWT token'),
-        rule('env_file_secret', 'Environment secret variable'),
-      ],
-    });
-
-    await riskEvents(ctx);
-
-    const [, options] = toastMock.error.mock.calls[0] as [string, { description: string }];
-    expect(options.description.startsWith('Matched: Project Falcon / ')).toBe(true);
-    expect(options.description.split(' / ')).toHaveLength(3);
-  });
-
-  it('keeps the own name of a custom rule whose id is an Object member, whatever the translator says', async () => {
-    const lookup = translatorFor(en as Messages);
-    setGlobalTranslator(
-      Object.assign((key: string, values?: Record<string, unknown>) => lookup(key, values), { has: () => true }),
-    );
-    const { ctx } = createCtx(AgentEventType.RISK_BLOCKED, { rules: [rule('constructor', 'Project Falcon')] });
-
-    await riskEvents(ctx);
-
-    const [, options] = toastMock.error.mock.calls[0] as [string, { description: string }];
-    expect(options.description.startsWith('Matched: Project Falcon.')).toBe(true);
-  });
 });
