@@ -17,9 +17,9 @@ import {
   Video,
 } from 'lucide-react';
 import { WorkflowRecorderModal } from './WorkflowRecorderModal';
+import CuratorNumberInput from './CuratorNumberInput';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
-import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
@@ -61,6 +61,7 @@ function formatRelativeTime(isoTimestamp: string): string {
 const CuratorSettingsPanel = memo(
   ({ className, onSweepComplete }: { className?: string; onSweepComplete?: () => void }) => {
     const t = useTranslations('settings.skills.curator');
+    const tCommon = useTranslations('common');
     const [config, setConfig] = useState<CuratorConfigResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isRunning, setIsRunning] = useState(false);
@@ -407,11 +408,10 @@ const CuratorSettingsPanel = memo(
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs">{t('staleAfterDays')}</Label>
-                  <Input
-                    type="number"
+                  <CuratorNumberInput
                     min={1}
                     value={config.stale_after_days}
-                    onChange={(e) => updateField('stale_after_days', Number(e.target.value))}
+                    onCommit={(v) => updateField('stale_after_days', v)}
                     className="h-8"
                   />
                   <p className="text-[11px] text-muted-foreground">{t('staleAfterDaysDesc')}</p>
@@ -419,11 +419,10 @@ const CuratorSettingsPanel = memo(
 
                 <div className="space-y-1.5">
                   <Label className="text-xs">{t('archiveAfterDays')}</Label>
-                  <Input
-                    type="number"
+                  <CuratorNumberInput
                     min={1}
                     value={config.archive_after_days}
-                    onChange={(e) => updateField('archive_after_days', Number(e.target.value))}
+                    onCommit={(v) => updateField('archive_after_days', v)}
                     className="h-8"
                   />
                   <p className="text-[11px] text-muted-foreground">{t('archiveAfterDaysDesc')}</p>
@@ -431,11 +430,10 @@ const CuratorSettingsPanel = memo(
 
                 <div className="space-y-1.5">
                   <Label className="text-xs">{t('gracePeriodDays')}</Label>
-                  <Input
-                    type="number"
+                  <CuratorNumberInput
                     min={0}
                     value={config.grace_period_days}
-                    onChange={(e) => updateField('grace_period_days', Number(e.target.value))}
+                    onCommit={(v) => updateField('grace_period_days', v)}
                     className="h-8"
                   />
                   <p className="text-[11px] text-muted-foreground">{t('gracePeriodDaysDesc')}</p>
@@ -443,22 +441,20 @@ const CuratorSettingsPanel = memo(
 
                 <div className="space-y-1.5">
                   <Label className="text-xs">{t('intervalHours')}</Label>
-                  <Input
-                    type="number"
+                  <CuratorNumberInput
                     min={1}
                     value={config.interval_hours}
-                    onChange={(e) => updateField('interval_hours', Number(e.target.value))}
+                    onCommit={(v) => updateField('interval_hours', v)}
                     className="h-8"
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <Label className="text-xs">{t('maxSkills')}</Label>
-                  <Input
-                    type="number"
+                  <CuratorNumberInput
                     min={5}
                     value={config.max_skills}
-                    onChange={(e) => updateField('max_skills', Number(e.target.value))}
+                    onCommit={(v) => updateField('max_skills', v)}
                     className="h-8"
                   />
                   <p className="text-[11px] text-muted-foreground">{t('maxSkillsDesc')}</p>
@@ -477,11 +473,6 @@ const CuratorSettingsPanel = memo(
               </div>
 
               <div className="flex items-center gap-2 pt-2">
-                {isDirty && (
-                  <Button size="sm" onClick={handleSave}>
-                    {t('save')}
-                  </Button>
-                )}
                 <Button variant="outline" size="sm" onClick={handleRunNow} disabled={isRunning} className="gap-1.5">
                   {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
                   {isRunning ? t('running') : t('runNow')}
@@ -578,25 +569,23 @@ const CuratorSettingsPanel = memo(
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs">{t('consolidation.minClusterSize')}</Label>
-                    <Input
-                      type="number"
+                    <CuratorNumberInput
                       min={2}
                       max={10}
                       value={config.consolidation_min_cluster_size}
-                      onChange={(e) => updateField('consolidation_min_cluster_size', Number(e.target.value))}
+                      onCommit={(v) => updateField('consolidation_min_cluster_size', v)}
                       className="h-8"
                     />
                     <p className="text-[11px] text-muted-foreground">{t('consolidation.minClusterSizeDesc')}</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">{t('consolidation.similarityThreshold')}</Label>
-                    <Input
-                      type="number"
+                    <CuratorNumberInput
                       min={0.5}
                       max={0.95}
                       step={0.05}
                       value={config.consolidation_similarity_threshold}
-                      onChange={(e) => updateField('consolidation_similarity_threshold', Number(e.target.value))}
+                      onCommit={(v) => updateField('consolidation_similarity_threshold', v)}
                       className="h-8"
                     />
                     <p className="text-[11px] text-muted-foreground">{t('consolidation.similarityThresholdDesc')}</p>
@@ -604,11 +593,6 @@ const CuratorSettingsPanel = memo(
                 </div>
 
                 <div className="flex items-center gap-2 pt-1">
-                  {isDirty && (
-                    <Button size="sm" onClick={handleSave}>
-                      {t('save')}
-                    </Button>
-                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -656,7 +640,7 @@ const CuratorSettingsPanel = memo(
                       title={t('consolidation.confirmTitle')}
                       description={t('consolidation.confirmDesc', { count: preview.total_skills_affected })}
                       confirmText={t('consolidation.execute')}
-                      cancelText={t('save')}
+                      cancelText={tCommon('cancel')}
                       variant="warning"
                       onConfirm={handleExecute}
                       trigger={
@@ -671,6 +655,14 @@ const CuratorSettingsPanel = memo(
               </div>
             )}
           </div>
+
+          {isDirty && (
+            <div className="sticky bottom-0 z-10 flex justify-end border-t bg-card/95 py-3 backdrop-blur">
+              <Button size="sm" onClick={handleSave}>
+                {t('save')}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );

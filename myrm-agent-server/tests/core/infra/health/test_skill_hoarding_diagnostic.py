@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.backends.skills.forgetting_strategy import CuratorConfig
+from myrm_agent_harness.backends.skills.curator_config import CuratorConfig
 from myrm_agent_harness.backends.skills.types import (
     SkillLifecycleStatus,
     SkillTrust,

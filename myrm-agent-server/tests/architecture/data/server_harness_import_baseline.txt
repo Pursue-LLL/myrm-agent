@@ -201,6 +201,7 @@ myrm_agent_harness.backends.skills
 myrm_agent_harness.backends.skills.config_version
 myrm_agent_harness.backends.skills.creation_protocols
 myrm_agent_harness.backends.skills.credential_checker
+myrm_agent_harness.backends.skills.curator_config
 myrm_agent_harness.backends.skills.decorators.version_aware
 myrm_agent_harness.backends.skills.forgetting_strategy
 myrm_agent_harness.backends.skills.local

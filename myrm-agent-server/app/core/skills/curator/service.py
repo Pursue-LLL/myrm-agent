@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.skills.curator::SkillCurator (POS: Stateless curator engine)
-- myrm_agent_harness.backends.skills.forgetting_strategy::CuratorConfig (POS: Curator configuration)
+- myrm_agent_harness.backends.skills.curator_config::CuratorConfig (POS: Curator configuration with construction-time range validation)
 - myrm_agent_harness.backends.skills.stats_collector::SkillStatsCollector (POS: Usage stats collector)
 - myrm_agent_harness.backends.skills.local::LocalSkillBackend (POS: Local skill backend)
 - app.core.skills.models::DEFAULT_LOCAL_SKILL_PATHS (POS: Skill models and paths)
@@ -35,10 +35,8 @@ from pathlib import Path
 from typing import Literal
 
 from myrm_agent_harness.agent.skills.curator import CuratorRunResult, SkillCurator
-from myrm_agent_harness.backends.skills.forgetting_strategy import (
-    CuratorConfig,
-    evaluate_skill_health_findings,
-)
+from myrm_agent_harness.backends.skills.curator_config import CuratorConfig
+from myrm_agent_harness.backends.skills.forgetting_strategy import evaluate_skill_health_findings
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 
@@ -109,7 +107,12 @@ def get_curator_config() -> CuratorConfig:
 
 
 def update_curator_config(updates: dict[str, object]) -> CuratorConfig:
-    """Update curator config with partial updates and persist."""
+    """Update curator config with partial updates and persist.
+
+    Raises:
+        ValueError: A merged value is outside the range ``CuratorConfig`` accepts; the
+            cached and the stored config are left untouched.
+    """
     global _curator_config
     current = get_curator_config()
     current_dict = current.to_dict()

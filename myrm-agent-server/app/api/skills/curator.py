@@ -180,7 +180,10 @@ async def update_curator_config(
     """Update curator configuration (partial update)."""
     from app.core.skills.curator.service import update_curator_config
 
-    config = update_curator_config(request.model_dump(exclude_none=True))
+    try:
+        config = update_curator_config(request.model_dump(exclude_none=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return CuratorConfigResponse(
         enabled=config.enabled,
         interval_hours=config.interval_hours,
@@ -241,7 +244,7 @@ async def get_curator_history(limit: int = 10) -> list[CuratorHistoryEntry]:
     from app.core.skills.curator.service import get_curator_history
 
     entries = get_curator_history(limit=limit)
-    return [CuratorHistoryEntry(**e) for e in entries]
+    return [CuratorHistoryEntry.model_validate(e) for e in entries]
 
 
 # ========== Consolidation (Umbrella Merge) ==========
@@ -305,7 +308,7 @@ async def consolidation_execute() -> ConsolidationExecuteResponse:
     from app.core.skills.curator.consolidation import run_consolidation_execute
 
     result = await run_consolidation_execute()
-    return result
+    return ConsolidationExecuteResponse.model_validate(result)
 
 
 class SkillDoctorFindingItem(BaseModel):
