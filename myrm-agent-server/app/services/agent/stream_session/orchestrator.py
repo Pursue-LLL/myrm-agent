@@ -140,11 +140,14 @@ async def run_agent_stream(
     text_content = stream_text_content(request)
 
     # The risk gate reads what the user typed: the spill below replaces a long paste with a stub that hides its contents.
+    # The regeneration guidance is typed too and becomes a system-level instruction, so it is screened on its own; it
+    # stays out of text_content, which the spill and the size check below read and may write back into the query.
     if request.resume_value is None:
-        risk_block = await check_stream_risk(text_content, request.chat_id)
-        if risk_block is not None:
-            await _record_terminal_failure_if_needed("server_error")
-            return risk_block
+        for typed in (text_content, request.regenerate_instruction):
+            risk_block = await check_stream_risk(typed, request.chat_id)
+            if risk_block is not None:
+                await _record_terminal_failure_if_needed("server_error")
+                return risk_block
 
     # Context Guard Ingress defense: transparently spill oversized prompts to sandbox workspace
     try:

@@ -29,7 +29,7 @@ Kanban 看板 REST API：Board/Task CRUD、状态迁移、依赖边、Specify/De
 | Bulk | `POST /boards/{id}/tasks/bulk-action`（move/archive/reassign/delete，单次 `task_ids` 1–100 个、前端按每段 25 个顺序发送，逐条返回结果、允许部分成功；move 不接受 force——依赖未满足的任务在自己那一行失败，强制晋升只存在于单任务 move 接口；reclaim 会中止运行中的 agent，只提供单任务入口） |
 | Meta | runs/events/comments/diagnostics；board/task 依赖边 CRUD |
 | Specify | `POST /tasks/{id}/specify`；`.../apply-spec`；`POST /boards/{id}/specify-all` |
-| Decompose | `POST /tasks/{id}/decompose`；`.../apply-decompose` |
+| Decompose | `POST /tasks/{id}/decompose`；`.../apply-decompose`（扇出时子任务标题过风控闸门，与 `create_task` 一致，被拦返回 400 `risk_held`、不建任何子任务；正文是模型生成、界面只读，不过闸） |
 | Race | `GET /boards/{id}/tasks/{task}/race/estimate?lanes=N`；`POST .../race`（2-5 lane，需 `confirm_cost`）；`GET .../race`（lane 状态+token）；`POST .../race/decide`（winner 合并+loser 归档）；`GET .../race/winner` |
 | Pipeline | `GET /pipelines`；`GET /pipelines/{skill_id}`；`POST /boards/{id}/pipeline/instantiate` |
 
@@ -38,4 +38,5 @@ Kanban 看板 REST API：Board/Task CRUD、状态迁移、依赖边、Specify/De
 - `app.services.kanban.KanbanService` — 业务编排
 - `app.services.kanban.diagnostics` — 任务诊断引擎
 - `app.services.kanban.pipeline.instantiator` — Pipeline 确定性实例化
+- `app.services.risk.refusal` — 任务标题 / 描述 / 评论 / 结果 / 驳回与回收理由 / 拆解子任务标题的风控拒绝
 - `myrm_agent_harness.toolkits.kanban.types` — 域类型与状态枚举

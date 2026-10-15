@@ -8,6 +8,11 @@ an entry or an exemption with the reason its text is not one an agent is going t
 (no frontend path literal, even one with a dynamic segment such as ``/agents/chats/${id}/${kind}``, and no registered
 external consumer) has no user typing into it: the route-consumer gate demands that it be deleted or given a caller, and
 the endpoint is scanned from the moment it has one.
+
+The scan reads the field names in ``_INSTRUCTION_FIELDS``; a text under another name (a kanban ``body``, a ``reason``)
+is not found and is registered by hand. Outside the gate by design are the OpenAI-compatible ``/v1`` endpoints, whose
+callers are API-key programs with no one to read a refusal or switch a rule off, and the voice paths, which feed
+speech-to-text rather than typed text; both call ``ai_agent_service_stream`` directly.
 """
 
 from __future__ import annotations
@@ -53,6 +58,10 @@ _ENTRIES: tuple[tuple[str, str, str], ...] = (
     ("api/agents/ai_build.py", "ai_build", "reject_if_risky"),
     ("api/batch_directory/router.py", "create_project", "reject_if_risky"),
     ("api/skills/evolution/derive.py", "derive_skill", "reject_if_risky"),
+    ("api/chats/chat/turn.py", "regenerate_last_turn", "reject_if_risky"),
+    ("api/chats/chat/copilot.py", "advisor_ask", "reject_if_risky"),
+    ("api/wiki/router.py", "query_wiki", "reject_if_risky"),
+    ("api/kanban/routes/specify.py", "apply_decompose", "reject_if_risky"),
     ("core/cron/adapters/inbound_event_dispatch.py", "dispatch_cron_event_for_inbound_message", "screen_user_text"),
     ("channels/routing/router.py", "_consume_loop", "hold_risky_inbound"),
     ("channels/routing/router.py", "_dispatch_resolved", "hold_risky_inbound"),
@@ -68,22 +77,30 @@ _WRAPPERS: tuple[tuple[str, str], ...] = (
 )
 _SCREEN = "screen_user_text"
 
+_FAQ_REASON = "a canned Q&A pair answered from cache by the zero-LLM FAQ interceptor before any agent runs"
+
 # Request fields whose text a model goes on to follow. A write endpoint that carries one is an entry above or is listed
 # here with the reason its text is not for an agent to follow (file under app/, function) -> reason.
-_INSTRUCTION_FIELDS = frozenset({"prompt", "instruction", "intent", "objective", "goal"})
+_INSTRUCTION_FIELDS = frozenset({"prompt", "instruction", "intent", "objective", "goal", "message", "question"})
 _EXEMPT: dict[tuple[str, str], str] = {
     (
         "api/channels/bitable_copilot_router.py",
         "wrangle_table_data",
     ): "the engine rewrites cells by deterministic rules; no model reads the instruction",
     (
-        "api/chats/chat/turn.py",
-        "regenerate_last_turn",
-    ): "echoes the instruction back; the client sends it as a chat turn, which run_agent_stream screens",
+        "api/cron/routes/triggers.py",
+        "dispatch_event",
+    ): (
+        "an authenticated machine call with no sender, left unchecked on purpose (channels/routing/_ARCH.md); "
+        "the IM path into the same dispatch is screened first"
+    ),
     (
         "api/cron/routes/prerequisite.py",
         "check_prerequisite",
     ): "uses the prompt only as a lookup key to count earlier successful runs; nothing stores or sends it",
+    ("api/faq/router.py", "create_entry"): _FAQ_REASON,
+    ("api/faq/router.py", "update_entry"): _FAQ_REASON,
+    ("api/faq/router.py", "bulk_import"): _FAQ_REASON,
     ("api/media/batch_routes.py", "create_batch_job"): "prompts for an image generator, not instructions an agent follows",
     (
         "api/skills/desktop_recorder/router.py",

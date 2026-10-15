@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type React from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 const queryWikiMock = vi.fn();
 const listAgentsMock = vi.fn();
@@ -277,6 +277,7 @@ vi.mock('@/components/primitives/select', () => ({
 
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api';
+import { RiskHeldRefusalError } from '@/services/riskHeldToast';
 import type { WikiMaintainResponse, WikiMaintainStatus } from '@/services/wikiService';
 import { WikiSection } from '../WikiSection';
 import { MAINTAIN_FIRST_POLL_DELAY_MS, MAINTAIN_POLL_INTERVAL_MS } from '../useWikiMaintainRun';
@@ -371,6 +372,47 @@ describe('WikiSection evidence snippet flow', () => {
     expect(drawer.getAttribute('data-open')).toBe('1');
     expect(drawer.getAttribute('data-level')).toBe('L1');
     expect(drawer.getAttribute('data-surface')).toBe('settings');
+  });
+});
+
+describe('WikiSection query the server refuses', () => {
+  let consoleError: MockInstance<typeof console.error>;
+
+  beforeEach(() => {
+    resetWikiMocks();
+    consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
+  async function askWiki(question: string) {
+    render(<WikiSection />);
+    const queryInput = await screen.findByPlaceholderText('query.placeholder');
+    fireEvent.change(queryInput, { target: { value: question } });
+    fireEvent.click(screen.getByText('actions.query'));
+    await waitFor(() => expect(queryWikiMock).toHaveBeenCalledWith(question, 'auto', null));
+    return queryInput;
+  }
+
+  it('adds no failure toast of its own when a risk rule holds the question, and keeps the typed text', async () => {
+    queryWikiMock.mockRejectedValue(new RiskHeldRefusalError({ code: 'risk_held', rules: [] }));
+
+    const queryInput = await askWiki('use key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+
+    // The page logs the failure right before it decides on a toast, so the log marks the decision as made.
+    await waitFor(() => expect(consoleError).toHaveBeenCalledWith('Query failed:', expect.any(RiskHeldRefusalError)));
+    expect(toast.error).not.toHaveBeenCalledWith('errors.queryFailed');
+    expect((queryInput as HTMLInputElement).value).toBe('use key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+  });
+
+  it('still reports any other failure of the query', async () => {
+    queryWikiMock.mockRejectedValue(new Error('network down'));
+
+    await askWiki('where is policy?');
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('errors.queryFailed'));
   });
 });
 

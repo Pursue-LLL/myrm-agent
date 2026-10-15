@@ -16,6 +16,7 @@ from app.api.kanban.schemas import (
     SpecifyAllResponse,
     SpecifyOutcomeResponse,
 )
+from app.services.risk.refusal import reject_if_risky
 
 # ---------------------------------------------------------------------------
 # Specify (TRIAGE → spec rewrite) endpoints
@@ -196,6 +197,10 @@ async def apply_decompose(
             completion_tokens=body.completion_tokens,
         )
         return _decompose_to_response(outcome)
+
+    # Titles are the one part of the preview a user edits, and create_task refuses the same field; the bodies are
+    # the model's text, read-only in the dialog, which the user could not edit to get past a refusal.
+    await reject_if_risky(*(child.title for child in body.children), session_id=task_id)
 
     from myrm_agent_harness.toolkits.kanban.protocols import DecomposeChildSpec
 

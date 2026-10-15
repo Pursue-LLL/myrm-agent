@@ -2,6 +2,7 @@
  * [INPUT]
  * @/lib/api::apiRequest,ApiError (POS: 前端统一请求入口)
  * @/services/wikiService::wikiService,buildWikiApiPath (POS: Frontend Wiki API client)
+ * @/services/riskHeldToast::isRiskHeldError (POS: 被风控规则拦下的提问已有统一提示，失败提示据此跳过)
  * @/components/features/settings/sections/knowledge/wiki/WikiRawSourceTree::WikiRawSourceTree (POS: Wiki raw source file tree component)
  *
  * [OUTPUT]
@@ -55,6 +56,7 @@ import {
   recordWikiQuerySubmitted,
 } from '@/services/wiki/evidenceMetrics';
 import { resolveWikiSectionLabel } from '@/services/wiki/sectionLabels';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import SourceChunkDrawer from '@/components/features/message-box/SourceChunkDrawer';
@@ -944,7 +946,9 @@ export function WikiSection() {
       toast.success(t('success.queryComplete'));
     } catch (error) {
       console.error('Query failed:', error);
-      toast.error(t('errors.queryFailed'));
+      if (!isRiskHeldError(error)) {
+        toast.error(t('errors.queryFailed'));
+      }
     } finally {
       setIsQuerying(false);
     }

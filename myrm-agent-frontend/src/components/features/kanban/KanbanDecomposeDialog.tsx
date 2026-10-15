@@ -5,6 +5,7 @@
  *
  * [INPUT]
  * - @/services/kanban::decomposeTask, applyDecompose
+ * - @/services/riskHeldToast::isRiskHeldError (POS: 被风控规则拦下的标题已有统一提示，失败提示据此跳过)
  *
  * [OUTPUT]
  * - Default export <KanbanDecomposeDialog /> — controlled modal.
@@ -30,6 +31,7 @@ import {
 } from '@/components/primitives/dialog';
 import type { DecomposeChildSpec, DecomposeOutcome, KanbanTask } from '@/services/kanban';
 import { applyDecompose, decomposeTask } from '@/services/kanban';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 
 interface KanbanDecomposeDialogProps {
   task: KanbanTask | null;
@@ -111,8 +113,10 @@ export default function KanbanDecomposeDialog({ task, open, onOpenChange, onAppl
       } else {
         toast.error(t('decomposeFailed', { reason: result.reason || '' }));
       }
-    } catch {
-      toast.error(t('decomposeError'));
+    } catch (error) {
+      if (!isRiskHeldError(error)) {
+        toast.error(t('decomposeError'));
+      }
     } finally {
       setApplying(false);
     }

@@ -20,7 +20,6 @@ from myrm_agent_harness.toolkits.kanban.protocols import (
     DecomposeOutcome,
     SpecifyOutcome,
 )
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
 from app.services.kanban.decompose import (
     run_apply_decompose,
@@ -116,28 +115,6 @@ class KanbanAiWorkflowMixin(KanbanServiceCore):
         completion_tokens: int | None = None,
         author: str = "decomposer",
     ) -> DecomposeOutcome:
-        async def _add_task(
-            board_id: str,
-            title: str,
-            description: str,
-            *,
-            agent_id: str | None,
-            parent_task_id: str | None,
-            depends_on: list[str] | None,
-            extra_skill_ids: list[str] | None = None,
-            metadata_patch: dict[str, object] | None = None,
-        ) -> KanbanTask:
-            return await self.add_task(
-                board_id=board_id,
-                title=title,
-                description=description,
-                agent_id=agent_id,
-                parent_task_id=parent_task_id,
-                depends_on=depends_on,
-                extra_skill_ids=extra_skill_ids,
-                metadata_patch=metadata_patch,
-            )
-
         return await run_apply_decompose(
             task_id,
             children=children,
@@ -145,7 +122,7 @@ class KanbanAiWorkflowMixin(KanbanServiceCore):
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             store=self._store,
-            add_task_fn=_add_task,
+            add_task_fn=self.add_task,
             wake_dispatcher=self._wake_dispatcher,
             publish_event=_publish_kanban_event,
             author=author,

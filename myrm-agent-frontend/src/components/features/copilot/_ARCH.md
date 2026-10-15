@@ -9,7 +9,7 @@ Lean Co-Pilot v1：Run Observer（确定性 run digest）+ Session Advisor（旁
 | 文件                      | 地位 | 职责                                                               | I/O/P |
 | ------------------------- | ---- | ------------------------------------------------------------------ | ----- |
 | `RunStatusChip.tsx`       | 组件 | 主对话顶栏运行状态 chip：步骤摘要、展开 recent steps、打开 Advisor | ✅    |
-| `SessionAdvisorPanel.tsx` | 组件 | 右侧 Sheet 旁路问答；Tier-0/1 由 server `advisor_service` 决定     | ✅    |
+| `SessionAdvisorPanel.tsx` | 组件 | 右侧 Sheet 旁路问答；Tier-0/1 由 server `advisor_service` 决定；提问被风控拦下或失败时把原文放回输入框 | ✅    |
 
 ## 依赖
 

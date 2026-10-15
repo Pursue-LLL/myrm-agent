@@ -24,7 +24,7 @@ from app.services.risk.refusal import risk_rules_payload
 
 
 async def check_stream_risk(
-    text: str,
+    text: str | None,
     chat_id: str | None,
 ) -> StreamingResponse | None:
     """Run risk detection on user input before processing.

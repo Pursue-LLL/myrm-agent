@@ -9,6 +9,7 @@ app.services.wiki.health_report_service::WikiHealthReportResponse (POS: 仅服�
 langchain_core.language_models::BaseChatModel (POS: LangChain LLM 基类)
 myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Artifact 存储金库，ingest 端点延迟导入)
 app.database.models.artifact::Artifact (POS: Artifact 数据库模型，ingest 端点延迟导入)
+app.services.risk.refusal::reject_if_risky (POS: 拒绝被风控规则拦下的 wiki 提问，先于任何检索与模型调用)
 
 [OUTPUT]
 router: Wiki API 路由器（完整增删改查、后台队列审核、批量导入、artifact 内容写入接口）
@@ -49,6 +50,7 @@ from app.api.dependencies import get_optional_llm_for_user
 from app.api.memory.utils import get_optional_memory_manager
 from app.channels.types import VoiceConfig
 from app.services.meeting_notes.service import process_meeting_audio
+from app.services.risk.refusal import reject_if_risky
 from app.services.wiki import MemoryToWikiArchiver
 from app.services.wiki.health_report_service import WikiHealthReportResponse
 
@@ -635,6 +637,8 @@ async def query_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
     agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiQueryResponse:
+    # Outside the try below, which turns every exception, the 400 refusal included, into a 500.
+    await reject_if_risky(request.question, session_id=agent_id)
     try:
         from app.services.wiki.knowledge_query_service import (
             execute_wiki_knowledge_query,
