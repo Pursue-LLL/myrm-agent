@@ -3921,9 +3921,9 @@ except Exception:
 | 发现日期 | 2026-10-15 |
 | 修复日期 | 2026-10-15 |
 | 严重程度 | P2（大仓库上批量处理带分支的任务时，界面可能先报超时而服务端继续跑完，用户以为失败；不丢数据） |
-| 影响范围 | server：`app/services/kanban/worktree_ops.py`、`move_orchestrator.py`、`kanban/_ARCH.md`、`tests/services/kanban/test_move_task_worktree_ops.py`（新）；frontend：`services/kanban.ts`、`components/features/kanban/kanban-bulk.ts`、`useKanbanDnD.ts`、`_ARCH.md`、三个测试文件 |
+| 影响范围 | server：`app/services/kanban/worktree_ops.py`、`move_orchestrator.py`、`kanban/_ARCH.md`、`task_runner/_ARCH.md`、`tests/services/kanban/test_move_task_worktree_ops.py`（新）；frontend：`services/kanban.ts`、`components/features/kanban/kanban-bulk.ts`、`useKanbanDnD.ts`、`_ARCH.md`、三个测试文件 |
 | 出现次数 | 1（复核 `BUG-AGENT-2026-10-15-015` 的局限 2 时，在真实函数上量出来；临时仓库建在 `/tmp`，量完删除，没有用户数据） |
-| 关联 | 更正 `BUG-AGENT-2026-10-15-015`（分段大小的依据）；`BUG-AGENT-2026-10-15-011` 局限 3；提交：server `593da8f0c9`、frontend `866d1c78fd`；`silent` 的前半截在 `8f82c4b722`、读屏层在 `87dbf8b969`；本地提交，未 push |
+| 关联 | 更正 `BUG-AGENT-2026-10-15-015`（分段大小的依据）；`BUG-AGENT-2026-10-15-011` 局限 3；提交：server `593da8f0c9`、`4c4420e1f9`（并发上限改放后台调用方、排队时被取消的合并也记事件）、frontend `866d1c78fd`、`91bd07a648`（措辞）；`silent` 的前半截在 `8f82c4b722`、读屏层在 `87dbf8b969`；本地提交，未 push |
 
 ### 现象
 
@@ -3932,6 +3932,7 @@ except Exception:
 3. 第一版后台化（每条各开一个后台任务，不限制同时数量），经真实路由（FastAPI 测试客户端、真实 worktree、1 万文件仓库）：25 条归档的请求耗时 2914ms；同一场景把后台工作整个去掉是 122ms。后台的 git 把发起它们的请求拖慢了 24 倍。第一轮用「绕过路由与数据库、直接调函数」的脚本量到 28.7ms（6 条），因为那个脚本的循环从不让出事件循环，量不出竞争。
 4. `bulkAction` 没有传 `silent`：批量请求失败时，`apiRequest` 的自动提示（服务端原始报错加一个只重放最后一段的「重试」按钮）叠在 `runBulkAction` 自己的汇总提示上。
 5. 批量拖拽的键盘播报只念被拾起那张卡的标题，而放下时选中的卡会一起移动。
+6. 第二版（并发上限放在 `cleanup_task_worktree` / `merge_task_worktree` 的共享包装里）复核时发现两个缺陷：派发器自己完成任务时调用的是同一个 `merge_task_worktree` 包装，它的合并也会排在批量清理后面，而它的下游已经被放行；合并在排队时被关机取消，不写任何事件，下游照样放行。两个都先用新增测试复现（红），再修。
 
 ### 根因
 
@@ -3941,9 +3942,9 @@ except Exception:
 
 ### 修复
 
-1. server：`move_task` 把带分支任务的合并与清理交给 `spawn_worktree_op`（登记到 harness 的 `track_background_task`，强引用并让优雅关闭等待；失败写日志而不是消失）。COMPLETED 的下游任务在合并之后才放行（`_merge_then_release_dependents`，放在 `finally` 里，合并抛错或被取消也放行，否则下游永远停在 BACKLOG），ARCHIVED 与无分支任务的下游仍立即放行。`cleanup_task_worktree` / `merge_task_worktree` 里同时在途的 runner 调用上限为 2（每个事件循环一个信号量）。顺手去掉 `worktree_ops.py` 里两处多余的 `type: ignore`，并把 `MERGE_CONFLICT` 载荷标成 `dict[str, object]`。
+1. server：`move_task` 把带分支任务的合并与清理交给 `spawn_worktree_op`（登记到 harness 的 `track_background_task`，强引用并让优雅关闭等待；失败写日志而不是消失）。COMPLETED 的下游任务在合并之后才放行（`_merge_then_release_dependents`，放在 `finally` 里，合并抛错或被取消也放行，否则下游永远停在 BACKLOG），ARCHIVED 与无分支任务的下游仍立即放行。`move_task` 起的后台合并 / 清理先拿 `git_slot()`（同时跑 git 的上限 2，每个事件循环一个信号量）；`cleanup_task_worktree` / `merge_task_worktree` 的共享包装本身不限流，派发器自己的合并因此不会排在批量清理后面。合并在拿到槽位之前被关机取消时，经 `record_merge_failure` 追加 `MERGE_CONFLICT` 事件（原有的两个失败位置共用同一个函数），下游照常放行。顺手去掉 `worktree_ops.py` 里两处多余的 `type: ignore`，并把 `MERGE_CONFLICT` 载荷标成 `dict[str, object]`。
 2. frontend：`BULK_CHUNK_SIZE` 25→100（服务端上限）；`bulkAction` 传 `silent: true`；批量拖拽的拾起 / 悬停 / 放下播报在被拖的卡属于多选时，附上已有的 `kanban.bulkSelected`（没有新增文案）。
-3. 文档：两份 `_ARCH.md` 的对应行。
+3. 文档：三份 `_ARCH.md`（server 两份、frontend 一份）的对应行。
 
 ### 验证
 
@@ -3953,19 +3954,23 @@ except Exception:
    |------|------|------|
    | 25 条归档，无并发上限（第一版） | 2914ms | 17.7 秒 |
    | 25 条归档，后台工作整个去掉（对照） | 122ms | 不适用 |
-   | 25 条归档，上限 2 | 247ms（单独一轮）、278ms（最终代码） | 15.2 秒、16.4 秒 |
-   | 15 条移到「已完成」，最终代码 | 111ms | 20.8 秒；15 个合并提交，无残留 worktree |
+   | 25 条归档，上限 2（上限还在共享包装里的版本） | 247ms（单独一轮）、278ms | 15.2 秒、16.4 秒 |
+   | 100 条归档，最终代码（3 次独立运行） | 7006ms、1016ms、672ms | 86.2 秒、85.2 秒、101.2 秒 |
+   | 100 条归档，后台工作整个去掉（对照，2 次） | 434ms、511ms | 不适用 |
+   | 15 条移到「已完成」，最终代码 | 165ms | 39.6 秒；15 个合并提交，无残留 worktree（上限还在共享包装里的版本：111ms、20.8 秒） |
 
-2. server 测试：新增 `test_move_task_worktree_ops.py` 9 例（完成时请求先于合并返回且合并后才放行下游、合并抛错写 `MERGE_CONFLICT` 并放行、关闭时被取消仍放行、归档先返回再清理且立即放行、无分支同步放行且不碰 runner、后台失败写日志、排队的操作每次只跑上限那么多且全部完成、真实 git 的完成与归档各一例）。对实现做了 8 种变异，全部被预期的测试杀掉（改坏的位置没有在这里逐一列出）；并发上限另做 5 种变异：清理不受限、合并不受限、每次新建信号量，3 种被杀；把上限改成 1 或 3 的 2 种没被杀，因为测试读的是同一个常量，验证的是「上限被执行」而不是「上限等于 2」，2 是按上表的对比挑的，没有扫过别的取值。`pytest tests/services/kanban tests/api/kanban`：691 通过、2 失败、1 跳过。2 个失败是 `test_move_with_result_and_metadata`（他人未提交的移交元数据改动，多出 `summary`、`timestamp` 字段）与 `test_extract_enabled_empty_pdf_falls_back_to_reference`（PDF 抽取，与本条无关），都没有在干净 HEAD 上复跑过。`ruff check`、`ruff format --check` 通过；pyright（`-p pyproject.toml`）对改动的三个文件 0 错误 0 警告；mypy strict 对 `worktree_ops.py` 还剩 1 个错误：`track_background_task` 被推成 `object` 而不可调用，来自 harness `api/__init__.py` 的 `__getattr__ -> object`，`app/ai_agents/general_agent/callbacks.py` 里同样的调用也有，没有在本条处理。
+   100 条那一行的三次请求耗时相差 10 倍：每次运行开始时的 1 分钟平均负载在 17.97～31.73（12 核，其他会话在跑测试；7006ms 那次没有记录开始时的负载，事后读到 28.64），7006ms 没有查明原因。真实运行与对照不在同一段负载下，只有相邻的两对可比：1016ms 对 434ms（2.3 倍）、672ms 对 511ms（1.3 倍），所以「后台工作让请求慢多少」没有稳定的数字。最差一次也在 30 秒超时线以内，但只有 4 倍余量。
+
+2. server 测试：新增 `test_move_task_worktree_ops.py` 11 例（完成时请求先于合并返回且合并后才放行下游、合并抛错写 `MERGE_CONFLICT` 并放行、关闭时被取消仍放行、合并在排队时被取消会写事件并放行、归档先返回再清理且立即放行、无分支同步放行且不碰 runner、排队的操作每次只跑上限那么多且全部完成、派发器起的合并不排在后台清理后面、后台失败写日志、真实 git 的完成与归档各一例）。对实现做了 10 种变异，全部被预期的测试杀掉：后台合并不拿槽位、后台清理不拿槽位、排队时被取消不记事件、合并已在运行时被取消也记事件、`started` 标记提前、吞掉取消、下游放行移出 `finally`、派发器用的合并也拿槽位、每次新建信号量（这 9 种由新测试杀掉），冲突列表不进事件（由 `tests/services/kanban` 目录杀掉）。没有做把上限改成 1 或 3 的变异：测试读的是同一个常量，验证的是「上限被执行」而不是「上限等于 2」，2 是按上表的对比挑的，没有扫过别的取值。`pytest tests/services/kanban tests/api/kanban`：693 通过、2 失败、1 跳过。2 个失败是 `test_move_with_result_and_metadata`（他人未提交的移交元数据改动，多出 `summary`、`timestamp` 字段）与 `test_extract_enabled_empty_pdf_falls_back_to_reference`（PDF 抽取，与本条无关），都没有在干净 HEAD 上复跑过。`ruff check`、`ruff format --check` 通过；pyright（`-p pyproject.toml`）对改动的三个文件 0 错误 0 警告；mypy strict 对 `worktree_ops.py` 还剩 1 个错误：`track_background_task` 被推成 `object` 而不可调用，来自 harness `api/__init__.py` 的 `__getattr__ -> object`，`app/ai_agents/general_agent/callbacks.py` 里同样的调用也有，没有在本条处理。
 3. frontend：kanban、`hooks/ui`、新增请求测试共 43 个文件 507 例通过；`kanban-bulk.test.ts` 改成由 `BULK_CHUNK_SIZE` 推导；对实现做了 4 种变异，全部被杀掉。oxlint、prettier（改动的 6 个源文件）通过；`check-theme-colors`、`check-icu-syntax` 通过；`check-hardcoded-copy` 失败只来自他人未提交的 `KanbanTaskHandoffSection.tsx`；`tsc --noEmit` 的 2 个错误都在他人的文件里（`KanbanTaskHandoffSection.test.tsx`、`useNeedsYouQueueStore.test.ts`）。kanban 的 `_ARCH.md` 在 HEAD 上本来就过不了 prettier（表格没对齐），没有动。
 
 ### 局限
 
-1. 服务端优雅关闭只等后台任务 30 秒（`app/server/shutdown.py` 的 `safe_wait_background_tasks`）。每条合并约 1.4 秒（上面 15 条共 20.8 秒），一次移上百条再关机会有合并来不及跑完：被取消的合并不写 `MERGE_CONFLICT` 事件（取消不是异常），下游已放行，worktree 与分支保留。没有为「排队中的合并被取消」写测试，也没有做关机时补记事件。
+1. 服务端优雅关闭只等后台任务 30 秒（`app/server/shutdown.py` 的 `safe_wait_background_tasks`），超时的任务被取消。每条合并约 1.4～2.6 秒（上面 15 条共 20.8～39.6 秒），一次移上百条再关机会有合并来不及跑完：还在排队的合并会记 `MERGE_CONFLICT` 事件并放行下游；已经在跑的合并被取消时不写事件（取消不是异常，它的 git 子进程也可能仍然跑完，不能断言没合上），下游已放行，worktree 与分支保留。
 2. 进程被强杀同理，且没有重启后的补偿：父任务已是「已完成」而分支没合并，下游若还在 BACKLOG 需要手动晋升。
 3. 行为变化：手动移到「已完成」后卡片立刻进入该列，合并却在后台排队；用户马上去看目标分支，可能还没有这次合并。界面没有「合并中」状态，冲突要等后台跑到才记事件。智能体自己完成任务的路径本来就是这样（`dispatcher_lifecycle.py` 的完成钩子）。
 4. 派发器自己完成任务的路径仍是先放行下游、合并在后台跑（`dispatcher.py` 的完成后放行，加 `dispatcher_lifecycle.py` 里的后台合并），没有改，也没有量过这个竞争在真实使用里多频繁。
-5. 上限 2 来自一次对比（无上限与 2）；上限 4 的那一轮结果在临时目录被其他会话清掉时丢了，没有重做。别的取值、别的机器（核数、磁盘）没有量过；耗时各只测 1 次，没有方差。最终代码没有在小仓库上经真实路由量过。
+5. 上限 2 来自一次对比（无上限与 2）；上限 4 的那一轮结果在临时目录被其他会话清掉时丢了，没有重做。别的取值、别的机器（核数、磁盘）没有量过；n=25 的耗时各只测 1 次；n=100 测了 3 次，波动见上表。最终代码没有在小仓库上经真实路由量过。
 6. 清理归档任务后分支仍保留（既有设计，`test_cleanup_removes_worktree_keeps_branch`）；一次归档几十条会留下几十个分支。
 7. 没有在真实浏览器里端到端走过：`silent` 只有单元测试（`apiRequest` 被模拟）；读屏播报只验证了 DOM 文本，没在真实读屏软件里听过。
 8. 没有遥测，不知道真实用户对带分支任务做批量操作有多频繁、仓库有多大；上表是 1 万文件仓库的结果。
@@ -3976,6 +3981,9 @@ except Exception:
 2. 把工作移出请求不是免费的：要同时限制它同时跑多少，否则它会和请求争同一台机器。
 3. 在 zsh 里 `path` 是绑定 `PATH` 的数组，在循环里把它当普通变量赋值会清空 `PATH`，之后所有命令都是 `command not found`；别用 `path` 做变量名。
 4. 放在 `/tmp` 固定目录里的临时脚本与日志会被其他会话的清理一起删掉；要留到最后的结果放自己的 `~/.cache` 子目录。
+5. 并发上限放进被多个调用方共用的包装里，会把另一类调用方（派发器自己的合并）也排进队列：限流放在发起后台批量工作的那一层，不放在共享函数里。
+6. 取消不是异常：`except Exception` 抓不到 `CancelledError`，排队中被取消的工作要单独 `except asyncio.CancelledError` 记录并重新抛出。
+7. 同一个性能数字要跑多次、与对照交替跑：n=100 的三次结果相差 10 倍，只看第一次（7006ms）会把噪声当结论。
 
 ---
 
