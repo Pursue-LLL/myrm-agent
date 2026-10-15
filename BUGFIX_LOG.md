@@ -3976,7 +3976,7 @@ except Exception:
 1. 服务端优雅关闭只等后台任务 30 秒（`app/server/shutdown.py` 的 `safe_wait_background_tasks`），超时的任务被取消。每条合并约 1.4～2.6 秒（上面 15 条共 20.8～39.6 秒），一次移上百条再关机会有合并来不及跑完：还在排队的合并会记 `MERGE_CONFLICT` 事件并放行下游；已经在跑的合并被取消时不写事件（取消不是异常，它的 git 子进程也可能仍然跑完，不能断言没合上），下游已放行，worktree 与分支保留。
 2. 进程被强杀同理，且没有重启后的补偿：父任务已是「已完成」而分支没合并，下游若还在 BACKLOG 需要手动晋升。
 3. 行为变化：手动移到「已完成」后卡片立刻进入该列，合并却在后台排队；用户马上去看目标分支，可能还没有这次合并。界面没有「合并中」状态，冲突要等后台跑到才记事件。智能体自己完成任务的路径本来就是这样（`dispatcher_lifecycle.py` 的完成钩子）。
-4. 派发器自己完成任务的路径仍是先放行下游、合并在后台跑（`dispatcher.py` 的完成后放行，加 `dispatcher_lifecycle.py` 里的后台合并），没有改，也没有量过这个竞争在真实使用里多频繁。
+4. 派发器自己完成任务的路径仍是先放行下游、合并在后台跑（`dispatcher.py` 的完成后放行，加 `dispatcher_lifecycle.py` 里的后台合并），没有改，也没有量过这个竞争在真实使用里多频繁。已在 `BUG-AGENT-2026-10-15-023` 处理：这个竞争在真实派发器与真实 git 上 17/17 次都发生，子任务现在会等父任务的合并落地。
 5. 上限 2 来自一次对比（无上限与 2）；上限 4 的那一轮结果在临时目录被其他会话清掉时丢了，没有重做。别的取值、别的机器（核数、磁盘）没有量过；n=25 的耗时各只测 1 次；n=100 测了 3 次，波动见上表。最终代码没有在小仓库上经真实路由量过。
 6. 清理归档任务后分支仍保留（既有设计，`test_cleanup_removes_worktree_keeps_branch`）；一次归档几十条会留下几十个分支。
 7. 没有在真实浏览器里端到端走过：`silent` 只有单元测试（`apiRequest` 被模拟）；读屏播报只验证了 DOM 文本，没在真实读屏软件里听过。
@@ -4176,3 +4176,59 @@ except Exception:
 4. 调用别人的 store 动作做静默刷新前，先读它的失败分支：`loadMessages` 在失败时会把 `isMessagesLoaded` 置回 false，并把对话截成最新一页，这对「后台悄悄对账」是错误的副作用。
 5. 合并两侧的行之前，先确认它们是不是同一种 id：流式 assistant 行的 `messageId` 是请求 id、落库行是 UUID（`store/chat/_ARCH.md` 的 `messageManagement.ts` 一行有明文记载，`persist_assistant_message_safe` 也没有传 `message_id`）。初版按 `messageId` 合并，会让每个已完成的回合在重连补同步后重复显示一次，而初版测试里两侧用了同一个 id，所以全绿；改用真实形状（user 以请求 id 落库、assistant 以 UUID 落库并带请求 id）的数据后，变异检查才暴露出来。测试数据的形状必须取自真实落库路径，不能自己编。
 6. 对 LangGraph 恢复语义不要凭记忆：回答之后的节点失败，手动回复只能重试、改不掉已记录的决定；提问节点自己失败，回放的是第一次答案。这两条决定了 `reopen` 能给用户的到底是什么，已用真实图固化成测试。
+
+## BUG-AGENT-2026-10-15-023: 依赖父任务的看板子任务，在父任务由派发器自动完成后被立刻放行，工作区从还不含父任务产出的仓库切出（真实 git + 真实派发器钩子 17/17 次）；手动移到「已完成」的父任务其合并还在排队时，子任务被手动晋升或被另一个父任务放行，同样如此
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15 |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（只有「手填分支 + 设了依赖 + 由派发器自动执行」的任务受影响；子任务在缺少父任务产出的代码上白跑一轮，之后合并才可能冲突；不丢数据） |
+| 影响范围 | server：`app/services/kanban/worktree_landing.py`（新）、`worktree_ops.py`、`dispatcher_lifecycle.py`、`move_orchestrator.py`、`task_runner/worktree/lifecycle.py`、三份 `_ARCH.md`、`tests/services/kanban/test_worktree_landing.py`（新）；harness 没有改 |
+| 出现次数 | 1（复核 `BUG-AGENT-2026-10-15-019` 局限 4 时，在真实派发器上复现；临时仓库建在 `~/.cache` 下的临时目录，没有用户数据） |
+| 关联 | 处理 `BUG-AGENT-2026-10-15-019` 局限 4；提交：server `3559e7599e`；本地提交，未 push |
+
+### 现象
+
+1. 真实 `KanbanDispatcher` + 内存存储 + 真实 `create_worktree` / `merge_task_worktree` + 服务端真实的 `task_completed` 钩子，临时 git 仓库：父任务（分支 main）自动完成后，子任务的 worktree 里没有父任务写的文件。50 文件 6/6、300 文件 6/6、2000 文件 5/5，共 17/17 轮；父任务的合并 300～970ms，子任务建 worktree 在父任务返回后 1～7ms 就开始，与仓库大小无关。
+2. 手动路径上还有两个入口（读代码得出，只有第一个有测试）：父任务手动移到「已完成」后，它的合并在后台排队，此时父任务已是终态，`promote_task` 对「父任务全是终态」的子任务不需要 `force`，用户可以手动晋升；子任务有第二个父任务时，那个父任务完成会让 `are_dependencies_met` 看到全部终态而放行子任务。
+
+### 根因
+
+1. 派发器在父任务完成时依次：同步 `emit("task_completed")`（服务端钩子起一个后台合并）→ `await _promote_dependents` → `wake()`（批准路径 `dispatcher.py:279-281`，成功路径 `:592-594`）。子任务在合并结束前就被放行。
+2. `_git_worktree_add` 从当前 HEAD 切分支（`app/core/utils/git_worktree.py:149-196`），合并没落地，HEAD 就不含父任务产出；子任务不填分支时直接在 `base_dir` 里工作，那正是合并在写的目录。
+3. 手动路径本来就是「先合并后放行」（`_merge_then_release_dependents`），但它只管自己放行的那一次，管不到上面两个入口。顺序保证放在了放行点，而放行点有多条路径，建工作区的使用点只有一个。
+
+### 修复
+
+1. 不改放行时机、不动 harness、不新增任务状态。新增 `worktree_landing.py`：每个事件循环一张登记表（按已完成任务的 id），`register_landing` 登记进行中的合并，合并结束即移除（同一任务被再次登记时，旧合并结束不会删掉新条目）；`wait_parents_landed` 查任务的父任务里有谁还在合并并等它们。登记表为空时直接返回、不读库；合并失败也结束等待（失败已记在父任务上）；最长等 120 秒后照常启动，用 `asyncio.wait`，超时与等待者被取消都不会取消合并。
+2. `spawn_worktree_op` 新增 `lands=<task_id>`：把它起的后台任务登记为该任务的落地。派发器的完成钩子与手动移到 COMPLETED 的后台合并都传 `lands`；钩子顺带从裸 `create_task` 改成被追踪的后台任务（原先没有保存引用，也不参与优雅关闭），并去掉永远走不到的无事件循环分支（派发器的 `emit` 总在事件循环里，回调异常由 `emit` 记日志）。
+3. `resolve_workspace` 在拿到 `base_dir` 后、建工作区之前调用 `wait_parents_landed`（运行时 runner 在 `runner.py:110` 直接调这个函数）。
+4. 文档：三份 `_ARCH.md`。
+
+### 验证
+
+1. 红-绿：新增的端到端用例（真实 git、真实派发器、真实钩子、真实 `resolve_workspace`，合并加 0.3 秒确定性延迟）修复前失败，子任务启动时目录里只有 `.git`、`seed.txt`；修复后通过。
+2. 新增 `test_worktree_landing.py` 13 例：派发器单父、双父（菱形）、无分支子任务；手动移到「已完成」后手动晋升的子任务等排队中的合并；无合并时不读库、无关任务的合并不拖慢、等齐所有父任务、完成后移除、新条目不被旧合并误删、合并失败也结束等待、不带 `lands` 的操作不登记、超时后合并继续跑、等待者被取消不取消合并。对实现做了 6 种变异，全部被杀掉：手动路径不登记、`resolve_workspace` 不等待、钩子不登记、移除时不比较是否同一个合并、超时取消合并、登记表为空也读库。
+3. 稳定性：44 个 worktree 相关用例连跑 5 次全绿（约 15.5 秒一轮）；把这次提交单独导出到干净目录（不含他人未提交的改动）跑 57 个用例（含 `test_btw_notifier_e2e.py`）全部通过。
+4. `pytest tests/services/kanban tests/api/kanban tests/architecture tests/integration/test_btw_notifier_e2e.py tests/api/git/test_worktree_router.py`：2792 通过、17 失败、2 跳过。17 个失败都不在本条的文件里：`test_extract_enabled_empty_pdf_falls_back_to_reference` 与 `test_move_with_result_and_metadata`（`BUG-AGENT-2026-10-15-019` 已记，后者来自他人未提交的移交元数据改动），以及 15 个 `tests/architecture` 用例（无前端调用方的路由、API 与 services 的域目录、服务端引用 harness 私有模块、记忆路由挂载、`services/workflow` 缺 `__init__.py`，来自他人未提交的改动；失败输出里没有出现本条改动的任何文件）。没能在干净 HEAD 上复跑这 17 个：把整个仓库在 HEAD 导出后，导出里的服务端 import 不到工作区 harness 的 `myrm_agent_harness.toolkits.storage.types`。
+5. `ruff check`、`ruff format --check` 通过；pyright（`-p pyproject.toml`）对改动的 5 个源文件 0 错误 0 警告。
+
+### 局限
+
+1. 登记表在内存里：进程重启或崩溃后合并本身也没了，行为与修复前一样（父任务已是「已完成」而分支没合并，子任务若在 BACKLOG 需要手动晋升），不是回归，也没有补偿。
+2. 等待最长 120 秒，到点子任务照常启动、仍从旧基线切出，只写一条 WARNING 日志，不写事件；单次合并里最长的 git 步骤自己的超时是 60 秒（`git_worktree.py:293`）。
+3. 父任务合并失败或冲突时，子任务照常启动、从旧基线切出：这是原有语义（失败已记 `MERGE_CONFLICT` 事件，worktree 保留）。
+4. 等待期间子任务在看板上已是「运行中」，时长就是合并耗时（实测 0.3～1 秒）；批量移到「已完成」时合并排在 `git_slot` 后面，被手动晋升的子任务最多等 120 秒。
+5. 没有用真实智能体 / LLM、没有用 SQL 存储跑；真实 runner 在 `resolve_workspace` 之前还有 `build_task_context`、`resolve_agent_profile` 两个读库步骤，没有量它们的耗时（推断是毫秒级，远小于合并的 300ms 以上，这是推断）。
+6. 菱形里「一个父任务手动完成、另一个由派发器完成」的混合场景没有单独造测试；两条路径登记进同一张表，机理与手动晋升用例相同。
+7. 受影响的人群很窄，也没有遥测：带分支的任务只能从表单、HTTP 接口、赛马车道产生（智能体看板工具、`kanban_queue_service.py`、`decompose/` 里 `rg branch` 零命中）。
+8. 评估后放弃的方案：给 harness 加「完成后收尾」协议让放行等合并（要同时改两个仓库与两个超标文件，批准请求要多等一次合并，制造「父已完成而子仍 BACKLOG」的新状态并需要启动对账，管不到手动晋升）；启动时自动合并残留分支（会在用户重启时往真实仓库合并，比当时的自动合并更出人意料）；`review_ops.py` 无 dispatcher 回退路径补合并（启动与建板都会起 dispatcher，该路径只有测试可达）；关机超过 30 秒时取消合并可能留下半合并状态（原有，`to_thread` 里的 git 不可取消，修它要改共享的 git 函数）。
+
+### 踩坑经验
+
+1. 前两版方案（给 harness 加协议、启动对账）都是在没有真实竞态实测前定下的；一个 45 行的概念验证加一次对抗式复核推翻了它们：先用真实组件做最小实测，再决定方案大小。
+2. 顺序保证要放在使用点：放行点有多条路径（派发器成功、批准、手动晋升、另一个父任务完成），建工作区的使用点只有 `resolve_workspace` 一个。
+3. `asyncio.wait_for` 超时会取消被等待的任务，`asyncio.wait` 不会：等别人的合并只能用后者（变异测试验证过）。
+4. 竞态测试不要靠运气：给合并加确定性延迟，修复前的用例才会稳定变红，而不是偶尔变红。
+5. 「读码得出的终态集合」要核对定义：`_TERMINAL_STATUSES` 是 `COMPLETED / FAILED / ARCHIVED`（`types.py:111`），失败路径同样会放行下游（`dispatcher_failure.py:295-296`）；差点据此得出错误的反对理由，查了定义才发现不成立。
