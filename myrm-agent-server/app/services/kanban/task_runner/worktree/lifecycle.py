@@ -161,29 +161,30 @@ async def merge_task_worktree(store: KanbanStore, task: KanbanTask) -> tuple[boo
         return True, []
 
     async with _get_merge_lock(base_dir):
-        return await _merge_task_worktree_locked(store, task, base_dir)
+        return await _merge_task_worktree_locked(store, task, base_dir, task.branch)
 
 
 async def _merge_task_worktree_locked(
     store: KanbanStore,
     task: KanbanTask,
     base_dir: str,
+    branch: str,
 ) -> tuple[bool, list[str]]:
-    path = worktree_dir(base_dir, task.branch, task.task_id)
+    path = worktree_dir(base_dir, branch, task.task_id)
     if not Path(path).exists():
         return True, []
 
     # Reject unusable branch names before any git command runs; a leading ``-``
     # or git-forbidden characters would otherwise be parsed as CLI options.
-    if not _is_valid_git_branch(task.branch):
+    if not _is_valid_git_branch(branch):
         logger.warning(
             "Unusable target branch %r for task %s; merge skipped, worktree preserved",
-            task.branch,
+            branch,
             task.task_id[:8],
         )
         return False, []
 
-    unique_branch = _worktree_branch_name(task.branch, task.task_id)
+    unique_branch = _worktree_branch_name(branch, task.task_id)
 
     # Auto-commit uncommitted worktree changes so agent edits made with
     # file tools (not git commits) still land in the merge.  If the commit
@@ -195,7 +196,7 @@ async def _merge_task_worktree_locked(
             task.task_id[:8],
         )
         return False, []
-    if not await _branch_has_commits(base_dir, unique_branch, task.branch):
+    if not await _branch_has_commits(base_dir, unique_branch, branch):
         logger.info(
             "No commits on branch %s for task %s; skipping merge",
             unique_branch,
@@ -208,10 +209,10 @@ async def _merge_task_worktree_locked(
     # Ensure the merge lands on the task's target branch, not whatever is
     # currently checked out.  Default tasks share the current branch so this
     # is usually a no-op, but an explicit target branch must be honored.
-    if not await _ensure_target_branch_checked_out(base_dir, task.branch):
+    if not await _ensure_target_branch_checked_out(base_dir, branch):
         logger.warning(
             "Cannot switch to target branch %s for task %s; merge skipped",
-            task.branch,
+            branch,
             task.task_id[:8],
         )
         return False, []
@@ -226,7 +227,7 @@ async def _merge_task_worktree_locked(
             "Merge of task %s branch %s into %s failed (conflicts=%d): %s",
             task.task_id[:8],
             unique_branch,
-            task.branch,
+            branch,
             len(conflicts),
             stderr[:300],
         )
@@ -235,7 +236,7 @@ async def _merge_task_worktree_locked(
         "Merged task %s branch %s into %s",
         task.task_id[:8],
         unique_branch,
-        task.branch,
+        branch,
     )
     await cleanup_worktree(store, task, force=True)
     await _delete_git_branch(base_dir, unique_branch)

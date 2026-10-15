@@ -17,6 +17,7 @@ Dispatcher lifecycle: boot recovery, start/stop per-board dispatchers, graceful 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
@@ -44,7 +45,7 @@ async def recover_stale_tasks(store: SqlAlchemyKanbanStore) -> int:
     return count
 
 
-def _make_task_completed_merge_hook(runner: TaskRunner, store: SqlAlchemyKanbanStore):
+def _make_task_completed_merge_hook(runner: TaskRunner, store: SqlAlchemyKanbanStore) -> Callable[[str, KanbanTask], None]:
     """Synchronous dispatcher callback that schedules async worktree merge.
 
     Dispatcher emits are synchronous (and run on the event loop), so the actual merge runs in a tracked

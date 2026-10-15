@@ -148,7 +148,7 @@ def spawn_worktree_op(operation: Coroutine[object, object, object], *, lands: st
     """Run a worktree operation after the request has been answered.
 
     The harness tracker keeps the task referenced (the event loop alone holds only a weak reference) and lets
-    graceful shutdown wait for it. Nothing awaits the task, so a failure is logged here instead of vanishing.
+    graceful shutdown wait for it. Nothing collects the task's result, so a failure is logged here instead of vanishing.
     ``lands`` is the id of the completed task whose merge ``operation`` performs: until it finishes, the task's
     dependents wait before they build their workspace.
     """
