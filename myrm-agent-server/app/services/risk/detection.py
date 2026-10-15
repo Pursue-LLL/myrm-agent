@@ -4,12 +4,14 @@ Compiles and caches active risk rules as regex patterns, performs short-circuit
 matching against text content, and records risk hits to the database.
 
 Patterns are read by the ``regex`` package, whose default mode reads ordinary ``re`` patterns the same way (it differs
-on corner cases such as ``[[:alpha:]]``), because only it can stop a match that runs too long: ``detect`` runs on
-the event loop, on text any chat sender controls.
+on corner cases such as ``[[:alpha:]]``), because only it can stop a match that runs too long: the matched text is
+anything a chat sender typed. A short text is matched on the event loop; a long one (``detect_async``) on a worker
+thread, because the package lets go of the interpreter lock while it matches a ``str``.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -27,10 +29,18 @@ logger = logging.getLogger(__name__)
 
 MAX_PATTERN_LENGTH = 4096
 
-# Time one rule may spend on one text. A legitimate pattern needs milliseconds; a backtracking blow-up has no end, and
-# ``detect`` holds the event loop meanwhile, so the budget bounds how long one message can stall the server. A rule that
-# runs out of it counts as having matched (the text is not let through unchecked).
+# Time one rule may spend on one text. A legitimate pattern needs a fraction of a second even for a long text; a
+# backtracking blow-up has no end, so the budget bounds how long one message can occupy the matcher. A rule that runs
+# out of it counts as having matched (the text is not let through unchecked). ``MATCH_TIMEOUT_SECONDS`` is the budget
+# of any text; a text of millions of characters (a pasted log) is allowed ``MATCH_SECONDS_PER_MEGACHAR`` for each
+# million, which is about four times what the slowest built-in rule needs (0.13 s per million characters of log text,
+# measured), so a slower host does not turn a harmless paste into a hit.
 MATCH_TIMEOUT_SECONDS = 0.25
+MATCH_SECONDS_PER_MEGACHAR = 0.5
+
+# A text up to this long is matched where it is: the match takes under 7 ms (measured), so a thread hand-off would not
+# pay for itself.
+_INLINE_DETECT_CHARS = 32_000
 
 # What a hit's ``match_summary`` holds: where the match lies, or that matching ran out of time. Never the matched text.
 POSITION_SUMMARY_PREFIX = "chars:"
@@ -51,6 +61,11 @@ def compile_pattern(pattern: str) -> regex.Pattern[str]:
     if problem is not None:
         raise ValueError(f"Invalid regex pattern: {problem}")
     return regex.compile(pattern, regex.DOTALL)
+
+
+def match_budget(text_length: int) -> float:
+    """Seconds one rule may spend matching a text of *text_length* characters."""
+    return max(MATCH_TIMEOUT_SECONDS, MATCH_SECONDS_PER_MEGACHAR * text_length / 1_000_000)
 
 
 def _abbreviate(snippet: str) -> str:
@@ -98,8 +113,9 @@ def _first_hit(rule: _CompiledRule, text: str) -> str | None:
     A rule that cannot finish the text within the budget counts as a hit, so that a message built to stall a pattern
     is held by the rule instead of passing it.
     """
+    budget = match_budget(len(text))
     try:
-        for m in rule.compiled.finditer(text, timeout=MATCH_TIMEOUT_SECONDS):
+        for m in rule.compiled.finditer(text, timeout=budget):
             if is_confirmed_match(rule.rule_id, m):
                 return f"{POSITION_SUMMARY_PREFIX}{m.start()}-{m.end()}"
     except TimeoutError:
@@ -107,7 +123,7 @@ def _first_hit(rule: _CompiledRule, text: str) -> str | None:
             "Risk rule %s did not finish a %d-character text in %.2fs; the text counts as its hit",
             rule.rule_id,
             len(text),
-            MATCH_TIMEOUT_SECONDS,
+            budget,
         )
         return TIMED_OUT_SUMMARY
     return None
@@ -119,7 +135,7 @@ class RiskDetectionService:
 
     Lifecycle:
     1. Call ``reload(session)`` to load rules from DB and compile patterns.
-    2. Call ``detect(text)`` synchronously to match content.
+    2. Call ``detect(text)`` to match content in place, or ``await detect_async(text)`` when the text may be long.
     3. Call ``record_hits(session, ...)`` to persist matches.
     """
 
@@ -177,6 +193,16 @@ class RiskDetectionService:
 
         return DetectionResult(blocked=False, matches=())
 
+    async def detect_async(self, text: str) -> DetectionResult:
+        """``detect`` without holding the event loop for a long text.
+
+        A long text is matched on a worker thread. ``reload`` replaces the whole rule list in one assignment, so a match
+        in flight keeps reading the list it started with.
+        """
+        if len(text) <= _INLINE_DETECT_CHARS:
+            return self.detect(text)
+        return await asyncio.to_thread(self.detect, text)
+
     async def record_hits(
         self,
         session: AsyncSession,
@@ -210,7 +236,7 @@ class RiskDetectionService:
         compiled = compile_pattern(pattern)
         snippets: list[str] = []
         try:
-            for m in compiled.finditer(text, timeout=MATCH_TIMEOUT_SECONDS):
+            for m in compiled.finditer(text, timeout=match_budget(len(text))):
                 snippets.append(_abbreviate(m.group()))
                 if len(snippets) == _MAX_PREVIEW_SNIPPETS:
                     break

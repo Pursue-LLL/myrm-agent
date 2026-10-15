@@ -18,7 +18,7 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `generate_prompt.py` | 模块 | Thin API for the agent editor: resolves the user's default model and streams a draft system prompt | ✅ |
 | `openapi_services.py` | 模块 | OpenAPI Services API. | ✅ |
 | `providers.py` | 模块 | Agent provider configuration endpoints for deletion impact analysis and batch operations | ✅ |
-| `subagents.py` | 模块 | Subagent REST：list / cancel-all / steer / cancel；registry merge via harness session_tree。 | ✅ |
+| `subagents.py` | 模块 | Subagent REST：list / cancel-all / steer / cancel；registry merge via harness session_tree；steer 的消息先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，不送达子智能体）。 | ✅ |
 | `suggestions.py` | 模块 | Generate follow-up question suggestions using the filter model. | ✅ |
 | `fleet_overview.py` | 模块 | Agent Fleet Overview — 按 agent_id 聚合月度 Token/Cost、Cron 数、待审批数（goal 审批 + kanban IN_REVIEW 按 agent 分组）、实时运行状态的 KPI 端点，供 /agents 页面 Fleet 视图使用。零新表，纯读聚合。 | ✅ |
 | `fleet_telemetry.py` | 路由 | 分布式机队六态健康遥测与配额诊断 API 端点：提供 `POST /fleet/diagnose`（五级渐进自省探针排障）与 `GET /fleet/health-summary`（六态分布概览）。 | ✅ |

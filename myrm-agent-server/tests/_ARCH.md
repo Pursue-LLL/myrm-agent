@@ -63,7 +63,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_sender_admission.py` | 单元 | 事件触发的发送者准入（只读判定）：用真实配对表钉住 DM（ALLOWLIST/PAIRING/OPEN/DISABLED × 所有者/成员/陌生人/已拉黑/待审批）、群聊（启用群、非启用群、访客 @mention、群策略 DISABLED）、WhatsApp LID 映射与控制面转发的放行/拒绝，并与真实 `resolve_dm_user` / `resolve_group_user` 逐例比对；判定前后配对状态不变、不创建 LID 绑定；事件触发的发送者信任判定（`is_untrusted_event_sender`）：DM 与群聊每个会跑回合的用例都与聊天回合实际使用的围栏逐例一致且不改配对，只有 ACTIVE 的 ADMIN 配对算所有者（成员、待审批、已拉黑、陌生人一律不可信），控制面转发按其携带的身份判定（含访客回合标记），预置的 `user_id` 不能让陌生人变成所有者 |
 | `channels/routing/risk_gate_testkit.py` | 辅助 | 入站风险闸门测试的共享构建器：`make_bus()`（桩消息总线，出站消息可断言）与 `make_router()`（接在该总线上、配对仓库与执行器皆为桩的 `AgentRouter`） |
 | `channels/routing/test_inbound_risk_gate_integration.py` | 单元 | 入站风险闸门对真实检测引擎：命中规则的消息不进入 Agent 回合，发送者收到固定提示（群聊发到群里，私聊发给发送者）；干净消息、没有规则、续跑消息与空内容照常放行；多条规则时第一条命中即拦下 |
-| `channels/routing/test_inbound_risk_gate_order.py` | 单元 | 入站风险闸门的位置与收尾：被拦消息和话题绑定的提前返回都会把收件日志条目标为已处理（原文不留在待重放的日志里）；超长粘贴先过闸门再溢出落盘；忙时 steer / redirect、`/steer`、委派提示词与进行中委派的转向都被拦，干净转向照常送达 |
+| `channels/routing/test_inbound_risk_gate_order.py` | 单元 | 入站风险闸门的位置与收尾：被拦消息和话题绑定的提前返回都会把收件日志条目标为已处理（原文不留在待重放的日志里）；超长粘贴先过闸门再溢出落盘；忙时 steer / redirect、`/steer`、委派提示词与进行中委派的转向都被拦，干净转向照常送达；系统命令（`/background`、`/bg steer`、`/btw`、`/goal`、`/subgoal`、`/kanban comment`、`/learn`、`/steer`）的参数在 `_dispatch_resolved` 一处过闸，命中时命令处理器不被调用，干净参数照常派发 |
 | `channels/test_router_cron_event_dispatch.py` | 单元 | 路由器的 cron 事件触发钩子：普通消息触发一次且重复投递仍只触发一次，命令/待审批/reaction 不触发；访问策略不放行的发送者不触发、已配对成员触发；准入查询失败时拒绝触发并记 WARNING，后续消息照常路由；所有者触发的作业不带围栏，已配对成员与开放策略下的访客触发的作业带围栏，信任判定失败时按带围栏处理并记 WARNING，路由不受影响 |
 | `core/cron/adapters/test_research_lease.py` | 模块 | 定时任务的只读研究租约策略对真实 harness 租约登记：声明为空或只含读取类能力（`file_read`、`web_search_tool`、`net_fetch`）的作业判为只读，声明了写入、命令、代码或未知能力的不是；只读作业与不可信发送者触发的运行各拿一把私有会话键（`cron:{作业}:{后缀}`）的租约，放行默认的五个只读工具、拒绝其余，租约比运行超时多留 60 秒；同一作业的并发运行互不撤销，释放后租约与覆盖层都被清空且清理失败不抛出；声明了写入类能力的所有者运行不挂租约、保留原会话键 |
 | `channels/routing/test_draft_command.py` | 单元 | IM `/draft approve\|reject <编号>`：参数解析（过短、非十六进制、多余词一律给用法）；对真实审批表裁决，与 WebUI/按钮走同一收口（批准发出、拒绝丢弃）；6 位以上短码即可且回复报完整短码、按 owner 语言作答并回到提问的会话；未知编号、已处理、非扣留回复的审批、两条同码（都不裁决）、畸形请求、查询失败均不改动任何审批且不抛出 |
@@ -113,7 +113,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/chrome_skill_hooks_observe.py` | 辅助 | 技能钩子回合留下的证据：等用户消息/助手回复落库、`completed_assistant_replies` 列出服务端标记为 complete 的助手回复、读取钩子写出的文件与后端日志，`assert_no_hook_raised` / `assert_audit_turn_governed` |
 | `api/agent/test_sse_heartbeat_filter.py` | 模块 | agent 测试客户端（同步 `TestClient` 与异步 `httpx.AsyncClient`）对行解析器隐藏 SSE keep-alive 帧（帧由真实 `ResilientStreamBuffer` 产出，格式变更在此报红，避免 `data: null` 解析洞在流测试里重开） |
 | `api/agent/test_steer_risk_gate.py` | 模块 | steer / redirect 接口的风险闸门：命中规则的指令返回 `success:false` 且不送达回合，干净指令照常送达，对 Agent 提问的回复同样过闸 |
-| `api/goals/test_constraints_risk_gate.py` | 模块 | 目标文案与约束的风险闸门：命中规则的目标更新与约束写入返回 400 且不落库，干净文案照常保存 |
+| `api/goals/test_constraints_risk_gate.py` | 模块 | 目标文案与约束的风险闸门：命中规则的目标更新与约束写入返回 400（`risk_held`，带规则列表）且不落库，干净文案照常保存 |
+| `api/test_text_entry_risk_gate.py` | 模块 | 用户键入指令文本的 REST 入口的风险闸门（真实路由，只注入规则）：子智能体与后台任务的 steer 不送达、定时任务与心跳的提示词不落库（PATCH 没带 `prompt` 不重新过闸）、看板任务标题 / 描述 / 验收标准（含列表里的 `semantic` 项，`shell` 项不过闸）与评论不落库；拒绝为 400 `risk_held` 且响应里没有原文，干净文本照常通过 |
 | `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
 | `database/test_risk_action_column_retired.py` | 模块 | 风险表的迁移对真实 SQLite：升级中的库丢掉规则与命中记录的 `action` 列，非 `block` 的规则被停用、其余规则保持原状，命中记录里既不是位置也不是超时标记的摘要被清空；新库从不带这两列，迁移重复执行不出错 |
@@ -122,6 +123,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |
 | `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
 | `services/risk/conftest.py` | 辅助 | 风控测试夹具：真实 SQLite、从库里已存规则加载的检测引擎（播种的内置规则，可全开） |
+| `services/risk/test_refusal.py` | 模块 | REST 拒绝契约：命中时抛 400 `risk_held`，载荷只含规则 id、名称、严重度而没有原文；空 / `None` / 干净文本放行；同一请求的多个字段逐段过闸，不拼成一句话（跨字段不会凑出赋值）；内置规则的载荷不含密钥 |
+| `services/risk/test_detection_scaling.py` | 模块 | 长文本的检测：时间预算不低于下限、随长度放宽；扁平预算会把 150 万字符的无害日志误判为命中而按长度放宽的预算不会；超长粘贴里的密钥仍被拦；长文本放工作线程、短文本原地匹配；匹配期间事件循环不被占住；闸门入口对长粘贴拦密钥放干净文本 |
 | `services/risk/test_ingress.py` | 模块 | 统一过闸入口 `screen_user_text` 对真实 SQLite：命中时返回结果并写入只含位置的记录，干净 / 空 / `None` 放行，没有规则时放行，记录写入失败时文本仍被拦 |
 | `services/risk/test_builtin_rule_precision.py` | 模块 | 内置规则的精度：默认只启用安全凭证 8 条；日常聊天与引用凭据的代码不被默认规则拦下，清单里的每条凭据被拦下（清单是挑选的写法，不代表全部凭据）；省略号截短的示例、文档里的占位（含 `sk-YOUR_API_KEY` 这类带厂商前缀的）、密钥库指针（`env:` / `vault:`）、`&k=` 与全角标点之后的内容、TypeScript 非空断言、引用或词作密码的连接串不算；`session-1`、`Bearer test-token-123` 这类测试夹具与不带凭证的 `Cookie` 头（`theme=dark`、`_ga=…`）不被拦，`PHPSESSID`、`Set-Cookie: session=…`、`connect.sid`、Basic 与不透明 Bearer 令牌被拦；环境变量前缀的键与以占位词开头的真实密码（含全大写写法）照样被拦；harness 表里每种厂商前缀形状都有样本且被拦下（表新增形状而没有样本时失败）；关键词按整词匹配；命中摘要只记位置 |
 | `services/risk/test_risk_rules_api.py` | 模块 | 风险规则 HTTP API 对真实 SQLite：创建与读取的规则、命中列表都不带 `action`；仍带 `action` 的旧客户端请求（创建与批量导入）不被拒绝 |

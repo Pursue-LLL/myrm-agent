@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.services.risk.ingress::screen_user_text (POS: 用户键入文字的风险闸门入口)
+- app.services.risk.refusal::risk_rules_payload (POS: 拒绝载荷里的规则列表)
 - app.schemas.streaming::SSEEnvelope (POS: 业务层 SSE 序列化防腐层)
 
 [OUTPUT]
@@ -19,6 +20,7 @@ from fastapi.responses import StreamingResponse
 
 from app.schemas.streaming import SSE_RESPONSE_HEADERS, SSEEnvelope
 from app.services.risk.ingress import screen_user_text
+from app.services.risk.refusal import risk_rules_payload
 
 
 async def check_stream_risk(
@@ -35,19 +37,7 @@ async def check_stream_risk(
         return None
 
     async def _block_stream() -> AsyncGenerator[str, None]:
-        event = {
-            "type": "risk_blocked",
-            "data": {
-                "rules": [
-                    {
-                        "rule_id": m.rule_id,
-                        "display_name": m.display_name,
-                        "severity": m.severity,
-                    }
-                    for m in result.matches
-                ],
-            },
-        }
+        event = {"type": "risk_blocked", "data": {"rules": risk_rules_payload(result)}}
         yield SSEEnvelope.from_any(event).to_sse_chunk()
 
     return StreamingResponse(

@@ -884,6 +884,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             return True
 
         if cmd.kind == CommandKind.SYSTEM and action is not None:
+            # System commands act on their text directly (a background task, a goal, a kanban card, a steer), so they
+            # are screened here; agent-route and skill commands reach the gated agent path instead.
+            if await hold_risky_inbound(self._bus, msg, resolved.raw_args):
+                return True
             return await self._dispatch_system_command(msg, action, resolved.raw_args)
 
         if cmd.kind == CommandKind.AGENT_ROUTE:

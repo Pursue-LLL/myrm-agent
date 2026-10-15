@@ -6,6 +6,7 @@ app.api.kanban.routes.tasks_list::list_tasks (POS: 任务列表查询端点)
 app.api.kanban.routes.skill_ids::validate_extra_skill_ids (POS: 任务技能 id 存在性校验)
 app.services.kanban::KanbanService (POS: Kanban 业务编排)
 app.services.kanban.task_attachment_ids::save_task_attachment_ids (POS: 任务附件 ID 持久化)
+app.services.risk.refusal::reject_if_risky (POS: 拒绝风险规则拦下的任务标题 / 描述 / 验收标准)
 
 [OUTPUT]
 Task-domain REST endpoints under /api/v1/kanban/tasks and /boards/{board_id}/tasks.
@@ -48,14 +49,33 @@ from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.model_resolver import validate_model_override
 from app.services.kanban import DependencyUnmetError
 from app.services.kanban.task_attachment_ids import save_task_attachment_ids as _save_task_attachment_ids
+from app.services.risk.refusal import reject_if_risky
 
 # ---------------------------------------------------------------------------
 # Task endpoints
 # ---------------------------------------------------------------------------
 
 
+def _criteria_texts(criteria: str | list[dict[str, str | int]] | None) -> list[str]:
+    """Prose parts of completion criteria: the plain string, or the ``semantic`` entries of the list form.
+
+    ``shell`` entries are commands to run, not text a model reads, so they are not screened.
+    """
+    if isinstance(criteria, str):
+        return [criteria]
+    if isinstance(criteria, list):
+        return [str(entry["criteria"]) for entry in criteria if entry.get("type") == "semantic" and "criteria" in entry]
+    return []
+
+
 @router.post("/boards/{board_id}/tasks", response_model=TaskResponse, status_code=201)
 async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
+    await reject_if_risky(
+        body.title,
+        body.description,
+        *_criteria_texts(body.completion_criteria),
+        session_id=board_id,
+    )
     svc = get_kanban_service()
     board = await svc.get_board(board_id)
     if board is None:
@@ -135,6 +155,12 @@ async def get_task(task_id: str) -> TaskResponse:
 
 @router.patch("/tasks/{task_id}", response_model=TaskResponse)
 async def update_task(task_id: str, body: TaskUpdate) -> TaskResponse:
+    await reject_if_risky(
+        body.title,
+        body.description,
+        *_criteria_texts(body.completion_criteria),
+        session_id=task_id,
+    )
     svc = get_kanban_service()
     priority: TaskPriority | None = None
     if body.priority:

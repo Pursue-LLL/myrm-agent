@@ -5,7 +5,7 @@
 - myrm_agent_harness.agent.goals.manager::GoalManager (POS: Goal persistence manager fallback)
 - myrm_agent_harness.agent.goals.steering_prompts::build_objective_updated_steering_message (POS: Steering message generator)
 - app.services.agent.steering::SteeringRegistry (POS: Active agent steering registry)
-- app.services.risk.ingress::screen_user_text (POS: Risk screening of text a user types before an agent reads it)
+- app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
 
 [OUTPUT]
 - constraints_router: APIRouter for constraints and objective endpoints
@@ -23,7 +23,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services.agent.goals.goal_registry import GoalRegistry
-from app.services.risk.ingress import screen_user_text
+from app.services.risk.refusal import reject_if_risky
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +38,6 @@ class ConstraintsUpdateRequest(BaseModel):
 
 class ObjectiveUpdateRequest(BaseModel):
     objective: str
-
-
-async def _reject_if_held(text: str, session_id: str) -> None:
-    """Refuse goal text that a risk rule holds."""
-    if await screen_user_text(text, session_id=session_id) is not None:
-        raise HTTPException(status_code=400, detail="Text held by a risk rule")
 
 
 @constraints_router.put("/{session_id}/constraints")
@@ -62,7 +56,7 @@ async def update_goal_constraints(session_id: str, request: ConstraintsUpdateReq
         raise HTTPException(status_code=404, detail="No goal found for this session")
 
     filtered = [c for c in request.constraints if c.strip()]
-    await _reject_if_held("\n".join(filtered), session_id)
+    await reject_if_risky(*filtered, session_id=session_id)
     updated = await provider.update_constraints(goal.goal_id, filtered)
     return {"status": "success", "constraints": updated.constraints}
 
@@ -93,7 +87,7 @@ async def update_goal_objective(session_id: str, request: ObjectiveUpdateRequest
         raise HTTPException(status_code=400, detail="Objective cannot be empty")
     if len(objective) > MAX_OBJECTIVE_LENGTH:
         raise HTTPException(status_code=400, detail=f"Objective exceeds {MAX_OBJECTIVE_LENGTH} characters")
-    await _reject_if_held(objective, session_id)
+    await reject_if_risky(objective, session_id=session_id)
 
     provider = GoalRegistry.get_provider(session_id)
     if not provider:

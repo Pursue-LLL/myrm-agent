@@ -5,6 +5,7 @@ Thin delegation layer: parameter parsing → CronManager → response conversion
 [INPUT]
 - cron.routes.helpers (POS: conversion utilities and manager accessor)
 - cron.schemas (POS: request/response Pydantic models)
+- services.risk.refusal::reject_if_risky (POS: refuses a job prompt a risk rule holds)
 
 [OUTPUT]
 - GET /  — list jobs (paginated)
@@ -33,6 +34,7 @@ from app.api.cron.schemas import (
 )
 from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
+from app.services.risk.refusal import reject_if_risky
 
 from . import helpers as _h
 
@@ -83,6 +85,7 @@ async def list_jobs(
 
 @router.post("/", response_model=CronJobResponse, status_code=201)
 async def create_job(body: CronJobCreate) -> CronJobResponse:
+    await reject_if_risky(body.prompt)
 
     from app.platform_utils.sandbox.entitlements.entitlement_guard import (
         EntitlementGuardError,
@@ -155,6 +158,8 @@ async def get_job(job_id: str) -> CronJobResponse:
 
 @router.patch("/{job_id}", response_model=CronJobResponse)
 async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
+    await reject_if_risky(body.prompt, session_id=job_id)
+
     from myrm_agent_harness.toolkits.cron.types import CronJobPatch
 
     from app.services.workflow_templates.validation import (

@@ -113,8 +113,8 @@ async def _consume_one(router: AgentRouter, msg: InboundMessage) -> None:
     await router._consume_loop()
 
 
-def _typed(content: str) -> InboundMessage:
-    return InboundMessage(channel="telegram", sender_id="u1", chat_id="chat-1", content=content, message_id="m1")
+def _typed(content: str, message_id: str = "m1") -> InboundMessage:
+    return InboundMessage(channel="telegram", sender_id="u1", chat_id="chat-1", content=content, message_id=message_id)
 
 
 @pytest.mark.asyncio
@@ -145,12 +145,87 @@ async def test_clean_text_typed_while_the_agent_runs_still_steers() -> None:
 async def test_slash_steer_with_a_secret_is_held() -> None:
     router = make_router()
     token = _running_agent(router, None)
+    router._check_admin_permission = AsyncMock(return_value=True)
 
     with patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])):
-        await router._handle_steer_command(_typed("/steer"), f"use {SECRET} instead")
-        await router._handle_steer_command(_typed("/steer"), "only keep the 2026 rows")
+        await _consume_one(router, _typed(f"/steer use {SECRET} instead"))
+        await _consume_one(router, _typed("/steer only keep the 2026 rows", message_id="m2"))
+        await asyncio.sleep(0)
 
     assert token.activate() == ["only keep the 2026 rows"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "command",
+    [
+        "/background",
+        "/bg steer task-1",
+        "/btw",
+        "/goal",
+        "/subgoal",
+        "/kanban comment card-1",
+        "/learn",
+        "/steer",
+    ],
+)
+async def test_system_command_text_with_a_secret_is_held_before_it_acts(command: str) -> None:
+    """A system command acts on its text directly, so the dispatcher screens it once for every one of them."""
+    router = make_router()
+    router._check_admin_permission = AsyncMock(return_value=True)
+    acted = AsyncMock(return_value=True)
+    router._dispatch_system_command = acted
+    msg = _typed(f"{command} use {SECRET} instead")
+
+    with patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])):
+        consumed = await router._dispatch_resolved(msg, router._registry.resolve(msg.content))
+
+    assert consumed is True
+    acted.assert_not_awaited()
+    router._bus.publish_outbound.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_system_command_with_clean_text_is_dispatched() -> None:
+    router = make_router()
+    router._check_admin_permission = AsyncMock(return_value=True)
+    acted = AsyncMock(return_value=True)
+    router._dispatch_system_command = acted
+    msg = _typed("/background summarise the 2026 rows")
+
+    with patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])):
+        consumed = await router._dispatch_resolved(msg, router._registry.resolve(msg.content))
+
+    assert consumed is True
+    acted.assert_awaited_once()
+    router._bus.publish_outbound.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("text", "spawned", "steered"),
+    [
+        (f"/background fetch with {SECRET}", False, False),
+        (f"/background steer task-1 use {SECRET}", False, False),
+        ("/background summarise the 2026 rows", True, False),
+        ("/background steer task-1 only the 2026 rows", False, True),
+    ],
+)
+async def test_background_command_reaches_its_handler_only_when_clean(text: str, spawned: bool, steered: bool) -> None:
+    router = make_router()
+    router._check_admin_permission = AsyncMock(return_value=True)
+    handler = MagicMock()
+    handler.spawn_background = AsyncMock()
+    handler.steer_background = AsyncMock()
+    router._background_handler = handler
+    msg = _typed(text)
+
+    with patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])):
+        await router._dispatch_resolved(msg, router._registry.resolve(msg.content))
+        await asyncio.sleep(0)
+
+    assert handler.spawn_background.await_count == int(spawned)
+    assert handler.steer_background.await_count == int(steered)
 
 
 @pytest.mark.asyncio

@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.services.agent.goals.goal_registry import GoalRegistry
+from app.services.risk.refusal import RISK_HELD_CODE
 from tests.support.risk_gate import API_KEY_RULE, SECRET, build_service_with_rules
 
 _DETECTION = "app.services.risk.detection.get_detection_service"
@@ -27,6 +28,7 @@ async def test_objective_with_a_secret_is_refused_and_unchanged(client: TestClie
     response = client.patch(f"/api/v1/goals/{session_id}/objective", json={"objective": f"deploy with {SECRET}"})
 
     assert response.status_code == 400
+    assert response.json()["detail"]["code"] == RISK_HELD_CODE
     goal = await GoalRegistry.get_provider(session_id).get_latest_goal(session_id)
     assert goal.objective == "Original objective"
 
@@ -42,6 +44,7 @@ async def test_constraint_with_a_secret_is_refused_and_unchanged(client: TestCli
     response = client.put(f"/api/v1/goals/{session_id}/constraints", json={"constraints": ["be brief", f"key {SECRET}"]})
 
     assert response.status_code == 400
+    assert response.json()["detail"]["rules"][0]["rule_id"] == "r-apikey"
     goal = await GoalRegistry.get_provider(session_id).get_latest_goal(session_id)
     assert goal.constraints == []
 
