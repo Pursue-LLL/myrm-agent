@@ -25,7 +25,6 @@ import { MemoryEconomicsPanel } from './MemoryEconomicsPanel';
 import { ProjectLivingFactLedgerCard } from './ProjectLivingFactLedgerCard';
 import { FirstEncounterReportCard } from './FirstEncounterReportCard';
 import { PrivateNotebookCard } from './PrivateNotebookCard';
-import { TemporalKnowledgeGraphCard } from './TemporalKnowledgeGraphCard';
 import { PromptCachePreservingDeltaCard } from './PromptCachePreservingDeltaCard';
 import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
 import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
@@ -57,7 +56,6 @@ export const UnderstandSection = ({
     <ProjectLivingFactLedgerCard />
     <FirstEncounterReportCard />
     <PrivateNotebookCard />
-    <TemporalKnowledgeGraphCard />
     <PromptCachePreservingDeltaCard defaultChatId={defaultChatId} />
     {isMemoryLabsEnabled() ? <TwoLayerDialecticStudioCard /> : null}
     <BudgetGreedyPackingStudioCard />

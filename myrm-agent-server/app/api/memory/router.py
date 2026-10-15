@@ -61,9 +61,6 @@ from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.score_honesty_router import (
     router as score_honesty_router,
 )
-from app.api.memory.temporal_graph_router import (
-    router as temporal_graph_router,
-)
 from app.api.memory.test_seed import router as memory_test_seed_router
 from app.api.memory.two_layer_dialectic_router import (
     router as two_layer_dialectic_router,
@@ -108,10 +105,6 @@ router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
 router.include_router(
     private_notebook_router,
     tags=["memory-private-notebook"],
-)
-router.include_router(
-    temporal_graph_router,
-    tags=["memory-temporal-graph"],
 )
 router.include_router(
     ephemeral_delta_router,

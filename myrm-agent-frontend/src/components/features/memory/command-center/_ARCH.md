@@ -33,9 +33,6 @@
 | `PrivateNotebookNotesListView.tsx` | 辅助 | 私有笔记本卡片子组件：呈现透明 Markdown 笔记索引、行数统计、实时检视与人工纠偏覆写 | ✅    |
 | `PrivateNotebookHistoryView.tsx` | 辅助 | 私有笔记本卡片子组件：跨上下文窗口长程交互历史检索、归档窗口列表与流式条目展现 | ✅    |
 | `PrivateNotebookHandoverView.tsx` | 辅助 | 私有笔记本卡片子组件：跨窗口平滑移交 (new_context) 表单、交接原因录入与状态报告 | ✅    |
-| `TemporalKnowledgeGraphCard.tsx` | 核心 | 时序知识图谱衰减与互斥事实原子消解卡片：深度借鉴 mem/graphiti 与 mem/OpenViking，时序边失效、互斥事实原子消解 superseded_by 与 30 天指数半衰期动态衰减评分 | ✅    |
-| `TemporalGraphEvolutionTimelineView.tsx` | 辅助 | 时序关系演进子组件：呈现有效关系/已失效历史边演进时间线、前序-后继版本谱系追溯与冲突消解表单 | ✅    |
-| `TemporalDecayScorerConsoleView.tsx` | 辅助 | 半衰期衰减与实体节点管理子组件：半衰期动态衰减评分探针计算器、实体节点管理列表与新建节点表单 | ✅    |
 | `PromptCachePreservingDeltaCard.tsx` | 核心 | 会话内记忆更新检视：稳定 system 前缀 + human 尾部的布局预览；默认绑定当前聊天 session；命中率见聊天上下文环，此处不展示伪造百分比 | ✅    |
 | `EphemeralDeltaLiveInspectorView.tsx` | 辅助 | 瞬态增量实时检视子组件：呈现活跃增量列表、交互式用户修正录入表单、LWW 重写覆盖与前缀哈希校验 | ✅    |
 | `PromptCacheConsolidationView.tsx` | 辅助 | 缓存一致性与归档子组件：双轨预览、一键归档落库；HUD 仅展示后端遥测，无数据时显示占位符 | ✅    |

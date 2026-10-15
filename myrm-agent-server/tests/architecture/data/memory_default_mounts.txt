@@ -23,7 +23,6 @@ radar.router
 follow_ups_router
 onboarding.router
 private_notebook_router
-temporal_graph_router
 ephemeral_delta_router
 two_layer_dialectic_router
 budget_packing_router
