@@ -51,7 +51,7 @@ export function useKanbanDnD({ tasks, selectedTaskIds, onMoveTask, onBulkMove, o
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
   const [dropConfirmState, setDropConfirmState] = useState<DropConfirmState | null>(null);
 
-  // 鼠标与触屏必须分开：PointerSensor 同样接管触屏指针，位移 8px 就起拖拽，卡片上的滑动再也滚不动看板。
+  // 鼠标与触屏必须分开：PointerSensor 同样接管触屏指针，位移 8px 就起拖拽，卡片上的滑动滚不动看板。
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),

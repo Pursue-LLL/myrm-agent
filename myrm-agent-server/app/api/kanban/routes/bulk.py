@@ -90,7 +90,7 @@ async def bulk_action(board_id: str, body: BulkActionRequest) -> BulkActionRespo
             results.append(BulkActionItemResult(task_id=task_id, success=False, error=str(exc)))
         except Exception:
             # One broken item must not abort the batch. The traceback stays in the log; callers only get a generic reason.
-            logger.exception("Bulk %s failed for task %s", body.action, task_id)
+            logger.exception("Bulk %s failed for task %r", body.action, task_id)
             results.append(BulkActionItemResult(task_id=task_id, success=False, error="Internal error"))
 
     succeeded = sum(1 for r in results if r.success)
