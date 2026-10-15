@@ -41,6 +41,7 @@ import RunStatusChip from '@/components/features/copilot/RunStatusChip';
 import SessionAdvisorPanel from '@/components/features/copilot/SessionAdvisorPanel';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
+import { refreshOpenChatTranscript } from '@/store/chat/chatTranscriptRefresh';
 import PendingMemoryBadge from '@/components/features/memory/pending/PendingMemoryBadge';
 import PendingMemoryDialog from '@/components/features/memory/pending/PendingMemoryDialog';
 import MemoryConflictChatBanner from '@/components/features/memory/pending/MemoryConflictChatBanner';
@@ -405,7 +406,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         meta?.chat_id === id &&
         (meta?.kind === 'background_job_finish' || meta?.kind === 'voice_background_task_done')
       ) {
-        void initializeChat(id);
+        void refreshOpenChatTranscript(id);
       }
 
       if (meta?.kind === 'goal_needs_review' && id && meta?.chat_id === id) {
@@ -421,7 +422,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       window.removeEventListener('system-notification', handleSystemNotification);
       unsubscribe();
     };
-  }, [id, initializeChat, snapshotT]);
+  }, [id, snapshotT]);
 
   useEffect(() => {
     initConfig();

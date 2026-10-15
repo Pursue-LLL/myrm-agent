@@ -528,20 +528,13 @@ export function useGlobalEvents(): void {
         }
         reconciling = true;
         try {
-          const storeModule = await import('@/store/useChatStore');
-          const store = storeModule.default.getState();
-          // Resync must never clobber an in-flight turn: initializeChat replaces
-          // messages with a fresh API fetch (loadMessages), which would drop
-          // transient SSE fields (routingTier/modelTier) persisted only at
-          // finalize. A stream reconnecting mid-turn is exactly when this
-          // onopen fires, so skip reload while a stream owns the store.
-          if (store.chatId && !store.loading && !store.abortController) {
-            storeModule.default.setState({ loading: true });
-            try {
-              await storeModule.default.getState().initializeChat(store.chatId);
-            } finally {
-              storeModule.default.setState({ loading: false });
-            }
+          const { default: useChatStore } = await import('@/store/useChatStore');
+          const { chatId } = useChatStore.getState();
+          if (chatId) {
+            // A stream reconnecting mid-turn is exactly when this onopen fires; the refresh skips
+            // while a stream owns the store, so transient SSE fields are never overwritten.
+            const { refreshOpenChatTranscript } = await import('@/store/chat/chatTranscriptRefresh');
+            await refreshOpenChatTranscript(chatId);
           }
         } finally {
           reconciling = false;

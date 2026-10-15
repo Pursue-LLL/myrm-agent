@@ -18,8 +18,11 @@ import useChatStore from '@/store/useChatStore';
 import DirectoryApprovalInput from '../DirectoryApprovalInput';
 
 const pipeline = vi.hoisted(() => ({ sendMessage: vi.fn<() => Promise<boolean>>() }));
+const transcript = vi.hoisted(() => ({ refreshOpenChatTranscript: vi.fn<(chatId: string) => Promise<void>>() }));
 
 vi.mock('@/store/chat/messageRequest', () => pipeline);
+
+vi.mock('@/store/chat/chatTranscriptRefresh', () => transcript);
 
 vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
@@ -54,6 +57,7 @@ function grantDirectory(): void {
 
 beforeEach(() => {
   pipeline.sendMessage.mockReset();
+  transcript.refreshOpenChatTranscript.mockReset();
   onAnswered.mockClear();
   vi.mocked(toast.error).mockClear();
   vi.mocked(toast.warning).mockClear();
@@ -70,6 +74,7 @@ describe('DirectoryApprovalInput resume', () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('submitFailed'));
     expect(refreshSessionAccessRoots).not.toHaveBeenCalled();
     expect(onAnswered).not.toHaveBeenCalled();
+    expect(transcript.refreshOpenChatTranscript).not.toHaveBeenCalled();
   });
 
   it('records the grant and marks the card answered once the resume is dispatched', async () => {
@@ -82,16 +87,20 @@ describe('DirectoryApprovalInput resume', () => {
       optimistic: { path: '/data/reports', writable: true, source: 'hitl_grant' },
     });
     expect(toast.error).not.toHaveBeenCalled();
+    expect(transcript.refreshOpenChatTranscript).not.toHaveBeenCalled();
   });
 
-  it('closes the card without recording a grant when the timeout already declined it', async () => {
+  it('closes the card without recording a grant and pulls in what the timeout continued with', async () => {
     pipeline.sendMessage.mockRejectedValue(new ApprovalExpiredError());
+    transcript.refreshOpenChatTranscript.mockResolvedValue();
 
     grantDirectory();
 
-    await waitFor(() => expect(onAnswered).toHaveBeenCalledTimes(1));
+    // Closed once right away and once more after the stored row replaced the message.
+    await waitFor(() => expect(onAnswered).toHaveBeenCalledTimes(2));
     expect(toast.warning).toHaveBeenCalledWith('expired');
     expect(toast.error).not.toHaveBeenCalled();
     expect(refreshSessionAccessRoots).not.toHaveBeenCalled();
+    expect(transcript.refreshOpenChatTranscript).toHaveBeenCalledWith('chat-1');
   });
 });

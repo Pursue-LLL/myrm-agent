@@ -49,7 +49,7 @@ def schedule_channel_approval_timeout(
     behavior = str(timeout_info.get("behavior", "deny"))
     scheduler_key = f"{channel}:{peer}"
 
-    async def resume_callback(resume_value: dict[str, object]) -> None:
+    async def resume_after_timeout(resume_value: dict[str, object]) -> None:
         from langgraph.types import Command
 
         from app.ai_agents.agents import AgentFactory, GeneralAgentParams
@@ -135,6 +135,15 @@ def schedule_channel_approval_timeout(
                     scheduler_key,
                     chat_id,
                 )
+
+    async def resume_callback(resume_value: dict[str, object]) -> None:
+        try:
+            await resume_after_timeout(resume_value)
+        except Exception:
+            # The timer claimed the key before resuming; a run that died leaves the suspended graph unanswered,
+            # so the claim goes back and the user's own reply is not refused as already resolved.
+            ApprovalTimeoutScheduler.get().reopen(scheduler_key)
+            raise
 
     ApprovalTimeoutScheduler.get().schedule(
         key=scheduler_key,

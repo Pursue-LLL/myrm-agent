@@ -21,6 +21,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
+import { refreshOpenChatTranscript } from '@/store/chat/chatTranscriptRefresh';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import type { ClarificationForm } from '@/store/chat/types';
 import { cn } from '@/lib/utils';
@@ -278,11 +279,13 @@ const ClarificationInput = ({
     });
   };
 
-  // An answer that arrives after the timeout already continued the turn is not a failure: the card closes.
+  // An answer that arrives after the timeout already continued the turn is not a failure: the card closes. The
+  // refresh may land before that run persisted its result, so the card is closed again once the stored row replaces it.
   const reportAnswerError = (err: unknown) => {
     if (err instanceof ApprovalExpiredError) {
       markAnswered();
       toast.warning(t('expired'));
+      void refreshOpenChatTranscript(useChatStore.getState().chatId).then(markAnswered);
       return;
     }
     console.error('Failed to answer clarification:', err);

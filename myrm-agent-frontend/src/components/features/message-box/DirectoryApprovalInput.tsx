@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { isTauriEnvironment } from '@/lib/tauri';
 import useChatStore from '@/store/useChatStore';
+import { refreshOpenChatTranscript } from '@/store/chat/chatTranscriptRefresh';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 
@@ -61,11 +62,13 @@ export default function DirectoryApprovalInput({
     onAnswered?.();
   };
 
-  // An answer that arrives after the timeout already declined the request is not a failure: the card closes.
+  // An answer that arrives after the timeout already declined the request is not a failure: the card closes. The
+  // refresh may land before that run persisted its result, so the card is closed again once the stored row replaces it.
   const reportAnswerError = (error: unknown) => {
     if (error instanceof ApprovalExpiredError) {
       markAnswered();
       toast.warning(t('expired'));
+      void refreshOpenChatTranscript(chatId).then(markAnswered);
       return;
     }
     console.error('Failed to answer directory access request:', error);
