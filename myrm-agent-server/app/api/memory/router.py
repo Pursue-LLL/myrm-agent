@@ -14,7 +14,6 @@ from app.api.memory.budget_packing_router import (
 from app.api.memory.code_memory_compaction_router import (
     router as code_memory_compaction_router,
 )
-from app.api.memory.codegraph_router import router as codegraph_router
 from app.api.memory.conversation_lineage_defense_router import (
     router as conversation_lineage_defense_router,
 )
@@ -130,7 +129,6 @@ router.include_router(external_transcripts.router, tags=["memory-external-transc
 router.include_router(domain_mesh.router, tags=["memory-domain-mesh"])
 router.include_router(profile_notes_router, tags=["memory-profile-notes"])
 router.include_router(four_layer_promotion_router, tags=["memory-four-layer-promotion"])
-router.include_router(codegraph_router, tags=["memory-codegraph"])
 router.include_router(decay_lifecycle_router, tags=["memory-decay-lifecycle"])
 router.include_router(graph_rrf_router, tags=["memory-graph-rrf"])
 router.include_router(hindsight_reflection_router, tags=["memory-hindsight-reflection"])

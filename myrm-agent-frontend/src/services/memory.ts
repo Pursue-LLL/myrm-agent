@@ -12,7 +12,6 @@ export * from './memory/integration';
 export * from './memory/cognitiveClock';
 export * from './memory/profileNotes';
 export * from './memory/fourLayerPromotion';
-export * from './memory/codeGraph';
 export * from './memory/decayLifecycle';
 export * from './memory/graphRrf';
 export * from './memory/hindsight';

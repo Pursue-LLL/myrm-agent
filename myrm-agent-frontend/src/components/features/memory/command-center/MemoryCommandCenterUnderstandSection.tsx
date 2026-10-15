@@ -22,7 +22,6 @@ import { ConflictResolutionCard } from '../cards/ConflictResolutionCard';
 import { BehavioralMetricsPanel } from '../insights/BehavioralMetricsPanel';
 import { RepoEvidenceCard } from '../cards/RepoEvidenceCard';
 import { MemoryEconomicsPanel } from './MemoryEconomicsPanel';
-import { CodeGraphAssetCard } from './CodeGraphAssetCard';
 import { GraphRRFRetrievalCard } from './GraphRRFRetrievalCard';
 import { HindsightReflectionCard } from './HindsightReflectionCard';
 import { CodeMemoryCompactionCard } from './CodeMemoryCompactionCard';
@@ -65,7 +64,6 @@ export const UnderstandSection = ({
     <MemoryEconomicsPanel initialDashboard={snapshot.economics} />
     <BehavioralMetricsPanel t={t} />
     <RepoEvidenceCard />
-    <CodeGraphAssetCard />
     <GraphRRFRetrievalCard />
     <HindsightReflectionCard />
     <CodeMemoryCompactionCard />

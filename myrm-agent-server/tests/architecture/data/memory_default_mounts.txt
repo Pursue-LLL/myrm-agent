@@ -19,7 +19,6 @@ external_transcripts.router
 domain_mesh.router
 profile_notes_router
 four_layer_promotion_router
-codegraph_router
 decay_lifecycle_router
 graph_rrf_router
 hindsight_reflection_router
