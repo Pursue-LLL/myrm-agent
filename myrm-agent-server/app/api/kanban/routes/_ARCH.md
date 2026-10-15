@@ -43,7 +43,7 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 | GET/PATCH/DELETE | `/tasks/{task_id}` | PATCH 带上的 `title` / `description` / `result` / 验收标准文字同样先过风险闸门（没带的字段不重新过闸）；PATCH 支持 `result`/`metadata`/`require_approval` 等字段；`extra_skill_ids` 同样经 `validate_extra_skill_ids` 校验；`require_approval` 仅活动状态（TRIAGE/BACKLOG/READY/RUNNING/BLOCKED）可改，IN_REVIEW 与终态返回 400（守卫在 `task_ops.update_task`） |
 | POST | `/tasks/{task_id}/move` | `result` 与移交 `metadata` 里的所有字符串（含嵌套的列表和对象）是下一个智能体会读到的文字，先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，任务不移动） |
 | POST | `/tasks/{task_id}/promote` | - |
-| POST | `/tasks/{task_id}/reclaim` | - |
+| POST | `/tasks/{task_id}/reclaim` | `reason` 先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，任务继续运行）：有调度器时它写进这次运行的错误信息，下一次执行的上下文会带上它 |
 | POST | `/tasks/{task_id}/approve` | IN_REVIEW → COMPLETED（promote dependents；非 IN_REVIEW 幂等 200 返回当前状态） |
 | POST | `/tasks/{task_id}/reject` | IN_REVIEW → READY（reason 必填且先过风险闸门，命中 400 `risk_held`、任务仍在 IN_REVIEW；回写 error，retry_count 重置；非 IN_REVIEW 幂等 200） |
 | POST | `/tasks/{task_id}/retry` | FAILED → READY（无请求体，重置重试预算；非 FAILED 幂等 200 返回当前状态） |

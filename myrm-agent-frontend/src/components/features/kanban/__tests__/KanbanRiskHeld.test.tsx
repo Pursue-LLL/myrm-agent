@@ -176,6 +176,21 @@ describe('kanban text entry when the server holds the text', () => {
       expect(hook.result.current.rejectReason).toBe('retry with key sk-AAAAAABBBBBBCCCCCCDDDD-0');
     });
 
+    it('explains a held reclaim reason once and keeps the dialog open with the text', async () => {
+      stubFetch(400, riskHeldRefusalBody);
+      const hook = drawer();
+      act(() => {
+        hook.result.current.setShowReclaimDialog(true);
+        hook.result.current.setReclaimReason('retry with key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+      });
+
+      await act(() => hook.result.current.handleReclaim());
+
+      expectOnlyTheNotice();
+      expect(hook.result.current.showReclaimDialog).toBe(true);
+      expect(hook.result.current.reclaimReason).toBe('retry with key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+    });
+
     it('still reports any other failure with its own toast', async () => {
       stubFetch(500, { detail: 'boom' });
       const hook = drawer();
@@ -183,17 +198,20 @@ describe('kanban text entry when the server holds the text', () => {
         hook.result.current.setCommentText('write the docs');
         hook.result.current.setResultText('parsed 3 files');
         hook.result.current.setRejectReason('add source citations');
+        hook.result.current.setReclaimReason('stuck on the login page');
       });
 
       await act(() => hook.result.current.handleSubmitComment());
       await act(() => hook.result.current.handleSaveCriteria());
       await act(() => hook.result.current.handleSaveResult());
       await act(() => hook.result.current.handleReject());
+      await act(() => hook.result.current.handleReclaim());
 
       expect(sonnerToast.error).toHaveBeenCalledWith('addCommentError');
       expect(sonnerToast.error).toHaveBeenCalledWith('criteriaUpdateError');
       expect(sonnerToast.error).toHaveBeenCalledWith('updateError');
       expect(sonnerToast.error).toHaveBeenCalledWith('rejectError');
+      expect(sonnerToast.error).toHaveBeenCalledWith('reclaimFailed');
     });
   });
 });

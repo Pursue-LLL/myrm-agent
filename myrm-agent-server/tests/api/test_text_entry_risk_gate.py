@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator
+from typing import Protocol
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from httpx import Response
 from myrm_agent_harness.toolkits.cron import CronConfig, CronManager, CronScheduler
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 from myrm_agent_harness.toolkits.kanban.types import TaskStatus
@@ -36,7 +36,19 @@ def _risk_rules() -> Iterator[None]:
         yield
 
 
-def _assert_held(response: Response) -> None:
+class _HttpResponse(Protocol):
+    """The part of a test client response these tests read; ``TestClient`` hands back whichever ``httpx`` it was built on."""
+
+    @property
+    def status_code(self) -> int: ...
+
+    @property
+    def text(self) -> str: ...
+
+    def json(self) -> dict[str, dict[str, object]]: ...
+
+
+def _assert_held(response: _HttpResponse) -> None:
     assert response.status_code == 400
     detail = response.json()["detail"]
     assert detail["code"] == RISK_HELD_CODE
@@ -250,11 +262,11 @@ def _task_state(client: TestClient, task_id: str) -> dict[str, object]:
     return state
 
 
-async def _put_in_review(task_id: str) -> None:
+async def _set_status(task_id: str, status: TaskStatus) -> None:
     service = KanbanService.get_instance()
     task = await service.get_task(task_id)
     assert task is not None
-    task.status = TaskStatus.IN_REVIEW
+    task.status = status
     await service.store.save_task(task)
 
 
@@ -277,7 +289,7 @@ def test_kanban_task_clean_result_is_stored(kanban_client: TestClient) -> None:
 
 def test_kanban_reject_with_a_secret_is_refused_and_the_task_stays_in_review(kanban_client: TestClient) -> None:
     task_id = _new_task(kanban_client)
-    asyncio.run(_put_in_review(task_id))
+    asyncio.run(_set_status(task_id, TaskStatus.IN_REVIEW))
 
     _assert_held(kanban_client.post(f"/api/v1/kanban/tasks/{task_id}/reject", json={"reason": f"retry with {SECRET}"}))
 
@@ -289,12 +301,34 @@ def test_kanban_reject_with_a_secret_is_refused_and_the_task_stays_in_review(kan
 
 def test_kanban_reject_with_a_clean_reason_returns_the_task_to_ready(kanban_client: TestClient) -> None:
     task_id = _new_task(kanban_client)
-    asyncio.run(_put_in_review(task_id))
+    asyncio.run(_set_status(task_id, TaskStatus.IN_REVIEW))
 
     response = kanban_client.post(f"/api/v1/kanban/tasks/{task_id}/reject", json={"reason": "add source citations"})
 
     assert response.status_code == 200
     assert response.json()["status"] == "ready"
+
+
+def test_kanban_reclaim_with_a_secret_is_refused_and_the_task_keeps_running(kanban_client: TestClient) -> None:
+    task_id = _new_task(kanban_client)
+    asyncio.run(_set_status(task_id, TaskStatus.RUNNING))
+
+    _assert_held(kanban_client.post(f"/api/v1/kanban/tasks/{task_id}/reclaim", json={"reason": f"retry with {SECRET}"}))
+
+    task = _task_state(kanban_client, task_id)
+    assert task["status"] == "running"
+    events = kanban_client.get(f"/api/v1/kanban/tasks/{task_id}/events").json()["items"]
+    assert SECRET not in str(task) + str(events)
+
+
+def test_kanban_reclaim_with_a_clean_reason_returns_the_task_to_ready(kanban_client: TestClient) -> None:
+    task_id = _new_task(kanban_client)
+    asyncio.run(_set_status(task_id, TaskStatus.RUNNING))
+
+    response = kanban_client.post(f"/api/v1/kanban/tasks/{task_id}/reclaim", json={"reason": "stuck on the login page"})
+
+    assert response.status_code == 200
+    assert response.json()["task"]["status"] == "ready"
 
 
 @pytest.mark.parametrize(

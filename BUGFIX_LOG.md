@@ -3796,7 +3796,7 @@ except Exception:
 | 发现日期 | 2026-10-15（`BUG-AGENT-2026-10-15-014` 局限 7「其余经 `apiRequest` 又自带失败提示的调用点仍可能叠两条提示，没有逐个核对」；这次从会拦文字的服务端处理函数倒查前端调用方，而不是从组件往下找） |
 | 修复日期 | 2026-10-15 |
 | 严重程度 | P3（拦截本身有效，密钥没有进库；问题是用户看到两条互相矛盾的提示、一条没有原因的提示或乱码） |
-| 影响范围 | frontend：`kanban/{useKanbanAddTask,useKanbanTaskDrawer,useKanbanTaskCardDetails}.ts`、`artifacts/ArtifactAnnotationPanel.tsx`、`cron/{CronJobCreateDialog,BlueprintFillDialog,BlueprintInlineFill}.tsx`、`settings/sections/system/HeartbeatSection.tsx`、`skills/useSkillDetailSheet.ts`、`message-input-actions/GoalModeToggle.tsx` 的 `catch` / 失败分支，以及上述目录与 `test-utils` 的 `_ARCH.md`；测试：7 个新文件共 22 例 + 夹具 `src/test-utils/riskHeld.ts`；server 与契约没有改 |
+| 影响范围 | frontend：`kanban/{useKanbanAddTask,useKanbanTaskDrawer,useKanbanTaskCardDetails}.ts`、`artifacts/ArtifactAnnotationPanel.tsx`、`cron/{CronJobCreateDialog,BlueprintFillDialog,BlueprintInlineFill}.tsx`、`settings/sections/system/HeartbeatSection.tsx`、`skills/useSkillDetailSheet.ts`、`message-input-actions/GoalModeToggle.tsx` 的 `catch` / 失败分支，以及上述目录与 `test-utils` 的 `_ARCH.md`；测试：7 个新文件共 24 例 + 夹具 `src/test-utils/riskHeld.ts`；server 与契约没有改 |
 | 出现次数 | 12 个调用点（读码得出，见现象；没有在浏览器里复现） |
 | 关联 | `BUG-AGENT-2026-10-15-014`（关闭它的局限 7）、`-009`；本地提交，未 push |
 
@@ -3987,23 +3987,23 @@ except Exception:
 
 ---
 
-## BUG-AGENT-2026-10-15-020: 看板任务的结果、驳回理由与移交的结果 / 元数据不过风控闸门，带密钥的文字被存下后由上下文构建器原样交给下一个智能体；前端对被拦下的结果保存与驳回会在统一提示之外再叠一条失败提示
+## BUG-AGENT-2026-10-15-020: 看板任务的结果、驳回理由、回收理由与移交的结果 / 元数据不过风控闸门，带密钥的文字被存下后由上下文构建器原样交给下一个智能体；前端对被拦下的结果保存、驳回与回收会在统一提示之外再叠一条失败提示
 
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-15（`BUG-AGENT-2026-10-15-017` 局限 6 点出的缺口；逐个核对看板写入函数：写进去的文字会不会被上下文构建器读给模型） |
 | 修复日期 | 2026-10-15 |
 | 严重程度 | P2（与 `-009` 修的标题 / 描述 / 评论同一类：带密钥的文字进库，并被下一个智能体读到；没有线上记录） |
-| 影响范围 | server：`app/api/kanban/routes/tasks.py`（`update_task`、`move_task`、`reject_task`、新增 `_metadata_texts`）、`tests/architecture/test_text_entry_risk_gate.py`（登记 `move_task`、`reject_task`）、`tests/api/test_text_entry_risk_gate.py`（新增 8 例）、`app/api/kanban/routes/_ARCH.md`、`app/services/risk/_ARCH.md`、`tests/_ARCH.md`、`tests/architecture/_ARCH.md`；frontend：`kanban/{useKanbanTaskDrawer,useKanbanTaskDrawerWorkflow}.ts`、`kanban/__tests__/KanbanRiskHeld.test.tsx`、`kanban/_ARCH.md`；harness、提示词、语言包没有改 |
+| 影响范围 | server：`app/api/kanban/routes/tasks.py`（`update_task`、`move_task`、`reject_task`、`reclaim_task`、新增 `_metadata_texts`）、`tests/architecture/test_text_entry_risk_gate.py`（登记 `move_task`、`reject_task`、`reclaim_task`）、`tests/api/test_text_entry_risk_gate.py`（新增 10 例）、`app/api/kanban/routes/_ARCH.md`、`app/services/risk/_ARCH.md`、`tests/_ARCH.md`、`tests/architecture/_ARCH.md`；frontend：`kanban/{useKanbanTaskDrawer,useKanbanTaskDrawerWorkflow}.ts`、`kanban/__tests__/KanbanRiskHeld.test.tsx`、`kanban/_ARCH.md`；harness、提示词、语言包没有改 |
 | 出现次数 | 未测量（没有线上记录；复现用的是真实路由处理函数加桩存储） |
 | 关联 | `BUG-AGENT-2026-10-15-009`、`-014`、`-017`（关闭它的局限 6）；本地提交，未 push |
 
 ### 现象
 
-1. `PATCH /kanban/tasks/{id}` 只对标题、描述、验收标准过风控闸门，`result` 原样存下；`POST /kanban/tasks/{id}/reject` 的 `reason` 不过闸，存进 `task.error` 与 REJECTED 事件（`review_ops.py` 的 `reject_task`）；`POST /kanban/tasks/{id}/move` 的 `result` 与 `metadata` 不过闸，存进 `task.result` 与 `task.metadata['handoff']`（`TaskMoveRequest` 的字段说明）。
-2. 这些文字会被读给模型：`myrm-agent-harness/.../toolkits/kanban/context_builder.py:98-104` 把父任务的 `result` 与 `handoff` 放进 `## Parent task results`，`:138-143` 把驳回理由放进 `## Review history`。所以带 `sk-…` 之类的结果、驳回理由或移交说明，会在下一个任务启动时进入智能体上下文。
-3. 复现（真实路由处理函数，只桩掉存储）：同一个密钥放进 `update_task` 的 `title` 被拒（400 `risk_held`），放进 `update_task` 的 `result`、`reject_task` 的 `reason`、`move_task` 的 `result` 都被存下。
-4. 前端（读码得出）：抽屉的结果保存（`useKanbanTaskDrawer.ts:297-315`）与驳回对话框（`useKanbanTaskDrawerWorkflow.ts:63-86`）的 `catch` 无条件弹自己的失败提示；服务端一拦，用户会在统一的风控提示之外再看到「保存失败」或「驳回失败」。
+1. `PATCH /kanban/tasks/{id}` 只对标题、描述、验收标准过风控闸门，`result` 原样存下；`POST /kanban/tasks/{id}/reject` 的 `reason` 不过闸，存进 `task.error` 与 REJECTED 事件（`review_ops.py` 的 `reject_task`）；`POST /kanban/tasks/{id}/move` 的 `result` 与 `metadata` 不过闸，存进 `task.result` 与 `task.metadata['handoff']`（`TaskMoveRequest` 的字段说明）；`POST /kanban/tasks/{id}/reclaim` 的 `reason`（抽屉里「回收」对话框的文本框，最长 500 字符）不过闸，有调度器时它被写进被回收那次运行的错误信息 `manual_reclaim: {reason}`（`dispatcher.py:220-224`）。
+2. 这些文字会被读给模型：`myrm-agent-harness/.../toolkits/kanban/context_builder.py:98-104` 把父任务的 `result` 与 `handoff` 放进 `## Parent task results`，`:138-143` 把驳回理由放进 `## Review history`，`:70-87` 把已结束运行的错误信息放进 `## Prior attempts` 的 `Error:` 行，回收理由因此进入下一次执行的上下文。所以带 `sk-…` 之类的结果、驳回理由或移交说明，会在下一个任务启动时进入智能体上下文。
+3. 复现（真实路由处理函数，只桩掉存储）：同一个密钥放进 `update_task` 的 `title` 被拒（400 `risk_held`），放进 `update_task` 的 `result`、`reject_task` 的 `reason`、`move_task` 的 `result` 都被存下（回收理由不在复现脚本里，由路由测试覆盖）。
+4. 前端（读码得出）：抽屉的结果保存（`useKanbanTaskDrawer.ts:297-315`）、驳回对话框（`useKanbanTaskDrawerWorkflow.ts:63-86`）与回收对话框（同文件 `handleReclaim`）的 `catch` 无条件弹自己的失败提示；服务端一拦，用户会在统一的风控提示之外再看到「保存失败」「驳回失败」或「回收失败」。
 
 ### 根因
 
@@ -4011,30 +4011,34 @@ except Exception:
 
 ### 修复
 
-1. `tasks.py`：`update_task` 的 `reject_if_risky` 调用加上 `body.result`；`reject_task` 先过闸 `body.reason`；`move_task` 先过闸 `body.result` 与 `_metadata_texts(body.metadata)`（移交元数据里所有字符串，嵌套的列表与对象都算，键名不算）。闸门放在路由层，不放服务层：`reject_task` 还被 A2A（`app/api/a2a/router.py:307`）与批量目录取消（`batch_directory/service.py:258`）调用，那些调用方的文字不是用户键入的。
-2. 守卫测试登记 `move_task`、`reject_task`。
-3. 前端两处 `catch` 沿用已有写法：`if (!isRiskHeldError(error)) { 原来的失败提示 }`，被拦时只留 `apiRequest` 的那一条统一提示，结果编辑器与驳回对话框保持打开、文字保留。不新增文案、不改语言包。
-4. `services/risk/_ARCH.md` 的清单改成：手工写入的结果、移交的结果与说明、驳回理由过闸；不过闸的是 `blocked_reason`（只展示给人，不进智能体上下文）与智能体运行自己写出的 `result`。
+1. `tasks.py`：`update_task` 的 `reject_if_risky` 调用加上 `body.result`；`reject_task` 与 `reclaim_task` 先过闸 `body.reason`；`move_task` 先过闸 `body.result` 与 `_metadata_texts(body.metadata)`（移交元数据里所有字符串，嵌套的列表与对象都算，键名不算）。闸门放在路由层，不放服务层：`reject_task` 还被 A2A（`app/api/a2a/router.py:307`）与批量目录取消（`batch_directory/service.py:258`）调用，那些调用方的文字不是用户键入的。
+2. 守卫测试登记 `move_task`、`reject_task`、`reclaim_task`。
+3. 前端三处 `catch` 沿用已有写法：`if (!isRiskHeldError(error)) { 原来的失败提示 }`，被拦时只留 `apiRequest` 的那一条统一提示，结果编辑器、驳回对话框与回收对话框保持打开、文字保留。不新增文案、不改语言包。
+4. `services/risk/_ARCH.md` 的清单改成：手工写入的结果、移交的结果与说明、驳回理由、回收理由过闸；不过闸的是 `blocked_reason`（网页没有输入它的界面，IM 的 `/kanban block` 文字在入站闸门已筛查，`channels/routing/router.py:887-889`）与智能体运行自己写出的 `result`。
 
 ### 验证
 
-1. server 新增 8 例（`tests/api/test_text_entry_risk_gate.py`，真实路由，只注入规则）：结果被拦且不变、干净结果存下；驳回被拦且任务仍在 IN_REVIEW、事件里没有原文、干净理由回到 READY；移交的结果、元数据顶层字符串、元数据嵌套在对象与列表里的字符串各被拦（任务不移动），干净移交存下。
-2. 变异检查（改一处、跑、还原，脚本在 `finally` 里写回原文）：去掉 `update_task` 的 `body.result`、去掉 `move_task` 的闸门、去掉 `reject_task` 的闸门、去掉 `_metadata_texts` 的列表分支、去掉它的对象分支，五个变异各有用例变红（分别是 1、3、1、1、2 例）；还原后 `git diff --stat` 与改动前一致。前端把两处判断改回无条件弹提示，各有 1 例变红，还原后一致。
+1. server 新增 10 例（`tests/api/test_text_entry_risk_gate.py`，真实路由，只注入规则）：结果被拦且不变、干净结果存下；驳回被拦且任务仍在 IN_REVIEW、事件里没有原文、干净理由回到 READY；回收被拦且任务仍在 RUNNING、事件里没有原文、干净理由回到 READY；移交的结果、元数据顶层字符串、元数据嵌套在对象与列表里的字符串各被拦（任务不移动），干净移交存下。
+2. 变异检查（改一处、跑、还原，脚本在 `finally` 里写回原文）：去掉 `update_task` 的 `body.result`、去掉 `move_task`、`reject_task`、`reclaim_task` 的闸门、去掉 `_metadata_texts` 的列表分支、去掉它的对象分支，六个变异各有用例变红（分别是 1、3、1、1、1、2 例）；还原后 `git diff --stat` 与改动前一致。前端把三处判断改回无条件弹提示，各有 1 例变红，还原后一致。
 3. 复现脚本在修复后：四条路径全部 400 `risk_held`，桩存储里什么都没有。
-4. 回归：server `tests/api/kanban`、`tests/api/batch_directory`、`tests/api/chats/test_kanban_in_review_seed_integration.py`、`tests/api/test_text_entry_risk_gate.py`、`tests/api/test_authoring_risk_gate.py`、`tests/services/risk` 共 791 例，789 通过、1 跳过、1 失败：`test_kanban_api.py::TestSyntheticRun::test_move_with_result_and_metadata` 期望 `handoff` 恰好等于 `{"changed_files": [...]}`，实际多了 `summary` 与 `timestamp`，这两个键来自他人未提交的 `move_orchestrator.py`（`git diff HEAD` 里有 `handoff_data["summary"]`、`handoff_data["timestamp"]`），与本条无关。前端 `vitest run` 覆盖 `kanban`、`src/services/__tests__`、`artifacts`：155 个文件 1397 例通过。
-5. 静态检查：触及的 server 文件 `ruff check`、`ruff format --check` 通过；`mypy` 在 `tasks.py` 上没有错误，测试文件上的报错全是 `httpx2` 与 `httpx` 的 `Response` 类型不匹配（已装的 starlette 用 `httpx2`，既有的 `_assert_held` 标注的是 `httpx.Response`，与本条无关）；前端触及的三个文件 `oxlint` 退出码 0、`prettier --check` 通过，`tsc --noEmit` 输出里没有这些文件，`verify:theme-colors` 通过。
+4. 回归：server `tests/api/kanban`、`tests/api/batch_directory`、`tests/api/chats/test_kanban_in_review_seed_integration.py`、`tests/api/test_text_entry_risk_gate.py`、`tests/api/test_authoring_risk_gate.py`、`tests/services/risk` 加上守卫测试 `tests/architecture/test_text_entry_risk_gate.py` 共 830 例，827 通过、1 跳过、2 失败：一例是守卫扫描（见局限 5），另一例是 `test_kanban_api.py::TestSyntheticRun::test_move_with_result_and_metadata`，它期望 `handoff` 恰好等于 `{"changed_files": [...]}`，实际多了 `summary` 与 `timestamp`，这两个键来自他人未提交的 `move_orchestrator.py`（`git diff HEAD` 里有 `handoff_data["summary"]`、`handoff_data["timestamp"]`），与本条无关。前端 `vitest run` 覆盖 `kanban`、`src/services/__tests__`、`artifacts`：155 个文件 1398 例通过。
+5. 静态检查：触及的 server 文件 `ruff check`、`ruff format --check` 通过；`mypy` 在 `tasks.py` 与两个守卫测试文件上没有错误（`_assert_held` 的参数用只含 `status_code`、`text`、`json()` 的 `_HttpResponse` 协议，因为已装的 starlette 的 `TestClient` 返回 `httpx2.Response`，标成 `httpx.Response` 会有 12 处类型不匹配）；前端触及的三个文件 `oxlint` 退出码 0、`prettier --check` 通过，`tsc --noEmit` 输出里没有这些文件，`verify:theme-colors` 通过。
 6. 检测器的代价（探针脚本，不入库）：开发文档语料 4257 段、每段 2000 字符，命中 9 段（0.21%），全是文档里引用的凭据样例；2000 字符的单次检测 p50 0.27 ms、p95 0.40 ms、最大 1.39 ms；10000 字符平均 1.4 ms。
+7. 移交元数据有很多字符串时的代价（探针脚本，每条是单独检测）：51 个字符串 1.0 ms、501 个 9.6 ms、5001 个（约 30 万字符）97 ms；合成一段再检测约快一倍，没有采用，因为正常移交只有几个到几十个字符串。
 
 ### 局限
 
-1. 没有在真实浏览器里验证：结果保存与驳回的界面行为（统一提示一次、编辑器与对话框保持打开、文字保留）由 hook 测试证明，测试替身了 toast 出口，没有真实 sonner 渲染，没有手机 / PC 截图。
+1. 没有在真实浏览器里验证：结果保存、驳回与回收的界面行为（统一提示一次、编辑器与对话框保持打开、文字保留）由 hook 测试证明，测试替身了 toast 出口，没有真实 sonner 渲染，没有手机 / PC 截图。
 2. 检测器只命中 8 条默认启用的凭据规则（`services/risk/_ARCH.md`）：命中的是形如密钥的字符串，裸口令文字与被空格拆开的密钥会放行。用户在结果里引用凭据样例会被拦，要放行需在设置里关闭规则（统一提示里有说明）。
 3. 他人未提交的 `KanbanTaskHandoffSection.tsx` 调用 `moveTask` 带 `result` 与 `metadata`，它的 `catch`（`:98-99`）无条件弹 `(err as Error).message`，被拦时会在统一提示之外再弹服务端的英文 `Text held by a risk rule`。该文件未提交且不是本条的文件，没有改；提交它时需要同样加上 `isRiskHeldError` 判断。
-4. 仍未过闸、已核对的看板写入点：`apply-decompose` 与 `replan` 存下的标题与描述（来自模型的分解结果，对话框里用户只能改标题）、`reclaim` 的 `reason`（RECLAIMED 事件不被上下文构建器读取）、看板的名称与描述（上下文构建器不读取）、`blocked_reason`（只展示给人）。`api/agents/kanban_orchestrator_router.py` 的 `decompose_goal` 与 `create_card` 已挂载（`api/router.py:350`），但前端的 `ExportedVisualMultiAgentKanbanCard`（`ChatWindowSatellites.tsx:1676`）没有任何引用，组件里也没有 `fetch` / `apiRequest`，当前没有前端调用方。
-5. 守卫测试里扫描「未登记处理函数」的用例仍是红的：20 个未登记的处理函数（`kanban_orchestrator_router.py::decompose_goal` 与他人新增的路由），都不在本条触及的文件里；`_INSTRUCTION_FIELDS` 仍只含五个字段名，新增承载文字的端点要靠开发者自己登记。
+4. 仍未过闸、已核对的看板写入点：`apply-decompose` 与 `replan` 存下的标题与描述（来自模型的分解结果，对话框里用户只能改标题，`KanbanDecomposeDialog.tsx:229`）、看板的名称与描述（上下文构建器不读取）、创建与编辑任务时的 `metadata`（上下文构建器只读其中的 `handoff` 键；前端没有任何调用方发送它，直接调接口的客户端能经 `PATCH` 的 `metadata` 绕过移交的闸门）。`api/agents/kanban_orchestrator_router.py` 的 `decompose_goal` 与 `create_card` 已挂载（`api/router.py:350`），但前端的 `ExportedVisualMultiAgentKanbanCard`（`ChatWindowSatellites.tsx:1676`）没有任何引用，组件里也没有 `fetch` / `apiRequest`，当前没有前端调用方。
+5. 守卫测试里扫描「未登记处理函数」的用例仍是红的：21 个未登记的处理函数（`kanban_orchestrator_router.py::decompose_goal` 与他人新增的路由），都不在本条触及的文件里；`_INSTRUCTION_FIELDS` 仍只含五个字段名，新增承载文字的端点要靠开发者自己登记。
+6. 用户在结果编辑器里改的是智能体写的整段结果，保存时整段重新过闸：智能体写出的结果里若含形如密钥的字符串，用户改一个字也会被拦，要在设置里关闭规则才能保存（统一提示里写明了怎么做）。开发库里既有 197 条智能体写的任务结果（E2E 数据，平均 94 字符）用默认规则检测，0 条命中；样本是 E2E 数据，不代表真实使用。
 
 ### 踩坑经验
 
 1. 找该过闸的字段，要从「谁把文字读给模型」倒查（`context_builder.py` 读了哪些字段），不要靠字段名扫描，也不要靠「这个字段是输出」的印象：人手写进去的 `result` 对下一个智能体就是输入。
 2. 变异检查的还原放进 `finally` 里写回整份原文，并在结束后核对 `git diff --stat`，不要靠「把短字面量换回去」。
-3. 要把任务造到 IN_REVIEW 做接口测试，沿用 `tests/api/kanban/test_in_review_api.py` 的做法：`asyncio.run` 里经 `KanbanService.get_instance().store.save_task` 改状态，不必走完整的执行流程。
+3. 要把任务造到 IN_REVIEW 或 RUNNING 做接口测试，沿用 `tests/api/kanban/test_in_review_api.py` 的做法：`asyncio.run` 里经 `KanbanService.get_instance().store.save_task` 改状态，不必走完整的执行流程。
+4. 判断「某个字段会不会被读给模型」不能只看上下文构建器直接读的字段：回收理由经运行的 `error` 字段被 `## Prior attempts` 读到，只查事件会漏掉它。要从写入点出发找出所有会存这段文字的字段，再逐个看谁读它。
+5. 用零上下文的 hunk 把自己的改动从他人未提交的改动里分拣出来后，要用 `git show :路径` 逐处核对暂存区的内容：驳回闸门被放到了 `svc = get_kanban_service()` 之后一行（跳过上方他人的 hunk 后，后面 hunk 的新侧行号失准），hunk 数量与 `git diff --cached --stat` 都看不出来。

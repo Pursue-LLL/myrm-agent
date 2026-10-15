@@ -157,8 +157,11 @@ export function useKanbanTaskDrawerWorkflow({
         onRefresh();
         toast.success(t('reclaimSuccess'));
       }
-    } catch {
-      toast.error(t('reclaimFailed'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held reason; the dialog keeps the text.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('reclaimFailed'));
+      }
     }
     setReclaiming(false);
   }, [task, reclaimReason, reclaimAgentId, onRefresh, t]);

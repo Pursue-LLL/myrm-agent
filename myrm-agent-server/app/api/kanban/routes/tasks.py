@@ -6,7 +6,7 @@ app.api.kanban.routes.tasks_list::list_tasks (POS: 任务列表查询端点)
 app.api.kanban.routes.skill_ids::validate_extra_skill_ids (POS: 任务技能 id 存在性校验)
 app.services.kanban::KanbanService (POS: Kanban 业务编排)
 app.services.kanban.task_attachment_ids::save_task_attachment_ids (POS: 任务附件 ID 持久化)
-app.services.risk.refusal::reject_if_risky (POS: 拒绝风险规则拦下的任务标题 / 描述 / 验收标准 / 结果 / 移交说明 / 驳回理由)
+app.services.risk.refusal::reject_if_risky (POS: 拒绝风险规则拦下的任务标题 / 描述 / 验收标准 / 结果 / 移交说明 / 驳回理由 / 回收理由)
 
 [OUTPUT]
 Task-domain REST endpoints under /api/v1/kanban/tasks and /boards/{board_id}/tasks.
@@ -288,8 +288,8 @@ async def approve_task(task_id: str, body: ApproveTaskRequest) -> TaskResponse:
 @router.post("/tasks/{task_id}/reject", response_model=TaskResponse)
 async def reject_task(task_id: str, body: RejectTaskRequest) -> TaskResponse:
     """Reject an IN_REVIEW task — sends it back to READY for rework."""
-    svc = get_kanban_service()
     await reject_if_risky(body.reason, session_id=task_id)
+    svc = get_kanban_service()
     try:
         task = await svc.reject_task(task_id, reason=body.reason, approver=body.approver)
     except ValueError as exc:
@@ -328,6 +328,7 @@ async def promote_task(task_id: str, body: PromoteRequest) -> PromoteResponse:
 
 @router.post("/tasks/{task_id}/reclaim", response_model=ReclaimResponse)
 async def reclaim_task(task_id: str, body: ReclaimRequest) -> ReclaimResponse:
+    await reject_if_risky(body.reason, session_id=task_id)
     svc = get_kanban_service()
     try:
         task = await svc.reclaim_task(
