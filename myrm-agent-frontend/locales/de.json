@@ -17356,6 +17356,9 @@
           "typeWrongButFrequent": "Häufig fehlerhaft",
           "typeHoarding": "Fähigkeiten-Überlastung",
           "typeStalePinned": "Inaktiv fixiert",
+          "findingWrongButFrequent": "{count} Mal ausgeführt, nur {rate} Erfolgsquote",
+          "findingStalePinned": "Angeheftet, aber {days, plural, one {seit # Tag} other {seit # Tagen}} ungenutzt",
+          "findingHoarding": "{active} aktive Fähigkeiten, {excess} über dem Limit von {max}",
           "actionUnpinArchive": "Lösen und archivieren",
           "actionArchive": "Archivieren",
           "actionReset": "Zähler zurücksetzen",
@@ -17364,6 +17367,11 @@
           "remediateSuccessDesc": "Fähigkeit {name} wurde erfolgreich bereinigt",
           "remediateFailedTitle": "Behebung fehlgeschlagen",
           "remediateFailedDesc": "Fähigkeit konnte nicht bereinigt werden"
+        },
+        "historyReason": {
+          "inactive": "Lange nicht verwendet",
+          "lowQuality": "Niedrige Erfolgsquote",
+          "overLimit": "Fähigkeiten-Limit überschritten"
         },
         "enabled": "Kurator aktivieren",
         "enabledDesc": "Lebenszyklusstatus der Fähigkeiten periodisch scannen und verwalten",

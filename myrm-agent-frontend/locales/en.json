@@ -18040,6 +18040,9 @@
           "typeWrongButFrequent": "Wrong but Frequent",
           "typeHoarding": "Library Bloat",
           "typeStalePinned": "Stale Pinned",
+          "findingWrongButFrequent": "Ran {count, plural, one {# time} other {# times}} with only {rate} success",
+          "findingStalePinned": "Pinned but unused for {days, plural, one {# day} other {# days}}",
+          "findingHoarding": "{active} active skills, {excess} over the limit of {max}",
           "actionUnpinArchive": "Unpin & Archive",
           "actionArchive": "Archive",
           "actionReset": "Reset Stats",
@@ -18048,6 +18051,11 @@
           "remediateSuccessDesc": "Successfully remediated skill {name}",
           "remediateFailedTitle": "Remediation Failed",
           "remediateFailedDesc": "Could not remediate this skill"
+        },
+        "historyReason": {
+          "inactive": "Not used for a long time",
+          "lowQuality": "Low success rate",
+          "overLimit": "Over the skill limit"
         },
         "enabled": "Enable Curator",
         "enabledDesc": "Periodically scan and manage skill lifecycle status",

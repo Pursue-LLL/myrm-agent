@@ -3524,3 +3524,64 @@ except Exception:
 2. 回归出在哪个提交，必须用 `git log -S` 与 diff 核实后再写：这次最初把 409 的删除记到了另一个提交上，核对后才找到 `1788bc35e6`。
 3. 测试与实现共用一条手写的键，布局漂移就测不出来：造数据要走公开接口，造坏数据则直接破坏存储里的值。
 4. 遗留的无类型模型会让 mypy 把查询结果推成 `Never`，标注结果类型（`Result[tuple[str, str]]`）比逐层加 `ignore` 干净。
+
+---
+
+## BUG-AGENT-2026-10-15-013: Curator 面板的「运行历史」与「技能医生」在中文界面里露出英文与开发标识符（`PINNED`、`Score: 70/100`、`2 stale`、`(lru_eviction)`、`3d ago`、服务端拼好的英文句子、`[Library Bloat]`），相对时间不随界面语言；面板 674 行
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-15 |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P3（只影响文案与可读性，不改变清理行为；但用户读不懂「这次清理动了什么、为什么」，就不敢放心恢复被归档的技能） |
+| 影响范围 | 前端 `CuratorSettingsPanel.tsx`（拆出 `CuratorHistorySection.tsx`、`CuratorDiagnosticsSection.tsx`）、`services/skill/core.ts`、六个 locale 文件；服务端 `app/api/skills/curator.py` 的诊断响应模型 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-15-003`（该条局限 6「面板 674 行没有拆分」在本条完成）；本地提交，未 push，不涉及 harness |
+
+### 现象
+
+1. 历史区的相对时间由面板里私有的 `formatRelativeTime` 拼成 `<1m ago` / `3d ago`（HEAD 的 `CuratorSettingsPanel.tsx:48-58`），与界面语言无关，仓库已有按语言格式化的 `lib/utils/relativeTime.ts`；
+2. 历史统计小标签写成 `{n} stale` / `{n} archived`（同文件 522、525 行）；每条转移行直接显示 `{tr.to_status}` 与 `({tr.reason})`（538-539 行），`reason` 的取值只有 `archive | stale | inactive | low_quality | lru_eviction` 五种（harness `forgetting_strategy.py` 的 145、161、179、196、240 行是全部产生点），用户看到的是 `(lru_eviction)`；每张历史卡片用了 `rounded-full`（507 行），多行内容被画成药丸形；
+3. 技能医生的徽章是 `Score: {n}/100` 与 `PINNED`（281、299 行）；每条发现的说明是服务端用英文拼好的 `message`（317 行），例如 `Pinned skill 'old-notes' unused for 45 days.`、`Active skills (52) exceed target limit (50) by 2.`（harness `forgetting_strategy.py:379,396`），在中文界面照样是英文，数字与技能名嵌在句子里，前端无法本地化；
+4. 库级囤积发现带着占位名 `[Library Bloat]` 作为技能名显示，前端靠 `f.skill_name !== '[Library Bloat]'` 这个字符串比较（320 行）隐藏逐技能按钮；
+5. 面板文件 674 行，超过 500 行上限。
+
+### 根因
+
+1. 面板把「服务端给什么」与「用户读什么」揉在一起：服务端同时给了类型码、参数和一句写死的英文，前端挑了后者；
+2. 转移原因与发现类型在前端是裸 `string`，没有穷举检查，新增一个码不会被任何东西拦住；
+3. 占位名既是数据又被当成判别条件，字符串一变，隐藏按钮的逻辑就悄悄失效。
+
+### 修复
+
+1. 前端类型：`CuratorTransitionReason` 五个码、`CuratorTransition`、按 `finding_type` 区分的 `SkillDoctorFindingItem`（各自带明确的 `details` 形状）、`SkillRemediationAction`；删除 `message`；
+2. 新增 `CuratorHistorySection.tsx` 与 `CuratorDiagnosticsSection.tsx`：历史用共享的 `formatRelativeTime(timestamp, locale)`，状态词复用 `settings.skills.card` 里已有的 `stale / archived / pinned`，五个原因码用 `satisfies Record<CuratorTransitionReason, string>` 收敛为三句（`stale`、`archive`、`inactive` 都是「超过期限没被使用」）；诊断按类型码和参数在当前语言里拼句，成功率用 `Intl.NumberFormat(locale)`，`switch` 穷举；库级囤积改用 `finding_type === 'hoarding_bloat'` 判断，不显示技能名，不显示按钮；历史卡片改 `rounded-lg`；
+3. 六个语言各新增 6 个文案键（3 句原因、3 句发现），英文与德文的天数、次数用 ICU 复数；`Score:` 前缀与 `PINNED` 改为直接显示 `n/100` 与 `card.pinned`；
+4. 服务端 `SkillDoctorFindingItem` 删除 `message` 字段，测试夹具同步；harness 的 `SkillDoctorFinding.message` 没动（见局限 4）；
+5. 面板 674 行降到 471 行，状态（`history`、`historyOpen`、`loadHistory`、`toggleHistory`）仍留在面板里，两个区块只收 props；
+6. 面板、历史区、诊断区的根节点与历史条目、诊断行加了 `data-testid`，单测用它按行断言，未提交的 E2E 用例也依赖它。
+
+### 验证
+
+1. `CuratorSections.test.tsx` 16 例，读取真实的六份 locale JSON，用 `NextIntlClientProvider` 渲染：zh 的三类发现句子与 `70/100`、四条转移的「名称 → 状态(原因)」、`3天前`、`闲置 2` / `已归档 2` 逐字断言；en 的复数（`Ran 8 times with only 12.5% success`、`Pinned but unused for 1 day`）；六个语言各一例「没有开发标识符、没有缺失键」；库级囤积行按钮数为 `[2, 2, 0]`；
+2. 变异验证（各自改一处、跑该文件、再还原并 `cmp` 确认一致）：把 `lru_eviction` 映射到 `historyReason.inactive` → 1 例失败（历史区）；去掉库级囤积行的操作区条件 → 1 例失败（`offers no skill-level actions`）；
+3. `src/components/features/skills` 31 个文件 183 例通过；`CuratorSettingsPanel.test.tsx` 改用无 `message` 的夹具，断言 `75/100` 与句子键；
+4. prettier、oxlint 对三个组件与新测试 0 告警；`tsc --noEmit` 对触及文件 0 错误（全量输出里属于 `components/features/skills` 与 `services/skill` 的只有 `in-situ-picker/InSituWorkflowSkillPickerDrawer.tsx` 的 1 条，是他人文件）；
+5. 服务端：`tests/api/skills/test_curator.py` 与 `test_curator_config_validation.py` 26 通过、4 失败；失败的 4 例（`test_archive_pinned_skill_returns_409`、`test_archive_unpinned_skill_succeeds`、`test_consolidation_execute_empty`、`test_consolidation_execute_with_results`）都属于他人在同一文件里未提交的「归档守卫 / 合并计划令牌」改动，`test_get_skill_diagnostics` 通过。
+
+### 局限
+
+1. **真机浏览器验证没有完成**：写了 `tests/e2e/test_curator_panel_sections_chrome_e2e.py`（页内替换两个接口的响应；zh；深浅主题各量一遍文字对比度；375px 同源 iframe 复查无横向溢出），ruff、format 通过，但在 `./myrm test -m chrome_e2e` 下四次都没有跑出结论：第 1 次启动器 `E2E_EPOCH_PIN_FAILED`（`dev-stack.sh backend-only ensure` 60 秒超时）；第 2 次 pytest 内 `E2E_EPOCH_PIN_DEFER_SKIP`（种子后端 117 秒内未健康）；第 3 次种子成功、用例已开始（停在 `page_open_pending`）后 pytest 以 247（SIGKILL）退出；第 4 次启动器再次种子超时。期间主机负载 31–52、`E2E_HOST_GOVERNOR memory=low`，共享 :8080 仍是 10 月 13 日的纪元，工作区指纹在两次尝试之间变了（他人持续在改后端）。该用例因为从未跑出结论，没有提交；所以深浅主题下的对比度、手机宽度下的排版都没有目视或量化验证，`rounded-lg` 与原有的 `text-yellow-600` / `text-green-600` 等原始调色板颜色在浅色主题下是否达标未知；
+2. 日、韩、德、繁中文案没有母语者审校，词汇沿用各语言文件里 `card.stale` / `card.archived` / `card.pinned` 的既有译法；
+3. 两套囤积判断仍各自一套阈值（诊断面板的 `hoarding_bloat` 与 `SkillHoardingHealthDiagnostic` 的 80% 预警），诊断响应里 5 个前端没用到的计数字段也没删；
+4. harness 的 `SkillDoctorFinding.message` 仍在产生并序列化，本产品不再读它；它是框架公开接口，删除需要先发布 harness 再 `sync-lock`，本条不涉及；
+5. 数字输入的 `<label>` 与控件的 `htmlFor` 关联（可访问性）本条没做；
+6. 英文对次数与天数用 ICU 复数，德文只对天数用复数（`{days, plural, one {seit # Tag} other {seit # Tagen}}`），中日韩繁体不分单复数。
+
+### 踩坑经验
+
+1. 服务端既给了类型码和参数、又给了一句写死的英文，前端就会挑省事的那个；要在响应模型里删掉那句，让类型检查把「还在读它的人」全部找出来；
+2. 隐藏某类行的条件要写在类型码上，不要写在显示用的占位名上；占位名一改，条件悄悄失效，没有任何测试会红；
+3. `Record<联合类型, string>` 加 `satisfies` 比 `Record<string, string>` 强：新增一个原因码，编译立刻报缺项；
+4. 涉及本地化的断言要读真实的 locale 文件渲染，全局的恒等翻译桩只能证明「键存在」，证明不了「用户读到的是句子」；
+5. 受限于共享主机与「共享纪元已过期」的状态，正式 E2E 通道一次跑不通时，写清楚是哪一步没过，不要把「用例写好了」当成「验证过了」。

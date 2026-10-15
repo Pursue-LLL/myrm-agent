@@ -8,6 +8,7 @@ import * as skillService from '@/services/skill';
 const stableT = (key: string) => key;
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
+  useLocale: () => 'en',
 }));
 
 vi.mock('@/hooks/shared/useToast', () => ({
@@ -45,12 +46,11 @@ describe('CuratorSettingsPanel Component', () => {
           skill_name: 'toxic_crawler',
           finding_type: 'wrong_but_frequent',
           severity: 'critical',
-          message: 'Skill invoked 30 times with 10% success rate',
           call_count: 30,
           success_rate: 0.1,
           pinned: true,
           recommended_action: 'unpin_and_archive',
-          details: {},
+          details: { observed_count: 30, success_count: 3, failure_count: 27, trust: 'local' },
         },
       ],
       health_score: 75.0,
@@ -62,8 +62,9 @@ describe('CuratorSettingsPanel Component', () => {
       expect(screen.getByText('toxic_crawler')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('PINNED')).toBeInTheDocument();
-    expect(screen.getByText('Score: 75/100')).toBeInTheDocument();
+    expect(screen.getByText('pinned')).toBeInTheDocument();
+    expect(screen.getByText('75/100')).toBeInTheDocument();
+    expect(screen.getByText('doctor.findingWrongButFrequent')).toBeInTheDocument();
   });
 });
 

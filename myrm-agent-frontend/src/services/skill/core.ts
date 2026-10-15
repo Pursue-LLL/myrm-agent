@@ -747,18 +747,23 @@ export interface CuratorConfigResponse {
   consolidation_similarity_threshold: number;
 }
 
+/** Why the sweep moved a skill; `stale`, `archive` and `inactive` all mean it went unused past a threshold. */
+export type CuratorTransitionReason = 'inactive' | 'stale' | 'archive' | 'low_quality' | 'lru_eviction';
+
+export interface CuratorTransition {
+  skill_name: string;
+  from_status: string;
+  to_status: 'stale' | 'archived';
+  reason: CuratorTransitionReason;
+}
+
 export interface CuratorRunResponse {
   skills_scanned: number;
   total_transitions: number;
   stale_count: number;
   archived_count: number;
   skipped_pinned: number;
-  transitions: Array<{
-    skill_name: string;
-    from_status: string;
-    to_status: string;
-    reason: string;
-  }>;
+  transitions: CuratorTransition[];
 }
 
 export async function updateSkillLifecycle(
@@ -797,12 +802,7 @@ export interface CuratorHistoryEntry {
   stale_count: number;
   archived_count: number;
   skipped_pinned: number;
-  transitions: Array<{
-    skill_name: string;
-    from_status: string;
-    to_status: string;
-    reason: string;
-  }>;
+  transitions: CuratorTransition[];
   errors: string[];
 }
 
@@ -812,17 +812,25 @@ export async function getCuratorHistory(limit: number = 10): Promise<CuratorHist
 
 // --- Skill Health Doctor Diagnostics API ---
 
-export interface SkillDoctorFindingItem {
+interface SkillDoctorFindingBase {
   skill_name: string;
-  finding_type: 'wrong_but_frequent' | 'hoarding_bloat' | 'stale_pinned';
   severity: 'critical' | 'warning' | 'info';
-  message: string;
   call_count: number;
   success_rate: number;
   pinned: boolean;
   recommended_action: 'unpin_and_archive' | 'archive' | 'reset_stats' | 'evolve';
-  details: Record<string, unknown>;
 }
+
+/** The server sends a type code plus its parameters; the UI phrases each finding in the user's language. */
+export type SkillDoctorFindingItem = SkillDoctorFindingBase &
+  (
+    | {
+        finding_type: 'wrong_but_frequent';
+        details: { observed_count: number; success_count: number; failure_count: number; trust: string };
+      }
+    | { finding_type: 'stale_pinned'; details: { days_inactive: number } }
+    | { finding_type: 'hoarding_bloat'; details: { active_count: number; max_skills: number; excess: number } }
+  );
 
 export interface SkillDoctorDiagnosticsResponse {
   total_skills: number;
@@ -848,9 +856,11 @@ export async function getSkillDiagnostics(): Promise<SkillDoctorDiagnosticsRespo
   return apiRequest<SkillDoctorDiagnosticsResponse>(`${SKILLS_API_PREFIX}/curator/diagnostics`);
 }
 
+export type SkillRemediationAction = 'unpin_and_archive' | 'archive' | 'reset_stats';
+
 export async function remediateSkillFinding(
   skillName: string,
-  action: 'unpin_and_archive' | 'archive' | 'reset_stats',
+  action: SkillRemediationAction,
 ): Promise<SkillRemediationResponse> {
   return apiRequest<SkillRemediationResponse>(`${SKILLS_API_PREFIX}/curator/remediate`, {
     method: 'POST',

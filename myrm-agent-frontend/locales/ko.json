@@ -17356,6 +17356,9 @@
           "typeWrongButFrequent": "고빈도 저효율",
           "typeHoarding": "스킬 축적",
           "typeStalePinned": "휴면 고정",
+          "findingWrongButFrequent": "{count}회 실행, 성공률 {rate}에 불과",
+          "findingStalePinned": "고정되어 있지만 {days}일 동안 사용되지 않음",
+          "findingHoarding": "활성 스킬 {active}개, 한도 {max}개를 {excess}개 초과",
           "actionUnpinArchive": "고정 해제 및 보관",
           "actionArchive": "보관",
           "actionReset": "통계 초기화",
@@ -17364,6 +17367,11 @@
           "remediateSuccessDesc": "{name} 스킬이 성공적으로 조치되었습니다",
           "remediateFailedTitle": "조치 실패",
           "remediateFailedDesc": "스킬 조치에 실패했습니다"
+        },
+        "historyReason": {
+          "inactive": "오랫동안 사용되지 않음",
+          "lowQuality": "성공률 낮음",
+          "overLimit": "스킬 수 한도 초과"
         },
         "enabled": "큐레이터 활성화",
         "enabledDesc": "주기적으로 스캔하여 스킬 수명주기 상태 관리",

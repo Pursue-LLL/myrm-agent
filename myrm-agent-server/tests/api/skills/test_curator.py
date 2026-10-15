@@ -323,7 +323,6 @@ def test_get_skill_diagnostics(client: TestClient):
                     "skill_name": "buggy_scraper",
                     "finding_type": "wrong_but_frequent",
                     "severity": "critical",
-                    "message": "Low success rate",
                     "call_count": 25,
                     "success_rate": 0.08,
                     "pinned": True,

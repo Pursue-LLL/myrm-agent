@@ -18040,6 +18040,9 @@
           "typeWrongButFrequent": "高频低效",
           "typeHoarding": "技能囤积",
           "typeStalePinned": "闲置置顶",
+          "findingWrongButFrequent": "已运行 {count} 次，成功率仅 {rate}",
+          "findingStalePinned": "已固定，但已有 {days} 天未使用",
+          "findingHoarding": "活跃技能 {active} 个，比上限 {max} 个多出 {excess} 个",
           "actionUnpinArchive": "解 Pin 归档",
           "actionArchive": "一键归档",
           "actionReset": "重置计数",
@@ -18048,6 +18051,11 @@
           "remediateSuccessDesc": "已成功治理技能 {name}",
           "remediateFailedTitle": "治理失败",
           "remediateFailedDesc": "未能治理该技能"
+        },
+        "historyReason": {
+          "inactive": "长期未使用",
+          "lowQuality": "成功率偏低",
+          "overLimit": "超出技能数量上限"
         },
         "enabled": "启用管理器",
         "enabledDesc": "定期扫描并管理技能生命周期状态",

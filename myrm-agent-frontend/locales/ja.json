@@ -17356,6 +17356,9 @@
           "typeWrongButFrequent": "高頻度低効率",
           "typeHoarding": "スキル蓄積",
           "typeStalePinned": "休眠ピン留め",
+          "findingWrongButFrequent": "{count}回実行、成功率はわずか{rate}",
+          "findingStalePinned": "固定済みですが、{days}日間使用されていません",
+          "findingHoarding": "アクティブなスキル{active}件、上限{max}件を{excess}件超過",
           "actionUnpinArchive": "ピン解除してアーカイブ",
           "actionArchive": "アーカイブ",
           "actionReset": "統計リセット",
@@ -17364,6 +17367,11 @@
           "remediateSuccessDesc": "スキル {name} を正常に改善しました",
           "remediateFailedTitle": "改善失敗",
           "remediateFailedDesc": "スキルの改善に失敗しました"
+        },
+        "historyReason": {
+          "inactive": "長期間使用されていません",
+          "lowQuality": "成功率が低い",
+          "overLimit": "スキル数が上限を超過"
         },
         "enabled": "キュレーターを有効化",
         "enabledDesc": "スキルのライフサイクルステータスを定期的にスキャンして管理します",

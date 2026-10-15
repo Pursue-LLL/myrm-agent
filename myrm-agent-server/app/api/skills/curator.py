@@ -315,7 +315,6 @@ class SkillDoctorFindingItem(BaseModel):
     skill_name: str
     finding_type: str
     severity: str
-    message: str
     call_count: int
     success_rate: float
     pinned: bool
