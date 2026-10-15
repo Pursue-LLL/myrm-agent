@@ -162,4 +162,4 @@ async def get_stats(agent_id: str) -> FaqStatsResponse:
 async def list_unmatched(agent_id: str, limit: int = 50) -> list[FaqUnmatchedItem]:
     corpus = await _corpus_service.get_or_create_corpus(agent_id)
     items = await _tracker.list_unmatched(corpus.id, limit=min(limit, 200))
-    return [FaqUnmatchedItem(**item) for item in items]
+    return [FaqUnmatchedItem.model_validate(item) for item in items]
