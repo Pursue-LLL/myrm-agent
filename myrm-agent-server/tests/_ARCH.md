@@ -162,6 +162,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_chat_view_stays_mounted_chrome_e2e.py` | 模块 | 打开的会话不被重建（PRIVATE，无 LLM）：种子会话打开后静置 12 s，输入框节点零次重建、`/agents/templates` 等挂载期请求不重复；再逐键输入一句话（按键只送达获得焦点的输入框，输入框被重建即丢键），0 个丢键、焦点不丢、输入框不重建；`E2E_VIEW_IDLE` / `E2E_VIEW_TYPING` 随结果打印 |
 | `e2e/test_revert_files_live_agent_chrome_e2e.py` | 模块 | RevertFiles LIVE×1 SHPOIB：真实 LLM 回合 `file_edit_tool` 修改 workspace 文件 → SnapshotObserver 记录快照 → 页面刷新 hydrate `requestMessageId`（`r-` 前缀）→ probe 与 `RevertFiles` 同一解析（`requestMessageId \|\| messageId`）→ 真实 UI 回退并断言文件恢复 seed 内容 |
 | `e2e/test_last_turn_regenerate_chrome_e2e.py` | 模块 | 重新生成只在最新回合的回答上出现（READ，无 LLM）：种子会话含两轮回答与回答之后的后台任务通知 → 页面上只有第二轮回答有该按钮（首轮回答与通知没有） |
+| `e2e/test_catchup_presence_chrome_e2e.py` | 模块 | Catchup 在场水位线（PRIVATE，无 LLM）：种子会话在真实 Chrome 打开（CDP 焦点仿真使标签页算在场）→ 用户注视期间服务端写入一条回复，`GET /catchup` 仍把该会话列为未读 → 点侧栏 Home 离开后页面发出 `POST /chats/{id}/read`，会话在数秒内从 catchup 消失；页面侧 fetch 探针断言离开前无盖章、离开后有盖章；`E2E_CATCHUP_*` 随结果打印 |
 | `api/agent/test_memory_conversation_search_e2e.py` | 模块 | Memory + sessions opt-in API 集成（真实 LLM agent-stream；8 场景：opt-in/incognito/memory-off/多轮/passphrase） |
 | `ai_agents/test_custom_agent_factory.py` | 模块 | Custom/Ephemeral 子 Agent `memory_search_tool` rebind + factory build 路径（38 项；`--cov-fail-under=90` on factory） |
 | `ai_agents/test_conversation_search_opt_in_integration.py` | 模块 | conversation-search opt-in 与 tool_setup 绑定集成 |
