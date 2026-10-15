@@ -3661,3 +3661,59 @@ except Exception:
 2. 登记表只保证「已登记」，完整性要靠扫描：把「请求里有指令类字段」当作需要解释的事实，让新端点必须在登记或豁免之间二选一。
 3. 用万能替身造测试数据会掩盖属性不存在：测试里用真实的数据类，字段名错了才会红。
 4. 测试夹具别放在未提交的文件里，否则它在别人的树上是绿的、在只含已提交内容的树上是红的。
+
+## BUG-AGENT-2026-10-15-015: 看板一次选中超过 100 张卡批量移动整批被拒；全部五处拖拽站点（看板、服务商列表、排队消息、目标队列、置顶会话）的读屏说明与播报只有英文且念内部 id，拾起那一句根本念不出来，手柄没有名称；批量接口的动作分支散在一串 if/elif 里
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15 |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P3（不丢数据；超过 100 张时批量操作整批被拒，读屏用户在五处拖拽里听不到可用的操作说明与位置） |
+| 影响范围 | frontend：`components/features/kanban/`（`kanban-bulk.ts`、`useKanbanDnD.ts`、`KanbanDndComponents.tsx`、`KanbanBoardView.tsx`、`_ARCH.md`）、`hooks/ui/useDndAccessibility.ts`、`test-utils/realIntl.ts`、`settings/model-service/ProviderList.tsx`、`chat-window/QueuedMessagesList.tsx`、`QueuedMessageItem.tsx`、`goals/GoalQueueSection.tsx`、`sidebar/ChatHistoryList.tsx`、`ChatHistoryRow.tsx`、六个语言包的 `common.dnd`、相关 `_ARCH.md` 与 10 个前端测试文件；server：`app/api/kanban/routes/bulk.py`、`tests/api/kanban/test_bulk_action_api.py`、两份 `_ARCH.md` |
+| 出现次数 | 1（复审上一条 `BUG-AGENT-2026-10-15-011` 的局限时逐项核对代码与真实 Chromium 走查发现；浏览器里的接口是拦截返回的假数据，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-15-011` 局限 3（批量上限 100，超过只能少选几条重试）在本条处理；提交：agent `2e8f3add2d`（卡片包装层防回归测试）、`b1975609b3`（批量接口 handler 表）、`fbb17a20ed`（分段发送）、`87dbf8b969`（读屏层）；本地提交，未 push |
+
+### 现象
+
+1. 「就绪」列选 133 张卡拖到「已阻塞」：旧代码把所有 id 在一次请求里发出（修复前的 `kanban-bulk.ts:40`），服务端 `BulkActionRequest.task_ids` 上限 100（`schemas.py:335`；用模型实测 100 个通过，101、133 个都是 `too_long`），整批被拒、一张也没动，看板一次最多加载 200 条。
+2. dnd-kit 内置的操作说明与播报是英文模板且直接念 id：`@dnd-kit/core/dist/core.esm.js:41`（`To pick up a draggable item…`）、`:48`（`"Picked up draggable item " + active.id`）、`:58`（`"Draggable item " + active.id + " was moved over droppable area " + over.id`）。看板里的 id 是任务 id 与 `in_review` 这类状态枚举；六种语言的界面里，读屏仍按英文模板念这些值。服务商列表与目标队列的拖拽手柄没有可访问名称。
+3. 看板的键盘拖拽里，「已拾起」那一句从来不会出现在朗读区：dnd-kit 在拾起的同一批更新里紧接着派发一次「悬停在起点」，后一句把前一句覆盖了（真实 Chromium 里用 `MutationObserver` 记录朗读区的文本历史，修复前首条是 `“…” is over “Ready”.`，没有拾起句）。
+4. `bulk.py` 的按动作分支散在一串 `if/elif` 里，动作清单没有单一出处。
+
+### 根因
+
+1. `runBulkAction` 没有分段，上限完全依赖服务端的 422；而上限本身又是单次请求时长的上界（`011` 局限 3：带 worktree 的归档在近似路径上约 440ms/条，100 条逼近客户端默认 30 秒超时）。
+2. 五处拖拽站点都直接用 dnd-kit 的默认配置，没有一处提供翻译、名称或 `aria-roledescription`；也没有任何东西阻止新增站点继续漏接。
+3. 「起点悬停」事件的播报覆盖了「拾起」。
+
+### 修复
+
+1. `kanban-bulk.ts`：`runBulkAction` 按每段至多 25 个 id 顺序发送，合并每段的逐条结果，只给一条汇总提示；中途某段失败时其后未发送的 id 与被拒的一起算未成功（回滚并保持选中），只有首段就失败才返回 `null`（全部回滚）。25 是按 `011` 的近似耗时反推的：25 × 440ms ≈ 11s，低于 30s 超时。
+2. `bulk.py`：每个动作一个 handler，动作清单只在 `_BULK_HANDLERS` 一张表里，校验与分派共用；行为由特征测试固定。
+3. 新增共享层 `hooks/ui/useDndAccessibility.ts`：`useDndAccessibility(labelOf)` 给 `DndContext` 提供本地化的操作说明与播报，`labelOf` 把 id 换成标题、列名（排队消息念「排队中 (n/m)」，不念内容），认不出的 id 用通用称呼；`useDndItemLabels()` 提供拖拽项的 `aria-roledescription` 与手柄 `aria-label`。拾起后的第一次悬停事件不播报；排序列表里回到原位有专门一句。文案在六个语言包的 `common.dnd`。五处站点全部接入，`dndAccessibilityCoverage.test.ts` 静态扫描 `src`，新增拖拽站点不接入会失败。
+4. 卡片包装层 `touch-manipulation`（`011` 已改）补了防回归测试。
+
+### 验证
+
+1. frontend 测试：本条涉及的测试（`hooks/ui` 目录全部加 kanban、`model-service`、队列、目标、`sidebar` 的相关文件）18 个文件 101 例通过；另把 HEAD 导出到干净目录、只叠加读屏层这一步的 30 个文件（生成目录 `locales/namespaces` 从工作区拷入），`hooks/ui`、`kanban` 相关测试、`model-service`、`chat-window` 队列与目标、`sidebar` 共 42 个文件 236 例通过。新增或改写：`kanban-bulk.test.ts` 8 例（单段、133 拆成 25×5+8、26 的边界、动作与参数透传、一条汇总提示、合并被拒项、首段失败返回 `null`、后段失败返回未确认 id）；`useDndAccessibility.test.tsx` 16 例（含用真实语言包与真实 dnd-kit 键盘拖拽渲染的用例）；五个站点各一个读屏用例；`dndAccessibilityCoverage.test.ts`。
+2. 变异测试（改坏实现，确认测试会红，再还原）：分段：11 种全部杀掉（段大小 25 改 26、首段判断恒不成立、失败后不中止、只把失败的一段算未确认、成功数只算最后一段、丢掉逐条被拒、切片错一位、全成功时也弹警告、确认标志与参数丢失、失败数不含未确认的）；读屏层：20 种（id 直接念出、去掉角色描述、去掉手柄名称、各站点不传 `accessibility` 等）加起点悬停相关 6 种（去掉跳过、跳过后不复位、拾起不上膛、回到原位静音等）全部杀掉；`bulk.py` 的 handler 表 11 种全部杀掉。
+3. 真实 Chromium（patchright + `next build` 生产构建，接口用请求拦截返回假数据）：133 张卡拖到「已阻塞」发出 6 次请求（25、25、25、25、25、8），每张只发一次、顺序一致，服务端全部到「已阻塞」，选择清空，只有一条 `133 tasks updated` 汇总提示；第 3 段返回 500 时发送在第 3 段停止，50 张已移动、83 张留在「就绪」且保持选中，一条 `50 succeeded, 83 failed` 汇总提示；键盘拖拽（中文、英文）：朗读区历史依次为 `已拾起“Alpha ready one”。`、`“Alpha ready one”已移到“执行中”上。`、`…“已阻塞”上。`、`“Alpha ready one”已放到“已阻塞”。`（英文同构），列名是界面语言，不含任务 id 与状态枚举，落点只发一次移动请求，角色描述与操作说明已本地化。这套门禁第一次跑在没有修「起点悬停」的构建上时，拾起句缺失的检查如实失败，才定位到现象 3。同一构建上，之前的六套门禁重跑全部通过（触屏 25 项等）。
+4. server：`pytest tests/api/kanban` 454 通过、1 失败、1 跳过；失败的 `test_move_with_result_and_metadata` 来自他人尚未提交的移交元数据改动，与批量接口无关；`bulk.py` 与新增测试 `ruff check`、`ruff format --check` 通过，pyright 0 错误。
+5. 门禁：`verify-i18n`、`check-icu-syntax`、`check-theme-colors` 通过；`verify-i18n-references`、`verify-stable-mocks`、`check-orphan-modules`、`check-a11y-ratchet`、`check-hardcoded-copy` 失败，逐条核对后只涉及他人未提交的文件（移交面板、频道配对、队列 Dock 的硬编码文案与 `<button>` 等），不含本条改的文件。全仓 `tsc --noEmit` 另有若干错误，都在他人未提交的在制品里，本条触及的文件没有。
+
+### 局限
+
+1. 读屏只验证了朗读区与说明节点里的 DOM 文本，没有在 VoiceOver、NVDA 等真实读屏软件里听过；触屏仍只在 Chromium 模拟里验证。
+2. 段大小 25 依据的是 `011` 里的近似耗时（裸 git 在临时仓库里近似，不是真实函数，机器本身很慢），没有在真实 worktree 路径上量过，也没有遥测。顺序发送也意味着 133 张要 6 次往返，总耗时比一次请求长。
+3. 中途某段失败不重试：已确认的段保持新位置，其余回滚并保持选中，由用户重试。客户端全局的 5xx 通用提示（`lib/api.ts:653-660`，`Internal Server Error` 加重试）会叠在汇总提示上，本条没有改。
+4. 「跳过拾起后的第一次悬停」假设拖拽总是从某个放置目标里开始；本条五处站点都满足（卡片在列里，排序项自己就是目标），将来若有从目标之外起拖的站点，第一次真实悬停会被吞掉。
+5. `ChatHistoryList.tsx`（581 行）与 `ChatHistoryRow.tsx`（617 行）在行数基线里本来就超限，本条各加了几行，没有拆。
+6. 没有做：全局 `api.ts` 对 422 原文的统一处理、批量移到「就绪」的二次确认、同类站点的触屏候选、键盘 25px 步长、逐条失败原因、触屏拖拽提示。
+7. 他人在途的未提交改动（队列 Dock、服务商列表移除熔断器、移交面板、频道配对等）与本条的文件有交集，本条的提交只包含 HEAD 文本加本条的修改；另外已提交的 HEAD 里 `app/core/skills/models.py` 引用了当前 harness 里不存在的 `myrm_agent_harness.toolkits.storage.types`（他人的迁移，工作区里已改成 `app.core.storage.types`），所以纯 HEAD 导出的服务端无法导入，本条的服务端测试是在工作区里跑的。
+
+### 踩坑经验
+
+1. 库的默认行为要在真实 DOM 里看最终呈现：只在单元测试里调用播报函数，永远发现不了「拾起」被同一批更新里的下一句覆盖；用 `MutationObserver` 记朗读区的历史才看见。
+2. 共享脏工作区里提交，用「HEAD 文本 + 自己的修改」做提交内容，再核对剩余差异只剩他人的改动，别把别人未提交的东西带进去，也别把自己的漏在外面。
+3. 门禁第一次失败时先分清是脚本采样的问题还是产品缺陷：这次的失败里 4 项是脚本问题（无关提示、全局错误提示、采样时机、标题里的单词误判枚举），1 项（拾起句缺失）是真缺陷，改成记录历史后才区分开。
+4. 修同类问题时把规则放在一个共享单点，并加一个扫描测试：五处站点各自实现会再次漏接，扫描测试让漏接变成红灯。
