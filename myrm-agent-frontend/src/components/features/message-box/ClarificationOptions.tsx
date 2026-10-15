@@ -87,7 +87,7 @@ interface OptionPillProps {
   allowMultiple: boolean;
   disabled: boolean;
   onSelect: () => void;
-  recommendedBadgeText?: string;
+  recommendedBadgeText: string;
 }
 
 export const OptionPill = ({
@@ -130,7 +130,7 @@ export const OptionPill = ({
             {isRecommended ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-primary shadow-sm shadow-primary/10">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                {recommendedBadgeText || 'Recommended'}
+                {recommendedBadgeText}
               </span>
             ) : null}
           </div>
