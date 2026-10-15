@@ -153,11 +153,6 @@
 | `CompetitorAssetDetectorCard.tsx` | 辅助 | 本地竞品记忆资产探测器卡片：扫描并展示 OpenClaw/Hermes/MemOS/ChatGPT 候选文件路径、预估条目数与一键预填导入 | ✅    |
 | `MigrationMappingPreviewCard.tsx` | 辅助 | 认知分层归一化映射与事实预览卡片：展示 Profile/Procedural/Semantic/Episodic 分类标识、标签与 SHA-256 去重哈希 | ✅    |
 | `memoryMigrationFallbacks.ts` | 辅助 | 多平台记忆迁移离线与单测仿真数据集 | ✅    |
-| `ProactiveDecisionAssistStudioCard.tsx` | 核心 | 主动历史踩坑预警与决策干预中枢卡片：对标个人 AI 操作系统主动决策协助，影子意图实时嗅探、因果三元组历史教训反查、会话级静音与非侵入式 Callout 预警 | ✅    |
-| `DecisionAssistHudBar.tsx` | 辅助 | 决策辅助 4 维 HUD 监控条：呈现哨兵运行状态、已录入踩坑教训数、会话静音范围与亚毫秒级嗅探延迟 | ✅    |
-| `ShadowDecisionDetectorView.tsx` | 辅助 | 影子决策意图嗅探与演练视图：极速正则状态机预检，严格区分探讨咨询（静默放行）与实质技术选型（触发因果反查） | ✅    |
-| `ProactivePitfallCalloutView.tsx` | 辅助 | 非侵入式轻量 Callout 预警卡片：高亮呈现历史故障复盘、已验证替代方案、版本环境漂移提示与一键采纳/静音动作 | ✅    |
-| `decisionAssistFallbacks.ts` | 辅助 | 主动历史踩坑预警与决策干预离线与单测仿真数据集 | ✅    |
 | `ExperienceCompoundingStudioCard.tsx` | 核心 | 个人经验资产复利演进与自动凝练中枢卡片：对标个人 AI 操作系统知识复利飞轮，有界对数加固、黄金准则语义凝练、双层谱系回退与时效冷退火 | ✅    |
 | `ExperienceCompoundingHudBar.tsx` | 辅助 | 经验复利 4 维 HUD 监控条：呈现活跃热碎片数、凝练黄金准则数、冷退火沉降数与平均复利权重倍率 | ✅    |
 | `GoldenRulesCatalogView.tsx` | 辅助 | 高阶黄金准则库全景卡片列表：展示 canonical 准则、提炼推导依据、置信度评分徽章与双层谱系撤销回退动作 | ✅    |

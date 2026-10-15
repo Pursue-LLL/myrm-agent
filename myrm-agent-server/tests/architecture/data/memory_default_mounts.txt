@@ -60,7 +60,6 @@ quadruple_retrieval_router
 space_guard_router
 markdown_chunker_router
 migration_wizard_router
-pitfall_alert_router
 experience_compounding_router
 conclusion_attribution_router
 score_honesty_router

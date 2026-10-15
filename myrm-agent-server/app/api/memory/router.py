@@ -137,9 +137,6 @@ from app.api.memory.operations.shared_context import (
 from app.api.memory.peer_cognition_router import (
     router as peer_cognition_router,
 )
-from app.api.memory.pitfall_alert_router import (
-    router as pitfall_alert_router,
-)
 from app.api.memory.private_notebook_router import (
     router as private_notebook_router,
 )
@@ -330,10 +327,6 @@ router.include_router(
 router.include_router(
     migration_wizard_router,
     tags=["memory-migration-wizard"],
-)
-router.include_router(
-    pitfall_alert_router,
-    tags=["memory-pitfall-alert"],
 )
 router.include_router(
     experience_compounding_router,
