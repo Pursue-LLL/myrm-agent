@@ -36,9 +36,12 @@ async def _sse_generator(request: Request) -> AsyncIterator[str]:
                 break
             try:
                 event: AppEvent = await asyncio.wait_for(queue.get(), timeout=_HEARTBEAT_INTERVAL)
+                # PubSubBus.publish() derives its dedup key with the same `default=str` fallback, so every event it
+                # accepted must serialize here too; a raise would repeat on each reconnect (the backlog is replayed).
                 payload = json.dumps(
                     {"type": event.event_type, "data": event.data, "timestamp": event.timestamp},
                     ensure_ascii=False,
+                    default=str,
                 )
                 yield f"data: {payload}\n\n"
             except asyncio.TimeoutError:
