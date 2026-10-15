@@ -4254,9 +4254,9 @@ except Exception:
 | 发现日期 | 2026-10-15 |
 | 修复日期 | 2026-10-15 |
 | 严重程度 | P2（人群与 `BUG-AGENT-2026-10-15-023` 相同：手填分支 + 设了依赖 + 由派发器自动执行；低频，但发生时子任务的整轮模型调用白费，并且它的改动会自动合进主分支，没有人看过） |
-| 影响范围 | server：`app/services/kanban/task_runner/worktree/landing_gate.py`（新）、`worktree/__init__.py`、`runner.py`、`worktree_landing.py` 与 `move_orchestrator.py`（只改注释）、三份 `_ARCH.md`、`tests/services/kanban/test_parent_landing_gate.py`、`test_parent_landing_gate_dispatch.py`、`test_blocked_reason_contract.py`（均新）；共享：`shared/config/kanban_blocked_reasons.json`（新）与其 `_ARCH.md`；frontend：`src/lib/kanban/kanbanBlockedReason.ts`（新）、`KanbanTaskCard.tsx`、`KanbanTaskDrawerDetails.tsx`、六个语言文件、对应测试与两份 `_ARCH.md`；harness 没有改 |
+| 影响范围 | server：`app/services/kanban/task_runner/worktree/landing_gate.py`（新）、`worktree/__init__.py`、`runner.py`、`worktree_landing.py` 与 `move_orchestrator.py`（只改注释）、三份 `_ARCH.md`、`tests/services/kanban/test_parent_landing_gate.py`、`test_parent_landing_gate_dispatch.py`、`test_blocked_reason_contract.py`、`tests/core/kanban/test_landing_gate_sql_store.py`（均新）；共享：`shared/config/kanban_blocked_reasons.json`（新）与其 `_ARCH.md`；frontend：`src/lib/kanban/kanbanBlockedReason.ts`（新）、`KanbanTaskCard.tsx`、`KanbanTaskDrawerDetails.tsx`、六个语言文件、对应测试与两份 `_ARCH.md`；harness 没有改 |
 | 出现次数 | 1（复核 `BUG-AGENT-2026-10-15-023` 局限 3 时发现，一次性探针用真实 git 临时仓库复现，没有保留输出，也没有用户数据） |
-| 关联 | 处理 `BUG-AGENT-2026-10-15-023` 局限 3；提交：server `3b56e0ea09`、frontend `9ccf271db9`、派发器层用例与共享契约 `cc2670af89`、前端改读共享契约 `02faf4bed0`；本地提交，未 push |
+| 关联 | 处理 `BUG-AGENT-2026-10-15-023` 局限 3；提交：server `3b56e0ea09`、frontend `9ccf271db9`、派发器层用例与共享契约 `cc2670af89`、前端改读共享契约 `02faf4bed0`、SQL 存储用例 `82dadac04b`；本地提交，未 push |
 
 ### 现象
 
@@ -4276,7 +4276,7 @@ except Exception:
 
 ### 验证
 
-1. 新增 `test_parent_landing_gate_dispatch.py` 1 例：真实 `KanbanDispatcher`、真实 `KanbanTaskRunner.run`、真实合并钩子与 `move_task`，整条路径一次走通——父任务合并冲突、派发器启动子任务、子任务被 HUMAN 阻塞（没有调用智能体、`consecutive_failures` 为 0、该次运行的结果是 `BLOCKED`、确认的事件 id 写入元数据）、用户经 `move_task` 把它移回 READY、子任务运行并完成、全程只有一次 `BLOCKED` 事件。新增 `test_blocked_reason_contract.py` 1 例。新增 `test_parent_landing_gate.py` 16 例（真实 git、真实派发器合并钩子、真实 `worktree_ops` 事件、内存存储）：失败被拦、`COMPLETED` / `APPROVED` 两种完成方式、先等进行中的合并再判断、已落地不拦、无父任务不拦、混合父任务被拦、重新完成清掉旧失败、确认后不再拦、更新的失败再拦、其他仓库的父任务不拦、未完成的父任务不拦、无分支父任务不读事件、runner 层被拦时不构建上下文也不启动智能体、确认后启动智能体。
+1. 新增 `test_parent_landing_gate_dispatch.py` 1 例：真实 `KanbanDispatcher`、真实 `KanbanTaskRunner.run`、真实合并钩子与 `move_task`，整条路径一次走通——父任务合并冲突、派发器启动子任务、子任务被 HUMAN 阻塞（没有调用智能体、`consecutive_failures` 为 0、该次运行的结果是 `BLOCKED`、确认的事件 id 写入元数据）、用户经 `move_task` 把它移回 READY、子任务运行并完成、全程只有一次 `BLOCKED` 事件。新增 `test_blocked_reason_contract.py` 1 例。新增 `tests/core/kanban/test_landing_gate_sql_store.py` 1 例：在产品实际使用的 SQLite 存储上（测试用的隔离数据库）走一遍事件 id、确认写入后重新读取、之后完成清掉从没见过该失败的另一个依赖任务的拦截、更新的失败再拦；对「历史上任何失败都算」与「忽略确认」两种变异都变红。新增 `test_parent_landing_gate.py` 16 例（真实 git、真实派发器合并钩子、真实 `worktree_ops` 事件、内存存储）：失败被拦、`COMPLETED` / `APPROVED` 两种完成方式、先等进行中的合并再判断、已落地不拦、无父任务不拦、混合父任务被拦、重新完成清掉旧失败、确认后不再拦、更新的失败再拦、其他仓库的父任务不拦、未完成的父任务不拦、无分支父任务不读事件、runner 层被拦时不构建上下文也不启动智能体、确认后启动智能体。
 2. 变异：判定函数 8 种（忽略 `APPROVED`、忽略确认、忽略仓库、不等合并、历史上任何失败都算、忽略状态、忽略无分支、取最小事件 id）全部被杀；派发器层的用例再对「不拦」与「不写确认元数据」两种变异各验证一次，都被杀；runner 调用点 3 种（不拦、忽略返回值、拦在 `build_task_context` 之后）全部被杀；前端卡片与抽屉各去掉 `blockedReasonText` 的变异被杀。每次变异后都恢复并复跑，文件与备份逐字节一致。
 3. `pytest tests/services/kanban tests/api/kanban`：722 通过、2 失败、1 跳过；2 个失败都不在本条的文件里：`test_extract_enabled_empty_pdf_falls_back_to_reference`，以及 `test_move_with_result_and_metadata`（断言显示移交元数据多出 `summary` 与 `timestamp`，来自他人未提交的 `move_orchestrator.py` 改动）。把 server 提交单独导出到干净目录（不含他人未提交的改动，补上 `shared/` 与 `.env.test`）跑 `tests/services/kanban`：239 通过、11 失败，11 个都是 `test_task_runner.py` 的 `TestBuildMultimodal*`（导出里报 `module 'app.core' has no attribute 'storage'`，是导出环境缺东西，不在本条文件里）；`test_kanban_attach_handler.py` 在导出里收集不到（harness 没有 `toolkits.storage.types`），`tests/api/kanban` 在导出里同样导入失败，没有跑。本条的 16 例在导出里通过。
 4. 前端：`vitest run src/components/features/kanban src/lib/kanban` 35 个文件 458 例通过；prettier、oxlint、`verify:theme-colors`、i18n 的六语言对齐与 ICU 检查通过；`tsc --noEmit` 有 50 个错误，输出里没有本条改动的任何文件。`verify:i18n` 的引用检查、`verify:hardcoded-copy`、`verify:orphans`、`verify:a11y` 因他人进行中的文件失败，输出里没有本条的文件。
@@ -4288,7 +4288,7 @@ except Exception:
 2. 用户手动合并了保留的分支、却没有重新完成父任务：子任务仍会被拦一次，点继续即可；原因句写的是「合并失败，处理后继续」，不声称「没有合并」。
 3. 只看「已完成且有分支」的父任务：无分支的任务从不合并；`FAILED` / `ARCHIVED` 的父任务不看。
 4. 原因句靠整句匹配：服务端常量与共享 JSON 不一致时契约测试变红；新增一种原因要同时改常量、JSON 与六个语言文件。
-5. 没有用 SQL 存储、真实智能体跑；事件顺序依赖协议契约（`protocols.py:247`「按 event_id 升序」），SQL 适配器是 `order_by(id)`（`sqlalchemy_store.py:959`），只是读码确认。无父任务的任务多一次 `list_parents`，带分支的父任务多读一次事件，这部分开销没有测。
+5. 没有用真实智能体跑（SQL 存储已用 `test_landing_gate_sql_store.py` 验证，事件顺序契约见 `protocols.py:247`、`sqlalchemy_store.py:959`）。无父任务的任务多一次 `list_parents`，带分支的父任务多读一次事件，这部分开销没有测。
 6. 既有的 `_USAGE_LIMIT_BLOCK_REASON`（`runner.py`）在同一位置仍显示英文，这次没有动。
 7. 评估后放弃的方案：读 git 状态判断是否落地（要起子进程，极性容易判反，且崩溃后与事件不一致）；新增任务状态（要改 harness 与全部状态消费方）；把拦截放在 `resolve_workspace`（`kanban_attach_handler.py` 也会调它，用户附加到任务时不该触发拦截）。
 
