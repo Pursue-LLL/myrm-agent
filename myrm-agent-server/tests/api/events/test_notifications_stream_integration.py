@@ -14,6 +14,9 @@ the exact SSE envelope the WebUI parses:
   type == "system_notification"
   data.meta_data.kind == "voice_background_task_done"
   data.meta_data.chat_id / task_id / status
+
+The payload serialization tests below use a fresh ServerEventBus in place of the singleton, so the
+events they publish never reach the process-wide backlog.
 """
 
 from __future__ import annotations
