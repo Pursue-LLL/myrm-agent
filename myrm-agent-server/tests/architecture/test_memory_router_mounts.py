@@ -5,8 +5,8 @@ tests/architecture/test_memory_router_mounts.py
 
 [INPUT]
 - app/api/memory/router.py: parsed, never imported (importing it mounts every router)
-- data/memory_default_mounts.txt: one default mount per line, `<include_router first argument>` for the stock that
-  predates this gate (shrink-only) or `<argument> | <caller file:line>` for a mount admitted since
+- data/memory_default_mounts.txt: one default mount per line, `<include_router first argument>` for an unattributed
+  mount (shrink-only) or `<argument> | <caller file:line>` for a mount that names its default-visible caller
 
 [OUTPUT]
 - Fails when `router.py` mounts a router unconditionally and the file does not list it
@@ -110,6 +110,6 @@ def test_default_mounts_ignores_conditional_and_foreign_includes() -> None:
     assert default_mounts(_SAMPLE) == ["pending.router", "profile_notes_router"]
 
 
-def test_read_entries_distinguishes_stock_admitted_and_blank_evidence() -> None:
-    parsed = read_entries("# header\n\nstock_router\nadmitted_router | web/Chat.tsx:10\nblank_router | \n")
-    assert parsed == {"stock_router": None, "admitted_router": "web/Chat.tsx:10", "blank_router": ""}
+def test_read_entries_distinguishes_bare_admitted_and_blank_evidence() -> None:
+    parsed = read_entries("# header\n\nbare_router\nadmitted_router | web/Chat.tsx:10\nblank_router | \n")
+    assert parsed == {"bare_router": None, "admitted_router": "web/Chat.tsx:10", "blank_router": ""}

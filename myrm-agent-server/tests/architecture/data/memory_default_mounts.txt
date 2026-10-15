@@ -1,5 +1,5 @@
 # Memory routers mounted for every user. Read by tests/architecture/test_memory_router_mounts.py.
-# A bare line is stock that predates the gate: it may only be deleted. A new mount goes behind `if settings.memory_labs_enabled:`
+# A bare line is an unattributed default mount: it can only be removed. A new mount goes behind `if settings.memory_labs_enabled:`
 # in app/api/memory/router.py, or is added here as `<include_router first argument> | <default-visible caller file:line>`.
 pending.router
 conflicts.router
