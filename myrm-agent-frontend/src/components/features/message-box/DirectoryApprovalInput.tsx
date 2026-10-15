@@ -55,20 +55,27 @@ export default function DirectoryApprovalInput({
   const [submitting, setSubmitting] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
 
-  // The composer stays taken over by the card until its row says answered, so closing it is a store write.
-  const markAnswered = () => {
+  const findCard = () =>
+    useChatStore.getState().messages.find((m) => m.messageId === messageId && m.role === 'assistant')?.directoryRequest;
+
+  // The composer stays taken over by the card until its row says answered, so closing it is a store write. The resumed
+  // run may raise another request on the same row, which replaces the card object and must stay open.
+  const markAnswered = (answeredCard: ReturnType<typeof findCard>) => {
+    if (!answeredCard || findCard() !== answeredCard) {
+      return;
+    }
     useChatStore.setState((state) => {
-      const idx = state.messages.findIndex((m) => m.messageId === messageId && m.role === 'assistant');
-      if (idx !== -1 && state.messages[idx].directoryRequest) {
-        state.messages[idx].directoryRequest.answered = true;
+      const row = state.messages.find((m) => m.messageId === messageId && m.role === 'assistant');
+      if (row?.directoryRequest) {
+        row.directoryRequest.answered = true;
       }
     });
   };
 
   // An answer that arrives after the timeout already declined the request is not a failure: the card closes.
-  const reportAnswerError = (error: unknown) => {
+  const reportAnswerError = (error: unknown, answeredCard: ReturnType<typeof findCard>) => {
     if (error instanceof ApprovalExpiredError) {
-      markAnswered();
+      markAnswered(answeredCard);
       toast.warning(t('expired'));
       return;
     }
@@ -120,6 +127,7 @@ export default function DirectoryApprovalInput({
       toast.error(t('pathRequired'));
       return;
     }
+    const answeredCard = findCard();
     setSubmitting(true);
     try {
       const resumeValue = {
@@ -135,9 +143,9 @@ export default function DirectoryApprovalInput({
           optimistic: { path: trimmed, writable, source: 'hitl_grant' },
         });
       }
-      markAnswered();
+      markAnswered(answeredCard);
     } catch (error) {
-      reportAnswerError(error);
+      reportAnswerError(error, answeredCard);
     } finally {
       setSubmitting(false);
     }
@@ -147,15 +155,16 @@ export default function DirectoryApprovalInput({
     if (submitting) {
       return;
     }
+    const answeredCard = findCard();
     setSubmitting(true);
     try {
       const resumeValue = { granted: false };
       if (isResumeMode) {
         await sendMessage('', messageId, undefined, resumeValue);
       }
-      markAnswered();
+      markAnswered(answeredCard);
     } catch (error) {
-      reportAnswerError(error);
+      reportAnswerError(error, answeredCard);
     } finally {
       setSubmitting(false);
     }

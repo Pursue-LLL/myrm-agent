@@ -1,6 +1,6 @@
 /**
  * A refused resume must neither mark the directory card answered nor show the folder as granted; a dispatched one must
- * release the composer the card took over.
+ * release the composer the card took over, except for a further request the resumed run raised on the same row.
  *
  * Real scenario: the user presses grant after the session expired. The resume request is refused, so the server never
  * received the grant; the optimistic access-root refresh would still list the folder as accessible and the card would
@@ -86,8 +86,13 @@ describe('DirectoryApprovalInput resume', () => {
     expect(isAnswered()).toBe(false);
   });
 
-  it('records the grant and releases the composer once the resume is dispatched', async () => {
-    pipeline.sendMessage.mockResolvedValue(true);
+  it('records the grant and releases the composer once the resumed run has streamed into the row', async () => {
+    pipeline.sendMessage.mockImplementation(async () => {
+      useChatStore.setState((state) => {
+        state.messages[0].content = 'continuing with the folder';
+      });
+      return true;
+    });
 
     grantDirectory();
 
@@ -97,6 +102,27 @@ describe('DirectoryApprovalInput resume', () => {
     });
     expect(toast.error).not.toHaveBeenCalled();
     expect(findActivePendingDirectoryRequest(useChatStore.getState().messages)).toBeNull();
+  });
+
+  it('leaves a second request the resumed run raised on the same row open', async () => {
+    pipeline.sendMessage.mockImplementation(async () => {
+      useChatStore.setState((state) => {
+        state.messages[0].directoryRequest = {
+          answered: false,
+          isResumeMode: true,
+          request: { path: '/data/exports', writable: false },
+        };
+      });
+      return true;
+    });
+
+    grantDirectory();
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'grant' })).toBeEnabled());
+    expect(refreshSessionAccessRoots).toHaveBeenCalledTimes(1);
+    expect(findActivePendingDirectoryRequest(useChatStore.getState().messages)?.directoryRequest.request?.path).toBe(
+      '/data/exports',
+    );
   });
 
   it('closes the card without recording a grant when the timeout already declined the request', async () => {
