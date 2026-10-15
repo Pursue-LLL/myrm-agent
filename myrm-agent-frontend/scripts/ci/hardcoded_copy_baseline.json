@@ -93,7 +93,6 @@
   "src/components/features/memory/command-center/CodeImpactReportView.tsx": 6,
   "src/components/features/memory/command-center/CodeMemoryCompactionCard.tsx": 14,
   "src/components/features/memory/command-center/CodeSkeletonPreviewView.tsx": 4,
-  "src/components/features/memory/command-center/CodebaseDiffInspectionCard.tsx": 20,
   "src/components/features/memory/command-center/CognitiveClockPanel.tsx": 16,
   "src/components/features/memory/command-center/ColdArchiveRecordsView.tsx": 4,
   "src/components/features/memory/command-center/CompetitorAssetDetectionView.tsx": 14,

@@ -57,7 +57,6 @@ migration_wizard_router
 experience_compounding_router
 conclusion_attribution_router
 score_honesty_router
-codebase_diff_router
 inode_identity_router
 skill_triad_router
 bitemporal_tms_router

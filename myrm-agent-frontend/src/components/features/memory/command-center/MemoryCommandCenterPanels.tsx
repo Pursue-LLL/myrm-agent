@@ -82,7 +82,6 @@ import { MultiPlatformMemoryMigrationStudioCard } from './MultiPlatformMemoryMig
 import { ExperienceCompoundingStudioCard } from './ExperienceCompoundingStudioCard';
 import { ConclusionAttributionStudioCard } from './ConclusionAttributionStudioCard';
 import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
-import { CodebaseDiffInspectionCard } from './CodebaseDiffInspectionCard';
 import { InodeIdentityInspectionCard } from './InodeIdentityInspectionCard';
 import { MemorySkillTriadInspectionCard } from './MemorySkillTriadInspectionCard';
 import { BitemporalTmsInspectionCard } from './BitemporalTmsInspectionCard';
@@ -331,9 +330,6 @@ export const UnderstandSection = ({
 
     {/* Retrieval Score Honesty & Raw vs Ranking Inspection Card (Item 142 P1) */}
     <ScoreHonestyInspectionCard />
-
-    {/* Codebase Memory Large Diff Fallback Inspection Card (Item 144 P1) */}
-    <CodebaseDiffInspectionCard />
 
     {/* Directory Inode Identity & Double-Sync Prevention Inspection Card (Item 145 P0) */}
     <InodeIdentityInspectionCard />
