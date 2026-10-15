@@ -3671,7 +3671,7 @@ except Exception:
 | 严重程度 | P3（不丢数据；超过 100 张时批量操作整批被拒，读屏用户在五处拖拽里听不到可用的操作说明与位置） |
 | 影响范围 | frontend：`components/features/kanban/`（`kanban-bulk.ts`、`useKanbanDnD.ts`、`KanbanDndComponents.tsx`、`KanbanBoardView.tsx`、`_ARCH.md`）、`hooks/ui/useDndAccessibility.ts`、`test-utils/realIntl.ts`、`settings/model-service/ProviderList.tsx`、`chat-window/QueuedMessagesList.tsx`、`QueuedMessageItem.tsx`、`goals/GoalQueueSection.tsx`、`sidebar/ChatHistoryList.tsx`、`ChatHistoryRow.tsx`、六个语言包的 `common.dnd`、相关 `_ARCH.md` 与 10 个前端测试文件；server：`app/api/kanban/routes/bulk.py`、`tests/api/kanban/test_bulk_action_api.py`、两份 `_ARCH.md` |
 | 出现次数 | 1（复审上一条 `BUG-AGENT-2026-10-15-011` 的局限时逐项核对代码与真实 Chromium 走查发现；浏览器里的接口是拦截返回的假数据，没有用户数据） |
-| 关联 | `BUG-AGENT-2026-10-15-011` 局限 3（批量上限 100，超过只能少选几条重试）在本条处理；提交：agent `2e8f3add2d`（卡片包装层防回归测试）、`b1975609b3`（批量接口 handler 表）、`fbb17a20ed`（分段发送）、`87dbf8b969`（读屏层）；本地提交，未 push |
+| 关联 | `BUG-AGENT-2026-10-15-011` 局限 3（批量上限 100，超过只能少选几条重试）在本条处理；提交：agent `2e8f3add2d`（卡片包装层防回归测试）、`b1975609b3`（批量接口 handler 表）、`fbb17a20ed`（分段发送）、`87dbf8b969`（读屏层）、`7e0488a02d`（空选择不发请求）、`6926a49189`（`bulk.py` 文件头）；本地提交，未 push |
 
 ### 现象
 
