@@ -32,6 +32,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.api.security import is_untrusted_ingress_active
 from myrm_agent_harness.toolkits.cron.cron_agent_tools import (
@@ -52,6 +53,9 @@ from myrm_agent_harness.toolkits.cron.types import (
 
 from .injection_scan import scan_cron_prompt
 from .research_lease import grant_run_lease, release_run_lease
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -190,8 +194,10 @@ def _derive_stop_reason_from_event(
     if not isinstance(event_type, str):
         return None
 
+    data = event.get("data")
+    detail = data if isinstance(data, dict) else None
+
     if event_type == "iteration_limit_reached":
-        detail = event.get("data") if isinstance(event.get("data"), dict) else None
         message = "Iteration limit reached"
         if detail is not None:
             limit = detail.get("limit")
@@ -210,7 +216,6 @@ def _derive_stop_reason_from_event(
         return payload
 
     if event_type == "engine_limit_reached":
-        detail = event.get("data") if isinstance(event.get("data"), dict) else None
         message = "Engine limit reached"
         if detail is not None:
             raw_message = detail.get("message")
@@ -226,7 +231,6 @@ def _derive_stop_reason_from_event(
         return payload_2
 
     if event_type == "agent_cancelled":
-        detail = event.get("data") if isinstance(event.get("data"), dict) else None
         reason = detail.get("reason") if detail else None
         payload_3: dict[str, object] = {
             "code": "agent_cancelled",
@@ -345,7 +349,7 @@ async def _resolve_cron_enable_web_search(
     enabled_builtin_tools: list[str],
     job: CronJob,
     search_is_user_configured: bool,
-    search_cfg: object,
+    search_cfg: SearchServiceConfig | None,
 ) -> bool:
     """Enable web_search for cron when policy allows it and search is configured."""
     if "web_search" not in enabled_builtin_tools or not search_is_user_configured:
@@ -354,7 +358,7 @@ async def _resolve_cron_enable_web_search(
         return True
     from app.core.channel_bridge.config_parsers import verify_search_service_available
 
-    return await verify_search_service_available(search_cfg)  # type: ignore[arg-type]
+    return await verify_search_service_available(search_cfg)
 
 
 async def _build_daily_context(job: CronJob) -> str:
