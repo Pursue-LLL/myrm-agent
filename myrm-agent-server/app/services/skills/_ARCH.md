@@ -26,7 +26,7 @@
 | `mutation_batch_hook.py` | 核心 | skill_manage 批次提交后 batch_snapshots 单事务写入（fail-closed）；落库提交后经工具进度通道向流广播批次 id（广播失败只记 WARNING，不影响已提交批次） | ✅ |
 | `mutation_batch_stream.py` | 核心 | 批次提交事件契约：hook 产出 `tool_end` 事件（`skill_manage_tool` + `skill_mutation_batch_id`），`stream_collector`（及前端 `skillManageBatchLink.ts`）把批次 id 关联到仍在等待批次的最新 skill_manage 步骤（harness 只流式输出调用参数、不含工具结果，步骤本身读不到批次 id；并发多个 skill_manage 调用时按“最新未关联步骤”配对） | ✅ |
 | `skill_manage_batch_parse.py` | 核心 | 解析 `myrm_skill_batch:` JSON 与 legacy batch_id 文本，供 stream_collector | ✅ |
-| `mutation_batch_service.py` | 核心 | 批次回滚 + 成功后 consume 快照 + compensation / batch_already_consumed | ✅ |
+| `mutation_batch_service.py` | 核心 | 批次回滚 + 成功后 consume 快照 + compensation / batch_already_consumed；读完快照行即 `session.rollback()` 结束请求会话的读事务：恢复经其它 session 提交版本行，仍持旧读快照的会话会在末尾 DELETE 以 `SQLITE_BUSY_SNAPSHOT`（`database is locked`，busy_timeout 不覆盖）失败，表现为文件已恢复却返回 503；因此消费快照的 DELETE 开新事务（纯写首语句，走 `BEGIN IMMEDIATE`）。回归测试在真实 WAL 文件库上跑（`tests/services/skills/test_mutation_batch_rollback_transaction.py`），内存库共享单连接无法复现 | ✅ |
 
 ## 设计原则
 
