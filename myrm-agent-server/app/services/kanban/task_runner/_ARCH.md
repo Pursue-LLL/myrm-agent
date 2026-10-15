@@ -7,6 +7,7 @@ KanbanTaskRunner 执行域。`runner.py` 为编排入口；`stream.py` 附件与
 - **唯一工作分支**：每个任务创建独立 worktree 分支 `{target_branch}-{task_id[:8]}`（`_worktree_branch_name`），杜绝并行任务共享分支时的 `git worktree add -B` 强制 reset 数据丢失与隔离失效。
 - **分支名消毒**：`_sanitize_git_branch` 统一替换 git 非法字符（空格/`~^:?*[\`/`..`/首尾 `-`），非法分支名不再静默 fallback 到错误目录。
 - **终态 merge 闭环**：`merge_task_worktree` 在任务 COMPLETED 时（`move_orchestrator` 手动路径在后台执行并在合并落地后放行下游 + `dispatcher_lifecycle` task_completed 钩子）把唯一分支 `--no-ff` merge 回目标分支，成功后清理 worktree 目录并删除唯一分支；merge 冲突时收集冲突文件列表 → `git merge --abort` 恢复 repo（防 MERGE_HEAD 阻塞后续 merge）→ 保留 worktree 与分支供人工处理（绝不静默丢提交），返回 `(False, [冲突文件])`。
+- **依赖任务等父任务的合并落地**：`resolve_workspace` 在解析工作区前调用 `worktree_landing.wait_parents_landed`——父任务的 merge 仍在后台进行时（派发器完成钩子与手动移到 COMPLETED 都经 `spawn_worktree_op(lands=…)` 登记），子任务先等它落地，worktree 才从含父任务产出的仓库切出；无分支的子任务直接在 base_dir 工作（merge 正写入的目录），同样等待。没有进行中的合并时不读库，不增加开销。
 - **merge 互斥**：同一 base_dir 的 merge 由共享的 `git_worktree._get_merge_lock` 串行化（kanban 与 sandbox merge 同 repo 并发曾观测到 "Unable to write index"），不同仓库并行。
 - **git identity 兜底**：auto-commit 与 merge commit 前经 `git_worktree._git_identity` 检测 repo 是否配置 user 身份，未配置时注入 `-c user.name=Myrm Agent -c user.email=agent@myrm.local`（不污染全局/仓库配置），bare repo 上自动合并不再失败。
 - **显式 target 分支**：`worktree/merge._ensure_target_branch_checked_out` 在 merge 前把 base_dir 切换到任务声明的 `task.branch`（首用从 HEAD 创建），保证 merge 落在用户指定分支而非当前 checkout 分支。

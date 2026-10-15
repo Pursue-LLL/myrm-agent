@@ -261,7 +261,10 @@ async def move_task(
         await promote_dependents(store, task_id)
 
     if merges_worktree:
-        spawn_worktree_op(_merge_then_release_dependents(store, dispatchers, runner, saved, wake_dispatcher))
+        spawn_worktree_op(
+            _merge_then_release_dependents(store, dispatchers, runner, saved, wake_dispatcher),
+            lands=saved.task_id,
+        )
     elif target_status == TaskStatus.ARCHIVED and saved.branch:
         spawn_worktree_op(_cleanup_worktree_in_background(runner, saved))
 

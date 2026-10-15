@@ -6,6 +6,7 @@
 - app.core.utils.git_worktree (POS: 共享 git worktree 命令基础设施——per-base_dir merge 锁、worktree add/remove/分支删除/merge 组合、auto-commit 与 git identity 兜底、worktree 业务错误类型 WorktreeCreateError/WorktreeErrorReason/_classify_git_error)
 - worktree.merge (POS: merge 前置 git 步骤——可合并判断/target 分支切换/分支名校验)
 - worktree.cleanup (POS: safe/force 清理)
+- app.services.kanban.worktree_landing::wait_parents_landed (POS: 等待进行中的父任务 merge 落地)
 
 [OUTPUT]
 - resolve_base_dir, resolve_workspace, create_worktree, merge_task_worktree
@@ -40,6 +41,7 @@ from app.services.kanban.task_runner.worktree.merge import (
     _ensure_target_branch_checked_out,
     _is_valid_git_branch,
 )
+from app.services.kanban.worktree_landing import wait_parents_landed
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +115,10 @@ async def resolve_workspace(store: KanbanStore, task: KanbanTask) -> str | None:
     base_dir = await resolve_base_dir(store, task)
     if not base_dir:
         return None
+
+    # A worktree is cut from the repository as it is now, so parents whose merge is still in flight must land first;
+    # a task without a branch works in base_dir itself, which those merges are writing to.
+    await wait_parents_landed(store, task)
 
     if not task.branch:
         return base_dir

@@ -5,6 +5,7 @@
 - myrm_agent_harness.toolkits.kanban.protocols::TaskRunner (POS: Task runner protocol.)
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskEventKind (POS: Kanban task and event types.)
 - core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
+- worktree_landing::register_landing (POS: In-flight merges of completed tasks, awaited by their dependents.)
 
 [OUTPUT]
 - cleanup_task_worktree, merge_task_worktree, record_merge_failure, spawn_worktree_op, git_slot
@@ -14,7 +15,8 @@ Task worktree lifecycle management: cleaning up worktrees upon archiving and mer
 Git work scales with repository size (seconds per task on a large tree), so callers that answer a user request
 hand it to ``spawn_worktree_op`` instead of awaiting it. Work started that way waits on ``git_slot`` first, so at
 most ``_MAX_CONCURRENT_GIT_OPS`` of it runs at once however many tasks were queued; the dispatcher's own merges do
-not wait on it.
+not wait on it. A merge spawned for a completed task is registered with ``worktree_landing`` so that the task's
+dependents wait for it before they build their workspace.
 """
 
 from __future__ import annotations
@@ -30,6 +32,8 @@ from myrm_agent_harness.toolkits.kanban.types import (
     KanbanTask,
     TaskEventKind,
 )
+
+from app.services.kanban.worktree_landing import register_landing
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
@@ -140,11 +144,13 @@ async def merge_task_worktree(
         return False, []
 
 
-def spawn_worktree_op(operation: Coroutine[object, object, object]) -> None:
+def spawn_worktree_op(operation: Coroutine[object, object, object], *, lands: str | None = None) -> None:
     """Run a worktree operation after the request has been answered.
 
     The harness tracker keeps the task referenced (the event loop alone holds only a weak reference) and lets
     graceful shutdown wait for it. Nothing awaits the task, so a failure is logged here instead of vanishing.
+    ``lands`` is the id of the completed task whose merge ``operation`` performs: until it finishes, the task's
+    dependents wait before they build their workspace.
     """
 
     async def run() -> None:
@@ -153,4 +159,7 @@ def spawn_worktree_op(operation: Coroutine[object, object, object]) -> None:
         except Exception:
             logger.exception("Background worktree operation failed")
 
-    track_background_task(asyncio.get_running_loop().create_task(run()))
+    background = asyncio.get_running_loop().create_task(run())
+    track_background_task(background)
+    if lands is not None:
+        register_landing(lands, background)
