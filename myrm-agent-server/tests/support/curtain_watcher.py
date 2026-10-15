@@ -38,6 +38,7 @@ def unlock_outcome_for_success(unlocks: bool) -> UnlockAttemptOutcome:
     """Map legacy bool stubs to production ``UnlockAttemptOutcome``."""
     return UnlockAttemptOutcome.SUCCESS if unlocks else UnlockAttemptOutcome.STILL_LOCKED
 
+
 # 主人离开已久（一小时）：远超任何合理的在场阈值。
 AWAY_IDLE_SECONDS = 3600.0
 

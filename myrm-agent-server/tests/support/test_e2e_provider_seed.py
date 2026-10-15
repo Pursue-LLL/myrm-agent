@@ -162,4 +162,3 @@ def test_probe_llm_api_key_once_injects_opencode_session(
     headers_lower = {k.lower(): v for k, v in captured_headers.items()}
     assert headers_lower.get("x-opencode-session") == "e2e-preflight-session"
     assert headers_lower.get("user-agent") == "Myrm-E2E/1.0"
-

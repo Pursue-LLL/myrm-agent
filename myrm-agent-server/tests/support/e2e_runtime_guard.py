@@ -536,7 +536,9 @@ def assert_chrome_attach_health() -> None:
         now = time.monotonic()
         if now >= next_ui_heal_at:
             lowered = last_detail.lower()
-            if any(k in lowered for k in ("shellhot=false", "frontendepoch=missing", "connection refused", "ui_dead", "missing next")):
+            if any(
+                k in lowered for k in ("shellhot=false", "frontendepoch=missing", "connection refused", "ui_dead", "missing next")
+            ):
                 try:
                     from e2e_core.warm_ui_heal import heal_shared_frontend_attach
 
