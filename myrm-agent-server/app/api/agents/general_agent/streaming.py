@@ -38,7 +38,7 @@ def _record_dedup_call_id(call_id: str) -> None:
             _PROCESSED_STEER_CALL_IDS.popitem(last=False)
 
 
-async def _hold_by_risk_rule(message: str, chat_id: str) -> JSONResponse | None:
+async def _risk_refusal(message: str, chat_id: str) -> JSONResponse | None:
     """A refusal when a risk rule holds what the user typed into a running turn, else None.
 
     The client keeps a refused instruction (queues it), and the queued text is screened again, with the usual notice,
@@ -123,9 +123,9 @@ async def steer_agent(
     if not body.message.strip():
         return error_response(message="Steering message cannot be empty", code=400)
 
-    held = await _hold_by_risk_rule(body.message, chat_id)
-    if held is not None:
-        return held
+    refusal = await _risk_refusal(body.message, chat_id)
+    if refusal is not None:
+        return refusal
 
     if body.in_reply_to_call_id and _is_call_id_deduped(body.in_reply_to_call_id):
         logger.info(
@@ -225,9 +225,9 @@ async def redirect_agent(
     if not body.message.strip():
         return error_response(message="Redirect message cannot be empty", code=400)
 
-    held = await _hold_by_risk_rule(body.message, chat_id)
-    if held is not None:
-        return held
+    refusal = await _risk_refusal(body.message, chat_id)
+    if refusal is not None:
+        return refusal
 
     success = SteeringRegistry.redirect(chat_id, body.message)
 

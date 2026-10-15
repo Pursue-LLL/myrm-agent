@@ -12,7 +12,7 @@
 [POS]
 Every place the router hands a sender's text to an agent (a new turn, a steer or redirect into a running one, a delegated
 task) asks this gate first, so a message that one path would hold is held on all of them. The caller drops the text when
-this returns True; the reply is the same fixed notice the first gate has always sent.
+this returns True; the reply is one fixed notice, in the sender's language, that names no rule.
 """
 
 from __future__ import annotations
