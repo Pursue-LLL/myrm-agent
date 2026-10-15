@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.artifacts.constants import ArtifactType
 
+from .ask_question_result import format_ask_question_result
 from .external_agents import ExternalAgentsMixin
 
 if TYPE_CHECKING:
@@ -310,8 +311,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             return
 
         try:
-            import json
-
             from myrm_agent_harness.agent.meta_tools.clarification.ask_question import (
                 AskQuestionInput,
             )
@@ -334,15 +333,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 payload = {"type": "ask_question", "form": form.model_dump()}
 
                 # Use LangGraph's native interrupt to suspend execution statelessly
-                response = interrupt(payload)
-
-                if not response:
-                    return (
-                        "User did not answer the clarification (skipped or timed out). "
-                        "Proceed with your best judgment; do not wait for further input."
-                    )
-
-                return json.dumps(response, ensure_ascii=False)
+                return format_ask_question_result(form, interrupt(payload))
 
             tools.append(create_ask_question_tool(_on_ask_question, locale=tool_description_locale))
             logger.info("🙋 已加载 ask_question_tool (交互式澄清表单)")
