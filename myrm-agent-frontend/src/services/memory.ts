@@ -46,4 +46,3 @@ export * from './memory/vectorSpaceGuard';
 export * from './memory/markdownChunker';
 export * from './memory/hybridSearch';
 export * from './memory/memoryMigration';
-export * from './memory/experienceCompounding';

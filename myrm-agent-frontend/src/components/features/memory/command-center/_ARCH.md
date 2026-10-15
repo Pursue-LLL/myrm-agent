@@ -126,11 +126,6 @@
 | `CompetitorAssetDetectorCard.tsx` | 辅助 | 本地竞品记忆资产探测器卡片：扫描并展示 OpenClaw/Hermes/MemOS/ChatGPT 候选文件路径、预估条目数与一键预填导入 | ✅    |
 | `MigrationMappingPreviewCard.tsx` | 辅助 | 认知分层归一化映射与事实预览卡片：展示 Profile/Procedural/Semantic/Episodic 分类标识、标签与 SHA-256 去重哈希 | ✅    |
 | `memoryMigrationFallbacks.ts` | 辅助 | 多平台记忆迁移离线与单测仿真数据集 | ✅    |
-| `ExperienceCompoundingStudioCard.tsx` | 核心 | 个人经验资产复利演进与自动凝练中枢卡片：对标个人 AI 操作系统知识复利飞轮，有界对数加固、黄金准则语义凝练、双层谱系回退与时效冷退火 | ✅    |
-| `ExperienceCompoundingHudBar.tsx` | 辅助 | 经验复利 4 维 HUD 监控条：呈现活跃热碎片数、凝练黄金准则数、冷退火沉降数与平均复利权重倍率 | ✅    |
-| `GoldenRulesCatalogView.tsx` | 辅助 | 高阶黄金准则库全景卡片列表：展示 canonical 准则、提炼推导依据、置信度评分徽章与双层谱系撤销回退动作 | ✅    |
-| `ActiveExperiencesPoolView.tsx` | 辅助 | 活跃热经验池与加固控制台：展示活跃碎片、半衰期动态延长、常驻租约/临时标签与一键采纳加固操作 | ✅    |
-| `experienceCompoundingFallbacks.ts` | 辅助 | 经验资产复利演进与自动凝练离线与单测仿真数据集 | ✅    |
 
 ## 依赖
 

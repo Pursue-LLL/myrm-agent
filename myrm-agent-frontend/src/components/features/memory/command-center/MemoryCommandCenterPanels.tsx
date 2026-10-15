@@ -79,7 +79,6 @@ import { VectorSpaceGuardStudioCard } from './VectorSpaceGuardStudioCard';
 import { MarkdownChunkerStudioCard } from './MarkdownChunkerStudioCard';
 import { DualEngineHybridSearchStudioCard } from './DualEngineHybridSearchStudioCard';
 import { MultiPlatformMemoryMigrationStudioCard } from './MultiPlatformMemoryMigrationStudioCard';
-import { ExperienceCompoundingStudioCard } from './ExperienceCompoundingStudioCard';
 import { ConclusionAttributionStudioCard } from './ConclusionAttributionStudioCard';
 import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
 import { InodeIdentityInspectionCard } from './InodeIdentityInspectionCard';
@@ -321,9 +320,6 @@ export const UnderstandSection = ({
 
     {/* Multi-Platform Memory Migration & Import Engine Studio Card (Item 134 P1) */}
     <MultiPlatformMemoryMigrationStudioCard />
-
-    {/* Experience Compounding & Knowledge Condensation Studio Card (Item 136 P1) */}
-    <ExperienceCompoundingStudioCard />
 
     {/* Conclusion Attribution & Verifiable Chat Evidence Studio Card (Item 141 P1) */}
     <ConclusionAttributionStudioCard />

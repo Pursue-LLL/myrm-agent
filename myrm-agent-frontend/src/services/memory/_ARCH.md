@@ -24,7 +24,6 @@
 | `markdownChunker.ts`    | 增量滑动窗口Markdown切片与重叠索引管道客户端：400-token滑动窗口切片、80-token重叠、行级回溯水合与增量Token节省率分析 |
 | `hybridSearch.ts`       | 双引擎FTS与向量混合重排与平滑降级客户端：自适应多因子RRF重排、Ebbinghaus衰减、认知重要性加权与向量断路器遥测 |
 | `memoryMigration.ts`    | 全平台多格式记忆无缝迁移与导入引擎客户端：OpenClaw/Hermes/ChatGPT/Claude/MemOS/Markdown资产探测、认知层级映射预览、400/80滑动窗口切片导入与幂等去重 |
-| `experienceCompounding.ts` | 个人经验资产复利演进与自动凝练客户端：有界对数加固、高阶黄金准则语义凝练提炼、谱系回退与冷数据退火治理 |
 
 
 ## 依赖
