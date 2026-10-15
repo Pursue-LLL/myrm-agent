@@ -25,8 +25,6 @@
 | `MemoryEconomicsPanel.tsx`              | 核心 | 长程有状态任务记忆经济学剖析面板：三阶段开销、ROI 轨迹与沉睡治理 | ✅    |
 | `MemoryEconomicsKpiCards.tsx`           | 辅助 | 经济学面板指标卡片子组件：三阶段时延细分、前缀缓存保持率与 ROI   | ✅    |
 | `MemoryParasiticGovernanceList.tsx`     | 辅助 | 经济学面板沉睡治理子组件：低效沉睡记忆列表、单条与批量归档操作   | ✅    |
-| `EbbinghausLifecycleCard.tsx`           | 核心 | 艾宾浩斯遗忘衰减与分层生命周期流转卡片：三级水槽 HUD、周期评估迁移、冷记忆唤醒与冷库探针 | ✅    |
-| `ColdArchiveRecordsView.tsx`            | 辅助 | 艾宾浩斯生命周期卡片子组件：呈现 COLD 冷存储归档数据切片与访问频次时间戳 | ✅    |
 | `SovereignMigrationInspectorCard.tsx`   | 核心 | 全量数字资产主权打包、跨机无损还原与多源迁入卡片：.myrmpkg 加密便携导出、路径解绑重映射与竞品智能体迁入 | ✅    |
 | `CompetitorAssetDetectionView.tsx`      | 辅助 | 主权迁移卡片子组件：呈现本机第三方智能体资产（Hermes/Claude Code/Codex）嗅探结果与一键迁入 | ✅    |
 | `ProjectLivingFactLedgerCard.tsx` | 核心 | 长期项目动态事实状态账本与四层上下文投影卡片：决议/否决/约束全景账本、4-Tier 动态投影仿真器与基于验证结果的能力沉淀飞轮 | ✅    |

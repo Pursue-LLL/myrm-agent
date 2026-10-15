@@ -30,7 +30,6 @@ import { MemoryLayerGuide } from '../guides/MemoryLayerGuide';
 import { ToolGuidancePanel } from './ToolGuidancePanel';
 import { CognitiveClockPanel } from './CognitiveClockPanel';
 import { DualLayerMemoryCard } from '@/components/agent/DualLayerMemoryCard';
-import { EbbinghausLifecycleCard } from './EbbinghausLifecycleCard';
 import { SovereignMigrationInspectorCard } from './SovereignMigrationInspectorCard';
 import { MEMORY_TYPES, translateSpaceKind, type MemoryTranslation } from './memoryCommandCenterFormat';
 import { Panel, MetricTile, EmptyState } from './MemoryCommandCenterPrimitives';
@@ -168,7 +167,6 @@ export const ActSection = ({
       </Panel>
     </div>
     <DualLayerMemoryCard />
-    <EbbinghausLifecycleCard />
     <CognitiveClockPanel />
     <ToolGuidancePanel />
     <SovereignMigrationInspectorCard />

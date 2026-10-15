@@ -424,7 +424,6 @@ myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
 myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conversation_search.types
-myrm_agent_harness.toolkits.memory.decay
 myrm_agent_harness.toolkits.memory.ephemeral_delta
 myrm_agent_harness.toolkits.memory.ephemeral_delta.notify
 myrm_agent_harness.toolkits.memory.ephemeral_delta.shared_store
