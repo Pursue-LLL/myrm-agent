@@ -55,7 +55,6 @@ import { isChatRouteHydratedForId, subscribeChatRouteHydrated } from './chatRout
 import { DualModeContainer } from '../work-layout';
 import { ExtensionUIModal } from '../extension-ui';
 import { TieredRiskGateContainer } from '../risk-approval';
-import { MemoryInspectorContainer } from '../memory-inspector';
 import { TaskHudOverlay } from '../task-hud';
 import { useExtensionUIStore } from '@/store/useExtensionUIStore';
 import ExecutionTraceTimeline from '@/components/features/settings/sections/system/ExecutionTraceTimeline';
@@ -675,7 +674,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         <LifeStatusCapsule currentSessionId={id || null} />
         <ExtensionUIModal />
         <TieredRiskGateContainer />
-        <MemoryInspectorContainer />
         <TaskHudOverlay />
       </>
     );
@@ -709,7 +707,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <LifeStatusCapsule currentSessionId={id || null} />
       <ExtensionUIModal />
       <TieredRiskGateContainer />
-      <MemoryInspectorContainer />
       <TaskHudOverlay />
     </>
   );
