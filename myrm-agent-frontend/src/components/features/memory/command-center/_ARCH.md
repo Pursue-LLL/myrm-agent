@@ -56,11 +56,6 @@
 | `SlidingWindowVisualizerCard.tsx` | 辅助 | 滑动窗口切片可视化检视器：直观呈现切片序列、起止行号范围、内容哈希签名、代码块保护与行级回溯水合扩展上下文视图 | ✅    |
 | `IncrementalDiffInspectorCard.tsx` | 辅助 | 内容哈希增量索引与 Token 节省检视器：呈现版本对比报告、复用/变更/废弃切片分布、进度条与免除重复调用Embedding API遥测 | ✅    |
 | `markdownChunkerFallbacks.ts` | 辅助 | Markdown切片与增量索引离线仿真与预设长篇Markdown数据集 | ✅    |
-| `MultiPlatformMemoryMigrationStudioCard.tsx` | 核心 | 全平台多格式记忆无缝迁移与导入引擎中枢卡片：对标 OpenClaw 迁移向导，一键扫描探测本地竞品资产、归一化认知分层映射预览、400/80滑动窗口切片导入与幂等审计台账 | ✅    |
-| `MemoryMigrationHudBar.tsx` | 辅助 | 记忆迁移引擎 4 维 HUD 监控条：呈现本地探测资产数、支持生态数、已接纳记忆数与滑动分块数 | ✅    |
-| `CompetitorAssetDetectorCard.tsx` | 辅助 | 本地竞品记忆资产探测器卡片：扫描并展示 OpenClaw/Hermes/MemOS/ChatGPT 候选文件路径、预估条目数与一键预填导入 | ✅    |
-| `MigrationMappingPreviewCard.tsx` | 辅助 | 认知分层归一化映射与事实预览卡片：展示 Profile/Procedural/Semantic/Episodic 分类标识、标签与 SHA-256 去重哈希 | ✅    |
-| `memoryMigrationFallbacks.ts` | 辅助 | 多平台记忆迁移离线与单测仿真数据集 | ✅    |
 
 ## 依赖
 

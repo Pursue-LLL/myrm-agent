@@ -19,7 +19,6 @@
 | `integration.ts`         | Integration Memory：sync / browse / status                                                                        |
 | `cognitiveClock.ts`      | 嵌套多频认知时钟客户端：时钟调度状态查询、用户活跃通知上报与 T1 会话防抖手动提炼触发                              |
 | `markdownChunker.ts`    | 增量滑动窗口Markdown切片与重叠索引管道客户端：400-token滑动窗口切片、80-token重叠、行级回溯水合与增量Token节省率分析 |
-| `memoryMigration.ts`    | 全平台多格式记忆无缝迁移与导入引擎客户端：OpenClaw/Hermes/ChatGPT/Claude/MemOS/Markdown资产探测、认知层级映射预览、400/80滑动窗口切片导入与幂等去重 |
 
 
 ## 依赖

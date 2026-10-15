@@ -19,4 +19,3 @@ export * from './memory/twoLayerDialectic';
 export * from './memory/budgetPacking';
 export * from './memory/memCube';
 export * from './memory/markdownChunker';
-export * from './memory/memoryMigration';

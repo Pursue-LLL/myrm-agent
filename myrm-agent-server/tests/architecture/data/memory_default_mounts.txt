@@ -28,5 +28,4 @@ two_layer_dialectic_router
 budget_packing_router
 mem_cube_router
 markdown_chunker_router
-migration_wizard_router
 score_honesty_router

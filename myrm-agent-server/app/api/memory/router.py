@@ -27,9 +27,6 @@ from app.api.memory.migration_readiness_seed import (
 from app.api.memory.migration_router import (
     router as memory_migration_router,
 )
-from app.api.memory.migration_wizard import (
-    router as migration_wizard_router,
-)
 from app.api.memory.operations import (
     archive_restore,
     backup,
@@ -125,10 +122,6 @@ router.include_router(
 router.include_router(
     markdown_chunker_router,
     tags=["memory-chunker"],
-)
-router.include_router(
-    migration_wizard_router,
-    tags=["memory-migration-wizard"],
 )
 router.include_router(
     score_honesty_router,

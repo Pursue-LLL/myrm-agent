@@ -29,7 +29,6 @@ import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
 import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
 import { MemoryCubeStudioCard } from './MemoryCubeStudioCard';
 import { MarkdownChunkerStudioCard } from './MarkdownChunkerStudioCard';
-import { MultiPlatformMemoryMigrationStudioCard } from './MultiPlatformMemoryMigrationStudioCard';
 import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
 import type { MemoryTranslation } from './memoryCommandCenterFormat';
 import { Panel, EmptyState } from './MemoryCommandCenterPrimitives';
@@ -59,7 +58,6 @@ export const UnderstandSection = ({
     <BudgetGreedyPackingStudioCard />
     <MemoryCubeStudioCard />
     <MarkdownChunkerStudioCard />
-    <MultiPlatformMemoryMigrationStudioCard />
     <ScoreHonestyInspectionCard />
     <div className="grid gap-4 xl:grid-cols-2">
       <Panel title={t('commandCenter.influenceTitle')}>
