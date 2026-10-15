@@ -174,14 +174,9 @@ class WikiQueryResponse(BaseModel):
 
 
 class WikiCompileResponse(BaseModel):
-    concepts_count: int
-    articles_generated: int
-    backlinks_created: int
-    duration_ms: int
-    articles_pending: int = 0
-    articles_published: int = 0
-    articles_blocked: int = 0
-    synthesis_pending: int = 0
+    """The compile has been handed to the background worker; its progress arrives on the ingest stream."""
+
+    pending: int
     compile_run: "CompileRunResponse | None" = None
 
 
@@ -696,11 +691,17 @@ async def serve_wiki_asset(
     )
 
 
-@router.post("/compile", response_model=WikiCompileResponse)
+@router.post("/compile", response_model=WikiCompileResponse, status_code=202)
 async def compile_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
     agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiCompileResponse:
+    """Queue the sources that need compiling and wake the background worker, which every import also uses.
+
+    A compile makes sequential model calls for minutes, longer than a proxy or the control plane's circuit breaker
+    should be asked to wait on one request.
+    """
+    from app.services.wiki.asset_index_service import schedule_wiki_asset_index
     from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
 
     try:
@@ -711,21 +712,13 @@ async def compile_wiki(
                 status_code=409,
                 detail="Duplicate review required: resolve exact/normalized groups before compiling",
             )
-        result = await archiver._compiler.compile_all()
-        from app.services.wiki.asset_index_service import run_wiki_asset_index
-
-        await run_wiki_asset_index(archiver)
+        await archiver._compiler.enqueue_changed_sources()
+        archiver._compiler.start_background_worker()
+        schedule_wiki_asset_index(archiver, agent_id=agent_id)
         await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
-        await _after_wiki_vault_mutation(archiver, "compile")
+        stats = archiver._queue.get_stats()
         return WikiCompileResponse(
-            concepts_count=result.concepts_count,
-            articles_generated=result.articles_generated,
-            backlinks_created=result.backlinks_created,
-            duration_ms=result.duration_ms,
-            articles_pending=result.articles_pending,
-            articles_published=result.articles_published,
-            articles_blocked=result.articles_blocked,
-            synthesis_pending=result.synthesis_pending,
+            pending=stats["pending"] + stats["processing"],
             compile_run=_compile_run_response(archiver),
         )
     except HTTPException:

@@ -152,31 +152,6 @@ def test_wiki_query_endpoint_accepts_raw_claim_mode(client: TestClient) -> None:
         assert response.status_code in {401, 403, 422}
 
 
-def test_wiki_compile_endpoint(client: TestClient) -> None:
-    """Test POST /api/v1/wiki/compile endpoint."""
-    print("\n🔄 Testing /api/v1/wiki/compile...")
-
-    response = client.post("/api/v1/wiki/compile")
-
-    print(f"Status: {response.status_code}")
-
-    if response.status_code == 200:
-        data = response.json()
-        print("✅ Compilation result:")
-        print(f"  - Concepts: {data.get('concepts_count', 0)}")
-        print(f"  - Articles: {data.get('articles_generated', 0)}")
-        print(f"  - Backlinks: {data.get('backlinks_created', 0)}")
-        print(f"  - Duration: {data.get('duration_ms', 0)}ms")
-
-        assert "concepts_count" in data
-        assert "articles_generated" in data
-        assert "duration_ms" in data
-    elif response.status_code in [401, 403]:
-        print("⚠️ Authentication/Authorization required (expected)")
-    else:
-        print(f"❌ Error: {response.text}")
-
-
 def test_wiki_purpose_get(client: TestClient) -> None:
     """Test GET /api/v1/wiki/purpose endpoint."""
     print("\n🧭 Testing /api/v1/wiki/purpose GET...")
