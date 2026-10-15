@@ -1683,6 +1683,11 @@ export const ExportedFleetWideProfileRailCard = dynamic(
   { ssr: false },
 );
 
+export const ExportedGraphApplicabilityTriageCard = dynamic(
+  () => import('./GraphApplicabilityTriageCard').then((module) => ({ default: module.GraphApplicabilityTriageCard })),
+  { ssr: false },
+);
+
 
 
 

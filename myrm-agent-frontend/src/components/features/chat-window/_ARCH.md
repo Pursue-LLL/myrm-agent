@@ -283,6 +283,9 @@
 | `FleetWideProfileRailCard.tsx` | 组件 | 全舰队宿主 Profile 轨道与多网关动态路由分发卡片：呈现跨 Darwin/Linux/VPS/Cloud 多宿主网关节点网络拓扑、实时心跳与延迟告警、离线 FIFO 缓冲队列检视与恢复自愈排空、跨网关工件安全校验中继与拓扑感知注入 | ✅ |
 | `fleet-router/` | 辅助 | 多网关动态路由轻量模块化子组件集与前端类型定义（FleetRailHeaderView, GatewayNodeCardView, OfflineBufferQueueModal, CrossGatewayRelayModal, types） | ✅ |
 | `__tests__/FleetWideProfileRailCard.test.tsx` | 测试 | 全舰队多网关路由卡片单元测试套件：覆盖头部聚合度量与网关节点拓扑渲染、网关 Ping 探测与状态流转、离线指令排队与上线自愈排空、跨节点工件中继 SHA-256 校验与无障碍实时输出 | ✅ |
+| `GraphApplicabilityTriageCard.tsx` | 组件 | 图工程自适应适用性评估门禁与并发 Token 预算熔断卡片：呈现单步/探索/串行/重型并行场景准入与伪需求拦截决策横幅、前置 Token 与花费预测硬上限仪表盘、实时自适应多档位节流并发进度条、以及危急预算状态下提前局部优雅归约报告交互抽屉 | ✅ |
+| `graph-triage/` | 辅助 | 图工程准入门禁轻量模块化子组件集与前端类型定义（TriageDecisionBannerView, PredictiveBudgetGaugeView, ElasticThrottlingCardView, types） | ✅ |
+| `__tests__/GraphApplicabilityTriageCard.test.tsx` | 测试 | 图工程准入门禁与预算熔断卡片单元测试套件：覆盖头部与四类场景试演切换、前置预估超限拦截模拟、健康到危急多档位水位自适应并发节流、以及提前局部优雅归约报告交互渲染 | ✅ |
 | `question-nav/`                              | 子包 | 长会话用户提问智能视口穿梭导航器与多轮 Prompt 索引大纲抽屉（Item 43 P0，详见 `question-nav/_ARCH.md`）                                                       | ✅    |
 | `structured-asking/`                         | 子包 | 全端结构化提问卡片组件、单选/多选/快捷键操作与跳过决策控制（Item 47 P0，详见 `structured-asking/_ARCH.md`）                                                  | ✅    |
 | `streaming-markdown/`                        | 子包 | 高帧率增量流式 Markdown 渲染器、RAF 动态节流与极端高吞吐防掉帧虚拟化引擎（Item 79 P0，详见 `streaming-markdown/_ARCH.md`）                                   | ✅    |
