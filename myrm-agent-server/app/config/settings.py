@@ -371,8 +371,6 @@ class DatabaseSettings(BaseSettings):
     )
     database_echo: bool = False  # DATABASE_ECHO
     database_url: str = ""  # DATABASE_URL (optional AGE graph store; default SQLite graph)
-    qdrant_url: str = ""  # QDRANT_URL (remote vector store)
-    qdrant_api_key: SecretStr = SecretStr("")  # QDRANT_API_KEY
     checkpointer_mode: str = ""  # CHECKPOINTER_MODE (memory|sqlite; empty = sqlite)
 
     @field_validator("checkpointer_mode")

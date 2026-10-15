@@ -4,7 +4,7 @@
 
 记忆命令中心：诊断、修复与高级编排的统一入口。门面负责面板编排，子面板按职责拆分，避免单文件承载全部诊断逻辑。
 
-设置页 **Memory Command Center** 整体默认隐藏；本地/开发需 `NEXT_PUBLIC_MEMORY_LABS=1`（兼容 `NEXT_PUBLIC_MEMORY_LAB=1`）并重启 WebUI，且服务端 `MYRM_MEMORY_LABS=1`（见 `MemorySection.tsx`、`memoryLabs.ts`）。Two-layer studio 卡片同样受 labs 开关约束（见 `MemoryCommandCenterPanels.tsx`）。
+设置页 **Memory Command Center** 整体默认隐藏；本地/开发需 `NEXT_PUBLIC_MEMORY_LABS=1` 并重启 WebUI，且服务端 `MYRM_MEMORY_LABS=1`（见 `MemorySection.tsx`、`memoryLabs.ts`）。Two-layer studio 卡片同样受 labs 开关约束（见 `MemoryCommandCenterPanels.tsx`）。
 
 ## 文件清单
 
@@ -74,7 +74,7 @@
 | `PromptCachePreservingDeltaCard.tsx` | 核心 | 会话内记忆更新检视：稳定 system 前缀 + human 尾部的布局预览；默认绑定当前聊天 session；命中率见聊天上下文环，此处不展示伪造百分比 | ✅    |
 | `EphemeralDeltaLiveInspectorView.tsx` | 辅助 | 瞬态增量实时检视子组件：呈现活跃增量列表、交互式用户修正录入表单、LWW 重写覆盖与前缀哈希校验 | ✅    |
 | `PromptCacheConsolidationView.tsx` | 辅助 | 缓存一致性与归档子组件：双轨预览、一键归档落库；HUD 仅展示后端遥测，无数据时显示占位符 | ✅    |
-| `TwoLayerDialecticStudioCard.tsx` | 核心 | Lab-only（`NEXT_PUBLIC_MEMORY_LAB=1`）两层上下文布局预览：Layer 1 用户消息尾快照、Layer 2 辩证调和控制台；未接入 live 中间件，命中率见聊天上下文环 | ✅    |
+| `TwoLayerDialecticStudioCard.tsx` | 核心 | Lab-only（`NEXT_PUBLIC_MEMORY_LABS=1`）两层上下文布局预览：Layer 1 用户消息尾快照、Layer 2 辩证调和控制台；未接入 live 中间件，命中率见聊天上下文环 | ✅    |
 | `TwoLayerDialecticHudBar.tsx` | 辅助 | 两层辩证 4 维 HUD：前缀布局稳定提示、Layer 1/2 周期与辩证深度；不展示伪造缓存命中率 | ✅    |
 | `BaseContextCacheView.tsx` | 辅助 | Layer 1 基础上下文与 Prompt Cache 检视子组件：呈现冻结 System 块、User 尾部注入块、持久 Cache Key 与单次编译仿真 | ✅    |
 | `DialecticReconciliationConsoleView.tsx` | 辅助 | Layer 2 自适应辩证推理工作台子组件：支持配置矛盾事实并启动 1~3 遍正题/反题/合题辩证调和，展示置信度与合成事实 | ✅    |
