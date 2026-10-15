@@ -11,7 +11,7 @@ tests/architecture/test_memory_router_mounts.py
 [OUTPUT]
 - Fails when `router.py` mounts a router unconditionally and the file does not list it
 - Fails when a listed mount is gone, so the file can only shrink
-- Fails when an admitted entry names no caller
+- Fails when an admitted entry names no caller, or a caller that is not a real line of an existing non-test file
 
 A mount under `if` (the MYRM_MEMORY_LABS gate, the local-mode fixtures) is conditional and is not listed. The route
 consumer gate cannot stand in for this one: a service file that only a hidden panel imports still counts as a caller
@@ -22,6 +22,7 @@ every user's API, so it has to name the caller that makes it a product feature; 
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,9 @@ import pytest
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _ROUTER_FILE = _SERVER_ROOT / "app" / "api" / "memory" / "router.py"
 _MOUNTS_FILE = Path(__file__).resolve().parent / "data" / "memory_default_mounts.txt"
+_MONOREPO_ROOT = _SERVER_ROOT.parents[1]
+_EVIDENCE_RE = re.compile(r"^(?P<path>[^:\s]+):(?P<first>\d+)(?:-(?P<last>\d+))?$")
+_TEST_PATH_PARTS = frozenset({"tests", "test", "__tests__"})
 
 
 def default_mounts(source: str) -> list[str]:
@@ -59,6 +63,29 @@ def read_entries(text: str) -> dict[str, str | None]:
         mount, separator, evidence = line.partition(" | ")
         entries[mount.strip()] = evidence.strip() if separator else None
     return entries
+
+
+def unverifiable_callers(entries: dict[str, str | None], root: Path) -> list[str]:
+    """Admitted entries whose `file:line` is not a real line of an existing non-test file under `root`."""
+    problems: list[str] = []
+    for mount, evidence in entries.items():
+        if not evidence:
+            continue
+        match = _EVIDENCE_RE.match(evidence)
+        if match is None:
+            problems.append(f"{mount}: `{evidence}` is not `file:line`")
+            continue
+        relative = Path(match["path"])
+        path = root / relative
+        if _TEST_PATH_PARTS & set(relative.parts):
+            problems.append(f"{mount}: {relative} is test code, not a product caller")
+        elif not path.is_file():
+            problems.append(f"{mount}: {relative} does not exist")
+        else:
+            last = int(match["last"] or match["first"])
+            if last > len(path.read_text(encoding="utf-8").splitlines()):
+                problems.append(f"{mount}: {relative} has no line {last}")
+    return problems
 
 
 @pytest.fixture(scope="module")
@@ -93,6 +120,12 @@ def test_admitted_mounts_name_a_caller(entries: dict[str, str | None]) -> None:
     assert not blank, f"an admitted mount needs `mount | caller file:line`: {blank}"
 
 
+@pytest.mark.architecture
+def test_admitted_mount_callers_exist(entries: dict[str, str | None]) -> None:
+    problems = unverifiable_callers(entries, _MONOREPO_ROOT)
+    assert not problems, "admitted memory mounts must cite a real product caller:\n" + "\n".join(problems)
+
+
 _SAMPLE = """
 router.include_router(pending.router, tags=["a"])
 if settings.memory_labs_enabled:
@@ -113,3 +146,32 @@ def test_default_mounts_ignores_conditional_and_foreign_includes() -> None:
 def test_read_entries_distinguishes_bare_admitted_and_blank_evidence() -> None:
     parsed = read_entries("# header\n\nbare_router\nadmitted_router | web/Chat.tsx:10\nblank_router | \n")
     assert parsed == {"bare_router": None, "admitted_router": "web/Chat.tsx:10", "blank_router": ""}
+
+
+def test_unverifiable_callers_reports_missing_test_malformed_and_out_of_range_evidence(tmp_path: Path) -> None:
+    (tmp_path / "web").mkdir()
+    (tmp_path / "web" / "Chat.tsx").write_text("one\ntwo\nthree\n", encoding="utf-8")
+    entries: dict[str, str | None] = {
+        "bare_router": None,
+        "ok_router": "web/Chat.tsx:3",
+        "range_router": "web/Chat.tsx:1-2",
+        "missing_router": "web/Gone.tsx:1",
+        "line_router": "web/Chat.tsx:4",
+        "test_router": "web/__tests__/Chat.test.tsx:1",
+        "malformed_router": "Chat.tsx",
+    }
+
+    problems = unverifiable_callers(entries, tmp_path)
+
+    assert [problem.partition(":")[0] for problem in problems] == [
+        "missing_router",
+        "line_router",
+        "test_router",
+        "malformed_router",
+    ]
+
+
+def test_new_unconditional_mount_without_registration_is_reported() -> None:
+    source = 'router.include_router(orphan_lab_router, tags=["x"])\n'
+
+    assert set(default_mounts(source)) - read_entries("pending.router\n").keys() == {"orphan_lab_router"}
