@@ -13,7 +13,8 @@
 
 [POS]
 Finalizes a completed harness stream into a channel OutboundMessage: content cleanup,
-cost recording, metadata, media attachments, and artifact deep-link buttons.
+cost recording, metadata, media attachments, and artifact deep-link buttons. A failed turn
+replies with the harness diagnostic (localized message + next steps) whenever the error carries one.
 """
 
 from __future__ import annotations
@@ -49,6 +50,8 @@ from .deliverable import (
 )
 
 logger = logging.getLogger(__name__)
+
+_MAX_ERROR_STEPS = 3
 
 
 async def finalize_channel_stream_reply(
@@ -148,7 +151,7 @@ async def finalize_channel_stream_reply(
                 msg.sender_id,
                 acc.error_message,
             )
-            content = f"[Error] {acc.error_message}"
+            content = _error_reply_text(msg, acc)
         else:
             logger.warning("ChannelAgentExecutor: empty LLM response for %s", msg.sender_id)
             content = "[No response generated]"
@@ -231,3 +234,20 @@ async def finalize_channel_stream_reply(
         quick_replies=quick_replies,
     )
     return reply
+
+
+def _error_reply_text(msg: InboundMessage, acc: StreamAccumulator) -> str:
+    """Reply for a failed turn: the harness diagnostic when the error carried one, else the raw text.
+
+    The raw text is the provider's own response body; members (guests and paired users included)
+    only see it for errors the harness could not diagnose.
+    """
+    from app.channels.i18n import get_text
+
+    if acc.error_user_message is None:
+        return f"[Error] {acc.error_message}"
+    text = f"❌ {acc.error_user_message}"
+    if acc.error_steps:
+        steps = "\n".join(f"• {step}" for step in acc.error_steps[:_MAX_ERROR_STEPS])
+        text += get_text(msg, "config_next_steps", steps=steps)
+    return text

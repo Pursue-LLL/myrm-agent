@@ -8,7 +8,8 @@
 [OUTPUT]
 - ChannelStreamEventState: mutable side-effect holder for approval timeout metadata
 - iter_channel_stream_progress: maps harness stream events to channel progress yields;
-  capability_gap web_search not_configured|unreachable → ProgressUpdate
+  capability_gap web_search not_configured|unreachable → ProgressUpdate; a fatal ``error`` event
+  leaves its raw text plus the harness diagnostic (user message, resolution steps) on the accumulator
 
 [POS]
 Stream event loop extracted from ChannelAgentExecutor.execute_stream. Converts
@@ -148,9 +149,7 @@ async def iter_channel_stream_progress(
             await asyncio.to_thread(collect_channel_artifacts, event, acc)
 
         elif event_type == "error":
-            error_msg = str(event.get("error", "Unknown error"))
-            error_type = str(event.get("error_type", ""))
-            acc.error_message = f"{error_type}: {error_msg}" if error_type else error_msg
+            _record_fatal_error(event, acc)
 
         elif event_type == "token_usage":
             data = event.get("data")
@@ -196,3 +195,16 @@ async def iter_channel_stream_progress(
             end_model = event.get("model")
             if isinstance(end_model, str) and end_model and not acc.model_name:
                 acc.model_name = end_model
+
+
+def _record_fatal_error(event: dict[str, object], acc: StreamAccumulator) -> None:
+    """Keep the raw error text (fallback) and the harness diagnostic (what members are shown)."""
+    error_msg = str(event.get("error", "Unknown error"))
+    error_type = str(event.get("error_type", ""))
+    acc.error_message = f"{error_type}: {error_msg}" if error_type else error_msg
+
+    diagnostic = event.get("diagnostic_result")
+    user_message = diagnostic.get("user_message") if isinstance(diagnostic, dict) else None
+    steps = diagnostic.get("resolution_steps") if isinstance(diagnostic, dict) else None
+    acc.error_user_message = user_message if isinstance(user_message, str) and user_message else None
+    acc.error_steps = [step for step in steps if isinstance(step, str)] if isinstance(steps, list) else []

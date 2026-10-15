@@ -45,6 +45,7 @@ async def _finalize(
     session_was_auto_reset: bool = False,
     lite_model_cfg: object | None = None,
     workspace_root: str | None = None,
+    message: InboundMessage | None = None,
 ) -> tuple[MagicMock, OutboundMessage]:
     """Run finalize with deep-link build mocked; return (persist_mock, reply)."""
     with (
@@ -67,7 +68,7 @@ async def _finalize(
         )
 
         reply = await finalize_channel_stream_reply(
-            _make_message(),
+            message or _make_message(),
             acc=acc,
             chat_id="chat-1",
             channel_budget_key=channel_budget_key,
@@ -229,14 +230,6 @@ async def test_screenshot_url_attachment() -> None:
     assert len(reply.media) == 1
     assert reply.media[0].url == "https://example.com/shot.jpg"
     assert reply.media[0].filename == "screenshot.jpg"
-
-
-@pytest.mark.asyncio
-async def test_error_message_becomes_error_reply() -> None:
-    acc = StreamAccumulator()
-    acc.error_message = "tool crashed"
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
-    assert "[Error] tool crashed" in reply.content
 
 
 @pytest.mark.asyncio

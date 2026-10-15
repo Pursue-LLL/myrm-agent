@@ -125,3 +125,59 @@ async def test_fission_topology_yields_raw_data() -> None:
         )
     ]
     assert progress == [payload]
+
+
+async def _consume(*events: dict[str, object]) -> StreamAccumulator:
+    acc = StreamAccumulator()
+    async for _ in iter_channel_stream_progress(_events(*events), acc, ChannelStreamEventState()):
+        pass
+    return acc
+
+
+@pytest.mark.asyncio
+async def test_error_event_keeps_raw_text_and_harness_diagnostic() -> None:
+    acc = await _consume(
+        {
+            "type": "error",
+            "error": "Error code: 403 - raw provider body",
+            "error_type": "PermissionDeniedError",
+            "diagnostic_result": {
+                "error_type": "billing",
+                "user_message": "Your API account balance is insufficient",
+                "resolution_steps": ["Top up your account", 7, "Switch to another model"],
+                "locale": "en",
+            },
+        }
+    )
+
+    assert acc.error_message == "PermissionDeniedError: Error code: 403 - raw provider body"
+    assert acc.error_user_message == "Your API account balance is insufficient"
+    assert acc.error_steps == ["Top up your account", "Switch to another model"]
+
+
+@pytest.mark.asyncio
+async def test_error_event_without_diagnostic_leaves_only_raw_text() -> None:
+    acc = await _consume({"type": "error", "error": "tool crashed"})
+
+    assert acc.error_message == "tool crashed"
+    assert acc.error_user_message is None
+    assert acc.error_steps == []
+
+
+@pytest.mark.asyncio
+async def test_later_error_event_replaces_the_earlier_diagnostic() -> None:
+    acc = await _consume(
+        {"type": "error", "error": "first", "diagnostic_result": {"user_message": "Diagnosed", "resolution_steps": ["a"]}},
+        {"type": "error", "error": "second"},
+    )
+
+    assert acc.error_message == "second"
+    assert acc.error_user_message is None
+    assert acc.error_steps == []
+
+
+@pytest.mark.asyncio
+async def test_error_event_with_blank_diagnostic_message_falls_back_to_raw_text() -> None:
+    acc = await _consume({"type": "error", "error": "boom", "diagnostic_result": {"user_message": "", "resolution_steps": ["x"]}})
+
+    assert acc.error_user_message is None

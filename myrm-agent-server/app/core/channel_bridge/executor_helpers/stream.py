@@ -47,6 +47,10 @@ class StreamAccumulator:
     tool_steps: list[ToolStep] = field(default_factory=list)
     sources: list[dict[str, object]] = field(default_factory=list)
     error_message: str | None = None
+    # Harness diagnostic of the fatal error: localized and safe to show channel members,
+    # unlike ``error_message`` (the provider's raw text), which is only the fallback.
+    error_user_message: str | None = None
+    error_steps: list[str] = field(default_factory=list)
     last_image_base64: str | None = None
     last_image_url: str | None = None
     last_image_mime: str = "image/jpeg"
