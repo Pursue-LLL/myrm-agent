@@ -90,37 +90,11 @@
 | `MemoryCubeMatrixView.tsx` | 辅助 | Memory Cube 空间矩阵卡片与记录检视器：支持 global_shared/project_workspace/agent_private/ephemeral_task 四大作用域过滤与新建 Cube | ✅    |
 | `AgentMountTopologyTuner.tsx` | 辅助 | 智能体动态挂载拓扑调优器与屏障测试器：支持多 Cube 读写分离授权配置，实时发起写探针拦截验证与跨 Cube 联邦检索测试 | ✅    |
 | `memCubeFallbacks.ts` | 辅助 | Memory Cube 空间治理离线与单测仿真数据集 | ✅    |
-| `DreamCognitiveStudioCard.tsx` | 核心 | 梦境认知重组与智能体成长日记中枢卡片：对标 MemOS Dream Plugin，后台非阻塞梦境反思、高维洞察提取与白盒演进日记展示 | ✅    |
-| `DreamCognitiveHudBar.tsx` | 辅助 | 梦境认知 4 维 HUD 监控条：呈现总成长日记数、认知突变动作量、活跃 Cube 空间数与后台非阻塞反思运行状态 | ✅    |
-| `GrowthDiaryTimelineView.tsx` | 辅助 | 智能体心智进化成长日记时间轴检视组件：呈现演化标题、动机徽章、反思叙事、主题标签、Actions 列表与 Markdown 视图渲染 | ✅    |
-| `DreamCognitiveSynthesisConsoleView.tsx` | 辅助 | 梦境认知重组触发控制台：支持配置会话碎片与关联 Memory Cube，实时触发非阻塞梦境整合并展示执行报告与动作详情 | ✅    |
-| `dreamCognitiveFallbacks.ts` | 辅助 | 梦境认知重组与成长日记离线及单测仿真数据集 | ✅    |
-| `QuadrupleRetrievalStudioCard.tsx` | 核心 | 目标驱动四路并行检索与推理重排工作台卡片：对标 MemOS 混合检索架构，前置 TaskGoalParser 消除自然语言模糊噪音，四路并行召回矩阵与 Reasoner 语义推理重排 | ✅    |
-| `QuadrupleRetrievalHudBar.tsx` | 辅助 | 四路检索 4 维 HUD 监控条：呈现总索引数、4 通道激活状态、平均端到端延迟与通道权重乘数 | ✅    |
-| `TaskGoalParserConsoleView.tsx` | 辅助 | 目标意图前置解构控制台：直观展示自然语言查询解构结果、实体锚点、词法分词、元数据过滤与置信度 | ✅    |
-| `QuadrupleRecallMatrixView.tsx` | 辅助 | 四路并行召回矩阵看板：直观展示 Graph 拓扑、Vector 稠密、Lexical 词法与 Metadata 过滤四通道命中量与融合增益 | ✅    |
-| `ReasonerHarmonizerCard.tsx` | 辅助 | 推理重排单项条目卡片：展示排名、多通道徽章、Reasoner 裁决徽章（Boost/Keep/Stale Penalty/Suppress）与可展开审计推导 | ✅    |
-| `quadrupleRetrievalFallbacks.ts` | 辅助 | 目标驱动四路并行检索离线与单测仿真数据集 | ✅    |
-| `SqliteVecStudioCard.tsx` | 核心 | 基于SQLite与sqlite-vec的嵌入式轻量向量存储工作台卡片：对标 OpenClaw 嵌入式存储方案，展示单文件零容器自包含引擎指标、Native SIMD vec0/Process BLOB 双轨模式与时间衰减稠密检索 | ✅    |
-| `SqliteVecHudBar.tsx` | 辅助 | SQLite-Vec 向量引擎 4 维 HUD 监控条：呈现引擎双轨运行模式、文件体积、向量集合数、存储文档总数与指标刷新 | ✅    |
-| `SqliteVecQueryConsoleView.tsx` | 辅助 | 稠密向量近邻检索控制台：支持配置测试查询向量、艾宾浩斯时间半衰期衰减开关与相似度过滤阈值 | ✅    |
-| `SqliteVecSearchResultsView.tsx` | 辅助 | 稠密向量检索命中结果与衰减比对视图：展示原始余弦相似度、时间衰减后有效得分、衰减留存率与文档元数据标签 | ✅    |
-| `sqliteVecFallbacks.ts` | 辅助 | 基于SQLite与sqlite-vec的嵌入式向量存储离线与单测仿真数据集 | ✅    |
-| `VectorSpaceGuardStudioCard.tsx` | 核心 | Embedding模型维度与向量空间完整性校验守卫中枢卡片：对标 OpenClaw 向量一致性校验，防范多模型混用基底污染、预检兼容性、空间指纹绑定与安全重建迁移 | ✅    |
-| `VectorSpaceGuardHudBar.tsx` | 辅助 | 向量空间守卫 4 维 HUD 监控条：呈现集合受保护状态、基底模型、维度与度量方式、已索引向量量级与状态刷新 | ✅    |
-| `VectorSpaceConsistencyCheckerCard.tsx` | 辅助 | 运行时模型指纹与预检校验控制台：支持预设及自定义模型指纹选择、自动绑定空集合开关、兼容性白盒比对与异常处理推荐动作 | ✅    |
-| `VectorSpaceReindexerCard.tsx` | 辅助 | 空间迁移与向量重索引流水线控制台：支持配置目标模型基底、一键触发受守卫保护的原子化重新嵌入与指纹同步更新 | ✅    |
-| `vectorSpaceGuardFallbacks.ts` | 辅助 | 向量空间守卫与模型指纹离线与单测仿真数据集 | ✅    |
 | `MarkdownChunkerStudioCard.tsx` | 核心 | 增量滑动窗口Markdown切片与重叠索引管道中枢卡片：对标 OpenClaw 切片与增量机制，400-token滑动窗口切片、80-token重叠、内容哈希增量感知、行级回溯水合与Token节省率遥测 | ✅    |
 | `MarkdownChunkerHudBar.tsx` | 辅助 | Markdown切片引擎 4 维 HUD 监控条：呈现目标源文档、切片总量、相邻重叠预算、Token节省率与重新切片动作 | ✅    |
 | `SlidingWindowVisualizerCard.tsx` | 辅助 | 滑动窗口切片可视化检视器：直观呈现切片序列、起止行号范围、内容哈希签名、代码块保护与行级回溯水合扩展上下文视图 | ✅    |
 | `IncrementalDiffInspectorCard.tsx` | 辅助 | 内容哈希增量索引与 Token 节省检视器：呈现版本对比报告、复用/变更/废弃切片分布、进度条与免除重复调用Embedding API遥测 | ✅    |
 | `markdownChunkerFallbacks.ts` | 辅助 | Markdown切片与增量索引离线仿真与预设长篇Markdown数据集 | ✅    |
-| `DualEngineHybridSearchStudioCard.tsx` | 核心 | 双引擎FTS与向量混合重排与无缝平滑降级中枢卡片：对标 OpenClaw 检索融合，双引擎并行检索、自适应多因子RRF调优、艾宾浩斯时间衰减与向量断路器容灾控制台 | ✅    |
-| `HybridSearchHudBar.tsx` | 辅助 | 双引擎检索与断路器 5 维 HUD 监控条：呈现检索模式、断路器健康状态、索引总量、同义词规模与跳闸熔断次数 | ✅    |
-| `AdaptiveRrfRankVisualizerView.tsx` | 辅助 | 自适应多因子 RRF 融合重排调优视图：动态滑块调整 RRF k 值、FTS 权重、Vector 权重、重要性权重，并展示实时重排序列与时间衰减因子 | ✅    |
-| `CircuitBreakerFallbackConsoleView.tsx` | 辅助 | 向量断路器与平滑降级控制台：展示 CLOSED / OPEN / HALF_OPEN 三态流转拓扑、毫秒级短路拦截指标与注入故障熔断演练 | ✅    |
-| `hybridSearchFallbacks.ts` | 辅助 | 双引擎混合检索与断路器容灾离线与单测仿真数据集 | ✅    |
 | `MultiPlatformMemoryMigrationStudioCard.tsx` | 核心 | 全平台多格式记忆无缝迁移与导入引擎中枢卡片：对标 OpenClaw 迁移向导，一键扫描探测本地竞品资产、归一化认知分层映射预览、400/80滑动窗口切片导入与幂等审计台账 | ✅    |
 | `MemoryMigrationHudBar.tsx` | 辅助 | 记忆迁移引擎 4 维 HUD 监控条：呈现本地探测资产数、支持生态数、已接纳记忆数与滑动分块数 | ✅    |
 | `CompetitorAssetDetectorCard.tsx` | 辅助 | 本地竞品记忆资产探测器卡片：扫描并展示 OpenClaw/Hermes/MemOS/ChatGPT 候选文件路径、预估条目数与一键预填导入 | ✅    |

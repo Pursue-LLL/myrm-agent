@@ -7,10 +7,7 @@ import logging
 
 from fastapi import APIRouter
 
-from app.api.memory import (
-    onboarding,
-    sqlite_vec,
-)
+from app.api.memory import onboarding
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
@@ -32,9 +29,6 @@ from app.api.memory.decay_lifecycle_router import (
 )
 from app.api.memory.disk_reconciliation_router import (
     router as disk_reconciliation_router,
-)
-from app.api.memory.dream_cognitive_router import (
-    router as dream_cognitive_router,
 )
 from app.api.memory.drift_router import (
     router as memory_drift_router,
@@ -58,9 +52,6 @@ from app.api.memory.git_okf_router import (
 from app.api.memory.graph_rrf_router import router as graph_rrf_router
 from app.api.memory.hindsight_reflection_router import (
     router as hindsight_reflection_router,
-)
-from app.api.memory.hybrid_memory_router import (
-    router as hybrid_memory_router,
 )
 from app.api.memory.job_compounding_router import (
     router as job_compounding_router,
@@ -111,9 +102,6 @@ from app.api.memory.private_notebook_router import (
     router as private_notebook_router,
 )
 from app.api.memory.profile_notes_router import router as profile_notes_router
-from app.api.memory.quadruple_retrieval_router import (
-    router as quadruple_retrieval_router,
-)
 from app.api.memory.revocable_provenance_router import (
     router as revocable_provenance_router,
 )
@@ -122,9 +110,6 @@ from app.api.memory.score_honesty_router import (
 )
 from app.api.memory.screen_observation_safety_router import (
     router as screen_observation_safety_router,
-)
-from app.api.memory.space_guard import (
-    router as space_guard_router,
 )
 from app.api.memory.task_triad_trajectory_router import (
     router as task_triad_trajectory_router,
@@ -184,7 +169,6 @@ if is_local_mode():
     router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
     router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
 router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
-router.include_router(sqlite_vec.router, tags=["memory-sqlite-vec"])
 router.include_router(
     screen_observation_safety_router,
     tags=["memory-screen-observation-safety"],
@@ -222,10 +206,6 @@ router.include_router(
     tags=["memory-git-okf"],
 )
 router.include_router(
-    hybrid_memory_router,
-    tags=["memory-hybrid"],
-)
-router.include_router(
     conversation_lineage_defense_router,
     tags=["memory-lineage-defense"],
 )
@@ -244,18 +224,6 @@ router.include_router(
 router.include_router(
     mem_cube_router,
     tags=["memory-cubes"],
-)
-router.include_router(
-    dream_cognitive_router,
-    tags=["memory-dream-cognitive"],
-)
-router.include_router(
-    quadruple_retrieval_router,
-    tags=["memory-quadruple-retrieval"],
-)
-router.include_router(
-    space_guard_router,
-    tags=["memory-space-guard"],
 )
 router.include_router(
     markdown_chunker_router,

@@ -33,7 +33,6 @@ kg_screening_router
 radar.router
 follow_ups_router
 onboarding.router
-sqlite_vec.router
 screen_observation_safety_router
 task_triad_trajectory_router
 private_notebook_router
@@ -43,15 +42,11 @@ four_tier_fts_router
 temporal_graph_router
 disk_reconciliation_router
 git_okf_router
-hybrid_memory_router
 conversation_lineage_defense_router
 ephemeral_delta_router
 two_layer_dialectic_router
 budget_packing_router
 mem_cube_router
-dream_cognitive_router
-quadruple_retrieval_router
-space_guard_router
 markdown_chunker_router
 migration_wizard_router
 score_honesty_router

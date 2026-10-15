@@ -72,12 +72,7 @@ import { PromptCachePreservingDeltaCard } from './PromptCachePreservingDeltaCard
 import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
 import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
 import { MemoryCubeStudioCard } from './MemoryCubeStudioCard';
-import { DreamCognitiveStudioCard } from './DreamCognitiveStudioCard';
-import { QuadrupleRetrievalStudioCard } from './QuadrupleRetrievalStudioCard';
-import { SqliteVecStudioCard } from './SqliteVecStudioCard';
-import { VectorSpaceGuardStudioCard } from './VectorSpaceGuardStudioCard';
 import { MarkdownChunkerStudioCard } from './MarkdownChunkerStudioCard';
-import { DualEngineHybridSearchStudioCard } from './DualEngineHybridSearchStudioCard';
 import { MultiPlatformMemoryMigrationStudioCard } from './MultiPlatformMemoryMigrationStudioCard';
 import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
 
@@ -296,23 +291,8 @@ export const UnderstandSection = ({
     {/* Memory Cube Scoped Isolation & Dynamic Mounting Studio Card (Item 124 P0) */}
     <MemoryCubeStudioCard />
 
-    {/* Dream Cognitive Consolidation & AI Mind Growth Diary Studio Card (Item 125 P1) */}
-    <DreamCognitiveStudioCard />
-
-    {/* Goal-Driven Quadruple Retrieval & Reasoner Studio Card (Item 127 P1) */}
-    <QuadrupleRetrievalStudioCard />
-
-    {/* SqliteVec Embedded Zero-Dependency Vector Store Studio Card (Item 130 P0) */}
-    <SqliteVecStudioCard />
-
-    {/* Embedding Model Dimension & Vector Space Guard Studio Card (Item 131 P0) */}
-    <VectorSpaceGuardStudioCard />
-
     {/* Incremental Sliding Window Markdown Chunker Studio Card (Item 132 P1) */}
     <MarkdownChunkerStudioCard />
-
-    {/* Dual-Engine Hybrid Search & Graceful Fallback Studio Card (Item 133 P1) */}
-    <DualEngineHybridSearchStudioCard />
 
     {/* Multi-Platform Memory Migration & Import Engine Studio Card (Item 134 P1) */}
     <MultiPlatformMemoryMigrationStudioCard />
