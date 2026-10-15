@@ -8,7 +8,7 @@
 | ------------------------------------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | KanbanBoardView.tsx                  | 核心 | 看板主视图的组装层（列布局 + DnD 上下文 + tab 切换 + 抽屉 / 向导 / 重规划入口）；数据、移动、选择、泳道、新增表单分别由 `useKanbanBoardData` / `useKanbanMoveTask` / `useKanbanSelection` / `useKanbanLanes` / `useKanbanAddTask` 持有，标题、统计、筛选提示条、视图切换、列底部新增入口、移动确认框是独立组件；删除 / 回收 / 重试 / 归档经 `useKanbanTaskActionConfirm` 统一确认，卡片、抽屉、拖拽的状态流转统一走它的 `requestMove`；移动失败只提示本地化文案，不透出服务端原文 | ✅    |
 | useKanbanBoardData.ts | 核心 | 看板数据层 hook：任务 / 汇总 / 依赖边的拉取与 30s 轮询；`kanban-task-updated` / `app_resync_required` 事件合并成一次延迟刷新；用户写入保护（刚拖动的任务 5 秒内不被服务端旧数据覆盖） | ✅ |
-| useKanbanMoveTask.ts | 核心 | 看板任务移动 hook：乐观更新 + 失败回滚 + 依赖未满足时的强制晋升确认 + 多卡一次请求的批量移动（经 `runBulkAction`；被拒的卡片回滚后交回调用方保持选中，不再逐张走单卡的强制晋升确认）；写入保护通过 `markPendingWrite` / `clearPendingWrite` 登记 | ✅ |
+| useKanbanMoveTask.ts | 核心 | 看板任务移动 hook：乐观更新 + 失败回滚 + 依赖未满足时的强制晋升确认 + 多卡一次请求的批量移动（经 `runBulkAction`；被拒的卡片回滚后交回调用方保持选中；强制晋升确认只属于单卡流程）；写入保护通过 `markPendingWrite` / `clearPendingWrite` 登记 | ✅ |
 | useKanbanSelection.ts | 核心 | 多选状态 hook：点选 / Shift 区间 / Esc 清除；选中集合只含列里看得见的任务（被删除、归档或被责任筛选藏起来即退出）；换看板归零；Esc 已被菜单或对话框消费（`defaultPrevented`）时不清除 | ✅ |
 | kanban-selection.ts | 核心 | 多选与泳道规则纯逻辑：泳道分组、一列此刻是否按泳道渲染、列内可见卡片顺序、`applyTaskClick`；Shift 区间限定在锚点所在的列，与列渲染共用同一套泳道规则 | ✅ |
 | useKanbanLanes.ts | 辅助 | Running 列「按 Agent 分泳道」开关（localStorage）与泳道折叠状态 | ✅ |
@@ -24,7 +24,7 @@
 | useKanbanAddTask.ts                  | 辅助 | 任务内联创建表单状态 hook（含 agent/model override 状态）                                                                                                                                                                                 | ✅    |
 | KanbanTaskCard.tsx                   | 核心 | 单任务卡片渲染（首屏决策帧要素/推荐动作微条/状态/进度；操作入口为 KanbanTaskCardActions；附件 badge 点击打开 Drawer；展开详情交给 KanbanTaskCardDetails 渲染、useKanbanTaskCardDetails 持有数据）                                                                                                                                              | ✅    |
 | KanbanTaskCardDetails.tsx            | 辅助 | 任务卡片展开后的详情面板（依赖 / 被依赖 / 运行记录 / 事件时间线 / 评论输入），只渲染 `useKanbanTaskCardDetails` 交来的数据，自身无状态 | ✅    |
-| useKanbanTaskCardDetails.ts          | 辅助 | 卡片展开详情的数据层 hook：首次展开才加载运行记录、事件与依赖；依赖增删与评论成功后更新本地列表并通知看板刷新 | ✅    |
+| useKanbanTaskCardDetails.ts          | 辅助 | 卡片展开详情的数据层 hook：每次展开才取运行记录、事件与依赖，失败给出本地化提示；依赖增删与评论成功后更新本地列表并通知看板刷新 | ✅    |
 | KanbanTaskCardActions.tsx            | 辅助 | 卡片单一操作菜单（详情 / Specify / Decompose / 状态流转 / 回收 / 删除，回收与删除只发起确认请求；失败任务的「就绪」入口显示为「重试」）；触发器常驻 DOM，桌面悬停或键盘聚焦显现、触屏常显（`REVEAL_ON_HOVER`）；触发器与 portal 菜单上的指针手势不冒泡给 dnd 卡片（否则按下起拖拽、双击开抽屉；隔离属性来自 kanban-card-gestures） | ✅    |
 | kanban-card-gestures.ts              | 辅助 | `ISOLATE_FROM_CARD`：卡片内控件（菜单触发器与 portal 菜单、勾选框）的手势隔离属性，按下 / 点击 / 双击不冒泡给 dnd 卡片 | ✅    |
 | KanbanTaskActionConfirm.tsx          | 辅助 | 删除 / 回收 / 重试 / 归档的确认对话框与 `useKanbanTaskActionConfirm` 状态 hook：由看板视图统一持有，卡片菜单、抽屉、拖拽只发起请求；`requestMove` 按 `resolveMoveIntent` 分流（重试与归档先确认，其余直接流转）；文案交代后果（删除连同运行记录一并清除、等待它的任务可能变为就绪并自动开跑；回收会停止执行中的 Agent 并回到就绪；重试会再次消耗模型额度，且失败后已继续推进的下游任务不会重跑；归档后任务离开看板且无法恢复）；关闭动画期间保留任务标题，文案不闪空 | ✅    |
@@ -73,8 +73,8 @@
 - 选中集合只含列里看得见的任务：任务被删除、归档，或被责任筛选藏起来后自动退出选择，批量操作不会作用到看不见的任务。
 - `KanbanBulkActionBar` 的批量结果逐条返回；部分失败时只让失败的任务继续保持选中，方便直接重试。
 - Esc 清除选择，但已被菜单或对话框用来关闭自己（`defaultPrevented`）的那一下不算。
-- 每张卡片左上角有勾选框，与 Ctrl/Cmd 点选、Shift 区间共用 `onTaskSelect` 这一条选择路径：悬停、键盘聚焦、触屏显现，已有选中项时所有卡片常显；Space 切换（Enter 按复选框语义不触发）。这是触屏与键盘用户进入多选的入口。
-- 批量拖拽与批量条的移动走同一条路径（`runBulkAction`，一次请求、逐条结果）：卡片乐观移动，只回滚被拒的，部分失败给一条汇总提示，被拒的卡片保持选中，整体失败则全部回滚。单卡拖拽仍走单任务接口与「强制晋升」确认——那是单卡决策，确认框只有一个槽位，批量路径不弹它；批量接口不接受 `force`，强制晋升只存在于单任务 move 接口。
+- 每张卡片左上角有勾选框，与 Ctrl/Cmd 点选、Shift 区间共用 `onTaskSelect` 这一条选择路径：悬停、键盘聚焦、触屏显现，已有选中项时所有卡片常显；Space 切换（Enter 按复选框语义不触发）。这是触屏与键盘用户进入多选的入口。勾选框的描边用完整主色并加 `!`：`globals.css` 里不在 layer 内的 `* { border-color }` 会盖掉普通的 border 色类，不加则未选中的圆圈与底色对比度只有约 1.2:1（浅 / 深主题实测，现为 3.4:1 / 6.7:1）。
+- 批量拖拽与批量条的移动走同一条路径（`runBulkAction`，一次请求、逐条结果）：卡片乐观移动，只回滚被拒的，部分失败给一条汇总提示，被拒的卡片保持选中，整体失败则全部回滚；多选拖拽里真正需要移动的只剩一张卡（其余已在目标列）时按单卡处理。单卡拖拽走单任务接口与「强制晋升」确认——那是单卡决策，确认框只有一个槽位，批量路径不弹它；批量接口不接受 `force`，强制晋升只存在于单任务 move 接口。
 
 ## Stale Write Guard（乐观 UI 防冲突）
 

@@ -163,6 +163,13 @@ describe('DraggableTaskCard selection checkbox', () => {
     expect(idleBox.className).toContain('pointer-coarse:opacity-100');
   });
 
+  it('forces the ring colour past the unlayered global border rule so an unchecked circle stays visible', () => {
+    renderColumn(['a']);
+
+    const box = screen.getByRole('checkbox', { name: 'selectTask:Title b' });
+    expect(box.className).toContain('!border-primary');
+  });
+
   it('shows unselected checkboxes permanently while a selection exists', () => {
     renderColumn(['a']);
 

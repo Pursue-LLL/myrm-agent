@@ -252,14 +252,17 @@ function DraggableTaskCard({
         checked={selected}
         aria-label={t('selectTask', { title: task.title })}
         {...ISOLATE_FROM_CARD}
+        // 点击自己处理选择，同样先截断冒泡（与隔离属性里的 onClick 等效，这里取代它）。
         onClick={(e) => {
           e.stopPropagation();
           onTaskSelect(task.task_id, e);
         }}
         className={cn(
-          'absolute -top-1.5 -left-1.5 z-10 size-[18px] rounded-full border-primary/50 bg-background shadow-sm',
+          // globals.css 的 `* { border-color }` 不在 layer 内，会盖掉普通的 border 色类，描边色必须加 `!` 才生效；
+          // 描边用完整主色，未选中的圆圈在深浅两套主题下才与卡片底色保持 3:1 以上的对比度。
+          'absolute -top-1.5 -left-1.5 z-10 size-[18px] rounded-full !border-primary bg-background shadow-sm',
           'after:absolute after:-inset-1.5 after:content-[""] [&_svg]:size-3',
-          'data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground',
+          'data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground',
           'pointer-coarse:size-6',
           // 选择模式（已有选中项）下所有卡片都常显勾选框，才能继续点选；平时仅悬停 / 聚焦 / 触屏显现。
           'transition-opacity',

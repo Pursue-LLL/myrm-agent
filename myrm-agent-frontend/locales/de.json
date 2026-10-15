@@ -7835,6 +7835,7 @@
     "bulkPartialSuccess": "{succeeded} erfolgreich, {failed} fehlgeschlagen",
     "bulkClearSelection": "Auswahl aufheben",
     "selectTask": "Aufgabe auswählen: {title}",
+    "detailsLoadError": "Aufgabendetails konnten nicht geladen werden",
     "forcePromoteTitle": "Abhängigkeiten nicht erfüllt",
     "forcePromoteDesc": "Die folgenden übergeordneten Aufgaben sind noch nicht abgeschlossen:",
     "forcePromoteConfirm": "Erzwungene Freigabe",

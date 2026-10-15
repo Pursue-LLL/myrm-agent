@@ -7835,6 +7835,7 @@
     "bulkPartialSuccess": "{succeeded} 件成功、{failed} 件失敗",
     "bulkClearSelection": "選択をクリア",
     "selectTask": "タスクを選択：{title}",
+    "detailsLoadError": "タスクの詳細を読み込めませんでした",
     "forcePromoteTitle": "依存関係が未達成",
     "forcePromoteDesc": "以下の親タスクがまだ完了していません：",
     "forcePromoteConfirm": "強制放行",

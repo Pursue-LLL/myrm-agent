@@ -7903,6 +7903,7 @@
     "bulkPartialSuccess": "{succeeded} succeeded, {failed} failed",
     "bulkClearSelection": "Clear selection",
     "selectTask": "Select task: {title}",
+    "detailsLoadError": "Failed to load task details",
     "forcePromoteTitle": "Dependencies Not Met",
     "forcePromoteDesc": "The following parent tasks are not yet completed:",
     "forcePromoteConfirm": "Force Promote",

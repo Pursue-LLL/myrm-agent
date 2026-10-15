@@ -7903,6 +7903,7 @@
     "bulkPartialSuccess": "{succeeded} 个成功, {failed} 个失败",
     "bulkClearSelection": "取消选择",
     "selectTask": "选择任务：{title}",
+    "detailsLoadError": "加载任务详情失败",
     "forcePromoteTitle": "依赖未满足",
     "forcePromoteDesc": "以下父任务尚未完成：",
     "forcePromoteConfirm": "强制放行",

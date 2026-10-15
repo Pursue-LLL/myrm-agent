@@ -8,8 +8,8 @@
  * - KanbanTaskCardDetailsState: 上述 hook 的返回类型，详情面板组件的入参
  *
  * [POS]
- * 任务卡片的展开详情数据层。详情在首次展开时才加载，加载失败保持空面板；依赖与评论的写入成功后更新本地列表，
- * 并通过 onRefresh 让看板重新取数。
+ * 任务卡片的展开详情数据层。每次展开才取一次运行记录、事件与依赖，加载失败给出本地化提示，面板保持原有内容；
+ * 依赖与评论的写入成功后更新本地列表，并通过 onRefresh 让看板重新取数。
  */
 'use client';
 
@@ -74,10 +74,11 @@ export function useKanbanTaskCardDetails({ task, allTasks, onRefresh }: UseKanba
       setParents(parentInfos);
       setChildren(childInfos);
     } catch {
-      /* silent */
+      toast.error(t('detailsLoadError'));
+    } finally {
+      setDetailLoading(false);
     }
-    setDetailLoading(false);
-  }, [expanded, task.task_id, allTasks]);
+  }, [expanded, task.task_id, allTasks, t]);
 
   const handleRemoveDep = useCallback(
     async (parentId: string) => {

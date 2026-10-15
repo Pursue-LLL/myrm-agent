@@ -148,7 +148,8 @@ export default function KanbanTaskCard({
             <button
               onClick={details.toggleExpand}
               className="p-0.5 rounded hover:bg-muted shrink-0 text-muted-foreground text-xs"
-              aria-label={details.expanded ? 'collapse' : 'expand'}
+              aria-label={t('taskDetails')}
+              aria-expanded={details.expanded}
             >
               {details.expanded ? '\u25B2' : '\u25BC'}
             </button>

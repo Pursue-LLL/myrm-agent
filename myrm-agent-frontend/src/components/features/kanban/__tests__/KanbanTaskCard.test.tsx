@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import KanbanTaskCard from '../KanbanTaskCard';
 
@@ -122,5 +122,18 @@ describe('KanbanTaskCard concurrency queued badge', () => {
       />,
     );
     expect(screen.queryByTestId('kanban-task-queued-badge')).toBeNull();
+  });
+});
+
+describe('KanbanTaskCard details toggle', () => {
+  it('names the toggle once and reports its state through aria-expanded', async () => {
+    render(<KanbanTaskCard task={makeTask()} allTasks={[]} onMove={noop} onDelete={noop} onRefresh={noop} />);
+
+    const toggle = screen.getByRole('button', { name: 'taskDetails', expanded: false });
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'taskDetails', expanded: true })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'taskDetails', expanded: true }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'taskDetails', expanded: false })).toBeTruthy());
   });
 });
