@@ -85,4 +85,30 @@ describe('optimizing a skill with an instruction the server holds', () => {
       variant: 'destructive',
     });
   });
+
+  it.each([
+    [
+      'a structured detail',
+      () => jsonResponse(422, { detail: [{ loc: ['body', 'instruction'], msg: 'field required' }] }),
+    ],
+    [
+      'a proxy error page',
+      () => new Response('<html>Bad Gateway</html>', { status: 502, headers: { 'Content-Type': 'text/html' } }),
+    ],
+  ])('reports %s as the localized failure, never as object text or a parser message', async (_name, respond) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => respond()),
+    );
+    const hook = openOptimizer();
+
+    await act(() => hook.result.current.handleOptimize());
+
+    expect(riskToast.error).not.toHaveBeenCalled();
+    expect(sheetToast).toHaveBeenCalledWith({
+      title: 'detail.optimizeFailed',
+      description: 'detail.optimizeFailed',
+      variant: 'destructive',
+    });
+  });
 });

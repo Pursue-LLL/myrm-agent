@@ -272,8 +272,10 @@ export function useSkillDetailSheet({
         if (await riskHeldErrorFromResponse(response)) {
           return;
         }
-        const data = await response.json();
-        throw new Error(data.detail || 'Failed to start optimization');
+        // Only a string `detail` is a sentence for the user; a proxy error page or a structured body has none.
+        const data: { detail?: unknown } | null = await response.json().catch(() => null);
+        const reason = typeof data?.detail === 'string' ? data.detail : '';
+        throw new Error(reason || t('detail.optimizeFailed'));
       }
       toast({
         title: t('detail.optimizeStarted'),

@@ -55,7 +55,7 @@ describe('suggesting goal criteria for an objective the server holds', () => {
     installEnglishToastTranslator();
   });
 
-  it('explains the held objective once instead of claiming the draft could not be generated', async () => {
+  it('explains the held objective once and does not report that the draft could not be generated', async () => {
     fetchMock.mockResolvedValue(jsonResponse(400, riskHeldRefusalBody));
 
     await suggestCriteria();

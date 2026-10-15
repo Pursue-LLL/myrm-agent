@@ -168,7 +168,7 @@
 
 | 文件                         | 职责                                                                                                                                                        |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HeartbeatSection.tsx`       | 心跳巡检配置（含 Agent 绑定 + 模型继承显示）；自定义提示词被服务端风控拦下（HTTP 400 `risk_held`）时，只有 `apiRequest` 的统一风控提示，输入保留，不再叠一条开关 / 保存失败                                                                                                                |
+| `HeartbeatSection.tsx`       | 心跳巡检配置（含 Agent 绑定 + 模型继承显示）；自定义提示词被服务端风控拦下（HTTP 400 `risk_held`）时，只有 `apiRequest` 的统一风控提示，输入保留，不另弹开关 / 保存失败提示                                                                                                                |
 | `CompanionSection.tsx`       | 伴侣模式配置                                                                                                                                                |
 | `CronSection.tsx`            | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich                                                                                               |
 | `KanbanSection.tsx`          | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务） |
