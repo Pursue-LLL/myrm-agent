@@ -201,7 +201,15 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   }, [board.board_id, triageCount, specifyAllLoading, fetchTasks, fetchSummary, t]);
 
   const { handleMoveTask, handleBulkMove, forcePromoteState, setForcePromoteState, handleForcePromoteConfirm } =
-    useKanbanMoveTask({ tasks, setTasks, markPendingWrite, clearPendingWrite, fetchTasks });
+    useKanbanMoveTask({
+      boardId: board.board_id,
+      tasks,
+      setTasks,
+      markPendingWrite,
+      clearPendingWrite,
+      fetchTasks,
+      onBulkSettled: selectOnly,
+    });
 
   const {
     state: taskActionState,

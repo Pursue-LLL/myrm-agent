@@ -59,8 +59,7 @@ async def bulk_action(board_id: str, body: BulkActionRequest) -> BulkActionRespo
                 except ValueError:
                     results.append(BulkActionItemResult(task_id=task_id, success=False, error=f"Invalid status: {status_str}"))
                     continue
-                force = body.params.get("force", "").lower() in ("true", "1")
-                task = await svc.move_task(task_id, target, force=force)
+                task = await svc.move_task(task_id, target)
                 if task is None:
                     results.append(BulkActionItemResult(task_id=task_id, success=False, error="Not found"))
                 else:

@@ -204,6 +204,41 @@ class TestBulkAction:
         assert data["results"][1]["success"] is False
         assert data["results"][1]["error"] is not None
 
+    def test_bulk_move_never_forces_past_unmet_dependencies(self, client: TestClient) -> None:
+        """A card whose parents are unfinished fails on its own row, even when the caller asks for force.
+
+        Bulk moves have no force path: forcing a promotion is a per-task decision that the single-task move endpoint
+        owns together with its confirmation step.
+        """
+        board = _create_board(client, "BulkDeps")
+        bid = str(board["board_id"])
+        parent = _create_task(client, bid, "Parent")
+        child = client.post(
+            f"/api/v1/kanban/boards/{bid}/tasks",
+            json={"title": "Child", "depends_on": [str(parent["task_id"])]},
+        ).json()
+        free = _create_task(client, bid, "Free")
+        status_before = client.get(f"/api/v1/kanban/tasks/{child['task_id']}").json()["status"]
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{bid}/tasks/bulk-action",
+            json={
+                "task_ids": [str(child["task_id"]), str(free["task_id"])],
+                "action": "move",
+                "params": {"status": "ready", "force": "true"},
+            },
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["succeeded"] == 1
+        assert data["failed"] == 1
+        by_task = {item["task_id"]: item for item in data["results"]}
+        assert by_task[str(child["task_id"])]["success"] is False
+        assert by_task[str(free["task_id"])]["success"] is True
+        assert client.get(f"/api/v1/kanban/tasks/{child['task_id']}").json()["status"] == status_before
+        assert status_before != "ready"
+
     def test_bulk_move_missing_status_param(self, client: TestClient) -> None:
         board = _create_board(client, "BulkNoStatus")
         bid = str(board["board_id"])
