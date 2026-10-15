@@ -4,6 +4,7 @@
  * [INPUT]
  * - @/store/useChatStore::sendMessage (POS: chat SSE resume 发送)
  * - @/lib/tauri::isTauriEnvironment (POS: 桌面原生 picker 分流)
+ * - @/store/chat/streamErrors::ApprovalExpiredError (POS: 超时已先行拒绝该请求，回答不再生效)
  * - @/lib/sessionAccessRefresh::refreshSessionAccessRoots (POS: grant 后 FE store 与 DB 对齐)
  * - ./DirectoryBrowsePopover (POS: Web 目录浏览 Popover)
  *
@@ -22,6 +23,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { isTauriEnvironment } from '@/lib/tauri';
 import useChatStore from '@/store/useChatStore';
+import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 
 import DirectoryBrowsePopover, { rememberDirectoryGrantPath } from './DirectoryBrowsePopover';
@@ -57,6 +59,17 @@ export default function DirectoryApprovalInput({
 
   const markAnswered = () => {
     onAnswered?.();
+  };
+
+  // An answer that arrives after the timeout already declined the request is not a failure: the card closes.
+  const reportAnswerError = (error: unknown) => {
+    if (error instanceof ApprovalExpiredError) {
+      markAnswered();
+      toast.warning(t('expired'));
+      return;
+    }
+    console.error('Failed to answer directory access request:', error);
+    toast.error(t('submitFailed'));
   };
 
   const handleTauriPick = useCallback(async () => {
@@ -120,8 +133,7 @@ export default function DirectoryApprovalInput({
       }
       markAnswered();
     } catch (error) {
-      console.error('Failed to grant directory access:', error);
-      toast.error(t('submitFailed'));
+      reportAnswerError(error);
     } finally {
       setSubmitting(false);
     }
@@ -139,8 +151,7 @@ export default function DirectoryApprovalInput({
       }
       markAnswered();
     } catch (error) {
-      console.error('Failed to deny directory access:', error);
-      toast.error(t('submitFailed'));
+      reportAnswerError(error);
     } finally {
       setSubmitting(false);
     }

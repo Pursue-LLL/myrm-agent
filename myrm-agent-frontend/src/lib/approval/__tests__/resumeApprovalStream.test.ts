@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AgentBusyError } from '@/store/chat/streamErrors';
+import { AgentBusyError, ApprovalExpiredError } from '@/store/chat/streamErrors';
 import type { ToolApprovalRequest } from '@/store/chat/types/toolApproval';
 
 const mockCreateAISearchStream = vi.hoisted(() => vi.fn());
@@ -92,7 +92,7 @@ describe('resumeApprovalStream', () => {
   it('throws ApprovalExpiredError when the timeout already answered the approval (HTTP 409)', async () => {
     mockCreateAISearchStream.mockResolvedValue(conflictResponse());
 
-    const { resumeApprovalStream, ApprovalExpiredError } = await import('../resumeApprovalStream');
+    const { resumeApprovalStream } = await import('../resumeApprovalStream');
 
     await expect(resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed')).rejects.toBeInstanceOf(
       ApprovalExpiredError,
@@ -104,7 +104,7 @@ describe('resumeApprovalStream', () => {
   it('keeps other HTTP failures as plain errors', async () => {
     mockCreateAISearchStream.mockResolvedValue(new Response('boom', { status: 500 }));
 
-    const { resumeApprovalStream, ApprovalExpiredError } = await import('../resumeApprovalStream');
+    const { resumeApprovalStream } = await import('../resumeApprovalStream');
 
     const failure = resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed');
     await expect(failure).rejects.toThrow('Approval resume failed: HTTP 500');

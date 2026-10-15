@@ -27,7 +27,7 @@ import time
 import weakref
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, cast
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.base_agent import BaseAgent
@@ -94,6 +94,13 @@ class GatewayConfig:
             execution_timeout=ag.execution_timeout,
             execution_hard_ceiling=ag.execution_hard_ceiling,
         )
+
+
+class _BrowserSessionHost(Protocol):
+    """Browser-space attributes of the agent behind a session, which the gateway reads and rebinds."""
+
+    _browser_session: BrowserSession | None
+    _browser_spaces: dict[str, BrowserSession]
 
 
 @dataclass(slots=True)
@@ -247,9 +254,9 @@ class AgentGateway:
         if space_id:
             spaces = getattr(agent, "_browser_spaces", None)
             if isinstance(spaces, dict) and space_id in spaces:
-                return spaces[space_id]
+                return cast("BrowserSession", spaces[space_id])
 
-        return getattr(agent, "_browser_session", None)
+        return cast("BrowserSession | None", getattr(agent, "_browser_session", None))
 
     def list_browser_spaces(self, session_id: str | None = None) -> list[dict[str, object]]:
         """List active browser task spaces for a specific chat session."""
@@ -273,8 +280,7 @@ class AgentGateway:
                         "is_active": True,
                     }
                 )
-        elif getattr(agent, "_browser_session", None) is not None:
-            s_obj = agent._browser_session
+        elif (s_obj := getattr(agent, "_browser_session", None)) is not None:
             s_id = str(getattr(s_obj, "task_space_id", "default") or "default")
             s_name = getattr(s_obj, "task_space_name", None) or "Main Space"
             result.append(
@@ -297,11 +303,12 @@ class AgentGateway:
         if not agent:
             return False
 
-        browser_spaces = getattr(agent, "_browser_spaces", None)
+        host = cast("_BrowserSessionHost", agent)
+        browser_spaces = getattr(host, "_browser_spaces", None)
         if isinstance(browser_spaces, dict) and space_id in browser_spaces:
             s_obj = browser_spaces.pop(space_id)
-            if getattr(agent, "_browser_session", None) is s_obj:
-                agent._browser_session = next(iter(browser_spaces.values()), None)
+            if getattr(host, "_browser_session", None) is s_obj:
+                host._browser_session = next(iter(browser_spaces.values()), None)
             if hasattr(s_obj, "close"):
                 try:
                     await s_obj.close()
@@ -309,13 +316,14 @@ class AgentGateway:
                     logger.warning("Failed to close stopped space %s: %s", space_id, e)
             return True
 
-        if space_id in ("default", "") and getattr(agent, "_browser_session", None) is not None:
+        default_session = getattr(host, "_browser_session", None)
+        if space_id in ("default", "") and default_session is not None:
             try:
-                await agent._browser_session.close()
+                await default_session.close()
             except Exception as e:
                 logger.warning("Failed to close default browser session: %s", e)
             finally:
-                agent._browser_session = None
+                host._browser_session = None
             return True
 
         return False
@@ -328,7 +336,7 @@ class AgentGateway:
             agent = info.agent()
             if agent is None:
                 continue
-            session = getattr(agent, "_browser_session", None)
+            session: object | None = getattr(agent, "_browser_session", None)
             if session is not None:
                 return session
         return None
@@ -352,7 +360,7 @@ class AgentGateway:
             agent = info.agent()
             if agent is None:
                 continue
-            session = getattr(agent, "_desktop_session", None)
+            session = cast("DesktopSession | None", getattr(agent, "_desktop_session", None))
             if session is not None:
                 return session
         return None
@@ -537,7 +545,7 @@ class AgentGateway:
         self._active_sessions.discard(session_id)
         self._session_info.pop(session_id, None)
 
-    def release_if_reserved_only(self, session_id: str) -> None:
+    def release_if_reserved_only(self, session_id: str) -> bool:
         """Release a session still in the pre-reserved (not yet executing) state.
 
         A turn reserves the chat before stream setup and hands ownership to
@@ -546,12 +554,16 @@ class AgentGateway:
         would otherwise leak and leave the chat permanently busy. Only
         ``reserved_only`` reservations are released here — sessions already
         taken over by ``execute_stream`` are owned by its own ``finally``.
+
+        Returns:
+            True when a reservation that never reached ``execute_stream`` was released.
         """
         info = self._session_info.get(session_id)
         if info is None or not info.reserved_only:
-            return
+            return False
         self._active_sessions.discard(session_id)
         self._session_info.pop(session_id, None)
+        return True
 
     def is_session_active(self, session_id: str) -> bool:
         """Return True when an agent execution is in-flight for the session."""

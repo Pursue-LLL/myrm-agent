@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
+import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import useChatStore from '@/store/useChatStore';
 
 import DirectoryApprovalInput from '../DirectoryApprovalInput';
@@ -21,7 +22,7 @@ const pipeline = vi.hoisted(() => ({ sendMessage: vi.fn<() => Promise<boolean>>(
 vi.mock('@/store/chat/messageRequest', () => pipeline);
 
 vi.mock('sonner', () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
+  toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
 
 vi.mock('@/lib/tauri', () => ({
@@ -55,6 +56,7 @@ beforeEach(() => {
   pipeline.sendMessage.mockReset();
   onAnswered.mockClear();
   vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.warning).mockClear();
   vi.mocked(refreshSessionAccessRoots).mockClear();
   useChatStore.setState({ chatId: 'chat-1' });
 });
@@ -80,5 +82,16 @@ describe('DirectoryApprovalInput resume', () => {
       optimistic: { path: '/data/reports', writable: true, source: 'hitl_grant' },
     });
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('closes the card without recording a grant when the timeout already declined it', async () => {
+    pipeline.sendMessage.mockRejectedValue(new ApprovalExpiredError());
+
+    grantDirectory();
+
+    await waitFor(() => expect(onAnswered).toHaveBeenCalledTimes(1));
+    expect(toast.warning).toHaveBeenCalledWith('expired');
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(refreshSessionAccessRoots).not.toHaveBeenCalled();
   });
 });

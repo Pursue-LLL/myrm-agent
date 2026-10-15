@@ -32,6 +32,8 @@ interface EditModeViewProps {
   onConfirm: () => void;
   onCancel: () => void;
   isLoading: boolean;
+  /** The approval timed out while the view was open; its surface owns the countdown (absent: it has none). */
+  isExpired?: boolean;
   hideAllowAlways?: boolean;
 }
 
@@ -54,6 +56,7 @@ export default function EditModeView({
   onConfirm,
   onCancel,
   isLoading,
+  isExpired = false,
   hideAllowAlways = false,
 }: EditModeViewProps) {
   const t = useTranslations('toolApproval');
@@ -182,8 +185,9 @@ export default function EditModeView({
           )}
         </div>
       )}
+      {isExpired && <p className="text-xs font-medium text-destructive">{t('expired')}</p>}
       <div className="flex gap-2">
-        <Button size="sm" onClick={onConfirm} disabled={isLoading || patternConfirmBlocked}>
+        <Button size="sm" onClick={onConfirm} disabled={isLoading || isExpired || patternConfirmBlocked}>
           {t('confirmEdit')}
         </Button>
         <Button size="sm" variant="ghost" onClick={onCancel} disabled={isLoading}>

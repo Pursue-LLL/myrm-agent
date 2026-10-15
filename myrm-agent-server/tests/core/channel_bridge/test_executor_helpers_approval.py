@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -84,6 +86,58 @@ def test_schedule_channel_approval_timeout_registers_scheduler() -> None:
     assert call_kwargs["timeout_seconds"] == 120.0
     assert call_kwargs["behavior"] == "deny"
     assert callable(call_kwargs["resume_callback"])
+
+
+@pytest.mark.asyncio
+async def test_channel_timeout_resume_runs_under_the_scheduler_key() -> None:
+    """The channel turn suspended its graph under ``channel:peer``; resuming under another thread would find nothing."""
+    from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+    from app.core.types import ModelConfig
+
+    params = GeneralAgentParams(
+        query="deploy",
+        model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+        channel_name="telegram",
+    )
+    scheduler = MagicMock()
+    agent = MagicMock()
+
+    async def stream(**_kwargs: object) -> AsyncIterator[dict[str, object]]:
+        yield {"type": "message", "data": "Rejected, nothing deployed."}
+
+    agent.process_stream = MagicMock(side_effect=stream)
+
+    @asynccontextmanager
+    async def credentials_scope(**_kwargs: object) -> AsyncIterator[None]:
+        yield
+
+    helper = "app.core.channel_bridge.executor_helpers.approval"
+    with (
+        patch(f"{helper}.ApprovalTimeoutScheduler.get", return_value=scheduler),
+        patch(f"{helper}.load_history_without_persist", new=AsyncMock(return_value=("chat-db", []))),
+        patch(f"{helper}.persist_assistant_message", new=AsyncMock()),
+        patch(f"{helper}.notify_channel_timeout_result", new=AsyncMock()),
+        patch.object(AgentFactory, "create_general_agent", return_value=agent),
+        patch("app.services.agent.runtime_context.build_agent_runtime_context", new=AsyncMock(return_value={})),
+        patch("app.services.agent.execution_cache.finalize_agent_session", new=AsyncMock()),
+        patch(
+            "app.services.agent.session_credential_assembler.user_config_session_credentials_scope",
+            new=credentials_scope,
+        ),
+    ):
+        schedule_channel_approval_timeout(
+            channel="telegram",
+            peer="chat-1",
+            chat_id="chat-db",
+            timeout_info={"seconds": 120, "behavior": "deny"},
+            params=params,
+            user_id="user-1",
+        )
+        resume_callback = scheduler.schedule.call_args.kwargs["resume_callback"]
+        await resume_callback({"decision": "reject"})
+
+    assert agent.approval_session_key == "telegram:chat-1"
+    assert agent.process_stream.call_args.kwargs["query"].resume == {"decision": "reject"}
 
 
 @pytest.mark.asyncio

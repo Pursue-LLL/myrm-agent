@@ -7,11 +7,11 @@
  * @/lib/utils/networkResilience::abortableDelay (POS: 网络韧性策略层，统一重试与 fail-fast 决策)
  *
  * [OUTPUT]
- * executeStreamWithRetry: 网络重试、AgentBusyError fail-fast、multiplex 分流、中断后 attach 恢复；两类退避等待均可被用户 Stop 立即中止（AbortError 直接抛出），Stop 发生在 multiplex 就绪门等待期间时门返回后同样以 AbortError 结束且不构造请求；turn 成功后 finalizeAgentStreamTurn
+ * executeStreamWithRetry: 网络重试、AgentBusyError / ApprovalExpiredError（resume 命中已被超时处理的中断，HTTP 409）fail-fast、multiplex 分流、中断后 attach 恢复；两类退避等待均可被用户 Stop 立即中止（AbortError 直接抛出），Stop 发生在 multiplex 就绪门等待期间时门返回后同样以 AbortError 结束且不构造请求；turn 成功后 finalizeAgentStreamTurn
  * shouldUseMultiplexedAgentStream: 本轮 chunk 走 workspace multiplex 还是 POST 响应体（请求体 multiplexed 字段与消费端共用此判定）
  *
  * [POS]
- * Chat agent-stream 前端回合编排 SSOT。busy 检测：HTTP 409 或 SSE error_type=AgentBusyError；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；multiplex 下 early-terminal SSE 直读 POST。
+ * Chat agent-stream 前端回合编排 SSOT。busy 检测：SSE error_type=AgentBusyError（HTTP 200）；resume 收到 HTTP 409 表示该中断已被超时处理（`ApprovalExpiredError`），非 resume 的 409 按普通拒绝处理；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；multiplex 下 early-terminal SSE 直读 POST。
  */
 import { consumeMigrationBoundProjectId, syncChatSidebarProjectId } from '@/lib/migrationChatHandoff';
 import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspectorControls';
@@ -32,7 +32,13 @@ import { resolveE2eApiBase } from '@/lib/deploy-mode';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
 import { consumeStream } from './consumeStream';
-import { AgentBusyError, RequestRefusedError, StreamInterruptedError, isTransientNetworkError } from './streamErrors';
+import {
+  AgentBusyError,
+  ApprovalExpiredError,
+  RequestRefusedError,
+  StreamInterruptedError,
+  isTransientNetworkError,
+} from './streamErrors';
 
 function finalizeMigrationBoundProjectHandoff(chatId: string | undefined): void {
   const boundProjectId = consumeMigrationBoundProjectId();
@@ -250,8 +256,10 @@ export async function executeStreamWithRetry(
         turnCapabilityTelemetry,
       );
       if (!res.ok) {
-        if (res.status === 409) {
-          throw new AgentBusyError('Agent is busy processing another request for this session.');
+        // A busy chat answers HTTP 200 with an SSE error frame; the server answers a bare 409 only to a resume
+        // whose interrupt the timeout has already resolved.
+        if (res.status === 409 && resumeValue !== undefined) {
+          throw new ApprovalExpiredError();
         }
 
         const errorText = await res.text();
@@ -332,9 +340,9 @@ export async function executeStreamWithRetry(
       if (error.name === 'AbortError') {
         throw error;
       }
-      if (error instanceof AgentBusyError) {
+      if (error instanceof AgentBusyError || error instanceof ApprovalExpiredError) {
         throw error;
-      } // Don't retry busy errors
+      } // Don't retry busy or already-resolved resumes
       if (error instanceof FatalNetworkError) {
         throw error;
       } // Fail-fast on 401/403 etc.

@@ -12,7 +12,7 @@ import { API_BASE_URL } from '@/lib/api';
 import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
 import { shouldResumeDrawerApproval } from '@/lib/approval/buildDrawerResumeValue';
 import { resumeDrawerApprovalStream } from '@/lib/approval/resumeDrawerApprovalStream';
-import { ApprovalExpiredError } from '@/lib/approval/resumeApprovalStream';
+import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import { classifyBatchApprovalRisk, type BatchRiskReport } from '@/lib/approval/batchRisk';
 
 export function ApprovalDrawer() {

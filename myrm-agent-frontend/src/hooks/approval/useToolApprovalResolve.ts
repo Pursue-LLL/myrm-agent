@@ -7,13 +7,13 @@ import { useTranslations } from 'next-intl';
 import { groupRequestsForBulkResume } from '@/lib/approval/approvalBulkGroups';
 import { extractDirectoryGrantOptimistic, resumeDecisionsIncludeDirectoryGrant } from '@/lib/approval/approvalDecision';
 import {
-  ApprovalExpiredError,
   buildApprovalDecision,
   resumeApprovalStream,
   type ToolApprovalResolveExtra,
 } from '@/lib/approval/resumeApprovalStream';
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
+import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 

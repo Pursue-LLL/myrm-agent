@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from fastapi import Request
+from myrm_agent_harness.agent.goals.protocols import GoalProvider
 from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
@@ -52,7 +53,7 @@ class AgentStreamSession:
     registry: GlobalStreamRegistry
     collector: StreamContentCollector
     is_long_running_task: bool
-    goal_provider: object | None
+    goal_provider: GoalProvider | None
     extra_context: dict[str, object]
     routing_specialty: str | None = field(default=None)
     routing_reason: str | None = field(default=None)

@@ -11,7 +11,7 @@ import {
   getFallbackLiteModelSelection,
 } from '@/store/chat/messageRequest';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
-import { AgentBusyError, isAgentBusySseEvent } from '@/store/chat/streamErrors';
+import { AgentBusyError, ApprovalExpiredError, isAgentBusySseEvent } from '@/store/chat/streamErrors';
 
 /**
  * [INPUT] ToolApprovalRequest anchor + resume decisions payload
@@ -140,11 +140,4 @@ export async function resumeApprovalStream(
 
   const { finalizeAgentStreamTurn } = await import('@/store/chat/chatAgentSessionRestore');
   await finalizeAgentStreamTurn(request.chatId);
-}
-
-export class ApprovalExpiredError extends Error {
-  constructor() {
-    super('Approval has already been resolved by timeout');
-    this.name = 'ApprovalExpiredError';
-  }
 }

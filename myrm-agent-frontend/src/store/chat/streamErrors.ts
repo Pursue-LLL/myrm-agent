@@ -3,7 +3,7 @@
  * @/lib/utils/networkResilience::FatalNetworkError (POS: 不可重试网络错误基类)
  *
  * [OUTPUT]
- * AgentBusyError / RequestRefusedError / StreamInterruptedError: agent-stream 回合失败的分类错误
+ * AgentBusyError / ApprovalExpiredError / RequestRefusedError / StreamInterruptedError: agent-stream 回合失败的分类错误
  * isAgentBusySseEvent: SSE error 帧是否为 busy 拒绝
  * isTransientNetworkError: 重试环路使用的瞬时网络错误判定
  *
@@ -16,6 +16,17 @@ export class AgentBusyError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'AgentBusyError';
+  }
+}
+
+/**
+ * A resume reached the server after the interrupt's timeout had already resolved it (HTTP 409 on the resume POST):
+ * the answer is not applied, the caller collapses its card and says so instead of reporting a failure.
+ */
+export class ApprovalExpiredError extends Error {
+  constructor() {
+    super('Approval has already been resolved by timeout');
+    this.name = 'ApprovalExpiredError';
   }
 }
 

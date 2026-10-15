@@ -1,4 +1,18 @@
-"""Agent stream error handling and session teardown."""
+"""Agent stream error handling and session teardown.
+
+[INPUT]
+- app.services.agent.streaming_support.hitl_timeout::arm_interrupt_timeout (POS: arms or reopens the timer of the interrupt the turn stopped at)
+- app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: persisted turn content)
+- app.services.agent.gateway (POS: queue / drain / execution-timeout errors surfaced to the client)
+- myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle, unregistered when the turn ends)
+
+[OUTPUT]
+- yield_stream_exception_chunks: turn a stream exception into the user-visible error chunks
+- finalize_agent_stream_session: persist the turn, record its terminal state, arm the HITL timeout of a pending interrupt and release the turn's session state
+
+[POS]
+Teardown half of the stream pipeline: runs once per turn after the chunk generator ends, however it ended.
+"""
 
 from __future__ import annotations
 
@@ -53,57 +67,17 @@ from app.services.agent.stream_session.turn_capability_terminal import (
 from app.services.agent.streaming_support.citation_persistence import (
     merge_memory_citation_fallback,
 )
+from app.services.agent.streaming_support.hitl_timeout import (
+    arm_interrupt_timeout,
+    mark_pending_clarification_answered,
+    mark_pending_directory_request_answered,
+)
 from app.services.agent.streaming_support.sse_helpers import (
     clear_context_task_metrics,
     error_sse,
-    schedule_approval_timeout,
-    schedule_clarification_timeout,
-    schedule_directory_timeout,
 )
 
 logger = logging.getLogger(__name__)
-
-
-async def _mark_pending_clarification_answered(chat_id: str) -> None:
-    """Mark the latest assistant clarification as answered after a successful resume.
-
-    Clarification lives on the persisted assistant row (new UUID at finalize), not on
-    the API request message_id which is bound to the user row.
-    """
-    from app.services.chat.chat_service import ChatService
-
-    messages = await ChatService.get_all_messages(chat_id)
-    for message in reversed(messages):
-        if message.role != "assistant":
-            continue
-        extra_data = dict(message.extra_data or {})
-        clarification = extra_data.get("clarification")
-        if not isinstance(clarification, dict):
-            continue
-        if clarification.get("answered") is True:
-            continue
-        extra_data["clarification"] = {**clarification, "answered": True}
-        await ChatService.update_message_extra_data(message.id, extra_data)
-        return
-
-
-async def _mark_pending_directory_request_answered(chat_id: str) -> None:
-    """Mark the latest assistant directoryRequest as answered after resume."""
-    from app.services.chat.chat_service import ChatService
-
-    messages = await ChatService.get_all_messages(chat_id)
-    for message in reversed(messages):
-        if message.role != "assistant":
-            continue
-        extra_data = dict(message.extra_data or {})
-        directory_request = extra_data.get("directoryRequest")
-        if not isinstance(directory_request, dict):
-            continue
-        if directory_request.get("answered") is True:
-            continue
-        extra_data["directoryRequest"] = {**directory_request, "answered": True}
-        await ChatService.update_message_extra_data(message.id, extra_data)
-        return
 
 
 def _collector_has_unanswered_clarification(session: AgentStreamSession) -> bool:
@@ -530,28 +504,20 @@ async def finalize_agent_stream_session(
         )
         resume_completed = session.request.resume_value is not None and not clarification.pending
         if resume_completed or collector_clarification_answered:
-            await _mark_pending_clarification_answered(session.request.chat_id)
-            await _mark_pending_directory_request_answered(session.request.chat_id)
+            await mark_pending_clarification_answered(session.request.chat_id)
+            await mark_pending_directory_request_answered(session.request.chat_id)
 
     clarification_sched_needed = _clarification_timeout_needed(session, clarification)
     directory_sched_needed = _directory_timeout_needed(session, clarification)
 
-    if approval.value and session.request.chat_id and not clarification_sched_needed and not directory_sched_needed:
-        schedule_approval_timeout(
-            chat_id=session.request.chat_id,
-            timeout_info=approval.value,
-            params=session.params,
-        )
-
-    if clarification_sched_needed and session.request.chat_id:
-        schedule_clarification_timeout(
-            chat_id=session.request.chat_id,
-            params=session.params,
-        )
-    elif directory_sched_needed and session.request.chat_id:
-        schedule_directory_timeout(
-            chat_id=session.request.chat_id,
-            params=session.params,
+    if session.request.chat_id:
+        arm_interrupt_timeout(
+            session.request.chat_id,
+            session.params,
+            approval_timeout=approval.value,
+            clarification_pending=clarification_sched_needed,
+            directory_pending=directory_sched_needed,
+            awaiting_answer=session.collector.has_pending_hitl_replay(),
         )
 
     if session.request.chat_id:

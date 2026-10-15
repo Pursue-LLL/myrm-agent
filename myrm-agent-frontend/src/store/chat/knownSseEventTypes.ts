@@ -35,7 +35,6 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'tool_token_usage',
   'artifact_content',
   'token_usage',
-  'approval_intercepted',
   'reasoning',
   'steering',
   'tool_approval_request',

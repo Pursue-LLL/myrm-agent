@@ -1,4 +1,4 @@
-"""Tests for awaiting_approval / generating status broadcast in stream_loop."""
+"""Tests for awaiting_approval status broadcast and HITL timeout detection in stream_loop."""
 
 from __future__ import annotations
 
@@ -52,14 +52,6 @@ def _tool_approval_request_chunk() -> str:
     return f"data: {json.dumps(event)}\n\n"
 
 
-def _approval_intercepted_chunk(decision: str = "approve") -> str:
-    event = {
-        "type": "approval_intercepted",
-        "data": {"decision": decision},
-    }
-    return f"data: {json.dumps(event)}\n\n"
-
-
 def _clarification_required_chunk() -> str:
     event = {
         "type": "clarification_required",
@@ -104,131 +96,13 @@ class TestApprovalStatusBroadcast:
         assert "awaiting_approval" in published
 
     @pytest.mark.asyncio
-    async def test_approval_intercepted_publishes_generating(self) -> None:
-        """When an approval_intercepted event is detected, the multiplexer
-        should broadcast generating status to resume the indicator."""
-        session = _make_session()
-        approval = ApprovalTimeoutHolder()
-
-        chunks = [
-            _tool_approval_request_chunk(),
-            _approval_intercepted_chunk("approve"),
-        ]
-
-        async def _fake_stream(*_args, **_kwargs):
-            for c in chunks:
-                yield c
-
-        mux = WorkspaceMultiplexer.get()
-        published: list[str] = []
-        original = mux.publish_session_status
-
-        def spy(chat_id: str, status: str, agent_type: str = "") -> None:
-            published.append(status)
-            original(chat_id, status, agent_type)
-
-        with (
-            patch(
-                "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
-                side_effect=_fake_stream,
-            ),
-            patch.object(mux, "publish_session_status", side_effect=spy),
-        ):
-            collected = []
-            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
-                collected.append(chunk)
-
-        assert published == ["awaiting_approval", "generating"]
-
-    @pytest.mark.asyncio
-    async def test_reject_decision_also_publishes_generating(self) -> None:
-        """A reject decision should still restore generating status."""
-        session = _make_session()
-        approval = ApprovalTimeoutHolder()
-
-        chunks = [
-            _tool_approval_request_chunk(),
-            _approval_intercepted_chunk("reject"),
-        ]
-
-        async def _fake_stream(*_args, **_kwargs):
-            for c in chunks:
-                yield c
-
-        mux = WorkspaceMultiplexer.get()
-        published: list[str] = []
-        original = mux.publish_session_status
-
-        def spy(chat_id: str, status: str, agent_type: str = "") -> None:
-            published.append(status)
-            original(chat_id, status, agent_type)
-
-        with (
-            patch(
-                "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
-                side_effect=_fake_stream,
-            ),
-            patch.object(mux, "publish_session_status", side_effect=spy),
-        ):
-            async for _ in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
-                pass
-
-        assert published == ["awaiting_approval", "generating"]
-
-    @pytest.mark.asyncio
-    async def test_consecutive_approvals_cycle(self) -> None:
-        """Multiple sequential approval cycles should produce alternating statuses."""
-        session = _make_session()
-        approval = ApprovalTimeoutHolder()
-
-        chunks = [
-            _tool_approval_request_chunk(),
-            _approval_intercepted_chunk("approve"),
-            _tool_approval_request_chunk(),
-            _approval_intercepted_chunk("approve"),
-        ]
-
-        async def _fake_stream(*_args, **_kwargs):
-            for c in chunks:
-                yield c
-
-        mux = WorkspaceMultiplexer.get()
-        published: list[str] = []
-        original = mux.publish_session_status
-
-        def spy(chat_id: str, status: str, agent_type: str = "") -> None:
-            published.append(status)
-            original(chat_id, status, agent_type)
-
-        with (
-            patch(
-                "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
-                side_effect=_fake_stream,
-            ),
-            patch.object(mux, "publish_session_status", side_effect=spy),
-        ):
-            async for _ in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
-                pass
-
-        assert published == [
-            "awaiting_approval",
-            "generating",
-            "awaiting_approval",
-            "generating",
-        ]
-
-    @pytest.mark.asyncio
     async def test_no_broadcast_without_chat_id(self) -> None:
-        """If the session has no chat_id, no status should be broadcast
-        for either approval_request or approval_intercepted."""
+        """If the session has no chat_id, no status should be broadcast for an approval request."""
         session = _make_session(chat_id="")
         session.request.chat_id = ""
         approval = ApprovalTimeoutHolder()
 
-        chunks = [
-            _tool_approval_request_chunk(),
-            _approval_intercepted_chunk("approve"),
-        ]
+        chunks = [_tool_approval_request_chunk()]
 
         async def _fake_stream(*_args, **_kwargs):
             for c in chunks:

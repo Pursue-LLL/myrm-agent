@@ -1,6 +1,5 @@
 [
   "agent_cancelled",
-  "approval_intercepted",
   "approval_processed",
   "approval_required",
   "artifact_content",

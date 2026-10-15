@@ -3418,6 +3418,10 @@ except Exception:
 2. 计划里写的「跳过坏事件」防护没有先核对上游：读了 `PubSubBus.publish()` 才发现凡是 `default=str` 编不了的在发布时就已经抛了，那段 `try/except` 是不可达的死代码；加防护之前先问「这个失败还能走到这里吗」。
 3. 枚举要列全所有发布类型：留一个字符串字面量，按枚举做的死代码审计就会把活事件当成死项（上一阶段差点这么做）。
 
+### 更正（BUG-AGENT-2026-10-15-018）
+
+「现象」里「真正的恢复由 harness 的 `ApprovalTimeoutScheduler` 在计时器到点时完成」没有核实运行结果：到点的计时器会取消自己的恢复回调，回合没有被恢复（见 `BUG-AGENT-2026-10-15-018`）。删除无人订阅的 `STATUS` 广播这一修复本身不受影响。
+
 ---
 
 ## BUG-AGENT-2026-10-15-011: 手机上从看板卡片起手的滑动被当成拖拽，卡片会被拖进相邻列；看板卡片被写成椭圆；批量接口把非预期异常吞掉且把异常原文回给调用方
@@ -3524,6 +3528,10 @@ except Exception:
 2. 回归出在哪个提交，必须用 `git log -S` 与 diff 核实后再写：这次最初把 409 的删除记到了另一个提交上，核对后才找到 `1788bc35e6`。
 3. 测试与实现共用一条手写的键，布局漂移就测不出来：造数据要走公开接口，造坏数据则直接破坏存储里的值。
 4. 遗留的无类型模型会让 mypy 把查询结果推成 `Never`，标注结果类型（`Result[tuple[str, str]]`）比逐层加 `ignore` 干净。
+
+### 更正（BUG-AGENT-2026-10-15-018）
+
+本条「现象」第 1 项与「局限」第 7、8、9 项以「计时器到点会以 Auto-rejected 恢复回合」为前提，这个前提不成立：到点的计时器在恢复回调里被它自己取消，回合没有恢复（根因与修复见 `BUG-AGENT-2026-10-15-018`）。本条的 409 预检查与前端契约测试仍然有效；局限 7、8、9 已在 `BUG-AGENT-2026-10-15-018` 中处理。
 
 ---
 
@@ -3825,3 +3833,65 @@ except Exception:
 1. 找「谁会碰到这个错误」要从错误的出处往调用方倒查，不要从组件往下猜：从服务端闸门列出的处理函数出发，12 个调用点一次找齐，而 `-014` 凭印象只发现了其中一部分。
 2. 变异检查还原不要用「把短字面量换回去」：把 `!isRiskHeldError(error)` 换成 `true` 后，用 `replace('true', 原文, 1)` 还原会命中文件里别处的第一个 `true`（`setBusy(true)` 之类），把它改坏；这次靠还原后的 `git diff` 逐文件核对才发现并修好。还原要用带上下文的整行，且还原后必须看 diff。
 3. 全局只替换 `fetch` 时，`apiRequest` 的成功响应要带 `Content-Type: application/json`，否则被当成空响应、页面停在加载态；本地模式下还要替换后端就绪检查，否则测试在轮询 `/health` 上挂满 30 秒。
+
+## BUG-AGENT-2026-10-15-018: 审批、澄清、目录授权的超时计时器到点后恢复回调被计时器自己取消，回合没有恢复而仲裁键已被认领，此后手动答复一律被拒；三个超时回调不占会话预占、不标记卡片；没有计时器的中断与启动失败会让键耗尽；网页把「已过期」当成「智能体忙」；一条从未生效的审批文字拦截路径
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15（核对 `BUG-AGENT-2026-10-15-012` 的前提「计时器到点会以 Auto-rejected 恢复回合」时，用真实调度器加会挂起的回调复现） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（只在用户没有在计时窗口内答复时出现；后果是这个中断既没有被自动处理，事后也答复不了，要发新消息绕过；不丢已落库的数据） |
+| 影响范围 | harness：`agent/middlewares/approval/scheduler.py`、`agent/_internals/agent_runtime.py`、`core/events/{types.py,__init__.py}`、`agent/streaming/types.py`，删除审批文字拦截模块 `approval_interception` 与其测试；server：`app/services/agent/streaming_support/{hitl_timeout.py（新）,sse_helpers.py}`、`app/services/agent/stream_session/{stream_finalize.py,session_reservation.py,orchestrator_turn_launch.py,stream_pump.py,orchestrator_turn_setup.py（新）,orchestrator_turn_body.py,stream_loop.py,lazy_session_gate.py,stream_session_types.py}`、`app/services/agent/gateway.py`、`app/core/channel_bridge/executor_helpers/approval.py`；frontend：`store/chat/{streamErrors.ts,streamConsumer.ts,messageRequest.ts,knownSseEventTypes.ts}`、`lib/approval/resumeApprovalStream.ts`、`hooks/approval/useToolApprovalResolve.ts`、`components/approval/ApprovalDrawer.tsx`、`components/features/message-box/{ClarificationInput.tsx,DirectoryApprovalInput.tsx}`、`components/features/chat-window/{SingleApprovalCard.tsx,approval/EditModeView.tsx,approval/RejectModeView.tsx}`、`components/features/settings/sections/enterprise/AgentEventRow.tsx`、六套语言包（新增两个「已过期」文案、删除一个无事件可对应的标签）；各目录 `_ARCH.md` |
+| 出现次数 | 未测量（没有线上记录，计时器到点那一刻的日志没有人取过） |
+| 关联 | `BUG-AGENT-2026-10-15-012`、`BUG-AGENT-2026-10-15-010`（两条的前提在本条更正）；路线图第 203 项的 ⑤⑥ 已由本条处理；本地提交，未 push |
+
+### 现象
+
+1. 审批、澄清、目录授权带超时（审批默认 300 秒，澄清与目录授权 900 秒）。计时器到点先认领仲裁键，再运行恢复回调。HEAD 的认领函数 `resolve_if_first` 会同时取消键下登记的任务（`scheduler.py:106-124`），而此刻登记的正是计时器自己（`_run` 在 `:131` 调它）。于是 `await callback(...)`（`:151`）在回调第一个真正挂起的位置收到 `CancelledError`，被 `except CancelledError` 当成「手动恢复取消」吞掉（`:157-158`）：回合没有恢复，什么都没落库，键却已被认领。用户事后再点「批准 / 拒绝 / 回答」，被当成「已被超时处理」拒绝（HTTP 409）。原有测试的回调都不挂起，所以没有红。这是读码加真实调度器复现的结论；没有线上日志证明现网发生过。
+2. 假设回调能跑完，三个超时回调（`sse_helpers.py` 的 `schedule_approval_timeout`、`schedule_clarification_timeout`、`schedule_directory_timeout`）各抄了一份流程：直接调 `ai_agent_service_stream`，不占会话预占，恢复期间用户在同一聊天发新消息会并行开出第二个回合；澄清与目录授权的卡片也没有被标记为已答复。
+3. 没有计时器的中断（计划确认、浏览器接管）停下后不重新打开仲裁键，同一聊天里之前的一次恢复消耗了键，之后的手动恢复被拒绝（`BUG-AGENT-2026-10-15-012` 局限 8）。恢复在启动前就消耗了键，后台回合里的准备步骤抛错时，键已消耗、计时器已取消，重试被 409 拒绝（局限 9）。
+4. 网页：通用恢复路径（澄清回答、目录授权）收到 HTTP 409 时一律抛 `AgentBusyError`（局限 7），「已过期」显示成「智能体忙」或只弹失败提示；审批卡的编辑与拒绝模式下倒计时不走，过期后确认按钮仍可点。
+5. harness 的 `approval_interception`：在每次运行开始前用 `checkpointer.aget_tuple` 的 `.tasks` 判断「是否在等审批」，真实的 `CheckpointTuple` 没有 `tasks`（字段为 `config, checkpoint, metadata, parent_config, pending_writes`，用 harness 虚拟环境里的 langgraph 核对过），异常被吞掉，探测永远返回「不在等」；既有测试都是 mock 出 `.tasks`。它发出的 `approval_intercepted` 事件因此从没有真实产生过，server 的 `extract_approval_intercepted` 分支、前端白名单与企业事件标签都在等一个不会来的事件。
+6. `orchestrator_turn_body.py` 430 行，超出 400 行上限；`gateway.py` 有 7 个已有的 mypy 错误。
+
+### 根因
+
+1. 认领与取消被捆在同一个函数里，计时器与手动路径都走它：对手动路径取消计时器是对的，对计时器自己是自杀。
+2. 「到点自动恢复」这条链路只有各环节的单元测试，没有「真实调度器加真实回调」的契约测试，所以每一环单独都对，合起来没有恢复。
+3. 仲裁键的生命周期只有 `schedule()` 一个入口，谁都没有「这个中断没有计时器，请重新打开」的出口。
+4. 拦截路径当年按 mock 写测试，没有对照真实检查点的返回结构。
+
+### 修复
+
+1. harness `ApprovalTimeoutScheduler`：拆成 `_claim`（只标记）与 `resolve_if_first`（标记并取消计时器，只给手动路径用）；计时器自己调 `_claim`，并在运行回调之前从登记表摘掉自己（回调里再次 `schedule` 同一个键不会取消到别人）；新增 `reopen(key)`：恢复出的新中断没有计时器时重新接受一次手动答复，已有计时器时不动。
+2. server 新增 `streaming_support/hitl_timeout.py`：三个回调合并为一个共享流程：先占会话预占（聊天已有运行就让路）→ 经网关跑 `Command(resume)` → 先把已存的澄清 / 目录卡标记为已答复再落库 → 为新停下的中断挂下一个计时器（优先级 澄清 > 目录授权 > 审批）；运行失败则释放预占并 `reopen`。`stream_finalize.py` 在回合结束时调 `arm_interrupt_timeout`：对没有计时器的中断（计划确认、浏览器接管）只做 `reopen`。`release_unstreamed_reservation` 在预占没有交给流时释放，且对 resume 回合 `reopen`，覆盖启动前失败。渠道的超时回调把 `agent.approval_session_key` 设为 `channel:peer`（回合当时挂起在这个线程上，按聊天 id 恢复会打开一个空线程）。
+3. frontend：恢复请求（带恢复值）收到 409 一律抛 `ApprovalExpiredError`，不再重试也不当成忙；真正的忙碌是 HTTP 200 加帧内 `AgentBusyError`（`stream_busy.py`），不受影响。`ClarificationInput` 与 `DirectoryApprovalInput` 对过期显示本地化提示并把卡片标为已答复；`SingleApprovalCard` 的倒计时在所有模式下都走，编辑与拒绝模式过期后显示提示并禁用确认。新增 `chat.clarification.expired` 与 `chat.directoryRequest.expired` 六套文案。
+4. 删除死路径：harness `approval_interception` 模块、`agent_runtime.py` 里的调用点、`AgentEventType.APPROVAL_INTERCEPTED`、`ApprovalInterceptedEventData`；server 的 `extract_approval_intercepted` 与 `stream_loop.py` 中对应的分支、`lazy_session_gate.py` 的白名单项；前端 `knownSseEventTypes.ts` 的条目、`AgentEventRow.tsx` 的标签与六套语言包里的 `approvalIntercepted`；server 的 SSE 类型清单夹具与深层 harness 导入基线随之更新。
+5. `orchestrator_turn_body.py` 拆出 `orchestrator_turn_setup.py`（参数装配、研究模型解析、搜索服务可用性、目标提供者、额外上下文），主体从 430 行降到 227 行，新文件 304 行；`stream_session_types.py` 的 `goal_provider` 改为 `GoalProvider | None`；`gateway.py` 用带两个属性的私有 `Protocol` 与 `cast` 清掉 7 个 mypy 错误。
+
+### 验证
+
+1. harness：`test_scheduler.py` 20 例通过，其中新增 5 例（回调跨多次 `await` 跑完、回调内为同一个键再挂计时器、手动认领取消计时器而计时器认领不取消自己、`reopen` 两例）。把计时器的认领临时换回旧的 `resolve_if_first` 后前 3 例失败（3 failed、17 passed），还原后与备份一致、20 通过。
+2. server：新增 `test_hitl_timeout.py` 27 例（真实调度器加真实回调的契约：到点经网关恢复、卡片先标记再落库、下一个中断各自挂计时器、无计时器的中断仍可答复、恢复让路给已在运行的回合、失败时释放并重开、记账失败仍挂下一个计时器等）、`test_stream_finalize_interrupt_reopen.py` 3 例、`test_session_reservation.py` 3 例、`test_orchestrator_turn_setup.py` 19 例（拆分前后行为的特征化用例，变异验证过）、渠道回调 1 例。变异检查（改一处、跑、还原）：去掉渠道回调里设置 `approval_session_key` 的一行，该例失败；把 `release_unstreamed_reservation` 改成「总是重开」「从不重开」「预占是否被释放都重开」三种，`test_session_reservation.py` 各有用例失败；还原后 14 例通过。
+3. server 回归：`tests/services/agent`、`tests/services/chat`、`test_gateway.py` 共 1876 通过、4 跳过、1 失败（`test_deep_research_wiki_vault.py::test_vault_research_blocks_credential_content`，修改前就在他人的在制品里失败）。`tests/core/channel_bridge`、`tests/core/cron`、`tests/unit`、`tests/architecture`、`tests/ai_agents` 共 3934 通过、61 失败，失败输出里没有出现本条改动的任何模块；抽查的原因是他人未提交的改动：36 例是 `finalize_channel_stream_reply()` 多了必填参数 `account_guidance`，5 例是 `create_job()` 多了 `project_id`，架构用例里有他人新增的深层 harness 导入与路由。其余没有逐项核对。本条使 `myrm_agent_harness.agent.streaming.types` 不再被 server 导入，已从深层导入基线删去这一行。触及文件的 `ruff check`、`ruff format --check` 通过；`gateway.py` 的 mypy 为 0 错误。
+4. 隔离导出验证与静态检查：提交前把「HEAD + 本条改动」导出到独立目录再跑，排除工作区里他人未提交改动的影响。server `tests/services/agent`、`tests/services/chat`、`test_gateway.py`、`test_executor_helpers_approval.py`、`tests/unit/agent` 共 1886 通过、4 跳过、2 失败（`test_myrm_llm_error_with_recovery_and_cooldown` 是他人只提交了源码没提交测试改动；`test_vault_research_blocks_credential_content` 与本条无关），两例都不在本条的改动里；前端 `store/chat`、`lib/approval`、`components/approval`、`message-box`、`chat-window`、`hooks/approval`、企业设置共 337 个文件、2023 例，2021 通过、2 失败（`messageStreamHandlerMemoryCitations`，他人的记忆引用改动），另有 8 个文件加载失败，原因是 HEAD 里的源码引用了他人还没提交的 `./memory/sovereignMigration` 与 `./in-flight-steer`；harness 相关目录（`tests/agent`、`core`、`api`、`architecture`、`unit`、`goals`、`sub_agents`、`integration`）在工作区共 23380 通过、33 失败、15 跳过，33 例都不在本条的文件里：`test_skill_manage_lock` 3 例（HEAD 上同样失败）、委派 / 子代理配置 / 技能代理隐私上下文 12 例（HEAD 上通过，由他人未提交的改动引起）、架构门禁 18 例（他人新增目录缺 `_ARCH.md`、文件行数基线、工具注册表等；其中文档链接门禁有一例是已删除的审批文字拦截文档在收集后被删，提交后不再出现）。工作区里的前端静态检查：`oxlint` 退出码 0，`prettier --check` 只有 `messageRequest.ts` 报告（出处是他人新增的 `@` 提及抽取，不在本条的改动里），`tsc --noEmit` 49 个错误都在他人的文件里，`verify-i18n` 通过。
+
+### 局限
+
+1. 没有在浏览器里端到端跑「计时器到点 → 回合恢复 → 卡片更新」：触发要靠真实模型产生中断并等 5 到 15 分钟，没有在隔离实例里尝试。到点恢复这一段是真实调度器加真实回调的契约测试，不是现网观察。渠道与定时任务的超时回调只做了单元测试与读码核对。
+2. 线上触发频率没有测量；本条之前恢复是否真的从没有跑完，没有现网日志佐证，是读码与复现的结论。
+3. 提示缓存命中率没有测量：恢复仍走同一条流程，没有改动提示词，没有新增工具。
+4. server 钉的 harness 版本是 `0.1.0rc5`（`pyproject.toml:25`），而 server 现在调用 `scheduler.reopen`，harness 已删除 `ApprovalInterceptedEventData`：两边必须一起发版并同步锁文件（`./myrm harness sync-lock`）。只发 server、harness 仍是 rc5 时，`reopen` 不存在，到点恢复与回合收尾里调用它的位置会抛 `AttributeError`；只发 harness、server 仍是旧版时，旧 server 的 `sse_helpers.py` 导入已删除的类型，启动即失败。
+5. 计划确认与浏览器接管卡没有计时器，不会出现 409，本条没有给它们加「已过期」处理。
+6. `approval_processed` 事件现在没有任何发布方：只有被删的分支会发它；前端 `agentStream/part1.ts`、`toolsProgressEvents` 里的处理与浏览器扩展 `sidepanel.js` 里的分支成了孤儿，没有一并删（涉及面更大，需要单独评估）。`tests/api/agent/test_text_approval_interception_e2e.py` 名字带「interception」，实际只测直接传 `resumeValue`，没有改名。
+7. 已过期但还没被清理任务扫到的 `PENDING` 记录仍被 `count_pending_for_chat` 计入（`BUG-AGENT-2026-10-15-012` 局限 5），路线图第 203 项的 ④ 仍待分析。
+8. `stream_loop.py` 仍有 25 个 mypy 错误：从 harness 的惰性导出模块 `myrm_agent_harness.api` 取到的异常类被推成 `object`；这是该模块对所有惰性导出的类型问题，不属于本条。
+9. 修复期间对 `app/services/agent` 目录误跑过一次 `ruff check --fix`，改动了 9 个他人的文件（多为未跟踪的新文件）：`agent_avatar_service.py`、`agent_assembler_service.py`、`background_job/background_job_finish_handler.py`、`wakeup_handler.py`、`dag_orchestrator_service.py`、`kanban_queue_service.py`、`diamond_graph_service.py`、`coauthoring_ledger_service.py`、`cli_passthrough_service.py`。只会是 ruff 的导入整理与未使用导入清理；已核对这 9 个模块里每个被他人导入的名字与测试补丁目标都还在。未跟踪文件没有原始版本可对照，具体改了哪些行无法还原。
+
+### 踩坑经验
+
+1. 「认领」与「取消」要分开：同一个函数既做仲裁又取消任务，对非自己的调用方是对的，对自己是自杀；回调里第一个挂起点才会暴露。
+2. 链路测试要用真实的调度器与真实的回调：每一环用同步 stub 单测都是绿的，合起来却没有恢复。
+3. 读码得出的「某条路径永远是假」要用真实类型核对：`CheckpointTuple._fields` 一查就知道没有 `tasks`；mock 出 `.tasks` 的测试证明不了它在真实检查点上能工作。
+4. 对目录跑 `ruff --fix` 会改到别人的文件：只对自己的文件列表跑，目录级只用不带 `--fix` 的检查。
+5. `xdist` 在他人参数化测试的 id 不稳定时会报「各 worker 收集的用例不同」，回归要退回单进程或按目录拆开并行跑。

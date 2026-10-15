@@ -51,7 +51,6 @@ from app.services.agent.stream_session.workflow_escalation import (
 )
 from app.services.agent.streaming import ai_agent_service_stream
 from app.services.agent.streaming_support.sse_helpers import (
-    extract_approval_intercepted,
     extract_approval_timeout,
     extract_clarification_required,
     extract_directory_request_required,
@@ -607,29 +606,6 @@ async def iter_agent_stream_chunks(
                     )
 
                     WorkspaceMultiplexer.get().publish_session_status(session.request.chat_id, "awaiting_approval")
-
-            intercepted_data = extract_approval_intercepted(sse_chunk)
-            if intercepted_data and session.request.chat_id:
-                from app.services.agent.streaming_support.multiplexer import (
-                    WorkspaceMultiplexer,
-                )
-
-                WorkspaceMultiplexer.get().publish_session_status(session.request.chat_id, "generating")
-
-                decision = intercepted_data.decision
-                if decision in ("approve", "reject", "approve_always", "feedback"):
-                    try:
-                        approval_processed_event = {
-                            "type": "approval_processed",
-                            "decision": decision,
-                            "messageId": session.params.message_id,
-                        }
-                        yield SSEEnvelope.from_any(approval_processed_event).to_sse_chunk()
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to process intercepted approval: {e}",
-                            exc_info=True,
-                        )
 
             if is_compression_exhausted(sse_chunk) and session.request.chat_id and session.request.resume_value is None:
                 from app.platform_utils import get_session_factory

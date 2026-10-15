@@ -5,6 +5,7 @@
  * @/store/chat/types::ClarificationForm (POS: structured clarification form schema)
  * @/services/chat::submitClarifyResponse (POS: clarification answer submission API)
  * @/store/useChatStore::sendMessage (POS: resume-mode clarification send path)
+ * @/store/chat/streamErrors::ApprovalExpiredError (POS: the timeout already continued the turn without this answer)
  *
  * [OUTPUT]
  * ClarificationInput: Renders single-question and structured clarification forms.
@@ -20,6 +21,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
+import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import type { ClarificationForm } from '@/store/chat/types';
 import { cn } from '@/lib/utils';
 import { isImeComposing } from '@/lib/utils/imeUtils';
@@ -276,6 +278,17 @@ const ClarificationInput = ({
     });
   };
 
+  // An answer that arrives after the timeout already continued the turn is not a failure: the card closes.
+  const reportAnswerError = (err: unknown) => {
+    if (err instanceof ApprovalExpiredError) {
+      markAnswered();
+      toast.warning(t('expired'));
+      return;
+    }
+    console.error('Failed to answer clarification:', err);
+    toast.error(t('submitFailed'));
+  };
+
   const toggleOption = (opt: string) => {
     if (allowMultiple) {
       setSelectedOptions((prev) => (prev.includes(opt) ? prev.filter((item) => item !== opt) : [...prev, opt]));
@@ -330,8 +343,7 @@ const ClarificationInput = ({
       }
       markAnswered();
     } catch (err) {
-      console.error('Failed to submit clarification:', err);
-      toast.error(t('submitFailed'));
+      reportAnswerError(err);
     } finally {
       setSubmitting(false);
     }
@@ -350,8 +362,7 @@ const ClarificationInput = ({
       }
       markAnswered();
     } catch (err) {
-      console.error('Failed to skip clarification:', err);
-      toast.error(t('submitFailed'));
+      reportAnswerError(err);
     } finally {
       setSubmitting(false);
     }

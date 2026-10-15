@@ -10,6 +10,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import type { ClarificationForm, Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 
@@ -20,7 +21,7 @@ const pipeline = vi.hoisted(() => ({ sendMessage: vi.fn<() => Promise<boolean>>(
 vi.mock('@/store/chat/messageRequest', () => pipeline);
 
 vi.mock('sonner', () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
+  toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
 
 vi.mock('@/services/chat', () => ({
@@ -53,6 +54,7 @@ function skipClarification(): void {
 beforeEach(() => {
   pipeline.sendMessage.mockReset();
   vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.warning).mockClear();
   useChatStore.setState({ chatId: 'chat-1', messages: [structuredClone(pendingClarification)] });
 });
 
@@ -72,6 +74,16 @@ describe('ClarificationInput resume', () => {
     skipClarification();
 
     await waitFor(() => expect(isAnswered()).toBe(true));
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('closes the card and says the wait ran out when the timeout already answered it', async () => {
+    pipeline.sendMessage.mockRejectedValue(new ApprovalExpiredError());
+
+    skipClarification();
+
+    await waitFor(() => expect(isAnswered()).toBe(true));
+    expect(toast.warning).toHaveBeenCalledWith('expired');
     expect(toast.error).not.toHaveBeenCalled();
   });
 });

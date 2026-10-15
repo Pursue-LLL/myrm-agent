@@ -14,7 +14,7 @@
 | `HumanAttentionBar.tsx`                                            | 聚合 clarify / desktop gate / tool·visual 审批的统一条（多类型时）                          |
 | `VisualApprovalOsOverlaySync.tsx`                                  | Tauri OS overlay 生命周期同步（scoped browser + desktop viewData）                          |
 | `BrowserSessionView.tsx` / `ShellCommandDisplay.tsx`               | 浏览器/命令上下文                                                                           |
-| `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI（Edit 含 pattern 预览与时效阶梯配置）                                           |
+| `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI（Edit 含 pattern 预览与时效阶梯配置；Edit / Reject 随所属卡片的倒计时在超时后禁用确认并提示已超时） |
 | `AllowAlwaysConfirmDialog.tsx`                                     | 「始终允许」确认（支持 pattern 预览与 Session/15m/1h/Permanent 时效阶梯门禁）               |
 | `LeaseProgressCapsule.tsx`                                         | 执行态配额进度 HUD 胶囊（显示剩余步数配额并在临近用尽时提供原地一键快捷续期）               |
 | `__tests__/AllowAlwaysConfirmDialog.test.tsx`                      | 单元测试：覆盖时效阶梯与高危永久授权防呆警示                                                |

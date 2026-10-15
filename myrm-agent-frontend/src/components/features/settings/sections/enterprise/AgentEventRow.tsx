@@ -79,7 +79,6 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   session_end: 'eventTypes.sessionEnd',
   llm_request: 'eventTypes.llmRequest',
   tool_approval_request: 'eventTypes.approvalRequest',
-  approval_intercepted: 'eventTypes.approvalIntercepted',
   tool_failure: 'eventTypes.toolFailure',
   error: 'eventTypes.error',
   user_interruption: 'eventTypes.userInterruption',

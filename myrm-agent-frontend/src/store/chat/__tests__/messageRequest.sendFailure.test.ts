@@ -16,7 +16,7 @@ import { createAISearchStream } from '@/services/chat';
 import { connectionManager } from '@/services/ConnectionManager';
 import { setGlobalTranslator, showI18nToast } from '@/services/i18nToastService';
 import { sendMessage, type ChatActionsMethods, type ChatActionsState } from '@/store/chat/messageRequest';
-import { AgentBusyError } from '@/store/chat/streamErrors';
+import { AgentBusyError, ApprovalExpiredError } from '@/store/chat/streamErrors';
 import type { ChatState, File as ChatFile, Message } from '@/store/chat/types';
 import { getInitialDefaultModelConfig } from '@/store/config/providerTypes';
 import useProviderStore from '@/store/useProviderStore';
@@ -81,6 +81,19 @@ function droppedStream(): Response {
 
 const refusedWith = (status: number, body: string) =>
   vi.mocked(createAISearchStream).mockResolvedValue(new Response(body, { status }));
+
+/** The production busy refusal: HTTP 200 whose event stream carries one AgentBusyError frame. */
+const busyResponse = (): Response =>
+  new Response(
+    `data: ${JSON.stringify({
+      type: 'error',
+      error_type: 'AgentBusyError',
+      status_code: 409,
+      messageId: REQUEST_ID,
+      data: 'Agent is busy processing another request for this session.',
+    })}\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' } },
+  );
 
 /** Runs a request that waits between retries on a fake clock until it settles. */
 async function runWithRetries<T>(start: () => Promise<T>): Promise<T> {
@@ -262,11 +275,21 @@ describe('sendMessage failure handling', () => {
     });
 
     it('rejects with AgentBusyError and leaves the transcript alone when the server is busy', async () => {
-      refusedWith(409, 'busy');
+      vi.mocked(createAISearchStream).mockResolvedValue(busyResponse());
 
       await expect(resume()).rejects.toBeInstanceOf(AgentBusyError);
 
       expect(transcript()).toEqual([`user:${REQUEST_ID}`, `assistant:${REQUEST_ID}`]);
+    });
+
+    it('rejects with ApprovalExpiredError, quietly and without a retry, when the timeout already resolved the interrupt', async () => {
+      refusedWith(409, '{}');
+
+      await expect(resume()).rejects.toBeInstanceOf(ApprovalExpiredError);
+
+      expect(createAISearchStream).toHaveBeenCalledTimes(1);
+      expect(transcript()).toEqual([`user:${REQUEST_ID}`, `assistant:${REQUEST_ID}`]);
+      expect(showI18nToast).not.toHaveBeenCalled();
     });
   });
 

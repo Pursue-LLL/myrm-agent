@@ -69,6 +69,8 @@ def schedule_channel_approval_timeout(
         )
 
         agent = AgentFactory.create_general_agent(resume_params)
+        # The channel turn suspended its graph under this key; resuming under the chat id would open an empty thread.
+        agent.approval_session_key = scheduler_key
 
         from app.services.agent.session_credential_assembler import user_config_session_credentials_scope
 

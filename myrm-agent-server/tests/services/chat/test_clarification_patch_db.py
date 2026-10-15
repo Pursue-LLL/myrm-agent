@@ -10,9 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.dto import MessageDTO
 from app.database.models import Chat
 from app.database.repositories.chat_repo import ChatRepository
-from app.services.agent.stream_session.stream_finalize import (
-    _mark_pending_clarification_answered,
-)
+from app.services.agent.streaming_support.hitl_timeout import mark_pending_clarification_answered
 from app.services.chat.chat_service import ChatService
 
 
@@ -78,7 +76,7 @@ async def clarify_patch_chat(db_session: AsyncSession) -> str:
 async def test_mark_pending_clarification_answered_persists_to_sqlite(
     clarify_patch_chat: str,
 ) -> None:
-    await _mark_pending_clarification_answered(clarify_patch_chat)
+    await mark_pending_clarification_answered(clarify_patch_chat)
 
     messages = await ChatService.get_all_messages(clarify_patch_chat)
     clarify_message = next(message for message in messages if message.id == "a1-clarify")

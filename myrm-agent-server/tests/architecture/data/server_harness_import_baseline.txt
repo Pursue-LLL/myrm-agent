@@ -171,7 +171,6 @@ myrm_agent_harness.agent.skills.sync.idle_integration
 myrm_agent_harness.agent.streaming.citation_audit
 myrm_agent_harness.agent.streaming.run_digest
 myrm_agent_harness.agent.streaming.stream_buffer
-myrm_agent_harness.agent.streaming.types
 myrm_agent_harness.agent.sub_agents.checkpoint.orphan_recovery
 myrm_agent_harness.agent.sub_agents.checkpoint.saver
 myrm_agent_harness.agent.sub_agents.config_loader

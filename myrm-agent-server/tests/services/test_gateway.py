@@ -184,7 +184,7 @@ class TestGatewayReserveSession:
         gw.reserve_session("chat-pending", active_message_id="msg-p")
         assert gw.is_session_active("chat-pending")
 
-        gw.release_if_reserved_only("chat-pending")
+        assert gw.release_if_reserved_only("chat-pending") is True
         assert not gw.is_session_active("chat-pending")
         assert "chat-pending" not in gw._session_info
 
@@ -196,14 +196,14 @@ class TestGatewayReserveSession:
         # Simulate execute_stream hand-over: reserved_only flips to False.
         info = gw._session_info["chat-active"]
         info.reserved_only = False
-        gw.release_if_reserved_only("chat-active")
+        assert gw.release_if_reserved_only("chat-active") is False
 
         assert gw.is_session_active("chat-active")
         assert "chat-active" in gw._session_info
 
     def test_release_if_reserved_only_unknown_session_is_noop(self) -> None:
         gw = AgentGateway(_cfg())
-        gw.release_if_reserved_only("ghost-chat")
+        assert gw.release_if_reserved_only("ghost-chat") is False
         assert not gw.is_session_active("ghost-chat")
 
 

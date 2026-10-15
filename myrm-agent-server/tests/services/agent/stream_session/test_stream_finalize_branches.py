@@ -87,7 +87,7 @@ class TestFinalizeBranchCoverage:
                 "app.services.agent.stream_session.stream_finalize.record_migration_first_turn_outcome",
                 new_callable=AsyncMock,
             ),
-            patch("app.services.agent.stream_session.stream_finalize.schedule_approval_timeout") as mock_schedule_approval,
+            patch("app.services.agent.streaming_support.hitl_timeout.schedule_approval_timeout") as mock_schedule_approval,
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(
@@ -263,7 +263,7 @@ class TestFinalizeBranchCoverage:
                 new_callable=AsyncMock,
             ) as mock_update_extra,
             patch(
-                "app.services.agent.stream_session.stream_finalize.schedule_clarification_timeout"
+                "app.services.agent.streaming_support.hitl_timeout.schedule_clarification_timeout"
             ) as mock_schedule_clarification,
         ):
             mock_ctx.reset = MagicMock()
@@ -291,7 +291,7 @@ class TestFinalizeBranchCoverage:
                 "app.services.agent.stream_session.stream_finalize.record_migration_first_turn_outcome",
                 new_callable=AsyncMock,
             ),
-            patch("app.services.agent.stream_session.stream_finalize.schedule_directory_timeout") as mock_schedule_directory,
+            patch("app.services.agent.streaming_support.hitl_timeout.schedule_directory_timeout") as mock_schedule_directory,
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification(directory_pending=True))
@@ -318,7 +318,7 @@ class TestFinalizeBranchCoverage:
                 new_callable=AsyncMock,
             ),
             patch(
-                "app.services.agent.stream_session.stream_finalize.schedule_clarification_timeout"
+                "app.services.agent.streaming_support.hitl_timeout.schedule_clarification_timeout"
             ) as mock_schedule_clarification,
         ):
             mock_ctx.reset = MagicMock()

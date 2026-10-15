@@ -11,7 +11,7 @@
  * validateChatModelConfig: Block send when default model / provider is incomplete.
  * resolveEffectiveAgentId: Resolve the agent identity used for chat memory bindings.
  * createMessageRequest: Assemble the agent chat request payload and stream it.
- * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally, by the server with a non-retryable HTTP error, or because the workspace stream was not ready before the first request; an ordinary send tells the user why, a resume with `resumeValue` does not and its store wrapper throws instead), a server busy refusal retracts the optimistic bubble, queued messages send their own attachments, a turn that ends after a newer one took over leaves the turn state (loading, Stop handle, request id, attachments) to the newer one.
+ * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally, by the server with a non-retryable HTTP error, or because the workspace stream was not ready before the first request; an ordinary send tells the user why, a resume with `resumeValue` does not and its store wrapper throws instead), a server busy refusal retracts the optimistic bubble, a resume the timeout already resolved rejects with `ApprovalExpiredError` without a failure notice, queued messages send their own attachments, a turn that ends after a newer one took over leaves the turn state (loading, Stop handle, request id, attachments) to the newer one.
  * createSmartUpdater: Route state updates to active store or background snapshot.
  * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn; ending never resets the turn state of a newer turn.
  *
@@ -46,7 +46,7 @@ import { showI18nToast } from '@/services/i18nToastService';
 import { supportsProviderNoAuth } from '@/store/config/providerTypes';
 import { executeStreamWithRetry, shouldUseMultiplexedAgentStream } from './streamConsumer';
 import { consumeStream } from './consumeStream';
-import { AgentBusyError, RequestRefusedError, isTransientNetworkError } from './streamErrors';
+import { AgentBusyError, ApprovalExpiredError, RequestRefusedError, isTransientNetworkError } from './streamErrors';
 import { isHeldByOtherTurn, resolveRequestState, retractUserBubble, sendFailureToast } from './sendLifecycle';
 import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
 import useToolApprovalStore from '../useToolApprovalStore';
@@ -1129,6 +1129,10 @@ export const sendMessage = async (
       if (pushedUserBubble) {
         smartSetMessages(retractUserBubble(requestMessageId));
       }
+      throw error;
+    }
+    if (error instanceof ApprovalExpiredError) {
+      // The timeout already resumed this interrupt: the caller owns the card and tells the user, no failure notice.
       throw error;
     }
     if (isArchiveRestoreActionInvalidError(error)) {

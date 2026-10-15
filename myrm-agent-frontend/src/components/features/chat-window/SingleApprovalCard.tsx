@@ -212,10 +212,6 @@ export default function SingleApprovalCard({
   }, [request.requestId, request.toolName]);
 
   useEffect(() => {
-    if (mode === 'editing' || mode === 'rejecting') {
-      return;
-    }
-
     const update = () => {
       const remaining = Math.max(0, Math.floor((request.expiresAt * 1000 - Date.now()) / 1000));
       setRemainingSeconds(remaining);
@@ -223,7 +219,7 @@ export default function SingleApprovalCard({
     update();
     const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
-  }, [request.expiresAt, mode]);
+  }, [request.expiresAt]);
 
   const isExpired = remainingSeconds <= 0;
   const isUrgent = remainingSeconds > 0 && remainingSeconds <= 10;
@@ -373,6 +369,7 @@ export default function SingleApprovalCard({
           setEditValidationErrors([]);
         }}
         isLoading={isLoading}
+        isExpired={isExpired}
         hideAllowAlways={request.hideAllowAlways}
       />
     );
@@ -386,6 +383,7 @@ export default function SingleApprovalCard({
         onConfirm={handleConfirmReject}
         onCancel={() => setMode('default')}
         isLoading={isLoading}
+        isExpired={isExpired}
       />
     );
   }
