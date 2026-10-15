@@ -30,7 +30,7 @@ import { resolveMoveIntent } from './kanban-transitions';
 // 归档有自己的二次确认（见 KanbanTaskActionConfirm），不在此重复弹窗。
 const DESTRUCTIVE_STATUSES: TaskStatus[] = ['completed', 'failed'];
 
-interface DropConfirmState {
+export interface DropConfirmState {
   taskIds: string[];
   targetStatus: TaskStatus;
 }

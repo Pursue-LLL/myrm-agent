@@ -134,3 +134,15 @@ export function formatDate(iso: string): string {
     minute: '2-digit',
   });
 }
+
+/** Board column order, left to right (archived tasks leave the board). */
+export const STATUS_COLUMNS: TaskStatus[] = [
+  'triage',
+  'backlog',
+  'ready',
+  'running',
+  'blocked',
+  'in_review',
+  'completed',
+  'failed',
+];
