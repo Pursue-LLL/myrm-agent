@@ -2740,7 +2740,7 @@ except Exception:
 | 发现日期 | 2026-10-14 |
 | 修复日期 | 2026-10-14 |
 | 严重程度 | P2（两个进程指向同一数据目录时会丢记忆集合；单进程使用不受影响） |
-| 影响范围 | server：`app/core/retriever/vector/defaults.py`、`scripts/cleanup_qdrant_locks.py`（删除）、`app/services/chat/{chat_crud,chat_deletion,chat_channel,chat_service}.py`、`app/services/system/vault_purge_service.py`；frontend：`MemoryCommandCenterPanels.tsx`、6 个 locale |
+| 影响范围 | server：`app/core/retriever/vector/defaults.py`、`app/config/system_status.py`、`app/api/health/router.py`、`app/core/infra/health/qdrant.py`、`app/server/warmup.py`、`app/lifecycle/schedulers.py`、`app/services/faq/factory.py`、`app/api/faq/router.py`、`scripts/cleanup_qdrant_locks.py`（删除）、`app/services/chat/{chat_crud,chat_deletion,chat_channel,chat_service}.py`、`app/services/system/vault_purge_service.py`；frontend：`SystemStatusBanner.tsx`、`backend-health-probe.ts`、`MemoryCommandCenterPanels.tsx`、6 个 locale |
 | 出现次数 | 1（复审会话拆除与记忆回退链路时逐条验证发现；两进程场景用真实嵌入式 Qdrant 复现，没有用户数据） |
 | 关联 | `BUG-AGENT-2026-10-14-020` / `-025`（会话拆除）；本地提交，未 push |
 
@@ -2761,28 +2761,28 @@ except Exception:
 ### 修复
 
 1. 删除 `defaults.py` 里的清理块、脚本与它的测试；锁被占用时走已有的内存回落，由记忆指挥中心报告。同时删掉工厂里永远不会触发的 `store is None` 分支与它的不实日志（「Memory system will be disabled」）：harness 的 `create_embedded_store` 从不返回 None，打不开只会回落内存或抛 `RuntimeError`；`create_vector_store` 与 `create_default_vector_store` 的返回类型改为非可选，docstring 如实描述。
-2. 记忆指挥中心只在 `memory_fallback` 时于该行下显示一句提示（6 种语言，不含技术词）：可能有另一个 Myrm 窗口或程序占着同一个数据文件夹，或文件夹不可写，处理后重启。该面板默认隐藏，见局限 7。
-3. optimize 失败改为 warning，并写明它为什么不致命（重建后的索引不依赖它）。
+2. 工厂拿到非持久存储时置位 `system_status.vector_degraded`（只增不减：先建好的记忆管理器仍握着那个临时存储，自动清除会说谎），`/health` 的 `system_status` 透出该字段；前端 `SystemStatusBanner` 读到后弹出常驻、可关闭的警告 toast（6 种语言，不含技术词，说明已存记忆暂时打不开、新记忆退出后可能丢，并给出关掉其他窗口重开、检查数据文件夹可写、从备份恢复三条出路）。向量库在后台预热里创建，可能晚于挂载时的第一次读取，所以挂载后 8、30、90 秒各复查一次，报告一次即停。记忆指挥中心里重复的提示删除，该行的琥珀色保留。`QdrantHealthChecker` 与 `defaults.py` 的文档按实情重写：删掉「run.py 清理幽灵进程 / Rust 引擎」的不实说法，健康检查只验证路径。
+3. optimize 失败改为 warning，并写明它为什么不致命（重建后的索引不依赖它）。工厂返回类型为非可选之后，`warmup.py` 两处、`faq/factory.py`、`faq/router.py` 对 `None` 的防御分支一并删除，连同两个把工厂打补丁成返回 None 的测试；`schedulers.py` 的「Qdrant segment optimization」块整块删除：嵌入式存储的 `_client` 是同步 `QdrantClient`，`isinstance(client, AsyncQdrantClient)` 恒为 False，该块从未执行过（实测）。
 4. 回收站生命周期与渠道聊天解析原样迁到 `chat_deletion.py`（171 行）与 `chat_channel.py`（82 行），`ChatService` 组合；`chat_crud.py` 371 行并移出行数基线；`test_external_agent_pool_on_chat_delete.py` 的补丁目标跟随；文档里「由 chat_crud 调用」的三处改为真实调用方 `chat_disposal`。
 
 ### 验证
 
-1. 新增 `tests/core/retriever/vector/test_defaults.py` 2 例：存活的客户端持锁时 `create_default_vector_store()` 返回非持久存储、`.lock` 仍在、第二个原生客户端被拒；子进程持锁后被 kill，下一次打开是持久存储。变异：恢复旧的删锁行为，第一例失败。
+1. 新增 `tests/core/retriever/vector/test_defaults.py`（共 3 例，第三例见第 5 条）：存活的客户端持锁时 `create_default_vector_store()` 返回非持久存储、`.lock` 仍在、第二个原生客户端被拒；子进程持锁后被 kill，下一次打开是持久存储。变异：恢复旧的删锁行为，第一例失败。
 2. 清库 optimize 用游标钩子让 optimize 失败：清库仍成功、三个索引全空、每个索引各一条 warning（`test_safe_vault_purge_service.py` 现 11 例通过）。
 3. 服务端 chat、channel_bridge、api/chats、system、health、retriever 等相关目录 1444 通过、1 失败：`test_context_pins_branches_api.py` 读 harness 的 `PERSISTENT_ROOT`，harness 提交 `a7b579dfc` 已改成用时读取，server 夹具过期，与本条无关。`test_aux_llm_privacy.py` 5 通过、4 失败（手机号没被脱敏）：harness `chat_model/sync_mixin.py` 有他人未提交的改动，本条没动这条路径。architecture 测试 475 通过、8 失败，全部指向他人未提交的内容（`services/workflow` 缺 `__init__.py` 与 `_ARCH.md`、`remote_access` 域、harness 深层导入基线）；fractal 文档与行数检查只报他人的文件。
 4. 前端 vitest 12 例通过（命令中心面板与清库条各一个文件），`verify-i18n` 通过，`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；触及文件的 ruff、prettier、oxlint 无问题。
+5. 降级可见性与死分支清理：`test_defaults.py` 3 例（持锁回落置位、被 kill 持有者后恢复持久且不置位、空 `meta.json` 回落并置位；变异：去掉置位语句，两例失败）、`tests/api/health/test_health_system_status.py` 2 例（`/health` 的 `system_status.vector_degraded` 默认 False、置位后为 True）；同批 `retriever/vector`、`api/health`、`core/infra/health`、`lifecycle` 清库用例、`services/faq`、`core/memory/adapters` 共 235 通过，ruff 通过。前端 `SystemStatusBanner.test.tsx` 新增 5 例（首读即降级弹 toast 且 `duration=Infinity`、`dismissible`、`id` 固定；持久时静默；首读正常而 8 秒后复查到则只弹一次且不再请求；从不降级时只复查 3 次、卸载后不再请求；卸载后挂起的复查不触发），变异：去掉去重守卫，对应用例失败；三个相关 vitest 文件 29 通过，`verify-i18n` 通过，oxlint 与 prettier 无问题，`tsc --noEmit` 14 个错误全在他人的文件里（`chat-window`、`kanban`）。
 
 ### 局限
 
-1. 没有在真实浏览器里看过提示在深浅主题与 375px 宽度下的样子：它是一行 `text-xs` 文本，沿用同一面板已有的琥珀色类，未验证。
+1. 没有在真实浏览器里看过 toast 在深浅主题与 375px 宽度下的样子，也没看过它与右上角红色数据库 Banner（`fixed top-0 z-50`）同时出现时的层叠；toast 用项目已有的 `Toaster position="top-right" richColors` 与 sonner 自带警告图标，未验证。
 2. 没有用两个真实的 Myrm 进程端到端复现；复现用的是两个直接打开同一目录的嵌入式 Qdrant 客户端，回归测试用的是持锁客户端与被 kill 的子进程。桌面打包是否带了 `scripts/` 没验证，但全仓库已没有 `cleanup_qdrant_locks` 的引用。
-3. 回落到内存后，重启前写入的记忆不会落盘；本条只加了提示，没有改回落策略。
+3. 回落到内存后，重启前写入的记忆不会落盘；本条只加了提示，没有改回落策略，也没有在持锁者退出后自动重新挂回持久存储。`meta.json` 被写成空文件（`qdrant_local.py` 用非原子的 `open(..., "w")` 写入）时每次重启都回落，提示里的「重新打开应用」对它无效，只能靠备份恢复或手工处理，未做自愈。
 4. 永久删除与「安全清空」对后台运行的任务没有拦截：`vault_purge_service.py` 只看 `get_agent_gateway().active_session_ids()`。所需的 `run_activity.py` 是他人未提交的工作，本条没有引用它；它提交后需要在 `purge_vault` 入口与永久删除路径补同一检查。
 5. `cleared_sandboxes` 保留：它是 `ChatFilesRemoval.removed_worktrees` 唯一的生产读取方，界面虽不读它；去掉它会让 `removed_worktrees` 变成没有读取方的字段，要连带改拆除函数的返回类型，收益低于风险。
 6. 未改动任何提示词。
-7. 回落提示只出现在记忆指挥中心里，而该面板默认不可见：前端 `MemorySection.tsx` 只在 `NEXT_PUBLIC_MEMORY_LABS=1` 时渲染它，服务端 `app/api/memory/router.py` 只在 `MYRM_MEMORY_LABS=1` 时挂载它的接口。默认用户看不到这条提示，默认可见的位置没有任何回落提示；`/health/ready` 在回落时仍报 `qdrant: true`（工厂不抛错）。需要一个默认可见的入口才算触达真实用户，本条没有做。
-8. 6 个服务端调用方（`warmup.py`、`schedulers.py`、`faq/router.py`、`faq/factory.py`、`cascade.py`、`adapters/setup.py`）仍保留对 `None` 的防御分支，类型检查不报错；删掉它们要连带改写若干把工厂打补丁成返回 None 的测试，没有行为收益，未动。
-9. 「持有进程退出即释放」只在本机文件系统（macOS APFS 临时目录）上实测过。数据目录放在网络文件系统或 Docker Desktop 挂载卷上时，进程崩溃后锁是否立即释放没有验证；若不释放，重启后仍会停在临时模式。这类残留锁无法安全地自动清理（能否拿到锁就是唯一的判据），所以不再尝试。
+7. 复查只有 3 次（挂载后约 8、30、90 秒）：向量库若在 90 秒之后才创建（超大库首次打开较慢，未实测）则不会提示；页面不刷新也不会再读。「预热晚于第一次读取」是读 `lifespan.py` 得出的判断，没有计时验证。
+8. 「持有进程退出即释放」只在本机文件系统（macOS APFS 临时目录）上实测过。数据目录放在网络文件系统或 Docker Desktop 挂载卷上时，进程崩溃后锁是否立即释放没有验证；若不释放，重启后仍会停在临时模式。这类残留锁无法安全地自动清理（能否拿到锁就是唯一的判据），所以不再尝试。
 
 ### 踩坑经验
 
@@ -2790,7 +2790,8 @@ except Exception:
 2. 回落提示要写用户能做的事（关掉另一个窗口、检查文件夹可写、重启），不要写技术名词。
 3. 拆分 mixin 后，文档里「由某文件调用」要改成真实调用方，而不是跟着文件名走。
 4. 测试夹具按模块路径打补丁：方法迁到新模块后，补丁路径要同步，否则补丁打在旧模块上不报错、却不生效。
-5. 给界面加提示之前，先沿着渲染入口查一遍它对默认用户是否可见（功能开关、接口是否挂载）；只在实验面板里可见的提示不等于告知了用户。
+5. 给界面加提示之前，先沿着渲染入口查一遍它对默认用户是否可见（功能开关、接口是否挂载）；只在实验面板里可见的提示不等于告知了用户。默认可见的降级通道是 `SystemStatus` → `/health` → `SystemStatusBanner`，新降级状态接这条线，不另起一套。
+6. 判断防御分支是不是死代码，要把上游一起查：`None` 分支、`isinstance(..., AsyncQdrantClient)` 与「嵌入式存储的 `_client` 是同步客户端」三者叠加，才能确认那整块从未执行；实测之后再删。
 
 ---
 

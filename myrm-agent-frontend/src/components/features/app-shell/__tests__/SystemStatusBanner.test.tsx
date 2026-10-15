@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
+import { toast } from 'sonner';
+import { fetchBackendHealth } from '@/lib/backend-health';
 import SystemStatusBanner from '../SystemStatusBanner';
 
 vi.mock('next-intl', () => ({
@@ -18,6 +20,7 @@ vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
   },
 }));
 
@@ -32,6 +35,7 @@ vi.mock('@/lib/backend-health', () => ({
 describe('SystemStatusBanner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fetchBackendHealth).mockReset();
     vi.stubGlobal(
       'confirm',
       vi.fn(() => true),
@@ -111,5 +115,99 @@ describe('SystemStatusBanner', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }));
     expect(screen.queryByText('notifications.databaseDegradedTitle')).not.toBeInTheDocument();
+  });
+  describe('vector store degradation', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('shows a persistent dismissible warning toast when vector_degraded is true', async () => {
+      vi.mocked(fetchBackendHealth).mockResolvedValue({
+        status: 'healthy',
+        system_status: { vector_degraded: true },
+      });
+
+      render(<SystemStatusBanner />);
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(toast.warning).toHaveBeenCalledTimes(1);
+      expect(toast.warning).toHaveBeenCalledWith(
+        'notifications.vectorDegradedTitle',
+        expect.objectContaining({
+          id: 'vector-degraded',
+          description: 'notifications.vectorDegradedDesc',
+          duration: Number.POSITIVE_INFINITY,
+          dismissible: true,
+        }),
+      );
+      expect(screen.queryByText('notifications.databaseDegradedTitle')).not.toBeInTheDocument();
+    });
+
+    it('stays silent when the vector store is persistent', async () => {
+      vi.mocked(fetchBackendHealth).mockResolvedValue({
+        status: 'healthy',
+        system_status: { vector_degraded: false },
+      });
+
+      render(<SystemStatusBanner />);
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(toast.warning).not.toHaveBeenCalled();
+    });
+
+    it('catches a degradation reported after the first read and stops rechecking', async () => {
+      vi.useFakeTimers();
+      vi.mocked(fetchBackendHealth)
+        .mockResolvedValueOnce({ status: 'healthy', system_status: { vector_degraded: false } })
+        .mockResolvedValue({ status: 'healthy', system_status: { vector_degraded: true } });
+
+      render(<SystemStatusBanner />);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(toast.warning).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(8_000);
+      expect(toast.warning).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(toast.warning).toHaveBeenCalledTimes(1);
+      expect(fetchBackendHealth).toHaveBeenCalledTimes(2);
+    });
+
+    it('limits rechecks to three and stops them on unmount', async () => {
+      vi.useFakeTimers();
+      vi.mocked(fetchBackendHealth).mockResolvedValue({
+        status: 'healthy',
+        system_status: { vector_degraded: false },
+      });
+
+      const { unmount } = render(<SystemStatusBanner />);
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(fetchBackendHealth).toHaveBeenCalledTimes(4);
+
+      unmount();
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(fetchBackendHealth).toHaveBeenCalledTimes(4);
+    });
+
+    it('cancels pending rechecks when unmounted before they fire', async () => {
+      vi.useFakeTimers();
+      vi.mocked(fetchBackendHealth).mockResolvedValue({
+        status: 'healthy',
+        system_status: { vector_degraded: true },
+      });
+
+      const { unmount } = render(<SystemStatusBanner />);
+      unmount();
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      expect(toast.warning).not.toHaveBeenCalled();
+      expect(fetchBackendHealth).toHaveBeenCalledTimes(1);
+    });
   });
 });

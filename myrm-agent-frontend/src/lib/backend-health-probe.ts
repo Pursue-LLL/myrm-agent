@@ -19,6 +19,8 @@ export type BackendDevMode = 'split_dev' | 'standalone_webui';
 export interface BackendSystemStatusPayload {
   database_recovered?: boolean;
   database_degraded?: boolean;
+  /** The default vector store opened in memory only, so its contents are not persisted. */
+  vector_degraded?: boolean;
 }
 
 export interface BackendHealthPayload {

@@ -18,6 +18,8 @@ const REQUIRED_KEYS = [
   'databaseDegradedBody',
   'databaseResetting',
   'databaseResetNow',
+  'vectorDegradedTitle',
+  'vectorDegradedDesc',
 ] as const;
 
 type LocaleBundle = Record<string, unknown>;
@@ -39,7 +41,7 @@ describe('SystemStatusBanner locale keys', () => {
     ['ja', ja],
   ] as const;
 
-  it.each(bundles)('%s has all database banner notification keys', (_label, bundle) => {
+  it.each(bundles)('%s has all system status notification keys', (_label, bundle) => {
     const messages = notifications(bundle as LocaleBundle);
     for (const key of REQUIRED_KEYS) {
       expect(messages[key], `${key} missing`).toBeTruthy();
