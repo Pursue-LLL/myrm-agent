@@ -96,6 +96,7 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `bot_forge_router.py` | 路由 | 对话式智能体与团队工厂、确定性创建流水线与建造者权限安全边界 REST API：提供名称唯一性与语义重叠检测 `/agents/bot-forge/sessions/{session_id}/check-overlap`、单 Agent 确定性就绪核验创建 `/create-agent`、全队原子创建与故障整队回滚 `/create-team`、人设姓名清洗克隆 `/clone-agent`、会话花名册列表 `/agents`、单个 Agent 查询与删除 `/agents/{name}`。 | ✅ |
 | `external_bundle_router.py` | 路由 | 异构外部 Agent 容器化收编与多路复用调度器 REST API：提供外部子 Agent Bundle 注册与目录列表 `/agents/external-bundles`、单 Bundle 详情查询与删除 `/{bundle_id}`、无锁多路复用批量并发调度派发 `/multiplexer/batch-dispatch` 与沙箱越权与实例生命周期治理。 | ✅ |
 | `kanban_orchestrator_router.py` | 路由 | WebUI 多智能体持久化任务看板调度中枢、卡片依赖 DAG 拓扑与工件挂载分发器 REST API：提供项目看板增查 `/agents/kanban-orchestrator/boards`、任务卡片创建与无环依赖检查 `/boards/{id}/cards`、泳道流转与自动解锁级联 `/cards/{id}/transition`、工件挂载 `/artifacts`、人机一体拖拽干预 `/override` 与 Boss Agent 目标自动拆解 `/decompose`。 | ✅ |
+| `fleet_router_router.py` | 路由 | 跨机分布式舰队 Profile Rail 全景导航轨、多网关拓扑自愈、离线缓冲与跨机工件中继 REST API：提供多节点网关增查与注销 `/fleet/gateways`、心跳遥测与 DEGRADED 判定 `/heartbeat`、Profile 注册 `/profiles`、宿主拓扑上下文注入 `/profiles/{id}/context`、离线指令排队缓冲 `/buffer` 与自愈排空 `/flush`、以及 SHA-256 跨网关工件中继 `/relay` 与分布式拓扑快照 `/topology`。 | ✅ |
 
 
 

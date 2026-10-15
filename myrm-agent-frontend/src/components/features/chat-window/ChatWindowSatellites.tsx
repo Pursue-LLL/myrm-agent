@@ -1678,6 +1678,11 @@ export const ExportedVisualMultiAgentKanbanCard = dynamic(
   { ssr: false },
 );
 
+export const ExportedFleetWideProfileRailCard = dynamic(
+  () => import('./FleetWideProfileRailCard').then((module) => ({ default: module.FleetWideProfileRailCard })),
+  { ssr: false },
+);
+
 
 
 

@@ -280,6 +280,9 @@
 | `VisualMultiAgentKanbanCard.tsx` | 组件 | 可视化多智能体任务看板与卡片生命周期调度器卡片：呈现 6 泳道（Backlog/Todo/In Progress/In Review/Done/Blocked）工作流看板、Boss Agent 目标自动拆解与 DAG 依赖编排、前置完成自愈级联解锁（Auto-Unblock）、卡片沙箱隔离与原子工件挂载、人机一体（Human-in-the-Loop）介入重调与无障碍实时输出 | ✅ |
 | `kanban-orchestrator/` | 辅助 | 看板编排器轻量模块化子组件集与前端类型定义（KanbanHeaderView, KanbanSwimlanesBoardView, CardDetailDrawer, DecomposeModalView, AddCardModalView, types） | ✅ |
 | `__tests__/VisualMultiAgentKanbanCard.test.tsx` | 测试 | 可视化多智能体任务看板单元测试套件：覆盖 6 泳道标头与度量大盘渲染、卡片流转推进与下游依赖自动解锁级联、Boss Agent 目标拆解弹窗、新建卡片表单提交、详情抽屉展开、工件挂载与人机覆盖介入回调触发 | ✅ |
+| `FleetWideProfileRailCard.tsx` | 组件 | 全舰队宿主 Profile 轨道与多网关动态路由分发卡片：呈现跨 Darwin/Linux/VPS/Cloud 多宿主网关节点网络拓扑、实时心跳与延迟告警、离线 FIFO 缓冲队列检视与恢复自愈排空、跨网关工件安全校验中继与拓扑感知注入 | ✅ |
+| `fleet-router/` | 辅助 | 多网关动态路由轻量模块化子组件集与前端类型定义（FleetRailHeaderView, GatewayNodeCardView, OfflineBufferQueueModal, CrossGatewayRelayModal, types） | ✅ |
+| `__tests__/FleetWideProfileRailCard.test.tsx` | 测试 | 全舰队多网关路由卡片单元测试套件：覆盖头部聚合度量与网关节点拓扑渲染、网关 Ping 探测与状态流转、离线指令排队与上线自愈排空、跨节点工件中继 SHA-256 校验与无障碍实时输出 | ✅ |
 | `question-nav/`                              | 子包 | 长会话用户提问智能视口穿梭导航器与多轮 Prompt 索引大纲抽屉（Item 43 P0，详见 `question-nav/_ARCH.md`）                                                       | ✅    |
 | `structured-asking/`                         | 子包 | 全端结构化提问卡片组件、单选/多选/快捷键操作与跳过决策控制（Item 47 P0，详见 `structured-asking/_ARCH.md`）                                                  | ✅    |
 | `streaming-markdown/`                        | 子包 | 高帧率增量流式 Markdown 渲染器、RAF 动态节流与极端高吞吐防掉帧虚拟化引擎（Item 79 P0，详见 `streaming-markdown/_ARCH.md`）                                   | ✅    |

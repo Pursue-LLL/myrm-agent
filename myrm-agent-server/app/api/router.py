@@ -47,6 +47,7 @@ from app.api.agents.external_bundle_router import router as external_bundle_rout
 from app.api.agents.failure_facts_router import router as failure_facts_router
 from app.api.agents.failure_policy_router import router as failure_policy_router
 from app.api.agents.fleet_overview import router as fleet_overview_router
+from app.api.agents.fleet_router_router import router as fleet_router_router
 from app.api.agents.fleet_telemetry import router as fleet_telemetry_router
 from app.api.agents.fusen_router import router as fusen_router
 from app.api.agents.governance import router as governance_router
@@ -344,6 +345,7 @@ api_router.include_router(debate_workroom_router)
 api_router.include_router(external_agent_bridge_router)
 api_router.include_router(external_bundle_router)
 api_router.include_router(kanban_orchestrator_router)
+api_router.include_router(fleet_router_router)
 api_router.include_router(agent_assembler_router)
 api_router.include_router(agent_avatar_router)
 api_router.include_router(capability_dispatch_router)

@@ -157,6 +157,7 @@ Design notes:
 | `bot_forge_service.py` | ✅ 核心 | 对话式智能体与团队工厂、确定性创建流水线与建造者权限安全边界服务 — 聚合 Harness VerifiedCreationPipeline 与 BuilderSafetyEnvelope，管理会话隔离的 Agent 规格设计、权限衰减边界门禁、防递归繁衍防护、名称唯一性与语义重叠检测、Zero-model 干跑核验、原子化事务回滚与提示词克隆人设清洗 | ✅ |
 | `external_bundle_service.py` | ✅ 核心 | 异构外部第三方 Agent 容器化收编与子代理 Profile Bundle 调度桥接服务 — 聚合 Harness ExternalAgentBundleRegistry 与 ExternalSubagentMultiplexer，管理官方（Claude Code/Codex/Gemini CLI）与自定义 Bundle 规范、工作区沙箱目录严格边界校验、破除单一 backend 全局排他锁的高并发无锁多路复用调度、以及运行实例流式日志清洗重塑与终止回收 | ✅ |
 | `kanban_orchestrator_service.py` | ✅ 核心 | 多智能体持久化任务看板调度中枢与卡片 DAG 依赖拓扑分发服务 — 聚合 Harness KanbanCardLifecycleDispatcher 与 KanbanTaskDagEngine，管理多智能体持久看板、无环 DAG 依赖拓扑校验、卡片前置依赖完成自动解锁级联 Auto-Unblock Cascade、卡片沙箱隔离 tasks/{card_id}、工件原子挂载与人机一体拖拽干预 | ✅ |
+| `fleet_router_service.py` | ✅ 核心 | 跨机分布式舰队 Profile Rail 全景导航轨、多网关拓扑自愈、离线缓冲与跨机工件中继服务 — 聚合 Harness MultiGatewayConnectionPool、HostGatewayContextInjector 与 CrossGatewayArtifactRelayService，管理 Darwin/Linux/Cloud 多机分布式网关节点注册、心跳遥测与健康自感知、断网离线指令 FIFO 排队缓冲与自愈排空 Auto-Healing Flush、Agent 宿主拓扑上下文自动注入、以及 SHA-256 跨网关安全工件中继校验 | ✅ |
 
 
 
