@@ -243,9 +243,7 @@ cooldown_retry =
     
     ⏱️ { $seconds } 秒後にリトライしてください。
 config_next_steps =
-    
-    
-    次のステップ：
+    { "\u000A\u000A" }次のステップ：
     { $steps }
 component_options_prefix = オプション
 component_quick_reply_instruction = ↩ 番号を入力して選択

@@ -243,9 +243,7 @@ cooldown_retry =
     
     ⏱️ 请在 { $seconds } 秒后重试。
 config_next_steps =
-    
-    
-    后续步骤：
+    { "\u000A\u000A" }后续步骤：
     { $steps }
 component_options_prefix = 选项
 component_quick_reply_instruction = ↩ 回复数字选择

@@ -86,3 +86,15 @@ def test_add_locale_root_json_override(tmp_path: Path, monkeypatch: "pytest.Monk
 
     fresh_engine.add_root(str(root))
     assert fresh_engine.format_value("en", "daily_budget_blocked") == "Custom budget message"
+
+
+@pytest.mark.parametrize(
+    ("locale", "title"),
+    [("en", "Next steps:"), ("zh-CN", "后续步骤："), ("zh-TW", "後續步驟："), ("ja", "次のステップ：")],
+)
+def test_config_next_steps_keeps_its_blank_line_separator(locale: str, title: str) -> None:
+    # Fluent drops leading blank lines of a pattern; callers append this block to a sentence and rely
+    # on the catalog value to start a new paragraph.
+    text = channel_t(locale, "config_next_steps", steps="• a\n• b")
+
+    assert text == f"\n\n{title}\n• a\n• b"

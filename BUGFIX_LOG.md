@@ -3153,17 +3153,20 @@ except Exception:
 1. 一个没有额度的账号触发致命错误后，`StreamAccumulator.error_message` 存的是 `"{error_type}: {error}"`，`execute_finalize` 里的回复是 `f"[Error] {acc.error_message}"`。提供方的状态码与 JSON 正文原样发到 IM 群里。
 2. 同一份文本经 `persist_assistant_message` 写入聊天历史，后续回合把它当作助手说过的话。
 3. 框架在同一个 `error` 事件里已经带了 `diagnostic_result`（`user_message`、`resolution_steps`，按 `merged_context["locale"]` 本地化），渠道的 `stream_events` 只取了 `error` 与 `error_type` 两个字段。
+4. 修复第一版后，用真实 `agent.run` 捕获的事件（`/tmp/ext_url_commit/r335/error_event.json`）走一遍渠道路径，回复是 `❌ Your API account balance is insufficientNext steps:\n• …`：诊断与「Next steps:」标题之间没有空行。渠道语言包里 `config_next_steps` 的值以两个空行开头，Fluent 会丢弃多行值开头的空行，`channel_t` 实际返回 `Next steps:\nX`。`execute_errors.py` 里既有的两处 `f"{friendly_msg}{get_text(msg, 'config_next_steps', …)}"` 同样如此（本条之前就是这样）。第一版的单测只断言「回复里包含 `Next steps:`」，所以没发现。
 
 ### 根因
 
-渠道层按「事件里有一段错误文本」写的，没有对照框架的事件契约：诊断结果从来就在事件上，只是没有人读。
+1. 渠道层按「事件里有一段错误文本」写的，没有对照框架的事件契约：诊断结果从来就在事件上，只是没有人读。
+2. 语言包把「标题前的空行」写成值里的两个空行，而 Fluent 的多行值会去掉开头的空行：写法与渲染结果不一致，没有任何测试渲染过这个键。
 
 ### 修复
 
 1. `StreamAccumulator` 新增 `error_user_message` 与 `error_steps`；`stream_events._record_fatal_error` 从事件的 `diagnostic_result` 记录它们（非字符串步骤丢弃，空 `user_message` 视为没有诊断，后一条错误整体覆盖前一条）。
 2. `execute_finalize._error_reply_text`：有诊断时回复 `❌ {user_message}`，再加 `config_next_steps` 本地化标题与至多 3 条步骤（成员语言来自 `resolve_message_locale`）；只有没有诊断的错误才退回 `[Error] {原文}`。回复与写入历史的是同一段诊断文本。
 3. harness 新增 `test_fatal_error_delivery.py`：真实 `SkillAgent.run`（技能后端、流执行器、failover 分类器、诊断引擎全部真实，只有 LLM 是桩）证明：没有异常逃出 `run`；恰好一个 `error` 事件带着 `billing` 诊断；事件提供 `top_up` 恢复动作。渠道、定时任务、看板都靠这个契约取错误。
-4. `ERROR_SYSTEM.md` 的 ErrorKind 小节改为按代码核对的 12 种（原文 11 种，缺 `challenge_blocked`），恢复动作列去掉了代码里不存在的名字，改写真实目录（`update_key`、`top_up`、`change_model`，url `/settings`）。
+4. 四个渠道 `.ftl`（en、zh-CN、zh-TW、ja）的 `config_next_steps` 改为以 `{ "\u000A\u000A" }` 开头（Fluent 字符串字面量的转义，不会被去掉），所有调用方（本条的回复与 `execute_errors.py` 的两处）自动得到段落分隔；`test_locale_key_parity.py` 的字符串字面量规则放宽为允许 `\uXXXX` 转义。
+5. `ERROR_SYSTEM.md` 的 ErrorKind 小节改为按代码核对的 12 种（原文 11 种，缺 `challenge_blocked`），恢复动作列去掉了代码里不存在的名字，改写真实目录（`update_key`、`top_up`、`change_model`，url `/settings`）。
 
 ### 验证
 
@@ -3171,6 +3174,7 @@ except Exception:
 2. harness：`tests/agent/errors/test_fatal_error_delivery.py` 3 例与 `tests/agent/errors/diagnostics` 共 124 通过；`ruff`、`mypy` 通过。
 3. 变异检查：对渠道改动做 6 个内存变异（始终回复原文、步骤上限改为 4、不输出步骤块、标题固定英文、后一条错误不覆盖前一条诊断、接受空白 `user_message`），全部被测试杀死；对契约测试把 `billing` 正则改回旧版，测试失败。脚本在 `/tmp/ext_url_commit/r335/`。
 4. 成本：诊断加分类约 398 µs/次失败，不调用 LLM（本机实测）。
+5. 真实事件走渠道：用真实 `agent.run` 捕获的事件跑 `iter_channel_stream_progress` 加 `_error_reply_text`，修复后得到 `❌ Your API account balance is insufficient\n\nNext steps:\n• Top up your balance on the LLM provider's dashboard\n• Add a backup API key (Settings > Models > Multi-key rotation)\n• Switch to a different LLM provider`（脚本 `probe_channel_after.py`）。新增 `test_public_api.py::test_config_next_steps_keeps_its_blank_line_separator`（四种语言，直接渲染语言包），回复测试改为断言诊断与标题之间恰好一个空行。`tests/channels/i18n` 与 `test_execute_errors_cooldown.py` 通过。
 
 ### 局限
 
@@ -3178,10 +3182,12 @@ except Exception:
 2. server 的 `app/core/errors/` 包、`stream_finalize.py:390` 的 `MyrmLLMError` 分支、渠道 `executor.py:210` 的 `except MyrmLLMError` 与 `build_llm_error_reply` 在真实路径上多数不会被走到，但同一区域有他人未提交的修改（`execute_errors.py` 正在删冷却提示），本条没有删。网页快车道仍可能由 `managed_llm.py:283` 抛出上下文溢出的 `MyrmLLMError`，所以 finalize 分支不能直接当死代码删。
 3. 没有诊断的错误仍回复 `[Error] {原文}`（例如渠道自己抛的非 LLM 错误）：这是回退，不是目标行为，本条没有给它们造诊断。
 4. 「后续步骤」标题 `config_next_steps` 只在 en、zh-CN、zh-TW、ja 的 `.ftl` 里有（`ko.json`、`de.json` 没有这个键）；`i18n/engine.py:56-81` 的回退链以默认语言 `en`（`engine.py:40`）结尾，所以 ko、de 成员得到英文标题（`channel_t` 运行实测：`ko`、`de`、`fr` 都返回 `Next steps:`）；渠道层本来就只有这四个 `.ftl`，这是渠道层的既有语言覆盖，本条没有扩充。诊断正文本身由框架按 `locale` 本地化，不受此影响。
-5. 未改动任何提示词；IM 回复是给用户看的输出，不是给模型的指令。
+5. `tests/channels/i18n/test_locale_key_parity.py::test_ftl_locales_have_no_orphaned_keys` 当前失败，报「斜杠命令缺翻译：`cmd_btw`、`cmd_design-image`、`cmd_memo`、`cmd_review-week`、`cat_Creation`、`cat_Productivity`」，与本条无关（本条没有碰这些键），没有处理。
+6. 未改动任何提示词；IM 回复是给用户看的输出，不是给模型的指令。但写入历史的错误文本从提供方原始 JSON 变成本地化的诊断，下一回合模型读到的是后者。
 
 ### 踩坑经验
 
 1. 宿主消费的是事件流，不是异常：先用真实的 `run` 看宿主实际收到什么，再设计宿主侧的处理，别按「应该会抛异常」写等待逻辑。
 2. 框架给了本地化诊断，宿主就读它；自己拼 `[Error] {原文}` 等于把提供方的措辞当产品文案。
 3. 契约测试要用真实链路加桩 LLM：只测分类器或只测渠道映射，抓不到「事件里到底有没有这个字段」。
+4. 文案要在真实目录里渲染一遍再下结论：Fluent 会去掉多行值开头的空行，只断言「包含标题」的测试发现不了拼接缺口；用真实捕获的事件跑完整路径才看到。

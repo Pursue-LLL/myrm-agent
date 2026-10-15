@@ -56,8 +56,9 @@ _TERM_RE = re.compile(r"\{-?[A-Za-z_][A-Za-z0-9_.-]* ?\}")
 
 # A Fluent string literal, e.g. `{ "**" }` or `{ '[' }`.  Used to escape
 # markdown-leading characters (`*`, `[`) at the start of an indented line,
-# which are otherwise reserved selector syntax in multiline patterns.
-_LITERAL_RE = re.compile(r"\{ ?['\"][^'\"]{1,8}['\"] ?\}")
+# which are otherwise reserved selector syntax in multiline patterns, and
+# (as `\uXXXX` escapes) to keep the leading newlines Fluent would drop.
+_LITERAL_RE = re.compile(r"\{ ?['\"](?:[^'\"\\]|\\u[0-9A-Fa-f]{4}){1,8}['\"] ?\}")
 
 # Any `{...}` group that matches none of the legal shapes above (e.g. the
 # bare-identifier `{seconds:.0f}`) breaks the whole Fluent message.

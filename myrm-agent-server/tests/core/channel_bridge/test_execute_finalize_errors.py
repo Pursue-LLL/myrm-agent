@@ -39,9 +39,7 @@ def _diagnosed_error_acc() -> StreamAccumulator:
 async def test_diagnosed_error_replies_with_diagnostic_and_hides_raw_provider_text() -> None:
     persist_mock, reply = await _finalize(_diagnosed_error_acc(), ((), frozenset()))
 
-    assert reply.content.startswith("❌ Your API account balance is insufficient")
-    assert "Next steps:" in reply.content
-    assert "• Top up your account" in reply.content
+    assert reply.content.startswith("❌ Your API account balance is insufficient\n\nNext steps:\n• Top up your account")
     assert "• Use another API key" in reply.content
     assert "dropped fourth step" not in reply.content
     for leaked in ("403", "_XaiEntitlementError", "monthly spending limit"):
