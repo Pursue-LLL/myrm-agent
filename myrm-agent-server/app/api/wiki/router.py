@@ -5,6 +5,7 @@ fastapi::APIRouter, Depends, HTTPException, Query (POS: FastAPI 路由与依赖�
 pydantic::BaseModel, Field (POS: 数据验证与序列化)
 app.api.dependencies::get_optional_llm_for_user, get_workspace_root (POS: 依赖注入函数)
 app.services.wiki::MemoryToWikiArchiver (POS: Memory→Wiki 自动归档服务)
+app.services.wiki.health_report_service::WikiHealthIssueResponse, WikiHealthReportResponse (POS: 仅服务端的健康报告编排，结构化 GET 零 LLM，响应模型在此唯一定义)
 langchain_core.language_models::BaseChatModel (POS: LangChain LLM 基类)
 myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Artifact 存储金库，ingest 端点延迟导入)
 app.database.models.artifact::Artifact (POS: Artifact 数据库模型，ingest 端点延迟导入)
@@ -49,9 +50,11 @@ from app.api.memory.utils import get_optional_memory_manager
 from app.channels.types import VoiceConfig
 from app.services.meeting_notes.service import process_meeting_audio
 from app.services.wiki import MemoryToWikiArchiver
+from app.services.wiki.health_report_service import WikiHealthIssueResponse, WikiHealthReportResponse
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+    from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import RawPublishResult
 
 logger = logging.getLogger(__name__)
 
@@ -192,15 +195,6 @@ class CompileRunResponse(BaseModel):
     survey_skipped: bool = False
 
 
-class WikiHealthIssueResponse(BaseModel):
-    issue_type: str
-    severity: str
-    location: str
-    description: str
-    action_kind: str
-    suggested_fix: str | None = None
-
-
 class WikiMaintenanceResponse(BaseModel):
     issues_found: int
     issues_fixed: int
@@ -210,18 +204,6 @@ class WikiMaintenanceResponse(BaseModel):
     raw_security_removed: int = 0
     raw_security_removed_paths: list[str] = Field(default_factory=list)
     issues: list[WikiHealthIssueResponse] = Field(default_factory=list)
-
-
-class WikiHealthReportResponse(BaseModel):
-    mode: Literal["structural", "full"]
-    generated_at: str
-    open_actions_count: int
-    issues_found: int
-    issues: list[WikiHealthIssueResponse] = Field(default_factory=list)
-    drift_sampled: bool = False
-    drift_checked_at: str | None = None
-    duplicate_groups_pending: int = 0
-    synthesis_pending: int = 0
 
 
 class WikiStructuralIssuesResponse(BaseModel):
@@ -602,6 +584,7 @@ def _citation_sources_to_snippets(
     """Map harness citation SSOT dicts to REST response models."""
     snippets: list[WikiSourceSnippet] = []
     for entry in sources:
+        confidence = entry.get("claim_confidence") or 0.0
         snippets.append(
             WikiSourceSnippet(
                 path=str(entry.get("path", "")),
@@ -614,7 +597,7 @@ def _citation_sources_to_snippets(
                 evidence_path=str(entry.get("evidence_path", "")),
                 line_range=str(entry.get("line_range", "")),
                 claim_status=str(entry.get("claim_status", "")),
-                claim_confidence=float(entry.get("claim_confidence", 0.0) or 0.0),
+                claim_confidence=float(confidence) if isinstance(confidence, (int, float, str)) else 0.0,
                 snapshot_status=str(entry.get("snapshot_status", "")),
                 resource_uri=str(entry.get("resource_uri", "")),
                 superseded_from_uri=str(entry.get("superseded_from_uri", "")),
@@ -1777,8 +1760,8 @@ async def get_queue_status(
     failed_items = archiver._queue.get_failed_items(limit=20)
     return QueueStatusResponse(
         stats=stats,
-        pending_items=items,
-        failed_items=failed_items,
+        pending_items=[dict(item) for item in items],
+        failed_items=[dict(item) for item in failed_items],
         compile_run=_compile_run_response(archiver),
     )
 
@@ -1849,7 +1832,7 @@ async def get_pending_edits(
     stats = archiver._pending_mgr.get_stats()
     stats["synthesis_pending"] = archiver._pending_mgr.count_synthesis_pending()
     edits = archiver._pending_mgr.get_pending_edits(limit=limit, offset=offset)
-    return PendingEditsResponse(stats=stats, pending_edits=edits)
+    return PendingEditsResponse(stats=stats, pending_edits=[dict(edit) for edit in edits])
 
 
 @router.post("/pending/{edit_id}/approve", response_model=OperationResult)
@@ -2235,7 +2218,10 @@ def get_wiki_graph(
         # Note: get_knowledge_graph is synchronous. By making this route `def` instead of `async def`,
         # FastAPI will automatically run it in a threadpool, preventing event loop blocking.
         graph = archiver._query_engine._indexer.get_knowledge_graph(center_node, depth, limit)
-        return WikiGraphResponse(nodes=graph["nodes"], edges=graph["edges"])
+        return WikiGraphResponse(
+            nodes=[GraphNodeItem.model_validate(node) for node in graph["nodes"]],
+            edges=[GraphEdgeItem.model_validate(edge) for edge in graph["edges"]],
+        )
     except Exception as e:
         logger.error(f"Wiki graph retrieval failed: {e}")
         raise HTTPException(status_code=500, detail="Wiki graph retrieval failed") from e
@@ -2399,7 +2385,7 @@ async def _publish_import_raw(
     *,
     on_conflict: Literal["skip", "supersede"],
     supersede_reason: str,
-):
+) -> RawPublishResult:
     from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
         RawConflictPolicy,
         RawGateError,
@@ -2443,7 +2429,7 @@ def _validate_import_conflict_options(
 
 
 def _track_import_publish_result(
-    result,
+    result: RawPublishResult,
     *,
     enqueued_paths: list[Path],
     conflict_paths: list[str],

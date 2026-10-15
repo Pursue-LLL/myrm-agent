@@ -6,6 +6,7 @@
 - app.services.wiki.vault::get_wiki_archiver (POS: archiver accessor)
 
 [OUTPUT]
+- WikiHealthIssueResponse, WikiHealthReportResponse: health report response models, the single definition the REST router also returns
 - build_wiki_health_report: structural scan + optional vault drift merge for GET /wiki/health-report
 - load_wiki_health_snapshot: read vault reports/last-health.json
 - persist_wiki_health_snapshot: vault JSON SSOT after maintain
