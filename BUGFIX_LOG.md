@@ -3241,3 +3241,61 @@ except Exception:
 3. 判断一个文案键还有没有人用，要按命名空间看：`goToSettings` 在 6 个命名空间里各有一份，看到别处用了同名键就判定保留会误判，`DailyWrapCard` 用的是另一个命名空间。
 4. 界面上的「遗忘」按钮必须真正删后端数据；只改本地数组的实现在没有入口时没有害处，一旦被接上就是对用户的谎言。
 5. 同名字符串不代表同一条通道：harness 的聊天流事件与全局事件总线各自独立，判断「有没有发布方」要看事件最终进的是哪条通道的构造点；用「字符串在另一个仓库里出现过」就判定保留，会把死枚举留下，而把 `goal:branch_switched` 当成死项删掉则会弄坏目标分支切换的刷新，两个方向的误判都来自只按名字搜索。
+
+## BUG-AGENT-2026-10-15-008: 健康页对没有语言包条目的探针代码直接打印键路径，永远显示通过的 GraphEmbedding 探针与写出「Qdrant」和异常原文的 VectorDB 探针文案；四套只有演示卡片入口的记忆引擎（双时间真值维护、目录 inode 身份、结论归因、记忆技能三件套）整条链仍在；两个无人读取的 Qdrant 配置项与一个旧的实验室开关别名；三处与代码不符的说明
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15（对抗式复审：先用真实 next-intl 渲染健康页看用户实际看到什么，再沿「谁能让它出现」逐个引擎找调用方） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P3（无数据损坏；用户可见的键路径与后端名泄漏、永远显示通过的探针、约一万行没有产品入口的代码与只钉住自身的测试） |
+| 影响范围 | frontend：`DoctorDashboard.tsx` 与其测试、`MemoryCommandCenterPanels.tsx`、4 张卡片与 4 个服务及其测试（删除）、6 个 locale、`hardcoded_copy_baseline.json`、`memoryLabs.ts`；server：4 个路由、4 个 schema、4 个服务包及 4 个测试文件（删除）、`router.py`、`settings.py`、`.env.example`、`memory_default_mounts.txt`、`server_harness_import_baseline.txt`；harness：4 个引擎包及 5 个测试文件（删除）、`observability/diagnostics/{probes,vector_probe}.py`、`harness_packaging/integrity.py`、`file_line_baseline.txt`、`MEMORY_SYSTEM.md`；control-plane：`fleet_health_monitor.py` 文件头；brand：自托管文档 6 个 mdx；root：路线图 topic_01 与 topic_09 |
+| 出现次数 | 1（用真实渲染、真实 doctor 运行与全仓扫描复核；没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-14-027`（嵌入式 Qdrant 锁与回退到内存的可见性）、`BUG-AGENT-2026-10-15-007`（同类死功能清理）；提交：harness `441f874fc`、`483d85a6d`、`138a749c1`、`fd0e10225`，agent `84b48cba78`、`e4171f8aee`、`e898a48f15`，control-plane `07f9963`，brand `563cc4feb5`，root `1752641f4`；本地提交，未 push |
+
+### 现象
+
+1. 健康页对带 `code` 的探针一律写 `t(`errors.${code}.message`) || report.message`，而 next-intl 对缺失键返回键路径、不返回空串，兜底从不执行。用真实 `NextIntlClientProvider` 渲染 en 与 zh，GraphEmbedding 一行直接显示 `settings.systemHealth.doctor.errors.OK_GRAPH_EMBEDDING_HEALTHY.message`；真实运行 harness 的 doctor 得到 13 条报告、4 条带 `code`，其中 3 条没有语言包条目（GraphEmbedding、`OK_TRACE_EXPORT_STANDARD`、`OK_SUPPLY_CHAIN_HEALTHY`）。
+2. `GraphEmbedding` 探针每次新建一个 `:memory:` 临时库就报告「健康」，真实索引损坏时仍显示绿色；`VectorDB` 探针的通过 / 失败文案写出「Qdrant」，并把原始异常放进 `detail`。
+3. 双时间真值维护（`bitemporal_truth_maintenance`）、目录 inode 身份（`inode_identity`）、结论归因（`conclusion_attribution`）、记忆技能三件套（`skill_triad`）四个引擎包除各自的服务端 provider 外没有任何导入方：状态只在进程内字典里（`support_graph.py:33-35`、`facade.py:32` 等），不读写记忆库，对话、检索与提示词路径零引用；唯一入口是默认隐藏的记忆实验室指挥中心里的 4 张卡。
+4. `QDRANT_URL` / `QDRANT_API_KEY` 写在 `.env.example` 并加载进 `AppSettings`，但默认向量库写死为嵌入式，配置了外部地址也被静默忽略；前端另有 `NEXT_PUBLIC_MEMORY_LAB` 这个旧拼写的开关别名。
+5. 自托管文档让用户把 `QDRANT_URL` 指向外部 Qdrant、称 Compose 会启动 Qdrant、给出打到无人监听端口的备份命令，并把 `DATABASE_URL` 说成 SQLite 位置（实为可选的图存储）；control-plane 的 `fleet_health_monitor.py` 文件头称 `/health` 不含业务健康细节，而响应体带 `system_status`；harness 的 `MEMORY_SYSTEM.md` 称 Doctor 探针是唯一默认可见入口，而宿主还会因 `system_status.vector_degraded` 弹出常驻提示。
+
+### 根因
+
+1. 兜底写成 `t(key) || fallback`，没有对照 next-intl 的缺键语义；既有测试用恒等翻译器，看不到键路径。
+2. 探针为「不依赖真实存储」而新建临时库，探到的只是临时库；文案沿用后端名与异常原文，没有按「用户能看到什么」审视。
+3. 引擎按路线图条目整套落地，入口只有一张实验室卡，评审只看了单测通过，没有核对「谁在产品里调用」；状态不落库，卡片展示的不是真实记忆。
+4. 配置项与别名在底层改为固定嵌入式、开关改名之后没有回头删。
+5. 文档按早期设想写成，后来的实现没有回头对照。
+
+### 修复
+
+1. `DoctorDashboard.tsx` 先用 `t.has()` 判断条目是否存在，缺失时显示后端给的 `message`；新增 `DoctorDashboard.verdictI18n.test.tsx`，用真实 next-intl 渲染 en / zh，断言本地化文案、缺键回退、无键路径、`onError` 为空，并校验 6 个语言包条目非空；删除旧的恒等翻译器测试。
+2. 删除 `GraphEmbedding` 探针及其测试；`VectorDB` 探针的可见文案改为与后端无关的措辞，原始异常只写日志（WARNING），修复提示统一为「重启应用；问题持续请导出诊断报告并联系支持」（`vector_probe.py` 的 `_RETRY_HINT`），对应测试改为断言不含后端名与异常原文。
+3. 删除四套引擎的整条链：harness 4 个包与 5 个测试文件（41 例）、`harness_packaging/integrity.py` 的 4 个包名与 `toolkits/memory/_ARCH.md` 的 2 行；server 4 个路由、4 个 schema、4 个服务包与 4 个测试文件（28 例）、`router.py` 的导入与挂载、`memory_default_mounts.txt` 4 行、`server_harness_import_baseline.txt` 6 行；frontend 4 张卡、4 个服务、4 个测试文件（26 例）、`MemoryCommandCenterPanels.tsx` 的导入与挂载、6 个语言包的 `memory.commandCenter.conclusionAttribution.deleteConfirm`、`hardcoded_copy_baseline.json` 的 113 项额度；`file_line_baseline.txt` 里 `probes.py` 的上限由 574 收紧到 523。
+4. 删除 `QDRANT_URL` / `QDRANT_API_KEY`（`settings.py`、`.env.example`）与 `NEXT_PUBLIC_MEMORY_LAB` 别名（`memoryLabs.ts` 只认 `NEXT_PUBLIC_MEMORY_LABS`），对应 `_ARCH.md` 同步。
+5. 自托管文档（英、中、韩各 2 页）改为列出数据目录的真实内容，备份改为停止应用后复制数据目录；`fleet_health_monitor.py` 文件头改为「`/health` 响应体带降级标志但监控只看状态码」；`MEMORY_SYSTEM.md` 里「唯一默认可见入口」改成两个入口，harness 日志里「没有主动推送」的局限改为记录常驻提示及其覆盖范围。路线图 topic_01 #141、#145、#147、#148 改为「不值得做」并写明证据（次日由退役工具删除）；topic_09 #403 的引用与卡数（9 → 7）随之更新。
+
+### 验证
+
+1. 真实 DOM 渲染里键路径泄漏在 en 与 zh 都出现；新测试在旧查找逻辑下失败（变异检查：恢复旧写法 → 测试失败 → 还原并比对），在新逻辑下通过。
+2. frontend：`features/health` 11 例通过；`features/memory`、`services/memory`、`lib/memory` 72 个文件 441 例通过；`verify-i18n` 六个语言包 parity 通过，`check-icu-syntax` 通过；`tsc --noEmit` 15 个错误，全部在他人文件里（`ergonomic-cockpit`、`creator-studio`、`in-situ-picker`、`kanban`、`thinking-permission`、`ReviewLoopDashboard`），没有一个落在本条触及的文件；触及文件的 oxlint 与 prettier 无问题。
+3. server：`tests/api/memory` 311 例通过（被删的 4 个测试文件共 28 例）；`tests/api/health` 71 例通过；`router.py` 的 ruff check 与 format 通过。
+4. harness：`tests/toolkits/memory`、`tests/unit/toolkits/memory`、`tests/observability`、`tests/api` 共 3790 例通过；`tests/toolkits/vector` 加 `tests/observability` 544 例通过；删除后四个包名在 harness 与 agent 两个仓库的 HEAD 里零命中（历史日志除外）；这四个包只互相导入，没有让任何 harness 单元因此失去消费方。
+5. 路线图：`roadmap_integrity.py --staged` 的演练（HEAD 加本次改动）0 个违规；退役工具现把这 4 项识别为「已关闭，因提及当日日期暂留」。
+
+### 局限
+
+1. 架构门禁的红灯来自他人在制品，本条没有处理，也没有在干净 HEAD 上对照过「删之前是否同样为红」：server 的 `test_memory_router_mounts`（他人新挂载的 `recall_simulator_router` 未登记）、`test_server_harness_imports*`、`test_api_route_consumers`、`test_frontend_api_client_paths`；harness 的 `tests/architecture` 20 例失败，本次提交后没有一例提到这四个包；另有 `memory/types.py` 的行数上限比现状高 2 行（本条未触及的旧账）。
+2. 没有在真实浏览器里目测健康页：共用的 Chrome 拒绝访问 localhost（只允许 `./myrm test` 的隔离浏览器），没有绕过；渲染证据来自真实 next-intl 的 DOM 渲染测试。
+3. 没有验证：每个对话回合的额外 LLM 开销、openclaw 的记忆扩展实现、向量库降级时写入失败对用户是否有提示。
+4. 本条删除的是「没有产品入口」的实现，不否定这些想法本身；日后确有需求，应从真实存储出发另行立项（路线图条目保留了原始描述与删除依据）。
+
+### 踩坑经验
+
+1. 用户可见的文案要用真实的 i18n 运行时渲染一遍：恒等翻译器的测试看不到「缺键返回键路径」，`t(key) || fallback` 的兜底永远不会执行，应先问 `t.has(key)`。
+2. 探针要探真实对象：新建临时库探到的只是临时库，永远为绿的检查比没有检查更糟。
+3. 判断「完成」要看产品里谁在调用：单测通过加一张实验室卡不是消费方；先看状态落在哪里（进程内字典还是记忆库），再看调用方。
+4. 删整条链时从消费端往生产端删（前端、服务端、框架），每一步都不留悬空导入；基线与默认挂载清单只减不增，删多少就收多少，否则空出的额度会被后续改动占用。
+5. 路线图条目的退役有规矩：必须能从提交里取回原文，且不能在写它的当天退役，所以先改状态、次日由工具删除。
