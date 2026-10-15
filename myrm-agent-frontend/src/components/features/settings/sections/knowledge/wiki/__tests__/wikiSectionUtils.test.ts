@@ -1,6 +1,143 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { healthReportFromMaintainResponse, resolveHealthIssueNavigationTarget } from '../wikiSectionUtils';
+import type { WikiMaintainResponse } from '@/services/wikiService';
+
+import {
+  healthReportFromMaintainResponse,
+  resolveHealthIssueNavigationTarget,
+  resolveMaintainToast,
+} from '../wikiSectionUtils';
+
+function maintainResponse(overrides: Partial<WikiMaintainResponse> = {}): WikiMaintainResponse {
+  return {
+    issues_found: 0,
+    issues_fixed: 0,
+    connections_discovered: 0,
+    duration_ms: 1,
+    open_actions_count: 0,
+    raw_security_removed: 0,
+    raw_security_removed_paths: [],
+    issues: [],
+    ...overrides,
+  };
+}
+
+const LOCALES_DIR = path.resolve(__dirname, '../../../../../../../../locales');
+const LOCALE_CODES = ['de', 'en', 'ja', 'ko', 'zh-TW', 'zh'];
+
+type MessageTree = { [key: string]: string | MessageTree };
+
+function lookupWikiMessage(tree: MessageTree, key: string): string | undefined {
+  let node: string | MessageTree | undefined = (tree.settings as MessageTree).wiki;
+  for (const part of key.split('.')) {
+    node = typeof node === 'object' ? node[part] : undefined;
+  }
+  return typeof node === 'string' ? node : undefined;
+}
+
+/** ICU argument names: `{name}` and the head of `{name, plural, ...}`; `#` and nested branch text do not match. */
+function icuArguments(message: string): string[] {
+  return [...new Set([...message.matchAll(/\{(\w+)\s*[,}]/g)].map((match) => match[1] as string))].sort();
+}
+
+describe('resolveMaintainToast locale contract', () => {
+  const outcomes: WikiMaintainResponse[] = [
+    maintainResponse({ raw_security_removed: 1, raw_security_removed_paths: ['a.md'] }),
+    maintainResponse({ open_actions_count: 1 }),
+    maintainResponse({ connections_discovered: 1 }),
+    maintainResponse({ issues_fixed: 1 }),
+    maintainResponse(),
+  ];
+
+  it.each(LOCALE_CODES)('%s has every toast message with exactly the arguments the resolver supplies', (code) => {
+    const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
+
+    for (const result of outcomes) {
+      const toast = resolveMaintainToast(result);
+      const message = lookupWikiMessage(tree, toast.key);
+
+      expect(message, `${code}: ${toast.key}`).toBeTypeOf('string');
+      expect(icuArguments(message as string), `${code}: ${toast.key}`).toEqual(Object.keys(toast.values ?? {}).sort());
+    }
+  });
+});
+
+describe('resolveMaintainToast', () => {
+  it('reports removed sensitive raw files first, with the paths joined', () => {
+    expect(
+      resolveMaintainToast(
+        maintainResponse({
+          raw_security_removed: 2,
+          raw_security_removed_paths: ['inbox/a.md', 'inbox/b.md'],
+          open_actions_count: 3,
+          connections_discovered: 4,
+        }),
+      ),
+    ).toEqual({
+      variant: 'success',
+      key: 'success.maintainRemovedSensitive',
+      values: { count: 2, paths: 'inbox/a.md, inbox/b.md' },
+    });
+  });
+
+  it('truncates a long removed-paths list to 120 characters', () => {
+    const toast = resolveMaintainToast(
+      maintainResponse({ raw_security_removed: 1, raw_security_removed_paths: ['x'.repeat(200)] }),
+    );
+
+    expect(toast.values?.paths).toBe(`${'x'.repeat(117)}...`);
+  });
+
+  it('points to the health panel when open actions remain, even if links were found', () => {
+    expect(
+      resolveMaintainToast(maintainResponse({ open_actions_count: 2, issues_fixed: 1, connections_discovered: 5 })),
+    ).toEqual({ variant: 'message', key: 'healthReport.maintainToastOpen', values: { open: 2, fixed: 1 } });
+  });
+
+  it('reports newly discovered links together with found/fixed counts', () => {
+    expect(
+      resolveMaintainToast(maintainResponse({ issues_found: 3, issues_fixed: 1, connections_discovered: 4 })),
+    ).toEqual({
+      variant: 'success',
+      key: 'success.maintainSummaryWithLinks',
+      values: { found: 3, fixed: 1, connections: 4 },
+    });
+  });
+
+  it('reports new links even when nothing else was found or fixed', () => {
+    expect(resolveMaintainToast(maintainResponse({ connections_discovered: 2 }))).toEqual({
+      variant: 'success',
+      key: 'success.maintainSummaryWithLinks',
+      values: { found: 0, fixed: 0, connections: 2 },
+    });
+  });
+
+  it('reports fixed issues when no links were discovered', () => {
+    expect(resolveMaintainToast(maintainResponse({ issues_found: 2, issues_fixed: 2 }))).toEqual({
+      variant: 'success',
+      key: 'success.maintainSummary',
+      values: { found: 2, fixed: 2 },
+    });
+  });
+
+  it('falls back to the plain completion message when nothing changed', () => {
+    expect(resolveMaintainToast(maintainResponse())).toEqual({ variant: 'success', key: 'success.maintainComplete' });
+  });
+
+  it('tolerates a legacy response without the optional counters', () => {
+    const legacy = {
+      issues_found: 1,
+      issues_fixed: 0,
+      connections_discovered: 0,
+      duration_ms: 1,
+    } as WikiMaintainResponse;
+
+    expect(resolveMaintainToast(legacy)).toEqual({ variant: 'success', key: 'success.maintainComplete' });
+  });
+});
 
 describe('resolveHealthIssueNavigationTarget', () => {
   it('maps absolute concept paths to concept tree ids', () => {

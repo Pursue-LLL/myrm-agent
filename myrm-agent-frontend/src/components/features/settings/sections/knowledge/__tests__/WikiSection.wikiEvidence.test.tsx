@@ -9,6 +9,7 @@ const apiRequestMock = vi.fn();
 const recordWikiQueryAttemptMock = vi.fn();
 const recordWikiQuerySubmittedMock = vi.fn();
 const recordEvidenceSurfaceMock = vi.fn();
+const maintainWikiMock = vi.fn();
 
 const stableT = (key: string) => key;
 
@@ -48,6 +49,7 @@ vi.mock('@/lib/utils/clipboardUtils', () => ({
 vi.mock('@/services/wikiService', () => ({
   wikiService: {
     queryWiki: (...args: unknown[]) => queryWikiMock(...args),
+    maintainWiki: (...args: unknown[]) => maintainWikiMock(...args),
     getHealthReport: vi.fn().mockResolvedValue({
       mode: 'structural',
       generated_at: new Date().toISOString(),
@@ -229,48 +231,56 @@ vi.mock('@/components/primitives/select', () => ({
   SelectValue: () => <div />,
 }));
 
+import { toast } from 'sonner';
+import type { WikiMaintainResponse } from '@/services/wikiService';
 import { WikiSection } from '../WikiSection';
 
-describe('WikiSection evidence snippet flow', () => {
-  beforeEach(() => {
-    queryWikiMock.mockReset();
-    listAgentsMock.mockReset();
-    apiRequestMock.mockReset();
-    recordWikiQueryAttemptMock.mockReset();
-    recordWikiQuerySubmittedMock.mockReset();
-    recordEvidenceSurfaceMock.mockReset();
+function resetWikiMocks() {
+  queryWikiMock.mockReset();
+  maintainWikiMock.mockReset();
+  listAgentsMock.mockReset();
+  apiRequestMock.mockReset();
+  recordWikiQueryAttemptMock.mockReset();
+  recordWikiQuerySubmittedMock.mockReset();
+  recordEvidenceSurfaceMock.mockReset();
+  vi.mocked(toast.success).mockClear();
+  vi.mocked(toast.message).mockClear();
+  vi.mocked(toast.error).mockClear();
 
-    listAgentsMock.mockResolvedValue({ items: [] });
-    apiRequestMock.mockImplementation((path: string) => {
-      if (path.includes('/wiki/purpose')) {
-        return Promise.resolve({ purpose: '' });
-      }
-      if (path.includes('/wiki/stats')) {
-        return Promise.resolve({
-          total_concepts: 0,
-          total_articles: 0,
-          total_raw_files: 0,
-          wiki_path: '/tmp/wiki',
-          vault_ready: true,
-          legacy_migrated: true,
-        });
-      }
-      return Promise.resolve({});
-    });
-    queryWikiMock.mockResolvedValue({
-      answer: 'Wiki answer',
-      related_articles: ['article-a'],
-      source_snippets: [
-        {
-          path: 'team/.overview.md',
-          name: 'team',
-          snippet: 'evidence details',
-          section: 'Overview',
-          level: 'L1',
-        },
-      ],
-    });
+  listAgentsMock.mockResolvedValue({ items: [] });
+  apiRequestMock.mockImplementation((path: string) => {
+    if (path.includes('/wiki/purpose')) {
+      return Promise.resolve({ purpose: '' });
+    }
+    if (path.includes('/wiki/stats')) {
+      return Promise.resolve({
+        total_concepts: 0,
+        total_articles: 0,
+        total_raw_files: 0,
+        wiki_path: '/tmp/wiki',
+        vault_ready: true,
+        legacy_migrated: true,
+      });
+    }
+    return Promise.resolve({});
   });
+  queryWikiMock.mockResolvedValue({
+    answer: 'Wiki answer',
+    related_articles: ['article-a'],
+    source_snippets: [
+      {
+        path: 'team/.overview.md',
+        name: 'team',
+        snippet: 'evidence details',
+        section: 'Overview',
+        level: 'L1',
+      },
+    ],
+  });
+}
+
+describe('WikiSection evidence snippet flow', () => {
+  beforeEach(resetWikiMocks);
 
   it('records query/surface and opens snippet drawer with settings surface', async () => {
     render(<WikiSection />);
@@ -295,5 +305,42 @@ describe('WikiSection evidence snippet flow', () => {
     expect(drawer.getAttribute('data-open')).toBe('1');
     expect(drawer.getAttribute('data-level')).toBe('L1');
     expect(drawer.getAttribute('data-surface')).toBe('settings');
+  });
+});
+
+describe('WikiSection maintenance flow', () => {
+  beforeEach(resetWikiMocks);
+
+  it('locks the button for the whole run, then reports the discovered links', async () => {
+    let finishRun: (result: WikiMaintainResponse) => void = () => undefined;
+    maintainWikiMock.mockReturnValue(
+      new Promise<WikiMaintainResponse>((resolve) => {
+        finishRun = resolve;
+      }),
+    );
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.maintain'));
+
+    const runningButton = (await screen.findByText('maintaining')).closest('button') as HTMLButtonElement;
+    expect(runningButton.disabled).toBe(true);
+    expect(toast.success).not.toHaveBeenCalled();
+
+    finishRun({
+      issues_found: 1,
+      issues_fixed: 1,
+      connections_discovered: 3,
+      duration_ms: 240_000,
+      open_actions_count: 0,
+      raw_security_removed: 0,
+      raw_security_removed_paths: [],
+      issues: [],
+    });
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('success.maintainSummaryWithLinks');
+    });
+    expect(maintainWikiMock).toHaveBeenCalledTimes(1);
+    expect(((await screen.findByText('actions.maintain')).closest('button') as HTMLButtonElement).disabled).toBe(false);
   });
 });

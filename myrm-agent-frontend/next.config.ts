@@ -1,6 +1,7 @@
 // Dev-only: enforce shared pause stamp before other config side effects.
 import { enforceFrontendDevNotPaused } from './scripts/frontend-dev-pause-gate';
 import { computeLocaleContentVersion } from './scripts/locale-content-version';
+import { LONG_RUNNING_REQUEST_TIMEOUT_MS } from './src/lib/constants/requestTimeouts';
 
 if (process.env.NODE_ENV === 'development') {
   enforceFrontendDevNotPaused({ context: 'next dev (next.config load)' });
@@ -96,12 +97,12 @@ const nextConfig: NextConfig = {
 
   // 所有模式都使用 standalone，在 Tauri 内运行完整的 Next.js 服务器
   output: 'standalone',
-  
+
   // 生产构建由独立类型检查流程把关，避免 Next 构建阶段重复阻塞。
   typescript: {
     ignoreBuildErrors: true,
   },
-  
+
   images: {
     // Tauri 模式禁用图片优化（本地运行无需优化）
     unoptimized: isTauriBuild,
@@ -123,15 +124,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  
+
   // 仅在生产环境启用严格模式，避免开发模式的双重渲染消耗资源
   reactStrictMode: process.env.NODE_ENV === 'production',
-  
+
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
 
   // Disable dev indicators to prevent overlay interference with UI interactions
   devIndicators: false,
-  
+
   // 优化Turbopack性能
   experimental: {
     // Dev 编译并行度：2 核足够，避免 Activity Monitor 出现 200%+ 占满多核导致风扇狂转
@@ -139,8 +140,10 @@ const nextConfig: NextConfig = {
     // Next.js 16 Turbopack 持久缓存已知 bug：缓存损坏（.sst 文件丢失）会触发
     // restore panic 导致 dev server 崩溃（Aborting）。禁用持久缓存换取稳定性。
     turbopackFileSystemCacheForDev: false,
+    // Rewrites to the backend are cut after 30s by default; long calls (wiki full maintenance) must outlive that.
+    proxyTimeout: LONG_RUNNING_REQUEST_TIMEOUT_MS,
   },
-  
+
   // Webpack优化配置（当使用Webpack时生效）
   webpack: (config, { isServer }) => {
     config.resolve.alias = {
@@ -197,7 +200,7 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
-  
+
   // API proxy: forward /api/v1/* to the Python FastAPI backend.
   // API_HOST defaults to localhost; set to Docker service name (e.g. "backend") for container builds.
   async redirects() {

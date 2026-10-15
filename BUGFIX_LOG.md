@@ -3717,3 +3717,59 @@ except Exception:
 2. 共享脏工作区里提交，用「HEAD 文本 + 自己的修改」做提交内容，再核对剩余差异只剩他人的改动，别把别人未提交的东西带进去，也别把自己的漏在外面。
 3. 门禁第一次失败时先分清是脚本采样的问题还是产品缺陷：这次的失败里 4 项是脚本问题（无关提示、全局错误提示、采样时机、标题里的单词误判枚举），1 项（拾起句缺失）是真缺陷，改成记录历史后才区分开。
 4. 修同类问题时把规则放在一个共享单点，并加一个扫描测试：五处站点各自实现会再次漏接，扫描测试让漏接变成红灯。
+
+## BUG-AGENT-2026-10-15-016: 设置里的「全量维护」在 30 秒处被客户端与 Next 代理双重掐断，界面报「维护失败」而服务端继续跑完；成功时新增的链接数从不显示
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15 |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（全量维护是设置里的主要维护动作，每次都误报失败；服务端不取消，用户再点一次会并发起第二轮，重复消耗模型额度；不丢数据） |
+| 影响范围 | frontend：`lib/constants/requestTimeouts.ts`（新增）、`services/wiki/service.ts`、`next.config.ts`、`components/features/settings/sections/knowledge/WikiSection.tsx`、`.../wiki/wikiSectionUtils.ts` 及对应测试与三份 `_ARCH.md`；不涉及 server、harness 与提示词 |
+| 出现次数 | 1（复审路线图 topic_02 #140 第七批时，沿着「界面怎样触发一次全量维护」追代码发现） |
+| 关联 | 路线图 topic_02 #140 第七批（harness 的链接发现游标轮转，每轮最多问 20 页）；本地提交，未 push |
+
+### 现象
+
+1. 「设置 → 知识库 → 维护」选全量并点击，30 秒后弹出 `errors.maintainFailed`，按钮恢复可点；服务端并没有停：客户端断开不会取消任务（用 Starlette 1.2.1 / FastAPI 0.141.1 做过断开实验），`POST /wiki/maintain` 除「编译进行中」的 409 外没有并发锁（`router.py:749-775`），再点一次就并发起第二轮。
+2. 全量维护是一次同步请求：链接发现对每页一次模型调用、逐页串行（`backlink_discovery.py:172-180`，每轮最多 `_BATCH_SIZE = 20` 页），推理模型单次调用实测 12–60 秒，整轮是分钟级。
+3. 即使不超时，成功提示也只有四种：移除敏感原文、待处理动作、已修复、完成。「发现 0 项问题、新增 3 个链接」会显示成「维护完成」；语言包里有现成的 `success.maintainSummaryWithLinks`（六种语言都有），但全仓没有任何代码引用它。
+
+### 根因
+
+1. 两层各自带 30 秒默认值，都是为短请求设的：API 客户端 `api.ts:457`（`timeout ?? 30000`）与 Next 重写代理 `proxy-request.js:37`（`proxyTimeout || 30000`）；维护这个唯一的长请求没有人覆盖任何一层。
+2. 超时只断开 HTTP，不取消服务端任务，所以「失败」提示与实际状态对不上。
+3. 提示的选择逻辑内联在组件的处理函数里，是一串没有测试的分支，新增的链接数没有位置。
+
+### 修复
+
+1. 新增 `lib/constants/requestTimeouts.ts` 的 `LONG_RUNNING_REQUEST_TIMEOUT_MS`（30 分钟）作为单一来源，零运行时依赖（`next.config.ts` 要引用它）；`maintainWiki` 传这个 `timeout`；`next.config.ts` 的 `experimental.proxyTimeout` 取同一个常量；
+2. `resolveMaintainToast` 纯函数决定提示，优先级：移除敏感原文 > 待处理动作 > 新增链接 > 已修复 > 完成；`handleMaintain` 只调用它；复用已有的 `success.maintainSummaryWithLinks`，没有新增文案键；
+3. 维护按钮加 `data-testid="wiki-maintain-button"`；缩略图 `<img>` 原有的 oxlint 告警改成带理由的豁免（缩略图由后端资源端点提供，`next/image` 无法优化）；`next.config.ts` 顺带去掉 7 处行尾空白（此前就不通过 `prettier --check`）；
+4. 三份 `_ARCH.md`（`lib/constants`、`services/wiki`、设置里的 wiki 目录）与 `knowledge/_ARCH.md` 的测试行同步。
+
+### 验证
+
+1. 新增 `maintain.test.ts` 2 例（全量与结构化两种模式都带 30 分钟超时；常量大于 10 分钟）、`requestTimeouts.test.ts`（`next.config.ts` 用相对路径引入常量并赋给 `proxyTimeout`；常量为正整数）、`wikiSectionUtils.test.ts` 的优先级表（含 120 字符路径截断、旧计数字段缺失）与六语言 locale 契约（读真实 JSON：键存在、ICU 参数名与传入值一致）、`WikiSection.wikiEvidence.test.tsx` 的维护流程一例（请求挂起期间按钮显示「维护中」且禁用，结束后 `toast.success` 的键是 `success.maintainSummaryWithLinks`，按钮恢复）；`knowledge`、`services/wiki`、`lib/constants` 三个目录 25 个文件 145 例通过；
+2. 变异验证（改一处、跑、还原并 `cmp` 与备份一致）：去掉 `maintainWiki` 的 `timeout` → `maintain.test.ts` 2 例失败；把链接分支阈值改成 `> 99` → 3 例失败（工具函数 2 例、组件流程 1 例）；让 `WikiSection` 固定显示 `maintainComplete` → 流程 1 例失败；`proxyTimeout` 没做变异（改 `next.config.ts` 会重启共享开发服务器），由第 3 条代替；
+3. 真实 Next 重写代理实测：webpack 模式的隔离实例（Turbopack 拒绝符号链接的 `node_modules`）、后端 40 秒后才回应；默认配置在 30.02 秒返回 500，设置 `proxyTimeout` 后 40.02 秒返回 200（Next 16.3.0 读取并生效）；
+4. oxlint 对触及文件 0 告警，prettier 对触及文件通过，`check-theme-colors` 通过；`tsc --noEmit` 输出 50 行错误，没有一条属于 wiki、`lib/constants` 或 `next.config.ts`，全部在他人未提交的文件里。
+
+### 局限
+
+1. **真实 Chrome 端到端没有跑通**：写了 `tests/e2e/test_wiki_maintain_long_run_chrome_e2e.py`（页内把 `/wiki/maintain` 的 `fetch` 换成 36 秒后返回，点击后断言 32 秒时请求没被中止、按钮仍禁用、没有错误提示，结束后提示含 7 / 5 / 3 三个数字），ruff 通过，但在 `./myrm test -m chrome_e2e` 下 4 次都没有跑出结论：3 次被 `E2E_EPOCH_DRIFT_REAP` 在引导阶段回收（188–199 秒，上限 180 秒，`epoch_match=no`，原因 `no backend at workspace epoch … requires PRIVATE epoch`，rc=247，宿主负载 13–18）；1 次进入用例体但点击时找不到可用的维护按钮（之后加了等待与诊断，没有再跑通）。该用例没有提交（与 `-013` 的做法一致），`data-testid` 留作它的钩子；整条「设置 → 知识库 → 维护」流程没有在真实浏览器里验证过，覆盖它的是 jsdom 组件测试与真实代理实测；
+2. 30 分钟是上限不是保证，维护更久仍会误报失败；根本解法是服务端把维护改成后台任务并给进度，需要服务端与前端一起改，本条没做；
+3. `/wiki/maintain` 仍无并发锁：刷新页面或另开标签后再点会并发起第二轮，单用户场景罕见，未处理；
+4. 探测中发现链接那一步有一次模型调用碰到 16,384 的输出上限（1 次），没有安全的通用修法；
+5. 「有待处理动作」的提示不显示新增链接数（故意：避免新增六种语言的文案）；
+6. 评估后放弃的三项：候选名单前置以提高提示缓存命中（实测缓存命中率 3%→58%，但 8 页里 5 页的建议不同，候选在前只会得到更少的建议，且没有同一提示重复调用的噪声基线，无法证明质量不降，所以提示词不动；放弃的收益按估算约每次全量 $0.08，非实测）、Related 标题变体容忍（没有真实产生者）、DELETE 留下的空目录（可复现的边界，不处理）；
+7. 既有的 `success.maintainSummaryWithLinks` 六语言译文不是本条所写，只核对了键与参数名，没有母语者审校；
+8. 触及的大文件在本条之前就超过 500 行：`WikiSection.tsx` 2050 行（HEAD 2063 行）、`service.ts` 1118 行（HEAD 1115 行），本条分别净减 13 行与净增 3 行，没有拆分：拆分是独立的重构。
+
+### 踩坑经验
+
+1. 长耗时的同步请求要把「客户端、反向代理、服务端」每一层的超时都查一遍；只改客户端，代理那层照样在 30 秒处掐断，而且从界面上看不出是哪一层。
+2. 超时与取消是两回事：客户端放弃等待不等于服务端停手，所以提示语与按钮状态要按「任务可能还在跑」来设计。
+3. 改 `next.config.ts` 会让正在运行的开发服务器重启，验证代理行为要用隔离实例，不要动共享的那一份。
+4. 测试环境里 Turbopack 不接受指向文件系统根之外的符号链接 `node_modules`，隔离实例改用 webpack 模式。
+5. 共享环境里正式 E2E 通道跑不通时，写清楚每次卡在哪一步，不要把「用例写好了」当成「验证过了」。

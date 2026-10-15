@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * @/lib/api::apiRequest,getApiUrl,fetchWithTimeout (POS: frontend API request helper)
+ * @/lib/constants/requestTimeouts::LONG_RUNNING_REQUEST_TIMEOUT_MS (POS: 长耗时请求的客户端/代理超时上限 SSOT)
  * @/lib/wiki/claimStatusDisplay::WikiClaimStatus (POS: Wiki claim 状态展示纯函数)
  *
  * [OUTPUT]
@@ -12,6 +13,7 @@
  */
 
 import { getApiUrl, fetchWithTimeout, apiRequest } from '@/lib/api';
+import { LONG_RUNNING_REQUEST_TIMEOUT_MS } from '@/lib/constants/requestTimeouts';
 import type { WikiClaimStatus } from '@/lib/wiki/claimStatusDisplay';
 
 export function buildWikiApiPath(path: string, agentId?: string | null): string {
@@ -901,6 +903,7 @@ export const wikiService = {
     const params = new URLSearchParams({ mode });
     return apiRequest<WikiMaintainResponse>(buildWikiApiPath(`/wiki/maintain?${params.toString()}`, agentId), {
       method: 'POST',
+      timeout: LONG_RUNNING_REQUEST_TIMEOUT_MS,
     });
   },
 

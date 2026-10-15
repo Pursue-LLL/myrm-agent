@@ -4,7 +4,7 @@ import type { WikiHealthReport, WikiMaintainResponse } from '@/services/wikiServ
 
 /**
  * [INPUT] comma-separated tag/alias input strings; WikiMaintainResponse from wikiService
- * [OUTPUT] splitTagsInput; resolveHealthIssueNavigationTarget; healthReportFromMaintainResponse
+ * [OUTPUT] splitTagsInput; resolveHealthIssueNavigationTarget; healthReportFromMaintainResponse; resolveMaintainToast
  * [POS] Settings wiki metadata editor helpers (list parsing lives on server SSOT)
  */
 
@@ -40,6 +40,50 @@ export function resolveHealthIssueNavigationTarget(location: string): HealthIssu
   }
 
   return { kind: 'concept', path: normalized };
+}
+
+export type MaintainToastKey =
+  | 'success.maintainRemovedSensitive'
+  | 'healthReport.maintainToastOpen'
+  | 'success.maintainSummaryWithLinks'
+  | 'success.maintainSummary'
+  | 'success.maintainComplete';
+
+export interface MaintainToast {
+  variant: 'success' | 'message';
+  /** Key under the `settings.wiki` translation namespace. */
+  key: MaintainToastKey;
+  values?: Record<string, string | number>;
+}
+
+const REMOVED_PATHS_MAX_CHARS = 120;
+
+/** Pick the one toast that summarises a maintenance run; the order is what the user needs to see first. */
+export function resolveMaintainToast(result: WikiMaintainResponse): MaintainToast {
+  const removed = result.raw_security_removed ?? 0;
+  if (removed > 0) {
+    const joined = (result.raw_security_removed_paths ?? []).join(', ');
+    const paths =
+      joined.length > REMOVED_PATHS_MAX_CHARS ? `${joined.slice(0, REMOVED_PATHS_MAX_CHARS - 3)}...` : joined;
+    return { variant: 'success', key: 'success.maintainRemovedSensitive', values: { count: removed, paths } };
+  }
+
+  const fixed = result.issues_fixed ?? 0;
+  const openActions = result.open_actions_count ?? 0;
+  if (openActions > 0) {
+    return { variant: 'message', key: 'healthReport.maintainToastOpen', values: { open: openActions, fixed } };
+  }
+  if (result.connections_discovered > 0) {
+    return {
+      variant: 'success',
+      key: 'success.maintainSummaryWithLinks',
+      values: { found: result.issues_found, fixed, connections: result.connections_discovered },
+    };
+  }
+  if (fixed > 0) {
+    return { variant: 'success', key: 'success.maintainSummary', values: { found: result.issues_found, fixed } };
+  }
+  return { variant: 'success', key: 'success.maintainComplete' };
 }
 
 /** Build Overview health report state from POST /wiki/maintain (preserves full-mode drift). */

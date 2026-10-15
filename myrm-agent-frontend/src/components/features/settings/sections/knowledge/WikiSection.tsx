@@ -77,7 +77,11 @@ import { ObsidianVaultActions } from './ObsidianVaultActions';
 import MeetingNotesImportCard from './MeetingNotesImportCard';
 import DailyReviewCard from './DailyReviewCard';
 import { consumeMigrationObsidianVaultImport } from '@/lib/migrationChatHandoff';
-import { healthReportFromMaintainResponse, resolveHealthIssueNavigationTarget } from './wiki/wikiSectionUtils';
+import {
+  healthReportFromMaintainResponse,
+  resolveHealthIssueNavigationTarget,
+  resolveMaintainToast,
+} from './wiki/wikiSectionUtils';
 import { WikiLayersLedgerPanel } from './wiki/WikiLayersLedgerPanel';
 
 interface WikiStats {
@@ -1001,27 +1005,8 @@ export function WikiSection() {
     setIsMaintaining(true);
     try {
       const result = await wikiService.maintainWiki(maintainMode, agentScopeId);
-      const removed = result.raw_security_removed ?? 0;
-      if (removed > 0) {
-        const pathsJoined = (result.raw_security_removed_paths ?? []).join(', ');
-        const displayPaths = pathsJoined.length > 120 ? `${pathsJoined.slice(0, 117)}...` : pathsJoined;
-        toast.success(
-          t('success.maintainRemovedSensitive', {
-            count: removed,
-            paths: displayPaths,
-          }),
-        );
-      } else {
-        const openActions = result.open_actions_count ?? 0;
-        const fixed = result.issues_fixed ?? 0;
-        if (openActions > 0) {
-          toast.message(t('healthReport.maintainToastOpen', { open: openActions, fixed }));
-        } else if (fixed > 0) {
-          toast.success(t('success.maintainSummary', { found: result.issues_found, fixed }));
-        } else {
-          toast.success(t('success.maintainComplete'));
-        }
-      }
+      const summary = resolveMaintainToast(result);
+      toast[summary.variant](t(summary.key, summary.values));
       setHealthReportExpanded(true);
       await loadStats();
       setHealthReport((prev) =>
@@ -1631,6 +1616,7 @@ export function WikiSection() {
                               >
                                 <div className="flex items-start gap-3">
                                   {thumbnailUrl ? (
+                                    // oxlint-disable-next-line next/no-img-element -- thumbnails are served by the backend asset endpoint, which next/image cannot optimize
                                     <img
                                       src={thumbnailUrl}
                                       alt=""
@@ -1808,6 +1794,7 @@ export function WikiSection() {
                     disabled={isMaintaining || isWikiCompileBusy}
                     variant="outline"
                     className="flex-1"
+                    data-testid="wiki-maintain-button"
                   >
                     <IconWrench className="w-4 h-4 mr-2" />
                     {isMaintaining ? t('maintaining') : t('actions.maintain')}
