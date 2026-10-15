@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -29,11 +30,7 @@ from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask, Ta
 
 from app.services.kanban.move_orchestrator import _merge_then_release_dependents, move_task
 from app.services.kanban.task_runner.worktree import cleanup_worktree, create_worktree, merge_task_worktree
-from app.services.kanban.worktree_ops import (
-    _MAX_CONCURRENT_GIT_OPS,
-    cleanup_task_worktree,
-    spawn_worktree_op,
-)
+from app.services.kanban.worktree_ops import _MAX_CONCURRENT_GIT_OPS, git_slot, spawn_worktree_op
 from app.services.kanban.worktree_ops import merge_task_worktree as merge_task_worktree_op
 
 BOARD_ID = "b1"
@@ -66,6 +63,14 @@ class _GatedRunner:
         await self._hold()
         self.calls.append(f"cleanup:{task.task_id}")
         return True
+
+
+class _SlowCleanupRunner(_GatedRunner):
+    """Cleanups are held until the gate opens; merges finish at once."""
+
+    async def merge_task_worktree(self, task: KanbanTask) -> tuple[bool, list[str]]:
+        self.calls.append(f"merge:{task.task_id}")
+        return True, []
 
 
 class _BrokenRunner:
@@ -106,15 +111,36 @@ async def _seed(store: InMemoryKanbanStore, *, branch: str = "", workspace: str 
     await store.add_edge("parent", "child")
 
 
-async def _move(store: InMemoryKanbanStore, runner: object, status: TaskStatus, wakes: list[str]) -> KanbanTask:
+async def _seed_branch_tasks(store: InMemoryKanbanStore, count: int) -> list[str]:
+    """``count`` independent READY tasks that each own a worktree branch."""
+    await store.save_board(KanbanBoard(board_id=BOARD_ID, name="Board"))
+    task_ids = [f"t{i}" for i in range(count)]
+    for task_id in task_ids:
+        await store.save_task(
+            KanbanTask(task_id=task_id, board_id=BOARD_ID, title=task_id, status=TaskStatus.READY, branch="main")
+        )
+    return task_ids
+
+
+async def _move(
+    store: InMemoryKanbanStore, runner: object, status: TaskStatus, wakes: list[str], task_id: str = "parent"
+) -> KanbanTask:
     dispatchers = {BOARD_ID: MagicMock(spec=KanbanDispatcher)}
     # A request that still waits for git would hang forever on the gated runner; fail fast instead.
     moved = await asyncio.wait_for(
-        move_task(store, dispatchers, runner, "parent", status, wake_dispatcher=wakes.append),
+        move_task(store, dispatchers, runner, task_id, status, wake_dispatcher=wakes.append),
         timeout=WAIT_SECONDS,
     )
     assert moved is not None
     return moved
+
+
+async def _until(condition: Callable[[], bool]) -> None:
+    async def poll() -> None:
+        while not condition():
+            await asyncio.sleep(0)
+
+    await asyncio.wait_for(poll(), timeout=WAIT_SECONDS)
 
 
 async def _status_of(store: InMemoryKanbanStore, task_id: str) -> TaskStatus:
@@ -178,6 +204,8 @@ async def test_dependents_are_released_even_when_shutdown_cancels_the_merge() ->
     assert runner.calls == []
     assert await _status_of(store, "child") == TaskStatus.READY
     assert wakes == [BOARD_ID]
+    # The merge was running, and its git process may still finish after the cancellation, so nothing is claimed.
+    assert all(event.kind != TaskEventKind.MERGE_CONFLICT for event in await store.list_events("parent"))
 
 
 @pytest.mark.asyncio
@@ -212,19 +240,15 @@ async def test_task_without_a_branch_releases_dependents_inline_and_never_touche
 
 
 @pytest.mark.asyncio
-async def test_queued_worktree_operations_run_a_few_at_a_time_and_all_finish() -> None:
-    runner = _GatedRunner()
-    tasks = [KanbanTask(task_id=f"t{i}", board_id=BOARD_ID, title=f"t{i}", branch="main") for i in range(6)]
-    for task in tasks[:3]:
-        spawn_worktree_op(cleanup_task_worktree(runner, task))
-    for task in tasks[3:]:
-        spawn_worktree_op(merge_task_worktree_op(runner, task))
+async def test_moved_tasks_run_a_few_worktree_operations_at_a_time_and_all_finish() -> None:
+    store, runner, wakes = InMemoryKanbanStore(), _GatedRunner(), []
+    task_ids = await _seed_branch_tasks(store, 6)
+    for task_id in task_ids[:3]:
+        await _move(store, runner, TaskStatus.ARCHIVED, wakes, task_id)
+    for task_id in task_ids[3:]:
+        await _move(store, runner, TaskStatus.COMPLETED, wakes, task_id)
 
-    async def two_are_running() -> None:
-        while runner.running < _MAX_CONCURRENT_GIT_OPS:
-            await asyncio.sleep(0)
-
-    await asyncio.wait_for(two_are_running(), timeout=WAIT_SECONDS)
+    await _until(lambda: runner.running == _MAX_CONCURRENT_GIT_OPS)
     for _ in range(20):  # a third would have started by now if nothing held it back
         await asyncio.sleep(0)
     assert runner.running == _MAX_CONCURRENT_GIT_OPS
@@ -232,8 +256,59 @@ async def test_queued_worktree_operations_run_a_few_at_a_time_and_all_finish() -
     runner.gate.set()
     await wait_all_background_tasks(timeout_seconds=WAIT_SECONDS)
 
-    assert len(runner.calls) == len(tasks)
+    assert len(runner.calls) == len(task_ids)
     assert runner.peak == _MAX_CONCURRENT_GIT_OPS
+
+
+@pytest.mark.asyncio
+async def test_a_merge_the_dispatcher_starts_is_not_queued_behind_background_cleanups() -> None:
+    # The dispatcher promotes a finished task's dependents right after it schedules the merge, so that merge must not
+    # wait for a bulk archive's queue.
+    store, runner, wakes = InMemoryKanbanStore(), _SlowCleanupRunner(), []
+    task_ids = await _seed_branch_tasks(store, _MAX_CONCURRENT_GIT_OPS + 2)
+    for task_id in task_ids[:-1]:
+        await _move(store, runner, TaskStatus.ARCHIVED, wakes, task_id)
+    await _until(lambda: runner.running == _MAX_CONCURRENT_GIT_OPS)
+    last = await store.get_task(task_ids[-1])
+    assert last is not None
+
+    merged = await asyncio.wait_for(merge_task_worktree_op(runner, last), timeout=WAIT_SECONDS)
+
+    assert merged == (True, [])
+    assert runner.calls == [f"merge:{last.task_id}"]
+    runner.gate.set()
+    await wait_all_background_tasks(timeout_seconds=WAIT_SECONDS)
+
+
+@pytest.mark.asyncio
+async def test_a_merge_cancelled_before_it_starts_is_recorded_and_still_releases_dependents() -> None:
+    store, runner, wakes = InMemoryKanbanStore(), _GatedRunner(), []
+    await _seed(store, branch="main")
+    parent = await store.get_task("parent")
+    assert parent is not None
+    parent.status = TaskStatus.COMPLETED
+    await store.save_task(parent)
+    dispatchers = {BOARD_ID: MagicMock(spec=KanbanDispatcher)}
+    slots = git_slot()
+    for _ in range(_MAX_CONCURRENT_GIT_OPS):
+        await slots.acquire()
+
+    try:
+        job = asyncio.create_task(_merge_then_release_dependents(store, dispatchers, runner, parent, wakes.append))
+        await asyncio.sleep(0)
+        job.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await job
+    finally:
+        for _ in range(_MAX_CONCURRENT_GIT_OPS):
+            slots.release()
+
+    assert runner.calls == []
+    events = await store.list_events("parent")
+    skipped = next(event for event in events if event.kind == TaskEventKind.MERGE_CONFLICT)
+    assert skipped.payload is not None
+    assert "did not run" in str(skipped.payload["message"])
+    assert await _status_of(store, "child") == TaskStatus.READY
 
 
 @pytest.mark.asyncio

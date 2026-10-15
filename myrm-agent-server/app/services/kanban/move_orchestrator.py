@@ -6,7 +6,7 @@
 - dependency_ops (POS: Dependency graph operations.)
 - event_publisher (POS: Kanban SSE event publishing helpers.)
 - service_mixins.types (POS: Kanban service shared types.)
-- worktree_ops (POS: Task worktree lifecycle management.)
+- worktree_ops (POS: Task worktree lifecycle management; ``git_slot`` bounds the background git work.)
 
 [OUTPUT]
 - move_task, reclaim_task, cancel_task_execution, cleanup_task_worktree, merge_task_worktree (approve/reject live in review_ops)
@@ -17,6 +17,7 @@ Task state transition orchestration: move, reclaim, cancel with dependency and e
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -44,14 +45,15 @@ from app.services.kanban.service_mixins.types import (
 )
 from app.services.kanban.worktree_ops import (
     cleanup_task_worktree,
+    git_slot,
     merge_task_worktree,
+    record_merge_failure,
     spawn_worktree_op,
 )
 
 logger = logging.getLogger(__name__)
 
 ValidateAgentId = Callable[[str], Awaitable[None]]
-CleanupWorktree = Callable[[KanbanTask], Awaitable[None]]
 WakeDispatcher = Callable[[str], None]
 
 
@@ -85,15 +87,34 @@ async def _merge_then_release_dependents(
     """Merge a completed task's worktree, then let its dependents start.
 
     Dependents create their worktree from the repository as it is when they start, so they must not be
-    released before the merge lands. They are released even when the merge fails or raises: the failure is
-    recorded as an event and the worktree is preserved, so holding them back would only stall the board.
+    released before the merge lands. They are released even when the merge fails, raises, or is cancelled by
+    shutdown: the failure is recorded as an event and the worktree is preserved, so holding them back would
+    only stall the board. A cancellation that arrives while the merge is still queued is recorded too, since
+    nothing else would tell the user the code never landed.
     """
+    started = False
     try:
-        await merge_task_worktree(runner, task, store)
+        async with git_slot():
+            started = True
+            await merge_task_worktree(runner, task, store)
+    except asyncio.CancelledError:
+        if not started:
+            await record_merge_failure(
+                store,
+                task,
+                "Task completed but its worktree merge did not run because the server was shutting down. "
+                "Merge the preserved worktree manually.",
+            )
+        raise
     finally:
         await promote_dependents(store, task.task_id)
         if task.board_id in dispatchers:
             wake_dispatcher(task.board_id)
+
+
+async def _cleanup_worktree_in_background(runner: TaskRunner | None, task: KanbanTask) -> None:
+    async with git_slot():
+        await cleanup_task_worktree(runner, task)
 
 
 async def move_task(
@@ -242,7 +263,7 @@ async def move_task(
     if merges_worktree:
         spawn_worktree_op(_merge_then_release_dependents(store, dispatchers, runner, saved, wake_dispatcher))
     elif target_status == TaskStatus.ARCHIVED and saved.branch:
-        spawn_worktree_op(cleanup_task_worktree(runner, saved))
+        spawn_worktree_op(_cleanup_worktree_in_background(runner, saved))
 
     if old_status == TaskStatus.BLOCKED and saved.status == TaskStatus.READY:
         # If this is a goal-mode task, synchronize goal resumption in GoalRegistry

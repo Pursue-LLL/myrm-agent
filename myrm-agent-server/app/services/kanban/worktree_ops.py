@@ -7,13 +7,14 @@
 - core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
 
 [OUTPUT]
-- cleanup_task_worktree, merge_task_worktree, spawn_worktree_op
+- cleanup_task_worktree, merge_task_worktree, record_merge_failure, spawn_worktree_op, git_slot
 
 [POS]
 Task worktree lifecycle management: cleaning up worktrees upon archiving and merging completed task branches.
 Git work scales with repository size (seconds per task on a large tree), so callers that answer a user request
-hand it to ``spawn_worktree_op`` instead of awaiting it. At most ``_MAX_CONCURRENT_GIT_OPS`` runner calls are in
-flight at once, however many tasks were queued.
+hand it to ``spawn_worktree_op`` instead of awaiting it. Work started that way waits on ``git_slot`` first, so at
+most ``_MAX_CONCURRENT_GIT_OPS`` of it runs at once however many tasks were queued; the dispatcher's own merges do
+not wait on it.
 """
 
 from __future__ import annotations
@@ -37,15 +38,21 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Runner calls spend their time in the shared default thread pool and in git child processes. A bulk action queues
-# one per card, and letting them all start at once slows the very request that queued them, so only a few run at a time.
+# Background worktree work spends its time in the shared default thread pool and in git child processes. A bulk
+# action queues one operation per card, and letting them all start at once slows the very request that queued
+# them, so only a few run at a time.
 _MAX_CONCURRENT_GIT_OPS = 2
 
 # An asyncio primitive binds to the loop that first waits on it, so each loop gets its own semaphore.
 _git_slots: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = weakref.WeakKeyDictionary()
 
 
-def _git_slot() -> asyncio.Semaphore:
+def git_slot() -> asyncio.Semaphore:
+    """Limit on background worktree operations running git at the same time.
+
+    A caller that answers a request holds it around the runner call (``async with git_slot():``) inside its own
+    try/finally. The dispatcher's merges do not use it: they must not queue behind a bulk action.
+    """
     loop = asyncio.get_running_loop()
     slot = _git_slots.get(loop)
     if slot is None:
@@ -65,8 +72,7 @@ async def cleanup_task_worktree(
     """
     if runner is not None and hasattr(runner, "cleanup_worktree"):
         try:
-            async with _git_slot():
-                removed: bool = await runner.cleanup_worktree(task)
+            removed: bool = await runner.cleanup_worktree(task)
             return removed
         except Exception as exc:
             logger.warning(
@@ -75,6 +81,19 @@ async def cleanup_task_worktree(
                 exc,
             )
     return True
+
+
+async def record_merge_failure(
+    store: SqlAlchemyKanbanStore,
+    task: KanbanTask,
+    message: str,
+    conflicts: list[str] | None = None,
+) -> None:
+    """Record that a completed task's code did not land on its branch, so the board can show it."""
+    payload: dict[str, object] = {"branch": task.branch, "message": message}
+    if conflicts:
+        payload["conflicts"] = conflicts
+    await store.append_event(task.task_id, TaskEventKind.MERGE_CONFLICT, payload=payload)
 
 
 async def merge_task_worktree(
@@ -93,8 +112,7 @@ async def merge_task_worktree(
     if runner is None or not hasattr(runner, "merge_task_worktree"):
         return True, []
     try:
-        async with _git_slot():
-            merged, conflicts = await runner.merge_task_worktree(task)
+        merged, conflicts = await runner.merge_task_worktree(task)
         if merged:
             return True, []
         logger.warning(
@@ -102,20 +120,13 @@ async def merge_task_worktree(
             task.task_id[:8],
         )
         if store is not None:
-            payload: dict[str, object] = {
-                "branch": task.branch,
-                "message": (
-                    "Task completed but the worktree merge was blocked; "
-                    "code was not merged into the target branch. "
-                    "Resolve the conflict or preserved worktree manually."
-                ),
-            }
-            if conflicts:
-                payload["conflicts"] = conflicts
-            await store.append_event(
-                task.task_id,
-                TaskEventKind.MERGE_CONFLICT,
-                payload=payload,
+            await record_merge_failure(
+                store,
+                task,
+                "Task completed but the worktree merge was blocked; "
+                "code was not merged into the target branch. "
+                "Resolve the conflict or preserved worktree manually.",
+                conflicts,
             )
         return False, conflicts
     except Exception as exc:
@@ -125,14 +136,7 @@ async def merge_task_worktree(
             exc,
         )
         if store is not None:
-            await store.append_event(
-                task.task_id,
-                TaskEventKind.MERGE_CONFLICT,
-                payload={
-                    "branch": task.branch,
-                    "message": f"Worktree merge failed: {exc}",
-                },
-            )
+            await record_merge_failure(store, task, f"Worktree merge failed: {exc}")
         return False, []
 
 
