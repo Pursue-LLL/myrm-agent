@@ -36,7 +36,8 @@ from app.services.kanban.worktree_landing import wait_parents_landed
 
 logger = logging.getLogger(__name__)
 
-# Shown to users by exact match (see the frontend ``kanbanBlockedReason``); other consumers show it as written.
+# The frontend translates this exact sentence (shared/config/kanban_blocked_reasons.json, kept equal by
+# test_blocked_reason_contract); other consumers show it as written.
 PARENT_MERGE_FAILED_REASON = "Merging a dependency's changes failed; resolve it, then continue"
 ACKNOWLEDGED_MERGE_FAILURE_KEY = "acknowledged_merge_failure_event_id"
 

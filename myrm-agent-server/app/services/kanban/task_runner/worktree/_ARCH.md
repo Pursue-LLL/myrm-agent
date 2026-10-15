@@ -12,7 +12,7 @@ KanbanTaskRunner 的 Git worktree 隔离子包——把任务代码与主仓库�
 - `create_worktree`——为任务创建独立 worktree 分支 `{target_branch}-{task_id[:8]}`
 - `merge_task_worktree`——任务 COMPLETED 时 `--no-ff` merge 回目标分支，成功即清理目录与分支
 - `cleanup_worktree`——safe/force 两档清理
-- `hold_for_unlanded_parents`——`KanbanTaskRunner.run` 的入口闸门：先等父任务进行中的 merge 结束，再按父任务事件流判定「完成之后最近一次是合并失败」，是且用户尚未确认则返回 HUMAN 阻塞（原因 `PARENT_MERGE_FAILED_REASON`，确认记录在 `metadata[ACKNOWLEDGED_MERGE_FAILURE_KEY]`）；在构造任何上下文之前返回，不调用模型、不改变后续提示词
+- `hold_for_unlanded_parents`——`KanbanTaskRunner.run` 的入口闸门：先等父任务进行中的 merge 结束，再按父任务事件流判定「完成之后最近一次是合并失败」，是且用户尚未确认则返回 HUMAN 阻塞（原因 `PARENT_MERGE_FAILED_REASON`，前端按这句话译成界面语言，它与 `shared/config/kanban_blocked_reasons.json` 的一致性由 `test_blocked_reason_contract.py` 保证；确认记录在 `metadata[ACKNOWLEDGED_MERGE_FAILURE_KEY]`）；在构造任何上下文之前返回，不调用模型、不改变后续提示词
 - `worktree_dir` / `_sanitize_git_branch` / `_worktree_branch_name`——分支名消毒与唯一化（测试直接引用）
 
 [POS]
