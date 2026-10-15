@@ -206,6 +206,23 @@ class TestBulkAction:
         assert data["results"][1]["success"] is False
         assert data["results"][1]["error"] is not None
 
+    @pytest.mark.parametrize(
+        ("action", "params"),
+        [("move", {"status": "ready"}), ("archive", {}), ("reassign", {"agent_id": "agent-007"}), ("delete", {})],
+    )
+    def test_bulk_unknown_task_is_reported_as_not_found_for_every_action(
+        self, client: TestClient, action: str, params: dict[str, str]
+    ) -> None:
+        bid = str(_create_board(client, f"BulkMissing-{action}")["board_id"])
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{bid}/tasks/bulk-action",
+            json={"task_ids": ["no-such-task"], "action": action, "params": params, "confirm": True},
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["results"] == [{"task_id": "no-such-task", "success": False, "error": "Not found"}]
+
     def test_bulk_move_never_forces_past_unmet_dependencies(self, client: TestClient) -> None:
         """A card whose parents are unfinished fails on its own row, even when the caller asks for force.
 
