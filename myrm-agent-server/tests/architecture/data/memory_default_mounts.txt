@@ -54,8 +54,4 @@ quadruple_retrieval_router
 space_guard_router
 markdown_chunker_router
 migration_wizard_router
-conclusion_attribution_router
 score_honesty_router
-inode_identity_router
-skill_triad_router
-bitemporal_tms_router

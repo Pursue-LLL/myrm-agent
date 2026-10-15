@@ -79,11 +79,7 @@ import { VectorSpaceGuardStudioCard } from './VectorSpaceGuardStudioCard';
 import { MarkdownChunkerStudioCard } from './MarkdownChunkerStudioCard';
 import { DualEngineHybridSearchStudioCard } from './DualEngineHybridSearchStudioCard';
 import { MultiPlatformMemoryMigrationStudioCard } from './MultiPlatformMemoryMigrationStudioCard';
-import { ConclusionAttributionStudioCard } from './ConclusionAttributionStudioCard';
 import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
-import { InodeIdentityInspectionCard } from './InodeIdentityInspectionCard';
-import { MemorySkillTriadInspectionCard } from './MemorySkillTriadInspectionCard';
-import { BitemporalTmsInspectionCard } from './BitemporalTmsInspectionCard';
 
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 
@@ -321,20 +317,8 @@ export const UnderstandSection = ({
     {/* Multi-Platform Memory Migration & Import Engine Studio Card (Item 134 P1) */}
     <MultiPlatformMemoryMigrationStudioCard />
 
-    {/* Conclusion Attribution & Verifiable Chat Evidence Studio Card (Item 141 P1) */}
-    <ConclusionAttributionStudioCard />
-
     {/* Retrieval Score Honesty & Raw vs Ranking Inspection Card (Item 142 P1) */}
     <ScoreHonestyInspectionCard />
-
-    {/* Directory Inode Identity & Double-Sync Prevention Inspection Card (Item 145 P0) */}
-    <InodeIdentityInspectionCard />
-
-    {/* Memory Skill Triad & Physical Scope Isolation Inspection Card (Item 147 P1) */}
-    <MemorySkillTriadInspectionCard />
-
-    {/* Temporal Truth Maintenance & Bitemporal Filter Inspection Card (Item 148 P1) */}
-    <BitemporalTmsInspectionCard />
 
     <div className="grid gap-4 xl:grid-cols-2">
       <Panel title={t('commandCenter.influenceTitle')}>

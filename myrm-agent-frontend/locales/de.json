@@ -5334,9 +5334,6 @@
         "files": "Dateien",
         "noCommits": "Kein aktueller Commit-Verlauf erkannt",
         "gitUnavailable": "Im aktuellen Arbeitsbereich wurde kein Git-Repository erkannt"
-      },
-      "conclusionAttribution": {
-        "deleteConfirm": "Schlussfolgerung „{id}“ löschen?"
       }
     },
     "createDialog": {

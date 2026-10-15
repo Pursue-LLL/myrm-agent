@@ -5402,9 +5402,6 @@
         "files": "个文件",
         "noCommits": "未检测到近期的 Commit 历史",
         "gitUnavailable": "当前工作区未检测到 Git 仓库"
-      },
-      "conclusionAttribution": {
-        "deleteConfirm": "确定删除结论「{id}」？"
       }
     },
     "createDialog": {

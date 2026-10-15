@@ -5334,9 +5334,6 @@
         "files": "개 파일",
         "noCommits": "최근 커밋 기록이 감지되지 않음",
         "gitUnavailable": "현재 작업 영역에서 Git 저장소가 감지되지 않았습니다"
-      },
-      "conclusionAttribution": {
-        "deleteConfirm": "결론 \"{id}\"을(를) 삭제하시겠습니까?"
       }
     },
     "createDialog": {

@@ -5334,9 +5334,6 @@
         "files": "個檔案",
         "noCommits": "未偵測到近期的 Commit 歷史",
         "gitUnavailable": "目前工作區未偵測到 Git 倉庫"
-      },
-      "conclusionAttribution": {
-        "deleteConfirm": "確定刪除結論「{id}」？"
       }
     },
     "createDialog": {

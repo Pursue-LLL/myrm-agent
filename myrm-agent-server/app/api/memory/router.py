@@ -14,9 +14,6 @@ from app.api.memory import (
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
-from app.api.memory.bitemporal_tms_router import (
-    router as bitemporal_tms_router,
-)
 from app.api.memory.budget_packing_router import (
     router as budget_packing_router,
 )
@@ -24,9 +21,6 @@ from app.api.memory.code_memory_compaction_router import (
     router as code_memory_compaction_router,
 )
 from app.api.memory.codegraph_router import router as codegraph_router
-from app.api.memory.conclusion_attribution_router import (
-    router as conclusion_attribution_router,
-)
 from app.api.memory.conversation_lineage_defense_router import (
     router as conversation_lineage_defense_router,
 )
@@ -67,9 +61,6 @@ from app.api.memory.hindsight_reflection_router import (
 )
 from app.api.memory.hybrid_memory_router import (
     router as hybrid_memory_router,
-)
-from app.api.memory.inode_identity_router import (
-    router as inode_identity_router,
 )
 from app.api.memory.job_compounding_router import (
     router as job_compounding_router,
@@ -131,9 +122,6 @@ from app.api.memory.score_honesty_router import (
 )
 from app.api.memory.screen_observation_safety_router import (
     router as screen_observation_safety_router,
-)
-from app.api.memory.skill_triad_router import (
-    router as skill_triad_router,
 )
 from app.api.memory.space_guard import (
     router as space_guard_router,
@@ -278,22 +266,6 @@ router.include_router(
     tags=["memory-migration-wizard"],
 )
 router.include_router(
-    conclusion_attribution_router,
-    tags=["memory-attribution"],
-)
-router.include_router(
     score_honesty_router,
     tags=["memory-score-honesty"],
-)
-router.include_router(
-    inode_identity_router,
-    tags=["memory-inode-identity"],
-)
-router.include_router(
-    skill_triad_router,
-    tags=["memory-skill-triad"],
-)
-router.include_router(
-    bitemporal_tms_router,
-    tags=["memory-bitemporal-tms"],
 )

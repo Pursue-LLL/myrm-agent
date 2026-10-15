@@ -5334,9 +5334,6 @@
         "files": "ファイル",
         "noCommits": "最近のコミット履歴が検出されませんでした",
         "gitUnavailable": "現在のワークスペースに Git リポジトリが検出されませんでした"
-      },
-      "conclusionAttribution": {
-        "deleteConfirm": "結論「{id}」を削除しますか？"
       }
     },
     "createDialog": {

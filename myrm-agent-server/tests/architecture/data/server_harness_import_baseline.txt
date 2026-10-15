@@ -424,11 +424,8 @@ myrm_agent_harness.toolkits.memory
 myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
 myrm_agent_harness.toolkits.memory.auto_recall
 myrm_agent_harness.toolkits.memory.backup
-myrm_agent_harness.toolkits.memory.bitemporal_truth_maintenance.facade
-myrm_agent_harness.toolkits.memory.bitemporal_truth_maintenance.models
 myrm_agent_harness.toolkits.memory.codegraph
 myrm_agent_harness.toolkits.memory.compaction
-myrm_agent_harness.toolkits.memory.conclusion_attribution
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conversation_search.types
 myrm_agent_harness.toolkits.memory.cross_agent.arbitrator
@@ -449,7 +446,6 @@ myrm_agent_harness.toolkits.memory.graph_reorganization
 myrm_agent_harness.toolkits.memory.graph_rrf
 myrm_agent_harness.toolkits.memory.handoff
 myrm_agent_harness.toolkits.memory.health
-myrm_agent_harness.toolkits.memory.inode_identity
 myrm_agent_harness.toolkits.memory.integration.fetcher
 myrm_agent_harness.toolkits.memory.integration.summarizer
 myrm_agent_harness.toolkits.memory.integration.tree_manager
@@ -469,8 +465,6 @@ myrm_agent_harness.toolkits.memory.relational.sqlite_store
 myrm_agent_harness.toolkits.memory.score_honesty
 myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.session_post_process
-myrm_agent_harness.toolkits.memory.skill_triad.facade
-myrm_agent_harness.toolkits.memory.skill_triad.models
 myrm_agent_harness.toolkits.memory.sovereign_migration
 myrm_agent_harness.toolkits.memory.strategies.blind_spot
 myrm_agent_harness.toolkits.memory.strategies.consolidation

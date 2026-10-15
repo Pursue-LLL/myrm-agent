@@ -5402,9 +5402,6 @@
         "files": "files",
         "noCommits": "No recent commit history detected",
         "gitUnavailable": "No Git repository detected in workspace"
-      },
-      "conclusionAttribution": {
-        "deleteConfirm": "Delete conclusion \"{id}\"?"
       }
     },
     "createDialog": {
