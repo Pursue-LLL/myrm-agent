@@ -886,7 +886,7 @@ export function WikiSection() {
         void loadStats();
         if (compileRequestedRef.current) {
           compileRequestedRef.current = false;
-          toast.success(t('success.compileFinished'));
+          toast.success(t('success.compileFinished', { tab: t('tabs.pendingEdits') }));
         }
       }
       ingestActivityRef.current = active;

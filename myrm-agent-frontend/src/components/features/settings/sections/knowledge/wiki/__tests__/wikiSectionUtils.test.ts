@@ -69,6 +69,25 @@ describe('resolveMaintainToast locale contract', () => {
   });
 });
 
+describe('manual compile copy', () => {
+  const compileMessages: Record<string, string[]> = {
+    'success.compileStarted': ['count'],
+    'success.compileNothingNew': [],
+    'success.compileFinished': ['tab'],
+  };
+
+  it.each(locales)('%s words each compile message with exactly the arguments the page supplies', (code) => {
+    const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
+
+    for (const [key, args] of Object.entries(compileMessages)) {
+      const message = lookupWikiMessage(tree, key);
+
+      expect(message, `${code}: ${key}`).toBeTypeOf('string');
+      expect(icuArguments(message as string), `${code}: ${key}`).toEqual(args);
+    }
+  });
+});
+
 describe('maintenance cancel copy', () => {
   it.each(locales)('%s words the cancelled toast and the stop controls without placeholders', (code) => {
     const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
@@ -179,17 +198,6 @@ describe('resolveMaintainToast', () => {
 
   it('falls back to the plain completion message when nothing changed', () => {
     expect(resolveMaintainToast(maintainResponse())).toEqual({ variant: 'success', key: 'success.maintainComplete' });
-  });
-
-  it('tolerates a legacy response without the optional counters', () => {
-    const legacy = {
-      issues_found: 1,
-      issues_fixed: 0,
-      connections_discovered: 0,
-      duration_ms: 1,
-    } as WikiMaintainResponse;
-
-    expect(resolveMaintainToast(legacy)).toEqual({ variant: 'success', key: 'success.maintainComplete' });
   });
 });
 

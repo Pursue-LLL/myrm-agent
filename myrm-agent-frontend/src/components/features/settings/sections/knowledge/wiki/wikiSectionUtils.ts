@@ -63,9 +63,9 @@ const REMOVED_PATHS_MAX_CHARS = 120;
 
 /** Pick the one toast that summarises a maintenance run; the order is what the user needs to see first. */
 export function resolveMaintainToast(result: WikiMaintainResponse, cancelled = false): MaintainToast {
-  const removed = result.raw_security_removed ?? 0;
+  const removed = result.raw_security_removed;
   if (removed > 0) {
-    const joined = (result.raw_security_removed_paths ?? []).join(', ');
+    const joined = result.raw_security_removed_paths.join(', ');
     const paths =
       joined.length > REMOVED_PATHS_MAX_CHARS ? `${joined.slice(0, REMOVED_PATHS_MAX_CHARS - 3)}...` : joined;
     return { variant: 'success', key: 'success.maintainRemovedSensitive', values: { count: removed, paths } };
@@ -77,8 +77,8 @@ export function resolveMaintainToast(result: WikiMaintainResponse, cancelled = f
     return { variant: 'warning', key: 'errors.maintainAiUnavailable' };
   }
 
-  const fixed = result.issues_fixed ?? 0;
-  const openActions = result.open_actions_count ?? 0;
+  const fixed = result.issues_fixed;
+  const openActions = result.open_actions_count;
   if (openActions > 0) {
     return { variant: 'message', key: 'healthReport.maintainToastOpen', values: { open: openActions, fixed } };
   }

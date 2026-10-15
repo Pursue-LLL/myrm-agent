@@ -16550,7 +16550,7 @@
         "compileComplete": "Wiki 編譯完成",
         "compileStarted": "已開始在背景編譯，佇列中有 {count} 個檔案。",
         "compileNothingNew": "沒有需要編譯的新內容。",
-        "compileFinished": "編譯完成。待審核內容請在「待審草稿」標籤查看。",
+        "compileFinished": "編譯完成。需要你審核的內容在「{tab}」標籤。",
         "maintainCancelled": "維護已停止，已完成的部分會保留。",
         "maintainComplete": "Wiki 維護完成",
         "maintainSummary": "維護完成：發現 {found} 項，修復 {fixed} 項",

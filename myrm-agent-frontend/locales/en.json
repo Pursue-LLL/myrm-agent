@@ -17225,7 +17225,7 @@
         "compileComplete": "Wiki compiled successfully",
         "compileStarted": "Compiling in the background: {count, plural, one {# file} other {# files}} queued.",
         "compileNothingNew": "Nothing new to compile.",
-        "compileFinished": "Compile complete. Review pending drafts in the Pending Edits tab.",
+        "compileFinished": "Compile complete. Anything waiting for your review is in the {tab} tab.",
         "maintainCancelled": "Maintenance stopped. What was already done is kept.",
         "maintainComplete": "Wiki maintenance completed",
         "maintainSummary": "Maintenance complete: {found} found, {fixed} fixed",

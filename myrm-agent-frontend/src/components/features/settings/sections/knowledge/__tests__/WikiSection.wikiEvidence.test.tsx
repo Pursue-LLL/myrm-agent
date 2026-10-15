@@ -20,7 +20,12 @@ const ingestStream = vi.hoisted(() => ({
   listeners: new Set<(snapshot: object) => void>(),
 }));
 
-const stableT = (key: string) => key;
+// Every translation request, so a test can tell which values the page supplied to a message.
+const translateCalls: Array<[string, unknown]> = [];
+const stableT = (key: string, values?: unknown) => {
+  translateCalls.push([key, values]);
+  return key;
+};
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -624,6 +629,7 @@ describe('WikiSection compile flow', () => {
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith('success.compileFinished');
     });
+    expect(translateCalls).toContainEqual(['success.compileFinished', { tab: 'tabs.pendingEdits' }]);
 
     emitIngestSnapshot({ processing: 1 });
     emitIngestSnapshot({});

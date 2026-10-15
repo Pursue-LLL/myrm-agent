@@ -16550,7 +16550,7 @@
         "compileComplete": "위키가 성공적으로 컴파일됨",
         "compileStarted": "백그라운드에서 컴파일을 시작했습니다. 대기열에 파일 {count}개가 있습니다.",
         "compileNothingNew": "컴파일할 새 콘텐츠가 없습니다.",
-        "compileFinished": "컴파일 완료. 보류 편집 탭에서 보류 초안을 검토하세요.",
+        "compileFinished": "컴파일 완료. 검토가 필요한 항목은 {tab} 탭에 있습니다.",
         "maintainCancelled": "유지보수를 중지했습니다. 이미 완료된 작업은 그대로 유지됩니다.",
         "maintainComplete": "위키 유지보수 완료",
         "maintainSummary": "유지보수 완료: {found}개 발견, {fixed}개 수정",

@@ -16550,7 +16550,7 @@
         "compileComplete": "Wiki erfolgreich kompiliert",
         "compileStarted": "Die Kompilierung läuft im Hintergrund: {count, plural, one {# Datei} other {# Dateien}} in der Warteschlange.",
         "compileNothingNew": "Es gibt nichts Neues zu kompilieren.",
-        "compileFinished": "Kompilierung abgeschlossen. Überprüfen Sie ausstehende Entwürfe auf der Registerkarte „Ausstehende Änderungen“.",
+        "compileFinished": "Kompilierung abgeschlossen. Alles, was Ihre Prüfung braucht, finden Sie auf der Registerkarte „{tab}“.",
         "maintainCancelled": "Wartung gestoppt. Bereits erledigte Änderungen bleiben erhalten.",
         "maintainComplete": "Wiki-Wartung abgeschlossen",
         "maintainSummary": "Wartung abgeschlossen: {found} gefunden, {fixed} behoben",

@@ -17225,7 +17225,7 @@
         "compileComplete": "Wiki 编译完成",
         "compileStarted": "已开始在后台编译，队列中有 {count} 个文件。",
         "compileNothingNew": "没有需要编译的新内容。",
-        "compileFinished": "编译完成。待审核内容请在「待审草稿」标签查看。",
+        "compileFinished": "编译完成。需要你审核的内容在「{tab}」标签。",
         "maintainCancelled": "维护已停止，已完成的部分会保留。",
         "maintainComplete": "Wiki 维护完成",
         "maintainSummary": "维护完成：发现 {found} 项，修复 {fixed} 项",

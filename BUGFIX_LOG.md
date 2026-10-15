@@ -4320,6 +4320,8 @@ except Exception:
 3. `POST /wiki/compile` 是一次同步请求，要串行跑完整个编译才返回。控制平面反向代理读超时 120 秒（`myrm-control-plane/src/myrm_control_plane/gateway/reverse_proxy/client.py:24`），熔断阈值 5 次失败后开启 60 秒（`deployment/config/fields_ops.py:47,50`）：连续 5 次长请求超时会让健康的上游被熔断。生产里每次导入本来就走后台 worker（`start_background_worker()`），同步编译只有这一个手动入口。
 4. 既有 bug：`compile_run.state` 是熔断状态，除非暂停恒为 `'running'`，空队列也是 `running / idle`；旧的 `isWikiCompileBusy` 把它当成「正在编译」，所以一旦收到 ingest SSE 快照，「维护」与「重建索引」按钮就一直被禁用。第一版测试里订阅桩恒为 `snapshot: null`，掩盖了它。
 5. 入队时的增量变更检查要给每个原文算 SHA256，在事件循环上同步执行：合成库 5000 个约 195 KB 的原文使事件循环停顿 2809 ms（实测，3 次取中位数），期间 SSE 与其他请求都在等；旧的同步长请求里同样如此，只是被长请求本身掩盖。
+6. 手动编译可以连点，第二次入队把 worker 正在编译的条目写回待处理（实测队列统计 `{'pending': 1, 'processing': 1}` → `{'pending': 2, 'processing': 0}`），server 维护保护与前端忙状态在编译中途失效。
+7. 「编译完成」提示在中文、繁体中文、日语、德语里点名的标签，与真实标签页标题对不上（「待审草稿」对「草稿审核」等），用户找不到被点名的标签。
 
 ### 根因
 
@@ -4327,6 +4329,8 @@ except Exception:
 2. 长任务没有停止信号：服务端任务只有启动与查询。
 3. 手动编译把「排队」与「处理」绑在一个请求里，而处理本来就由后台 worker 完成。
 4. 用「状态字段非空」代替「队列里有处理中的条目」判断忙。
+5. 入队用 upsert 把条目写回待处理，没有区分已被 worker 认领的条目。
+6. 提示文案把标签名写死在六份语言包里，没有与标签页标题共用一个来源。
 
 ### 修复
 
@@ -4335,22 +4339,23 @@ except Exception:
 3. 手动编译改为入队：harness 新增 `WikiCompiler.enqueue_changed_sources()`（增量只排新增或变更的原文，全量排全部），`compile_all` 复用同一方法，增量变更检查的 SHA256 放到工作线程（合成库 5000 个原文：事件循环最长停顿 1046 ms → 46 ms（每个约 9 KB）、2809 ms → 60 ms（每个约 195 KB），3 次取中位数，本机，页缓存已预热，不是线上数据）；`POST /wiki/compile` 改为 202，入队、唤醒 worker、排资产索引、发布 ingest 快照，返回 `pending` 与 `compile_run`。frontend 的 `compileWiki` 回到普通 POST，进度与完成走既有 ingest SSE，活动→空闲时只提示一次「编译完成」；`lib/constants/requestTimeouts.ts`、其测试与 `next.config.ts` 的 `experimental.proxyTimeout` 随长请求一并删除。
 4. `isWikiCompileBusy` 改为 `isCompiling || (ingestSnapshot?.stats.processing ?? 0) > 0`；编译按钮自身的禁用条件仍是 `isCompiling || paused`：若也跟队列状态走，重启后遗留的待处理条目会让按钮永久不可点。
 5. 同批清理：`MemoryToWikiArchiver.maintain_wiki()`（无生产调用方）及其测试删除；server `maintain/runner.py` 把 Cron 摘要与列表报告拆到 `reporting.py`；`memory_to_wiki.py` 的四处既有 mypy 错误（索引器属性、公共目录列表型、查询模式、`commit_vault_git` 返回值）与 `compiler.py` 的一处（`serialize_frontmatter_block` 入参）改为具体类型；六种语言新增 7 个键、删除 2 个无人引用的键（含 `scripts/translation-patches` 里的同名项）。
+6. 入队跳过 worker 正在编译的条目（harness `queue.list_processing_file_paths`，在最后一个 await 之后读取）；「编译完成」提示取标签页标题（`tabs.pendingEdits`）作参数，六种语言各改一句。
 
 ### 验证
 
-1. 新增测试：harness `test_maintain_ai_calls.py` 17 例、`test_compiler_enqueue.py` 6 例；server `test_wiki_compile_endpoint.py` 7 例，`test_maintain_endpoint.py`、`test_maintain_runner.py`、`test_maintain_single_flight.py` 补取消与全部未应答用例；frontend 补取消（hook、按钮、提示与六语言文案契约）与整条编译流程（可控的 ingest 订阅桩）的用例。
-2. 变异检查（改一处、跑、写回）：harness 停止逻辑 4 个（3 个被抓住，1 个是行为冗余的守卫，已删除代码）、入队 3 个、线程化 1 个、server 取消 5 个、编译路由 5 个、frontend 取消 6 个、编译流程 5 个，其余全部被测试抓住；「活动周期结束后重置标记」一处第一版测试没抓住，补了第二个活动周期后抓住。
-3. 回归：harness `tests/toolkits/wiki` 960 例通过（3 例依赖真实模型的 `test_sidecar_integration.py` 未跑；真实 LLM 的 `test_compile_all_full_pipeline_real_llm` 入队重构后与线程化后各跑一次，均通过），ruff 干净，mypy 对触及文件无错误；server wiki 与 cron 459 例通过、3 例失败（`sk-…` 安全拦截既有失败，与 `BUG-AGENT-2026-10-15-021` 记录的同一批，不经过编译与维护）；`memory_to_wiki` 相关 26 例与 `tests/integration/wiki` 五个文件单独运行均通过；frontend `knowledge` 与 `services/wiki` 28 个文件 236 例通过，更宽的 `src/services`、`src/components/features/settings`、`src/lib` 为 3280 通过、3 例失败，均在 `timeUtils.test.ts`（`zh` 日期标题星期前的空格，ICU 版本差异，与本条无关）；oxlint 退出码 0，`tsc` 对 wiki 与 knowledge 无报错，`verify:theme-colors`、`verify:icu-syntax` 通过，`verify:i18n` 没有 wiki 与编译相关的条目。
+1. 新增测试：harness `test_maintain_ai_calls.py` 17 例、`test_compiler_enqueue.py` 8 例；server `test_wiki_compile_endpoint.py` 7 例，`test_maintain_endpoint.py`、`test_maintain_runner.py`、`test_maintain_single_flight.py` 补取消与全部未应答用例；frontend 补取消（hook、按钮、提示与六语言文案契约）与整条编译流程（可控的 ingest 订阅桩）的用例。
+2. 变异检查（改一处、跑、写回）：harness 停止逻辑 4 个（3 个被抓住，1 个是行为冗余的守卫，已删除代码）、入队 5 个（含去掉「跳过正在编译的原文」的筛选、把读取提前到 await 之前）、线程化 1 个、server 取消 5 个、编译路由 5 个、frontend 取消 6 个、编译流程 6 个（含完成提示不带标签名），其余全部被测试抓住；「活动周期结束后重置标记」一处第一版测试没抓住，补了第二个活动周期后抓住。
+3. 回归：harness `tests/toolkits/wiki` 965 例通过（此前一次全量运行里依赖真实模型的 `test_sidecar_integration.py::test_sidecar_build_index_query_pipeline` 失败过一次，`sidecar_hits` 为空，该例不经过队列与编译器；单独运行 3 例通过、其后三次全量均通过，没有定位到原因，按偶发失败记录；真实 LLM 的 `test_wiki_compile_e2e.py` 3 例（含 `test_compile_all_full_pipeline_real_llm`）在入队重构后、线程化后与跳过处理中条目后各跑一次，均通过），ruff 干净，mypy 对触及文件无错误；server wiki 与 cron 459 例通过、3 例失败（`sk-…` 安全拦截既有失败，与 `BUG-AGENT-2026-10-15-021` 记录的同一批，不经过编译与维护）；`memory_to_wiki` 相关 26 例与 `tests/integration/wiki` 五个文件单独运行均通过；frontend `knowledge` 与 `services/wiki` 28 个文件 241 例通过，更宽的 `src/services`、`src/components/features/settings`、`src/lib` 为 3280 通过、3 例失败，均在 `timeUtils.test.ts`（`zh` 日期标题星期前的空格，ICU 版本差异，与本条无关）；oxlint 退出码 0，`tsc` 对 wiki 与 knowledge 无报错，`verify:theme-colors`、`verify:icu-syntax` 通过，`verify:i18n` 没有 wiki 与编译相关的条目。
 
 ### 局限
 
 1. **没有真实云端与真实浏览器验证**：停止按钮与编译流程只有 jsdom 与桩服务端的测试；控制平面超时与熔断是读码得出，没有复现；明暗主题与窄屏下的按钮并排没有截图；德语与日语较长文案的换行没有量过。
 2. 取消是协作式：只在两次模型调用之间与调用等待期间响应，已发出的调用在服务商侧不会被撤销（只丢弃结果）；结构性维护不提供停止按钮。
 3. 手动编译不再自动跳转到「待处理编辑」，提示里也不再带「已发布 / 待处理 / 被拦截」计数（总览里的「待综合」徽章仍在）。
-4. 入队到 worker 开始处理之间有亚秒级空档，server 维护只检查 `processing > 0`，这一小段里点维护不会被挡住。
+4. 入队到 worker 开始处理之间有亚秒级空档，server 维护只检查 `processing > 0`，这一小段里点维护不会被挡住。入队只避开入队那一刻已被认领的条目，这建立在认领与入队同在一个事件循环上；多个进程共用同一个队列文件的情形没有测试。手动编译还会把待处理条目的重试计数与退避时间清零（队列 upsert 的既有行为，未改）。
 5. 点编译与点停止的真实频率没有数据。
 6. 入队时的变更检查对 2 万个原文（合计约 1 GB，合成库，3 次取中位数 13107 ms）仍要十几秒：在线程里执行、不停顿事件循环，但这次请求要等它，前端默认 30 秒超时。
-7. 与本条无关、未动：`compile_all` 与 `_worker_loop` 各有一份相近的流水线；`compiler.py`（904 行）、`router.py`（3472 行）、`WikiSection.tsx`（2074 行）超过文件行数建议；Cron 的 `build_list_only_report` 仅中文且带 emoji；运行登记仍在内存里（见 `BUG-AGENT-2026-10-15-021` 局限 4）。
+7. 与本条无关、未动：`compile_all` 与 `_worker_loop` 各有一份相近的流水线；`compiler.py`（909 行）、`router.py`（3472 行）、`WikiSection.tsx`（2074 行）超过文件行数建议；Cron 的 `build_list_only_report` 仅中文且带 emoji；运行登记仍在内存里（见 `BUG-AGENT-2026-10-15-021` 局限 4）。
 
 ### 踩坑经验
 
@@ -4358,3 +4363,5 @@ except Exception:
 2. 测试里的订阅桩若恒为「没有快照」，会掩盖只有收到快照后才出现的问题；桩要能被测试驱动成「有快照、活动、空闲」几种状态。
 3. 删掉一个长请求前先问「谁会调用它的同步版本」：`compile_all` 仍被 agent 工具与每日复盘 Cron 使用，所以只改手动入口，不删方法。
 4. 「表面上多余的守卫」要用变异检查确认：`and not ai_calls.stopped` 在行为上冗余，删掉后其余变异仍全部被抓住，代码因此更短。
+5. 修竞态时，读取要放在最后一个 await 之后：第一版在变更检查的 await 之前读取处理中的条目，只有「检查期间被认领」那个用例能抓住它。
+6. 提示里点名其他界面元素时，用该元素自己的文案作参数，不要在六份语言包里各写一遍。

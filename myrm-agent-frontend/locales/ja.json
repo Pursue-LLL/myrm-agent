@@ -16550,7 +16550,7 @@
         "compileComplete": "Wiki コンパイル完了",
         "compileStarted": "バックグラウンドでコンパイルを開始しました。キューに {count} 件のファイルがあります。",
         "compileNothingNew": "コンパイルが必要な新しい内容はありません。",
-        "compileFinished": "コンパイル完了。保留中の草稿は「保留中の編集」タブでレビューしてください。",
+        "compileFinished": "コンパイル完了。レビューが必要なものは「{tab}」タブにあります。",
         "maintainCancelled": "メンテナンスを停止しました。完了した分は保持されます。",
         "maintainComplete": "Wiki メンテナンス完了",
         "maintainSummary": "メンテナンス完了: 検出 {found}、修正 {fixed}",
