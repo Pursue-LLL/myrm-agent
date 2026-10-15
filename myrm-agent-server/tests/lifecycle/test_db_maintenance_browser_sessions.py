@@ -15,7 +15,6 @@ async def test_db_maintenance_job_sweeps_expired_browser_sessions() -> None:
         patch("app.core.security.browser_vault.cleanup_all_vaults", new_callable=AsyncMock, return_value=2) as sweep,
         patch("app.platform_utils.session_factory"),
         patch("app.database.operations.backup.get_sqlite_backup_manager", return_value=None),
-        patch("app.core.retriever.vector.defaults.create_default_vector_store", new_callable=AsyncMock, return_value=None),
         patch("app.lifecycle.schedulers.logger"),
     ):
         await _db_maintenance_job()
@@ -31,7 +30,6 @@ async def test_db_maintenance_job_survives_a_failing_browser_session_sweep() -> 
         ),
         patch("app.platform_utils.session_factory"),
         patch("app.database.operations.backup.get_sqlite_backup_manager", return_value=None),
-        patch("app.core.retriever.vector.defaults.create_default_vector_store", new_callable=AsyncMock, return_value=None),
         patch("app.lifecycle.schedulers.logger") as logger,
     ):
         await _db_maintenance_job()

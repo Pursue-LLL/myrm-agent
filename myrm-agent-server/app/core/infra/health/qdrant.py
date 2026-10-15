@@ -8,7 +8,8 @@
 - QdrantHealthChecker: Qdrant资源健康检查
 
 [POS]
-Qdrant健康检查器。由于系统在启动入口处（`run.py`）部署了智能猎杀锁拦截僵尸进程，Qdrant的底层 OS-level 文件锁由其 Rust 内核自动回收，这里的检查器仅负责基础的路径检查。
+Qdrant健康检查器。嵌入式 Qdrant 的数据目录由 OS 文件锁保护，持锁进程退出时由操作系统释放，这里的检查器仅负责基础的路径检查；
+存储是否已回退为内存模式由 `system_status.vector_degraded` 表达。
 """
 
 from __future__ import annotations
@@ -29,9 +30,9 @@ from app.config.settings import settings
 class QdrantHealthChecker(HealthChecker):
     """Health checker for Qdrant embedded storage.
 
-    Note: Complex stale lock detection has been removed.
-    The entrypoint (run.py) handles phantom-process killing, allowing Qdrant's
-    internal Rust engine to natively manage and release its own file locks.
+    Only the storage path is checked: the data directory lock is an OS file lock that is
+    released when its holder exits, so there is no stale lock to detect or repair. Whether
+    the store fell back to memory mode is reported by ``system_status.vector_degraded``.
     """
 
     def __init__(self) -> None:
@@ -48,7 +49,7 @@ class QdrantHealthChecker(HealthChecker):
 
         return HealthCheckResult(
             status=HealthStatus.HEALTHY,
-            message="Qdrant storage path verified. Lock management is handled natively by Qdrant's Rust engine.",
+            message="Qdrant storage path verified. The data directory lock is released by the OS when its holder exits.",
             details={"path": str(self.qdrant_path)},
         )
 
@@ -56,6 +57,6 @@ class QdrantHealthChecker(HealthChecker):
         """No manual recovery needed anymore."""
         return RecoveryResult(
             status=RecoveryStatus.SUCCESS,
-            message="No manual recovery needed, handled natively",
+            message="No manual recovery needed: the OS releases the data directory lock when its holder exits",
             actions_taken=["None"],
         )

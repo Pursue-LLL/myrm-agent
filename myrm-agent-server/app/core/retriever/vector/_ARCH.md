@@ -47,7 +47,7 @@ Agent-in-Sandbox 架构下，每个用户拥有独立沙箱实例。向量数据
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 从框架层重新导出向量存储 API + 业务默认配置 | ✅ |
-| `defaults.py` | 业务 | 基于 QDRANT_PATH 的嵌入式默认配置；不触碰数据目录锁——单写者由框架层 OS 文件锁保证，第二个进程被拒后回退内存模式并由记忆指挥中心提示 | ✅ |
+| `defaults.py` | 业务 | 基于 QDRANT_PATH 的嵌入式默认配置；不触碰数据目录锁——单写者由框架层 OS 文件锁保证，第二个进程被拒后回退内存模式，工厂置位 `system_status.vector_degraded`（`/health` 输出，Web UI 向所有用户常驻提示）并由记忆指挥中心展示 | ✅ |
 **框架层实现** (`myrm_agent_harness.toolkits.vector`)：
 - `toolkits/vector/base.py` — VectorStore ABC + 数据模型
 - `toolkits/vector/config.py` — 部署模式 + 配置

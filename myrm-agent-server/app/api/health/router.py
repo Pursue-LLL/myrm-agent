@@ -78,6 +78,7 @@ async def health_check() -> dict[str, object]:
         "system_status": {
             "database_recovered": system_status.database_recovered,
             "database_degraded": system_status.database_degraded,
+            "vector_degraded": system_status.vector_degraded,
         },
     }
     stack_epoch = read_stack_epoch()

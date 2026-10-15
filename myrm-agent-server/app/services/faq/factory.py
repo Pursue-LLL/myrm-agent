@@ -34,8 +34,6 @@ async def get_faq_interceptor() -> FaqInterceptor | None:
 
         embedding_service = get_embedding_service(config)
         vector_store = await create_default_vector_store()
-        if vector_store is None:
-            return None
 
         _interceptor = FaqInterceptor(embedding_service, vector_store)
         return _interceptor

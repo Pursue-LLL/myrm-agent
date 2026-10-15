@@ -31,7 +31,7 @@
 | `deploy_identity.py` | ✅ 辅助 | 单租户部署身份哨兵（`get_deploy_identity`，供 FastAPI Depends 与 memory 依赖注入） | ✅ |
 | `env.py` | ✅ 核心 | `is_debug_mode()` — **DEBUG env 唯一读取点** | ✅ |
 | `logging.py` | ✅ 核心 | 日志配置（configure_logging，根据环境设置日志级别和格式） | ✅ |
-| `system_status.py` | ✅ 核心 | 全局系统状态单例（database_degraded/recovered） | ✅ |
+| `system_status.py` | ✅ 核心 | 全局系统状态单例（database_degraded/recovered、vector_degraded） | ✅ |
 | `subagents/` | ✅ 核心 | Subagent YAML 配置（`core/` 内置 + `custom/` 覆盖；见 [_ARCH.md](subagents/_ARCH.md)） | [_ARCH.md](subagents/_ARCH.md) |
 
 ---

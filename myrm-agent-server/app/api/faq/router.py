@@ -140,8 +140,6 @@ async def rebuild_index(agent_id: str) -> FaqRebuildResponse:
 
     embedding_service = get_embedding_service(get_embedding_config())
     vector_store = await create_default_vector_store()
-    if vector_store is None:
-        raise HTTPException(status_code=503, detail="Vector store unavailable")
 
     count = await _corpus_service.rebuild_index(agent_id, embedding_service, vector_store)
     return FaqRebuildResponse(indexed=count)

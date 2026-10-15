@@ -367,14 +367,13 @@ async def _db_maintenance_job() -> None:
     Tasks:
     1. SQLite WAL checkpoint — prevents WAL file unbounded growth
     2. Database backup — disaster recovery snapshot
-    3. Qdrant segment optimization — stable query performance
-    4. Memory import review cleanup — remove rollback-expired import sessions
-    5. Async task queue cleanup — prune terminal tasks older than 30 days (tasks.db)
-    6. Chat trash auto-purge — permanently delete chats trashed > 30 days
-    7. Kanban data GC — clean old events/runs/workspaces for terminal tasks
-    8. Artifact share registry GC — remove expired share records (TTL + retention)
-    9. Channel data plane GC — prune channel messages older than 30 days
-    10. Browser session GC — remove expired saved login sessions (global vault + every agent vault)
+    3. Memory import review cleanup — remove rollback-expired import sessions
+    4. Async task queue cleanup — prune terminal tasks older than 30 days (tasks.db)
+    5. Chat trash auto-purge — permanently delete chats trashed > 30 days
+    6. Kanban data GC — clean old events/runs/workspaces for terminal tasks
+    7. Artifact share registry GC — remove expired share records (TTL + retention)
+    8. Channel data plane GC — prune channel messages older than 30 days
+    9. Browser session GC — remove expired saved login sessions (global vault + every agent vault)
     """
     # SQLite WAL checkpoint
     try:
@@ -407,31 +406,6 @@ async def _db_maintenance_job() -> None:
             logger.info("Periodic database backup completed")
     except Exception as e:
         logger.warning("Periodic database backup failed: %s", e)
-
-    # Qdrant segment optimization (if store is active)
-    try:
-        from app.core.retriever.vector.defaults import create_default_vector_store
-
-        store = await create_default_vector_store()
-        if store is not None and hasattr(store, "_client"):
-            from qdrant_client import AsyncQdrantClient
-
-            client = store._client
-            if isinstance(client, AsyncQdrantClient):
-                collections = await client.get_collections()
-                for col in collections.collections:
-                    await client.update_collection(
-                        collection_name=col.name,
-                        optimizer_config={"indexing_threshold": 10000},
-                    )
-                logger.info(
-                    "Qdrant optimize: %d collections updated",
-                    len(collections.collections),
-                )
-    except ImportError:
-        pass
-    except Exception as e:
-        logger.warning("Qdrant segment optimization failed: %s", e)
 
     # Memory import review cleanup
     try:
@@ -557,7 +531,7 @@ async def start_db_maintenance_scheduler() -> None:
                 await asyncio.Event().wait()
 
         _db_maintenance_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info("Database maintenance scheduler started (every 6h: WAL checkpoint + Qdrant optimize)")
+        logger.info("Database maintenance scheduler started (every 6h: WAL checkpoint, backup and retention cleanup)")
 
     except Exception as e:
         logger.error("Failed to start DB maintenance scheduler: %s", e)

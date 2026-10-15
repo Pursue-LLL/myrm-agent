@@ -71,9 +71,6 @@ async def _init_integration_memory() -> None:
         )
 
         vector_store = await create_default_vector_store()
-        if vector_store is None:
-            logger.info("[Startup] No vector store, skipping IntegrationMemoryService init")
-            return
 
         try:
             emb_config = await require_platform_embedding_config()
@@ -332,9 +329,6 @@ async def run_async_warmup() -> None:
         async def _warmup_vector_store() -> None:
             try:
                 store = await create_default_vector_store()
-                if store is None:
-                    logger.info("[Startup] No vector store configured, skipping vector store warmup")
-                    return
 
                 warmer = VectorStoreWarmer(store)
                 all_collections = await store.list_collections()
