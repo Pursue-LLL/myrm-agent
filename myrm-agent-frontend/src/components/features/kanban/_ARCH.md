@@ -6,7 +6,19 @@
 
 | 文件                                 | 地位 | 职责                                                                                                                                                                                                                                      | I/O/P |
 | ------------------------------------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| KanbanBoardView.tsx                  | 核心 | 看板主视图（列布局 + DnD 上下文 + tab 切换 + Agent 泳道状态管理 + 责任矩阵决策过滤选择器；stats bar running 显示 `count/limit` 并发占用；删除 / 回收 / 重试 / 归档经 `useKanbanTaskActionConfirm` 统一确认，卡片、抽屉、拖拽的状态流转统一走它的 `requestMove`；移动失败只提示本地化文案，不透出服务端原文）                                                                                                 | ✅    |
+| KanbanBoardView.tsx                  | 核心 | 看板主视图的组装层（列布局 + DnD 上下文 + tab 切换 + 抽屉 / 向导 / 重规划入口）；数据、移动、选择、泳道、新增表单分别由 `useKanbanBoardData` / `useKanbanMoveTask` / `useKanbanSelection` / `useKanbanLanes` / `useKanbanAddTask` 持有，标题、统计、筛选提示条、视图切换、列底部新增入口、移动确认框是独立组件；删除 / 回收 / 重试 / 归档经 `useKanbanTaskActionConfirm` 统一确认，卡片、抽屉、拖拽的状态流转统一走它的 `requestMove`；移动失败只提示本地化文案，不透出服务端原文 | ✅    |
+| useKanbanBoardData.ts | 核心 | 看板数据层 hook：任务 / 汇总 / 依赖边的拉取与 30s 轮询；`kanban-task-updated` / `app_resync_required` 事件合并成一次延迟刷新；用户写入保护（刚拖动的任务 5 秒内不被服务端旧数据覆盖） | ✅ |
+| useKanbanMoveTask.ts | 核心 | 看板任务移动 hook：乐观更新 + 失败回滚 + 依赖未满足时的强制晋升确认 + 批量顺序移动；写入保护通过 `markPendingWrite` / `clearPendingWrite` 登记 | ✅ |
+| useKanbanSelection.ts | 核心 | 多选状态 hook：点选 / Shift 区间 / Esc 清除；选中集合只含列里看得见的任务（被删除、归档或被责任筛选藏起来即退出）；换看板归零；Esc 已被菜单或对话框消费（`defaultPrevented`）时不清除 | ✅ |
+| kanban-selection.ts | 核心 | 多选与泳道规则纯逻辑：泳道分组、一列此刻是否按泳道渲染、列内可见卡片顺序、`applyTaskClick`；Shift 区间限定在锚点所在的列，与列渲染共用同一套泳道规则 | ✅ |
+| useKanbanLanes.ts | 辅助 | Running 列「按 Agent 分泳道」开关（localStorage）与泳道折叠状态 | ✅ |
+| KanbanBoardHeader.tsx | 辅助 | 看板标题行（返回 / 名称 / 模板创建 / 批量规范化 / 重规划 / 泳道开关 / 刷新），只展示与回调 | ✅ |
+| KanbanBoardStats.tsx | 辅助 | 各状态计数条（Running 显示 `count/limit` 并发占用）、等待过久与疑似卡死提示、按 Agent 的任务分布 | ✅ |
+| KanbanViewControls.tsx | 辅助 | 视图切换标签（board / graph / activity）+ 看板视图下的责任人筛选，受控组件 | ✅ |
+| KanbanFilterBanners.tsx | 辅助 | URL 带入的「来源会话 / 状态」筛选提示条，带一键清除 | ✅ |
+| KanbanColumnAddFooter.tsx | 辅助 | Triage / Ready 列底部的新增入口，展开后是内联新增表单 | ✅ |
+| KanbanMoveConfirmDialogs.tsx | 辅助 | 「依赖未满足，强制晋升」与「确认移动到该列」两个确认框，只渲染 | ✅ |
+| KanbanReplanDialog.tsx | 辅助 | DAG 计划修订的可视化差异弹窗（新增 / 修改 / 移除的任务与依赖边，提交前做不变量检查） | ✅ |
 | KanbanDndComponents.tsx              | 核心 | DnD 渲染（KanbanDropColumn + DraggableTaskCard + Running 泳道 + Drawer 入口；卡片自身登记为 dnd-kit activator，卡片内按钮与菜单的 Enter/Space 不会被劫持成键盘拖拽）                                                                                                                                                             | ✅    |
 | useKanbanDnD.ts                      | 核心 | 拖拽状态管理 hook（传感器/事件/终态确认；服务端必拒的流转在落点拦下并提示，批量拖拽只搬能直接流转的卡片，被拦下的合并成一次提示）                                                                                                                                                                                               | ✅    |
 | useKanbanAddTask.ts                  | 辅助 | 任务内联创建表单状态 hook（含 agent/model override 状态）                                                                                                                                                                                 | ✅    |
@@ -14,7 +26,7 @@
 | KanbanTaskCardActions.tsx            | 辅助 | 卡片单一操作菜单（详情 / Specify / Decompose / 状态流转 / 回收 / 删除，回收与删除只发起确认请求；失败任务的「就绪」入口显示为「重试」）；触发器常驻 DOM，桌面悬停或键盘聚焦显现、触屏常显（`REVEAL_ON_HOVER`）；触发器与 portal 菜单上的指针手势不冒泡给 dnd 卡片（否则按下起拖拽、双击开抽屉） | ✅    |
 | KanbanTaskActionConfirm.tsx          | 辅助 | 删除 / 回收 / 重试 / 归档的确认对话框与 `useKanbanTaskActionConfirm` 状态 hook：由看板视图统一持有，卡片菜单、抽屉、拖拽只发起请求；`requestMove` 按 `resolveMoveIntent` 分流（重试与归档先确认，其余直接流转）；文案交代后果（删除连同运行记录一并清除、等待它的任务可能变为就绪并自动开跑；回收会停止执行中的 Agent 并回到就绪；重试会再次消耗模型额度，且失败后已继续推进的下游任务不会重跑；归档后任务离开看板且无法恢复）；关闭动画期间保留任务标题，文案不闪空 | ✅    |
 | useKanbanTaskActions.ts              | 辅助 | 回收 / 删除 / 重试 / 归档的执行函数：确认后调 API、刷新列表、给出本地化提示（失败不透出服务端原文）；归档复用看板的乐观移动 | ✅    |
-| kanban-transitions.ts                | 核心 | 状态流转的单一判定点：`isServerMoveAllowed(from, to)` 镜像服务端 move 守卫（含「原地不动」）；`resolveMoveIntent(from, to)` 在它之上返回 move / retry / archive / blocked；`moveLabelKey` 给出入口文案 key（失败 → 就绪显示「重试」）。卡片菜单、抽屉、拖拽、批量条共用 | ✅    |
+| kanban-transitions.ts                | 核心 | 状态流转的单一判定点：`isServerMoveAllowed(from, to)` 读取共享契约 `shared/config/kanban_move_guard.json`（与服务端同一份，含「原地不动」；服务端契约测试用真实 move 接口逐格核对）；`resolveMoveIntent(from, to)` 在它之上返回 move / retry / archive / blocked；`moveLabelKey` 给出入口文案 key（失败 → 就绪显示「重试」）。卡片菜单、抽屉、拖拽、批量条共用 | ✅    |
 | KanbanTaskDrawer.tsx                 | 辅助 | 任务详情抽屉面板入口（编排 hook 与子组件）                                                                                                                                                                                                | ✅    |
 | useKanbanTaskDrawer.ts               | 辅助 | 抽屉面板状态管理 hook（数据加载/操作处理/计算属性）                                                                                                                                                                                       | ✅    |
 | resolveTaskDepInfos.ts               | 辅助 | 任务依赖图节点标题解析（本地列表 + 远程 fallback）                                                                                                                                                                                        | ✅    |
@@ -28,7 +40,7 @@
 | KanbanTaskDrawerBodySections.tsx     | 辅助 | 抽屉附件与结果区段组件                                                                                                                                                                                                                    | ✅    |
 | KanbanTaskDrawerBodyMetaSections.tsx | 辅助 | 抽屉依赖/评论/进度区段组件                                                                                                                                                                                                                | ✅    |
 | KanbanInlineAddForm.tsx              | 辅助 | 内联新增任务表单 UI（标题/描述/agent/模型覆盖/技能/超时/依赖）                                                                                                                                                                            | ✅    |
-| KanbanBulkActionBar.tsx              | 辅助 | 批量操作工具栏（归档与删除都在原位二次确认，同一时刻只开一个；「移至」只列出至少对一个选中任务可达的目标，选中任务全为终态 / 审核态时整个入口隐藏）                                                                                                                                                                                                                            | ✅    |
+| KanbanBulkActionBar.tsx              | 辅助 | 批量操作工具栏：「移至」「改派」是 Radix 下拉菜单，渲染在 portal 里，不被看板的横向滚动裁剪；条悬浮在全局触发器行之上，窄屏收成纯图标按钮（带 aria-label）；归档与删除都在原位二次确认，同一时刻只开一个；「移至」只列出至少对一个选中任务可达的目标，选中任务全为终态 / 审核态时整个入口隐藏；部分失败时只让失败的任务继续保持选中 | ✅    |
 | KanbanGraphView.tsx                  | 辅助 | 任务依赖 DAG 可视化（含 running 节点脉冲 / failed 节点抖动动画；依赖连线按父任务状态着色——已完成为 emerald 实线，阻塞 / 失败为红色虚线，小地图同色，颜色取主题变量或带回退的 Tailwind 色阶，不包 `hsl()`）                                                                                                                                                                          | ✅    |
 | KanbanPipelineWizard.tsx             | 辅助 | 流水线模板创建向导（支持 repeat_for fan-out 模板的 multi-select 动态并行任务创建）                                                                                                                                                        | ✅    |
 | KanbanDecomposeDialog.tsx            | 辅助 | AI 任务分解对话框                                                                                                                                                                                                                         | ✅    |
@@ -38,11 +50,11 @@
 | KanbanEventTimeline.tsx              | 辅助 | 单任务事件时间线                                                                                                                                                                                                                          | ✅    |
 | KanbanTaskExecutionTraceSection.tsx  | 辅助 | 任务 Drawer 内嵌 ExecutionTraceTimeline（lazy 折叠，sessionId=task_id，showEvalCase=false——kanban 无 Chat 记录，保存评测用例无意义；taskStatus=running 时 pollMs 实时刷新 trace）                                                         | ✅    |
 | BoardActivityFeed.tsx                | 核心 | Board 级活动流（filter pills + auto-follow + 实时追加）                                                                                                                                                                                   | ✅    |
-| kanban-styles.ts                     | 辅助 | 共享样式常量                                                                                                                                                                                                                              | ✅    |
+| kanban-styles.ts                     | 辅助 | 共享样式常量（状态 / 优先级 / 事件徽标样式、看板列顺序 `STATUS_COLUMNS`、时间格式化） | ✅    |
 
 ## 状态流转判定与确认
 
-服务端 move 守卫（终态只能归档、草稿池只能去 backlog / ready / archived、审核态不可手动进出）由 `kanban-transitions.ts` 镜像，`resolveMoveIntent` 是唯一判定点：
+服务端 move 守卫（终态只能归档、草稿池只能去 backlog / ready / archived、审核态不可手动进出）的允许表放在 `shared/config/kanban_move_guard.json`，`kanban-transitions.ts` 读取它，`resolveMoveIntent` 是唯一判定点。服务端 `tests/api/kanban/test_move_guard_contract.py` 用真实 move 接口逐格核对这张表，改了守卫而没改表会让测试失败：
 
 - `retry`：失败 → 就绪。服务端不允许手动 move 出终态，走 `POST /kanban/tasks/{id}/retry`（重置重试预算与错误，保留历史尝试供 Agent 参考）；先确认。
 - `archive`：归档先确认；批量归档在工具栏原位确认。
@@ -51,9 +63,16 @@
 
 批量条的「移至」直接用 `isServerMoveAllowed` 过滤目标：只隐藏对整个选择必然全部失败的目标，仍有任务能到达的目标保留，混合选择由服务端逐条返回部分成功；选中任务查不到状态时不过滤。失败任务的恢复只走单卡的「重试」。
 
+## 批量选择
+
+- 点选 / Shift 区间由 `kanban-selection.ts` 与 `useKanbanSelection.ts` 处理：Shift 区间只在锚点所在的列内、按屏幕上实际显示的顺序取（泳道、折叠的泳道与列渲染共用同一套规则），锚点不在该列时退化为点选切换。
+- 选中集合只含列里看得见的任务：任务被删除、归档，或被责任筛选藏起来后自动退出选择，批量操作不会作用到看不见的任务。
+- `KanbanBulkActionBar` 的批量结果逐条返回；部分失败时只让失败的任务继续保持选中，方便直接重试。
+- Esc 清除选择，但已被菜单或对话框用来关闭自己（`defaultPrevented`）的那一下不算。
+
 ## Stale Write Guard（乐观 UI 防冲突）
 
-`KanbanBoardView` 内置 `pendingUserWrites` ref（`Map<taskId, { targetStatus, previousStatus, ts }>`）解决 SSE 推送 reload 与用户拖拽的竞态覆盖问题：
+`useKanbanBoardData` 持有 `pendingUserWrites` ref（`Map<taskId, { targetStatus, previousStatus, ts }>`），`useKanbanMoveTask` 通过 `markPendingWrite` / `clearPendingWrite` 登记与清除，解决 SSE 推送 reload 与用户拖拽的竞态覆盖问题：
 
 1. **乐观更新** — 用户拖拽后立即更新本地 `tasks` 状态，无需等待 API 响应
 2. **Pending Guard** — `fetchTasks` 合并服务端数据时，对 pending 中的 task 保留用户设定的 `targetStatus`，阻止 SSE reload 覆盖
@@ -92,5 +111,5 @@
 ## Completion intent UI
 
 - `KanbanTaskCard` / `KanbanTaskDrawerDetails`：`metadata.completion_intent` 且 `status=running` 时显示 `kanban.status.verifying`（验收中），替代 progress_note
-- `KanbanBoardView`：`board_summary.stale_running_count > 0` 时显示红色 pill（`kanban.staleRunningCount`）
-- `KanbanBoardView` stats bar：running 列显示 `kanban.status.runningWithLimit`（`执行中: {count}/{limit}`，limit 取自 `board.settings.max_concurrent_tasks`），并发占满时用户可直接判断 ready 任务在排队
+- `KanbanBoardStats`：`board_summary.stale_running_count > 0` 时显示红色 pill（`kanban.staleRunningCount`）
+- `KanbanBoardStats`：running 列显示 `kanban.status.runningWithLimit`（`执行中: {count}/{limit}`，limit 取自 `board.settings.max_concurrent_tasks`），并发占满时用户可直接判断 ready 任务在排队
