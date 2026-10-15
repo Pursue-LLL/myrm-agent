@@ -63,7 +63,7 @@ describe('runBulkAction chunking', () => {
     await run(selection);
 
     const chunks = sentChunks();
-    expect(chunks.map((chunk) => chunk.length)).toEqual([25, 25, 25, 25, 25, 8]);
+    expect(chunks.map((chunk) => chunk.length)).toEqual([...Array(5).fill(BULK_CHUNK_SIZE), 8]);
     expect(chunks.flat()).toEqual(selection);
   });
 
@@ -79,10 +79,12 @@ describe('runBulkAction chunking', () => {
     answerEachChunk();
     const params = { status: 'ready' };
 
-    await runBulkAction({ boardId: 'board-1', taskIds: ids(30), action: 'move', params, confirm: true, t });
+    const selection = ids(BULK_CHUNK_SIZE + 5);
 
-    expect(bulkAction).toHaveBeenNthCalledWith(1, 'board-1', ids(30).slice(0, 25), 'move', params, true);
-    expect(bulkAction).toHaveBeenNthCalledWith(2, 'board-1', ids(30).slice(25), 'move', params, true);
+    await runBulkAction({ boardId: 'board-1', taskIds: selection, action: 'move', params, confirm: true, t });
+
+    expect(bulkAction).toHaveBeenNthCalledWith(1, 'board-1', selection.slice(0, BULK_CHUNK_SIZE), 'move', params, true);
+    expect(bulkAction).toHaveBeenNthCalledWith(2, 'board-1', selection.slice(BULK_CHUNK_SIZE), 'move', params, true);
   });
 
   it('reports one summary for the whole selection instead of one per chunk', async () => {
@@ -97,19 +99,21 @@ describe('runBulkAction chunking', () => {
   });
 
   it('merges the tasks the server rejected in different chunks', async () => {
-    answerEachChunk(new Set(['t3', 't40']));
+    const rejectedInSecondChunk = `t${BULK_CHUNK_SIZE + 5}`;
+    answerEachChunk(new Set(['t3', rejectedInSecondChunk]));
+    const total = BULK_CHUNK_SIZE + 20;
 
-    await expect(run(ids(60))).resolves.toEqual(['t3', 't40']);
+    await expect(run(ids(total))).resolves.toEqual(['t3', rejectedInSecondChunk]);
 
     expect(toast.warning).toHaveBeenCalledTimes(1);
-    expect(toast.warning).toHaveBeenCalledWith('58 succeeded, 2 failed');
+    expect(toast.warning).toHaveBeenCalledWith(`${total - 2} succeeded, 2 failed`);
     expect(toast.success).not.toHaveBeenCalled();
   });
 
   it('returns null with the localized error when the first chunk fails, and sends nothing more', async () => {
     vi.mocked(bulkAction).mockRejectedValue(new Error('network down'));
 
-    await expect(run(ids(60))).resolves.toBeNull();
+    await expect(run(ids(BULK_CHUNK_SIZE * 2))).resolves.toBeNull();
 
     expect(bulkAction).toHaveBeenCalledTimes(1);
     expect(toast.error).toHaveBeenCalledWith('Failed to update task');
@@ -119,18 +123,20 @@ describe('runBulkAction chunking', () => {
 
   it('keeps the confirmed chunks and returns the failed chunk plus the rest when a later chunk fails', async () => {
     const answer = serverAnswer(new Set(['t3']));
+    const failingChunkStart = BULK_CHUNK_SIZE * 2;
+    const selection = ids(failingChunkStart + 10);
     vi.mocked(bulkAction).mockImplementation(async (...args) => {
-      if (args[1][0] === 't50') {
+      if (args[1][0] === `t${failingChunkStart}`) {
         throw new Error('request timed out');
       }
       return answer(...args);
     });
 
-    const unconfirmed = await run(ids(110));
+    const unconfirmed = await run(selection);
 
-    expect(sentChunks().map((chunk) => chunk[0])).toEqual(['t0', 't25', 't50']);
-    expect(unconfirmed).toEqual(['t3', ...ids(110).slice(50)]);
-    expect(toast.warning).toHaveBeenCalledWith('49 succeeded, 61 failed');
+    expect(sentChunks().map((chunk) => chunk[0])).toEqual(['t0', `t${BULK_CHUNK_SIZE}`, `t${failingChunkStart}`]);
+    expect(unconfirmed).toEqual(['t3', ...selection.slice(failingChunkStart)]);
+    expect(toast.warning).toHaveBeenCalledWith(`${failingChunkStart - 1} succeeded, 11 failed`);
     expect(toast.error).not.toHaveBeenCalled();
   });
 });

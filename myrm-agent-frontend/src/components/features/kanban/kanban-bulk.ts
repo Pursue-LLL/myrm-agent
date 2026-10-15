@@ -26,10 +26,10 @@ interface RunBulkActionOptions {
 }
 
 /**
- * 单次请求携带的任务数上限。归档带分支的任务要在请求里同步清理 worktree、移到「已完成」要同步合并，
- * 一次请求必须在前端 30 秒超时内返回，所以按小段发送（服务端另有 100 条的硬上限）。
+ * 单次请求携带的任务数上限，等于服务端 `BulkActionRequest.task_ids` 的 100 条上限。服务端逐条处理是毫秒级：
+ * 归档带分支的任务时清理 worktree、移到「已完成」时合并分支都转到后台执行，不占用请求，所以无需再把分段压小。
  */
-export const BULK_CHUNK_SIZE = 25;
+export const BULK_CHUNK_SIZE = 100;
 
 /**
  * 返回未成功的任务 id；没有任务时什么都不发、不提示，返回空数组。第一段请求就失败（网络、服务端异常）时

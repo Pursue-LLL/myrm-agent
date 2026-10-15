@@ -71,12 +71,14 @@ export function useKanbanDnD({ tasks, selectedTaskIds, onMoveTask, onBulkMove, o
     (id: UniqueIdentifier) => {
       const task = tasks.find((tk) => tk.task_id === id);
       if (task) {
-        return task.title;
+        // 放下时被选中的卡片会一起移动，播报要说出来，否则读屏用户会以为只动了这一张。
+        const selectedCount = selectedTaskIds.includes(task.task_id) ? selectedTaskIds.length : 1;
+        return selectedCount > 1 ? `${task.title}, ${t('bulkSelected', { count: selectedCount })}` : task.title;
       }
       const column = STATUS_COLUMNS.find((status) => status === id);
       return column ? t(`status.${column}`) : undefined;
     },
-    [tasks, t],
+    [tasks, selectedTaskIds, t],
   );
   const accessibility = useDndAccessibility(labelOf);
 
