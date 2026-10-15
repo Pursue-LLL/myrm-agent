@@ -12,6 +12,7 @@ System Doctor 健康检查仪表盘与修复引导，含诊断导出能力。健
 | `GuidedRepairCard.tsx`                                  | 子组件   | 引导式修复卡片，支持 dry_run 和 confirm                                                            |
 | `doctor-icons.tsx`                                      | 图标集   | DoctorDashboard 专用 SVG 图标组件集                                                                |
 | `__tests__/DoctorDashboard.desktopControlWarn.test.tsx` | 测试     | WARN + `settings_deeplinks` 深链按钮渲染与 click fallback（vitest）                                |
+| `__tests__/DoctorDashboard.vectorFallback.test.tsx`     | 测试     | 按 code 取文案：`ERR_VECTOR_STORE_ON_MEMORY_FALLBACK` 渲染与六个语言文件的译文（vitest）           |
 
 ## 依赖
 
