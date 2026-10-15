@@ -15,9 +15,6 @@ from app.api.memory.ephemeral_delta_router import (
     router as ephemeral_delta_router,
 )
 from app.api.memory.follow_ups import router as follow_ups_router
-from app.api.memory.four_tier_fts_router import (
-    router as four_tier_fts_router,
-)
 from app.api.memory.markdown_chunker import (
     router as markdown_chunker_router,
 )
@@ -111,10 +108,6 @@ router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
 router.include_router(
     private_notebook_router,
     tags=["memory-private-notebook"],
-)
-router.include_router(
-    four_tier_fts_router,
-    tags=["memory-four-tier-fts"],
 )
 router.include_router(
     temporal_graph_router,

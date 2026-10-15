@@ -14,7 +14,6 @@ export * from './memory/profileNotes';
 export * from './memory/sovereignMigration';
 export * from './memory/onboardingInsight';
 export * from './memory/privateNotebook';
-export * from './memory/fourTierFts';
 export * from './memory/temporalGraph';
 export * from './memory/ephemeralDelta';
 export * from './memory/twoLayerDialectic';

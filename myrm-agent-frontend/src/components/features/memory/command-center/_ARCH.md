@@ -33,9 +33,6 @@
 | `PrivateNotebookNotesListView.tsx` | 辅助 | 私有笔记本卡片子组件：呈现透明 Markdown 笔记索引、行数统计、实时检视与人工纠偏覆写 | ✅    |
 | `PrivateNotebookHistoryView.tsx` | 辅助 | 私有笔记本卡片子组件：跨上下文窗口长程交互历史检索、归档窗口列表与流式条目展现 | ✅    |
 | `PrivateNotebookHandoverView.tsx` | 辅助 | 私有笔记本卡片子组件：跨窗口平滑移交 (new_context) 表单、交接原因录入与状态报告 | ✅    |
-| `FourTierPersistentMemoryCard.tsx` | 核心 | 四重持久记忆体系与 FTS5 梦境自维护卡片：对标小米 MiMo Code/Desktop，项目-会话-进度-全局四重解耦、SQLite FTS5 毫秒全文召回与 7 天 /dream 自维护循环 | ✅    |
-| `FourTierMemoryTierListView.tsx` | 辅助 | 四重分层记忆子组件：4 栏 Scope 标签切换（项目/会话/进度/全局）、记忆切片浏览/详情展开/单条删除与新建表单 | ✅    |
-| `FourTierFtsSearchAndDreamView.tsx` | 辅助 | FTS5 检索与梦境压缩子组件：SQLite FTS5 毫秒级全文召回控制台、BM25 评分结果高亮切片与 /dream 梦境压缩维护报告 | ✅    |
 | `TemporalKnowledgeGraphCard.tsx` | 核心 | 时序知识图谱衰减与互斥事实原子消解卡片：深度借鉴 mem/graphiti 与 mem/OpenViking，时序边失效、互斥事实原子消解 superseded_by 与 30 天指数半衰期动态衰减评分 | ✅    |
 | `TemporalGraphEvolutionTimelineView.tsx` | 辅助 | 时序关系演进子组件：呈现有效关系/已失效历史边演进时间线、前序-后继版本谱系追溯与冲突消解表单 | ✅    |
 | `TemporalDecayScorerConsoleView.tsx` | 辅助 | 半衰期衰减与实体节点管理子组件：半衰期动态衰减评分探针计算器、实体节点管理列表与新建节点表单 | ✅    |
