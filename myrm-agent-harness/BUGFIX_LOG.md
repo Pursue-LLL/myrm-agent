@@ -2,6 +2,181 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-14-024 · 技能复盘在宿主没有挂 `on_skill_review_ready` 时照样触发：每个满足条件的会话结束都白做一次复盘 LLM 调用，结果在 `if on_skill_review_ready` 处被丢弃
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（核对 server 隐身会话的持久化写入点时） |
+| **修复时间** | 2026-10-14 |
+| **症状** | `SkillAgentReviewMixin._should_trigger_skill_review` 只看轨迹是否值得复盘，不看有没有人消费结果；宿主不传回调（`_on_skill_review_ready is None`）时，`_trigger_background_skill_review` 仍用抽取模型或主模型做一次轨迹复盘，产出只在 `review.py` 的 `if on_skill_review_ready:` 处被消费，没有回调就什么也没发生，LLM 调用白白花掉 |
+| **关联产品** | myrm-agent-harness `agent/skill_agent/review.py`；server `BUG-AGENT-2026-10-14-026`（隐身会话不再挂回调） |
+| **根因** | 触发条件与「结果有没有去处」是两件事，写触发条件时没有把后者算进去；复盘的唯一输出就是回调，没有回调的复盘没有任何副作用可言 |
+| **修复** | `_should_trigger_skill_review` 开头：`_on_skill_review_ready is None` 时直接返回 `False`；docstring 写明原因 |
+| **验证** | `tests/agent/skill_agent` 160 通过、2 失败（`test_skill_agent_privacy_context.py` 两例断言 `auto_extract_memories` 被调度，来自他人未跟踪的 `memory_extraction_scheduler.py`，与本条无关）；新增 `test_no_review_consumer_never_triggers`，去掉守卫后失败、还原后通过；既有用例的宿主桩（`FakeSkillAgent`、`_Host`）补上默认回调，避免被新守卫挡掉；本条涉及文件 `ruff` / `pyright` 无问题 |
+| **局限** | 只证明了「无回调不触发」；没有统计过其他宿主是否存在未挂回调却依赖复盘日志的用法（代码里复盘只有回调这一个输出） |
+| **反复次数** | 第 1 次发现 |
+
+### BUG-HARNESS-2026-10-14-023 · 保存会话保险库的损坏备份键用 `str.replace(".enc", ".corrupted")`：域名里含 `.enc` 时两处都被改写，备份落到别的域名的键上；`safe_purge_fts5_virtual_table` 没有任何生产调用方，却被 server 文件头与文档当成清库里 FTS5 清理的实现
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（复审 server `BUG-AGENT-2026-10-14-020` / `-022` 的清库实现时） |
+| **修复时间** | 2026-10-14 |
+| **症状** | ① `StorageVaultBackend.backup_corrupted("mail.enc.example.com", data)` 写到 `browser/sessions/mail.corrupted.example.com.corrupted`，与域名 `mail.corrupted.example.com` 的备份同键，后写的覆盖先写的；② `utils/db/fts5.py::safe_purge_fts5_virtual_table` 全仓库只有它自己的测试、`api/__init__.py` 的一条门面导出和三处文档引用，没有任何生产调用；清库里的 `delete-all` / `rebuild` / `optimize` 实际在 server `SafeVaultPurgeService` 里逐表发送，server 文件头与 brand、temp-docs 的文档却写成调用了它 |
+| **关联产品** | myrm-agent-harness `toolkits/browser/session_vault/backends` · `utils/db` · `api`；server `BUG-AGENT-2026-10-14-025` |
+| **根因** | ① 用 `replace` 改后缀，没有限定结尾；本地文件后端用 `with_suffix`，只改最后一个后缀，所以只有云存储后端有这个问题；② 函数先于调用方写出，调用方走了另一条实现，没人回头删，门面导出又让它看起来是对外能力 |
+| **修复** | ① `removesuffix(".enc")` 再拼 `.corrupted`；② 删除该函数、只服务于它的 `ConnectionLike` 协议、门面导出、测试，`utils/db/_ARCH.md` 的描述改为查询净化 / 完整性检查 / 重建 / 自愈 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 改文件后缀要么用 `removesuffix` / `with_suffix`，要么把存储键的编码放到一个函数里按种类生成；门面里的导出不算调用方，删代码前要在整个仓库（含 server、控制平面、文档）搜一遍 |
+| **回归** | `tests/toolkits/browser/test_session_vault_storage_backend.py` 新增 `test_backup_corrupted_only_swaps_the_trailing_suffix`（旧实现下失败，修复后通过）；会话保险库三个测试文件共 96 例通过；`tests/utils tests/api` 1 435 例通过，1 例 `test_token_tracker` 失败来自他人在途改动；`boundary_check`、`check_fractal_docs`、`check_import_resolvability` 通过 |
+| **代码位置** | `toolkits/browser/session_vault/backends/storage_backend.py` · `utils/db/fts5.py` · `utils/db/_ARCH.md` · `api/__init__.py` |
+
+### BUG-HARNESS-2026-10-14-022 · 判断“值是密钥还是对密钥的引用”时不认 TypeScript 的非空断言：`apiKey: process.env.GROQ_API_KEY!` 被当成密钥；风险闸门又没有一份“前缀本身就能认出密钥”的形状表可读，只能自己存一份并落后 13 种
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（复审 server `BUG-AGENT-2026-10-14-019` 的风险闸门时，逐条验证误拦与漏拦） |
+| **修复时间** | 2026-10-14 |
+| **症状** | `secret_value.is_reference_value` 认属性链（`process.env.GROQ_API_KEY`），但链尾带 `!`（TypeScript 非空断言）时整个值被当成密钥，TS 代码里 `apiKey: process.env.GROQ_API_KEY!,` 被风险闸门拦下；`leak_detector` 的 33 种厂商前缀形状里，只有一部分单凭前缀就能认出密钥，另一部分（`vercel_`、`fal_`、`telegram_bot` 等）会命中普通标识符，调用方没有办法只取前一部分，server 的闸门因此另存一份清单，比表少 13 种 |
+| **关联产品** | myrm-agent-harness `core/security/detection/{secret_value,leak_detector}.py`；server 的 `app/services/risk/{patterns,match_checks}.py`（`BUG-AGENT-2026-10-14-024`） |
+| **根因** | `_ATTRIBUTE_CHAIN_RE` 只匹配 `a.b.c`，没有为链尾的 `!` 留位置；形状表 `_API_KEY_PATTERNS` 是一个混合了“强前缀”和“弱前缀”的内部表，对掩码是合适的（宁可多遮），对必须拒绝消息的调用方不合适（不能把名字当密钥） |
+| **修复** | ① `_NON_NULL_CHAIN_RE`：三段以上的属性链加结尾的 `!` 算引用，两段的 `john.smith!` 不算（`!` 同样可能是密码字符）；② `leak_detector.DISTINCTIVE_KEY_PATTERNS`：由 `_API_KEY_PATTERNS` 减去 `_WEAK_PREFIX_KEY_NAMES`（telegram_bot、discord_bot_token、twilio_key、databricks_token、cloudflare_token、elevenlabs_key、firecrawl_key、vercel_token、fal_key）派生，新增的形状默认公开，除非明确列为弱前缀；掩码仍用完整的表，召回不变；表里每个形状不带标志位与捕获组，调用方把它们拼成一个交替式时含义不变，`test_the_shapes_can_be_joined_into_one_alternation` 守住这个约定 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① `vercel_`、`fal_` 在 600 个文件的抽样里看不到对标识符的误命中，用 `rg -P` 扫整个参考语料得到约 3.5 万处，所以归入弱前缀；抽样看不到不等于不存在；② 链中间的 `!`（`entry!.sessionId`、`process.env.X!.trim()`）没有处理：`_CALL_RE` 与链正则都要为它改写，而 `abc_def!(` 这类字符串同样可能是密码，收益不够；③ 弱前缀表是按语料里的误命中手工列的，没有为每个前缀逐一证明；新增形状默认公开，所以新形状若会命中标识符，要靠 server 侧的样本测试之外的审阅发现 |
+| **回归** | `tests/core/security/detection/test_secret_value.py` 补 `process.env.GROQ_API_KEY!`、`process.env.INTELLIGENCE_API_KEY!,`、`import.meta.env?.VITE_TOKEN!` 为引用，`john.smith!`、`my.pass1!`、`Zk9#mango42!`、`process.env.GROQ_API_KEY!x` 仍是密钥；新增 `test_distinctive_key_patterns.py`：弱前缀集合是表的子集、公开的表等于全表减弱前缀、`vercel_`、`fal_` 与短形状不公开且不匹配标识符、常见厂商公开、形状可拼成一个交替式（无标志位、无捕获组、无全局内联标志）。`tests/core/security` 1128 例通过（其中 `detection` 477 例），`ruff`、`mypy` 通过；server 一侧的闸门测试对表里 24 种形状各有一例样本 |
+| **代码位置** | `core/security/detection/secret_value.py::_NON_NULL_CHAIN_RE/is_reference_value` · `core/security/detection/leak_detector.py::DISTINCTIVE_KEY_PATTERNS/_WEAK_PREFIX_KEY_NAMES` |
+
+### BUG-HARNESS-2026-10-14-021 · 浏览器登录会话的定期清理把“解不开的文件”当成过期直接删除：保险库密钥重新生成或被换掉后，每次浏览器会话关闭和服务端每 6 小时的维护都会删光全部已保存的登录，且不留 `.corrupted` 备份
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（核对服务端新增的每 6 小时登录会话清理的删除语义时，对照 `load` 与 `cleanup_expired` 对“解不开的文件”的两种处理发现） |
+| **修复时间** | 2026-10-14 |
+| **症状** | `SessionVault.load` 遇到解不开或格式错误的文件，先把原文写成 `.corrupted` 再删除；`cleanup_expired` 对同样的文件直接删除，不留任何备份。后者在两处被调用：`BrowserSession.close()` 与服务端每 6 小时的数据库维护（以及设置页的清理按钮）。`load_or_create_key` 在密钥文件长度不是 32 字节时生成新密钥，之前保存的所有 `.enc` 随即全部解不开，下一次清理就把它们全部删除。同时旧条目仍在内存缓存里时，`load` 还会返回已被删文件的内容 |
+| **关联产品** | myrm-agent-harness `toolkits/browser/session_vault`；server 的 `app/core/security/browser_vault.py::cleanup_all_vaults`（全局保险库与每个 Agent 的保险库） |
+| **根因** | 清理函数把“解不开 / 解析失败”和“已过期”放进同一个 `except Exception` 分支，一律删除，没有复用 `load` 路径的备份语义；过期时的 `delete` 也在这个 `try` 里，删除本身失败会落入异常分支被再删一次 |
+| **修复** | `_check_and_remove_if_expired` 把读取失败（`DecryptionError`、`ValueError`、`TypeError`、`AttributeError`）与过期拆开：读取失败走 `_backup_and_delete_corrupted`（失效缓存、写 `.corrupted`、再删原文件），过期仍直接删除；删除失败不再被当成读取失败 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① 备份失败时仍会删除原文件：两个后端的 `backup_corrupted` 都吞掉异常只记警告，与 `load` 路径一致，协议未改；② `.corrupted` 没有保留期限，`list_all` 只列 `.enc`，没有任何清理会扫到它；它是旧密钥加密的密文，价值是人工用旧密钥找回，不是自动恢复；③ 没有处理的：密钥文件长度错误时静默重新生成新密钥（本条只保证不再因此丢掉旧文件），以及清理读文件与删文件之间并发 `save` 的竞态（原有）；④ 触发条件只用真实文件保险库加第二把随机密钥验证，没有在真实桌面部署上复现密钥被换掉的场景 |
+| **回归** | `tests/toolkits/browser/test_session_vault_cleanup_backup.py` 8 例，全部用真实文件保险库：换密钥后三个会话全部保留为 `.corrupted` 且字节与原文件一致、乱码文件、三种解密后格式错误（非 JSON、JSON 不是对象、过期时间不是数字）、过期会话删除且不留备份、未过期与无期限会话原样保留且仍可加载、缓存里的旧条目在原文件被清走后不再返回。4 个变异（改回直接删除、去掉 `TypeError` 与 `AttributeError`、去掉 `DecryptionError`、让过期也走备份）分别使 6、2、3、1 例失败；同目录保险库与持久化共 114 例通过 |
+| **代码位置** | `toolkits/browser/session_vault/__init__.py::SessionVault._check_and_remove_if_expired` |
+
+### BUG-HARNESS-2026-10-14-020 · 录制合成与诊断包里还有两份邮箱正则，对点号连续串是二次方耗时：2 万字符的 `a.a.a.` 串让诊断包的脱敏跑 0.78 秒，录制的参数槽提取跑 0.30 秒；4 万字符分别是 1.55 秒与 1.30 秒
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（风控规则统一邮箱正则时，全仓搜索同形正则） |
+| **修复时间** | 2026-10-14 |
+| **症状** | `toolkits/computer_use/recording/synthesizer.py` 的 `extract_parameter_slots` 与 `observability/diagnostics_bundle/packager.py` 的脱敏用的邮箱正则 `[A-Za-z0-9._%+-]+@…` 对不含 `@` 的点号连续串回溯，耗时随长度平方增长；诊断包脱敏处理的是任意日志文本 |
+| **关联产品** | myrm-agent-harness `toolkits/computer_use/recording`、`observability/diagnostics_bundle`；server 台账 `BUG-AGENT-2026-10-14-019`（同批次的风控规则）；同一问题在隐私管线里的修复见 `BUG-HARNESS-2026-10-14-017` |
+| **根因** | 两处各写了一份没有长度上限的邮箱正则，没有读隐私检测的单一来源 `core/security/detection/pii_patterns.py::EMAIL_RE`（长度有界） |
+| **修复** | 两处都改为导入 `EMAIL_RE`，替换文本仍是 `***@***.***`；`packager.py` 所在的 `diagnostics_bundle/` 目录当时是未提交的新目录，改动只在工作区，没有被本次提交带走 |
+| **反复次数** | 同一个正则第 2、3 处（隐私管线为第 1 处） |
+| **踩坑** | 实测（同一台机器，`findall` 耗时）：2 万字符点号串旧诊断包正则 784.9 毫秒、旧录制正则 303.2 毫秒、`EMAIL_RE` 2.0 毫秒；4 万字符 1551.1 / 1301.3 / 5.1 毫秒；10 万字符的普通文本（1695 个邮箱）三者都约 1.4 毫秒，结果相同。行为差异：本地部分超过 64 个字符的串（不是合法邮箱）旧正则整段脱敏，`EMAIL_RE` 只脱敏末尾 64 个字符，前面的字符会留下 |
+| **回归** | `tests/toolkits/computer_use/test_desktop_skill_recording.py::test_a_long_dotted_value_does_not_stall_slot_extraction`（2 万字符点号串在 0.1 秒内完成且不产生参数槽）；该文件与 `tests/observability/test_diagnostics_bundle.py` 共 11 例通过，`ruff` 通过；回归用例的耗时阈值依赖机器，旧正则在本机是 0.30 秒 |
+| **代码位置** | `toolkits/computer_use/recording/synthesizer.py` · `observability/diagnostics_bundle/packager.py`（未提交） |
+
+### BUG-HARNESS-2026-10-14-019 · 指挥中心「无噪声记忆」卡片的“清除记忆”和“提交事实”只改一个进程内字典：界面提示已清除、代次加一、事实列表清零，用户真正的记忆一条没动，提交的事实也没进任何记忆库
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（隐私层终极叩问阶段，核对 BUG-HARNESS-2026-10-14-013 修好的记忆写入门到底挡在哪条写入链路前时，发现它所在的套件没有一处写向真实记忆库） |
+| **修复时间** | 2026-10-14 |
+| **症状** | ① 卡片的“清除记忆（代次 +1）”调 `/api/memory/noise-free/purge`：界面显示代次加一、事实数归零、“已清除”，而向量库与记忆文件里的真实记忆原样保留；② “提交事实”显示“已提交”并出现在“已持久化事实”列表，但没有进入任何记忆库，下一轮对话读不到、进程重启即消失；③ 这套套件的 PII 网关与真实写入链路（`memory_scanner` 的写前扫描）是两套口径，BUG-HARNESS-2026-10-14-013 补齐的正是前者，却从未挡在任何真实写入前；④ 卡片的用户标识写死为 `default_user`，约 29 处文案是硬编码中文 |
+| **关联产品** | myrm-agent-harness toolkits/memory/noise_free_extractor 全包（五个顶层导出 `ConversationTurn`、`ExtractedFactCandidate`、`NoiseFreeAsyncMemoryExtractor`、`NoiseFreeConfig`、`PIISafetyGateway`）、`harness_packaging` 的分发清单条目；server 的 `/api/memory/noise-free/*` 六个端点与对应的服务、Schema；前端指挥中心的卡片与服务客户端。套件的事实只存在进程内，没有需要迁移的数据 |
+| **根因** | 提取器把“已提交事实”放在进程内字典 `_facts_store`，清除只是清空这个字典并把代次加一，既没有注入真实的记忆存储，也没有任何写入方或读取方把它与真实记忆库连起来；harness 包只被 server 的这一个服务与自身测试导入，服务只被这一组路由调用，路由只被这一张卡片调用，卡片展示的就是这个演示字典。真实的记忆写入走 `write_service` 与 `memory_scanner`，它们已经覆盖注入 / 凭据 / 密码 / PII 假名化 |
+| **修复** | 删除整条垂直链路而不是接线：harness 删 noise_free_extractor 包（含 `_ARCH.md`）、两个测试文件、`toolkits/memory/__init__.py` 的五个导出、分发清单条目，以及只给网关用的 `find_card_shaped_spans`；server 删服务、路由与其注册、Schema、测试；前端删卡片与子组件、测试、服务客户端、`services/memory.ts` 的导出、指挥中心的挂载、硬编码文案基线里的两条与 `_ARCH.md` 的两行。路线图 #88 裁决为不值得做并按台账规则退役，完整原文由台账登记的提交取回 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① 先逐符号做零引用盘点：全仓除上述 server 服务、自身测试与卡片外，没有任何生产代码导入这五个导出名；② BUG-HARNESS-2026-10-14-013 修的是被删的网关，条目保留“已修复”的历史结论，只把引用到已删路径的两行改成“已删除”（文档路径引用门禁会拦住指向不存在路径的反引号路径）；③ 隐私检测的真实收益保留在 SSOT 里：`card_context.CARD_CONTEXT_RE` 仍被 server 的风险规则引擎使用，IBAN、卡号上下文、身份证校验等检测器没有动；④ 删除前确认前端卡片之外没有组件消费这些服务函数，删除后 `tsc` 只剩一处与本次无关的看板测试类型错误 |
+| **回归** | 无新增行为；删除后 `import myrm_agent_harness.toolkits.memory` 正常且不再暴露 `PIISafetyGateway`，harness 的 `tests/toolkits/memory`、`tests/core/security/detection` 全绿，server 的 `tests/api/memory`、`tests/services/risk` 全绿，前端 `features/memory` 90 个测试文件 542 例全绿，`app.api.memory.router` 导入后路由表里不再有 noise-free 路径 |
+| **代码位置** | 无保留的位置；保留并仍在使用的共享部分：`core/security/detection/card_context.py::CARD_CONTEXT_RE` |
+
+### BUG-HARNESS-2026-10-14-018 · xAI 额度耗尽 / 没有套餐时的 403 被诊断成「API 密钥认证失败」，恢复按钮指向「更新 API 密钥」，而密钥本身是有效的
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（xAI SuperGrok 订阅登录终极叩问阶段，把 Hermes 里记录的 xAI 403 响应体喂给真实的 `LLMErrorDiagnostic.diagnose`，对照它对同一响应体的分类） |
+| **修复时间** | 2026-10-14 |
+| **症状** | xAI 对额度耗尽或没有套餐的账号返回 403，体为 `{"code": "personal-team-blocked:spending-limit", "error": "You have run out of credits or need a Grok subscription. ..."}`（取自 Hermes `tests/agent/test_codex_xai_oauth_recovery.py:407-437`，Hermes 把它归为 billing）。真实 harness 执行：`error_type=api_key`、`user_message="API key authentication failed"`、恢复按钮「Update API Key」→ `/settings`。用户被引导去更新一个本来有效的密钥或重新登录订阅，而真正的原因是额度 / 套餐 |
+| **关联产品** | myrm-agent-harness `agent/errors/diagnostics/engine.py`；所有走 `LLMErrorDiagnostic` 的前端错误卡与 IM 回复，Local / 桌面 / 云托管相同；server 产品台账 `BUG-AGENT-2026-10-14-014`（同一批次：xAI 刷新被 403 拦截的分类） |
+| **根因** | `billing` 分支的关键词表没有这句话，而 `api_key` 分支把消息里出现的 `401` / `403` 当作兜底，于是任何带 403 的额度类拒绝都落入 `api_key` |
+| **修复** | `billing_keywords` 增加 `"run out of credits"`（`billing` 分支先于 `api_key` 分支判定）；其余分类、文案、恢复动作不变 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 只加短语、不放宽 403：同为 xAI 的 `{"code": "unauthenticated:bad-credentials", "error": "The OAuth2 access token could not be validated."}` 仍判 `api_key`（对照用例）；短语来自 Hermes 测试里的 xAI 响应，不是自行抓到的原始响应；`billing` 的文案是「API 账户余额不足」，对订阅用户的「没有套餐」不完全贴切，没有改动（该处文案与恢复动作模板由他人同时在重构） |
+| **回归** | `tests/agent/errors/diagnostics/test_error_diagnostics_provider_403.py`（`test_diagnose_xai_out_of_credits_403_is_billing_not_api_key`：spending-limit 的 403 判 `billing` 且不可重试；`test_diagnose_xai_rejected_token_403_stays_api_key`：令牌被拒的 403 仍判 `api_key`）；变异检查：删掉该关键词，测试变红 |
+| **代码位置** | `agent/errors/diagnostics/engine.py` 的 `billing_keywords`（「2. Billing / insufficient balance errors」段，位于 `api_key` 分支之前） |
+
+### BUG-HARNESS-2026-10-14-017 · 隐私检测的邮箱正则对不含 `@` 的长连续字符是二次方耗时：3 万字符的 base64 / 哈希串让 `classify_content` 与 `redact_pii` 各卡 0.7 秒，30 万字符跑满 2 分半钟 CPU 仍不返回
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（隐私层终审阶段，测整条检测管线在长文本上的耗时，30 万字符的连续字母数字串卡住不返回；逐条模式计时后定位到邮箱） |
+| **修复时间** | 2026-10-14 |
+| **症状** | `"AB12CD34EF56" * n` 实测：邮箱模式单独 `finditer` 1.5 / 3 / 6 万字符 154 / 702 / 2681 ms，字符数每翻倍耗时约 ×4；整条管线 3 万字符 `classify_content` 697 ms、`redact_pii` 744 ms；30 万字符的同类文本两个函数合计跑满 2 分 29 秒 CPU 仍未返回，被中止。任何一段不带空格和 `@` 的长文本（base64 图片、哈希清单、压缩过的数据）都会触发，对话输入、工具回执、记忆写入都走这条管线 |
+| **关联产品** | myrm-agent-harness `core/security/detection/pii_patterns.py`；分类、脱敏与可逆替换三处共用这一张表，无需各自改调用方 |
+| **根因** | `[a-zA-Z0-9._%+\-]+@…` 的本地部分没有上界：一段 n 个地址字符且不含 `@` 的文本，从每个起点都要一路扫到这段字符的末尾才发现没有 `@`，起点数 × 扫描长度 = O(n²)。该模式自初始导入起如此 |
+| **修复** | 本地部分限 `{1,64}`、域名限 `{1,255}`（RFC 5321 的上限），每个起点最多扫 64 个字符，耗时随文本长度线性增长；`pii_patterns.py` 的注释写明上界的用途，`detection/_ARCH.md` 补一句口径 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① 先试了开头加 `(?<![a-zA-Z0-9._%+\-])` 的负向后顾，同样线性，但两个邮箱用 `.`、`-`、`_` 粘在一起时（`john@acme.com-jane@acme.org.txt`、`a@b.com_c@d.com`）第二个会漏：上一个匹配结束处仍在地址字符之内，不能再作为起点；隐私检测宁可慢也不能漏，弃用；② 有上界版本与原正则只在本地部分超过 64 个字符时不同：匹配只取最后 64 个字符加域名，前面的部分不被遮；用 30 万条随机串（字母表 `ab1._-%+@` 加空格、逗号、中文）和 5903 个含 `@` 的项目文件（1.1 亿字符、1603 处命中）逐处对比，两者的命中区间 0 处不同；③ 修复后（同一台机器、同一批文本）：3 万字符 `classify_content` 697 → 21 ms，`redact_pii` 744 → 21 ms；30 万字符 218 / 211 ms；100 万字符 796 / 714 ms；真实文本（上述 1.1 亿字符）扫描耗时 2.80 → 2.76 s，持平；④ 同形状的邮箱正则在 PII 表之外还有三处，不属于隐私检测管线，本次没改：`observability/diagnostics_bundle/packager.py:38`、`observability/sanitized_debug_dump/redactor.py:42`、`toolkits/computer_use/recording/synthesizer.py:33`，同样的文本 2 万 / 4 万字符 42 / 306 / 43 ms → 170 / 1119 / 172 ms（×4.0 / ×3.7 / ×4.0） |
+| **回归** | `tests/agent/security/test_pii_patterns.py::TestEmailPattern` 11 例（常见写法与带标签的地址、用逗号与用 `.`、`-`、`_` 粘连的两个地址都找全、64 位本地部分、不完整的域名不算；5 种形状的 20 万字符连续文本在 3 秒内扫完，改前同形状 4 万字符就要 1 秒以上）· `tests/agent/security`、`tests/core/security` 全绿 |
+| **代码位置** | `core/security/detection/pii_patterns.py::EMAIL_RE` |
+
+### BUG-HARNESS-2026-10-14-016 · 删除对话、分叉回滚、Resume 失败恢复、改写首条消息都在清检查点线程，而检查点包装器没有转发 `adelete_thread`：前三者只在日志里留一条警告、检查点原样留在库里，后者直接抛 `ContinuitySyncError`；同一个包装器所在的浏览器检查点链路（13 个模块）从未接上任何数据
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（沿「`aget_tuple` 的反序列化兜底只在这个包装器里」追查检查点包装器的全部调用方时，发现包装器里的数据没有一处被读；随后用真实的 `AsyncSqliteSaver` 调 `adelete_thread` 复现） |
+| **修复时间** | 2026-10-14 |
+| **症状** | ① 包装器只转发了 `aput / aput_writes / aget_tuple / alist`，没有 `adelete_thread`，调用落到 LangGraph 基类，抛 `NotImplementedError`；五个调用点：`runtime/context/session/session_continuity.py::sync_checkpoint_messages`（持久化历史为空时删线程，抛 `ContinuitySyncError`；撤销 / 重试 / 回退把历史清到空时，server 的 `sync_chat_checkpoint_from_db` 把这个错误一路抛给接口）、server 的 `chat_crud`（删除对话）、`conversation_fork_manager`（分叉事务回滚）、`stream_finalize`（Resume 失败后清检查点）都把异常吞成一条警告，检查点留在库里；`vault_purge_service` 只用 `hasattr` 判断就把 `cleared_checkpoints` 记成 1，从未真正删除；② 浏览器检查点包（`toolkits/browser/checkpoint/`，13 个模块 + 迁移脚本）整条链路从未生效：`metadata["browser"]` 没有任何写入方，`context["browser_checkpoint"]` 只在包内写入、没有读取方，旧包装器把存储放在 `_thread_store`、没有 `thread_store` 属性，server 的 `hasattr(checkpointer, "thread_store")` 恒为 False，`mark_thread_*`、浏览器线程清理任务、`warmup_browser_sessions` 都是空操作；③ `BrowserObservability` 的请求结束回调把协程 `Request.response()` 当同步对象读，每个请求都记成 0 字节（该类没有生产调用方，实际字节统计来自 `NetworkLogger`，所以没有用户可感知的症状） |
+| **关联产品** | myrm-agent-harness `runtime/checkpointing`、`toolkits/browser`（`__init__`、`observability`、`session`）；server 的 `app/lifecycle`、`app/ai_agents/general_agent`、`app/services/agent/execution_cache`、`BROWSER_AUTO_WARMUP` 配置项（Settings 为 `extra="ignore"`，用户 `.env` 里残留该项无影响）。用户库里已有的 `checkpoint_threads` 表成为孤表，未删 |
+| **根因** | ① 包装器是为一个从未接上的存储（`ThreadStore`）写的，转发清单按它的需要而不是按底层 `AsyncSqliteSaver` 实现了哪些方法来定，漏掉的方法静默回落到基类；② 浏览器检查点链路只在包内自洽：写入方、读取方、属性名彼此对不上，没有闭合过，包内的测试只测各模块自身，不会发现没人调用它们；③ 回调函数签名是同步的，驱动里这个调用是协程 |
+| **修复** | ① 新增 `runtime/checkpointing/load_fallback.py::LoadFallbackCheckpointer`：只做一件事，反序列化失败（`pickle` / `dill` 异常与缺参数的构造错误）时返回 `None` 让会话重新开始并留一条警告，其余异常原样抛出；转发的恰好是 `AsyncSqliteSaver` 自己实现的异步方法（`aput`、`aput_writes`、`aget_tuple`、`alist`、`adelete_thread`、`get_next_version`），`aget_delta_channel_history` 有意留给基类，走包装器自己的 `aget_tuple`；`factory.py` 用它取代旧包装器，不再建 `checkpoint_threads` 表；② 删除 `toolkits/browser/checkpoint/` 全包与其测试、`toolkits/browser/__init__.py` 的 12 个导出与惰性分组、`observability` 里的 `checkpoint_metrics`；server 删 `checkpoint_helpers.py`、`lifecycle/browser.py` 里三个空操作函数、`warmup.py` 与 `schedulers.py` 的接线、`stream_pipeline` 里的标记块、执行缓存的 `checkpoint_helper / current_thread_id`、`browser_auto_warmup` 配置项；③ 会话 cookie 与 localStorage 的归一化提取到 `session/storage_state.py`（原先在 `session_persistence` 与生命周期混入里各一份），生命周期混入补继承 `SessionHost` 以取得类型契约；④ `observability._on_request_finished` 改为 `async` 并 `await request.response()` |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① `BUG-HARNESS-2026-10-14-010` 的 ⑥（恢复编排器传 `ContextType.AGENT`）修的是本条删除的死代码，行为没有退化，那一条的结论不变；② `acopy_thread / adelete_for_runs / aprune` 没有转发：`AsyncSqliteSaver`（langgraph-checkpoint-sqlite 3.1.1）没有实现这三个方法，转发只会换一个异常；③ 兜底的识别口径（消息含 `pickle` / `dill`，或回溯帧在 dill / pickle 里，或缺必需位置参数）是启发式，C 实现的 `pickle` 遇到完全随机的字节抛的异常没有这些特征，不会被识别为可兜底，仍会冒泡，没有放宽；④ 浏览器检查点包有 13 个模块，先做逐符号零引用盘点，只在确认包外没有生产引用后才删；`cleanup_expired_browser_sessions`（清浏览器 vault 的过期目录，与检查点无关，目前没有调用方，另议）与 `PickleSerde`（子代理检查点也在用）没动 |
+| **回归** | `tests/runtime/checkpointing/test_load_fallback.py` 13 例，用 `create_checkpointer` 建出的真实 SQLite 检查点（往返、挂起写入、`adelete_thread` 真删、`sync_checkpoint_messages(saver, "chat-1", [])` 返回 2 并删掉 `chat-1` 与 `chat_chat-1` 两个线程、损坏的检查点内容返回 `None` 并留警告、无关异常照常抛出、识别口径的三种路径与存储故障不被误判；另有两例由真实的 LangGraph 编译图驱动：多轮对话保留且 `aget_state_history` 走 `alist`、`adelete_thread` 后清空，存储内容无法解码时下一轮在全新会话里继续），去掉 `adelete_thread`、`aput_writes`、`alist` 的转发与让兜底不吞任何异常这四个变异体（备份、改写、跑测试、逐字节复原）各被至少一例打红；`tests/toolkits/browser/session/test_storage_state.py` 13 例；`tests/toolkits/browser/test_observability_bandwidth_integration.py`（真实 Chromium，本地服务返回 5000 字节：改回同步写法该例跑红，现在统计到的字节数 ≥ 5000） |
+| **代码位置** | `runtime/checkpointing/load_fallback.py::LoadFallbackCheckpointer` · `runtime/checkpointing/factory.py::_build_sqlite_saver` · `toolkits/browser/session/storage_state.py` · `toolkits/browser/observability.py::_on_request_finished` |
+
+### BUG-HARNESS-2026-10-14-015 · 本地开发模式下上下文清理永远扫描只读的 `/persistent/.context`，文件访问追踪器在同一个只读目录下开库；会话活动规则依赖的线程注册表从没被填充
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（沿「每日上下文清理到底扫描哪个目录」追查，本地模式启动后读 `execution_paths.CONTEXT_ROOT` 与各导入方持有的值） |
+| **修复时间** | 2026-10-14 |
+| **症状** | ① 本地开发模式在启动时重绑 `execution_paths.CONTEXT_ROOT`，但清理、追踪器等模块在导入时按值复制了这个常量：孤儿清理与会话清理扫描 `/persistent/.context`，在本地不存在，等于从不清理；② 文件访问追踪器的数据库路径同样取自复制值，位于只读的 `/persistent` 之下，打不开；追踪器观察者把导入失败吞掉，读取记录无从建立，「近期读过的文件不清理」的规则无从谈起；③ 清理有两套保留依据（会话活动与读取 / 修改时间），其中会话活动依赖的 `ThreadStore` 注册表从未被填充，规则从未保护过任何文件，却让清理多建一个检查点、让文档写成两条规则 |
+| **关联产品** | myrm-agent-harness `runtime/context`（`cleanup`、`cleanup_ops`、`file_access_tracker`、`instance_metrics`、`offload`）、`runtime/paths`、`runtime/artifacts`；server 的每日上下文清理任务（`app/lifecycle/schedulers.py`） |
+| **根因** | 路径常量按值导入，而启动时的重绑只改了原模块；清理与追踪器在调用时没有再读一遍 |
+| **修复** | ① 清理与追踪器一律在调用时通过 `get_context_root()` 读根目录，追踪器的数据库放在现行上下文根之内；② 保留规则只剩一个窗口 `CONTEXT_RETENTION_DAYS`（14 天）：一个文件在窗口内被读过，或修改时间在窗口内，就保留；删除会话活动规则（`runtime/context/session/session_activity.py`）与没有任何消费者的 `runtime/artifacts` 检查点协议包、`CheckpointForkManagerProtocol`；③ `track_context_file_access_if_needed` 移到 `runtime/paths/access_tracking.py`，让 `execution_paths.py` 保持在行数上限之内；④ server 的每日清理任务不再为已删除的规则构建检查点，读取追踪器起不来时记警告（清理改按修改时间判断），不再是一条 debug 日志 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① 新增的端到端用例经观察者走完「读文件 → 追踪器记录 → 清理」整条链路：观察者吞掉导入失败，只看清理或追踪器单个环节不会红；② 追踪器观察者吞掉导入失败，是这个问题长期没暴露的原因，没有改它的吞异常行为（观察者不应拖垮工具调用），而是让 server 在追踪器不可用时写警告 |
+| **回归** | `tests/runtime/test_context_root_local_dev.py` 5 例（孤儿清理与会话清理扫描重绑后的根目录、未显式传路径的追踪器用重绑后的根目录、共享追踪器的库在根目录之内、读过的文件在同龄下得以保留而没读过的被清）· `test_cleanup_integration.py` 12 例、`test_cleanup_local.py` 7 例、`test_context_metrics.py` 55 例（随单一窗口改写）· server `tests/lifecycle/test_context_cleanup_job.py` 2 例 |
+| **代码位置** | `runtime/context/cleanup.py::CONTEXT_RETENTION_DAYS` · `runtime/context/file_access_tracker.py` · `runtime/paths/access_tracking.py::track_context_file_access_if_needed` · `runtime/paths/execution_paths.py::get_context_root` |
+
+### BUG-HARNESS-2026-10-14-014 · 本地模式放行了「只到被显式导航过的私网源」，但解析到环回 / 链路本地地址的主机名没有被判定，指向云元数据地址的主机名也认不出
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（沿 `BUG-HARNESS-2026-10-14-010` 的残余边界追查：守卫只看 URL 里的字面 IP） |
+| **修复时间** | 2026-10-14 |
+| **症状** | 本地模式（`allow_private_networks=True`）的会话只放行它被显式导航到的私网源，经重定向或脚本到别的私网地址仍被拦。但 DNS 返回 `127.0.0.1` 的主机名（`rebind.test`）在重定向与脚本导航中都按公网放行，会话因此到达该环回服务；返回 `169.254.169.254` 的主机名也没有被当作云元数据地址；`web_fetch` 的本地守卫同理 |
+| **关联产品** | myrm-agent-harness `core/security/redirect_hop_guard`（`hop_evaluator`、新增 `name_resolution`）、`toolkits/browser`（`navigation/ssrf_guard`、`domain_filter/http_filter`）、`toolkits/web_fetch/fetchers/target_guard` |
+| **根因** | `RedirectHopEvaluator` 只对 URL 里的字面 IP 与 `localhost` 一类固定名判定，不解析主机名 |
+| **修复** | 新增 `name_resolution.resolve_addresses`（有界、短暂缓存：2 秒超时、15 秒缓存、最多 256 个主机，失败与超时都返回空，从不抛异常）与 `RedirectHopEvaluator.evaluate_hop_resolved`：只对普通主机名、且有放行名单时才解析一次；只有环回、链路本地、未指定与云元数据的结果才算数，RFC 1918、CGNAT 与 `198.18.0.0/15` 不判（假 IP 代理与 VPN 会给公网域名返回这些地址）；解析失败或太慢时什么都不判。浏览器导航守卫、上下文请求过滤器与 `web_fetch` 本地守卫都走它 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① 没有把私网各段都拦：代理与 fake-IP 会把公网域名映射到 RFC 1918、CGNAT、`198.18.0.0/15`（`BROWSER_SYSTEM.md` 已写明），全拦会让这类网络下的浏览整体失败，所以只认环回、链路本地、未指定与云元数据；② 同一次导航里守卫会对同一个主机问好几次，不缓存会让每次导航多出几次解析，失败的结果也要缓存，否则 DNS 不应答的环境每次都等满超时（该延迟在 DNS 被丢包的真实网络里未实测）；③ 残余边界：本次查询与 Chromium 自己的查询之间 DNS 仍可能改变答案（DNS rebinding），只有出站网络层才能彻底阻止，已写进 `BROWSER_SYSTEM.md` 的剩余边界 |
+| **回归** | `tests/core/security/test_hop_name_resolution.py` 10 例（真实解析 `localhost`、顺序、IPv6 作用域、无法解析、超时被截断、取消不被吞、同一次导航共用一次查询、失败也被记住）· `test_redirect_hop_evaluator.py` 24 例 · `tests/toolkits/web_fetch/test_target_guard.py` 21 例 · 真实 Chromium：`tests/toolkits/browser/test_hostname_resolution_policy_integration.py` 5 例（用 `--host-resolver-rules` 把假域名映射到环回夹具，并替换进程内 `socket.getaddrinfo` 充当攻击者控制的 DNS：重定向被拦且标签页回到 `about:blank`、脚本导航在发出请求前被拦、元数据地址即使显式导航也被拦、显式导航到解析为环回的主机名仍可用、代理 / DNS 给出的其他地址不被判） |
+| **代码位置** | `core/security/redirect_hop_guard/name_resolution.py::resolve_addresses` · `core/security/redirect_hop_guard/hop_evaluator.py::evaluate_hop_resolved` · `toolkits/browser/navigation/ssrf_guard.py` · `toolkits/browser/domain_filter/http_filter.py` · `toolkits/web_fetch/fetchers/target_guard.py` |
+
 ### BUG-HARNESS-2026-10-14-013 · 记忆写入门（PIISafetyGateway）自带一套与隐私管线不一致的正则：19 位与分组的银联卡、Amex 分组、分组 IBAN、主流厂商密钥、口语里的密码都放行，物流单号被当 IBAN，遮罩模式把没通过 Luhn 的数字也一并遮掉
 
 | 字段 | 内容 |
@@ -10,13 +185,13 @@
 | **发现时间** | 2026-10-14（隐私层终极叩问阶段，把同一批输入分别喂给隐私管线与记忆写入门，对不上的逐条用真实的 `PIISafetyGateway.inspect` 复现） |
 | **修复时间** | 2026-10-14 |
 | **症状** | 16 条带预期的语句里旧网关错 14 条：① 放行：19 位银联卡（连写、`6222 0210 1001 1624 507` 分组）、Amex 分组写法 `3782 822463 10005`、关键词引出的 13 位 Visa、关键词引出且打错一位的卡号、分组 IBAN `DE89 3704 …`、Anthropic / Slack / GitHub 细粒度 PAT / JWT / PEM、口语里的密码（`my password is …`、`我的密码是 …`）；② 误拦：物流单号 `SF1234567890123` 被当 IBAN；③ 遮罩模式对一条规则的所有匹配统一替换，没通过 Luhn 的 16 位订单号也变成 `[credit_card_REDACTED]`，物流单号变成 `[iban_REDACTED]`；④ `snippet_masked` 对密码也露出头两位和尾两位（`pa*****************&3`） |
-| **关联产品** | myrm-agent-harness `toolkits/memory/noise_free_extractor`；server 的 `noise_free_memory_service` 与 `/api/memory/noise-free/inspect-pii`、指挥中心无噪声记忆卡片是消费方，规则名、严重级、`[规则_REDACTED]` 遮罩与构造器签名都不变 |
+| **关联产品** | myrm-agent-harness toolkits/memory/noise_free_extractor（已删除，见 BUG-HARNESS-2026-10-14-019）；server 的 noise_free_memory_service 与 /api/memory/noise-free/inspect-pii、指挥中心无噪声记忆卡片是消费方（均已删除），规则名、严重级、`[规则_REDACTED]` 遮罩与构造器签名都不变 |
 | **根因** | 网关自带 6 条正则和一份自己的 Luhn，没有读隐私管线的检测表；两处各自演进，隐私层补了分组银行卡、IBAN 校验、关键词引出的卡号、厂商密钥与口语密码之后，写入门仍停在最初的口径。`NoiseFreeConfig.blocked_patterns` 与 `luhn_validate` 没有任何调用方 |
-| **修复** | ① `pii_gateway.py` 不再带正则与 Luhn，改读隐私管线的检测器：`IBAN_RE`、`CHINA_ID_RE`、`SSN_RE`、`BANK_CARD_RE` + `is_confirmed`、`card_context` 的关键词引出的卡号、`password_heuristic.find_password_spans(strict=False)`（召回口径，与分类器、脱敏器一致）、`leak_detector`；② 写入门是存储硬门，一条语句漏过去会永久入库、被拒只损失一条事实，所以比隐私管线多三处更严的口径，保住旧网关本来拦得住的：15 或 16 位数字通过 Luhn 即视为银行卡（不论哪个网络）、身份证与 IBAN 只看形状不要求校验位（写错一位仍是证件号）、裸 `secret:` / `secret=` 后的值视为凭据（隐私管线只认 `api secret` / `secret key`，因为单独的 secret 是日常用词）；③ 按文本区间命中，按 IBAN → 身份证 → SSN → 银行卡 → 凭据的顺序认领字符，重叠处前者胜、同一规则取更长的区间，已接受的命中保持有序且互不重叠，新区间只和左右两个邻居比较，遮罩只替换命中的字符；④ 密钥判定走 `scan_for_leaks`、遮罩走 `redact_leaks`（与记忆写入链路 `content_scan` 同口径：长令牌保留前 6 后 4，形如 `[REDACTED:<名>]`），一条语句只报一条 `secret_token_key`；密码与密钥的 `snippet_masked` 一律为 `***`；⑤ `card_context` 新增 `find_card_shaped_spans`（只给卡号的形状，不含关键词），由网关再加 Luhn；同一串分组数字从每个后续分组起也各给一个区间（允许重叠），`in 2026 5018 5260 1815 9080` 里的卡号是后四组，只取最左的四组会把它压在年份后面；⑥ 删除没有调用方的 `luhn_validate` 与 `NoiseFreeConfig.blocked_patterns` |
+| **修复** | ① `pii_gateway.py` 不再带正则与 Luhn，改读隐私管线的检测器：`IBAN_RE`、`CHINA_ID_RE`、`SSN_RE`、`BANK_CARD_RE` + `is_confirmed`、`card_context` 的关键词引出的卡号、`password_heuristic.find_password_spans(strict=False)`（召回口径，与分类器、脱敏器一致）、`leak_detector`；② 写入门是存储硬门，一条语句漏过去会永久入库、被拒只损失一条事实，所以比隐私管线多三处更严的口径，保住旧网关本来拦得住的：15 或 16 位数字通过 Luhn 即视为银行卡（不论哪个网络）、身份证与 IBAN 只看形状不要求校验位（写错一位仍是证件号）、裸 `secret:` / `secret=` 后的值视为凭据（隐私管线只认 `api secret` / `secret key`，因为单独的 secret 是日常用词）；③ 按文本区间命中，按 IBAN → 身份证 → SSN → 银行卡 → 凭据的顺序认领字符，重叠处前者胜、同一规则内起点靠前者胜（起点相同取更长的区间），已接受的命中保持有序且互不重叠，新区间只和左右两个邻居比较，遮罩只替换命中的字符；④ 密钥判定走 `scan_for_leaks`、遮罩走 `redact_leaks`（与记忆写入链路 `content_scan` 同口径：长令牌保留前 6 后 4，形如 `[REDACTED:<名>]`），一条语句只报一条 `secret_token_key`；密码与密钥的 `snippet_masked` 一律为 `***`；⑤ `card_context` 新增 `find_card_shaped_spans`（只给卡号的形状，不含关键词），由网关再加 Luhn；同一串分组数字从每个后续分组起也各给一个区间（允许重叠），`in 2026 5018 5260 1815 9080` 里的卡号是后四组，只取最左的四组会把它压在年份后面；⑥ 删除没有调用方的 `luhn_validate` 与 `NoiseFreeConfig.blocked_patterns` |
 | **反复次数** | 第 1 次发现 |
 | **踩坑** | ① 第一版想完全委托给隐私管线、不留任何自有口径，用 3505 条语句（公开的卡号多种写法、IBAN、身份证、密钥、密码、良性语句，加 3000 条随机数字）新旧对比，发现两处回归：前缀表不认 Maestro / Mir / RuPay / Troy 的裸号（旧网关靠通用 Luhn 拦得住）、`secret: abcdef1234`；所以保留上面三处更严的口径，没有照搬；② 身份证与 IBAN 一开始也要求校验位，后来改为只看形状；形状的误报实测：约 2.7 万个项目文件、2.47 亿字符里 IBAN 形状 64 处、59 处有效，其余 5 处全是测试里故意写错校验位的用例；③ 第一版把通用 Luhn 放宽到 13–19 位，随机数字在 17–19 位的误拦率升到约 10%，13 位毫秒时间戳也被拦；改回 15 / 16 位，随机 15 / 16 位数字的误拦率 10.07% / 9.62% 与旧网关完全一致，17–19 位只剩隐私管线前缀表本来就判为银行卡的约 2.5%（2.56% / 2.42% / 2.51%），13、14 位为 0；④ 旧遮罩把整个密钥换成标签，现在沿用 SSOT 的 `redact_leaks` 会留下令牌的前 6 后 4 位，原来断言 `[secret_token_key_REDACTED]` 的用例改为断言原密钥不在输出里、出现 `[REDACTED:`；⑤ 性能（中位数，每组 7 × 2000 次）：每次 `inspect` 24 字 4.9 → 40.9 µs、120 字 16.9 → 97.5 µs、卡号语句 11.8 → 74.9 µs、2000 字 115 → 1170 µs，是旧网关的 5.8–10.2 倍，开销主要来自 `scan_for_leaks` 的 40 多条模式与熵扫描，仍在毫秒以内，且每条候选事实入库前只调一次；⑥ 新旧最终对比：3505 条里 3213 条判定相同、291 条新网关多拦（卡号的分组与长度写法、分组 IBAN、厂商密钥、口语密码，另有 16 条随机 17–18 位数字被前缀表判为银行卡）、1 条旧网关拦而新网关放行（物流单号，即被修掉的误报）；⑦ 有意缩窄一处：旧正则的卡号分组允许任意空白（含换行、制表符）作分隔，新口径只认空格与连字符，与隐私管线一致；⑧ 顺带看到、不在本次范围：`extractor.py::commit_extracted_fact` 在 `mask_pii_instead_of_reject=True` 时仍先按 `is_clean` 拒绝，“遮罩后入库”的分支走不到（server 配置为 False，不受影响）；⑨ 第一版认领字符时把每个新区间与已接受的全部命中逐个比较，命中数 n 时是 O(n²)，而 `/api/memory/noise-free/inspect-pii` 的 `statement` 没有长度上限：`"card 4111 1111 1111 1111 ok. " * n` 实测 n=1000（2.9 万字）、5000（14.5 万字）、20000（58 万字）旧网关 6–7 / 29–36 / 121–157 ms，新网关 70 / 1209 / 17506 ms；改为按起点有序保存、用 `bisect` 只看左右邻居后为 31 / 264 / 681 ms，随文本长度线性增长（慢于旧网关 4–7 倍，cProfile 显示耗时在每处卡号的 Luhn 与 `inside_iban` 上），3505 条新旧对比的判定与改前逐条一致；⑩ 审查时用 3 万条随机拼接语句（15 种敏感片段与良性句子混排）复核，召回无遗漏，但遮罩模式下 `581-24-4361 4220 4244 7320 5290` 的卡号没被遮掉：`find_card_shaped_spans` 只给最左的匹配，卡号前有一组四位数字时真正的卡号被压住。专测未列入前缀表的网络（5018 / 6759 / 9792 / 2200 / 6304 开头）的 2000 条分组卡号，前面带 `in 2026 `、`room 1204 ` 等四位数字：旧网关漏 1794 条，改前的新网关漏 897 条，每个后续分组都给区间后漏 0 条；代价是 5 / 6 / 8 组随机四位分组数字的误拦从 10.02% / 9.86% / 18.87% 升到 18.86% / 27.12% / 40.63%（4 组不变，9.90%），这种写法（5 组以上、每组恰好 4 位）在记忆语句里罕见，误拦只损失一条事实，按存储硬门的取舍接受 |
 | **回归** | `tests/toolkits/memory/test_pii_gateway.py` 85 例（公开卡号与未列入前缀表的网络裸号、分组写法、卡号前紧挨另一组四位数字、关键词引出的异常长度与打错一位的卡号、不是卡的数字、卡号紧挨 IBAN、IBAN 内的数字不算卡、IBAN 各种写法与校验位写错仍拦、物流单号不是 IBAN、身份证与 SSN、8 种厂商密钥与私钥块、口语与赋值写法的密码与不算密码的句子、遮罩只替换命中字符、审计字段、与分类器同判、关掉隐私开关仍拦、2 万处卡号的 58 万字符长语句在 8 秒内查完并逐处遮罩，改前实测 17.5 秒）；旧网关跑前 80 例有 32 例红；`test_noise_free_extractor.py` 4 例（遮罩断言按新口径修改）· `tests/agent/security`、`tests/core/security`、`tests/toolkits/memory` 全绿 |
-| **代码位置** | `toolkits/memory/noise_free_extractor/pii_gateway.py::_find_hits/_card_spans/_credential_spans/_mask` · `core/security/detection/card_context.py::find_card_shaped_spans` · `toolkits/memory/noise_free_extractor/types.py::NoiseFreeConfig` |
+| **代码位置** | 网关与 `find_card_shaped_spans` 均已删除，见 BUG-HARNESS-2026-10-14-019 |
 
 ### BUG-HARNESS-2026-10-14-012 · 隐私层不认 IBAN：连写的 IBAN 整串送进模型，分组书写的被当成“可见信用卡”打码成 `DE89 **** **** **** 0130 [PII:credit_card] 00`；另有约 3.6% 的分组数字 IBAN 因数字恰好通过 Luhn 被判成银行卡（S3）
 

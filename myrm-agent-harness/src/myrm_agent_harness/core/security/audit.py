@@ -8,6 +8,7 @@ ContextVar accumulator. The log can be retrieved at the end of a run
 - (none — self-contained, pure standard library)
 
 [OUTPUT]
+- DecisionKind: the closed set of decision names an audit entry can carry
 - SecurityDecision: a single audit entry
 - record_decision(): append a decision to the current session log
 - get_audit_entries(): retrieve all entries for the current session
@@ -89,6 +90,7 @@ DecisionKind = Literal[
     "FINANCIAL_GATE_ALLOWLIST_BLOCKED",
     "IRREVERSIBLE_ACTION_ALLOWLIST_BLOCKED",
     "NO_CONTEXT_DENIED",
+    "PRIVACY_ROUTE",
 ]
 
 

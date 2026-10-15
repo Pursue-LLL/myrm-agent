@@ -35,7 +35,7 @@ class SkillBackend:
         >>> local_backend = SkillBackend.local("./my_skills")
         >>>
         >>> # 存储技能
-        >>> storage_backend = StorageBackend.local("./workspace")
+        >>> storage_backend = LocalStorageBackend(base_path="./workspace")
         >>> skill_backend = SkillBackend.storage(storage_backend, skills_prefix="/skills")
         >>>
         >>> # 混合路由
@@ -67,7 +67,7 @@ class SkillBackend:
         storage: "StorageProvider",
         skills_prefix: str = "/skills",
         default_trust: "SkillTrust | None" = None,
-    ) -> "SkillBackend":
+    ) -> "SkillBackendProtocol":
         """创建存储技能后端
 
         Args:

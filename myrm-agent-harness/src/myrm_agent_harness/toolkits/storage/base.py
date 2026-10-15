@@ -12,8 +12,8 @@
 
 [POS]
 Storage provider abstract base class. Defines the unified storage interface contract for all
-storage backends. Supports file read/write, delete, list, info query, and namespace isolation.
-Method names use read/write (not get/put), fully compatible with the StorageBackend Protocol.
+storage backends. Supports file read/write, delete, list, and info query.
+Method names use read/write (not get/put).
 """
 
 from __future__ import annotations
@@ -41,53 +41,10 @@ class StorageProvider(ABC):
     - File deletion
     - File listing
     - File info query
-    - Namespace isolation (optional)
 
-    Namespace:
-         for 多租户隔离，Auto is AllPath添加Prefix。
-        For example：namespace="sandboxes/user_alice_chat_123"
-              read("file.txt") → 实际访问 "sandboxes/user_alice_chat_123/file.txt"
-
-     using 统一  read/write Method名， no 需适配器i.e.可 for
-    StorageSkillBackend  etc.框架层Component and 业务层工件收集。
+    Method names are read/write (not get/put), so framework components such as
+    StorageSkillBackend and business-layer artifact collection use it without an adapter.
     """
-
-    def __init__(self, namespace: str | None = None):
-        """InitializeStorageprovides者
-
-        Args:
-            namespace: Namespace（optional）， for Path隔离
-                      如 "sandboxes/user_alice_chat_123"
-        """
-        self.namespace = namespace or ""
-
-    def _get_full_key(self, key: str) -> str:
-        """GetcompletePath（Auto添加 namespace Prefix）
-
-        Args:
-            key: 相对Path
-
-        Returns:
-            completePath（带 namespace Prefix）
-        """
-        if self.namespace:
-            return f"{self.namespace}/{key}"
-        return key
-
-    def _strip_namespace(self, full_key: str) -> str:
-        """移除 namespace Prefix
-
-        Args:
-            full_key: completePath
-
-        Returns:
-            相对Path（移除 namespace Prefix）
-        """
-        if self.namespace:
-            prefix = f"{self.namespace}/"
-            if full_key.startswith(prefix):
-                return full_key[len(prefix) :]
-        return full_key
 
     @abstractmethod
     async def read(self, key: str) -> bytes:
@@ -97,28 +54,28 @@ class StorageProvider(ABC):
             key: File path/key
 
         Returns:
-            FileContent（Bytes）
+            File content as bytes
 
         Raises:
             FileNotFoundError: File not found
-            StorageError: Storage操作Failure
+            StorageError: Storage operation failed
         """
         ...
 
     @abstractmethod
     async def read_text(self, key: str, encoding: str = "utf-8") -> str:
-        """读取textFileContent
+        """Read text file content
 
         Args:
             key: File path/key
-            encoding: textEncoding
+            encoding: Text encoding
 
         Returns:
-            FileContent（String）
+            File content as text
 
         Raises:
             FileNotFoundError: File not found
-            StorageError: Storage操作Failure
+            StorageError: Storage operation failed
         """
         ...
 
@@ -128,11 +85,11 @@ class StorageProvider(ABC):
 
         Args:
             key: File path/key
-            content: FileContent（Bytes）
+            content: File content as bytes
             content_type: MIME Type
 
         Raises:
-            StorageError: Storage操作Failure
+            StorageError: Storage operation failed
         """
         ...
 
@@ -144,16 +101,16 @@ class StorageProvider(ABC):
         encoding: str = "utf-8",
         content_type: str | None = None,
     ) -> None:
-        """写入textFile
+        """Write text file
 
         Args:
             key: File path/key
-            content: FileContent（String）
-            encoding: textEncoding
+            content: File content as text
+            encoding: Text encoding
             content_type: MIME Type
 
         Raises:
-            StorageError: Storage操作Failure
+            StorageError: Storage operation failed
         """
         ...
 
@@ -166,7 +123,7 @@ class StorageProvider(ABC):
 
         Raises:
             FileNotFoundError: File not found
-            StorageError: Storage操作Failure
+            StorageError: Storage operation failed
         """
         ...
 
@@ -196,20 +153,20 @@ class StorageProvider(ABC):
 
     @abstractmethod
     async def list(self, prefix: str = "", recursive: bool = True) -> list[str]:
-        """列出File
+        """List files
 
         Args:
             prefix: Path prefix
-            recursive: Whetherrecursive列出子Directory
+            recursive: Whether to list subdirectories recursively
 
         Returns:
-            FilePathList
+            List of file paths
         """
         ...
 
     @abstractmethod
     async def info(self, key: str) -> FileInfo:
-        """GetFile info
+        """Get file info
 
         Args:
             key: File path/key
@@ -224,44 +181,44 @@ class StorageProvider(ABC):
 
     @abstractmethod
     async def copy(self, src_key: str, dst_key: str) -> None:
-        """CopyFile
+        """Copy file
 
         Args:
-            src_key: 源FilePath
-            dst_key: 目标FilePath
+            src_key: Source file path
+            dst_key: Destination file path
 
         Raises:
-            FileNotFoundError: 源File not found
-            StorageError: Storage操作Failure
+            FileNotFoundError: Source file not found
+            StorageError: Storage operation failed
         """
         ...
 
     @abstractmethod
     async def move(self, src_key: str, dst_key: str) -> None:
-        """MoveFile
+        """Move file
 
         Args:
-            src_key: 源FilePath
-            dst_key: 目标FilePath
+            src_key: Source file path
+            dst_key: Destination file path
 
         Raises:
-            FileNotFoundError: 源File not found
-            StorageError: Storage操作Failure
+            FileNotFoundError: Source file not found
+            StorageError: Storage operation failed
         """
         ...
 
     @abstractmethod
     async def get_url(self, key: str, expires_in: int = 3600) -> str:
-        """GetFile访问 URL
+        """Get a URL for accessing the file
 
         Args:
             key: File path/key
-            expires_in: URL Valid期（秒），Only对CloudStorageValid
+            expires_in: URL validity in seconds (only meaningful for cloud storage)
 
         Returns:
-            File访问 URL
-            - LocalStorage：Return file:// URL
-            - CloudStorage：ReturnSignature URL（带过期时间）
+            File access URL
+            - Local storage: a file:// URL
+            - Cloud storage: a signed URL with an expiry time
 
         Raises:
             FileNotFoundError: File not found
@@ -270,6 +227,6 @@ class StorageProvider(ABC):
 
 
 class StorageError(Exception):
-    """Storage操作Exception"""
+    """Storage operation error"""
 
     pass

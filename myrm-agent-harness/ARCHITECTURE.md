@@ -148,7 +148,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 | **异步 I/O** | aiofiles, httpx, aiosqlite | 文件、网络、SQLite 异步操作   |
 | **HTML**     | beautifulsoup4, lxml              | 网页剪枝与 DOM 解析           |
 | **Checkpoint** | langgraph-checkpoint-sqlite, dill | 会话状态持久化与序列化      |
-| **沙箱执行** | 运行时 Docker CLI（非 core dep；见 `toolkits/code_execution/EXECUTION_SYSTEM.md`） | 容器化代码执行                |
+| **沙箱执行** | 系统沙箱组件 `sandbox-exec`（macOS）/ `bwrap`（Linux）/ AppContainer（Windows）（非 Python 依赖；见 `toolkits/code_execution/EXECUTION_SYSTEM.md`） | 子进程权限收窄                |
 | **存储**     | aiofiles                          | 本地文件系统存储              |
 | **文件解析** | pdfplumber（core）                | PDF 文本+表格提取（默认安装） |
 
@@ -233,11 +233,11 @@ BaseAgent (基础 Agent)
 ```
 Agent 层
   ↓ 依赖协议
-├─ SandboxExecutor (toolkits.execution)
-│   └─ 实现：LocalExecutor（内置），E2BExecutor（业务层）
+├─ CodeExecutor (toolkits.code_execution)
+│   └─ 实现：LocalExecutor（内置）
 │
 ├─ StorageProvider (toolkits.storage)
-│   └─ 实现：LocalBackend, SmartCachedStorage
+│   └─ 实现：LocalStorageBackend
 │
 └─ SkillBackend (backends.skills)
     └─ 实现：LocalSkillBackend, StorageSkillBackend, CompositeSkillBackend
@@ -258,7 +258,7 @@ agent/ (运行时核心层)
 ├─ backends/ (抽象层)
 ├─ toolkits/ (工具层 — 仅依赖 core/，不依赖 agent/)
 │   ├─ code_execution/ (沙箱代码执行)
-│   ├─ storage/ (存储缓存)
+│   ├─ storage/ (存储)
 │   ├─ tasks/ (异步作业队列 — SQLiteTaskStore)
 │   ├─ web_fetch/ (网页抓取)
 │   ├─ retriever/ (检索系统)
@@ -288,7 +288,7 @@ agent/ (运行时核心层)
 | [BROWSER_SYSTEM.md](src/myrm_agent_harness/toolkits/browser/BROWSER_SYSTEM.md) | 浏览器自动化 |
 | [DESKTOP_SYSTEM.md](src/myrm_agent_harness/toolkits/computer_use/DESKTOP_SYSTEM.md) | Semantic Desktop Control |
 | [EXECUTION_SYSTEM.md](src/myrm_agent_harness/toolkits/code_execution/EXECUTION_SYSTEM.md) | 沙箱代码执行 · **PTC 家族 SSOT**（MCP PTC + DW PTC） |
-| [STORAGE_SYSTEM.md](src/myrm_agent_harness/toolkits/storage/STORAGE_SYSTEM.md) | 存储与缓存 |
+| [STORAGE_SYSTEM.md](src/myrm_agent_harness/toolkits/storage/STORAGE_SYSTEM.md) | 存储系统 |
 | [RETRIEVER_SYSTEM.md](src/myrm_agent_harness/toolkits/retriever/RETRIEVER_SYSTEM.md) | 检索系统 |
 | [CONTEXT_BUNDLE_SYSTEM.md](src/myrm_agent_harness/toolkits/context_bundle/CONTEXT_BUNDLE_SYSTEM.md) | ContextBundle |
 | [COMMITMENT_SYSTEM.md](src/myrm_agent_harness/toolkits/memory/proactive/COMMITMENT_SYSTEM.md) | Proactive follow-up tracking |

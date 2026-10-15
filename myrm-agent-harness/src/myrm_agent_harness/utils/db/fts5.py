@@ -20,20 +20,11 @@ file-level guards in ``sqlite/integrity.py`` to cover FTS5 virtual table indexes
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import re
 import sqlite3
-from typing import Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
-
-
-@runtime_checkable
-class ConnectionLike(Protocol):
-    """Protocol for SQLite connection or proxy wrapping a SQLite connection."""
-
-    def execute(self, sql: str, *args: object, **kwargs: object) -> object: ...
 
 
 def sanitize_fts5_query(query: str) -> str:
@@ -60,7 +51,7 @@ def sanitize_fts5_query(query: str) -> str:
     # Step 1: Extract balanced double-quoted phrases and protect them
     _quoted_parts: list[str] = []
 
-    def _preserve_quoted(m: re.Match) -> str:
+    def _preserve_quoted(m: re.Match[str]) -> str:
         _quoted_parts.append(m.group(0))
         return f"\x00Q{len(_quoted_parts) - 1}\x00"
 
@@ -95,7 +86,7 @@ def sanitize_fts5_query(query: str) -> str:
     # Protect Step-5 quoted phrases first, then clean unquoted hyphens.
     _step5_quotes: list[str] = []
 
-    def _protect_step5(m: re.Match) -> str:
+    def _protect_step5(m: re.Match[str]) -> str:
         _step5_quotes.append(m.group(0))
         return f"\x01P{len(_step5_quotes) - 1}\x01"
 
@@ -220,41 +211,3 @@ def fts5_auto_heal(conn: sqlite3.Connection, table: str) -> bool:
     except sqlite3.Error as exc:
         logger.error("FTS5 auto-heal failed for %s: %s", table, exc)
         return False
-
-
-def safe_purge_fts5_virtual_table(
-    conn: sqlite3.Connection | ConnectionLike,
-    table: str,
-) -> None:
-    """Safely purge an FTS5 virtual table without leaving shadow-table orphan rows.
-
-    When using External Content or Contentless FTS5 tables (such as ``content=''``
-    or ``content=source_table``), deleting records directly from the backing table
-    or through ON DELETE CASCADE before clearing FTS5 causes FTS5 shadow tables
-    (_data, _idx, _docsize) to become desynchronized and permanently retain orphaned
-    index entries (ghost rows that still match queries).
-
-    To ensure a 100% clean, reproducible purge across all SQLite 3.x builds:
-    1. First, invoke ``delete-all`` on the FTS5 virtual table.
-    2. Fallback to ``DELETE FROM {table}`` if ``delete-all`` is unsupported.
-    3. Run ``rebuild`` if the backing table is already empty (re-syncs shadow tables).
-    4. Run ``optimize`` to compact b-tree segments.
-
-    Supports raw sqlite3.Connection, aiosqlite wrappers, or any connection proxy
-    with an underlying `_conn` attribute.
-    """
-    table = _validate_table_name(table)
-    # Unwrap underlying sync connection if wrapped (e.g. aiosqlite.Connection)
-    raw_conn = getattr(conn, "_conn", conn)
-    try:
-        # Step 1: Explicitly invoke delete-all command to flush inverted index
-        raw_conn.execute(f"INSERT INTO {table}({table}) VALUES('delete-all')")
-    except sqlite3.OperationalError:
-        try:
-            raw_conn.execute(f"DELETE FROM {table}")
-        except sqlite3.OperationalError as exc:
-            logger.warning("FTS5 direct delete failed for %s: %s", table, exc)
-
-    with contextlib.suppress(sqlite3.OperationalError):
-        raw_conn.execute(f"INSERT INTO {table}({table}) VALUES('optimize')")
-    logger.info("FTS5 table safely purged and optimized: %s", table)
