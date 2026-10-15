@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - run_wiki_maintain_job: blocking maintain run (cron) + state persistence
-- schedule_wiki_maintain / WikiMaintainScheduleResult / get_wiki_maintain_run: background run for the REST API and its live state
+- schedule_wiki_maintain / WikiMaintainScheduleResult / get_wiki_maintain_run / cancel_wiki_maintain: background run for the REST API, its live state and its cancellation
 - WikiMaintainState / WikiMaintainRunResult / WikiMaintainModeLiteral
 
 [POS]
@@ -18,7 +18,7 @@ aggregates runner / schemas / state_store.
 
 from __future__ import annotations
 
-from app.services.wiki.maintain.run_registry import get_wiki_maintain_run
+from app.services.wiki.maintain.run_registry import cancel_wiki_maintain, get_wiki_maintain_run
 from app.services.wiki.maintain.runner import (
     WikiMaintainScheduleResult,
     run_wiki_maintain_job,
@@ -40,6 +40,7 @@ __all__ = [
     "WikiMaintainRunResult",
     "WikiMaintainScheduleResult",
     "WikiMaintainState",
+    "cancel_wiki_maintain",
     "get_wiki_maintain_run",
     "load_wiki_maintain_state",
     "run_wiki_maintain_job",

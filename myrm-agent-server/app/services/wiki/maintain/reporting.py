@@ -8,6 +8,7 @@
 - MAX_REPORTED_ISSUES: issues listed in a run result; the counters still cover all of them
 - lint_issue_payloads: issue DTOs of a run result
 - build_summary_text: cron summary of a finished structural/full run, `[SILENT]` when there is nothing to tell
+  (and always for a run the user cancelled)
 - build_list_only_report: Markdown weekly health report of the read-only listing
 
 [POS]
@@ -43,6 +44,8 @@ def lint_issue_payloads(issues: Sequence[LintIssue]) -> list[dict[str, object]]:
 
 def build_summary_text(result: WikiMaintainRunResult) -> str:
     """Silent unless the run changed something or never reached the model it needed."""
+    if result.cancelled:
+        return _SILENT
     changed = result.issues_fixed > 0 or result.connections_discovered > 0 or result.raw_security_removed > 0
     if not changed and not result.ai_unavailable:
         return _SILENT

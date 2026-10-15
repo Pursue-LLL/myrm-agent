@@ -40,3 +40,5 @@ class WikiMaintainRunResult(BaseModel):
     lint_issues: list[dict[str, object]] = Field(default_factory=list)
     # The model was asked and answered nothing: only the structural checks and repairs ran.
     ai_unavailable: bool = False
+    # The user stopped the run between model calls: what was written before stays.
+    cancelled: bool = False

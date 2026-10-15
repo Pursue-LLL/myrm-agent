@@ -1,4 +1,4 @@
-"""POST /wiki/maintain starts a background run (202) and GET /wiki/maintain/status reports it."""
+"""POST /wiki/maintain starts a background run (202), GET /wiki/maintain/status reports it and POST /wiki/maintain/cancel stops it."""
 
 from __future__ import annotations
 
@@ -135,7 +135,7 @@ def test_status_reports_a_running_run_with_its_progress(client: TestClient) -> N
 
 def test_status_of_a_finished_run_carries_the_maintenance_result(client: TestClient) -> None:
     run = _run("full")
-    run.succeed(
+    run.finish(
         WikiMaintainRunResult(
             mode="full",
             issues_found=1,
@@ -171,7 +171,7 @@ def test_status_of_a_finished_run_carries_the_maintenance_result(client: TestCli
 
 def test_status_of_a_run_the_model_never_answered_says_so(client: TestClient) -> None:
     run = _run("full")
-    run.succeed(WikiMaintainRunResult(mode="full", issues_found=2, issues_fixed=1, ai_unavailable=True))
+    run.finish(WikiMaintainRunResult(mode="full", issues_found=2, issues_fixed=1, ai_unavailable=True))
 
     body = client.get("/api/v1/wiki/maintain/status").json()
 
@@ -182,9 +182,61 @@ def test_status_of_a_run_the_model_never_answered_says_so(client: TestClient) ->
 
 def test_status_of_a_finished_run_is_available_unless_the_model_never_answered(client: TestClient) -> None:
     run = _run("full")
-    run.succeed(WikiMaintainRunResult(mode="full"))
+    run.finish(WikiMaintainRunResult(mode="full"))
 
     assert client.get("/api/v1/wiki/maintain/status").json()["result"]["ai_unavailable"] is False
+
+
+def test_cancel_asks_the_running_run_to_stop_and_keeps_reporting_it_as_running(client: TestClient) -> None:
+    run = _run("full")
+    run.on_progress(MaintainProgress(MaintainPhase.LINK_DISCOVERY, 4, 20))
+
+    response = client.post("/api/v1/wiki/maintain/cancel")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["state"], body["phase"], body["done"], body["total"]) == ("running", "link_discovery", 4, 20)
+    assert run.stop.is_set()
+
+
+def test_cancel_can_be_repeated_and_never_fails(client: TestClient) -> None:
+    run = _run("full")
+
+    first = client.post("/api/v1/wiki/maintain/cancel")
+    second = client.post("/api/v1/wiki/maintain/cancel")
+
+    assert (first.status_code, second.status_code) == (200, 200)
+    assert second.json() == first.json()
+    assert run.stop.is_set()
+
+
+def test_cancel_without_a_run_reports_idle(client: TestClient) -> None:
+    response = client.post("/api/v1/wiki/maintain/cancel")
+
+    assert response.status_code == 200
+    assert response.json()["state"] == "idle"
+
+
+def test_cancel_after_the_run_finished_changes_nothing(client: TestClient) -> None:
+    run = _run("full")
+    run.finish(WikiMaintainRunResult(mode="full", connections_discovered=2))
+
+    body = client.post("/api/v1/wiki/maintain/cancel").json()
+
+    assert body["state"] == "succeeded"
+    assert body["result"]["connections_discovered"] == 2
+    assert not run.stop.is_set()
+
+
+def test_status_of_a_cancelled_run_carries_what_it_wrote_before_stopping(client: TestClient) -> None:
+    run = _run("full")
+    run.finish(WikiMaintainRunResult(mode="full", issues_found=3, issues_fixed=1, connections_discovered=2, cancelled=True))
+
+    body = client.get("/api/v1/wiki/maintain/status").json()
+
+    assert body["state"] == "cancelled"
+    assert body["error_code"] is None
+    assert (body["result"]["issues_fixed"], body["result"]["connections_discovered"]) == (1, 2)
 
 
 def test_status_of_a_failed_run_is_an_error_code_without_exception_text(client: TestClient) -> None:

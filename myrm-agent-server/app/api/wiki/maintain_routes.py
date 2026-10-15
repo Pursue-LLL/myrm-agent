@@ -7,12 +7,13 @@
 - app.services.wiki.health_report_service::WikiHealthIssueResponse (POS: health issue response model)
 
 [OUTPUT]
-- router: POST /maintain (202) and GET /maintain/status
+- router: POST /maintain (202), POST /maintain/cancel and GET /maintain/status
 - WikiMaintenanceResponse / WikiMaintainStatusResponse: result and status payloads
 
 [POS]
 HTTP boundary of wiki maintenance. A full run takes minutes, longer than the control-plane proxy waits for a
-response, so POST only starts (or joins) the run and the Settings page follows it through the status route.
+response, so POST only starts (or joins) the run and the Settings page follows it through the status route;
+cancel asks the run to stop between model calls and keeps what it already wrote.
 """
 
 from __future__ import annotations
@@ -47,7 +48,7 @@ class WikiMaintenanceResponse(BaseModel):
 
 
 class WikiMaintainStatusResponse(BaseModel):
-    state: Literal["idle", "running", "succeeded", "failed"] = "idle"
+    state: Literal["idle", "running", "succeeded", "cancelled", "failed"] = "idle"
     mode: Literal["structural", "full"] | None = None
     phase: Literal["drift_review", "link_discovery"] | None = None
     done: int = 0
@@ -114,6 +115,16 @@ async def maintain_wiki(
     if scheduled.skipped_reason == "compile_in_progress":
         raise HTTPException(status_code=409, detail="Wiki compilation is in progress; maintain skipped")
     return _status_response(scheduled.run)
+
+
+@router.post("/cancel", response_model=WikiMaintainStatusResponse)
+async def cancel_maintain_run(
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> WikiMaintainStatusResponse:
+    """Ask the run in flight to stop; its status is returned either way, so calling again changes nothing."""
+    from app.services.wiki.maintain import cancel_wiki_maintain
+
+    return _status_response(cancel_wiki_maintain(agent_id))
 
 
 @router.get("/status", response_model=WikiMaintainStatusResponse)

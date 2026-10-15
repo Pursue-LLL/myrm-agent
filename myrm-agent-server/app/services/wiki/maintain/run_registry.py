@@ -7,9 +7,10 @@
 
 [OUTPUT]
 - MaintainRunState / MaintainErrorCode: lifecycle states and the only failure detail a client sees
-- MaintainRun: live state of one run (phase, done/total, outcome)
+- MaintainRun: live state of one run (phase, done/total, stop event, outcome)
 - start_wiki_maintain_run: claim the scope, or None while a run is in flight
 - get_wiki_maintain_run: the latest run of a scope
+- cancel_wiki_maintain: ask the run in flight to stop between model calls
 
 [POS]
 A full maintain run makes up to 25 sequential LLM calls (minutes), so it runs in the background and a second
@@ -21,7 +22,7 @@ vault health snapshot. The latest run of a scope stays after it ends, until the 
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Literal
 
@@ -37,6 +38,7 @@ type MaintainRunMode = Literal["structural", "full"]
 class MaintainRunState(StrEnum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
+    CANCELLED = "cancelled"
     FAILED = "failed"
 
 
@@ -49,6 +51,8 @@ class MaintainRun:
     total: int = 0
     result: WikiMaintainRunResult | None = None
     error_code: MaintainErrorCode | None = None
+    # Set when the user cancels: the run ends between model calls and keeps what it has already written.
+    stop: asyncio.Event = field(default_factory=asyncio.Event)
     # Background runs only: the event loop keeps no strong reference to a task nobody awaits.
     task: asyncio.Task[None] | None = None
 
@@ -57,9 +61,9 @@ class MaintainRun:
         self.done = progress.done
         self.total = progress.total
 
-    def succeed(self, result: WikiMaintainRunResult) -> None:
+    def finish(self, result: WikiMaintainRunResult) -> None:
         self.result = result
-        self.state = MaintainRunState.SUCCEEDED
+        self.state = MaintainRunState.CANCELLED if result.cancelled else MaintainRunState.SUCCEEDED
 
     def fail(self, error_code: MaintainErrorCode) -> None:
         self.error_code = error_code
@@ -85,3 +89,11 @@ def start_wiki_maintain_run(agent_id: str | None, mode: MaintainRunMode) -> Main
 
 def get_wiki_maintain_run(agent_id: str | None) -> MaintainRun | None:
     return _runs.get(normalize_agent_scope_key(agent_id))
+
+
+def cancel_wiki_maintain(agent_id: str | None) -> MaintainRun | None:
+    """Ask the run in flight to stop; the latest run of the scope either way, so the call is idempotent."""
+    run = get_wiki_maintain_run(agent_id)
+    if run is not None and run.state is MaintainRunState.RUNNING:
+        run.stop.set()
+    return run

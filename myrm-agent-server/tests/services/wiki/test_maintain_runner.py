@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -73,6 +74,12 @@ def test_build_summary_names_the_unavailable_model_next_to_the_structural_fixes(
 
     assert "2 fixed" in summary
     assert "AI model did not respond" in summary
+
+
+def test_build_summary_of_a_cancelled_run_is_silent_whatever_it_fixed() -> None:
+    result = WikiMaintainRunResult(mode="full", issues_found=3, issues_fixed=2, connections_discovered=1, cancelled=True)
+
+    assert build_summary_text(result) == "[SILENT]"
 
 
 @pytest.mark.asyncio
@@ -168,6 +175,36 @@ async def test_pipeline_reports_that_the_model_answered_nothing() -> None:
     assert result.ai_unavailable is True
     assert result.skipped is False
     assert result.summary_text != "[SILENT]"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_hands_the_stop_event_to_the_linter_and_reports_a_stopped_run_as_cancelled() -> None:
+    mock_archiver = MagicMock()
+    mock_archiver._queue.get_stats.return_value = {"processing": 0}
+    mock_archiver._linter.lint_and_maintain = AsyncMock(
+        return_value=LintResult(
+            issues_found=2, issues_fixed=1, connections_discovered=3, duration_ms=1, issues=[_issue()], stopped=True
+        )
+    )
+    stop = asyncio.Event()
+
+    with patch("app.services.wiki.vault.get_wiki_archiver", return_value=mock_archiver):
+        with patch("app.services.wiki.asset_index_service.run_wiki_asset_index", new=AsyncMock()):
+            with patch("app.services.wiki.vault.after_wiki_vault_mutation", new=AsyncMock()):
+                with patch("app.services.wiki.maintain.runner.get_session", _fake_session):
+                    with patch(
+                        "app.services.wiki.dedup_runner.get_wiki_dedup_stats",
+                        return_value=MagicMock(duplicate_groups_pending=0),
+                    ):
+                        with patch("app.services.wiki.maintain.runner.save_wiki_maintain_state", new=AsyncMock()):
+                            result = await _run_maintain_pipeline(
+                                llm=MagicMock(), agent_id="a", mode=MaintainMode.FULL, stop=stop
+                            )
+
+    assert mock_archiver._linter.lint_and_maintain.await_args.kwargs["stop"] is stop
+    assert result.cancelled is True
+    assert (result.issues_fixed, result.connections_discovered) == (1, 3)
+    assert result.summary_text == "[SILENT]"
 
 
 @pytest.mark.asyncio

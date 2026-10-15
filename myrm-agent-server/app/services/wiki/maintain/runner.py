@@ -135,6 +135,7 @@ async def _lint_and_maintain(
     *,
     mode: Literal["structural", "full"],
     on_progress: MaintainProgressCallback | None,
+    stop: asyncio.Event | None,
 ) -> WikiMaintainRunResult:
     from myrm_agent_harness.toolkits.wiki.maintenance.issue_kind import count_open_actions
 
@@ -142,7 +143,7 @@ async def _lint_and_maintain(
     from app.services.wiki.vault import after_wiki_vault_mutation
 
     maintain_mode = MaintainMode.FULL if mode == "full" else MaintainMode.STRUCTURAL
-    lint_result = await archiver._linter.lint_and_maintain(mode=maintain_mode, on_progress=on_progress)
+    lint_result = await archiver._linter.lint_and_maintain(mode=maintain_mode, on_progress=on_progress, stop=stop)
     await run_wiki_asset_index(archiver)
     await after_wiki_vault_mutation(archiver, "maintain")
     _persist_health_snapshot(archiver, agent_id, mode=mode, issues=lint_result.issues)
@@ -158,6 +159,7 @@ async def _lint_and_maintain(
         raw_security_removed_paths=list(lint_result.raw_security_removed_paths),
         lint_issues=lint_issue_payloads(lint_result.issues),
         ai_unavailable=lint_result.ai_unavailable,
+        cancelled=lint_result.stopped,
     )
     result.summary_text = build_summary_text(result)
     return result
@@ -169,6 +171,7 @@ async def _run_maintain_pipeline(
     agent_id: str | None = None,
     mode: MaintainMode | str = MaintainMode.STRUCTURAL,
     on_progress: MaintainProgressCallback | None = None,
+    stop: asyncio.Event | None = None,
 ) -> WikiMaintainRunResult:
     from app.services.wiki.vault import get_wiki_archiver
 
@@ -184,7 +187,7 @@ async def _run_maintain_pipeline(
         if mode_literal == "list_only":
             result = await _list_issues(archiver, agent_id)
         else:
-            result = await _lint_and_maintain(archiver, agent_id, mode=mode_literal, on_progress=on_progress)
+            result = await _lint_and_maintain(archiver, agent_id, mode=mode_literal, on_progress=on_progress, stop=stop)
     except Exception as exc:
         logger.error("Wiki maintain job failed for agent %s: %s", agent_id, exc)
         failed = WikiMaintainRunResult(
@@ -214,6 +217,7 @@ async def _execute_run(
                 agent_id=agent_id,
                 mode=run.mode,
                 on_progress=run.on_progress,
+                stop=run.stop,
             )
     except TimeoutError:
         if budget.expired():
@@ -228,7 +232,7 @@ async def _execute_run(
     if result.skipped and result.skipped_reason == _COMPILE_BUSY_REASON:
         run.fail("compile_in_progress")
     else:
-        run.succeed(result)
+        run.finish(result)
     return result
 
 

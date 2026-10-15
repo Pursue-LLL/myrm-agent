@@ -12,6 +12,7 @@ from myrm_agent_harness.toolkits.wiki.maintenance.progress import MaintainPhase,
 
 from app.services.wiki.maintain import (
     WikiMaintainRunResult,
+    cancel_wiki_maintain,
     get_wiki_maintain_run,
     run_registry,
     run_wiki_maintain_job,
@@ -66,11 +67,57 @@ def test_a_finished_run_frees_the_scope_and_keeps_its_outcome_until_the_next_run
     assert run is not None
     result = _finished(links=3)
 
-    run.succeed(result)
+    run.finish(result)
 
     assert run.state is MaintainRunState.SUCCEEDED
     assert get_wiki_maintain_run("agent-1") is run
     assert run.result is result
+    assert start_wiki_maintain_run("agent-1", "full") is not run
+
+
+def test_cancelling_asks_the_run_in_flight_to_stop_and_can_be_repeated() -> None:
+    run = start_wiki_maintain_run("agent-1", "full")
+    assert run is not None
+
+    assert cancel_wiki_maintain("agent-1") is run
+    assert cancel_wiki_maintain("agent-1") is run
+
+    assert run.stop.is_set()
+    assert run.state is MaintainRunState.RUNNING
+
+
+def test_cancelling_reaches_only_the_run_of_its_own_scope() -> None:
+    mine = start_wiki_maintain_run("agent-1", "full")
+    other = start_wiki_maintain_run("agent-2", "full")
+    assert mine is not None and other is not None
+
+    cancel_wiki_maintain("agent-1")
+
+    assert mine.stop.is_set()
+    assert not other.stop.is_set()
+
+
+def test_cancelling_without_a_run_in_flight_leaves_no_trace() -> None:
+    assert cancel_wiki_maintain("nobody") is None
+
+    run = start_wiki_maintain_run("agent-1", "full")
+    assert run is not None
+    run.finish(_finished())
+
+    assert cancel_wiki_maintain("agent-1") is run
+    assert not run.stop.is_set()
+    assert run.state is MaintainRunState.SUCCEEDED
+
+
+def test_a_run_that_stopped_early_is_cancelled_and_still_frees_the_scope() -> None:
+    run = start_wiki_maintain_run("agent-1", "full")
+    assert run is not None
+    partial = WikiMaintainRunResult(mode="full", issues_fixed=1, connections_discovered=2, cancelled=True)
+
+    run.finish(partial)
+
+    assert run.state is MaintainRunState.CANCELLED
+    assert run.result is partial
     assert start_wiki_maintain_run("agent-1", "full") is not run
 
 
@@ -179,6 +226,33 @@ async def test_scheduling_starts_a_background_run_and_records_its_outcome() -> N
     assert run.state is MaintainRunState.SUCCEEDED
     assert run.result is expected
     assert run.error_code is None
+
+
+@pytest.mark.asyncio
+async def test_cancelling_a_background_run_stops_its_pipeline_and_records_it_as_cancelled() -> None:
+    partial = WikiMaintainRunResult(mode="full", connections_discovered=2, cancelled=True)
+
+    async def _pipeline(*, stop: asyncio.Event, **_kwargs: object) -> WikiMaintainRunResult:
+        await stop.wait()
+        return partial
+
+    with (
+        patch("app.services.wiki.vault.get_wiki_archiver", return_value=_idle_archiver()),
+        patch(_PIPELINE, new=_pipeline),
+    ):
+        scheduled = schedule_wiki_maintain(llm=MagicMock(), agent_id="a", mode=MaintainMode.FULL)
+        run = scheduled.run
+        assert run is not None and run.task is not None
+        await asyncio.sleep(0)
+        assert run.state is MaintainRunState.RUNNING
+
+        cancel_wiki_maintain("a")
+        await asyncio.wait_for(run.task, timeout=5)
+
+    assert run.state is MaintainRunState.CANCELLED
+    assert run.result is partial
+    assert run.error_code is None
+    assert start_wiki_maintain_run("a", "full") is not None
 
 
 @pytest.mark.asyncio
