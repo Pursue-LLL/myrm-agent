@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { locales } from '@/i18n/config';
 import type { WikiMaintainResponse } from '@/services/wikiService';
 
 import {
@@ -25,8 +26,7 @@ function maintainResponse(overrides: Partial<WikiMaintainResponse> = {}): WikiMa
   };
 }
 
-const LOCALES_DIR = path.resolve(__dirname, '../../../../../../../../locales');
-const LOCALE_CODES = ['de', 'en', 'ja', 'ko', 'zh-TW', 'zh'];
+const LOCALES_DIR = path.join(process.cwd(), 'locales');
 
 type MessageTree = { [key: string]: string | MessageTree };
 
@@ -52,7 +52,7 @@ describe('resolveMaintainToast locale contract', () => {
     maintainResponse(),
   ];
 
-  it.each(LOCALE_CODES)('%s has every toast message with exactly the arguments the resolver supplies', (code) => {
+  it.each(locales)('%s has every toast message with exactly the arguments the resolver supplies', (code) => {
     const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
 
     for (const result of outcomes) {
