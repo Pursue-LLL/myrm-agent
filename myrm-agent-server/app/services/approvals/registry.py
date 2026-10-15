@@ -152,7 +152,7 @@ class ApprovalRegistry:
             else:
                 event_type = AppEventType.SKILL_GROWTH_UPDATED
 
-            if event_type is not None and event_type in [e.value for e in AppEventType]:
+            if event_type is not None:
                 bus.publish(
                     AppEvent(
                         event_type=event_type,
