@@ -125,6 +125,46 @@ describe('KanbanTaskCard concurrency queued badge', () => {
   });
 });
 
+describe('KanbanTaskCard attachment badge inside a draggable card', () => {
+  it('opens the drawer on click without letting the card see the press or double-click', () => {
+    const card = { onMouseDown: vi.fn(), onTouchStart: vi.fn(), onDoubleClick: vi.fn() };
+    const onOpenTaskDrawer = vi.fn();
+    const task = makeTask({
+      attachments: [{ file_id: 'f1', filename: 'spec.pdf', content_type: 'application/pdf', url: '/files/f1' }],
+    });
+    render(
+      // The wrapper stands in for the dnd-kit draggable card, which activates on mouse down, touch start and listens for double-click.
+      <div
+        role="presentation"
+        onMouseDown={card.onMouseDown}
+        onTouchStart={card.onTouchStart}
+        onDoubleClick={card.onDoubleClick}
+      >
+        <KanbanTaskCard
+          task={task}
+          allTasks={[]}
+          onMove={noop}
+          onDelete={noop}
+          onRefresh={noop}
+          onOpenTaskDrawer={onOpenTaskDrawer}
+        />
+      </div>,
+    );
+
+    const badge = screen.getByTestId(`kanban-task-attachment-badge-${task.task_id}`);
+    fireEvent.mouseDown(badge);
+    fireEvent.touchStart(badge);
+    fireEvent.click(badge);
+    fireEvent.doubleClick(badge);
+
+    expect(onOpenTaskDrawer).toHaveBeenCalledTimes(1);
+    expect(onOpenTaskDrawer).toHaveBeenCalledWith(task.task_id);
+    expect(card.onMouseDown).not.toHaveBeenCalled();
+    expect(card.onTouchStart).not.toHaveBeenCalled();
+    expect(card.onDoubleClick).not.toHaveBeenCalled();
+  });
+});
+
 describe('KanbanTaskCard details toggle', () => {
   it('names the toggle once and reports its state through aria-expanded', async () => {
     render(<KanbanTaskCard task={makeTask()} allTasks={[]} onMove={noop} onDelete={noop} onRefresh={noop} />);

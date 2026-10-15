@@ -242,7 +242,9 @@ function DraggableTaskCard({
       }}
       title={onOpenTaskDrawer ? t('openDetailsHint') : undefined}
       className={cn(
-        'group/select relative rounded-md transition-all touch-none',
+        // 触屏平移留给浏览器：从卡片上起手的滑动用来滚动看板，只有长按才由 TouchSensor 起拖拽。
+        // 圆角与卡片本体一致，选中描边和拖拽缩放才贴合卡片轮廓。
+        'group/select relative rounded-lg transition-all touch-manipulation',
         task.status !== 'in_review' && 'cursor-grab active:cursor-grabbing',
         selected && 'ring-2 ring-primary/60 ring-offset-1',
         (isDragging || draggedTaskId === task.task_id) && 'opacity-40 scale-95',

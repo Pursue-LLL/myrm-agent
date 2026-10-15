@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import HTTPException
 from myrm_agent_harness.toolkits.kanban.types import (
     TaskStatus,
@@ -16,6 +18,8 @@ from app.api.kanban.schemas import (
     BulkActionRequest,
     BulkActionResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Bulk actions
@@ -81,8 +85,13 @@ async def bulk_action(board_id: str, body: BulkActionRequest) -> BulkActionRespo
                 else:
                     results.append(BulkActionItemResult(task_id=task_id, success=True))
 
-        except Exception as exc:
+        except ValueError as exc:
+            # Business rejections (illegal transition, unmet dependencies, unknown agent) carry a reason meant for callers.
             results.append(BulkActionItemResult(task_id=task_id, success=False, error=str(exc)))
+        except Exception:
+            # One broken item must not abort the batch. The traceback stays in the log; callers only get a generic reason.
+            logger.exception("Bulk %s failed for task %s", body.action, task_id)
+            results.append(BulkActionItemResult(task_id=task_id, success=False, error="Internal error"))
 
     succeeded = sum(1 for r in results if r.success)
     return BulkActionResponse(

@@ -7,6 +7,7 @@ validation, and the actions the endpoint deliberately does not offer.
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -24,6 +25,7 @@ def _reset_singleton() -> None:
     KanbanService._instance = None
 
 
+_BULK_LOGGER = "app.api.kanban.routes.bulk"
 _KNOWN_AGENT_IDS = frozenset({"agent-007", "agent-x"})
 
 
@@ -238,6 +240,58 @@ class TestBulkAction:
         assert by_task[str(free["task_id"])]["success"] is True
         assert client.get(f"/api/v1/kanban/tasks/{child['task_id']}").json()["status"] == status_before
         assert status_before != "ready"
+
+    def test_bulk_business_rejection_keeps_its_reason_and_stays_out_of_the_error_log(
+        self, client: TestClient, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        board = _create_board(client, "BulkReason")
+        bid = str(board["board_id"])
+        parent = _create_task(client, bid, "Parent")
+        child = client.post(
+            f"/api/v1/kanban/boards/{bid}/tasks",
+            json={"title": "Child", "depends_on": [str(parent["task_id"])]},
+        ).json()
+
+        with caplog.at_level(logging.WARNING, logger=_BULK_LOGGER):
+            resp = client.post(
+                f"/api/v1/kanban/boards/{bid}/tasks/bulk-action",
+                json={"task_ids": [str(child["task_id"])], "action": "move", "params": {"status": "ready"}},
+            )
+
+        error = resp.json()["results"][0]["error"]
+        assert error and error != "Internal error"
+        assert [r for r in caplog.records if r.name == _BULK_LOGGER] == []
+
+    def test_bulk_unexpected_error_is_logged_and_hidden_from_the_caller(
+        self, client: TestClient, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        board = _create_board(client, "BulkCrash")
+        bid = str(board["board_id"])
+        broken = str(_create_task(client, bid, "Broken")["task_id"])
+        fine = str(_create_task(client, bid, "Fine")["task_id"])
+        real_move = KanbanService.move_task
+
+        async def flaky_move(self: KanbanService, task_id: str, *args: object, **kwargs: object) -> object:
+            if task_id == broken:
+                raise RuntimeError("disk I/O error at /var/lib/myrm/kanban.db")
+            return await real_move(self, task_id, *args, **kwargs)
+
+        with patch.object(KanbanService, "move_task", flaky_move), caplog.at_level(logging.ERROR, logger=_BULK_LOGGER):
+            resp = client.post(
+                f"/api/v1/kanban/boards/{bid}/tasks/bulk-action",
+                json={"task_ids": [broken, fine], "action": "move", "params": {"status": "ready"}},
+            )
+
+        data = resp.json()
+        by_task = {item["task_id"]: item for item in data["results"]}
+        assert (data["succeeded"], data["failed"]) == (1, 1)
+        assert by_task[fine]["success"] is True
+        assert by_task[broken]["error"] == "Internal error"
+        assert "kanban.db" not in resp.text
+        records = [r for r in caplog.records if r.name == _BULK_LOGGER]
+        assert len(records) == 1
+        assert records[0].exc_info is not None
+        assert "kanban.db" in str(records[0].exc_info[1])
 
     def test_bulk_move_missing_status_param(self, client: TestClient) -> None:
         board = _create_board(client, "BulkNoStatus")

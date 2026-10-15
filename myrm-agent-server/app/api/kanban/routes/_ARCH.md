@@ -58,7 +58,7 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/boards/{board_id}/tasks/bulk-action` | `action` ∈ move/archive/reassign/delete；delete 需 `confirm=true`；逐条执行、允许部分成功；reassign 的 `params.agent_id` 为空串表示取消指派 |
+| POST | `/boards/{board_id}/tasks/bulk-action` | `action` ∈ move/archive/reassign/delete；delete 需 `confirm=true`；逐条执行、允许部分成功；reassign 的 `params.agent_id` 为空串表示取消指派；业务拒绝（`ValueError`，含依赖未满足、未知 Agent）把原因原样回在该条结果里，非预期异常记 ERROR 日志（含堆栈），该条结果只回通用的 `Internal error`，其余条目照常执行 |
 
 ### `task_meta.py`
 

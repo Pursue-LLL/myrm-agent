@@ -5,6 +5,7 @@
  * - ./kanban-styles (POS: 优先级、状态点、诊断严重度样式与耗时格式化)
  * - ./useKanbanTaskCardDetails、./KanbanTaskCardDetails (POS: 展开详情的数据层与面板)
  * - ./KanbanTaskCardActions、./KanbanSpecifyDialog、./KanbanDecomposeDialog (POS: 卡片菜单与两个任务对话框)
+ * - ./kanban-card-gestures::ISOLATE_FROM_CARD (POS: 附件徽标的手势隔离，点它只开抽屉，不起拖拽)
  * - @/hooks/agent/useAgentName (POS: Agent 显示名)
  *
  * [OUTPUT]
@@ -37,6 +38,7 @@ import KanbanTaskCardActions from './KanbanTaskCardActions';
 import KanbanTaskCardDetails from './KanbanTaskCardDetails';
 import KanbanSpecifyDialog from './KanbanSpecifyDialog';
 import KanbanDecomposeDialog from './KanbanDecomposeDialog';
+import { ISOLATE_FROM_CARD } from './kanban-card-gestures';
 import { useKanbanTaskCardDetails } from './useKanbanTaskCardDetails';
 import { useAgentName } from '@/hooks/agent/useAgentName';
 
@@ -128,7 +130,7 @@ export default function KanbanTaskCard({
     <div
       id={`kanban-task-${task.task_id}`}
       data-theme-shell="surface"
-      className="relative group rounded-full border bg-background hover:shadow transition-shadow"
+      className="relative group rounded-lg border bg-background hover:shadow transition-shadow"
     >
       <div className="p-2.5">
         <div className={cn('absolute left-0 top-2 bottom-2 w-0.5 rounded-full', PRIORITY_INDICATORS[task.priority])} />
@@ -249,9 +251,7 @@ export default function KanbanTaskCard({
               <button
                 type="button"
                 data-testid={`kanban-task-attachment-badge-${task.task_id}`}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                }}
+                {...ISOLATE_FROM_CARD}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

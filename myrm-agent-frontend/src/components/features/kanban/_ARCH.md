@@ -19,14 +19,14 @@
 | KanbanColumnAddFooter.tsx | 辅助 | Triage / Ready 列底部的新增入口，展开后是内联新增表单 | ✅ |
 | KanbanMoveConfirmDialogs.tsx | 辅助 | 「依赖未满足，强制晋升」与「确认移动到该列」两个确认框，只渲染 | ✅ |
 | KanbanReplanDialog.tsx | 辅助 | DAG 计划修订的可视化差异弹窗（新增 / 修改 / 移除的任务与依赖边，提交前做不变量检查） | ✅ |
-| KanbanDndComponents.tsx              | 核心 | DnD 渲染（KanbanDropColumn + DraggableTaskCard + Running 泳道 + Drawer 入口；卡片自身登记为 dnd-kit activator，卡片内按钮与菜单的 Enter/Space 不会被劫持成键盘拖拽；卡片左上角的勾选框与 Ctrl/Shift 点选走同一条选择路径，悬停 / 聚焦 / 触屏显现、已有选中项时所有卡片常显，其手势经 `ISOLATE_FROM_CARD` 隔离，不起拖拽也不开抽屉）                                                                                                                                                             | ✅    |
-| useKanbanDnD.ts                      | 核心 | 拖拽状态管理 hook（传感器/事件/终态确认；服务端必拒的流转在落点拦下并提示，批量拖拽只搬能直接流转的卡片，被拦下的合并成一次提示）                                                                                                                                                                                               | ✅    |
+| KanbanDndComponents.tsx              | 核心 | DnD 渲染（KanbanDropColumn + DraggableTaskCard + Running 泳道 + Drawer 入口；卡片自身登记为 dnd-kit activator，卡片内按钮与菜单的 Enter/Space 不会被劫持成键盘拖拽；卡片左上角的勾选框与 Ctrl/Shift 点选走同一条选择路径，悬停 / 聚焦 / 触屏显现、已有选中项时所有卡片常显，其手势经 `ISOLATE_FROM_CARD` 隔离，不起拖拽也不开抽屉；卡片包装层是 `touch-action: manipulation` 且圆角与卡片本体一致，触屏滑动留给页面滚动，长按才拖拽）                                                                                                                                                             | ✅    |
+| useKanbanDnD.ts                      | 核心 | 拖拽状态管理 hook（传感器：鼠标位移 8px / 触屏长按 250ms / 键盘，不用 `PointerSensor`；事件/终态确认；服务端必拒的流转在落点拦下并提示，批量拖拽只搬能直接流转的卡片，被拦下的合并成一次提示）                                                                                                                                                                                               | ✅    |
 | useKanbanAddTask.ts                  | 辅助 | 任务内联创建表单状态 hook（含 agent/model override 状态）                                                                                                                                                                                 | ✅    |
 | KanbanTaskCard.tsx                   | 核心 | 单任务卡片渲染（首屏决策帧要素/推荐动作微条/状态/进度；操作入口为 KanbanTaskCardActions；附件 badge 点击打开 Drawer；展开详情交给 KanbanTaskCardDetails 渲染、useKanbanTaskCardDetails 持有数据）                                                                                                                                              | ✅    |
 | KanbanTaskCardDetails.tsx            | 辅助 | 任务卡片展开后的详情面板（依赖 / 被依赖 / 运行记录 / 事件时间线 / 评论输入），只渲染 `useKanbanTaskCardDetails` 交来的数据，自身无状态 | ✅    |
 | useKanbanTaskCardDetails.ts          | 辅助 | 卡片展开详情的数据层 hook：每次展开才取运行记录、事件与依赖，失败给出本地化提示；依赖增删与评论成功后更新本地列表并通知看板刷新 | ✅    |
 | KanbanTaskCardActions.tsx            | 辅助 | 卡片单一操作菜单（详情 / Specify / Decompose / 状态流转 / 回收 / 删除，回收与删除只发起确认请求；失败任务的「就绪」入口显示为「重试」）；触发器常驻 DOM，桌面悬停或键盘聚焦显现、触屏常显（`REVEAL_ON_HOVER`）；触发器与 portal 菜单上的指针手势不冒泡给 dnd 卡片（否则按下起拖拽、双击开抽屉；隔离属性来自 kanban-card-gestures） | ✅    |
-| kanban-card-gestures.ts              | 辅助 | `ISOLATE_FROM_CARD`：卡片内控件（菜单触发器与 portal 菜单、勾选框）的手势隔离属性，按下 / 点击 / 双击不冒泡给 dnd 卡片 | ✅    |
+| kanban-card-gestures.ts              | 辅助 | `ISOLATE_FROM_CARD`：卡片内控件（菜单触发器与 portal 菜单、勾选框）的手势隔离属性，鼠标按下 / 触摸按下 / 点击 / 双击不冒泡给 dnd 卡片，按下类事件与传感器激活事件一一对应（契约测试兜底）；附件徽标同样展开 | ✅    |
 | KanbanTaskActionConfirm.tsx          | 辅助 | 删除 / 回收 / 重试 / 归档的确认对话框与 `useKanbanTaskActionConfirm` 状态 hook：由看板视图统一持有，卡片菜单、抽屉、拖拽只发起请求；`requestMove` 按 `resolveMoveIntent` 分流（重试与归档先确认，其余直接流转）；文案交代后果（删除连同运行记录一并清除、等待它的任务可能变为就绪并自动开跑；回收会停止执行中的 Agent 并回到就绪；重试会再次消耗模型额度，且失败后已继续推进的下游任务不会重跑；归档后任务离开看板且无法恢复）；关闭动画期间保留任务标题，文案不闪空 | ✅    |
 | useKanbanTaskActions.ts              | 辅助 | 回收 / 删除 / 重试 / 归档的执行函数：确认后调 API、刷新列表、给出本地化提示（失败不透出服务端原文）；归档复用看板的乐观移动 | ✅    |
 | kanban-transitions.ts                | 核心 | 状态流转的单一判定点：`isServerMoveAllowed(from, to)` 读取共享契约 `shared/config/kanban_move_guard.json`（服务端守卫的镜像，含「原地不动」；服务端契约测试用真实 move 接口逐格核对，守卫改了而表没改会让测试失败）；`resolveMoveIntent(from, to)` 在它之上返回 move / retry / archive / blocked；`moveLabelKey` 给出入口文案 key（失败 → 就绪显示「重试」）。卡片菜单、抽屉、拖拽、批量条共用 | ✅    |
@@ -75,6 +75,13 @@
 - Esc 清除选择，但已被菜单或对话框用来关闭自己（`defaultPrevented`）的那一下不算。
 - 每张卡片左上角有勾选框，与 Ctrl/Cmd 点选、Shift 区间共用 `onTaskSelect` 这一条选择路径：悬停、键盘聚焦、触屏显现，已有选中项时所有卡片常显；Space 切换（Enter 按复选框语义不触发）。这是触屏与键盘用户进入多选的入口。勾选框的描边用完整主色并加 `!`：`globals.css` 里不在 layer 内的 `* { border-color }` 会盖掉普通的 border 色类，不加则未选中的圆圈与底色对比度只有约 1.2:1（浅 / 深主题实测，现为 3.4:1 / 6.7:1）。
 - 批量拖拽与批量条的移动走同一条路径（`runBulkAction`，一次请求、逐条结果）：卡片乐观移动，只回滚被拒的，部分失败给一条汇总提示，被拒的卡片保持选中，整体失败则全部回滚；多选拖拽里真正需要移动的只剩一张卡（其余已在目标列）时按单卡处理。单卡拖拽走单任务接口与「强制晋升」确认——那是单卡决策，确认框只有一个槽位，批量路径不弹它；批量接口不接受 `force`，强制晋升只存在于单任务 move 接口。
+
+## 拖拽与触屏手势
+
+- 传感器按设备分开：鼠标位移 8px 起拖，触屏长按 250ms 起拖（长按期间位移超 5px 就取消，交还给页面滚动），键盘由聚焦的卡片自身激活。不使用 `PointerSensor`：它同样接管触屏指针，位移到阈值就起拖拽，卡片上的滑动滚不动看板（真实 Chromium 触屏模拟实测：从卡片上滑动，看板被拖拽并反向滚动 330px，还发出一次移动请求）。
+- 卡片包装层是 `touch-action: manipulation`：触屏平移留给浏览器，从卡片上起手的滑动用来滚动看板，长按才拖拽；`touch-none` 会让卡片上的任何滑动都失去滚动。
+- 手势隔离：卡片内控件（勾选框、菜单触发器与 portal 菜单、附件徽标）展开 `ISOLATE_FROM_CARD`，按下类事件须覆盖鼠标与触屏传感器的激活事件（`onMouseDown`、`onTouchStart`）；键盘传感器只在卡片自身被聚焦时激活，控件内的按键不需要隔离。`__tests__/kanban-card-gestures.test.ts` 读取看板真实传感器核对这一对应，换传感器而没改隔离属性会让测试失败。
+- 验证范围：Chromium 触屏模拟（滑动滚动看板且不起拖拽、24px 快滑不起拖拽、长按起拖并能放进相邻列、从勾选框与菜单触发器长按不起拖拽）与桌面鼠标（位移不足 8px 不起拖拽、较长位移起拖并发出一次移动）。iOS Safari、Android 真机、手写笔与读屏软件没有验证。另外，无头 Chromium 在页面加载后约 2 秒内会丢掉触屏滚动手势（从空白列区域起手也一样，闲置 6 秒后正常），与传感器无关，自动化走查要等页面稳定后再测。
 
 ## Stale Write Guard（乐观 UI 防冲突）
 

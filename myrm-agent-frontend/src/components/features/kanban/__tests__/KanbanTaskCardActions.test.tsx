@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import KanbanTaskCardActions from '../KanbanTaskCardActions';
@@ -155,15 +155,16 @@ describe('KanbanTaskCardActions menu', () => {
 
 describe('KanbanTaskCardActions inside a draggable card', () => {
   function renderInsideCard() {
-    const card = { onClick: vi.fn(), onDoubleClick: vi.fn(), onPointerDown: vi.fn() };
+    const card = { onClick: vi.fn(), onDoubleClick: vi.fn(), onMouseDown: vi.fn(), onTouchStart: vi.fn() };
     const handlers = { onMove: vi.fn(), onDelete: vi.fn(), onSpecify: vi.fn(), onDecompose: vi.fn() };
     render(
-      // The wrapper stands in for the dnd-kit draggable card, which listens for pointer, click and double-click.
+      // The wrapper stands in for the dnd-kit draggable card, which activates on mouse down and touch start and listens for click and double-click.
       <div
         role="presentation"
         onClick={card.onClick}
         onDoubleClick={card.onDoubleClick}
-        onPointerDown={card.onPointerDown}
+        onMouseDown={card.onMouseDown}
+        onTouchStart={card.onTouchStart}
       >
         <KanbanTaskCardActions task={makeTask('ready')} {...handlers} />
       </div>,
@@ -178,8 +179,10 @@ describe('KanbanTaskCardActions inside a draggable card', () => {
 
     const button = trigger();
     await user.dblClick(button);
+    fireEvent.touchStart(button);
 
-    expect(card.onPointerDown).not.toHaveBeenCalled();
+    expect(card.onMouseDown).not.toHaveBeenCalled();
+    expect(card.onTouchStart).not.toHaveBeenCalled();
     expect(card.onClick).not.toHaveBeenCalled();
     expect(card.onDoubleClick).not.toHaveBeenCalled();
   });
@@ -189,9 +192,12 @@ describe('KanbanTaskCardActions inside a draggable card', () => {
     const card = renderInsideCard();
 
     await user.click(trigger());
-    await user.click(screen.getByRole('menuitem', { name: 'moveTo.running' }));
+    const item = screen.getByRole('menuitem', { name: 'moveTo.running' });
+    fireEvent.touchStart(item);
+    await user.click(item);
 
-    expect(card.onPointerDown).not.toHaveBeenCalled();
+    expect(card.onMouseDown).not.toHaveBeenCalled();
+    expect(card.onTouchStart).not.toHaveBeenCalled();
     expect(card.onClick).not.toHaveBeenCalled();
   });
 });

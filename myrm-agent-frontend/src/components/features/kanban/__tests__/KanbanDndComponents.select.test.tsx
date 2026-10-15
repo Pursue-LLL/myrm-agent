@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DndContext } from '@dnd-kit/core';
 import type { useTranslations } from 'next-intl';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import { KanbanDropColumn } from '../KanbanDndComponents';
+import { useKanbanDnD } from '../useKanbanDnD';
 
 const stableT = (key: string, values?: Record<string, string>) => (values?.title ? `${key}:${values.title}` : key);
 
@@ -56,12 +58,27 @@ function trackKeydownPrevented(key: string) {
   return { prevented, stop: () => document.removeEventListener('keydown', listener) };
 }
 
+/** 与看板同一套传感器：起拖拽的判定（鼠标位移 / 触屏长按）和勾选框的手势隔离要放在一起验证。 */
+function BoardDnd({ onDragStart, children }: { onDragStart: () => void; children: ReactNode }) {
+  const { sensors } = useKanbanDnD({
+    tasks: [],
+    selectedTaskIds: [],
+    onMoveTask: vi.fn(),
+    onMoveBlocked: vi.fn(),
+  });
+  return (
+    <DndContext sensors={sensors} onDragStart={onDragStart}>
+      {children}
+    </DndContext>
+  );
+}
+
 function renderColumn(selectedTaskIds: string[] = []) {
   const onTaskSelect = vi.fn();
   const onOpenTaskDrawer = vi.fn();
   const onDragStart = vi.fn();
   render(
-    <DndContext onDragStart={onDragStart}>
+    <BoardDnd onDragStart={onDragStart}>
       <KanbanDropColumn
         status="ready"
         tasks={tasks}
@@ -77,7 +94,7 @@ function renderColumn(selectedTaskIds: string[] = []) {
         onOpenTaskDrawer={onOpenTaskDrawer}
         t={stableT as unknown as ReturnType<typeof useTranslations<'kanban'>>}
       />
-    </DndContext>,
+    </BoardDnd>,
   );
   return { onTaskSelect, onOpenTaskDrawer, onDragStart };
 }
@@ -176,5 +193,26 @@ describe('DraggableTaskCard selection checkbox', () => {
     const otherBox = screen.getByRole('checkbox', { name: 'selectTask:Title b' });
     expect(otherBox.className).toContain('opacity-100');
     expect(otherBox.className).not.toContain('opacity-0');
+  });
+});
+
+describe('DraggableTaskCard drag activation', () => {
+  // dnd-kit 在拖拽结束后 50ms 内仍保留捕获阶段的 click 拦截监听，不等它撤掉会吞掉后面用例的点击。
+  afterEach(() => new Promise((resolve) => setTimeout(resolve, 60)));
+
+  it('starts a drag when the card body is pressed and moved, but not when the checkbox is', async () => {
+    const { onDragStart } = renderColumn();
+    const user = userEvent.setup();
+    const press = (target: HTMLElement) => [
+      { keys: '[MouseLeft>]', target, coords: { clientX: 0, clientY: 0 } },
+      { coords: { clientX: 40, clientY: 0 } },
+      { keys: '[/MouseLeft]' },
+    ];
+
+    await user.pointer(press(screen.getByRole('checkbox', { name: 'selectTask:Title a' })));
+    expect(onDragStart).not.toHaveBeenCalled();
+
+    await user.pointer(press(screen.getByText('Title a')));
+    expect(onDragStart).toHaveBeenCalledTimes(1);
   });
 });
