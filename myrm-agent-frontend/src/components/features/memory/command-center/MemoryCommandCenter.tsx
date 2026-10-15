@@ -29,7 +29,8 @@ import {
   mergeLiveStreamEvents,
   resolveReplaySessionId,
 } from '@/components/features/memory/replay/memoryLiveStream';
-import { ActSection, ObserveSection, UnderstandSection, VerifySection } from './MemoryCommandCenterPanels';
+import { ActSection, ObserveSection, VerifySection } from './MemoryCommandCenterPanels';
+import { UnderstandSection } from './MemoryCommandCenterUnderstandSection';
 import {
   getMemoryCommandCenter,
   getConsolidationLastSummary,

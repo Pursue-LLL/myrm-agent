@@ -53,7 +53,12 @@
 | `MemoryCommandCenterAdvancedPanels.tsx` | 组件 | 高级面板：导入/导出/图谱/Doctor                                                                                                                                                                          | ✅    |
 | `MemoryCommandCenterChrome.tsx`         | 组件 | 命令中心顶栏、Tab 与搜索框                                                                                                                                                                               | ✅    |
 | `MemoryCommandCenterDoctorPanel.tsx`    | 组件 | 记忆系统 Doctor 诊断面板；含静态检查、可执行诊断、结构化 benchmark 指标卡片与历史趋势（最近 N 次 recall@5/ndcg@5/mrr/latency p50/p95 + 上次 delta + 类别通过率 + run 状态徽章 + embedding 模型漂移提示） | ✅    |
-| `MemoryCommandCenterPanels.tsx`         | 组件 | 主内容区 Tab 面板编排（含 migration 最近导入 batch 的执行就绪/首轮 outcome 展示、adapter readiness 可视化与 missing 状态迁移向导动作闭环）                                                               | ✅    |
+| `MemoryCommandCenterPanels.tsx`         | 组件 | 主内容区观察/治理/验证分区面板编排（含 migration 最近导入 batch 的执行就绪/首轮 outcome 展示、adapter readiness 可视化与 missing 状态迁移向导动作闭环）                                                               | ✅    |
+| `MemoryCommandCenterUnderstandSection.tsx` | 组件 | 「理解」分区面板：记忆能力卡片挂载与影响/冲突展示 | ✅    |
+| `MemoryCommandCenterObservationPanels.tsx` | 组件 | 只读观测子面板：影响行、实时事件流、运行时状态、成本与回放 | ✅    |
+| `MemoryCommandCenterGovernancePanels.tsx` | 组件 | 治理子面板：治理动作行、迁移覆盖与适配器状态、整合回滚卡片 | ✅    |
+| `MemoryCommandCenterPrimitives.tsx`     | 组件 | 分区面板共用原子组件：版块、指标块、运行时行、空态 | ✅    |
+| `memoryCommandCenterFormat.ts`          | 组件 | 分区面板共用枚举守卫与文案格式化 | ✅    |
 
 ### dialogs/
 
