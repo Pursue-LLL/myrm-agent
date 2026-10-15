@@ -283,11 +283,13 @@ def test_every_instruction_text_endpoint_is_an_entry_or_an_exemption() -> None:
     entries = {(path, function) for path, function, _ in _ENTRIES}
     callerless = handlers_without_caller(public_api_handlers(), operations_without_caller(dynamic_matches_any=True))
     unregistered = sorted(h for h in _repository_handlers() - callerless if h not in entries and h not in _EXEMPT)
+    unscanned = len((_repository_handlers() & callerless) - entries - _EXEMPT.keys())
 
     assert not unregistered, (
         "These write endpoints take instruction-like text a model will follow but do not screen it. Call the gate "
         "(services/risk/refusal.py::reject_if_risky) and add the endpoint to _ENTRIES, or add it to _EXEMPT with the "
-        f"reason its text is not for an agent to follow: {unregistered}"
+        f"reason its text is not for an agent to follow: {unregistered}. A further {unscanned} such endpoints have no "
+        "caller and are not scanned."
     )
 
 
