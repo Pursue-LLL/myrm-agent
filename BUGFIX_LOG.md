@@ -3481,7 +3481,7 @@ except Exception:
 | 发现日期 | 2026-10-15（对「审批超时计时器与手动处理二选一」做竞品对照，再按前后端契约逐条核对） |
 | 修复日期 | 2026-10-15 |
 | 严重程度 | P3（只有在计时器到点的同一时刻点击才会触发，后果是提示不对，不是数据错；第 2 项无运行时影响） |
-| 影响范围 | server：`app/services/agent/stream_session/{orchestrator.py,orchestrator_turn_body.py,_ARCH.md}`、`app/services/agent/goals/{goal_branch_stash.py,goal_registry.py,_ARCH.md}`、`app/services/agent/gateway.py`、`app/core/channel_bridge/goal_handler.py`、`app/services/kanban/task_ops.py`、`app/server/lifespan.py`、`app/api/mcp/endpoint.py`；测试：`tests/services/agent/stream_session/test_orchestrator_launch_handoff.py`、`tests/unit/services/agent/test_stream_resume_dependencies.py`、`tests/services/agent/test_goal_branch_stash.py`；frontend 仅加测试：`src/lib/approval/__tests__/resumeApprovalStream.test.ts`、`src/services/__tests__/resumePlanConfirmStream.test.ts` |
+| 影响范围 | server：`app/services/agent/stream_session/{orchestrator.py,orchestrator_turn_body.py,_ARCH.md}`、`app/services/agent/goals/{goal_branch_stash.py,goal_registry.py,_ARCH.md}`、`app/services/agent/gateway.py`、`app/core/channel_bridge/goal_handler.py`、`app/services/kanban/task_ops.py`、`app/server/lifespan.py`、`app/api/mcp/endpoint.py`；测试：`tests/services/agent/stream_session/test_orchestrator_launch_handoff.py`、`tests/unit/services/agent/test_stream_resume_dependencies.py`、`tests/services/agent/test_goal_branch_stash.py`；frontend 仅加测试与文档：`src/lib/approval/__tests__/resumeApprovalStream.test.ts`、`src/services/__tests__/resumePlanConfirmStream.test.ts`、`src/lib/approval/_ARCH.md`、`src/store/chat/_ARCH.md`；server 测试文档 `tests/_ARCH.md` |
 | 出现次数 | 未测量（没有线上记录，也没有可统计的埋点；第 1 项的触发窗口只有计时器到点前后的几秒） |
 | 关联 | `BUG-AGENT-2026-10-15-010`（第 2 项：清理任务不再广播恢复，超时恢复只由 harness 计时器完成，本条的二选一就建立在这一点上）；提交 `9e088ef76d`（第 2 项）与含本条的提交（第 1 项），本地提交，未 push |
 
@@ -3516,6 +3516,7 @@ except Exception:
 6. `resolve_if_first` 在启动回合之前就消耗了键，这一点与拆分之前一致；`gateway.py` 里其它已有的 `no-any-return` 等 mypy 错误没有处理；预检查给首字节增加的耗时没有测量（它是内存里的一次查找，旁边本来就有一次数据库查询）。
 7. 通用恢复路径（`sendMessage` 带恢复值：澄清回答、目录授权、浏览器接管）收到 HTTP 409 时，`streamConsumer.ts:253-254` 按旧约定一律当作「智能体忙」抛 `AgentBusyError`；三个调用方（`ClarificationInput.tsx`、`DirectoryApprovalInput.tsx`、`useBrowserTakeoverActions.ts`）都只是弹失败提示、卡片保持未回答（接管卡会重新打开）。本条之前，这几类恢复输给计时器时收到的是帧内英文错误。哪一种对用户更好没有做对比验证，前端没有改；要像审批抽屉那样显示本地化的「已过期」并收起卡片，需要给这几个调用方各加一条处理和六套语言文案。
 8. 仲裁键只在 `schedule()` 时被清掉（harness `scheduler.py:92`），Web 路径只有 `tool_approval_request`、`clarification_required`、`directory_request_required` 会在回合结束时重新挂计时器（`stream_finalize.py:539-555`），`approval_required` 类中断（浏览器接管属此类，harness `stream_dispatcher.py:144-148`）不挂。同一聊天里已有一次恢复消耗了键之后，接管恢复会被 `resolve_if_first` 当作「已被超时处理」拒绝：用真实函数复现，`extract_approval_timeout` 对接管形态返回 `None`，同一个键连续两次 `resolve_if_first` 得到 `True`、`False`。这个判断在拆分前的 409 版本（`ab896f588f`）里就存在，不是本条引入，本条没有改；根治需要 harness 提供按键清除的公共接口，涉及发版顺序，已记入路线图第 203 项。没有在浏览器里端到端复现「接管两次」的流程。
+9. `resolve_if_first` 现在在受理前消耗键，早于后台回合里的 `load_chat_history`、`apply_migration_bound_project` 与接管记录定案（`orchestrator_turn_body.py:125-146`）；这几步若抛错，回合以「Stream setup failed」收尾，而键已消耗、计时器已取消，用户重试得到 409，该审批没有自动恢复，只能发新消息绕过（这条路径是否顺畅没有验证）。此前的帧内判断排在这几步之后，它们失败时键保持原样。窗口里只有数据库读写，失败概率没有测量；根治办法与第 8 项相同（按键清除的公共接口）。
 
 ### 踩坑经验
 
