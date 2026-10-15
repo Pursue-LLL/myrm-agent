@@ -15,7 +15,6 @@ export * from './memory/fourLayerPromotion';
 export * from './memory/decayLifecycle';
 export * from './memory/graphRrf';
 export * from './memory/hindsight';
-export * from './memory/codeCompaction';
 export * from './memory/experienceGene';
 export * from './memory/driftDefense';
 export * from './memory/sovereignMigration';

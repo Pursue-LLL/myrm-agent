@@ -11,9 +11,6 @@ from app.api.memory import onboarding
 from app.api.memory.budget_packing_router import (
     router as budget_packing_router,
 )
-from app.api.memory.code_memory_compaction_router import (
-    router as code_memory_compaction_router,
-)
 from app.api.memory.conversation_lineage_defense_router import (
     router as conversation_lineage_defense_router,
 )
@@ -132,7 +129,6 @@ router.include_router(four_layer_promotion_router, tags=["memory-four-layer-prom
 router.include_router(decay_lifecycle_router, tags=["memory-decay-lifecycle"])
 router.include_router(graph_rrf_router, tags=["memory-graph-rrf"])
 router.include_router(hindsight_reflection_router, tags=["memory-hindsight-reflection"])
-router.include_router(code_memory_compaction_router, tags=["memory-code-compaction"])
 router.include_router(experience_gene_router, tags=["memory-experience-genes"])
 router.include_router(memory_drift_router, tags=["memory-drift-defense"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
