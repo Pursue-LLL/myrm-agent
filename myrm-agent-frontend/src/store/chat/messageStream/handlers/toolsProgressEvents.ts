@@ -13,42 +13,6 @@ import * as H from './handlerDeps';
 
 export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, added, actions } = ctx;
-  if (data.type === H.AgentEventType.TOOL_PROGRESS) {
-    const { tool, progress } = data as { tool: string; progress: { done: number; total: number; failed: number } };
-    if (progress && added) {
-      const stepKey = `tool_progress:${tool}`;
-      const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
-      actions.setMessages((state) => {
-        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-        if (messageIndex === -1) {
-          return;
-        }
-        const msg = state.messages[messageIndex];
-        if (!msg.progressSteps) {
-          msg.progressSteps = [];
-        }
-        const existing = msg.progressSteps.find((s) => s.step_key === stepKey);
-        const status: H.ProgressItem['status'] = progress.failed > 0 ? 'warning' : 'success';
-        const patch: Partial<H.ProgressItem> = {
-          step_key: stepKey,
-          tool_name: tool,
-          progress_percent: pct,
-          notify_progress: pct,
-          notify_step_index: progress.done,
-          notify_total_steps: progress.total,
-          reason: `${progress.done}/${progress.total}${progress.failed ? ` (${progress.failed} failed)` : ''}`,
-          status,
-        };
-        if (existing) {
-          Object.assign(existing, patch);
-        } else {
-          msg.progressSteps.push(patch as H.ProgressItem);
-        }
-      });
-    }
-    return done(ctx);
-  }
-
   if (data.type === H.AgentEventType.TOOL_HEARTBEAT) {
     if (added) {
       actions.setMessages((state) => {

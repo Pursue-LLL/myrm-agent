@@ -25,7 +25,6 @@ vi.mock('@/lib/approval/approvalAlertService', () => ({
 
 vi.mock('../handlerDeps', () => ({
   AgentEventType: {
-    TOOL_PROGRESS: 'tool_progress',
     TOOL_HEARTBEAT: 'tool_heartbeat',
     TASKS_STEPS: 'tasks_steps',
     SOURCES: 'sources',
