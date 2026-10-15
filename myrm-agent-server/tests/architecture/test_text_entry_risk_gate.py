@@ -4,18 +4,23 @@ A secret that gets past one entry is stored (a cron prompt, a task card) or deli
 Each entry below must call the gate that fits it, and every gate must end in ``screen_user_text``, the single place
 that decides, records and fails closed. An endpoint that accepts task-instruction text of a user belongs in this table:
 a scan of the write endpoints finds the ones whose request carries an instruction-like field, and each of them is either
-an entry or an exemption with the reason its text is not one an agent is going to follow.
+an entry or an exemption with the reason its text is not one an agent is going to follow. A route that nothing calls (no
+frontend source, no registered external consumer) has no user typing into it: the route-consumer gate demands that it be
+deleted or given a caller, and the endpoint is scanned from the moment it has one.
 """
 
 from __future__ import annotations
 
 import ast
 import re
-from collections.abc import Mapping
+from collections.abc import Collection, Iterable, Mapping
 from functools import cache
 from pathlib import Path
 
 import pytest
+
+from tests.support.public_api_app import ApiHandler, public_api_handlers
+from tests.support.route_consumers import Operation, operations_without_caller
 
 _APP = Path(__file__).resolve().parents[2] / "app"
 
@@ -207,6 +212,18 @@ def instruction_text_handlers(api_sources: Mapping[str, str], model_sources: Map
     return found
 
 
+def handlers_without_caller(handlers: Iterable[ApiHandler], no_caller: Collection[Operation]) -> set[tuple[str, str]]:
+    """(path, function) of every mounted handler all of whose routes have no caller.
+
+    A handler that is not mounted, or has one route with a caller, is not in the result: only a route proven to have no
+    caller is left out of the completeness check.
+    """
+    callerless_routes: dict[tuple[str, str], list[bool]] = {}
+    for handler in handlers:
+        callerless_routes.setdefault((handler.file, handler.function), []).append((handler.method, handler.path) in no_caller)
+    return {key for key, flags in callerless_routes.items() if all(flags)}
+
+
 @cache
 def _repository_handlers() -> frozenset[tuple[str, str]]:
     def read(directory: Path, needle: str = "") -> dict[str, str]:
@@ -238,10 +255,23 @@ def test_scan_finds_fields_through_nesting_inheritance_and_plain_parameters() ->
     assert instruction_text_handlers(api, models) == {("a.py", "inherited"), ("a.py", "nested"), ("a.py", "plain_param")}
 
 
+def test_only_a_handler_whose_every_route_has_no_caller_is_skipped() -> None:
+    handlers = [
+        ApiHandler("a.py", "dead", "POST", "/dead"),
+        ApiHandler("a.py", "shared", "POST", "/shared"),
+        ApiHandler("a.py", "shared", "PUT", "/shared"),
+        ApiHandler("a.py", "live", "POST", "/live"),
+    ]
+    no_caller = {("POST", "/dead"), ("POST", "/shared")}
+
+    assert handlers_without_caller(handlers, no_caller) == {("a.py", "dead")}
+
+
 @pytest.mark.architecture
 def test_every_instruction_text_endpoint_is_an_entry_or_an_exemption() -> None:
     entries = {(path, function) for path, function, _ in _ENTRIES}
-    unregistered = sorted(h for h in _repository_handlers() if h not in entries and h not in _EXEMPT)
+    callerless = handlers_without_caller(public_api_handlers(), operations_without_caller())
+    unregistered = sorted(h for h in _repository_handlers() - callerless if h not in entries and h not in _EXEMPT)
 
     assert not unregistered, (
         "These write endpoints take instruction-like text a model will follow but do not screen it. Call the gate "
