@@ -71,7 +71,6 @@ import { ConversationLineageDefenseCard } from './ConversationLineageDefenseCard
 import { PromptCachePreservingDeltaCard } from './PromptCachePreservingDeltaCard';
 import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
 import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
-import { AutoMemoryConsolidationStudioCard } from './AutoMemoryConsolidationStudioCard';
 import { MemoryCubeStudioCard } from './MemoryCubeStudioCard';
 import { DreamCognitiveStudioCard } from './DreamCognitiveStudioCard';
 import { QuadrupleRetrievalStudioCard } from './QuadrupleRetrievalStudioCard';
@@ -300,9 +299,6 @@ export const UnderstandSection = ({
 
     {/* Budget Greedy Marginal Value Recall Packing Studio Card (Item 122 P2) */}
     <BudgetGreedyPackingStudioCard />
-
-    {/* Idle & Budget Gated Auto-Memory Consolidation Studio Card (Item 123 P1) */}
-    <AutoMemoryConsolidationStudioCard />
 
     {/* Memory Cube Scoped Isolation & Dynamic Mounting Studio Card (Item 124 P0) */}
     <MemoryCubeStudioCard />

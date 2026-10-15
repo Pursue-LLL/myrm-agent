@@ -38,7 +38,6 @@ export * from './memory/conversationLineageDefense';
 export * from './memory/ephemeralDelta';
 export * from './memory/twoLayerDialectic';
 export * from './memory/budgetPacking';
-export * from './memory/autoMemoryConsolidation';
 export * from './memory/memCube';
 export * from './memory/dreamCognitive';
 export * from './memory/quadrupleRetrieval';

@@ -85,11 +85,6 @@
 | `MarginalValuePackingView.tsx` | 辅助 | 边际价值装箱看板子组件：展示已入选片段列表、淘汰抑制片段分析与编译生成的 `<recalled_memories>` XML 上下文装箱代码块 | ✅    |
 | `TokenAccountingInspectorView.tsx` | 辅助 | 双轨 Token 计量与调优控制台子组件：呈现计费 Token vs 存储 Token 成本节省对比、多样性惩罚权重 λ 与贪心背包填缝参数交互模拟 | ✅    |
 | `budgetPackingFallbacks.ts` | 辅助 | 预算贪心边际价值召回装箱离线及单测仿真数据集 | ✅    |
-| `AutoMemoryConsolidationStudioCard.tsx` | 核心 | 闲置自适应与双门禁记忆沉淀中枢卡片：对标 CodeX 自动化记忆双门禁，对话太短不记、额度没了不记，闲置自适应唤醒提取六维资产切片 | ✅    |
-| `AutoMemoryGatingHudBar.tsx` | 辅助 | 自动记忆沉淀 4 维 HUD 监控条：呈现综合准入判定、闲置感知计时、对话轮数与信息密度、Token 预算保护与开销比 | ✅    |
-| `SixDimensionalArtifactViewer.tsx` | 辅助 | 六维结构化记忆切片全景看板：直观展示工作目录、关键主题、用户偏好、领域经验、失败教训、工具调用习惯六大工程维度 | ✅    |
-| `GatingRulesConfigView.tsx` | 辅助 | 双门禁准入与闲置自适应阈值调优面板：支持调节闲置超时时长、最小轮数门禁、信息密度阈值、Token 保护底线与开销占比上限 | ✅    |
-| `autoMemoryConsolidationFallbacks.ts` | 辅助 | 闲置自适应与双门禁记忆沉淀离线及单测仿真数据集 | ✅    |
 | `MemoryCubeStudioCard.tsx` | 核心 | Memory Cube 空间治理与动态挂载中枢卡片：对标 MemOS Memory Cube，多智能体私有与共享记忆空间物理隔离，读写分离动态挂载调优与拦截防护 | ✅    |
 | `MemoryCubeHudBar.tsx` | 辅助 | Memory Cube 4 维 HUD 监控条：呈现活跃 Cube 空间数、记忆记录量、挂载拓扑数与严格隔离拦截状态 | ✅    |
 | `MemoryCubeMatrixView.tsx` | 辅助 | Memory Cube 空间矩阵卡片与记录检视器：支持 global_shared/project_workspace/agent_private/ephemeral_task 四大作用域过滤与新建 Cube | ✅    |

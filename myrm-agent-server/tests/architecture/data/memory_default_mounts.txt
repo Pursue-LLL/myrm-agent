@@ -48,7 +48,6 @@ conversation_lineage_defense_router
 ephemeral_delta_router
 two_layer_dialectic_router
 budget_packing_router
-auto_memory_consolidation_router
 mem_cube_router
 dream_cognitive_router
 quadruple_retrieval_router

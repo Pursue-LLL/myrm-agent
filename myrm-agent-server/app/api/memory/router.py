@@ -11,9 +11,6 @@ from app.api.memory import (
     onboarding,
     sqlite_vec,
 )
-from app.api.memory.auto_memory_consolidation_router import (
-    router as auto_memory_consolidation_router,
-)
 from app.api.memory.auto_recall_router import (
     router as auto_recall_router,
 )
@@ -264,10 +261,6 @@ router.include_router(
 router.include_router(
     budget_packing_router,
     tags=["memory-budget-packing"],
-)
-router.include_router(
-    auto_memory_consolidation_router,
-    tags=["memory-auto-consolidation"],
 )
 router.include_router(
     mem_cube_router,
