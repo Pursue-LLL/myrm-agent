@@ -78,6 +78,7 @@
 | `__tests__/ReasoningProcessAccordion.test.tsx` | 测试 | 思维链折叠展开、流式呼吸态、秒级耗时标签与一键复制剪贴板单测 | ✅ |
 | `__tests__/ClarificationInput.resumeRefusal.test.tsx` | 测试 | 续跑流式进行中卡片已关闭、输入区释放；resume 未送达时放回卡片并提示失败；超时已先行处理时卡片保持关闭并提示已超时；续跑流在同一行新发的澄清保持待答；续跑流已收尾该卡后连接中断不重开；legacy clarify API 服务端接受后才关卡 | ✅ |
 | `__tests__/DirectoryApprovalInput.resumeRefusal.test.tsx` | 测试 | 续跑流式进行中卡片已关闭、输入区释放且尚未刷新访问根；resume 未送达时放回卡片、不记录授权、不刷新访问根并提示失败；超时已先行拒绝时不记录授权、卡片保持关闭并提示已超时；派发成功后记录授权；续跑流在同一行上发出新目录请求时该请求保持待答；续跑流已收尾该请求后连接中断不重开 | ✅ |
+| `__tests__/hitlCardTestKit.ts` | 测试 | 两张卡的拒绝 / 超时测试共用的 `deferred<T>()`：把 resume 请求悬在半空，模拟「续跑仍在流式进行」，由测试决定何时成功或失败 | ✅ |
 | `__tests__/PlanConfirmationCard.lateResolve.test.tsx` | 测试 | 续跑结束后标记计划已确认；续跑流在同一行新发的计划保持待确认；流已先把同一份计划标成已确认时仍显示用户选择的「跳过」；续流无法发出时保持待确认并提示失败 | ✅ |
 | `progress-steps/` | 目录 | Agent 进度步骤渲染与子 renderers | [_ARCH.md](progress-steps/_ARCH.md) |
 

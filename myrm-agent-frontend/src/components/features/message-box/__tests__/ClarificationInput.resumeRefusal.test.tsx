@@ -18,6 +18,7 @@ import type { ClarificationForm, Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 
 import ClarificationInput from '../ClarificationInput';
+import { deferred } from './hitlCardTestKit';
 
 const pipeline = vi.hoisted(() => ({ sendMessage: vi.fn<() => Promise<boolean>>() }));
 
@@ -52,15 +53,6 @@ const isAnswered = () => useChatStore.getState().messages[0]?.clarification?.ans
 function skipClarification(isResumeMode = true): void {
   render(<ClarificationInput messageId={MESSAGE_ID} answered={false} form={form} isResumeMode={isResumeMode} />);
   fireEvent.click(screen.getByRole('button', { name: 'skip' }));
-}
-
-/** A request that stays in flight until the test settles it, like a resumed run that is still streaming. */
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
 }
 
 const secondForm: ClarificationForm = {

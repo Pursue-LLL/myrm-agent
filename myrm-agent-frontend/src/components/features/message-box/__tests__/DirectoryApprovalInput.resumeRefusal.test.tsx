@@ -20,6 +20,7 @@ import type { Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 
 import DirectoryApprovalInput from '../DirectoryApprovalInput';
+import { deferred } from './hitlCardTestKit';
 
 const pipeline = vi.hoisted(() => ({ sendMessage: vi.fn<() => Promise<boolean>>() }));
 
@@ -50,19 +51,10 @@ const pendingDirectory: Message = {
   createdAt: new Date(),
   content: '',
   role: 'assistant',
-  directoryRequest: { answered: false, isResumeMode: true, request: { path: '/data/reports', writable: true } },
+  directoryRequest: { answered: false, request: { path: '/data/reports', writable: true } },
 };
 
 const isAnswered = () => useChatStore.getState().messages[0]?.directoryRequest?.answered;
-
-/** A request that stays in flight until the test settles it, like a resumed run that is still streaming. */
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
-}
 
 /** Rendered with the props MessageBox and MessageInput pass: the card closes itself through the store. */
 function grantDirectory(): void {
@@ -70,7 +62,6 @@ function grantDirectory(): void {
     <DirectoryApprovalInput
       messageId={MESSAGE_ID}
       answered={false}
-      isResumeMode
       request={{ path: '/data/reports', writable: true }}
     />,
   );
@@ -121,7 +112,6 @@ describe('DirectoryApprovalInput resume', () => {
       useChatStore.setState((state) => {
         state.messages[0].directoryRequest = {
           answered: false,
-          isResumeMode: true,
           request: { path: '/data/exports', writable: false },
         };
       });
@@ -180,7 +170,6 @@ describe('DirectoryApprovalInput resume', () => {
       useChatStore.setState((state) => {
         state.messages[0].directoryRequest = {
           answered: true,
-          isResumeMode: true,
           request: { path: '/data/exports', writable: false },
         };
       });

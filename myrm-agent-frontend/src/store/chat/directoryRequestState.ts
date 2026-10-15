@@ -10,9 +10,6 @@ export function normalizeHydratedDirectoryRequest(
   if (directoryRequest.answered !== true) {
     directoryRequest.answered = false;
   }
-  if (directoryRequest.isResumeMode === undefined) {
-    directoryRequest.isResumeMode = true;
-  }
   return directoryRequest;
 }
 

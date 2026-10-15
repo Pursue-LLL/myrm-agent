@@ -10,21 +10,25 @@
  *
  * [POS]
  * Shared answer flow of the clarification and directory cards. A resume request streams the whole resumed run, and the
- * composer stays taken over until the card's row says answered, so the card closes before the request instead of after.
+ * composer stays taken over until the card's row says answered, so the card closes as soon as the request is sent.
  */
 
 import useChatStore from '@/store/useChatStore';
 
 import { ApprovalExpiredError } from './streamErrors';
+import type { Message } from './types';
 
 export type HitlCardKind = 'clarification' | 'directoryRequest';
 
+const cardRow = (messages: Message[], messageId: string) =>
+  messages.find((m) => m.messageId === messageId && m.role === 'assistant');
+
 const findCard = (kind: HitlCardKind, messageId: string) =>
-  useChatStore.getState().messages.find((m) => m.messageId === messageId && m.role === 'assistant')?.[kind];
+  cardRow(useChatStore.getState().messages, messageId)?.[kind];
 
 export function setHitlCardAnswered(kind: HitlCardKind, messageId: string, answered: boolean): void {
   useChatStore.setState((state) => {
-    const card = state.messages.find((m) => m.messageId === messageId && m.role === 'assistant')?.[kind];
+    const card = cardRow(state.messages, messageId)?.[kind];
     if (card) {
       card.answered = answered;
     }

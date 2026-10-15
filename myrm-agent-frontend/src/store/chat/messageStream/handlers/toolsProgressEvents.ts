@@ -282,7 +282,6 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       const directoryRequest = {
         answered: false,
-        isResumeMode: true,
         request: normalizedRequest,
       };
       if (messageIndex !== -1) {

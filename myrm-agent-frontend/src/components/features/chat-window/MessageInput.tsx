@@ -524,7 +524,6 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               <DirectoryApprovalInput
                 messageId={pendingDirectoryRequest.messageId}
                 answered={pendingDirectoryRequest.directoryRequest.answered}
-                isResumeMode={pendingDirectoryRequest.directoryRequest.isResumeMode}
                 request={pendingDirectoryRequest.directoryRequest.request}
               />
             ) : (

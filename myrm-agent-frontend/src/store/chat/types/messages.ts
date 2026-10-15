@@ -169,7 +169,6 @@ export type Message = {
   };
   directoryRequest?: {
     answered: boolean;
-    isResumeMode?: boolean;
     request?: {
       reason?: string;
       path?: string;
@@ -241,7 +240,6 @@ export interface AsyncUserMessageEntry {
   status?: 'pending' | 'resolved';
   resolvedText?: string | null;
 }
-
 
 export interface File {
   id?: string; // 文件 ID（StorageProvider 分配）

@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * - @/store/useChatStore::sendMessage (POS: chat SSE resume 发送)
- * - @/store/chat/hitlCardAnswer::answerHitlCardWithResume / setHitlCardAnswered (POS: 点击即把卡片行置 answered 释放被卡片接管的输入框；resume 未送达则放回)
+ * - @/store/chat/hitlCardAnswer::answerHitlCardWithResume (POS: 点击即把卡片行置 answered 释放被卡片接管的输入框；resume 未送达则放回)
  * - @/lib/tauri::isTauriEnvironment (POS: 桌面原生 picker 分流)
  * - @/store/chat/streamErrors::ApprovalExpiredError (POS: 超时已先行拒绝该请求，回答不再生效)
  * - @/lib/sessionAccessRefresh::refreshSessionAccessRoots (POS: grant 后 FE store 与 DB 对齐)
@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { isTauriEnvironment } from '@/lib/tauri';
 import useChatStore from '@/store/useChatStore';
-import { answerHitlCardWithResume, setHitlCardAnswered } from '@/store/chat/hitlCardAnswer';
+import { answerHitlCardWithResume } from '@/store/chat/hitlCardAnswer';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 
@@ -41,16 +41,10 @@ type DirectoryDecision = { granted: true; path: string; writable: boolean } | { 
 interface DirectoryApprovalInputProps {
   messageId: string;
   answered: boolean;
-  isResumeMode?: boolean;
   request?: DirectoryRequestPayload;
 }
 
-export default function DirectoryApprovalInput({
-  messageId,
-  answered,
-  isResumeMode = true,
-  request,
-}: DirectoryApprovalInputProps) {
+export default function DirectoryApprovalInput({ messageId, answered, request }: DirectoryApprovalInputProps) {
   const t = useTranslations('chat.directoryRequest');
   const sendMessage = useChatStore((state) => state.sendMessage);
   const chatId = useChatStore((state) => state.chatId);
@@ -107,18 +101,13 @@ export default function DirectoryApprovalInput({
   const submitDecision = async (decision: DirectoryDecision) => {
     setSubmitting(true);
     try {
-      if (isResumeMode) {
-        await answerHitlCardWithResume('directoryRequest', messageId, () =>
-          sendMessage('', messageId, undefined, decision),
-        );
-      }
+      await answerHitlCardWithResume('directoryRequest', messageId, () =>
+        sendMessage('', messageId, undefined, decision),
+      );
       if (decision.granted && chatId) {
         await refreshSessionAccessRoots(chatId, {
           optimistic: { path: decision.path, writable: decision.writable, source: 'hitl_grant' },
         });
-      }
-      if (!isResumeMode) {
-        setHitlCardAnswered('directoryRequest', messageId, true);
       }
     } catch (error) {
       reportAnswerError(error);

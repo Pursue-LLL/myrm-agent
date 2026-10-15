@@ -640,7 +640,6 @@ const MessageBox = ({
               <DirectoryApprovalInput
                 messageId={message.messageId}
                 answered={message.directoryRequest.answered}
-                isResumeMode={message.directoryRequest.isResumeMode}
                 request={message.directoryRequest.request}
               />
             )}
