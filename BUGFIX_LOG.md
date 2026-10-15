@@ -4223,7 +4223,7 @@ except Exception:
 
 1. 登记表在内存里：进程重启或崩溃后合并本身也没了，行为与修复前一样（父任务已是「已完成」而分支没合并，子任务若在 BACKLOG 需要手动晋升），不是回归，也没有补偿。
 2. 等待最长 120 秒，到点子任务照常启动、仍从旧基线切出，只写一条 WARNING 日志，不写事件；单次合并里最长的 git 步骤自己的超时是 60 秒（`git_worktree.py:293`）。
-3. 父任务合并失败或冲突时，子任务照常启动、从旧基线切出：这是原有语义（失败已记 `MERGE_CONFLICT` 事件，worktree 保留）。
+3. 父任务合并失败或冲突时，子任务照常启动、从旧基线切出：这是原有语义（失败已记 `MERGE_CONFLICT` 事件，worktree 保留）。已在 `BUG-AGENT-2026-10-15-024` 处理：现在子任务会被拦下，等用户确认。
 4. 等待期间子任务在看板上已是「运行中」，时长就是合并耗时（实测 0.3～1 秒）；批量移到「已完成」时合并排在 `git_slot` 后面，被手动晋升的子任务最多等 120 秒。
 5. 没有用真实智能体 / LLM、没有用 SQL 存储跑；真实 runner 在 `resolve_workspace` 之前还有 `build_task_context`、`resolve_agent_profile` 两个读库步骤，没有量它们的耗时（推断是毫秒级，远小于合并的 300ms 以上，这是推断）。
 6. 菱形里「一个父任务手动完成、另一个由派发器完成」的混合场景没有单独造测试；两条路径登记进同一张表，机理与手动晋升用例相同。
@@ -4237,3 +4237,54 @@ except Exception:
 3. `asyncio.wait_for` 超时会取消被等待的任务，`asyncio.wait` 不会：等别人的合并只能用后者（变异测试验证过）。
 4. 竞态测试不要靠运气：给合并加确定性延迟，修复前的用例才会稳定变红，而不是偶尔变红。
 5. 「读码得出的终态集合」要核对定义：`_TERMINAL_STATUSES` 是 `COMPLETED / FAILED / ARCHIVED`（`types.py:111`），失败路径同样会放行下游（`dispatcher_failure.py:295-296`）；差点据此得出错误的反对理由，查了定义才发现不成立。
+
+## BUG-AGENT-2026-10-15-024: 父任务的合并失败（冲突、无法提交、异常）后，依赖它的看板子任务照常启动：在缺少父任务代码的仓库上白跑一轮，完成后把基于旧基线的改动自动合进主分支
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15 |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（人群与 `BUG-AGENT-2026-10-15-023` 相同：手填分支 + 设了依赖 + 由派发器自动执行；低频，但发生时子任务的整轮模型调用白费，并且它的改动会自动合进主分支，没有人看过） |
+| 影响范围 | server：`app/services/kanban/task_runner/worktree/landing_gate.py`（新）、`worktree/__init__.py`、`runner.py`、`worktree_landing.py` 与 `move_orchestrator.py`（只改注释）、三份 `_ARCH.md`、`tests/services/kanban/test_parent_landing_gate.py`（新）；frontend：`src/lib/kanban/kanbanBlockedReason.ts`（新）、`KanbanTaskCard.tsx`、`KanbanTaskDrawerDetails.tsx`、六个语言文件、对应测试与两份 `_ARCH.md`；harness 没有改 |
+| 出现次数 | 1（复核 `BUG-AGENT-2026-10-15-023` 局限 3 时发现，一次性探针用真实 git 临时仓库复现，没有保留输出，也没有用户数据） |
+| 关联 | 处理 `BUG-AGENT-2026-10-15-023` 局限 3；提交：server `3b56e0ea09`、frontend `9ccf271db9`；本地提交，未 push |
+
+### 现象
+
+1. 父任务合并失败时，`record_merge_failure`（`worktree_ops.py:90-100`）写一条 `MERGE_CONFLICT` 事件并保留 worktree，但派发器仍放行下游：`move_orchestrator.py` 的旧注释明确写着合并失败也放行。`BUG-AGENT-2026-10-15-023` 只保证「合并结束后再放行」，没有管合并失败。
+2. 一次性探针（真实 git，已删除）：父任务与主分支上的另一个提交冲突、合并失败后，子任务从没有父任务产出的基线切出；子任务完成后，它的合并自动进入主分支，主分支随后无法导入。
+
+### 根因
+
+放行点不看父任务的合并结果；失败只写在事件里，没有任何放行逻辑读它。「失败就保留 worktree 让用户处理」只对父任务自己成立，依赖它的任务不知道。
+
+### 修复
+
+1. 新增 `landing_gate.hold_for_unlanded_parents`，在 `KanbanTaskRunner.run` 最开头调用，早于 `build_task_context`：先 `wait_parents_landed`，再对每个「已完成、有分支、与本任务同仓库」的父任务倒序读事件，先遇到 `MERGE_CONFLICT` 算没落地，先遇到 `COMPLETED` / `APPROVED` 算已落地（父任务重新完成会清掉旧失败）。有未确认的失败就返回 HUMAN 阻塞，`metadata_patch` 写入 `acknowledged_merge_failure_event_id`（最新失败事件的 id）。
+2. 用户把任务解除阻塞就是确认：同一个失败不会再拦第二次，更新的失败（事件 id 更大）才会再拦。没有新增任务状态，没有改 harness，没有改提示词与工具描述（拦下时没有构建上下文，也没有调用模型，下一轮运行的提示词不变）。
+3. 阻塞原因是一句固定的英文（频道命令、诊断、活动流原样展示它）；卡片与抽屉经 `blockedReasonText` 按整句匹配译成界面语言（六种语言），未知原因原样显示。
+4. 同步更新旧注释（`worktree_landing.py`、`move_orchestrator.py`）和文档。
+
+### 验证
+
+1. 新增 `test_parent_landing_gate.py` 16 例（真实 git、真实派发器合并钩子、真实 `worktree_ops` 事件、内存存储）：失败被拦、`COMPLETED` / `APPROVED` 两种完成方式、先等进行中的合并再判断、已落地不拦、无父任务不拦、混合父任务被拦、重新完成清掉旧失败、确认后不再拦、更新的失败再拦、其他仓库的父任务不拦、未完成的父任务不拦、无分支父任务不读事件、runner 层被拦时不构建上下文也不启动智能体、确认后启动智能体。
+2. 变异：判定函数 8 种（忽略 `APPROVED`、忽略确认、忽略仓库、不等合并、历史上任何失败都算、忽略状态、忽略无分支、取最小事件 id）全部被杀；runner 调用点 3 种（不拦、忽略返回值、拦在 `build_task_context` 之后）全部被杀；前端卡片与抽屉各去掉 `blockedReasonText` 的变异被杀。每次变异后都恢复并复跑，文件与备份逐字节一致。
+3. `pytest tests/services/kanban tests/api/kanban`：722 通过、2 失败、1 跳过；2 个失败都不在本条的文件里：`test_extract_enabled_empty_pdf_falls_back_to_reference`，以及 `test_move_with_result_and_metadata`（断言显示移交元数据多出 `summary` 与 `timestamp`，来自他人未提交的 `move_orchestrator.py` 改动）。把 server 提交单独导出到干净目录（不含他人未提交的改动，补上 `shared/` 与 `.env.test`）跑 `tests/services/kanban`：239 通过、11 失败，11 个都是 `test_task_runner.py` 的 `TestBuildMultimodal*`（导出里报 `module 'app.core' has no attribute 'storage'`，是导出环境缺东西，不在本条文件里）；`test_kanban_attach_handler.py` 在导出里收集不到（harness 没有 `toolkits.storage.types`），`tests/api/kanban` 在导出里同样导入失败，没有跑。本条的 16 例在导出里通过。
+4. 前端：`vitest run src/components/features/kanban src/lib/kanban` 35 个文件 458 例通过；prettier、oxlint、`verify:theme-colors`、i18n 的六语言对齐与 ICU 检查通过；`tsc --noEmit` 有 74 个错误，输出里没有本条改动的任何文件。`verify:i18n` 的引用检查、`verify:hardcoded-copy`、`verify:orphans`、`verify:a11y` 因他人进行中的文件失败，输出里没有本条的文件。
+5. `ruff check`、`ruff format --check` 通过；pyright（`-p pyproject.toml`）对改动的 5 个源文件 0 错误 0 警告。
+
+### 局限
+
+1. 完成与合并之间进程崩溃：没有任何事件，视为已落地（与 `BUG-AGENT-2026-10-15-023` 局限 1 同源，原有行为）。
+2. 用户手动合并了保留的分支、却没有重新完成父任务：子任务仍会被拦一次，点继续即可；原因句写的是「合并失败，处理后继续」，不声称「没有合并」。
+3. 只看「已完成且有分支」的父任务：无分支的任务从不合并；`FAILED` / `ARCHIVED` 的父任务不看。
+4. 原因句与前端映射靠整句匹配，改一边要改另一边；前端测试按这句原文断言。
+5. 没有用 SQL 存储、真实智能体跑；事件顺序依赖协议契约（`protocols.py:247`「按 event_id 升序」），SQL 适配器是 `order_by(id)`（`sqlalchemy_store.py:959`），只是读码确认。无父任务的任务多一次 `list_parents`，带分支的父任务多读一次事件，这部分开销没有测。
+6. 既有的 `_USAGE_LIMIT_BLOCK_REASON`（`runner.py`）在同一位置仍显示英文，这次没有动。
+7. 评估后放弃的方案：读 git 状态判断是否落地（要起子进程，极性容易判反，且崩溃后与事件不一致）；新增任务状态（要改 harness 与全部状态消费方）；把拦截放在 `resolve_workspace`（`kanban_attach_handler.py` 也会调它，用户附加到任务时不该触发拦截）。
+
+### 踩坑经验
+
+1. 对象字面量做查表，`'constructor'` 这类继承属性会被当成已知键（红测里返回了 `function Object()`）：键来自外部字符串时用 `Map`。
+2. 修一个已知局限前先问「拦谁、谁来解」：这次把确认记在任务自己的元数据里（失败事件 id），而不是新状态，用户的一次「继续」即同意，不会反复拦。
+3. 旧代码里写明的策略（这里是「合并失败也放行」）要连同注释和测试一起核对，改行为时一并改掉，否则下一个读代码的人会照旧注释把它改回去。
